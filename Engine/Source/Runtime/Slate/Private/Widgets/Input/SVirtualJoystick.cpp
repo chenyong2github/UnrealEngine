@@ -22,27 +22,17 @@ FORCEINLINE float SVirtualJoystick::GetBaseOpacity()
 	return (State == State_Active || State == State_CountingDownToInactive) ? ActiveOpacity : InactiveOpacity;
 }
 
-void SVirtualJoystick::FControlInfo::Reset()
+void SVirtualJoystick::FControlData::Reset()
 {
 	// snap the visual center back to normal (for controls that have a center on touch)
 	VisualCenter = CorrectedCenter;
 }
 
-void SVirtualJoystick::Construct( const FArguments& InArgs )
+void SVirtualJoystick::Construct(const FArguments& InArgs)
 {
-	State = State_Inactive;
 	bVisible = true;
 	bPreventReCenter = false;
 	
-	// just set some defaults
-	ActiveOpacity = 1.0f;
-	InactiveOpacity = 0.1f;
-	TimeUntilDeactive = 0.5f;
-	TimeUntilReset = 2.0f;
-	ActivationDelay = 0.f;
-	CurrentOpacity = InactiveOpacity;
-	StartupDelay = 0.f;
-
 	// listen for displaymetrics changes to reposition controls
 	FSlateApplication::Get().GetPlatformApplication()->OnDisplayMetricsChanged().AddSP(this, &SVirtualJoystick::HandleDisplayMetricsChanged);
 }
@@ -79,7 +69,7 @@ bool SVirtualJoystick::ShouldDisplayTouchInterface()
 	GConfig->GetBool(TEXT("/Script/Engine.InputSettings"), TEXT("bAlwaysShowTouchInterface"), bAlwaysShowTouchInterface, GInputIni);
 
 	// do we want to show virtual joysticks?
-	return FPlatformMisc::GetUseVirtualJoysticks() || bAlwaysShowTouchInterface || ( FSlateApplication::Get().IsFakingTouchEvents() && FPlatformMisc::ShouldDisplayTouchInterfaceOnFakingTouchEvents());
+	return FPlatformMisc::GetUseVirtualJoysticks() || bAlwaysShowTouchInterface || (FSlateApplication::Get().IsFakingTouchEvents() && FPlatformMisc::ShouldDisplayTouchInterfaceOnFakingTouchEvents());
 }
 
 static int32 ResolveRelativePosition(float Position, float RelativeTo, float ScaleFactor)
@@ -116,7 +106,7 @@ static bool PositionIsInside(const FVector2D& Center, const FVector2D& Position,
 		Position.Y <= Center.Y + BoxSize.Y * 0.5f;
 }
 
-int32 SVirtualJoystick::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled ) const
+int32 SVirtualJoystick::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const
 {
 	int32 RetLayerId = LayerId;
 
@@ -127,9 +117,9 @@ int32 SVirtualJoystick::OnPaint( const FPaintArgs& Args, const FGeometry& Allott
 
 		for (int32 ControlIndex = 0; ControlIndex < Controls.Num(); ControlIndex++)
 		{
-			const FControlInfo& Control = Controls[ControlIndex];
+			const FControlData& Control = Controls[ControlIndex];
 
-			if (Control.Image2.IsValid())
+			if (Control.Info.Image2.IsValid())
 			{
 				FSlateDrawElement::MakeBox(
 					OutDrawElements,
@@ -137,13 +127,13 @@ int32 SVirtualJoystick::OnPaint( const FPaintArgs& Args, const FGeometry& Allott
 					AllottedGeometry.ToPaintGeometry(
 					Control.VisualCenter - FVector2D(Control.CorrectedVisualSize.X * 0.5f, Control.CorrectedVisualSize.Y * 0.5f),
 					Control.CorrectedVisualSize),
-					Control.Image2->GetSlateBrush(),
+					Control.Info.Image2->GetSlateBrush(),
 					ESlateDrawEffect::None,
 					ColorAndOpacitySRGB
 					);
 			}
 
-			if (Control.Image1.IsValid())
+			if (Control.Info.Image1.IsValid())
 			{
 				FSlateDrawElement::MakeBox(
 					OutDrawElements,
@@ -151,7 +141,7 @@ int32 SVirtualJoystick::OnPaint( const FPaintArgs& Args, const FGeometry& Allott
 					AllottedGeometry.ToPaintGeometry(
 					Control.VisualCenter + Control.ThumbPosition - FVector2D(Control.CorrectedThumbSize.X * 0.5f, Control.CorrectedThumbSize.Y * 0.5f),
 					Control.CorrectedThumbSize),
-					Control.Image1->GetSlateBrush(),
+					Control.Info.Image1->GetSlateBrush(),
 					ESlateDrawEffect::None,
 					ColorAndOpacitySRGB
 					);
@@ -176,11 +166,11 @@ FReply SVirtualJoystick::OnTouchStarted(const FGeometry& MyGeometry, const FPoin
 {
 //	UE_LOG(LogTemp, Log, TEXT("Pointer index: %d"), Event.GetPointerIndex());
 
-	FVector2D LocalCoord = MyGeometry.AbsoluteToLocal( Event.GetScreenSpacePosition() );
+	FVector2D LocalCoord = MyGeometry.AbsoluteToLocal(Event.GetScreenSpacePosition());
 
 	for (int32 ControlIndex = 0; ControlIndex < Controls.Num(); ControlIndex++)
 	{
-		FControlInfo& Control = Controls[ControlIndex];
+		FControlData& Control = Controls[ControlIndex];
 
 		// skip controls already in use
 		if (Control.CapturedPointerIndex == -1)
@@ -229,7 +219,7 @@ FReply SVirtualJoystick::OnTouchMoved(const FGeometry& MyGeometry, const FPointe
 
 	for (int32 ControlIndex = 0; ControlIndex < Controls.Num(); ControlIndex++)
 	{
-		FControlInfo& Control = Controls[ControlIndex];
+		FControlData& Control = Controls[ControlIndex];
 
 		// is this control the one captured to this pointer?
 		if (Control.CapturedPointerIndex == Event.GetPointerIndex())
@@ -250,12 +240,12 @@ FReply SVirtualJoystick::OnTouchMoved(const FGeometry& MyGeometry, const FPointe
 
 FReply SVirtualJoystick::OnTouchEnded(const FGeometry& MyGeometry, const FPointerEvent& Event)
 {
-	for ( int32 ControlIndex = 0; ControlIndex < Controls.Num(); ControlIndex++ )
+	for (int32 ControlIndex = 0; ControlIndex < Controls.Num(); ControlIndex++)
 	{
-		FControlInfo& Control = Controls[ControlIndex];
+		FControlData& Control = Controls[ControlIndex];
 
 		// is this control the one captured to this pointer?
-		if ( Control.CapturedPointerIndex == Event.GetPointerIndex() )
+		if (Control.CapturedPointerIndex == Event.GetPointerIndex())
 		{
 			// release and center the joystick
 			Control.ThumbPosition = FVector2D(0, 0);
@@ -265,7 +255,7 @@ FReply SVirtualJoystick::OnTouchEnded(const FGeometry& MyGeometry, const FPointe
 			Control.bSendOneMoreEvent = true;
 
 			// Pass event as unhandled if time is too short
-			if ( Control.bNeedUpdatedCenter )
+			if (Control.bNeedUpdatedCenter)
 			{
 				Control.bNeedUpdatedCenter = false;
 				return FReply::Unhandled();
@@ -278,21 +268,24 @@ FReply SVirtualJoystick::OnTouchEnded(const FGeometry& MyGeometry, const FPointe
 	return FReply::Unhandled();
 }
 
-bool SVirtualJoystick::HandleTouch(int32 ControlIndex, const FVector2D& LocalCoord, const FVector2D& ScreenSize)
+FVector2D SVirtualJoystick::ComputeThumbPosition(int32 ControlIndex, const FVector2D& LocalCoord, float* OutDistanceToTouchSqr, float* OutDistanceToEdgeSqr)
 {
-	FControlInfo& Control = Controls[ControlIndex];
+	float DistanceToTouchSqr = 0.0f;
+	float DistanceToEdgeSqr = 0.0f;
+	FVector2D Position;
+	const FControlData& Control = Controls[ControlIndex];
 
 	// figure out position around center
 	FVector2D Offset = LocalCoord - Controls[ControlIndex].VisualCenter;
 	// only do work if we aren't at the center
 	if (Offset == FVector2D(0, 0))
 	{
-		Control.ThumbPosition = Offset;
+		Position = Offset;
 	}
 	else
 	{
 		// clamp to the ellipse of the stick (snaps to the visual size, so, the art should go all the way to the edge of the texture)
-		float DistanceToTouchSqr = Offset.SizeSquared();
+		DistanceToTouchSqr = Offset.SizeSquared();
 		float Angle = FMath::Atan2(Offset.Y, Offset.X);
 
 		// length along line to ellipse: L = 1.0 / sqrt(((sin(T)/Rx)^2 + (cos(T)/Ry)^2))
@@ -300,18 +293,37 @@ bool SVirtualJoystick::HandleTouch(int32 ControlIndex, const FVector2D& LocalCoo
 		float SinAngle = FMath::Sin(Angle);
 		float XTerm = CosAngle / (Control.CorrectedVisualSize.X * 0.5f);
 		float YTerm = SinAngle / (Control.CorrectedVisualSize.Y * 0.5f);
-		float DistanceToEdge = FMath::InvSqrt(XTerm * XTerm + YTerm * YTerm);
+		DistanceToEdgeSqr = XTerm * XTerm + YTerm * YTerm;
 
 		// only clamp 
-		if (DistanceToTouchSqr > FMath::Square(DistanceToEdge))
+		if (DistanceToTouchSqr > DistanceToEdgeSqr)
 		{
-			Control.ThumbPosition = FVector2D(DistanceToEdge * CosAngle,  DistanceToEdge * SinAngle);
+			float DistanceToEdge = FMath::InvSqrt(DistanceToEdgeSqr);
+			Position = FVector2D(DistanceToEdge * CosAngle,  DistanceToEdge * SinAngle);
 		}
 		else
 		{
-			Control.ThumbPosition = Offset;
+			Position = Offset;
 		}
 	}
+
+	if (OutDistanceToTouchSqr != nullptr)
+	{
+		*OutDistanceToTouchSqr = DistanceToTouchSqr;
+	}
+
+	if (OutDistanceToEdgeSqr != nullptr)
+	{
+		*OutDistanceToEdgeSqr = DistanceToEdgeSqr;
+	}
+
+	return Position;
+}
+
+bool SVirtualJoystick::HandleTouch(int32 ControlIndex, const FVector2D& LocalCoord, const FVector2D& ScreenSize)
+{
+	FControlData& Control = Controls[ControlIndex];
+	Control.ThumbPosition = ComputeThumbPosition(ControlIndex, LocalCoord);
 
 	FVector2D AbsoluteThumbPos = Control.ThumbPosition + Controls[ControlIndex].VisualCenter;
 	AlignBoxIntoScreen(AbsoluteThumbPos, Control.CorrectedThumbSize, ScreenSize);
@@ -320,7 +332,7 @@ bool SVirtualJoystick::HandleTouch(int32 ControlIndex, const FVector2D& LocalCoo
 	return true;
 }
 
-void SVirtualJoystick::Tick( const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime )
+void SVirtualJoystick::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
 {
 	if (State == State_WaitForStart || State == State_CountingDownToStart)
 	{
@@ -340,7 +352,7 @@ void SVirtualJoystick::Tick( const FGeometry& AllottedGeometry, const double InC
 
 	for (int32 ControlIndex = 0; ControlIndex < Controls.Num(); ControlIndex++)
 	{
-		FControlInfo& Control = Controls[ControlIndex];
+		FControlData& Control = Controls[ControlIndex];
 
 		if (Control.bNeedUpdatedCenter)
 		{
@@ -363,13 +375,15 @@ void SVirtualJoystick::Tick( const FGeometry& AllottedGeometry, const double InC
 		// @todo: Need to manage geometry changing!
 		if (!Control.bHasBeenPositioned || ScaleFactor != PreviousScalingFactor)
 		{
+			const FControlInfo& ControlInfo = Control.Info;
+			
 			// update all the sizes
-			Control.CorrectedCenter = FVector2D(ResolveRelativePosition(Control.Center.X, AllottedGeometry.GetLocalSize().X, ScaleFactor), ResolveRelativePosition(Control.Center.Y, AllottedGeometry.GetLocalSize().Y, ScaleFactor));
+			Control.CorrectedCenter = FVector2D(ResolveRelativePosition(ControlInfo.Center.X, AllottedGeometry.GetLocalSize().X, ScaleFactor), ResolveRelativePosition(ControlInfo.Center.Y, AllottedGeometry.GetLocalSize().Y, ScaleFactor));
 			Control.VisualCenter = Control.CorrectedCenter;
-			Control.CorrectedVisualSize = FVector2D(ResolveRelativePosition(Control.VisualSize.X, AllottedGeometry.GetLocalSize().X, ScaleFactor), ResolveRelativePosition(Control.VisualSize.Y, AllottedGeometry.GetLocalSize().Y, ScaleFactor));
-			Control.CorrectedInteractionSize = FVector2D(ResolveRelativePosition(Control.InteractionSize.X, AllottedGeometry.GetLocalSize().X, ScaleFactor), ResolveRelativePosition(Control.InteractionSize.Y, AllottedGeometry.GetLocalSize().Y, ScaleFactor));
-			Control.CorrectedThumbSize = FVector2D(ResolveRelativePosition(Control.ThumbSize.X, AllottedGeometry.GetLocalSize().X, ScaleFactor), ResolveRelativePosition(Control.ThumbSize.Y, AllottedGeometry.GetLocalSize().Y, ScaleFactor));
-			Control.CorrectedInputScale = Control.InputScale; // *ScaleFactor;
+			Control.CorrectedVisualSize = FVector2D(ResolveRelativePosition(ControlInfo.VisualSize.X, AllottedGeometry.GetLocalSize().X, ScaleFactor), ResolveRelativePosition(ControlInfo.VisualSize.Y, AllottedGeometry.GetLocalSize().Y, ScaleFactor));
+			Control.CorrectedInteractionSize = FVector2D(ResolveRelativePosition(ControlInfo.InteractionSize.X, AllottedGeometry.GetLocalSize().X, ScaleFactor), ResolveRelativePosition(ControlInfo.InteractionSize.Y, AllottedGeometry.GetLocalSize().Y, ScaleFactor));
+			Control.CorrectedThumbSize = FVector2D(ResolveRelativePosition(ControlInfo.ThumbSize.X, AllottedGeometry.GetLocalSize().X, ScaleFactor), ResolveRelativePosition(ControlInfo.ThumbSize.Y, AllottedGeometry.GetLocalSize().Y, ScaleFactor));
+			Control.CorrectedInputScale = ControlInfo.InputScale; // *ScaleFactor;
 			Control.bHasBeenPositioned = true;
 		}
 
@@ -396,8 +410,8 @@ void SVirtualJoystick::Tick( const FGeometry& AllottedGeometry, const double InC
 			FVector2D NormalizedOffset = ThumbNormalized * Control.CorrectedInputScale * ThumbMagnitude * ToSquareScale;
 
 			// now pass the fake joystick events to the game
-			const FGamepadKeyNames::Type XAxis = (Control.MainInputKey.IsValid() ? Control.MainInputKey.GetFName() : (ControlIndex == 0 ? FGamepadKeyNames::LeftAnalogX : FGamepadKeyNames::RightAnalogX));
-			const FGamepadKeyNames::Type YAxis = (Control.AltInputKey.IsValid() ? Control.AltInputKey.GetFName() : (ControlIndex == 0 ? FGamepadKeyNames::LeftAnalogY : FGamepadKeyNames::RightAnalogY));
+			const FGamepadKeyNames::Type XAxis = (Control.Info.MainInputKey.IsValid() ? Control.Info.MainInputKey.GetFName() : (ControlIndex == 0 ? FGamepadKeyNames::LeftAnalogX : FGamepadKeyNames::RightAnalogX));
+			const FGamepadKeyNames::Type YAxis = (Control.Info.AltInputKey.IsValid() ? Control.Info.AltInputKey.GetFName() : (ControlIndex == 0 ? FGamepadKeyNames::LeftAnalogY : FGamepadKeyNames::RightAnalogY));
 
 			FSlateApplication::Get().SetAllUserFocusToGameViewport();
 			FSlateApplication::Get().OnControllerAnalog(XAxis, 0, NormalizedOffset.X);
@@ -502,30 +516,51 @@ void SVirtualJoystick::SetJoystickVisibility(const bool bInVisible, const bool b
 	bVisible = bInVisible;
 }
 
+void SVirtualJoystick::AddControl(const FControlInfo& Control)
+{
+	FControlData* ControlData = new (Controls) FControlData;
+	ControlData->Info = Control;
+}
+
+void SVirtualJoystick::ClearControls()
+{
+	Controls.Empty();
+}
+
+void SVirtualJoystick::SetControls(const TArray<FControlInfo>& InControls)
+{
+	ClearControls();
+	
+	for (const FControlInfo& ControlInfo : InControls)
+	{
+		AddControl(ControlInfo);
+	}
+}
+
 void SVirtualJoystick::AlignBoxIntoScreen(FVector2D& Position, const FVector2D& Size, const FVector2D& ScreenSize)
 {
-	if ( Size.X > ScreenSize.X || Size.Y > ScreenSize.Y )
+	if (Size.X > ScreenSize.X || Size.Y > ScreenSize.Y)
 	{
 		return;
 	}
 
 	// Align box to fit into screen
-	if ( Position.X - Size.X * 0.5f < 0.f )
+	if (Position.X - Size.X * 0.5f < 0.f)
 	{
 		Position.X = Size.X * 0.5f;
 	}
 
-	if ( Position.X + Size.X * 0.5f > ScreenSize.X )
+	if (Position.X + Size.X * 0.5f > ScreenSize.X)
 	{
 		Position.X = ScreenSize.X - Size.X * 0.5f;
 	}
 
-	if ( Position.Y - Size.Y * 0.5f < 0.f )
+	if (Position.Y - Size.Y * 0.5f < 0.f)
 	{
 		Position.Y = Size.Y * 0.5f;
 	}
 
-	if ( Position.Y + Size.Y * 0.5f > ScreenSize.Y )
+	if (Position.Y + Size.Y * 0.5f > ScreenSize.Y)
 	{
 		Position.Y = ScreenSize.Y - Size.Y * 0.5f;
 	}

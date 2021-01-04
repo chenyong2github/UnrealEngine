@@ -1121,7 +1121,7 @@ void APlayerController::CreateTouchInterface()
 		if (CurrentTouchInterface)
 		{
 			// create the joystick 
-			VirtualJoystick = SNew(SVirtualJoystick);
+			VirtualJoystick = CreateVirtualJoystick();
 
 			// add it to the player's viewport
 			LocalPlayer->ViewportClient->AddViewportWidgetContent(VirtualJoystick.ToSharedRef());
@@ -1129,6 +1129,11 @@ void APlayerController::CreateTouchInterface()
 			ActivateTouchInterface(CurrentTouchInterface);
 		}
 	}
+}
+
+TSharedPtr<SVirtualJoystick> APlayerController::CreateVirtualJoystick()
+{
+	return SNew(SVirtualJoystick);
 }
 
 void APlayerController::CleanupGameViewport()
