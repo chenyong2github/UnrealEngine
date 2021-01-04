@@ -56,6 +56,7 @@ public:
 	// FSequencerDisplayNode interface
 
 	virtual void BuildContextMenu(FMenuBuilder& MenuBuilder) override;
+	virtual void BuildOrganizeContextMenu(FMenuBuilder& MenuBuilder) override;
 	virtual bool CanRenameNode() const override;
 	virtual TSharedRef<SWidget> GetCustomOutlinerContent() override;
 	virtual TSharedPtr<SWidget> GetAdditionalOutlinerLabel() override;
