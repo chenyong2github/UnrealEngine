@@ -20,8 +20,8 @@ class UMaterialExpressionSingleLayerWaterMaterialOutput : public UMaterialExpres
 	/** Input for scattering coefficient describing how light bounce is absorbed. Valid range is [0,+inf[. */
 	UPROPERTY()
 	FExpressionInput AbsorptionCoefficients;
-
-	/** Input for phase function 'g' parameter describing how much forward(g<0) or backward (g>0) light scatter around. Valid range is [-1,1]. */
+		
+	/** Input for phase function 'g' parameter describing how much forward(g>0) or backward (g<0) light scatter around. Valid range is [-1,1]. */
 	UPROPERTY()
 	FExpressionInput PhaseG;
 
