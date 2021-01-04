@@ -19,7 +19,7 @@ inline FAndroidDeviceOutputReaderRunnable::FAndroidDeviceOutputReaderRunnable(co
 
 inline bool FAndroidDeviceOutputReaderRunnable::StartLogcatProcess(void)
 {
-	FString Params = FString::Printf(TEXT(" -s %s logcat UE4:V DEBUG:V *:S -v tag"), *DeviceSerialNumber);
+	FString Params = FString::Printf(TEXT(" -s %s logcat UE:V DEBUG:V *:S -v tag"), *DeviceSerialNumber);
 	LogcatProcHandle = FPlatformProcess::CreateProc(*AdbFilename, *Params, true, false, false, NULL, 0, NULL, LogcatWritePipe);
 	return LogcatProcHandle.IsValid();
 }

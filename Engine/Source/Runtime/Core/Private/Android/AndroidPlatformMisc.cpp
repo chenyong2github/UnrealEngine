@@ -283,7 +283,7 @@ void FAndroidMisc::LocalPrint(const TCHAR *Message)
 			}
 		}
 		*WritePtr = '\0';
-		__android_log_print(ANDROID_LOG_DEBUG, "UE4", "%ls", MessageBuffer);
+		__android_log_print(ANDROID_LOG_DEBUG, "UE", "%ls", MessageBuffer);
 	}
 #endif
 }
@@ -2061,9 +2061,9 @@ static EDeviceVulkanSupportStatus AttemptVulkanInit(void* VulkanLib)
 	VkApplicationInfo App;
 	FMemory::Memzero(App);
 	App.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-	App.pApplicationName = "UE4";
+	App.pApplicationName = "UE";
 	App.applicationVersion = 0;
-	App.pEngineName = "UE4";
+	App.pEngineName = "UE";
 	App.engineVersion = 0;
 	App.apiVersion = UE_VK_API_VERSION;
 

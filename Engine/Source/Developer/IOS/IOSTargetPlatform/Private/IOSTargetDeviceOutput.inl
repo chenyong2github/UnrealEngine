@@ -81,7 +81,7 @@ inline uint32 FIOSDeviceOutputReaderRunnable::Run(void)
 			FString Text;
 			if (OutputQueue.Dequeue(Text))
 			{
-				if (Text.Contains(TEXT("[UE4]"), ESearchCase::CaseSensitive))
+				if (Text.Contains(TEXT("[UE]"), ESearchCase::CaseSensitive))
 				{
 					Output->Serialize(*Text, ELogVerbosity::Log, NAME_None);
 				}

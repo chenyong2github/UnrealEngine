@@ -153,7 +153,7 @@ uint32 FAndroidPlatformStackWalk::CaptureStackBackTrace(uint64* BackTrace, uint3
 		static int32 OnceOnly = 0;
 		if (Context == nullptr && OnceOnly == 0)
 		{
-			__android_log_print(ANDROID_LOG_DEBUG, "UE4", "FAndroidPlatformStackWalk::CaptureStackBackTrace disabled on Android 10 with TargetSDK >= 29 due to XOM.");
+			__android_log_print(ANDROID_LOG_DEBUG, "UE", "FAndroidPlatformStackWalk::CaptureStackBackTrace disabled on Android 10 with TargetSDK >= 29 due to XOM.");
 			OnceOnly = 1;
 		}
 		return 0;

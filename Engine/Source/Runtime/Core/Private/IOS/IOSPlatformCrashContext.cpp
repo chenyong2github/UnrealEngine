@@ -184,7 +184,7 @@ void FIOSCrashContext::GenerateInfoInFolder(char const* const InfoFolder, bool b
         // copy log
         FCStringAnsi::Strncpy(FilePath, CrashInfoFolder, PATH_MAX);
         FCStringAnsi::Strcat(FilePath, PATH_MAX, "/");
-        FCStringAnsi::Strcat(FilePath, PATH_MAX, (!GIOSAppInfo.AppName.IsEmpty() ? GIOSAppInfo.AppNameUTF8 : "UE4"));
+        FCStringAnsi::Strcat(FilePath, PATH_MAX, (!GIOSAppInfo.AppName.IsEmpty() ? GIOSAppInfo.AppNameUTF8 : "Unreal"));
         FCStringAnsi::Strcat(FilePath, PATH_MAX, ".log");
         
         int LogSrc = open(GIOSAppInfo.AppLogPath, O_RDONLY);

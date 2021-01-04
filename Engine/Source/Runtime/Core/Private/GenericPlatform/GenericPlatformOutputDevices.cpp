@@ -85,7 +85,7 @@ void FGenericPlatformOutputDevices::InitDefaultOutputDeviceFile()
 		}
 		else
 		{
-			LogFilename = TEXT("UE4");
+			LogFilename = TEXT("Unreal");
 		}
 
 		LogFilename += TEXT(".log");
