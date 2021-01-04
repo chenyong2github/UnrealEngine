@@ -3,6 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "PixelFormat.h"
+#include "RHIDefinitions.h"
 
 enum EGBufferSlot
 {
@@ -236,13 +238,19 @@ struct FGBufferTarget
 		bIsUsingExtraFlags = bInIsUsingExtraFlags;
 	}
 
-
 	EGBufferType TargetType;
 	FString TargetName;
 	bool bIsSrgb;
 	bool bIsRenderTargetable;
 	bool bIsShaderResource;
 	bool bIsUsingExtraFlags;
+};
+
+struct FGBufferBinding
+{
+	int32 Index = -1;
+	EPixelFormat Format = PF_Unknown;
+	ETextureCreateFlags Flags = TexCreate_None;
 };
 
 struct FGBufferInfo
@@ -258,15 +266,32 @@ struct FGBufferInfo
 
 struct FGBufferParams
 {
-	bool bHasVelocity;
-	bool bHasTangent;
-	bool bHasPrecShadowFactor;
-	int LegacyFormatIndex;
-	bool bUsesVelocityDepth;
+	int32 LegacyFormatIndex = 0;
+	bool bHasVelocity = false;
+	bool bHasTangent = false;
+	bool bHasPrecShadowFactor = false;
+	bool bUsesVelocityDepth = false;
+
+	bool operator == (const FGBufferParams& RHS) const
+	{
+		return
+			LegacyFormatIndex == RHS.LegacyFormatIndex &&
+			bHasVelocity == RHS.bHasVelocity &&
+			bHasTangent == RHS.bHasTangent &&
+			bHasPrecShadowFactor == RHS.bHasPrecShadowFactor &&
+			bUsesVelocityDepth == RHS.bUsesVelocityDepth;
+	}
+
+	bool operator != (const FGBufferParams& RHS) const
+	{
+		return !(*this == RHS);
+	}
 };
 
 
 int32 RENDERCORE_API FindGBufferTargetByName(const FGBufferInfo& GBufferInfo, const FString& Name);
+
+FGBufferBinding RENDERCORE_API FindGBufferBindingByName(const FGBufferInfo& GBufferInfo, const FString& Name);
 
 //FGBufferInfo RENDERCORE_API FetchLegacyGBufferInfo(bool bHasVelocity, bool bHasTangent, bool bHasPrecShadowFactor, int LegacyFormatIndex, bool bUsesVelocityDepth);
 //FGBufferInfo RENDERCORE_API FetchFullGBufferInfo(bool bHasVelocity, bool bHasTangent, bool bHasPrecShadowFactor, int LegacyFormatIndex, bool bUsesVelocityDepth);

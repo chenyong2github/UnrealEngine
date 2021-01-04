@@ -117,7 +117,7 @@ TArray < EGBufferSlot > FetchGBufferSlots(bool bHasVelocity, bool bHasTangent, b
 
 
 // finds the target by searching for the name. returns -1 if not found.
-int32 RENDERCORE_API FindGBufferTargetByName(const FGBufferInfo& GBufferInfo, const FString& Name)
+int32 FindGBufferTargetByName(const FGBufferInfo& GBufferInfo, const FString& Name)
 {
 	for (int32 I = 0; I < GBufferInfo.NumTargets; I++)
 	{
@@ -130,6 +130,48 @@ int32 RENDERCORE_API FindGBufferTargetByName(const FGBufferInfo& GBufferInfo, co
 	return -1;
 }
 
+FGBufferBinding FindGBufferBindingByName(const FGBufferInfo& GBufferInfo, const FString& Name)
+{
+	const int32 Index = FindGBufferTargetByName(GBufferInfo, Name);
+
+	FGBufferBinding Binding;
+
+	if (Index >= 0)
+	{
+		const FGBufferTarget& Target = GBufferInfo.Targets[Index];
+
+		EPixelFormat PixelFormat = PF_Unknown;
+
+		switch (Target.TargetType)
+		{
+		case GBT_Unorm_8_8_8_8:
+			PixelFormat = PF_B8G8R8A8;
+			break;
+		case GBT_Unorm_11_11_10:
+			PixelFormat = PF_FloatR11G11B10;
+			break;
+		case GBT_Unorm_10_10_10_2:
+			PixelFormat = PF_A2B10G10R10;
+			break;
+		case GBT_Float_16_16:
+			PixelFormat = PF_G16R16;
+			break;
+		case GBT_Float_16_16_16_16:
+			PixelFormat = PF_A16B16G16R16;
+			break;
+		case GBT_Invalid:
+		default:
+			check(0);
+			break;
+		}
+
+		Binding.Index = Index;
+		Binding.Format = PixelFormat;
+		Binding.Flags = TexCreate_ShaderResource | TexCreate_RenderTargetable | (Target.bIsSrgb ? TexCreate_SRGB : TexCreate_None);
+	}
+
+	return Binding;
+}
 
 /*
  * 4.25 Logic:
