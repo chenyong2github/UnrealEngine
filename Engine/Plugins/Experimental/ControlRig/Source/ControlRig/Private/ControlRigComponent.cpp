@@ -451,27 +451,24 @@ void UControlRigComponent::AddMappedSkeletalMesh(USkeletalMeshComponent* Skeleta
 	TArray<FControlRigComponentMappedBone> BonesToMap = Bones;
 	if (BonesToMap.Num() == 0)
 	{
-		if (UControlRig* CR = SetupControlRigIfRequired())
+		if (USkeletalMesh* SkeletalMesh = SkeletalMeshComponent->SkeletalMesh)
 		{
-			if (USkeletalMesh* SkeletalMesh = SkeletalMeshComponent->SkeletalMesh)
+			if (USkeleton* Skeleton = SkeletalMesh->GetSkeleton())
 			{
-				if (USkeleton* Skeleton = SkeletalMesh->GetSkeleton())
+				for (const FRigBone& RigBone : CR->GetBoneHierarchy())
 				{
-					for (const FRigBone& RigBone : CR->GetBoneHierarchy())
+					if (Skeleton->GetReferenceSkeleton().FindBoneIndex(RigBone.Name) != INDEX_NONE)
 					{
-						if (Skeleton->GetReferenceSkeleton().FindBoneIndex(RigBone.Name) != INDEX_NONE)
-						{
-							FControlRigComponentMappedBone BoneToMap;
-							BoneToMap.Source = RigBone.Name;
-							BoneToMap.Target = RigBone.Name;
-							BonesToMap.Add(BoneToMap);
-						}
+						FControlRigComponentMappedBone BoneToMap;
+						BoneToMap.Source = RigBone.Name;
+						BoneToMap.Target = RigBone.Name;
+						BonesToMap.Add(BoneToMap);
 					}
 				}
-				else
-				{
-					ReportError(FString::Printf(TEXT("%s does not have a Skeleton set."), *SkeletalMesh->GetPathName()));
-				}
+			}
+			else
+			{
+				ReportError(FString::Printf(TEXT("%s does not have a Skeleton set."), *SkeletalMesh->GetPathName()));
 			}
 		}
 	}
@@ -479,32 +476,29 @@ void UControlRigComponent::AddMappedSkeletalMesh(USkeletalMeshComponent* Skeleta
 	TArray<FControlRigComponentMappedCurve> CurvesToMap = Curves;
 	if (CurvesToMap.Num() == 0)
 	{
-		if (UControlRig* CR = SetupControlRigIfRequired())
+		if (USkeletalMesh* SkeletalMesh = SkeletalMeshComponent->SkeletalMesh)
 		{
-			if (USkeletalMesh* SkeletalMesh = SkeletalMeshComponent->SkeletalMesh)
+			if (USkeleton* Skeleton = SkeletalMesh->GetSkeleton())
 			{
-				if (USkeleton* Skeleton = SkeletalMesh->GetSkeleton())
+				for (const FRigCurve& RigCurve : CR->GetCurveContainer())
 				{
-					for (const FRigCurve& RigCurve : CR->GetCurveContainer())
+					const FSmartNameMapping* CurveNameMapping = Skeleton->GetSmartNameContainer(USkeleton::AnimCurveMappingName);
+					if (CurveNameMapping)
 					{
-						const FSmartNameMapping* CurveNameMapping = Skeleton->GetSmartNameContainer(USkeleton::AnimCurveMappingName);
-						if (CurveNameMapping)
+						FSmartName SmartName;
+						if (CurveNameMapping->FindSmartName(RigCurve.Name, SmartName))
 						{
-							FSmartName SmartName;
-							if (CurveNameMapping->FindSmartName(RigCurve.Name, SmartName))
-							{
-								FControlRigComponentMappedCurve CurveToMap;
-								CurveToMap.Source = RigCurve.Name;
-								CurveToMap.Target = RigCurve.Name;
-								CurvesToMap.Add(CurveToMap);
-							}
+							FControlRigComponentMappedCurve CurveToMap;
+							CurveToMap.Source = RigCurve.Name;
+							CurveToMap.Target = RigCurve.Name;
+							CurvesToMap.Add(CurveToMap);
 						}
 					}
 				}
-				else
-				{
-					ReportError(FString::Printf(TEXT("%s does not have a Skeleton set."), *SkeletalMesh->GetPathName()));
-				}
+			}
+			else
+			{
+				ReportError(FString::Printf(TEXT("%s does not have a Skeleton set."), *SkeletalMesh->GetPathName()));
 			}
 		}
 	}
