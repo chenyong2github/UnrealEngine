@@ -2817,7 +2817,7 @@ void UNiagaraComponent::FixDataInterfaceOuters()
 			{
 				if (VariableValuePair.Value.GetDataInterface()->GetOuter() != this)
 				{
-					UNiagaraDataInterface* FixedDataInterface = NewObject<UNiagaraDataInterface>(this, VariableValuePair.Value.GetDataInterface()->GetClass());
+					UNiagaraDataInterface* FixedDataInterface = NewObject<UNiagaraDataInterface>(this, VariableValuePair.Value.GetDataInterface()->GetClass(), NAME_None, RF_Transactional | RF_Public);
 					VariableValuePair.Value.GetDataInterface()->CopyTo(FixedDataInterface);
 					VariableValuePair.Value.SetDataInterface(FixedDataInterface);
 					OutFixedDataInterfaces.Add(VariableValuePair.Key, FixedDataInterface);
@@ -2847,7 +2847,7 @@ void UNiagaraComponent::FixDataInterfaceOuters()
 		UNiagaraDataInterface* OverrideParameterDataInterface = OverrideParameters.GetDataInterface(i);
 		if (OverrideParameterDataInterface != nullptr && OverrideParameterDataInterface->GetOuter() != this)
 		{
-			UNiagaraDataInterface* FixedDataInterface = NewObject<UNiagaraDataInterface>(this, OverrideParameterDataInterface->GetClass());
+			UNiagaraDataInterface* FixedDataInterface = NewObject<UNiagaraDataInterface>(this, OverrideParameterDataInterface->GetClass(), NAME_None, RF_Transactional | RF_Public);
 			OverrideParameterDataInterface->CopyTo(FixedDataInterface);
 			OverrideParameters.SetDataInterface(FixedDataInterface, i);
 		}
@@ -2924,7 +2924,7 @@ void FixInvalidDataInterfaceOverrides(TMap<FNiagaraVariableBase, FNiagaraVariant
 			if (Value.GetDataInterface() == nullptr)
 			{
 				UE_LOG(LogNiagara, Warning, TEXT("Replaced invalid user parameter data interface with it's default.  Component: %s Override Source: %s Parameter Name: %s."), *OwningComponent->GetPathName(), *OverrideSource, *Variable.GetName().ToString());
-				Value.SetDataInterface(NewObject<UNiagaraDataInterface>(OwningComponent, Variable.GetType().GetClass()));
+				Value.SetDataInterface(NewObject<UNiagaraDataInterface>(OwningComponent, Variable.GetType().GetClass(), NAME_None, RF_Transactional | RF_Public));
 			}
 		}
 	}

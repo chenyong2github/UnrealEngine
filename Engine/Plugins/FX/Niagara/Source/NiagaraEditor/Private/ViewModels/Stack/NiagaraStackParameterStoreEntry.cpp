@@ -157,7 +157,7 @@ void UNiagaraStackParameterStoreEntry::Reset()
 	{
 		if (Var.IsDataInterface())
 		{
-			UNiagaraDataInterface* DefaultObject = NewObject<UNiagaraDataInterface>(this, const_cast<UClass*>(InputType.GetClass()));
+			UNiagaraDataInterface* DefaultObject = NewObject<UNiagaraDataInterface>(this, const_cast<UClass*>(InputType.GetClass()), NAME_None, RF_Transactional | RF_Public);
 			DefaultObject->CopyTo(ParameterStore->GetDataInterface(Var));
 			NotifyDataInterfaceChanged();
 		}
