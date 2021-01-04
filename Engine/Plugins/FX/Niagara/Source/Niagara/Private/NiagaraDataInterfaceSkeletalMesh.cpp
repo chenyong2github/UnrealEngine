@@ -881,6 +881,8 @@ void FSkeletalMeshGpuDynamicBufferProxy::NewFrame(const FNDISkeletalMesh_Instanc
 	auto FillBuffers =
 		[&](const TArray<FTransform>& BoneTransforms)
 		{
+			check(BoneTransforms.Num() == SamplingBoneCount);
+
 			// Fill AllSectionsRefToLocalMatrices
 			TIndirectArray<FSkeletalMeshLODRenderData>& LODRenderDataArray = SkelMesh->GetResourceForRendering()->LODRenderData;
 			check(0 <= LODIndex && LODIndex < LODRenderDataArray.Num());
@@ -913,8 +915,6 @@ void FSkeletalMeshGpuDynamicBufferProxy::NewFrame(const FNDISkeletalMesh_Instanc
 
 			// Fill BoneSamplingData
 			BoneSamplingData.Reserve((SamplingBoneCount + SamplingSocketCount) * 2);
-			check(BoneTransforms.Num() == SamplingBoneCount);
-
 			for (const FTransform& BoneTransform : BoneTransforms)
 			{
 				const FQuat Rotation = BoneTransform.GetRotation();
@@ -976,7 +976,20 @@ void FSkeletalMeshGpuDynamicBufferProxy::NewFrame(const FNDISkeletalMesh_Instanc
 		else
 		{
 			const TArray<FTransform>& ComponentTransforms = SkelComp->GetComponentSpaceTransforms();
-			FillBuffers(ComponentTransforms);
+			if (ComponentTransforms.Num() > 0)
+			{
+				FillBuffers(ComponentTransforms);
+			}
+			else
+			{
+				// Trying to catch cause of this case in the wild. Not supposed to be possible with a valid skeletal mesh
+				ensureMsgf(false, TEXT("NiagaraSkelMeshDI: Mesh has no ComponentSpaceTransforms. Component - %s (Registered: %s, Flags: %d), Mesh - %s (Flags: %d)"),
+					*GetFullNameSafe(SkelComp), SkelComp->IsRegistered() ? TEXT("Yes") : TEXT("No"), SkelComp->GetFlags(), *GetFullNameSafe(SkelMesh), SkelMesh->GetFlags());
+
+				TArray<FTransform> TempBoneTransforms;
+				TempBoneTransforms.AddDefaulted(SamplingBoneCount);
+				FillBuffers(TempBoneTransforms);
+			}
 		}
 	}
 	else
