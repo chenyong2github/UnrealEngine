@@ -4490,6 +4490,8 @@ bool FDeferredShadingSceneRenderer::InitViews(FRDGBuilder& GraphBuilder, FExclus
 			FXSystem->PostInitViews(RHICmdList, Views[0].ViewUniformBuffer, Views[0].AllowGPUParticleUpdate() && !ViewFamily.EngineShowFlags.HitProxies);
 		}
 	}
+
+	LumenScenePDIVisualization();
 	
 	FViewVisibleCommandsPerView ViewCommandsPerView;
 	ViewCommandsPerView.SetNum(Views.Num());

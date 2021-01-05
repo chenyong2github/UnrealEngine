@@ -520,7 +520,6 @@ private:
 	void RenderLumenSceneVisualization(FRDGBuilder& GraphBuilder);
 	void RenderLumenRadianceCacheVisualization(FRDGBuilder& GraphBuilder);
 	void LumenScenePDIVisualization();
-	void LumenRadianceCachePDIVisualization();
 
 	void RenderRadianceCache(
 		FRDGBuilder& GraphBuilder, 

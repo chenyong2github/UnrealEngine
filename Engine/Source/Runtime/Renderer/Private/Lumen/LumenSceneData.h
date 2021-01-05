@@ -72,6 +72,7 @@ public:
 	FIntPoint DesiredResolution;
 	FIntRect AtlasAllocation;
 
+	int32 Orientation = -1;
 	int32 IndexInVisibleCardIndexBuffer = -1;
 	int32 FaceIndexInCubeMapTree = -1;
 	int32 CubeMapTreeIndex = -1;

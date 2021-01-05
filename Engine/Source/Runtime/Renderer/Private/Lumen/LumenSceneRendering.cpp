@@ -610,6 +610,8 @@ void FCardSourceData::Initialize(FPrimitiveSceneInfo* InPrimitiveSceneInfo, int3
 void FCardSourceData::SetTransform(const FMatrix& LocalToWorld, const class FLumenCubeMapFaceBuildData& FaceBuiltData)
 {
 	checkSlow(FaceBuiltData.Orientation < 6);
+
+	Orientation = FaceBuiltData.Orientation;
 	const FVector& CardToLocalRotationX = LumenCubeMapFaceRotationFrame[FaceBuiltData.Orientation][0];
 	const FVector& CardToLocalRotationY = LumenCubeMapFaceRotationFrame[FaceBuiltData.Orientation][1];
 	const FVector& CardToLocalRotationZ = LumenCubeMapFaceRotationFrame[FaceBuiltData.Orientation][2];
@@ -1688,8 +1690,6 @@ void FDeferredShadingSceneRenderer::BeginUpdateLumenSceneTasks(FRDGBuilder& Grap
 			}
 		}
 	}
-
-	LumenScenePDIVisualization();
 }
 
 class FLumenCardGPUData

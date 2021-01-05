@@ -136,11 +136,19 @@ FAutoConsoleVariableRef CVarVisualizeLumenSceneCardPlacementDistance(
 	ECVF_RenderThreadSafe
 );
 
-int32 GVisualizeLumenCardPlacementShowIndex = -1;
-FAutoConsoleVariableRef CVarVisualizeLumenSceneCardPlacementShowIndex(
-	TEXT("r.Lumen.Visualize.CardPlacementShowIndex"),
-	GVisualizeLumenCardPlacementShowIndex,
-	TEXT("Show only a single card per mesh."),
+int32 GVisualizeLumenCardPlacementIndex = -1;
+FAutoConsoleVariableRef CVarVisualizeLumenSceneCardPlacementIndex(
+	TEXT("r.Lumen.Visualize.CardPlacementIndex"),
+	GVisualizeLumenCardPlacementIndex,
+	TEXT("Visualize only a single card per mesh."),
+	ECVF_RenderThreadSafe
+);
+
+int32 GVisualizeLumenCardPlacementOrientation = -1;
+FAutoConsoleVariableRef CVarVisualizeLumenSceneCardPlacementOrientation(
+	TEXT("r.Lumen.Visualize.CardPlacementOrientation"),
+	GVisualizeLumenCardPlacementOrientation,
+	TEXT("Visualize only a single card orientation per mesh."),
 	ECVF_RenderThreadSafe
 );
 
@@ -551,7 +559,12 @@ void FDeferredShadingSceneRenderer::LumenScenePDIVisualization()
 		{
 			bool bVisible = Card.bVisible;
 
-			if (GVisualizeLumenCardPlacementShowIndex >= 0 && Card.FaceIndexInCubeMapTree != GVisualizeLumenCardPlacementShowIndex)
+			if (GVisualizeLumenCardPlacementIndex >= 0 && Card.FaceIndexInCubeMapTree != GVisualizeLumenCardPlacementIndex)
+			{
+				bVisible = false;
+			}
+
+			if (GVisualizeLumenCardPlacementOrientation >= 0 && Card.Orientation != GVisualizeLumenCardPlacementOrientation)
 			{
 				bVisible = false;
 			}
@@ -561,7 +574,7 @@ void FDeferredShadingSceneRenderer::LumenScenePDIVisualization()
 				&& ViewFrustum.IntersectBox(Card.WorldBounds.GetCenter(), Card.WorldBounds.GetExtent()))
 			{
 				uint32 CardHash = HashCombine(GetTypeHash(Card.Origin), GetTypeHash(Card.LocalExtent));
-				CardHash = HashCombine(CardHash, GetTypeHash(Card.LocalToWorldRotationZ));
+				CardHash = HashCombine(CardHash, GetTypeHash(Card.Orientation));
 
 				const uint8 DepthPriority = SDPG_World;
 				const uint8 CardHue = CardHash & 0xFF;
@@ -617,6 +630,4 @@ void FDeferredShadingSceneRenderer::LumenScenePDIVisualization()
 			DrawWireSphere(&ViewPDI, LumenSceneCameraOrigin, MarkerColor, 10 * (1 << ClipmapIndex), 32, SDPG_World);
 		}
 	}
-
-	LumenRadianceCachePDIVisualization();
 }
