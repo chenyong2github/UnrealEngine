@@ -894,6 +894,9 @@ int32 ReportCrashUsingCrashReportClient(FWindowsPlatformCrashContext& InContext,
 			// Copy platform specific files (e.g. minidump) to output directory
 			InContext.CopyPlatformSpecificFiles(*CrashFolderAbsolute, (void*) ExceptionInfo);
 
+			// Dump additional context
+			GuardedDumpAdditionalContext(*CrashFolderAbsolute);
+
 			// Copy the log file to output
 			FGenericCrashContext::DumpLog(CrashFolderAbsolute);
 
