@@ -288,7 +288,7 @@ bool FNDIStaticMesh_InstanceData::Init(UNiagaraDataInterfaceStaticMesh* Interfac
 
 	Transform = ComponentTransform.ToMatrixWithScale();
 	PrevTransform = Transform;
-	TransformInverseTransposed = Transform.Inverse().GetTransposed();
+	TransformInverseTransposed = ComponentTransform.Inverse().ToMatrixWithScale().GetTransposed();
 
 	Rotation = ComponentTransform.GetRotation();
 	PrevRotation = Rotation;
@@ -474,7 +474,7 @@ bool FNDIStaticMesh_InstanceData::Tick(UNiagaraDataInterfaceStaticMesh* Interfac
 
 		PrevTransform = Transform;
 		Transform = ComponentTransform.ToMatrixWithScale();
-		TransformInverseTransposed = Transform.Inverse().GetTransposed();
+		TransformInverseTransposed = ComponentTransform.Inverse().ToMatrixWithScale().GetTransposed();
 
 		PrevRotation = Rotation;
 		Rotation = ComponentTransform.GetRotation();
@@ -2445,7 +2445,7 @@ void UNiagaraDataInterfaceStaticMesh::GetSocketTransform(FVectorVMContext& Conte
 	FNDIOutputParam<FQuat> OutRotate(Context);
 	FNDIOutputParam<FVector> OutScale(Context);
 
-	const FQuat InstRotation = bWorldSpace ? InstData->Transform.GetMatrixWithoutScale().ToQuat() : FQuat::Identity;
+	const FQuat InstRotation = bWorldSpace ? InstData->Rotation : FQuat::Identity;
 
 	const int32 SocketMax = InstData->CachedSockets.Num() - 1;
 	if (SocketMax >= 0)
@@ -2483,7 +2483,7 @@ void UNiagaraDataInterfaceStaticMesh::GetFilteredSocketTransform(FVectorVMContex
 	FNDIOutputParam<FQuat> OutRotate(Context);
 	FNDIOutputParam<FVector> OutScale(Context);
 
-	const FQuat InstRotation = bWorldSpace ? InstData->Transform.GetMatrixWithoutScale().ToQuat() : FQuat::Identity;
+	const FQuat InstRotation = bWorldSpace ? InstData->Rotation : FQuat::Identity;
 
 	const int32 SocketMax = InstData->NumFilteredSockets - 1;
 	if (SocketMax >= 0)
@@ -2521,7 +2521,7 @@ void UNiagaraDataInterfaceStaticMesh::GetUnfilteredSocketTransform(FVectorVMCont
 	FNDIOutputParam<FQuat> OutRotate(Context);
 	FNDIOutputParam<FVector> OutScale(Context);
 
-	const FQuat InstRotation = bWorldSpace ? InstData->Transform.GetMatrixWithoutScale().ToQuat() : FQuat::Identity;
+	const FQuat InstRotation = bWorldSpace ? InstData->Rotation : FQuat::Identity;
 
 	if (InstData->NumFilteredSockets > 0)
 	{
@@ -3353,6 +3353,8 @@ void UNiagaraDataInterfaceStaticMesh::ProvidePerInstanceDataForRenderThread(void
 	DataToPass->DeltaSeconds = InstanceData->DeltaSeconds;
 	DataToPass->Transform = InstanceData->Transform;
 	DataToPass->PrevTransform = InstanceData->PrevTransform;
+	DataToPass->Rotation = InstanceData->Rotation;
+	DataToPass->PrevRotation = InstanceData->PrevRotation;
 }
 
 //////////////////////////////////////////////////////////////////////////
