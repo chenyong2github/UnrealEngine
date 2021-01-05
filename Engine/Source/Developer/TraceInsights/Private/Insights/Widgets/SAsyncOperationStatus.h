@@ -33,7 +33,7 @@ private:
 	FText GetTooltipText() const;
 
 private:
-	TSharedPtr<IAsyncOperationStatusProvider> StatusProvider;
+	TWeakPtr<IAsyncOperationStatusProvider> StatusProvider;
 };
 
 } // namespace Insights
