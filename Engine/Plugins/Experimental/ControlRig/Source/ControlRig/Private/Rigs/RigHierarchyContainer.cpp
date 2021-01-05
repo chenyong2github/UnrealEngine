@@ -1183,8 +1183,53 @@ TArray<FRigElementKey> FRigHierarchyContainer::MirrorItems(const TArray<FRigElem
 	{
 		FTransform GlobalTransform = GetGlobalTransform(OriginalItems[Index]);
 		FTransform InitialTransform = GetInitialGlobalTransform(OriginalItems[Index]);
-		SetGlobalTransform(DuplicatedItems[Index], InSettings.MirrorTransform(GlobalTransform));
-		SetInitialGlobalTransform(DuplicatedItems[Index], InSettings.MirrorTransform(InitialTransform));
+
+		// also mirror the offset, limits and gizmo transform
+		if (OriginalItems[Index].Type == ERigElementType::Control)
+		{
+			int32 OriginalControlIndex = ControlHierarchy.GetIndex(OriginalItems[Index].Name);
+			ensure(OriginalControlIndex != INDEX_NONE);
+			int32 DuplicatedControlIndex = ControlHierarchy.GetIndex(DuplicatedItems[Index].Name);
+			ensure(DuplicatedControlIndex != INDEX_NONE);
+
+			FRigControl& DuplicatedControl = ControlHierarchy[DuplicatedControlIndex];
+			TGuardValue<bool> DisableTranslationLimit(DuplicatedControl.bLimitTranslation, false);
+			TGuardValue<bool> DisableRotationLimit(DuplicatedControl.bLimitRotation, false);
+			TGuardValue<bool> DisableScaleLimit(DuplicatedControl.bLimitScale, false);
+
+			// mirror offset
+			FTransform OriginalGlobalOffsetTransform = ControlHierarchy.GetParentTransform(OriginalControlIndex, true /* include offset */);
+			FTransform ParentTransform = ControlHierarchy.GetParentTransform(DuplicatedControlIndex, false /* include offset */);
+			FTransform OffsetTransform = InSettings.MirrorTransform(OriginalGlobalOffsetTransform).GetRelativeTransform(ParentTransform);
+			ControlHierarchy.SetControlOffset(DuplicatedControlIndex, OffsetTransform);
+
+			// mirror limits
+			FTransform DuplicateGlobalOffsetTransform = ControlHierarchy.GetParentTransform(DuplicatedControlIndex, true /* include offset */);
+
+			for (ERigControlValueType ValueType = ERigControlValueType::Minimum;
+				ValueType <= ERigControlValueType::Maximum;
+				ValueType = (ERigControlValueType)(uint8(ValueType) + 1)
+				)
+			{
+				FTransform LimitTransform = ControlHierarchy[DuplicatedControlIndex].GetTransformFromValue(ValueType);
+				FTransform GlobalLimitTransform = LimitTransform * OriginalGlobalOffsetTransform;
+				FTransform DuplicateLimitTransform = InSettings.MirrorTransform(GlobalLimitTransform).GetRelativeTransform(DuplicateGlobalOffsetTransform);
+				ControlHierarchy[DuplicatedControlIndex].SetValueFromTransform(DuplicateLimitTransform, ValueType);
+			}
+
+			// we need to do this here to make sure that the limits don't apply ( the tguardvalue is still active within here )
+			SetGlobalTransform(DuplicatedItems[Index], InSettings.MirrorTransform(GlobalTransform));
+			SetInitialGlobalTransform(DuplicatedItems[Index], InSettings.MirrorTransform(InitialTransform));
+
+			// mirror gizmo transform
+			FTransform GlobalGizmoTransform = ControlHierarchy[OriginalControlIndex].GizmoTransform * OriginalGlobalOffsetTransform;
+			DuplicatedControl.GizmoTransform = InSettings.MirrorTransform(GlobalGizmoTransform).GetRelativeTransform(DuplicateGlobalOffsetTransform);
+		}
+		else
+		{
+			SetGlobalTransform(DuplicatedItems[Index], InSettings.MirrorTransform(GlobalTransform));
+			SetInitialGlobalTransform(DuplicatedItems[Index], InSettings.MirrorTransform(InitialTransform));
+		}
 	}
 
 	// correct the names
