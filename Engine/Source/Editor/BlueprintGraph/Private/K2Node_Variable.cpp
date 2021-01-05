@@ -427,6 +427,29 @@ FProperty* UK2Node_Variable::GetPropertyForVariable() const
 	return GetPropertyForVariable_Internal(GetBlueprintClassFromNode());
 }
 
+FString UK2Node_Variable::GetPinMetaData(FName InPinName, FName InKey)
+{
+	FString MetaData;
+
+	if (GetVarName() == InPinName)
+	{
+		if (FProperty* VariableProperty = GetPropertyForVariable())
+		{
+			if (const FString* FoundMetaData = VariableProperty->FindMetaData(FBlueprintMetadata::MD_AllowAbstractClasses))
+			{
+				MetaData = *FoundMetaData;
+			}
+		}
+	}
+
+	if (MetaData.IsEmpty())
+	{
+		MetaData = Super::GetPinMetaData(InPinName, InKey);
+	}
+
+	return MetaData;
+}
+
 bool UK2Node_Variable::DoesRenamedVariableMatch(FName OldVariableName, FName NewVariableName, UStruct* StructType)
 {
 	if (NewVariableName == OldVariableName)

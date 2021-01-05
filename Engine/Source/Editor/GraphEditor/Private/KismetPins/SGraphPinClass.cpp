@@ -105,23 +105,13 @@ TSharedRef<SWidget> SGraphPinClass::GenerateAssetPicker()
 	TSharedPtr<FGraphPinFilter> Filter = MakeShareable(new FGraphPinFilter);
 	Filter->bAllowAbstractClasses = bAllowAbstractClasses;
 
-	if ( Cast<UK2Node_Variable>(GraphPinObj->GetOwningNode()) &&
-	    !Cast<UK2Node_StructOperation>(GraphPinObj->GetOwningNode()))
-	{
-		UK2Node_Variable* VarNode = CastChecked<UK2Node_Variable>(GraphPinObj->GetOwningNode());
-		const FString* AllowAbstractString = VarNode->GetPropertyForVariable()->FindMetaData(FBlueprintMetadata::MD_AllowAbstractClasses);
-		Filter->bAllowAbstractClasses = AllowAbstractString && AllowAbstractString->ToBool();
-	}
-	else
-	{
-		// Check with the node to see if there is any "AllowAbstract" metadata for the pin
-		FString AllowAbstractString = GraphPinObj->GetOwningNode()->GetPinMetaData(GraphPinObj->PinName, FBlueprintMetadata::MD_AllowAbstractClasses);
+	// Check with the node to see if there is any "AllowAbstract" metadata for the pin
+	FString AllowAbstractString = GraphPinObj->GetOwningNode()->GetPinMetaData(GraphPinObj->PinName, FBlueprintMetadata::MD_AllowAbstractClasses);
 
-		// Override bAllowAbstractClasses is the AllowAbstract metadata was set
-		if (!AllowAbstractString.IsEmpty())
-		{
-			Filter->bAllowAbstractClasses = AllowAbstractString.ToBool();
-		}
+	// Override bAllowAbstractClasses is the AllowAbstract metadata was set
+	if (!AllowAbstractString.IsEmpty())
+	{
+		Filter->bAllowAbstractClasses = AllowAbstractString.ToBool();
 	}
 
 	Options.ClassFilter = Filter;
