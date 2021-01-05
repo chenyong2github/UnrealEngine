@@ -566,7 +566,7 @@ bool UNiagaraDataInterfaceGrid3DCollection::InitPerInstanceData(void* PerInstanc
 
 	// Compute number of tiles based on resolution of individual attributes
 	// #todo(dmp): refactor
-	int32 MaxDim = 16384;
+	int32 MaxDim = 2048;
 	int32 MaxTilesX = floor(MaxDim / InstanceData->NumCells.X);
 	int32 MaxTilesY = floor(MaxDim / InstanceData->NumCells.Y);
 	int32 MaxTilesZ = floor(MaxDim / InstanceData->NumCells.Z);
@@ -993,6 +993,32 @@ bool UNiagaraDataInterfaceGrid3DCollection::PerInstanceTickPostSimulate(void* Pe
 
 		FNiagaraDataInterfaceProxyGrid3DCollectionProxy* RT_Proxy = GetProxyAs<FNiagaraDataInterfaceProxyGrid3DCollectionProxy>();
 
+
+		// #todo(dmp): refactor
+		int32 MaxDim = 2048;
+		int32 MaxTilesX = floor(MaxDim / InstanceData->NumCells.X);
+		int32 MaxTilesY = floor(MaxDim / InstanceData->NumCells.Y);
+		int32 MaxTilesZ = floor(MaxDim / InstanceData->NumCells.Z);
+		int32 MaxAttributes = MaxTilesX * MaxTilesY * MaxTilesZ;
+		if ((NumAttributes > MaxAttributes && MaxAttributes > 0) || NumAttributes == 0)
+		{
+			UE_LOG(LogNiagara, Error, TEXT("Invalid number of attributes defined on %s... max is %i, num defined is %i"), *FNiagaraUtilities::SystemInstanceIDToString(SystemInstance->GetId()), MaxAttributes, NumAttributes);
+			return false;
+		}
+
+		// need to determine number of tiles in x and y based on number of attributes and max dimension size
+		int32 NumTilesX = FMath::Min<int32>(MaxTilesX, NumAttributes);
+		int32 NumTilesY = FMath::Min<int32>(MaxTilesY, ceil(1.0 * NumAttributes / NumTilesX));
+		int32 NumTilesZ = FMath::Min<int32>(MaxTilesZ, ceil(1.0 * NumAttributes / (NumTilesX * NumTilesY)));
+
+		InstanceData->NumTiles.X = NumTilesX;
+		InstanceData->NumTiles.Y = NumTilesY;
+		InstanceData->NumTiles.Z = NumTilesZ;
+
+		check(InstanceData->NumTiles.X > 0);
+		check(InstanceData->NumTiles.Y > 0);
+		check(InstanceData->NumTiles.Z > 0);
+
 		// #todo(dmp): we should align this method with the implementation in Grid2DCollection.  For now, we are relying on the next call to tick  to reset the User Texture
 		
 		// Push Updates to Proxy.		
@@ -1003,6 +1029,7 @@ bool UNiagaraDataInterfaceGrid3DCollection::PerInstanceTickPostSimulate(void* Pe
 			FGrid3DCollectionRWInstanceData_RenderThread* TargetData = RT_Proxy->SystemInstancesToProxyData_RT.Find(InstanceID);
 
 			TargetData->NumCells = RT_InstanceData.NumCells;
+			TargetData->NumTiles = RT_InstanceData.NumTiles;
 			
 			TargetData->CellSize = RT_InstanceData.CellSize;
 
