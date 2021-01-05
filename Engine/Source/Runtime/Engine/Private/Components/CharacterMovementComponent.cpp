@@ -5472,7 +5472,10 @@ void UCharacterMovementComponent::AdjustFloorHeight()
 		bJustTeleported |= !bMaintainHorizontalGroundVelocity || (OldFloorDist < 0.f);
 		
 		// If something caused us to adjust our height (especially a depentration) we should ensure another check next frame or we will keep a stale result.
-		bForceNextFloorCheck = true;
+		if (CharacterOwner && CharacterOwner->GetLocalRole() != ROLE_SimulatedProxy)
+		{
+			bForceNextFloorCheck = true;
+		}
 	}
 }
 
