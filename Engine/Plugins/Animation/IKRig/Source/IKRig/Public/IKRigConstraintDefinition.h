@@ -7,9 +7,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Object.h"
+#include "IKRigSolverDefinition.h"
 #include "IKRigConstraintDefinition.generated.h"
 
 class UIKRigConstraint;
@@ -24,7 +22,7 @@ struct IKRIG_API FIKRigConstraintProfile
 };
 
 UCLASS(config = Engine, hidecategories = UObject, BlueprintType)
-class IKRIG_API UIKRigConstraintDefinition : public UObject
+class IKRIG_API UIKRigConstraintDefinition : public UIKRigSolverDefinition
 {
 	GENERATED_BODY()
 
@@ -36,6 +34,7 @@ private:
 	UPROPERTY(EditAnywhere, Category = "Profile")
 	TMap<FName, FIKRigConstraintProfile> ConstraintProfiles;
 	friend class UIKRigConstraintSolver;
+	friend class UIKRigController;
 public:
 	static const FName DefaultProfileName;
 };

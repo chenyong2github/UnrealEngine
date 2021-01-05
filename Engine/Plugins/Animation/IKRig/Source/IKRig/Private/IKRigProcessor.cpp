@@ -9,6 +9,7 @@
 #include "IKRigDefinition.h"
 #include "IKRigSolverDefinition.h"
 #include "IKRigSolver.h"
+#include "IKRigConstraintSolver.h"
 
  // IKRigProcessor implementation functions
 void UIKRigProcessor::SetIKRigDefinition(UIKRigDefinition* InRigDefinition, bool bInitialize /*= false*/)
@@ -45,8 +46,12 @@ void UIKRigProcessor::Reinitialize()
 	// i'm copying this here 
 	TArray<UIKRigSolverDefinition*> SolverDefinitions = RigDefinition->GetSolverDefinitions();
 
+	UIKRigSolver::FIKRigTransformGetter RefTransformGetter = UIKRigSolver::FIKRigTransformGetter::CreateUObject(this, &UIKRigProcessor::GetRefPoseGetter);
+	UIKRigSolver::FIKRigGoalGetter GoalGetter = UIKRigSolver::FIKRigGoalGetter::CreateUObject(this, &UIKRigProcessor::GoalGetter);
+
 	const int32 NumSolvers = SolverDefinitions.Num();
 	Solvers.Reset(NumSolvers);
+
 	for (int32 Index = 0; Index < NumSolvers; ++Index)
 	{
 		// it's possible SolverDefinitions.Num() != Solvers.Num()
@@ -57,12 +62,17 @@ void UIKRigProcessor::Reinitialize()
 			{
 				UIKRigSolver* NewSolver = NewObject<UIKRigSolver>(this, ClassType);
 				// const transform modifier for hierarchy query
-				NewSolver->Init(SolverDefinitions[Index], TransformModifier, UIKRigSolver::FIKRigTransformGetter::CreateUObject(this, &UIKRigProcessor::GetRefPoseGetter),
-					UIKRigSolver::FIKRigGoalGetter::CreateUObject(this, &UIKRigProcessor::GoalGetter));
+				NewSolver->Init(SolverDefinitions[Index], TransformModifier, RefTransformGetter, GoalGetter);
 				Solvers.Add(NewSolver);
 			}
 		}
 	}
+
+	// initialize constraint solver
+	CostraintSolver = NewObject<UIKRigConstraintSolver>(this);
+	check (CostraintSolver);
+	CostraintSolver->SetConstraintDefinition(RigDefinition->ConstraintDefinitions);
+	CostraintSolver->Init(RigDefinition->ConstraintDefinitions, TransformModifier, RefTransformGetter, GoalGetter);
 
 	bInitialized = true;
 }
@@ -102,6 +112,9 @@ void UIKRigProcessor::Solve()
 			// Draw interface is pointer in case we want to nullify for optimization
 			Solvers[Index]->Solve(TransformModifier, &DrawInterface);
 		}
+
+		// solve constraint
+		CostraintSolver->Solve(TransformModifier, &DrawInterface);
 	}
 }
 

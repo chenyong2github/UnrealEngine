@@ -89,11 +89,13 @@ private:
 	UPROPERTY(EditAnywhere, instanced, Category = "Solver")
 	TArray<UIKRigSolverDefinition*> SolverDefinitions;
 
+public:
 	/*********** Constraint Definition *********************/
 	// contains constraint data
 	UPROPERTY(EditAnywhere, instanced, Category = "Constraint")
 	UIKRigConstraintDefinition* ConstraintDefinitions;
 
+private:
 	/*********** Goals with Default Value******************/
 	// goals data
 	// this is cached by "Unique Internal Name" here

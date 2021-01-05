@@ -23,10 +23,10 @@ class IKRIG_API UIKRigConstraint : public UObject
 	bool bInitialized = false;
 
 public: 
-	void Setup(FIKRigTransformModifier& InOutTransformModifier);
+	void Setup(const FIKRigTransformModifier& InOutTransformModifier);
 	void SetAndApplyConstraint(FIKRigTransformModifier& InOutTransformModifier);
 
 	virtual void Apply(FIKRigTransformModifier& InOutTransformModifier, FControlRigDrawInterface* InOutDrawInterface) {};
-	virtual void SetupInternal(FIKRigTransformModifier& InOutTransformModifier) {};
+	virtual void SetupInternal(const FIKRigTransformModifier& InOutTransformModifier) {};
 };
 

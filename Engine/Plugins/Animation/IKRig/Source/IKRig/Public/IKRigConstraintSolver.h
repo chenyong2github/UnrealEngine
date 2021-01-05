@@ -15,7 +15,7 @@ class UIKRigConstraint;
 
 
 // run time processor 
-UCLASS(config = Engine, Transient, hidecategories = UObject)
+UCLASS(config = Engine, hidecategories = UObject)
 class IKRIG_API UIKRigConstraintSolver : public UIKRigSolver
 {
 	GENERATED_BODY()

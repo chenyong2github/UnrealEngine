@@ -11,7 +11,7 @@
 UIKRigDefinition::UIKRigDefinition()
 {
 	// we create constraint definition for them
-//	ConstraintDefinitions = CreateDefaultSubobject<UIKRigConstraintDefinition>(TEXT("ConstraintDefinition"));
+	ConstraintDefinitions = CreateDefaultSubobject<UIKRigConstraintDefinition>(TEXT("ConstraintDefinition"));
 }
 
 #if WITH_EDITOR
@@ -368,7 +368,7 @@ void UIKRigDefinition::EnsureCreateUniqueGoalName(FName& InOutGoal) const
 	// while contains
 	while(IKGoals.Find(FName(*GoalNameString)))
 	{
-		GoalNameString += FString::Format(TEXT("_{0}"), {Index++});
+		GoalNameString = FString::Format(TEXT("{0}_{1}"), {InOutGoal.ToString(), Index++});
 	}
 
 	InOutGoal = FName(*GoalNameString);

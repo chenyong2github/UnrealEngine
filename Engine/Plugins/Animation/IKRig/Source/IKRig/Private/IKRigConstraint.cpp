@@ -7,7 +7,7 @@
 
 #include "IKRigConstraint.h"
 
-void UIKRigConstraint::Setup(FIKRigTransformModifier& InOutTransformModifier)
+void UIKRigConstraint::Setup(const FIKRigTransformModifier& InOutTransformModifier)
 {
 	SetupInternal(InOutTransformModifier);
 	bInitialized = true;
@@ -17,7 +17,7 @@ void UIKRigConstraint::SetAndApplyConstraint(FIKRigTransformModifier& InOutTrans
 {
 	if (!bInitialized)
 	{
-		Setup(InOutTransformModifier);
+		Setup(const_cast<FIKRigTransformModifier&>(InOutTransformModifier));
 	}
 
 	Apply(InOutTransformModifier, nullptr);

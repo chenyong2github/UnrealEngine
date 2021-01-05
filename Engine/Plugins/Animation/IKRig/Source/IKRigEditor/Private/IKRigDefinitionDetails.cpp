@@ -10,6 +10,7 @@
 #include "IKRigDefinition.h"
 #include "IKRigController.h"
 #include "IKRigSolverDefinition.h"
+#include "IKRigConstraint.h"
 
 #include "ScopedTransaction.h"
 #include "PropertyCustomizationHelpers.h"
@@ -138,12 +139,31 @@ void FIKRigDefinitionDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuild
 	[
 		SNew(SButton)
 		.ContentPadding(3)
-		.OnClicked(this, &FIKRigDefinitionDetails::OnShowClassPicker)
+		.OnClicked(this, &FIKRigDefinitionDetails::OnShowSolverClassPicker)
 		.ToolTipText(LOCTEXT("OnShowSolverListTooltip", "Select Solver to Add"))
 		[
 			SNew(STextBlock)
 			.Font(IDetailLayoutBuilder::GetDetailFont())
 			.Text(LOCTEXT("ShowSolverList", "Add Solver"))
+		]
+	];
+
+	IDetailCategoryBuilder& ConstraintCategory = DetailBuilder.EditCategory("Constraint");
+	ConstraintCategory.AddCustomRow(FText::FromString("AddConstraint"))
+	.NameContent()
+	[
+		SNullWidget::NullWidget
+	]
+	.ValueContent()
+	[
+		SNew(SButton)
+		.ContentPadding(3)
+		.OnClicked(this, &FIKRigDefinitionDetails::OnShowConstraintClassPicker)
+		.ToolTipText(LOCTEXT("OnShowConstraintListTooltip", "Select Constraint to Add"))
+		[
+			SNew(STextBlock)
+			.Font(IDetailLayoutBuilder::GetDetailFont())
+			.Text(LOCTEXT("ShowConstraintList", "Add Constraint"))
 		]
 	];
 
@@ -177,7 +197,7 @@ void FIKRigDefinitionDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuild
 //	GoalPropertyHandle->MarkHiddenByCustomization();
 }
 
-class FIKSolverClassFilter : public IClassViewerFilter
+class FIKRigClassFilter : public IClassViewerFilter
 {
 public:
 	/** All children of these classes will be included unless filtered out by another setting. */
@@ -201,7 +221,8 @@ public:
 	}
 };
 
-FReply FIKRigDefinitionDetails::OnShowClassPicker()
+// choose class for them
+UClass* SelectClass(UClass* ClassType, const FText& TitleText)
 {
 	FClassViewerModule& ClassViewerModule = FModuleManager::LoadModuleChecked<FClassViewerModule>("ClassViewer");
 	FClassViewerInitializationOptions Options;
@@ -210,20 +231,45 @@ FReply FIKRigDefinitionDetails::OnShowClassPicker()
 	Options.bShowObjectRootClass = false;
 	Options.bExpandRootNodes = true;
 	Options.bShowUnloadedBlueprints = true;
-	TSharedPtr<FIKSolverClassFilter> Filter = MakeShareable(new FIKSolverClassFilter);
+	TSharedPtr<FIKRigClassFilter> Filter = MakeShareable(new FIKRigClassFilter);
 	Options.ClassFilter = Filter;
 
 	Filter->DisallowedClassFlags = CLASS_Abstract | CLASS_Deprecated | CLASS_NewerVersionExists | CLASS_Transient;
-	Filter->AllowedChildrenOfClasses.Add(UIKRigSolverDefinition::StaticClass());
-	Filter->DisallowedClasses.Add(UIKRigSolverDefinition::StaticClass());
+	Filter->AllowedChildrenOfClasses.Add(ClassType);
+	Filter->DisallowedClasses.Add(ClassType);
 
-	const FText TitleText = LOCTEXT("SelectSolverClass", "Select Solver Class");
 	UClass* ChosenClass = nullptr;
-	const bool bPressedOk = SClassPickerDialog::PickClass(TitleText, Options, ChosenClass, UIKRigSolverDefinition::StaticClass());
+	const bool bPressedOk = SClassPickerDialog::PickClass(TitleText, Options, ChosenClass, ClassType);
 
 	if (bPressedOk)
 	{
+		return ChosenClass;
+	}
+
+	return nullptr;
+}
+
+
+
+FReply FIKRigDefinitionDetails::OnShowSolverClassPicker()
+{
+	UClass* ChosenClass = SelectClass(UIKRigSolverDefinition::StaticClass(), LOCTEXT("SelectSolverClass", "Select Solver Class"));
+	if (ChosenClass)
+	{
 		IKRigController->AddSolver(ChosenClass);
+	}
+
+	return FReply::Handled();
+}
+
+FReply FIKRigDefinitionDetails::OnShowConstraintClassPicker()
+{
+	UClass* ChosenClass = SelectClass(UIKRigConstraint::StaticClass(), LOCTEXT("SelectConstraintClass", "Select Constraint Class"));
+	if (ChosenClass)
+	{
+		// ask for name of constraint
+		FName NewName(TEXT("NewConstraint"));
+		IKRigController->AddConstraint(ChosenClass, NewName);
 	}
 
 	return FReply::Handled();

@@ -24,6 +24,7 @@ class UIKRigSolverDefinition;
 class UIKRigConstraint;
 struct FIKRigHierarchy;
 struct FReferenceSkeleton;
+struct FIKRigConstraintProfile;
 
 
 UCLASS(config = Engine, hidecategories = UObject, BlueprintType)
@@ -106,6 +107,8 @@ private:
 	bool ValidateSolver(UIKRigSolverDefinition* const SolverDef) const;
 	void UpdateGoal();
 
+	FIKRigConstraintProfile* GetConstraintProfile(const FName& InProfileName) const;
+
 	void InitializeIKRigSolverDefinition(UIKRigSolverDefinition* SolverDef);
 	void UninitializeIKRigSolverDefinition(UIKRigSolverDefinition* SolverDef);
 
@@ -115,6 +118,8 @@ private:
 
 	// IKRigDefinition set up
 	void SetIKRigDefinition(UIKRigDefinition* InIKRigDefinition);
+
+	void EnsureUniqueConstraintName(FName& InOutName);
 
 	// called by IKRigDefinition when it's begin destroy
 	static void RemoveControllerByRigDefinition(UIKRigDefinition* InIKRigDefinition);

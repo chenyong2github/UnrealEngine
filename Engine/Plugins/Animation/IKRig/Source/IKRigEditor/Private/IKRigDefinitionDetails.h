@@ -6,16 +6,18 @@
 #include "UObject/WeakObjectPtr.h"
 #include "UObject/WeakObjectPtrTemplates.h"
 #include "IDetailCustomization.h"
-#include "Input/Reply.h"
+#include "Types/SlateEnums.h"
 #include "Widgets/Views/SListView.h"
+#include "Input/Reply.h"
 
 class IDetailLayoutBuilder;
-class IPropertyHandle;
-class ITableRow;
-class STableViewBase;
 class UIKRigDefinition;
 class UIKRigController;
 struct FAssetData;
+class FReply;
+class ITableRow;
+class STableViewBase;
+class IPropertyHandle;
 
 // Utility class to build combo boxes out of arrays of names.
 struct FGoalNameListItem : public TSharedFromThis<FGoalNameListItem>
@@ -56,7 +58,8 @@ private:
 
 	TWeakPtr< IDetailLayoutBuilder > DetailBuilderWeakPtr;
 
-	FReply OnShowClassPicker();
+	FReply OnShowSolverClassPicker();
+	FReply OnShowConstraintClassPicker();
 
 	typedef TSharedPtr<FGoalNameListItem> FGoalNameListItemPtr;
 

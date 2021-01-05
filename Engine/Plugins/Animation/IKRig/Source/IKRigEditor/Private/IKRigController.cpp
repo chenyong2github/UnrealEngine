@@ -10,6 +10,8 @@
 #include "AnimationRuntime.h"
 #include "IKRigSolverDefinition.h"
 #include "ScopedTransaction.h"
+#include "IKRigConstraintDefinition.h"
+#include "IKRigConstraint.h"
 
 #define LOCTEXT_NAMESPACE	"IKRigController"
 
@@ -332,42 +334,142 @@ bool UIKRigController::CanAutoConfigure(UIKRigSolverDefinition* SolverDef) const
 // create new profile
 void UIKRigController::CreateNewProfile(FName& InNewProfileName)
 {
-	
+	if (IKRigDefinition && InNewProfileName != NAME_None)
+	{
+		FScopedTransaction Transaction(LOCTEXT("CreateNewProfile_Label", "Create New Constraint Profile"));
+		IKRigDefinition->Modify();
+		// we just find or add
+		IKRigDefinition->ConstraintDefinitions->ConstraintProfiles.FindOrAdd(InNewProfileName);
+	}
 }
 
 bool UIKRigController::RemoveConstraintProfile(const FName& InProfileName)
 {
+	if (IKRigDefinition && InProfileName != NAME_None)
+	{
+		FScopedTransaction Transaction(LOCTEXT("RemoveProfile_Label", "Remove Constraint Profile"));
+		IKRigDefinition->Modify();
+		// we just find or add
+		return IKRigDefinition->ConstraintDefinitions->ConstraintProfiles.Remove(InProfileName) > 0;
+
+	}
+
 	return false;
 }
 
 void UIKRigController::RenameProfile(FName InCurrentProfileName, FName& InNewProfileName)
 {
+	// write this 
+	ensure (false);
+	// we don't allow change default profile until we support saving the default profile
+}
 
+FIKRigConstraintProfile* UIKRigController::GetConstraintProfile(const FName& InProfileName) const
+{
+	if (IKRigDefinition)
+	{
+		FName SearchProfileName = (InProfileName == NAME_None)? UIKRigConstraintDefinition::DefaultProfileName : InProfileName;
+		return IKRigDefinition->ConstraintDefinitions->ConstraintProfiles.Find(SearchProfileName);
+	}
+
+	return nullptr;
+}
+
+void UIKRigController::EnsureUniqueConstraintName(FName& InOutName)
+{
+	int32 Index = 1;
+
+	TArray<FName> ConstraintNames;
+
+	GetConstraintNames(ConstraintNames);
+
+	FString NewName = InOutName.ToString();
+	while (ConstraintNames.Contains(FName(*NewName)))
+	{
+		NewName = FString::Format(TEXT("{0}_{1}"), { InOutName.ToString(), Index++ });
+	}
+
+	InOutName = FName(*NewName);
 }
 
 UIKRigConstraint* UIKRigController::AddConstraint(TSubclassOf<UIKRigConstraint> NewConstraintType, FName& InOutNewName, FName InProfile /*= NAME_None*/)
 {
+	FIKRigConstraintProfile* Profile = GetConstraintProfile(InProfile);
+	if (Profile)
+	{
+		FScopedTransaction Transaction(LOCTEXT("AddConstraint_Label", "Add Constraint"));
+		IKRigDefinition->Modify();
+
+		EnsureUniqueConstraintName(InOutNewName);
+		UIKRigConstraint* NewRigConstraint = NewObject<UIKRigConstraint>(IKRigDefinition, NewConstraintType, InOutNewName);
+		if (NewRigConstraint)
+		{
+		
+			Profile->Constraints.Add(NewRigConstraint->GetFName(), NewRigConstraint);
+			return NewRigConstraint;
+		}
+	}
 	return nullptr;	
 }
 
 UIKRigConstraint* UIKRigController::GetConstraint(const FName& InProfileName, const FName& InName) const
 {
+	FIKRigConstraintProfile* Profile = GetConstraintProfile(InProfileName);
+	if (Profile)
+	{
+		UIKRigConstraint** RigConstraint = Profile->Constraints.Find(InName);
+		if (RigConstraint)
+		{
+			return *RigConstraint;
+		}
+	}
+
 	return nullptr;
 }
 
 bool UIKRigController::RemoveConstraint(const FName& InConstraintName)
 {
+	// remove this in all profile
+	if (IKRigDefinition)
+	{
+		FScopedTransaction Transaction(LOCTEXT("AddConstraint_Label", "Add Constraint"));
+		IKRigDefinition->Modify();
+
+		for (auto Iter = IKRigDefinition->ConstraintDefinitions->ConstraintProfiles.CreateIterator(); Iter; ++Iter)
+		{
+			FIKRigConstraintProfile& Profile = Iter.Value();
+			for (auto InnerIter = Profile.Constraints.CreateIterator(); InnerIter; ++InnerIter)
+			{
+				// possible the constraint name may not be there
+				// what this means, when we rename, we have to rename all of them
+				Profile.Constraints.Remove(InConstraintName);
+			}
+		}
+		// remove return?
+		return true;
+	}
+
 	return false;
 }
 
 void UIKRigController::GetConstraintProfileNames(TArray<FName>& OutProfileNames) const
 {
-
+	if (IKRigDefinition)
+	{
+		OutProfileNames.Reset();
+		IKRigDefinition->ConstraintDefinitions->ConstraintProfiles.GenerateKeyArray(OutProfileNames);
+	}
 }
 
 void UIKRigController::GetConstraintNames(TArray<FName>& OutConstraintNames) const
 {
-
+	// still can be null if IKRigDefinition is nullptr
+	FIKRigConstraintProfile* DefaultProfile = GetConstraintProfile(NAME_None);
+	if (DefaultProfile)
+	{
+		OutConstraintNames.Reset();
+		DefaultProfile->Constraints.GenerateKeyArray(OutConstraintNames);
+	}
 }
 
 // goal operators

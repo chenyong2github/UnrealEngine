@@ -31,6 +31,7 @@ void UIKRigConstraintSolver::InitInternal(const FIKRigTransformModifier& InGloba
 			{
 				UIKRigConstraint*& Template = InnerIter.Value();
 				UIKRigConstraint* CopyConstraint = NewObject<UIKRigConstraint>(this, Template->GetClass(), TEXT("IKRigConstraint"), RF_NoFlags, Template);
+				CopyConstraint->Setup(InGlobalTransform);
 				// replace value
 				Template = CopyConstraint;
 			}
