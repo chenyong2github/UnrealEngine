@@ -349,7 +349,7 @@ static void OnPopCSVStat(FRHIComputeCommandList&, const FRDGCSVStatScope* Scope)
 }
 
 FRDGCSVStatScopeStack::FRDGCSVStatScopeStack(FRHIComputeCommandList& InRHICmdList, const char* InUnaccountedStatName)
-	: ScopeStack(InRHICmdList, &OnPushCSVStat, &OnPopCSVStat)
+	: ScopeStack(InRHICmdList, &OnPushCSVStat, &OnPopCSVStat, GetEmitRDGEvents())
 	, UnaccountedStatName(InUnaccountedStatName)
 {
 	BeginScope(UnaccountedStatName);
