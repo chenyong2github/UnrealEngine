@@ -5691,7 +5691,7 @@ bool FBlueprintEditorUtils::IsVariableUsed(const UBlueprint* InBlueprint, const 
 		AssetRegistryModule.Get().GetReferencers(InBlueprint->GetPackage()->GetFName(), Filter.PackageNames, UE::AssetRegistry::EDependencyCategory::Package, UE::AssetRegistry::EDependencyQuery::Hard);
 		if (Filter.PackageNames.Num() > 0)
 		{
-			GWarn->BeginSlowTask(LOCTEXT("LoadingReferencerAssets", "Loading Refereners..."), true);
+			GWarn->BeginSlowTask(LOCTEXT("LoadingReferencerAssets", "Loading Referencers..."), true);
 
 			Filter.TagsAndValues.Add(TEXT("IsDataOnly"), TOptional<FString>(TEXT("false")));
 			TArray<FAssetData> ReferencersAssetData;
