@@ -338,6 +338,15 @@ class RHI_API FGenericDataDrivenShaderPlatformInfo
 	uint32 bSupportsGen5TemporalAA : 1;
 	uint32 bTargetsTiledGPU: 1;
 	uint32 bNeedsOfflineCompiler: 1;
+	uint32 bSupportsDualSourceBlending : 1;
+	uint32 bRequiresGeneratePrevTransformBuffer : 1;
+	uint32 bRequiresRenderTargetDuringRaster : 1;
+	uint32 bRequiresDisableForwardLocalLights : 1;
+	uint32 bCompileSignalProcessingPipeline : 1;
+	uint32 bSupportsTessellation : 1;
+	uint32 bSupportsPerPixelDBufferMask : 1;
+	uint32 bIsHlslcc : 1;
+	uint32 NumberOfComputeThreads : 10;
 
 	// NOTE: When adding fields, you must also add to ParseDataDrivenShaderInfo!
 	uint32 bContainsValidPlatformInfo : 1;
@@ -502,6 +511,11 @@ public:
 		return Infos[Platform].bNeedsOfflineCompiler;
 	}
 
+	static FORCEINLINE_DEBUGGABLE const bool GetSupportsPrimitiveShaders(const FStaticShaderPlatform Platform)
+	{
+		return Infos[Platform].bSupportsPrimitiveShaders;
+	}
+
 	static FORCEINLINE_DEBUGGABLE const bool GetSupportsByteBufferComputeShaders(const FStaticShaderPlatform Platform)
 	{
 		return Infos[Platform].bSupportsByteBufferComputeShaders;
@@ -515,6 +529,11 @@ public:
 	static FORCEINLINE_DEBUGGABLE const bool GetSupportsTemporalHistoryUpscale(const FStaticShaderPlatform Platform)
 	{
 		return Infos[Platform].bSupportsTemporalHistoryUpscale;
+	}
+
+	static FORCEINLINE_DEBUGGABLE const bool GetSupportsRTIndexFromVS(const FStaticShaderPlatform Platform)
+	{
+		return Infos[Platform].bSupportsRTIndexFromVS;
 	}
 
 	static FORCEINLINE_DEBUGGABLE const bool GetSupportsGPUScene(const FStaticShaderPlatform Platform)
@@ -535,6 +554,51 @@ public:
 	static FORCEINLINE_DEBUGGABLE const bool GetSupportsUInt64ImageAtomics(const FStaticShaderPlatform Platform)
 	{
 		return Infos[Platform].bSupportsUInt64ImageAtomics;
+	}
+
+	static FORCEINLINE_DEBUGGABLE const bool GetSupportsDualSourceBlending(const FStaticShaderPlatform Platform)
+	{
+		return Infos[Platform].bSupportsDualSourceBlending;
+	}
+
+	static FORCEINLINE_DEBUGGABLE const bool GetRequiresGeneratePrevTransformBuffer(const FStaticShaderPlatform Platform)
+	{
+		return Infos[Platform].bRequiresGeneratePrevTransformBuffer;
+	}
+
+	static FORCEINLINE_DEBUGGABLE const bool GetRequiresRenderTargetDuringRaster(const FStaticShaderPlatform Platform)
+	{
+		return Infos[Platform].bRequiresRenderTargetDuringRaster;
+	}
+
+	static FORCEINLINE_DEBUGGABLE const bool GetRequiresDisableForwardLocalLights(const FStaticShaderPlatform Platform)
+	{
+		return Infos[Platform].bRequiresDisableForwardLocalLights;
+	}
+
+	static FORCEINLINE_DEBUGGABLE const bool GetCompileSignalProcessingPipeline(const FStaticShaderPlatform Platform)
+	{
+		return Infos[Platform].bCompileSignalProcessingPipeline;
+	}
+
+	static FORCEINLINE_DEBUGGABLE const bool GetSupportsTessellation(const FStaticShaderPlatform Platform)
+	{
+		return Infos[Platform].bSupportsTessellation;
+	}
+
+	static FORCEINLINE_DEBUGGABLE const bool GetSupportsPerPixelDBufferMask(const FStaticShaderPlatform Platform)
+	{
+		return Infos[Platform].bSupportsPerPixelDBufferMask;
+	}
+
+	static FORCEINLINE_DEBUGGABLE const bool GetIsHlslcc(const FStaticShaderPlatform Platform)
+	{
+		return Infos[Platform].bIsHlslcc;
+	}
+
+	static FORCEINLINE_DEBUGGABLE const uint32 GetNumberOfComputeThreads(const FStaticShaderPlatform Platform)
+	{
+		return Infos[Platform].NumberOfComputeThreads;
 	}
 
 private:
@@ -1515,7 +1579,7 @@ inline bool IsD3DPlatform(const FStaticShaderPlatform Platform, bool bIncludeXbo
 
 inline bool IsHlslccShaderPlatform(const FStaticShaderPlatform Platform)
 {
-	return IsMetalPlatform(Platform) || IsVulkanPlatform(Platform) || IsSwitchPlatform(Platform) || IsOpenGLPlatform(Platform);
+	return IsMetalPlatform(Platform) || IsVulkanPlatform(Platform) || IsSwitchPlatform(Platform) || IsOpenGLPlatform(Platform) || FDataDrivenShaderPlatformInfo::GetIsHlslcc(Platform);
 }
 
 UE_DEPRECATED(4.27, "Removed; please don't use.") 

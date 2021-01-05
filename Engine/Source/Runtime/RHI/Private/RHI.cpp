@@ -1227,6 +1227,11 @@ RHI_API uint32 RHIGetShaderLanguageVersion(const FStaticShaderPlatform Platform)
 
 RHI_API bool RHISupportsTessellation(const FStaticShaderPlatform Platform)
 {
+	if (FDataDrivenShaderPlatformInfo::GetSupportsTessellation(Platform))
+	{
+		return true;
+	}
+
 	if (IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5))
 	{
 		return (Platform == SP_PCD3D_SM5) || (Platform == SP_XBOXONE_D3D12) || (Platform == SP_METAL_SM5) || (IsVulkanSM5Platform(Platform));
@@ -1464,7 +1469,7 @@ FRHIPanicEvent& RHIGetPanicDelegate()
 
 #include "Misc/DataDrivenPlatformInfoRegistry.h"
 
-FString LexToString(EShaderPlatform Platform)
+FString LexToString(EShaderPlatform Platform, bool bError)
 {
 	switch (Platform)
 	{
@@ -1498,7 +1503,7 @@ FString LexToString(EShaderPlatform Platform)
 		}
 		else
 		{
-			checkf(0, TEXT("Unknown or removed EShaderPlatform %d!"), (int32)Platform);
+			checkf(!bError, TEXT("Unknown or removed EShaderPlatform %d!"), (int32)Platform);
 			return TEXT("");
 		}
 	}
@@ -1510,7 +1515,7 @@ void LexFromString(EShaderPlatform& Value, const TCHAR* String)
 
 	for (uint8 i = 0; i < (uint8)EShaderPlatform::SP_NumPlatforms; ++i)
 	{
-		if (LexToString((EShaderPlatform)i).Equals(String))
+		if (LexToString((EShaderPlatform)i, false).Equals(String))
 		{
 			Value = (EShaderPlatform)i;
 			return;
@@ -1529,15 +1534,21 @@ const FName LANGUAGE_Nintendo("Nintendo");
 RHI_API FGenericDataDrivenShaderPlatformInfo FGenericDataDrivenShaderPlatformInfo::Infos[SP_NumPlatforms];
 
 // Gets a string from a section, or empty string if it didn't exist
-FString GetSectionString(const FConfigSection& Section, FName Key)
+static inline FString GetSectionString(const FConfigSection& Section, FName Key)
 {
 	return Section.FindRef(Key).GetValue();
 }
 
 // Gets a bool from a section, or false if it didn't exist
-bool GetSectionBool(const FConfigSection& Section, FName Key)
+static inline bool GetSectionBool(const FConfigSection& Section, FName Key)
 {
 	return FCString::ToBool(*GetSectionString(Section, Key));
+}
+
+// Gets a bool from a section, or false if it didn't exist
+static inline uint32 GetSectionUint(const FConfigSection& Section, FName Key)
+{
+	return (uint32)FCString::Atoi(*GetSectionString(Section, Key));
 }
 
 void FGenericDataDrivenShaderPlatformInfo::ParseDataDrivenShaderInfo(const FConfigSection& Section, FGenericDataDrivenShaderPlatformInfo& Info)
@@ -1577,6 +1588,15 @@ void FGenericDataDrivenShaderPlatformInfo::ParseDataDrivenShaderInfo(const FConf
 	Info.bSupportsGen5TemporalAA = GetSectionBool(Section, "bSupportsGen5TemporalAA");
 	Info.bTargetsTiledGPU = GetSectionBool(Section, "bTargetsTiledGPU");
 	Info.bNeedsOfflineCompiler = GetSectionBool(Section, "bNeedsOfflineCompiler");
+	Info.bSupportsDualSourceBlending = GetSectionBool(Section, "bSupportsDualSourceBlending");
+	Info.bRequiresGeneratePrevTransformBuffer = GetSectionBool(Section, "bRequiresGeneratePrevTransformBuffer");
+	Info.bRequiresRenderTargetDuringRaster = GetSectionBool(Section, "bRequiresRenderTargetDuringRaster");
+	Info.bRequiresDisableForwardLocalLights = GetSectionBool(Section, "bRequiresDisableForwardLocalLights");
+	Info.bCompileSignalProcessingPipeline = GetSectionBool(Section, "bCompileSignalProcessingPipeline");
+	Info.bSupportsTessellation = GetSectionBool(Section, "bSupportsTessellation");
+	Info.bSupportsPerPixelDBufferMask = GetSectionBool(Section, "bSupportsPerPixelDBufferMask");
+	Info.bIsHlslcc = GetSectionBool(Section, "bIsHlslcc");
+	Info.NumberOfComputeThreads = GetSectionUint(Section, "NumberOfComputeThreads");
 }
 
 void FGenericDataDrivenShaderPlatformInfo::Initialize()
