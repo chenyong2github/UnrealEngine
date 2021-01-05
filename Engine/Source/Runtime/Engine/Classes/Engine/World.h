@@ -3867,6 +3867,9 @@ public:
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnCopyWorldData, UWorld*, UWorld*);
 	static FOnCopyWorldData OnCopyWorldData;
 
+	DECLARE_MULTICAST_DELEGATE_OneParam(FGameInstanceEvent, UGameInstance* /*GameInstance*/);
+	static FGameInstanceEvent OnStartGameInstance;
+
 private:
 	FWorldDelegates() {}
 };
