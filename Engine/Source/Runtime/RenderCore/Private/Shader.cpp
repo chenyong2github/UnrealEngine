@@ -1413,6 +1413,7 @@ void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 
 	{
 		KeyString += ShouldKeepShaderDebugInfo(Platform) ? TEXT("_NoStrip") : TEXT("");
+		KeyString += ShouldAllowUniqueDebugInfo(Platform) ? TEXT("_FullDbg") : TEXT("");
 	}
 
 	{

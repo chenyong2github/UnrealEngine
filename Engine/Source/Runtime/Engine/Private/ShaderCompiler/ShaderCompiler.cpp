@@ -492,11 +492,27 @@ static TAutoConsoleVariable<int32> CVarKeepShaderDebugData(
 	TEXT("For some platforms this cvar can be overriden in the Engine.ini, under the [ShaderCompiler] section."),
 	ECVF_ReadOnly);
 
+static TAutoConsoleVariable<int32> CVarPrepareExportedDebugInfo(
+	TEXT("r.Shaders.PrepareExportedDebugInfo"),
+	0,
+	TEXT("For platforms that work on exported shader debug info, this should be set to keep shader reflection and debug data from shader bytecode, default is to strip.")
+	TEXT("For these platforms, r.Shaders.KeepDebugInfo has the same behavior but will also export the debug info.")
+	TEXT("This will only be read from the platform Engine.ini, under the [ShaderCompiler] section."),
+	ECVF_ReadOnly);
+
 static TAutoConsoleVariable<int32> CVarExportShaderDebugData(
 	TEXT("r.Shaders.ExportDebugInfo"),
 	0,
 	TEXT("Whether to export the shader reflection and debug data from shader bytecode as separate files.")
 	TEXT("r.Shaders.KeepDebugInfo must be enabled and r.DumpShaderDebugInfo will enable this cvar.")
+	TEXT("For some platforms this cvar can be overriden in the Engine.ini, under the [ShaderCompiler] section."),
+	ECVF_ReadOnly);
+
+static TAutoConsoleVariable<int32> CVarAllowUniqueDebugInfo(
+	TEXT("r.Shaders.AllowUniqueDebugInfo"),
+	0,
+	TEXT("Whether to allow (exported) shader debug info to be unique per shader.\n")
+	TEXT("Enabling this can cause a drastic increase in debug data, enable only if absolutely necessary.\n")
 	TEXT("For some platforms this cvar can be overriden in the Engine.ini, under the [ShaderCompiler] section."),
 	ECVF_ReadOnly);
 
@@ -4149,11 +4165,14 @@ void GlobalBeginCompileShader(
 		}
 	}
 
+	if (ShouldKeepShaderDebugInfo(Target.GetPlatform()))
 	{
-		if (ShouldKeepShaderDebugInfo((EShaderPlatform)Target.Platform))
-		{
-			Input.Environment.CompilerFlags.Add(CFLAG_KeepDebugInfo);
-		}
+		Input.Environment.CompilerFlags.Add(CFLAG_KeepDebugInfo);
+	}
+
+	if (ShouldAllowUniqueDebugInfo(Target.GetPlatform()))
+	{
+		Input.Environment.CompilerFlags.Add(CFLAG_AllowUniqueDebugInfo);
 	}
 
 	if (CVarShaderFastMath.GetValueOnAnyThread() == 0)

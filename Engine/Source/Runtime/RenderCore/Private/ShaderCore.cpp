@@ -280,89 +280,73 @@ bool AllowDebugViewmodes(EShaderPlatform Platform)
 #endif
 }
 
-#if WITH_EDITOR
-static void GetShaderCompilerPlatformConfigs(const TCHAR* Key, uint64& OutPlatformFlags)
+static bool IsShaderCompilerConfigEnabledForPlatform(const IConsoleVariable* GlobalCvar, const TCHAR* Key, EShaderPlatform ShaderPlatform)
 {
-	for (uint32 ShaderPlatformIndex = 0; ShaderPlatformIndex < SP_NumPlatforms; ++ShaderPlatformIndex)
+	bool bEnabled = false;
+
+	// First check the global cvar
+	if (GlobalCvar && GlobalCvar->GetInt())
 	{
-		EShaderPlatform ShaderPlatform = EShaderPlatform(ShaderPlatformIndex);
-		FName PlatformName = ShaderPlatformToPlatformName(ShaderPlatform);
+		bEnabled = true;
+	}
+#if WITH_EDITOR
+	else
+	{
+		// Then check the per platform settings.
+		const FName PlatformName = ShaderPlatformToPlatformName(ShaderPlatform);
 		if (!PlatformName.IsNone())
 		{
 			FConfigFile EngineSettings;
 			FConfigCacheIni::LoadLocalIniFile(EngineSettings, TEXT("Engine"), true, *PlatformName.ToString());
 
-			bool bEnabled = false;
-			if (EngineSettings.GetBool(TEXT("ShaderCompiler"), Key, bEnabled))
-			{
-				uint64 Mask = (uint64)1 << ShaderPlatformIndex;
-				if (bEnabled)
-				{
-					OutPlatformFlags |= Mask;
-				}
-				else
-				{
-					OutPlatformFlags &= ~Mask;
-				}
-			}
+			EngineSettings.GetBool(TEXT("ShaderCompiler"), Key, bEnabled);
 		}
 	}
-}
 #endif
 
-static uint64 GetKeepShaderDebugInfoPlatforms()
-{
-	uint64 KeepDebugInfoPlatforms = 0;
-
-	// First check the global cvars
-	static IConsoleVariable* CVarKeepDebugInfo = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Shaders.KeepDebugInfo"));
-	if (CVarKeepDebugInfo && CVarKeepDebugInfo->GetInt())
-	{
-		KeepDebugInfoPlatforms = ~(uint64)0;
-	}
-
-#if WITH_EDITOR
-	// Then load the per platform settings.
-	GetShaderCompilerPlatformConfigs(TEXT("r.Shaders.KeepDebugInfo"), KeepDebugInfoPlatforms);
-#endif
-
-	return KeepDebugInfoPlatforms;
+	return bEnabled;
 }
 
-bool ShouldKeepShaderDebugInfo(EShaderPlatform Platform)
+bool ShouldKeepShaderDebugInfo(EShaderPlatform ShaderPlatform)
 {
-	static uint64 KeepShaderDebugInfoPlatforms = GetKeepShaderDebugInfoPlatforms();
-	return (KeepShaderDebugInfoPlatforms & (uint64(1) << Platform)) != 0;
+	static const TCHAR* const KeepDebugInfoName = TEXT("r.Shaders.KeepDebugInfo");
+	static const IConsoleVariable* KeepDebugInfoCvar = IConsoleManager::Get().FindConsoleVariable(KeepDebugInfoName);
+
+	// PrepareExportedDebugInfo is only read from the platform settings, not the global cvar
+	static const TCHAR* const PrepareExportedDebugInfoName = TEXT("r.Shaders.PrepareExportedDebugInfo");
+
+	return IsShaderCompilerConfigEnabledForPlatform(KeepDebugInfoCvar, KeepDebugInfoName, ShaderPlatform)
+		|| IsShaderCompilerConfigEnabledForPlatform(nullptr, PrepareExportedDebugInfoName, ShaderPlatform);
 }
 
-static uint64 GetExportShaderDebugInfoPlatforms()
+bool ShouldExportShaderDebugInfo(EShaderPlatform ShaderPlatform)
 {
-	uint64 ExportDebugInfoPlatforms = 0;
-
-	// First check the global cvars
-
 	// r.DumpShaderDebugInfo should also turn on ExportShaderDebugInfo
 	// The difference is that r.DumpShaderDebugInfo will also output engine debug files such as converted hlsl or SCW helper files.
 	// Where as r.Shader.ExportDebugInfo is purely to export the graphics debugging tool's debug info files.
-	static IConsoleVariable* CVarExportDebugInfo = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Shaders.ExportDebugInfo"));
 	static IConsoleVariable* CVarDumpDebugInfo = IConsoleManager::Get().FindConsoleVariable(TEXT("r.DumpShaderDebugInfo"));
-	if ((CVarExportDebugInfo && CVarExportDebugInfo->GetInt()) || (CVarDumpDebugInfo && CVarDumpDebugInfo->GetInt()))
+	if (CVarDumpDebugInfo && CVarDumpDebugInfo->GetInt())
 	{
-		ExportDebugInfoPlatforms = ~(uint64)0;
+		return true;
 	}
 
-#if WITH_EDITOR
-	// Then load the per platform settings.
-	GetShaderCompilerPlatformConfigs(TEXT("r.Shaders.ExportDebugInfo"), ExportDebugInfoPlatforms);
-#endif
+	static const TCHAR* const KeepDebugInfoName = TEXT("r.Shaders.KeepDebugInfo");
+	static const IConsoleVariable* KeepDebugInfoCvar = IConsoleManager::Get().FindConsoleVariable(KeepDebugInfoName);
+	if (IsShaderCompilerConfigEnabledForPlatform(KeepDebugInfoCvar, KeepDebugInfoName, ShaderPlatform))
+	{
+		return true;
+	}
 
-	return ExportDebugInfoPlatforms;
+	static const TCHAR* const ExportDebugInfoName = TEXT("r.Shaders.ExportDebugInfo");
+	static const IConsoleVariable* ExportDebugInfoCvar = IConsoleManager::Get().FindConsoleVariable(ExportDebugInfoName);
+	return IsShaderCompilerConfigEnabledForPlatform(ExportDebugInfoCvar, ExportDebugInfoName, ShaderPlatform);
 }
 
-bool ShouldExportShaderDebugInfo(EShaderPlatform Platform)
+bool ShouldAllowUniqueDebugInfo(EShaderPlatform ShaderPlatform)
 {
-	static uint64 GExportDebugInfoPlatforms = GetExportShaderDebugInfoPlatforms();
-	return (GExportDebugInfoPlatforms & (uint64(1) << Platform)) != 0;
+	static const TCHAR* const VariableName = TEXT("r.Shaders.AllowUniqueDebugInfo");
+	static const IConsoleVariable* GlobalCvar = IConsoleManager::Get().FindConsoleVariable(VariableName);
+	return IsShaderCompilerConfigEnabledForPlatform(GlobalCvar, VariableName, ShaderPlatform);
 }
 
 bool FShaderParameterMap::FindParameterAllocation(const TCHAR* ParameterName,uint16& OutBufferIndex,uint16& OutBaseIndex,uint16& OutSize) const

@@ -43,6 +43,8 @@ enum ECompilerFlags
 	CFLAG_ForceOptimization,
 	// Shader should insert debug/name info at the risk of generating non-deterministic libraries
 	CFLAG_KeepDebugInfo,
+	// Allows the (external) debug info to be specific to each shader rather than trying to deduplicate.
+	CFLAG_AllowUniqueDebugInfo,
 	CFLAG_NoFastMath,
 	// Explicitly enforce zero initialization on shader platforms that may omit it.
 	CFLAG_ZeroInitialise,
