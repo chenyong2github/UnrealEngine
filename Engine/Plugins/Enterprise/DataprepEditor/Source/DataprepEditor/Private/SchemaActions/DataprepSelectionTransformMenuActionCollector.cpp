@@ -13,8 +13,6 @@
 #include "UObject/Class.h"
 #include "Templates/SubclassOf.h"
 
-const  FText FDataprepSelectionTransformMenuActionCollector::FilterCategory = NSLOCTEXT("DataprepSelectionTransforms", "Selection Transforms Category", "Transform by");
-
 TArray<TSharedPtr<FDataprepSchemaAction>> FDataprepSelectionTransformMenuActionCollector::CollectActions()
 {
 	const double  Start = FPlatformTime::Seconds();
