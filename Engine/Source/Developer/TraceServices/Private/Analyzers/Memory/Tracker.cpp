@@ -258,7 +258,7 @@ void FTracker::ProcessRetirees(const FRetireeJobData* Data)
 	TArray<const FRetiree*> Heap;
 	do
 	{
-		if (Data->Retirees->Num)
+		if (Data->Retirees != nullptr && Data->Retirees->Num)
 		{
 			NumRetirees += Data->Retirees->Num;
 			Heap.Add(Data->Retirees->Items);
