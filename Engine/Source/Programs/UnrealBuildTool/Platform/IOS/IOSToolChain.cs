@@ -750,6 +750,7 @@ namespace UnrealBuildTool
 				// We're already distributing the command by execution on Mac.
 				CompileAction.bCanExecuteRemotely = true;
 				CompileAction.bShouldOutputStatusDescription = true;
+				CompileAction.CommandVersion = GetClangVersion().ToString();
 
 				foreach (UEBuildFramework Framework in CompileEnvironment.AdditionalFrameworks)
 				{
@@ -892,6 +893,8 @@ namespace UnrealBuildTool
 			LinkAction.bCanExecuteRemotely = false;
 
 			LinkAction.StatusDescription = string.Format("{0}", OutputFile.AbsolutePath);
+
+			LinkAction.CommandVersion = GetClangVersion().ToString();
 
 			LinkAction.CommandPath = BuildHostPlatform.Current.Shell;
 			if (LinkEnvironment.Configuration == CppConfiguration.Shipping && Path.GetExtension(OutputFile.AbsolutePath) != ".a")

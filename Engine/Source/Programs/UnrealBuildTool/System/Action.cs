@@ -93,9 +93,14 @@ namespace UnrealBuildTool
 		public FileReference CommandPath = null;
 
 		/// <summary>
-		/// Command-line parameters to pass to the program
+		/// Command-line parameters to pass to the program.  This will be considered a dependency.
 		/// </summary>
 		public string CommandArguments = null;
+
+		/// <summary>
+		/// Version of the command used for this action. This will be considered a dependency.
+		/// </summary>
+		public string CommandVersion = "0";
 
 		/// <summary>
 		/// Optional friendly description of the type of command being performed, for example "Compile" or "Link".  Displayed by some executors.
