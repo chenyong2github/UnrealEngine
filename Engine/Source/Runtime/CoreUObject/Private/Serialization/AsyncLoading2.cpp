@@ -602,7 +602,7 @@ struct FGlobalImportStore
 		{
 			FPublicExport PublicExport;
 			PublicExportObjects.RemoveAndCopyValue(GlobalIndex, PublicExport);
-			if (PublicExport.PackageId != LastPackageId) // fast approximation of Contains()
+			if (!(PublicExport.PackageId == LastPackageId)) // fast approximation of Contains()
 			{
 				LastPackageId = PublicExport.PackageId;
 				PackageIds.Emplace(LastPackageId);
