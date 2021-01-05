@@ -4,6 +4,7 @@
 
 #include "DataRegistry.h"
 #include "Engine/DataTable.h"
+#include "Containers/SortedMap.h"
 #include "Subsystems/EngineSubsystem.h"
 #include "DataRegistrySubsystem.generated.h"
 
@@ -206,7 +207,8 @@ public:
 	bool AcquireItem(const FDataRegistryId& ItemId, FDataRegistryItemAcquiredCallback DelegateToCall) const;
 
 protected:
-	TMap<FName, TWeakObjectPtr<UDataRegistry>> RegistryMap;
+	typedef TPair<FName, UDataRegistry*> FRegistryMapPair;
+	TSortedMap<FName, UDataRegistry*, FDefaultAllocator, FNameFastLess> RegistryMap;
 
 	// Initialization order, need to wait for other early-load systems to initialize
 	virtual void PostEngineInit();
@@ -216,6 +218,8 @@ protected:
 
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 	virtual void Deinitialize() override;
+
+	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
 
 	// Paths that will be scanned for registries
 	TArray<FString> AssetScanPaths;
@@ -235,9 +239,6 @@ protected:
 
 	// True if initialization is ready to start, will be true even if config disabled
 	bool bReadyForInitialization = false;
-
-	// Handle used to keep registries in memory, only set in non-editor builds
-	TSharedPtr<FStreamableHandle> RegistryLoadHandle;
 
 #if WITH_EDITOR
 	virtual void PreBeginPIE(bool bStartSimulate);

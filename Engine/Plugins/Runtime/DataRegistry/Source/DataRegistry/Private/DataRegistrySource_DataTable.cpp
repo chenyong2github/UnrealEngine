@@ -75,7 +75,7 @@ void UDataRegistrySource_DataTable::SetCachedTable(bool bForceLoad /*= false*/)
 		PreloadTable = CachedTable;
 	}
 
-	LastAccessTime = GetRegistry()->GetCurrentTime();
+	LastAccessTime = UDataRegistry::GetCurrentTime();
 }
 
 void UDataRegistrySource_DataTable::ClearCachedTable()
@@ -105,7 +105,7 @@ EDataRegistryAvailability UDataRegistrySource_DataTable::GetSourceAvailability()
 
 EDataRegistryAvailability UDataRegistrySource_DataTable::GetItemAvailability(const FName& ResolvedName, const uint8** InMemoryDataPtr) const
 {
-	LastAccessTime = GetRegistry()->GetCurrentTime();
+	LastAccessTime = UDataRegistry::GetCurrentTime();
 
 	if (CachedTable)
 	{
@@ -141,7 +141,7 @@ EDataRegistryAvailability UDataRegistrySource_DataTable::GetItemAvailability(con
 
 void UDataRegistrySource_DataTable::GetResolvedNames(TArray<FName>& Names) const
 {
-	LastAccessTime = GetRegistry()->GetCurrentTime();
+	LastAccessTime = UDataRegistry::GetCurrentTime();
 
 	if (!CachedTable && GIsEditor)
 	{
@@ -170,7 +170,7 @@ void UDataRegistrySource_DataTable::ResetRuntimeState()
 
 bool UDataRegistrySource_DataTable::AcquireItem(FDataRegistrySourceAcquireRequest&& Request)
 {
-	LastAccessTime = GetRegistry()->GetCurrentTime();
+	LastAccessTime = UDataRegistry::GetCurrentTime();
 
 	PendingAcquires.Add(Request);
 
@@ -226,7 +226,7 @@ bool UDataRegistrySource_DataTable::Initialize()
 
 void UDataRegistrySource_DataTable::HandlePendingAcquires()
 {
-	LastAccessTime = GetRegistry()->GetCurrentTime(); 
+	LastAccessTime = UDataRegistry::GetCurrentTime();
 
 	// Iterate manually to deal with recursive adds
 	int32 NumRequests = PendingAcquires.Num();

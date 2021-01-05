@@ -91,7 +91,7 @@ struct DATAREGISTRY_API FDataRegistryLookup
 
 	/** List of sources and names to look up within that source */
 	// TODO can be more efficient, probably best option is pack it into the num field of the FName, no one really names entries Foo_2147483646
-	TArray<TTuple<uint8, FName>> SourceLookups;
+	TArray<TTuple<uint8, FName>, TInlineAllocator<1>> SourceLookups;
 
 	/** Resets to default */
 	FORCEINLINE void Reset()
