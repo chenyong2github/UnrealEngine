@@ -1209,6 +1209,16 @@ FAdditionalCrashContextStack::~FAdditionalCrashContextStack()
 	*Current = this->Next;
 }
 
+void FAdditionalCrashContextStack::PushProvider(struct FScopedAdditionalCrashContextProvider* Provider)
+{
+	ThreadContextProvider.PushProviderInternal(Provider);
+}
+
+void FAdditionalCrashContextStack::PopProvider()
+{
+	ThreadContextProvider.PopProviderInternal();
+}
+
 void FAdditionalCrashContextStack::ExecuteProviders(FCrashContextExtendedWriter& Writer)
 {
 	// Attempt to lock. If a thread crashed while holding the lock
