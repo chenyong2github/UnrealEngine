@@ -62,7 +62,7 @@ fi
 
 if [ "$(uname)" = "Linux" ]; then
 	# Setup Environment and Mono
-	source "$SCRIPT_DIR/Mac/SetupEnvironment.sh" -mono "$SCRIPT_DIR/Linux"
+	source "$SCRIPT_DIR/Linux/SetupEnvironment.sh" -mono "$SCRIPT_DIR/Linux"
 fi
 
 
