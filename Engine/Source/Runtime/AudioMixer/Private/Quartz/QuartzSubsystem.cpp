@@ -75,8 +75,10 @@ void UQuartzSubsystem::Tick(float DeltaTime)
 
 	if (MaxQuartzSubscribersToUpdatePerTickCvar <= 0 || NumSubscribers <= MaxQuartzSubscribersToUpdatePerTickCvar)
 	{
+		TArray<UQuartzClockHandle*> SubscribersCopy = QuartzTickSubscribers;
+
 		// we can afford to update ALL subscribers
-		for (UQuartzClockHandle* Entry : QuartzTickSubscribers)
+		for (UQuartzClockHandle* Entry : SubscribersCopy)
 		{
 			if (Entry->QuartzIsTickable())
 			{
