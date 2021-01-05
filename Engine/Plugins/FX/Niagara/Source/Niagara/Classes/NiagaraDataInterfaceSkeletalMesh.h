@@ -111,17 +111,17 @@ struct FSkeletalMeshSkinningData
 	FORCEINLINE void GetTangentBasis(int32 LODIndex, int32 VertexIndex, FVector& OutTangentX, FVector& OutTangentY, FVector& OutTangentZ)
 	{
 		const bool bValidLOD = LODData.IsValidIndex(LODIndex);
-		OutTangentX = LODData[LODIndex].SkinnedTangentBasis[CurrIndex][(VertexIndex * 3) + 0] : FVector(1.0f, 0.0f, 0.0f);
-		OutTangentY = LODData[LODIndex].SkinnedTangentBasis[CurrIndex][(VertexIndex * 3) + 1] : FVector(0.0f, 1.0f, 0.0f);
-		OutTangentZ = LODData[LODIndex].SkinnedTangentBasis[CurrIndex][(VertexIndex * 3) + 2] : FVector(0.0f, 0.0f, 1.0f);
+		OutTangentX = bValidLOD ? LODData[LODIndex].SkinnedTangentBasis[CurrIndex][(VertexIndex * 3) + 0] : FVector(1.0f, 0.0f, 0.0f);
+		OutTangentY = bValidLOD ? LODData[LODIndex].SkinnedTangentBasis[CurrIndex][(VertexIndex * 3) + 1] : FVector(0.0f, 1.0f, 0.0f);
+		OutTangentZ = bValidLOD ? LODData[LODIndex].SkinnedTangentBasis[CurrIndex][(VertexIndex * 3) + 2] : FVector(0.0f, 0.0f, 1.0f);
 	}
 
 	FORCEINLINE void GetPreviousTangentBasis(int32 LODIndex, int32 VertexIndex, FVector& OutTangentX, FVector& OutTangentY, FVector& OutTangentZ)
 	{
 		const bool bValidLOD = LODData.IsValidIndex(LODIndex);
-		OutTangentX = LODData[LODIndex].SkinnedTangentBasis[CurrIndex ^ 1][(VertexIndex * 3) + 0] : FVector(1.0f, 0.0f, 0.0f);
-		OutTangentY = LODData[LODIndex].SkinnedTangentBasis[CurrIndex ^ 1][(VertexIndex * 3) + 1] : FVector(0.0f, 1.0f, 0.0f);
-		OutTangentZ = LODData[LODIndex].SkinnedTangentBasis[CurrIndex ^ 1][(VertexIndex * 3) + 2] : FVector(0.0f, 0.0f, 1.0f);
+		OutTangentX = bValidLOD ? LODData[LODIndex].SkinnedTangentBasis[CurrIndex ^ 1][(VertexIndex * 3) + 0] : FVector(1.0f, 0.0f, 0.0f);
+		OutTangentY = bValidLOD ? LODData[LODIndex].SkinnedTangentBasis[CurrIndex ^ 1][(VertexIndex * 3) + 1] : FVector(0.0f, 1.0f, 0.0f);
+		OutTangentZ = bValidLOD ? LODData[LODIndex].SkinnedTangentBasis[CurrIndex ^ 1][(VertexIndex * 3) + 2] : FVector(0.0f, 0.0f, 1.0f);
 	}
 
 private:
