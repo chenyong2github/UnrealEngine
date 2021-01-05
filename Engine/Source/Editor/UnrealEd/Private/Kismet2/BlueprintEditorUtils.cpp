@@ -122,6 +122,7 @@
 #include "AnimGraphNode_LinkedInputPose.h"
 #include "AnimGraphNode_Root.h"
 #include "Subsystems/AssetEditorSubsystem.h"
+#include "AssetRegistryModule.h"
 
 #include "AssetRegistryModule.h"
 #include "Misc/MessageDialog.h"
@@ -5677,38 +5678,76 @@ bool FBlueprintEditorUtils::IsVariableComponent(const FBPVariableDescription& Va
 	return false;
 }
 
-bool FBlueprintEditorUtils::IsVariableUsed(const UBlueprint* Blueprint, const FName& Name, UEdGraph* LocalGraphScope/* = nullptr*/ )
+bool FBlueprintEditorUtils::IsVariableUsed(const UBlueprint* InBlueprint, const FName& Name, UEdGraph* LocalGraphScope/* = nullptr*/)
 {
-	TArray<UEdGraph*> AllGraphs;
-	Blueprint->GetAllGraphs(AllGraphs);
-	for(TArray<UEdGraph*>::TConstIterator it(AllGraphs); it; ++it)
+	TArray<const UBlueprint*> BlueprintsToCheck;
+	BlueprintsToCheck.Add(InBlueprint);
+
+	if (!LocalGraphScope)
 	{
-		const UEdGraph* CurrentGraph = *it;
-
-		if(CurrentGraph == LocalGraphScope || LocalGraphScope == nullptr)
+		FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
+		FARFilter Filter;
+		AssetRegistryModule.Get().GetReferencers(InBlueprint->GetPackage()->GetFName(), Filter.PackageNames, UE::AssetRegistry::EDependencyCategory::Package, UE::AssetRegistry::EDependencyQuery::Hard);
+		if (Filter.PackageNames.Num() > 0)
 		{
-			TArray<UK2Node_Variable*> GraphNodes;
-			CurrentGraph->GetNodesOfClass(GraphNodes);
+			GWarn->BeginSlowTask(LOCTEXT("LoadingReferencerAssets", "Loading Refereners..."), true);
 
-			for (const UK2Node_Variable* CurrentNode : GraphNodes )
+			Filter.TagsAndValues.Add(TEXT("IsDataOnly"), TOptional<FString>(TEXT("false")));
+			TArray<FAssetData> ReferencersAssetData;
+			AssetRegistryModule.Get().GetAssets(Filter, ReferencersAssetData);
+			for (const FAssetData& ReferencerData : ReferencersAssetData)
 			{
-				if(Name == CurrentNode->GetVarName())
+				UObject* ReferencerAsset = ReferencerData.GetAsset();
+				if (UBlueprint* BlueprintReferencer = Cast<UBlueprint>(ReferencerAsset))
 				{
-					return true;
+					BlueprintsToCheck.Add(BlueprintReferencer);
+				}
+				else if (UWorld* WorldReferencer = Cast<UWorld>(ReferencerAsset))
+				{
+					if (WorldReferencer->PersistentLevel && WorldReferencer->PersistentLevel->OwningWorld)
+					{
+						BlueprintsToCheck.Append(WorldReferencer->PersistentLevel->GetLevelBlueprints());
+					}
 				}
 			}
 
-			// Also consider "used" if there's a GetClassDefaults node that exposes the variable as an output pin that's connected to something.
-			TArray<UK2Node_GetClassDefaults*> ClassDefaultsNodes;
-			CurrentGraph->GetNodesOfClass(ClassDefaultsNodes);
-			for (const UK2Node_GetClassDefaults* ClassDefaultsNode : ClassDefaultsNodes)
+			GWarn->EndSlowTask();
+		}
+	}
+
+	for (const UBlueprint* Blueprint : BlueprintsToCheck)
+	{
+		TArray<UEdGraph*> AllGraphs;
+		Blueprint->GetAllGraphs(AllGraphs);
+		for(TArray<UEdGraph*>::TConstIterator it(AllGraphs); it; ++it)
+		{
+			const UEdGraph* CurrentGraph = *it;
+
+			if(CurrentGraph == LocalGraphScope || LocalGraphScope == nullptr)
 			{
-				if (ClassDefaultsNode->GetInputClass() == Blueprint->SkeletonGeneratedClass)
+				TArray<UK2Node_Variable*> GraphNodes;
+				CurrentGraph->GetNodesOfClass(GraphNodes);
+
+				for (const UK2Node_Variable* CurrentNode : GraphNodes )
 				{
-					const UEdGraphPin* VarPin = ClassDefaultsNode->FindPin(Name);
-					if (VarPin && VarPin->Direction == EGPD_Output && VarPin->LinkedTo.Num() > 0)
+					if(Name == CurrentNode->GetVarName())
 					{
 						return true;
+					}
+				}
+
+				// Also consider "used" if there's a GetClassDefaults node that exposes the variable as an output pin that's connected to something.
+				TArray<UK2Node_GetClassDefaults*> ClassDefaultsNodes;
+				CurrentGraph->GetNodesOfClass(ClassDefaultsNodes);
+				for (const UK2Node_GetClassDefaults* ClassDefaultsNode : ClassDefaultsNodes)
+				{
+					if (ClassDefaultsNode->GetInputClass() == Blueprint->SkeletonGeneratedClass)
+					{
+						const UEdGraphPin* VarPin = ClassDefaultsNode->FindPin(Name);
+						if (VarPin && VarPin->Direction == EGPD_Output && VarPin->LinkedTo.Num() > 0)
+						{
+							return true;
+						}
 					}
 				}
 			}
