@@ -32,7 +32,7 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpReserved)
 
 #include "Windows/HideWindowsPlatformTypes.h"
 
-//AB If we don't have to implement a module, or application, and we can save 200kb by not depending on "Projects" module, so borrow some code from UE4Game.cpp to bypass it
+//AB If we don't have to implement a module, or application, and we can save 200kb by not depending on "Projects" module, so borrow some code from UnrealGame.cpp to bypass it 
 TCHAR GInternalProjectName[64] = TEXT("");
 
 IMPLEMENT_FOREIGN_ENGINE_DIR()

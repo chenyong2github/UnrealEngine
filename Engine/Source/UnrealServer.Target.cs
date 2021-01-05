@@ -10,6 +10,6 @@ public class UnrealServerTarget : TargetRules
 	{
 		Type = TargetType.Server;
 		BuildEnvironment = TargetBuildEnvironment.Shared;
-		ExtraModuleNames.Add("UE4Game");
+		ExtraModuleNames.Add("UnrealGame");
 	}
 }

@@ -9,6 +9,6 @@ public class UnrealClientTarget : TargetRules
 	{
 		Type = TargetType.Client;
 		BuildEnvironment = TargetBuildEnvironment.Shared;
-		ExtraModuleNames.Add("UE4Game");
+		ExtraModuleNames.Add("UnrealGame");
 	}
 }

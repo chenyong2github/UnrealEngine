@@ -2,9 +2,9 @@
 
 using UnrealBuildTool;
 
-public class UE4Game : ModuleRules
+public class UnrealGame : ModuleRules
 {
-	public UE4Game(ReadOnlyTargetRules Target) : base(Target)
+	public UnrealGame(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PrivateDependencyModuleNames.Add("Core");
 

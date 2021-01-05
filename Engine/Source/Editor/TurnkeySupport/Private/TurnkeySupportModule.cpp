@@ -123,7 +123,7 @@ protected:
 				FString TargetName;
 				if (Target == nullptr)
 				{
-					TargetName = TEXT("UE4Game");
+					TargetName = TEXT("UnrealGame");
 				}
 				else
 				{

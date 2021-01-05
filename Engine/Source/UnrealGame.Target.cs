@@ -11,7 +11,7 @@ public class UnrealGameTarget : TargetRules
 		Type = TargetType.Game;
 		BuildEnvironment = TargetBuildEnvironment.Shared;
 
-		ExtraModuleNames.Add("UE4Game");
+		ExtraModuleNames.Add("UnrealGame");
 
 		if (Target.Platform == UnrealTargetPlatform.IOS)
 		{

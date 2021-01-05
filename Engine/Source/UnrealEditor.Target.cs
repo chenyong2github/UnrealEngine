@@ -10,6 +10,6 @@ public class UnrealEditorTarget : TargetRules
 		Type = TargetType.Editor;
 		BuildEnvironment = TargetBuildEnvironment.Shared;
 		bBuildAllModules = true;
-		ExtraModuleNames.Add("UE4Game");
+		ExtraModuleNames.Add("UnrealGame");
 	}
 }
