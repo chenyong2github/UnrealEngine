@@ -13,6 +13,7 @@
 	#include "eos_connect_types.h"
 
 class FOnlineSubsystemEOS;
+class IOnlineSubsystem;
 
 typedef TSharedPtr<FOnlineUser> FOnlineUserPtr;
 typedef TSharedRef<FOnlineUser> FOnlineUserRef;
@@ -339,9 +340,11 @@ PACKAGE_SCOPE:
 	FUserManagerEOS() = delete;
 
 	// For mapping EpicAccountId to ProductUserId
-	void ConnectLogin(int32 LocalUserNum, EOS_EpicAccountId AccountId);
+	bool ConnectLoginEAS(int32 LocalUserNum, EOS_EpicAccountId AccountId);
 	void CreateConnectedLogin(int32 LocalUserNum, EOS_EpicAccountId AccountId, EOS_ContinuanceToken Token);
+	void LinkEAS(int32 LocalUserNum, EOS_ContinuanceToken Token);
 	void RefreshConnectLogin(int32 LocalUserNum);
+	bool ConnectLoginNoEAS(int32 LocalUserNum);
 
 	void FullLoginCallback(int32 LocalUserNum, EOS_EpicAccountId AccountId, EOS_ProductUserId UserId);
 	void FriendStatusChanged(const EOS_Friends_OnFriendsUpdateInfo* Data);
@@ -363,6 +366,9 @@ private:
 
 	void UpdatePresence(EOS_EpicAccountId AccountId);
 	void UpdateFriendPresence(const FString& FriendId, FOnlineUserPresenceRef Presence);
+
+	IOnlineSubsystem* GetPlatformOSS();
+	FString GetPlatformAuthToken(int32 LocalUserNum);
 
 	/** Cached pointer to owning subsystem */
 	FOnlineSubsystemEOS* EOSSubsystem;
