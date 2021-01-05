@@ -20,11 +20,10 @@ namespace Chaos
 	class CHAOS_API FIgnoreCollisionManager
 	{
 	public:
-		using FGeometryParticle = TGeometryParticle<FReal, 3>;
 		using FHandleID = FUniqueIdx;
 		using FDeactivationArray = TArray<FUniqueIdx>;
 		using FActiveMap = TMap<FHandleID, TArray<FHandleID> >;
-		using FPendingMap = TMap<FGeometryParticle*, TArray<FGeometryParticle*> >;
+		using FPendingMap = TMap<FHandleID, TArray<FHandleID> >;
 		struct FStorageData
 		{
 			FPendingMap PendingActivations;
