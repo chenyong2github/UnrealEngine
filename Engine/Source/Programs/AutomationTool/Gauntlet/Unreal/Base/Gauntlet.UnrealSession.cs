@@ -1064,20 +1064,28 @@ namespace Gauntlet
 				{
 
 					string ScreenshotPath = Path.Combine(SourceSavedDir, "Screenshots", Platform.ToString()).ToLower();
+					string TempScreenshotPath = Path.GetTempPath();
+					if (!Directory.Exists(TempScreenshotPath))
+					{
+						Log.Info("Creating temp directory {0}", TempScreenshotPath);
+						Directory.CreateDirectory(TempScreenshotPath);
+					}
 
 					if (Directory.Exists(ScreenshotPath) && Directory.GetFiles(ScreenshotPath).Length > 0)
 					{
 						Log.Info("Downsizing and gifying session images at {0}", ScreenshotPath);
 
 						// downsize first so gif-step is quicker and takes less resoruces.
-						Utils.Image.ConvertImages(ScreenshotPath, ScreenshotPath, "jpg", true);
+						Utils.Image.ConvertImages(ScreenshotPath, TempScreenshotPath, "jpg", true);
 
 						string GifPath = Path.Combine(InDestArtifactPath, RoleName + "Test.gif");
-						if (Utils.Image.SaveImagesAsGif(ScreenshotPath, GifPath))
+						if (Utils.Image.SaveImagesAsGif(TempScreenshotPath, GifPath))
 						{
 							Log.Info("Saved gif to {0}", GifPath);
 						}
 					}
+
+					Directory.Delete(TempScreenshotPath, true);
 				}
 				catch (Exception Ex)
 				{
