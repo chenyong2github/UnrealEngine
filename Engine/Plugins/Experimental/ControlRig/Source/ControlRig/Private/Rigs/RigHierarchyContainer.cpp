@@ -1289,14 +1289,16 @@ TArray<FRigElementKey> FRigHierarchyContainer::CurrentSelection() const
 TArray<FRigElementKey> FRigHierarchyContainer::GetAllItems(bool bSort) const
 {
 	TArray<FRigElementKey> Items;
-	for (const FRigBone& Element : BoneHierarchy)
-	{
-		Items.Add(Element.GetElementKey());
-	}
+
 	for (const FRigControl& Element : ControlHierarchy)
 	{
 		Items.Add(Element.GetElementKey());
 	}
+	for (const FRigBone& Element : BoneHierarchy)
+	{
+		Items.Add(Element.GetElementKey());
+	}
+	
 	for (const FRigSpace& Element : SpaceHierarchy)
 	{
 		Items.Add(Element.GetElementKey());
@@ -1532,3 +1534,4 @@ bool FRigHierarchyContainer::IsNameAvailable(const FString& InName, ERigElementT
 
 	return true;
 }
+
