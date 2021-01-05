@@ -149,4 +149,26 @@ public:
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Blueprint Upgrade Tools")
 	static void ReparentBlueprint(UBlueprint* Blueprint, UClass* NewParentClass);
+
+	/**
+	* Gathers any unused blueprint variables and populates the given array of FPropertys
+	*
+	* @param Blueprint			The blueprint to check
+	* @param OutProperties		Out array of unused FProperty*'s
+	*
+	* @return					True if variables were checked on this blueprint, false otherwise.
+	*/
+	static bool GatherUnusedVariables(const UBlueprint* Blueprint, TArray<FProperty*>& OutProperties);
+
+	/**
+	* Deletes any unused blueprint created variables the given blueprint.
+	* An Unused variable is any BP variable that is not referenced in any 
+	* blueprint graphs
+	* 
+	* @param Blueprint			Blueprint that you would like to remove variables from
+	*
+	* @return					Number of variables removed
+	*/
+	UFUNCTION(BlueprintCallable, Category = "Blueprint Upgrade Tools")
+	static int32 RemoveUnusedVariables(UBlueprint* Blueprint);
 };

@@ -15,6 +15,9 @@
 #include "BlueprintNodeSpawner.h"
 #include "EdGraphUtilities.h"
 #include "AnimGraphNode_Base.h"
+#include "Components/TimelineComponent.h"
+
+#define LOCTEXT_NAMESPACE "BlueprintEditorLibrary"
 
 DEFINE_LOG_CATEGORY(LogBlueprintEditorLib);
 
@@ -445,3 +448,85 @@ void UBlueprintEditorLibrary::ReparentBlueprint(UBlueprint* Blueprint, UClass* N
 
 	CompileBlueprint(Blueprint);
 }
+
+bool UBlueprintEditorLibrary::GatherUnusedVariables(const UBlueprint* Blueprint, TArray<FProperty*>& OutProperties)
+{
+	if (!Blueprint)
+	{
+		return false;
+	}
+
+	bool bHasAtLeastOneVariableToCheck = false;
+
+	for (TFieldIterator<FProperty> PropertyIt(Blueprint->SkeletonGeneratedClass, EFieldIteratorFlags::ExcludeSuper); PropertyIt; ++PropertyIt)
+	{
+		FProperty* Property = *PropertyIt;
+		// Don't show delegate properties, there is special handling for these
+		const bool bDelegateProp = Property->IsA(FDelegateProperty::StaticClass()) || Property->IsA(FMulticastDelegateProperty::StaticClass());
+		const bool bShouldShowProp = (!Property->HasAnyPropertyFlags(CPF_Parm) && Property->HasAllPropertyFlags(CPF_BlueprintVisible) && !bDelegateProp);
+
+		if (bShouldShowProp)
+		{
+			bHasAtLeastOneVariableToCheck = true;
+			FName VarName = Property->GetFName();
+
+			const int32 VarInfoIndex = FBlueprintEditorUtils::FindNewVariableIndex(Blueprint, VarName);
+			const bool bHasVarInfo = (VarInfoIndex != INDEX_NONE);
+
+			const FObjectPropertyBase* ObjectProperty = CastField<const FObjectPropertyBase>(Property);
+			bool bIsTimeline = ObjectProperty &&
+				ObjectProperty->PropertyClass &&
+				ObjectProperty->PropertyClass->IsChildOf(UTimelineComponent::StaticClass());
+			if (!bIsTimeline && bHasVarInfo && !FBlueprintEditorUtils::IsVariableUsed(Blueprint, VarName))
+			{
+				OutProperties.Add(Property);
+			}
+		}
+	}
+
+	return bHasAtLeastOneVariableToCheck;
+}
+
+int32 UBlueprintEditorLibrary::RemoveUnusedVariables(UBlueprint* Blueprint)
+{
+	if (!Blueprint)
+	{
+		return 0;
+	}
+
+	// Gather FProperties from this BP and see if we can remove any
+	TArray<FProperty*> VariableProperties;
+	UBlueprintEditorLibrary::GatherUnusedVariables(Blueprint, VariableProperties);
+	
+	// No variables can be removed from this blueprint
+	if (VariableProperties.Num() == 0)
+	{
+		return 0;
+	}
+
+	// Get the variables by name so that we can bulk remove them and print them out to the log
+	TArray<FName> VariableNames;
+	FString PropertyList;
+	VariableNames.Reserve(VariableProperties.Num());
+	for (int32 Index = 0; Index < VariableProperties.Num(); ++Index)
+	{
+		VariableNames.Add(VariableProperties[Index]->GetFName());
+		if (PropertyList.IsEmpty())
+		{
+			PropertyList = UEditorEngine::GetFriendlyName(VariableProperties[Index]);
+		}
+		else
+		{
+			PropertyList += FString::Printf(TEXT(", %s"), *UEditorEngine::GetFriendlyName(VariableProperties[Index]));
+		}
+	}
+
+	const int32 NumRemovedVars = VariableNames.Num();
+	// Remove the variables by name
+	FBlueprintEditorUtils::BulkRemoveMemberVariables(Blueprint, VariableNames);
+
+	UE_LOG(LogBlueprintEditorLib, Log, TEXT("The following variable(s) were deleted successfully: %s."), *PropertyList);
+	return NumRemovedVars;
+}
+
+#undef LOCTEXT_NAMESPACE	// "BlueprintEditorLibrary"
