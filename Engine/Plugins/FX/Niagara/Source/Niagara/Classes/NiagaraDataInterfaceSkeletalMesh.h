@@ -617,7 +617,7 @@ public:
 #if WITH_EDITORONLY_DATA
 	/** Mesh used to sample from when not overridden by a source actor from the scene. Only available in editor for previewing. This is removed in cooked builds. */
 	UPROPERTY(EditAnywhere, Category = "Mesh")
-	USkeletalMesh* PreviewMesh;
+	TSoftObjectPtr<USkeletalMesh> PreviewMesh;
 #endif
 	
 	/** The source actor from which to sample. Takes precedence over the direct mesh. Note that this can only be set when used as a user variable on a component in the world.*/
