@@ -314,13 +314,16 @@ void FSkeletalMeshSkinningData::UnregisterUser(FSkeletalMeshSkinningDataUsage Us
 		LODIndex = Usage.GetLODIndex();
 	}
 
-	if ( ensure(LODData.IsValidIndex(LODIndex)) )
+	// The first Niagara instance that detects a change to the SkeletalMeshComponent's SkeletalMesh will execute a
+	// Unregister / Register which will modify the LOD count to the correct new count.  This means that a subsequent
+	// Unregister call can be pointing to a LODIndex that is no longer valid.  We can safely ignore this as we do not
+	// need to decrement the counters.
+	if (Usage.NeedPreSkinnedVerts())
 	{
-		FLODData& LOD = LODData[LODIndex];
-		if (Usage.NeedPreSkinnedVerts())
+		--TotalPreSkinnedVertsUsers;
+		if (LODData.IsValidIndex(LODIndex))
 		{
-			--LOD.PreSkinnedVertsUsers;
-			--TotalPreSkinnedVertsUsers;
+			--LODData[LODIndex].PreSkinnedVertsUsers;
 		}
 	}
 }
