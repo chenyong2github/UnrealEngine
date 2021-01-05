@@ -1,7 +1,6 @@
- // Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RootMotionModifier_AdjustmentBlendWarp.h"
-
 #include "Animation/AnimSequenceBase.h"
 #include "Animation/AnimMontage.h"
 #include "Animation/AnimInstance.h"
