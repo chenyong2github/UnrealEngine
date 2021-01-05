@@ -56,7 +56,7 @@ public:
 		}
 	}
 
-	virtual ~FMMNotificationClient()
+	~FMMNotificationClient()
 	{
 		if (DeviceEnumerator)
 		{
@@ -798,7 +798,7 @@ struct FXAudioDeviceProperties final : public IDeviceChangedListener
 #endif
 	}
 	
-	virtual ~FXAudioDeviceProperties()
+	~FXAudioDeviceProperties()
 	{
 #if PLATFORM_WINDOWS
 		if (NotificationClient)

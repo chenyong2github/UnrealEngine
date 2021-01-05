@@ -208,7 +208,7 @@ public:
 
 	}
 
-	virtual ~FPendingSearchResultSteam()
+	~FPendingSearchResultSteam()
 	{
 		CancelQuery();
 	}

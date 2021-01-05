@@ -51,11 +51,6 @@ namespace Chaos
 
 		CHAOS_API void Serialize(FChaosArchive& Ar);
 
-		CHAOS_API virtual void Serialize(FArchive& Ar)
-		{
-			check(false); //Aggregate simplicial require FChaosArchive - check false by default
-		}
-
 	private:
 		CHAOS_API TBVHParticles(const TBVHParticles<T, d>& Other);
 

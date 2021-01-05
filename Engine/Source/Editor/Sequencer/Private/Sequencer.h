@@ -361,7 +361,7 @@ public:
 	 * @param TargetObjectGuid	Object to be targeted on dropping
 	 * @return					If true, this asset should be consumed
 	 */
-	virtual bool OnHandleAssetDropped( UObject* DroppedAsset, const FGuid& TargetObjectGuid );
+	bool OnHandleAssetDropped( UObject* DroppedAsset, const FGuid& TargetObjectGuid );
 	
 	/**
 	 * Called to delete all moviescene data from a node
@@ -369,7 +369,7 @@ public:
 	 * @param NodeToBeDeleted	Node with data that should be deleted
 	 * @return true if anything was deleted, otherwise false.
 	 */
-	virtual bool OnRequestNodeDeleted( TSharedRef<const FSequencerDisplayNode> NodeToBeDeleted, const bool bKeepState );
+	bool OnRequestNodeDeleted( TSharedRef<const FSequencerDisplayNode> NodeToBeDeleted, const bool bKeepState );
 
 	/** Zooms to the edges of all currently selected sections and keys. */
 	void ZoomToFit();

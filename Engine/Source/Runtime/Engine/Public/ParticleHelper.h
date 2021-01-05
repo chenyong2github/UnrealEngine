@@ -2522,7 +2522,7 @@ public:
 	/**
 	 *	Called when the rendering thread removes the dynamic data from the scene.
 	 */
-	virtual void ReleaseRenderThreadResources();
+	void ReleaseRenderThreadResources();
 
 	void UpdateData(FParticleDynamicData* NewDynamicData);
 	void UpdateData_RenderThread(FParticleDynamicData* NewDynamicData);

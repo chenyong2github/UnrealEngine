@@ -34,66 +34,66 @@ public:
 	UEdModeInteractiveToolsContext();
 
 	UE_DEPRECATED(5.0, "You should no longer create your own EdModeInteractiveToolsContext; use the one in the FEditorModeTools::GetInteractiveToolsContext instead.")
-	virtual void InitializeContextFromEdMode(FEdMode* EditorModeIn,
+	void InitializeContextFromEdMode(FEdMode* EditorModeIn,
 		IToolsContextAssetAPI* UseAssetAPI = nullptr);
-	virtual void InitializeContextWithEditorModeManager(FEditorModeTools* InEditorModeManager,
+	void InitializeContextWithEditorModeManager(FEditorModeTools* InEditorModeManager,
 		IToolsContextAssetAPI* UseAssetAPI = nullptr);
-	virtual void ShutdownContext();
+	void ShutdownContext();
 
 	// default behavior is to accept active tool
-	virtual void TerminateActiveToolsOnPIEStart();
+	void TerminateActiveToolsOnPIEStart();
 
 	// default behavior is to accept active tool
-	virtual void TerminateActiveToolsOnSaveWorld();
+	void TerminateActiveToolsOnSaveWorld();
 
 	// default behavior is to accept active tool
-	virtual void TerminateActiveToolsOnWorldTearDown();
+	void TerminateActiveToolsOnWorldTearDown();
 
 	IToolsContextQueriesAPI* GetQueriesAPI() const { return QueriesAPI; }
 	IToolsContextTransactionsAPI* GetTransactionAPI() const { return TransactionAPI; }
 	IToolsContextAssetAPI* GetAssetAPI() const { return AssetAPI; }
 
-	virtual void PostInvalidation();
+	void PostInvalidation();
 
 	// UObject Interface
 	virtual UWorld* GetWorld() const override;
 
 	// call these from your UEdMode functions of the same name
 
-	virtual void Tick(FEditorViewportClient* ViewportClient, float DeltaTime);
-	virtual void Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI);
-	virtual void DrawHUD(FViewportClient* ViewportClient,FViewport* Viewport,const FSceneView* View, FCanvas* Canvas);
+	void Tick(FEditorViewportClient* ViewportClient, float DeltaTime);
+	void Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI);
+	void DrawHUD(FViewportClient* ViewportClient,FViewport* Viewport,const FSceneView* View, FCanvas* Canvas);
 
-	virtual bool ProcessEditDelete();
+	bool ProcessEditDelete();
 
-	virtual bool InputKey(FEditorViewportClient* ViewportClient, FViewport* Viewport, FKey Key, EInputEvent Event);
+	bool InputKey(FEditorViewportClient* ViewportClient, FViewport* Viewport, FKey Key, EInputEvent Event);
 
-	virtual bool MouseEnter(FEditorViewportClient* ViewportClient, FViewport* Viewport, int32 x, int32 y);
-	virtual bool MouseLeave(FEditorViewportClient* ViewportClient, FViewport* Viewport);
-	virtual bool MouseMove(FEditorViewportClient* ViewportClient, FViewport* Viewport, int32 x, int32 y);
+	bool MouseEnter(FEditorViewportClient* ViewportClient, FViewport* Viewport, int32 x, int32 y);
+	bool MouseLeave(FEditorViewportClient* ViewportClient, FViewport* Viewport);
+	bool MouseMove(FEditorViewportClient* ViewportClient, FViewport* Viewport, int32 x, int32 y);
 
-	virtual bool StartTracking(FEditorViewportClient* InViewportClient, FViewport* InViewport);
-	virtual bool CapturedMouseMove(FEditorViewportClient* InViewportClient, FViewport* InViewport, int32 InMouseX, int32 InMouseY);
-	virtual bool EndTracking(FEditorViewportClient* InViewportClient, FViewport* InViewport);
+	bool StartTracking(FEditorViewportClient* InViewportClient, FViewport* InViewport);
+	bool CapturedMouseMove(FEditorViewportClient* InViewportClient, FViewport* InViewport, int32 InMouseX, int32 InMouseY);
+	bool EndTracking(FEditorViewportClient* InViewportClient, FViewport* InViewport);
 
 
 	//
 	// Utility functions useful for hooking up to UICommand/etc
 	//
 
-	virtual bool CanStartTool(const FString ToolTypeIdentifier) const;
-	virtual bool HasActiveTool() const;
-	virtual FString GetActiveToolName() const;
-	virtual bool ActiveToolHasAccept() const;
-	virtual bool CanAcceptActiveTool() const;
-	virtual bool CanCancelActiveTool() const;
-	virtual bool CanCompleteActiveTool() const;
-	virtual void StartTool(const FString ToolTypeIdentifier);
-	virtual void EndTool(EToolShutdownType ShutdownType);
+	bool CanStartTool(const FString ToolTypeIdentifier) const;
+	bool HasActiveTool() const;
+	FString GetActiveToolName() const;
+	bool ActiveToolHasAccept() const;
+	bool CanAcceptActiveTool() const;
+	bool CanCancelActiveTool() const;
+	bool CanCompleteActiveTool() const;
+	void StartTool(const FString ToolTypeIdentifier);
+	void EndTool(EToolShutdownType ShutdownType);
 
-	virtual bool ShouldIgnoreHotkeys() const { return bInFlyMode; }
+	bool ShouldIgnoreHotkeys() const { return bInFlyMode; }
 
-	virtual FRay GetLastWorldRay() const;
+	FRay GetLastWorldRay() const;
 
 protected:
 	// we hide these 

@@ -38,7 +38,7 @@ namespace Audio
 	{
 	public:
 		FXAudio2VoiceCallback() {}
-		virtual ~FXAudio2VoiceCallback() {}
+		~FXAudio2VoiceCallback() {}
 
 	private:
 		void STDCALL OnVoiceProcessingPassStart(UINT32 BytesRequired) {}

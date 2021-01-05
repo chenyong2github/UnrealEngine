@@ -69,7 +69,7 @@ static pD3DReflect GetD3DReflectFunc()
 class StandaloneD3DIncluder final : public ID3DInclude
 {
 	public:
-		virtual ~StandaloneD3DIncluder() 
+		~StandaloneD3DIncluder() 
 		{
 		}
 

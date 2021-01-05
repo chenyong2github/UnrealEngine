@@ -32,7 +32,7 @@ public:
 		}
 	}
 
-	virtual ~FWindowsMMNotificationClient()
+	~FWindowsMMNotificationClient()
 	{
 		if (DeviceEnumerator)
 		{

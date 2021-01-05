@@ -53,11 +53,11 @@ public:
 	 * Reset  : A large amount of changes have occurred to a number of DataLayers.
 	 */
 	DECLARE_EVENT_ThreeParams(UDataLayerEditorSubsystem, FOnDataLayerChanged, const EDataLayerAction /*Action*/, const TWeakObjectPtr<const UDataLayer>& /*ChangedDataLayer*/, const FName& /*ChangedProperty*/);
-	virtual FOnDataLayerChanged& OnDataLayerChanged() { return DataLayerChanged; }
+	FOnDataLayerChanged& OnDataLayerChanged() { return DataLayerChanged; }
 
 	/** Broadcasts whenever one or more Actors changed DataLayers*/
 	DECLARE_EVENT_OneParam(UDataLayerEditorSubsystem, FOnActorDataLayersChanged, const TWeakObjectPtr<AActor>& /*ChangedActor*/);
-	virtual FOnActorDataLayersChanged& OnActorDataLayersChanged() { return ActorDataLayersChanged; }
+	FOnActorDataLayersChanged& OnActorDataLayersChanged() { return ActorDataLayersChanged; }
 	
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Operations on an individual actor.
@@ -68,7 +68,7 @@ public:
 	 *	@param	Actor	The actor to validate
 	 */
 	UFUNCTION(BlueprintCallable, Category = DataLayers)
-	virtual bool IsActorValidForDataLayer(AActor* Actor);
+	bool IsActorValidForDataLayer(AActor* Actor);
 
 	/**
 	 * Adds the actor to the DataLayer.
@@ -78,7 +78,7 @@ public:
 	 * @return				true if the actor was added.  false is returned if the actor already belongs to the DataLayer.
 	 */
 	UFUNCTION(BlueprintCallable, Category = DataLayers)
-	virtual bool AddActorToDataLayer(AActor* Actor, UDataLayer* DataLayer);
+	bool AddActorToDataLayer(AActor* Actor, UDataLayer* DataLayer);
 
 	/**
 	 * Adds the provided actor to the DataLayers.
@@ -88,7 +88,7 @@ public:
 	 * @return				true if the actor was added to at least one of the provided DataLayers.
 	 */
 	UFUNCTION(BlueprintCallable, Category = DataLayers)
-	virtual bool AddActorToDataLayers(AActor* Actor, const TArray<UDataLayer*>& DataLayers);
+	bool AddActorToDataLayers(AActor* Actor, const TArray<UDataLayer*>& DataLayers);
 
 	/**
 	 * Removes an actor from the specified DataLayer.
@@ -98,7 +98,7 @@ public:
 	 * @return					true if the actor was removed from the DataLayer.  false is returned if the actor already belonged to the DataLayer.
 	 */
 	UFUNCTION(BlueprintCallable, Category = DataLayers)
-	virtual bool RemoveActorFromDataLayer(AActor* Actor, UDataLayer* DataLayerToRemove);
+	bool RemoveActorFromDataLayer(AActor* Actor, UDataLayer* DataLayerToRemove);
 
 	/**
 	 * Removes the provided actor from the DataLayers.
@@ -108,7 +108,7 @@ public:
 	 * @return				true if the actor was removed from at least one of the provided DataLayers.
 	 */
 	UFUNCTION(BlueprintCallable, Category = DataLayers)
-	virtual bool RemoveActorFromDataLayers(AActor* Actor, const TArray<UDataLayer*>& DataLayers);
+	bool RemoveActorFromDataLayers(AActor* Actor, const TArray<UDataLayer*>& DataLayers);
 
 
 	/////////////////////////////////////////////////
@@ -122,7 +122,7 @@ public:
 	 * @return				true if at least one actor was added to the DataLayer.  false is returned if all the actors already belonged to the DataLayer.
 	 */
 	UFUNCTION(BlueprintCallable, Category = DataLayers)
-	virtual bool AddActorsToDataLayer(const TArray<AActor*>& Actors, UDataLayer* DataLayer);
+	bool AddActorsToDataLayer(const TArray<AActor*>& Actors, UDataLayer* DataLayer);
 
 	/**
 	 * Add the actors to the DataLayers
@@ -142,7 +142,7 @@ public:
 	 * @return					true if at least one actor was removed from the DataLayer.  false is returned if all the actors already belonged to the DataLayer.
 	 */
 	UFUNCTION(BlueprintCallable, Category = DataLayers)
-	virtual bool RemoveActorsFromDataLayer(const TArray<AActor*>& Actors, UDataLayer* DataLayer);
+	bool RemoveActorsFromDataLayer(const TArray<AActor*>& Actors, UDataLayer* DataLayer);
 
 	/**
 	 * Remove the actors to the DataLayers
@@ -152,7 +152,7 @@ public:
 	 * @return				true if at least one actor was removed from at least one DataLayer.  false is returned if none of the actors belonged to any of the specified DataLayers.
 	 */
 	UFUNCTION(BlueprintCallable, Category = DataLayers)
-	virtual bool RemoveActorsFromDataLayers(const TArray<AActor*>& Actors, const TArray<UDataLayer*>& DataLayers);
+	bool RemoveActorsFromDataLayers(const TArray<AActor*>& Actors, const TArray<UDataLayer*>& DataLayers);
 
 	/////////////////////////////////////////////////
 	// Operations on selected actors.
@@ -164,7 +164,7 @@ public:
 	 * @return				true if at least one actor was added.  false is returned if all selected actors already belong to the DataLayer.
 	 */
 	UFUNCTION(BlueprintCallable, Category = DataLayers)
-	virtual bool AddSelectedActorsToDataLayer(UDataLayer* DataLayer);
+	bool AddSelectedActorsToDataLayer(UDataLayer* DataLayer);
 
 	/**
 	 * Adds selected actors to the DataLayers.
@@ -173,7 +173,7 @@ public:
 	 * @return				true if at least one actor was added.  false is returned if all selected actors already belong to the DataLayers.
 	 */
 	UFUNCTION(BlueprintCallable, Category = DataLayers)
-	virtual bool AddSelectedActorsToDataLayers(const TArray<UDataLayer*>& DataLayers);
+	bool AddSelectedActorsToDataLayers(const TArray<UDataLayer*>& DataLayers);
 
 	/**
 	 * Removes the selected actors from the DataLayer.
@@ -182,7 +182,7 @@ public:
 	 * @return				true if at least one actor was added.  false is returned if all selected actors already belong to the DataLayer.
 	 */
 	UFUNCTION(BlueprintCallable, Category = DataLayers)
-	virtual bool RemoveSelectedActorsFromDataLayer(UDataLayer* DataLayer);
+	bool RemoveSelectedActorsFromDataLayer(UDataLayer* DataLayer);
 
 	/**
 	 * Removes selected actors from the DataLayers.
@@ -191,7 +191,7 @@ public:
 	 * @return				true if at least one actor was removed.
 	 */
 	UFUNCTION(BlueprintCallable, Category = DataLayers)
-	virtual bool RemoveSelectedActorsFromDataLayers(const TArray<UDataLayer*>& DataLayers);
+	bool RemoveSelectedActorsFromDataLayers(const TArray<UDataLayer*>& DataLayers);
 
 
 	/////////////////////////////////////////////////
@@ -207,7 +207,7 @@ public:
 	 * @return									true if at least one actor was selected/deselected.
 	 */
 	UFUNCTION(BlueprintCallable, Category = DataLayers)
-	virtual bool SelectActorsInDataLayer(UDataLayer* DataLayer, const bool bSelect, const bool bNotify, const bool bSelectEvenIfHidden = false);
+	bool SelectActorsInDataLayer(UDataLayer* DataLayer, const bool bSelect, const bool bNotify, const bool bSelectEvenIfHidden = false);
 
 	/**
 	 * Selects/de-selects actors belonging to the DataLayer.
@@ -219,7 +219,7 @@ public:
 	 * @param	Filter	[optional]				Actor that don't pass the specified filter restrictions won't be selected.
 	 * @return									true if at least one actor was selected/deselected.
 	 */
-	virtual bool SelectActorsInDataLayer(UDataLayer* DataLayer, const bool bSelect, const bool bNotify, const bool bSelectEvenIfHidden, const TSharedPtr<FActorFilter>& Filter);
+	bool SelectActorsInDataLayer(UDataLayer* DataLayer, const bool bSelect, const bool bNotify, const bool bSelectEvenIfHidden, const TSharedPtr<FActorFilter>& Filter);
 
 	/**
 	 * Selects/de-selects actors belonging to the DataLayers.
@@ -231,7 +231,7 @@ public:
 	 * @return									true if at least one actor was selected/deselected.
 	 */
 	UFUNCTION(BlueprintCallable, Category = DataLayers)
-	virtual bool SelectActorsInDataLayers(const TArray<UDataLayer*>& DataLayers, const bool bSelect, const bool bNotify, const bool bSelectEvenIfHidden = false);
+	bool SelectActorsInDataLayers(const TArray<UDataLayer*>& DataLayers, const bool bSelect, const bool bNotify, const bool bSelectEvenIfHidden = false);
 
 	/**
 	 * Selects/de-selects actors belonging to the DataLayers.
@@ -243,7 +243,7 @@ public:
 	 * @param	Filter	[optional]				Actor that don't pass the specified filter restrictions won't be selected.
 	 * @return									true if at least one actor was selected/deselected.
 	 */
-	virtual bool SelectActorsInDataLayers(const TArray<UDataLayer*>& DataLayers, const bool bSelect, const bool bNotify, const bool bSelectEvenIfHidden, const TSharedPtr<FActorFilter>& Filter);
+	bool SelectActorsInDataLayers(const TArray<UDataLayer*>& DataLayers, const bool bSelect, const bool bNotify, const bool bSelectEvenIfHidden, const TSharedPtr<FActorFilter>& Filter);
 
 
 	/////////////////////////////////////////////////
@@ -255,7 +255,7 @@ public:
 	 * @param DataLayerThatChanged  If one DataLayer was changed (toggled in view pop-up, etc), then we only need to modify actors that use that DataLayer.
 	 */
 	UFUNCTION(BlueprintCallable, Category = DataLayers)
-	virtual void UpdateAllViewVisibility(UDataLayer* DataLayerThatChanged);
+	void UpdateAllViewVisibility(UDataLayer* DataLayerThatChanged);
 
 	/**
 	 * Updates the per-view visibility for all actors for the given view
@@ -263,7 +263,7 @@ public:
 	 * @param ViewportClient				The viewport client to update visibility on
 	 * @param DataLayerThatChanged [optional]	If one DataLayer was changed (toggled in view pop-up, etc), then we only need to modify actors that use that DataLayer
 	 */
-	virtual void UpdatePerViewVisibility(FLevelEditorViewportClient* ViewportClient, UDataLayer* DataLayerThatChanged = nullptr);
+	void UpdatePerViewVisibility(FLevelEditorViewportClient* ViewportClient, UDataLayer* DataLayerThatChanged = nullptr);
 
 	/**
 	 * Updates per-view visibility for the given actor in the given view
@@ -272,7 +272,7 @@ public:
 	 * @param Actor								Actor to update
 	 * @param bReregisterIfDirty [optional]		If true, the actor will reregister itself to give the rendering thread updated information
 	 */
-	virtual void UpdateActorViewVisibility(FLevelEditorViewportClient* ViewportClient, AActor* Actor, const bool bReregisterIfDirty = true);
+	void UpdateActorViewVisibility(FLevelEditorViewportClient* ViewportClient, AActor* Actor, const bool bReregisterIfDirty = true);
 
 	/**
 	 * Updates per-view visibility for the given actor for all views
@@ -280,14 +280,14 @@ public:
 	 * @param Actor		Actor to update
 	 */
 	UFUNCTION(BlueprintCallable, Category = DataLayers)
-	virtual void UpdateActorAllViewsVisibility(AActor* Actor);
+	void UpdateActorAllViewsVisibility(AActor* Actor);
 
 	/**
 	 * Removes the corresponding visibility bit from all actors (slides the later bits down 1)
 	 *
 	 * @param ViewportClient	The viewport client to update visibility on
 	 */
-	virtual void RemoveViewFromActorViewVisibility(FLevelEditorViewportClient* ViewportClient);
+	void RemoveViewFromActorViewVisibility(FLevelEditorViewportClient* ViewportClient);
 
 	/**
 	 * Updates the provided actors visibility in the viewports
@@ -299,7 +299,7 @@ public:
 	 * @param	bRedrawViewports			If true the viewports will be redrawn; if false, they will not
 	 */
 	UFUNCTION(BlueprintCallable, Category = DataLayers)
-	virtual bool UpdateActorVisibility(AActor* Actor, bool& bOutSelectionChanged, bool& bOutActorModified, const bool bNotifySelectionChange, const bool bRedrawViewports);
+	bool UpdateActorVisibility(AActor* Actor, bool& bOutSelectionChanged, bool& bOutActorModified, const bool bNotifySelectionChange, const bool bRedrawViewports);
 
 	/**
 	 * Updates the visibility of all actors in the viewports
@@ -308,7 +308,7 @@ public:
 	 * @param	bRedrawViewports			If true the viewports will be redrawn; if false, they will not
 	 */
 	UFUNCTION(BlueprintCallable, Category = DataLayers)
-	virtual bool UpdateAllActorsVisibility(const bool bNotifySelectionChange, const bool bRedrawViewports);
+	bool UpdateAllActorsVisibility(const bool bNotifySelectionChange, const bool bRedrawViewports);
 
 
 	/////////////////////////////////////////////////
@@ -321,7 +321,7 @@ public:
 	 *	@param	InOutActors			The list to append the found actors to.
 	 */
 	UFUNCTION(BlueprintCallable, Category = DataLayers)
-	virtual void AppendActorsFromDataLayer(UDataLayer* DataLayer, TArray<AActor*>& InOutActors) const;
+	void AppendActorsFromDataLayer(UDataLayer* DataLayer, TArray<AActor*>& InOutActors) const;
 
 	/**
 	 *	Appends all the actors associated with the specified DataLayer.
@@ -330,7 +330,7 @@ public:
 	 *	@param	InOutActors			The list to append the found actors to.
 	 *  @param	Filter	[optional]	Actor that don't pass the specified filter restrictions won't be selected.
 	 */
-	virtual void AppendActorsFromDataLayer(UDataLayer* DataLayer, TArray<AActor*>& InOutActors, const TSharedPtr<FActorFilter>& Filter) const;
+	void AppendActorsFromDataLayer(UDataLayer* DataLayer, TArray<AActor*>& InOutActors, const TSharedPtr<FActorFilter>& Filter) const;
 	
 	/**
 	 *	Appends all the actors associated with ANY of the specified DataLayers.
@@ -339,7 +339,7 @@ public:
 	 *	@param	InOutActors			The list to append the found actors to.
 	 */
 	UFUNCTION(BlueprintCallable, Category = DataLayers)
-	virtual void AppendActorsFromDataLayers(const TArray<UDataLayer*>& DataLayers, TArray<AActor*>& InOutActors) const;
+	void AppendActorsFromDataLayers(const TArray<UDataLayer*>& DataLayers, TArray<AActor*>& InOutActors) const;
 
 	/**
 	 *	Appends all the actors associated with ANY of the specified DataLayers.
@@ -348,7 +348,7 @@ public:
 	 *	@param	InOutActors			The list to append the found actors to.
 	 *  @param	Filter	[optional]	Actor that don't pass the specified filter restrictions won't be selected.
 	 */
-	virtual void AppendActorsFromDataLayers(const TArray<UDataLayer*>& DataLayers, TArray<AActor*>& InOutActors, const TSharedPtr<FActorFilter>& Filter) const;
+	void AppendActorsFromDataLayers(const TArray<UDataLayer*>& DataLayers, TArray<AActor*>& InOutActors, const TSharedPtr<FActorFilter>& Filter) const;
 
 	/**
 	 *	Gets all the actors associated with the specified DataLayer. Analog to AppendActorsFromDataLayer but it returns rather than appends the actors.
@@ -357,7 +357,7 @@ public:
 	 *	@return						The list to assign the found actors to.
 	 */
 	UFUNCTION(BlueprintCallable, Category = DataLayers)
-	virtual TArray<AActor*> GetActorsFromDataLayer(UDataLayer* DataLayer) const;
+	TArray<AActor*> GetActorsFromDataLayer(UDataLayer* DataLayer) const;
 
 	/**
 	 *	Gets all the actors associated with the specified DataLayer. Analog to AppendActorsFromDataLayer but it returns rather than appends the actors.
@@ -366,7 +366,7 @@ public:
 	 *  @param	Filter	[optional]	Actor that don't pass the specified filter restrictions won't be selected.
 	 *	@return						The list to assign the found actors to.
 	 */
-	virtual TArray<AActor*> GetActorsFromDataLayer(UDataLayer* DataLayer, const TSharedPtr<FActorFilter>& Filter) const;
+	TArray<AActor*> GetActorsFromDataLayer(UDataLayer* DataLayer, const TSharedPtr<FActorFilter>& Filter) const;
 
 	/**
 	 *	Gets all the actors associated with ANY of the specified DataLayers. Analog to AppendActorsFromDataLayers but it returns rather than appends the actors.
@@ -375,7 +375,7 @@ public:
 	 *	@return						The list to assign the found actors to.
 	 */
 	UFUNCTION(BlueprintCallable, Category = DataLayers)
-	virtual TArray<AActor*> GetActorsFromDataLayers(const TArray<UDataLayer*>& DataLayers) const;
+	TArray<AActor*> GetActorsFromDataLayers(const TArray<UDataLayer*>& DataLayers) const;
 
 	/**
 	 *	Gets all the actors associated with ANY of the specified DataLayers. Analog to AppendActorsFromDataLayers but it returns rather than appends the actors.
@@ -384,7 +384,7 @@ public:
 	 *  @param	Filter	[optional]	Actor that don't pass the specified filter restrictions won't be selected.
 	 *	@return						The list to assign the found actors to.
 	 */
-	virtual TArray<AActor*> GetActorsFromDataLayers(const TArray<UDataLayer*>& DataLayers, const TSharedPtr<FActorFilter>& Filter) const;
+	TArray<AActor*> GetActorsFromDataLayers(const TArray<UDataLayer*>& DataLayers, const TSharedPtr<FActorFilter>& Filter) const;
 
 	/**
 	 * Changes the DataLayer's visibility to the provided state
@@ -393,7 +393,7 @@ public:
 	 * @param	bIsVisible	If true the DataLayer will be visible; if false, the DataLayer will not be visible.
 	 */
 	UFUNCTION(BlueprintCallable, Category = DataLayers)
-	virtual void SetDataLayerVisibility(UDataLayer* DataLayer, const bool bIsVisible);
+	void SetDataLayerVisibility(UDataLayer* DataLayer, const bool bIsVisible);
 
 	/**
 	 * Changes visibility of the DataLayers to the provided state
@@ -402,7 +402,7 @@ public:
 	 * @param	bIsVisible	If true the DataLayers will be visible; if false, the DataLayers will not be visible
 	 */
 	UFUNCTION(BlueprintCallable, Category = DataLayers)
-	virtual void SetDataLayersVisibility(const TArray<UDataLayer*>& DataLayers, const bool bIsVisible);
+	void SetDataLayersVisibility(const TArray<UDataLayer*>& DataLayers, const bool bIsVisible);
 
 	/**
 	 * Toggles the DataLayer's visibility
@@ -410,7 +410,7 @@ public:
 	 * @param DataLayer	The DataLayer to affect
 	 */
 	UFUNCTION(BlueprintCallable, Category = DataLayers)
-	virtual void ToggleDataLayerVisibility(UDataLayer* DataLayer);
+	void ToggleDataLayerVisibility(UDataLayer* DataLayer);
 
 	/**
 	 * Toggles the visibility of all of the DataLayers
@@ -418,7 +418,7 @@ public:
 	 * @param	DataLayers	The DataLayers to affect
 	 */
 	UFUNCTION(BlueprintCallable, Category = DataLayers)
-	virtual void ToggleDataLayersVisibility(const TArray<UDataLayer*>& DataLayers);
+	void ToggleDataLayersVisibility(const TArray<UDataLayer*>& DataLayers);
 
 	/**
 	 * Changes the DataLayer's IsDynamicallyLoaded flag to the provided state
@@ -427,7 +427,7 @@ public:
 	 * @param	bIsDynamicallyLoaded	If true the DataLayer will affect runtime streaming and actors will only be loaded if the DataLayer is active.
 	 */
 	UFUNCTION(BlueprintCallable, Category = DataLayers)
-	virtual bool SetDataLayerIsDynamicallyLoaded(UDataLayer* DataLayer, const bool bIsDynamicallyLoaded);
+	bool SetDataLayerIsDynamicallyLoaded(UDataLayer* DataLayer, const bool bIsDynamicallyLoaded);
 
 	/**
 	 * Changes the IsDynamicallyLoaded flag of the DataLayers to the provided state
@@ -436,7 +436,7 @@ public:
 	 * @param	bIsDynamicallyLoaded	If true the DataLayer will affect runtime streaming and actors will only be loaded if the DataLayer is active.
 	 */
 	UFUNCTION(BlueprintCallable, Category = DataLayers)
-	virtual bool SetDataLayersIsDynamicallyLoaded(const TArray<UDataLayer*>& DataLayers, const bool bIsDynamicallyLoaded);
+	bool SetDataLayersIsDynamicallyLoaded(const TArray<UDataLayer*>& DataLayers, const bool bIsDynamicallyLoaded);
 
 	/**
 	 * Toggles the DataLayer's IsDynamicallyLoaded flag
@@ -444,7 +444,7 @@ public:
 	 * @param DataLayer	The DataLayer to affect
 	 */
 	UFUNCTION(BlueprintCallable, Category = DataLayers)
-	virtual bool ToggleDataLayerIsDynamicallyLoaded(UDataLayer* DataLayer);
+	bool ToggleDataLayerIsDynamicallyLoaded(UDataLayer* DataLayer);
 
 	/**
 	 * Toggles the IsDynamicallyLoaded flag of all of the DataLayers
@@ -452,7 +452,7 @@ public:
 	 * @param	DataLayers	The DataLayers to affect
 	 */
 	UFUNCTION(BlueprintCallable, Category = DataLayers)
-	virtual bool ToggleDataLayersIsDynamicallyLoaded(const TArray<UDataLayer*>& DataLayers);
+	bool ToggleDataLayersIsDynamicallyLoaded(const TArray<UDataLayer*>& DataLayers);
 
 	/**
 	 * Changes the DataLayer's IsDynamicallyLoadedInEditor flag to the provided state
@@ -463,7 +463,7 @@ public:
 	 *											An Actor will not be loaded in the Editor if all its DataLayers are DynamicallyLoaded and not DynamicallyLoadedInEditor.
 	 */
 	UFUNCTION(BlueprintCallable, Category = DataLayers)
-	virtual bool SetDataLayerIsDynamicallyLoadedInEditor(UDataLayer* DataLayer, const bool bIsDynamicallyLoadedInEditor);
+	bool SetDataLayerIsDynamicallyLoadedInEditor(UDataLayer* DataLayer, const bool bIsDynamicallyLoadedInEditor);
 
 	/**
 	 * Changes the IsDynamicallyLoadedInEditor flag of the DataLayers to the provided state
@@ -474,7 +474,7 @@ public:
 	 *											An Actor will not be loaded in the Editor if all its DataLayers are DynamicallyLoaded and not DynamicallyLoadedInEditor.
 	 */
 	UFUNCTION(BlueprintCallable, Category = DataLayers)
-	virtual bool SetDataLayersIsDynamicallyLoadedInEditor(const TArray<UDataLayer*>& DataLayers, const bool bIsDynamicallyLoadedInEditor);
+	bool SetDataLayersIsDynamicallyLoadedInEditor(const TArray<UDataLayer*>& DataLayers, const bool bIsDynamicallyLoadedInEditor);
 
 	/**
 	 * Toggles the DataLayer's IsDynamicallyLoadedInEditor flag
@@ -482,7 +482,7 @@ public:
 	 * @param DataLayer	The DataLayer to affect
 	 */
 	UFUNCTION(BlueprintCallable, Category = DataLayers)
-	virtual bool ToggleDataLayerIsDynamicallyLoadedInEditor(UDataLayer* DataLayer);
+	bool ToggleDataLayerIsDynamicallyLoadedInEditor(UDataLayer* DataLayer);
 
 	/**
 	 * Toggles the IsDynamicallyLoadedInEditor flag of all of the DataLayers
@@ -490,13 +490,13 @@ public:
 	 * @param	DataLayers	The DataLayers to affect
 	 */
 	UFUNCTION(BlueprintCallable, Category = DataLayers)
-	virtual bool ToggleDataLayersIsDynamicallyLoadedInEditor(const TArray<UDataLayer*>& DataLayers);
+	bool ToggleDataLayersIsDynamicallyLoadedInEditor(const TArray<UDataLayer*>& DataLayers);
 
 	/**
 	 * Set the visibility of all DataLayers to true
 	 */
 	UFUNCTION(BlueprintCallable, Category = DataLayers)
-	virtual void MakeAllDataLayersVisible();
+	void MakeAllDataLayersVisible();
 
 	/**
 	 * Gets the UDataLayer Object of the DataLayer label
@@ -505,7 +505,7 @@ public:
 	 * @return					The UDataLayer Object of the provided DataLayer label
 	 */
 	UFUNCTION(BlueprintCallable, Category = DataLayers)
-	virtual UDataLayer* GetDataLayerFromLabel(const FName& DataLayerLabel) const;
+	UDataLayer* GetDataLayerFromLabel(const FName& DataLayerLabel) const;
 
 	/**
 	 * Gets the UDataLayer Object of the ActorDataLayer
@@ -514,7 +514,7 @@ public:
 	 * @return					The UDataLayer Object of the provided ActorDataLayer
 	 */
 	UFUNCTION(BlueprintCallable, Category = DataLayers)
-	virtual UDataLayer* GetDataLayer(const FActorDataLayer& ActorDataLayer) const;
+	UDataLayer* GetDataLayer(const FActorDataLayer& ActorDataLayer) const;
 
 	/**
 	 * Gets the UDataLayer Object of the DataLayer name
@@ -522,7 +522,7 @@ public:
 	 * @param	DataLayerName	The name of the DataLayer whose UDataLayer Object is returned
 	 * @return					The UDataLayer Object of the provided DataLayer name
 	 */
-	virtual UDataLayer* GetDataLayerFromName(const FName& DataLayerName) const;
+	UDataLayer* GetDataLayerFromName(const FName& DataLayerName) const;
 	
 	/**
 	 * Attempts to get the UDataLayer Object of the provided DataLayer label.
@@ -531,14 +531,14 @@ public:
 	 * @param	OutDataLayer[OUT] 	Set to the UDataLayer Object of the DataLayer label. Set to Invalid if no UDataLayer Object exists.
 	 * @return					If true a valid UDataLayer Object was found and set to OutDataLayer; if false, a valid UDataLayer object was not found and invalid set to OutDataLayer
 	 */
-	virtual bool TryGetDataLayerFromLabel(const FName& DataLayerLabel, UDataLayer*& OutDataLayer);
+	bool TryGetDataLayerFromLabel(const FName& DataLayerLabel, UDataLayer*& OutDataLayer);
 
 	/**
 	 * Gets all known DataLayers and appends them to the provided array
 	 *
 	 * @param OutDataLayers[OUT] Output array to store all known DataLayers
 	 */
-	virtual void AddAllDataLayersTo(TArray<TWeakObjectPtr<UDataLayer>>& OutDataLayers) const;
+	void AddAllDataLayersTo(TArray<TWeakObjectPtr<UDataLayer>>& OutDataLayers) const;
 
 	/**
 	 * Creates a UDataLayer Object
@@ -554,7 +554,7 @@ public:
 	 * @param DataLayersToDelete	A valid list of DataLayer.
 	 */
 	UFUNCTION(BlueprintCallable, Category = DataLayers)
-	virtual void DeleteDataLayers(const TArray<UDataLayer*>& DataLayersToDelete);
+	void DeleteDataLayers(const TArray<UDataLayer*>& DataLayersToDelete);
 
 	/**
 	 * Deletes the provided DataLayer
@@ -562,7 +562,7 @@ public:
 	 * @param DataLayerToDelete		A valid DataLayer
 	 */
 	UFUNCTION(BlueprintCallable, Category = DataLayers)
-	virtual void DeleteDataLayer(UDataLayer* DataLayerToDelete);
+	void DeleteDataLayer(UDataLayer* DataLayerToDelete);
 
 	/**
 	 * Renames the provided DataLayer to the provided new label
@@ -571,7 +571,7 @@ public:
 	 * @param	NewDataLayerLabel	The new label for the DataLayer to be renamed
 	 */
 	UFUNCTION(BlueprintCallable, Category = DataLayers)
-	virtual bool RenameDataLayer(UDataLayer* DataLayer, const FName& NewDataLayerLabel);
+	bool RenameDataLayer(UDataLayer* DataLayer, const FName& NewDataLayerLabel);
 
 private:
 

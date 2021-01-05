@@ -64,7 +64,7 @@ public:
 
 
 
-	virtual void InitializeSingleBuffer()
+	void InitializeSingleBuffer()
 	{
 		check(RenderBufferSets.Num() == 0);
 
@@ -96,7 +96,7 @@ public:
 
 
 
-	virtual void InitializeFromDecomposition(const FArrayIndexSetsDecomposition& Decomposition)
+	void InitializeFromDecomposition(const FArrayIndexSetsDecomposition& Decomposition)
 	{
 		check(RenderBufferSets.Num() == 0);
 
@@ -134,7 +134,7 @@ public:
 
 
 
-	virtual void UpdateFromDecomposition(const FArrayIndexSetsDecomposition& Decomposition, const TArray<int32>& SetsToUpdate )
+	void UpdateFromDecomposition(const FArrayIndexSetsDecomposition& Decomposition, const TArray<int32>& SetsToUpdate )
 	{
 		// CAN WE REUSE EXISTING BUFFER SETS??
 		//   - could have timestamp for each decomposition set array...if tris don't change we only have to update vertices

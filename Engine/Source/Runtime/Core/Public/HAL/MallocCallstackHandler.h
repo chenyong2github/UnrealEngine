@@ -207,7 +207,7 @@ protected:
 		return FPlatformTLS::GetTlsValue(DisabledTLS) != 0;
 	}
 
-	void TrackRealloc(void* OldPtr, void* NewPtr, uint32 NewSize, uint32 OldSize, int32 CallStackIndex);
+	virtual void TrackRealloc(void* OldPtr, void* NewPtr, uint32 NewSize, uint32 OldSize, int32 CallStackIndex);
 	virtual void TrackMalloc(void* Ptr, uint32 Size, int32 CallStackIndex) = 0;
 	virtual void TrackFree(void* Ptr, uint32 OldSize, int32 CallStackIndex) = 0;
 

@@ -3510,7 +3510,7 @@ public:
 	class FAudioDevice* GetAudioDeviceRaw();
 
 	/** Return the URL of this level on the local machine. */
-	virtual FString GetLocalURL() const;
+	FString GetLocalURL() const;
 
 	/** Returns whether script is executing within the editor. */
 	bool IsPlayInEditor() const;
@@ -3538,7 +3538,7 @@ public:
 
 	// Return the URL of this level, which may possibly
 	// exist on a remote machine.
-	virtual FString GetAddressURL() const;
+	FString GetAddressURL() const;
 
 	/**
 	 * Called after GWorld has been set. Used to load, but not associate, all
@@ -3584,7 +3584,7 @@ public:
 	 * @param bAbsolute whether we are using relative or absolute travel
 	 * @param bShouldSkipGameNotify whether to notify the clients/game or not
 	 */
-	virtual bool ServerTravel(const FString& InURL, bool bAbsolute = false, bool bShouldSkipGameNotify = false);
+	bool ServerTravel(const FString& InURL, bool bAbsolute = false, bool bShouldSkipGameNotify = false);
 
 	/** seamlessly travels to the given URL by first loading the entry level in the background,
 	 * switching to it, and then loading the specified level. Does not disrupt network communication or disconnect clients.
@@ -3774,7 +3774,7 @@ public:
 	void GetMatineeActors( TArray<AMatineeActor*>& OutMatineeActors );
 
 	/** Updates all physics constraint actor joint locations.  */
-	virtual void UpdateConstraintActors();
+	void UpdateConstraintActors();
 
 	/** Gets all LightMaps and ShadowMaps associated with this world. Specify the level or leave null for persistent */
 	void GetLightMapsAndShadowMaps(ULevel* Level, TArray<UTexture2D*>& OutLightMapsAndShadowMaps, bool bForceLazyLoad = true);

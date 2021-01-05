@@ -130,7 +130,7 @@ private:
 		: CurrentId(0)
 	{}
 
-	virtual ~FD3D11RenderQueryBatcher() = default;
+	~FD3D11RenderQueryBatcher() = default;
 };
 
 void D3D11RHIQueryBatcherPerFrameCleanup()

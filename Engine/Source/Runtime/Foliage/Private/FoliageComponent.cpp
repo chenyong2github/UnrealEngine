@@ -31,7 +31,7 @@ public:
 	{}
 
 	/** Accessor used by the rendering thread when setting foliage parameters for rendering. */
-	virtual void GetFoliageParameters(FVector& OutFoliageImpluseDirection, FVector4& OutFoliageNormalizedRotationAxisAndAngle) const
+	void GetFoliageParameters(FVector& OutFoliageImpluseDirection, FVector4& OutFoliageNormalizedRotationAxisAndAngle) const
 	{
 		OutFoliageImpluseDirection = FoliageImpluseDirection;
 		OutFoliageNormalizedRotationAxisAndAngle = FoliageNormalizedRotationAxisAndAngle;

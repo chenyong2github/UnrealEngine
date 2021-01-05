@@ -46,7 +46,7 @@ public:
 
 
 
-	virtual void Initialize()
+	void Initialize()
 	{
 		// allocate buffer sets based on materials
 		check(RenderBufferSets.Num() == 0);
@@ -86,7 +86,7 @@ public:
 	/**
 	 * Initialize multiple buffers for the mesh based on the given Decomposition
 	 */
-	virtual void InitializeFromDecomposition(TUniquePtr<FMeshRenderDecomposition>& Decomposition)
+	void InitializeFromDecomposition(TUniquePtr<FMeshRenderDecomposition>& Decomposition)
 	{
 		check(RenderBufferSets.Num() == 0);
 		int32 NumSets = Decomposition->Num();
@@ -150,7 +150,7 @@ public:
 	/**
 	 * Initialize a single set of mesh buffers for the entire mesh
 	 */
-	virtual void InitializeSingleBufferSet(FMeshRenderBufferSet* RenderBuffers)
+	void InitializeSingleBufferSet(FMeshRenderBufferSet* RenderBuffers)
 	{
 		FDynamicMesh3* Mesh = ParentComponent->GetRenderMesh();
 
@@ -189,7 +189,7 @@ public:
 	/**
 	 * Initialize the mesh buffers, one per material
 	 */
-	virtual void InitializeByMaterial(TArray<FMeshRenderBufferSet*>& BufferSets)
+	void InitializeByMaterial(TArray<FMeshRenderBufferSet*>& BufferSets)
 	{
 		FDynamicMesh3* Mesh = ParentComponent->GetRenderMesh();
 		check(Mesh->HasAttributes() && Mesh->Attributes()->HasMaterialID());
@@ -338,7 +338,7 @@ public:
 	/**
 	 * Update the vertex position/normal/color buffers
 	 */
-	virtual void FastUpdateVertices(bool bPositions, bool bNormals, bool bColors, bool bUVs)
+	void FastUpdateVertices(bool bPositions, bool bNormals, bool bColors, bool bUVs)
 	{
 		// This needs to be rewritten for split-by-material buffers.
 		// Could store triangle set with each buffer, and then rebuild vtx buffer(s) as needed?
@@ -431,7 +431,7 @@ public:
 	/**
 	 * Update the vertex position/normal/color buffers
 	 */
-	virtual void FastUpdateVertices(const TArray<int32>& WhichBuffers, bool bPositions, bool bNormals, bool bColors, bool bUVs)
+	void FastUpdateVertices(const TArray<int32>& WhichBuffers, bool bPositions, bool bNormals, bool bColors, bool bUVs)
 	{
 		// This needs to be rewritten for split-by-material buffers.
 		// Could store triangle set with each buffer, and then rebuild vtx buffer(s) as needed?
@@ -499,7 +499,7 @@ public:
 	/**
 	 * Update index buffers inside each RenderBuffer set
 	 */
-	virtual void FastUpdateAllIndexBuffers()
+	void FastUpdateAllIndexBuffers()
 	{
 		FDynamicMesh3* Mesh = ParentComponent->GetRenderMesh();
 
