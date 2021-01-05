@@ -36,9 +36,11 @@
 #include "ObjectTools.h"
 #include "SControlRigUpdatePose.h"
 #include "SControlRigRenamePoseControls.h"
-
+#include "Dialogs/Dialogs.h"
 
 #define LOCTEXT_NAMESPACE "ControlRigBaseListWidget"
+
+FString SControlRigBaseListWidget::CurrentlySelectedPath("");
 
 enum class FControlRigAssetType {
 	ControlRigPose,
@@ -196,13 +198,13 @@ void FCreateControlAssetRigDialog::GetControlAssetParams(FControlRigAssetType Ty
 	switch (Type)
 	{
 	case FControlRigAssetType::ControlRigPose:
-		TitleText = NSLOCTEXT("ControlRig", "CreateControlAssetRig", "Create Control Rig Pose");
+		TitleText = LOCTEXT("CreateControlAssetRig", "Create Control Rig Pose");
 		break;
 	case FControlRigAssetType::ControlRigAnimation:
-		TitleText = NSLOCTEXT("ControlRig", "CreateControlAssetRig", "Create Control Rig Animation");
+		TitleText = LOCTEXT("CreateControlAssetRig", "Create Control Rig Animation");
 		break;
 	case FControlRigAssetType::ControlRigSelectionSet:
-		TitleText = NSLOCTEXT("ControlRig", "CreateControlAssetRig", "Create Control Rig Selection Set");
+		TitleText = LOCTEXT("CreateControlAssetRig", "Create Control Rig Selection Set");
 		break;
 	};
 
@@ -403,6 +405,29 @@ void SControlRigPoseAnimSelectionToolbar::Construct(const FArguments& InArgs)
 
 void SControlRigPoseAnimSelectionToolbar::MakeControlRigAssetDialog(FControlRigAssetType Type, bool bSelectAll)
 {
+	FControlRigEditMode* ControlRigEditMode = static_cast<FControlRigEditMode*>(GLevelEditorModeTools().GetActiveMode(FControlRigEditMode::ModeName));
+	if (ControlRigEditMode && ControlRigEditMode->GetControlRig(true))
+	{
+		UControlRig* ControlRig = ControlRigEditMode->GetControlRig(true);
+		if (ControlRig)
+		{
+			TArray<FName> SelectedControls = ControlRig->CurrentControlSelection();
+			if (SelectedControls.Num() <= 0)
+			{
+				FText ConfirmDelete = LOCTEXT("ConfirmNoSelectedControls", "You are saving a Pose with no selected Controls - are you sure?");
+
+				FSuppressableWarningDialog::FSetupInfo Info(ConfirmDelete, LOCTEXT("SavePose", "Save Pose"), "SavePose_Warning");
+				Info.ConfirmText = LOCTEXT("SavePose_Yes", "Yes");
+				Info.CancelText = LOCTEXT("SavePose_No", "No");
+
+				FSuppressableWarningDialog SavePose(Info);
+				if (SavePose.ShowModal() == FSuppressableWarningDialog::Cancel)
+				{
+					return;
+				}
+			}
+		}
+	}
 	FCreateControlAssetDelegate GetNameCallback = FCreateControlAssetDelegate::CreateLambda([this, Type, bSelectAll](FString AssetName)
 	{
 		if (OwningControlRigWidget)
@@ -411,7 +436,7 @@ void SControlRigPoseAnimSelectionToolbar::MakeControlRigAssetDialog(FControlRigA
 
 			FControlRigEditMode* ControlRigEditMode = static_cast<FControlRigEditMode*>(GLevelEditorModeTools().GetActiveMode(FControlRigEditMode::ModeName));
 			if (ControlRigEditMode && ControlRigEditMode->GetControlRig(true))
-			{
+			{	
 				UObject* NewAsset = nullptr;
 				switch (Type)
 				{
@@ -429,9 +454,8 @@ void SControlRigPoseAnimSelectionToolbar::MakeControlRigAssetDialog(FControlRigA
 				if (NewAsset)
 				{
 					FControlRigView::CaptureThumbnail(NewAsset);
+					OwningControlRigWidget->SelectThisAsset(NewAsset);
 				}
-				OwningControlRigWidget->SelectThisAsset(NewAsset);
-
 			}
 		}
 	});
@@ -639,7 +663,10 @@ void SControlRigBaseListWidget::Construct(const FArguments& InArgs)
 	TArray<FString> PosesDirectories = PoseSettings->GetAssetPaths();
 	if (PosesDirectories.Num() > 0)
 	{
-		CurrentlySelectedPath = PosesDirectories[0];
+		if (CurrentlySelectedPath.IsEmpty())
+		{
+			CurrentlySelectedPath = PosesDirectories[0];
+		}
 	}
 	FContentBrowserModule& ContentBrowserModule = FModuleManager::Get().LoadModuleChecked<FContentBrowserModule>(TEXT("ContentBrowser"));
 
@@ -701,41 +728,48 @@ void SControlRigBaseListWidget::Construct(const FArguments& InArgs)
 
 	// Path/Asset view
 	MainVerticalBox->AddSlot()
+
 		.HAlign(HAlign_Fill)
-		.FillHeight(0.7)
+		.FillHeight(0.6)
 		.Padding(0, 0, 0, 4)
 		[
 			SNew(SSplitter)
+			.Orientation(Orient_Vertical)
+			+ SSplitter::Slot()
+			.Value(0.66f)
+			[
+				SNew(SSplitter)
+
+				+ SSplitter::Slot()
+				.Value(0.33f)
+				[
+					SNew(SBorder)
+					.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+				[
+					PathPicker.ToSharedRef()
+				]
+				]
 
 			+ SSplitter::Slot()
-		.Value(0.33f)
+				.Value(0.66f)
+				[
+					SNew(SBorder)
+					.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+					[
+						AssetPicker.ToSharedRef()
+					]
+				]
+			]
+		+ SSplitter::Slot()
+		.Value(0.4f)
 		[
 			SNew(SBorder)
 			.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
-		[
-			PathPicker.ToSharedRef()
+			[
+				SAssignNew(ViewContainer, SBox)
+				.Padding(FMargin(5.0f, 0, 0, 0))
+			]
 		]
-		]
-
-	+ SSplitter::Slot()
-		.Value(0.66f)
-		[
-			SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
-		[
-			AssetPicker.ToSharedRef()
-		]
-		]
-		];
-		
-
-	//Bottom Area View Container to hold specific View (Pose/Animation).
-	MainVerticalBox->AddSlot()
-		.HAlign(HAlign_Fill)
-		.FillHeight(0.3)
-		[
-			SAssignNew(ViewContainer, SBox)
-			.Padding(FMargin(5.0f, 0, 0, 0))
 		];
 
 	ChildSlot

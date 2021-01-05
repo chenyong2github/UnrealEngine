@@ -187,7 +187,6 @@ void SControlRigPoseView::Construct(const FArguments& InArgs)
 {
 	PoseAsset = InArgs._PoseAsset;
 
-
 	PoseBlendValue = 0.0f;
 	bIsBlending = false;
 	bSliderStartedTransaction = false;
@@ -208,6 +207,7 @@ void SControlRigPoseView::Construct(const FArguments& InArgs)
 	DetailsViewArgs.bUpdatesFromSelection = false;
 	DetailsViewArgs.bLockable = false;
 	DetailsViewArgs.NameAreaSettings = FDetailsViewArgs::HideNameArea;
+	DetailsViewArgs.NotifyHook = this;
 	DetailsViewArgs.ViewIdentifier = "Create Control Asset";
 
 	MirrorDetailsView = PropertyEditor.CreateDetailView(DetailsViewArgs);
@@ -290,18 +290,18 @@ void SControlRigPoseView::Construct(const FArguments& InArgs)
 						+ SVerticalBox::Slot()
 							.AutoHeight()
 							.HAlign(HAlign_Center)
-							.Padding(5.f)
+							.Padding(2.5f)
 							[
 								SNew(SHorizontalBox)
 								+ SHorizontalBox::Slot()
 							.AutoWidth()
 							.HAlign(HAlign_Center)
-							.Padding(5.f)
+							.Padding(2.5f)
 							[
 								SNew(SCheckBox)
 								.IsChecked(this, &SControlRigPoseView::IsKeyPoseChecked)
 							.OnCheckStateChanged(this, &SControlRigPoseView::OnKeyPoseChecked)
-							.Padding(5.0f)
+							.Padding(2.5f)
 
 							[
 								SNew(STextBlock).Text(LOCTEXT("Key", "Key"))
@@ -314,7 +314,7 @@ void SControlRigPoseView::Construct(const FArguments& InArgs)
 
 							.HAlign(HAlign_Center)
 
-							.Padding(5.f)
+							.Padding(2.5f)
 							[
 								SNew(SCheckBox)
 								.IsChecked(this, &SControlRigPoseView::IsMirrorPoseChecked)
@@ -330,25 +330,65 @@ void SControlRigPoseView::Construct(const FArguments& InArgs)
 						+ SVerticalBox::Slot()
 							.AutoHeight()
 							.HAlign(HAlign_Center)
-							.Padding(5.f)
+							.Padding(2.5f)
 							[
 
-								SNew(SNumericEntryBox<float>)
+								SNew(SSpinBox<float>)
 								// Only allow spinning if we have a single value
 								.Value(this, &SControlRigPoseView::OnGetPoseBlendValue)
-								.AllowSpin(true)
-								.MinValue(-1.0f)
+								.ToolTipText(LOCTEXT("BlendTooltip", "Blend between current pose and pose asset. Use Ctrl drag for under and over shoot."))
+								.MinValue(-2.0f)
 								.MaxValue(2.0f)
 								.MinSliderValue(-1.0f)
-								.MaxSliderValue(2.0f)
+								.MaxSliderValue(1.0f)
 								.SliderExponent(1)
 								.Delta(0.005f)
+								.MinDesiredWidth(100.0f)
+								.SupportDynamicSliderMinValue(true)
+								.SupportDynamicSliderMaxValue(true)
 								.OnValueChanged(this, &SControlRigPoseView::OnPoseBlendChanged)
 								.OnValueCommitted(this, &SControlRigPoseView::OnPoseBlendCommited)
 								.OnBeginSliderMovement(this,&SControlRigPoseView::OnBeginSliderMovement)
 								.OnEndSliderMovement(this,&SControlRigPoseView::OnEndSliderMovement)
 
 							]
+
+							+ SVerticalBox::Slot()
+							.AutoHeight()
+							.HAlign(HAlign_Center)
+							.Padding(15.f)
+							[
+								SNew(SButton)
+								.ContentPadding(FMargin(10, 5))
+								.Text(LOCTEXT("SelectControls", "Select Controls"))
+								.OnClicked(this, &SControlRigPoseView::OnSelectControls)
+							]
+							+ SVerticalBox::Slot()
+							.AutoHeight()
+							.HAlign(HAlign_Center)
+							.Padding(3.f)
+							[
+								SNew(SBorder)
+								.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+								.Padding(FMargin(3.0f, 2.0f))
+								.Visibility(EVisibility::HitTestInvisible)
+								[
+									SAssignNew(TextStatusBlock1, STextBlock)
+								]
+							]
+							+ SVerticalBox::Slot()
+							.AutoHeight()
+							.HAlign(HAlign_Center)
+							.Padding(1.0f)
+								[
+									SNew(SBorder)
+									.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+								.Padding(FMargin(3.0f, 0.0f))
+								.Visibility(EVisibility::HitTestInvisible)
+								[
+									SAssignNew(TextStatusBlock2, STextBlock)
+								]
+								]
 					]
 				]
 			+ SSplitter::Slot()
@@ -397,6 +437,28 @@ void SControlRigPoseView::Construct(const FArguments& InArgs)
 
 	];
 
+	if (FControlRigEditMode* EditMode = static_cast<FControlRigEditMode*>(GLevelEditorModeTools().GetActiveMode(FControlRigEditMode::ModeName)))
+	{
+		EditMode->OnControlRigAddedOrRemoved().AddRaw(this, &SControlRigPoseView::HandleControlAdded);
+		HandleControlAdded(GetControlRig(), true);
+	}
+}
+
+SControlRigPoseView::~SControlRigPoseView()
+{
+	if (FControlRigEditMode* EditMode = static_cast<FControlRigEditMode*>(GLevelEditorModeTools().GetActiveMode(FControlRigEditMode::ModeName)))
+	{
+		EditMode->OnControlRigAddedOrRemoved().RemoveAll(this);
+		if (EditMode->GetControlRig(true))
+		{
+			EditMode->GetControlRig(true)->ControlSelected().RemoveAll(this);
+		}
+	}
+}
+
+void SControlRigPoseView::NotifyPostChange(const FPropertyChangedEvent& PropertyChangedEvent, FProperty* PropertyThatChanged)
+{
+	UpdateStatusBlocks();
 }
 
 ECheckBoxState SControlRigPoseView::IsKeyPoseChecked() const
@@ -419,6 +481,7 @@ void SControlRigPoseView::OnKeyPoseChecked(ECheckBoxState NewState)
 		bIsKey = false;
 	}
 }
+
 ECheckBoxState SControlRigPoseView::IsMirrorPoseChecked() const
 {
 	if (bIsMirror)
@@ -438,6 +501,7 @@ void SControlRigPoseView::OnMirrorPoseChecked(ECheckBoxState NewState)
 	{
 		bIsMirror = false;
 	}
+	UpdateStatusBlocks();
 }
 
 bool SControlRigPoseView::IsMirrorEnabled() const
@@ -569,5 +633,88 @@ void SControlRigPoseView::CreateControlList()
 	}
 }
 */
+void SControlRigPoseView::HandleControlAdded(UControlRig* ControlRig, bool bIsAdded)
+{
+	if (ControlRig)
+	{
+		if (bIsAdded)
+		{
+			(ControlRig)->ControlSelected().RemoveAll(this);
+			(ControlRig)->ControlSelected().AddRaw(this, &SControlRigPoseView::HandleControlSelected);
+		}
+		else
+		{
+			(ControlRig)->ControlSelected().RemoveAll(this);
+		}
+	}
+	UpdateStatusBlocks();
+}
+
+void SControlRigPoseView::HandleControlSelected(UControlRig* Subject, const FRigControl& Control, bool bSelected)
+{
+	UpdateStatusBlocks();
+}
+
+void SControlRigPoseView::UpdateStatusBlocks()
+{
+	UControlRig* ControlRig = GetControlRig();
+	FText StatusText1;
+	FText StatusText2;
+
+	if (PoseAsset.IsValid() && ControlRig)
+	{
+		FFormatNamedArguments NamedArgs;
+		TArray<FName> ControlNames = PoseAsset->GetControlNames();
+		NamedArgs.Add("Total", ControlNames.Num());
+		TArray<FName> SelectedNames = ControlRig->CurrentControlSelection();
+		NamedArgs.Add("Selected", SelectedNames.Num());
+		uint32 Matching = 0;
+		uint32 MirrorMatching = 0;
+		
+		for (const FName& ControlName : ControlNames)
+		{
+			for (const FName& SelectedName : SelectedNames)
+			{
+				if (SelectedName == ControlName)
+				{
+					++Matching;
+					if (SControlRigPoseView::bIsMirror)
+					{
+						if (PoseAsset->DoesMirrorMatch(ControlRig,ControlName))
+						{
+							++MirrorMatching;
+						}
+					}
+				}
+			}
+		}
+		NamedArgs.Add("Matching", Matching);
+		NamedArgs.Add("MirrorMatching", MirrorMatching);
+
+		if(SControlRigPoseView::bIsMirror)
+		{
+			StatusText1 = FText::Format(LOCTEXT("NumberControlsAndMatch", "{Total} Controls Matching {Matching} of {Selected} Selected"), NamedArgs);
+			StatusText2 = FText::Format(LOCTEXT("NumberMirroredMatch", " {MirrorMatching} Mirror String Matches"), NamedArgs);
+		}
+		else
+		{
+			StatusText1 = FText::Format(LOCTEXT("NumberControlsAndMatch", "{Total} Controls Matching {Matching} of {Selected} Selected"), NamedArgs);
+			StatusText2 = FText::GetEmpty();
+		}
+	}
+	else
+	{
+		StatusText1 = FText::GetEmpty();
+		StatusText2 = FText::GetEmpty();
+	}
+	if (TextStatusBlock1.IsValid())
+	{
+		TextStatusBlock1->SetText(StatusText1);
+	}
+	if (TextStatusBlock2.IsValid())
+	{
+		TextStatusBlock2->SetText(StatusText2);
+	}
+}
 
 #undef LOCTEXT_NAMESPACE

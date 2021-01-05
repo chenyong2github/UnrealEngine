@@ -15,6 +15,7 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Views/STableRow.h"
 #include "Tools/ControlRigPose.h"
+#include "Misc/NotifyHook.h"
 
 class FAssetThumbnail;
 class UControlRig;
@@ -26,19 +27,21 @@ public:
 	static void CaptureThumbnail(UObject* Asset);
 };
 
-class SControlRigPoseView : public SCompoundWidget
+class SControlRigPoseView : public SCompoundWidget, public FNotifyHook
 {
 	SLATE_BEGIN_ARGS(SControlRigPoseView) {}
 	SLATE_ARGUMENT(UControlRigPoseAsset*, PoseAsset)
 
 	SLATE_END_ARGS()
-	~SControlRigPoseView()
-	{
-	}
 
 	void Construct(const FArguments& InArgs);
+	~SControlRigPoseView();
+
+	//FNotifyHook
+	virtual void NotifyPostChange(const FPropertyChangedEvent& PropertyChangedEvent, FProperty* PropertyThatChanged) override;
 
 private:
+	void UpdateStatusBlocks();
 
 	UControlRig* GetControlRig();
 
@@ -54,10 +57,12 @@ private:
 	void OnPoseBlendCommited(float ChangedVal, ETextCommit::Type Type);
 	void OnBeginSliderMovement();
 	void OnEndSliderMovement(float NewValue);
-	TOptional<float> OnGetPoseBlendValue()const {return PoseBlendValue;}
+	float OnGetPoseBlendValue()const {return PoseBlendValue;}
 	FReply OnPastePose();
 	FReply OnSelectControls();
 	FReply OnCaptureThumbnail();
+	void HandleControlSelected(UControlRig* Subject, const FRigControl& Control, bool bSelected);
+	void HandleControlAdded(UControlRig* ControlRig, bool bIsAdded);
 
 	static bool bIsKey;
 	static bool bIsMirror;
@@ -70,6 +75,10 @@ private:
 
 	TWeakObjectPtr<UControlRigPoseAsset> PoseAsset;
 	
+	TSharedPtr<STextBlock> TextStatusBlock1;
+	TSharedPtr<STextBlock> TextStatusBlock2;
+
+
 	/* Mirroring*/
 	TSharedPtr<IDetailsView> MirrorDetailsView;
 

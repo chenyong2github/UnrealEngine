@@ -2178,6 +2178,7 @@ AControlRigGizmoActor* FControlRigEditMode::GetGizmoFromControlName(const FName&
 void FControlRigEditMode::AddControlRig(UControlRig* InControlRig)
 {
 	RuntimeControlRigs.AddUnique(InControlRig);
+	OnControlRigAddedOrRemovedDelegate.Broadcast(InControlRig, true);
 }
 
 UControlRig* FControlRigEditMode::GetControlRig(bool bInteractionRig, int32 InIndex) const
@@ -2203,6 +2204,7 @@ void FControlRigEditMode::RemoveControlRig(UControlRig* InControlRig)
 	int32 Index = RuntimeControlRigs.Find(InControlRig);
 	if (RuntimeControlRigs.IsValidIndex(Index))
 	{
+		OnControlRigAddedOrRemovedDelegate.Broadcast(InControlRig, false);
 		RuntimeControlRigs[Index]->ControlModified().RemoveAll(this);
 		RuntimeControlRigs.RemoveAt(Index);
 

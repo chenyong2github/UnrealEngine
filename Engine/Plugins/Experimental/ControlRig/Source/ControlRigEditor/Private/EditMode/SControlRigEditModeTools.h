@@ -80,8 +80,8 @@ private:
 	/** Make the Pose Dialg*/
 	void MakePoseDialog();
 
-	/** Pose Dialog Window*/
-	TWeakPtr<SWindow> PoseWindow;
+	/** Make the Pose Dialg*/
+	void MakeTweenDialog();
 
 	//TODO may put back void MakeSelectionSetDialog();
 	//TWeakPtr<SWindow> SelectionSetWindow;
@@ -90,8 +90,6 @@ public:
 	void CustomizeToolBarPalette(FToolBarBuilder& ToolBarBuilder);
 	FText GetActiveToolName() const;
 	FText GetActiveToolMessage() const;
-
-
 };
 
 

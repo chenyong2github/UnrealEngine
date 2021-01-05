@@ -25,6 +25,9 @@
 #include "Rigs/FKControlRig.h"
 #include "SControlRigBaseListWidget.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "SControlRigTweenWidget.h"
+#include "IControlRigEditorModule.h"
+#include "Framework/Docking/TabManager.h"
 
 #define LOCTEXT_NAMESPACE "ControlRigRootCustomization"
 
@@ -521,51 +524,39 @@ void SControlRigEditModeTools::CustomizeToolBarPalette(FToolBarBuilder& ToolBarB
 		NAME_None,
 		LOCTEXT("Poses", "Poses"),
 		LOCTEXT("PosesTooltip", "Show Poses"),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "FoliageEditMode.Settings"),
+		FSlateIcon(FEditorStyle::GetStyleSetName(), "FoliageEditMode.Settings"), //MZ todo replace with correct icon
+		EUserInterfaceActionType::Button
+	);
+	ToolBarBuilder.AddSeparator();
+
+	// Tweens
+	ToolBarBuilder.AddToolBarButton(
+		FExecuteAction::CreateSP(this, &SControlRigEditModeTools::MakeTweenDialog),
+		NAME_None,
+		LOCTEXT("Tweens", "Tweens"),
+		LOCTEXT("TweensTooltip", "Create Tweens"),
+		FSlateIcon(FEditorStyle::GetStyleSetName(), "SkeletonTree.BlendProfile"), //MZ todo replace with correct icon
 		EUserInterfaceActionType::Button
 	);
 	ToolBarBuilder.AddSeparator();
 }
 
-
 void SControlRigEditModeTools::MakePoseDialog()
 {
-
 	FControlRigEditMode* ControlRigEditMode = static_cast<FControlRigEditMode*>(GLevelEditorModeTools().GetActiveMode(FControlRigEditMode::ModeName));
 	if (ControlRigEditMode)
 	{
-
-		TSharedPtr<SWindow> ExistingWindow = PoseWindow.Pin();
-		if (ExistingWindow.IsValid())
-		{
-			ExistingWindow->BringToFront();
-		}
-		else
-		{
-			ExistingWindow = SNew(SWindow)
-				.Title(LOCTEXT("Poses", "Poses"))
-				.HasCloseButton(true)
-				.SupportsMaximize(false)
-				.SupportsMinimize(false)
-				.ClientSize(FVector2D(850, 750));
-			TSharedPtr<SWindow> RootWindow = FGlobalTabmanager::Get()->GetRootWindow();
-			if (RootWindow.IsValid())
-			{
-				FSlateApplication::Get().AddWindowAsNativeChild(ExistingWindow.ToSharedRef(), RootWindow.ToSharedRef());
-			}
-			else
-			{
-				FSlateApplication::Get().AddWindow(ExistingWindow.ToSharedRef());
-			}
-
-		}
-
-		ExistingWindow->SetContent(
-			SNew(SControlRigBaseListWidget)
-		);
-		PoseWindow = ExistingWindow;
+		FGlobalTabmanager::Get()->TryInvokeTab(IControlRigEditorModule::ControlRigPoseTab);
 	}
-	
+}
+
+void SControlRigEditModeTools::MakeTweenDialog()
+{
+	FControlRigEditMode* ControlRigEditMode = static_cast<FControlRigEditMode*>(GLevelEditorModeTools().GetActiveMode(FControlRigEditMode::ModeName));
+	if (ControlRigEditMode)
+	{
+		FGlobalTabmanager::Get()->TryInvokeTab(IControlRigEditorModule::ControlRigTweenTab);
+	}
 }
 
 /* MZ TODO

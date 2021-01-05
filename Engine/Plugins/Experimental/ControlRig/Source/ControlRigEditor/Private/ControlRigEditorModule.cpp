@@ -109,11 +109,15 @@
 #include "ControlRig/Private/Units/Execution/RigUnit_InverseExecution.h"
 #include "Graph/SControlRigGraphPinVariableBinding.h"
 #include "AssetTypeActions_ControlRigPose.h"
-
+#include "EditMode/SControlRigBaseListWidget.h"
+#include "EditMode/SControlRigTweenWidget.h"
 
 #define LOCTEXT_NAMESPACE "ControlRigEditorModule"
 
 DEFINE_LOG_CATEGORY(LogControlRigEditor);
+
+const FName IControlRigEditorModule::ControlRigPoseTab = FName("ControlRigPoseTab");
+const FName IControlRigEditorModule::ControlRigTweenTab = FName("ControlRigTweenTab");
 
 TSharedRef<SDockTab> SpawnRigProfiler( const FSpawnTabArgs& Args )
 {
@@ -121,6 +125,24 @@ TSharedRef<SDockTab> SpawnRigProfiler( const FSpawnTabArgs& Args )
 		.TabRole(ETabRole::NomadTab)
 		[
 			SNew(SControlRigProfilingView)
+		];
+}
+
+TSharedRef<SDockTab> SpawnPoseTab(const FSpawnTabArgs& Args)
+{
+	return SNew(SDockTab)
+		.TabRole(ETabRole::NomadTab)
+		[
+			SNew(SControlRigBaseListWidget)
+		];
+}
+
+TSharedRef<SDockTab> SpawnTweenTab(const FSpawnTabArgs& Args)
+{
+	return SNew(SDockTab)
+		.TabRole(ETabRole::NomadTab)
+		[
+			SNew(SControlRigTweenWidget)
 		];
 }
 
@@ -232,6 +254,19 @@ void FControlRigEditorModule::StartupModule()
 			.SetTooltipText(NSLOCTEXT("UnrealEditor", "HierarchicalProfilerTooltip", "Open the Hierarchical Profiler tab."))
 			.SetGroup(WorkspaceMenu::GetMenuStructure().GetDeveloperToolsMiscCategory())
 			.SetIcon(FSlateIcon(TEXT("ControlRigEditorStyle"), TEXT("ControlRig.RigUnit")));
+
+		FGlobalTabmanager::Get()->RegisterNomadTabSpawner(IControlRigEditorModule::ControlRigPoseTab, FOnSpawnTab::CreateStatic(&SpawnPoseTab))
+			.SetDisplayName(NSLOCTEXT("UnrealEditor", "ControlRigPoseTab", "Control Rig Pose"))
+			.SetTooltipText(NSLOCTEXT("UnrealEditor", "ControlRigPoseTabTooltip", "Open the Control Rig Pose tab."))
+			.SetMenuType(ETabSpawnerMenuType::Hidden)
+			.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "FoliageEditMode.Settings"));//MZ todo replace with correct icon
+		FGlobalTabmanager::Get()->RegisterDefaultTabWindowSize(IControlRigEditorModule::ControlRigPoseTab, FVector2D(850, 800));
+		FGlobalTabmanager::Get()->RegisterNomadTabSpawner(IControlRigEditorModule::ControlRigTweenTab, FOnSpawnTab::CreateStatic(&SpawnTweenTab))
+			.SetDisplayName(NSLOCTEXT("UnrealEditor", "ControlRigTweenTab", "Control Rig Tween"))
+			.SetTooltipText(NSLOCTEXT("UnrealEditor", "ControlRigTweenTooltip", "Open the Control Rig Tween tab."))
+			.SetMenuType(ETabSpawnerMenuType::Hidden)
+			.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "SkeletonTree.BlendProfile")); //MZ todo replace with correct icon
+		FGlobalTabmanager::Get()->RegisterDefaultTabWindowSize(IControlRigEditorModule::ControlRigTweenTab, FVector2D(400, 100));
 	};
 #endif
 
@@ -256,6 +291,8 @@ void FControlRigEditorModule::ShutdownModule()
 	if (FSlateApplication::IsInitialized())
 	{
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner("ControlRigProfiler");
+		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(IControlRigEditorModule::ControlRigPoseTab);
+		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(IControlRigEditorModule::ControlRigTweenTab);
 	}
 #endif
 

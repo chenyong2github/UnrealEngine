@@ -42,6 +42,7 @@ enum class EControlRigSetKey : uint8;
 DECLARE_DELEGATE_RetVal_ThreeParams(FTransform, FOnGetRigElementTransform, const FRigElementKey& /*RigElementKey*/, bool /*bLocal*/, bool /*bOnDebugInstance*/);
 DECLARE_DELEGATE_ThreeParams(FOnSetRigElementTransform, const FRigElementKey& /*RigElementKey*/, const FTransform& /*Transform*/, bool /*bLocal*/);
 DECLARE_DELEGATE_RetVal(TSharedPtr<FUICommandList>, FNewMenuCommandsDelegate);
+DECLARE_MULTICAST_DELEGATE_TwoParams(FControlRigAddedOrRemoved, UControlRig*, bool /*true if added, false if removed*/);
 
 class FControlRigEditMode;
 
@@ -128,6 +129,9 @@ public:
 	FNewMenuDelegate& OnContextMenu() { return OnContextMenuDelegate; }
 	FNewMenuCommandsDelegate& OnContextMenuCommands() { return OnContextMenuCommandsDelegate; }
 	FSimpleMulticastDelegate& OnAnimSystemInitialized() { return OnAnimSystemInitializedDelegate; }
+
+	/* Control Rig Changed Delegate*/
+	FControlRigAddedOrRemoved& OnControlRigAddedOrRemoved() { return OnControlRigAddedOrRemovedDelegate; }
 
 	// callback that gets called when rig element is selected in other view
 	void OnRigElementAdded(FRigHierarchyContainer* Container, const FRigElementKey& InKey);
@@ -236,7 +240,8 @@ protected:
 	FNewMenuDelegate OnContextMenuDelegate;
 	FNewMenuCommandsDelegate OnContextMenuCommandsDelegate;
 	FSimpleMulticastDelegate OnAnimSystemInitializedDelegate;
-	
+	FControlRigAddedOrRemoved OnControlRigAddedOrRemovedDelegate;
+
 	TArray<FRigElementKey> SelectedRigElements;
 
 	/* Flag to recreate gizmos during tick */
