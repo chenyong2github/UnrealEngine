@@ -2424,6 +2424,9 @@ public:
 	AWorldSettings* K2_GetWorldSettings();
 	AWorldSettings* GetWorldSettings( bool bCheckStreamingPersistent = false, bool bChecked = true ) const;
 
+	/** Returns a human friendly display string for the current world (showing the kind of world when in multiplayer PIE) */
+	FString GetDebugDisplayName() const;
+
 	/**
 	 * Returns the current levels BSP model.
 	 *
@@ -2730,6 +2733,7 @@ public:
 		/** Should the FX system be created for this world. */
 		uint32 bCreateFXSystem:1;
 
+		/** The default game mode for this world (if any) */
 		TSubclassOf<class AGameModeBase> DefaultGameMode;
 
 		InitializationValues& InitializeScenes(const bool bInitialize) { bInitializeScenes = bInitialize; return *this; }
