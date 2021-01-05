@@ -7,6 +7,7 @@
 #include "PyWrapperStruct.h"
 #include "PyWrapperEnum.h"
 #include "PyWrapperDelegate.h"
+#include "PyGIL.h"
 #include "UObject/UnrealType.h"
 #include "UObject/UObjectHash.h"
 #include "UObject/PurgingReferenceCollector.h"
@@ -31,12 +32,17 @@ void FPyReferenceCollector::RemoveWrappedInstance(FPyWrapperBase* InInstance)
 
 void FPyReferenceCollector::AddReferencedObjects(FReferenceCollector& InCollector)
 {
-	for (FPyWrapperBase* PythonWrappedInstance : PythonWrappedInstances)
 	{
-		FPyWrapperBaseMetaData* PythonWrappedInstanceMetaData = FPyWrapperBaseMetaData::GetMetaData(PythonWrappedInstance);
-		if (PythonWrappedInstanceMetaData)
+		// FPyWrapperBaseMetaData::GetMetaData calls into Python so we need to ensure we have the GIL, especially as ARO can run over multiple threads...
+		FPyScopedGIL GIL;
+
+		for (FPyWrapperBase* PythonWrappedInstance : PythonWrappedInstances)
 		{
-			PythonWrappedInstanceMetaData->AddReferencedObjects(PythonWrappedInstance, InCollector);
+			FPyWrapperBaseMetaData* PythonWrappedInstanceMetaData = FPyWrapperBaseMetaData::GetMetaData(PythonWrappedInstance);
+			if (PythonWrappedInstanceMetaData)
+			{
+				PythonWrappedInstanceMetaData->AddReferencedObjects(PythonWrappedInstance, InCollector);
+			}
 		}
 	}
 
