@@ -71,6 +71,60 @@ public:
 		Normal = VectorUtil::NormalArea(Triangle.V[0], Triangle.V[1], Triangle.V[2], Area);
 	}
 
+	/**
+	 * Get the average of the mesh vertices.
+	 */
+	static FVector3d GetMeshVerticesCentroid(const TriangleMeshType& Mesh)
+	{
+		FVector3d Centroid(0, 0, 0);
+		for (int VertIdx = 0; VertIdx < Mesh.MaxVertexID(); VertIdx++)
+		{
+			if (Mesh.IsVertex(VertIdx))
+			{
+				Centroid += Mesh.GetVertex(VertIdx);
+			}
+		}
+		int NumVertices = Mesh.VertexCount();
+		if (NumVertices > 0)
+		{
+			Centroid /= NumVertices;
+		}
+		return Centroid;
+	}
+
+	/**
+	 * Get the volume of a mesh using a method that is more robust to inputs with holes
+	 * @param Mesh Input shape
+	 * @param DimScaleFactor Scale factor to apply to each dimension; useful for keeping volume calculation in a good range for floating point precision
+	 * @return Mesh volume (scaled by DimScaleFactor^3)
+	 */
+	static double GetVolumeNonWatertight(const TriangleMeshType& Mesh, double DimScaleFactor = 1)
+	{
+		double Volume = 0.0;
+		// computing wrt a centroid is enough to ensure that e.g. a plane will have volume 0 instead of arbitrary volume
+		FVector3d RefPt = GetMeshVerticesCentroid(Mesh);
+		for (int TriIdx = 0; TriIdx < Mesh.MaxTriangleID(); TriIdx++)
+		{
+			if (!Mesh.IsTriangle(TriIdx))
+			{
+				continue;
+			}
+
+			FVector3d V0, V1, V2;
+			Mesh.GetTriVertices(TriIdx, V0, V1, V2);
+
+			// (6x) volume of the tetrahedron formed by the triangles and the reference point
+			FVector3d V1mRef = (V1 - RefPt) * DimScaleFactor;
+			FVector3d V2mRef = (V2 - RefPt) * DimScaleFactor;
+			FVector3d N = V2mRef.Cross(V1mRef);
+
+			Volume += ((V0-RefPt) * DimScaleFactor).Dot(N);
+		}
+
+		return Volume * (1.0 / 6.0);
+	}
+
+
 	static FVector2d GetVolumeArea(const TriangleMeshType& Mesh)
 	{
 		double Volume = 0.0;
@@ -146,6 +200,19 @@ public:
 			else if (V.Z > MaxV.Z)			MaxV.Z = V.Z;
 		}
 		return FAxisAlignedBox3d(MinV, MaxV);
+	}
+
+	static FAxisAlignedBox3d GetBounds(const TriangleMeshType& Mesh)
+	{
+		FAxisAlignedBox3d Bounds;
+		for (int i = 0; i < Mesh.MaxVertexID(); ++i)
+		{
+			if (Mesh.IsVertex(i))
+			{
+				Bounds.Contain(Mesh.GetVertex(i));
+			}
+		}
+		return Bounds;
 	}
 
 	// brute force search for nearest triangle to Point
