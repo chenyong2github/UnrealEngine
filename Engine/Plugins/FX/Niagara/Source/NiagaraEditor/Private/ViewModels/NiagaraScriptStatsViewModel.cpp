@@ -800,11 +800,6 @@ void FNiagaraScriptStatsViewModel::BuildShaderPlatformDetails()
 	const UNiagaraScripStatsViewModelSettings* Settings = GetDefault<UNiagaraScripStatsViewModelSettings>();
 	for (const EShaderPlatform ShaderPlatform : ValidShaderPlatforms)
 	{
-		if (IsDeprecatedShaderPlatform(ShaderPlatform))
-		{
-			continue;
-		}
-
 		if (!FNiagaraUtilities::SupportsComputeShaders(ShaderPlatform))
 		{
 			continue;

@@ -1491,19 +1491,6 @@ FString LexToString(EShaderPlatform Platform)
 	case SP_VULKAN_SM5_LUMIN: return TEXT("VULKAN_SM5_LUMIN");
 	case SP_VULKAN_SM5_ANDROID: return TEXT("VULKAN_SM5_ANDROID");
 
-	case SP_OPENGL_ES2_ANDROID_REMOVED:
-	case SP_OPENGL_ES2_WEBGL_REMOVED:
-	case SP_OPENGL_ES2_IOS_REMOVED:
-	case SP_VULKAN_SM4_REMOVED:
-	case SP_PCD3D_SM4_REMOVED:
-	case SP_OPENGL_SM4_REMOVED:
-	case SP_PCD3D_ES2_REMOVED:
-	case SP_OPENGL_PCES2_REMOVED:
-	case SP_METAL_MACES2_REMOVED:
-	case SP_OPENGL_SM5_REMOVED:
-	case SP_OPENGL_ES31_EXT_REMOVED:
-		return TEXT("");
-
 	default:
 		if (FStaticShaderPlatformNames::IsStaticPlatform(Platform))
 		{
@@ -1511,7 +1498,7 @@ FString LexToString(EShaderPlatform Platform)
 		}
 		else
 		{
-			checkf(0, TEXT("Unknown EShaderPlatform %d!"), (int32)Platform);
+			checkf(0, TEXT("Unknown or removed EShaderPlatform %d!"), (int32)Platform);
 			return TEXT("");
 		}
 	}
