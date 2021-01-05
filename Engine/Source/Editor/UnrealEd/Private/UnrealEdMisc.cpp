@@ -333,10 +333,8 @@ void FUnrealEdMisc::OnInit()
 		{
 			FString InitialMapName;
 				
-			// If the specified package exists
-			if ( FPackageName::SearchForPackageOnDisk(ParsedMapName, NULL, &InitialMapName) &&
-				// and it's a valid map file
-				FPaths::GetExtension(InitialMapName, /*bIncludeDot=*/true) == FPackageName::GetMapPackageExtension() )
+			// If it's a valid map file and the specified package exists
+			if ( FPaths::GetExtension(InitialMapName, /*bIncludeDot=*/true) == FPackageName::GetMapPackageExtension() && FPackageName::SearchForPackageOnDisk(ParsedMapName, NULL, &InitialMapName))
 			{
 				// Never show loading progress when loading a map at startup.  Loading status will instead
 				// be reflected in the splash screen status
