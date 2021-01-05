@@ -328,9 +328,9 @@ protected:
 		void AddObject(const UObject* const InObject);
 
 		template<typename TOBJ>
-		void AddObjects(const TArray<TOBJ*>& InObjects)
+		void AddObjects(const TArray<TOBJ>& InObjects)
 		{
-			for ( const auto ObjPtr : InObjects )
+			for ( const auto& ObjPtr : InObjects )
 			{
 				AddObject(ObjPtr);
 			}

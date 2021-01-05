@@ -234,9 +234,9 @@ bool UInteractiveTool::CanAccept() const
 
 void UInteractiveTool::Tick(float DeltaTime)
 {
-	for (auto* Object : ToolPropertyObjects)
+	for (auto& Object : ToolPropertyObjects)
 	{
-		auto* Propset = Cast<UInteractiveToolPropertySet>(Object);
+		auto* Propset = Cast<UInteractiveToolPropertySet>(ToRawPtr(Object));
 		if ( Propset != nullptr )
 		{
 			if ( Propset->IsPropertySetEnabled() )

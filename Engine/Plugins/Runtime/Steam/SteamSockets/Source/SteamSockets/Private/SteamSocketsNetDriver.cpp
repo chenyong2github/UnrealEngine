@@ -290,7 +290,7 @@ void USteamSocketsNetDriver::TickDispatch(float DeltaTime)
 			if (Socket->RecvRaw(Message, 1, BytesRead) && BytesRead > 0 && Message != nullptr)
 			{
 				USteamSocketsNetConnection* ConnectionToHandleMessage = static_cast<USteamSocketsNetConnection*>((bIsAServer) ? 
-					FindClientConnectionForHandle(Message->m_conn) : ServerConnection);
+					FindClientConnectionForHandle(Message->m_conn) : ToRawPtr(ServerConnection));
 
 				// Grab sender information for the purposes of logging
 				FInternetAddrSteamSockets MessageSender(Message->m_identityPeer);
@@ -416,7 +416,7 @@ void USteamSocketsNetDriver::ResetSocketInfo(const FSteamSocket* RemovedSocket)
 {
 	const SteamSocketHandles SocketHandle = RemovedSocket->InternalHandle;
 	USteamSocketsNetConnection* SocketConnection = 
-		static_cast<USteamSocketsNetConnection*>(ServerConnection ? ServerConnection : FindClientConnectionForHandle(SocketHandle));
+		static_cast<USteamSocketsNetConnection*>(ServerConnection ? ToRawPtr(ServerConnection) : FindClientConnectionForHandle(SocketHandle));
 
 	if (SocketConnection)
 	{
@@ -537,7 +537,7 @@ void USteamSocketsNetDriver::OnConnectionUpdated(SteamSocketHandles SocketHandle
 	// care about the connected state flag.
 	if (NewState == k_ESteamNetworkingConnectionState_Connected)
 	{
-		UNetConnection* SocketConnection = (ServerConnection) ? ServerConnection : FindClientConnectionForHandle(SocketHandle);
+		UNetConnection* SocketConnection = (ServerConnection) ? ToRawPtr(ServerConnection) : FindClientConnectionForHandle(SocketHandle);
 		if (SocketConnection)
 		{
 			SocketConnection->State = USOCK_Open;
@@ -560,7 +560,7 @@ void USteamSocketsNetDriver::OnConnectionUpdated(SteamSocketHandles SocketHandle
 
 void USteamSocketsNetDriver::OnConnectionDisconnected(SteamSocketHandles SocketHandle)
 {
-	UNetConnection* SocketConnection = ServerConnection ? ServerConnection : FindClientConnectionForHandle(SocketHandle);
+	UNetConnection* SocketConnection = ServerConnection ? ToRawPtr(ServerConnection) : FindClientConnectionForHandle(SocketHandle);
 	if (SocketConnection)
 	{
 		SocketConnection->State = USOCK_Closed;

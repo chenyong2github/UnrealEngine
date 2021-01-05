@@ -245,7 +245,7 @@ public:
 				[
 					SNew(SListView<UEdGraph*>)
 					.ItemHeight(20)
-					.ListItemsSource(&(ParentGraph->SubGraphs))
+					.ListItemsSource(&ToRawPtrTArrayUnsafe(ParentGraph->SubGraphs))
 					.OnGenerateRow( this, &SChildGraphPicker::GenerateMenuItemRow )
 				]
 			]

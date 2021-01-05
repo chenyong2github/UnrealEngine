@@ -23,11 +23,11 @@ UCompositeCurveTable::UCompositeCurveTable(const FObjectInitializer& ObjectIniti
 void UCompositeCurveTable::GetPreloadDependencies(TArray<UObject*>& OutDeps)
 {
 	Super::GetPreloadDependencies(OutDeps);
-	for (const TSoftObjectPtr<UCurveTable>& ParentTable : ParentTables)
+	for (const UE_TRANSITIONAL_OBJECT_PTR(UCurveTable)& ParentTable : ParentTables)
 	{
-		if (UCurveTable* Parent = ParentTable.Get())
+		if (ParentTable)
 		{
-			OutDeps.Add(Parent);
+			OutDeps.Add(ParentTable);
 		}
 	}
 }
@@ -264,10 +264,10 @@ const UCompositeCurveTable* UCompositeCurveTable::FindLoops(TArray<const UCompos
 {
 	AlreadySeenTables.Add(this);
 
-	for (const TSoftObjectPtr<UCurveTable>& CurveTable : ParentTables)
+	for (const UE_TRANSITIONAL_OBJECT_PTR(UCurveTable)& CurveTable : ParentTables)
 	{
 		// we only care about composite tables since regular tables terminate the chain and can't be in loops
-		if (UCompositeCurveTable* CompositeCurveTable = Cast<UCompositeCurveTable>(CurveTable.Get()))
+		if (UCompositeCurveTable* CompositeCurveTable = Cast<UCompositeCurveTable>(CurveTable))
 		{
 			// if we've seen this table before then we have a loop
 			for (const UCompositeCurveTable* SeenTable : AlreadySeenTables)

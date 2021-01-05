@@ -221,7 +221,7 @@ FWorldPSCPool::~FWorldPSCPool()
 
 void FWorldPSCPool::Cleanup(UWorld* World)
 {
-	for (TPair<UParticleSystem*, FPSCPool>& Pool : WorldParticleSystemPools)
+	for (auto& Pool : WorldParticleSystemPools)
 	{
 		Pool.Value.Cleanup();
 	}
@@ -313,7 +313,7 @@ void FWorldPSCPool::ReclaimWorldParticleSystem(UParticleSystemComponent* PSC)
 		if (CurrentTime - LastParticleSytemPoolCleanTime > GParticleSystemPoolingCleanTime)
 		{
 			LastParticleSytemPoolCleanTime = CurrentTime;
-			for (TPair<UParticleSystem*, FPSCPool>& Pair : WorldParticleSystemPools)
+			for (auto& Pair : WorldParticleSystemPools)
 			{
 				Pair.Value.KillUnusedComponents(CurrentTime - GParticleSystemPoolKillUnusedTime, PSC->Template);
 			}
@@ -341,7 +341,7 @@ void FWorldPSCPool::Dump()
 	FString DumpStr;
 
 	uint32 TotalMemUsage = 0;
-	for (TPair<UParticleSystem*, FPSCPool>& Pair : WorldParticleSystemPools)
+	for (auto& Pair : WorldParticleSystemPools)
 	{
 		UParticleSystem* System = Pair.Key;
 		FPSCPool& Pool = Pair.Value;		

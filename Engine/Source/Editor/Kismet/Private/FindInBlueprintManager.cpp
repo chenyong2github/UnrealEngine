@@ -1052,7 +1052,7 @@ namespace BlueprintSearchMetaDataHelpers
 		// Collect all macro graphs
 		InWriter->WriteArrayStart(FFindInBlueprintSearchTags::FiB_Nodes);
 		{
-			for(auto* Node : InGraph->Nodes)
+			for(auto& Node : InGraph->Nodes)
 			{
 				if(Node)
 				{

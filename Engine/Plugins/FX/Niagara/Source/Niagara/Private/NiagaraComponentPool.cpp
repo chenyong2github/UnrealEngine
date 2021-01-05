@@ -271,7 +271,7 @@ UNiagaraComponentPool::~UNiagaraComponentPool()
 
 void UNiagaraComponentPool::Cleanup(UWorld* World)
 {
-	for (TPair<UNiagaraSystem*, FNCPool>& Pool : WorldParticleSystemPools)
+	for (auto& Pool : WorldParticleSystemPools)
 	{
 		FNiagaraCrashReporterScope CRScope(Pool.Key);//In practice this may be null by now :(
 		Pool.Value.Cleanup();
@@ -455,7 +455,7 @@ void UNiagaraComponentPool::ReclaimWorldParticleSystem(UNiagaraComponent* Compon
 		if (CurrentTime - LastParticleSytemPoolCleanTime > GNiagaraSystemPoolingCleanTime)
 		{
 			LastParticleSytemPoolCleanTime = CurrentTime;
-			for (TPair<UNiagaraSystem*, FNCPool>& Pair : WorldParticleSystemPools)
+			for (auto& Pair : WorldParticleSystemPools)
 			{
 				Pair.Value.KillUnusedComponents(CurrentTime - GNiagaraSystemPoolKillUnusedTime, Asset);
 			}
@@ -550,7 +550,7 @@ void UNiagaraComponentPool::Dump()
 	FString DumpStr;
 
 	uint32 TotalMemUsage = 0;
-	for (TPair<UNiagaraSystem*, FNCPool>& Pair : WorldParticleSystemPools)
+	for (auto& Pair : WorldParticleSystemPools)
 	{
 		UNiagaraSystem* System = Pair.Key;
 		FNCPool& Pool = Pair.Value;		

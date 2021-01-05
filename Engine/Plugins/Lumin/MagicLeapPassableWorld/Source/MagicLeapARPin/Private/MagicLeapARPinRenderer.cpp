@@ -59,7 +59,7 @@ void AMagicLeapARPinRenderer::OnARPinsUpdated(const TArray<FGuid>& Added, const 
 {
 	for (const FGuid& DeletedPinID : Deleted)
 	{
-		AMagicLeapARPinInfoActorBase** ActorPtr = AllInfoActors.Find(DeletedPinID);
+		UE_TRANSITIONAL_OBJECT_PTR(AMagicLeapARPinInfoActorBase)* ActorPtr = AllInfoActors.Find(DeletedPinID);
 		if (ActorPtr != nullptr && *ActorPtr != nullptr)
 		{
 			(*ActorPtr)->K2_DestroyActor();
@@ -81,7 +81,7 @@ void AMagicLeapARPinRenderer::OnARPinsUpdated(const TArray<FGuid>& Added, const 
 
 	for (const FGuid& UpdatedPinID : Updated)
 	{
-		AMagicLeapARPinInfoActorBase** ActorPtr = AllInfoActors.Find(UpdatedPinID);
+		UE_TRANSITIONAL_OBJECT_PTR(AMagicLeapARPinInfoActorBase)* ActorPtr = AllInfoActors.Find(UpdatedPinID);
 		if (ActorPtr != nullptr && *ActorPtr != nullptr)
 		{
 			(*ActorPtr)->OnUpdateARPinState();

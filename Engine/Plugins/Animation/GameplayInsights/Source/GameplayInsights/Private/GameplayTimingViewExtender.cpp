@@ -106,7 +106,7 @@ UWorld* FGameplayTimingViewExtender::GetWorldToVisualize()
 	if (GIsEditor && EditorEngine != nullptr && World == nullptr)
 	{
 		// lets use PlayWorld during PIE/Simulate and regular world from editor otherwise, to draw debug information
-		World = EditorEngine->PlayWorld != nullptr ? EditorEngine->PlayWorld : EditorEngine->GetEditorWorldContext().World();
+		World = EditorEngine->PlayWorld != nullptr ? ToRawPtr(EditorEngine->PlayWorld) : EditorEngine->GetEditorWorldContext().World();
 	}
 
 #endif

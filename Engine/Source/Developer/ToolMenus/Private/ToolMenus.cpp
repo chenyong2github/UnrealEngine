@@ -394,13 +394,13 @@ bool UToolMenus::GetDisplayUIExtensionPoints() const
 
 UToolMenu* UToolMenus::FindMenu(const FName Name)
 {
-	UToolMenu** Found = Menus.Find(Name);
+	UE_TRANSITIONAL_OBJECT_PTR(UToolMenu)* Found = Menus.Find(Name);
 	return Found ? *Found : nullptr;
 }
 
 bool UToolMenus::IsMenuRegistered(const FName Name) const
 {
-	const UToolMenu* const * Found = Menus.Find(Name);
+	UE_TRANSITIONAL_OBJECT_PTR(UToolMenu) const * Found = Menus.Find(Name);
 	return Found && *Found && (*Found)->IsRegistered();
 }
 

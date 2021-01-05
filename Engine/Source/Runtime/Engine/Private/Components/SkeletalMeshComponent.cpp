@@ -3476,7 +3476,8 @@ float USkeletalMeshComponent::CalculateMass(FName BoneName)
 	}
 	else	//We want to calculate mass before we've initialized body instances - in this case use physics asset setup
 	{
-		TArray<USkeletalBodySetup*>* BodySetups = nullptr;
+		using BodySetupContainerType = decltype(UPhysicsAsset::SkeletalBodySetups);
+		BodySetupContainerType* BodySetups = nullptr;
 		if (UPhysicsAsset* PhysicsAsset = GetPhysicsAsset())
 		{
 			BodySetups = &PhysicsAsset->SkeletalBodySetups;

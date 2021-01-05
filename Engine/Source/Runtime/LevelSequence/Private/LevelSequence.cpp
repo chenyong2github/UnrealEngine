@@ -697,5 +697,5 @@ void ULevelSequence::RemoveUserDataOfClass(TSubclassOf<UAssetUserData> InUserDat
 
 const TArray<UAssetUserData*>* ULevelSequence::GetAssetUserDataArray() const
 {
-	return &AssetUserData;
+	return &ToRawPtrTArrayUnsafe(AssetUserData);
 }

@@ -1154,7 +1154,7 @@ void UMeshTexturePaintingTool::FinishPaintingTexture()
 
 void UMeshTexturePaintingTool::CycleTextures(int32 Direction)
 {
-	UTexture2D*& SelectedTexture = TextureProperties->PaintTexture;
+	UE_TRANSITIONAL_OBJECT_PTR(UTexture2D)& SelectedTexture = TextureProperties->PaintTexture;
 
 	const int32 TextureIndex = (SelectedTexture != nullptr) ? PaintableTextures.IndexOfByKey(SelectedTexture) : 0;
 	if (TextureIndex != INDEX_NONE)
@@ -1187,7 +1187,7 @@ void UMeshTexturePaintingTool::CommitAllPaintedTextures()
 		int32 CurStep = 1;
 		int32 TotalSteps = GetNumberOfPendingPaintChanges();
 
-		for (TMap< UTexture2D*, FPaintTexture2DData >::TIterator It(PaintTargetData); It; ++It)
+		for (decltype(PaintTargetData)::TIterator It(PaintTargetData); It; ++It)
 		{
 			FPaintTexture2DData* TextureData = &It.Value();
 
@@ -1251,7 +1251,7 @@ void UMeshTexturePaintingTool::ClearAllTextureOverrides()
 {
 	const auto FeatureLevel = ERHIFeatureLevel::SM5;// GEditor->GetEditorWorldContext().World()->FeatureLevel;
 	/** Remove all texture overrides which are currently stored and active */
-	for (TMap< UTexture2D*, FPaintTexture2DData >::TIterator It(PaintTargetData); It; ++It)
+	for (decltype(PaintTargetData)::TIterator It(PaintTargetData); It; ++It)
 	{
 		FPaintTexture2DData* TextureData = &It.Value();
 
@@ -1268,7 +1268,7 @@ void UMeshTexturePaintingTool::ClearAllTextureOverrides()
 int32 UMeshTexturePaintingTool::GetNumberOfPendingPaintChanges() const
 {
 	int32 Result = 0;
-	for (TMap< UTexture2D*, FPaintTexture2DData >::TConstIterator It(PaintTargetData); It; ++It)
+	for (decltype(PaintTargetData)::TConstIterator It(PaintTargetData); It; ++It)
 	{
 		const FPaintTexture2DData* TextureData = &It.Value();
 

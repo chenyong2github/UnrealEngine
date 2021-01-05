@@ -1612,7 +1612,8 @@ void FQueryEvaluator::ReadEditableQueryTags(UEditableGameplayTagQueryExpression*
 void FQueryEvaluator::ReadEditableQueryExprList(UEditableGameplayTagQueryExpression* EditableQueryExpr)
 {
 	// find the tag container to read into
-	TArray<UEditableGameplayTagQueryExpression*>* ExprList = nullptr;
+	using ExpressionArrayType = decltype(UEditableGameplayTagQueryExpression_AnyExprMatch::Expressions);
+	ExpressionArrayType* ExprList = nullptr;
 	if (EditableQueryExpr->IsA(UEditableGameplayTagQueryExpression_AnyExprMatch::StaticClass()))
 	{
 		ExprList = &((UEditableGameplayTagQueryExpression_AnyExprMatch*)EditableQueryExpr)->Expressions;

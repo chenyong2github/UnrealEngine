@@ -242,7 +242,7 @@ bool FEditableSkeleton::DoesSocketAlreadyExist(const USkeletalMeshSocket* InSock
 	}
 	else if(SocketParentType == ESocketParentType::Skeleton)
 	{
-		SocketArrayPtr = &Skeleton->Sockets;
+		SocketArrayPtr = &ToRawPtrTArrayUnsafe(Skeleton->Sockets);
 	}
 
 	if (SocketArrayPtr != nullptr)

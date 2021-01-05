@@ -266,7 +266,7 @@ void FHLSLMaterialTranslator::GatherCustomVertexInterpolators(TArray<UMaterialEx
 
 			if (LayersExpression->bIsLayerGraphBuilt)
 			{
-				for (auto* Layer : LayersExpression->LayerCallers)
+				for (auto& Layer : LayersExpression->LayerCallers)
 				{
 					if (Layer && Layer->MaterialFunction)
 					{
@@ -285,7 +285,7 @@ void FHLSLMaterialTranslator::GatherCustomVertexInterpolators(TArray<UMaterialEx
 					}
 				}
 
-				for (auto* Blend : LayersExpression->BlendCallers)
+				for (auto& Blend : LayersExpression->BlendCallers)
 				{
 					if (Blend && Blend->MaterialFunction)
 					{
@@ -402,7 +402,7 @@ EMaterialExpressionVisitResult FHLSLMaterialTranslator::VisitExpressionsRecursiv
 
 			if (LayersExpression->bIsLayerGraphBuilt)
 			{
-				for (auto* Layer : LayersExpression->LayerCallers)
+				for (auto& Layer : LayersExpression->LayerCallers)
 				{
 					if (Layer && Layer->MaterialFunction)
 					{
@@ -426,7 +426,7 @@ EMaterialExpressionVisitResult FHLSLMaterialTranslator::VisitExpressionsRecursiv
 					}
 				}
 
-				for (auto* Blend : LayersExpression->BlendCallers)
+				for (auto& Blend : LayersExpression->BlendCallers)
 				{
 					if (Blend && Blend->MaterialFunction)
 					{

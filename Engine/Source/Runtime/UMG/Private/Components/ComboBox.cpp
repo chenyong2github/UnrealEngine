@@ -27,7 +27,7 @@ TSharedRef<SWidget> UComboBox::RebuildWidget()
 
 	MyComboBox =
 		SNew(SComboBox<UObject*>)
-		.OptionsSource(&Items)
+		.OptionsSource(&ToRawPtrTArrayUnsafe(Items))
 		.OnGenerateWidget(BIND_UOBJECT_DELEGATE(SComboBox<UObject*>::FOnGenerateWidget, HandleGenerateWidget))
 		.IsFocusable(bIsFocusable);
 

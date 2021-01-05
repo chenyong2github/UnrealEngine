@@ -6533,7 +6533,7 @@ void UStaticMesh::RemoveUserDataOfClass(TSubclassOf<UAssetUserData> InUserDataCl
 
 const TArray<UAssetUserData*>* UStaticMesh::GetAssetUserDataArray() const 
 {
-	return &AssetUserData;
+	return &ToRawPtrTArrayUnsafe(AssetUserData);
 }
 
 /**

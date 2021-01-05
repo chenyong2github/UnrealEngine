@@ -2037,7 +2037,7 @@ void FScene::ApplyFinishedLightmapsToWorld()
 		}
 
 		{
-			ULevel* SubLevelStorageLevel = LightingScenario ? LightingScenario : World->PersistentLevel;
+			ULevel* SubLevelStorageLevel = LightingScenario ? LightingScenario : ToRawPtr(World->PersistentLevel);
 			UMapBuildDataRegistry* SubLevelRegistry = SubLevelStorageLevel->GetOrCreateMapBuildData();
 			FPrecomputedVolumetricLightmapData& SubLevelData = SubLevelRegistry->AllocateLevelPrecomputedVolumetricLightmapBuildData(World->PersistentLevel->LevelBuildDataId);
 

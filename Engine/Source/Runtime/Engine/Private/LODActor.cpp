@@ -1204,8 +1204,8 @@ UInstancedStaticMeshComponent* ALODActor::GetOrCreateISMComponent(const FHLODIns
 		AddInstanceComponent(LODComponent);
 		LODComponent->SetupAttachment(GetRootComponent());
 		
-		LODComponent->SetStaticMesh(const_cast<UStaticMesh*>(InstancingKey.StaticMesh));
-		LODComponent->SetMaterial(0, const_cast<UMaterialInterface*>(InstancingKey.Material));
+		LODComponent->SetStaticMesh(const_cast<UStaticMesh*>(ToRawPtr(InstancingKey.StaticMesh)));
+		LODComponent->SetMaterial(0, const_cast<UMaterialInterface*>(ToRawPtr(InstancingKey.Material)));
 
 		if (StaticMeshComponent->IsRegistered())
 		{

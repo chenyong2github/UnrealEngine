@@ -850,7 +850,7 @@ void SValidatedDialogueContextHeaderWidget::Tick( const FGeometry& AllottedGeome
 
 					if( bTargetSetNeedsReset && TargetSet )
 					{
-						bTargetSetNeedsReset = ( DialogueWave->ContextMappings[i].Context.Targets != *TargetSet );
+						bTargetSetNeedsReset = ( ToRawPtrTArrayUnsafe(DialogueWave->ContextMappings[i].Context.Targets) != *TargetSet );
 					}
 
 					if( !bSpeakerNeedsReset && !bTargetSetNeedsReset)

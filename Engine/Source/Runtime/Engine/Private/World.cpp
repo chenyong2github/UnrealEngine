@@ -6985,7 +6985,7 @@ int32 UWorld::GetActorCount()
 
 FConstLevelIterator	UWorld::GetLevelIterator() const
 {
-	return Levels.CreateConstIterator();
+	return ToRawPtrTArrayUnsafe(Levels).CreateConstIterator();
 }
 
 ULevel* UWorld::GetLevel( int32 InLevelIndex ) const

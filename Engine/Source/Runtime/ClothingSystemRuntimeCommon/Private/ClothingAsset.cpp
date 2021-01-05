@@ -873,7 +873,7 @@ void UClothingAssetCommon::PostLoad()
 	// Add any missing configs for the available cloth factories, and try to migrate them from any existing one
 	// TODO: Remove all UObject PostLoad dependencies.
 	//       Even with these ConditionalPostLoad calls, the UObject PostLoads' order of execution cannot be guaranteed.
-	for (TPair<FName, UClothConfigBase*>& ClothConfig : ClothConfigs)
+	for (auto& ClothConfig : ClothConfigs)
 	{
 		if (ClothConfig.Value)
 		{
@@ -903,7 +903,7 @@ void UClothingAssetCommon::PostLoad()
 	if (ClothingCustomVersion < FClothingAssetCustomVersion::MovePropertiesToCommonBaseClasses)
 	{
 		// Remap legacy struct FClothConfig to new config objects
-		for (TPair<FName, UClothConfigBase*>& ClothConfig : ClothConfigs)
+		for (auto& ClothConfig : ClothConfigs)
 		{
 			if (UClothConfigCommon* const ClothConfigCommon = Cast<UClothConfigCommon>(ClothConfig.Value))
 			{
@@ -924,7 +924,7 @@ void UClothingAssetCommon::PostLoad()
 				FClothConfig_Legacy ClothConfigLegacy;
 				if (ClothSimConfigCommon->MigrateTo(ClothConfigLegacy))
 				{
-					for (TPair<FName, UClothConfigBase*>& ClothConfig : ClothConfigs)
+					for (auto& ClothConfig : ClothConfigs)
 					{
 						if (UClothConfigCommon* const ClothConfigCommon = Cast<UClothConfigCommon>(ClothConfig.Value))
 						{
@@ -1043,7 +1043,7 @@ void UClothingAssetCommon::PropagateSharedConfigs(bool bMigrateSharedConfigToCon
 				ClothSharedConfigs.Reserve(Max);
 
 				// Iterate through all configs, and find the shared ones
-				for (const TPair<FName, UClothConfigBase*>& ClothSharedConfigItem : ClothingAsset->ClothConfigs)
+				for (const auto& ClothSharedConfigItem : ClothingAsset->ClothConfigs)
 				{
 					if (Cast<UClothSharedConfigCommon>(ClothSharedConfigItem.Value) &&  // Only needs shared configs
 						!ClothSharedConfigs.Find(ClothSharedConfigItem.Key))            // Only needs a single shared config per type
@@ -1058,7 +1058,7 @@ void UClothingAssetCommon::PropagateSharedConfigs(bool bMigrateSharedConfigToCon
 		for (const TPair<FName, UClothConfigBase*>& ClothSharedConfigItem : ClothSharedConfigs)
 		{
 			// Set share config
-			if (UClothConfigBase** const ClothConfigBase = ClothConfigs.Find(ClothSharedConfigItem.Key))
+			if (UE_TRANSITIONAL_OBJECT_PTR(UClothConfigBase)* const ClothConfigBase = ClothConfigs.Find(ClothSharedConfigItem.Key))
 			{
 				// Reset this shared config
 				*ClothConfigBase = ClothSharedConfigItem.Value;
@@ -1074,12 +1074,12 @@ void UClothingAssetCommon::PropagateSharedConfigs(bool bMigrateSharedConfigToCon
 		if (bMigrateSharedConfigToConfig)
 		{
 			// Iterate through all this asset's shared configs
-			for (const TPair<FName, UClothConfigBase*>& ClothSharedConfigItem : ClothConfigs)
+			for (const auto& ClothSharedConfigItem : ClothConfigs)
 			{
 				if (const UClothSharedConfigCommon* const ClothSharedConfig = Cast<UClothSharedConfigCommon>(ClothSharedConfigItem.Value))
 				{
 					// Iterate through all this asset's configs, and migrate from the shared ones
-					for (const TPair<FName, UClothConfigBase*>& ClothConfigItem : ClothConfigs)
+					for (const auto& ClothConfigItem : ClothConfigs)
 					{
 						if (Cast<UClothSharedConfigCommon>(ClothConfigItem.Value))
 						{

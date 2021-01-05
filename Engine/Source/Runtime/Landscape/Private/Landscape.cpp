@@ -368,13 +368,13 @@ void ULandscapeComponent::Serialize(FArchive& Ar)
 		TArray<UObject**> TexturesAndMaterials;
 		TexturesAndMaterials.Add((UObject**)&HeightmapTexture);
 		TexturesAndMaterials.Add((UObject**)&XYOffsetmapTexture);
-		for (UTexture2D*& WeightmapTexture : WeightmapTextures)
+		for (UE_TRANSITIONAL_OBJECT_PTR(UTexture2D)& WeightmapTexture : WeightmapTextures)
 		{
-			TexturesAndMaterials.Add((UObject**)&WeightmapTexture);
+			TexturesAndMaterials.Add((UObject**)&static_cast<UTexture2D*&>(WeightmapTexture));
 		}
-		for (UTexture2D*& MobileWeightmapTexture : MobileWeightmapTextures)
+		for (UE_TRANSITIONAL_OBJECT_PTR(UTexture2D)& MobileWeightmapTexture : MobileWeightmapTextures)
 		{
-			TexturesAndMaterials.Add((UObject**)&MobileWeightmapTexture);
+			TexturesAndMaterials.Add((UObject**)&static_cast<UTexture2D*&>(MobileWeightmapTexture));
 		}
 		for (auto& ItPair : LayersData)
 		{
@@ -385,17 +385,17 @@ void ULandscapeComponent::Serialize(FArchive& Ar)
 				TexturesAndMaterials.Add((UObject**)&WeightmapTexture);
 			}
 		}
-		for (UMaterialInstanceConstant*& MaterialInstance : MaterialInstances)
+		for (UE_TRANSITIONAL_OBJECT_PTR(UMaterialInstanceConstant)& MaterialInstance : MaterialInstances)
 		{
-			TexturesAndMaterials.Add((UObject**)&MaterialInstance);
+			TexturesAndMaterials.Add((UObject**)&static_cast<UMaterialInstanceConstant*&>(MaterialInstance));
 		}
-		for (UMaterialInterface*& MobileMaterialInterface : MobileMaterialInterfaces)
+		for (UE_TRANSITIONAL_OBJECT_PTR(UMaterialInterface)& MobileMaterialInterface : MobileMaterialInterfaces)
 		{
-			TexturesAndMaterials.Add((UObject**)(&MobileMaterialInterface));
+			TexturesAndMaterials.Add((UObject**)(&static_cast<UMaterialInterface*&>(MobileMaterialInterface)));
 		}
-		for (UMaterialInstanceConstant*& MobileCombinationMaterialInstance : MobileCombinationMaterialInstances)
+		for (UE_TRANSITIONAL_OBJECT_PTR(UMaterialInstanceConstant)& MobileCombinationMaterialInstance : MobileCombinationMaterialInstances)
 		{
-			TexturesAndMaterials.Add((UObject**)&MobileCombinationMaterialInstance);
+			TexturesAndMaterials.Add((UObject**)&static_cast<UMaterialInstanceConstant*&>(MobileCombinationMaterialInstance));
 		}
 
 		if (Ar.IsSaving())
@@ -1389,7 +1389,7 @@ void ULandscapeComponent::BeginDestroy()
 			if (WeightmapTextures.IsValidIndex(WeightmapIndex))
 			{
 				UTexture2D* WeightmapTexture = WeightmapTextures[WeightmapIndex];
-				ULandscapeWeightmapUsage** Usage = Proxy->WeightmapUsageMap.Find(WeightmapTexture);
+				UE_TRANSITIONAL_OBJECT_PTR(ULandscapeWeightmapUsage)* Usage = Proxy->WeightmapUsageMap.Find(WeightmapTexture);
 				if (Usage != nullptr && (*Usage) != nullptr)
 				{
 					(*Usage)->ChannelUsage[WeightmapLayerAllocations[LayerIdx].WeightmapTextureChannel] = nullptr;

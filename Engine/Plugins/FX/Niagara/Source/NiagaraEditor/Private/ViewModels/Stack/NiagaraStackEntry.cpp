@@ -672,7 +672,7 @@ void UNiagaraStackEntry::RefreshStackErrorChildren()
 	for (FStackIssue Issue : StackIssues)
 	{
 		UNiagaraStackErrorItem* ErrorEntry = nullptr;
-		UNiagaraStackErrorItem** Found = ErrorChildren.FindByPredicate(
+		UE_TRANSITIONAL_OBJECT_PTR(UNiagaraStackErrorItem)* Found = ErrorChildren.FindByPredicate(
 			[&](UNiagaraStackErrorItem* CurrentChild) { return CurrentChild->GetStackIssue().GetUniqueIdentifier() == Issue.GetUniqueIdentifier(); });
 		if (Found == nullptr)
 		{

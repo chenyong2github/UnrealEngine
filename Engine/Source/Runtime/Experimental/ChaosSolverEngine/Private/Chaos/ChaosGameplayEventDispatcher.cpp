@@ -266,7 +266,7 @@ void UChaosGameplayEventDispatcher::HandleCollisionEvents(const Chaos::FCollisio
 			// look through all the components that someone is interested in, and see if they had a collision
 			// note that we only need to care about the interaction from the POV of the registered component,
 			// since if anyone wants notifications for the other component it hit, it's also registered and we'll get to that elsewhere in the list
-			for (TMap<UPrimitiveComponent*, FChaosHandlerSet>::TIterator It(CollisionEventRegistrations); It; ++It)
+			for (decltype(CollisionEventRegistrations)::TIterator It(CollisionEventRegistrations); It; ++It)
 			{
 				const FChaosHandlerSet& HandlerSet = It.Value();
 

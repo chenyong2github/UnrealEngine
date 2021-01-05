@@ -910,7 +910,7 @@ void ULandscapeSplinesComponent::PostLoad()
 
 			for (auto& ForeignSplineSegmentData : ForeignWorldSplineData.ForeignSplineSegmentData)
 			{
-				for (auto* MeshComponent : ForeignSplineSegmentData.MeshComponents)
+				for (auto& MeshComponent : ForeignSplineSegmentData.MeshComponents)
 				{
 					MeshComponentForeignOwnersMap.Add(MeshComponent, ForeignSplineSegmentData.Identifier);
 				}
@@ -1210,7 +1210,7 @@ void ULandscapeSplinesComponent::RemoveAllForeignMeshComponents(ULandscapeSpline
 		auto* ForeignSplineSegmentData = ForeignWorldSplineData->FindSegmentData(Owner);
 		if (ForeignSplineSegmentData)
 		{
-			for (auto* MeshComponent : ForeignSplineSegmentData->MeshComponents)
+			for (auto& MeshComponent : ForeignSplineSegmentData->MeshComponents)
 			{
 				checkSlow(MeshComponentForeignOwnersMap.FindRef(MeshComponent) == Owner);
 				verifySlow(MeshComponentForeignOwnersMap.Remove(MeshComponent) == 1);
@@ -1411,7 +1411,7 @@ void ULandscapeSplinesComponent::DestroyOrphanedForeignSplineMeshComponents(UWor
 
 			if (!ForeignSplineSegment)
 			{
-				for (auto* MeshComponent : SegmentData.MeshComponents)
+				for (auto& MeshComponent : SegmentData.MeshComponents)
 				{
 					if (MeshComponent)
 					{
@@ -2445,7 +2445,7 @@ void ULandscapeSplineSegment::PostLoad()
 		ULandscapeSplinesComponent* OuterSplines = GetOuterULandscapeSplinesComponent();
 		if (OuterSplines->SplineEditorMesh != nullptr)
 		{
-			for (auto* LocalMeshComponent : LocalMeshComponents)
+			for (auto& LocalMeshComponent : LocalMeshComponents)
 			{
 				if (LocalMeshComponent->GetStaticMesh() == nullptr || LocalMeshComponent->GetStaticMesh() == OuterSplines->SplineEditorMesh)
 				{
@@ -2463,7 +2463,7 @@ void ULandscapeSplineSegment::PostLoad()
 			}
 		}
 
-		for (auto* LocalMeshComponent : LocalMeshComponents)
+		for (auto& LocalMeshComponent : LocalMeshComponents)
 		{
 			OuterSplines->MeshComponentLocalOwnersMap.Add(LocalMeshComponent, this);
 		}
@@ -2472,7 +2472,7 @@ void ULandscapeSplineSegment::PostLoad()
 	if (GetLinkerUE4Version() < VER_UE4_LANDSCAPE_SPLINE_CROSS_LEVEL_MESHES)
 	{
 		// Fix collision profile
-		for (auto* LocalMeshComponent : LocalMeshComponents) // ForeignMeshComponents didn't exist yet
+		for (auto& LocalMeshComponent : LocalMeshComponents) // ForeignMeshComponents didn't exist yet
 		{
 			UpdateMeshCollisionProfile(LocalMeshComponent);
 			LocalMeshComponent->SetFlags(RF_TextExportTransient);
@@ -2502,7 +2502,7 @@ void ULandscapeSplineSegment::PostLoad()
 			}
 		}
 
-		for (auto* LocalMeshComponent : LocalMeshComponents)
+		for (auto& LocalMeshComponent : LocalMeshComponents)
 		{
 			if (LocalMeshComponent != nullptr)
 			{
@@ -2525,7 +2525,7 @@ void ULandscapeSplineSegment::PostLoad()
 	// for our spline meshes.
 	if (SplinesAlwaysUseBlockAll)
 	{
-		for (auto* LocalMeshComponent : LocalMeshComponents)
+		for (auto& LocalMeshComponent : LocalMeshComponents)
 		{
 			UpdateMeshCollisionProfile(LocalMeshComponent);
 			LocalMeshComponent->Modify();
@@ -2558,7 +2558,7 @@ void ULandscapeSplineSegment::SetSplineSelected(bool bInSelected)
 	bSelected = bInSelected;
 	GetOuterULandscapeSplinesComponent()->MarkRenderStateDirty();
 
-	for (auto* LocalMeshComponent : LocalMeshComponents)
+	for (auto& LocalMeshComponent : LocalMeshComponents)
 	{
 		LocalMeshComponent->bSelected = bInSelected;
 		LocalMeshComponent->PushSelectionToProxy();
@@ -3149,7 +3149,7 @@ void ULandscapeSplineSegment::UpdateSplineEditorMesh()
 {
 	ULandscapeSplinesComponent* OuterSplines = CastChecked<ULandscapeSplinesComponent>(GetOuter());
 
-	for (auto* LocalMeshComponent : LocalMeshComponents)
+	for (auto& LocalMeshComponent : LocalMeshComponents)
 	{
 		if (OuterSplines->IsUsingEditorMesh(LocalMeshComponent))
 		{
@@ -3186,7 +3186,7 @@ void ULandscapeSplineSegment::DeleteSplinePoints()
 	if (LocalMeshComponents.Num() > 0)
 	{
 		OuterSplines->Modify();
-		for (auto* LocalMeshComponent : LocalMeshComponents)
+		for (auto& LocalMeshComponent : LocalMeshComponents)
 		{
 			checkSlow(OuterSplines->MeshComponentLocalOwnersMap.FindRef(LocalMeshComponent) == this);
 			verifySlow(OuterSplines->MeshComponentLocalOwnersMap.Remove(LocalMeshComponent) == 1);
@@ -3406,7 +3406,7 @@ void ULandscapeInfo::MoveSegment(ULandscapeSplineSegment* InSegment, TScriptInte
 	ToSplineComponent->Modify();
 		
 	// Delete all Mesh Components associated with the Segment. (Will get recreated in UpdateSplinePoints)
-	for (auto* MeshComponent : InSegment->LocalMeshComponents)
+	for (auto& MeshComponent : InSegment->LocalMeshComponents)
 	{
 		MeshComponent->Modify();
 		MeshComponent->UnregisterComponent();

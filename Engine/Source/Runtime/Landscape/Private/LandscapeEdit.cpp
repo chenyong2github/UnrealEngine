@@ -335,7 +335,7 @@ void ULandscapeComponent::UpdateMaterialInstances_Internal(FMaterialUpdateContex
 	check(GIsEditor);
 
 	int32 MaxLOD = FMath::CeilLogTwo(SubsectionSizeQuads + 1) - 1;
-	TMap<UMaterialInterface*, int8> NewMaterialPerLOD;
+	decltype(MaterialPerLOD) NewMaterialPerLOD;
 	LODIndexToMaterialIndex.SetNumUninitialized(MaxLOD+1);
 	int8 LastLODIndex = INDEX_NONE;
 
@@ -746,7 +746,7 @@ void ULandscapeComponent::FixupWeightmaps()
 
 				UTexture2D* WeightmapTexture = WeightmapTextures[Allocation.WeightmapTextureIndex];
 
-				ULandscapeWeightmapUsage** TempUsage = Proxy->WeightmapUsageMap.Find(WeightmapTexture);
+				UE_TRANSITIONAL_OBJECT_PTR(ULandscapeWeightmapUsage)* TempUsage = Proxy->WeightmapUsageMap.Find(WeightmapTexture);
 
 				if (TempUsage == nullptr)
 				{
@@ -3088,7 +3088,7 @@ LANDSCAPE_API void ALandscapeProxy::Import(const FGuid& InGuid, int32 InMinX, in
 			ImportSettings.DestinationLayerGuid = DefaultLayer->Guid;
 			LayerImportSettings.Add(ImportSettings);
 
-			ComponentsToProcess.Append(LandscapeComponents);
+			ComponentsToProcess.Append(ToRawPtrTArrayUnsafe(LandscapeComponents));
 		}
 
 		check(LayerImportSettings.Num() != 0);
@@ -3128,7 +3128,7 @@ LANDSCAPE_API void ALandscapeProxy::Import(const FGuid& InGuid, int32 InMinX, in
 				check(ComponentLayerData != nullptr);
 
 				LayersTextures.Add(ComponentLayerData->HeightmapData.Texture);
-				LayersTextures.Append(ComponentLayerData->WeightmapData.Textures);
+				LayersTextures.Append(ToRawPtrTArrayUnsafe(ComponentLayerData->WeightmapData.Textures));
 			}
 		}
 
@@ -5853,7 +5853,7 @@ void ALandscapeProxy::RemoveInvalidWeightmaps()
 {
 	if (GIsEditor)
 	{
-		for (TMap< UTexture2D*, ULandscapeWeightmapUsage* >::TIterator It(WeightmapUsageMap); It; ++It)
+		for (decltype(WeightmapUsageMap)::TIterator It(WeightmapUsageMap); It; ++It)
 		{
 			UTexture2D* Tex = It.Key();
 			ULandscapeWeightmapUsage* Usage = It.Value();

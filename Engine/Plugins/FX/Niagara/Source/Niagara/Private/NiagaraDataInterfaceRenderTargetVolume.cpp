@@ -409,7 +409,8 @@ void UNiagaraDataInterfaceRenderTargetVolume::DestroyPerInstanceData(void* PerIn
 
 	// Make sure to clear out the reference to the render target if we created one.
 	extern int32 GNiagaraReleaseResourceOnRemove;
-	UTextureRenderTargetVolume* ExistingRenderTarget = nullptr;
+	using RenderTargetType = decltype(decltype(ManagedRenderTargets)::ElementType::Value);
+	RenderTargetType ExistingRenderTarget = nullptr;
 	if (ManagedRenderTargets.RemoveAndCopyValue(SystemInstance->GetId(), ExistingRenderTarget) && GNiagaraReleaseResourceOnRemove)
 	{
 		ExistingRenderTarget->ReleaseResource();
@@ -502,7 +503,8 @@ bool UNiagaraDataInterfaceRenderTargetVolume::PerInstanceTickPostSimulate(void* 
 				InstanceData->TargetTexture = UserTargetTexture;
 
 				extern int32 GNiagaraReleaseResourceOnRemove;
-				UTextureRenderTargetVolume* ExistingRenderTarget = nullptr;
+				using RenderTargetType = decltype(decltype(ManagedRenderTargets)::ElementType::Value);
+				RenderTargetType ExistingRenderTarget = nullptr;
 				if (ManagedRenderTargets.RemoveAndCopyValue(SystemInstance->GetId(), ExistingRenderTarget) && GNiagaraReleaseResourceOnRemove)
 				{
 					ExistingRenderTarget->ReleaseResource();

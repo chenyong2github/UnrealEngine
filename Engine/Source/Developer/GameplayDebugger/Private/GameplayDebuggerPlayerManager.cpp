@@ -183,7 +183,7 @@ void AGameplayDebuggerPlayerManager::RegisterReplicator(AGameplayDebuggerCategor
 	{
 		APlayerController* OwnerPC = Replicator.GetReplicationOwner();
 
-		NewData.InputComponent = OwnerPC ? NewObject<UInputComponent>(OwnerPC, TEXT("GameplayDebug_Input")) : InputComponent;
+		NewData.InputComponent = OwnerPC ? NewObject<UInputComponent>(OwnerPC, TEXT("GameplayDebug_Input")) : ToRawPtr(InputComponent);
 		check(NewData.InputComponent);
 		NewData.InputComponent->Priority = -1;
 		NewData.Controller = NewObject<UGameplayDebuggerLocalController>(OwnerPC ? OwnerPC : (AActor*)this, TEXT("GameplayDebug_Controller"));

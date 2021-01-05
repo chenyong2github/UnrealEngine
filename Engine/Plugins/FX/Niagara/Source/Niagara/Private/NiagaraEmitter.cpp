@@ -269,8 +269,8 @@ UNiagaraEmitter* UNiagaraEmitter::DuplicateWithoutMerging(UObject* InOuter)
 {
 	UNiagaraEmitter* Duplicate;
 	{
-		TGuardValue<UNiagaraEmitter*> ParentGuard(Parent, nullptr);
-		TGuardValue<UNiagaraEmitter*> ParentAtLastMergeGuard(ParentAtLastMerge, nullptr);
+		TGuardValue<decltype(Parent)> ParentGuard(Parent, nullptr);
+		TGuardValue<decltype(ParentAtLastMerge)> ParentAtLastMergeGuard(ParentAtLastMerge, nullptr);
 		Duplicate = Cast<UNiagaraEmitter>(StaticDuplicateObject(this, InOuter));
 	}
 	return Duplicate;
@@ -1493,7 +1493,7 @@ void UNiagaraEmitter::UpdateFromMergedCopy(const INiagaraMergeManager& MergeMana
 	}
 
 	// Copy shader stages
-	for (UNiagaraSimulationStageBase*& SimulationStage : SimulationStages)
+	for (UE_TRANSITIONAL_OBJECT_PTR(UNiagaraSimulationStageBase)& SimulationStage : SimulationStages)
 	{
 		SimulationStage->OnChanged().RemoveAll(this);
 		SimulationStage->Script->RapidIterationParameters.RemoveAllOnChangedHandlers(this);
@@ -1688,7 +1688,7 @@ void UNiagaraEmitter::RemoveEventHandlerByUsageId(FGuid EventHandlerUsageId)
 
 UNiagaraSimulationStageBase* UNiagaraEmitter::GetSimulationStageById(FGuid ScriptUsageId) const
 {
-	UNiagaraSimulationStageBase*const* FoundSimulationStagePtr = SimulationStages.FindByPredicate([&ScriptUsageId](UNiagaraSimulationStageBase* SimulationStage) { return SimulationStage->Script->GetUsageId() == ScriptUsageId; });
+	UE_TRANSITIONAL_OBJECT_PTR(UNiagaraSimulationStageBase) const* FoundSimulationStagePtr = SimulationStages.FindByPredicate([&ScriptUsageId](UNiagaraSimulationStageBase* SimulationStage) { return SimulationStage->Script->GetUsageId() == ScriptUsageId; });
 	return FoundSimulationStagePtr != nullptr ? *FoundSimulationStagePtr : nullptr;
 }
 

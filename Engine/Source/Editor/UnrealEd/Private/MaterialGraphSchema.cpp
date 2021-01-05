@@ -926,7 +926,7 @@ void UMaterialGraphSchema::GetNamedRerouteActions(FGraphActionMenuBuilder& Actio
 		{
 			if (auto* MaterialGraphNode = Cast<UMaterialGraphNode>(GraphNode))
 			{
-				if (auto* Declaration = Cast<UMaterialExpressionNamedRerouteDeclaration>(MaterialGraphNode->MaterialExpression))
+				if (auto Declaration = Cast<UMaterialExpressionNamedRerouteDeclaration>(MaterialGraphNode->MaterialExpression))
 				{
 					static const FText Category = LOCTEXT("NamedRerouteCategory", "Named Reroutes");
 					const FText Name = FText::FromString(Declaration->Name.ToString());

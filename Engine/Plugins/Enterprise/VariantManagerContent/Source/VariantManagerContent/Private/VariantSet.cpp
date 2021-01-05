@@ -280,7 +280,7 @@ UVariant* UVariantSet::GetVariant(int32 VariantIndex)
 
 UVariant* UVariantSet::GetVariantByName(FString VariantName)
 {
-	UVariant** VarPtr = Variants.FindByPredicate([VariantName](const UVariant* Var)
+	UE_TRANSITIONAL_OBJECT_PTR(UVariant)* VarPtr = Variants.FindByPredicate([VariantName](const UVariant* Var)
 	{
 		return Var->GetDisplayText().ToString() == VariantName;
 	});

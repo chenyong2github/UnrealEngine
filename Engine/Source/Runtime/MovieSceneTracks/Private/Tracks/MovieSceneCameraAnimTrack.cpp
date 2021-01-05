@@ -110,7 +110,7 @@ void UMovieSceneCameraAnimTrack::GetCameraAnimSectionsAtTime(FFrameNumber Time, 
 
 	for (auto Section : CameraAnimSections)
 	{
-		UMovieSceneCameraAnimSection* const CASection = dynamic_cast<UMovieSceneCameraAnimSection*>(Section);
+		UMovieSceneCameraAnimSection* const CASection = dynamic_cast<UMovieSceneCameraAnimSection*>(ToRawPtr(Section));
 		if (CASection && CASection->GetRange().Contains(Time))
 		{
 			OutSections.Add(CASection);

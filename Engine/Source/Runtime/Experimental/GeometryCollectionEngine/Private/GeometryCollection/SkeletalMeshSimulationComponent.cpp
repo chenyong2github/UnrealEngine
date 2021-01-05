@@ -149,7 +149,7 @@ void USkeletalMeshSimulationComponent::OnCreatePhysicsState()
 			USkeletalMesh* SkeletalMesh = SkelMeshComponent->SkeletalMesh;
 			if (SkeletalMesh)
 			{
-				UPhysicsAsset* PhysicsAsset = OverridePhysicsAsset ? OverridePhysicsAsset : SkelMeshComponent->SkeletalMesh->GetPhysicsAsset();
+				UPhysicsAsset* PhysicsAsset = OverridePhysicsAsset ? ToRawPtr(OverridePhysicsAsset) : SkelMeshComponent->SkeletalMesh->GetPhysicsAsset();
 				FPhysicsAssetSimulationUtil::BuildParams(this, OwningActor, SkelMeshComponent, PhysicsAsset, OutPhysicsParams);
 			}
 

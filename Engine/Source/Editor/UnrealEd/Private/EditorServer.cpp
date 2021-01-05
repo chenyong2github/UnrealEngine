@@ -6570,7 +6570,7 @@ bool UEditorEngine::HandleAddSelectedCommand( const TCHAR* Str, FOutputDevice& A
 
 		if (PrecompOverride != NULL)
 		{
-			TArray<class AActor*>* OverrideActorList = 
+			auto* OverrideActorList = 
 				bVisible ? &(PrecompOverride->OverrideVisibleActors) : &(PrecompOverride->OverrideInvisibleActors);
 			// Grab a list of selected actors...
 			for (FSelectionIterator ActorIt(GetSelectedActorIterator()) ; ActorIt; ++ActorIt)

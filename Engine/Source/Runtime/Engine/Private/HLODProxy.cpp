@@ -119,7 +119,7 @@ void UHLODProxy::Clean()
 	}
 	else if (HLODActors.Num() > 0)
 	{
-		for (TMap<UHLODProxyDesc*, FHLODProxyMesh>::TIterator ItHLODActor = HLODActors.CreateIterator(); ItHLODActor; ++ItHLODActor)
+		for (auto ItHLODActor = HLODActors.CreateIterator(); ItHLODActor; ++ItHLODActor)
 		{
 			RemoveAssets(ItHLODActor.Value());
 		}
@@ -193,7 +193,7 @@ void UHLODProxy::UpdateHLODDescs(const ULevel* InLevel)
 
 	// For each HLODProxyDesc stored in this proxy, ensure that it is up to date with the associated LODActor
 	// Purge the HLODProxyDesc that are unused (not referenced by any LODActor)
-	for (TMap<UHLODProxyDesc*, FHLODProxyMesh>::TIterator ItHLODActor = HLODActors.CreateIterator(); ItHLODActor; ++ItHLODActor)
+	for (auto ItHLODActor = HLODActors.CreateIterator(); ItHLODActor; ++ItHLODActor)
 	{
 		UHLODProxyDesc* HLODProxyDesc = ItHLODActor.Key();
 		ALODActor** LODActor = LODActors.Find(HLODProxyDesc);

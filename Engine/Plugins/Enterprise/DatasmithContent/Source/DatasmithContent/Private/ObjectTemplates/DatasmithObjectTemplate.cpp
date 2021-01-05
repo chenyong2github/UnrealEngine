@@ -76,7 +76,7 @@ TMap< TSubclassOf< UDatasmithObjectTemplate >, UDatasmithObjectTemplate* >* FDat
 #if WITH_EDITORONLY_DATA
 	if (UDatasmithAssetUserData* UserAssetData = FindOrCreateDatasmithUserData(Outer))
 	{
-		return &UserAssetData->ObjectTemplates;
+		return &ToRawPtrTMapUnsafe(UserAssetData->ObjectTemplates);
 	}
 #endif // #if WITH_EDITORONLY_DATA
 return nullptr;

@@ -3126,7 +3126,7 @@ int64 UActorChannel::ReplicateActor()
 	{
 		UE_NET_TRACE_SCOPE(NewActor, Bunch, GetTraceCollector(Bunch), ENetTraceVerbosity::Trace);
 
-		Connection->PackageMap->SerializeNewActor(Bunch, this, Actor);
+		Connection->PackageMap->SerializeNewActor(Bunch, this, static_cast<AActor*&>(Actor));
 		WroteSomethingImportant = true;
 
 		Actor->OnSerializeNewActor(Bunch);
@@ -4191,7 +4191,7 @@ static void	DebugNetGUIDs( UWorld* InWorld )
 		return;
 	}
 
-	UNetConnection * Connection = (NetDriver->ServerConnection ? ToRawPtr(NetDriver->ServerConnection) : (NetDriver->ClientConnections.Num() > 0 ? NetDriver->ClientConnections[0] : NULL));
+	UNetConnection * Connection = (NetDriver->ServerConnection ? ToRawPtr(NetDriver->ServerConnection) : (NetDriver->ClientConnections.Num() > 0 ? ToRawPtr(NetDriver->ClientConnections[0]) : NULL));
 	if (!Connection)
 	{
 		return;
@@ -4216,7 +4216,7 @@ static void	ListOpenActorChannels( UWorld* InWorld )
 		return;
 	}
 
-	UNetConnection * Connection = (NetDriver->ServerConnection ? ToRawPtr(NetDriver->ServerConnection) : (NetDriver->ClientConnections.Num() > 0 ? NetDriver->ClientConnections[0] : NULL));
+	UNetConnection * Connection = (NetDriver->ServerConnection ? ToRawPtr(NetDriver->ServerConnection) : (NetDriver->ClientConnections.Num() > 0 ? ToRawPtr(NetDriver->ClientConnections[0]) : NULL));
 	if (!Connection)
 	{
 		return;
@@ -4273,7 +4273,7 @@ static void	DeleteDormantActor( UWorld* InWorld )
 		return;
 	}
 
-	UNetConnection * Connection = (NetDriver->ServerConnection ? ToRawPtr(NetDriver->ServerConnection) : (NetDriver->ClientConnections.Num() > 0 ? NetDriver->ClientConnections[0] : NULL));
+	UNetConnection * Connection = (NetDriver->ServerConnection ? ToRawPtr(NetDriver->ServerConnection) : (NetDriver->ClientConnections.Num() > 0 ? ToRawPtr(NetDriver->ClientConnections[0]) : NULL));
 	if (!Connection)
 	{
 		return;

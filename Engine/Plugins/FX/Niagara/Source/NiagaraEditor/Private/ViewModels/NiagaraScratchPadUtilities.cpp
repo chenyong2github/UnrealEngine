@@ -54,7 +54,8 @@ void FNiagaraScratchPadUtilities::FixExternalScratchPadScriptsForEmitter(UNiagar
 
 			// Determine the destination for the copies of the external scratch pad scripts.
 			UObject* TargetScratchPadScriptOuter = nullptr;
-			TArray<UNiagaraScript*>* TargetScratchPadScriptArray = nullptr;
+			using ScriptArrayType = decltype(TargetEmitter.ScratchPadScripts);
+			ScriptArrayType* TargetScratchPadScriptArray = nullptr;
 			if (TargetSystem != nullptr)
 			{
 				TargetScratchPadScriptOuter = TargetSystem;

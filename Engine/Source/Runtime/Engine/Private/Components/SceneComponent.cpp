@@ -2297,7 +2297,7 @@ void FSceneComponentInstanceData::ApplyToComponent(UActorComponent* Component, c
 		SceneComponent->UpdateComponentToWorld();
 	}
 
-	for (const TPair<USceneComponent*, FTransform>& ChildComponentPair : AttachedInstanceComponents)
+	for (const auto& ChildComponentPair : AttachedInstanceComponents)
 	{
 		USceneComponent* ChildComponent = ChildComponentPair.Key;
 		// If the ChildComponent now has a "good" attach parent it was set by the transaction and it means we are undoing/redoing attachment
@@ -2313,7 +2313,7 @@ void FSceneComponentInstanceData::ApplyToComponent(UActorComponent* Component, c
 void FSceneComponentInstanceData::AddReferencedObjects(FReferenceCollector& Collector)
 {
 	FActorComponentInstanceData::AddReferencedObjects(Collector);
-	for (TPair<USceneComponent*, FTransform>& ChildComponentPair : AttachedInstanceComponents)
+	for (auto& ChildComponentPair : AttachedInstanceComponents)
 	{
 		Collector.AddReferencedObject(ChildComponentPair.Key);
 	}
@@ -2322,7 +2322,7 @@ void FSceneComponentInstanceData::AddReferencedObjects(FReferenceCollector& Coll
 void FSceneComponentInstanceData::FindAndReplaceInstances(const TMap<UObject*, UObject*>& OldToNewInstanceMap)
 {
 	TArray<USceneComponent*> SceneComponents;
-	AttachedInstanceComponents.GenerateKeyArray(SceneComponents);
+	ToRawPtrTMapUnsafe(AttachedInstanceComponents).GenerateKeyArray(SceneComponents);
 
 	for (USceneComponent* SceneComponent : SceneComponents)
 	{

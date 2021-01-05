@@ -592,7 +592,7 @@ void UAnimationAsset::RemoveUserDataOfClass(TSubclassOf<UAssetUserData> InUserDa
 
 const TArray<UAssetUserData*>* UAnimationAsset::GetAssetUserDataArray() const
 {
-	return &AssetUserData;
+	return &ToRawPtrTArrayUnsafe(AssetUserData);
 }
 
 #if WITH_EDITOR

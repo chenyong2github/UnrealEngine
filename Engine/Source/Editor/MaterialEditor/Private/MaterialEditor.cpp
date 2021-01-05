@@ -4022,7 +4022,7 @@ void FMaterialEditor::OnConvertNamedRerouteToReroute()
 					FVector2D KnotPosition(DeclarationGraphNode->NodePosX + 50, DeclarationGraphNode->NodePosY);
 
 					UMaterialExpression* Reroute = FMaterialEditorUtilities::CreateNewMaterialExpression(Graph, UMaterialExpressionReroute::StaticClass(), KnotPosition, false, true);
-					auto* KnotGraphNode = CastChecked<UMaterialGraphNode_Knot>(Reroute->GraphNode);
+					auto KnotGraphNode = CastChecked<UMaterialGraphNode_Knot>(Reroute->GraphNode);
 
 					for (UEdGraphPin* Pin : DeclarationGraphNode->GetAllPins())
 					{

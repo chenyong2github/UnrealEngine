@@ -302,7 +302,7 @@ FGameInstancePIEResult UGameInstance::InitializeForPlayInEditor(int32 PIEInstanc
 	NewWorld->SetPlayInEditorInitialNetMode(GetNetModeFromPlayNetMode(Params.NetMode, Params.bRunAsDedicated));
 	NewWorld->SetGameInstance(this);
 	WorldContext->SetCurrentWorld(NewWorld);
-	WorldContext->AddRef(EditorEngine->PlayWorld);	// Tie this context to this UEngine::PlayWorld*		// @fixme, needed still?
+	WorldContext->AddRef(static_cast<UWorld*&>(EditorEngine->PlayWorld));	// Tie this context to this UEngine::PlayWorld*		// @fixme, needed still?
 
 	// make sure we can clean up this world!
 	NewWorld->ClearFlags(RF_Standalone);
@@ -997,7 +997,7 @@ void UGameInstance::CleanupGameViewport()
 
 TArray<class ULocalPlayer*>::TConstIterator	UGameInstance::GetLocalPlayerIterator() const
 {
-	return LocalPlayers.CreateConstIterator();
+	return ToRawPtrTArrayUnsafe(LocalPlayers).CreateConstIterator();
 }
 
 const TArray<class ULocalPlayer*>& UGameInstance::GetLocalPlayers() const

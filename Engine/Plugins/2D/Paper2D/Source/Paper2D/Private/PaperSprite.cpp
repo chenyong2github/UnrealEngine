@@ -1954,7 +1954,7 @@ UTexture2D* UPaperSprite::GetBakedTexture() const
 
 void UPaperSprite::GetBakedAdditionalSourceTextures(FAdditionalSpriteTextureArray& OutTextureList) const
 {
-	OutTextureList = AdditionalSourceTextures;
+	OutTextureList = ToRawPtrTArrayUnsafe(AdditionalSourceTextures);
 }
 
 UMaterialInterface* UPaperSprite::GetMaterial(int32 MaterialIndex) const

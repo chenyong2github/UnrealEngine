@@ -60,7 +60,7 @@ void GetOuterAndTargetScripts(TSharedRef<FNiagaraSystemViewModel> SystemViewMode
 	if (SystemViewModel->GetEditMode() == ENiagaraSystemViewModelEditMode::SystemAsset)
 	{
 		OutOuter = &SystemViewModel->GetSystem();
-		OutTargetScripts = &SystemViewModel->GetSystem().ScratchPadScripts;
+		OutTargetScripts = &ToRawPtrTArrayUnsafe(SystemViewModel->GetSystem().ScratchPadScripts);
 	}
 	else
 	{
@@ -68,7 +68,7 @@ void GetOuterAndTargetScripts(TSharedRef<FNiagaraSystemViewModel> SystemViewMode
 		{
 			UNiagaraEmitter* TargetEmitter = SystemViewModel->GetSystem().GetEmitterHandles()[0].GetInstance();
 			OutOuter = TargetEmitter;
-			OutTargetScripts = &TargetEmitter->ScratchPadScripts;
+			OutTargetScripts = &ToRawPtrTArrayUnsafe(TargetEmitter->ScratchPadScripts);
 		}
 		else
 		{

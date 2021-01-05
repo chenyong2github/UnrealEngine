@@ -1849,7 +1849,7 @@ void ALandscapeProxy::InitializeProxyLayersWeightmapUsage()
 					{
 						FWeightmapLayerAllocationInfo& Allocation = LayerData->WeightmapData.LayerAllocations[LayerIdx];
 						UTexture2D* WeightmapTexture = LayerData->WeightmapData.Textures[Allocation.WeightmapTextureIndex];
-						ULandscapeWeightmapUsage** TempUsage = WeightmapUsageMap.Find(WeightmapTexture);
+						UE_TRANSITIONAL_OBJECT_PTR(ULandscapeWeightmapUsage)* TempUsage = WeightmapUsageMap.Find(WeightmapTexture);
 
 						if (TempUsage == nullptr)
 						{
@@ -4272,7 +4272,7 @@ void ALandscape::UpdateLayersMaterialInstances(const TArray<ULandscapeComponent*
 	for (ULandscapeComponent* Component : ComponentsToUpdate)
 	{
 		int32 MaxLOD = FMath::CeilLogTwo(SubsectionSizeQuads + 1) - 1;
-		TMap<UMaterialInterface*, int8> NewMaterialPerLOD;
+		decltype(Component->MaterialPerLOD) NewMaterialPerLOD;
 		Component->LODIndexToMaterialIndex.SetNumUninitialized(MaxLOD + 1);
 		int8 LastLODIndex = INDEX_NONE;
 
@@ -5410,7 +5410,7 @@ void ALandscapeProxy::DeleteLayer(const FGuid& InLayerGuid)
 			for (const FWeightmapLayerAllocationInfo& Allocation : LayerComponentData->WeightmapData.LayerAllocations)
 			{
 				UTexture2D* WeightmapTexture = LayerComponentData->WeightmapData.Textures[Allocation.WeightmapTextureIndex];
-				ULandscapeWeightmapUsage** Usage = WeightmapUsageMap.Find(WeightmapTexture);
+				UE_TRANSITIONAL_OBJECT_PTR(ULandscapeWeightmapUsage)* Usage = WeightmapUsageMap.Find(WeightmapTexture);
 
 				if (Usage != nullptr && (*Usage) != nullptr)
 				{
@@ -6082,9 +6082,9 @@ void ALandscape::UpdateLandscapeSplines(const FGuid& InTargetLayer, bool bInUpda
 
 			// Clear layers without affecting weightmap allocations
 			const bool bMarkPackageDirty = false;
-			ClearLayer(LandscapeSplinesTargetLayerGuid, (!bInForceUpdateAllCompoments && LandscapeSplinesAffectedComponents.Num()) ? &LandscapeSplinesAffectedComponents : nullptr, Clear_All, bMarkPackageDirty);
+			ClearLayer(LandscapeSplinesTargetLayerGuid, (!bInForceUpdateAllCompoments && LandscapeSplinesAffectedComponents.Num()) ? &ToRawPtrTSetUnsafe(LandscapeSplinesAffectedComponents) : nullptr, Clear_All, bMarkPackageDirty);
 			LandscapeSplinesAffectedComponents.Empty();
-			ModifiedComponent = &LandscapeSplinesAffectedComponents;
+			ModifiedComponent = &ToRawPtrTSetUnsafe(LandscapeSplinesAffectedComponents);
 			// For now, in Landscape Layer System Mode with a reserved layer for splines, we always update all the splines since we clear the whole layer first
 			bInUpdateOnlySelected = false;
 

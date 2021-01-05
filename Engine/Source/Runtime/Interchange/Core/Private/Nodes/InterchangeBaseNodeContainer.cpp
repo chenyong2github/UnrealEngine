@@ -54,7 +54,7 @@ bool UInterchangeBaseNodeContainer::IsNodeUIDValid(const FString& NodeUniqueID) 
 
 void UInterchangeBaseNodeContainer::IterateNodes(TFunctionRef<void(const FString&, UInterchangeBaseNode*)> IterationLambda)
 {
-	for (TPair<FString, UInterchangeBaseNode*>& NodeKeyValue : Nodes)
+	for (auto& NodeKeyValue : Nodes)
 	{
 		IterationLambda(NodeKeyValue.Key, NodeKeyValue.Value);
 	}
@@ -62,7 +62,7 @@ void UInterchangeBaseNodeContainer::IterateNodes(TFunctionRef<void(const FString
 
 void UInterchangeBaseNodeContainer::GetRoots(TArray<FString>& RootNodes)
 {
-	for (TPair<FString, UInterchangeBaseNode*>& NodeKeyValue : Nodes)
+	for (auto& NodeKeyValue : Nodes)
 	{
 		if (NodeKeyValue.Value->GetParentUID() == UInterchangeBaseNode::InvalidNodeUID())
 		{
@@ -114,7 +114,7 @@ int32 UInterchangeBaseNodeContainer::GetNodeChildrenCount(const FString& NodeUni
 TArray<FString> UInterchangeBaseNodeContainer::GetNodeChildrenUIDs(const FString& NodeUniqueID) const
 {
 	TArray<FString> OutChildrenUIDs;
-	for (const TPair<FString, UInterchangeBaseNode*>& NodeKeyValue : Nodes)
+	for (const auto& NodeKeyValue : Nodes)
 	{
 		if (NodeKeyValue.Value->GetParentUID() == NodeUniqueID)
 		{

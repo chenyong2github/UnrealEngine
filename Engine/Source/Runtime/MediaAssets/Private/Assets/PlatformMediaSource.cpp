@@ -18,7 +18,7 @@ void UPlatformMediaSource::PreSave(const class ITargetPlatform* TargetPlatform)
 	// Do this only if we are cooking (aka: have a target platform)
 	if (TargetPlatform)
 	{
-		UMediaSource** PlatformMediaSource = PlatformMediaSources.Find(TargetPlatform->IniPlatformName());
+		UE_TRANSITIONAL_OBJECT_PTR(UMediaSource)* PlatformMediaSource = PlatformMediaSources.Find(TargetPlatform->IniPlatformName());
 		MediaSource = (PlatformMediaSource != nullptr) ? *PlatformMediaSource : nullptr;
 	}
 #endif
@@ -189,7 +189,7 @@ UMediaSource* UPlatformMediaSource::GetMediaSource() const
 {
 #if WITH_EDITORONLY_DATA
 	const FString RunningPlatformName(FPlatformProperties::IniPlatformName());
-	UMediaSource*const* PlatformMediaSource = PlatformMediaSources.Find(RunningPlatformName);
+	UE_TRANSITIONAL_OBJECT_PTR(UMediaSource) const* PlatformMediaSource = PlatformMediaSources.Find(RunningPlatformName);
 
 	if (PlatformMediaSource == nullptr)
 	{

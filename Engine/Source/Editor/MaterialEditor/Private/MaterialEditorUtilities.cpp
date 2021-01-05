@@ -523,7 +523,7 @@ void FMaterialEditorUtilities::GetVisibleMaterialParametersFromExpression(
 
 			if (LayersExpression->bIsLayerGraphBuilt)
 			{
-				for (auto* Layer : LayersExpression->LayerCallers)
+				for (auto& Layer : LayersExpression->LayerCallers)
 				{
 					if (Layer && Layer->MaterialFunction)
 					{
@@ -536,7 +536,7 @@ void FMaterialEditorUtilities::GetVisibleMaterialParametersFromExpression(
 					}
 				}
 
-				for (auto* Blend : LayersExpression->BlendCallers)
+				for (auto& Blend : LayersExpression->BlendCallers)
 				{
 					if (Blend && Blend->MaterialFunction)
 					{

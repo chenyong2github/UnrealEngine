@@ -370,7 +370,7 @@ void UDebugSkelMeshComponent::PostInitMeshObject(FSkeletalMeshObject* InMeshObje
 		}
 		else if (bDrawMorphTargetVerts)
 		{
-			InMeshObject->EnableOverlayRendering(true, nullptr, &MorphTargetOfInterests);
+			InMeshObject->EnableOverlayRendering(true, nullptr, &ToRawPtrTArrayUnsafe(MorphTargetOfInterests));
 		}
 	}
 }

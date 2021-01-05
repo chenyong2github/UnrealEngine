@@ -850,7 +850,7 @@ void UTexture::RemoveUserDataOfClass(TSubclassOf<UAssetUserData> InUserDataClass
 
 const TArray<UAssetUserData*>* UTexture::GetAssetUserDataArray() const
 {
-	return &AssetUserData;
+	return &ToRawPtrTArrayUnsafe(AssetUserData);
 }
 
 FStreamableRenderResourceState UTexture::GetResourcePostInitState(FTexturePlatformData* PlatformData, bool bAllowStreaming, int32 MinRequestMipCount, int32 MaxMipCount) const

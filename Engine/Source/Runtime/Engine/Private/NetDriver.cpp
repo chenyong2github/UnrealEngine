@@ -5115,7 +5115,7 @@ void UNetDriver::PrintDebugRelevantActors()
 void UNetDriver::DrawNetDriverDebug()
 {
 #if ENABLE_DRAW_DEBUG
-	UNetConnection *Connection = (ServerConnection ? ToRawPtr(ServerConnection) : (ClientConnections.Num() >= 1 ? ClientConnections[0] : NULL));
+	UNetConnection *Connection = (ServerConnection ? ToRawPtr(ServerConnection) : (ClientConnections.Num() >= 1 ? ToRawPtr(ClientConnections[0]) : NULL));
 	if (!Connection)
 	{
 		return;

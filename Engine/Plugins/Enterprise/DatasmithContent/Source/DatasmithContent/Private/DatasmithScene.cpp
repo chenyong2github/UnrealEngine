@@ -155,7 +155,7 @@ void UDatasmithScene::RemoveUserDataOfClass( TSubclassOf<UAssetUserData> InUserD
 const TArray<UAssetUserData*>* UDatasmithScene::GetAssetUserDataArray() const
 {
 #if WITH_EDITORONLY_DATA
-	return &AssetUserData;
+	return &ToRawPtrTArrayUnsafe(AssetUserData);
 #else
 	return NULL;
 #endif // #if WITH_EDITORONLY_DATA

@@ -118,7 +118,7 @@ void UAIPerceptionComponent::ConfigureSense(UAISenseConfig& Config)
 {
 	// first check if we're reconfiguring a sense
 	bool bIsNewConfig = true;
-	for (UAISenseConfig*& SenseConfig : SensesConfig)
+	for (UE_TRANSITIONAL_OBJECT_PTR(UAISenseConfig)& SenseConfig : SensesConfig)
 	{
 		if (SenseConfig != nullptr && SenseConfig->GetClass() == Config.GetClass())
 		{
@@ -154,7 +154,7 @@ void UAIPerceptionComponent::ConfigureSense(UAISenseConfig& Config)
 
 UAIPerceptionComponent::TAISenseConfigConstIterator UAIPerceptionComponent::GetSensesConfigIterator() const
 {
-	return SensesConfig.CreateConstIterator();
+	return ToRawPtrTArrayUnsafe(SensesConfig).CreateConstIterator();
 }
 
 void UAIPerceptionComponent::SetMaxStimulusAge(FAISenseID SenseID, float MaxAge)

@@ -281,7 +281,7 @@ UVariantSet* ULevelVariantSets::GetVariantSet(int32 VariantSetIndex)
 
 UVariantSet* ULevelVariantSets::GetVariantSetByName(FString VariantSetName)
 {
-	UVariantSet** VarSetPtr = VariantSets.FindByPredicate([VariantSetName](const UVariantSet* VarSet)
+	UE_TRANSITIONAL_OBJECT_PTR(UVariantSet)* VarSetPtr = VariantSets.FindByPredicate([VariantSetName](const UVariantSet* VarSet)
 	{
 		return VarSet->GetDisplayText().ToString() == VariantSetName;
 	});
