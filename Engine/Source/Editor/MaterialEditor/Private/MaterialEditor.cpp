@@ -5720,7 +5720,7 @@ void FMaterialEditor::OnNodeDoubleClicked(class UEdGraphNode* Node)
 {
 	UMaterialGraphNode* GraphNode = Cast<UMaterialGraphNode>(Node);
 
-	if (GraphNode)
+	if (GraphNode && GraphNode->MaterialExpression)
 	{
 		UMaterialExpressionConstant3Vector* Constant3Expression = Cast<UMaterialExpressionConstant3Vector>(GraphNode->MaterialExpression);
 		UMaterialExpressionConstant4Vector* Constant4Expression = Cast<UMaterialExpressionConstant4Vector>(GraphNode->MaterialExpression);
@@ -5817,6 +5817,16 @@ void FMaterialEditor::OnNodeDoubleClicked(class UEdGraphNode* Node)
 		if (ObjectToEdit)
 		{
 			GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(ObjectToEdit);
+		}
+
+		// Double click actions for named reroute nodes
+		if (GraphNode->MaterialExpression->IsA<UMaterialExpressionNamedRerouteDeclaration>())
+		{
+			OnSelectNamedRerouteUsages();
+		}
+		else if (GraphNode->MaterialExpression->IsA<UMaterialExpressionNamedRerouteUsage>())
+		{
+			OnSelectNamedRerouteDeclaration();
 		}
 	}
 }
