@@ -67,10 +67,6 @@ public:
 	UPROPERTY(EditAnywhere, config, Category=Workflow)
 	bool bFlattenFavoritesMenus;
 
-	/** If enabled, then placed cast nodes will default to their "pure" form (meaning: without execution pins). */
-	UPROPERTY(EditAnywhere, config, AdvancedDisplay, Category=Experimental, meta=(DisplayName="Default to Using Pure Cast Nodes"))
-	bool bFavorPureCastNodes;
-
 	/** If enabled, then you'll be able to directly connect arbitrary object pins together (a pure cast node will be injected automatically). */
 	UPROPERTY(EditAnywhere, config, Category=Workflow)
 	bool bAutoCastObjectConnections;
@@ -79,6 +75,71 @@ public:
 	UPROPERTY(EditAnywhere, config, Category=Workflow)
 	bool bShowViewportOnSimulate;
 
+	/** If set will spawn default "ghost" event nodes in new Blueprints, modifiable in the [DefaultEventNodes] section of EditorPerProjectUserSettings */
+	UPROPERTY(EditAnywhere, config, Category = Workflow)
+		bool bSpawnDefaultBlueprintNodes;
+
+	/** If set will exclude components added in a Blueprint class Construction Script from the component details view */
+	UPROPERTY(EditAnywhere, config, Category = Workflow)
+		bool bHideConstructionScriptComponentsInDetailsView;
+
+	/** If set, the global Find in Blueprints command (CTRL-SHIFT-F) will be hosted in a standalone tab. This tab can remain open after the Blueprint Editor context is closed. */
+	UPROPERTY(EditAnywhere, config, Category = Workflow)
+		bool bHostFindInBlueprintsInGlobalTab;
+
+	/** If set, double clicking on a call function node will attempt to navigate an open C++ editor to the native source definition */
+	UPROPERTY(EditAnywhere, config, Category = Workflow)
+		bool bNavigateToNativeFunctionsFromCallNodes;
+
+// Experimental
+public:
+	// The list of namespaces to always expose in any Blueprint (local per-user)
+	UPROPERTY(EditAnywhere, config, Category = Experimental)
+		TArray<FString> NamespacesToAlwaysInclude;
+
+	/** If enabled, then placed cast nodes will default to their "pure" form (meaning: without execution pins). */
+	UPROPERTY(EditAnywhere, config, AdvancedDisplay, Category = Experimental, meta = (DisplayName = "Default to Using Pure Cast Nodes"))
+		bool bFavorPureCastNodes;
+
+	// Compiler Settings
+public:
+	/** Determines when to save Blueprints post-compile */
+	UPROPERTY(EditAnywhere, config, Category = Compiler)
+		TEnumAsByte<ESaveOnCompile> SaveOnCompile;
+
+	/** When enabled, if a blueprint has compiler errors, then the graph will jump and focus on the first node generating an error */
+	UPROPERTY(EditAnywhere, config, Category = Compiler)
+		bool bJumpToNodeErrors;
+
+	/** If enabled, nodes can be explicitly disabled via context menu when right-clicking on impure nodes in the Blueprint editor. Disabled nodes will not be compiled, but also will not break existing connections. */
+	UPROPERTY(EditAnywhere, config, Category = Experimental, AdvancedDisplay)
+		bool bAllowExplicitImpureNodeDisabling;
+
+	// Developer Settings
+public:
+	/** If enabled, tooltips on action menu items will show the associated action's signature id (can be used to setup custom favorites menus).*/
+	UPROPERTY(EditAnywhere, config, Category = DeveloperTools)
+		bool bShowActionMenuItemSignatures;
+
+	/** If enabled, blueprint nodes in the event graph will display with unique names rather than their display name. */
+	UPROPERTY(EditAnywhere, config, Category = DeveloperTools, meta = (DisplayName = "Display Unique Names for Blueprint Nodes"))
+		bool bBlueprintNodeUniqueNames;
+
+	// Perf Settings
+public:
+	/** If enabled, additional details will be displayed in the Compiler Results tab after compiling a blueprint. */
+	UPROPERTY(EditAnywhere, config, Category = Performance)
+		bool bShowDetailedCompileResults;
+
+	/** Minimum event time threshold used as a filter when additional details are enabled for display in the Compiler Results tab. A value of zero means that all events will be included in the final summary. */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, config, Category = Performance, DisplayName = "Compile Event Results Threshold (ms)", meta = (ClampMin = "0", UIMin = "0"))
+		int32 CompileEventDisplayThresholdMs;
+
+	/** The node template cache is used to speed up blueprint menuing. This determines the peak data size for that cache. */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, config, Category = Performance, DisplayName = "Node-Template Cache Cap (MB)", meta = (ClampMin = "0", UIMin = "0"))
+		float NodeTemplateCacheCapMB;
+
+public:
 	/** If set we'll show the inherited variables in the My Blueprint view. */
 	UPROPERTY(config)
 	bool bShowInheritedVariables;
@@ -98,22 +159,6 @@ public:
 	/** If set we'll show the access specifier of functions in the My Blueprint view */
 	UPROPERTY(config)
 	bool bShowAccessSpecifier;
-
-	/** If set will spawn default "ghost" event nodes in new Blueprints, modifiable in the [DefaultEventNodes] section of EditorPerProjectUserSettings */
-	UPROPERTY(EditAnywhere, config, Category=Workflow)
-	bool bSpawnDefaultBlueprintNodes;
-
-	/** If set will exclude components added in a Blueprint class Construction Script from the component details view */
-	UPROPERTY(EditAnywhere, config, Category=Workflow)
-	bool bHideConstructionScriptComponentsInDetailsView;
-
-	/** If set, the global Find in Blueprints command (CTRL-SHIFT-F) will be hosted in a standalone tab. This tab can remain open after the Blueprint Editor context is closed. */
-	UPROPERTY(EditAnywhere, config, Category=Workflow)
-	bool bHostFindInBlueprintsInGlobalTab;
-	
-	/** If set, double clicking on a call function node will attempt to navigate an open C++ editor to the native source definition */
-	UPROPERTY(EditAnywhere, config, Category=Workflow)
-	bool bNavigateToNativeFunctionsFromCallNodes;
 
 	/** Blueprint bookmark database */
 	UPROPERTY(config)
@@ -135,48 +180,19 @@ public:
 	UPROPERTY(config)
 	TMap<int32, FEditedDocumentInfo> GraphEditorQuickJumps;
 
-// Compiler Settings
 public:
-	/** Determines when to save Blueprints post-compile */
-	UPROPERTY(EditAnywhere, config, Category=Compiler)
-	TEnumAsByte<ESaveOnCompile> SaveOnCompile;
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnUpdateSettingsMulticaster, const UBlueprintEditorSettings*, EPropertyChangeType::Type);
+	FOnUpdateSettingsMulticaster OnSettingsChange;
 
-	/** When enabled, if a blueprint has compiler errors, then the graph will jump and focus on the first node generating an error */
-	UPROPERTY(EditAnywhere, config, Category=Compiler)
-	bool bJumpToNodeErrors;
+	FDelegateHandle RegisterOnUpdateSettings(const FOnUpdateSettingsMulticaster::FDelegate& Delegate)
+	{
+		return OnSettingsChange.Add(Delegate);
+	}
 
-	/** If enabled, nodes can be explicitly disabled via context menu when right-clicking on impure nodes in the Blueprint editor. Disabled nodes will not be compiled, but also will not break existing connections. */
-	UPROPERTY(EditAnywhere, config, Category=Experimental, AdvancedDisplay)
-	bool bAllowExplicitImpureNodeDisabling;
-
-// Developer Settings
-public:
-	/** If enabled, tooltips on action menu items will show the associated action's signature id (can be used to setup custom favorites menus).*/
-	UPROPERTY(EditAnywhere, config, Category=DeveloperTools)
-	bool bShowActionMenuItemSignatures;
-
-	/** If enabled, blueprint nodes in the event graph will display with unique names rather than their display name. */
-	UPROPERTY(EditAnywhere, config, Category = DeveloperTools, meta = (DisplayName = "Display Unique Names for Blueprint Nodes"))
-	bool bBlueprintNodeUniqueNames;
-
-public:
-	// The list of namespaces to always expose in any Blueprint (local per-user)
-	UPROPERTY(EditAnywhere, config, Category = Experimental)
-	TArray<FString> NamespacesToAlwaysInclude;
-
-// Perf Settings
-public:
-	/** If enabled, additional details will be displayed in the Compiler Results tab after compiling a blueprint. */
-	UPROPERTY(EditAnywhere, config, Category=Performance)
-	bool bShowDetailedCompileResults;
-
-	/** Minimum event time threshold used as a filter when additional details are enabled for display in the Compiler Results tab. A value of zero means that all events will be included in the final summary. */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, config, Category=Performance, DisplayName="Compile Event Results Threshold (ms)", meta=(ClampMin="0", UIMin="0"))
-	int32 CompileEventDisplayThresholdMs;
-
-	/** The node template cache is used to speed up blueprint menuing. This determines the peak data size for that cache. */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, config, Category=Performance, DisplayName="Node-Template Cache Cap (MB)", meta=(ClampMin="0", UIMin="0"))
-	float NodeTemplateCacheCapMB;
+	void UnregisterOnUpdateSettings(FDelegateHandle Object)
+	{
+		OnSettingsChange.Remove(Object);
+	}
 
 protected:
 	//~ Begin UObject Interface

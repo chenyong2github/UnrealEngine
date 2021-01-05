@@ -30,6 +30,7 @@ public:
 	 */
 	virtual TSharedRef<IAnimationBlueprintEditor> CreateAnimationBlueprintEditor(const EToolkitMode::Type Mode, const TSharedPtr< class IToolkitHost >& InitToolkitHost, class UAnimBlueprint* Blueprint) = 0;
 
+
 	/** Get all toolbar extenders */
 	DECLARE_DELEGATE_RetVal_TwoParams(TSharedRef<FExtender>, FAnimationBlueprintEditorToolbarExtender, const TSharedRef<FUICommandList> /*InCommandList*/, TSharedRef<IAnimationBlueprintEditor> /*InAnimationBlueprintEditor*/);
 	virtual TArray<FAnimationBlueprintEditorToolbarExtender>& GetAllAnimationBlueprintEditorToolbarExtenders() = 0;

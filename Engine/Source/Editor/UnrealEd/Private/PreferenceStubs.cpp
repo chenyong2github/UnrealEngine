@@ -275,3 +275,10 @@ FAssetEditorOptions& UPersonaOptions::GetAssetEditorOptions(const FName& InConte
 		return *FoundOptions;
 	}
 }
+
+void UPersonaOptions::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
+{
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+
+	OnSettingsChange.Broadcast(this, PropertyChangedEvent.ChangeType);
+}

@@ -1,0 +1,41 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "CoreMinimal.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/Object.h"
+#include "Engine/EngineBaseTypes.h"
+#include "AnimationBlueprintEditorSettings.generated.h"
+
+
+// Settings for the Animation Blueprint Editor
+UCLASS(config = EditorPerProjectUserSettings)
+class UAnimationBlueprintEditorSettings : public UObject
+{
+	GENERATED_BODY()
+
+public:
+	/** If true, automatically pose watch selected nodes. */
+	UPROPERTY(EditAnywhere, config, Category = "Debugging")
+	bool bPoseWatchSelectedNodes = false;
+
+public:
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnUpdateSettingsMulticaster, const UAnimationBlueprintEditorSettings*, EPropertyChangeType::Type);
+	FOnUpdateSettingsMulticaster OnSettingsChange;
+
+	FDelegateHandle RegisterOnUpdateSettings(const FOnUpdateSettingsMulticaster::FDelegate& Delegate)
+	{
+		return OnSettingsChange.Add(Delegate);
+	}
+
+	void UnregisterOnUpdateSettings(FDelegateHandle Object)
+	{
+		OnSettingsChange.Remove(Object);
+	}
+
+protected:
+	//~ Begin UObject Interface
+	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	//~ End UObject Interface
+};

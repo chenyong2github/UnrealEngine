@@ -18,6 +18,7 @@
 #include "AnimationGraphSchema.h"
 #include "SGraphPin.h"
 #include "Widgets/Layout/SWrapBox.h"
+#include "Brushes/SlateColorBrush.h"
 
 #define LOCTEXT_NAMESPACE "AnimationGraphNode"
 
@@ -33,10 +34,13 @@ public:
 	{
 		PoseWatch = InArgs._PoseWatch;
 
-		static FColor PoseWatchColours[] = { FColor::Red, FColor::Green, FColor::Blue, FColor::Cyan, FColor::Orange, FColor::Purple, FColor::Yellow, FColor::Black };
+		static const FSlateColorBrush WhiteBrush(FLinearColor::White);
+
+		TArrayView<const FColor> PoseWatchColors = AnimationEditorUtils::GetPoseWatchColorPalette();
+		const int32 NumColors = PoseWatchColors.Num();
 
 		const int32 Rows = 2;
-		const int32 Columns = 4;
+		const int32 Columns = NumColors / Rows;
 
 		TSharedPtr<SVerticalBox> Layout = SNew(SVerticalBox);
 
@@ -46,16 +50,26 @@ public:
 
 			for (int32 RowItem = 0; RowItem < Columns; ++RowItem)
 			{
-				int32 ColourIndex = RowItem + (RowIndex * Columns);
-				FColor Colour = PoseWatchColours[ColourIndex];
+				int32 ColorIndex = RowItem + (RowIndex * Columns);
+				FColor Color = PoseWatchColors[ColorIndex];
+				if (ColorIndex >= NumColors)
+				{
+					break;
+				}
 
 				Row->AddSlot()
 				.Padding(5.f, 2.f)
 				[
 					SNew(SButton)
+					.ButtonStyle(FAppStyle::Get(), "NoBorder")
 					.HAlign(HAlign_Center)
-					.OnClicked(this, &SPoseViewColourPickerPopup::NewPoseWatchColourPicked, Colour)
-					.ButtonColorAndOpacity(Colour)
+					.OnClicked(this, &SPoseViewColourPickerPopup::NewPoseWatchColourPicked, Color)
+					[
+						SNew(SImage)
+						.Image(&WhiteBrush)
+						.DesiredSizeOverride(FVector2D(24, 24))
+						.ColorAndOpacity(Color)
+					]
 				];
 
 			}

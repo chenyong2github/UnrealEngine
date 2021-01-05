@@ -227,4 +227,21 @@ public:
 	void SetNotifyTimingNodeColor(const FLinearColor& InColor);
 	void SetBranchingPointTimingNodeColor(const FLinearColor& InColor);
 	FAssetEditorOptions& GetAssetEditorOptions(const FName& InContext);
+
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnUpdateSettingsMulticaster, const UPersonaOptions*, EPropertyChangeType::Type);
+	FOnUpdateSettingsMulticaster OnSettingsChange;
+
+	FDelegateHandle RegisterOnUpdateSettings(const FOnUpdateSettingsMulticaster::FDelegate& Delegate)
+	{
+		return OnSettingsChange.Add(Delegate);
+	}
+
+	void UnregisterOnUpdateSettings(FDelegateHandle Object)
+	{
+		OnSettingsChange.Remove(Object);
+	}
+
+protected:
+	// UObject interface
+	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 };

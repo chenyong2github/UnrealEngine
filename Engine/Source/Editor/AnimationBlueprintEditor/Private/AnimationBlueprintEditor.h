@@ -20,6 +20,7 @@ class UAnimGraphNode_Base;
 class UEdGraph;
 class USkeletalMesh;
 class ISkeletonTreeItem;
+class UAnimationBlueprintEditorSettings;
 
 struct FToolMenuContext;
 
@@ -99,7 +100,7 @@ public:
 	/** IHasPersonaToolkit interface */
 	virtual TSharedRef<class IPersonaToolkit> GetPersonaToolkit() const { return PersonaToolkit.ToSharedRef(); }
 
-	/** FBlueprintEdi1tor interface */
+	/** FBlueprintEditor interface */
 	virtual void OnActiveTabChanged(TSharedPtr<SDockTab> PreviouslyActive, TSharedPtr<SDockTab> NewlyActivated) override;
 	virtual void OnSelectedNodesChangedImpl(const TSet<class UObject*>& NewSelection) override;
 	virtual void HandleSetObjectBeingDebugged(UObject* InObject) override;
@@ -288,6 +289,12 @@ private:
 	/** Handle the preview anim blueprint being compiled */
 	void HandlePreviewAnimBlueprintCompiled(UBlueprint* InBlueprint);
 
+	/** Enable/disable pose watch on selected nodes */
+	void HandlePoseWatchSelectedNodes();
+
+	/** Removes all pose watches created by selectionfrom the current view */
+	void RemoveAllSelectionPoseWatches();
+
     /**
 	 * Load editor settings from disk (docking state, window pos/size, option state, etc).
 	 */
@@ -299,6 +306,11 @@ private:
 	virtual void SaveEditorSettings();
 
 	void HandleAnimationSequenceBrowserCreated(const TSharedRef<IAnimationSequenceBrowser>& InSequenceBrowser);
+
+	void HandleUpdateSettings(const UAnimationBlueprintEditorSettings* AnimationBlueprintEditorSettings, EPropertyChangeType::Type ChangeType);
+
+	/** Chooses a suitable pose watch colour automatically - i.e. one that isn't already in use (if possible) */
+	FColor ChoosePoseWatchColor() const;
 
 	/** The extender to pass to the level editor to extend it's window menu */
 	TSharedPtr<FExtender> MenuExtender;
@@ -332,4 +344,10 @@ private:
 
 	/** Cached mesh component held during compilation, used to reconnect debugger */
 	USkeletalMeshComponent* DebuggedMeshComponent;
+
+	/** Used to track wither the editor option has changed */
+	bool bPreviousPoseWatchSelectedNodes = false;
+
+	/** Delegate handle registered for when settings change */
+	FDelegateHandle AnimationBlueprintEditorSettingsChangedHandle;
 };

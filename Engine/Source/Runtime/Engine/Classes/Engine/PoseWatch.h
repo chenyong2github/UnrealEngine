@@ -31,4 +31,8 @@ public:
 
 	UPROPERTY()
 	FColor PoseWatchColour;
+
+	/** If true then the watch will be deleted when the connected node is deleted */
+	UPROPERTY()
+	bool bDeleteOnDeselection = false;
 };

@@ -19,7 +19,6 @@
 #include "BlueprintEditorTabs.h"
 #include "SKismetInspector.h"
 
-
 #include "EdGraphUtilities.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "Kismet2/DebuggerCommands.h"
@@ -74,6 +73,7 @@
 
 // Hide related nodes feature
 #include "Preferences/AnimationBlueprintEditorOptions.h"
+#include "AnimationBlueprintEditorSettings.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "EdGraphNode_Comment.h"
 #include "AnimStateNodeBase.h"
@@ -174,6 +174,14 @@ FAnimationBlueprintEditor::FAnimationBlueprintEditor()
 
 FAnimationBlueprintEditor::~FAnimationBlueprintEditor()
 {
+	// Stop watching the settings
+	UAnimationBlueprintEditorSettings* AnimationBlueprintEditorSettings = GetMutableDefault<UAnimationBlueprintEditorSettings>();
+	AnimationBlueprintEditorSettings->UnregisterOnUpdateSettings(AnimationBlueprintEditorSettingsChangedHandle);
+
+	// Remove all Pose Watches that were created as a result of selection, otherwise if the editor options are changed 
+	// they will still be active if we get recreated even though the nodes won't be selected.
+	RemoveAllSelectionPoseWatches();
+
 	GEditor->OnBlueprintPreCompile().RemoveAll(this);
 
 	GEditor->GetEditorSubsystem<UImportSubsystem>()->OnAssetPostImport.RemoveAll(this);
@@ -182,6 +190,19 @@ FAnimationBlueprintEditor::~FAnimationBlueprintEditor()
 	// NOTE: Any tabs that we still have hanging out when destroyed will be cleaned up by FBaseToolkit's destructor
 
 	SaveEditorSettings();
+}
+
+void FAnimationBlueprintEditor::HandleUpdateSettings(const UAnimationBlueprintEditorSettings* AnimationBlueprintEditorSettings, EPropertyChangeType::Type ChangeType)
+{
+	if (AnimationBlueprintEditorSettings->bPoseWatchSelectedNodes != bPreviousPoseWatchSelectedNodes)
+	{
+		bPreviousPoseWatchSelectedNodes = AnimationBlueprintEditorSettings->bPoseWatchSelectedNodes;
+		RemoveAllSelectionPoseWatches();
+		if (AnimationBlueprintEditorSettings->bPoseWatchSelectedNodes)
+		{
+			HandlePoseWatchSelectedNodes();
+		}
+	}
 }
 
 UAnimBlueprint* FAnimationBlueprintEditor::GetAnimBlueprint() const
@@ -323,6 +344,10 @@ void FAnimationBlueprintEditor::InitAnimationBlueprintEditor(const EToolkitMode:
 	{
 		NewDocument_OnClick(CGT_NewAnimationLayer);
 	}
+
+	// Register for notifications when settings change
+	AnimationBlueprintEditorSettingsChangedHandle = GetMutableDefault<UAnimationBlueprintEditorSettings>()->RegisterOnUpdateSettings(
+		UAnimationBlueprintEditorSettings::FOnUpdateSettingsMulticaster::FDelegate::CreateSP(this, &FAnimationBlueprintEditor::HandleUpdateSettings));
 }
 
 void FAnimationBlueprintEditor::BindCommands()
@@ -406,6 +431,12 @@ void FAnimationBlueprintEditor::SetDetailObject(UObject* Obj)
 /** Called when graph editor focus is changed */
 void FAnimationBlueprintEditor::OnGraphEditorFocused(const TSharedRef<class SGraphEditor>& InGraphEditor)
 {
+	// Remove pose watches now before calling the base class implementation because that will switch the focus
+	if (GetDefault<UAnimationBlueprintEditorSettings>()->bPoseWatchSelectedNodes)
+	{
+		RemoveAllSelectionPoseWatches();
+	}
+
 	// in the future, depending on which graph editor is this will act different
 	FBlueprintEditor::OnGraphEditorFocused(InGraphEditor);
 
@@ -419,6 +450,11 @@ void FAnimationBlueprintEditor::OnGraphEditorFocused(const TSharedRef<class SGra
 	if (bHideUnrelatedNodes && GetSelectedNodes().Num() <= 0)
 	{
 		ResetAllNodesUnrelatedStates();
+	}
+
+	if (GetDefault<UAnimationBlueprintEditorSettings>()->bPoseWatchSelectedNodes)
+	{
+		HandlePoseWatchSelectedNodes();
 	}
 }
 
@@ -552,6 +588,64 @@ void FAnimationBlueprintEditor::OnRemovePosePin()
 	}
 }
 
+FColor FAnimationBlueprintEditor::ChoosePoseWatchColor() const
+{
+	TArrayView<const FColor> PoseWatchColors = AnimationEditorUtils::GetPoseWatchColorPalette();
+	const int32 NumColors = PoseWatchColors.Num();
+
+	if (NumColors <= 0)
+	{
+		return FColor::Red;
+	}
+
+	struct FColorCount 
+	{ 
+		FColor Color; 
+		int    Count;
+		bool operator<(const FColorCount& Other) const { return Count < Other.Count; }
+	};
+	TArray<FColorCount> ColorCounts;
+	ColorCounts.SetNum(NumColors);
+	for (int ColorIndex = 0 ; ColorIndex != NumColors ; ++ColorIndex)
+	{
+		ColorCounts[ColorIndex].Color = PoseWatchColors[ColorIndex];
+		ColorCounts[ColorIndex].Count = 0;
+	}
+
+	TSharedPtr<SGraphEditor> FocusedGraphEd = FocusedGraphEdPtr.Pin();
+	if (FocusedGraphEd.IsValid())
+	{
+		UAnimBlueprint* AnimBP = GetAnimBlueprint();
+		for (UEdGraphNode* Node : FocusedGraphEd->GetCurrentGraph()->Nodes)
+		{
+			UAnimGraphNode_Base* GraphNode = Cast<UAnimGraphNode_Base>(Node);
+			UPoseWatch* PoseWatch = AnimationEditorUtils::FindPoseWatchForNode(GraphNode, AnimBP);
+			if (PoseWatch)
+			{
+				FColor PoseWatchColor = PoseWatch->PoseWatchColour;
+				int32 Index = ColorCounts.IndexOfByPredicate([PoseWatchColor](const FColorCount& CC){return PoseWatchColor == CC.Color;});
+				if (Index != INDEX_NONE)
+				{
+					++ColorCounts[Index].Count;
+				}
+			}
+		}
+	}
+
+	// Pick the colour with the lowest count, preferring the original order if there's a tie (which there normally will be)
+	int BestIndex = 0;
+	for (int ColorIndex = 1 ; ColorIndex < NumColors ; ++ColorIndex)
+	{
+		if (ColorCounts[ColorIndex].Count < ColorCounts[BestIndex].Count)
+		{
+			BestIndex = ColorIndex;
+		}
+	}
+
+	return ColorCounts[BestIndex].Color;
+}
+
+
 void FAnimationBlueprintEditor::OnTogglePoseWatch()
 {
 	const FGraphPanelSelectionSet SelectedNodes = GetSelectedNodes();
@@ -568,7 +662,7 @@ void FAnimationBlueprintEditor::OnTogglePoseWatch()
 			}
 			else
 			{
-				AnimationEditorUtils::MakePoseWatchForNode(AnimBP, SelectedNode, FColor::Red);
+				AnimationEditorUtils::MakePoseWatchForNode(AnimBP, SelectedNode, ChoosePoseWatchColor());
 			}
 		}
 	}
@@ -1560,8 +1654,71 @@ void FAnimationBlueprintEditor::OnSelectedNodesChangedImpl(const TSet<class UObj
 			HideUnrelatedNodes();
 		}
 	}
+
+	if (GetDefault<UAnimationBlueprintEditorSettings>()->bPoseWatchSelectedNodes)
+	{
+		HandlePoseWatchSelectedNodes();
+	}
 }
 
+void FAnimationBlueprintEditor::HandlePoseWatchSelectedNodes()
+{
+	TSharedPtr<SGraphEditor> FocusedGraphEd = FocusedGraphEdPtr.Pin();
+	if (FocusedGraphEd.IsValid())
+	{
+		UAnimBlueprint* AnimBP = GetAnimBlueprint();
+		TArray<UEdGraphNode*> AllNodes = FocusedGraphEd->GetCurrentGraph()->Nodes;
+
+		FGraphPanelSelectionSet SelectionNodes = GetSelectedNodes();
+
+		for (UEdGraphNode* Node : AllNodes)
+		{
+			UAnimGraphNode_Base* GraphNode = Cast<UAnimGraphNode_Base>(Node);
+			UPoseWatch* PoseWatch = AnimationEditorUtils::FindPoseWatchForNode(GraphNode, AnimBP);
+			if (GraphNode)
+			{
+				if (SelectionNodes.Contains(Node))
+				{
+					if (!PoseWatch)
+					{
+						PoseWatch = AnimationEditorUtils::MakePoseWatchForNode(AnimBP, GraphNode, ChoosePoseWatchColor());
+						PoseWatch->bDeleteOnDeselection = true;
+					}
+				}
+				else
+				{
+					if (PoseWatch && PoseWatch->bDeleteOnDeselection)
+					{
+						AnimationEditorUtils::RemovePoseWatch(PoseWatch, AnimBP);
+					}
+				}
+			}
+		}
+	}
+}
+
+void FAnimationBlueprintEditor::RemoveAllSelectionPoseWatches()
+{
+	TSharedPtr<SGraphEditor> FocusedGraphEd = FocusedGraphEdPtr.Pin();
+	if (FocusedGraphEd.IsValid())
+	{
+		UAnimBlueprint* AnimBP = GetAnimBlueprint();
+		TArray<UEdGraphNode*> AllNodes = FocusedGraphEd->GetCurrentGraph()->Nodes;
+
+		for (UEdGraphNode* Node : AllNodes)
+		{
+			UAnimGraphNode_Base* GraphNode = Cast<UAnimGraphNode_Base>(Node);
+			if (GraphNode)
+			{
+				UPoseWatch* PoseWatch = AnimationEditorUtils::FindPoseWatchForNode(GraphNode, AnimBP);
+				if (PoseWatch && PoseWatch->bDeleteOnDeselection)
+				{
+					AnimationEditorUtils::RemovePoseWatch(PoseWatch, AnimBP);
+				}
+			}
+		}
+	}
+}
 void FAnimationBlueprintEditor::OnPostCompile()
 {
 	// act as if we have re-selected, so internal pointers are updated

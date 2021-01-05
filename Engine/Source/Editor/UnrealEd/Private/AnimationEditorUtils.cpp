@@ -882,15 +882,17 @@ namespace AnimationEditorUtils
 #endif
 	}
 
-	void MakePoseWatchForNode(UAnimBlueprint* AnimBlueprint, UEdGraphNode* Node, FColor PoseWatchColour)
+	UPoseWatch* MakePoseWatchForNode(UAnimBlueprint* AnimBlueprint, UEdGraphNode* Node, FColor PoseWatchColour)
 	{
 #if WITH_EDITORONLY_DATA
 		UPoseWatch* NewPoseWatch = NewObject<UPoseWatch>(AnimBlueprint);
 		NewPoseWatch->Node = Node;
 		NewPoseWatch->PoseWatchColour = PoseWatchColour;
 		AnimBlueprint->PoseWatches.Add(NewPoseWatch);
-
 		SetPoseWatch(NewPoseWatch, AnimBlueprint);
+		return NewPoseWatch;
+#else
+		return nullptr;
 #endif
 	}
 
@@ -913,6 +915,13 @@ namespace AnimationEditorUtils
 			}
 		}
 #endif
+	}
+
+	TArrayView<const FColor> GetPoseWatchColorPalette()
+	{
+		static const FColor PoseWatchColors[] = { FColor::Red, FColor::Green, FColor::Blue, FColor::Cyan, FColor::Orange, FColor::Purple, FColor::Yellow, FColor::Black };
+		size_t NumColors = sizeof(PoseWatchColors) / sizeof(PoseWatchColors[0]);
+		return MakeArrayView(PoseWatchColors, NumColors);
 	}
 
 	void UpdatePoseWatchColour(UPoseWatch* PoseWatch, FColor NewPoseWatchColour)

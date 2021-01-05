@@ -23,20 +23,14 @@ UBlueprintEditorSettings::UBlueprintEditorSettings(const FObjectInitializer& Obj
 	, bExposeDeprecatedFunctions(false)
 	, bCompactCallOnMemberNodes(false)
 	, bFlattenFavoritesMenus(true)
-	, bFavorPureCastNodes(false)
 	, bAutoCastObjectConnections(false)
 	, bShowViewportOnSimulate(false)
-	, bShowInheritedVariables(false)
-	, bAlwaysShowInterfacesInOverrides(true)
-	, bShowParentClassInOverrides(true)
-	, bShowEmptySections(true)
-	, bShowAccessSpecifier(false)
 	, bSpawnDefaultBlueprintNodes(true)
 	, bHideConstructionScriptComponentsInDetailsView(true)
 	, bHostFindInBlueprintsInGlobalTab(true)
 	, bNavigateToNativeFunctionsFromCallNodes(true)
-	, bIncludeCommentNodesInBookmarksTab(true)
-	, bShowBookmarksForCurrentDocumentOnlyInTab(false)
+	// Experimental
+	, bFavorPureCastNodes(false)
 	// Compiler Settings
 	, SaveOnCompile(SoC_Never)
 	, bJumpToNodeErrors(false)
@@ -47,6 +41,14 @@ UBlueprintEditorSettings::UBlueprintEditorSettings(const FObjectInitializer& Obj
 	, bShowDetailedCompileResults(false)
 	, CompileEventDisplayThresholdMs(5)
 	, NodeTemplateCacheCapMB(20.f)
+	// No category
+	, bShowInheritedVariables(false)
+	, bAlwaysShowInterfacesInOverrides(true)
+	, bShowParentClassInOverrides(true)
+	, bShowEmptySections(true)
+	, bShowAccessSpecifier(false)
+	, bIncludeCommentNodesInBookmarksTab(true)
+	, bShowBookmarksForCurrentDocumentOnlyInTab(false)
 {
 	// settings that were moved out of experimental...
 	UEditorExperimentalSettings const* ExperimentalSettings = GetDefault<UEditorExperimentalSettings>();
@@ -100,4 +102,6 @@ void UBlueprintEditorSettings::PostEditChangeProperty(FPropertyChangedEvent& Pro
 	}
 
 	Super::PostEditChangeProperty(PropertyChangedEvent);
+
+	OnSettingsChange.Broadcast(this, PropertyChangedEvent.ChangeType);
 }

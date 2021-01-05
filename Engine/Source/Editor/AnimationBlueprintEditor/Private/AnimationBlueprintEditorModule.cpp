@@ -2,6 +2,7 @@
 
 #include "AnimationBlueprintEditorModule.h"
 #include "AnimationGraphFactory.h"
+#include "AnimationBlueprintEditorSettings.h"
 #include "Animation/AnimInstance.h"
 #include "AnimationBlueprintEditor.h"
 #include "EdGraphSchema_K2.h"
@@ -9,6 +10,7 @@
 #include "Animation/AnimBlueprint.h"
 #include "Kismet2/KismetEditorUtilities.h"
 #include "Developer/MessageLog/Public/MessageLogModule.h"
+#include "ISettingsModule.h"
 
 IMPLEMENT_MODULE( FAnimationBlueprintEditorModule, AnimationBlueprintEditor);
 
@@ -35,6 +37,13 @@ void FAnimationBlueprintEditorModule::StartupModule()
 	InitOptions.bShowFilters = true;
 	InitOptions.bShowPages = true;
 	MessageLogModule.RegisterLogListing("AnimBlueprintLog", LOCTEXT("AnimBlueprintLog", "Anim Blueprint Log"), InitOptions);
+
+	ISettingsModule& SettingsModule = FModuleManager::LoadModuleChecked<ISettingsModule>("Settings");
+	SettingsModule.RegisterSettings("Editor", "ContentEditors", "AnimationBlueprintEditor",
+		LOCTEXT("AnimationBlueprintEditorSettingsName", "Animation Blueprint Editor"),
+		LOCTEXT("AnimationBlueprintEditorSettingsDescription", "Configure the look and feel of the Animation Blueprint Editor."),
+		GetMutableDefault<UAnimationBlueprintEditorSettings>());
+
 }
 
 void FAnimationBlueprintEditorModule::ShutdownModule()
@@ -44,6 +53,9 @@ void FAnimationBlueprintEditorModule::ShutdownModule()
 	FEdGraphUtilities::UnregisterVisualNodeFactory(AnimGraphNodeFactory);
 	FEdGraphUtilities::UnregisterVisualPinFactory(AnimGraphPinFactory);
 	FEdGraphUtilities::UnregisterVisualPinConnectionFactory(AnimGraphPinConnectionFactory);
+
+	ISettingsModule& SettingsModule = FModuleManager::LoadModuleChecked<ISettingsModule>("Settings");
+	SettingsModule.UnregisterSettings("Editor", "ContentEditors", "AnimationBlueprintEditor");
 
 	MenuExtensibilityManager.Reset();
 	ToolBarExtensibilityManager.Reset();
