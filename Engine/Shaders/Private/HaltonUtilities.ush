@@ -29,6 +29,9 @@
 
 #pragma once
 
+// PVS-Studio lexer doesn't handle hex floating point constants properly and doesn't treat "-1" as part of the constant.
+//-V:0x1.fffffcp-1:1064 
+
 float Halton_Sample2(unsigned int Index)
 {
 	// int Dimension = 0;
