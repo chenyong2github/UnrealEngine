@@ -3,10 +3,10 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Animation/AnimSequence.h"
 #include "RootMotionModifier.generated.h"
 
 class UMotionWarpingComponent;
-class UAnimSequenceBase;
 
 /** The possible states of a Root Motion Modifier */
 UENUM(BlueprintType)
