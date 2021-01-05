@@ -503,7 +503,7 @@ void UControlRig::Execute(const EControlRigState InState, const FName& InEventNa
 		{
 			bRequiresSetupEvent = bSetupModeEnabled;
 
-			if (bResetInitialTransformsBeforeSetup)
+			if (bResetInitialTransformsBeforeSetup && !bSetupModeEnabled)
 			{
 				if (UControlRig* CDO = Cast<UControlRig>(GetClass()->GetDefaultObject()))
 				{
