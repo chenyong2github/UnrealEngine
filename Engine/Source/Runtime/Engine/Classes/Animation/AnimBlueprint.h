@@ -144,9 +144,6 @@ class ENGINE_API UAnimBlueprint : public UBlueprint, public IInterface_PreviewMe
 	/** Returns the most base anim blueprint for a given blueprint (if it is inherited from another anim blueprint, returning null if only native / non-anim BP classes are it's parent) */
 	static UAnimBlueprint* FindRootAnimBlueprint(const UAnimBlueprint* DerivedBlueprint);
 
-	/** Returns the rootmost Target skeleton, searching up through the parent hierarchy until one is found */
-	static USkeleton* FindRootTargetSkeleton(const UAnimBlueprint* DerivedBlueprint);
-
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnOverrideChangedMulticaster, FGuid, UAnimationAsset*);
 
 	typedef FOnOverrideChangedMulticaster::FDelegate FOnOverrideChanged;

@@ -102,27 +102,6 @@ UAnimBlueprint* UAnimBlueprint::FindRootAnimBlueprint(const UAnimBlueprint* Deri
 	return ParentBP;
 }
 
-USkeleton* UAnimBlueprint::FindRootTargetSkeleton(const UAnimBlueprint* DerivedBlueprint)
-{
-	const UAnimBlueprint* ParentBP = nullptr;
-	USkeleton* RootTargetSkeleton = DerivedBlueprint->TargetSkeleton;
-
-	// Determine if there is an anim blueprint in the ancestry of this class
-	for (UClass* ParentClass = DerivedBlueprint->ParentClass; ParentClass && (UObject::StaticClass() != ParentClass); ParentClass = ParentClass->GetSuperClass())
-	{
-		if (UAnimBlueprint* TestBP = Cast<UAnimBlueprint>(ParentClass->ClassGeneratedBy))
-		{
-			ParentBP = TestBP;
-			if (ParentBP->TargetSkeleton)
-			{
-				RootTargetSkeleton = ParentBP->TargetSkeleton;
-			}
-		}
-	}
-
-	return RootTargetSkeleton;
-}
-
 FAnimParentNodeAssetOverride* UAnimBlueprint::GetAssetOverrideForNode(FGuid NodeGuid, bool bIgnoreSelf) const
 {
 	TArray<UBlueprint*> Hierarchy;
