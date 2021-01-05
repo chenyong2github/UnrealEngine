@@ -4685,7 +4685,7 @@ void FBlueprintEditorUtils::RemoveMemberVariable(UBlueprint* Blueprint, const FN
 
 void FBlueprintEditorUtils::BulkRemoveMemberVariables(UBlueprint* Blueprint, const TArray<FName>& VarNames)
 {
-	const FScopedTransaction Transaction( LOCTEXT("DeleteUnusedVariables", "Delete Unused Variables") );
+	const FScopedTransaction Transaction( LOCTEXT("BulkRemoveMemberVariables", "Bulk Remove Member Variables") );
 	Blueprint->Modify();
 
 	bool bModified = false;
@@ -4703,6 +4703,39 @@ void FBlueprintEditorUtils::BulkRemoveMemberVariables(UBlueprint* Blueprint, con
 	if (bModified)
 	{
 		FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(Blueprint);
+	}
+}
+
+void FBlueprintEditorUtils::GetUsedAndUnusedVariables(UBlueprint* Blueprint, TArray<FProperty*>& OutUsedVariables, TArray<FProperty*>& OutUnusedVariables)
+{
+	TArray<FName> VariableNames;
+	for (TFieldIterator<FProperty> PropertyIt(Blueprint->SkeletonGeneratedClass, EFieldIteratorFlags::ExcludeSuper); PropertyIt; ++PropertyIt)
+	{
+		FProperty* Property = *PropertyIt;
+		// Don't show delegate properties, there is special handling for these
+		const bool bDelegateProp = Property->IsA(FDelegateProperty::StaticClass()) || Property->IsA(FMulticastDelegateProperty::StaticClass());
+		const bool bShouldShowProp = (!Property->HasAnyPropertyFlags(CPF_Parm) && Property->HasAllPropertyFlags(CPF_BlueprintVisible) && !bDelegateProp);
+
+		if (bShouldShowProp)
+		{
+			FName VarName = Property->GetFName();
+
+			const int32 VarInfoIndex = FBlueprintEditorUtils::FindNewVariableIndex(Blueprint, VarName);
+			const bool bHasVarInfo = (VarInfoIndex != INDEX_NONE);
+
+			const FObjectPropertyBase* ObjectProperty = CastField<const FObjectPropertyBase>(Property);
+			bool bIsTimeline = ObjectProperty &&
+				ObjectProperty->PropertyClass &&
+				ObjectProperty->PropertyClass->IsChildOf(UTimelineComponent::StaticClass());
+			if (!bIsTimeline && bHasVarInfo && !FBlueprintEditorUtils::IsVariableUsed(Blueprint, VarName))
+			{
+				OutUnusedVariables.Add(Property);
+			}
+			else
+			{
+				OutUsedVariables.Add(Property);
+			}
+		}
 	}
 }
 
@@ -5681,57 +5714,22 @@ bool FBlueprintEditorUtils::IsVariableComponent(const FBPVariableDescription& Va
 
 bool FBlueprintEditorUtils::IsVariableUsed(const UBlueprint* InBlueprint, const FName& Name, UEdGraph* LocalGraphScope/* = nullptr*/)
 {
-	TArray<const UBlueprint*> BlueprintsToCheck;
-	BlueprintsToCheck.Add(InBlueprint);
-
-	if (!LocalGraphScope)
-	{
-		FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
-		FARFilter Filter;
-		AssetRegistryModule.Get().GetReferencers(InBlueprint->GetPackage()->GetFName(), Filter.PackageNames, UE::AssetRegistry::EDependencyCategory::Package, UE::AssetRegistry::EDependencyQuery::Hard);
-		if (Filter.PackageNames.Num() > 0)
-		{
-			GWarn->BeginSlowTask(LOCTEXT("LoadingReferencerAssets", "Loading Referencers..."), true);
-
-			Filter.TagsAndValues.Add(TEXT("IsDataOnly"), TOptional<FString>(TEXT("false")));
-			TArray<FAssetData> ReferencersAssetData;
-			AssetRegistryModule.Get().GetAssets(Filter, ReferencersAssetData);
-			for (const FAssetData& ReferencerData : ReferencersAssetData)
-			{
-				UObject* ReferencerAsset = ReferencerData.GetAsset();
-				if (UBlueprint* BlueprintReferencer = Cast<UBlueprint>(ReferencerAsset))
-				{
-					BlueprintsToCheck.Add(BlueprintReferencer);
-				}
-				else if (UWorld* WorldReferencer = Cast<UWorld>(ReferencerAsset))
-				{
-					if (WorldReferencer->PersistentLevel && WorldReferencer->PersistentLevel->OwningWorld)
-					{
-						BlueprintsToCheck.Append(WorldReferencer->PersistentLevel->GetLevelBlueprints());
-					}
-				}
-			}
-
-			GWarn->EndSlowTask();
-		}
-	}
-
-	for (const UBlueprint* Blueprint : BlueprintsToCheck)
+	auto CheckSingleBlueprint = [&Name, LocalGraphScope](const UBlueprint* Blueprint) -> bool
 	{
 		TArray<UEdGraph*> AllGraphs;
 		Blueprint->GetAllGraphs(AllGraphs);
-		for(TArray<UEdGraph*>::TConstIterator it(AllGraphs); it; ++it)
+		for (TArray<UEdGraph*>::TConstIterator it(AllGraphs); it; ++it)
 		{
 			const UEdGraph* CurrentGraph = *it;
 
-			if(CurrentGraph == LocalGraphScope || LocalGraphScope == nullptr)
+			if (CurrentGraph == LocalGraphScope || LocalGraphScope == nullptr)
 			{
 				TArray<UK2Node_Variable*> GraphNodes;
 				CurrentGraph->GetNodesOfClass(GraphNodes);
 
-				for (const UK2Node_Variable* CurrentNode : GraphNodes )
+				for (const UK2Node_Variable* CurrentNode : GraphNodes)
 				{
-					if(Name == CurrentNode->GetVarName())
+					if (Name == CurrentNode->GetVarName())
 					{
 						return true;
 					}
@@ -5753,7 +5751,58 @@ bool FBlueprintEditorUtils::IsVariableUsed(const UBlueprint* InBlueprint, const 
 				}
 			}
 		}
+
+		return false;
+	};
+
+	if (CheckSingleBlueprint(InBlueprint))
+	{
+		return true;
 	}
+
+	if (!LocalGraphScope)
+	{
+		FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
+		FARFilter Filter;
+		AssetRegistryModule.Get().GetReferencers(InBlueprint->GetPackage()->GetFName(), Filter.PackageNames, UE::AssetRegistry::EDependencyCategory::Package, UE::AssetRegistry::EDependencyQuery::Hard);
+		if (Filter.PackageNames.Num() > 0)
+		{
+			GWarn->BeginSlowTask(LOCTEXT("LoadingReferencerAssets", "Loading Referencers..."), true);
+
+			Filter.TagsAndValues.Add(TEXT("IsDataOnly"), TOptional<FString>(TEXT("false")));
+			TArray<FAssetData> ReferencersAssetData;
+			AssetRegistryModule.Get().GetAssets(Filter, ReferencersAssetData);
+			for (const FAssetData& ReferencerData : ReferencersAssetData)
+			{
+				UObject* ReferencerAsset = ReferencerData.GetAsset();
+				if (UBlueprint* BlueprintReferencer = Cast<UBlueprint>(ReferencerAsset))
+				{
+					if (CheckSingleBlueprint(BlueprintReferencer))
+					{
+						GWarn->EndSlowTask();
+						return true;
+					}
+				}
+				else if (UWorld* WorldReferencer = Cast<UWorld>(ReferencerAsset))
+				{
+					if (WorldReferencer->PersistentLevel && WorldReferencer->PersistentLevel->OwningWorld)
+					{
+						for (UBlueprint* BP : WorldReferencer->PersistentLevel->GetLevelBlueprints())
+						{
+							if (CheckSingleBlueprint(BP))
+							{
+								GWarn->EndSlowTask();
+								return true;
+							}
+						}
+					}
+				}
+			}
+
+			GWarn->EndSlowTask();
+		}
+	}
+
 	return false;
 }
 
