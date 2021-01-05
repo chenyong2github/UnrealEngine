@@ -3190,7 +3190,7 @@ namespace VulkanRHI
 					DedicatedStats.UsedImageMemory += Allocator->UsedSize;
 					DedicatedStats.ImageAllocations += Allocator->NumSubAllocations;
 				}
-				if(HeapIndex < HeapSummary.Num())
+				if((int32)HeapIndex < HeapSummary.Num())
 				{
 					HeapSummary[HeapIndex] += DedicatedStats;
 					HeapIndex++;
@@ -3263,7 +3263,7 @@ namespace VulkanRHI
 				VULKAN_LOGMEMORY(VULKAN_LOGMEMORY_PAD);
 				WriteLogLine(TEXT("Dedicated Pages"), Stat);
 			}
-			else if(Index >= (int)SmallAllocatorsBegin && Index < SmallAllocatorsEnd)
+			else if(Index >= (int32)SmallAllocatorsBegin && Index < (int32)SmallAllocatorsEnd)
 			{
 				int PoolSizeIndex = (Index - NumResourceHeaps) % NumSmallAllocators;
 				uint32 PoolSize = PoolSizeIndex >= (int32)EPoolSizes::SizesCount ? -1 : PoolSizes[PoolSizeIndex];
