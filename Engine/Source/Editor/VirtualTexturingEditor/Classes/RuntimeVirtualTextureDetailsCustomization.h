@@ -58,6 +58,8 @@ protected:
 	/** Callback for Set Bounds button */
 	FReply SetBounds();
 
+	/** Returns true if BuildStreamedMips button is enabled */
+	bool IsBuildStreamedMipsEnabled() const;
 	/** Do we need to show warning icon to indicate out of date streaming texture */
 	EVisibility IsBuildWarningIconVisible() const;
 	/** Callback for Build button */
