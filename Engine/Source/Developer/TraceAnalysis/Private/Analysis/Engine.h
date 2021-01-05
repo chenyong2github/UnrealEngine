@@ -34,6 +34,7 @@ public:
 
 private:
 	uint32				LastGetInfoId = ~0u;
+	FInfo				ImportantInfo;
 	TArray<FInfo>		Infos;
 	TArray<uint8>		GroupName;
 };
