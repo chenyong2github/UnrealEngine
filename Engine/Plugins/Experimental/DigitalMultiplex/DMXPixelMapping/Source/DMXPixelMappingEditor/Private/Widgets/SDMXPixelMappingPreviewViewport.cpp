@@ -15,7 +15,7 @@
 void SDMXPixelMappingPreviewViewport::Construct(const FArguments& InArgs, const TSharedPtr<FDMXPixelMappingToolkit>& InViewport)
 {
 	bIsRenderingEnabled = true;
-	ToolkitWeakPtr = InViewport;
+	ToolkitWeakPtr = InViewport;      
 
 	ChildSlot
 		[
@@ -24,10 +24,9 @@ void SDMXPixelMappingPreviewViewport::Construct(const FArguments& InArgs, const 
 			.HeightOverride(this, &SDMXPixelMappingPreviewViewport::GetPreviewAreaHeight)
 			[
 				SAssignNew(ViewportWidget, SViewport)
-					.EnableGammaCorrection(false)
 					.IsEnabled(FSlateApplication::Get().GetNormalExecutionAttribute())
+					.EnableGammaCorrection(false)
 					.ShowEffectWhenDisabled(false)
-					.EnableBlending(true)
 			]
 		];
 
