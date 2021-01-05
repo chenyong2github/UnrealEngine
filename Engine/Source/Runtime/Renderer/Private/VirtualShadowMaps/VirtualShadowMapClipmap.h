@@ -22,6 +22,7 @@ public:
 		const FLightSceneInfo& InLightSceneInfo,
 		const FMatrix& WorldToLightRotationMatrix,
 		const FViewMatrices& CameraViewMatrices,
+		FIntPoint CameraViewRectSize,
 		float MaxRadius		// Maximum radius the clipmap must cover from the center point; used to compute level count
 	);
 

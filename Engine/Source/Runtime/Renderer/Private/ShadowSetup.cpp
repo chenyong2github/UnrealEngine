@@ -4255,6 +4255,7 @@ void FSceneRenderer::AddViewDependentWholeSceneShadowsForView(
 					LightSceneInfo,
 					WorldToLight,
 					View.ViewMatrices,
+					View.ViewRect.Size(),
 					MaxShadowCascadeDistance
 				));
 
