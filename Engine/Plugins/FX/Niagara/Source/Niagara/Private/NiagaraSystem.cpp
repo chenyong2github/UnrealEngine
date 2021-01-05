@@ -2074,7 +2074,7 @@ bool UNiagaraSystem::RequestCompile(bool bForce, FNiagaraSystemUpdateContext* Op
 					UNiagaraScriptSourceBase* GraphSource = Handle.GetInstance()->GraphSource;
 
 					TArray<UNiagaraScript*> EmitterScripts;
-					Handle.GetInstance()->GetScripts(EmitterScripts, false);
+					Handle.GetInstance()->GetScripts(EmitterScripts, false, true);
 					check(EmitterScripts.Num() > 0);
 					int32 Parent = INDEX_NONE;
 					for (UNiagaraScript* EmitterScript : EmitterScripts)
@@ -2176,7 +2176,7 @@ bool UNiagaraSystem::RequestCompile(bool bForce, FNiagaraSystemUpdateContext* Op
 						EmitterPrecompiledData->GetReferencedObjects(ActiveCompilation.RootObjects);
 
 						TArray<UNiagaraScript*> EmitterScripts;
-						Handle.GetInstance()->GetScripts(EmitterScripts, false);
+						Handle.GetInstance()->GetScripts(EmitterScripts, false, true);
 						check(EmitterScripts.Num() > 0);
 						for (UNiagaraScript* EmitterScript : EmitterScripts)
 						{
