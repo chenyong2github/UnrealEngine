@@ -835,10 +835,14 @@ namespace VulkanRHI
 			*Allocated = HeapInfos[PrimaryHostHeap].UsedSize;
 			check(HeapInfos[PrimaryHostHeap].TotalSize == MemoryProperties.memoryHeaps[PrimaryHostHeap].size);
 			*Total = GetBaseHeapSize(PrimaryHostHeap);
-			if (Device->GetOptionalExtensions().HasMemoryBudget && FPlatformTime::Seconds() - MemoryUpdateTime >= 1.0)
+			if (Device->GetOptionalExtensions().HasMemoryBudget)
 			{
-				MemoryUpdateTime = FPlatformTime::Seconds();
-				UpdateMemoryProperties();
+				if(MemoryUpdateTime == 0.0 || FPlatformTime::Seconds() - MemoryUpdateTime >= 1.0 )
+				{
+					MemoryUpdateTime = FPlatformTime::Seconds();
+					UpdateMemoryProperties();
+				}			
+				
 				*Total = MemoryBudget.heapBudget[PrimaryHostHeap];
 			}
 		}
@@ -931,6 +935,7 @@ namespace VulkanRHI
 			((VkMemoryDedicatedAllocateInfoKHR*)DedicatedAllocateInfo)->pNext = Info.pNext;
 			Info.pNext = DedicatedAllocateInfo;
 			INC_DWORD_STAT_BY(STAT_VulkanDedicatedMemory, AllocationSize);
+			IncMetaStats(EVulkanAllocationMetaImageRenderTarget, AllocationSize);
 		}
 #endif
 		VkDeviceMemory Handle;
@@ -966,7 +971,7 @@ namespace VulkanRHI
 			Device->GetMemoryManager().DumpMemory();
 			GLog->PanicFlushThreadedLogs();
 
-			UE_LOG(LogVulkanRHI, Fatal, TEXT("Out of %s Memory, Requested%.2fKB MemTypeIndex=%d\n"), MemoryType, AllocationSize, MemoryTypeIndex);
+			UE_LOG(LogVulkanRHI, Fatal, TEXT("Out of %s Memory, Requested%.2fKB MemTypeIndex=%d\n"), MemoryType, AllocationSize / 1024.f, MemoryTypeIndex);
 		}
 		else
 		{
@@ -1033,6 +1038,7 @@ namespace VulkanRHI
 		if (Allocation->bDedicatedMemory)
 		{
 			DEC_DWORD_STAT_BY(STAT_VulkanDedicatedMemory, Allocation->Size);
+			DecMetaStats(EVulkanAllocationMetaImageRenderTarget, Allocation->Size);
 		}
 		switch (Allocation->MemoryTypeIndex)
 		{
@@ -2096,7 +2102,11 @@ namespace VulkanRHI
 		VkMemoryDedicatedAllocateInfoKHR DedicatedAllocInfo;
 		ZeroVulkanStruct(DedicatedAllocInfo, VK_STRUCTURE_TYPE_MEMORY_DEDICATED_ALLOCATE_INFO_KHR);
 		DedicatedAllocInfo.image = Image;
-		FDeviceMemoryAllocation* DeviceMemoryAllocation = Owner->GetParent()->GetDeviceMemoryManager().Alloc(false, AllocationSize, MemoryTypeIndex, &DedicatedAllocInfo, VULKAN_MEMORY_HIGHEST_PRIORITY, File, Line);
+		FDeviceMemoryAllocation* DeviceMemoryAllocation = Owner->GetParent()->GetDeviceMemoryManager().Alloc(true, AllocationSize, MemoryTypeIndex, &DedicatedAllocInfo, VULKAN_MEMORY_HIGHEST_PRIORITY, File, Line);
+		if(!DeviceMemoryAllocation)
+		{
+			return false;
+		}
 
 		++PageIDCounter;
 		FVulkanSubresourceAllocator* NewPage = new FVulkanSubresourceAllocator(EVulkanAllocationImageDedicated, Owner, 0, DeviceMemoryAllocation, MemoryTypeIndex, PageIDCounter);
@@ -2330,19 +2340,74 @@ namespace VulkanRHI
 
 	void FMemoryManager::ReleaseFreedPages()
 	{
+		auto CanDefragHeap = [](FVulkanResourceHeap* Heap)
+		{
+			for(TArray<FVulkanSubresourceAllocator*>& Pages : Heap->ActivePages) 
+			{
+				for(FVulkanSubresourceAllocator* Allocator : Pages) 
+				{
+					if(0 == (Allocator->GetSubresourceAllocatorFlags() & VulkanAllocationFlagsCanEvict) && Allocator->CanDefrag())
+					{
+						return true;
+					}
+				}
+			}
+			return false;
+		};
+
+		auto CanEvictHeap = [](FVulkanResourceHeap* Heap)
+		{
+			for(TArray<FVulkanSubresourceAllocator*>& Pages : Heap->ActivePages) 
+			{
+				for(FVulkanSubresourceAllocator* Allocator : Pages) 
+				{
+					if(VulkanAllocationFlagsCanEvict == (Allocator->GetSubresourceAllocatorFlags() & VulkanAllocationFlagsCanEvict))
+					{
+						return true;
+					}
+				}
+			}
+			return false;
+		};
+
 		ReleaseFreedResources(false);
 
 		int32 PrimaryHostHeap = DeviceMemoryManager->PrimaryHostHeap;
+		FVulkanResourceHeap* BestEvictHeap = 0;
+		uint64 BestEvictHeapSize = 0;
 
-		if((GVulkanEvictOnePage || UpdateEvictThreshold(true)) && PrimaryHostHeap >= 0)
+		FVulkanResourceHeap* BestDefragHeap = 0;
+		uint64 BestDefragHeapSize = 0;
+
+		uint32 Idx = 0;
+		for(FVulkanResourceHeap* Heap : ResourceTypeHeaps)
+		{
+			if(Heap->HeapIndex == PrimaryHostHeap)
+			{
+				uint64 UsedSize = Heap->UsedMemory;
+				if(CanDefragHeap(Heap) && BestDefragHeapSize < UsedSize)
+				{
+					BestDefragHeap = Heap;
+					BestDefragHeapSize = UsedSize;
+				}
+				if(CanEvictHeap(Heap) && BestEvictHeapSize < UsedSize)
+				{
+					BestEvictHeap = Heap;
+					BestEvictHeapSize = UsedSize;
+				}
+				
+			}
+			Idx++;
+		}
+
+		if(BestEvictHeap && ((GVulkanEvictOnePage || UpdateEvictThreshold(true)) && PrimaryHostHeap >= 0))
 		{
 			GVulkanEvictOnePage = 0;
-			FVulkanResourceHeap* Heap = ResourceTypeHeaps[PrimaryHostHeap];
-			PendingEvictBytes += Heap->EvictOne(*Device);
+			PendingEvictBytes += BestEvictHeap->EvictOne(*Device);		
 		}
 
 #if !PLATFORM_ANDROID
-		if(PrimaryHostHeap >= 0)
+		if(BestDefragHeap)
 		{
 			uint32 Count = 1;
 			if(GVulkanDefragOnce)
@@ -2350,14 +2415,11 @@ namespace VulkanRHI
 				Count = 0x7fffffff;
 			}
 
-
-			FVulkanResourceHeap* Heap = ResourceTypeHeaps[PrimaryHostHeap];
 			if(GVulkanDefragOnce)
 			{
 				DumpMemory();
 			}
-
-			Heap->DefragTick(*Device, Count);
+			BestDefragHeap->DefragTick(*Device, Count);
 
 			if(GVulkanDefragOnce)
 			{
@@ -2801,7 +2863,7 @@ namespace VulkanRHI
 		}
 		if(bLog && GVulkanLogEvictStatus)
 		{
-			FGenericPlatformMisc::LowLevelOutputDebugStringf(TEXT("EVICT STATUS %6.2f%%/%6.2f%% :: A:%8.3fMB / E:%8.3fMB / T:%8.3fMB\n"), AllocatedPercentage, EvictionLimit, HostAllocated / (1024.f*1024.f), PendingEvictBytes/ (1024.f*1024.f), HostLimit/ (1024.f*1024.f));
+			VULKAN_LOGMEMORY(TEXT("EVICT STATUS %6.2f%%/%6.2f%% :: A:%8.3fMB / E:%8.3fMB / T:%8.3fMB\n"), AllocatedPercentage, EvictionLimit, HostAllocated / (1024.f*1024.f), PendingEvictBytes/ (1024.f*1024.f), HostLimit/ (1024.f*1024.f));
 		}
 
 		bIsEvicting = AllocatedPercentage > EvictionLimit;
@@ -2976,7 +3038,11 @@ namespace VulkanRHI
 
 		uint32 NumSmallAllocators = UE_ARRAY_COUNT(UsedBufferAllocations);
 		uint32 NumResourceHeaps = ResourceTypeHeaps.Num();
-		Summary.SetNum(NumResourceHeaps + NumSmallAllocators * 2);
+		
+		Summary.SetNum(NumResourceHeaps + NumSmallAllocators * 2 + 1);
+		const uint32 SmallAllocatorsBegin = NumResourceHeaps;
+		const uint32 SmallAllocatorsEnd = NumResourceHeaps + NumSmallAllocators * 2;
+		const uint32 DedicatedAllocatorSummary = SmallAllocatorsEnd;
 
 
 		for (int32 Index = 0; Index < ResourceTypeHeaps.Num(); ++Index)
@@ -3111,13 +3177,33 @@ namespace VulkanRHI
 		VULKAN_LOGMEMORY(TEXT("::Totals::"));
 		VULKAN_LOGMEMORY(TEXT("Large Alloc Used/Max %d/%d %.2f%%"), UsedLargeTotal, AllocLargeTotal, 100.0f * AllocLargeTotal > 0 ? (float)UsedLargeTotal / (float)AllocLargeTotal : 0.0f);
 		VULKAN_LOGMEMORY(TEXT("Binned Alloc Used/Max %d/%d %.2f%%"), UsedBinnedTotal, AllocBinnedTotal, AllocBinnedTotal > 0 ? 100.0f * (float)UsedBinnedTotal / (float)AllocBinnedTotal : 0.0f);
+		{
+			FResourceHeapStats& DedicatedStats = Summary[DedicatedAllocatorSummary];
+			uint32 HeapIndex = 0;
+
+			for(FVulkanResourceHeap* Heap : ResourceTypeHeaps)
+			{				
+				for(FVulkanSubresourceAllocator* Allocator : Heap->UsedDedicatedImagePages)
+				{
+					DedicatedStats.Pages++;
+					DedicatedStats.TotalMemory += Allocator->MaxSize;
+					DedicatedStats.UsedImageMemory += Allocator->UsedSize;
+					DedicatedStats.ImageAllocations += Allocator->NumSubAllocations;
+				}
+				if(HeapIndex < HeapSummary.Num())
+				{
+					HeapSummary[HeapIndex] += DedicatedStats;
+					HeapIndex++;
+				}
+			}
+		}
 
 
 		auto WriteLogLine = [](const FString& Name, FResourceHeapStats& Stat)
 		{
 			uint64 FreeMemory = Stat.TotalMemory - Stat.UsedBufferMemory - Stat.UsedImageMemory;
 			FString HostString = GetMemoryPropertyFlagsString(Stat.MemoryFlags);
-			VULKAN_LOGMEMORY(TEXT("\t\t%-25s  |%8.2fmb / %8.2fmb / %8.2fmb / %8.2fmb | %10d %10d | %6d %6d %6d | %05x | %s"),
+			VULKAN_LOGMEMORY(TEXT("\t\t%-33s  |%8.2fmb / %8.2fmb / %8.2fmb / %8.2fmb | %10d %10d | %6d %6d %6d | %05x | %s"),
 				*Name,
 				Stat.UsedBufferMemory / (1024.f * 1024.f),
 				Stat.UsedImageMemory / (1024.f * 1024.f),
@@ -3143,7 +3229,7 @@ namespace VulkanRHI
 
 
 		VULKAN_LOGMEMORY(TEXT("SUMMARY"));
-		VULKAN_LOGMEMORY(TEXT("\t\tDevice Heaps               |    Memory       Reserved    FreeMem      TotlMem |  Allocs     -         |  Allocs              | Flags | Type   "));
+		VULKAN_LOGMEMORY(TEXT("\t\tDevice Heaps                       |    Memory       Reserved    FreeMem      TotlMem |  Allocs     -         |  Allocs              | Flags | Type   "));
 #define VULKAN_LOGMEMORY_PAD TEXT("\t\t----------------------------------------------------------------------------------------------------------------------------------------")
 		VULKAN_LOGMEMORY(VULKAN_LOGMEMORY_PAD);
 		for (int32 Index = 0; Index < DeviceHeaps.Num(); ++Index)
@@ -3153,7 +3239,7 @@ namespace VulkanRHI
 		}
 		VULKAN_LOGMEMORY(VULKAN_LOGMEMORY_PAD);
 		VULKAN_LOGMEMORY(VULKAN_LOGMEMORY_PAD);
-		VULKAN_LOGMEMORY(TEXT("\t\tAllocators                 |    BufMem       ImgMem      FreeMem      TotlMem |  BufAllocs  ImgAllocs |  Pages BufPgs ImgPgs | Flags | Type   "));
+		VULKAN_LOGMEMORY(TEXT("\t\tAllocators                         |    BufMem       ImgMem      FreeMem      TotlMem |  BufAllocs  ImgAllocs |  Pages BufPgs ImgPgs | Flags | Type   "));
 		VULKAN_LOGMEMORY(VULKAN_LOGMEMORY_PAD);
 
 
@@ -3172,7 +3258,12 @@ namespace VulkanRHI
 				TotalHost += Stat;
 				TotalHost.MemoryFlags |= Stat.MemoryFlags;
 			}
-			if(Index >= (int)NumResourceHeaps)
+			if(Index == DedicatedAllocatorSummary)
+			{
+				VULKAN_LOGMEMORY(VULKAN_LOGMEMORY_PAD);
+				WriteLogLine(TEXT("Dedicated Pages"), Stat);
+			}
+			else if(Index >= (int)SmallAllocatorsBegin && Index < SmallAllocatorsEnd)
 			{
 				int PoolSizeIndex = (Index - NumResourceHeaps) % NumSmallAllocators;
 				uint32 PoolSize = PoolSizeIndex >= (int32)EPoolSizes::SizesCount ? -1 : PoolSizes[PoolSizeIndex];
@@ -3200,7 +3291,7 @@ namespace VulkanRHI
 			WriteLogLine(FString::Printf(TEXT("Allocated Device Heap %d"), Index), Stat);
 		}
 		VULKAN_LOGMEMORY(VULKAN_LOGMEMORY_PAD);
-		VULKAN_LOGMEMORY(TEXT("\t\tSubsystems                 |    BufMem       ImgMem      FreeMem      TotlMem |  BufAllocs  ImgAllocs |  Pages BufPgs ImgPgs | Flags | Type   "));
+		VULKAN_LOGMEMORY(TEXT("\t\tSubsystems                         |    BufMem       ImgMem      FreeMem      TotlMem |  BufAllocs  ImgAllocs |  Pages BufPgs ImgPgs | Flags | Type   "));
 		VULKAN_LOGMEMORY(VULKAN_LOGMEMORY_PAD);
 		WriteLogLine(TEXT("Staging"), Staging);
 		VULKAN_LOGMEMORY(VULKAN_LOGMEMORY_PAD);
@@ -3227,8 +3318,8 @@ namespace VulkanRHI
 				TotalUsed += Used;
 			}
 			uint64 Free= TotalMemory - TotalUsed;
-			//%8.2fmb / %8.2fmb / %8.2fmb / %8.2fmb | %10d %10d | %6d %6d %6d | %05x | %s"),
-			VULKAN_LOGMEMORY(TEXT("\t\t%-25s  | %4d %8d | %3d%% / %8.2fmb / %8.2fmb / %8.2fmb / %8.2fmb | %8.2fmb / %8.2fmb / %8.2fmb / %8.2fmb | %8.2fmb / %8.2fmb | %8.2fmb / %8.2fmb / %8.2fmb | %s"),
+			uint8 AllocatorFlags =  Allocator.GetSubresourceAllocatorFlags();
+			VULKAN_LOGMEMORY(TEXT("\t\t%-33s  | %4d %8d | %3d%% / %8.2fmb / %8.2fmb / %8.2fmb / %8.2fmb | %8.2fmb / %8.2fmb / %8.2fmb / %8.2fmb | %8.2fmb / %8.2fmb | %8.2fmb / %8.2fmb / %8.2fmb | %d %d | %s"),
 				*Name,
 				FreeCount,
 				NumAllocations,
@@ -3246,6 +3337,8 @@ namespace VulkanRHI
 				MemoryUsed[EVulkanAllocationMetaBufferUAV] / (1024.f * 1024.f),
 				MemoryUsed[EVulkanAllocationMetaBufferStaging] / (1024.f * 1024.f),
 				MemoryUsed[EVulkanAllocationMetaBufferOther] / (1024.f * 1024.f),
+				AllocatorFlags & VulkanAllocationFlagsMapped ? 1 : 0,
+				AllocatorFlags & VulkanAllocationFlagsCanEvict ? 1 : 0,
 				*MemoryString
 			);
 		};
@@ -3276,7 +3369,7 @@ namespace VulkanRHI
 				}
 				FString MemoryString = GetMemoryPropertyFlagsString(Flags);
 				VULKAN_LOGMEMORY(VULKAN_LOGMEMORY_PAD2);
-				VULKAN_LOGMEMORY(TEXT("\t\t%-25s  | %4s %8s | %4s / %10s / %10s / %10s / %10s | %10s / %10s / %10s / %10s | %10s / %10s | %10s / %10s / %10s |"),
+				VULKAN_LOGMEMORY(TEXT("\t\t%-33s  | %4s %8s | %4s / %10s / %10s / %10s / %10s | %10s / %10s / %10s / %10s | %10s / %10s | %10s / %10s / %10s | Mapped/Evictable |"),
 					TEXT(""),
 					TEXT("Free"),
 					TEXT("Count"),
@@ -3295,10 +3388,8 @@ namespace VulkanRHI
 					VulkanAllocationMetaTypeToString(EVulkanAllocationMetaBufferUAV),
 					VulkanAllocationMetaTypeToString(EVulkanAllocationMetaBufferStaging),
 					VulkanAllocationMetaTypeToString(EVulkanAllocationMetaBufferOther)
-				);
+				);			
 				VULKAN_LOGMEMORY(VULKAN_LOGMEMORY_PAD2);
-
-
 
 				FString NameId = FString::Printf(TEXT("%s %d"), *Name, Index++);
 				WriteLogLineSubAllocator(NameId, MemoryString, *Allocator);
@@ -3312,7 +3403,7 @@ namespace VulkanRHI
 
 
 		VULKAN_LOGMEMORY(VULKAN_LOGMEMORY_PAD2);
-		VULKAN_LOGMEMORY(TEXT("\t\t%-25s  | %4s %8s | %4s / %10s / %10s / %10s / %10s | %10s / %10s / %10s / %10s | %10s / %10s | %10s / %10s / %10s |"),
+		VULKAN_LOGMEMORY(TEXT("\t\t%-33s  | %4s %8s | %4s / %10s / %10s / %10s / %10s | %10s / %10s / %10s / %10s | %10s / %10s | %10s / %10s / %10s |"),
 			TEXT(""),
 			TEXT("Free"),
 			TEXT("Count"),
@@ -3359,7 +3450,7 @@ namespace VulkanRHI
 				uint32 SubIndex = 0;
 				for(TArray<FVulkanSubresourceAllocator*>& Foo : ResourceTypeHeaps[Index]->ActivePages)
 				{
-					DumpAllocatorRange(FString::Printf(TEXT("Page[%s] %d"), PageSuffix(Index), Index), Foo);
+					DumpAllocatorRange(FString::Printf(TEXT("Page[%s] %d"), PageSuffix(SubIndex), Index), Foo);
 					SubIndex++;
 				}
 				DumpAllocatorRange(FString::Printf(TEXT("UsedDedicatedImagePages %d"), Index ), ResourceTypeHeaps[Index]->UsedDedicatedImagePages);
@@ -4122,7 +4213,6 @@ namespace VulkanRHI
 					checkNoEntry();
 
 				}
-				//check(Alloc.State != FVulkanAllocationInternal::EALLOCATED);
 			}
 
 		}
