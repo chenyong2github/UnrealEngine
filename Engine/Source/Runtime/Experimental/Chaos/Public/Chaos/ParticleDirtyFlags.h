@@ -313,11 +313,10 @@ public:
 	EResimType ResimType() const { return MResimType; }
 	void SetResimType(EResimType Type) { MResimType = Type; }
 
-	bool OneWayInteraction() const { return MOneWayInteraction; }
-	void SetOneWayInteraction(bool InOneWayInteraction) { MOneWayInteraction = InOneWayInteraction; }
-
 	uint32 CollisionConstraintFlag() const { return MCollisionConstraintFlag; }
 	void SetCollisionConstraintFlag(uint32 InCollisionConstraintFlag) { MCollisionConstraintFlag = InCollisionConstraintFlag; }
+	bool OneWayInteraction() const { return MOneWayInteraction; }
+	void SetOneWayInteraction(bool InOneWayInteraction) { MOneWayInteraction = InOneWayInteraction; }
 
 private:
 	FReal MLinearEtherDrag;
