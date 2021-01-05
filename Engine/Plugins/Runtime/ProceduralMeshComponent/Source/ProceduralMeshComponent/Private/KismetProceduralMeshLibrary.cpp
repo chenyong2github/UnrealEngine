@@ -80,7 +80,7 @@ void UKismetProceduralMeshLibrary::CreateGridMeshWelded(int32 NumX, int32 NumY, 
 		{
 			for (int j = 0; j < NumX - 1; j++)
 			{
-				int idx = j + (i * NumY);
+				int idx = j + (i * NumX);
 				Triangles.Add(idx);
 				Triangles.Add(idx + NumX);
 				Triangles.Add(idx + 1);
