@@ -26,12 +26,12 @@ namespace UnrealBuildTool
 			/// <summary>
 			/// Exponent
 			/// </summary>
-			public byte[] Exponent;
+			public byte[] Exponent { get; set; }
 
 			/// <summary>
 			/// Modulus
 			/// </summary>
-			public byte[] Modulus;
+			public byte[] Modulus { get; set; }
 
 			/// <summary>
 			/// Determine if this key is valid
@@ -50,12 +50,12 @@ namespace UnrealBuildTool
 			/// <summary>
 			/// Public key
 			/// </summary>
-			public SigningKey PublicKey = new SigningKey();
+			public SigningKey PublicKey { get; set; } = new SigningKey();
 
 			/// <summary>
 			/// Private key
 			/// </summary>
-			public SigningKey PrivateKey = new SigningKey();
+			public SigningKey PrivateKey { get; set; } = new SigningKey();
 
 			/// <summary>
 			/// Determine if this key is valid
