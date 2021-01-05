@@ -66,7 +66,7 @@ public:
 	FString TerrainName;
 
 	UPROPERTY()
-	int32 CenterTileIndex;
+	int32 CenterTileIndex = 0;
 };
 
 /**
