@@ -55,8 +55,12 @@ void SGenerateUV::Construct(const FArguments& InArgs)
 	StaticMeshEditorPtr = InArgs._StaticMeshEditorPtr;
 	TSharedPtr<SBox> InspectorBox;
 
-	FitSettings();
-	SetNextValidTargetChannel();
+	if (StaticMeshEditorPtr.IsValid())
+	{
+		StaticMeshEditorPtr.Pin()->RegisterOnSelectedLODChanged(FOnSelectedLODChanged::CreateSP(this, &SGenerateUV::FitSettings), false);
+		StaticMeshEditorPtr.Pin()->RegisterOnSelectedLODChanged(FOnSelectedLODChanged::CreateSP(this, &SGenerateUV::SetNextValidTargetChannel), false);
+	}
+
 	if (!bAreDelegatesRegistered)
 	{
 		bAreDelegatesRegistered = true;
@@ -153,7 +157,11 @@ void SGenerateUV::Construct(const FArguments& InArgs)
 
 int32 GetSelectedLOD(const TSharedPtr<IStaticMeshEditor>& EditorPtr)
 {
-	const int32 SelectedLOD = EditorPtr->GetStaticMeshComponent()->ForcedLodModel - 1;
+	int32 SelectedLOD = 0;
+	if (UStaticMeshComponent* MeshComponent = EditorPtr->GetStaticMeshComponent())
+	{
+		SelectedLOD = MeshComponent->ForcedLodModel - 1;
+	}
 
 	//If there is only one LOD then there is no ambiguity, even in AutoLOD.
 	return EditorPtr->GetStaticMesh()->GetNumLODs() == 1 ? 0 : SelectedLOD;
