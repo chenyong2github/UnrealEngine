@@ -34,6 +34,7 @@ FTexture2DStreamIn_IO::~FTexture2DStreamIn_IO()
 
 static void ValidateMipBulkDataSize(const UTexture2D& Texture, int32 MipIndex, int64& BulkDataSize)
 {
+#if PLATFORM_ANDROID
 	const int64 ExpectedMipSize = CalcTextureMipMapSize(Texture.GetSizeX(), Texture.GetSizeY(), Texture.GetPixelFormat(), MipIndex);
 	if (BulkDataSize != ExpectedMipSize)
 	{
@@ -45,6 +46,7 @@ static void ValidateMipBulkDataSize(const UTexture2D& Texture, int32 MipIndex, i
 		// Make sure we don't overrun buffer allocated for this mip
 		BulkDataSize = FMath::Min(BulkDataSize, ExpectedMipSize);
 	}
+#endif // PLATFORM_ANDROID
 }
 
 void FTexture2DStreamIn_IO::SetIORequests(const FContext& Context)
