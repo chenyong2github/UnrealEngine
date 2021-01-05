@@ -4928,7 +4928,7 @@ FName URigVMController::AddExposedPin(const FName& InPinName, ERigVMPinDirection
 		Notify(ERigVMGraphNotifType::PinAdded, Pin);
 	}
 
-	if (bSetupUndoRedo)
+	if (bSetupUndoRedo && !InDefaultValue.IsEmpty())
 	{
 		SetPinDefaultValue(Pin, InDefaultValue, true, bSetupUndoRedo, false);
 	}
@@ -4941,7 +4941,7 @@ FName URigVMController::AddExposedPin(const FName& InPinName, ERigVMPinDirection
 		ActionStack->EndAction(Action);
 	}
 	
-	return NAME_None;
+	return PinName;
 }
 
 bool URigVMController::RemoveExposedPin(const FName& InPinName, bool bSetupUndoRedo)
