@@ -392,7 +392,7 @@ void IStreamingManager::Shutdown()
 
 bool IStreamingManager::HasShutdown()
 {
-	return StreamingManagerCollection == (FStreamingManagerCollection*)-1;
+	return (StreamingManagerCollection == nullptr) || (StreamingManagerCollection == (FStreamingManagerCollection*)-1);
 }
 
 /**
