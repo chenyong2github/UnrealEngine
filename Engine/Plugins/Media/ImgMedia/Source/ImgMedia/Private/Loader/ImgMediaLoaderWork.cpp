@@ -53,7 +53,7 @@ void FImgMediaLoaderWork::Abandon()
 void FImgMediaLoaderWork::DoThreadedWork()
 {
 	TSharedPtr<FImgMediaFrame, ESPMode::ThreadSafe> Frame;
-	UE_LOG(LogImgMedia, Warning, TEXT("Loader %p: Starting to read %i"), this, FrameNumber);
+	UE_LOG(LogImgMedia, Verbose, TEXT("Loader %p: Starting to read %i"), this, FrameNumber);
 
 	if ((FrameNumber == INDEX_NONE) || ImagePath.IsEmpty())
 	{
