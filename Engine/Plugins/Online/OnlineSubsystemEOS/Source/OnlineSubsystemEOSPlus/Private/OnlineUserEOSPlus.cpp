@@ -61,12 +61,10 @@ bool FUniqueNetIdEOSPlus::IsValid() const
 FOnlineUserEOSPlus::FOnlineUserEOSPlus(FOnlineSubsystemEOSPlus* InSubsystem)
 	: EOSPlus(InSubsystem)
 {
-	BaseUserInterface = EOSPlus->BaseOSS->GetUserInterface();
 	BaseIdentityInterface = EOSPlus->BaseOSS->GetIdentityInterface();
-	check(BaseUserInterface.IsValid() && BaseIdentityInterface.IsValid());
-	EOSUserInterface = EOSPlus->EosOSS->GetUserInterface();
+	check(BaseIdentityInterface.IsValid());
 	EOSIdentityInterface = EOSPlus->EosOSS->GetIdentityInterface();
-	check(EOSUserInterface.IsValid() && EOSIdentityInterface.IsValid());
+	check(EOSIdentityInterface.IsValid());
 	BaseFriendsInterface = EOSPlus->BaseOSS->GetFriendsInterface();
 	check(BaseFriendsInterface.IsValid());
 	EOSFriendsInterface = EOSPlus->EosOSS->GetFriendsInterface();
@@ -89,9 +87,6 @@ FOnlineUserEOSPlus::FOnlineUserEOSPlus(FOnlineSubsystemEOSPlus* InSubsystem)
 	// Only rebroadcast the platform notifications
 	BasePresenceInterface->AddOnPresenceReceivedDelegate_Handle(FOnPresenceReceivedDelegate::CreateRaw(this, &FOnlineUserEOSPlus::OnPresenceReceived));
 	BasePresenceInterface->AddOnPresenceArrayUpdatedDelegate_Handle(FOnPresenceArrayUpdatedDelegate::CreateRaw(this, &FOnlineUserEOSPlus::OnPresenceArrayUpdated));
-
-	IntermediateOnQueryUserInfoCompleteDelegateHandle = FOnQueryUserInfoCompleteDelegate::CreateRaw(this, &FOnlineUserEOSPlus::IntermediateOnQueryUserInfoComplete);
-	FinalOnQueryUserInfoCompleteDelegateHandle = FOnQueryUserInfoCompleteDelegate::CreateRaw(this, &FOnlineUserEOSPlus::FinalOnQueryUserInfoComplete);
 
 	BaseIdentityInterface->AddOnLoginChangedDelegate_Handle(FOnLoginChangedDelegate::CreateRaw(this, &FOnlineUserEOSPlus::OnLoginChanged));
 	BaseIdentityInterface->AddOnControllerPairingChangedDelegate_Handle(FOnControllerPairingChangedDelegate::CreateRaw(this, &FOnlineUserEOSPlus::OnControllerPairingChanged));
@@ -127,8 +122,6 @@ FOnlineUserEOSPlus::~FOnlineUserEOSPlus()
 
 	for (int32 LocalUserNum = 0; LocalUserNum < MAX_LOCAL_PLAYERS; LocalUserNum++)
 	{
-		BaseUserInterface->ClearOnQueryUserInfoCompleteDelegates(LocalUserNum, this);
-		EOSUserInterface->ClearOnQueryUserInfoCompleteDelegates(LocalUserNum, this);
 		BaseIdentityInterface->ClearOnLoginStatusChangedDelegates(LocalUserNum, this);
 		BaseIdentityInterface->ClearOnLoginCompleteDelegates(LocalUserNum, this);
 		BaseIdentityInterface->ClearOnLogoutCompleteDelegates(LocalUserNum, this);
@@ -169,154 +162,6 @@ TSharedPtr<const FUniqueNetId> FOnlineUserEOSPlus::GetEOSNetId(const FString& So
 		return NetIdPlusToEOSNetId[SourceId];
 	}
 	return nullptr;
-}
-
-bool FOnlineUserEOSPlus::QueryUserInfo(int32 LocalUserNum, const TArray<TSharedRef<const FUniqueNetId>>& UserIds)
-{
-	if (GetDefault<UEOSSettings>()->bUseEAS || GetDefault<UEOSSettings>()->bUseEOSConnect)
-	{
-		// Register the intermediate delegate with the base oss
-		BaseUserInterface->AddOnQueryUserInfoCompleteDelegate_Handle(LocalUserNum, IntermediateOnQueryUserInfoCompleteDelegateHandle);
-	}
-	else
-	{
-		// Register the final with the base oss
-		BaseUserInterface->AddOnQueryUserInfoCompleteDelegate_Handle(LocalUserNum, FinalOnQueryUserInfoCompleteDelegateHandle);
-	}
-
-	return BaseUserInterface->QueryUserInfo(LocalUserNum, UserIds);
-}
-
-void FOnlineUserEOSPlus::IntermediateOnQueryUserInfoComplete(int32 LocalUserNum, bool bWasSuccessful, const TArray<TSharedRef<const FUniqueNetId>>& UserIds, const FString& ErrorStr)
-{
-	BaseUserInterface->ClearOnQueryUserInfoCompleteDelegates(LocalUserNum, this);
-
-	if (!bWasSuccessful)
-	{
-		// Skip EOS and notify
-		TriggerOnQueryUserInfoCompleteDelegates(LocalUserNum, bWasSuccessful, UserIds, ErrorStr);
-		return;
-	}
-	// Query the EOS OSS now
-	EOSUserInterface->AddOnQueryUserInfoCompleteDelegate_Handle(LocalUserNum, FinalOnQueryUserInfoCompleteDelegateHandle);
-	EOSUserInterface->QueryUserInfo(LocalUserNum, UserIds);
-}
-
-void FOnlineUserEOSPlus::FinalOnQueryUserInfoComplete(int32 LocalUserNum, bool bWasSuccessful, const TArray<TSharedRef<const FUniqueNetId>>& UserIds, const FString& ErrorStr)
-{
-	BaseUserInterface->ClearOnQueryUserInfoCompleteDelegates(LocalUserNum, this);
-	EOSUserInterface->ClearOnQueryUserInfoCompleteDelegates(LocalUserNum, this);
-
-	// Notify anyone listening
-	TriggerOnQueryUserInfoCompleteDelegates(LocalUserNum, bWasSuccessful, UserIds, ErrorStr);
-}
-
-bool FOnlineUserEOSPlus::GetAllUserInfo(int32 LocalUserNum, TArray<TSharedRef<FOnlineUser>>& OutUsers)
-{
-	OutUsers.Reset();
-
-	TArray<TSharedRef<FOnlineUser>> OutLocalUsers;
-	bool bWasSuccessful = BaseUserInterface->GetAllUserInfo(LocalUserNum, OutLocalUsers);
-	OutUsers += OutLocalUsers;
-
-	if (GetDefault<UEOSSettings>()->bUseEAS || GetDefault<UEOSSettings>()->bUseEOSConnect)
-	{
-		OutLocalUsers.Reset();
-		bWasSuccessful = BaseUserInterface->GetAllUserInfo(LocalUserNum, OutLocalUsers);
-		OutUsers += OutLocalUsers;
-	}
-
-	return bWasSuccessful;
-}
-
-TSharedPtr<FOnlineUser> FOnlineUserEOSPlus::GetUserInfo(int32 LocalUserNum, const FUniqueNetId& UserId)
-{
-	if (NetIdPlusToUserMap.Contains(UserId.ToString()))
-	{
-		TSharedRef<FOnlineUserPlus> UserPlus = NetIdPlusToUserMap[UserId.ToString()];
-		// Handle the user info from EOS coming later
-		if (!UserPlus->IsEOSItemValid())
-		{
-			UserPlus->SetEOSItem(EOSUserInterface->GetUserInfo(LocalUserNum, UserId));
-		}
-		return UserPlus;
-	}
-	// Build a user
-	TSharedPtr<FOnlineUser> BaseUser = BaseUserInterface->GetUserInfo(LocalUserNum, UserId);
-	if (!BaseUser.IsValid())
-	{
-		return nullptr;
-	}
-	TSharedPtr<FOnlineUser> EOSUser = EOSUserInterface->GetUserInfo(LocalUserNum, UserId);
-	TSharedRef<FOnlineUserPlus> UserPlus = MakeShared<FOnlineUserPlus>(BaseUser, EOSUser);
-	NetIdPlusToUserMap.Add(UserId.ToString(), UserPlus);
-	return UserPlus;
-}
-
-bool FOnlineUserEOSPlus::QueryUserIdMapping(const FUniqueNetId& UserId, const FString& DisplayNameOrEmail, const FOnQueryUserMappingComplete& Delegate)
-{
-	BaseUserInterface->QueryUserIdMapping(UserId, DisplayNameOrEmail,
-		FOnQueryUserMappingComplete::CreateLambda([this, IntermediateComplete = FOnQueryUserMappingComplete(Delegate)](bool bWasSuccessful, const FUniqueNetId& UserId, const FString& DisplayNameOrEmail, const FUniqueNetId& FoundUserId, const FString& Error)
-		{
-			if (bWasSuccessful || (!GetDefault<UEOSSettings>()->bUseEAS && !GetDefault<UEOSSettings>()->bUseEOSConnect))
-			{
-				IntermediateComplete.ExecuteIfBound(bWasSuccessful, UserId, DisplayNameOrEmail, FoundUserId, Error);
-				return;
-			}
-			EOSUserInterface->QueryUserIdMapping(UserId, DisplayNameOrEmail,
-				FOnQueryUserMappingComplete::CreateLambda([this, OnComplete = FOnQueryUserMappingComplete(IntermediateComplete)](bool bWasSuccessful, const FUniqueNetId& UserId, const FString& DisplayNameOrEmail, const FUniqueNetId& FoundUserId, const FString& Error)
-			{
-				OnComplete.ExecuteIfBound(bWasSuccessful, UserId, DisplayNameOrEmail, FoundUserId, Error);
-			}));
-		}));
-	return true;
-}
-
-bool FOnlineUserEOSPlus::QueryExternalIdMappings(const FUniqueNetId& UserId, const FExternalIdQueryOptions& QueryOptions, const TArray<FString>& ExternalIds, const FOnQueryExternalIdMappingsComplete& Delegate)
-{
-	BaseUserInterface->QueryExternalIdMappings(UserId, QueryOptions, ExternalIds,
-		FOnQueryExternalIdMappingsComplete::CreateLambda([this, IntermediateComplete = FOnQueryExternalIdMappingsComplete(Delegate)](bool bWasSuccessful, const FUniqueNetId& UserId, const FExternalIdQueryOptions& QueryOptions, const TArray<FString>& ExternalIds, const FString& Error)
-	{
-		if (bWasSuccessful || (!GetDefault<UEOSSettings>()->bUseEAS && !GetDefault<UEOSSettings>()->bUseEOSConnect))
-		{
-			IntermediateComplete.ExecuteIfBound(bWasSuccessful, UserId, QueryOptions, ExternalIds, Error);
-			return;
-		}
-		EOSUserInterface->QueryExternalIdMappings(UserId, QueryOptions, ExternalIds,
-			FOnQueryExternalIdMappingsComplete::CreateLambda([this, OnComplete = FOnQueryExternalIdMappingsComplete(IntermediateComplete)](bool bWasSuccessful, const FUniqueNetId& UserId, const FExternalIdQueryOptions& QueryOptions, const TArray<FString>& ExternalIds, const FString& Error)
-		{
-			OnComplete.ExecuteIfBound(bWasSuccessful, UserId, QueryOptions, ExternalIds, Error);
-		}));
-	}));
-	return true;
-}
-
-void FOnlineUserEOSPlus::GetExternalIdMappings(const FExternalIdQueryOptions& QueryOptions, const TArray<FString>& ExternalIds, TArray<TSharedPtr<const FUniqueNetId>>& OutIds)
-{
-	OutIds.Reset();
-
-	TArray<TSharedPtr<const FUniqueNetId>> OutLocalIds;
-	BaseUserInterface->GetExternalIdMappings(QueryOptions, ExternalIds, OutLocalIds);
-	OutIds += OutLocalIds;
-
-	if (GetDefault<UEOSSettings>()->bUseEAS || GetDefault<UEOSSettings>()->bUseEOSConnect)
-	{
-		OutLocalIds.Reset();
-		EOSUserInterface->GetExternalIdMappings(QueryOptions, ExternalIds, OutLocalIds);
-		OutIds += OutLocalIds;
-	}
-}
-
-TSharedPtr<const FUniqueNetId> FOnlineUserEOSPlus::GetExternalIdMapping(const FExternalIdQueryOptions& QueryOptions, const FString& ExternalId)
-{
-	TSharedPtr<const FUniqueNetId> MappedId = BaseUserInterface->GetExternalIdMapping(QueryOptions, ExternalId);
-
-	if (!MappedId.IsValid() && (GetDefault<UEOSSettings>()->bUseEAS || GetDefault<UEOSSettings>()->bUseEOSConnect))
-	{
-		return EOSUserInterface->GetExternalIdMapping(QueryOptions, ExternalId);
-	}
-
-	return MappedId;
 }
 
 bool FOnlineUserEOSPlus::Login(int32 LocalUserNum, const FOnlineAccountCredentials& AccountCredentials)
