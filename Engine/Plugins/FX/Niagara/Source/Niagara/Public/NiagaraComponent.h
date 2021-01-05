@@ -569,8 +569,6 @@ private:
 	 * subobject handling on components when they're spawned from templates which can cause invalid cross package references.
  	 */
 	void FixDataInterfaceOuters();
-
-	void FixDataInterfaceObjectFlags();
 #endif
 
 public:
