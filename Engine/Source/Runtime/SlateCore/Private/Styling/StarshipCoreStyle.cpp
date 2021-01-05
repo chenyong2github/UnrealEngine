@@ -1739,8 +1739,8 @@ void FStarshipCoreStyle::SetupMultiboxStyles(TSharedRef<FStyle>& Style)
 		FToolBarStyle NormalToolbarStyle =
 			FToolBarStyle()
 			.SetBackground(FSlateColorBrush(FStyleColors::Background))
+			.SetBackgroundPadding(FMargin(0, 4, 0, 4))
 			.SetExpandBrush(IMAGE_BRUSH("Icons/toolbar_expand_16x", Icon16x16))
-			.SetSubMenuIndicator(IMAGE_BRUSH("Common/SubmenuArrow", Icon8x8))
 			.SetComboButtonPadding(FMargin(4.0f, 0.0f))
 			.SetButtonPadding(FMargin(2.0f, 0.f))
 			.SetCheckBoxPadding(FMargin(4.0f, 0.f))
@@ -1777,15 +1777,13 @@ void FStarshipCoreStyle::SetupMultiboxStyles(TSharedRef<FStyle>& Style)
 			.SetDisabledForeground(FSlateColor::UseForeground());
 
 		NormalToolbarStyle.SetButtonStyle(ToolbarButton);
-
-		NormalToolbarStyle.SetSettingsComboButtonStyle(Style->GetWidgetStyle<FComboButtonStyle>("ComboButton"));
 		NormalToolbarStyle.SetIconSize(Icon40x40);
 
 		Style->Set("ToolBar", NormalToolbarStyle);
 
 		// Slim Toolbar
 
-		const FButtonStyle SlimToolBarButton = FButtonStyle(ToolbarButton)
+		FButtonStyle SlimToolBarButton = FButtonStyle(ToolbarButton)
 			.SetPressed(FSlateNoResource())
 			.SetHovered(FSlateNoResource())
 			.SetNormalForeground(FStyleColors::Foreground)
@@ -1801,19 +1799,19 @@ void FStarshipCoreStyle::SetupMultiboxStyles(TSharedRef<FStyle>& Style)
 		FToolBarStyle SlimToolbarStyle =
 			FToolBarStyle()
 			.SetBackground(FSlateColorBrush(FStyleColors::Background))
+			.SetBackgroundPadding(FMargin(0,4,0,4))
 			.SetExpandBrush(IMAGE_BRUSH("Icons/toolbar_expand_16x", Icon16x16))
-			.SetSubMenuIndicator(IMAGE_BRUSH("Common/SubmenuArrow", Icon8x8))
 			.SetComboButtonPadding(FMargin(6.0f, 0.0f))
 			.SetButtonPadding(FMargin(4.0f, 0.0f))
-			.SetCheckBoxPadding(FMargin(4.0f, 0.0f))
+			.SetCheckBoxPadding(FMargin(8.0f, 0.0f))
 			.SetSeparatorBrush(FSlateColorBrush(FStyleColors::Recessed))
-			.SetSeparatorPadding(FMargin(8.f, 0))
+			.SetSeparatorPadding(FMargin(8.f, -4.0f))
 			.SetLabelStyle(FTextBlockStyle(NormalText))
 			.SetComboButtonStyle(SlimToolBarComboButton)
-			.SetLabelPadding(FMargin(5, 9, 0, 9))
+			.SetLabelPadding(FMargin(5, 0, 0, 0))
 			.SetEditableTextStyle(FEditableTextBoxStyle(NormalEditableTextBoxStyle));
 
-		const FCheckBoxStyle SlimToolBarToggleButtonCheckBoxStyle = FCheckBoxStyle()
+		FCheckBoxStyle SlimToolBarToggleButtonCheckBoxStyle = FCheckBoxStyle()
 			.SetCheckBoxType(ESlateCheckBoxType::ToggleButton)
 			.SetUncheckedImage(FSlateNoResource())
 			.SetUncheckedPressedImage(FSlateNoResource())
@@ -1839,7 +1837,27 @@ void FStarshipCoreStyle::SetupMultiboxStyles(TSharedRef<FStyle>& Style)
 		SlimToolbarStyle.SetSettingsComboButtonStyle(SlimToolBarSettingsComboButton);
 		SlimToolbarStyle.SetIconSize(Icon20x20);
 
+		Style->Set("ToolbarSettingsRegion.LeftHover", new FSlateRoundedBoxBrush(FStyleColors::Dropdown, FVector4(4.0f, 0.0f, 0.0f, 4.0f)));
+		Style->Set("ToolbarSettingsRegion.RightHover", new FSlateRoundedBoxBrush(FStyleColors::Dropdown, FVector4(0.0f, 4.0f, 4.0f, 0.0f)));
+		Style->Set("ToolbarSettingsRegion.Left", new FSlateRoundedBoxBrush(FStyleColors::Header, FVector4(4.0f, 0.0f, 0.0f, 4.0f), FStyleColors::Header, 1.0f));
+		Style->Set("ToolbarSettingsRegion.Right", new FSlateRoundedBoxBrush(FStyleColors::Header, FVector4(0.0f, 4.0f, 4.0f, 0.0f), FStyleColors::Header, 1.0f));
+
 		Style->Set("SlimToolBar", SlimToolbarStyle);
+
+		SlimToolbarStyle.SetComboButtonPadding(FMargin(4.0f, 0.0f));
+		SlimToolbarStyle.SetButtonPadding(FMargin(4.0f, 4.0f));
+		SlimToolbarStyle.SetCheckBoxPadding(FMargin(8.0f, 0.0f));
+		SlimToolbarStyle.SetShowLabels(false);
+		SlimToolbarStyle.SetLabelPadding(FMargin(5, 0, 0, 0));
+	
+		Style->Set("AssetEditorToolbar", SlimToolbarStyle);
+
+		// Callout Toolbar - Used to "call out" the toolbar button with text
+		{
+			SlimToolbarStyle.SetShowLabels(true);
+
+			Style->Set("CalloutToolbar", SlimToolbarStyle);
+		}
 	}
 
 	// MenuBar

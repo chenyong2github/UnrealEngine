@@ -23,6 +23,8 @@
 #include "Framework/MultiBox/MultiBoxCustomization.h"
 #include "Framework/MultiBox/SClippingHorizontalBox.h"
 #include "Framework/MultiBox/SWidgetBlock.h"
+#include "Framework/MultiBox/SToolBarComboButtonBlock.h"
+
 #include "Framework/Commands/UICommandDragDropOp.h"
 #include "SUniformToolbarPanel.h"
 #include "Styling/ToolBarStyle.h"
@@ -76,10 +78,16 @@ void SMultiBlockBaseWidget::SetOwnerMultiBoxWidget(TSharedRef< SMultiBoxWidget >
 	OwnerMultiBoxWidget = InOwnerMultiBoxWidget;
 }
 
-void SMultiBlockBaseWidget::SetMultiBlock(TSharedRef< const FMultiBlock > InMultiBlock)
+void SMultiBlockBaseWidget::SetMultiBlock(TSharedRef<const FMultiBlock> InMultiBlock)
 {
 	MultiBlock = InMultiBlock;
 }
+
+void SMultiBlockBaseWidget::SetOptionsBlockWidget(TSharedPtr<SWidget> InOptionsBlock)
+{
+	OptionsBlockWidget = InOptionsBlock;
+}
+
 
 void SMultiBlockBaseWidget::SetMultiBlockLocation(EMultiBlockLocation::Type InLocation, bool bInSectionContainsIcons)
 {
@@ -140,15 +148,17 @@ bool SMultiBlockBaseWidget::IsInEditMode() const
  *
  * @return  MultiBlock widget object
  */
-TSharedRef< IMultiBlockBaseWidget > FMultiBlock::MakeWidget( TSharedRef< SMultiBoxWidget > InOwnerMultiBoxWidget, EMultiBlockLocation::Type InLocation, bool bSectionContainsIcons ) const
+TSharedRef<IMultiBlockBaseWidget> FMultiBlock::MakeWidget(TSharedRef<SMultiBoxWidget> InOwnerMultiBoxWidget, EMultiBlockLocation::Type InLocation, bool bSectionContainsIcons, TSharedPtr<SWidget> OptionsBlockWidget) const
 {
-	TSharedRef< IMultiBlockBaseWidget > NewMultiBlockWidget = ConstructWidget();
+	TSharedRef<IMultiBlockBaseWidget> NewMultiBlockWidget = ConstructWidget();
 
 	// Tell the widget about its parent MultiBox widget
 	NewMultiBlockWidget->SetOwnerMultiBoxWidget( InOwnerMultiBoxWidget );
 
 	// Assign ourselves to the MultiBlock widget
-	NewMultiBlockWidget->SetMultiBlock( AsShared() );
+	NewMultiBlockWidget->SetMultiBlock(AsShared());
+
+	NewMultiBlockWidget->SetOptionsBlockWidget(OptionsBlockWidget);
 
 	// Pass location information to widget.
 	NewMultiBlockWidget->SetMultiBlockLocation(InLocation, bSectionContainsIcons);
@@ -596,7 +606,7 @@ EVisibility SMultiBoxWidget::GetCustomizationBorderDragVisibility(const FName In
 	return EVisibility::Collapsed;
 }
 
-void SMultiBoxWidget::AddBlockWidget( const FMultiBlock& Block, TSharedPtr<SHorizontalBox> HorizontalBox, TSharedPtr<SVerticalBox> VerticalBox, EMultiBlockLocation::Type InLocation,  bool bSectionContainsIcons )
+void SMultiBoxWidget::AddBlockWidget(const FMultiBlock& Block, TSharedPtr<SHorizontalBox> HorizontalBox, TSharedPtr<SVerticalBox> VerticalBox, EMultiBlockLocation::Type InLocation, bool bSectionContainsIcons, TSharedPtr<const FToolBarComboButtonBlock> OptionsBlock)
 {
 	check( MultiBox.IsValid() );
 
@@ -608,7 +618,14 @@ void SMultiBoxWidget::AddBlockWidget( const FMultiBlock& Block, TSharedPtr<SHori
 
 	bool bDisplayExtensionHooks = FMultiBoxSettings::DisplayMultiboxHooks.Get() && Block.GetExtensionHook() != NAME_None;
 
-	TSharedRef<SWidget> BlockWidget = Block.MakeWidget(SharedThis(this), InLocation, bSectionContainsIcons)->AsWidget();
+	TSharedPtr<SWidget> OptionsWidget;
+	if (OptionsBlock)
+	{
+		OptionsWidget = OptionsBlock->MakeWidget(SharedThis(this), EMultiBlockLocation::None, bSectionContainsIcons, nullptr)->AsWidget();
+	}
+
+	TSharedRef<SWidget> BlockWidget = Block.MakeWidget(SharedThis(this), InLocation, bSectionContainsIcons, OptionsWidget)->AsWidget();
+
 
 	TWeakPtr<SWidget> BlockWidgetWeakPtr = BlockWidget;
 	TWeakPtr<const FMultiBlock> BlockWeakPtr = Block.AsShared();
@@ -806,9 +823,13 @@ void SMultiBoxWidget::BuildMultiBoxWidget()
 	const FName& StyleName = MultiBox->GetStyleName();
 
 	const FSlateBrush* BackgroundBrush = nullptr;
+	FMargin BackgroundPadding;
 	if (StyleSet->HasWidgetStyle<FToolBarStyle>(StyleName))
 	{
-		BackgroundBrush = &StyleSet->GetWidgetStyle<FToolBarStyle>(StyleName).BackgroundBrush;
+		const FToolBarStyle& Style = StyleSet->GetWidgetStyle<FToolBarStyle>(StyleName);
+
+		BackgroundBrush = &Style.BackgroundBrush;
+		BackgroundPadding = Style.BackgroundPadding;
 	}
 	else
 	{
@@ -933,6 +954,13 @@ void SMultiBoxWidget::BuildMultiBoxWidget()
 		const FMultiBlock& Block = *Blocks[Index];
 		EMultiBlockLocation::Type Location = EMultiBlockLocation::None;
 		
+		TSharedPtr<const FMultiBlock> NextBlock = nullptr;
+
+		if (Blocks.IsValidIndex(Index + 1))
+		{
+			NextBlock = Blocks[Index + 1];
+		}
+
 		// Determine the location of the current block, used for group styling information
 		{
 			// Check if we are a start or end block
@@ -948,10 +976,9 @@ void SMultiBoxWidget::BuildMultiBoxWidget()
 			// Check if we are next to a start or end block
 			bool bIsNextToStartBlock = false;
 			bool bIsNextToEndBlock = false;
-			if (Index + 1 < Blocks.Num())
+			if (NextBlock)
 			{
-				const FMultiBlock& NextBlock = *Blocks[Index + 1];
-				if ( NextBlock.IsGroupEndBlock() )
+				if ( NextBlock->IsGroupEndBlock() )
 				{
 					bIsNextToEndBlock = true;
 				}
@@ -989,18 +1016,30 @@ void SMultiBoxWidget::BuildMultiBoxWidget()
 			}
 		}
 
+		TSharedPtr<const FToolBarComboButtonBlock> OptionsBlock;
+		if (NextBlock && NextBlock->GetType() == EMultiBlockType::ToolBarComboButton)
+		{
+			TSharedPtr<const FToolBarComboButtonBlock> NextToolBarComboButtonBlock = StaticCastSharedPtr<const FToolBarComboButtonBlock>(NextBlock);
+			if (NextToolBarComboButtonBlock->IsSimpleComboBox())
+			{
+				// Apply a special treatment to simple combo boxes as they represent options for the previous button
+				OptionsBlock = NextToolBarComboButtonBlock;
+				// Skip over options blocks. They are not added directly
+				++Index;
+			}
+		}
 
 		if( DragPreview.IsValid() && DragPreview.InsertIndex == Index )
 		{
 			// Add the drag preview before if we have it. This block shows where the custom block will be 
 			// added if the user drops it
-			AddBlockWidget( *DragPreview.PreviewBlock, HorizontalBox, VerticalBox, EMultiBlockLocation::None, bSectionContainsIcons );
+			AddBlockWidget(*DragPreview.PreviewBlock, HorizontalBox, VerticalBox, EMultiBlockLocation::None, bSectionContainsIcons, OptionsBlock);
 		}
 		
 		// Do not add a block if it is being dragged
 		if( !IsBlockBeingDragged( Blocks[Index] ) )
 		{
-			AddBlockWidget( Block, HorizontalBox, VerticalBox, Location, bSectionContainsIcons );
+			AddBlockWidget(Block, HorizontalBox, VerticalBox, Location, bSectionContainsIcons, OptionsBlock);
 		}
 	}
 
@@ -1027,6 +1066,7 @@ void SMultiBoxWidget::BuildMultiBoxWidget()
 	default:
 		{ 
 			BorderBrush = BackgroundBrush;
+			BorderPadding = BackgroundPadding;
 			BorderForegroundColor = FCoreStyle::Get().GetSlateColor("DefaultForeground");
 		}
 		break;
@@ -1097,7 +1137,7 @@ void SMultiBoxWidget::UpdateDropAreaPreviewBlock( TSharedRef<const FMultiBlock> 
 					MakeShareable(
 						new FDropPreviewBlock( 
 							NewBlock.ToSharedRef(), 
-							NewBlock->MakeWidget( SharedThis(this), EMultiBlockLocation::None, NewBlock->HasIcon() ) )
+							NewBlock->MakeWidget( SharedThis(this), EMultiBlockLocation::None, NewBlock->HasIcon(),nullptr ) )
 					);
 
 				bAddedNewBlock = true;

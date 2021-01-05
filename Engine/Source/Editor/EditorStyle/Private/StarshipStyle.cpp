@@ -2388,12 +2388,12 @@ void FStarshipEditorStyle::FStyle::SetupViewportStyles()
 		ViewportToolbarStyle
 			.SetBackground(FSlateNoResource())
 			.SetIconSize(Icon16x16)
+			.SetBackgroundPadding(FMargin(0))
 			.SetLabelPadding(FMargin(0))
 			.SetComboButtonPadding(FMargin(0))
 			.SetBlockPadding(FMargin(2.0f,0.0f))
 			.SetIndentedBlockPadding(FMargin(0))
 			.SetButtonPadding(FMargin(0))
-			.SetSubMenuIndicator(FSlateNoResource())
 			.SetCheckBoxPadding(FMargin(3.0f, 0.0f))
 			.SetButtonStyle(ViewportMenuButton)
 			.SetSeparatorBrush(FSlateNoResource())
@@ -2439,7 +2439,6 @@ void FStarshipEditorStyle::FStyle::SetupViewportStyles()
 			FToolBarStyle()
 			.SetBackground(BOX_BRUSH("Old/Menu_Background", FMargin(8.0f / 64.0f), FLinearColor::Transparent))
 			.SetExpandBrush(IMAGE_BRUSH("Icons/toolbar_expand_16x", Icon8x8))
-			.SetSubMenuIndicator(IMAGE_BRUSH("Common/SubmenuArrow", Icon8x8))
 			.SetComboButtonPadding(FMargin(0))
 			.SetButtonPadding(FMargin(0))
 			.SetCheckBoxPadding(FMargin(4))
@@ -5332,11 +5331,9 @@ void FStarshipEditorStyle::FStyle::SetupPersonaStyle()
 		FLinearColor GreenHover = FLinearColor(GreenHSV.R, GreenHSV.G * .5, GreenHSV.B, GreenHSV.A).HSVToLinearRGB();
 		FLinearColor GreenPress = FLinearColor(GreenHSV.R, GreenHSV.G, GreenHSV.B*.5, GreenHSV.A).HSVToLinearRGB(); 
 
-		FToolBarStyle PlayToolbar = FStarshipCoreStyle::GetCoreStyle().GetWidgetStyle<FToolBarStyle>("SlimToolBar");
+		FToolBarStyle PlayToolbar = FStarshipCoreStyle::GetCoreStyle().GetWidgetStyle<FToolBarStyle>("AssetEditorToolbar");
 
 		const FButtonStyle PlayToolbarButton = FButtonStyle(PlayToolbar.ButtonStyle)
-			.SetPressed(FSlateNoResource())
-			.SetHovered(FSlateNoResource())
 			.SetNormalForeground(FStyleColors::AccentGreen)
 			.SetPressedForeground(GreenPress)
 			.SetHoveredForeground(GreenHover);
@@ -5346,9 +5343,10 @@ void FStarshipEditorStyle::FStyle::SetupPersonaStyle()
 			.SetDownArrowImage(CORE_IMAGE_BRUSH_SVG("Starship/Common/ellipsis-vertical-narrow", FVector2D(6, 24)));
 		PlayToolbarComboButton.ButtonStyle = PlayToolbarButton;
 
-	
 		PlayToolbar.SetButtonStyle(PlayToolbarButton);
 		PlayToolbar.SetSettingsComboButtonStyle(PlayToolbarComboButton);
+		PlayToolbar.SetShowLabels(true);
+
 		Set("PlayToolBar", PlayToolbar);
 
 		Set( "PlayWorld.Simulate", new IMAGE_BRUSH( "Icons/icon_simulate_40x", Icon40x40 ) );

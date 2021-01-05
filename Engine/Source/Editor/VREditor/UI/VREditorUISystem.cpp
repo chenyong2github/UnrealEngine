@@ -1437,7 +1437,7 @@ void UVREditorUISystem::MakeUniformGridMenu(const TSharedRef<FMultiBox>& MultiBo
 		const TSharedRef<const FMultiBlock>& Block = MultiBlock;
 		if(Block->GetType() == EMultiBlockType::MenuEntry)
 		{
-			TSharedRef<SWidget> BlockWidget = Block->MakeWidget(MultiBoxWidget, EMultiBlockLocation::Middle, true)->AsWidget();
+			TSharedRef<SWidget> BlockWidget = Block->MakeWidget(MultiBoxWidget, EMultiBlockLocation::Middle, true, nullptr)->AsWidget();
 		
 			int32 Column = FMath::Fmod(static_cast<float>(Index), static_cast<float>(Columns));
 			Row = FMath::DivideAndRoundDown(Index, Columns);
@@ -1567,7 +1567,7 @@ void UVREditorUISystem::MakeRadialBoxMenu(const TSharedRef<FMultiBox>& MultiBox,
 		const TSharedRef<const FMultiBlock>& Block = MultiBlock;
 		if (Block->GetType() == EMultiBlockType::MenuEntry)
 		{
-			TSharedRef<SWidget> BlockWidget = Block->MakeWidget(MultiBoxWidget, EMultiBlockLocation::Middle, true)->AsWidget();
+			TSharedRef<SWidget> BlockWidget = Block->MakeWidget(MultiBoxWidget, EMultiBlockLocation::Middle, true, nullptr)->AsWidget();
 			TSharedRef<SOverlay> TestOverlay = SNew(SOverlay);
 
 			BlockWidget = AddHoverableButton(BlockWidget, ButtonTypeOverride, TestOverlay);

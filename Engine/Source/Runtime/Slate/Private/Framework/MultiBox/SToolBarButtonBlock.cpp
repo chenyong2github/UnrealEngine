@@ -11,6 +11,7 @@
 #include "Framework/MultiBox/SToolBarComboButtonBlock.h"
 #include "Styling/ToolBarStyle.h"
 #include "Widgets/Images/SLayeredImage.h"
+#include "Widgets/Layout/SSeparator.h"
 
 
 FToolBarButtonBlock::FToolBarButtonBlock( const TSharedPtr< const FUICommandInfo > InCommand, TSharedPtr< const FUICommandList > InCommandList, const TAttribute<FText>& InLabelOverride, const TAttribute<FText>& InToolTipOverride, const TAttribute<FSlateIcon>& InIconOverride )
@@ -75,11 +76,11 @@ bool FToolBarButtonBlock::HasIcon() const
 TSharedRef< class IMultiBlockBaseWidget > FToolBarButtonBlock::ConstructWidget() const
 {
 	return SNew( SToolBarButtonBlock )
-		.LabelVisibility( LabelVisibility.IsSet() ? LabelVisibility.GetValue() : TOptional< EVisibility >() )
-		.IsFocusable( bIsFocusable )
-		.ForceSmallIcons( bForceSmallIcons )
+		.LabelVisibility(LabelVisibility)
+		.IsFocusable(bIsFocusable)
+		.ForceSmallIcons(bForceSmallIcons)
 		.TutorialHighlightName(GetTutorialHighlightName())
-		.Cursor( EMouseCursor::Default );
+		.Cursor(EMouseCursor::Default);
 }
 
 
@@ -90,15 +91,7 @@ TSharedRef< class IMultiBlockBaseWidget > FToolBarButtonBlock::ConstructWidget()
  */
 void SToolBarButtonBlock::Construct( const FArguments& InArgs )
 {
-	if ( InArgs._LabelVisibility.IsSet() )
-	{
-		LabelVisibility = InArgs._LabelVisibility.GetValue();
-	}
-	else
-	{
-		LabelVisibility = TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateSP(SharedThis(this), &SToolBarButtonBlock::GetIconVisibility, false));
-	}
-
+	LabelVisibilityOverride = InArgs._LabelVisibility;
 	bIsFocusable = InArgs._IsFocusable;
 	bForceSmallIcons = InArgs._ForceSmallIcons;
 	TutorialHighlightName = InArgs._TutorialHighlightName;
@@ -111,6 +104,22 @@ void SToolBarButtonBlock::Construct( const FArguments& InArgs )
 void SToolBarButtonBlock::BuildMultiBlockWidget(const ISlateStyle* StyleSet, const FName& StyleName)
 {
 	const FToolBarStyle& ToolBarStyle = StyleSet->GetWidgetStyle<FToolBarStyle>(StyleName);
+
+	// If override is set use that
+	if (LabelVisibilityOverride.IsSet())
+	{
+		LabelVisibility = LabelVisibilityOverride.GetValue();
+	}
+	else if (!ToolBarStyle.bShowLabels)
+	{
+		// Otherwise check the style
+		LabelVisibility = EVisibility::Collapsed;
+	}
+	else
+	{
+		// Finally if the style doesnt disable labels, use the default
+		LabelVisibility = TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateSP(SharedThis(this), &SToolBarButtonBlock::GetIconVisibility, false));
+	}
 
 	struct Local
 	{
@@ -132,10 +141,9 @@ void SToolBarButtonBlock::BuildMultiBlockWidget(const ISlateStyle* StyleSet, con
 		}
 	};
 
-
 	TSharedRef<const FMultiBox> MultiBox = OwnerMultiBoxWidget.Pin()->GetMultiBox();
 
-	TSharedRef<const FToolBarButtonBlock > ToolBarButtonBlock = StaticCastSharedRef< const FToolBarButtonBlock >(MultiBlock.ToSharedRef());
+	TSharedRef<const FToolBarButtonBlock> ToolBarButtonBlock = StaticCastSharedRef<const FToolBarButtonBlock>(MultiBlock.ToSharedRef());
 
 	TSharedPtr<const FUICommandInfo> UICommand = ToolBarButtonBlock->GetAction();
 
@@ -287,27 +295,48 @@ void SToolBarButtonBlock::BuildMultiBlockWidget(const ISlateStyle* StyleSet, con
 		];
 	}
 
-
-	// Often buttons have a "simple" combo box next to it.  The button + simple combo button is designed to feel like a normal combo button but 
-	// when the button part is pressed some action happens independently of the combo dropdown and the dropdown changes settings the button uses.  
-	// We want this to feel like one widget so we space them closer together.
-	FMargin Padding = ToolBarStyle.ButtonPadding;
+	if (OptionsBlockWidget.IsValid())
 	{
-		int32 MyIndex = MultiBox->GetBlocks().Find(ToolBarButtonBlock);
-		if (MultiBox->GetBlocks().IsValidIndex(MyIndex + 1))
-		{
-			const TSharedRef<const FMultiBlock>& NextBlock = MultiBox->GetBlocks()[MyIndex + 1];
-			if (NextBlock->GetType() == EMultiBlockType::ToolBarComboButton)
-			{
-				TSharedRef<const FToolBarComboButtonBlock> NextToolBarComboButtonBlock = StaticCastSharedRef<const FToolBarComboButtonBlock>(NextBlock);
-				if (NextToolBarComboButtonBlock->IsSimpleComboBox())
-				{
-					Padding.Right = 2.0f;
-				}
-			}
-		}
-
-		ChildSlot.Padding(Padding);
+		ChildSlot
+		[
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			[
+				SAssignNew(ButtonBorder, SBorder)
+				.Padding(FMargin(10.0f, 0.0f,2.0f, 0.0f))
+				.BorderImage(this, &SToolBarButtonBlock::GetOptionsBlockLeftBrush)
+				.VAlign(VAlign_Center)
+				[
+					ChildSlot.GetWidget()
+				]
+			]
+			/*+ SHorizontalBox::Slot()
+			.AutoWidth()
+			[
+				SNew(SSeparator)
+				.Orientation(Orient_Vertical)
+				.Visibility(this, &SToolBarButtonBlock::GetOptionsSeparatorVisibility)
+				.Thickness(1.0f)
+			]*/
+			+ SHorizontalBox::Slot()
+			.Padding(0.0f,0.0f)
+			.AutoWidth()
+			[
+				SAssignNew(OptionsBorder, SBorder)
+				.Padding(FMargin(0.0f, 0.0f, 2.0f, 0.0f))
+				.BorderImage(this, &SToolBarButtonBlock::GetOptionsBlockRightBrush)
+				.VAlign(VAlign_Center)
+				[
+					OptionsBlockWidget.ToSharedRef()
+				]
+			]
+		];
+		ChildSlot.Padding(ToolBarStyle.ComboButtonPadding.Left, 0.0f, ToolBarStyle.ComboButtonPadding.Right, 0.0f);
+	}
+	else
+	{
+		ChildSlot.Padding(ToolBarStyle.ButtonPadding);
 	}
 
 	// Bind our widget's enabled state to whether or not our action can execute
@@ -514,4 +543,46 @@ FSlateColor SToolBarButtonBlock::GetIconForegroundColor() const
 	}
 
 	return FSlateColor::UseForeground();
+}
+
+const FSlateBrush* SToolBarButtonBlock::GetOptionsBlockLeftBrush() const
+{
+	if (ButtonBorder->IsHovered())
+	{
+		static const FName LeftHover("ToolbarSettingsRegion.LeftHover");
+		return FAppStyle::Get().GetBrush(LeftHover);
+	}
+	else if (OptionsBorder->IsHovered())
+	{
+		static const FName Left("ToolbarSettingsRegion.Left");
+		return FAppStyle::Get().GetBrush(Left);
+	}
+	else
+	{
+		return FStyleDefaults::GetNoBrush();
+	}
+
+}
+
+const FSlateBrush* SToolBarButtonBlock::GetOptionsBlockRightBrush() const
+{
+	if (OptionsBorder->IsHovered())
+	{
+		static const FName RightHover("ToolbarSettingsRegion.RightHover");
+		return FAppStyle::Get().GetBrush(RightHover);
+	}
+	else if (ButtonBorder->IsHovered())
+	{
+		static const FName Right("ToolbarSettingsRegion.Right");
+		return FAppStyle::Get().GetBrush(Right);
+	}
+	else
+	{
+		return FStyleDefaults::GetNoBrush();
+	}
+}
+
+EVisibility SToolBarButtonBlock::GetOptionsSeparatorVisibility() const
+{
+	return IsHovered() ? EVisibility::HitTestInvisible : EVisibility::Hidden;
 }

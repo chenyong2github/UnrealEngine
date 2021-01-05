@@ -866,12 +866,15 @@ void FStaticMeshEditor::ExtendToolBar()
 					FUIAction(),
 					FOnGetContent::CreateLambda(ConstructReimportContextMenu),
 					TAttribute<FText>(),
-					TAttribute<FText>()
+					TAttribute<FText>(),
+					TAttribute<FSlateIcon>(),
+					true
 				);
 			}
 			ToolbarBuilder.EndSection();
 
 			ToolbarBuilder.BeginSection("Command");
+			ToolbarBuilder.BeginStyleOverride("CalloutToolbar");
 			{
 				TSharedPtr<const FUICommandList> CommandList = ToolbarBuilder.GetTopCommandList();
 
@@ -892,7 +895,7 @@ void FStaticMeshEditor::ExtendToolBar()
 					LOCTEXT("UVToolbarTooltip", "Toggles display of the static mesh's UVs for the specified channel."),
 					FSlateIcon(FEditorStyle::GetStyleSetName(), "StaticMeshEditor.SetDrawUVs"));
 			}
-
+			ToolbarBuilder.EndStyleOverride();
 			ToolbarBuilder.EndSection();
 		}
 	};

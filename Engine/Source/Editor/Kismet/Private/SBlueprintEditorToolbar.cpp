@@ -440,23 +440,21 @@ void FBlueprintEditorToolbar::AddCompileToolbar(UToolMenu* InMenu)
 			{
 				const FFullBlueprintEditorCommands& Commands = FFullBlueprintEditorCommands::Get();
 
-				InSection.AddEntry(FToolMenuEntry::InitToolBarButton(
+				FToolMenuEntry CompileButton = FToolMenuEntry::InitToolBarButton(
 					Commands.Compile,
 					TAttribute<FText>(),
 					TAttribute<FText>(BlueprintEditorToolbar.ToSharedRef(), &FBlueprintEditorToolbar::GetStatusTooltip),
 					TAttribute<FSlateIcon>(BlueprintEditorToolbar.ToSharedRef(), &FBlueprintEditorToolbar::GetStatusImage),
-					"CompileBlueprint"
-				));
+					"CompileBlueprint");
 
-				InSection.AddEntry(FToolMenuEntry::InitComboButton(
-					"BlueprintCompileOptions",
+				CompileButton.StyleNameOverride = "CalloutToolbar";
+
+				CompileButton.AddOptionsDropdown(
 					FUIAction(),
 					FOnGetContent::CreateStatic(&BlueprintEditorToolbarImpl::GenerateCompileOptionsWidget, Context->BlueprintEditor.Pin()->GetToolkitCommands()),
-					LOCTEXT("BlupeintCompileOptions_ToolbarName",    "Compile Options"),
-					LOCTEXT("BlupeintCompileOptions_ToolbarTooltip", "Options to customize how Blueprints compile"),
-					TAttribute<FSlateIcon>(),
-					/*bSimpleComboBox =*/true
-				));
+					LOCTEXT("BlupeintCompileOptions_ToolbarTooltip", "Options to customize how Blueprints compile"));
+
+				InSection.AddEntry(CompileButton);
 			}
 		}
 	}));

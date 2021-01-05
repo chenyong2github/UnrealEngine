@@ -26,6 +26,7 @@ class STableViewBase;
 class SVerticalBox;
 class UToolMenuBase;
 class SUniformWrapPanel;
+class FToolBarComboButtonBlock;
 
 namespace MultiBoxConstants
 {	
@@ -152,7 +153,7 @@ public:
 	 *
 	 * @return  MultiBlock widget object
 	 */
-	TSharedRef< class IMultiBlockBaseWidget > MakeWidget( TSharedRef< class SMultiBoxWidget > InOwnerMultiBoxWidget, EMultiBlockLocation::Type InLocation, bool bSectionContainsIcons ) const;
+	TSharedRef<class IMultiBlockBaseWidget> MakeWidget(TSharedRef< class SMultiBoxWidget > InOwnerMultiBoxWidget, EMultiBlockLocation::Type InLocation, bool bSectionContainsIcons, TSharedPtr<SWidget> OptionsBlockWidget) const;
 
 	/**
 	 * Gets the type of this MultiBox
@@ -450,7 +451,7 @@ public:
 	 *
 	 * @return  Widget reference
 	 */
-	virtual TSharedRef< SWidget > AsWidget() = 0;
+	virtual TSharedRef<SWidget> AsWidget() = 0;
 
 
 	/**
@@ -458,24 +459,28 @@ public:
 	 *
 	 * @return  Widget reference
 	 */
-	virtual TSharedRef< const SWidget > AsWidget() const = 0;
-
+	virtual TSharedRef<const SWidget> AsWidget() const = 0;
 
 	/**
 	 * Associates the owner MultiBox widget with this widget
 	 *
 	 * @param	InOwnerMultiBoxWidget		The MultiBox widget that owns us
 	 */
-	virtual void SetOwnerMultiBoxWidget( TSharedRef< SMultiBoxWidget > InOwnerMultiBoxWidget ) = 0;
+	virtual void SetOwnerMultiBoxWidget(TSharedRef<SMultiBoxWidget> InOwnerMultiBoxWidget ) = 0;
 
-	
 	/**
 	 * Associates this widget with a MultiBlock
 	 *
 	 * @param	InMultiBlock	The MultiBlock we'll be associated with
 	 */
-	virtual void SetMultiBlock( TSharedRef< const FMultiBlock > InMultiBlock ) = 0;
+	virtual void SetMultiBlock(TSharedRef<const FMultiBlock> InMultiBlock) = 0;
 
+	/**
+	 * Adds a dropdown widget for options associated with this widget. The usage of this is block specific
+	 *
+	 * @param	InOptionsBlockWidget	The options block to associate with this widget
+	 */
+	virtual void SetOptionsBlockWidget(TSharedPtr<SWidget> InOptionsBlockWidget) = 0;
 
 	/**
 	 * Builds this MultiBlock widget up from the MultiBlock associated with it
@@ -519,23 +524,26 @@ public:
 	/** IMultiBlockBaseWidget interface */
 	virtual TSharedRef< SWidget > AsWidget() override;
 	virtual TSharedRef< const SWidget > AsWidget() const override;
-	virtual void SetOwnerMultiBoxWidget( TSharedRef< SMultiBoxWidget > InOwnerMultiBoxWidget ) override;
-	virtual void SetMultiBlock( TSharedRef< const FMultiBlock > InMultiBlock ) override;
-	virtual void SetMultiBlockLocation( EMultiBlockLocation::Type InLocation, bool bInSectionContainsIcons ) override;
+	virtual void SetOwnerMultiBoxWidget(TSharedRef<SMultiBoxWidget> InOwnerMultiBoxWidget) override;
+	virtual void SetMultiBlock(TSharedRef<const FMultiBlock> InMultiBlock) override;
+	virtual void SetOptionsBlockWidget(TSharedPtr<SWidget> InOptionsBlock) override;
+	virtual void SetMultiBlockLocation(EMultiBlockLocation::Type InLocation, bool bInSectionContainsIcons) override;
 	virtual EMultiBlockLocation::Type GetMultiBlockLocation() override;
 	virtual bool IsInEditMode() const override;
 
 	/** SWidget Interface */
-	virtual void OnDragEnter( const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent ) override;
-	virtual FReply OnDragOver( const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent ) override;
-	virtual FReply OnDrop( const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent ) override;
+	virtual void OnDragEnter(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent) override;
+	virtual FReply OnDragOver(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent) override;
+	virtual FReply OnDrop(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent) override;
 protected:
 
 	/** Weak reference back to the MultiBox widget that owns us */
-	TWeakPtr< SMultiBoxWidget > OwnerMultiBoxWidget;
+	TWeakPtr<SMultiBoxWidget> OwnerMultiBoxWidget;
 
 	/** The MultiBlock we're associated with */
-	TSharedPtr< const FMultiBlock > MultiBlock;
+	TSharedPtr<const FMultiBlock> MultiBlock;
+
+	TSharedPtr<SWidget> OptionsBlockWidget;
 
 	/** The MultiBlocks location relative to the other blocks in the set */
 	EMultiBlockLocation::Type Location;
@@ -737,7 +745,7 @@ public:
 	/**
 	 * @return The visibility of customization widgets for a block
 	 */
-	EVisibility GetCustomizationVisibility( TWeakPtr<const FMultiBlock> BlockWeakPtr, TWeakPtr<SWidget> BlockWidgetWeakPtr ) const;
+	EVisibility GetCustomizationVisibility(TWeakPtr<const FMultiBlock> BlockWeakPtr, TWeakPtr<SWidget> BlockWidgetWeakPtr) const;
 
 	/**
 	 * @return The visibility of the drop location indicator of a drag and drop for a block
@@ -746,7 +754,7 @@ public:
 
 private:
 	/** Adds a block Widget to this widget */
-	void AddBlockWidget( const FMultiBlock& Block, TSharedPtr<SHorizontalBox> HorizontalBox, TSharedPtr<SVerticalBox> VerticalBox, EMultiBlockLocation::Type InLocation,  bool bSectionContainsIcons );
+	void AddBlockWidget(const FMultiBlock& Block, TSharedPtr<SHorizontalBox> HorizontalBox, TSharedPtr<SVerticalBox> VerticalBox, EMultiBlockLocation::Type InLocation, bool bSectionContainsIcons, TSharedPtr<const FToolBarComboButtonBlock> OptionsBlock);
 
 	/**
 	 * Updates the preview block being dragged.  The drag area is where the users dragged block will be dropped

@@ -10,6 +10,8 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Framework/MultiBox/MultiBox.h"
 
+class SComboButton;
+
 /**
  * Tool bar combo button MultiBlock
  */
@@ -45,7 +47,7 @@ public:
 	/** Set whether this toolbar should always use small icons, regardless of the current settings */
 	void SetForceSmallIcons( const bool InForceSmallIcons ) { bForceSmallIcons = InForceSmallIcons; }
 
-
+	bool IsSimpleComboBox() const { return bSimpleComboBox; }
 private:
 
 	/**
@@ -150,20 +152,34 @@ private:
 	/** @return True if this toolbar button is using a dynamically set icon */
 	bool HasDynamicIcon() const;
 
+	/** Gets the icon brush for the toolbar block widget */
+	const FSlateBrush* GetIconBrush() const;
+
 	/** @return The icon for the toolbar button; may be dynamic, so check HasDynamicIcon */
-	const FSlateBrush* GetIcon() const;
+	const FSlateBrush* GetNormalIconBrush() const;
 
 	/** @return The small icon for the toolbar button; may be dynamic, so check HasDynamicIcon */
-	const FSlateBrush* GetSmallIcon() const;
+	const FSlateBrush* GetSmallIconBrush() const;
 
 	/** Called by Slate to determine whether icons/labels are visible */
 	EVisibility GetIconVisibility(bool bIsASmallIcon) const;
+
+	FSlateColor OnGetForegroundColor() const;
+
+private:
+	/** Overrides the visibility of the of label. This is used to set up the LabelVisibility attribute */
+	TOptional<EVisibility> LabelVisibilityOverride;
 
 	/** Controls the visibility of the of label, defaults to GetIconVisibility */
 	TAttribute< EVisibility > LabelVisibility;
 
 	/** Optional overridden icon for this tool bar button.  IF not set, then the action's icon will be used instead. */
 	TAttribute<FSlateIcon> Icon;
+
+	TSharedPtr<SComboButton> ComboButtonWidget;
+
+	/** The foreground color for button when the combo button is open */
+	FSlateColor OpenForegroundColor;
 
 	/** Whether this toolbar should always use small icons, regardless of the current settings */
 	bool bForceSmallIcons;

@@ -138,14 +138,14 @@ TSharedRef<SWidget> SBlueprintEditorSelectedDebugObjectWidget::OnGetActiveDetail
 			SNew(SHorizontalBox)
 			+ SHorizontalBox::Slot()
 			.VAlign(VAlign_Center)
-			.Padding(5.0f)
+			.Padding(0.0f)
 			.AutoWidth()
 			[
 				DebugWorldsComboBox.ToSharedRef()
 			]
 			+ SHorizontalBox::Slot()
 			.VAlign(VAlign_Center)
-			.Padding(0.0f, 5.0f)
+			.Padding(0.0f)
 			.AutoWidth()
 			[
 				DebugObjectSelectionWidget

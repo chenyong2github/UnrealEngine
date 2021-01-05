@@ -1067,16 +1067,18 @@ void FTextureEditorToolkit::FillToolbar(FToolBarBuilder& ToolbarBuilder)
 		}
 		ToolbarBuilder.EndSection();
 		ToolbarBuilder.BeginSection("Settings");
+		ToolbarBuilder.BeginStyleOverride("CalloutToolbar");
 		{
 			ToolbarBuilder.AddWidget(SNew(SSpacer), NAME_None, false, HAlign_Right);
 			ToolbarBuilder.AddComboButton(
 				FUIAction(),
 				FOnGetContent::CreateSP(this, &FTextureEditorToolkit::OnGenerateSettingsMenu),
-				LOCTEXT("SettingsMenu", "Settings"),
+				LOCTEXT("SettingsMenu", "View Settings"),
 				FText::GetEmpty(),
 				FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Settings")
 			);
 		}
+		ToolbarBuilder.EndStyleOverride();
 	}
 }
 

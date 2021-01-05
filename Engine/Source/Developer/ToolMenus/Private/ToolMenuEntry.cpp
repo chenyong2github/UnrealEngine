@@ -16,6 +16,7 @@ FToolMenuEntry::FToolMenuEntry() :
 	UserInterfaceActionType(EUserInterfaceActionType::Button),
 	bShouldCloseWindowAfterMenuSelection(true),
 	ScriptObject(nullptr),
+	StyleNameOverride(NAME_None),
 	bAddedDuringRegister(false)
 {
 }
@@ -27,6 +28,7 @@ FToolMenuEntry::FToolMenuEntry(const FToolMenuOwner InOwner, const FName InName,
 	UserInterfaceActionType(EUserInterfaceActionType::Button),
 	bShouldCloseWindowAfterMenuSelection(true),
 	ScriptObject(nullptr),
+	StyleNameOverride(NAME_None),
 	bAddedDuringRegister(false)
 {
 }
@@ -56,6 +58,15 @@ const FUIAction* FToolMenuEntry::GetActionForCommand(const FToolMenuContext& InC
 void FToolMenuEntry::SetCommandList(const TSharedPtr<const FUICommandList>& InCommandList)
 {
 	CommandList = InCommandList;
+}
+
+void FToolMenuEntry::AddOptionsDropdown(FUIAction InAction, const FOnGetContent InMenuContentGenerator, const TAttribute<FText>& InToolTip)
+{
+	ToolBarData.OptionsDropdownData = MakeShared<FToolMenuEntryOptionsDropdownData>();
+	
+	ToolBarData.OptionsDropdownData->Action = InAction;
+	ToolBarData.OptionsDropdownData->MenuContentGenerator = FNewToolMenuChoice(InMenuContentGenerator);
+	ToolBarData.OptionsDropdownData->ToolTip = InToolTip;
 }
 
 void FToolMenuEntry::SetCommand(const TSharedPtr<const FUICommandInfo>& InCommand, TOptional<FName> InName, const TAttribute<FText>& InLabel, const TAttribute<FText>& InToolTip, const TAttribute<FSlateIcon>& InIcon)

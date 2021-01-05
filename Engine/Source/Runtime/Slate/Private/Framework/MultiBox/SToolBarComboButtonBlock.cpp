@@ -50,15 +50,7 @@ TSharedRef< class IMultiBlockBaseWidget > FToolBarComboButtonBlock::ConstructWid
 
 void SToolBarComboButtonBlock::Construct( const FArguments& InArgs )
 {
-	if ( InArgs._LabelVisibility.IsSet() )
-	{
-		LabelVisibility = InArgs._LabelVisibility.GetValue();
-	}
-	else
-	{
-		LabelVisibility = TAttribute< EVisibility >::Create( TAttribute< EVisibility >::FGetter::CreateSP( SharedThis( this ), &SToolBarComboButtonBlock::GetIconVisibility, false ) );
-	}
-
+	LabelVisibilityOverride = InArgs._LabelVisibility;
 	Icon = InArgs._Icon;
 	bForceSmallIcons = InArgs._ForceSmallIcons;
 }
@@ -74,6 +66,21 @@ void SToolBarComboButtonBlock::BuildMultiBlockWidget(const ISlateStyle* StyleSet
 	TAttribute<FText> Label;
 
 	const FToolBarStyle& ToolBarStyle = StyleSet->GetWidgetStyle<FToolBarStyle>(StyleName);
+
+	// If override is set use that
+	if (LabelVisibilityOverride.IsSet())
+	{
+		LabelVisibility = LabelVisibilityOverride.GetValue();
+	}
+	else if (!ToolBarStyle.bShowLabels)
+	{
+		// Otherwise check the style
+		LabelVisibility = EVisibility::Collapsed;
+	}
+	else
+	{
+		LabelVisibility = TAttribute< EVisibility >::Create(TAttribute< EVisibility >::FGetter::CreateSP(SharedThis(this), &SToolBarComboButtonBlock::GetIconVisibility, false));
+	}
 
 	TSharedRef<SWidget> IconWidget = SNullWidget::NullWidget;
 	if (!ToolBarComboButtonBlock->bSimpleComboBox)
@@ -203,8 +210,7 @@ void SToolBarComboButtonBlock::BuildMultiBlockWidget(const ISlateStyle* StyleSet
 	FMargin Padding = ToolBarStyle.ComboButtonPadding;
 	if (ToolBarComboButtonBlock->bSimpleComboBox)
 	{
-		Padding.Left = 0;
-		Padding.Right = 10;
+		Padding = FMargin(0);
 	}
 
 	ChildSlot.Padding(Padding);

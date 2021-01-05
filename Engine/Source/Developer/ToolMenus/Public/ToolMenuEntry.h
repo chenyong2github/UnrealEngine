@@ -34,6 +34,13 @@ public:
 	FNewToolMenuChoice ConstructMenu;
 };
 
+struct FToolMenuEntryOptionsDropdownData
+{
+	FNewToolMenuChoice MenuContentGenerator;
+	TAttribute<FText> ToolTip;
+	FUIAction Action;
+};
+
 struct FToolMenuEntryToolBarData
 {
 public:
@@ -44,9 +51,14 @@ public:
 	{
 	}
 
-	TOptional< EVisibility > LabelVisibility;
+	/** Delegate that generates a widget for this combo button's menu content.  Called when the menu is summoned. */
+	FNewToolMenuChoice ComboButtonContextMenuGenerator;
 
-	/** If true, the icon and label won't be displayed */
+	/** Legacy delegate that generates a widget for this combo button's menu content.  Called when the menu is summoned. */
+	FNewToolBarDelegateLegacy ConstructLegacy;
+
+	TSharedPtr<FToolMenuEntryOptionsDropdownData> OptionsDropdownData;
+
 	bool bSimpleComboBox;
 
 	/** Whether ToolBar will have Focusable buttons */
@@ -55,11 +67,6 @@ public:
 	/** Whether this toolbar should always use small icons, regardless of the current settings */
 	bool bForceSmallIcons;
 
-	/** Delegate that generates a widget for this combo button's menu content.  Called when the menu is summoned. */
-	FNewToolMenuChoice ComboButtonContextMenuGenerator;
-
-	/** Legacy delegate that generates a widget for this combo button's menu content.  Called when the menu is summoned. */
-	FNewToolBarDelegateLegacy ConstructLegacy;
 };
 
 
@@ -112,6 +119,8 @@ struct TOOLMENUS_API FToolMenuEntry
 	const FUIAction* GetActionForCommand(const FToolMenuContext& InContext, TSharedPtr<const FUICommandList>& OutCommandList) const;
 
 	void SetCommandList(const TSharedPtr<const FUICommandList>& InCommandList);
+
+	void AddOptionsDropdown(FUIAction InAction, const FOnGetContent InMenuContentGenerator, const TAttribute<FText>& InToolTip = TAttribute<FText>());
 
 	friend struct FToolMenuSection;
 	friend class UToolMenuEntryScript;

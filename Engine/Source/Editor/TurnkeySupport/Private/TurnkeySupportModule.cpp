@@ -1460,7 +1460,7 @@ void FTurnkeySupportModule::MakeTurnkeyMenu(FToolMenuSection& MenuSection) const
 		return !FTurnkeyEditorSupport::IsPIERunning();
 	});
 
- 	MenuSection.AddEntry(FToolMenuEntry::InitComboButton(
+	FToolMenuEntry Entry = FToolMenuEntry::InitComboButton(
 		"PlatformsMenu",
 		PlatformMenuShownDelegate,
 		FOnGetContent::CreateLambda([this] { return MakeTurnkeyMenuWidget(); }),
@@ -1468,8 +1468,10 @@ void FTurnkeySupportModule::MakeTurnkeyMenu(FToolMenuSection& MenuSection) const
 		LOCTEXT("PlatformMenu_Tooltip", "Platform related actions and settings (Launching, Packaging, custom builds, etc)"),
 		FSlateIcon(FEditorStyle::GetStyleSetName(), "PlayWorld.RepeatLastLaunch"), // not great name for a good "platforms" icon
 		false,
-		"PlatformsMenu"
-	));
+		"PlatformsMenu");
+	Entry.StyleNameOverride = "CalloutToolbar";
+
+	MenuSection.AddEntry(Entry);
 }
 
 

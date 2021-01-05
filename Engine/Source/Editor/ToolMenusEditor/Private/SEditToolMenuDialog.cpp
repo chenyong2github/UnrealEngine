@@ -266,7 +266,7 @@ FReply SMultiBlockDragHandle::OnDragDetected( const FGeometry& MyGeometry, const
 {
 	TSharedPtr<SWidget> CustomDecorator;
 
-	TSharedRef<SWidget> BlockWidget = Block->MakeWidget(BaseWidget.Pin().ToSharedRef(), EMultiBlockLocation::None, false)->AsWidget();
+	TSharedRef<SWidget> BlockWidget = Block->MakeWidget(BaseWidget.Pin().ToSharedRef(), EMultiBlockLocation::None, false, nullptr)->AsWidget();
 
 	if (Block->IsSeparator())
 	{

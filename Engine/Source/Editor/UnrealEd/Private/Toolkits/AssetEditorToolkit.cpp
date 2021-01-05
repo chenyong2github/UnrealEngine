@@ -1052,6 +1052,12 @@ void FAssetEditorToolkit::RegisterDefaultToolBar(bool bCustomToolbarPlacement)
 	if (!ToolMenus->IsMenuRegistered(DefaultToolBarName))
 	{
 		UToolMenu* ToolbarBuilder = ToolMenus->RegisterMenu(DefaultToolBarName, NAME_None, bCustomToolbarPlacement ? EMultiBoxType::ToolBar : EMultiBoxType::SlimHorizontalToolBar);
+#if 0
+		if (!bCustomToolbarPlacement)
+		{
+			ToolbarBuilder->StyleName = "AssetEditorToolbar";
+		}
+#endif
 		{
 			FToolMenuSection& Section = ToolbarBuilder->AddSection("Asset");
 			Section.AddEntry(FToolMenuEntry::InitToolBarButton(FAssetEditorCommonCommands::Get().SaveAsset));
@@ -1115,13 +1121,11 @@ void FAssetEditorToolkit::GenerateToolbar()
 	Toolbar = 
 		SNew(SHorizontalBox)
 		+SHorizontalBox::Slot()
-		.VAlign(VAlign_Center)
 		[
 			ToolBarWidget
 		]
 		+SHorizontalBox::Slot()
 		.HAlign(HAlign_Right)
-		.VAlign(VAlign_Center)
 		.AutoWidth()
 		[
 			SNew(SBorder)

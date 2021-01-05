@@ -8,7 +8,6 @@ const FName FToolBarStyle::TypeName(TEXT("FToolbarStyle"));
 FToolBarStyle::FToolBarStyle()
 	: BackgroundBrush(FSlateNoResource())
 	, ExpandBrush(FSlateNoResource())
-	, SubMenuIndicator(FSlateNoResource())
 	, SeparatorBrush(FSlateNoResource())
 	, LabelStyle()
 	, EditableTextStyle()
@@ -22,7 +21,9 @@ FToolBarStyle::FToolBarStyle()
 	, CheckBoxPadding(0)
 	, BlockPadding(0)
 	, IndentedBlockPadding(0)
+	, BackgroundPadding(0)
 	, IconSize(16,16)
+	, bShowLabels(true)
 {}
 
 const FToolBarStyle& FToolBarStyle::GetDefault()
@@ -35,7 +36,6 @@ void FToolBarStyle::GetResources(TArray<const FSlateBrush*>& OutBrushes) const
 {
 	OutBrushes.Add(&BackgroundBrush);
 	OutBrushes.Add(&ExpandBrush);
-	OutBrushes.Add(&SubMenuIndicator);
 	OutBrushes.Add(&SeparatorBrush);
 
 	LabelStyle.GetResources(OutBrushes);

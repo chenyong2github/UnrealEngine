@@ -151,6 +151,7 @@ public:
 			.AutoWidth()
 			[
 				SNew(SSeparator)
+				.Visibility(this, &SAssetShortcut::GetComboVisibility)
 				.Thickness(1.0)
 				.Orientation(EOrientation::Orient_Vertical)
 			]

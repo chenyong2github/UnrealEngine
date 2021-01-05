@@ -12,6 +12,8 @@
 #include "Framework/Commands/UICommandList.h"
 #include "Framework/MultiBox/MultiBox.h"
 
+class SBorder;
+
 /**
  * Tool bar button MultiBlock
  */
@@ -103,7 +105,7 @@ public:
 		, _TutorialHighlightName(NAME_None)
 		{}
 
-		SLATE_ARGUMENT( TOptional< EVisibility >, LabelVisibility )
+		SLATE_ARGUMENT( TOptional<EVisibility>, LabelVisibility )
 		SLATE_ARGUMENT( bool, IsFocusable )
 		SLATE_ARGUMENT( bool, ForceSmallIcons )
 		SLATE_ARGUMENT( FName, TutorialHighlightName )
@@ -171,9 +173,23 @@ private:
 	const FSlateBrush* GetSmallIconBrush() const;
 
 	FSlateColor GetIconForegroundColor() const;
-private:
 
-	TAttribute< EVisibility > LabelVisibility;
+	/** Gets the brush for the left side options block (the side with the clickable toolbar button */
+	const FSlateBrush* GetOptionsBlockLeftBrush() const;
+
+	/** Gets the brush for the right side options block (the side with the options dropdown */
+	const FSlateBrush* GetOptionsBlockRightBrush() const;
+
+	EVisibility GetOptionsSeparatorVisibility() const;
+private:
+	/** Overrides the visibility of the of label. This is used to set up the LabelVisibility attribute */
+	TOptional<EVisibility> LabelVisibilityOverride;
+
+	/** Controls the visibility of the of label, defaults to GetIconVisibility */
+	TAttribute<EVisibility> LabelVisibility;
+
+	TSharedPtr<SBorder> ButtonBorder;
+	TSharedPtr<SBorder> OptionsBorder;
 
 	/** Whether ToolBar will have Focusable buttons. */
 	bool bIsFocusable;

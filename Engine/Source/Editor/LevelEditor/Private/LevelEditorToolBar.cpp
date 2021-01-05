@@ -16,7 +16,6 @@
 #include "Widgets/Input/SSlider.h"
 #include "Widgets/Layout/SSpacer.h"
 #include "EditorStyleSet.h"
-
 #include "Settings/EditorExperimentalSettings.h"
 #include "GameMapsSettings.h"
 #include "GameFramework/PlayerController.h"
@@ -24,7 +23,6 @@
 #include "GameFramework/HUD.h"
 #include "GameFramework/GameStateBase.h"
 #include "Engine/TextureStreamingTypes.h"
-
 #include "LevelEditor.h"
 #include "LevelEditorActions.h"
 #include "SourceCodeNavigation.h"
@@ -1184,6 +1182,7 @@ void FLevelEditorToolBar::RegisterLevelEditorToolBar( const TSharedRef<FUIComman
 #define LOCTEXT_NAMESPACE "LevelEditorToolBar"
 
 	UToolMenu* AssetsToolBar = UToolMenus::Get()->RegisterMenu("LevelEditor.LevelEditorToolBar.AssetsToolBar", NAME_None, EMultiBoxType::SlimHorizontalToolBar);
+	AssetsToolBar->StyleName = "AssetEditorToolbar";
 	{
 		{
 			FToolMenuSection& Section = AssetsToolBar->AddSection("File");
@@ -1234,6 +1233,7 @@ void FLevelEditorToolBar::RegisterLevelEditorToolBar( const TSharedRef<FUIComman
 	}
 
 	UToolMenu* ModesToolbar = UToolMenus::Get()->RegisterMenu("LevelEditor.LevelEditorToolBar.ModesToolBar", NAME_None, EMultiBoxType::SlimHorizontalToolBar);
+	ModesToolbar->StyleName = "AssetEditorToolbar";
 	{
 		FToolMenuSection& Section = ModesToolbar->AddSection("EditorModes");
 
@@ -1294,6 +1294,8 @@ void FLevelEditorToolBar::RegisterLevelEditorToolBar( const TSharedRef<FUIComman
 	}
 
 	UToolMenu* SettingsToolBar = UToolMenus::Get()->RegisterMenu("LevelEditor.LevelEditorToolBar.MarketplaceToolBar", NAME_None, EMultiBoxType::SlimHorizontalToolBar);
+
+	SettingsToolBar->StyleName = "AssetEditorToolbar";
 	{
 		FToolMenuSection& SettingsSection = SettingsToolBar->AddSection("Settings");
 		if (FLauncherPlatformModule::Get()->CanOpenLauncher(true))
@@ -1303,6 +1305,8 @@ void FLevelEditorToolBar::RegisterLevelEditorToolBar( const TSharedRef<FUIComman
 	}
 
 	UToolMenu* PlayToolBar = UToolMenus::Get()->RegisterMenu("LevelEditor.LevelEditorToolBar.PlayToolBar", NAME_None, EMultiBoxType::SlimHorizontalToolBar);
+	PlayToolBar->StyleName = "AssetEditorToolbar";
+
 	{
 		FToolMenuSection& PlaySection = PlayToolBar->AddSection("Play");
 
@@ -1377,16 +1381,19 @@ void FLevelEditorToolBar::RegisterLevelEditorToolBar( const TSharedRef<FUIComman
 		// Add the shared play-world commands that will be shown on the Kismet toolbar as well
 		FPlayWorldCommands::BuildToolbar(PlaySection, true);
 
-		PlaySection.AddEntry(FToolMenuEntry::InitComboButton(
-			"LevelToolbarQuickSettings",
-			FUIAction(),
-			FOnGetContent::CreateStatic(&FLevelEditorToolBar::GenerateQuickSettingsMenu, InCommandList, TWeakPtr<SLevelEditor>(InLevelEditor)),
-			LOCTEXT("QuickSettingsCombo", "Settings"),
-			LOCTEXT("QuickSettingsCombo_ToolTip", "Project and Editor settings"),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.GameSettings"),
-			false,
-			"LevelToolbarQuickSettings"
-		));
+		FToolMenuEntry SettingsEntry =
+			FToolMenuEntry::InitComboButton(
+				"LevelToolbarQuickSettings",
+				FUIAction(),
+				FOnGetContent::CreateStatic(&FLevelEditorToolBar::GenerateQuickSettingsMenu, InCommandList, TWeakPtr<SLevelEditor>(InLevelEditor)),
+				LOCTEXT("QuickSettingsCombo", "Settings"),
+				LOCTEXT("QuickSettingsCombo_ToolTip", "Project and Editor settings"),
+				FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.GameSettings"),
+				false,
+				"LevelToolbarQuickSettings");
+		SettingsEntry.StyleNameOverride = "CalloutToolbar";
+
+		PlaySection.AddEntry(SettingsEntry);
 
 	}
 
