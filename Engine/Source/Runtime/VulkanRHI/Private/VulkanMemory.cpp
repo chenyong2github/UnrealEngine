@@ -137,6 +137,16 @@ static FAutoConsoleVariableRef CVarVulkanMemoryBackTrace(
 	ECVF_ReadOnly
 );
 
+static int32 GVulkanMemoryMemoryFallbackToHost = 1;
+static FAutoConsoleVariableRef CVarVulkanMemoryMemoryFallbackToHost(
+	TEXT("r.Vulkan.MemoryFallbackToHost"),
+	GVulkanMemoryMemoryFallbackToHost,
+	TEXT("0: Legacy, will crash when oom for rendertargets\n")
+	TEXT("1: Fallback to Host memory on oom\n"),
+	ECVF_ReadOnly
+);
+
+
 
 float GVulkanDefragSizeFactor = 1.3f;
 static FAutoConsoleVariableRef CVarVulkanDefragSizeFactor(
@@ -2061,7 +2071,11 @@ namespace VulkanRHI
 		if (!DeviceMemoryAllocation && Size != AllocationSize)
 		{
 			// Retry with a smaller size
-			DeviceMemoryAllocation = DeviceMemoryManager.Alloc(false, Size, MemoryTypeIndex, nullptr, VULKAN_MEMORY_HIGHEST_PRIORITY, File, Line);
+			DeviceMemoryAllocation = DeviceMemoryManager.Alloc(true, Size, MemoryTypeIndex, nullptr, VULKAN_MEMORY_HIGHEST_PRIORITY, File, Line);
+			if(!DeviceMemoryAllocation)
+			{
+				return false;
+			}
 		}
 		if (!DeviceMemoryAllocation)
 		{
@@ -2763,11 +2777,24 @@ namespace VulkanRHI
 		Alignment = FMath::Max((uint32)MemReqs.alignment, Alignment);
 		ensure(MemReqs.size >= BufferSize);
 
-		uint32 MemoryTypeIndex;
-		VERIFYVULKANRESULT(Device->GetDeviceMemoryManager().GetMemoryTypeFromProperties(MemReqs.memoryTypeBits, MemoryPropertyFlags, &MemoryTypeIndex));
+		uint32 MemoryTypeIndex;	
+		VERIFYVULKANRESULT(Device->GetDeviceMemoryManager().GetMemoryTypeFromProperties(MemReqs.memoryTypeBits, MemoryPropertyFlags, &MemoryTypeIndex));		
 
 		bool bHasUnifiedMemory = DeviceMemoryManager->HasUnifiedMemory();
-		FDeviceMemoryAllocation* DeviceMemoryAllocation = DeviceMemoryManager->Alloc(false, MemReqs.size, MemoryTypeIndex, nullptr, Priority, File, Line);
+		FDeviceMemoryAllocation* DeviceMemoryAllocation = DeviceMemoryManager->Alloc(true, MemReqs.size, MemoryTypeIndex, nullptr, Priority, File, Line);
+		if(!DeviceMemoryAllocation)
+		{
+			VkMemoryPropertyFlags MemoryPropertyFallbackFlags = MemoryPropertyFlags & (~VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+			uint32 MemoryTypeIndexFallback;
+			if(GVulkanMemoryMemoryFallbackToHost && VK_SUCCESS == Device->GetDeviceMemoryManager().GetMemoryTypeFromPropertiesExcluding(MemReqs.memoryTypeBits, MemoryPropertyFallbackFlags, MemoryTypeIndex, &MemoryTypeIndexFallback))
+			{
+				DeviceMemoryAllocation = DeviceMemoryManager->Alloc(false, MemReqs.size, MemoryTypeIndexFallback, nullptr, Priority, File, Line);
+			}			
+		}
+		if(!DeviceMemoryAllocation)
+		{
+			HandleOOM();
+		}
 		VERIFYVULKANRESULT(VulkanRHI::vkBindBufferMemory(Device->GetInstanceHandle(), Buffer, DeviceMemoryAllocation->GetHandle(), 0));
 		uint8 AllocationFlags = 0;
 		if(!bHasUnifiedMemory && MetaTypeCanEvict(MetaType))
@@ -2901,6 +2928,11 @@ namespace VulkanRHI
 		const bool bForceSeparateAllocation = (MemoryPropertyFlags & VK_MEMORY_PROPERTY_LAZILY_ALLOCATED_BIT) == VK_MEMORY_PROPERTY_LAZILY_ALLOCATED_BIT;
 		if(!ResourceTypeHeaps[TypeIndex]->AllocateResource(OutAllocation, AllocationOwner, EType::Image, MemoryReqs.size, MemoryReqs.alignment, bMapped, bForceSeparateAllocation, MetaType, File, Line))
 		{
+			if(GVulkanMemoryMemoryFallbackToHost)
+			{
+				MemoryPropertyFlags &= (~VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+			}
+
 			VERIFYVULKANRESULT(DeviceMemoryManager->GetMemoryTypeFromPropertiesExcluding(MemoryReqs.memoryTypeBits, MemoryPropertyFlags, TypeIndex, &TypeIndex));
 			bMapped = (MemoryPropertyFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) == VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
 			if(!ResourceTypeHeaps[TypeIndex]->AllocateResource(OutAllocation, AllocationOwner, EType::Image, MemoryReqs.size, MemoryReqs.alignment, bMapped, bForceSeparateAllocation, MetaType, File, Line))
@@ -2995,9 +3027,18 @@ namespace VulkanRHI
 			}
 			if(!ResourceTypeHeaps[TypeIndex]->AllocateDedicatedImage(OutAllocation, AllocationOwner, Image, MemoryReqs.size, MemoryReqs.alignment, MetaType, File, Line))
 			{
-				VERIFYVULKANRESULT(DeviceMemoryManager->GetMemoryTypeFromPropertiesExcluding(MemoryReqs.memoryTypeBits, MemoryPropertyFlags, TypeIndex, &TypeIndex));
-				ensure((MemoryPropertyFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) != VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
-				return ResourceTypeHeaps[TypeIndex]->AllocateDedicatedImage(OutAllocation, AllocationOwner, Image, MemoryReqs.size, MemoryReqs.alignment, MetaType, File, Line);
+				if(GVulkanMemoryMemoryFallbackToHost)
+				{
+					MemoryPropertyFlags &= (~VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+				}
+				if(VK_SUCCESS == DeviceMemoryManager->GetMemoryTypeFromPropertiesExcluding(MemoryReqs.memoryTypeBits, MemoryPropertyFlags, TypeIndex, &TypeIndex))
+				{
+					if(ResourceTypeHeaps[TypeIndex]->AllocateDedicatedImage(OutAllocation, AllocationOwner, Image, MemoryReqs.size, MemoryReqs.alignment, MetaType, File, Line))
+					{
+						return true;
+					}
+				}
+				return false;
 			}
 			return true;
 		}
