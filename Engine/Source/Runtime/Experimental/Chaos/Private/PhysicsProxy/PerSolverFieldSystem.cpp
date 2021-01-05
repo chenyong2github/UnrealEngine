@@ -282,27 +282,17 @@ void FPerSolverFieldSystem::FieldParameterUpdateInternal(
 							TimeSeconds
 						};
 
-						//
-						//  Sample the dynamic state array in the field
-						//
-						TArray<int32> DynamicState;
-						DynamicState.AddUninitialized(Particles.Size());
-						for (const ContextIndex& Index : IndicesArray)
+					//
+					//  Sample the dynamic state array in the field
+					//
+					TArray<int32> DynamicState;
+					DynamicState.Init(false, Handles.Num());
+					for (const ContextIndex& Index : Context.GetEvaluatedSamples())
+					{
+						Chaos::TPBDRigidParticleHandle<float, 3>* RigidHandle = Handles[Index.Sample]->CastToRigidParticle();
+						if (RigidHandle)
 						{
-							DynamicState[Index.Sample] = 0;	//is this needed?
-						}
-
-						for (const ContextIndex& Index : IndicesArray)
-						{
-							const int32 i = Index.Sample;
-							if (Particles.Disabled(i))
-							{
-								DynamicState[i] = 1;
-							}
-							else
-							{
-								DynamicState[i] = 0;
-							}
+							DynamicState[Index.Result] = RigidHandle->Disabled();
 						}
 						TArrayView<int32> DynamicStateView(&(DynamicState[0]), DynamicState.Num());
 
@@ -508,9 +498,20 @@ void FPerSolverFieldSystem::FieldParameterUpdateInternal(
 							TimeSeconds
 						};
 
-						FVector* vptr = &(Particles.W(0));
-						TArrayView<FVector> ResultsView(vptr, Particles.Size());
+						TArray<FVector> LocalResults;
+						LocalResults.AddUninitialized(Handles.Num());
+						TArrayView<FVector> ResultsView(&(LocalResults[0]), LocalResults.Num());
+
 						static_cast<const FFieldNode<FVector>*>(Command.RootNode.Get())->Evaluate(Context, ResultsView);
+
+						for (const ContextIndex& Index : Context.GetEvaluatedSamples())
+						{
+							Chaos::TPBDRigidParticleHandle<float, 3>* RigidHandle = Handles[Index.Sample]->CastToRigidParticle();
+							if (RigidHandle && RigidHandle->ObjectState() == Chaos::EObjectStateType::Dynamic)
+							{
+								RigidHandle->W() += ResultsView[Index.Result];
+							}
+						}
 					}
 				}
 				CommandsToRemove.Add(CommandIndex);
@@ -688,9 +689,20 @@ void FPerSolverFieldSystem::FieldParameterUpdateInternal(
 							TimeSeconds
 						};
 
-						int32* cptr = &(Particles.CollisionGroup(0));
-						TArrayView<int32> ResultsView(cptr, Particles.Size());
-						static_cast<const FFieldNode<int32>*>(Command.RootNode.Get())->Evaluate(Context, ResultsView);
+						TArray<int32> LocalResults;
+						LocalResults.AddZeroed(Handles.Num());
+						TArrayView<int32> ResultsView(&(LocalResults[0]), LocalResults.Num());
+
+						static_cast<const FFieldNode<int32> *>(Command.RootNode.Get())->Evaluate(Context, ResultsView);
+
+						for (const ContextIndex& Index : Context.GetEvaluatedSamples())
+						{
+							Chaos::TPBDRigidClusteredParticleHandle<float, 3>* RigidHandle = Handles[Index.Sample]->CastToClustered();
+							if (RigidHandle)
+							{
+								RigidHandle->SetCollisionGroup(ResultsView[Index.Result]);
+							}
+						}
 					}
 				}
 				CommandsToRemove.Add(CommandIndex);
@@ -715,11 +727,7 @@ void FPerSolverFieldSystem::FieldParameterUpdateInternal(
 						};
 
 						TArray<int32> Results;
-						Results.AddUninitialized(Particles.Size());
-						for (const ContextIndex& Index : IndicesArray)
-						{
-							Results[Index.Sample] = false;
-						}
+						Results.Init(false,Handles.Num());
 						TArrayView<int32> ResultsView(&(Results[0]), Results.Num());
 						static_cast<const FFieldNode<int32>*>(Command.RootNode.Get())->Evaluate(Context, ResultsView);
 
@@ -767,11 +775,7 @@ void FPerSolverFieldSystem::FieldParameterUpdateInternal(
 						};
 
 						TArray<FVector> Results;
-						Results.AddUninitialized(Particles.Size());
-						for (const ContextIndex& Index : IndicesArray)
-						{
-							Results[Index.Sample] = FVector(FLT_MAX);
-						}
+						Results.Init(FVector(FLT_MAX), Handles.Num());
 						TArrayView<FVector> ResultsView(&(Results[0]), Results.Num());
 						static_cast<const FFieldNode<FVector>*>(Command.RootNode.Get())->Evaluate(Context, ResultsView);
 
@@ -819,11 +823,7 @@ void FPerSolverFieldSystem::FieldParameterUpdateInternal(
 						};
 
 						TArray<int32> Results;
-						Results.AddUninitialized(Particles.Size());
-						for (const ContextIndex& Index : IndicesArray)
-						{
-							Results[Index.Sample] = false;
-						}
+						Results.Init(false, Handles.Num());
 						TArrayView<int32> ResultsView(&(Results[0]), Results.Num());
 						static_cast<const FFieldNode<int32>*>(Command.RootNode.Get())->Evaluate(Context, ResultsView);
 
@@ -923,7 +923,7 @@ void FPerSolverFieldSystem::FieldParameterUpdateInternal(
 template <typename Traits>
 void FPerSolverFieldSystem::FieldParameterUpdateCallback(
 	Chaos::TPBDRigidsSolver<Traits>* InSolver, 
-	Chaos::TPBDRigidParticles<float, 3>& Particles, 
+	Chaos::TPBDRigidParticles<float, 3>& Particles,
 	Chaos::TArrayCollectionArray<float>& Strains, 
 	Chaos::TPBDPositionConstraints<float, 3>& PositionTarget, 
 	TMap<int32, int32>& PositionTargetedParticles) 
