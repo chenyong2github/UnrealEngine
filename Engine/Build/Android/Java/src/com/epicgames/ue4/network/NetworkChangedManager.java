@@ -43,7 +43,7 @@ public final class NetworkChangedManager implements NetworkConnectivityClient {
 	};
 	private static final long HOSTNAME_RESOLUTION_TIMEOUT_MS = 2000;
 
-	private static final Logger Log = new Logger("UE4", "NetworkChangedManager");
+	private static final Logger Log = new Logger("UE", "NetworkChangedManager");
 
 	private static NetworkChangedManager instance;
 	@NonNull

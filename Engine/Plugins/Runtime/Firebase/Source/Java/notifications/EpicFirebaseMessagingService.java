@@ -34,7 +34,7 @@ import static com.epicgames.ue4.LocalNotificationReceiver.KEY_LOCAL_NOTIFICATION
 
 public class EpicFirebaseMessagingService extends FirebaseMessagingService {
 
-	private static final Logger Log = new Logger("UE4-" + EpicFirebaseMessagingService.class.getSimpleName());
+	private static final Logger Log = new Logger("UE-" + EpicFirebaseMessagingService.class.getSimpleName());
 
 	private static final String ATTR_TYPE = "type";
 	private static final String PAYLOAD_P_KEY = "p";

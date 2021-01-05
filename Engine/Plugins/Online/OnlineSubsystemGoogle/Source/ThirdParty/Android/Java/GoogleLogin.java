@@ -72,7 +72,7 @@ public class GoogleLogin
 	{
 		this.activity = activity;
 
-		GoogleLog = new Logger("UE4", TAG);
+		GoogleLog = new Logger("UE", TAG);
 		ActivityLog = InLog;
 
 		packageName = inPackageName;

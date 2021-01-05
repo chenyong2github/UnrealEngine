@@ -16,7 +16,7 @@ import java.util.Iterator;
 
 public class BootCompleteReceiver extends BroadcastReceiver
 {
-	public static Logger Log = new Logger("UE4", "BootCompleteReceiver");
+	public static Logger Log = new Logger("UE", "BootCompleteReceiver");
 	
 	@Override
 	public void onReceive(Context context, Intent intent)

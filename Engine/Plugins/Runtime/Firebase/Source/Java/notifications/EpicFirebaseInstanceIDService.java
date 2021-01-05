@@ -12,7 +12,7 @@ import com.google.firebase.iid.FirebaseInstanceId;
 import com.google.firebase.iid.FirebaseInstanceIdService;
 
 public class EpicFirebaseInstanceIDService extends FirebaseInstanceIdService {
-	private static final Logger Log = new Logger("UE4-" + EpicFirebaseInstanceIDService.class.getSimpleName());
+	private static final Logger Log = new Logger("UE-" + EpicFirebaseInstanceIDService.class.getSimpleName());
 	private static final String PREFS_FILE_FIREBASE = "com.epicgames.firebase";
 	private static final String KEY_FIREBASE_TOKEN = "firebasetoken";
 	private static final String KEY_IS_UPDATED_TOKEN = "isUpdatedToken";
