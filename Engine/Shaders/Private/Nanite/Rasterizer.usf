@@ -273,21 +273,6 @@ groupshared float3 GroupVerts[256];
 groupshared float3 GroupVerts[384];
 #endif
 
-uint GetPackedPosition(uint VertIndex, FCluster Cluster)
-{
-	const uint CompileTimeBitsPerVertex = 3 * POSITION_QUANTIZATION_BITS;
-	const uint BitsPerVertex = 3 * POSITION_QUANTIZATION_BITS;
-	
-	FBitStreamReaderState BitStream = BitStreamReader_Create_Aligned(ClusterPageData, Cluster.PageBaseAddress + Cluster.PositionOffset, VertIndex * BitsPerVertex, CompileTimeBitsPerVertex);
-	return BitStreamReader_Read(BitStream, BitsPerVertex, CompileTimeBitsPerVertex);
-}
-
-float3 DecodePosition(uint VertIndex, FCluster Cluster)
-{
-	const uint PackedPos = GetPackedPosition(VertIndex, Cluster);
-	return UnpackPosition(PackedPos, Cluster, POSITION_QUANTIZATION_BITS);
-}
-
 // Default cull mode is CW. If this returns true, CCW culling is required
 bool ReverseWindingOrder(FInstanceSceneData InstanceData)
 {

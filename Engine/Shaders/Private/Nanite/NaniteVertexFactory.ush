@@ -72,22 +72,9 @@ FMaterialPixelParameters GetMaterialPixelParameters(inout FVertexFactoryInterpol
 
 		uint3 TriIndices = ReadTriangleIndices(Cluster, TriIndex);
 
-		uint PositionDataOffset = Cluster.PageBaseAddress + Cluster.PositionOffset;
-
-		const uint PositionCompileTimeBitsPerVertex = 3 * POSITION_QUANTIZATION_BITS;
-		const uint PositionBitsPerVertex = 3 * POSITION_QUANTIZATION_BITS;
-
-		FBitStreamReaderState PositionStream0 = BitStreamReader_Create_Aligned(ClusterPageData, PositionDataOffset, TriIndices.x * PositionBitsPerVertex, PositionCompileTimeBitsPerVertex);
-		FBitStreamReaderState PositionStream1 = BitStreamReader_Create_Aligned(ClusterPageData, PositionDataOffset, TriIndices.y * PositionBitsPerVertex, PositionCompileTimeBitsPerVertex);
-		FBitStreamReaderState PositionStream2 = BitStreamReader_Create_Aligned(ClusterPageData, PositionDataOffset, TriIndices.z * PositionBitsPerVertex, PositionCompileTimeBitsPerVertex);
-
-		uint PositionData0 = BitStreamReader_Read(PositionStream0, PositionBitsPerVertex, PositionCompileTimeBitsPerVertex);
-		uint PositionData1 = BitStreamReader_Read(PositionStream1, PositionBitsPerVertex, PositionCompileTimeBitsPerVertex);
-		uint PositionData2 = BitStreamReader_Read(PositionStream2, PositionBitsPerVertex, PositionCompileTimeBitsPerVertex);
-
-		float3 PointLocal0 = UnpackPosition(PositionData0, Cluster, POSITION_QUANTIZATION_BITS);
-		float3 PointLocal1 = UnpackPosition(PositionData1, Cluster, POSITION_QUANTIZATION_BITS);
-		float3 PointLocal2 = UnpackPosition(PositionData2, Cluster, POSITION_QUANTIZATION_BITS);
+		float3 PointLocal0 = DecodePosition(TriIndices.x, Cluster);
+		float3 PointLocal1 = DecodePosition(TriIndices.y, Cluster);
+		float3 PointLocal2 = DecodePosition(TriIndices.z, Cluster);
 
 		float4 PointClip0 = mul(float4(PointLocal0, 1), InstanceDynamicData.LocalToClip);
 		float4 PointClip1 = mul(float4(PointLocal1, 1), InstanceDynamicData.LocalToClip);

@@ -3,6 +3,7 @@
 #pragma once
 
 #include "../Common.ush"
+#include "../BitPacking.ush"
 #include "../SceneData.ush"
 #include "PackedNaniteView.ush"
 
@@ -309,293 +310,6 @@ struct FInstanceDraw
 #endif
 
 RWByteAddressBuffer					OutInstanceDynamicData;
-
-// BitStreamReader
-// Helper 'class' for efficiently parsing bit streams of arbitrary length.
-#if 1
-// Bit buffer implementation:
-// Maintains an internal bit buffer instead of issuing memory loads at every read operation.
-// Reads extract the bits from the bottom dword of the bit buffer. Whenever the bottom dword runs out of bits,
-// it is refilled by shifting the bit buffer down (v_alignbit). Only when the bit buffer also runs out of bits
-// is a memory load issued that then refills the buffer using a single load4.
-
-// If the read sizes are divergent, it is very likely that for a given read at least one thread will need to refill, so
-// in the worst case the refill has to happen at every read.
-// To mitigate this, all reads have to supply a compile-time constant upper bound to the size of the read.
-// By keeping track of these bounds, we can conservatively determine a which reads a refill can possibly be required and only
-// emit the refill code in those instances.
-
-// Everything prefixed with CompileTime should be compile-time constant and generate no code.
-// We unfortunately have no way to enforce this.
-
-struct FBitStreamReaderState
-{
-	ByteAddressBuffer InputBuffer;
-
-	uint	AlignedByteAddress;
-	int		BitOffsetFromAddress;
-
-	uint4	BufferBits;
-	int		BufferOffset;
-	
-	int		CompileTimeMinBufferBits;
-	int		CompileTimeMinDwordBits;
-	int		CompileTimeMaxRemainingBits;
-};
-
-FBitStreamReaderState BitStreamReader_Create_Aligned(ByteAddressBuffer InputBuffer, uint AlignedByteAddress, uint BitOffset, uint CompileTimeMaxRemainingBits)
-{
-	FBitStreamReaderState State;
-
-	State.InputBuffer = InputBuffer;
-
-	State.AlignedByteAddress = AlignedByteAddress;
-	State.BitOffsetFromAddress = BitOffset;
-
-	State.BufferBits = 0;
-	State.BufferOffset = 0;
-
-	State.CompileTimeMinBufferBits = 0;
-	State.CompileTimeMinDwordBits = 0;
-	State.CompileTimeMaxRemainingBits = CompileTimeMaxRemainingBits;
-
-	return State;
-}
-
-FBitStreamReaderState BitStreamReader_Create(ByteAddressBuffer InputBuffer, uint ByteAddress, uint BitOffset, uint CompileTimeMaxRemainingBits)
-{
-	uint AlignedByteAddress = ByteAddress & ~3u;
-	BitOffset += (ByteAddress & 3u) << 3;
-
-	return BitStreamReader_Create_Aligned(InputBuffer, AlignedByteAddress, BitOffset, CompileTimeMaxRemainingBits);
-}
-
-uint BitStreamReader_Read(inout FBitStreamReaderState State, int NumBits, int CompileTimeMaxBits)
-{
-	if (CompileTimeMaxBits > State.CompileTimeMinBufferBits)
-	{
-		// BitBuffer could be out of bits: Reload.
-
-		// Add cumulated offset since last refill. No need to update at every read.
-		State.BitOffsetFromAddress += State.BufferOffset;	
-		
-		uint4 Data = State.InputBuffer.Load4(State.AlignedByteAddress + ((State.BitOffsetFromAddress >> 5) << 2));
-
-		// Shift bits down to align
-		State.BufferBits.x												= BitAlignU32(Data.y,	Data.x,	State.BitOffsetFromAddress);	// BitOffsetFromAddress implicitly &31
-		if (State.CompileTimeMaxRemainingBits > 32) State.BufferBits.y	= BitAlignU32(Data.z,	Data.y,	State.BitOffsetFromAddress);	// BitOffsetFromAddress implicitly &31
-		if (State.CompileTimeMaxRemainingBits > 64) State.BufferBits.z	= BitAlignU32(Data.w,	Data.z,	State.BitOffsetFromAddress);	// BitOffsetFromAddress implicitly &31
-		if (State.CompileTimeMaxRemainingBits > 96) State.BufferBits.w	= BitAlignU32(0,		Data.w,	State.BitOffsetFromAddress);	// BitOffsetFromAddress implicitly &31
-
-		State.BufferOffset = 0;
-
-		State.CompileTimeMinDwordBits	= min(32, State.CompileTimeMaxRemainingBits);
-		State.CompileTimeMinBufferBits	= min(97, State.CompileTimeMaxRemainingBits);	// Up to 31 bits wasted to alignment
-	}
-	else if (CompileTimeMaxBits > State.CompileTimeMinDwordBits)
-	{
-		// Bottom dword could be out of bits: Shift down.
-		State.BitOffsetFromAddress += State.BufferOffset;
-
-		State.BufferBits.x											= BitAlignU32(State.BufferBits.y,	State.BufferBits.x,	State.BufferOffset);	// BufferOffset implicitly &31
-		if (State.CompileTimeMinBufferBits > 32) State.BufferBits.y	= BitAlignU32(State.BufferBits.z,	State.BufferBits.y,	State.BufferOffset);	// BufferOffset implicitly &31
-		if (State.CompileTimeMinBufferBits > 64) State.BufferBits.z	= BitAlignU32(State.BufferBits.w,	State.BufferBits.z,	State.BufferOffset);	// BufferOffset implicitly &31
-		if (State.CompileTimeMinBufferBits > 96) State.BufferBits.w	= BitAlignU32(0,					State.BufferBits.w, State.BufferOffset);	// BufferOffset implicitly &31
-
-		State.BufferOffset = 0;
-
-		State.CompileTimeMinDwordBits = min(32, State.CompileTimeMaxRemainingBits);
-	}
-
-	uint Result = BitFieldExtractU32(State.BufferBits.x, NumBits, State.BufferOffset);	// BufferOffset implicitly &31
-	State.BufferOffset += NumBits;
-
-	State.CompileTimeMinBufferBits	-= CompileTimeMaxBits;
-	State.CompileTimeMinDwordBits		-= CompileTimeMaxBits;
-	State.CompileTimeMaxRemainingBits	-= CompileTimeMaxBits;
-	return Result;
-}
-
-uint2 BitStreamReader_Read2(inout FBitStreamReaderState State, int2 NumBits, int2 CompileTimeMaxBits)
-{
-	uint ResultX = BitStreamReader_Read(State, NumBits.x, CompileTimeMaxBits.x);
-	uint ResultY = BitStreamReader_Read(State, NumBits.y, CompileTimeMaxBits.y);
-	return uint2(ResultX, ResultY);
-}
-
-uint4 BitStreamReader_Read4(inout FBitStreamReaderState State, int4 NumBits, int4 CompileTimeMaxBits)
-{
-	uint ResultX = BitStreamReader_Read(State, NumBits.x, CompileTimeMaxBits.x);
-	uint ResultY = BitStreamReader_Read(State, NumBits.y, CompileTimeMaxBits.y);
-	uint ResultZ = BitStreamReader_Read(State, NumBits.z, CompileTimeMaxBits.z);
-	uint ResultW = BitStreamReader_Read(State, NumBits.w, CompileTimeMaxBits.w);
-	return uint4(ResultX, ResultY, ResultZ, ResultW);
-}
-#else
-// Naive implementation
-// Perform a memory read for every bit stream read.
-struct FBitStreamReaderState
-{
-	ByteAddressBuffer InputBuffer;
-
-	uint	AlignedByteAddress;
-	int		BitOffset;
-};
-
-FBitStreamReaderState BitStreamReader_Create_Aligned(ByteAddressBuffer InputBuffer, uint AlignedByteAddress, uint BitOffset, uint CompileTimeMaxRemainingBits)
-{
-	FBitStreamReaderState State;
-
-	State.InputBuffer = InputBuffer;
-
-	State.AlignedByteAddress = AlignedByteAddress;
-	State.BitOffset = BitOffset;
-
-	return State;
-}
-
-FBitStreamReaderState BitStreamReader_Create(ByteAddressBuffer InputBuffer, uint ByteAddress, uint BitOffset, uint CompileTimeMaxRemainingBits)
-{
-	uint AlignedByteAddress = ByteAddress & ~3u;
-	BitOffset += (ByteAddress & 3u) << 3;
-
-	return BitStreamReader_Create_Aligned(InputBuffer, AlignedByteAddress, BitOffset, CompileTimeMaxRemainingBits);
-}
-
-uint BitStreamReader_Read(inout FBitStreamReaderState State, int NumBits, int CompileTimeMaxBits)
-{
-	uint2 Data = State.InputBuffer.Load2(State.AlignedByteAddress + ((State.BitOffset >> 5) << 2));
-	uint AlignedData = BitAlignU32(Data.y, Data.x, State.BitOffset);
-	State.BitOffset += NumBits;
-	return BitFieldExtractU32(AlignedData, NumBits, 0);
-}
-
-uint2 BitStreamReader_Read2(inout FBitStreamReaderState State, int2 NumBits, int2 CompileTimeMaxBits)
-{
-	uint2 Data = State.InputBuffer.Load2(State.AlignedByteAddress + ((State.BitOffset >> 5) << 2));
-	uint AlignedData = BitAlignU32(Data.y, Data.x, State.BitOffset);
-	State.BitOffset += NumBits.x + NumBits.y;
-	return uint2(BitFieldExtractU32(AlignedData, NumBits.x, 0), BitFieldExtractU32(AlignedData, NumBits.y, NumBits.x));
-}
-
-uint4 BitStreamReader_Read4(inout FBitStreamReaderState State, int4 NumBits, int4 CompileTimeMaxBits)
-{
-	uint2 Data = State.InputBuffer.Load2(State.AlignedByteAddress + ((State.BitOffset >> 5) << 2));
-	uint AlignedData = BitAlignU32(Data.y, Data.x, State.BitOffset);
-	State.BitOffset += NumBits.x + NumBits.y + NumBits.z + NumBits.w;
-
-	uint4 Result;
-	Result.x = BitFieldExtractU32(AlignedData, NumBits.x, 0);
-	Result.y = BitFieldExtractU32(AlignedData, NumBits.y, NumBits.x);
-	Result.z = BitFieldExtractU32(AlignedData, NumBits.z, NumBits.x + NumBits.y);
-	Result.w = BitFieldExtractU32(AlignedData, NumBits.w, NumBits.x + NumBits.y + NumBits.z);
-	return Result;
-}
-#endif
-
-// Put bits to ByteAddressBuffer at bit offset. NumBits must be <= 31.
-void PutBits(RWByteAddressBuffer Output, uint AlignedBaseAddress, uint BitOffset, uint Value, uint NumBits)
-{
-    uint BitOffsetInDword = (BitOffset & 31u);  // &31 is implicit in shifts
-    
-    uint Bits = Value << BitOffsetInDword;
-    uint Address = AlignedBaseAddress + ((BitOffset >> 5) << 2);
-    uint EndBitPos = BitOffsetInDword + NumBits;
-
-    if(EndBitPos >= 32)
-    {
-        uint Mask = 0xFFFFFFFFu << (EndBitPos & 31u);
-        Output.InterlockedAnd(Address + 4, Mask);
-        Output.InterlockedOr(Address + 4, Value >> (32 - BitOffsetInDword));
-    }
-
-    {
-        uint Mask = ~BitFieldMaskU32(NumBits, BitOffset);
-        Output.InterlockedAnd(Address, Mask);
-        Output.InterlockedOr(Address, Value << BitOffsetInDword);
-    }
-}
-
-struct FBitStreamWriterState
-{
-	RWByteAddressBuffer  Output;
-	uint AlignedByteAddress;
-   	uint BufferBits;
-    uint BufferOffset;
-    uint BufferMask;
-};
-
-FBitStreamWriterState BitStreamWriter_Create_Aligned(RWByteAddressBuffer Output, uint AlignedBaseAddressInBytes, uint BitOffset)
-{
-	FBitStreamWriterState State;
-
-	State.Output = Output;
-	State.AlignedByteAddress = AlignedBaseAddressInBytes + ((BitOffset >> 5) << 2);
-	BitOffset &= 31u;
-
-	State.BufferBits = 0;
-	State.BufferOffset = BitOffset;
-	State.BufferMask = BitFieldMaskU32(BitOffset, 0);
-
-	return State;
-}
-
-
-void BitStreamWriter_Writer(inout FBitStreamWriterState State, uint Value, int NumBits, int CompileTimeMaxBits)
-{
-    State.BufferBits |= Value << State.BufferOffset;
-
-    uint NextBufferOffset = State.BufferOffset + NumBits;
-    if(NextBufferOffset >= 32)
-    {
-        State.Output.InterlockedAnd(State.AlignedByteAddress, State.BufferMask);
-        State.Output.InterlockedOr(State.AlignedByteAddress, State.BufferBits);
-		State.BufferMask = 0;
-        State.BufferBits = Value >> (32 - State.BufferOffset);
-        State.AlignedByteAddress += 4;
-    }
-	State.BufferOffset = NextBufferOffset & 31;
-}
-
-void BitStreamWriter_Flush(inout FBitStreamWriterState State)
-{
-    if(State.BufferOffset > 0)
-    {
-        uint Mask = State.BufferMask | ~BitFieldMaskU32(State.BufferOffset, 0);
-        State.Output.InterlockedAnd(State.AlignedByteAddress, Mask);
-        State.Output.InterlockedOr(State.AlignedByteAddress, State.BufferBits);
-    }
-}
-
-// Utility functions for packing bits into uints.
-// When Position and NumBits can be determined at compile time this should be just as fast as manual bit packing.
-// TODO: Verify on other compilers than wave.
-uint ReadBits( uint4 Data, inout uint Position, uint NumBits )
-{
-	uint DwordIndex = Position >> 5;
-	uint BitIndex = Position & 31;
-
-	uint Value = Data[ DwordIndex ] >> BitIndex;
-	if( BitIndex + NumBits > 32 )
-		Value |= Data[ DwordIndex + 1 ] << ( 32 - BitIndex );
-
-	Position += NumBits;
-
-	uint Mask = ( ( 1u << NumBits ) - 1u );
-	return Value & Mask;
-}
-
-void WriteBits( inout uint4 Data, inout uint Position, uint Value, uint NumBits )
-{
-	uint DwordIndex = Position >> 5;
-	uint BitIndex = Position & 31;
-
-	Data[ DwordIndex ] |= Value << BitIndex;
-	if( BitIndex + NumBits > 32 )
-		Data[ DwordIndex + 1 ] |= Value >> ( 32 - BitIndex );
-
-	Position += NumBits;
-}
 
 FVisibleCluster GetVisibleCluster( ByteAddressBuffer VisibleClusters, uint ClusterIdx, bool bHasPageData = false )
 {
@@ -935,49 +649,6 @@ uint3 ReadTriangleIndices(FCluster Cluster, uint TriIndex)
 	return BaseIndex + uint3(0, Delta0, Delta1);
 }
 
-uint3 UnpackToUint3(uint Value, int3 NumComponentBits)
-{
-	return uint3(	BitFieldExtractU32(Value, NumComponentBits.x, 0),
-					BitFieldExtractU32(Value, NumComponentBits.y, NumComponentBits.x),
-					BitFieldExtractU32(Value, NumComponentBits.z, NumComponentBits.x + NumComponentBits.y));
-}
-
-uint4 UnpackToUint4(uint Value, int4 NumComponentBits)
-{
-	return uint4(	BitFieldExtractU32(Value, NumComponentBits.x, 0),
-					BitFieldExtractU32(Value, NumComponentBits.y, NumComponentBits.x),
-					BitFieldExtractU32(Value, NumComponentBits.z, NumComponentBits.x + NumComponentBits.y),
-					BitFieldExtractU32(Value, NumComponentBits.w, NumComponentBits.x + NumComponentBits.y + NumComponentBits.z));
-}
-
-// TODO: Move to a proper common location
-uint FloatToUIntScaled(float Value, float Scale)
-{
-	return (uint)floor(Value * Scale + 0.5f);
-}
-
-// TODO: Move to a proper common location
-uint Pack_Float4_To_R10G10B10A2_UNORM(float4 Unpacked)
-{
-	const float4 UnpackedClamped = saturate(Unpacked);
-	uint Packed = ((FloatToUIntScaled(UnpackedClamped.x, 1023))       |
-				   (FloatToUIntScaled(UnpackedClamped.y, 1023) << 10) |
-				   (FloatToUIntScaled(UnpackedClamped.z, 1023) << 20) |
-				   (FloatToUIntScaled(UnpackedClamped.w,    3) << 30) );
-	return Packed;
-}
-
-// TODO: Move to a proper common location
-float4 Unpack_R10G10B10A2_UNORM_To_Float4(uint Packed)
-{
-	float4 Unpacked;
-	Unpacked.x = (float)(((Packed      ) & 0x000003FF)) / 1023;
-	Unpacked.y = (float)(((Packed >> 10) & 0x000003FF)) / 1023;
-	Unpacked.z = (float)(((Packed >> 20) & 0x000003FF)) / 1023;
-	Unpacked.w = (float)(((Packed >> 30) & 0x00000003)) / 3;
-	return Unpacked;
-}
-
 void UnpackVisPixel(
 	UlongType Pixel,
 	out uint DepthInt,
@@ -1023,6 +694,19 @@ float3 UnpackNormal(uint Packed, uint Bits)
 	float T = saturate(-N.z);
 	N.xy += N.xy >= 0.0 ? -T : T;
 	return N;
+}
+
+uint GetPackedPosition(uint VertIndex, FCluster Cluster)
+{
+	const uint BitsPerVertex = 3 * POSITION_QUANTIZATION_BITS;
+	FBitStreamReaderState BitStream = BitStreamReader_Create_Aligned(ClusterPageData, Cluster.PageBaseAddress + Cluster.PositionOffset, VertIndex * BitsPerVertex, BitsPerVertex);
+	return BitStreamReader_Read(BitStream, BitsPerVertex, BitsPerVertex);
+}
+
+float3 DecodePosition(uint VertIndex, FCluster Cluster)
+{
+	const uint PackedPos = GetPackedPosition(VertIndex, Cluster);
+	return UnpackPosition(PackedPos, Cluster, POSITION_QUANTIZATION_BITS);
 }
 
 bool IsMaterialFastPath(FCluster InCluster)
@@ -1111,7 +795,6 @@ uint GetMaterialBucketIdFromDepth(float Depth)
 {
 	return (uint)(Depth * MAX_STATE_BUCKET_ID);
 }
-
 
 FNaniteView UnpackNaniteView(FPackedNaniteView PackedView)
 {
