@@ -2866,14 +2866,7 @@ void FHlslNiagaraTranslator::DefineMainGPUFunctions(
 					}
 					else
 					{
-						if (TranslationStages[i].bPartialParticleUpdate)
-						{
-							VarFmt = VarName + TEXT("{0} = RWInputData{1}({2}, {3}, InstanceIdx);\n");
-						}
-						else
-						{
-							VarFmt = VarName + TEXT("{0} = InputData{1}({2}, {3}, InstanceIdx);\n");
-						}
+						VarFmt = VarName + TEXT("{0} = InputData{1}({2}, {3}, InstanceIdx);\n");
 
 						if (bUseSimulationStages)
 						{
