@@ -1583,11 +1583,20 @@ void FNiagaraEditorModule::GeneratePerfBaselines(TArray<UNiagaraEffectType*>& Ba
 		NewWindow->GetOnWindowClosedEvent().AddRaw(this, &FNiagaraEditorModule::OnPerfBaselineWindowClosed);
 	}
 	
+	
 	for (UNiagaraEffectType* EffectType : BaselinesToGenerate)
 	{
 		if (EffectType->IsPerfBaselineValid() == false && EffectType->GetPerfBaselineController())
 		{
-			BaselineViewport->AddBaseline(EffectType);
+			if (!BaselineViewport->AddBaseline(EffectType))
+			{
+				// We may want to do something smarter than this in the future, but right now we will infinitely loop on these settings. 
+				// Might as well make them defaults (0.0f) and have everything fail relative to them.
+				FNiagaraPerfBaselineStats Stats;
+				EffectType->UpdatePerfBaselineStats(Stats);
+
+				UE_LOG(LogNiagaraEditor, Warning, TEXT("Failed to add baseline! %s"), *EffectType->GetName());
+			}
 		}
 	}
 }

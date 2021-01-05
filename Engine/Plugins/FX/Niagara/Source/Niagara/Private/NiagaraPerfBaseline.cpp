@@ -1035,6 +1035,21 @@ int32 FParticlePerfStatsListener_NiagaraBaselineComparisonRender::RenderStats(cl
 				ResultColor = FNiagaraPerfBaselineStats::GetComparisonResultColor(ReportItem.RTMaxResult);
 				ResultText = FNiagaraPerfBaselineStats::GetComparisonResultText(ReportItem.RTMaxResult);
 				Canvas->DrawShadowedString(X + ColumnWidth * 3, Y, *ResultText.ToString(), Font, ResultColor);
+
+				if (UNiagaraBaselineController* Controller = FXType->GetPerfBaselineController())
+				{
+					if (UNiagaraSystem* BaseSystem = Controller->System)
+					{
+						if (BaseSystem->bFixedBounds == false)
+						{
+							Canvas->DrawShadowedString(X + ColumnWidth * 4, Y, TEXT("Base System Dynamic Bounds!"), Font, FColor::Yellow);
+						}
+					}
+					else
+					{
+						Canvas->DrawShadowedString(X + ColumnWidth * 4, Y, TEXT("Missing Baseline System!"), Font, FColor::Yellow);
+					}
+				}
 			}
 			else
 			{
