@@ -6332,7 +6332,17 @@ void FSequencer::SynchronizeExternalSelectionWithSequencerSelection()
 				ObjectBindingNode = StaticCastSharedPtr<FSequencerObjectBindingNode>(CurrentNode);
 				break;
 			}
-			CurrentNode = CurrentNode->GetParent();
+			//HACK for DHI, if we have an active control rig then one is selected so don't find a parent actor or compomonent to select	
+			//but if we do select the actor/compoent directly we still select it.
+			const FName ControlRigEditModeModeName("EditMode.ControlRig");
+			if (GLevelEditorModeTools().GetActiveMode(ControlRigEditModeModeName) == nullptr)
+			{
+				CurrentNode = CurrentNode->GetParent();
+			}
+			else
+			{
+				break;
+			}
 		}
 
 		// If the closest node is an object node, try to get the actor/component nodes from it.
@@ -6354,14 +6364,13 @@ void FSequencer::SynchronizeExternalSelectionWithSequencerSelection()
 				if ( ActorComponent != nullptr )
 				{
 					if (!FLevelUtils::IsLevelLocked(ActorComponent->GetOwner()->GetLevel()))
-					{
+					{	
 						SelectedSequencerComponents.Add(ActorComponent);
-
 						Actor = ActorComponent->GetOwner();
 						if (Actor != nullptr)
 						{
 							SelectedSequencerActors.Add(Actor);
-						}
+						}	
 					}
 				}
 			}
