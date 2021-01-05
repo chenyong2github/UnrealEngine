@@ -1330,7 +1330,7 @@ struct FEditorShaderCodeArchive
 					}
 					else if (MetaOutputDir.Len())
 					{
-						if (!CopyFile(GetCodeArchiveFilename(MetaOutputDir / TEXT("../ShaderLibrarySource"), LibraryName, FormatName), IntermediateFormatPath, OutputFilenames))
+						if (!CopyFile(GetCodeArchiveFilename(MetaOutputDir / TEXT("../ShaderLibrarySource"), LibraryName, FormatName), IntermediateFormatPath, nullptr))
 						{
 							bSuccess = false;
 						}
@@ -1347,14 +1347,14 @@ struct FEditorShaderCodeArchive
 					AssetInfoWriter->Close();
 					delete AssetInfoWriter;
 
-					if (!CopyFile(GetShaderAssetInfoFilename(OutputDir, LibraryName, FormatName), AssetInfoIntermediatePath, OutputFilenames))
+					if (!CopyFile(GetShaderAssetInfoFilename(OutputDir, LibraryName, FormatName), AssetInfoIntermediatePath, nullptr))
 					{
 						bSuccess = false;
 					}
 					else if (MetaOutputDir.Len())
 					{
 						// copy asset info as well for debugging
-						if (!CopyFile(GetShaderAssetInfoFilename(MetaOutputDir / TEXT("../ShaderLibrarySource"), LibraryName, FormatName), AssetInfoIntermediatePath, OutputFilenames))
+						if (!CopyFile(GetShaderAssetInfoFilename(MetaOutputDir / TEXT("../ShaderLibrarySource"), LibraryName, FormatName), AssetInfoIntermediatePath, nullptr))
 						{
 							bSuccess = false;
 						}
