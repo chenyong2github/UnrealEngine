@@ -284,12 +284,15 @@ private:
 		int32 NumNetGuidsForRecording;
 		FArchivePos NetGuidsCountPos;
 
+		TMap<FName, uint32> NameTableMap;
+
 		void CountBytes(FArchive& Ar) const
 		{
 			CheckpointAckState.CountBytes(Ar);
 			PendingCheckpointActors.CountBytes(Ar);
 			DeltaCheckpointData.CountBytes(Ar);
 			NetGuidCacheSnapshot.CountBytes(Ar);
+			NameTableMap.CountBytes(Ar);
 		}
 	};
 
