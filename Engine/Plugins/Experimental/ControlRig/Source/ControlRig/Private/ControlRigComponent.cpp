@@ -5,6 +5,7 @@
 
 #include "SkeletalDebugRendering.h"
 #include "Components/InstancedStaticMeshComponent.h"
+#include "AnimCustomInstanceHelper.h"
 
 FControlRigAnimInstanceProxy* FControlRigComponentMappedElement::GetAnimProxyOnGameThread() const
 {
@@ -1246,9 +1247,12 @@ void UControlRigComponent::ValidateMappingData()
 						NewCachedSettings.Add(SkeletalMeshComponent, PreviousSettings);
 					}
 
-					SkeletalMeshComponent->SetAnimInstanceClass(UControlRigAnimInstance::StaticClass());
-					SkeletalMeshComponent->PrimaryComponentTick.bCanEverTick = false;
-
+					//If the animinstance is a sequencer instance don't replace it that means we are already running an animation on the skeleton
+					//and don't want to replace the anim instance.
+					if (Cast<ISequencerAnimationSupport>(SkeletalMeshComponent->GetAnimInstance()) == nullptr)
+					{
+						SkeletalMeshComponent->SetAnimInstanceClass(UControlRigAnimInstance::StaticClass());
+					}
 				}
 			}
 		}
