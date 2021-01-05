@@ -1839,11 +1839,28 @@ void UPythonGeneratedClass::PostInitInstance(UObject* InObj)
 	}
 }
 
+void UPythonGeneratedClass::BeginDestroy()
+{
+	ReleasePythonResources();
+	Super::BeginDestroy();
+}
 
 void UPythonGeneratedClass::ReleasePythonResources()
 {
-	PyType.Reset();
-	PyPostInitFunction.Reset();
+	// This may be called after Python has already shut down
+	if (Py_IsInitialized())
+	{
+		FPyScopedGIL GIL;
+		PyType.Reset();
+		PyPostInitFunction.Reset();
+	}
+	else
+	{
+		// Release ownership if Python has been shut down to avoid attempting to delete the objects (which are already dead)
+		PyType.Release();
+		PyPostInitFunction.Release();
+	}
+
 	PropertyDefs.Reset();
 	FunctionDefs.Reset();
 	PyMetaData = FPyWrapperObjectMetaData();

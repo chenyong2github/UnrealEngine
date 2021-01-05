@@ -2,6 +2,7 @@
 
 #include "PyWrapperEnum.h"
 #include "PyWrapperTypeRegistry.h"
+#include "PyGIL.h"
 #include "PyCore.h"
 #include "PyUtil.h"
 #include "PyConversion.h"
@@ -859,9 +860,26 @@ private:
 	bool bDidExist;
 };
 
+void UPythonGeneratedEnum::BeginDestroy()
+{
+	ReleasePythonResources();
+	Super::BeginDestroy();
+}
+
 void UPythonGeneratedEnum::ReleasePythonResources()
 {
-	PyType.Reset();
+	// This may be called after Python has already shut down
+	if (Py_IsInitialized())
+	{
+		FPyScopedGIL GIL;
+		PyType.Reset();
+	}
+	else
+	{
+		// Release ownership if Python has been shut down to avoid attempting to delete the object (which is already dead)
+		PyType.Release();
+	}
+
 	EnumValueDefs.Reset();
 	PyMetaData = FPyWrapperEnumMetaData();
 }

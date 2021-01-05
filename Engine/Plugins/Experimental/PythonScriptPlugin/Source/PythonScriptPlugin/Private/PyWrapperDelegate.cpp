@@ -36,6 +36,12 @@ DEFINE_FUNCTION(UPythonCallableForDelegate::CallPythonNative)
 #if WITH_PYTHON
 void UPythonCallableForDelegate::BeginDestroy()
 {
+	ReleasePythonResources();
+	Super::BeginDestroy();
+}
+
+void UPythonCallableForDelegate::ReleasePythonResources()
+{
 	// This may be called after Python has already shut down
 	if (Py_IsInitialized())
 	{
@@ -44,16 +50,9 @@ void UPythonCallableForDelegate::BeginDestroy()
 	}
 	else
 	{
-		// Release ownership if Python has been shut down to avoid attempting to delete the callable (which is already dead)
+		// Release ownership if Python has been shut down to avoid attempting to delete the object (which is already dead)
 		PyCallable.Release();
 	}
-
-	Super::BeginDestroy();
-}
-
-void UPythonCallableForDelegate::ReleasePythonResources()
-{
-	PyCallable.Reset();
 }
 
 PyObject* UPythonCallableForDelegate::GetCallable() const

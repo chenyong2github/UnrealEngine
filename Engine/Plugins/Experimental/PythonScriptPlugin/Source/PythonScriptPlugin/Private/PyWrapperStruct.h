@@ -378,6 +378,7 @@ class UPythonGeneratedStruct : public UScriptStruct, public IPythonResourceOwner
 public:
 	//~ UObject interface
 	virtual void PostRename(UObject* OldOuter, const FName OldName) override;
+	virtual void BeginDestroy() override;
 
 	//~ UStruct interface
 	virtual void InitializeStruct(void* Dest, int32 ArrayDim = 1) const override;
