@@ -47,11 +47,6 @@ namespace UE
 				UE_LOG(LogInterchangeCore, Warning, TEXT("Attribute storage operation [%s] Key[%s]: Stored attribute value type do not match parameter value type."), *OperationName, *(AttributeKey.Key));
 			}
 
-			if (HasAttributeStorageResult(Result, EAttributeStorageResult::Operation_Error_UnsupportedType))
-			{
-				UE_LOG(LogInterchangeCore, Warning, TEXT("Attribute storage operation [%s] Key[%s]: The storage do not support this type of value, please add unsupported type to EAttributeTypes."), *OperationName, *(AttributeKey.Key));
-			}
-
 			if (HasAttributeStorageResult(Result, EAttributeStorageResult::Operation_Error_InvalidStorage))
 			{
 				UE_LOG(LogInterchangeCore, Warning, TEXT("Attribute storage operation [%s] Key[%s]: The storage is invalid (NULL)."), *OperationName, *(AttributeKey.Key));
@@ -329,13 +324,10 @@ namespace UE
 
 		EAttributeStorageResult FAttributeStorage::GetAttribute(const FAttributeKey& ElementAttributeKey, FString& OutValue, TSpecializeType<FString >) const
 		{
+			static_assert(TAttributeTypeTraits<FString>::GetType() != EAttributeTypes::None, "Not a supported type for the attributes. Check EAttributeTypes for the supported types");
+
 			//Lock the storage
 			FScopeLock ScopeLock(&StorageMutex);
-
-			if (!IsSupportedType(OutValue))
-			{
-				return EAttributeStorageResult::Operation_Error_UnsupportedType;
-			}
 
 			const EAttributeTypes ValueType = TAttributeTypeTraits<FString>::GetType();
 			const FAttributeAllocationInfo* AttributeAllocationInfo = AttributeAllocationTable.Find(ElementAttributeKey);
@@ -369,13 +361,10 @@ namespace UE
 
 		EAttributeStorageResult FAttributeStorage::GetAttribute(const FAttributeKey& ElementAttributeKey, FName& OutValue, TSpecializeType<FName >) const
 		{
+			static_assert(TAttributeTypeTraits<FName>::GetType() != EAttributeTypes::None, "Not a supported type for the attributes. Check EAttributeTypes for supported types");
+
 			//Lock the storage
 			FScopeLock ScopeLock(&StorageMutex);
-
-			if (!IsSupportedType(OutValue))
-			{
-				return EAttributeStorageResult::Operation_Error_UnsupportedType;
-			}
 
 			const EAttributeTypes ValueType = TAttributeTypeTraits<FName>::GetType();
 
