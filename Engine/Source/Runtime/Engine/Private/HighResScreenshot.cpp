@@ -169,7 +169,7 @@ void FHighResScreenshotConfig::SetForce128BitRendering(bool bForce)
 
 bool FHighResScreenshotConfig::SetResolution(uint32 ResolutionX, uint32 ResolutionY, float ResolutionScale)
 {
-	if ( ResolutionX > GetMax2DTextureDimension() || ResolutionY > GetMax2DTextureDimension() )
+	if ((ResolutionX * ResolutionScale) > GetMax2DTextureDimension() || (ResolutionY * ResolutionScale) > GetMax2DTextureDimension())
 	{
 		// TODO LOG
 		//Ar.Logf(TEXT("Error: Screenshot size exceeds the maximum allowed texture size (%d x %d)"), GetMax2DTextureDimension(), GetMax2DTextureDimension());
@@ -180,8 +180,8 @@ bool FHighResScreenshotConfig::SetResolution(uint32 ResolutionX, uint32 Resoluti
 	CaptureRegion = UnscaledCaptureRegion;
 	bMaskEnabled = false;
 
-	GScreenshotResolutionX = ResolutionX;
-	GScreenshotResolutionY = ResolutionY;
+	GScreenshotResolutionX = (ResolutionX * ResolutionScale);
+	GScreenshotResolutionY = (ResolutionY * ResolutionScale);
 	GIsHighResScreenshot = true;
 
 	return true;
