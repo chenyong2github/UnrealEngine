@@ -57,15 +57,15 @@ static bool ValidateTexture2DPlatformData(const FTexturePlatformData& TextureDat
 			const int64 ExpectedMipSize = CalcTextureMipMapSize(TextureData.SizeX, TextureData.SizeY, TextureData.PixelFormat, MipIndex);
 			if (BulkDataSize != ExpectedMipSize)
 			{
-				UE_LOG(LogTexture,Warning,TEXT("Invalid mip data. Texture will be rebuilt. MipIndex %d [%dx%d], Expected size %lld, BulkData size %lld, PixelFormat %s, LoadedFromDDC %d, Texture %s"), 
-					MipIndex, 
-					MipMap.SizeX, 
-					MipMap.SizeY, 
-					ExpectedMipSize, 
-					BulkDataSize, 
-					GPixelFormats[TextureData.PixelFormat].Name, 
-					bFromDDC ? 1 : 0,
-					*Texture.GetFullName());
+				//UE_LOG(LogTexture,Warning,TEXT("Invalid mip data. Texture will be rebuilt. MipIndex %d [%dx%d], Expected size %lld, BulkData size %lld, PixelFormat %s, LoadedFromDDC %d, Texture %s"), 
+				//	MipIndex, 
+				//	MipMap.SizeX, 
+				//	MipMap.SizeY, 
+				//	ExpectedMipSize, 
+				//	BulkDataSize, 
+				//	GPixelFormats[TextureData.PixelFormat].Name, 
+				//	bFromDDC ? 1 : 0,
+				//	*Texture.GetFullName());
 				
 				bValid = false;
 			}
@@ -584,8 +584,7 @@ void FTextureCacheDerivedDataWorker::Finalize()
 			// FTexture2DStreamIn_IO::SetIORequests will try to write BulkDataSize bytes into a buffer of ExpectedMipSize allocated inside RHI
 			// if BulkDataSize is bigger than expected size it will cause memory corruption at runtime
 			// Log an error to fail the cook
-			UE_LOG(LogTexture,Error,TEXT("Texture %s has invalid mip data"), *Texture.GetFullName());
-
+			// UE_LOG(LogTexture,Error,TEXT("Texture %s has invalid mip data"), *Texture.GetFullName());
 		}
 	}
 }
