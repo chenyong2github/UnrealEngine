@@ -93,27 +93,25 @@ void FPerSolverFieldSystem::FieldParameterUpdateInternal(
 					SampleIndices[Idx] = ContextIndex(Idx, Idx);
 				}
 			}
-
-			if (Command.TargetAttribute == GetFieldPhysicsName(EFieldPhysicsType::Field_DynamicState))
+			if (Handles.Num())
 			{
-				SCOPE_CYCLE_COUNTER(STAT_ParamUpdateField_DynamicState);
+				TArrayView<FVector> SamplePointsView(&(SamplePoints[0]), SamplePoints.Num());
+				TArrayView<ContextIndex> SampleIndicesView(&(SampleIndices[0]), SampleIndices.Num());
 
-				if (ensureMsgf(Command.RootNode->Type() == FFieldNode<int32>::StaticType(),
-					TEXT("Field based evaluation of the simulations 'DynamicState' parameter expects integer field inputs.")))
+				FFieldContext Context{
+					SampleIndicesView, // @todo(chaos) important: an empty index array should evaluate everything
+					SamplePointsView,
+					Command.MetaData,
+					TimeSeconds
+				};
+
+				if (Command.TargetAttribute == GetFieldPhysicsName(EFieldPhysicsType::Field_DynamicState))
 				{
-					if (Handles.Num())
+					SCOPE_CYCLE_COUNTER(STAT_ParamUpdateField_DynamicState);
+
+					if (ensureMsgf(Command.RootNode->Type() == FFieldNode<int32>::StaticType(),
+						TEXT("Field based evaluation of the simulations 'DynamicState' parameter expects integer field inputs.")))
 					{
-						TArrayView<Chaos::TGeometryParticleHandle<float, 3>*> HandlesView(&(Handles[0]), Handles.Num());
-						TArrayView<FVector> SamplePointsView(&(SamplePoints[0]), SamplePoints.Num());
-						TArrayView<ContextIndex> SampleIndicesView(&(SampleIndices[0]), SampleIndices.Num());
-
-						FFieldContext Context{
-							SampleIndicesView, // @todo(chaos) important: an empty index array should evaluate everything
-							SamplePointsView,
-							Command.MetaData,
-							TimeSeconds
-						};
-
 						// Sample the dynamic state array in the field
 
 						// #BGTODO We're initializing every particle in the simulation here even though we're probably
@@ -143,19 +141,13 @@ void FPerSolverFieldSystem::FieldParameterUpdateInternal(
 								break;
 							}
 						}
-
 						TArrayView<int32> DynamicStateView(&(DynamicState[0]), DynamicState.Num());
-						if (ensureMsgf(Command.RootNode->Type() == FFieldNode<int32>::StaticType(),
-							TEXT("Field based evaluation of the simulations 'ObjectType' parameter expects int32 field inputs.")))
-						{
-							static_cast<const FFieldNode<int32>*>(
-								Command.RootNode.Get())->Evaluate(Context, DynamicStateView);
-						}
+						static_cast<const FFieldNode<int32>*>(Command.RootNode.Get())->Evaluate(Context, DynamicStateView);
 
 						bool StateChanged = false;
 						for (const ContextIndex& Index : Context.GetEvaluatedSamples())
 						{
-							Chaos::TGeometryParticleHandle<float, 3>* Handle = Handles[Index.Sample];
+							Chaos::TPBDRigidParticleHandle<float, 3>* RigidHandle = Handles[Index.Sample]->CastToRigidParticle();
 
 							// Lower level particle handles, like TGeometryParticleHandle and 
 							// TKinematicParticleHandle, infer their dynamic state by whether or not
@@ -168,7 +160,7 @@ void FPerSolverFieldSystem::FieldParameterUpdateInternal(
 							// we're just going to ignore non-dynamic particles.  This has the added
 							// benefit of not needing to deal with the floor, as it's pretty likely to
 							// not be dynamic.
-							if (Chaos::TPBDRigidParticleHandle<float, 3> * RigidHandle = Handle->CastToRigidParticle())
+							if (RigidHandle)
 							{
 								auto SetParticleState = [CurrentSolver](Chaos::TPBDRigidParticleHandle<float, 3>* InHandle, EObjectStateType InState)
 								{
@@ -258,52 +250,40 @@ void FPerSolverFieldSystem::FieldParameterUpdateInternal(
 								Clustering.UpdateKinematicProperties(RigidHandle);
 							}
 						}
-
 					}
+					CommandsToRemove.Add(CommandIndex);
 				}
-				CommandsToRemove.Add(CommandIndex);
-			}
-			else if (Command.TargetAttribute == GetFieldPhysicsName(EFieldPhysicsType::Field_ActivateDisabled))
-			{
-				SCOPE_CYCLE_COUNTER(STAT_ParamUpdateField_ActivateDisabled);
-
-				if (ensureMsgf(Command.RootNode->Type() == FFieldNode<int32>::StaticType(),
-					TEXT("Field based evaluation of the simulations 'ActivateDisabled' parameter expects integer field inputs.")))
+				else if (Command.TargetAttribute == GetFieldPhysicsName(EFieldPhysicsType::Field_ActivateDisabled))
 				{
-					if (Handles.Num())
+					SCOPE_CYCLE_COUNTER(STAT_ParamUpdateField_ActivateDisabled);
+
+					if (ensureMsgf(Command.RootNode->Type() == FFieldNode<int32>::StaticType(),
+						TEXT("Field based evaluation of the simulations 'ActivateDisabled' parameter expects integer field inputs.")))
 					{
-						TArrayView<FVector> SamplePointsView(&(SamplePoints[0]), SamplePoints.Num());
-						TArrayView<ContextIndex> SampleIndicesView(&(SampleIndices[0]), SampleIndices.Num());
-
-						FFieldContext Context{
-							SampleIndicesView, // @todo(chaos) important: an empty index array should evaluate everything
-							SamplePointsView,
-							Command.MetaData,
-							TimeSeconds
-						};
-
-						//
-						//  Sample the dynamic state array in the field
-						//
-						TArray<int32> DynamicState;
-						DynamicState.Init(false, Handles.Num());
+						TArray<int32> LocalResults;
+						LocalResults.Init(false, Handles.Num());
 						for (const ContextIndex& Index : Context.GetEvaluatedSamples())
 						{
 							Chaos::TPBDRigidParticleHandle<float, 3>* RigidHandle = Handles[Index.Sample]->CastToRigidParticle();
 							if (RigidHandle)
 							{
-								DynamicState[Index.Result] = RigidHandle->Disabled();
+								LocalResults[Index.Result] = RigidHandle->Disabled();
 							}
 						}
-						TArrayView<int32> DynamicStateView(&(DynamicState[0]), DynamicState.Num());
+						TArrayView<int32> ResultsView(&(LocalResults[0]), LocalResults.Num());
+						static_cast<const FFieldNode<int32>*>(Command.RootNode.Get())->Evaluate(Context, ResultsView);
 
-						if (ensureMsgf(Command.RootNode->Type() == FFieldNode<int32>::StaticType(),
-							TEXT("Field based evaluation of the simulations 'ObjectType' parameter expects int32 field inputs.")))
+						for (const ContextIndex& Index : Context.GetEvaluatedSamples())
 						{
-							static_cast<const FFieldNode<int32>*>(Command.RootNode.Get())->Evaluate(Context, DynamicStateView);
+							Chaos::TPBDRigidParticleHandle<float, 3>* RigidHandle = Handles[Index.Sample]->CastToRigidParticle();
+							if (RigidHandle && RigidHandle->Disabled() && ResultsView[Index.Result] == 0.0)
+							{
+								CurrentSolver->GetEvolution()->EnableParticle(RigidHandle, nullptr);
+								CurrentSolver->GetEvolution()->SetParticleObjectState(RigidHandle, Chaos::EObjectStateType::Dynamic);
+							}
 						}
 
-	#if TODO_REIMPLEMENT_RIGID_CLUSTERING
+#if TODO_REIMPLEMENT_RIGID_CLUSTERING
 						// transfer results to rigid system.
 						for (const ContextIndex& Index : Context.GetEvaluatedSamples())
 						{
@@ -315,30 +295,17 @@ void FPerSolverFieldSystem::FieldParameterUpdateInternal(
 								Particles.SetObjectState(RigidBodyIndex, Chaos::EObjectStateType::Dynamic);
 							}
 						}
-	#endif
+#endif
 					}
+					CommandsToRemove.Add(CommandIndex);
 				}
-				CommandsToRemove.Add(CommandIndex);
-			}
-			else if (Command.TargetAttribute == GetFieldPhysicsName(EFieldPhysicsType::Field_ExternalClusterStrain))
-			{
-				SCOPE_CYCLE_COUNTER(STAT_ParamUpdateField_ExternalClusterStrain);
-
-				if (ensureMsgf(Command.RootNode->Type() == FFieldNode<float>::StaticType(),
-					TEXT("Field based evaluation of the simulations 'ExternalClusterStrain' parameter expects float field inputs.")))
+				else if (Command.TargetAttribute == GetFieldPhysicsName(EFieldPhysicsType::Field_ExternalClusterStrain))
 				{
-					if (Handles.Num())
+					SCOPE_CYCLE_COUNTER(STAT_ParamUpdateField_ExternalClusterStrain);
+
+					if (ensureMsgf(Command.RootNode->Type() == FFieldNode<float>::StaticType(),
+						TEXT("Field based evaluation of the simulations 'ExternalClusterStrain' parameter expects float field inputs.")))
 					{
-						TArrayView<FVector> SamplePointsView(&(SamplePoints[0]), SamplePoints.Num());
-						TArrayView<ContextIndex> SampleIndicesView(&(SampleIndices[0]), SampleIndices.Num());
-
-						FFieldContext Context{
-							SampleIndicesView, // @todo(chaos) important: an empty index array should evaluate everything
-							SamplePointsView,
-							Command.MetaData,
-							TimeSeconds
-						};
-
 						// TODO: Chaos, Ryan
 						// As we're allocating a buffer the size of all particles every iteration, 
 						// I suspect this is a performance hit.  It seems like we should add a buffer
@@ -346,122 +313,85 @@ void FPerSolverFieldSystem::FieldParameterUpdateInternal(
 						// and its lifetime tied to an object that lives in the scope of the object 
 						// that's driving the sampling of the field.
 
-						TArray<float> StrainSamples;
+						TArray<float> LocalResults;
 						// There's 2 ways to think about initializing this array...
 						// Either we have a low number of indices, and the cost of iterating
 						// over the indices in addition to StrainSamples is lower than the
 						// cost of initializing them all, or it's cheaper and potentially 
 						// more cache coherent to just initialize them all.  I'm thinking
 						// the latter may be more likely...
-						StrainSamples.AddZeroed(SamplePointsView.Num());
+						LocalResults.AddZeroed(Handles.Num());
 
-						TArrayView<float> FloatBuffer(&StrainSamples[0], StrainSamples.Num());
-						static_cast<const FFieldNode<float>*>(Command.RootNode.Get())->Evaluate(Context, FloatBuffer);
+						TArrayView<float> ResultsView(&LocalResults[0], LocalResults.Num());
+						static_cast<const FFieldNode<float>*>(Command.RootNode.Get())->Evaluate(Context, ResultsView);
 
-						int32 Iterations = 1;
-						if (Command.MetaData.Contains(FFieldSystemMetaData::EMetaType::ECommandData_Iteration))
+						TMap<TGeometryParticleHandle<float, 3>*, float> Map;
+
+						for (const ContextIndex& Index : Context.GetEvaluatedSamples())
 						{
-							Iterations = static_cast<FFieldSystemMetaDataIteration*>(
-								Command.MetaData[FFieldSystemMetaData::EMetaType::ECommandData_Iteration].Get())->Iterations;
-						}
-
-						if (StrainSamples.Num())
-						{
-							TMap<TGeometryParticleHandle<float, 3>*, float> Map;
-
-							for (const ContextIndex& Index : Context.GetEvaluatedSamples())
+							if (ResultsView[Index.Result] > 0)
 							{
-								if (StrainSamples[Index.Result] > 0)
-								{
-									Map.Add(Handles[Index.Sample], StrainSamples[Index.Result]);
-								}
-
+								Map.Add(Handles[Index.Sample], ResultsView[Index.Result]);
 							}
 
-							// Capture the results from the breaking model to post-process
-							TMap<TPBDRigidClusteredParticleHandle<FReal, 3>*, TSet<TPBDRigidParticleHandle<FReal, 3>*>> BreakResults = CurrentSolver->GetEvolution()->GetRigidClustering().BreakingModel(&Map);
+						}
 
-							// If clusters broke apart then we'll have activated new particles that have no relationship to the proxy that now owns them
-							// Here we attach each new particle to the proxy of the parent particle that owns it.
-							for (const TPair<TPBDRigidClusteredParticleHandle<FReal, 3>*, TSet<TPBDRigidParticleHandle<FReal, 3>*>> & Iter : BreakResults)
+						// Capture the results from the breaking model to post-process
+						TMap<TPBDRigidClusteredParticleHandle<FReal, 3>*, TSet<TPBDRigidParticleHandle<FReal, 3>*>> BreakResults = CurrentSolver->GetEvolution()->GetRigidClustering().BreakingModel(&Map);
+
+						// If clusters broke apart then we'll have activated new particles that have no relationship to the proxy that now owns them
+						// Here we attach each new particle to the proxy of the parent particle that owns it.
+						for (const TPair<TPBDRigidClusteredParticleHandle<FReal, 3>*, TSet<TPBDRigidParticleHandle<FReal, 3>*>> & Iter : BreakResults)
+						{
+							const TSet<TPBDRigidParticleHandle<FReal, 3>*>& Activated = Iter.Value;
+
+							for (TPBDRigidParticleHandle<FReal, 3> * Handle : Activated)
 							{
-								const TSet<TPBDRigidParticleHandle<FReal, 3>*>& Activated = Iter.Value;
-
-								for (TPBDRigidParticleHandle<FReal, 3> * Handle : Activated)
+								if (!CurrentSolver->GetProxies(Handle))
 								{
-									if (!CurrentSolver->GetProxies(Handle))
+									const TSet<IPhysicsProxyBase*>* ParentProxies = CurrentSolver->GetProxies(Iter.Key);
+									if (ensure(ParentProxies))
 									{
-										const TSet<IPhysicsProxyBase*>* ParentProxies = CurrentSolver->GetProxies(Iter.Key);
-										if (ensure(ParentProxies))
-										{
-											for (IPhysicsProxyBase* ParentProxy : *ParentProxies)
-												CurrentSolver->AddParticleToProxy(Handle, ParentProxy);
-										}
+										for (IPhysicsProxyBase* ParentProxy : *ParentProxies)
+											CurrentSolver->AddParticleToProxy(Handle, ParentProxy);
 									}
 								}
 							}
 						}
 					}
+					CommandsToRemove.Add(CommandIndex);
 				}
-				CommandsToRemove.Add(CommandIndex);
-			}
-			else if (Command.TargetAttribute == GetFieldPhysicsName(EFieldPhysicsType::Field_Kill))
-			{
-				SCOPE_CYCLE_COUNTER(STAT_ParamUpdateField_Kill);
-
-				if (ensureMsgf(Command.RootNode->Type() == FFieldNode<float>::StaticType(),
-					TEXT("Field based evaluation of the simulations 'Kill' parameter expects float field inputs.")))
+				else if (Command.TargetAttribute == GetFieldPhysicsName(EFieldPhysicsType::Field_Kill))
 				{
-					if (Handles.Num())
+					SCOPE_CYCLE_COUNTER(STAT_ParamUpdateField_Kill);
+
+					if (ensureMsgf(Command.RootNode->Type() == FFieldNode<float>::StaticType(),
+						TEXT("Field based evaluation of the simulations 'Kill' parameter expects float field inputs.")))
 					{
-						TArrayView<FVector> SamplePointsView(&(SamplePoints[0]), SamplePoints.Num());
-						TArrayView<ContextIndex> SampleIndicesView(&(SampleIndices[0]), SampleIndices.Num());
-
-						FFieldContext Context{
-							SampleIndicesView, // @todo(chaos) important: an empty index array should evaluate everything
-							SamplePointsView,
-							Command.MetaData,
-							TimeSeconds
-						};
-
 						TArray<float> LocalResults;
 						LocalResults.AddZeroed(Handles.Num());
 						TArrayView<float> ResultsView(&(LocalResults[0]), LocalResults.Num());
-						static_cast<const FFieldNode<float>*>(Command.RootNode.Get())->Evaluate(
-							Context, ResultsView);
 
-						bool HasDisabled = false;
+						static_cast<const FFieldNode<float>*>(Command.RootNode.Get())->Evaluate(Context, ResultsView);
+
 						for (const ContextIndex& Index : Context.GetEvaluatedSamples())
 						{
 							Chaos::TPBDRigidParticleHandle<float, 3>* RigidHandle = Handles[Index.Sample]->CastToRigidParticle();
-
 							if (RigidHandle && ResultsView[Index.Result] > 0.0)
 							{
 								CurrentSolver->GetEvolution()->DisableParticle(RigidHandle);
-								HasDisabled = true;
 							}
 						}
 					}
+					CommandsToRemove.Add(CommandIndex);
 				}
-				CommandsToRemove.Add(CommandIndex);
-			}
-			else if (Command.TargetAttribute == GetFieldPhysicsName(EFieldPhysicsType::Field_LinearVelocity))
-			{
-				SCOPE_CYCLE_COUNTER(STAT_ParamUpdateField_LinearVelocity);
-
-				if (ensureMsgf(Command.RootNode->Type() == FFieldNode<FVector>::StaticType(),
-					TEXT("Field based evaluation of the simulations 'LinearVelocity' parameter expects FVector field inputs.")))
+				else if (Command.TargetAttribute == GetFieldPhysicsName(EFieldPhysicsType::Field_LinearVelocity))
 				{
-					if (Handles.Num())
-					{
-						TArrayView<FVector> SamplePointsView(&(SamplePoints[0]), SamplePoints.Num());
-						TArrayView<ContextIndex> SampleIndicesView(&(SampleIndices[0]), SampleIndices.Num());
-						FFieldContext Context{
-							SampleIndicesView,
-							SamplePointsView,
-							Command.MetaData,
-							TimeSeconds };
+					SCOPE_CYCLE_COUNTER(STAT_ParamUpdateField_LinearVelocity);
 
+					if (ensureMsgf(Command.RootNode->Type() == FFieldNode<FVector>::StaticType(),
+						TEXT("Field based evaluation of the simulations 'LinearVelocity' parameter expects FVector field inputs.")))
+					{
 						TArray<FVector> LocalResults;
 						LocalResults.AddUninitialized(Handles.Num());
 						TArrayView<FVector> ResultsView(&(LocalResults[0]), LocalResults.Num());
@@ -477,28 +407,15 @@ void FPerSolverFieldSystem::FieldParameterUpdateInternal(
 							}
 						}
 					}
+					CommandsToRemove.Add(CommandIndex);
 				}
-				CommandsToRemove.Add(CommandIndex);
-			}
-			else if (Command.TargetAttribute == GetFieldPhysicsName(EFieldPhysicsType::Field_AngularVelociy))
-			{
-				SCOPE_CYCLE_COUNTER(STAT_ParamUpdateField_AngularVelocity);
-
-				if (ensureMsgf(Command.RootNode->Type() == FFieldNode<FVector>::StaticType(),
-					TEXT("Field based evaluation of the simulations 'AngularVelocity' parameter expects FVector field inputs.")))
+				else if (Command.TargetAttribute == GetFieldPhysicsName(EFieldPhysicsType::Field_AngularVelociy))
 				{
-					if (Handles.Num())
+					SCOPE_CYCLE_COUNTER(STAT_ParamUpdateField_AngularVelocity);
+
+					if (ensureMsgf(Command.RootNode->Type() == FFieldNode<FVector>::StaticType(),
+						TEXT("Field based evaluation of the simulations 'AngularVelocity' parameter expects FVector field inputs.")))
 					{
-						TArrayView<FVector> SamplePointsView(&(SamplePoints[0]), SamplePoints.Num());
-						TArrayView<ContextIndex> SampleIndicesView(&(SampleIndices[0]), SampleIndices.Num());
-
-						FFieldContext Context{
-							SampleIndicesView, // @todo(chaos) important: an empty index array should evaluate everything
-							SamplePointsView,
-							Command.MetaData,
-							TimeSeconds
-						};
-
 						TArray<FVector> LocalResults;
 						LocalResults.AddUninitialized(Handles.Num());
 						TArrayView<FVector> ResultsView(&(LocalResults[0]), LocalResults.Num());
@@ -514,27 +431,15 @@ void FPerSolverFieldSystem::FieldParameterUpdateInternal(
 							}
 						}
 					}
+					CommandsToRemove.Add(CommandIndex);
 				}
-				CommandsToRemove.Add(CommandIndex);
-			}
-			else if (Command.TargetAttribute == GetFieldPhysicsName(EFieldPhysicsType::Field_SleepingThreshold))
-			{
-				SCOPE_CYCLE_COUNTER(STAT_ParamUpdateField_SleepingThreshold);
-
-				if (ensureMsgf(Command.RootNode->Type() == FFieldNode<float>::StaticType(),
-					TEXT("Field based evaluation of the simulations 'SleepingThreshold' parameter expects scale field inputs.")))
+				else if (Command.TargetAttribute == GetFieldPhysicsName(EFieldPhysicsType::Field_SleepingThreshold))
 				{
-					if (Handles.Num())
-					{
-						TArrayView<FVector> SamplePointsView(&(SamplePoints[0]), SamplePoints.Num());
-						TArrayView<ContextIndex> SampleIndicesView(&(SampleIndices[0]), SampleIndices.Num());
-						FFieldContext Context{
-							SampleIndicesView,
-							SamplePointsView,
-							Command.MetaData,
-							TimeSeconds
-						};
+					SCOPE_CYCLE_COUNTER(STAT_ParamUpdateField_SleepingThreshold);
 
+					if (ensureMsgf(Command.RootNode->Type() == FFieldNode<float>::StaticType(),
+						TEXT("Field based evaluation of the simulations 'SleepingThreshold' parameter expects scale field inputs.")))
+					{
 						TArray<float> LocalResults;
 						LocalResults.AddZeroed(Handles.Num());
 						TArrayView<float> ResultsView(&(LocalResults[0]), LocalResults.Num());
@@ -544,7 +449,6 @@ void FPerSolverFieldSystem::FieldParameterUpdateInternal(
 						for (const ContextIndex& Index : Context.GetEvaluatedSamples())
 						{
 							Chaos::TPBDRigidParticleHandle<float, 3>* RigidHandle = Handles[Index.Sample]->CastToRigidParticle();
-
 							if (RigidHandle && ResultsView.Num() > 0)
 							{
 								// if no per particle physics material is set, make one
@@ -572,32 +476,17 @@ void FPerSolverFieldSystem::FieldParameterUpdateInternal(
 							}
 						}
 					}
+					CommandsToRemove.Add(CommandIndex);
 				}
-				CommandsToRemove.Add(CommandIndex);
-			}
-			else if (Command.TargetAttribute == GetFieldPhysicsName(EFieldPhysicsType::Field_DisableThreshold))
-			{
-				SCOPE_CYCLE_COUNTER(STAT_ParamUpdateField_DisableThreshold);
-
-				if (ensureMsgf(Command.RootNode->Type() == FFieldNode<float>::StaticType(),
-					TEXT("Field based evaluation of the simulations 'DisableThreshold' parameter expects scale field inputs.")))
+				else if (Command.TargetAttribute == GetFieldPhysicsName(EFieldPhysicsType::Field_DisableThreshold))
 				{
+					SCOPE_CYCLE_COUNTER(STAT_ParamUpdateField_DisableThreshold);
 
-					if (Handles.Num())
+					if (ensureMsgf(Command.RootNode->Type() == FFieldNode<float>::StaticType(),
+						TEXT("Field based evaluation of the simulations 'DisableThreshold' parameter expects scale field inputs.")))
 					{
-						TArrayView<FVector> SamplePointsView(&(SamplePoints[0]), SamplePoints.Num());
-						TArrayView<ContextIndex> SampleIndicesView(&(SampleIndices[0]), SampleIndices.Num());
-
-						FFieldContext Context{
-							SampleIndicesView,
-							SamplePointsView,
-							Command.MetaData,
-							TimeSeconds
-						};
-
 						TArray<float> LocalResults;
 						LocalResults.AddUninitialized(Handles.Num());
-
 						TArrayView<float> ResultsView(&(LocalResults[0]), LocalResults.Num());
 
 						static_cast<const FFieldNode<float>*>(Command.RootNode.Get())->Evaluate(Context, ResultsView);
@@ -632,28 +521,14 @@ void FPerSolverFieldSystem::FieldParameterUpdateInternal(
 							}
 						}
 					}
+					CommandsToRemove.Add(CommandIndex);
 				}
-
-				CommandsToRemove.Add(CommandIndex);
-			}
-			else if (Command.TargetAttribute == GetFieldPhysicsName(EFieldPhysicsType::Field_InternalClusterStrain))
-			{
-				SCOPE_CYCLE_COUNTER(STAT_ParamUpdateField_InternalClusterStrain);
-				if (ensureMsgf(Command.RootNode->Type() == FFieldNode<float>::StaticType(),
-					TEXT("Field based evaluation of the simulations 'InternalClusterStrain' parameter expects scalar field inputs.")))
+				else if (Command.TargetAttribute == GetFieldPhysicsName(EFieldPhysicsType::Field_InternalClusterStrain))
 				{
-					if (Handles.Num())
+					SCOPE_CYCLE_COUNTER(STAT_ParamUpdateField_InternalClusterStrain);
+					if (ensureMsgf(Command.RootNode->Type() == FFieldNode<float>::StaticType(),
+						TEXT("Field based evaluation of the simulations 'InternalClusterStrain' parameter expects scalar field inputs.")))
 					{
-						TArrayView<FVector> SamplePointsView(&(SamplePoints[0]), SamplePoints.Num());
-						TArrayView<ContextIndex> SampleIndicesView(&(SampleIndices[0]), SampleIndices.Num());
-
-						FFieldContext Context{
-							SampleIndicesView, // @todo(chaos) important: an empty index array should evaluate everything
-							SamplePointsView,
-							Command.MetaData,
-							TimeSeconds
-						};
-
 						TArray<float> LocalResults;
 						LocalResults.AddZeroed(Handles.Num());
 						TArrayView<float> ResultsView(&(LocalResults[0]), LocalResults.Num());
@@ -668,33 +543,19 @@ void FPerSolverFieldSystem::FieldParameterUpdateInternal(
 								RigidHandle->Strain() += ResultsView[Index.Result];
 							}
 						}
-
 					}
+					CommandsToRemove.Add(CommandIndex);
 				}
-				CommandsToRemove.Add(CommandIndex);
-			}
-			else if (Command.TargetAttribute == GetFieldPhysicsName(EFieldPhysicsType::Field_CollisionGroup))
-			{
-				if (ensureMsgf(Command.RootNode->Type() == FFieldNode<int32>::StaticType(),
-					TEXT("Field based evaluation of the simulations 'CollisionGroup' parameter expects int field inputs.")))
+				else if (Command.TargetAttribute == GetFieldPhysicsName(EFieldPhysicsType::Field_CollisionGroup))
 				{
-					if (Handles.Num())
+					if (ensureMsgf(Command.RootNode->Type() == FFieldNode<int32>::StaticType(),
+						TEXT("Field based evaluation of the simulations 'CollisionGroup' parameter expects int field inputs.")))
 					{
-						TArrayView<FVector> SamplePointsView(&(SamplePoints[0]), SamplePoints.Num());
-						TArrayView<ContextIndex> SampleIndicesView(&(SampleIndices[0]), SampleIndices.Num());
-
-						FFieldContext Context{
-							SampleIndicesView, // @todo(chaos) important: an empty index array should evaluate everything
-							SamplePointsView,
-							Command.MetaData,
-							TimeSeconds
-						};
-
 						TArray<int32> LocalResults;
 						LocalResults.AddZeroed(Handles.Num());
 						TArrayView<int32> ResultsView(&(LocalResults[0]), LocalResults.Num());
 
-						static_cast<const FFieldNode<int32> *>(Command.RootNode.Get())->Evaluate(Context, ResultsView);
+						static_cast<const FFieldNode<int32>*>(Command.RootNode.Get())->Evaluate(Context, ResultsView);
 
 						for (const ContextIndex& Index : Context.GetEvaluatedSamples())
 						{
@@ -705,34 +566,22 @@ void FPerSolverFieldSystem::FieldParameterUpdateInternal(
 							}
 						}
 					}
+					CommandsToRemove.Add(CommandIndex);
 				}
-				CommandsToRemove.Add(CommandIndex);
-			}
-			else if (Command.TargetAttribute == GetFieldPhysicsName(EFieldPhysicsType::Field_PositionStatic))
-			{
-				SCOPE_CYCLE_COUNTER(STAT_ParamUpdateField_PositionStatic);
-
-				if (ensureMsgf(Command.RootNode->Type() == FFieldNode<int32>::StaticType(),
-					TEXT("Field based evaluation of the simulations 'PositionStatic' parameter expects integer field inputs.")))
+				else if (Command.TargetAttribute == GetFieldPhysicsName(EFieldPhysicsType::Field_PositionStatic))
 				{
-					if (Handles.Num())
+					SCOPE_CYCLE_COUNTER(STAT_ParamUpdateField_PositionStatic);
+
+					if (ensureMsgf(Command.RootNode->Type() == FFieldNode<int32>::StaticType(),
+						TEXT("Field based evaluation of the simulations 'PositionStatic' parameter expects integer field inputs.")))
 					{
-						TArrayView<FVector> SamplePointsView(&(SamplePoints[0]), SamplePoints.Num());
-						TArrayView<ContextIndex> SampleIndicesView(&(SampleIndices[0]), SampleIndices.Num());
+						TArray<int32> LocalResults;
+						LocalResults.AddZeroed(Handles.Num());
+						TArrayView<int32> ResultsView(&(LocalResults[0]), LocalResults.Num());
 
-						FFieldContext Context{
-							SampleIndicesView, // @todo(chaos) important: an empty index array should evaluate everything
-							SamplePointsView,
-							Command.MetaData,
-							TimeSeconds
-						};
-
-						TArray<int32> Results;
-						Results.Init(false,Handles.Num());
-						TArrayView<int32> ResultsView(&(Results[0]), Results.Num());
 						static_cast<const FFieldNode<int32>*>(Command.RootNode.Get())->Evaluate(Context, ResultsView);
 
-	#if TODO_REIMPLEMENT_KINEMATIC_PROXY
+#if TODO_REIMPLEMENT_KINEMATIC_PROXY
 						for (const ContextIndex& CIndex : Context.GetEvaluatedSamples())
 						{
 							const int32 i = CIndex.Result;
@@ -750,37 +599,25 @@ void FPerSolverFieldSystem::FieldParameterUpdateInternal(
 								}
 							}
 						}
-	#endif
+#endif
 					}
+
+					CommandsToRemove.Add(CommandIndex);
 				}
-
-				CommandsToRemove.Add(CommandIndex);
-			}
-			else if (Command.TargetAttribute == GetFieldPhysicsName(EFieldPhysicsType::Field_PositionTarget))
-			{
-				SCOPE_CYCLE_COUNTER(STAT_ParamUpdateField_PositionTarget);
-
-				if (ensureMsgf(Command.RootNode->Type() == FFieldNode<FVector>::StaticType(),
-					TEXT("Field based evaluation of the simulations 'PositionTarget' parameter expects vector field inputs.")))
+				else if (Command.TargetAttribute == GetFieldPhysicsName(EFieldPhysicsType::Field_PositionTarget))
 				{
-					if (Handles.Num())
+					SCOPE_CYCLE_COUNTER(STAT_ParamUpdateField_PositionTarget);
+
+					if (ensureMsgf(Command.RootNode->Type() == FFieldNode<FVector>::StaticType(),
+						TEXT("Field based evaluation of the simulations 'PositionTarget' parameter expects vector field inputs.")))
 					{
-						TArrayView<FVector> SamplePointsView(&(SamplePoints[0]), SamplePoints.Num());
-						TArrayView<ContextIndex> SampleIndicesView(&(SampleIndices[0]), SampleIndices.Num());
+						TArray<FVector> LocalResults;
+						LocalResults.Init(FVector(FLT_MAX), Handles.Num());
+						TArrayView<FVector> ResultsView(&(LocalResults[0]), LocalResults.Num());
 
-						FFieldContext Context{
-							SampleIndicesView, // @todo(chaos) important: an empty index array should evaluate everything
-							SamplePointsView,
-							Command.MetaData,
-							TimeSeconds
-						};
-
-						TArray<FVector> Results;
-						Results.Init(FVector(FLT_MAX), Handles.Num());
-						TArrayView<FVector> ResultsView(&(Results[0]), Results.Num());
 						static_cast<const FFieldNode<FVector>*>(Command.RootNode.Get())->Evaluate(Context, ResultsView);
 
-	#if TODO_REIMPLEMENT_KINEMATIC_PROXY
+#if TODO_REIMPLEMENT_KINEMATIC_PROXY
 						for (const ContextIndex& CIndex : Context.GetEvaluatedSamples())
 						{
 							const int32 i = CIndex.Result;
@@ -798,37 +635,25 @@ void FPerSolverFieldSystem::FieldParameterUpdateInternal(
 								}
 							}
 						}
-	#endif
+#endif
 					}
+
+					CommandsToRemove.Add(CommandIndex);
 				}
-
-				CommandsToRemove.Add(CommandIndex);
-			}
-			else if (Command.TargetAttribute == GetFieldPhysicsName(EFieldPhysicsType::Field_PositionAnimated))
-			{
-				SCOPE_CYCLE_COUNTER(STAT_ParamUpdateField_PositionAnimated);
-
-				if (ensureMsgf(Command.RootNode->Type() == FFieldNode<int32>::StaticType(),
-					TEXT("Field based evaluation of the simulations 'PositionAnimated' parameter expects integer field inputs.")))
+				else if (Command.TargetAttribute == GetFieldPhysicsName(EFieldPhysicsType::Field_PositionAnimated))
 				{
-					if (Handles.Num())
+					SCOPE_CYCLE_COUNTER(STAT_ParamUpdateField_PositionAnimated);
+
+					if (ensureMsgf(Command.RootNode->Type() == FFieldNode<int32>::StaticType(),
+						TEXT("Field based evaluation of the simulations 'PositionAnimated' parameter expects integer field inputs.")))
 					{
-						TArrayView<FVector> SamplePointsView(&(SamplePoints[0]), SamplePoints.Num());
-						TArrayView<ContextIndex> SampleIndicesView(&(SampleIndices[0]), SampleIndices.Num());
+						TArray<int32> LocalResults;
+						LocalResults.Init(false, Handles.Num());
+						TArrayView<int32> ResultsView(&(LocalResults[0]), LocalResults.Num());
 
-						FFieldContext Context{
-							SampleIndicesView, // @todo(chaos) important: an empty index array should evaluate everything
-							SamplePointsView,
-							Command.MetaData,
-							TimeSeconds
-						};
-
-						TArray<int32> Results;
-						Results.Init(false, Handles.Num());
-						TArrayView<int32> ResultsView(&(Results[0]), Results.Num());
 						static_cast<const FFieldNode<int32>*>(Command.RootNode.Get())->Evaluate(Context, ResultsView);
 
-	#if TODO_REIMPLEMENT_KINEMATIC_PROXY
+#if TODO_REIMPLEMENT_KINEMATIC_PROXY
 						for (int32 i = 0; i < AnimatedPosition.Num(); ++i)
 						{
 							for (int32 j = 0; j < AnimatedPosition[i].Ids.Num(); ++j)
@@ -849,66 +674,66 @@ void FPerSolverFieldSystem::FieldParameterUpdateInternal(
 								}
 							}
 						}
-	#endif
+#endif
 					}
+					CommandsToRemove.Add(CommandIndex);
 				}
-				CommandsToRemove.Add(CommandIndex);
-			}
-			else if (Command.TargetAttribute == GetFieldPhysicsName(EFieldPhysicsType::Field_DynamicConstraint))
-			{
-				SCOPE_CYCLE_COUNTER(STAT_ParamUpdateField_DynamicConstraint);
-
-				if (ensureMsgf(Command.RootNode->Type() == FFieldNode<float>::StaticType(),
-					TEXT("Field based evaluation of the simulations 'DynamicConstraint' parameter expects scalar field inputs.")))
+				else if (Command.TargetAttribute == GetFieldPhysicsName(EFieldPhysicsType::Field_DynamicConstraint))
 				{
-	#if TODO_REIMPLEMENT_DYNAMIC_CONSTRAINT_ACCESSORS
-					Chaos::TPBDRigidDynamicSpringConstraints<float, 3>& DynamicConstraints = FPhysicsSolver::FAccessor(CurrentSolver).DynamicConstraints();
-					TSet<int32>& DynamicConstraintParticles = FPhysicsSolver::FAccessor(CurrentSolver).DynamicConstraintParticles();
+					SCOPE_CYCLE_COUNTER(STAT_ParamUpdateField_DynamicConstraint);
 
-					FPerSolverFieldSystem::ContiguousIndices(IndicesArray, CurrentSolver, ResolutionType, IndicesArray.Num() != Particles.Size());
-					if (IndicesArray.Num())
+					if (ensureMsgf(Command.RootNode->Type() == FFieldNode<float>::StaticType(),
+						TEXT("Field based evaluation of the simulations 'DynamicConstraint' parameter expects scalar field inputs.")))
 					{
-						TArrayView<ContextIndex> IndexView(&(IndicesArray[0]), IndicesArray.Num());
+#if TODO_REIMPLEMENT_DYNAMIC_CONSTRAINT_ACCESSORS
+						Chaos::TPBDRigidDynamicSpringConstraints<float, 3>& DynamicConstraints = FPhysicsSolver::FAccessor(CurrentSolver).DynamicConstraints();
+						TSet<int32>& DynamicConstraintParticles = FPhysicsSolver::FAccessor(CurrentSolver).DynamicConstraintParticles();
 
-						FVector* tptr = &(Particles.X(0));
-						TArrayView<FVector> SamplesView(tptr, int32(Particles.Size()));
-
-						FFieldContext Context{
-							IndexView,
-							SamplesView,
-							Command.MetaData,
-							TimeSeconds
-						};
-
-						TArray<float> Results;
-						Results.AddUninitialized(Particles.Size());
-						for (const ContextIndex& CIndex : IndicesArray)
+						FPerSolverFieldSystem::ContiguousIndices(IndicesArray, CurrentSolver, ResolutionType, IndicesArray.Num() != Particles.Size());
+						if (IndicesArray.Num())
 						{
-							Results[CIndex.Sample] = FLT_MAX;
-						}
-						TArrayView<float> ResultsView(&(Results[0]), Results.Num());
-						static_cast<const FFieldNode<float>*>(Command.RootNode.Get())->Evaluate(Context, ResultsView);
+							TArrayView<ContextIndex> IndexView(&(IndicesArray[0]), IndicesArray.Num());
 
-						for (const ContextIndex& CIndex : Context.GetEvaluatedSamples())
-						{
-							const int32 i = CIndex.Result;
-							if (Results[i] != FLT_MAX)
+							FVector* tptr = &(Particles.X(0));
+							TArrayView<FVector> SamplesView(tptr, int32(Particles.Size()));
+
+							FFieldContext Context{
+								IndexView,
+								SamplesView,
+								Command.MetaData,
+								TimeSeconds
+							};
+
+							TArray<float> Results;
+							Results.AddUninitialized(Particles.Size());
+							for (const ContextIndex& CIndex : IndicesArray)
 							{
-								if (!DynamicConstraintParticles.Contains(i))
+								Results[CIndex.Sample] = FLT_MAX;
+							}
+							TArrayView<float> ResultsView(&(Results[0]), Results.Num());
+							static_cast<const FFieldNode<float>*>(Command.RootNode.Get())->Evaluate(Context, ResultsView);
+
+							for (const ContextIndex& CIndex : Context.GetEvaluatedSamples())
+							{
+								const int32 i = CIndex.Result;
+								if (Results[i] != FLT_MAX)
 								{
-									DynamicConstraints.SetDistance(Results[i]);
-									for (const int32 Index : DynamicConstraintParticles)
+									if (!DynamicConstraintParticles.Contains(i))
 									{
-										DynamicConstraints.Add(Index, i);
+										DynamicConstraints.SetDistance(Results[i]);
+										for (const int32 Index : DynamicConstraintParticles)
+										{
+											DynamicConstraints.Add(Index, i);
+										}
+										DynamicConstraintParticles.Add(i);
 									}
-									DynamicConstraintParticles.Add(i);
 								}
 							}
 						}
+#endif
 					}
-	#endif
+					CommandsToRemove.Add(CommandIndex);
 				}
-				CommandsToRemove.Add(CommandIndex);
 			}
 		}
 		if (IsTransient)
@@ -924,7 +749,7 @@ void FPerSolverFieldSystem::FieldParameterUpdateInternal(
 template <typename Traits>
 void FPerSolverFieldSystem::FieldParameterUpdateCallback(
 	Chaos::TPBDRigidsSolver<Traits>* InSolver, 
-	Chaos::TPBDRigidParticles<float, 3>& Particles,
+	Chaos::TPBDRigidParticles<float, 3>& Particles, 
 	Chaos::TArrayCollectionArray<float>& Strains, 
 	Chaos::TPBDPositionConstraints<float, 3>& PositionTarget, 
 	TMap<int32, int32>& PositionTargetedParticles) 
@@ -998,41 +823,39 @@ void FPerSolverFieldSystem::FieldForcesUpdateInternal(
 				}
 			}
 
-			if (Command.TargetAttribute == GetFieldPhysicsName(EFieldPhysicsType::Field_LinearForce))
+			if (Handles.Num())
 			{
-				SCOPE_CYCLE_COUNTER(STAT_ForceUpdateField_LinearForce);
+				TArrayView<FVector> SamplePointsView(&(SamplePoints[0]), SamplePoints.Num());
+				TArrayView<ContextIndex> SampleIndicesView(&(SampleIndices[0]), SampleIndices.Num());
 
-				if (ensureMsgf(Command.RootNode->Type() == FFieldNode<FVector>::StaticType(),
-					TEXT("Field based evaluation of the simulations 'Force' parameter expects FVector field inputs.")))
+				FFieldContext Context{
+					SampleIndicesView,
+					SamplePointsView,
+					Command.MetaData,
+					TimeSeconds
+				};
+				if (Command.RootNode->Type() == FFieldNode<FVector>::StaticType())
 				{
-					if (Handles.Num())
-					{
-						TArrayView<FVector> SamplePointsView(&(SamplePoints[0]), SamplePoints.Num());
-						TArrayView<ContextIndex> SampleIndicesView(&(SampleIndices[0]), SampleIndices.Num());
-						FFieldContext Context{
-							SampleIndicesView,
-							SamplePointsView,
-							Command.MetaData,
-							TimeSeconds
-						};
+					TArray<FVector> LocalResults;
+					LocalResults.AddZeroed(Handles.Num());
+					TArrayView<FVector> ResultsView(&(LocalResults[0]), LocalResults.Num());
 
-						TArray<FVector> LocalForce;
-						LocalForce.AddZeroed(Handles.Num());
-						TArrayView<FVector> ForceView(&(LocalForce[0]), LocalForce.Num());
-						static_cast<const FFieldNode<FVector>*>(Command.RootNode.Get())->Evaluate(Context, ForceView);
+					static_cast<const FFieldNode<FVector>*>(Command.RootNode.Get())->Evaluate(Context, ResultsView);
+
+					if (Command.TargetAttribute == GetFieldPhysicsName(EFieldPhysicsType::Field_LinearForce))
+					{
+						SCOPE_CYCLE_COUNTER(STAT_ForceUpdateField_LinearForce);
 
 						for (const ContextIndex& Index : Context.GetEvaluatedSamples())
 						{
 							Chaos::TPBDRigidParticleHandle<float, 3>* RigidHandle = Handles[Index.Sample]->CastToRigidParticle();
-
 							if (RigidHandle && !RigidHandle->Disabled() && (RigidHandle->ObjectState() == Chaos::EObjectStateType::Dynamic || RigidHandle->ObjectState() == Chaos::EObjectStateType::Sleeping))
 							{
 								if (RigidHandle->Sleeping())
 								{
 									RigidHandle->SetObjectState(Chaos::EObjectStateType::Dynamic);
 								}
-
-								RigidHandle->F() += ForceView[Index.Result];
+								RigidHandle->F() += ResultsView[Index.Result];
 							}
 						}
 
@@ -1049,33 +872,11 @@ void FPerSolverFieldSystem::FieldForcesUpdateInternal(
 						}
 						InSolver->WakeIslands(IslandsToActivate);
 #endif
+						CommandsToRemove.Add(CommandIndex);
 					}
-				}
-				CommandsToRemove.Add(CommandIndex);
-			}
-			else if (Command.TargetAttribute == GetFieldPhysicsName(EFieldPhysicsType::Field_AngularTorque))
-			{
-				SCOPE_CYCLE_COUNTER(STAT_ForceUpdateField_AngularTorque);
-
-				if (ensureMsgf(Command.RootNode->Type() == FFieldNode<FVector>::StaticType(),
-					TEXT("Field based evaluation of the simulations 'Torque' parameter expects FVector field inputs.")))
-				{
-					if (Handles.Num())
+					else if (Command.TargetAttribute == GetFieldPhysicsName(EFieldPhysicsType::Field_AngularTorque))
 					{
-						TArrayView<FVector> SamplePointsView(&(SamplePoints[0]), SamplePoints.Num());
-						TArrayView<ContextIndex> SampleIndicesView(&(SampleIndices[0]), SampleIndices.Num());
-
-						FFieldContext Context{
-							SampleIndicesView,
-							SamplePointsView,
-							Command.MetaData,
-							TimeSeconds
-						};
-
-						TArray<FVector> LocalTorque;
-						LocalTorque.AddUninitialized(Handles.Num());
-						TArrayView<FVector> TorqueView(&(LocalTorque[0]), LocalTorque.Num());
-						static_cast<const FFieldNode<FVector>*>(Command.RootNode.Get())->Evaluate(Context, TorqueView);
+						SCOPE_CYCLE_COUNTER(STAT_ForceUpdateField_AngularTorque);
 
 						for (const ContextIndex& Index : Context.GetEvaluatedSamples())
 						{
@@ -1086,7 +887,7 @@ void FPerSolverFieldSystem::FieldForcesUpdateInternal(
 								{
 									RigidHandle->SetObjectState(Chaos::EObjectStateType::Dynamic);
 								}
-								RigidHandle->Torque() += TorqueView[Index.Result];
+								RigidHandle->Torque() += ResultsView[Index.Result];
 							}
 						}
 
@@ -1103,9 +904,9 @@ void FPerSolverFieldSystem::FieldForcesUpdateInternal(
 						}
 						InSolver->WakeIslands(IslandsToActivate);
 #endif
+						CommandsToRemove.Add(CommandIndex);
 					}
 				}
-				CommandsToRemove.Add(CommandIndex);
 			}
 		}
 		if (IsTransient)
