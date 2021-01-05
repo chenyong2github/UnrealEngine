@@ -1680,9 +1680,9 @@ bool FOpenXRHMD::BuildOcclusionMesh(XrVisibilityMaskTypeKHR Type, int View, FHMD
 		if (Type == XR_VISIBILITY_MASK_TYPE_VISIBLE_TRIANGLE_MESH_KHR)
 		{
 			// For the visible-area mesh, this will be consumed by the post-process pipeline, so set up coordinates in the space they expect
-			// (x and y range from 0-1, z at the far plane).
+			// (x and y range from 0-1, origin bottom-left, z at the far plane).
 			Vertex.Position.X = Vertex.Position.X / 2.0f + .5f;
-			Vertex.Position.Y = Vertex.Position.Y / 2.0f + .5f;
+			Vertex.Position.Y = Vertex.Position.Y / -2.0f + .5f;
 			Vertex.Position.Z = 0.0f;
 			Vertex.Position.W = 1.0f;
 		}
