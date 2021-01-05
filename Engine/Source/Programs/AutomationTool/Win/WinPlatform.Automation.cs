@@ -16,6 +16,26 @@ public abstract class BaseWinPlatform : Platform
 		: base(P)
 	{
 	}
+
+	public override DeviceInfo[] GetDevices()
+	{
+		List<DeviceInfo> Devices = new List<DeviceInfo>();
+
+		if (HostPlatform.Current.HostEditorPlatform == UnrealTargetPlatform.Win64)
+		{
+			DeviceInfo LocalMachine = new DeviceInfo();
+			LocalMachine.Name = LocalMachine.Id = Environment.MachineName;
+			LocalMachine.Type = "Computer";
+			LocalMachine.SoftwareVersion = Environment.OSVersion.Version.ToString();
+
+			Devices.Add(LocalMachine);
+		}
+
+		return Devices.ToArray();
+	}
+
+
+
 	protected override string GetPlatformExeExtension()
 	{
 		return ".exe";

@@ -81,7 +81,7 @@ namespace UnrealBuildTool
 			}
 
 			// Add all the other directories sorted in reverse order
-			IReadOnlyDictionary<VersionNumber, DirectoryReference> WindowsSdkDirPairs = WindowsPlatform.FindWindowsSdkDirs();
+			IReadOnlyDictionary<VersionNumber, DirectoryReference> WindowsSdkDirPairs = MicrosoftPlatformSDK.FindWindowsSdkDirs();
 			foreach(KeyValuePair<VersionNumber, DirectoryReference> Pair in WindowsSdkDirPairs.OrderByDescending(x => x.Key))
 			{
 				if(!WindowsSdkDirs.Any(x => x.Value == Pair.Value))
