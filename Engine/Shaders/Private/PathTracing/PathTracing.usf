@@ -91,6 +91,7 @@ RAY_TRACING_ENTRY_RAYGEN(PathTracingMainRG)
 	// We don't want the camera ray to have any MIS contribution against direct light sampling so we pretend that it came from
 	// a singular Material scattering event.
 	float PrevMaterialPdf = POSITIVE_INFINITY;
+	int PrevPrimitiveLightingChannelMask = 0xFF;
 
 	// 0: only Material sampling
 	// 1: only Light sampling
@@ -116,12 +117,20 @@ RAY_TRACING_ENTRY_RAYGEN(PathTracingMainRG)
 			// Loop over lights to capture their contribution
 			// #dxr_todo: if we have lots of lights, having some hierarchical structure would be better ....
 			float PreviousCdfValue = 0.0;
-			for (uint LightId = 0; LightId < SceneLightsData.Count; ++LightId)
+			for (uint LightId = 0; LightId < SceneLightCount; ++LightId)
 			{
 				// Camera rays should only do the rest of the loop if we have visible lights OR if
 				// we have a skydome (which are always visible)
 				if (Bounce == 0 && PathTracingData.VisibleLights == 0 && !IsEnvironmentLight(LightId))
+				{
 					continue;
+				}
+
+				if ((PrevPrimitiveLightingChannelMask & GetLightingChannelMask(LightId)) == 0)
+				{
+					// light does not affect the current ray
+					continue;
+				}
 
 				float4 LightResult = TraceLight(Ray, LightId, HitT);
 				float3 LightRadiance = LightResult.xyz;
@@ -159,7 +168,7 @@ RAY_TRACING_ENTRY_RAYGEN(PathTracingMainRG)
 		bool bIsNeeValid = IsNeeValidMaterial(Payload);
 
 		// If we are using Light sampling and we are not on the last bounce ....
-		if (MISMode != 0 && Bounce < PathTracingData.MaxBounces && bIsNeeValid && SceneLightsData.Count > 0)
+		if (MISMode != 0 && Bounce < PathTracingData.MaxBounces && bIsNeeValid && SceneLightCount > 0)
 		{
 			// Choose a light and sample it
 
@@ -193,7 +202,7 @@ RAY_TRACING_ENTRY_RAYGEN(PathTracingMainRG)
 				if (LightPdf > 0)
 				{
 					float SignedPositionBias = 1.0;
-					if (ENABLE_TRANSMISSION && IsMaterialTransmissive(Payload))
+					if (IsTransmissiveMaterial)
 					{
 						// for transmissive materials, bias the position to the other side of the surface if the light is coming from behind
 						float NoL = dot(Payload.WorldNormal, LightRay.Direction);
@@ -294,6 +303,8 @@ RAY_TRACING_ENTRY_RAYGEN(PathTracingMainRG)
 			// If we are doing MIS, the Material ray on the next loop through will need to know the Pdf
 			PrevMaterialPdf = MaterialSamplePdf;
 		}
+
+		PrevPrimitiveLightingChannelMask = Payload.PrimitiveLightingChannelMask;
 
 		// Update ray and loop back around to trace again
 		Ray.Direction = Direction;

@@ -22,7 +22,7 @@ LightSampling.usf: Light sampling for next-event estimation
 // Returns float4 packed with Radiance and Pdf
 float4 TraceLight(RayDesc Ray, int LightId, float HitT)
 {
-	switch (SceneLightsData.Flags[LightId] & PATHTRACER_FLAG_TYPE_MASK)
+	switch (SceneLights[LightId].Flags & PATHTRACER_FLAG_TYPE_MASK)
 	{
 		case PATHTRACING_LIGHT_SKY:			return SkyLight_TraceLight(Ray, LightId, HitT);
 		case PATHTRACING_LIGHT_POINT:		return PointLight_TraceLight(Ray, LightId, HitT);
@@ -44,7 +44,7 @@ void SampleLight(
 	out float3 OutRadianceOverPdf,
 	out float OutPdf)
 {
-	switch (SceneLightsData.Flags[LightId] & PATHTRACER_FLAG_TYPE_MASK)
+	switch (SceneLights[LightId].Flags & PATHTRACER_FLAG_TYPE_MASK)
 	{
 		case PATHTRACING_LIGHT_SKY:
 			SkyLight_SampleLight(LightId, RandSample, WorldPos, WorldNormal, OutDirection, OutDistance, OutRadianceOverPdf, OutPdf);
@@ -83,7 +83,7 @@ void EstimateLight(
 	OutIrradiance = 0.0f;
 	if ((GetLightingChannelMask(LightId) & PrimitiveLightingChannelMask) == 0) return;
 
-	switch (SceneLightsData.Flags[LightId] & PATHTRACER_FLAG_TYPE_MASK)
+	switch (SceneLights[LightId].Flags & PATHTRACER_FLAG_TYPE_MASK)
 	{
 		case PATHTRACING_LIGHT_SKY:
 			SkyLight_EstimateLight(LightId, WorldPos, WorldNormal, IsTransmissiveMaterial, OutIrradiance);
@@ -108,9 +108,9 @@ void EstimateLight(
 // #dxr_todo: passing LightPickingCdf as anything but inout causes performance to drop significantly -- why ?
 void InitLightPickingCdf(inout float LightPickingCdf[RAY_TRACING_LIGHT_COUNT_MAXIMUM])
 {
-	for (uint LightIndex = 0; LightIndex < SceneLightsData.Count; ++LightIndex)
+	for (uint LightIndex = 0; LightIndex < SceneLightCount; ++LightIndex)
 	{
-		LightPickingCdf[LightIndex] = float(LightIndex + 1) / float(SceneLightsData.Count);
+		LightPickingCdf[LightIndex] = float(LightIndex + 1) / float(SceneLightCount);
 	}
 }
 
@@ -122,14 +122,14 @@ bool InitLightPickingCdf(
 	bool IsTransmissiveMaterial,
 	inout float LightPickingCdf[RAY_TRACING_LIGHT_COUNT_MAXIMUM])
 {
-	// This code assumes SceneLightsData.Count > 0
+	// This code assumes SceneLightCount > 0
 #ifdef UNIFORM_LIGHT_SELECTION
 	InitLightPickingCdf(LightPickingCdf);
 #else
 	// Build irradiance estimate prefix sum
 	float LastCdf = 0;
 	{
-		for (uint LightIndex = 0; LightIndex < SceneLightsData.Count; ++LightIndex)
+		for (uint LightIndex = 0; LightIndex < SceneLightCount; ++LightIndex)
 		{
 			EstimateLight(LightIndex, WorldPos, WorldNormal, PrimitiveLightingChannelMask, IsTransmissiveMaterial, LightPickingCdf[LightIndex]);
 			LightPickingCdf[LightIndex] += LastCdf;
@@ -144,11 +144,11 @@ bool InitLightPickingCdf(
 	}
 	{
 		// CDF normalization
-		for (uint LightIndex = 0; LightIndex < SceneLightsData.Count; ++LightIndex)
+		for (uint LightIndex = 0; LightIndex < SceneLightCount; ++LightIndex)
 		{
 			LightPickingCdf[LightIndex] /= LastCdf;
 		}
-		LightPickingCdf[SceneLightsData.Count - 1] = 1.0;
+		LightPickingCdf[SceneLightCount - 1] = 1.0;
 	}
 #endif
 	return true;
@@ -157,12 +157,12 @@ bool InitLightPickingCdf(
 // #dxr_todo: passing LightPickingCdf as anything but inout causes performance to drop significantly -- why ?
 void SelectLight(float RandSample, inout float LightPickingCdf[RAY_TRACING_LIGHT_COUNT_MAXIMUM], out uint LightId, out float LightPickPdf)
 {
-	// This code assumes SceneLightsData.Count > 0
+	// This code assumes SceneLightCount > 0
 
 	// Draw random variable
 	// #dxr_todo: binary search
 	float PreviousCdfValue = 0;
-	for (LightId = 0; LightId < SceneLightsData.Count - 1; ++LightId)
+	for (LightId = 0; LightId < SceneLightCount - 1; ++LightId)
 	{
 		if (RandSample < LightPickingCdf[LightId])
 		{
@@ -193,7 +193,7 @@ bool SampleLight(
 	OutRadianceOverPdf = 0;
 	OutPdf = 0;
 
-	if (SceneLightsData.Count == 0)
+	if (SceneLightCount == 0)
 	{
 		// no lights in the scene
 		return false;

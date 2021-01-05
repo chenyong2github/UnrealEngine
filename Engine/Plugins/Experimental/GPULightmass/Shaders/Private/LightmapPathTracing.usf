@@ -249,7 +249,7 @@ void PathTracingKernel(
 			// Loop over lights to capture their contribution
 			// #dxr_todo: if we have lots of lights, having some hierarchical structure would be better ....
 			float PreviousCdfValue = 0.0;
-			for (uint LightId = 0; LightId < SceneLightsData.Count; ++LightId)
+			for (uint LightId = 0; LightId < SceneLightCount; ++LightId)
 			{
 				// Camera rays should only do the rest of the loop if we have visible lights OR if
 				// we have a skydome (which are always visible)
@@ -369,7 +369,7 @@ void PathTracingKernel(
 		bool bIsNeeValid = IsNeeValidMaterial(Payload);
 		
 		// If we are using Light sampling and we are not on the last bounce ....
-		if (MISMode != 0 && Bounce < 32 && bIsNeeValid && SceneLightsData.Count > 0)
+		if (MISMode != 0 && Bounce < 32 && bIsNeeValid && SceneLightCount > 0)
 		{
 			// Choose a light and sample it
 
