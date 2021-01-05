@@ -1472,7 +1472,7 @@ void FAssetRenameManager::PerformAssetRename(TArray<FAssetRenameDataWithReferenc
 					// Do not attempt to branch if the old file was open for add
 					if (!SourceControlState->IsAdded())
 					{
-						SourceControlHelpers::BranchPackage(NewPackage, OldPackage);
+						SourceControlHelpers::BranchPackage(NewPackage, OldPackage, EStateCacheUsage::Use);
 					}
 				}
 			}

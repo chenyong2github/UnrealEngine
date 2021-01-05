@@ -1370,7 +1370,7 @@ bool USourceControlHelpers::CopyFileUnderSourceControl( const FString& InDestFil
 }
 
 
-bool USourceControlHelpers::BranchPackage( UPackage* DestPackage, UPackage* SourcePackage )
+bool USourceControlHelpers::BranchPackage( UPackage* DestPackage, UPackage* SourcePackage, EStateCacheUsage::Type StateCacheUsage )
 {
 	if(ISourceControlModule::Get().IsEnabled())
 	{
@@ -1378,7 +1378,7 @@ bool USourceControlHelpers::BranchPackage( UPackage* DestPackage, UPackage* Sour
 
 		const FString SourceFilename = PackageFilename(SourcePackage);
 		const FString DestFilename = PackageFilename(DestPackage);
-		FSourceControlStatePtr SourceControlState = SourceControlProvider.GetState(SourceFilename, EStateCacheUsage::ForceUpdate);
+		FSourceControlStatePtr SourceControlState = SourceControlProvider.GetState(SourceFilename, StateCacheUsage);
 		if(SourceControlState.IsValid() && SourceControlState->IsSourceControlled())
 		{
 			TSharedRef<FCopy, ESPMode::ThreadSafe> CopyOperation = ISourceControlOperation::Create<FCopy>();
