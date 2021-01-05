@@ -7,6 +7,9 @@
 #include "Widgets/Views/STreeView.h"
 #include "EditorStyleSet.h"
 
+/** Called to force the item selector to refresh */
+DECLARE_DELEGATE(FRefreshItemSelectorDelegate);
+
 enum class EItemSelectorClickActivateMode
 {
 	SingleClick,
@@ -28,6 +31,7 @@ public:
 	DECLARE_DELEGATE_RetVal_OneParam(TSharedRef<SWidget>, FOnGenerateWidgetForItem, const ItemType& /* Item */);
 	DECLARE_DELEGATE(FOnSelectionChanged);
 	DECLARE_DELEGATE_OneParam(FOnItemActivated, const ItemType& /* Item */);
+	DECLARE_DELEGATE_RetVal_OneParam(bool, FOnDoesItemPassCustomFilter, const ItemType& /*Item */);
 
 public:
 	SLATE_BEGIN_ARGS(SItemSelector)
@@ -89,6 +93,12 @@ public:
 
 		/** A delegate which is called when the selection changes. */
 		SLATE_EVENT(FOnSelectionChanged, OnSelectionChanged)
+
+		/** An optional delegate which is called to check if an item should be filtered out by external code. Return false to exclude the item from the view. */
+		SLATE_EVENT(FOnDoesItemPassCustomFilter, OnDoesItemPassCustomFilter)
+
+		/** An optional array of delegates to refresh the item selector view when executed. */
+		SLATE_ARGUMENT(TArray<FRefreshItemSelectorDelegate*>, RefreshItemSelectorDelegates)
 	SLATE_END_ARGS();
 
 private:
@@ -106,7 +116,7 @@ private:
 		}
 
 		virtual bool IsFiltering() const = 0;
-		virtual bool DoesItemMatchFilterText(const ItemType& InItem) const = 0;
+		virtual bool DoesItemPassFilter(const ItemType& InItem) const = 0;
 		virtual bool CompareCategoriesForEquality(const CategoryType& CategoryA, const CategoryType& CategoryB) const = 0;
 		virtual const FOnCompareCategoriesForSorting& GetOnCompareCategoriesForSorting() const = 0;
 		virtual bool CompareItemsForEquality(const ItemType& ItemA, const ItemType& ItemB) const = 0;
@@ -189,7 +199,7 @@ private:
 
 		virtual bool PassesFilter() const
 		{
-			return this->GetItemUtilities()->DoesItemMatchFilterText(Item);
+			return this->GetItemUtilities()->DoesItemPassFilter(Item);
 		}
 
 	private:
@@ -315,7 +325,7 @@ private:
 			FOnGetCategoriesForItem InOnGetCategoriesForItem,
 			FOnCompareCategoriesForEquality InOnCompareCategoriesForEquality, FOnCompareCategoriesForSorting InOnCompareCategoriesForSorting,
 			FOnCompareItemsForEquality InOnCompareItemsForEquality, FOnCompareItemsForSorting InOnCompareItemsForSorting,
-			FOnDoesItemMatchFilterText InOnDoesItemMatchFilterText)
+			FOnDoesItemMatchFilterText InOnDoesItemMatchFilterText, FOnDoesItemPassCustomFilter InOnDoesItemPassCustomFilter)
 			: Items(InItems)
 			, DefaultCategoryPaths(InDefaultCategoryPaths)
 			, OnGetCategoriesForItem(InOnGetCategoriesForItem)
@@ -324,6 +334,7 @@ private:
 			, OnCompareItemsForEquality(InOnCompareItemsForEquality)
 			, OnCompareItemsForSorting(InOnCompareItemsForSorting)
 			, OnDoesItemMatchFilterText(InOnDoesItemMatchFilterText)
+			, OnDoesItemPassCustomFilter(InOnDoesItemPassCustomFilter)
 		{
 		}
 
@@ -402,12 +413,25 @@ private:
 
 		virtual bool IsFiltering() const override
 		{
+			if (OnDoesItemPassCustomFilter.IsBound())
+			{
+				return true;
+			}
 			return FilterText.IsEmptyOrWhitespace() == false;
 		}
 
-		virtual bool DoesItemMatchFilterText(const ItemType& InItem) const override
+		virtual bool DoesItemPassFilter(const ItemType& InItem) const override
 		{
-			return FilterText.IsEmpty() || OnDoesItemMatchFilterText.IsBound() == false || OnDoesItemMatchFilterText.Execute(FilterText, InItem);
+			bool bPassesFilter = true;
+			if (OnDoesItemPassCustomFilter.IsBound())
+			{
+				bPassesFilter &= OnDoesItemPassCustomFilter.Execute(InItem);
+			}
+			if ((FilterText.IsEmpty() == false) && OnDoesItemMatchFilterText.IsBound())
+			{
+				bPassesFilter &= OnDoesItemMatchFilterText.Execute(FilterText, InItem);
+			}
+			return bPassesFilter;
 		}
 
 		virtual bool CompareCategoriesForEquality(const CategoryType& CategoryA, const CategoryType& CategoryB) const override
@@ -466,6 +490,7 @@ private:
 		FOnCompareItemsForEquality OnCompareItemsForEquality;
 		FOnCompareItemsForSorting OnCompareItemsForSorting;
 		FOnDoesItemMatchFilterText OnDoesItemMatchFilterText;
+		FOnDoesItemPassCustomFilter OnDoesItemPassCustomFilter;
 
 		TSharedPtr<FItemSelectorItemCategoryViewModel> RootCategoryViewModel;
 		TArray<TSharedRef<FItemSelectorItemViewModel>> RootTreeCategories;
@@ -518,7 +543,17 @@ public:
 		OnGenerateWidgetForItem = InArgs._OnGenerateWidgetForItem;
 		OnItemActivated = InArgs._OnItemActivated;
 		OnSelectionChanged = InArgs._OnSelectionChanged;
+		OnDoesItemPassCustomFilter = InArgs._OnDoesItemPassCustomFilter;
 		bIsSettingSelection = false;
+
+		// Bind the on refresh delegates.
+		for (auto DelegateIt = InArgs._RefreshItemSelectorDelegates.CreateConstIterator(); DelegateIt; ++DelegateIt)
+		{
+			if ((*DelegateIt) != nullptr)
+			{
+				(**DelegateIt) = FRefreshItemSelectorDelegate::CreateSP(this, &SItemSelector::RefreshAllItems);
+			}
+		}
 
 		checkf(DefaultCategoryPaths.Num() == 0 || OnCompareCategoriesForEquality.IsBound(), TEXT("OnCompareCategoriesForEquality must be bound if default categories are supplied."));
 		checkf(DefaultCategoryPaths.Num() == 0 || OnGenerateWidgetForCategory.IsBound(), TEXT("OnGenerateWidgetForCategory must be bound if default categories are supplied."));
@@ -529,7 +564,8 @@ public:
 		ViewModel = MakeShared<FItemSelectorViewModel>(
 			Items, DefaultCategoryPaths, OnGetCategoriesForItem, 
 			OnCompareCategoriesForEquality, OnCompareCategoriesForSorting, 
-			OnCompareItemsForEquality, OnCompareItemsForSorting, OnDoesItemMatchFilterText);
+			OnCompareItemsForEquality, OnCompareItemsForSorting,
+			OnDoesItemMatchFilterText, OnDoesItemPassCustomFilter);
 
 		ChildSlot
 		[
@@ -642,6 +678,18 @@ public:
 		RefreshItemsAndDefaultCategories(InItems, UnusedDefaultCategoryPaths);
 	}
 
+	void RefreshAllItems()
+	{
+		ViewModel->Refresh(Items, DefaultCategoryPaths);
+		ExpandTree();
+		ItemTree->RequestTreeRefresh();
+	}
+
+	const FText& GetFilterText() const
+	{
+		return ViewModel->GetFilterText();
+	}
+
 private:
 	EVisibility GetSearchBoxVisibility() const
 	{
@@ -748,6 +796,7 @@ private:
 	FOnGenerateWidgetForItem OnGenerateWidgetForItem;
 	FOnItemActivated OnItemActivated;
 	FOnSelectionChanged OnSelectionChanged;
+	FOnDoesItemPassCustomFilter OnDoesItemPassCustomFilter;
 
 	TSharedPtr<FItemSelectorViewModel> ViewModel;
 	TSharedPtr<SSearchBox> SearchBox;

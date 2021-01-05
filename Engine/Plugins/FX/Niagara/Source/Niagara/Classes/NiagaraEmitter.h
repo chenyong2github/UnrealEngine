@@ -427,6 +427,10 @@ public:
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Asset Options", AssetRegistrySearchable)
 	FText TemplateAssetDescription;
 
+	/** Category to collate this emitter into for "add new emitter" dialogs.*/
+	UPROPERTY(AssetRegistrySearchable, EditAnywhere, Category = Script)
+	FText Category;
+
 	UPROPERTY()
 	TArray<UNiagaraScript*> ScratchPadScripts;
 

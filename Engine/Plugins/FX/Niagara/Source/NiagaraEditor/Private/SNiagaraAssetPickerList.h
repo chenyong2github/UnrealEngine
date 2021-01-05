@@ -9,19 +9,84 @@ typedef SItemSelector<FText, FAssetData> SNiagaraAssetItemSelector;
 
 class FAssetThumbnailPool;
 
-class SNiagaraAssetPickerList : public SCompoundWidget
+struct FNiagaraAssetPickerListViewOptions
+{
+public:
+	FNiagaraAssetPickerListViewOptions()
+		: bOnlyShowTemplates(false)
+		, bCategorizeAssetsByAssetPath(false)
+		, bExpandTemplateAndLibraryAssets(false)
+		, bCategorizeTemplateAssets(false)
+		, bCategorizeLibraryAssets(false)
+		, bCategorizeUserDefinedCategory(false)
+	{};
+
+	// Only showing template assets also implies categorizing by asset path; enforce via public setter.
+	void SetOnlyShowTemplatesAndCategorizeByAssetPath(bool bOnlyShowTemplatesAndCategorizeByAssetPath) {
+		bOnlyShowTemplates = bOnlyShowTemplatesAndCategorizeByAssetPath;
+		bCategorizeAssetsByAssetPath = bOnlyShowTemplatesAndCategorizeByAssetPath;
+	};
+
+	void SetExpandTemplateAndLibraryAssets(bool bInExpandTemplateAndLibraryAssets) {bExpandTemplateAndLibraryAssets = bInExpandTemplateAndLibraryAssets; };
+	void SetCategorizeTemplateAssets(bool bInCategorizeTemplateAssets) {bCategorizeTemplateAssets = bInCategorizeTemplateAssets; };
+	void SetCategorizeLibraryAssets(bool bInCategorizeLibraryAssets) {bCategorizeLibraryAssets = bInCategorizeLibraryAssets; };
+	void SetCategorizeUserDefinedCategory(bool bInCategorizeUserDefinedCategory) {bCategorizeUserDefinedCategory = bInCategorizeUserDefinedCategory; };
+
+	bool GetOnlyShowTemplates() const {return bOnlyShowTemplates; };
+	bool GetCategorizeAssetsByAssetPath() const {return bCategorizeAssetsByAssetPath; };
+	bool GetExpandTemplateAndLibraryAssets() const {return bExpandTemplateAndLibraryAssets; };
+	bool GetCategorizeTemplateAssets() const {return bCategorizeTemplateAssets; };
+	bool GetCategorizeLibraryAssets() const { return bCategorizeLibraryAssets; };
+	bool GetCategorizeUserDefinedCategory() const {return bCategorizeUserDefinedCategory; };
+
+private:
+	// If true, only present assets marked as templates. Otherwise present all assets.
+	bool bOnlyShowTemplates;
+
+	// If true, categorize assets by their asset path, relative to the Niagara plugin directory, the project directory, and any other directory.
+	bool bCategorizeAssetsByAssetPath;
+
+	// If true, expand the thumbnails for assets marked as templates or library only.
+	bool bExpandTemplateAndLibraryAssets; 
+
+	// If true, categorize assets marked as templates.
+	bool bCategorizeTemplateAssets;
+
+	// If true, categorize assets marked as library only.
+	bool bCategorizeLibraryAssets;
+
+	// If true, categorize assets that have a user defined category.
+	bool bCategorizeUserDefinedCategory;
+};
+
+class NIAGARAEDITOR_API SNiagaraAssetPickerList : public SCompoundWidget
 {
 public:
 	DECLARE_DELEGATE_OneParam(FOnTemplateAssetActivated, const FAssetData&);
+	DECLARE_DELEGATE_RetVal_OneParam(bool, FOnDoesAssetPassCustomFilter, const FAssetData&)
 
 public:
 	SLATE_BEGIN_ARGS(SNiagaraAssetPickerList) 
-		: _bTemplateOnly(true)
-		, _bAllowMultiSelect(false)
+		: _bAllowMultiSelect(false)
+		, _ClickActivateMode(EItemSelectorClickActivateMode::DoubleClick)
 	{}
+		// Callback for when an asset is activated.
 		SLATE_EVENT(FOnTemplateAssetActivated, OnTemplateAssetActivated);
-		SLATE_ARGUMENT(bool, bTemplateOnly)
+
+		// Whether to allow multi-selecting assets.
 		SLATE_ARGUMENT(bool, bAllowMultiSelect);
+
+		/** An optional delegate which is called to check if an asset should be filtered out by external code. Return false to exclude the asset from the view. */
+		SLATE_EVENT(FOnDoesAssetPassCustomFilter, OnDoesAssetPassCustomFilter);
+
+		/** An optional array of delegates to refresh the item selector view when executed. */
+		SLATE_ARGUMENT(TArray<FRefreshItemSelectorDelegate*>, RefreshItemSelectorDelegates);
+
+		// Arguments describing how to display, filter and categorize items of the asset picker.
+		SLATE_ARGUMENT(FNiagaraAssetPickerListViewOptions, ViewOptions);
+
+		/** Whether or not a single click activates an item. */
+		SLATE_ARGUMENT(EItemSelectorClickActivateMode, ClickActivateMode);
 	SLATE_END_ARGS();
 
 	void Construct(const FArguments& InArgs, UClass* AssetClass);
@@ -47,14 +112,17 @@ private:
 
 	void OnItemActivated(const FAssetData& Item);
 
+	FText GetFilterText() const;
 private:
 	TSharedPtr<SNiagaraAssetItemSelector> ItemSelector;
-	FText NiagaraPluginCategory;
-	FText ProjectCategory;
-	FText TemplateCategory;
-	FText LibraryCategory;
-	FText NonLibraryCategory;
+	static FText NiagaraPluginCategory;
+	static FText ProjectCategory;
+	static FText TemplateCategory;
+	static FText LibraryCategory;
+	static FText NonLibraryCategory;
+	static FText UncategorizedCategory;
 	TSharedPtr<FAssetThumbnailPool> AssetThumbnailPool;
 	FOnTemplateAssetActivated OnTemplateAssetActivated;
-	bool bTemplateOnly;
+	FOnDoesAssetPassCustomFilter OnDoesAssetPassCustomFilter;
+	FNiagaraAssetPickerListViewOptions ViewOptions;
 };

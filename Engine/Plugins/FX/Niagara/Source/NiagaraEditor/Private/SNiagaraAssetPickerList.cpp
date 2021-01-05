@@ -15,30 +15,40 @@
 
 #define LOCTEXT_NAMESPACE "SNiagaraAssetSelector"
 
+FText SNiagaraAssetPickerList::NiagaraPluginCategory = LOCTEXT("NiagaraCategory", "Engine (Niagara Plugin)");
+FText SNiagaraAssetPickerList::ProjectCategory = LOCTEXT("ProjectCategory", "Project");
+FText SNiagaraAssetPickerList::TemplateCategory = LOCTEXT("Template", "Template");
+FText SNiagaraAssetPickerList::LibraryCategory = LOCTEXT("Library", "Library");
+FText SNiagaraAssetPickerList::NonLibraryCategory = LOCTEXT("NotInLibrary", "Not in Library");
+FText SNiagaraAssetPickerList::UncategorizedCategory = LOCTEXT("Uncategorized", "Uncategorized");
+
 void SNiagaraAssetPickerList::Construct(const FArguments& InArgs, UClass* AssetClass)
 {
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
 	TArray<FAssetData> EmitterAssets;
 	AssetRegistryModule.Get().GetAssetsByClass(AssetClass->GetFName(), EmitterAssets);
 
-	NiagaraPluginCategory = LOCTEXT("NiagaraCategory", "Engine (Niagara Plugin)");
-	ProjectCategory = LOCTEXT("ProjectCategory", "Project");
-	TemplateCategory = LOCTEXT("Template", "Template");
-	LibraryCategory = LOCTEXT("Library", "Library");
-	NonLibraryCategory = LOCTEXT("NotInLibrary", "Not in Library");
 	AssetThumbnailPool = MakeShareable(new FAssetThumbnailPool(24));
 
 	OnTemplateAssetActivated = InArgs._OnTemplateAssetActivated;
-	bTemplateOnly = InArgs._bTemplateOnly;
+	ViewOptions = InArgs._ViewOptions;
+
 	TArray<FAssetData> EmittersToShow;
-	for (const FAssetData& EmitterAsset : EmitterAssets)
+	if (ViewOptions.GetOnlyShowTemplates())
 	{
-		bool bShowEmitter = false;
-		EmitterAsset.GetTagValue("bIsTemplateAsset", bShowEmitter);
-		if (bShowEmitter || !bTemplateOnly)
-		{
-			EmittersToShow.Add(EmitterAsset);
+		for(FAssetData& EmitterAsset :EmitterAssets)
+		{ 
+			bool bTemplateEmitter = false;
+			EmitterAsset.GetTagValue("bIsTemplateAsset", bTemplateEmitter);
+			if (bTemplateEmitter)
+			{
+				EmittersToShow.Add(EmitterAsset);
+			}
 		}
+	}
+	else
+	{
+		EmittersToShow = EmitterAssets;
 	}
 
 	ChildSlot
@@ -54,6 +64,9 @@ void SNiagaraAssetPickerList::Construct(const FArguments& InArgs, UClass* AssetC
 		.OnGenerateWidgetForItem(this, &SNiagaraAssetPickerList::OnGenerateWidgetForItem)
 		.OnItemActivated(this, &SNiagaraAssetPickerList::OnItemActivated)
 		.AllowMultiselect(InArgs._bAllowMultiSelect)
+		.OnDoesItemPassCustomFilter(InArgs._OnDoesAssetPassCustomFilter)
+		.RefreshItemSelectorDelegates(InArgs._RefreshItemSelectorDelegates)
+		.ClickActivateMode(InArgs._ClickActivateMode)
 	];
 }
 
@@ -70,32 +83,35 @@ TArray<FAssetData> SNiagaraAssetPickerList::GetSelectedAssets() const
 TArray<FText> SNiagaraAssetPickerList::OnGetCategoriesForItem(const FAssetData& Item)
 {
 	TArray<FText> Categories;
-	if (bTemplateOnly)
-	{
-		TArray<FString> AssetPathParts;
-		Item.ObjectPath.ToString().ParseIntoArray(AssetPathParts, TEXT("/"));
-		if (AssetPathParts.Num() > 0)
+
+	auto AddUserDefinedCategory = [&Categories, &Item]() {
+		FText UserDefinedCategory;
+		bool bFoundCategoryTag = Item.GetTagValue(GET_MEMBER_NAME_CHECKED(UNiagaraEmitter, Category), UserDefinedCategory);
+		if (bFoundCategoryTag == false)
 		{
-			if (AssetPathParts[0] == TEXT("Niagara"))
+			if (Item.IsAssetLoaded())
 			{
-				Categories.Add(LOCTEXT("NiagaraCategory", "Engine (Niagara Plugin)"));
-			}
-			else if (AssetPathParts[0] == TEXT("Game"))
-			{
-				Categories.Add(LOCTEXT("ProjectCategory", "Project"));
-			}
-			else
-			{
-				Categories.Add(FText::Format(LOCTEXT("OtherPluginFormat", "Plugin - {0}"), FText::FromString(AssetPathParts[0])));
+				UNiagaraEmitter* EmitterAsset = static_cast<UNiagaraEmitter*>(Item.GetAsset());
+				if (EmitterAsset != nullptr)
+				{
+					UserDefinedCategory = EmitterAsset->Category;
+				}
 			}
 		}
-	}
-	else
-	{
+
+		if (UserDefinedCategory.IsEmptyOrWhitespace() == false)
+		{
+			Categories.Add(UserDefinedCategory);
+		}
+		else
+		{
+			Categories.Add(UncategorizedCategory);
+		}
+	};
+
+	auto AddTemplateCategory = [&Categories, &Item, this]() {
 		bool bIsTemplate = false;
-
 		bool bFoundTemplateScriptTag = Item.GetTagValue(GET_MEMBER_NAME_CHECKED(UNiagaraEmitter, bIsTemplateAsset), bIsTemplate);
-
 		if (bFoundTemplateScriptTag == false)
 		{
 			if (Item.IsAssetLoaded())
@@ -116,8 +132,9 @@ TArray<FText> SNiagaraAssetPickerList::OnGetCategoriesForItem(const FAssetData& 
 		{
 			Categories.Add(LOCTEXT("NonTemplateEmitters", "Non-Template"));
 		}
+	};
 
-
+	auto AddLibraryCategory = [&Categories, &Item, this]() {
 		bool bInLibrary = false;
 		bool bFoundLibraryTag = Item.GetTagValue(GET_MEMBER_NAME_CHECKED(UNiagaraEmitter, bExposeToLibrary), bInLibrary);
 
@@ -141,9 +158,46 @@ TArray<FText> SNiagaraAssetPickerList::OnGetCategoriesForItem(const FAssetData& 
 		{
 			Categories.Add(NonLibraryCategory);
 		}
+	};
 
+	auto AddAssetPathCategory = [&Categories, &Item]() {
+		TArray<FString> AssetPathParts;
+		Item.ObjectPath.ToString().ParseIntoArray(AssetPathParts, TEXT("/"));
+		if (AssetPathParts.Num() > 0)
+		{
+			if (AssetPathParts[0] == TEXT("Niagara"))
+			{
+				Categories.Add(LOCTEXT("NiagaraCategory", "Engine (Niagara Plugin)"));
+			}
+			else if (AssetPathParts[0] == TEXT("Game"))
+			{
+				Categories.Add(LOCTEXT("ProjectCategory", "Project"));
+			}
+			else
+			{
+				Categories.Add(FText::Format(LOCTEXT("OtherPluginFormat", "Plugin - {0}"), FText::FromString(AssetPathParts[0])));
+			}
+		}
+	};
+
+	if (ViewOptions.GetCategorizeAssetsByAssetPath())
+	{
+		AddAssetPathCategory();
 	}
 
+	if(ViewOptions.GetCategorizeTemplateAssets())
+	{
+		AddTemplateCategory();
+	}
+	if (ViewOptions.GetCategorizeLibraryAssets())
+	{
+		AddLibraryCategory();
+	}
+
+	if (ViewOptions.GetCategorizeUserDefinedCategory())
+	{
+		AddUserDefinedCategory();
+	}
 
 	return Categories;
 }
@@ -156,7 +210,7 @@ bool SNiagaraAssetPickerList::OnCompareCategoriesForEquality(const FText& Catego
 bool SNiagaraAssetPickerList::OnCompareCategoriesForSorting(const FText& CategoryA, const FText& CategoryB) const
 {
 	int32 CompareResult = CategoryA.CompareTo(CategoryB);
-	if (bTemplateOnly)
+	if (ViewOptions.GetOnlyShowTemplates())
 	{
 		if (CompareResult != 0)
 		{
@@ -260,46 +314,74 @@ TSharedRef<SWidget> SNiagaraAssetPickerList::OnGenerateWidgetForItem(const FAsse
 	TSharedRef<FAssetThumbnail> AssetThumbnail = MakeShared<FAssetThumbnail>(Item, ThumbnailSize, ThumbnailSize, AssetThumbnailPool);
 	FAssetThumbnailConfig ThumbnailConfig;
 	ThumbnailConfig.bAllowFadeIn = false;
+	
 
-	FText AssetDescription;
-	Item.GetTagValue("TemplateAssetDescription", AssetDescription);
+	auto GenerateWidgetForItem_Generic = [&Item, &ThumbnailConfig, &AssetThumbnail, this]()->TSharedRef<SWidget> {
+		return 	SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.Padding(15, 3, 3, 3)
+			[
+				SNew(SBox)
+				.WidthOverride(32.0)
+				.HeightOverride(32.0)
+				[
+					AssetThumbnail->MakeThumbnailWidget(ThumbnailConfig)
+				]
+			]
+			+ SHorizontalBox::Slot()
+			.Padding(3)
+			.VAlign(VAlign_Center)
+			[
+				SNew(STextBlock)
+				.Text(FText::FromString(FName::NameToDisplayString(Item.AssetName.ToString(), false)))
+				.TextStyle(FNiagaraEditorStyle::Get(), "NiagaraEditor.AssetPickerAssetNameText")
+				.HighlightText(this, &SNiagaraAssetPickerList::GetFilterText)
+			];
+	};
 
-	bool bIsTemplate = false;
-	bool bInLibrary = false;
-	bool bFoundTemplateScriptTag = Item.GetTagValue(GET_MEMBER_NAME_CHECKED(UNiagaraEmitter, bIsTemplateAsset), bIsTemplate);
-
-	if (bFoundTemplateScriptTag == false)
+	auto GenerateWidgetForItem_ExpandTemplateAndLibraryItems = 
+		[&GenerateWidgetForItem_Generic, &Item, &ThumbnailConfig, &AssetThumbnail, this]()->TSharedRef<SWidget> 
 	{
-		if (Item.IsAssetLoaded())
+		FText AssetDescription;
+		Item.GetTagValue("TemplateAssetDescription", AssetDescription);
+
+		bool bIsTemplate = false;
+		bool bInLibrary = false;
+		bool bFoundTemplateScriptTag = Item.GetTagValue(GET_MEMBER_NAME_CHECKED(UNiagaraEmitter, bIsTemplateAsset), bIsTemplate);
+
+		if (bFoundTemplateScriptTag == false)
 		{
-			UNiagaraEmitter* EmitterAsset = static_cast<UNiagaraEmitter*>(Item.GetAsset());
-			if (EmitterAsset != nullptr)
+			if (Item.IsAssetLoaded())
 			{
-				bIsTemplate = EmitterAsset->bIsTemplateAsset;
+				UNiagaraEmitter* EmitterAsset = static_cast<UNiagaraEmitter*>(Item.GetAsset());
+				if (EmitterAsset != nullptr)
+				{
+					bIsTemplate = EmitterAsset->bIsTemplateAsset;
+				}
 			}
 		}
-	}
 
-	bool bFoundLibraryTag = Item.GetTagValue(GET_MEMBER_NAME_CHECKED(UNiagaraEmitter, bExposeToLibrary), bInLibrary);
+		bool bFoundLibraryTag = Item.GetTagValue(GET_MEMBER_NAME_CHECKED(UNiagaraEmitter, bExposeToLibrary), bInLibrary);
 
-	if (bFoundLibraryTag == false)
-	{
-		if (Item.IsAssetLoaded())
+		if (bFoundLibraryTag == false)
 		{
-			UNiagaraEmitter* EmitterAsset = static_cast<UNiagaraEmitter*>(Item.GetAsset());
-			if (EmitterAsset != nullptr)
+			if (Item.IsAssetLoaded())
 			{
-				bInLibrary = EmitterAsset->bExposeToLibrary;
+				UNiagaraEmitter* EmitterAsset = static_cast<UNiagaraEmitter*>(Item.GetAsset());
+				if (EmitterAsset != nullptr)
+				{
+					bInLibrary = EmitterAsset->bExposeToLibrary;
+				}
 			}
 		}
-	}
 
 
-	if (bTemplateOnly
-		|| (bFoundTemplateScriptTag && bIsTemplate)
-		|| (bFoundLibraryTag && bInLibrary))
-	{
-		return
+		if (ViewOptions.GetOnlyShowTemplates()
+			|| (bFoundTemplateScriptTag && bIsTemplate)
+			|| (bFoundLibraryTag && bInLibrary))
+		{
+			return
 				SNew(SHorizontalBox)
 				+ SHorizontalBox::Slot()
 				.AutoWidth()
@@ -323,6 +405,7 @@ TSharedRef<SWidget> SNiagaraAssetPickerList::OnGenerateWidgetForItem(const FAsse
 						SNew(STextBlock)
 						.TextStyle(FNiagaraEditorStyle::Get(), "NiagaraEditor.AssetPickerBoldAssetNameText")
 						.Text(FText::FromString(FName::NameToDisplayString(Item.AssetName.ToString(), false)))
+						.HighlightText_Lambda([this]() { return ItemSelector->GetFilterText(); })
 					]
 					+ SVerticalBox::Slot()
 					[
@@ -332,32 +415,27 @@ TSharedRef<SWidget> SNiagaraAssetPickerList::OnGenerateWidgetForItem(const FAsse
 						.AutoWrapText(true)
 					]
 				];
+		}
+
+		return GenerateWidgetForItem_Generic();
+	};
+
+	if(ViewOptions.GetExpandTemplateAndLibraryAssets())
+	{
+		return GenerateWidgetForItem_ExpandTemplateAndLibraryItems();
 	}
-	return 	SNew(SHorizontalBox)
-		+ SHorizontalBox::Slot()
-		.AutoWidth()
-		.Padding(15, 3, 3, 3)
-		[
-			SNew(SBox)
-			.WidthOverride(32.0)
-			.HeightOverride(32.0)
-			[
-				AssetThumbnail->MakeThumbnailWidget(ThumbnailConfig)
-			]
-		]
-		+ SHorizontalBox::Slot()
-		.Padding(3)
-		.VAlign(VAlign_Center)
-		[
-			SNew(STextBlock)
-			.Text(FText::FromString(FName::NameToDisplayString(Item.AssetName.ToString(), false)))
-			.TextStyle(FNiagaraEditorStyle::Get(), "NiagaraEditor.AssetPickerAssetNameText")
-		];
+
+	return GenerateWidgetForItem_Generic();
 }
 
 void SNiagaraAssetPickerList::OnItemActivated(const FAssetData& Item)
 {
 	OnTemplateAssetActivated.ExecuteIfBound(Item);
+}
+
+FText SNiagaraAssetPickerList::GetFilterText() const
+{
+	return ItemSelector->GetFilterText();
 }
 
 #undef LOCTEXT_NAMESPACE
