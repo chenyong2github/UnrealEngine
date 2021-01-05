@@ -9,6 +9,8 @@
 #include "Misc/Optional.h"
 #include "Containers/UnrealString.h"
 
+#define WITH_ADDITIONAL_CRASH_CONTEXTS 1
+
 /** Defines special exit codes used to diagnose abnormal terminations. The code values are arbitrary, but easily recongnizable in decimal. They are meant to be
     used with the out-of-process monitoring/analytics in order to figure out unexpected cases. */
 enum ECrashExitCodes : int32
@@ -394,6 +396,9 @@ public:
 	/** Flushes the logs. In the case of in memory logs is used on this configuration, dumps them to file. */
 	static void DumpLog(const FString& CrashFolderAbsolute);
 
+	/** Collects additional crash context providers. See FAdditionalCrashContextStack. */
+	static void DumpAdditionalContext(const TCHAR* CrashFolderAbsolute);
+
 	/** Initializes a shared crash context from current state. Will not set all fields in Dst. */
 	static void CopySharedCrashContext(FSharedCrashContext& Dst);
 
@@ -547,3 +552,89 @@ namespace RecoveryService
 	/** Tokenize the session name into its components. */
 	CORE_API bool TokenizeSessionName(const FString& SessionName, FString* OutServerName, int32* SeqNum, FString* ProjName, FDateTime* DateTime);
 }
+
+#if WITH_ADDITIONAL_CRASH_CONTEXTS
+
+/**
+ * Interface for callbacks to add context to the crash report.
+ */
+struct FCrashContextExtendedWriter
+{
+	/** Adds a named buffer to the report. Intended for larger payloads. */
+	CORE_API virtual void AddBuffer(const TCHAR* Identifier, const uint8* Data, uint32 DataSize) = 0;
+		
+	/** Add a named buffer containing a string to the report. */
+	CORE_API virtual void AddString(const TCHAR* Identifier, const TCHAR* DataStr) = 0;
+};
+
+/**
+ * A thread local stack of callbacks that can be issued at time of the crash.
+ */
+struct FAdditionalCrashContextStack
+{
+	CORE_API static void PushProvider(struct FScopedAdditionalCrashContextProvider* Provider)
+	{
+		ThreadContextProvider.PushProviderInternal(Provider);
+	}
+
+	CORE_API static void PopProvider()
+	{
+		ThreadContextProvider.PopProviderInternal();
+	}
+
+	static void ExecuteProviders(FCrashContextExtendedWriter& Writer);
+
+private:
+	enum { MaxStackDepth = 16 };
+	static thread_local FAdditionalCrashContextStack ThreadContextProvider;
+	FAdditionalCrashContextStack* Next;
+	const FScopedAdditionalCrashContextProvider* Stack[MaxStackDepth];
+	uint32 StackIndex = 0;
+
+	FAdditionalCrashContextStack();
+	~FAdditionalCrashContextStack();
+	
+	inline void PushProviderInternal(const FScopedAdditionalCrashContextProvider* Provider) 
+	{
+		check(StackIndex < MaxStackDepth);
+		Stack[StackIndex++] = Provider;
+	}
+
+	inline void PopProviderInternal()
+	{
+		check(StackIndex > 0);
+		Stack[--StackIndex] = nullptr;
+	}
+};
+
+struct FScopedAdditionalCrashContextProvider
+{
+public:
+	FScopedAdditionalCrashContextProvider(TUniqueFunction<void(FCrashContextExtendedWriter&)> InFunc)
+		: Func(MoveTemp(InFunc))
+	{
+		FAdditionalCrashContextStack::PushProvider(this);
+	}
+
+	~FScopedAdditionalCrashContextProvider()
+	{
+		FAdditionalCrashContextStack::PopProvider();
+	}
+
+	void Execute(FCrashContextExtendedWriter& Writer) const
+	{
+		Func(Writer);
+	}
+
+private:
+	TUniqueFunction<void(FCrashContextExtendedWriter&)> Func;
+};
+
+#define UE_ADD_CRASH_CONTEXT_SCOPE(FuncExpr) FScopedAdditionalCrashContextProvider ANONYMOUS_VARIABLE(AddCrashCtx)(FuncExpr)
+
+#else
+
+#define UE_ADD_CRASH_CONTEXT_SCOPE(FuncExpr) 
+
+#endif // WITH_ADDITIONAL_CRASH_CONTEXTS
+
