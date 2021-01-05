@@ -260,6 +260,8 @@ FStaticMeshSceneProxy::FStaticMeshSceneProxy(UStaticMeshComponent* InComponent, 
 	// Note mesh animation can also come from PDO or Tessellation but they are typically static uses so we ignore them for cached shadowmaps
 	bGoodCandidateForCachedShadowmap = CacheShadowDepthsFromPrimitivesUsingWPO() || !MaterialRelevance.bUsesWorldPositionOffset;
 
+	bUsingWPOMaterial = !!MaterialRelevance.bUsesWorldPositionOffset;
+
 	// Disable shadow casting if no section has it enabled.
 	bCastShadow = bCastShadow && bAnySectionCastsShadows;
 	bCastDynamicShadow = bCastDynamicShadow && bCastShadow;

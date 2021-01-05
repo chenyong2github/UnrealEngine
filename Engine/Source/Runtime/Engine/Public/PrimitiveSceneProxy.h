@@ -486,6 +486,8 @@ public:
 		return Mobility == EComponentMobility::Movable || !bGoodCandidateForCachedShadowmap; 
 	}
 
+	bool IsUsingWPOMaterial() const { return bUsingWPOMaterial; }
+
 	inline ELightmapType GetLightmapType() const { return LightmapType; }
 	inline bool IsStatic() const { return Mobility == EComponentMobility::Static; }
 	inline bool IsSelectable() const { return bSelectable; }
@@ -828,6 +830,9 @@ protected:
 
 	/** Whether this proxy's mesh is unlikely to be constantly changing. */
 	uint8 bGoodCandidateForCachedShadowmap : 1;
+
+	/** Whether this proxy's mesh uses WPO materials. */
+	uint8 bUsingWPOMaterial : 1;
 
 	/** Whether the primitive should be statically lit but has unbuilt lighting, and a preview should be used. */
 	uint8 bNeedsUnbuiltPreviewLighting : 1;
