@@ -703,11 +703,11 @@ TSharedRef<SWidget> FBehaviorTreeEditor::SpawnBlackboardDetails()
 	DetailsViewArgs.NotifyHook = this;
 	BlackboardDetailsView = PropertyEditorModule.CreateDetailView( DetailsViewArgs );
 
+	UBlackboardData* BBData = GetBlackboardData();
 	FOnGetSelectedBlackboardItemIndex OnGetSelectedBlackboardItemIndex = FOnGetSelectedBlackboardItemIndex::CreateSP(this, &FBehaviorTreeEditor::HandleGetSelectedBlackboardItemIndex);
-	FOnGetDetailCustomizationInstance LayoutVariableDetails = FOnGetDetailCustomizationInstance::CreateStatic(&FBlackboardDataDetails::MakeInstance, OnGetSelectedBlackboardItemIndex);
+	FOnGetDetailCustomizationInstance LayoutVariableDetails = FOnGetDetailCustomizationInstance::CreateStatic(&FBlackboardDataDetails::MakeInstance, OnGetSelectedBlackboardItemIndex, BBData);
 	BlackboardDetailsView->RegisterInstancedCustomPropertyLayout(UBlackboardData::StaticClass(), LayoutVariableDetails);
 
-	UBlackboardData* BBData = GetBlackboardData();
 	if (BBData)
 	{
 		BBData->UpdateDeprecatedKeys();
