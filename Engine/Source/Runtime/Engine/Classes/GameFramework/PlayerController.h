@@ -163,15 +163,6 @@ struct ENGINE_API FUpdateLevelStreamingLevelStatus
 	uint32 bNewShouldBlockOnLoad : 1;
 };
 
-template<>
-struct TStructOpsTypeTraits<FUpdateLevelVisibilityLevelInfo> : public TStructOpsTypeTraitsBase2<FUpdateLevelVisibilityLevelInfo>
-{
-	enum
-	{
-		WithNetSerializer = true
-	};
-};
-
 /** Data structure used to setup an input mode that allows the UI to respond to user input, and if the UI doesn't handle it player input / player controller gets a chance. */
 struct ENGINE_API FInputModeGameAndUI : public FInputModeDataBase
 {

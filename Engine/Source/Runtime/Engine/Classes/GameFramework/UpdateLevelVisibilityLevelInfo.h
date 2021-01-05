@@ -43,3 +43,12 @@ struct ENGINE_API FUpdateLevelVisibilityLevelInfo
 
 	bool NetSerialize(FArchive& Ar, UPackageMap* PackageMap, bool& bOutSuccess);
 };
+
+template<>
+struct TStructOpsTypeTraits<FUpdateLevelVisibilityLevelInfo> : public TStructOpsTypeTraitsBase2<FUpdateLevelVisibilityLevelInfo>
+{
+	enum
+	{
+		WithNetSerializer = true
+	};
+};
