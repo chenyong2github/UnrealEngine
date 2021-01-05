@@ -130,7 +130,7 @@ namespace MovieScene
 
 
 /**
- * A component that defines a type for a track instance
+ * The component data for evaluating a float channel
  */
 struct FSourceFloatChannel
 {
@@ -200,6 +200,9 @@ public:
 	TComponentTypeID<FGuid> SpawnableBinding;
 
 public:
+
+	// A boolean repesenting the output of a bool property track or channel
+	TComponentTypeID<bool> BoolResult;
 
 	// An FMovieSceneFloatChannel considered to be at index N within the source structure (ie 0 = Location.X, Vector.X, Color.R; 1 = Location.Y, Vector.Y, Color.G)
 	TComponentTypeID<FSourceFloatChannel> FloatChannel[9];

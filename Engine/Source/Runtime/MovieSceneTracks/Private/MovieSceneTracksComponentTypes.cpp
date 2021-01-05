@@ -184,6 +184,7 @@ FMovieSceneTracksComponentTypes::FMovieSceneTracksComponentTypes()
 	ComponentRegistry->NewPropertyType(Transform, TEXT("FTransform"));
 	ComponentRegistry->NewPropertyType(EulerTransform, TEXT("FEulerTransform"));
 	ComponentRegistry->NewPropertyType(Float, TEXT("float"));
+	ComponentRegistry->NewPropertyType(Bool, TEXT("bool"));
 
 	ComponentRegistry->NewComponentType(&QuaternionRotationChannel[0], TEXT("Quaternion Rotation Channel 0"));
 	ComponentRegistry->NewComponentType(&QuaternionRotationChannel[1], TEXT("Quaternion Rotation Channel 1"));
@@ -226,6 +227,12 @@ FMovieSceneTracksComponentTypes::FMovieSceneTracksComponentTypes()
 	.Commit();
 
 	// --------------------------------------------------------------------------------------------
+	// Set up bool properties
+	BuiltInComponents->PropertyRegistry.DefineProperty(Bool)
+	.AddSoleChannel(BuiltInComponents->BoolResult)
+	.SetCustomAccessors(&Accessors.Bool)
+	.Commit();
+
 	// Set up float properties
 	BuiltInComponents->PropertyRegistry.DefineProperty(Float)
 	.AddSoleChannel(BuiltInComponents->FloatResult[0])
