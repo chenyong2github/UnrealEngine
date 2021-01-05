@@ -41,9 +41,6 @@ void FDataTableCustomizationLayout::CustomizeChildren(TSharedRef<class IProperty
 
 	if (DataTablePropertyHandle->IsValidHandle() && RowNamePropertyHandle->IsValidHandle())
 	{
-		/** Queue up a refresh of the selected item, not safe to do from here */
-		StructCustomizationUtils.GetPropertyUtilities()->EnqueueDeferredAction(FSimpleDelegate::CreateSP(this, &FDataTableCustomizationLayout::OnDataTableChanged));
-
 		/** Setup Change callback */
 		FSimpleDelegate OnDataTableChangedDelegate = FSimpleDelegate::CreateSP(this, &FDataTableCustomizationLayout::OnDataTableChanged);
 		DataTablePropertyHandle->SetOnPropertyValueChanged(OnDataTableChangedDelegate);
@@ -90,13 +87,17 @@ bool FDataTableCustomizationLayout::GetCurrentValue(UDataTable*& OutDataTable, F
 {
 	if (RowNamePropertyHandle.IsValid() && RowNamePropertyHandle->IsValidHandle() && DataTablePropertyHandle.IsValid() && DataTablePropertyHandle->IsValidHandle())
 	{
+		// If either handle is multiple value or failure, fail
 		UObject* SourceDataTable = nullptr;
-		DataTablePropertyHandle->GetValue(SourceDataTable);
-		OutDataTable = Cast<UDataTable>(SourceDataTable);
+		if (DataTablePropertyHandle->GetValue(SourceDataTable) == FPropertyAccess::Success)
+		{
+			OutDataTable = Cast<UDataTable>(SourceDataTable);
 
-		RowNamePropertyHandle->GetValue(OutName);
-
-		return true;
+			if (RowNamePropertyHandle->GetValue(OutName) == FPropertyAccess::Success)
+			{
+				return true;
+			}
+		}
 	}
 	return false;
 }
@@ -144,13 +145,11 @@ FString FDataTableCustomizationLayout::OnGetRowValueString() const
 
 void FDataTableCustomizationLayout::OnGetRowStrings(TArray< TSharedPtr<FString> >& OutStrings, TArray<TSharedPtr<SToolTip>>& OutToolTips, TArray<bool>& OutRestrictedItems) const
 {
-	UDataTable* DataTable;
+	UDataTable* DataTable = nullptr;
 	FName IgnoredRowName;
 
-	if (!GetCurrentValue(DataTable, IgnoredRowName))
-	{
-		return;
-	}
+	// Ignore return value as we will show rows if table is the same but row names are multiple values
+	GetCurrentValue(DataTable, IgnoredRowName);
 
 	TArray<FName> AllRowNames;
 	if (DataTable != nullptr)
