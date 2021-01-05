@@ -1583,7 +1583,7 @@ void FControlRigEditMode::ResetTransforms(bool bSelectionOnly)
 			if (ControlToReset.Type == ERigElementType::Control)
 			{
 				FRigControl* Control = ControlRig->FindControl(ControlToReset.Name);
-				if (Control)
+				if (Control && !Control->bIsTransientControl)
 				{
 					FTransform Transform = ControlRig->GetControlHierarchy().GetLocalTransform(ControlToReset.Name, ERigControlValueType::Initial);
 					ControlRig->Modify();
