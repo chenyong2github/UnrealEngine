@@ -1514,6 +1514,9 @@ protected:
 	/** The virtual touch interface */
 	TSharedPtr<class SVirtualJoystick> VirtualJoystick;
 
+	/** Create virtual touch interface */
+	virtual TSharedPtr<class SVirtualJoystick> CreateVirtualJoystick();
+
 	/** The currently set touch interface */
 	UPROPERTY()
 	class UTouchInterface* CurrentTouchInterface;

@@ -82,5 +82,5 @@ class ENGINE_API UTouchInterface : public UObject
 	float StartupDelay;
 
 	/** Make this the active set of touch controls */
-	void Activate(TSharedPtr<SVirtualJoystick> VirtualJoystick);
+	virtual void Activate(TSharedPtr<SVirtualJoystick> VirtualJoystick);
 };
