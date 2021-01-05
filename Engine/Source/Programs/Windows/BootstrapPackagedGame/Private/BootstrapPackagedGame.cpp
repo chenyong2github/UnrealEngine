@@ -49,16 +49,83 @@ bool TryLoadDll(const WCHAR* ExecDirectory, const WCHAR* Name)
 
 int InstallMissingPrerequisites(const WCHAR* BaseDirectory, const WCHAR* ExecDirectory)
 {
+#ifdef _M_X64
+	bool bIsX64Target = true;
+#else
+	bool bIsX64Target = false;
+#endif
+
 	// Look for missing prerequisites
 	WCHAR MissingPrerequisites[1024] = { 0, };
-	if(!TryLoadDll(ExecDirectory, L"MSVCP140.DLL") || !TryLoadDll(ExecDirectory, L"ucrtbase.dll"))
+
+	// The Microsoft Visual C++ Runtime includes support for VS2015, VS2017, and VS2019
+	// https://docs.microsoft.com/en-us/cpp/windows/redistributing-visual-cpp-files?view=msvc-160
+
 	{
-		wcscat_s(MissingPrerequisites, TEXT("Microsoft Visual C++ 2015 Runtime\n"));
+		HKEY Hkey;
+		LSTATUS KeyOpenStatus;
+
+		if (bIsX64Target)
+		{
+			KeyOpenStatus = RegOpenKeyExW(HKEY_LOCAL_MACHINE, L"SOFTWARE\\Microsoft\\VisualStudio\\14.0\\VC\\Runtimes\\x64", 0, KEY_READ, &Hkey);
+		}
+		else
+		{
+			// 32bit build running on an 32bit host
+			KeyOpenStatus = RegOpenKeyExW(HKEY_LOCAL_MACHINE, L"SOFTWARE\\Microsoft\\VisualStudio\\14.0\\VC\\Runtimes\\x86", 0, KEY_READ, &Hkey);
+
+			if (ERROR_SUCCESS != KeyOpenStatus)
+			{
+				// 32bit build running on 64bit host
+				KeyOpenStatus = RegOpenKeyExW(HKEY_LOCAL_MACHINE, L"SOFTWARE\\Wow6432Node\\Microsoft\\VisualStudio\\14.0\\VC\\Runtimes\\x86", 0, KEY_READ, &Hkey);
+			}
+		}
+
+		bool bInstallVCRedist = true;
+
+		if (KeyOpenStatus == ERROR_SUCCESS)
+		{
+			auto RegGetDwordOrZero = [](HKEY Hkey, LPCWSTR Name) -> DWORD
+			{
+				DWORD Value = 0;
+				DWORD ValueSize = sizeof Value;
+				LSTATUS Status = RegQueryValueExW(Hkey, Name, NULL, NULL, (LPBYTE)&Value, &ValueSize);
+				return ERROR_SUCCESS == Status ? Value : 0;
+			};
+
+			// This minimum should match the version installed by
+			// Engine/Source/Programs/PrereqInstaller/Resources/VCRedist/VC140/vcredist_x64.exe
+			const DWORD RequiredMajor = 14;
+			const DWORD RequiredMinor = 24;
+			const DWORD RequiredBld = 28127;
+			const DWORD RequiredRbld = 4;
+
+			const DWORD InstalledMajor = RegGetDwordOrZero(Hkey, L"Major");
+			const DWORD InstalledMinor = RegGetDwordOrZero(Hkey, L"Minor");
+			const DWORD InstalledBld = RegGetDwordOrZero(Hkey, L"Bld");
+			const DWORD InstalledRbld = RegGetDwordOrZero(Hkey, L"Rbld");
+
+			if ((InstalledMajor > RequiredMajor) ||
+				(InstalledMajor == RequiredMajor && InstalledMinor > RequiredMinor) ||
+				(InstalledMajor == RequiredMajor && InstalledMinor == RequiredMinor && InstalledBld > RequiredBld) ||
+				(InstalledMajor == RequiredMajor && InstalledMinor == RequiredMinor && InstalledBld == RequiredBld && InstalledRbld >= RequiredRbld))
+			{
+				// it is possible that the redist has been uninstalled but the registry entries have not been removed
+				// test that some relatively new dlls are able to be loaded
+				if (TryLoadDll(ExecDirectory, L"msvcp140_2.dll") &&
+					(!bIsX64Target || TryLoadDll(ExecDirectory, L"vcruntime140_1.dll")))
+				{
+					bInstallVCRedist = false;
+				}
+			}
+			RegCloseKey(Hkey);
+		}
+		if (bInstallVCRedist)
+		{
+			wcscat_s(MissingPrerequisites, TEXT("Microsoft Visual C++ Runtime\n"));
+		}
 	}
-	if (!TryLoadDll(ExecDirectory, L"vcruntime140_1.dll"))
-	{
-		wcscat_s(MissingPrerequisites, TEXT("Microsoft Visual C++ 2019 Runtime\n"));
-	}
+
 	if(!TryLoadDll(ExecDirectory, L"XINPUT1_3.DLL"))
 	{
 		wcscat_s(MissingPrerequisites, TEXT("DirectX Runtime\n"));
@@ -72,11 +139,14 @@ int InstallMissingPrerequisites(const WCHAR* BaseDirectory, const WCHAR* ExecDir
 
 		// If we don't have the installer, just notify the user and quit
 		WCHAR PrereqInstaller[MAX_PATH];
-#ifdef _M_X64
-		PathCombine(PrereqInstaller, BaseDirectory, L"Engine\\Extras\\Redist\\en-us\\UE4PrereqSetup_x64.exe");
-#else
-		PathCombine(PrereqInstaller, BaseDirectory, L"Engine\\Extras\\Redist\\en-us\\UE4PrereqSetup_x86.exe");
-#endif
+		if (bIsX64Target)
+		{
+			PathCombine(PrereqInstaller, BaseDirectory, L"Engine\\Extras\\Redist\\en-us\\UE4PrereqSetup_x64.exe");
+		}
+		else
+		{
+			PathCombine(PrereqInstaller, BaseDirectory, L"Engine\\Extras\\Redist\\en-us\\UE4PrereqSetup_x86.exe");
+		}
 		if(GetFileAttributes(PrereqInstaller) == INVALID_FILE_ATTRIBUTES)
 		{
 			MessageBox(NULL, MissingPrerequisitesMsg, NULL, MB_OK);
