@@ -1629,6 +1629,15 @@ bool FControlRigEditMode::MouseLeave(FEditorViewportClient* ViewportClient, FVie
 	return false;
 }
 
+void FControlRigEditMode::PostUndo()
+{
+	UControlRig* RuntimeControlRig = GetControlRig(false);
+	if (!RuntimeControlRig)
+	{
+		DestroyGizmosActors();
+	}
+}
+
 void FControlRigEditMode::RecreateGizmoActors(const TArray<FRigElementKey>& InSelectedElements)
 {
 	if (ControlProxy)

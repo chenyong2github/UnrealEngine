@@ -99,6 +99,7 @@ public:
 	virtual bool IsCompatibleWith(FEditorModeID OtherModeID) const override;
 	virtual bool MouseMove(FEditorViewportClient* ViewportClient, FViewport* Viewport, int32 x, int32 y) override;
 	virtual bool MouseLeave(FEditorViewportClient* ViewportClient, FViewport* Viewport);
+	virtual void PostUndo() override;
 
 	/* IPersonaEditMode interface */
 	virtual bool GetCameraTarget(FSphere& OutTarget) const override { return false; }
