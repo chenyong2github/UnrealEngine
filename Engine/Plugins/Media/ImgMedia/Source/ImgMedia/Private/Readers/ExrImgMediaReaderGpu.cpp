@@ -343,7 +343,8 @@ void FExrImgMediaReaderGpu::ReturnGpuBufferToStagingPool(uint32 AllocSize, FStru
 	{
 		ENQUEUE_RENDER_COMMAND(DeletePooledBuffers)([this, Buffer](FRHICommandListImmediate& RHICmdList)
 		{
-			FScopeLock ScopeLock(&AllocatorCriticalSecion);
+			// By this point we don't need a lock because the destructor was already called and it 
+			// is guaranteed that this buffer is no longer used anywhere else.
 			RHIUnlockStructuredBuffer(Buffer->BufferRef);
 			delete Buffer;
 		});
