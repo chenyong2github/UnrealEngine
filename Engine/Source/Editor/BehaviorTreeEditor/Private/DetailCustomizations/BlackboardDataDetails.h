@@ -4,8 +4,14 @@
 
 #include "CoreMinimal.h"
 #include "IDetailCustomization.h"
+#include "Types/SlateEnums.h"
+#include "Widgets/Views/SListView.h"
 
 class IDetailLayoutBuilder;
+class IPropertyHandle;
+class ITableRow;
+class STableViewBase;
+class SComboButton;
 class UBlackboardData;
 
 /** Delegate used to retrieve current blackboard selection */
