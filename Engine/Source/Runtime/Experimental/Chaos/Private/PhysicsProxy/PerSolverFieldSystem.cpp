@@ -282,17 +282,18 @@ void FPerSolverFieldSystem::FieldParameterUpdateInternal(
 							TimeSeconds
 						};
 
-					//
-					//  Sample the dynamic state array in the field
-					//
-					TArray<int32> DynamicState;
-					DynamicState.Init(false, Handles.Num());
-					for (const ContextIndex& Index : Context.GetEvaluatedSamples())
-					{
-						Chaos::TPBDRigidParticleHandle<float, 3>* RigidHandle = Handles[Index.Sample]->CastToRigidParticle();
-						if (RigidHandle)
+						//
+						//  Sample the dynamic state array in the field
+						//
+						TArray<int32> DynamicState;
+						DynamicState.Init(false, Handles.Num());
+						for (const ContextIndex& Index : Context.GetEvaluatedSamples())
 						{
-							DynamicState[Index.Result] = RigidHandle->Disabled();
+							Chaos::TPBDRigidParticleHandle<float, 3>* RigidHandle = Handles[Index.Sample]->CastToRigidParticle();
+							if (RigidHandle)
+							{
+								DynamicState[Index.Result] = RigidHandle->Disabled();
+							}
 						}
 						TArrayView<int32> DynamicStateView(&(DynamicState[0]), DynamicState.Num());
 
