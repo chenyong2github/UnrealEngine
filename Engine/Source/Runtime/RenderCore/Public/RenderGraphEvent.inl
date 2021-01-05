@@ -6,12 +6,14 @@ template <typename TScopeType>
 TRDGScopeStack<TScopeType>::TRDGScopeStack(
 	FRHIComputeCommandList& InRHICmdList,
 	FPushFunction InPushFunction,
-	FPopFunction InPopFunction)
+	FPopFunction InPopFunction,
+	bool bRDGEvents)
 	: RHICmdList(InRHICmdList)
 	, MemStack(FMemStack::Get())
 	, PushFunction(InPushFunction)
 	, PopFunction(InPopFunction)
 	, ScopeStack(MakeUniformStaticArray<const TScopeType*, kScopeStackDepthMax>(nullptr))
+	, bRDGEvents(bRDGEvents)
 {}
 
 template <typename TScopeType>
@@ -81,14 +83,14 @@ void TRDGScopeStack<TScopeType>::BeginExecutePass(const TScopeType* ParentScope)
 			break;
 		}
 
-		PopFunction(RHICmdList, ScopeStack[i]);
+		PopFunction(RHICmdList, ScopeStack[i], bRDGEvents);
 		ScopeStack[i] = nullptr;
 	}
 
 	// Push new scopes.
 	for (int32 i = TraversedScopeCount - 1; i >= 0; i--)
 	{
-		PushFunction(RHICmdList, TraversedScopes[i]);
+		PushFunction(RHICmdList, TraversedScopes[i], bRDGEvents);
 		CommonScopeId++;
 		ScopeStack[CommonScopeId] = TraversedScopes[i];
 	}
@@ -104,7 +106,7 @@ void TRDGScopeStack<TScopeType>::EndExecute()
 			break;
 		}
 
-		PopFunction(RHICmdList, ScopeStack[ScopeIndex]);
+		PopFunction(RHICmdList, ScopeStack[ScopeIndex], bRDGEvents);
 	}
 	ClearScopes();
 }
