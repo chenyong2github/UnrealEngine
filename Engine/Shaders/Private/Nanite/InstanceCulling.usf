@@ -17,6 +17,8 @@ void DrawImposter( FNaniteView NaniteView, FInstanceSceneData InstanceData, uint
 	uint RootClusterCode = ( InstanceId << 8 ) | BaseCode;
 	uint RootClusterIndex = InstanceData.NaniteRuntimeResourceID & MAX_GPU_PAGES_MASK;
 
+	bool bOrtho = NaniteView.ViewToClip[3][3] >= 1;
+
 	for( int y = Rect.Pixels.y; y <= Rect.Pixels.w; y++ )
 	{
 		for( int x = Rect.Pixels.x; x <= Rect.Pixels.z; x++ )
@@ -28,12 +30,20 @@ void DrawImposter( FNaniteView NaniteView, FInstanceSceneData InstanceData, uint
 			int FrameRand = (int)(Jitter.x * 417.0f);
 
 			float2 Noise = Rand3DPCG16( int3( PixelPos, FrameRand ) ).xy / 65535.0;
+			float2 PixelClip = ( ( PixelPos + 0.5 ) * NaniteView.ViewSizeAndInvSize.zw - 0.5 ) * float2(2, -2);
 
 			FRay RayWorld;
-			RayWorld.Origin = NaniteView.WorldCameraOrigin.xyz;
-
-			float2 PixelClip = ( ( PixelPos + 0.5 ) * NaniteView.ViewSizeAndInvSize.zw - 0.5 ) * float2(2, -2);
-			RayWorld.Direction = mul( float4( PixelClip, 0, 1 ), NaniteView.ClipToWorld ).xyz;
+			if( bOrtho )
+			{
+				RayWorld.Origin = mul( float4( PixelClip, 1, 1 ), NaniteView.ClipToWorld ).xyz;
+				RayWorld.Direction = mul( float4( PixelClip, 0, 1 ), NaniteView.ClipToWorld ).xyz - RayWorld.Origin;
+				Noise = 0.5;
+			}
+			else
+			{
+				RayWorld.Origin = NaniteView.WorldCameraOrigin.xyz;
+				RayWorld.Direction = mul( float4( PixelClip, 0, 1 ), NaniteView.ClipToWorld ).xyz;
+			}
 	
 			FRay RayLocal;
 			RayLocal.Origin		= mul( float4( RayWorld.Origin, 1 ),	InstanceData.WorldToLocal ).xyz;
@@ -46,6 +56,9 @@ void DrawImposter( FNaniteView NaniteView, FInstanceSceneData InstanceData, uint
 				float Depth = asfloat( ImposterPixel.y );
 				float4 HitClip = mul( float4( 0, 0, Depth, 1 ), NaniteView.ViewToClip );
 				float DeviceZ = HitClip.z / HitClip.w;
+				
+				if( bOrtho )
+					DeviceZ = 1 - Depth;
 
 				uint TriIndex = ImposterPixel.x;
 				uint PixelValue = RootClusterCode + TriIndex;
