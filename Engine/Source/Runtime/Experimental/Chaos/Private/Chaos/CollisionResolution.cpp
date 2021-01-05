@@ -279,7 +279,7 @@ namespace Chaos
 
 			const FReal ThicknessA = A.GetMargin() + 0.5f * ShapePadding;
 			const FReal ThicknessB = B.GetMargin() + 0.5f * ShapePadding;
-			if (ensure(GJKPenetrationCore<true>(A, B, BToATM, Penetration, ClosestA, ClosestBInA, Normal, ClosestVertexIndexA, ClosestVertexIndexB, ThicknessA, ThicknessB, InitialDir, Epsilon)))
+			if (GJKPenetrationCore<true>(A, B, BToATM, Penetration, ClosestA, ClosestBInA, Normal, ClosestVertexIndexA, ClosestVertexIndexB, ThicknessA, ThicknessB, InitialDir, Epsilon))
 			{
 				// GJK output is all in the local space of A. We need to transform the B-relative position and the normal in to B-space
 				// The Closest Points are without the margins, as required by the Collision Solver

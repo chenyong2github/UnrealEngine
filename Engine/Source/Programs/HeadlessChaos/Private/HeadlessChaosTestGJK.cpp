@@ -1617,18 +1617,21 @@ namespace ChaosTest
 		bool bSuccess = GJKPenetrationCore<true>(ShapeA, ShapeB, TransformBtoA, Penetration, ClosestA, ClosestBInA, Normal, ClosestVertexIndexA, ClosestVertexIndexB, ThicknessA, ThicknessB, FVec3(1, 0, 0), GJKEpsilon);
 		EXPECT_TRUE(bSuccess);
 
-		// Convert the contact data to world-space (not really necessary here)
-		const FVec3 ResultLocation = TransformA.TransformPosition(ClosestA + ThicknessA * Normal);
-		const FVec3 ResultNormal = -TransformA.TransformVectorNoScale(Normal);
-		const FReal ResultPhi = -Penetration;
+		if (bSuccess)
+		{
+			// Convert the contact data to world-space (not really necessary here)
+			const FVec3 ResultLocation = TransformA.TransformPosition(ClosestA + ThicknessA * Normal);
+			const FVec3 ResultNormal = -TransformA.TransformVectorNoScale(Normal);
+			const FReal ResultPhi = -Penetration;
 
-		const FReal ExpectedLocationI = SeparationSize;
-		const FReal ExpectedNormalI = 1.0f;
-		const FReal ExpectedPhi = SeparationSize;
+			const FReal ExpectedLocationI = SeparationSize;
+			const FReal ExpectedNormalI = 1.0f;
+			const FReal ExpectedPhi = SeparationSize;
 
-		EXPECT_NEAR(ResultLocation[SeparationAxis], ExpectedLocationI, 1.e-3f) << "Separation " << SeparationSize << " Axis " << SeparationAxis;
-		EXPECT_NEAR(ResultNormal[SeparationAxis], ExpectedNormalI, 1.e-4f) << "Separation " << SeparationSize << " Axis " << SeparationAxis;
-		EXPECT_NEAR(ResultPhi, ExpectedPhi, 1.e-3f) << "Separation " << SeparationSize << " Axis " << SeparationAxis;
+			EXPECT_NEAR(ResultLocation[SeparationAxis], ExpectedLocationI, 1.e-3f) << "Separation " << SeparationSize << " Axis " << SeparationAxis;
+			EXPECT_NEAR(ResultNormal[SeparationAxis], ExpectedNormalI, 1.e-4f) << "Separation " << SeparationSize << " Axis " << SeparationAxis;
+			EXPECT_NEAR(ResultPhi, ExpectedPhi, 1.e-3f) << "Separation " << SeparationSize << " Axis " << SeparationAxis;
+		}
 	}
 
 	const FReal BoxBoxGJKDistances[] =
@@ -1742,6 +1745,11 @@ namespace ChaosTest
 		const FRigidTransform3 TransformA(FVec3(0.000000000f, 0.000000000f, 182.378937f), FRotation3::FromElements(0.000000000f, 0.000000000f, 0.707106650f, 0.707106888f));	// Top
 		const FRigidTransform3 TransformB(FVec3(0.000000000f, 0.000000000f, 107.378944f), FRotation3::FromElements(0.000000000f, 0.000000000f, 0.000000000f, 1.00000000f));		// Bottom
 
+		// Shape Z extents = [50x-0.75, 50x0.75] = [-37.5, 37.5]
+		// Shape Z separation = 182.378937 - 107.378944 = 74.999993
+		// i.e., the shapes are touching to near float accuracy
+		// The top shape is rotated by 90degrees
+
 		const FRigidTransform3 TransformBtoA = TransformB.GetRelativeTransform(TransformA);
 
 		FReal Penetration;
@@ -1752,23 +1760,27 @@ namespace ChaosTest
 		const FReal ThicknessA = ShapeA.GetMargin();
 		const FReal ThicknessB = ShapeB.GetMargin();
 
-		GJKPenetrationCore<true>(ShapeA, ShapeB, TransformBtoA, Penetration, ClosestA, ClosestBInA, Normal, ClosestVertexIndexA, ClosestVertexIndexB, ThicknessA, ThicknessB, FVec3(1,0,0), Epsilon);
+		const bool bSuccess = GJKPenetrationCore<true>(ShapeA, ShapeB, TransformBtoA, Penetration, ClosestA, ClosestBInA, Normal, ClosestVertexIndexA, ClosestVertexIndexB, ThicknessA, ThicknessB, FVec3(1,0,0), Epsilon);
+		EXPECT_TRUE(bSuccess);
 
-		const FVec3 ContactLocation = TransformA.TransformPosition(ClosestA + ThicknessA * Normal);
-		const FVec3 ContactNormal = -TransformA.TransformVectorNoScale(Normal);
-		const FReal ContactPhi = -Penetration;
+		if (bSuccess)
+		{
+			const FVec3 ContactLocation = TransformA.TransformPosition(ClosestA + ThicknessA * Normal);
+			const FVec3 ContactNormal = -TransformA.TransformVectorNoScale(Normal);
+			const FReal ContactPhi = -Penetration;
 
-		// Contact should be on bottom of A
-		// Normal should point upwars (from B to A)
-		// const FReal PreviousIncorrectLocationZ = TransformA.GetTranslation().Z + ShapeA.BoundingBox().Max().Z;
-		// const FReal PreviousIncorrectNormalZ = -1.0f;
-		const FReal ExpectedContactLocationZ = TransformA.GetTranslation().Z + ShapeA.BoundingBox().Min().Z;
-		const FReal ExpectedContactNormalZ = 1.0f;
-		const FReal ExpectedContactPhi = (TransformA.GetTranslation().Z + ShapeA.BoundingBox().Min().Z) - (TransformB.GetTranslation().Z + ShapeB.BoundingBox().Max().Z);
+			// Contact should be on bottom of A
+			// Normal should point upwards (from B to A)
+			// const FReal PreviousIncorrectLocationZ = TransformA.GetTranslation().Z + ShapeA.BoundingBox().Max().Z;
+			// const FReal PreviousIncorrectNormalZ = -1.0f;
+			const FReal ExpectedContactLocationZ = TransformA.GetTranslation().Z + ShapeA.BoundingBox().Min().Z;
+			const FReal ExpectedContactNormalZ = 1.0f;
+			const FReal ExpectedContactPhi = (TransformA.GetTranslation().Z + ShapeA.BoundingBox().Min().Z) - (TransformB.GetTranslation().Z + ShapeB.BoundingBox().Max().Z);
 
-		EXPECT_NEAR(ContactLocation.Z, ExpectedContactLocationZ, KINDA_SMALL_NUMBER);
-		EXPECT_NEAR(ContactNormal.Z, ExpectedContactNormalZ, KINDA_SMALL_NUMBER);
-		EXPECT_NEAR(ContactPhi, ExpectedContactPhi, KINDA_SMALL_NUMBER);
+			EXPECT_NEAR(ContactLocation.Z, ExpectedContactLocationZ, KINDA_SMALL_NUMBER);
+			EXPECT_NEAR(ContactNormal.Z, ExpectedContactNormalZ, KINDA_SMALL_NUMBER);
+			EXPECT_NEAR(ContactPhi, ExpectedContactPhi, KINDA_SMALL_NUMBER);
+		}
 	}
 
 	GTEST_TEST(GJKTests, TestGJKConvexConvexEPABoundaryCondition)
