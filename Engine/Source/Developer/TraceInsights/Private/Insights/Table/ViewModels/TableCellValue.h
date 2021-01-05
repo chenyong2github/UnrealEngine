@@ -115,7 +115,7 @@ public:
 		}
 	}
 
-	float AsDouble() const
+	double AsDouble() const
 	{
 		switch (DataType)
 		{

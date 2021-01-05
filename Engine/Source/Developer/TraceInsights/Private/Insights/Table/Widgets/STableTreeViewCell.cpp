@@ -13,6 +13,7 @@
 
 // Insights
 #include "Insights/Table/ViewModels/Table.h"
+#include "Insights/Table/ViewModels/TableCellValueFormatter.h"
 #include "Insights/Table/ViewModels/TableColumn.h"
 #include "Insights/Table/Widgets/STableTreeViewRow.h"
 
@@ -123,7 +124,22 @@ TSharedRef<SWidget> STableTreeViewCell::GenerateWidgetForTableColumn(const FArgu
 	// Note: For performance reason, init the cell text (value) only once.
 	//       If we'll need to update values without recreating the table row/cell widgets, bind .Text to STableTreeViewCell::GetValueAsText
 	//       or add API to explicitly update the text block.
-	const FText CellText = ColumnPtr->GetValueAsText(*TableTreeNodePtr);
+	FText CellText;
+	if (TableTreeNodePtr->IsGroup())
+	{
+		if (TableTreeNodePtr->HasAggregatedValue(ColumnPtr->GetId()))
+		{
+			CellText = ColumnPtr->GetValueFormatter()->FormatValue(TableTreeNodePtr->GetAggregatedValue(ColumnPtr->GetId()));
+		}
+		else
+		{
+			CellText = FText::FromString(TEXT("-"));
+		}
+	}
+	else
+	{
+		CellText = ColumnPtr->GetValueAsText(*TableTreeNodePtr);
+	}
 
 	return
 		SNew(SHorizontalBox)

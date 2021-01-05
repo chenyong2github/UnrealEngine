@@ -19,6 +19,7 @@
 // Insights
 #include "Insights/Common/InsightsAsyncWorkUtils.h"
 #include "Insights/Common/Stopwatch.h"
+#include "Insights/Table/ViewModels/TableColumn.h"
 #include "Insights/Table/ViewModels/TableTreeNode.h"
 #include "Insights/ViewModels/Filters.h"
 
@@ -207,10 +208,44 @@ protected:
 	void CreateGroups(const TArray<TSharedPtr<FTreeNodeGrouping>>& Groupings);
 	void GroupNodesRec(const TArray<FTableTreeNodePtr>& Nodes, FTableTreeNode& ParentGroup, int32 GroupingDepth, const TArray<TSharedPtr<FTreeNodeGrouping>>& Groupings);
 
-	void ResetAggregatedValuesRec(FTableTreeNode& GroupNode);
-	void UpdateInt64SumAggregationRec(FTableColumn& Column, FTableTreeNode& GroupNode);
-	void UpdateFloatSumAggregationRec(FTableColumn& Column, FTableTreeNode& GroupNode);
-	void UpdateDoubleSumAggregationRec(FTableColumn& Column, FTableTreeNode& GroupNode);
+	void UpdateAggregatedValues(FTableTreeNode& GroupNode);
+	
+	template<typename T>
+	static void UpdateAggregationRec(FTableColumn& Column, FTableTreeNode& GroupNode, T InitialAggregatedValue, bool bSetInitialValue, TFunctionRef<T(T, TOptional<FTableCellValue>)> ValueGetterFunc)
+	{
+		T AggregatedValue = InitialAggregatedValue;
+
+		for (FBaseTreeNodePtr NodePtr : GroupNode.GetChildren())
+		{
+			if (NodePtr->IsFiltered())
+			{
+				continue;
+			}
+			FTableTreeNode& TableNode = *StaticCastSharedPtr<FTableTreeNode>(NodePtr);
+			if (TableNode.IsGroup())
+			{
+				TableNode.ResetAggregatedValues(Column.GetId());
+				UpdateAggregationRec(Column, TableNode, InitialAggregatedValue, bSetInitialValue, ValueGetterFunc);
+				if (TableNode.HasAggregatedValue(Column.GetId()))
+				{
+					AggregatedValue = ValueGetterFunc(AggregatedValue, TableNode.GetAggregatedValue(Column.GetId()));
+				}
+			}
+			else
+			{
+				const TOptional<FTableCellValue> OptionalValue = Column.GetValue(TableNode);
+				if (OptionalValue.IsSet())
+				{
+					AggregatedValue = ValueGetterFunc(AggregatedValue, OptionalValue);
+				}
+			}
+		}
+
+		if (bSetInitialValue || InitialAggregatedValue != AggregatedValue)
+		{
+			GroupNode.AddAggregatedValue(Column.GetId(), FTableCellValue(AggregatedValue));
+		}
+	}
 
 	void RebuildGroupingCrumbs();
 	void OnGroupingCrumbClicked(const TSharedPtr<FTreeNodeGrouping>& InEntry);

@@ -21,8 +21,6 @@
 #include "Insights/InsightsManager.h"
 #include "Insights/Log.h"
 #include "Insights/Table/ViewModels/Table.h"
-#include "Insights/Table/ViewModels/TableColumn.h"
-#include "Insights/Table/ViewModels/TableTreeNode.h"
 #include "Insights/Table/ViewModels/TreeNodeGrouping.h"
 #include "Insights/Table/ViewModels/TreeNodeSorting.h"
 #include "Insights/Table/ViewModels/UntypedTable.h"
@@ -31,6 +29,8 @@
 #include "Insights/TimingProfilerCommon.h"
 #include "Insights/ViewModels/FilterConfigurator.h"
 #include "Insights/Widgets/SAsyncOperationStatus.h"
+
+#include <limits>
 
 #define LOCTEXT_NAMESPACE "STableTreeView"
 
@@ -702,6 +702,8 @@ void STableTreeView::ApplyFiltering()
 		}
 	}
 
+	UpdateAggregatedValues(*Root);
+
 	// Cannot call TreeView functions from other threads than MainThread and SlateThread. 
 	if (!bRunInAsyncMode)
 	{
@@ -793,6 +795,7 @@ bool STableTreeView::ApplyFilteringForNode(FTableTreeNodePtr NodePtr)
 	else
 	{
 		bIsNodeVisible &= ApplyAdvancedFilters(NodePtr);
+		NodePtr->SetIsFiltered(!bIsNodeVisible);
 		return bIsNodeVisible;
 	}
 }
@@ -970,28 +973,7 @@ void STableTreeView::CreateGroups(const TArray<TSharedPtr<FTreeNodeGrouping>>& G
 	Stopwatch.Update();
 	const double Time1 = Stopwatch.GetAccumulatedTime();
 
-	ResetAggregatedValuesRec(*Root);
-	for (const TSharedRef<FTableColumn>& ColumnRef : Table->GetColumns())
-	{
-		FTableColumn& Column = *ColumnRef;
-		if (Column.GetAggregation() == ETableColumnAggregation::Sum)
-		{
-			switch (Column.GetDataType())
-			{
-				case ETableCellDataType::Int64:
-					UpdateInt64SumAggregationRec(Column, *Root);
-					break;
-
-				case ETableCellDataType::Float:
-					UpdateFloatSumAggregationRec(Column, *Root);
-					break;
-
-				case ETableCellDataType::Double:
-					UpdateDoubleSumAggregationRec(Column, *Root);
-					break;
-			}
-		}
-	}
+	UpdateAggregatedValues(*Root);
 
 	Stopwatch.Stop();
 	const double TotalTime = Stopwatch.GetAccumulatedTime();
@@ -1049,94 +1031,39 @@ void STableTreeView::GroupNodesRec(const TArray<FTableTreeNodePtr>& Nodes, FTabl
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void STableTreeView::ResetAggregatedValuesRec(FTableTreeNode& GroupNode)
+void STableTreeView::UpdateAggregatedValues(FTableTreeNode& GroupNode)
 {
-	ensure(GroupNode.IsGroup());
-
-	GroupNode.ResetAggregatedValues();
-
-	for (FBaseTreeNodePtr ChildPtr : GroupNode.GetChildren())
+	for (const TSharedRef<FTableColumn>& ColumnRef : Table->GetColumns())
 	{
-		if (ChildPtr->IsGroup())
+		FTableColumn& Column = *ColumnRef;
+		switch (Column.GetAggregation())
 		{
-			ResetAggregatedValuesRec(*StaticCastSharedPtr<FTableTreeNode>(ChildPtr));
+		case ETableColumnAggregation::Sum:
+		{
+			STableTreeView::UpdateAggregationRec<int64>(Column, GroupNode, 0, true, [](int64 InValue, TOptional<FTableCellValue> InTableCellValue)
+				{
+					return InValue + InTableCellValue->AsInt64();
+				});
+			break;
+		}
+		case ETableColumnAggregation::Min:
+		{
+			STableTreeView::UpdateAggregationRec<double>(Column, GroupNode, std::numeric_limits<double>::max(), false, [](double InValue, TOptional<FTableCellValue> InTableCellValue)
+				{
+					return FMath::Min(InValue, InTableCellValue->AsDouble());
+				});
+			break;
+		}
+		case ETableColumnAggregation::Max:
+		{
+			STableTreeView::UpdateAggregationRec<double>(Column, GroupNode, std::numeric_limits<double>::lowest(), false, [](double InValue, TOptional<FTableCellValue> InTableCellValue)
+				{
+					return FMath::Max(InValue, InTableCellValue->AsDouble());
+				});
+			break;
+		}
 		}
 	}
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void STableTreeView::UpdateInt64SumAggregationRec(FTableColumn& Column, FTableTreeNode& GroupNode)
-{
-	int64 AggregatedValue = 0;
-
-	for (FBaseTreeNodePtr NodePtr : GroupNode.GetChildren())
-	{
-		FTableTreeNode& TableNode = *StaticCastSharedPtr<FTableTreeNode>(NodePtr);
-		if (TableNode.IsGroup())
-		{
-			UpdateInt64SumAggregationRec(Column, TableNode);
-		}
-
-		const TOptional<FTableCellValue> OptionalValue = Column.GetValue(TableNode);
-		if (OptionalValue.IsSet())
-		{
-			ensure(OptionalValue.GetValue().DataType == ETableCellDataType::Int64);
-			AggregatedValue += OptionalValue.GetValue().Int64;
-		}
-	}
-
-	GroupNode.AddAggregatedValue(Column.GetId(), FTableCellValue(AggregatedValue));
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void STableTreeView::UpdateFloatSumAggregationRec(FTableColumn& Column, FTableTreeNode& GroupNode)
-{
-	float AggregatedValue = 0.0f;
-
-	for (FBaseTreeNodePtr NodePtr : GroupNode.GetChildren())
-	{
-		FTableTreeNode& TableNode = *StaticCastSharedPtr<FTableTreeNode>(NodePtr);
-		if (TableNode.IsGroup())
-		{
-			UpdateFloatSumAggregationRec(Column, TableNode);
-		}
-
-		const TOptional<FTableCellValue> OptionalValue = Column.GetValue(TableNode);
-		if (OptionalValue.IsSet())
-		{
-			ensure(OptionalValue.GetValue().DataType == ETableCellDataType::Float);
-			AggregatedValue += OptionalValue.GetValue().Float;
-		}
-	}
-
-	GroupNode.AddAggregatedValue(Column.GetId(), FTableCellValue(AggregatedValue));
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void STableTreeView::UpdateDoubleSumAggregationRec(FTableColumn& Column, FTableTreeNode& GroupNode)
-{
-	double AggregatedValue = 0.0;
-
-	for (FBaseTreeNodePtr NodePtr : GroupNode.GetChildren())
-	{
-		FTableTreeNode& TableNode = *StaticCastSharedPtr<FTableTreeNode>(NodePtr);
-		if (TableNode.IsGroup())
-		{
-			UpdateDoubleSumAggregationRec(Column, TableNode);
-		}
-
-		const TOptional<FTableCellValue> OptionalValue = Column.GetValue(TableNode);
-		if (OptionalValue.IsSet())
-		{
-			ensure(OptionalValue.GetValue().DataType == ETableCellDataType::Double);
-			AggregatedValue += OptionalValue.GetValue().Double;
-		}
-	}
-
-	GroupNode.AddAggregatedValue(Column.GetId(), FTableCellValue(AggregatedValue));
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

@@ -75,17 +75,23 @@ public:
 	int32 GetRowIndex() const { return RowId.RowIndex; }
 
 	void ResetAggregatedValues() { AggregatedValues.Reset(); }
+	void ResetAggregatedValues(const FName& ColumnId) { AggregatedValues.Remove(ColumnId); }
 	bool HasAggregatedValue(const FName& ColumnId) const { return AggregatedValues.Contains(ColumnId); }
 	const FTableCellValue* FindAggregatedValue(const FName& ColumnId) const { return AggregatedValues.Find(ColumnId); }
 	const FTableCellValue& GetAggregatedValue(const FName& ColumnId) const { return AggregatedValues.FindChecked(ColumnId); }
 	void AddAggregatedValue(const FName& ColumnId, const FTableCellValue& Value) { AggregatedValues.Add(ColumnId, Value); }
 	void SetAggregatedValue(const FName& ColumnId, const FTableCellValue& Value) { AggregatedValues[ColumnId] = Value; }
+	virtual bool IsFiltered() const override { return bIsFiltered; }
+	virtual void SetIsFiltered(bool InValue) { bIsFiltered = InValue; }
 
 protected:
 	TWeakPtr<FTable> ParentTable;
 	FTableRowId RowId;
 
 	TMap<FName, FTableCellValue> AggregatedValues;
+
+private:
+	bool bIsFiltered = false;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

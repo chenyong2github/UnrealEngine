@@ -36,8 +36,8 @@ enum class ETableColumnAggregation : uint32
 {
 	None = 0,
 	Sum,
-	//Min,
-	//Max,
+	Min,
+	Max,
 	//Average,
 	//Median,
 };

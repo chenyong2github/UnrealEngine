@@ -222,7 +222,7 @@ void FUntypedTable::CreateColumns(const TraceServices::ITableLayout& TableLayout
 
 		case TraceServices::TableColumnType_Int:
 			Column.SetDataType(ETableCellDataType::Int64);
-			Aggregation = ETableColumnAggregation::Sum;
+			//Aggregation = ETableColumnAggregation::Sum;
 			HorizontalAlignment = HAlign_Right;
 			InitialColumnWidth = 60.0f;
 			//TODO: if (Hint == AsMemory)
@@ -236,7 +236,7 @@ void FUntypedTable::CreateColumns(const TraceServices::ITableLayout& TableLayout
 
 		case TraceServices::TableColumnType_Float:
 			Column.SetDataType(ETableCellDataType::Float);
-			Aggregation = ETableColumnAggregation::Sum;
+			//Aggregation = ETableColumnAggregation::Sum;
 			HorizontalAlignment = HAlign_Right;
 			InitialColumnWidth = 60.0f;
 			//TODO: if (Hint == AsTimeMs)
@@ -247,7 +247,7 @@ void FUntypedTable::CreateColumns(const TraceServices::ITableLayout& TableLayout
 
 		case TraceServices::TableColumnType_Double:
 			Column.SetDataType(ETableCellDataType::Double);
-			Aggregation = ETableColumnAggregation::Sum;
+			//Aggregation = ETableColumnAggregation::Sum;
 			HorizontalAlignment = HAlign_Right;
 			InitialColumnWidth = 80.0f;
 			//TODO: if (Hint == AsTimeMs)

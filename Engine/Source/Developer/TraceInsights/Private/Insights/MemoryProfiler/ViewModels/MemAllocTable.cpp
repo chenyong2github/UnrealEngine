@@ -71,7 +71,7 @@ void FMemAllocTable::AddDefaultColumns()
 
 		Column.SetFlags(ETableColumnFlags::ShouldBeVisible | ETableColumnFlags::CanBeHidden | ETableColumnFlags::CanBeFiltered);
 
-		Column.SetHorizontalAlignment(HAlign_Right);
+		Column.SetHorizontalAlignment(HAlign_Left);
 		Column.SetInitialWidth(100.0f);
 
 		Column.SetDataType(ETableCellDataType::Double);
@@ -96,6 +96,8 @@ void FMemAllocTable::AddDefaultColumns()
 		TSharedRef<ITableCellValueSorter> Sorter = MakeShared<FSorterByDoubleValue>(ColumnRef);
 		Column.SetValueSorter(Sorter);
 
+		Column.SetAggregation(ETableColumnAggregation::Min);
+
 		AddColumn(ColumnRef);
 	}
 	//////////////////////////////////////////////////
@@ -112,7 +114,7 @@ void FMemAllocTable::AddDefaultColumns()
 
 		Column.SetFlags(ETableColumnFlags::ShouldBeVisible | ETableColumnFlags::CanBeHidden | ETableColumnFlags::CanBeFiltered);
 
-		Column.SetHorizontalAlignment(HAlign_Right);
+		Column.SetHorizontalAlignment(HAlign_Left);
 		Column.SetInitialWidth(100.0f);
 
 		Column.SetDataType(ETableCellDataType::Double);
@@ -137,6 +139,8 @@ void FMemAllocTable::AddDefaultColumns()
 		TSharedRef<ITableCellValueSorter> Sorter = MakeShared<FSorterByDoubleValue>(ColumnRef);
 		Column.SetValueSorter(Sorter);
 
+		Column.SetAggregation(ETableColumnAggregation::Max);
+
 		AddColumn(ColumnRef);
 	}
 	//////////////////////////////////////////////////
@@ -153,7 +157,7 @@ void FMemAllocTable::AddDefaultColumns()
 
 		Column.SetFlags(ETableColumnFlags::ShouldBeVisible | ETableColumnFlags::CanBeHidden | ETableColumnFlags::CanBeFiltered);
 
-		Column.SetHorizontalAlignment(HAlign_Right);
+		Column.SetHorizontalAlignment(HAlign_Left);
 		Column.SetInitialWidth(100.0f);
 
 		Column.SetDataType(ETableCellDataType::Double);
@@ -235,7 +239,7 @@ void FMemAllocTable::AddDefaultColumns()
 
 		Column.SetFlags(ETableColumnFlags::ShouldBeVisible | ETableColumnFlags::CanBeHidden | ETableColumnFlags::CanBeFiltered);
 
-		Column.SetHorizontalAlignment(HAlign_Right);
+		Column.SetHorizontalAlignment(HAlign_Left);
 		Column.SetInitialWidth(100.0f);
 
 		Column.SetDataType(ETableCellDataType::Int64);
@@ -259,6 +263,8 @@ void FMemAllocTable::AddDefaultColumns()
 
 		TSharedRef<ITableCellValueSorter> Sorter = MakeShared<FSorterByInt64Value>(ColumnRef);
 		Column.SetValueSorter(Sorter);
+
+		Column.SetAggregation(ETableColumnAggregation::Sum);
 
 		AddColumn(ColumnRef);
 	}
