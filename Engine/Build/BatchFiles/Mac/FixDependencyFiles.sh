@@ -16,9 +16,9 @@ if [ $(ls casetest* | wc -l) -gt 1 ]; then
 fi
 rm -f casetest*
 
-# Copy UE4EditorServices to ~/Library/Services
-if [ ! -d ~/Library/Services/UE4EditorServices.app ]; then
-	if [ -d ../../../Binaries/Mac/UE4EditorServices.app ]; then
-		cp -r ../../../Binaries/Mac/UE4EditorServices.app ~/Library/Services/UE4EditorServices.app
+# Copy UnrealEditorServices to ~/Library/Services
+if [ ! -d ~/Library/Services/UnrealEditorServices.app ]; then
+	if [ -d ../../../Binaries/Mac/UnrealEditorServices.app ]; then
+		cp -r ../../../Binaries/Mac/UnrealEditorServices.app ~/Library/Services/UnrealEditorServices.app
 	fi
 fi

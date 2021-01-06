@@ -6,7 +6,7 @@
 #include "Mac/MacSystemIncludes.h"
 #include "Misc/Paths.h"
 
-@interface FUE4EditorServicesAppDelegate : NSObject <NSApplicationDelegate, NSFileManagerDelegate>
+@interface FUnrealEditorServicesAppDelegate : NSObject <NSApplicationDelegate, NSFileManagerDelegate>
 {
 	NSWindow* Window;
 }

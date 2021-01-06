@@ -4,7 +4,7 @@
 #include "RequiredProgramMainCPPInclude.h"
 #include "Modules/ModuleManager.h"
 
-IMPLEMENT_APPLICATION(UE4EditorServices, "UE4EditorServices");
+IMPLEMENT_APPLICATION(UnrealEditorServices, "UnrealEditorServices");
 
 int main(int argc, const char * argv[])
 {

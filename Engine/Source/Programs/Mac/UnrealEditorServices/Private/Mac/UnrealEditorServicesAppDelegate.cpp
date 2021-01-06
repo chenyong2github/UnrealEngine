@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "UE4EditorServicesAppDelegate.h"
+#include "UnrealEditorServicesAppDelegate.h"
 #include "DesktopPlatformModule.h"
 
-@implementation FUE4EditorServicesAppDelegate
+@implementation FUnrealEditorServicesAppDelegate
 
 - (void)applicationDidFinishLaunching:(NSNotification *)Notification
 {
@@ -161,7 +161,7 @@
 	[[Window contentView] addSubview:OKButton];
 	[[Window contentView] addSubview:CancelButton];
 
-	[Window setTitle:@"Choose UE4 Editor..."];
+	[Window setTitle:@"Choose Unreal Editor..."];
 	[Window setRestorable:NO];
 	[Window disableSnapshotRestoration];
 
@@ -410,7 +410,7 @@
 
 - (BOOL)isAppValidForUProjectFiles:(NSBundle*)AppBundle
 {
-	return AppBundle && ([[AppBundle bundleIdentifier] isEqualToString:@"com.epicgames.UnrealEditor"] || [[AppBundle bundleIdentifier] isEqualToString:@"com.epicgames.UE4EditorServices"])
+	return AppBundle && ([[AppBundle bundleIdentifier] isEqualToString:@"com.epicgames.UnrealEditor"] || [[AppBundle bundleIdentifier] isEqualToString:@"com.epicgames.UnrealEditorServices"])
 					 && [[[AppBundle bundlePath] stringByDeletingLastPathComponent] hasSuffix:@"Engine/Binaries/Mac"]
 					 && [[AppBundle bundlePath] rangeOfString:@".app/Contents/UE4"].location == NSNotFound;
 }

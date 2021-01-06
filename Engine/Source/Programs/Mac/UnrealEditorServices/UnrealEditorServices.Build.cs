@@ -2,9 +2,9 @@
 
 using UnrealBuildTool;
 
-public class UE4EditorServices : ModuleRules
+public class UnrealEditorServices : ModuleRules
 {
-	public UE4EditorServices(ReadOnlyTargetRules Target) : base(Target)
+	public UnrealEditorServices(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PublicIncludePaths.Add("Runtime/Launch/Public");
 		PublicIncludePaths.Add("Runtime/Launch/Private"); // Yuck. Required for RequiredProgramMainCPPInclude.h. (Also yuck).

@@ -696,7 +696,7 @@ namespace UnrealBuildTool
 			{
 				// Editor or game builds get all target configs
 				// The game project editor or game get all configs
-				if ((TargetName.StartsWith("UnrealEditor") && !TargetName.StartsWith("UE4EditorServices")) ||
+				if ((TargetName.StartsWith("UnrealEditor") && !TargetName.StartsWith("UnrealEditorServices")) ||
 					TargetName.StartsWith("UnrealGame") ||
 					(IsProjectBuild && TargetName.StartsWith(GameProjectName)))
 				{

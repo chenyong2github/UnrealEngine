@@ -538,7 +538,7 @@ void FDesktopPlatformMac::EnumerateEngineInstallations(TMap<FString, FString> &O
 			NSURL* AppURL = (NSURL*)CFArrayGetValueAtIndex(AllApps, Index);
 			NSBundle* AppBundle = [NSBundle bundleWithURL:AppURL];
 			FString EngineDir = FString([[AppBundle bundlePath] stringByDeletingLastPathComponent]);
-			if (([[AppBundle bundleIdentifier] isEqualToString:@"com.epicgames.UnrealEditor"] || [[AppBundle bundleIdentifier] isEqualToString:@"com.epicgames.UE4EditorServices"])
+			if (([[AppBundle bundleIdentifier] isEqualToString:@"com.epicgames.UnrealEditor"] || [[AppBundle bundleIdentifier] isEqualToString:@"com.epicgames.UnrealEditorServices"])
 				&& EngineDir.RemoveFromEnd(TEXT("/Engine/Binaries/Mac")) && !EngineDir.Contains("Unreal Engine.app/Contents/") && !EngineDir.Contains("Epic Games Launcher.app/Contents/") && !EngineDir.Contains("/Users/Shared/UnrealEngine/Launcher"))
 			{
 				FString EngineId;
@@ -583,7 +583,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		NSBundle* GlobalDefaultAppBundle = [NSBundle bundleWithURL:(__bridge NSURL*)GlobalDefaultAppURL];
 		CFRelease(GlobalDefaultAppURL);
 
-		if ([[GlobalDefaultAppBundle bundleIdentifier] isEqualToString:@"com.epicgames.UE4EditorServices"])
+		if ([[GlobalDefaultAppBundle bundleIdentifier] isEqualToString:@"com.epicgames.UnrealEditorServices"])
 		{
 			return true;
 		}
@@ -593,7 +593,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 bool FDesktopPlatformMac::UpdateFileAssociations()
 {
-	OSStatus Status = LSSetDefaultRoleHandlerForContentType(CFSTR("com.epicgames.uproject"), kLSRolesAll, CFSTR("com.epicgames.UE4EditorServices"));
+	OSStatus Status = LSSetDefaultRoleHandlerForContentType(CFSTR("com.epicgames.uproject"), kLSRolesAll, CFSTR("com.epicgames.UnrealEditorServices"));
 	return Status == noErr;
 }
 

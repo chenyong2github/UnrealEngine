@@ -4,13 +4,13 @@ using UnrealBuildTool;
 using System.Collections.Generic;
 
 [SupportedPlatforms("Mac")]
-public class UE4EditorServicesTarget : TargetRules
+public class UnrealEditorServicesTarget : TargetRules
 {
-	public UE4EditorServicesTarget(TargetInfo Target) : base(Target)
+	public UnrealEditorServicesTarget(TargetInfo Target) : base(Target)
 	{
 		Type = TargetType.Program;
 		LinkType = TargetLinkType.Monolithic;
-		LaunchModuleName = "UE4EditorServices";
+		LaunchModuleName = "UnrealEditorServices";
 
 		bBuildDeveloperTools = false;
 		bUseMallocProfiler = false;
