@@ -2322,17 +2322,6 @@ void FStarshipEditorStyle::FStyle::SetupSequencerStyles()
 		Set("EMovieSceneBlendType::Absolute", new IMAGE_BRUSH("Sequencer/EMovieSceneBlendType_Absolute", FVector2D(32, 16)));
 		Set("EMovieSceneBlendType::Relative", new IMAGE_BRUSH("Sequencer/EMovieSceneBlendType_Relative", FVector2D(32, 16)));
 		Set("EMovieSceneBlendType::Additive", new IMAGE_BRUSH("Sequencer/EMovieSceneBlendType_Additive", FVector2D(32, 16)));
-
-		FToolBarStyle SequencerToolbarStyle = FToolBarStyle(FStarshipCoreStyle::GetCoreStyle().GetWidgetStyle<FToolBarStyle>("ToolBar"));
-
-		// Sequencer & Curve Editor Toolbar Style ( Grabs core default, copies brushes, changes separator and block spacing )
-		SequencerToolbarStyle.SetBackground(FSlateColorBrush(FStyleColors::Background));
-		SequencerToolbarStyle.SetBlockPadding(FMargin(0.0f, 4.0f));
-
-		SequencerToolbarStyle.SetSeparatorBrush(FSlateColorBrush(FLinearColor(FColor(48, 48, 48))));
-		SequencerToolbarStyle.SetSeparatorPadding(FMargin( 1.f, 1.f ));
-
-		Set("Sequencer.ToolBar", SequencerToolbarStyle);
 	}
 
 

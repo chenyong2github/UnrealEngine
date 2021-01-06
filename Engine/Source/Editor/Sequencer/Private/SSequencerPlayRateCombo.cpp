@@ -50,7 +50,7 @@ void SSequencerPlayRateCombo::Construct(const FArguments& InArgs, TWeakPtr<FSequ
 
 			+ SHorizontalBox::Slot()
 			.HAlign(HAlign_Center)
-			.VAlign(VAlign_Fill)
+			.VAlign(VAlign_Center)
 			.AutoWidth()
 			[
 				SNew(STextBlock)
