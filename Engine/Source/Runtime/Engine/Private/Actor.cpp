@@ -418,7 +418,7 @@ void AActor::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
 
 	if (IsPackageExternal() && !IsChildActor())
 	{
-		if (UWorldPartition* WorldPartition = GetWorldSettings()->GetWorldPartition())
+		if (UWorldPartition* WorldPartition = GetLevel()->GetWorldPartition())
 		{
 			TUniquePtr<FWorldPartitionActorDesc> ActorDesc(CreateActorDesc());
 			
