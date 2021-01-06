@@ -33,17 +33,6 @@ void SEnvironmentLightingViewer::Construct(const FArguments& InArgs)
 {
 	UWorld* World = GEditor->GetEditorWorldContext().World();
 
-	bool bFoundSkyAtmosphere = false;
-	USkyAtmosphereComponent* SkyAtmosphereComp = nullptr;
-	for (TObjectIterator<USkyAtmosphereComponent> ComponentIt; ComponentIt; ++ComponentIt)
-	{
-		if (ComponentIt->GetWorld() == World)
-		{
-			SkyAtmosphereComp = *ComponentIt;
-			bFoundSkyAtmosphere = true;
-		}
-	}
-
 	FPropertyEditorModule& PropertyEditorModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
 	FDetailsViewArgs DetailsViewArgs;
 	DetailsViewArgs.bAllowSearch = true;
@@ -300,7 +289,6 @@ void SEnvironmentLightingViewer::Tick(const FGeometry& AllottedGeometry, const d
 		if (InComponent)
 		{
 			DetailsViews[NumDetailsView]->SetObject(InComponent);
-			//DetailsViews[NumDetailsView]->SetColorAndOpacity(ColorAndOpacity);	// This helps to identify the different types. Check with UX team.
 			NumDetailsView++;
 		}
 	};
