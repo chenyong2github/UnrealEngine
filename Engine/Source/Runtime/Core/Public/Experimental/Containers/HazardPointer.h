@@ -29,13 +29,13 @@ public:
 	FHazardDeleter(const FHazardDeleter& Other)
 	{
 		//deliberately stomp over the vtable pointer so that this FHazardDeleter becomes a THazardDeleter
-		FPlatformMemory::Memcpy(this, &Other, sizeof(FHazardDeleter));
+		FPlatformMemory::Memcpy(this, &Other, sizeof(FHazardDeleter)); //-V598
 	}
 
 	FHazardDeleter& operator= (const FHazardDeleter& Other)
 	{
 		//deliberately stomp over the vtable pointer so that this FHazardDeleter becomes a THazardDeleter
-		FPlatformMemory::Memcpy(this, &Other, sizeof(FHazardDeleter));
+		FPlatformMemory::Memcpy(this, &Other, sizeof(FHazardDeleter)); //-V598
 		return *this;
 	}
 
