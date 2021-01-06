@@ -271,7 +271,20 @@ bool FUserManagerEOS::Login(int32 LocalUserNum, const FOnlineAccountCredentials&
 	FAuthCredentials Credentials;
 	LoginOptions.Credentials = &Credentials;
 
-	if (AccountCredentials.Type == TEXT("exchangecode"))
+	// See if we are logging in using platform credentials to link to EAS
+	if (!EOSSubsystem->bIsDefaultOSS && !EOSSubsystem->bIsPlatformOSS && GetDefault<UEOSSettings>()->bUseEAS)
+	{
+		Credentials.Type = EOS_ELoginCredentialType::EOS_LCT_ExternalAuth;
+		FString AuthToken = GetPlatformAuthToken(LocalUserNum);
+		if (AuthToken.IsEmpty())
+		{
+			UE_LOG_ONLINE(Warning, TEXT("Unable to Login() user (%d) due to missing auth parameters"), LocalUserNum);
+			TriggerOnLoginCompleteDelegates(LocalUserNum, false, FUniqueNetIdEOS(), FString(TEXT("Missing auth parameters")));
+			return false;
+		}
+		FCStringAnsi::Strncpy(Credentials.TokenAnsi, TCHAR_TO_UTF8(*AuthToken), EOS_MAX_TOKEN_SIZE);
+	}
+	else if (AccountCredentials.Type == TEXT("exchangecode"))
 	{
 		// This is how the Epic launcher will pass credentials to you
 		FCStringAnsi::Strncpy(Credentials.TokenAnsi, TCHAR_TO_UTF8(*AccountCredentials.Token), EOS_MAX_TOKEN_SIZE);
@@ -283,19 +296,6 @@ bool FUserManagerEOS::Login(int32 LocalUserNum, const FOnlineAccountCredentials&
 		Credentials.Type = EOS_ELoginCredentialType::EOS_LCT_Developer;
 		FCStringAnsi::Strncpy(Credentials.IdAnsi, TCHAR_TO_UTF8(*AccountCredentials.Id), EOS_OSS_STRING_BUFFER_LENGTH);
 		FCStringAnsi::Strncpy(Credentials.TokenAnsi, TCHAR_TO_UTF8(*AccountCredentials.Token), EOS_MAX_TOKEN_SIZE);
-	}
-	// See if we are logging in using platform credentials to link to EAS
-	else if (!EOSSubsystem->bIsDefaultOSS && !EOSSubsystem->bIsPlatformOSS && GetDefault<UEOSSettings>()->bUseEAS)
-	{
-		Credentials.Type = EOS_ELoginCredentialType::EOS_LCT_ExternalAuth;
-		FString AuthToken = GetPlatformAuthToken(LocalUserNum);
-		if (AuthToken.IsEmpty())
-		{
-			UE_LOG_ONLINE(Warning, TEXT("Unable to Login() user (%d) due to missing auth parameters"), LocalUserNum);
-			TriggerOnLoginCompleteDelegates(LocalUserNum, false, FUniqueNetIdEOS(), FString(TEXT("Missing auth parameters")));
-			return false;
-		}
-		FCStringAnsi::Strncpy(Credentials.TokenAnsi, TCHAR_TO_UTF8(*AuthToken), EOS_MAX_TOKEN_SIZE);
 	}
 	else
 	{
