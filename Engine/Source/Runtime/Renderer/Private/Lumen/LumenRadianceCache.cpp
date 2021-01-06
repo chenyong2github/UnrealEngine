@@ -1464,6 +1464,11 @@ void FDeferredShadingSceneRenderer::RenderRadianceCache(
 		}
 
 		const int32 MaxProbeTraceTileResolution = RadianceCacheParameters.RadianceProbeResolution / FRadianceCacheTraceFromProbesCS::GetGroupSize() * 2;
+		checkf(MaxNumProbes > 0 && MaxProbeTraceTileResolution > 0, TEXT("MaxNumProbes %u, MaxProbeTraceTileResolution %u, RadianceProbeResolution %u, GroupSize %u"),
+			MaxNumProbes,
+			MaxProbeTraceTileResolution,
+			RadianceCacheParameters.RadianceProbeResolution,
+			FRadianceCacheTraceFromProbesCS::GetGroupSize());
 		FRDGBufferRef ProbeTraceTileData = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(FIntPoint), MaxNumProbes * MaxProbeTraceTileResolution * MaxProbeTraceTileResolution), TEXT("RadianceCacheProbeTraceTileData"));
 
 		{
