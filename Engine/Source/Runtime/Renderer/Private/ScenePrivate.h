@@ -502,9 +502,7 @@ public:
 	/** Clipmaps of probe indexes, used to lookup the probe index for a world space position. */
 	TRefCountPtr<IPooledRenderTarget> RadianceProbeIndirectionTexture;
 
-	/** Texture containing radiance cache cube map probes, indexed by ProbeIndex decomposed into 2d */
 	TRefCountPtr<IPooledRenderTarget> RadianceProbeAtlasTexture;
-
 	/** Texture containing radiance cache probes, ready for sampling with bilinear border. */
 	TRefCountPtr<IPooledRenderTarget> FinalRadianceAtlas;
 
@@ -514,6 +512,7 @@ public:
 	TRefCountPtr<FRDGPooledBuffer> ProbeFreeListAllocator;
 	TRefCountPtr<FRDGPooledBuffer> ProbeFreeList;
 	TRefCountPtr<FRDGPooledBuffer> ProbeLastUsedFrame;
+	TRefCountPtr<IPooledRenderTarget> DebugBRDFProbabilityDensityFunction;
 
 	void ReleaseTextures()
 	{

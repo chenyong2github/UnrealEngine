@@ -527,6 +527,7 @@ private:
 		const FViewInfo& View, 
 		const class LumenProbeHierarchy::FHierarchyParameters* ProbeHierarchyParameters,
 		const class FScreenProbeParameters* ScreenProbeParameters,
+		FRDGBufferSRVRef BRDFProbabilityDensityFunctionSH,
 		LumenRadianceCache::FRadianceCacheParameters& RadianceCacheParameters);
 
 	/** Whether tiled deferred is supported and can be used at all. */

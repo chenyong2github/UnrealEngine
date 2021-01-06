@@ -5,6 +5,7 @@
 #include "LumenRadianceCacheCommon.ush"
 #include "LumenScreenProbeCommon.ush"
 #include "../SHCommon.ush"
+#include "LumenScreenProbeImportanceSamplingShared.ush"
 
 #ifndef THREADGROUP_SIZE
 #define THREADGROUP_SIZE 1
@@ -22,7 +23,6 @@ RWTexture2D<float> RWBRDFProbabilityDensityFunction;
 RWBuffer<float> RWBRDFProbabilityDensityFunctionSH;
 
 groupshared float4 PixelPlanes[PROBE_THREADGROUP_SIZE_2D][PROBE_THREADGROUP_SIZE_2D];
-#define NUM_PDF_SH_COEFFICIENTS 9
 groupshared float PDF_SphericalHarmonic[PROBE_THREADGROUP_SIZE_2D * PROBE_THREADGROUP_SIZE_2D * 2][NUM_PDF_SH_COEFFICIENTS];
 groupshared uint NumSphericalHarmonics;
 
@@ -90,7 +90,8 @@ void ScreenProbeComputeBRDFProbabilityDensityFunctionCS(
 			{
 				float2 ThreadOffset = GroupThreadId.xy / (float)PROBE_THREADGROUP_SIZE_2D * ScreenProbeDownsampleFactor * 2.0f - 1.0f;
 
-				if (all(GroupThreadId.xy == PROBE_THREADGROUP_SIZE_2D / 2))
+				bool bCenterSample = all(GroupThreadId.xy == PROBE_THREADGROUP_SIZE_2D / 2);
+				if (bCenterSample)
 				{
 					// Make sure we have at least one pixel that won't be rejected by the depth weight
 					ThreadOffset = 0;
@@ -109,7 +110,7 @@ void ScreenProbeComputeBRDFProbabilityDensityFunctionCS(
 				float RelativeDepthDifference = PlaneDistance / SceneDepth;
 				float DepthWeight = exp2(-10000.0f * (RelativeDepthDifference * RelativeDepthDifference));
 
-				if (DepthWeight > .1f)
+				if (DepthWeight > .1f || bCenterSample)
 				{
 					uint Index;
 					InterlockedAdd(NumSphericalHarmonics, 1, Index);
@@ -470,7 +471,6 @@ void ScreenProbeComputeLightingProbabilityDensityFunctionCS(
 RWTexture2D<uint> RWStructuredImportanceSampledRayInfosForTracing;
 
 Texture2D<float> BRDFProbabilityDensityFunction;
-Buffer<float> BRDFProbabilityDensityFunctionSH;
 Texture2D<float> LightingProbabilityDensityFunction;
 float MinPDFToTrace;
 

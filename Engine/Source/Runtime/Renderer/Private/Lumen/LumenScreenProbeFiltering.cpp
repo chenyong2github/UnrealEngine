@@ -54,7 +54,7 @@ FAutoConsoleVariableRef GVarLumenScreenProbeGatherNumMips(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
-float GLumenScreenProbeGatherMaxRayIntensity = 20;
+float GLumenScreenProbeGatherMaxRayIntensity = 100;
 FAutoConsoleVariableRef GVarLumenScreenProbeGatherMaxRayIntensity(
 	TEXT("r.Lumen.ScreenProbeGather.MaxRayIntensity"),
 	GLumenScreenProbeGatherMaxRayIntensity,
@@ -342,7 +342,8 @@ void FilterScreenProbes(
 		PassParameters->RWScreenProbeTraceMoving = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(ScreenProbeTraceMoving));
 		PassParameters->ScreenProbeParameters = ScreenProbeParameters;
 		PassParameters->View = View.ViewUniformBuffer;
-		PassParameters->MaxRayIntensity = GLumenScreenProbeGatherMaxRayIntensity;
+		// This is used to quantize to uint during compositing, prevent poor precision
+		PassParameters->MaxRayIntensity = FMath::Min(GLumenScreenProbeGatherMaxRayIntensity, 100000.0f);
 
 		FScreenProbeCompositeTracesWithScatterCS::FPermutationDomain PermutationVector;
 		PermutationVector.Set< FScreenProbeCompositeTracesWithScatterCS::FThreadGroupSize >(CompositeScatterThreadGroupSize);

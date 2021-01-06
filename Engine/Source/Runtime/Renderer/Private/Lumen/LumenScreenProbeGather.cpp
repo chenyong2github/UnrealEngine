@@ -910,8 +910,12 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 
 	FLumenCardTracingInputs TracingInputs(GraphBuilder, Scene, View);
 
+	FRDGTextureRef BRDFProbabilityDensityFunction = nullptr;
+	FRDGBufferSRVRef BRDFProbabilityDensityFunctionSH = nullptr;
+	GenerateBRDF_PDF(GraphBuilder, View, BRDFProbabilityDensityFunction, BRDFProbabilityDensityFunctionSH, ScreenProbeParameters);
+
 	LumenRadianceCache::FRadianceCacheParameters RadianceCacheParameters;
-	RenderRadianceCache(GraphBuilder, TracingInputs, View, nullptr, &ScreenProbeParameters, RadianceCacheParameters);
+	RenderRadianceCache(GraphBuilder, TracingInputs, View, nullptr, &ScreenProbeParameters, BRDFProbabilityDensityFunctionSH, RadianceCacheParameters);
 
 	if (LumenScreenProbeGather::UseImportanceSampling())
 	{
@@ -919,6 +923,8 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 			GraphBuilder, 
 			View, 
 			RadianceCacheParameters,
+			BRDFProbabilityDensityFunction,
+			BRDFProbabilityDensityFunctionSH,
 			ScreenProbeParameters);
 	}
 

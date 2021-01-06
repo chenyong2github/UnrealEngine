@@ -98,10 +98,19 @@ BEGIN_SHADER_PARAMETER_STRUCT(FCompactedTraceParameters, )
 	SHADER_PARAMETER_RDG_BUFFER(Buffer<uint>, IndirectArgs)
 END_SHADER_PARAMETER_STRUCT()
 
+extern void GenerateBRDF_PDF(
+	FRDGBuilder& GraphBuilder, 
+	const FViewInfo& View, 
+	FRDGTextureRef& BRDFProbabilityDensityFunction,
+	FRDGBufferSRVRef& BRDFProbabilityDensityFunctionSH,
+	FScreenProbeParameters& ScreenProbeParameters);
+
 extern void GenerateImportanceSamplingRays(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
 	const LumenRadianceCache::FRadianceCacheParameters& RadianceCacheParameters,
+	FRDGTextureRef BRDFProbabilityDensityFunction,
+	FRDGBufferSRVRef BRDFProbabilityDensityFunctionSH,
 	FScreenProbeParameters& ScreenProbeParameters);
 
 extern void TraceScreenProbes(

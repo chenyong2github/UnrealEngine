@@ -42,7 +42,6 @@ FAutoConsoleVariableRef CVarLumenRadianceCacheVisualizeProbeRadius(
 );
 
 BEGIN_SHADER_PARAMETER_STRUCT(FVisualizeRadianceCacheCommonParameters, )
-	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 	SHADER_PARAMETER_STRUCT_INCLUDE(LumenRadianceCache::FRadianceCacheParameters, RadianceCacheParameters)
 	SHADER_PARAMETER(FVector, ProbeCoordToWorldCenterBias)
 	SHADER_PARAMETER(float, ProbeCoordToWorldCenterScale)
@@ -56,6 +55,7 @@ class FVisualizeRadianceCacheVS : public FGlobalShader
 	SHADER_USE_PARAMETER_STRUCT(FVisualizeRadianceCacheVS, FGlobalShader);
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FVisualizeRadianceCacheCommonParameters, VisualizeCommonParameters)
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -74,7 +74,9 @@ class FVisualizeRadianceCachePS : public FGlobalShader
 	SHADER_USE_PARAMETER_STRUCT(FVisualizeRadianceCachePS, FGlobalShader);
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FVisualizeRadianceCacheCommonParameters, VisualizeCommonParameters)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float>, DebugBRDFProbabilityDensityFunction)
 	END_SHADER_PARAMETER_STRUCT()
 
 public:
@@ -121,7 +123,6 @@ void FDeferredShadingSceneRenderer::RenderLumenRadianceCacheVisualization(FRDGBu
 			const FRadianceCacheClipmap& Clipmap = RadianceCacheState.Clipmaps[ClipmapIndex];
 
 			FVisualizeRadianceCacheCommonParameters VisualizeCommonParameters;
-			VisualizeCommonParameters.View = View.ViewUniformBuffer;
 			LumenRadianceCache::GetParameters(View, GraphBuilder, VisualizeCommonParameters.RadianceCacheParameters);
 			VisualizeCommonParameters.VisualizeProbeRadiusScale = GLumenRadianceCacheVisualizeRadiusScale;
 			VisualizeCommonParameters.ProbeClipmapIndex = ClipmapIndex;
@@ -131,6 +132,9 @@ void FDeferredShadingSceneRenderer::RenderLumenRadianceCacheVisualization(FRDGBu
 			FVisualizeRadianceCacheParameters* PassParameters = GraphBuilder.AllocParameters<FVisualizeRadianceCacheParameters>();
 			PassParameters->VS.VisualizeCommonParameters = VisualizeCommonParameters;
 			PassParameters->PS.VisualizeCommonParameters = VisualizeCommonParameters;
+			PassParameters->VS.View = GetShaderBinding(View.ViewUniformBuffer);
+			PassParameters->PS.View = GetShaderBinding(View.ViewUniformBuffer);
+			PassParameters->PS.DebugBRDFProbabilityDensityFunction = GraphBuilder.RegisterExternalTexture(RadianceCacheState.DebugBRDFProbabilityDensityFunction);
 
 			PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(
 				SceneDepth,

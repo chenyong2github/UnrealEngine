@@ -1330,7 +1330,7 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenProbeHierarchy(
 	if (UseRadianceCache(View))
 	{
 		FLumenCardTracingInputs TracingInputs(GraphBuilder, Scene, View);
-		RenderRadianceCache(GraphBuilder, TracingInputs, View, &ProbeHierachyParameters, nullptr, RadianceCacheParameters);
+		RenderRadianceCache(GraphBuilder, TracingInputs, View, &ProbeHierachyParameters, nullptr, nullptr, RadianceCacheParameters);
 	}
 
 	// Full probe occlusion tracing.
