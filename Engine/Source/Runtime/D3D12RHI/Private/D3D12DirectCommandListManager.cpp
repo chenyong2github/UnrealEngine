@@ -943,7 +943,6 @@ uint32 FD3D12CommandListManager::GetResourceBarrierCommandList(FD3D12CommandList
 
 #if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
 		const uint32 BarrierCount = BarrierDescs.Num() + BackBufferBarrierDescs.Num();
-		if (BarrierDescs.Num() > 0 || BackBufferBarrierDescs.Num() > 0)
 #else // #if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
 		const uint32 BarrierCount = BarrierDescs.Num();
 #endif // #else // #if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
