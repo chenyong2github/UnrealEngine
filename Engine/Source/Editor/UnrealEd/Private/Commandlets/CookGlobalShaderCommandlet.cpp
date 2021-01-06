@@ -76,13 +76,6 @@ int32 UCookGlobalShadersCommandlet::Main(const FString& Params)
 		TargetPlatform->RefreshSettings();
 	}
 
-	// Set PDB path
-	FString ShaderPDBPath;
-	if ( FParse::Value(*Params, TEXT("shaderpdb="), ShaderPDBPath, true) )
-	{
-		GConfig->SetString(TEXT("DevOptions.Shaders"), TEXT("ShaderPDBRoot"), *ShaderPDBPath, GEngineIni);
-	}
-
 	// Get target device
 	ITargetDevicePtr TargetDevice;
 	FString TargetDeviceName;
