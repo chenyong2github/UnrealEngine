@@ -76,6 +76,19 @@ void FPhysicsDataCollection::CopyGeometryToAggregate()
 	{
 		FKConvexElem Element;
 		UE::Geometry::GetFKElement(ConvexGeom.Mesh, Element);
+
+#if WITH_PHYSX
+		// Chaos will compute the IndexData itself on the call to FKConvexElem::UpdateElemBox() in ::GetFKElement() above.
+		// PhysX will not, so initialize that data with the mesh triangles.
+		// (This code should go into ::GetFKElement but cannot because it needs to be added in a hotfix)
+		for (FIndex3i Triangle : ConvexGeom.Mesh.TrianglesItr())
+		{
+			Element.IndexData.Add(Triangle.A);
+			Element.IndexData.Add(Triangle.B);
+			Element.IndexData.Add(Triangle.C);
+		}
+#endif
+
 		AggGeom.ConvexElems.Add(Element);
 	}
 }
