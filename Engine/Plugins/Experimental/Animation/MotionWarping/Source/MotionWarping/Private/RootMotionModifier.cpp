@@ -3,6 +3,7 @@
 #include "RootMotionModifier.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "Animation/AnimMontage.h"
 #include "MotionWarpingComponent.h"
 #include "DrawDebugHelpers.h"
