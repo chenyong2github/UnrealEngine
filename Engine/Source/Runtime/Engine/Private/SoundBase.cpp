@@ -22,6 +22,11 @@ USoundBase::USoundBase(const FObjectInitializer& ObjectInitializer)
 #if WITH_EDITORONLY_DATA
 	MaxConcurrentPlayCount_DEPRECATED = 16;
 #endif // WITH_EDITORONLY_DATA
+
+	//Migrate bOutputToBusOnly settings to Enablement based UI
+	bEnableBusSends = true;
+	bEnableBaseSubmix = true;
+	bEnableSubmixSends = true;
 }
 
 void USoundBase::PostInitProperties()
@@ -194,6 +199,15 @@ void USoundBase::PostLoad()
 {
 	Super::PostLoad();
 
+	if (bOutputToBusOnly_DEPRECATED == uint8(true))
+	{
+		bEnableBusSends = true;
+		bEnableBaseSubmix = !bOutputToBusOnly_DEPRECATED;
+		bEnableSubmixSends = !bOutputToBusOnly_DEPRECATED;
+		bOutputToBusOnly_DEPRECATED = false;
+	}
+	
+	
 	const int32 LinkerUE4Version = GetLinkerUE4Version();
 
 	if (LinkerUE4Version < VER_UE4_SOUND_CONCURRENCY_PACKAGE)

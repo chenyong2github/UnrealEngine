@@ -265,7 +265,9 @@ namespace Audio
 			SourceInfo.bUseOcclusionPlugin = false;
 			SourceInfo.bUseReverbPlugin = false;
 			SourceInfo.bHasStarted = false;
-			SourceInfo.bOutputToBusOnly = false;
+			SourceInfo.bEnableBusSends = false;
+			SourceInfo.bEnableBaseSubmix = false;
+			SourceInfo.bEnableSubmixSends = false;
 			SourceInfo.bIsVorbis = false;
 			SourceInfo.bIsBypassingLPF = false;
 			SourceInfo.bIsBypassingHPF = false;
@@ -582,7 +584,9 @@ namespace Audio
 		SourceInfo.bUseOcclusionPlugin = false;
 		SourceInfo.bUseReverbPlugin = false;
 		SourceInfo.bHasStarted = false;
-		SourceInfo.bOutputToBusOnly = false;
+		SourceInfo.bEnableBusSends = false;
+		SourceInfo.bEnableBaseSubmix = false;
+		SourceInfo.bEnableSubmixSends = false;
 		SourceInfo.bIsBypassingLPF = false;
 		SourceInfo.bIsBypassingHPF = false;
 		SourceInfo.bHasPreDistanceAttenuationSend = false;
@@ -820,15 +824,16 @@ namespace Audio
 				SourceInfo.bEffectTailsDone = !InitParams.bPlayEffectChainTails;
 				SourceInfo.SourceEffectChainId = InitParams.SourceEffectChainId;
 
-				// Whether or not to output to bus only
-				SourceInfo.bOutputToBusOnly = InitParams.bOutputToBusOnly;
-
+				// Which forms of routing to enable
+				SourceInfo.bEnableBusSends = InitParams.bEnableBusSends;
+				SourceInfo.bEnableBaseSubmix = InitParams.bEnableBaseSubmix;
+				SourceInfo.bEnableSubmixSends = InitParams.bEnableSubmixSends;
+				
 				// Add the effect chain instances 
 				SourceInfo.SourceEffects = SourceEffectChain;
-
+				
 				// Add a slot entry for the preset so it can change while running. This will get sent to the running effect instance if the preset changes.
 				SourceInfo.SourceEffectPresets.Add(nullptr);
-
 				// If this is going to be a source bus, add this source id to the list of active bus ids
 				if (InitParams.AudioBusId != INDEX_NONE)
 				{
@@ -2280,12 +2285,12 @@ namespace Audio
 
 			const bool bModActive = MixerDevice->IsModulationPluginEnabled() && MixerDevice->ModulationInterface.IsValid();
 			bool bUpdateModFilters = bModActive && (SourceInfo.bModFiltersUpdated || SourceInfo.LowpassModulation.IsActive() || SourceInfo.HighpassModulation.IsActive());
-			if (!SourceInfo.bOutputToBusOnly || bUpdateModFilters)
+			if (SourceInfo.IsRenderingToSubmixes() || bUpdateModFilters)
 			{
 				// Only scale with distance attenuation and send to source audio to plugins if we're not in output-to-bus only mode
 				const int32 NumOutputSamplesThisSource = NumOutputFrames * SourceInfo.NumInputChannels;
 
-				if (SourceInfo.bOutputToBusOnly)
+				if (!SourceInfo.IsRenderingToSubmixes())
 				{
 					SourceInfo.LowpassModulation.ProcessControl(SourceInfo.LowpassModulationBase);
 					SourceInfo.LowPassFilter.StartFrequencyInterpolation(SourceInfo.LowpassModulation.GetValue(), NumOutputFrames);
@@ -2335,7 +2340,7 @@ namespace Audio
 				}
 			}
 
-			if (!SourceInfo.bOutputToBusOnly)
+			if (SourceInfo.IsRenderingToSubmixes())
 			{
 				// Apply distance attenuation
 				ApplyDistanceAttenuation(SourceInfo, NumSamples);
@@ -2377,7 +2382,7 @@ namespace Audio
 			// If we're in generate buses mode and not a bus, or vice versa, or if we're set to only output audio to buses.
 			// If set to output buses, no need to do any panning for the source. The buses will do the panning.
 			const bool bIsSourceBus = SourceInfo.AudioBusId != INDEX_NONE;
-			if ((bGenerateBuses && !bIsSourceBus) || (!bGenerateBuses && bIsSourceBus) || SourceInfo.bOutputToBusOnly)
+			if ((bGenerateBuses && !bIsSourceBus) || (!bGenerateBuses && bIsSourceBus) || !SourceInfo.IsRenderingToSubmixes())
 			{
 				continue;
 			}
@@ -2877,6 +2882,11 @@ namespace Audio
 				PendingSourceBuffers.RemoveAtSwap(i, 1, false);
 			}
 		}
+	}
+
+	bool FMixerSourceManager::FSourceInfo::IsRenderingToSubmixes() const
+	{
+		return bEnableBaseSubmix || bEnableSubmixSends;
 	}
 
 }
