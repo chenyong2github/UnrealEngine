@@ -289,7 +289,8 @@ static bool IsShaderCompilerConfigEnabledForPlatform(const IConsoleVariable* Glo
 	{
 		bEnabled = true;
 	}
-#if WITH_EDITOR
+	// TODO: christopher.waters - find out a better way to load these to prevent excessive ini load times on startup without cached ini files.
+#if WITH_EDITOR && 0
 	else
 	{
 		// Then check the per platform settings.
