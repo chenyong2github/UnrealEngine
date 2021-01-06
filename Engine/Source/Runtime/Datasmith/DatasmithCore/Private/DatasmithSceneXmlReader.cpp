@@ -745,11 +745,6 @@ void FDatasmithSceneXmlReader::ParseActor(FXmlNode* InNode, TSharedPtr<IDatasmit
 		{
 			// @todo: If attribute does not exist, default value should be true not false.
 			InOutElement->SetVisibility(FCString::ToBool(*ChildNode->GetAttribute(TEXT("visible"))));
-			InOutElement->SetAsSelector(FCString::ToBool(*ChildNode->GetAttribute(TEXT("selector"))));
-			if (InOutElement->IsASelector())
-			{
-				InOutElement->SetSelectionIndex(FCString::Atoi(*ChildNode->GetAttribute(TEXT("selection"))));
-			}
 
 			// Recursively parse the children, can be of any supported actor type
 			for (FXmlNode* ChildActorNode : ChildNode->GetChildrenNodes())

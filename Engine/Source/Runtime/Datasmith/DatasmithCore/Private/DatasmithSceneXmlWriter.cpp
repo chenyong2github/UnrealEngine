@@ -610,20 +610,15 @@ void FDatasmithSceneXmlWriterImpl::WriteActorChildren(const TSharedPtr< IDatasmi
 	FString XmlString;
 	if (ActorElement->GetChildrenCount() > 0)
 	{
-		if (ActorElement->IsASelector())
+		if (!ActorElement->GetVisibility())
 		{
-			XmlString = TEXT("<children visible=\"true\"  selector=\"true\" ");
-		}
-		else if (!ActorElement->GetVisibility())
-		{
-			XmlString = TEXT("<children visible=\"false\"  selector=\"false\" ");
+			XmlString = TEXT("<children visible=\"false\">");
 		}
 		else
 		{
-			XmlString = TEXT("<children visible=\"true\"  selector=\"false\" ");
+			XmlString = TEXT("<children visible=\"true\">");
 		}
-
-		XmlString += FString::Printf(TEXT("selection=\"%d\">"), ActorElement->GetSelectionIndex()) + LINE_TERMINATOR;
+		XmlString += LINE_TERMINATOR;
 
 		WriteIndent(Archive, Indent + 1);
 		SerializeToArchive(Archive, XmlString);

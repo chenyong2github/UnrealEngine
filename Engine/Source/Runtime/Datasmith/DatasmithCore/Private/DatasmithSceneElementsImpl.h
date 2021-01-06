@@ -93,9 +93,8 @@ private:
 enum class EActorFlags : uint8
 {
 	IsAComponent       = 0x01,
-	IsASelector        = 0x02,
+	IsASelector        = 0x02, // Deprecated
 	IsVisible          = 0x04,
-	UseParentTransform = 0x08,
 };
 ENUM_CLASS_FLAGS(EActorFlags);
 
@@ -120,10 +119,6 @@ public:
 	virtual void SetRotation(float InX, float InY, float InZ, float InW) override { SetRotation( FQuat( InX, InY, InZ, InW ) ); }
 	virtual void SetRotation(const FQuat& Value) override { ConvertChildsToRelative(); SetInternalRotation(Value); ConvertChildsToWorld(); }
 
-	virtual void SetUseParentTransform(bool bInUseParentTransform) override
-	{
-		UPDATE_BITFLAGS(Flags, bInUseParentTransform, EActorFlags::UseParentTransform);
-	}
 	virtual FTransform GetRelativeTransform() const override;
 
 	virtual const TCHAR* GetLayer() const override { return *(FString&)Layer; }
@@ -159,15 +154,6 @@ public:
 
 	virtual void SetIsAComponent(bool Value) { UPDATE_BITFLAGS(Flags, Value, EActorFlags::IsAComponent); }
 	virtual bool IsAComponent() const override { return !!(Flags & EActorFlags::IsAComponent); }
-
-	virtual void SetAsSelector(bool bInAsSelector) override { UPDATE_BITFLAGS(Flags, bInAsSelector, EActorFlags::IsASelector); }
-	virtual bool IsASelector() const override { return !!(Flags & EActorFlags::IsASelector); }
-
-	/** Set the index of the child which is active in a selector  */
-	virtual void SetSelectionIndex(int32 InSelectionIdx) override { SelectionIdx = InSelectionIdx; }
-
-	/** Get the index of the child which is active in a selector. Default is -1.  */
-	virtual int32 GetSelectionIndex() const override { return SelectionIdx; }
 
 	virtual void SetVisibility(bool bInVisibility) override { UPDATE_BITFLAGS(Flags, bInVisibility, EActorFlags::IsVisible); }
 	virtual bool GetVisibility() const override { return !!(Flags & EActorFlags::IsVisible); }
@@ -210,7 +196,7 @@ inline FDatasmithActorElementImpl<T>::FDatasmithActorElementImpl(const TCHAR* In
 	, Translation(FVector::ZeroVector)
 	, Scale(FVector::OneVector)
 	, Rotation(FQuat::Identity)
-	, Flags(EActorFlags::IsVisible|EActorFlags::UseParentTransform)
+	, Flags(EActorFlags::IsVisible)
 	, SelectionIdx(-1)
 {
 	this->RegisterReferenceProxy(Children, "Children");
@@ -230,7 +216,7 @@ inline FTransform FDatasmithActorElementImpl<T>::GetRelativeTransform() const
 {
 	FTransform ActorTransform( GetRotation(), GetTranslation(), GetScale() );
 
-	if ( Parent.Inner.IsValid() && !!(Flags & EActorFlags::UseParentTransform) )
+	if ( Parent.Inner.IsValid() )
 	{
 		FTransform ParentTransform( Parent.Inner->GetRotation(), Parent.Inner->GetTranslation(), Parent.Inner->GetScale() );
 

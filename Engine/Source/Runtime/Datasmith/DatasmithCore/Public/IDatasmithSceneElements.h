@@ -103,9 +103,6 @@ public:
 	/** Set rotation (in quaternion format) of this entity */
 	virtual void SetRotation(const FQuat& Value) = 0;
 
-	/** Sets to adjust the actor transform relative to it's parent */
-	virtual void SetUseParentTransform(bool bUseParentTransform) = 0;
-
 	/** Returns the relative transform for this element */
 	virtual FTransform GetRelativeTransform() const = 0;
 
@@ -142,18 +139,6 @@ public:
 	/** Indicates if this actor is a standalone actor or a component, when used in a hierarchy */
 	virtual void SetIsAComponent(bool Value) = 0;
 	virtual bool IsAComponent() const = 0;
-
-	/** Set a mesh actor as a switch or not */
-	virtual void SetAsSelector(bool bInIsASelector) = 0;
-
-	/** Get if a mesh actor is a switch or not */
-	virtual bool IsASelector() const = 0;
-
-	/** Set the index of the visible child of a mesh actor which is a selector */
-	virtual void SetSelectionIndex(int32 InSelectionID) = 0;
-
-	/** Get the index of the visible child of a mesh actor which is a selector */
-	virtual int32 GetSelectionIndex() const = 0;
 
 	/** Get a mesh actor's visibility */
 	virtual void SetVisibility(bool bInVisibility) = 0;
