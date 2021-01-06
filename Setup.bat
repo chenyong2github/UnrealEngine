@@ -32,9 +32,11 @@ if not exist .\Engine\Binaries\Win64\UnrealVersionSelector-Win64-Shipping.exe go
 :no_unreal_version_selector
 
 rem Done!
-goto :EOF
+goto :end
 
 rem Error happened. Wait for a keypress before quitting.
 :error
 pause
 
+:end
+popd
