@@ -5123,7 +5123,7 @@ UClass* UClass::GetAuthoritativeClass()
 		const TMap<UClass*, UClass*>& ReinstancedClasses = GetClassesToReinstanceForHotReload();
 		if (UClass* const* FoundMapping = ReinstancedClasses.Find(this))
 		{
-			return *FoundMapping;
+			return *FoundMapping ? *FoundMapping : this;
 		}
 	}
 #endif
