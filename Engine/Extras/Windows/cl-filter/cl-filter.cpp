@@ -385,7 +385,7 @@ bool GetLocalizedIncludePrefix(UINT CodePage, const wchar_t* LibraryPath, HMODUL
 	}
 
 	// Figure out how large the buffer needs to be to hold the MBCS version
-	int Length = WideCharToMultiByte(CP_ACP, 0, Text, (int)(TextEnd - Text), NULL, 0, NULL, NULL);
+	int Length = WideCharToMultiByte(CodePage, 0, Text, (int)(TextEnd - Text), NULL, 0, NULL, NULL);
 	if (Length == 0)
 	{
 		wprintf(L"WARNING: unable to query size for MBCS output buffer (input text '%s', library %s)", Text, LibraryPath);
