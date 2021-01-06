@@ -29,7 +29,8 @@ void ComputeSimplify(FDynamicMesh3* TargetMesh, const bool bReproject,
 					 bool bPreserveSharpEdges, bool bAllowSeamCollapse,
 					 const ESimplifyTargetType TargetMode,
 					 const float TargetPercentage, const int TargetCount, const float TargetEdgeLength,
-					 const float AngleThreshold)
+					 const float AngleThreshold,
+	                 typename SimplificationType::ESimplificationCollapseModes CollapseMode = typename SimplificationType::ESimplificationCollapseModes::MinimalQuadricPositionError)
 {
 	SimplificationType Reducer(TargetMesh);
 
@@ -63,6 +64,12 @@ void ComputeSimplify(FDynamicMesh3* TargetMesh, const bool bReproject,
 	{
 		FMeshProjectionTarget ProjTarget(&OriginalMesh, &OriginalMeshSpatial);
 		Reducer.SetProjectionTarget(&ProjTarget);
+	}
+
+	// MinimalPlanar is a special path that ignores the collapse mode (and quadric error ), so don't bother setting it.
+	if (TargetMode != ESimplifyTargetType::MinimalPlanar)
+	{
+		Reducer.CollapseMode = CollapseMode;
 	}
 
 	if (TargetMode == ESimplifyTargetType::Percentage)
@@ -137,6 +144,17 @@ void FSimplifyMeshOp::CalculateResult(FProgressCancel* Progress)
 			MaterialBoundaryConstraint,
 			bPreserveSharpEdges, bAllowSeamCollapse,
 			ESimplifyTargetType::MinimalPlanar, TargetPercentage, TargetCount, TargetEdgeLength, MinimalPlanarAngleThresh);
+	}
+	else if (SimplifierType == ESimplifyType::MinimalExistingVertex)
+	{
+		ResultMesh->Copy(*OriginalMesh, true, true, true, !bDiscardAttributes);
+		ComputeSimplify<FQEMSimplification>(TargetMesh, bReproject, OriginalTriCount, *OriginalMesh, *OriginalMeshSpatial,
+			MeshBoundaryConstraint,
+			GroupBoundaryConstraint,
+			MaterialBoundaryConstraint,
+			bPreserveSharpEdges, bAllowSeamCollapse,
+			TargetMode, TargetPercentage, TargetCount, TargetEdgeLength, MinimalPlanarAngleThresh, 
+			FQEMSimplification::ESimplificationCollapseModes::MinimalExistingVertexError);
 	}
 	else // SimplifierType == ESimplifyType::UE4Standard
 	{

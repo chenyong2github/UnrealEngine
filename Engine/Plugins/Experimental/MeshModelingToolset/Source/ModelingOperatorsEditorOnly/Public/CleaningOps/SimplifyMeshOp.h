@@ -38,17 +38,21 @@ enum class ESimplifyTargetType : uint8
 UENUM()
 enum class ESimplifyType : uint8
 {
-	/** Fastest. Standard quadric error metric. Will not simplify UV boundaries.*/
+	/** Fastest. Standard quadric error metric.*/
 	QEM = 0 UMETA(DisplayName = "QEM"),
 
-	/** Potentially higher quality. Takes the normal into account. Will not simplify UV bounaries. */
+	/** Potentially higher quality. Takes the normal into account. */
 	Attribute = 1 UMETA(DisplayName = "Normal Aware"),
 
-	/** Highest quality reduction.  Will simplify UV boundaries. */
+	/** Highest quality reduction. */
 	UE4Standard = 2 UMETA(DisplayName = "UE4 Standard"),
 
-	/** Collapse any spurious edges but do not change the 3D shape */
-	MinimalPlanar = 3 UMETA(DisplayName = "Minimal Shape-Preserving"),
+	/** Edge collapse to existing vertices only.  Quality may suffer.*/
+	MinimalExistingVertex = 3 UMETA(DisplayName = "Existing Positions"),
+
+	/** Collapse any spurious edges but do not change the 3D shape. */
+	MinimalPlanar = 4 UMETA(DisplayName = "Minimal Shape-Preserving"),
+
 };
 
 class MODELINGOPERATORSEDITORONLY_API FSimplifyMeshOp : public FDynamicMeshOperator
