@@ -3,6 +3,7 @@
 #pragma once
 
 #include "AllocationsProvider.h"
+#include "CallstacksProvider.h"
 #include "Async/TaskGraphInterfaces.h"
 #include "Containers/Queue.h"
 #include "HAL/PlatformAtomics.h"
@@ -25,7 +26,7 @@ class FAllocationsQuery
 	friend class FAllocationsQueryAsyncTask;
 
 public:
-	FAllocationsQuery(const FAllocationsProvider& InProvider, const IAllocationsProvider::FQueryParams& InParams);
+	FAllocationsQuery(const FAllocationsProvider& InAllocationsProvider, const FCallstacksProvider& InCallstacksProvider, const IAllocationsProvider::FQueryParams& InParams);
 
 	void Cancel();
 	IAllocationsProvider::FQueryStatus Poll();
@@ -35,7 +36,8 @@ private:
 	void QueryLiveAllocs(TArray<const FAllocationItem*>& OutAllocs) const;
 
 private:
-	const FAllocationsProvider& Provider;
+	const FAllocationsProvider& AllocationsProvider;
+	const FCallstacksProvider& CallstacksProvider;
 
 	IAllocationsProvider::FQueryParams Params;
 

@@ -43,8 +43,9 @@ private:
 // FAllocationsQuery
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FAllocationsQuery::FAllocationsQuery(const FAllocationsProvider& InProvider, const IAllocationsProvider::FQueryParams& InParams)
-	: Provider(InProvider)
+FAllocationsQuery::FAllocationsQuery(const FAllocationsProvider& InAllocationProvider, const FCallstacksProvider& InCallstacksProvider, const IAllocationsProvider::FQueryParams& InParams)
+	: AllocationsProvider(InAllocationProvider)
+	, CallstacksProvider(InCallstacksProvider)
 	, Params(InParams)
 	, IsWorking(true)
 	, IsCanceling(false)
@@ -104,12 +105,12 @@ void FAllocationsQuery::Run()
 	uint32 CellCount = 0;
 	uint32 TotalAllocationCount = 0;
 
-	Provider.BeginRead();
+	AllocationsProvider.BeginRead();
 
-	const FSbTree* SbTree = Provider.GetSbTree();
+	const FSbTree* SbTree = AllocationsProvider.GetSbTree();
 	if (SbTree)
 	{
-		UE_LOG(LogTraceServices, Log, TEXT("[MemAlloc] Processing %d live allocs..."), Provider.GetNumLiveAllocs());
+		UE_LOG(LogTraceServices, Log, TEXT("[MemAlloc] Processing %d live allocs..."), AllocationsProvider.GetNumLiveAllocs());
 
 		FAllocationsImpl* LiveAllocsResult = new FAllocationsImpl();
 		QueryLiveAllocs(LiveAllocsResult->Items);
@@ -155,6 +156,15 @@ void FAllocationsQuery::Run()
 			const uint32 NumAllocs = static_cast<uint32>(CellResult->Items.Num());
 			if (NumAllocs != 0)
 			{
+				for (auto Item : CellResult->Items)
+				{
+					if (!Item->Callstack)
+					{
+						Item->Callstack = CallstacksProvider.GetCallstack(Item->Owner);
+						// check(Item->Callstack);
+					}
+				}
+
 				UE_LOG(LogTraceServices, Log, TEXT("[MemAlloc] Enqueue %u allocs..."), NumAllocs);
 				TotalAllocationCount += NumAllocs;
 				Results.Enqueue(CellResult);
@@ -168,7 +178,7 @@ void FAllocationsQuery::Run()
 		UE_LOG(LogTraceServices, Log, TEXT("[MemAlloc] Done"));
 	}
 
-	Provider.EndRead();
+	AllocationsProvider.EndRead();
 
 	IsWorking = false;
 
@@ -185,7 +195,7 @@ void FAllocationsQuery::Run()
 
 void FAllocationsQuery::QueryLiveAllocs(TArray<const FAllocationItem*>& OutAllocs) const
 {
-	const TMap<uint64, FAllocationItem>& LiveAllocs = Provider.GetLiveAllocs();
+	const TMap<uint64, FAllocationItem>& LiveAllocs = AllocationsProvider.GetLiveAllocs();
 
 	// TODO: Live allocs have the end time set to std::numeric_limits<double>::infinity(),
 	//       so the conditions below could be simplified to remove the end time checks.

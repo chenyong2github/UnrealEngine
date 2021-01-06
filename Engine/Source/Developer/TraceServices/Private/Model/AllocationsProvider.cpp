@@ -6,6 +6,7 @@
 #include "Containers/ArrayView.h"
 #include "SbTree.h"
 #include "TraceServices/Containers/Allocators.h"
+#include "TraceServices/Model/Callstack.h"
 
 #include <limits>
 
@@ -225,11 +226,10 @@ uint32 IAllocationsProvider::FAllocation::GetAlignment() const
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-
-uint64 IAllocationsProvider::FAllocation::GetBacktraceId() const
+const FCallstack* IAllocationsProvider::FAllocation::GetCallstack() const
 {
 	const auto* Inner = (const FAllocationItem*)this;
-	return Inner->Owner;
+	return Inner->Callstack;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -290,19 +290,19 @@ IAllocationsProvider::FQueryResult IAllocationsProvider::FQueryStatus::NextResul
 // FAllocationsProvider
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FAllocationsProvider::FAllocationsProvider(ILinearAllocator& InAllocator)
-	: Allocator(InAllocator)
+FAllocationsProvider::FAllocationsProvider(IAnalysisSession& InSession)
+	: Session(InSession)
 	, SbTree(nullptr)
-	, Timeline(InAllocator, 1024)
-	, MinTotalAllocatedMemoryTimeline(InAllocator, 1024)
-	, MaxTotalAllocatedMemoryTimeline(InAllocator, 1024)
-	, MinLiveAllocationsTimeline(InAllocator, 1024)
-	, MaxLiveAllocationsTimeline(InAllocator, 1024)
-	, AllocEventsTimeline(InAllocator, 1024)
-	, FreeEventsTimeline(InAllocator, 1024)
+	, Timeline(Session.GetLinearAllocator(), 1024)
+	, MinTotalAllocatedMemoryTimeline(Session.GetLinearAllocator(), 1024)
+	, MaxTotalAllocatedMemoryTimeline(Session.GetLinearAllocator(), 1024)
+	, MinLiveAllocationsTimeline(Session.GetLinearAllocator(), 1024)
+	, MaxLiveAllocationsTimeline(Session.GetLinearAllocator(), 1024)
+	, AllocEventsTimeline(Session.GetLinearAllocator(), 1024)
+	, FreeEventsTimeline(Session.GetLinearAllocator(), 1024)
 {
 	const uint32 ColumnShift = 17; // 1<<17 = 128K
-	SbTree = new FSbTree(InAllocator, ColumnShift);
+	SbTree = new FSbTree(Session.GetLinearAllocator(), ColumnShift);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -417,9 +417,9 @@ void FAllocationsProvider::EditAlloc(double Time, uint64 Owner, uint64 Address, 
 			Owner,
 			Address,
 			FAllocationItem::PackSizeAndAlignment(Size, InAlignmentAndSizeLower & AlignmentMask),
+			nullptr,
 			Tag,
 			0, // Reserverd1
-			0, // Reserverd2
 		};
 		LiveAllocs.Add(Address, Allocation);
 
@@ -904,7 +904,8 @@ void FAllocationsProvider::DebugPrint() const
 
 IAllocationsProvider::FQueryHandle FAllocationsProvider::StartQuery(const IAllocationsProvider::FQueryParams& Params) const
 {
-	auto* Inner = new FAllocationsQuery(*this, Params);
+	const FCallstacksProvider* CallstacksProvider = Session.ReadProvider<FCallstacksProvider>(FName("CallstacksProvider"));
+	auto* Inner = new FAllocationsQuery(*this, *CallstacksProvider, Params);
 	return IAllocationsProvider::FQueryHandle(Inner);
 }
 

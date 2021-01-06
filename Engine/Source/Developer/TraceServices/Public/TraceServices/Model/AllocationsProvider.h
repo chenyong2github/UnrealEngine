@@ -88,7 +88,7 @@ public:
 		uint64 GetAddress() const;
 		uint64 GetSize() const;
 		uint32 GetAlignment() const;
-		uint64 GetBacktraceId() const;
+		const struct FCallstack* GetCallstack() const;
 		uint32 GetTag() const;
 	};
 

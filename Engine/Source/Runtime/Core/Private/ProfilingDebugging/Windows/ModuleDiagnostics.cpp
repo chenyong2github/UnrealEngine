@@ -32,6 +32,11 @@ struct FNtDllFunction
 
 ////////////////////////////////////////////////////////////////////////////////
 UE_TRACE_CHANNEL(ModuleChannel, "Module information needed for symbols resolution", true)
+ 
+UE_TRACE_EVENT_BEGIN(Diagnostics, ModuleInit, NoSync|Important)
+	UE_TRACE_EVENT_FIELD(UE::Trace::AnsiString, SymbolFormat)
+	UE_TRACE_EVENT_FIELD(uint8, ModuleBaseShift)
+UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN(Diagnostics, ModuleLoad, NoSync|Important)
 	UE_TRACE_EVENT_FIELD(UE::Trace::WideString, Name)
@@ -91,6 +96,10 @@ FModuleTrace* FModuleTrace::Get()
 void FModuleTrace::Initialize()
 {
 	using namespace UE::Trace;
+
+	UE_TRACE_LOG(Diagnostics, ModuleInit, ModuleChannel, sizeof(char) * 3)
+		<< ModuleInit.SymbolFormat("pdb", 3)
+		<< ModuleInit.ModuleBaseShift(uint8(16));
 
 	// Register for DLL load/unload notifications.
 	auto Thunk = [] (ULONG Reason, const void* Data, void* Context)

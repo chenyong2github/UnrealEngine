@@ -2,6 +2,7 @@
 
 #include "CallstacksProvider.h"
 #include "Misc/ScopeRWLock.h"
+#include "ModuleProvider.h"
 #include "TraceServices/Model/AnalysisSession.h"
 #include "Algo/Unique.h"
 #include "Containers/ArrayView.h"
@@ -21,8 +22,11 @@ static struct FCallstackProviderStats
 #endif
 
 /////////////////////////////////////////////////////////////////////
-FCallstacksProvider::FCallstacksProvider(IAnalysisSession& Session)
-	: Frames(Session.GetLinearAllocator(), FramesPerPage) 
+FCallstacksProvider::FCallstacksProvider(IAnalysisSession& InSession)
+	: Session(InSession)
+	, ModuleProvider(nullptr)
+	, Callstacks(InSession.GetLinearAllocator(), CallstacksPerPage)
+	, Frames(InSession.GetLinearAllocator(), FramesPerPage)
 {
 }
 
@@ -40,6 +44,13 @@ void FCallstacksProvider::AddCallstack(uint64 InCallstackId, const uint64* InFra
 	GCallstackStats.FrameCountHistogram[InFrameCount]++;
 #endif
 
+	// The module provider is created on the fly so we want to cache it 
+	// once it's available.
+	if (!ModuleProvider)
+	{
+		ModuleProvider = Session.EditProvider<IModuleProvider>(FName("ModuleProvider"));
+	}
+
 	// Make sure all the frames fit on one page by appending dummy entries.
 	const uint64 PageHeadroom = Frames.GetPageSize() - (Frames.Num() % Frames.GetPageSize());
 	if (PageHeadroom < InFrameCount)
@@ -55,33 +66,30 @@ void FCallstacksProvider::AddCallstack(uint64 InCallstackId, const uint64* InFra
 	{
 		FStackFrame& F = Frames.PushBack();
 		F.Addr = InFrames[FrameIdx];
-		F.Symbol = nullptr;
+		// This will return immediately. The result will be empty if the symbol 
+		// has not been encountered before, and resolution has been queued up.
+		F.Symbol = ModuleProvider->GetSymbol(InFrames[FrameIdx]);
 	}
 
-	uint64 FrameIdxAndLen = (uint64(InFrameCount) << EntryLenShift) | (~EntryLenMask & FirstFrame);
+	const uint64 CallstackId = InCallstackId & ((1ull << 47) - 1);
 
 	{
 		FRWScopeLock WriteLock(EntriesLock, SLT_Write);
-		CallstackEntries.Add(InCallstackId, FCallstackEntry{ FrameIdxAndLen });
+		FCallstack* Callstack = &Callstacks.EmplaceBack(&Frames[FirstFrame], InFrameCount);
+		CallstackEntries.Add(CallstackId, Callstack);
 	}
 }
 
 /////////////////////////////////////////////////////////////////////
-FCallstack FCallstacksProvider::GetCallstack(uint64 CallstackId) 
+const FCallstack* FCallstacksProvider::GetCallstack(uint64 CallstackId) const
 {
 	FRWScopeLock ReadLock(EntriesLock, SLT_ReadOnly);
-	FCallstackEntry* Entry = CallstackEntries.Find(CallstackId);
-	if (Entry)
-	{
-		const uint64 FirstFrameIdx = ~EntryLenMask & Entry->CallstackLenIndex;
-		const uint8 FrameCount = Entry->CallstackLenIndex >> EntryLenShift;
-		return FCallstack(&Frames[FirstFrameIdx], FrameCount);
-	}
-	return FCallstack(nullptr, 0);	
+	const FCallstack* const* FindResult = CallstackEntries.Find(CallstackId);
+	return FindResult ? *FindResult : nullptr;
 }
 
 /////////////////////////////////////////////////////////////////////
-void FCallstacksProvider::GetCallstacks(const TArrayView<uint64>& CallstackIds, FCallstack* OutCallstacks)
+void FCallstacksProvider::GetCallstacks(const TArrayView<uint64>& CallstackIds, FCallstack const** OutCallstacks) const
 {
 	uint64 OutIdx(0);
 	check(OutCallstacks != nullptr);
@@ -89,17 +97,8 @@ void FCallstacksProvider::GetCallstacks(const TArrayView<uint64>& CallstackIds, 
 	FRWScopeLock ReadLock(EntriesLock, SLT_ReadOnly);
 	for (uint64 CallstackId : CallstackIds)
 	{
-		FCallstackEntry* Entry = CallstackEntries.Find(CallstackId);
-		if (Entry)
-		{
-			const uint64 FirstFrameIdx = ~EntryLenMask & Entry->CallstackLenIndex;
-			const uint8 FrameCount = Entry->CallstackLenIndex >> EntryLenShift;
-			new(&OutCallstacks[OutIdx]) FCallstack(&Frames[FirstFrameIdx], FrameCount);
-		}
-		else
-		{
-			new(&OutCallstacks[OutIdx]) FCallstack(nullptr, 0);	
-		}
+		const FCallstack* const* FindResult = CallstackEntries.Find(CallstackId);
+		OutCallstacks[OutIdx] = FindResult ? *FindResult : nullptr;
 		OutIdx++;
 	}
 }

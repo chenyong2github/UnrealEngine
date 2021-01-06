@@ -5,11 +5,13 @@
 #include "Common/PagedArray.h"
 #include "Containers/Map.h"
 #include "HAL/CriticalSection.h"
+#include "TraceServices/Model/Callstack.h"
 #include "TraceServices/Model/AllocationsProvider.h"
 
 namespace TraceServices
 {
 
+class IAnalysisSession;
 class ILinearAllocator;
 class FSbTree;
 
@@ -96,9 +98,9 @@ struct FAllocationItem
 	uint64 Owner;
 	uint64 Address;
 	uint64 SizeAndAlignment; // (Alignment << AlignmentShift) | Size
+	mutable const FCallstack* Callstack;
 	uint32 Tag;
 	uint32 Reserved1;
-	uint64 Reserved2;
 };
 
 static_assert(sizeof(FAllocationItem) == 64, "struct FAllocationItem needs packing");
@@ -124,7 +126,7 @@ private:
 	static constexpr double DefaultTimelineSampleGranularity = 0.0001; // 0.1ms
 
 public:
-	FAllocationsProvider(ILinearAllocator& InAllocator);
+	FAllocationsProvider(IAnalysisSession& InSession);
 	virtual ~FAllocationsProvider();
 
 	static FName GetName();
@@ -192,7 +194,7 @@ private:
 	void AdvanceTimelines(double Time);
 
 private:
-	ILinearAllocator& Allocator;
+	IAnalysisSession& Session;
 
 	mutable FAllocationsProviderLock Lock;
 

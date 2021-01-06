@@ -4,6 +4,7 @@
 
 #include "TraceServices/AnalysisService.h"
 #include "TraceServices/Model/AllocationsProvider.h"
+#include "TraceServices/Model/Callstack.h"
 
 // Insights
 #include "Insights/MemoryProfiler/MemoryProfilerManager.h"
@@ -319,7 +320,7 @@ void SMemAllocTableTreeView::UpdateQuery(TraceServices::IAllocationsProvider::EQ
 					Alloc.Address = Allocation->GetAddress();
 					Alloc.Size = Allocation->GetSize();
 					Alloc.MemTag = static_cast<FMemoryTagId>(Allocation->GetTag());
-					Alloc.BacktraceId = Allocation->GetBacktraceId();
+					Alloc.Callstack = Allocation->GetCallstack();
 				}
 #endif
 

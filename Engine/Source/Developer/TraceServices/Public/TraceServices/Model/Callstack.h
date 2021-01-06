@@ -4,41 +4,42 @@
 
 #include "TraceServices/Model/AnalysisSession.h"
 #include "TraceServices/Model/Memory.h"
+#include "TraceServices/Model/Modules.h"
 
 namespace TraceServices
 {
 
 /////////////////////////////////////////////////////////////////////
-struct SymbolEntry
+struct TRACESERVICES_API FStackFrame
 {
-	TCHAR*			Name;
-	TCHAR*			Filename;
-	TCHAR*			Module;
-	uint32			Line;
+	uint64					Addr;
+	const FResolvedSymbol*	Symbol;
 };
 
 /////////////////////////////////////////////////////////////////////
-struct FStackFrame
+struct TRACESERVICES_API FCallstack
 {
-	uint64			Addr;
-	SymbolEntry*	Symbol;
-};
-
-/////////////////////////////////////////////////////////////////////
-struct FCallstack
-{
-					FCallstack(FStackFrame* FirstEntry, uint8 FrameCount);
+	FCallstack(const FStackFrame* FirstEntry, uint8 FrameCount);
 	/** Get the number of stack frames in callstack. */
-	uint32			Num();
+	uint32			Num() const;
 	/** Gets the address at a given stack depth. */
-	uint64			Addr(uint8 Depth);
+	uint64			Addr(uint8 Depth) const;
 	/** Gets the cached symbol name at a given stack depth. */
-	TCHAR*			SymbolName(uint8 Depth);
+	const TCHAR*	Name(uint8 Depth) const;
+	/** Gets the entire frame at given depth */
+	const FStackFrame* Frame(uint8 Depth) const;
 
 private:
-	FStackFrame*	FirstEntry;
-	uint8			FrameCount;
+	enum : uint64
+	{
+		EntryLenShift = 56,
+		EntryLenMask = uint64(0xff) << EntryLenShift,
+	};
+
+	uint64 CallstackLenIndex;
 };
+
+static_assert(sizeof(FCallstack) == 8, "struct FCallstack is too large");
 
 /////////////////////////////////////////////////////////////////////
 class ICallstacksProvider
@@ -52,39 +53,51 @@ public:
 	  * @param CallstackId		Callstack id to query
 	  * @return					Callstack information. If id is not found a callstack with zero stack depth is returned.
 	  */
-	virtual FCallstack	GetCallstack(uint64 CallstackId) = 0;
+	virtual const FCallstack*	GetCallstack(uint64 CallstackId) const = 0;
 
 	/**
 	  * Queries a set of callstack ids.
 	  * @param CallstackIds		List of callstack ids to query
 	  * @param OutCallstacks	Output list of callstacks. Caller is responsible for allocating space according to CallstackIds length.
 	  */
-	virtual void		GetCallstacks(const TArrayView<uint64>& CallstackIds, FCallstack* OutCallstacks) = 0;
+	virtual void				GetCallstacks(const TArrayView<uint64>& CallstackIds, FCallstack const** OutCallstacks) const = 0;
 };
 
 /////////////////////////////////////////////////////////////////////
-inline FCallstack::FCallstack(FStackFrame* InFirstEntry, uint8 InFrameCount)
-	: FirstEntry(InFirstEntry)
-	, FrameCount(InFrameCount)
+inline FCallstack::FCallstack(const FStackFrame* InFirstFrame, uint8 InFrameCount)
 {
+	check((uint64(InFirstFrame) & EntryLenMask) == 0);
+	CallstackLenIndex = (uint64(InFrameCount) << EntryLenShift) | (~EntryLenMask & uint64(InFirstFrame));
 }
 
 /////////////////////////////////////////////////////////////////////
-inline uint32 FCallstack::Num()
+inline uint32 FCallstack::Num() const
 {
-	return FrameCount;
+	return CallstackLenIndex >> EntryLenShift;
 }
 
 /////////////////////////////////////////////////////////////////////
-inline uint64 FCallstack::Addr(uint8 Depth)
+inline uint64 FCallstack::Addr(uint8 Depth) const
 {
-	return Depth < FrameCount ? FirstEntry[Depth].Addr : 0;
+	const FStackFrame* FirstFrame = (const FStackFrame *) (~EntryLenMask & CallstackLenIndex);
+	const uint32 FrameCount = Num();
+	return (Depth < FrameCount) ? (FirstFrame + Depth)->Addr : 0;
 }
 
 /////////////////////////////////////////////////////////////////////
-inline TCHAR* FCallstack::SymbolName(uint8 Depth)
+inline const TCHAR* FCallstack::Name(uint8 Depth) const
 {
-	return Depth < FrameCount ? FirstEntry[Depth].Symbol->Name : 0;
+	const FStackFrame* FirstFrame = (const FStackFrame*)(~EntryLenMask & CallstackLenIndex);
+	const uint32 FrameCount = Num();
+	return (Depth < FrameCount) ? (FirstFrame + Depth)->Symbol->Name : 0;
+}
+
+/////////////////////////////////////////////////////////////////////
+inline const FStackFrame* FCallstack::Frame(uint8 Depth) const
+{
+	const FStackFrame* FirstFrame = (const FStackFrame*)(~EntryLenMask & CallstackLenIndex);
+	const uint32 FrameCount = Num();
+	return (Depth < FrameCount) ? (FirstFrame + Depth) : nullptr;
 }
 
 } // namespace TraceServices

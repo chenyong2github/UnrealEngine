@@ -4,6 +4,7 @@
 #include "Analyzers/AllocationsAnalysis.h"
 #include "Analyzers/CallstacksAnalysis.h"
 #include "Analyzers/MemoryAnalysis.h"
+#include "Analyzers/ModuleAnalysis.h"
 #include "Model/AllocationsProvider.h"
 #include "Model/CallstacksProvider.h"
 #include "TraceServices/Model/AnalysisSession.h"
@@ -21,10 +22,12 @@ void FMemoryModule::GetModuleInfo(FModuleInfo& OutModuleInfo)
 
 void FMemoryModule::OnAnalysisBegin(IAnalysisSession& Session)
 {
-	FAllocationsProvider* AllocationsProvider = new FAllocationsProvider(Session.GetLinearAllocator());
+	FAllocationsProvider* AllocationsProvider = new FAllocationsProvider(Session);
 	Session.AddProvider(AllocationsProvider->GetName(), AllocationsProvider);
 	Session.AddAnalyzer(new FAllocationsAnalyzer(Session, *AllocationsProvider));
 
+	Session.AddAnalyzer(new FModuleAnalyzer(Session));
+	
 	FCallstacksProvider* CallstacksProvider = new FCallstacksProvider(Session);
 	Session.AddProvider(CallstacksProvider->GetName(), CallstacksProvider);
 	Session.AddAnalyzer(new FCallstacksAnalyzer(Session, CallstacksProvider));

@@ -363,26 +363,58 @@ void FMemAllocTable::AddDefaultColumns()
 		Column.SetHorizontalAlignment(HAlign_Left);
 		Column.SetInitialWidth(120.0f);
 
-		Column.SetDataType(ETableCellDataType::Int64);
+		Column.SetDataType(ETableCellDataType::CString);
 
-		class FMemAllocSizeValueGetter : public FTableCellValueGetter
+		class FBacktraceValueGetter : public FTableCellValueGetter
 		{
 		public:
 			virtual const TOptional<FTableCellValue> GetValue(const FTableColumn& Column, const FBaseTreeNode& Node) const override
 			{
+				static const TCHAR* DisplayStrings[] = {
+					TEXT("Pending..."),
+					TEXT("Not found"),
+					TEXT("")
+				};
+				const TCHAR* Value = DisplayStrings[0];
 				const FMemAllocNode& MemAllocNode = static_cast<const FMemAllocNode&>(Node);
 				const FMemoryAlloc* Alloc = MemAllocNode.GetMemAlloc();
-				const uint64 AllocBacktraceId = Alloc ? Alloc->GetBacktraceId() : 0;
-				return TOptional<FTableCellValue>(FTableCellValue(static_cast<int64>(AllocBacktraceId)));
+				if (Alloc)
+				{
+					const TraceServices::FCallstack* Callstack = Alloc->GetCallstack();
+
+					if (Callstack)
+					{
+						const TraceServices::FStackFrame* Frame = Callstack->Frame(2);
+						const TraceServices::QueryResult Result = Frame->Symbol->Result.load(std::memory_order_acquire);
+						switch (Result)
+						{
+						case TraceServices::QueryResult::QR_NotLoaded:
+							Value = DisplayStrings[0];
+							break;
+						case TraceServices::QueryResult::QR_NotFound:
+							Value = DisplayStrings[1];
+							break;
+						case TraceServices::QueryResult::QR_OK:
+							Value = Frame->Symbol->Name;
+							break;
+						}
+					}
+				}
+				else
+				{
+					// Parent nodes (i.e. not actual allocation)
+					Value = DisplayStrings[2];
+				}
+				return TOptional<FTableCellValue>(FTableCellValue(Value));
 			}
 		};
-		TSharedRef<ITableCellValueGetter> Getter = MakeShared<FMemAllocSizeValueGetter>();
+		TSharedRef<ITableCellValueGetter> Getter = MakeShared<FBacktraceValueGetter>();
 		Column.SetValueGetter(Getter);
 
-		TSharedRef<ITableCellValueFormatter> Formatter = MakeShared<FInt64ValueFormatterAsHex64>();
+		TSharedRef<ITableCellValueFormatter> Formatter = MakeShared<FCStringValueFormatterAsText>();
 		Column.SetValueFormatter(Formatter);
 
-		TSharedRef<ITableCellValueSorter> Sorter = MakeShared<FSorterByInt64Value>(ColumnRef);
+		TSharedRef<ITableCellValueSorter> Sorter = MakeShared<FSorterByCStringValue>(ColumnRef);
 		Column.SetValueSorter(Sorter);
 
 		AddColumn(ColumnRef);
