@@ -854,7 +854,7 @@ void FDataprepEditor::RestoreFromSnapshot(bool bUpdateViewport)
 		GWorld = PreviewWorld;
 
 		// Cache and disable recording of transaction
-		TGuardValue<UTransactor*> NormalTransactor( GEditor->Trans, nullptr );
+		TGuardValue<decltype(GEditor->Trans)> NormalTransactor( GEditor->Trans, nullptr );
 
 		// Cache and disable warnings from LogExec because ULevelFactory::FactoryCreateText is pretty verbose on harmless warnings
 		ELogVerbosity::Type PrevLogExecVerbosity = LogExec.GetVerbosity();

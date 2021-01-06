@@ -89,8 +89,8 @@ void UVirtualCameraMovementComponent::ProcessMovementInput(const FVector& Tracke
 	// Apply the location change for the RootUpdatedComponent
 	if (RootUpdatedComponent)
 	{
-		TGuardValue<USceneComponent*> UpdateComponentGuard(UpdatedComponent, RootUpdatedComponent);
-		TGuardValue<UPrimitiveComponent*> UpdatePrimitiveGuard(UpdatedPrimitive, RootUpdatedPrimitive);
+		TGuardValue<decltype(UpdatedComponent)> UpdateComponentGuard(UpdatedComponent, RootUpdatedComponent);
+		TGuardValue<decltype(UpdatedPrimitive)> UpdatePrimitiveGuard(UpdatedPrimitive, RootUpdatedPrimitive);
 		FHitResult OutResult = FHitResult();
 		SafeMoveUpdatedComponent(FromControllerTargetLocation, FQuat::Identity, false, OutResult);
 		FromControllerTargetLocation = FVector::ZeroVector;
