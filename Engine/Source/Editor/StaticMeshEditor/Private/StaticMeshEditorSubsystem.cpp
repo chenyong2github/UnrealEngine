@@ -1432,6 +1432,50 @@ void UStaticMeshEditorSubsystem::EnableSectionCastShadow(UStaticMesh* StaticMesh
 	StaticMesh->PostEditChange();
 }
 
+void UStaticMeshEditorSubsystem::SetLODMaterialSlot(UStaticMesh* StaticMesh, int32 MaterialSlotIndex, int32 LODIndex, int32 SectionIndex)
+{
+	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
+
+	if (!EditorScriptingHelpers::CheckIfInEditorAndPIE())
+	{
+		return;
+	}
+
+	if (StaticMesh == nullptr)
+	{
+		UE_LOG(LogStaticMeshEditorSubsystem, Error, TEXT("SetLODMaterialSlot: The StaticMesh is null."));
+		return;
+	}
+
+	if (LODIndex >= StaticMesh->GetNumLODs())
+	{
+		UE_LOG(LogStaticMeshEditorSubsystem, Error, TEXT("SetLODMaterialSlot: Invalid LOD index %d (of %d)."), LODIndex, StaticMesh->GetNumLODs());
+		return;
+	}
+
+	if (SectionIndex >= StaticMesh->GetNumSections(LODIndex))
+	{
+		UE_LOG(LogStaticMeshEditorSubsystem, Error, TEXT("SetLODMaterialSlot: Invalid section index %d (of %d)."), SectionIndex, StaticMesh->GetNumSections(LODIndex));
+		return;
+	}
+
+	if (MaterialSlotIndex >= StaticMesh->GetStaticMaterials().Num())
+	{
+		UE_LOG(LogStaticMeshEditorSubsystem, Error, TEXT("SetLODMaterialSlot: Invalid slot index %d (of %d)."), MaterialSlotIndex, StaticMesh->GetStaticMaterials().Num());
+		return;
+	}
+
+	StaticMesh->Modify();
+
+	FMeshSectionInfo SectionInfo = StaticMesh->GetSectionInfoMap().Get(LODIndex, SectionIndex);
+
+	SectionInfo.MaterialIndex = MaterialSlotIndex;
+
+	StaticMesh->GetSectionInfoMap().Set(LODIndex, SectionIndex, SectionInfo);
+
+	StaticMesh->PostEditChange();
+}
+
 bool UStaticMeshEditorSubsystem::HasVertexColors(UStaticMesh* StaticMesh)
 {
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
