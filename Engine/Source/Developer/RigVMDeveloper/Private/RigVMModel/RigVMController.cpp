@@ -3742,13 +3742,17 @@ bool URigVMController::SetPinDefaultValue(URigVMPin* InPin, const FString& InDef
 		return false;
 	}
 	
-	if (!InPin->IsValidDefaultValue(InDefaultValue))
-	{
-		return false;
-	}
-
 	URigVMGraph* Graph = GetGraph();
 	check(Graph);
+
+	// only perform validation if post load completed for now to avoid crash
+	if (!Graph->HasAnyFlags(RF_NeedPostLoad))
+	{
+		if (!InPin->IsValidDefaultValue(InDefaultValue))
+		{
+			return false;
+		}
+	}
 
 	FRigVMSetPinDefaultValueAction Action;
 	if (bSetupUndoRedo)
