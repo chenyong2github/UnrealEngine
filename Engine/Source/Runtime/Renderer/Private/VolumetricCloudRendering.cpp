@@ -41,6 +41,11 @@ static TAutoConsoleVariable<float> CVarVolumetricCloudDistanceToSampleMaxCount(
 	TEXT("Distance in kilometers over which the total number of ray samples will be evenly distributed. Before that, the number of ray samples will span 1 to SampleCountMax, for for tracing distance ranging from 0 to DistanceToSampleCountMax (kilometers)."),
 	ECVF_RenderThreadSafe | ECVF_Scalability);
 
+static TAutoConsoleVariable<int32> CVarVolumetricCloudSampleMinCount(
+	TEXT("r.VolumetricCloud.SampleMinCount"), 2,
+	TEXT("The minimum number of samples to take along a ray. This can help with quality for volume close to the camera, e.g. if cloud layer is also used as low altitude fog. SampleMinCount should remain relatively small because it is applied to all tracing process."),
+	ECVF_RenderThreadSafe | ECVF_Scalability);
+
 static TAutoConsoleVariable<float> CVarVolumetricCloudViewRaySampleMaxCount(
 	TEXT("r.VolumetricCloud.ViewRaySampleMaxCount"), 768,
 	TEXT("The maximum number of samples taken while ray marching view primary rays."),
@@ -1309,6 +1314,7 @@ void FSceneRenderer::InitVolumetricCloudsForViews(FRDGBuilder& GraphBuilder)
 
 			const float BaseViewRaySampleCount = 96.0f;
 			const float BaseShadowRaySampleCount = 10.0f;
+			CloudGlobalShaderParams.SampleCountMin		= FMath::Max(0, CVarVolumetricCloudSampleMinCount.GetValueOnAnyThread());
 			CloudGlobalShaderParams.SampleCountMax		= FMath::Max(2.0f, FMath::Min(BaseViewRaySampleCount   * CloudProxy.ViewSampleCountScale,       CVarVolumetricCloudViewRaySampleMaxCount.GetValueOnAnyThread()));
 			CloudGlobalShaderParams.ShadowSampleCountMax= FMath::Max(2.0f, FMath::Min(BaseShadowRaySampleCount * CloudProxy.ShadowViewSampleCountScale, CVarVolumetricCloudShadowViewRaySampleMaxCount.GetValueOnAnyThread()));
 			CloudGlobalShaderParams.ShadowTracingMaxDistance = KilometersToCentimeters * FMath::Max(0.1f, CloudProxy.ShadowTracingDistance);

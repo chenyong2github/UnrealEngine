@@ -466,14 +466,12 @@ bool TraceClouds(
 
 
 	//
-	// Skip tracing if needed
+	// Skip tracing if the range is 0, e.g. cloud layer is behind an object and we do not want to pay for SampleCountMin, or the distance at which tracing should start it too far away
 	//
 
-	if (!(TMax > TMin && TMin < RenderVolumetricCloudParameters.TracingStartMaxDistance))
+	if (TMax <= TMin || TMin > RenderVolumetricCloudParameters.TracingStartMaxDistance)
 	{
-		// The tracing range is invalid or the position is too far to start tracing
-		OutColor0 = float4(0.0f, 0.0f, 0.0f, 1.0f); // need to write again into OutColor0&1 otherwise the compiler was complaining...
-		OutColor1 = MaxHalfFloat;
+		//OutColor0 = float4(1.0f, 0.0f, 0.0f, 1.0f);
 		return false;
 	}
 
@@ -491,6 +489,16 @@ bool TraceClouds(
 	float3 DepthBufferWorldPos = SvPositionToWorld(float4(SvPosition.xy, DeviceZ, 1.0));
 	float TDepthBuffer = length(DepthBufferWorldPos - RayOrigin);
 	OutColor1.y = TDepthBuffer * CENTIMETER_TO_KILOMETER;
+
+	//
+	// Skip tracing if the depth buffer is in front of the cloud layer front interface. If inside the layer, clamp the tracing to the depth buffer
+	//
+
+	if (TDepthBuffer < TMin)
+	{
+		//OutColor0 = float4(1.0f, 1.0f, 0.0f, 1.0f);
+		return false;
+	}
 
 	if (RenderVolumetricCloudParameters.OpaqueIntersectionMode >= 2)
 	{
@@ -532,7 +540,8 @@ bool TraceClouds(
 	const float MarchingDistance = min(RenderVolumetricCloudParameters.TracingMaxDistance, TMax - TMin);
 	TMax = TMin + MarchingDistance;
 
-	const uint  IStepCount = RenderVolumetricCloudParameters.SampleCountMax * saturate((TMax - TMin) * RenderVolumetricCloudParameters.InvDistanceToSampleCountMax);
+	// When we do trace, we want a minimum amount of sample count. This avoid situation with 0 sample count due to InvDistanceToSampleCountMax.
+	const uint  IStepCount = max(RenderVolumetricCloudParameters.SampleCountMin, RenderVolumetricCloudParameters.SampleCountMax * saturate((TMax - TMin) * RenderVolumetricCloudParameters.InvDistanceToSampleCountMax));
 	const float StepCount = float(IStepCount);
 	const float StepT = (TMax - TMin) / StepCount; // StepT is step distance in centimeters
 	const float dtMeters = StepT * CENTIMETER_TO_METER;
