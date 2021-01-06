@@ -30,18 +30,11 @@ FWidgetDesignerApplicationMode::FWidgetDesignerApplicationMode(TSharedPtr<FWidge
 	// Override the default created category here since "Designer Editor" sounds awkward
 	WorkspaceMenuCategory = FWorkspaceItem::NewGroup(LOCTEXT("WorkspaceMenu_WidgetDesigner", "Widget Designer"));
 
-	TabLayout = FTabManager::NewLayout( "WidgetBlueprintEditor_Designer_Layout_v4_1" )
+	TabLayout = FTabManager::NewLayout( "WidgetBlueprintEditor_Designer_Layout_v4_2" )
 	->AddArea
 	(
 		FTabManager::NewPrimaryArea()
 		->SetOrientation(Orient_Vertical)
-		->Split
-		(
-			FTabManager::NewStack()
-			->SetSizeCoefficient( 0.2f )
-			->SetHideTabWell(true)
-			->AddTab( InWidgetEditor->GetToolbarTabId(), ETabState::OpenedTab )
-		)
 		->Split
 		(
 			FTabManager::NewSplitter()

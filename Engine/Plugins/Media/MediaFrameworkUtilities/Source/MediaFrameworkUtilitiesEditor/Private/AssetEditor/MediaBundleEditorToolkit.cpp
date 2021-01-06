@@ -23,7 +23,7 @@ namespace MediaBundleEditorToolkit
 {
 	const FName AppIdentifier = TEXT("MediaBundleEditorApp");
 	const FName PropertiesTabId(TEXT("MediaBundleEditor_Properties"));
-	const FName Layout(TEXT("Standalone_MediaBundleEditor_Layout_v0"));
+	const FName Layout(TEXT("Standalone_MediaBundleEditor_Layout_v1"));
 }
 
 TSharedRef<FMediaBundleEditorToolkit> FMediaBundleEditorToolkit::CreateEditor(const EToolkitMode::Type Mode, const TSharedPtr< class IToolkitHost >& InitToolkitHost, class UMediaBundle* InMediaBundle)
@@ -46,13 +46,6 @@ void FMediaBundleEditorToolkit::InitMediaBundleEditor(const EToolkitMode::Type M
 		(
 			FTabManager::NewPrimaryArea()
 			->SetOrientation(Orient_Vertical)
-			->Split
-			(
-				FTabManager::NewStack()
-				->SetSizeCoefficient(0.1f)
-				->SetHideTabWell(true)
-				->AddTab(GetToolbarTabId(), ETabState::OpenedTab)
-			)
 			->Split
 			(
 				FTabManager::NewSplitter()

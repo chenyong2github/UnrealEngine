@@ -94,8 +94,7 @@ class UNREALED_API FAssetEditorToolkit
 {
 
 public:
-	static const FName DefaultAssetEditorToolBarName;
-	static const FName DefaultAssetEditorSlimToolBarName;
+
 
 	/** Default constructor */
 	FAssetEditorToolkit();
@@ -135,7 +134,6 @@ public:
 	virtual TWeakObjectPtr<class UEdMode> GetScriptableEditorMode() const final;
 	virtual FText GetEditorModeDisplayName() const override;
 	virtual FSlateIcon GetEditorModeIcon() const override;
-	virtual bool UsesCustomToolbarPlacement() const { return true;  }
 
 	/** IAssetEditorInstance interface */
 	virtual FName GetEditorName() const override;
@@ -189,7 +187,7 @@ public:
 	}
 
 	/** Registers default tool bar */
-	static void RegisterDefaultToolBar(bool bCustomToolbarPlacement);
+	static void RegisterDefaultToolBar();
 
 	/** Makes a default asset editing toolbar */
 	void GenerateToolbar();
@@ -399,6 +397,7 @@ protected:
 	TSharedPtr<FWorkspaceItem> AssetEditorTabsCategory;
 
 private:
+	static const FName DefaultAssetEditorToolBarName;
 	/** The toolkit standalone host; may be nullptr */
 	TWeakPtr<SStandaloneAssetEditorToolkitHost> StandaloneHost;
 

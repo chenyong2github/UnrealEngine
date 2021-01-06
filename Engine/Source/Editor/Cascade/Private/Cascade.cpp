@@ -332,15 +332,10 @@ void FCascade::InitCascade(const EToolkitMode::Type Mode, const TSharedPtr< clas
 
 	CreateInternalWidgets();
 
-	const TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout( "Standalone_Cascade_Layout_v2" )
+	const TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout( "Standalone_Cascade_Layout_v3" )
 	->AddArea(
 		FTabManager::NewPrimaryArea()
 		->SetOrientation(Orient_Vertical)
-		->Split(
-			FTabManager::NewStack()
-			->SetSizeCoefficient(0.1f)
-			->AddTab( GetToolbarTabId(), ETabState::OpenedTab )
-		)
 		->Split
 		(
 			FTabManager::NewSplitter()

@@ -15,17 +15,10 @@
 FWidgetGraphApplicationMode::FWidgetGraphApplicationMode(TSharedPtr<FWidgetBlueprintEditor> InWidgetEditor)
 	: FWidgetBlueprintApplicationMode(InWidgetEditor, FWidgetBlueprintApplicationModes::GraphMode)
 {
-	TabLayout = FTabManager::NewLayout( "WidgetBlueprintEditor_Graph_Layout_v1" )
+	TabLayout = FTabManager::NewLayout( "WidgetBlueprintEditor_Graph_Layout_v2" )
 		->AddArea
 		(
 			FTabManager::NewPrimaryArea() ->SetOrientation(Orient_Vertical)
-			->Split
-			(
-				FTabManager::NewStack()
-				->SetSizeCoefficient( 0.186721f )
-				->SetHideTabWell(true)
-				->AddTab( InWidgetEditor->GetToolbarTabId(), ETabState::OpenedTab )
-			)
 			->Split
 			(
 				FTabManager::NewSplitter() ->SetOrientation(Orient_Horizontal)

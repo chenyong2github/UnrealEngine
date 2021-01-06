@@ -9,6 +9,7 @@
 #include "Framework/MultiBox/MultiBoxDefs.h"
 #include "Styling/CoreStyle.h"
 #include "EditorStyleSet.h"
+#include "Widgets/Input/SCheckBox.h"
 
 //////////////////////////////////////////////////////////////////////////
 // SModeWidget
@@ -32,7 +33,6 @@ void SModeWidget::Construct(const FArguments& InArgs, const FText& InText, const
 	FMargin IconPadding(4.0f, 0.0f, 4.0f, 0.0f);
 	FMargin BodyPadding(0.0f, 0.0f, 0.0f, 0.0f);
 	
-	// Large Icon
 	if (InArgs._IconImage.IsSet())
 	{
 		InnerRow->AddSlot()
@@ -42,21 +42,7 @@ void SModeWidget::Construct(const FArguments& InArgs, const FText& InText, const
 			[
 				SNew(SImage)
 				.Image(InArgs._IconImage)
-				.Visibility(this, &SModeWidget::GetLargeIconVisibility)
-			];
-	}
-
-	// Small Icon
-	if (InArgs._SmallIconImage.IsSet())
-	{
-		InnerRow->AddSlot()
-			.AutoWidth()
-			.VAlign(VAlign_Center)
-			.Padding(IconPadding)
-			[
-				SNew(SImage)
-				.Image(InArgs._SmallIconImage)
-				.Visibility(this, &SModeWidget::GetSmallIconVisibility)
+				.ColorAndOpacity(FSlateColor::UseForeground())
 			];
 	}
 
@@ -80,7 +66,6 @@ void SModeWidget::Construct(const FArguments& InArgs, const FText& InText, const
 				[
 					SNew(STextBlock)
 					.Text(ModeText)
-					.Font(this, &SModeWidget::GetDesiredTitleFont)
 				]
 
 				//Dirty flag
@@ -89,7 +74,7 @@ void SModeWidget::Construct(const FArguments& InArgs, const FText& InText, const
 				.Padding(3)
 				[
 					SNew(SImage)
-					.Image( InArgs._DirtyMarkerBrush )
+					.Image(InArgs._DirtyMarkerBrush)
 				]
 			]
 
@@ -107,9 +92,10 @@ void SModeWidget::Construct(const FArguments& InArgs, const FText& InText, const
 	ChildSlot
 	.VAlign(VAlign_Fill)
 	[
-		SNew(SBorder)
-		.BorderImage(this, &SModeWidget::GetModeNameBorderImage)
-		.OnMouseButtonDown(this, &SModeWidget::OnModeTabClicked)
+		SNew(SCheckBox)
+		.Style(FAppStyle::Get(), "SegmentedCombo.ButtonOnly")
+		.IsChecked(this, &SModeWidget::GetModeCheckState)
+		.OnCheckStateChanged(this, &SModeWidget::OnModeTabClicked)
 		[
 			InnerRow
 		]
@@ -118,29 +104,15 @@ void SModeWidget::Construct(const FArguments& InArgs, const FText& InText, const
 	SetEnabled(CanBeSelected);
 }
 
-EVisibility SModeWidget::GetLargeIconVisibility() const
-{
-	return FMultiBoxSettings::UseSmallToolBarIcons.Get() ? EVisibility::Collapsed : EVisibility::Visible;
-}
-
-EVisibility SModeWidget::GetSmallIconVisibility() const
-{
-	return FMultiBoxSettings::UseSmallToolBarIcons.Get() ? EVisibility::Visible : EVisibility::Collapsed;
-}
-
-const FSlateBrush* SModeWidget::GetModeNameBorderImage() const
+ECheckBoxState SModeWidget::GetModeCheckState() const
 {
 	if (IsActiveMode())
 	{
-		return ActiveModeBorderImage;
-	}
-	else if (IsHovered())
-	{
-		return HoverBorderImage;
+		return ECheckBoxState::Checked;
 	}
 	else
 	{
-		return InactiveModeBorderImage;
+		return ECheckBoxState::Unchecked;
 	}
 }
 
@@ -149,31 +121,11 @@ bool SModeWidget::IsActiveMode() const
 	return OnGetActiveMode.Get() == ThisMode;
 }
 
-FReply SModeWidget::OnModeTabClicked(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
+void SModeWidget::OnModeTabClicked(ECheckBoxState CheckState)
 {
-	if (MouseEvent.GetEffectingButton() == EKeys::LeftMouseButton)
+	// Try to change the mode
+	if (!IsActiveMode() && (CanBeSelected.Get() == true))
 	{
-		// Try to change the mode
-		if (!IsActiveMode() && (CanBeSelected.Get() == true))
-		{
-			OnSetActiveMode.ExecuteIfBound(ThisMode);
-		}
-	}
-
-	return FReply::Handled();
-}
-
-FSlateFontInfo SModeWidget::GetDesiredTitleFont() const
-{
-	const bool bSmallIcons = FMultiBoxSettings::UseSmallToolBarIcons.Get();	
-	const int16 FontSize = bSmallIcons ? 10 : 14;
-
-	if (IsActiveMode())
-	{
-		return FCoreStyle::GetDefaultFontStyle(bSmallIcons ? TEXT("Bold") : TEXT("Regular"), FontSize);
-	}
-	else
-	{
-		return FCoreStyle::GetDefaultFontStyle(bSmallIcons ? TEXT("Regular") : TEXT("Light"), FontSize);
+		OnSetActiveMode.ExecuteIfBound(ThisMode);
 	}
 }

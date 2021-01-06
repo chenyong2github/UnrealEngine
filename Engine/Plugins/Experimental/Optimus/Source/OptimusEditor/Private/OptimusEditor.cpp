@@ -488,14 +488,9 @@ TSharedRef<FTabManager::FLayout> FOptimusEditor::CreatePaneLayout() const
 	// Pex = Node Palette/explorer
 	// Deets = Details panel
 
-	TSharedRef<FTabManager::FLayout> Layout = FTabManager::NewLayout("Standalone_OptimusEditor_Layout_v03")
+	TSharedRef<FTabManager::FLayout> Layout = FTabManager::NewLayout("Standalone_OptimusEditor_Layout_v04")
 		->AddArea(
 			FTabManager::NewPrimaryArea()->SetOrientation(Orient_Vertical)
-			->Split(							// - Toolbar
-				FTabManager::NewStack()->SetSizeCoefficient(0.1f)
-				->SetHideTabWell(true)
-				->AddTab(GetToolbarTabId(), ETabState::OpenedTab)
-			)
 			->Split(							// - Main work area
 				FTabManager::NewSplitter()->SetOrientation(Orient_Horizontal)->SetSizeCoefficient(0.9f)
 				->Split(						// -- Preview + palette

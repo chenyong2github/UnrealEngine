@@ -15,8 +15,9 @@ struct FSlateBrush;
 // Event sent when a mode change is requested
 DECLARE_DELEGATE_OneParam( FOnModeChangeRequested, FName );
 
+enum class ECheckBoxState : uint8;
 
-// This is the base class for a persona mode widget
+// This is the base class for a mode widget in a workflow oriented editor
 class UNREALED_API SModeWidget : public SCompoundWidget
 {
 public:
@@ -26,11 +27,8 @@ public:
 		// The currently active mode, used to determine which mode is highlighted
 		SLATE_ATTRIBUTE( FName, OnGetActiveMode )
 
-		// The large image for the icon
+		// The image for the icon
 		SLATE_ATTRIBUTE( const FSlateBrush*, IconImage )
-
-		// The small image for the icon
-		SLATE_ATTRIBUTE( const FSlateBrush*, SmallIconImage )
 
 		// The delegate that will be called when this widget wants to change the active mode
 		SLATE_EVENT( FOnModeChangeRequested, OnSetActiveMode )
@@ -50,12 +48,9 @@ public:
 	void Construct(const FArguments& InArgs, const FText& InText, const FName InMode);
 
 private:
-	EVisibility GetLargeIconVisibility() const;
-	EVisibility GetSmallIconVisibility() const;
-
 	bool IsActiveMode() const;
-	const FSlateBrush* GetModeNameBorderImage() const;
-	FReply OnModeTabClicked(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent);
+	ECheckBoxState GetModeCheckState() const;
+	void OnModeTabClicked(ECheckBoxState CheckBoxState);
 
 	FSlateFontInfo GetDesiredTitleFont() const;
 private:

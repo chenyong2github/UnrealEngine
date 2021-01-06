@@ -78,7 +78,7 @@ void FCompositeDataTableEditor::CreateAndRegisterPropertiesTab(const TSharedRef<
 
 void FCompositeDataTableEditor::InitDataTableEditor(const EToolkitMode::Type Mode, const TSharedPtr< class IToolkitHost >& InitToolkitHost, UDataTable* Table)
 {
-	TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout("Standalone_CompositeDataTableEditor_temp_Layout")
+	TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout("Standalone_CompositeDataTableEditor_temp_Layout_v2")
 		->AddArea
 		(
 			FTabManager::NewPrimaryArea()->SetOrientation(Orient_Horizontal)
@@ -106,13 +106,6 @@ void FCompositeDataTableEditor::InitDataTableEditor(const EToolkitMode::Type Mod
 			(
 				FTabManager::NewSplitter()
 				->SetOrientation(Orient_Vertical)
-				->Split
-				(
-					FTabManager::NewStack()
-					->SetSizeCoefficient(0.1f)
-					->SetHideTabWell(true)
-					->AddTab(GetToolbarTabId(), ETabState::OpenedTab)
-				)
 				->Split
 				(
 					FTabManager::NewStack()

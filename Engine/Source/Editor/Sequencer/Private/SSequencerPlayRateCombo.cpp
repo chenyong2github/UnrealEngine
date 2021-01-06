@@ -42,7 +42,7 @@ void SSequencerPlayRateCombo::Construct(const FArguments& InArgs, TWeakPtr<FSequ
 		SNew(SComboButton)
 		.ContentPadding(FMargin(2.f, 1.0f))
 		.VAlign(VAlign_Fill)
-		.ButtonStyle(&SequencerToolBarStyle.ButtonStyle)
+		.ComboButtonStyle(&SequencerToolBarStyle.ComboButtonStyle)
 		.OnGetMenuContent(this, &SSequencerPlayRateCombo::OnCreateMenu)
 		.ButtonContent()
 		[

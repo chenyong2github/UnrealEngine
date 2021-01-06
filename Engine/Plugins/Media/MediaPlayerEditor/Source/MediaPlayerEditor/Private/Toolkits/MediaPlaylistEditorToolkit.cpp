@@ -56,20 +56,11 @@ void FMediaPlaylistEditorToolkit::Initialize(UMediaPlaylist* InMediaPlaylist, co
 	GEditor->RegisterForUndo(this);
 
 	// create tab layout
-	const TSharedRef<FTabManager::FLayout> Layout = FTabManager::NewLayout("Standalone_MediaPlaylistEditor_v2")
+	const TSharedRef<FTabManager::FLayout> Layout = FTabManager::NewLayout("Standalone_MediaPlaylistEditor_v3")
 		->AddArea
 		(
 			FTabManager::NewPrimaryArea()
 				->SetOrientation(Orient_Vertical)
-				->Split
-				(
-					// tool bar
-					FTabManager::NewStack()
-						->AddTab(GetToolbarTabId(), ETabState::OpenedTab)
-						->SetHideTabWell(true)
-						->SetSizeCoefficient(0.1f)
-								
-				)
 				->Split
 				(
 					// details

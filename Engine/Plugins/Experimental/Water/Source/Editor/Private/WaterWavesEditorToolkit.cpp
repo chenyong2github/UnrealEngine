@@ -64,17 +64,10 @@ void FWaterWavesEditorToolkit::InitWaterWavesEditor(const EToolkitMode::Type Mod
 	WaterWavesDetailsView = PropertyEditorModule.CreateDetailView(DetailsViewArgs);
 	WaterWavesDetailsView->SetObject(WavesAsset);
 
-	const TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout("Standalone_WaterWavesEditor_Layout")
+	const TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout("Standalone_WaterWavesEditor_Layout_v2")
 		->AddArea
 		(
 			FTabManager::NewPrimaryArea()->SetOrientation(Orient_Vertical)
-			->Split
-			(
-				FTabManager::NewStack()
-				->SetSizeCoefficient(0.1f)
-				->SetHideTabWell(true)
-				->AddTab(GetToolbarTabId(), ETabState::OpenedTab)
-			)
 			->Split
 			(
 				FTabManager::NewSplitter()->SetOrientation(Orient_Vertical)

@@ -1023,6 +1023,7 @@ TSharedPtr<FExtender> SCurveEditorPanel::GetToolbarExtender()
 		static void FillToolbar(FToolBarBuilder& ToolBarBuilder, TSharedRef<SCurveKeyDetailPanel> InKeyDetailsPanel, TSharedRef<SCurveEditorPanel> InEditorPanel)
 		{
 			ToolBarBuilder.BeginSection("View");
+			ToolBarBuilder.BeginStyleOverride("AssetEditorToolbar");
 			{
 				// Dropdown Menu for choosing your viewing mode
 				TAttribute<FSlateIcon> ViewModeIcon;
@@ -1171,7 +1172,9 @@ TSharedPtr<FExtender> SCurveEditorPanel::GetToolbarExtender()
 				ToolBarBuilder.AddToolBarButton(FCurveEditorCommands::Get().OpenUserImplementableFilterWindow);
 			}
 			ToolBarBuilder.EndSection();
+			ToolBarBuilder.EndStyleOverride();
 		}
+
 	};
 
 	Extender->AddToolBarExtension(

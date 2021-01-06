@@ -57,7 +57,6 @@ public:
 	virtual FString GetDocumentationLink( ) const override;
 	virtual void RegisterTabSpawners( const TSharedRef<class FTabManager>& TabManager ) override;
 	virtual void UnregisterTabSpawners( const TSharedRef<class FTabManager>& TabManager ) override;
-	virtual bool UsesCustomToolbarPlacement() const { return false; }
 
 	// ITextureEditorToolkit interface
 	virtual void CalculateTextureDimensions( uint32& Width, uint32& Height, uint32& Depth, uint32& ArraySize ) const override;

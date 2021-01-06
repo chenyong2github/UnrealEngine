@@ -27,18 +27,11 @@ FBaseAssetToolkit::FBaseAssetToolkit(UAssetEditor* InOwningAssetEditor)
 {
 	OwningAssetEditor = InOwningAssetEditor;
 
-	FString LayoutString = TEXT("Standalone_Test_Layout_") + LayoutAppendix;
+	FString LayoutString = TEXT("Standalone_Test_Layout_v2_") + LayoutAppendix;
 	StandaloneDefaultLayout = FTabManager::NewLayout(FName(LayoutString))
 		->AddArea
 		(
 			FTabManager::NewPrimaryArea()->SetOrientation(Orient_Vertical)
-			->Split
-			(
-				FTabManager::NewStack()
-				->SetSizeCoefficient(0.1f)
-				->AddTab(GetToolbarTabId(), ETabState::OpenedTab)
-				->SetHideTabWell(true)
-			)
 			->Split
 			(
 				FTabManager::NewSplitter()->SetOrientation(Orient_Horizontal)

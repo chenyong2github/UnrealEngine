@@ -3620,10 +3620,9 @@ void FStarshipEditorStyle::FStyle::SetupGraphEditorStyles()
 			Set( "BTEditor.Blackboard.NewEntry", new IMAGE_BRUSH( "BehaviorTree/Blackboard_AddKey_40x", Icon40x40 ) );
 			Set( "BTEditor.Blackboard.NewEntry.Small", new IMAGE_BRUSH( "BehaviorTree/Blackboard_AddKey_40x", Icon20x20 ) );
 
-			Set( "BTEditor.SwitchToBehaviorTreeMode", new IMAGE_BRUSH( "BehaviorTree/BehaviorTreeMode_40x", Icon40x40));
-			Set( "BTEditor.SwitchToBehaviorTreeMode.Small", new IMAGE_BRUSH( "BehaviorTree/BehaviorTreeMode_20x", Icon20x20));
-			Set( "BTEditor.SwitchToBlackboardMode", new IMAGE_BRUSH( "BehaviorTree/BlackboardMode_40x", Icon40x40));
-			Set( "BTEditor.SwitchToBlackboardMode.Small", new IMAGE_BRUSH( "BehaviorTree/BlackboardMode_20x", Icon20x20));
+			Set( "BTEditor.SwitchToBehaviorTreeMode", new IMAGE_BRUSH( "BehaviorTree/BehaviorTreeMode_40x", Icon20x20));
+			Set( "BTEditor.SwitchToBlackboardMode", new IMAGE_BRUSH( "BehaviorTree/BlackboardMode_40x", Icon20x20));
+
 
 			// Blackboard classes
 			Set( "ClassIcon.BlackboardKeyType_Bool", new IMAGE_BRUSH( "Icons/pill_16x", Icon16x16, FLinearColor(0.300000f, 0.0f, 0.0f, 1.0f) ) );
@@ -7716,8 +7715,7 @@ void FStarshipEditorStyle::FStyle::SetupUMGEditorStyles()
 	Set("UMGEditor.AddAnimationIcon", new IMAGE_BRUSH("Icons/PlusSymbol_12x", Icon12x12, FLinearColor(.05,.05,.05) ) );
 	Set("UMGEditor.NoAnimationFont", NoAnimationFont);
 
-	Set("UMGEditor.SwitchToDesigner", new IMAGE_BRUSH("UMG/Designer_40x", Icon40x40));
-	Set("UMGEditor.SwitchToDesigner.Small", new IMAGE_BRUSH("UMG/Designer_16x", Icon16x16));
+	Set("UMGEditor.SwitchToDesigner", new IMAGE_BRUSH("UMG/Designer_40x", Icon20x20));
 
 	Set("UMGEditor.AnchorGrid", new IMAGE_BRUSH("Icons/UMG/AnchorGrid", Icon10x10, FLinearColor(.1f, .1f, .1f, 0.5f), ESlateBrushTileType::Both ));
 

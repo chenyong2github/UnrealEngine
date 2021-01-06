@@ -98,11 +98,10 @@ void FWidgetBlueprintEditorToolbar::FillWidgetBlueprintEditorModesToolbar(FToolB
 				TEXT("Shared/Editors/BlueprintEditor"),
 				TEXT("DesignerMode")))
 			.IconImage(FEditorStyle::GetBrush("UMGEditor.SwitchToDesigner"))
-			.SmallIconImage(FEditorStyle::GetBrush("UMGEditor.SwitchToDesigner.Small"))
 			.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("DesignerMode")))
 		);
 
-		BlueprintEditorPtr->AddToolbarWidget(SNew(SBlueprintModeSeparator));
+		BlueprintEditorPtr->AddToolbarWidget(SNew(SSpacer).Size(FVector2D(10.0f, 1.0f)));
 
 		BlueprintEditorPtr->AddToolbarWidget(
 			SNew(SModeWidget, FWidgetBlueprintApplicationModes::GetLocalizedMode(FWidgetBlueprintApplicationModes::GraphMode), FWidgetBlueprintApplicationModes::GraphMode)
@@ -116,12 +115,11 @@ void FWidgetBlueprintEditorToolbar::FillWidgetBlueprintEditorModesToolbar(FToolB
 				TEXT("GraphMode")))
 			.ToolTipText(LOCTEXT("GraphModeButtonTooltip", "Switch to Graph Editing Mode"))
 			.IconImage(FEditorStyle::GetBrush("FullBlueprintEditor.SwitchToScriptingMode"))
-			.SmallIconImage(FEditorStyle::GetBrush("FullBlueprintEditor.SwitchToScriptingMode.Small"))
 			.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("GraphMode")))
 		);
 		
 		// Right side padding
-		BlueprintEditorPtr->AddToolbarWidget(SNew(SSpacer).Size(FVector2D(4.0f, 1.0f)));
+		BlueprintEditorPtr->AddToolbarWidget(SNew(SSpacer).Size(FVector2D(10.0f, 1.0f)));
 	}
 }
 

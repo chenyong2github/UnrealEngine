@@ -43,7 +43,6 @@ TSharedPtr<FExtensibilityManager> FAssetEditorToolkit::SharedToolBarExtensibilit
 const FName FAssetEditorToolkit::ToolbarTabId( TEXT( "AssetEditorToolkit_Toolbar" ) );
 
 const FName FAssetEditorToolkit::DefaultAssetEditorToolBarName("AssetEditor.DefaultToolBar");
-const FName FAssetEditorToolkit::DefaultAssetEditorSlimToolBarName("AssetEditor.DefaultSlimToolBar");
 
 FAssetEditorToolkit::FAssetEditorToolkit()
 	: GCEditingObjects(*this)
@@ -272,7 +271,7 @@ void FAssetEditorToolkit::InitAssetEditor( const EToolkitMode::Type Mode, const 
 		Toolbar = SNullWidget::NullWidget;
 	}
 
-	if (NewStandaloneHost && !UsesCustomToolbarPlacement())
+	if (NewStandaloneHost)
 	{
 		NewStandaloneHost->SetToolbar(Toolbar);
 	}
@@ -312,14 +311,6 @@ void FAssetEditorToolkit::RegisterTabSpawners(const TSharedRef<class FTabManager
 	// Use the first child category of the local workspace root if there is one, otherwise use the root itself
 	const auto& LocalCategories = InTabManager->GetLocalWorkspaceMenuRoot()->GetChildItems();
 	AssetEditorTabsCategory = LocalCategories.Num() > 0 ? LocalCategories[0] : InTabManager->GetLocalWorkspaceMenuRoot();
-
-	if(UsesCustomToolbarPlacement())
-	{
-		InTabManager->RegisterTabSpawner(ToolbarTabId, FOnSpawnTab::CreateSP(this, &FAssetEditorToolkit::SpawnTab_Toolbar))
-			.SetDisplayName(LOCTEXT("ToolbarTab", "Toolbar"))
-			.SetGroup(AssetEditorTabsCategory.ToSharedRef())
-			.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "Toolbar.Icon"));
-	}
 }
 
 void FAssetEditorToolkit::UnregisterTabSpawners(const TSharedRef<class FTabManager>& InTabManager)
@@ -1040,23 +1031,19 @@ FName FAssetEditorToolkit::GetToolMenuToolbarName() const
 
 FName FAssetEditorToolkit::GetToolMenuToolbarName(FName& OutParentName) const
 {
-	OutParentName = UsesCustomToolbarPlacement() ? DefaultAssetEditorToolBarName : DefaultAssetEditorSlimToolBarName;
+	OutParentName = DefaultAssetEditorToolBarName;
 
 	return *(TEXT("AssetEditor.") + GetToolMenuAppName().ToString() + TEXT(".ToolBar"));
 }
 
-void FAssetEditorToolkit::RegisterDefaultToolBar(bool bCustomToolbarPlacement)
+void FAssetEditorToolkit::RegisterDefaultToolBar()
 {
-	FName DefaultToolBarName = bCustomToolbarPlacement ? DefaultAssetEditorToolBarName : DefaultAssetEditorSlimToolBarName;
 	UToolMenus* ToolMenus = UToolMenus::Get();
-	if (!ToolMenus->IsMenuRegistered(DefaultToolBarName))
+	if (!ToolMenus->IsMenuRegistered(DefaultAssetEditorToolBarName))
 	{
-		UToolMenu* ToolbarBuilder = ToolMenus->RegisterMenu(DefaultToolBarName, NAME_None, bCustomToolbarPlacement ? EMultiBoxType::ToolBar : EMultiBoxType::SlimHorizontalToolBar);
+		UToolMenu* ToolbarBuilder = ToolMenus->RegisterMenu(DefaultAssetEditorToolBarName, NAME_None, EMultiBoxType::SlimHorizontalToolBar);
 #if 0
-		if (!bCustomToolbarPlacement)
-		{
-			ToolbarBuilder->StyleName = "AssetEditorToolbar";
-		}
+		ToolbarBuilder->StyleName = "AssetEditorToolbar";
 #endif
 		{
 			FToolMenuSection& Section = ToolbarBuilder->AddSection("Asset");
@@ -1075,7 +1062,7 @@ void FAssetEditorToolkit::GenerateToolbar()
 {
 	TSharedPtr<FExtender> Extender = FExtender::Combine(ToolbarExtenders);
 
-	RegisterDefaultToolBar(UsesCustomToolbarPlacement());
+	RegisterDefaultToolBar();
 
 	FName ParentToolbarName;
 	const FName ToolBarName = GetToolMenuToolbarName(ParentToolbarName);
@@ -1083,7 +1070,7 @@ void FAssetEditorToolkit::GenerateToolbar()
 	UToolMenu* FoundMenu = ToolMenus->FindMenu(ToolBarName);
 	if (!FoundMenu || !FoundMenu->IsRegistered())
 	{
-		FoundMenu = ToolMenus->RegisterMenu(ToolBarName, ParentToolbarName, UsesCustomToolbarPlacement() ? EMultiBoxType::ToolBar : EMultiBoxType::SlimHorizontalToolBar);
+		FoundMenu = ToolMenus->RegisterMenu(ToolBarName, ParentToolbarName, EMultiBoxType::SlimHorizontalToolBar);
 	}
 
 	FToolMenuContext MenuContext(GetToolkitCommands(), Extender);
@@ -1160,11 +1147,7 @@ void FAssetEditorToolkit::RegenerateMenusAndToolbars()
 
 	PostRegenerateMenusAndToolbars();
 
-	if (!UsesCustomToolbarPlacement())
-	{
-		HostWidget->SetToolbar(Toolbar);
-	}
-
+	HostWidget->SetToolbar(Toolbar);
 }
 
 

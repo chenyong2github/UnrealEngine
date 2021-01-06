@@ -70,7 +70,7 @@ void FMediaPlayerEditorToolkit::Initialize(UMediaPlayer* InMediaPlayer, const ET
 	BindCommands();
 
 	// create tab layout
-	const TSharedRef<FTabManager::FLayout> Layout = FTabManager::NewLayout("Standalone_MediaPlayerEditor_v10")
+	const TSharedRef<FTabManager::FLayout> Layout = FTabManager::NewLayout("Standalone_MediaPlayerEditor_v11")
 		->AddArea
 		(
 			FTabManager::NewPrimaryArea()
@@ -79,16 +79,6 @@ void FMediaPlayerEditorToolkit::Initialize(UMediaPlayer* InMediaPlayer, const ET
 				(
 					FTabManager::NewSplitter()
 						->SetOrientation(Orient_Vertical)
-						->SetSizeCoefficient(0.66f)
-						->Split
-						(
-							// tool bar
-							FTabManager::NewStack()
-								->AddTab(GetToolbarTabId(), ETabState::OpenedTab)
-								->SetHideTabWell(true)
-								->SetSizeCoefficient(0.1f)
-								
-						)
 						->Split
 						(
 							// viewer

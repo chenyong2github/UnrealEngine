@@ -139,18 +139,11 @@ FBasicCodeEditorMode::FBasicCodeEditorMode(TSharedPtr<class FCodeProjectEditor> 
 
 	TabFactories.RegisterFactory(MakeShareable(new FProjectViewSummoner(InCodeEditor)));
 
-	TabLayout = FTabManager::NewLayout("Standalone_CodeEditor_Layout_v1.1")
+	TabLayout = FTabManager::NewLayout("Standalone_CodeEditor_Layout_v1.2")
 		->AddArea
 		(
 			FTabManager::NewPrimaryArea()
 			->SetOrientation(Orient_Vertical)
-			->Split
-			(
-				FTabManager::NewStack()
-				->SetSizeCoefficient(0.1f)
-				->SetHideTabWell(true)
-				->AddTab(InCodeEditor->GetToolbarTabId(), ETabState::OpenedTab)
-			)
 			->Split
 			(
 				FTabManager::NewSplitter()

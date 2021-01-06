@@ -22,7 +22,7 @@ void SVisualLoggerToolbar::Construct(const FArguments& InArgs, const TSharedRef<
 *****************************************************************************/
 TSharedRef<SWidget> SVisualLoggerToolbar::MakeToolbar(const TSharedRef<FUICommandList>& CommandList)
 {
-	FToolBarBuilder ToolBarBuilder(CommandList, FMultiBoxCustomization::None);
+	FSlimHorizontalToolBarBuilder ToolBarBuilder(CommandList, FMultiBoxCustomization::None);
 
 	ToolBarBuilder.BeginSection("Debugger");
 	{

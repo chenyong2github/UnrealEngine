@@ -1310,17 +1310,10 @@ TSharedRef<SDockTab> FDataprepEditor::SpawnTabGraphEditor(const FSpawnTabArgs & 
 
 TSharedRef<FTabManager::FLayout> FDataprepEditor::CreateDataprepLayout()
 {
-	return FTabManager::NewLayout("Standalone_DataprepEditor_Layout_v0.9")
+	return FTabManager::NewLayout("Standalone_DataprepEditor_Layout_v0.10")
 		->AddArea
 		(
 			FTabManager::NewPrimaryArea()->SetOrientation(Orient_Vertical)
-			->Split
-			(
-				FTabManager::NewStack()
-				->SetSizeCoefficient(0.1f)
-				->SetHideTabWell(true)
-				->AddTab(GetToolbarTabId(), ETabState::OpenedTab)
-			)
 			->Split
 			(
 				FTabManager::NewSplitter()->SetOrientation(Orient_Horizontal)
@@ -1397,19 +1390,10 @@ TSharedRef<FTabManager::FLayout> FDataprepEditor::CreateDataprepLayout()
 
 TSharedRef<FTabManager::FLayout> FDataprepEditor::CreateDataprepInstanceLayout()
 {
-	return FTabManager::NewLayout("Standalone_DataprepEditor_InstanceLayout_v0.2")
+	return FTabManager::NewLayout("Standalone_DataprepEditor_InstanceLayout_v0.3")
 		->AddArea
 		(
 			FTabManager::NewPrimaryArea()->SetOrientation(Orient_Vertical)
-			->Split
-			(
-				FTabManager::NewStack()
-				->SetSizeCoefficient(0.1f)
-				->SetHideTabWell(true)
-				->AddTab(GetToolbarTabId(), ETabState::OpenedTab)
-				// Don't want the secondary toolbar tab to be opened if there's nothing in it
-				//->AddTab(SecondaryToolbarTabId, ETabState::ClosedTab)
-			)
 			->Split
 			(
 				FTabManager::NewSplitter()->SetOrientation(Orient_Horizontal)

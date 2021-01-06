@@ -164,18 +164,11 @@ namespace Metasound
 
 			CreateInternalWidgets();
 
-			const TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout("Standalone_MetasoundEditor_Layout_v1")
+			const TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout("Standalone_MetasoundEditor_Layout_v2")
 				->AddArea
 				(
 					FTabManager::NewPrimaryArea()
 					->SetOrientation(Orient_Vertical)
-					->Split
-					(
-						FTabManager::NewStack()
-						->SetSizeCoefficient(0.1f)
-						->SetHideTabWell(true)
-						->AddTab(GetToolbarTabId(), ETabState::OpenedTab)
-					)
 					->Split(FTabManager::NewSplitter()
 						->SetOrientation(Orient_Horizontal)
 						->SetSizeCoefficient(0.9f)

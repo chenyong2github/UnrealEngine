@@ -72,7 +72,7 @@ void FCompositeCurveTableEditor::InitCurveTableEditor( const EToolkitMode::Type 
 
 TSharedRef< FTabManager::FLayout > FCompositeCurveTableEditor::InitCurveTableLayout()
 {
-	return FTabManager::NewLayout("Standalone_CompositeCurveTableEditor_temp_Layout2")
+	return FTabManager::NewLayout("Standalone_CompositeCurveTableEditor_temp_Layout3")
 	->AddArea
 	(
 		FTabManager::NewPrimaryArea()->SetOrientation(Orient_Horizontal)
@@ -92,13 +92,6 @@ TSharedRef< FTabManager::FLayout > FCompositeCurveTableEditor::InitCurveTableLay
 		(
 			FTabManager::NewSplitter()
 			->SetOrientation(Orient_Vertical)
-			->Split
-			(
-				FTabManager::NewStack()
-				->SetSizeCoefficient(0.1f)
-				->SetHideTabWell(true)
-				->AddTab(GetToolbarTabId(), ETabState::OpenedTab)
-			)
 			->Split
 			(
 				FTabManager::NewStack()

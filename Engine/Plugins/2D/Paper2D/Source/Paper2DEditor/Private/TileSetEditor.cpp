@@ -310,18 +310,11 @@ void FTileSetEditor::OnPropertyChanged(UObject* ObjectBeingModified, FPropertyCh
 void FTileSetEditor::CreateLayouts()
 {
 	// Default layout
-	TileSelectorPreferredLayout = FTabManager::NewLayout("Standalone_TileSetEditor_Layout_v4")
+	TileSelectorPreferredLayout = FTabManager::NewLayout("Standalone_TileSetEditor_Layout_v5")
 		->AddArea
 		(
 			FTabManager::NewPrimaryArea()
 			->SetOrientation(Orient_Vertical)
-			->Split
-			(
-				FTabManager::NewStack()
-				->SetSizeCoefficient(0.1f)
-				->SetHideTabWell(true)
-				->AddTab(GetToolbarTabId(), ETabState::OpenedTab)
-			)
 			->Split
 			(
 				FTabManager::NewSplitter()
@@ -356,18 +349,11 @@ void FTileSetEditor::CreateLayouts()
 		);
 
 	// Alternate layout
-	SingleTileEditorPreferredLayout = FTabManager::NewLayout("Standalone_TileSetEditor_AlternateLayout_v1")
+	SingleTileEditorPreferredLayout = FTabManager::NewLayout("Standalone_TileSetEditor_AlternateLayout_v2")
 		->AddArea
 		(
 			FTabManager::NewPrimaryArea()
 			->SetOrientation(Orient_Vertical)
-			->Split
-			(
-				FTabManager::NewStack()
-				->SetSizeCoefficient(0.1f)
-				->SetHideTabWell(true)
-				->AddTab(GetToolbarTabId(), ETabState::OpenedTab)
-			)
 			->Split
 			(
 				FTabManager::NewSplitter()

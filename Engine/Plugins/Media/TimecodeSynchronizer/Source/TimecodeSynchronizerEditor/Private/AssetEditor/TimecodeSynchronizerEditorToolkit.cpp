@@ -28,7 +28,7 @@ namespace TimecodeSynchronizerEditorToolkit
 	const FName PropertiesTabId(TEXT("TimecodeSynchronizerEditor_Properties"));
 	const FName SourceViewerTabId(TEXT("TimecodeSynchronizerEditor_SourceViewer"));
 	const FName SynchronizerWidgetTabId(TEXT("TimecodeSynchronizerEditor_SynchronizerWidget"));
-	const FName Layout(TEXT("Standalone_TimecodeSynchronizerEditor_Layout_v0"));
+	const FName Layout(TEXT("Standalone_TimecodeSynchronizerEditor_Layout_v1"));
 }
 
 TSharedRef<FTimecodeSynchronizerEditorToolkit> FTimecodeSynchronizerEditorToolkit::CreateEditor(const EToolkitMode::Type Mode, const TSharedPtr< class IToolkitHost >& InitToolkitHost, class UTimecodeSynchronizer* InTimecodeSynchronizer)
@@ -50,13 +50,6 @@ void FTimecodeSynchronizerEditorToolkit::InitTimecodeSynchronizerEditor(const ET
 		(
 			FTabManager::NewPrimaryArea()
 			->SetOrientation(Orient_Vertical)
-			->Split
-			(
-				FTabManager::NewStack()
-				->SetSizeCoefficient(0.1f)
-				->SetHideTabWell(true)
-				->AddTab(GetToolbarTabId(), ETabState::OpenedTab)
-			)
 			->Split
 			(
 				FTabManager::NewSplitter()

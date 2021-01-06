@@ -39,20 +39,12 @@ FControlRigEditorMode::FControlRigEditorMode(const TSharedRef<FControlRigEditor>
  	TabFactories.RegisterFactory(PersonaModule.CreatePersonaViewportTabFactory(InControlRigEditor, ViewportArgs));
 	TabFactories.RegisterFactory(PersonaModule.CreateAdvancedPreviewSceneTabFactory(InControlRigEditor, InControlRigEditor->GetPersonaToolkit()->GetPreviewScene()));
 
-	TabLayout = FTabManager::NewLayout("Standalone_ControlRigEditMode_Layout_v1.3")
+	TabLayout = FTabManager::NewLayout("Standalone_ControlRigEditMode_Layout_v1.4")
 		->AddArea
 		(
 			// Main application area
 			FTabManager::NewPrimaryArea()
 			->SetOrientation(Orient_Vertical)
-			->Split
-			(
-				// Top toolbar
-				FTabManager::NewStack() 
-				->SetSizeCoefficient(0.186721f)
-				->SetHideTabWell(true)
-				->AddTab(InControlRigEditor->GetToolbarTabId(), ETabState::OpenedTab)
-			)
 			->Split
 			(
 				FTabManager::NewSplitter()

@@ -195,15 +195,10 @@ void FFontEditor::InitFontEditor(const EToolkitMode::Type Mode, const TSharedPtr
 
 	CreateInternalWidgets();
 
-	const TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout("Standalone_FontEditor_Layout_v3")
+	const TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout("Standalone_FontEditor_Layout_v4")
 	->AddArea
 	(
 		FTabManager::NewPrimaryArea() ->SetOrientation( Orient_Vertical )
-		->Split
-		(
-			FTabManager::NewStack()
-			->AddTab( GetToolbarTabId(), ETabState::OpenedTab ) ->SetHideTabWell( true )
-		)
 		->Split
 		(
 			FTabManager::NewSplitter() ->SetOrientation(Orient_Horizontal) ->SetSizeCoefficient(0.9f)

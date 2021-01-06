@@ -154,8 +154,6 @@ public:
 
 	/** Fills inheritance drop down menu */
 	virtual void GenerateInheritanceMenu(class UToolMenu* Menu) {};
-
-	virtual bool UsesCustomToolbarPlacement() const { return true; }
 private:
 	FMaterialEditorClosedEvent MaterialEditorClosedEvent;
 	FRegisterTabSpawnersEvent RegisterTabSpawnersEvent;

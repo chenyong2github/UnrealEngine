@@ -53,7 +53,7 @@ FDisplayClusterConfiguratorToolkit::FDisplayClusterConfiguratorToolkit(UDisplayC
 	Editor = InAssetEditor;
 
 	// All internal objects have been initialized so we can build the layout
-	StandaloneDefaultLayout = BuildDefaultLayout(FString(TEXT("DisplayClusterConfigurator_v004")));
+	StandaloneDefaultLayout = BuildDefaultLayout(FString(TEXT("DisplayClusterConfigurator_v005")));
 }
 
 TSharedPtr<FTabManager::FLayout> FDisplayClusterConfiguratorToolkit::BuildDefaultLayout(const FString& LayoutName)
@@ -62,14 +62,6 @@ TSharedPtr<FTabManager::FLayout> FDisplayClusterConfiguratorToolkit::BuildDefaul
 		->AddArea
 		(
 			FTabManager::NewPrimaryArea()->SetOrientation(Orient_Vertical)
-			->Split
-			(
-				// Toolbar
-				FTabManager::NewStack()
-				->SetSizeCoefficient(0.1f)
-				->AddTab(GetToolbarTabId(), ETabState::OpenedTab)
-				->SetHideTabWell(true)
-			)
 			->Split
 			(
 				// Main canvas
