@@ -50,15 +50,18 @@ struct ENGINE_API FAnimNode_AssetPlayerBase : public FAnimNode_Base
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
 	int32 GroupIndex_DEPRECATED;
+
+	UPROPERTY()
+	EAnimSyncGroupScope GroupScope_DEPRECATED;
 #endif
 
 	// The role this player can assume within the group (ignored if GroupIndex is INDEX_NONE)
 	UPROPERTY()
 	TEnumAsByte<EAnimGroupRole::Type> GroupRole;
 
-	// The scope at which marker-based sync is applied
+	// How synchronization is determined
 	UPROPERTY()
-	EAnimSyncGroupScope GroupScope;
+	EAnimSyncMethod Method;
 
 	/** If true, "Relevant anim" nodes that look for the highest weighted animation in a state will ignore
 	 *  this node

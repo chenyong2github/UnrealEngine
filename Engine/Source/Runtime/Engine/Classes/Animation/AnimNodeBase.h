@@ -293,6 +293,13 @@ public:
 		: FAnimationBaseContext(InAnimInstanceProxy)
 	{
 	}
+
+	FAnimationCacheBonesContext WithNodeId(int32 InNodeId) const
+	{ 
+		FAnimationCacheBonesContext Result(*this);
+		Result.SetNodeId(InNodeId);
+		return Result; 
+	}
 };
 
 /** Update context passed around during animation tree update */
@@ -346,7 +353,7 @@ public:
 		Result.SharedContext = InSharedContext;
 
 		// This is currently only used in the case of cached poses, where we dont want to preserve the previous node, so clear it here
-		Result.PreviousNodeId = INDEX_NONE;
+	//	Result.PreviousNodeId = INDEX_NONE;
 
 		return Result;
 	}

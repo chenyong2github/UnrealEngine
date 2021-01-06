@@ -5,6 +5,8 @@
 #include "Animation/AnimSequence.h"
 #include "Animation/AnimInstanceProxy.h"
 #include "AnimGraphRuntimeTrace.h"
+#include "Animation/AnimSync.h"
+#include "Animation/AnimSyncScope.h"
 
 /////////////////////////////////////////////////////
 // FAnimNode_BlendSpacePlayer
@@ -81,27 +83,22 @@ void FAnimNode_BlendSpacePlayer::UpdateAssetPlayer(const FAnimationUpdateContext
 void FAnimNode_BlendSpacePlayer::UpdateInternal(const FAnimationUpdateContext& Context)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(UpdateInternal)
-	if ((BlendSpace != NULL) && (Context.AnimInstanceProxy->IsSkeletonCompatible(BlendSpace->GetSkeleton())))
-	{
-		// Create a tick record and fill it out
-		FAnimGroupInstance* SyncGroup;
-		FAnimTickRecord& TickRecord = Context.AnimInstanceProxy->CreateUninitializedTickRecordInScope(/*out*/ SyncGroup, GroupName, GroupScope);
-
-		const FVector BlendInput(X, Y, Z);
-	
+	if ((BlendSpace != nullptr) && (Context.AnimInstanceProxy->IsSkeletonCompatible(BlendSpace->GetSkeleton())))
+	{	
 		if (PreviousBlendSpace != BlendSpace)
 		{
 			Reinitialize(bResetPlayTimeWhenBlendSpaceChanges);
 		}
 
-		Context.AnimInstanceProxy->MakeBlendSpaceTickRecord(TickRecord, BlendSpace, BlendInput, BlendSampleDataCache, BlendFilter, bLoop, PlayRate, Context.GetFinalBlendWeight(), /*inout*/ InternalTimeAccumulator, MarkerTickRecord);
+		const FVector BlendInput(X, Y, Z);
 
-		// Update the sync group if it exists
-		if (SyncGroup != NULL)
-		{
-			SyncGroup->TestTickRecordForLeadership(GroupRole);
-		}
+		// Create a tick record and push into the closest scope
+		UE::Anim::FAnimSyncGroupScope& SyncScope = Context.GetMessageChecked<UE::Anim::FAnimSyncGroupScope>();
 
+		FAnimTickRecord TickRecord(BlendSpace, BlendInput, BlendSampleDataCache, BlendFilter, bLoop, PlayRate, Context.GetFinalBlendWeight(), /*inout*/ InternalTimeAccumulator, MarkerTickRecord);
+		UE::Anim::FAnimSyncParams SyncParams(GroupName, GroupRole, Method);
+
+		SyncScope.AddTickRecord(TickRecord, SyncParams, UE::Anim::FAnimSyncDebugInfo(Context));
 
 		TRACE_ANIM_TICK_RECORD(Context, TickRecord);
 
@@ -124,7 +121,7 @@ void FAnimNode_BlendSpacePlayer::UpdateInternal(const FAnimationUpdateContext& C
 void FAnimNode_BlendSpacePlayer::Evaluate_AnyThread(FPoseContext& Output)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Evaluate_AnyThread)
-	if ((BlendSpace != NULL) && (Output.AnimInstanceProxy->IsSkeletonCompatible(BlendSpace->GetSkeleton())))
+	if ((BlendSpace != nullptr) && (Output.AnimInstanceProxy->IsSkeletonCompatible(BlendSpace->GetSkeleton())))
 	{
 		FAnimationPoseData AnimationPoseData(Output);
 		BlendSpace->GetAnimationPose(BlendSampleDataCache, AnimationPoseData);
@@ -202,7 +199,7 @@ void FAnimNode_BlendSpacePlayer::Reinitialize(bool bResetTime)
 		}
 	}
 
-	if (BlendSpace != NULL)
+	if (BlendSpace != nullptr)
 	{
 		BlendSpace->InitializeFilter(&BlendFilter);
 	}

@@ -139,7 +139,7 @@ void UAnimGraphNode_BlendSpaceEvaluator::BakeDataDuringCompilation(class FCompil
 	AnimBlueprint->FindOrAddGroup(SyncGroup.GroupName);
 	Node.GroupName = SyncGroup.GroupName;
 	Node.GroupRole = SyncGroup.GroupRole;
-	Node.GroupScope = SyncGroup.GroupScope;
+	Node.Method = SyncGroup.Method;
 }
 
 void UAnimGraphNode_BlendSpaceEvaluator::GetNodeContextMenuActions(UToolMenu* Menu, UGraphNodeContextMenuContext* Context) const

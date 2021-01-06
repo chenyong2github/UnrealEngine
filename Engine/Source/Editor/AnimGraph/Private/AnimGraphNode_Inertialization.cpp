@@ -25,5 +25,9 @@ FText UAnimGraphNode_Inertialization::GetMenuCategory() const
 	return LOCTEXT("NodeCategory", "Inertialization");
 }
 
+void UAnimGraphNode_Inertialization::GetInputLinkAttributes(FNodeAttributeArray& OutAttributes) const
+{
+	OutAttributes.Add(UE::Anim::IInertializationRequester::Attribute);
+}
 
 #undef LOCTEXT_NAMESPACE

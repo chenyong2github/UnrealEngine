@@ -23,6 +23,7 @@ public:
 	// End of UEdGraphNode interface
 
 	// UAnimGraphNode_Base interface
-	virtual bool UsingCopyPoseFromMesh() { return true; }
+	virtual bool UsingCopyPoseFromMesh() const override { return true; }
+	virtual void GetOutputLinkAttributes(FNodeAttributeArray& OutAttributes) const override;
 	// End of UAnimGraphNode_Base interface
 };

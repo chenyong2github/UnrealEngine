@@ -32,7 +32,7 @@ void UAnimGraphNode_SequenceEvaluator::BakeDataDuringCompilation(class FCompiler
 	AnimBlueprint->FindOrAddGroup(SyncGroup.GroupName);
 	Node.GroupName = SyncGroup.GroupName;
 	Node.GroupRole = SyncGroup.GroupRole;
-	Node.GroupScope = SyncGroup.GroupScope;
+	Node.Method = SyncGroup.Method;
 }
 
 void UAnimGraphNode_SequenceEvaluator::GetAllAnimationSequencesReferred(TArray<UAnimationAsset*>& AnimationAssets) const

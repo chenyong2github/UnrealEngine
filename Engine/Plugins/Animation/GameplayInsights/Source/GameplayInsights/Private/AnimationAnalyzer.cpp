@@ -24,6 +24,7 @@ void FAnimationAnalyzer::OnAnalysisBegin(const FOnAnalysisContext& Context)
 	Builder.RouteEvent(RouteId_SkeletalMeshFrame, "Animation", "SkeletalMeshFrame");
 	Builder.RouteEvent(RouteId_AnimGraph, "Animation", "AnimGraph");
 	Builder.RouteEvent(RouteId_AnimNodeStart, "Animation", "AnimNodeStart");
+	Builder.RouteEvent(RouteId_AnimNodeAttribute, "Animation", "AnimNodeAttribute");
 	Builder.RouteEvent(RouteId_AnimNodeValueBool, "Animation", "AnimNodeValueBool");
 	Builder.RouteEvent(RouteId_AnimNodeValueInt, "Animation", "AnimNodeValueInt");
 	Builder.RouteEvent(RouteId_AnimNodeValueFloat, "Animation", "AnimNodeValueFloat");
@@ -39,6 +40,7 @@ void FAnimationAnalyzer::OnAnalysisBegin(const FOnAnalysisContext& Context)
 	Builder.RouteEvent(RouteId_Notify, "Animation", "Notify");
 	Builder.RouteEvent(RouteId_SyncMarker, "Animation", "SyncMarker");
 	Builder.RouteEvent(RouteId_Montage, "Animation", "Montage");
+	Builder.RouteEvent(RouteId_Sync, "Animation", "Sync");
 }
 
 bool FAnimationAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext& Context)
@@ -181,6 +183,17 @@ bool FAnimationAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventCon
 		AnimationProvider.AppendAnimNodeStart(AnimInstanceId, Context.EventTime.AsSeconds(StartCycle), FrameCounter, NodeId, PreviousNodeId, Weight, RootMotionWeight, TargetNodeName, Phase);
 		break;
 	}
+	case RouteId_AnimNodeAttribute:
+	{
+		uint64 Cycle = EventData.GetValue<uint64>("Cycle");
+		uint64 SourceAnimInstanceId = EventData.GetValue<uint64>("SourceAnimInstanceId");
+		uint64 TargetAnimInstanceId = EventData.GetValue<uint64>("TargetAnimInstanceId");
+		int32 SourceNodeId = EventData.GetValue<int32>("SourceNodeId");
+		int32 TargetNodeId = EventData.GetValue<int32>("TargetNodeId");
+		uint32 NameId = EventData.GetValue<uint32>("NameId");
+		AnimationProvider.AppendAnimGraphAttribute(SourceAnimInstanceId, TargetAnimInstanceId, Context.EventTime.AsSeconds(Cycle), SourceNodeId, TargetNodeId, NameId);
+		break;
+	}
 	case RouteId_AnimNodeValueBool:
 	case RouteId_AnimNodeValueInt:
 	case RouteId_AnimNodeValueFloat:
@@ -316,6 +329,15 @@ bool FAnimationAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventCon
 		float DesiredWeight = EventData.GetValue<float>("DesiredWeight");
 		uint16 FrameCounter = EventData.GetValue<uint16>("FrameCounter");
 		AnimationProvider.AppendMontage(AnimInstanceId, Context.EventTime.AsSeconds(Cycle), MontageId, CurrentSectionNameId, NextSectionNameId, Weight, DesiredWeight, FrameCounter);
+		break;
+	}
+	case RouteId_Sync:
+	{
+		uint64 Cycle = EventData.GetValue<uint64>("Cycle");
+		uint64 AnimInstanceId = EventData.GetValue<uint64>("AnimInstanceId");
+		int32 SourceNodeId = EventData.GetValue<int32>("SourceNodeId");
+		uint32 GroupNameId = EventData.GetValue<uint32>("GroupNameId");
+		AnimationProvider.AppendSync(AnimInstanceId, Context.EventTime.AsSeconds(Cycle), SourceNodeId, GroupNameId);
 		break;
 	}
 	}

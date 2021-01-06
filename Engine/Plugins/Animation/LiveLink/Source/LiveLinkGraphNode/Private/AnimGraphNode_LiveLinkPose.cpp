@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AnimGraphNode_LiveLinkPose.h"
-
 #include "EdGraph/EdGraphSchema.h"
+#include "Animation/AnimAttributes.h"
 
 #define LOCTEXT_NAMESPACE "LiveLinkAnimNode"
 
@@ -49,6 +49,12 @@ void UAnimGraphNode_LiveLinkPose::ConvertDeprecatedNode(UEdGraph* Graph, bool bO
 			Node.LiveLinkSubjectName = NewName;
 		}
 	}
+}
+
+void UAnimGraphNode_LiveLinkPose::GetOutputLinkAttributes(FNodeAttributeArray& OutAttributes) const
+{
+	OutAttributes.Add(UE::Anim::FAttributes::Curves);
+	OutAttributes.Add(UE::Anim::FAttributes::Attributes);
 }
 
 #undef LOCTEXT_NAMESPACE

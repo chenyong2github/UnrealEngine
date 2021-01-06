@@ -28,6 +28,7 @@
 #include "AnimBlueprintCompilerHandler_StateMachine.h"
 #include "IAnimBlueprintGeneratedClassCompiledData.h"
 #include "IAnimBlueprintCompilationContext.h"
+#include "Animation/AnimNode_Inertialization.h"
 
 /////////////////////////////////////////////////////
 // FAnimStateMachineNodeNameValidator
@@ -592,6 +593,21 @@ void UAnimGraphNode_StateMachineBase::OnProcessDuringCompilation(IAnimBlueprintC
 	}
 
 	Oven.Validate();
+}
+
+void UAnimGraphNode_StateMachineBase::GetOutputLinkAttributes(FNodeAttributeArray& OutAttributes) const
+{
+	for (const UEdGraphNode* Node : EditorStateMachineGraph->Nodes)
+	{
+		if (const UAnimStateTransitionNode* TransitionNode = Cast<UAnimStateTransitionNode>(Node))
+		{
+			if(TransitionNode->LogicType == ETransitionLogicType::TLT_Inertialization)
+			{
+				OutAttributes.Add(UE::Anim::IInertializationRequester::Attribute);
+				break;
+			}
+		}
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

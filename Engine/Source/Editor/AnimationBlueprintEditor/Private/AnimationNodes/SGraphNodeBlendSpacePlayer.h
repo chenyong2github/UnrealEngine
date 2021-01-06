@@ -28,6 +28,12 @@ protected:
 	EVisibility GetBlendSpaceVisibility() const;
 	bool GetBlendSpaceInfo(TWeakObjectPtr<const UBlendSpaceBase>& OutBlendSpace, FVector& OutPosition) const;
 
+	// Invalidates the node's label if we are syncing based on graph context
+	void UpdateGraphSyncLabel();
+
 	TWeakObjectPtr<const UBlendSpaceBase> CachedBlendSpace;
 	FVector CachedPosition;
+
+	// Cached name to display when sync groups are dynamic
+	FName CachedSyncGroupName;
 };

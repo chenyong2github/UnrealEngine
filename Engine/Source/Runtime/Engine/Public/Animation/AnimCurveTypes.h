@@ -700,6 +700,9 @@ struct FBaseBlendedCurve
 	/** Return number of elements */
 	int32 Num() const { return CurveWeights.Num(); }
 
+	/** Return number of valid elements */
+	int32 NumValid() const { return ValidCurveWeights.CountSetBits(); }
+
 	/** CopyFrom as expected. */
 	template <typename OtherAllocator>
 	void CopyFrom(const FBaseBlendedCurve<OtherAllocator>& CurveToCopyFrom)

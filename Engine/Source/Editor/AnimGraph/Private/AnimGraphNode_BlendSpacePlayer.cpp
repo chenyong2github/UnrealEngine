@@ -44,12 +44,35 @@ FText UAnimGraphNode_BlendSpacePlayer::GetNodeTitleForBlendSpace(ENodeTitleType:
 		TitleArgs.Add(TEXT("BlendSpaceName"), BlendSpaceName);
 		FText Title = FText::Format(LOCTEXT("BlendSpacePlayerFullTitle", "{BlendSpaceName}\nBlendspace Player"), TitleArgs);
 
-		if ((TitleType == ENodeTitleType::FullTitle) && (SyncGroup.GroupName != NAME_None))
+		if (TitleType == ENodeTitleType::FullTitle)
 		{
 			FFormatNamedArguments Args;
 			Args.Add(TEXT("Title"), Title);
-			Args.Add(TEXT("SyncGroupName"), FText::FromName(SyncGroup.GroupName));
-			Title = FText::Format(LOCTEXT("BlendSpaceNodeGroupSubtitle", "{Title}\nSync group {SyncGroupName}"), Args);
+
+			if(SyncGroup.Method == EAnimSyncMethod::SyncGroup)
+			{
+				Args.Add(TEXT("SyncGroupName"), FText::FromName(SyncGroup.GroupName));
+				Title = FText::Format(LOCTEXT("BlendSpaceNodeGroupSubtitle", "{Title}\nSync group {SyncGroupName}"), Args);
+			}
+			else if(SyncGroup.Method == EAnimSyncMethod::Graph)
+			{
+				Title = FText::Format(LOCTEXT("BlendSpaceNodeGroupSubtitle", "{Title}\nGraph sync group"), Args);
+
+				UObject* ObjectBeingDebugged = GetAnimBlueprint()->GetObjectBeingDebugged();
+				UAnimBlueprintGeneratedClass* GeneratedClass = GetAnimBlueprint()->GetAnimBlueprintGeneratedClass();
+				if (ObjectBeingDebugged && GeneratedClass)
+				{
+					int32 NodeIndex = GeneratedClass->GetNodeIndexFromGuid(NodeGuid);
+					if(NodeIndex != INDEX_NONE)
+					{
+						if(const FName* SyncGroupNamePtr = GeneratedClass->GetAnimBlueprintDebugData().NodeSyncsThisFrame.Find(NodeIndex))
+						{
+							Args.Add(TEXT("SyncGroupName"), FText::FromName(*SyncGroupNamePtr));
+							Title = FText::Format(LOCTEXT("BlendSpaceNodeGraphGroupSubtitle", "{Title}\nGraph sync group {SyncGroupName}"), Args);
+						}
+					}
+				}
+			}
 		}
 		// FText::Format() is slow, so we cache this to save on performance
 		CachedNodeTitles.SetCachedTitle(TitleType, Title, this);
@@ -138,7 +161,7 @@ void UAnimGraphNode_BlendSpacePlayer::BakeDataDuringCompilation(class FCompilerR
 	AnimBlueprint->FindOrAddGroup(SyncGroup.GroupName);
 	Node.GroupName = SyncGroup.GroupName;
 	Node.GroupRole = SyncGroup.GroupRole;
-	Node.GroupScope = SyncGroup.GroupScope;
+	Node.Method = SyncGroup.Method;
 }
 
 void UAnimGraphNode_BlendSpacePlayer::GetNodeContextMenuActions(UToolMenu* Menu, UGraphNodeContextMenuContext* Context) const

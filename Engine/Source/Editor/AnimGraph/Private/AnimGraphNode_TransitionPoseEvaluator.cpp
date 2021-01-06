@@ -8,6 +8,7 @@
 #include "IDetailPropertyRow.h"
 #include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
+#include "Animation/AnimAttributes.h"
 
 /////////////////////////////////////////////////////
 // UAnimGraphNode_TransitionPoseEvaluator
@@ -97,6 +98,12 @@ EVisibility UAnimGraphNode_TransitionPoseEvaluator::GetCacheFramesVisibility(IDe
 	}
 
 	return EVisibility::Hidden;
+}
+
+void UAnimGraphNode_TransitionPoseEvaluator::GetOutputLinkAttributes(FNodeAttributeArray& OutAttributes) const
+{
+	OutAttributes.Add(UE::Anim::FAttributes::Curves);
+	OutAttributes.Add(UE::Anim::FAttributes::Attributes);
 }
 
 #undef LOCTEXT_NAMESPACE

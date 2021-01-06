@@ -10,6 +10,8 @@
 
 IMPLEMENT_ANIMGRAPH_MESSAGE(UE::Anim::IInertializationRequester);
 
+const FName UE::Anim::IInertializationRequester::Attribute("InertialBlending");
+
 TAutoConsoleVariable<int32> CVarAnimInertializationEnable(TEXT("a.AnimNode.Inertialization.Enable"), 1, TEXT("Enable / Disable Inertialization"));
 TAutoConsoleVariable<int32> CVarAnimInertializationIgnoreVelocity(TEXT("a.AnimNode.Inertialization.IgnoreVelocity"), 0, TEXT("Ignore velocity information during Inertialization (effectively reverting to a quintic diff blend)"));
 TAutoConsoleVariable<int32> CVarAnimInertializationIgnoreDeficit(TEXT("a.AnimNode.Inertialization.IgnoreDeficit"), 0, TEXT("Ignore inertialization time deficit caused by interruptions"));
@@ -24,16 +26,35 @@ namespace UE { namespace Anim {
 class FInertializationRequester : public IInertializationRequester
 {
 public:
-	FInertializationRequester(FAnimNode_Inertialization* InNode)
+	FInertializationRequester(const FAnimationBaseContext& InContext, FAnimNode_Inertialization* InNode)
 		: Node(*InNode)
+		, NodeId(InContext.GetCurrentNodeId())
+		, Proxy(*InContext.AnimInstanceProxy)
 	{}
 
 private:
 	// IInertializationRequester interface
-	virtual void RequestInertialization(float InRequestedDuration) { Node.RequestInertialization(InRequestedDuration); }
+	virtual void RequestInertialization(float InRequestedDuration) override
+	{ 
+		Node.RequestInertialization(InRequestedDuration); 
+	}
+
+	virtual void AddDebugRecord(const FAnimInstanceProxy& InSourceProxy, int32 InSourceNodeId)
+	{
+#if WITH_EDITORONLY_DATA
+		Proxy.RecordNodeAttribute(InSourceProxy, NodeId, InSourceNodeId, IInertializationRequester::Attribute);
+#endif
+		TRACE_ANIM_NODE_ATTRIBUTE(Proxy, InSourceProxy, NodeId, InSourceNodeId, IInertializationRequester::Attribute);
+	}
 
 	// Node to target
 	FAnimNode_Inertialization& Node;
+
+	// Node index
+	int32 NodeId;
+
+	// Proxy currently executing
+	FAnimInstanceProxy& Proxy;
 };
 
 }}	// namespace UE::Anim
@@ -103,11 +124,14 @@ void FAnimNode_Inertialization::Update_AnyThread(const FAnimationUpdateContext& 
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Update_AnyThread);
 
+	const int32 NodeId = Context.GetCurrentNodeId();
+	const FAnimInstanceProxy& Proxy = *Context.AnimInstanceProxy;
+
 	// Allow nodes further towards the leaves to inertialize using this node
-	UE::Anim::TScopedGraphMessage<UE::Anim::FInertializationRequester> Inertialization(Context, this);
+	UE::Anim::TScopedGraphMessage<UE::Anim::FInertializationRequester> Inertialization(Context, Context, this);
 
 	// Handle skipped updates for cached poses by forwarding to inertialization nodes in those residual stacks
-	UE::Anim::TScopedGraphMessage<UE::Anim::FCachedPoseSkippedUpdateHandler> CachedPoseSkippedUpdate(Context, [this](TArrayView<const UE::Anim::FMessageStack> InSkippedUpdates)
+	UE::Anim::TScopedGraphMessage<UE::Anim::FCachedPoseSkippedUpdateHandler> CachedPoseSkippedUpdate(Context, [this, NodeId, &Proxy](TArrayView<const UE::Anim::FMessageStack> InSkippedUpdates)
 	{
 		// If we have a pending request forward the request to other Inertialization nodes
 		// that were skipped due to pose caching.
@@ -118,9 +142,10 @@ void FAnimNode_Inertialization::Update_AnyThread(const FAnimationUpdateContext& 
 			// So here we forward 'this' node's requests to the ancestors of those skipped UseCachedPose nodes.
 			for (const UE::Anim::FMessageStack& Stack : InSkippedUpdates)
 			{
-				Stack.ForEachMessage<UE::Anim::IInertializationRequester>([this](UE::Anim::IInertializationRequester& InMessage)
+				Stack.ForEachMessage<UE::Anim::IInertializationRequester>([this, NodeId, &Proxy](UE::Anim::IInertializationRequester& InMessage)
 				{
 					InMessage.RequestInertialization(RequestedDuration);
+ 					InMessage.AddDebugRecord(Proxy, NodeId);
 
 					return UE::Anim::FMessageStack::EEnumerate::Stop;
 				});

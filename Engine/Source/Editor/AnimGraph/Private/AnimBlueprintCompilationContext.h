@@ -35,6 +35,8 @@ private:
 	virtual const TMap<UAnimGraphNode_Base*, UAnimGraphNode_Base*>& GetSourceNodeToProcessedNodeMapImpl() const override;
 	virtual const TMap<int32, FProperty*>& GetAllocatedPropertiesByIndexImpl() const override;
 	virtual const TMap<UAnimGraphNode_Base*, FProperty*>& GetAllocatedPropertiesByNodeImpl() const override;
+	virtual void AddAttributesToNodeImpl(UAnimGraphNode_Base* InNode, TArrayView<const FName> InAttributes) const override;
+	virtual TArrayView<const FName> GetAttributesFromNodeImpl(UAnimGraphNode_Base* InNode) const override;
 	virtual IAnimBlueprintCompilerHandler* GetHandlerInternal(FName InName) const override;
 	virtual FKismetCompilerContext* GetKismetCompiler() const override;
 

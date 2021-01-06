@@ -3,6 +3,7 @@
 #include "AnimGraphNode_RandomPlayer.h"
 
 #include "EditorCategoryUtils.h"
+#include "Animation/AnimAttributes.h"
 
 #define LOCTEXT_NAMESPACE "AnimGraphNode_RandomPlayer"
 
@@ -24,6 +25,12 @@ FText UAnimGraphNode_RandomPlayer::GetNodeTitle(ENodeTitleType::Type TitleType) 
 FText UAnimGraphNode_RandomPlayer::GetMenuCategory() const
 {
 	return FEditorCategoryUtils::GetCommonCategory(FCommonEditorCategory::Animation);
+}
+
+void UAnimGraphNode_RandomPlayer::GetOutputLinkAttributes(FNodeAttributeArray& OutAttributes) const
+{
+	OutAttributes.Add(UE::Anim::FAttributes::Curves);
+	OutAttributes.Add(UE::Anim::FAttributes::Attributes);
 }
 
 #undef LOCTEXT_NAMESPACE

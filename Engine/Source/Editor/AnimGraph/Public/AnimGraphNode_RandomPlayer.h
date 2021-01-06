@@ -24,4 +24,8 @@ public:
 	virtual FText GetNodeTitle(ENodeTitleType::Type TitleType) const override;
 	virtual FText GetMenuCategory() const override;
 	// End of UEdGraphNode interface
+
+	// UAnimGraphNode_Base interface
+	virtual void GetOutputLinkAttributes(FNodeAttributeArray& OutAttributes) const override;
+	// End of UAnimGraphNode_Base interface
 };

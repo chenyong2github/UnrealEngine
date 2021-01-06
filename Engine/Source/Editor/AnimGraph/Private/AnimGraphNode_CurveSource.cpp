@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AnimGraphNode_CurveSource.h"
+#include "Animation/AnimAttributes.h"
 
 #define LOCTEXT_NAMESPACE "ExternalCurve"
 
@@ -26,6 +27,11 @@ FText UAnimGraphNode_CurveSource::GetNodeTitle(ENodeTitleType::Type TitleType) c
 	}
 
 	return LOCTEXT("AnimGraphNode_CurveSource_Title", "Curve Source");
+}
+
+void UAnimGraphNode_CurveSource::GetOutputLinkAttributes(FNodeAttributeArray& OutAttributes) const
+{
+	OutAttributes.Add(UE::Anim::FAttributes::Curves);
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -341,18 +341,11 @@ void UAnimInstance::UpdateMontageSyncGroup()
 			if (ensure(GroupNameToUse != NAME_None))
 			{
 				bRecordNeedsResetting = false;
-				FAnimGroupInstance* SyncGroup;
-				FAnimTickRecord& TickRecord = GetProxyOnGameThread<FAnimInstanceProxy>().CreateUninitializedTickRecord(/*out*/ SyncGroup, GroupNameToUse);
-				MakeMontageTickRecord(TickRecord, MontageInstance->Montage, MontageInstance->GetPosition(),
+				FAnimTickRecord TickRecord(MontageInstance->Montage, MontageInstance->GetPosition(),
 					MontageInstance->GetPreviousPosition(), MontageInstance->GetDeltaMoved(), MontageInstance->GetWeight(),
 					MontageInstance->MarkersPassedThisTick, MontageInstance->MarkerTickRecord);
-
-				// Update the sync group if it exists
-				if (SyncGroup != NULL)
-				{
-					// the max count should be 2 as you had older one and you have newer one. After TestMontageTickRecordForLeadership, it should set to be 1
-					SyncGroup->TestMontageTickRecordForLeadership();
-				}
+				UE::Anim::FAnimSyncParams Params(GroupNameToUse);
+				GetProxyOnGameThread<FAnimInstanceProxy>().AddTickRecord(TickRecord, Params);
 
 #if ANIM_TRACE_ENABLED
 				FAnimationUpdateContext UpdateContext(&GetProxyOnGameThread<FAnimInstanceProxy>());
@@ -577,7 +570,7 @@ void UAnimInstance::PostUpdateAnimation()
 
 	// flip read/write index
 	// Do this first, as we'll be reading cached slot weights, and we want this to be up to date for this frame.
-	Proxy.TickSyncGroupWriteIndex();
+	Proxy.FlipBufferWriteIndex();
 
 	Proxy.PostUpdate(this);
 
@@ -659,17 +652,6 @@ void UAnimInstance::DispatchQueuedAnimEvents()
 void UAnimInstance::ParallelUpdateAnimation()
 {
 	GetProxyOnAnyThread<FAnimInstanceProxy>().UpdateAnimation();
-
-	if(GetSkelMeshComponent()->GetAnimInstance() == this)
-	{
-		// If this is the main instance,  Tick asset players for this and any linked instances we have
-		for(UAnimInstance* LinkedInstance : GetSkelMeshComponent()->GetLinkedAnimInstances())
-		{
-			LinkedInstance->GetProxyOnAnyThread<FAnimInstanceProxy>().TickAssetPlayerInstances();
-		}
-	}
-
-	GetProxyOnAnyThread<FAnimInstanceProxy>().TickAssetPlayerInstances();
 }
 
 bool UAnimInstance::NeedsImmediateUpdate(float DeltaSeconds) const

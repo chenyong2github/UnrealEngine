@@ -27,6 +27,7 @@ private:
 		RouteId_SkeletalMeshFrame,
 		RouteId_AnimGraph,
 		RouteId_AnimNodeStart,
+		RouteId_AnimNodeAttribute,
 		RouteId_AnimNodeValueBool,
 		RouteId_AnimNodeValueInt,
 		RouteId_AnimNodeValueFloat,
@@ -42,6 +43,7 @@ private:
 		RouteId_Notify,
 		RouteId_SyncMarker,
 		RouteId_Montage,
+		RouteId_Sync,
 	};
 
 	TraceServices::IAnalysisSession& Session;

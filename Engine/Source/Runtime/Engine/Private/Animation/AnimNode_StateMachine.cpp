@@ -458,6 +458,7 @@ void FAnimNode_StateMachine::Update_AnyThread(const FAnimationUpdateContext& Con
 					if (InertializationRequester)
 					{
 						InertializationRequester->RequestInertialization(ReferenceTransition.CrossfadeDuration);
+						InertializationRequester->AddDebugRecord(*Context.AnimInstanceProxy, Context.GetCurrentNodeId());
 					}
 					else
 					{

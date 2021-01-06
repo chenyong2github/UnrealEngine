@@ -90,11 +90,7 @@ FText UAnimGraphNode_SequencePlayer::GetNodeTitleForSequence(ENodeTitleType::Typ
 	const bool bAdditive = InSequence->IsValidAdditive();
 	const FText BasicTitle = GetTitleGivenAssetInfo(FText::FromName(InSequence->GetFName()), bAdditive);
 
-	if (SyncGroup.GroupName == NAME_None)
-	{
-		return BasicTitle;
-	}
-	else
+	if(SyncGroup.Method == EAnimSyncMethod::SyncGroup)
 	{
 		const FText SyncGroupName = FText::FromName(SyncGroup.GroupName);
 
@@ -110,6 +106,48 @@ FText UAnimGraphNode_SequencePlayer::GetNodeTitleForSequence(ENodeTitleType::Typ
 		{
 			return FText::Format(LOCTEXT("SequenceNodeGroupWithSubtitleList", "{Title} (Sync group {SyncGroup})"), Args);
 		}
+	}
+	else if(SyncGroup.Method == EAnimSyncMethod::Graph)
+	{
+		FFormatNamedArguments Args;
+		Args.Add(TEXT("Title"), BasicTitle);
+
+		UObject* ObjectBeingDebugged = GetAnimBlueprint()->GetObjectBeingDebugged();
+		UAnimBlueprintGeneratedClass* GeneratedClass = GetAnimBlueprint()->GetAnimBlueprintGeneratedClass();
+		if (ObjectBeingDebugged && GeneratedClass)
+		{
+			int32 NodeIndex = GeneratedClass->GetNodeIndexFromGuid(NodeGuid);
+			if(NodeIndex != INDEX_NONE)
+			{
+				if(const FName* SyncGroupNamePtr = GeneratedClass->GetAnimBlueprintDebugData().NodeSyncsThisFrame.Find(NodeIndex))
+				{
+					Args.Add(TEXT("SyncGroup"), FText::FromName(*SyncGroupNamePtr));
+
+					if (TitleType == ENodeTitleType::FullTitle)
+					{
+						return FText::Format(LOCTEXT("SequenceNodeGraphSyncDebuggedWithSubtitleFull", "{Title}\nGraph sync group {SyncGroup}"), Args);
+					}
+					else
+					{
+						return FText::Format(LOCTEXT("SequenceNodeGraphSyncDebuggedWithSubtitleList", "{Title} (Graph sync group {SyncGroup})"), Args);
+					}
+				}
+			}
+		}
+
+		// Indicate that the sync is graph-based if we have no debug data
+		if (TitleType == ENodeTitleType::FullTitle)
+		{
+			return FText::Format(LOCTEXT("SequenceNodeGraphSyncWithSubtitleFull", "{Title}\nGraph sync group"), Args);
+		}
+		else
+		{
+			return FText::Format(LOCTEXT("SequenceNodeGraphSyncWithSubtitleList", "{Title} (Graph sync group)"), Args);
+		}
+	}
+	else
+	{
+		return BasicTitle;
 	}
 }
 
@@ -384,7 +422,7 @@ void UAnimGraphNode_SequencePlayer::BakeDataDuringCompilation(class FCompilerRes
 	AnimBlueprint->FindOrAddGroup(SyncGroup.GroupName);
 	Node.GroupName = SyncGroup.GroupName;
 	Node.GroupRole = SyncGroup.GroupRole;
-	Node.GroupScope = SyncGroup.GroupScope;
+	Node.Method = SyncGroup.Method;
 }
 
 void UAnimGraphNode_SequencePlayer::GetAllAnimationSequencesReferred(TArray<UAnimationAsset*>& AnimationAssets) const

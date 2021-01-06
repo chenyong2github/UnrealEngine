@@ -83,6 +83,16 @@ const TMap<UAnimGraphNode_Base*, FProperty*>& FAnimBlueprintCompilationContext::
 	return CompilerContext->AllocatedAnimNodes;
 }
 
+void FAnimBlueprintCompilationContext::AddAttributesToNodeImpl(UAnimGraphNode_Base* InNode, TArrayView<const FName> InAttributes) const
+{
+	CompilerContext->AddAttributesToNode(InNode, InAttributes);
+}
+
+TArrayView<const FName> FAnimBlueprintCompilationContext::GetAttributesFromNodeImpl(UAnimGraphNode_Base* InNode) const
+{
+	return CompilerContext->GetAttributesFromNode(InNode);
+}
+
 IAnimBlueprintCompilerHandler* FAnimBlueprintCompilationContext::GetHandlerInternal(FName InName) const
 {
 	return CompilerContext->AnimBlueprintCompilerHandlerCollection.GetHandler<IAnimBlueprintCompilerHandler>(InName);

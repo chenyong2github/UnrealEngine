@@ -24,6 +24,7 @@ public:
 
 	//~ Begin UK2Node interface
 	virtual void ConvertDeprecatedNode(UEdGraph* Graph, bool bOnlySafeChanges) override;
+	virtual void GetOutputLinkAttributes(FNodeAttributeArray& OutAttributes) const override;
 	//~ End UK2Node interface
 
 public:

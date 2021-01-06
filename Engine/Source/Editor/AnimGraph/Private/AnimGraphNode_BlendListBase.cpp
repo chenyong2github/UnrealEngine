@@ -2,7 +2,7 @@
 
 #include "AnimGraphNode_BlendListBase.h"
 #include "AnimNodes/AnimNode_BlendListBase.h"
-#include "UObject/UE5MainStreamObjectVersion.h"
+#include "Animation/AnimNode_Inertialization.h"
 
 /////////////////////////////////////////////////////
 // UAnimGraphNode_BlendListBase
@@ -104,5 +104,18 @@ void UAnimGraphNode_BlendListBase::ReallocatePinsDuringReconstruction(TArray<UEd
 		// Clears removed pin info to avoid to remove multiple times
 		// @TODO : Considering receiving RemovedPinArrayIndex as an argument of ReconstructNode()
 		RemovedPinArrayIndex = INDEX_NONE;
+	}
+}
+
+void UAnimGraphNode_BlendListBase::GetOutputLinkAttributes(FNodeAttributeArray& OutAttributes) const
+{
+	if(GetFNodeProperty()->Struct->IsChildOf(FAnimNode_BlendListBase::StaticStruct()))
+	{
+		const FAnimNode_BlendListBase* BaseNode = GetFNodeProperty()->ContainerPtrToValuePtr<FAnimNode_BlendListBase>(this);
+
+		if(BaseNode->TransitionType == EBlendListTransitionType::Inertialization)
+		{
+			OutAttributes.Add(UE::Anim::IInertializationRequester::Attribute);
+		}
 	}
 }

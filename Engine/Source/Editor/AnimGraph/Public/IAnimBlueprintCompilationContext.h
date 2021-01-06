@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "KismetCompiler.h"
+#include "Containers/ArrayView.h"
 
 class UEdGraphNode;
 class UEdGraph;
@@ -102,6 +103,12 @@ public:
 	// Map of anim node indices to node properties
 	const TMap<UAnimGraphNode_Base*, FProperty*>& GetAllocatedPropertiesByNode() const { return GetAllocatedPropertiesByNodeImpl(); }
 
+	// Add the specified compiled-in attribute uniquely to the specified node
+	void AddAttributesToNode(UAnimGraphNode_Base* InNode, TArrayView<const FName> InAttributes) const { AddAttributesToNodeImpl(InNode, InAttributes); }
+
+	// Get the current compiled-in attributes uniquely assigned to the specified node
+	TArrayView<const FName> GetAttributesFromNode(UAnimGraphNode_Base* InNode) const { return GetAttributesFromNodeImpl(InNode); }
+
 protected:
 	// Adds a pose link mapping record
 	virtual void AddPoseLinkMappingRecordImpl(const FPoseLinkMappingRecord& InRecord) = 0;
@@ -147,6 +154,12 @@ protected:
 
 	// Map of anim node indices to node properties
 	virtual const TMap<UAnimGraphNode_Base*, FProperty*>& GetAllocatedPropertiesByNodeImpl() const = 0;
+
+	// Add the specified compiled-in attribute uniquely to the specified node
+	virtual void AddAttributesToNodeImpl(UAnimGraphNode_Base* InNode, TArrayView<const FName> InAttributes) const = 0;
+
+	// Get the current compiled-in attributes uniquely assigned to the specified node
+	virtual TArrayView<const FName> GetAttributesFromNodeImpl(UAnimGraphNode_Base* InNode) const = 0;
 
 	// GetHandler helper function
 	virtual IAnimBlueprintCompilerHandler* GetHandlerInternal(FName InName) const = 0;

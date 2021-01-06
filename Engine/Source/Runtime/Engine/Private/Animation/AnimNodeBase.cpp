@@ -6,6 +6,7 @@
 #include "Animation/AnimTrace.h"
 #include "UObject/CoreObjectVersion.h"
 #include "PropertyAccess.h"
+#include "Animation/AnimAttributes.h"
 
 /////////////////////////////////////////////////////
 // FAnimationBaseContext
@@ -342,11 +343,28 @@ void FPoseLink::Evaluate(FPoseContext& Output)
 		CurrentPose.ResetToAdditiveIdentity();
 #endif
 
+		int32 SourceID = Output.GetCurrentNodeId();
+
 		{
 			Output.SetNodeId(LinkID);
 			TRACE_SCOPED_ANIM_NODE(Output);
 			LinkedNode->Evaluate_AnyThread(Output);
+			TRACE_ANIM_NODE_BLENDABLE_ATTRIBUTES(Output, SourceID, LinkID);
 		}
+
+#if WITH_EDITORONLY_DATA
+		if (Output.AnimInstanceProxy->IsBeingDebugged())
+		{
+			if(Output.CustomAttributes.ContainsData())
+			{
+				Output.AnimInstanceProxy->RecordNodeAttribute(*Output.AnimInstanceProxy, SourceID, LinkID, UE::Anim::FAttributes::Attributes);
+			}
+			if(Output.Curve.NumValid() > 0)
+			{
+				Output.AnimInstanceProxy->RecordNodeAttribute(*Output.AnimInstanceProxy, SourceID, LinkID, UE::Anim::FAttributes::Curves);
+			}
+		}
+#endif
 
 #if ENABLE_ANIMNODE_POSE_DEBUG
 		CurrentPose.CopyBonesFrom(Output.Pose);
@@ -426,11 +444,28 @@ void FComponentSpacePoseLink::EvaluateComponentSpace(FComponentSpacePoseContext&
 
 	if (LinkedNode != NULL)
 	{
+		int32 SourceID = Output.GetCurrentNodeId();
+
 		{
 			Output.SetNodeId(LinkID);
 			TRACE_SCOPED_ANIM_NODE(Output);
 			LinkedNode->EvaluateComponentSpace_AnyThread(Output);
+			TRACE_ANIM_NODE_BLENDABLE_ATTRIBUTES(Output, SourceID, LinkID);
 		}
+
+#if WITH_EDITORONLY_DATA
+		if (Output.AnimInstanceProxy->IsBeingDebugged())
+		{
+			if(Output.CustomAttributes.ContainsData())
+			{
+				Output.AnimInstanceProxy->RecordNodeAttribute(*Output.AnimInstanceProxy, SourceID, LinkID, UE::Anim::FAttributes::Attributes);
+			}
+			if(Output.Curve.NumValid() > 0)
+			{
+				Output.AnimInstanceProxy->RecordNodeAttribute(*Output.AnimInstanceProxy, SourceID, LinkID, UE::Anim::FAttributes::Curves);
+			}
+		}
+#endif
 
 #if WITH_EDITOR
 		Output.AnimInstanceProxy->RegisterWatchedPose(Output.Pose, LinkID);

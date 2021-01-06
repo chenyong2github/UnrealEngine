@@ -28,6 +28,11 @@
 #include "AnimBlueprintCompilerHandler_CachedPose.h"
 #include "AnimBlueprintCompilerHandler_LinkedAnimGraph.h"
 #include "AnimBlueprintCompilerHandler_StateMachine.h"
+#include "AnimBlueprintCompilerHandler_Attributes.h"
+#include "Animation/AnimAttributes.h"
+#include "AnimGraphAttributes.h"
+#include "Animation/AnimSync.h"
+#include "Animation/AnimNode_Inertialization.h"
 
 IMPLEMENT_MODULE(FAnimGraphModule, AnimGraph);
 
@@ -63,6 +68,11 @@ void FAnimGraphModule::StartupModule()
 		return MakeUnique<FAnimBlueprintCompilerHandler_StateMachine>(InCreationContext);
 	});
 
+	IAnimBlueprintCompilerHandlerCollection::RegisterHandler("AnimBlueprintCompilerHandler_Attributes", [](IAnimBlueprintCompilerCreationContext& InCreationContext)
+	{
+		return MakeUnique<FAnimBlueprintCompilerHandler_Attributes>(InCreationContext);
+	});
+
 	// Register the editor modes
 	FEditorModeRegistry::Get().RegisterMode<FAnimNodeEditMode>(AnimNodeEditModes::AnimNode, LOCTEXT("AnimNodeEditMode", "Anim Node"), FSlateIcon(), false);
 	FEditorModeRegistry::Get().RegisterMode<FTwoBoneIKEditMode>(AnimNodeEditModes::TwoBoneIK, LOCTEXT("TwoBoneIKEditMode", "2-Bone IK"), FSlateIcon(), false);
@@ -79,6 +89,65 @@ void FAnimGraphModule::StartupModule()
 	PropertyModule.RegisterCustomClassLayout(UAnimGraphNode_PoseDriver::StaticClass()->GetFName(), FOnGetDetailCustomizationInstance::CreateStatic(&FPoseDriverDetails::MakeInstance));
 
 	PropertyModule.RegisterCustomPropertyTypeLayout("AnimBlueprintFunctionPinInfo", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FAnimBlueprintFunctionPinInfoDetails::MakeInstance));
+
+	// Register built-in graph attributes
+	UAnimGraphAttributes* AnimGraphAttributes = GetMutableDefault<UAnimGraphAttributes>();
+	AnimGraphAttributes->LoadConfig();
+
+	AnimGraphAttributes->Register(
+		FAnimGraphAttributeDesc(
+			UE::Anim::FAttributes::Pose,
+			EAnimGraphAttributeBlend::Blendable,
+			FSlateBrush(),
+			LOCTEXT("Pose", "Pose"),
+			LOCTEXT("PoseToolTip", "Pose: Transforms for all bones in the current LOD, blendable"),
+			FEditorStyle::GetSlateColor("AnimGraph.Attribute.Pose.Color"),
+			EAnimGraphAttributesDisplayMode::HideOnPins)
+	);
+
+	AnimGraphAttributes->Register(
+		FAnimGraphAttributeDesc(
+			UE::Anim::FAttributes::Curves,
+			EAnimGraphAttributeBlend::Blendable,
+			*FEditorStyle::GetBrush("AnimGraph.Attribute.Curves.Icon"),
+			LOCTEXT("Curves", "Curves"),
+			LOCTEXT("CurvesToolTip", "Curves: Floating point curve attributes, blendable"),
+			FEditorStyle::GetSlateColor("AnimGraph.Attribute.Curves.Color"),
+			EAnimGraphAttributesDisplayMode::Automatic)
+	);
+
+	AnimGraphAttributes->Register(
+		FAnimGraphAttributeDesc(
+			UE::Anim::FAttributes::Attributes,
+			EAnimGraphAttributeBlend::Blendable,
+			*FEditorStyle::GetBrush("AnimGraph.Attribute.Attributes.Icon"),
+			LOCTEXT("Attributes", "Attributes"),
+			LOCTEXT("AttributesToolTip", "Attributes: Misc. custom attributes, blendable"),
+			FEditorStyle::GetSlateColor("AnimGraph.Attribute.Attributes.Color"),
+			EAnimGraphAttributesDisplayMode::Automatic)
+	);
+
+	AnimGraphAttributes->Register(
+		FAnimGraphAttributeDesc(
+			UE::Anim::FAnimSync::Attribute,
+			EAnimGraphAttributeBlend::NonBlendable,
+			*FEditorStyle::Get().GetBrush("AnimGraph.Attribute.Sync.Icon"),
+			LOCTEXT("Sync", "Sync"),
+			LOCTEXT("SyncToolTip", "Sync: Synchronization between the playback of different assets present in the graph, not blendable"),
+			FEditorStyle::Get().GetSlateColor("AnimGraph.Attribute.Sync.Color"),
+			EAnimGraphAttributesDisplayMode::Automatic)
+	);
+
+	AnimGraphAttributes->Register(
+		FAnimGraphAttributeDesc(
+			UE::Anim::IInertializationRequester::Attribute,
+			EAnimGraphAttributeBlend::NonBlendable,
+			*FEditorStyle::Get().GetBrush("AnimGraph.Attribute.InertialBlending.Icon"),
+			LOCTEXT("InertialBlending", "Inertialize"),
+			LOCTEXT("InertialBlendingToolTip", "Inertial Blending: Used to blend between poses preserving bone velocities, not blendable"),
+			FEditorStyle::Get().GetSlateColor("AnimGraph.Attribute.InertialBlending.Color"),
+			EAnimGraphAttributesDisplayMode::Automatic)
+	);
 
 	// Register BP-editor function customization once the Kismet module is loaded.
 	if (FModuleManager::Get().IsModuleLoaded("Kismet"))
@@ -105,6 +174,7 @@ void FAnimGraphModule::ShutdownModule()
 	IAnimBlueprintCompilerHandlerCollection::UnregisterHandler("AnimBlueprintCompilerHandler_CachedPose");
 	IAnimBlueprintCompilerHandlerCollection::UnregisterHandler("AnimBlueprintCompilerHandler_LinkedAnimGraph");
 	IAnimBlueprintCompilerHandlerCollection::UnregisterHandler("AnimBlueprintCompilerHandler_StateMachine");
+	IAnimBlueprintCompilerHandlerCollection::UnregisterHandler("AnimBlueprintCompilerHandler_Attributes");
 
 	// Unregister the editor modes
 	FEditorModeRegistry::Get().UnregisterMode(AnimNodeEditModes::CCDIK);

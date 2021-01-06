@@ -38,4 +38,10 @@ protected:
 	FText GetPositionTooltip() const;
 
 	bool GetSequencePositionInfo(float& Out_Position, float& Out_Length, int32& FrameCount) const;
+
+	// Invalidates the node's label if we are syncing based on graph context
+	void UpdateGraphSyncLabel();
+
+	// Cached name to display when sync groups are dynamic
+	FName CachedSyncGroupName;
 };

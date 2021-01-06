@@ -10,6 +10,7 @@
 #include "AnimBlueprintCompilerHandlerCollection.h"
 #include "IAnimBlueprintCompilerHandlerCollection.h"
 #include "IAnimBlueprintCompilerCreationContext.h"
+#include "Containers/ArrayView.h"
 
 class UAnimationGraphSchema;
 class UAnimGraphNode_SaveCachedPose;
@@ -168,5 +169,11 @@ private:
 
 	// Expands split pins for a graph
 	void ExpandSplitPins(UEdGraph* InGraph);
+
+	// Add the specified compiled-in attribute uniquely to the specified node
+	void AddAttributesToNode(UAnimGraphNode_Base* InNode, TArrayView<const FName> InAttributes) const;
+
+	// Get the current compiled-in attributes uniquely assigned to the specified node
+	TArrayView<const FName> GetAttributesFromNode(UAnimGraphNode_Base* InNode) const;
 };
 

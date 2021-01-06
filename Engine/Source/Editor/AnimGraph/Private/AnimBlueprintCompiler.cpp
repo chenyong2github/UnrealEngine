@@ -1251,6 +1251,33 @@ void FAnimBlueprintCompilerContext::SetCalculatedMetaDataAndFlags(UFunction* Fun
 	}
 }
 
+void FAnimBlueprintCompilerContext::AddAttributesToNode(UAnimGraphNode_Base* InNode, TArrayView<const FName> InAttributes) const
+{
+	if(UAnimGraphNode_Base* OriginalNode = CastChecked<UAnimGraphNode_Base>(MessageLog.FindSourceObject(InNode)))
+	{
+		TArray<FName>& AttributeSet = NewAnimBlueprintClass->GetAnimBlueprintDebugData().NodeAttributes.FindOrAdd(OriginalNode);
+		AttributeSet.Reserve(AttributeSet.Num() + InAttributes.Num());
+
+		for(const FName& Attribute : InAttributes)
+		{
+			AttributeSet.AddUnique(Attribute);
+		}
+	}
+}
+
+TArrayView<const FName> FAnimBlueprintCompilerContext::GetAttributesFromNode(UAnimGraphNode_Base* InNode) const
+{
+	if(UAnimGraphNode_Base* OriginalNode = CastChecked<UAnimGraphNode_Base>(MessageLog.FindSourceObject(InNode)))
+	{
+		if(const TArray<FName>* AttributeSetPtr = NewAnimBlueprintClass->GetAnimBlueprintDebugData().NodeAttributes.Find(OriginalNode))
+		{
+			return MakeArrayView(*AttributeSetPtr);
+		}
+	}
+
+	return TArrayView<const FName>();
+}
+
 //////////////////////////////////////////////////////////////////////////
 
 #undef LOCTEXT_NAMESPACE

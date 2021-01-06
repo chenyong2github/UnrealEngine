@@ -11,6 +11,8 @@
 
 #if ANIM_TRACE_ENABLED
 
+#include "AnimAttributes.h"
+
 UE_TRACE_CHANNEL_EXTERN(AnimationChannel, ENGINE_API);
 
 struct FAnimInstanceProxy;
@@ -133,6 +135,24 @@ struct FAnimTrace
 	ENGINE_API static void OutputAnimNodeStart(const FAnimationBaseContext& InContext, uint64 InStartCycle, int32 InPreviousNodeId, int32 InNodeId, float InBlendWeight, float InRootMotionWeight, uint8 InPhase);
 	ENGINE_API static void OutputAnimNodeEnd(const FAnimationBaseContext& InContext, uint64 InEndCycle);
 
+	/** Output the current set of attributes in the supplied context */
+	ENGINE_API static void OutputAnimNodeAttribute(const FAnimInstanceProxy& InTargetProxy, const FAnimInstanceProxy& InSourceProxy, int32 InTargetNodeId, int32 InSourceNodeId, FName InAttribute);
+
+	/** Output the current set of attributes in the supplied context */
+	template<typename ContextType>
+	static void OutputAnimNodeBlendableAttributes(const ContextType& InContext, int32 InTargetNodeId, int32 InSourceNodeId)
+	{
+		if(InContext.CustomAttributes.ContainsData())
+		{
+			OutputAnimNodeAttribute(*InContext.AnimInstanceProxy, *InContext.AnimInstanceProxy, InTargetNodeId, InSourceNodeId, UE::Anim::FAttributes::Attributes);
+		}
+
+		if(InContext.Curve.NumValid() > 0)
+		{
+			OutputAnimNodeAttribute(*InContext.AnimInstanceProxy, *InContext.AnimInstanceProxy, InTargetNodeId, InSourceNodeId, UE::Anim::FAttributes::Curves);
+		}
+	}
+
 	/** Helper function to output a tracked value for an anim node */
 	ENGINE_API static void OutputAnimNodeValue(const FAnimationBaseContext& InContext, const TCHAR* InKey, bool InValue);
 	ENGINE_API static void OutputAnimNodeValue(const FAnimationBaseContext& InContext, const TCHAR* InKey, int32 InValue);
@@ -165,6 +185,9 @@ struct FAnimTrace
 
 	/** Helper function to output a montage instance's info */
 	ENGINE_API static void OutputMontage(UAnimInstance* InAnimInstance, const FAnimMontageInstance& InMontageInstance);
+
+	/** Helper function to output a sync record */
+	ENGINE_API static void OutputSync(const FAnimInstanceProxy& InSourceProxy, int32 InSourceNodeId, FName InGroupName);
 };
 
 #define TRACE_ANIM_TICK_RECORD(Context, TickRecord) \
@@ -184,6 +207,12 @@ struct FAnimTrace
 
 #define TRACE_SCOPED_ANIM_NODE(Context) \
 	FAnimTrace::FScopedAnimNodeTrace _ScopedAnimNodeTrace(Context);
+
+#define TRACE_ANIM_NODE_ATTRIBUTE(TargetProxy, SourceProxy, TargetNodeId, SourceNodeId, Name) \
+	FAnimTrace::OutputAnimNodeAttribute(TargetProxy, SourceProxy, TargetNodeId, SourceNodeId, Name);
+
+#define TRACE_ANIM_NODE_BLENDABLE_ATTRIBUTES(Context, TargetNodeId, SourceNodeId) \
+	FAnimTrace::OutputAnimNodeBlendableAttributes(Context, TargetNodeId, SourceNodeId);
 
 #define TRACE_SCOPED_ANIM_NODE_SUSPEND \
 	FAnimTrace::FScopedAnimNodeTraceSuspend _ScopedAnimNodeTraceSuspend;
@@ -206,6 +235,9 @@ struct FAnimTrace
 #define TRACE_ANIM_MONTAGE(AnimInstance, MontageInstance) \
 	FAnimTrace::OutputMontage(AnimInstance, MontageInstance);
 
+#define TRACE_ANIM_NODE_SYNC(SourceProxy, SourceNodeId, GroupName) \
+	FAnimTrace::OutputSync(SourceProxy, SourceNodeId, GroupName);
+
 #else
 
 #define TRACE_ANIM_TICK_RECORD(Context, TickRecord)
@@ -214,6 +246,8 @@ struct FAnimTrace
 #define TRACE_SKELETALMESH_FRAME(Component)
 #define TRACE_SCOPED_ANIM_GRAPH(Context)
 #define TRACE_SCOPED_ANIM_NODE(Context)
+#define TRACE_ANIM_NODE_ATTRIBUTE(TargetProxy, SourceProxy, TargetNodeId, SourceNodeId, Name)
+#define TRACE_ANIM_NODE_BLENDABLE_ATTRIBUTES(Context, TargetNodeId, SourceNodeId)
 #define TRACE_SCOPED_ANIM_NODE_SUSPEND
 #define TRACE_ANIM_NODE_VALUE(Context, Key, Value)
 #define TRACE_ANIM_SEQUENCE_PLAYER(Context, Node)
@@ -221,5 +255,6 @@ struct FAnimTrace
 #define TRACE_ANIM_NOTIFY(AnimInstance, NotifyEvent, EventType)
 #define TRACE_ANIM_SYNC_MARKER(AnimInstance, SyncMarker)
 #define TRACE_ANIM_MONTAGE(AnimInstance, MontageInstance)
+#define TRACE_ANIM_NODE_SYNC(SourceProxy, SourceNodeId, GroupName)
 
 #endif

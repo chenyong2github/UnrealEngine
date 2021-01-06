@@ -137,6 +137,9 @@ void FAnimBlueprintDebugData::SetSnapshotIndexByTime(UAnimInstance* Instance, do
 void FAnimBlueprintDebugData::ResetNodeVisitSites()
 {
 	UpdatedNodesThisFrame.Empty(UpdatedNodesThisFrame.Num());
+	NodeInputAttributesThisFrame.Empty(NodeInputAttributesThisFrame.Num());
+	NodeOutputAttributesThisFrame.Empty(NodeOutputAttributesThisFrame.Num());
+	NodeSyncsThisFrame.Empty(NodeSyncsThisFrame.Num());
 	StateData.Empty(StateData.Num());
 	NodeValuesThisFrame.Empty(NodeValuesThisFrame.Num());
 	SequencePlayerRecordsThisFrame.Empty(SequencePlayerRecordsThisFrame.Num());
@@ -151,6 +154,59 @@ void FAnimBlueprintDebugData::RecordNodeVisit(int32 TargetNodeIndex, int32 Sourc
 void FAnimBlueprintDebugData::RecordNodeVisitArray(const TArray<FNodeVisit>& Nodes)
 {
 	UpdatedNodesThisFrame.Append(Nodes);
+}
+
+void FAnimBlueprintDebugData::RecordNodeAttribute(int32 TargetNodeIndex, int32 SourceNodeIndex, FName InAttribute)
+{
+	if(TargetNodeIndex != INDEX_NONE)
+	{
+		TArray<FAnimBlueprintDebugData::FAttributeRecord>& InputAttributeRecords = NodeInputAttributesThisFrame.FindOrAdd(TargetNodeIndex);
+		InputAttributeRecords.Emplace(SourceNodeIndex, InAttribute);
+	}
+
+	if(SourceNodeIndex != INDEX_NONE)
+	{
+		TArray<FAnimBlueprintDebugData::FAttributeRecord>& OutputAttributeRecords = NodeOutputAttributesThisFrame.FindOrAdd(SourceNodeIndex);
+		OutputAttributeRecords.Emplace(TargetNodeIndex, InAttribute);
+	}
+}
+
+void FAnimBlueprintDebugData::RecordNodeAttributeMaps(const TMap<int32, TArray<FAttributeRecord>>& InInputAttributes, const TMap<int32, TArray<FAttributeRecord>>& InOutputAttributes)
+{
+	if(NodeInputAttributesThisFrame.Num() == 0)
+	{
+		NodeInputAttributesThisFrame = InInputAttributes;
+	}
+	else
+	{
+		NodeInputAttributesThisFrame.Append(InInputAttributes);
+	}
+
+	if(NodeOutputAttributesThisFrame.Num() == 0)
+	{
+		NodeOutputAttributesThisFrame = InOutputAttributes;
+	}
+	else
+	{
+		NodeOutputAttributesThisFrame.Append(InOutputAttributes);
+	}
+}
+
+void FAnimBlueprintDebugData::RecordNodeSync(int32 InSourceNodeIndex, FName InSyncGroup)
+{
+	NodeSyncsThisFrame.FindOrAdd(InSourceNodeIndex, InSyncGroup);
+}
+
+void FAnimBlueprintDebugData::RecordNodeSyncsArray(const TMap<int32, FName>& InNodeSyncs)
+{	
+	if(NodeSyncsThisFrame.Num() == 0)
+	{
+		NodeSyncsThisFrame = InNodeSyncs;
+	}
+	else
+	{
+		NodeSyncsThisFrame.Append(InNodeSyncs);
+	}
 }
 
 void FAnimBlueprintDebugData::RecordStateData(int32 StateMachineIndex, int32 StateIndex, float Weight, float ElapsedTime)
@@ -216,6 +272,18 @@ void FAnimBlueprintDebugData::UpdatePoseWatchColour(int32 NodeID, FColor Color)
 		}
 	}
 }
+
+TArrayView<const FName> FAnimBlueprintDebugData::GetNodeAttributes(TWeakObjectPtr<UAnimGraphNode_Base> InAnimGraphNode) const
+{
+	const TArray<FName>* Attributes = NodeAttributes.Find(InAnimGraphNode);
+	if(Attributes)
+	{
+		return MakeArrayView(*Attributes);
+	}
+
+	return TArrayView<const FName>();
+}
+
 /////////////////////////////////////////////////////
 // FBinaryObjectWriter
 
@@ -582,6 +650,16 @@ const int32* UAnimBlueprintGeneratedClass::GetNodePropertyIndexFromGuid(FGuid Gu
 	}
 
 	return NULL;
+}
+
+int32 UAnimBlueprintGeneratedClass::GetNodeIndexFromGuid(FGuid Guid, EPropertySearchMode::Type SearchMode)
+{
+	if(const int32* IndexPtr = GetNodePropertyIndexFromGuid(Guid, SearchMode))
+	{
+		return AnimNodeProperties.Num() - 1 - *IndexPtr;
+	}
+
+	return INDEX_NONE;
 }
 
 const UEdGraphNode* UAnimBlueprintGeneratedClass::GetVisualNodeFromNodePropertyIndex(int32 PropertyIndex) const

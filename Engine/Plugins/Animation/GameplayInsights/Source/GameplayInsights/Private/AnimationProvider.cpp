@@ -176,6 +176,23 @@ bool FAnimationProvider::ReadAnimNodeValuesTimeline(uint64 InObjectId, TFunction
 	return false;
 }
 
+bool FAnimationProvider::ReadAnimAttributesTimeline(uint64 InObjectId, TFunctionRef<void(const AnimAttributeTimeline&)> Callback) const
+{
+	Session.ReadAccessCheck();
+
+	const uint32* IndexPtr = ObjectIdToAnimAttributeTimelines.Find(InObjectId);
+	if(IndexPtr != nullptr)
+	{
+		if (*IndexPtr < uint32(AnimAttributeTimelines.Num()))
+		{
+			Callback(*AnimAttributeTimelines[*IndexPtr]);
+			return true;
+		}
+	}
+
+	return false;
+}
+
 bool FAnimationProvider::ReadAnimSequencePlayersTimeline(uint64 InObjectId, TFunctionRef<void(const AnimSequencePlayersTimeline&)> Callback) const
 {
 	Session.ReadAccessCheck();
@@ -293,6 +310,23 @@ void FAnimationProvider::EnumerateMontageIds(uint64 InObjectId, TFunctionRef<voi
 			}
 		}
 	}
+}
+
+bool FAnimationProvider::ReadAnimSyncTimeline(uint64 InObjectId, TFunctionRef<void(const AnimSyncTimeline&)> Callback) const
+{
+	Session.ReadAccessCheck();
+
+	const uint32* IndexPtr = ObjectIdToAnimSyncTimelines.Find(InObjectId);
+	if(IndexPtr != nullptr)
+	{
+		if (*IndexPtr < uint32(AnimSyncTimelines.Num()))
+		{
+			Callback(*AnimSyncTimelines[*IndexPtr]);
+			return true;
+		}
+	}
+
+	return false;
 }
 
 const FSkeletalMeshInfo* FAnimationProvider::FindSkeletalMeshInfo(uint64 InObjectId) const
@@ -850,6 +884,81 @@ void FAnimationProvider::AppendAnimNodeValue(uint64 InAnimInstanceId, double InT
 	Session.UpdateDurationSeconds(InTime);
 }
 
+void FAnimationProvider::AppendAnimGraphAttribute(uint64 InSourceAnimInstanceId, uint64 InTargetAnimInstanceId, double InTime, int32 InSourceNodeId, int32 InTargetNodeId, uint32 InAttributeNameId)
+{
+	Session.WriteAccessCheck();
+
+	bHasAnyData = true;
+
+	if(InSourceAnimInstanceId == InTargetAnimInstanceId)
+	{
+		TSharedPtr<TraceServices::TPointTimeline<FAnimAttributeMessage>> Timeline;
+		uint32* IndexPtr = ObjectIdToAnimAttributeTimelines.Find(InSourceAnimInstanceId);
+		if(IndexPtr != nullptr)
+		{
+			Timeline = AnimAttributeTimelines[*IndexPtr];
+		}
+		else
+		{
+			Timeline = MakeShared<TraceServices::TPointTimeline<FAnimAttributeMessage>>(Session.GetLinearAllocator());
+			ObjectIdToAnimAttributeTimelines.Add(InSourceAnimInstanceId, AnimAttributeTimelines.Num());
+			AnimAttributeTimelines.Add(Timeline.ToSharedRef());
+		}
+
+		FAnimAttributeMessage Message;
+		Message.SourceNodeId = InSourceNodeId;
+		Message.TargetNodeId = InTargetNodeId;
+		Message.AttributeNameId = InAttributeNameId;
+
+		Timeline->AppendEvent(InTime, Message);
+	}
+	else
+	{
+		// If we are using two different anim instances, we need to append to two different timelines
+		TSharedPtr<TraceServices::TPointTimeline<FAnimAttributeMessage>> SourceTimeline;
+		uint32* SourceIndexPtr = ObjectIdToAnimAttributeTimelines.Find(InSourceAnimInstanceId);
+		if(SourceIndexPtr != nullptr)
+		{
+			SourceTimeline = AnimAttributeTimelines[*SourceIndexPtr];
+		}
+		else
+		{
+			SourceTimeline = MakeShared<TraceServices::TPointTimeline<FAnimAttributeMessage>>(Session.GetLinearAllocator());
+			ObjectIdToAnimAttributeTimelines.Add(InSourceAnimInstanceId, AnimAttributeTimelines.Num());
+			AnimAttributeTimelines.Add(SourceTimeline.ToSharedRef());
+		}
+
+		TSharedPtr<TraceServices::TPointTimeline<FAnimAttributeMessage>> TargetTimeline;
+		uint32* TargetIndexPtr = ObjectIdToAnimAttributeTimelines.Find(InTargetAnimInstanceId);
+		if(TargetIndexPtr != nullptr)
+		{
+			TargetTimeline = AnimAttributeTimelines[*TargetIndexPtr];
+		}
+		else
+		{
+			TargetTimeline = MakeShared<TraceServices::TPointTimeline<FAnimAttributeMessage>>(Session.GetLinearAllocator());
+			ObjectIdToAnimAttributeTimelines.Add(InTargetAnimInstanceId, AnimAttributeTimelines.Num());
+			AnimAttributeTimelines.Add(TargetTimeline.ToSharedRef());
+		}
+
+		FAnimAttributeMessage TargetMessage;
+		TargetMessage.SourceNodeId = INDEX_NONE;
+		TargetMessage.TargetNodeId = InTargetNodeId;
+		TargetMessage.AttributeNameId = InAttributeNameId;
+
+		TargetTimeline->AppendEvent(InTime, TargetMessage);
+
+		FAnimAttributeMessage SourceMessage;
+		SourceMessage.SourceNodeId = InSourceNodeId;
+		SourceMessage.TargetNodeId = INDEX_NONE;
+		SourceMessage.AttributeNameId = InAttributeNameId;
+
+		SourceTimeline->AppendEvent(InTime, SourceMessage);
+	}
+
+	Session.UpdateDurationSeconds(InTime);
+}
+
 void FAnimationProvider::AppendStateMachineState(uint64 InAnimInstanceId, double InTime, int32 InNodeId, int32 InStateMachineIndex, int32 InStateIndex, float InStateWeight, float InElapsedTime)
 {
 	Session.WriteAccessCheck();
@@ -1001,6 +1110,35 @@ void FAnimationProvider::AppendMontage(uint64 InAnimInstanceId, double InTime, u
 	Message.FrameCounter = InFrameCounter;
 
 	TimelineStorage->Timeline->AppendEvent(InTime, Message);
+
+	Session.UpdateDurationSeconds(InTime);
+}
+
+void FAnimationProvider::AppendSync(uint64 InAnimInstanceId, double InTime, int32 InSourceNodeId, uint32 InGroupNameId)
+{
+	Session.WriteAccessCheck();
+
+	bHasAnyData = true;
+
+	TSharedPtr<TraceServices::TPointTimeline<FAnimSyncMessage>> Timeline;
+	uint32* IndexPtr = ObjectIdToAnimSyncTimelines.Find(InAnimInstanceId);
+	if(IndexPtr != nullptr)
+	{
+		check(AnimSyncTimelines.IsValidIndex(*IndexPtr));
+		Timeline = AnimSyncTimelines[*IndexPtr];
+	}
+	else
+	{
+		Timeline = MakeShared<TraceServices::TPointTimeline<FAnimSyncMessage>>(Session.GetLinearAllocator());
+		ObjectIdToAnimSyncTimelines.Add(InAnimInstanceId, AnimSyncTimelines.Num());
+		AnimSyncTimelines.Add(Timeline.ToSharedRef());
+	}
+
+	FAnimSyncMessage Message;
+	Message.SourceNodeId = InSourceNodeId;
+	Message.GroupNameId = InGroupNameId;
+
+	Timeline->AppendEvent(InTime, Message);
 
 	Session.UpdateDurationSeconds(InTime);
 }

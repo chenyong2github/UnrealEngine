@@ -5661,6 +5661,28 @@ void FStarshipEditorStyle::FStyle::SetupPersonaStyle()
 			.SetMenuBorderPadding(FMargin(0.0f))
 		);
 	}
+
+	// Animation blueprint
+	{
+		Set("AnimGraph.Attribute.Border.Solid", new FSlateRoundedBoxBrush(FStyleColors::White));
+		Set("AnimGraph.Attribute.Border.Outline", new FSlateRoundedBoxBrush(FStyleColors::Transparent, FStyleColors::White, 1.0f));
+		Set("AnimGraph.Attribute.DefaultColor", FStyleColors::AccentGray);
+
+		FSlateColor AttributeTextColor = FStyleColors::AccentBlack;
+		Set("AnimGraph.Attribute.TextColor", AttributeTextColor);
+		Set("AnimGraph.Attribute.Text", FTextBlockStyle(NormalText)
+			.SetFont(DEFAULT_FONT("Regular", FStarshipCoreStyle::SmallTextSize))
+			.SetColorAndOpacity(AttributeTextColor));
+
+		Set("AnimGraph.Attribute.Curves.Icon", new IMAGE_BRUSH("GenericCurveEditor/Icons/GenericCurveEditor_48x", Icon10x10));
+		Set("AnimGraph.Attribute.Curves.Color", FStyleColors::AccentPurple);
+		Set("AnimGraph.Attribute.Attributes.Icon", new IMAGE_BRUSH("Icons/pillarray_16x", Icon10x10));
+		Set("AnimGraph.Attribute.Attributes.Color", FStyleColors::AccentYellow);
+		Set("AnimGraph.Attribute.Sync.Icon", new IMAGE_BRUSH("Icons/icon_tab_TimecodeProvider_16x", Icon10x10));
+		Set("AnimGraph.Attribute.Sync.Color", FStyleColors::AccentBlue);
+		Set("AnimGraph.Attribute.InertialBlending.Icon", new IMAGE_BRUSH("Icons/icon_tab_TimecodeProvider_16x", Icon10x10));
+		Set("AnimGraph.Attribute.InertialBlending.Color", FStyleColors::AccentOrange);
+	}	
 #endif // WITH_EDITOR
 }
 

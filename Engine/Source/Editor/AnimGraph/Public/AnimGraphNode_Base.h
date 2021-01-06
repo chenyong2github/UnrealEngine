@@ -242,7 +242,7 @@ class ANIMGRAPH_API UAnimGraphNode_Base : public UK2Node
 	virtual void ValidateAnimNodePostCompile(FCompilerResultsLog& MessageLog, UAnimBlueprintGeneratedClass* CompiledClass, int32 CompiledNodeIndex) {}
 
 	// If using CopyPoseFromMesh, the AnimBlueprint Compiler will cache this off for optimizations. 
-	virtual bool UsingCopyPoseFromMesh() { return false; }
+	virtual bool UsingCopyPoseFromMesh() const { return false; }
 
 	// Gives each visual node a chance to update the node template before it is inserted in the compiled class
 	virtual void BakeDataDuringCompilation(FCompilerResultsLog& MessageLog) {}
@@ -353,6 +353,17 @@ class ANIMGRAPH_API UAnimGraphNode_Base : public UK2Node
 	// The default SAnimationGraphNode uses this to invalidate cached node title text
 	DECLARE_EVENT(UAnimGraphNode_Base, FOnNodeTitleChangedEvent);
 	FOnNodeTitleChangedEvent& OnNodeTitleChangedEvent() { return NodeTitleChangedEvent; }
+
+	using FNodeAttributeArray = TArray<FName, TInlineAllocator<4>>;
+
+	// Get the named attribute types that this node takes (absorbs) as inputs. Other attributes are assumed to 'pass through' this node.
+	virtual void GetInputLinkAttributes(FNodeAttributeArray& OutAttributes) const {}
+
+	// Get the named attribute types that this node provides as outputs. Other attributes are assumed to 'pass through' this node.
+	virtual void GetOutputLinkAttributes(FNodeAttributeArray& OutAttributes) const {}
+
+	// @return wether to show graph attribute icons on pins for this node.
+	virtual bool ShouldShowAttributesOnPins() const { return true; }
 
 protected:
 	friend class FAnimBlueprintCompilerContext;

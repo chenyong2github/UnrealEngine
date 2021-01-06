@@ -126,6 +126,7 @@ void FAnimNode_BlendListBase::Update_AnyThread(const FAnimationUpdateContext& Co
 				if (InertializationRequester)
 				{
 					InertializationRequester->RequestInertialization(BlendTime[ChildIndex]);
+					InertializationRequester->AddDebugRecord(*Context.AnimInstanceProxy, Context.GetCurrentNodeId());
 				}
 				else
 				{

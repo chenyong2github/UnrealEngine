@@ -27,6 +27,7 @@
 #include "KismetCompiler.h"
 #include "K2Node_VariableGet.h"
 #include "AnimBlueprintCompiler.h"
+#include "AnimGraphAttributes.h"
 
 #define LOCTEXT_NAMESPACE "LinkedInputPose"
 
@@ -630,6 +631,16 @@ void UAnimGraphNode_LinkedInputPose::IterateFunctionParameters(TFunctionRef<void
 bool UAnimGraphNode_LinkedInputPose::IsCompatibleWithGraph(UEdGraph const* Graph) const
 {
 	return Graph->GetFName() == UEdGraphSchema_K2::GN_AnimGraph;
+}
+
+void UAnimGraphNode_LinkedInputPose::GetOutputLinkAttributes(FNodeAttributeArray& OutAttributes) const
+{
+	// We have the potential to output ALL registered attributes
+	const UAnimGraphAttributes* AnimGraphAttributes = GetDefault<UAnimGraphAttributes>();
+	AnimGraphAttributes->ForEachAttribute([&OutAttributes](const FAnimGraphAttributeDesc& InDesc)
+	{
+		OutAttributes.Add(InDesc.Name);
+	});
 }
 
 #undef LOCTEXT_NAMESPACE

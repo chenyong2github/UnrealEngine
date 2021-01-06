@@ -20,6 +20,7 @@
 #include "Animation/AnimNotifies/AnimNotifyState.h"
 #include "Animation/AnimTypes.h"
 #include "TraceFilter.h"
+#include "Animation/AnimAttributes.h"
 
 UE_TRACE_CHANNEL_DEFINE(AnimationChannel);
 
@@ -84,6 +85,15 @@ UE_TRACE_EVENT_END()
 UE_TRACE_EVENT_BEGIN(Animation, AnimNodeEnd)
 	UE_TRACE_EVENT_FIELD(uint64, EndCycle)
 	UE_TRACE_EVENT_FIELD(uint64, AnimInstanceId)
+UE_TRACE_EVENT_END()
+
+UE_TRACE_EVENT_BEGIN(Animation, AnimNodeAttribute)
+	UE_TRACE_EVENT_FIELD(uint64, Cycle)
+	UE_TRACE_EVENT_FIELD(uint64, SourceAnimInstanceId)
+	UE_TRACE_EVENT_FIELD(uint64, TargetAnimInstanceId)
+	UE_TRACE_EVENT_FIELD(int32, SourceNodeId)
+	UE_TRACE_EVENT_FIELD(int32, TargetNodeId)
+	UE_TRACE_EVENT_FIELD(uint32, NameId)
 UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN(Animation, AnimNodeValueBool)
@@ -220,6 +230,13 @@ UE_TRACE_EVENT_BEGIN(Animation, Montage)
 	UE_TRACE_EVENT_FIELD(float, Weight)
 	UE_TRACE_EVENT_FIELD(float, DesiredWeight)
 	UE_TRACE_EVENT_FIELD(uint16, FrameCounter)
+UE_TRACE_EVENT_END()
+
+UE_TRACE_EVENT_BEGIN(Animation, Sync)
+	UE_TRACE_EVENT_FIELD(uint64, Cycle)
+	UE_TRACE_EVENT_FIELD(uint64, AnimInstanceId)
+	UE_TRACE_EVENT_FIELD(int32, SourceNodeId)
+	UE_TRACE_EVENT_FIELD(uint32, GroupNameId)
 UE_TRACE_EVENT_END()
 
 // Object annotations used for tracing
@@ -658,6 +675,35 @@ void FAnimTrace::OutputAnimNodeEnd(const FAnimationBaseContext& InContext, uint6
 	UE_TRACE_LOG(Animation, AnimNodeEnd, AnimationChannel)
 		<< AnimNodeEnd.EndCycle(InEndCycle)
 		<< AnimNodeEnd.AnimInstanceId(FObjectTrace::GetObjectId(AnimInstance));
+}
+
+void FAnimTrace::OutputAnimNodeAttribute(const FAnimInstanceProxy& InTargetProxy, const FAnimInstanceProxy& InSourceProxy, int32 InTargetNodeId, int32 InSourceNodeId, FName InAttribute)
+{
+	bool bChannelEnabled = UE_TRACE_CHANNELEXPR_IS_ENABLED(AnimationChannel);
+	if (!bChannelEnabled)
+	{
+		return;
+	}
+
+	if (CANNOT_TRACE_OBJECT(InSourceProxy.GetSkelMeshComponent()) || CANNOT_TRACE_OBJECT(InTargetProxy.GetSkelMeshComponent()))
+	{
+		return;
+	}
+
+	const UObject* SourceAnimInstance = InSourceProxy.GetAnimInstanceObject();
+	TRACE_OBJECT(SourceAnimInstance)
+	const UObject* TargetAnimInstance = InTargetProxy.GetAnimInstanceObject();
+	TRACE_OBJECT(TargetAnimInstance);
+
+	uint32 NameId = OutputName(InAttribute);
+
+	UE_TRACE_LOG(Animation, AnimNodeAttribute, AnimationChannel)
+		<< AnimNodeAttribute.Cycle(FPlatformTime::Cycles64())
+		<< AnimNodeAttribute.SourceAnimInstanceId(FObjectTrace::GetObjectId(SourceAnimInstance))
+		<< AnimNodeAttribute.TargetAnimInstanceId(FObjectTrace::GetObjectId(TargetAnimInstance))
+		<< AnimNodeAttribute.SourceNodeId(InSourceNodeId)
+		<< AnimNodeAttribute.TargetNodeId(InTargetNodeId)
+		<< AnimNodeAttribute.NameId(NameId);
 }
 
 void FAnimTrace::OutputAnimNodeValue(const FAnimationBaseContext& InContext, const TCHAR* InKey, bool InValue)
@@ -1102,6 +1148,31 @@ void FAnimTrace::OutputMontage(UAnimInstance* InAnimInstance, const FAnimMontage
 			<< Montage.DesiredWeight(InMontageInstance.GetDesiredWeight())
 			<< Montage.FrameCounter(FObjectTrace::GetObjectWorldTickCounter(InAnimInstance));
 	}
+}
+
+void FAnimTrace::OutputSync(const FAnimInstanceProxy& InSourceProxy, int32 InSourceNodeId, FName InGroupName)
+{
+	bool bChannelEnabled = UE_TRACE_CHANNELEXPR_IS_ENABLED(AnimationChannel);
+	if (!bChannelEnabled)
+	{
+		return;
+	}
+
+
+	if (CANNOT_TRACE_OBJECT(InSourceProxy.GetSkelMeshComponent()))
+	{
+		return;
+	}
+
+	TRACE_OBJECT(InSourceProxy.GetAnimInstanceObject());
+
+	uint32 GroupNameId = FAnimTrace::OutputName(InGroupName);
+
+	UE_TRACE_LOG(Animation, Sync, AnimationChannel)
+		<< Sync.Cycle(FPlatformTime::Cycles64())
+		<< Sync.AnimInstanceId(FObjectTrace::GetObjectId(InSourceProxy.GetAnimInstanceObject()))
+		<< Sync.SourceNodeId(InSourceNodeId)
+		<< Sync.GroupNameId(GroupNameId);
 }
 
 #endif

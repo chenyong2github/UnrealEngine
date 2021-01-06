@@ -26,9 +26,14 @@ class ENGINE_API IInertializationRequester : public IGraphMessage
 	DECLARE_ANIMGRAPH_MESSAGE(IInertializationRequester);
 
 public:
+	static const FName Attribute;
+
 	// Request to activate inertialization for a duration.
 	// If multiple requests are made on the same inertialization node, the minimum requested time will be used.
 	virtual void RequestInertialization(float InRequestedDuration) = 0;
+
+	// Add a record of this request
+	virtual void AddDebugRecord(const FAnimInstanceProxy& InSourceProxy, int32 InSourceNodeId) = 0;
 };
 
 }}	// namespace UE::Anim

@@ -20,6 +20,8 @@
 #include "Animation/AnimNode_Root.h"
 #include "Animation/AnimNode_LinkedAnimLayer.h"
 #include "Animation/AnimMontage.h"
+#include "Animation/AnimInstance.h"
+#include "Animation/AnimSyncScope.h"
 
 #define DO_ANIMSTAT_PROCESSING(StatName) DEFINE_STAT(STAT_ ## StatName)
 #include "Animation/AnimMTStats.h"
@@ -27,8 +29,6 @@
 
 #define DO_ANIMSTAT_PROCESSING(StatName) DEFINE_STAT(STAT_ ## StatName ## _WorkerThread)
 #include "Animation/AnimMTStats.h"
-#include "Animation/AnimInstance.h"
-
 #undef DO_ANIMSTAT_PROCESSING
 
 #define LOCTEXT_NAMESPACE "AnimInstance"
@@ -70,14 +70,8 @@ void FAnimInstanceProxy::UpdateAnimationNode_WithRoot(const FAnimationUpdateCont
 void FAnimInstanceProxy::AddReferencedObjects(UAnimInstance* InAnimInstance, FReferenceCollector& Collector)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
-	for (int32 Index = 0; Index < UE_ARRAY_COUNT(UngroupedActivePlayerArrays); ++Index)
-	{
-		TArray<FAnimTickRecord>& UngroupedPlayers = UngroupedActivePlayerArrays[Index];
-		for (FAnimTickRecord& TickRecord : UngroupedPlayers)
-		{
-			Collector.AddReferencedObject(TickRecord.SourceAsset, InAnimInstance);
-		}
-	}
+	
+	Sync.AddReferencedObjects(InAnimInstance, Collector);
 }
 
 void FAnimInstanceProxy::Initialize(UAnimInstance* InAnimInstance)
@@ -395,20 +389,13 @@ void FAnimInstanceProxy::PreUpdate(UAnimInstance* InAnimInstance, float DeltaSec
 
 	ClearSlotNodeWeights();
 
-	// Reset the player tick list (but keep it presized)
-	TArray<FAnimTickRecord>& UngroupedActivePlayers = UngroupedActivePlayerArrays[GetSyncGroupWriteIndex()];
-	UngroupedActivePlayers.Reset();
+	// Reset the synchronizer
+	Sync.Reset();
 
-	FSyncGroupMap& SyncGroups = SyncGroupMaps[GetSyncGroupWriteIndex()];
-	for (auto& SyncGroupPair : SyncGroups)
-	{
-		SyncGroupPair.Value.Reset();
-	}
-
-	TArray<float>& StateWeights = StateWeightArrays[GetSyncGroupWriteIndex()];
+	TArray<float>& StateWeights = StateWeightArrays[GetBufferWriteIndex()];
 	FMemory::Memset(StateWeights.GetData(), 0, StateWeights.Num() * sizeof(float));
 
-	TArray<float>& MachineWeights = MachineWeightArrays[GetSyncGroupWriteIndex()];
+	TArray<float>& MachineWeights = MachineWeightArrays[GetBufferWriteIndex()];
 	FMemory::Memset(MachineWeights.GetData(), 0, MachineWeights.Num() * sizeof(float));
 
 #if WITH_EDITORONLY_DATA
@@ -499,6 +486,8 @@ void FAnimInstanceProxy::PostUpdate(UAnimInstance* InAnimInstance) const
 	if (FAnimBlueprintDebugData* DebugData = GetAnimBlueprintDebugData())
 	{
 		DebugData->RecordNodeVisitArray(UpdatedNodesThisFrame);
+		DebugData->RecordNodeAttributeMaps(NodeInputAttributesThisFrame, NodeOutputAttributesThisFrame);
+		DebugData->RecordNodeSyncsArray(NodeSyncsThisFrame);
 		DebugData->AnimNodePoseWatch = PoseWatchEntriesForThisFrame;
 	}
 #endif
@@ -609,44 +598,16 @@ void FAnimInstanceProxy::ClearObjects()
 
 FAnimTickRecord& FAnimInstanceProxy::CreateUninitializedTickRecord(FAnimGroupInstance*& OutSyncGroupPtr, FName GroupName)
 {
-	// Find or create the sync group if there is one
-	OutSyncGroupPtr = nullptr;
-	if (GroupName != NAME_None)
-	{
-		FSyncGroupMap& SyncGroupMap = SyncGroupMaps[GetSyncGroupWriteIndex()];
-		OutSyncGroupPtr = &SyncGroupMap.FindOrAdd(GroupName);
-	}
-
-	// Create the record
-	FAnimTickRecord* TickRecord = new ((OutSyncGroupPtr != nullptr) ? OutSyncGroupPtr->ActivePlayers : UngroupedActivePlayerArrays[GetSyncGroupWriteIndex()]) FAnimTickRecord();
-	return *TickRecord;
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	return Sync.CreateUninitializedTickRecord(OutSyncGroupPtr, GroupName);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 FAnimTickRecord& FAnimInstanceProxy::CreateUninitializedTickRecordInScope(FAnimGroupInstance*& OutSyncGroupPtr, FName GroupName, EAnimSyncGroupScope Scope)
 {
-	if (GroupName != NAME_None)
-	{
-		// If we have no main proxy or it is "this", force us to local
-		if(MainInstanceProxy == nullptr || MainInstanceProxy == this)
-		{
-			Scope = EAnimSyncGroupScope::Local;
-		}
-
-		switch(Scope)
-		{
-		default:
-			ensureMsgf(false, TEXT("FAnimInstanceProxy::CreateUninitializedTickRecordInScope: Scope has invalid value %d"), Scope);
-			// Fall through
-
-		case EAnimSyncGroupScope::Local:
-			return CreateUninitializedTickRecord(OutSyncGroupPtr, GroupName);
-		case EAnimSyncGroupScope::Component:
-			// Forward to the main instance to sync with animations there in TickAssetPlayerInstances()
-			return MainInstanceProxy->CreateUninitializedTickRecord(OutSyncGroupPtr, GroupName);
-		}
-	}
-	
-	return CreateUninitializedTickRecord(OutSyncGroupPtr, GroupName);
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	return Sync.CreateUninitializedTickRecordInScope(*this, OutSyncGroupPtr, GroupName, Scope);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 FAnimTickRecord& FAnimInstanceProxy::CreateUninitializedTickRecord(int32 GroupIndex, FAnimGroupInstance*& OutSyncGroupPtr)
@@ -657,7 +618,9 @@ FAnimTickRecord& FAnimInstanceProxy::CreateUninitializedTickRecord(int32 GroupIn
 		SyncGroupName = GetAnimClassInterface()->GetSyncGroupNames()[GroupIndex];
 	}
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	return CreateUninitializedTickRecord(OutSyncGroupPtr, SyncGroupName);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 FAnimTickRecord& FAnimInstanceProxy::CreateUninitializedTickRecordInScope(int32 GroupIndex, EAnimSyncGroupScope Scope, FAnimGroupInstance*& OutSyncGroupPtr)
@@ -668,7 +631,9 @@ FAnimTickRecord& FAnimInstanceProxy::CreateUninitializedTickRecordInScope(int32 
 		SyncGroupName = GetAnimClassInterface()->GetSyncGroupNames()[GroupIndex];
 	}
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	return CreateUninitializedTickRecordInScope(OutSyncGroupPtr, SyncGroupName, Scope);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 void FAnimInstanceProxy::MakeSequenceTickRecord(FAnimTickRecord& TickRecord, class UAnimSequenceBase* Sequence, bool bLooping, float PlayRate, float FinalBlendWeight, float& CurrentTime, FMarkerTickRecord& MarkerTickRecord) const
@@ -695,7 +660,6 @@ void FAnimInstanceProxy::MakeBlendSpaceTickRecord(FAnimTickRecord& TickRecord, c
 	TickRecord.bLooping = bLooping;
 }
 
-/** Helper function: make a tick record for a pose asset*/
 void FAnimInstanceProxy::MakePoseAssetTickRecord(FAnimTickRecord& TickRecord, class UPoseAsset* PoseAsset, float FinalBlendWeight) const
 {
 	TickRecord.SourceAsset = PoseAsset;
@@ -705,7 +669,9 @@ void FAnimInstanceProxy::MakePoseAssetTickRecord(FAnimTickRecord& TickRecord, cl
 void FAnimInstanceProxy::SequenceAdvanceImmediate(UAnimSequenceBase* Sequence, bool bLooping, float PlayRate, float DeltaSeconds, float& CurrentTime, FMarkerTickRecord& MarkerTickRecord)
 {
 	FAnimTickRecord TickRecord;
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	MakeSequenceTickRecord(TickRecord, Sequence, bLooping, PlayRate, /*FinalBlendWeight=*/ 1.0f, CurrentTime, MarkerTickRecord);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	FAnimAssetTickContext TickContext(DeltaSeconds, RootMotionMode, true);
 	TickRecord.SourceAsset->TickAssetPlayer(TickRecord, NotifyQueue, TickContext);
@@ -714,210 +680,25 @@ void FAnimInstanceProxy::SequenceAdvanceImmediate(UAnimSequenceBase* Sequence, b
 void FAnimInstanceProxy::BlendSpaceAdvanceImmediate(class UBlendSpaceBase* BlendSpace, const FVector& BlendInput, TArray<FBlendSampleData>& BlendSampleDataCache, FBlendFilter& BlendFilter, bool bLooping, float PlayRate, float DeltaSeconds, float& CurrentTime, FMarkerTickRecord& MarkerTickRecord)
 {
 	FAnimTickRecord TickRecord;
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	MakeBlendSpaceTickRecord(TickRecord, BlendSpace, BlendInput, BlendSampleDataCache, BlendFilter, bLooping, PlayRate, /*FinalBlendWeight=*/ 1.0f, CurrentTime, MarkerTickRecord);
-	
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 	FAnimAssetTickContext TickContext(DeltaSeconds, RootMotionMode, true);
 	TickRecord.SourceAsset->TickAssetPlayer(TickRecord, NotifyQueue, TickContext);
 }
 
 void FAnimInstanceProxy::TickAssetPlayerInstances()
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	TickAssetPlayerInstances(CurrentDeltaSeconds);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
-void FAnimInstanceProxy::TickAssetPlayerInstances(float DeltaSeconds)
+void FAnimInstanceProxy::TickAssetPlayerInstances(float InDeltaSeconds)
 {
-	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
-
-	SCOPE_CYCLE_COUNTER(STAT_TickAssetPlayerInstances);
-
-	// Handle all players inside sync groups
-	FSyncGroupMap& SyncGroupMap = SyncGroupMaps[GetSyncGroupWriteIndex()];
-	const FSyncGroupMap& PreviousSyncGroupMap = SyncGroupMaps[GetSyncGroupReadIndex()];
-	TArray<FAnimTickRecord>& UngroupedActivePlayers = UngroupedActivePlayerArrays[GetSyncGroupWriteIndex()];
-
-	for (auto& SyncGroupPair : SyncGroupMap)
-	{
-		FAnimGroupInstance& SyncGroup = SyncGroupPair.Value;
-	
-		if (SyncGroup.ActivePlayers.Num() > 0)
-		{
-			const FAnimGroupInstance* PreviousGroup = PreviousSyncGroupMap.Find(SyncGroupPair.Key);
-			SyncGroup.Prepare(PreviousGroup);
-
-			UE_LOG(LogAnimMarkerSync, Log, TEXT("Ticking Group [%s] GroupLeader [%d]"), *SyncGroupPair.Key.ToString(), SyncGroup.GroupLeaderIndex);
-
-			const bool bOnlyOneAnimationInGroup = SyncGroup.ActivePlayers.Num() == 1;
-
-			// Tick the group leader
-			FAnimAssetTickContext TickContext(DeltaSeconds, RootMotionMode, bOnlyOneAnimationInGroup, SyncGroup.ValidMarkers);
-			if (PreviousGroup)
-			{
-				const FMarkerSyncAnimPosition& EndPosition = PreviousGroup->MarkerTickContext.GetMarkerSyncEndPosition();
-				if ( EndPosition.IsValid() &&
-				     (EndPosition.PreviousMarkerName == NAME_None || SyncGroup.ValidMarkers.Contains(EndPosition.PreviousMarkerName)) &&
-					 (EndPosition.NextMarkerName == NAME_None || SyncGroup.ValidMarkers.Contains(EndPosition.NextMarkerName)))
-				{
-					TickContext.MarkerTickContext.SetMarkerSyncStartPosition(EndPosition);
-				}
-			}
-
-#if DO_CHECK
-			//For debugging UE-54705
-			FName InitialMarkerPrevious = TickContext.MarkerTickContext.GetMarkerSyncStartPosition().PreviousMarkerName;
-			FName InitialMarkerEnd = TickContext.MarkerTickContext.GetMarkerSyncStartPosition().NextMarkerName;
-			const bool bIsLeaderRecordValidPre = SyncGroup.ActivePlayers[0].MarkerTickRecord->IsValid(SyncGroup.ActivePlayers[0].bLooping);
-			FMarkerTickRecord LeaderPreMarkerTickRecord = *SyncGroup.ActivePlayers[0].MarkerTickRecord;
-#endif
-
-			// initialize to invalidate first
-			ensureMsgf(SyncGroup.GroupLeaderIndex == INDEX_NONE, TEXT("SyncGroup %s had a non -1 group leader index of %d in asset %s"), *SyncGroupPair.Key.ToString(), SyncGroup.GroupLeaderIndex, *GetNameSafe(SkeletalMeshComponent));
-			int32 GroupLeaderIndex = 0;
-			for (; GroupLeaderIndex < SyncGroup.ActivePlayers.Num(); ++GroupLeaderIndex)
-			{
-				FAnimTickRecord& GroupLeader = SyncGroup.ActivePlayers[GroupLeaderIndex];
-				// if it has leader score
-				SCOPE_CYCLE_COUNTER(STAT_TickAssetPlayerInstance);
-				FScopeCycleCounterUObject Scope(GroupLeader.SourceAsset);
-				TickContext.MarkerTickContext.MarkersPassedThisTick.Reset();
-				TickContext.RootMotionMovementParams.Clear();
-				GroupLeader.SourceAsset->TickAssetPlayer(GroupLeader, NotifyQueue, TickContext);
-
-				if (RootMotionMode == ERootMotionMode::RootMotionFromEverything && TickContext.RootMotionMovementParams.bHasRootMotion)
-				{
-					ExtractedRootMotion.AccumulateWithBlend(TickContext.RootMotionMovementParams, GroupLeader.GetRootMotionWeight());
-				}
-
-				// if we're not using marker based sync, we don't care, get out
-				if (TickContext.CanUseMarkerPosition() == false)
-				{
-					SyncGroup.GroupLeaderIndex = GroupLeaderIndex;
-					break;
-				}
-				// otherwise, the new position should contain the valid position for end, otherwise, we don't know where to sync to
-				else if (TickContext.MarkerTickContext.IsMarkerSyncEndValid())
-				{
-					// if this leader contains correct position, break
-					SyncGroup.MarkerTickContext = TickContext.MarkerTickContext;
-					SyncGroup.GroupLeaderIndex = GroupLeaderIndex;
-					UE_LOG(LogAnimMarkerSync, Log, TEXT("Previous Sync Group Marker Tick Context :\n%s"), *SyncGroup.MarkerTickContext.ToString());
-					UE_LOG(LogAnimMarkerSync, Log, TEXT("New Sync Group Marker Tick Context :\n%s"), *TickContext.MarkerTickContext.ToString());
-					break;
-				}
-				else
-				{
-					SyncGroup.GroupLeaderIndex = GroupLeaderIndex;
-					UE_LOG(LogAnimMarkerSync, Log, TEXT("Invalid position from Leader %d. Trying next leader"), GroupLeaderIndex);
-				}
-			} 
-
-			check(SyncGroup.GroupLeaderIndex != INDEX_NONE);
-			// we found leader
-			SyncGroup.Finalize(PreviousGroup);
-
-			if (TickContext.CanUseMarkerPosition())
-			{
-				const FMarkerSyncAnimPosition& MarkerStart = TickContext.MarkerTickContext.GetMarkerSyncStartPosition();
-				FName SyncGroupName = SyncGroupPair.Key;
-				FAnimTickRecord& GroupLeader = SyncGroup.ActivePlayers[SyncGroup.GroupLeaderIndex];
-				FString LeaderAnimName = GroupLeader.SourceAsset->GetName();
-
-				//  Updated logic in search for cause of UE-54705
-				const bool bStartMarkerValid = (MarkerStart.PreviousMarkerName == NAME_None) || SyncGroup.ValidMarkers.Contains(MarkerStart.PreviousMarkerName);
-				const bool bEndMarkerValid = (MarkerStart.NextMarkerName == NAME_None) || SyncGroup.ValidMarkers.Contains(MarkerStart.NextMarkerName);
-
-				if (!bStartMarkerValid)
-				{
-#if DO_CHECK
-					FString ErrorMsg = FString(TEXT("Prev Marker name not valid for sync group.\n"));
-					ErrorMsg += FString::Format(TEXT("\tMarker {0} : SyncGroupName {1} : Leader {2}\n"), { MarkerStart.PreviousMarkerName.ToString(), SyncGroupName.ToString(), LeaderAnimName });
-					ErrorMsg += FString::Format(TEXT("\tInitalPrev {0} : InitialNext {1} : GroupLeaderIndex {2}\n"), { InitialMarkerPrevious.ToString(), InitialMarkerEnd.ToString(), GroupLeaderIndex });
-					ErrorMsg += FString::Format(TEXT("\tLeader (0 index) was originally valid: {0} | Record: {1}\n"), { bIsLeaderRecordValidPre, LeaderPreMarkerTickRecord.ToString() });
-					ErrorMsg += FString::Format(TEXT("\t Valid Markers : {0}\n"), { SyncGroup.ValidMarkers.Num() });
-					for (int32 MarkerIndex = 0; MarkerIndex < SyncGroup.ValidMarkers.Num(); ++MarkerIndex)
-					{
-						ErrorMsg += FString::Format(TEXT("\t\t{0}) '{1}'\n"), {MarkerIndex, SyncGroup.ValidMarkers[MarkerIndex].ToString()});
-					}
-					ensureMsgf(false, TEXT("%s"), *ErrorMsg);
-#endif
-					TickContext.InvalidateMarkerSync();
-				}
-				else if (!bEndMarkerValid)
-				{
-#if DO_CHECK
-					FString ErrorMsg = FString(TEXT("Next Marker name not valid for sync group.\n"));
-					ErrorMsg += FString::Format(TEXT("\tMarker {0} : SyncGroupName {1} : Leader {2}\n"), { MarkerStart.NextMarkerName.ToString(), SyncGroupName.ToString(), LeaderAnimName });
-					ErrorMsg += FString::Format(TEXT("\tInitalPrev {0} : InitialNext {1} : GroupLeaderIndex {2}\n"), { InitialMarkerPrevious.ToString(), InitialMarkerEnd.ToString(), GroupLeaderIndex });
-					ErrorMsg += FString::Format(TEXT("\tLeader (0 index) was originally valid: {0} | Record: {1}\n"), { bIsLeaderRecordValidPre, LeaderPreMarkerTickRecord.ToString() });
-					ErrorMsg += FString::Format(TEXT("\t Valid Markers : {0}\n"), { SyncGroup.ValidMarkers.Num() });
-					for (int32 MarkerIndex = 0; MarkerIndex < SyncGroup.ValidMarkers.Num(); ++MarkerIndex)
-					{
-						ErrorMsg += FString::Format(TEXT("\t\t{0}) '{1}'\n"), { MarkerIndex, SyncGroup.ValidMarkers[MarkerIndex].ToString() });
-					}
-					ensureMsgf(false, TEXT("%s"), *ErrorMsg);
-#endif
-					TickContext.InvalidateMarkerSync();
-				}
-			}
-
-			// Update everything else to follow the leader, if there is more followers
-			if (SyncGroup.ActivePlayers.Num() > GroupLeaderIndex + 1)
-			{
-				// if we don't have a good leader, no reason to convert to follower
-				// tick as leader
-				TickContext.ConvertToFollower();
-	
-				for (int32 TickIndex = GroupLeaderIndex + 1; TickIndex < SyncGroup.ActivePlayers.Num(); ++TickIndex)
-				{
-					FAnimTickRecord& AssetPlayer = SyncGroup.ActivePlayers[TickIndex];
-					{
-						SCOPE_CYCLE_COUNTER(STAT_TickAssetPlayerInstance);
-						FScopeCycleCounterUObject Scope(AssetPlayer.SourceAsset);
-						TickContext.RootMotionMovementParams.Clear();
-						AssetPlayer.SourceAsset->TickAssetPlayer(AssetPlayer, NotifyQueue, TickContext);
-					}
-					if (RootMotionMode == ERootMotionMode::RootMotionFromEverything && TickContext.RootMotionMovementParams.bHasRootMotion)
-					{
-						ExtractedRootMotion.AccumulateWithBlend(TickContext.RootMotionMovementParams, AssetPlayer.GetRootMotionWeight());
-					}
-				}
-			}
-
-#if ANIM_TRACE_ENABLED
-			for(const FPassedMarker& PassedMarker : TickContext.MarkerTickContext.MarkersPassedThisTick)
-			{
-				TRACE_ANIM_SYNC_MARKER(CastChecked<UAnimInstance>(GetAnimInstanceObject()), PassedMarker);
-			}
-#endif
-		}
-	}
-
-	// Handle the remaining ungrouped animation players
-	for (int32 TickIndex = 0; TickIndex < UngroupedActivePlayers.Num(); ++TickIndex)
-	{
-		FAnimTickRecord& AssetPlayerToTick = UngroupedActivePlayers[TickIndex];
-		const TArray<FName>* UniqueNames = AssetPlayerToTick.SourceAsset->GetUniqueMarkerNames();
-		const TArray<FName>& ValidMarkers = UniqueNames ? *UniqueNames : FMarkerTickContext::DefaultMarkerNames;
-
-		const bool bOnlyOneAnimationInGroup = true;
-		FAnimAssetTickContext TickContext(DeltaSeconds, RootMotionMode, bOnlyOneAnimationInGroup, ValidMarkers);
-		{
-			SCOPE_CYCLE_COUNTER(STAT_TickAssetPlayerInstance);
-			FScopeCycleCounterUObject Scope(AssetPlayerToTick.SourceAsset);
-			AssetPlayerToTick.SourceAsset->TickAssetPlayer(AssetPlayerToTick, NotifyQueue, TickContext);
-		}
-		if (RootMotionMode == ERootMotionMode::RootMotionFromEverything && TickContext.RootMotionMovementParams.bHasRootMotion)
-		{
-			ExtractedRootMotion.AccumulateWithBlend(TickContext.RootMotionMovementParams, AssetPlayerToTick.GetRootMotionWeight());
-		}
-
-#if ANIM_TRACE_ENABLED
-		for(const FPassedMarker& PassedMarker : TickContext.MarkerTickContext.MarkersPassedThisTick)
-		{
-			TRACE_ANIM_SYNC_MARKER(CastChecked<UAnimInstance>(GetAnimInstanceObject()), PassedMarker);
-		}
-#endif
-	}
+	Sync.TickAssetPlayerInstances(*this, InDeltaSeconds);
+	Sync.TickSyncGroupWriteIndex();
 }
 
 void FAnimInstanceProxy::AddAnimNotifies(const TArray<FAnimNotifyEventReference>& NewNotifies, const float InstanceWeight)
@@ -936,27 +717,7 @@ int32 FAnimInstanceProxy::GetSyncGroupIndexFromName(FName SyncGroupName) const
 
 bool FAnimInstanceProxy::GetTimeToClosestMarker(FName SyncGroup, FName MarkerName, float& OutMarkerTime) const
 {
-	const FSyncGroupMap& SyncGroupMap = SyncGroupMaps[GetSyncGroupReadIndex()];
-
-	if (const FAnimGroupInstance* SyncGroupInstancePtr = SyncGroupMap.Find(SyncGroup))
-	{
-		if (SyncGroupInstancePtr->bCanUseMarkerSync && SyncGroupInstancePtr->ActivePlayers.IsValidIndex(SyncGroupInstancePtr->GroupLeaderIndex))
-		{
-			const FMarkerSyncAnimPosition& EndPosition = SyncGroupInstancePtr->MarkerTickContext.GetMarkerSyncEndPosition();
-			const FAnimTickRecord& Leader = SyncGroupInstancePtr->ActivePlayers[SyncGroupInstancePtr->GroupLeaderIndex];
-			if (EndPosition.PreviousMarkerName == MarkerName)
-			{
-				OutMarkerTime = Leader.MarkerTickRecord->PreviousMarker.TimeToMarker;
-				return true;
-			}
-			else if (EndPosition.NextMarkerName == MarkerName)
-			{
-				OutMarkerTime = Leader.MarkerTickRecord->NextMarker.TimeToMarker;
-				return true;
-			}
-		}
-	}
-	return false;
+	return Sync.GetTimeToClosestMarker(SyncGroup, MarkerName, OutMarkerTime);
 }
 
 void FAnimInstanceProxy::AddAnimNotifyFromGeneratedClass(int32 NotifyIndex)
@@ -976,64 +737,22 @@ void FAnimInstanceProxy::AddAnimNotifyFromGeneratedClass(int32 NotifyIndex)
 
 bool FAnimInstanceProxy::HasMarkerBeenHitThisFrame(FName SyncGroup, FName MarkerName) const
 {
-	const FSyncGroupMap& SyncGroupMap = SyncGroupMaps[GetSyncGroupReadIndex()];
-
-	if (const FAnimGroupInstance* SyncGroupInstancePtr = SyncGroupMap.Find(SyncGroup))
-	{
-		if (SyncGroupInstancePtr->bCanUseMarkerSync)
-		{
-			return SyncGroupInstancePtr->MarkerTickContext.MarkersPassedThisTick.ContainsByPredicate([&MarkerName](const FPassedMarker& PassedMarker) -> bool
-			{
-				return PassedMarker.PassedMarkerName == MarkerName;
-			});
-		}
-	}
-	return false;
+	return Sync.HasMarkerBeenHitThisFrame(SyncGroup, MarkerName);
 }
 
 bool FAnimInstanceProxy::IsSyncGroupBetweenMarkers(FName InSyncGroupName, FName PreviousMarker, FName NextMarker, bool bRespectMarkerOrder) const
 {
-	const FMarkerSyncAnimPosition& SyncGroupPosition = GetSyncGroupPosition(InSyncGroupName);
-	if ((SyncGroupPosition.PreviousMarkerName == PreviousMarker) && (SyncGroupPosition.NextMarkerName == NextMarker))
-	{
-		return true;
-	}
-
-	if (!bRespectMarkerOrder)
-	{
-		return ((SyncGroupPosition.PreviousMarkerName == NextMarker) && (SyncGroupPosition.NextMarkerName == PreviousMarker));
-	}
-
-	return false;
+	return Sync.IsSyncGroupBetweenMarkers(InSyncGroupName, PreviousMarker, NextMarker, bRespectMarkerOrder);
 }
 
 FMarkerSyncAnimPosition FAnimInstanceProxy::GetSyncGroupPosition(FName InSyncGroupName) const
 {
-	const FSyncGroupMap& SyncGroupMap = SyncGroupMaps[GetSyncGroupReadIndex()];
-
-	if (const FAnimGroupInstance* SyncGroupInstancePtr = SyncGroupMap.Find(InSyncGroupName))
-	{
-		if (SyncGroupInstancePtr->bCanUseMarkerSync && SyncGroupInstancePtr->MarkerTickContext.IsMarkerSyncEndValid())
-		{
-			return SyncGroupInstancePtr->MarkerTickContext.GetMarkerSyncEndPosition();
-		}
-	}
-
-	return FMarkerSyncAnimPosition();
+	return Sync.GetSyncGroupPosition(InSyncGroupName);
 }
 
 bool FAnimInstanceProxy::IsSyncGroupValid(FName InSyncGroupName) const
 {
-	const FSyncGroupMap& SyncGroupMap = SyncGroupMaps[GetSyncGroupReadIndex()];
-
-	if (const FAnimGroupInstance* SyncGroupInstancePtr = SyncGroupMap.Find(InSyncGroupName))
-	{
-		// If we don't use Markers, we're always valid.
-		return (!SyncGroupInstancePtr->bCanUseMarkerSync || SyncGroupInstancePtr->MarkerTickContext.IsMarkerSyncEndValid());
-	}
-
-	// If we're querying a sync group that doesn't exist, treat this as invalid
-	return false;
+	return Sync.IsSyncGroupValid(InSyncGroupName);
 }
 
 
@@ -1079,7 +798,7 @@ void FAnimInstanceProxy::UpdateSlotNodeWeight(const FName& SlotNodeName, float I
 	const int32* TrackerIndexPtr = SlotNameToTrackerIndex.Find(SlotNodeName);
 	if (TrackerIndexPtr)
 	{
-		FMontageActiveSlotTracker& Tracker = SlotWeightTracker[GetSyncGroupWriteIndex()][*TrackerIndexPtr];
+		FMontageActiveSlotTracker& Tracker = SlotWeightTracker[GetBufferWriteIndex()][*TrackerIndexPtr];
 		Tracker.MontageLocalWeight = InMontageLocalWeight;
 		Tracker.NodeGlobalWeight = InNodeGlobalWeight;
 
@@ -1102,8 +821,8 @@ bool FAnimInstanceProxy::GetSlotInertializationRequest(const FName& SlotName, fl
 
 void FAnimInstanceProxy::ClearSlotNodeWeights()
 {
-	TArray<FMontageActiveSlotTracker>& SlotWeightTracker_Read = SlotWeightTracker[GetSyncGroupReadIndex()];
-	TArray<FMontageActiveSlotTracker>& SlotWeightTracker_Write = SlotWeightTracker[GetSyncGroupWriteIndex()];
+	TArray<FMontageActiveSlotTracker>& SlotWeightTracker_Read = SlotWeightTracker[GetBufferReadIndex()];
+	TArray<FMontageActiveSlotTracker>& SlotWeightTracker_Write = SlotWeightTracker[GetBufferWriteIndex()];
 
 	for (int32 TrackerIndex = 0; TrackerIndex < SlotWeightTracker_Write.Num(); TrackerIndex++)
 	{
@@ -1117,7 +836,7 @@ bool FAnimInstanceProxy::IsSlotNodeRelevantForNotifies(const FName& SlotNodeName
 	const int32* TrackerIndexPtr = SlotNameToTrackerIndex.Find(SlotNodeName);
 	if (TrackerIndexPtr)
 	{
-		const FMontageActiveSlotTracker& Tracker = SlotWeightTracker[GetSyncGroupReadIndex()][*TrackerIndexPtr];
+		const FMontageActiveSlotTracker& Tracker = SlotWeightTracker[GetBufferReadIndex()][*TrackerIndexPtr];
 		return (Tracker.bIsRelevantThisTick || Tracker.bWasRelevantOnPreviousTick);
 	}
 
@@ -1129,7 +848,7 @@ float FAnimInstanceProxy::GetSlotNodeGlobalWeight(const FName& SlotNodeName) con
 	const int32* TrackerIndexPtr = SlotNameToTrackerIndex.Find(SlotNodeName);
 	if (TrackerIndexPtr)
 	{
-		const FMontageActiveSlotTracker& Tracker = SlotWeightTracker[GetSyncGroupReadIndex()][*TrackerIndexPtr];
+		const FMontageActiveSlotTracker& Tracker = SlotWeightTracker[GetBufferReadIndex()][*TrackerIndexPtr];
 		return Tracker.NodeGlobalWeight;
 	}
 
@@ -1141,7 +860,7 @@ float FAnimInstanceProxy::GetSlotMontageGlobalWeight(const FName& SlotNodeName) 
 	const int32* TrackerIndexPtr = SlotNameToTrackerIndex.Find(SlotNodeName);
 	if (TrackerIndexPtr)
 	{
-		const FMontageActiveSlotTracker& Tracker = SlotWeightTracker[GetSyncGroupReadIndex()][*TrackerIndexPtr];
+		const FMontageActiveSlotTracker& Tracker = SlotWeightTracker[GetBufferReadIndex()][*TrackerIndexPtr];
 		return Tracker.MontageLocalWeight * Tracker.NodeGlobalWeight;
 	}
 
@@ -1153,7 +872,7 @@ float FAnimInstanceProxy::GetSlotMontageLocalWeight(const FName& SlotNodeName) c
 	const int32* TrackerIndexPtr = SlotNameToTrackerIndex.Find(SlotNodeName);
 	if (TrackerIndexPtr)
 	{
-		const FMontageActiveSlotTracker& Tracker = SlotWeightTracker[GetSyncGroupReadIndex()][*TrackerIndexPtr];
+		const FMontageActiveSlotTracker& Tracker = SlotWeightTracker[GetBufferReadIndex()][*TrackerIndexPtr];
 		return Tracker.MontageLocalWeight;
 	}
 
@@ -1292,6 +1011,9 @@ void FAnimInstanceProxy::UpdateAnimation()
 
 #if WITH_EDITORONLY_DATA
 	UpdatedNodesThisFrame.Reset();
+	NodeInputAttributesThisFrame.Reset();
+	NodeOutputAttributesThisFrame.Reset();
+	NodeSyncsThisFrame.Reset();
 #endif
 
 	FAnimationUpdateSharedContext SharedContext;
@@ -1303,6 +1025,9 @@ void FAnimInstanceProxy::UpdateAnimation()
 	}
 
 	UpdateAnimation_WithRoot(Context, RootNode, NAME_AnimGraph);
+
+	// Tick syncing
+	Sync.TickAssetPlayerInstances(*this, CurrentDeltaSeconds);
 }
 
 void FAnimInstanceProxy::UpdateAnimation_WithRoot(const FAnimationUpdateContext& InContext, FAnimNode_Base* InRootNode, FName InLayerName)
@@ -1366,7 +1091,11 @@ void FAnimInstanceProxy::UpdateAnimation_WithRoot(const FAnimationUpdateContext&
 		// We re-enter this function when we call layer graphs linked to the main graph. In these cases we
 		// dont want to perform duplicate work
 		TGuardValue<bool> ScopeGuard(bUpdatingRoot, true);
-	
+
+		// Anything syncing within this scope is subject to sync groups.
+		// We only enable syncing here for the main proxy
+		UE::Anim::TOptionalScopedGraphMessage<UE::Anim::FAnimSyncGroupScope> Message(GetMainInstanceProxy() == this, InContext, InContext);
+
 		// update all nodes
 		if(InRootNode == RootNode)
 		{
@@ -1485,11 +1214,11 @@ void FAnimInstanceProxy::EvaluateAnimationNode_WithRoot(FPoseContext& Output, FA
 		if(InRootNode == RootNode)
 		{
 			EvaluationCounter.Increment();
-		}
 
-		if(AnimClassInterface && AnimClassInterface->GetAnimBlueprintFunctions().Num() > 0)
-		{
-			Output.SetNodeId(AnimClassInterface->GetAnimBlueprintFunctions()[0].OutputPoseNodeIndex);
+			if(AnimClassInterface && AnimClassInterface->GetAnimBlueprintFunctions().Num() > 0)
+			{
+				Output.SetNodeId(AnimClassInterface->GetAnimBlueprintFunctions()[0].OutputPoseNodeIndex);
+			}
 		}
 
 		TRACE_SCOPED_ANIM_NODE(Output);
@@ -2858,12 +2587,12 @@ int32 FAnimInstanceProxy::GetInstanceAssetPlayerIndex(FName MachineName, FName S
 
 float FAnimInstanceProxy::GetRecordedMachineWeight(const int32 InMachineClassIndex) const
 {
-	return MachineWeightArrays[GetSyncGroupReadIndex()][InMachineClassIndex];
+	return MachineWeightArrays[GetBufferReadIndex()][InMachineClassIndex];
 }
 
 void FAnimInstanceProxy::RecordMachineWeight(const int32 InMachineClassIndex, const float InMachineWeight)
 {
-	MachineWeightArrays[GetSyncGroupWriteIndex()][InMachineClassIndex] = InMachineWeight;
+	MachineWeightArrays[GetBufferWriteIndex()][InMachineClassIndex] = InMachineWeight;
 }
 
 float FAnimInstanceProxy::GetRecordedStateWeight(const int32 InMachineClassIndex, const int32 InStateIndex) const
@@ -2873,7 +2602,7 @@ float FAnimInstanceProxy::GetRecordedStateWeight(const int32 InMachineClassIndex
 	if(BaseIndexPtr)
 	{
 		const int32 StateIndex = *BaseIndexPtr + InStateIndex;
-		return StateWeightArrays[GetSyncGroupReadIndex()][StateIndex];
+		return StateWeightArrays[GetBufferReadIndex()][StateIndex];
 	}
 
 	return 0.0f;
@@ -2886,7 +2615,7 @@ void FAnimInstanceProxy::RecordStateWeight(const int32 InMachineClassIndex, cons
 	if(BaseIndexPtr)
 	{
 		const int32 StateIndex = *BaseIndexPtr + InStateIndex;
-		StateWeightArrays[GetSyncGroupWriteIndex()][StateIndex] = InStateWeight;
+		StateWeightArrays[GetBufferWriteIndex()][StateIndex] = InStateWeight;
 	}
 
 #if WITH_EDITORONLY_DATA
@@ -2961,6 +2690,18 @@ TArray<FAnimNode_AssetPlayerBase*> FAnimInstanceProxy::GetInstanceAssetPlayers(c
 }
 
 #if WITH_EDITOR
+void FAnimInstanceProxy::RecordNodeAttribute(const FAnimInstanceProxy& InSourceProxy, int32 InTargetNodeIndex, int32 InSourceNodeIndex, FName InAttribute)
+{
+	TArray<FAnimBlueprintDebugData::FAttributeRecord>& InputAttributeRecords = NodeInputAttributesThisFrame.FindOrAdd(InTargetNodeIndex);
+	InputAttributeRecords.Emplace(InSourceNodeIndex, InAttribute);
+
+	if(&InSourceProxy == this)
+	{
+		TArray<FAnimBlueprintDebugData::FAttributeRecord>& OutputAttributeRecords = NodeOutputAttributesThisFrame.FindOrAdd(InSourceNodeIndex);
+		OutputAttributeRecords.Emplace(InTargetNodeIndex, InAttribute);
+	}
+}
+
 void FAnimInstanceProxy::RegisterWatchedPose(const FCompactPose& Pose, int32 LinkID)
 {
 	if(bIsBeingDebugged)

@@ -2,14 +2,15 @@
 
 #include "Animation/AnimNode_AssetPlayerBase.h"
 #include "Animation/AnimInstanceProxy.h"
+#include "Animation/AnimSyncScope.h"
 
 FAnimNode_AssetPlayerBase::FAnimNode_AssetPlayerBase()
 	: GroupName(NAME_None)
 #if WITH_EDITORONLY_DATA
 	, GroupIndex_DEPRECATED(INDEX_NONE)
+	, GroupScope_DEPRECATED(EAnimSyncGroupScope::Local)
 #endif
 	, GroupRole(EAnimGroupRole::CanBeLeader)
-	, GroupScope(EAnimSyncGroupScope::Local)
 	, bIgnoreForRelevancyTest(false)
 	, bHasBeenFullWeight(false)
 	, BlendWeight(0.0f)
@@ -37,22 +38,23 @@ void FAnimNode_AssetPlayerBase::Update_AnyThread(const FAnimationUpdateContext& 
 
 void FAnimNode_AssetPlayerBase::CreateTickRecordForNode(const FAnimationUpdateContext& Context, UAnimSequenceBase* Sequence, bool bLooping, float PlayRate)
 {
-	// Create a tick record and fill it out
+	// Create a tick record and push into the closest scope
 	const float FinalBlendWeight = Context.GetFinalBlendWeight();
 
-	FAnimGroupInstance* SyncGroup;
-	const FName GroupNameToUse = ((GroupRole < EAnimGroupRole::TransitionLeader) || bHasBeenFullWeight) ? GroupName : NAME_None;
+	UE::Anim::FAnimSyncGroupScope& SyncScope = Context.GetMessageChecked<UE::Anim::FAnimSyncGroupScope>();
 
-	FAnimTickRecord& TickRecord = Context.AnimInstanceProxy->CreateUninitializedTickRecordInScope(/*out*/ SyncGroup, GroupNameToUse, GroupScope);
+	FName GroupNameToUse = ((GroupRole < EAnimGroupRole::TransitionLeader) || bHasBeenFullWeight) ? GroupName : NAME_None;
+	EAnimSyncMethod MethodToUse = Method;
+	if(GroupNameToUse == NAME_None)
+	{
+		MethodToUse = EAnimSyncMethod::DoNotSync;
+	}
 
-	Context.AnimInstanceProxy->MakeSequenceTickRecord(TickRecord, Sequence, bLooping, PlayRate, FinalBlendWeight, /*inout*/ InternalTimeAccumulator, MarkerTickRecord);
+	UE::Anim::FAnimSyncParams SyncParams(GroupNameToUse, GroupRole, MethodToUse);
+	FAnimTickRecord TickRecord(Sequence, bLooping, PlayRate, FinalBlendWeight, /*inout*/ InternalTimeAccumulator, MarkerTickRecord);
 	TickRecord.RootMotionWeightModifier = Context.GetRootMotionWeightModifier();
 
-	// Update the sync group if it exists
-	if (SyncGroup != NULL)
-	{
-		SyncGroup->TestTickRecordForLeadership(GroupRole);
-	}
+	SyncScope.AddTickRecord(TickRecord, SyncParams, UE::Anim::FAnimSyncDebugInfo(Context));
 
 	TRACE_ANIM_TICK_RECORD(Context, TickRecord);
 }

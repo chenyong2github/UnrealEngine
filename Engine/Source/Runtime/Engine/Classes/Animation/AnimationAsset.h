@@ -23,6 +23,9 @@ class UAnimMetaData;
 class UAssetMappingTable;
 class UAssetUserData;
 class USkeleton;
+class UAnimSequenceBase;
+class UBlendSpaceBase;
+class UPoseAsset;
 
 namespace MarkerIndexSpecialValues
 {
@@ -284,14 +287,14 @@ struct FAnimTickRecord
 	GENERATED_USTRUCT_BODY()
 
 	UPROPERTY()
-	class UAnimationAsset* SourceAsset;
+	class UAnimationAsset* SourceAsset = nullptr;
 
-	float*  TimeAccumulator;
-	float PlayRateMultiplier;
-	float EffectiveBlendWeight;
-	float RootMotionWeightModifier;
+	float* TimeAccumulator = nullptr;
+	float PlayRateMultiplier = 0.0f;
+	float EffectiveBlendWeight = 0.0f;
+	float RootMotionWeightModifier = 0.0f;
 
-	bool bLooping;
+	bool bLooping = false;
 
 	union
 	{
@@ -313,9 +316,9 @@ struct FAnimTickRecord
 	};
 
 	// marker sync related data
-	FMarkerTickRecord* MarkerTickRecord;
-	bool bCanUseMarkerSync;
-	float LeaderScore;
+	FMarkerTickRecord* MarkerTickRecord = nullptr;
+	bool bCanUseMarkerSync = false;
+	float LeaderScore = 0.0f;
 
 	// Return the root motion weight for this tick record
 	float GetRootMotionWeight() const { return EffectiveBlendWeight * RootMotionWeightModifier; }
@@ -333,6 +336,18 @@ public:
 		, LeaderScore(0.f)
 	{
 	}
+
+	// Create a tick record for an anim sequence
+	ENGINE_API FAnimTickRecord(UAnimSequenceBase* InSequence, bool bInLooping, float InPlayRate, float InFinalBlendWeight, float& InCurrentTime, FMarkerTickRecord& InMarkerTickRecord);
+
+	// Create a tick record for a blendspace
+	ENGINE_API FAnimTickRecord(UBlendSpaceBase* InBlendSpace, const FVector& InBlendInput, TArray<FBlendSampleData>& InBlendSampleDataCache, FBlendFilter& InBlendFilter, bool bInLooping, float InPlayRate, float InFinalBlendWeight, float& InCurrentTime, FMarkerTickRecord& InMarkerTickRecord);
+
+	// Create a tick record for a montage
+	ENGINE_API FAnimTickRecord(UAnimMontage* InMontage, float InCurrentPosition, float InPreviousPosition, float InMoveDelta, float InWeight, TArray<FPassedMarker>& InMarkersPassedThisTick, FMarkerTickRecord& InMarkerTickRecord);
+
+	// Create a tick record for a pose asset
+	ENGINE_API FAnimTickRecord(UPoseAsset* InPoseAsset, float InFinalBlendWeight);
 
 	/** This can be used with the Sort() function on a TArray of FAnimTickRecord to sort from higher leader score */
 	ENGINE_API bool operator <(const FAnimTickRecord& Other) const { return LeaderScore > Other.LeaderScore; }
@@ -438,6 +453,7 @@ namespace EAnimGroupRole
 	};
 }
 
+// Deprecated - do not use
 UENUM()
 enum class EAnimSyncGroupScope : uint8
 {
@@ -446,6 +462,20 @@ enum class EAnimSyncGroupScope : uint8
 
 	// Sync with all animations in the main and linked instances of this skeletal mesh component
 	Component,
+};
+
+// How an asset will synchronize with other assets
+UENUM()
+enum class EAnimSyncMethod : uint8
+{
+	// Don't sync ever
+	DoNotSync,
+
+	// Use a named sync group
+	SyncGroup,
+
+	// Use the graph structure to provide a sync group to apply
+	Graph
 };
 
 USTRUCT()
@@ -495,10 +525,9 @@ public:
 	// Checks the last tick record in the ActivePlayers array to see if it's a better leader than the current candidate.
 	// This should be called once for each record added to ActivePlayers, after the record is setup.
 	ENGINE_API void TestTickRecordForLeadership(EAnimGroupRole::Type MembershipType);
-	// Checks the last tick record in the ActivePlayers array to see if we have a better leader for montage
-	// This is simple rule for higher weight becomes leader
-	// Only one from same sync group with highest weight will be leader
-	ENGINE_API void TestMontageTickRecordForLeadership();
+
+	UE_DEPRECATED(5.0, "Use TestTickRecordForLeadership, as it now internally supports montages")
+	ENGINE_API void TestMontageTickRecordForLeadership() { TestTickRecordForLeadership(EAnimGroupRole::CanBeLeader); }
 
 	// Called after leader has been ticked and decided
 	ENGINE_API void Finalize(const FAnimGroupInstance* PreviousGroup);
@@ -800,21 +829,22 @@ struct FAnimationGroupReference
 {
 	GENERATED_USTRUCT_BODY()
 	
-	// The name of the group
+	// How an asset will synchronize with other assets
 	UPROPERTY(EditAnywhere, Category=Settings)
+	EAnimSyncMethod Method;
+
+	// The name of the group
+	UPROPERTY(EditAnywhere, Category=Settings, meta = (EditCondition = "Method == EAnimSyncMethod::SyncGroup"))
 	FName GroupName;
 
 	// The type of membership in the group (potential leader, always follower, etc...)
-	UPROPERTY(EditAnywhere, Category=Settings)
+	UPROPERTY(EditAnywhere, Category=Settings, meta = (EditCondition = "Method == EAnimSyncMethod::SyncGroup"))
 	TEnumAsByte<EAnimGroupRole::Type> GroupRole;
 
-	// The scope at which marker-based sync is applied (local, component etc...)
-	UPROPERTY(EditAnywhere, Category=Settings)
-	EAnimSyncGroupScope GroupScope;
-
 	FAnimationGroupReference()
-		: GroupRole(EAnimGroupRole::CanBeLeader)
-		, GroupScope(EAnimSyncGroupScope::Local)
+		: Method(EAnimSyncMethod::DoNotSync)
+		, GroupName(NAME_None)
+		, GroupRole(EAnimGroupRole::CanBeLeader)
 	{
 	}
 };

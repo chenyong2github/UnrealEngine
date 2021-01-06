@@ -21,4 +21,5 @@ class UAnimGraphNode_Inertialization : public UAnimGraphNode_Base
 	virtual FText GetTooltipText() const override;
 	virtual FText GetNodeTitle(ENodeTitleType::Type TitleType) const override;
 	virtual FText GetMenuCategory() const override;
+	virtual void GetInputLinkAttributes(FNodeAttributeArray& OutAttributes) const override;
 };

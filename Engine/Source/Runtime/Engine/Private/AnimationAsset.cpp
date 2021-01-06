@@ -8,6 +8,8 @@
 #include "AnimationUtils.h"
 #include "Animation/AnimInstance.h"
 #include "UObject/LinkerLoad.h"
+#include "Animation/BlendSpaceBase.h"
+#include "Animation/PoseAsset.h"
 
 #define LEADERSCORE_ALWAYSLEADER  	2.f
 #define LEADERSCORE_MONTAGE			3.f
@@ -20,65 +22,65 @@ const TArray<FName> FMarkerTickContext::DefaultMarkerNames;
 
 void FAnimGroupInstance::TestTickRecordForLeadership(EAnimGroupRole::Type MembershipType)
 {
+	check(ActivePlayers.Num() > 0);
+
 	// always set leader score if you have potential to be leader
 	// that way if the top leader fails, we'll continue to search next available leader
 	int32 TestIndex = ActivePlayers.Num() - 1;
 	FAnimTickRecord& Candidate = ActivePlayers[TestIndex];
 
-	switch (MembershipType)
+	if(Candidate.SourceAsset->IsA<UAnimMontage>())
 	{
-	case EAnimGroupRole::CanBeLeader:
-	case EAnimGroupRole::TransitionLeader:
-		Candidate.LeaderScore = Candidate.EffectiveBlendWeight;
-		break;
-	case EAnimGroupRole::AlwaysLeader:
-		// Always set the leader index
-		Candidate.LeaderScore = LEADERSCORE_ALWAYSLEADER;
-		break;
-	default:
-	case EAnimGroupRole::AlwaysFollower:
-	case EAnimGroupRole::TransitionFollower:
-		// Never set the leader index; the actual tick code will handle the case of no leader by using the first element in the array
-		break;
-	}
-}
-
-void FAnimGroupInstance::TestMontageTickRecordForLeadership()
-{
-	int32 TestIndex = ActivePlayers.Num() - 1;
-	ensure(TestIndex <= 1);
-	FAnimTickRecord& Candidate = ActivePlayers[TestIndex];
-
-	// if the candidate has higher weight
-	if (Candidate.EffectiveBlendWeight > MontageLeaderWeight)
-	{
-		// if this is going to be leader, I'll clean ActivePlayers because we don't sync multi montages
-		const int32 LastIndex = TestIndex - 1;
-		if (LastIndex >= 0)
+		// if the candidate has higher weight
+		if (Candidate.EffectiveBlendWeight > MontageLeaderWeight)
 		{
-			ActivePlayers.RemoveAt(TestIndex - 1, 1);
+			// if this is going to be leader, I'll clean ActivePlayers because we don't sync multi montages
+			const int32 LastIndex = TestIndex - 1;
+			if (LastIndex >= 0)
+			{
+				ActivePlayers.RemoveAt(TestIndex - 1, 1);
+			}
+
+			// at this time, it should only have one
+			ensure(ActivePlayers.Num() == 1);
+
+			// then override
+			// @note : leader weight doesn't applied WITHIN montages
+			// we still only contain one montage at a time, if this montage fails, next candidate will get the chance, not next weight montage
+			MontageLeaderWeight = Candidate.EffectiveBlendWeight;
+			Candidate.LeaderScore = LEADERSCORE_MONTAGE;
+		}
+		else
+		{
+			if (TestIndex != 0)
+			{
+				// we delete the later ones because we only have one montage for leader. 
+				// this can happen if there was already active one with higher weight. 
+				ActivePlayers.RemoveAt(TestIndex, 1);
+			}
 		}
 
-		// at this time, it should only have one
-		ensure(ActivePlayers.Num() == 1);
-
-		// then override
-		// @note : leader weight doesn't applied WITHIN montages
-		// we still only contain one montage at a time, if this montage fails, next candidate will get the chance, not next weight montage
-		MontageLeaderWeight = Candidate.EffectiveBlendWeight;
-		Candidate.LeaderScore = LEADERSCORE_MONTAGE;
+		ensureAlways(ActivePlayers.Num() == 1);
 	}
 	else
 	{
-		if (TestIndex != 0)
+		switch (MembershipType)
 		{
-			// we delete the later ones because we only have one montage for leader. 
-			// this can happen if there was already active one with higher weight. 
-			ActivePlayers.RemoveAt(TestIndex, 1);
+		case EAnimGroupRole::CanBeLeader:
+		case EAnimGroupRole::TransitionLeader:
+			Candidate.LeaderScore = Candidate.EffectiveBlendWeight;
+			break;
+		case EAnimGroupRole::AlwaysLeader:
+			// Always set the leader index
+			Candidate.LeaderScore = LEADERSCORE_ALWAYSLEADER;
+			break;
+		default:
+		case EAnimGroupRole::AlwaysFollower:
+		case EAnimGroupRole::TransitionFollower:
+			// Never set the leader index; the actual tick code will handle the case of no leader by using the first element in the array
+			break;
 		}
 	}
-
-	ensureAlways(ActivePlayers.Num() == 1);
 }
 
 void FAnimGroupInstance::Finalize(const FAnimGroupInstance* PreviousGroup)
@@ -174,6 +176,49 @@ void FAnimGroupInstance::Prepare(const FAnimGroupInstance* PreviousGroup)
 			AnimTickRecord.MarkerTickRecord->Reset();
 		}
 	}
+}
+
+FAnimTickRecord::FAnimTickRecord(UAnimSequenceBase* InSequence, bool bInLooping, float InPlayRate, float InFinalBlendWeight, float& InCurrentTime, FMarkerTickRecord& InMarkerTickRecord)
+{
+	SourceAsset = InSequence;
+	TimeAccumulator = &InCurrentTime;
+	MarkerTickRecord = &InMarkerTickRecord;
+	PlayRateMultiplier = InPlayRate;
+	EffectiveBlendWeight = InFinalBlendWeight;
+	bLooping = bInLooping;
+}
+
+FAnimTickRecord::FAnimTickRecord(UBlendSpaceBase* InBlendSpace, const FVector& InBlendInput, TArray<FBlendSampleData>& InBlendSampleDataCache, FBlendFilter& InBlendFilter, bool bInLooping, float InPlayRate, float InFinalBlendWeight, float& InCurrentTime, FMarkerTickRecord& InMarkerTickRecord)
+{
+	SourceAsset = InBlendSpace;
+	BlendSpace.BlendSpacePositionX = InBlendInput.X;
+	BlendSpace.BlendSpacePositionY = InBlendInput.Y;
+	BlendSpace.BlendSampleDataCache = &InBlendSampleDataCache;
+	BlendSpace.BlendFilter = &InBlendFilter;
+	TimeAccumulator = &InCurrentTime;
+	MarkerTickRecord = &InMarkerTickRecord;
+	PlayRateMultiplier = InPlayRate;
+	EffectiveBlendWeight = InFinalBlendWeight;
+	bLooping = bInLooping;
+}
+
+FAnimTickRecord::FAnimTickRecord(UAnimMontage* InMontage, float InCurrentPosition, float InPreviousPosition, float InMoveDelta, float InWeight, TArray<FPassedMarker>& InMarkersPassedThisTick, FMarkerTickRecord& InMarkerTickRecord)
+{
+	SourceAsset = InMontage;
+	Montage.CurrentPosition = InCurrentPosition;
+	Montage.PreviousPosition = InPreviousPosition;
+	Montage.MoveDelta = InMoveDelta;
+	Montage.MarkersPassedThisTick = &InMarkersPassedThisTick;
+	MarkerTickRecord = &InMarkerTickRecord;
+	PlayRateMultiplier = 1.f; // we don't care here, this is alreayd applied in the montageinstance::Advance
+	EffectiveBlendWeight = InWeight;
+	bLooping = false;
+}
+
+FAnimTickRecord::FAnimTickRecord(UPoseAsset* InPoseAsset, float InFinalBlendWeight)
+{
+	SourceAsset = InPoseAsset;
+	EffectiveBlendWeight = InFinalBlendWeight;
 }
 
 //////////////////////////////////////////////////////////////////////////

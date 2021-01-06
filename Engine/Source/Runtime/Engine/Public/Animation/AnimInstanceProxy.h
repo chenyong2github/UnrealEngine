@@ -18,6 +18,7 @@
 #include "Animation/AnimBlueprintGeneratedClass.h"
 #include "Logging/TokenizedMessage.h"
 #include "Animation/AnimTrace.h"
+#include "Animation/AnimSync.h"
 
 #include "AnimInstanceProxy.generated.h"
 
@@ -125,7 +126,7 @@ public:
 		, CurrentTimeDilation(1.0f)
 		, RootNode(nullptr)
 		, DefaultLinkedInstanceInputNode(nullptr)
-		, SyncGroupWriteIndex(0)
+		, BufferWriteIndex(0)
 		, RootMotionMode(ERootMotionMode::NoRootMotionExtraction)
 		, FrameCounterForUpdate(0)
 		, FrameCounterForNodeUpdate(0)
@@ -150,7 +151,7 @@ public:
 		, CurrentTimeDilation(1.0f)
 		, RootNode(nullptr)
 		, DefaultLinkedInstanceInputNode(nullptr)
-		, SyncGroupWriteIndex(0)
+		, BufferWriteIndex(0)
 		, RootMotionMode(ERootMotionMode::NoRootMotionExtraction)
 		, FrameCounterForUpdate(0)
 		, FrameCounterForNodeUpdate(0)
@@ -204,7 +205,16 @@ public:
 	/** Record a visited node in the debugger */
 	void RecordNodeVisit(int32 TargetNodeIndex, int32 SourceNodeIndex, float BlendWeight)
 	{
-		new (UpdatedNodesThisFrame) FAnimBlueprintDebugData::FNodeVisit(SourceNodeIndex, TargetNodeIndex, BlendWeight);
+		UpdatedNodesThisFrame.Emplace(SourceNodeIndex, TargetNodeIndex, BlendWeight);
+	}
+
+	/** Record a node attribute in the debugger */
+	void RecordNodeAttribute(const FAnimInstanceProxy& InSourceProxy, int32 InTargetNodeIndex, int32 InSourceNodeIndex, FName InAttribute);
+
+	/** Record a node sync in the debugger */
+	void RecordNodeSync(int32 InSourceNodeIndex, FName InSyncGroup)
+	{
+		NodeSyncsThisFrame.FindOrAdd(InSourceNodeIndex, InSyncGroup);
 	}
 
 	UAnimBlueprint* GetAnimBlueprint() const
@@ -218,13 +228,19 @@ public:
 	void RegisterWatchedPose(const FCSPose<FCompactPose>& Pose, int32 LinkID);
 #endif
 
-	// flip sync group read/write indices
+	UE_DEPRECATED(5.0, "Function renamed to FlipBufferWriteIndex as this no longer deals with sync groups.")
 	void TickSyncGroupWriteIndex()
 	{ 
-		SyncGroupWriteIndex = GetSyncGroupReadIndex();
+		FlipBufferWriteIndex();
 	}
 
-	UE_DEPRECATED(5.0, "Sync groups are no longer stored in arrays, please use GetSyncGroupMapRead")
+	// flip buffer read/write indices
+	void FlipBufferWriteIndex()
+	{ 
+		BufferWriteIndex = GetBufferReadIndex();
+	}
+
+	UE_DEPRECATED(5.0, "Sync groups are no longer stored in arrays, please use GetSyncGroupMapRead.")
 	const TArray<FAnimGroupInstance>& GetSyncGroupRead() const
 	{
 		static const TArray<FAnimGroupInstance> Dummy;
@@ -234,19 +250,19 @@ public:
 	/** Get the sync group we are currently reading from */
 	const FSyncGroupMap& GetSyncGroupMapRead() const
 	{ 
-		return SyncGroupMaps[GetSyncGroupReadIndex()]; 
+		return Sync.GetSyncGroupMapRead(); 
 	}
 
 	/** Get the ungrouped active player we are currently reading from */
 	const TArray<FAnimTickRecord>& GetUngroupedActivePlayersRead() 
 	{ 
-		return UngroupedActivePlayerArrays[GetSyncGroupReadIndex()]; 
+		return Sync.GetUngroupedActivePlayersRead(); 
 	}
 
-	/** Tick active asset players. */
+	UE_DEPRECATED(5.0, "Do not call directly. Instead sync and asset player ticking is controlled via UE::Anim::FSync and UE::Anim::FSyncScope.")
 	void TickAssetPlayerInstances(float DeltaSeconds);
 
-	/** Tick active asset players. This overload with no parameters uses CurrentDeltaSeconds */
+	UE_DEPRECATED(5.0, "Do not call directly. Instead sync and asset player ticking is controlled via UE::Anim::FSync and UE::Anim::FSyncScope.")
 	void TickAssetPlayerInstances();
 
 	/** Queues an Anim Notify from the shared list on our generated class */
@@ -351,10 +367,19 @@ public:
 	/** Get the current skeletal mesh component we are running on. Note that this will return nullptr outside of pre/post update */
 	USkeletalMeshComponent* GetSkelMeshComponent() const
 	{ 
-		// Skeleton is only available during update/eval. If you're calling this function outside of it, it will return null. 
+		// Skeletal mesh component is only available during update/eval. If you're calling this function outside of it, it will return null. 
 		// adding ensure here so that we can catch them earlier
 		ensureAlways(SkeletalMeshComponent);
 		return SkeletalMeshComponent; 
+	}
+
+	/** Get the current main instance proxy. Note that this will return nullptr outside of pre/post update */
+	FAnimInstanceProxy* GetMainInstanceProxy() const
+	{ 
+		// Main instance proxy is only available during update/eval. If you're calling this function outside of it, it will return null. 
+		// adding ensure here so that we can catch them earlier
+		ensureAlways(MainInstanceProxy);
+		return MainInstanceProxy; 
 	}
 
 	UE_DEPRECATED(4.26, "Please use the overload that takes a group FName")
@@ -363,22 +388,27 @@ public:
 	UE_DEPRECATED(4.26, "Please use the overload that takes a group FName")
 	FAnimTickRecord& CreateUninitializedTickRecordInScope(int32 GroupIndex, EAnimSyncGroupScope Scope, FAnimGroupInstance*& OutSyncGroupPtr);
 
-	// Creates an uninitialized tick record in the list for the correct group or the ungrouped array.  If the group is valid, OutSyncGroupPtr will point to the group.
+	UE_DEPRECATED(5.0, "Please use FAnimSyncGroupScope")
 	FAnimTickRecord& CreateUninitializedTickRecord(FAnimGroupInstance*& OutSyncGroupPtr, FName GroupName);
 
-	// Creates an uninitialized tick record in the list for the correct group or the ungrouped array.  
-	// If the group is valid, OutSyncGroupPtr will point to the group.
-	// Supply the scope to sync with tick records outside this instance
+	UE_DEPRECATED(5.0, "Please use FAnimSyncGroupScope")
 	FAnimTickRecord& CreateUninitializedTickRecordInScope(FAnimGroupInstance*& OutSyncGroupPtr, FName GroupName, EAnimSyncGroupScope Scope);
 
-	/** Helper function: make a tick record for a sequence */
+	UE_DEPRECATED(5.0, "Please use the FAnimTickRecord constructor that takes a UAnimSequenceBase")
 	void MakeSequenceTickRecord(FAnimTickRecord& TickRecord, UAnimSequenceBase* Sequence, bool bLooping, float PlayRate, float FinalBlendWeight, float& CurrentTime, FMarkerTickRecord& MarkerTickRecord) const;
 
-	/** Helper function: make a tick record for a blend space */
+	UE_DEPRECATED(5.0, "Please use the FAnimTickRecord constructor that takes a UBlendSpaceBase")
 	void MakeBlendSpaceTickRecord(FAnimTickRecord& TickRecord, UBlendSpaceBase* BlendSpace, const FVector& BlendInput, TArray<FBlendSampleData>& BlendSampleDataCache, FBlendFilter& BlendFilter, bool bLooping, float PlayRate, float FinalBlendWeight, float& CurrentTime, FMarkerTickRecord& MarkerTickRecord) const;
 
-	/** Helper function: make a tick record for a pose asset*/
+	UE_DEPRECATED(5.0, "Please use the FAnimTickRecord constructor that takes a UPoseAsset")
 	void MakePoseAssetTickRecord(FAnimTickRecord& TickRecord, class UPoseAsset* PoseAsset, float FinalBlendWeight) const;
+
+	// Adds a tick record in the list for the correct group or the ungrouped array.
+	void AddTickRecord(const FAnimTickRecord& InTickRecord, const UE::Anim::FAnimSyncParams& InSyncParams = UE::Anim::FAnimSyncParams())
+	{
+		Sync.AddTickRecord(InTickRecord, InSyncParams);
+	}
+
 	/**
 	 * Get Slot Node Weight : this returns new Slot Node Weight, Source Weight, Original TotalNodeWeight
 	 *							this 3 values can't be derived from each other
@@ -454,6 +484,12 @@ public:
 		return AnimInstanceName;
 	}
 
+	// Get the root motion mode assigned to this anim instance proxy
+	ERootMotionMode::Type GetRootMotionMode() const
+	{
+		return RootMotionMode;
+	}
+
 	/** Gets the runtime instance of the specified state machine by Name */
 	FAnimNode_StateMachine* GetStateMachineInstanceFromName(FName MachineName);
 
@@ -509,6 +545,7 @@ public:
 	friend struct FAnimNode_LinkedAnimGraph;
 	friend struct FAnimationBaseContext;
 	friend struct FAnimTrace;
+	friend struct UE::Anim::FAnimSync;
 
 protected:
 	/** Called when our anim instance is being initialized */
@@ -635,16 +672,28 @@ protected:
 	// @todo document
 	void BlendSpaceAdvanceImmediate(UBlendSpaceBase* BlendSpace, const FVector& BlendInput, TArray<FBlendSampleData> & BlendSampleDataCache, FBlendFilter & BlendFilter, bool bLooping, float PlayRate, float DeltaSeconds, /*inout*/ float& CurrentTime, FMarkerTickRecord& MarkerTickRecord);
 
-	// Gets the sync group we should be reading from
+	UE_DEPRECATED(5.0, "Function renamed to GetBufferReadIndex as this no longer deals with sync groups.")
 	int32 GetSyncGroupReadIndex() const 
 	{ 
-		return 1 - SyncGroupWriteIndex; 
+		return GetBufferReadIndex(); 
+	}
+
+	UE_DEPRECATED(5.0, "Function renamed to GetBufferWriteIndex as this no longer deals with sync groups.")
+	int32 GetSyncGroupWriteIndex() const 
+	{ 
+		return GetBufferWriteIndex(); 
+	}
+
+	// Gets the buffer we should be reading from
+	int32 GetBufferReadIndex() const 
+	{ 
+		return 1 - BufferWriteIndex; 
 	}
 
 	// Gets the sync group we should be writing to
-	int32 GetSyncGroupWriteIndex() const 
+	int32 GetBufferWriteIndex() const 
 	{ 
-		return SyncGroupWriteIndex; 
+		return BufferWriteIndex; 
 	}
 
 	/** Add anim notifier **/
@@ -880,6 +929,13 @@ private:
 	/** Array of visited nodes this frame */
 	TArray<FAnimBlueprintDebugData::FNodeVisit> UpdatedNodesThisFrame;
 
+	/** Map of node attributes this frame */
+	TMap<int32, TArray<FAnimBlueprintDebugData::FAttributeRecord>> NodeInputAttributesThisFrame;
+	TMap<int32, TArray<FAnimBlueprintDebugData::FAttributeRecord>> NodeOutputAttributesThisFrame;
+
+	/** Map of node syncs this frame - maps from player node index to graph-determined group name */
+	TMap<int32, FName> NodeSyncsThisFrame;
+
 	/** Array of nodes to watch this frame */
 	TArray<FAnimNodePoseWatch> PoseWatchEntriesForThisFrame;
 #endif
@@ -901,11 +957,8 @@ private:
 	/** Map of layer name to saved pose nodes to process after the graph has been updated */
 	TMap<FName, TArray<FAnimNode_SaveCachedPose*>> SavedPoseQueueMap;
 
-	/** The list of animation assets which are going to be evaluated this frame and need to be ticked (ungrouped) */
-	TArray<FAnimTickRecord> UngroupedActivePlayerArrays[2];
-
-	/** The set of tick groups for this anim instance */
-	FSyncGroupMap SyncGroupMaps[2];
+	/** Synchronizes animations according to sync groups/markers */
+	UE::Anim::FAnimSync Sync;
 
 	/** Buffers containing read/write buffers for all current machine weights */
 	TArray<float> MachineWeightArrays[2];
@@ -916,8 +969,8 @@ private:
 	/** Map that transforms state class indices to base offsets into the weight array */
 	TMap<int32, int32> StateMachineClassIndexToWeightOffset;
 
-	// Current sync group buffer index
-	int32 SyncGroupWriteIndex;
+	// Current buffer index
+	int32 BufferWriteIndex;
 
 	/** Animation Notifies that has been triggered in the latest tick **/
 	FAnimNotifyQueue NotifyQueue;

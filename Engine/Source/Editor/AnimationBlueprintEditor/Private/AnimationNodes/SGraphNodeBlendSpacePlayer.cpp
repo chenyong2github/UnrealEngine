@@ -9,8 +9,7 @@
 #include "PersonaModule.h"
 #include "Widgets/Layout/SBox.h"
 #include "Modules/ModuleManager.h"
-
-PRAGMA_DISABLE_OPTIMIZATION
+#include "AnimGraphNode_BlendSpacePlayer.h"
 
 void SGraphNodeBlendSpacePlayer::Construct(const FArguments& InArgs, UAnimGraphNode_Base* InNode)
 {
@@ -20,11 +19,14 @@ void SGraphNodeBlendSpacePlayer::Construct(const FArguments& InArgs, UAnimGraphN
 
 	this->UpdateGraphNode();
 
+	CachedSyncGroupName = NAME_None;
+
 	SAnimationGraphNode::Construct(SAnimationGraphNode::FArguments(), InNode);
 
 	RegisterActiveTimer(1.0f / 60.0f, FWidgetActiveTimerDelegate::CreateLambda([this](double InCurrentTime, float InDeltaTime)
 	{
 		GetBlendSpaceInfo(CachedBlendSpace, CachedPosition);
+		UpdateGraphSyncLabel();
 		return EActiveTimerReturnType::Continue;
 	}));
 }
@@ -113,4 +115,39 @@ bool SGraphNodeBlendSpacePlayer::GetBlendSpaceInfo(TWeakObjectPtr<const UBlendSp
 	return false;
 }
 
-PRAGMA_ENABLE_OPTIMIZATION
+
+void SGraphNodeBlendSpacePlayer::UpdateGraphSyncLabel()
+{
+	if (UAnimGraphNode_BlendSpacePlayer* VisualBlendSpacePlayer = Cast<UAnimGraphNode_BlendSpacePlayer>(GraphNode))
+	{
+		FName CurrentSyncGroupName = NAME_None;
+
+		if (UAnimBlueprint* AnimBlueprint = Cast<UAnimBlueprint>(FBlueprintEditorUtils::FindBlueprintForNode(GraphNode)))
+		{
+			if(UAnimBlueprintGeneratedClass* GeneratedClass = AnimBlueprint->GetAnimBlueprintGeneratedClass())
+			{
+				if (UObject* ActiveObject = AnimBlueprint->GetObjectBeingDebugged())
+				{
+					if(VisualBlendSpacePlayer->SyncGroup.Method == EAnimSyncMethod::Graph)
+					{
+						int32 NodeIndex = GeneratedClass->GetNodeIndexFromGuid(VisualBlendSpacePlayer->NodeGuid);
+						if(NodeIndex != INDEX_NONE)
+						{
+							if(const FName* SyncGroupNamePtr = GeneratedClass->GetAnimBlueprintDebugData().NodeSyncsThisFrame.Find(NodeIndex))
+							{
+								CurrentSyncGroupName = *SyncGroupNamePtr;
+							}
+						}
+					}
+				}
+			}
+		}
+
+		if(CachedSyncGroupName != CurrentSyncGroupName)
+		{
+			// Invalidate the node title so we can dynamically display the sync group gleaned from the graph
+			VisualBlendSpacePlayer->OnNodeTitleChangedEvent().Broadcast();
+			CachedSyncGroupName = CurrentSyncGroupName;
+		}
+	}
+}

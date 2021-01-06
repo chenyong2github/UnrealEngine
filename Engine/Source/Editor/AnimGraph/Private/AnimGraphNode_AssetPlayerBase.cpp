@@ -21,6 +21,40 @@
 #include "AnimBlueprintCompilerHandler_Base.h"
 #include "IAnimBlueprintGeneratedClassCompiledData.h"
 #include "IAnimBlueprintCompilationContext.h"
+#include "Animation/AnimSync.h"
+#include "Animation/AnimAttributes.h"
+#include "UObject/UE5MainStreamObjectVersion.h"
+
+#define LOCTEXT_NAMESPACE "UAnimGraphNode_AssetPlayerBase"
+
+void UAnimGraphNode_AssetPlayerBase::Serialize(FArchive& Ar)
+{
+	Super::Serialize(Ar);
+
+	Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
+
+	if(Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::AnimSyncGroupsExplicitSyncMethod)
+	{
+		if(SyncGroup.GroupName != NAME_None)
+		{
+			SyncGroup.Method = EAnimSyncMethod::SyncGroup;
+		}
+	}
+}
+
+void UAnimGraphNode_AssetPlayerBase::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+
+	if(PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(FAnimationGroupReference, Method))
+	{
+		if(SyncGroup.Method != EAnimSyncMethod::SyncGroup)
+		{
+			SyncGroup.GroupName = NAME_None;
+			SyncGroup.GroupRole = EAnimGroupRole::CanBeLeader;
+		}
+	}
+}
 
 void UAnimGraphNode_AssetPlayerBase::PinConnectionListChanged(UEdGraphPin* Pin)
 {
@@ -97,6 +131,26 @@ void UAnimGraphNode_AssetPlayerBase::OnProcessDuringCompilation(IAnimBlueprintCo
 	}
 }
 
+void UAnimGraphNode_AssetPlayerBase::ValidateAnimNodeDuringCompilation(USkeleton* ForSkeleton, FCompilerResultsLog& MessageLog)
+{
+	Super::ValidateAnimNodeDuringCompilation(ForSkeleton, MessageLog);
+
+	if(SyncGroup.Method == EAnimSyncMethod::SyncGroup && SyncGroup.GroupName == NAME_None)
+	{
+		MessageLog.Error(*LOCTEXT("NoSyncGroupSupplied", "Node @@ is set to use sync groups, but no sync group has been supplied").ToString(), this);
+	}
+}
+
+void UAnimGraphNode_AssetPlayerBase::GetOutputLinkAttributes(FNodeAttributeArray& OutAttributes) const
+{
+	OutAttributes.Add(UE::Anim::FAttributes::Curves);
+	OutAttributes.Add(UE::Anim::FAttributes::Attributes);
+	if(SyncGroup.Method == EAnimSyncMethod::Graph)
+	{
+		OutAttributes.Add(UE::Anim::FAnimSync::Attribute);
+	}
+}
+
 UClass* GetNodeClassForAsset(const UClass* AssetClass)
 {
 	UClass* NodeClass = nullptr;
@@ -128,3 +182,5 @@ bool SupportNodeClassForAsset(const UClass* AssetClass, UClass* NodeClass)
 	// See if this node supports this asset type (primary or not)
 	return (NodeCDO->SupportsAssetClass(AssetClass) != EAnimAssetHandlerType::NotSupported);
 }
+
+#undef LOCTEXT_NAMESPACE

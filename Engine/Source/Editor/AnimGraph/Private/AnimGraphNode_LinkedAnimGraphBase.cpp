@@ -16,6 +16,7 @@
 #include "Widgets/Layout/SBox.h"
 #include "UObject/CoreRedirects.h"
 #include "Animation/AnimNode_LinkedAnimGraph.h"
+#include "AnimGraphAttributes.h"
 
 #define LOCTEXT_NAMESPACE "LinkedAnimGraph"
 
@@ -468,6 +469,16 @@ FPoseLinkMappingRecord UAnimGraphNode_LinkedAnimGraphBase::GetLinkIDLocation(con
 	}
 
 	return FPoseLinkMappingRecord::MakeInvalid();
+}
+
+void UAnimGraphNode_LinkedAnimGraphBase::GetOutputLinkAttributes(FNodeAttributeArray& OutAttributes) const
+{
+	// We have the potential to output ALL registered attributes as we can contain any dynamically-linked graph
+	const UAnimGraphAttributes* AnimGraphAttributes = GetDefault<UAnimGraphAttributes>();
+	AnimGraphAttributes->ForEachAttribute([&OutAttributes](const FAnimGraphAttributeDesc& InDesc)
+	{
+		OutAttributes.Add(InDesc.Name);
+	});
 }
 
 #undef LOCTEXT_NAMESPACE

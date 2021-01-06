@@ -149,6 +149,9 @@ public:
 	// Map from animation node GUID to property index
 	TMap<FGuid, int32> NodeGuidToIndexMap;
 
+	// Map from animation node to attributes
+	TMap<TWeakObjectPtr<const UAnimGraphNode_Base>, TArray<FName>> NodeAttributes;
+
 	// The debug data for each state machine state
 	TArray<FStateMachineStateDebugData> StateData;	
 	
@@ -172,6 +175,25 @@ public:
 
 	// History of activated nodes
 	TArray<FNodeVisit> UpdatedNodesThisFrame;
+
+	// Record of attribute transfer between nodes
+	struct FAttributeRecord
+	{
+		FName Attribute;
+		int32 OtherNode;
+
+		FAttributeRecord(int32 InOtherNode, FName InAttribute)
+			: Attribute(InAttribute)
+			, OtherNode(InOtherNode)
+		{}
+	};
+
+	// History of node attributes that are output from and input to nodes
+	TMap<int32, TArray<FAttributeRecord>> NodeInputAttributesThisFrame;
+	TMap<int32, TArray<FAttributeRecord>> NodeOutputAttributesThisFrame;
+
+	// History of node syncs - maps from player node index to graph-determined group name
+	TMap<int32, FName> NodeSyncsThisFrame;
 
 	// Values output by nodes
 	struct FNodeValue
@@ -257,6 +279,10 @@ public:
 	void ResetNodeVisitSites();
 	void RecordNodeVisit(int32 TargetNodeIndex, int32 SourceNodeIndex, float BlendWeight);
 	void RecordNodeVisitArray(const TArray<FNodeVisit>& Nodes);
+	void RecordNodeAttribute(int32 TargetNodeIndex, int32 SourceNodeIndex, FName InAttribute);
+	void RecordNodeAttributeMaps(const TMap<int32, TArray<FAttributeRecord>>& InInputAttributes, const TMap<int32, TArray<FAttributeRecord>>& InOutputAttributes);
+	void RecordNodeSync(int32 InSourceNodeIndex, FName InSyncGroup);
+	void RecordNodeSyncsArray(const TMap<int32, FName>& InNodeSyncs);
 	void RecordStateData(int32 StateMachineIndex, int32 StateIndex, float Weight, float ElapsedTime);
 	void RecordNodeValue(int32 InNodeID, const FString& InText);
 	void RecordSequencePlayer(int32 InNodeID, float InPosition, float InLength, int32 InFrameCount);
@@ -265,6 +291,8 @@ public:
 	void AddPoseWatch(int32 NodeID, FColor Color);
 	void RemovePoseWatch(int32 NodeID);
 	void UpdatePoseWatchColour(int32 NodeID, FColor Color);
+
+	TArrayView<const FName> GetNodeAttributes(TWeakObjectPtr<UAnimGraphNode_Base> InAnimGraphNode) const;
 #endif
 };
 
@@ -471,7 +499,11 @@ public:
 		return AnimationProperty->ContainerPtrToValuePtr<StructType>((void*)Object);
 	}
 
+	// Gets the property index from the original UAnimGraphNode's GUID. Does not remap to property order.
 	const int32* GetNodePropertyIndexFromGuid(FGuid Guid, EPropertySearchMode::Type SearchMode = EPropertySearchMode::OnlyThis);
+
+	// Gets the remapped property index from the original UAnimGraphNode's GUID. Can be used to index the AnimNodeProperties array.
+	int32 GetNodeIndexFromGuid(FGuid Guid, EPropertySearchMode::Type SearchMode = EPropertySearchMode::OnlyThis);
 
 	const UEdGraphNode* GetVisualNodeFromNodePropertyIndex(int32 PropertyIndex) const;
 #endif
