@@ -225,9 +225,9 @@ struct FManifestHLSInternal
 		FString		InStreamID;
 		FString		Characteristics;
 		FString		Channels;
-		bool				bDefault;
-		bool				bAutoSelect;
-		bool				bForced;
+		bool		bDefault;
+		bool		bAutoSelect;
+		bool		bForced;
 	};
 
 	// 4.3.4.2. EXT-X-STREAM-INF
@@ -299,7 +299,7 @@ struct FManifestHLSInternal
 	FMasterPlaylistVars												MasterPlaylistVars;
 
 
-	FMediaCriticalSection														VariantPlaylistAccessMutex;			//!< This mutex is used to access any(!) of the variant and rendition playlists. The master playlist is immutable.
+	FMediaCriticalSection											VariantPlaylistAccessMutex;			//!< This mutex is used to access any(!) of the variant and rendition playlists. The master playlist is immutable.
 	TSet<uint32>													ActivelyReferencedStreamIDs;		//!< Unique IDs of streams from which segments are being fetched.
 	TSharedPtrTS<IInitSegmentCacheHLS>								InitSegmentCache;
 	TSharedPtrTS<ILicenseKeyCacheHLS>								LicenseKeyCache;

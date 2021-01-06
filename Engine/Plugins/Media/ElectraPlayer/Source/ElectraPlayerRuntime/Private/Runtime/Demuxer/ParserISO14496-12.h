@@ -127,9 +127,6 @@ namespace Electra
 
 		static TSharedPtrTS<IParserISO14496_12> CreateParser();
 
-		static const FString 	OptionKeyParseFirstFreeBox;			// Option to not skip 'free' box but instead attempt to parse their content
-
-
 		/**
 		 * Parses the header boxes (all non-MDAT boxes).
 		 */

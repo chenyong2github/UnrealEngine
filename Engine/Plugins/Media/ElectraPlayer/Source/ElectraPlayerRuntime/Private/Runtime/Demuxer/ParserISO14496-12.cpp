@@ -19,6 +19,10 @@
 #define MEDIA_DEBUG_HAS_BOX_NAMES 0
 #endif
 
+DECLARE_LOG_CATEGORY_EXTERN(LogElectraMP4Parser, Log, All);
+DEFINE_LOG_CATEGORY(LogElectraMP4Parser);
+
+
 namespace Electra
 {
 	namespace Utils
@@ -184,7 +188,6 @@ namespace Electra
 			, CurrentHandlerBox(nullptr)
 			, CurrentMediaHandlerBox(nullptr)
 			, PlayerSession(nullptr)
-			, bParsingVendorSpecific(false)
 			, NumTotalBoxesParsed(0)
 		{
 		}
@@ -287,22 +290,20 @@ namespace Electra
 			return BoxNestingLevel;
 		}
 
-		FMP4Box* RootBox;				//!< A root box that is not an actual file box but a container representing the file itself.
-		FMP4BoxReader* BoxReader;				//!< Instance of the box reader we were given. This is not ours so we must not delete it!
-		int32						BoxNestingLevel;		//!< Box tree depth
+		FMP4Box* RootBox;					//!< A root box that is not an actual file box but a container representing the file itself.
+		FMP4BoxReader* BoxReader;			//!< Instance of the box reader we were given. This is not ours so we must not delete it!
+		int32 BoxNestingLevel;				//!< Box tree depth
 
 		FMP4Box* CurrentMoovBox;			//!< moov being parsed at the moment.
 		FMP4Box* CurrentMoofBox;			//!< moof being parsed at the moment.
-		FMP4Box* CurrentTrackBox;		//!< trak/traf being parsed at the moment.
-		FMP4Box* CurrentHandlerBox;		//!< hdlr being parsed at the moment.
+		FMP4Box* CurrentTrackBox;			//!< trak/traf being parsed at the moment.
+		FMP4Box* CurrentHandlerBox;			//!< hdlr being parsed at the moment.
 		FMP4Box* CurrentMediaHandlerBox;	//!< media handler being parsed at the moment ('vmhd', 'smhd', 'sthd', nmhd')
 
 
-		FParamDict					Options;
+		FParamDict Options;
 		IPlayerSessionServices* PlayerSession;
-		bool						bParsingVendorSpecific;
-		int32						NumTotalBoxesParsed;
-
+		int32 NumTotalBoxesParsed;
 	};
 
 
@@ -535,16 +536,6 @@ namespace Electra
 		static const IParserISO14496_12::FBoxType kBox_tfhd = MAKE_BOX_ATOM('t', 'f', 'h', 'd');
 		static const IParserISO14496_12::FBoxType kBox_tfdt = MAKE_BOX_ATOM('t', 'f', 'd', 't');
 		static const IParserISO14496_12::FBoxType kBox_trun = MAKE_BOX_ATOM('t', 'r', 'u', 'n');
-
-		/**
-		 * Vendor specific custom boxes: IBM Ustream
-		*/
-		static const IParserISO14496_12::FBoxType kBox_ustm = MAKE_BOX_ATOM('u', 's', 't', 'm');
-		static const IParserISO14496_12::FBoxType kBox_fhst = MAKE_BOX_ATOM('f', 'h', 's', 't');
-		static const IParserISO14496_12::FBoxType kBox_fmov = MAKE_BOX_ATOM('f', 'm', 'o', 'v');
-		static const IParserISO14496_12::FBoxType kBox_idta = MAKE_BOX_ATOM('i', 'd', 't', 'a');
-		static const IParserISO14496_12::FBoxType kBox_hash = MAKE_BOX_ATOM('h', 'a', 's', 'h');
-
 
 		/**
 		 * Track handler types
@@ -3138,7 +3129,7 @@ namespace Electra
 #if MEDIA_DEBUG_HAS_BOX_NAMES
 				char boxName[4];
 				*((uint32*)&boxName) = MEDIA_TO_BIG_ENDIAN(BoxType);
-				//UE_LOG(LogTemp, Log, TEXT("Next box: '%c%c%c%c' %lld B @ %lld"), boxName[0]?boxName[0]:'?', boxName[1]?boxName[1]:'?', boxName[2]?boxName[2]:'?', boxName[3]?boxName[3]:'?', (long long int)BoxSize, (long long int)BoxStartOffset);
+				//UE_LOG(LogElectraMP4Parser, Log, TEXT("Next box: '%c%c%c%c' %lld B @ %lld"), boxName[0]?boxName[0]:'?', boxName[1]?boxName[1]:'?', boxName[2]?boxName[2]:'?', boxName[3]?boxName[3]:'?', (long long int)BoxSize, (long long int)BoxStartOffset);
 #endif
 
 				int64 BoxDataOffset = BoxReader->GetCurrentReadOffset();
@@ -3317,15 +3308,7 @@ namespace Electra
 							break;
 
 						case FMP4Box::kBox_free:
-							if (NumTotalBoxesParsed == 0 && !bParsingVendorSpecific && Options.GetValue(IParserISO14496_12::OptionKeyParseFirstFreeBox).GetBool())
-							{
-								NextBox = new FMP4BoxBasic(BoxType, BoxSize, BoxStartOffset, BoxDataOffset, false);
-								bParsingVendorSpecific = true;
-							}
-							else
-							{
-								NextBox = new FMP4BoxIgnored(BoxType, BoxSize, BoxStartOffset, BoxDataOffset, true);
-							}
+							NextBox = new FMP4BoxIgnored(BoxType, BoxSize, BoxStartOffset, BoxDataOffset, true);
 							break;
 
 						case FMP4Box::kBox_uuid:
@@ -3334,27 +3317,9 @@ namespace Electra
 							NextBox = new FMP4BoxIgnored(BoxType, BoxSize, BoxStartOffset, BoxDataOffset, true);
 							break;
 
-							// Vendor specific (IBM Ustream)
-						case FMP4Box::kBox_ustm:
-						case FMP4Box::kBox_fmov:
-						case FMP4Box::kBox_idta:
-							if (bParsingVendorSpecific)
-							{
-								NextBox = new FMP4BoxBasic(BoxType, BoxSize, BoxStartOffset, BoxDataOffset, false);
-							}
-							else
-							{
-								NextBox = new FMP4BoxIgnored(BoxType, BoxSize, BoxStartOffset, BoxDataOffset, true);
-							}
-							break;
-						case FMP4Box::kBox_fhst:
-						case FMP4Box::kBox_hash:
-							NextBox = new FMP4BoxIgnored(BoxType, BoxSize, BoxStartOffset, BoxDataOffset, true);
-							break;
-
 						default:
 #if MEDIA_DEBUG_HAS_BOX_NAMES
-							ensureAlwaysMsgf(0, TEXT("Ignoring mp4 box '%c%c%c%c'"), boxName[0], boxName[1], boxName[2], boxName[3]);
+							UE_LOG(LogElectraMP4Parser, Log, TEXT("Ignoring mp4 box: '%c%c%c%c' %lld B @ %lld"), boxName[0]?boxName[0]:'?', boxName[1]?boxName[1]:'?', boxName[2]?boxName[2]:'?', boxName[3]?boxName[3]:'?', (long long int)BoxSize, (long long int)BoxStartOffset);
 #endif
 							NextBox = new FMP4BoxIgnored(BoxType, BoxSize, BoxStartOffset, BoxDataOffset, true);
 							break;
@@ -5085,9 +5050,6 @@ namespace Electra
 
 
 	/*********************************************************************************************************************/
-
-	const FString IParserISO14496_12::OptionKeyParseFirstFreeBox(TEXT("ISO14496-12:parseFreeBox"));					//!< Option to not skip 'free' box but instead attempt to parse their content
-
 
 	TSharedPtrTS<IParserISO14496_12> IParserISO14496_12::CreateParser()
 	{

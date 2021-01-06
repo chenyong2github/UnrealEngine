@@ -579,6 +579,8 @@ FErrorDetail FManifestBuilderHLS::SetupRenditions(FManifestHLSInternal* Manifest
 		Rendition->Internal.UniqueID = FMediaInterlockedIncrement(NextUniqueID) + 1;
 
 		// Add to appropriate rendition group and to the lookup map.
+		// Note: Adding to a map/multimap breaks the order in which the representations appear in the master playlist.
+		//       If we need the order later we can use the rendition internal unique ID.
 		if (Type == TEXT("VIDEO"))
 		{
 			Rendition->Internal.bHasVideo = true;
@@ -608,7 +610,7 @@ FErrorDetail FManifestBuilderHLS::SetupRenditions(FManifestHLSInternal* Manifest
 
 	// Create adaptation sets for the audio rendition groups
 // FIXME: We will need to do this for the other rendition types (VIDEO, SUBTITLES and CLOSED-CAPTIONS as well)
-	for (TMultiMap<FString, TSharedPtrTS<FManifestHLSInternal::FRendition>>::TConstIterator It = Manifest->AudioRenditions.CreateConstIterator(); It; ++It)
+	for(TMultiMap<FString, TSharedPtrTS<FManifestHLSInternal::FRendition>>::TConstIterator It = Manifest->AudioRenditions.CreateConstIterator(); It; ++It)
 	{
 		HLSTimeline::FPlaybackAssetAdaptationSet* Adapt = static_cast<HLSTimeline::FPlaybackAssetAdaptationSet*>(Asset->GetAdaptationSetByTypeAndUniqueIdentifier(EStreamType::Audio, It.Key()).Get());
 		if (!Adapt)
@@ -1055,20 +1057,19 @@ FErrorDetail FManifestBuilderHLS::SetupVariants(FManifestHLSInternal* Manifest, 
 
 						// Get the range of renditions in this group and find those that do not have a dedicated playlist.
 						// We let those point back to this variant stream since that is what we effectively have to use.
-						TArray< const TSharedPtrTS<FManifestHLSInternal::FRendition>* > RenditionRange;
+						TArray<TSharedPtrTS<FManifestHLSInternal::FRendition>*> RenditionRange;
 						Manifest->AudioRenditions.MultiFindPointer(vs->AudioGroupID, RenditionRange);
 						if (!RenditionRange.IsEmpty())
 						{
 							for(int32 ii=0; ii < RenditionRange.Num(); ++ii)
 							{
-								const TSharedPtrTS<FManifestHLSInternal::FRendition>& Rendition = *RenditionRange[ii];
+								TSharedPtrTS<FManifestHLSInternal::FRendition>& Rendition = *RenditionRange[ii];
 								if (Rendition->URI.Len() == 0)
 								{
 									// When the rendition has no dedicated URL then it is merely informational and this audio-only variant is the stream itself to use.
-									Repr->UniqueIdentifier = LexToString(StreamMetaData.StreamUniqueID);
-									Repr->CodecInformation = StreamMetaData.CodecInformation;
-									Repr->CDN   		   = StreamMetaData.PlaylistID;
-									Repr->Bitrate   	   = StreamMetaData.Bandwidth;
+									Rendition->URI = vs->GetURL();
+									Repr->CDN = StreamMetaData.PlaylistID;
+									Repr->Bitrate = StreamMetaData.Bandwidth;
 									vs->Internal.AdaptationSetUniqueID  = Adapt->UniqueIdentifier;
 									vs->Internal.RepresentationUniqueID = Repr->UniqueIdentifier;
 									vs->Internal.CDN					= StreamMetaData.PlaylistID;
@@ -1083,9 +1084,77 @@ FErrorDetail FManifestBuilderHLS::SetupVariants(FManifestHLSInternal* Manifest, 
 		}
 	}
 
+
+	// Create fake audio-only variant streams from audio renditions. These are what is exposed as audio tracks that can be chosen from.
+	// Do this only when there are any variant streams. If there are only renditions for whatever reason without any reference to them
+	// do not do this.
+	bool bCreateFakeAudioVariants = Manifest->VariantStreams.Num() || Manifest->AudioOnlyStreams.Num();
+	if (bCreateFakeAudioVariants)
+	{
+		// Remove audio only streams that are already specified but reference a rendition group to avoid duplication.
+		for(int32 i=Manifest->AudioOnlyStreams.Num()-1; i>=0; --i)
+		{
+			if (!Manifest->AudioOnlyStreams[i]->AudioGroupID.IsEmpty())
+			{
+				Manifest->PlaylistIDMap.Remove(Manifest->AudioOnlyStreams[i]->Internal.UniqueID);
+				Manifest->AudioOnlyStreams.RemoveAt(i);
+				Manifest->StreamMetadataAudio.RemoveAt(i);
+			}
+		}
+		// Set up variants from the renditions in the audio adaptation sets.
+		for(int32 i=0; i<Asset->AudioAdaptationSets.Num(); ++i)
+		{
+			const HLSTimeline::FPlaybackAssetAdaptationSet* Adapt = static_cast<const HLSTimeline::FPlaybackAssetAdaptationSet*>(Asset->GetAdaptationSetByTypeAndIndex(EStreamType::Audio, i).Get());
+			for(int32 j=0; j<Adapt->GetNumberOfRepresentations(); ++j)
+			{
+				const HLSTimeline::FPlaybackAssetRepresentation* Repr = static_cast<const HLSTimeline::FPlaybackAssetRepresentation*>(Adapt->GetRepresentationByIndex(j).Get());
+				int32 ReprID = 0;
+				LexFromString(ReprID, *Repr->GetUniqueIdentifier());
+				for(TMultiMap<FString, TSharedPtrTS<FManifestHLSInternal::FRendition>>::TConstIterator It = Manifest->AudioRenditions.CreateConstIterator(); It; ++It)
+				{
+					TSharedPtrTS<FManifestHLSInternal::FRendition> Rendition = It.Value();
+					if (Rendition->Internal.UniqueID == ReprID)
+					{
+						TSharedPtrTS<FManifestHLSInternal::FVariantStream> vs = MakeSharedTS<FManifestHLSInternal::FVariantStream>();
+						vs->URI = Rendition->GetURL();
+						vs->AudioGroupID = Adapt->GetUniqueIdentifier();
+						vs->StreamCodecInformationList.Push(Repr->GetCodecInformation());
+						vs->Internal.bHasAudio = true;
+						vs->Internal.UniqueID = FMediaInterlockedIncrement(NextUniqueID) + 1;
+
+						FStreamMetadata StreamMetaData;
+						StreamMetaData.Bandwidth	  = 128000;
+						StreamMetaData.StreamUniqueID = vs->Internal.UniqueID;
+						StreamMetaData.PlaylistID     = UrlBuilder->ResolveWith(vs->URI);
+						StreamMetaData.LanguageCode   = Rendition->Language;
+						for(int32 k=0; k<vs->StreamCodecInformationList.Num(); ++k)
+						{
+							if (vs->StreamCodecInformationList[k].IsAudioCodec())
+							{
+								StreamMetaData.CodecInformation = vs->StreamCodecInformationList[k];
+								break;
+							}
+						}
+						Manifest->StreamMetadataAudio.Push(StreamMetaData);
+
+						vs->Internal.AdaptationSetUniqueID  = Adapt->UniqueIdentifier;
+						vs->Internal.RepresentationUniqueID = Repr->UniqueIdentifier;
+						vs->Internal.CDN					= StreamMetaData.PlaylistID;
+						Manifest->AudioOnlyStreams.Push(vs);
+
+						Manifest->PlaylistIDMap.Add(vs->Internal.UniqueID, vs);
+
+						break;
+					}
+				}
+			}
+		}
+	}
+
+
 	// Index the stream quality level map. Lower quality = lower index
 	int32 QualityIndex = 0;
-	for (TMap<int32, int32>::TIterator It = Manifest->BandwidthToQualityIndex.CreateIterator(); It; ++It)
+	for(TMap<int32, int32>::TIterator It = Manifest->BandwidthToQualityIndex.CreateIterator(); It; ++It)
 	{
 		It.Value() = QualityIndex++;
 	}
@@ -1314,7 +1383,7 @@ UEMediaError FManifestBuilderHLS::UpdateFailedInitialPlaylistLoadRequest(FPlayli
 	}
 
 	// Audio rendition?
-	for (TMultiMap<FString, TSharedPtrTS<FManifestHLSInternal::FRendition>>::TConstIterator It = Manifest->AudioRenditions.CreateConstIterator(); It; ++It)
+	for(TMultiMap<FString, TSharedPtrTS<FManifestHLSInternal::FRendition>>::TConstIterator It = Manifest->AudioRenditions.CreateConstIterator(); It; ++It)
 	{
 		TSharedPtrTS<FManifestHLSInternal::FRendition> AudioRendition = It.Value();
 		if (AudioRendition->Internal.UniqueID == InOutFailedRequest.InternalUniqueID)
@@ -1360,7 +1429,7 @@ void FManifestBuilderHLS::SetVariantPlaylistFailure(TSharedPtrTS<FManifestHLSInt
 	InHLSPlaylist->LockPlaylists();
 
 	TWeakPtrTS<FManifestHLSInternal::FPlaylistBase>* PlaylistID = InHLSPlaylist->PlaylistIDMap.Find(SourceRequest.InternalUniqueID);
-	if(PlaylistID != nullptr)
+	if (PlaylistID != nullptr)
 	{
 		TSharedPtrTS<FManifestHLSInternal::FPlaylistBase> Playlist = PlaylistID->Pin();
 		if (Playlist.IsValid())
@@ -1402,7 +1471,7 @@ FErrorDetail FManifestBuilderHLS::UpdateFromVariantPlaylist(TSharedPtrTS<FManife
 	TSharedPtrTS<FManifestHLSInternal::FPlaylistBase> Playlist;
 	InOutHLSPlaylist->LockPlaylists();
 	TWeakPtrTS<FManifestHLSInternal::FPlaylistBase>* PlaylistID = InOutHLSPlaylist->PlaylistIDMap.Find(SourceRequest.InternalUniqueID);
-	if(PlaylistID != nullptr)
+	if (PlaylistID != nullptr)
 	{
 		Playlist = PlaylistID->Pin();
 	}
@@ -1965,7 +2034,7 @@ void FManifestBuilderHLS::UpdateManifestMetadataFromStream(FManifestHLSInternal*
 				StreamIDsToConsider.Add(Manifest->VariantStreams[i]->Internal.UniqueID);
 			}
 		}
-		for (TMultiMap<FString, TSharedPtrTS<FManifestHLSInternal::FRendition>>::TConstIterator It = Manifest->AudioRenditions.CreateConstIterator(); It; ++It)
+		for(TMultiMap<FString, TSharedPtrTS<FManifestHLSInternal::FRendition>>::TConstIterator It = Manifest->AudioRenditions.CreateConstIterator(); It; ++It)
 		{
 			if (It.Value()->Internal.LoadState == FManifestHLSInternal::FPlaylistBase::FInternal::ELoadState::Loaded)
 			{

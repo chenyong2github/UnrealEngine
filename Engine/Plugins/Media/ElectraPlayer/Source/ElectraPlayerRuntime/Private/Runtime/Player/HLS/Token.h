@@ -10,6 +10,7 @@ namespace Electra
         const TCHAR CColumn = TCHAR(':');
         const TCHAR CLineBreak = TCHAR('\n');
         const TCHAR CAttributeSeparation = TCHAR(',');
+        const TCHAR CSpace = TCHAR(' ');
 
         typedef unsigned int Token;
 

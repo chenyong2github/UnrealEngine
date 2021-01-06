@@ -228,12 +228,10 @@ namespace Electra
             {
                 Error = ParseToken(ContentIterator, OutValue, TAttributeSeparation | TLineBreak | TEOF);
             }
-			// Note: cast required to silence static code analyzer (isdigit() expects an int, apparently need to cast char to unsigned first to prevent sign extension)
             else if (FChar::IsDigit(*ContentIterator) || *ContentIterator == TCHAR('-'))
             {
                 Error = ParseToken(ContentIterator, OutValue, TAttributeSeparation | TLineBreak | TEOF);
             }
-			// Note: cast required to silence static code analyzer (isalpha() expects an int, apparently need to cast char to unsigned first to prevent sign extension)
             else if (FChar::IsAlpha(*ContentIterator))
             {
                 Error = ParseToken(ContentIterator, OutValue, TAttributeSeparation | TLineBreak | TEOF);
@@ -250,6 +248,12 @@ namespace Electra
         {
             while (ContentIterator && *ContentIterator != CLineBreak && *ContentIterator != TComment)
             {
+				// Swallow spaces that may appear before the separating ,
+				while (*ContentIterator && *ContentIterator == CSpace)
+				{
+                    ++ContentIterator;
+				}
+
                 if (*ContentIterator == CAttributeSeparation)
                 {
                     ++ContentIterator;
@@ -258,6 +262,12 @@ namespace Electra
                         return EPlaylistError::InvalidToken;
                     }
                 }
+
+				// And also swallow spaces that may appear after the separating ,
+				while (*ContentIterator && *ContentIterator == CSpace)
+				{
+                    ++ContentIterator;
+				}
 
                 FString AttributeKey;
                 EPlaylistError Error = ParseToken(ContentIterator, AttributeKey, TAttributeDeclaration);
@@ -363,7 +373,7 @@ namespace Electra
                         break;
                     }
                     bFirstLine = false;
-                    // Skip the hole line.
+                    // Skip the whole line.
                     Error = SkipToken(ContentIterator, TLineBreak | TEOF | TIgnore);
                     if (Error != EPlaylistError::None)
                     {
