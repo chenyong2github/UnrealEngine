@@ -1697,10 +1697,8 @@ void UDynamicMeshSculptTool::ConfigureRemesher(FSubRegionRemesher& Remesher)
 															 (EEdgeRefineFlags)RemeshProperties->GroupBoundaryConstraint,
 															 (EEdgeRefineFlags)RemeshProperties->MaterialBoundaryConstraint,
 															 bConstraintAllowSplits, !RemeshProperties->bPreserveSharpEdges);
-		if ( Constraints.HasConstraints() )
-		{
-			Remesher.SetExternalConstraints(MoveTemp(Constraints));
-		}
+			
+		Remesher.SetExternalConstraints(MoveTemp(Constraints));
 	}
 }
 
