@@ -139,7 +139,19 @@ bool FPackageName::TryConvertGameRelativePackagePathToLocalPath(FStringView Rela
 	if (RelativePackagePath.StartsWith(TEXT("/"), ESearchCase::CaseSensitive))
 	{
 		// If this starts with /, this includes a root like /engine
-		return FPackageName::TryConvertLongPackageNameToFilename(FString(RelativePackagePath), OutLocalPath);
+		FString AbsolutePackagePath(RelativePackagePath);
+		if (FPackageName::TryConvertLongPackageNameToFilename(AbsolutePackagePath, OutLocalPath))
+		{
+			return true;
+		}
+		// Workaround a problem with TryConvertLongPackageNameToFilename: If the PackagePath is a content root itself (/Some/Content/Root)
+		// and is missing a terminating /, it will not match the existing content root which does have the / (/Some/Content/Root/)
+		if (!AbsolutePackagePath.EndsWith(TEXT("/")))
+		{
+			AbsolutePackagePath = AbsolutePackagePath + TEXT("/");
+			return FPackageName::TryConvertLongPackageNameToFilename(AbsolutePackagePath, OutLocalPath);
+		}
+		return false;
 	}
 	else
 	{
