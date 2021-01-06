@@ -164,6 +164,9 @@ void UControlRigBlueprint::PostLoad()
 {
 	Super::PostLoad();
 
+	// temporarily disable default value validation during load time, serialized values should always be accepted
+	TGuardValue<bool> DisablePinDefaultValueValidation(GetOrCreateController()->bValidatePinDefaults, false);
+
 	HierarchyContainer.ControlHierarchy.PostLoad();
 
 	// correct the offset transforms
@@ -1014,6 +1017,9 @@ void UControlRigBlueprint::ClearTransientControls()
 void UControlRigBlueprint::PopulateModelFromGraphForBackwardsCompatibility(UControlRigGraph* InGraph)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
+	// temporarily disable default value validation during load time, serialized values should always be accepted
+	TGuardValue<bool> DisablePinDefaultValueValidation(GetOrCreateController()->bValidatePinDefaults, false);
 
 	int32 LinkerVersion = GetLinkerCustomVersion(FControlRigObjectVersion::GUID);
 	if (LinkerVersion >= FControlRigObjectVersion::SwitchedToRigVM)

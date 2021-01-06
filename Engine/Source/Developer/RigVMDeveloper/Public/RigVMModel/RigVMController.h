@@ -534,6 +534,9 @@ public:
 	void SetupDefaultUnitNodeDelegates(TDelegate<FName(FRigVMExternalVariable)> InCreateExternalVariableDelegate);
 	void ResetUnitNodeDelegates();
 
+	// A flag that can be used to turn off pin default value validation if necessary
+	bool bValidatePinDefaults;
+
 private:
 
 	UPROPERTY(BlueprintReadOnly, Category = RigVMController, meta = (ScriptName = "ModifiedEvent", AllowPrivateAccess = "true"))

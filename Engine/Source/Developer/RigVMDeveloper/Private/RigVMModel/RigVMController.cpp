@@ -26,7 +26,8 @@
 TMap<URigVMController::FControlRigStructPinRedirectorKey, FString> URigVMController::PinPathCoreRedirectors;
 
 URigVMController::URigVMController()
-	: bSuspendNotifications(false)
+	: bValidatePinDefaults(true)
+	, bSuspendNotifications(false)
 	, bReportWarningsAndErrors(true)
 	, bIgnoreRerouteCompactnessChanges(false)
 {
@@ -35,6 +36,7 @@ URigVMController::URigVMController()
 
 URigVMController::URigVMController(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
+	, bValidatePinDefaults(true)
 	, bReportWarningsAndErrors(true)
 {
 	ActionStack = CreateDefaultSubobject<URigVMActionStack>(TEXT("ActionStack"));
@@ -3839,9 +3841,8 @@ bool URigVMController::SetPinDefaultValue(URigVMPin* InPin, const FString& InDef
 	
 	URigVMGraph* Graph = GetGraph();
 	check(Graph);
-
-	// only perform validation if post load completed for now to avoid crash
-	if (!Graph->HasAnyFlags(RF_NeedPostLoad))
+ 
+	if (bValidatePinDefaults)
 	{
 		if (!InPin->IsValidDefaultValue(InDefaultValue))
 		{
