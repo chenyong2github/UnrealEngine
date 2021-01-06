@@ -373,6 +373,7 @@ TSharedPtr<SWidget> FImagePlateTrackEditor::BuildOutlinerEditWidget(const FGuid&
 
 		AssetPickerConfig.Filter.bRecursiveClasses = true;
 		AssetPickerConfig.Filter.ClassNames.Add(UImagePlateFileSequence::StaticClass()->GetFName());
+		AssetPickerConfig.SaveSettingsName = TEXT("SequencerAssetPicker");
 
 		FContentBrowserModule& ContentBrowserModule = FModuleManager::Get().LoadModuleChecked<FContentBrowserModule>(TEXT("ContentBrowser"));
 

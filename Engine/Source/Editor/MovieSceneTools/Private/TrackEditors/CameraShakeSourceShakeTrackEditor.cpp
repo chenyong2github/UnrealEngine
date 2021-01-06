@@ -638,6 +638,7 @@ void FCameraShakeSourceShakeTrackEditor::AddOtherCameraShakeBrowserSubMenu(FMenu
 		AssetPickerConfig.bAllowNullSelection = false;
 		AssetPickerConfig.InitialAssetViewType = EAssetViewType::List;
 		AssetPickerConfig.Filter.ClassNames.Add(UBlueprint::StaticClass()->GetFName());
+		AssetPickerConfig.SaveSettingsName = TEXT("SequencerAssetPicker");
 
 		IAssetRegistry & AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry").Get();
 		TArray<FName> ClassNames;

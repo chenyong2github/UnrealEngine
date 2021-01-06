@@ -143,6 +143,7 @@ public:
 			AssetPickerConfig.InitialAssetViewType = EAssetViewType::List;
 			AssetPickerConfig.Filter.bRecursiveClasses = true;
 			AssetPickerConfig.Filter.ClassNames.Add(UTemplateSequence::StaticClass()->GetFName());
+			AssetPickerConfig.SaveSettingsName = TEXT("SequencerAssetPicker");
 			if (LegacyBaseClass != nullptr)
 			{
 				AssetPickerConfig.Filter.ClassNames.Add(LegacyBaseClass->GetFName());
