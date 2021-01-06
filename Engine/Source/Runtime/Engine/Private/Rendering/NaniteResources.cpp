@@ -320,7 +320,7 @@ public:
 		OutEnvironment.SetDefine(TEXT("NANITE_USE_VIEW_UNIFORM_BUFFER"), 1);
 	}
 };
-IMPLEMENT_VERTEX_FACTORY_TYPE_EX(FVertexFactory, "/Engine/Private/Nanite/NaniteVertexFactory.ush", true /* bUsedWithMaterials */, true /* bSupportsStaticLighting */, false /* bSupportsDynamicLighting */, false /* bPrecisePrevWorldPos */, false /* bSupportsPositionOnly */, false /* bSupportsCachingMeshDrawCommands */, true /* bSupportsPrimitiveIdStream */, true /* bSupportsNaniteRendering */);
+IMPLEMENT_VERTEX_FACTORY_TYPE_EX(Nanite::FVertexFactory, "/Engine/Private/Nanite/NaniteVertexFactory.ush", true /* bUsedWithMaterials */, true /* bSupportsStaticLighting */, false /* bSupportsDynamicLighting */, false /* bPrecisePrevWorldPos */, false /* bSupportsPositionOnly */, false /* bSupportsCachingMeshDrawCommands */, true /* bSupportsPrimitiveIdStream */, true /* bSupportsNaniteRendering */);
 
 SIZE_T FSceneProxyBase::GetTypeHash() const
 {
