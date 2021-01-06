@@ -1428,9 +1428,7 @@ void FSceneRenderTargets::AllocateReflectionTargets(FRHICommandList& RHICmdList,
 		if (!bSharedReflectionTargetsAllocated)
 		{
 			// We write to these cubemap faces individually during filtering
-			ETextureCreateFlags CubeTexFlags = TexCreate_TargetArraySlicesIndependently
-				| TexCreate_DisableDCC // todo: temporary disable to avoid DCC copy failure
-				;
+			ETextureCreateFlags CubeTexFlags = TexCreate_TargetArraySlicesIndependently;
 
 			{
 				// Create scratch cubemaps for filtering passes
