@@ -420,6 +420,7 @@ bool UnrealToUsd::ConvertSkyLightComponent( const USkyLightComponent& LightCompo
 
 	FScopedUsdAllocs UsdAllocs;
 
+#if WITH_EDITORONLY_DATA
 	FUsdStageInfo StageInfo( Prim.GetStage() );
 
 	if ( pxr::UsdAttribute Attr = Light.CreateTextureFileAttr() )
@@ -434,6 +435,7 @@ bool UnrealToUsd::ConvertSkyLightComponent( const USkyLightComponent& LightCompo
 			}
 		}
 	}
+#endif //  #if WITH_EDITORONLY_DATA
 
 	return true;
 }
