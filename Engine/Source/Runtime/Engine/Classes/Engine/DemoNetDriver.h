@@ -429,6 +429,7 @@ public:
 	virtual bool IsServer() const override;
 	virtual bool ShouldReplicateFunction(AActor* Actor, UFunction* Function) const override;
 	virtual bool ShouldReplicateActor(AActor* Actor) const override;
+	virtual bool ShouldForwardFunction(AActor* Actor, UFunction* Function, void* Parms) const override;
 	virtual void NotifyActorChannelOpen(UActorChannel* Channel, AActor* Actor) override;
 	virtual void NotifyActorChannelCleanedUp(UActorChannel* Channel, EChannelCloseReason CloseReason) override;
 
