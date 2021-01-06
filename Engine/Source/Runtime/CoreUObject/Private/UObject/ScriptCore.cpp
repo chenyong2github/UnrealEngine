@@ -226,12 +226,19 @@ void FBlueprintContextTracker::EnterScriptContext(const UObject* ContextObject, 
 {
 	ScriptEntryTag++;
 
-	OnEnterScriptContext.Broadcast(*this, ContextObject, ContextFunction);
+	if (IsInGameThread())
+	{
+		// Multicast delegate broadcast is not safe, this will be refactored later to completely disable in other threads
+		OnEnterScriptContext.Broadcast(*this, ContextObject, ContextFunction);
+	}
 }
 
 void FBlueprintContextTracker::ExitScriptContext()
 {
-	OnExitScriptContext.Broadcast(*this);
+	if (IsInGameThread())
+	{
+		OnExitScriptContext.Broadcast(*this);
+	}
 
 	ScriptEntryTag--;
 
