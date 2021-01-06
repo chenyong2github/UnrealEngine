@@ -235,16 +235,16 @@ namespace LumenRadianceCache
 		return FIntPoint(GRadianceCacheProbeAtlasResolutionInProbes * GetFinalProbeResolution(), GRadianceCacheProbeAtlasResolutionInProbes * GetFinalProbeResolution());
 	}
 
-	void GetParameters(const FViewInfo& View, FRDGBuilder& GraphBuilder, FRadianceCacheParameters& OutParameters)
+	void GetParametersNoResources(const FViewInfo& View, FRDGBuilder& GraphBuilder, FRadianceCacheParameters& OutParameters)
 	{
 		OutParameters.NumRadianceProbeClipmaps = 0;
+		OutParameters.RadianceProbeIndirectionTexture = GraphBuilder.RegisterExternalTexture(GSystemTextures.VolumetricBlackDummy);
+		OutParameters.RadianceCacheFinalRadianceAtlas = GraphBuilder.RegisterExternalTexture(GSystemTextures.BlackDummy);
+		OutParameters.RadianceCacheDepthAtlas = GraphBuilder.RegisterExternalTexture(GSystemTextures.BlackDummy);
 
-		if (View.ViewState && View.ViewState->RadianceCacheState.FinalRadianceAtlas.IsValid())
+		if (View.ViewState)
 		{
 			const FRadianceCacheState& RadianceCacheState = View.ViewState->RadianceCacheState;
-			OutParameters.RadianceProbeIndirectionTexture = RadianceCacheState.RadianceProbeIndirectionTexture ? GraphBuilder.RegisterExternalTexture(RadianceCacheState.RadianceProbeIndirectionTexture, TEXT("RadianceCacheIndirectionTexture")) : nullptr;
-			OutParameters.RadianceCacheFinalRadianceAtlas = GraphBuilder.RegisterExternalTexture(RadianceCacheState.FinalRadianceAtlas, TEXT("RadianceCacheFinalRadianceAtlas"));
-			OutParameters.RadianceCacheDepthAtlas = GraphBuilder.RegisterExternalTexture(RadianceCacheState.DepthProbeAtlasTexture, TEXT("RadianceCacheDepthAtlas"));
 
 			for (int32 ClipmapIndex = 0; ClipmapIndex < RadianceCacheState.Clipmaps.Num(); ++ClipmapIndex)
 			{
@@ -270,11 +270,18 @@ namespace LumenRadianceCache
 			OutParameters.OverrideCacheOcclusionLighting = GRadianceCacheOverrideCacheOcclusionLighting;
 			OutParameters.ShowBlackRadianceCacheLighting = GRadianceCacheShowBlackRadianceCacheLighting;
 		}
-		else
+	}
+
+	void GetParameters(const FViewInfo& View, FRDGBuilder& GraphBuilder, FRadianceCacheParameters& OutParameters)
+	{
+		GetParametersNoResources(View, GraphBuilder, OutParameters);
+
+		if (View.ViewState && View.ViewState->RadianceCacheState.FinalRadianceAtlas.IsValid())
 		{
-			OutParameters.RadianceProbeIndirectionTexture = GraphBuilder.RegisterExternalTexture(GSystemTextures.VolumetricBlackDummy);
-			OutParameters.RadianceCacheFinalRadianceAtlas = GraphBuilder.RegisterExternalTexture(GSystemTextures.BlackDummy);
-			OutParameters.RadianceCacheDepthAtlas = GraphBuilder.RegisterExternalTexture(GSystemTextures.BlackDummy);
+			const FRadianceCacheState& RadianceCacheState = View.ViewState->RadianceCacheState;
+			OutParameters.RadianceProbeIndirectionTexture = RadianceCacheState.RadianceProbeIndirectionTexture ? GraphBuilder.RegisterExternalTexture(RadianceCacheState.RadianceProbeIndirectionTexture, TEXT("RadianceCacheIndirectionTexture")) : nullptr;
+			OutParameters.RadianceCacheFinalRadianceAtlas = GraphBuilder.RegisterExternalTexture(RadianceCacheState.FinalRadianceAtlas, TEXT("RadianceCacheFinalRadianceAtlas"));
+			OutParameters.RadianceCacheDepthAtlas = GraphBuilder.RegisterExternalTexture(RadianceCacheState.DepthProbeAtlasTexture, TEXT("RadianceCacheDepthAtlas"));
 		}
 	}
 
@@ -1166,11 +1173,8 @@ void FDeferredShadingSceneRenderer::RenderRadianceCache(
 			DebugBRDFProbabilityDensityFunction = GraphBuilder.CreateTexture(DebugBRDFProbabilityDensityFunctionDesc, TEXT("DebugBRDFProbabilityDensityFunction"));
 		}
 
-		LumenRadianceCache::GetParameters(View, GraphBuilder, RadianceCacheParameters);
+		LumenRadianceCache::GetParametersNoResources(View, GraphBuilder, RadianceCacheParameters);
 		
-		RadianceCacheParameters.RadianceCacheFinalRadianceAtlas = nullptr;
-		RadianceCacheParameters.RadianceCacheDepthAtlas = nullptr;
-
 		const FIntVector RadianceProbeIndirectionTextureSize = LumenRadianceCache::GetProbeIndirectionTextureSize();
 
 		FRDGTextureDesc ProbeIndirectionDesc = FRDGTextureDesc::Create3D(
@@ -1464,11 +1468,6 @@ void FDeferredShadingSceneRenderer::RenderRadianceCache(
 		}
 
 		const int32 MaxProbeTraceTileResolution = RadianceCacheParameters.RadianceProbeResolution / FRadianceCacheTraceFromProbesCS::GetGroupSize() * 2;
-		checkf(MaxNumProbes > 0 && MaxProbeTraceTileResolution > 0, TEXT("MaxNumProbes %u, MaxProbeTraceTileResolution %u, RadianceProbeResolution %u, GroupSize %u"),
-			MaxNumProbes,
-			MaxProbeTraceTileResolution,
-			RadianceCacheParameters.RadianceProbeResolution,
-			FRadianceCacheTraceFromProbesCS::GetGroupSize());
 		FRDGBufferRef ProbeTraceTileData = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(FIntPoint), MaxNumProbes * MaxProbeTraceTileResolution * MaxProbeTraceTileResolution), TEXT("RadianceCacheProbeTraceTileData"));
 
 		{
