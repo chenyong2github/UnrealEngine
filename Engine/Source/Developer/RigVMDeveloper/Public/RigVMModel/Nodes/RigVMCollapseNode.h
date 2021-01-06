@@ -22,6 +22,7 @@ public:
 	virtual FText GetToolTipText() const override;
 
 	// Library node interface
+	virtual URigVMFunctionLibrary* GetLibrary() const override;
 	virtual URigVMGraph* GetContainedGraph() const override { return ContainedGraph; }
 
 	FString GetEditorSubGraphName() const;

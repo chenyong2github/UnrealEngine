@@ -10,6 +10,8 @@
 #include "RigVMCompiler/RigVMAST.h"
 #include "RigVMGraph.generated.h"
 
+class URigVMFunctionLibrary;
+
 /**
  * The Graph represents a Function definition
  * using Nodes as statements.
@@ -96,6 +98,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category = RigVMGraph)
 	bool IsTopLevelGraph() const;
 
+	// Returns the locally available function library
+	UFUNCTION(BlueprintCallable, Category = RigVMGraph)
+	URigVMFunctionLibrary* GetDefaultFunctionLibrary() const;
+
+	UFUNCTION(BlueprintCallable, Category = RigVMGraph)
+	void SetDefaultFunctionLibrary(URigVMFunctionLibrary* InFunctionLibrary);
+
 	// Returns the modified event, which can be used to 
 	// subscribe to changes happening within the Graph.
 	FRigVMGraphModifiedEvent& OnModified();
@@ -122,6 +131,9 @@ private:
 
 	UPROPERTY()
 	TArray<FName> SelectedNodes;
+
+	UPROPERTY()
+	TWeakObjectPtr<URigVMGraph> DefaultFunctionLibraryPtr;
 
 	TSharedPtr<FRigVMParserAST> DiagnosticsAST;
 	TSharedPtr<FRigVMParserAST> RuntimeAST;

@@ -3,6 +3,7 @@
 #pragma once
 
 #include "RigVMGraph.h"
+#include "RigVMFunctionLibrary.h"
 #include "RigVMModel/Nodes/RigVMUnitNode.h"
 #include "RigVMModel/Nodes/RigVMVariableNode.h"
 #include "RigVMModel/Nodes/RigVMParameterNode.h"
@@ -14,6 +15,7 @@
 #include "RigVMModel/Nodes/RigVMPrototypeNode.h"
 #include "RigVMModel/Nodes/RigVMEnumNode.h"
 #include "RigVMModel/Nodes/RigVMCollapseNode.h"
+#include "RigVMModel/Nodes/RigVMFunctionReferenceNode.h"
 #include "RigVMController.generated.h"
 
 class URigVMActionStack;
@@ -488,6 +490,18 @@ public:
 	// Changes the type of an exposed pin in the graph controlled by this
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
 	bool ChangeExposedPinType(const FName& InPinName, const FString& InCPPType, const FName& InCPPTypeObjectPath, bool bSetupUndoRedo = true);
+
+	// Adds a function reference / invocation to the graph
+	UFUNCTION(BlueprintCallable, Category = RigVMController)
+	URigVMFunctionReferenceNode* AddFunctionReferenceNode(URigVMLibraryNode* InFunctionDefinition, const FVector2D& InNodePosition = FVector2D::ZeroVector, const FString& InNodeName = TEXT(""), bool bSetupUndoRedo = true);
+
+	// Adds a function definition to a function library graph
+	UFUNCTION(BlueprintCallable, Category = RigVMController)
+	URigVMLibraryNode* AddFunctionToLibrary(const FName& InFunctionName, const FVector2D& InNodePosition = FVector2D::ZeroVector, bool bSetupUndoRedo = true);
+
+	// Removes a function from a function library graph
+	UFUNCTION(BlueprintCallable, Category = RigVMController)
+	bool RemoveFunctionFromLibrary(const FName& InFunctionName, bool bSetupUndoRedo = true);
 
 	// Sets the execute context struct type to use
 	void SetExecuteContextStruct(UStruct* InExecuteContextStruct);

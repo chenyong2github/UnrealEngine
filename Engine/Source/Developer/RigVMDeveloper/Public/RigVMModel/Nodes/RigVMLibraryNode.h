@@ -8,6 +8,7 @@
 class URigVMGraph;
 class URigVMFunctionEntryNode;
 class URigVMFunctionReturnNode;
+class URigVMFunctionLibrary;
 
 /**
  * The Library Node represents a function invocation of a
@@ -27,6 +28,7 @@ public:
 	virtual bool IsDefinedAsVarying() const override;
 
 	// Library node interface
+	virtual URigVMFunctionLibrary* GetLibrary() const { return nullptr; }
 	virtual URigVMGraph* GetContainedGraph() const { return nullptr; }
 	virtual const TArray<URigVMNode*>& GetContainedNodes() const;
 	virtual const TArray<URigVMLink*>& GetContainedLinks() const;

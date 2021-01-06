@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RigVMModel/RigVMGraph.h"
+#include "RigVMModel/RigVMFunctionLibrary.h"
 #include "RigVMModel/RigVMController.h"
 #include "RigVMModel/Nodes/RigVMLibraryNode.h"
 #include "RigVMModel/Nodes/RigVMFunctionEntryNode.h"
@@ -193,8 +194,29 @@ bool URigVMGraph::IsTopLevelGraph() const
 	{
 		return false;
 	}
-	// todo: implement this for function libraries
 	return true;
+}
+
+URigVMFunctionLibrary* URigVMGraph::GetDefaultFunctionLibrary() const
+{
+	if (DefaultFunctionLibraryPtr.IsValid())
+	{
+		return CastChecked<URigVMFunctionLibrary>(DefaultFunctionLibraryPtr.Get());
+	}
+
+	if (URigVMLibraryNode* OuterLibraryNode = Cast<URigVMLibraryNode>(GetOuter()))
+	{
+		if (URigVMGraph* OuterGraph = OuterLibraryNode->GetGraph())
+		{
+			return OuterGraph->GetDefaultFunctionLibrary();
+		}
+	}
+	return nullptr;
+}
+
+void URigVMGraph::SetDefaultFunctionLibrary(URigVMFunctionLibrary* InFunctionLibrary)
+{
+	DefaultFunctionLibraryPtr = InFunctionLibrary;
 }
 
 FRigVMGraphModifiedEvent& URigVMGraph::OnModified()

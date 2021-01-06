@@ -4,6 +4,7 @@
 #include "RigVMModel/RigVMControllerActions.h"
 #include "RigVMModel/Nodes/RigVMFunctionEntryNode.h"
 #include "RigVMModel/Nodes/RigVMFunctionReturnNode.h"
+#include "RigVMModel/Nodes/RigVMFunctionReferenceNode.h"
 #include "RigVMCore/RigVMRegistry.h"
 #include "RigVMCore/RigVMExecuteContext.h"
 #include "RigVMCompiler/RigVMCompiler.h"
@@ -231,6 +232,13 @@ URigVMUnitNode* URigVMController::AddUnitNode(UScriptStruct* InScriptStruct, con
 	{
 		return nullptr;
 	}
+
+	if (GetGraph()->IsA<URigVMFunctionLibrary>())
+	{
+		ReportError(TEXT("Cannot add unit nodes to function library graphs."));
+		return nullptr;
+	}
+
 	if (InScriptStruct == nullptr)
 	{
 		ReportError(TEXT("InScriptStruct is null."));
@@ -355,6 +363,12 @@ URigVMVariableNode* URigVMController::AddVariableNode(const FName& InVariableNam
 
 	URigVMGraph* Graph = GetGraph();
 	check(Graph);
+
+	if (Graph->IsA<URigVMFunctionLibrary>())
+	{
+		ReportError(TEXT("Cannot add variables nodes to function library graphs."));
+		return nullptr;
+	}
 
 	if (InCPPTypeObject == nullptr)
 	{
@@ -567,6 +581,11 @@ void URigVMController::OnExternalVariableRemoved(const FName& InVarName, bool bS
 	URigVMGraph* Graph = GetGraph();
 	check(Graph);
 
+	if (Graph->IsA<URigVMFunctionLibrary>())
+	{
+		return;
+	}
+
 	FString VarNameStr = InVarName.ToString();
 
 	if (bSetupUndoRedo)
@@ -619,6 +638,11 @@ void URigVMController::OnExternalVariableRenamed(const FName& InOldVarName, cons
 
 	URigVMGraph* Graph = GetGraph();
 	check(Graph);
+
+	if (Graph->IsA<URigVMFunctionLibrary>())
+	{
+		return;
+	}
 
 	FString VarNameStr = InOldVarName.ToString();
 
@@ -674,6 +698,11 @@ void URigVMController::OnExternalVariableTypeChanged(const FName& InVarName, con
 
 	URigVMGraph* Graph = GetGraph();
 	check(Graph);
+
+	if (Graph->IsA<URigVMFunctionLibrary>())
+	{
+		return;
+	}
 
 	FString VarNameStr = InVarName.ToString();
 
@@ -772,6 +801,12 @@ URigVMParameterNode* URigVMController::AddParameterNode(const FName& InParameter
 
 	URigVMGraph* Graph = GetGraph();
 	check(Graph);
+
+	if (Graph->IsA<URigVMFunctionLibrary>())
+	{
+		ReportError(TEXT("Cannot add parameter nodes to function library graphs."));
+		return nullptr;
+	}
 
 	if (InCPPTypeObject == nullptr)
 	{
@@ -953,6 +988,12 @@ URigVMCommentNode* URigVMController::AddCommentNode(const FString& InCommentText
 	URigVMGraph* Graph = GetGraph();
 	check(Graph);
 
+	if (Graph->IsA<URigVMFunctionLibrary>())
+	{
+		ReportError(TEXT("Cannot add comment nodes to function library graphs."));
+		return nullptr;
+	}
+
 	FString Name = GetValidNodeName(InNodeName.IsEmpty() ? FString(TEXT("CommentNode")) : InNodeName);
 	URigVMCommentNode* Node = NewObject<URigVMCommentNode>(Graph, *Name);
 	Node->Position = InPosition;
@@ -988,6 +1029,12 @@ URigVMRerouteNode* URigVMController::AddRerouteNodeOnLink(URigVMLink* InLink, bo
 {
 	if(!IsValidLinkForGraph(InLink))
 	{
+		return nullptr;
+	}
+
+	if (GetGraph()->IsA<URigVMFunctionLibrary>())
+	{
+		ReportError(TEXT("Cannot add reroutes to function library graphs."));
 		return nullptr;
 	}
 
@@ -1047,6 +1094,12 @@ URigVMRerouteNode* URigVMController::AddRerouteNodeOnPin(const FString& InPinPat
 
 	URigVMGraph* Graph = GetGraph();
 	check(Graph);
+
+	if (Graph->IsA<URigVMFunctionLibrary>())
+	{
+		ReportError(TEXT("Cannot add reroutes to function library graphs."));
+		return nullptr;
+	}
 
 	URigVMPin* Pin = Graph->FindPin(InPinPath);
 	if(Pin == nullptr)
@@ -1129,6 +1182,12 @@ URigVMInjectionInfo* URigVMController::AddInjectedNode(const FString& InPinPath,
 
 	URigVMGraph* Graph = GetGraph();
 	check(Graph);
+
+	if (Graph->IsA<URigVMFunctionLibrary>())
+	{
+		ReportError(TEXT("Cannot add injected nodes to function library graphs."));
+		return nullptr;
+	}
 
 	URigVMPin* Pin = Graph->FindPin(InPinPath);
 	if (Pin == nullptr)
@@ -1336,6 +1395,12 @@ URigVMNode* URigVMController::EjectNodeFromPin(const FString& InPinPath, bool bS
 
 	URigVMGraph* Graph = GetGraph();
 	check(Graph);
+
+	if (Graph->IsA<URigVMFunctionLibrary>())
+	{
+		ReportError(TEXT("Cannot eject nodes in function library graphs."));
+		return nullptr;
+	}
 
 	URigVMPin* Pin = Graph->FindPin(InPinPath);
 	if (Pin == nullptr)
@@ -1642,6 +1707,12 @@ bool URigVMController::CanImportNodesFromText(const FString& InText)
 	{
 		return false;
 	}
+
+	if (GetGraph()->IsA<URigVMFunctionLibrary>())
+	{
+		return false;
+	}
+
 	FRigVMControllerObjectFactory Factory(nullptr);
 	return Factory.CanCreateObjectsFromText(InText);
 }
@@ -1656,6 +1727,12 @@ TArray<FName> URigVMController::ImportNodesFromText(const FString& InText, bool 
 
 	URigVMGraph* Graph = GetGraph();
 	check(Graph);
+
+	// can't import nodes to a function library
+	if (Graph->IsA<URigVMFunctionLibrary>())
+	{
+		return NodeNames;
+	}
 
 	FRigVMControllerObjectFactory Factory(this);
 	Factory.ProcessBuffer(Graph, RF_Transactional, InText);
@@ -1836,6 +1913,12 @@ URigVMCollapseNode* URigVMController::CollapseNodes(const TArray<URigVMNode*>& I
 {
 	URigVMGraph* Graph = GetGraph();
 	check(Graph);
+
+	if (Graph->IsA<URigVMFunctionLibrary>())
+	{
+		ReportError(TEXT("Cannot collapse nodes in function library graphs."));
+		return nullptr;
+	}
 
 	TArray<URigVMNode*> Nodes;
 	for (URigVMNode* Node : InNodes)
@@ -2275,6 +2358,12 @@ TArray<URigVMNode*> URigVMController::ExpandLibraryNode(URigVMLibraryNode* InNod
 
 	URigVMGraph* Graph = GetGraph();
 	check(Graph);
+
+	if (Graph->IsA<URigVMFunctionLibrary>())
+	{
+		ReportError(TEXT("Cannot expand nodes in function library graphs."));
+		return TArray<URigVMNode*>();
+	}
 
 	TArray<URigVMNode*> ContainedNodes = InNode->GetContainedNodes();
 	TArray<URigVMLink*> ContainedLinks = InNode->GetContainedLinks();
@@ -3638,6 +3727,12 @@ bool URigVMController::SetPinIsWatched(URigVMPin* InPin, bool bIsWatched, bool b
 	URigVMGraph* Graph = GetGraph();
 	check(Graph);
 
+	if (Graph->IsA<URigVMFunctionLibrary>())
+	{
+		ReportError(TEXT("Cannot watch pins in function library graphs."));
+		return false;
+	}
+
 	FRigVMSetPinWatchAction Action;
 	if (bSetupUndoRedo)
 	{
@@ -4303,6 +4398,12 @@ bool URigVMController::BindPinToVariable(URigVMPin* InPin, const FString& InNewB
 		return false;
 	}
 
+	if (GetGraph()->IsA<URigVMFunctionLibrary>())
+	{
+		ReportError(TEXT("Cannot bind pins to variables in function library graphs."));
+		return false;
+	}
+
 	if (InPin->GetBoundVariablePath() == InNewBoundVariablePath)
 	{
 		return false;
@@ -4499,6 +4600,12 @@ bool URigVMController::PromotePinToVariable(URigVMPin* InPin, bool bCreateVariab
 {
 	check(InPin);
 
+	if (GetGraph()->IsA<URigVMFunctionLibrary>())
+	{
+		ReportError(TEXT("Cannot promote pins to variables in function library graphs."));
+		return false;
+	}
+
 	if (InPin->GetDirection() != ERigVMPinDirection::Input)
 	{
 		return false;
@@ -4630,6 +4737,12 @@ bool URigVMController::AddLink(URigVMPin* OutputPin, URigVMPin* InputPin, bool b
 	URigVMGraph* Graph = GetGraph();
 	check(Graph);
 
+	if (Graph->IsA<URigVMFunctionLibrary>())
+	{
+		ReportError(TEXT("Cannot add links in function library graphs."));
+		return false;
+	}
+
 	{
 		// Temporarily remove the bound variable from the pin
 		// if it exists, so that link validation can work.
@@ -4748,6 +4861,12 @@ bool URigVMController::BreakLink(URigVMPin* OutputPin, URigVMPin* InputPin, bool
 
 	URigVMGraph* Graph = GetGraph();
 	check(Graph);
+
+	if (Graph->IsA<URigVMFunctionLibrary>())
+	{
+		ReportError(TEXT("Cannot break links in function library graphs."));
+		return false;
+	}
 
 	for (URigVMLink* Link : InputPin->Links)
 	{
@@ -4896,6 +5015,12 @@ FName URigVMController::AddExposedPin(const FName& InPinName, ERigVMPinDirection
 		return NAME_None;
 	}
 
+	if (Graph->IsA<URigVMFunctionLibrary>())
+	{
+		ReportError(TEXT("Cannot expose pins in function library graphs."));
+		return NAME_None;
+	}
+
 	URigVMLibraryNode* LibraryNode = Cast<URigVMLibraryNode>(Graph->GetOuter());
 	check(LibraryNode);
 
@@ -4952,7 +5077,7 @@ bool URigVMController::RemoveExposedPin(const FName& InPinName, bool bSetupUndoR
 {
 	if (!IsValidGraph())
 	{
-		return NAME_None;
+		return false;
 	}
 
 	URigVMGraph* Graph = GetGraph();
@@ -4961,7 +5086,13 @@ bool URigVMController::RemoveExposedPin(const FName& InPinName, bool bSetupUndoR
 	if (Graph->IsTopLevelGraph())
 	{
 		ReportError(TEXT("Exposed pins can only be edited on nested graphs."));
-		return NAME_None;
+		return false;
+	}
+
+	if (Graph->IsA<URigVMFunctionLibrary>())
+	{
+		ReportError(TEXT("Cannot remove exposed pins in function library graphs."));
+		return false;
 	}
 
 	URigVMLibraryNode* LibraryNode = Cast<URigVMLibraryNode>(Graph->GetOuter());
@@ -5007,7 +5138,7 @@ bool URigVMController::RenameExposedPin(const FName& InOldPinName, const FName& 
 {
 	if (!IsValidGraph())
 	{
-		return NAME_None;
+		return false;
 	}
 
 	URigVMGraph* Graph = GetGraph();
@@ -5016,7 +5147,13 @@ bool URigVMController::RenameExposedPin(const FName& InOldPinName, const FName& 
 	if (Graph->IsTopLevelGraph())
 	{
 		ReportError(TEXT("Exposed pins can only be edited on nested graphs."));
-		return NAME_None;
+		return false;
+	}
+
+	if (Graph->IsA<URigVMFunctionLibrary>())
+	{
+		ReportError(TEXT("Cannot rename exposed pins in function library graphs."));
+		return false;
 	}
 
 	URigVMLibraryNode* LibraryNode = Cast<URigVMLibraryNode>(Graph->GetOuter());
@@ -5117,7 +5254,7 @@ bool URigVMController::ChangeExposedPinType(const FName& InPinName, const FStrin
 {
 	if (!IsValidGraph())
 	{
-		return NAME_None;
+		return false;
 	}
 
 	URigVMGraph* Graph = GetGraph();
@@ -5126,7 +5263,13 @@ bool URigVMController::ChangeExposedPinType(const FName& InPinName, const FStrin
 	if (Graph->IsTopLevelGraph())
 	{
 		ReportError(TEXT("Exposed pins can only be edited on nested graphs."));
-		return NAME_None;
+		return false;
+	}
+
+	if (Graph->IsA<URigVMFunctionLibrary>())
+	{
+		ReportError(TEXT("Cannot change exposed pin types in function library graphs."));
+		return false;
 	}
 
 	URigVMLibraryNode* LibraryNode = Cast<URigVMLibraryNode>(Graph->GetOuter());
@@ -5179,6 +5322,120 @@ bool URigVMController::ChangeExposedPinType(const FName& InPinName, const FStrin
 	}
 
 	return true;
+}
+
+URigVMFunctionReferenceNode* URigVMController::AddFunctionReferenceNode(URigVMLibraryNode* InFunctionDefinition, const FVector2D& InNodePosition, const FString& InNodeName, bool bSetupUndoRedo)
+{
+	if (!IsValidGraph())
+	{
+		return nullptr;
+	}
+
+	URigVMGraph* Graph = GetGraph();
+	check(Graph);
+
+	if (Graph->IsA<URigVMFunctionLibrary>())
+	{
+		ReportError(TEXT("Cannot add function reference nodes to function library graphs."));
+		return nullptr;
+	}
+
+	if (InFunctionDefinition == nullptr)
+	{
+		ReportError(TEXT("Cannot add a function reference node without a valid function definition."));
+		return nullptr;
+	}
+
+	FString NodeName = GetValidNodeName(InNodeName.IsEmpty() ? InFunctionDefinition->GetName() : InNodeName);
+	URigVMFunctionReferenceNode* FunctionRefNode = NewObject<URigVMFunctionReferenceNode>(Graph, *NodeName);
+	FunctionRefNode->Position = InNodePosition;
+	FunctionRefNode->SetReferencedNode(InFunctionDefinition);
+	Graph->Nodes.Add(FunctionRefNode);
+
+	RepopulatePinsOnNode(FunctionRefNode, false, false);
+
+	if (bSetupUndoRedo)
+	{
+		FRigVMInverseAction InverseAction;
+		InverseAction.Title = TEXT("Add function node");
+
+		ActionStack->BeginAction(InverseAction);
+		ActionStack->AddAction(FRigVMRemoveNodeAction(FunctionRefNode, this));
+		ActionStack->EndAction(InverseAction);
+	}
+
+	return FunctionRefNode;
+}
+
+URigVMLibraryNode* URigVMController::AddFunctionToLibrary(const FName& InFunctionName, const FVector2D& InNodePosition, bool bSetupUndoRedo)
+{
+	if (!IsValidGraph())
+	{
+		return nullptr;
+	}
+
+	URigVMGraph* Graph = GetGraph();
+	check(Graph);
+
+	if (!Graph->IsA<URigVMFunctionLibrary>())
+	{
+		ReportError(TEXT("Can only add function definitions to function library graphs."));
+		return nullptr;
+	}
+
+	FString FunctionName = GetValidNodeName(InFunctionName.IsNone() ? FString(TEXT("Function")) : InFunctionName.ToString());
+	URigVMCollapseNode* CollapseNode = NewObject<URigVMCollapseNode>(Graph, *FunctionName);
+	CollapseNode->ContainedGraph = NewObject<URigVMGraph>(CollapseNode, TEXT("ContainedGraph"));
+	CollapseNode->Position = InNodePosition;
+	Graph->Nodes.Add(CollapseNode);
+
+	{
+		FRigVMControllerGraphGuard GraphGuard(this, CollapseNode->GetContainedGraph(), false);
+
+		URigVMFunctionEntryNode* EntryNode = NewObject<URigVMFunctionEntryNode>(CollapseNode->ContainedGraph, TEXT("Entry"));
+		CollapseNode->ContainedGraph->Nodes.Add(EntryNode);
+		EntryNode->Position = FVector2D(-250.f, 0.f);
+		RefreshFunctionPins(EntryNode, false);
+		Notify(ERigVMGraphNotifType::NodeAdded, EntryNode);
+
+		URigVMFunctionReturnNode* ReturnNode = NewObject<URigVMFunctionReturnNode>(CollapseNode->ContainedGraph, TEXT("Return"));
+		CollapseNode->ContainedGraph->Nodes.Add(ReturnNode);
+		ReturnNode->Position = FVector2D(250.f, 0.f);
+		RefreshFunctionPins(ReturnNode, false);
+		Notify(ERigVMGraphNotifType::NodeAdded, ReturnNode);
+	}
+
+	if (bSetupUndoRedo)
+	{
+		FRigVMInverseAction InverseAction;
+		InverseAction.Title = TEXT("Add function to library");
+
+		ActionStack->BeginAction(InverseAction);
+		ActionStack->AddAction(FRigVMRemoveNodeAction(CollapseNode, this));
+		ActionStack->EndAction(InverseAction);
+	}
+
+	return CollapseNode;
+}
+
+bool URigVMController::RemoveFunctionFromLibrary(const FName& InFunctionName, bool bSetupUndoRedo)
+{
+	if (!IsValidGraph())
+	{
+		return false;
+	}
+
+	URigVMGraph* Graph = GetGraph();
+	check(Graph);
+
+
+	if (!Graph->IsA<URigVMFunctionLibrary>())
+	{
+		ReportError(TEXT("Can only remove function definitions from function library graphs."));
+		return false;
+	}
+
+	return RemoveNodeByName(InFunctionName, bSetupUndoRedo);
 }
 
 void URigVMController::ExpandPinRecursively(URigVMPin* InPin, bool bSetupUndoRedo)
@@ -5345,6 +5602,12 @@ URigVMRerouteNode* URigVMController::AddFreeRerouteNode(bool bShowAsFullNode, co
 
 	URigVMGraph* Graph = GetGraph();
 	check(Graph);
+
+	if (Graph->IsA<URigVMFunctionLibrary>())
+	{
+		ReportError(TEXT("Cannot add reroutes to function library graphs."));
+		return nullptr;
+	}
 
 	FRigVMBaseAction Action;
 	if (bSetupUndoRedo)
@@ -6600,6 +6863,7 @@ void URigVMController::RepopulatePinsOnNode(URigVMNode* InNode, bool bFollowCore
 	URigVMFunctionEntryNode* EntryNode = Cast<URigVMFunctionEntryNode>(InNode);
 	URigVMFunctionReturnNode* ReturnNode = Cast<URigVMFunctionReturnNode>(InNode);
 	URigVMCollapseNode* CollapseNode = Cast<URigVMCollapseNode>(InNode);
+	URigVMFunctionReferenceNode* FunctionRefNode = Cast<URigVMFunctionReferenceNode>(InNode);
 
 	TGuardValue<bool> EventuallySuspendNotifs(bSuspendNotifications, !bNotify);
 	FScopeLock Lock(&PinPathCoreRedirectorsLock);
@@ -6769,6 +7033,34 @@ void URigVMController::RepopulatePinsOnNode(URigVMNode* InNode, bool bFollowCore
 			RepopulatePinsOnNode(ContainedNode, bFollowCoreRedirectors);
 		}
 	}
+	else if (FunctionRefNode)
+	{
+		if (URigVMLibraryNode* ReferencedNode = FunctionRefNode->GetReferencedNode())
+		{
+			TArray<URigVMPin*> Pins = InNode->GetPins();
+			for (URigVMPin* Pin : Pins)
+			{
+				RemovePin(Pin, false, bNotify);
+			}
+			InNode->Pins.Reset();
+
+			for (URigVMPin* ReferencedPin : ReferencedNode->Pins)
+			{
+				URigVMPin* NewPin = NewObject<URigVMPin>(InNode, ReferencedPin->GetFName());
+				ConfigurePinFromPin(NewPin, ReferencedPin);
+
+				InNode->Pins.Add(NewPin);
+
+				if (NewPin->IsStruct())
+				{
+					AddPinsForStruct(NewPin->GetScriptStruct(), InNode, NewPin, NewPin->GetDirection(), FString(), false);
+				}
+
+				Notify(ERigVMGraphNotifType::PinAdded, NewPin);
+			}
+		}
+	}
+
 	else
 	{
 		return;

@@ -50,10 +50,18 @@ const TArray<URigVMLink*>& URigVMLibraryNode::GetContainedLinks() const
 
 URigVMFunctionEntryNode* URigVMLibraryNode::GetEntryNode() const
 {
-	return GetContainedGraph()->GetEntryNode();
+	if (URigVMGraph* Graph = GetContainedGraph())
+	{
+		return Graph->GetEntryNode();
+	}
+	return nullptr;
 }
 
 URigVMFunctionReturnNode* URigVMLibraryNode::GetReturnNode() const
 {
-	return GetContainedGraph()->GetReturnNode();
+	if (URigVMGraph* Graph = GetContainedGraph())
+	{
+		return Graph->GetReturnNode();
+	}
+	return nullptr;
 }
