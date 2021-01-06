@@ -526,10 +526,16 @@ bool UNiagaraDataInterfaceMeshRendererInfo::CopyToInternal(UNiagaraDataInterface
 	OtherTyped->MeshRenderer = MeshRenderer;	
 	OtherTyped->Info = Info;
 
-	// Check to add a reference the the per-renderer data
+	// Check to add a reference to the per-renderer data
 	if (Info.IsValid())
 	{
 		Info->AddRef();
+	}
+	else if (MeshRenderer != nullptr && !EnumHasAnyFlags(OtherTyped->GetFlags(), RF_NeedPostLoad))
+	{
+		// This is currently necessary because, for some reason, it's possible that data interfaces that have not been post-loaded to be copied to
+		// another data interface object that has, and was previously causing this data to never get acquired on the copy
+		OtherTyped->Info = FNDIMeshRendererInfo::Acquire(*MeshRenderer);
 	}
 	return true;
 }
