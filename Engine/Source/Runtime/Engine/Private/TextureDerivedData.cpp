@@ -1369,32 +1369,28 @@ EPixelFormat FTexturePlatformData::GetLayerPixelFormat(uint32 LayerIndex) const
 #if WITH_EDITOR
 bool FTexturePlatformData::AreDerivedMipsAvailable() const
 {
-	bool bMipsAvailable = true;
-	FDerivedDataCacheInterface& DDC = GetDerivedDataCacheRef();
-	for (int32 MipIndex = 0; bMipsAvailable && MipIndex < Mips.Num(); ++MipIndex)
+	TArray<FString, TInlineAllocator<16>> MipKeys;
+	for (const FTexture2DMipMap& Mip : Mips)
 	{
-		const FTexture2DMipMap& Mip = Mips[MipIndex];
-		if (Mip.DerivedDataKey.IsEmpty() == false)
+		if (!Mip.DerivedDataKey.IsEmpty())
 		{
-			bMipsAvailable = DDC.CachedDataProbablyExists(*Mip.DerivedDataKey);
+			MipKeys.Add(Mip.DerivedDataKey);
 		}
 	}
-	return bMipsAvailable;
+	return GetDerivedDataCacheRef().AllCachedDataProbablyExists(MipKeys);
 }
 bool FTexturePlatformData::AreDerivedVTChunksAvailable() const
 {
-	bool bChunksAvailable = true;
-	FDerivedDataCacheInterface& DDC = GetDerivedDataCacheRef();
 	check(VTData);
-	for (int32 ChunkIndex = 0; bChunksAvailable && ChunkIndex < VTData->Chunks.Num(); ++ChunkIndex)
+	TArray<FString, TInlineAllocator<16>> ChunkKeys;
+	for (const FVirtualTextureDataChunk& Chunk : VTData->Chunks)
 	{
-		const FVirtualTextureDataChunk& Chunk = VTData->Chunks[ChunkIndex];
-		if (Chunk.DerivedDataKey.IsEmpty() == false)
+		if (!Chunk.DerivedDataKey.IsEmpty())
 		{
-			bChunksAvailable = DDC.CachedDataProbablyExists(*Chunk.DerivedDataKey);
+			ChunkKeys.Add(Chunk.DerivedDataKey);
 		}
 	}
-	return bChunksAvailable;
+	return GetDerivedDataCacheRef().AllCachedDataProbablyExists(ChunkKeys);
 }
 #endif // #if WITH_EDITOR
 
@@ -1787,42 +1783,52 @@ void UTexture::BeginCacheForCookedPlatformData( const ITargetPlatform *TargetPla
 			CacheFlags |= ETextureCacheFlags::AllowAsyncBuild;
 		}
 
-
 		// Cull redundant settings by comparing derived data keys.
-		for (int32 SettingsIndex = 0; SettingsIndex < BuildSettingsToCache.Num(); ++SettingsIndex)
+		TArray<FString> BuildSettingsCacheKeys;
+		for (TArray<TArray<FTextureBuildSettings>>::TIterator It = BuildSettingsToCache.CreateIterator(); It; ++It)
 		{
-			check(BuildSettingsToCache[SettingsIndex].Num() == Source.GetNumLayers());
+			check(It->Num() == Source.GetNumLayers());
 
 			FString DerivedDataKey;
-			GetTextureDerivedDataKey(*this, BuildSettingsToCache[SettingsIndex].GetData(), DerivedDataKey);
+			GetTextureDerivedDataKey(*this, It->GetData(), DerivedDataKey);
 
-			FTexturePlatformData *PlatformData = CookedPlatformData.FindRef( DerivedDataKey );
-
-			if ( PlatformData == NULL )
+			if (CookedPlatformData.FindRef(DerivedDataKey) || BuildSettingsCacheKeys.Contains(DerivedDataKey))
 			{
-				// UE_LOG(LogTemp, Warning, TEXT("Caching data for texture %s with id %s"), *GetName(), *DerivedDataKey);
-				uint32 CurrentCacheFlags = CacheFlags;
-				// if the cached data key exists already then we don't need to allowasync build
-				// if it doesn't then allow async builds
-				
-				{
-					if ( GetDerivedDataCacheRef().CachedDataProbablyExists( *DerivedDataKey ) == false )
-					{
-						CurrentCacheFlags |= ETextureCacheFlags::AllowAsyncBuild;
-						CurrentCacheFlags |= ETextureCacheFlags::AllowAsyncLoading;
-					}
-				}
-
-				FTexturePlatformData* PlatformDataToCache;
-				PlatformDataToCache = new FTexturePlatformData();
-				PlatformDataToCache->Cache(
-					*this,
-					BuildSettingsToCache[SettingsIndex].GetData(),
-					CurrentCacheFlags,
-					nullptr
-					);
-				CookedPlatformData.Add( DerivedDataKey, PlatformDataToCache );
+				It.RemoveCurrent();
 			}
+			else
+			{
+				BuildSettingsCacheKeys.Add(MoveTemp(DerivedDataKey));
+			}
+		}
+
+		TBitArray<> BuildSettingsProbablyCached;
+		if (BuildSettingsCacheKeys.Num())
+		{
+			BuildSettingsProbablyCached = GetDerivedDataCacheRef().CachedDataProbablyExistsBatch(BuildSettingsCacheKeys);
+		}
+
+		for (int32 SettingsIndex = 0; SettingsIndex < BuildSettingsToCache.Num(); ++SettingsIndex)
+		{
+			// UE_LOG(LogTemp, Warning, TEXT("Caching data for texture %s with id %s"), *GetName(), *DerivedDataKey);
+			uint32 CurrentCacheFlags = CacheFlags;
+			// if the cached data key exists already then we don't need to allowasync build
+			// if it doesn't then allow async builds
+			if (!BuildSettingsProbablyCached[SettingsIndex])
+			{
+				CurrentCacheFlags |= ETextureCacheFlags::AllowAsyncBuild;
+				CurrentCacheFlags |= ETextureCacheFlags::AllowAsyncLoading;
+			}
+
+			FTexturePlatformData* PlatformDataToCache;
+			PlatformDataToCache = new FTexturePlatformData();
+			PlatformDataToCache->Cache(
+				*this,
+				BuildSettingsToCache[SettingsIndex].GetData(),
+				CurrentCacheFlags,
+				nullptr
+				);
+			CookedPlatformData.Add(BuildSettingsCacheKeys[SettingsIndex], PlatformDataToCache);
 		}
 	}
 }

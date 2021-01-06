@@ -878,17 +878,15 @@ int32 FStreamedAudioPlatformData::GetChunkFromDDC(int32 ChunkIndex, uint8** OutC
 #if WITH_EDITORONLY_DATA
 bool FStreamedAudioPlatformData::AreDerivedChunksAvailable() const
 {
-	bool bChunksAvailable = true;
-	FDerivedDataCacheInterface& DDC = GetDerivedDataCacheRef();
-	for (int32 ChunkIndex = 0; bChunksAvailable && ChunkIndex < Chunks.Num(); ++ChunkIndex)
+	TArray<FString> ChunkKeys;
+	for (const FStreamedAudioChunk& Chunk : Chunks)
 	{
-		const FStreamedAudioChunk& Chunk = Chunks[ChunkIndex];
-		if (Chunk.DerivedDataKey.IsEmpty() == false)
+		if (!Chunk.DerivedDataKey.IsEmpty())
 		{
-			bChunksAvailable = DDC.CachedDataProbablyExists(*Chunk.DerivedDataKey);
+			ChunkKeys.Add(Chunk.DerivedDataKey);
 		}
 	}
-	return bChunksAvailable;
+	return GetDerivedDataCacheRef().AllCachedDataProbablyExists(ChunkKeys);
 }
 #endif // #if WITH_EDITORONLY_DATA
 

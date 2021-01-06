@@ -1291,12 +1291,12 @@ namespace GroomDerivedDataCacheUtils
 bool UGroomAsset::IsFullyCached()
 {
 	// Check if all the groom derived data for strands, cards and meshes are already stored in the DDC
-	bool bIsFullyCached = true;
+	TArray<FString> CacheKeys;
 	const uint32 GroupCount = HairGroupsInterpolation.Num();
-	for (uint32 GroupIndex = 0; GroupIndex < GroupCount && bIsFullyCached; ++GroupIndex)
+	for (uint32 GroupIndex = 0; GroupIndex < GroupCount; ++GroupIndex)
 	{
 		const FString StrandsDDCKey = UGroomAsset::GetDerivedDataKeyForStrands(GroupIndex);
-		bIsFullyCached &= GetDerivedDataCacheRef().CachedDataProbablyExists(*StrandsDDCKey);
+		CacheKeys.Add(StrandsDDCKey);
 
 		// Some cards and meshes LOD settings may not produce any derived data so those must be excluded
 		bool bHasCardsLODs = false;
@@ -1322,18 +1322,18 @@ bool UGroomAsset::IsFullyCached()
 		{
 			const FString CardsKeySuffix = GroomDerivedDataCacheUtils::BuildCardsDerivedDataKeySuffix(GroupIndex, HairGroupsLOD[GroupIndex].LODs, HairGroupsCards);
 			const FString CardsDDCKey = StrandsDDCKey + CardsKeySuffix;
-			bIsFullyCached &= GetDerivedDataCacheRef().CachedDataProbablyExists(*CardsDDCKey);
+			CacheKeys.Add(CardsDDCKey);
 		}
 
 		if (bHasMeshesLODs)
 		{
 			const FString MeshesKeySuffix = GroomDerivedDataCacheUtils::BuildMeshesDerivedDataKeySuffix(GroupIndex, HairGroupsLOD[GroupIndex].LODs, HairGroupsMeshes);
 			const FString MeshesDDCKey = GroomDerivedDataCacheUtils::BuildGroomDerivedDataKey(MeshesKeySuffix);
-			bIsFullyCached &= GetDerivedDataCacheRef().CachedDataProbablyExists(*MeshesDDCKey);
+			CacheKeys.Add(MeshesDDCKey);
 		}
 	}
 
-	return bIsFullyCached;
+	return GetDerivedDataCacheRef().AllCachedDataProbablyExists(CacheKeys);
 }
 
 FString UGroomAsset::BuildDerivedDataKeySuffix(uint32 GroupIndex, const FHairGroupsInterpolation& InterpolationSettings, const FHairGroupsLOD& LODSettings) const
