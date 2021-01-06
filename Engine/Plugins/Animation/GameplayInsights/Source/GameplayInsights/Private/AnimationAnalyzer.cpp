@@ -327,8 +327,9 @@ bool FAnimationAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventCon
 		uint32 NextSectionNameId = EventData.GetValue<uint32>("NextSectionNameId");
 		float Weight = EventData.GetValue<float>("Weight");
 		float DesiredWeight = EventData.GetValue<float>("DesiredWeight");
+		float Position = EventData.GetValue<float>("Position");
 		uint16 FrameCounter = EventData.GetValue<uint16>("FrameCounter");
-		AnimationProvider.AppendMontage(AnimInstanceId, Context.EventTime.AsSeconds(Cycle), MontageId, CurrentSectionNameId, NextSectionNameId, Weight, DesiredWeight, FrameCounter);
+		AnimationProvider.AppendMontage(AnimInstanceId, Context.EventTime.AsSeconds(Cycle), MontageId, CurrentSectionNameId, NextSectionNameId, Weight, DesiredWeight, Position, FrameCounter);
 		break;
 	}
 	case RouteId_Sync:

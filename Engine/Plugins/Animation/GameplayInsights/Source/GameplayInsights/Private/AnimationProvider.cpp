@@ -1077,7 +1077,7 @@ void FAnimationProvider::AppendNotify(uint64 InAnimInstanceId, double InTime, ui
 	Session.UpdateDurationSeconds(InTime);
 }
 
-void FAnimationProvider::AppendMontage(uint64 InAnimInstanceId, double InTime, uint64 InMontageId, uint32 InCurrentSectionNameId, uint32 InNextSectionNameId, float InWeight, float InDesiredWeight, uint16 InFrameCounter)
+void FAnimationProvider::AppendMontage(uint64 InAnimInstanceId, double InTime, uint64 InMontageId, uint32 InCurrentSectionNameId, uint32 InNextSectionNameId, float InWeight, float InDesiredWeight, float InPosition, uint16 InFrameCounter)
 {
 	Session.WriteAccessCheck();
 
@@ -1107,6 +1107,7 @@ void FAnimationProvider::AppendMontage(uint64 InAnimInstanceId, double InTime, u
 	Message.NextSectionNameId = InNextSectionNameId;
 	Message.Weight = InWeight;
 	Message.DesiredWeight = InDesiredWeight;
+	Message.Position = InPosition;
 	Message.FrameCounter = InFrameCounter;
 
 	TimelineStorage->Timeline->AppendEvent(InTime, Message);

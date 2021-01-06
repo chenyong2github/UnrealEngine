@@ -224,6 +224,7 @@ struct FAnimMontageMessage
 	uint32 NextSectionNameId = 0;
 	float Weight = 0.0f;
 	float DesiredWeight = 0.0f;
+	float Position = 0.0f;
 	uint16 FrameCounter = 0;
 };
 

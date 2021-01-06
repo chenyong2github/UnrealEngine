@@ -229,6 +229,7 @@ UE_TRACE_EVENT_BEGIN(Animation, Montage)
 	UE_TRACE_EVENT_FIELD(uint32, NextSectionNameId)
 	UE_TRACE_EVENT_FIELD(float, Weight)
 	UE_TRACE_EVENT_FIELD(float, DesiredWeight)
+	UE_TRACE_EVENT_FIELD(float, Position)
 	UE_TRACE_EVENT_FIELD(uint16, FrameCounter)
 UE_TRACE_EVENT_END()
 
@@ -1146,6 +1147,7 @@ void FAnimTrace::OutputMontage(UAnimInstance* InAnimInstance, const FAnimMontage
 			<< Montage.NextSectionNameId(NextSectionNameId)
 			<< Montage.Weight(InMontageInstance.GetWeight())
 			<< Montage.DesiredWeight(InMontageInstance.GetDesiredWeight())
+			<< Montage.Position(InMontageInstance.GetPosition())
 			<< Montage.FrameCounter(FObjectTrace::GetObjectWorldTickCounter(InAnimInstance));
 	}
 }

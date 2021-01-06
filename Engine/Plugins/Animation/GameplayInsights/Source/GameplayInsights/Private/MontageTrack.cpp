@@ -9,6 +9,7 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Insights/ViewModels/TimingEventSearch.h"
 #include "Insights/ViewModels/TooltipDrawState.h"
+#include "Templates/Invoke.h"
 #include "Modules/ModuleManager.h"
 #include "Insights/ViewModels/GraphTrackBuilder.h"
 #include "VariantTreeNode.h"
@@ -28,6 +29,14 @@ FMontageTrack::FMontageTrack(const FAnimationSharedData& InSharedData, uint64 In
 
 void FMontageTrack::AddAllSeries()
 {
+	struct FSeriesDescription
+	{
+		FText Name;
+		FText Description;
+		FMontageSeries::ESeriesType Type;
+		bool bEnabled;
+	};
+
 	const FAnimationProvider* AnimationProvider = SharedData.GetAnalysisSession().ReadProvider<FAnimationProvider>(FAnimationProvider::ProviderName);
 	const FGameplayProvider* GameplayProvider = SharedData.GetAnalysisSession().ReadProvider<FGameplayProvider>(FGameplayProvider::ProviderName);
 
@@ -39,59 +48,85 @@ void FMontageTrack::AddAllSeries()
 		{
 			if(!AllSeries.ContainsByPredicate([InMontageId](const TSharedPtr<FGraphSeries>& InSeries){ return StaticCastSharedPtr<FMontageSeries>(InSeries)->MontageId == InMontageId; }))
 			{
-				auto MakeCurveSeriesColor = [](uint64 InSeed, bool bInLine)
+				static const FSeriesDescription SeriesDescriptions[] =
 				{
-					FRandomStream Stream(GetTypeHash(InSeed));
-					const uint8 Hue = (uint8)(Stream.FRand() * 255.0f);
+					{
+						LOCTEXT("SeriesNameWeight", "Weight"),
+						LOCTEXT("SeriesDescWeight", "The final effective weight that this montage was played at"),
+						FMontageSeries::ESeriesType::Weight,
+						true
+					},
+					{
+						LOCTEXT("SeriesNamePosition", "Position"),
+						LOCTEXT("SeriesDescPosition", "The playback position of this montage"),
+						FMontageSeries::ESeriesType::Position,
+						false
+					},
+				};
+				auto MakeCurveSeriesColor = [](uint32 Hash, bool bInLine)
+				{
+					FRandomStream Stream(Hash);
+					const uint8 Hue = (uint8)Stream.RandHelper(255);
 					const uint8 SatVal = bInLine ? 196 : 128;
 					return FLinearColor::MakeFromHSV8(Hue, SatVal, SatVal);
 				};
 
-				TSharedRef<FMontageSeries> Series = MakeShared<FMontageSeries>();
-
 				const FObjectInfo& MontageInfo = GameplayProvider->GetObjectInfo(InMontageId);
 
-				Series->SetName(MontageInfo.Name);
-				Series->SetDescription(FText::Format(LOCTEXT("MontageTooltipFormat", "Weight for montage '{0}'"), FText::FromString(MontageInfo.Name)));
+				auto AddSeries = [this, GameplayProvider, MakeCurveSeriesColor](const FSeriesDescription& InSeriesDescription, const TCHAR* InAssetName, uint64 InMontageId)
+				{
+					FString SeriesName = FText::Format(LOCTEXT("SeriesNameFormat", "{0} - {1}"), FText::FromString(InAssetName), InSeriesDescription.Name).ToString();
 
-				const FLinearColor LineColor = MakeCurveSeriesColor(InMontageId, true);
-				const FLinearColor FillColor = MakeCurveSeriesColor(InMontageId, false);
-				Series->SetColor(LineColor, LineColor, FillColor);
+					TSharedRef<FMontageSeries> Series = MakeShared<FMontageSeries>();
 
-				Series->MontageId = InMontageId;
-				Series->SetVisibility(true);
-				Series->SetBaselineY(25.0f);
-				Series->SetScaleY(20.0f);
-				Series->EnableAutoZoom();
-				AllSeries.Add(Series);
+					Series->SetName(SeriesName);
+					Series->SetDescription(InSeriesDescription.Description.ToString());
+					uint32 Hash = GetTypeHash(SeriesName) % 255;
+					const FLinearColor LineColor = MakeCurveSeriesColor(Hash, true);
+					const FLinearColor FillColor = MakeCurveSeriesColor(Hash, false);
+					Series->SetColor(LineColor, LineColor, FillColor);
+
+					Series->MontageId = InMontageId;
+					Series->Type = InSeriesDescription.Type;
+					Series->SetVisibility(true);
+					Series->SetBaselineY(25.0f);
+					Series->SetScaleY(20.0f);
+					Series->EnableAutoZoom();
+					AllSeries.Add(Series);
+				};
+
+				for (const FSeriesDescription& SeriesDescription : SeriesDescriptions)
+				{
+					AddSeries(SeriesDescription, MontageInfo.Name, InMontageId);
+				}
 			}
 		});
 	}
 }
 
-bool FMontageTrack::UpdateSeriesBounds(FGameplayGraphSeries& InSeries, const FTimingTrackViewport& InViewport)
+template<typename ProjectionType>
+bool FMontageTrack::UpdateSeriesBoundsHelper(FMontageSeries& InSeries, const FTimingTrackViewport& InViewport, ProjectionType Projection)
 {
 	bool bFoundEvents = false;
 
 	const FAnimationProvider* AnimationProvider = SharedData.GetAnalysisSession().ReadProvider<FAnimationProvider>(FAnimationProvider::ProviderName);
 
-	if(AnimationProvider)
+	if (AnimationProvider)
 	{
 		TraceServices::FAnalysisSessionReadScope SessionReadScope(SharedData.GetAnalysisSession());
 
-		FMontageSeries& MontageSeries = *static_cast<FMontageSeries*>(&InSeries);
+		InSeries.CurrentMin = 0.0;
+		InSeries.CurrentMax = 0.0;
 
-		MontageSeries.CurrentMin = 0.0f;
-		MontageSeries.CurrentMax = 0.0f;
-
-		AnimationProvider->ReadMontageTimeline(GetGameplayTrack().GetObjectId(), [&bFoundEvents, &InViewport, &MontageSeries, &AnimationProvider](const FAnimationProvider::AnimMontageTimeline& InTimeline)
+		AnimationProvider->ReadMontageTimeline(GetGameplayTrack().GetObjectId(), [&bFoundEvents, &InViewport, &InSeries, &Projection](const FAnimationProvider::AnimMontageTimeline& InTimeline)
 		{
-			InTimeline.EnumerateEvents(InViewport.GetStartTime(), InViewport.GetEndTime(), [&bFoundEvents, &MontageSeries, &AnimationProvider](double InStartTime, double InEndTime, uint32 InDepth, const FAnimMontageMessage& InMessage)
+			InTimeline.EnumerateEvents(InViewport.GetStartTime(), InViewport.GetEndTime(), [&bFoundEvents, &InSeries, &Projection](double InStartTime, double InEndTime, uint32 InDepth, const FAnimMontageMessage& InMessage)
 			{
-				if(InMessage.MontageId == MontageSeries.MontageId)
+				if (InMessage.MontageId == InSeries.MontageId )
 				{
-					MontageSeries.CurrentMin = FMath::Min(MontageSeries.CurrentMin, InMessage.Weight);
-					MontageSeries.CurrentMax = FMath::Max(MontageSeries.CurrentMax, InMessage.Weight);
+					const float Value = Invoke(Projection, InMessage);
+					InSeries.CurrentMin = FMath::Min(InSeries.CurrentMin, Value);
+					InSeries.CurrentMax = FMath::Max(InSeries.CurrentMax, Value);
 					bFoundEvents = true;
 				}
 				return TraceServices::EEventEnumerate::Continue;
@@ -102,36 +137,63 @@ bool FMontageTrack::UpdateSeriesBounds(FGameplayGraphSeries& InSeries, const FTi
 	return bFoundEvents;
 }
 
-void FMontageTrack::UpdateSeries(FGameplayGraphSeries& InSeries, const FTimingTrackViewport& InViewport)
+
+bool FMontageTrack::UpdateSeriesBounds(FGameplayGraphSeries& InSeries, const FTimingTrackViewport& InViewport)
+{
+	FMontageSeries& MontageSeries = *static_cast<FMontageSeries*>(&InSeries);
+	switch (MontageSeries.Type)
+	{
+	case FMontageSeries::ESeriesType::Weight:
+		return UpdateSeriesBoundsHelper(MontageSeries, InViewport, &FAnimMontageMessage::Weight);
+	case FMontageSeries::ESeriesType::Position:
+		return UpdateSeriesBoundsHelper(MontageSeries, InViewport, &FAnimMontageMessage::Position);
+	}
+	return false;
+}
+
+template<typename ProjectionType>
+void FMontageTrack::UpdateSeriesHelper(FMontageSeries& InSeries, const FTimingTrackViewport& InViewport, ProjectionType Projection)
 {
 	const FAnimationProvider* AnimationProvider = SharedData.GetAnalysisSession().ReadProvider<FAnimationProvider>(FAnimationProvider::ProviderName);
 
-	if(AnimationProvider)
+	if (AnimationProvider)
 	{
 		TraceServices::FAnalysisSessionReadScope SessionReadScope(SharedData.GetAnalysisSession());
 
-		FMontageSeries& MontageSeries = *static_cast<FMontageSeries*>(&InSeries);
+		FGraphTrackBuilder Builder(*this, InSeries, InViewport);
 
-		FGraphTrackBuilder Builder(*this, MontageSeries, InViewport);
-
-		AnimationProvider->ReadMontageTimeline(GetGameplayTrack().GetObjectId(), [this, &Builder, &InViewport, &MontageSeries, &AnimationProvider](const FAnimationProvider::AnimMontageTimeline& InTimeline)
+		AnimationProvider->ReadMontageTimeline(GetGameplayTrack().GetObjectId(), [this, &AnimationProvider, &Builder, &InViewport, &InSeries, &Projection](const FAnimationProvider::AnimMontageTimeline& InTimeline)
 		{
 			uint16 FrameCounter = 0;
 			uint16 LastFrameWithMontage = 0;
 
-			InTimeline.EnumerateEvents(InViewport.GetStartTime(), InViewport.GetEndTime(), [this, &FrameCounter, &LastFrameWithMontage, &Builder, &MontageSeries, &AnimationProvider](double InStartTime, double InEndTime, uint32 InDepth, const FAnimMontageMessage& InMessage)
+			InTimeline.EnumerateEvents(InViewport.GetStartTime(), InViewport.GetEndTime(), [this, &FrameCounter, &LastFrameWithMontage, &Builder, &InSeries, &Projection](double InStartTime, double InEndTime, uint32 InDepth, const FAnimMontageMessage& InMessage)
 			{
 				FrameCounter = InMessage.FrameCounter;
 
-				if(InMessage.MontageId == MontageSeries.MontageId)
+				if (InMessage.MontageId == InSeries.MontageId)
 				{
-					Builder.AddEvent(InStartTime, InEndTime - InStartTime, InMessage.Weight, LastFrameWithMontage == FrameCounter - 1);
+					Builder.AddEvent(InStartTime, InEndTime - InStartTime, Invoke(Projection, InMessage), LastFrameWithMontage == FrameCounter - 1);
 
-					LastFrameWithMontage = FrameCounter;
+					LastFrameWithMontage = InMessage.FrameCounter;
 				}
 				return TraceServices::EEventEnumerate::Continue;
 			});
 		});
+	}
+}
+
+void FMontageTrack::UpdateSeries(FGameplayGraphSeries& InSeries, const FTimingTrackViewport& InViewport)
+{
+	FMontageSeries& MontageSeries = *static_cast<FMontageSeries*>(&InSeries);
+	switch (MontageSeries.Type)
+	{
+	case FMontageSeries::ESeriesType::Weight:
+		UpdateSeriesHelper(MontageSeries, InViewport, &FAnimMontageMessage::Weight);
+		break;
+	case FMontageSeries::ESeriesType::Position:
+		UpdateSeriesHelper(MontageSeries, InViewport, &FAnimMontageMessage::Position);
+		break;
 	}
 }
 
@@ -150,6 +212,7 @@ void FMontageTrack::InitTooltip(FTooltipDrawState& Tooltip, const ITimingEvent& 
 		Tooltip.AddNameValueTextLine(LOCTEXT("EventTime", "Time").ToString(), FText::AsNumber(InFoundStartTime).ToString());
 		Tooltip.AddNameValueTextLine(LOCTEXT("EventWeight", "Weight").ToString(), FText::AsNumber(GraphTrackEvent.GetValue()).ToString());
 		Tooltip.AddNameValueTextLine(LOCTEXT("EventDesiredWeight", "Desired Weight").ToString(), FText::AsNumber(InMessage.DesiredWeight).ToString());
+		Tooltip.AddNameValueTextLine(LOCTEXT("EventPosition", "Position").ToString(), FText::AsNumber(InMessage.Position).ToString()); 
 
 		{
 			TraceServices::FAnalysisSessionReadScope SessionReadScope(SharedData.GetAnalysisSession());
