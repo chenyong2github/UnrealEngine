@@ -14,9 +14,11 @@
 #include "UObject/WeakObjectPtr.h"
 #include "Misc/CoreMisc.h"
 #include "Async/TaskGraphInterfaces.h"
+
 #include "EngineBaseTypes.generated.h"
 
 class UActorComponent;
+struct FSlateBrush;
 struct FTickContext;
 
 //
@@ -990,6 +992,7 @@ public:
 	 * Get the display name associated with a particular EViewModeIndex
 	 */
 	static FText GetViewModeDisplayName(const EViewModeIndex ViewModeIndex);
+	static const FSlateBrush* GetViewModeDisplayIcon(const EViewModeIndex ViewModeIndex);
 };
 
 

@@ -133,6 +133,13 @@ private:
 	 */
 	FText GetCameraMenuLabel() const;
 
+	/* Returns the label icon for the Camera tool bar menu, which changes depending on viewport type 
+	 *
+	 * @return	Label icon to use for this menu label
+	 *
+	 */
+	const FSlateBrush* GetCameraMenuLabelIcon() const;
+
 	/** Called by the FOV slider in the perspective viewport to get the FOV value */
 	TOptional<float> OnGetFOVValue() const;
 	/** Called when the FOV slider is adjusted in the perspective viewport */

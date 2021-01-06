@@ -26,6 +26,7 @@ void SEditorViewportViewMenu::Construct( const FArguments& InArgs, TSharedRef<SE
 			.ParentToolBar( InParentToolBar)
 			.Cursor( EMouseCursor::Default )
 			.Label(this, &SEditorViewportViewMenu::GetViewMenuLabel)
+			.LabelIcon(this, &SEditorViewportViewMenu::GetViewMenuLabelIcon)
 			.OnGetMenuContent( this, &SEditorViewportViewMenu::GenerateViewMenuContent )
 	);
 }
@@ -52,6 +53,22 @@ FText SEditorViewportViewMenu::GetViewMenuLabel() const
 	}
 
 	return Label;
+}
+
+const FSlateBrush* SEditorViewportViewMenu::GetViewMenuLabelIcon() const
+{
+
+	TSharedPtr< SEditorViewport > PinnedViewport = Viewport.Pin();
+	if( PinnedViewport.IsValid() )
+	{
+		const TSharedPtr<FEditorViewportClient> ViewportClient = PinnedViewport->GetViewportClient();
+		check(ViewportClient.IsValid());
+		const EViewModeIndex ViewMode = ViewportClient->GetViewMode();
+
+		return UViewModeUtils::GetViewModeDisplayIcon(ViewMode);
+	}
+
+	return FStyleDefaults::GetNoBrush();
 }
 
 void SEditorViewportViewMenu::RegisterMenus() const

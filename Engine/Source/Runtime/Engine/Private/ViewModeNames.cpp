@@ -176,4 +176,178 @@ FText UViewModeUtils::GetViewModeDisplayName(const EViewModeIndex ViewModeIndex)
 	return ViewModeName;
 }
 
+// Icons 
+TArray<const FSlateBrush*> FillViewModeDisplayIcons()
+{
+	const FSlateBrush* IconBrush = nullptr;
+
+	// Allocate size
+	TArray<const FSlateBrush*> ViewModeDisplayIcons;
+	ViewModeDisplayIcons.Reserve(VMI_Unknown);
+
+	// Fill ViewModeIndex, VMI_Unknown+1 to include VMI_Unknown too
+	for (int32 Index = 0; Index < VMI_Unknown + 1; ++Index)
+	{
+		const EViewModeIndex ViewModeIndex = (EViewModeIndex)Index;
+
+		if (ViewModeIndex == VMI_BrushWireframe)
+		{
+			ViewModeDisplayIcons.Emplace(FAppStyle::Get().GetBrush("EditorViewport.WireframeMode"));
+		}
+		// Wireframe w/ BSP
+		else if (ViewModeIndex == VMI_Wireframe)
+		{
+			ViewModeDisplayIcons.Emplace(FAppStyle::Get().GetBrush("EditorViewport.WireframeMode"));
+		}
+		// Unlit
+		else if (ViewModeIndex == VMI_Unlit)
+		{
+			ViewModeDisplayIcons.Emplace(FAppStyle::Get().GetBrush("EditorViewport.UnlitMode"));
+		}
+		// Lit
+		else if (ViewModeIndex == VMI_Lit)
+		{
+			ViewModeDisplayIcons.Emplace(FAppStyle::Get().GetBrush("EditorViewport.LitMode"));
+		}
+		else if (ViewModeIndex == VMI_Lit_DetailLighting)
+		{
+			ViewModeDisplayIcons.Emplace(FAppStyle::Get().GetBrush("EditorViewport.DetailLightingMode"));
+		}
+		// Lit wo/ materials
+		else if (ViewModeIndex == VMI_LightingOnly)
+		{
+			ViewModeDisplayIcons.Emplace(FAppStyle::Get().GetBrush("EditorViewport.LightingOnlyMode"));
+		}
+		// Colored according to light count
+		else if (ViewModeIndex == VMI_LightComplexity)
+		{
+			ViewModeDisplayIcons.Emplace(FAppStyle::Get().GetBrush("EditorViewport.LightComplexityMode"));
+		}
+		// Colored according to shader complexity
+		else if (ViewModeIndex == VMI_ShaderComplexity)
+		{
+			ViewModeDisplayIcons.Emplace(FAppStyle::Get().GetBrush("EditorViewport.ShaderComplexityMode"));
+		}
+		// Colored according to world-space LightMap texture density
+		else if (ViewModeIndex == VMI_LightmapDensity)
+		{
+			ViewModeDisplayIcons.Emplace(FAppStyle::Get().GetBrush("EditorViewport.LightmapDensityMode"));
+		}
+		// Colored according to light count - showing lightmap texel density on texture mapped objects
+		else if (ViewModeIndex == VMI_LitLightmapDensity)
+		{
+			ViewModeDisplayIcons.Emplace(FAppStyle::Get().GetBrush("EditorViewport.LitLightmapDensityMode"));
+		}
+		else if (ViewModeIndex == VMI_ReflectionOverride)
+		{
+			ViewModeDisplayIcons.Emplace(FAppStyle::Get().GetBrush("EditorViewport.ReflectionOverrideMode"));
+		}
+		else if (ViewModeIndex == VMI_VisualizeBuffer)
+		{
+			ViewModeDisplayIcons.Emplace(FAppStyle::Get().GetBrush("EditorViewport.VisualizeBufferMode"));
+		}
+		//	VMI_VoxelLighting = 13,
+	
+		// Colored according to stationary light overlap
+		else if (ViewModeIndex == VMI_StationaryLightOverlap)
+		{
+			ViewModeDisplayIcons.Emplace(FAppStyle::Get().GetBrush("EditorViewport.StationaryLightOverlapMode"));
+		}
+	
+		else if (ViewModeIndex == VMI_CollisionPawn)
+		{
+			ViewModeDisplayIcons.Emplace(FAppStyle::Get().GetBrush("EditorViewport.CollisionPawn"));
+		}
+		else if (ViewModeIndex == VMI_CollisionVisibility)
+		{
+			ViewModeDisplayIcons.Emplace(FAppStyle::Get().GetBrush("EditorViewport.CollisionVisibility"));
+		}
+		//VMI_UNUSED = 17,
+		// Colored according to the current LOD index
+		else if (ViewModeIndex == VMI_LODColoration)
+		{
+			ViewModeDisplayIcons.Emplace(FAppStyle::Get().GetBrush("EditorViewport.LOD"));
+		}
+		// Colored according to the quad coverage
+		else if (ViewModeIndex == VMI_QuadOverdraw)
+		{
+			ViewModeDisplayIcons.Emplace(FAppStyle::Get().GetBrush("EditorViewport.QuadOverdrawMode"));
+		}
+		// Visualize the accuracy of the primitive distance computed for texture streaming
+		else if (ViewModeIndex == VMI_PrimitiveDistanceAccuracy)
+		{
+			ViewModeDisplayIcons.Emplace(FAppStyle::Get().GetBrush("EditorViewport.TexStreamAccPrimitiveDistanceMode"));
+		}
+		// Visualize the accuracy of the mesh UV densities computed for texture streaming
+		else if (ViewModeIndex == VMI_MeshUVDensityAccuracy)
+		{
+			ViewModeDisplayIcons.Emplace(FAppStyle::Get().GetBrush("EditorViewport.TexStreamAccMeshUVDensityMode"));
+		}
+		// Colored according to shader complexity, including quad overdraw
+		else if (ViewModeIndex == VMI_ShaderComplexityWithQuadOverdraw)
+		{
+			ViewModeDisplayIcons.Emplace(FAppStyle::Get().GetBrush("EditorViewport.ShaderComplexityWithQuadOverdrawMode"));
+		}
+		// Colored according to the current HLOD index
+		else if (ViewModeIndex == VMI_HLODColoration)
+		{
+			ViewModeDisplayIcons.Emplace(FAppStyle::Get().GetBrush("EditorViewport.LOD"));
+		}
+		// Group item for LOD and HLOD coloration
+		else if (ViewModeIndex == VMI_GroupLODColoration)
+		{
+			ViewModeDisplayIcons.Emplace(FAppStyle::Get().GetBrush("EditorViewport.LOD"));
+		}
+		// Visualize the accuracy of the material texture scales used for texture streaming
+		else if (ViewModeIndex == VMI_MaterialTextureScaleAccuracy)
+		{
+			ViewModeDisplayIcons.Emplace(FAppStyle::Get().GetBrush("EditorViewport.TexStreamAccMaterialTextureScaleMode"));
+		}
+		// Compare the required texture resolution to the actual resolution
+		else if (ViewModeIndex == VMI_RequiredTextureResolution)
+		{
+			ViewModeDisplayIcons.Emplace(FAppStyle::Get().GetBrush("EditorViewport.RequiredTextureResolutionMode"));
+		}
+	
+		// Ray tracing modes
+		// Run path tracing pipeline
+		else if (ViewModeIndex == VMI_PathTracing)
+		{
+			ViewModeDisplayIcons.Emplace(FAppStyle::Get().GetBrush("EditorViewport.PathTracingMode"));
+		}
+		// Run ray tracing debug pipeline 
+		else if (ViewModeIndex == VMI_RayTracingDebug)
+		{
+			ViewModeDisplayIcons.Emplace(FAppStyle::Get().GetBrush("EditorViewport.RayTracingDebugMode"));
+		}
+
+		// VMI_Max
+		else if (ViewModeIndex == VMI_Max)
+		{
+			ViewModeDisplayIcons.Emplace(FAppStyle::Get().GetBrush("EditorViewport.MaxMode"));
+		}
+		// VMI_Unknown
+		else 
+		{
+			ViewModeDisplayIcons.Emplace(FStyleDefaults::GetNoBrush());
+		}
+	}
+
+	return ViewModeDisplayIcons;
+}
+
+static TArray<const FSlateBrush*> GViewModeDisplayIcons;
+
+const FSlateBrush* UViewModeUtils::GetViewModeDisplayIcon(const EViewModeIndex ViewModeIndex) 
+{
+	static bool IconsInitialized = false;
+	if (!IconsInitialized)
+	{
+		GViewModeDisplayIcons = FillViewModeDisplayIcons();
+		IconsInitialized = true;
+	}
+
+	return GViewModeDisplayIcons[ViewModeIndex];
+}
+
 #undef LOCTEXT_NAMESPACE

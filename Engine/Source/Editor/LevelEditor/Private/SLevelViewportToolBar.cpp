@@ -169,7 +169,6 @@ void SLevelViewportToolBar::Construct( const FArguments& InArgs )
 	FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>(TEXT("LevelEditor"));
 
 	const FMargin ToolbarSlotPadding(4.0f, 1.0f);
-	const FMargin ToolbarButtonPadding(4.0f, 0.0f);
 
 	ChildSlot
 	[
@@ -200,6 +199,7 @@ void SLevelViewportToolBar::Construct( const FArguments& InArgs )
 					SNew( SEditorViewportToolbarMenu )
 					.ParentToolBar( SharedThis( this ) )
 					.Label( this, &SLevelViewportToolBar::GetCameraMenuLabel )
+					.LabelIcon( this, &SLevelViewportToolBar::GetCameraMenuLabelIcon )
 					.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("EditorViewportToolBar.CameraMenu")))
 					.OnGetMenuContent( this, &SLevelViewportToolBar::GenerateCameraMenu ) 
 				]
@@ -288,7 +288,7 @@ void SLevelViewportToolBar::Construct( const FArguments& InArgs )
 				+ SHorizontalBox::Slot()
 				.HAlign(HAlign_Right)
 				.AutoWidth()
-				.Padding(ToolbarButtonPadding)
+				.Padding(ToolbarSlotPadding)
 				[
 					//The Maximize/Minimize button is only displayed when not in Immersive mode.
 					SNew(SEditorViewportToolBarButton)
@@ -303,7 +303,7 @@ void SLevelViewportToolBar::Construct( const FArguments& InArgs )
 				+ SHorizontalBox::Slot()
 				.HAlign(HAlign_Right)
 				.AutoWidth()
-				.Padding(ToolbarButtonPadding)
+				.Padding(ToolbarSlotPadding)
 				[
 					//The Restore from Immersive' button is only displayed when the editor is in Immersive mode.
 					SNew(SEditorViewportToolBarButton)
@@ -344,6 +344,17 @@ FText SLevelViewportToolBar::GetCameraMenuLabel() const
 	}
 
 	return LOCTEXT("CameraMenuTitle_Default", "Camera");
+}
+
+const FSlateBrush* SLevelViewportToolBar::GetCameraMenuLabelIcon() const
+{
+	TSharedPtr< SLevelViewport > PinnedViewport( Viewport.Pin() );
+	if( PinnedViewport.IsValid() )
+	{
+		return GetCameraMenuLabelIconFromViewportType(PinnedViewport->GetLevelViewportClient().ViewportType );
+	}
+
+	return FStyleDefaults::GetNoBrush();
 }
 
 FText SLevelViewportToolBar::GetDevicePreviewMenuLabel() const

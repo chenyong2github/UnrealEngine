@@ -17,9 +17,9 @@ void SViewportToolBarComboMenu::Construct( const FArguments& InArgs )
 
 	EMultiBlockLocation::Type BlockLocation = InArgs._BlockLocation;
 
-	const FButtonStyle& ButtonStyle = ToolBarStyle.ButtonStyle;
-	const FCheckBoxStyle& CheckBoxStyle = ToolBarStyle.ToggleButton;
-	const FTextBlockStyle& LabelStyle = ToolBarStyle.LabelStyle;
+	const FButtonStyle& ButtonStyle = FAppStyle::Get().GetWidgetStyle<FButtonStyle>("EditorViewportToolBar.ComboMenu.ButtonStyle");
+	const FCheckBoxStyle& CheckBoxStyle = FAppStyle::Get().GetWidgetStyle<FCheckBoxStyle>("EditorViewportToolBar.ComboMenu.ToggleButton");
+	const FTextBlockStyle& LabelStyle = FAppStyle::Get().GetWidgetStyle<FTextBlockStyle>("EditorViewportToolBar.ComboMenu.LabelStyle");
 
 	const FSlateIcon& Icon = InArgs._Icon.Get();
 
@@ -28,7 +28,7 @@ void SViewportToolBarComboMenu::Construct( const FArguments& InArgs )
 	TSharedPtr<SCheckBox> ToggleControl;
 	{
 		ToggleControl = SNew(SCheckBox)
-		.Padding(ToolBarStyle.CheckBoxPadding)
+		.Padding(0.f)
 		.Style(&CheckBoxStyle)
 		.OnCheckStateChanged(InArgs._OnCheckStateChanged)
 		.ToolTipText(InArgs._ToggleButtonToolTip)
@@ -49,7 +49,7 @@ void SViewportToolBarComboMenu::Construct( const FArguments& InArgs )
 		TSharedRef<SWidget> ButtonContents =
 			SNew(SButton)
 			.ButtonStyle(&ButtonStyle)
-			.ContentPadding( FMargin( 2.0f, 0.0f ) )
+			.ContentPadding(0.f)
 			.ToolTipText(InArgs._MenuButtonToolTip)
 			.OnClicked(this, &SViewportToolBarComboMenu::OnMenuClicked)
 			[
@@ -79,18 +79,26 @@ void SViewportToolBarComboMenu::Construct( const FArguments& InArgs )
 
 	ChildSlot
 	[
-		SNew(SHorizontalBox)
-		+SHorizontalBox::Slot()
-		.VAlign(VAlign_Center)
-		.AutoWidth()
+
+		SNew(SBorder)
+		.Padding(FMargin(6.f, 0.f, 6.f, 0.f))
+		.BorderImage(FAppStyle::Get().GetBrush("EditorViewportToolBar.Group"))
 		[
-			ToggleControl.ToSharedRef()
-		]
-		+SHorizontalBox::Slot()
-		.VAlign(VAlign_Center)
-		.AutoWidth()
-		[
-			MenuAnchor.ToSharedRef()
+			SNew(SHorizontalBox)
+
+			+SHorizontalBox::Slot()
+			.VAlign(VAlign_Center)
+			.AutoWidth()
+			[
+				ToggleControl.ToSharedRef()
+			]
+
+			+SHorizontalBox::Slot()
+			.VAlign(VAlign_Center)
+			.AutoWidth()
+			[
+				MenuAnchor.ToSharedRef()
+			]
 		]
 	];
 }

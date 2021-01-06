@@ -178,6 +178,7 @@ TSharedRef< SWidget > STransformViewportToolBar::MakeTransformToolBar( const TSh
 
 	ToolbarBuilder.BeginSection("Transform");
 	{
+		ToolbarBuilder.BeginBlockGroup();
 		// Move Mode
 		static FName TranslateModeName = FName(TEXT("TranslateMode"));
 		ToolbarBuilder.AddToolBarButton( FEditorViewportCommands::Get().TranslateMode, NAME_None, TAttribute<FText>(), TAttribute<FText>(), TAttribute<FSlateIcon>(), TranslateModeName );
@@ -199,6 +200,7 @@ TSharedRef< SWidget > STransformViewportToolBar::MakeTransformToolBar( const TSh
 		ToolbarBuilder.AddToolBarButton( FEditorViewportCommands::Get().ScaleMode, NAME_None, TAttribute<FText>(), TAttribute<FText>(), TAttribute<FSlateIcon>(), ScaleModeName );
 
 
+		ToolbarBuilder.EndBlockGroup();
 		ToolbarBuilder.AddSeparator();
 
 		ToolbarBuilder.SetIsFocusable( true );
@@ -211,9 +213,6 @@ TSharedRef< SWidget > STransformViewportToolBar::MakeTransformToolBar( const TSh
 										FName(TEXT("CycleTransformGizmoCoordSystem"))
 										);
 	}
-
-	// Add a bit of spacing before the snapping section
-	ToolbarBuilder.AddWidget(SNew(SSpacer).Size(FVector2D(15.0f, 1.0f)));
 
 	ToolbarBuilder.EndSection();
 

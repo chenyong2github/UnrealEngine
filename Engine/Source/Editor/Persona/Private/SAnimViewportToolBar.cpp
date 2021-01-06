@@ -180,7 +180,7 @@ void SAnimViewportToolBar::Construct(const FArguments& InArgs, TSharedPtr<class 
 	}
 
 	const FMargin ToolbarSlotPadding(4.0f, 1.0f);
-	const FMargin ToolbarButtonPadding(4.0f, 0.0f);
+	const FMargin ToolbarButtonPadding(4.0f, 1.0f);
 
 	TSharedRef<SHorizontalBox> LeftToolbar = SNew(SHorizontalBox)
 		+SHorizontalBox::Slot()
@@ -204,6 +204,7 @@ void SAnimViewportToolBar::Construct(const FArguments& InArgs, TSharedPtr<class 
 			.ParentToolBar(SharedThis(this))
 			.Cursor(EMouseCursor::Default)
 			.Label(this, &SAnimViewportToolBar::GetCameraMenuLabel)
+			.LabelIcon( this, &SAnimViewportToolBar::GetCameraMenuLabelIcon )
 			.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("EditorViewportToolBar.CameraMenu")))
 			.OnGetMenuContent(this, &SAnimViewportToolBar::GenerateViewportTypeMenu)
 		]
@@ -1064,6 +1065,17 @@ FText SAnimViewportToolBar::GetCameraMenuLabel() const
 	}
 
 	return LOCTEXT("Viewport_Default", "Camera");
+}
+
+const FSlateBrush* SAnimViewportToolBar::GetCameraMenuLabelIcon() const
+{
+	TSharedPtr< SAnimationEditorViewportTabBody > PinnedViewport( Viewport.Pin() );
+	if( PinnedViewport.IsValid() )
+	{
+		return GetCameraMenuLabelIconFromViewportType(PinnedViewport->GetLevelViewportClient().ViewportType );
+	}
+
+	return FAppStyle::Get().GetBrush("NoBrush");
 }
 
 TOptional<float> SAnimViewportToolBar::OnGetFOVValue() const
