@@ -159,8 +159,11 @@ namespace UnrealBuildTool
 		/// <param name="TargetDescriptor">The target being built</param>
 		/// <param name="Makefile">Makefile for the targe</param>
 		/// <param name="BuildConfiguration">Global build configuration</param>
-		public static void Setup(TargetDescriptor TargetDescriptor, TargetMakefile Makefile, BuildConfiguration BuildConfiguration)
+		/// <returns>Collection of all the patched file locations or null</returns>
+		public static Dictionary<FileReference, FileReference> Setup(TargetDescriptor TargetDescriptor, TargetMakefile Makefile, BuildConfiguration BuildConfiguration)
 		{
+			Dictionary<FileReference, FileReference> PatchedOldLocationToNewLocation = null;
+
 			// Get the hot-reload mode
 			if (TargetDescriptor.HotReloadMode == HotReloadMode.LiveCoding)
 			{
@@ -207,8 +210,9 @@ namespace UnrealBuildTool
 				}
 
 				// If we want a specific suffix on any modules, apply that now. We'll track the outputs later, but the suffix has to be forced (and is always out of date if it doesn't exist).
-				HotReload.PatchActionGraphWithNames(TargetDescriptor.HotReloadModuleNameToSuffix, Makefile);
+				PatchedOldLocationToNewLocation = HotReload.PatchActionGraphWithNames(TargetDescriptor.HotReloadModuleNameToSuffix, Makefile);
 			}
+			return PatchedOldLocationToNewLocation;
 		}
 
 		/// <summary>
@@ -468,8 +472,9 @@ namespace UnrealBuildTool
 		/// <param name="Makefile">Makefile generated for this target</param>
 		/// <param name="PrerequisiteActions">The actions to execute</param>
 		/// <param name="TargetActionsToExecute">Actions to execute for this target</param>
+		/// <param name="InitialPatchedOldLocationToNewLocation">Collection of all the renamed as part of module reload requests.  Can be null</param>
 		/// <returns>Set of actions to execute</returns>
-		public static List<Action> PatchActionsForTarget(BuildConfiguration BuildConfiguration, TargetDescriptor TargetDescriptor, TargetMakefile Makefile, List<Action> PrerequisiteActions, List<Action> TargetActionsToExecute)
+		public static List<Action> PatchActionsForTarget(BuildConfiguration BuildConfiguration, TargetDescriptor TargetDescriptor, TargetMakefile Makefile, List<Action> PrerequisiteActions, List<Action> TargetActionsToExecute, Dictionary<FileReference, FileReference> InitialPatchedOldLocationToNewLocation)
 		{
 			// Get the dependency history
 			CppDependencyCache CppDependencies = CppDependencyCache.CreateHierarchy(TargetDescriptor.ProjectFile, TargetDescriptor.Name, TargetDescriptor.Platform, TargetDescriptor.Configuration, Makefile.TargetType, TargetDescriptor.Architecture);
@@ -610,40 +615,17 @@ namespace UnrealBuildTool
 				}
 
 				// Update the action graph with these new paths
-				HotReload.PatchActionGraph(PrerequisiteActions, OldLocationToNewLocation);
+				Dictionary<FileReference, FileReference> PatchedOldLocationToNewLocation = HotReload.PatchActionGraph(PrerequisiteActions, OldLocationToNewLocation);
 
 				// Get a new list of actions to execute now that the graph has been modified
 				TargetActionsToExecute = ActionGraph.GetActionsToExecute(PrerequisiteActions, CppDependencies, History, BuildConfiguration.bIgnoreOutdatedImportLibraries);
 
-				// Build a mapping of all file items to their original
-				Dictionary<FileReference, FileReference> HotReloadFileToOriginalFile = new Dictionary<FileReference, FileReference>();
-				foreach (KeyValuePair<FileReference, FileReference> Pair in HotReloadState.OriginalFileToHotReloadFile)
+				// Record all of the updated locations directly associated with actions.
+				if (InitialPatchedOldLocationToNewLocation != null)
 				{
-					HotReloadFileToOriginalFile[Pair.Value] = Pair.Key;
+					HotReloadState.CaptureActions(TargetActionsToExecute, InitialPatchedOldLocationToNewLocation);
 				}
-				foreach (KeyValuePair<FileReference, FileReference> Pair in OldLocationToNewLocation)
-				{
-					FileReference OriginalLocation;
-					if (!HotReloadFileToOriginalFile.TryGetValue(Pair.Key, out OriginalLocation))
-					{
-						OriginalLocation = Pair.Key;
-					}
-					HotReloadFileToOriginalFile[Pair.Value] = OriginalLocation;
-				}
-
-				// Now filter out all the hot reload files and update the state
-				foreach (Action Action in TargetActionsToExecute)
-				{
-					foreach (FileItem ProducedItem in Action.ProducedItems)
-					{
-						FileReference OriginalLocation;
-						if (HotReloadFileToOriginalFile.TryGetValue(ProducedItem.Location, out OriginalLocation))
-						{
-							HotReloadState.OriginalFileToHotReloadFile[OriginalLocation] = ProducedItem.Location;
-							HotReloadState.TemporaryFiles.Add(ProducedItem.Location);
-						}
-					}
-				}
+				HotReloadState.CaptureActions(TargetActionsToExecute, PatchedOldLocationToNewLocation);
 
 				// Increment the suffix for the next iteration
 				if (TargetActionsToExecute.Count > 0)
@@ -843,7 +825,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Patch the action graph for hot reloading, mapping files according to the given dictionary.
 		/// </summary>
-		public static void PatchActionGraph(IEnumerable<Action> Actions, Dictionary<FileReference, FileReference> OriginalFileToHotReloadFile)
+		public static Dictionary<FileReference, FileReference> PatchActionGraph(IEnumerable<Action> Actions, Dictionary<FileReference, FileReference> OriginalFileToHotReloadFile)
 		{
 			// Gather all of the response files for link actions.  We're going to need to patch 'em up after we figure out new
 			// names for all of the output files and import libraries
@@ -1137,6 +1119,13 @@ namespace UnrealBuildTool
 					}
 				}
 			}
+
+			Dictionary<FileReference, FileReference> PatchedOldLocationToNewLocation = new Dictionary<FileReference, FileReference>();
+			foreach (KeyValuePair<FileItem, FileItem> Item in AffectedOriginalFileItemAndNewFileItemMap)
+			{
+				PatchedOldLocationToNewLocation.Add(Item.Key.Location, Item.Value.Location);
+			}
+			return PatchedOldLocationToNewLocation;
 		}
 
 		/// <summary>
@@ -1144,12 +1133,14 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="ModuleNameToSuffix">Map of module name to suffix</param>
 		/// <param name="Makefile">Makefile for the target being built</param>
-		public static void PatchActionGraphWithNames(Dictionary<string, int> ModuleNameToSuffix, TargetMakefile Makefile)
+		/// <returns>Collection of file names patched.  Can be null.</returns>
+		public static Dictionary<FileReference, FileReference> PatchActionGraphWithNames(Dictionary<string, int> ModuleNameToSuffix, TargetMakefile Makefile)
 		{
-			if(ModuleNameToSuffix.Count > 0)
+			Dictionary<FileReference, FileReference> PatchedOldLocationToNewLocation = null;
+			if (ModuleNameToSuffix.Count > 0)
 			{
 				Dictionary<FileReference, FileReference> OldLocationToNewLocation = new Dictionary<FileReference, FileReference>();
-				foreach(string HotReloadModuleName in Makefile.HotReloadModuleNames)
+				foreach (string HotReloadModuleName in Makefile.HotReloadModuleNames)
 				{
 					int ModuleSuffix;
 					if(ModuleNameToSuffix.TryGetValue(HotReloadModuleName, out ModuleSuffix))
@@ -1163,8 +1154,9 @@ namespace UnrealBuildTool
 						}
 					}
 				}
-				HotReload.PatchActionGraph(Makefile.Actions, OldLocationToNewLocation);
+				PatchedOldLocationToNewLocation = HotReload.PatchActionGraph(Makefile.Actions, OldLocationToNewLocation);
 			}
+			return PatchedOldLocationToNewLocation;
 		}
 
 		/// <summary>

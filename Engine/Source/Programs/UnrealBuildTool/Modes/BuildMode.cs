@@ -307,9 +307,10 @@ namespace UnrealBuildTool
 				}
 
 				// Clean up any previous hot reload runs, and reapply the current state if it's already active
+				Dictionary<FileReference, FileReference> InitialPatchedOldLocationToNewLocation = null;
 				for (int TargetIdx = 0; TargetIdx < TargetDescriptors.Count; TargetIdx++)
 				{
-					HotReload.Setup(TargetDescriptors[TargetIdx], Makefiles[TargetIdx], BuildConfiguration);
+					InitialPatchedOldLocationToNewLocation = HotReload.Setup(TargetDescriptors[TargetIdx], Makefiles[TargetIdx], BuildConfiguration);
 				}
 
 				// Merge the action graphs together
@@ -396,7 +397,7 @@ namespace UnrealBuildTool
 						}
 						else
 						{
-							MergedActionsToExecute = HotReload.PatchActionsForTarget(BuildConfiguration, TargetDescriptors[Idx], Makefiles[Idx], PrerequisiteActions, MergedActionsToExecute);
+							MergedActionsToExecute = HotReload.PatchActionsForTarget(BuildConfiguration, TargetDescriptors[Idx], Makefiles[Idx], PrerequisiteActions, MergedActionsToExecute, InitialPatchedOldLocationToNewLocation);
 						}
 						HotReloadTargetIdx = Idx;
 					}
