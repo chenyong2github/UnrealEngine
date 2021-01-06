@@ -494,6 +494,29 @@ public:
 		return bResult;
 	}
 
+	virtual TBitArray<> CachedDataProbablyExistsBatch(TConstArrayView<FString> CacheKeys) override
+	{
+		DDC_SCOPE_CYCLE_COUNTER(DDC_CachedDataProbablyExistsBatch);
+		TBitArray<> Result;
+		if (CacheKeys.Num())
+		{
+			INC_DWORD_STAT(STAT_DDC_NumExist);
+			STAT(double ThisTime = 0);
+			{
+				SCOPE_SECONDS_COUNTER(ThisTime);
+				Result = FDerivedDataBackend::Get().GetRoot().CachedDataProbablyExistsBatch(CacheKeys);
+				check(Result.Num() == CacheKeys.Num());
+			}
+			INC_FLOAT_STAT_BY(STAT_DDC_ExistTime, (float)ThisTime);
+		}
+		return Result;
+	}
+
+	virtual bool AllCachedDataProbablyExists(TConstArrayView<FString> CacheKeys) override
+	{
+		return CacheKeys.Num() == 0 || CachedDataProbablyExistsBatch(CacheKeys).CountSetBits() == CacheKeys.Num();
+	}
+
 	void NotifyBootComplete() override
 	{
 		DDC_SCOPE_CYCLE_COUNTER(DDC_NotifyBootComplete);

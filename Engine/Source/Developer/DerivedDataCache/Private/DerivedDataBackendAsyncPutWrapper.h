@@ -84,6 +84,14 @@ public:
 	virtual bool CachedDataProbablyExists(const TCHAR* CacheKey) override;
 
 	/**
+	 * Synchronous test for the existence of multiple cache items
+	 *
+	 * @param	CacheKeys	Alphanumeric+underscore key of the cache items
+	 * @return				A bit array with bits indicating whether the data for the corresponding key will probably be found
+	 */
+	virtual TBitArray<> CachedDataProbablyExistsBatch(TConstArrayView<FString> CacheKeys) override;
+
+	/**
 	 * Attempts to make sure the cached data will be available as optimally as possible. This is left up to the implementation to do
 	 * @param	CacheKey	Alphanumeric+underscore key of this cache item
 	 * @return				true if any steps were performed to optimize future retrieval

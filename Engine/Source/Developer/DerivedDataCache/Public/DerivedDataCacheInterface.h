@@ -4,6 +4,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Containers/BitArray.h"
 #include "Containers/StringView.h"
 #include "Modules/ModuleInterface.h"
 
@@ -194,6 +195,21 @@ public:
 	 * @param	CacheKey	Key to see if data probably exists.
 	 */
 	virtual bool CachedDataProbablyExists(const TCHAR* CacheKey) = 0;
+
+	/**
+	 * Returns whether the data associated with each key is likely to exist in the cache.
+	 * Even if this function returns true, a get for one of the keys may still fail!
+	 * @param	CacheKeys	Keys to see if data probably exists.
+	 * @return				A bit array with bits indicating whether the data for the corresponding key will probably be found
+	 */
+	virtual TBitArray<> CachedDataProbablyExistsBatch(TConstArrayView<FString> CacheKeys) = 0;
+
+	/**
+	 * Returns true if the data associated with each key is likely to exist in the cache.
+	 * Even if this function returns true, a get for one of the keys may still fail!
+	 * @param	CacheKeys	Keys to see if data probably exists.
+	 */
+	virtual bool AllCachedDataProbablyExists(TConstArrayView<FString> CacheKeys) = 0;
 
 	//--------------------
 	// System Interface

@@ -4,6 +4,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Containers/BitArray.h"
 #include "Stats/Stats.h"
 
 class FDerivedDataCacheUsageStats;
@@ -100,6 +101,24 @@ public:
 	 * @return				true if the data probably will be found, this can't be guaranteed because of concurrency in the backends, corruption, etc
 	 */
 	virtual bool CachedDataProbablyExists(const TCHAR* CacheKey)=0;
+
+	/**
+	 * Synchronous test for the existence of multiple cache items
+	 *
+	 * @param	CacheKeys	Alphanumeric+underscore key of the cache items
+	 * @return				A bit array with bits indicating whether the data for the corresponding key will probably be found
+	 */
+	virtual TBitArray<> CachedDataProbablyExistsBatch(TConstArrayView<FString> CacheKeys)
+	{
+		TBitArray<> Result;
+		Result.Reserve(CacheKeys.Num());
+		for (const FString& Key : CacheKeys)
+		{
+			Result.Add(CachedDataProbablyExists(*Key));
+		}
+		return Result;
+	}
+
 	/**
 	 * Synchronous retrieve of a cache item
 	 *

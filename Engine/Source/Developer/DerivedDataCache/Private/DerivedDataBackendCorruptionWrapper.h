@@ -115,6 +115,24 @@ public:
 		}
 		return Result;
 	}
+
+	/**
+	 * Synchronous test for the existence of multiple cache items
+	 *
+	 * @param	CacheKeys	Alphanumeric+underscore key of the cache items
+	 * @return				A bit array with bits indicating whether the data for the corresponding key will probably be found
+	 */
+	virtual TBitArray<> CachedDataProbablyExistsBatch(TConstArrayView<FString> CacheKeys) override
+	{
+		COOK_STAT(auto Timer = UsageStats.TimeProbablyExists());
+		TBitArray<> Result = InnerBackend->CachedDataProbablyExistsBatch(CacheKeys);
+		if (Result.CountSetBits() == CacheKeys.Num())
+		{
+			COOK_STAT(Timer.AddHit(0));
+		}
+		return Result;
+	}
+
 	/**
 	 * Synchronous retrieve of a cache item
 	 *

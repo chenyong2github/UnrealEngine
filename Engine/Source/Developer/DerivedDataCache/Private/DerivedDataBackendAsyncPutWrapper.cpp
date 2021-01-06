@@ -121,12 +121,6 @@ FDerivedDataBackendInterface::ESpeedClass FDerivedDataBackendAsyncPutWrapper::Ge
 	return InnerBackend->GetSpeedClass();
 }
 
-/**
- * Synchronous test for the existence of a cache item
- *
- * @param	CacheKey	Alphanumeric+underscore key of this cache item
- * @return				true if the data probably will be found, this can't be guaranteed because of concurrency in the backends, corruption, etc
- */
 bool FDerivedDataBackendAsyncPutWrapper::CachedDataProbablyExists(const TCHAR* CacheKey)
 {
 	COOK_STAT(auto Timer = UsageStats.TimeProbablyExists());
@@ -134,6 +128,33 @@ bool FDerivedDataBackendAsyncPutWrapper::CachedDataProbablyExists(const TCHAR* C
 	COOK_STAT(if (Result) {	Timer.AddHit(0); });
 
 	UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s CachedDataProbablyExists=%d for %s"), *GetName(), Result, CacheKey);
+	return Result;
+}
+
+TBitArray<> FDerivedDataBackendAsyncPutWrapper::CachedDataProbablyExistsBatch(TConstArrayView<FString> CacheKeys)
+{
+	COOK_STAT(auto Timer = UsageStats.TimeProbablyExists());
+
+	TBitArray<> Result;
+	if (InflightCache)
+	{
+		Result = InflightCache->CachedDataProbablyExistsBatch(CacheKeys);
+		check(Result.Num() == CacheKeys.Num());
+		if (Result.CountSetBits() < CacheKeys.Num())
+		{
+			TBitArray<> InnerResult = InnerBackend->CachedDataProbablyExistsBatch(CacheKeys);
+			check(InnerResult.Num() == CacheKeys.Num());
+			Result.CombineWithBitwiseOR(InnerResult, EBitwiseOperatorFlags::MaintainSize);
+		}
+	}
+	else
+	{
+		Result = InnerBackend->CachedDataProbablyExistsBatch(CacheKeys);
+		check(Result.Num() == CacheKeys.Num());
+	}
+
+	COOK_STAT(if (Result.CountSetBits() == CacheKeys.Num()) { Timer.AddHit(0); });
+	UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s CachedDataProbablyExists found %d/%d keys"), *GetName(), Result.CountSetBits(), CacheKeys.Num());
 	return Result;
 }
 

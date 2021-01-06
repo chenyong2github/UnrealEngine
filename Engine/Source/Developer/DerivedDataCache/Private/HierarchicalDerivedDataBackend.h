@@ -123,6 +123,81 @@ public:
 	}
 
 	/**
+	 * Synchronous test for the existence of multiple cache items
+	 *
+	 * @param	CacheKeys	Alphanumeric+underscore key of the cache items
+	 * @return				A bit array with bits indicating whether the data for the corresponding key will probably be found
+	 */
+	virtual TBitArray<> CachedDataProbablyExistsBatch(TConstArrayView<FString> CacheKeys) override
+	{
+		COOK_STAT(auto Timer = UsageStats.TimeProbablyExists());
+		check(InnerBackends.Num() > 0);
+
+		TBitArray<> Result;
+
+		for (int32 CacheIndex = 0; CacheIndex < InnerBackends.Num(); ++CacheIndex)
+		{
+			const int32 MissingKeys = CacheKeys.Num() - Result.CountSetBits();
+			if (MissingKeys == 0)
+			{
+				break;
+			}
+
+			// Skip slow caches because the primary users of this function assume that
+			// they will have fast access to the data if this returns true. It will be
+			// better in those cases to rebuild the data locally than to block on slow
+			// fetch operations because the build may be, and often is, asynchronous.
+			bool bFastCache = InnerBackends[CacheIndex]->GetSpeedClass() >= ESpeedClass::Fast;
+			if (!bFastCache)
+			{
+				continue;
+			}
+
+			if (MissingKeys == CacheKeys.Num())
+			{
+				Result = InnerBackends[CacheIndex]->CachedDataProbablyExistsBatch(CacheKeys);
+				check(Result.Num() == CacheKeys.Num());
+			}
+			else
+			{
+				TArray<FString> RemainingKeys;
+				for (int32 KeyIndex = 0; KeyIndex < CacheKeys.Num(); ++KeyIndex)
+				{
+					if (!Result[KeyIndex])
+					{
+						RemainingKeys.Add(CacheKeys[KeyIndex]);
+					}
+				}
+
+				TBitArray<>::FIterator ResultIt(Result);
+				TBitArray<> NewResult = InnerBackends[CacheIndex]->CachedDataProbablyExistsBatch(RemainingKeys);
+				check(NewResult.Num() == RemainingKeys.Num());
+				for (TBitArray<>::FConstIterator NewIt(NewResult); NewIt; ++NewIt)
+				{
+					// Skip to the bit for the next remaining key.
+					while (ResultIt.GetValue())
+					{
+						++ResultIt;
+					}
+					ResultIt.GetValue() = NewIt.GetValue();
+					++ResultIt;
+				}
+			}
+		}
+
+		if (Result.IsEmpty())
+		{
+			Result.Add(false, CacheKeys.Num());
+		}
+
+		if (Result.CountSetBits() == CacheKeys.Num())
+		{
+			COOK_STAT(Timer.AddHit(0));
+		}
+		return Result;
+	}
+
+	/**
 	 * Attempts to make sure the cached data will be available as optimally as possible. This is left up to the implementation to do
 	 * @param	CacheKey	Alphanumeric+underscore key of this cache item
 	 * @return				true if any steps were performed to optimize future retrieval
