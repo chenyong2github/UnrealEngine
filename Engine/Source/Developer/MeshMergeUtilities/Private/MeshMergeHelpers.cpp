@@ -200,7 +200,7 @@ void FMeshMergeHelpers::ExpandInstances(const UInstancedStaticMeshComponent* InI
 	for(const FInstancedStaticMeshInstanceData& InstanceData : InInstancedStaticMeshComponent->PerInstanceSMData)
 	{
 		FMeshDescription InstanceRawMesh = InOutRawMesh;
-		FMeshMergeHelpers::TransformRawMeshVertexData(ComponentTransformInv * FTransform(InstanceData.Transform) * ComponentTransform, InstanceRawMesh);
+		FStaticMeshOperations::ApplyTransform(InstanceRawMesh, ComponentTransformInv * FTransform(InstanceData.Transform) * ComponentTransform);
 		FMeshMergeHelpers::AppendRawMesh(CombinedRawMesh, InstanceRawMesh);
 	}
 
@@ -249,7 +249,7 @@ void FMeshMergeHelpers::RetrieveMesh(const UStaticMeshComponent* StaticMeshCompo
 	}
 
 	// Transform raw mesh vertex data by the Static Mesh Component's component to world transformation	
-	TransformRawMeshVertexData(ComponentToWorldTransform, RawMesh);
+	FStaticMeshOperations::ApplyTransform(RawMesh, ComponentToWorldTransform);
 
 	if (RawMesh.VertexInstances().Num() <= 0)
 	{
@@ -795,53 +795,6 @@ void FMeshMergeHelpers::PropagateSplineDeformationToPhysicsGeometry(USplineMeshC
 	{
 		const FVector WorldSpaceCenter = Elem.GetTransform().TransformPosition(Elem.Center);
 		Elem.Center = SplineMeshComponent->CalcSliceTransform(USplineMeshComponent::GetAxisValue(WorldSpaceCenter, SplineMeshComponent->ForwardAxis)).TransformPosition(Elem.Center * Mask);
-	}
-}
-
-void FMeshMergeHelpers::TransformRawMeshVertexData(const FTransform& InTransform, FMeshDescription &OutRawMesh)
-{
-	TRACE_CPUPROFILER_EVENT_SCOPE(FMeshMergeHelpers::TransformRawMeshVertexData)
-
-	TVertexAttributesRef<FVector> VertexPositions = OutRawMesh.VertexAttributes().GetAttributesRef<FVector>(MeshAttribute::Vertex::Position);
-	TEdgeAttributesRef<bool> EdgeHardnesses = OutRawMesh.EdgeAttributes().GetAttributesRef<bool>(MeshAttribute::Edge::IsHard);
-	TEdgeAttributesRef<float> EdgeCreaseSharpnesses = OutRawMesh.EdgeAttributes().GetAttributesRef<float>(MeshAttribute::Edge::CreaseSharpness);
-	TPolygonGroupAttributesRef<FName> PolygonGroupImportedMaterialSlotNames = OutRawMesh.PolygonGroupAttributes().GetAttributesRef<FName>(MeshAttribute::PolygonGroup::ImportedMaterialSlotName);
-	TVertexInstanceAttributesRef<FVector> VertexInstanceNormals = OutRawMesh.VertexInstanceAttributes().GetAttributesRef<FVector>(MeshAttribute::VertexInstance::Normal);
-	TVertexInstanceAttributesRef<FVector> VertexInstanceTangents = OutRawMesh.VertexInstanceAttributes().GetAttributesRef<FVector>(MeshAttribute::VertexInstance::Tangent);
-	TVertexInstanceAttributesRef<float> VertexInstanceBinormalSigns = OutRawMesh.VertexInstanceAttributes().GetAttributesRef<float>(MeshAttribute::VertexInstance::BinormalSign);
-	TVertexInstanceAttributesRef<FVector4> VertexInstanceColors = OutRawMesh.VertexInstanceAttributes().GetAttributesRef<FVector4>(MeshAttribute::VertexInstance::Color);
-	TVertexInstanceAttributesRef<FVector2D> VertexInstanceUVs = OutRawMesh.VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
-
-	for(const FVertexID VertexID : OutRawMesh.Vertices().GetElementIDs())
-	{
-		VertexPositions[VertexID] = InTransform.TransformPosition(VertexPositions[VertexID]);
-	}
-
-	FMatrix Matrix   = InTransform.ToMatrixWithScale();
-	FMatrix AdjointT = Matrix.TransposeAdjoint();
-	AdjointT.RemoveScaling();
-
-	const float MulBy = Matrix.Determinant() < 0.f ? -1.f : 1.f;
-	auto TransformNormal = 
-		[&AdjointT, MulBy](FVector& Normal) 
-		{
-			Normal = AdjointT.TransformVector(Normal) * MulBy;
-		};
-
-	for (const FVertexInstanceID VertexInstanceID : OutRawMesh.VertexInstances().GetElementIDs())
-	{
-		FVector TangentY = FVector::CrossProduct(VertexInstanceNormals[VertexInstanceID], VertexInstanceTangents[VertexInstanceID]).GetSafeNormal() * VertexInstanceBinormalSigns[VertexInstanceID];
-		TransformNormal(VertexInstanceTangents[VertexInstanceID]);
-		TransformNormal(TangentY);
-		TransformNormal(VertexInstanceNormals[VertexInstanceID]);
-		VertexInstanceBinormalSigns[VertexInstanceID] = GetBasisDeterminantSign(VertexInstanceTangents[VertexInstanceID], TangentY, VertexInstanceNormals[VertexInstanceID]);
-	}
-
-	const bool bIsMirrored = InTransform.GetDeterminant() < 0.f;
-	if (bIsMirrored)
-	{
-		//Reverse the vertex instance
-		OutRawMesh.ReverseAllPolygonFacing();
 	}
 }
 

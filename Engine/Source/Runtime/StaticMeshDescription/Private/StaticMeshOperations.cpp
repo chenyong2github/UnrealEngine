@@ -2259,4 +2259,42 @@ void FStaticMeshOperations::FlipPolygons(FMeshDescription& MeshDescription)
 	}
 }
 
+void FStaticMeshOperations::ApplyTransform(FMeshDescription& MeshDescription, const FTransform& Transform)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(FStaticMeshOperations::ApplyTransform)
+
+	TVertexAttributesRef<FVector> VertexPositions = MeshDescription.VertexAttributes().GetAttributesRef<FVector>(MeshAttribute::Vertex::Position);
+	TVertexInstanceAttributesRef<FVector> VertexInstanceNormals = MeshDescription.VertexInstanceAttributes().GetAttributesRef<FVector>(MeshAttribute::VertexInstance::Normal);
+	TVertexInstanceAttributesRef<FVector> VertexInstanceTangents = MeshDescription.VertexInstanceAttributes().GetAttributesRef<FVector>(MeshAttribute::VertexInstance::Tangent);
+	TVertexInstanceAttributesRef<float> VertexInstanceBinormalSigns = MeshDescription.VertexInstanceAttributes().GetAttributesRef<float>(MeshAttribute::VertexInstance::BinormalSign);
+
+	for (const FVertexID VertexID : MeshDescription.Vertices().GetElementIDs())
+	{
+		VertexPositions[VertexID] = Transform.TransformPosition(VertexPositions[VertexID]);
+	}
+
+	FMatrix Matrix = Transform.ToMatrixWithScale();
+	FMatrix AdjointT = Matrix.TransposeAdjoint();
+	AdjointT.RemoveScaling();
+
+	const bool bIsMirrored = Transform.GetDeterminant() < 0.f;
+	const float MulBy = bIsMirrored ? -1.f : 1.f;
+
+	for (const FVertexInstanceID VertexInstanceID : MeshDescription.VertexInstances().GetElementIDs())
+	{
+		FVector Tangent = VertexInstanceTangents[VertexInstanceID];
+		FVector Normal = VertexInstanceNormals[VertexInstanceID];
+		float BinormalSign = VertexInstanceBinormalSigns[VertexInstanceID];
+
+		VertexInstanceTangents[VertexInstanceID] = AdjointT.TransformVector(Tangent) * MulBy;
+		VertexInstanceBinormalSigns[VertexInstanceID] = BinormalSign * MulBy;
+		VertexInstanceNormals[VertexInstanceID] = AdjointT.TransformVector(Normal) * MulBy;
+	}
+
+	if (bIsMirrored)
+	{
+		MeshDescription.ReverseAllPolygonFacing();
+	}
+}
+
 #undef LOCTEXT_NAMESPACE
