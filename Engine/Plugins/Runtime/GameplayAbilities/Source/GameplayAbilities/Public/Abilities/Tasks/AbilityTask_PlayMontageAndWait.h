@@ -62,7 +62,7 @@ class GAMEPLAYABILITIES_API UAbilityTask_PlayMontageAndWait : public UAbilityTas
 
 	virtual FString GetDebugString() const override;
 
-private:
+protected:
 
 	virtual void OnDestroy(bool AbilityEnded) override;
 
