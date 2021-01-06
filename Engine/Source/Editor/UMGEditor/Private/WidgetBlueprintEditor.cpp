@@ -53,6 +53,7 @@
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #include "UMGEditorActions.h"
+#include "UMGEditorModule.h"
 #include "GameProjectGenerationModule.h"
 
 #include "SPaletteViewModel.h"
@@ -160,6 +161,9 @@ void FWidgetBlueprintEditor::InitWidgetBlueprintEditor(const EToolkitMode::Type 
 void FWidgetBlueprintEditor::InitalizeExtenders()
 {
 	FBlueprintEditor::InitalizeExtenders();
+
+	IUMGEditorModule& UMGEditorModule = FModuleManager::LoadModuleChecked<IUMGEditorModule>("UMGEditor");
+	AddMenuExtender(UMGEditorModule.GetMenuExtensibilityManager()->GetAllExtenders(GetToolkitCommands(), GetEditingObjects()));
 
 	AddMenuExtender(CreateMenuExtender());
 }
