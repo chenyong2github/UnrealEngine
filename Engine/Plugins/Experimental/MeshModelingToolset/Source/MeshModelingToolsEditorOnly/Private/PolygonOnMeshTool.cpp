@@ -130,6 +130,7 @@ void UPolygonOnMeshTool::Setup()
 		DrawPlaneWorld = PlaneMechanic->Plane;
 		UpdateDrawPlane();
 	});
+	PlaneMechanic->SetPlaneCtrlClickBehaviorTarget->InvisibleComponentsToHitTest.Add(ComponentTarget->GetOwnerComponent());
 
 	// Convert input mesh description to dynamic mesh
 	OriginalDynamicMesh = MakeShared<FDynamicMesh3>();
