@@ -83,51 +83,46 @@ public:
 		return false;
 	}
 
-	virtual void PutCachedData(const TCHAR* CacheKey, TArrayView<const uint8> InData, bool bPutEvenIfExists) override
+	virtual EPutStatus PutCachedData(const TCHAR* CacheKey, TArrayView<const uint8> InData, bool bPutEvenIfExists) override
 	{
 		COOK_STAT(auto Timer = UsageStats.TimePut());
-		bool bAlreadyTested = false;
 		{
 			FScopeLock ScopeLock(&SynchronizationObject);
 			if (AlreadyTested.Contains(FString(CacheKey)))
 			{
-				bAlreadyTested = true;
+				return EPutStatus::Cached;
 			}
-			else
-			{
-				AlreadyTested.Add(FString(CacheKey));
-			}
+			AlreadyTested.Add(FString(CacheKey));
 		}
-		if (!bAlreadyTested)
+
+		COOK_STAT(Timer.AddHit(InData.Num()));
+		TArray<uint8> OutData;
+		bool bSuccess = InnerBackend->GetCachedData(CacheKey, OutData);
+		if (bSuccess)
 		{
-			COOK_STAT(Timer.AddHit(InData.Num()));
-			TArray<uint8> OutData;
-			bool bSuccess = InnerBackend->GetCachedData(CacheKey, OutData);
-			if (bSuccess)
+			if (OutData != InData)
 			{
-				if (OutData != InData)
+				UE_LOG(LogDerivedDataCache, Error, TEXT("Verify: Cached data differs from newly generated data %s."), CacheKey);
+				FString Cache = FPaths::ProjectSavedDir() / TEXT("VerifyDDC") / CacheKey + TEXT(".fromcache");
+				FFileHelper::SaveArrayToFile(OutData, *Cache);
+				FString Verify = FPaths::ProjectSavedDir() / TEXT("VerifyDDC") / CacheKey + TEXT(".verify");;
+				FFileHelper::SaveArrayToFile(InData, *Verify);
+				if (bFixProblems)
 				{
-					UE_LOG(LogDerivedDataCache, Error, TEXT("Verify: Cached data differs from newly generated data %s."), CacheKey);
-					FString Cache = FPaths::ProjectSavedDir() / TEXT("VerifyDDC") / CacheKey + TEXT(".fromcache");
-					FFileHelper::SaveArrayToFile(OutData, *Cache);
-					FString Verify = FPaths::ProjectSavedDir() / TEXT("VerifyDDC") / CacheKey + TEXT(".verify");;
-					FFileHelper::SaveArrayToFile(InData, *Verify);
-					if (bFixProblems)
-					{
-						UE_LOG(LogDerivedDataCache, Display, TEXT("Verify: Wrote newly generated data to the cache."), CacheKey);
-						InnerBackend->PutCachedData(CacheKey, InData, true);
-					}
-				}
-				else
-				{
-					UE_LOG(LogDerivedDataCache, Log, TEXT("Verify: Cached data exists and matched %s."), CacheKey);
+					UE_LOG(LogDerivedDataCache, Display, TEXT("Verify: Wrote newly generated data to the cache."), CacheKey);
+					InnerBackend->PutCachedData(CacheKey, InData, true);
 				}
 			}
 			else
 			{
-				UE_LOG(LogDerivedDataCache, Warning, TEXT("Verify: Cached data didn't exist %s."), CacheKey);
-				InnerBackend->PutCachedData(CacheKey, InData, bPutEvenIfExists);
+				UE_LOG(LogDerivedDataCache, Log, TEXT("Verify: Cached data exists and matched %s."), CacheKey);
 			}
+			return EPutStatus::Cached;
+		}
+		else
+		{
+			UE_LOG(LogDerivedDataCache, Warning, TEXT("Verify: Cached data didn't exist %s."), CacheKey);
+			return InnerBackend->PutCachedData(CacheKey, InData, bPutEvenIfExists);
 		}
 	}
 	virtual void RemoveCachedData(const TCHAR* CacheKey, bool bTransient) override

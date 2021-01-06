@@ -607,7 +607,7 @@ public:
 	 * @param	OutData		Buffer containing the data to cache, can be destroyed after the call returns, immediately
 	 * @param	bPutEvenIfExists	If true, then do not attempt skip the put even if CachedDataProbablyExists returns true
 	 */
-	virtual void PutCachedData(const TCHAR* CacheKey, TArrayView<const uint8> Data, bool bPutEvenIfExists) override
+	virtual EPutStatus PutCachedData(const TCHAR* CacheKey, TArrayView<const uint8> Data, bool bPutEvenIfExists) override
 	{
 		COOK_STAT(auto Timer = UsageStats.TimePut());
 		check(IsUsable());
@@ -622,8 +622,10 @@ public:
 			// don't put anything we pretended didn't exist
 			if (ShouldSimulateMiss(CacheKey))
 			{
-				return;
+				return EPutStatus::NotCached;
 			}
+
+			EPutStatus Status = EPutStatus::NotCached;
 
 			if (bPutEvenIfExists || !CachedDataProbablyExists(CacheKey))
 			{
@@ -656,7 +658,12 @@ public:
 							else
 							{
 								UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Successful cache put of %s to %s"),*GetName(), CacheKey, *Filename);
+								Status = EPutStatus::Cached;
 							}
+						}
+						else
+						{
+							Status = EPutStatus::Cached;
 						}
 					}
 					else
@@ -681,6 +688,7 @@ public:
 			{
 				COOK_STAT(Timer.AddMiss(Data.Num()));
 				UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s skipping put to existing file %s"), *GetName(), CacheKey);
+				Status = EPutStatus::Cached;
 			}
 
 			// If not using a shared cache, update estimated build time
@@ -720,10 +728,13 @@ public:
 				}
 
 			}
+
+			return Status;
 		}
 		else
 		{
 			UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s is read only. Skipping put of %s"), *GetName(), CacheKey);
+			return EPutStatus::NotCached;
 		}
 	}
 

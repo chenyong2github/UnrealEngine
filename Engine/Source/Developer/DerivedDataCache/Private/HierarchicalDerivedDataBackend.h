@@ -377,14 +377,14 @@ public:
 	 * @param	InData		Buffer containing the data to cache, can be destroyed after the call returns, immediately
 	 * @param	bPutEvenIfExists	If true, then do not attempt skip the put even if CachedDataProbablyExists returns true
 	 */
-	virtual void PutCachedData(const TCHAR* CacheKey, TArrayView<const uint8> InData, bool bPutEvenIfExists) override
+	virtual EPutStatus PutCachedData(const TCHAR* CacheKey, TArrayView<const uint8> InData, bool bPutEvenIfExists) override
 	{
 		COOK_STAT(auto Timer = UsageStats.TimePut());
+		EPutStatus Status = EPutStatus::NotCached;
 		if (!bIsWritable)
 		{
-			return; // no point in continuing down the chain
+			return Status; // no point in continuing down the chain
 		}
-		bool bSynchronousPutPeformed = false;  // we must do at least one synchronous put to a writable cache before we return
 		for (int32 PutCacheIndex = 0; PutCacheIndex < InnerBackends.Num(); PutCacheIndex++)
 		{
 			if (!InnerBackends[PutCacheIndex]->IsWritable() && !InnerBackends[PutCacheIndex]->BackfillLowerCacheLevels() && InnerBackends[PutCacheIndex]->CachedDataProbablyExists(CacheKey))
@@ -394,10 +394,10 @@ public:
 			if (InnerBackends[PutCacheIndex]->IsWritable())
 			{
 				COOK_STAT(Timer.AddHit(InData.Num()));
-				if (!bSynchronousPutPeformed)
+				// we must do at least one synchronous put to a writable cache before we return
+				if (Status != EPutStatus::Cached)
 				{
-					InnerBackends[PutCacheIndex]->PutCachedData(CacheKey, InData, bPutEvenIfExists);
-					bSynchronousPutPeformed = true;
+					Status = InnerBackends[PutCacheIndex]->PutCachedData(CacheKey, InData, bPutEvenIfExists);
 				}
 				else
 				{
@@ -405,6 +405,7 @@ public:
 				}
 			}
 		}
+		return Status;
 	}
 
 	virtual void RemoveCachedData(const TCHAR* CacheKey, bool bTransient) override

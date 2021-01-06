@@ -137,12 +137,12 @@ bool FPakFileDerivedDataBackend::GetCachedData(const TCHAR* CacheKey, TArray<uin
 	return false;
 }
 
-void FPakFileDerivedDataBackend::PutCachedData(const TCHAR* CacheKey, TArrayView<const uint8> InData, bool bPutEvenIfExists)
+FDerivedDataBackendInterface::EPutStatus FPakFileDerivedDataBackend::PutCachedData(const TCHAR* CacheKey, TArrayView<const uint8> InData, bool bPutEvenIfExists)
 {
 	COOK_STAT(auto Timer = UsageStats.TimePut());
 	if (!bWriting || bClosed)
 	{
-		return;
+		return EPutStatus::NotCached;
 	}
 	{
 		FScopeLock ScopeLock(&SynchronizationObject);
@@ -160,7 +160,8 @@ void FPakFileDerivedDataBackend::PutCachedData(const TCHAR* CacheKey, TArrayView
 			{
 				CacheItems.Empty();
 				FileHandle.Reset();
-				bClosed = true;
+				UE_LOG(LogDerivedDataCache, Fatal, TEXT("Could not write pak file...out of disk space?"));
+				return EPutStatus::NotCached;
 			}
 			else
 			{
@@ -169,12 +170,13 @@ void FPakFileDerivedDataBackend::PutCachedData(const TCHAR* CacheKey, TArrayView
 				FileHandle->Serialize(const_cast<uint8*>(InData.GetData()), int64(InData.Num()));
 				UE_LOG(LogDerivedDataCache, Verbose, TEXT("FPakFileDerivedDataBackend: Put %s"), CacheKey);
 				CacheItems.Add(Key,FCacheValue(Offset, InData.Num(), Crc));
+				return EPutStatus::Cached;
 			}
 		}
-	}
-	if (bClosed)
-	{
-		UE_LOG(LogDerivedDataCache, Fatal, TEXT("Could not write pak file...out of disk space?"));
+		else
+		{
+			return EPutStatus::Cached;
+		}
 	}
 }
 
@@ -410,7 +412,7 @@ FCompressedPakFileDerivedDataBackend::FCompressedPakFileDerivedDataBackend(const
 {
 }
 
-void FCompressedPakFileDerivedDataBackend::PutCachedData(const TCHAR* CacheKey, TArrayView<const uint8> InData, bool bPutEvenIfExists)
+FDerivedDataBackendInterface::EPutStatus FCompressedPakFileDerivedDataBackend::PutCachedData(const TCHAR* CacheKey, TArrayView<const uint8> InData, bool bPutEvenIfExists)
 {
 	int32 UncompressedSize = InData.Num();
 	int32 CompressedSize = FCompression::CompressMemoryBound(CompressionFormat, UncompressedSize, CompressionFlags);
@@ -422,7 +424,7 @@ void FCompressedPakFileDerivedDataBackend::PutCachedData(const TCHAR* CacheKey, 
 	verify(FCompression::CompressMemory(CompressionFormat, CompressedData.GetData() + sizeof(UncompressedSize), CompressedSize, InData.GetData(), InData.Num(), CompressionFlags));
 	CompressedData.SetNum(CompressedSize + sizeof(UncompressedSize), false);
 
-	FPakFileDerivedDataBackend::PutCachedData(CacheKey, CompressedData, bPutEvenIfExists);
+	return FPakFileDerivedDataBackend::PutCachedData(CacheKey, CompressedData, bPutEvenIfExists);
 }
 
 bool FCompressedPakFileDerivedDataBackend::GetCachedData(const TCHAR* CacheKey, TArray<uint8>& OutData)

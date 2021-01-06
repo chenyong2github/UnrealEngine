@@ -47,7 +47,7 @@ public:
 
 	bool CachedDataProbablyExists(const TCHAR* CacheKey) override;
 	bool GetCachedData(const TCHAR* CacheKey, TArray<uint8>& OutData) override;
-	void PutCachedData(const TCHAR* CacheKey, TArrayView<const uint8> InData, bool bPutEvenIfExists) override;
+	EPutStatus PutCachedData(const TCHAR* CacheKey, TArrayView<const uint8> InData, bool bPutEvenIfExists) override;
 	void RemoveCachedData(const TCHAR* CacheKey, bool bTransient) override;
 	void GatherUsageStats(TMap<FString, FDerivedDataCacheUsageStats>& UsageStatsMap, FString&& GraphPath) override;
 

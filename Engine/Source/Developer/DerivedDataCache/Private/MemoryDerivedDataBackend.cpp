@@ -101,21 +101,21 @@ bool FMemoryDerivedDataBackend::WouldCache(const TCHAR* CacheKey, TArrayView<con
 	return true;
 }
 
-void FMemoryDerivedDataBackend::PutCachedData(const TCHAR* CacheKey, TArrayView<const uint8> InData, bool bPutEvenIfExists)
+FDerivedDataBackendInterface::EPutStatus FMemoryDerivedDataBackend::PutCachedData(const TCHAR* CacheKey, TArrayView<const uint8> InData, bool bPutEvenIfExists)
 {
 	COOK_STAT(auto Timer = UsageStats.TimePut());
 	FScopeLock ScopeLock(&SynchronizationObject);
 
 	if (DidSimulateMiss(CacheKey))
 	{
-		return;
+		return EPutStatus::NotCached;
 	}
 	
 	// Should never hit this as higher level code should be checking..
 	if (!WouldCache(CacheKey, InData))
 	{
 		//UE_LOG(LogDerivedDataCache, Warning, TEXT("WouldCache was not called prior to attempted Put!"));
-		return;
+		return EPutStatus::NotCached;
 	}
 	
 	FString Key(CacheKey);
@@ -123,6 +123,7 @@ void FMemoryDerivedDataBackend::PutCachedData(const TCHAR* CacheKey, TArrayView<
 	if (Item)
 	{
 		//check(Item->Data == InData); // any second attempt to push data should be identical data
+		return EPutStatus::Cached;
 	}
 	else
 	{
@@ -135,6 +136,7 @@ void FMemoryDerivedDataBackend::PutCachedData(const TCHAR* CacheKey, TArrayView<
 			delete Val;
 			UE_LOG(LogDerivedDataCache, Display, TEXT("Failed to cache data. Maximum cache size reached. CurrentSize %d kb / MaxSize: %d kb"), CurrentCacheSize / 1024, MaxCacheSize / 1024);
 			bMaxSizeExceeded = true;
+			return EPutStatus::NotCached;
 		}
 		else
 		{
@@ -143,6 +145,7 @@ void FMemoryDerivedDataBackend::PutCachedData(const TCHAR* CacheKey, TArrayView<
 			CalcCacheValueSize(Key, *Val);
 
 			CurrentCacheSize += CacheValueSize;
+			return EPutStatus::Cached;
 		}
 	}
 }

@@ -1218,7 +1218,7 @@ bool FHttpDerivedDataBackend::GetCachedData(const TCHAR* CacheKey, TArray<uint8>
 	return false;
 }
 
-void FHttpDerivedDataBackend::PutCachedData(const TCHAR* CacheKey, TArrayView<const uint8> InData, bool bPutEvenIfExists)
+FDerivedDataBackendInterface::EPutStatus FHttpDerivedDataBackend::PutCachedData(const TCHAR* CacheKey, TArrayView<const uint8> InData, bool bPutEvenIfExists)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(HttpDDC_Put);
 	COOK_STAT(auto Timer = UsageStats.TimePut());
@@ -1242,17 +1242,19 @@ void FHttpDerivedDataBackend::PutCachedData(const TCHAR* CacheKey, TArrayView<co
 			{
 				TRACE_COUNTER_ADD(HttpDDC_BytesSent, int64(Request->GetBytesSent()));
 				COOK_STAT(Timer.AddHit(Request->GetBytesSent()));
-				return;
+				return EPutStatus::Cached;
 			}
 
 			if (!ShouldRetryOnError(ResponseCode))
 			{
-				return;
+				return EPutStatus::NotCached;
 			}
 
 			ResponseCode = 0;
 		}
 	}
+
+	return EPutStatus::NotCached;
 }
 
 void FHttpDerivedDataBackend::RemoveCachedData(const TCHAR* CacheKey, bool bTransient)

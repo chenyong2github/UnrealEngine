@@ -190,12 +190,12 @@ public:
 	 * @param	InData		Buffer containing the data to cache, can be destroyed after the call returns, immediately
 	 * @param	bPutEvenIfExists	If true, then do not attempt skip the put even if CachedDataProbablyExists returns true
 	 */
-	virtual void PutCachedData(const TCHAR* CacheKey, TArrayView<const uint8> InData, bool bPutEvenIfExists) override
+	virtual EPutStatus PutCachedData(const TCHAR* CacheKey, TArrayView<const uint8> InData, bool bPutEvenIfExists) override
 	{
 		COOK_STAT(auto Timer = UsageStats.TimePut());
 		if (!InnerBackend->IsWritable())
 		{
-			return; // no point in continuing down the chain
+			return EPutStatus::NotCached; // no point in continuing down the chain
 		}
 		COOK_STAT(Timer.AddHit(InData.Num()));
 		// Get rid of the double copy!
@@ -206,7 +206,7 @@ public:
 		FDerivedDataTrailer Trailer(Data);
 		Data.AddUninitialized(sizeof(FDerivedDataTrailer));
 		FMemory::Memcpy(&Data[Data.Num() - sizeof(FDerivedDataTrailer)], &Trailer, sizeof(FDerivedDataTrailer));
-		InnerBackend->PutCachedData(CacheKey, Data, bPutEvenIfExists);
+		return InnerBackend->PutCachedData(CacheKey, Data, bPutEvenIfExists);
 	}
 	
 	virtual void RemoveCachedData(const TCHAR* CacheKey, bool bTransient) override

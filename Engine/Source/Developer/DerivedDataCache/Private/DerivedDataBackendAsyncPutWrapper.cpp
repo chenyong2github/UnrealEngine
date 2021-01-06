@@ -43,37 +43,61 @@ public:
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(DDCPut_DoWork);
 		COOK_STAT(auto Timer = UsageStats.TimePut());
-		bool bOk = true;
-		bool bDidTry = false;
-		if (bPutEvenIfExists || !InnerBackend->CachedDataProbablyExists(*CacheKey))
+
+		using EPutStatus = FDerivedDataBackendInterface::EPutStatus;
+		EPutStatus Status = EPutStatus::NotCached;
+
+		if (!bPutEvenIfExists && InnerBackend->CachedDataProbablyExists(*CacheKey))
 		{
-			bDidTry = true;
-			InnerBackend->PutCachedData(*CacheKey, Data, bPutEvenIfExists);
+			Status = EPutStatus::Cached;
+		}
+		else
+		{
+			Status = InnerBackend->PutCachedData(*CacheKey, Data, bPutEvenIfExists);
 			COOK_STAT(Timer.AddHit(Data.Num()));
 		}
-		// if we tried to put it up there but it isn't there now, retry
-		if (InflightCache && bDidTry && !InnerBackend->CachedDataProbablyExists(*CacheKey))
+
+		if (InflightCache)
 		{
-			// retry after a brief wait
-			FPlatformProcess::SleepNoStats(0.2f);
-			InnerBackend->PutCachedData(*CacheKey, Data, false);
-
-			if (!InnerBackend->CachedDataProbablyExists(*CacheKey))
+			// if the data was not cached synchronously, retry
+			if (Status != EPutStatus::Cached)
 			{
-				UE_LOG(LogDerivedDataCache, Display, TEXT("%s: Put failed, keeping in memory copy %s."),*InnerBackend->GetName(), *CacheKey);
+				// retry after a brief wait
+				FPlatformProcess::SleepNoStats(0.2f);
 
-				// log the filesystem error
-				uint32 ErrorCode = FPlatformMisc::GetLastError();
-				TCHAR ErrorBuffer[1024];
-				FPlatformMisc::GetSystemErrorMessage(ErrorBuffer, 1024, ErrorCode);
-				UE_LOG(LogDerivedDataCache, Display, TEXT("Failed to write %s to %s. Error: %u (%s)"), *CacheKey, *InnerBackend->GetName(), ErrorCode, ErrorBuffer);
-				bOk = false;
+				if (Status == EPutStatus::Executing && InnerBackend->CachedDataProbablyExists(*CacheKey))
+				{
+					Status = EPutStatus::Cached;
+				}
+				else
+				{
+					Status = InnerBackend->PutCachedData(*CacheKey, Data, /*bPutEvenIfExists*/ false);
+				}
+			}
+
+			switch (Status)
+			{
+			case EPutStatus::Cached:
+				// remove this from the in-flight cache because the inner cache contains the data
+				InflightCache->RemoveCachedData(*CacheKey, /*bTransient*/ false);
+				break;
+			case EPutStatus::NotCached:
+				UE_LOG(LogDerivedDataCache, Display, TEXT("%s: Put failed, keeping in memory copy %s."), *InnerBackend->GetName(), *CacheKey);
+				if (uint32 ErrorCode = FPlatformMisc::GetLastError())
+				{
+					TCHAR ErrorBuffer[1024];
+					FPlatformMisc::GetSystemErrorMessage(ErrorBuffer, 1024, ErrorCode);
+					UE_LOG(LogDerivedDataCache, Display, TEXT("Failed to write %s to %s. Error: %u (%s)"), *CacheKey, *InnerBackend->GetName(), ErrorCode, ErrorBuffer);
+				}
+				break;
+			case EPutStatus::Executing:
+				UE_LOG(LogDerivedDataCache, Display, TEXT("%s: Put not finished executing, keeping in memory copy %s."), *InnerBackend->GetName(), *CacheKey);
+				break;
+			default:
+				break;
 			}
 		}
-		if (bOk && InflightCache)
-		{
-			InflightCache->RemoveCachedData(*CacheKey, /*bTransient=*/ false); // we can remove this from the temp cache, since the real cache will hit now
-		}
+
 		FilesInFlight->Remove(CacheKey);
 		FDerivedDataBackend::Get().AddToAsyncCompletionCounter(-1);
 		UE_LOG(LogDerivedDataCache, VeryVerbose, TEXT("%s: Completed AsyncPut of %s."), *InnerBackend->GetName(), *CacheKey);
@@ -211,25 +235,25 @@ bool FDerivedDataBackendAsyncPutWrapper::GetCachedData(const TCHAR* CacheKey, TA
 	return bSuccess;
 }
 
-void FDerivedDataBackendAsyncPutWrapper::PutCachedData(const TCHAR* CacheKey, TArrayView<const uint8> InData, bool bPutEvenIfExists)
+FDerivedDataBackendInterface::EPutStatus FDerivedDataBackendAsyncPutWrapper::PutCachedData(const TCHAR* CacheKey, TArrayView<const uint8> InData, bool bPutEvenIfExists)
 {
 	COOK_STAT(auto Timer = PutSyncUsageStats.TimePut());
 
 	if (!InnerBackend->IsWritable())
 	{
-		return; // no point in continuing down the chain
+		return EPutStatus::NotCached; // no point in continuing down the chain
 	}
 	const bool bAdded = FilesInFlight.AddIfNotExists(CacheKey);
 	if (!bAdded)
 	{
-		return; // if it is already on its way, we don't need to send it again
+		return EPutStatus::Executing; // if it is already on its way, we don't need to send it again
 	}
 	if (InflightCache)
 	{
 		if (InflightCache->CachedDataProbablyExists(CacheKey))
 		{
 			UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s skipping out of key already in in-flight cache %s"), *GetName(), CacheKey);
-			return; // if it is already on its way, we don't need to send it again
+			return EPutStatus::Executing; // if it is already on its way, we don't need to send it again
 		}
 		InflightCache->PutCachedData(CacheKey, InData, true); // temp copy stored in memory while the async task waits to complete
 		COOK_STAT(Timer.AddHit(InData.Num()));
@@ -239,6 +263,8 @@ void FDerivedDataBackendAsyncPutWrapper::PutCachedData(const TCHAR* CacheKey, TA
 
 	FDerivedDataBackend::Get().AddToAsyncCompletionCounter(1);
 	(new FAutoDeleteAsyncTask<FCachePutAsyncWorker>(CacheKey, InData, InnerBackend, bPutEvenIfExists, InflightCache.Get(), &FilesInFlight, UsageStats))->StartBackgroundTask();
+
+	return EPutStatus::Executing;
 }
 
 void FDerivedDataBackendAsyncPutWrapper::RemoveCachedData(const TCHAR* CacheKey, bool bTransient)

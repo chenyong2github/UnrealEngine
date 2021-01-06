@@ -921,9 +921,10 @@ bool FS3DerivedDataBackend::GetCachedData(const TCHAR* CacheKey, TArray<uint8>& 
 	return false;
 }
 
-void FS3DerivedDataBackend::PutCachedData(const TCHAR* CacheKey, TArrayView<const uint8> InData, bool bPutEvenIfExists)
+FDerivedDataBackendInterface::EPutStatus FS3DerivedDataBackend::PutCachedData(const TCHAR* CacheKey, TArrayView<const uint8> InData, bool bPutEvenIfExists)
 {
 	// Not implemented
+	return EPutStatus::NotCached;
 }
 
 void FS3DerivedDataBackend::RemoveCachedData(const TCHAR* CacheKey, bool bTransient)

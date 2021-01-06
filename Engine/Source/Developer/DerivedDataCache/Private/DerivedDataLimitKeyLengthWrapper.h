@@ -187,19 +187,18 @@ public:
 	 * @param	InData		Buffer containing the data to cache, can be destroyed after the call returns, immediately
 	 * @param	bPutEvenIfExists	If true, then do not attempt skip the put even if CachedDataProbablyExists returns true
 	 */
-	virtual void PutCachedData(const TCHAR* CacheKey, TArrayView<const uint8> InData, bool bPutEvenIfExists) override
+	virtual EPutStatus PutCachedData(const TCHAR* CacheKey, TArrayView<const uint8> InData, bool bPutEvenIfExists) override
 	{
 		COOK_STAT(auto Timer = UsageStats.TimePut());
 		if (!InnerBackend->IsWritable())
 		{
-			return; // no point in continuing down the chain
+			return EPutStatus::NotCached; // no point in continuing down the chain
 		}
 		COOK_STAT(Timer.AddHit(InData.Num()));
 		FString NewKey;
 		if (!ShortenKey(CacheKey, NewKey))
 		{
-			InnerBackend->PutCachedData(CacheKey, InData, bPutEvenIfExists);
-			return;
+			return InnerBackend->PutCachedData(CacheKey, InData, bPutEvenIfExists);
 		}
 		TArray<uint8> Data(InData.GetData(), InData.Num());
 		check(Data.Num());
@@ -207,7 +206,7 @@ public:
 		Data.AddUninitialized(KeyLen);
 		FCStringAnsi::Strcpy((char*)&Data[Data.Num() - KeyLen], KeyLen, TCHAR_TO_ANSI(CacheKey));
 		check(Data.Last()==0);
-		InnerBackend->PutCachedData(*NewKey, Data, bPutEvenIfExists);
+		return InnerBackend->PutCachedData(*NewKey, Data, bPutEvenIfExists);
 	}
 
 	virtual void RemoveCachedData(const TCHAR* CacheKey, bool bTransient) override
