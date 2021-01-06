@@ -2,6 +2,7 @@
 
 
 #include "CoreMinimal.h"
+#include "Algo/AllOf.h"
 #include "Misc/MessageDialog.h"
 #include "HAL/FileManager.h"
 #include "Misc/CoreMisc.h"
@@ -33,10 +34,8 @@
 FString BuildPathForCacheKey(const TCHAR* CacheKey)
 {
 	FString Key = FString(CacheKey).ToUpper();
-	for (int32 i = 0; i < Key.Len(); i++)
-	{
-		check(FChar::IsAlnum(Key[i]) || FChar::IsUnderscore(Key[i]) || Key[i] == L'$');
-	}
+	checkf(Algo::AllOf(Key, [](TCHAR C) { return FChar::IsAlnum(C) || FChar::IsUnderscore(C) || C == TEXT('$'); }),
+		TEXT("Invalid characters in cache key %s"), CacheKey);
 	uint32 Hash = FCrc::StrCrc_DEPRECATED(*Key);
 	// this creates a tree of 1000 directories
 	FString HashPath = FString::Printf(TEXT("%1d/%1d/%1d/"), (Hash / 100) % 10, (Hash / 10) % 10, Hash % 10);
