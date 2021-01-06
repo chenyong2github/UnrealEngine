@@ -2033,6 +2033,7 @@ DEFINE_FUNCTION(UPythonGeneratedClass::CallPythonFunction)
 		{
 			PyUtil::ReThrowPythonError();
 		}
+		PySelf.Reset(); // Need to reset this while still under the GIL
 	}
 }
 
