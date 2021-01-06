@@ -4839,7 +4839,11 @@ void UWorld::CreatePhysicsScene(const AWorldSettings* Settings)
 	const FName PhysicsName = IsNetMode(NM_DedicatedServer) ? TEXT("ServerPhysics") : TEXT("ClientPhysics");
 	FPhysScene* NewScene = new FPhysScene(nullptr, PhysicsName);
 #else
+#if PHYSICS_INTERFACE_PHYSX
+	FPhysScene* NewScene = new FPhysScene(Settings);
+#else
 	FPhysScene* NewScene = new FPhysScene(nullptr);
+#endif
 #endif
 	SetPhysicsScene(NewScene);
 }
