@@ -205,6 +205,7 @@ private:
 	FPyObjectPtr PyConsoleGlobalDict;
 	FPyObjectPtr PyConsoleLocalDict;
 	FPyObjectPtr PyUnrealModule;
+	PyThreadState* PyMainThreadState = nullptr;
 	bool bInitialized;
 	bool bHasTicked;
 #endif	// WITH_PYTHON

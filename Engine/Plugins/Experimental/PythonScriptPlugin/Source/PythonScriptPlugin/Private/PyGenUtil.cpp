@@ -200,7 +200,7 @@ const FGeneratedWrappedOperatorSignature& FGeneratedWrappedOperatorSignature::Op
 }
 
 bool FGeneratedWrappedOperatorSignature::StringToSignature(const TCHAR* InStr, FGeneratedWrappedOperatorSignature& OutSignature)
-	{
+{
 	for (int32 OpTypeIndex = 0; OpTypeIndex < (int32)EGeneratedWrappedOperatorType::Num; ++OpTypeIndex)
 	{
 		const FGeneratedWrappedOperatorSignature& PotentialSignature = OpTypeToSignature((EGeneratedWrappedOperatorType)OpTypeIndex);
@@ -710,7 +710,7 @@ void FGeneratedWrappedClassType::Finalize_PostReady()
 	// Execute Python code within this block
 	{
 		FPyScopedGIL GIL;
-	FPyMethodWithClosureDef::AddMethods(Methods.PyMethods.GetData(), &PyType);
+		FPyMethodWithClosureDef::AddMethods(Methods.PyMethods.GetData(), &PyType);
 		FPyConstantDef::AddConstantsToType(Constants.PyConstants.GetData(), &PyType);
 	}
 }
@@ -744,10 +744,14 @@ void FGeneratedWrappedEnumType::Finalize_PostReady()
 
 void FGeneratedWrappedEnumType::Reset_CleansePyType()
 {
-	// Unregister the existing enum entries
-	for (const FGeneratedWrappedEnumEntry& EnumEntry : EnumEntries)
+	// Execute Python code within this block
 	{
-		PyDict_DelItemString(PyType.tp_dict, EnumEntry.EntryName.GetData());
+		// Unregister the existing enum entries
+		FPyScopedGIL GIL;
+		for (const FGeneratedWrappedEnumEntry& EnumEntry : EnumEntries)
+		{
+			PyDict_DelItemString(PyType.tp_dict, EnumEntry.EntryName.GetData());
+		}
 	}
 
 	FGeneratedWrappedType::Reset_CleansePyType();
@@ -2329,8 +2333,11 @@ void PythonizeStructValueImpl(const UScriptStruct* InStruct, const void* InStruc
 					void* SelfArgInstance = SelfParam.ParamProp->ContainerPtrToValuePtr<void>(FuncParams.GetStructMemory());
 					CastFieldChecked<const FStructProperty>(SelfParam.ParamProp)->Struct->CopyScriptStruct(SelfArgInstance, InStructValue);
 				}
-				PyUtil::InvokeFunctionCall(Obj, BreakFuncDef.Func, FuncParams.GetStructMemory(), TEXT("pythonize default struct value"));
-				PyErr_Clear(); // Clear any errors in case InvokeFunctionCall failed
+				{
+					FPyScopedGIL GIL;
+					PyUtil::InvokeFunctionCall(Obj, BreakFuncDef.Func, FuncParams.GetStructMemory(), TEXT("pythonize default struct value"));
+					PyErr_Clear(); // Clear any errors in case InvokeFunctionCall failed
+				}
 
 				// Extract the output argument values as defaults for the struct
 				for (int32 OuputParamIndex = 0; OuputParamIndex < BreakFuncDef.OutputParams.Num(); ++OuputParamIndex)

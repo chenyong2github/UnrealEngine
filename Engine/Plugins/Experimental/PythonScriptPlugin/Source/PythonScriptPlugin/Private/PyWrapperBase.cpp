@@ -2,6 +2,7 @@
 
 #include "PyWrapperBase.h"
 #include "PyReferenceCollector.h"
+#include "PyGIL.h"
 
 #if WITH_PYTHON
 
@@ -114,6 +115,8 @@ void FPyWrapperBaseMetaData::SetMetaData(PyTypeObject* PyType, FPyWrapperBaseMet
 {
 	if (PyType && PyType->tp_dict)
 	{
+		FPyScopedGIL GIL;
+
 		FPyWrapperBaseMetaDataObject* PyWrapperMetaData = (FPyWrapperBaseMetaDataObject*)PyDict_GetItemString(PyType->tp_dict, "_wrapper_meta_data");
 		if (!PyWrapperMetaData)
 		{
@@ -129,6 +132,8 @@ FPyWrapperBaseMetaData* FPyWrapperBaseMetaData::GetMetaData(PyTypeObject* PyType
 {
 	if (PyType && PyType->tp_dict)
 	{
+		FPyScopedGIL GIL;
+
 		FPyWrapperBaseMetaDataObject* PyWrapperMetaData = (FPyWrapperBaseMetaDataObject*)PyDict_GetItemString(PyType->tp_dict, "_wrapper_meta_data");
 		if (PyWrapperMetaData)
 		{

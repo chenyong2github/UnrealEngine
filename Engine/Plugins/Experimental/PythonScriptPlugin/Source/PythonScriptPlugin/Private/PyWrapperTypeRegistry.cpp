@@ -2144,6 +2144,7 @@ void FPyWrapperTypeRegistry::GenerateStubCodeForWrappedTypes(const EPyOnlineDocs
 {
 	UE_LOG(LogPython, Display, TEXT("Generating Python API stub file..."));
 
+	FPyScopedGIL GIL;
 	FPyFileWriter PythonScript;
 
 	TUniquePtr<FPyOnlineDocsWriter> OnlineDocsWriter;

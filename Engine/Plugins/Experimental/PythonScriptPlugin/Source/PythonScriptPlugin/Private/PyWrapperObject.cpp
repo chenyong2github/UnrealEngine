@@ -1241,7 +1241,9 @@ public:
 			NewClass->ClearFlags(RF_Public | RF_Standalone);
 			NewClass = nullptr;
 
+			Py_BEGIN_ALLOW_THREADS
 			CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS);
+			Py_END_ALLOW_THREADS
 		}
 	}
 
