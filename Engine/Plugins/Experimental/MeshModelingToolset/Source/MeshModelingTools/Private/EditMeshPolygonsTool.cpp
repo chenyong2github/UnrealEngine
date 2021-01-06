@@ -1662,6 +1662,7 @@ void UEditMeshPolygonsTool::ApplyCollapseEdge()
 void UEditMeshPolygonsTool::ApplyWeldEdges()
 {
 	bool bValidInput = SelectionMechanic->GetActiveSelection().SelectedEdgeIDs.Num() == 2 && BeginMeshBoundaryEdgeEditChange(true);
+	bValidInput = bValidInput && ActiveEdgeSelection.Num() == 2;		// one of the initial edges may not have been valid
 	if ( bValidInput == false )
 	{
 		GetToolManager()->DisplayMessage( LOCTEXT("OnWeldEdgesFailed", "Cannot Weld current selection"), EToolMessageLevel::UserWarning);
