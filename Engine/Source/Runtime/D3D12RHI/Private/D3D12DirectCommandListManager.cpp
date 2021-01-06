@@ -497,7 +497,7 @@ FGPUTimingCalibrationTimestamp FD3D12CommandListManager::GetCalibrationTimestamp
 	return Result;
 }
 
-FD3D12CommandListHandle FD3D12CommandListManager::ObtainCommandList(FD3D12CommandAllocator& CommandAllocator)
+FD3D12CommandListHandle FD3D12CommandListManager::ObtainCommandList(FD3D12CommandAllocator& CommandAllocator, bool bHasBackbufferWriteTransition)
 {
 	FD3D12CommandListHandle List;
 	if (!ReadyLists.Dequeue(List))
@@ -507,7 +507,7 @@ FD3D12CommandListHandle FD3D12CommandListManager::ObtainCommandList(FD3D12Comman
 	}
 
 	check(List.GetCommandListType() == CommandListType);
-	List.Reset(CommandAllocator, ShouldTrackCommandListTime());
+	List.Reset(CommandAllocator, ShouldTrackCommandListTime() && !bHasBackbufferWriteTransition);
 	return List;
 }
 
@@ -891,9 +891,8 @@ uint32 FD3D12CommandListManager::GetResourceBarrierCommandList(FD3D12CommandList
 		// Reserve space for the descs
 		TArray<D3D12_RESOURCE_BARRIER> BarrierDescs;
 		BarrierDescs.Reserve(NumPendingResourceBarriers);
-#if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
+
 		TArray<D3D12_RESOURCE_BARRIER> BackBufferBarrierDescs;
-#endif // #if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
 
 		// Fill out the descs
 		D3D12_RESOURCE_BARRIER Desc = {};
@@ -957,7 +956,7 @@ uint32 FD3D12CommandListManager::GetResourceBarrierCommandList(FD3D12CommandList
 				ResourceBarrierCommandAllocator = ResourceBarrierCommandAllocatorManager.ObtainCommandAllocator();
 			}
 
-			hResourceBarrierList = ObtainCommandList(*ResourceBarrierCommandAllocator);
+			hResourceBarrierList = ObtainCommandList(*ResourceBarrierCommandAllocator, BackBufferBarrierDescs.Num() > 0);
 
 #if ENABLE_RESIDENCY_MANAGEMENT
 			//TODO: Update the logic so that this loop can occur above!
