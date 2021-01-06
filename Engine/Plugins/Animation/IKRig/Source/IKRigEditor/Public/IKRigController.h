@@ -102,6 +102,7 @@ public:
 
 	FGoalModified OnGoalModified;
 private:
+	UPROPERTY(transient)
 	UIKRigDefinition* IKRigDefinition = nullptr;
 
 	bool ValidateSolver(UIKRigSolverDefinition* const SolverDef) const;
