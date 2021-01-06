@@ -10,6 +10,7 @@
 #include "AssetToolsModule.h"
 #include "IAssetTools.h"
 #include "EditorUtilitySubsystem.h"
+#include "Kismet/KismetSystemLibrary.h"
 
 
 #define LOCTEXT_NAMESPACE "BlutilityLevelEditorExtensions"
@@ -40,23 +41,35 @@ UAsyncEditorDelay::UAsyncEditorDelay(const FObjectInitializer& ObjectInitializer
 
 #if WITH_EDITOR
 
-UAsyncEditorDelay* UAsyncEditorDelay::AsyncEditorDelay(float Seconds)
+UAsyncEditorDelay* UAsyncEditorDelay::AsyncEditorDelay(float Seconds, int32 MinimumFrames)
 {
 	UAsyncEditorDelay* NewTask = NewObject<UAsyncEditorDelay>();
-	NewTask->Start(Seconds);
+	NewTask->Start(Seconds, MinimumFrames);
 
 	return NewTask;
 }
 
 #endif
 
-void UAsyncEditorDelay::Start(float Seconds)
+void UAsyncEditorDelay::Start(float InMinimumSeconds, int32 InMinimumFrames)
 {
-	FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateUObject(this, &UAsyncEditorDelay::HandleComplete), Seconds);
+	EndFrame = GFrameCounter + InMinimumFrames;
+	EndTime = FApp::GetCurrentTime() + InMinimumSeconds;
+	FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateUObject(this, &UAsyncEditorDelay::HandleComplete), 0);
 }
 
 bool UAsyncEditorDelay::HandleComplete(float DeltaTime)
 {
+	if (FApp::GetCurrentTime() < EndTime)
+	{
+		return true;
+	}
+
+	if (GFrameCounter < EndFrame)
+	{
+		return true;
+	}
+
 	Complete.Broadcast();
 	SetReadyToDestroy();
 	return false;
@@ -130,6 +143,47 @@ bool UAsyncEditorWaitForGameWorld::OnTick(float DeltaTime)
 	}
 
 	Complete.Broadcast(nullptr);
+	SetReadyToDestroy();
+
+	return false;
+}
+
+
+UAsyncEditorOpenMapAndFocusActor::UAsyncEditorOpenMapAndFocusActor(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+}
+
+#if WITH_EDITOR
+
+UAsyncEditorOpenMapAndFocusActor* UAsyncEditorOpenMapAndFocusActor::AsyncEditorOpenMapAndFocusActor(FSoftObjectPath Map, FString FocusActorName)
+{
+	UAsyncEditorOpenMapAndFocusActor* NewTask = NewObject<UAsyncEditorOpenMapAndFocusActor>();
+	NewTask->Start(Map, FocusActorName);
+
+	return NewTask;
+}
+
+#endif
+
+void UAsyncEditorOpenMapAndFocusActor::Start(FSoftObjectPath InMap, FString InFocusActorName)
+{
+	Map = InMap;
+	FocusActorName = InFocusActorName;
+
+	AddToRoot();
+
+	UWorld* World = GEditor ? GEditor->GetEditorWorldContext(false).World() : nullptr;
+	UKismetSystemLibrary::ExecuteConsoleCommand(World, FString::Printf(TEXT("Automate.OpenMapAndFocusActor %s %s"), *InMap.ToString(), *InFocusActorName));
+
+	FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateUObject(this, &UAsyncEditorOpenMapAndFocusActor::OnTick), 0);
+}
+
+bool UAsyncEditorOpenMapAndFocusActor::OnTick(float DeltaTime)
+{
+	RemoveFromRoot();
+
+	Complete.Broadcast();
 	SetReadyToDestroy();
 
 	return false;

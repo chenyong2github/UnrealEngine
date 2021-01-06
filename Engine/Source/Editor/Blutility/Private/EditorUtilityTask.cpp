@@ -34,6 +34,9 @@ UWorld* UEditorUtilityTask::GetWorld() const
 
 void UEditorUtilityTask::StartExecutingTask()
 {
+	Cached_GIsRunningUnattendedScript = GIsRunningUnattendedScript;
+	GIsRunningUnattendedScript = true;
+
 	CreateNotification();
 
 	BeginExecution();
@@ -52,6 +55,8 @@ void UEditorUtilityTask::FinishExecutingTask()
 		TaskNotification->SetComplete(true);
 		TaskNotification.Reset();
 	}
+
+	GIsRunningUnattendedScript = Cached_GIsRunningUnattendedScript;
 }
 
 void UEditorUtilityTask::CreateNotification()
