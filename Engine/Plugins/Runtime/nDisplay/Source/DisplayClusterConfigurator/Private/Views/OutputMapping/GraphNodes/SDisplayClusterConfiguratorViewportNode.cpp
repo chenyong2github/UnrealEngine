@@ -134,6 +134,7 @@ void SDisplayClusterConfiguratorViewportNode::UpdateGraphNode()
 		[
 			SNew(SDisplayClusterConfiguratorResizer, ToolkitPtr.Pin().ToSharedRef(), SharedThis(this))
 			.Visibility(this, &SDisplayClusterConfiguratorViewportNode::GetSelectionVisibility)
+			.IsFixedAspectRatio(this, &SDisplayClusterConfiguratorViewportNode::IsAspectRatioFixed)
 		]
 	];
 
@@ -198,6 +199,14 @@ void SDisplayClusterConfiguratorViewportNode::SetNodeSize(const FVector2D InLoca
 	NodeSlot->SlotSize(InLocalSize);
 
 	ViewportSlot->SetLocalSize(InLocalSize);
+}
+
+const FVector2D SDisplayClusterConfiguratorViewportNode::GetNodeSize() const
+{
+	TSharedPtr<FDisplayClusterConfiguratorOutputMappingViewportSlot> ViewportSlot = ViewportSlotPtr.Pin();
+	check(ViewportSlot.IsValid());
+
+	return ViewportSlot->GetLocalSize();
 }
 
 void SDisplayClusterConfiguratorViewportNode::OnSelectedItemSet(const TSharedRef<IDisplayClusterConfiguratorTreeItem>& InTreeItem)
@@ -330,6 +339,14 @@ FMargin SDisplayClusterConfiguratorViewportNode::GetAreaResizeHandlePosition() c
 	check(CfgViewport != nullptr);
 
 	return FMargin(CfgViewport->Region.W, CfgViewport->Region.H, 0.f, 0.f);
+}
+
+bool SDisplayClusterConfiguratorViewportNode::IsAspectRatioFixed() const
+{
+	UDisplayClusterConfigurationViewport* CfgViewport = CfgViewportPtr.Get();
+	check(CfgViewport != nullptr);
+
+	return CfgViewport->bFixedAspectRatio;
 }
 
 #undef LOCTEXT_NAMESPACE

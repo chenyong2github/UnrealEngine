@@ -36,6 +36,7 @@ public:
 	virtual UObject* GetEditingObject() const override;
 	virtual void SetNodePositionOffset(const FVector2D InLocalOffset) override;
 	virtual void SetNodeSize(const FVector2D InLocalSize) override;
+	virtual const FVector2D GetNodeSize() const override;
 	virtual void OnSelectedItemSet(const TSharedRef<IDisplayClusterConfiguratorTreeItem>& InTreeItem) override;
 	//~ End SDisplayClusterConfiguratorBaseNode interface
 
@@ -45,6 +46,7 @@ public:
 private:
 	const FSlateBrush* GetBorderBrush() const;
 	FMargin GetAreaResizeHandlePosition() const;
+	bool IsAspectRatioFixed() const;
 
 private:
 	TWeakObjectPtr<UDisplayClusterConfiguratorWindowNode> WindowNodePtr;

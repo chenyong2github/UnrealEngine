@@ -42,6 +42,13 @@ public:
 	virtual void SetNodeSize(const FVector2D InLocalSize) {}
 
 	/**
+	 * Gets the node's current size
+	 * 
+	 * @return Node's size in local space
+	 */
+	virtual const FVector2D GetNodeSize() const { return FVector2D::ZeroVector; }
+
+	/**
 	 * Selected Item handler function. Fires when the item has been selected in the tree view
 	 *
 	 * @param InTreeItem				Selected Tree Item

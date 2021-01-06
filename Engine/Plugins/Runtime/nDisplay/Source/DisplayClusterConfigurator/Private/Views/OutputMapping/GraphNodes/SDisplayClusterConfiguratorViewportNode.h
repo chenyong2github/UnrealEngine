@@ -35,6 +35,8 @@ public:
 	virtual UObject* GetEditingObject() const override;
 	virtual void SetNodePositionOffset(const FVector2D InLocalOffset) override;
 	virtual void SetNodeSize(const FVector2D InLocalSize) override;
+	virtual const FVector2D GetNodeSize() const override;
+
 	virtual void OnSelectedItemSet(const TSharedRef<IDisplayClusterConfiguratorTreeItem>& InTreeItem) override;
 
 	virtual void SetBackgroundDefaultBrush() override;
@@ -50,6 +52,7 @@ private:
 	FText GetPositionAndSizeText() const;
 
 	FMargin GetAreaResizeHandlePosition() const;
+	bool IsAspectRatioFixed() const;
 
 private:
 	TWeakObjectPtr<UDisplayClusterConfiguratorViewportNode> ViewportNodePtr;

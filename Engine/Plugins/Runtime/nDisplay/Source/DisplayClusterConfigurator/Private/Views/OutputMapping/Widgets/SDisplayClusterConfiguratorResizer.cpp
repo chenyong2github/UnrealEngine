@@ -17,6 +17,8 @@ void SDisplayClusterConfiguratorResizer::Construct(const FArguments& InArgs, con
 	BaseNodePtr = InBaseNode;
 	bResizing = false;
 
+	IsFixedAspectRatio = InArgs._IsFixedAspectRatio;
+
 	SetCursor(EMouseCursor::GrabHandClosed);
 
 	ChildSlot
@@ -59,6 +61,23 @@ FReply SDisplayClusterConfiguratorResizer::OnMouseMove(const FGeometry& MyGeomet
 		check(GraphPanel.IsValid())
 
 		FVector2D NewNodeSize = MouseEvent.GetScreenSpacePosition() - BaseNode->GetTickSpaceGeometry().GetAbsolutePosition();
+
+		if (IsFixedAspectRatio.Get(false))
+		{
+			// If the aspect ratio is fixed, first get the node's current size to compute the ratio from,
+			// then force the new node size to match that aspect ratio.
+			const FVector2D CurrentNodeSize = BaseNode->GetNodeSize();
+			float CurrentAspectRatio = CurrentNodeSize.X / CurrentNodeSize.Y;
+
+			if (NewNodeSize.X > NewNodeSize.Y * CurrentAspectRatio)
+			{
+				NewNodeSize.X = NewNodeSize.Y * CurrentAspectRatio;
+			}
+			else
+			{
+				NewNodeSize.Y = NewNodeSize.X / CurrentAspectRatio;
+			}
+		}
 
 		NewNodeSize /= GraphPanel->GetZoomAmount();
 
