@@ -251,6 +251,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Media|MediaPlayer")
 	UMediaPlaylist* GetPlaylist() const
 	{
+		EnsurePlaylist();
 		return Playlist;
 	}
 
@@ -973,7 +974,7 @@ public:
 	 */
 	UMediaPlaylist& GetPlaylistRef() const
 	{
-		check(Playlist != nullptr);
+		EnsurePlaylist();
 		return *Playlist;
 	}
 
@@ -1099,7 +1100,7 @@ protected:
 	 * @see OpenPlaylist, OpenPlaylistIndex
 	 */
 	UPROPERTY(BlueprintReadOnly, transient, Category=Playback)
-	UMediaPlaylist* Playlist;
+	mutable UMediaPlaylist* Playlist;
 
 	/**
 	 * The current index of the source in the play list being played.
@@ -1169,10 +1170,13 @@ private:
 	void HandlePlayerMediaEvent(EMediaEvent Event);
 
 	/** Sets the playlist and properly handles cases when this MediaPlayer object is in disregard for GC set */
-	void SetPlaylistInternal(UMediaPlaylist* InPlaylist);
+	void SetPlaylistInternal(UMediaPlaylist* InPlaylist) const;
 
 	/** Open media source with the given options. */
 	bool OpenSourceInternal(UMediaSource* MediaSource, const FMediaPlayerOptions* Options);
+
+	/** Ensure internal playlist is created */
+	void EnsurePlaylist() const;
 
 private:
 
