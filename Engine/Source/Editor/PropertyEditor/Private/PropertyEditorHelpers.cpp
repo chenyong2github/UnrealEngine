@@ -3,12 +3,11 @@
 #include "PropertyEditorHelpers.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Input/SCheckBox.h"
-#include "UserInterface/PropertyEditor/PropertyEditorConstants.h"
 #include "IDocumentation.h"
 
 #include "PropertyHandleImpl.h"
-#include "SResetToDefaultPropertyEditor.h"
 
+#include "UserInterface/PropertyEditor/PropertyEditorConstants.h"
 #include "UserInterface/PropertyEditor/SPropertyEditor.h"
 #include "UserInterface/PropertyEditor/SPropertyEditorNumeric.h"
 #include "UserInterface/PropertyEditor/SPropertyEditorArray.h"
