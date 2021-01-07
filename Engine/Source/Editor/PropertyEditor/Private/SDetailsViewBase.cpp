@@ -797,7 +797,7 @@ void SDetailsViewBase::Tick( const FGeometry& AllottedGeometry, const double InC
 	FRootPropertyNodeList& RootPropertyNodes = GetRootNodes();
 
 	bool bHadDeferredActions = DeferredActions.Num() > 0;
-	auto PreProcessRootNode = [&bHadDeferredActions, this](TSharedPtr<FComplexPropertyNode> RootPropertyNode) 
+	auto PreProcessRootNode = [bHadDeferredActions, this](TSharedPtr<FComplexPropertyNode> RootPropertyNode) 
 	{
 		check(RootPropertyNode.IsValid());
 
@@ -829,14 +829,22 @@ void SDetailsViewBase::Tick( const FGeometry& AllottedGeometry, const double InC
 		}
 	}
 
-	if (DeferredActions.Num() > 0)
+	if (bHadDeferredActions)
 	{
+		TArray<FSimpleDelegate> DeferredActionsCopy;
+		
+		do
+		{
 			// Execute any deferred actions
-		for (const FSimpleDelegate& DeferredAction : DeferredActions)
+			DeferredActionsCopy = MoveTemp(DeferredActions);
+			DeferredActions.Reset();
+
+			// Execute any deferred actions
+			for (const FSimpleDelegate& DeferredAction : DeferredActionsCopy)
 			{
 				DeferredAction.ExecuteIfBound();
 			}
-		DeferredActions.Empty();
+		} while (!DeferredActions.IsEmpty());
 	}
 
 	if (bHadDeferredActions)
