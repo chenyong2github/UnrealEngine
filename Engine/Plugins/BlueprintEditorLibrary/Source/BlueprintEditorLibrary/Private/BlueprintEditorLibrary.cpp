@@ -152,9 +152,12 @@ UEdGraph* UBlueprintEditorLibrary::FindEventGraph(UBlueprint* Blueprint)
 
 UEdGraph* UBlueprintEditorLibrary::FindGraph(UBlueprint* Blueprint, FName GraphName)
 {
-	if (Blueprint)
+	if (Blueprint && !GraphName.IsNone())
 	{
-		for (UEdGraph* CurrentGraph : Blueprint->UbergraphPages)
+		TArray<UEdGraph*> AllGraphs;
+		Blueprint->GetAllGraphs(AllGraphs);
+
+		for (UEdGraph* CurrentGraph : AllGraphs)
 		{
 			if (CurrentGraph->GetFName() == GraphName)
 			{
