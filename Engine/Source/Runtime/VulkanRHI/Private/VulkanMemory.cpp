@@ -15,19 +15,6 @@
 uint32 GVulkanRHIDeletionFrameNumber = 0;
 const uint32 NUM_FRAMES_TO_WAIT_FOR_RESOURCE_DELETE = 2;
 
-
-int32 GVulkanLogDefrag = 0;
-static FAutoConsoleVariableRef CVarVulkanLogDefrag(
-	TEXT("r.vulkan.LogDefrag"),
-	GVulkanLogDefrag,
-	TEXT("Whether to log all defrag moves & evictions\n")
-	TEXT("0: Off\n")
-	TEXT("1: On\n"),
-	ECVF_Default
-);
-
-
-
 #define UE_VK_MEMORY_MAX_SUB_ALLOCATION (64llu << 20llu) // set to 0 to disable
 
 #define UE_VK_MEMORY_KEEP_FREELIST_SORTED					1
@@ -127,6 +114,16 @@ DEFINE_STAT(STAT_VulkanAllocation_BufferUAV);
 DEFINE_STAT(STAT_VulkanAllocation_BufferStaging);
 DEFINE_STAT(STAT_VulkanAllocation_BufferOther);
 DEFINE_STAT(STAT_VulkanAllocation_Allocated);
+
+int32 GVulkanLogDefrag = 0;
+static FAutoConsoleVariableRef CVarVulkanLogDefrag(
+	TEXT("r.vulkan.LogDefrag"),
+	GVulkanLogDefrag,
+	TEXT("Whether to log all defrag moves & evictions\n")
+	TEXT("0: Off\n")
+	TEXT("1: On\n"),
+	ECVF_Default
+);
 
 static int32 GVulkanMemoryBackTrace = 10;
 static FAutoConsoleVariableRef CVarVulkanMemoryBackTrace(
@@ -265,6 +262,16 @@ static FAutoConsoleVariableRef CVarVulkanFakeMemoryLimit(
 );
 #endif
 
+// this is disabled currently due causing use-after-free issues, which caused UE-105058
+int32 GVulkanEnableDefrag = 0;
+static FAutoConsoleVariableRef CVarVulkanEnableDefrag(
+	TEXT("r.Vulkan.EnableDefrag"),
+	GVulkanEnableDefrag,
+	TEXT("Whether to enable defrag moves & evictions\n")
+	TEXT("0: Off\n")
+	TEXT("1: On\n"),
+	ECVF_RenderThreadSafe
+);
 
 int32 GVulkanDefragOnce = 0;
 static FAutoConsoleVariableRef CVarVulkanDefragOnce(
@@ -273,6 +280,7 @@ static FAutoConsoleVariableRef CVarVulkanDefragOnce(
 	TEXT("Set to 1 to test defrag"),
 	ECVF_RenderThreadSafe
 );
+
 int32 GVulkanDefragRepeat = 0;
 static FAutoConsoleVariableRef CVarVulkanDefragRepeat (
 	TEXT("r.Vulkan.DefragRepeatDebug"),
@@ -2356,6 +2364,11 @@ namespace VulkanRHI
 	{
 		auto CanDefragHeap = [](FVulkanResourceHeap* Heap)
 		{
+			if (!GVulkanEnableDefrag)
+			{
+				return false;
+			}
+
 			for(TArray<FVulkanSubresourceAllocator*>& Pages : Heap->ActivePages) 
 			{
 				for(FVulkanSubresourceAllocator* Allocator : Pages) 
@@ -2371,6 +2384,11 @@ namespace VulkanRHI
 
 		auto CanEvictHeap = [](FVulkanResourceHeap* Heap)
 		{
+			if (!GVulkanEnableDefrag)
+			{
+				return false;
+			}
+
 			for(TArray<FVulkanSubresourceAllocator*>& Pages : Heap->ActivePages) 
 			{
 				for(FVulkanSubresourceAllocator* Allocator : Pages) 
