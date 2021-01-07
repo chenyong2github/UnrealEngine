@@ -39,7 +39,7 @@ void FAnimBlueprintCompilerHandler_Attributes::PreProcessAnimationNodes(TArrayVi
 		// Establish links between save/used cached pose nodes
 		if(UAnimGraphNode_UseCachedPose* UseCachedPoseNode = Cast<UAnimGraphNode_UseCachedPose>(Node))
 		{
-			if(ensure(UseCachedPoseNode->SaveCachedPoseNode.IsValid()))
+			if(UseCachedPoseNode->SaveCachedPoseNode.IsValid())
 			{
 				SaveCachedPoseMap.Add(UseCachedPoseNode->SaveCachedPoseNode.Get(), UseCachedPoseNode);
 			}
