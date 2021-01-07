@@ -763,7 +763,8 @@ bool FTransaction::FObjectRecord::ContainsPieObject() const
 
 bool FTransaction::FObjectRecord::HasChanges() const
 {
-	return DeltaChange.HasChanged() || CustomChange;
+	// A record contains change if it has a detected delta or a custom change or an object annotation
+	return DeltaChange.HasChanged() || CustomChange || SerializedObject.ObjectAnnotation || SerializedObjectFlip.ObjectAnnotation;
 }
 
 bool FTransaction::FObjectRecord::HasExpired() const
