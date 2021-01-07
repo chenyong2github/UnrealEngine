@@ -1609,6 +1609,7 @@ void FChaosEngineInterface::CreateActor(const FActorCreationParams& InParams,FPh
 
 void FChaosEngineInterface::ReleaseActor(FPhysicsActorHandle& Handle,FChaosScene* InScene,bool bNeverDerferRelease)
 {
+	LLM_SCOPE(ELLMTag::Chaos);
 	if(!Handle)
 	{
 		UE_LOG(LogChaos,Warning,TEXT("Attempting to release an actor with a null handle"));

@@ -1079,7 +1079,9 @@ namespace Chaos
 		for (FSimCallbackCommandObject* SimCallbackObject : PushData.SimCommands)
 		{
 			SimCallbackObject->PreSimulate_Internal();
+			delete SimCallbackObject;
 		}
+		PushData.SimCommands.Reset();
 	}
 
 	template <typename Traits>
