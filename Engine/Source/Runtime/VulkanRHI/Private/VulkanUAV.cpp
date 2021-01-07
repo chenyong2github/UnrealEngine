@@ -534,6 +534,12 @@ void FVulkanCommandListContext::ClearUAV(TRHICommandList_RecursiveHazardous<FVul
 			ensure(0);
 		}
 	}
+	else if (UnorderedAccessView->SourceStructuredBuffer)
+	{
+		ensure(UnorderedAccessView->BufferViewFormat == PF_Unknown);
+		uint32 NumUints = UnorderedAccessView->SourceStructuredBuffer->GetSize() / 4;
+		ClearUAVShader_T<EClearReplacementResourceType::StructuredBuffer, 4, false>(RHICmdList, UnorderedAccessView, NumUints, 1, 1, ClearValue, ValueType);
+	}
 	else
 	{
 		ensure(0);
