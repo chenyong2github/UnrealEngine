@@ -8,6 +8,7 @@
 #if PLATFORM_SUPPORTS_HTILE_LOOKUP
 
 #include "NaniteDataDecode.ush"
+#include "NaniteAttributeDecode.ush"
 
 // .x = platform config
 // .y = tiles wide
