@@ -2414,9 +2414,9 @@ bool FAdaptiveStreamingPlayer::FindMatchingStreamInfo(FStreamCodecInformation& O
 	TSharedPtrTS<ITimelineMediaAsset> Asset = CurrentPlayPeriod->GetMediaAsset();
 	if (Asset.IsValid())
 	{
-		check(Asset->GetNumberOfAdaptationSets(EStreamType::Video) <= 1); // what if this is more than one?
 		if (Asset->GetNumberOfAdaptationSets(EStreamType::Video) > 0)
 		{
+			// What if this is more than one?
 			TSharedPtrTS<IPlaybackAssetAdaptationSet> VideoSet = Asset->GetAdaptationSetByTypeAndIndex(EStreamType::Video, 0);
 			check(VideoSet.IsValid());
 			if (VideoSet.IsValid())
