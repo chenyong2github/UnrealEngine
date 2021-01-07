@@ -496,7 +496,7 @@ IManifest::FResult FManifestMP4Internal::FTimelineAssetMP4::GetStartingSegment(T
 					}
 					else
 					{
-						err = TrackIt->StartAtTime(StartPosition.Time, SearchMode);
+						err = TrackIt->StartAtTime(StartPosition.Time, SearchMode, true);
 						if (err == UEMEDIA_ERROR_OK)
 						{
 							firstTimestamp.SetFromND(TrackIt->GetDTS(), TrackIt->GetTimescale());
@@ -611,7 +611,7 @@ IManifest::FResult FManifestMP4Internal::FTimelineAssetMP4::GetStartingSegment(T
 					}
 					else
 					{
-						err = TrackIt->StartAtTime(StartPosition.Time, SearchMode);
+						err = TrackIt->StartAtTime(StartPosition.Time, SearchMode, true);
 						if (err == UEMEDIA_ERROR_OK)
 						{
 							firstTimestamp.SetFromND(TrackIt->GetDTS(), TrackIt->GetTimescale());

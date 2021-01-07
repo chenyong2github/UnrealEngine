@@ -70,12 +70,12 @@ namespace Electra
 		};
 
 		/** Box type is a 32 bit value in an mp4 file. */
-		typedef uint32  FBoxType;
+		typedef uint32 FBoxType;
 
 		/**
 		 * Commonly referenced boxes
 		 */
-		 // This whole constexpr thing doesn't work...
+		 // constexpr doesn't work here
 			 /*
 				 static inline constexpr FBoxType MakeBoxType(unsigned char v1, unsigned char v2, unsigned char v3, unsigned char v4)
 				 {
@@ -84,6 +84,7 @@ namespace Electra
 			 */
 #define MAKE_BOX_ATOM(a,b,c,d) (IParserISO14496_12::FBoxType)((uint32)a << 24) | ((uint32)b << 16) | ((uint32)c << 8) | ((uint32)d)
 		static const FBoxType BoxType_ftyp = MAKE_BOX_ATOM('f', 't', 'y', 'p');
+		static const FBoxType BoxType_styp = MAKE_BOX_ATOM('s', 't', 'y', 'p');
 		static const FBoxType BoxType_moov = MAKE_BOX_ATOM('m', 'o', 'o', 'v');
 		static const FBoxType BoxType_sidx = MAKE_BOX_ATOM('s', 'i', 'd', 'x');
 		static const FBoxType BoxType_moof = MAKE_BOX_ATOM('m', 'o', 'o', 'f');
@@ -138,7 +139,7 @@ namespace Electra
 		/*******************************************************************************************************************/
 		class ITrack;
 
-		virtual UEMediaError PrepareTracks(TSharedPtrTS<const IParserISO14496_12>	OptionalMP4InitSegment) = 0;
+		virtual UEMediaError PrepareTracks(TSharedPtrTS<const IParserISO14496_12> OptionalMP4InitSegment) = 0;
 
 		virtual TMediaOptionalValue<FTimeFraction> GetMovieDuration() const = 0;
 
@@ -157,7 +158,8 @@ namespace Electra
 				Closest
 			};
 
-			virtual UEMediaError StartAtTime(const FTimeValue& AtTime, ESearchMode SearchMode) = 0;
+			virtual UEMediaError StartAtTime(const FTimeValue& AtTime, ESearchMode SearchMode, bool bNeedSyncSample) = 0;
+			virtual UEMediaError StartAtFirst(bool bNeedSyncSample) = 0;
 			virtual UEMediaError Next() = 0;
 
 			virtual bool IsAtEOS() const = 0;
@@ -227,8 +229,4 @@ namespace Electra
 
 	};
 
-
-
 } // namespace Electra
-
-

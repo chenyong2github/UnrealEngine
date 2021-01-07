@@ -959,9 +959,9 @@ void FStreamReaderHLSfmp4::FStreamHandler::HandleRequest()
 									FTimeValue DTS;
 									FTimeValue PTS;
 									FTimeValue Duration;
-									for(Error = TrackIterator->StartAtTime(FTimeValue::GetZero(), IParserISO14496_12::ITrackIterator::ESearchMode::After); Error == UEMEDIA_ERROR_OK; Error = TrackIterator->Next())
+									for(Error = TrackIterator->StartAtFirst(false); Error == UEMEDIA_ERROR_OK; Error = TrackIterator->Next())
 									{
-										// Get the DTS and PTS. Those are 0-based in a fragment and offeet by the base media decode time of the fragment.
+										// Get the DTS and PTS. Those are 0-based in a fragment and offset by the base media decode time of the fragment.
 										DTS.SetFromND(TrackIterator->GetDTS(), TrackIterator->GetTimescale());
 										PTS.SetFromND(TrackIterator->GetPTS(), TrackIterator->GetTimescale());
 
@@ -1062,6 +1062,13 @@ void FStreamReaderHLSfmp4::FStreamHandler::HandleRequest()
 										bIsFirstAU = false;
 									}
 									delete TrackIterator;
+
+									if (Error != UEMEDIA_ERROR_OK && Error != UEMEDIA_ERROR_END_OF_STREAM)
+									{
+										// error iterating
+										LogMessage(IInfoLog::ELevel::Error, FString::Printf(TEXT("Failed to iterate over segment \"%s\""), *Request->URL));
+										bHasErrored = true;
+									}
 
 									// Check if we are done or if there is additional data that needs parsing, like more moof boxes.
 									if (HasReadBeenAborted() || HasReachedEOF())
