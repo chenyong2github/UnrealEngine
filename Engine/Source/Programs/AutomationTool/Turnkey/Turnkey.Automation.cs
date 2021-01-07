@@ -13,33 +13,14 @@ namespace Turnkey
 	{
 		public override ExitCode Execute()
 		{
-			// 			Thread t = new Thread(Turnkey.ThreadProc);
-			// 			Console.WriteLine("Before setting apartment state: {0}",
-			// 				t.GetApartmentState());
-			// 
-			// 			t.SetApartmentState(ApartmentState.STA);
-			// 			Console.WriteLine("After setting apartment state: {0}",
-			// 				t.GetApartmentState());
-			// 
-			// 			t.Start(this);
-			// 			t.Join();
-
-			ThreadProc(this);
-			return TurnkeyUtils.ExitCode;
-		}
-
-		private static void ThreadProc(object Data)
-		{
-			BuildCommand Build = (BuildCommand)Data;
-
 			IOProvider IOProvider;
-			if (Build.ParseParam("EditorIO"))
+			if (ParseParam("EditorIO"))
 			{
 				IOProvider = new HybridIOProvider();
 			}
 			else
 			{
-				string ReportFilename = Build.ParseParamValue("ReportFilename");
+				string ReportFilename = ParseParamValue("ReportFilename");
 				if (!string.IsNullOrEmpty(ReportFilename))
 				{
 					IOProvider = new ReportIOProvider(ReportFilename);
@@ -50,12 +31,14 @@ namespace Turnkey
 				}
 			}
 
-			Turnkey.Execute(IOProvider, Build);
+			return Turnkey.Execute(IOProvider, this);
 		}
 
 
 		public static AutomationTool.ExitCode Execute(IOProvider IOProvider, BuildCommand CommandUtilHelper)
 		{
+			SetupVisuals();
+
 			// cache some settings for other classes
 			TurnkeyUtils.SetVariable("EngineDir", EngineDirectory.FullName);
 			TurnkeyUtils.SetVariable("Project", CommandUtilHelper.ParseParamValue("Project="));
@@ -103,5 +86,27 @@ namespace Turnkey
 
 			return TurnkeyUtils.ExitCode;
 		}
+
+		#region Visuals
+
+		[System.Runtime.InteropServices.DllImport("user32.dll")]
+		private static extern bool SetProcessDPIAware();
+
+		private static void SetupVisuals()
+		{
+			// make the form look good on modern displays!
+			if (!UnrealBuildTool.Utils.IsRunningOnMono && Environment.OSVersion.Version.Major >= 6)
+			{
+				SetProcessDPIAware();
+			}
+
+#if WINDOWS
+			System.Windows.Forms.Application.EnableVisualStyles();
+			System.Windows.Forms.Application.SetCompatibleTextRenderingDefault(false);
+#endif
+		}
+
+		#endregion
+
 	}
 }

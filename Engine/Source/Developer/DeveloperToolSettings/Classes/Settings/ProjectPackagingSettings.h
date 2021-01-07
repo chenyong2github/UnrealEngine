@@ -112,6 +112,8 @@ struct FProjectBuildSettings
 	 *   {iniif:Token:Config:Section:Key} - Replaced with Token if the vlaue for Key in Config's Section evaluates to True. Ex: {iniif:-iostore:/Script/UnrealEd.ProjectPackagingSettings:bUseIoStore}
 	 * Because ProjectPackagingSettings is a common section to read, if Config:Section: are not specified for 'iniif' or 'inivalue', it will use the ProjectPackagingSettings settings:
 	 *   {iniif:-iostore:bUseIoStore}
+	 * Additionally, the ini settings can have an optional search and replace modifier, to easily modify the string. The Replace can be blank:
+	 *   {inivalue:BuildConfiguration|PPBC_=} - This will get the BuildConfiguration from the settings, and then remove the PPBC_ enum prefix from the string, to just get say Development
 	 */
 	UPROPERTY(EditAnywhere, Category="Packaging")
 	FString BuildCookRunParams;

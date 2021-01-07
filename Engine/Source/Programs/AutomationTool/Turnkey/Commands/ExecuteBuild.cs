@@ -4,7 +4,7 @@ using AutomationTool;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
+using System.IO;
 using System.Text.RegularExpressions;
 using EpicGames.Core;
 using UnrealBuildTool;
@@ -13,59 +13,94 @@ namespace Turnkey.Commands
 {
 	class ExecuteBuild : TurnkeyCommand
 	{
+		// could move this to TurnkeyUtils!
+		static string GetStructEntry(string Input, string Property, bool bIsArrayProperty)
+		{
+			string PrimaryRegex;
+			string AltRegex = null;
+			if (bIsArrayProperty)
+			{
+				PrimaryRegex = string.Format("{0}\\s*=\\s*\\((.*?)\\)", Property);
+			}
+			else
+			{
+				// handle quoted strings, allowing for quoited quotation marks (basically doing " followed by whatever, until we see a quote that was not proceeded by a \, and gather the whole mess in an outer group)
+				PrimaryRegex = string.Format("{0}\\s*=\\s*\"((.*?)[^\\\\])\"", Property);
+				AltRegex = string.Format("{0}\\s*=\\s*(.*?)\\,", Property);
+			}
+
+			// attempt to match it!
+			Match Result = Regex.Match(Input, PrimaryRegex);
+			if (!Result.Success)
+			{
+				Result = Regex.Match(Input, AltRegex);
+			}
+
+			// if we got a success, return the main match value
+			if (Result.Success)
+			{
+				return Result.Groups[1].Value.ToString();
+			}
+
+			return null;
+		}
+
 		protected override void Execute(string[] CommandOptions)
 		{
 			// we need a platform to execute
 			List<UnrealTargetPlatform> Platforms = TurnkeyUtils.GetPlatformsFromCommandLineOrUser(CommandOptions, null);
+			FileReference ProjectFile = TurnkeyUtils.GetProjectFromCommandLineOrUser(CommandOptions);
 
-			string Project = TurnkeyUtils.GetVariableValue("Project");
-			if (string.IsNullOrEmpty(Project))
+			// we need a project file, so if canceled, abore this command
+			if (ProjectFile == null)
 			{
-				Project = TurnkeyUtils.ReadInput("Enter a project to build");
+				return;
 			}
-			
-			FileReference ProjectFile = ProjectUtils.FindProjectFileFromName(Project);
 
 			string DesiredBuild = TurnkeyUtils.ParseParamValue("Build", null, CommandOptions);
 
 			// get a list of builds from config
 			foreach (UnrealTargetPlatform Platform in Platforms)
 			{
- 				ConfigHierarchy GameConfig = ConfigCache.ReadHierarchy(ConfigHierarchyType.Game, ProjectFile.Directory, Platform);
+				ConfigHierarchy GameConfig = ConfigCache.ReadHierarchy(ConfigHierarchyType.Game, ProjectFile.Directory, Platform);
 
 				List<string> Builds;
 				GameConfig.GetArray("/Script/UnrealEd.ProjectPackagingSettings", "ExtraProjectBuilds", out Builds);
 
 				Dictionary<string, string> BuildCommands = new Dictionary<string, string>(StringComparer.InvariantCultureIgnoreCase);
-				foreach (string Build in Builds)
+				if (Builds != null)
 				{
-					Match NameResult = Regex.Match(Build, "Name\\s*=\\s*\"(.*?)\"");
-					Match PlatformsResult = Regex.Match(Build, "SpecificPlatforms\\s*=\\s*(.*?)");
-					Match ParamsResult = Regex.Match(Build, "BuildCookRunParams=\\s*\"(.*?)\"");
-
-					// make sure required entries are there
-					if (!NameResult.Success || !ParamsResult.Success)
+					foreach (string Build in Builds)
 					{
-						continue;
-					}
+						string Name = GetStructEntry(Build, "Name", false);
+						string SpecificPlatforms = GetStructEntry(Build, "Platforms", true);
+						string Params = GetStructEntry(Build, "BuildCookRunParams", false);
 
-					// if platforms are specified, and this platform isn't one of them, skip it
-					if (PlatformsResult.Success)
-					{
-						string[] SpecificPlatforms = PlatformsResult.Groups[1].Value.Split(",\"".ToCharArray());
-						if (SpecificPlatforms.Length > 0 && !SpecificPlatforms.Contains(Platform.ToString()))
+						// make sure required entries are there
+						if (Name == null || Params == null)
 						{
 							continue;
 						}
-					}
 
-					// add to list of commands
-					BuildCommands.Add(NameResult.Groups[1].Value, ParamsResult.Groups[1].Value);
+						// if platforms are specified, and this platform isn't one of them, skip it
+						if (!string.IsNullOrEmpty(SpecificPlatforms))
+						{
+							string[] PlatformList = SpecificPlatforms.Split(",\"".ToCharArray(), StringSplitOptions.RemoveEmptyEntries);
+							// case insensitive Contains
+							if (PlatformList.Length > 0 && !PlatformList.Any(x => x.Equals(Platform.ToString(), StringComparison.OrdinalIgnoreCase)))
+							{
+								continue;
+							}
+						}
+
+						// add to list of commands
+						BuildCommands.Add(Name, Params);
+					}
 				}
 
 				if (BuildCommands.Count == 0)
 				{
-					TurnkeyUtils.Log("Unable to find a build for platform {0} and project {1}", Platform, Project);
+					TurnkeyUtils.Log("Unable to find a build for platform {0} and project {1}", Platform, ProjectFile.GetFileNameWithoutAnyExtensions());
 					continue;
 				}
 
@@ -120,7 +155,8 @@ namespace Turnkey.Commands
 			//  inivalue:Engine:/Script/Module.Class:SomeSetting
 			//  inivalue:SomeSetting       [convenience for ProjectPackagingSettings setting]
 
-			string[] Tokens = Spec.Split(":".ToCharArray());
+			string[] CommandAndModifiers = Spec.Split("|".ToCharArray(), StringSplitOptions.RemoveEmptyEntries);
+			string[] Tokens = CommandAndModifiers[0].Split(":".ToCharArray());
 
 			string ConfigName;
 			string SectionName;
@@ -185,14 +221,30 @@ namespace Turnkey.Commands
 			string FoundValue;
 			Config.GetString(SectionName, Key, out FoundValue);
 
+
 			if (Tokens[0].Equals("iniif", StringComparison.InvariantCultureIgnoreCase))
 			{
 				bool bIsTrue;
 				if (bool.TryParse(FoundValue, out bIsTrue) && bIsTrue)
 				{
-					return IniIfValue;
+					FoundValue = IniIfValue;
 				}
-				return "";
+				else
+				{
+					return "";
+				}
+			}
+
+			// look to see if we have a replace modifier to update the ini value, and apply it if so
+			if (CommandAndModifiers.Length > 1)
+			{
+				string[] SearchAndReplace = CommandAndModifiers[1].Split("=".ToCharArray());
+				if (SearchAndReplace.Length != 2)
+				{
+					TurnkeyUtils.Log("Found a search/replace modifier {0} in spec {1}", CommandAndModifiers, Spec);
+					return "";
+				}
+				FoundValue = FoundValue.Replace(SearchAndReplace[0], SearchAndReplace[1]);
 			}
 
 			return FoundValue;

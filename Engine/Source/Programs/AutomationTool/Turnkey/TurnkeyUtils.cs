@@ -118,6 +118,9 @@ namespace Turnkey
 			// HACK UNTIL WIN32 IS GONE
 			PossiblePlatforms = PossiblePlatforms.Where(x => x != UnrealTargetPlatform.Win32 && x != UnrealTargetPlatform.XboxOne).ToList();
 
+			// sort by name
+			PossiblePlatforms.Sort((x, y) => string.Compare(x.ToString(), y.ToString()));
+
 			List<UnrealTargetPlatform> Platforms = new List<UnrealTargetPlatform>();
 			// prompt user for a platform
 			if (PlatformString == null)
@@ -128,9 +131,14 @@ namespace Turnkey
 					return null;
 				}
 
+				// default to last platform chosen
+				string LastPlatform = TurnkeySettings.GetUserSettingIfSet("User_LastSelectedPlatform", "");
+
 				List<string> PlatformOptions = PossiblePlatforms.ConvertAll(x => x.ToString());
 				PlatformOptions.Add("All of the Above");
-				int PlatformChoice = TurnkeyUtils.ReadInputInt("Choose a platform:", PlatformOptions, true);
+
+				int Default = PlatformOptions.FindIndex(x => x.Equals(LastPlatform, StringComparison.OrdinalIgnoreCase));
+				int PlatformChoice = TurnkeyUtils.ReadInputInt("Choose a platform:", PlatformOptions, true, Default == -1 ? -1 : Default + 1);
 
 				if (PlatformChoice == 0)
 				{
@@ -144,6 +152,8 @@ namespace Turnkey
 				else
 				{
 					Platforms.Add(PossiblePlatforms[PlatformChoice - 1]);
+					// remember for next time
+					TurnkeySettings.SetUserSetting("User_LastSelectedPlatform", PossiblePlatforms[PlatformChoice - 1].ToString());
 				}
 			}
 			else if (PlatformString.ToLower() == "all")
@@ -172,6 +182,198 @@ namespace Turnkey
 			}
 
 			return Platforms.OrderBy(x => x.ToString()).ToList();
+		}
+
+		private enum ProjectMode
+		{
+			Normal,
+			Templates,
+			Sandbox,
+			Misc,
+			Samples,
+			Collaboration,
+			Personal,
+			Recent,
+		}
+
+		public static FileReference GetProjectFromCommandLineOrUser(string[] CommandOptions)
+		{
+			ProjectMode CurrentMode = ProjectMode.Normal;
+
+			string Project = TurnkeyUtils.GetVariableValue("Project");
+			string LastProject = TurnkeySettings.GetUserSettingIfSet("User_LastSelectedProject", "");
+
+			// create and initialize a dictionary of type to project list
+			Dictionary<ProjectMode, List<FileReference>> ProjectsByType = new Dictionary<ProjectMode, List<FileReference>>();
+			foreach (ProjectMode Mode in Enum.GetValues(typeof(ProjectMode)))
+			{
+				ProjectsByType.Add(Mode, new List<FileReference>());
+			}
+
+			// look up old manual projects
+			string ManualProjectString = TurnkeySettings.GetUserSettingIfSet("User_ManualProjects", "");
+			List<string> ManualProjects = ManualProjectString.Split(";", StringSplitOptions.RemoveEmptyEntries).ToList();
+			ProjectsByType[ProjectMode.Recent].AddRange(ManualProjects.Select(x => new FileReference(x)).ToList());
+			// start on Recent page if last one was a manual project
+			if (ProjectsByType[ProjectMode.Recent].Any(x => x.FullName.Equals(LastProject, StringComparison.OrdinalIgnoreCase)))
+			{
+				CurrentMode = ProjectMode.Recent;
+			}
+
+			// sort the discovered projects
+			foreach (FileReference NativeProject in NativeProjects.EnumerateProjectFiles())
+			{
+				DirectoryReference ProjectDir = NativeProject.Directory;
+				ProjectMode Mode = ProjectMode.Normal;
+
+				if (ProjectDir.ContainsName("StarterContent", 0) || ProjectDir.ContainsName("ContentExamples", 0))
+				{
+					Mode = ProjectMode.Misc;
+				}
+				else if (ProjectDir.ContainsName("Sandbox", 0))
+				{
+					Mode = ProjectMode.Sandbox;
+				}
+				else if (ProjectDir.ContainsName("Templates", 0))
+				{
+					Mode = ProjectMode.Templates;
+				}
+				else if (ProjectDir.ContainsName("Samples", 0))
+				{
+					Mode = ProjectMode.Samples;
+				}
+				else if (ProjectDir.ContainsName("Collaboration", 0))
+				{
+					Mode = ProjectMode.Collaboration;
+				}
+
+				// if the last project was this project, then use this as the starting type
+				if (LastProject != null && NativeProject.GetFileNameWithoutAnyExtensions().Equals(LastProject, StringComparison.OrdinalIgnoreCase))
+				{
+					CurrentMode = Mode;
+				}
+				ProjectsByType[Mode].Add(NativeProject);
+			}
+
+			// now look for the My Documents location
+			DirectoryReference PersonalProjects = new DirectoryReference(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Personal), "Unreal Projects"));
+			foreach (DirectoryReference PersonalProjectDir in DirectoryReference.EnumerateDirectories(PersonalProjects))
+			{
+				FileReference PersonalProjectFile = DirectoryReference.EnumerateFiles(PersonalProjectDir, "*.uproject").FirstOrDefault();
+				if (PersonalProjectFile != null)
+				{
+					ProjectsByType[ProjectMode.Personal].Add(PersonalProjectFile);
+				}
+			}
+
+
+			while (string.IsNullOrEmpty(Project))
+			{
+				// get list of project names from the dictionary
+				List<string> ProjectNames = new List<string>();
+
+				// add options to switch mode
+				Dictionary<int, ProjectMode> IndexToMode = new Dictionary<int, ProjectMode>();
+				foreach (ProjectMode Mode in Enum.GetValues(typeof(ProjectMode)))
+				{
+					if (Mode != CurrentMode)
+					{
+						IndexToMode.Add(ProjectNames.Count, Mode);
+						ProjectNames.Add(string.Format("[Show {0} Projects]", Mode.ToString()));
+					}
+				}
+
+				// now show the projects in this mode
+				ProjectNames.AddRange(ProjectsByType[CurrentMode].Select(x => (CurrentMode == ProjectMode.Recent) ? x.FullName : x.GetFileNameWithoutAnyExtensions()));
+
+				// and finally a manual entry option
+#if WINDOWS
+				ProjectNames.Add("[Browse...]");
+#else
+				ProjectNames.Add("[Enter Path To .uproject...]");
+#endif
+
+				int Default = LastProject == null ? -1 : ProjectNames.FindIndex(x => x.Equals(LastProject, StringComparison.OrdinalIgnoreCase));
+				int Choice = TurnkeyUtils.ReadInputInt(string.Format("Choose a {0} project to execute, or select a set of projects to list. (You can skip this by specifying -project=XXX on the commandline)", CurrentMode), ProjectNames, true, Default == -1 ? -1 : Default + 1);
+				if (Choice == 0)
+				{
+					return null;
+				}
+				// skip cancel
+				Choice = Choice - 1;
+
+				// look for manual entry option
+				if (Choice == ProjectNames.Count - 1)
+				{
+#if WINDOWS
+					System.Windows.Forms.OpenFileDialog Dialog = new System.Windows.Forms.OpenFileDialog();
+					Dialog.Filter = "Project Files (*.uproject)|*.uproject";
+					Dialog.AutoUpgradeEnabled = true;
+					Dialog.CheckFileExists = true;
+//						Dialog.InitialDirectory = TurnkeySettings.GetUserSettingIfSet("User_Last")
+
+					System.Windows.Forms.DialogResult Result = System.Windows.Forms.DialogResult.None;
+					System.Threading.Thread t = new System.Threading.Thread(x =>
+					{
+						Result = Dialog.ShowDialog();
+					});
+
+					t.SetApartmentState(System.Threading.ApartmentState.STA);
+					t.Start();
+					t.Join();
+
+					if (Result != System.Windows.Forms.DialogResult.OK)
+					{
+						continue;
+					}
+					Project = Dialog.FileName;
+#else
+					while (true)
+					{
+						string ProjectChoice = TurnkeyUtils.ReadInput("Enter path to .uproject file:");
+						if (!File.Exists(ProjectChoice))
+						{
+							string Response = TurnkeyUtils.ReadInput(string.Format("'{0}' doesn't exist. Would you like to enter another path? [y/N]", ProjectChoice), "N");
+							if (Response.ToLower() != "y")
+							{
+								break;
+							}
+						}
+						else
+						{
+							Project = ProjectChoice;
+							break;
+						}
+					}
+#endif
+
+					// if we got a valid vhoice, remember it
+					if (!string.IsNullOrEmpty(Project))
+					{
+						// remember this for next run
+						// case insensitive Contains
+						if (!ManualProjects.Any(x => x.Equals(Project, StringComparison.OrdinalIgnoreCase)))
+						{
+							ManualProjects.Add(Project);
+						}
+						TurnkeySettings.SetUserSetting("User_ManualProjects", string.Join(";", ManualProjects));
+					}
+				}
+				else
+				{
+					// if the choice was a mode switch, get the mode
+					if (IndexToMode.TryGetValue(Choice, out CurrentMode))
+					{
+						continue;
+					}
+					Project = ProjectNames[Choice];
+				}
+			}
+
+			// remember project for next run
+			TurnkeySettings.SetUserSetting("User_LastSelectedProject", Project);
+
+			return ProjectUtils.FindProjectFileFromName(Project);
 		}
 
 		public static DeviceInfo GetDeviceFromCommandLineOrUser(string[] CommandOptions, UnrealTargetPlatform Platform)
@@ -212,9 +414,9 @@ namespace Turnkey
 			DeviceInfo InstallDevice = Array.Find(AutomationPlatform.GetDevices(), x => string.Compare(x.Name, DeviceName, true) == 0);
 			return InstallDevice;
 		}
-		#endregion
+#endregion
 
-		#region Env vars
+#region Env vars
 
 		private static IDictionary[] SavedEnvVars = new System.Collections.IDictionary[2];
 		private static Dictionary<string, string> EnvVarsToSaveToBatchFile = new Dictionary<string, string>();
@@ -275,9 +477,9 @@ namespace Turnkey
 			}
 		}
 
-		#endregion
+#endregion
 
-		#region Regex Matching
+#region Regex Matching
 
 		static bool TryConvertToUint64(string InValue, out UInt64 OutValue)
 		{ 
@@ -349,9 +551,9 @@ namespace Turnkey
 			return string.Compare(Value, AllowedValues, true) == 0;
 		}
 
-		#endregion
+#endregion
 
-		#region IO
+#region IO
 		static private IOProvider IOProvider;
 
 		public static void Log(string Message)
@@ -396,9 +598,9 @@ namespace Turnkey
 		{
 			return IOProvider.ReadInputInt(Prompt, Options, bIsCancellable, DefaultValue, bAppendNewLine: true);
 		}
-		#endregion
+#endregion
 
-		#region Temp files [move to LocalCache]
+#region Temp files [move to LocalCache]
 		static List<string> PathsToCleanup = new List<string>();
 		public static void AddPathToCleanup(string Path)
 		{
@@ -424,6 +626,6 @@ namespace Turnkey
 
 			PathsToCleanup.Clear();
 		}
-		#endregion
+#endregion
 	}
 }
