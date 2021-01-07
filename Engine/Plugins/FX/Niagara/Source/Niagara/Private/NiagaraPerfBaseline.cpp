@@ -261,6 +261,11 @@ void UNiagaraBaselineController::OnOwnerTick_Implementation(float DeltaTime)
 {
 }
 
+UNiagaraSystem* UNiagaraBaselineController::GetSystem()
+{
+	return System.LoadSynchronous();
+}
+
 //////////////////////////////////////////////////////////////////////////
 
 void UNiagaraBaselineController_Basic::OnBeginTest_Implementation()
@@ -290,7 +295,7 @@ void UNiagaraBaselineController_Basic::OnEndTest_Implementation(FNiagaraPerfBase
 void UNiagaraBaselineController_Basic::OnOwnerTick_Implementation(float DeltaTime)
 {
 	Super::OnOwnerTick_Implementation(DeltaTime);
-	if (System)
+	if (GetSystem())
 	{
 		if (ensure(Owner))
 		{
@@ -299,7 +304,7 @@ void UNiagaraBaselineController_Basic::OnOwnerTick_Implementation(float DeltaTim
 			{
 				if (SpawnedComponents[i] == nullptr || !SpawnedComponents[i]->IsActive())
 				{
-					SpawnedComponents[i] = UNiagaraFunctionLibrary::SpawnSystemAtLocation(GetWorld(), System, OwnerLoc, FRotator::ZeroRotator, FVector::OneVector, false, false, ENCPoolMethod::None, false);
+					SpawnedComponents[i] = UNiagaraFunctionLibrary::SpawnSystemAtLocation(GetWorld(), GetSystem(), OwnerLoc, FRotator::ZeroRotator, FVector::OneVector, false, false, ENCPoolMethod::None, false);
 					SpawnedComponents[i]->InitForPerformanceBaseline();
 					SpawnedComponents[i]->Activate();
 				}
@@ -341,7 +346,7 @@ bool FNiagaraPerfBaselineStatsListener::Tick()
 {
 	if (UNiagaraBaselineController* BaselinePtr = Baseline.Get())
 	{
-		if (FParticlePerfStats* Stats = FParticlePerfStatsManager::GetPerfStats(BaselinePtr->System))
+		if (FParticlePerfStats* Stats = FParticlePerfStatsManager::GetPerfStats(BaselinePtr->GetSystem()))
 		{
 			AccumulatedStats.Tick(*Stats);
 		}
@@ -355,7 +360,7 @@ void FNiagaraPerfBaselineStatsListener::TickRT()
 {
 	if (UNiagaraBaselineController* BaselinePtr = Baseline.Get())
 	{
-		if (FParticlePerfStats* Stats = FParticlePerfStatsManager::GetPerfStats(BaselinePtr->System))
+		if (FParticlePerfStats* Stats = FParticlePerfStatsManager::GetPerfStats(BaselinePtr->GetSystem()))
 		{
 			AccumulatedStats.TickRT(*Stats);
 		}
@@ -499,7 +504,7 @@ void FParticlePerfStatsListener_NiagaraPerformanceReporter::ReportToLog()
 			UE_LOG(LogNiagara, Log, TEXT("| System: %s | Total Bad Tests: %u"), *Item.System->GetName(), Item.Stats->BadTestHistory.Num());
 			FNiagaraPerfBaselineStats& Baseline = Item.System->GetEffectType()->GetPerfBaselineStats();
 			UNiagaraBaselineController* Controller = Item.System->GetEffectType()->GetPerfBaselineController();
-			UE_LOG(LogNiagara, Log, TEXT("| Baseline: %s | GT Avg: %5u | GT Max: %5u | RT Avg: %5u | RT Max: %5u |"), *Controller->System->GetName(), (uint32)Baseline.PerInstanceAvg_GT, (uint32)Baseline.PerInstanceMax_GT, (uint32)Baseline.PerInstanceAvg_RT, (uint32)Baseline.PerInstanceMax_RT);
+			UE_LOG(LogNiagara, Log, TEXT("| Baseline: %s | GT Avg: %5u | GT Max: %5u | RT Avg: %5u | RT Max: %5u |"), *Controller->GetSystem()->GetName(), (uint32)Baseline.PerInstanceAvg_GT, (uint32)Baseline.PerInstanceMax_GT, (uint32)Baseline.PerInstanceAvg_RT, (uint32)Baseline.PerInstanceMax_RT);
 			UE_LOG(LogNiagara, Log, TEXT("|----------------------------------------------------------------|"));
 			for(auto& Test : Item.Stats->BadTestHistory)
 			{
@@ -1011,13 +1016,13 @@ int32 FParticlePerfStatsListener_NiagaraBaselineComparisonRender::RenderStats(cl
 		++RowNum;
 		Canvas->DrawTile(BaseX - 2, Y - 1, (NameWidth + ColumnWidth * 4) + 4, FontHeight, 0.0f, 0.0f, 1.0f, 1.0f, BackgroundColors[RowNum & 1]);
 
-		// System Name
-		FString SystemName = System->GetFName().ToString();
-		Canvas->DrawShadowedString(BaseX, Y, *SystemName, Font, OverallColor);
-
 		// Baseline
 		if (FXType)
 		{
+			// System Name
+			FString SystemName = System->GetFName().ToString();
+			Canvas->DrawShadowedString(BaseX, Y, *SystemName, Font, OverallColor);
+
 			if(FXType->IsPerfBaselineValid())			
 			{
 				FLinearColor ResultColor = FNiagaraPerfBaselineStats::GetComparisonResultColor(ReportItem.GTAvgResult);
@@ -1038,7 +1043,7 @@ int32 FParticlePerfStatsListener_NiagaraBaselineComparisonRender::RenderStats(cl
 
 				if (UNiagaraBaselineController* Controller = FXType->GetPerfBaselineController())
 				{
-					if (UNiagaraSystem* BaseSystem = Controller->System)
+					if (UNiagaraSystem* BaseSystem = Controller->GetSystem())
 					{
 						if (BaseSystem->bFixedBounds == false)
 						{
@@ -1067,9 +1072,13 @@ int32 FParticlePerfStatsListener_NiagaraBaselineComparisonRender::RenderStats(cl
 		}
 		else
 		{
+			// System Name
+			FString SystemName = System->GetFName().ToString();
+			Canvas->DrawShadowedString(BaseX, Y, *SystemName, Font, FColor::Blue);
+
 			tempString.Reset();
 			tempString.Appendf(TEXT("System has no Effect Type!"));
-			Canvas->DrawShadowedString(X + ColumnWidth * 0, Y, *tempString, Font, OverallColor);
+			Canvas->DrawShadowedString(X + ColumnWidth * 0, Y, *tempString, Font, FColor::Blue);
 		}
 
 		Y += FontHeight;
@@ -1280,6 +1289,7 @@ void UNiagaraBaselineController::OnBeginTest_Implementation(){}
 bool UNiagaraBaselineController::OnTickTest_Implementation(){ return false; }
 void UNiagaraBaselineController::OnEndTest_Implementation(FNiagaraPerfBaselineStats Stats){}
 void UNiagaraBaselineController::OnOwnerTick_Implementation(float DeltaTime){}
+UNiagaraSystem* UNiagaraBaselineController::GetSystem(){ return nullptr; }
 
 void UNiagaraBaselineController_Basic::OnBeginTest_Implementation(){}
 bool UNiagaraBaselineController_Basic::OnTickTest_Implementation(){	return false; }
