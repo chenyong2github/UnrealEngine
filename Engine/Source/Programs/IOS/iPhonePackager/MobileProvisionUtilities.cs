@@ -11,7 +11,6 @@ using System.IO;
 using System.Diagnostics;
 using System.Xml;
 using System.Globalization;
-using EpicGames.Core;
 using System.Linq;
 
 namespace iPhonePackager
@@ -55,7 +54,7 @@ namespace iPhonePackager
                 {
                     foreach (string Provision in Directory.EnumerateFiles(ProjectFileBuildIOSPath, "*.mobileprovision", SearchOption.AllDirectories))
                     {
-                        Log.TraceInformation(Provision);
+                        Program.Log(Provision);
                         string TargetFile = Config.ProvisionDirectory + Path.GetFileName(Provision);
                         if (!File.Exists(TargetFile) || File.GetLastWriteTime(TargetFile) < File.GetLastWriteTime(Provision))
                         {
@@ -86,7 +85,7 @@ namespace iPhonePackager
                 {
                     foreach (string Provision in Directory.EnumerateFiles(ProvisionDirectory, "*.mobileprovision", SearchOption.AllDirectories))
                     {
-                        Log.TraceInformation(Provision);
+                        Program.Log(Provision);
                         string TargetFile = Config.ProvisionDirectory + Path.GetFileName(Provision);
                         if (!File.Exists(TargetFile) || File.GetLastWriteTime(TargetFile) < File.GetLastWriteTime(Provision))
                         {
