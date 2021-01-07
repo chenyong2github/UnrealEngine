@@ -7,22 +7,22 @@ pushd %~dp0
 if "%VS140COMNTOOLS%" neq "" (
   set FoundVSInstance=1
   mkdir "%USERPROFILE%\Documents\Visual Studio 2015\Visualizers"
-  copy UE4.natvis "%USERPROFILE%\Documents\Visual Studio 2015\Visualizers"
-  copy UE4_Android_Nsight.dat "%VS140COMNTOOLS%\..\IDE\Extensions\NVIDIA\Nsight Tegra\3.4\Debuggers\Visualizers"
+  copy Unreal.natvis "%USERPROFILE%\Documents\Visual Studio 2015\Visualizers"
+  copy Unreal_Android_Nsight.dat "%VS140COMNTOOLS%\..\IDE\Extensions\NVIDIA\Nsight Tegra\3.4\Debuggers\Visualizers"
   echo Installed visualizers for Visual Studio 2015
 )
 
 if "%VS120COMNTOOLS%" neq "" (
   set FoundVSInstance=1
   mkdir "%USERPROFILE%\Documents\Visual Studio 2013\Visualizers"
-  copy UE4.natvis "%USERPROFILE%\Documents\Visual Studio 2013\Visualizers"
+  copy Unreal.natvis "%USERPROFILE%\Documents\Visual Studio 2013\Visualizers"
   echo Installed visualizers for Visual Studio 2013
 )
 
 if "%VS110COMNTOOLS%" neq "" (
   set FoundVSInstance=1
   mkdir "%USERPROFILE%\Documents\Visual Studio 2012\Visualizers"
-  copy UE4.natvis "%USERPROFILE%\Documents\Visual Studio 2012\Visualizers"
+  copy Unreal.natvis "%USERPROFILE%\Documents\Visual Studio 2012\Visualizers"
   echo Installed visualizers for Visual Studio 2012
 )
 

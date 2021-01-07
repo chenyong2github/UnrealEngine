@@ -949,7 +949,7 @@ namespace UnrealBuildTool
 								OutFile.AddField("externalConsole", true);
 
 								OutFile.AddField("type", "cppvsdbg");
-								OutFile.AddField("visualizerFile", MakeUnquotedPathString(FileReference.Combine(UE4ProjectRoot, "Engine", "Extras", "VisualStudioDebugging", "UE4.natvis"), EPathType.Absolute));
+								OutFile.AddField("visualizerFile", MakeUnquotedPathString(FileReference.Combine(UE4ProjectRoot, "Engine", "Extras", "VisualStudioDebugging", "Unreal.natvis"), EPathType.Absolute));
 							}
 							else
 							{
