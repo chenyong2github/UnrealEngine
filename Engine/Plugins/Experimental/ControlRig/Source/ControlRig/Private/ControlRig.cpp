@@ -163,6 +163,7 @@ void UControlRig::InitializeFromCDO()
 void UControlRig::Evaluate_AnyThread()
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_ControlRig_Evaluate);
 
 	for (const FName& EventName : EventQueue)
 	{
