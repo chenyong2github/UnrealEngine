@@ -84,7 +84,9 @@ void FMediaRunnable::SetDoneSignal(FMediaEvent* InDoneSignal)
  */
 void FMediaRunnable::StartInternal()
 {
-	MediaThreadRunnable = FRunnableThread::Create(this, *ThreadName, StackSize, ThreadPriority, InitialCoreAffinity);
+	// We ignore stack size, priority and affinity here on purpose. Prio and affinity are all set to defaults and stack sizes are
+	// often set too small so we rather go with defaults.
+	MediaThreadRunnable = FRunnableThread::Create(this, *ThreadName);
 	checkf(MediaThreadRunnable, TEXT("Could not create RunnableThread!"));
 	if (MediaThreadRunnable)
 	{
