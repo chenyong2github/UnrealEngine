@@ -151,7 +151,7 @@ FSlateColor SDetailCategoryTableRow::GetOuterBackgroundColor() const
 		return FAppStyle::Get().GetSlateColor("Colors.Header");
 	}
 
-	return FAppStyle::Get().GetSlateColor("Colors.Background");
+	return FAppStyle::Get().GetSlateColor("Colors.Panel");
 }
 
 FReply SDetailCategoryTableRow::OnMouseButtonDown( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent )

@@ -58,7 +58,7 @@ public:
 		ChildSlot
 		[
 			SNew(SBorder)
-			.BorderImage(FAppStyle::Get().GetBrush("Brushes.Background"))
+			.BorderImage(FAppStyle::Get().GetBrush("Brushes.Panel"))
 			[
 				SNew(SVerticalBox)
 				+ SVerticalBox::Slot()

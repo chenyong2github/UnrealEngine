@@ -191,7 +191,7 @@ void SSaveLayoutDialog::Construct(const FArguments& InArgs, const TSharedRef<FSa
 	ChildSlot
 	[
 		SNew(SBorder)
-		.BorderImage(FAppStyle::Get().GetBrush("Brushes.Background"))
+		.BorderImage(FAppStyle::Get().GetBrush("Brushes.Panel"))
 		[
 			SNew(SBox)
 			.WidthOverride(600.f)

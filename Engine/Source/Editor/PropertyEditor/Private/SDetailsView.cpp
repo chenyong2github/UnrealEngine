@@ -278,7 +278,7 @@ void SDetailsView::Construct(const FArguments& InArgs, const FDetailsViewArgs& I
 		.AutoHeight()
 		[
 			SNew(SBorder)
-			.BorderImage(FAppStyle::Get().GetBrush("Brushes.Background"))
+			.BorderImage(FAppStyle::Get().GetBrush("Brushes.Panel"))
 			[
 				FilterRow.ToSharedRef()
 			]

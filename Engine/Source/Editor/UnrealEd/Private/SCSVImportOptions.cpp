@@ -59,7 +59,7 @@ void SCSVImportOptions::Construct(const FArguments& InArgs)
 	this->ChildSlot
 	[
 		SNew(SBorder)
-		.BorderImage(FAppStyle::Get().GetBrush(TEXT("Brushes.Background")))
+		.BorderImage(FAppStyle::Get().GetBrush(TEXT("Brushes.Panel")))
 		.Padding(10)
 		[
 			SNew(SVerticalBox)

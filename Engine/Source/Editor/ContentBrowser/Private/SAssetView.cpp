@@ -333,7 +333,7 @@ void SAssetView::Construct( const FArguments& InArgs )
 	[
 		SNew(SBorder)
 		.Padding(0)
-		.BorderImage(FAppStyle::Get().GetBrush("Brushes.Background"))
+		.BorderImage(FAppStyle::Get().GetBrush("Brushes.Panel"))
 		[
 			VerticalBox
 		]
@@ -419,7 +419,7 @@ void SAssetView::Construct( const FArguments& InArgs )
 	[
 		SNew(SBorder)
 		.Visibility( this, &SAssetView::GetEditModeLabelVisibility )
-		.BorderImage(FAppStyle::Get().GetBrush("Brushes.Background"))
+		.BorderImage(FAppStyle::Get().GetBrush("Brushes.Panel"))
 		.Content()
 		[
 			SNew(SHorizontalBox)

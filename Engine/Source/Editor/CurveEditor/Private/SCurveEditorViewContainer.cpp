@@ -85,7 +85,7 @@ int32 SCurveEditorViewContainer::OnPaint(const FPaintArgs& Args, const FGeometry
 {
 	const ESlateDrawEffect DrawEffects = ShouldBeEnabled(bParentEnabled) ? ESlateDrawEffect::None : ESlateDrawEffect::DisabledEffect;
 	
-	static const FName BackgroundBrushName("Brushes.Background");
+	static const FName BackgroundBrushName("Brushes.Panel");
 	const FSlateBrush* Background = FEditorStyle::GetBrush(BackgroundBrushName);
 	FSlateDrawElement::MakeBox(OutDrawElements, LayerId, AllottedGeometry.ToPaintGeometry(), Background, DrawEffects, Background->GetTint(InWidgetStyle));
 

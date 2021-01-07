@@ -20,7 +20,7 @@ FSlateColor PropertyEditorConstants::GetRowBackgroundColor(int32 IndentLevel)
 {
 	if (IndentLevel == 0)
 	{
-		return FAppStyle::Get().GetSlateColor("Colors.Background");
+		return FAppStyle::Get().GetSlateColor("Colors.Panel");
 	}
 
 	int32 ColorIndex = 0;
@@ -41,7 +41,7 @@ FSlateColor PropertyEditorConstants::GetRowBackgroundColor(int32 IndentLevel)
 		2, (2 + 4), (6 + 6), (12 + 8)
 	};
 
-	FColor BaseColor = FAppStyle::Get().GetSlateColor("Colors.Background").GetSpecifiedColor().ToFColor(true);
+	FColor BaseColor = FAppStyle::Get().GetSlateColor("Colors.Panel").GetSpecifiedColor().ToFColor(true);
 
 	FColor ColorWithOffset(
 		BaseColor.R + ColorOffsets[ColorIndex], 

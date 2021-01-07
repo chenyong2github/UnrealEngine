@@ -221,7 +221,7 @@ void SContentBrowser::Construct( const FArguments& InArgs, const FName& InInstan
 		[
 			SNew( SBorder )
 			.Padding( FMargin( 3 ) )
-			.BorderImage(FAppStyle::Get().GetBrush("Brushes.Background"))
+			.BorderImage(FAppStyle::Get().GetBrush("Brushes.Panel"))
 			[
 				SNew(SHorizontalBox)
 				+ SHorizontalBox::Slot()
@@ -641,7 +641,7 @@ TSharedRef<SWidget> SContentBrowser::CreateAssetView(const FContentBrowserConfig
 		.AutoHeight()
 		[
 			SNew(SBorder)
-			.BorderImage(FAppStyle::Get().GetBrush("Brushes.Background"))
+			.BorderImage(FAppStyle::Get().GetBrush("Brushes.Panel"))
 			.Padding(FMargin(0.0f, 5.0f))
 			[
 				SNew(SHorizontalBox)

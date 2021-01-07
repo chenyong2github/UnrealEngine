@@ -659,7 +659,7 @@ TSharedRef<SDockTab> SLevelEditor::SummonDetailsPanel( FName TabIdentifier )
 			})
 		[
 			SNew( SBorder)
-			.BorderImage(FAppStyle::Get().GetBrush("Brushes.Background"))
+			.BorderImage(FAppStyle::Get().GetBrush("Brushes.Panel"))
 			.AddMetaData<FTutorialMetaData>(FTutorialMetaData(TEXT("ActorDetails"), TEXT("LevelEditorSelectionDetails")))
 			[
 				ActorDetails

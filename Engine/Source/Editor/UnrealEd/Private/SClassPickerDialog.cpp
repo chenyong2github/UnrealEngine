@@ -83,7 +83,7 @@ void SClassPickerDialog::Construct(const FArguments& InArgs)
 	ChildSlot
 	[
 		SNew(SBorder)
-		.BorderImage(FEditorStyle::GetBrush("Brushes.Background"))
+		.BorderImage(FEditorStyle::GetBrush("Brushes.Panel"))
 		[
 			SNew(SBox)
 			.WidthOverride(610.0f)

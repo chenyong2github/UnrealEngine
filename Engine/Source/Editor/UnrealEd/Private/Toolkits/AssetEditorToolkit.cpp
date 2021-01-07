@@ -1117,7 +1117,7 @@ void FAssetEditorToolkit::GenerateToolbar()
 		[
 			SNew(SBorder)
 			.VAlign(VAlign_Center)
-			.BorderImage(FAppStyle::Get().GetBrush("Brushes.Background"))
+			.BorderImage(FAppStyle::Get().GetBrush("Brushes.Panel"))
 			.Padding(FMargin(0.0f))
 			[
 				MiscWidgets

@@ -629,17 +629,17 @@ FSlateColor SDetailSingleItemRow::GetOuterBackgroundColor() const
 {
 	if (IsHighlighted())
 	{
-		return FAppStyle::Get().GetSlateColor("Colors.Background");
+		return FAppStyle::Get().GetSlateColor("Colors.Panel");
 	}
 	else if (bIsDragDropObject)
 	{
-		return FAppStyle::Get().GetSlateColor("Colors.Background");
+		return FAppStyle::Get().GetSlateColor("Colors.Panel");
 	}
 	else if (IsHovered())
 	{
 		if (bIsHoveredDragTarget)
 		{
-			return FAppStyle::Get().GetSlateColor("Colors.Background");
+			return FAppStyle::Get().GetSlateColor("Colors.Panel");
 		}
 		else
 		{
@@ -647,7 +647,7 @@ FSlateColor SDetailSingleItemRow::GetOuterBackgroundColor() const
 		}
 	}
 	
-	return FAppStyle::Get().GetSlateColor("Colors.Background");
+	return FAppStyle::Get().GetSlateColor("Colors.Panel");
 }
 
 /** Get the background color of the inner part of the row, which contains the name and value widgets. */

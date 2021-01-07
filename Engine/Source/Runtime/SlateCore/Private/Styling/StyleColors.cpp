@@ -19,6 +19,7 @@ const FSlateColor FStyleColors::Input = EStyleColor::Input;
 const FSlateColor FStyleColors::InputOutline = EStyleColor::InputOutline;
 const FSlateColor FStyleColors::Recessed = EStyleColor::Recessed;
 const FSlateColor FStyleColors::Background = EStyleColor::Background;
+const FSlateColor FStyleColors::Panel = EStyleColor::Panel;
 const FSlateColor FStyleColors::Header = EStyleColor::Header;
 const FSlateColor FStyleColors::Dropdown = EStyleColor::Dropdown;
 const FSlateColor FStyleColors::Hover = EStyleColor::Hover;
@@ -71,12 +72,13 @@ void USlateThemeManager::InitalizeDefaults()
 
 	SetDefaultColor(EStyleColor::Black, COLOR("#000000FF"));
 	SetDefaultColor(EStyleColor::Title, COLOR("#151515FF"));
+	SetDefaultColor(EStyleColor::Background, COLOR("#151515FF"));
 	SetDefaultColor(EStyleColor::WindowBorder, COLOR("0F0F0FFF"));
 	SetDefaultColor(EStyleColor::Foldout, COLOR("0F0F0FFF"));
 	SetDefaultColor(EStyleColor::Input, COLOR("0F0F0FFF"));
 	SetDefaultColor(EStyleColor::InputOutline, COLOR("454545FF"));
 	SetDefaultColor(EStyleColor::Recessed, COLOR("#1A1A1AFF"));
-	SetDefaultColor(EStyleColor::Background, COLOR("#242424FF"));
+	SetDefaultColor(EStyleColor::Panel, COLOR("#242424FF"));
 	SetDefaultColor(EStyleColor::Header, COLOR("#2F2F2FFF"));
 	SetDefaultColor(EStyleColor::Dropdown, COLOR("#383838FF"));
 	SetDefaultColor(EStyleColor::Hover, COLOR("#575757FF"));
@@ -99,7 +101,7 @@ void USlateThemeManager::InitalizeDefaults()
 	SetDefaultColor(EStyleColor::Select, GetDefaultColor(EStyleColor::Primary));
 	SetDefaultColor(EStyleColor::SelectInactive, COLOR("#99B3BFFF"));
 	SetDefaultColor(EStyleColor::SelectParent, COLOR("#2C323AFF"));
-	SetDefaultColor(EStyleColor::SelectHover, GetDefaultColor(EStyleColor::Background));
+	SetDefaultColor(EStyleColor::SelectHover, GetDefaultColor(EStyleColor::Panel));
 	// if select ==  primary shouldnt we have a select pressed which is the same as primary press?
 
 	SetDefaultColor(EStyleColor::AccentBlue, COLOR("#26BBFFFF"));

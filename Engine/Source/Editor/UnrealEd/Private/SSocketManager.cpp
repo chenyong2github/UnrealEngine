@@ -280,7 +280,7 @@ void SSocketManager::Construct(const FArguments& InArgs)
 						+SHorizontalBox::Slot()
 						[
 							SNew(SBorder)
-							.BorderImage(FAppStyle::Get().GetBrush("Brushes.Background"))
+							.BorderImage(FAppStyle::Get().GetBrush("Brushes.Panel"))
 							.HAlign(HAlign_Left)
 							.Padding(FMargin(12.f, 6.f))
 							[

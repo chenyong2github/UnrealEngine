@@ -351,7 +351,7 @@ TSharedRef<ISlateStyle> FStarshipCoreStyle::Create()
 	// Tool panels
 	{
 
-		Style->Set("ToolPanel.GroupBorder", new FSlateColorBrush(FStyleColors::Background) );
+		Style->Set("ToolPanel.GroupBorder", new FSlateColorBrush(FStyleColors::Panel) );
 		Style->Set("ToolPanel.DarkGroupBorder", new BOX_BRUSH("Common/DarkGroupBorder", FMargin(4.0f / 16.0f)));
 		Style->Set("ToolPanel.LightGroupBorder", new BOX_BRUSH("Common/LightGroupBorder", FMargin(4.0f / 16.0f)));
 
@@ -418,9 +418,9 @@ TSharedRef<ISlateStyle> FStarshipCoreStyle::Create()
 
 	// SBorder defaults...
 	{
-		Style->Set("Border", new FSlateColorBrush(FStyleColors::Background));
+		Style->Set("Border", new FSlateColorBrush(FStyleColors::Panel));
 
-		FLinearColor TransBackground = FStyleColors::Background.GetSpecifiedColor();
+		FLinearColor TransBackground = FStyleColors::Panel.GetSpecifiedColor();
 		TransBackground.A = .5;
 
 		Style->Set("FloatingBorder", new FSlateRoundedBoxBrush(TransBackground, 8.f));
@@ -464,7 +464,7 @@ TSharedRef<ISlateStyle> FStarshipCoreStyle::Create()
 			.SetExpandedImage(IMAGE_BRUSH_SVG("Starship/Common/chevron-down", Icon16x16, DefaultForeground))
 		);
 		Style->Set("ExpandableArea.TitleFont", StyleFonts.SmallBold);
-		Style->Set("ExpandableArea.Border", new FSlateRoundedBoxBrush(FStyleColors::Background, 4) );
+		Style->Set("ExpandableArea.Border", new FSlateRoundedBoxBrush(FStyleColors::Panel, 4) );
 	}
 
 	// SSlider and SVolumeControl defaults...
@@ -787,6 +787,7 @@ void FStarshipCoreStyle::SetupColors(TSharedRef<FStyle>& Style)
 	Style->Set("Colors.InputOutline", FStyleColors::InputOutline);
 	Style->Set("Colors.Recessed", FStyleColors::Recessed);
 	Style->Set("Colors.Background", FStyleColors::Background);
+	Style->Set("Colors.Panel", FStyleColors::Panel);
 	Style->Set("Colors.Header", FStyleColors::Header);
 	Style->Set("Colors.Dropdown", FStyleColors::Dropdown);
 	Style->Set("Colors.Hover", FStyleColors::Hover);
@@ -831,6 +832,7 @@ void FStarshipCoreStyle::SetupColors(TSharedRef<FStyle>& Style)
 	Style->Set("Brushes.InputOutline", new FSlateColorBrush(FStyleColors::InputOutline));
 	Style->Set("Brushes.Recessed", new FSlateColorBrush(FStyleColors::Recessed));
 	Style->Set("Brushes.Background", new FSlateColorBrush(FStyleColors::Background));
+	Style->Set("Brushes.Panel", new FSlateColorBrush(FStyleColors::Panel));
 	Style->Set("Brushes.Header", new FSlateColorBrush(FStyleColors::Header));
 	Style->Set("Brushes.Dropdown", new FSlateColorBrush(FStyleColors::Dropdown));
 	Style->Set("Brushes.Hover", new FSlateColorBrush(FStyleColors::Hover));
@@ -1045,10 +1047,10 @@ void FStarshipCoreStyle::SetupButtonStyles(TSharedRef<FStyle>& Style)
 		.SetNormal(FSlateRoundedBoxBrush(FStyleColors::Primary, 4.0f, FStyleColors::InputOutline, InputFocusThickness))
 		.SetHovered(FSlateRoundedBoxBrush(FStyleColors::PrimaryHover, 4.0f, FStyleColors::Hover, InputFocusThickness))
 		.SetPressed(FSlateRoundedBoxBrush(FStyleColors::PrimaryPress, 4.0f, FStyleColors::Hover, InputFocusThickness))
-		.SetNormalForeground(FStyleColors::Background)
-		.SetHoveredForeground(FStyleColors::Background)
-		.SetPressedForeground(FStyleColors::Background)
-		.SetDisabledForeground(FStyleColors::Background)
+		.SetNormalForeground(FStyleColors::Panel)
+		.SetHoveredForeground(FStyleColors::Panel)
+		.SetPressedForeground(FStyleColors::Panel)
+		.SetDisabledForeground(FStyleColors::Panel)
 		.SetNormalPadding(ButtonMargins)
 		.SetPressedPadding(ButtonMargins);
 
@@ -1459,7 +1461,7 @@ void FStarshipCoreStyle::SetupDockingStyles(TSharedRef<FStyle>& Style)
 
 	// SDockTab, SDockingTarget, SDockingTabStack defaults...
 	Style->Set("Docking.Background", new BOX_BRUSH("Old/Menu_Background", FMargin(8.0f / 64.0f)));
-	Style->Set("Docking.Border", new FSlateRoundedBoxBrush(FStyleColors::Background, 4));
+	Style->Set("Docking.Border", new FSlateRoundedBoxBrush(FStyleColors::Panel, 4));
 
 	Style->Set("Docking.UnhideTabwellButton", FButtonStyle(Button)
 		.SetNormal(IMAGE_BRUSH_SVG("Starship/Docking/show-tab-well", Icon8x8, FStyleColors::Primary))
@@ -1486,12 +1488,12 @@ void FStarshipCoreStyle::SetupDockingStyles(TSharedRef<FStyle>& Style)
 		FDockTabStyle()
 		.SetCloseButtonStyle(CloseButton)
 		.SetNormalBrush(FSlateNoResource())
-		.SetHoveredBrush(BOX_BRUSH("/Starship/Docking/DockTab_Hover", 4.0f / 20.0f, FStyleColors::Background))
-		.SetForegroundBrush(BOX_BRUSH("/Starship/Docking/DockTab_Foreground", 4.0f / 20.0f, FStyleColors::Background))
+		.SetHoveredBrush(BOX_BRUSH("/Starship/Docking/DockTab_Hover", 4.0f / 20.0f, FStyleColors::Panel))
+		.SetForegroundBrush(BOX_BRUSH("/Starship/Docking/DockTab_Foreground", 4.0f / 20.0f, FStyleColors::Panel))
 
 		.SetColorOverlayTabBrush(FSlateNoResource())
 		.SetColorOverlayIconBrush(FSlateNoResource())
-		.SetContentAreaBrush(FSlateColorBrush(FStyleColors::Background))
+		.SetContentAreaBrush(FSlateColorBrush(FStyleColors::Panel))
 		.SetTabWellBrush(FSlateNoResource())
 		.SetFlashColor(TabFlashColor)
 
@@ -1511,8 +1513,8 @@ void FStarshipCoreStyle::SetupDockingStyles(TSharedRef<FStyle>& Style)
 	Style->Set("Docking.MajorTab", FDockTabStyle()
 		.SetCloseButtonStyle(CloseButton)
 		.SetNormalBrush(FSlateNoResource())
-		.SetHoveredBrush(BOX_BRUSH("/Starship/Docking/DockTab_Hover", 4.0f / 20.0f, FStyleColors::Background))
-		.SetForegroundBrush(BOX_BRUSH("/Starship/Docking/DockTab_Foreground", 4.0f / 20.0f, FStyleColors::Background))
+		.SetHoveredBrush(BOX_BRUSH("/Starship/Docking/DockTab_Hover", 4.0f / 20.0f, FStyleColors::Panel))
+		.SetForegroundBrush(BOX_BRUSH("/Starship/Docking/DockTab_Foreground", 4.0f / 20.0f, FStyleColors::Panel))
 
 		.SetColorOverlayTabBrush(FSlateNoResource())
 		.SetColorOverlayIconBrush(FSlateNoResource())
@@ -1559,7 +1561,7 @@ void FStarshipCoreStyle::SetupDockingStyles(TSharedRef<FStyle>& Style)
 	Style->Set("Docking.SidebarButton.Opened", SidebarTabButtonOpened);
 
 	Style->Set("Docking.Sidebar.DrawerShadow", new BOX_BRUSH("/Starship/Docking/drawer-shadow", FMargin(8/64.f), FLinearColor(0, 0, 0, 1)));
-	Style->Set("Docking.Sidebar.DrawerBackground", new FSlateColorBrush(FStyleColors::Background));
+	Style->Set("Docking.Sidebar.DrawerBackground", new FSlateColorBrush(FStyleColors::Panel));
 	Style->Set("Docking.Sidebar.Background", new FSlateColorBrush(FStyleColors::Recessed));
 	Style->Set("Docking.Sidebar.Border", new FSlateRoundedBoxBrush(FSlateColor(FLinearColor::Transparent), 5.0f, FStyleColors::Hover, 1.0f) );
 
@@ -1738,7 +1740,7 @@ void FStarshipCoreStyle::SetupMultiboxStyles(TSharedRef<FStyle>& Style)
 	{
 		FToolBarStyle NormalToolbarStyle =
 			FToolBarStyle()
-			.SetBackground(FSlateColorBrush(FStyleColors::Background))
+			.SetBackground(FSlateColorBrush(FStyleColors::Panel))
 			.SetBackgroundPadding(FMargin(0, 4, 0, 4))
 			.SetExpandBrush(IMAGE_BRUSH("Icons/toolbar_expand_16x", Icon16x16))
 			.SetComboButtonPadding(FMargin(4.0f, 0.0f))
@@ -1798,7 +1800,7 @@ void FStarshipCoreStyle::SetupMultiboxStyles(TSharedRef<FStyle>& Style)
 
 		FToolBarStyle SlimToolbarStyle =
 			FToolBarStyle()
-			.SetBackground(FSlateColorBrush(FStyleColors::Background))
+			.SetBackground(FSlateColorBrush(FStyleColors::Panel))
 			.SetBackgroundPadding(FMargin(0,4,0,4))
 			.SetExpandBrush(IMAGE_BRUSH("Icons/toolbar_expand_16x", Icon16x16))
 			.SetComboButtonPadding(FMargin(6.0f, 0.0f))

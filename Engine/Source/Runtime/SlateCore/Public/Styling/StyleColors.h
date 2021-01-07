@@ -19,13 +19,14 @@ UENUM()
 enum class EStyleColor : uint8
 {
 	Black,
+	Background,
 	Title,
 	WindowBorder,
 	Foldout,
 	Input,
 	InputOutline,
 	Recessed,
-	Background,
+	Panel,
 	Header,
 	Dropdown,
 	Hover,
@@ -288,6 +289,7 @@ struct SLATECORE_API FStyleColors
 	static const FSlateColor InputOutline;
 	static const FSlateColor Recessed;
 	static const FSlateColor Background;
+	static const FSlateColor Panel;
 	static const FSlateColor Header;
 	static const FSlateColor Dropdown;
 	static const FSlateColor Hover;
