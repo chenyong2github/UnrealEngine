@@ -129,8 +129,8 @@ USynthComponent::USynthComponent(const FObjectInitializer& ObjectInitializer)
 	bStopWhenOwnerDestroyed = true;
 
 	bEnableBusSends = true;
-	bEnableBaseSubmix = !bOutputToBusOnly_DEPRECATED;
-	bEnableSubmixSends = !bOutputToBusOnly_DEPRECATED;
+	bEnableBaseSubmix = true;
+	bEnableSubmixSends = true;
 
 	bNeverNeedsRenderUpdate = true;
 	bUseAttachParentBound = true; // Avoid CalcBounds() when transform changes.
