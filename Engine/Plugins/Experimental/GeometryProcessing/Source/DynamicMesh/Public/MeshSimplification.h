@@ -240,8 +240,8 @@ protected:
 	}
 
 
-	// update queue weight for each edge in vertex one-ring
-	virtual void UpdateNeighbours(const FDynamicMesh3::FEdgeCollapseInfo& collapseInfo);
+	// update queue weight for each edge in vertex one-ring and rebuild and quadrics necessary 
+	virtual void UpdateNeighborhood(const FDynamicMesh3::FEdgeCollapseInfo& collapseInfo);
 
 
 	virtual void Reproject() 
