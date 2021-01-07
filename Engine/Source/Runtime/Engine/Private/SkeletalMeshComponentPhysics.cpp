@@ -138,8 +138,9 @@ void USkeletalMeshComponent::CreateBodySetup()
 
 	if (SkeletalMesh)
 	{
+		const USkeletalMesh* SkeletalMeshConst = SkeletalMesh;
 		SkeletalMesh->CreateBodySetup();
-		UBodySetup* OriginalBodySetup = SkeletalMesh->GetBodySetup();
+		UBodySetup* OriginalBodySetup = SkeletalMeshConst->GetBodySetup();
 		BodySetup->CopyBodyPropertiesFrom(OriginalBodySetup);
 		BodySetup->CookedFormatDataOverride = &OriginalBodySetup->CookedFormatData;
 	}
