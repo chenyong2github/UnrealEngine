@@ -1644,10 +1644,10 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		Log.debug("ro.hardware: " + roHardware);
 		if (roHardware.equals("qcom"))
 		{
-			// use ro.hardware.chipset for Qualcomm
-			String roHardwareChipset = getProp("ro.hardware.chipset");
-			Log.debug("ro.hardware.chipset: " + roHardwareChipset);
-			roHardware = roHardwareChipset;
+			// use ro.hardware.chipname for Qualcomm
+			String roHardwareChipname = getProp("ro.hardware.chipname");
+			Log.debug("ro.hardware.chipname: " + roHardwareChipname);
+			roHardware = roHardwareChipname;
 		}
 		String hardware = roHardware;
 		if (cpuInfo.containsKey("Hardware"))
