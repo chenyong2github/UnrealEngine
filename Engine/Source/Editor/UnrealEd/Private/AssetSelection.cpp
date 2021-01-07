@@ -622,6 +622,7 @@ static AActor* PrivateAddActor( UObject* Asset, UActorFactory* Factory, bool Sel
 			{
 				const FActorElementData* ActorElementData = PlacedElements[0].GetData<FActorElementData>();
 				Actor = ActorElementData ? ActorElementData->Actor : nullptr;
+				Actor->SetFlags(ObjectFlags);
 			}
 		}
 		
