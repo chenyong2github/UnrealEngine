@@ -8,6 +8,12 @@
 
 TSharedPtr< IDatasmithElement > FDatasmithSceneFactory::CreateElement( EDatasmithElementType InType, const TCHAR* InName )
 {
+	constexpr uint64 DefaultSubType = 0;
+	return CreateElement( InType, DefaultSubType, InName );
+}
+
+TSharedPtr< IDatasmithElement > FDatasmithSceneFactory::CreateElement( EDatasmithElementType InType, uint64 InSubType, const TCHAR* InName )
+{
 	switch ( InType )
 	{
 	// Abstract types
@@ -17,6 +23,20 @@ TSharedPtr< IDatasmithElement > FDatasmithSceneFactory::CreateElement( EDatasmit
 		break;
 	case EDatasmithElementType::Actor:
 		return CreateActor( InName );
+	case EDatasmithElementType::Animation:
+		switch ( static_cast< EDatasmithElementAnimationSubType >( InSubType ) )
+		{
+		case EDatasmithElementAnimationSubType::SubsequenceAnimation:
+			return CreateSubsequenceAnimation( InName );
+		case EDatasmithElementAnimationSubType::TransformAnimation:
+			return CreateTransformAnimation( InName );
+		case EDatasmithElementAnimationSubType::VisibilityAnimation:
+			return CreateVisibilityAnimation( InName );
+		case EDatasmithElementAnimationSubType::BaseAnimation:
+		default:
+			ensure( false );
+			break;
+		}
 	case EDatasmithElementType::StaticMesh:
 		return CreateMesh( InName );
 	case EDatasmithElementType::StaticMeshActor:
@@ -43,6 +63,12 @@ TSharedPtr< IDatasmithElement > FDatasmithSceneFactory::CreateElement( EDatasmit
 		return CreateMasterMaterial( InName );
 	case EDatasmithElementType::UEPbrMaterial:
 		return CreateUEPbrMaterial( InName );
+	case EDatasmithElementType::MaterialExpression:
+		return CreateMaterialExpression( static_cast< EDatasmithMaterialExpressionType >( InSubType ) );
+	case EDatasmithElementType::MaterialExpressionInput:
+		return CreateExpressionInput( InName );
+	case EDatasmithElementType::MaterialExpressionOutput:
+		return CreateExpressionOutput( InName );
 	case EDatasmithElementType::KeyValueProperty:
 		return CreateKeyValueProperty( InName );
 	case EDatasmithElementType::Texture:
@@ -63,6 +89,26 @@ TSharedPtr< IDatasmithElement > FDatasmithSceneFactory::CreateElement( EDatasmit
 		return CreateDecalActor( InName );
 	case EDatasmithElementType::DecalMaterial:
 		return CreateDecalMaterial( InName );
+	case EDatasmithElementType::Variant:
+		switch( static_cast< EDatasmithElementVariantSubType > ( InSubType ) )
+		{
+		case EDatasmithElementVariantSubType::ActorBinding:
+			return CreateActorBinding();
+		case EDatasmithElementVariantSubType::LevelVariantSets:
+			return CreateLevelVariantSets( InName );
+		case EDatasmithElementVariantSubType::ObjectPropertyCapture:
+			return CreateObjectPropertyCapture();
+		case EDatasmithElementVariantSubType::PropertyCapture:
+			return CreatePropertyCapture();
+		case EDatasmithElementVariantSubType::Variant:
+			return CreateVariant( InName );
+		case EDatasmithElementVariantSubType::VariantSet:
+			return CreateVariantSet( InName );
+		case EDatasmithElementVariantSubType::None:
+		default:
+			ensure( false );
+			break;
+		}
 	default:
 		ensure( false );
 		break;
@@ -164,6 +210,54 @@ TSharedRef< IDatasmithMasterMaterialElement > FDatasmithSceneFactory::CreateMast
 TSharedRef< IDatasmithUEPbrMaterialElement > FDatasmithSceneFactory::CreateUEPbrMaterial( const TCHAR* InName )
 {
 	return MakeShared< FDatasmithUEPbrMaterialElementImpl >( InName );
+}
+
+TSharedPtr< IDatasmithMaterialExpression > FDatasmithSceneFactory::CreateMaterialExpression( EDatasmithMaterialExpressionType MaterialExpression )
+{
+	TSharedPtr<IDatasmithMaterialExpression> Expression;
+
+	switch ( MaterialExpression )
+	{
+	case EDatasmithMaterialExpressionType::ConstantBool:
+		Expression = MakeShared<FDatasmithMaterialExpressionBoolImpl>();
+		break;
+	case EDatasmithMaterialExpressionType::ConstantColor:
+		Expression = MakeShared<FDatasmithMaterialExpressionColorImpl>();
+		break;
+	case EDatasmithMaterialExpressionType::ConstantScalar:
+		Expression = MakeShared<FDatasmithMaterialExpressionScalarImpl>();
+		break;
+	case EDatasmithMaterialExpressionType::FlattenNormal:
+		Expression = MakeShared<FDatasmithMaterialExpressionFlattenNormalImpl>();
+		break;
+	case EDatasmithMaterialExpressionType::FunctionCall:
+		Expression = MakeShared<FDatasmithMaterialExpressionFunctionCallImpl>();
+		break;
+	case EDatasmithMaterialExpressionType::Generic:
+		Expression = MakeShared<FDatasmithMaterialExpressionGenericImpl>();
+		break;
+	case EDatasmithMaterialExpressionType::Texture:
+		Expression = MakeShared<FDatasmithMaterialExpressionTextureImpl>();
+		break;
+	case EDatasmithMaterialExpressionType::TextureCoordinate:
+		Expression = MakeShared<FDatasmithMaterialExpressionTextureCoordinateImpl>();
+		break;
+	default:
+		check( false );
+		break;
+	}
+
+	return Expression;
+}
+
+TSharedRef< IDatasmithExpressionInput > FDatasmithSceneFactory::CreateExpressionInput( const TCHAR* InName )
+{
+	return MakeShared< FDatasmithExpressionInputImpl >( InName );
+}
+
+TSharedRef< IDatasmithExpressionOutput > FDatasmithSceneFactory::CreateExpressionOutput( const TCHAR* InName )
+{
+	return MakeShared< FDatasmithExpressionOutputImpl >( InName );
 }
 
 TSharedRef< IDatasmithMetaDataElement > FDatasmithSceneFactory::CreateMetaData( const TCHAR* InName )

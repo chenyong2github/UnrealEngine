@@ -1019,15 +1019,25 @@ SWIGEXPORT int SWIGSTDCALL CSharp_FDatasmithFacadeMaterialID_GetId(void * jarg1)
 }
 
 
-SWIGEXPORT wchar_t * SWIGSTDCALL CSharp_FDatasmithFacadeExpressionInput_GetInputName(void * jarg1) {
+SWIGEXPORT wchar_t * SWIGSTDCALL CSharp_FDatasmithFacadeExpressionInput_GetName(void * jarg1) {
   wchar_t * jresult ;
   FDatasmithFacadeExpressionInput *arg1 = (FDatasmithFacadeExpressionInput *) 0 ;
   TCHAR *result = 0 ;
   
   arg1 = (FDatasmithFacadeExpressionInput *)jarg1; 
-  result = (TCHAR *)((FDatasmithFacadeExpressionInput const *)arg1)->GetInputName();
+  result = (TCHAR *)((FDatasmithFacadeExpressionInput const *)arg1)->GetName();
   jresult = (wchar_t *)result; 
   return jresult;
+}
+
+
+SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeExpressionInput_SetName(void * jarg1, wchar_t * jarg2) {
+  FDatasmithFacadeExpressionInput *arg1 = (FDatasmithFacadeExpressionInput *) 0 ;
+  TCHAR *arg2 = (TCHAR *) 0 ;
+  
+  arg1 = (FDatasmithFacadeExpressionInput *)jarg1; 
+  arg2 = (TCHAR *)jarg2; 
+  (arg1)->SetName((TCHAR const *)arg2);
 }
 
 
@@ -1113,20 +1123,6 @@ SWIGEXPORT int SWIGSTDCALL CSharp_FDatasmithFacadeMaterialExpression_GetExpressi
   arg1 = (FDatasmithFacadeMaterialExpression *)jarg1; 
   result = (EDatasmithFacadeMaterialExpressionType)((FDatasmithFacadeMaterialExpression const *)arg1)->GetExpressionType();
   jresult = (int)result; 
-  return jresult;
-}
-
-
-SWIGEXPORT unsigned int SWIGSTDCALL CSharp_FDatasmithFacadeMaterialExpression_IsA(void * jarg1, int jarg2) {
-  unsigned int jresult ;
-  FDatasmithFacadeMaterialExpression *arg1 = (FDatasmithFacadeMaterialExpression *) 0 ;
-  EDatasmithFacadeMaterialExpressionType arg2 ;
-  bool result;
-  
-  arg1 = (FDatasmithFacadeMaterialExpression *)jarg1; 
-  arg2 = (EDatasmithFacadeMaterialExpressionType)jarg2; 
-  result = (bool)((FDatasmithFacadeMaterialExpression const *)arg1)->IsA(arg2);
-  jresult = result; 
   return jresult;
 }
 
@@ -1595,22 +1591,6 @@ SWIGEXPORT void * SWIGSTDCALL CSharp_FDatasmithFacadeMaterialExpressionFlattenNo
 }
 
 
-SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeMaterialExpressionFlattenNormal_SetNormal(void * jarg1, void * jarg2) {
-  FDatasmithFacadeMaterialExpressionFlattenNormal *arg1 = (FDatasmithFacadeMaterialExpressionFlattenNormal *) 0 ;
-  SwigValueWrapper< FDatasmithFacadeExpressionInput > arg2 ;
-  FDatasmithFacadeExpressionInput *argp2 ;
-  
-  arg1 = (FDatasmithFacadeMaterialExpressionFlattenNormal *)jarg1; 
-  argp2 = (FDatasmithFacadeExpressionInput *)jarg2; 
-  if (!argp2) {
-    SWIG_CSharpSetPendingExceptionArgument(SWIG_CSharpArgumentNullException, "Attempt to dereference null FDatasmithFacadeExpressionInput", 0);
-    return ;
-  }
-  arg2 = *argp2; 
-  (arg1)->SetNormal(arg2);
-}
-
-
 SWIGEXPORT void * SWIGSTDCALL CSharp_FDatasmithFacadeMaterialExpressionFlattenNormal_GetFlatness(void * jarg1) {
   void * jresult ;
   FDatasmithFacadeMaterialExpressionFlattenNormal *arg1 = (FDatasmithFacadeMaterialExpressionFlattenNormal *) 0 ;
@@ -1620,22 +1600,6 @@ SWIGEXPORT void * SWIGSTDCALL CSharp_FDatasmithFacadeMaterialExpressionFlattenNo
   result = ((FDatasmithFacadeMaterialExpressionFlattenNormal const *)arg1)->GetFlatness();
   jresult = new FDatasmithFacadeExpressionInput((const FDatasmithFacadeExpressionInput &)result); 
   return jresult;
-}
-
-
-SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeMaterialExpressionFlattenNormal_SetFlatness(void * jarg1, void * jarg2) {
-  FDatasmithFacadeMaterialExpressionFlattenNormal *arg1 = (FDatasmithFacadeMaterialExpressionFlattenNormal *) 0 ;
-  SwigValueWrapper< FDatasmithFacadeExpressionInput > arg2 ;
-  FDatasmithFacadeExpressionInput *argp2 ;
-  
-  arg1 = (FDatasmithFacadeMaterialExpressionFlattenNormal *)jarg1; 
-  argp2 = (FDatasmithFacadeExpressionInput *)jarg2; 
-  if (!argp2) {
-    SWIG_CSharpSetPendingExceptionArgument(SWIG_CSharpArgumentNullException, "Attempt to dereference null FDatasmithFacadeExpressionInput", 0);
-    return ;
-  }
-  arg2 = *argp2; 
-  ((FDatasmithFacadeMaterialExpressionFlattenNormal const *)arg1)->SetFlatness(arg2);
 }
 
 
@@ -1775,20 +1739,6 @@ SWIGEXPORT void * SWIGSTDCALL CSharp_FDatasmithFacadeUEPbrMaterial_GetBaseColor(
 }
 
 
-SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeUEPbrMaterial_SetBaseColor(void * jarg1, void * jarg2) {
-  FDatasmithFacadeUEPbrMaterial *arg1 = (FDatasmithFacadeUEPbrMaterial *) 0 ;
-  FDatasmithFacadeExpressionInput *arg2 = 0 ;
-  
-  arg1 = (FDatasmithFacadeUEPbrMaterial *)jarg1; 
-  arg2 = (FDatasmithFacadeExpressionInput *)jarg2;
-  if (!arg2) {
-    SWIG_CSharpSetPendingExceptionArgument(SWIG_CSharpArgumentNullException, "FDatasmithFacadeExpressionInput & type is null", 0);
-    return ;
-  } 
-  (arg1)->SetBaseColor(*arg2);
-}
-
-
 SWIGEXPORT void * SWIGSTDCALL CSharp_FDatasmithFacadeUEPbrMaterial_GetMetallic(void * jarg1) {
   void * jresult ;
   FDatasmithFacadeUEPbrMaterial *arg1 = (FDatasmithFacadeUEPbrMaterial *) 0 ;
@@ -1798,20 +1748,6 @@ SWIGEXPORT void * SWIGSTDCALL CSharp_FDatasmithFacadeUEPbrMaterial_GetMetallic(v
   result = ((FDatasmithFacadeUEPbrMaterial const *)arg1)->GetMetallic();
   jresult = new FDatasmithFacadeExpressionInput((const FDatasmithFacadeExpressionInput &)result); 
   return jresult;
-}
-
-
-SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeUEPbrMaterial_SetMetallic(void * jarg1, void * jarg2) {
-  FDatasmithFacadeUEPbrMaterial *arg1 = (FDatasmithFacadeUEPbrMaterial *) 0 ;
-  FDatasmithFacadeExpressionInput *arg2 = 0 ;
-  
-  arg1 = (FDatasmithFacadeUEPbrMaterial *)jarg1; 
-  arg2 = (FDatasmithFacadeExpressionInput *)jarg2;
-  if (!arg2) {
-    SWIG_CSharpSetPendingExceptionArgument(SWIG_CSharpArgumentNullException, "FDatasmithFacadeExpressionInput & type is null", 0);
-    return ;
-  } 
-  (arg1)->SetMetallic(*arg2);
 }
 
 
@@ -1827,20 +1763,6 @@ SWIGEXPORT void * SWIGSTDCALL CSharp_FDatasmithFacadeUEPbrMaterial_GetSpecular(v
 }
 
 
-SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeUEPbrMaterial_SetSpecular(void * jarg1, void * jarg2) {
-  FDatasmithFacadeUEPbrMaterial *arg1 = (FDatasmithFacadeUEPbrMaterial *) 0 ;
-  FDatasmithFacadeExpressionInput *arg2 = 0 ;
-  
-  arg1 = (FDatasmithFacadeUEPbrMaterial *)jarg1; 
-  arg2 = (FDatasmithFacadeExpressionInput *)jarg2;
-  if (!arg2) {
-    SWIG_CSharpSetPendingExceptionArgument(SWIG_CSharpArgumentNullException, "FDatasmithFacadeExpressionInput & type is null", 0);
-    return ;
-  } 
-  (arg1)->SetSpecular(*arg2);
-}
-
-
 SWIGEXPORT void * SWIGSTDCALL CSharp_FDatasmithFacadeUEPbrMaterial_GetRoughness(void * jarg1) {
   void * jresult ;
   FDatasmithFacadeUEPbrMaterial *arg1 = (FDatasmithFacadeUEPbrMaterial *) 0 ;
@@ -1850,20 +1772,6 @@ SWIGEXPORT void * SWIGSTDCALL CSharp_FDatasmithFacadeUEPbrMaterial_GetRoughness(
   result = ((FDatasmithFacadeUEPbrMaterial const *)arg1)->GetRoughness();
   jresult = new FDatasmithFacadeExpressionInput((const FDatasmithFacadeExpressionInput &)result); 
   return jresult;
-}
-
-
-SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeUEPbrMaterial_SetRoughness(void * jarg1, void * jarg2) {
-  FDatasmithFacadeUEPbrMaterial *arg1 = (FDatasmithFacadeUEPbrMaterial *) 0 ;
-  FDatasmithFacadeExpressionInput *arg2 = 0 ;
-  
-  arg1 = (FDatasmithFacadeUEPbrMaterial *)jarg1; 
-  arg2 = (FDatasmithFacadeExpressionInput *)jarg2;
-  if (!arg2) {
-    SWIG_CSharpSetPendingExceptionArgument(SWIG_CSharpArgumentNullException, "FDatasmithFacadeExpressionInput & type is null", 0);
-    return ;
-  } 
-  (arg1)->SetRoughness(*arg2);
 }
 
 
@@ -1879,20 +1787,6 @@ SWIGEXPORT void * SWIGSTDCALL CSharp_FDatasmithFacadeUEPbrMaterial_GetEmissiveCo
 }
 
 
-SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeUEPbrMaterial_SetEmissiveColor(void * jarg1, void * jarg2) {
-  FDatasmithFacadeUEPbrMaterial *arg1 = (FDatasmithFacadeUEPbrMaterial *) 0 ;
-  FDatasmithFacadeExpressionInput *arg2 = 0 ;
-  
-  arg1 = (FDatasmithFacadeUEPbrMaterial *)jarg1; 
-  arg2 = (FDatasmithFacadeExpressionInput *)jarg2;
-  if (!arg2) {
-    SWIG_CSharpSetPendingExceptionArgument(SWIG_CSharpArgumentNullException, "FDatasmithFacadeExpressionInput & type is null", 0);
-    return ;
-  } 
-  (arg1)->SetEmissiveColor(*arg2);
-}
-
-
 SWIGEXPORT void * SWIGSTDCALL CSharp_FDatasmithFacadeUEPbrMaterial_GetOpacity(void * jarg1) {
   void * jresult ;
   FDatasmithFacadeUEPbrMaterial *arg1 = (FDatasmithFacadeUEPbrMaterial *) 0 ;
@@ -1902,20 +1796,6 @@ SWIGEXPORT void * SWIGSTDCALL CSharp_FDatasmithFacadeUEPbrMaterial_GetOpacity(vo
   result = ((FDatasmithFacadeUEPbrMaterial const *)arg1)->GetOpacity();
   jresult = new FDatasmithFacadeExpressionInput((const FDatasmithFacadeExpressionInput &)result); 
   return jresult;
-}
-
-
-SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeUEPbrMaterial_SetOpacity(void * jarg1, void * jarg2) {
-  FDatasmithFacadeUEPbrMaterial *arg1 = (FDatasmithFacadeUEPbrMaterial *) 0 ;
-  FDatasmithFacadeExpressionInput *arg2 = 0 ;
-  
-  arg1 = (FDatasmithFacadeUEPbrMaterial *)jarg1; 
-  arg2 = (FDatasmithFacadeExpressionInput *)jarg2;
-  if (!arg2) {
-    SWIG_CSharpSetPendingExceptionArgument(SWIG_CSharpArgumentNullException, "FDatasmithFacadeExpressionInput & type is null", 0);
-    return ;
-  } 
-  (arg1)->SetOpacity(*arg2);
 }
 
 
@@ -1931,20 +1811,6 @@ SWIGEXPORT void * SWIGSTDCALL CSharp_FDatasmithFacadeUEPbrMaterial_GetNormal(voi
 }
 
 
-SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeUEPbrMaterial_SetNormal(void * jarg1, void * jarg2) {
-  FDatasmithFacadeUEPbrMaterial *arg1 = (FDatasmithFacadeUEPbrMaterial *) 0 ;
-  FDatasmithFacadeExpressionInput *arg2 = 0 ;
-  
-  arg1 = (FDatasmithFacadeUEPbrMaterial *)jarg1; 
-  arg2 = (FDatasmithFacadeExpressionInput *)jarg2;
-  if (!arg2) {
-    SWIG_CSharpSetPendingExceptionArgument(SWIG_CSharpArgumentNullException, "FDatasmithFacadeExpressionInput & type is null", 0);
-    return ;
-  } 
-  (arg1)->SetNormal(*arg2);
-}
-
-
 SWIGEXPORT void * SWIGSTDCALL CSharp_FDatasmithFacadeUEPbrMaterial_GetWorldDisplacement(void * jarg1) {
   void * jresult ;
   FDatasmithFacadeUEPbrMaterial *arg1 = (FDatasmithFacadeUEPbrMaterial *) 0 ;
@@ -1954,20 +1820,6 @@ SWIGEXPORT void * SWIGSTDCALL CSharp_FDatasmithFacadeUEPbrMaterial_GetWorldDispl
   result = ((FDatasmithFacadeUEPbrMaterial const *)arg1)->GetWorldDisplacement();
   jresult = new FDatasmithFacadeExpressionInput((const FDatasmithFacadeExpressionInput &)result); 
   return jresult;
-}
-
-
-SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeUEPbrMaterial_SetWorldDisplacement(void * jarg1, void * jarg2) {
-  FDatasmithFacadeUEPbrMaterial *arg1 = (FDatasmithFacadeUEPbrMaterial *) 0 ;
-  FDatasmithFacadeExpressionInput *arg2 = 0 ;
-  
-  arg1 = (FDatasmithFacadeUEPbrMaterial *)jarg1; 
-  arg2 = (FDatasmithFacadeExpressionInput *)jarg2;
-  if (!arg2) {
-    SWIG_CSharpSetPendingExceptionArgument(SWIG_CSharpArgumentNullException, "FDatasmithFacadeExpressionInput & type is null", 0);
-    return ;
-  } 
-  (arg1)->SetWorldDisplacement(*arg2);
 }
 
 
@@ -1983,20 +1835,6 @@ SWIGEXPORT void * SWIGSTDCALL CSharp_FDatasmithFacadeUEPbrMaterial_GetRefraction
 }
 
 
-SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeUEPbrMaterial_SetRefraction(void * jarg1, void * jarg2) {
-  FDatasmithFacadeUEPbrMaterial *arg1 = (FDatasmithFacadeUEPbrMaterial *) 0 ;
-  FDatasmithFacadeExpressionInput *arg2 = 0 ;
-  
-  arg1 = (FDatasmithFacadeUEPbrMaterial *)jarg1; 
-  arg2 = (FDatasmithFacadeExpressionInput *)jarg2;
-  if (!arg2) {
-    SWIG_CSharpSetPendingExceptionArgument(SWIG_CSharpArgumentNullException, "FDatasmithFacadeExpressionInput & type is null", 0);
-    return ;
-  } 
-  (arg1)->SetRefraction(*arg2);
-}
-
-
 SWIGEXPORT void * SWIGSTDCALL CSharp_FDatasmithFacadeUEPbrMaterial_GetAmbientOcclusion(void * jarg1) {
   void * jresult ;
   FDatasmithFacadeUEPbrMaterial *arg1 = (FDatasmithFacadeUEPbrMaterial *) 0 ;
@@ -2009,20 +1847,6 @@ SWIGEXPORT void * SWIGSTDCALL CSharp_FDatasmithFacadeUEPbrMaterial_GetAmbientOcc
 }
 
 
-SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeUEPbrMaterial_SetAmbientOcclusion(void * jarg1, void * jarg2) {
-  FDatasmithFacadeUEPbrMaterial *arg1 = (FDatasmithFacadeUEPbrMaterial *) 0 ;
-  FDatasmithFacadeExpressionInput *arg2 = 0 ;
-  
-  arg1 = (FDatasmithFacadeUEPbrMaterial *)jarg1; 
-  arg2 = (FDatasmithFacadeExpressionInput *)jarg2;
-  if (!arg2) {
-    SWIG_CSharpSetPendingExceptionArgument(SWIG_CSharpArgumentNullException, "FDatasmithFacadeExpressionInput & type is null", 0);
-    return ;
-  } 
-  (arg1)->SetAmbientOcclusion(*arg2);
-}
-
-
 SWIGEXPORT void * SWIGSTDCALL CSharp_FDatasmithFacadeUEPbrMaterial_GetMaterialAttributes(void * jarg1) {
   void * jresult ;
   FDatasmithFacadeUEPbrMaterial *arg1 = (FDatasmithFacadeUEPbrMaterial *) 0 ;
@@ -2032,20 +1856,6 @@ SWIGEXPORT void * SWIGSTDCALL CSharp_FDatasmithFacadeUEPbrMaterial_GetMaterialAt
   result = ((FDatasmithFacadeUEPbrMaterial const *)arg1)->GetMaterialAttributes();
   jresult = new FDatasmithFacadeExpressionInput((const FDatasmithFacadeExpressionInput &)result); 
   return jresult;
-}
-
-
-SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeUEPbrMaterial_SetMaterialAttributes(void * jarg1, void * jarg2) {
-  FDatasmithFacadeUEPbrMaterial *arg1 = (FDatasmithFacadeUEPbrMaterial *) 0 ;
-  FDatasmithFacadeExpressionInput *arg2 = 0 ;
-  
-  arg1 = (FDatasmithFacadeUEPbrMaterial *)jarg1; 
-  arg2 = (FDatasmithFacadeExpressionInput *)jarg2;
-  if (!arg2) {
-    SWIG_CSharpSetPendingExceptionArgument(SWIG_CSharpArgumentNullException, "FDatasmithFacadeExpressionInput & type is null", 0);
-    return ;
-  } 
-  (arg1)->SetMaterialAttributes(*arg2);
 }
 
 

@@ -855,7 +855,7 @@ void FDatasmithSceneXmlReader::ParseLight(FXmlNode* InNode, TSharedPtr<IDatasmit
 		LightType = EDatasmithElementType::LightmassPortal;
 	}
 
-	TSharedPtr< IDatasmithElement > Element = FDatasmithSceneFactory::CreateElement( LightType, *InNode->GetAttribute(TEXT("name")) );
+	TSharedPtr< IDatasmithElement > Element = FDatasmithSceneFactory::CreateElement( LightType, *InNode->GetAttribute( TEXT( "name" ) ));
 
 	if( !Element.IsValid() || !Element->IsA( EDatasmithElementType::Light ) )
 	{
@@ -1803,11 +1803,11 @@ void FDatasmithSceneXmlReader::ParseUEPbrMaterial(FXmlNode* InNode, TSharedPtr< 
 					IDatasmithMaterialExpressionFlattenNormal* FlattenNormal = static_cast< IDatasmithMaterialExpressionFlattenNormal* >( Expression );
 
 					{
-						FXmlNode* const* NormalNode = Algo::FindByPredicate( ChildNode->GetChildrenNodes(), [InputName = FlattenNormal->GetNormal().GetInputName()]( FXmlNode* Node ) -> bool
+						FXmlNode* const* NormalNode = Algo::FindByPredicate( ChildNode->GetChildrenNodes(), [InputName = FlattenNormal->GetNormal().GetName()]( FXmlNode* Node ) -> bool
 						{
 							return Node->GetTag() == InputName;
 						} );
-						FXmlNode* const* FlatnessNode = Algo::FindByPredicate( ChildNode->GetChildrenNodes(), [InputName = FlattenNormal->GetFlatness().GetInputName()]( FXmlNode* Node ) -> bool
+						FXmlNode* const* FlatnessNode = Algo::FindByPredicate( ChildNode->GetChildrenNodes(), [InputName = FlattenNormal->GetFlatness().GetName()]( FXmlNode* Node ) -> bool
 						{
 							return Node->GetTag() == InputName;
 						} );
@@ -1846,7 +1846,7 @@ void FDatasmithSceneXmlReader::ParseUEPbrMaterial(FXmlNode* InNode, TSharedPtr< 
 
 	auto TryConnectMaterialInput = [&ChildrenNodes, &OutElement](IDatasmithExpressionInput& Input)
 	{
-		const TCHAR* InputName = Input.GetInputName();
+		const TCHAR* InputName = Input.GetName();
 		for (FXmlNode* XmlNode : ChildrenNodes)
 		{
 			if (XmlNode && (XmlNode->GetAttribute(TEXT("Name")) == InputName || XmlNode->GetTag() == InputName ))

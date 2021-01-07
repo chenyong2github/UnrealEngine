@@ -40,19 +40,9 @@ public class FDatasmithFacadeMaterialExpressionFlattenNormal : FDatasmithFacadeM
     return ret;
   }
 
-  public void SetNormal(FDatasmithFacadeExpressionInput InNormal) {
-    DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeMaterialExpressionFlattenNormal_SetNormal(swigCPtr, FDatasmithFacadeExpressionInput.getCPtr(InNormal));
-    if (DatasmithFacadeCSharpPINVOKE.SWIGPendingException.Pending) throw DatasmithFacadeCSharpPINVOKE.SWIGPendingException.Retrieve();
-  }
-
   public FDatasmithFacadeExpressionInput GetFlatness() {
     FDatasmithFacadeExpressionInput ret = new FDatasmithFacadeExpressionInput(DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeMaterialExpressionFlattenNormal_GetFlatness(swigCPtr), true);
     return ret;
-  }
-
-  public void SetFlatness(FDatasmithFacadeExpressionInput InFlatness) {
-    DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeMaterialExpressionFlattenNormal_SetFlatness(swigCPtr, FDatasmithFacadeExpressionInput.getCPtr(InFlatness));
-    if (DatasmithFacadeCSharpPINVOKE.SWIGPendingException.Pending) throw DatasmithFacadeCSharpPINVOKE.SWIGPendingException.Retrieve();
   }
 
 }

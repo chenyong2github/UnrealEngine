@@ -3,144 +3,51 @@
 #include "DatasmithMaterialElementsImpl.h"
 
 
-IDatasmithMaterialExpression* FDatasmithUEPbrInternalHelper::ConvertElementToMaterialExpression( IDatasmithElement* InElement, EDatasmithMaterialExpressionType ExpressionType )
-{
-	switch (ExpressionType)
-	{
-	case EDatasmithMaterialExpressionType::ConstantBool:
-		return static_cast<FDatasmithMaterialExpressionElement< IDatasmithMaterialExpressionBool >*>(InElement);
-		break;
-	case EDatasmithMaterialExpressionType::ConstantColor:
-		return static_cast<FDatasmithMaterialExpressionElement< IDatasmithMaterialExpressionColor >*>(InElement);
-		break;
-	case EDatasmithMaterialExpressionType::ConstantScalar:
-		return static_cast<FDatasmithMaterialExpressionElement< IDatasmithMaterialExpressionScalar >*>(InElement);
-		break;
-	case EDatasmithMaterialExpressionType::FlattenNormal:
-		return static_cast<FDatasmithMaterialExpressionElement< IDatasmithMaterialExpressionFlattenNormal >*>(InElement);
-		break;
-	case EDatasmithMaterialExpressionType::FunctionCall:
-		return static_cast<FDatasmithMaterialExpressionElement< IDatasmithMaterialExpressionFunctionCall >*>(InElement);
-		break;
-	case EDatasmithMaterialExpressionType::Generic:
-		return static_cast<FDatasmithMaterialExpressionElement< IDatasmithMaterialExpressionGeneric >*>(InElement);
-		break;
-	case EDatasmithMaterialExpressionType::Texture:
-		return static_cast<FDatasmithMaterialExpressionElement< IDatasmithMaterialExpressionTexture >*>(InElement);
-		break;
-	case EDatasmithMaterialExpressionType::TextureCoordinate:
-		return static_cast<FDatasmithMaterialExpressionElement< IDatasmithMaterialExpressionTextureCoordinate >*>(InElement);
-		break;
-	default:
-		return nullptr;
-		break;
-	}
-}
-
-TSharedPtr<IDatasmithElement> FDatasmithUEPbrInternalHelper::ConvertMaterialExpressionToElementSharedPtr( IDatasmithMaterialExpression* InExpression )
-{
-	if (InExpression)
-	{
-		EDatasmithMaterialExpressionType InExpressionType = InExpression->GetType();
-		switch (InExpressionType)
-		{
-		case EDatasmithMaterialExpressionType::ConstantBool:
-			return static_cast<FDatasmithMaterialExpressionImpl<IDatasmithMaterialExpressionBool>*>(InExpression)->AsShared();
-			break;
-		case EDatasmithMaterialExpressionType::ConstantColor:
-			return static_cast<FDatasmithMaterialExpressionImpl<IDatasmithMaterialExpressionColor>*>(InExpression)->AsShared();
-			break;
-		case EDatasmithMaterialExpressionType::ConstantScalar:
-			return static_cast<FDatasmithMaterialExpressionImpl<IDatasmithMaterialExpressionScalar>*>(InExpression)->AsShared();
-			break;
-		case EDatasmithMaterialExpressionType::FlattenNormal:
-			return static_cast<FDatasmithMaterialExpressionImpl<IDatasmithMaterialExpressionFlattenNormal>*>(InExpression)->AsShared();
-			break;
-		case EDatasmithMaterialExpressionType::FunctionCall:
-			return static_cast<FDatasmithMaterialExpressionImpl<IDatasmithMaterialExpressionFunctionCall>*>(InExpression)->AsShared();
-			break;
-		case EDatasmithMaterialExpressionType::Generic:
-			return static_cast<FDatasmithMaterialExpressionImpl<IDatasmithMaterialExpressionGeneric>*>(InExpression)->AsShared();
-			break;
-		case EDatasmithMaterialExpressionType::Texture:
-			return static_cast<FDatasmithMaterialExpressionImpl<IDatasmithMaterialExpressionTexture>*>(InExpression)->AsShared();
-			break;
-		case EDatasmithMaterialExpressionType::TextureCoordinate:
-			return static_cast<FDatasmithMaterialExpressionImpl<IDatasmithMaterialExpressionTextureCoordinate>*>(InExpression)->AsShared();
-			break;
-		default:
-			break;
-		}
-	}
-
-	return nullptr;
-}
-
-TSharedPtr< IDatasmithMaterialExpression > FDatasmithUEPbrInternalHelper::CreateMaterialExpression( EDatasmithMaterialExpressionType MaterialExpression )
-{
-	TSharedPtr<IDatasmithMaterialExpression> Expression;
-
-	switch (MaterialExpression)
-	{
-	case EDatasmithMaterialExpressionType::ConstantBool:
-		Expression = MakeShared<FDatasmithMaterialExpressionBoolImpl>();
-		break;
-	case EDatasmithMaterialExpressionType::ConstantColor:
-		Expression = MakeShared<FDatasmithMaterialExpressionColorImpl>();
-		break;
-	case EDatasmithMaterialExpressionType::ConstantScalar:
-		Expression = MakeShared<FDatasmithMaterialExpressionScalarImpl>();
-		break;
-	case EDatasmithMaterialExpressionType::FlattenNormal:
-		Expression = MakeShared<FDatasmithMaterialExpressionFlattenNormalImpl>();
-		break;
-	case EDatasmithMaterialExpressionType::FunctionCall:
-		Expression = MakeShared<FDatasmithMaterialExpressionFunctionCallImpl>();
-		break;
-	case EDatasmithMaterialExpressionType::Generic:
-		Expression = MakeShared<FDatasmithMaterialExpressionGenericImpl>();
-		break;
-	case EDatasmithMaterialExpressionType::Texture:
-		Expression = MakeShared<FDatasmithMaterialExpressionTextureImpl>();
-		break;
-	case EDatasmithMaterialExpressionType::TextureCoordinate:
-		Expression = MakeShared<FDatasmithMaterialExpressionTextureCoordinateImpl>();
-		break;
-	default:
-		check( false );
-		break;
-	}
-
-	return Expression;
-}
-
 FDatasmithExpressionInputImpl::FDatasmithExpressionInputImpl( const TCHAR* InInputName )
-	: FDatasmithElementImpl< FDatasmithExpressionInputElement >( InInputName, static_cast< EDatasmithElementType >(FDatasmithUEPbrInternalHelper::MaterialExpressionInputType ) )
+	: FDatasmithElementImpl< IDatasmithExpressionInput >( InInputName, EDatasmithElementType::MaterialExpressionInput )
 	, Expression()
 	, OutputIndex( 0 )
 {
 	RegisterReferenceProxy( Expression, "Expression" );
 
-	Store.RegisterParameter( ExpressionType, "ExpressionType" );
 	Store.RegisterParameter( OutputIndex, "OutputIndex" );
-}
-
-IDatasmithMaterialExpression* FDatasmithExpressionInputImpl::GetExpression() 
-{ 
-	return FDatasmithUEPbrInternalHelper::ConvertElementToMaterialExpression(Expression.View().Get(), ExpressionType);
-}
-
-const IDatasmithMaterialExpression* FDatasmithExpressionInputImpl::GetExpression() const
-{
-	return FDatasmithUEPbrInternalHelper::ConvertElementToMaterialExpression(Expression.View().Get(), ExpressionType);
 }
 
 void FDatasmithExpressionInputImpl::SetExpression( IDatasmithMaterialExpression* InExpression )
 {
-	if (InExpression)
+	if ( InExpression )
 	{
-		Expression.Edit() = FDatasmithUEPbrInternalHelper::ConvertMaterialExpressionToElementSharedPtr( InExpression );
-		ExpressionType = InExpression->GetType();
+		switch ( InExpression->GetExpressionType() )
+		{
+		case EDatasmithMaterialExpressionType::ConstantBool:
+			Expression.Edit() = static_cast<FDatasmithMaterialExpressionBoolImpl*>(InExpression)->AsShared();
+			break;
+		case EDatasmithMaterialExpressionType::ConstantColor:
+			Expression.Edit() = static_cast<FDatasmithMaterialExpressionColorImpl*>(InExpression)->AsShared();
+			break;
+		case EDatasmithMaterialExpressionType::ConstantScalar:
+			Expression.Edit() = static_cast<FDatasmithMaterialExpressionScalarImpl*>(InExpression)->AsShared();
+			break;
+		case EDatasmithMaterialExpressionType::FlattenNormal:
+			Expression.Edit() = static_cast<FDatasmithMaterialExpressionFlattenNormalImpl*>(InExpression)->AsShared();
+			break;
+		case EDatasmithMaterialExpressionType::FunctionCall:
+			Expression.Edit() = static_cast<FDatasmithMaterialExpressionFunctionCallImpl*>(InExpression)->AsShared();
+			break;
+		case EDatasmithMaterialExpressionType::Generic:
+			Expression.Edit() = static_cast<FDatasmithMaterialExpressionGenericImpl*>(InExpression)->AsShared();
+			break;
+		case EDatasmithMaterialExpressionType::Texture:
+			Expression.Edit() = static_cast<FDatasmithMaterialExpressionTextureImpl*>(InExpression)->AsShared();
+			break;
+		case EDatasmithMaterialExpressionType::TextureCoordinate:
+			Expression.Edit() = static_cast<FDatasmithMaterialExpressionTextureCoordinateImpl*>(InExpression)->AsShared();
+			break;
+		case EDatasmithMaterialExpressionType::None:
+		default:
+			check( false );
+			break;
+		}
 	}
 	else
 	{
@@ -294,15 +201,12 @@ FDatasmithUEPbrMaterialElementImpl::FDatasmithUEPbrMaterialElementImpl( const TC
 	RegisterReferenceProxy( AmbientOcclusion, "AmbientOcclusion" );
 	RegisterReferenceProxy( MaterialAttributes, "MaterialAttributes" );
 
-
 	RegisterReferenceProxy( Expressions, "Expressions" );
-	Store.RegisterParameter( ExpressionTypes, "ExpressionTypes" );
 
 	Store.RegisterParameter( BlendMode, "BlendMode" );
 	Store.RegisterParameter( bTwoSided, "bTwoSided" );
 	Store.RegisterParameter( bUseMaterialAttributes, "bUseMaterialAttributes" );
 	Store.RegisterParameter( bMaterialFunctionOnly, "bMaterialFunctionOnly" );
-
 	Store.RegisterParameter( OpacityMaskClipValue, "OpacityMaskClipValue" );
 
 	Store.RegisterParameter( ParentLabel, "ParentLabel" );
@@ -311,9 +215,8 @@ FDatasmithUEPbrMaterialElementImpl::FDatasmithUEPbrMaterialElementImpl( const TC
 
 IDatasmithMaterialExpression* FDatasmithUEPbrMaterialElementImpl::GetExpression( int32 Index )
 {
-	return Expressions.IsValidIndex( Index ) ? FDatasmithUEPbrInternalHelper::ConvertElementToMaterialExpression( Expressions[Index].Get(), ExpressionTypes.Get( Store )[Index] ) : nullptr;
+	return Expressions.IsValidIndex( Index ) ? Expressions[Index].Get() : nullptr;
 }
-
 
 int32 FDatasmithUEPbrMaterialElementImpl::GetExpressionIndex( const IDatasmithMaterialExpression* Expression ) const
 {
@@ -321,7 +224,7 @@ int32 FDatasmithUEPbrMaterialElementImpl::GetExpressionIndex( const IDatasmithMa
 
 	for ( int32 Index = 0; Index < Expressions.Num(); ++Index )
 	{
-		IDatasmithMaterialExpression* CurrentElement = FDatasmithUEPbrInternalHelper::ConvertElementToMaterialExpression( Expressions[Index].Get(), ExpressionTypes.Get( Store )[Index] );
+		IDatasmithMaterialExpression* CurrentElement = Expressions[Index].Get();
 		if ( Expression == CurrentElement)
 		{
 			ExpressionIndex = Index;
@@ -335,84 +238,51 @@ int32 FDatasmithUEPbrMaterialElementImpl::GetExpressionIndex( const IDatasmithMa
 IDatasmithMaterialExpression* FDatasmithUEPbrMaterialElementImpl::AddMaterialExpression( const EDatasmithMaterialExpressionType ExpressionType )
 {
 	TSharedPtr<IDatasmithMaterialExpression> Expression = nullptr;
-	TSharedPtr<IDatasmithElement> ExpressionAsElement = nullptr;
 
 	switch ( ExpressionType )
 	{
 	case EDatasmithMaterialExpressionType::ConstantBool:
-	{
-		TSharedPtr<FDatasmithMaterialExpressionBoolImpl> ExpressionImpl = MakeShared< FDatasmithMaterialExpressionBoolImpl >();
-		Expression = ExpressionImpl;
-		ExpressionAsElement = ExpressionImpl;
+		Expression = MakeShared< FDatasmithMaterialExpressionBoolImpl >();
 		break;
-	}
 	case EDatasmithMaterialExpressionType::ConstantColor:
-	{
-		TSharedPtr<FDatasmithMaterialExpressionColorImpl> ExpressionImpl = MakeShared < FDatasmithMaterialExpressionColorImpl>();
-		Expression = ExpressionImpl;
-		ExpressionAsElement = ExpressionImpl;
+		Expression = MakeShared< FDatasmithMaterialExpressionColorImpl >();
 		break;
-	}
 	case EDatasmithMaterialExpressionType::ConstantScalar:
-	{
-		TSharedPtr<FDatasmithMaterialExpressionScalarImpl> ExpressionImpl = MakeShared < FDatasmithMaterialExpressionScalarImpl>();
-		Expression = ExpressionImpl;
-		ExpressionAsElement = ExpressionImpl;
+		Expression = MakeShared< FDatasmithMaterialExpressionScalarImpl >();
 		break;
-	}
 	case EDatasmithMaterialExpressionType::FlattenNormal:
-	{
-		TSharedPtr<FDatasmithMaterialExpressionFlattenNormalImpl> ExpressionImpl = MakeShared < FDatasmithMaterialExpressionFlattenNormalImpl>();
-		Expression = ExpressionImpl;
-		ExpressionAsElement = ExpressionImpl;
+		Expression = MakeShared< FDatasmithMaterialExpressionFlattenNormalImpl >();
 		break;
-	}
 	case EDatasmithMaterialExpressionType::FunctionCall:
-	{
-		TSharedPtr<FDatasmithMaterialExpressionFunctionCallImpl> ExpressionImpl = MakeShared < FDatasmithMaterialExpressionFunctionCallImpl>();
-		Expression = ExpressionImpl;
-		ExpressionAsElement = ExpressionImpl;
+		Expression = MakeShared< FDatasmithMaterialExpressionFunctionCallImpl >();
 		break;
-	}
 	case EDatasmithMaterialExpressionType::Generic:
-	{
-		TSharedPtr<FDatasmithMaterialExpressionGenericImpl> ExpressionImpl = MakeShared < FDatasmithMaterialExpressionGenericImpl>();
-		Expression = ExpressionImpl;
-		ExpressionAsElement = ExpressionImpl;
+		Expression = MakeShared< FDatasmithMaterialExpressionGenericImpl >();
 		break;
-	}
 	case EDatasmithMaterialExpressionType::Texture:
-	{
-		TSharedPtr<FDatasmithMaterialExpressionTextureImpl> ExpressionImpl = MakeShared < FDatasmithMaterialExpressionTextureImpl>();
-		Expression = ExpressionImpl;
-		ExpressionAsElement = ExpressionImpl;
+		Expression = MakeShared< FDatasmithMaterialExpressionTextureImpl >();
 		break;
-	}
 	case EDatasmithMaterialExpressionType::TextureCoordinate:
-	{
-		TSharedPtr<FDatasmithMaterialExpressionTextureCoordinateImpl> ExpressionImpl = MakeShared < FDatasmithMaterialExpressionTextureCoordinateImpl>();
-		Expression = ExpressionImpl;
-		ExpressionAsElement = ExpressionImpl;
+		Expression = MakeShared< FDatasmithMaterialExpressionTextureCoordinateImpl >();
 		break;
-	}
 	default:
 		check( false );
 		break;
 	}
-	Expressions.Add( ExpressionAsElement );
-	ExpressionTypes.Edit( Store ).Add( ExpressionType );
+
+	Expressions.Add( Expression );
 
 	return Expression.Get();
 }
 
 const TCHAR* FDatasmithUEPbrMaterialElementImpl::GetParentLabel() const
 {
-	if ( ParentLabel.Get(Store).IsEmpty() )
+	if ( ParentLabel.Get( Store ).IsEmpty() )
 	{
 		return GetLabel();
 	}
 	else
 	{
-		return *ParentLabel.Get(Store);
+		return *ParentLabel.Get( Store );
 	}
 }

@@ -1459,45 +1459,45 @@ void FDatasmithSceneXmlWriterImpl::WriteUEPbrMaterialExpressions( const TSharedR
 
 		if ( MaterialExpression )
 		{
-			if ( MaterialExpression->IsA( EDatasmithMaterialExpressionType::Texture ) )
+			if ( MaterialExpression->IsSubType( (uint64)EDatasmithMaterialExpressionType::Texture ) )
 			{
 				const IDatasmithMaterialExpressionTexture* ExpressionTexture = static_cast< const IDatasmithMaterialExpressionTexture* >( MaterialExpression );
 
 				WriteMaterialExpressionTexture( MaterialElement, *ExpressionTexture, Archive, Indent + 1 );
 			}
-			else if ( MaterialExpression->IsA( EDatasmithMaterialExpressionType::TextureCoordinate ) )
+			else if ( MaterialExpression->IsSubType( (uint64)EDatasmithMaterialExpressionType::TextureCoordinate ) )
 			{
 				const IDatasmithMaterialExpressionTextureCoordinate* ExpressionTextureCoordinate = static_cast< const IDatasmithMaterialExpressionTextureCoordinate* >( MaterialExpression );
 
 				WriteMaterialExpressionTextureCoordinate( MaterialElement, *ExpressionTextureCoordinate, Archive, Indent + 1 );
 			}
-			else if ( MaterialExpression->IsA( EDatasmithMaterialExpressionType::FlattenNormal ) )
+			else if ( MaterialExpression->IsSubType( (uint64)EDatasmithMaterialExpressionType::FlattenNormal ) )
 			{
 				const IDatasmithMaterialExpressionFlattenNormal* FlattenNormal = static_cast< const IDatasmithMaterialExpressionFlattenNormal* >( MaterialExpression );
 
 				WriteMaterialExpressionFlattenNormal( MaterialElement, *FlattenNormal, Archive, Indent + 1 );
 			}
-			else if ( MaterialExpression->IsA( EDatasmithMaterialExpressionType::ConstantBool ) )
+			else if ( MaterialExpression->IsSubType( (uint64)EDatasmithMaterialExpressionType::ConstantBool ) )
 			{
 				const IDatasmithMaterialExpressionBool* ConstantBool = static_cast< const IDatasmithMaterialExpressionBool* >( MaterialExpression );
 				WriteMaterialExpressionBool( MaterialElement, *ConstantBool, Archive, Indent + 1 );
 			}
-			else if ( MaterialExpression->IsA( EDatasmithMaterialExpressionType::ConstantColor ) )
+			else if ( MaterialExpression->IsSubType( (uint64)EDatasmithMaterialExpressionType::ConstantColor ) )
 			{
 				const IDatasmithMaterialExpressionColor* ConstantColor = static_cast< const IDatasmithMaterialExpressionColor* >( MaterialExpression );
 				WriteMaterialExpressionColor( MaterialElement, *ConstantColor, Archive, Indent + 1 );
 			}
-			else if ( MaterialExpression->IsA( EDatasmithMaterialExpressionType::ConstantScalar ) )
+			else if ( MaterialExpression->IsSubType( (uint64)EDatasmithMaterialExpressionType::ConstantScalar ) )
 			{
 				const IDatasmithMaterialExpressionScalar* ConstantScalar = static_cast< const IDatasmithMaterialExpressionScalar* >( MaterialExpression );
 				WriteMaterialExpressionScalar( MaterialElement, *ConstantScalar, Archive, Indent + 1 );
 			}
-			else if ( MaterialExpression->IsA( EDatasmithMaterialExpressionType::Generic ) )
+			else if ( MaterialExpression->IsSubType( (uint64)EDatasmithMaterialExpressionType::Generic ) )
 			{
 				const IDatasmithMaterialExpressionGeneric* GenericExpression = static_cast< const IDatasmithMaterialExpressionGeneric* >( MaterialExpression );
 				WriteMaterialExpressionGeneric( MaterialElement, *GenericExpression, Archive, Indent + 1 );
 			}
-			else if ( MaterialExpression->IsA( EDatasmithMaterialExpressionType::FunctionCall ) )
+			else if ( MaterialExpression->IsSubType( (uint64)EDatasmithMaterialExpressionType::FunctionCall ) )
 			{
 				const IDatasmithMaterialExpressionFunctionCall* FunctionCall = static_cast< const IDatasmithMaterialExpressionFunctionCall* >( MaterialExpression );
 				WriteMaterialExpressionFunctionCall( MaterialElement, *FunctionCall, Archive, Indent + 1 );
@@ -1517,7 +1517,7 @@ void FDatasmithSceneXmlWriterImpl::WriteUEPbrMaterialExpressionInput( const TSha
 	{
 		WriteIndent( Archive, Indent );
 
-		FString XmlString = TEXT("<Input Name=\"") + FString( ExpressionInput.GetInputName() ) + TEXT("\" ");
+		FString XmlString = TEXT("<Input Name=\"") + FString( ExpressionInput.GetName() ) + TEXT("\" ");
 		XmlString += TEXT("expression=\"") + FString::FromInt( MaterialElement->GetExpressionIndex( Expression ) ) + TEXT("\" OutputIndex=\"") +
 			FString::FromInt( ExpressionInput.GetOutputIndex() ) + TEXT("\"/>") + LINE_TERMINATOR;
 

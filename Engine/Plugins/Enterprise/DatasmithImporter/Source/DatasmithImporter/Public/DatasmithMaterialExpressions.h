@@ -33,7 +33,7 @@ class UMaterialInterface;
 struct FExpressionInput;
 class UMaterialExpressionMaterialFunctionCall;
 
-enum class EDatasmithMaterialExpressionType;
+enum class EDatasmithMaterialExpressionType : uint64;
 enum class EDatasmithTextureMode : uint8;
 
 enum class EDatasmithTextureSlot
