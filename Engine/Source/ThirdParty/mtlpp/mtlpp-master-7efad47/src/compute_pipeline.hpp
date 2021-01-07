@@ -17,7 +17,7 @@
 
 MTLPP_BEGIN
 
-namespace ue4
+namespace UE
 {
 	template<>
 	struct MTLPP_EXPORT ITable<id<MTLComputePipelineState>, void> : public IMPTable<id<MTLComputePipelineState>, void>, public ITableCacheRef
@@ -90,7 +90,7 @@ namespace mtlpp
     {
     public:
         ComputePipelineState() { }
-		ComputePipelineState(ns::Protocol<id<MTLComputePipelineState>>::type handle, ue4::ITableCache* cache = nullptr, ns::Ownership const retain = ns::Ownership::Retain) : ns::Object<ns::Protocol<id<MTLComputePipelineState>>::type>(handle, retain, ue4::ITableCacheRef(cache).GetComputePipelineState(handle)) { }
+		ComputePipelineState(ns::Protocol<id<MTLComputePipelineState>>::type handle, UE::ITableCache* cache = nullptr, ns::Ownership const retain = ns::Ownership::Retain) : ns::Object<ns::Protocol<id<MTLComputePipelineState>>::type>(handle, retain, UE::ITableCacheRef(cache).GetComputePipelineState(handle)) { }
 
 		ns::AutoReleased<ns::String> GetLabel() const MTLPP_AVAILABLE(10_13, 11_0);
         ns::AutoReleased<Device>   GetDevice() const;

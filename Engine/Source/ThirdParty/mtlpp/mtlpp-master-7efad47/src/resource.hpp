@@ -17,7 +17,7 @@
 
 MTLPP_BEGIN
 
-namespace ue4
+namespace UE
 {
 	template<>
 	struct ITable<id<MTLBuffer>, void> : public IMPTable<id<MTLBuffer>, void>, public ITableCacheRef

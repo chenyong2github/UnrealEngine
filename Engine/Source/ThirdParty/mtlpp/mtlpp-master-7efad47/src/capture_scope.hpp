@@ -9,7 +9,7 @@
 
 MTLPP_BEGIN
 
-namespace ue4
+namespace UE
 {
 	template<>
 	struct ITable<id<MTLCaptureScope>, void> : public IMPTable<id<MTLCaptureScope>, void>, public ITableCacheRef
@@ -34,7 +34,7 @@ namespace mtlpp
 	{
 	public:
 		CaptureScope(ns::Ownership const retain = ns::Ownership::Retain) : ns::Object<ns::Protocol<id<MTLCaptureScope>>::type>(retain) { }
-		CaptureScope(ns::Protocol<id<MTLCaptureScope>>::type handle, ue4::ITableCache* cache = nullptr, ns::Ownership const retain = ns::Ownership::Retain) : ns::Object<ns::Protocol<id<MTLCaptureScope>>::type>(handle, retain, ue4::ITableCacheRef(cache).GetCaptureScope(handle)) { }
+		CaptureScope(ns::Protocol<id<MTLCaptureScope>>::type handle, UE::ITableCache* cache = nullptr, ns::Ownership const retain = ns::Ownership::Retain) : ns::Object<ns::Protocol<id<MTLCaptureScope>>::type>(handle, retain, UE::ITableCacheRef(cache).GetCaptureScope(handle)) { }
 		
 		void BeginScope();
 		void EndScope();

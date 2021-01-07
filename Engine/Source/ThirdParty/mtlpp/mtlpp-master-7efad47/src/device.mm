@@ -607,7 +607,7 @@ namespace mtlpp
         Validate();
 		
 #if MTLPP_CONFIG_IMP_CACHE
-		ue4::ITableCache* cache = m_table->TableCache;
+		UE::ITableCache* cache = m_table->TableCache;
 		m_table->NewLibraryWithSourceOptionsCompletionHandler(m_ptr, source, options.GetPtr(), ^(id <MTLLibrary> library, NSError * error) {
 			completionHandler(
 							  Library(library, cache, ns::Ownership::Assign),
@@ -653,7 +653,7 @@ namespace mtlpp
         Validate();
 		
 #if MTLPP_CONFIG_IMP_CACHE
-		ue4::ITableCache* cache = m_table->TableCache;
+		UE::ITableCache* cache = m_table->TableCache;
 		m_table->NewRenderPipelineStateWithDescriptorCompletionHandler(m_ptr, descriptor.GetPtr(), ^(id <MTLRenderPipelineState> renderPipelineState, NSError * error) {
 			completionHandler(
 							  RenderPipelineState(renderPipelineState, cache, ns::Ownership::Assign),
@@ -676,7 +676,7 @@ namespace mtlpp
         Validate();
 		
 #if MTLPP_CONFIG_IMP_CACHE
-		ue4::ITableCache* cache = m_table->TableCache;
+		UE::ITableCache* cache = m_table->TableCache;
 		m_table->NewRenderPipelineStateWithDescriptorOptionsCompletionHandler(m_ptr, descriptor.GetPtr(), MTLPipelineOption(options), ^(id <MTLRenderPipelineState> renderPipelineState, MTLRenderPipelineReflection * reflection, NSError * error) {
 			completionHandler(
 							  RenderPipelineState(renderPipelineState, cache, ns::Ownership::Assign),
@@ -726,7 +726,7 @@ namespace mtlpp
         Validate();
 		
 #if MTLPP_CONFIG_IMP_CACHE
-		ue4::ITableCache* cache = m_table->TableCache;
+		UE::ITableCache* cache = m_table->TableCache;
 		m_table->NewComputePipelineStateWithFunctionCompletionHandler(m_ptr, computeFunction.GetPtr(), ^(id <MTLComputePipelineState> computePipelineState, NSError * error) {
 			completionHandler(
 							  ComputePipelineState(computePipelineState, cache, ns::Ownership::Assign),
@@ -749,7 +749,7 @@ namespace mtlpp
         Validate();
 		
 #if MTLPP_CONFIG_IMP_CACHE
-		ue4::ITableCache* cache = m_table->TableCache;
+		UE::ITableCache* cache = m_table->TableCache;
 		m_table->NewComputePipelineStateWithFunctionOptionsCompletionHandler(m_ptr, computeFunction.GetPtr(), MTLPipelineOption(options), ^(id <MTLComputePipelineState> computePipelineState, MTLComputePipelineReflection * reflection, NSError * error) {
 			completionHandler(
 							  ComputePipelineState(computePipelineState, cache, ns::Ownership::Assign),
@@ -792,7 +792,7 @@ namespace mtlpp
         Validate();
 #if MTLPP_IS_AVAILABLE(10_11, 9_0)
 #if MTLPP_CONFIG_IMP_CACHE
-		ue4::ITableCache* cache = m_table->TableCache;
+		UE::ITableCache* cache = m_table->TableCache;
 		m_table->NewComputePipelineStateWithDescriptorOptionsCompletionHandler(m_ptr,descriptor.GetPtr(), MTLPipelineOption(options), ^(id <MTLComputePipelineState> computePipelineState, MTLComputePipelineReflection * reflection, NSError * error)
 																			   {
 																				   completionHandler(
@@ -942,7 +942,7 @@ namespace mtlpp
 		Validate();
 #if MTLPP_IS_AVAILABLE_IOS(11_0)
 #if MTLPP_CONFIG_IMP_CACHE
-		ue4::ITableCache* cache = m_table->TableCache;
+		UE::ITableCache* cache = m_table->TableCache;
 		m_table->newRenderPipelineStateWithTileDescriptoroptionscompletionHandler(m_ptr, descriptor.GetPtr(), (MTLPipelineOption)options, ^(id <MTLRenderPipelineState> renderPipelineState, MTLRenderPipelineReflection * reflection, NSError * error) {
 			completionHandler(
 							  RenderPipelineState(renderPipelineState, cache, ns::Ownership::Assign),

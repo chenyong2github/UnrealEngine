@@ -15,7 +15,7 @@
 
 MTLPP_BEGIN
 
-namespace ue4
+namespace UE
 {
 	template<>
 	struct ITable<id<MTLDepthStencilState>, void> : public IMPTable<id<MTLDepthStencilState>, void>, public ITableCacheRef
@@ -119,7 +119,7 @@ namespace mtlpp
     {
     public:
         DepthStencilState() { }
-		DepthStencilState(ns::Protocol<id<MTLDepthStencilState>>::type handle, ue4::ITableCache* cache = nullptr, ns::Ownership const retain = ns::Ownership::Retain) : ns::Object<ns::Protocol<id<MTLDepthStencilState>>::type>(handle, retain, ue4::ITableCacheRef(cache).GetDepthStencilState(handle)) { }
+		DepthStencilState(ns::Protocol<id<MTLDepthStencilState>>::type handle, UE::ITableCache* cache = nullptr, ns::Ownership const retain = ns::Ownership::Retain) : ns::Object<ns::Protocol<id<MTLDepthStencilState>>::type>(handle, retain, UE::ITableCacheRef(cache).GetDepthStencilState(handle)) { }
 
         ns::AutoReleased<ns::String> GetLabel() const;
         ns::AutoReleased<Device>     GetDevice() const;

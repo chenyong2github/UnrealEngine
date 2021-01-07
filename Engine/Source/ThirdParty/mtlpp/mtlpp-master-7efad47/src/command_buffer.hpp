@@ -16,7 +16,7 @@
 
 MTLPP_BEGIN
 
-namespace ue4
+namespace UE
 {
 	template<>
 	struct MTLPP_EXPORT ITable<id<MTLCommandBuffer>, void> : public IMPTable<id<MTLCommandBuffer>, void>, public ITableCacheRef
@@ -85,7 +85,7 @@ namespace mtlpp
 		mutable CommandBufferFence CmdBufferFence;
     public:
 		CommandBuffer(ns::Ownership const retain = ns::Ownership::Retain);
-		CommandBuffer(ns::Protocol<id<MTLCommandBuffer>>::type handle, ue4::ITableCache* cache = nullptr);
+		CommandBuffer(ns::Protocol<id<MTLCommandBuffer>>::type handle, UE::ITableCache* cache = nullptr);
 		
 		CommandBuffer(const CommandBuffer& rhs);
 		CommandBuffer& operator=(const CommandBuffer& rhs);

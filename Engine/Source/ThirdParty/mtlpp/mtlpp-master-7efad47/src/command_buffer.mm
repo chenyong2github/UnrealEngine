@@ -44,8 +44,8 @@ namespace mtlpp
 		
 	}
 	
-	CommandBuffer::CommandBuffer(ns::Protocol<id<MTLCommandBuffer>>::type handle, ue4::ITableCache* cache)
-	: ns::Object<ns::Protocol<id<MTLCommandBuffer>>::type>(handle, ns::Ownership::Retain, ue4::ITableCacheRef(cache).GetCommandBuffer(handle))
+	CommandBuffer::CommandBuffer(ns::Protocol<id<MTLCommandBuffer>>::type handle, UE::ITableCache* cache)
+	: ns::Object<ns::Protocol<id<MTLCommandBuffer>>::type>(handle, ns::Ownership::Retain, UE::ITableCacheRef(cache).GetCommandBuffer(handle))
 	{
 	}
 	
@@ -257,7 +257,7 @@ namespace mtlpp
     {
         Validate();
 #if MTLPP_CONFIG_IMP_CACHE
-		ue4::ITableCache* cache = m_table->TableCache;
+		UE::ITableCache* cache = m_table->TableCache;
 		m_table->AddScheduledHandler(m_ptr, ^(id <MTLCommandBuffer> mtlCommandBuffer){
 			CommandBuffer commandBuffer(mtlCommandBuffer, cache);
 			handler(commandBuffer);
@@ -274,7 +274,7 @@ namespace mtlpp
     {
         Validate();
 #if MTLPP_CONFIG_IMP_CACHE
-		ue4::ITableCache* cache = m_table->TableCache;
+		UE::ITableCache* cache = m_table->TableCache;
 		m_table->AddCompletedHandler(m_ptr, ^(id <MTLCommandBuffer> mtlCommandBuffer){
 			CommandBuffer commandBuffer(mtlCommandBuffer, cache);
 			handler(commandBuffer);

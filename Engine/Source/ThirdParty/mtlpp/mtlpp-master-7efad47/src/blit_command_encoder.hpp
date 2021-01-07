@@ -18,7 +18,7 @@
 
 MTLPP_BEGIN
 
-namespace ue4
+namespace UE
 {
 	template<>
 	struct ITable<id<MTLBlitCommandEncoder>, void> : public IMPTable<id<MTLBlitCommandEncoder>, void>, public ITableCacheRef
@@ -49,7 +49,7 @@ namespace mtlpp
     {
     public:
         BlitCommandEncoder(ns::Ownership const retain = ns::Ownership::Retain) : CommandEncoder<ns::Protocol<id<MTLBlitCommandEncoder>>::type>(retain) { }
-		BlitCommandEncoder(ns::Protocol<id<MTLBlitCommandEncoder>>::type handle, ue4::ITableCache* cache = nullptr, ns::Ownership const retain = ns::Ownership::Retain) : CommandEncoder<ns::Protocol<id<MTLBlitCommandEncoder>>::type>(handle, retain, ue4::ITableCacheRef(cache).GetBlitCommandEncoder(handle)) { }
+		BlitCommandEncoder(ns::Protocol<id<MTLBlitCommandEncoder>>::type handle, UE::ITableCache* cache = nullptr, ns::Ownership const retain = ns::Ownership::Retain) : CommandEncoder<ns::Protocol<id<MTLBlitCommandEncoder>>::type>(handle, retain, UE::ITableCacheRef(cache).GetBlitCommandEncoder(handle)) { }
 
 		operator ns::Protocol<id<MTLBlitCommandEncoder>>::type() const = delete;
 		

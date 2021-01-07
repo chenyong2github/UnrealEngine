@@ -18,7 +18,7 @@
 
 MTLPP_BEGIN
 
-namespace ue4
+namespace UE
 {
 	template<>
 	struct ITable<id<MTLDevice>, void> : public IMPTable<id<MTLDevice>, void>

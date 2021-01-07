@@ -9,7 +9,7 @@
 
 MTLPP_BEGIN
 
-namespace ue4
+namespace UE
 {
 	template<>
 	struct ITable<id<MTLArgumentEncoder>, void> : public IMPTable<id<MTLArgumentEncoder>, void>, public ITableCacheRef
@@ -36,7 +36,7 @@ namespace mtlpp
 	{
 	public:
 		ArgumentEncoder() { }
-		ArgumentEncoder(ns::Protocol<id<MTLArgumentEncoder>>::type handle, ue4::ITableCache* cache = nullptr, ns::Ownership const retain = ns::Ownership::Retain) : ns::Object<ns::Protocol<id<MTLArgumentEncoder>>::type>(handle, retain, ue4::ITableCacheRef(cache).GetArgumentEncoder(handle)) { }
+		ArgumentEncoder(ns::Protocol<id<MTLArgumentEncoder>>::type handle, UE::ITableCache* cache = nullptr, ns::Ownership const retain = ns::Ownership::Retain) : ns::Object<ns::Protocol<id<MTLArgumentEncoder>>::type>(handle, retain, UE::ITableCacheRef(cache).GetArgumentEncoder(handle)) { }
 		
 		ns::AutoReleased<Device>     GetDevice() const;
 		ns::AutoReleased<ns::String> GetLabel() const;

@@ -15,8 +15,8 @@ MTLPP_BEGIN
 
 namespace mtlpp
 {	
-	Buffer::Buffer(ns::Protocol<id<MTLBuffer>>::type handle, ue4::ITableCache* cache, ns::Ownership const retain)
-	: Resource((ns::Protocol<id<MTLResource>>::type)handle, retain, (ue4::ITable<ns::Protocol<id<MTLResource>>::type, void>*)ue4::ITableCacheRef(cache).GetBuffer(handle))
+	Buffer::Buffer(ns::Protocol<id<MTLBuffer>>::type handle, UE::ITableCache* cache, ns::Ownership const retain)
+	: Resource((ns::Protocol<id<MTLResource>>::type)handle, retain, (UE::ITable<ns::Protocol<id<MTLResource>>::type, void>*)UE::ITableCacheRef(cache).GetBuffer(handle))
 	{
 	}
 	
@@ -112,7 +112,7 @@ namespace mtlpp
 		MTLTextureDescriptor* mtlTextureDescriptor = (MTLTextureDescriptor*)descriptor.GetPtr();
 #if MTLPP_CONFIG_IMP_CACHE
 		if (m_table)
-			return Texture(((IMPTable<id<MTLBuffer>, void>*)m_table)->NewTextureWithDescriptorOffsetBytesPerRow((id<MTLBuffer>)m_ptr, mtlTextureDescriptor, GetOffset() + offset, bytesPerRow), ((ue4::ITable<id<MTLBuffer>, void>*)m_table)->TableCache, ns::Ownership::Assign);
+			return Texture(((IMPTable<id<MTLBuffer>, void>*)m_table)->NewTextureWithDescriptorOffsetBytesPerRow((id<MTLBuffer>)m_ptr, mtlTextureDescriptor, GetOffset() + offset, bytesPerRow), ((UE::ITable<id<MTLBuffer>, void>*)m_table)->TableCache, ns::Ownership::Assign);
 		else
 #endif
 		if (@available(macOS 10.13, iOS 8.0, *))

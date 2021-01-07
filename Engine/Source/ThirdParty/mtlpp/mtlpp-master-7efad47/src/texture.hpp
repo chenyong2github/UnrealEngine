@@ -17,7 +17,7 @@
 
 MTLPP_BEGIN
 
-namespace ue4
+namespace UE
 {
 	template<>
 	inline ITable<MTLTextureDescriptor*, void>* CreateIMPTable(MTLTextureDescriptor* handle)
@@ -100,7 +100,7 @@ namespace mtlpp
     {
     public:
 		Texture(ns::Ownership const retain = ns::Ownership::Retain) : Resource(retain) { }
-		Texture(ns::Protocol<id<MTLTexture>>::type handle, ue4::ITableCache* cache = nullptr, ns::Ownership const retain = ns::Ownership::Retain);
+		Texture(ns::Protocol<id<MTLTexture>>::type handle, UE::ITableCache* cache = nullptr, ns::Ownership const retain = ns::Ownership::Retain);
 		
 		Texture(const Texture& rhs);
 #if MTLPP_CONFIG_RVALUE_REFERENCES

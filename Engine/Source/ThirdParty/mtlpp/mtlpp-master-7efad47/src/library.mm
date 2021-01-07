@@ -444,7 +444,7 @@ namespace mtlpp
         Validate();
 #if MTLPP_IS_AVAILABLE(10_12, 10_0)
 #if MTLPP_CONFIG_IMP_CACHE
-		ue4::ITableCache* cache = m_table->TableCache;
+		UE::ITableCache* cache = m_table->TableCache;
 		m_table->NewFunctionWithNameconstantValuescompletionHandler(m_ptr, functionName.GetPtr(), constantValues.GetPtr(), ^(id <MTLFunction> mtlFunction, NSError* error)
 		{
 			completionHandler(Function(mtlFunction, cache), error);

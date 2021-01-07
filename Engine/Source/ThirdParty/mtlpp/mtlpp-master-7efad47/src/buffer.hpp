@@ -27,7 +27,7 @@ namespace mtlpp
 		ns::Range SubRange;
     public:
 		Buffer(ns::Ownership const retain = ns::Ownership::Retain) : Resource(retain) { }
-		Buffer(ns::Protocol<id<MTLBuffer>>::type handle, ue4::ITableCache* cache = nullptr, ns::Ownership const retain = ns::Ownership::Retain);
+		Buffer(ns::Protocol<id<MTLBuffer>>::type handle, UE::ITableCache* cache = nullptr, ns::Ownership const retain = ns::Ownership::Retain);
 
 		Buffer(const Buffer& rhs);
 #if MTLPP_CONFIG_RVALUE_REFERENCES

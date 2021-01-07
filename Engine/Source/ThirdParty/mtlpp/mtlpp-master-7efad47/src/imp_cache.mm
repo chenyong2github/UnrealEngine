@@ -20,7 +20,7 @@
 #include "parallel_render_command_encoder.hpp"
 #include "capture_scope.hpp"
 
-namespace ue4
+namespace UE
 {
 	template<typename T>
 	ITable<T, void>* GetITable(ITableCache* self, T Obj, ITable<T, void>** Cache)
@@ -29,7 +29,7 @@ namespace ue4
 		assert(Cache);
 		if (*Cache == nullptr)
 		{
-			*Cache = ue4::CreateIMPTable(Obj);
+			*Cache = UE::CreateIMPTable(Obj);
 			if (!(*Cache)->TableCache)
 			{
 				(*Cache)->TableCache = self;

@@ -22,7 +22,7 @@
 
 MTLPP_BEGIN
 
-namespace ue4
+namespace UE
 {
 	template<>
 	struct ITable<id<MTLComputeCommandEncoder>, void> : public IMPTable<id<MTLComputeCommandEncoder>, void>, public ITableCacheRef
@@ -44,7 +44,7 @@ namespace mtlpp
     {
     public:
         ComputeCommandEncoder(ns::Ownership const retain = ns::Ownership::Retain) : CommandEncoder<ns::Protocol<id<MTLComputeCommandEncoder>>::type>(retain) { }
-		ComputeCommandEncoder(ns::Protocol<id<MTLComputeCommandEncoder>>::type handle, ue4::ITableCache* cache = nullptr, ns::Ownership const retain = ns::Ownership::Retain) : CommandEncoder<ns::Protocol<id<MTLComputeCommandEncoder>>::type>(handle, retain, ue4::ITableCacheRef(cache).GetComputeCommandEncoder(handle)) { }
+		ComputeCommandEncoder(ns::Protocol<id<MTLComputeCommandEncoder>>::type handle, UE::ITableCache* cache = nullptr, ns::Ownership const retain = ns::Ownership::Retain) : CommandEncoder<ns::Protocol<id<MTLComputeCommandEncoder>>::type>(handle, retain, UE::ITableCacheRef(cache).GetComputeCommandEncoder(handle)) { }
 		
 		operator ns::Protocol<id<MTLComputeCommandEncoder>>::type() const = delete;
 		

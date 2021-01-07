@@ -19,7 +19,7 @@
 
 MTLPP_BEGIN
 
-namespace ue4
+namespace UE
 {
 	template<>
 	struct ITable<id<MTLHeap>, void> : public IMPTable<id<MTLHeap>, void>, public ITableCacheRef
@@ -65,7 +65,7 @@ namespace mtlpp
     {
     public:
 		Heap(ns::Ownership const retain = ns::Ownership::Retain) : ns::Object<ns::Protocol<id<MTLHeap>>::type>(retain) { }
-		Heap(ns::Protocol<id<MTLHeap>>::type handle, ue4::ITableCache* cache = nullptr, ns::Ownership const retain = ns::Ownership::Retain) : ns::Object<ns::Protocol<id<MTLHeap>>::type>(handle, retain, ue4::ITableCacheRef(cache).GetHeap(handle)) { }
+		Heap(ns::Protocol<id<MTLHeap>>::type handle, UE::ITableCache* cache = nullptr, ns::Ownership const retain = ns::Ownership::Retain) : ns::Object<ns::Protocol<id<MTLHeap>>::type>(handle, retain, UE::ITableCacheRef(cache).GetHeap(handle)) { }
 
         ns::AutoReleased<ns::String>   GetLabel() const;
         ns::AutoReleased<Device>       GetDevice() const;

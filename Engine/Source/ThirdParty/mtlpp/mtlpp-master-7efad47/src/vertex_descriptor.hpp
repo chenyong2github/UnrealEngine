@@ -14,7 +14,7 @@
 
 MTLPP_BEGIN
 
-namespace ue4
+namespace UE
 {
 	template<>
 	inline ITable<MTLVertexBufferLayoutDescriptor*, void>* CreateIMPTable(MTLVertexBufferLayoutDescriptor* handle)

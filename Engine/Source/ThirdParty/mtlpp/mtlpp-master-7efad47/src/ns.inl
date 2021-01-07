@@ -40,7 +40,7 @@ namespace ns
 #if MTLPP_CONFIG_IMP_CACHE
 			if (C == CallingConvention::C && !m_table)
 			{
-				m_table = ue4::CreateIMPTable(handle);
+				m_table = UE::CreateIMPTable(handle);
 			}
 #endif
 			if (Mode == ns::Ownership::Retain)
@@ -75,7 +75,7 @@ namespace ns
 			{
 				if (!m_table)
 				{
-					m_table = ue4::CreateIMPTable(m_ptr);
+					m_table = UE::CreateIMPTable(m_ptr);
 				}
 				assert(m_table);
 				m_table->Retain(m_ptr);
@@ -104,7 +104,7 @@ namespace ns
 			{
 				if (!m_table)
 				{
-					m_table = ue4::CreateIMPTable(m_ptr);
+					m_table = UE::CreateIMPTable(m_ptr);
 				}
 				assert(m_table);
 				if (rhs.Mode == ns::Ownership::AutoRelease)
@@ -191,7 +191,7 @@ namespace ns
 		m_table = rhs.m_table;
 		if (C == CallingConvention::C && m_ptr && !m_table)
 		{
-			m_table = ue4::CreateIMPTable(m_ptr);
+			m_table = UE::CreateIMPTable(m_ptr);
 		}
 #endif
         return *this;
@@ -241,7 +241,7 @@ namespace ns
 		m_table = rhs.m_table;
 		if (C == CallingConvention::C && m_ptr && !m_table)
 		{
-			m_table = ue4::CreateIMPTable(m_ptr);
+			m_table = UE::CreateIMPTable(m_ptr);
 		}
 #endif
 		if (Mode != ns::Ownership::AutoRelease || rhs.Mode == ns::Ownership::AutoRelease)
@@ -262,7 +262,7 @@ namespace ns
 #if MTLPP_CONFIG_IMP_CACHE
 		if (T::Convention == CallingConvention::C || Table)
 		{
-			T::m_table = handle && !Table ? ue4::CreateIMPTable(handle) : Table;
+			T::m_table = handle && !Table ? UE::CreateIMPTable(handle) : Table;
 		}
 		else
 		{
@@ -280,7 +280,7 @@ namespace ns
 #if MTLPP_CONFIG_IMP_CACHE
 			if (T::Convention == CallingConvention::C)
 			{
-				T::m_table = handle ? ue4::CreateIMPTable(handle) : nullptr;
+				T::m_table = handle ? UE::CreateIMPTable(handle) : nullptr;
 			}
 			else
 			{

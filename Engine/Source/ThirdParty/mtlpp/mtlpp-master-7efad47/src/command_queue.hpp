@@ -15,7 +15,7 @@
 
 MTLPP_BEGIN
 
-namespace ue4
+namespace UE
 {
 	template<>
 	struct ITable<id<MTLCommandQueue>, void> : public IMPTable<id<MTLCommandQueue>, void>, public ITableCacheRef
@@ -40,7 +40,7 @@ namespace mtlpp
     {
     public:
 		CommandQueue(ns::Ownership const retain = ns::Ownership::Retain) : ns::Object<ns::Protocol<id<MTLCommandQueue>>::type>(retain) { }
-		CommandQueue(ns::Protocol<id<MTLCommandQueue>>::type handle, ue4::ITableCache* cache = nullptr, ns::Ownership const retain = ns::Ownership::Retain) : ns::Object<ns::Protocol<id<MTLCommandQueue>>::type>(handle, retain, ue4::ITableCacheRef(cache).GetCommandQueue(handle)) { }
+		CommandQueue(ns::Protocol<id<MTLCommandQueue>>::type handle, UE::ITableCache* cache = nullptr, ns::Ownership const retain = ns::Ownership::Retain) : ns::Object<ns::Protocol<id<MTLCommandQueue>>::type>(handle, retain, UE::ITableCacheRef(cache).GetCommandQueue(handle)) { }
 
         ns::AutoReleased<ns::String> GetLabel() const;
         ns::AutoReleased<Device>     GetDevice() const;

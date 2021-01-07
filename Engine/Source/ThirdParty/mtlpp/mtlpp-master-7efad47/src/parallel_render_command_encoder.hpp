@@ -17,7 +17,7 @@
 
 MTLPP_BEGIN
 
-namespace ue4
+namespace UE
 {
 	template<>
 	struct ITable<id<MTLParallelRenderCommandEncoder>, void> : public IMPTable<id<MTLParallelRenderCommandEncoder>, void>, public ITableCacheRef
@@ -41,7 +41,7 @@ namespace mtlpp
     {
     public:
         ParallelRenderCommandEncoder(ns::Ownership const retain = ns::Ownership::Retain) : CommandEncoder<ns::Protocol<id<MTLParallelRenderCommandEncoder>>::type>(retain) { }
-		ParallelRenderCommandEncoder(ns::Protocol<id<MTLParallelRenderCommandEncoder>>::type handle, ue4::ITableCache* cache = nullptr, ns::Ownership const retain = ns::Ownership::Retain) : CommandEncoder<ns::Protocol<id<MTLParallelRenderCommandEncoder>>::type>(handle, retain, ue4::ITableCacheRef(cache).GetParallelRenderCommandEncoder(handle)) { }
+		ParallelRenderCommandEncoder(ns::Protocol<id<MTLParallelRenderCommandEncoder>>::type handle, UE::ITableCache* cache = nullptr, ns::Ownership const retain = ns::Ownership::Retain) : CommandEncoder<ns::Protocol<id<MTLParallelRenderCommandEncoder>>::type>(handle, retain, UE::ITableCacheRef(cache).GetParallelRenderCommandEncoder(handle)) { }
 
         MTLPP_VALIDATED RenderCommandEncoder GetRenderCommandEncoder();
 

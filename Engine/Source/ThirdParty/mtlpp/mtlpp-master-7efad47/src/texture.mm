@@ -351,8 +351,8 @@ namespace mtlpp
 		if (m_table)
 		{
 			id<MTLTexture> handle = ((IMPTable<id<MTLTexture>, void>*)m_table)->Parenttexture((id<MTLTexture>)m_ptr);
-			ue4::ITableCache* cache = ((ue4::ITable<id<MTLTexture>, void>*)m_table)->TableCache;
-			ITable* table = (ue4::ITable<ns::Protocol<id<MTLResource>>::type, void>*)ue4::ITableCacheRef(cache).GetTexture(handle);
+			UE::ITableCache* cache = ((UE::ITable<id<MTLTexture>, void>*)m_table)->TableCache;
+			ITable* table = (UE::ITable<ns::Protocol<id<MTLResource>>::type, void>*)UE::ITableCacheRef(cache).GetTexture(handle);
 			return ns::AutoReleased<Texture>(handle, table);
 		}
 		else
@@ -403,8 +403,8 @@ namespace mtlpp
 		if (m_table)
 		{
 			id<MTLBuffer> handle = ((IMPTable<id<MTLTexture>, void>*)m_table)->Buffer((id<MTLTexture>)m_ptr);
-			ue4::ITableCache* cache = ((ue4::ITable<id<MTLTexture>, void>*)m_table)->TableCache;
-			ITable* table = (ue4::ITable<ns::Protocol<id<MTLResource>>::type, void>*)ue4::ITableCacheRef(cache).GetBuffer(handle);
+			UE::ITableCache* cache = ((UE::ITable<id<MTLTexture>, void>*)m_table)->TableCache;
+			ITable* table = (UE::ITable<ns::Protocol<id<MTLResource>>::type, void>*)UE::ITableCacheRef(cache).GetBuffer(handle);
 			return ns::AutoReleased<Buffer>(handle, table);
 		}
 		else
@@ -659,7 +659,7 @@ namespace mtlpp
         Validate();
 #if MTLPP_CONFIG_IMP_CACHE
 		if (m_table)
-			return Texture(((IMPTable<id<MTLTexture>, void>*)m_table)->Newtextureviewwithpixelformat((id<MTLTexture>)m_ptr, MTLPixelFormat(pixelFormat)), ((ue4::ITable<id<MTLTexture>, void>*)m_table)->TableCache, ns::Ownership::Assign);
+			return Texture(((IMPTable<id<MTLTexture>, void>*)m_table)->Newtextureviewwithpixelformat((id<MTLTexture>)m_ptr, MTLPixelFormat(pixelFormat)), ((UE::ITable<id<MTLTexture>, void>*)m_table)->TableCache, ns::Ownership::Assign);
 		else
 #endif
         	return Texture([(id<MTLTexture>)m_ptr newTextureViewWithPixelFormat:MTLPixelFormat(pixelFormat)], nullptr, ns::Ownership::Assign);
@@ -670,7 +670,7 @@ namespace mtlpp
         Validate();
 #if MTLPP_CONFIG_IMP_CACHE
 		if (m_table)
-			return Texture(((IMPTable<id<MTLTexture>, void>*)m_table)->Newtextureviewwithpixelformattexturetypelevelsslices((id<MTLTexture>)m_ptr, MTLPixelFormat(pixelFormat), MTLTextureType(textureType), NSMakeRange(mipmapLevelRange.Location, mipmapLevelRange.Length), NSMakeRange(sliceRange.Location, sliceRange.Length)), ((ue4::ITable<id<MTLTexture>, void>*)m_table)->TableCache, ns::Ownership::Assign);
+			return Texture(((IMPTable<id<MTLTexture>, void>*)m_table)->Newtextureviewwithpixelformattexturetypelevelsslices((id<MTLTexture>)m_ptr, MTLPixelFormat(pixelFormat), MTLTextureType(textureType), NSMakeRange(mipmapLevelRange.Location, mipmapLevelRange.Length), NSMakeRange(sliceRange.Location, sliceRange.Length)), ((UE::ITable<id<MTLTexture>, void>*)m_table)->TableCache, ns::Ownership::Assign);
 		else
 #endif
         	return Texture([(id<MTLTexture>)m_ptr newTextureViewWithPixelFormat:MTLPixelFormat(pixelFormat)
@@ -679,8 +679,8 @@ namespace mtlpp
                                                                                                   slices:NSMakeRange(sliceRange.Location, sliceRange.Length)], nullptr, ns::Ownership::Assign);
     }
 	
-	Texture::Texture(ns::Protocol<id<MTLTexture>>::type handle, ue4::ITableCache* cache, ns::Ownership const retain)
-	: Resource((ns::Protocol<id<MTLResource>>::type)handle, retain, (ue4::ITable<ns::Protocol<id<MTLResource>>::type, void>*)ue4::ITableCacheRef(cache).GetTexture(handle))
+	Texture::Texture(ns::Protocol<id<MTLTexture>>::type handle, UE::ITableCache* cache, ns::Ownership const retain)
+	: Resource((ns::Protocol<id<MTLResource>>::type)handle, retain, (UE::ITable<ns::Protocol<id<MTLResource>>::type, void>*)UE::ITableCacheRef(cache).GetTexture(handle))
 	{
 	}
 	

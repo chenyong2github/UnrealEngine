@@ -14,7 +14,7 @@
 
 MTLPP_BEGIN
 
-namespace ue4
+namespace UE
 {
 	template<>
 	struct MTLPP_EXPORT ITable<id<MTLLibrary>, void> : public IMPTable<id<MTLLibrary>, void>, public ITableCacheRef
@@ -143,7 +143,7 @@ namespace mtlpp
     {
     public:
 		Function(ns::Ownership const retain = ns::Ownership::Retain) : ns::Object<ns::Protocol<id<MTLFunction>>::type>(retain) { }
-		Function(ns::Protocol<id<MTLFunction>>::type handle, ue4::ITableCache* cache = nullptr, ns::Ownership const retain = ns::Ownership::Retain) : ns::Object<ns::Protocol<id<MTLFunction>>::type>(handle, retain, ue4::ITableCacheRef(cache).GetFunction(handle)) { }
+		Function(ns::Protocol<id<MTLFunction>>::type handle, UE::ITableCache* cache = nullptr, ns::Ownership const retain = ns::Ownership::Retain) : ns::Object<ns::Protocol<id<MTLFunction>>::type>(handle, retain, UE::ITableCacheRef(cache).GetFunction(handle)) { }
 
         ns::AutoReleased<ns::String>                                   GetLabel() const MTLPP_AVAILABLE(10_12, 10_0);
         ns::AutoReleased<Device>                                       GetDevice() const;
@@ -213,7 +213,7 @@ namespace mtlpp
     {
     public:
         Library() { }
-		Library(ns::Protocol<id<MTLLibrary>>::type handle, ue4::ITableCache* cache = nullptr, ns::Ownership const retain = ns::Ownership::Retain) : ns::Object<ns::Protocol<id<MTLLibrary>>::type>(handle, retain, ue4::ITableCacheRef(cache).GetLibrary(handle)) { }
+		Library(ns::Protocol<id<MTLLibrary>>::type handle, UE::ITableCache* cache = nullptr, ns::Ownership const retain = ns::Ownership::Retain) : ns::Object<ns::Protocol<id<MTLLibrary>>::type>(handle, retain, UE::ITableCacheRef(cache).GetLibrary(handle)) { }
 
         ns::AutoReleased<ns::String>            GetLabel() const;
         ns::AutoReleased<Device>                GetDevice() const;

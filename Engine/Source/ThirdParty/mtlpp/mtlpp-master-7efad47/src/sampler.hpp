@@ -15,7 +15,7 @@
 
 MTLPP_BEGIN
 
-namespace ue4
+namespace UE
 {
 	template<>
 	struct ITable<id<MTLSamplerState>, void> : public IMPTable<id<MTLSamplerState>, void>, public ITableCacheRef
@@ -116,7 +116,7 @@ namespace mtlpp
     {
     public:
         SamplerState() { }
-        SamplerState(ns::Protocol<id<MTLSamplerState>>::type handle, ue4::ITableCache* cache = nullptr, ns::Ownership const retain = ns::Ownership::Retain) : ns::Object<ns::Protocol<id<MTLSamplerState>>::type>(handle, retain, ue4::ITableCacheRef(cache).GetSamplerState(handle)) { }
+        SamplerState(ns::Protocol<id<MTLSamplerState>>::type handle, UE::ITableCache* cache = nullptr, ns::Ownership const retain = ns::Ownership::Retain) : ns::Object<ns::Protocol<id<MTLSamplerState>>::type>(handle, retain, UE::ITableCacheRef(cache).GetSamplerState(handle)) { }
 
         ns::AutoReleased<ns::String> GetLabel() const;
         ns::AutoReleased<Device>     GetDevice() const;

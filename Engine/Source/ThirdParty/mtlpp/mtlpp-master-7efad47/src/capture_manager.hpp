@@ -9,7 +9,7 @@
 
 MTLPP_BEGIN
 
-namespace ue4
+namespace UE
 {
 	template<>
 	inline ITable<MTLCaptureManager*, void>* CreateIMPTable(MTLCaptureManager* handle)

@@ -60,7 +60,7 @@ namespace ns
     {
     public:
 		typedef T Type;
-		typedef ue4::ITable<T, void> ITable;
+		typedef UE::ITable<T, void> ITable;
 		static constexpr CallingConvention Convention = C;
 		
         inline const T GetPtr() const { return m_ptr; }

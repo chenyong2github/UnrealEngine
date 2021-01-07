@@ -64,7 +64,7 @@ struct MTLPP_EXPORT IMPTable : public IMPTableBase<ObjC>
 	}
 };
 
-namespace ue4
+namespace UE
 {
 	template<typename ObjC, typename Interpose>
 	struct MTLPP_EXPORT ITable : public IMPTable<ObjC, Interpose>

@@ -15,7 +15,7 @@
 
 MTLPP_BEGIN
 
-namespace ue4
+namespace UE
 {
 	template<>
 	struct ITable<id<MTLFence>, void> : public IMPTable<id<MTLFence>, void>, public ITableCacheRef
@@ -37,7 +37,7 @@ namespace mtlpp
     {
     public:
         Fence() { }
-		Fence(ns::Protocol<id<MTLFence>>::type handle, ue4::ITableCache* cache = nullptr, ns::Ownership const retain = ns::Ownership::Retain) : ns::Object<ns::Protocol<id<MTLFence>>::type>(handle, retain, ue4::ITableCacheRef(cache).GetFence(handle)) { }
+		Fence(ns::Protocol<id<MTLFence>>::type handle, UE::ITableCache* cache = nullptr, ns::Ownership const retain = ns::Ownership::Retain) : ns::Object<ns::Protocol<id<MTLFence>>::type>(handle, retain, UE::ITableCacheRef(cache).GetFence(handle)) { }
 
         ns::AutoReleased<Device>    GetDevice() const;
         ns::AutoReleased<ns::String> GetLabel() const;

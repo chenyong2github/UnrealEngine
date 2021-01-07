@@ -8,7 +8,7 @@
 
 MTLPP_BEGIN
 
-namespace ue4
+namespace UE
 {
 	template<>
 	inline ITable<MTLPipelineBufferDescriptor*, void>* CreateIMPTable(MTLPipelineBufferDescriptor* handle)

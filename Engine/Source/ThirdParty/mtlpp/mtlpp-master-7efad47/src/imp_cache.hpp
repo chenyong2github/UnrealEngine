@@ -8,7 +8,7 @@
 
 MTLPP_BEGIN
 
-namespace ue4
+namespace UE
 {
 	template<typename ObjC, typename Interpose>
 	class MTLPP_EXPORT imp_cache
