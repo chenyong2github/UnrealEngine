@@ -193,7 +193,7 @@ public:
 
 	/** Returns a cached item of specified struct type. This will return null if items was not found in local cache */
 	template <class T>
-	T* GetCachedItem(const FDataRegistryId& ItemId) const
+	const T* GetCachedItem(const FDataRegistryId& ItemId) const
 	{
 		const UDataRegistry* FoundRegistry = GetRegistryForType(ItemId.RegistryType);
 		if (FoundRegistry)

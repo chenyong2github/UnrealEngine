@@ -108,14 +108,14 @@ public:
 
 	/** Finds the cached item, using the request context to handle remapping */
 	template <class T>
-	T* GetCachedItem(const FDataRegistryId& ItemId) const
+	const T* GetCachedItem(const FDataRegistryId& ItemId) const
 	{
 		const uint8* TempItemMemory = nullptr;
 		const UScriptStruct* TempItemStuct = nullptr;
 
 		if (GetCachedItemRaw(TempItemMemory, TempItemStuct, ItemId))
 		{
-			if (!ensureMsgf(TempItemStuct->IsChildOf(T::StaticStruct()), TEXT("Can't cast data item of type %s to %s! Code should check type before calling GetCachedDataRegistryItem"), TempItemStuct->GetName(), T::StaticStruct()->GetName()))
+			if (!ensureMsgf(TempItemStuct->IsChildOf(T::StaticStruct()), TEXT("Can't cast data item of type %s to %s! Code should check type before calling GetCachedDataRegistryItem"), *TempItemStuct->GetName(), *T::StaticStruct()->GetName()))
 			{
 				return nullptr;
 			}
