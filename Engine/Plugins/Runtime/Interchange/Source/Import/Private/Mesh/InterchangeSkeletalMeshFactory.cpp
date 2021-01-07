@@ -1300,6 +1300,7 @@ void UInterchangeSkeletalMeshFactory::PostImportGameThreadCallback(const FPostIm
 																										  , Arguments.NodeUniqueID
 																										  , Arguments.NodeContainer);
 		UE::Interchange::FFactoryCommon::UpdateImportAssetData(UpdateImportAssetDataParameters);
+		SkeletalMesh->SetAssetImportData(ImportDataPtr);
 	}
 #endif
 }

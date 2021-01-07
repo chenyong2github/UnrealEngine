@@ -31,6 +31,11 @@
 			"LoadingPhase": "Default"
 		},
 		{
+			"Name": "InterchangePipelinePlugin",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		},
+		{
 			"Name": "InterchangeDispatcher",
 			"Type": "Runtime",
 			"LoadingPhase": "Default"

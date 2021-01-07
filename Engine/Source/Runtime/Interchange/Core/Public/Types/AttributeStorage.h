@@ -874,15 +874,16 @@ namespace UE
 					{
 						return EAttributeStorageResult::Operation_Error_CannotFoundKey;
 					}
+					const FAttributeKey OriginalKey = *ElementAttributeKeyPtr;
 					const EAttributeProperty AttributePropertyBackup = AttributeAllocationInfo->Property;
-					const EAttributeStorageResult RemoveResult = UnregisterAttribute(*ElementAttributeKeyPtr);
+					const EAttributeStorageResult RemoveResult = UnregisterAttribute(OriginalKey);
 					if (!IsAttributeStorageResultSuccess(RemoveResult))
 					{
 						return RemoveResult;
 					}
 					AttributeAllocationInfo = nullptr;
 					//Reallocate a new one
-					AttributeAllocationInfo = &AttributeAllocationTable.Add(*ElementAttributeKeyPtr);
+					AttributeAllocationInfo = &AttributeAllocationTable.Add(OriginalKey);
 					AttributeAllocationInfo->Type = ValueType;
 					AttributeAllocationInfo->Offset = AttributeStorage.AddZeroed(ValueSize);
 					//Force the specified attribute property

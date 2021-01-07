@@ -9,6 +9,7 @@
 
 #include "InterchangeEngineFwd.h"
 #include "InterchangePipelineBase.h"
+#include "InterchangeSourceData.h"
 #include "Async/TaskGraphInterfaces.h"
 
 #include "DatasmithTextureImporter.generated.h"
@@ -45,7 +46,7 @@ class UDatasmithTexturePipeline : public UInterchangePipelineBase
 	GENERATED_BODY()
 
 public:
-	virtual bool ExecutePreImportPipeline(UInterchangeBaseNodeContainer* BaseNodeContainer) override;
+	virtual bool ExecutePreImportPipeline(UInterchangeBaseNodeContainer* BaseNodeContainer, const TArray<UInterchangeSourceData*>& SourceDatas) override;
 
 	bool IsScripted() override
 	{

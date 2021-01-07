@@ -33,7 +33,7 @@ void UE::Interchange::FTaskPipelinePreImport::DoTask(ENamedThreads::Type Current
 
 			if (ensure(AsyncHelper->BaseNodeContainers[GraphIndex].IsValid()))
 			{
-				Pipeline->ScriptedExecutePreImportPipeline(AsyncHelper->BaseNodeContainers[GraphIndex].Get());
+				Pipeline->ScriptedExecutePreImportPipeline(AsyncHelper->BaseNodeContainers[GraphIndex].Get(), AsyncHelper->SourceDatas);
 			}
 		}
 	}

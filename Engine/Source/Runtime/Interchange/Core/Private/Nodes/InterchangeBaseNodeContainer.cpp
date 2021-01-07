@@ -71,6 +71,17 @@ void UInterchangeBaseNodeContainer::GetRoots(TArray<FString>& RootNodes)
 	}
 }
 
+void UInterchangeBaseNodeContainer::GetNodes(UClass* ClassNode, TArray<FString>& ClassNodes)
+{
+	IterateNodes([&ClassNode, &ClassNodes](const FString& NodeUID, UInterchangeBaseNode* Node)
+	{
+		if(Node->GetClass()->IsChildOf(ClassNode))
+		{
+			ClassNodes.Add(Node->GetUniqueID());
+		}
+	});
+}
+
 UInterchangeBaseNode* UInterchangeBaseNodeContainer::GetNode(const FString& NodeUniqueID)
 {
 	if (NodeUniqueID == UInterchangeBaseNode::InvalidNodeUID())

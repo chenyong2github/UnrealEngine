@@ -46,6 +46,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node Container")
 	void GetRoots(TArray<FString>& RootNodes);
 
+	/** Return all nodes that are of the ClassNode type*/
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node Container")
+	void GetNodes(UClass* ClassNode, TArray<FString>& ClassNodes);
+
 	/** Get an node pointer */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node Container")
 	UInterchangeBaseNode* GetNode(const FString& NodeUniqueID);
