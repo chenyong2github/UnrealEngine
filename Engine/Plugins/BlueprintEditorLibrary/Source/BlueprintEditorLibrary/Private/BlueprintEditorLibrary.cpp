@@ -99,9 +99,9 @@ UBlueprintEditorLibrary::UBlueprintEditorLibrary(const FObjectInitializer& Objec
 {
 }
 
-void UBlueprintEditorLibrary::RenameVariableReferences(UBlueprint* Blueprint, const FName OldVarName, const FName NewVarName)
+void UBlueprintEditorLibrary::ReplaceVariableReferences(UBlueprint* Blueprint, const FName OldVarName, const FName NewVarName)
 {
-	if (!Blueprint)
+	if (!Blueprint || OldVarName.IsNone() || NewVarName.IsNone())
 	{
 		return;
 	}

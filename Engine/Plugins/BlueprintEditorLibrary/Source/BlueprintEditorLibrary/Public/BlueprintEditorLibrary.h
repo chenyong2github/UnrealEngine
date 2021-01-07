@@ -25,7 +25,7 @@ public:
 	* @param NewVarName		The new variable that will be used in the old one's place
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Blueprint Upgrade Tools")
-	static void RenameVariableReferences(UBlueprint* Blueprint, const FName OldVarName, const FName NewVarName);
+	static void ReplaceVariableReferences(UBlueprint* Blueprint, const FName OldVarName, const FName NewVarName);
 
 	/**
 	* Replace any existing k2node class with the new one, attempting to remap pins as we go
