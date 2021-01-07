@@ -284,7 +284,7 @@ void FNiagaraGPUInstanceCountManager::UpdateDrawIndirectBuffer(FRHICommandList& 
 {
 	if (DrawIndirectArgGenTasks.Num() || InstanceCountClearTasks.Num())
 	{
-		if (FNiagaraUtilities::AllowGPUParticles(GShaderPlatformForFeatureLevel[FeatureLevel]))
+		if (FNiagaraUtilities::AllowComputeShaders(GShaderPlatformForFeatureLevel[FeatureLevel]))
 		{
 			FReadBuffer TaskInfosBuffer;
 
