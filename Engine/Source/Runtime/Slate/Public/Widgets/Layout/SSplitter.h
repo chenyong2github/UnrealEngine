@@ -310,7 +310,7 @@ protected:
 	 *
 	 * @return A size that is clamped against the minimum size allowed for children.
 	 */
-	float ClampChild(const FSlot& ChildSlot, float ProposedSize);
+	float ClampChild(const FSlot& ChildSlot, float ProposedSize) const;
 
 	/**
 	 * Given a mouse position within the splitter, figure out which resize handle we are hovering (if any).
