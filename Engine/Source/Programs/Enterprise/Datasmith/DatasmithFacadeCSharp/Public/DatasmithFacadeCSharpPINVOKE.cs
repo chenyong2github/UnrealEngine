@@ -1058,18 +1058,6 @@ class DatasmithFacadeCSharpPINVOKE {
   [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeActor_RemoveChild")]
   public static extern void FDatasmithFacadeActor_RemoveChild(global::System.Runtime.InteropServices.HandleRef jarg1, global::System.Runtime.InteropServices.HandleRef jarg2);
 
-  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeActor_SetAsSelector")]
-  public static extern void FDatasmithFacadeActor_SetAsSelector(global::System.Runtime.InteropServices.HandleRef jarg1, bool jarg2);
-
-  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeActor_IsASelector")]
-  public static extern bool FDatasmithFacadeActor_IsASelector(global::System.Runtime.InteropServices.HandleRef jarg1);
-
-  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeActor_SetSelectionIndex")]
-  public static extern void FDatasmithFacadeActor_SetSelectionIndex(global::System.Runtime.InteropServices.HandleRef jarg1, int jarg2);
-
-  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeActor_GetSelectionIndex")]
-  public static extern int FDatasmithFacadeActor_GetSelectionIndex(global::System.Runtime.InteropServices.HandleRef jarg1);
-
   [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeActor_SetVisibility")]
   public static extern void FDatasmithFacadeActor_SetVisibility(global::System.Runtime.InteropServices.HandleRef jarg1, bool jarg2);
 

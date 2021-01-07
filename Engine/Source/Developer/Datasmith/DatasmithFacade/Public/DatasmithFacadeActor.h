@@ -142,22 +142,6 @@ public:
 		FDatasmithFacadeActor* InChild
 	);
 
-	// Set a mesh actor as a switch or not
-	void SetAsSelector(
-		bool bInIsASelector
-	);
-
-	// Get if a mesh actor is a switch or not
-	bool IsASelector() const;
-
-	// Set the index of the visible child of a mesh actor which is a selector
-	void SetSelectionIndex(
-		int32 InSelectionID
-	);
-
-	// Get the index of the visible child of a mesh actor which is a selector
-	int32 GetSelectionIndex() const;
-
 	// Get a mesh actor's visibility
 	void SetVisibility(
 		bool bInVisibility

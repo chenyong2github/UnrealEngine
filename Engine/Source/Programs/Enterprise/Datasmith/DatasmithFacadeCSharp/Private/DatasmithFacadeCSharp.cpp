@@ -3685,50 +3685,6 @@ SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeActor_RemoveChild(void * jarg
 }
 
 
-SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeActor_SetAsSelector(void * jarg1, unsigned int jarg2) {
-  FDatasmithFacadeActor *arg1 = (FDatasmithFacadeActor *) 0 ;
-  bool arg2 ;
-  
-  arg1 = (FDatasmithFacadeActor *)jarg1; 
-  arg2 = jarg2 ? true : false; 
-  (arg1)->SetAsSelector(arg2);
-}
-
-
-SWIGEXPORT unsigned int SWIGSTDCALL CSharp_FDatasmithFacadeActor_IsASelector(void * jarg1) {
-  unsigned int jresult ;
-  FDatasmithFacadeActor *arg1 = (FDatasmithFacadeActor *) 0 ;
-  bool result;
-  
-  arg1 = (FDatasmithFacadeActor *)jarg1; 
-  result = (bool)((FDatasmithFacadeActor const *)arg1)->IsASelector();
-  jresult = result; 
-  return jresult;
-}
-
-
-SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeActor_SetSelectionIndex(void * jarg1, int jarg2) {
-  FDatasmithFacadeActor *arg1 = (FDatasmithFacadeActor *) 0 ;
-  int32 arg2 ;
-  
-  arg1 = (FDatasmithFacadeActor *)jarg1; 
-  arg2 = (int32)jarg2; 
-  (arg1)->SetSelectionIndex(arg2);
-}
-
-
-SWIGEXPORT int SWIGSTDCALL CSharp_FDatasmithFacadeActor_GetSelectionIndex(void * jarg1) {
-  int jresult ;
-  FDatasmithFacadeActor *arg1 = (FDatasmithFacadeActor *) 0 ;
-  int32 result;
-  
-  arg1 = (FDatasmithFacadeActor *)jarg1; 
-  result = (int32)((FDatasmithFacadeActor const *)arg1)->GetSelectionIndex();
-  jresult = result; 
-  return jresult;
-}
-
-
 SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeActor_SetVisibility(void * jarg1, unsigned int jarg2) {
   FDatasmithFacadeActor *arg1 = (FDatasmithFacadeActor *) 0 ;
   bool arg2 ;

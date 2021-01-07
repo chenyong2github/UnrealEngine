@@ -162,24 +162,6 @@ public class FDatasmithFacadeActor : FDatasmithFacadeElement {
     DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeActor_RemoveChild(swigCPtr, FDatasmithFacadeActor.getCPtr(InChild));
   }
 
-  public void SetAsSelector(bool bInIsASelector) {
-    DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeActor_SetAsSelector(swigCPtr, bInIsASelector);
-  }
-
-  public bool IsASelector() {
-    bool ret = DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeActor_IsASelector(swigCPtr);
-    return ret;
-  }
-
-  public void SetSelectionIndex(int InSelectionID) {
-    DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeActor_SetSelectionIndex(swigCPtr, InSelectionID);
-  }
-
-  public int GetSelectionIndex() {
-    int ret = DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeActor_GetSelectionIndex(swigCPtr);
-    return ret;
-  }
-
   public void SetVisibility(bool bInVisibility) {
     DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeActor_SetVisibility(swigCPtr, bInVisibility);
   }
