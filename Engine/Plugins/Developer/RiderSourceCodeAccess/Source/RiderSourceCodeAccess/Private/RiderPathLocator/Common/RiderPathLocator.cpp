@@ -65,7 +65,7 @@ void FRiderPathLocator::ParseProductInfoJson(FInstallInfo& Info, const FString& 
 		const TArray< TSharedPtr<FJsonValue> >* CustomProperties;
 		if(!JsonObject->TryGetArrayField(TEXT("customProperties"), CustomProperties)) return;
 
-		for (const TSharedPtr<FJsonValue, ESPMode::Fast> CustomProperty : *CustomProperties)
+		for (const TSharedPtr<FJsonValue>& CustomProperty : *CustomProperties)
 		{
 			const TSharedPtr<FJsonObject> Item = CustomProperty->AsObject();
 			if(!Item.IsValid()) continue;
