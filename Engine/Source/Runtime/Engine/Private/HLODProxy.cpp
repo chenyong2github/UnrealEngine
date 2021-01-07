@@ -375,6 +375,24 @@ uint32 UHLODProxy::GetCRC(UStaticMesh* InStaticMesh, uint32 InCRC)
 	return FCrc::MemCrc32(KeyBuffer.GetData(), KeyBuffer.Num(), InCRC);
 }
 
+static void AppendRoundedTransform(const FTransform& InTransform, TArray<uint8>& OutKeyBuffer)
+{
+	// Include transform - round sufficiently to ensure stability
+	FIntVector Location(InTransform.GetLocation() / THRESH_POINTS_ARE_NEAR);
+	OutKeyBuffer.Append((uint8*)&Location, sizeof(Location));
+	FIntVector Rotation(InTransform.Rotator().GetNormalized().Vector() / THRESH_POINTS_ARE_NEAR);
+	OutKeyBuffer.Append((uint8*)&Rotation, sizeof(Rotation));
+	FIntVector Scale(InTransform.GetScale3D() / THRESH_POINTS_ARE_NEAR);
+	OutKeyBuffer.Append((uint8*)&Scale, sizeof(Scale));
+}
+
+static int32 GetTransformCRC(const FTransform& InTransform, uint32 InCRC)
+{
+	TArray<uint8> KeyBuffer;
+	AppendRoundedTransform(InTransform, KeyBuffer);
+	return FCrc::MemCrc32(KeyBuffer.GetData(), KeyBuffer.Num(), InCRC);
+}
+
 uint32 UHLODProxy::GetCRC(UStaticMeshComponent* InComponent, uint32 InCRC, const FTransform& TransformComponents)
 {
 	TArray<uint8> KeyBuffer;
@@ -385,14 +403,7 @@ uint32 UHLODProxy::GetCRC(UStaticMeshComponent* InComponent, uint32 InCRC, const
 
 	ComponentLocation = TransformComponents.TransformPosition(ComponentLocation);
 	ComponentRotation = TransformComponents.TransformRotation(ComponentRotation.Quaternion()).Rotator();
-
-	// Include transform - round sufficiently to ensure stability
-	FIntVector Location(ComponentLocation / THRESH_POINTS_ARE_NEAR);
-	KeyBuffer.Append((uint8*)&Location, sizeof(Location));
-	FIntVector Rotation(ComponentRotation.GetNormalized().Vector() / THRESH_POINTS_ARE_NEAR);
-	KeyBuffer.Append((uint8*)&Rotation, sizeof(Rotation));
-	FIntVector Scale(ComponentScale / THRESH_POINTS_ARE_NEAR);
-	KeyBuffer.Append((uint8*)&Scale, sizeof(Scale));	
+	AppendRoundedTransform(FTransform(ComponentRotation, ComponentLocation, ComponentScale), KeyBuffer);
 
 	// Include other relevant properties
 	KeyBuffer.Append((uint8*)&InComponent->ForcedLodModel, sizeof(int32));
@@ -451,6 +462,9 @@ FName UHLODProxy::GenerateKeyForActor(const ALODActor* LODActor, bool bMustUndoL
 				CRC = FCrc::MemCrc32(&BuildLODLevelSetting, sizeof(FHierarchicalSimplification), CRC);
 			}
 		}
+
+		// HLODBakingTransform
+		CRC = GetTransformCRC(LODActor->GetLevel()->GetWorldSettings()->HLODBakingTransform, CRC);
 
 		// screen size + override
 		{
@@ -636,6 +650,23 @@ void UHLODProxy::RemoveAssets(const FHLODProxyMesh& ProxyMesh)
 			DestroyObject(StaticMesh);
 		}
 	}
+}
+
+bool UHLODProxy::SetHLODBakingTransform(const FTransform& InTransform)
+{
+	bool bChanged = false;
+
+	for (TMap<UHLODProxyDesc*, FHLODProxyMesh>::TIterator ItHLODActor = HLODActors.CreateIterator(); ItHLODActor; ++ItHLODActor)
+	{
+		UHLODProxyDesc* HLODProxyDesc = ItHLODActor.Key();
+		if (!HLODProxyDesc->HLODBakingTransform.Equals(InTransform))
+		{
+			HLODProxyDesc->HLODBakingTransform = InTransform;
+			bChanged = true;
+		}
+	}
+
+	return bChanged;
 }
 
 #endif // #if WITH_EDITOR
