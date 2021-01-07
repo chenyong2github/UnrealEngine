@@ -23,8 +23,8 @@ void FFieldSystemCommand::Serialize(FArchive& Ar)
 		RootNode->Serialize(Ar);
 	}
 
-	Ar << CommandName;
-	Ar << TimeCreation;
+	//Ar << CommandName;
+	//Ar << TimeCreation;
 
 	// @todo: Add MetaData serialization support. 
 }
