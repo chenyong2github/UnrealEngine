@@ -21,7 +21,7 @@ enum class EMeshProcessingDataTypes
 	NormalMapImage = (int)EDataTypes::BaseMeshProcessingTypes + 12,
 	CollisionGeometry = (int)EDataTypes::BaseMeshProcessingTypes + 13,
 	IndexSets = (int)EDataTypes::BaseMeshProcessingTypes + 14,
-
+	WeightMap = (int)EDataTypes::BaseMeshProcessingTypes + 15,
 
 	SolidifySettings = (int)EDataTypes::BaseMeshProcessingTypes + 100,
 	VoxMorphologyOpSettings = (int)EDataTypes::BaseMeshProcessingTypes + 101,

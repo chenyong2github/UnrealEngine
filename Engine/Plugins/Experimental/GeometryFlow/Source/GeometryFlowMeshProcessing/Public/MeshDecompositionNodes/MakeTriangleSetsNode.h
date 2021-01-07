@@ -5,6 +5,7 @@
 #include "GeometryFlowNodeUtil.h"
 #include "DataTypes/DynamicMeshData.h"
 #include "DataTypes/IndexSetsData.h"
+#include "DataTypes/WeightMapData.h"
 #include "Selections/MeshConnectedComponents.h"
 
 namespace UE
@@ -168,6 +169,59 @@ public:
 
 };
 
+
+/// If one triangle vertex has a weight greater than the given threshold, include it in the output triangle set.
+/// TODO: Optionally make it so the *average* triangle vertex weight has to exceed the threshold. Or the minumum triangle
+/// vertex weight.
+class FMakeTriangleSetsFromWeightMapNode : public FMakeTriangleSetsFromMeshNode
+{
+
+public:
+
+	static const FString InParamWeightMap() { return TEXT("WeightMap"); }
+	static const FString InParamThreshold() { return TEXT("Threshold"); }
+
+	FMakeTriangleSetsFromWeightMapNode() : FMakeTriangleSetsFromMeshNode()
+	{
+		AddInput(InParamWeightMap(), MakeBasicInput<FWeightMap>());
+		AddInput(InParamThreshold(), MakeUnique<TBasicNodeInput<float, (int)EDataTypes::Float>>());
+	}
+
+	virtual void CheckAdditionalInputs(const FNamedDataMap& DatasIn, bool& bRecomputeRequired, bool& bAllInputsValid) override
+	{
+		FindAndUpdateInputForEvaluate(InParamWeightMap(), DatasIn, bRecomputeRequired, bAllInputsValid);
+		FindAndUpdateInputForEvaluate(InParamThreshold(), DatasIn, bRecomputeRequired, bAllInputsValid);
+	}
+
+	virtual void ComputeIndexSets(const FNamedDataMap& DatasIn, const FDynamicMesh3& Mesh, FIndexSets& SetsOut) override
+	{
+		TSafeSharedPtr<IData> WeightMapArg = DatasIn.FindData(InParamWeightMap());
+		const FWeightMap& WeightMap = WeightMapArg->GetDataConstRef<FWeightMap>(FWeightMap::DataTypeIdentifier);
+		const TArray<float>& Weights = WeightMap.Weights;
+		check(Weights.Num() >= Mesh.MaxVertexID());
+
+		TSafeSharedPtr<IData> ThresholdArg = DatasIn.FindData(InParamThreshold());
+		const float Threshold = ThresholdArg->GetDataConstRef<float>((int)EDataTypes::Float);
+
+		TArray<int32> Set;
+
+		for (int TriangleID : Mesh.TriangleIndicesItr())
+		{
+			FIndex3i Triangle = Mesh.GetTriangle(TriangleID);
+			for (int VertexID : {Triangle[0], Triangle[1], Triangle[2]} )
+			{
+				if (Weights[VertexID] > Threshold)
+				{
+					Set.Add(TriangleID);
+					break;
+				}
+			}
+		}
+
+		SetsOut.AppendSet(Set);
+	}
+
+};
 
 
 }	// end namespace GeometryFlow
