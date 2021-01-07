@@ -67,12 +67,8 @@ FActiveSound::FActiveSound()
 	, bUpdatePlaybackTime(false)
 	, bIsPlayingAudio(false)
 	, bIsStopping(false)
-	, bHasActiveBusSendRoutingOverride(false)
-	, bHasActiveMainSubmixOutputOverride(false)
-	, bHasActiveSubmixSendRoutingOverride(false)
-	, bEnableBusSendRoutingOverride(false)
-	, bEnableMainSubmixOutputOverride(false)
-	, bEnableSubmixSendRoutingOverride(false)
+	, bEnableOutputToBusOnlyOverride(false)
+	, bOutputToBusOnlyOverride(false)
 	, UserIndex(0)
 	, FadeOut(EFadeOut::None)
 	, bIsOccluded(false)
@@ -590,9 +586,7 @@ void FActiveSound::UpdateWaveInstances(TArray<FWaveInstance*> &InWaveInstances, 
 	ParseParams.SoundSubmix = GetSoundSubmix();
 	GetSoundSubmixSends(ParseParams.SoundSubmixSends);
 
-	ParseParams.bEnableBusSends = Sound->bEnableBusSends;
-	ParseParams.bEnableBaseSubmix = Sound->bEnableBaseSubmix;
-	ParseParams.bEnableSubmixSends = Sound->bEnableSubmixSends;
+	ParseParams.bOutputToBusOnly = Sound->bOutputToBusOnly;
 
 	for (int32 BusSendType = 0; BusSendType < (int32)EBusSendType::Count; ++BusSendType)
 	{

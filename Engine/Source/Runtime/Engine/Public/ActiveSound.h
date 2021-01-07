@@ -178,14 +178,8 @@ struct FSoundParseParameters
 	// The lowpass filter to apply if the sound is inside an ambient zone
 	float AmbientZoneFilterFrequency;
 
-	/** Whether or not to enable sending this audio's output to buses.*/
-	uint32 bEnableBusSends:1;
-
-	/** Whether or not to render to the main submix */
-	uint32 bEnableBaseSubmix:1;
-
-	/** Whether or not to enable Submix Sends in addition to the Main Submix*/
-	uint32 bEnableSubmixSends:1;
+	// Whether or not to output this audio to buses only
+	uint8 bOutputToBusOnly:1;
 
 	// Whether the sound should be spatialized
 	uint8 bUseSpatialization:1;
@@ -240,9 +234,7 @@ struct FSoundParseParameters
 		, AttenuationHighpassFilterFrequency(MIN_FILTER_FREQUENCY)
 		, OcclusionFilterFrequency(MAX_FILTER_FREQUENCY)
 		, AmbientZoneFilterFrequency(MAX_FILTER_FREQUENCY)
-		, bEnableBusSends(false)
-		, bEnableBaseSubmix(false)
-		, bEnableSubmixSends(false)
+		, bOutputToBusOnly(false)
 		, bUseSpatialization(false)
 		, bLooping(false)
 		, bEnableLowPassFilter(false)
@@ -467,15 +459,11 @@ public:
 	/** Whether or not the active sound is stopping. */
 	uint8 bIsStopping:1;
 
-	/** Whether or not we are overriding the routing enablement options on sounds. */
-	uint8 bHasActiveBusSendRoutingOverride:1;
-	uint8 bHasActiveMainSubmixOutputOverride:1;
-	uint8 bHasActiveSubmixSendRoutingOverride:1;
+	/** Whether or not we are overriding the output to bus option on sounds. */
+	uint8 bEnableOutputToBusOnlyOverride:1;
 
-	/** What the value of the enablement overrides are. */
-	uint8 bEnableBusSendRoutingOverride:1;
-	uint8 bEnableMainSubmixOutputOverride:1;
-	uint8 bEnableSubmixSendRoutingOverride:1;
+	/** What the value of the override is. */
+	uint8 bOutputToBusOnlyOverride:1;
 
 	uint8 UserIndex;
 
@@ -723,7 +711,7 @@ public:
 	void SetSubmixSend(const FSoundSubmixSendInfo& SubmixSendInfo);
 
 	/** Sets the amount of audio from this active sound to send to the source bus. */
-	void SetSourceBusSend(EBusSendType BusSendType, const FSoundSourceBusSendInfo& SourceBusSendInfo);
+	void SetSourceBusSend(EBusSendType BusSendTyoe, const FSoundSourceBusSendInfo& SourceBusSendInfo);
 
 	/** Updates the active sound's attenuation settings to the input parse params using the given listener */
 	UE_DEPRECATED(4.25, "Use UpdateAttenuation that passes a ListenerIndex instead")
