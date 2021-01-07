@@ -373,13 +373,11 @@ public:
 		return SkeletalMeshComponent; 
 	}
 
-	/** Get the current main instance proxy. Note that this will return nullptr outside of pre/post update */
+	/** Get the current main instance proxy. Note that this will return nullptr outside of pre/post update, and may return nullptr anyway if we dont have a main instance */
 	FAnimInstanceProxy* GetMainInstanceProxy() const
 	{ 
 		// Main instance proxy is only available during update/eval. If you're calling this function outside of it, it will return null. 
-		// adding ensure here so that we can catch them earlier
-		ensureAlways(MainInstanceProxy);
-		return MainInstanceProxy; 
+		return MainInstanceProxy;
 	}
 
 	UE_DEPRECATED(4.26, "Please use the overload that takes a group FName")

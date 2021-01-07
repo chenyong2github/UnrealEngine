@@ -54,9 +54,15 @@ void FAnimSyncGroupScope::AddTickRecord(const FAnimTickRecord& InTickRecord, con
 		break;
 	}
 
-	// Forward to main instance
-	check(Proxy.GetMainInstanceProxy());
-	Proxy.GetMainInstanceProxy()->AddTickRecord(InTickRecord, NewSyncParams);
+	// Forward to main instance if we have one
+	if(Proxy.GetMainInstanceProxy())
+	{
+		Proxy.GetMainInstanceProxy()->AddTickRecord(InTickRecord, NewSyncParams);
+	}
+	else
+	{
+		Proxy.AddTickRecord(InTickRecord, NewSyncParams);
+	}
 }
 
 }}	// namespace UE::Anim

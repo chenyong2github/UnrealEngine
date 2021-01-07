@@ -1093,8 +1093,9 @@ void FAnimInstanceProxy::UpdateAnimation_WithRoot(const FAnimationUpdateContext&
 		TGuardValue<bool> ScopeGuard(bUpdatingRoot, true);
 
 		// Anything syncing within this scope is subject to sync groups.
-		// We only enable syncing here for the main proxy
-		UE::Anim::TOptionalScopedGraphMessage<UE::Anim::FAnimSyncGroupScope> Message(GetMainInstanceProxy() == this, InContext, InContext);
+		// We only enable syncing here for the main proxy or if we have no main proxy
+		const bool bEnableSyncScope = (GetMainInstanceProxy() == nullptr) || (GetMainInstanceProxy() == this);
+		UE::Anim::TOptionalScopedGraphMessage<UE::Anim::FAnimSyncGroupScope> Message(bEnableSyncScope, InContext, InContext);
 
 		// update all nodes
 		if(InRootNode == RootNode)
