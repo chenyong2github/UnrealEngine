@@ -492,7 +492,7 @@ void CullInstancesCS( uint3 DispatchThreadId : SV_DispatchThreadID )
 			const uint PackedNeighborItem = QuadNeighborBuffer[QuadIndex * 4 + NeighborIndex];
 			const QuadNeighborItem NeighborItem = UnpackQuadNeighborItem(PackedNeighborItem);
 
-			OutInstance.NeigborUVTransform[NeighborIndex] = GetVirtualToPhysicalUVTransform(Pos, Level, NeighborItem.PhysicalAddress, PhysicalPageTransform, NumPhysicalAddressBits);
+			OutInstance.NeigborUVTransform[NeighborIndex] = float4(GetVirtualToPhysicalUVTransform(Pos, Level, NeighborItem.PhysicalAddress, PhysicalPageTransform, NumPhysicalAddressBits), 0);
 		}
 
 		uint Write;

@@ -668,7 +668,7 @@ namespace VirtualHeightfieldMesh
 	{
 		uint32 AddressLevelPacked;
 		float UVTransform[3];
-		float NeigborUVTransform[4][3];
+		float NeigborUVTransform[4][4];
 	};
 
 	/** Compute shader to initialize all buffers, including adding the lowest mip page(s) to the QuadBuffer. */
