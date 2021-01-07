@@ -8,17 +8,23 @@ void FNiagaraPlatformSetIssueGenerator::GenerateIssues(void* Object, UNiagaraSta
 {
 	FNiagaraPlatformSet* PlatformSet = (FNiagaraPlatformSet*)Object;
 
+	TArray<FName> InvalidCVars;
 	for (FNiagaraPlatformSetCVarCondition& CVarCondition : PlatformSet->CVarConditions)
 	{
 		IConsoleVariable* CVar = CVarCondition.GetCVar();
 		if (CVar == nullptr)
 		{
-			NewIssues.Add(UNiagaraStackEntry::FStackIssue(
-				EStackIssueSeverity::Error,
-				NSLOCTEXT("StackObject", "InvalidCVarConditionShort", "Platform Set has an invalid CVar condition!"),
-				FText::Format(FTextFormat::FromString("{0} is not a valid CVar name."), FText::FromName(CVarCondition.CVarName)),
-				StackObject->GetStackEditorDataKey(),
-				false));
+			InvalidCVars.AddUnique(CVarCondition.CVarName);
 		}
+	}
+
+	for (FName& CVarName : InvalidCVars)
+	{
+		NewIssues.Add(UNiagaraStackEntry::FStackIssue(
+			EStackIssueSeverity::Error,
+			NSLOCTEXT("StackObject", "InvalidCVarConditionShort", "Platform Set has an invalid CVar condition!"),
+			FText::Format(FTextFormat::FromString("{0} is not a valid CVar name."), FText::FromName(CVarName)),
+			StackObject->GetStackEditorDataKey(),
+			false));
 	}
 }
