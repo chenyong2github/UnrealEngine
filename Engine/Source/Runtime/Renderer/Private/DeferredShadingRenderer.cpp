@@ -1227,7 +1227,7 @@ bool FDeferredShadingSceneRenderer::DispatchRayTracingWorldUpdates(FRDGBuilder& 
 		PrepareRayTracingDebug(View, RayGenShaders);
 		PreparePathTracing(View, RayGenShaders);
 		PrepareRayTracingLumenDirectLighting(View, *Scene, RayGenShaders);
-		PrepareRayTracingScreenProbeGather(View, RayGenShaders);
+		PrepareLumenHardwareRayTracingScreenProbeGather(View, RayGenShaders);
 		PrepareLumenHardwareRayTracingReflections(View, RayGenShaders);
 		PrepareLumenHardwareRayTracingVisualize(View, RayGenShaders);
 
@@ -1400,10 +1400,21 @@ void FDeferredShadingSceneRenderer::WaitForRayTracingScene(FRDGBuilder& GraphBui
 				PrepareRayTracingReflectionsDeferredMaterial(View, *Scene, DeferredMaterialRayGenShaders);
 				PrepareRayTracingDeferredReflectionsDeferredMaterial(View, *Scene, DeferredMaterialRayGenShaders);
 				PrepareRayTracingGlobalIlluminationDeferredMaterial(View, DeferredMaterialRayGenShaders);
+				PrepareLumenHardwareRayTracingReflectionsDeferredMaterial(View, DeferredMaterialRayGenShaders);
+				PrepareLumenHardwareRayTracingVisualizeDeferredMaterial(View, DeferredMaterialRayGenShaders);
 
 				if (DeferredMaterialRayGenShaders.Num())
 				{
 					View.RayTracingMaterialGatherPipeline = BindRayTracingDeferredMaterialGatherPipeline(RHICmdList, View, DeferredMaterialRayGenShaders);
+				}
+
+				// Add Lumen hardware ray tracing materials
+				TArray<FRHIRayTracingShader*> LumenHardwareRayTracingRayGenShaders;
+				PrepareLumenHardwareRayTracingVisualizeLumenMaterial(View, LumenHardwareRayTracingRayGenShaders);
+				PrepareLumenHardwareRayTracingReflectionsLumenMaterial(View, LumenHardwareRayTracingRayGenShaders);
+				if (LumenHardwareRayTracingRayGenShaders.Num())
+				{
+					View.LumenHardwareRayTracingMaterialPipeline = BindLumenHardwareRayTracingMaterialPipeline(RHICmdList, View, LumenHardwareRayTracingRayGenShaders);
 				}
 
 				// Move the ray tracing binding container ownership to the command list, so that memory will be

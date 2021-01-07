@@ -1373,6 +1373,9 @@ public:
 	// Pipeline state object to be used with deferred material processing.
 	FRayTracingPipelineState* RayTracingMaterialGatherPipeline = nullptr;
 
+	// Pipeline state object to be used with lumen hardware ray tracing
+	FRayTracingPipelineState* LumenHardwareRayTracingMaterialPipeline = nullptr;
+
 	TArray<FRayTracingLocalShaderBindingWriter*>	RayTracingMaterialBindings; // One per binding task
 	FGraphEventRef									RayTracingMaterialBindingsTask;
 

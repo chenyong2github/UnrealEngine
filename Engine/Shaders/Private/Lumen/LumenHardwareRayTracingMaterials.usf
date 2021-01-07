@@ -1,0 +1,25 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "../Common.ush"
+#include "../RayTracing/RayTracingCommon.ush"
+#include "../RayTracing/RayTracingHitGroupCommon.ush"
+
+#include "../SceneData.ush"
+
+RAY_TRACING_ENTRY_CLOSEST_HIT(LumenHardwareRayTracingMaterialCHS,
+	FLumenMinimalPayload, Payload,
+	FDefaultAttributes, Attributes)
+{
+	Payload.HitT = RayTCurrent();
+	Payload.InstanceID = GetInstanceUserData();
+
+	// TODO: WorldNormal support
+	// float3 LocalNormal = 0;
+	// Payload.Normal = RotateLocalToWorld(LocalNormal, PrimitiveID());
+}
+
+RAY_TRACING_ENTRY_MISS(LumenHardwareRayTracingMaterialMS,
+	FLumenMinimalPayload, Payload)
+{
+	Payload.SetMiss();
+}

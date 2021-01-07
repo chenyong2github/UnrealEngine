@@ -127,6 +127,13 @@ struct FDeferredMaterialPayload : FMinimalPayload
 	uint   PixelCoordinates; // X in low 16 bits, Y in high 16 bits
 };
 
+struct FLumenMinimalPayload : FMinimalPayload
+{
+	uint InstanceID;
+    // TODO: WorldNormal support
+	// float3 WorldNormal;
+};
+
 struct FDefaultAttributes
 {
 	float2 Barycentrics;

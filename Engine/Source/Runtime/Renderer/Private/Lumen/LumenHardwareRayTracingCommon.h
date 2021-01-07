@@ -56,7 +56,33 @@ public:
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		return ShouldCompileRayTracingShadersForProject(Parameters.Platform);//DoesPlatformSupportLumenGI(Parameters.Platform);
+		return ShouldCompileRayTracingShadersForProject(Parameters.Platform) && DoesPlatformSupportLumenGI(Parameters.Platform);
+	}
+};
+
+class FLumenHardwareRayTracingDeferredMaterialRGS : public FLumenHardwareRayTracingRGS
+{
+public:
+	BEGIN_SHADER_PARAMETER_STRUCT(FDeferredMaterialParameters, )
+		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenHardwareRayTracingRGS::FSharedParameters, SharedParameters)
+		SHADER_PARAMETER(int, TileSize)
+		SHADER_PARAMETER(FIntPoint, DeferredMaterialBufferResolution)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<FDeferredMaterialPayload>, RWDeferredMaterialBuffer)
+	END_SHADER_PARAMETER_STRUCT()
+
+	FLumenHardwareRayTracingDeferredMaterialRGS() = default;
+	FLumenHardwareRayTracingDeferredMaterialRGS(const ShaderMetaType::CompiledShaderInitializerType & Initializer)
+		: FLumenHardwareRayTracingRGS(Initializer)
+	{}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FLumenHardwareRayTracingRGS::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+	}
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return FLumenHardwareRayTracingRGS::ShouldCompilePermutation(Parameters);
 	}
 };
 

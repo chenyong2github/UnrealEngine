@@ -12,21 +12,44 @@
 #include "LumenReflectionCommon.ush"
 #include "LumenHardwareRayTracingCommon.ush"
 
+#ifndef DIM_DEFERRED_MATERIAL_MODE
+#define DIM_DEFERRED_MATERIAL_MODE 0
+#endif 
+
+#ifndef DIM_LIGHTING_MODE
+#define DIM_LIGHTING_MODE LIGHTING_FROM_SURFACE_CACHE
+#endif
+
 RWTexture2D<float> RWTraceHit;
 RWTexture2D<float3> RWRadiance;
 
 RaytracingAccelerationStructure TLAS;
+StructuredBuffer<FDeferredMaterialPayload> DeferredMaterialBuffer;
 
 int LightingMode;
 int NormalMode;
+int bIsDeferredMaterial;
 
 RAY_TRACING_ENTRY_RAYGEN(LumenVisualizeHardwareRayTracingRGS)
 {
-	uint2 TraceCoord = DispatchRaysIndex().xy + View.ViewRectMin.xy;
-	uint LinearCoord = TraceCoord.y * View.BufferSizeAndInvSize.x + TraceCoord.x;
+	uint2 TraceCoord = 0;
+	FDeferredMaterialPayload DeferredMaterialPayload;
+	if (DIM_DEFERRED_MATERIAL_MODE)
+	{
+		DeferredMaterialPayload = DeferredMaterialBuffer[DispatchRaysIndex().x];
+		TraceCoord.x = DeferredMaterialPayload.PixelCoordinates & 0xFFFF;
+		TraceCoord.y = DeferredMaterialPayload.PixelCoordinates >> 16;
 
-	float HitDistance = 0;
-	bool bHit = false;
+		if (DeferredMaterialPayload.SortKey == RAY_TRACING_DEFERRED_MATERIAL_KEY_INVALID)
+		{
+			RWRadiance[TraceCoord] = 0;
+			return;
+		}
+	}
+	else
+	{
+		TraceCoord = View.ViewRectMin.xy + DispatchRaysIndex().xy;
+	}
 
 	// Viewport guard
 	if (all(TraceCoord < View.BufferSizeAndInvSize.xy))
@@ -36,8 +59,75 @@ RAY_TRACING_ENTRY_RAYGEN(LumenVisualizeHardwareRayTracingRGS)
 
 		FRayCone RayCone = (FRayCone)0;
 		RayCone.SpreadAngle = View.EyeToPixelSpreadAngle;
-		//float SurfaceCurvature = 0;
-		//RayCone = PropagateRayCone(RayCone, SurfaceCurvature, SceneDepth);
+
+		FRayTracedLightingContext Context;
+		Context.TLAS = TLAS;
+		Context.RayCone = RayCone;
+		Context.TraceCoord = TraceCoord;
+		Context.LinearCoord = TraceCoord.y * View.BufferSizeAndInvSize.x + TraceCoord.x;
+
+		bool bTraceRay = true;
+		if (DIM_DEFERRED_MATERIAL_MODE)
+		{
+			// Clip 
+			bTraceRay = DeferredMaterialPayload.SortKey < RAY_TRACING_DEFERRED_MATERIAL_KEY_RAY_MISS;
+			if (bTraceRay)
+			{
+				float Epsilon = 0.5;
+				Ray.TMin = max(0, DeferredMaterialPayload.HitT - Epsilon);
+				// Note: adjusting TMax will not properly account for masked materials because of restricted any-hit length
+				Ray.TMax = DeferredMaterialPayload.HitT + Epsilon;
+			}
+		}
+		float TOffset = RebaseRay(Ray);
+
+		bool bHit = false;
+		float3 Radiance = 0;
+		if (bTraceRay)
+		{
+			float HitDistance;
+			if (DIM_LIGHTING_MODE == LIGHTING_FROM_SURFACE_CACHE)
+			{
+				bHit = TraceAndCalculateRayTracedLightingFromSurfaceCache(Ray, Context, NormalMode, HitDistance, Radiance);
+			}
+			else
+			{
+				bHit = TraceAndCalculateRayTracedLighting(Ray, Context, DIM_LIGHTING_MODE, NormalMode, HitDistance, Radiance);
+			}
+		}
+
+		// Apply SkyLight
+		if (!bHit)
+		{
+			FConeTraceResult TraceResult = (FConeTraceResult)0;
+			TraceResult.Transparency = 1;
+			EvaluateSkyRadianceForCone(Ray.Direction, 0.0f, TraceResult);
+			Radiance = TraceResult.Lighting;
+		}
+
+		Radiance *= View.PreExposure;
+		RWRadiance[TraceCoord] = Radiance;
+	}
+}
+
+RWStructuredBuffer<FDeferredMaterialPayload> RWDeferredMaterialBuffer;
+int2 DeferredMaterialBufferResolution;
+uint TileSize;
+
+RAY_TRACING_ENTRY_RAYGEN(LumenVisualizeHardwareRayTracingDeferredMaterialRGS)
+{
+	uint2 TraceCoord = DispatchRaysIndex().xy + View.ViewRectMin.xy;
+	uint LinearCoord = TraceCoord.y * View.BufferSizeAndInvSize.x + TraceCoord.x;
+
+	FDeferredMaterialPayload DeferredMaterialPayload = (FDeferredMaterialPayload)0;
+	if (all(TraceCoord < View.BufferSizeAndInvSize.xy))
+	{
+		float2 ScreenUV = (TraceCoord + 0.5) * View.BufferSizeAndInvSize.zw;
+		RayDesc Ray = CreatePrimaryRay(ScreenUV);
+		float TOffset = RebaseRay(Ray);
+
+		FRayCone RayCone = (FRayCone)0;
+		RayCone.SpreadAngle = View.EyeToPixelSpreadAngle;
 
 		FRayTracedLightingContext Context;
 		Context.TLAS = TLAS;
@@ -45,8 +135,17 @@ RAY_TRACING_ENTRY_RAYGEN(LumenVisualizeHardwareRayTracingRGS)
 		Context.TraceCoord = TraceCoord;
 		Context.LinearCoord = LinearCoord;
 
-		float3 Radiance;
-		bHit = CalculateRayTracedLighting(Ray, Context, LightingMode, NormalMode, HitDistance, Radiance);
-		RWRadiance[TraceCoord] = Radiance;
+		TraceDeferredMaterialRay(Ray, Context, DeferredMaterialPayload);
 	}
+
+	// Rearrange in tiled blocks to extract spatial coherence
+	uint2 BlockCoord = TraceCoord / TileSize;
+	uint BlocksPerRow = DeferredMaterialBufferResolution.x / TileSize;
+	uint BlockIndex = BlockCoord.y * BlocksPerRow + BlockCoord.x;
+	uint2 TileCoord = TraceCoord % TileSize;
+	uint TileIndex = TileCoord.y * TileSize + TileCoord.x;
+	uint BlockSize = TileSize * TileSize;
+	uint DeferredMaterialBufferIndex = BlockIndex * BlockSize + TileIndex;
+
+	RWDeferredMaterialBuffer[DeferredMaterialBufferIndex] = DeferredMaterialPayload;
 }
