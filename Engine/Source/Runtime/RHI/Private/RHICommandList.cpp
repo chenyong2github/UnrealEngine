@@ -306,6 +306,7 @@ DECLARE_CYCLE_STAT(TEXT("BigList"), STAT_BigList, STATGROUP_RHICMDLIST);
 DECLARE_CYCLE_STAT(TEXT("SmallList"), STAT_SmallList, STATGROUP_RHICMDLIST);
 DECLARE_CYCLE_STAT(TEXT("PTrans"), STAT_PTrans, STATGROUP_RHICMDLIST);
 
+#if WITH_ADDITIONAL_CRASH_CONTEXTS
 static void WriteRenderBreadcrumbs(FCrashContextExtendedWriter& Writer, FRHIBreadcrumb const* const* BreadcrumbPtr, const TCHAR* ThreadName)
 {
 	enum {
@@ -348,6 +349,7 @@ static void WriteRenderBreadcrumbs(FCrashContextExtendedWriter& Writer, FRHIBrea
 	Writer.AddString(StaticBreadcrumbName, StaticBreadcrumbStackString);
 	UE_LOG(LogRHI, Error, StaticBreadcrumbStackString);
 }
+#endif
 
 void FRHICommandListExecutor::ExecuteInner_DoExecute(FRHICommandListBase& CmdList)
 {
