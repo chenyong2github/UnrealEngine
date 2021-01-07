@@ -215,7 +215,7 @@ void SToolBarComboButtonBlock::BuildMultiBlockWidget(const ISlateStyle* StyleSet
 
 	ChildSlot.Padding(Padding);
 	// Bind our widget's enabled state to whether or not our action can execute
-	SetEnabled( TAttribute< bool >( this, &SToolBarComboButtonBlock::IsEnabled ) );
+	SetEnabled(TAttribute<bool>( this, &SToolBarComboButtonBlock::IsEnabled));
 
 	// Bind our widget's visible state to whether or not the button should be visible
 	SetVisibility( TAttribute<EVisibility>(this, &SToolBarComboButtonBlock::GetVisibility) );
