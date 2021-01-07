@@ -50,6 +50,8 @@ enum class EPackageExtension : uint8
 	 * one of the enumerated possibilies, e.g. a custom extension on a temp file
 	 */
 	Custom,
+	/** Used by iostore to indicate that the package should be requested with no extension */
+	EmptyString,
 					
 	// Other Segments
 

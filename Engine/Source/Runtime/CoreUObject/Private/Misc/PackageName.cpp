@@ -1327,6 +1327,10 @@ bool FPackageName::DoesPackageExist(const FPackagePath& PackagePath, const FGuid
 			if (OutPackagePath)
 			{
 				*OutPackagePath = PackagePath;
+				if (OutPackagePath->GetHeaderExtension() == EPackageExtension::Unspecified)
+				{
+					OutPackagePath->SetHeaderExtension(EPackageExtension::EmptyString);
+				}
 			}
 			return true;
 		}

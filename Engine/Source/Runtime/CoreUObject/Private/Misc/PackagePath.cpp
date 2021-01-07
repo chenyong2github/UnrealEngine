@@ -49,6 +49,8 @@ EPackageSegment ExtensionToSegment(EPackageExtension PackageExtension)
 		return EPackageSegment::Header;
 	case EPackageExtension::Custom:
 		return EPackageSegment::Header;
+	case EPackageExtension::EmptyString:
+		return EPackageSegment::Header;
 	case EPackageExtension::Exports:
 		return EPackageSegment::Exports;
 	case EPackageExtension::BulkDataDefault:
@@ -99,6 +101,8 @@ const TCHAR* LexToString(EPackageExtension PackageExtension)
 		return TEXT(".utxtmap");
 	case EPackageExtension::Custom:
 		return TEXT(".CustomExtension");
+	case EPackageExtension::EmptyString:
+		return TEXT("");
 	case EPackageExtension::Exports:
 		return TEXT(".uexp");
 	case EPackageExtension::BulkDataDefault:
@@ -749,6 +753,7 @@ EPackageExtension AllExtensions[] =
 	EPackageExtension::TextAsset,
 	EPackageExtension::TextMap,
 	EPackageExtension::Custom,
+	EPackageExtension::EmptyString,
 	EPackageExtension::Exports,
 	EPackageExtension::BulkDataDefault,
 	EPackageExtension::BulkDataOptional,
@@ -769,12 +774,12 @@ TConstArrayView<EPackageExtension> FPackagePath::GetPossibleExtensions(EPackageS
 	else
 	{
 #if WITH_TEXT_ARCHIVE_SUPPORT
-		constexpr int NumHeaderExtensions = 4;
+		constexpr int NumHeaderSearchExtensions = 4;
 #else
-		constexpr int NumHeaderExtensions = 2;
+		constexpr int NumHeaderSearchExtensions = 2;
 #endif
 		static_assert(static_cast<int>(EPackageExtension::TextMap) == static_cast<int>(EPackageExtension::Asset) + 3, "Need to update the list of header extensions");
-		return TConstArrayView<EPackageExtension>(&UE::PackagePathPrivate::AllExtensions[static_cast<int>(EPackageExtension::Asset)], NumHeaderExtensions);
+		return TConstArrayView<EPackageExtension>(&UE::PackagePathPrivate::AllExtensions[static_cast<int>(EPackageExtension::Asset)], NumHeaderSearchExtensions);
 	}
 }
 
