@@ -9,7 +9,7 @@
 #include "IKRigDefinition.h"
 #include "IKRigSolverDefinition.h"
 #include "IKRigSolver.h"
-#include "IKRigConstraintSolver.h"
+#include "Solvers/ConstraintSolver.h"
 
  // IKRigProcessor implementation functions
 void UIKRigProcessor::SetIKRigDefinition(UIKRigDefinition* InRigDefinition, bool bInitialize /*= false*/)

@@ -6,7 +6,7 @@
  */
 
 #include "Solvers/TransformSolverDefinition.h"
-#include "TransformSolver.h"
+#include "Solvers/TransformSolver.h"
 
 UTransformSolverDefinition::UTransformSolverDefinition()
 	: TransformTargetName(TEXT("TransformTarget"))

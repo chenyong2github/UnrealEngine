@@ -4,7 +4,7 @@
 	TransformSolver.cpp: Solver execution class for Transform
 =============================================================================*/
 
-#include "TransformSolver.h"
+#include "Solvers/TransformSolver.h"
 #include "IKRigDataTypes.h"
 #include "IKRigHierarchy.h"
 #include "Solvers/TransformSolverDefinition.h"

@@ -9,7 +9,7 @@
 
 #include "IKRigSolver.h"
 #include "IKRigConstraintDefinition.h"
-#include "IKRigConstraintSolver.generated.h"
+#include "ConstraintSolver.generated.h"
 
 class UIKRigConstraint;
 

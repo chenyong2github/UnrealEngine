@@ -4,7 +4,7 @@
  * Contains IKRig Constraint Solver Definition 
  *
  */
-#include "IKRigConstraintSolver.h"
+#include "Solvers/ConstraintSolver.h"
 #include "IKRigConstraint.h"
 
 // register/unregister query function

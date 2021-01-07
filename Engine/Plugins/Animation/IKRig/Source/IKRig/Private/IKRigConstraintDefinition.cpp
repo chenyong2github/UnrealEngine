@@ -6,7 +6,7 @@
  */
 
 #include "IKRigConstraintDefinition.h"
-#include "IKRigConstraintSolver.h"
+#include "Solvers/ConstraintSolver.h"
 
 const FName UIKRigConstraintDefinition::DefaultProfileName = FName(TEXT("Default"));
 
