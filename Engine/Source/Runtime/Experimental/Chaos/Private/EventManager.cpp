@@ -18,8 +18,9 @@ namespace Chaos
 	}
 
 	template <typename Traits>
-	void TEventManager<Traits>::UnregisterEvent(const FEventID& EventID)
+	void TEventManager<Traits>::UnregisterEvent(const EEventType& EventType)
 	{
+		const FEventID EventID = (FEventID)EventType;
 		ContainerLock.WriteLock();
 		if (EventID < EventContainers.Num())
 		{
@@ -30,8 +31,9 @@ namespace Chaos
 	}
 
 	template <typename Traits>
-	void TEventManager<Traits>::UnregisterHandler(const FEventID& EventID, const void* InHandler)
+	void TEventManager<Traits>::UnregisterHandler(const EEventType& EventType, const void* InHandler)
 	{
+		const FEventID EventID = (FEventID)EventType;
 		ContainerLock.WriteLock();
 		checkf(EventID < EventContainers.Num(), TEXT("Unregistering event Handler for an event ID that does not exist"));
 		EventContainers[EventID]->UnregisterHandler(InHandler);
