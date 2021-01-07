@@ -166,6 +166,11 @@ void FUsdPrimViewModel::RefreshData( bool bRefreshChildren )
 bool FUsdPrimViewModel::CanExecutePrimAction() const
 {
 #if USE_USD_SDK
+	if ( UsdPrim.IsPseudoRoot() )
+	{
+		return false;
+	}
+
 	FScopedUsdAllocs UsdAllocs;
 
 	pxr::SdfPrimSpecHandle PrimSpec = pxr::UsdStageRefPtr( UsdStage )->GetEditTarget().GetLayer()->GetPrimAtPath( pxr::UsdPrim( UsdPrim ).GetPrimPath() );
