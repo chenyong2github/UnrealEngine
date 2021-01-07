@@ -31,10 +31,7 @@ public class BlueprintEditorLibrary : ModuleRules
 			{
 				"CoreUObject",
 				"Engine",
-				"Slate",
-				"SlateCore",
 				"UnrealEd",
-				"Kismet",
 				"AnimGraph"
 			}
 		);
