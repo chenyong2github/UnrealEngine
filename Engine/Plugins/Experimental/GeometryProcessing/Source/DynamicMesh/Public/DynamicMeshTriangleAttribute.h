@@ -67,9 +67,13 @@ public:
 	}
 
 	/** Create an overlay for the given parent mesh */
-	TDynamicMeshTriangleAttribute(FDynamicMesh3* ParentMeshIn)
+	TDynamicMeshTriangleAttribute(FDynamicMesh3* ParentMeshIn, bool bAutoInit = true)
 	{
 		ParentMesh = ParentMeshIn;
+		if (bAutoInit)
+		{
+			Initialize();
+		}
 	}
 
 private:
