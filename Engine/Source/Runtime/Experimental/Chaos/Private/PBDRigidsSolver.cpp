@@ -576,8 +576,6 @@ namespace Chaos
 
 		RemoveDirtyProxy(InProxy);
 
-		int32 NumRemoved = GeometryCollectionPhysicsProxies_External.Remove(InProxy);
-
 		EnqueueCommandImmediate([InProxy, this]()
 			{
 				const TArray<Chaos::TPBDRigidClusteredParticleHandle<float, 3>*>& ParticleHandles = InProxy->GetSolverParticleHandles();
@@ -589,8 +587,6 @@ namespace Chaos
 				InProxy->SyncBeforeDestroy();
 				delete InProxy;
 			});
-		
-		return GeometryCollectionPhysicsProxies_External.Remove(InProxy) != 0;
 	}
 
 	template <typename Traits>
