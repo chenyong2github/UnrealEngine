@@ -900,7 +900,7 @@ int32 UResavePackagesCommandlet::Main( const FString& Params )
 	/** if we should auto checkout packages that need to be saved**/
 	bAutoCheckOut = Switches.Contains(TEXT("AutoCheckOutPackages")) || Switches.Contains(TEXT("AutoCheckOut"));
 	/** when checking out packages, check them all out before loading any of them to reduce the number of source control operations while resaving **/
-	bBulkCheckOut = bAutoCheckOut && Switches.Contains(TEXT("BulkCheckOutPackages")) || Switches.Contains(TEXT("BulkCheckOut"));
+	bBulkCheckOut = bAutoCheckOut && (Switches.Contains(TEXT("BulkCheckOutPackages")) || Switches.Contains(TEXT("BulkCheckOut")));
 	/** if we should simply skip checked out files rather than error-ing out */
 	bSkipCheckedOutFiles = Switches.Contains(TEXT("SkipCheckedOutPackages"));
 	/** if we should auto checkin packages that were checked out**/
