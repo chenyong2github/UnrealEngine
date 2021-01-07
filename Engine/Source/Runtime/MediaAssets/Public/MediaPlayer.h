@@ -1099,7 +1099,7 @@ protected:
 	 *
 	 * @see OpenPlaylist, OpenPlaylistIndex
 	 */
-	UPROPERTY(BlueprintReadOnly, transient, Category=Playback)
+	UPROPERTY(BlueprintReadOnly, transient, Category=Playback, BlueprintGetter = GetPlayList)
 	mutable UMediaPlaylist* Playlist;
 
 	/**
