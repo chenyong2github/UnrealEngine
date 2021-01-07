@@ -46,6 +46,7 @@ TSharedRef<SWidget> FMathStructProxyCustomization::MakeNumericProxyWidget(TShare
 		.MinSliderValue(bRotationInDegrees ? 0.0f : TOptional<NumericType>())
 		.LabelPadding(FMargin(3))
 		.ToolTipText(this, &FMathStructProxyCustomization::OnGetValueToolTip<ProxyType, NumericType>, WeakHandlePtr, ProxyValue, Label)
+		.LabelLocation(SNumericEntryBox<NumericType>::ELabelLocation::Inside)
 		.Label()
 		[
 			SNumericEntryBox<NumericType>::BuildNarrowColorLabel(LabelBackgroundColor)

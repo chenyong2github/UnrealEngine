@@ -21,6 +21,7 @@ void SRotatorInputBox::Construct( const SRotatorInputBox::FArguments& InArgs )
 			.MinSliderValue(0.0f)
 			.MaxSliderValue(359.999f)
 			.LabelPadding(FMargin(3))
+			.LabelLocation(SNumericEntryBox<float>::ELabelLocation::Inside)
 			.Label()
 			[
 				InArgs._bColorAxisLabels ? SNumericEntryBox<float>::BuildNarrowColorLabel(SNumericEntryBox<float>::RedLabelBackgroundColor) : SNullWidget::NullWidget
@@ -48,6 +49,7 @@ void SRotatorInputBox::Construct( const SRotatorInputBox::FArguments& InArgs )
 			.MinSliderValue(0.0f)
 			.MaxSliderValue(359.999f)
 			.LabelPadding(FMargin(3))
+			.LabelLocation(SNumericEntryBox<float>::ELabelLocation::Inside)
 			.Label()
 			[
 				InArgs._bColorAxisLabels ? SNumericEntryBox<float>::BuildNarrowColorLabel(SNumericEntryBox<float>::GreenLabelBackgroundColor) : SNullWidget::NullWidget
@@ -74,8 +76,8 @@ void SRotatorInputBox::Construct( const SRotatorInputBox::FArguments& InArgs )
 			.AllowSpin(InArgs._AllowSpin)
 			.MinSliderValue(0.0f)
 			.MaxSliderValue(359.999f)
-			.LabelPadding(0)
 			.LabelPadding(FMargin(3))
+			.LabelLocation(SNumericEntryBox<float>::ELabelLocation::Inside)
 			.Label()
 			[
 				InArgs._bColorAxisLabels ? SNumericEntryBox<float>::BuildNarrowColorLabel(SNumericEntryBox<float>::BlueLabelBackgroundColor) : SNullWidget::NullWidget

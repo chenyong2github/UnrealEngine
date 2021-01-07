@@ -62,6 +62,7 @@ void SVectorInputBox::ConstructX(const FArguments& InArgs, TSharedRef<SHorizonta
 		.OnBeginSliderMovement(InArgs._OnBeginSliderMovement)
 		.OnEndSliderMovement(InArgs._OnEndSliderMovement)
 		.LabelPadding(FMargin(3))
+		.LabelLocation(SNumericEntryBox<float>::ELabelLocation::Inside)
 		.Label()
 		[
 			LabelWidget
@@ -109,6 +110,7 @@ void SVectorInputBox::ConstructY(const FArguments& InArgs, TSharedRef<SHorizonta
 		.OnBeginSliderMovement(InArgs._OnBeginSliderMovement)
 		.OnEndSliderMovement(InArgs._OnEndSliderMovement)
 		.LabelPadding(FMargin(3))
+		.LabelLocation(SNumericEntryBox<float>::ELabelLocation::Inside)
 		.Label()
 		[
 			LabelWidget
@@ -156,6 +158,7 @@ void SVectorInputBox::ConstructZ(const FArguments& InArgs, TSharedRef<SHorizonta
 		.OnBeginSliderMovement(InArgs._OnBeginSliderMovement)
 		.OnEndSliderMovement(InArgs._OnEndSliderMovement)
 		.LabelPadding(FMargin(3))
+		.LabelLocation(SNumericEntryBox<float>::ELabelLocation::Inside)
 		.Label()
 		[
 			LabelWidget

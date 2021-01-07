@@ -56,6 +56,14 @@ public:
 	/** Notification when the max/min spinner values are changed (only apply if SupportDynamicSliderMaxValue or SupportDynamicSliderMinValue are true) */
 	DECLARE_DELEGATE_FourParams(FOnDynamicSliderMinMaxValueChanged, NumericType, TWeakPtr<SWidget>, bool, bool);
 
+	enum class ELabelLocation
+	{
+		// Outside the bounds of the editable area of this box. Usually preferred for text based labels
+		Outside,
+		// Inside the bounds of the editable area of this box. Usually preferred for non-text based labels
+		// when a spin box is used the label will appear on top of the spin box in this case
+		Inside
+	};
 public:
 
 	SLATE_BEGIN_ARGS( SNumericEntryBox<NumericType> )
@@ -63,7 +71,8 @@ public:
 		, _SpinBoxStyle(&FAppStyle::Get().GetWidgetStyle<FSpinBoxStyle>("NumericEntrySpinBox") )
 		, _Label()
 		, _LabelVAlign( VAlign_Fill )
-		, _LabelPadding( FMargin(3,0) )
+		, _LabelLocation(ELabelLocation::Outside)
+		, _LabelPadding(FMargin(3,0) )
 		, _BorderForegroundColor(FAppStyle::Get().GetWidgetStyle<FSpinBoxStyle>("NumericEntrySpinBox").ForegroundColor)
 		, _BorderBackgroundColor(FLinearColor::White)
 		, _UndeterminedString( SNumericEntryBox<NumericType>::DefaultUndeterminedString )
@@ -90,6 +99,7 @@ public:
 		SLATE_NAMED_SLOT( FArguments, Label )
 		/** Vertical alignment of the label content */
 		SLATE_ARGUMENT( EVerticalAlignment, LabelVAlign )
+		SLATE_ARGUMENT(ELabelLocation, LabelLocation)
 		/** Padding around the label content */
 		SLATE_ARGUMENT( FMargin, LabelPadding )
 		/** Border Foreground Color */
@@ -239,28 +249,57 @@ public:
 			];
 
 
-		if (InArgs._Label.Widget != SNullWidget::NullWidget)
+		if (InArgs._Label.Widget == SNullWidget::NullWidget || InArgs._LabelLocation == ELabelLocation::Inside)
 		{
-			Overlay->AddSlot()
-				.HAlign(HAlign_Left)
-				.VAlign(InArgs._LabelVAlign)
-				.Padding(InArgs._LabelPadding)
-				[
-					InArgs._Label.Widget
-				];
-		}
+			if(InArgs._Label.Widget != SNullWidget::NullWidget)
+			{
+				Overlay->AddSlot()
+					.HAlign(HAlign_Left)
+					.VAlign(InArgs._LabelVAlign)
+					.Padding(InArgs._LabelPadding)
+					[
+						InArgs._Label.Widget
+					];
+			}
 
-		ChildSlot
+			ChildSlot
 			[
-				SNew( SBorder )
-				.BorderImage( this, &SNumericEntryBox<NumericType>::GetBorderImage )
-				.BorderBackgroundColor( InArgs._BorderBackgroundColor )
-				.ForegroundColor( InArgs._BorderForegroundColor )
+				SNew(SBorder)
+				.BorderImage(this, &SNumericEntryBox<NumericType>::GetBorderImage)
+				.BorderBackgroundColor(InArgs._BorderBackgroundColor)
+				.ForegroundColor(InArgs._BorderForegroundColor)
 				.Padding(0)
 				[
 					Overlay
 				]
 			];
+		}
+		else
+		{
+			ChildSlot
+			[
+				SNew(SHorizontalBox)
+				+SHorizontalBox::Slot()
+				.AutoWidth()
+				.HAlign(HAlign_Left)
+				.VAlign(InArgs._LabelVAlign)
+				.Padding(InArgs._LabelPadding)
+				[
+					InArgs._Label.Widget
+				]
+				+ SHorizontalBox::Slot()
+				[
+					SNew(SBorder)
+					.BorderImage(this, &SNumericEntryBox<NumericType>::GetBorderImage)
+					.BorderBackgroundColor(InArgs._BorderBackgroundColor)
+					.ForegroundColor(InArgs._BorderForegroundColor)
+					.Padding(0)
+					[
+						Overlay
+					]
+				]
+			];
+		}
 	}
 
 	static TSharedRef<SWidget> BuildLabel(TAttribute<FText> LabelText, const FSlateColor& ForegroundColor, const FSlateColor& BackgroundColor)
