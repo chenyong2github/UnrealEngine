@@ -385,7 +385,8 @@ namespace UsdGeomMeshTranslatorImpl
 		return bFoundLODs;
 	}
 
-	void LoadMeshDescriptions( const pxr::UsdTyped& UsdMesh, TArray<FMeshDescription>& OutLODIndexToMeshDescription, TArray<UsdUtils::FUsdPrimMaterialAssignmentInfo>& OutLODIndexToMaterialInfo, const TMap< FString, TMap< FString, int32 > >& MaterialToPrimvarToUVIndex, const pxr::UsdTimeCode TimeCode, bool bInterpretLODs )
+	void LoadMeshDescriptions( const pxr::UsdTyped& UsdMesh, TArray<FMeshDescription>& OutLODIndexToMeshDescription, TArray<UsdUtils::FUsdPrimMaterialAssignmentInfo>& OutLODIndexToMaterialInfo,
+		const TMap< FString, TMap< FString, int32 > >& MaterialToPrimvarToUVIndex, const pxr::UsdTimeCode TimeCode, bool bInterpretLODs, const FName& RenderContext )
 	{
 		if ( !UsdMesh )
 		{
@@ -406,7 +407,13 @@ namespace UsdGeomMeshTranslatorImpl
 			FStaticMeshAttributes StaticMeshAttributes( TempMeshDescription );
 			StaticMeshAttributes.Register();
 
-			bool bSuccess = UsdToUnreal::ConvertGeomMesh( UsdMesh, TempMeshDescription, TempMaterialInfo, FTransform::Identity, MaterialToPrimvarToUVIndex, TimeCode );
+			pxr::TfToken RenderContextToken = pxr::UsdShadeTokens->universalRenderContext;
+			if ( !RenderContext.IsNone() )
+			{
+				RenderContextToken = UnrealToUsd::ConvertToken( *RenderContext.ToString() ).Get();
+			}
+
+			bool bSuccess = UsdToUnreal::ConvertGeomMesh( UsdMesh, TempMeshDescription, TempMaterialInfo, FTransform::Identity, MaterialToPrimvarToUVIndex, TimeCode, RenderContextToken );
 
 			if ( bSuccess )
 			{
@@ -619,7 +626,8 @@ namespace UsdGeomMeshTranslatorImpl
 						LODIndexToMaterialInfo,
 						*MaterialToPrimvarToUVIndex,
 						pxr::UsdTimeCode( Time ),
-						ContextPtr->bAllowInterpretingLODs
+						ContextPtr->bAllowInterpretingLODs,
+						ContextPtr->RenderContext
 					);
 
 					// Convert the MeshDescription to MeshData
@@ -767,7 +775,8 @@ namespace UsdGeomMeshTranslatorImpl
 	}
 
 	/** Warning: This function will temporarily switch the active LOD variant if one exists, so it's *not* thread safe! */
-	void SetMaterialOverrides( const pxr::UsdPrim& Prim, const TArray<UMaterialInterface*>& ExistingAssignments, UMeshComponent& MeshComponent, const TMap< FString, UObject* >& PrimPathsToAssets, TMap< FString, UObject* >& AssetsCache, float Time, EObjectFlags Flags, bool bInterpretLODs )
+	void SetMaterialOverrides( const pxr::UsdPrim& Prim, const TArray<UMaterialInterface*>& ExistingAssignments, UMeshComponent& MeshComponent, const TMap< FString, UObject* >& PrimPathsToAssets,
+		TMap< FString, UObject* >& AssetsCache, float Time, EObjectFlags Flags, bool bInterpretLODs, const FName& RenderContext )
 	{
 		if ( !Prim )
 		{
@@ -782,6 +791,13 @@ namespace UsdGeomMeshTranslatorImpl
 			return;
 		}
 
+		pxr::TfToken RenderContextToken = pxr::UsdShadeTokens->universalRenderContext;
+
+		if ( !RenderContext.IsNone())
+		{
+			RenderContextToken = UnrealToUsd::ConvertToken( *RenderContext.ToString() ).Get();
+		}
+
 		TArray<UsdUtils::FUsdPrimMaterialAssignmentInfo> LODIndexToAssignments;
 		const bool bProvideMaterialIndices = false; // We have no use for material indices and it can be slow to retrieve, as it will iterate all faces
 
@@ -792,7 +808,7 @@ namespace UsdGeomMeshTranslatorImpl
 			TMap<int32, UsdUtils::FUsdPrimMaterialAssignmentInfo> LODIndexToAssignmentsMap;
 			TFunction<bool( const pxr::UsdGeomMesh&, int32 )> IterateLODs = [ & ]( const pxr::UsdGeomMesh& LODMesh, int32 LODIndex )
 			{
-				UsdUtils::FUsdPrimMaterialAssignmentInfo LODInfo = UsdUtils::GetPrimMaterialAssignments( LODMesh.GetPrim(), pxr::UsdTimeCode( Time ), bProvideMaterialIndices );
+				UsdUtils::FUsdPrimMaterialAssignmentInfo LODInfo = UsdUtils::GetPrimMaterialAssignments( LODMesh.GetPrim(), pxr::UsdTimeCode( Time ), bProvideMaterialIndices, RenderContextToken );
 				LODIndexToAssignmentsMap.Add( LODIndex, LODInfo );
 				return true;
 			};
@@ -813,7 +829,7 @@ namespace UsdGeomMeshTranslatorImpl
 		// Extract material assignment info from prim if its *not* a LOD mesh, or if we failed to parse LODs
 		if ( !bInterpretedLODs )
 		{
-			LODIndexToAssignments = { UsdUtils::GetPrimMaterialAssignments( Prim, pxr::UsdTimeCode( Time ), bProvideMaterialIndices ) };
+			LODIndexToAssignments = { UsdUtils::GetPrimMaterialAssignments( Prim, pxr::UsdTimeCode( Time ), bProvideMaterialIndices, RenderContextToken ) };
 		}
 
 		// Resolve all material assignment info
@@ -1035,7 +1051,8 @@ void FGeomMeshCreateAssetsTaskChain::SetupTasks()
 				LODIndexToMaterialInfo,
 				*MaterialToPrimvarToUVIndex,
 				pxr::UsdTimeCode( Context->Time ),
-				Context->bAllowInterpretingLODs
+				Context->bAllowInterpretingLODs,
+				Context->RenderContext
 			);
 
 			// If we have at least one valid LOD, we should keep going
@@ -1090,7 +1107,8 @@ void FGeometryCacheCreateAssetsTaskChain::SetupTasks()
 				LODIndexToMaterialInfo,
 				*MaterialToPrimvarToUVIndex,
 				pxr::UsdTimeCode( Context->Time ),
-				Context->bAllowInterpretingLODs
+				Context->bAllowInterpretingLODs,
+				Context->RenderContext
 			);
 
 			// If we have at least one valid LOD, we should keep going
@@ -1211,7 +1229,8 @@ USceneComponent* FUsdGeomMeshTranslator::CreateComponents()
 					Context->AssetsCache,
 					Context->Time,
 					Context->ObjectFlags,
-					Context->bAllowInterpretingLODs
+					Context->bAllowInterpretingLODs,
+					Context->RenderContext
 				);
 
 				for ( UMaterialInterface* OverrideMaterial : StaticMeshComponent->OverrideMaterials )

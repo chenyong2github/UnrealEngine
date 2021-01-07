@@ -23,6 +23,7 @@ int32 FRegisteredSchemaTranslatorHandle::CurrentSchemaTranslatorId = 0;
 #include "USDIncludesStart.h"
 	#include "pxr/base/tf/token.h"
 	#include "pxr/usd/usd/typed.h"
+	#include "pxr/usd/usdShade/tokens.h"
 #include "USDIncludesEnd.h"
 
 #endif // #if USE_USD_SDK
@@ -49,6 +50,14 @@ TSharedPtr< FUsdSchemaTranslator > FUsdSchemaTranslatorRegistry::CreateTranslato
 #endif // #if USE_USD_SDK
 
 	return {};
+}
+
+FUsdRenderContextRegistry::FUsdRenderContextRegistry()
+{
+#if USE_USD_SDK
+	UniversalRenderContext = FName( UsdToUnreal::ConvertToken( pxr::UsdShadeTokens->universalRenderContext ) );
+	Register( UniversalRenderContext );
+#endif // #if USE_USD_SDK
 }
 
 FRegisteredSchemaTranslatorHandle FUsdSchemaTranslatorRegistry::Register( const FString& SchemaName, FCreateTranslator CreateFunction )
@@ -113,6 +122,17 @@ void FUsdSchemaTranslatorRegistry::Unregister( const FRegisteredSchemaTranslator
 			break;
 		}
 	}
+}
+
+FUsdSchemaTranslationContext::FUsdSchemaTranslationContext( const UE::FUsdStage& InStage, TMap< FString, UObject* >& InPrimPathsToAssets, TMap< FString, UObject* >& InAssetsCache, UsdUtils::FBlendShapeMap* InBlendShapesByPath )
+	: Stage( InStage )
+	, PrimPathsToAssets( InPrimPathsToAssets )
+	, AssetsCache( InAssetsCache )
+	, BlendShapesByPath( InBlendShapesByPath )
+	, MaterialToPrimvarToUVIndex( nullptr )
+{
+	IUsdSchemasModule& UsdSchemasModule = FModuleManager::Get().LoadModuleChecked< IUsdSchemasModule >( TEXT("USDSchemas") );
+	RenderContext = UsdSchemasModule.GetRenderContextRegistry().GetUniversalRenderContext();
 }
 
 FUsdSchemaTranslatorRegistry::FSchemaTranslatorsStack* FUsdSchemaTranslatorRegistry::FindSchemaTranslatorStack( const FString& SchemaName )

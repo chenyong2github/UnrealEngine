@@ -61,15 +61,23 @@ class USDSCHEMAS_API FUsdSchemaTranslatorRegistry
 	using FSchemaTranslatorsStack = TArray< FRegisteredSchemaTranslator, TInlineAllocator< 1 > >;
 
 public:
+	/**
+	 * Returns the translator to use for InSchema
+	 */
 	TSharedPtr< FUsdSchemaTranslator > CreateTranslatorForSchema( TSharedRef< FUsdSchemaTranslationContext > InTranslationContext, const UE::FUsdTyped& InSchema );
 
-	template< typename TSchemaTranslator >
+	/**
+	 * Registers SchemaTranslatorType to translate schemas of type SchemaName.
+	 * Registration order is important as the last to register for a given schema will be the one handling it.
+	 * Thus, you will want to register base schemas before the more specialized ones.
+	 */
+	template< typename SchemaTranslatorType >
 	FRegisteredSchemaTranslatorHandle Register( const FString& SchemaName )
 	{
 		auto CreateSchemaTranslator =
 		[]( TSharedRef< FUsdSchemaTranslationContext > InContext, const UE::FUsdTyped& InSchema ) -> TSharedRef< FUsdSchemaTranslator >
 		{
-			return MakeShared< TSchemaTranslator >( InContext, InSchema );
+			return MakeShared< SchemaTranslatorType >( InContext, InSchema );
 		};
 
 		return Register( SchemaName, CreateSchemaTranslator );
@@ -94,16 +102,25 @@ public:
 	FCreateTranslator CreateFunction;
 };
 
+class USDSCHEMAS_API FUsdRenderContextRegistry
+{
+public:
+	FUsdRenderContextRegistry();
+
+	void Register( const FName& RenderContextToken ) { RegisteredRenderContexts.Add( RenderContextToken ); }
+	void Unregister( const FName& RenderContextToken ) { RegisteredRenderContexts.Remove( RenderContextToken ); }
+
+	const TSet< FName >& GetRenderContexts() const { return RegisteredRenderContexts; }
+	const FName& GetUniversalRenderContext() const { return UniversalRenderContext; }
+
+protected:
+	TSet< FName > RegisteredRenderContexts;
+	FName UniversalRenderContext;
+};
+
 struct USDSCHEMAS_API FUsdSchemaTranslationContext : public TSharedFromThis< FUsdSchemaTranslationContext >
 {
-	explicit FUsdSchemaTranslationContext( const UE::FUsdStage& InStage, TMap< FString, UObject* >& InPrimPathsToAssets, TMap< FString, UObject* >& InAssetsCache, UsdUtils::FBlendShapeMap* InBlendShapesByPath = nullptr )
-		: Stage( InStage )
-		, PrimPathsToAssets( InPrimPathsToAssets )
-		, AssetsCache( InAssetsCache )
-		, BlendShapesByPath( InBlendShapesByPath )
-	{
-		MaterialToPrimvarToUVIndex = nullptr;
-	}
+	explicit FUsdSchemaTranslationContext( const UE::FUsdStage& InStage, TMap< FString, UObject* >& InPrimPathsToAssets, TMap< FString, UObject* >& InAssetsCache, UsdUtils::FBlendShapeMap* InBlendShapesByPath = nullptr );
 
 	/** pxr::UsdStage we're translating from */
 	UE::FUsdStage Stage;
@@ -122,6 +139,9 @@ struct USDSCHEMAS_API FUsdSchemaTranslationContext : public TSharedFromThis< FUs
 
 	/** We're only allowed to load prims with purposes that match these flags */
 	EUsdPurpose PurposesToLoad;
+
+	/** The render context to use when translating materials */
+	FName RenderContext;
 
 	/** Map of translated UsdPrims to UAssets */
 	TMap< FString, UObject* >& PrimPathsToAssets;

@@ -9,6 +9,8 @@
 #include "UnrealUSDWrapper.h"
 #include "USDErrorUtils.h"
 #include "USDLayerUtils.h"
+#include "USDSchemasModule.h"
+#include "USDSchemaTranslator.h"
 #include "USDStageActor.h"
 #include "USDStageEditorSettings.h"
 #include "USDStageImportContext.h"
@@ -402,6 +404,11 @@ void SUsdStage::FillOptionsMenu(FMenuBuilder& MenuBuilder)
 			FSlateIcon(),
 			false);
 
+		MenuBuilder.AddSubMenu(
+			LOCTEXT("RenderContext", "Render Context"),
+			LOCTEXT("RenderContext_ToolTip", "Choose which render context to use when parsing materials"),
+			FNewMenuDelegate::CreateSP(this, &SUsdStage::FillRenderContextSubMenu));
+
 		MenuBuilder.AddMenuSeparator();
 
 		MenuBuilder.AddSubMenu(
@@ -533,6 +540,59 @@ void SUsdStage::FillPurposesToLoadSubMenu(FMenuBuilder& MenuBuilder)
 	AddPurposeEntry(EUsdPurpose::Proxy,  LOCTEXT("ProxyPurpose",  "Proxy"));
 	AddPurposeEntry(EUsdPurpose::Render, LOCTEXT("RenderPurpose", "Render"));
 	AddPurposeEntry(EUsdPurpose::Guide,  LOCTEXT("GuidePurpose",  "Guide"));
+}
+
+void SUsdStage::FillRenderContextSubMenu( FMenuBuilder& MenuBuilder )
+{
+	auto AddRenderContextEntry = [&](const FName& RenderContext)
+	{
+		MenuBuilder.AddMenuEntry(
+			FText::FromName( RenderContext ),
+			FText::GetEmpty(),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateLambda([this, RenderContext]()
+				{
+					if ( AUsdStageActor* StageActor = ViewModel.UsdStageActor.Get() )
+					{
+						FScopedTransaction Transaction(FText::Format(
+							LOCTEXT("RenderContextToLoadTransaction", "Change render context to load for USD stage actor '{0}'"),
+							FText::FromString(StageActor->GetActorLabel())
+						));
+
+						StageActor->Modify();
+						StageActor->RenderContext = RenderContext;
+
+						FPropertyChangedEvent PropertyChangedEvent(
+							FindFieldChecked< FProperty >( StageActor->GetClass(), GET_MEMBER_NAME_CHECKED( AUsdStageActor, RenderContext ) )
+						);
+						StageActor->PostEditChangeProperty(PropertyChangedEvent);
+					}
+				}),
+				FCanExecuteAction::CreateLambda([this]()
+				{
+					return ViewModel.UsdStageActor.Get() != nullptr;
+				}),
+				FIsActionChecked::CreateLambda([this, RenderContext]()
+				{
+					if ( AUsdStageActor* StageActor = ViewModel.UsdStageActor.Get() )
+					{
+						return StageActor->RenderContext == RenderContext;
+					}
+					return false;
+				})
+			),
+			NAME_None,
+			EUserInterfaceActionType::Check
+		);
+	};
+
+	IUsdSchemasModule& UsdSchemasModule = FModuleManager::Get().LoadModuleChecked< IUsdSchemasModule >( TEXT("USDSchemas") );
+
+	for ( const FName& RenderContext : UsdSchemasModule.GetRenderContextRegistry().GetRenderContexts() )
+	{
+		AddRenderContextEntry( RenderContext );
+	}
 }
 
 void SUsdStage::FillSelectionSubMenu( FMenuBuilder& MenuBuilder )

@@ -64,8 +64,14 @@ public:
 		return UsdSchemaTranslatorRegistry;
 	}
 
+	virtual FUsdRenderContextRegistry& GetRenderContextRegistry() override
+	{
+		return UsdRenderContextRegistry;
+	}
+
 protected:
 	FUsdSchemaTranslatorRegistry UsdSchemaTranslatorRegistry;
+	FUsdRenderContextRegistry UsdRenderContextRegistry;
 
 	FRegisteredSchemaTranslatorHandle UsdGeomCameraTranslatorHandle;
 	FRegisteredSchemaTranslatorHandle UsdGeomMeshTranslatorHandle;

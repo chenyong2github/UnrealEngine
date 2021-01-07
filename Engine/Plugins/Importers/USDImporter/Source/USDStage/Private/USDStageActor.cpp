@@ -83,6 +83,7 @@ struct FUsdStageActorImpl
 		TranslationContext->ObjectFlags = DefaultObjFlag;
 		TranslationContext->Time = StageActor->GetTime();
 		TranslationContext->PurposesToLoad = (EUsdPurpose) StageActor->PurposesToLoad;
+		TranslationContext->RenderContext = StageActor->RenderContext;
 		TranslationContext->MaterialToPrimvarToUVIndex = &StageActor->MaterialToPrimvarToUVIndex;
 
 		// Its more convenient to toggle between variants using the USDStage window, as opposed to parsing LODs
@@ -222,9 +223,9 @@ struct FUsdStageActorImpl
 
 AUsdStageActor::AUsdStageActor()
 	: InitialLoadSet( EUsdInitialLoadSet::LoadAll )
-	, PurposesToLoad((int32) EUsdPurpose::Proxy)
+	, PurposesToLoad( (int32) EUsdPurpose::Proxy )
 	, Time( 0.0f )
-	, LevelSequenceHelper(this)
+	, LevelSequenceHelper( this )
 {
 	SceneComponent = CreateDefaultSubobject< USceneComponent >( TEXT("SceneComponent0") );
 	SceneComponent->Mobility = EComponentMobility::Static;
@@ -233,6 +234,9 @@ AUsdStageActor::AUsdStageActor()
 
 	RootUsdTwin = NewObject<UUsdPrimTwin>(this, TEXT("RootUsdTwin"), DefaultObjFlag);
 	RootUsdTwin->PrimPath = TEXT( "/" );
+
+	IUsdSchemasModule& UsdSchemasModule = FModuleManager::Get().LoadModuleChecked< IUsdSchemasModule >( TEXT("USDSchemas") );
+	RenderContext = UsdSchemasModule.GetRenderContextRegistry().GetUniversalRenderContext();
 
 	if ( HasAuthorityOverStage() )
 	{
@@ -741,6 +745,12 @@ void AUsdStageActor::SetInitialLoadSet( EUsdInitialLoadSet NewLoadSet )
 void AUsdStageActor::SetPurposesToLoad( int32 NewPurposesToLoad )
 {
 	PurposesToLoad = NewPurposesToLoad;
+	LoadUsdStage();
+}
+
+void AUsdStageActor::SetRenderContext( const FName& NewRenderContext )
+{
+	RenderContext = NewRenderContext;
 	LoadUsdStage();
 }
 
@@ -1379,7 +1389,8 @@ void AUsdStageActor::HandlePropertyChangedEvent( FPropertyChangedEvent& Property
 		Refresh();
 	}
 	else if ( PropertyName == GET_MEMBER_NAME_CHECKED( AUsdStageActor, InitialLoadSet ) ||
-		PropertyName == GET_MEMBER_NAME_CHECKED( AUsdStageActor, PurposesToLoad ) )
+		PropertyName == GET_MEMBER_NAME_CHECKED( AUsdStageActor, PurposesToLoad ) ||
+		PropertyName == GET_MEMBER_NAME_CHECKED( AUsdStageActor, RenderContext ) )
 	{
 		LoadUsdStage();
 	}
