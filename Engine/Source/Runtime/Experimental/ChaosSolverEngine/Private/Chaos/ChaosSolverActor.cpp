@@ -29,12 +29,7 @@ public:
 		: ConsoleCommands()
 	{
 		// Register console command
-		ConsoleCommands.Add(IConsoleManager::Get().RegisterConsoleCommand(
-			TEXT("p.Chaos.Solver.List"),
-			TEXT("List all registered solvers. The solver name can then be used by the p.Chaos.Solver.Pause or p.Chaos.Solver.Substep commands."),
-			FConsoleCommandDelegate::CreateRaw(this, &FChaosSolverActorConsoleObjects::List),
-			ECVF_Cheat));
-
+		
 		ConsoleCommands.Add(IConsoleManager::Get().RegisterConsoleCommand(
 			TEXT("p.Chaos.Solver.Pause"),
 			TEXT("Debug pause the specified solver."),
@@ -66,17 +61,6 @@ public:
 	void RemoveSolver(const FString& Name) { SolverActors.Remove(Name); }
 
 private:
-	void List()
-	{
-		for (auto SolverActor: SolverActors)
-		{
-			const Chaos::FPhysicsSolver* const Solver = SolverActor.Value->GetSolver();
-			if (Solver)
-			{
-				UE_LOG(LogChaosDebug, Display, TEXT("%s (%d objects)"), *SolverActor.Key, Solver->GetNumPhysicsProxies());
-			}
-		}
-	}
 
 	void Pause(const TArray<FString>& Args)
 	{
