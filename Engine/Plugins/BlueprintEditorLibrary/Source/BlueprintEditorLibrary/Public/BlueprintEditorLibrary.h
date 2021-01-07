@@ -123,15 +123,6 @@ public:
 	static void RenameGraph(UEdGraph* Graph, const FString& NewNameStr);
 
 	/**
-	* Add an Actor Component to the given blueprint
-	*
-	* @param Blueprint			Blueprint to add the component to
-	* @param ComponentClass		Type of component to add
-	*/
-	UFUNCTION(BlueprintCallable, Category = "Blueprint Upgrade Tools")
-	static void AddComponent(UBlueprint* Blueprint, TSubclassOf<UActorComponent> ComponentClass);
-
-	/**
 	* Gets the UBlueprint version of the given object if possible.
 	*
 	* @param Object			The object we need to get the UBlueprint from

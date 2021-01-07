@@ -401,20 +401,6 @@ void UBlueprintEditorLibrary::RenameGraph(UEdGraph* Graph, const FString& NewNam
 	FBlueprintEditorUtils::RenameGraph(Graph, NewNameStr);
 }
 
-void UBlueprintEditorLibrary::AddComponent(UBlueprint* Blueprint, TSubclassOf<UActorComponent> ComponentClass)
-{
-	if (!Blueprint || !ComponentClass)
-	{
-		return;
-	}
-	//UClass* ActorClass = Blueprint->GeneratedClass;
-	//TSubclassOf<UActorComponent> MatchingComponentClassForAsset = FComponentAssetBrokerage::GetPrimaryComponentForAsset(AssetClass);
-
-	//AActor* CDO = Blueprint->GeneratedClass->
-	// #TODO_BH Will need to discuss how to handle this correctly, there is a lot of
-	// logic in SCS editor that I have questions about
-}
-
 UBlueprint* UBlueprintEditorLibrary::GetBlueprintAsset(UObject* Object)
 {
 	return Cast<UBlueprint>(Object);
