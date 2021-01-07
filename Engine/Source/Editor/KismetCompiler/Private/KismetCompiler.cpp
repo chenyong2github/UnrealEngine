@@ -722,21 +722,12 @@ void FKismetCompilerContext::CreateClassVariablesFromBlueprint()
 
 	// Grab the blueprint variables
 	NewClass->NumReplicatedProperties = 0;	// Keep track of how many replicated variables this blueprint adds
-	// Clear out any existing property guids
+
 	const bool bRebuildPropertyMap = bIsFullCompile && !Blueprint->bIsRegeneratingOnLoad;
 	if (bRebuildPropertyMap)
 	{
+		// Clear out any existing property guids if there could be local changes. The find code handles inherited variables
 		NewClass->PropertyGuids.Reset();
-		// Add any chained parent blueprint map values
-		UBlueprint* ParentBP = Cast<UBlueprint>(Blueprint->ParentClass->ClassGeneratedBy);
-		while (ParentBP)
-		{
-			if (UBlueprintGeneratedClass* ParentBPGC = Cast<UBlueprintGeneratedClass>(ParentBP->GeneratedClass))
-			{
-				NewClass->PropertyGuids.Append(ParentBPGC->PropertyGuids);
-			}
-			ParentBP = Cast<UBlueprint>(ParentBP->ParentClass->ClassGeneratedBy);
-		}
 	}
 
 	for (int32 i = 0; i < Blueprint->NewVariables.Num(); ++i)

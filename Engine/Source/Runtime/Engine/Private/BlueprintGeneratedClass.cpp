@@ -1919,16 +1919,33 @@ bool UBlueprintGeneratedClass::ArePropertyGuidsAvailable() const
 {
 #if WITH_EDITORONLY_DATA
 	// Property guid's are generated during compilation.
-	return PropertyGuids.Num() > 0;
-#else
-	return false;
+	if (PropertyGuids.Num() > 0)
+	{
+		return true;
+	}
+	else if (UBlueprintGeneratedClass* Super = Cast<UBlueprintGeneratedClass>(GetSuperStruct()))
+	{
+		// Our parent may have guids for inherited variables
+		return Super->ArePropertyGuidsAvailable();
+	}
 #endif // WITH_EDITORONLY_DATA
+	return false;
 }
 
 FName UBlueprintGeneratedClass::FindPropertyNameFromGuid(const FGuid& PropertyGuid) const
 {
 	FName RedirectedName = NAME_None;
 #if WITH_EDITORONLY_DATA
+	// Check parent first as it may have renamed a property since this class was last saved
+	if (UBlueprintGeneratedClass* Super = Cast<UBlueprintGeneratedClass>(GetSuperStruct()))
+	{
+		RedirectedName = Super->FindPropertyNameFromGuid(PropertyGuid);
+		if (!RedirectedName.IsNone())
+		{
+			return RedirectedName;
+		}
+	}
+
 	if (const FName* Result = PropertyGuids.FindKey(PropertyGuid))
 	{
 		RedirectedName = *Result;
@@ -1944,6 +1961,11 @@ FGuid UBlueprintGeneratedClass::FindPropertyGuidFromName(const FName InName) con
 	if (const FGuid* Result = PropertyGuids.Find(InName))
 	{
 		PropertyGuid = *Result;
+	}
+	else if (UBlueprintGeneratedClass* Super = Cast<UBlueprintGeneratedClass>(GetSuperStruct()))
+	{
+		// Fall back to parent if this is an inherited variable
+		PropertyGuid = Super->FindPropertyGuidFromName(InName);
 	}
 #endif // WITH_EDITORONLY_DATA
 	return PropertyGuid;
