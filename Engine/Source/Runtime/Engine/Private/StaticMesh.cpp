@@ -5840,6 +5840,7 @@ bool UStaticMesh::ContainsPhysicsTriMeshDataCheckComplex(bool bInUseAllTriData, 
 #if WITH_EDITORONLY_DATA
 	if (ComplexCollisionMesh && ComplexCollisionMesh != this && bInCheckComplexCollisionMesh)
 	{
+		ComplexCollisionMesh->ConditionalPostLoad();
 		return ComplexCollisionMesh->ContainsPhysicsTriMeshDataCheckComplex(bInUseAllTriData, false); // One level of recursion
 	}
 #else // #if WITH_EDITORONLY_DATA
