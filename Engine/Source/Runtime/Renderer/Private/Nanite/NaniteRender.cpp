@@ -337,6 +337,7 @@ static bool UsePrimitiveShader()
 #define VISUALIZE_MATERIAL_ID						19
 #define VISUALIZE_HIT_PROXY_ID						20
 #define VISUALIZE_NANITE_MASK						21
+#define VISUALIZE_LIGHTMAP_UVS						22
 
 int32 GNaniteDebugVisualize = 0;
 FAutoConsoleVariableRef CVarNaniteDebugVisualize(

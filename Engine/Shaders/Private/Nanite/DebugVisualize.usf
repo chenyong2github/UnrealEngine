@@ -4,6 +4,7 @@
 #include "../SceneData.ush"
 #include "../DeferredShadingCommon.ush"
 #include "NaniteDataDecode.ush"
+#include "NaniteAttributeDecode.ush"
 
 RWTexture2D<float4>		DebugOutput;
 Texture2D<UlongType>	VisBuffer64;
@@ -145,15 +146,15 @@ void DebugVisualize(uint3 PixelPos : SV_DispatchThreadID)
 		
 			Result = IntToColor(TriIndex); // previous visualization
 		}
-		else if (VisualizeMode == VISUALIZE_CLUSTERS )
+		else if (VisualizeMode == VISUALIZE_CLUSTERS)
 		{
 			Result = IntToColor(VisibleCluster.ClusterIndex);
 		}
-		else if (VisualizeMode == VISUALIZE_GROUPS )
+		else if (VisualizeMode == VISUALIZE_GROUPS)
 		{
 			Result = IntToColor(Cluster.GroupIndex);
 		}
-		else if( VisualizeMode == VISUALIZE_PAGES )
+		else if (VisualizeMode == VISUALIZE_PAGES)
 		{
 			Result = IntToColor(VisibleCluster.PageIndex);
 		}
@@ -195,6 +196,10 @@ void DebugVisualize(uint3 PixelPos : SV_DispatchThreadID)
 		else if (VisualizeMode == VISUALIZE_NANITE_MASK)
 		{
 			Result = float3(0, 1, 0);
+		}
+		else if (VisualizeMode == VISUALIZE_LIGHTMAP_UVS)
+		{
+			Result = float3(1, 1, 0);
 		}
 	}
 	else

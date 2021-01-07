@@ -5,6 +5,7 @@
 #include "../DeferredShadingCommon.ush"
 
 #include "NaniteDataDecode.ush"
+#include "NaniteAttributeDecode.ush"
 
 // MATERIAL_CULLING_METHOD 0: no culling
 // MATERIAL_CULLING_METHOD 1: cull full screen passes (32bit mask)

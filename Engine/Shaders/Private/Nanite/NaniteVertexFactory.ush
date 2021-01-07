@@ -4,6 +4,7 @@
 
 #include "../VertexFactoryCommon.ush"
 #include "NaniteDataDecode.ush"
+#include "NaniteAttributeDecode.ush"
 
 struct FVertexFactoryInterpolantsVSToPS
 {
@@ -80,43 +81,21 @@ FMaterialPixelParameters GetMaterialPixelParameters(inout FVertexFactoryInterpol
 		float4 PointClip1 = mul(float4(PointLocal1, 1), InstanceDynamicData.LocalToClip);
 		float4 PointClip2 = mul(float4(PointLocal2, 1), InstanceDynamicData.LocalToClip);
 
-		float3 Pos0 = PointClip0.xyz / PointClip0.w;
-		float3 Pos1 = PointClip1.xyz / PointClip1.w;
-		float3 Pos2 = PointClip2.xyz / PointClip2.w;
-
-		float3 RcpW = rcp(float3(PointClip0.w, PointClip1.w, PointClip2.w));
-
-		float2 PixelClip = ( SvPosition.xy - View.ViewRectMin.xy ) * View.ViewSizeAndInvSize.zw * float2(2,-2) + float2(-1,1);
+		float2 PixelClip = (SvPosition.xy - View.ViewRectMin.xy) * View.ViewSizeAndInvSize.zw * float2(2, -2) + float2(-1, 1);
 
 		// Calculate perspective correct barycentric coordinates with screen derivatives
-		float3 Pos120X = float3(Pos1.x, Pos2.x, Pos0.x);
-		float3 Pos120Y = float3(Pos1.y, Pos2.y, Pos0.y);
-		float3 Pos201X = float3(Pos2.x, Pos0.x, Pos1.x);
-		float3 Pos201Y = float3(Pos2.y, Pos0.y, Pos1.y);
-
-		float3 C_dx = Pos201Y - Pos120Y;
-		float3 C_dy = Pos120X - Pos201X;
-
-		float3 C = C_dx * (PixelClip.x - Pos120X) + C_dy * (PixelClip.y - Pos120Y);	// Evaluate the 3 edge functions
-		float3 G = C * RcpW;
-
-		float H = dot(C, RcpW);
-		float RcpH = rcp(H);
-
-		// UVW = C * RcpW / dot(C, RcpW)
-		float3 UVW = G * RcpH;
-
+		FBarycentrics Barycentrics = CalculateTriangleBarycentrics(PixelClip, PointClip0, PointClip1, PointClip2);
 
 		// Unpack and interpolate attributes
 		uint DecodeInfoOffset = Cluster.PageBaseAddress + Cluster.DecodeInfoOffset;
 		uint AttributeDataOffset = Cluster.PageBaseAddress + Cluster.AttributeOffset;
 
-		const uint MAX_ATTRIBUTE_BITS = 2 * NORMAL_QUANTIZATION_BITS + 4 * MAX_COLOR_QUANTIZATION_BITS + NUM_TEX_COORD_INTERPOLATORS * (2 * MAX_TEXCOORD_QUANTIZATION_BITS);
+		const uint MaxAttributeBits = CalculateMaxAttributeBits(NUM_TEX_COORD_INTERPOLATORS);
 
 		// Unpack normal
-		FBitStreamReaderState AttributeStream0 = BitStreamReader_Create_Aligned(ClusterPageData, AttributeDataOffset, TriIndices.x * Cluster.BitsPerAttribute, MAX_ATTRIBUTE_BITS);
-		FBitStreamReaderState AttributeStream1 = BitStreamReader_Create_Aligned(ClusterPageData, AttributeDataOffset, TriIndices.y * Cluster.BitsPerAttribute, MAX_ATTRIBUTE_BITS);
-		FBitStreamReaderState AttributeStream2 = BitStreamReader_Create_Aligned(ClusterPageData, AttributeDataOffset, TriIndices.z * Cluster.BitsPerAttribute, MAX_ATTRIBUTE_BITS);
+		FBitStreamReaderState AttributeStream0 = BitStreamReader_Create_Aligned(ClusterPageData, AttributeDataOffset, TriIndices.x * Cluster.BitsPerAttribute, MaxAttributeBits);
+		FBitStreamReaderState AttributeStream1 = BitStreamReader_Create_Aligned(ClusterPageData, AttributeDataOffset, TriIndices.y * Cluster.BitsPerAttribute, MaxAttributeBits);
+		FBitStreamReaderState AttributeStream2 = BitStreamReader_Create_Aligned(ClusterPageData, AttributeDataOffset, TriIndices.z * Cluster.BitsPerAttribute, MaxAttributeBits);
 
 		uint NormalBits0 = BitStreamReader_Read(AttributeStream0, 2 * NORMAL_QUANTIZATION_BITS, 2 * NORMAL_QUANTIZATION_BITS);
 		uint NormalBits1 = BitStreamReader_Read(AttributeStream1, 2 * NORMAL_QUANTIZATION_BITS, 2 * NORMAL_QUANTIZATION_BITS);
@@ -125,7 +104,7 @@ FMaterialPixelParameters GetMaterialPixelParameters(inout FVertexFactoryInterpol
 		float3 TangentZ0 = UnpackNormal(NormalBits0, NORMAL_QUANTIZATION_BITS);
 		float3 TangentZ1 = UnpackNormal(NormalBits1, NORMAL_QUANTIZATION_BITS);
 		float3 TangentZ2 = UnpackNormal(NormalBits2, NORMAL_QUANTIZATION_BITS);
-		float3 TangentZ = normalize(UVW.x * TangentZ0 + UVW.y * TangentZ1 + UVW.z * TangentZ2);
+		float3 TangentZ = normalize(Barycentrics.UVW.x * TangentZ0 + Barycentrics.UVW.y * TangentZ1 + Barycentrics.UVW.z * TangentZ2);
 
 		Result.VertexColor = 1;
 		{
@@ -143,7 +122,7 @@ FMaterialPixelParameters GetMaterialPixelParameters(inout FVertexFactoryInterpol
 				float4 ColorMin = float4(UnpackByte0(Cluster.ColorMin), UnpackByte1(Cluster.ColorMin), UnpackByte2(Cluster.ColorMin), UnpackByte3(Cluster.ColorMin));
 				if (Cluster.ColorMode == VERTEX_COLOR_MODE_VARIABLE)
 				{
-					Result.VertexColor = (ColorMin + UVW.x * float4(ColorDelta0) + UVW.y * float4(ColorDelta1) + UVW.z * float4(ColorDelta2)) * (1.0f / 255.0f);
+					Result.VertexColor = (ColorMin + Barycentrics.UVW.x * float4(ColorDelta0) + Barycentrics.UVW.y * float4(ColorDelta1) + Barycentrics.UVW.z * float4(ColorDelta2)) * (1.0f / 255.0f);
 				}
 				else // (Cluster.ColorMode == VERTEX_COLOR_MODE_CONSTANT)
 				{
@@ -154,20 +133,6 @@ FMaterialPixelParameters GetMaterialPixelParameters(inout FVertexFactoryInterpol
 		}
 
 #if NUM_TEX_COORD_INTERPOLATORS > 0
-		// Texture coordinate derivatives:
-		// UVW = G / H where G = C * RcpW and H = dot(C, RcpW)
-		// UVW' = (G' * H - G * H') / H^2
-		// float2 TexCoordDX = UVW_dx.y * TexCoord10 + UVW_dx.z * TexCoord20;
-		// float2 TexCoordDY = UVW_dy.y * TexCoord10 + UVW_dy.z * TexCoord20;
-		float3 G_dx = C_dx * RcpW;
-		float3 G_dy = C_dy * RcpW;
-
-		float H_dx = dot(C_dx, RcpW);
-		float H_dy = dot(C_dy, RcpW);
-
-		float3 UVW_dx = (G_dx * H - G * H_dx) * (RcpH * RcpH);
-		float3 UVW_dy = (G_dy * H - G * H_dy) * (RcpH * RcpH);
-
 		UNROLL
 		for (uint TexCoordIndex = 0; TexCoordIndex < NUM_TEX_COORD_INTERPOLATORS; TexCoordIndex++)
 		{
@@ -185,7 +150,7 @@ FMaterialPixelParameters GetMaterialPixelParameters(inout FVertexFactoryInterpol
 			float2 TexCoord10 = TexCoord1 - TexCoord0;
 			float2 TexCoord20 = TexCoord2 - TexCoord0;
 
-			float2 TexCoord = TexCoord0 + UVW.y * TexCoord10 + UVW.z * TexCoord20;
+			float2 TexCoord = TexCoord0 + Barycentrics.UVW.y * TexCoord10 + Barycentrics.UVW.z * TexCoord20;
 			Result.TexCoords[TexCoordIndex] = TexCoord;
 
 			// Generate tangent frame for UV0
@@ -263,7 +228,7 @@ FMaterialPixelParameters GetMaterialPixelParameters(inout FVertexFactoryInterpol
 			Result.TangentToWorld = float3x3(float3(0,0,0), float3(0,0,0), mul(TangentZ * InvScale.z, (float3x3)InstanceData.LocalToWorld));
 		}
 #endif
-		float3 PointLocal = UVW.x * PointLocal0 + UVW.y * PointLocal1 + UVW.z * PointLocal2;
+		float3 PointLocal = Barycentrics.UVW.x * PointLocal0 + Barycentrics.UVW.y * PointLocal1 + Barycentrics.UVW.z * PointLocal2;
 
 		Result.PrevScreenPosition = mul( float4(PointLocal, 1), InstanceDynamicData.PrevLocalToClip );
 		//Result.PrevScreenPosition = float4( Result.PrevScreenPosition.xyz / Result.PrevScreenPosition.w, 1 );

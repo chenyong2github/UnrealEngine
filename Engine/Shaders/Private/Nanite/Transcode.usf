@@ -3,6 +3,7 @@
 #include "../Common.ush"
 #include "../SceneData.ush"
 #include "NaniteDataDecode.ush"
+#include "NaniteAttributeDecode.ush"
 
 struct FPageInstallInfo
 {

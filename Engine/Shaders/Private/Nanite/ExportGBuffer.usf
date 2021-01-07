@@ -6,6 +6,7 @@
 #include "../DeferredShadingCommon.ush"
 #include "../BRDF.ush"
 #include "NaniteDataDecode.ush"
+#include "NaniteAttributeDecode.ush"
 
 Texture2D TestDiffuseTexture;
 Texture2D TestNormalTexture;

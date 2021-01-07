@@ -13,7 +13,6 @@
 #define MAX_STREAMING_REQUESTS					( 128u * 1024u )										// must match define in NaniteResources.h
 #define MAX_CLUSTER_TRIANGLES					128
 #define MAX_CLUSTER_VERTICES					256
-#define MAX_NANITE_UVS							4														// must match define in NaniteResources.h
 
 #define USE_STRIP_INDICES						1														// must match define in NaniteResources.h
 
@@ -41,9 +40,6 @@
 #define MAX_GROUP_PARTS_BITS					3														// must match define in NaniteResources.h
 #define MAX_GROUP_PARTS							(1 << MAX_GROUP_PARTS)									// must match define in NaniteResources.h
 
-#define MAX_TEXCOORD_QUANTIZATION_BITS			15														// must match define in NaniteResources.h
-#define MAX_COLOR_QUANTIZATION_BITS				 8														// must match define in NaniteResources.h
-
 #define NUM_STREAMING_PRIORITY_CATEGORY_BITS	 2														// must match define in NaniteResources.h
 #define STREAMING_PRIORITY_CATEGORY_MASK		((1 << NUM_STREAMING_PRIORITY_CATEGORY_BITS) - 1)		// must match define in NaniteResources.h
 
@@ -62,7 +58,6 @@
 #define NUM_PACKED_CLUSTER_FLOAT4S				8														// must match define in NaniteResources.h
 
 #define POSITION_QUANTIZATION_BITS					10
-#define NORMAL_QUANTIZATION_BITS					9
 
 #define CULLING_PASS_NO_OCCLUSION					0
 #define CULLING_PASS_OCCLUSION_MAIN					1
@@ -73,10 +68,6 @@
 #define RENDER_FLAG_FORCE_HW_RASTER					0x2
 #define RENDER_FLAG_PRIMITIVE_SHADER				0x4
 #define RENDER_FLAG_OUTPUT_STREAMING_REQUESTS		0x8
-
-#define VERTEX_COLOR_MODE_WHITE						0
-#define VERTEX_COLOR_MODE_CONSTANT					1
-#define VERTEX_COLOR_MODE_VARIABLE					2
 
 // Only available with the DEBUG_FLAGS permutation active.
 #define DEBUG_FLAG_WRITE_STATS						0x1
@@ -127,6 +118,7 @@ uint GetHWClusterCounterIndex(uint InRenderFlags)
 #define VISUALIZE_MATERIAL_ID						19
 #define VISUALIZE_HIT_PROXY_ID						20
 #define VISUALIZE_NANITE_MASK						21
+#define VISUALIZE_LIGHTMAP_UVS						22
 
 struct FStats
 {
@@ -164,15 +156,6 @@ struct FVisibleNode
 	uint	InstanceId;
 	uint	NodeIndex;
 	uint	EnabledBitmask[2];
-};
-
-#define SIZEOF_UV_RANGE	32
-struct FUVRange
-{
-	float2	Min;
-	float2	Scale;
-	uint2	GapStart;
-	uint2	GapLength;
 };
 
 struct FCluster
@@ -547,7 +530,6 @@ FCluster GetCluster(ByteAddressBuffer InputBuffer, uint SrcBaseOffset, uint Clus
 	Cluster.BoxBoundsExtent		= asfloat(ClusterData[5].xyz);
 	Cluster.Flags				= ClusterData[5].w;
 
-
 	Cluster.AttributeOffset		= BitFieldExtractU32(ClusterData[6].x, 22,  0);
 	Cluster.BitsPerAttribute	= BitFieldExtractU32(ClusterData[6].x, 10, 22);
 	Cluster.DecodeInfoOffset	= BitFieldExtractU32(ClusterData[6].y, 22,  0);
@@ -620,21 +602,6 @@ FCluster GetCluster(uint PageIndex, uint ClusterIndex)
 	return Cluster;
 }
 
-FUVRange GetUVRange(ByteAddressBuffer InputBuffer, uint StartOffset, uint Index)
-{
-	uint Offset = StartOffset + Index * SIZEOF_UV_RANGE;
-	uint4 Data[2];
-	Data[0] = InputBuffer.Load4(Offset);
-	Data[1] = InputBuffer.Load4(Offset + 16);
-
-	FUVRange Range;
-	Range.Min =			asfloat(Data[0].xy);
-	Range.Scale =		asfloat(Data[0].zw);
-	Range.GapStart =	Data[1].xy;
-	Range.GapLength =	Data[1].zw;
-	return Range;
-}
-
 // Decode triangle that is represented by one base index and two 5-bit offsets.
 uint3 ReadTriangleIndices(FCluster Cluster, uint TriIndex)
 {
@@ -680,22 +647,6 @@ float3 UnpackPosition(uint Packed, FCluster Cluster, uint Bits)
 	return (uint3(BitFieldExtractU32(Packed, Bits, 0), BitFieldExtractU32(Packed, Bits, Bits), BitFieldExtractU32(Packed, Bits, 2*Bits)) + Cluster.QuantizedPosStart) * Cluster.MeshBoundsDelta + Cluster.MeshBoundsMin;
 }
 
-float2 UnpackTexCoord(uint2 Packed, FUVRange UVRange)
-{
-	uint2 T = Packed + ((Packed >= UVRange.GapStart) ? UVRange.GapLength : 0u);
-	return float2(T) * UVRange.Scale + UVRange.Min;
-}
-
-float3 UnpackNormal(uint Packed, uint Bits)
-{
-	uint Mask = BitFieldMaskU32(Bits, 0);
-	float2 F = uint2(BitFieldExtractU32(Packed, Bits, 0), BitFieldExtractU32(Packed, Bits, Bits)) * (2.0f / Mask) - 1.0f;
-	float3 N = float3(F.xy, 1.0 - abs(F.x) - abs(F.y));
-	float T = saturate(-N.z);
-	N.xy += N.xy >= 0.0 ? -T : T;
-	return N;
-}
-
 uint GetPackedPosition(uint VertIndex, FCluster Cluster)
 {
 	const uint BitsPerVertex = 3 * POSITION_QUANTIZATION_BITS;
@@ -707,93 +658,6 @@ float3 DecodePosition(uint VertIndex, FCluster Cluster)
 {
 	const uint PackedPos = GetPackedPosition(VertIndex, Cluster);
 	return UnpackPosition(PackedPos, Cluster, POSITION_QUANTIZATION_BITS);
-}
-
-bool IsMaterialFastPath(FCluster InCluster)
-{
-	return (InCluster.Material0Length > 0);
-}
-
-uint GetRelativeMaterialIndex(FCluster InCluster, uint InTriIndex)
-{
-	uint MaterialIndex = 0xFFFFFFFF;
-
-	BRANCH
-	if (IsMaterialFastPath(InCluster))
-	{
-		if (InTriIndex < InCluster.Material0Length)
-		{
-			MaterialIndex = InCluster.Material0Index;
-		}
-		else if (InTriIndex < (InCluster.Material0Length + InCluster.Material1Length))
-		{
-			MaterialIndex = InCluster.Material1Index;
-		}
-		else
-		{
-			MaterialIndex = InCluster.Material2Index;
-		}
-	}
-	else
-	{
-		uint TableOffset = InCluster.PageBaseAddress + InCluster.MaterialTableOffset * 4;
-		for (uint TableEntry = 0; TableEntry < InCluster.MaterialTableLength; ++TableEntry)
-		{
-			uint EncodedRange = ClusterPageData.Load(TableOffset);
-			TableOffset += 4;
-
-			// uint32 TriStart      :  8; // max 128 triangles
-			// uint32 TriLength     :  8; // max 128 triangles
-			// uint32 MaterialIndex :  6; // max  64 materials
-			// uint32 Padding       : 10;
-
-			const uint TriStart = (EncodedRange & 0x000000FF);
-			const uint TriLength = (EncodedRange & 0x0000FF00) >> 8;
-			if (InTriIndex >= TriStart && InTriIndex < (TriStart + TriLength))
-			{
-				MaterialIndex = (EncodedRange & 0x003F0000) >> 16;
-				break;
-			}
-		}
-	}
-
-	return MaterialIndex;
-}
-
-uint RemapMaterialIndexToId(uint InPrimitiveIndex, uint InMaterialIndex, ByteAddressBuffer InMaterialTable)
-{
-	// Remap local primitive material indices (i.e. 0...8) to global indices of all primitives in current scene
-	const uint MaxMaterials = 64;
-	const uint RemapOffset = (InPrimitiveIndex * MaxMaterials * 4) + (InMaterialIndex * 4);
-	const uint MaterialId = InMaterialTable.Load(RemapOffset);
-	return MaterialId;
-}
-
-uint GetMaterialDepthId(
-	FCluster InCluster,
-	uint InPrimitiveIndex,
-	uint InTriIndex,
-	ByteAddressBuffer InMaterialDepthTable)
-{
-	const uint RelativeMaterialIndex = GetRelativeMaterialIndex(InCluster, InTriIndex);
-	const uint MaterialDepthId = RemapMaterialIndexToId(InPrimitiveIndex, RelativeMaterialIndex, InMaterialDepthTable);
-	return MaterialDepthId;
-}
-
-uint GetMaterialHitProxyId(
-	FCluster InCluster,
-	uint InPrimitiveIndex,
-	uint InTriIndex,
-	ByteAddressBuffer InMaterialHitProxyTable)
-{
-	const uint RelativeMaterialIndex = GetRelativeMaterialIndex(InCluster, InTriIndex);
-	const uint MaterialHitProxyId = RemapMaterialIndexToId(InPrimitiveIndex, RelativeMaterialIndex, InMaterialHitProxyTable);
-	return MaterialHitProxyId;
-}
-
-uint GetMaterialBucketIdFromDepth(float Depth)
-{
-	return (uint)(Depth * MAX_STATE_BUCKET_ID);
 }
 
 FNaniteView UnpackNaniteView(FPackedNaniteView PackedView)
