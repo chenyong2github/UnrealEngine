@@ -73,9 +73,11 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Voice Management|Concurrency")
 	uint8 bOverrideConcurrency : 1;
 
+#if WITH_EDITORONLY_DATA
 	/** Whether or not to only send this audio's output to a bus. If true, will not be this sound won't be audible except through bus sends. */
 	UPROPERTY()
 	uint8 bOutputToBusOnly_DEPRECATED : 1;
+#endif //WITH_EDITORONLY_DATA
 
 	/** Whether or not to enable sending this audio's output to buses.  */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effects|Source")

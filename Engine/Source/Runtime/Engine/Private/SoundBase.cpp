@@ -199,7 +199,7 @@ void USoundBase::PostLoad()
 {
 	Super::PostLoad();
 
-	if (bOutputToBusOnly_DEPRECATED == uint8(true))
+	if (bOutputToBusOnly_DEPRECATED)
 	{
 		bEnableBusSends = true;
 		bEnableBaseSubmix = !bOutputToBusOnly_DEPRECATED;

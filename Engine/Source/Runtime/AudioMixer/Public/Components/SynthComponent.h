@@ -91,7 +91,13 @@ public:
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif // WITH_EDITOR
+
+#if WITH_EDITORONLY_DATA
+	virtual void PostLoad() override;
+#endif //WITH_EDITORONLY_DATA
+
 	virtual void Serialize(FArchive& Ar) override;
+	
 	//~ End UObject Interface
 
 	// Starts the synth generating audio.
@@ -142,9 +148,11 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Attenuation)
 	uint8 bOverrideAttenuation : 1;
 
+#if WITH_EDITORONLY_DATA
 	/** Whether or not to only send this audio's output to a bus. If true, this sound will not be audible except through bus sends. */
 	UPROPERTY()
 	uint32 bOutputToBusOnly_DEPRECATED : 1;
+#endif //WITH_EDITORONLY_DATA
 
 	/** Whether or not to enable sending this audio's output to buses.  */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Effects)
