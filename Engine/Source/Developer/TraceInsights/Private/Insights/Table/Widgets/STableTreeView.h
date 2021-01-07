@@ -452,6 +452,7 @@ protected:
 	TSharedPtr<FTableTreeNodeTextFilter> CurrentAsyncOpTextFilter;
 	FFilterConfigurator* CurrentAsyncOpFilterConfigurator = nullptr;
 	std::atomic<bool> bCancelCurrentAsyncOp { false };
+	FGraphEventRef DispatchEvent;
 
 	//////////////////////////////////////////////////
 	TSharedPtr<FFilterConfigurator> FilterConfigurator;
