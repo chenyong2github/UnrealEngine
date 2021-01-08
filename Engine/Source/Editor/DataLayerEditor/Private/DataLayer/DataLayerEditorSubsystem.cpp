@@ -105,7 +105,7 @@ void FDataLayersBroadcast::OnObjectPostEditChange(UObject* Object, FPropertyChan
 		}
 		else if (AActor* Actor = Cast<AActor>(Object))
 		{
-			bRefresh = Actor->IsPropertyChangedAffectingDataLayers(PropertyChangedEvent);
+			bRefresh = Actor->IsPropertyChangedAffectingDataLayers(PropertyChangedEvent) || Actor->HasDataLayers();
 		}
 		if (bRefresh)
 		{
