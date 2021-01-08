@@ -58,11 +58,11 @@ struct FMediaSoundComponentSpectralData
 
 	// The frequency hz of the spectrum value
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpectralData")
-	float FrequencyHz;
+	float FrequencyHz = 0.0f;
 
 	// The magnitude of the spectrum at this frequency
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpectralData")
-	float Magnitude;
+	float Magnitude = 0.0f;
 };
 
 /**
