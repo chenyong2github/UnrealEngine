@@ -106,13 +106,6 @@ namespace RHIValidation
 				&& ArraySlice == kWholeResource
 				&& PlaneIndex == kWholeResource;
 		}
-
-		inline FString ToString() const
-		{
-			return IsWholeResource()
-				? FString(TEXT("Whole Resource"))
-				: FString::Printf(TEXT("Mip %d, Slice %d, Plane %d"), MipIndex, ArraySlice, PlaneIndex);
-		}
 	};
 
 	struct FState
@@ -182,7 +175,7 @@ namespace RHIValidation
 		void EndTransition     (FResource* Resource, FSubresourceIndex const& SubresourceIndex, const FState& CurrentStateFromRHI, const FState& TargetState, ERHIPipeline Pipeline, void* CreateTrace);
 		void Assert            (FResource* Resource, FSubresourceIndex const& SubresourceIndex, const FState& RequiredState, bool bAllowAllUAVsOverlap);
 		void SpecificUAVOverlap(FResource* Resource, ERHIPipeline Pipeline, FSubresourceIndex const& SubresourceIndex, bool bAllow);
-		void* Log              (FResource* Resource, FSubresourceIndex const& SubresourceIndex, void* CreateTrace, const TCHAR* Type, const TCHAR* LogStr);
+		void* Log              (FResource* Resource, FSubresourceIndex const& SubresourceIndex, void* CreateTrace, const TCHAR* TracePrefix, const TCHAR* Type, const TCHAR* LogStr);
 	};
 
 	struct FSubresourceRange
