@@ -167,6 +167,14 @@ static TAutoConsoleVariable<float> CVarShadowMaxSlopeScaleDepthBias(
 	TEXT("Higher values give better self-shadowing, but increase self-shadowing artifacts"),
 	ECVF_RenderThreadSafe);
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Hair
+static TAutoConsoleVariable<int32> CVarHairStrandsCullPerObjectShadowCaster(
+	TEXT("r.HairStrands.Shadow.CullPerObjectShadowCaster"),
+	1,
+	TEXT("Enable CPU culling of object casting per-object shadow (stationnary object)"),
+	ECVF_RenderThreadSafe);
+
 DEFINE_GPU_DRAWCALL_STAT(ShadowProjection);
 
 // 0:off, 1:low, 2:med, 3:high, 4:very high, 5:max
@@ -665,7 +673,7 @@ FRHIBlendState* FProjectedShadowInfo::GetBlendStateForProjection(bool bProjectin
 		bMobileModulatedProjections);
 }
 
-void FProjectedShadowInfo::SetupFrustumForProjection(const FViewInfo* View, TArray<FVector4, TInlineAllocator<8>>& OutFrustumVertices, bool& bOutCameraInsideShadowFrustum) const
+void FProjectedShadowInfo::SetupFrustumForProjection(const FViewInfo* View, TArray<FVector4, TInlineAllocator<8>>& OutFrustumVertices, bool& bOutCameraInsideShadowFrustum, FPlane* OutPlanes) const
 {
 	bOutCameraInsideShadowFrustum = true;
 
@@ -727,6 +735,13 @@ void FProjectedShadowInfo::SetupFrustumForProjection(const FViewInfo* View, TArr
 
 		const FPlane Bottom(BackBottomLeft, BackBottomRight, FrontBottomLeft);
 		const float BottomDistance = Bottom.PlaneDot(ShadowViewOrigin);
+
+		OutPlanes[0] = Front;
+		OutPlanes[1] = Right;
+		OutPlanes[2] = Back;
+		OutPlanes[3] = Left;
+		OutPlanes[4] = Top;
+		OutPlanes[5] = Bottom;
 
 		// Use a distance threshold to treat the case where the near plane is intersecting the frustum as the camera being inside
 		// The near plane handling is not exact since it just needs to be conservative about saying the camera is outside the frustum
@@ -923,7 +938,7 @@ void FProjectedShadowInfo::SetupProjectionStencilMask(
 	}
 }
 
-void FProjectedShadowInfo::RenderProjection(FRHICommandListImmediate& RHICmdList, int32 ViewIndex, const FViewInfo* View, const FSceneRenderer* SceneRender, bool bProjectingForForwardShading, bool bMobileModulatedProjections, const FHairStrandsVisibilityData* HairVisibilityData) const
+void FProjectedShadowInfo::RenderProjection(FRHICommandListImmediate& RHICmdList, int32 ViewIndex, const FViewInfo* View, const FSceneRenderer* SceneRender, bool bProjectingForForwardShading, bool bMobileModulatedProjections, const FHairStrandsVisibilityData* HairVisibilityData, const FHairStrandsMacroGroupDatas* HairMacroGroupData) const
 {
 #if WANTS_DRAW_MESH_EVENTS
 	FString EventName;
@@ -954,11 +969,59 @@ void FProjectedShadowInfo::RenderProjection(FRHICommandListImmediate& RHICmdList
 
 	bool bCameraInsideShadowFrustum;
 	TArray<FVector4, TInlineAllocator<8>> FrustumVertices;
-	SetupFrustumForProjection(View, FrustumVertices, bCameraInsideShadowFrustum);
+	FPlane OutPlanes[6];
+	SetupFrustumForProjection(View, FrustumVertices, bCameraInsideShadowFrustum, OutPlanes);
 
 	const bool bSubPixelSupport = HairVisibilityData != nullptr;
-	const bool bStencilTestEnabled = !bSubPixelSupport;
-	const bool bDepthBoundsTestEnabled = IsWholeSceneDirectionalShadow() && GSupportsDepthBoundsTest && CVarCSMDepthBoundsTest.GetValueOnRenderThread() != 0 && !bSubPixelSupport;
+	const bool bStencilTestEnabled = true;// !bSubPixelSupport;
+	const bool bDepthBoundsTestEnabled = IsWholeSceneDirectionalShadow() && GSupportsDepthBoundsTest && CVarCSMDepthBoundsTest.GetValueOnRenderThread() != 0;// && !bSubPixelSupport;
+
+	if (bSubPixelSupport)
+	{
+		// Do not apply pre-shadow on hair, as this is intended only for targed opaque geometry
+		if (bPreShadow)
+		{
+			return;
+		}
+
+		const bool bValidPlanes = FrustumVertices.Num() > 0;
+		if (bValidPlanes && CVarHairStrandsCullPerObjectShadowCaster.GetValueOnRenderThread() > 0)
+		{
+			// Skip volume which does not intersect hair clusters
+			bool bIntersect = bValidPlanes;
+			for (const FHairStrandsMacroGroupData& Data : HairMacroGroupData->Datas)
+			{
+				const FSphere BoundSphere = Data.Bounds.GetSphere();
+				// Return the signed distance to the plane. The planes are pointing inward
+				const float D0 = -OutPlanes[0].PlaneDot(BoundSphere.Center);
+				const float D1 = -OutPlanes[1].PlaneDot(BoundSphere.Center);
+				const float D2 = -OutPlanes[2].PlaneDot(BoundSphere.Center);
+				const float D3 = -OutPlanes[3].PlaneDot(BoundSphere.Center);
+				const float D4 = -OutPlanes[4].PlaneDot(BoundSphere.Center);
+				const float D5 = -OutPlanes[5].PlaneDot(BoundSphere.Center);
+
+				const bool bOutside =
+					D0 - BoundSphere.W > 0 ||
+					D1 - BoundSphere.W > 0 ||
+					D2 - BoundSphere.W > 0 ||
+					D3 - BoundSphere.W > 0 ||
+					D4 - BoundSphere.W > 0 ||
+					D5 - BoundSphere.W > 0;
+
+				bIntersect = !bOutside;
+				if (bIntersect)
+				{
+					break;
+				}
+			}
+
+			// The light frustum does not intersect the hair cluster, and thus doesn't have any interacction with it, and the shadow mask computation is not needed in this case
+			if (!bIntersect)
+			{
+				return;
+			}
+		}
+	}
 	
 	if (!bDepthBoundsTestEnabled && bStencilTestEnabled)
 	{
@@ -1101,7 +1164,7 @@ static void SetPointLightShaderTempl(FRHICommandList& RHICmdList, FGraphicsPipel
 }
 
 /** Render one pass point light shadow projections. */
-void FProjectedShadowInfo::RenderOnePassPointLightProjection(FRHICommandListImmediate& RHICmdList, int32 ViewIndex, const FViewInfo& View, bool bProjectingForForwardShading, const FHairStrandsVisibilityData* HairVisibilityData) const
+void FProjectedShadowInfo::RenderOnePassPointLightProjection(FRHICommandListImmediate& RHICmdList, int32 ViewIndex, const FViewInfo& View, bool bProjectingForForwardShading, const FHairStrandsVisibilityData* HairVisibilityData, const FHairStrandsMacroGroupDatas* HairMacroGroupData) const
 {
 	SCOPE_CYCLE_COUNTER(STAT_RenderWholeSceneShadowProjectionsTime);
 
@@ -1154,6 +1217,33 @@ void FProjectedShadowInfo::RenderOnePassPointLightProjection(FRHICommandListImme
 		const bool bSubPixelSupport = HairVisibilityData != nullptr;
 		if (bSubPixelSupport)
 		{
+			// Do not apply pre-shadow on hair, as this is intended only for targed opaque geometry
+			if (bPreShadow)
+			{
+				return;
+			}
+
+			// Skip volume which does not intersect hair clusters
+			bool bIntersect = false;
+			if (CVarHairStrandsCullPerObjectShadowCaster.GetValueOnRenderThread() > 0)
+			{
+				for (const FHairStrandsMacroGroupData& Data : HairMacroGroupData->Datas)
+				{
+					const FSphere BoundSphere = Data.Bounds.GetSphere();
+					if (BoundSphere.Intersects(LightBounds))
+					{
+						bIntersect = true;
+						break;
+					}
+				}
+
+				// The light frustum does not intersect the hair cluster, and thus doesn't have any interacction with it, and the shadow mask computation is not needed in this case
+				if (!bIntersect)
+				{
+					return;
+				}
+			}
+
 			switch (LocalQuality)
 			{
 				case 1: SetPointLightShaderTempl<1, false, true>(RHICmdList, GraphicsPSOInit, ViewIndex, View, this, HairVisibilityData); break;
@@ -1565,7 +1655,7 @@ bool FDeferredShadingSceneRenderer::InjectReflectiveShadowMaps(FRHICommandListIm
 void FSceneRenderer::RenderShadowProjections(
 	FRHICommandListImmediate& RHICmdList,
 	const FLightSceneProxy* LightSceneProxy,
-	const FHairStrandsVisibilityViews* HairVisibilityViews,
+	const FHairStrandsRenderingData* HairDatas,
 	TArrayView<const FProjectedShadowInfo* const> Shadows,
 	bool bProjectingForForwardShading,
 	bool bMobileModulatedProjections)
@@ -1581,9 +1671,11 @@ void FSceneRenderer::RenderShadowProjections(
 		UniformBuffers.UpdateViewUniformBuffer(View);
 
 		const FHairStrandsVisibilityData* HairVisibilityData = nullptr;
-		if (HairVisibilityViews)
+		const FHairStrandsMacroGroupDatas* HairMacroGroupData = nullptr;
+		if (HairDatas)
 		{
-			HairVisibilityData = &(HairVisibilityViews->HairDatas[ViewIndex]);
+			HairVisibilityData = &(HairDatas->HairVisibilityViews.HairDatas[ViewIndex]);
+			HairMacroGroupData = &(HairDatas->MacroGroupsPerViews.Views[ViewIndex]);
 		}
 
 		RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0.0f, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1.0f);
@@ -1599,11 +1691,11 @@ void FSceneRenderer::RenderShadowProjections(
 				{
 					if (ProjectedShadowInfo->bOnePassPointLightShadow)
 					{
-						ProjectedShadowInfo->RenderOnePassPointLightProjection(RHICmdList, ViewIndex, View, bProjectingForForwardShading, HairVisibilityData);
+						ProjectedShadowInfo->RenderOnePassPointLightProjection(RHICmdList, ViewIndex, View, bProjectingForForwardShading, HairVisibilityData, HairMacroGroupData);
 					}
 					else
 					{
-						ProjectedShadowInfo->RenderProjection(RHICmdList, ViewIndex, &View, this, bProjectingForForwardShading, bMobileModulatedProjections, HairVisibilityData);
+						ProjectedShadowInfo->RenderProjection(RHICmdList, ViewIndex, &View, this, bProjectingForForwardShading, bMobileModulatedProjections, HairVisibilityData, HairMacroGroupData);
 					}
 				}
 			}
@@ -1653,7 +1745,7 @@ void FDeferredShadingSceneRenderer::RenderShadowProjections(
 	FRDGTextureRef ScreenShadowMaskSubPixelTexture,
 	FRDGTextureRef SceneDepthTexture,
 	const FLightSceneInfo* LightSceneInfo,
-	const FHairStrandsVisibilityViews* HairVisibilityViews,
+	const FHairStrandsRenderingData* HairDatas,
 	bool bProjectingForForwardShading)
 {
 	const FVisibleLightInfo& VisibleLightInfo = VisibleLightInfos[LightSceneInfo->Id];
@@ -1688,9 +1780,12 @@ void FDeferredShadingSceneRenderer::RenderShadowProjections(
 		{
 			auto* PassParameters = GraphBuilder.AllocParameters<FRenderShadowProjectionsParameters>();
 			PassParameters->SceneTextures = SceneTexturesUniformBuffer;
-			PassParameters->HairCategorizationTexture = bSubPixel && HairVisibilityViews->HairDatas.Num() > 0 ? HairVisibilityViews->HairDatas[0].CategorizationTexture : nullptr;
+			PassParameters->HairCategorizationTexture = bSubPixel && HairDatas->HairVisibilityViews.HairDatas.Num() > 0 ? HairDatas->HairVisibilityViews.HairDatas[0].CategorizationTexture : nullptr;
 			PassParameters->RenderTargets[0] = FRenderTargetBinding(OutputTexture, ERenderTargetLoadAction::ELoad);
-			PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(SceneDepthTexture, ERenderTargetLoadAction::ELoad, ERenderTargetLoadAction::ELoad, ExclusiveDepthStencil);
+			PassParameters->RenderTargets.DepthStencil = 
+				bSubPixel && HairDatas->HairVisibilityViews.HairDatas.Num() > 0 ?
+				FDepthStencilBinding(HairDatas->HairVisibilityViews.HairDatas[0].HairOnlyDepthTexture, ERenderTargetLoadAction::ELoad, ERenderTargetLoadAction::ELoad, ExclusiveDepthStencil) :
+				FDepthStencilBinding(SceneDepthTexture, ERenderTargetLoadAction::ELoad, ERenderTargetLoadAction::ELoad, ExclusiveDepthStencil);
 
 			FString LightNameWithLevel;
 			GetLightNameForDrawEvent(LightSceneProxy, LightNameWithLevel);
@@ -1702,10 +1797,10 @@ void FDeferredShadingSceneRenderer::RenderShadowProjections(
 				RDG_EVENT_NAME("%s", *LightNameWithLevel),
 				PassParameters,
 				ERDGPassFlags::Raster,
-				[this, &NormalShadows, LightSceneProxy, HairVisibilityViews, bProjectingForForwardShading, bSubPixel](FRHICommandListImmediate& RHICmdList)
+				[this, &NormalShadows, LightSceneProxy, HairDatas, bProjectingForForwardShading, bSubPixel](FRHICommandListImmediate& RHICmdList)
 			{
 				const bool bMobileModulatedProjections = false;
-				FSceneRenderer::RenderShadowProjections(RHICmdList, LightSceneProxy, bSubPixel ? HairVisibilityViews : nullptr, NormalShadows, bProjectingForForwardShading, bMobileModulatedProjections);
+				FSceneRenderer::RenderShadowProjections(RHICmdList, LightSceneProxy, bSubPixel ? HairDatas : nullptr, NormalShadows, bProjectingForForwardShading, bMobileModulatedProjections);
 			});
 		};
 
@@ -1714,12 +1809,12 @@ void FDeferredShadingSceneRenderer::RenderShadowProjections(
 			RenderNormalShadows(ScreenShadowMaskTexture, FExclusiveDepthStencil::DepthRead_StencilWrite, false);
 		}
 
-		if (ScreenShadowMaskSubPixelTexture && HairVisibilityViews && HairVisibilityViews->HairDatas.Num() > 0 && HairVisibilityViews->HairDatas[0].CategorizationTexture)
+		if (ScreenShadowMaskSubPixelTexture && HairDatas && HairDatas->HairVisibilityViews.HairDatas.Num() > 0 && HairDatas->HairVisibilityViews.HairDatas[0].CategorizationTexture)
 		{
 			RDG_EVENT_SCOPE(GraphBuilder, "SubPixelShadows");
 
 			// Sub-pixel shadows don't use stencil.
-			RenderNormalShadows(ScreenShadowMaskSubPixelTexture, FExclusiveDepthStencil::DepthRead_StencilNop, true);
+			RenderNormalShadows(ScreenShadowMaskSubPixelTexture, FExclusiveDepthStencil::DepthRead_StencilWrite, true);
 		}
 	}
 
@@ -1775,10 +1870,9 @@ void FDeferredShadingSceneRenderer::RenderDeferredShadowProjections(
 	RDG_GPU_STAT_SCOPE(GraphBuilder, ShadowProjection);
 
 	const FVisibleLightInfo& VisibleLightInfo = VisibleLightInfos[LightSceneInfo->Id];
-	const FHairStrandsVisibilityViews* HairVisibilityViews = HairDatas ? &HairDatas->HairVisibilityViews : nullptr;
-
+	
 	const bool bProjectingForForwardShading = false;
-	RenderShadowProjections(GraphBuilder, SceneTexturesUniformBuffer, ScreenShadowMaskTexture, ScreenShadowMaskSubPixelTexture, SceneDepthTexture, LightSceneInfo, HairVisibilityViews, bProjectingForForwardShading);
+	RenderShadowProjections(GraphBuilder, SceneTexturesUniformBuffer, ScreenShadowMaskTexture, ScreenShadowMaskSubPixelTexture, SceneDepthTexture, LightSceneInfo, HairDatas, bProjectingForForwardShading);
 
 	for (int32 ShadowIndex = 0; ShadowIndex < VisibleLightInfo.ShadowsToProject.Num(); ShadowIndex++)
 	{

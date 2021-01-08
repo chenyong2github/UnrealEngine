@@ -428,7 +428,7 @@ private:
 		FRDGTextureRef ScreenShadowMaskSubPixelTexture,
 		FRDGTextureRef SceneDepthTexture,
 		const FLightSceneInfo* LightSceneInfo,
-		const FHairStrandsVisibilityViews* HairVisibilityViews,
+		const FHairStrandsRenderingData* HairDatas,
 		bool bProjectingForForwardShading);
 
 	void RenderDeferredShadowProjections(
