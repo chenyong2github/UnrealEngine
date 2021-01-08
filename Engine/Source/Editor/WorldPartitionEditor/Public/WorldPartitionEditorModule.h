@@ -2,12 +2,12 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Modules/ModuleInterface.h"
+#include "WorldPartition/IWorldPartitionEditorModule.h"
 
 /**
  * The module holding all of the UI related pieces for SubLevels management
  */
-class FWorldPartitionEditorModule : public IModuleInterface
+class FWorldPartitionEditorModule : public IWorldPartitionEditorModule
 {
 public:
 	/**
@@ -25,6 +25,11 @@ public:
 	 */
 	virtual TSharedRef<class SWidget> CreateWorldPartitionEditor();
 	
+	/**
+	 * 
+	 */
+	virtual bool ConvertMap(const FString& InLongPackageName);
+
 private:
 	FDelegateHandle LevelEditorExtenderDelegateHandle;
 

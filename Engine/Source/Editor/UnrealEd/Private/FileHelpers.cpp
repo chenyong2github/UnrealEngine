@@ -69,6 +69,7 @@
 #include "StudioAnalytics.h"
 #include "AnalyticsEventAttribute.h"
 #include "HierarchicalLOD.h"
+#include "WorldPartition/IWorldPartitionEditorModule.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogFileHelpers, Log, All);
 
@@ -2543,6 +2544,15 @@ bool FEditorFileUtils::LoadMap(const FString& InFilename, bool LoadAsTemplate, b
 	if (GEditor->ShouldAbortBecauseOfUnsavedWorld())
 	{
 		return false;
+	}
+
+	if (!LoadAsTemplate)
+	{
+		IWorldPartitionEditorModule& WorldPartitionEditorModule = FModuleManager::LoadModuleChecked<IWorldPartitionEditorModule>("WorldPartitionEditor");
+		if (!WorldPartitionEditorModule.ConvertMap(LongMapPackageName))
+		{
+			return false;
+		}
 	}
 
 	// Save last opened level name.

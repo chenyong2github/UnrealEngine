@@ -27,6 +27,9 @@ public class WorldPartitionEditor : ModuleRules
 				"SlateCore",
 				"UnrealEd",
 				"WorldBrowser",
+				"MainFrame",
+				"PropertyEditor",
+				"DeveloperSettings"
             }
 		);
 
