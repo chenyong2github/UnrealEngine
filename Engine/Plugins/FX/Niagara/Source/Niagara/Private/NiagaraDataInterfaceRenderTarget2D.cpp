@@ -279,7 +279,7 @@ bool UNiagaraDataInterfaceRenderTarget2D::Equals(const UNiagaraDataInterface* Ot
 #endif
 		OtherTyped->RenderTargetUserParameter == RenderTargetUserParameter &&
 		OtherTyped->Size == Size &&
-		OtherTyped->MipMapGeneration == MipMapGeneration;
+		OtherTyped->MipMapGeneration == MipMapGeneration &&
 		OtherTyped->OverrideRenderTargetFormat == OverrideRenderTargetFormat &&
 		OtherTyped->bOverrideFormat == bOverrideFormat;
 }
