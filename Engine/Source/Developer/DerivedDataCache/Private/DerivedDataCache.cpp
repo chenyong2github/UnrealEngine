@@ -496,10 +496,10 @@ public:
 
 	virtual TBitArray<> CachedDataProbablyExistsBatch(TConstArrayView<FString> CacheKeys) override
 	{
-		DDC_SCOPE_CYCLE_COUNTER(DDC_CachedDataProbablyExistsBatch);
 		TBitArray<> Result;
-		if (CacheKeys.Num())
+		if (CacheKeys.Num() > 1)
 		{
+			DDC_SCOPE_CYCLE_COUNTER(DDC_CachedDataProbablyExistsBatch);
 			INC_DWORD_STAT(STAT_DDC_NumExist);
 			STAT(double ThisTime = 0);
 			{
@@ -508,6 +508,10 @@ public:
 				check(Result.Num() == CacheKeys.Num());
 			}
 			INC_FLOAT_STAT_BY(STAT_DDC_ExistTime, (float)ThisTime);
+		}
+		else if (CacheKeys.Num() == 1)
+		{
+			Result.Add(CachedDataProbablyExists(*CacheKeys[0]));
 		}
 		return Result;
 	}
