@@ -1,4 +1,4 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -36,6 +36,16 @@ namespace EpicGames.Perforce
 		/// </summary>
 		[PerforceTag("unmap", Optional = true)]
 		public bool Unmap;
+
+		/// <summary>
+		/// Private constructor for serialization
+		/// </summary>
+		private WhereRecord()
+		{
+			DepotFile = null!;
+			ClientFile = null!;
+			Path = null!;
+		}
 
 		/// <summary>
 		/// Summarize this record for display in the debugger

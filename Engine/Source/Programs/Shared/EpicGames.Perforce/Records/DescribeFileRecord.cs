@@ -1,4 +1,4 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -47,7 +47,16 @@ namespace EpicGames.Perforce
 		/// Digest of the file, or null if not specified
 		/// </summary>
 		[PerforceTag("digest", Optional = true)]
-		public readonly string Digest;
+		public readonly string? Digest;
+
+		/// <summary>
+		/// Private constructor for serialization
+		/// </summary>
+		private DescribeFileRecord()
+		{
+			DepotFile = null!;
+			Type = null!;
+		}
 
 		/// <summary>
 		/// Format this record for display in the debugger

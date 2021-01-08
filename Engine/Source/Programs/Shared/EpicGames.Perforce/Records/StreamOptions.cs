@@ -1,77 +1,79 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
-
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
+using EpicGames.Perforce;
 
 namespace EpicGames.Perforce
 {
 	/// <summary>
-	/// Options for a stream definition
+	/// Options for a stream
 	/// </summary>
 	[Flags]
 	public enum StreamOptions
 	{
 		/// <summary>
-		/// The stream is locked
+		/// No options are set
 		/// </summary>
-		[PerforceEnum("locked")]
-		Locked = 1,
+		None = 0,
 
 		/// <summary>
-		/// The stream is unlocked
+		/// Enable other users' ability to edit or delete the stream. If locked, the stream specification cannot be deleted, and only its owner can modify it.
 		/// </summary>
 		[PerforceEnum("unlocked")]
-		Unlocked = 2,
+		Unlocked = 1,
 
 		/// <summary>
-		/// Only the owner may submit to the stream
+		/// Disable other users' ability to edit or delete the stream. If locked, the stream specification cannot be deleted, and only its owner can modify it.
 		/// </summary>
-		[PerforceEnum("ownersubmit")]
-		OwnerSubmit = 4,
+		[PerforceEnum("locked")]
+		Locked = 2,
 
 		/// <summary>
-		/// Anyone may submit to the stream
+		/// Specifies that all users can submit changes to the stream.
 		/// </summary>
 		[PerforceEnum("allsubmit")]
-		AllSubmit = 8,
+		AllSubmit = 4,
 
 		/// <summary>
-		/// Integrations from this stream to its parent are expected
+		/// Specifies that only the owner of the stream can submit changes to the stream.
+		/// </summary>
+		[PerforceEnum("ownersubmit")]
+		OwnerSubmit = 8,
+
+		/// <summary>
+		/// Specifies whether integrations from the stream to its parent are expected.
 		/// </summary>
 		[PerforceEnum("toparent")]
 		ToParent = 16,
 
 		/// <summary>
-		/// Integrations from this stream from its parent are expected
+		/// Specifies whether integrations from the stream to its parent are expected.
 		/// </summary>
 		[PerforceEnum("notoparent")]
-		NotToParent = 32,
+		NoToParent = 32,
 
 		/// <summary>
-		/// Integrations from this stream from its parent are expected
+		/// Specifies whether integrations to the stream from its parent are expected.
 		/// </summary>
 		[PerforceEnum("fromparent")]
 		FromParent = 64,
 
 		/// <summary>
-		/// Integrations from this stream from its parent are expected
+		/// Specifies whether integrations to the stream from its parent are expected.
 		/// </summary>
-		[PerforceEnum("nofromparent")]
-		NotFromParent = 128,
+		[PerforceEnum("notoparent")]
+		NoFromParent = 128,
 
 		/// <summary>
-		/// Undocumented?
-		/// </summary>
-		[PerforceEnum("mergedown")]
-		MergeDown = 256,
-
-		/// <summary>
-		/// Undocumented?
+		/// Specifies whether the merge flow is restricted or whether merge is permitted from any other stream.
 		/// </summary>
 		[PerforceEnum("mergeany")]
-		MergeAny = 512,
+		MergeAny = 256,
+
+		/// <summary>
+		/// Specifies whether the merge flow is restricted or whether merge is permitted from any other stream.
+		/// </summary>
+		[PerforceEnum("mergedown")]
+		MergeDown = 512,
 	}
 }

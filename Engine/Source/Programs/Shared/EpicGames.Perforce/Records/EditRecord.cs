@@ -1,4 +1,4 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -42,6 +42,17 @@ namespace EpicGames.Perforce
 		/// </summary>
 		[PerforceTag("type")]
 		public string Type;
+
+		/// <summary>
+		/// Private constructor for serialization
+		/// </summary>
+		private EditRecord()
+		{
+			DepotFile = null!;
+			ClientFile = null!;
+			Action = null!;
+			Type = null!;
+		}
 
 		/// <summary>
 		/// Format this record for display in the debugger

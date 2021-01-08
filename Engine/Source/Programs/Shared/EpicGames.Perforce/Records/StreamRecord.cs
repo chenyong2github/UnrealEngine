@@ -1,104 +1,89 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
-
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
+using EpicGames.Perforce;
 
 namespace EpicGames.Perforce
 {
 	/// <summary>
-	/// Contains information about a stream, as returned by the 'p4 streams' command
+	/// Represents a Perforce stream spec
 	/// </summary>
 	public class StreamRecord
 	{
 		/// <summary>
-		/// Path to the stream
+		/// The stream path
 		/// </summary>
 		[PerforceTag("Stream")]
 		public string Stream;
 
 		/// <summary>
-		/// Last time the stream definition was updated
-		/// </summary>
-		[PerforceTag("Update")]
-		public DateTime Update;
-
-		/// <summary>
-		/// Last time the stream definition was accessed
-		/// </summary>
-		[PerforceTag("Access")]
-		public DateTime Access;
-
-		/// <summary>
-		/// Owner of this stream
-		/// </summary>
-		[PerforceTag("Owner")]
-		public string Owner;
-
-		/// <summary>
-		/// Name of the stream. This may be modified after the stream is initially created, but it's underlying depot path will not change.
+		/// The stream name
 		/// </summary>
 		[PerforceTag("Name")]
 		public string Name;
 
 		/// <summary>
+		/// The Perforce user name of the user who owns the stream.
+		/// </summary>
+		[PerforceTag("Owner")]
+		public string Owner;
+
+		/// <summary>
+		/// The date the stream specification was last modified.
+		/// </summary>
+		[PerforceTag("Update", Optional = true)]
+		public DateTime Update;
+
+		/// <summary>
+		/// The date and time that the stream was last used in any way.
+		/// </summary>
+		[PerforceTag("Access", Optional = true)]
+		public DateTime Access;
+
+		/// <summary>
 		/// The parent stream
 		/// </summary>
-		[PerforceTag("Parent")]
-		public string Parent;
+		[PerforceTag("Parent", Optional = true)]
+		public string? Parent;
 
 		/// <summary>
-		/// Type of the stream
+		/// The stream type
 		/// </summary>
-		[PerforceTag("Type")]
-		public StreamType Type;
+		[PerforceTag("Type", Optional = true)]
+		public string? Type;
 
 		/// <summary>
-		/// User supplied description of the stream
+		/// A textual description of the stream.
 		/// </summary>
-		[PerforceTag("desc")]
-		public string Description;
+		[PerforceTag("Description", Optional = true)]
+		public string? Description;
 
 		/// <summary>
-		/// Options for the stream definition
+		/// Options for this stream
 		/// </summary>
 		[PerforceTag("Options")]
 		public StreamOptions Options;
 
 		/// <summary>
-		/// Whether this stream is more stable than the parent stream
+		/// List of paths in the stream spec
 		/// </summary>
-		[PerforceTag("firmerThanParent")]
-		public Nullable<bool> FirmerThanParent;
+		[PerforceTag("Paths")]
+		public List<string> Paths = new List<string>();
 
 		/// <summary>
-		/// Whether changes from this stream flow to the parent stream
+		/// Computed view for the stream
 		/// </summary>
-		[PerforceTag("changeFlowsToParent")]
-		public bool ChangeFlowsToParent;
+		[PerforceTag("View")]
+		public List<string> View = new List<string>();
 
 		/// <summary>
-		/// Whether changes from this stream flow from the parent stream
+		/// Private constructor for serialization
 		/// </summary>
-		[PerforceTag("changeFlowsFromParent")]
-		public bool ChangeFlowsFromParent;
-
-		/// <summary>
-		/// The mainline branch associated with this stream
-		/// </summary>
-		[PerforceTag("baseParent")]
-		public string BaseParent;
-
-		/// <summary>
-		/// Summarize this record for display in the debugger
-		/// </summary>
-		/// <returns>Formatted stream information</returns>
-		public override string ToString()
+		private StreamRecord()
 		{
-			return Name;
+			Stream = null!;
+			Name = null!;
+			Owner = null!;
 		}
 	}
 }

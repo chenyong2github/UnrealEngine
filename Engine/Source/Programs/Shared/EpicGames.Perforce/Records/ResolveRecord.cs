@@ -1,4 +1,4 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -47,7 +47,17 @@ namespace EpicGames.Perforce
 		/// For content resolves, the type of resolve to be performed
 		/// </summary>
 		[PerforceTag("contentResolveType", Optional = true)]
-		public string ContentResolveType;
+		public string? ContentResolveType;
+
+		/// <summary>
+		/// Private constructor for serialization
+		/// </summary>
+		private ResolveRecord()
+		{
+			ClientFile = null!;
+			FromFile = null!;
+			ResolveType = null!;
+		}
 
 		/// <summary>
 		/// Format this record for display in the debugger

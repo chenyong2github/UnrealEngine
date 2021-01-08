@@ -1,4 +1,4 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -36,6 +36,14 @@ namespace EpicGames.Perforce
 		/// </summary>
 		[PerforceTag("erev")]
 		public int EndRevisionNumber;
+
+		/// <summary>
+		/// Private constructor for serialization
+		/// </summary>
+		private IntegrationRecord()
+		{
+			OtherFile = null!;
+		}
 
 		/// <summary>
 		/// Summarize this record for display in the debugger

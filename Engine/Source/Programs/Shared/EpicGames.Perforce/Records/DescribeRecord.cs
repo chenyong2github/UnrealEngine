@@ -1,4 +1,4 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -59,13 +59,23 @@ namespace EpicGames.Perforce
 		/// Narrowest path which contains all files affected by this change
 		/// </summary>
 		[PerforceTag("path", Optional = true)]
-		public string Path;
+		public string? Path;
 
 		/// <summary>
 		/// The files affected by this change
 		/// </summary>
 		[PerforceRecordList]
 		public List<DescribeFileRecord> Files = new List<DescribeFileRecord>();
+
+		/// <summary>
+		/// Private constructor for serialization
+		/// </summary>
+		private DescribeRecord()
+		{
+			User = null!;
+			Client = null!;
+			Description = null!;
+		}
 
 		/// <summary>
 		/// Format this record for display in the debugger

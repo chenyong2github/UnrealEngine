@@ -1,4 +1,4 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -41,13 +41,13 @@ namespace EpicGames.Perforce
 		/// The name of the workstation on which this workspace resides.
 		/// </summary>
 		[PerforceTag("Host", Optional = true)]
-		public string Host;
+		public string? Host;
 
 		/// <summary>
 		/// A textual description of the workspace.
 		/// </summary>
 		[PerforceTag("Description", Optional = true)]
-		public string Description;
+		public string? Description;
 
 		/// <summary>
 		/// The directory (on the local host) relative to which all the files in the View: are specified. 
@@ -77,13 +77,29 @@ namespace EpicGames.Perforce
 		/// Associates the workspace with the specified stream.
 		/// </summary>
 		[PerforceTag("Stream", Optional = true)]
-		public string Stream;
+		public string? Stream;
+
+		/// <summary>
+		/// The edge server ID
+		/// </summary>
+		[PerforceTag("ServerID", Optional = true)]
+		public string? ServerID;
+
+		/// <summary>
+		/// Private constructor for serialization
+		/// </summary>
+		private ClientsRecord()
+		{
+			Name = null!;
+			Owner = null!;
+			Root = null!;
+		}
 
 		/// <summary>
 		/// Format this record for display in the debugger
 		/// </summary>
 		/// <returns>Summary of this revision</returns>
-		public override string ToString()
+		public override string? ToString()
 		{
 			return Name;
 		}

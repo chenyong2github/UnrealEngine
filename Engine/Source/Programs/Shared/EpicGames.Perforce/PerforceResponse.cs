@@ -1,4 +1,4 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -16,7 +16,7 @@ namespace EpicGames.Perforce
 		/// <summary>
 		/// Stores the response data
 		/// </summary>
-		private object InternalData;
+		protected object InternalData;
 
 		/// <summary>
 		/// Constructor
@@ -50,7 +50,7 @@ namespace EpicGames.Perforce
 		{
 			get
 			{
-				RequireSuccess();
+				EnsureSuccess();
 				return InternalData;
 			}
 		}
@@ -58,11 +58,11 @@ namespace EpicGames.Perforce
 		/// <summary>
 		/// Returns the info data.
 		/// </summary>
-		public PerforceInfo Info
+		public PerforceInfo? Info
 		{
 			get
 			{
-				RequireSuccess();
+				EnsureSuccess();
 				return InternalData as PerforceInfo;
 			}
 		}
@@ -70,7 +70,7 @@ namespace EpicGames.Perforce
 		/// <summary>
 		/// Returns the error data, or null if this is a succesful response.
 		/// </summary>
-		public PerforceError Error
+		public PerforceError? Error
 		{
 			get { return InternalData as PerforceError; }
 		}
@@ -78,9 +78,9 @@ namespace EpicGames.Perforce
 		/// <summary>
 		/// Throws an exception if the response is an error
 		/// </summary>
-		public void RequireSuccess()
+		public void EnsureSuccess()
 		{
-			PerforceError Error = InternalData as PerforceError;
+			PerforceError? Error = InternalData as PerforceError;
 			if(Error != null)
 			{
 				throw new PerforceException(Error);
@@ -91,7 +91,7 @@ namespace EpicGames.Perforce
 		/// Returns a string representation of this object for debugging
 		/// </summary>
 		/// <returns>String representation of the object for debugging</returns>
-		public override string ToString()
+		public override string? ToString()
 		{
 			return InternalData.ToString();
 		}
@@ -102,7 +102,7 @@ namespace EpicGames.Perforce
 	/// text if the response value is attempted to be accessed and an error has occurred.
 	/// </summary>
 	/// <typeparam name="T">Type of data returned on success</typeparam>
-	public class PerforceResponse<T> : PerforceResponse
+	public class PerforceResponse<T> : PerforceResponse where T : class
 	{
 		/// <summary>
 		/// Constructor
@@ -146,7 +146,26 @@ namespace EpicGames.Perforce
 		/// </summary>
 		public new T Data
 		{
-			get { return (T)base.Data; }
+			get
+			{
+				T? Result = InternalData as T;
+				if (Result == null)
+				{
+					if (InternalData is PerforceInfo)
+					{
+						throw new PerforceException($"Expected record of type '{typeof(T).Name}', got info: {InternalData}");
+					}
+					else if(InternalData is PerforceError)
+					{
+						throw new PerforceException($"Expected record of type '{typeof(T).Name}', got error: {InternalData}");
+					}
+					else
+					{
+						throw new PerforceException($"Expected record of type '{typeof(T).Name}', got: {InternalData}");
+					}
+				}
+				return Result;
+			}
 		}
 	}
 }

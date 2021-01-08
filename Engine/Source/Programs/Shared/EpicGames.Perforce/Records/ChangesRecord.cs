@@ -1,4 +1,4 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -29,13 +29,13 @@ namespace EpicGames.Perforce
 		/// The user that owns or submitted the change
 		/// </summary>
 		[PerforceTag("user")]
-		public string User;
+		public string? User;
 
 		/// <summary>
 		/// The client that owns the change
 		/// </summary>
 		[PerforceTag("client")]
-		public string Client;
+		public string? Client;
 
 		/// <summary>
 		/// Current changelist status
@@ -53,12 +53,12 @@ namespace EpicGames.Perforce
 		/// The path affected by this change.
 		/// </summary>
 		[PerforceTag("path", Optional = true)]
-		public string Path;
+		public string? Path;
 
 		/// <summary>
 		/// Description for the changelist
 		/// </summary>
 		[PerforceTag("desc")]
-		public string Description;
+		public string? Description;
 	}
 }

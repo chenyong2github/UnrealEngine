@@ -1,4 +1,4 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -17,19 +17,19 @@ namespace EpicGames.Perforce
 		/// Depot path to file
 		/// </summary>
 		[PerforceTag("depotFile", Optional = true)]
-		public string DepotFile;
+		public string? DepotFile;
 
 		/// <summary>
 		/// Local path to file (in local syntax by default, or in Perforce syntax with the FStatOptions.ClientFileInPerforceSyntax option)
 		/// </summary>
 		[PerforceTag("clientFile", Optional = true)]
-		public string ClientFile;
+		public string? ClientFile;
 
 		/// <summary>
 		/// Local path to file
 		/// </summary>
 		[PerforceTag("path", Optional = true)]
-		public string Path;
+		public string? Path;
 
 		/// <summary>
 		/// Set if the file is open for add and it is mapped to current client workspace
@@ -53,7 +53,7 @@ namespace EpicGames.Perforce
 		/// Head revision type, if in depot
 		/// </summary>
 		[PerforceTag("headType", Optional = true)]
-		public string HeadType;
+		public string? HeadType;
 
 		/// <summary>
 		/// Head revision changelist time, if in depot.
@@ -95,13 +95,13 @@ namespace EpicGames.Perforce
 		/// Changelist description (if using -e changelist and if the file was part of changelist)
 		/// </summary>
 		[PerforceTag("desc", Optional = true)]
-		public string Description;
+		public string? Description;
 
 		/// <summary>
 		/// MD5 digest of a file (requires -Ol option)
 		/// </summary>
 		[PerforceTag("digest", Optional = true)]
-		public string Digest;
+		public string? Digest;
 
 		/// <summary>
 		/// File length in bytes (requires -Ol option)
@@ -125,7 +125,7 @@ namespace EpicGames.Perforce
 		/// User who opened the file, if opens
 		/// </summary>
 		[PerforceTag("actionOwner", Optional = true)]
-		public string ActionOwner;
+		public string? ActionOwner;
 
 		/// <summary>
 		/// Open changelist number, if opened in your workspace
@@ -137,7 +137,7 @@ namespace EpicGames.Perforce
 		/// Summarize this record for display in the debugger
 		/// </summary>
 		/// <returns>Formatted record</returns>
-		public override string ToString()
+		public override string? ToString()
 		{
 			return DepotFile ?? ClientFile ?? Path ?? base.ToString();
 		}

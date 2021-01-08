@@ -1,4 +1,4 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -65,7 +65,7 @@ namespace EpicGames.Perforce
 		/// Digest of the file, or null if not specified
 		/// </summary>
 		[PerforceTag("digest", Optional = true)]
-		public readonly string Digest;
+		public readonly string? Digest;
 
 		/// <summary>
 		/// Description of this changelist
@@ -78,6 +78,17 @@ namespace EpicGames.Perforce
 		/// </summary>
 		[PerforceRecordList]
 		public List<IntegrationRecord> Integrations = new List<IntegrationRecord>();
+
+		/// <summary>
+		/// Private constructor for serialization
+		/// </summary>
+		private RevisionRecord()
+		{
+			Type = null!;
+			UserName = null!;
+			ClientName = null!;
+			Description = null!;
+		}
 
 		/// <summary>
 		/// Format this record for display in the debugger

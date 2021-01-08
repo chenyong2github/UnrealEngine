@@ -1,4 +1,4 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -44,10 +44,21 @@ namespace EpicGames.Perforce
 		public string Type;
 
 		/// <summary>
+		/// Private constructor for serialization
+		/// </summary>
+		private AddRecord()
+		{
+			DepotFile = null!;
+			ClientFile = null!;
+			Action = null!;
+			Type = null!;
+		}
+
+		/// <summary>
 		/// Format this record for display in the debugger
 		/// </summary>
 		/// <returns>Summary of this revision</returns>
-		public override string ToString()
+		public override string? ToString()
 		{
 			return DepotFile;
 		}

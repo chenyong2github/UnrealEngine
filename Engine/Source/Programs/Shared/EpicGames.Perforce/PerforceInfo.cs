@@ -1,4 +1,4 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -26,10 +26,18 @@ namespace EpicGames.Perforce
 		public string Data;
 
 		/// <summary>
+		/// Private constructor for serialization
+		/// </summary>
+		private PerforceInfo()
+		{
+			Data = null!;
+		}
+
+		/// <summary>
 		/// Formats this error for display in the debugger
 		/// </summary>
 		/// <returns>String representation of this object</returns>
-		public override string ToString()
+		public override string? ToString()
 		{
 			return Data;
 		}

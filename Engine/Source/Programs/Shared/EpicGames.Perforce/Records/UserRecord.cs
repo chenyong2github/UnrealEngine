@@ -1,4 +1,4 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -59,7 +59,18 @@ namespace EpicGames.Perforce
 		/// Method used to authenticate
 		/// </summary>
 		[PerforceTag("AuthMethod")]
-		public string AuthMethod;
+		public string? AuthMethod;
+
+		/// <summary>
+		/// Private constructor for serialization
+		/// </summary>
+		private UserRecord()
+		{
+			UserName = null!;
+			Email = null!;
+			FullName = null!;
+			Type = null!;
+		}
 
 		/// <summary>
 		/// Summarize this record for display in the debugger

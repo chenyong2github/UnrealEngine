@@ -1,4 +1,4 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -17,42 +17,60 @@ namespace EpicGames.Perforce
 		/// The current user according to the Perforce environment
 		/// </summary>
 		[PerforceTag("userName", Optional = true)]
-		public string UserName;
+		public string? UserName;
 
 		/// <summary>
 		/// The current client
 		/// </summary>
 		[PerforceTag("clientName", Optional = true)]
-		public string ClientName;
+		public string? ClientName;
 
 		/// <summary>
 		/// The current host
 		/// </summary>
 		[PerforceTag("clientHost", Optional = true)]
-		public string ClientHost;
+		public string? ClientHost;
 
 		/// <summary>
 		/// Root directory for the current client
 		/// </summary>
 		[PerforceTag("clientRoot", Optional = true)]
-		public string ClientRoot;
+		public string? ClientRoot;
 
 		/// <summary>
 		/// Selected stream in the current client
 		/// </summary>
 		[PerforceTag("clientStream", Optional = true)]
-		public string ClientStream;
+		public string? ClientStream;
 
 		/// <summary>
 		/// Address of the Perforce server
 		/// </summary>
 		[PerforceTag("serverAddress", Optional = true)]
-		public string ServerAddress;
+		public string? ServerAddress;
+
+		/// <summary>
+		/// Date and time on the server
+		/// </summary>
+		[PerforceTag("serverDate", Optional = true)]
+		public DateTimeOffset? ServerDate;
 
 		/// <summary>
 		/// Case handling setting on the server
 		/// </summary>
 		[PerforceTag("caseHandling", Optional = true)]
-		public string CaseHandling;
+		public string? CaseHandling;
+
+		/// <summary>
+		/// List of services provided by this server
+		/// </summary>
+		[PerforceTag("serverServices", Optional = true)]
+		public string? Services;
+
+		/// <summary>
+		/// The server unique id
+		/// </summary>
+		[PerforceTag("ServerID", Optional = true)]
+		public string? ServerID;
 	}
 }

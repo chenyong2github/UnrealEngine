@@ -1,5 +1,7 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
+using EpicGames.Core;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -8,6 +10,8 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text;
+using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace EpicGames.Perforce
@@ -17,112 +21,76 @@ namespace EpicGames.Perforce
 	/// </summary>
 	public class PerforceConnection
 	{
-		/// <summary>
-		/// Constant for the default changelist, where valid.
-		/// </summary>
-		public const int DefaultChange = -2;
-
 		#region Plumbing
 
 		/// <summary>
-		/// Stores cached information about a field with a P4Tag attribute
+		/// The current server and port
 		/// </summary>
-		class CachedTagInfo
+		public string? ServerAndPort
 		{
-			/// <summary>
-			/// Name of the tag. Specified in the attribute or inferred from the field name.
-			/// </summary>
-			public string Name;
-
-			/// <summary>
-			/// Whether this tag is optional or not.
-			/// </summary>
-			public bool Optional;
-
-			/// <summary>
-			/// The field containing the value of this data.
-			/// </summary>
-			public FieldInfo Field;
-
-			/// <summary>
-			/// Index into the bitmask of required types
-			/// </summary>
-			public ulong RequiredTagBitMask;
+			get;
+			set;
 		}
 
 		/// <summary>
-		/// Stores cached information about a record
+		/// The current user name
 		/// </summary>
-		class CachedRecordInfo
+		public string? UserName
 		{
-			/// <summary>
-			/// Type of the record
-			/// </summary>
-			public Type Type;
-
-			/// <summary>
-			/// Map of tag names to their cached reflection information
-			/// </summary>
-			public Dictionary<string, CachedTagInfo> TagNameToInfo = new Dictionary<string, CachedTagInfo>();
-
-			/// <summary>
-			/// Bitmask of all the required tags. Formed by bitwise-or'ing the RequiredTagBitMask fields for each required CachedTagInfo.
-			/// </summary>
-			public ulong RequiredTagsBitMask;
-
-			/// <summary>
-			/// The type of records to create for subelements
-			/// </summary>
-			public Type SubElementType;
-
-			/// <summary>
-			/// The cached record info for the subelement type
-			/// </summary>
-			public CachedRecordInfo SubElementRecordInfo;
-
-			/// <summary>
-			/// Field containing subelements
-			/// </summary>
-			public FieldInfo SubElementField;
+			get;
+			set;
 		}
 
 		/// <summary>
-		/// Unix epoch; used for converting times back into C# datetime objects
+		/// The current client name
 		/// </summary>
-		static readonly DateTime UnixEpoch = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+		public string? ClientName
+		{
+			get;
+			set;
+		}
 
 		/// <summary>
-		/// Cached map of enum types to a lookup mapping from p4 strings to enum values.
+		/// Name of this application, reported to server through -zprog arguments
 		/// </summary>
-		static ConcurrentDictionary<Type, Dictionary<string, int>> EnumTypeToFlags = new ConcurrentDictionary<Type, Dictionary<string, int>>();
+		public string? AppName
+		{
+			get;
+			set;
+		}
 
 		/// <summary>
-		/// Cached set of record 
+		/// Version of this application, reported to server through -zversion arguments
 		/// </summary>
-		static ConcurrentDictionary<Type, CachedRecordInfo> RecordTypeToInfo = new ConcurrentDictionary<Type, CachedRecordInfo>();
+		public string? AppVersion
+		{
+			get;
+			set;
+		}
 
 		/// <summary>
-		/// Default type for info
+		/// Additional options to append to the command line
 		/// </summary>
-		static CachedRecordInfo InfoRecordInfo = GetCachedRecordInfo(typeof(PerforceInfo));
+		public List<string> GlobalOptions { get; } = new List<string>();
 
 		/// <summary>
-		/// Default type for errors
+		/// The logging interface
 		/// </summary>
-		static CachedRecordInfo ErrorRecordInfo = GetCachedRecordInfo(typeof(PerforceError));
-
-		/// <summary>
-		/// Global options for each command
-		/// </summary>
-		public readonly string GlobalOptions;
+		public ILogger Logger
+		{
+			get;
+			set;
+		}
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="GlobalOptions">Global options to pass to every Perforce command</param>
-		public PerforceConnection(string GlobalOptions)
+		/// <param name="ServerAndPort">The server address and port</param>
+		/// <param name="UserName">The user name</param>
+		/// <param name="Logger">Interface for logging</param>
+		public PerforceConnection(string? ServerAndPort, string? UserName, ILogger Logger)
+			: this(ServerAndPort, UserName, null, Logger)
 		{
-			this.GlobalOptions = GlobalOptions;
 		}
 
 		/// <summary>
@@ -131,41 +99,80 @@ namespace EpicGames.Perforce
 		/// <param name="ServerAndPort">The server address and port</param>
 		/// <param name="UserName">The user name</param>
 		/// <param name="ClientName">The client name</param>
-		public PerforceConnection(string ServerAndPort, string UserName, string ClientName)
+		/// <param name="Logger">Interface for logging</param>
+		public PerforceConnection(string? ServerAndPort, string? UserName, string? ClientName, ILogger Logger)
+			: this(ServerAndPort, UserName, ClientName, null, null, Logger)
 		{
-			List<string> Options = new List<string>();
-			if(ServerAndPort != null)
+			AssemblyName EntryAssemblyName = Assembly.GetEntryAssembly()!.GetName();
+			if (EntryAssemblyName.Name != null)
 			{
-				Options.Add(String.Format("-p {0}", ServerAndPort));
+				AppName = EntryAssemblyName.Name;
+				AppVersion = EntryAssemblyName.Version?.ToString() ?? String.Empty;
 			}
-			if (UserName != null)
-			{
-				Options.Add(String.Format("-u {0}", UserName));
-			}
-			if (ClientName != null)
-			{
-				Options.Add(String.Format("-c {0}", ClientName));
-			}
-			this.GlobalOptions = String.Join(" ", Options);
 		}
 
 		/// <summary>
-		/// Execute a Perforce command and parse the output as marshalled Python objects. This is more robustly defined than the text-based tagged output
-		/// format, because it avoids ambiguity when returned fields can have newlines.
+		/// Constructor
 		/// </summary>
-		/// <param name="CommandLine">Command line to execute Perforce with</param>
-		/// <param name="InputData">Input data to pass to the Perforce server. May be null.</param>
-		/// <param name="RecordHandler">Handler for each received record.</param>
-		public void Command(string CommandLine, byte[] InputData, Action<List<KeyValuePair<string, object>>> RecordHandler)
+		/// <param name="ServerAndPort">The server address and port</param>
+		/// <param name="UserName">The user name</param>
+		/// <param name="ClientName">The client name</param>
+		/// <param name="Logger">Interface for logging</param>
+		public PerforceConnection(string? ServerAndPort, string? UserName, string? ClientName, string? AppName, string? AppVersion, ILogger Logger)
 		{
-			using(PerforceChildProcess Process = new PerforceChildProcess(InputData, "{0} {1}", GlobalOptions, CommandLine))
+			this.ServerAndPort = ServerAndPort;
+			this.UserName = UserName;
+			this.ClientName = ClientName;
+			this.AppName = AppName;
+			this.AppVersion = AppVersion;
+			this.Logger = Logger;
+		}
+
+		/// <summary>
+		/// Constructor 
+		/// </summary>
+		/// <param name="Other">Connection to copy settings from</param>
+		/// <param name="ClientName">The client name</param>
+		public PerforceConnection(PerforceConnection Other)
+			: this(Other.ServerAndPort, Other.UserName, Other.ClientName, Other.AppName, Other.AppVersion, Other.Logger)
+		{
+			GlobalOptions.AddRange(Other.GlobalOptions);
+		}
+
+		/// <summary>
+		/// Gets all the arguments
+		/// </summary>
+		/// <returns></returns>
+		string GetFullCommandLine(string CommandLine)
+		{
+			StringBuilder Result = new StringBuilder();
+			if (ServerAndPort != null)
 			{
-				List<KeyValuePair<string, object>> Record = new List<KeyValuePair<string, object>>();
-				while(Process.TryReadRecord(Record))
-				{
-					RecordHandler(Record);
-				}
+				Result.AppendFormat("-p {0} ", ServerAndPort);
 			}
+			if (UserName != null)
+			{
+				Result.AppendFormat("-u {0} ", UserName);
+			}
+			if (ClientName != null)
+			{
+				Result.AppendFormat("-c {0} ", ClientName);
+			}
+			if (AppName != null)
+			{
+				Result.AppendFormat("-zprog={0} ", AppName);
+			}
+			if (AppVersion != null)
+			{
+				Result.AppendFormat("-zversion={0} ", AppVersion);
+			}
+
+			foreach (string GlobalOption in GlobalOptions)
+			{
+				Result.AppendFormat("{0} ", GlobalOption);
+			}
+			Result.Append(CommandLine);
+			return Result.ToString();
 		}
 
 		/// <summary>
@@ -179,7 +186,7 @@ namespace EpicGames.Perforce
 			using (BinaryWriter Writer = new BinaryWriter(Stream))
 			{
 				Writer.Write((byte)'{');
-				foreach(KeyValuePair<string, object> KeyValuePair in KeyValuePairs)
+				foreach (KeyValuePair<string, object> KeyValuePair in KeyValuePairs)
 				{
 					Writer.Write('s');
 					byte[] KeyBytes = Encoding.UTF8.GetBytes(KeyValuePair.Key);
@@ -206,49 +213,18 @@ namespace EpicGames.Perforce
 		/// <summary>
 		/// Execute a command and parse the response
 		/// </summary>
-		/// <param name="Arguments">Arguments for the command</param>
+		/// <param name="CommandLine">Arguments for the command</param>
 		/// <param name="InputData">Input data to pass to Perforce</param>
 		/// <param name="StatRecordType">The type of records to return for "stat" responses</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
 		/// <returns>List of objects returned by the server</returns>
-		public List<PerforceResponse> Command(string Arguments, byte[] InputData, Type StatRecordType)
+		public async Task<List<PerforceResponse>> CommandAsync(string CommandLine, byte[]? InputData, Type? StatRecordType, CancellationToken CancellationToken)
 		{
-			CachedRecordInfo StatRecordInfo = (StatRecordType == null)? null : GetCachedRecordInfo(StatRecordType);
-
-			List<PerforceResponse> Responses = new List<PerforceResponse>();
-			Action<List<KeyValuePair<string, object>>> Handler = (KeyValuePairs) =>
+			using (PerforceChildProcess Process = new PerforceChildProcess(InputData, GetFullCommandLine(CommandLine), Logger))
 			{
-				if(KeyValuePairs.Count == 0)
-				{
-					throw new PerforceException("Unexpected empty record returned by Perforce.");
-				}
-				if(KeyValuePairs[0].Key != "code")
-				{
-					throw new PerforceException("Expected first returned field to be 'code'");
-				}
-
-				string Code = KeyValuePairs[0].Value as string;
-
-				int Idx = 1;
-				if (Code == "stat" && StatRecordType != null)
-				{
-					Responses.Add(ParseResponse(KeyValuePairs, ref Idx, "", StatRecordInfo));
-				}
-				else if (Code == "info")
-				{
-					Responses.Add(ParseResponse(KeyValuePairs, ref Idx, "", InfoRecordInfo));
-				}
-				else if(Code == "error")
-				{
-					Responses.Add(ParseResponse(KeyValuePairs, ref Idx, "", ErrorRecordInfo));
-				}
-				else
-				{
-					throw new PerforceException("Unknown return code for record: {0}", KeyValuePairs[0].Value);
-				}
-			};
-			Command(Arguments, InputData, Handler);
-
-			return Responses;
+				CachedRecordInfo? StatRecordInfo = (StatRecordType == null) ? null : PerforceReflection.GetCachedRecordInfo(StatRecordType);
+				return await Process.ReadResponsesAsync(StatRecordInfo, CancellationToken);
+			}
 		}
 
 		/// <summary>
@@ -256,10 +232,11 @@ namespace EpicGames.Perforce
 		/// </summary>
 		/// <param name="Arguments">Arguments for the command</param>
 		/// <param name="InputData">Input data to pass to Perforce</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
 		/// <returns>List of objects returned by the server</returns>
-		public PerforceResponseList<T> Command<T>(string Arguments, byte[] InputData) where T : class
+		public async Task<PerforceResponseList<T>> CommandAsync<T>(string Arguments, byte[]? InputData, CancellationToken CancellationToken) where T : class
 		{
-			List<PerforceResponse> Responses = Command(Arguments, InputData, typeof(T));
+			List<PerforceResponse> Responses = await CommandAsync(Arguments, InputData, typeof(T), CancellationToken);
 
 			PerforceResponseList<T> TypedResponses = new PerforceResponseList<T>();
 			foreach (PerforceResponse Response in Responses)
@@ -270,16 +247,56 @@ namespace EpicGames.Perforce
 		}
 
 		/// <summary>
+		/// Execute a command and parse the response
+		/// </summary>
+		/// <param name="CommonArguments">Arguments for the command</param>
+		/// <param name="BatchedArguments">Arguments to pass to the command in batches</param>
+		/// <param name="InputData">Input data to pass to Perforce</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <returns>List of objects returned by the server</returns>
+		public async Task<PerforceResponseList<T>> BatchedCommandAsync<T>(string CommonArguments, string[] BatchedArguments, byte[]? InputData, CancellationToken CancellationToken) where T : class
+		{
+			PerforceResponseList<T> Responses = new PerforceResponseList<T>();
+			for (int FileSpecIdx = 0; FileSpecIdx < BatchedArguments.Length;)
+			{
+				StringBuilder Arguments = new StringBuilder(CommonArguments);
+				for (; FileSpecIdx < BatchedArguments.Length && Arguments.Length < 4096; FileSpecIdx++)
+				{
+					Arguments.AppendFormat(" \"{0}\"", BatchedArguments[FileSpecIdx]);
+				}
+				Responses.AddRange(await CommandAsync<T>(Arguments.ToString(), null, CancellationToken));
+			}
+			return Responses;
+		}
+
+		/// <summary>
+		/// Execute a command and parse the response
+		/// </summary>
+		/// <param name="CommandLine">Arguments for the command</param>
+		/// <param name="InputData">Input data to pass to Perforce</param>
+		/// <param name="HandleRecord">Delegate used to handle each record</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <returns>List of objects returned by the server</returns>
+		public async Task RecordCommandAsync(string CommandLine, byte[]? InputData, Action<PerforceRecord> HandleRecord, CancellationToken CancellationToken)
+		{
+			using (PerforceChildProcess Process = new PerforceChildProcess(InputData, GetFullCommandLine(CommandLine), Logger))
+			{
+				await Process.ReadRecordsAsync(HandleRecord, CancellationToken);
+			}
+		}
+
+		/// <summary>
 		/// Attempts to execute the given command, returning the results from the server or the first PerforceResponse object.
 		/// </summary>
 		/// <param name="Arguments">Arguments for the command.</param>
 		/// <param name="InputData">Input data for the command.</param>
 		/// <param name="StatRecordType">Type of element to return in the response</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server; either an object of type T or error.</returns>
-		public PerforceResponse SingleResponseCommand(string Arguments, byte[] InputData, Type StatRecordType)
+		public async Task<PerforceResponse> SingleResponseCommandAsync(string Arguments, byte[]? InputData, Type? StatRecordType, CancellationToken CancellationToken)
 		{
-			List<PerforceResponse> Responses = Command(Arguments, InputData, StatRecordType);
-			if(Responses.Count != 1)
+			List<PerforceResponse> Responses = await CommandAsync(Arguments, InputData, StatRecordType, CancellationToken);
+			if (Responses.Count != 1)
 			{
 				throw new PerforceException("Expected one result from 'p4 {0}', got {1}", Arguments, Responses.Count);
 			}
@@ -292,312 +309,11 @@ namespace EpicGames.Perforce
 		/// <typeparam name="T">Type of record to parse</typeparam>
 		/// <param name="Arguments">Arguments for the command.</param>
 		/// <param name="InputData">Input data for the command.</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server; either an object of type T or error.</returns>
-		public PerforceResponse<T> SingleResponseCommand<T>(string Arguments, byte[] InputData) where T : class
+		public async Task<PerforceResponse<T>> SingleResponseCommandAsync<T>(string Arguments, byte[]? InputData, CancellationToken CancellationToken) where T : class
 		{
-			return new PerforceResponse<T>(SingleResponseCommand(Arguments, InputData, typeof(T)));
-		}
-
-		/// <summary>
-		/// Parse an individual record from the server.
-		/// </summary>
-		/// <param name="KeyValuePairs">List of tagged values returned by the server.</param>
-		/// <param name="Idx">Index of the first tagged value to parse.</param>
-		/// <param name="RequiredSuffix">The required suffix for any subobject arrays.</param>
-		/// <param name="RecordInfo">Reflection information for the type being serialized into.</param>
-		/// <returns>The parsed object.</returns>
-		PerforceResponse ParseResponse(List<KeyValuePair<string, object>> KeyValuePairs, ref int Idx, string RequiredSuffix, CachedRecordInfo RecordInfo)
-		{
-			// Create a bitmask for all the required tags
-			ulong RequiredTagsBitMask = 0;
-
-			// Get the record info, and parse it into the object
-			object NewRecord = Activator.CreateInstance(RecordInfo.Type);
-			while(Idx < KeyValuePairs.Count)
-			{
-				// Split out the tag and value
-				string Tag = KeyValuePairs[Idx].Key;
-				string Value = KeyValuePairs[Idx].Value.ToString();
-
-				// Parse the suffix from the current key
-				int SuffixIdx = Tag.Length;
-				while(SuffixIdx > 0 && (Tag[SuffixIdx - 1] == ',' || (Tag[SuffixIdx - 1] >= '0' && Tag[SuffixIdx - 1] <= '9')))
-				{
-					SuffixIdx--;
-				}
-
-				// Split out the suffix
-				string Suffix = Tag.Substring(SuffixIdx);
-				Tag = Tag.Substring(0, SuffixIdx);
-
-				// Check whether it's a subobject or part of the current object.
-				if (Suffix == RequiredSuffix)
-				{
-					// Part of the current object
-					CachedTagInfo TagInfo;
-					if (RecordInfo.TagNameToInfo.TryGetValue(Tag, out TagInfo))
-					{
-						FieldInfo FieldInfo = TagInfo.Field;
-						if (FieldInfo.FieldType == typeof(DateTime))
-						{
-							DateTime Time;
-							if(!DateTime.TryParse(Value, out Time))
-							{
-								Time = UnixEpoch + TimeSpan.FromSeconds(long.Parse(Value));
-							}
-							FieldInfo.SetValue(NewRecord, Time);
-						}
-						else if (FieldInfo.FieldType == typeof(bool))
-						{
-							FieldInfo.SetValue(NewRecord, Value.Length == 0 || Value == "true");
-						}
-						else if(FieldInfo.FieldType == typeof(Nullable<bool>))
-						{
-							FieldInfo.SetValue(NewRecord, Value == "true");
-						}
-						else if (FieldInfo.FieldType == typeof(int))
-						{
-							if(Value == "new" || Value == "none")
-							{
-								FieldInfo.SetValue(NewRecord, -1);
-							}
-							else if(Value.StartsWith("#"))
-							{
-								FieldInfo.SetValue(NewRecord, (Value == "#none") ? 0 : int.Parse(Value.Substring(1)));
-							}
-							else if(Value == "default")
-							{
-								FieldInfo.SetValue(NewRecord, DefaultChange);
-							}
-							else
-							{
-								FieldInfo.SetValue(NewRecord, int.Parse(Value));
-							}
-						}
-						else if (FieldInfo.FieldType == typeof(long))
-						{
-							FieldInfo.SetValue(NewRecord, long.Parse(Value));
-						}
-						else if (FieldInfo.FieldType == typeof(string))
-						{
-							FieldInfo.SetValue(NewRecord, Value);
-						}
-						else if(FieldInfo.FieldType.IsEnum)
-						{
-							FieldInfo.SetValue(NewRecord, ParseEnum(FieldInfo.FieldType, Value));
-						}
-						else
-						{
-							throw new PerforceException("Unsupported type of {0}.{1} for tag '{0}'", RecordInfo.Type.Name, FieldInfo.FieldType.Name, Tag);
-						}
-						RequiredTagsBitMask |= TagInfo.RequiredTagBitMask;
-					}
-					Idx++;
-				}
-				else if (Suffix.StartsWith(RequiredSuffix) && (RequiredSuffix.Length == 0 || Suffix[RequiredSuffix.Length] == ','))
-				{
-					// Part of a subobject. If this record doesn't have any listed subobject type, skip the field and continue.
-					if (RecordInfo.SubElementField == null)
-					{
-						CachedTagInfo TagInfo;
-						if (RecordInfo.TagNameToInfo.TryGetValue(Tag, out TagInfo))
-						{
-							FieldInfo FieldInfo = TagInfo.Field;
-							if (FieldInfo.FieldType == typeof(List<string>))
-							{
-								((List<string>)FieldInfo.GetValue(NewRecord)).Add(Value);
-							}
-							else
-							{
-								throw new PerforceException("Unsupported type of {0}.{1} for tag '{0}'", RecordInfo.Type.Name, FieldInfo.FieldType.Name, Tag);
-							}
-							RequiredTagsBitMask |= TagInfo.RequiredTagBitMask;
-						}
-						Idx++;
-					}
-					else
-					{
-						// Get the expected suffix for the next item based on the number of elements already in the list
-						System.Collections.IList List = (System.Collections.IList)RecordInfo.SubElementField.GetValue(NewRecord);
-						string RequiredChildSuffix = (RequiredSuffix.Length == 0) ? String.Format("{0}", List.Count) : String.Format("{0},{1}", RequiredSuffix, List.Count);
-						if (Suffix != RequiredChildSuffix)
-						{
-							throw new PerforceException("Subobject element received out of order; expected {0}{1}, got {0}{2}", Tag, RequiredChildSuffix, Suffix);
-						}
-
-						// Parse the subobject and add it to the list
-						PerforceResponse Response = ParseResponse(KeyValuePairs, ref Idx, RequiredChildSuffix, RecordInfo.SubElementRecordInfo);
-						List.Add(Response.Data);
-					}
-				}
-				else
-				{
-					break;
-				}
-			}
-
-			// Make sure we've got all the required tags we need
-			if (RequiredTagsBitMask != RecordInfo.RequiredTagsBitMask)
-			{
-				string MissingTagNames = String.Join(", ", RecordInfo.TagNameToInfo.Where(x => (RequiredTagsBitMask | x.Value.RequiredTagBitMask) != RequiredTagsBitMask).Select(x => x.Key));
-				throw new PerforceException("Missing '{0}' tag when parsing '{1}'", MissingTagNames, RecordInfo.Type.Name);
-			}
-
-			return new PerforceResponse(NewRecord);
-		}
-
-		/// <summary>
-		/// Gets a mapping of flags to enum values for the given type
-		/// </summary>
-		/// <param name="EnumType">The enum type to retrieve flags for</param>
-		/// <returns>Map of name to enum value</returns>
-		static Dictionary<string, int> GetCachedEnumFlags(Type EnumType)
-		{
-			Dictionary<string, int> NameToValue;
-			if (!EnumTypeToFlags.TryGetValue(EnumType, out NameToValue))
-			{
-				NameToValue = new Dictionary<string, int>();
-
-				FieldInfo[] Fields = EnumType.GetFields(BindingFlags.Public | BindingFlags.Static);
-				foreach (FieldInfo Field in Fields)
-				{
-					PerforceEnumAttribute Attribute = Field.GetCustomAttribute<PerforceEnumAttribute>();
-					if (Attribute != null)
-					{
-						NameToValue.Add(Attribute.Name, (int)Field.GetValue(null));
-					}
-				}
-
-				if (!EnumTypeToFlags.TryAdd(EnumType, NameToValue))
-				{
-					NameToValue = EnumTypeToFlags[EnumType];
-				}
-			}
-			return NameToValue;
-		}
-
-		/// <summary>
-		/// Parses an enum value, using PerforceEnumAttribute markup for names.
-		/// </summary>
-		/// <param name="EnumType">Type of the enum to parse.</param>
-		/// <param name="Value">Value of the enum.</param>
-		/// <returns>Text for the enum.</returns>
-		string GetEnumText(Type EnumType, object Value)
-		{
-			int IntegerValue = (int)Value;
-
-			Dictionary<string, int> NameToValue = GetCachedEnumFlags(EnumType);
-			if(EnumType.GetCustomAttribute<FlagsAttribute>() != null)
-			{
-				List<string> Names = new List<string>();
-				foreach (KeyValuePair<string, int> Pair in NameToValue)
-				{
-					if ((IntegerValue & Pair.Value) != 0)
-					{
-						Names.Add(Pair.Key);
-					}
-				}
-				return String.Join(" ", Names);
-			}
-			else
-			{
-				string Name = null;
-				foreach (KeyValuePair<string, int> Pair in NameToValue)
-				{
-					if (IntegerValue == Pair.Value)
-					{
-						Name = Pair.Key;
-						break;
-					}
-				}
-				return Name;
-			}
-		}
-
-		/// <summary>
-		/// Parses an enum value, using PerforceEnumAttribute markup for names.
-		/// </summary>
-		/// <param name="EnumType">Type of the enum to parse.</param>
-		/// <param name="Text">Text to parse.</param>
-		/// <returns>The parsed enum value. Unknown values will be ignored.</returns>
-		object ParseEnum(Type EnumType, string Text)
-		{
-			Dictionary<string, int> NameToValue = GetCachedEnumFlags(EnumType);
-			if(EnumType.GetCustomAttribute<FlagsAttribute>() != null)
-			{
-				int Result = 0;
-				foreach (string Item in Text.Split(' '))
-				{
-					int ItemValue;
-					if (NameToValue.TryGetValue(Item, out ItemValue))
-					{
-						Result |= ItemValue;
-					}
-				}
-				return Enum.ToObject(EnumType, Result);
-			}
-			else
-			{
-				int Result;
-				NameToValue.TryGetValue(Text, out Result);
-				return Enum.ToObject(EnumType, Result);
-			}
-		}
-
-		/// <summary>
-		/// Gets reflection data for the given record type
-		/// </summary>
-		/// <param name="RecordType">The type to retrieve record info for</param>
-		/// <returns>The cached reflection information for the given type</returns>
-		static CachedRecordInfo GetCachedRecordInfo(Type RecordType)
-		{
-			CachedRecordInfo Record;
-			if (!RecordTypeToInfo.TryGetValue(RecordType, out Record))
-			{
-				Record = new CachedRecordInfo();
-				Record.Type = RecordType;
-
-				// Get all the fields for this type
-				FieldInfo[] Fields = RecordType.GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
-
-				// Build the map of all tags for this record
-				foreach (FieldInfo Field in Fields)
-				{
-					PerforceTagAttribute TagAttribute = Field.GetCustomAttribute<PerforceTagAttribute>();
-					if (TagAttribute != null)
-					{
-						CachedTagInfo Tag = new CachedTagInfo();
-						Tag.Name = TagAttribute.Name ?? Field.Name;
-						Tag.Optional = TagAttribute.Optional;
-						Tag.Field = Field;
-						if(!Tag.Optional)
-						{
-							Tag.RequiredTagBitMask = Record.RequiredTagsBitMask + 1;
-							if(Tag.RequiredTagBitMask == 0)
-							{
-								throw new PerforceException("Too many required tags in {0}; max is {1}", RecordType.Name, sizeof(ulong) * 8);
-							}
-							Record.RequiredTagsBitMask |= Tag.RequiredTagBitMask;
-						}
-						Record.TagNameToInfo.Add(Tag.Name, Tag);
-					}
-
-					PerforceRecordListAttribute SubElementAttribute = Field.GetCustomAttribute<PerforceRecordListAttribute>();
-					if(SubElementAttribute != null)
-					{
-						Record.SubElementField = Field;
-						Record.SubElementType = Field.FieldType.GenericTypeArguments[0];
-						Record.SubElementRecordInfo = GetCachedRecordInfo(Record.SubElementType);
-					}
-				}
-
-				// Try to save the record info, or get the version that's already in the cache
-				if(!RecordTypeToInfo.TryAdd(RecordType, Record))
-				{
-					Record = RecordTypeToInfo[RecordType];
-				}
-			}
-			return Record;
+			return new PerforceResponse<T>(await SingleResponseCommandAsync(Arguments, InputData, typeof(T), CancellationToken));
 		}
 
 		#endregion
@@ -609,10 +325,11 @@ namespace EpicGames.Perforce
 		/// </summary>
 		/// <param name="ChangeNumber">Changelist to add files to</param>
 		/// <param name="FileNames">Files to be added</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server</returns>
-		public PerforceResponseList<AddRecord> Add(int ChangeNumber, params string[] FileNames)
+		public async Task<List<AddRecord>> AddAsync(int ChangeNumber, string[] FileNames, CancellationToken CancellationToken)
 		{
-			return Add(ChangeNumber, null, AddOptions.None, FileNames);
+			return (await TryAddAsync(ChangeNumber, null, AddOptions.None, FileNames, CancellationToken)).Data;
 		}
 
 		/// <summary>
@@ -622,40 +339,67 @@ namespace EpicGames.Perforce
 		/// <param name="FileType">Type for new files</param>
 		/// <param name="Options">Options for the command</param>
 		/// <param name="FileNames">Files to be added</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server</returns>
-		public PerforceResponseList<AddRecord> Add(int ChangeNumber, string FileType, AddOptions Options, params string[] FileNames)
+		public async Task<List<AddRecord>> AddAsync(int ChangeNumber, string? FileType, AddOptions Options, string[] FileNames, CancellationToken CancellationToken)
+		{
+			return (await TryAddAsync(ChangeNumber, FileType, Options, FileNames, CancellationToken)).Data;
+		}
+
+		/// <summary>
+		/// Adds files to a pending changelist.
+		/// </summary>
+		/// <param name="ChangeNumber">Changelist to add files to</param>
+		/// <param name="FileNames">Files to be added</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <returns>Response from the server</returns>
+		public Task<PerforceResponseList<AddRecord>> TryAddAsync(int ChangeNumber, string[] FileNames, CancellationToken CancellationToken)
+		{
+			return TryAddAsync(ChangeNumber, null, AddOptions.None, FileNames, CancellationToken);
+		}
+
+		/// <summary>
+		/// Adds files to a pending changelist.
+		/// </summary>
+		/// <param name="ChangeNumber">Changelist to add files to</param>
+		/// <param name="FileType">Type for new files</param>
+		/// <param name="Options">Options for the command</param>
+		/// <param name="FileNames">Files to be added</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <returns>Response from the server</returns>
+		public Task<PerforceResponseList<AddRecord>> TryAddAsync(int ChangeNumber, string? FileType, AddOptions Options, string[] FileNames, CancellationToken CancellationToken)
 		{
 			StringBuilder Arguments = new StringBuilder("add");
-			if(ChangeNumber != -1)
+			if (ChangeNumber != -1)
 			{
 				Arguments.AppendFormat(" -c {0}", ChangeNumber);
 			}
-			if((Options & AddOptions.DowngradeToAdd) != 0)
+			if ((Options & AddOptions.DowngradeToAdd) != 0)
 			{
 				Arguments.Append(" -d");
 			}
-			if((Options & AddOptions.IncludeWildcards) != 0)
+			if ((Options & AddOptions.IncludeWildcards) != 0)
 			{
 				Arguments.Append(" -f");
 			}
-			if((Options & AddOptions.NoIgnore) != 0)
+			if ((Options & AddOptions.NoIgnore) != 0)
 			{
 				Arguments.Append(" -I");
 			}
-			if((Options & AddOptions.PreviewOnly) != 0)
+			if ((Options & AddOptions.PreviewOnly) != 0)
 			{
 				Arguments.Append(" -n");
 			}
-			if(FileType != null)
+			if (FileType != null)
 			{
 				Arguments.AppendFormat(" -t \"{0}\"", FileType);
 			}
-			foreach(string FileName in FileNames)
+			foreach (string FileName in FileNames)
 			{
 				Arguments.AppendFormat(" \"{0}\"", FileName);
 			}
 
-			return Command<AddRecord>(Arguments.ToString(), null);
+			return CommandAsync<AddRecord>(Arguments.ToString(), null, CancellationToken);
 		}
 
 		#endregion
@@ -666,27 +410,48 @@ namespace EpicGames.Perforce
 		/// Creates a changelist with the p4 change command. 
 		/// </summary>
 		/// <param name="Record">Information for the change to create. The number field should be left set to -1.</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
 		/// <returns>The changelist number, or an error.</returns>
-		public PerforceResponse<int> CreateChange(ChangeRecord Record)
+		public async Task<ChangeRecord> CreateChangeAsync(ChangeRecord Record, CancellationToken CancellationToken)
 		{
-			if(Record.Number != -1)
+			return (await TryCreateChangeAsync(Record, CancellationToken)).Data;
+		}
+
+		/// <summary>
+		/// Creates a changelist with the p4 change command. 
+		/// </summary>
+		/// <param name="Record">Information for the change to create. The number field should be left set to -1.</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <returns>The changelist number, or an error.</returns>
+		public async Task<PerforceResponse<ChangeRecord>> TryCreateChangeAsync(ChangeRecord Record, CancellationToken CancellationToken)
+		{
+			if (Record.Number != -1)
 			{
 				throw new PerforceException("'Number' field should be set to -1 to create a new changelist.");
 			}
 
-			PerforceResponse Response = SingleResponseCommand("change -i", SerializeRecord(Record), null);
-			if (Response.Failed)
+			PerforceResponse Response = await SingleResponseCommandAsync("change -i", SerializeRecord(Record), null, CancellationToken);
+
+			PerforceError? Error = Response.Error;
+			if (Error != null)
 			{
-				return new PerforceResponse<int>(Response.Error);
+				return new PerforceResponse<ChangeRecord>(Error);
 			}
 
-			string[] Tokens = Response.Info.Data.Split(' ');
+			PerforceInfo? Info = Response.Info;
+			if (Info == null)
+			{
+				throw new PerforceException("Unexpected info response from change command: {0}", Response);
+			}
+
+			string[] Tokens = Info.Data.Split(' ');
 			if (Tokens.Length != 3)
 			{
 				throw new PerforceException("Unexpected info response from change command: {0}", Response);
 			}
 
-			return new PerforceResponse<int>(int.Parse(Tokens[1]));
+			Record.Number = int.Parse(Tokens[1]);
+			return new PerforceResponse<ChangeRecord>(Record);
 		}
 
 		/// <summary>
@@ -694,25 +459,38 @@ namespace EpicGames.Perforce
 		/// </summary>
 		/// <param name="Options">Options for this command</param>
 		/// <param name="Record">Information for the change to create. The number field should be left set to zero.</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
 		/// <returns>The changelist number, or an error.</returns>
-		public PerforceResponse UpdateChange(UpdateChangeOptions Options, ChangeRecord Record)
+		public async Task UpdateChangeAsync(UpdateChangeOptions Options, ChangeRecord Record, CancellationToken CancellationToken)
 		{
-			if(Record.Number == -1)
+			(await TryUpdateChangeAsync(Options, Record, CancellationToken)).EnsureSuccess();
+		}
+
+		/// <summary>
+		/// Updates an existing changelist.
+		/// </summary>
+		/// <param name="Options">Options for this command</param>
+		/// <param name="Record">Information for the change to create. The number field should be left set to zero.</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <returns>The changelist number, or an error.</returns>
+		public Task<PerforceResponse> TryUpdateChangeAsync(UpdateChangeOptions Options, ChangeRecord Record, CancellationToken CancellationToken)
+		{
+			if (Record.Number == -1)
 			{
 				throw new PerforceException("'Number' field must be set to update a changelist.");
 			}
 
 			StringBuilder Arguments = new StringBuilder("change -i");
-			if((Options & UpdateChangeOptions.Force) != 0)
+			if ((Options & UpdateChangeOptions.Force) != 0)
 			{
 				Arguments.Append(" -f");
 			}
-			if((Options & UpdateChangeOptions.Submitted) != 0)
+			if ((Options & UpdateChangeOptions.Submitted) != 0)
 			{
 				Arguments.Append(" -u");
 			}
 
-			return SingleResponseCommand(Arguments.ToString(), SerializeRecord(Record), null);
+			return SingleResponseCommandAsync(Arguments.ToString(), SerializeRecord(Record), null, CancellationToken);
 		}
 
 		/// <summary>
@@ -720,21 +498,34 @@ namespace EpicGames.Perforce
 		/// </summary>
 		/// <param name="Options">Options for the command</param>
 		/// <param name="ChangeNumber">Changelist number to delete</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server</returns>
-		public PerforceResponse DeleteChange(DeleteChangeOptions Options, int ChangeNumber)
+		public async Task DeleteChangeAsync(DeleteChangeOptions Options, int ChangeNumber, CancellationToken CancellationToken)
+		{
+			(await TryDeleteChangeAsync(Options, ChangeNumber, CancellationToken)).EnsureSuccess();
+		}
+
+		/// <summary>
+		/// Deletes a changelist (p4 change -d)
+		/// </summary>
+		/// <param name="Options">Options for the command</param>
+		/// <param name="ChangeNumber">Changelist number to delete</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <returns>Response from the server</returns>
+		public Task<PerforceResponse> TryDeleteChangeAsync(DeleteChangeOptions Options, int ChangeNumber, CancellationToken CancellationToken)
 		{
 			StringBuilder Arguments = new StringBuilder("change -d");
-			if((Options & DeleteChangeOptions.Submitted) != 0)
+			if ((Options & DeleteChangeOptions.Submitted) != 0)
 			{
 				Arguments.Append(" -f");
 			}
-			if((Options & DeleteChangeOptions.BeforeRenumber) != 0)
+			if ((Options & DeleteChangeOptions.BeforeRenumber) != 0)
 			{
 				Arguments.Append(" -O");
 			}
 			Arguments.AppendFormat(" {0}", ChangeNumber);
 
-			return SingleResponseCommand(Arguments.ToString(), null, null);
+			return SingleResponseCommandAsync(Arguments.ToString(), null, null, CancellationToken);
 		}
 
 		/// <summary>
@@ -742,19 +533,37 @@ namespace EpicGames.Perforce
 		/// </summary>
 		/// <param name="Options">Options for the command</param>
 		/// <param name="ChangeNumber">Changelist number to retrieve. -1 is the default changelist for this workspace.</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server</returns>
-		public PerforceResponse<ChangeRecord> GetChange(GetChangeOptions Options, int ChangeNumber)
+		public async Task<ChangeRecord> GetChangeAsync(GetChangeOptions Options, int ChangeNumber, CancellationToken CancellationToken)
+		{
+			return (await TryGetChange(Options, ChangeNumber, CancellationToken)).Data;
+		}
+
+		/// <summary>
+		/// Gets a changelist
+		/// </summary>
+		/// <param name="Options">Options for the command</param>
+		/// <param name="ChangeNumber">Changelist number to retrieve. -1 is the default changelist for this workspace.</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <returns>Response from the server</returns>
+		public Task<PerforceResponse<ChangeRecord>> TryGetChange(GetChangeOptions Options, int ChangeNumber, CancellationToken CancellationToken)
 		{
 			StringBuilder Arguments = new StringBuilder("change -o");
-			if((Options & GetChangeOptions.BeforeRenumber) != 0)
+			if ((Options & GetChangeOptions.BeforeRenumber) != 0)
 			{
 				Arguments.Append(" -O");
 			}
 			Arguments.AppendFormat(" {0}", ChangeNumber);
 
-			return SingleResponseCommand<ChangeRecord>(Arguments.ToString(), null);
+			return SingleResponseCommandAsync<ChangeRecord>(Arguments.ToString(), null, CancellationToken);
 		}
 
+		/// <summary>
+		/// Serializes a change record to a byte array
+		/// </summary>
+		/// <param name="Input">The record to serialize</param>
+		/// <returns>Serialized record</returns>
 		byte[] SerializeRecord(ChangeRecord Input)
 		{
 			List<KeyValuePair<string, object>> NameToValue = new List<KeyValuePair<string, object>>();
@@ -796,10 +605,11 @@ namespace EpicGames.Perforce
 		/// <param name="MaxChanges">List only the highest numbered changes</param>
 		/// <param name="Status">Limit the list to the changelists with the given status (pending, submitted or shelved)</param>
 		/// <param name="FileSpecs">Paths to query changes for</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
 		/// <returns>List of responses from the server.</returns>
-		public PerforceResponseList<ChangesRecord> Changes(ChangesOptions Options, int MaxChanges, ChangeStatus Status, params string[] FileSpecs)
+		public async Task<List<ChangesRecord>> GetChangesAsync(ChangesOptions Options, int MaxChanges, ChangeStatus Status, string[] FileSpecs, CancellationToken CancellationToken)
 		{
-			return Changes(Options, null, MaxChanges, Status, null, FileSpecs);
+			return (await TryGetChangesAsync(Options, MaxChanges, Status, FileSpecs, CancellationToken)).Data;
 		}
 
 		/// <summary>
@@ -811,8 +621,39 @@ namespace EpicGames.Perforce
 		/// <param name="Status">Limit the list to the changelists with the given status (pending, submitted or shelved)</param>
 		/// <param name="UserName">List only changes made by the named user</param>
 		/// <param name="FileSpecs">Paths to query changes for</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
 		/// <returns>List of responses from the server.</returns>
-		public PerforceResponseList<ChangesRecord> Changes(ChangesOptions Options, string ClientName, int MaxChanges, ChangeStatus Status, string UserName, params string[] FileSpecs)
+		public async Task<List<ChangesRecord>> GetChangesAsync(ChangesOptions Options, string? ClientName, int MaxChanges, ChangeStatus Status, string? UserName, string[]? FileSpecs, CancellationToken CancellationToken)
+		{
+			return (await TryGetChangesAsync(Options, ClientName, MaxChanges, Status, UserName, FileSpecs, CancellationToken)).Data;
+		}
+
+		/// <summary>
+		/// Enumerates changes on the server
+		/// </summary>
+		/// <param name="Options">Options for the command</param>
+		/// <param name="MaxChanges">List only the highest numbered changes</param>
+		/// <param name="Status">Limit the list to the changelists with the given status (pending, submitted or shelved)</param>
+		/// <param name="FileSpecs">Paths to query changes for</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <returns>List of responses from the server.</returns>
+		public Task<PerforceResponseList<ChangesRecord>> TryGetChangesAsync(ChangesOptions Options, int MaxChanges, ChangeStatus Status, string[] FileSpecs, CancellationToken CancellationToken)
+		{
+			return TryGetChangesAsync(Options, null, MaxChanges, Status, null, FileSpecs, CancellationToken);
+		}
+
+		/// <summary>
+		/// Enumerates changes on the server
+		/// </summary>
+		/// <param name="Options">Options for the command</param>
+		/// <param name="ClientName">List only changes made from the named client workspace.</param>
+		/// <param name="MaxChanges">List only the highest numbered changes</param>
+		/// <param name="Status">Limit the list to the changelists with the given status (pending, submitted or shelved)</param>
+		/// <param name="UserName">List only changes made by the named user</param>
+		/// <param name="FileSpecs">Paths to query changes for</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <returns>List of responses from the server.</returns>
+		public Task<PerforceResponseList<ChangesRecord>> TryGetChangesAsync(ChangesOptions Options, string? ClientName, int MaxChanges, ChangeStatus Status, string? UserName, string[]? FileSpecs, CancellationToken CancellationToken)
 		{
 			StringBuilder Arguments = new StringBuilder("changes");
 			if ((Options & ChangesOptions.IncludeIntegrations) != 0)
@@ -835,27 +676,94 @@ namespace EpicGames.Perforce
 			{
 				Arguments.Append(" -f");
 			}
-			if(ClientName != null)
+			if (ClientName != null)
 			{
 				Arguments.AppendFormat(" -c \"{0}\"", ClientName);
 			}
-			if(MaxChanges != -1)
+			if (MaxChanges != -1)
 			{
 				Arguments.AppendFormat(" -m {0}", MaxChanges);
 			}
-			if(Status != ChangeStatus.All)
+			if (Status != ChangeStatus.All)
 			{
-				Arguments.AppendFormat(" -s {0}", GetEnumText(typeof(ChangeStatus), Status));
+				Arguments.AppendFormat(" -s {0}", PerforceReflection.GetEnumText(typeof(ChangeStatus), Status));
 			}
-			if(UserName != null)
+			if (UserName != null)
 			{
 				Arguments.AppendFormat(" -u {0}", UserName);
 			}
-			foreach(string FileSpec in FileSpecs)
+			if (FileSpecs != null)
+			{
+				foreach (string FileSpec in FileSpecs)
+				{
+					Arguments.AppendFormat(" \"{0}\"", FileSpec);
+				}
+			}
+			return CommandAsync<ChangesRecord>(Arguments.ToString(), null, CancellationToken);
+		}
+
+		#endregion
+
+		#region p4 clean
+
+		/// <summary>
+		/// Cleans the workspace
+		/// </summary>
+		/// <param name="Options">Options for the command</param>
+		/// <param name="FileSpecs">Files to sync</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <returns>Response from the server</returns>
+		public async Task<List<CleanRecord>> CleanAsync(CleanOptions Options, string[] FileSpecs, CancellationToken CancellationToken)
+		{
+			return (await TryCleanAsync(Options, FileSpecs, CancellationToken)).Data;
+		}
+
+		/// <summary>
+		/// Cleans the workspace
+		/// </summary>
+		/// <param name="Options">Options for the command</param>
+		/// <param name="FileSpecs">Files to sync</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <returns>Response from the server</returns>
+		public async Task<PerforceResponseList<CleanRecord>> TryCleanAsync(CleanOptions Options, string[] FileSpecs, CancellationToken CancellationToken)
+		{
+			StringBuilder Arguments = new StringBuilder("clean");
+			if ((Options & CleanOptions.Edited) != 0)
+			{
+				Arguments.Append(" -e");
+			}
+			if ((Options & CleanOptions.Added) != 0)
+			{
+				Arguments.Append(" -a");
+			}
+			if ((Options & CleanOptions.Deleted) != 0)
+			{
+				Arguments.Append(" -d");
+			}
+			if ((Options & CleanOptions.Preview) != 0)
+			{
+				Arguments.Append(" -n");
+			}
+			if ((Options & CleanOptions.NoIgnoreChecking) != 0)
+			{
+				Arguments.Append(" -I");
+			}
+			if ((Options & CleanOptions.LocalSyntax) != 0)
+			{
+				Arguments.Append(" -l");
+			}
+			if ((Options & CleanOptions.ModifiedTimes) != 0)
+			{
+				Arguments.Append(" -m");
+			}
+			foreach (string FileSpec in FileSpecs)
 			{
 				Arguments.AppendFormat(" \"{0}\"", FileSpec);
 			}
-			return Command<ChangesRecord>(Arguments.ToString(), null);
+
+			PerforceResponseList<CleanRecord> Records = await CommandAsync<CleanRecord>(Arguments.ToString(), null, CancellationToken);
+			Records.RemoveAll(x => x.Error != null && x.Error.Generic == PerforceGenericCode.Empty);
+			return Records;
 		}
 
 		#endregion
@@ -866,20 +774,44 @@ namespace EpicGames.Perforce
 		/// Creates a client
 		/// </summary>
 		/// <param name="Record">The client record</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server</returns>
-		public PerforceResponse CreateClient(ClientRecord Record)
+		public async Task CreateClientAsync(ClientRecord Record, CancellationToken CancellationToken)
 		{
-			return UpdateClient(Record);
+			(await TryCreateClientAsync(Record, CancellationToken)).EnsureSuccess();
 		}
 
 		/// <summary>
 		/// Creates a client
 		/// </summary>
 		/// <param name="Record">The client record</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server</returns>
-		public PerforceResponse UpdateClient(ClientRecord Record)
+		public Task<PerforceResponse> TryCreateClientAsync(ClientRecord Record, CancellationToken CancellationToken)
 		{
-			return SingleResponseCommand("client -i", SerializeRecord(Record), null);
+			return TryUpdateClientAsync(Record, CancellationToken);
+		}
+
+		/// <summary>
+		/// Creates a client
+		/// </summary>
+		/// <param name="Record">The client record</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <returns>Response from the server</returns>
+		public async Task UpdateClientAsync(ClientRecord Record, CancellationToken CancellationToken)
+		{
+			(await TryUpdateClientAsync(Record, CancellationToken)).EnsureSuccess();
+		}
+
+		/// <summary>
+		/// Update a client
+		/// </summary>
+		/// <param name="Record">The client record</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <returns>Response from the server</returns>
+		public Task<PerforceResponse> TryUpdateClientAsync(ClientRecord Record, CancellationToken CancellationToken)
+		{
+			return SingleResponseCommandAsync("client -i", SerializeRecord(Record), null, CancellationToken);
 		}
 
 		/// <summary>
@@ -887,20 +819,33 @@ namespace EpicGames.Perforce
 		/// </summary>
 		/// <param name="Options">Options for this command</param>
 		/// <param name="ClientName">Name of the client</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server</returns>
-		public PerforceResponse DeleteClient(DeleteClientOptions Options, string ClientName)
+		public async Task DeleteClientAsync(DeleteClientOptions Options, string ClientName, CancellationToken CancellationToken)
+		{
+			(await TryDeleteClientAsync(Options, ClientName, CancellationToken)).EnsureSuccess();
+		}
+
+		/// <summary>
+		/// Deletes a client
+		/// </summary>
+		/// <param name="Options">Options for this command</param>
+		/// <param name="ClientName">Name of the client</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <returns>Response from the server</returns>
+		public Task<PerforceResponse> TryDeleteClientAsync(DeleteClientOptions Options, string ClientName, CancellationToken CancellationToken)
 		{
 			StringBuilder Arguments = new StringBuilder("client -d");
-			if((Options & DeleteClientOptions.Force) != 0)
+			if ((Options & DeleteClientOptions.Force) != 0)
 			{
 				Arguments.Append(" -f");
 			}
-			if((Options & DeleteClientOptions.DeleteShelved) != 0)
+			if ((Options & DeleteClientOptions.DeleteShelved) != 0)
 			{
 				Arguments.Append(" -Fs");
 			}
-			Arguments.AppendFormat(" -d \"{0}\"", ClientName);
-			return SingleResponseCommand<ClientRecord>(Arguments.ToString(), null);
+			Arguments.AppendFormat(" \"{0}\"", ClientName);
+			return SingleResponseCommandAsync(Arguments.ToString(), null, null, CancellationToken);
 		}
 
 		/// <summary>
@@ -909,17 +854,31 @@ namespace EpicGames.Perforce
 		/// <param name="ClientName">The client name</param>
 		/// <param name="StreamName">The new stream to be associated with the client</param>
 		/// <param name="Options">Options for this command</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server</returns>
-		public PerforceResponse SwitchClientToStream(string ClientName, string StreamName, SwitchClientOptions Options)
+		public async Task SwitchClientToStreamAsync(string ClientName, string StreamName, SwitchClientOptions Options, CancellationToken CancellationToken)
+		{
+			(await TrySwitchClientToStreamAsync(ClientName, StreamName, Options, CancellationToken)).EnsureSuccess();
+		}
+
+		/// <summary>
+		/// Changes the stream associated with a client
+		/// </summary>
+		/// <param name="ClientName">The client name</param>
+		/// <param name="StreamName">The new stream to be associated with the client</param>
+		/// <param name="Options">Options for this command</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <returns>Response from the server</returns>
+		public Task<PerforceResponse> TrySwitchClientToStreamAsync(string ClientName, string StreamName, SwitchClientOptions Options, CancellationToken CancellationToken)
 		{
 			StringBuilder Arguments = new StringBuilder("client -s");
-			if((Options & SwitchClientOptions.IgnoreOpenFiles) != 0)
+			if ((Options & SwitchClientOptions.IgnoreOpenFiles) != 0)
 			{
 				Arguments.Append(" -f");
 			}
 			Arguments.AppendFormat(" -S \"{0}\"", StreamName);
 
-			return SingleResponseCommand(Arguments.ToString(), null, null);
+			return SingleResponseCommandAsync(Arguments.ToString(), null, null, CancellationToken);
 		}
 
 		/// <summary>
@@ -927,26 +886,82 @@ namespace EpicGames.Perforce
 		/// </summary>
 		/// <param name="ClientName">The client name</param>
 		/// <param name="TemplateName">The new stream to be associated with the client</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server</returns>
-		public PerforceResponse SwitchClientToTemplate(string ClientName, string TemplateName)
+		public async Task SwitchClientToTemplateAsync(string ClientName, string TemplateName, CancellationToken CancellationToken)
+		{
+			(await TrySwitchClientToTemplateAsync(ClientName, TemplateName, CancellationToken)).EnsureSuccess();
+		}
+
+		/// <summary>
+		/// Changes a client to mirror a template
+		/// </summary>
+		/// <param name="ClientName">The client name</param>
+		/// <param name="TemplateName">The new stream to be associated with the client</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <returns>Response from the server</returns>
+		public Task<PerforceResponse> TrySwitchClientToTemplateAsync(string ClientName, string TemplateName, CancellationToken CancellationToken)
 		{
 			string Arguments = String.Format("client -s -t \"{0}\"", TemplateName);
-			return SingleResponseCommand(Arguments, null, null);
+			return SingleResponseCommandAsync(Arguments, null, null, CancellationToken);
 		}
 
 		/// <summary>
 		/// Queries the current client definition
 		/// </summary>
 		/// <param name="ClientName">Name of the client. Specify null for the current client.</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server; either a client record or error code</returns>
-		public PerforceResponse<ClientRecord> GetClient(string ClientName)
+		public async Task<ClientRecord> GetClientAsync(string ClientName, CancellationToken CancellationToken)
+		{
+			return (await TryGetClientAsync(ClientName, CancellationToken)).Data;
+		}
+
+		/// <summary>
+		/// Queries the current client definition
+		/// </summary>
+		/// <param name="ClientName">Name of the client. Specify null for the current client.</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <returns>Response from the server; either a client record or error code</returns>
+		public Task<PerforceResponse<ClientRecord>> TryGetClientAsync(string ClientName, CancellationToken CancellationToken)
 		{
 			StringBuilder Arguments = new StringBuilder("client -o");
-			if(ClientName != null)
+			if (ClientName != null)
 			{
 				Arguments.AppendFormat(" \"{0}\"", ClientName);
 			}
-			return SingleResponseCommand<ClientRecord>(Arguments.ToString(), null);
+			return SingleResponseCommandAsync<ClientRecord>(Arguments.ToString(), null, CancellationToken);
+		}
+
+		/// <summary>
+		/// Queries information about a stream
+		/// </summary>
+		/// <param name="StreamName">Name of the stream to query</param>
+		/// <param name="bIncludeView">Whether to include the stream view in the output</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <returns>Stream information record</returns>
+		public async Task<StreamRecord> GetStreamAsync(string StreamName, bool bIncludeView, CancellationToken CancellationToken)
+		{
+			return (await TryGetStreamAsync(StreamName, bIncludeView, CancellationToken)).Data;
+		}
+
+		/// <summary>
+		/// Queries information about a stream
+		/// </summary>
+		/// <param name="StreamName">Name of the stream to query</param>
+		/// <param name="bIncludeView">Whether to include the stream view in the output</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <returns>Stream information record</returns>
+		public Task<PerforceResponse<StreamRecord>> TryGetStreamAsync(string StreamName, bool bIncludeView, CancellationToken CancellationToken)
+		{
+			StringBuilder Arguments = new StringBuilder("stream -o");
+			if (bIncludeView)
+			{
+				Arguments.Append(" -v");
+			}
+			Arguments.Append(StreamName);
+
+			return SingleResponseCommandAsync<StreamRecord>(Arguments.ToString(), null, CancellationToken);
 		}
 
 		/// <summary>
@@ -954,16 +969,29 @@ namespace EpicGames.Perforce
 		/// </summary>
 		/// <param name="StreamName">Name of the stream.</param>
 		/// <param name="ChangeNumber">Changelist at which to query the stream view</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server; either a client record or error code</returns>
-		public PerforceResponse<ClientRecord> GetStreamView(string StreamName, int ChangeNumber)
+		public async Task<ClientRecord> GetStreamViewAsync(string StreamName, int ChangeNumber, CancellationToken CancellationToken)
+		{
+			return (await TryGetStreamViewAsync(StreamName, ChangeNumber, CancellationToken)).Data;
+		}
+
+		/// <summary>
+		/// Queries the view for a stream
+		/// </summary>
+		/// <param name="StreamName">Name of the stream.</param>
+		/// <param name="ChangeNumber">Changelist at which to query the stream view</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <returns>Response from the server; either a client record or error code</returns>
+		public Task<PerforceResponse<ClientRecord>> TryGetStreamViewAsync(string StreamName, int ChangeNumber, CancellationToken CancellationToken)
 		{
 			StringBuilder Arguments = new StringBuilder("client -o");
 			Arguments.AppendFormat(" -S \"{0}\"", StreamName);
-			if(ChangeNumber != -1)
+			if (ChangeNumber != -1)
 			{
 				Arguments.AppendFormat(" -c {0}", ChangeNumber);
 			}
-			return SingleResponseCommand<ClientRecord>(Arguments.ToString(), null);
+			return SingleResponseCommandAsync<ClientRecord>(Arguments.ToString(), null, CancellationToken);
 		}
 
 		/// <summary>
@@ -994,23 +1022,23 @@ namespace EpicGames.Perforce
 			{
 				NameToValue.Add(new KeyValuePair<string, object>("Root", Input.Root));
 			}
-			if(Input.Options != ClientOptions.None)
+			if (Input.Options != ClientOptions.None)
 			{
-				NameToValue.Add(new KeyValuePair<string, object>("Options", GetEnumText(typeof(ClientOptions), Input.Options)));
+				NameToValue.Add(new KeyValuePair<string, object>("Options", PerforceReflection.GetEnumText(typeof(ClientOptions), Input.Options)));
 			}
-			if(Input.SubmitOptions != ClientSubmitOptions.Unspecified)
+			if (Input.SubmitOptions != ClientSubmitOptions.Unspecified)
 			{
-				NameToValue.Add(new KeyValuePair<string, object>("SubmitOptions", GetEnumText(typeof(ClientSubmitOptions), Input.SubmitOptions)));
+				NameToValue.Add(new KeyValuePair<string, object>("SubmitOptions", PerforceReflection.GetEnumText(typeof(ClientSubmitOptions), Input.SubmitOptions)));
 			}
-			if(Input.LineEnd != ClientLineEndings.Unspecified)
+			if (Input.LineEnd != ClientLineEndings.Unspecified)
 			{
-				NameToValue.Add(new KeyValuePair<string, object>("LineEnd", GetEnumText(typeof(ClientLineEndings), Input.LineEnd)));
+				NameToValue.Add(new KeyValuePair<string, object>("LineEnd", PerforceReflection.GetEnumText(typeof(ClientLineEndings), Input.LineEnd)));
 			}
-			if(Input.Type != null)
+			if (Input.Type != null)
 			{
 				NameToValue.Add(new KeyValuePair<string, object>("Type", Input.Type));
 			}
-			if(Input.Stream != null)
+			if (Input.Stream != null)
 			{
 				NameToValue.Add(new KeyValuePair<string, object>("Stream", Input.Stream));
 			}
@@ -1030,10 +1058,23 @@ namespace EpicGames.Perforce
 		/// </summary>
 		/// <param name="Options">Options for this command</param>
 		/// <param name="UserName">List only client workspaces owned by this user.</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server; either a client record or error code</returns>
-		public PerforceResponseList<ClientsRecord> Clients(ClientsOptions Options, string UserName)
+		public async Task<List<ClientsRecord>> GetClientsAsync(ClientsOptions Options, string? UserName, CancellationToken CancellationToken)
 		{
-			return Clients(Options, null, -1, null, UserName);
+			return (await TryGetClientsAsync(Options, UserName, CancellationToken)).Data;
+		}
+
+		/// <summary>
+		/// Queries the current client definition
+		/// </summary>
+		/// <param name="Options">Options for this command</param>
+		/// <param name="UserName">List only client workspaces owned by this user.</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <returns>Response from the server; either a client record or error code</returns>
+		public Task<PerforceResponseList<ClientsRecord>> TryGetClientsAsync(ClientsOptions Options, string? UserName, CancellationToken CancellationToken)
+		{
+			return TryGetClientsAsync(Options, null, -1, null, UserName, CancellationToken);
 		}
 
 		/// <summary>
@@ -1044,11 +1085,27 @@ namespace EpicGames.Perforce
 		/// <param name="MaxResults">Limit the number of results to return. -1 for all.</param>
 		/// <param name="Stream">List client workspaces associated with the specified stream.</param>
 		/// <param name="UserName">List only client workspaces owned by this user.</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server; either a client record or error code</returns>
-		public PerforceResponseList<ClientsRecord> Clients(ClientsOptions Options, string Filter, int MaxResults, string Stream, string UserName)
+		public async Task<List<ClientsRecord>> GetClientsAsync(ClientsOptions Options, string? Filter, int MaxResults, string? Stream, string? UserName, CancellationToken CancellationToken)
+		{
+			return (await TryGetClientsAsync(Options, Filter, MaxResults, Stream, UserName, CancellationToken)).Data;
+		}
+
+		/// <summary>
+		/// Queries the current client definition
+		/// </summary>
+		/// <param name="Options">Options for this command</param>
+		/// <param name="Filter">List only client workspaces matching filter. Treated as case sensitive if <ref>ClientsOptions.CaseSensitiveFilter</ref> is set.</param>
+		/// <param name="MaxResults">Limit the number of results to return. -1 for all.</param>
+		/// <param name="Stream">List client workspaces associated with the specified stream.</param>
+		/// <param name="UserName">List only client workspaces owned by this user.</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <returns>Response from the server; either a client record or error code</returns>
+		public Task<PerforceResponseList<ClientsRecord>> TryGetClientsAsync(ClientsOptions Options, string? Filter, int MaxResults, string? Stream, string? UserName, CancellationToken CancellationToken)
 		{
 			StringBuilder Arguments = new StringBuilder("clients");
-			if((Options & ClientsOptions.All) != 0)
+			if ((Options & ClientsOptions.All) != 0)
 			{
 				Arguments.Append(" -a");
 			}
@@ -1063,27 +1120,27 @@ namespace EpicGames.Perforce
 					Arguments.AppendFormat(" -E \"{0}\"", Filter);
 				}
 			}
-			if(MaxResults != -1)
+			if (MaxResults != -1)
 			{
 				Arguments.AppendFormat(" -m {0}", MaxResults);
 			}
-			if(Stream != null)
+			if (Stream != null)
 			{
 				Arguments.AppendFormat(" -S \"{0}\"", Stream);
 			}
-			if((Options & ClientsOptions.WithTimes) != 0)
+			if ((Options & ClientsOptions.WithTimes) != 0)
 			{
 				Arguments.Append(" -t");
 			}
-			if(UserName != null)
+			if (UserName != null)
 			{
 				Arguments.AppendFormat(" -u \"{0}\"", UserName);
 			}
-			if((Options & ClientsOptions.Unloaded) != 0)
+			if ((Options & ClientsOptions.Unloaded) != 0)
 			{
 				Arguments.Append(" -U");
 			}
-			return Command<ClientsRecord>(Arguments.ToString(), null);
+			return CommandAsync<ClientsRecord>(Arguments.ToString(), null, CancellationToken);
 		}
 
 		#endregion
@@ -1095,31 +1152,44 @@ namespace EpicGames.Perforce
 		/// </summary>
 		/// <param name="Options">Options for the command</param>
 		/// <param name="FileSpecs">List of file specifications to query</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
 		/// <returns>List of responses from the server</returns>
-		public PerforceResponseList<DeleteRecord> Delete(int ChangeNumber, DeleteOptions Options, params string[] FileSpecs)
+		public async Task<List<DeleteRecord>> DeleteAsync(int ChangeNumber, DeleteOptions Options, string[] FileSpecs, CancellationToken CancellationToken)
+		{
+			return (await TryDeleteAsync(ChangeNumber, Options, FileSpecs, CancellationToken)).Data;
+		}
+
+		/// <summary>
+		/// Execute the 'delete' command
+		/// </summary>
+		/// <param name="Options">Options for the command</param>
+		/// <param name="FileSpecs">List of file specifications to query</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <returns>List of responses from the server</returns>
+		public Task<PerforceResponseList<DeleteRecord>> TryDeleteAsync(int ChangeNumber, DeleteOptions Options, string[] FileSpecs, CancellationToken CancellationToken)
 		{
 			StringBuilder Arguments = new StringBuilder("delete");
-			if(ChangeNumber != -1)
+			if (ChangeNumber != -1)
 			{
 				Arguments.AppendFormat(" -c {0}", ChangeNumber);
 			}
-			if((Options & DeleteOptions.PreviewOnly) != 0)
+			if ((Options & DeleteOptions.PreviewOnly) != 0)
 			{
 				Arguments.Append(" -n");
 			}
-			if((Options & DeleteOptions.KeepWorkspaceFiles) != 0)
+			if ((Options & DeleteOptions.KeepWorkspaceFiles) != 0)
 			{
 				Arguments.Append(" -k");
 			}
-			if((Options & DeleteOptions.WithoutSyncing) != 0)
+			if ((Options & DeleteOptions.WithoutSyncing) != 0)
 			{
 				Arguments.Append(" -v");
 			}
-			foreach(string FileSpec in FileSpecs)
+			foreach (string FileSpec in FileSpecs)
 			{
 				Arguments.AppendFormat(" \"{0}\"", FileSpec);
 			}
-			return Command<DeleteRecord>(Arguments.ToString(), null);
+			return CommandAsync<DeleteRecord>(Arguments.ToString(), null, CancellationToken);
 		}
 
 		#endregion
@@ -1130,10 +1200,22 @@ namespace EpicGames.Perforce
 		/// Describes a single changelist
 		/// </summary>
 		/// <param name="ChangeNumber">The changelist number to retrieve description for</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server; either a describe record or error code</returns>
-		public PerforceResponse<DescribeRecord> Describe(int ChangeNumber)
+		public async Task<DescribeRecord> DescribeAsync(int ChangeNumber, CancellationToken CancellationToken)
 		{
-			PerforceResponseList<DescribeRecord> Records = Describe(new int[] { ChangeNumber });
+			return (await TryDescribeAsync(ChangeNumber, CancellationToken)).Data;
+		}
+
+		/// <summary>
+		/// Describes a single changelist
+		/// </summary>
+		/// <param name="ChangeNumber">The changelist number to retrieve description for</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <returns>Response from the server; either a describe record or error code</returns>
+		public async Task<PerforceResponse<DescribeRecord>> TryDescribeAsync(int ChangeNumber, CancellationToken CancellationToken)
+		{
+			PerforceResponseList<DescribeRecord> Records = await TryDescribeAsync(new int[] { ChangeNumber }, CancellationToken);
 			if (Records.Count != 1)
 			{
 				throw new PerforceException("Expected only one record returned from p4 describe command, got {0}", Records.Count);
@@ -1145,50 +1227,74 @@ namespace EpicGames.Perforce
 		/// Describes a set of changelists
 		/// </summary>
 		/// <param name="ChangeNumbers">The changelist numbers to retrieve descriptions for</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
 		/// <returns>List of responses from the server</returns>
-		public PerforceResponseList<DescribeRecord> Describe(params int[] ChangeNumbers)
+		public async Task<List<DescribeRecord>> DescribeAsync(int[] ChangeNumbers, CancellationToken CancellationToken)
 		{
-			StringBuilder Arguments = new StringBuilder("describe -s");
-			foreach(int ChangeNumber in ChangeNumbers)
-			{
-				Arguments.AppendFormat(" {0}", ChangeNumber);
-			}
-			return Command<DescribeRecord>(Arguments.ToString(), null);
+			return (await TryDescribeAsync(ChangeNumbers, CancellationToken)).Data;
 		}
 
 		/// <summary>
 		/// Describes a set of changelists
 		/// </summary>
 		/// <param name="ChangeNumbers">The changelist numbers to retrieve descriptions for</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
 		/// <returns>List of responses from the server</returns>
-		public PerforceResponseList<DescribeRecord> Describe(DescribeOptions Options, int MaxResults, params int[] ChangeNumbers)
+		public Task<PerforceResponseList<DescribeRecord>> TryDescribeAsync(int[] ChangeNumbers, CancellationToken CancellationToken)
 		{
 			StringBuilder Arguments = new StringBuilder("describe -s");
-			if((Options & DescribeOptions.ShowDescriptionForRestrictedChanges) != 0)
-			{
-				Arguments.Append(" -f");
-			}
-			if((Options & DescribeOptions.Identity) != 0)
-			{
-				Arguments.Append(" -I");
-			}
-			if(MaxResults != -1)
-			{
-				Arguments.AppendFormat(" -m{0}", MaxResults);
-			}
-			if((Options & DescribeOptions.OriginalChangeNumber) != 0)
-			{
-				Arguments.Append(" -O");
-			}
-			if((Options & DescribeOptions.Shelved) != 0)
-			{
-				Arguments.Append(" -S");
-			}
-			foreach(int ChangeNumber in ChangeNumbers)
+			foreach (int ChangeNumber in ChangeNumbers)
 			{
 				Arguments.AppendFormat(" {0}", ChangeNumber);
 			}
-			return Command<DescribeRecord>(Arguments.ToString(), null);
+			return CommandAsync<DescribeRecord>(Arguments.ToString(), null, CancellationToken);
+		}
+
+		/// <summary>
+		/// Describes a set of changelists
+		/// </summary>
+		/// <param name="ChangeNumbers">The changelist numbers to retrieve descriptions for</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <returns>List of responses from the server</returns>
+		public async Task<List<DescribeRecord>> DescribeAsync(DescribeOptions Options, int MaxNumFiles, int[] ChangeNumbers, CancellationToken CancellationToken)
+		{
+			return (await TryDescribeAsync(Options, MaxNumFiles, ChangeNumbers, CancellationToken)).Data;
+		}
+
+		/// <summary>
+		/// Describes a set of changelists
+		/// </summary>
+		/// <param name="ChangeNumbers">The changelist numbers to retrieve descriptions for</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <returns>List of responses from the server</returns>
+		public Task<PerforceResponseList<DescribeRecord>> TryDescribeAsync(DescribeOptions Options, int MaxNumFiles, int[] ChangeNumbers, CancellationToken CancellationToken)
+		{
+			StringBuilder Arguments = new StringBuilder("describe -s");
+			if ((Options & DescribeOptions.ShowDescriptionForRestrictedChanges) != 0)
+			{
+				Arguments.Append(" -f");
+			}
+			if ((Options & DescribeOptions.Identity) != 0)
+			{
+				Arguments.Append(" -I");
+			}
+			if (MaxNumFiles != -1)
+			{
+				Arguments.AppendFormat(" -m{0}", MaxNumFiles);
+			}
+			if ((Options & DescribeOptions.OriginalChangeNumber) != 0)
+			{
+				Arguments.Append(" -O");
+			}
+			if ((Options & DescribeOptions.Shelved) != 0)
+			{
+				Arguments.Append(" -S");
+			}
+			foreach (int ChangeNumber in ChangeNumbers)
+			{
+				Arguments.AppendFormat(" {0}", ChangeNumber);
+			}
+			return CommandAsync<DescribeRecord>(Arguments.ToString(), null, CancellationToken);
 		}
 
 		#endregion
@@ -1200,10 +1306,23 @@ namespace EpicGames.Perforce
 		/// </summary>
 		/// <param name="ChangeNumber">Changelist to add files to</param>
 		/// <param name="FileSpecs">Files to be opened for edit</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server</returns>
-		public PerforceResponseList<EditRecord> Edit(int ChangeNumber, params string[] FileSpecs)
+		public async Task<List<EditRecord>> EditAsync(int ChangeNumber, string[] FileSpecs, CancellationToken CancellationToken)
 		{
-			return Edit(ChangeNumber, null, EditOptions.None, FileSpecs);
+			return (await TryEditAsync(ChangeNumber, FileSpecs, CancellationToken)).Data;
+		}
+
+		/// <summary>
+		/// Opens files for edit
+		/// </summary>
+		/// <param name="ChangeNumber">Changelist to add files to</param>
+		/// <param name="FileSpecs">Files to be opened for edit</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <returns>Response from the server</returns>
+		public Task<PerforceResponseList<EditRecord>> TryEditAsync(int ChangeNumber, string[] FileSpecs, CancellationToken CancellationToken)
+		{
+			return TryEditAsync(ChangeNumber, null, EditOptions.None, FileSpecs, CancellationToken);
 		}
 
 		/// <summary>
@@ -1213,32 +1332,47 @@ namespace EpicGames.Perforce
 		/// <param name="FileType">Type for new files</param>
 		/// <param name="Options">Options for the command</param>
 		/// <param name="FileSpecs">Files to be opened for edit</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server</returns>
-		public PerforceResponseList<EditRecord> Edit(int ChangeNumber, string FileType, EditOptions Options, params string[] FileSpecs)
+		public async Task<List<EditRecord>> EditAsync(int ChangeNumber, string FileType, EditOptions Options, string[] FileSpecs, CancellationToken CancellationToken)
+		{
+			return (await TryEditAsync(ChangeNumber, FileType, Options, FileSpecs, CancellationToken)).Data;
+		}
+
+		/// <summary>
+		/// Opens files for edit
+		/// </summary>
+		/// <param name="ChangeNumber">Changelist to add files to</param>
+		/// <param name="FileType">Type for new files</param>
+		/// <param name="Options">Options for the command</param>
+		/// <param name="FileSpecs">Files to be opened for edit</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <returns>Response from the server</returns>
+		public Task<PerforceResponseList<EditRecord>> TryEditAsync(int ChangeNumber, string? FileType, EditOptions Options, string[] FileSpecs, CancellationToken CancellationToken)
 		{
 			StringBuilder Arguments = new StringBuilder("edit");
-			if(ChangeNumber != -1)
+			if (ChangeNumber != -1)
 			{
 				Arguments.AppendFormat(" -c {0}", ChangeNumber);
 			}
-			if((Options & EditOptions.KeepWorkspaceFiles) != 0)
+			if ((Options & EditOptions.KeepWorkspaceFiles) != 0)
 			{
 				Arguments.Append(" -k");
 			}
-			if((Options & EditOptions.PreviewOnly) != 0)
+			if ((Options & EditOptions.PreviewOnly) != 0)
 			{
 				Arguments.Append(" -n");
 			}
-			if(FileType != null)
+			if (FileType != null)
 			{
 				Arguments.AppendFormat(" -t \"{0}\"", FileType);
 			}
-			foreach(string FileSpec in FileSpecs)
+			foreach (string FileSpec in FileSpecs)
 			{
 				Arguments.AppendFormat(" \"{0}\"", FileSpec);
 			}
 
-			return Command<EditRecord>(Arguments.ToString(), null);
+			return CommandAsync<EditRecord>(Arguments.ToString(), null, CancellationToken);
 		}
 
 		#endregion
@@ -1250,10 +1384,23 @@ namespace EpicGames.Perforce
 		/// </summary>
 		/// <param name="Options">Options for the command</param>
 		/// <param name="FileSpecs">List of file specifications to query</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
 		/// <returns>List of responses from the server</returns>
-		public PerforceResponseList<FileLogRecord> FileLog(FileLogOptions Options, params string[] FileSpecs)
+		public async Task<List<FileLogRecord>> FileLogAsync(FileLogOptions Options, string[] FileSpecs, CancellationToken CancellationToken)
 		{
-			return FileLog(-1, -1, Options, FileSpecs);
+			return (await TryFileLogAsync(Options, FileSpecs, CancellationToken)).Data;
+		}
+
+		/// <summary>
+		/// Execute the 'filelog' command
+		/// </summary>
+		/// <param name="Options">Options for the command</param>
+		/// <param name="FileSpecs">List of file specifications to query</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <returns>List of responses from the server</returns>
+		public Task<PerforceResponseList<FileLogRecord>> TryFileLogAsync(FileLogOptions Options, string[] FileSpecs, CancellationToken CancellationToken)
+		{
+			return TryFileLogAsync(-1, -1, Options, FileSpecs, CancellationToken);
 		}
 
 		/// <summary>
@@ -1262,10 +1409,24 @@ namespace EpicGames.Perforce
 		/// <param name="MaxChanges">Number of changelists to show. Ignored if zero or negative.</param>
 		/// <param name="Options">Options for the command</param>
 		/// <param name="FileSpecs">List of file specifications to query</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
 		/// <returns>List of responses from the server</returns>
-		public PerforceResponseList<FileLogRecord> FileLog(int MaxChanges, FileLogOptions Options, params string[] FileSpecs)
+		public async Task<List<FileLogRecord>> FileLogAsync(int MaxChanges, FileLogOptions Options, string[] FileSpecs, CancellationToken CancellationToken)
 		{
-			return FileLog(-1, MaxChanges, Options, FileSpecs);
+			return (await TryFileLogAsync(MaxChanges, Options, FileSpecs, CancellationToken)).Data;
+		}
+
+		/// <summary>
+		/// Execute the 'filelog' command
+		/// </summary>
+		/// <param name="MaxChanges">Number of changelists to show. Ignored if zero or negative.</param>
+		/// <param name="Options">Options for the command</param>
+		/// <param name="FileSpecs">List of file specifications to query</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <returns>List of responses from the server</returns>
+		public Task<PerforceResponseList<FileLogRecord>> TryFileLogAsync(int MaxChanges, FileLogOptions Options, string[] FileSpecs, CancellationToken CancellationToken)
+		{
+			return TryFileLogAsync(-1, MaxChanges, Options, FileSpecs, CancellationToken);
 		}
 
 		/// <summary>
@@ -1275,40 +1436,55 @@ namespace EpicGames.Perforce
 		/// <param name="MaxChanges">Number of changelists to show. Ignored if zero or negative.</param>
 		/// <param name="Options">Options for the command</param>
 		/// <param name="FileSpecs">List of file specifications to query</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
 		/// <returns>List of responses from the server</returns>
-		public PerforceResponseList<FileLogRecord> FileLog(int ChangeNumber, int MaxChanges, FileLogOptions Options, params string[] FileSpecs)
+		public async Task<List<FileLogRecord>> FileLogAsync(int ChangeNumber, int MaxChanges, FileLogOptions Options, string[] FileSpecs, CancellationToken CancellationToken)
+		{
+			return (await TryFileLogAsync(ChangeNumber, MaxChanges, Options, FileSpecs, CancellationToken)).Data;
+		}
+
+		/// <summary>
+		/// Execute the 'filelog' command
+		/// </summary>
+		/// <param name="ChangeNumber">Show only files modified by this changelist. Ignored if zero or negative.</param>
+		/// <param name="MaxChanges">Number of changelists to show. Ignored if zero or negative.</param>
+		/// <param name="Options">Options for the command</param>
+		/// <param name="FileSpecs">List of file specifications to query</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <returns>List of responses from the server</returns>
+		public Task<PerforceResponseList<FileLogRecord>> TryFileLogAsync(int ChangeNumber, int MaxChanges, FileLogOptions Options, string[] FileSpecs, CancellationToken CancellationToken)
 		{
 			// Build the argument list
 			StringBuilder Arguments = new StringBuilder("filelog");
-			if(ChangeNumber > 0)
+			if (ChangeNumber > 0)
 			{
 				Arguments.AppendFormat(" -c {0}", ChangeNumber);
 			}
-			if((Options & FileLogOptions.ContentHistory) != 0)
+			if ((Options & FileLogOptions.ContentHistory) != 0)
 			{
 				Arguments.Append(" -h");
 			}
-			if((Options & FileLogOptions.FollowAcrossBranches) != 0)
+			if ((Options & FileLogOptions.FollowAcrossBranches) != 0)
 			{
 				Arguments.Append(" -i");
 			}
-			if((Options & FileLogOptions.FullDescriptions) != 0)
+			if ((Options & FileLogOptions.FullDescriptions) != 0)
 			{
 				Arguments.Append(" -l");
 			}
-			if((Options & FileLogOptions.LongDescriptions) != 0)
+			if ((Options & FileLogOptions.LongDescriptions) != 0)
 			{
 				Arguments.Append(" -L");
 			}
-			if(MaxChanges > 0)
+			if (MaxChanges > 0)
 			{
 				Arguments.AppendFormat(" -m {0}", MaxChanges);
 			}
-			if((Options & FileLogOptions.DoNotFollowPromotedTaskStreams) != 0)
+			if ((Options & FileLogOptions.DoNotFollowPromotedTaskStreams) != 0)
 			{
 				Arguments.Append(" -p");
 			}
-			if((Options & FileLogOptions.IgnoreNonContributoryIntegrations) != 0)
+			if ((Options & FileLogOptions.IgnoreNonContributoryIntegrations) != 0)
 			{
 				Arguments.Append(" -s");
 			}
@@ -1316,14 +1492,8 @@ namespace EpicGames.Perforce
 			// Always include times to simplify parsing
 			Arguments.Append(" -t");
 
-			// Add the file arguments
-			foreach(string FileSpec in FileSpecs)
-			{
-				Arguments.AppendFormat(" \"{0}\"", FileSpec);
-			}
-
-			// Execute the command
-			return Command<FileLogRecord>(Arguments.ToString(), null);
+			// Append all the arguments
+			return BatchedCommandAsync<FileLogRecord>(Arguments.ToString(), FileSpecs, null, CancellationToken);
 		}
 
 		#endregion
@@ -1335,10 +1505,23 @@ namespace EpicGames.Perforce
 		/// </summary>
 		/// <param name="Options">Options for the command</param>
 		/// <param name="FileSpecs">List of file specifications to query</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
 		/// <returns>List of responses from the server</returns>
-		public PerforceResponseList<FStatRecord> FStat(FStatOptions Options, params string[] FileSpecs)
+		public async Task<List<FStatRecord>> FStatAsync(FStatOptions Options, string[] FileSpecs, CancellationToken CancellationToken)
 		{
-			return FStat(-1, Options, FileSpecs);
+			return (await TryFStatAsync(Options, FileSpecs, CancellationToken)).Data;
+		}
+
+		/// <summary>
+		/// Execute the 'fstat' command
+		/// </summary>
+		/// <param name="Options">Options for the command</param>
+		/// <param name="FileSpecs">List of file specifications to query</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <returns>List of responses from the server</returns>
+		public Task<PerforceResponseList<FStatRecord>> TryFStatAsync(FStatOptions Options, string[] FileSpecs, CancellationToken CancellationToken)
+		{
+			return TryFStatAsync(-1, Options, FileSpecs, CancellationToken);
 		}
 
 		/// <summary>
@@ -1347,10 +1530,24 @@ namespace EpicGames.Perforce
 		/// <param name="MaxFiles">Produce fstat output for only the first max files.</param>
 		/// <param name="Options">Options for the command</param>
 		/// <param name="FileSpecs">List of file specifications to query</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
 		/// <returns>List of responses from the server</returns>
-		public PerforceResponseList<FStatRecord> FStat(int MaxFiles, FStatOptions Options, params string[] FileSpecs)
+		public async Task<List<FStatRecord>> FStatAsync(int MaxFiles, FStatOptions Options, string[] FileSpecs, CancellationToken CancellationToken)
 		{
-			return FStat(-1, -1, null, MaxFiles, Options, FileSpecs);
+			return (await TryFStatAsync(MaxFiles, Options, FileSpecs, CancellationToken)).Data;
+		}
+
+		/// <summary>
+		/// Execute the 'fstat' command
+		/// </summary>
+		/// <param name="MaxFiles">Produce fstat output for only the first max files.</param>
+		/// <param name="Options">Options for the command</param>
+		/// <param name="FileSpecs">List of file specifications to query</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <returns>List of responses from the server</returns>
+		public Task<PerforceResponseList<FStatRecord>> TryFStatAsync(int MaxFiles, FStatOptions Options, string[] FileSpecs, CancellationToken CancellationToken)
+		{
+			return TryFStatAsync(-1, -1, null, MaxFiles, Options, FileSpecs, CancellationToken);
 		}
 
 		/// <summary>
@@ -1362,8 +1559,25 @@ namespace EpicGames.Perforce
 		/// <param name="MaxFiles">Produce fstat output for only the first max files.</param>
 		/// <param name="Options">Options for the command</param>
 		/// <param name="FileSpecs">List of file specifications to query</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
 		/// <returns>List of responses from the server</returns>
-		public PerforceResponseList<FStatRecord> FStat(int AfterChangeNumber, int OnlyChangeNumber, string Filter, int MaxFiles, FStatOptions Options, params string[] FileSpecs)
+		public async Task<List<FStatRecord>> FStatAsync(int AfterChangeNumber, int OnlyChangeNumber, string? Filter, int MaxFiles, FStatOptions Options, string[] FileSpecs, CancellationToken CancellationToken)
+		{
+			return (await TryFStatAsync(AfterChangeNumber, OnlyChangeNumber, Filter, MaxFiles, Options, FileSpecs, CancellationToken)).Data;
+		}
+
+		/// <summary>
+		/// Execute the 'fstat' command
+		/// </summary>
+		/// <param name="AfterChangeNumber">Return only files affected after the given changelist number.</param>
+		/// <param name="OnlyChangeNumber">Return only files affected by the given changelist number.</param>
+		/// <param name="Filter">List only those files that match the criteria specified.</param>
+		/// <param name="MaxFiles">Produce fstat output for only the first max files.</param>
+		/// <param name="Options">Options for the command</param>
+		/// <param name="FileSpecs">List of file specifications to query</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <returns>List of responses from the server</returns>
+		public Task<PerforceResponseList<FStatRecord>> TryFStatAsync(int AfterChangeNumber, int OnlyChangeNumber, string? Filter, int MaxFiles, FStatOptions Options, string[] FileSpecs, CancellationToken CancellationToken)
 		{
 			// Build the argument list
 			StringBuilder Arguments = new StringBuilder("fstat");
@@ -1460,14 +1674,8 @@ namespace EpicGames.Perforce
 				Arguments.Append(" -U");
 			}
 
-			// Add the file arguments
-			foreach(string FileSpec in FileSpecs)
-			{
-				Arguments.AppendFormat(" \"{0}\"", FileSpec);
-			}
-
 			// Execute the command
-			return Command<FStatRecord>(Arguments.ToString(), null);
+			return BatchedCommandAsync<FStatRecord>(Arguments.ToString(), FileSpecs, null, CancellationToken);
 		}
 
 		#endregion
@@ -1478,8 +1686,20 @@ namespace EpicGames.Perforce
 		/// Execute the 'info' command
 		/// </summary>
 		/// <param name="Options">Options for the command</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server; an InfoRecord or error code</returns>
-		public PerforceResponse<InfoRecord> Info(InfoOptions Options)
+		public async Task<InfoRecord> GetInfoAsync(InfoOptions Options, CancellationToken CancellationToken)
+		{
+			return (await TryGetInfoAsync(Options, CancellationToken)).Data;
+		}
+
+		/// <summary>
+		/// Execute the 'info' command
+		/// </summary>
+		/// <param name="Options">Options for the command</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <returns>Response from the server; an InfoRecord or error code</returns>
+		public Task<PerforceResponse<InfoRecord>> TryGetInfoAsync(InfoOptions Options, CancellationToken CancellationToken)
 		{
 			// Build the argument list
 			StringBuilder Arguments = new StringBuilder("info");
@@ -1487,7 +1707,91 @@ namespace EpicGames.Perforce
 			{
 				Arguments.Append(" -s");
 			}
-			return SingleResponseCommand<InfoRecord>(Arguments.ToString(), null);
+			return SingleResponseCommandAsync<InfoRecord>(Arguments.ToString(), null, CancellationToken);
+		}
+
+		#endregion
+
+		#region p4 login
+
+		/// <summary>
+		/// Execute the 'login' command
+		/// </summary>
+		/// <param name="Password">Password to use to login</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <returns>Response from the server</returns>
+		public async Task LoginAsync(string Password, CancellationToken CancellationToken)
+		{
+			// Some versions of P4.EXE do not support marshalled output for P4 login calls, so we only support this as a basic text query.
+			byte[] PasswordBytes = Encoding.UTF8.GetBytes(Password);
+			using (ManagedProcessGroup ChildProcessGroup = new ManagedProcessGroup())
+			{
+				string Executable = PerforceChildProcess.GetExecutable();
+				string FullArgumentList = GetFullCommandLine("login");
+
+				Logger.LogDebug("Running {0} {1}", Executable, FullArgumentList);
+				using (ManagedProcess ChildProcess = new ManagedProcess(ChildProcessGroup, Executable, FullArgumentList, null, null, PasswordBytes, ProcessPriorityClass.Normal))
+				{
+					StringBuilder Lines = new StringBuilder("Unable to log in: ");
+					for(; ;)
+					{
+						string? Line = await ChildProcess.ReadLineAsync();
+						if(Line == null)
+						{
+							break;
+						}
+
+						Lines.Append($"\n  {Line}");
+
+						if(Line.StartsWith("Enter password:", StringComparison.OrdinalIgnoreCase))
+						{
+							Lines.Append($" {new string('*', Password.Length)}");
+						}
+					}
+
+					ChildProcess.WaitForExit();
+
+					if (ChildProcess.ExitCode != 0)
+					{
+						throw new PerforceException($"{Lines}\n  (exit code {ChildProcess.ExitCode})");
+					}
+				}
+			}
+		}
+
+		#endregion
+
+		#region p4 merge
+
+		/// <summary>
+		/// Execute the 'merge' command
+		/// </summary>
+		/// <param name="Options">Options for the merge</param>
+		/// <param name="Change"></param>
+		/// <param name="MaxFiles">Maximum number of files to merge</param>
+		/// <param name="SourceFileSpec">The source filespec and revision range</param>
+		/// <param name="TargetFileSpec">The target filespec</param>
+		/// <param name="CancellationToken">Cancellation token</param>
+		/// <returns>List of records</returns>
+		public Task<PerforceResponseList<MergeRecord>> MergeAsync(MergeOptions Options, int Change, int MaxFiles, string SourceFileSpec, string TargetFileSpec, CancellationToken CancellationToken)
+		{
+			StringBuilder Arguments = new StringBuilder("merge");
+			if ((Options & MergeOptions.Preview) != 0)
+			{
+				Arguments.AppendFormat(" -n");
+			}
+			if (Change != -1)
+			{
+				Arguments.AppendFormat(" -c {0}", Change);
+			}
+			if (MaxFiles != -1)
+			{
+				Arguments.AppendFormat(" -m {0}", MaxFiles);
+			}
+			Arguments.AppendFormat(" \"{0}\"", SourceFileSpec);
+			Arguments.AppendFormat(" \"{0}\"", TargetFileSpec);
+
+			return CommandAsync<MergeRecord>(Arguments.ToString(), null, CancellationToken);
 		}
 
 		#endregion
@@ -1503,8 +1807,25 @@ namespace EpicGames.Perforce
 		/// <param name="UserName">List only files that are opened by the given user</param>
 		/// <param name="MaxResults">Maximum number of results to return</param>
 		/// <param name="FileSpecs">Specification for the files to list</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server</returns>
-		public PerforceResponseList<FStatRecord> Opened(OpenedOptions Options, int ChangeNumber, string ClientName, string UserName, int MaxResults, params string[] FileSpecs)
+		public async Task<List<FStatRecord>> GetOpenFilesAsync(OpenedOptions Options, int ChangeNumber, string? ClientName, string? UserName, int MaxResults, string[] FileSpecs, CancellationToken CancellationToken)
+		{
+			return (await TryGetOpenFilesAsync(Options, ChangeNumber, ClientName, UserName, MaxResults, FileSpecs, CancellationToken)).Data;
+		}
+
+		/// <summary>
+		/// Execute the 'opened' command
+		/// </summary>
+		/// <param name="Options">Options for the command</param>
+		/// <param name="ChangeNumber">List the files in pending changelist change. To list files in the default changelist, use DefaultChange.</param>
+		/// <param name="ClientName">List only files that are open in the given client</param>
+		/// <param name="UserName">List only files that are opened by the given user</param>
+		/// <param name="MaxResults">Maximum number of results to return</param>
+		/// <param name="FileSpecs">Specification for the files to list</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <returns>Response from the server</returns>
+		public Task<PerforceResponseList<FStatRecord>> TryGetOpenFilesAsync(OpenedOptions Options, int ChangeNumber, string? ClientName, string? UserName, int MaxResults, string[] FileSpecs, CancellationToken CancellationToken)
 		{
 			// Build the argument list
 			StringBuilder Arguments = new StringBuilder("opened");
@@ -1524,7 +1845,7 @@ namespace EpicGames.Perforce
 			{
 				Arguments.AppendFormat(" -u \"{0}\"", UserName);
 			}
-			if(MaxResults == DefaultChange)
+			if(MaxResults == PerforceReflection.DefaultChange)
 			{
 				Arguments.AppendFormat(" -m default");
 			}
@@ -1540,7 +1861,7 @@ namespace EpicGames.Perforce
 			{
 				Arguments.AppendFormat(" \"{0}\"", FileSpec);
 			}
-			return Command<FStatRecord>(Arguments.ToString(), null);
+			return CommandAsync<FStatRecord>(Arguments.ToString(), null, CancellationToken);
 		}
 
 		#endregion
@@ -1552,20 +1873,33 @@ namespace EpicGames.Perforce
 		/// </summary>
 		/// <param name="OutputFile">Output file to redirect output to</param>
 		/// <param name="FileSpec">Specification for the files to print</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server</returns>
-		public PerforceResponse<PrintRecord> Print(string OutputFile, string FileSpec)
+		public async Task<PrintRecord> PrintAsync(string OutputFile, string FileSpec, CancellationToken CancellationToken)
+		{
+			return (await TryPrintAsync(OutputFile, FileSpec, CancellationToken)).Data;
+		}
+
+		/// <summary>
+		/// Execute the 'print' command
+		/// </summary>
+		/// <param name="OutputFile">Output file to redirect output to</param>
+		/// <param name="FileSpec">Specification for the files to print</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <returns>Response from the server</returns>
+		public Task<PerforceResponse<PrintRecord>> TryPrintAsync(string OutputFile, string FileSpec, CancellationToken CancellationToken)
 		{
 			// Build the argument list
 			StringBuilder Arguments = new StringBuilder("print");
 			Arguments.AppendFormat(" -o \"{0}\"", OutputFile);
 			Arguments.AppendFormat(" \"{0}\"", FileSpec);
-			return SingleResponseCommand<PrintRecord>(Arguments.ToString(), null);
+			return SingleResponseCommandAsync<PrintRecord>(Arguments.ToString(), null, CancellationToken);
 		}
 
 		class PrintHandler : IDisposable
 		{
 			Dictionary<string, string> DepotFileToLocalFile;
-			FileStream OutputStream;
+			FileStream? OutputStream;
 
 			public PrintHandler(Dictionary<string, string> DepotFileToLocalFile)
 			{
@@ -1603,9 +1937,9 @@ namespace EpicGames.Perforce
 				string Value = (string)Fields[0].Value;
 				if(Value == "stat")
 				{
-					string DepotFile = Fields.First(x => x.Key == "depotFile").Value.ToString();
+					string DepotFile = Fields.First(x => x.Key == "depotFile").Value.ToString() ?? String.Empty;
 
-					string LocalFile;
+					string? LocalFile;
 					if(!DepotFileToLocalFile.TryGetValue(DepotFile, out LocalFile))
 					{
 						throw new PerforceException("Depot file '{0}' not found in input dictionary", DepotFile);
@@ -1616,7 +1950,7 @@ namespace EpicGames.Perforce
 				else if(Value == "binary" || Value == "text")
 				{
 					byte[] Data = (byte[])Fields.First(x => x.Key == "data").Value;
-					OutputStream.Write(Data, 0, Data.Length);
+					OutputStream!.Write(Data, 0, Data.Length);
 				}
 				else
 				{
@@ -1625,44 +1959,32 @@ namespace EpicGames.Perforce
 			}
 		}
 
-		/// <summary>
-		/// Execute the 'print' command
-		/// </summary>
-		/// <param name="OutputFile">Output file to redirect output to</param>
-		/// <param name="FileSpec">Specification for the files to print</param>
-		/// <returns>Response from the server</returns>
-		public void Print(Dictionary<string, string> DepotFileToLocalFile)
-		{
-			string ListFileName = Path.GetTempFileName();
-			try
-			{
-				// Write the list of depot files
-				File.WriteAllLines(ListFileName, DepotFileToLocalFile.Keys);
-
-				// Execute Perforce, consuming the binary output into a memory stream
-				using(PrintHandler Handler = new PrintHandler(DepotFileToLocalFile))
-				{
-					Command(String.Format("-x \"{0}\" print", ListFileName), null, Handler.HandleRecord);
-				}
-			}
-			finally
-			{
-				File.Delete(ListFileName);
-			}
-		}
-
 		#endregion
 
 		#region p4 reconcile
-		
+
 		/// <summary>
 		/// Open files for add, delete, and/or edit in order to reconcile a workspace with changes made outside of Perforce.
 		/// </summary>
 		/// <param name="ChangeNumber">Changelist to open files to</param>
 		/// <param name="Options">Options for the command</param>
 		/// <param name="FileSpecs">Files to be reverted</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server</returns>
-		public PerforceResponseList<ReconcileRecord> Reconcile(int ChangeNumber, ReconcileOptions Options, params string[] FileSpecs)
+		public async Task<List<ReconcileRecord>> ReconcileAsync(int ChangeNumber, ReconcileOptions Options, string[] FileSpecs, CancellationToken CancellationToken)
+		{
+			return (await TryReconcileAsync(ChangeNumber, Options, FileSpecs, CancellationToken)).Data;
+		}
+
+		/// <summary>
+		/// Open files for add, delete, and/or edit in order to reconcile a workspace with changes made outside of Perforce.
+		/// </summary>
+		/// <param name="ChangeNumber">Changelist to open files to</param>
+		/// <param name="Options">Options for the command</param>
+		/// <param name="FileSpecs">Files to be reverted</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <returns>Response from the server</returns>
+		public Task<PerforceResponseList<ReconcileRecord>> TryReconcileAsync(int ChangeNumber, ReconcileOptions Options, string[] FileSpecs, CancellationToken CancellationToken)
 		{
 			StringBuilder Arguments = new StringBuilder("reconcile");
 			if(ChangeNumber != -1)
@@ -1702,10 +2024,26 @@ namespace EpicGames.Perforce
 				Arguments.AppendFormat(" \"{0}\"", FileSpec);
 			}
 
-			return Command<ReconcileRecord>(Arguments.ToString(), null);
+			return CommandAsync<ReconcileRecord>(Arguments.ToString(), null, CancellationToken);
 		}
 
 		#endregion
+
+		#region p4 reload
+
+		/// <summary>
+		/// Reloads a client workspace
+		/// </summary>
+		/// <param name="ClientName">Name of the client to reload</param>
+		/// <param name="SourceServerId">The source server id</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <returns>Response from the server</returns>
+		public Task<List<PerforceResponse>> ReloadClient(string ClientName, string SourceServerId, CancellationToken CancellationToken)
+		{
+			return CommandAsync($"reload -c \"{ClientName}\" -p \"{SourceServerId}\"", null, null, CancellationToken);
+		}
+
+		#endregion p4 reload
 
 		#region p4 resolve
 
@@ -1715,8 +2053,22 @@ namespace EpicGames.Perforce
 		/// <param name="ChangeNumber">Changelist to open files to</param>
 		/// <param name="Options">Options for the command</param>
 		/// <param name="FileSpecs">Files to be reverted</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server</returns>
-		public PerforceResponseList<ResolveRecord> Resolve(int ChangeNumber, ResolveOptions Options, params string[] FileSpecs)
+		public async Task<List<ResolveRecord>> ResolveAsync(int ChangeNumber, ResolveOptions Options, string[] FileSpecs, CancellationToken CancellationToken)
+		{
+			return (await TryResolveAsync(ChangeNumber, Options, FileSpecs, CancellationToken)).Data;
+		}
+
+		/// <summary>
+		/// Resolve conflicts between file revisions.
+		/// </summary>
+		/// <param name="ChangeNumber">Changelist to open files to</param>
+		/// <param name="Options">Options for the command</param>
+		/// <param name="FileSpecs">Files to be reverted</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <returns>Response from the server</returns>
+		public Task<PerforceResponseList<ResolveRecord>> TryResolveAsync(int ChangeNumber, ResolveOptions Options, string[] FileSpecs, CancellationToken CancellationToken)
 		{
 			StringBuilder Arguments = new StringBuilder("resolve");
 			if ((Options & ResolveOptions.Automatic) != 0)
@@ -1764,7 +2116,7 @@ namespace EpicGames.Perforce
 				Arguments.AppendFormat(" \"{0}\"", FileSpec);
 			}
 
-			return Command<ResolveRecord>(Arguments.ToString(), null);
+			return CommandAsync<ResolveRecord>(Arguments.ToString(), null, CancellationToken);
 		}
 
 		#endregion
@@ -1778,8 +2130,23 @@ namespace EpicGames.Perforce
 		/// <param name="ClientName">Revert another user’s open files. </param>
 		/// <param name="Options">Options for the command</param>
 		/// <param name="FileSpecs">Files to be reverted</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server</returns>
-		public PerforceResponseList<RevertRecord> Revert(int ChangeNumber, string ClientName, RevertOptions Options, params string[] FileSpecs)
+		public async Task<List<RevertRecord>> RevertAsync(int ChangeNumber, string? ClientName, RevertOptions Options, string[] FileSpecs, CancellationToken CancellationToken)
+		{
+			return (await TryRevertAsync(ChangeNumber, ClientName, Options, FileSpecs, CancellationToken)).Data;
+		}
+
+		/// <summary>
+		/// Reverts files that have been added to a pending changelist.
+		/// </summary>
+		/// <param name="ChangeNumber">Changelist to add files to</param>
+		/// <param name="ClientName">Revert another user’s open files. </param>
+		/// <param name="Options">Options for the command</param>
+		/// <param name="FileSpecs">Files to be reverted</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <returns>Response from the server</returns>
+		public async Task<PerforceResponseList<RevertRecord>> TryRevertAsync(int ChangeNumber, string? ClientName, RevertOptions Options, string[] FileSpecs, CancellationToken CancellationToken)
 		{
 			StringBuilder Arguments = new StringBuilder("revert");
 			if((Options & RevertOptions.Unchanged) != 0)
@@ -1811,7 +2178,82 @@ namespace EpicGames.Perforce
 				Arguments.AppendFormat(" \"{0}\"", FileSpec);
 			}
 
-			return Command<RevertRecord>(Arguments.ToString(), null);
+			PerforceResponseList<RevertRecord> Records = await CommandAsync<RevertRecord>(Arguments.ToString(), null, CancellationToken);
+			if(Records.Count == 1 && Records[0].Error != null && Records[0].Error!.Generic == PerforceGenericCode.Empty)
+			{
+				Records.Clear();
+			}
+			return Records;
+		}
+
+		#endregion
+
+		#region p4 set
+
+		/// <summary>
+		/// Sets an environment variable
+		/// </summary>
+		/// <param name="Name">Name of the variable to set</param>
+		/// <param name="Value">Value for the variable</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <returns>Response from the server</returns>
+		public async Task SetAsync(string Name, string Value, CancellationToken CancellationToken)
+		{
+			Tuple<bool, string> Result = await TrySetAsync(Name, Value, CancellationToken);
+			if (!Result.Item1)
+			{
+				throw new PerforceException(Result.Item2);
+			}
+		}
+
+		/// <summary>
+		/// Sets an environment variable
+		/// </summary>
+		/// <param name="Name">Name of the variable to set</param>
+		/// <param name="Value">Value for the variable</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <returns>Response from the server</returns>
+		public async Task<Tuple<bool, string>> TrySetAsync(string Name, string Value, CancellationToken CancellationToken)
+		{
+			StringBuilder Arguments = new StringBuilder("set");
+			Arguments.Append($" {Name}=");
+			Arguments.Append($"\"{Value}\"");
+
+			using (PerforceChildProcess ChildProcess = new PerforceChildProcess(null, Arguments.ToString(), Logger))
+			{
+				return await ChildProcess.TryReadToEndAsync(CancellationToken);
+			}
+		}
+
+		/// <summary>
+		/// Gets the setting of a Perforce variable
+		/// </summary>
+		/// <param name="Name">Name of the variable to get</param>
+		/// <param name="CancellationToken">Cancellation token for the request</param>
+		/// <returns>Value of the variable</returns>
+		public async Task<string?> TryGetSettingAsync(string Name, CancellationToken CancellationToken)
+		{
+			using (PerforceChildProcess ChildProcess = new PerforceChildProcess(null, $"set {Name}=", Logger))
+			{
+				Tuple<bool, string> Response = await ChildProcess.TryReadToEndAsync(CancellationToken);
+				if (Response.Item1)
+				{
+					string TrimResponse = Response.Item2.Trim();
+					if (TrimResponse.Length == 0)
+					{
+						return null;
+					}
+
+					string Prefix = Name + "=";
+					if (TrimResponse.StartsWith(Prefix, StringComparison.OrdinalIgnoreCase))
+					{
+						return TrimResponse.Substring(Prefix.Length);
+					}
+				}
+
+				Logger.LogDebug($"Unable to get '{Name}' variable: {Response.Item2}");
+				return null;
+			}
 		}
 
 		#endregion
@@ -1824,8 +2266,22 @@ namespace EpicGames.Perforce
 		/// <param name="ChangeNumber">The change number to receive the shelved files</param>
 		/// <param name="Options">Options for the command</param>
 		/// <param name="FileSpecs">Files to sync</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server</returns>
-		public PerforceResponseList<ShelveRecord> Shelve(int ChangeNumber, ShelveOptions Options, params string[] FileSpecs)
+		public async Task<List<ShelveRecord>> ShelveAsync(int ChangeNumber, ShelveOptions Options, string[] FileSpecs, CancellationToken CancellationToken)
+		{
+			return (await TryShelveAsync(ChangeNumber, Options, FileSpecs, CancellationToken)).Data;
+		}
+
+		/// <summary>
+		/// Shelves a set of files
+		/// </summary>
+		/// <param name="ChangeNumber">The change number to receive the shelved files</param>
+		/// <param name="Options">Options for the command</param>
+		/// <param name="FileSpecs">Files to sync</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <returns>Response from the server</returns>
+		public Task<PerforceResponseList<ShelveRecord>> TryShelveAsync(int ChangeNumber, ShelveOptions Options, string[] FileSpecs, CancellationToken CancellationToken)
 		{
 			StringBuilder Arguments = new StringBuilder("shelve");
 			Arguments.AppendFormat(" -c {0}", ChangeNumber);
@@ -1842,7 +2298,7 @@ namespace EpicGames.Perforce
 				Arguments.AppendFormat(" \"{0}\"", FileSpec);
 			}
 
-			return Command<ShelveRecord>(Arguments.ToString(), null);
+			return CommandAsync<ShelveRecord>(Arguments.ToString(), null, CancellationToken);
 		}
 
 		/// <summary>
@@ -1850,8 +2306,27 @@ namespace EpicGames.Perforce
 		/// </summary>
 		/// <param name="ChangeNumber">Changelist containing shelved files to be deleted</param>
 		/// <param name="FileSpecs">Files to delete</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server</returns>
-		public PerforceResponse DeleteShelvedFiles(int ChangeNumber, params string[] FileSpecs)
+		public async Task DeleteShelvedFilesAsync(int ChangeNumber, string[] FileSpecs, CancellationToken CancellationToken)
+		{
+			List<PerforceResponse> Responses = await TryDeleteShelvedFilesAsync(ChangeNumber, FileSpecs, CancellationToken);
+
+			PerforceResponse? ErrorResponse = Responses.FirstOrDefault(x => x.Error != null && x.Error.Generic != PerforceGenericCode.Empty);
+			if(ErrorResponse != null)
+			{
+				throw new PerforceException(ErrorResponse.Error!);
+			}
+		}
+
+		/// <summary>
+		/// Deletes files from a shelved changelist
+		/// </summary>
+		/// <param name="ChangeNumber">Changelist containing shelved files to be deleted</param>
+		/// <param name="FileSpecs">Files to delete</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <returns>Response from the server</returns>
+		public Task<List<PerforceResponse>> TryDeleteShelvedFilesAsync(int ChangeNumber, string[] FileSpecs, CancellationToken CancellationToken)
 		{
 			StringBuilder Arguments = new StringBuilder("shelve -d");
 			if(ChangeNumber != -1)
@@ -1863,7 +2338,7 @@ namespace EpicGames.Perforce
 				Arguments.AppendFormat(" \"{0}\"", FileSpec);
 			}
 
-			return SingleResponseCommand(Arguments.ToString(), null, null);
+			return CommandAsync(Arguments.ToString(), null, null, CancellationToken);
 		}
 
 		#endregion
@@ -1874,10 +2349,22 @@ namespace EpicGames.Perforce
 		/// Enumerates all streams in a depot
 		/// </summary>
 		/// <param name="StreamPath">The path for streams to enumerate (eg. "//UE4/...")</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
 		/// <returns>List of streams matching the given criteria</returns>
-		public PerforceResponseList<StreamRecord> Streams(string StreamPath)
+		public async Task<List<StreamsRecord>> GetStreamsAsync(string StreamPath, CancellationToken CancellationToken)
 		{
-			return Streams(StreamPath, -1, null, false);
+			return (await TryGetStreamsAsync(StreamPath, CancellationToken)).Data;
+		}
+
+		/// <summary>
+		/// Enumerates all streams in a depot
+		/// </summary>
+		/// <param name="StreamPath">The path for streams to enumerate (eg. "//UE4/...")</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <returns>List of streams matching the given criteria</returns>
+		public Task<PerforceResponseList<StreamsRecord>> TryGetStreamsAsync(string StreamPath, CancellationToken CancellationToken)
+		{
+			return TryGetStreamsAsync(StreamPath, -1, null, false, CancellationToken);
 		}
 
 		/// <summary>
@@ -1887,8 +2374,23 @@ namespace EpicGames.Perforce
 		/// <param name="MaxResults">Maximum number of results to return</param>
 		/// <param name="Filter">Additional filter to be applied to the results</param>
 		/// <param name="bUnloaded">Whether to enumerate unloaded workspaces</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
 		/// <returns>List of streams matching the given criteria</returns>
-		public PerforceResponseList<StreamRecord> Streams(string StreamPath, int MaxResults, string Filter, bool bUnloaded)
+		public async Task<List<StreamsRecord>> GetStreamsAsync(string StreamPath, int MaxResults, string? Filter, bool bUnloaded, CancellationToken CancellationToken)
+		{
+			return (await TryGetStreamsAsync(StreamPath, MaxResults, Filter, bUnloaded, CancellationToken)).Data;
+		}
+
+		/// <summary>
+		/// Enumerates all streams in a depot
+		/// </summary>
+		/// <param name="StreamPath">The path for streams to enumerate (eg. "//UE4/...")</param>
+		/// <param name="MaxResults">Maximum number of results to return</param>
+		/// <param name="Filter">Additional filter to be applied to the results</param>
+		/// <param name="bUnloaded">Whether to enumerate unloaded workspaces</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <returns>List of streams matching the given criteria</returns>
+		public Task<PerforceResponseList<StreamsRecord>> TryGetStreamsAsync(string StreamPath, int MaxResults, string? Filter, bool bUnloaded, CancellationToken CancellationToken)
 		{
 			// Build the command line
 			StringBuilder Arguments = new StringBuilder("streams");
@@ -1907,7 +2409,7 @@ namespace EpicGames.Perforce
 			Arguments.AppendFormat(" \"{0}\"", StreamPath);
 
 			// Execute the command
-			return Command<StreamRecord>(Arguments.ToString(), null);
+			return CommandAsync<StreamsRecord>(Arguments.ToString(), null, CancellationToken);
 		}
 
 		#endregion
@@ -1919,8 +2421,21 @@ namespace EpicGames.Perforce
 		/// </summary>
 		/// <param name="ChangeNumber">The changelist to submit</param>
 		/// <param name="Options">Options for the command</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server</returns>
-		public PerforceResponse<SubmitRecord> Submit(int ChangeNumber, SubmitOptions Options)
+		public async Task<SubmitRecord> SubmitAsync(int ChangeNumber, SubmitOptions Options, CancellationToken CancellationToken)
+		{
+			return (await TrySubmitAsync(ChangeNumber, Options, CancellationToken)).Data;
+		}
+
+		/// <summary>
+		/// Submits a pending changelist
+		/// </summary>
+		/// <param name="ChangeNumber">The changelist to submit</param>
+		/// <param name="Options">Options for the command</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <returns>Response from the server</returns>
+		public async Task<PerforceResponse<SubmitRecord>> TrySubmitAsync(int ChangeNumber, SubmitOptions Options, CancellationToken CancellationToken)
 		{
 			StringBuilder Arguments = new StringBuilder("submit");
 			if((Options & SubmitOptions.ReopenAsEdit) != 0)
@@ -1929,7 +2444,7 @@ namespace EpicGames.Perforce
 			}
 			Arguments.AppendFormat(" -c {0}", ChangeNumber);
 
-			return Command<SubmitRecord>(Arguments.ToString(), null)[0];
+			return (await CommandAsync<SubmitRecord>(Arguments.ToString(), null, CancellationToken))[0];
 		}
 
 		#endregion
@@ -1940,10 +2455,22 @@ namespace EpicGames.Perforce
 		/// Syncs files from the server
 		/// </summary>
 		/// <param name="FileSpecs">Files to sync</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server</returns>
-		public PerforceResponseList<SyncRecord> Sync(params string[] FileSpecs)
+		public async Task<List<SyncRecord>> SyncAsync(string[] FileSpecs, CancellationToken CancellationToken)
 		{
-			return Sync(SyncOptions.None, -1, FileSpecs);
+			return (await TrySyncAsync(FileSpecs, CancellationToken)).Data;
+		}
+
+		/// <summary>
+		/// Syncs files from the server
+		/// </summary>
+		/// <param name="FileSpecs">Files to sync</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <returns>Response from the server</returns>
+		public Task<PerforceResponseList<SyncRecord>> TrySyncAsync(string[] FileSpecs, CancellationToken CancellationToken)
+		{
+			return TrySyncAsync(SyncOptions.None, -1, FileSpecs, CancellationToken);
 		}
 
 		/// <summary>
@@ -1952,10 +2479,24 @@ namespace EpicGames.Perforce
 		/// <param name="Options">Options for the command</param>
 		/// <param name="MaxFiles">Syncs only the first number of files specified.</param>
 		/// <param name="FileSpecs">Files to sync</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server</returns>
-		public PerforceResponseList<SyncRecord> Sync(SyncOptions Options, int MaxFiles, params string[] FileSpecs)
+		public async Task<List<SyncRecord>> SyncAsync(SyncOptions Options, int MaxFiles, string[] FileSpecs, CancellationToken CancellationToken)
 		{
-			return Sync(Options, -1, -1, -1, -1, -1, -1, FileSpecs);
+			return (await TrySyncAsync(Options, MaxFiles, FileSpecs, CancellationToken)).Data;
+		}
+
+		/// <summary>
+		/// Syncs files from the server
+		/// </summary>
+		/// <param name="Options">Options for the command</param>
+		/// <param name="MaxFiles">Syncs only the first number of files specified.</param>
+		/// <param name="FileSpecs">Files to sync</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <returns>Response from the server</returns>
+		public Task<PerforceResponseList<SyncRecord>> TrySyncAsync(SyncOptions Options, int MaxFiles, string[] FileSpecs, CancellationToken CancellationToken)
+		{
+			return TrySyncAsync(Options, -1, -1, -1, -1, -1, -1, FileSpecs, CancellationToken);
 		}
 
 		/// <summary>
@@ -1969,11 +2510,32 @@ namespace EpicGames.Perforce
 		/// <param name="Min">Minimum number of files in a parallel sync</param>
 		/// <param name="MinSize">Minimum number of bytes in a parallel sync</param>
 		/// <param name="FileSpecs">Files to sync</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server</returns>
-		public PerforceResponseList<SyncRecord> Sync(SyncOptions Options, int MaxFiles, int NumThreads, int Batch, int BatchSize, int Min, int MinSize, params string[] FileSpecs)
+		public async Task<List<SyncRecord>> SyncAsync(SyncOptions Options, int MaxFiles, int NumThreads, int Batch, int BatchSize, int Min, int MinSize, string[] FileSpecs, CancellationToken CancellationToken)
 		{
-			string Arguments = GetSyncArguments(Options, MaxFiles, NumThreads, Batch, BatchSize, Min, MinSize, FileSpecs, false);
-			return Command<SyncRecord>(Arguments.ToString(), null);
+			return (await TrySyncAsync(Options, MaxFiles, NumThreads, Batch, BatchSize, Min, MinSize, FileSpecs, CancellationToken)).Data;
+		}
+
+		/// <summary>
+		/// Syncs files from the server
+		/// </summary>
+		/// <param name="Options">Options for the command</param>
+		/// <param name="MaxFiles">Syncs only the first number of files specified</param>
+		/// <param name="NumThreads">Sync in parallel using the given number of threads</param>
+		/// <param name="Batch">The number of files in a batch</param>
+		/// <param name="BatchSize">The number of bytes in a batch</param>
+		/// <param name="Min">Minimum number of files in a parallel sync</param>
+		/// <param name="MinSize">Minimum number of bytes in a parallel sync</param>
+		/// <param name="FileSpecs">Files to sync</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <returns>Response from the server</returns>
+		public async Task<PerforceResponseList<SyncRecord>> TrySyncAsync(SyncOptions Options, int MaxFiles, int NumThreads, int Batch, int BatchSize, int Min, int MinSize, string[] FileSpecs, CancellationToken CancellationToken)
+		{
+			// Perforce annoyingly returns 'up-to-date' as an error. Ignore it.
+			PerforceResponseList<SyncRecord> Records = await SyncInternalAsync<SyncRecord>(Options, MaxFiles, NumThreads, Batch, BatchSize, Min, MinSize, FileSpecs, false, CancellationToken);
+			Records.RemoveAll(x => x.Error != null && x.Error.Generic == PerforceGenericCode.Empty);
+			return Records;
 		}
 
 		/// <summary>
@@ -1982,10 +2544,24 @@ namespace EpicGames.Perforce
 		/// <param name="Options">Options for the command</param>
 		/// <param name="MaxFiles">Syncs only the first number of files specified.</param>
 		/// <param name="FileSpecs">Files to sync</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server</returns>
-		public PerforceResponseList<SyncSummaryRecord> SyncQuiet(SyncOptions Options, int MaxFiles, params string[] FileSpecs)
+		public async Task<List<SyncSummaryRecord>> SyncQuietAsync(SyncOptions Options, int MaxFiles, string[] FileSpecs, CancellationToken CancellationToken)
 		{
-			return SyncQuiet(Options, -1, -1, -1, -1, -1, -1, FileSpecs);
+			return (await TrySyncQuietAsync(Options, MaxFiles, FileSpecs, CancellationToken)).Data;
+		}
+
+		/// <summary>
+		/// Syncs files from the server
+		/// </summary>
+		/// <param name="Options">Options for the command</param>
+		/// <param name="MaxFiles">Syncs only the first number of files specified.</param>
+		/// <param name="FileSpecs">Files to sync</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <returns>Response from the server</returns>
+		public Task<PerforceResponseList<SyncSummaryRecord>> TrySyncQuietAsync(SyncOptions Options, int MaxFiles, string[] FileSpecs, CancellationToken CancellationToken)
+		{
+			return TrySyncQuietAsync(Options, MaxFiles, -1, -1, -1, -1, -1, FileSpecs, null, CancellationToken);
 		}
 
 		/// <summary>
@@ -1999,11 +2575,31 @@ namespace EpicGames.Perforce
 		/// <param name="Min">Minimum number of files in a parallel sync</param>
 		/// <param name="MinSize">Minimum number of bytes in a parallel sync</param>
 		/// <param name="FileSpecs">Files to sync</param>
+		/// <param name="ResponseFile">Response file for list of files to sync</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server</returns>
-		public PerforceResponseList<SyncSummaryRecord> SyncQuiet(SyncOptions Options, int MaxFiles, int NumThreads, int Batch, int BatchSize, int Min, int MinSize, params string[] FileSpecs)
+		public async Task<List<SyncSummaryRecord>> SyncQuietAsync(SyncOptions Options, int MaxFiles, int NumThreads, int Batch, int BatchSize, int Min, int MinSize, string[] FileSpecs, FileReference? ResponseFile, CancellationToken CancellationToken)
 		{
-			string Arguments = GetSyncArguments(Options, MaxFiles, NumThreads, Batch, BatchSize, Min, MinSize, FileSpecs, true);
-			return Command<SyncSummaryRecord>(Arguments.ToString(), null);
+			return (await TrySyncQuietAsync(Options, MaxFiles, NumThreads, Batch, BatchSize, Min, MinSize, FileSpecs, ResponseFile, CancellationToken)).Data;
+		}
+
+		/// <summary>
+		/// Syncs files from the server without returning detailed file info
+		/// </summary>
+		/// <param name="Options">Options for the command</param>
+		/// <param name="MaxFiles">Syncs only the first number of files specified</param>
+		/// <param name="NumThreads">Sync in parallel using the given number of threads</param>
+		/// <param name="Batch">The number of files in a batch</param>
+		/// <param name="BatchSize">The number of bytes in a batch</param>
+		/// <param name="Min">Minimum number of files in a parallel sync</param>
+		/// <param name="MinSize">Minimum number of bytes in a parallel sync</param>
+		/// <param name="FileSpecs">Files to sync</param>
+		/// <param name="ResponseFile">Response file for list of files to sync</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <returns>Response from the server</returns>
+		public Task<PerforceResponseList<SyncSummaryRecord>> TrySyncQuietAsync(SyncOptions Options, int MaxFiles, int NumThreads, int Batch, int BatchSize, int Min, int MinSize, string[] FileSpecs, FileReference? ResponseFile, CancellationToken CancellationToken)
+		{
+			return SyncInternalAsync<SyncSummaryRecord>(Options, MaxFiles, NumThreads, Batch, BatchSize, Min, MinSize, FileSpecs, true, CancellationToken);
 		}
 
 		/// <summary>
@@ -2018,8 +2614,9 @@ namespace EpicGames.Perforce
 		/// <param name="MinSize">Minimum number of bytes in a parallel sync</param>
 		/// <param name="FileSpecs">Files to sync</param>
 		/// <param name="bQuiet">Whether to use quiet output</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
 		/// <returns>Arguments for the command</returns>
-		static string GetSyncArguments(SyncOptions Options, int MaxFiles, int NumThreads, int Batch, int BatchSize, int Min, int MinSize, string[] FileSpecs, bool bQuiet)
+		private async Task<PerforceResponseList<T>> SyncInternalAsync<T>(SyncOptions Options, int MaxFiles, int NumThreads, int Batch, int BatchSize, int Min, int MinSize, string[] FileSpecs, bool bQuiet, CancellationToken CancellationToken) where T : class
 		{
 			StringBuilder Arguments = new StringBuilder("sync");
 			if((Options & SyncOptions.Force) != 0)
@@ -2062,31 +2659,47 @@ namespace EpicGames.Perforce
 			{
 				Arguments.AppendFormat(" -m {0}", MaxFiles);
 			}
-/*			if(NumThreads != -1)
+			/*			if(NumThreads != -1)
+						{
+							Arguments.AppendFormat(" --parallel-threads={0}", NumThreads);
+							if(Batch != -1)
+							{
+								Arguments.AppendFormat(",batch={0}", Batch);
+							}
+							if(BatchSize != -1)
+							{
+								Arguments.AppendFormat(",batchsize={0}", BatchSize);
+							}
+							if(Min != -1)
+							{
+								Arguments.AppendFormat(",min={0}", Min);
+							}
+							if(MinSize != -1)
+							{
+								Arguments.AppendFormat(",minsize={0}", MinSize);
+							}
+						}*/
+			if (FileSpecs.Length < 10)
 			{
-				Arguments.AppendFormat(" --parallel-threads={0}", NumThreads);
-				if(Batch != -1)
+				foreach (string FileSpec in FileSpecs)
 				{
-					Arguments.AppendFormat(",batch={0}", Batch);
+					Arguments.AppendFormat(" \"{0}\"", FileSpec);
 				}
-				if(BatchSize != -1)
-				{
-					Arguments.AppendFormat(",batchsize={0}", BatchSize);
-				}
-				if(Min != -1)
-				{
-					Arguments.AppendFormat(",min={0}", Min);
-				}
-				if(MinSize != -1)
-				{
-					Arguments.AppendFormat(",minsize={0}", MinSize);
-				}
-			}*/
-			foreach (string FileSpec in FileSpecs)
-			{
-				Arguments.AppendFormat(" \"{0}\"", FileSpec);
+				return await CommandAsync<T>(Arguments.ToString(), null, CancellationToken);
 			}
-			return Arguments.ToString();
+			else
+			{
+				string TempFileName = Path.GetTempFileName();
+				try
+				{
+					Arguments.Insert(0, $"-x\"{TempFileName}\" ");
+					return await CommandAsync<T>(Arguments.ToString(), null, CancellationToken);
+				}
+				finally
+				{
+					File.Delete(TempFileName);
+				}
+			}
 		}
 
 		#endregion
@@ -2103,8 +2716,26 @@ namespace EpicGames.Perforce
 		/// <param name="ForceParentStream">Unshelve to the specified parent stream. Overrides the parent defined in the source stream specification.</param>
 		/// <param name="Options">Options for the command</param>
 		/// <param name="FileSpecs">Files to unshelve</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server</returns>
-		public PerforceResponseList<UnshelveRecord> Unshelve(int ChangeNumber, int IntoChangeNumber, string UsingBranchSpec, string UsingStream, string ForceParentStream, UnshelveOptions Options, params string[] FileSpecs)
+		public async Task<List<UnshelveRecord>> UnshelveAsync(int ChangeNumber, int IntoChangeNumber, string UsingBranchSpec, string UsingStream, string ForceParentStream, UnshelveOptions Options, string[] FileSpecs, CancellationToken CancellationToken)
+		{
+			return (await TryUnshelveAsync(ChangeNumber, IntoChangeNumber, UsingBranchSpec, UsingStream, ForceParentStream, Options, FileSpecs, CancellationToken)).Data;
+		}
+
+		/// <summary>
+		/// Restore shelved files from a pending change into a workspace
+		/// </summary>
+		/// <param name="ChangeNumber">The changelist containing shelved files</param>
+		/// <param name="IntoChangeNumber">The changelist to receive the unshelved files</param>
+		/// <param name="UsingBranchSpec">The branchspec to use when unshelving files</param>
+		/// <param name="UsingStream">Specifies the use of a stream-derived branch view to map the shelved files between the specified stream and its parent stream.</param>
+		/// <param name="ForceParentStream">Unshelve to the specified parent stream. Overrides the parent defined in the source stream specification.</param>
+		/// <param name="Options">Options for the command</param>
+		/// <param name="FileSpecs">Files to unshelve</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <returns>Response from the server</returns>
+		public Task<PerforceResponseList<UnshelveRecord>> TryUnshelveAsync(int ChangeNumber, int IntoChangeNumber, string UsingBranchSpec, string UsingStream, string ForceParentStream, UnshelveOptions Options, string[] FileSpecs, CancellationToken CancellationToken)
 		{
 			StringBuilder Arguments = new StringBuilder("unshelve");
 			Arguments.AppendFormat(" -s {0}", ChangeNumber);
@@ -2137,7 +2768,7 @@ namespace EpicGames.Perforce
 				Arguments.AppendFormat(" \"{0}\"", FileSpec);
 			}
 
-			return Command<UnshelveRecord>(Arguments.ToString(), null);
+			return CommandAsync<UnshelveRecord>(Arguments.ToString(), null, CancellationToken);
 		}
 
 		#endregion
@@ -2148,12 +2779,24 @@ namespace EpicGames.Perforce
 		/// Enumerates all streams in a depot
 		/// </summary>
 		/// <param name="UserName">Name of the user to fetch information for</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server</returns>
-		public PerforceResponse<UserRecord> User(string UserName)
+		public async Task<UserRecord> GetUserAsync(string UserName, CancellationToken CancellationToken)
+		{
+			return (await TryGetUserAsync(UserName, CancellationToken)).Data;
+		}
+
+		/// <summary>
+		/// Enumerates all streams in a depot
+		/// </summary>
+		/// <param name="UserName">Name of the user to fetch information for</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <returns>Response from the server</returns>
+		public Task<PerforceResponse<UserRecord>> TryGetUserAsync(string UserName, CancellationToken CancellationToken)
 		{
 			StringBuilder Arguments = new StringBuilder("user");
 			Arguments.AppendFormat(" -o \"{0}\"", UserName);
-			return SingleResponseCommand<UserRecord>(Arguments.ToString(), null);
+			return SingleResponseCommandAsync<UserRecord>(Arguments.ToString(), null, CancellationToken);
 		}
 
 		#endregion
@@ -2164,15 +2807,37 @@ namespace EpicGames.Perforce
 		/// Retrieves the location of a file of set of files in the workspace
 		/// </summary>
 		/// <param name="FileSpecs">Patterns for the files to query</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
 		/// <returns>List of responses from the server</returns>
-		public PerforceResponseList<WhereRecord> Where(params string[] FileSpecs)
+		public async Task<List<WhereRecord>> WhereAsync(string[] FileSpecs, CancellationToken CancellationToken)
 		{
-			StringBuilder Arguments = new StringBuilder("where");
-			foreach(string FileSpec in FileSpecs)
+			List<WhereRecord> Records = (await TryWhere(FileSpecs, CancellationToken)).Data;
+			if (Records.Count != FileSpecs.Length)
 			{
-				Arguments.AppendFormat(" \"{0}\"", FileSpec);
+				throw new PerforceException($"Unexpected response count; expected {FileSpecs.Length}, got {Records.Count}.");
 			}
-			return Command<WhereRecord>(Arguments.ToString(), null);
+			return Records;
+		}
+
+		/// <summary>
+		/// Retrieves the location of a file of set of files in the workspace
+		/// </summary>
+		/// <param name="FileSpecs">Patterns for the files to query</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <returns>List of responses from the server</returns>
+		public async Task<PerforceResponseList<WhereRecord>> TryWhere(string[] FileSpecs, CancellationToken CancellationToken)
+		{
+			PerforceResponseList<WhereRecord> Responses = new PerforceResponseList<WhereRecord>();
+			for (int Idx = 0; Idx < FileSpecs.Length; )
+			{
+				StringBuilder Arguments = new StringBuilder("where");
+				for (; Arguments.Length < 2048 && Idx < FileSpecs.Length; Idx++)
+				{
+					Arguments.AppendFormat(" \"{0}\"", FileSpecs[Idx]);
+				}
+				Responses.AddRange(await CommandAsync<WhereRecord>(Arguments.ToString(), null, CancellationToken));
+			}
+			return Responses;
 		}
 
 		#endregion

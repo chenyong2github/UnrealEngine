@@ -1,4 +1,4 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -30,6 +30,15 @@ namespace EpicGames.Perforce
 		/// </summary>
 		[PerforceTag("action")]
 		public string Action;
+
+		/// <summary>
+		/// Private constructor for serialization
+		/// </summary>
+		private UnshelveRecord()
+		{
+			DepotFile = null!;
+			Action = null!;
+		}
 
 		/// <summary>
 		/// Format this record for display in the debugger

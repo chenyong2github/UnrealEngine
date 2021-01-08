@@ -1,4 +1,4 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -24,6 +24,25 @@ namespace EpicGames.Perforce
 		/// </summary>
 		[PerforceRecordList]
 		public List<RevisionRecord> Revisions = new List<RevisionRecord>();
+
+		/// <summary>
+		/// Private constructor for serialization
+		/// </summary>
+		private FileLogRecord()
+		{
+			DepotPath = null!;
+		}
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="DepotPath">Path to the file in the depot</param>
+		/// <param name="Revisions">Revisions of this file</param>
+		public FileLogRecord(string DepotPath, List<RevisionRecord> Revisions)
+		{
+			this.DepotPath = DepotPath;
+			this.Revisions = Revisions;
+		}
 
 		/// <summary>
 		/// Format this record for display in the debugger

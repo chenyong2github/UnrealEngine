@@ -1,4 +1,4 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -41,13 +41,13 @@ namespace EpicGames.Perforce
 		/// The name of the workstation on which this workspace resides.
 		/// </summary>
 		[PerforceTag("Host", Optional = true)]
-		public string Host;
+		public string? Host;
 
 		/// <summary>
 		/// A textual description of the workspace.
 		/// </summary>
 		[PerforceTag("Description", Optional = true)]
-		public string Description;
+		public string? Description;
 
 		/// <summary>
 		/// The directory (on the local host) relative to which all the files in the View: are specified. 
@@ -77,18 +77,41 @@ namespace EpicGames.Perforce
 		/// Associates the workspace with the specified stream.
 		/// </summary>
 		[PerforceTag("Stream", Optional = true)]
-		public string Stream;
+		public string? Stream;
 
 		/// <summary>
 		/// The type of client.
 		/// </summary>
 		[PerforceTag("Type", Optional = true)]
-		public string Type;
+		public string? Type;
 
 		/// <summary>
 		/// Specifies the mappings between files in the depot and files in the workspace.
 		/// </summary>
 		[PerforceTag("View")]
 		public List<string> View = new List<string>();
+
+		/// <summary>
+		/// Private constructor for serialization
+		/// </summary>
+		private ClientRecord()
+		{
+			Name = null!;
+			Owner = null!;
+			Root = null!;
+		}
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="Name">Name of the client</param>
+		/// <param name="Owner">Owner of the client</param>
+		/// <param name="Root">The root directory to sync</param>
+		public ClientRecord(string Name, string Owner, string Root)
+		{
+			this.Name = Name;
+			this.Owner = Owner;
+			this.Root = Root;
+		}
 	}
 }

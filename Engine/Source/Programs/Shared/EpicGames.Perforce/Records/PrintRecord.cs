@@ -1,4 +1,4 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -54,5 +54,14 @@ namespace EpicGames.Perforce
 		/// </summary>
 		[PerforceTag("fileSize")]
 		public long FileSize;
+
+		/// <summary>
+		/// Private constructor for serialization
+		/// </summary>
+		private PrintRecord()
+		{
+			DepotFile = null!;
+			Type = null!;
+		}
 	}
 }

@@ -1,4 +1,4 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -34,9 +34,9 @@ namespace EpicGames.Perforce
 		/// <summary>
 		/// Sequence of all the data objects from the responses.
 		/// </summary>
-		public IEnumerable<T> Data
+		public List<T> Data
 		{
-			get { return this.Select(x => x.Data).Where(x => x != null); }
+			get { return this.Select(x => x.Data).Where(x => x != null).ToList(); }
 		}
 
 		/// <summary>
@@ -44,17 +44,27 @@ namespace EpicGames.Perforce
 		/// </summary>
 		public IEnumerable<PerforceError> Errors
 		{
-			get { return this.Where(x => !x.Succeeded).Select(x => x.Error); }
+			get
+			{
+				foreach (PerforceResponse<T> Response in this)
+				{
+					PerforceError? Error = Response.Error;
+					if (Error != null)
+					{
+						yield return Error;
+					}
+				}
+			}
 		}
 
 		/// <summary>
 		/// Throws an exception if any response is an error
 		/// </summary>
-		public void RequireSuccess()
+		public void EnsureSuccess()
 		{
 			foreach (PerforceResponse<T> Response in this)
 			{
-				Response.RequireSuccess();
+				Response.EnsureSuccess();
 			}
 		}
 	}

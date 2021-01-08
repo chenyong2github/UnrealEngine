@@ -1,4 +1,4 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -16,7 +16,7 @@ namespace EpicGames.Perforce
 		/// <summary>
 		/// For errors returned by the server, contains the error record
 		/// </summary>
-		public PerforceError Error;
+		public PerforceError? Error;
 
 		/// <summary>
 		/// Constructor
