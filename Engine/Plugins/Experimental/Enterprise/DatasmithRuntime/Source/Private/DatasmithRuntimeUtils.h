@@ -30,17 +30,6 @@ struct FMeshDescription;
 
 namespace DatasmithRuntime
 {
-	namespace EMaterialRequirements
-	{
-		enum Type
-		{
-			RequiresNothing = 0x00,
-			RequiresNormals = 0x01,
-			RequiresTangents = 0x02,
-			RequiresAdjacency = 0x04,
-		};
-	};
-
 	enum class EDSResizeTextureMode
 	{
 		NoResize,
@@ -49,14 +38,10 @@ namespace DatasmithRuntime
 		NextPowerOfTwo
 	};
 
-	typedef TFunction<void(const FString&, int32)> FTextureCallback;
-
 	FORCEINLINE uint32 GetTypeHash(const FMD5Hash& Hash)
 	{
 		return FCrc::MemCrc32(Hash.GetBytes(),Hash.GetSize());
 	}
-
-	extern const TCHAR* PbrTexturePropertyNames[6];
 
 	extern void CalculateMeshesLightmapWeights(const TArray< FSceneGraphId >& MeshElementArray, const TMap< FSceneGraphId, TSharedPtr< IDatasmithElement > >& Elements, TMap< FSceneGraphId, float >& LightmapWeights);
 
@@ -72,14 +57,6 @@ namespace DatasmithRuntime
 	extern bool /*FDatasmithStaticMeshImporter::*/ShouldRecomputeNormals(const FMeshDescription& MeshDescription, int32 BuildRequirements);
 
 	extern bool /*FDatasmithStaticMeshImporter::*/ShouldRecomputeTangents(const FMeshDescription& MeshDescription, int32 BuildRequirements);
-
-	extern int32 ProcessMaterialElement(TSharedPtr< IDatasmithMasterMaterialElement > BaseMaterialElement, const TCHAR* Host, FTextureCallback TextureCallback);
-
-	extern int32 ProcessMaterialElement(IDatasmithUEPbrMaterialElement* PbrMaterialElement, FTextureCallback TextureCallback);
-
-	extern bool LoadMasterMaterial(UMaterialInstanceDynamic* MaterialInstance, TSharedPtr<IDatasmithMasterMaterialElement>& MaterialElement, const FString& HostString);
-
-	extern bool LoadPbrMaterial(UMaterialInstanceDynamic* MaterialInstance, IDatasmithUEPbrMaterialElement* MaterialElement);
 
 	extern void ImageReaderInitialize();
 
