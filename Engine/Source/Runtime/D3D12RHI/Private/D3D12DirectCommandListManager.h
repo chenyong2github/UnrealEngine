@@ -308,7 +308,7 @@ protected:
 		{}
 	};
 
-	void ExecuteCommandListInteral(TArray<FD3D12CommandListHandle>& Lists, bool WaitForCompletion);
+	void ExecuteCommandListInternal(TArray<FD3D12CommandListHandle>& Lists, bool WaitForCompletion);
 	uint32 GetResourceBarrierCommandList(FD3D12CommandListHandle& hList, FD3D12CommandListHandle& hResourceBarrierList);
 
 	// Returns signaled Fence
