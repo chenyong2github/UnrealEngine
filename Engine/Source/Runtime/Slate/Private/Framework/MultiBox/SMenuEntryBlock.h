@@ -112,6 +112,8 @@ public:
 
 	FMenuEntryBlock( const FName& InExtensionHook, const FUIAction& UIAction, const TSharedRef< SWidget > Contents, const FNewMenuDelegate& InEntryBuilder, TSharedPtr<FExtender> InExtender, bool bInSubMenu, TSharedPtr< const FUICommandList > InCommandList, bool bInCloseSelfOnly, bool bInShouldCloseWindowAfterMenuSelection = true);
 
+	FMenuEntryBlock( const FName& InExtensionHook, const FUIAction& UIAction, const TAttribute<FText>& InLabel, const TAttribute<FText>& InToolTip, const FOnGetContent& InMenuBuilder, TSharedPtr<FExtender> InExtender, bool bInSubMenu, bool bInSubMenuOnClick, bool bInCloseSelfOnly, const FSlateIcon& InIcon = FSlateIcon(), bool bInShouldCloseWindowAfterMenuSelection = true);
+
 	/** FMultiBlock interface */
 	virtual void CreateMenuEntry(class FMenuBuilder& MenuBuilder) const override;
 	virtual bool HasIcon() const override;
@@ -283,7 +285,8 @@ protected:
 	 *
 	 * @return	The appropriate border to use
 	 */
-	const FSlateBrush* GetMenuBarButtonBorder( ) const;
+	const FSlateBrush* GetMenuBarButtonBorder() const;
+	FSlateColor GetMenuBarForegroundColor() const;
 
 	/**
 	 * Called to create content for a pull-down menu widget
@@ -376,20 +379,5 @@ private:
 	/** For pull-down or sub-menu entries, this stores a weak reference to the menu anchor widget that we'll use to summon the menu */
 	TWeakPtr< SMenuAnchor > MenuAnchor;
 	
-	/** The time until a SubMenu action is taken (open or close).  <0 means no action taken */
-	//float TimeToSubMenuOpen;
-
-	/** Style for menu bar button with sub menu opened */
-	const FSlateBrush* MenuBarButtonBorderSubmenuOpen;
-	/** Style for menu bar button with no sub menu opened */
-	const FSlateBrush* MenuBarButtonBorderSubmenuClosed;
-
-	///** The pending SubMenu request state */
-	//enum
-	//{
-	//	Idle,
-	//	WantOpen,
-	//	WantClose
-	//} 
-	//SubMenuRequestState;
+	const FButtonStyle* MenuBarButtonStyle;
 };

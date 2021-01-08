@@ -124,30 +124,6 @@ bool UAzureSpatialAnchorsLibrary::DestroySession()
 	return true;
 }
 
-void UAzureSpatialAnchorsLibrary::GetCloudAnchor(UARPin* ARPin, UAzureCloudSpatialAnchor*& OutAzureCloudSpatialAnchor)
-{
-	IAzureSpatialAnchors* IASA = IAzureSpatialAnchors::Get();
-	if (IASA == nullptr)
-	{
-		OutAzureCloudSpatialAnchor = nullptr;
-		return;
-	}
-
-	IASA->GetCloudAnchor(ARPin, OutAzureCloudSpatialAnchor);
-}
-
-void UAzureSpatialAnchorsLibrary::GetCloudAnchors(TArray<UAzureCloudSpatialAnchor*>& OutCloudAnchors)
-{
-	IAzureSpatialAnchors* IASA = IAzureSpatialAnchors::Get();
-	if (IASA == nullptr)
-	{
-		OutCloudAnchors.Empty();
-		return;
-	}
-
-	IASA->GetCloudAnchors(OutCloudAnchors);
-}
-
 namespace AzureSpatialAnchorsLibrary
 {
 	struct AsyncData
@@ -164,28 +140,23 @@ namespace AzureSpatialAnchorsLibrary
 		AsyncData& operator=(const AsyncData&) = delete;
 	};
 
-	struct CloudAnchorIDAsyncData : public AsyncData
+	struct SessionStatusAsyncData : public AsyncData
 	{
-		IAzureSpatialAnchors::CloudAnchorID CloudAnchorID = IAzureSpatialAnchors::CloudAnchorID_Invalid;
+		FAzureSpatialAnchorsSessionStatus Status;
 	};
-	typedef TSharedPtr<CloudAnchorIDAsyncData, ESPMode::ThreadSafe> CloudAnchorIDAsyncDataPtr;
+	typedef TSharedPtr<SessionStatusAsyncData, ESPMode::ThreadSafe> SessionStatusAsyncDataPtr;
+}
 
-	struct LoadByIDAsyncData : public AsyncData
+bool UAzureSpatialAnchorsLibrary::GetCachedSessionStatus(FAzureSpatialAnchorsSessionStatus& OutStatus)
+{
+	IAzureSpatialAnchors* IASA = IAzureSpatialAnchors::Get();
+	if (IASA == nullptr)
 	{
-		FString CloudAnchorIdentifier;
-		FString LocalAnchorId;
-		IAzureSpatialAnchors::WatcherID WatcherID;
-		IAzureSpatialAnchors::CloudAnchorID CloudAnchorID = IAzureSpatialAnchors::CloudAnchorID_Invalid;
-		UAzureCloudSpatialAnchor* CloudAnchor = nullptr;
-	};
-	typedef TSharedPtr<LoadByIDAsyncData, ESPMode::ThreadSafe> LoadByIDAsyncDataPtr;
+		return false;
+	}
 
-	//struct GetCloudAnchorPropertiesAsyncData : public AsyncData
-	//{
-	//	FString CloudAnchorIdentifier;
-	//	CloudAnchorID CloudAnchorID = CloudAnchorID_Invalid;
-	//};
-	//typedef TSharedPtr<GetCloudAnchorPropertiesAsyncData, ESPMode::ThreadSafe> GetCloudAnchorPropertiesAsyncDataPtr;
+	OutStatus = IASA->GetSessionStatus();
+	return true;
 }
 
 struct FAzureSpatialAnchorsAsyncAction : public FPendingLatentAction
@@ -247,18 +218,148 @@ private:
 	FString Description;
 };
 
+struct FAzureSpatialAnchorsGetSessionStatusAction : public FAzureSpatialAnchorsAsyncAction
+{
+public:
+	FAzureSpatialAnchorsSessionStatus* Status;
+	AzureSpatialAnchorsLibrary::SessionStatusAsyncDataPtr Data;
+
+	FAzureSpatialAnchorsGetSessionStatusAction(const FLatentActionInfo& InLatentInfo, FAzureSpatialAnchorsSessionStatus* InOutStatus, EAzureSpatialAnchorsResult& InOutResult, FString& InOutErrorString)
+		: FAzureSpatialAnchorsAsyncAction(InLatentInfo, TEXT("GetSessionStatus."), InOutResult, InOutErrorString)
+		, Status(InOutStatus)
+	{		
+		check(Status != nullptr);
+	}
+
+	virtual void UpdateOperation(FLatentResponse& Response) override
+	{
+		if (!bStarted)
+		{
+			IAzureSpatialAnchors* IASA = GetIASAOrFailAndFinish(Response);
+			if (IASA == nullptr)
+			{
+				return;
+			}
+
+			Data = MakeShared<AzureSpatialAnchorsLibrary::SessionStatusAsyncData, ESPMode::ThreadSafe>();
+
+			Data->Result = EAzureSpatialAnchorsResult::Started;
+			IAzureSpatialAnchors::Callback_Result_SessionStatus Callback = [Data = Data](EAzureSpatialAnchorsResult Result, const wchar_t* ErrorString, FAzureSpatialAnchorsSessionStatus InStatus)
+			{
+				Data->Status = InStatus;
+				Data->Result = Result;
+				Data->OutError = WCHAR_TO_TCHAR(ErrorString);
+				Data->Complete();
+			};
+
+			IASA->GetSessionStatusAsync(Callback);
+
+			bStarted = true;
+		}
+
+		if (Data->Completed)
+		{
+			OutResult = (EAzureSpatialAnchorsResult)Data->Result;
+			OutErrorString = Data->OutError;
+			*Status = Data->Status;
+			Data.Reset();
+			Response.FinishAndTriggerIf(true, ExecutionFunction, OutputLink, CallbackTarget);
+			return;
+		}
+	}
+
+	virtual void Orphan() override
+	{
+		Data.Reset();
+	}
+};
+
+void UAzureSpatialAnchorsLibrary::GetSessionStatus(UObject* WorldContextObject, struct FLatentActionInfo LatentInfo, FAzureSpatialAnchorsSessionStatus& OutStatus, EAzureSpatialAnchorsResult& OutResult, FString& OutErrorString)
+{
+	if (UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull))
+	{
+		UE_LOG(LogAzureSpatialAnchors, Verbose, TEXT("GetSessionStatus Action. UUID: %d"), LatentInfo.UUID);
+		FLatentActionManager& LatentManager = World->GetLatentActionManager();
+
+		FAzureSpatialAnchorsGetSessionStatusAction* ExistAction = reinterpret_cast<FAzureSpatialAnchorsGetSessionStatusAction*>(
+			LatentManager.FindExistingAction<FAzureSpatialAnchorsGetSessionStatusAction>(LatentInfo.CallbackTarget, LatentInfo.UUID));
+		if (ExistAction == nullptr)
+		{
+			// does this handle multiple in progress operations?
+			FAzureSpatialAnchorsGetSessionStatusAction* NewAction = new FAzureSpatialAnchorsGetSessionStatusAction(LatentInfo, &OutStatus, OutResult, OutErrorString);
+			LatentManager.AddNewAction(LatentInfo.CallbackTarget, LatentInfo.UUID, NewAction);
+		}
+		else
+		{
+			UE_LOG(LogAzureSpatialAnchors, Verbose, TEXT("Skipping GetSessionStatus latent action."), LatentInfo.UUID);
+		}
+	}
+}
+
+void UAzureSpatialAnchorsLibrary::GetCloudAnchor(UARPin* ARPin, UAzureCloudSpatialAnchor*& OutAzureCloudSpatialAnchor)
+{
+	IAzureSpatialAnchors* IASA = IAzureSpatialAnchors::Get();
+	if (IASA == nullptr)
+	{
+		OutAzureCloudSpatialAnchor = nullptr;
+		return;
+	}
+
+	IASA->GetCloudAnchor(ARPin, OutAzureCloudSpatialAnchor);
+}
+
+void UAzureSpatialAnchorsLibrary::GetCloudAnchors(TArray<UAzureCloudSpatialAnchor*>& OutCloudAnchors)
+{
+	IAzureSpatialAnchors* IASA = IAzureSpatialAnchors::Get();
+	if (IASA == nullptr)
+	{
+		OutCloudAnchors.Empty();
+		return;
+	}
+
+	IASA->GetCloudAnchors(OutCloudAnchors);
+}
+
+namespace AzureSpatialAnchorsLibrary
+{
+	struct CloudAnchorIDAsyncData : public AsyncData
+	{
+		IAzureSpatialAnchors::CloudAnchorID CloudAnchorID = IAzureSpatialAnchors::CloudAnchorID_Invalid;
+	};
+	typedef TSharedPtr<CloudAnchorIDAsyncData, ESPMode::ThreadSafe> CloudAnchorIDAsyncDataPtr;
+
+	struct LoadByIDAsyncData : public AsyncData
+	{
+		FString CloudAnchorIdentifier;
+		FString LocalAnchorId;
+		IAzureSpatialAnchors::WatcherID WatcherID;
+		IAzureSpatialAnchors::CloudAnchorID CloudAnchorID = IAzureSpatialAnchors::CloudAnchorID_Invalid;
+		UAzureCloudSpatialAnchor* CloudAnchor = nullptr;
+	};
+	typedef TSharedPtr<LoadByIDAsyncData, ESPMode::ThreadSafe> LoadByIDAsyncDataPtr;
+
+	//struct GetCloudAnchorPropertiesAsyncData : public AsyncData
+	//{
+	//	FString CloudAnchorIdentifier;
+	//	CloudAnchorID CloudAnchorID = CloudAnchorID_Invalid;
+	//};
+	//typedef TSharedPtr<GetCloudAnchorPropertiesAsyncData, ESPMode::ThreadSafe> GetCloudAnchorPropertiesAsyncDataPtr;
+}
+
 struct FAzureSpatialAnchorsSavePinToCloudAction : public FAzureSpatialAnchorsAsyncAction
 {
 public:
 	UARPin* ARPin;
 	float Lifetime;
+	TMap<FString, FString> AppProperties;
 	UAzureCloudSpatialAnchor*& OutAzureCloudSpatialAnchor;
 	AzureSpatialAnchorsLibrary::CloudAnchorIDAsyncDataPtr Data;
 
-	FAzureSpatialAnchorsSavePinToCloudAction(const FLatentActionInfo& InLatentInfo, UARPin*& InARPin, float InLifetime, UAzureCloudSpatialAnchor*& InOutAzureCloudSpatialAnchor, EAzureSpatialAnchorsResult& InOutResult, FString& InOutErrorString)
+	FAzureSpatialAnchorsSavePinToCloudAction(const FLatentActionInfo& InLatentInfo, UARPin*& InARPin, float InLifetime, const TMap<FString, FString>& InAppProperties, UAzureCloudSpatialAnchor*& InOutAzureCloudSpatialAnchor, EAzureSpatialAnchorsResult& InOutResult, FString& InOutErrorString)
 		: FAzureSpatialAnchorsAsyncAction(InLatentInfo, TEXT("SavePinToCloud."), InOutResult, InOutErrorString)
 		, ARPin(InARPin)
 		, Lifetime(InLifetime)
+		, AppProperties(InAppProperties)
 		, OutAzureCloudSpatialAnchor(InOutAzureCloudSpatialAnchor)
 	{}
 
@@ -287,6 +388,17 @@ public:
 				if (OutResult  != EAzureSpatialAnchorsResult::Success)
 				{
 					OutErrorString = TEXT("SetCloudAnchorExpiration Failed.");
+					Response.FinishAndTriggerIf(true, ExecutionFunction, OutputLink, CallbackTarget);
+					return;
+				}
+			}
+
+			if (AppProperties.Num() > 0)
+			{
+				OutResult = IASA->SetCloudAnchorAppProperties(OutAzureCloudSpatialAnchor->CloudAnchorID, AppProperties);
+				if (OutResult != EAzureSpatialAnchorsResult::Success)
+				{
+					OutErrorString = TEXT("SetCloudAnchorAppProperties Failed.");
 					Response.FinishAndTriggerIf(true, ExecutionFunction, OutputLink, CallbackTarget);
 					return;
 				}
@@ -326,6 +438,12 @@ public:
 
 void UAzureSpatialAnchorsLibrary::SavePinToCloud(UObject* WorldContextObject, struct FLatentActionInfo LatentInfo, UARPin* ARPin, float Lifetime, UAzureCloudSpatialAnchor*& OutAzureCloudSpatialAnchor, EAzureSpatialAnchorsResult& OutResult, FString& OutErrorString)
 {
+	TMap<FString, FString> EmptyAppProperties;
+	SavePinToCloudWithAppProperties(WorldContextObject, LatentInfo, ARPin, Lifetime, EmptyAppProperties, OutAzureCloudSpatialAnchor, OutResult, OutErrorString);
+}
+
+void UAzureSpatialAnchorsLibrary::SavePinToCloudWithAppProperties(UObject* WorldContextObject, struct FLatentActionInfo LatentInfo, UARPin* ARPin, float Lifetime, const TMap<FString, FString>& InAppProperties, UAzureCloudSpatialAnchor*& OutAzureCloudSpatialAnchor, EAzureSpatialAnchorsResult& OutResult, FString& OutErrorString)
+{
 	if (UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull))
 	{
 		UE_LOG(LogAzureSpatialAnchors, Verbose, TEXT("SavePinToCloud Action. UUID: %d"), LatentInfo.UUID);
@@ -336,7 +454,7 @@ void UAzureSpatialAnchorsLibrary::SavePinToCloud(UObject* WorldContextObject, st
 		if (ExistAction == nullptr || ExistAction->ARPin != ARPin)
 		{
 			// does this handle multiple in progress operations?
-			FAzureSpatialAnchorsSavePinToCloudAction* NewAction = new FAzureSpatialAnchorsSavePinToCloudAction(LatentInfo, ARPin, Lifetime, OutAzureCloudSpatialAnchor, OutResult, OutErrorString);
+			FAzureSpatialAnchorsSavePinToCloudAction* NewAction = new FAzureSpatialAnchorsSavePinToCloudAction(LatentInfo, ARPin, Lifetime, InAppProperties, OutAzureCloudSpatialAnchor, OutResult, OutErrorString);
 			LatentManager.AddNewAction(LatentInfo.CallbackTarget, LatentInfo.UUID, NewAction);
 		}
 		else
@@ -345,6 +463,7 @@ void UAzureSpatialAnchorsLibrary::SavePinToCloud(UObject* WorldContextObject, st
 		}
 	}
 }
+
 
 struct FAzureSpatialAnchorsDeleteCloudAnchorAction : public FAzureSpatialAnchorsAsyncAction
 {

@@ -94,18 +94,21 @@ namespace UnrealBuildTool
 		public override bool TryConvertVersionToInt(string StringValue, out UInt64 OutValue)
 		{
 			// convert r<num>[letter] to hex
-			Match Result = Regex.Match(StringValue, @"^r(\d*)([a-z])?");
-
-			if (Result.Success)
+			if (!string.IsNullOrEmpty(StringValue))
 			{
-				// 8 for number, 8 for letter, 8 for unused patch
-				int RevisionNumber = 0;
-				if (Result.Groups[2].Success)
+				Match Result = Regex.Match(StringValue, @"^r(\d*)([a-z])?");
+
+				if (Result.Success)
 				{
-					RevisionNumber = (Result.Groups[2].Value[0] - 'a') + 1;
+					// 8 for number, 8 for letter, 8 for unused patch
+					int RevisionNumber = 0;
+					if (Result.Groups[2].Success)
+					{
+						RevisionNumber = (Result.Groups[2].Value[0] - 'a') + 1;
+					}
+					string VersionString = string.Format("{0}{1:00}{2:00}", Result.Groups[1], RevisionNumber, 0);
+					return UInt64.TryParse(VersionString, out OutValue);
 				}
-				string VersionString = string.Format("{0}{1:00}{2:00}", Result.Groups[1], RevisionNumber, 0);
-				return UInt64.TryParse(VersionString, out OutValue);
 			}
 
 			OutValue = 0;

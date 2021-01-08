@@ -96,7 +96,8 @@ protected:
 	virtual const FSlateInvalidationRoot* Advanced_AsInvalidationRoot() const override { return bEnableRetainedRendering ? this : nullptr; }
 	virtual bool CustomPrepass(float LayoutScaleMultiplier) override;
 
-	/** FSlateInvalidationRoot interface */
+	//~ Begin FSlateInvalidationRoot interface
+	virtual TSharedRef<SWidget> GetRootWidget() override;
 	virtual int32 PaintSlowPath(const FSlateInvalidationContext& Context) override;
 
 	enum class EPaintRetainedContentResult
@@ -108,6 +109,7 @@ protected:
 		TextureSizeZero,
 	};
 	EPaintRetainedContentResult PaintRetainedContentImpl(const FSlateInvalidationContext& Context, const FGeometry& AllottedGeometry);
+	//~ End FSlateInvalidationRoot interface
 
 	void RefreshRenderingMode();
 	bool ShouldBeRenderingOffscreen() const;
@@ -125,7 +127,11 @@ private:
 
 	mutable FSlateBrush SurfaceBrush;
 
-	mutable FVector2D PreviousRenderSize;
+	FVector2D PreviousRenderSize;
+	FGeometry PreviousAllottedGeometry;
+	FVector2D PreviousClipRectSize;
+	TOptional<FSlateClippingState> PreviousClippingState;
+	FLinearColor PreviousColorAndOpacity;
 
 	void UpdateWidgetRenderer();
 

@@ -169,7 +169,7 @@ HRESULT FWmfMediaStreamSink::Start()
 {
 	FScopeLock Lock(&CriticalSection);
 
-	if (ClockRate != 0.0f && WaitTimer == nullptr)
+	if (WaitTimer == nullptr)
 	{
 		// Set a high the timer resolution (ie, short timer period).
 		timeBeginPeriod(1);

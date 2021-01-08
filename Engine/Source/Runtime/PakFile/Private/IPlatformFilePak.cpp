@@ -1869,6 +1869,11 @@ private: // below here we assume CachedFilesScopeLock until we get to the next s
 				// CachedFilesScopeLock is locked
 				for (uint16 RealPakIndex = StartPakIndex; RealPakIndex < EndPakIndex; RealPakIndex++)
 				{
+					if (!CachedPakData[RealPakIndex].Handle)
+					{
+						// This PakData has been unmounted and is no longer a valid entry
+						continue;
+					}
 					int32 CacheIndex = CachedPakData[RealPakIndex].ActualPakFile->GetCacheIndex();
 					if (CacheVisitedAlready[CacheIndex] == true)
 						continue;
@@ -1926,6 +1931,11 @@ private: // below here we assume CachedFilesScopeLock until we get to the next s
 				// CachedFilesScopeLock is locked
 				for (uint16 RealPakIndex = StartPakIndex; RealPakIndex < EndPakIndex; RealPakIndex++)
 				{
+					if (!CachedPakData[RealPakIndex].Handle)
+					{
+						// This PakData has been unmounted and is no longer a valid entry
+						continue;
+					}
 					int32 CacheIndex = CachedPakData[RealPakIndex].ActualPakFile->GetCacheIndex();
 
 					int32 NumToRemove = 0;
@@ -1991,6 +2001,7 @@ private: // below here we assume CachedFilesScopeLock until we get to the next s
 			{
 				if (!CachedPakData[RealPakIndex].Handle)
 				{
+					// This PakData has been unmounted and is no longer a valid entry
 					continue;
 				}
 				int32 CacheIndex = CachedPakData[RealPakIndex].ActualPakFile->GetCacheIndex();
@@ -3033,6 +3044,7 @@ public:
 					check(Pak.Handle);
 					delete Pak.Handle;
 					Pak.Handle = nullptr;
+					Pak.ActualPakFile = nullptr;
 					int32 NumToTrim = 0;
 					for (int32 Index = CachedPakData.Num() - 1; Index >= 0; Index--)
 					{

@@ -7,6 +7,7 @@
 #include "Delegates/IDelegateInstance.h"
 #include "Templates/SharedPointer.h"
 
+struct FFileChangeData; 
 struct FImgMediaFrame;
 class UImgMediaSettings;
 
@@ -41,11 +42,12 @@ public:
 	/**
 	 * Adds a frame to the cache.
 	 *
+	 * @param	FileName		Filename of frame to add.
 	 * @param	Sequence		Indentifying name of this sequence.
 	 * @param	Index			Index of frame to add.
 	 * @param	Frame			Actual frame to add.
 	 */
-	void AddFrame(const FName& Sequence, int32 Index, const TSharedPtr<FImgMediaFrame, ESPMode::ThreadSafe>& Frame);
+	void AddFrame(const FString& FileName, const FName& Sequence, int32 Index, const TSharedPtr<FImgMediaFrame, ESPMode::ThreadSafe>& Frame);
 
 	/**
 	 * Find the entry with the specified sequence and index and mark it as the most recently used.
@@ -68,6 +70,8 @@ private:
 	/** An entry in the cache. */
 	struct FImgMediaGlobalCacheEntry
 	{
+		/** File name of this frame. */
+		FString FileName;
 		/** Frame index. */
 		int32 Index;
 		/** Actual frame. */
@@ -83,8 +87,9 @@ private:
 		FImgMediaGlobalCacheEntry* MoreRecentSequence;
 
 		/** Constructor. */
-		FImgMediaGlobalCacheEntry(int32 InIndex, const TSharedPtr<FImgMediaFrame, ESPMode::ThreadSafe>& InFrame)
-			: Index(InIndex)
+		FImgMediaGlobalCacheEntry(const FString& InFileName, int32 InIndex, const TSharedPtr<FImgMediaFrame, ESPMode::ThreadSafe>& InFrame)
+			: FileName(InFileName)
+			, Index(InIndex)
 			, Frame(InFrame)
 			, LessRecent(nullptr)
 			, LessRecentSequence(nullptr)
@@ -120,6 +125,15 @@ private:
 	FDelegateHandle UpdateSettingsDelegateHandle;
 
 #endif
+
+#if WITH_EDITOR
+
+	/** Maps a sequence directory to a directory watcher. */
+	TMap<FString, FDelegateHandle> MapSequenceToWatcher;
+	/** Maps a file name to the index of that file in the sequence. */
+	TMap<FString, int32> MapFileToIndex;
+
+#endif // WITH_EDITOR
 	
 	/**
 	 * Empties the cache until the current size + Extra <= the max size of the cache.
@@ -160,5 +174,14 @@ private:
 	 * Updates our settings from ImgMediaAsettings. 
 	 */
 	void UpdateSettings(const UImgMediaSettings* Settings);
+
+#if WITH_EDITOR
+
+	/**
+	 * Called when one of our source files changes.
+	 */
+	void OnDirectoryChanged(const TArray<FFileChangeData>& InFileChanges);
+
+#endif // WITH_EDITOR
 };
 

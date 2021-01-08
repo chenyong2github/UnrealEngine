@@ -1313,7 +1313,6 @@ namespace Audio
 				InputData.NumChannels = ChannelCountOverride;
 				InputData.AudioBuffer = &DownmixedBuffer;
 				SubmixEffect->ProcessAudio(InputData, OutputData);
-
 			}
 			else
 			{

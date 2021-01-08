@@ -1433,6 +1433,7 @@ namespace UnrealBuildTool
 				CompileAction.CommandArguments = string.Format(" @\"{0}\"", CompilerResponseFileName);
 				CompileAction.PrerequisiteItems.Add(CompilerResponseFileItem);
 				CompileAction.CommandDescription = "Compile";
+				CompileAction.CommandVersion = CompilerVersionString;
 				CompileAction.StatusDescription = Path.GetFileName(SourceFile.AbsolutePath);
 				CompileAction.bIsGCCCompiler = true;
 
@@ -1645,6 +1646,7 @@ namespace UnrealBuildTool
 			}
 			// because the logic choosing between lld and ld is somewhat messy atm (lld fails to link .DSO due to bugs), make the name of the linker clear
 			LinkAction.CommandDescription += (LinkCommandString.Contains("-fuse-ld=lld")) ? " (lld)" : " (ld)";
+			LinkAction.CommandVersion = CompilerVersionString;
 			LinkAction.StatusDescription = Path.GetFileName(OutputFile.AbsolutePath);
 
 			// Add the output file to the command-line.

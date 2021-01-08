@@ -123,4 +123,16 @@ namespace DatasmithNavisworksUtil {
 		
 		bool bIsDisposed;
 	};
+
+	public ref struct UnrealLocale
+	{
+		explicit UnrealLocale();
+		~UnrealLocale();
+		!UnrealLocale();
+
+		void RestoreLocale();
+
+	private:
+		wchar_t* StoredLocale;
+	};
 }

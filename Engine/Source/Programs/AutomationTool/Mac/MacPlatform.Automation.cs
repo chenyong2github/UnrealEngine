@@ -11,10 +11,42 @@ using EpicGames.Core;
 
 public class MacPlatform : Platform
 {
+	/// <summary>
+	/// Default architecture to build projects for. Defaults to Intel
+	/// </summary>
+	protected string[] ProjectTargetArchitectures = { MacExports.IntelArchitecture };
+
 	public MacPlatform()
 		: base(UnrealTargetPlatform.Mac)
 	{
+
 	}
+
+	public override void PlatformSetupParams(ref ProjectParams ProjParams)
+	{
+		base.PlatformSetupParams(ref ProjParams);
+
+		string ConfigTargetArchicture = "";
+		ConfigHierarchy PlatformEngineConfig = null;
+		if (ProjParams.EngineConfigs.TryGetValue(PlatformType, out PlatformEngineConfig))
+		{
+			PlatformEngineConfig.GetString("/Script/MacTargetPlatform.MacTargetSettings", "TargetArchitecture", out ConfigTargetArchicture);
+
+			if (ConfigTargetArchicture.ToLower().Contains("intel"))
+			{
+				ProjectTargetArchitectures = new[] { MacExports.IntelArchitecture };
+			}
+			else if (ConfigTargetArchicture.ToLower().Contains("apple"))
+			{
+				ProjectTargetArchitectures = new[] { MacExports.AppleArchitecture};
+			}
+			else if (ConfigTargetArchicture.ToLower().Contains("universal"))
+			{
+				ProjectTargetArchitectures = new[] { MacExports.IntelArchitecture, MacExports.AppleArchitecture };
+			}
+		}		
+	}
+
 
 	public override string GetCookPlatform(bool bDedicatedServer, bool bIsClientOnly)
 	{
@@ -39,6 +71,100 @@ public class MacPlatform : Platform
 	public override string GetEditorCookPlatform()
 	{
 		return "MacEditor";
+	}
+
+	protected bool CanBuildToolForAllArchitectures(UE4Build.BuildTarget InTarget, ProjectParams InParams)
+	{
+		string[] WhitelistedTargets = { "UnrealHeaderTool", /*"ShaderCompileWorker",*/ "UnrealPak" };
+
+		// These targets are known to work.
+		if (WhitelistedTargets.Contains(InTarget.TargetName))
+		{
+			return true;
+		}
+
+
+		// Editor does not work, and other tools are less interesting at this time
+		return false;
+	}
+
+	/// <summary>
+	/// Override PreBuildAgenda so we can control the architecture that targets are built for based on
+	/// project settings and the current user environment
+	/// </summary>
+	/// <param name="Build"></param>
+	/// <param name="Agenda"></param>
+	/// <param name="Params"></param>
+	public override void PreBuildAgenda(UE4Build Build, UE4Build.BuildAgenda Agenda, ProjectParams Params)
+	{
+		base.PreBuildAgenda(Build, Agenda, Params);
+
+		string LocalArchitecture = MacExports.HostArchitecture;
+
+		bool ProjectIsUniversal = ProjectTargetArchitectures.Count() > 1;
+
+		// Go through the agenda for all targets and set the architecture appropriately
+		foreach (UE4Build.BuildTarget Target in Agenda.Targets)
+		{
+			bool IsTarget = Params.ClientCookedTargets.Contains(Target.TargetName) || Params.ServerCookedTargets.Contains(Target.TargetName);
+
+			// Default to Intel. 
+			string UBTArchitectureParam = MacExports.IntelArchitecture;
+
+			// Targets are easy. 
+			// - If the project is set to Intel/Apple we do that
+			// - If it's universal we build the local architecture unless distributing
+			// - SpecifiedArchitecture overrides these
+			if (IsTarget)
+			{
+				// If an architecture was specified, use that
+				if (!string.IsNullOrEmpty(Params.SpecifiedArchitecture))
+				{
+					UBTArchitectureParam = Params.SpecifiedArchitecture;
+					Log.TraceInformation("Building {0} as {1} due to -specifiedarchitecture", Target.TargetName, UBTArchitectureParam);
+				}
+				else
+				{
+					// If the project isn't marked as universal built what it's set to
+					if (!ProjectIsUniversal)
+					{
+						UBTArchitectureParam = ProjectTargetArchitectures.First();
+						Log.TraceInformation("Building {0} as {1}", Target.TargetName, UBTArchitectureParam);
+					}
+					else
+					{
+						// if it is universal, build everything for distribution or just the local architecture otherwise
+						if (Params.Distribution)
+						{
+							UBTArchitectureParam = string.Join("+", ProjectTargetArchitectures);
+							Log.TraceInformation("Building {0} as {1} for distribution", Target.TargetName, UBTArchitectureParam);
+						}
+						else
+						{
+							UBTArchitectureParam = LocalArchitecture;
+							Log.TraceInformation("Building {0} as {1} for local non-distribution", Target.TargetName, UBTArchitectureParam);
+						}
+					}
+				}
+			}
+			else
+			{
+				// We build tools for the local architecture if possible
+				if (CanBuildToolForAllArchitectures(Target, Params) || LocalArchitecture == MacExports.IntelArchitecture)
+				{
+					UBTArchitectureParam = LocalArchitecture;
+					Log.TraceInformation("Building {0} as {1} for host", Target.TargetName, UBTArchitectureParam);
+				}
+				else if (MacExports.IsRunningOnAppleArchitecture)
+				{
+					// Tell them why to avoid confusion
+					Log.TraceInformation("Building {0} as {1} (arm64 not currently supported)", Target.TargetName, UBTArchitectureParam);
+					UBTArchitectureParam = MacExports.IntelArchitecture;
+				}
+			}
+
+			Target.UBTArgs += string.Format(" -architecture={0}", UBTArchitectureParam);
+		}
 	}
 
 	private void StageAppBundle(DeploymentContext SC, DirectoryReference InPath, StagedDirectoryReference NewName)

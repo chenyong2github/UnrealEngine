@@ -43,11 +43,18 @@ namespace BuildGraph.Tasks
 	{
 		ModifyJsonValueParameters Parameters;
 
+		/// <summary>
+		/// Create a new ModifyJsonValue.
+		/// </summary>
+		/// <param name="InParameters">Parameters for this task.</param>
 		public ModifyJsonValue(ModifyJsonValueParameters InParameters)
 		{
 			Parameters = InParameters;
 		}
 
+		/// <summary>
+		/// Placeholder comment
+		/// </summary>
 		public override void Execute(JobContext Job, HashSet<FileReference> BuildProducts, Dictionary<string, HashSet<FileReference>> TagNameToFileSet)
 		{
 			string[] Keys = Parameters.KeyPath.Split('.');
@@ -75,11 +82,17 @@ namespace BuildGraph.Tasks
 			}
 		}
 
+		/// <summary>
+		/// Placeholder comment
+		/// </summary>
 		public override void Write(XmlWriter Writer)
 		{
 			Write(Writer, Parameters);
 		}
 
+		/// <summary>
+		/// Placeholder comment
+		/// </summary>
 		public override IEnumerable<string> FindConsumedTagNames()
 		{
 			foreach (string TagName in FindTagNamesFromFilespec(Parameters.Files))
@@ -88,6 +101,9 @@ namespace BuildGraph.Tasks
 			}
 		}
 
+		/// <summary>
+		/// Placeholder comment
+		/// </summary>
 		public override IEnumerable<string> FindProducedTagNames()
 		{
 			yield break;

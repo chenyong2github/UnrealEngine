@@ -121,7 +121,7 @@ public:
 	static uint32 GetUniverseAddrUnicast(FString UnicastAddress);
 
 private:
-	EDMXSendResult SendDMXInternal(uint16 UniverseID, const FDMXBufferPtr& DMXBuffer) const;
+	EDMXSendResult SendDMXInternal(uint16 UniverseID, uint8 InSequenceNumber, const FDMXBufferPtr& DMXBuffer) const;
 
 	/** Called each tick in LaunchEngineLoop */
 	void OnEndFrame();

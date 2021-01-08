@@ -13,6 +13,9 @@
 #include "MovieSceneFolder.h"
 #include "Channels/MovieSceneFloatChannel.h"
 #include "Channels/MovieSceneChannelTraits.h"
+#include "Framework/Notifications/NotificationManager.h" 
+#include "Widgets/Notifications/SNotificationList.h"
+
 
 #define LOCTEXT_NAMESPACE "TakeRecorderDMXLibrarySource"
 
@@ -68,9 +71,9 @@ TArray<UTakeRecorderSource*> UTakeRecorderDMXLibrarySource::PreRecording(ULevelS
 {
 	if (DMXLibrary)
 	{
-		UMovieScene* MovieScene = InSequence->GetMovieScene();
+		UMovieScene* MovieScene = InMasterSequence->GetMovieScene();
 		TrackRecorder = NewObject<UMovieSceneDMXLibraryTrackRecorder>();
-		TrackRecorder->CreateTrack(MovieScene, DMXLibrary, FixturePatchRefs, bUseSourceTimecode, bDiscardSamplesBeforeStart, nullptr);
+		CachedDMXLibraryTrack = TrackRecorder->CreateTrack(MovieScene, DMXLibrary, FixturePatchRefs, bUseSourceTimecode, bDiscardSamplesBeforeStart, nullptr);
 	}
 	else
 	{
@@ -139,10 +142,51 @@ void UTakeRecorderDMXLibrarySource::PostEditChangeProperty(FPropertyChangedEvent
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
 	const FName PropertyName = PropertyChangedEvent.GetPropertyName();
-	
-	if ((PropertyName == GET_MEMBER_NAME_CHECKED(UTakeRecorderDMXLibrarySource, FixturePatchRefs)
-		&& PropertyChangedEvent.ChangeType == EPropertyChangeType::ArrayAdd)
-		|| PropertyName == GET_MEMBER_NAME_CHECKED(UTakeRecorderDMXLibrarySource, AddAllPatchesDummy))
+
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(UTakeRecorderDMXLibrarySource, FixturePatchRefs))
+	{
+		// Prevent from selecting the same patch twice
+		int32 ChangedIndex = PropertyChangedEvent.GetArrayIndex(PropertyName.ToString());
+		if (ensure(FixturePatchRefs.IsValidIndex(ChangedIndex)))
+		{
+			UDMXEntityFixturePatch* SelectedPatch = FixturePatchRefs[ChangedIndex].GetFixturePatch();
+
+			if (SelectedPatch)
+			{
+				const bool bIsDuplicate = [this, ChangedIndex, SelectedPatch]() -> const bool
+				{
+					for (int32 IdxPatchRef = 0; IdxPatchRef < FixturePatchRefs.Num(); IdxPatchRef++)
+					{
+						if (IdxPatchRef == ChangedIndex)
+						{
+							continue;
+						}
+
+						if (FixturePatchRefs[IdxPatchRef].GetFixturePatch() == SelectedPatch)
+						{
+							return true;
+						}
+					}
+
+					return false;
+				}();
+
+				if (bIsDuplicate)
+				{
+					FNotificationInfo Info(FText::Format(LOCTEXT("SetFixturePatchTwice", "{0} already has a track."), FText::FromString(SelectedPatch->GetDisplayName())));
+					Info.ExpireDuration = 5.f;
+					FSlateNotificationManager::Get().AddNotification(Info);
+
+					// Reset the patch ref
+					FixturePatchRefs[ChangedIndex].SetEntity(nullptr);
+				}
+			}
+		}
+
+		// Fix DMX Library reference on new Patch refs
+		ResetPatchesLibrary();
+	}
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UTakeRecorderDMXLibrarySource, AddAllPatchesDummy))
 	{
 		// Fix DMX Library reference on new Patch refs
 		ResetPatchesLibrary();

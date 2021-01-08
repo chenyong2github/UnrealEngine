@@ -603,8 +603,13 @@ void FUnixCrashContext::GenerateCrashInfoAndLaunchReporter(bool bReportingNonCra
 				static_cast<void>(IFileManager::Get().Copy(*CrashConfigDstAbsolute, CrashConfigFilePath));	// best effort, so don't care about result
 			}
 
+#if PLATFORM_LINUXAARCH64
+			// try launching the tool and wait for its exit, if at all
+			const TCHAR * RelativePathToCrashReporter = TEXT("../../../Engine/Binaries/LinuxAArch64/CrashReportClient");	// FIXME: painfully hard-coded
+#else
 			// try launching the tool and wait for its exit, if at all
 			const TCHAR * RelativePathToCrashReporter = TEXT("../../../Engine/Binaries/Linux/CrashReportClient");	// FIXME: painfully hard-coded
+#endif
 
 			FString CrashReportLogFilename = LogBaseFilename + TEXT("-CRC") + LogExtension;
 			FString CrashReportLogFilepath = FPaths::Combine(*LogFolder, *CrashReportLogFilename);

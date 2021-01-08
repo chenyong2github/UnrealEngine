@@ -2149,7 +2149,7 @@ namespace GeometryCollectionTest
 		FFieldSystemCommand Command(TargetName, FalloffField->NewCopy());
 		FFieldSystemMetaDataProcessingResolution* ResolutionData = new FFieldSystemMetaDataProcessingResolution(EFieldResolutionType::Field_Resolution_Maximum);
 		Command.MetaData.Add(FFieldSystemMetaData::EMetaType::ECommandData_ProcessingResolution, TUniquePtr< FFieldSystemMetaDataProcessingResolution >(ResolutionData));
-		UnitTest.Solver->GetPerSolverField().BufferCommand(Command);
+		UnitTest.Solver->GetPerSolverField().AddTransientCommand(Command);
 
 		FVector Scale = Transform[1].GetScale3D();
 
@@ -2159,7 +2159,7 @@ namespace GeometryCollectionTest
 		
 		UnitTest.Advance();		
 
-		UnitTest.Solver->GetPerSolverField().BufferCommand({ TargetName, FalloffField->NewCopy() });
+		UnitTest.Solver->GetPerSolverField().AddTransientCommand({ TargetName, FalloffField->NewCopy() });
 
 		UnitTest.Advance();		
 

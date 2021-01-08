@@ -913,21 +913,25 @@ bool UAssetToolsImpl::AdvancedCopyPackages(const TMap<FString, FString>& SourceA
 			}
 		}
 
+		FAssetRegistryModule& AssetRegistryModule = FModuleManager::Get().LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
+
 		TSet<UObject*> ObjectsAndSubObjectsToReplaceWithin;
 		ObjectTools::GatherSubObjectsForReferenceReplacement(NewObjectSet, ExistingObjectSet, ObjectsAndSubObjectsToReplaceWithin);
-
 		for (int32 ObjectIdx = 0; ObjectIdx < NewObjects.Num(); ObjectIdx++)
 		{
 			TMap<UObject*, UObject*> ReplacementMap;
-			FAssetRegistryModule& AssetRegistryModule = FModuleManager::Get().LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
 			TArray<FName> Dependencies;
 			FName SuccessfullyCopiedPackage = FName(*SuccessfullyCopiedSourcePackages[ObjectIdx]);
 			AssetRegistryModule.Get().GetDependencies(SuccessfullyCopiedPackage, Dependencies);
 			for (FName Dependency : Dependencies)
 			{
-				if (SuccessfullyCopiedSourcePackages.Contains(Dependency.ToString()))
+				const FString DependencyString = Dependency.ToString();
+				if (SuccessfullyCopiedSourcePackages.Contains(DependencyString))
 				{
-					int32 DependencyIndex = ExistingObjects.IndexOfByPredicate([&](UObject* Object) { return Object->GetOuter()->GetName() == Dependency.ToString(); });
+					int32 DependencyIndex = ExistingObjects.IndexOfByPredicate([&](UObject* Object) { 
+						return Object && Object->IsValidLowLevel() && Object->GetOuter()->GetName() == DependencyString;
+						});
+
 					if (DependencyIndex != INDEX_NONE)
 					{
 						TArray<UObject*> ObjectsToReplace;

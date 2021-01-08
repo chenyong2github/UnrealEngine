@@ -2119,9 +2119,12 @@ FText SSCS_RowWidget::GetComponentAddSourceToolTipText() const
 
 FText SSCS_RowWidget::GetNativeComponentNameToolTipText() const
 {
-	if (FSCSEditorTreeNode* TreeNode = TreeNodePtr.Get())
+	const FSCSEditorTreeNode* TreeNode = TreeNodePtr.Get();
+	const UActorComponent* Template = TreeNode ? TreeNode->GetComponentTemplate() : nullptr;
+
+	if (Template)
 	{
-		return FText::FromName(TreeNode->GetComponentTemplate()->GetFName());
+		return FText::FromName(Template->GetFName());
 	}
 	else
 	{

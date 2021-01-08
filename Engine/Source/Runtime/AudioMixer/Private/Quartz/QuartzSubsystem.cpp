@@ -75,8 +75,10 @@ void UQuartzSubsystem::Tick(float DeltaTime)
 
 	if (MaxQuartzSubscribersToUpdatePerTickCvar <= 0 || NumSubscribers <= MaxQuartzSubscribersToUpdatePerTickCvar)
 	{
+		TArray<UQuartzClockHandle*> SubscribersCopy = QuartzTickSubscribers;
+
 		// we can afford to update ALL subscribers
-		for (UQuartzClockHandle* Entry : QuartzTickSubscribers)
+		for (UQuartzClockHandle* Entry : SubscribersCopy)
 		{
 			if (Entry->QuartzIsTickable())
 			{
@@ -260,6 +262,35 @@ UQuartzClockHandle* UQuartzSubsystem::CreateNewClock(const UObject* WorldContext
 	return ClockHandlePtr;
 }
 
+
+void UQuartzSubsystem::DeleteClockByName(const UObject* WorldContextObject, FName ClockName)
+{
+	if (DisableQuartzCvar)
+	{
+		return;
+	}
+
+	Audio::FQuartzClockManager* ClockManager = GetClockManager(WorldContextObject);
+	if (!ClockManager)
+	{
+		return;
+	}
+
+	ClockManager->RemoveClock(ClockName);
+}
+
+void UQuartzSubsystem::DeleteClockByHandle(const UObject* WorldContextObject, UQuartzClockHandle*& InClockHandle)
+{
+	if (DisableQuartzCvar)
+	{
+		return;
+	}
+
+	if (InClockHandle)
+	{
+		DeleteClockByName(WorldContextObject, InClockHandle->GetClockName());
+	}
+}
 
 UQuartzClockHandle* UQuartzSubsystem::GetHandleForClock(const UObject* WorldContextObject, FName ClockName)
 {

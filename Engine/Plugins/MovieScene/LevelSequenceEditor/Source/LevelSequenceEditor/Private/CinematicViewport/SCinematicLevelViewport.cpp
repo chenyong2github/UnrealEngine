@@ -574,6 +574,18 @@ FOptionalSize SCinematicLevelViewport::GetDesiredViewportHeight() const
 
 FReply SCinematicLevelViewport::OnKeyDown( const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent ) 
 {
+	// Explicitly disallow the following keys which are by default mapped to navigate the sequencer timeline 
+	// because we don't want viewport and timeline navigation at the same time. Viewport takes precedence. 
+	if (InKeyEvent.GetKey() == EKeys::Up ||
+		InKeyEvent.GetKey() == EKeys::Down ||
+		InKeyEvent.GetKey() == EKeys::Left ||
+		InKeyEvent.GetKey() == EKeys::Right ||
+		InKeyEvent.GetKey() == EKeys::PageUp ||
+		InKeyEvent.GetKey() == EKeys::PageDown)
+	{
+		return FReply::Unhandled();
+	}
+
 	if (CommandList->ProcessCommandBindings(InKeyEvent))
 	{
 		return FReply::Handled();

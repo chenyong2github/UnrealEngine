@@ -123,14 +123,20 @@ static void AssertFailedImplV(const FDebug::FFailureInfo& Info, const TCHAR* For
 	// look into fixing this.
 	bHasAsserted = true;
 
-	GError->SetErrorProgramCounter(Info.ProgramCounter);
+	if (GError)
+	{
+		GError->SetErrorProgramCounter(Info.ProgramCounter);
+	}
 
 	TCHAR DescriptionString[4096];
 	FCString::GetVarArgs(DescriptionString, UE_ARRAY_COUNT(DescriptionString), Format, Args);
 
 	TCHAR ErrorString[MAX_SPRINTF];
 	FCString::Sprintf(ErrorString, TEXT("%s"), ANSI_TO_TCHAR(Info.Expr));
-	GError->Logf(TEXT("Assertion failed: %s") FILE_LINE_DESC TEXT("\n%s\n"), ErrorString, ANSI_TO_TCHAR(Info.File), Info.Line, DescriptionString);
+	if (GError)
+	{
+		GError->Logf(TEXT("Assertion failed: %s") FILE_LINE_DESC TEXT("\n%s\n"), ErrorString, ANSI_TO_TCHAR(Info.File), Info.Line, DescriptionString);
+	}
 }
 
 /**

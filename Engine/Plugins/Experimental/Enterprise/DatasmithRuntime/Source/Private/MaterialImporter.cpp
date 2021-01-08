@@ -116,11 +116,9 @@ namespace DatasmithRuntime
 				this->ProcessTextureData(*ElementIdPtr);
 
 				FTextureData& TextureData = this->TextureDataList[*ElementIdPtr];
-				this->AddToQueue(NONASYNC_QUEUE, { AssignTextureFunc, *ElementIdPtr, true, { EDataType::Material, ElementId, (int8)PropertyIndex } });
+				this->AddToQueue(EQueueTask::NonAsyncQueue, { AssignTextureFunc, *ElementIdPtr, { EDataType::Material, ElementId, (uint16)PropertyIndex } });
 			}
 		};
-
-		TSharedPtr< IDatasmithBaseMaterialElement > BaseMaterialElement = StaticCastSharedPtr< IDatasmithBaseMaterialElement >(Element);
 
 		const FString Host = FDatasmithMasterMaterialManager::Get().GetHostFromString( SceneElement->GetHost() );
 
@@ -144,7 +142,7 @@ namespace DatasmithRuntime
 				return this->ProcessMaterial(Referencer.GetId());
 			};
 
-			AddToQueue(MATERIAL_QUEUE, { TaskFunc, {EDataType::Material, MaterialData.ElementId, 0 } });
+			AddToQueue(EQueueTask::MaterialQueue, { TaskFunc, {EDataType::Material, MaterialData.ElementId, 0 } });
 			TasksToComplete |= EWorkerTask::MaterialCreate;
 
 			MaterialElementSet.Add(MaterialData.ElementId);

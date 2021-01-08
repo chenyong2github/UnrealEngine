@@ -56,7 +56,7 @@ AActor* FDatasmithLandscapeImporter::ImportLandscapeActor( const TSharedRef< IDa
 	TArray<uint16> FinalHeightData;
 	FLandscapeImportHelper::TransformHeightmapImportData(ImportData, FinalHeightData, OutImportDescriptor.ImportResolutions[DescriptorIndex], FLandscapeImportResolution(SizeX, SizeY), ELandscapeImportTransformType::ExpandCentered);
 		
-	const FVector Offset = FTransform( LandscapeActorElement->GetRotation(), FVector::ZeroVector, 
+	const FVector Offset = FTransform( LandscapeActorElement->GetRotation(), FVector::ZeroVector,
 		LandscapeActorElement->GetScale() ).TransformVector( FVector( -OutComponentCount.X * QuadsPerComponent / 2, -OutComponentCount.Y * QuadsPerComponent / 2, 0 ) );
 
 	FVector OriginalTranslation = LandscapeActorElement->GetTranslation();
@@ -100,15 +100,30 @@ AActor* FDatasmithLandscapeImporter::ImportLandscapeActor( const TSharedRef< IDa
 	// >= 4096x4096 -> LOD2
 	// >= 8192x8192 -> LOD3
 	LandscapeTemplate->StaticLightingLOD = FMath::DivideAndRoundUp(FMath::CeilLogTwo((SizeX * SizeY) / (2048 * 2048) + 1), (uint32)2);
-	
+
 	LandscapeTemplate->Apply( Landscape );
 
 	Landscape->ReimportHeightmapFilePath = LandscapeActorElement->GetHeightmap();
 
 	ULandscapeInfo* LandscapeInfo = Landscape->CreateLandscapeInfo();
 	LandscapeInfo->UpdateLayerInfoMap(Landscape);
-		
-	Landscape->RegisterAllComponents();
+
+	// Import doesn't fill in the LayerInfo for layers with no data, do that now
+	const TArray< FLandscapeImportLayer >& ImportLandscapeLayersList = DefaultValueObject->ImportLandscape_Layers;
+	for(int32 i = 0; i < ImportLandscapeLayersList.Num(); i++)
+	{
+		if(ImportLandscapeLayersList[i].LayerInfo != nullptr)
+		{
+			Landscape->EditorLayerSettings.Add(FLandscapeEditorLayerSettings(ImportLandscapeLayersList[i].LayerInfo, ImportLandscapeLayersList[i].SourceFilePath));
+
+			int32 LayerInfoIndex = LandscapeInfo->GetLayerInfoIndex(ImportLandscapeLayersList[i].LayerName);
+			if(ensure(LayerInfoIndex != INDEX_NONE))
+			{
+				FLandscapeInfoLayerSettings& LayerSettings = LandscapeInfo->Layers[LayerInfoIndex];
+				LayerSettings.LayerInfoObj = ImportLandscapeLayersList[i].LayerInfo;
+			}
+		}
+	}
 
 	return Landscape;
 }

@@ -150,7 +150,7 @@ namespace UnrealBuildTool
 				}
 
 				// Add all the makefiles and caches to be deleted
-				FilesToDelete.Add(TargetMakefile.GetLocation(Target.ProjectFile, Target.Name, Target.Platform, Target.Configuration));
+				FilesToDelete.Add(TargetMakefile.GetLocation(Target.ProjectFile, Target.Name, Target.Platform, Target.Architecture, Target.Configuration));
 				FilesToDelete.UnionWith(SourceFileMetadataCache.GetFilesToClean(Target.ProjectFile));
 
 				// Add all the intermediate folders to be deleted
@@ -158,13 +158,13 @@ namespace UnrealBuildTool
 				{
 					foreach (string NamePrefix in NamePrefixes)
 					{
-						DirectoryReference GeneratedCodeDir = DirectoryReference.Combine(BaseDir, "Intermediate", "Build", Target.Platform.ToString(), NamePrefix, "Inc");
+						DirectoryReference GeneratedCodeDir = DirectoryReference.Combine(BaseDir, UEBuildTarget.GetPlatformIntermediateFolder(Target.Platform, Target.Architecture), NamePrefix, "Inc");
 						if (DirectoryReference.Exists(GeneratedCodeDir))
 						{
 							DirectoriesToDelete.Add(GeneratedCodeDir);
 						}
 
-						DirectoryReference IntermediateDir = DirectoryReference.Combine(BaseDir, "Intermediate", "Build", Target.Platform.ToString(), NamePrefix, Target.Configuration.ToString());
+						DirectoryReference IntermediateDir = DirectoryReference.Combine(BaseDir, UEBuildTarget.GetPlatformIntermediateFolder(Target.Platform, Target.Architecture), NamePrefix, Target.Configuration.ToString());
 						if (DirectoryReference.Exists(IntermediateDir))
 						{
 							DirectoriesToDelete.Add(IntermediateDir);

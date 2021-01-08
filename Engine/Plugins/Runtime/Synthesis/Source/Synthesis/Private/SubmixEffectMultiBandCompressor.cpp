@@ -162,7 +162,7 @@ void FSubmixEffectMultibandCompressor::OnProcessAudio(const FSoundEffectSubmixIn
 
 	const int32 NumSamples = InData.NumFrames * NumChannels;
 
-	if (bInitialized == false)
+	if ((bInitialized == false) || (DynamicsProcessors.Num() == 0))
 	{
 		//passthrough
 		FMemory::Memcpy(OutData.AudioBuffer->GetData(), InData.AudioBuffer->GetData(), FrameSize * InData.NumFrames);

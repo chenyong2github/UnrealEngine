@@ -2799,7 +2799,16 @@ void SDesignerView::ProcessDropAndAddWidget(const FGeometry& MyGeometry, const F
 	
 	FScopedTransaction DragAndDropTransaction(LOCTEXT("Designer_DragAddDrop", "Drag and Drop Widget"));
 	TArray<UWidget*> DragDropPreviewWidgets;
-	DetermineDragDropPreviewWidgets(DragDropPreviewWidgets, DragDropEvent, TargetTree);
+
+	if ( SelectedDragDropOp.IsValid() && SelectedDragDropOp->Designer == this)
+	{
+		// Only accept drag drop from the same editor
+		SelectedDragDropOp.Reset();
+	}
+	else
+	{
+		DetermineDragDropPreviewWidgets(DragDropPreviewWidgets, DragDropEvent, TargetTree);
+	}
 
 	if ( DragDropPreviewWidgets.Num() > 0 )
 	{

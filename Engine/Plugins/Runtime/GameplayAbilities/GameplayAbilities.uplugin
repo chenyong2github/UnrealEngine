@@ -35,6 +35,10 @@
 		{
 			"Name": "Niagara",
 			"Enabled": true
+		},
+		{
+			"Name": "DataRegistry",
+			"Enabled": true
 		}
 	]
 

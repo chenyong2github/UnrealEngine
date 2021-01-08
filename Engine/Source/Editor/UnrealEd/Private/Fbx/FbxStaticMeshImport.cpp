@@ -1876,7 +1876,7 @@ UStaticMesh* UnFbx::FFbxImporter::ImportStaticMeshAsSingle(UObject* InParent, TA
 					for (int32 StaticMeshMaterialIndex = 0; StaticMeshMaterialIndex < StaticMeshMaterialCount; ++StaticMeshMaterialIndex)
 					{
 						const FStaticMaterial& StaticMeshMaterial = StaticMesh->GetStaticMaterials()[StaticMeshMaterialIndex];
-						if (StaticMeshMaterial.MaterialInterface == CandidateMaterial.MaterialInterface)
+						if (StaticMeshMaterial.ImportedMaterialSlotName == CandidateMaterial.ImportedMaterialSlotName)
 						{
 							FoundExistingMaterial = true;
 							break;

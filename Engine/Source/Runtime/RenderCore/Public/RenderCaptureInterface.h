@@ -12,6 +12,12 @@ class FRHICommandListImmediate;
  */
 namespace RenderCaptureInterface
 {
+	/** 
+	 * Call from rendering thread code to request a full frame capture. 
+	 * Console variables can still define how many frames, whether there is a further capture delay etc. 
+	 */
+	RENDERCORE_API void FrameCapture();
+
 	/** Call from rendering thread code to begin a capture. */
 	RENDERCORE_API void BeginCapture(FRHICommandListImmediate* RHICommandList, TCHAR const* Name = TEXT(""));
 	/** Call from rendering thread code to end a block. */
@@ -37,10 +43,13 @@ namespace RenderCaptureInterface
 	 * Registration code.
 	 * Any capture plugins should register callbacks with this API.
 	 */ 
+	DECLARE_DELEGATE(FOnFrameCaptureDelegate);
 	DECLARE_DELEGATE_TwoParams(FOnBeginCaptureDelegate, FRHICommandListImmediate*, TCHAR const*);
 	DECLARE_DELEGATE_OneParam(FOnEndCaptureDelegate, FRHICommandListImmediate*);
 
-	/** Register capture Begin and End delegates. */
+	/** Register frame capture delegates. */
+	RENDERCORE_API void RegisterCallbacks(FOnFrameCaptureDelegate FrameCaptureDelegate);
+	/** Register scope capture delegates. */
 	RENDERCORE_API void RegisterCallbacks(FOnBeginCaptureDelegate BeginDelegate, FOnEndCaptureDelegate EndDelegate);
 	/** Unregister capture delegates. */
 	RENDERCORE_API void UnregisterCallbacks();

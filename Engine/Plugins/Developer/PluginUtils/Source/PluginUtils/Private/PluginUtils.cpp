@@ -684,7 +684,7 @@ bool FPluginUtils::IsValidPluginName(const FString& PluginName, FText* FailReaso
 	}
 
 	// Must begin with an alphabetic character
-	if (bIsNameValid && !FChar::IsAlpha(PluginName[0]))
+	if (bIsNameValid && !FChar::IsAlnum(PluginName[0]))
 	{
 		bIsNameValid = false;
 		if (FailReason)
@@ -700,7 +700,7 @@ bool FPluginUtils::IsValidPluginName(const FString& PluginName, FText* FailReaso
 		for (int32 CharIdx = 0; CharIdx < PluginName.Len(); ++CharIdx)
 		{
 			const FString& Char = PluginName.Mid(CharIdx, 1);
-			if (!FChar::IsAlnum(Char[0]) && Char != TEXT("_"))
+			if (!FChar::IsAlnum(Char[0]) && Char != TEXT("_") && Char != TEXT("-"))
 			{
 				if (!IllegalCharacters.Contains(Char))
 				{

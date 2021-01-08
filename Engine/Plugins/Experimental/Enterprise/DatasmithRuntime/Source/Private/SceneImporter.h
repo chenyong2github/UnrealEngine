@@ -76,33 +76,33 @@ namespace DatasmithRuntime
 
 	using FCaseSensitiveMap = TMap<FString, FSceneGraphId, FDefaultSetAllocator, CaseSensitive_KeyFuncs>;
 
-	enum class EWorkerTask : uint16
+	enum class EWorkerTask : uint32
 	{
-		NoTask                  = 0x0000,
-		CollectSceneData        = 0x0001,
-		UpdateElement           = 0x0002,
-		ResetScene              = 0x0004,
-		SetupTasks              = 0x0008,
+		NoTask                  = 0x00000000,
+		CollectSceneData        = 0x00000001,
+		UpdateElement           = 0x00000002,
+		ResetScene              = 0x00000004,
+		SetupTasks              = 0x00000008,
 
-		MeshCreate              = 0x0010,
-		MaterialCreate          = 0x0020,
-		TextureLoad             = 0x0040,
-		TextureCreate           = 0x0080,
+		MeshCreate              = 0x00000010,
+		MaterialCreate          = 0x00000020,
+		TextureLoad             = 0x00000040,
+		TextureCreate           = 0x00000080,
 
-		MeshComponentCreate     = 0x0100,
-		LightComponentCreate    = 0x0200,
+		MeshComponentCreate     = 0x00000100,
+		LightComponentCreate    = 0x00000200,
 
-		MaterialAssign          = 0x0400,
-		TextureAssign           = 0x0800,
+		MaterialAssign          = 0x00000400,
+		TextureAssign           = 0x00000800,
 
-		DeleteComponent         = 0x1000,
-		DeleteAsset             = 0x2000,
-		GarbageCollect          = 0x4000,
+		DeleteComponent         = 0x00001000,
+		DeleteAsset             = 0x00002000,
+		GarbageCollect          = 0x00004000,
 
 		NonAsyncTasks           = LightComponentCreate | MeshComponentCreate | MaterialAssign | TextureCreate | TextureAssign,
 		DeleteTasks             = DeleteComponent | DeleteAsset,
 
-		AllTasks                = 0xffff
+		AllTasks                = 0xffffffff
 	};
 
 	ENUM_CLASS_FLAGS(EWorkerTask);
@@ -119,17 +119,17 @@ namespace DatasmithRuntime
 
 	ENUM_CLASS_FLAGS(EAssetState);
 
-	namespace EDataType
+	// Order is important as it reflects dependency: bottom to top
+	enum class EDataType : uint8
 	{
-		enum Type : uint8
-		{
-			None = 0,
-			Texture,
-			Material,
-			PbrMaterial,
-			Mesh,
-			Actor,
-		};
+		None        = 0,
+		Texture     = 1,
+		Material    = 2,
+		PbrMaterial = 3,
+		Mesh        = 4,
+		Actor       = 5,
+		MeshActor   = 6,
+		LightActor  = 7,
 	};
 
 	/**
@@ -139,17 +139,17 @@ namespace DatasmithRuntime
 	{
 		uint32 Type:4;
 		uint32 ElementId:28; // Assuming 2^28 should be plenty to store index of referencers
-		int8 Slot; // Assuming 127 slots is plenty
+		uint16 Slot; // Assuming 65536 should be plenty
 
-		FReferencer(uint8 InType, FSceneGraphId InIndex, int8 InSlot)
-			: Type( InType )
+		FReferencer(EDataType InType, FSceneGraphId InIndex, uint16 InSlot)
+			: Type( uint8(InType) )
 			, ElementId( uint32(InIndex) )
 			, Slot( InSlot )
 		{
 		}
 
-		FReferencer(uint8 InType, FSceneGraphId InIndex)
-			: Type( InType )
+		FReferencer(EDataType InType, FSceneGraphId InIndex)
+			: Type( uint8(InType) )
 			, ElementId( uint32(InIndex) )
 			, Slot( 0 )
 		{
@@ -182,7 +182,7 @@ namespace DatasmithRuntime
 		/** Identifier of the associated Datasmith element */
 		FSceneGraphId ElementId;
 
-		EDataType::Type Type;
+		EDataType Type;
 
 		/** UObject associated with the element */
 		TWeakObjectPtr<UObject> Object;
@@ -193,7 +193,7 @@ namespace DatasmithRuntime
 		/** Array of elements referencing this element */
 		TArray< FReferencer > Referencers;
 
-		FBaseData(FSceneGraphId InElementId, EDataType::Type InType = EDataType::None)
+		FBaseData(FSceneGraphId InElementId, EDataType InType = EDataType::None)
 			: ElementId(InElementId)
 			, Type(InType)
 		{
@@ -247,7 +247,7 @@ namespace DatasmithRuntime
 		/** Hash of associated element used to prevent the duplication of assets */
 		DirectLink::FElementHash Hash;
 
-		FAssetData(FSceneGraphId InElementId, EDataType::Type InType = EDataType::None)
+		FAssetData(FSceneGraphId InElementId, EDataType InType = EDataType::None)
 			: FBaseData(InElementId, InType)
 			, Requirements(-1)
 		{
@@ -284,20 +284,20 @@ namespace DatasmithRuntime
 		/** Transform relative to world */
 		FTransform WorldTransform;
 
-		/** Index of referenced mesh in FSceneImporter's array of Datasmith elements */
-		int32 MeshId;
+		/** Index of referenced mesh (mesh actor) or texture (light actor) */
+		int32 AssetId;
 
 		FActorData(FSceneGraphId InElementId)
 			: FBaseData(InElementId, EDataType::Actor)
 			, ParentId(DirectLink::InvalidId)
-			, MeshId(INDEX_NONE)
+			, AssetId(INDEX_NONE)
 		{
 		}
 
 		FActorData(FSceneGraphId InElementId, FSceneGraphId InParentID)
 			: FBaseData(InElementId, EDataType::Actor)
 			, ParentId(InParentID)
-			, MeshId(INDEX_NONE)
+			, AssetId(INDEX_NONE)
 		{
 		}
 
@@ -312,7 +312,7 @@ namespace DatasmithRuntime
 			ParentId = Source.ParentId;
 			RelativeTransform = Source.RelativeTransform;
 			WorldTransform = Source.WorldTransform;
-			MeshId = Source.MeshId;
+			AssetId = Source.AssetId;
 
 			return *this;
 		}
@@ -378,7 +378,6 @@ namespace DatasmithRuntime
 
 		FActionTask(FActionTaskFunction&& Function, const FReferencer& InReferencer)
 			: AssetId(DirectLink::InvalidId)
-			, bIsTexture(false)
 			, Referencer(InReferencer)
 			, ActionFunc(MoveTemp(Function))
 		{
@@ -386,7 +385,6 @@ namespace DatasmithRuntime
 
 		FActionTask(const FActionTaskFunction& Function, const FReferencer& InReferencer)
 			: AssetId(DirectLink::InvalidId)
-			, bIsTexture(false)
 			, Referencer(InReferencer)
 			, ActionFunc(Function)
 		{
@@ -394,7 +392,6 @@ namespace DatasmithRuntime
 
 		FActionTask(FActionTaskFunction&& Function, FSceneGraphId InAssetId, const FReferencer& InReferencer)
 			: AssetId(InAssetId)
-			, bIsTexture(false)
 			, Referencer(InReferencer)
 			, ActionFunc(MoveTemp(Function))
 		{
@@ -402,31 +399,12 @@ namespace DatasmithRuntime
 
 		FActionTask(const FActionTaskFunction& Function, FSceneGraphId InAssetId, const FReferencer& InReferencer)
 			: AssetId(InAssetId)
-			, bIsTexture(false)
-			, Referencer(InReferencer)
-			, ActionFunc(Function)
-		{
-		}
-
-		FActionTask(FActionTaskFunction&& Function, FSceneGraphId InAssetId, bool bInIsTexture, const FReferencer& InReferencer)
-			: AssetId(InAssetId)
-			, bIsTexture(bInIsTexture)
-			, Referencer(InReferencer)
-			, ActionFunc(MoveTemp(Function))
-		{
-		}
-
-		FActionTask(const FActionTaskFunction& Function, FSceneGraphId InAssetId, bool bInIsTexture, const FReferencer& InReferencer)
-			: AssetId(InAssetId)
-			, bIsTexture(bInIsTexture)
 			, Referencer(InReferencer)
 			, ActionFunc(Function)
 		{
 		}
 
 		FSceneGraphId GetAssetId() const { return AssetId; }
-
-		bool IsTexture() const { return bIsTexture; }
 
 		const FReferencer& GetReferencer() const { return Referencer; }
 
@@ -437,7 +415,6 @@ namespace DatasmithRuntime
 
 	private:
 		FSceneGraphId AssetId;
-		bool bIsTexture;
 		FReferencer Referencer;
 		FActionTaskFunction ActionFunc;
 	};
@@ -446,14 +423,18 @@ namespace DatasmithRuntime
 	extern const FString MaterialPrefix;
 	extern const FString MeshPrefix;
 
-	#define UPDATE_QUEUE	0
-	#define MESH_QUEUE		1
-	#define MATERIAL_QUEUE	2
-	#define TEXTURE_QUEUE	3
-	#define NONASYNC_QUEUE	4
-	#define DELETE_QUEUE_C	5	// Index of queue to delete components
-	#define DELETE_QUEUE_A	6	// Index of queue to delete assets
-	#define MAX_QUEUES		7
+
+	enum EQueueTask
+	{
+		UpdateQueue      = 0,
+		MeshQueue        = 1,
+		MaterialQueue    = 2,
+		TextureQueue     = 3,
+		NonAsyncQueue    = 4,
+		DeleteCompQueue  = 5,   // Index of queue to delete components
+		DeleteAssetQueue = 6,   // Index of queue to delete assets
+		MaxQueues        = 7,
+	};
 
 	/**
 	 * Helper class to incrementally load a Datasmith scene at runtime
@@ -533,8 +514,14 @@ namespace DatasmithRuntime
 		/** Sets up all counters and data required to proceed with a full import or an incremental update */
 		void SetupTasks();
 
+		void PrepareIncrementalUpdate(FUpdateContext& UpdateContext);
+
+		void IncrementalAdditions(TArray<TSharedPtr<IDatasmithElement>>& Additions);
+
+		void IncrementalModifications(TArray<TSharedPtr<IDatasmithElement>>& Modifications);
+
 		/** Add an FAssetData object associated with the element's id to the map */
-		void AddAsset(TSharedPtr<IDatasmithElement>&& ElementPtr, const FString& Prefix, EDataType::Type InType = EDataType::None);
+		void AddAsset(TSharedPtr<IDatasmithElement>&& ElementPtr, const FString& Prefix, EDataType InType = EDataType::None);
 
 		/**
 		 * Recursive helper method to visit the children of an Datasmith actor element
@@ -571,15 +558,8 @@ namespace DatasmithRuntime
 		/** Add and populate a FTextureData associated with the incoming Datasmith texture element */
 		void ProcessTextureData(FSceneGraphId TextureId);
 
-		/** 
-		 * Queue up all the tasks to create the required static meshes
-		 * The LightmapWeights map is updated with the relative weight of each required static mesh against all of them
-		 * @note: On an incremental update, the newly created Datasmith actors are visited to collect the static meshes to create
-		 */
-		void MeshPreProcessing();
-
 		/** Asynchronous build of a static mesh */
-		bool CreateStaticMesh(FSceneGraphId ElementId, float LightmapWeight);
+		bool CreateStaticMesh(FSceneGraphId ElementId);
 
 		/** Create and add a static mesh component to the root component */
 		EActionResult::Type CreateMeshComponent(FSceneGraphId ActorId, UStaticMesh* StaticMesh);
@@ -671,7 +651,7 @@ namespace DatasmithRuntime
 		TMap< FSceneGraphId, float > LightmapWeights;
 
 		/** Array of queues dequeued during the import process */
-		TQueue< FActionTask, EQueueMode::Mpsc > ActionQueues[MAX_QUEUES];
+		TQueue< FActionTask, EQueueMode::Mpsc > ActionQueues[EQueueTask::MaxQueues];
 
 		TArray<TFuture<bool>> OnGoingTasks;
 

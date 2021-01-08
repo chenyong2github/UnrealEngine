@@ -55,6 +55,8 @@ namespace UnrealBuildTool.Rules
 					"Sequencer",
 					"MovieSceneTools",
 					"MovieScene",
+					"DataRegistry",
+					"DataRegistryEditor"
 				}
 			);
 		}

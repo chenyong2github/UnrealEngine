@@ -79,6 +79,26 @@ public:
 	static bool DestroySession();
 
 	///**
+	// * Get the azure spatial anchors session status struct.
+	// *
+	// * @param OutStatus	The retrieved status struct.
+	// * @return (Boolean&)  True if is an AzureSpatialAnchors plugin running.  False probably means that this platform does not support ASA or the plugin for this platform is not enabled.
+	// */
+	UFUNCTION(BlueprintCallable, Category = "AR|AzureSpatialAnchors", meta = (Keywords = "azure spatial anchor hololens wmr pin ar all"))
+	static bool GetCachedSessionStatus(FAzureSpatialAnchorsSessionStatus& OutStatus);
+
+	///**
+	// * Get the AzureSpatialAnchors Session's Status.
+	// * This will start a Latent Action to get the Session Status.
+	// *
+	// * @param OutStatus	The retrieved status struct.
+	// * @param OutResult	Result of the Save attempt.
+	// * @param OutErrorString	Additional information about the OutResult (often empty).
+	// */
+	UFUNCTION(BlueprintCallable, Category = "AR|AzureSpatialAnchors", meta = (Latent, LatentInfo = "LatentInfo", WorldContext = "WorldContextObject", Keywords = "azure spatial anchor hololens wmr pin ar all"))
+	static void GetSessionStatus(UObject* WorldContextObject, struct FLatentActionInfo LatentInfo, FAzureSpatialAnchorsSessionStatus& OutStatus, EAzureSpatialAnchorsResult& OutResult, FString& OutErrorString);
+
+	///**
 	// * Get the cloud anchor associated with a particular ARPin.
 	// *
 	// * @param ARPin      The ARPin who's cloud anchor we hope to get.
@@ -98,15 +118,29 @@ public:
 	///**
 	// * Save the pin to the cloud.
 	// * This will start a Latent Action to save the ARPin to the Azure Spatial Anchors cloud service.
-	// *
-	// * @param ARPin      The ARPin to save.
-	// * @param Lifetime      The lifetime time of the cloud pin in the cloud in seconds.  <= 0 means no expiration.  I would not expect expiration to be accurate to the second.
+	// *	
+	// * @param ARPin						The ARPin to save.
+	// * @param Lifetime					The lifetime time of the cloud pin in the cloud in seconds.  <= 0 means no expiration.  I would not expect expiration to be accurate to the second.
 	// * @param OutAzureCloudSpatialAnchor  The Cloud anchor handle.
-	// * @param OutResult	Result of the Save attempt.
-	// * @param OutErrorString	Additional information about the OutResult (often empty).
+	// * @param OutResult					Result of the Save attempt.
+	// * @param OutErrorString				Additional information about the OutResult (often empty).
 	// */
 	UFUNCTION(BlueprintCallable, Category = "AR|AzureSpatialAnchors", meta = (Latent, LatentInfo = "LatentInfo", WorldContext = "WorldContextObject", Keywords = "azure spatial anchor hololens wmr pin ar all"))
 	static void SavePinToCloud(UObject* WorldContextObject, struct FLatentActionInfo LatentInfo, UARPin* ARPin, float Lifetime, UAzureCloudSpatialAnchor*& OutAzureCloudSpatialAnchor, EAzureSpatialAnchorsResult& OutResult, FString& OutErrorString);
+	
+	///**
+	// * Save the pin to the cloud.
+	// * This will start a Latent Action to save the ARPin to the Azure Spatial Anchors cloud service.
+	// *	
+	// * @param ARPin						The ARPin to save.
+	// * @param Lifetime					The lifetime time of the cloud pin in the cloud in seconds.  <= 0 means no expiration.  I would not expect expiration to be accurate to the second.
+	// * @param InAppProperties				Key-Value pairs of strings that will be stored to the cloud with the anchor.  Use them to attach app-specific information to an anchor.
+	// * @param OutAzureCloudSpatialAnchor  The Cloud anchor handle.
+	// * @param OutResult					Result of the Save attempt.
+	// * @param OutErrorString				Additional information about the OutResult (often empty).
+	// */
+	UFUNCTION(BlueprintCallable, Category = "AR|AzureSpatialAnchors", meta = (Latent, LatentInfo = "LatentInfo", WorldContext = "WorldContextObject", Keywords = "azure spatial anchor hololens wmr pin ar all"))
+	static void SavePinToCloudWithAppProperties(UObject* WorldContextObject, struct FLatentActionInfo LatentInfo, UARPin* ARPin, float Lifetime, const TMap<FString, FString>& InAppProperties, UAzureCloudSpatialAnchor*& OutAzureCloudSpatialAnchor, EAzureSpatialAnchorsResult& OutResult, FString& OutErrorString);
 
 	///**
 	// * Delete the cloud anchor in the cloud.

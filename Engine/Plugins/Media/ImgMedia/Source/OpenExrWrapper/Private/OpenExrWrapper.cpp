@@ -1,8 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#include <exception>
 #include "OpenExrWrapper.h"
-
 #include "Containers/UnrealString.h"
+#include "Logging/LogMacros.h"
 #include "Modules/ModuleManager.h"
 
 PRAGMA_DEFAULT_VISIBILITY_START
@@ -14,6 +15,9 @@ THIRD_PARTY_INCLUDES_START
 	#include "openexr/ImfStandardAttributes.h"
 THIRD_PARTY_INCLUDES_END
 PRAGMA_DEFAULT_VISIBILITY_END
+
+DECLARE_LOG_CATEGORY_EXTERN(LogOpenEXRWrapper, Log, All);
+DEFINE_LOG_CATEGORY(LogOpenEXRWrapper);
 
 
 /* FOpenExr
@@ -30,13 +34,29 @@ void FOpenExr::SetGlobalThreadCount(uint16 ThreadCount)
 
 FRgbaInputFile::FRgbaInputFile(const FString& FilePath)
 {
-	InputFile = new Imf::RgbaInputFile(TCHAR_TO_ANSI(*FilePath));
+	try
+	{
+		InputFile = new Imf::RgbaInputFile(TCHAR_TO_ANSI(*FilePath));
+	}
+	catch (std::exception const& Exception)
+	{
+		UE_LOG(LogOpenEXRWrapper, Error, TEXT("Cannot load EXR file: %s"), StringCast<TCHAR>(Exception.what()).Get());
+		InputFile = nullptr;
+	}
 }
 
 
 FRgbaInputFile::FRgbaInputFile(const FString& FilePath, uint16 ThreadCount)
 {
-	InputFile = new Imf::RgbaInputFile(TCHAR_TO_ANSI(*FilePath), ThreadCount);
+	try
+	{
+		InputFile = new Imf::RgbaInputFile(TCHAR_TO_ANSI(*FilePath), ThreadCount);
+	}
+	catch (std::exception const& Exception)
+	{
+		UE_LOG(LogOpenEXRWrapper, Error, TEXT("Cannot load EXR file: %s"), StringCast<TCHAR>(Exception.what()).Get());
+		InputFile = nullptr;
+	}
 }
 
 
@@ -148,9 +168,24 @@ bool FRgbaInputFile::IsComplete() const
 }
 
 
+bool FRgbaInputFile::HasInputFile() const
+{
+	return InputFile != nullptr;
+}
+
+
 void FRgbaInputFile::ReadPixels(int32 StartY, int32 EndY)
 {
-	((Imf::RgbaInputFile*)InputFile)->readPixels(StartY, EndY);
+	try
+	{
+		((Imf::RgbaInputFile*)InputFile)->readPixels(StartY, EndY);
+	}
+	catch (std::exception const& Exception)
+	{
+		UE_LOG(LogOpenEXRWrapper, Error, TEXT("Cannot read EXR file: %s (%s)"),
+			ANSI_TO_TCHAR(((Imf::RgbaInputFile*)InputFile)->fileName()),
+			StringCast<TCHAR>(Exception.what()).Get());
+	}
 }
 
 

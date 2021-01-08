@@ -382,7 +382,7 @@ void FDatasmithImporter::ImportTextures( FDatasmithImportContext& ImportContext 
 
 			ImportContext.bUserCancelled |= FDatasmithImporterImpl::HasUserCancelledTask( ImportContext.FeedbackContext );
 
-			AsyncData[TextureIndex].Result = 
+			AsyncData[TextureIndex].Result =
 				Async(
 					EAsyncExecution::LargeThreadPool,
 					[&ImportContext, &AsyncData, &FilteredTextureElements, &DatasmithTextureImporter, TextureIndex]()
@@ -536,7 +536,7 @@ UMaterialFunction* FDatasmithImporter::FinalizeMaterialFunction(UObject* SourceM
 	UMaterialFunction* ExistingMaterialFunction, TMap< UObject*, UObject* >* ReferencesToRemap)
 {
 	UMaterialFunction* MaterialFunction = Cast< UMaterialFunction >( FDatasmithImporterImpl::FinalizeAsset( SourceMaterialFunction, MaterialFunctionsFolderPath, ExistingMaterialFunction, ReferencesToRemap ) );
-	
+
 	MaterialFunction->PreEditChange( nullptr );
 	MaterialFunction->PostEditChange();
 
@@ -1108,10 +1108,11 @@ AActor* FDatasmithImporter::FinalizeActor( FDatasmithImportContext& ImportContex
 	DestinationActor->SetActorLabel( ImportContext.ActorsContext.UniqueNameProvider.GenerateUniqueName( SourceActor.GetActorLabel() ) );
 
 	check( DestinationActor );
+
 	{
 		// Setup the actor to allow modifications.
 		FDatasmithImporterImpl::FScopedFinalizeActorChanges ScopedFinalizedActorChanges(DestinationActor, ImportContext);
-		
+
 	ReferencesToRemap.Add( &SourceActor ) = DestinationActor;
 
 		TArray< FDatasmithImporterImpl::FMigratedTemplatePairType > MigratedTemplates = FDatasmithImporterImpl::MigrateTemplates(
@@ -1149,6 +1150,7 @@ AActor* FDatasmithImporter::FinalizeActor( FDatasmithImportContext& ImportContex
 		HierarchicalInstancedStaticMeshComponent->BuildTreeIfOutdated( true, true );
 	}
 
+	// Need to explicitly call PostEditChange on the LandscapeMaterial property or the landscape proxy won't update its material
 	if ( ALandscape* Landscape = Cast< ALandscape >( DestinationActor ) )
 	{
 		FPropertyChangedEvent MaterialPropertyChangedEvent( FindFieldChecked< FProperty >( Landscape->GetClass(), FName("LandscapeMaterial") ) );
@@ -1169,7 +1171,7 @@ void FDatasmithImporter::ImportLevelSequences( FDatasmithImportContext& ImportCo
 
 	TUniquePtr<FScopedSlowTask> ProgressPtr;
 	if ( ImportContext.FeedbackContext )
-	{ 
+	{
 		ProgressPtr = MakeUnique<FScopedSlowTask>( (float)SequencesCount, LOCTEXT("ImportingLevelSequences", "Importing Level Sequences..."), true, *ImportContext.FeedbackContext );
 		ProgressPtr->MakeDialog(true);
 	}
@@ -1444,7 +1446,7 @@ void FDatasmithImporter::FilterElementsToImport( FDatasmithImportContext& Import
 		TSharedRef< IDatasmithMeshElement > MeshElement = ImportContext.Scene->GetMesh( MeshIndex ).ToSharedRef();
 		bool bNeedsReimport = true;
 		FString AssetName = MeshElement->GetName();
-		
+
 		if ( StaticMeshes.Contains( MeshElement->GetName() ) )
 		{
 			AssetName = StaticMeshes[ MeshElement->GetName() ].ToString();
@@ -1508,7 +1510,7 @@ void FDatasmithImporter::FinalizeImport(FDatasmithImportContext& ImportContext, 
 	TUniquePtr<FScopedSlowTask> ProgressPtr;
 
 	if ( ImportContext.FeedbackContext )
-	{ 
+	{
 		ProgressPtr = MakeUnique<FScopedSlowTask>((float)NumAssetsToFinalize + NumStaticMeshToBuild, LOCTEXT("FinalizingAssets", "Finalizing Assets"), true, *ImportContext.FeedbackContext);
 		ProgressPtr->MakeDialog(true);
 	}

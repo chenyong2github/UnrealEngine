@@ -189,6 +189,16 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
+		/// Returns true if this platform is capable of building the specified architectures in a single pass
+		/// (e.g. creating a fat binary).
+		/// </summary>
+		/// <param name="InArchitectures">Architectures that are being built</param>
+		public virtual bool CanBuildArchitecturesInSinglePass(IEnumerable<string> InArchitectures)
+		{
+			return false;
+		}
+
+		/// <summary>
 		/// Get the default architecture for a project. This may be overriden on the command line to UBT.
 		/// </summary>
 		/// <param name="ProjectFile">Optional project to read settings from </param>

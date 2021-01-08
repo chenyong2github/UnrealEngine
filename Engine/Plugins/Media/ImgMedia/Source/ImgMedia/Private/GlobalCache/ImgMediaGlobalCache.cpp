@@ -4,7 +4,16 @@
 #include "IImgMediaReader.h"
 #include "ImgMediaPrivate.h"
 #include "ImgMediaSettings.h"
+#include "Modules/ModuleManager.h"
 
+#if WITH_EDITOR
+
+#include "Async/Async.h"
+#include "IDirectoryWatcher.h"
+#include "DirectoryWatcherModule.h"
+#include "Misc/Paths.h"
+
+#endif
 
 FImgMediaGlobalCache::FImgMediaGlobalCache()
 	: LeastRecent(nullptr)
@@ -34,11 +43,24 @@ void FImgMediaGlobalCache::Shutdown()
 	Empty();
 
 #if WITH_EDITOR
+	// Clean up watchers.
+	static const FName NAME_DirectoryWatcher = "DirectoryWatcher";
+	FDirectoryWatcherModule& DirectoryWatcherModule = FModuleManager::LoadModuleChecked<FDirectoryWatcherModule>(NAME_DirectoryWatcher);
+	IDirectoryWatcher* DirectoryWatcher = DirectoryWatcherModule.Get();
+	if (DirectoryWatcher != nullptr)
+	{
+		for (const TPair<FString, FDelegateHandle>& Elem : MapSequenceToWatcher)
+		{
+			DirectoryWatcher->UnregisterDirectoryChangedCallback_Handle(Elem.Key, Elem.Value);
+		}
+	}
+	MapSequenceToWatcher.Empty();
+
 	UImgMediaSettings::OnSettingsChanged().Remove(UpdateSettingsDelegateHandle);
-#endif
+#endif // WITH_EDITOR
 }
 
-void FImgMediaGlobalCache::AddFrame(const FName& Sequence, int32 Index, const TSharedPtr<FImgMediaFrame, ESPMode::ThreadSafe>& Frame)
+void FImgMediaGlobalCache::AddFrame(const FString& FileName, const FName& Sequence, int32 Index, const TSharedPtr<FImgMediaFrame, ESPMode::ThreadSafe>& Frame)
 {
 	FScopeLock Lock(&CriticalSection);
 
@@ -46,13 +68,51 @@ void FImgMediaGlobalCache::AddFrame(const FName& Sequence, int32 Index, const TS
 	SIZE_T FrameSize = Frame->Info.UncompressedSize;
 	if (FrameSize <= MaxSize)
 	{
+#if WITH_EDITOR
+		// Set up directory watcher so we know when our source files change.
+		FString FilePath = FPaths::GetPath(Sequence.ToString());
+		if (MapSequenceToWatcher.Contains(FilePath) == false)
+		{
+			// Directory watcher needs to be called from the main thread.
+			AsyncTask(ENamedThreads::GameThread, [this, FilePath]()
+			{
+				FScopeLock Lock(&CriticalSection);
+
+				// Make sure we haven't been added already.
+				if (MapSequenceToWatcher.Contains(FilePath) == false)
+				{
+					// Set up watcher.
+					static const FName NAME_DirectoryWatcher = "DirectoryWatcher";
+					FDirectoryWatcherModule& DirectoryWatcherModule = FModuleManager::LoadModuleChecked<FDirectoryWatcherModule>(NAME_DirectoryWatcher);
+					IDirectoryWatcher* DirectoryWatcher = DirectoryWatcherModule.Get();
+					if (DirectoryWatcher != nullptr)
+					{
+						FDelegateHandle Handle;
+						IDirectoryWatcher::FDirectoryChanged Callback = IDirectoryWatcher::FDirectoryChanged::CreateRaw(this, &FImgMediaGlobalCache::OnDirectoryChanged);
+
+						DirectoryWatcher->RegisterDirectoryChangedCallback_Handle(
+							FilePath,
+							Callback,
+							Handle,
+							IDirectoryWatcher::WatchOptions::IncludeDirectoryChanges
+						);
+						MapSequenceToWatcher.Emplace(FilePath, Handle);
+					}
+				}
+			});
+		}
+#endif // WITH_EDITOR
+
 		// Empty cache until we have enough space.
 		EnforceMaxSize(FrameSize);
 
 		// Create new entry.
-		FImgMediaGlobalCacheEntry* NewEntry = new FImgMediaGlobalCacheEntry(Index, Frame);
+		FImgMediaGlobalCacheEntry* NewEntry = new FImgMediaGlobalCacheEntry(FileName, Index, Frame);
 		MapFrameToEntry.Emplace(TPair<FName, int32>(Sequence, Index), NewEntry);
-	
+#if WITH_EDITOR
+		MapFileToIndex.Emplace(FileName, Index);
+#endif
+
 		MarkAsRecent(Sequence, *NewEntry);
 
 		CurrentSize += FrameSize;
@@ -120,6 +180,9 @@ void FImgMediaGlobalCache::Remove(const FName& Sequence, FImgMediaGlobalCacheEnt
 
 	// Delete entry.
 	MapFrameToEntry.Remove(TPair<FName, int32>(Sequence, Entry.Index));
+#if WITH_EDITOR
+	MapFileToIndex.Remove(Entry.FileName);
+#endif
 	delete &Entry;
 }
 
@@ -239,3 +302,30 @@ void FImgMediaGlobalCache::UpdateSettings(const UImgMediaSettings* Settings)
 	MaxSize = Settings->GlobalCacheSizeGB * 1024 * 1024 * 1024;
 	EnforceMaxSize(0);
 }
+
+#if WITH_EDITOR
+
+void FImgMediaGlobalCache::OnDirectoryChanged(const TArray<FFileChangeData>& InFileChanges)
+{
+	FScopeLock Lock(&CriticalSection);
+
+	// Loop over all file changes.
+	for (FFileChangeData FileChangeData : InFileChanges)
+	{
+		// Do we know about this file?
+		int32* Index = MapFileToIndex.Find(FileChangeData.Filename);
+		if (Index != nullptr)
+		{
+			// Remove this entry if we have it.
+			FString SequenceString = FPaths::GetPath(FileChangeData.Filename).AppendChar(TEXT('/'));
+			FName SequenceName = FName(*SequenceString);
+			FImgMediaGlobalCacheEntry** CacheEntry = MapFrameToEntry.Find(TPair<FName, int32>(SequenceName, *Index));
+			if ((CacheEntry != nullptr) && (*CacheEntry != nullptr))
+			{
+				Remove(SequenceName, **CacheEntry);
+			}
+		}
+	}
+}
+
+#endif // WITH_EDITOR

@@ -332,7 +332,7 @@ FGameInstancePIEResult UGameInstance::StartPlayInEditorGameInstance(ULocalPlayer
 		PIEStartTime = Params.PIEStartTime;
 	}
 
-	OnStart();
+	BroadcastOnStart();
 
 	UEditorEngine* const EditorEngine = CastChecked<UEditorEngine>(GetEngine());
 
@@ -585,6 +585,12 @@ void UGameInstance::StartGameInstance()
 		return;
 	}
 
+	BroadcastOnStart();
+}
+
+void UGameInstance::BroadcastOnStart()
+{
+	FWorldDelegates::OnStartGameInstance.Broadcast(this);
 	OnStart();
 }
 

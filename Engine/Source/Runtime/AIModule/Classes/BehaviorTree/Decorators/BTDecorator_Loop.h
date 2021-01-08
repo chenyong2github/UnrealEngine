@@ -23,7 +23,7 @@ class AIMODULE_API UBTDecorator_Loop : public UBTDecorator
 	GENERATED_UCLASS_BODY()
 
 	/** number of executions */
-	UPROPERTY(Category=Decorator, EditAnywhere, meta=(EditCondition="!bInfiniteLoop"))
+	UPROPERTY(Category=Decorator, EditAnywhere, meta=(EditCondition="!bInfiniteLoop", ClampMin="1"))
 	int32 NumLoops;
 
 	/** infinite loop */

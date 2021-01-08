@@ -9,6 +9,8 @@ IMPLEMENT_MODULE(FAzureSpatialAnchorsForARKit, AzureSpatialAnchorsForARKit)
 
 void FAzureSpatialAnchorsForARKit::StartupModule()
 {
+	FAzureSpatialAnchorsBase::Startup();
+
 	auto AnchorLocatedLambda = std::bind(&FAzureSpatialAnchorsForARKit::AnchorLocatedCallback, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
 	auto LocateAnchorsCompletedLambda = std::bind(&FAzureSpatialAnchorsForARKit::LocateAnchorsCompletedCallback, this, std::placeholders::_1, std::placeholders::_2);
 	auto SessionUpdatedLambda = std::bind(&FAzureSpatialAnchorsForARKit::SessionUpdatedCallback, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5);
@@ -27,6 +29,8 @@ void FAzureSpatialAnchorsForARKit::ShutdownModule()
 	ARKitInterop->StopSession();
 	ARKitInterop->DestroySession();
 	ARKitInterop = nullptr;
+
+	FAzureSpatialAnchorsBase::Shutdown();
 }
 
 bool FAzureSpatialAnchorsForARKit::CreateSession()

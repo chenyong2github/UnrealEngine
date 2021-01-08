@@ -122,6 +122,16 @@ class ENGINE_API UGameplayStatics : public UBlueprintFunctionLibrary
 	UFUNCTION(BlueprintCallable, Category = "Utilities", meta = (WorldContext="WorldContextObject", DeterminesOutputType="ActorClass", DynamicOutputParam="OutActors"))
 	static void GetAllActorsOfClassWithTag(const UObject* WorldContextObject, TSubclassOf<AActor> ActorClass, FName Tag, TArray<AActor*>& OutActors);
 
+	/**
+	 *	Returns an Actor nearest to Origin from ActorsToCheck array.
+	 *	@param	Origin			World Location from which the distance is measured.
+	 *	@param	ActorsToCheck	Array of Actors to examine and return Actor nearest to Origin.
+	 *	@param	Distance	Distance from Origin to the returned Actor.
+	 *	@return				Nearest Actor.
+	 */
+	UFUNCTION(BlueprintPure, Category = "Utilities")
+	static AActor* FindNearestActor(FVector Origin, const TArray<AActor*>& ActorsToCheck, float& Distance);
+
 	// --- Player functions ------------------------------
 
 	/** Returns the game instance object  */

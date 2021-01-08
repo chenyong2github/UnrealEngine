@@ -549,7 +549,10 @@ void UUserWidget::StopAnimation(const UWidgetAnimation* InAnimation)
 void UUserWidget::StopAllAnimations()
 {
 	bStoppingAllAnimations = true;
-	for (UUMGSequencePlayer* FoundPlayer : ActiveSequencePlayers)
+	
+	// Stopping players modifies ActiveSequencePlayers, work on a copy aprray
+	TArray<UUMGSequencePlayer*, TInlineAllocator<8>> CurrentActivePlayers(ActiveSequencePlayers);
+	for (UUMGSequencePlayer* FoundPlayer : CurrentActivePlayers)
 	{
 		if (FoundPlayer->GetPlaybackStatus() == EMovieScenePlayerStatus::Playing)
 		{
@@ -1354,12 +1357,22 @@ void UUserWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 #else
 		const bool bTickAnimations = true;
 #endif
-		if (bTickAnimations && !CVarUserWidgetUseParallelAnimation.GetValueOnGameThread())
+		if (bTickAnimations)
 		{
-			TickActionsAndAnimation(InDeltaTime);
-			PostTickActionsAndAnimation(InDeltaTime);
+			if (!CVarUserWidgetUseParallelAnimation.GetValueOnGameThread())
+			{
+				TickActionsAndAnimation(InDeltaTime);
+				PostTickActionsAndAnimation(InDeltaTime);
+			}
+			// else: the TickManager object will tick all animations at once.
+
+			UWorld* World = GetWorld();
+			if (World)
+			{
+				// Update any latent actions we have for this actor
+				World->GetLatentActionManager().ProcessLatentActions(this, InDeltaTime);
+			}
 		}
-		// else: the TickManager object will tick all animations at once.
 
 		if (bHasScriptImplementedTick)
 		{
@@ -1400,13 +1413,6 @@ void UUserWidget::PostTickActionsAndAnimation(float InDeltaTime)
 	}
 
 	StoppedSequencePlayers.Empty();
-
-	UWorld* World = GetWorld();
-	if (World)
-	{
-		// Update any latent actions we have for this actor
-		World->GetLatentActionManager().ProcessLatentActions(this, InDeltaTime);
-	}
 }
 
 void UUserWidget::FlushAnimations()

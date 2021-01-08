@@ -292,6 +292,11 @@ void FImgMediaLoader::LoadSequence(const FString& SequencePath, const FFrameRate
 	{
 		Reader = MakeShareable(new FGenericImgMediaReader(ImageWrapperModule));
 	}
+	if (Reader.IsValid() == false)
+	{
+		UE_LOG(LogImgMedia, Error, TEXT("Reader is not valid for file %s."), *ImagePaths[0]);
+		return;
+	}
 
 	const UImgMediaSettings* Settings = GetDefault<UImgMediaSettings>();
 	UseGlobalCache = Settings->UseGlobalCache;
@@ -534,7 +539,7 @@ void FImgMediaLoader::NotifyWorkComplete(FImgMediaLoaderWork& CompletedWork, int
 			UE_LOG(LogImgMedia, VeryVerbose, TEXT("Loader %p: Loaded frame %i"), this, FrameNumber);
 			if (UseGlobalCache)
 			{
-				GlobalCache->AddFrame(SequenceName, FrameNumber, Frame);
+				GlobalCache->AddFrame(ImagePaths[FrameNumber], SequenceName, FrameNumber, Frame);
 			}
 			else
 			{

@@ -659,6 +659,11 @@ public class AndroidPlatform : Platform
 		int TargetSDKVersion = MinSDKVersion;
 		Ini.GetInt32("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "TargetSDKVersion", out TargetSDKVersion);
 		LogInformation("Target SDK Version " + TargetSDKVersion);
+		bool bDisablePerfHarden = false;
+        if (TargetConfiguration != UnrealTargetConfiguration.Shipping)
+        {
+			Ini.GetBool("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "bEnableMaliPerfCounters", out bDisablePerfHarden);
+		}
 
 		foreach (string Architecture in Architectures)
 		{
@@ -793,7 +798,7 @@ public class AndroidPlatform : Platform
 					string PackageName = GetPackageInfo(ApkName, SC, false);
 					string BatchName = GetFinalBatchName(ApkName, SC, bMakeSeparateApks ? Architecture : "", bMakeSeparateApks ? GPUArchitecture : "", false, EBatchType.Install, Target);
 					string[] BatchLines = GenerateInstallBatchFile(bPackageDataInsideApk, PackageName, ApkName, Params, ObbName, DeviceObbName, false, PatchName, DevicePatchName, false, 
-						Overflow1Name, DeviceOverflow1Name, false, Overflow2Name, DeviceOverflow2Name, false, bIsPC, Params.Distribution, TargetSDKVersion > 22);
+						Overflow1Name, DeviceOverflow1Name, false, Overflow2Name, DeviceOverflow2Name, false, bIsPC, Params.Distribution, TargetSDKVersion > 22, bDisablePerfHarden);
 					if (bHaveAPK)
 					{
 						// make a batch file that can be used to install the .apk and .obb files
@@ -813,7 +818,7 @@ public class AndroidPlatform : Platform
 						UniversalBatchName = GetFinalBatchName(UniversalApkName, SC, "", "", false, EBatchType.Install, Target);
 						// make a batch file that can be used to install the .apk
 						string[] UniversalBatchLines = GenerateInstallBatchFile(bPackageDataInsideApk, PackageName, UniversalApkName, Params, ObbName, DeviceObbName, false, PatchName, DevicePatchName, false,
-							Overflow1Name, DeviceOverflow1Name, false, Overflow2Name, DeviceOverflow2Name, false, bIsPC, Params.Distribution, TargetSDKVersion > 22);
+							Overflow1Name, DeviceOverflow1Name, false, Overflow2Name, DeviceOverflow2Name, false, bIsPC, Params.Distribution, TargetSDKVersion > 22, bDisablePerfHarden);
 						File.WriteAllLines(UniversalBatchName, UniversalBatchLines);
 					}
 
@@ -878,11 +883,12 @@ public class AndroidPlatform : Platform
 
     private string[] GenerateInstallBatchFile(bool bPackageDataInsideApk, string PackageName, string ApkName, ProjectParams Params, string ObbName, string DeviceObbName, bool bNoObbInstall,
 		string PatchName, string DevicePatchName, bool bNoPatchInstall, string Overflow1Name, string DeviceOverflow1Name, bool bNoOverflow1Install, string Overflow2Name, string DeviceOverflow2Name, bool bNoOverflow2Install,
-		bool bIsPC, bool bIsDistribution, bool bRequireRuntimeStoragePermission)
+		bool bIsPC, bool bIsDistribution, bool bRequireRuntimeStoragePermission, bool bDisablePerfHarden)
     {
         string[] BatchLines = null;
         string ReadPermissionGrantCommand = "shell pm grant " + PackageName + " android.permission.READ_EXTERNAL_STORAGE";
         string WritePermissionGrantCommand = "shell pm grant " + PackageName + " android.permission.WRITE_EXTERNAL_STORAGE";
+		string DisablePerfHardenCommand = "shell setprop security.perf_harden 0";
 
 		// We don't grant runtime permission for distribution build on purpose since we will push the obb file to the folder that doesn't require runtime storage permission.
 		// This way developer can catch permission issue if they try to save/load game file in folder that requires runtime storage permission.
@@ -923,6 +929,7 @@ public class AndroidPlatform : Platform
 						bNeedGrantStoragePermission ? "\techo Grant READ_EXTERNAL_STORAGE and WRITE_EXTERNAL_STORAGE to the apk for reading OBB or game file in external storage." : "",
 						bNeedGrantStoragePermission ? "\t$ADB $DEVICE " + ReadPermissionGrantCommand : "",
 						bNeedGrantStoragePermission ?"\t$ADB $DEVICE " + WritePermissionGrantCommand : "",
+						bDisablePerfHarden ? "\t$ADB $DEVICE " + DisablePerfHardenCommand : "",
                         "\techo",
 						"\techo Removing old data. Failures here are usually fine - indicating the files were not on the device.",
                         "\t$ADB $DEVICE shell 'rm -r $EXTERNAL_STORAGE/UnrealGame/" + Params.ShortProjectName + "'",
@@ -1003,6 +1010,7 @@ public class AndroidPlatform : Platform
 						bNeedGrantStoragePermission ? "@echo Grant READ_EXTERNAL_STORAGE and WRITE_EXTERNAL_STORAGE to the apk for reading OBB file or game file in external storage." : "",
 						bNeedGrantStoragePermission ? "%ADB% %DEVICE% " + ReadPermissionGrantCommand : "",
 						bNeedGrantStoragePermission ? "%ADB% %DEVICE% " + WritePermissionGrantCommand : "",
+						bDisablePerfHarden ? "%ADB% %DEVICE% " + DisablePerfHardenCommand : "",
                         "@echo.",
                         "@echo Installation successful",
 						"goto:eof",
@@ -1538,6 +1546,10 @@ public class AndroidPlatform : Platform
     {
 		var AppArchitectures = AndroidExports.CreateToolChain(Params.RawProjectPath).GetAllArchitectures();
 
+		ConfigHierarchy Ini = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, DirectoryReference.FromFile(Params.RawProjectPath), UnrealTargetPlatform.Android);
+		bool bDisablePerfHarden = false;
+		Ini.GetBool("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "bEnableMaliPerfCounters", out bDisablePerfHarden);
+
 		foreach (var DeviceName in Params.DeviceNames)
         {
             string DeviceArchitecture = GetBestDeviceArchitecture(Params, DeviceName);
@@ -1567,6 +1579,11 @@ public class AndroidPlatform : Platform
 			string DeviceOverflow1Name = StorageLocation + "/" + GetDeviceOverflowName(ApkName, SC, 1);
 			string DeviceOverflow2Name = StorageLocation + "/" + GetDeviceOverflowName(ApkName, SC, 2);
 			string RemoteDir = StorageLocation + "/UnrealGame/" + Params.ShortProjectName;
+
+			if (bDisablePerfHarden)
+			{
+				RunAdbCommand(Params, DeviceName, "shell setprop security.perf_harden 0");
+			}
 
             // determine if APK out of date
             string APKLastUpdateTime = new FileInfo(ApkName).LastWriteTime.ToString();

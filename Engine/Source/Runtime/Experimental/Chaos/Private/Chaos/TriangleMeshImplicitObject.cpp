@@ -888,8 +888,13 @@ TUniquePtr<FTriangleMeshImplicitObject> FTriangleMeshImplicitObject::CopySlowImp
 	{
 		ExternalFaceIndexMapCopy = MakeUnique<TArray<int32>>(*ExternalFaceIndexMap.Get());
 	}
+	TUniquePtr<TArray<int32>> ExternalVertexIndexMapCopy = nullptr;
+	if (ExternalVertexIndexMap)
+	{
+		ExternalVertexIndexMapCopy = MakeUnique<TArray<int32>>(*ExternalVertexIndexMap.Get());
+	}
 
-	return MakeUnique<FTriangleMeshImplicitObject>(MoveTemp(ParticlesCopy), MoveTemp(ElementsCopy), MoveTemp(MaterialIndicesCopy), MoveTemp(ExternalFaceIndexMapCopy), bCullsBackFaceRaycast);
+	return MakeUnique<FTriangleMeshImplicitObject>(MoveTemp(ParticlesCopy), MoveTemp(ElementsCopy), MoveTemp(MaterialIndicesCopy), MoveTemp(ExternalFaceIndexMapCopy), MoveTemp(ExternalVertexIndexMapCopy), bCullsBackFaceRaycast);
 }
 
 TUniquePtr<FTriangleMeshImplicitObject> FTriangleMeshImplicitObject::CopySlow() const
@@ -1019,14 +1024,15 @@ void Chaos::FTriangleMeshImplicitObject::RebuildBV()
 
 void FTriangleMeshImplicitObject::UpdateVertices(const TArray<FVector>& NewPositions)
 {
-	for (int32 i = 0; i < (int32)MParticles.Size(); ++i)
-	{
-		int32 ExternalIdx = (*ExternalFaceIndexMap.Get())[i];
-		if (ExternalIdx < NewPositions.Num())
-		{
-			MParticles.X(i) = Chaos::FVec3(NewPositions[ExternalIdx]);
-		}
+	const bool bRemapIndices = ExternalVertexIndexMap != nullptr;
 
+	for (int32 i = 0; i < NewPositions.Num(); ++i)
+	{
+		int32 InternalIdx = bRemapIndices ? (*ExternalVertexIndexMap.Get())[i] : i;
+		if (InternalIdx < (int32)MParticles.Size())
+		{
+			MParticles.X(InternalIdx) = Chaos::FVec3(NewPositions[i]);
+		}
 	}
 
 	RebuildBV();

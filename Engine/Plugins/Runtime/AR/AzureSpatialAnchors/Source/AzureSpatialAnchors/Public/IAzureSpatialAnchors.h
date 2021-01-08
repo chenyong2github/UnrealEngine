@@ -73,11 +73,6 @@ public:
 		UE_LOG(LogAzureSpatialAnchors, Log, TEXT("%s"), LogMsg);
 	}
 
-	virtual void StartupModule()
-	{
-		IModularFeatures::Get().RegisterModularFeature(IAzureSpatialAnchors::GetModularFeatureName(), this);
-	}
-
 public:
 	typedef void(*LogFunctionPtr)(const wchar_t* LogMsg);
 	typedef int32_t CloudAnchorID;
@@ -135,6 +130,7 @@ public:
 	virtual bool CreateARPinAroundAzureCloudSpatialAnchor(const FString& PinId, UAzureCloudSpatialAnchor* InAzureCloudSpatialAnchor, UARPin*& OutARPin) = 0;
 
 	// These functions provide basic housekeeping for AzureSpatialAnchors.  The AzureSpatialAnchorsBase layer implements them.
+	virtual const FAzureSpatialAnchorsSessionStatus& GetSessionStatus() = 0;
 	virtual bool GetCloudAnchor(class UARPin*& InARPin, class UAzureCloudSpatialAnchor*& OutCloudAnchor) = 0;
 	virtual void GetCloudAnchors(TArray<class UAzureCloudSpatialAnchor*>& OutCloudAnchors) = 0;
 	virtual bool ConstructCloudAnchor(class UARPin*& InARPin, class UAzureCloudSpatialAnchor*& OutCloudAnchor) = 0;

@@ -7,9 +7,82 @@
 #include "Async/Async.h"
 #include "Scene/Lights.h"
 #include "LightmapRenderer.h"
+#include "GPULightmassModule.h"
 
 namespace GPULightmass
 {
+
+TDoubleLinkedList<FTileDataLayer*> FTileDataLayer::AllUncompressedTiles;
+
+int64 FTileDataLayer::Compress()
+{
+	const int32 CompressMemoryBound = FCompression::CompressMemoryBound(NAME_LZ4, sizeof(FLinearColor) * GPreviewLightmapVirtualTileSize * GPreviewLightmapVirtualTileSize);
+
+	if (Data.Num() > 0)
+	{
+		CompressedData.Empty();
+		CompressedData.AddUninitialized(CompressMemoryBound);
+		int32 CompressedSize = CompressMemoryBound;
+		check(FCompression::CompressMemory(NAME_LZ4, CompressedData.GetData(), CompressedSize, Data.GetData(), sizeof(FLinearColor) * GPreviewLightmapVirtualTileSize * GPreviewLightmapVirtualTileSize));
+		CompressedData.SetNum(CompressedSize);
+		Data.Empty();
+
+		check(bNodeAddedToList);
+		AllUncompressedTiles.RemoveNode(&Node, false);
+		bNodeAddedToList = false;
+
+		return sizeof(FLinearColor) * GPreviewLightmapVirtualTileSize * GPreviewLightmapVirtualTileSize - CompressedSize;
+	}
+	else
+	{
+		check(CompressedData.Num() > 0);
+		return 0;
+	}
+}
+
+void FTileDataLayer::Decompress()
+{
+	// LRU by adding to the end
+	if (bNodeAddedToList)
+	{
+		AllUncompressedTiles.RemoveNode(&Node, false);
+	}
+
+	AllUncompressedTiles.AddHead(&Node);
+	bNodeAddedToList = true;
+
+	if (CompressedData.Num() != 0)
+	{
+		Data.Empty();
+		Data.AddUninitialized(GPreviewLightmapVirtualTileSize * GPreviewLightmapVirtualTileSize);
+		check(FCompression::UncompressMemory(NAME_LZ4, Data.GetData(), sizeof(FLinearColor) * GPreviewLightmapVirtualTileSize * GPreviewLightmapVirtualTileSize, CompressedData.GetData(), CompressedData.Num()));
+		CompressedData.Empty();
+	}
+	else
+	{
+		check(Data.Num() > 0);
+	}
+}
+
+void FTileDataLayer::Evict()
+{
+	int32 OldNum = AllUncompressedTiles.Num();
+	double StartTime = FPlatformTime::Seconds();
+	int64 EvictedMemorySize = 0;
+
+	while (AllUncompressedTiles.Num() > 16384)
+	{
+		FTileDataLayer* TileDataLayerToCompress = AllUncompressedTiles.GetTail()->GetValue();
+		EvictedMemorySize += TileDataLayerToCompress->Compress();
+	}
+
+	double EndTime = FPlatformTime::Seconds();
+
+	if (OldNum > AllUncompressedTiles.Num() && EndTime - StartTime > 1.0)
+	{
+		UE_LOG(LogGPULightmass, Log, TEXT("CPU tile management: evicted %d tiles in %s, released %.2fMB"), OldNum - AllUncompressedTiles.Num(), *FPlatformTime::PrettyTime(EndTime - StartTime), EvictedMemorySize / 1024.0f / 1024.0f);
+	}
+}
 
 FLightmap::FLightmap(FString InName, FIntPoint InSize)
 	: Name(InName)
@@ -72,30 +145,6 @@ FLightmapRenderState::FLightmapRenderState(Initializer InInitializer, FGeometryI
 	for (int32 MipLevel = 0; MipLevel <= MaxLevel; MipLevel++)
 	{
 		TileRelevantLightSampleCountStates.AddDefaulted(GetPaddedSizeInTilesAtMipLevel(MipLevel).X * GetPaddedSizeInTilesAtMipLevel(MipLevel).Y);
-	}
-
-	{
-		// Store converged tiles for re-uploading to GPU / encoding & saving to disk
-		// Store physical tiles for easier GPU upload, which however requires further physical -> virtual conversion when saving to disk
-		CPUTextureData[0].AddDefaulted(MaxLevel + 1);
-		CPUTextureData[1].AddDefaulted(MaxLevel + 1);
-		CPUTextureData[2].AddDefaulted(MaxLevel + 1);
-		for (int32 MipLevel = 0; MipLevel <= MaxLevel; MipLevel++)
-		{
-			CPUTextureData[0][MipLevel].AddUninitialized(GetPaddedSize().X * GetPaddedSize().Y);
-			CPUTextureData[1][MipLevel].AddUninitialized(GetPaddedSize().X * GetPaddedSize().Y);
-			CPUTextureData[2][MipLevel].AddUninitialized(GetPaddedSize().X * GetPaddedSize().Y);
-		}
-
-		CPUTextureRawData[0].AddDefaulted(MaxLevel + 1);
-		CPUTextureRawData[1].AddDefaulted(MaxLevel + 1);
-		CPUTextureRawData[2].AddDefaulted(MaxLevel + 1);
-		for (int32 MipLevel = 0; MipLevel <= MaxLevel; MipLevel++)
-		{
-			CPUTextureRawData[0][MipLevel].AddUninitialized(GetPaddedSize().X * GetPaddedSize().Y);
-			CPUTextureRawData[1][MipLevel].AddUninitialized(GetPaddedSize().X * GetPaddedSize().Y);
-			CPUTextureRawData[2][MipLevel].AddUninitialized(GetPaddedSize().X * GetPaddedSize().Y);
-		}
 	}
 
 	{

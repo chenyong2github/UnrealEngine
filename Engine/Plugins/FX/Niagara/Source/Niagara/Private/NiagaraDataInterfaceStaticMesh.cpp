@@ -50,6 +50,14 @@ static FAutoConsoleVariableRef CVarNiagaraFailStaticMeshDataInterface(
 	ECVF_Default
 );
 
+static int32 GNDIStaticMesh_UseInlineLODsOnly = 1;
+static FAutoConsoleVariableRef CVarNDIStaticMesh_UseInlineLODsOnly(
+	TEXT("fx.Niagara.NDIStaticMesh.UseInlineLODsOnly"),
+	GNDIStaticMesh_UseInlineLODsOnly,
+	TEXT("When enabled Niagara will never use streaming LOD levels, only inline LODs."),
+	ECVF_Default
+);
+
 FStaticMeshFilteredAreaWeightedSectionSampler::FStaticMeshFilteredAreaWeightedSectionSampler()
 	: Res(nullptr)
 	, Owner(nullptr)
@@ -325,6 +333,10 @@ bool FNDIStaticMesh_InstanceData::Init(UNiagaraDataInterfaceStaticMesh* Interfac
 #endif
 
 	    MinLOD = Mesh->GetMinLOD().GetValue();
+		if ( GNDIStaticMesh_UseInlineLODsOnly )
+		{
+			MinLOD = Mesh->GetNumLODs() - Mesh->GetRenderData()->NumInlinedLODs;
+		}
 	    CachedLODIdx = Mesh->GetRenderData()->GetCurrentFirstLODIdx(MinLOD);
 
 		bMeshAllowsCpuAccess = Mesh->bAllowCPUAccess;
@@ -1475,6 +1487,7 @@ bool UNiagaraDataInterfaceStaticMesh::InitPerInstanceData(void* PerInstanceData,
 	if (bSuccess)
 	{
 		FStaticMeshGpuSpawnBuffer* MeshGpuSpawnBuffer = nullptr;
+		TRefCountPtr<const FStaticMeshLODResources> GpuMeshLODResource;
 		if (Inst->bMeshValid && IsUsedWithGPUEmitter(SystemInstance))
 		{
 			// Always allocate when bAllowCPUAccess (index buffer can only have SRV created in this case as of today)
@@ -1482,21 +1495,22 @@ bool UNiagaraDataInterfaceStaticMesh::InitPerInstanceData(void* PerInstanceData,
 			ensure(Inst->StaticMesh->bAllowCPUAccess); // this should have been verified in Init()
 
 			MeshGpuSpawnBuffer = new FStaticMeshGpuSpawnBuffer;
-			TRefCountPtr<const FStaticMeshLODResources> Res = Inst->GetCurrentFirstLOD();
-			MeshGpuSpawnBuffer->Initialise(Res, *this, Inst);
+			GpuMeshLODResource = Inst->GetCurrentFirstLOD();
+			MeshGpuSpawnBuffer->Initialise(GpuMeshLODResource, *this, Inst);
 		}
 
 		// Push instance data to RT
 		{
 			FNiagaraDataInterfaceProxyStaticMesh* ThisProxy = GetProxyAs<FNiagaraDataInterfaceProxyStaticMesh>();
 			ENQUEUE_RENDER_COMMAND(FNiagaraDIPushInitialInstanceDataToRT) (
-				[ThisProxy, InstanceID = SystemInstance->GetId(), MeshGpuSpawnBuffer](FRHICommandListImmediate& CmdList)
+				[ThisProxy, InstanceID=SystemInstance->GetId(), MeshGpuSpawnBuffer, RT_MeshLODResource=GpuMeshLODResource](FRHICommandListImmediate& CmdList)
 				{
 					if (MeshGpuSpawnBuffer)
 					{
 						MeshGpuSpawnBuffer->InitResource();
 					}
 					ThisProxy->InitializePerInstanceData(InstanceID, MeshGpuSpawnBuffer);
+					// We don't use RT_MeshLODResource but it ensures the data has not been streamed out
 				}
 			);
 		}

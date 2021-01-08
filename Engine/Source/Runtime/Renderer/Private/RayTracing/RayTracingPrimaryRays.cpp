@@ -71,22 +71,20 @@ IMPLEMENT_GLOBAL_SHADER(FRayTracingPrimaryRaysRGS, "/Engine/Private/RayTracing/R
 
 void FDeferredShadingSceneRenderer::PrepareRayTracingTranslucency(const FViewInfo& View, TArray<FRHIRayTracingShader*>& OutRayGenShaders)
 {
-	// Declare all RayGen shaders that require material closest hit shaders to be bound
-
-	if (!GetRayTracingTranslucencyOptions().IsEnabled)
+	// Declare all RayGen shaders that require material closest hit shaders to be bound.
+	// NOTE: Translucency shader may be used for primary ray debug view mode.
+	if (GetRayTracingTranslucencyOptions().bEnabled || View.RayTracingRenderMode == ERayTracingRenderMode::RayTracingDebug)
 	{
-		return;
+		FRayTracingPrimaryRaysRGS::FPermutationDomain PermutationVector;
+
+		const bool bLightingMissShader = CanUseRayTracingLightingMissShader(View.GetShaderPlatform());
+		PermutationVector.Set<FRayTracingPrimaryRaysRGS::FMissShaderLighting>(bLightingMissShader);
+
+		PermutationVector.Set<FRayTracingPrimaryRaysRGS::FEnableTwoSidedGeometryForShadowDim>(EnableRayTracingShadowTwoSidedGeometry());
+
+		auto RayGenShader = View.ShaderMap->GetShader<FRayTracingPrimaryRaysRGS>(PermutationVector);
+		OutRayGenShaders.Add(RayGenShader.GetRayTracingShader());
 	}
-
-	FRayTracingPrimaryRaysRGS::FPermutationDomain PermutationVector;
-
-	const bool bLightingMissShader = CanUseRayTracingLightingMissShader(View.GetShaderPlatform());
-	PermutationVector.Set<FRayTracingPrimaryRaysRGS::FMissShaderLighting>(bLightingMissShader);
-
-	PermutationVector.Set<FRayTracingPrimaryRaysRGS::FEnableTwoSidedGeometryForShadowDim>(EnableRayTracingShadowTwoSidedGeometry());
-
-	auto RayGenShader = View.ShaderMap->GetShader<FRayTracingPrimaryRaysRGS>(PermutationVector);
-	OutRayGenShaders.Add(RayGenShader.GetRayTracingShader());
 }
 
 void FDeferredShadingSceneRenderer::RenderRayTracingPrimaryRaysView(

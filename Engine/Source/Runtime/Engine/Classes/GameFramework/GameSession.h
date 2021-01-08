@@ -236,6 +236,7 @@ private:
 	// Hidden functions that don't make sense to use on this class.
 	HIDE_ACTOR_TRANSFORM_FUNCTIONS();
 
+protected:
 	/**
 	 * Delegate called when StartSession has completed
 	 *

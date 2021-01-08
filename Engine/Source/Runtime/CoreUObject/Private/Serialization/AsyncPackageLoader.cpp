@@ -20,7 +20,25 @@ static void LoadPackageCommand(const TArray<FString>& Args)
 {
 	for (const FString& PackageName : Args)
 	{
-		LoadPackageAsync(PackageName);
+		UE_LOG(LogStreaming, Display, TEXT("LoadPackageCommand: %s - Requested"), *PackageName);
+		UPackage* Package = LoadPackage(nullptr, *PackageName, LOAD_None);
+		UE_LOG(LogStreaming, Display, TEXT("LoadPackageCommand: %s - %s"),
+			*PackageName, (Package != nullptr) ? TEXT("Loaded") : TEXT("Failed"));
+	}
+}
+
+static void LoadPackageAsyncCommand(const TArray<FString>& Args)
+{
+	for (const FString& PackageName : Args)
+	{
+		UE_LOG(LogStreaming, Display, TEXT("LoadPackageAsyncCommand: %s - Requested"), *PackageName);
+		LoadPackageAsync(PackageName, FLoadPackageAsyncDelegate::CreateLambda(
+			[](const FName& PackageName, UPackage* Package, EAsyncLoadingResult::Type Result)
+		{
+			UE_LOG(LogStreaming, Display, TEXT("LoadPackageAsyncCommand: %s - %s"),
+				*PackageName.ToString(), (Package != nullptr) ? TEXT("Loaded") : TEXT("Failed"));
+		}
+		));
 	}
 }
 
@@ -28,6 +46,11 @@ static FAutoConsoleCommand CVar_LoadPackageCommand(
 	TEXT("LoadPackage"),
 	TEXT("Loads packages by names. Usage: LoadPackage <package name> [<package name> ...]"),
 	FConsoleCommandWithArgsDelegate::CreateStatic(LoadPackageCommand));
+
+static FAutoConsoleCommand CVar_LoadPackageAsyncCommand(
+	TEXT("LoadPackageAsync"),
+	TEXT("Loads packages async by names. Usage: LoadPackageAsync <package name> [<package name> ...]"),
+	FConsoleCommandWithArgsDelegate::CreateStatic(LoadPackageAsyncCommand));
 #endif
 
 const FName PrestreamPackageClassNameLoad = FName("PrestreamPackage");

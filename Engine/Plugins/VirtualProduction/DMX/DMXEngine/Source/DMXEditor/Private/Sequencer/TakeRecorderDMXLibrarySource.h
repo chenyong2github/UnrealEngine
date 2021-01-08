@@ -56,6 +56,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Source")
 	bool bReduceKeys;
 
+protected:
+	virtual bool SupportsSubscenes() const override { return false; }
+
 public:
 	/** Adds all Patches from the active DMX Library as recording sources */
 	UFUNCTION(BlueprintCallable, Category = "DMX")

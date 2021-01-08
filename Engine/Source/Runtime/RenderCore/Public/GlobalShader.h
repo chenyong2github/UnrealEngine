@@ -135,7 +135,13 @@ public:
 
 	bool Serialize(FArchive& Ar);
 private:
-	inline FGlobalShaderMapSection() {}
+	inline FGlobalShaderMapSection() 
+	{ 
+#if WITH_EDITOR
+		// associate with a non-empty asset name as to not have an exception in the library
+		FShaderMapBase::AssociateWithAsset(NAME_None);
+#endif
+	}
 
 	inline FGlobalShaderMapSection(EShaderPlatform InPlatform, const FHashedName& InHashedSourceFilename)
 	{

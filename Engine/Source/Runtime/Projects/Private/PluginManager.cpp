@@ -1069,7 +1069,7 @@ bool FPluginManager::ConfigureEnabledPlugins()
 						}
 					}
 				}
-			}, false);
+			}, true); // @todo disable parallelism for now as it's causing hard to track problems
 		}
 
 		for (TSharedRef<IPlugin> Plugin: GetEnabledPluginsWithContent())

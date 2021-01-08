@@ -26,6 +26,9 @@ DECLARE_DELEGATE_TwoParams(FAssetManagerAcquireResourceDelegateEx, bool /* bSucc
 /** Delegate called when acquiring resources/chunks for assets, parameter will be true if all resources were acquired, false if any failed */
 DECLARE_DELEGATE_OneParam(FAssetManagerAcquireResourceDelegate, bool /* bSuccess */);
 
+/** Delegate called when new asset search root is registered due to runtime asset mounting, path will not have a trailing slash */
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnAddedAssetSearchRoot, const FString&);
+
 /** 
  * A singleton UObject that is responsible for loading and unloading PrimaryAssets, and maintaining game-specific asset references
  * Games should override this class and change the class reference
@@ -59,6 +62,12 @@ public:
 
 	/** Type representing a packaging chunk, this is a virtual type that is never loaded off disk */
 	static const FPrimaryAssetType PackageChunkType;
+
+	/** Virtual path $AssetSearchRoots, replaced with all roots including defaults like /Game */
+	static const FString AssetSearchRootsVirtualPath;
+
+	/** Virtual path $DynamicSearchRoots, replaced with dynamically added asset roots */
+	static const FString DynamicSearchRootsVirtualPath;
 
 	/** Get the asset registry tag name for encryption key data */
 	static FName GetEncryptionKeyAssetTagName();
@@ -106,13 +115,29 @@ public:
 	virtual void RecursivelyExpandBundleData(FAssetBundleData& BundleData) const;
 
 	/** Register a delegate to call when all types are scanned at startup, if this has already happened call immediately */
-	virtual void CallOrRegister_OnCompletedInitialScan(FSimpleMulticastDelegate::FDelegate Delegate);
+	static void CallOrRegister_OnCompletedInitialScan(FSimpleMulticastDelegate::FDelegate&& Delegate);
 
 	/** Register a delegate to call when the asset manager singleton is spawned, if this has already happened call immediately */
 	static void CallOrRegister_OnAssetManagerCreated(FSimpleMulticastDelegate::FDelegate&& Delegate);
 
 	/** Returns true if initial scan has completed, this can be pretty late in editor builds */
 	virtual bool HasInitialScanCompleted() const;
+
+	/** Call to register a callback executed when a new asset search root is added, can be used to scan for new assets */
+	FDelegateHandle Register_OnAddedAssetSearchRoot(FOnAddedAssetSearchRoot::FDelegate&& Delegate);
+
+	/** Unregister previously added callback */
+	void Unregister_OnAddedAssetSearchRoot(FDelegateHandle DelegateHandle);
+
+	/** Expands a list of paths that potentially use virtual paths into real directory and package paths. Returns true if any changes were made */
+	virtual bool ExpandVirtualPaths(TArray<FString>& InOutPaths) const;
+
+	/** Register a new asset search root of the form /AssetRoot, will notify other systems about change */
+	virtual void AddAssetSearchRoot(const FString& NewRootPath);
+
+	/** Returns all the game asset roots, includes /Game by default and any dynamic ones */
+	const TArray<FString>& GetAssetSearchRoots(bool bIncludeDefaultRoots = true) const;
+
 
 	// ACCESSING ASSET DIRECTORY
 
@@ -354,7 +379,7 @@ public:
 	virtual bool GetAssetDataForPath(const FSoftObjectPath& ObjectPath, FAssetData& AssetData) const;
 
 	/** Checks to see if the given asset data is a blueprint with a base class in the ClassNameSet. This checks the parent asset tag */
-	virtual bool IsAssetDataBlueprintOfClassSet(const FAssetData& AssetData, const TSet<FName>& ClassNameSet);
+	virtual bool IsAssetDataBlueprintOfClassSet(const FAssetData& AssetData, const TSet<FName>& ClassNameSet) const;
 
 	/** Turns an FAssetData into FSoftObjectPath, handles adding _C as necessary */
 	virtual FSoftObjectPath GetAssetPathForData(const FAssetData& AssetData) const;
@@ -366,7 +391,7 @@ public:
 	virtual void GetPreviousPrimaryAssetIds(const FPrimaryAssetId& NewId, TArray<FPrimaryAssetId>& OutOldIds) const;
 
 	/** If bShouldManagerDetermineTypeAndName is true in settings, this function is used to determine the primary asset id for any object that does not have it's own implementation. Games can override the behavior here or call it from other places */
-	virtual FPrimaryAssetId DeterminePrimaryAssetIdForObject(const UObject* Object);
+	virtual FPrimaryAssetId DeterminePrimaryAssetIdForObject(const UObject* Object) const;
 
 	/** Reads AssetManagerSettings for specifically redirected asset paths. This is useful if you need to convert older saved data */
 	virtual FName GetRedirectedAssetPath(FName OldPath) const;
@@ -375,8 +400,35 @@ public:
 	/** Extracts all FSoftObjectPaths from a Class/Struct */
 	virtual void ExtractSoftObjectPaths(const UStruct* Struct, const void* StructValue, TArray<FSoftObjectPath>& FoundAssetReferences, const TArray<FName>& PropertiesToSkip = TArray<FName>()) const;
 
+	/** Helper function to search the asset registry for AssetData matching search rules */
+	virtual int32 SearchAssetRegistryPaths(TArray<FAssetData>& OutAssetDataList, const FAssetManagerSearchRules& Rules) const;
+
+	/** Helper function to check if a single asset passes restrictions in SearchRules, this can be used when an asset is manually registered */
+	virtual bool DoesAssetMatchSearchRules(const FAssetData& AssetData, const FAssetManagerSearchRules& Rules) const;
+
+	/** Returns true if the specified TypeInfo should be scanned. Can be overridden by the game */
+	virtual bool ShouldScanPrimaryAssetType(FPrimaryAssetTypeInfo& TypeInfo) const;
+
+	/** Manually register a new or updated primary asset, returns true if it was successful */
+	virtual bool RegisterSpecificPrimaryAsset(const FPrimaryAssetId& PrimaryAssetId, const FAssetData& NewAssetData);
+
 	/** Helper function which requests the asset registery scan a list of directories/assets */
 	virtual void ScanPathsSynchronous(const TArray<FString>& PathsToScan) const;
+
+	/**
+	 * Called when a new asset registry becomes available
+	 * @param InName Logical name for this asset registry. Must match the name returned by GetUniqueAssetRegistryName
+	 *
+	 * @returns TRUE if new data was loaded and added into the master asset registry
+	 */
+	virtual bool OnAssetRegistryAvailableAfterInitialization(FName InName, FAssetRegistryState& OutNewState);
+
+	/** Returns the root path for the package name or path (i.e. /Game/MyPackage would return /Game/ ). This works even if the root is not yet mounted */
+	static bool GetContentRootPathFromPackageName(const FString& PackageName, FString& OutContentRootPath);
+
+	/** Normalize a package path for use in asset manager, will remove duplicate // and add or remove a final slash as desired */
+	static void NormalizePackagePath(FString& InOutPath, bool bIncludeFinalSlash);
+	static FString GetNormalizedPackagePath(const FString& InPath, bool bIncludeFinalSlash);
 
 	/** Dumps out summary of managed types to log */
 	static void DumpAssetTypeSummary();
@@ -522,9 +574,6 @@ public:
 	virtual void GetContentEncryptionConfig(FContentEncryptionConfig& OutContentEncryptionConfig) {}
 #endif
 
-	/** Returns the root path for the package name (i.e. /Game/MyPackage would return Game) */
-	static bool GetContentRootPathFromPackageName(const FString& PackageName, FString& OutContentRootPath);
-
 protected:
 	friend class FAssetManagerEditorModule;
 
@@ -547,20 +596,12 @@ protected:
 	/** Helper function to write out asset reports */
 	virtual bool WriteCustomReport(FString FileName, TArray<FString>& FileLines) const;
 
-public:
-	/** Returns true if the specified TypeInfo should be scanned. Can be implemented by the game. */
-	virtual bool ShouldScanPrimaryAssetType(FPrimaryAssetTypeInfo& TypeInfo) const;
-
-protected:
 	/** Scans all asset types specified in DefaultGame */
 	virtual void ScanPrimaryAssetTypesFromConfig();
 
 	/** Called to apply the primary asset rule overrides from config */
 	virtual void ScanPrimaryAssetRulesFromConfig();
-
-	/** Helper function to read the asset registry */
-	virtual void SearchAssetRegistryPaths(TArray<FAssetData>& OutAssetDataList, TSet<FName>& OutDerivedClassNames, const TArray<FString>& Directories, const TArray<FString>& PackageNames, UClass* BaseClass, bool bHasBlueprintClasses) const;
-
+	
 	/** Apply a single custom primary asset rule, calls function below */
 	virtual void ApplyCustomPrimaryAssetRulesOverride(const FPrimaryAssetRulesCustomOverride& CustomOverride);
 
@@ -570,22 +611,17 @@ protected:
 	/** Called after scanning is complete, either from FinishInitialLoading or after the AssetRegistry finishes */
 	virtual void PostInitialAssetScan();
 
-	/** Returns true if path should be excluded from primary asset scans */
+	/** Returns true if path should be excluded from primary asset scans, called from ShouldIncludeInAssetSearch and in the editor */
 	virtual bool IsPathExcludedFromScan(const FString& Path) const;
+
+	/** Filter function that is called from SearchAssetRegistryPaths, returns true if asset data should be included in search results */
+	virtual bool ShouldIncludeInAssetSearch(const FAssetData& AssetData, const FAssetManagerSearchRules& SearchRules) const;
 
 	/** Call to start acquiring a list of chunks */
 	virtual void AcquireChunkList(const TArray<int32>& ChunkList, FAssetManagerAcquireResourceDelegate CompleteDelegate, EChunkPriority::Type Priority, TSharedPtr<FStreamableHandle> StalledHandle);
 
 	/** Called when a new chunk has been downloaded */
 	virtual void OnChunkDownloaded(uint32 ChunkId, bool bSuccess);
-
-	/**
-	  * Called when a new asset registry becomes available
-	  * @param InName Logical name for this asset registry. Must match the name give by
-	  *
-	  * @returns TRUE if new data was loaded and added into the master asset registry
-	  */
-	bool OnAssetRegistryAvailableAfterInitialization(FName InName, FAssetRegistryState& OutNewState);
 
 #if WITH_EDITOR
 	UE_DEPRECATED(4.26, "ShouldSetManager that takes EAssetRegistryDependencyType is no longer called; switch to the version that takes EDependencyCategory")
@@ -642,6 +678,12 @@ protected:
 
 	/** List of directories that have already been synchronously scanned */
 	mutable TArray<FString> AlreadyScannedDirectories;
+
+	/** All asset search roots including startup ones */
+	TArray<FString> AllAssetSearchRoots;
+
+	/** List of dynamic asset search roots added past startup */
+	TArray<FString> AddedAssetSearchRoots;
 
 	/** The streamable manager used for all primary asset loading */
 	FStreamableManager StreamableManager;
@@ -730,10 +772,13 @@ protected:
 	TMap<FName, FName> AssetPathRedirects;
 
 	/** Delegate called when initial span finishes */
-	FSimpleMulticastDelegate OnCompletedInitialScanDelegate;
+	static FSimpleMulticastDelegate OnCompletedInitialScanDelegate;
 
 	/** Delegate called when the asset manager singleton is created */
 	static FSimpleMulticastDelegate OnAssetManagerCreatedDelegate;
+
+	/** Delegate called when a new asset search root is registered */
+	FOnAddedAssetSearchRoot OnAddedAssetSearchRootDelegate;
 
 	/** Delegate bound to chunk install */
 	FDelegateHandle ChunkInstallDelegateHandle;
@@ -752,4 +797,5 @@ private:
 
 	mutable class IAssetRegistry* CachedAssetRegistry;
 	mutable const class UAssetManagerSettings* CachedSettings;
+	friend struct FCompiledAssetManagerSearchRules;
 };

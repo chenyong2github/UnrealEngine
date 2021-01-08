@@ -147,7 +147,11 @@ FString UBTService_BlueprintBase::GetStaticServiceDescription() const
 		}
 		else
 		{
-			ReturnDesc += Super::GetStaticServiceDescription();
+			// Only show the description text ("tick every 0.40s..0.60s") if we actually have a Tick implementation
+			if (ReceiveTickImplementations != 0)
+			{
+				ReturnDesc += Super::GetStaticServiceDescription();
+			}
 			ReturnDesc += TEXT('\n');
 		}
 						

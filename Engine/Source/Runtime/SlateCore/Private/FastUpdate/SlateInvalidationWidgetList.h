@@ -53,6 +53,11 @@ public:
 
 	/** Get the root the widget list was built with. */
 	TWeakPtr<SWidget> GetRoot() { return Root; };
+	/** Get the root the widget list was built with. */
+	const TWeakPtr<SWidget> GetRoot() const { return Root; };
+
+	/** Get the Generation number the list was built on. */
+	int32 GetGenerationNumber() const { return GenerationNumber; }
 
 	/** Process widget that have a ChildOrder invalidation. */
 	void ProcessChildOrderInvalidation(const TArray<TWeakPtr<SWidget>>& Invalidated);
@@ -73,6 +78,24 @@ public:
 				{
 					Pred(Widget);
 				}
+			}
+
+			ArrayIndex = Data[ArrayIndex].NextArrayIndex;
+		}
+	}
+
+	/** Performs an operation on all InvalidationWidget in the list. */
+	template<typename Predicate>
+	void ForEachInvalidationWidget(Predicate Pred)
+	{
+		int32 ArrayIndex = FirstArrayIndex;
+		while (ArrayIndex != INDEX_NONE)
+		{
+			ElementListType& ElementList = Data[ArrayIndex].ElementList;
+			const int32 ElementNum = ElementList.Num();
+			for (int32 ElementIndex = Data[ArrayIndex].StartIndex; ElementIndex < ElementNum; ++ElementIndex)
+			{
+				Pred(ElementList[ElementIndex]);
 			}
 
 			ArrayIndex = Data[ArrayIndex].NextArrayIndex;
@@ -260,6 +283,7 @@ private:
 	TWeakPtr<SWidget> Root;
 	int32 FirstArrayIndex = INDEX_NONE;
 	int32 LastArrayIndex = INDEX_NONE;
+	int32 GenerationNumber = INDEX_NONE;
 
 	const FArguments WidgetListConfig;
 };

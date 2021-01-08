@@ -761,6 +761,7 @@ void FAssetRegistryGenerator::InjectEncryptionData(FAssetRegistryState& TargetSt
 								FAssetDataTagMap TagsAndValues = AssetData->TagsAndValues.CopyMap();
 								TagsAndValues.Add(UAssetManager::GetEncryptionKeyAssetTagName(), Guid.ToString());
 								FAssetData NewAssetData = FAssetData(AssetData->PackageName, AssetData->PackagePath, AssetData->AssetName, AssetData->AssetClass, TagsAndValues, AssetData->ChunkIDs, AssetData->PackageFlags);
+								NewAssetData.TaggedAssetBundles = AssetData->TaggedAssetBundles;
 								TargetState.UpdateAssetData(AssetData, NewAssetData);
 							}
 						}

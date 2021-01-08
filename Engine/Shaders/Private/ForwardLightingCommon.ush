@@ -137,7 +137,7 @@ FDeferredLightingSplit GetForwardDirectLightingSplit(uint GridIndex, float3 Worl
 		LightData.ShadowedBits = (DirectionalLightData.DirectionalLightShadowMapChannelMask & 0xFF) != 0 ? 1 : 0;
 		// Static shadowing uses ShadowMapChannel, dynamic shadows are packed into light attenuation using PreviewShadowMapChannel
 		LightData.ShadowMapChannelMask = UnpackShadowMapChannelMask(DirectionalLightData.DirectionalLightShadowMapChannelMask);
-
+		LightData.HairTransmittance = InitHairTransmittanceData();
 		// We want to force the directional light shadow when using water material to see shadow on the water. This could be an option later.
 		#if DISABLE_FORWARD_DIRECTIONAL_LIGHT_SHADOW
 			float4 LightAttenuation = float4(1, 1, 1, 1);
@@ -204,6 +204,7 @@ FDeferredLightingSplit GetForwardDirectLightingSplit(uint GridIndex, float3 Worl
 		LightData.bRadialLight = true;
 		LightData.bSpotLight = LightData.SpotAngles.x > -2.0f;
 		LightData.SpecularScale = SpecularScale;
+		LightData.HairTransmittance = InitHairTransmittanceData();
 
 		// LightType=bits[17:16], LightingChannelMask=[15:8], DynShadowMask=[7:4] ShadowMapChannelMask=[3:0]
 		uint LightTypeAndPackedShadowMapChannelMask = asuint(LocalLight.LightDirectionAndShadowMask.w);

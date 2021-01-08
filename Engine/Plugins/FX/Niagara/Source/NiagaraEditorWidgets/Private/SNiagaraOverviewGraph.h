@@ -4,7 +4,7 @@
 
 #include "Widgets/SCompoundWidget.h"
 #include "GraphEditor.h"
-#include "ContentBrowserDelegates.h"
+#include "Widgets/SItemSelector.h"
 
 class FNiagaraOverviewGraphViewModel;
 struct FActionMenuContent;
@@ -23,7 +23,7 @@ public:
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 
 public:
-	FRefreshAssetViewDelegate RefreshAssetView;
+	FRefreshItemSelectorDelegate RefreshItemSelector;
 
 private:
 	void ViewModelSelectionChanged();

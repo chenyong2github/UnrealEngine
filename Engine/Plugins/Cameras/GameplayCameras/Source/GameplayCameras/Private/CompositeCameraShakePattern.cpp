@@ -61,7 +61,6 @@ void UCompositeCameraShakePattern::UpdateShakePatternImpl(const FCameraShakeUpda
 
 			// Let the child pattern run on the current result, with its own blending weight.
 			ChildParams.BlendingWeight = Params.BlendingWeight * ChildBlendingWeight;
-			ChildParams.TotalScale = FMath::Max(Params.TotalScale * ChildBlendingWeight, 0.f);
 
 			FCameraShakeUpdateResult ChildResult;
 
@@ -76,7 +75,7 @@ void UCompositeCameraShakePattern::UpdateShakePatternImpl(const FCameraShakeUpda
 			
 			// Apply this result and pass it on to the next child pattern.
 			FCameraShakeApplyResultParams ApplyParams;
-			ApplyParams.Scale = ChildParams.TotalScale;
+			ApplyParams.Scale = ChildParams.GetTotalScale();
 			ApplyParams.PlaySpace = ShakeInstance->GetPlaySpace();
 			ApplyParams.UserPlaySpaceMatrix = ShakeInstance->GetUserPlaySpaceMatrix();
 			// This applies the current pattern's update to the parameters we'll pass
@@ -121,7 +120,6 @@ void UCompositeCameraShakePattern::ScrubShakePatternImpl(const FCameraShakeScrub
 
 			// Let the child pattern run on the current result, with its own blending weight.
 			ChildParams.BlendingWeight = Params.BlendingWeight * ChildBlendingWeight;
-			ChildParams.TotalScale = FMath::Max(Params.TotalScale * ChildBlendingWeight, 0.f);
 
 			FCameraShakeUpdateResult ChildResult;
 
@@ -136,7 +134,7 @@ void UCompositeCameraShakePattern::ScrubShakePatternImpl(const FCameraShakeScrub
 			
 			// Apply this result and pass it on to the next child pattern.
 			FCameraShakeApplyResultParams ApplyParams;
-			ApplyParams.Scale = ChildParams.TotalScale;
+			ApplyParams.Scale = ChildParams.GetTotalScale();
 			ApplyParams.PlaySpace = ShakeInstance->GetPlaySpace();
 			ApplyParams.UserPlaySpaceMatrix = ShakeInstance->GetUserPlaySpaceMatrix();
 			// This applies the current pattern's scrubbing to the parameters we'll pass

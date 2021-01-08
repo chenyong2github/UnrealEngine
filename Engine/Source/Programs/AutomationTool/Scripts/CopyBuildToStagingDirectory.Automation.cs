@@ -1018,7 +1018,11 @@ public partial class Project : CommandUtils
 				}
 
 				// now make the fast-load ini/plugin file if requested
-				if (Params.GenerateOptimizationData)
+				// if -skippak is on, this indicates that the data is already ready to go, we are staging non-data files to re-use
+				// data from a previous run, but still want to stage executables, etc. SkipPak indicates we _would_ have made a 
+				// pak file, but we aren't this time, so we can assume the binary config is already inside the .pak file (and
+				// the UE4Editor.exe may not even exist if we are making a target-code-only build on top of existing build)
+				if (Params.GenerateOptimizationData && !Params.SkipPak)
 				{
 					// get the list of plugins that need to be processed
 					List<string> PluginFilesForTarget = new List<string>();
@@ -2550,6 +2554,15 @@ public partial class Project : CommandUtils
 				if (CryptoSettings.bDataCryptoRequired && CryptoSettings.bEnablePakSigning && CryptoSettings.SigningKey.IsValid())
 				{
 					AdditionalArgs += String.Format(" -sign");
+				}
+			}
+
+			int MaxIoStorePartitionSizeMB = 0;
+			if (PlatformGameConfig.GetInt32("/Script/UnrealEd.ProjectPackagingSettings", "MaxIoStorePartitionSizeMB", out MaxIoStorePartitionSizeMB))
+			{
+				if (MaxIoStorePartitionSizeMB > 0)
+				{
+					AdditionalArgs += String.Format(" -maxPartitionSize={0}MB", MaxIoStorePartitionSizeMB);
 				}
 			}
 

@@ -785,7 +785,7 @@ void dtNavMeshQuery::closestPointOnPolyInTile(const dtMeshTile* tile, const dtPo
 				}
 			}
 			float h;
-			if (dtClosestHeightPointTriangle(pos, v[0], v[1], v[2], h))
+			if (dtClosestHeightPointTriangle(closest, v[0], v[1], v[2], h))
 			{
 				closest[1] = h;
 				break;

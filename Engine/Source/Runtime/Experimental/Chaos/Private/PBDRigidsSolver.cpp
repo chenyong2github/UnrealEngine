@@ -169,10 +169,10 @@ namespace Chaos
 					FPerSolverFieldSystem& FieldObj = MSolver->GetPerSolverField();
 					auto& GeomCollectionParticles = MSolver->GetEvolution()->GetParticles().GetGeometryCollectionParticles();
 					FieldObj.FieldParameterUpdateCallback(MSolver, GeomCollectionParticles, Strains,
-						PositionTarget, PositionTargetedParticles, /*AnimatedPositions,*/ MSolver->GetSolverTime());
+						PositionTarget, PositionTargetedParticles /*AnimatedPositions,*/);
 					auto& ClusteredParticles = MSolver->GetEvolution()->GetParticles().GetClusteredParticles();
 					FieldObj.FieldParameterUpdateCallback(MSolver, ClusteredParticles, Strains,
-						PositionTarget, PositionTargetedParticles, /*AnimatedPositions,*/ MSolver->GetSolverTime());
+						PositionTarget, PositionTargetedParticles /*AnimatedPositions,*/);
 				}
 
 				for (FGeometryCollectionPhysicsProxy* Obj : MSolver->GetGeometryCollectionPhysicsProxies_Internal())
@@ -223,9 +223,9 @@ namespace Chaos
 					{
 						FPerSolverFieldSystem& FieldObj = MSolver->GetPerSolverField();
 						auto& GeomCollectionParticles = MSolver->GetEvolution()->GetParticles().GetGeometryCollectionParticles();
-						FieldObj.FieldForcesUpdateCallback(MSolver, GeomCollectionParticles, Forces, Torques, MSolver->GetSolverTime());
+						FieldObj.FieldForcesUpdateCallback(MSolver, GeomCollectionParticles, Forces, Torques);
 						auto& ClusteredParticles = MSolver->GetEvolution()->GetParticles().GetClusteredParticles();
-						FieldObj.FieldForcesUpdateCallback(MSolver, ClusteredParticles, Forces, Torques, MSolver->GetSolverTime());
+						FieldObj.FieldForcesUpdateCallback(MSolver, ClusteredParticles, Forces, Torques);
 					}
 
 					for (FGeometryCollectionPhysicsProxy* Obj : MSolver->GetGeometryCollectionPhysicsProxies_Internal())
@@ -424,6 +424,10 @@ namespace Chaos
 		UpdateParticleInAccelerationStructure_External(GTParticle, /*bDelete=*/false);
 	}
 
+	int32 LogCorruptMap = 0;
+	FAutoConsoleVariableRef CVarLogCorruptMap(TEXT("p.LogCorruptMap"), LogCorruptMap, TEXT(""));
+
+
 	template <typename Traits>
 	void TPBDRigidsSolver<Traits>::UnregisterObject(TGeometryParticle<float, 3>* GTParticle)
 	{
@@ -549,6 +553,10 @@ namespace Chaos
 					RewindData->RemoveParticle(Handle->UniqueIdx());
 				}
   
+				if(LogCorruptMap)
+				{
+					UE_LOG(LogChaos, Warning, TEXT("UnregisterObject this:%llx, Handle:%llx &MParticleToProxy:%llx, MParticleToProxy.Num():%d"), this, Handle, &MParticleToProxy, MParticleToProxy.Num());
+				}
 				MParticleToProxy.Remove(Handle);
   
 				// Use the handle to destroy the particle data
@@ -718,7 +726,7 @@ namespace Chaos
 
 	int32 UseResimCache = 0;
 	FAutoConsoleVariableRef CVarUseResimCache(TEXT("p.UseResimCache"),UseResimCache,TEXT("Whether resim uses cache to skip work, requires recreating world to take effect"));
-	
+
 	template <typename Traits>
 	void TPBDRigidsSolver<Traits>::Reset()
 	{

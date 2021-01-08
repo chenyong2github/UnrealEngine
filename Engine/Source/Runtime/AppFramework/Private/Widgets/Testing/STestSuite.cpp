@@ -4559,7 +4559,7 @@ class SInvalidationTest : public SCompoundWidget
 private:
 	FReply ManuallyInvalidatePanel1()
 	{
-		CachePanel1->InvalidateRoot();
+		CachePanel1->InvalidateRootChildOrder();
 		return FReply::Handled();
 	}
 

@@ -24,6 +24,7 @@ namespace Audio
 
 	FQuartzClock::~FQuartzClock()
 	{
+		Shutdown();
 	}
 
 	void FQuartzClock::ChangeTickRate(FQuartzClockTickRate InNewTickRate, int32 NumFramesLeft)

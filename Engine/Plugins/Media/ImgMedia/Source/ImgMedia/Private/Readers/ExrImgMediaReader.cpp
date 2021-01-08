@@ -116,6 +116,12 @@ TSharedPtr<IImgMediaReader, ESPMode::ThreadSafe> FExrImgMediaReader::GetReader(F
 {
 #if defined(PLATFORM_WINDOWS) && PLATFORM_WINDOWS
 	FRgbaInputFile InputFile(FirstImageInSequencePath, 2);
+	if (InputFile.HasInputFile() == false)
+	{
+		TSharedPtr<IImgMediaReader, ESPMode::ThreadSafe> Ptr;
+		return Ptr;
+	}
+	
 	FImgMediaFrameInfo Info;
 
 	if (!GetInfo(InputFile, Info))

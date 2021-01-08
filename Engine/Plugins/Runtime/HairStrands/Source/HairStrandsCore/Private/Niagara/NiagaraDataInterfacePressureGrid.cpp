@@ -430,15 +430,7 @@ void UNiagaraDataInterfacePressureGrid::GetParameterDefinitionHLSL(const FNiagar
 
 class FClearPressureGridCS : public FGlobalShader
 {
-	DECLARE_GLOBAL_SHADER(FClearPressureGridCS);
-	SHADER_USE_PARAMETER_STRUCT(FClearPressureGridCS, FGlobalShader);
-
-	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER(FIntVector, GridSize)
-		SHADER_PARAMETER(int32, CopyPressure)
-		SHADER_PARAMETER_SRV(Texture3D, GridCurrentBuffer)
-		SHADER_PARAMETER_UAV(RWTexture3D, GridDestinationBuffer)
-		END_SHADER_PARAMETER_STRUCT()
+	DECLARE_SHADER_TYPE(FClearPressureGridCS, Global)
 
 public:
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
@@ -451,37 +443,48 @@ public:
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		OutEnvironment.SetDefine(TEXT("THREAD_COUNT"), NIAGARA_HAIR_STRANDS_THREAD_COUNT);
 	}
+
+	FClearPressureGridCS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
+		: FGlobalShader(Initializer)
+	{
+		GridDestinationBuffer.Bind(Initializer.ParameterMap, TEXT("GridDestinationBuffer"));
+		GridSize.Bind(Initializer.ParameterMap, TEXT("GridSize"));
+		CopyPressure.Bind(Initializer.ParameterMap, TEXT("CopyPressure"));
+		GridCurrentBuffer.Bind(Initializer.ParameterMap, TEXT("GridCurrentBuffer"));
+	}
+
+	FClearPressureGridCS()
+	{}
+
+	void SetParameters(FRHICommandList& RHICmdList, FRHIShaderResourceView* InGridCurrentBuffer,
+		FRHIUnorderedAccessView* InGridDestinationBuffer,
+		const FIntVector& InGridSize, const int32 InCopyPressure)
+	{
+		FRHIComputeShader* ShaderRHI = RHICmdList.GetBoundComputeShader();
+
+		SetUAVParameter(RHICmdList, ShaderRHI, GridDestinationBuffer, InGridDestinationBuffer);
+		SetShaderValue(RHICmdList, ShaderRHI, GridSize, InGridSize);
+		SetShaderValue(RHICmdList, ShaderRHI, CopyPressure, InCopyPressure);
+		SetSRVParameter(RHICmdList, ShaderRHI, GridCurrentBuffer, InGridCurrentBuffer);
+	}
+
+	void UnsetParameters(FRHICommandList& RHICmdList)
+	{
+		FRHIComputeShader* ShaderRHI = RHICmdList.GetBoundComputeShader();
+
+		SetUAVParameter(RHICmdList, ShaderRHI, GridDestinationBuffer, nullptr);
+	}
+
+	LAYOUT_FIELD(FShaderResourceParameter, GridDestinationBuffer);
+	LAYOUT_FIELD(FShaderParameter, GridSize);
+	LAYOUT_FIELD(FShaderParameter, CopyPressure);
+	LAYOUT_FIELD(FShaderResourceParameter, GridCurrentBuffer);
 };
 
-IMPLEMENT_GLOBAL_SHADER(FClearPressureGridCS, "/Plugin/Runtime/HairStrands/Private/NiagaraClearPressureGrid.usf", "MainCS", SF_Compute);
+IMPLEMENT_SHADER_TYPE(, FClearPressureGridCS, TEXT("/Plugin/Runtime/HairStrands/Private/NiagaraClearPressureGrid.usf"), TEXT("MainCS"), SF_Compute);
 
-static void AddClearPressureGridPass(
-	FRDGBuilder& GraphBuilder,
-	FRHIShaderResourceView* GridCurrentBuffer,
-	FRHIUnorderedAccessView* GridDestinationBuffer,
-	const FIntVector& GridSize, const bool CopyPressure)
-{
-	const uint32 GroupSize = NIAGARA_HAIR_STRANDS_THREAD_COUNT;
-	const uint32 NumElements = (GridSize.X + 1) * (GridSize.Y + 1) * (GridSize.Z + 1);
 
-	FClearPressureGridCS::FParameters* Parameters = GraphBuilder.AllocParameters<FClearPressureGridCS::FParameters>();
-	Parameters->GridCurrentBuffer = GridCurrentBuffer;
-	Parameters->GridDestinationBuffer = GridDestinationBuffer;
-	Parameters->GridSize = GridSize;
-	Parameters->CopyPressure = CopyPressure;
-
-	FGlobalShaderMap* ShaderMap = GetGlobalShaderMap(ERHIFeatureLevel::SM5);
-
-	const uint32 DispatchCount = FMath::DivideAndRoundUp(NumElements, GroupSize);
-
-	TShaderMapRef<FClearPressureGridCS> ComputeShader(ShaderMap);
-	FComputeShaderUtils::AddPass(
-		GraphBuilder,
-		RDG_EVENT_NAME("ClearPressureGrid"),
-		ComputeShader,
-		Parameters,
-		FIntVector(DispatchCount, 1, 1));
-}
+//------------------------------------------------------------------------------------------------------------
 
 inline void ClearBuffer(FRHICommandList& RHICmdList, FNDIVelocityGridBuffer* CurrentGridBuffer, FNDIVelocityGridBuffer* DestinationGridBuffer, const FIntVector& GridSize, const bool CopyPressure)
 {
@@ -491,28 +494,23 @@ inline void ClearBuffer(FRHICommandList& RHICmdList, FNDIVelocityGridBuffer* Cur
 
 	if (DestinationGridBufferUAV != nullptr && CurrentGridBufferSRV != nullptr && CurrentGridBufferUAV != nullptr)
 	{
-		const FIntVector LocalGridSize = GridSize;
-		const bool LocalCopyPressure = CopyPressure;
+		TShaderMapRef<FClearPressureGridCS> ComputeShader(GetGlobalShaderMap(ERHIFeatureLevel::SM5));
+		RHICmdList.SetComputeShader(ComputeShader.GetComputeShader());
 
-		ENQUEUE_RENDER_COMMAND(ClearPressureGrid)(
-			[DestinationGridBufferUAV, CurrentGridBufferSRV, CurrentGridBufferUAV, LocalGridSize, LocalCopyPressure]
-		(FRHICommandListImmediate& RHICmdListImm)
-		{
-			FRHITransitionInfo Transitions[] = {
-				// FIXME: what's the source state for these?
-				FRHITransitionInfo(CurrentGridBufferUAV, ERHIAccess::Unknown, ERHIAccess::SRVCompute),
-				FRHITransitionInfo(DestinationGridBufferUAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute)
-			};
-			RHICmdListImm.Transition(MakeArrayView(Transitions, UE_ARRAY_COUNT(Transitions)));
+		FRHITransitionInfo Transitions[] = {
+			FRHITransitionInfo(CurrentGridBufferUAV, ERHIAccess::Unknown, ERHIAccess::SRVCompute),
+			FRHITransitionInfo(DestinationGridBufferUAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute)
+		};
+		RHICmdList.Transition(MakeArrayView(Transitions, UE_ARRAY_COUNT(Transitions)));
 
-			FRDGBuilder GraphBuilder(RHICmdListImm);
+		const uint32 GroupSize = NIAGARA_HAIR_STRANDS_THREAD_COUNT;
+		const uint32 NumElements = (GridSize.X + 1) * (GridSize.Y + 1) * (GridSize.Z + 1);
 
-			AddClearPressureGridPass(
-				GraphBuilder,
-				CurrentGridBufferSRV, DestinationGridBufferUAV, LocalGridSize, LocalCopyPressure);
+		const uint32 DispatchCount = FMath::DivideAndRoundUp(NumElements, GroupSize);
 
-			GraphBuilder.Execute();
-		});
+		ComputeShader->SetParameters(RHICmdList, CurrentGridBufferSRV, DestinationGridBufferUAV, GridSize, CopyPressure);
+		DispatchComputeShader(RHICmdList, ComputeShader.GetShader(), DispatchCount, 1, 1);
+		ComputeShader->UnsetParameters(RHICmdList);
 	}
 }
 

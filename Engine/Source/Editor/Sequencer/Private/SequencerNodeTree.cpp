@@ -957,6 +957,11 @@ bool FSequencerNodeTree::IsNodeFiltered(const TSharedRef<const FSequencerDisplay
 
 void FSequencerNodeTree::SetHoveredNode(const TSharedPtr<FSequencerDisplayNode>& InHoveredNode)
 {
+	if (InHoveredNode.IsValid() && !InHoveredNode->IsSelectable())
+	{
+		return;
+	}
+
 	if (InHoveredNode != HoveredNode)
 	{
 		HoveredNode = InHoveredNode;

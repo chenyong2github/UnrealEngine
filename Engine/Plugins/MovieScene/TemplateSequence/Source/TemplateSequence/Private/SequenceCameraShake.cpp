@@ -2,14 +2,18 @@
 
 #include "SequenceCameraShake.h"
 #include "Algo/IndexOf.h"
+#include "Camera/CameraActor.h"
 #include "Camera/CameraComponent.h"
 #include "Camera/PlayerCameraManager.h"
+#include "CineCameraActor.h"
 #include "Containers/ArrayView.h"
 #include "EntitySystem/MovieSceneBoundSceneComponentInstantiator.h"
 #include "EntitySystem/MovieSceneEntitySystem.h"
-#include "MovieSceneTracksComponentTypes.h"
+#include "EntitySystem/MovieScenePropertySystemTypes.h"
+#include "GameFramework/WorldSettings.h"
 #include "MovieSceneFwd.h"
 #include "MovieSceneTimeHelpers.h"
+#include "MovieSceneTracksComponentTypes.h"
 
 #if !IS_MONOLITHIC
 	UE::MovieScene::FEntityManager*& GEntityManagerForDebugging = UE::MovieScene::GEntityManagerForDebuggingVisualizers;
@@ -36,7 +40,127 @@ void SetCameraStandInTransform(UObject* Object, const FIntermediate3DTransform& 
 	CameraStandIn->SetTransform(Result);
 }
 
+template<typename PropertyType, typename OperationalType = PropertyType>
+void UpdateInitialPropertyValues(UMovieSceneEntitySystemLinker* Linker, const TPropertyComponents<PropertyType, OperationalType>& PropertyComponents)
+{
+	const FBuiltInComponentTypes* const BuiltInComponents = FBuiltInComponentTypes::Get();
+
+	const FPropertyDefinition& PropertyDefinition = BuiltInComponents->PropertyRegistry.GetDefinition(PropertyComponents.CompositeID);
+
+	TGetPropertyValues<PropertyType, OperationalType> GetProperties(PropertyDefinition.CustomPropertyRegistration);
+
+	FEntityTaskBuilder()
+	.Read(BuiltInComponents->BoundObject)
+	.ReadOneOf(BuiltInComponents->CustomPropertyIndex, BuiltInComponents->FastPropertyOffset, BuiltInComponents->SlowProperty)
+	.Write(PropertyDefinition.InitialValueType.ReinterpretCast<PropertyType>())
+	.FilterAll({ PropertyDefinition.PropertyType })
+	.SetDesiredThread(Linker->EntityManager.GetGatherThread())
+	.RunInline_PerAllocation(&Linker->EntityManager, GetProperties);
 }
+
+}
+}
+
+USequenceCameraShakeCameraStandIn::USequenceCameraShakeCameraStandIn(const FObjectInitializer& ObjInit) 
+	: Super(ObjInit) 
+{
+}
+
+void USequenceCameraShakeCameraStandIn::Initialize(UTemplateSequence* TemplateSequence)
+{
+	AActor* CameraTemplate = nullptr;
+	UMovieScene* MovieScene = TemplateSequence->GetMovieScene();
+	const FGuid RootObjectBindingID = TemplateSequence->GetRootObjectBindingID();
+	if (MovieScene && RootObjectBindingID.IsValid())
+	{
+		if (FMovieSceneSpawnable* RootObjectSpawnable = MovieScene->FindSpawnable(RootObjectBindingID))
+		{
+			CameraTemplate = Cast<AActor>(RootObjectSpawnable->GetObjectTemplate());
+		}
+	}
+
+	bIsCineCamera = false;
+	bool bGotInitialValues = false;
+
+	if (CameraTemplate)
+	{
+		if (UCineCameraComponent* CineCameraComponent = CameraTemplate->FindComponentByClass<UCineCameraComponent>())
+		{
+			bIsCineCamera = true;
+			bGotInitialValues = true;
+
+			FieldOfView = CineCameraComponent->FieldOfView;
+			AspectRatio = CineCameraComponent->AspectRatio;
+			PostProcessSettings = CineCameraComponent->PostProcessSettings;
+			PostProcessBlendWeight = CineCameraComponent->PostProcessBlendWeight;
+
+			Filmback = CineCameraComponent->Filmback;
+			LensSettings = CineCameraComponent->LensSettings;
+			FocusSettings = CineCameraComponent->FocusSettings;
+			CurrentFocalLength = CineCameraComponent->CurrentFocalLength;
+			CurrentAperture = CineCameraComponent->CurrentAperture;
+			CurrentFocusDistance = CineCameraComponent->CurrentFocusDistance;
+
+			// Get the world unit to meters scale.
+			UWorld const* const World = GetWorld();
+			AWorldSettings const* const WorldSettings = World ? World->GetWorldSettings() : nullptr;
+			WorldToMeters = WorldSettings ? WorldSettings->WorldToMeters : 100.f;
+		}
+		else if (UCameraComponent* CameraComponent = CameraTemplate->FindComponentByClass<UCameraComponent>())
+		{
+			bGotInitialValues = true;
+
+			FieldOfView = CameraComponent->FieldOfView;
+			AspectRatio = CameraComponent->AspectRatio;
+			PostProcessSettings = CameraComponent->PostProcessSettings;
+			PostProcessBlendWeight = CameraComponent->PostProcessBlendWeight;
+		}
+
+		// We reset our transform to identity because we want to be able to treat the animated 
+		// transform as an additive value in local camera space. As a result, we won't need to 
+		// synchronize it with the current view info in Reset below.
+		Transform = FTransform::Identity;
+	}
+
+	ensureMsgf(
+			bGotInitialValues, 
+			TEXT("Couldn't initialize sequence camera shake: the given sequence may not be animating a camera!"));
+}
+
+void USequenceCameraShakeCameraStandIn::Reset(const FMinimalViewInfo& ViewInfo)
+{
+	// We reset all the other properties to the current view's values because a lot of them, like 
+	// FieldOfView, don't have any "zero" value that makes sense. We'll figure out the delta in the
+	// update code.
+	bConstrainAspectRatio = ViewInfo.bConstrainAspectRatio;
+	AspectRatio = ViewInfo.AspectRatio;
+	FieldOfView = ViewInfo.FOV;
+	PostProcessSettings = ViewInfo.PostProcessSettings;
+	PostProcessBlendWeight = ViewInfo.PostProcessBlendWeight;
+
+	// We've set the FieldOfView we have to update the CurrentFocalLength accordingly.
+	CurrentFocalLength = (Filmback.SensorWidth / 2.f) / FMath::Tan(FMath::DegreesToRadians(FieldOfView / 2.f));
+
+	RecalcDerivedData();
+}
+
+void USequenceCameraShakeCameraStandIn::RecalcDerivedData()
+{
+	if (bIsCineCamera)
+	{
+		CurrentFocalLength = FMath::Clamp(CurrentFocalLength, LensSettings.MinFocalLength, LensSettings.MaxFocalLength);
+		CurrentAperture = FMath::Clamp(CurrentAperture, LensSettings.MinFStop, LensSettings.MaxFStop);
+
+		float const MinFocusDistInWorldUnits = LensSettings.MinimumFocusDistance * (WorldToMeters / 1000.f);	// convert mm to uu
+		FocusSettings.ManualFocusDistance = FMath::Max(FocusSettings.ManualFocusDistance, MinFocusDistInWorldUnits);
+
+		float const HorizontalFieldOfView = (CurrentFocalLength > 0.f)
+			? FMath::RadiansToDegrees(2.f * FMath::Atan(Filmback.SensorWidth / (2.f * CurrentFocalLength)))
+			: 0.f;
+		FieldOfView = HorizontalFieldOfView;
+		Filmback.SensorAspectRatio = (Filmback.SensorHeight > 0.f) ? (Filmback.SensorWidth / Filmback.SensorHeight) : 0.f;
+		AspectRatio = Filmback.SensorAspectRatio;
+	}
 }
 
 USequenceCameraShakePattern::USequenceCameraShakePattern(const FObjectInitializer& ObjInit)
@@ -48,11 +172,8 @@ USequenceCameraShakePattern::USequenceCameraShakePattern(const FObjectInitialize
 	, RandomSegmentDuration(0.f)
 	, bRandomSegment(false)
 {
-	CameraStandIn = ObjInit.CreateDefaultSubobject<USequenceCameraShakeCameraStandIn>(this, TEXT("SequenceCameraShake_CameraStandIn"), true);
-	Player = ObjInit.CreateDefaultSubobject<USequenceCameraShakeSequencePlayer>(this, TEXT("SequenceCameraShake_Player"), true);
-
-	// Make the player always use our stand-in object whenever a sequence wants to spawn or possess an object.
-	Player->SetBoundObjectOverride(CameraStandIn);
+	CameraStandIn = CreateDefaultSubobject<USequenceCameraShakeCameraStandIn>(TEXT("CameraStandIn"), true);
+	Player = CreateDefaultSubobject<USequenceCameraShakeSequencePlayer>(TEXT("Player"), true);
 
 	// Make sure we have our custom accessors registered for our stand-in class.
 	RegisterCameraStandIn();
@@ -91,9 +212,14 @@ void USequenceCameraShakePattern::StartShakePatternImpl(const FCameraShakeStartP
 		return;
 	}
 
+	// Initialize our stand-in object.
+	CameraStandIn->Initialize(Sequence);
+	
+	// Make the player always use our stand-in object whenever a sequence wants to spawn or possess an object.
+	Player->SetBoundObjectOverride(CameraStandIn);
+
 	// Initialize it and start playing.
 	Player->Initialize(Sequence);
-
 	Player->Play(bRandomSegment, bRandomSegment);
 }
 
@@ -101,21 +227,43 @@ void USequenceCameraShakePattern::UpdateShakePatternImpl(const FCameraShakeUpdat
 {
 	using namespace UE::MovieScene;
 
-	// Reset the stand-in values.
 	check(CameraStandIn);
-	CameraStandIn->SetTransform(FTransform::Identity);
-	CameraStandIn->FieldOfView = 0.f;
+
+	// Reset the camera stand-in's properties based on the new "current" (unshaken) values.
+	CameraStandIn->Reset(Params.POV);
+
+	// Sequencer animates things based on the initial values cached when the sequence started. But here we want
+	// to animate things based on the moving current values of the camera... i.e., we want to shake a constantly
+	// moving camera. So every frame, we need to update the initial values that sequencer uses.
+	UpdateInitialCameraStandInPropertyValues();
+
+	// Get the "unshaken" properties that need to be treated additively.
+	const float OriginalFieldOfView = CameraStandIn->FieldOfView;
 
 	// Update the sequence.
 	const FFrameRate TickResolution = Player->GetInputRate();
 	const FFrameTime NewPosition = Player->GetCurrentPosition() + Params.DeltaTime * PlayRate * TickResolution;
 	Player->Update(NewPosition);
 
-	// Grab the values and feed that into the camera shake result.
-	const FTransform AnimatedTransform = CameraStandIn->GetTransform();
-	OutResult.Location = AnimatedTransform.GetLocation();
-	OutResult.Rotation = AnimatedTransform.GetRotation().Rotator();
-	OutResult.FOV = CameraStandIn->FieldOfView;
+	// Recalculate properties that might be invalidated by other properties having been animated.
+	CameraStandIn->RecalcDerivedData();
+
+	// Grab the final animated (shaken) values, figure out the delta, apply scale, and feed that into the 
+	// camera shake result.
+	// Transform is always treated as a local, additive value. The data better be good.
+	const FTransform ShakenTransform = CameraStandIn->GetTransform();
+	OutResult.Location = ShakenTransform.GetLocation() * Scale;
+	OutResult.Rotation = ShakenTransform.GetRotation().Rotator() * Scale;
+
+	// FieldOfView follows the current camera's value every frame, so we can compute how much the shake is
+	// changing it.
+	const float ShakenFieldOfView = CameraStandIn->FieldOfView;
+	const float DeltaFieldOfView = ShakenFieldOfView - OriginalFieldOfView;
+	OutResult.FOV = DeltaFieldOfView * Scale;
+
+	// The other properties aren't treated as additive.
+	OutResult.PostProcessSettings = CameraStandIn->PostProcessSettings;
+	OutResult.PostProcessBlendWeight = CameraStandIn->PostProcessBlendWeight;
 }
 
 void USequenceCameraShakePattern::StopShakePatternImpl(const FCameraShakeStopParams& Params)
@@ -171,6 +319,22 @@ void USequenceCameraShakePattern::RegisterCameraStandIn()
 	}
 }
 
+void USequenceCameraShakePattern::UpdateInitialCameraStandInPropertyValues()
+{
+	using namespace UE::MovieScene;
+
+	FBuiltInComponentTypes* BuiltInComponents = FBuiltInComponentTypes::Get();
+	FMovieSceneTracksComponentTypes* TrackComponents = FMovieSceneTracksComponentTypes::Get();
+
+	check(Player);
+	UMovieSceneEntitySystemLinker* Linker = Player->GetEvaluationTemplate().GetEntitySystemLinker();
+
+	check(Linker);
+	UE::MovieScene::UpdateInitialPropertyValues<float>(Linker, TrackComponents->Float);
+	// TODO: also do uint8:1/boolean properties?
+}
+
+
 USequenceCameraShakeSequencePlayer::USequenceCameraShakeSequencePlayer(const FObjectInitializer& ObjInit)
 	: Super(ObjInit)
 	, StartFrame(0)
@@ -192,6 +356,7 @@ void USequenceCameraShakeSequencePlayer::BeginDestroy()
 
 UMovieSceneEntitySystemLinker* USequenceCameraShakeSequencePlayer::ConstructEntitySystemLinker()
 {
+	// Create our own private linker, always.
 	UMovieSceneEntitySystemLinker* Linker = NewObject<UMovieSceneEntitySystemLinker>(GetTransientPackage());
 	return Linker;
 }

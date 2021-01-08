@@ -100,28 +100,31 @@ struct FSkeletalMeshSkinningData
 
 	FORCEINLINE FVector GetPosition(int32 LODIndex, int32 VertexIndex) const
 	{
-		return LODData[LODIndex].SkinnedCPUPositions[CurrIndex][VertexIndex];
+		return LODData.IsValidIndex(LODIndex) ? LODData[LODIndex].SkinnedCPUPositions[CurrIndex][VertexIndex] : FVector::ZeroVector;
 	}
 
 	FORCEINLINE FVector GetPreviousPosition(int32 LODIndex, int32 VertexIndex) const
 	{
-		return LODData[LODIndex].SkinnedCPUPositions[CurrIndex ^ 1][VertexIndex];
+		return LODData.IsValidIndex(LODIndex) ? LODData[LODIndex].SkinnedCPUPositions[CurrIndex ^ 1][VertexIndex] : FVector::ZeroVector;
 	}
 
 	FORCEINLINE void GetTangentBasis(int32 LODIndex, int32 VertexIndex, FVector& OutTangentX, FVector& OutTangentY, FVector& OutTangentZ)
 	{
-		OutTangentX = LODData[LODIndex].SkinnedTangentBasis[CurrIndex][(VertexIndex * 3) + 0];
-		OutTangentY = LODData[LODIndex].SkinnedTangentBasis[CurrIndex][(VertexIndex * 3) + 1];
-		OutTangentZ = LODData[LODIndex].SkinnedTangentBasis[CurrIndex][(VertexIndex * 3) + 2];
+		const bool bValidLOD = LODData.IsValidIndex(LODIndex);
+		OutTangentX = bValidLOD ? LODData[LODIndex].SkinnedTangentBasis[CurrIndex][(VertexIndex * 3) + 0] : FVector(1.0f, 0.0f, 0.0f);
+		OutTangentY = bValidLOD ? LODData[LODIndex].SkinnedTangentBasis[CurrIndex][(VertexIndex * 3) + 1] : FVector(0.0f, 1.0f, 0.0f);
+		OutTangentZ = bValidLOD ? LODData[LODIndex].SkinnedTangentBasis[CurrIndex][(VertexIndex * 3) + 2] : FVector(0.0f, 0.0f, 1.0f);
 	}
 
 	FORCEINLINE void GetPreviousTangentBasis(int32 LODIndex, int32 VertexIndex, FVector& OutTangentX, FVector& OutTangentY, FVector& OutTangentZ)
 	{
-		OutTangentX = LODData[LODIndex].SkinnedTangentBasis[CurrIndex ^ 1][(VertexIndex * 3) + 0];
-		OutTangentY = LODData[LODIndex].SkinnedTangentBasis[CurrIndex ^ 1][(VertexIndex * 3) + 1];
-		OutTangentZ = LODData[LODIndex].SkinnedTangentBasis[CurrIndex ^ 1][(VertexIndex * 3) + 2];
+		const bool bValidLOD = LODData.IsValidIndex(LODIndex);
+		OutTangentX = bValidLOD ? LODData[LODIndex].SkinnedTangentBasis[CurrIndex ^ 1][(VertexIndex * 3) + 0] : FVector(1.0f, 0.0f, 0.0f);
+		OutTangentY = bValidLOD ? LODData[LODIndex].SkinnedTangentBasis[CurrIndex ^ 1][(VertexIndex * 3) + 1] : FVector(0.0f, 1.0f, 0.0f);
+		OutTangentZ = bValidLOD ? LODData[LODIndex].SkinnedTangentBasis[CurrIndex ^ 1][(VertexIndex * 3) + 2] : FVector(0.0f, 0.0f, 1.0f);
 	}
 
+private:
 	FORCEINLINE TArray<FVector>& CurrSkinnedPositions(int32 LODIndex)
 	{
 		return LODData[LODIndex].SkinnedCPUPositions[CurrIndex];
@@ -142,6 +145,7 @@ struct FSkeletalMeshSkinningData
 		return LODData[LODIndex].SkinnedTangentBasis[CurrIndex ^ 1];
 	}
 
+public:
 	FORCEINLINE TArray<FMatrix>& CurrBoneRefToLocals()
 	{
 		return BoneRefToLocals[CurrIndex];
@@ -205,9 +209,9 @@ private:
 	int32 CurrIndex;
 
 	/** Number of users for cached bone matrices. */
-	volatile int32 BoneMatrixUsers;
+	int32 BoneMatrixUsers;
 	/** Total number of users for pre skinned verts.  (From LODData) */
-	volatile int32 TotalPreSkinnedVertsUsers;
+	int32 TotalPreSkinnedVertsUsers;
 
 	/** Cached bone matrices. */
 	TArray<FMatrix> BoneRefToLocals[2];
@@ -217,10 +221,9 @@ private:
 
 	struct FLODData
 	{
-		FLODData() : PreSkinnedVertsUsers(0) { }
 
 		/** Number of users for pre skinned verts. */
-		volatile int32 PreSkinnedVertsUsers;
+		int32 PreSkinnedVertsUsers = 0;
 
 		/** CPU Skinned vertex positions. Double buffered to allow accurate velocity calculation. */
 		TArray<FVector> SkinnedCPUPositions[2];
@@ -340,8 +343,7 @@ public:
 
 	virtual FString GetFriendlyName() const override { return TEXT("FSkeletalMeshGpuSpawnStaticBuffers"); }
 
-	FShaderResourceViewRHIRef GetBufferTriangleUniformSamplerProbaSRV() const { return BufferTriangleUniformSamplerProbaSRV; }
-	FShaderResourceViewRHIRef GetBufferTriangleUniformSamplerAliasSRV() const { return BufferTriangleUniformSamplerAliasSRV; }
+	FShaderResourceViewRHIRef GetBufferTriangleUniformSamplerProbAliasSRV() const { return BufferTriangleUniformSamplerProbAliasSRV; }
 	FShaderResourceViewRHIRef GetBufferTriangleMatricesOffsetSRV() const { return BufferTriangleMatricesOffsetSRV; }
 	uint32 GetTriangleCount() const { return TriangleCount; }
 	uint32 GetVertexCount() const { return VertexCount; }
@@ -350,8 +352,7 @@ public:
 	bool IsUseGpuUniformlyDistributedSampling() const { return bUseGpuUniformlyDistributedSampling; }
 	int32 GetNumSamplingRegionTriangles() const { return NumSamplingRegionTriangles; }
 	int32 GetNumSamplingRegionVertices() const { return NumSamplingRegionVertices; }
-	FShaderResourceViewRHIRef GetSampleRegionsProbSRV() const { return SampleRegionsProbSRV; }
-	FShaderResourceViewRHIRef GetSampleRegionsAliasSRV() const { return SampleRegionsAliasSRV; }
+	FShaderResourceViewRHIRef GetSampleRegionsProbAliasSRV() const { return SampleRegionsProbAliasSRV; }
 	FShaderResourceViewRHIRef GetSampleRegionsTriangleIndicesSRV() const { return SampleRegionsTriangleIndicesSRV; }
 	FShaderResourceViewRHIRef GetSampleRegionsVerticesSRV() const { return SampleRegionsVerticesSRV; }
 
@@ -373,25 +374,20 @@ public:
 	int32 GetFilteredSocketBoneOffset() const { return FilteredSocketBoneOffset; }
 
 protected:
-	FVertexBufferRHIRef BufferTriangleUniformSamplerProbaRHI = nullptr;
-	FShaderResourceViewRHIRef BufferTriangleUniformSamplerProbaSRV = nullptr;
-	FVertexBufferRHIRef BufferTriangleUniformSamplerAliasRHI = nullptr;
-	FShaderResourceViewRHIRef BufferTriangleUniformSamplerAliasSRV = nullptr;
+	FVertexBufferRHIRef BufferTriangleUniformSamplerProbAliasRHI = nullptr;
+	FShaderResourceViewRHIRef BufferTriangleUniformSamplerProbAliasSRV = nullptr;
 	FVertexBufferRHIRef BufferTriangleMatricesOffsetRHI = nullptr;
 	FShaderResourceViewRHIRef BufferTriangleMatricesOffsetSRV = nullptr;
 
 	bool bSamplingRegionsAllAreaWeighted = false;
 	int32 NumSamplingRegionTriangles = 0;
 	int32 NumSamplingRegionVertices = 0;
-	TResourceArray<float> SampleRegionsProb;
-	TResourceArray<int32> SampleRegionsAlias;
+	TResourceArray<uint32> SampleRegionsProbAlias;
 	TResourceArray<int32> SampleRegionsTriangleIndicies;
 	TResourceArray<int32> SampleRegionsVertices;
 
-	FVertexBufferRHIRef SampleRegionsProbBuffer;
-	FShaderResourceViewRHIRef SampleRegionsProbSRV;
-	FVertexBufferRHIRef SampleRegionsAliasBuffer;
-	FShaderResourceViewRHIRef SampleRegionsAliasSRV;
+	FVertexBufferRHIRef SampleRegionsProbAliasBuffer;
+	FShaderResourceViewRHIRef SampleRegionsProbAliasSRV;
 	FVertexBufferRHIRef SampleRegionsTriangleIndicesBuffer;
 	FShaderResourceViewRHIRef SampleRegionsTriangleIndicesSRV;
 	FVertexBufferRHIRef SampleRegionsVerticesBuffer;
@@ -731,12 +727,10 @@ public:
 	static const FString MeshTangentBufferName;
 	static const FString MeshTexCoordBufferName;
 	static const FString MeshColorBufferName;
-	static const FString MeshTriangleSamplerProbaBufferName;
-	static const FString MeshTriangleSamplerAliasBufferName;
+	static const FString MeshTriangleSamplerProbAliasBufferName;
 	static const FString MeshNumSamplingRegionTrianglesName;
 	static const FString MeshNumSamplingRegionVerticesName;
-	static const FString MeshSamplingRegionsProbaBufferName;
-	static const FString MeshSamplingRegionsAliasBufferName;
+	static const FString MeshSamplingRegionsProbAliasBufferName;
 	static const FString MeshSampleRegionsTriangleIndicesName;
 	static const FString MeshSampleRegionsVerticesName;
 	static const FString MeshTriangleMatricesOffsetBufferName;

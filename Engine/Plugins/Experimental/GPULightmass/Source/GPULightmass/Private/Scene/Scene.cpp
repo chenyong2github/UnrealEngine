@@ -1836,16 +1836,16 @@ void CopyRectTiled(
 		for (int32 X = DstRect.Min.X; X < DstRect.Max.X; X++)
 		{
 			FIntPoint SrcPosition = FIntPoint(X, Y) - DstRect.Min + SrcMin;
-			FIntPoint TilePosition(SrcPosition.X / VirtualTileSize, SrcPosition.Y / VirtualTileSize);
+			FIntPoint SrcTilePosition(SrcPosition.X / VirtualTileSize, SrcPosition.Y / VirtualTileSize);
 			FIntPoint PositionInTile(SrcPosition.X % VirtualTileSize, SrcPosition.Y % VirtualTileSize);
 
-			FIntPoint SrcPixelPosition = TilePosition * PhysicalTileSize + PositionInTile + FIntPoint(TileBorderSize, TileBorderSize);
+			FIntPoint SrcPixelPosition = PositionInTile + FIntPoint(TileBorderSize, TileBorderSize);
 			FIntPoint DstPixelPosition = FIntPoint(X, Y);
 
 			int32 SrcLinearIndex = SrcPixelPosition.Y * SrcRowPitchInPixels + SrcPixelPosition.X;
 			int32 DstLinearIndex = DstPixelPosition.Y * DstRowPitchInPixels + DstPixelPosition.X;
 
-			Func(DstLinearIndex, SrcLinearIndex);
+			Func(DstLinearIndex, SrcTilePosition, SrcLinearIndex);
 		}
 	}
 }
@@ -2062,34 +2062,52 @@ void FScene::ApplyFinishedLightmapsToWorld()
 			{
 				for (int32 TileX = 0; TileX < Lightmap.GetPaddedSizeInTiles().X; TileX++)
 				{
+					FTileDataLayer::Evict();
+
 					for (int32 TileY = 0; TileY < Lightmap.GetPaddedSizeInTiles().Y; TileY++)
 					{
 						FTileVirtualCoordinates Coords(FIntPoint(TileX, TileY), 0);
 						if (!Lightmap.DoesTileHaveValidCPUData(Coords, RenderState.LightmapRenderer->GetCurrentRevision()))
 						{
+							if (!Lightmap.TileStorage.Contains(Coords))
+							{
+								Lightmap.TileStorage.Add(Coords, FTileStorage{});
+							}
+
 							for (int32 MipLevel = 0; MipLevel <= Lightmap.GetMaxLevel(); MipLevel++)
 							{
 								FTileVirtualCoordinates ParentCoords(FIntPoint(TileX / (1 << MipLevel), TileY / (1 << MipLevel)), MipLevel);
 								if (Lightmap.DoesTileHaveValidCPUData(ParentCoords, RenderState.LightmapRenderer->GetCurrentRevision()))
 								{
+									Lightmap.TileStorage[Coords].CPUTextureData[0]->Decompress();
+									Lightmap.TileStorage[Coords].CPUTextureData[1]->Decompress();
+									Lightmap.TileStorage[Coords].CPUTextureData[2]->Decompress();
+
+									Lightmap.TileStorage[ParentCoords].CPUTextureData[0]->Decompress();
+									Lightmap.TileStorage[ParentCoords].CPUTextureData[1]->Decompress();
+									Lightmap.TileStorage[ParentCoords].CPUTextureData[2]->Decompress();
+
 									for (int32 X = 0; X < GPreviewLightmapVirtualTileSize; X++)
 									{
 										for (int32 Y = 0; Y < GPreviewLightmapVirtualTileSize; Y++)
 										{
-											FIntPoint DstPixelPosition = FIntPoint(TileX, TileY) * GPreviewLightmapVirtualTileSize + FIntPoint(X, Y);
-											FIntPoint SrcPixelPosition = DstPixelPosition / (1 << MipLevel);
+											FIntPoint DstPixelPosition = FIntPoint(X, Y);
+											FIntPoint SrcPixelPosition = (FIntPoint(TileX, TileY) * GPreviewLightmapVirtualTileSize + FIntPoint(X, Y)) / (1 << MipLevel);
+											SrcPixelPosition.X %= GPreviewLightmapVirtualTileSize;
+											SrcPixelPosition.Y %= GPreviewLightmapVirtualTileSize;
 
-											int32 DstRowPitchInPixels = Lightmap.GetPaddedSize().X;
-											int32 SrcRowPitchInPixels = Lightmap.GetPaddedSizeAtMipLevel(MipLevel).X;
+											int32 DstRowPitchInPixels = GPreviewLightmapVirtualTileSize;
+											int32 SrcRowPitchInPixels = GPreviewLightmapVirtualTileSize;
 
 											int32 SrcLinearIndex = SrcPixelPosition.Y * SrcRowPitchInPixels + SrcPixelPosition.X;
 											int32 DstLinearIndex = DstPixelPosition.Y * DstRowPitchInPixels + DstPixelPosition.X;
 
-											Lightmap.CPUTextureData[0][0][DstLinearIndex] = Lightmap.CPUTextureData[0][MipLevel][SrcLinearIndex];
-											Lightmap.CPUTextureData[1][0][DstLinearIndex] = Lightmap.CPUTextureData[1][MipLevel][SrcLinearIndex];
-											Lightmap.CPUTextureData[2][0][DstLinearIndex] = Lightmap.CPUTextureData[2][MipLevel][SrcLinearIndex];
+											Lightmap.TileStorage[Coords].CPUTextureData[0]->Data[DstLinearIndex] = Lightmap.TileStorage[ParentCoords].CPUTextureData[0]->Data[SrcLinearIndex];
+											Lightmap.TileStorage[Coords].CPUTextureData[1]->Data[DstLinearIndex] = Lightmap.TileStorage[ParentCoords].CPUTextureData[1]->Data[SrcLinearIndex];
+											Lightmap.TileStorage[Coords].CPUTextureData[2]->Data[DstLinearIndex] = Lightmap.TileStorage[ParentCoords].CPUTextureData[2]->Data[SrcLinearIndex];
 										}
 									}
+
 									break;
 								}
 							}
@@ -2159,12 +2177,19 @@ void FScene::ApplyFinishedLightmapsToWorld()
 
 						FLightmapRenderState& Lightmap = RenderState.LightmapRenderStates.Elements[StaticMeshInstances.Elements[InstanceIndex].LODLightmaps[LODIndex].GetElementId()];
 
+						for (auto& Tile : Lightmap.TileStorage)
+						{
+							Tile.Value.CPUTextureData[0]->Decompress();
+							Tile.Value.CPUTextureData[1]->Decompress();
+							Tile.Value.CPUTextureData[2]->Decompress();
+						}
+
 						// Transencode GI layers
 						TArray<FLightSampleData> LightSampleData;
 						LightSampleData.AddZeroed(Lightmap.GetSize().X * Lightmap.GetSize().Y); // LightSampleData will have different row pitch as VT is padded to tiles
 
 						{
-							int32 SrcRowPitchInPixels = Lightmap.GetPaddedSize().X;
+							int32 SrcRowPitchInPixels = GPreviewLightmapVirtualTileSize;
 							int32 DstRowPitchInPixels = Lightmap.GetSize().X;
 
 							CopyRectTiled(
@@ -2172,9 +2197,9 @@ void FScene::ApplyFinishedLightmapsToWorld()
 								FIntRect(FIntPoint(0, 0), Lightmap.GetSize()),
 								SrcRowPitchInPixels,
 								DstRowPitchInPixels,
-								[&Lightmap, &LightSampleData](int32 DstLinearIndex, int32 SrcLinearIndex) mutable
+								[&Lightmap, &LightSampleData](int32 DstLinearIndex, FIntPoint SrcTilePosition, int32 SrcLinearIndex) mutable
 							{
-								LightSampleData[DstLinearIndex] = ConvertToLightSample(Lightmap.CPUTextureData[0][0][SrcLinearIndex], Lightmap.CPUTextureData[1][0][SrcLinearIndex]);
+								LightSampleData[DstLinearIndex] = ConvertToLightSample(Lightmap.TileStorage[FTileVirtualCoordinates(SrcTilePosition, 0)].CPUTextureData[0]->Data[SrcLinearIndex], Lightmap.TileStorage[FTileVirtualCoordinates(SrcTilePosition, 0)].CPUTextureData[1]->Data[SrcLinearIndex]);
 							});
 						}
 
@@ -2297,7 +2322,7 @@ void FScene::ApplyFinishedLightmapsToWorld()
 								check(Light.ShadowMapChannel != INDEX_NONE);
 								FQuantizedShadowSignedDistanceFieldData2D* ShadowMap = new FQuantizedShadowSignedDistanceFieldData2D(Lightmap.GetSize().X, Lightmap.GetSize().Y);
 
-								int32 SrcRowPitchInPixels = Lightmap.GetPaddedSize().X;
+								int32 SrcRowPitchInPixels = GPreviewLightmapVirtualTileSize;
 								int32 DstRowPitchInPixels = Lightmap.GetSize().X;
 
 								CopyRectTiled(
@@ -2305,9 +2330,9 @@ void FScene::ApplyFinishedLightmapsToWorld()
 									FIntRect(FIntPoint(0, 0), Lightmap.GetSize()),
 									SrcRowPitchInPixels,
 									DstRowPitchInPixels,
-									[&Lightmap, &ShadowMap, &Light](int32 DstLinearIndex, int32 SrcLinearIndex) mutable
+									[&Lightmap, &ShadowMap, &Light](int32 DstLinearIndex, FIntPoint SrcTilePosition, int32 SrcLinearIndex) mutable
 								{
-									ShadowMap->GetData()[DstLinearIndex] = ConvertToShadowSample(Lightmap.CPUTextureData[2][0][SrcLinearIndex], Light.ShadowMapChannel);
+									ShadowMap->GetData()[DstLinearIndex] = ConvertToShadowSample(Lightmap.TileStorage[FTileVirtualCoordinates(SrcTilePosition, 0)].CPUTextureData[2]->Data[SrcLinearIndex], Light.ShadowMapChannel);
 								});
 
 								ShadowMaps.Add(LightBuildInfo.GetComponentUObject(), ShadowMap);
@@ -2397,6 +2422,8 @@ void FScene::ApplyFinishedLightmapsToWorld()
 								}
 							}
 						}
+
+						FTileDataLayer::Evict();
 					}
 				}
 			}
@@ -2417,6 +2444,13 @@ void FScene::ApplyFinishedLightmapsToWorld()
 						}
 
 						FLightmapRenderState& Lightmap = RenderState.LightmapRenderStates.Elements[InstanceGroups.Elements[InstanceGroupIndex].LODLightmaps[LODIndex].GetElementId()];
+
+						for (auto& Tile : Lightmap.TileStorage)
+						{
+							Tile.Value.CPUTextureData[0]->Decompress();
+							Tile.Value.CPUTextureData[1]->Decompress();
+							Tile.Value.CPUTextureData[2]->Decompress();
+						}
 
 						FInstanceGroup& InstanceGroup = InstanceGroups.Elements[InstanceGroupIndex];
 
@@ -2439,7 +2473,7 @@ void FScene::ApplyFinishedLightmapsToWorld()
 							LightSampleData.AddZeroed(BaseLightMapWidth * BaseLightMapHeight);
 							InstancedSourceQuantizedData[InstanceIndex] = MakeUnique<FQuantizedLightmapData>();
 
-							int32 SrcRowPitchInPixels = Lightmap.GetPaddedSize().X;
+							int32 SrcRowPitchInPixels = GPreviewLightmapVirtualTileSize;
 							int32 DstRowPitchInPixels = BaseLightMapWidth;
 
 							int32 RenderIndex = InstanceGroup.ComponentUObject->GetRenderIndex(InstanceIndex);
@@ -2454,9 +2488,9 @@ void FScene::ApplyFinishedLightmapsToWorld()
 									FIntRect(FIntPoint(0, 0), FIntPoint(BaseLightMapWidth, BaseLightMapHeight)),
 									SrcRowPitchInPixels,
 									DstRowPitchInPixels,
-									[&Lightmap, &LightSampleData](int32 DstLinearIndex, int32 SrcLinearIndex) mutable
+									[&Lightmap, &LightSampleData](int32 DstLinearIndex, FIntPoint SrcTilePosition, int32 SrcLinearIndex) mutable
 								{
-									LightSampleData[DstLinearIndex] = ConvertToLightSample(Lightmap.CPUTextureData[0][0][SrcLinearIndex], Lightmap.CPUTextureData[1][0][SrcLinearIndex]);
+									LightSampleData[DstLinearIndex] = ConvertToLightSample(Lightmap.TileStorage[FTileVirtualCoordinates(SrcTilePosition, 0)].CPUTextureData[0]->Data[SrcLinearIndex], Lightmap.TileStorage[FTileVirtualCoordinates(SrcTilePosition, 0)].CPUTextureData[1]->Data[SrcLinearIndex]);
 								});
 							}
 
@@ -2497,9 +2531,9 @@ void FScene::ApplyFinishedLightmapsToWorld()
 											FIntRect(FIntPoint(0, 0), FIntPoint(BaseLightMapWidth, BaseLightMapHeight)),
 											SrcRowPitchInPixels,
 											DstRowPitchInPixels,
-											[&Lightmap, &ShadowMap, &DirectionalLight](int32 DstLinearIndex, int32 SrcLinearIndex) mutable
+											[&Lightmap, &ShadowMap, &DirectionalLight](int32 DstLinearIndex, FIntPoint SrcTilePosition, int32 SrcLinearIndex) mutable
 										{
-											ShadowMap->GetData()[DstLinearIndex] = ConvertToShadowSample(Lightmap.CPUTextureData[2][0][SrcLinearIndex], DirectionalLight.ShadowMapChannel);
+											ShadowMap->GetData()[DstLinearIndex] = ConvertToShadowSample(Lightmap.TileStorage[FTileVirtualCoordinates(SrcTilePosition, 0)].CPUTextureData[2]->Data[SrcLinearIndex], DirectionalLight.ShadowMapChannel);
 										});
 									}
 
@@ -2522,9 +2556,9 @@ void FScene::ApplyFinishedLightmapsToWorld()
 											FIntRect(FIntPoint(0, 0), FIntPoint(BaseLightMapWidth, BaseLightMapHeight)),
 											SrcRowPitchInPixels,
 											DstRowPitchInPixels,
-											[&Lightmap, &ShadowMap, &PointLight](int32 DstLinearIndex, int32 SrcLinearIndex) mutable
+											[&Lightmap, &ShadowMap, &PointLight](int32 DstLinearIndex, FIntPoint SrcTilePosition, int32 SrcLinearIndex) mutable
 										{
-											ShadowMap->GetData()[DstLinearIndex] = ConvertToShadowSample(Lightmap.CPUTextureData[2][0][SrcLinearIndex], PointLight->ShadowMapChannel);
+											ShadowMap->GetData()[DstLinearIndex] = ConvertToShadowSample(Lightmap.TileStorage[FTileVirtualCoordinates(SrcTilePosition, 0)].CPUTextureData[2]->Data[SrcLinearIndex], PointLight->ShadowMapChannel);
 										});
 									}
 
@@ -2547,9 +2581,9 @@ void FScene::ApplyFinishedLightmapsToWorld()
 											FIntRect(FIntPoint(0, 0), FIntPoint(BaseLightMapWidth, BaseLightMapHeight)),
 											SrcRowPitchInPixels,
 											DstRowPitchInPixels,
-											[&Lightmap, &ShadowMap, &SpotLight](int32 DstLinearIndex, int32 SrcLinearIndex) mutable
+											[&Lightmap, &ShadowMap, &SpotLight](int32 DstLinearIndex, FIntPoint SrcTilePosition, int32 SrcLinearIndex) mutable
 										{
-											ShadowMap->GetData()[DstLinearIndex] = ConvertToShadowSample(Lightmap.CPUTextureData[2][0][SrcLinearIndex], SpotLight->ShadowMapChannel);
+											ShadowMap->GetData()[DstLinearIndex] = ConvertToShadowSample(Lightmap.TileStorage[FTileVirtualCoordinates(SrcTilePosition, 0)].CPUTextureData[2]->Data[SrcLinearIndex], SpotLight->ShadowMapChannel);
 										});
 									}
 
@@ -2572,9 +2606,9 @@ void FScene::ApplyFinishedLightmapsToWorld()
 											FIntRect(FIntPoint(0, 0), FIntPoint(BaseLightMapWidth, BaseLightMapHeight)),
 											SrcRowPitchInPixels,
 											DstRowPitchInPixels,
-											[&Lightmap, &ShadowMap, &RectLight](int32 DstLinearIndex, int32 SrcLinearIndex) mutable
+											[&Lightmap, &ShadowMap, &RectLight](int32 DstLinearIndex, FIntPoint SrcTilePosition, int32 SrcLinearIndex) mutable
 										{
-											ShadowMap->GetData()[DstLinearIndex] = ConvertToShadowSample(Lightmap.CPUTextureData[2][0][SrcLinearIndex], RectLight->ShadowMapChannel);
+											ShadowMap->GetData()[DstLinearIndex] = ConvertToShadowSample(Lightmap.TileStorage[FTileVirtualCoordinates(SrcTilePosition, 0)].CPUTextureData[2]->Data[SrcLinearIndex], RectLight->ShadowMapChannel);
 										});
 									}
 
@@ -2669,6 +2703,8 @@ void FScene::ApplyFinishedLightmapsToWorld()
 							Registry, InstanceGroup.ComponentUObject->LODData[LODIndex].MapBuildDataId, InstanceGroup.ComponentUObject->Bounds, PaddingType, LMF_Streamed);
 
 						MeshBuildData.LightMap = NewLightMap;
+
+						FTileDataLayer::Evict();
 					}
 				}
 			}
@@ -2690,12 +2726,19 @@ void FScene::ApplyFinishedLightmapsToWorld()
 
 						FLightmapRenderState& Lightmap = RenderState.LightmapRenderStates.Elements[Landscapes.Elements[LandscapeIndex].LODLightmaps[LODIndex].GetElementId()];
 
+						for (auto& Tile : Lightmap.TileStorage)
+						{
+							Tile.Value.CPUTextureData[0]->Decompress();
+							Tile.Value.CPUTextureData[1]->Decompress();
+							Tile.Value.CPUTextureData[2]->Decompress();
+						}
+
 						// Transencode GI layers
 						TArray<FLightSampleData> LightSampleData;
 						LightSampleData.AddZeroed(Lightmap.GetSize().X * Lightmap.GetSize().Y); // LightSampleData will have different row pitch as VT is padded to tiles
 
 						{
-							int32 SrcRowPitchInPixels = Lightmap.GetPaddedSize().X;
+							int32 SrcRowPitchInPixels = GPreviewLightmapVirtualTileSize;
 							int32 DstRowPitchInPixels = Lightmap.GetSize().X;
 
 							CopyRectTiled(
@@ -2703,9 +2746,9 @@ void FScene::ApplyFinishedLightmapsToWorld()
 								FIntRect(FIntPoint(0, 0), Lightmap.GetSize()),
 								SrcRowPitchInPixels,
 								DstRowPitchInPixels,
-								[&Lightmap, &LightSampleData](int32 DstLinearIndex, int32 SrcLinearIndex) mutable
+								[&Lightmap, &LightSampleData](int32 DstLinearIndex, FIntPoint SrcTilePosition, int32 SrcLinearIndex) mutable
 							{
-								LightSampleData[DstLinearIndex] = ConvertToLightSample(Lightmap.CPUTextureData[0][0][SrcLinearIndex], Lightmap.CPUTextureData[1][0][SrcLinearIndex]);
+								LightSampleData[DstLinearIndex] = ConvertToLightSample(Lightmap.TileStorage[FTileVirtualCoordinates(SrcTilePosition, 0)].CPUTextureData[0]->Data[SrcLinearIndex], Lightmap.TileStorage[FTileVirtualCoordinates(SrcTilePosition, 0)].CPUTextureData[1]->Data[SrcLinearIndex]);
 							});
 						}
 
@@ -2788,9 +2831,9 @@ void FScene::ApplyFinishedLightmapsToWorld()
 									FIntRect(FIntPoint(0, 0), Lightmap.GetSize()),
 									SrcRowPitchInPixels,
 									DstRowPitchInPixels,
-									[&Lightmap, &ShadowMap, &Light](int32 DstLinearIndex, int32 SrcLinearIndex) mutable
+									[&Lightmap, &ShadowMap, &Light](int32 DstLinearIndex, FIntPoint SrcTilePosition, int32 SrcLinearIndex) mutable
 								{
-									ShadowMap->GetData()[DstLinearIndex] = ConvertToShadowSample(Lightmap.CPUTextureData[2][0][SrcLinearIndex], Light.ShadowMapChannel);
+									ShadowMap->GetData()[DstLinearIndex] = ConvertToShadowSample(Lightmap.TileStorage[FTileVirtualCoordinates(SrcTilePosition, 0)].CPUTextureData[2]->Data[SrcLinearIndex], Light.ShadowMapChannel);
 								});
 
 								ShadowMaps.Add(LightBuildInfo.GetComponentUObject(), ShadowMap);
@@ -2863,6 +2906,8 @@ void FScene::ApplyFinishedLightmapsToWorld()
 								Proxy->FlushGrassComponents(&Components, false);
 							}
 						}
+
+						FTileDataLayer::Evict();
 					}
 				}
 			}

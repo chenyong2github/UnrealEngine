@@ -250,16 +250,20 @@ public class Core : ModuleRules
 		bool bWithMallocStomp = false;
 		if (Target.Configuration != UnrealTargetConfiguration.Shipping)
 		{
-			if (Target.Platform == UnrealTargetPlatform.Mac ||
-				Target.Platform == UnrealTargetPlatform.Linux ||
-				Target.Platform == UnrealTargetPlatform.LinuxAArch64 ||
-				Target.Platform == UnrealTargetPlatform.Win64)
-			// Target.Platform == UnrealTargetPlatform.Win32: // 32-bit windows can technically be supported, but will likely run out of virtual memory space quickly
-			// Target.Platform == UnrealTargetPlatform.XboxOne: // XboxOne could be supported, as it's similar enough to Win64
+			if (Target.Platform == UnrealTargetPlatform.Mac
+				|| Target.Platform == UnrealTargetPlatform.Linux
+				|| Target.Platform == UnrealTargetPlatform.LinuxAArch64
+				|| Target.Platform == UnrealTargetPlatform.Win64
+				// || Target.Platform == UnrealTargetPlatform.Win32				// 32-bit windows can technically be supported, but will likely run out of virtual memory space quickly
+				|| Target.Platform.IsInGroup(UnrealPlatformGroup.XboxCommon)	// Base Xbox will run out of virtual memory very quickly but it can be utilized on some hardware configs
+				)
 			{
 				bWithMallocStomp = true;
 			}
 		}
+
+		// temporary thing.
+		PrivateDefinitions.Add("PLATFORM_SUPPORTS_BINARYCONFIG=" + (SupportsBinaryConfig(Target) ? "1" : "0"));
 
 		PublicDefinitions.Add("WITH_MALLOC_STOMP=" + (bWithMallocStomp ? "1" : "0"));
 
@@ -268,5 +272,10 @@ public class Core : ModuleRules
 		PrivateDefinitions.Add("PLATFORM_COMPILER_OPTIMIZATION_PG_PROFILING=" + (Target.bPGOProfile ? "1" : "0"));
 
 		UnsafeTypeCastWarningLevel = WarningLevel.Warning;
+	}
+
+	protected virtual bool SupportsBinaryConfig(ReadOnlyTargetRules Target)
+	{
+		return Target.Platform != UnrealTargetPlatform.Android;
 	}
 }

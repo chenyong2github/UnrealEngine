@@ -19,9 +19,18 @@ UImgMediaSettings::UImgMediaSettings()
 	, UseDefaultProxy(false)
 { }
 
+void UImgMediaSettings::PostInitProperties()
+{
+	Super::PostInitProperties();
+
+	ValidateSettings();
+}
+
 #if WITH_EDITOR
 void UImgMediaSettings::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
+	ValidateSettings();
+
 	SettingsChangedDelegate.Broadcast(this);
 }
 
@@ -32,3 +41,12 @@ UImgMediaSettings::FOnImgMediaSettingsChanged& UImgMediaSettings::OnSettingsChan
 
 UImgMediaSettings::FOnImgMediaSettingsChanged UImgMediaSettings::SettingsChangedDelegate;
 #endif
+
+void UImgMediaSettings::ValidateSettings()
+{
+	// Global cache size cannot be smaller than the cache size.
+	if (GlobalCacheSizeGB < CacheSizeGB)
+	{
+		GlobalCacheSizeGB = CacheSizeGB;
+	}
+}

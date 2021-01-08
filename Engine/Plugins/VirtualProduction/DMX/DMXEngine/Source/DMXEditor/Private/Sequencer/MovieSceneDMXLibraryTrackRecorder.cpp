@@ -23,7 +23,7 @@
 #include "MovieSceneFolder.h"
 
 
-void UMovieSceneDMXLibraryTrackRecorder::CreateTrack(UMovieScene* InMovieScene, UDMXLibrary* Library, const TArray<FDMXEntityFixturePatchRef>& InFixturePatchRefs, bool bInAlwaysUseTimecode, bool bInDiscardSamplesBeforeStart, UMovieSceneTrackRecorderSettings* InSettingsObject)
+TWeakObjectPtr<UMovieSceneDMXLibraryTrack> UMovieSceneDMXLibraryTrackRecorder::CreateTrack(UMovieScene* InMovieScene, UDMXLibrary* Library, const TArray<FDMXEntityFixturePatchRef>& InFixturePatchRefs, bool bInAlwaysUseTimecode, bool bInDiscardSamplesBeforeStart, UMovieSceneTrackRecorderSettings* InSettingsObject)
 {
 	check(Library);
 
@@ -46,13 +46,9 @@ void UMovieSceneDMXLibraryTrackRecorder::CreateTrack(UMovieScene* InMovieScene, 
 	DMXLibraryTrack = nullptr;
 	DMXLibrarySection.Reset();
 
-	if (MovieScene->GetMasterTracks().Num() == 0)
+	if (!DMXLibraryTrack.IsValid())
 	{
 		DMXLibraryTrack = MovieScene->AddMasterTrack<UMovieSceneDMXLibraryTrack>();
-	}
-	else
-	{
-		DMXLibraryTrack->RemoveAllAnimationData();
 	}
 
 	DMXLibraryTrack->SetDMXLibrary(Library);
@@ -67,12 +63,7 @@ void UMovieSceneDMXLibraryTrackRecorder::CreateTrack(UMovieScene* InMovieScene, 
 	// Add each new Patch to the Track
 	for (const FDMXEntityFixturePatchRef& PatchRef : FixturePatchRefs)
 	{
-		UDMXEntityFixturePatch* Patch = PatchRef.GetFixturePatch();
-
-		if (Patch != nullptr && Patch->IsValidLowLevelFast())
-		{
-			DMXLibrarySection->AddFixturePatch(Patch);
-		}
+		DMXLibrarySection->AddFixturePatch(PatchRef.GetFixturePatch());
 	}
 
 	// Erase existing animation in the track related to the Fixture Patches we're going to record.
@@ -95,32 +86,10 @@ void UMovieSceneDMXLibraryTrackRecorder::CreateTrack(UMovieScene* InMovieScene, 
 	// Make sure it starts at frame 0, in case Auto Size removed a piece of the start
 	DMXLibrarySection->ExpandToFrame(0);
 
-	// Cache patches already in the DMX track to not add them again
-	TArray<UDMXEntityFixturePatch*> TrackPatches = DMXLibrarySection->GetFixturePatches();
-
-	// Cache unique patches from the ones the user selected to make sure
-	// we're not adding repeated ones
-	TArray<UDMXEntityFixturePatch*> UniquePatches;
-	UniquePatches.Reserve(FixturePatchRefs.Num());
-
-	for (const FDMXEntityFixturePatchRef& PatchRef : FixturePatchRefs)
-	{
-		UDMXEntityFixturePatch* Patch = PatchRef.GetFixturePatch();
-
-		if (Patch != nullptr && Patch->IsValidLowLevelFast() && !TrackPatches.Contains(Patch))
-		{
-			UniquePatches.AddUnique(Patch);
-		}
-	}
-
-	// Add each new Patch to the Track
-	for (UDMXEntityFixturePatch* Patch : UniquePatches)
-	{
-		DMXLibrarySection->AddFixturePatch(Patch);
-	}
-
 	// Mark the track as recording. Also prevents its evaluation from sending DMX data
 	DMXLibrarySection->SetIsRecording(true);
+
+	return DMXLibraryTrack;
 }
 
 void UMovieSceneDMXLibraryTrackRecorder::SetSectionStartTimecodeImpl(const FTimecode& InSectionStartTimecode, const FFrameNumber& InSectionFirstFrame)
@@ -311,14 +280,6 @@ void UMovieSceneDMXLibraryTrackRecorder::OnReceiveDMX(UDMXEntityFixturePatch* Fi
 	if (Signal.IsValid())
 	{
 		Buffer.FindOrAdd(FixturePatch) = Signal;
-	}
-}
-
-void UMovieSceneDMXLibraryTrackRecorder::AddContentsToFolder(UMovieSceneFolder* InFolder)
-{
-	if (DMXLibraryTrack.IsValid())
-	{
-		InFolder->AddChildMasterTrack(DMXLibraryTrack.Get());
 	}
 }
 

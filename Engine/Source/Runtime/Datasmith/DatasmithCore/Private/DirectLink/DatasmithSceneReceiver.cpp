@@ -4,6 +4,7 @@
 
 
 #include "DatasmithCore.h"
+#include "DatasmithMaterialElementsImpl.h"
 #include "DatasmithSceneFactory.h"
 #include "DatasmithSceneGraphSharedState.h"
 #include "IDatasmithSceneElements.h"
@@ -78,14 +79,37 @@ void FDatasmithSceneReceiver::FinalSnapshot(const DirectLink::FSceneSnapshot& Sc
 			return;
 		}
 
+		uint64 Subtype = 0;
+		if (!DataSnapshot.GetValueAs("Subtype", Subtype))
+		{
+			UE_LOG( LogDatasmith, Display, TEXT("OnAddElement failed: missing element subtype info for node '%s'"), *Name);
+			return;
+		}
+
 		// derived types have several bits sets.
 		// -> keep the leftmost bit, which is the value of the (most-derived) class understood by CreateElement
 		// eg. this transforms 'Actor|StaticMeshActor' into 'StaticMeshActor'
 		// Well, of course it's not exact...
 		// Type &= (uint64)~EDatasmithElementType::BaseMaterial; // remove that flag as it always has a child anyway, and its order is impractical.
 		EDatasmithElementType PureType = EDatasmithElementType(uint64(1) << FPlatformMath::FloorLog2_64(Type));
-
-		TSharedPtr<IDatasmithElement> Element = FDatasmithSceneFactory::CreateElement(PureType, *Name);
+		
+		TSharedPtr<IDatasmithElement> Element;
+		if ((uint64)PureType == FDatasmithUEPbrInternalHelper::MaterialExpressionType)
+		{
+			Element = FDatasmithUEPbrInternalHelper::ConvertMaterialExpressionToElementSharedPtr( FDatasmithUEPbrInternalHelper::CreateMaterialExpression( static_cast<EDatasmithMaterialExpressionType>(Subtype) ).Get() );
+		}
+		else if ((uint64)PureType == FDatasmithUEPbrInternalHelper::MaterialExpressionInputType)
+		{
+			Element = MakeShared<FDatasmithExpressionInputImpl>( *Name );
+		}
+		else if ((uint64)PureType == FDatasmithUEPbrInternalHelper::MaterialExpressionOutputType)
+		{
+			Element = MakeShared<FDatasmithExpressionOutputImpl>( *Name );
+		}
+		else
+		{
+			Element = FDatasmithSceneFactory::CreateElement(PureType, *Name);
+		}
 		check(Element);
 		Element->SetSharedState(SceneSharedState);
 		Element->SetNodeId(NodeId); // #ue_directlink_design nope, only the Scene SharedState has this right

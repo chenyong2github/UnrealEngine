@@ -497,7 +497,7 @@ static void AddHairVisibilityGBufferWritePass(
 	FRDGTextureRef OutGBufferETexture,
 	FRDGTextureRef OutDepthTexture)
 {
-	const bool bWriteFullGBuffer = OutGBufferCTexture && OutGBufferDTexture && OutGBufferETexture;
+	const bool bWriteFullGBuffer = OutGBufferCTexture != nullptr;
 	const bool bWriteDepth = OutDepthTexture != nullptr;
 
 	if (!OutGBufferATexture || !OutGBufferBTexture)
@@ -505,7 +505,7 @@ static void AddHairVisibilityGBufferWritePass(
 		return;
 	}
 
-	if (bWriteFullGBuffer && (!OutGBufferCTexture || !OutGBufferDTexture || !OutGBufferETexture || !OutDepthTexture))
+	if (bWriteFullGBuffer && (!OutGBufferCTexture || !OutDepthTexture))
 	{
 		return;
 	}
@@ -520,8 +520,14 @@ static void AddHairVisibilityGBufferWritePass(
 	if (bWriteFullGBuffer)
 	{
 		Parameters->RenderTargets[2] = FRenderTargetBinding(OutGBufferCTexture, ERenderTargetLoadAction::ELoad);
-		Parameters->RenderTargets[3] = FRenderTargetBinding(OutGBufferDTexture, ERenderTargetLoadAction::ELoad);
-		Parameters->RenderTargets[4] = FRenderTargetBinding(OutGBufferETexture, ERenderTargetLoadAction::ELoad);
+		if (OutGBufferDTexture)
+		{
+			Parameters->RenderTargets[3] = FRenderTargetBinding(OutGBufferDTexture, ERenderTargetLoadAction::ELoad);
+		}
+		if (OutGBufferETexture)
+		{
+			Parameters->RenderTargets[4] = FRenderTargetBinding(OutGBufferETexture, ERenderTargetLoadAction::ELoad);
+		}
 	}
 	if (bWriteDepth)
 	{
@@ -688,7 +694,7 @@ void RenderHairComposition(
 							nullptr,
 							nullptr);
 					}
-					else if (bWriteFullGBuffer && GBufferATexture && GBufferBTexture && GBufferCTexture && GBufferDTexture && GBufferETexture && SceneDepthTexture)
+					else if (bWriteFullGBuffer && GBufferATexture && GBufferBTexture && GBufferCTexture && SceneDepthTexture)
 					{
 						AddHairVisibilityGBufferWritePass(
 							GraphBuilder,

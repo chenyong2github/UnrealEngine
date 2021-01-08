@@ -206,7 +206,6 @@ SWidget::SWidget()
 	, bInheritedVolatility(false)
 	, bInvisibleDueToParentOrSelfVisibility(false)
 	, bNeedsPrepass(true)
-	, bNeedsDesiredSize(true)
 	, bUpdatingDesiredSize(false)
 	, bHasCustomPrepass(false)
 	, bHasRelativeLayoutScale(false)
@@ -678,10 +677,6 @@ void SWidget::SlatePrepass(float InLayoutScaleMultiplier)
 
 	if (!GSlateIsOnFastUpdatePath || bNeedsPrepass)
 	{
-		// If the scale changed, that can affect the desired size of some elements that take it into
-		// account, such as text, so when the prepass size changes, so must we invalidate desired size.
-		bNeedsDesiredSize = true;
-
 		Prepass_Internal(InLayoutScaleMultiplier);
 	}
 }
@@ -792,6 +787,21 @@ void SWidget::SetFastPathProxyHandle(const FWidgetProxyHandle& Handle, bool bInI
 		check(PersistentState.CachedElementHandle.IsOwnedByWidget(this));
 #endif
 		PersistentState.CachedElementHandle.RemoveFromCache();
+	}
+
+	if (IsVolatile() && !IsVolatileIndirectly())
+	{
+		if (!HasAnyUpdateFlags(EWidgetUpdateFlags::NeedsVolatilePaint))
+		{
+			AddUpdateFlags(EWidgetUpdateFlags::NeedsVolatilePaint);
+		}
+	}
+	else
+	{
+		if (HasAnyUpdateFlags(EWidgetUpdateFlags::NeedsVolatilePaint))
+		{
+			RemoveUpdateFlags(EWidgetUpdateFlags::NeedsVolatilePaint);
+		}
 	}
 }
 
@@ -1578,28 +1588,7 @@ void SWidget::Prepass_Internal(float InLayoutScaleMultiplier)
 		// a function of its children's sizes.
 		FChildren* MyChildren = this->GetChildren();
 		const int32 NumChildren = MyChildren->Num();
-		for (int32 ChildIndex = 0; ChildIndex < MyChildren->Num(); ++ChildIndex)
-		{
-			const float ChildLayoutScaleMultiplier = bHasRelativeLayoutScale
-				? InLayoutScaleMultiplier * GetRelativeLayoutScale(ChildIndex, InLayoutScaleMultiplier)
-				: InLayoutScaleMultiplier;
-
-			const TSharedRef<SWidget>& Child = MyChildren->GetChildAt(ChildIndex);
-
-			if (Child->Visibility.Get() != EVisibility::Collapsed)
-			{
-				// Recur: Descend down the widget tree.
-				Child->Prepass_Internal(ChildLayoutScaleMultiplier);
-			}
-			else
-			{
-				// If the child widget is collapsed, we need to store the new layout scale it will have when 
-				// it is finally visible and invalidate it's prepass so that it gets that when its visiblity
-				// is finally invalidated.
-				Child->InvalidatePrepass();
-				Child->PrepassLayoutScaleMultiplier = ChildLayoutScaleMultiplier;
-			}
-		}
+		Prepass_ChildLoop(InLayoutScaleMultiplier, MyChildren);
 		ensure(NumChildren == MyChildren->Num());
 	}
 
@@ -1607,6 +1596,33 @@ void SWidget::Prepass_Internal(float InLayoutScaleMultiplier)
 		// Cache this widget's desired size.
 		CacheDesiredSize(PrepassLayoutScaleMultiplier.Get(1.0f));
 		bNeedsPrepass = false;
+	}
+}
+
+void SWidget::Prepass_ChildLoop(float InLayoutScaleMultiplier, FChildren* MyChildren)
+{
+	const int32 NumChildren = MyChildren->Num();
+	for (int32 ChildIndex = 0; ChildIndex < MyChildren->Num(); ++ChildIndex)
+	{
+		const float ChildLayoutScaleMultiplier = bHasRelativeLayoutScale
+			? InLayoutScaleMultiplier * GetRelativeLayoutScale(ChildIndex, InLayoutScaleMultiplier)
+			: InLayoutScaleMultiplier;
+
+		const TSharedRef<SWidget>& Child = MyChildren->GetChildAt(ChildIndex);
+
+		if (Child->Visibility.Get() != EVisibility::Collapsed)
+		{
+			// Recur: Descend down the widget tree.
+			Child->Prepass_Internal(ChildLayoutScaleMultiplier);
+		}
+		else
+		{
+			// If the child widget is collapsed, we need to store the new layout scale it will have when 
+			// it is finally visible and invalidate it's prepass so that it gets that when its visiblity
+			// is finally invalidated.
+			Child->InvalidatePrepass();
+			Child->PrepassLayoutScaleMultiplier = ChildLayoutScaleMultiplier;
+		}
 	}
 }
 

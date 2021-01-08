@@ -406,6 +406,10 @@ protected:
 	/** Hidden constructor. */
 	FWindowsApplication( const HINSTANCE HInstance, const HICON IconHandle );
 
+	static LRESULT CALLBACK HandleLowLevelMouseFilterHook(int nCode, WPARAM wParam, LPARAM lParam);
+
+	HHOOK LowLevelMouseFilterHook;
+
 private:
 
 	/** Registers the Windows class for windows and assigns the application instance and icon */

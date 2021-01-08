@@ -1248,6 +1248,7 @@ void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLighting(
 					GraphBuilder,
 					SceneTextureParameters,
 					View,
+					DenoiserMode,
 					RayTracingReflectionOptions,
 					&DenoiserInputs);
 			}

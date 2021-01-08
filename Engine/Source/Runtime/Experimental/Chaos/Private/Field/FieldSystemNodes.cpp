@@ -224,7 +224,7 @@ void FWaveScalar::Evaluate(FFieldContext& Context, TArrayView<float>& Results) c
 	const float Velocity = (Period != 0.0 ) ? Wavelength / Period : 0.0;
 
 	const float Wavenumber = (Wavelength != 0.0 ) ? 2.0 * PI / Wavelength : 0.0;
-	const float DeltaTime = FMath::Max(Context.TimeSeconds - Time, 0.0f);
+	const float DeltaTime = FMath::Max(Context.TimeSeconds, 0.0f);
 	const float Radius = Wavelength * DeltaTime / Period;
 	const float Decay = DeltaTime / Period;
 
@@ -288,7 +288,6 @@ void FWaveScalar::Serialize(FArchive& Ar)
 	Ar << Position;
 	Ar << Wavelength;
 	Ar << Period;
-	Ar << Time;
 	SerializeInternal<EWaveFunctionType>(Ar, Function);
 	SerializeInternal<EFieldFalloffType>(Ar, Falloff);
 }
@@ -301,7 +300,6 @@ bool FWaveScalar::operator==(const FFieldNodeBase& Node)
 			&& Position == static_cast<const FWaveScalar*>(&Node)->Position
 			&& Wavelength == static_cast<const FWaveScalar*>(&Node)->Wavelength
 			&& Period == static_cast<const FWaveScalar*>(&Node)->Period
-			&& Time == static_cast<const FWaveScalar*>(&Node)->Time
 			&& Function == static_cast<const FWaveScalar*>(&Node)->Function
 			&& Falloff == static_cast<const FWaveScalar*>(&Node)->Falloff;
 	}
@@ -309,125 +307,79 @@ bool FWaveScalar::operator==(const FFieldNodeBase& Node)
 }
 
 
+/**
+* Function Utils
+*/
+
+float ScaleFunctionResult(const float& MinRange, const float& DeltaRange, const float& NodeMagnitude, const float& FunctionResult)
+{
+	return NodeMagnitude * (MinRange + DeltaRange * FunctionResult);
+}
+
+template<EFieldFalloffType FalloffType>
+float EvalFalloffFunction(const float& MinRange, const float& DeltaRange, const float& NodeMagnitude, const float& FalloffValue)
+{ 
+	return 0.0;
+}
+
+template<>
+float EvalFalloffFunction<EFieldFalloffType::Field_FallOff_None>(const float& MinRange, const float& DeltaRange, const float& NodeMagnitude, const float& FalloffValue)
+{
+	return ScaleFunctionResult(MinRange, DeltaRange, NodeMagnitude, 1.0);
+}
+
+template<>
+float EvalFalloffFunction<EFieldFalloffType::Field_Falloff_Linear>(const float& MinRange, const float& DeltaRange, const float& NodeMagnitude, const float& FalloffValue)
+{
+	return ScaleFunctionResult(MinRange, DeltaRange, NodeMagnitude, FalloffValue);
+}
+
+template<>
+float EvalFalloffFunction<EFieldFalloffType::Field_Falloff_Squared>(const float& MinRange, const float& DeltaRange, const float& NodeMagnitude, const float& FalloffValue)
+{
+	return ScaleFunctionResult(MinRange, DeltaRange, NodeMagnitude, FalloffValue * FalloffValue);
+}
+
+template<>
+float EvalFalloffFunction<EFieldFalloffType::Field_Falloff_Inverse>(const float& MinRange, const float& DeltaRange, const float& NodeMagnitude, const float& FalloffValue)
+{
+	return (FalloffValue > SMALL_NUMBER) ? ScaleFunctionResult(MinRange, DeltaRange, NodeMagnitude, 1.0 / FalloffValue) : 0.0;
+}
+
+template<>
+float EvalFalloffFunction<EFieldFalloffType::Field_Falloff_Logarithmic>(const float& MinRange, const float& DeltaRange, const float& NodeMagnitude, const float& FalloffValue)
+{
+	return ScaleFunctionResult(MinRange, DeltaRange, NodeMagnitude, FMath::LogX(10, FalloffValue + 1.0));
+}
 
 /**
 * FRadialFalloff
 */
-template<>
-void FRadialFalloff::Evaluator<EFieldFalloffType::Field_FallOff_None>(const FFieldContext& Context, TArrayView<float>& Results) const
-{
-	float Radius2 = Radius * Radius;
 
-	if (Radius2 > 0.f)
+template<EFieldFalloffType FalloffType>
+void FRadialFalloff::Evaluator(const FFieldContext& Context, TArrayView<float>& Results) const
+{
+	if (Radius > 0.f)
 	{
-		int32 NumSamples = Context.SampleIndices.Num();
+		const float DeltaRange = (MaxRange - MinRange);
+		const int32 NumSamples = Context.SampleIndices.Num();
 		for (int32 SampleIndex = 0; SampleIndex < NumSamples; SampleIndex++)
 		{
 			const ContextIndex& Index = Context.SampleIndices[SampleIndex];
 			{
 				Results[Index.Result] = Default;
-				float Delta2 = (Position - Context.Samples[Index.Sample]).SizeSquared();
-				if (Delta2 < Radius2)
-				{
-					Results[Index.Result] = Magnitude;
-				}
-			}
-		}
-	}
-}
-template<>
-void FRadialFalloff::Evaluator<EFieldFalloffType::Field_Falloff_Linear>(const FFieldContext& Context, TArrayView<float>& Results) const
-{
-	float Radius2 = Radius * Radius;
-	if (Radius2 > 0.f)
-	{
-		float Scalar = (MaxRange - MinRange);
-		bool bNonUnitScalar = FMath::Abs(Scalar - 1.f) > KINDA_SMALL_NUMBER;
+				const float Delta = (Context.Samples[Index.Sample] - Position).Size();
 
-		int32 NumSamples = Context.SampleIndices.Num();
-		for (int32 SampleIndex = 0; SampleIndex < NumSamples; SampleIndex++)
-		{
-			const ContextIndex& Index = Context.SampleIndices[SampleIndex];
-			{
-				Results[Index.Result] = Default;
-				float Delta2 = (Position - Context.Samples[Index.Sample]).SizeSquared();
-				if (Delta2 < Radius2)
+				if (Delta < Radius)
 				{
-					if (Radius2!=0.f)
-					{
-						Results[Index.Result] = Magnitude * (Radius2 - Delta2) / Radius2;
-						if (bNonUnitScalar)
-						{
-							Results[Index.Result] *= Scalar;
-							Results[Index.Result] += MinRange;
-						}
-					}
-					else
-					{
-						Results[Index.Result] = Magnitude;
-					}
+					const float Function = 1.0 - Delta / Radius;
+					Results[Index.Result] = EvalFalloffFunction<FalloffType>(MinRange, DeltaRange, Magnitude, Function);
 				}
 			}
 		}
 	}
 }
-template<>
-void FRadialFalloff::Evaluator<EFieldFalloffType::Field_Falloff_Squared>(const FFieldContext& Context, TArrayView<float>& Results) const
-{
-	int32 NumSamples = Context.SampleIndices.Num();
-	for (int32 SampleIndex = 0; SampleIndex < NumSamples; SampleIndex++)
-	{
-		const ContextIndex& Index = Context.SampleIndices[SampleIndex];
-		{
-			Results[Index.Result] = Default;
-			float Delta = (Position - Context.Samples[Index.Sample]).Size();
-			if (Delta < Radius)
-			{
-				float DistanceToSurface = Radius - Delta;
-				Results[Index.Result] = Magnitude * DistanceToSurface * DistanceToSurface;
-			}
-		}
-	}
-}
-template<>
-void FRadialFalloff::Evaluator<EFieldFalloffType::Field_Falloff_Inverse>(const FFieldContext& Context, TArrayView<float>& Results) const
-{
-	int32 NumSamples = Context.SampleIndices.Num();
-	for (int32 SampleIndex = 0; SampleIndex < NumSamples; SampleIndex++)
-	{
-		const ContextIndex& Index = Context.SampleIndices[SampleIndex];
-		{
-			Results[Index.Result] = Default;
-			float Delta = (Position - Context.Samples[Index.Sample]).Size();
-			if (Delta < Radius)
-			{
-				float DistanceToSurface = Radius - Delta;
-				if (DistanceToSurface > SMALL_NUMBER)
-				{
-					Results[Index.Result] = Magnitude / DistanceToSurface;
-				}
-			}
-		}
-	}
-}
-template<>
-void FRadialFalloff::Evaluator<EFieldFalloffType::Field_Falloff_Logarithmic>(const FFieldContext& Context, TArrayView<float>& Results) const
-{
-	int32 NumSamples = Context.SampleIndices.Num();
-	for (int32 SampleIndex = 0; SampleIndex < NumSamples; SampleIndex++)
-	{
-		const ContextIndex& Index = Context.SampleIndices[SampleIndex];
-		{
-			Results[Index.Result] = Default;
-			float Delta = (Position - Context.Samples[Index.Sample]).Size();
-			if (Delta < Radius)
-			{
-				float DistanceToSurface = Radius - Delta;
-				Results[Index.Result] = Magnitude * FMath::LogX(10.f, DistanceToSurface + 1.f);
-			}
-		}
-	}
-}
+
 void FRadialFalloff::Evaluate(FFieldContext& Context, TArrayView<float>& Results) const
 {
 	switch (Falloff)
@@ -478,110 +430,34 @@ bool FRadialFalloff::operator==(const FFieldNodeBase& Node)
 	return false;
 }
 
-
-
-
 /**
 * FPlaneFalloff
 */
-template<>
-void FPlaneFalloff::Evaluator<EFieldFalloffType::Field_FallOff_None>(const FFieldContext& Context, const FPlane& Plane, TArrayView<float>& Results) const
-{
-	int32 NumSamples = Context.SampleIndices.Num();
-	for (int32 SampleIndex = 0; SampleIndex < NumSamples; SampleIndex++)
-	{
-		const ContextIndex& Index = Context.SampleIndices[SampleIndex];
-		{
-			Results[Index.Result] = Default;
-			float LocalDistance = Plane.PlaneDot(Context.Samples[Index.Sample]);
-			if (LocalDistance < 0 && LocalDistance > -Distance)
-			{
-				Results[Index.Result] = Magnitude;
-			}
-		}
-	}
-}
-template<>
-void FPlaneFalloff::Evaluator<EFieldFalloffType::Field_Falloff_Linear>(const FFieldContext& Context, const FPlane& Plane, TArrayView<float>& Results) const
-{
-	float Scalar = (MaxRange - MinRange);
-	bool bNonUnitScalar = FMath::Abs(Scalar - 1.f) > KINDA_SMALL_NUMBER;
 
-	int32 NumSamples = Context.SampleIndices.Num();
-	for (int32 SampleIndex = 0; SampleIndex < NumSamples; SampleIndex++)
+template<EFieldFalloffType FalloffType>
+void FPlaneFalloff::Evaluator(const FFieldContext& Context, const FPlane& Plane, TArrayView<float>& Results) const
+{
+	if (Distance > 0.f)
 	{
-		const ContextIndex& Index = Context.SampleIndices[SampleIndex];
+		const float DeltaRange = (MaxRange - MinRange);
+		const int32 NumSamples = Context.SampleIndices.Num();
+		for (int32 SampleIndex = 0; SampleIndex < NumSamples; SampleIndex++)
 		{
-			Results[Index.Result] = Default;
-			float LocalDistance = Plane.PlaneDot(Context.Samples[Index.Sample]);
-			if (LocalDistance < 0 && LocalDistance > -Distance)
+			const ContextIndex& Index = Context.SampleIndices[SampleIndex];
 			{
-				// 0 at -Distance, Mag at 0
-				Results[Index.Result] = Magnitude * (1.f - (LocalDistance / Distance));
-				if (bNonUnitScalar)
+				Results[Index.Result] = Default;
+				const float Delta = Plane.PlaneDot(Context.Samples[Index.Sample]);
+
+				if (Delta < -SMALL_NUMBER && Delta > -Distance)
 				{
-					Results[Index.Result] = FMath::Min(FMath::Max(MinRange,Results[Index.Result]),MaxRange);
+					const float Function = 1.0 + Delta / Distance;
+					Results[Index.Result] = EvalFalloffFunction<FalloffType>(MinRange, DeltaRange, Magnitude, Function);
 				}
 			}
 		}
 	}
 }
-template<>
-void FPlaneFalloff::Evaluator<EFieldFalloffType::Field_Falloff_Squared>(const FFieldContext& Context, const FPlane& Plane, TArrayView<float>& Results) const
-{
-	int32 NumSamples = Context.SampleIndices.Num();
-	for (int32 SampleIndex = 0; SampleIndex < NumSamples; SampleIndex++)
-	{
-		const ContextIndex& Index = Context.SampleIndices[SampleIndex];
-		{
-			Results[Index.Result] = Default;
-			float LocalDistance = Plane.PlaneDot(Context.Samples[Index.Sample]);
-			if (LocalDistance < -SMALL_NUMBER && LocalDistance > -Distance)
-			{
-				float Fraction = (1.f - (LocalDistance / Distance));
-				Results[Index.Result] = Magnitude * Fraction * Fraction;
-			}
-		}
-	}
-}
-template<>
-void FPlaneFalloff::Evaluator<EFieldFalloffType::Field_Falloff_Inverse>(const FFieldContext& Context, const FPlane& Plane, TArrayView<float>& Results) const
-{
-	float NegMagnitude = -Magnitude;
 
-	int32 NumSamples = Context.SampleIndices.Num();
-	for (int32 SampleIndex = 0; SampleIndex < NumSamples; SampleIndex++)
-	{
-		const ContextIndex& Index = Context.SampleIndices[SampleIndex];
-		{
-			Results[Index.Result] = Default;
-			float LocalDistance = Plane.PlaneDot(Context.Samples[Index.Sample]);
-			if (LocalDistance < -SMALL_NUMBER && LocalDistance > -Distance)
-			{
-				float Fraction = (1.f - (LocalDistance / Distance));
-				Results[Index.Result] = NegMagnitude / (Fraction * Fraction);
-			}
-		}
-	}
-}
-template<>
-void FPlaneFalloff::Evaluator<EFieldFalloffType::Field_Falloff_Logarithmic>(const FFieldContext& Context, const FPlane& Plane, TArrayView<float>& Results) const
-{
-	int32 NumSamples = Context.SampleIndices.Num();
-	for (int32 SampleIndex = 0; SampleIndex < NumSamples; SampleIndex++)
-	{
-		const ContextIndex& Index = Context.SampleIndices[SampleIndex];
-		{
-			Results[Index.Result] = Default;
-			float LocalDistance = Plane.PlaneDot(Context.Samples[Index.Sample]);
-			if (LocalDistance < -SMALL_NUMBER)
-			{
-				float Fraction = (1.f - (LocalDistance / Distance));
-				Results[Index.Result] = Magnitude * FMath::LogX(10.f, Fraction + 1.f);
-			}
-		}
-	}
-}
 void
 FPlaneFalloff::Evaluate(FFieldContext& Context, TArrayView<float>& Results) const
 {
@@ -636,128 +512,37 @@ bool FPlaneFalloff::operator==(const FFieldNodeBase& Node)
 	return false;
 }
 
-
 /**
 * FBoxFalloff
 */
-template<>
-void FBoxFalloff::Evaluator<EFieldFalloffType::Field_FallOff_None>(const FFieldContext& Context, TArrayView<float>& Results) const
+
+template<EFieldFalloffType FalloffType>
+void FBoxFalloff::Evaluator(const FFieldContext& Context, TArrayView<float>& Results) const
 {
-	int32 NumSamples = Context.SampleIndices.Num();
-	FBox UnitBox(FVector(-50), FVector(50));
+	const float DeltaRange = (MaxRange - MinRange);
+
+	static const float HalfBox = 0.5;
+	static const FBox UnitBox(FVector(-HalfBox), FVector(HalfBox));
+
+	const int32 NumSamples = Context.SampleIndices.Num();
 	for (int32 SampleIndex = 0; SampleIndex < NumSamples; SampleIndex++)
 	{
 		const ContextIndex& Index = Context.SampleIndices[SampleIndex];
 		{
 			Results[Index.Result] = Default;
-
-			FVector LocalPoint = Transform.InverseTransformPosition(Context.Samples[Index.Sample]);
+			const FVector LocalPoint = Transform.InverseTransformPosition(Context.Samples[Index.Sample]);
 			if (UnitBox.IsInside(LocalPoint))
 			{
-				Results[Index.Result] = Magnitude;
+				const FVector Distance(FMath::Abs(LocalPoint.X)- HalfBox, FMath::Abs(LocalPoint.Y) - HalfBox, FMath::Abs(LocalPoint.Z) - HalfBox);
+				const float Delta = FMath::Min(FMath::Max(Distance.X, FMath::Max(Distance.Y, Distance.Z)), 0.0f);
+				const float Function = - Delta / HalfBox;
+
+				Results[Index.Result] = EvalFalloffFunction<FalloffType>(MinRange, DeltaRange, Magnitude, Function);
 			}
 		}
 	}
 }
-template<>
-void FBoxFalloff::Evaluator<EFieldFalloffType::Field_Falloff_Linear>(const FFieldContext& Context, TArrayView<float>& Results) const
-{
-	float Scalar = (MaxRange - MinRange);
-	bool bNonUnitScalar = FMath::Abs(Scalar - 1.f) > KINDA_SMALL_NUMBER;
 
-	int32 NumSamples = Context.SampleIndices.Num();
-	FBox UnitBox(FVector(-50), FVector(50));
-	for (int32 SampleIndex = 0; SampleIndex < NumSamples; SampleIndex++)
-	{
-		const ContextIndex& Index = Context.SampleIndices[SampleIndex];
-		{
-			Results[Index.Result] = Default;
-
-			FVector LocalPoint = Transform.InverseTransformPosition(Context.Samples[Index.Sample]);
-			if (UnitBox.IsInside(LocalPoint))
-			{
-				float Delta2 = Context.Samples[Index.Sample].SizeSquared();
-				float Distance = UnitBox.ComputeSquaredDistanceToPoint(LocalPoint);
-				if (Distance != 0.f)
-				{
-					Results[Index.Result] = Magnitude * (Distance - Delta2) / Distance;
-
-					if (bNonUnitScalar)
-					{
-						Results[Index.Result] *= Scalar;
-						Results[Index.Result] += MinRange;
-					}
-				}
-				else 
-				{
-					Results[Index.Result] = Magnitude;
-				}
-			}
-		}
-	}
-}template<>
-void FBoxFalloff::Evaluator<EFieldFalloffType::Field_Falloff_Squared>(const FFieldContext& Context, TArrayView<float>& Results) const
-{
-	int32 NumSamples = Context.SampleIndices.Num();
-	FBox UnitBox(FVector(-50), FVector(50));
-	for (int32 SampleIndex = 0; SampleIndex < NumSamples; SampleIndex++)
-	{
-		const ContextIndex& Index = Context.SampleIndices[SampleIndex];
-		{
-			Results[Index.Result] = Default;
-
-			FVector LocalPoint = Transform.InverseTransformPosition(Context.Samples[Index.Sample]);
-			if (UnitBox.IsInside(LocalPoint))
-			{
-				float Distance = UnitBox.ComputeSquaredDistanceToPoint(LocalPoint);
-				Results[Index.Result] = Magnitude * Distance * Distance;
-			}
-		}
-	}
-}
-template<>
-void FBoxFalloff::Evaluator<EFieldFalloffType::Field_Falloff_Inverse>(const FFieldContext& Context, TArrayView<float>& Results) const
-{
-	int32 NumSamples = Context.SampleIndices.Num();
-	FBox UnitBox(FVector(-50), FVector(50));
-	for (int32 SampleIndex = 0; SampleIndex < NumSamples; SampleIndex++)
-	{
-		const ContextIndex& Index = Context.SampleIndices[SampleIndex];
-		{
-			FVector LocalPoint = Transform.InverseTransformPosition(Context.Samples[Index.Sample]);
-			if (UnitBox.IsInside(LocalPoint))
-			{
-				Results[Index.Result] = Default;
-
-				float Distance = UnitBox.ComputeSquaredDistanceToPoint(LocalPoint);
-				if (Distance > 0)
-				{
-					Results[Index.Result] = Magnitude / Distance;
-				}
-			}
-		}
-	}
-}
-template<>
-void FBoxFalloff::Evaluator<EFieldFalloffType::Field_Falloff_Logarithmic>(const FFieldContext& Context, TArrayView<float>& Results) const
-{
-	int32 NumSamples = Context.SampleIndices.Num();
-	FBox UnitBox(FVector(-50), FVector(50));
-	for (int32 SampleIndex = 0; SampleIndex < NumSamples; SampleIndex++)
-	{
-		const ContextIndex& Index = Context.SampleIndices[SampleIndex];
-		{
-			Results[Index.Result] = Default;
-
-			FVector LocalPoint = Transform.InverseTransformPosition(Context.Samples[Index.Sample]);
-			if (UnitBox.IsInside(LocalPoint))
-			{
-				float Distance = UnitBox.ComputeSquaredDistanceToPoint(LocalPoint);
-				Results[Index.Result] = Magnitude + FMath::LogX(10.f, Distance + 1.f);;
-			}
-		}
-	}
-}
 void
 FBoxFalloff::Evaluate(FFieldContext& Context, TArrayView<float>& Results) const
 {
@@ -814,46 +599,26 @@ bool FBoxFalloff::operator==(const FFieldNodeBase& Node)
 void
 FNoiseField::Evaluate(FFieldContext& Context, TArrayView<float>& Results) const
 {
-	int32 NumSamples = Context.SampleIndices.Num();
+	const float DeltaRange = (MaxRange - MinRange);
+	const int32 NumSamples = Context.SampleIndices.Num();
 
-	float Range = MinRange - MaxRange;
-	FBox Bounds(ForceInit);
 	for (int32 SampleIndex = 0; SampleIndex < NumSamples; SampleIndex++)
 	{
 		const ContextIndex& Index = Context.SampleIndices[SampleIndex];
-		Bounds += Context.Samples[Index.Sample];
-	}
-	float Scale = 0.5;
-	FVector BoundsSize = 0.1*Bounds.GetSize();
-	FVector Root = Scale * FVector(FMath::Sqrt(BoundsSize.X), FMath::Sqrt(BoundsSize.Y), FMath::Sqrt(BoundsSize.Z));
 
-	float MinResult = FLT_MAX, MaxResult = -FLT_MAX;
-	for (int32 SampleIndex = 0; SampleIndex < NumSamples; SampleIndex++)
-	{
-		const ContextIndex& Index = Context.SampleIndices[SampleIndex];
-		FVector Delta = Transform.TransformVector(Context.Samples[Index.Sample] - Bounds.Min);
+		float Dummy = 0.0f;
+		FVector LocalPoint = Transform.InverseTransformPosition(Context.Samples[Index.Sample]);
+		LocalPoint = FVector(FMath::Modf(LocalPoint.X, &Dummy) * 0.5 + 0.5, 
+							 FMath::Modf(LocalPoint.Y, &Dummy) * 0.5 + 0.5,
+							 FMath::Modf(LocalPoint.Z, &Dummy) * 0.5 + 0.5) * 255;
 
-		float i = BoundsSize.X? (Delta.X / BoundsSize.X) : 0;
-		float j = BoundsSize.Y? (Delta.Y / BoundsSize.Y) : 0;
-		float k = BoundsSize.Z? (Delta.Z / BoundsSize.Z) : 0;
+		// Samples for the Perlin noise must be btw 0->255
+		float PerlinValue = 0.0;
+		Field::PerlinNoise::Sample(&PerlinValue, LocalPoint.X, LocalPoint.Y, LocalPoint.Z);
 
-		Field::PerlinNoise::Sample(&Results[Index.Result], i, j, k);
-		Results[Index.Result] *= Range;
-	
-		MinResult = FMath::Min(MinResult, Results[Index.Result]);
-		MaxResult = FMath::Max(MaxResult, Results[Index.Result]);
-	}
-
-
-	float RangeResult = MinResult - MaxResult;
-	float Ratio = Range / RangeResult;
-	if (RangeResult)
-	{
-		for (int32 SampleIndex = 0; SampleIndex < NumSamples; SampleIndex++)
-		{
-			const ContextIndex& Index = Context.SampleIndices[SampleIndex];
-			Results[Index.Result] = Ratio * (Results[Index.Result] - MinResult) + MinRange;
-		}
+		// Perlin noise result is btw -1 -> 1
+		PerlinValue = 0.5 * ( PerlinValue + 1.0 );
+		Results[Index.Result] = ScaleFunctionResult(MinRange, DeltaRange, 1.0, PerlinValue);
 	}
 }
 void FNoiseField::Serialize(FArchive& Ar)
@@ -882,10 +647,10 @@ bool FNoiseField::operator==(const FFieldNodeBase& Node)
 */
 void FUniformVector::Evaluate(FFieldContext& Context, TArrayView<FVector>& Results) const
 {
-	FVector DirectionVal = Direction;
-	float MagnitudeVal =Magnitude;
+	const FVector DirectionVal = Direction;
+	const float MagnitudeVal = Magnitude;
 
-	int32 NumSamples = Context.SampleIndices.Num();
+	const int32 NumSamples = Context.SampleIndices.Num();
 	for (int32 SampleIndex = 0; SampleIndex < NumSamples; SampleIndex++)
 	{
 		Results[Context.SampleIndices[SampleIndex].Result] = MagnitudeVal * DirectionVal;
@@ -914,12 +679,11 @@ bool FUniformVector::operator==(const FFieldNodeBase& Node)
 */
 void FRadialVector::Evaluate(FFieldContext& Context, TArrayView<FVector>& Results) const
 {
-	int32 NumSamples = Context.SampleIndices.Num();
+	const int32 NumSamples = Context.SampleIndices.Num();
 	for (int32 SampleIndex = 0; SampleIndex < NumSamples; SampleIndex++)
 	{
 		const ContextIndex& Index = Context.SampleIndices[SampleIndex];
 		{
-			
 			Results[Index.Result] = Magnitude * (Context.Samples[Index.Sample] - Position).GetSafeNormal();
 		}
 	}
@@ -948,7 +712,7 @@ bool FRadialVector::operator==(const FFieldNodeBase& Node)
 */
 void FRandomVector::Evaluate(FFieldContext& Context, TArrayView<FVector>& Results) const
 {
-	int32 NumSamples = Context.SampleIndices.Num();
+	const int32 NumSamples = Context.SampleIndices.Num();
 	for (int32 SampleIndex = 0; SampleIndex < NumSamples; SampleIndex++)
 	{
 		const ContextIndex& Index = Context.SampleIndices[SampleIndex];

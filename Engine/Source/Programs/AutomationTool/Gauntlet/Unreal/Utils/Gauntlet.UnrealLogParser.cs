@@ -340,14 +340,44 @@ namespace Gauntlet
 		}
 
 		/// <summary>
+		/// Returns a block of lines that start and end with the specified regex patterns
+		/// </summary>
+		/// <param name="StartPattern">Regex to match the first line</param>
+		/// <param name="EndPattern">Regex to match the final line</param>
+		/// <param name="PatternOptions">Optional RegexOptions applied to both patterns. IgnoreCase by default.</param>
+		/// <returns>Array of strings for each found block of lines. Lines within each string are delimited by newline character.</returns>
+		public string[] GetGroupsOfLinesBetween(string StartPattern, string EndPattern, RegexOptions PatternOptions = RegexOptions.IgnoreCase)
+		{
+			Regex StartRegex = new Regex(StartPattern, PatternOptions);
+			Regex EndRegex = new Regex(EndPattern, PatternOptions);
+			List<string> Blocks = new List<string>();
+
+			foreach (Match StartMatch in StartRegex.Matches(Content))
+			{
+				int StartIndex = Content.LastIndexOf('\n', StartMatch.Index) + 1;
+				Match EndMatch = EndRegex.Match(Content, StartMatch.Index + StartMatch.Length);
+				int EndIndex = Content.IndexOf('\n', EndMatch.Index);
+
+				if (EndIndex > StartIndex)
+				{
+					string Block = Content.Substring(StartIndex, EndIndex - StartIndex);
+
+					Blocks.Add(Block);
+				}
+			}
+
+			return Blocks.ToArray();
+		}
+
+		/// <summary>
 		/// Returns a block of lines that start with the specified regex
 		/// </summary>
-		/// <param name="Pattern"></param>
-		/// <param name="LineCount"></param>
-		/// <returns></returns>
-		public string[] GetGroupsOfLinesStartingWith(string Pattern, int LineCount)
+		/// <param name="Pattern">Regex to match the first line</param>
+		/// <param name="LineCount">Number of lines in the returned block</param>
+		/// <returns>Array of strings for each found block of lines. Lines within each string are delimited by newline character.</returns>
+		public string[] GetGroupsOfLinesStartingWith(string Pattern, int LineCount, RegexOptions PatternOptions = RegexOptions.IgnoreCase)
 		{
-			Regex regex = new Regex(Pattern, RegexOptions.IgnoreCase);
+			Regex regex = new Regex(Pattern, PatternOptions);
 
 			List<string> Blocks = new List<string>();
 
@@ -373,8 +403,6 @@ namespace Gauntlet
 
 			return Blocks.ToArray();
 		}
-
-
 
 		/// <summary>
 		/// Finds all callstack-based errors with the specified pattern
@@ -577,9 +605,6 @@ namespace Gauntlet
 
 			return FilteredTraces;
 		}
-
-			
-
 
 		/// <summary>
 		/// Attempts to find an exit code for a test

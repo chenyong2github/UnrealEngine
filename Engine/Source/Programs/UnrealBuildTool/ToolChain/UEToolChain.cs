@@ -125,6 +125,31 @@ namespace UnrealBuildTool
         {
             return "Not Applicable";
         }
+
+		/// <summary>
+		/// Runs the provided tool and argument and parses the output to retrieve the version
+		/// </summary>
+		/// <param name="Command">Full path to the tool to run</param>
+		/// <param name="VersionArg">Argument that will result in the version string being shown (it's ok this is a byproduct of a command that returns an error)</param>
+		/// <param name="VersionExpression">Regular expression to capture the version. By default we look for four integers separated by periods, with the last two optional</param>
+		/// <returns></returns>
+		public static Version RunToolAndCaptureVersion(FileReference Command, string VersionArg, string VersionExpression = @"(\d+\.\d+(\.\d+)?(\.\d+)?)")
+		{
+			string ProcessOutput = Utils.RunLocalProcessAndReturnStdOut(Command.FullName, VersionArg);
+
+			Match M = Regex.Match(ProcessOutput, VersionExpression);
+
+			Version ToolVersion = new Version(0, 0);
+
+			if (M.Success && Version.TryParse(M.Groups[1].ToString(), out ToolVersion))
+			{
+				return ToolVersion;
+			}
+
+			Log.TraceWarning("Unable to retrieve version from {0} {1}", Command, VersionArg);
+
+			return ToolVersion;
+		}
 	};
 
 	abstract class ISPCToolChain : UEToolChain
@@ -275,6 +300,33 @@ namespace UnrealBuildTool
 			}
 
 			return Path.Combine(ISPCCompilerPathCommon, ISPCArchitecturePath, "ispc" + ExeExtension);
+		}
+
+		static Dictionary<UnrealTargetPlatform, Version> ISPCCompilerVersions = new Dictionary<UnrealTargetPlatform, Version>();
+
+		/// <summary>
+		/// Returns the version of the ISPC compiler for the specified platform. If GetISPCHostCompilerPath() doesn't return a valid path
+		/// this will return a -1 version.
+		/// </summary>
+		/// <param name="Platform">Which OS build platform is running on.</param>
+		/// <returns>Version reported by the ISPC compilerr</returns>
+		public virtual Version GetISPCHostCompilerVersion(UnrealTargetPlatform Platform)
+		{
+			if (!ISPCCompilerVersions.ContainsKey(Platform))
+			{
+				Version CompilerVersion = null;
+				string CompilerPath = GetISPCHostCompilerPath(Platform);
+
+				if (!File.Exists(CompilerPath))
+				{
+					Log.TraceWarning("No ISPC compiler at {0}", CompilerPath);
+					CompilerVersion = new Version(-1, -1);
+				}
+
+				ISPCCompilerVersions[Platform] = RunToolAndCaptureVersion(new FileReference(CompilerPath), "--version");
+			}
+
+			return ISPCCompilerVersions[Platform];			
 		}
 
 		/// <summary>

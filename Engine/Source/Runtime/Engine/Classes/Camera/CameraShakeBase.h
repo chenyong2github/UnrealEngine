@@ -8,6 +8,7 @@
 #include "UObject/Object.h"
 #include "UObject/ScriptMacros.h"
 #include "Camera/CameraTypes.h"
+#include "Engine/Scene.h"
 #include "CameraShakeBase.generated.h"
 
 class APlayerCameraManager;
@@ -43,18 +44,26 @@ struct ENGINE_API FCameraShakeUpdateParams
 	/** The time elapsed since last update */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=CameraShake)
 	float DeltaTime = 0.f;
-	/** The dynamic scale being passed down from the camera manger for this shake */
+
+	/** The base scale for this shake */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=CameraShake)
+	float ShakeScale = 1.f;
+	/** The dynamic scale being passed down from the camera manger for the next update */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=CameraShake)
 	float DynamicScale = 1.f;
-	/** The auto-computed blend in/out scale, when blending is handled by base class (see UCameraShakeBase::GetShakeInfo) */
+	/** The auto-computed blend in/out scale, when blending is handled by externally (see UCameraShakeBase::GetShakeInfo) */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=CameraShake)
 	float BlendingWeight = 1.f;
-	/** The total scale to apply to the camera shake during the current update. Equals ShakeScale * DynamicScale * BlendingWeight */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=CameraShake)
-	float TotalScale = 1.f;
+
 	/** The current view that this camera shake should modify */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=CameraShake)
 	FMinimalViewInfo POV;
+
+	/** The total scale to apply to the camera shake during the current update. Equals ShakeScale * DynamicScale * BlendingWeight */
+	float GetTotalScale() const
+	{
+		return FMath::Max(ShakeScale * DynamicScale * BlendingWeight, 0.f);
+	}
 };
 
 /**
@@ -78,18 +87,26 @@ struct ENGINE_API FCameraShakeScrubParams
 	/** The time to scrub to */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=CameraShake)
 	float AbsoluteTime = 0.f;
-	/** The dynamic scale being passed down from the camera manger for this shake */
+
+	/** The base scale for this shake */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=CameraShake)
+	float ShakeScale = 1.f;
+	/** The dynamic scale being passed down from the camera manger for the next update */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=CameraShake)
 	float DynamicScale = 1.f;
-	/** The auto-computed blend in/out scale, when blending is handled by base class (see UCameraShakeBase::GetShakeInfo) */
+	/** The auto-computed blend in/out scale, when blending is handled by externally (see UCameraShakeBase::GetShakeInfo) */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=CameraShake)
 	float BlendingWeight = 1.f;
-	/** The total scale to apply to the camera shake during the current update. Equals ShakeScale * DynamicScale * BlendingWeight */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=CameraShake)
-	float TotalScale = 1.f;
+
 	/** The current view that this camera shake should modify */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=CameraShake)
 	FMinimalViewInfo POV;
+
+	/** The total scale to apply to the camera shake during the current update. Equals ShakeScale * DynamicScale * BlendingWeight */
+	float GetTotalScale() const
+	{
+		return FMath::Max(ShakeScale * DynamicScale * BlendingWeight, 0.f);
+	}
 };
 
 /**
@@ -122,6 +139,7 @@ struct ENGINE_API FCameraShakeUpdateResult
 		: Location(FVector::ZeroVector)
 		, Rotation(FRotator::ZeroRotator)
 		, FOV(0.f)
+		, PostProcessBlendWeight(0.f)
 		, Flags(ECameraShakeUpdateResultFlags::Default)
 	{}
 
@@ -131,6 +149,11 @@ struct ENGINE_API FCameraShakeUpdateResult
 	FRotator Rotation;
 	/** Field-of-view offset for the view, or new absolute field-of-view if ApplyAsAbsolute flag is set */
 	float FOV;
+
+	/** Post process settings, applied if PostProcessBlendWeight is above 0 */
+	FPostProcessSettings PostProcessSettings;
+	/** Blend weight for post process settings */
+	float PostProcessBlendWeight;
 
 	/** Flags for how the base class should handle the result */
 	ECameraShakeUpdateResultFlags Flags;
@@ -230,6 +253,9 @@ struct ENGINE_API FCameraShakeApplyResultParams
 	ECameraShakePlaySpace PlaySpace = ECameraShakePlaySpace::CameraLocal;
 	/** The custom space to use when PlaySpace is UserDefined */
 	FMatrix UserPlaySpaceMatrix;
+
+	/** Optional camera manager for queuing up blended post-process settings */
+	TWeakObjectPtr<APlayerCameraManager> CameraManager;
 };
 
 /**

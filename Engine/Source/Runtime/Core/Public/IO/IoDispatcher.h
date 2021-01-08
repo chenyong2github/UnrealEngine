@@ -19,6 +19,7 @@
 
 class FIoRequest;
 class FIoDispatcher;
+class FIoStoreReader;
 class FIoStoreWriter;
 class FIoStoreEnvironment;
 
@@ -1012,7 +1013,7 @@ struct FIoStoreWriterSettings
 	uint64 CompressionBlockSize = 0;
 	uint64 CompressionBlockAlignment = 0;
 	uint64 MemoryMappingAlignment = 0;
-	uint64 WriterMemoryLimit = 0;
+	uint64 MaxPartitionSize = 0;
 	bool bEnableCsvOutput = false;
 	bool bEnableFileRegions = false;
 };
@@ -1034,6 +1035,7 @@ struct FIoContainerSettings
 	FGuid EncryptionKeyGuid;
 	FAES::FAESKey EncryptionKey;
 	FRSAKeyHandle SigningKey;
+	bool bGenerateDiffPatch = false;
 
 	bool IsCompressed() const
 	{
@@ -1066,6 +1068,10 @@ struct FIoStoreWriterResult
 	int64 UncompressedContainerSize = 0;
 	int64 CompressedContainerSize = 0;
 	int64 DirectoryIndexSize = 0;
+	uint64 AddedChunksCount = 0;
+	uint64 AddedChunksSize = 0;
+	uint64 ModifiedChunksCount = 0;
+	uint64 ModifiedChunksSize = 0;
 	FName CompressionMethod = NAME_None;
 	EIoContainerFlags ContainerFlags;
 };
@@ -1081,15 +1087,34 @@ struct FIoWriteOptions
 class FIoStoreWriterContext
 {
 public:
+	struct FProgress
+	{
+		uint64 TotalChunksCount = 0;
+		uint64 HashedChunksCount = 0;
+		uint64 CompressedChunksCount = 0;
+		uint64 SerializedChunksCount = 0;
+	};
+
 	CORE_API FIoStoreWriterContext();
 	CORE_API ~FIoStoreWriterContext();
 
 	UE_NODISCARD CORE_API FIoStatus Initialize(const FIoStoreWriterSettings& InWriterSettings);
+	CORE_API FProgress GetProgress() const;
 
 private:
 	friend class FIoStoreWriter;
 	
 	FIoStoreWriterContextImpl* Impl;
+};
+
+class IIoStoreWriteRequest
+{
+public:
+	virtual ~IIoStoreWriteRequest() = default;
+	virtual void PrepareSourceBufferAsync(FGraphEventRef CompletionEvent) = 0;
+	virtual uint64 GetOrderHint() = 0;
+	virtual TArrayView<const FFileRegion> GetRegions() = 0;
+	virtual FIoBuffer ConsumeSourceBuffer() = 0;
 };
 
 class FIoStoreWriter
@@ -1101,9 +1126,9 @@ public:
 	FIoStoreWriter(const FIoStoreWriter&) = delete;
 	FIoStoreWriter& operator=(const FIoStoreWriter&) = delete;
 
-	UE_NODISCARD CORE_API FIoStatus	Initialize(const FIoStoreWriterContext& Context, const FIoContainerSettings& ContainerSettings);
-	UE_NODISCARD CORE_API FIoStatus	Append(const FIoChunkId& ChunkId, const FIoChunkHash& ChunkHash, FIoBuffer Chunk, const FIoWriteOptions& WriteOptions, TArrayView<const FFileRegion> Regions);
-	UE_NODISCARD CORE_API FIoStatus	Append(const FIoChunkId& ChunkId, FIoBuffer Chunk, const FIoWriteOptions& WriteOptions, TArrayView<const FFileRegion> Regions);
+	UE_NODISCARD CORE_API FIoStatus	Initialize(const FIoStoreWriterContext& Context, const FIoContainerSettings& ContainerSettings, const TArray<TUniquePtr<FIoStoreReader>>& PatchSourceReaders = TArray<TUniquePtr<FIoStoreReader>>());
+	CORE_API void Append(const FIoChunkId& ChunkId, FIoBuffer Chunk, const FIoWriteOptions& WriteOptions);
+	CORE_API void Append(const FIoChunkId& ChunkId, IIoStoreWriteRequest* Request, const FIoWriteOptions& WriteOptions);
 	UE_NODISCARD CORE_API TIoStatusOr<FIoStoreWriterResult> Flush();
 
 private:
@@ -1117,6 +1142,7 @@ struct FIoStoreTocChunkInfo
 	uint64 Offset;
 	uint64 Size;
 	uint64 CompressedSize;
+	int32 PartitionIndex;
 	bool bForceUncompressed;
 	bool bIsMemoryMapped;
 	bool bIsCompressed;

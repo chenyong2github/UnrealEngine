@@ -39,7 +39,7 @@ enum ELandscapeSetupErrors
 	LSE_MAX,
 };
 
-
+UENUM()
 enum class ERTDrawingType : uint8
 {
 	RTAtlas,
@@ -49,7 +49,8 @@ enum class ERTDrawingType : uint8
 	RTMips
 };
 
-enum EHeightmapRTType : uint8
+UENUM()
+enum class EHeightmapRTType : uint8
 {
 	HeightmapRT_CombinedAtlas,
 	HeightmapRT_CombinedNonAtlas,
@@ -67,7 +68,8 @@ enum EHeightmapRTType : uint8
 	HeightmapRT_Count
 };
 
-enum EWeightmapRTType : uint8
+UENUM()
+enum class EWeightmapRTType : uint8
 {
 	WeightmapRT_Scratch_RGBA,
 	WeightmapRT_Scratch1,
@@ -185,43 +187,6 @@ struct FLandscapeLayer
 
 	UPROPERTY()
 	TMap<ULandscapeLayerInfoObject*, bool> WeightmapLayerAllocationBlend; // True -> Substractive, False -> Additive
-};
-
-struct FLandscapeLayersCopyTextureParams
-{
-	FLandscapeLayersCopyTextureParams(const FString& InSourceResourceDebugName, FTextureResource* InSourceResource, const FString& InDestResourceDebugName, FTextureResource* InDestResource, FTextureResource* InDestCPUResource,
-		const FIntPoint& InInitialPositionOffset, int32 InSubSectionSizeQuad, int32 InNumSubSections, uint8 InSourceCurrentMip, uint8 InDestCurrentMip, uint32 InSourceArrayIndex, uint32 InDestArrayIndex, ERHIAccess SrcAccess = ERHIAccess::SRVMask, ERHIAccess DestAccess = ERHIAccess::SRVMask)
-		: SourceResourceDebugName(InSourceResourceDebugName)
-		, SourceResource(InSourceResource)
-		, DestResourceDebugName(InDestResourceDebugName)
-		, DestResource(InDestResource)
-		, DestCPUResource(InDestCPUResource)
-		, InitialPositionOffset(InInitialPositionOffset)
-		, SubSectionSizeQuad(InSubSectionSizeQuad)
-		, NumSubSections(InNumSubSections)
-		, SourceMip(InSourceCurrentMip)
-		, DestMip(InDestCurrentMip)
-		, SourceArrayIndex(InSourceArrayIndex)
-		, DestArrayIndex(InDestArrayIndex)
-		, SrcAccess(SrcAccess)
-		, DestAccess(DestAccess)
-	{}
-
-	FString SourceResourceDebugName;
-	FTextureResource* SourceResource;
-	FString DestResourceDebugName;
-	FTextureResource* DestResource;
-	FTextureResource* DestCPUResource;
-	FIntPoint InitialPositionOffset;
-	int32 SubSectionSizeQuad;
-	int32 NumSubSections;
-	uint8 SourceMip;
-	uint8 DestMip;
-	uint32 SourceArrayIndex;
-	uint32 DestArrayIndex;
-	ERHIAccess SrcAccess;
-	ERHIAccess DestAccess;
-
 };
 
 UCLASS(MinimalAPI, showcategories=(Display, Movement, Collision, Lighting, LOD, Input), hidecategories=(Mobility))
@@ -369,9 +334,9 @@ private:
 
 	void UpdateLayersMaterialInstances(const TArray<ULandscapeComponent*>& InLandscapeComponents);
 
-	void PrepareComponentDataToExtractMaterialLayersCS(const TArray<ULandscapeComponent*>& InLandscapeComponents, const FLandscapeLayer& InLayer, int32 InCurrentWeightmapToProcessIndex, const FIntPoint& InLandscapeBase, bool InOutputDebugName, class FLandscapeTexture2DResource* InOutTextureData,
+	void PrepareComponentDataToExtractMaterialLayersCS(const TArray<ULandscapeComponent*>& InLandscapeComponents, const FLandscapeLayer& InLayer, int32 InCurrentWeightmapToProcessIndex, const FIntPoint& InLandscapeBase, class FLandscapeTexture2DResource* InOutTextureData,
 														  TArray<struct FLandscapeLayerWeightmapExtractMaterialLayersComponentData>& OutComponentData, TMap<ULandscapeLayerInfoObject*, int32>& OutLayerInfoObjects);
-	void PrepareComponentDataToPackMaterialLayersCS(int32 InCurrentWeightmapToProcessIndex, const FIntPoint& InLandscapeBase, bool InOutputDebugName, const TArray<ULandscapeComponent*>& InAllLandscapeComponents, TArray<UTexture2D*>& InOutProcessedWeightmaps,
+	void PrepareComponentDataToPackMaterialLayersCS(int32 InCurrentWeightmapToProcessIndex, const FIntPoint& InLandscapeBase, const TArray<ULandscapeComponent*>& InAllLandscapeComponents, TArray<UTexture2D*>& InOutProcessedWeightmaps,
 													TArray<class FLandscapeLayersTexture2DCPUReadBackResource*>& OutProcessedCPUReadBackTexture, TArray<struct FLandscapeLayerWeightmapPackMaterialLayersComponentData>& OutComponentData);
 	void ReallocateLayersWeightmaps(const TArray<ULandscapeComponent*>& InLandscapeComponents, const TArray<ULandscapeLayerInfoObject*>& InBrushRequiredAllocations);
 	void InitializeLayersWeightmapResources();
@@ -398,17 +363,6 @@ private:
 	void DrawWeightmapComponentToRenderTargetMips(const TArray<FVector2D>& InTexturePositionsToDraw, UTexture* InReadWeightmap, bool InClearRTWrite, struct FLandscapeLayersWeightmapShaderParameters& InShaderParams) const;
 
 	void CopyTexturePS(const FString& InSourceDebugName, FTextureResource* InSourceResource, const FString& InDestDebugName, FTextureResource* InDestResource) const;
-
-	void CopyLayersTexture(UTexture* InSourceTexture, UTexture* InDestTexture, FTextureResource* InDestCPUResource = nullptr, const FIntPoint& InInitialPositionOffset = FIntPoint(0, 0), uint8 InSourceCurrentMip = 0, uint8 InDestCurrentMip = 0,
-						   uint32 InSourceArrayIndex = 0, uint32 InDestArrayIndex = 0) const;
-	void CopyLayersTexture(const FString& InSourceDebugName, FTextureResource* InSourceResource, const FString& InDestDebugName, FTextureResource* InDestResource, FTextureResource* InDestCPUResource = nullptr, const FIntPoint& InInitialPositionOffset = FIntPoint(0, 0),
-						   uint8 InSourceCurrentMip = 0, uint8 InDestCurrentMip = 0, uint32 InSourceArrayIndex = 0, uint32 InDestArrayIndex = 0) const;
-
-	void AddDeferredCopyLayersTexture(UTexture* InSourceTexture, UTexture* InDestTexture, FTextureResource* InDestCPUResource = nullptr, const FIntPoint& InInitialPositionOffset = FIntPoint(0, 0), uint8 InSourceCurrentMip = 0, uint8 InDestCurrentMip = 0,
-									  uint32 InSourceArrayIndex = 0, uint32 InDestArrayIndex = 0);
-	void AddDeferredCopyLayersTexture(const FString& InSourceDebugName, FTextureResource* InSourceResource, const FString& InDestDebugName, FTextureResource* InDestResource, FTextureResource* InDestCPUResource = nullptr, const FIntPoint& InInitialPositionOffset = FIntPoint(0, 0),
-									  uint8 InSourceCurrentMip = 0, uint8 InDestCurrentMip = 0, uint32 InSourceArrayIndex = 0, uint32 InDestArrayIndex = 0, ERHIAccess SrcAccess = ERHIAccess::SRVMask, ERHIAccess DestAccess = ERHIAccess::SRVMask);
-	void CommitDeferredCopyLayersTexture();
 
 	void InitializeLayers();
 	
@@ -513,8 +467,6 @@ private:
 	
 	// Used in packing the material layer data contained into CombinedLayersWeightmapAllMaterialLayersResource to be set again for each component weightmap (size of the landscape)
 	class FLandscapeTexture2DResource* WeightmapScratchPackLayerTextureResource;
-
-	TArray<FLandscapeLayersCopyTextureParams> PendingCopyTextures;
 #endif
 
 protected:

@@ -30,5 +30,5 @@ namespace Chaos
 	using TVec3 = TVector<T, 3>;
 
 	/** Core version string for Chaos data. Any DDC builder dependent on Chaos for serialization should depend on this version */
-	static const FString ChaosVersionString = TEXT("0551E40C75454298898AE1428CF7005A");
+	static const FString ChaosVersionString = TEXT("B2C43404A71744F0929D0E27748BB12F");
 }

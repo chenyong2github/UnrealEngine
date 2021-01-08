@@ -423,25 +423,65 @@ void UMovieSceneCameraCutTrackInstance::OnEndUpdateInputs()
 
 void UMovieSceneCameraCutTrackInstance::OnDestroyed()
 {
-	// All sequencer players actually point to the same player controller and view target in a given world,
-	// so we only need to restore the pre-animated state on one sequencer player, like, say, the first one
-	// we still have in use. And we only do that when we have no more inputs active (if we still have some
-	// inputs active, regardless of what sequencer player they belong to, they still have control of the
-	// player controller's view target, so we don't want to mess that up).
-	//
-	// TODO-ludovic: when we have proper splitscreen support, this should be changed heavily.
-	//
-	for (const TPair<IMovieScenePlayer*, FCameraCutUseData>& PlayerUseCount : PlayerUseCounts)
+	using namespace UE::MovieScene;
+
+	const FInstanceRegistry* InstanceRegistry = GetLinker()->GetInstanceRegistry();
+
+	bool bRestoreCamera = false;
+	for (const FCameraCutInputInfo& InputInfo : SortedInputInfos)
 	{
-		// Restore only if we ever took control
-		if (PlayerUseCount.Value.bValid)
+		const FMovieSceneTrackInstanceInput& Input = InputInfo.Input;
+		const FMovieSceneContext& Context = InstanceRegistry->GetInstance(Input.InstanceHandle).GetContext();
+
+		const UMovieSceneCameraCutSection* Section = Cast<const UMovieSceneCameraCutSection>(Input.Section);
+		if (Context.IsPreRoll())
 		{
-			EMovieSceneCameraCutParams Params;
-#if WITH_EDITOR
-			Params.bCanBlend = PlayerUseCount.Value.bCanBlend;
-#endif
-			PlayerUseCount.Key->UpdateCameraCut(nullptr, Params);
-			break;  // Only do it on the first one.
+			continue;
+		}
+
+		EMovieSceneCompletionMode CompletionMode = EMovieSceneCompletionMode::KeepState;
+
+		if (Section->EvalOptions.CompletionMode == EMovieSceneCompletionMode::ProjectDefault)
+		{
+			if (const UMovieSceneSequence* OuterSequence = Section->GetTypedOuter<const UMovieSceneSequence>())
+			{
+				CompletionMode = OuterSequence->DefaultCompletionMode;
+			}
+		}
+		else
+		{
+			CompletionMode = Section->EvalOptions.CompletionMode;
+		}
+
+		if (CompletionMode == EMovieSceneCompletionMode::RestoreState)
+		{
+			bRestoreCamera = true;
+			break;
+		}
+	}
+
+	if (bRestoreCamera)
+	{
+		// All sequencer players actually point to the same player controller and view target in a given world,
+		// so we only need to restore the pre-animated state on one sequencer player, like, say, the first one
+		// we still have in use. And we only do that when we have no more inputs active (if we still have some
+		// inputs active, regardless of what sequencer player they belong to, they still have control of the
+		// player controller's view target, so we don't want to mess that up).
+		//
+		// TODO-ludovic: when we have proper splitscreen support, this should be changed heavily.
+		//
+		for (const TPair<IMovieScenePlayer*, FCameraCutUseData>& PlayerUseCount : PlayerUseCounts)
+		{
+			// Restore only if we ever took control
+			if (PlayerUseCount.Value.bValid)
+			{
+				EMovieSceneCameraCutParams Params;
+	#if WITH_EDITOR
+				Params.bCanBlend = PlayerUseCount.Value.bCanBlend;
+	#endif
+				PlayerUseCount.Key->UpdateCameraCut(nullptr, Params);
+				break;  // Only do it on the first one.
+			}
 		}
 	}
 

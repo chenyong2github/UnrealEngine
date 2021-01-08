@@ -24,7 +24,7 @@ struct FMovieSceneColorKeyStruct
 
 	/** The key's color value. */
 	UPROPERTY(EditAnywhere, Category=Key, meta=(InlineColorPicker))
-	FLinearColor Color;
+	FLinearColor Color = FLinearColor(0.f, 0.f, 0.f, 1.f);
 
 	/** The key's time. */
 	UPROPERTY(EditAnywhere, Category=Key)

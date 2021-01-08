@@ -331,6 +331,15 @@ namespace DatasmithNavisworks
 			return new CommandState(true);
 		}
 
+		protected override void OnLoaded()
+		{
+			// Preload DatasmithFacadeCSharp.dll using default locale that has Decimal Separator set to '.'(dot)
+			// Otherwise Unreal FConsoleManager::Test() asserts during static initialization
+			UnrealLocale Locale = new UnrealLocale();
+			FDatasmithFacadeElement.SetCoordinateSystemType(FDatasmithFacadeElement.ECoordinateSystemType.RightHandedZup);
+			Locale.RestoreLocale(); // Restore what was set
+		}
+
 		class ItemFilterParameters
 		{
 			public bool bHasClipBox;
@@ -723,9 +732,6 @@ namespace DatasmithNavisworks
 					{
 						ExtractClipBox(ActiveDocument, ItemFilterParams);
 					}
-
-					// TODO: right-handed Z-up - this is how gatehouse looks like but NW allows to setup orientation
-					FDatasmithFacadeElement.SetCoordinateSystemType(FDatasmithFacadeElement.ECoordinateSystemType.RightHandedZup);
 
 					double CentimetersPerUnit = GetCentimetersPerUnit(ActiveDocument.Units);
 					Info($"CentimetersPerUnit: {CentimetersPerUnit}");

@@ -50,7 +50,7 @@ bool SPropertyEditorCombo::Supports( const TSharedRef< class FPropertyEditor >& 
 	if(	((Property->IsA(FByteProperty::StaticClass()) && CastField<const FByteProperty>(Property)->Enum)
 		||	Property->IsA(FEnumProperty::StaticClass())
 		||	(Property->IsA(FStrProperty::StaticClass()) && Property->HasMetaData(TEXT("Enum")))
-		|| ((Property->IsA(FStrProperty::StaticClass()) || Property->IsA(FNameProperty::StaticClass())) && Property->HasMetaData(TEXT("GetOptions")))
+		|| ((Property->IsA(FStrProperty::StaticClass()) || Property->IsA(FNameProperty::StaticClass())) && Property->GetOwnerProperty()->HasMetaData(TEXT("GetOptions")))
 		)
 		&&	( ( ArrayIndex == -1 && Property->ArrayDim == 1 ) || ( ArrayIndex > -1 && Property->ArrayDim > 0 ) ) )
 	{

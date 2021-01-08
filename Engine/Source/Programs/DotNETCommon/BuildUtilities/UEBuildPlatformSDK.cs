@@ -330,54 +330,67 @@ namespace EpicGames.Core
 
 			SDKStatus Validity = SDKStatus.Valid;
 
-			if (HasSetupAutoSDK())
+			bool HasValidAutoSDK = HasSetupAutoSDK();
+		
+			if (HasValidAutoSDK)
 			{
 				string PlatformSDKRoot = GetPathToPlatformAutoSDKs();
 
 				UInt64 Ver;
-				TryConvertVersionToInt(AutoSDKVersion, out Ver);
-				Log.WriteLine(Verbosity, Options, "{0} using Auto SDK from: {1} 0x{2:X}", PlatformName, Path.Combine(PlatformSDKRoot, AutoSDKVersion), Ver);
-			}
-			else if (HasRequiredManualSDK() == SDKStatus.Valid)
-			{
-				Log.WriteLine(Verbosity, Options, "{0} using Manual SDK {1}", PlatformName, ManualSDKVersion);
-			}
-			else
-			{
-				Validity = SDKStatus.Invalid;
 
-				string MinVersionString, MaxVersionString;
-				GetValidVersionRange(out MinVersionString, out MaxVersionString);
-
-				StringBuilder Msg = new StringBuilder();
-				Msg.AppendFormat("Unable to find a valid SDK for {0}.", PlatformName);
-				if (ManualSDKVersion != null)
+				if (TryConvertVersionToInt(AutoSDKVersion, out Ver))
 				{
-					Msg.AppendFormat(" Found Version: {0}.", ManualSDKVersion);
-				}
-
-				if (MinVersionString != MaxVersionString)
-				{
-					Msg.AppendLine(" Must be between {0} and {1}", MinVersionString, MaxVersionString);
+					Log.WriteLine(Verbosity, Options, "{0} using Auto SDK from: {1} 0x{2:X}", PlatformName, Path.Combine(PlatformSDKRoot, AutoSDKVersion), Ver);
 				}
 				else
 				{
-					Msg.AppendLine(" Must be {0}", MinVersionString);
+					HasValidAutoSDK = false;
 				}
+			}
 
-				if (!bHasShownTurnkey)
+			if (HasValidAutoSDK == false)
+			{
+				if (HasRequiredManualSDK() == SDKStatus.Valid)
 				{
-					Msg.AppendLine("  If your Studio has it set up, you can run this command to find the SDK to install:");
-					Msg.AppendLine("    RunUAT Turnkey -command=InstallSdk -platform={0} -BestAvailable", PlatformName);
-
-					if ((ErrorOptions & LogFormatOptions.NoConsoleOutput) == LogFormatOptions.None)
-					{
-						bHasShownTurnkey = true;
-					}
+					Log.WriteLine(Verbosity, Options, "{0} using Manual SDK {1}", PlatformName, ManualSDKVersion);
 				}
+				else
+				{
+					Validity = SDKStatus.Invalid;
 
-				// always print errors to the screen
-				Log.WriteLine(ErrorVerbosity, ErrorOptions, Msg.ToString());
+					string MinVersionString, MaxVersionString;
+					GetValidVersionRange(out MinVersionString, out MaxVersionString);
+
+					StringBuilder Msg = new StringBuilder();
+					Msg.AppendFormat("Unable to find a valid SDK for {0}.", PlatformName);
+					if (ManualSDKVersion != null)
+					{
+						Msg.AppendFormat(" Found Version: {0}.", ManualSDKVersion);
+					}
+
+					if (MinVersionString != MaxVersionString)
+					{
+						Msg.AppendLine(" Must be between {0} and {1}", MinVersionString, MaxVersionString);
+					}
+					else
+					{
+						Msg.AppendLine(" Must be {0}", MinVersionString);
+					}
+
+					if (!bHasShownTurnkey)
+					{
+						Msg.AppendLine("  If your Studio has it set up, you can run this command to find the SDK to install:");
+						Msg.AppendLine("    RunUAT Turnkey -command=InstallSdk -platform={0} -BestAvailable", PlatformName);
+
+						if ((ErrorOptions & LogFormatOptions.NoConsoleOutput) == LogFormatOptions.None)
+						{
+							bHasShownTurnkey = true;
+						}
+					}
+
+					// always print errors to the screen
+					Log.WriteLine(ErrorVerbosity, ErrorOptions, Msg.ToString());
+				}
 			}
 
 			return Validity;

@@ -118,6 +118,10 @@ UNiagaraComponentRendererProperties::UNiagaraComponentRendererProperties()
 		GEditor->OnObjectsReplaced().AddUObject(this, &UNiagaraComponentRendererProperties::OnObjectsReplacedCallback);
 	}
 #endif
+
+	AttributeBindings.Reserve(2);
+	AttributeBindings.Add(&EnabledBinding);
+	AttributeBindings.Add(&RendererVisibilityTagBinding);
 }
 
 UNiagaraComponentRendererProperties::~UNiagaraComponentRendererProperties()
@@ -139,7 +143,7 @@ void UNiagaraComponentRendererProperties::PostLoad()
 		Binding.AttributeBinding.PostLoad(InSourceMode);
 	}
 	EnabledBinding.PostLoad(InSourceMode);
-
+	RendererVisibilityTagBinding.PostLoad(InSourceMode);
 
 	PostLoadBindings(ENiagaraRendererSourceDataMode::Particles);
 }
@@ -151,6 +155,7 @@ void UNiagaraComponentRendererProperties::UpdateSourceModeDerivates(ENiagaraRend
 	if (SrcEmitter)
 	{
 		EnabledBinding.CacheValues(SrcEmitter, InSourceMode);
+		RendererVisibilityTagBinding.CacheValues(SrcEmitter, InSourceMode);
 		for (FNiagaraComponentPropertyBinding& Binding : PropertyBindings)
 		{
 			Binding.AttributeBinding.CacheValues(SrcEmitter, InSourceMode);
@@ -172,9 +177,16 @@ void UNiagaraComponentRendererProperties::PostInitProperties()
 			ComponentRendererPropertiesToDeferredInit.Add(this);
 			return;
 		}
-		else if (!EnabledBinding.IsValid())
+		else
 		{
-			EnabledBinding = FNiagaraConstants::GetAttributeDefaultBinding(SYS_PARAM_PARTICLES_COMPONENTS_ENABLED);
+			if (!EnabledBinding.IsValid())
+			{
+				EnabledBinding = FNiagaraConstants::GetAttributeDefaultBinding(SYS_PARAM_PARTICLES_COMPONENTS_ENABLED);
+			}
+			if (!RendererVisibilityTagBinding.IsValid())
+			{
+				RendererVisibilityTagBinding = FNiagaraConstants::GetAttributeDefaultBinding(SYS_PARAM_PARTICLES_VISIBILITY_TAG);
+			}
 		}
 	}
 }
@@ -268,6 +280,7 @@ void UNiagaraComponentRendererProperties::InitCDOPropertiesAfterModuleStartup()
 {
 	UNiagaraComponentRendererProperties* CDO = CastChecked<UNiagaraComponentRendererProperties>(UNiagaraComponentRendererProperties::StaticClass()->GetDefaultObject());
 	CDO->EnabledBinding = FNiagaraConstants::GetAttributeDefaultBinding(SYS_PARAM_PARTICLES_COMPONENTS_ENABLED);
+	CDO->RendererVisibilityTagBinding = FNiagaraConstants::GetAttributeDefaultBinding(SYS_PARAM_PARTICLES_VISIBILITY_TAG);
 
 	for (TWeakObjectPtr<UNiagaraComponentRendererProperties>& WeakComponentRendererProperties : ComponentRendererPropertiesToDeferredInit)
 	{
@@ -276,6 +289,10 @@ void UNiagaraComponentRendererProperties::InitCDOPropertiesAfterModuleStartup()
 			if (!WeakComponentRendererProperties->EnabledBinding.IsValid())
 			{
 				WeakComponentRendererProperties->EnabledBinding = FNiagaraConstants::GetAttributeDefaultBinding(SYS_PARAM_PARTICLES_COMPONENTS_ENABLED);
+			}
+			if (!WeakComponentRendererProperties->RendererVisibilityTagBinding.IsValid())
+			{
+				WeakComponentRendererProperties->RendererVisibilityTagBinding = FNiagaraConstants::GetAttributeDefaultBinding(SYS_PARAM_PARTICLES_VISIBILITY_TAG);
 			}
 		}
 	}

@@ -723,6 +723,11 @@ bool UPoseAsset::GetAnimationPose(struct FAnimationPoseData& OutAnimationPoseDat
 	return false;
 }
 
+bool UPoseAsset::IsPostLoadThreadSafe() const
+{
+	return false;	// PostLoad is not thread safe because of the call to VerifySmartName() that can mutate a shared map in the skeleton.
+}
+
 void UPoseAsset::PostLoad()
 {
 	Super::PostLoad();

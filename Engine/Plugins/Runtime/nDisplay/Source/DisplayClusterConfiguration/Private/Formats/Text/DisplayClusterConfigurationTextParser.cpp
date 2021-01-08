@@ -443,11 +443,11 @@ UDisplayClusterConfigurationData* FDisplayClusterConfigurationTextParser::Conver
 
 			FString StrMappingRight;
 			DisplayClusterHelpers::str::ExtractValue(CfgInputDevice.Params, DisplayClusterConfigurationTextStrings::cfg::data::input::Right, StrMappingRight);
-			ConvertMapping(StrMappingRight, InputDevice->Front);
+			ConvertMapping(StrMappingRight, InputDevice->Right);
 
 			FString StrMappingUp;
 			DisplayClusterHelpers::str::ExtractValue(CfgInputDevice.Params, DisplayClusterConfigurationTextStrings::cfg::data::input::Up, StrMappingUp);
-			ConvertMapping(StrMappingUp, InputDevice->Front);
+			ConvertMapping(StrMappingUp, InputDevice->Up);
 
 			Config->Input->TrackerDevices.Emplace(CfgInputDevice.Id, InputDevice);
 		}

@@ -1055,6 +1055,13 @@ void FMaterial::SerializeInlineShaderMap(FArchive& Ar)
 				bool bInlineShaderCode = bEnableInliningWorkaround && ShouldInlineShaderCode();
 				GameThreadShaderMap->Serialize(Ar, true, false, bInlineShaderCode);
 			}
+			else
+			{
+				UE_LOG(LogMaterial, Error, TEXT("Cooking a material resource (in %s hierarchy) that doesn't have a valid ShaderMap! %s"),
+					*GetFriendlyName(),
+					(GameThreadShaderMap != nullptr) ? TEXT("Shadermap exists but wasn't compiled successfully (yet?)") : TEXT("Shadermap pointer is null.")
+					);
+			}
 #else
 			UE_LOG(LogMaterial, Fatal, TEXT("Internal error: cooking outside the editor is not possible."));
 			// unreachable
@@ -1075,6 +1082,10 @@ void FMaterial::SerializeInlineShaderMap(FArchive& Ar)
 					GameThreadShaderMap->AssociateWithAsset(GetAssetPath());
 #endif
 				}
+			}
+			else
+			{
+				UE_LOG(LogMaterial, Error, TEXT("Loading a material resource %s with an invalid ShaderMap!"), *GetFriendlyName());
 			}
 		}
 	}

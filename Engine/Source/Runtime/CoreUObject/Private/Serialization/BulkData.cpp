@@ -1944,6 +1944,10 @@ void FUntypedBulkData::LoadDataIntoMemory( void* Dest )
 		{
 			BulkDataSegment = EPackageSegment::BulkDataMemoryMapped;
 		}
+		else if (IsOptional())
+		{
+			BulkDataSegment = EPackageSegment::BulkDataOptional;
+		}
 		else
 		{
 			BulkDataSegment = EPackageSegment::BulkDataDefault;

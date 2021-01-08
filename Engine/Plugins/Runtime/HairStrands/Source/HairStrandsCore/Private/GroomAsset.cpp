@@ -710,52 +710,6 @@ void UGroomAsset::PostLoad()
 #endif // #if WITH_EDITORONLY_DATA
 }
 
-#if WITH_EDITOR
-void UGroomAsset::SavePendingProceduralAssets()
-{
-	// Proceed procedural asset which needs to be saved
-	if (!AssetToSave_Textures.IsEmpty())
-	{
-		TQueue<FHairGroupCardsTextures*> NotReady;
-		FHairGroupCardsTextures* Textures = nullptr;
-		while (AssetToSave_Textures.Dequeue(Textures))
-		{
-			if (Textures)
-			{
-				if (Textures->bNeedToBeSaved)
-				{
-					if (Textures->DepthTexture)			FHairStrandsCore::SaveAsset(Textures->DepthTexture);
-					if (Textures->AttributeTexture)		FHairStrandsCore::SaveAsset(Textures->AttributeTexture);
-					if (Textures->AuxilaryDataTexture)	FHairStrandsCore::SaveAsset(Textures->AuxilaryDataTexture);
-					if (Textures->CoverageTexture)		FHairStrandsCore::SaveAsset(Textures->CoverageTexture);
-					if (Textures->TangentTexture)		FHairStrandsCore::SaveAsset(Textures->TangentTexture);
-					Textures->bNeedToBeSaved = false;
-				}
-				else
-				{
-					NotReady.Enqueue(Textures);
-				}
-			}
-		}
-		while (NotReady.Dequeue(Textures))
-		{
-			AssetToSave_Textures.Enqueue(Textures);
-		}
-	}
-	if (!AssetToSave_Meshes.IsEmpty())
-	{
-		UStaticMesh* Mesh = nullptr;
-		while (AssetToSave_Meshes.Dequeue(Mesh))
-		{
-			if (Mesh)
-			{
-				FHairStrandsCore::SaveAsset(Mesh);
-			}
-		}
-	}
-}
-#endif // WITH_EDITOR
-
 void UGroomAsset::PreSave(const class ITargetPlatform* TargetPlatform)
 {
 #if WITH_EDITORONLY_DATA
@@ -881,6 +835,12 @@ void UGroomAsset::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedE
 		HairGroupsCards.Last().SourceType = HasImportedStrandsData() ? EHairCardsSourceType::Procedural : EHairCardsSourceType::Imported;
 	}
 
+#if WITH_EDITOR
+	SavePendingProceduralAssets();
+#endif
+
+	// By pass update for all procedural cards parameters, as we don't want them to invalidate the cards data. 
+	// Cards should be refresh only under user action
 	const bool bCardsToolUpdate = IsCardsProceduralAttributes(PropertyName);
 	if (!bCardsToolUpdate)
 	{
@@ -1195,6 +1155,53 @@ namespace GroomDerivedDataCacheUtils
 		LODSettings.BuildDDCKey(Ar);
 	}
 
+	// Geneate DDC key for an given hair group and a given LOD
+	FString BuildCardsDerivedDataKeySuffix(const UGroomAsset* GroomAsset, FHairGroupsCardsSourceDescription& Desc)
+	{
+		if (Desc.GroupIndex < 0 || Desc.LODIndex < 0)
+		{
+			return FString();
+		}
+
+		if (Desc.GroupIndex >= GroomAsset->HairGroupsData.Num() || Desc.LODIndex >= GroomAsset[Desc.GroupIndex].HairGroupsData[Desc.GroupIndex].Cards.LODs.Num())
+		{
+			return FString();
+		}
+
+		// Serialize the FHairGroupsCardsSourceDescription into a temporary array
+		// The archive is flagged as persistent so that machines of different endianness produce identical binary results.
+		TArray<uint8> TempBytes;
+		TempBytes.Reserve(512);
+		FMemoryWriter Ar(TempBytes, true);
+
+		Ar << Desc.GroupIndex;
+		Ar << Desc.LODIndex;
+		if (Desc.SourceType == EHairCardsSourceType::Imported)
+		{
+			if (Desc.ImportedMesh)
+			{
+				FString Key = Desc.GetMeshKey();
+				Ar << Key;
+			}
+		}
+		else if (Desc.SourceType == EHairCardsSourceType::Procedural)
+		{
+			if (Desc.ProceduralMesh)
+			{
+				FString Key = Desc.GetMeshKey();
+				Ar << Key;
+			}
+			Desc.ProceduralSettings.BuildDDCKey(Ar);
+		}
+
+		FSHAHash Hash;
+		FSHA1::HashBuffer(TempBytes.GetData(), TempBytes.Num(), Hash.Hash);
+
+		static FString CardPrefixString(TEXT("CARDS_V") + FHairCardsBuilder::GetVersion() + TEXT("_"));
+		return CardPrefixString + Hash.ToString();
+	}
+
+	// Geneate DDC key for an entire hair group (i.e. with all its LODs) for cards data
 	FString BuildCardsDerivedDataKeySuffix(uint32 GroupIndex, const TArray<FHairLODSettings>& LODs, TArray<FHairGroupsCardsSourceDescription>& SourceDescriptions)
 	{
 		// Serialize the FHairGroupsCardsSourceDescription into a temporary array
@@ -1692,38 +1699,6 @@ inline FString GetLODName(const UGroomAsset* Asset, uint32 LODIndex)
 	return Asset->GetOutermost()->GetName() + FString::Printf(TEXT("_LOD%d"), LODIndex);
 }
 
-static void BuildProceduralCards(const UGroomAsset* Asset, FHairGroupsCardsSourceDescription* Desc, const FHairGroupData& GroupData, FHairGroupData::FCards::FLOD& LOD)
-{
-	// Convert old parameters (ClusterDecimation, bUseCards) to new parameters (GenerationType & CardsCount)
-	{
-		FHairCardsClusterSettings& ClusterSettings = Desc->ProceduralSettings.ClusterSettings;
-		FHairCardsGeometrySettings& GeometrySettings = Desc->ProceduralSettings.GeometrySettings;
-		const bool bNeedConversion = ClusterSettings.ClusterDecimation > 0;
-		if (bNeedConversion)
-		{
-			const int32 MaxCardCount = GroupData.Strands.Data.GetNumCurves();
-
-			GeometrySettings.GenerationType = ClusterSettings.bUseGuide ? EHairCardsGenerationType::UseGuides : EHairCardsGenerationType::CardsCount;
-			GeometrySettings.CardsCount = FMath::Clamp(FMath::CeilToInt(ClusterSettings.ClusterDecimation * MaxCardCount), 1, MaxCardCount);
-			GeometrySettings.ClusterType = ClusterSettings.Type;
-
-			// Mark the asset as updated.
-			ClusterSettings.ClusterDecimation = 0;
-		}
-	}
-
-	FHairCardsBuilder::BuildGeometry(
-		GetLODName(Asset, Desc->LODIndex),
-		GroupData.Strands.Data,
-		GroupData.Guides.Data,
-		Desc->ProceduralSettings,
-		LOD.ProceduralData,
-		LOD.Guides.Data,
-		LOD.InterpolationData,
-		Desc->Textures);
-	FHairCardsBuilder::Convert(LOD.ProceduralData, LOD.Data);
-}
-
 bool UGroomAsset::BuildCardsGeometry(uint32 GroupIndex)
 {
 	LLM_SCOPE(ELLMTag::Meshes) // This should be a Groom LLM tag, but there is no LLM tag bit left
@@ -1747,7 +1722,7 @@ bool UGroomAsset::BuildCardsGeometry(uint32 GroupIndex)
 		int32 SourceIt = 0;
 		if (const FHairGroupsCardsSourceDescription* Desc = GetSourceDescription(HairGroupsCards, GroupIndex, LODIt, SourceIt))
 		{
-			bIsAlreadyBuilt[LODIt] = GroupData.Strands.Data.GetNumPoints() > 0 && Desc->CardsInfo.NumCardVertices > 0 && !Desc->HasMeshChanged();
+			bIsAlreadyBuilt[LODIt] = GroupData.Strands.HasValidData() && Desc->CardsInfo.NumCardVertices > 0 && !Desc->HasMeshChanged();
 			bHasChanged |= !bIsAlreadyBuilt[LODIt];
 		}
 	}
@@ -1810,84 +1785,32 @@ bool UGroomAsset::BuildCardsGeometry(uint32 GroupIndex)
 			FHairGroupData::FCards::FLOD& LOD = GroupData.Cards.LODs[LODIt];
 			LOD.Data.Cards.Reset();
 
+			// 0. Release geometry resources
 			InternalReleaseResource(LOD.RestResource);
 			InternalReleaseResource(LOD.ProceduralResource);
 			InternalReleaseResource(LOD.InterpolationResource);
 			InternalReleaseResource(LOD.Guides.RestResource);
 			InternalReleaseResource(LOD.Guides.InterpolationResource);
 
-			bool bInitResources = false;
-			bool bGenerateProceduralData = true;
-			// Procedural cards
+			// 1. Load geometry data, if any
+			UStaticMesh* CardsMesh = nullptr;
 			if (Desc->SourceType == EHairCardsSourceType::Procedural)
 			{
-				FString ProceduralMeshKey;
-				{
-					TArray<FHairGroupsCardsSourceDescription> Description;
-					Description.Add(*Desc);
-					ProceduralMeshKey = GroomDerivedDataCacheUtils::BuildCardsDerivedDataKeySuffix(GroupIndex, HairGroupsLOD[GroupIndex].LODs, Description);
-				}
-
-				// Procedural cards - Loaded from the saved mesh
-				// If the referenced procesdural mesh key match the saved key, load the meshes
-				// If it does not match, then we rely on the procedural version to check if the procedural generation was intended or not
-				if (Desc->ProceduralMesh != nullptr && (Desc->ProceduralMeshKey == ProceduralMeshKey || CachedDesc == nullptr || Desc->ProceduralSettings.Version == CachedDesc->ProceduralSettings.Version))
-				{
-					Desc->ProceduralMesh->ConditionalPostLoad();
-
-					bInitResources = FHairCardsBuilder::ImportGeometry(Desc->ProceduralMesh, LOD.Data, LOD.Guides.Data, LOD.InterpolationData);
-					if (!bInitResources)
-					{
-						UE_LOG(LogHairStrands, Warning, TEXT("Failed to load procedural cards from %s for Group %d LOD %d."), *Desc->ProceduralMesh->GetName(), GroupIndex, LODIt);
-
-						LOD.Data.Cards.Reset();
-						LOD.Data.RenderData.Positions.Empty();
-						LOD.Data.RenderData.Normals.Empty();
-						LOD.Data.RenderData.UVs.Empty();
-						LOD.Data.RenderData.Indices.Empty();
-					}
-
-					bGenerateProceduralData = false;
-				}
-				
-				// Procedural cards - Generate meshes from procedural settings (if there is no saved mesh, or if the saved mesh is outdated, i.e. its key does not match the settings key)
-				if (bGenerateProceduralData && Desc->SourceType == EHairCardsSourceType::Procedural && GroupData.Strands.Data.GetNumPoints() > 0)		// hair group data might not have been built yet
-				{
-					BuildProceduralCards(this, Desc, GroupData, LOD);
-					bInitResources = true;
-
-					// Save output into a static mesh
-					#if WITH_EDITOR
-					{
-						const FString PackageName = GetOutermost()->GetName();
-						const FString SuffixName = FText::Format(LOCTEXT("CardsStatisMesh", "_CardsMesh_Group{0}_LOD{1}"), FText::AsNumber(GroupIndex), FText::AsNumber(LODIt)).ToString();
-						const FHairCardsDatas& CardsData = GroupData.Cards.LODs[LODIt].Data;
-
-						// Create or update the existing static meshes with the new vertex data
-						UStaticMesh* ProceduralMesh = HairGroupsCards[SourceIt].ProceduralMesh;
-						if (ProceduralMesh == nullptr)
-						{
-							ProceduralMesh = FHairStrandsCore::CreateStaticMesh(PackageName, SuffixName);
-						}
-						FHairCardsBuilder::ExportGeometry(CardsData, ProceduralMesh);
-						AssetToSave_Meshes.Enqueue(ProceduralMesh);
-
-						HairGroupsCards[SourceIt].ProceduralMesh = ProceduralMesh;
-						HairGroupsCards[SourceIt].ProceduralMeshKey = ProceduralMeshKey;
-					}
-					#endif
-				}
+				CardsMesh = Desc->ProceduralMesh;
 			}
-			// Imported cards
-			else if (Desc->SourceType == EHairCardsSourceType::Imported && Desc->ImportedMesh != nullptr)
+			else if (Desc->SourceType == EHairCardsSourceType::Imported)
 			{
-				Desc->ImportedMesh->ConditionalPostLoad();
+				CardsMesh = Desc->ImportedMesh;
+			}
 
-				bInitResources = FHairCardsBuilder::ImportGeometry(Desc->ImportedMesh, LOD.Data, LOD.Guides.Data, LOD.InterpolationData);
-
+			bool bInitResources = false;
+			if (CardsMesh != nullptr)
+			{
+				CardsMesh->ConditionalPostLoad();
+				bInitResources = FHairCardsBuilder::ImportGeometry(CardsMesh, LOD.Data, LOD.Guides.Data, LOD.InterpolationData);
 				if (!bInitResources)
 				{
-					UE_LOG(LogHairStrands, Warning, TEXT("Failed to import cards from %s for Group %d LOD %d."), *Desc->ImportedMesh->GetName(), GroupIndex, LODIt);
+					UE_LOG(LogHairStrands, Warning, TEXT("Failed to import cards from %s for Group %d LOD %d."), *CardsMesh->GetName(), GroupIndex, LODIt);
 
 					LOD.Data.Cards.Reset();
 					LOD.Data.RenderData.Positions.Empty();
@@ -1903,6 +1826,7 @@ bool UGroomAsset::BuildCardsGeometry(uint32 GroupIndex)
 			Desc->CardsInfo.NumCardVertices = 0;
 			Desc->CardsInfo.NumCards = 0;
 
+			// 2. Init geometry & texture resources, and generate interpolation data/resources
 			if (bInitResources)
 			{
 				LOD.RestResource = new FHairCardsRestResource(
@@ -1911,28 +1835,15 @@ bool UGroomAsset::BuildCardsGeometry(uint32 GroupIndex)
 					LOD.Data.Cards.GetNumTriangles());
 				BeginInitResource(LOD.RestResource);
 
-				if (Desc->SourceType == EHairCardsSourceType::Procedural && bGenerateProceduralData)
-				{
-					LOD.ProceduralResource = new FHairCardsProceduralResource(
-						LOD.ProceduralData.RenderData,
-						LOD.ProceduralData.Atlas.Resolution,
-						LOD.ProceduralData.Voxels);
-					BeginInitResource(LOD.ProceduralResource);
-
-					FHairCardsBuilder::BuildTextureAtlas(&LOD.ProceduralData, LOD.RestResource, LOD.ProceduralResource, &Desc->Textures);
-					LOD.RestResource->bInvertUV = true;
-					AssetToSave_Textures.Enqueue(&Desc->Textures);
-				}
-				else
-				{
-					// Load saved atlas textures
-					InitAtlasTexture(LOD.RestResource, Desc->Textures.DepthTexture, EHairAtlasTextureType::Depth);
-					InitAtlasTexture(LOD.RestResource, Desc->Textures.TangentTexture, EHairAtlasTextureType::Tangent);
-					InitAtlasTexture(LOD.RestResource, Desc->Textures.AttributeTexture, EHairAtlasTextureType::Attribute);
-					InitAtlasTexture(LOD.RestResource, Desc->Textures.CoverageTexture, EHairAtlasTextureType::Coverage);
-					InitAtlasTexture(LOD.RestResource, Desc->Textures.AuxilaryDataTexture, EHairAtlasTextureType::AuxilaryData);
-					LOD.RestResource->bInvertUV = Desc->SourceType == EHairCardsSourceType::Procedural;
-				}
+				// 2.1 Load atlas textures
+				InitAtlasTexture(LOD.RestResource, Desc->Textures.DepthTexture, EHairAtlasTextureType::Depth);
+				InitAtlasTexture(LOD.RestResource, Desc->Textures.TangentTexture, EHairAtlasTextureType::Tangent);
+				InitAtlasTexture(LOD.RestResource, Desc->Textures.AttributeTexture, EHairAtlasTextureType::Attribute);
+				InitAtlasTexture(LOD.RestResource, Desc->Textures.CoverageTexture, EHairAtlasTextureType::Coverage);
+				InitAtlasTexture(LOD.RestResource, Desc->Textures.AuxilaryDataTexture, EHairAtlasTextureType::AuxilaryData);
+				LOD.RestResource->bInvertUV = Desc->SourceType == EHairCardsSourceType::Procedural;
+				
+				// 2.2 Load interoplatino resources
 				LOD.InterpolationResource = new FHairCardsInterpolationResource(LOD.InterpolationData.RenderData);
 				BeginInitResource(LOD.InterpolationResource);
 
@@ -2494,54 +2405,142 @@ bool UGroomAsset::IsMaterialUsed(int32 MaterialIndex) const
 }
 
 #if WITH_EDITOR
-// Save out a static mesh based on generated cards
-void UGroomAsset::SaveProceduralCards(uint32 CardsGroupIndex)
+struct FHairProceduralCardsQuery
 {
-	SavePendingProceduralAssets();
+	FHairCardsInterpolationDatas InterpolationData;
+	FHairCardsProceduralDatas ProceduralData;
+	FHairStrandsDatas GuideData;
+	FHairCardsDatas Data;
 
-	if (CardsGroupIndex >= uint32(HairGroupsCards.Num()))
-		return;
+	UGroomAsset* Asset = nullptr;
+	FHairCardsRestResource* Resources = nullptr;
+	FHairCardsProceduralResource* ProceduralResources = nullptr;
+	FHairGroupCardsTextures* Textures = nullptr;
+};
 
-	int32 SourceIt = 0;
+// Hair_TODO: move this into the groom asset class
+static TQueue<FHairProceduralCardsQuery*> HairCardsQueuries;
 
-	// Create a local copy of cards source desc
-	FHairGroupsCardsSourceDescription Desc = HairGroupsCards[CardsGroupIndex];
-	if (Desc.GroupIndex < 0 || Desc.GroupIndex >= HairGroupsData.Num())
-		return;
-
-	// Create a local version  of the LOD struct
-	FHairGroupData::FCards::FLOD LocalLOD;
-
-	const int32 GroupIndex = HairGroupsCards[CardsGroupIndex].GroupIndex;
-	const int32 LODIndex = HairGroupsCards[CardsGroupIndex].LODIndex;
-
-	if (GroupIndex >= HairGroupsData.Num())
-		return;
-
-	if (!HairGroupsData[GroupIndex].Cards.IsValid(LODIndex))
-		return;
-
-	const bool bRegenerate = !(CachedHairGroupsCards[GroupIndex] == Desc);
-	if (bRegenerate)
+// hair_TODO: Rename into GenerateProceduralCards
+// Generate geometry and textures for hair cards
+void UGroomAsset::SaveProceduralCards(uint32 DescIndex)
+{
+	if (!IsHairStrandsEnabled(EHairStrandsShaderType::Cards))
 	{
-		BuildProceduralCards(this, &Desc, HairGroupsData[Desc.GroupIndex], LocalLOD);
+		return;
 	}
 
-	// Create a static meshes with the vertex data
-	if (HairGroupsCards[CardsGroupIndex].ProceduralMesh == nullptr)
+	LLM_SCOPE(ELLMTag::Meshes) // This should be a Groom LLM tag, but there is no LLM tag bit left
+
+	if (DescIndex >= uint32(HairGroupsCards.Num()))
+		return;
+
+	FHairGroupsCardsSourceDescription* Desc = &HairGroupsCards[DescIndex];
+
+	const int32 GroupIndex = Desc->GroupIndex;
+	const int32 LODIndex = Desc->LODIndex;
+	if (GroupIndex >= HairGroupsData.Num() || LODIndex >= HairGroupsData[GroupIndex].Cards.LODs.Num())
+		return;
+
+	// 1. Convert old parameters (ClusterDecimation, bUseCards) to new parameters (GenerationType & CardsCount)
 	{
-		const FString PackageName = GetOutermost()->GetName();
-		const FString SuffixName = FText::Format(LOCTEXT("CardsStatisMesh", "_CardsMesh_Group{0}_LOD{1}"), FText::AsNumber(GroupIndex), FText::AsNumber(LODIndex)).ToString();
-		HairGroupsCards[CardsGroupIndex].ProceduralMesh = FHairStrandsCore::CreateStaticMesh(PackageName, SuffixName);
+		FHairCardsClusterSettings& ClusterSettings = Desc->ProceduralSettings.ClusterSettings;
+		FHairCardsGeometrySettings& GeometrySettings = Desc->ProceduralSettings.GeometrySettings;
+		const bool bNeedConversion = ClusterSettings.ClusterDecimation > 0;
+		if (bNeedConversion)
+		{
+			const int32 MaxCardCount = HairGroupsData[GroupIndex].Strands.Data.GetNumCurves();
+
+			GeometrySettings.GenerationType = ClusterSettings.bUseGuide ? EHairCardsGenerationType::UseGuides : EHairCardsGenerationType::CardsCount;
+			GeometrySettings.CardsCount = FMath::Clamp(FMath::CeilToInt(ClusterSettings.ClusterDecimation * MaxCardCount), 1, MaxCardCount);
+			GeometrySettings.ClusterType = ClusterSettings.Type;
+
+			// Mark the asset as updated.
+			ClusterSettings.ClusterDecimation = 0;
+		}
 	}
 
-	const FHairCardsDatas& CardsData = HairGroupsData[GroupIndex].Cards.LODs[LODIndex].Data;
-	FHairCardsBuilder::ExportGeometry(CardsData, HairGroupsCards[CardsGroupIndex].ProceduralMesh);
-	FHairStrandsCore::SaveAsset(HairGroupsCards[CardsGroupIndex].ProceduralMesh);
+	// 2. Generate geometry (CPU)
+	FHairProceduralCardsQuery* QP = new FHairProceduralCardsQuery();
+	HairCardsQueuries.Enqueue(QP);
 
-	TArray<FHairGroupsCardsSourceDescription> Description;
-	Description.Add(Desc);
-	HairGroupsCards[CardsGroupIndex].ProceduralMeshKey = GroomDerivedDataCacheUtils::BuildCardsDerivedDataKeySuffix(GroupIndex, HairGroupsLOD[GroupIndex].LODs, Description);
+	FHairProceduralCardsQuery& Q = *QP;
+	Q.Asset = this;
+
+	const FHairGroupData& GroupData = HairGroupsData[GroupIndex];
+	FHairCardsBuilder::BuildGeometry(
+		GetLODName(this, Desc->LODIndex),
+		GroupData.Strands.Data,
+		GroupData.Guides.Data,
+		Desc->ProceduralSettings,
+		Q.ProceduralData,
+		Q.GuideData,
+		Q.InterpolationData,
+		Desc->Textures);
+	Q.Textures = &Desc->Textures;
+
+	FHairCardsBuilder::Convert(Q.ProceduralData, Q.Data);
+
+	// 3. Create resources and enqueue texture generation (GPU, kicked by the render thread) 
+	Q.Resources = new FHairCardsRestResource(Q.Data.RenderData, Q.Data.Cards.GetNumVertices(), Q.Data.Cards.GetNumTriangles());
+	BeginInitResource(Q.Resources);
+	Q.ProceduralResources = new FHairCardsProceduralResource(Q.ProceduralData.RenderData, Q.ProceduralData.Atlas.Resolution, Q.ProceduralData.Voxels);
+	BeginInitResource(Q.ProceduralResources);
+
+	FHairCardsBuilder::BuildTextureAtlas(&Q.ProceduralData, Q.Resources, Q.ProceduralResources, Q.Textures);
+
+	// 4. Save output asset (geometry, and enqueue texture saving)
+	{
+		// Create a static meshes with the vertex data
+		if (HairGroupsCards[DescIndex].ProceduralMesh == nullptr)
+		{
+			const FString PackageName = GetOutermost()->GetName();
+			const FString SuffixName = FText::Format(LOCTEXT("CardsStatisMesh", "_CardsMesh_Group{0}_LOD{1}"), FText::AsNumber(GroupIndex), FText::AsNumber(LODIndex)).ToString();
+			HairGroupsCards[DescIndex].ProceduralMesh = FHairStrandsCore::CreateStaticMesh(PackageName, SuffixName);
+		}
+
+		FHairCardsBuilder::ExportGeometry(Q.Data, HairGroupsCards[DescIndex].ProceduralMesh);
+		FHairStrandsCore::SaveAsset(HairGroupsCards[DescIndex].ProceduralMesh);
+		HairGroupsCards[DescIndex].ProceduralMeshKey = GroomDerivedDataCacheUtils::BuildCardsDerivedDataKeySuffix(this, *Desc);
+	}
+}
+
+// Save geometry and textures for hair cards
+// Save out a static mesh based on generated cards
+void UGroomAsset::SavePendingProceduralAssets()
+{
+	// Proceed procedural asset which needs to be saved
+	if (!HairCardsQueuries.IsEmpty())
+	{
+		TQueue<FHairProceduralCardsQuery*> NotReady;
+		FHairProceduralCardsQuery* Q = nullptr;
+		while (HairCardsQueuries.Dequeue(Q))
+		{
+			if (Q)
+			{
+				if (Q->Asset == this && Q->Textures->bNeedToBeSaved)
+				{
+					if (Q->Textures->DepthTexture)			FHairStrandsCore::SaveAsset(Q->Textures->DepthTexture);
+					if (Q->Textures->AttributeTexture)		FHairStrandsCore::SaveAsset(Q->Textures->AttributeTexture);
+					if (Q->Textures->AuxilaryDataTexture)	FHairStrandsCore::SaveAsset(Q->Textures->AuxilaryDataTexture);
+					if (Q->Textures->CoverageTexture)		FHairStrandsCore::SaveAsset(Q->Textures->CoverageTexture);
+					if (Q->Textures->TangentTexture)		FHairStrandsCore::SaveAsset(Q->Textures->TangentTexture);
+					Q->Textures->bNeedToBeSaved = false;
+
+					InternalReleaseResource(Q->Resources);
+					InternalReleaseResource(Q->ProceduralResources);
+				}
+				else
+				{
+					NotReady.Enqueue(Q);
+				}
+			}
+		}
+		while (NotReady.Dequeue(Q))
+		{
+			HairCardsQueuries.Enqueue(Q);
+		}
+	}
 }
 #endif // WITH_EDITOR
 

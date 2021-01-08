@@ -35,7 +35,7 @@ FD3D12Device::FD3D12Device(FRHIGPUMask InGPUMask, FD3D12Adapter* InAdapter) :
 	GlobalViewHeap(this, InGPUMask),
 	OcclusionQueryHeap(this, D3D12_QUERY_TYPE_OCCLUSION, 65536, 4 /*frames to keep results */ * 1 /*batches per frame*/),
 #if WITH_PROFILEGPU || D3D12_SUBMISSION_GAP_RECORDER
-	CmdListExecTimeQueryHeap(this, D3D12_QUERY_HEAP_TYPE_TIMESTAMP, 8192),
+	CmdListExecTimeQueryHeap(new FD3D12LinearQueryHeap(this, D3D12_QUERY_HEAP_TYPE_TIMESTAMP, 8192)),
 #endif
 	DefaultBufferAllocator(this, FRHIGPUMask::All()), //Note: Cross node buffers are possible 
 	SamplerID(0),
@@ -93,7 +93,7 @@ ID3D12Device7* FD3D12Device::GetDevice7()
 FD3D12LinearQueryHeap* FD3D12Device::GetCmdListExecTimeQueryHeap()
 {
 #if WITH_PROFILEGPU || D3D12_SUBMISSION_GAP_RECORDER
-	return &CmdListExecTimeQueryHeap;
+	return CmdListExecTimeQueryHeap.Get();
 #else
 	return nullptr;
 #endif
@@ -421,6 +421,10 @@ void FD3D12Device::Cleanup()
 		delete TimestampQueryHeaps[QueueType];
 		TimestampQueryHeaps[QueueType] = nullptr;
 	}
+
+#if WITH_PROFILEGPU || D3D12_SUBMISSION_GAP_RECORDER
+	CmdListExecTimeQueryHeap = nullptr;
+#endif
 
 	D3DX12Residency::DestroyResidencyManager(ResidencyManager);
 

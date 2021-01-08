@@ -53,10 +53,12 @@ void UDMXEntityFixturePatch::UpdateDMXCache()
 	// If a listener is bound, this is already updated on tick
 	if (!OnFixturePatchReceivedDMX.IsBound())
 	{
-		if (UpdateCachedDMXValues())
-		{
-			UpdateCachedNormalizedAttributeValues();
-		}
+		UpdateCachedDMXValues();
+		
+		// Unlike on tick, we always want to update the cache as well. Like this, 
+		// if the fixture is not in sync with the cached DMX values for any reason, 
+		// it still gets the most recent values.
+		UpdateCachedNormalizedAttributeValues();
 	}
 }
 
@@ -408,23 +410,27 @@ TMap<FDMXAttributeName, int32> UDMXEntityFixturePatch::ConvertRawMapToAttributeM
 
 	for (const FDMXFixtureFunction& Function : Functions)
 	{
+		const int32 FunctionStartingChannel = Function.Channel + (GetStartingChannel() - 1);
+
 		// Ignore functions outside the Active Mode's Channel Span
 		if (UDMXEntityFixtureType::GetFunctionLastChannel(Function) <= Mode.ChannelSpan
-			&& RawMap.Contains(Function.Channel))
+			&& RawMap.Contains(FunctionStartingChannel))
 		{
 			const uint8& RawValue(RawMap.FindRef(Function.Channel));
 			const uint8 ChannelsToAdd = UDMXEntityFixtureType::NumChannelsToOccupy(Function.DataType);
 
-			uint32 IntVal = 0;
+			TArray<uint8, TFixedAllocator<4>> Bytes;
 			for (uint8 ChannelIt = 0; ChannelIt < ChannelsToAdd; ChannelIt++)
 			{
-				if (const uint8* RawVal = RawMap.Find(Function.Channel + ChannelIt))
+				if (const uint8* RawVal = RawMap.Find(FunctionStartingChannel + ChannelIt))
 				{
-					IntVal += *RawVal << (ChannelIt * 8);
+					Bytes.Add(*RawVal);
 				}
 			}
 
-			FunctionMap.Add(Function.Attribute, IntVal);
+			const uint32 IntValue = UDMXEntityFixtureType::BytesToInt(Function.DataType, Function.bUseLSBMode, Bytes.GetData());
+
+			FunctionMap.Add(Function.Attribute, IntValue);
 		}
 	}
 
@@ -443,7 +449,7 @@ TMap<int32, uint8> UDMXEntityFixturePatch::ConvertAttributeMapToRawMap(const TMa
 	const FDMXFixtureMode& Mode = ParentFixtureTypeTemplate->Modes[ActiveMode];
 	const TArray<FDMXFixtureFunction>& Functions = Mode.Functions;
 
-	RawMap.Reserve(FunctionMap.Num() * 4); // Let's assume all functions are 32bit. We can shrink RawMap later.
+	RawMap.Reserve(FunctionMap.Num());
 
 	for (const TPair<FDMXAttributeName, int32>& Elem : FunctionMap)
 	{
@@ -455,16 +461,23 @@ TMap<int32, uint8> UDMXEntityFixturePatch::ConvertAttributeMapToRawMap(const TMa
 		// Also check for the Function being in the valid range for the Active Mode's channel span
 		if (FunctionPtr != nullptr && Mode.ChannelSpan >= UDMXEntityFixtureType::GetFunctionLastChannel(*FunctionPtr))
 		{
-			const uint8&& NumChannels = UDMXEntityFixtureType::NumChannelsToOccupy(FunctionPtr->DataType);
+			const int32 FunctionStartingChannel = FunctionPtr->Channel + (GetStartingChannel() - 1);
+			const uint8 NumChannels = UDMXEntityFixtureType::NumChannelsToOccupy(FunctionPtr->DataType);
 			const uint32 Value = UDMXEntityFixtureType::ClampValueToDataType(FunctionPtr->DataType, Elem.Value);
 
-			for (uint8 ChannelIt = 0; ChannelIt < NumChannels; ChannelIt++)
-			{
-				const uint8 BytesOffset = (ChannelIt) * 8;
-				const uint8 ChannelVal = Value >> BytesOffset & 0xff;
+			// To avoid branching in the loop, we'll decide before it on which byte to start
+			// and which direction to go, depending on the Function's bit endianness.
+			const int8 ByteIndexStep = FunctionPtr->bUseLSBMode ? 1 : -1;
+			int8 ByteIndex = FunctionPtr->bUseLSBMode ? 0 : NumChannels - 1;
 
-				const int32 FinalChannel = FunctionPtr->Channel + (GetStartingChannel() - 1);
-				RawMap.Add(FinalChannel + ChannelIt, ChannelVal);
+			for (uint8 ByteOffset = 0; ByteOffset < NumChannels; ++ByteOffset)
+			{
+				const uint8 ChannelVal = (Value >> (8 * ByteOffset)) & 0xFF;
+
+				const int32 FinalChannel = FunctionStartingChannel + ByteIndex;
+				RawMap.Add(FinalChannel, ChannelVal);
+
+				ByteIndex += ByteIndexStep;
 			}
 		}
 	}

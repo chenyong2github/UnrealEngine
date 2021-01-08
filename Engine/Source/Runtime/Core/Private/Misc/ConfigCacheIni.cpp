@@ -4069,6 +4069,9 @@ bool FConfigCacheIni::CreateGConfigFromSaved(const TCHAR* Filename)
 //	FCoreDelegates::FExtraBinaryConfigData ExtraData(*GConfig, false);
 
 	GConfig->Serialize(MemoryReader);
+
+	// Forced to be disk backed so that GameUserSettings does get written out.
+	GConfig->Type = EConfigCacheType::DiskBacked;
 	MemoryReader << Names;// << ExtraData.Data;
 
 	// now let the delegates pull their data out, after GConfig is set up
@@ -4090,7 +4093,7 @@ void FConfigCacheIni::InitializeConfigSystem()
 		ENUMERATE_KNOWN_INI_FILES(ASSIGN_GLOBAL_INI_STRING);
 	#undef ASSIGN_GLOBAL_INI_STRING
 
-#if PRELOAD_BINARY_CONFIG
+#if PLATFORM_SUPPORTS_BINARYCONFIG && PRELOAD_BINARY_CONFIG
 	// attempt to load from staged binary config data
 	FString BinaryConfigFile = FPaths::Combine(FPaths::SourceConfigDir(), TEXT("BinaryConfig.ini"));
 
@@ -4098,6 +4101,9 @@ void FConfigCacheIni::InitializeConfigSystem()
 		IFileManager::Get().FileExists(*BinaryConfigFile) &&
 		FConfigCacheIni::CreateGConfigFromSaved(*BinaryConfigFile))
 	{
+		// Force reload GameUserSettings because they may be saved to disk on consoles/similar platforms
+		// So the safest thing to do is to re-read the file after binary configs load.
+		FConfigCacheIni::LoadGlobalIniFile(GGameUserSettingsIni, TEXT("GameUserSettings"));
 		return;
 	}
 #endif

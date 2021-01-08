@@ -11,6 +11,7 @@
 
 #include "Misc/NetworkVersion.h"
 #include "Misc/App.h"
+#include "Misc/ConfigCacheIni.h"
 
 DECLARE_CYCLE_STAT(TEXT("Tick"), STAT_EOS_Tick, STATGROUP_EOS);
 
@@ -208,6 +209,14 @@ EOS_PlatformHandle* FOnlineSubsystemEOS::PlatformCreate()
 
 bool FOnlineSubsystemEOS::Init()
 {
+	// Determine if we are the default and if we're the platform OSS
+	FString DefaultOSS;
+	GConfig->GetString(TEXT("OnlineSubsystem"), TEXT("DefaultPlatformService"), DefaultOSS, GEngineIni);
+	FString PlatformOSS;
+	GConfig->GetString(TEXT("OnlineSubsystem"), TEXT("NativePlatformService"), PlatformOSS, GEngineIni);
+	bIsDefaultOSS = DefaultOSS == TEXT("EOS");
+	bIsPlatformOSS = DefaultOSS == TEXT("EOS");
+
 	// Check for being launched by EGS
 	bWasLaunchedByEGS = FParse::Param(FCommandLine::Get(), TEXT("EpicPortal"));
 	FEOSSettings EOSSettings = UEOSSettings::GetSettings();

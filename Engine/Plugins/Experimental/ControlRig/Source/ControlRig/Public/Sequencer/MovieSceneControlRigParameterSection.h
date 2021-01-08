@@ -123,13 +123,13 @@ struct CONTROLRIG_API FChannelMapInfo
 	FChannelMapInfo(int32 InControlIndex, int32 InTotalChannelIndex,  int32 InChannelIndex, int32 InParentControlIndex = INDEX_NONE, FName InChannelTypeName = NAME_None) :
 		ControlIndex(InControlIndex),TotalChannelIndex(InTotalChannelIndex), ChannelIndex(InChannelIndex), ParentControlIndex(InParentControlIndex), ChannelTypeName(InChannelTypeName) {};
 	UPROPERTY()
-	int32 ControlIndex;
+	int32 ControlIndex = 0;
 	UPROPERTY()
-	int32 TotalChannelIndex;
+	int32 TotalChannelIndex = 0;
 	UPROPERTY()
-	int32 ChannelIndex; //channel index for it's type.. (e.g  float, int, bool).
+	int32 ChannelIndex = 0; //channel index for it's type.. (e.g  float, int, bool).
 	UPROPERTY()
-	int32 ParentControlIndex;
+	int32 ParentControlIndex = 0;
 	UPROPERTY()
 	FName ChannelTypeName; 
 

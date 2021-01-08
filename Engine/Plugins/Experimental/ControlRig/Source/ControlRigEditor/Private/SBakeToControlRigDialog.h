@@ -3,12 +3,12 @@
 
 #include "CoreMinimal.h"
 #include "Delegates/Delegate.h"
+#include "Widgets/SWindow.h"
 
-DECLARE_DELEGATE_TwoParams(FBakeToControlDelegate,
-bool, float);
+DECLARE_DELEGATE_TwoParams(FBakeToControlDelegate, bool, float);
 
 struct BakeToControlRigDialog
 {
-	static void GetBakeParams(FBakeToControlDelegate& Delegate);
+	static void GetBakeParams(FBakeToControlDelegate& Delegate, const FOnWindowClosed& OnClosedDelegate);
 
 };

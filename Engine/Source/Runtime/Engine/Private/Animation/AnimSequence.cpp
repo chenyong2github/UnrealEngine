@@ -964,11 +964,6 @@ void UAnimSequence::PreSave(const class ITargetPlatform* TargetPlatform)
 	Super::PreSave(TargetPlatform);
 }
 
-bool UAnimSequence::IsPostLoadThreadSafe() const
-{
-	return true;
-}
-
 void UAnimSequence::PostLoad()
 {
 	//Parent PostLoad will ensure that skeleton is fully loaded

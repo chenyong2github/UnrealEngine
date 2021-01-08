@@ -64,13 +64,14 @@ public:
 
 private:
 
-	void AddControlRigSubMenu(FMenuBuilder& MenuBuilder, TArray<FGuid> ObjectBindings, UMovieSceneTrack* Track);
+	void HandleAddTrackSubMenu(FMenuBuilder& MenuBuilder, TArray<FGuid> ObjectBindings, UMovieSceneTrack* Track);
+	void HandleAddControlRigSubMenu(FMenuBuilder& MenuBuilder, TArray<FGuid> ObjectBindings, UMovieSceneTrack* Track);
 
 	void ToggleFilterAssetBySkeleton();
 	bool IsToggleFilterAssetBySkeleton();
 
-	void ToggleFilterAssetByAnimatibleControls();
-	bool IsToggleFilterAssetByAnimatibleControls();
+	void ToggleFilterAssetByAnimatableControls();
+	bool IsToggleFilterAssetByAnimatableControls();
 
 	/** Control Rig Picked */
 	void AddControlRig(UClass* InClass, UObject* BoundActor, FGuid ObjectBinding);
@@ -173,8 +174,8 @@ private:
 	/** Whether or not we should check Skeleton when filtering*/
 	bool bFilterAssetBySkeleton;
 
-	/** Whether or not we should check for Animatible Controls when filtering*/
-	bool bFilterAssetByAnimatibleControls;
+	/** Whether or not we should check for Animatable Controls when filtering*/
+	bool bFilterAssetByAnimatableControls;
 };
 
 

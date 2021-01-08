@@ -632,7 +632,7 @@ private:
 		FString String;
 		int32 State = 0;
 		bool UseFirstChar = true;
-		bool Error = false;
+		bool StateError = false;
 
 		while (true)
 		{
@@ -668,53 +668,53 @@ private:
 					if (Char == CharType('-')) { State = 1; }
 					else if (Char == CharType('0')) { State = 2; }
 					else if (IsNonZeroDigit(Char)) { State = 3; }
-					else { Error = true; }
+					else { StateError = true; }
 					break;
 
 				case 1:
 					if (Char == CharType('0')) { State = 2; }
 					else if (IsNonZeroDigit(Char)) { State = 3; }
-					else { Error = true; }
+					else { StateError = true; }
 					break;
 
 				case 2:
 					if (Char == CharType('.')) { State = 4; }
 					else if (Char == CharType('e') || Char == CharType('E')) { State = 5; }
-					else { Error = true; }
+					else { StateError = true; }
 					break;
 
 				case 3:
 					if (IsDigit(Char)) { State = 3; }
 					else if (Char == CharType('.')) { State = 4; }
 					else if (Char == CharType('e') || Char == CharType('E')) { State = 5; }
-					else { Error = true; }
+					else { StateError = true; }
 					break;
 
 				case 4:
 					if (IsDigit(Char)) { State = 6; }
-					else { Error = true; }
+					else { StateError = true; }
 					break;
 
 				case 5:
 					if (Char == CharType('-') ||Char == CharType('+')) { State = 7; }
 					else if (IsDigit(Char)) { State = 8; }
-					else {Error = true;}
+					else { StateError = true; }
 					break;
 
 				case 6:
 					if (IsDigit(Char)) { State = 6; }
 					else if (Char == CharType('e') || Char == CharType('E')) { State = 5; }
-					else { Error = true; }
+					else { StateError = true; }
 					break;
 
 				case 7:
 					if (IsDigit(Char)) { State = 8; }
-					else { Error = true; }
+					else { StateError = true; }
 					break;
 
 				case 8:
 					if (IsDigit(Char)) { State = 8; }
-					else { Error = true; }
+					else { StateError = true; }
 					break;
 
 				default:
@@ -722,7 +722,7 @@ private:
 					return false;
 				}
 
-				if (Error)
+				if (StateError)
 				{
 					break;
 				}
@@ -740,7 +740,7 @@ private:
 		}
 
 		// ensure the number has followed valid Json format
-		if (!Error && ((State == 2) || (State == 3) || (State == 6) || (State == 8)))
+		if (!StateError && ((State == 2) || (State == 3) || (State == 6) || (State == 8)))
 		{
 			StringValue = String;
 			NumberValue = FCString::Atod(*String);

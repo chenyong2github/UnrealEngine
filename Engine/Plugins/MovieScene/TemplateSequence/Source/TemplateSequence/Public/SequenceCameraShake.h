@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Camera/CameraShakeBase.h"
+#include "CineCameraComponent.h"
 #include "CameraAnimationSequence.h"
 #include "EntitySystem/MovieSceneBoundSceneComponentInstantiator.h"
 #include "EntitySystem/MovieSceneEntityIDs.h"
@@ -24,17 +25,67 @@ public:
 
 	GENERATED_BODY()
 
-	USequenceCameraShakeCameraStandIn(const FObjectInitializer& ObjInit) : Super(ObjInit) {}
+	USequenceCameraShakeCameraStandIn(const FObjectInitializer& ObjInit);
 
-	FTransform GetTransform() const { return Transform; }
+public:
+	/**
+	 * Scene component properties
+	 *
+	 * Transform doesn't need to be a UPROPERTY because we register a custom getter/setter. This is
+	 * because the sequence runtime expects that in order to use the intermediate transform struct.
+	 */
+	const FTransform& GetTransform() const { return Transform; }
 	void SetTransform(const FTransform& InTransform) { Transform = InTransform; }
 
+	/** Camera component properties */
 	UPROPERTY()
 	float FieldOfView;
 
-private:
+	UPROPERTY()
+	uint8 bConstrainAspectRatio : 1;
 
+	UPROPERTY()
+	float AspectRatio;
+
+	UPROPERTY()
+	FPostProcessSettings PostProcessSettings;
+
+	UPROPERTY()
+	float PostProcessBlendWeight;
+
+	/** Cine camera component properties */
+	UPROPERTY()
+	FCameraFilmbackSettings Filmback;
+
+	UPROPERTY()
+	FCameraLensSettings LensSettings;
+
+	UPROPERTY()
+	FCameraFocusSettings FocusSettings;
+
+	UPROPERTY()
+	float CurrentFocalLength;
+
+	UPROPERTY()
+	float CurrentAperture;
+
+	UPROPERTY()
+	float CurrentFocusDistance;
+
+public:
+	/** Initialize this object's properties based on the given sequence's root object template */
+	void Initialize(UTemplateSequence* TemplateSequence);
+
+	void Reset(const FMinimalViewInfo& ViewInfo);
+
+	/** Recompute camera and lens settings after each frame */
+	void RecalcDerivedData();
+
+private:
 	FTransform Transform;
+
+	bool bIsCineCamera = false;
+	float WorldToMeters = 0.f;
 };
 
 /**
@@ -95,14 +146,16 @@ private:
 
 	static void RegisterCameraStandIn();
 
+	void UpdateInitialCameraStandInPropertyValues();
+
 private:
 
 	/** The player we use to play the camera animation sequence */
-	UPROPERTY(transient)
+	UPROPERTY(Instanced, Transient)
 	USequenceCameraShakeSequencePlayer* Player;
 
 	/** Standin for the camera actor and components */
-	UPROPERTY(transient)
+	UPROPERTY(Instanced, Transient)
 	USequenceCameraShakeCameraStandIn* CameraStandIn;
 };
 

@@ -175,6 +175,7 @@ public:
 	static void Sleep(float Seconds);
 	static void SleepNoStats(float Seconds);
 	static void SleepInfinite();
+	static void YieldThread();
 	static class FEvent* CreateSynchEvent(bool bIsManualReset = false);
 	static class FRunnableThread* CreateRunnableThread();
 	static void ClosePipe( void* ReadPipe, void* WritePipe );

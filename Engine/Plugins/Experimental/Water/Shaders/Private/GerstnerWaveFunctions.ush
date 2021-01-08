@@ -33,55 +33,6 @@ struct GerstnerWaveRenderer
 	float Time;
 };
 
-FWaveParams GetWaveRTData(GerstnerWaveRenderer inWaveRenderer, Texture2D inWaveParamsRT, SamplerState inWaveParamsRTSampler, int inWaveIndex, int inWaterBodyIndex)
-{
-	FWaveParams OutWaveParams;
-		
-	float2 WaveUV;
-	float WaveUV_b;
-		
-	inWaveIndex *= 2;
-		
-	WaveUV.x = inWaveIndex / inWaveRenderer.WaveParamRTSize.x;
-	WaveUV.y = inWaterBodyIndex / inWaveRenderer.WaveParamRTSize.y;
-	WaveUV += 0.5 / inWaveRenderer.WaveParamRTSize;
-		
-	WaveUV_b = WaveUV.x + (1 / inWaveRenderer.WaveParamRTSize.x);
-		
-	OutWaveParams.Direction = inWaveParamsRT.SampleLevel(inWaveParamsRTSampler, WaveUV, 0).rg;
-		
-	float3 TempParams = inWaveParamsRT.SampleLevel(inWaveParamsRTSampler, float2(WaveUV_b, WaveUV.y), 0).rgb;
-		
-	OutWaveParams.Wavelength = TempParams.x;
-	OutWaveParams.Amplitude = TempParams.y;
-	OutWaveParams.Steepness = TempParams.z;
-		
-	return OutWaveParams;
-}
-	
-WaveOutput AddWaves(WaveOutput inWaveA, WaveOutput inWaveB)
-{
-	inWaveA.Normal += inWaveB.Normal;
-	inWaveA.WPO += inWaveB.WPO;
-		
-	return inWaveA;
-}
-	
-float3 FinalizeNormal(float3 inNormal)
-{
-	return normalize(float3(inNormal.xy, 1 - inNormal.z));
-}
-	
-float3 PackNormalAndWPO(WaveOutput inWave)
-{
-	float3 packedoutput = 0;
-		
-	packedoutput = floor(inWave.WPO * 100);
-	packedoutput += ((inWave.Normal + 1.01) / 2.02);
-	
-	return packedoutput;
-}
-	
 float3 UnpackWaveNormal(float inPackedWave)
 {
 	float3 outnormal = frac(inPackedWave);
@@ -96,179 +47,6 @@ float3 UnpackWaveWPO(float inPackedWave)
 	outWPO = floor(inPackedWave) / 100;
 	return outWPO;
 }
-	
-float2 GetWavePositionAndDispersion(GerstnerWaveRenderer inWaveRenderer, FWaveParams inWaveParams)
-{
-	float dispersion = 2 * PI / inWaveParams.Wavelength;
-	float2 wavevector = inWaveParams.Direction * dispersion;
-	float wavespeed = sqrt(dispersion * Gravity);
-	float wavetime = wavespeed * inWaveRenderer.Time;
-		
-	float wavepos = dot(inWaveRenderer.WorldPos, wavevector) - wavetime;
-		
-	return float2(wavepos, dispersion);
-}
-	
-WaveOutput ComputeSingleWaveVectorized(float inWaveSin, float inWaveCos, float inDispersion, FWaveParams inWaveParams)
-{
-	WaveOutput OutWave;
-		
-	float wKA = inWaveParams.Amplitude * inDispersion;
-		
-	float q = inWaveParams.Steepness / wKA;
-		
-	OutWave.Normal.xy = inWaveSin * wKA * inWaveParams.Direction;
-		
-#if SOLVE_NORMAL_Z
-	OutWave.Normal.z = inWaveCos * wKA * q;
-#else
-		OutWave.Normal.z = 0;
-#endif
-
-	OutWave.WPO.xy = -q * inWaveSin * inWaveParams.Direction * inWaveParams.Amplitude;
-	OutWave.WPO.z = inWaveCos * inWaveParams.Amplitude;
-
-	return OutWave;
-}
-	
-WaveOutput GetSingleGerstnerWave(GerstnerWaveRenderer inWaveRenderer, Texture2D inWaveParamsRT, SamplerState inWaveParamsRTSampler, int inWaveIndex, int inWaterBodyIndex)
-{
-	WaveOutput OutWave;
-		
-	FWaveParams CurrentWave;
-	CurrentWave = GetWaveRTData(inWaveRenderer, inWaveParamsRT, inWaveParamsRTSampler, inWaveIndex, inWaterBodyIndex);
-		
-	float dispersion = 2 * PI / CurrentWave.Wavelength;
-	float2 wavevector = CurrentWave.Direction * dispersion;
-	float wavespeed = sqrt(dispersion * Gravity);
-	float wavetime = wavespeed * inWaveRenderer.Time;
-
-	float wavepos = dot(inWaveRenderer.WorldPos, wavevector) - wavetime;
-		
-	float wavesin = sin(wavepos);
-	float wavecos = cos(wavepos);
-		
-	float wKA = CurrentWave.Amplitude * dispersion;
-		
-	float q = CurrentWave.Steepness / wKA;
-		
-	OutWave.Normal.xy = wavesin * wKA * CurrentWave.Direction;
-		
-#if SOLVE_NORMAL_Z
-	OutWave.Normal.z = wavecos * CurrentWave.Steepness * saturate((CurrentWave.Amplitude * SteepnessThreshold) / CurrentWave.Wavelength);
-		//OutWave.Normal.z = wavecos *  wKA * (q/MaxWaves);
-#else
-		OutWave.Normal.z = 0;
-#endif
-
-	OutWave.WPO.xy = -q * wavesin * CurrentWave.Direction * CurrentWave.Amplitude;
-	OutWave.WPO.z = wavecos * CurrentWave.Amplitude;
-
-	return OutWave;
-		
-}
-	
-WaveOutput GetAllGerstnerWaves(GerstnerWaveRenderer inWaveRenderer, Texture2D inWaveParamsRT, SamplerState inWaveParamsRTSampler, int inWaterBodyIndex)
-{
-		
-	WaveOutput OutWaves = (WaveOutput)0;
-	WaveOutput CurrentWave;
-		
-	int MaxWaveRange = inWaveRenderer.MaxWaves - 1;
-		
-	for (int i = 0; i <= MaxWaveRange; i++)
-	{
-		CurrentWave = GetSingleGerstnerWave(inWaveRenderer, inWaveParamsRT, inWaveParamsRTSampler, i, inWaterBodyIndex);
-		OutWaves = AddWaves(OutWaves, CurrentWave);
-	}
-		
-	//The Normal B channel must be inverted after combining waves
-	OutWaves.Normal = FinalizeNormal(OutWaves.Normal);
-	return OutWaves;
-}
-	
-WaveOutput GetAllGerstnerWavesVectorized(GerstnerWaveRenderer inWaveRenderer, int inWaterBodyIndex)
-{
-		
-	WaveOutput OutWaves = (WaveOutput)0;
-	WaveOutput CurrentWave;
-		
-	int MaxWaveRange = (inWaveRenderer.MaxWaves / 4) - 1;
-	for (int i = 0; i <= MaxWaveRange; i++)
-	{
-		FWaveParams WaveA;
-		FWaveParams WaveB;
-		FWaveParams WaveC;
-		FWaveParams WaveD;
-			
-		float2 WaveAPosAndDispersion = GetWavePositionAndDispersion(inWaveRenderer, WaveA);
-		float2 WaveBPosAndDispersion = GetWavePositionAndDispersion(inWaveRenderer, WaveB);
-		float2 WaveCPosAndDispersion = GetWavePositionAndDispersion(inWaveRenderer, WaveC);
-		float2 WaveDPosAndDispersion = GetWavePositionAndDispersion(inWaveRenderer, WaveD);
-			
-		float4 WaveSines = 0;
-		float4 WaveCosines = 0;
-			
-		WaveSines = sin(float4(WaveAPosAndDispersion.x, WaveBPosAndDispersion.x, WaveCPosAndDispersion.x, WaveDPosAndDispersion.x));
-		WaveCosines = cos(float4(WaveAPosAndDispersion.x, WaveBPosAndDispersion.x, WaveCPosAndDispersion.x, WaveDPosAndDispersion.x));
-			
-		//sincos( float4( WaveAPosAndDispersion.x, WaveBPosAndDispersion.x, WaveCPosAndDispersion.x, WaveDPosAndDispersion.x), WaveSines, WaveCosines);
-			
-		CurrentWave = ComputeSingleWaveVectorized(WaveSines.x, WaveCosines.x, WaveAPosAndDispersion.y, WaveA);
-		OutWaves = AddWaves(OutWaves, CurrentWave);
-			
-		CurrentWave = ComputeSingleWaveVectorized(WaveSines.y, WaveCosines.y, WaveBPosAndDispersion.y, WaveB);
-		OutWaves = AddWaves(OutWaves, CurrentWave);
-			
-		CurrentWave = ComputeSingleWaveVectorized(WaveSines.z, WaveCosines.z, WaveCPosAndDispersion.y, WaveC);
-		OutWaves = AddWaves(OutWaves, CurrentWave);
-			
-		CurrentWave = ComputeSingleWaveVectorized(WaveSines.a, WaveCosines.a, WaveDPosAndDispersion.y, WaveD);
-		OutWaves = AddWaves(OutWaves, CurrentWave);
-			
-	}
-
-	//The Normal B channel must be inverted after combining waves
-	OutWaves.Normal = FinalizeNormal(OutWaves.Normal);
-	return OutWaves;
-}
-	
-WaveOutput GetRangeGerstnerWaves(GerstnerWaveRenderer inWaveRenderer, Texture2D inWaveParamsRT, SamplerState inWaveParamsRTSampler, int inMinWaveIndex, int inMaxWaveIndex, int inWaterBodyIndex)
-{
-	WaveOutput OutWaves;
-	WaveOutput CurrentWave;
-		
-	int MaxWaveRange = min(inMaxWaveIndex, inWaveRenderer.MaxWaves - 1);
-		
-	for (int i = inMinWaveIndex; i <= MaxWaveRange; i++)
-	{
-		CurrentWave = GetSingleGerstnerWave(inWaveRenderer, inWaveParamsRT, inWaveParamsRTSampler, i, inWaterBodyIndex);
-		OutWaves = AddWaves(OutWaves, CurrentWave);
-	}
-		
-	//The Normal B channel must be inverted after combining waves
-	OutWaves.Normal = FinalizeNormal(OutWaves.Normal);
-		
-	return OutWaves;
-}
-	
-// TODO[ jbard] placeholder : Remove ASAP
-float ComputeWaveDepthAttenuationFactor(int InWaterBodyIndex, float InWaterDepth)
-{
-	return 1.0f;
-}
-
-GerstnerWaveRenderer InitializeGerstnerWaveRenderer(float2 inWaveParamsRTSize, int inMaxwaves, float2 inWorldPos, float inTime)
-{
-	GerstnerWaveRenderer OutWaveRenderer;
-	
-	OutWaveRenderer.WaveParamRTSize = inWaveParamsRTSize;
-	OutWaveRenderer.MaxWaves = inMaxwaves;
-	OutWaveRenderer.WorldPos = inWorldPos;
-	OutWaveRenderer.Time = inTime;
-		
-	return OutWaveRenderer;
-}
 
 WaveOutput AddWavesNew(WaveOutput inWaveA, WaveOutput inWaveB)
 {
@@ -280,7 +58,7 @@ WaveOutput AddWavesNew(WaveOutput inWaveA, WaveOutput inWaveB)
 	
 float3 FinalizeNormalNew(float3 inNormal)
 {
-	return normalize(float3(inNormal.xy, 1-inNormal.z));
+	return normalize(float3(inNormal.xy, 1.0f - inNormal.z));
 }
 
 /** Struct containing the decoded water body header data  */	
@@ -299,7 +77,7 @@ struct FWaterBodyHeader
 /** Function to decode the raw data from the water indirection buffer */
 FWaterBodyHeader DecodeWaterBodyHeader(float4 InDataToDecode)
 {
-	FWaterBodyHeader OutWaterBodyHeader;
+	FWaterBodyHeader OutWaterBodyHeader = (FWaterBodyHeader)0;
 	OutWaterBodyHeader.DataIndex = InDataToDecode.x; 
 	OutWaterBodyHeader.NumWaves = InDataToDecode.y; 
 	OutWaterBodyHeader.TargetWaveMaskDepth = InDataToDecode.z;
@@ -310,7 +88,7 @@ FWaterBodyHeader DecodeWaterBodyHeader(float4 InDataToDecode)
 /** Function to decode the data for an individual gerstner wave from the water data buffer */
 FWaveParams DecodeWaveParams(float4 InDataToDecode0, float4 InDataToDecode1)
 {
-	FWaveParams OutWaveParams;
+	FWaveParams OutWaveParams = (FWaveParams)0;
 	OutWaveParams.Direction = InDataToDecode0.xy;
 	OutWaveParams.Wavelength = InDataToDecode0.z;
 	OutWaveParams.Amplitude = InDataToDecode0.w;
@@ -321,8 +99,6 @@ FWaveParams DecodeWaveParams(float4 InDataToDecode0, float4 InDataToDecode1)
 
 FWaveParams GetWaveDataNew(int InWaveIndex, FWaterBodyHeader InWaterBodyHeader)
 {
-	FWaveParams OutWaveParams;
-	
 	const int AbsoluteWaveDataIndex = InWaterBodyHeader.DataIndex + (InWaveIndex * PER_WAVE_DATA_SIZE);
 
 	float4 Data0 = View.WaterData[AbsoluteWaveDataIndex];
@@ -333,7 +109,7 @@ FWaveParams GetWaveDataNew(int InWaveIndex, FWaterBodyHeader InWaterBodyHeader)
 
 float3 PackNormalAndWPONew(WaveOutput inWave)
 {
-	float3 packedoutput = 0;
+	float3 packedoutput = (float3)0;
 		
 	packedoutput = floor(inWave.WPO * 100);
 	packedoutput += ((inWave.Normal + 1.01) / 2.02);
@@ -343,7 +119,7 @@ float3 PackNormalAndWPONew(WaveOutput inWave)
 
 WaveOutput GetSingleGerstnerWaveNew(int InWaveIndex, FWaterBodyHeader InWaterBodyHeader, float InTime, float2 InWorldPos)
 {
-	WaveOutput OutWave;
+	WaveOutput OutWave = (WaveOutput)0;
 		
 	FWaveParams CurrentWave = GetWaveDataNew(InWaveIndex, InWaterBodyHeader);
 		
@@ -380,7 +156,7 @@ WaveOutput GetSingleGerstnerWaveNew(int InWaveIndex, FWaterBodyHeader InWaterBod
 WaveOutput GetAllGerstnerWavesNew(int InWaterBodyIndex, float InTime, float2 InWorldPos)
 {		
 	WaveOutput OutWaves = (WaveOutput)0;
-	WaveOutput CurrentWave;
+	WaveOutput CurrentWave = (WaveOutput)0;
 		
 	const FWaterBodyHeader WaterBodyHeader = DecodeWaterBodyHeader(View.WaterIndirection[InWaterBodyIndex]);
 
@@ -397,8 +173,8 @@ WaveOutput GetAllGerstnerWavesNew(int InWaterBodyIndex, float InTime, float2 InW
 	
 WaveOutput GetRangeGerstnerWavesNew(int InMinWaveIndex, int InMaxWaveIndex, int InWaterBodyIndex, float InTime, float2 InWorldPos)
 {
-	WaveOutput OutWaves;
-	WaveOutput CurrentWave;
+	WaveOutput OutWaves = (WaveOutput)0;
+	WaveOutput CurrentWave = (WaveOutput)0;
 		
 	const FWaterBodyHeader WaterBodyHeader = DecodeWaterBodyHeader(View.WaterIndirection[InWaterBodyIndex]);
 

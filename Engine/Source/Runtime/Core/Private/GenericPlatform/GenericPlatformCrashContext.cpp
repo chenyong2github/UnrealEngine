@@ -1194,7 +1194,7 @@ void FAdditionalCrashContextStack::PopProvider()
 
 FCriticalSection* GetAdditionalProviderLock()
 {
-	static FCriticalSection GAdditionalProviderLock;
+static FCriticalSection GAdditionalProviderLock;
 	return &GAdditionalProviderLock;
 }
 

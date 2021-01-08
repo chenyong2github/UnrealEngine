@@ -1574,7 +1574,7 @@ void FControlRigEditMode::ResetTransforms(bool bSelectionOnly)
 			if (ControlToReset.Type == ERigElementType::Control)
 			{
 				FRigControl* Control = ControlRig->FindControl(ControlToReset.Name);
-				if (Control)
+				if (Control && !Control->bIsTransientControl)
 				{
 					FTransform Transform = ControlRig->GetControlHierarchy().GetLocalTransform(ControlToReset.Name, ERigControlValueType::Initial);
 					ControlRig->Modify();
@@ -1618,6 +1618,15 @@ bool FControlRigEditMode::MouseLeave(FEditorViewportClient* ViewportClient, FVie
 	}
 
 	return false;
+}
+
+void FControlRigEditMode::PostUndo()
+{
+	UControlRig* RuntimeControlRig = GetControlRig(false);
+	if (!RuntimeControlRig)
+	{
+		DestroyGizmosActors();
+	}
 }
 
 void FControlRigEditMode::RecreateGizmoActors(const TArray<FRigElementKey>& InSelectedElements)

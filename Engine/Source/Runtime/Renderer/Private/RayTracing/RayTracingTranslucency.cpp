@@ -112,7 +112,7 @@ FRayTracingPrimaryRaysOptions GetRayTracingTranslucencyOptions()
 {
 	FRayTracingPrimaryRaysOptions Options;
 
-	Options.IsEnabled = CVarRayTracingTranslucency.GetValueOnRenderThread();
+	Options.bEnabled = ShouldRenderRayTracingEffect(CVarRayTracingTranslucency.GetValueOnRenderThread() != 0);
 	Options.SamplerPerPixel = GRayTracingTranslucencySamplesPerPixel;
 	Options.ApplyHeightFog = GRayTracingTranslucencyHeightFog;
 	Options.PrimaryRayBias = GRayTracingTranslucencyPrimaryRayBias;
@@ -130,14 +130,15 @@ FRayTracingPrimaryRaysOptions GetRayTracingTranslucencyOptions()
 
 bool ShouldRenderRayTracingTranslucency(const FViewInfo& View)
 {
-	bool bViewWithRaytracingTranslucency = View.FinalPostProcessSettings.TranslucencyType == ETranslucencyType::RayTracing;
+	const bool bViewWithRaytracingTranslucency = View.FinalPostProcessSettings.TranslucencyType == ETranslucencyType::RayTracing;
 
-	const int32 GRayTracingTranslucency = CVarRayTracingTranslucency.GetValueOnRenderThread();
-	const bool bTranslucencyCvarEnabled = GRayTracingTranslucency < 0 ? bViewWithRaytracingTranslucency : (GRayTracingTranslucency != 0);
-	const int32 ForceAllRayTracingEffects = GetForceRayTracingEffectsCVarValue();
-	const bool bRayTracingTranslucencyEnabled = (ForceAllRayTracingEffects > 0 || (bTranslucencyCvarEnabled && ForceAllRayTracingEffects < 0));
+	const int32 RayTracingTranslucencyMode = CVarRayTracingTranslucency.GetValueOnRenderThread();
+	
+	const bool bTranslucencyEnabled = RayTracingTranslucencyMode < 0
+		? bViewWithRaytracingTranslucency
+		: RayTracingTranslucencyMode != 0;
 
-	return IsRayTracingEnabled() && bRayTracingTranslucencyEnabled;
+	return ShouldRenderRayTracingEffect(bTranslucencyEnabled);
 }
 #endif // RHI_RAYTRACING
 

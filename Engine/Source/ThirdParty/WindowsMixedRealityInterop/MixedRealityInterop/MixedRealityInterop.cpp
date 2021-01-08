@@ -3684,7 +3684,8 @@ namespace WindowsMixedReality
 				m_onDisconnectedEventRevoker =
 					m_remoteContext.OnDisconnected(winrt::auto_revoke, [this](winrt::Microsoft::Holographic::AppRemoting::ConnectionFailureReason failureReason)
 				{
-					const wchar_t ConnectFailureReasonString[static_cast<int32>(winrt::Microsoft::Holographic::AppRemoting::ConnectionFailureReason::PeerDisconnectTimeout) + 1][32] =
+					const int32 LastEnumValue = static_cast<int32>(winrt::Microsoft::Holographic::AppRemoting::ConnectionFailureReason::PeerDisconnectTimeout);
+					const wchar_t ConnectFailureReasonString[LastEnumValue + 1][32] =
 					{
 						L"None",
 						L"Unknown",
@@ -3711,12 +3712,21 @@ namespace WindowsMixedReality
 						L"VideoFormatNotAvailable",
 						L"PeerDisconnectRequest",
 						L"PeerDisconnectTimeout"
+						// If you add more be sure to update LastEnumValue above!
 					}; 
+					
+					const int32 FailureReason = static_cast<int32>(failureReason);
+					// If we are logging "AReasonWeHaveNoStingFor" the list of strings above likely needs to expand to cover a new error value.
+					const wchar_t* ReasonString = FailureReason <= LastEnumValue ? ConnectFailureReasonString[FailureReason] : L"AReasonWeHaveNoStringFor";
 
 					//copy reason for future retrieval
-					wcsncpy_s(failureString, ConnectFailureReasonString[static_cast<int32>(failureReason)], std::size(failureString));
+					wcsncpy_s(failureString, ReasonString, std::size(failureString));
 
-					{ std::wstringstream string; string << L"RemotingDisconnectedEvent: Reason: " << static_cast<int>(failureReason) << " " << ConnectFailureReasonString[static_cast<int32>(failureReason)]; Log(string); }
+					{ std::wstringstream string; string << L"RemotingDisconnectedEvent: Reason: " << FailureReason << " " << ReasonString; Log(string); }
+					if (failureReason == winrt::Microsoft::Holographic::AppRemoting::ConnectionFailureReason::VideoFormatNotAvailable)
+					{
+						{ std::wstringstream string; string << L"RemotingDisconnectedEvent: VideoFormatNotAvailable may result from a conflict with another application that is running on your PC.  The workaround is to close that application."; Log(string); }
+					}
 
 					ReportConnectionStatus(MixedRealityInterop::ConnectionEvent::DisconnectedFromPeer);
 				});

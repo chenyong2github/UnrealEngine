@@ -77,7 +77,7 @@ struct FSettingsForActorClass
 
 	/** Whether to record to 'possessable' (i.e. level-owned) or 'spawnable' (i.e. sequence-owned) actors. */
 	UPROPERTY(Config, EditAnywhere, Category = "Sequence Recording")
-	bool bRecordToPossessable;
+	bool bRecordToPossessable = false;
 };
 
 UCLASS(config=Editor)

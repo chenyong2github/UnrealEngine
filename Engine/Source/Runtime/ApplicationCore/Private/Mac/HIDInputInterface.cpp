@@ -184,7 +184,7 @@ void HIDInputInterface::FHIDDeviceInfo::SetupMappings()
 		RightAnalogYMapping = kHIDUsage_GD_Rz;
 		RightTriggerAnalogMapping = kHIDUsage_GD_Ry;
 	}
-	else if (VendorID == 0x45e && (ProductID == 0x2d1 || ProductID == 0x2ea))
+	else if (VendorID == 0x45e && (ProductID == 0x2d1 || ProductID == 0x2ea || ProductID == 0x2fd))
 	{
 		// Xbox One Controller
 		ButtonsMapping[1]	= 0;	// A

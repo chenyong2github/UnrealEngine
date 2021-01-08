@@ -30,10 +30,10 @@ struct FMovieSceneTrackEvaluationFieldEntry
 	FFrameNumber ForcedTime;
 
 	UPROPERTY()
-	ESectionEvaluationFlags Flags;
+	ESectionEvaluationFlags Flags = ESectionEvaluationFlags::None;
 
 	UPROPERTY()
-	int16 LegacySortOrder;
+	int16 LegacySortOrder = 0;
 };
 
 USTRUCT()

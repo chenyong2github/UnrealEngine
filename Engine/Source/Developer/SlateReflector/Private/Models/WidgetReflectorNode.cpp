@@ -12,6 +12,7 @@
 #include "Layout/WidgetPath.h"
 #include "AssetRegistryModule.h"
 #include "Types/ReflectionMetadata.h"
+#include "FastUpdate/SlateInvalidationRoot.h"
 
 #define LOCTEXT_NAMESPACE "WidgetReflectorNode"
 
@@ -133,6 +134,11 @@ bool FLiveWidgetReflectorNode::GetWidgetVisible() const
 	return FWidgetReflectorNodeUtils::GetWidgetVisibility(Widget.Pin());
 }
 
+bool FLiveWidgetReflectorNode::GetWidgetVisibilityInherited() const
+{
+	return FWidgetReflectorNodeUtils::GetWidgetVisibilityInherited(Widget.Pin());
+}
+
 FText FLiveWidgetReflectorNode::GetWidgetClippingText() const
 {
 	return FWidgetReflectorNodeUtils::GetWidgetClippingText(Widget.Pin());
@@ -241,6 +247,7 @@ FSnapshotWidgetReflectorNode::FSnapshotWidgetReflectorNode(const FArrangedWidget
 	, CachedWidgetTypeAndShortName(FWidgetReflectorNodeUtils::GetWidgetTypeAndShortName(InArrangedWidget.Widget))
 	, CachedWidgetVisibilityText(FWidgetReflectorNodeUtils::GetWidgetVisibilityText(InArrangedWidget.Widget))
 	, bCachedWidgetVisible(FWidgetReflectorNodeUtils::GetWidgetVisibility(InArrangedWidget.Widget))
+	, bCachedWidgetVisibleInherited(FWidgetReflectorNodeUtils::GetWidgetVisibilityInherited(InArrangedWidget.Widget))
 	, bCachedWidgetFocusable(FWidgetReflectorNodeUtils::GetWidgetFocusable(InArrangedWidget.Widget))
 	, bCachedWidgetNeedsTick(FWidgetReflectorNodeUtils::GetWidgetNeedsTick(InArrangedWidget.Widget))
 	, bCachedWidgetIsVolatile(FWidgetReflectorNodeUtils::GetWidgetIsVolatile(InArrangedWidget.Widget))
@@ -292,6 +299,11 @@ bool FSnapshotWidgetReflectorNode::GetWidgetFocusable() const
 bool FSnapshotWidgetReflectorNode::GetWidgetVisible() const
 {
 	return bCachedWidgetVisible;
+}
+
+bool FSnapshotWidgetReflectorNode::GetWidgetVisibilityInherited() const
+{
+	return bCachedWidgetVisibleInherited;
 }
 
 FText FSnapshotWidgetReflectorNode::GetWidgetClippingText() const
@@ -447,6 +459,10 @@ TSharedRef<FJsonValue> FSnapshotWidgetReflectorNode::ToJson(const TSharedRef<FSn
 
 	TSharedRef<FJsonObject> RootJsonObject = MakeShareable(new FJsonObject());
 
+	/**
+	 *  Do not forget to change the version number (SWidgetSnapshotVisualizer.cpp) if you change something here
+	 */
+
 	RootJsonObject->SetField(TEXT("AccumulatedLayoutTransform"), Internal::CreateSlateLayoutTransformJsonValue(RootSnapshotNode->GetAccumulatedLayoutTransform()));
 	RootJsonObject->SetField(TEXT("AccumulatedRenderTransform"), Internal::CreateSlateRenderTransformJsonValue(RootSnapshotNode->GetAccumulatedRenderTransform()));
 	RootJsonObject->SetField(TEXT("LocalSize"), Internal::CreateVector2DJsonValue(RootSnapshotNode->GetLocalSize()));
@@ -456,6 +472,7 @@ TSharedRef<FJsonValue> FSnapshotWidgetReflectorNode::ToJson(const TSharedRef<FSn
 	RootJsonObject->SetStringField(TEXT("WidgetTypeAndShortName"), RootSnapshotNode->CachedWidgetTypeAndShortName.ToString());
 	RootJsonObject->SetStringField(TEXT("WidgetVisibilityText"), RootSnapshotNode->CachedWidgetVisibilityText.ToString());
 	RootJsonObject->SetBoolField(TEXT("WidgetVisible"), RootSnapshotNode->bCachedWidgetVisible);
+	RootJsonObject->SetBoolField(TEXT("WidgetVisibleInherited"), RootSnapshotNode->bCachedWidgetVisibleInherited);
 	RootJsonObject->SetBoolField(TEXT("WidgetFocusable"), RootSnapshotNode->bCachedWidgetFocusable);
 	RootJsonObject->SetBoolField(TEXT("WidgetNeedsTick"), RootSnapshotNode->bCachedWidgetNeedsTick);
 	RootJsonObject->SetBoolField(TEXT("WidgetIsVolatile"), RootSnapshotNode->bCachedWidgetIsVolatile);
@@ -625,6 +642,7 @@ TSharedRef<FSnapshotWidgetReflectorNode> FSnapshotWidgetReflectorNode::FromJson(
 	RootSnapshotNode->CachedWidgetTypeAndShortName = FText::FromString(RootJsonObject->GetStringField(TEXT("WidgetTypeAndShortName")));
 	RootSnapshotNode->CachedWidgetVisibilityText = FText::FromString(RootJsonObject->GetStringField(TEXT("WidgetVisibilityText")));
 	RootSnapshotNode->bCachedWidgetVisible = RootJsonObject->GetBoolField(TEXT("WidgetVisible"));
+	RootSnapshotNode->bCachedWidgetVisibleInherited = RootJsonObject->GetBoolField(TEXT("WidgetVisibleInherited"));
 	RootSnapshotNode->bCachedWidgetFocusable = RootJsonObject->GetBoolField(TEXT("WidgetFocusable"));
 	RootSnapshotNode->bCachedWidgetNeedsTick = RootJsonObject->GetBoolField(TEXT("WidgetNeedsTick"));
 	RootSnapshotNode->bCachedWidgetIsVolatile = RootJsonObject->GetBoolField(TEXT("WidgetIsVolatile"));
@@ -698,26 +716,33 @@ TSharedRef<FWidgetReflectorNodeBase> FWidgetReflectorNodeUtils::NewNodeTreeFrom(
 	TSharedRef<FWidgetReflectorNodeBase> NewNodeInstance = NewNode(InNodeType, InWidgetGeometry);
 
 	TSharedRef<SWidget> CurWidgetParent = InWidgetGeometry.Widget;
-	if (FChildren* Children = CurWidgetParent->GetChildren())
+	FChildren* Children = CurWidgetParent->Advanced_IsInvalidationRoot() ? CurWidgetParent->GetAllChildren() : CurWidgetParent->GetChildren();
+
+	auto BuildChild = [NewNodeInstance, CurWidgetParent, InNodeType](const TSharedRef<SWidget>& ChildWidget)
+	{
+		FGeometry ChildGeometry = ChildWidget->GetCachedGeometry();
+		const EVisibility CurWidgetVisibility = ChildWidget->GetVisibility();
+
+		// Don't add geometry for completely collapsed stuff
+		if (CurWidgetVisibility == EVisibility::Collapsed)
+		{
+			ChildGeometry = FGeometry();
+		}
+		else if (!CurWidgetParent->ValidatePathToChild(&ChildWidget.Get()))
+		{
+			ChildGeometry = FGeometry();
+		}
+
+		// Note that we include both visible and invisible children!
+		FSnapshotWidgetReflectorNode::AddChildNode(NewNodeInstance, NewNodeTreeFrom(InNodeType, FArrangedWidget(ChildWidget, ChildGeometry)));
+	};
+
+	if (ensure(Children))
 	{
 		for (int32 ChildIndex = 0; ChildIndex < Children->Num(); ++ChildIndex)
 		{
 			TSharedRef<SWidget> ChildWidget = Children->GetChildAt(ChildIndex);
-			FGeometry ChildGeometry = ChildWidget->GetCachedGeometry();
-			const EVisibility CurWidgetVisibility = ChildWidget->GetVisibility();
-
-			// Don't add geometry for completely collapsed stuff
-			if (CurWidgetVisibility == EVisibility::Collapsed)
-			{
-				ChildGeometry = FGeometry();
-			}
-			else if (!CurWidgetParent->ValidatePathToChild(&ChildWidget.Get()))
-			{
-				ChildGeometry = FGeometry();
-			}
-
-			// Note that we include both visible and invisible children!
-			FSnapshotWidgetReflectorNode::AddChildNode(NewNodeInstance, NewNodeTreeFrom(InNodeType, FArrangedWidget(ChildWidget, ChildGeometry)));
+			BuildChild(ChildWidget);
 		}
 	}
 
@@ -858,6 +883,11 @@ FText FWidgetReflectorNodeUtils::GetWidgetVisibilityText(const TSharedPtr<const 
 bool FWidgetReflectorNodeUtils::GetWidgetVisibility(const TSharedPtr<const SWidget>& InWidget)
 {
 	return InWidget.IsValid() ? InWidget->GetVisibility().IsVisible() : false;
+}
+
+bool FWidgetReflectorNodeUtils::GetWidgetVisibilityInherited(const TSharedPtr<const SWidget>& InWidget)
+{
+	return InWidget.IsValid() ? InWidget->IsFastPathVisible() : false;
 }
 
 bool FWidgetReflectorNodeUtils::GetWidgetFocusable(const TSharedPtr<const SWidget>& InWidget)

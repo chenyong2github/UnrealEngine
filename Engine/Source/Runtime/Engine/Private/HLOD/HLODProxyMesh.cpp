@@ -9,7 +9,8 @@ FHLODProxyMesh::FHLODProxyMesh()
 
 #if WITH_EDITOR
 FHLODProxyMesh::FHLODProxyMesh(const FHLODProxyMesh& Other)
-	: StaticMesh(Other.StaticMesh)
+	: LODActor(Other.LODActor)
+	, StaticMesh(Other.StaticMesh)
 	, Key(Other.Key)
 {
 }

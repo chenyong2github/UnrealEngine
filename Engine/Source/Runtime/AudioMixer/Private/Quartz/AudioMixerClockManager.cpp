@@ -68,12 +68,13 @@ namespace Audio
 		}
 
 		// Anything below is being executed on the Audio Render Thread
+		FScopeLock Lock(&ActiveClockCritSec);
 		int32 NumClocks = ActiveClocks.Num();
-		for (int32 i = 0; i < NumClocks; ++i)
+		for (int32 i = NumClocks - 1; i >= 0; --i)
 		{
 			if (ActiveClocks[i].GetName() == InName)
 			{
-				FScopeLock Lock(&ActiveClockCritSec);
+				UE_LOG(LogAudioQuartz, Display, TEXT("Removing Clock: %s"), *InName.ToString());
 				ActiveClocks.RemoveAtSwap(i);
 			}
 		}
@@ -167,7 +168,6 @@ namespace Audio
 		{
 			if (!ActiveClocks[i].IgnoresFlush())
 			{
-				ActiveClocks[i].Shutdown();
 				ActiveClocks.RemoveAtSwap(i);
 			}
 		}

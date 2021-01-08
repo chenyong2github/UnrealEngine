@@ -32,6 +32,10 @@ static float GHairClipLength = -1;
 static FAutoConsoleVariableRef CVarHairClipLength(TEXT("r.HairStrands.DebugClipLength"), GHairClipLength, TEXT("Clip hair strands which have a lenth larger than this value. (default is -1, no effect)"));
 float GetHairClipLength() { return GHairClipLength > 0 ? GHairClipLength : 100000;  }
 
+static int32 GHairMaxSimulatedLOD = -1;
+static FAutoConsoleVariableRef CVarHairMaxSimulatedLOD(TEXT("r.HairStrands.MaxSimulatedLOD"), GHairMaxSimulatedLOD, TEXT("Maximum hair LOD to be simulated"));
+bool IsHairLODSimulationEnabled(const int32 LODIndex) { return (LODIndex >= 0 && (GHairMaxSimulatedLOD < 0 || (GHairMaxSimulatedLOD >= 0 && LODIndex <= GHairMaxSimulatedLOD))); }
+
 #define LOCTEXT_NAMESPACE "GroomComponent"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -999,10 +1003,15 @@ void UGroomComponent::ReleaseHairSimulation()
 	NiagaraComponents.Empty();
 }
 
-void UGroomComponent::UpdateHairSimulation()  
+void EnableHairSimulation(UGroomComponent* GroomComponent, const bool bEnableSimulation)
 {
+	if (!GroomComponent)
+	{
+		return;
+	}
+	UGroomAsset* GroomAsset = GroomComponent->GroomAsset;
 	const int32 NumGroups = GroomAsset ? GroomAsset->HairGroupsPhysics.Num() : 0;
-	const int32 NumComponents = FMath::Max(NumGroups, NiagaraComponents.Num());
+	const int32 NumComponents = FMath::Max(NumGroups, GroomComponent->NiagaraComponents.Num());
 
 	TArray<bool> ValidComponents;
 	ValidComponents.Init(false, NumComponents);
@@ -1013,7 +1022,7 @@ void UGroomComponent::UpdateHairSimulation()
 	{
 		for (int32 i = 0; i < NumGroups; ++i)
 		{
-			ValidComponents[i] = GroomAsset->HairGroupsPhysics[i].SolverSettings.EnableSimulation && IsHairStrandsSimulationEnable();
+			ValidComponents[i] = GroomAsset->HairGroupsPhysics[i].SolverSettings.EnableSimulation && IsHairStrandsSimulationEnable() && bEnableSimulation;
 			if (ValidComponents[i] && (GroomAsset->HairGroupsPhysics[i].SolverSettings.NiagaraSolver == EGroomNiagaraSolvers::AngularSprings))
 			{
 				NeedSpringsSolver = true;
@@ -1024,46 +1033,47 @@ void UGroomComponent::UpdateHairSimulation()
 			}
 		}
 	}
-	if (NeedSpringsSolver && (AngularSpringsSystem == nullptr))
+	if (NeedSpringsSolver && (GroomComponent->AngularSpringsSystem == nullptr))
 	{
-		AngularSpringsSystem = LoadObject<UNiagaraSystem>(nullptr, TEXT("/HairStrands/Emitters/SimpleSpringsSystem.SimpleSpringsSystem"));
+		GroomComponent->AngularSpringsSystem = LoadObject<UNiagaraSystem>(nullptr, TEXT("/HairStrands/Emitters/SimpleSpringsSystem.SimpleSpringsSystem"));
 	}
-	if (NeedRodsSolver && (CosseratRodsSystem == nullptr))
+	if (NeedRodsSolver && (GroomComponent->CosseratRodsSystem == nullptr))
 	{
-		CosseratRodsSystem = LoadObject<UNiagaraSystem>(nullptr, TEXT("/HairStrands/Emitters/SimpleRodsSystem.SimpleRodsSystem"));
+		GroomComponent->CosseratRodsSystem = LoadObject<UNiagaraSystem>(nullptr, TEXT("/HairStrands/Emitters/SimpleRodsSystem.SimpleRodsSystem"));
 	}
-	NiagaraComponents.SetNumZeroed(NumComponents);
+	GroomComponent->NiagaraComponents.SetNumZeroed(NumComponents);
 	for (int32 i = 0; i < NumComponents; ++i)
 	{
-		UNiagaraComponent*& NiagaraComponent = NiagaraComponents[i];
+		UNiagaraComponent*& NiagaraComponent = GroomComponent->NiagaraComponents[i];
 		if (ValidComponents[i])
 		{
 			if (!NiagaraComponent)
 			{
-				NiagaraComponent = NewObject<UNiagaraComponent>(this, NAME_None, RF_Transient);
-				if (GetOwner() && GetOwner()->GetWorld())
+				NiagaraComponent = NewObject<UNiagaraComponent>(GroomComponent, NAME_None, RF_Transient);
+				if (GroomComponent->GetOwner() && GroomComponent->GetOwner()->GetWorld())
 				{
-					NiagaraComponent->AttachToComponent(this, FAttachmentTransformRules::KeepRelativeTransform);
+					NiagaraComponent->AttachToComponent(GroomComponent, FAttachmentTransformRules::KeepRelativeTransform);
 					NiagaraComponent->RegisterComponent();
 				}
 				else
 				{
-					NiagaraComponent->SetupAttachment(this);
+					NiagaraComponent->SetupAttachment(GroomComponent);
 				}
 				NiagaraComponent->SetVisibleFlag(false);
 			}
 			if (GroomAsset->HairGroupsPhysics[i].SolverSettings.NiagaraSolver == EGroomNiagaraSolvers::AngularSprings)
 			{
-				NiagaraComponent->SetAsset(AngularSpringsSystem);
+				NiagaraComponent->SetAsset(GroomComponent->AngularSpringsSystem);
 			}
 			else if (GroomAsset->HairGroupsPhysics[i].SolverSettings.NiagaraSolver == EGroomNiagaraSolvers::CosseratRods)
 			{
-				NiagaraComponent->SetAsset(CosseratRodsSystem);
+				NiagaraComponent->SetAsset(GroomComponent->CosseratRodsSystem);
 			}
-			else 
+			else
 			{
 				NiagaraComponent->SetAsset(GroomAsset->HairGroupsPhysics[i].SolverSettings.CustomSystem.LoadSynchronous());
 			}
+
 			NiagaraComponent->ReinitializeSystem();
 			if (NiagaraComponent->GetSystemInstance())
 			{
@@ -1074,13 +1084,14 @@ void UGroomComponent::UpdateHairSimulation()
 		else if (NiagaraComponent && !NiagaraComponent->IsBeingDestroyed())
 		{
 			NiagaraComponent->DeactivateImmediate();
-			if (NiagaraComponent->GetSystemInstance() != nullptr)
-			{
-				NiagaraComponent->GetSystemInstance()->Reset(FNiagaraSystemInstance::EResetMode::ResetAll);
-			}
 		}
 	}
-	UpdateSimulatedGroups();
+	GroomComponent->UpdateSimulatedGroups();
+}
+
+void UGroomComponent::UpdateHairSimulation()  
+{
+	EnableHairSimulation(this,true);
 }
 
 void UGroomComponent::SetGroomAsset(UGroomAsset* Asset)
@@ -1210,11 +1221,27 @@ void UGroomComponent::SetForcedLOD(int32 LODIndex)
 	{
 		LODIndex = -1;
 	}
+
+	const bool bValidLODA = IsHairLODSimulationEnabled(GetForcedLOD());
+	const bool bValidLODB = IsHairLODSimulationEnabled(LODIndex);
+
 	for (FHairGroupDesc& HairDesc : GroomGroupsDesc)
 	{
 		HairDesc.LODForcedIndex = LODIndex;
 	}
 	UpdateHairGroupsDesc();
+	
+	if (bValidLODA != bValidLODB)
+	{
+		if (bValidLODB)
+		{
+			EnableHairSimulation(this, true);
+		}
+		else 
+		{
+			EnableHairSimulation(this, false);
+		}
+	}
 
 	// Do not invalidate completly the proxy, but just update LOD index on the rendering thread
 	FHairStrandsSceneProxy* GroomSceneProxy = (FHairStrandsSceneProxy*)SceneProxy;
@@ -1736,6 +1763,8 @@ static USkeletalMeshComponent* ValidateBindingAsset(
 	return SkeletalMeshComponent;
 }
 
+void CreateHairStrandsDebugAttributeBuffer(FRDGExternalBuffer* DebugAttributeBuffer, uint32 VertexCount);
+
 void UGroomComponent::InitResources(bool bIsBindingReloading)
 {
 	LLM_SCOPE(ELLMTag::Meshes) // This should be a Groom LLM tag, but there is no LLM tag bit left
@@ -1892,15 +1921,23 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 			BeginInitResource(HairGroupInstance->Strands.DeformedResource);
 			HairGroupInstance->Strands.ClusterCullingResource = GroupData.Strands.ClusterCullingResource;
 
+			// Create an debug buffer for storing cluster visalization data. This is only used for debug purpose, hence only enable in editor build.
+			// Special case for debug mode were the attribute buffer is patch with some custom data to show hair properties (strands belonging to the same cluster, ...)
+			#if WITH_EDITOR
+			CreateHairStrandsDebugAttributeBuffer(&HairGroupInstance->Strands.DebugAttributeBuffer, HairGroupInstance->Strands.RestResource->GetVertexCount());
+			#endif
+
 			// An empty groom doesn't have a ClusterCullingResource
 			if (HairGroupInstance->Strands.ClusterCullingResource)
 			{
 				// This codes assumes strands LOD are contigus and the highest (i.e., 0...x). Change this code to something more robust
 				check(HairGroupInstance->HairGroupPublicData);
-				const uint32 StrandsLODCount = GroupData.Strands.ClusterCullingResource->Data.CPULODScreenSize.Num();
+				const int32 StrandsLODCount = GroupData.Strands.ClusterCullingResource->Data.CPULODScreenSize.Num();
 				const TArray<float>& LODScreenSizes = HairGroupInstance->HairGroupPublicData->GetLODScreenSizes();
 				const TArray<bool>& LODVisibilities = HairGroupInstance->HairGroupPublicData->GetLODVisibilities();
-				for (uint32 LODIt = 0; LODIt < StrandsLODCount; ++LODIt)
+				check(StrandsLODCount <= LODScreenSizes.Num());
+				check(StrandsLODCount <= LODVisibilities.Num());
+				for (int32 LODIt = 0; LODIt < StrandsLODCount; ++LODIt)
 				{ 
 					// ClusterCullingData seriazlizes only the screen size related to strands geometry. 
 					// Other type of geometry are not serizalized, and so won't match
@@ -2082,6 +2119,10 @@ void UGroomComponent::ReleaseResources()
 				#if RHI_RAYTRACING
 				InternalResourceRelease(LocalInstance->Strands.RenRaytracingResource);
 				#endif
+
+				#if WITH_EDITOR
+				LocalInstance->Strands.DebugAttributeBuffer.Release();
+				#endif
 			}
 
 			// Cards
@@ -2194,14 +2235,15 @@ void UGroomComponent::OnRegister()
 	Super::OnRegister();
 	UpdateHairSimulation();
 
-	const bool bNeedInitialization = !InitializedResources || InitializedResources != GroomAsset;
+	// Insure the parent skeletal mesh is the same than the registered skeletal mesh, and if not reinitialized resources
+	// This can happens when the OnAttachment callback is not called, but the skeletal mesh change (e.g., the skeletal mesh get recompiled within a blueprint)
+	USkeletalMeshComponent* SkeletalMeshComponent = GetAttachParent() ? Cast<USkeletalMeshComponent>(GetAttachParent()) : nullptr;
+
+	const bool bNeedInitialization = !InitializedResources || InitializedResources != GroomAsset || SkeletalMeshComponent != RegisteredSkeletalMeshComponent;
 	if (bNeedInitialization)
 	{
 		InitResources();
 	}
-
-	// Insure the ticking of the Groom component always happens after the skeletalMeshComponent.
-	USkeletalMeshComponent* SkeletalMeshComponent = GetAttachParent() ? Cast<USkeletalMeshComponent>(GetAttachParent()) : nullptr;
 
 	const EWorldType::Type WorldType = GetWorldType();
 	TArray<FHairGroupInstance*> LocalHairGroupInstances = HairGroupInstances;

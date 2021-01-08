@@ -101,6 +101,9 @@ protected:
 	void OnCategoryBindingEvent(int32 CategoryId, int32 HandlerId);
 	void OnExtensionBindingEvent(int32 ExtensionId, int32 HandlerId);
 
+	/** sets the local player as the new debug actor */
+	void OnSelectLocalPlayer();
+
 	/** called short time after activation key was pressed and hold */
 	void OnStartSelectingActor();
 

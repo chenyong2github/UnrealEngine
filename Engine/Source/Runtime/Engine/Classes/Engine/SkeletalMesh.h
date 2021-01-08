@@ -1622,8 +1622,15 @@ public:
 
 #endif // WITH_EDITORONLY_DATA
 
+	/**
+	 * If true, a ray tracing acceleration structure will be built for this mesh and it may be used in ray tracing effects
+	 */
+	UPROPERTY(EditAnywhere, Category = RayTracing)
+	uint8 bSupportRayTracing : 1;
+
 	UE_DEPRECATED(4.27, "Please do not access this member directly; use USkeletalMesh::GetMorphTargets() or USkeletalMesh::SetMorphTargets().")
 	UPROPERTY(BlueprintGetter = GetMorphTargets, BlueprintSetter = SetMorphTargets, Category = Mesh)
+
 	TArray<UMorphTarget*> MorphTargets;
 
 	static FName GetMorphTargetsMemberName()
@@ -2091,6 +2098,7 @@ public:
 	virtual void Serialize(FArchive& Ar) override;
 	virtual void PostInitProperties() override;
 	virtual void PostLoad() override;
+	virtual bool IsPostLoadThreadSafe() const override;
 	virtual void GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const override;
 	virtual FString GetDesc() override;
 	virtual FString GetDetailedInfoInternal() const override;

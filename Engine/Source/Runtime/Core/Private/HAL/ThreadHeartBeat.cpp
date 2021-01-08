@@ -163,7 +163,7 @@ FThreadHeartBeat* FThreadHeartBeat::GetNoInit()
 	return Singleton;
 }
 
-	//~ Begin FRunnable Interface.
+//~ Begin FRunnable Interface.
 bool FThreadHeartBeat::Init()
 {
 	return true;
@@ -699,19 +699,22 @@ uint32 FThreadHeartBeat::CheckCheckpointHeartBeat(double& OutHangDuration)
 			for (TPair<FName, FHeartBeatInfo>& LastHeartBeat : CheckpointHeartBeat)
 			{
 				FHeartBeatInfo& HeartBeatInfo = LastHeartBeat.Value;
-				if (CurrentTime - HeartBeatInfo.LastHeartBeatTime > HeartBeatInfo.HangDuration && HeartBeatInfo.LastHeartBeatTime >= HeartBeatInfo.LastHangTime)
+				if (HeartBeatInfo.SuspendedCount == 0 && (CurrentTime - HeartBeatInfo.LastHeartBeatTime > HeartBeatInfo.HangDuration && HeartBeatInfo.LastHeartBeatTime >= HeartBeatInfo.LastHangTime))
 				{
-					UE_LOG(LogCore, Warning, TEXT("Failed to reach checkpoint within allotted time %.2f triggering hang detector."), HeartBeatInfo.HangDuration);
+					if (HeartBeatInfo.HangDuration > 0.0)
+					{
+						UE_LOG(LogCore, Warning, TEXT("Failed to reach checkpoint within alotted time of %.2f. Triggering hang detector."), HeartBeatInfo.HangDuration);
 
-					HeartBeatInfo.LastHangTime = CurrentTime;
-					OutHangDuration = HeartBeatInfo.HangDuration;
-					LastHungThreadId = FPlatformTLS::GetCurrentThreadId();
+						HeartBeatInfo.LastHangTime = CurrentTime;
+						OutHangDuration = HeartBeatInfo.HangDuration;
+						LastHungThreadId = FPlatformTLS::GetCurrentThreadId();
 #if PLATFORM_SWITCH
-					FPlatformCrashContext::UpdateDynamicData();
+						FPlatformCrashContext::UpdateDynamicData();
 #endif
-					* ((uint32*)3) = 0xe0000001;
+						*((uint32*)3) = 0xe0000001;
 
-					return 0;
+						return 0;
+					}
 				}
 			}
 		}
@@ -732,53 +735,95 @@ void FThreadHeartBeat::KillHeartBeat()
 void FThreadHeartBeat::SuspendHeartBeat(bool bAllThreads)
 {
 #if USE_HANG_DETECTION	
-	FScopeLock HeartBeatLock(&HeartBeatCritical);
-	if (bAllThreads)
 	{
-		GlobalSuspendCount.Increment();
-	}
-	else
-	{
-		uint32 ThreadId = FPlatformTLS::GetCurrentThreadId();
-		FHeartBeatInfo* HeartBeatInfo = ThreadHeartBeat.Find(ThreadId);
-		if (HeartBeatInfo)
+		FScopeLock HeartBeatLock(&HeartBeatCritical);
+		if (bAllThreads)
 		{
-			HeartBeatInfo->Suspend();
+			GlobalSuspendCount.Increment();
 		}
+		else
+		{
+			uint32 ThreadId = FPlatformTLS::GetCurrentThreadId();
+			FHeartBeatInfo* HeartBeatInfo = ThreadHeartBeat.Find(ThreadId);
+			if (HeartBeatInfo)
+			{
+				HeartBeatInfo->Suspend();
+			}
+		}
+
+		// Suspend the frame-present based detection at the same time.
+		PresentHeartBeat.SuspendedCount++;
 	}
 
-	// Suspend the frame-present based detection at the same time.
-	PresentHeartBeat.SuspendedCount++;
-#endif
-}
-void FThreadHeartBeat::ResumeHeartBeat(bool bAllThreads)
-{
-#if USE_HANG_DETECTION	
-	FScopeLock HeartBeatLock(&HeartBeatCritical);	
-	const double CurrentTime = Clock.Seconds();
-	if (bAllThreads)
+	// Suspend the checkpoint heartbeats
 	{
-		if (GlobalSuspendCount.Decrement() == 0)
+		FScopeLock HeartBeatLock(&CheckpointHeartBeatCritical);
+		if (!bAllThreads)
 		{
-			for (TPair<uint32, FHeartBeatInfo>& HeartBeatEntry : ThreadHeartBeat)
+			for (TPair<FName, FHeartBeatInfo>& HeartBeatEntry : CheckpointHeartBeat)
 			{
-				HeartBeatEntry.Value.LastHeartBeatTime = CurrentTime;
+				HeartBeatEntry.Value.Suspend();
 			}
 		}
 	}
-	else
+#endif
+}
+
+
+void FThreadHeartBeat::ResumeHeartBeat(bool bAllThreads)
+{
+#if USE_HANG_DETECTION	
+	bool bLastThreadResumed = false;
 	{
-		uint32 ThreadId = FPlatformTLS::GetCurrentThreadId();
-		FHeartBeatInfo* HeartBeatInfo = ThreadHeartBeat.Find(ThreadId);
-		if (HeartBeatInfo)
+		FScopeLock HeartBeatLock(&HeartBeatCritical);
+		const double CurrentTime = Clock.Seconds();
+		if (bAllThreads)
 		{
-			HeartBeatInfo->Resume(CurrentTime);
+			if (GlobalSuspendCount.Decrement() == 0)
+			{
+				bLastThreadResumed = true;
+				for (TPair<uint32, FHeartBeatInfo>& HeartBeatEntry : ThreadHeartBeat)
+				{
+					HeartBeatEntry.Value.LastHeartBeatTime = CurrentTime;
+				}
+			}
 		}
+		else
+		{
+			uint32 ThreadId = FPlatformTLS::GetCurrentThreadId();
+			FHeartBeatInfo* HeartBeatInfo = ThreadHeartBeat.Find(ThreadId);
+			if (HeartBeatInfo)
+			{
+				HeartBeatInfo->Resume(CurrentTime);
+			}
+		}
+		// Resume the frame-present based detection at the same time.
+		PresentHeartBeat.SuspendedCount--;
+		PresentHeartBeat.LastHeartBeatTime = Clock.Seconds();
 	}
 
-	// Resume the frame-present based detection at the same time.
-	PresentHeartBeat.SuspendedCount--;
-	PresentHeartBeat.LastHeartBeatTime = Clock.Seconds();
+	// Resume the checkpoint heartbeats
+	{
+		FScopeLock HeartBeatLock(&CheckpointHeartBeatCritical);
+		const double CurrentTime = Clock.Seconds();
+		if (bAllThreads)
+		{
+			if (bLastThreadResumed)
+			{
+				for (TPair<FName, FHeartBeatInfo>& HeartBeatEntry : CheckpointHeartBeat)
+				{
+					HeartBeatEntry.Value.LastHeartBeatTime = CurrentTime;
+				}
+			}
+		}
+		else
+		{
+			for (TPair<FName, FHeartBeatInfo>& HeartBeatEntry : CheckpointHeartBeat)
+			{
+				HeartBeatEntry.Value.Resume(CurrentTime);
+			}
+		}
+	}
 #endif
 }
 

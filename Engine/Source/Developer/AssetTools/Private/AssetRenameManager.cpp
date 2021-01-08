@@ -616,6 +616,25 @@ void FAssetRenameManager::LoadReferencingPackages(TArray<FAssetRenameDataWithRef
 
 	ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
 
+	if (bCheckStatus)
+	{
+		// Bulk request a state update for all packages, which is faster than asking for each one.
+		TArray<UPackage*> AllPackagesToUpdateSCCStatus;
+		for (const FAssetRenameDataWithReferencers& RenameData : AssetsToRename)
+		{
+			if (UObject* Asset = RenameData.Asset.Get())
+			{
+				AllPackagesToUpdateSCCStatus.Add(Asset->GetOutermost());
+			}
+		}
+
+		if (AllPackagesToUpdateSCCStatus.Num() > 0)
+		{
+			TArray< TSharedRef<ISourceControlState, ESPMode::ThreadSafe>> States;
+			SourceControlProvider.GetState(AllPackagesToUpdateSCCStatus, States, EStateCacheUsage::ForceUpdate);
+		}
+	}
+
 	for (int32 AssetIdx = 0; AssetIdx < AssetsToRename.Num(); ++AssetIdx)
 	{
 		if (bStartedSlowTask)
@@ -631,7 +650,7 @@ void FAssetRenameManager::LoadReferencingPackages(TArray<FAssetRenameDataWithRef
 			// Make sure this asset is local. Only local assets should be renamed without a redirector
 			if (bCheckStatus)
 			{
-				FSourceControlStatePtr SourceControlState = SourceControlProvider.GetState(Asset->GetOutermost(), EStateCacheUsage::ForceUpdate);
+				FSourceControlStatePtr SourceControlState = SourceControlProvider.GetState(Asset->GetOutermost(), EStateCacheUsage::Use);
 				const bool bLocalFile = !SourceControlState.IsValid() || SourceControlState->IsLocal();
 				if (!bLocalFile)
 				{
@@ -1406,6 +1425,33 @@ void FAssetRenameManager::PerformAssetRename(TArray<FAssetRenameDataWithReferenc
 		ISourceControlModule::Get().QueueStatusUpdate(PackagesToSave);
 	}
 
+	// Bulk update SCC status for old packages since it is faster than doing it one by one below
+	if (ISourceControlModule::Get().IsEnabled())
+	{
+		TArray<FString> AllSourceFilenamesToCheck;
+
+		ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
+		for (const FAssetRenameDataWithReferencers& RenameData : AssetsToRename)
+		{
+			UPackage* OldPackage = FindPackage(nullptr, *RenameData.OldObjectPath.GetLongPackageName());
+			UPackage* NewPackage = FindPackage(nullptr, *RenameData.NewObjectPath.GetLongPackageName());
+
+			// If something went wrong when saving and the new asset does not exist on disk, don't branch it
+			// as it will just create a copy and any attempt to load it will result in crashes.
+			if (!RenameData.bOnlyFixSoftReferences && NewPackage && FPackageName::DoesPackageExist(NewPackage->GetName()))
+			{
+				const FString SourceFilename = USourceControlHelpers::PackageFilename(OldPackage);
+				AllSourceFilenamesToCheck.Add(SourceFilename);
+			}
+		}
+
+		if (AllSourceFilenamesToCheck.Num() > 0)
+		{
+			TArray< TSharedRef<ISourceControlState, ESPMode::ThreadSafe>> States;
+			SourceControlProvider.GetState(AllSourceFilenamesToCheck, States, EStateCacheUsage::ForceUpdate);
+		}
+	}
+
 	// Now branch the files in source control if possible
 	for (const FAssetRenameDataWithReferencers& RenameData : AssetsToRename)
 	{
@@ -1420,13 +1466,13 @@ void FAssetRenameManager::PerformAssetRename(TArray<FAssetRenameDataWithReferenc
 			{
 				ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
 				const FString SourceFilename = USourceControlHelpers::PackageFilename(OldPackage);
-				FSourceControlStatePtr SourceControlState = SourceControlProvider.GetState(SourceFilename, EStateCacheUsage::ForceUpdate);
+				FSourceControlStatePtr SourceControlState = SourceControlProvider.GetState(SourceFilename, EStateCacheUsage::Use);
 				if (SourceControlState.IsValid() && SourceControlState->IsSourceControlled())
 				{
 					// Do not attempt to branch if the old file was open for add
 					if (!SourceControlState->IsAdded())
 					{
-						SourceControlHelpers::BranchPackage(NewPackage, OldPackage);
+						SourceControlHelpers::BranchPackage(NewPackage, OldPackage, EStateCacheUsage::Use);
 					}
 				}
 			}

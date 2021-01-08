@@ -7,19 +7,35 @@
 
 struct FFileIoStoreCompressionContext;
 
-struct FFileIoStoreContainerFile
+struct FFileIoStoreContainerFilePartition
 {
 	uint64 FileHandle = 0;
 	uint64 FileSize = 0;
+	uint32 ContainerFileIndex = 0;
+	FString FilePath;
+	TUniquePtr<IMappedFileHandle> MappedFileHandle;
+};
+
+struct FFileIoStoreContainerFile
+{
+	uint64 PartitionSize = 0;
 	uint64 CompressionBlockSize = 0;
 	TArray<FName> CompressionMethods;
 	TArray<FIoStoreTocCompressedBlockEntry> CompressionBlocks;
 	FString FilePath;
-	TUniquePtr<IMappedFileHandle> MappedFileHandle;
 	FGuid EncryptionKeyGuid;
 	FAES::FAESKey EncryptionKey;
 	EIoContainerFlags ContainerFlags;
 	TArray<FSHAHash> BlockSignatureHashes;
+	TArray<FFileIoStoreContainerFilePartition> Partitions;
+
+	void GetPartitionFileHandleAndOffset(uint64 TocOffset, uint64& OutFileHandle, uint64& OutOffset) const
+	{
+		int32 PartitionIndex = int32(TocOffset / PartitionSize);
+		const FFileIoStoreContainerFilePartition& Partition = Partitions[PartitionIndex];
+		OutFileHandle = Partition.FileHandle;
+		OutOffset = TocOffset % PartitionSize;
+	}
 };
 
 struct FFileIoStoreBuffer
@@ -69,9 +85,10 @@ struct FFileIoStoreCompressedBlock
 	uint32 UncompressedSize;
 	uint32 CompressedSize;
 	uint32 RawSize;
+	uint32 RefCount = 0;
 	uint32 UnfinishedRawBlocksCount = 0;
 	TArray<struct FFileIoStoreReadRequest*, TInlineAllocator<2>> RawBlocks;
-	TArray<FFileIoStoreBlockScatter, TInlineAllocator<16>> ScatterList;
+	TArray<FFileIoStoreBlockScatter, TInlineAllocator<2>> ScatterList;
 	FFileIoStoreCompressionContext* CompressionContext = nullptr;
 	uint8* CompressedDataBuffer = nullptr;
 	FAES::FAESKey EncryptionKey;
@@ -87,15 +104,15 @@ struct FFileIoStoreReadRequest
 	{
 
 	}
-
 	FFileIoStoreReadRequest* Next = nullptr;
 	uint64 FileHandle = uint64(-1);
 	uint64 Offset = uint64(-1);
 	uint64 Size = uint64(-1);
 	FFileIoStoreBlockKey Key;
 	FFileIoStoreBuffer* Buffer = nullptr;
-	TArray<FFileIoStoreCompressedBlock*, TInlineAllocator<4>> CompressedBlocks;
-	uint32 CompressedBlocksRefCount = 0;
+	uint32 RefCount = 0;
+	uint32 BufferRefCount = 0;
+	TArray<FFileIoStoreCompressedBlock*, TInlineAllocator<8>> CompressedBlocks;
 	const uint32 Sequence;
 	int32 Priority = 0;
 	FFileIoStoreBlockScatter ImmediateScatter;
@@ -309,9 +326,40 @@ private:
 	FSlab* CurrentSlab = nullptr;
 };
 
+struct FFileIoStoreReadRequestLink
+{
+	FFileIoStoreReadRequestLink(FFileIoStoreReadRequest& InReadRequest)
+		: ReadRequest(InReadRequest)
+	{
+	}
+
+	FFileIoStoreReadRequestLink* Next = nullptr;
+	FFileIoStoreReadRequest& ReadRequest;
+};
+
 class FFileIoStoreRequestAllocator
 {
 public:
+	FFileIoStoreResolvedRequest* AllocResolvedRequest(
+		FIoRequestImpl& InDispatcherRequest,
+		const FFileIoStoreContainerFile& InContainerFile,
+		uint32 InContainerFileIndex,
+		uint64 InResolvedOffset,
+		uint64 InResolvedSize)
+	{
+		return ResolvedRequestAllocator.Construct(
+			InDispatcherRequest,
+			InContainerFile,
+			InContainerFileIndex,
+			InResolvedOffset,
+			InResolvedSize);
+	}
+
+	void Free(FFileIoStoreResolvedRequest* ResolvedRequest)
+	{
+		ResolvedRequestAllocator.Destroy(ResolvedRequest);
+	}
+
 	FFileIoStoreReadRequest* AllocReadRequest()
 	{
 		//TRACE_CPUPROFILER_EVENT_SCOPE(AllocReadRequest);
@@ -336,29 +384,33 @@ public:
 		CompressedBlockAllocator.Destroy(CompressedBlock);
 	}
 
+	FFileIoStoreReadRequestLink* AllocRequestLink(FFileIoStoreReadRequest* ReadRequest)
+	{
+		check(ReadRequest);
+		return RequestLinkAllocator.Construct(*ReadRequest);
+	}
+
+	void Free(FFileIoStoreReadRequestLink* RequestLink)
+	{
+		RequestLinkAllocator.Destroy(RequestLink);
+	}
+
 private:
+	TIoDispatcherSingleThreadedSlabAllocator<FFileIoStoreResolvedRequest> ResolvedRequestAllocator;
 	TIoDispatcherSingleThreadedSlabAllocator<FFileIoStoreReadRequest> ReadRequestAllocator;
 	TIoDispatcherSingleThreadedSlabAllocator<FFileIoStoreCompressedBlock> CompressedBlockAllocator;
+	TIoDispatcherSingleThreadedSlabAllocator<FFileIoStoreReadRequestLink> RequestLinkAllocator;
 };
 
 struct FFileIoStoreResolvedRequest
 {
 public:
-	struct FRequestLink
-	{
-		FRequestLink* Next = nullptr;
-		FFileIoStoreReadRequest* ReadRequest = nullptr;
-	};
-
 	FFileIoStoreResolvedRequest(
-		TIoDispatcherSingleThreadedSlabAllocator<FRequestLink>& InLinkAllocator,
 		FIoRequestImpl& InDispatcherRequest,
 		const FFileIoStoreContainerFile& InContainerFile,
 		uint32 InContainerFileIndex,
 		uint64 InResolvedOffset,
 		uint64 InResolvedSize);
-
-	~FFileIoStoreResolvedRequest();
 
 	const FFileIoStoreContainerFile& GetContainerFile() const
 	{
@@ -390,14 +442,13 @@ public:
 		return DispatcherRequest.IoBuffer;
 	}
 
-	void AddReadRequest(FFileIoStoreReadRequest* ReadRequest);
+	void AddReadRequestLink(FFileIoStoreReadRequestLink* ReadRequestLink);
 
 private:
-	TIoDispatcherSingleThreadedSlabAllocator<FRequestLink>& LinkAllocator;
 	FIoRequestImpl& DispatcherRequest;
 	const FFileIoStoreContainerFile& ContainerFile;
-	FRequestLink* ReadRequestsHead = nullptr;
-	FRequestLink* ReadRequestsTail = nullptr;
+	FFileIoStoreReadRequestLink* ReadRequestsHead = nullptr;
+	FFileIoStoreReadRequestLink* ReadRequestsTail = nullptr;
 	const uint64 ResolvedOffset;
 	const uint64 ResolvedSize;
 	const uint32 ContainerFileIndex;

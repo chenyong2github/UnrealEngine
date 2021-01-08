@@ -28,10 +28,13 @@ FWidgetProxy::FWidgetProxy(TSharedRef<SWidget>& InWidget)
 	// Potentially unsafe to update visibility from the widget due to attribute bindings.  This is updated later when the widgets are sorted in ProcessInvalidation
 	, Visibility(EVisibility::Collapsed) 
 	, bUpdatedSinceLastInvalidate(false)
-	, bInUpdateList(false)
-	, bChildOrderInvalid(false)
 	, bContainedByWidgetHeap(false)
+	, bDebug_LastFrameVisible(true)
+	, bDebug_LastFrameVisibleSet(false)
 {
+#if UE_SLATE_WITH_WIDGETPROXY_WIDGETTYPE
+	WidgetName = GetWidget()->GetType();
+#endif
 }
 
 TSharedPtr<SWidget> FWidgetProxy::GetWidgetAsShared() const
@@ -117,7 +120,7 @@ bool FWidgetProxy::ProcessInvalidation(FSlateInvalidationWidgetHeap& UpdateList,
 		FVector2D NewDesiredSize = FVector2D::ZeroVector;
 		if (Visibility != EVisibility::Collapsed)
 		{
-			if (WidgetPtr->NeedsPrepass() || (!GSlateEnableGlobalInvalidation && WidgetPtr->Advanced_IsInvalidationRoot()))
+			if (WidgetPtr->NeedsPrepass())
 			{
 				WidgetPtr->SlatePrepass(WidgetPtr->PrepassLayoutScaleMultiplier.Get(1.0f));
 			}
@@ -146,7 +149,7 @@ bool FWidgetProxy::ProcessInvalidation(FSlateInvalidationWidgetHeap& UpdateList,
 				if (ParentIndex == FastWidgetPathList.FirstIndex())
 				{
 					// root of the invalidation panel just invalidate the whole thing
-					Root.InvalidateRoot(WidgetPtr);
+					Root.InvalidateRootLayout(WidgetPtr);
 				}
 				else if (ParentProxy.Visibility.IsVisible())
 				{
@@ -158,13 +161,9 @@ bool FWidgetProxy::ProcessInvalidation(FSlateInvalidationWidgetHeap& UpdateList,
 					UpdateList.PushUnique(ParentProxy);
 				}
 			}
-			else if (!GSlateEnableGlobalInvalidation && WidgetPtr->IsParentValid())
+			else if (TSharedPtr<SWidget> ParentWidget = WidgetPtr->GetParentWidget())
 			{
-				TSharedPtr<SWidget> ParentWidget = WidgetPtr->GetParentWidget();
-				if (ParentWidget->Advanced_IsInvalidationRoot())
-				{
-					Root.InvalidateRoot(WidgetPtr);
-				}
+				ParentWidget->Invalidate(EInvalidateWidgetReason::Layout);
 			}
 		}
 
@@ -197,10 +196,6 @@ void FWidgetProxy::MarkProxyUpdatedThisFrame(FSlateInvalidationWidgetHeap& Updat
 			// If there are any updates still needed add them to the next update list
 			UpdateList.PushUnique(*this);
 		}
-	}
-	else
-	{
-		bInUpdateList = false;
 	}
 }
 
@@ -259,17 +254,6 @@ int32 FWidgetProxy::Repaint(const FPaintArgs& PaintArgs, FSlateWindowElementList
 	return NewLayerId;
 }
 
-FWidgetProxyHandle::FWidgetProxyHandle(const FSlateInvalidationRootHandle& InInvalidationRoot, FSlateInvalidationWidgetIndex InIndex, FSlateInvalidationWidgetSortOrder InSortIndex)
-	: InvalidationRootHandle(InInvalidationRoot)
-	, WidgetIndex(InIndex)
-	, WidgetSortOrder(InSortIndex)
-{
-	if (InInvalidationRoot.Advanced_GetInvalidationRootNoCheck())
-	{
-		GenerationNumber = InInvalidationRoot.Advanced_GetInvalidationRootNoCheck()->GetFastPathGenerationNumber();
-	}
-}
-
 FWidgetProxyHandle::FWidgetProxyHandle(const FSlateInvalidationRootHandle& InInvalidationRoot, FSlateInvalidationWidgetIndex InIndex, FSlateInvalidationWidgetSortOrder InSortIndex, int32 InGenerationNumber)
 	: InvalidationRootHandle(InInvalidationRoot)
 	, WidgetIndex(InIndex)
@@ -296,6 +280,15 @@ bool FWidgetProxyHandle::IsValid(const SWidget* Widget) const
 		&& InvalidationRoot->GetFastPathWidgetList()[WidgetIndex].GetWidget() == Widget;
 }
 
+bool FWidgetProxyHandle::HasValidInvalidationRootOwnership(const SWidget* Widget) const
+{
+	FSlateInvalidationRoot* InvalidationRoot = InvalidationRootHandle.GetInvalidationRoot();
+	return InvalidationRoot
+		&& InvalidationRoot->GetFastPathWidgetList().GetGenerationNumber() == GenerationNumber
+		&& InvalidationRoot->GetFastPathWidgetList().IsValidIndex(WidgetIndex)
+		&& InvalidationRoot->GetFastPathWidgetList()[WidgetIndex].GetWidget() == Widget;
+}
+
 FWidgetProxy& FWidgetProxyHandle::GetProxy()
 {
 	return GetInvalidationRoot()->GetFastPathWidgetList()[WidgetIndex];
@@ -318,7 +311,6 @@ void FWidgetProxyHandle::MarkWidgetDirty(EInvalidateWidgetReason InvalidateReaso
 
 	if (EnumHasAnyFlags(InvalidateReason, EInvalidateWidgetReason::ChildOrder))
 	{
-		Proxy.bChildOrderInvalid = true;
 		GetInvalidationRoot()->InvalidateWidgetChildOrder(WidgetPtr->AsShared());
 	}
 
@@ -349,8 +341,8 @@ void FWidgetProxyHandle::UpdateWidgetFlags(const SWidget* Widget, EWidgetUpdateF
 		{
 			Proxy.UpdateFlags = NewFlags;
 
-			// Add to update list if the widget is now tickable or has an active timer.  Disregard if dirty, it was already in the list
-			if (!Proxy.bInUpdateList && EnumHasAnyFlags(NewFlags, EWidgetUpdateFlags::AnyUpdate))
+			// Add to update list if the widget is now tickable or has an active timer.
+			if (EnumHasAnyFlags(NewFlags, EWidgetUpdateFlags::AnyUpdate))
 			{
 				GetInvalidationRoot()->WidgetsNeedingUpdate->PushUnique(Proxy);
 			}

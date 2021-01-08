@@ -394,7 +394,6 @@ public:
 	virtual void Serialize(FArchive& Ar) override;
 	virtual void PostInitProperties() override;
 	virtual void PostLoad() override;
-	virtual bool IsPostLoadThreadSafe() const override;
 	virtual void PreSave(const class ITargetPlatform* TargetPlatform) override;
 	virtual void GetPreloadDependencies(TArray<UObject*>& OutDeps) override;
 #if WITH_EDITOR

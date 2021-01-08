@@ -794,7 +794,10 @@ void FControlRigEditorModule::BakeToControlRig(UClass* ControlRigClass, UAnimSeq
 						AnimLevelLink->SkelTrackGuid = ActorTrackGuid;
 					}
 				});
-				BakeToControlRigDialog::GetBakeParams(BakeCallback);
+
+				FOnWindowClosed BakeClosedCallback = FOnWindowClosed::CreateLambda([](const TSharedRef<SWindow>&) { });
+
+				BakeToControlRigDialog::GetBakeParams(BakeCallback, BakeClosedCallback);
 			}
 		}
 	}

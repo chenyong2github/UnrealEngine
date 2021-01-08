@@ -2575,7 +2575,7 @@ void UDemoNetDriver::TickDemoPlayback(float DeltaSeconds)
 		// We're busy processing tasks, return
 		return;
 	}
-	
+
 	// If the ExitAfterReplay option is set, automatically shut down at the end of the replay.
 	// Use AtEnd() of the archive instead of checking DemoCurrentTime/DemoTotalTime, because the DemoCurrentTime may never catch up to DemoTotalTime.
 	if (FArchive* const StreamingArchive = ReplayHelper.ReplayStreamer->GetStreamingArchive())
@@ -4046,6 +4046,7 @@ bool UDemoNetDriver::LoadCheckpoint(const FGotoResult& GotoResult)
 	PlaybackDeltaCheckpointData.Empty();
 
 	TArray<TInterval<int32>> DeltaCheckpointPacketIntervals;
+	TArray<FName> PathNameTable;
 
 	do
 	{
@@ -4117,16 +4118,49 @@ bool UDemoNetDriver::LoadCheckpoint(const FGotoResult& GotoResult)
 
 			FNetGuidCacheObject CacheObject;
 
+			*GotoCheckpointArchive << CacheObject.OuterGUID;
+
 			FString PathName;
 
-			*GotoCheckpointArchive << CacheObject.OuterGUID;
-			*GotoCheckpointArchive << PathName;
-			*GotoCheckpointArchive << CacheObject.NetworkChecksum;
+			if (PlaybackVersion < HISTORY_GUID_NAMETABLE)
+			{
+				*GotoCheckpointArchive << PathName;
+			}
+			else
+			{
+				uint8 bExported = 0;
+				*GotoCheckpointArchive << bExported;
+
+				if (bExported == 1)
+				{
+					*GotoCheckpointArchive << PathName;
+
+					PathNameTable.Add(FName(*PathName));
+				}
+				else
+				{
+					uint32 PathNameIndex = 0;
+					GotoCheckpointArchive->SerializeIntPacked(PathNameIndex);
+
+					if (PathNameTable.IsValidIndex(PathNameIndex))
+					{
+						PathName = PathNameTable[PathNameIndex].ToString();
+					}
+					else
+					{
+						GotoCheckpointArchive->SetError();
+						UE_LOG(LogDemo, Error, TEXT("Invalid guid path table index while serializing checkpoint."));
+						break;
+					}
+				}
+			}
 
 			// Remap the pathname to handle client-recorded replays
 			GEngine->NetworkRemapPath(ServerConnection, PathName, true);
 
 			CacheObject.PathName = FName(*PathName);
+
+			*GotoCheckpointArchive << CacheObject.NetworkChecksum;
 
 			uint8 Flags = 0;
 			*GotoCheckpointArchive << Flags;
@@ -4139,7 +4173,7 @@ bool UDemoNetDriver::LoadCheckpoint(const FGotoResult& GotoResult)
 			if (GotoCheckpointArchive->IsError())
 			{
 				UE_LOG(LogDemo, Error, TEXT("Guid cache serialization error while loading checkpoint."));
-				break;
+				return true;
 			}
 		}
 

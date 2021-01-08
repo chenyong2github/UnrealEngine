@@ -569,12 +569,21 @@ void FMaterialEditorUtilities::GetVisibleMaterialParametersFromExpression(
 	}
 	else
 	{
-		const TArray<FExpressionInput*>& ExpressionInputs = MaterialExpressionKey.Expression->GetInputs();
-		for (int32 ExpressionInputIndex = 0; ExpressionInputIndex < ExpressionInputs.Num(); ExpressionInputIndex++)
+		// If this is a reroute node of any type, we trace to the first available 'real' input and traverse that single input 
+		if (const UMaterialExpressionRerouteBase* Reroute = Cast<UMaterialExpressionRerouteBase>(MaterialExpressionKey.Expression))
 		{
-			//retrieve the expression input and then start parsing its children
-			FExpressionInput* Input = ExpressionInputs[ExpressionInputIndex];
-			GetVisibleMaterialParametersFromExpression(FMaterialExpressionKey(Input->Expression, Input->OutputIndex), MaterialInstance, VisibleExpressions, FunctionStack);
+			FExpressionInput Input = Reroute->TraceInputsToRealInput();
+			GetVisibleMaterialParametersFromExpression(FMaterialExpressionKey(Input.Expression, Input.OutputIndex), MaterialInstance, VisibleExpressions, FunctionStack);
+		}
+		else
+		{
+			const TArray<FExpressionInput*>& ExpressionInputs = MaterialExpressionKey.Expression->GetInputs();
+			for (int32 ExpressionInputIndex = 0; ExpressionInputIndex < ExpressionInputs.Num(); ExpressionInputIndex++)
+			{
+				//retrieve the expression input and then start parsing its children
+				FExpressionInput* Input = ExpressionInputs[ExpressionInputIndex];
+				GetVisibleMaterialParametersFromExpression(FMaterialExpressionKey(Input->Expression, Input->OutputIndex), MaterialInstance, VisibleExpressions, FunctionStack);
+			}
 		}
 	}
 

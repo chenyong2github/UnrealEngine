@@ -58,6 +58,8 @@ EHairCardsSimulationType GetHairCardsSimulationType()
 		(GHairCardsInterpolationType >= 1 ? EHairCardsSimulationType::Guide : EHairCardsSimulationType::None);
 }
 
+bool IsHairLODSimulationEnabled(const int32 LODIndex);
+
 bool NeedsUpdateCardsMeshTriangles()
 {
 	return GetHairCardsSimulationType() == EHairCardsSimulationType::Guide;
@@ -635,7 +637,7 @@ static void AddHairStrandsInterpolationPass(
 	}
 
 	const bool bUseSingleGuide = GHairStrandsUseSingleGuideInterpolation > 0;
-	const bool bHasLocalDeformation = Instance->Guides.bIsSimulationEnable || bSupportGlobalInterpolation;
+	const bool bHasLocalDeformation = (Instance->Guides.bIsSimulationEnable && IsHairLODSimulationEnabled(MeshLODIndex)) || bSupportGlobalInterpolation;
 	const bool bCullingEnable = InstanceGeometryType == EHairGeometryType::Strands && CullingData.bCullingResultAvailable;
 	Parameters->HairStrandsVF_bIsCullingEnable = bCullingEnable ? 1 : 0;
 
@@ -1251,16 +1253,6 @@ FHairGroupPublicData::FVertexFactoryInput ComputeHairStrandsVertexInputData(FHai
 	const EHairStrandsDebugMode DebugMode = GetHairStrandsGeometryDebugMode(Instance);
 	const bool bDebugModePatchedAttributeBuffer = NeedsPatchAttributeBuffer(DebugMode);
 
-	// Special case for debug mode were the attribute buffer is patch with some custom data to show hair properties (strands belonging to the same cluster, ...)
-	const uint32 VertexCount = Instance->Strands.RestResource->GetVertexCount();
-	const uint32 BufferSizeInBytes = VertexCount * FHairStrandsAttributeFormat::SizeInByte;
-	if (bDebugModePatchedAttributeBuffer && (!Instance->Strands.DebugAttributeBuffer.Buffer || Instance->Strands.DebugAttributeBuffer.Buffer->Desc.GetTotalNumBytes() != BufferSizeInBytes))
-	{
-		// hair_todo: renable this by allocating the buffer during the hairinterpolation pass
-		Instance->Strands.DebugAttributeBuffer.Release();
-		//Instance->Strands.DebugAttributeBuffer.Initialize(FHairStrandsAttributeFormat::SizeInByte, VertexCount, FHairStrandsAttributeFormat::Format, BUF_Static);
-	}
-
 	if (DebugMode == EHairStrandsDebugMode::SimHairStrands)
 	{
 		OutVFInput.Strands.PositionBuffer = Instance->Guides.DeformedResource->GetBuffer(FHairStrandsDeformedResource::EFrameType::Current).SRV;
@@ -1407,8 +1399,14 @@ void ComputeHairStrandsInterpolation(
 
 		FRDGImportedBuffer Strands_DeformedPosition		= Register(GraphBuilder, Instance->Strands.DeformedResource->GetBuffer(FHairStrandsDeformedResource::Current), ERDGImportedBufferFlags::CreateViews);
 		FRDGImportedBuffer Strands_DeformedPrevPosition = Register(GraphBuilder, Instance->Strands.DeformedResource->GetBuffer(FHairStrandsDeformedResource::Previous), ERDGImportedBufferFlags::CreateViews);
-		FRDGImportedBuffer Strands_DeformedTangent		= Register(GraphBuilder, Instance->Strands.DeformedResource->TangentBuffer, ERDGImportedBufferFlags::CreateViews);
-		
+		FRDGImportedBuffer Strands_DeformedTangent		= Register(GraphBuilder, Instance->Strands.DeformedResource->TangentBuffer, ERDGImportedBufferFlags::CreateViews);		
+		#if WITH_EDITOR
+		FRDGImportedBuffer Strands_DebugAttributeReg	= Register(GraphBuilder, Instance->Strands.DebugAttributeBuffer, ERDGImportedBufferFlags::CreateUAV);
+		FRDGImportedBuffer*Strands_DebugAttribute		= &Strands_DebugAttributeReg;
+		#else
+		FRDGImportedBuffer*Strands_DebugAttribute		= nullptr;
+		#endif
+
 		// Note: This code needs to exactly match the values FHairScaleAndClipDesc set int the previous loop.
 		const FHairScaleAndClipDesc ScaleAndClipDesc = ComputeHairScaleAndClipDesc(Instance);
 		Instance->HairGroupPublicData->VFInput = ComputeHairStrandsVertexInputData(Instance);
@@ -1443,7 +1441,7 @@ void ComputeHairStrandsInterpolation(
 					RegisterAsSRV(GraphBuilder, Instance->Guides.RestResource->AttributeBuffer),
 					Strands_DeformedPosition,
 					&Strands_DeformedPrevPosition, 
-					nullptr, //RegisterAsUAV(GraphBuilder, Instance->Strands.DebugAttributeBuffer), TODO
+					Strands_DebugAttribute,
 					RegisterAsSRV(GraphBuilder, Instance->Strands.ClusterCullingResource->VertexToClusterIdBuffer),
 					RegisterAsSRV(GraphBuilder, Instance->Strands.InterpolationResource->SimRootPointIndexBuffer));
 
@@ -1674,7 +1672,7 @@ void ResetHairStrandsInterpolation(
 	FHairGroupInstance* Instance,
 	int32 MeshLODIndex)
 {
-	if (!Instance || (Instance && Instance->Guides.bIsSimulationEnable) || !IsHairStrandsBindingEnable()) return;
+	if (!Instance || (Instance && Instance->Guides.bIsSimulationEnable && IsHairLODSimulationEnabled(MeshLODIndex)) || !IsHairStrandsBindingEnable()) return;
 
 	DECLARE_GPU_STAT(HairStrandsResetInterpolation);
 	RDG_EVENT_SCOPE(GraphBuilder, "HairStrandsResetInterpolation");

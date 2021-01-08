@@ -16,6 +16,7 @@
 #include "Materials/MaterialExpressionFunctionOutput.h"
 #include "Materials/MaterialExpressionCustomOutput.h"
 #include "Materials/MaterialExpressionReroute.h"
+#include "Materials/MaterialExpressionNamedReroute.h"
 
 #include "MaterialGraphNode_Knot.h"
 
@@ -584,6 +585,15 @@ void UMaterialGraph::GetUnusedExpressions(TArray<UEdGraphNode*>& UnusedNodes) co
 					if (InputPins[Index]->LinkedTo.Num() > 0 && InputPins[Index]->LinkedTo[0])
 					{
 						NodesToCheck.Push(InputPins[Index]->LinkedTo[0]->GetOwningNode());
+					}
+				}
+
+				// Since named reroute nodes don't have any input pins, we manually push the declaration node here
+				if (const UMaterialExpressionNamedRerouteUsage* NamedRerouteUsage = Cast<UMaterialExpressionNamedRerouteUsage>(GraphNode->MaterialExpression))
+				{
+					if (NamedRerouteUsage->Declaration && NamedRerouteUsage->Declaration->GraphNode)
+					{
+						NodesToCheck.Push(NamedRerouteUsage->Declaration->GraphNode);
 					}
 				}
 			}

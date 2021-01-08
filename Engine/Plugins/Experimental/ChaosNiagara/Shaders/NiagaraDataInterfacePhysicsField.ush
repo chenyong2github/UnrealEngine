@@ -15,36 +15,33 @@ NiagaraDataInterfacePhysicsField.ush
 
 struct FDIPhysicsFieldContext
 {
-	Texture3D<float4> ClipmapTexture;
-	SamplerState ClipmapSampler;
+	Buffer<float> ClipmapBuffer;
 	float3 ClipmapCenter;
 	float ClipmapDistance;
 	int ClipmapResolution;
 	int ClipmapExponent;
 	int ClipmapCount;
 	int TargetCount;
-	int VectorTargets[MAX_TARGETS_ARRAY];
-	int ScalarTargets[MAX_TARGETS_ARRAY];
-	int IntegerTargets[MAX_TARGETS_ARRAY];
+	int VectorTargets[MAX_PHYSICS_FIELD_TARGETS];
+	int ScalarTargets[MAX_PHYSICS_FIELD_TARGETS];
+	int IntegerTargets[MAX_PHYSICS_FIELD_TARGETS];
 };
 
 #define DIPhysicsField_DECLARE_CONSTANTS(NAME)\
-Texture3D<float4> ClipmapTexture_##NAME;\
-SamplerState ClipmapSampler_##NAME;\
+Buffer<float> ClipmapBuffer_##NAME;\
 float3 ClipmapCenter_##NAME;\
 float ClipmapDistance_##NAME;\
 int ClipmapResolution_##NAME;\
 int ClipmapExponent_##NAME;\
 int ClipmapCount_##NAME;\
 int TargetCount_##NAME;\
-int VectorTargets_##NAME[MAX_TARGETS_ARRAY];\
-int ScalarTargets_##NAME[MAX_TARGETS_ARRAY];\
-int IntegerTargets_##NAME[MAX_TARGETS_ARRAY];\
+int VectorTargets_##NAME[MAX_PHYSICS_FIELD_TARGETS];\
+int ScalarTargets_##NAME[MAX_PHYSICS_FIELD_TARGETS];\
+int IntegerTargets_##NAME[MAX_PHYSICS_FIELD_TARGETS];\
 
 #define DIPhysicsField_MAKE_CONTEXT(NAME)\
 FDIPhysicsFieldContext DIContext; \
-DIContext.ClipmapTexture = ClipmapTexture_##NAME;\
-DIContext.ClipmapSampler = ClipmapSampler_##NAME;\
+DIContext.ClipmapBuffer = ClipmapBuffer_##NAME;\
 DIContext.ClipmapCenter = ClipmapCenter_##NAME;\
 DIContext.ClipmapDistance = ClipmapDistance_##NAME;\
 DIContext.ClipmapResolution = ClipmapResolution_##NAME;\
@@ -58,17 +55,17 @@ DIContext.IntegerTargets = IntegerTargets_##NAME;\
 float3 DIPhysicsField_SamplePhysicsVectorField(in FDIPhysicsFieldContext DIContext, in float3 WorldPosition, in int VectorTarget)
 {
 	return PhysicsField_SamplePhysicsVectorField(WorldPosition, VectorTarget, DIContext.VectorTargets, DIContext.TargetCount, DIContext.ClipmapCenter, DIContext.ClipmapDistance, 
-				DIContext.ClipmapExponent, DIContext.ClipmapCount, DIContext.ClipmapResolution, DIContext.ClipmapTexture, DIContext.ClipmapSampler);
+				DIContext.ClipmapExponent, DIContext.ClipmapCount, DIContext.ClipmapResolution, DIContext.ClipmapBuffer);
 }
 
 float DIPhysicsField_SamplePhysicsScalarField(in FDIPhysicsFieldContext DIContext, in float3 WorldPosition, in int ScalarTarget)
 {
 	return PhysicsField_SamplePhysicsScalarField(WorldPosition, ScalarTarget, DIContext.ScalarTargets, DIContext.TargetCount, DIContext.ClipmapCenter, DIContext.ClipmapDistance,
-				DIContext.ClipmapExponent, DIContext.ClipmapCount, DIContext.ClipmapResolution, DIContext.ClipmapTexture, DIContext.ClipmapSampler);
+				DIContext.ClipmapExponent, DIContext.ClipmapCount, DIContext.ClipmapResolution, DIContext.ClipmapBuffer);
 }
 
 int DIPhysicsField_SamplePhysicsIntegerField(in FDIPhysicsFieldContext DIContext, in float3 WorldPosition, in int IntegerTarget)
 {
 	return PhysicsField_SamplePhysicsIntegerField(WorldPosition, IntegerTarget, DIContext.IntegerTargets, DIContext.TargetCount, DIContext.ClipmapCenter, DIContext.ClipmapDistance,
-				DIContext.ClipmapExponent, DIContext.ClipmapCount, DIContext.ClipmapResolution, DIContext.ClipmapTexture, DIContext.ClipmapSampler);
+				DIContext.ClipmapExponent, DIContext.ClipmapCount, DIContext.ClipmapResolution, DIContext.ClipmapBuffer);
 }

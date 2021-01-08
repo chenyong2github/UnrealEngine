@@ -19,7 +19,7 @@
 #include "Widgets/SNiagaraSystemScript.h"
 #include "Widgets/SNiagaraSystemViewport.h"
 #include "Widgets/SNiagaraSelectedObjectsDetails.h"
-#include "Widgets/SNiagaraParameterMapView.h" //@todo(ng) cleanup
+#include "Widgets/SNiagaraParameterMapView.h"
 #include "Widgets/SNiagaraParameterPanel.h"
 #include "Widgets/SNiagaraSpreadsheetView.h"
 #include "Widgets/SNiagaraGeneratedCodeView.h"
@@ -31,10 +31,6 @@
 #include "NiagaraComponent.h"
 #include "NiagaraSystemEditorData.h"
 #include "NiagaraScriptStatsViewModel.h"
-
-#include "IContentBrowserSingleton.h"
-#include "ContentBrowserModule.h"
-
 #include "EditorStyleSet.h"
 #include "Toolkits/AssetEditorToolkit.h"
 #include "ScopedTransaction.h"
@@ -56,6 +52,7 @@
 #include "NiagaraScriptStatsViewModel.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "ViewModels/NiagaraParameterPanelViewModel.h"
+#include "SNiagaraAssetPickerList.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraSystemEditor"
 
@@ -1083,17 +1080,10 @@ void FNiagaraSystemToolkit::GetSequencerAddMenuContent(FMenuBuilder& MenuBuilder
 
 TSharedRef<SWidget> FNiagaraSystemToolkit::CreateAddEmitterMenuContent()
 {
-	FAssetPickerConfig AssetPickerConfig;
-	{
-		AssetPickerConfig.OnAssetSelected = FOnAssetSelected::CreateSP(this, &FNiagaraSystemToolkit::EmitterAssetSelected);
-		AssetPickerConfig.bAllowNullSelection = false;
-		AssetPickerConfig.InitialAssetViewType = EAssetViewType::List;
-		AssetPickerConfig.Filter.ClassNames.Add(UNiagaraEmitter::StaticClass()->GetFName());
-		AssetPickerConfig.OnShouldFilterAsset.BindSP(this, &FNiagaraSystemToolkit::ShouldFilterEmitter);
-		AssetPickerConfig.RefreshAssetViewDelegates.Add(&RefreshAssetView);
-	}
-
-	FContentBrowserModule& ContentBrowserModule = FModuleManager::Get().LoadModuleChecked<FContentBrowserModule>(TEXT("ContentBrowser"));
+	TArray<FRefreshItemSelectorDelegate*> RefreshItemSelectorDelegates;
+	RefreshItemSelectorDelegates.Add(&RefreshItemSelector);
+	FNiagaraAssetPickerListViewOptions ViewOptions;
+	ViewOptions.SetCategorizeUserDefinedCategory(true);
 
 	return SNew(SVerticalBox)
 		+ SVerticalBox::Slot()
@@ -1135,7 +1125,12 @@ TSharedRef<SWidget> FNiagaraSystemToolkit::CreateAddEmitterMenuContent()
 			.HeightOverride(300.f)
 			.WidthOverride(300.f)
 			[
-				ContentBrowserModule.Get().CreateAssetPicker(AssetPickerConfig)
+				SNew(SNiagaraAssetPickerList, UNiagaraEmitter::StaticClass())
+				.ClickActivateMode(EItemSelectorClickActivateMode::SingleClick)
+				.ViewOptions(ViewOptions)
+				.OnDoesAssetPassCustomFilter(this, &FNiagaraSystemToolkit::ShouldFilterEmitter)
+				.RefreshItemSelectorDelegates(RefreshItemSelectorDelegates)
+				.OnTemplateAssetActivated(this, &FNiagaraSystemToolkit::EmitterAssetSelected)
 			]
 		];
 }
@@ -1143,7 +1138,7 @@ TSharedRef<SWidget> FNiagaraSystemToolkit::CreateAddEmitterMenuContent()
 void FNiagaraSystemToolkit::LibraryCheckBoxStateChanged(ECheckBoxState InCheckbox)
 {
 	FNiagaraSystemToolkit::bShowLibraryOnly = (InCheckbox == ECheckBoxState::Checked);
-	RefreshAssetView.ExecuteIfBound(true);
+	RefreshItemSelector.ExecuteIfBound();
 }
 
 ECheckBoxState FNiagaraSystemToolkit::GetLibraryCheckBoxState() const
@@ -1154,7 +1149,7 @@ ECheckBoxState FNiagaraSystemToolkit::GetLibraryCheckBoxState() const
 void FNiagaraSystemToolkit::TemplateCheckBoxStateChanged(ECheckBoxState InCheckbox)
 {
 	FNiagaraSystemToolkit::bShowTemplateOnly = (InCheckbox == ECheckBoxState::Checked);
-	RefreshAssetView.ExecuteIfBound(true);
+	RefreshItemSelector.ExecuteIfBound();
 }
 
 ECheckBoxState FNiagaraSystemToolkit::GetTemplateCheckBoxState() const
@@ -1203,7 +1198,7 @@ bool FNiagaraSystemToolkit::ShouldFilterEmitter(const FAssetData& AssetData)
 		bScriptAllowed &= bIsTemplate;
 	}
 
-	return !bScriptAllowed;
+	return bScriptAllowed;
 }
 
 

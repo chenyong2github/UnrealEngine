@@ -681,9 +681,21 @@ void AUsdStageActor::OpenUsdStage()
 
 	UsdUtils::StartMonitoringErrors();
 
-	if ( FPaths::FileExists( RootLayer.FilePath ) )
+	FString AbsPath;
+	if ( FPaths::IsRelative( RootLayer.FilePath ) )
 	{
-		UsdStage = UnrealUSDWrapper::OpenStage( *RootLayer.FilePath, InitialLoadSet );
+		// The RootLayer property is marked as RelativeToGameDir, and UsdUtils::BrowseUsdFile will also emit paths relative to the project's directory
+		FString ProjectDir = FPaths::ConvertRelativePathToFull( FPaths::ProjectDir() );
+		AbsPath = FPaths::ConvertRelativePathToFull( FPaths::Combine( ProjectDir, RootLayer.FilePath ) );
+	}
+	else
+	{
+		AbsPath = RootLayer.FilePath;
+	}
+
+	if ( FPaths::FileExists( AbsPath ) )
+	{
+		UsdStage = UnrealUSDWrapper::OpenStage( *AbsPath, InitialLoadSet );
 	}
 
 	if ( UsdStage )
@@ -1061,6 +1073,12 @@ void AUsdStageActor::OnObjectPropertyChanged( UObject* ObjectBeingModified, FPro
 		return;
 	}
 
+	// Don't change the stage from PIE
+	if ( !this->HasAutorithyOverStage() )
+	{
+		return;
+	}
+
 	UObject* PrimObject = ObjectBeingModified;
 
 	if ( !ObjectsToWatch.Contains( ObjectBeingModified ) )
@@ -1120,10 +1138,7 @@ void AUsdStageActor::OnObjectPropertyChanged( UObject* ObjectBeingModified, FPro
 				}
 
 				// Update stage window in case any of our component changes trigger USD stage changes
-				if ( this->HasAutorithyOverStage() )
-				{
-					this->OnPrimChanged.Broadcast( PrimPath, false );
-				}
+				this->OnPrimChanged.Broadcast( PrimPath, false );
 			}
 		}
 	}

@@ -12,6 +12,9 @@
 #include "OpenImageDenoise/oidn.hpp"
 #endif
 
+// TBB suffers from extreme fragmentation problem in editor
+#include "Core/Private/HAL/Allocators/AnsiAllocator.h"
+
 struct FDenoiserFilterSet
 {
 	struct FDenoiserContext& Context;
@@ -74,7 +77,7 @@ void DenoiseLightSampleData(FIntPoint Size, TArray<FLightSampleData>& LightSampl
 
 void DenoiseRawData(
 	FIntPoint Size,
-	TArray<FLinearColor>& IncidentLighting,
-	TArray<FLinearColor>& LuminanceSH,
+	TArray<FLinearColor, FAnsiAllocator>& IncidentLighting,
+	TArray<FLinearColor, FAnsiAllocator>& LuminanceSH,
 	FDenoiserContext& DenoiserContext,
 	bool bPrepadTexels = true);

@@ -1190,20 +1190,17 @@ public:
 					else if (!bWithClusters || ObjectItem->GetOwnerIndex() <= 0)
 					{
 						bool bMarkAsUnreachable = true;
-						if (!ObjectItem->IsPendingKill())
+						// Internal flags are super fast to check and is used by async loading and must have higher precedence than PendingKill
+						if (ObjectItem->HasAnyFlags(FastKeepFlags))
 						{
-							// Internal flags are super fast to check
-							if (ObjectItem->HasAnyFlags(FastKeepFlags))
-							{
-								bMarkAsUnreachable = false;
-							}
-							// If KeepFlags is non zero this is going to be very slow due to cache misses
-							else if (KeepFlags != RF_NoFlags && Object->HasAnyFlags(KeepFlags))
-							{
-								bMarkAsUnreachable = false;
-							}
+							bMarkAsUnreachable = false;
 						}
-						else if (bWithClusters && ObjectItem->HasAnyFlags(EInternalObjectFlags::ClusterRoot))
+						// If KeepFlags is non zero this is going to be very slow due to cache misses
+						else if (!ObjectItem->IsPendingKill() && KeepFlags != RF_NoFlags && Object->HasAnyFlags(KeepFlags))
+						{
+							bMarkAsUnreachable = false;
+						}
+						else if (ObjectItem->IsPendingKill() && bWithClusters && ObjectItem->HasAnyFlags(EInternalObjectFlags::ClusterRoot))
 						{
 							ClustersToDissolveList.Push(ObjectItem);
 						}

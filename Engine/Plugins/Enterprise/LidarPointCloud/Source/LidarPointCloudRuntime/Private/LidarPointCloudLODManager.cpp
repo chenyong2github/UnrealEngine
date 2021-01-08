@@ -18,6 +18,9 @@
 #include "EditorViewportClient.h"
 #endif
 
+FCriticalSection ProxyComponentMapLock;
+TMap<TWeakPtr<FLidarPointCloudSceneProxyWrapper, ESPMode::ThreadSafe>, TWeakObjectPtr<ULidarPointCloudComponent>> ProxyComponentMap;
+
 DECLARE_CYCLE_STAT(TEXT("Node Selection"), STAT_NodeSelection, STATGROUP_LidarPointCloud)
 DECLARE_CYCLE_STAT(TEXT("Node Processing"), STAT_NodeProcessing, STATGROUP_LidarPointCloud)
 DECLARE_CYCLE_STAT(TEXT("Render Data Update"), STAT_UpdateRenderData, STATGROUP_LidarPointCloud)
@@ -348,14 +351,18 @@ uint32 GetPointBudget(float DeltaTime, int64 NumPointsInFrustum)
 					AcumulatedFrameTime.RemoveAt(0);
 				}
 
+				const float MaxTickRate = GEngine->GetMaxTickRate(0.001f, false);
+				const float RequestedTargetFPS = CVarTargetFPS.GetValueOnAnyThread();
+				const float TargetFPS = MaxTickRate > 0 ? FMath::Min(RequestedTargetFPS, MaxTickRate) : RequestedTargetFPS;
+
 				// The -0.5f is to prevent the system treating values as unachievable (as the frame time is usually just under)
-				const float TargetFPS = FMath::Max(FMath::Min(CVarTargetFPS.GetValueOnAnyThread(), GEngine->GetMaxTickRate(0.001f, false)) - 0.5f, 1.0f);
+				const float AdjustedTargetFPS = FMath::Max(TargetFPS - 0.5f, 1.0f);
 
 				TArray<float> CurrentFrameTimes = AcumulatedFrameTime;
 				CurrentFrameTimes.Sort();
 				const float AvgFrameTime = CurrentFrameTimes[CurrentFrameTimes.Num() / 2];
 
-				const int32 DeltaBudget = (1 / TargetFPS - AvgFrameTime) * 10000000;
+				const int32 DeltaBudget = (1 / AdjustedTargetFPS - AvgFrameTime) * 10000000;
 
 				// Not having enough points in frustum to fill the requested budget would otherwise continually increase the value
 				if (DeltaBudget < 0 || NumPointsInFrustum >= CurrentPointBudget)
@@ -432,7 +439,14 @@ void FLidarPointCloudLODManager::RegisterProxy(ULidarPointCloudComponent* Compon
 	if (IsValid(Component))
 	{
 		static FLidarPointCloudLODManager Instance;
-		Instance.RegisteredProxies.Emplace(Component, SceneProxyWrapper);
+
+		if (TSharedPtr<FLidarPointCloudSceneProxyWrapper, ESPMode::ThreadSafe> SceneProxyWrapperShared = SceneProxyWrapper.Pin())
+		{
+			FScopeLock Lock(&ProxyComponentMapLock);
+
+			Instance.RegisteredProxies.Emplace(Component, SceneProxyWrapper);
+			ProxyComponentMap.Add(SceneProxyWrapper, Component);
+		}
 	}
 }
 
@@ -614,15 +628,18 @@ int64 FLidarPointCloudLODManager::ProcessLOD(const TArray<FLidarPointCloudLODMan
 				// Check for proxy's validity, in case it has been destroyed since the update was issued
 				if (TSharedPtr<FLidarPointCloudSceneProxyWrapper, ESPMode::ThreadSafe> SceneProxyWrapper = UpdateData.SceneProxyWrapper.Pin())
 				{
-					for (const FLidarPointCloudProxyUpdateDataNode& Node : UpdateData.SelectedNodes)
+					if (SceneProxyWrapper->Proxy)
 					{
-						if (Node.DataNode->BuildDataCache())
+						for (const FLidarPointCloudProxyUpdateDataNode& Node : UpdateData.SelectedNodes)
 						{
-							MaxPointsPerNode = FMath::Max(MaxPointsPerNode, Node.DataNode->GetNumVisiblePoints());
+							if (Node.DataNode->BuildDataCache())
+							{
+								MaxPointsPerNode = FMath::Max(MaxPointsPerNode, Node.DataNode->GetNumVisiblePoints());
+							}
 						}
-					}
 
-					SceneProxyWrapper->Proxy->UpdateRenderData(UpdateData);
+						SceneProxyWrapper->Proxy->UpdateRenderData(UpdateData);
+					}
 				}
 			}
 
@@ -653,63 +670,77 @@ void FLidarPointCloudLODManager::PrepareProxies()
 		FRegisteredProxy& RegisteredProxy = RegisteredProxies[i];
 		bool bValidProxy = false;
 
-		if (RegisteredProxy.Component->GetPointCloud())
+		// Acquire a Shared Pointer from the Weak Pointer and check that it references a valid object
+		if (TSharedPtr<FLidarPointCloudSceneProxyWrapper, ESPMode::ThreadSafe> SceneProxyWrapper = RegisteredProxy.SceneProxyWrapper.Pin())
 		{
-			// Acquire a Shared Pointer from the Weak Pointer and check that it references a valid object
-			if (TSharedPtr<FLidarPointCloudSceneProxyWrapper, ESPMode::ThreadSafe> SceneProxyWrapper = RegisteredProxy.SceneProxyWrapper.Pin())
+			ULidarPointCloudComponent* Component = nullptr;
+			if (TWeakObjectPtr<ULidarPointCloudComponent>* PtrToWeakComponent = ProxyComponentMap.Find(RegisteredProxy.SceneProxyWrapper))
 			{
+				Component = (*PtrToWeakComponent).Get();
+
+				if (!Component)
+				{
+					ProxyComponentMap.Remove(SceneProxyWrapper);
+				}
+			}
+
+			if (Component)
+			{
+				if (ULidarPointCloud* PointCloud = Component->GetPointCloud())
+				{
 #if WITH_EDITOR
-				// Avoid doubling the point allocation of the same asset (once in Editor world and once in PIE world)
-				RegisteredProxy.bSkip = ViewData.bPIE && RegisteredProxy.Component->GetWorld()->WorldType == EWorldType::Type::Editor;
+					// Avoid doubling the point allocation of the same asset (once in Editor world and once in PIE world)
+					RegisteredProxy.bSkip = ViewData.bPIE && Component->GetWorld() && Component->GetWorld()->WorldType == EWorldType::Type::Editor;
 #endif
 
-				// Check if the component's transform has changed, and invalidate the Traversal Octree if so
-				const FTransform Transform = RegisteredProxy.Component->GetComponentTransform();
-				if (!RegisteredProxy.LastComponentTransform.Equals(Transform))
-				{
-					RegisteredProxy.TraversalOctree->bValid = false;
-					RegisteredProxy.LastComponentTransform = Transform;
-				}
+					// Check if the component's transform has changed, and invalidate the Traversal Octree if so
+					const FTransform Transform = Component->GetComponentTransform();
+					if (!RegisteredProxy.LastComponentTransform.Equals(Transform))
+					{
+						RegisteredProxy.TraversalOctree->bValid = false;
+						RegisteredProxy.LastComponentTransform = Transform;
+					}
 
-				// Re-initialize the traversal octree, if needed
-				if (!RegisteredProxy.TraversalOctree->bValid)
-				{
-					// Update asset reference
-					RegisteredProxy.PointCloud = RegisteredProxy.Component->GetPointCloud();
+					// Re-initialize the traversal octree, if needed
+					if (!RegisteredProxy.TraversalOctree->bValid)
+					{
+						// Update asset reference
+						RegisteredProxy.PointCloud = PointCloud;
 
-					// Recreate the Traversal Octree
-					RegisteredProxy.TraversalOctree = MakeShareable(new FLidarPointCloudTraversalOctree(&RegisteredProxy.PointCloud->Octree, RegisteredProxy.Component->GetComponentTransform()));
-					RegisteredProxy.PointCloud->Octree.RegisterTraversalOctree(RegisteredProxy.TraversalOctree);
-				}
+						// Recreate the Traversal Octree
+						RegisteredProxy.TraversalOctree = MakeShareable(new FLidarPointCloudTraversalOctree(&PointCloud->Octree, Component->GetComponentTransform()));
+						RegisteredProxy.PointCloud->Octree.RegisterTraversalOctree(RegisteredProxy.TraversalOctree);
+					}
 
-				// If this is an editor component, use its own ViewportClient
-				if (TSharedPtr<FViewportClient> Client = RegisteredProxy.Component->GetOwningViewportClient().Pin())
-				{
-					// If the ViewData cannot be successfully retrieved from the editor viewport, fall back to using main view
-					if (!RegisteredProxy.ViewData.ComputeFromEditorViewportClient(Client.Get()))
+					// If this is an editor component, use its own ViewportClient
+					if (TSharedPtr<FViewportClient> Client = Component->GetOwningViewportClient().Pin())
+					{
+						// If the ViewData cannot be successfully retrieved from the editor viewport, fall back to using main view
+						if (!RegisteredProxy.ViewData.ComputeFromEditorViewportClient(Client.Get()))
+						{
+							RegisteredProxy.ViewData = ViewData;
+						}
+					}
+					// ... otherwise, use the ViewData provided
+					else
 					{
 						RegisteredProxy.ViewData = ViewData;
 					}
-				}
-				// ... otherwise, use the ViewData provided
-				else
-				{
-					RegisteredProxy.ViewData = ViewData;
-				}
 
-				// Increase priority, if the viewport has focus
-				if (bPrioritizeActiveViewport && RegisteredProxy.ViewData.bHasFocus)
-				{
-					RegisteredProxy.ViewData.ScreenSizeFactor *= 6;
-				}
+					// Increase priority, if the viewport has focus
+					if (bPrioritizeActiveViewport && RegisteredProxy.ViewData.bHasFocus)
+					{
+						RegisteredProxy.ViewData.ScreenSizeFactor *= 6;
+					}
 
-				// Don't count the skippable proxies
-				if (!RegisteredProxy.bSkip)
-				{
-					TotalPointCount += RegisteredProxy.PointCloud->GetNumPoints();
-				}
+					// Don't count the skippable proxies
+					if (!RegisteredProxy.bSkip)
+					{
+						TotalPointCount += PointCloud->GetNumPoints();
+					}
 
-				bValidProxy = true;
+					bValidProxy = true;
+				}
 			}
 		}
 		

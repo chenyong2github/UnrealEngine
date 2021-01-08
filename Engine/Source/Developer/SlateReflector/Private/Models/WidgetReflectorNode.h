@@ -87,6 +87,11 @@ public:
 	virtual bool GetWidgetVisible() const = 0;
 
 	/**
+	 * @return The bool indicating whether or not the widget we were initialized from reports is visible
+	 */
+	virtual bool GetWidgetVisibilityInherited() const = 0;
+
+	/**
 	 * @return The bool indicating whether or not the widget we were initialized from reports needs tick
 	 */
 	virtual bool GetWidgetNeedsTick() const = 0;
@@ -264,6 +269,7 @@ public:
 	virtual FText GetWidgetTypeAndShortName() const override;
 	virtual FText GetWidgetVisibilityText() const override;
 	virtual bool GetWidgetVisible() const override;
+	virtual bool GetWidgetVisibilityInherited() const override;
 	virtual FText GetWidgetClippingText() const override;
 	virtual bool GetWidgetFocusable() const override;
 	virtual bool GetWidgetNeedsTick() const override;
@@ -322,6 +328,7 @@ public:
 	virtual FText GetWidgetVisibilityText() const override;
 	virtual FText GetWidgetClippingText() const override;
 	virtual bool GetWidgetVisible() const override;
+	virtual bool GetWidgetVisibilityInherited() const override;
 	virtual bool GetWidgetFocusable() const override;
 	virtual bool GetWidgetNeedsTick() const override;
 	virtual bool GetWidgetIsVolatile() const override;
@@ -368,6 +375,9 @@ private:
 
 	/** The visible of the widget at the point it was passed to Initialize */
 	bool bCachedWidgetVisible;
+	
+	/** The visible inherited of the widget at the point it was passed to Initialize */
+	bool bCachedWidgetVisibleInherited;
 
 	/** The focusability of the widget at the point it was passed to Initialize */
 	bool bCachedWidgetFocusable;
@@ -520,6 +530,9 @@ public:
 
 	/** Is the widget visible? */
 	static bool GetWidgetVisibility(const TSharedPtr<const SWidget>& InWidget);
+
+	/** Is the widget visible and its parents are also visible? */
+	static bool GetWidgetVisibilityInherited(const TSharedPtr<const SWidget>& InWidget);
 
 	/**
 	 * @return The current clipping string for the given widget

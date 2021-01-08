@@ -7,6 +7,7 @@ namespace VoiceChat
 {
 	namespace Errors
 	{
+		inline FVoiceChatResult NotEnabled() { return VOICECHAT_ERROR(EVoiceChatResult::InvalidState, TEXT("not_enabled")); }
 		inline FVoiceChatResult NotInitialized() { return VOICECHAT_ERROR(EVoiceChatResult::NotInitialized, TEXT("not_initialized")); }
 		inline FVoiceChatResult NotConnected() { return VOICECHAT_ERROR(EVoiceChatResult::NotConnected, TEXT("not_connected")); }
 		inline FVoiceChatResult NotLoggedIn() { return VOICECHAT_ERROR(EVoiceChatResult::NotLoggedIn, TEXT("not_logged_in")); }

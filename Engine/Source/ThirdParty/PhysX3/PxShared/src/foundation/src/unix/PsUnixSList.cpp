@@ -33,7 +33,7 @@
 #include "PsThread.h"
 #include <pthread.h>
 
-#if PX_IOS || PX_EMSCRIPTEN
+#if PX_IOS || PX_OSX_ARM64 || PX_EMSCRIPTEN
 #define USE_MUTEX
 #endif
 

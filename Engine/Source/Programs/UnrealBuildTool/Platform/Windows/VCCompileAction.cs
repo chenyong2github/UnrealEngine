@@ -35,6 +35,11 @@ namespace UnrealBuildTool
 		public WindowsCompiler CompilerType { get; }
 
 		/// <summary>
+		/// The version of the compiler being used
+		/// </summary>
+		public string ToolChainVersion { get; }
+
+		/// <summary>
 		/// Source file to compile
 		/// </summary>
 		public FileItem SourceFile { get; set; }
@@ -234,6 +239,15 @@ namespace UnrealBuildTool
 			}
 		}
 
+		/// <inheritdoc/>
+		string IExternalAction.CommandVersion
+		{
+			get
+			{
+				return ToolChainVersion;
+			}
+		}
+		
 		#endregion
 
 		/// <summary>
@@ -244,6 +258,7 @@ namespace UnrealBuildTool
 		{
 			this.CompilerExe = FileItem.GetItemByFileReference(Environment.CompilerPath);
 			this.CompilerType = Environment.Compiler;
+			this.ToolChainVersion = Environment.ToolChainVersion.ToString();
 		}
 
 		/// <summary>
@@ -254,6 +269,7 @@ namespace UnrealBuildTool
 		{
 			CompilerExe = InAction.CompilerExe;
 			CompilerType = InAction.CompilerType;
+			ToolChainVersion = InAction.ToolChainVersion;
 			SourceFile = InAction.SourceFile;
 			ObjectFile = InAction.ObjectFile;
 			PreprocessedFile = InAction.PreprocessedFile;
@@ -286,6 +302,7 @@ namespace UnrealBuildTool
 		{
 			CompilerExe = Reader.ReadFileItem();
 			CompilerType = (WindowsCompiler)Reader.ReadInt();
+			ToolChainVersion = Reader.ReadString();
 			SourceFile = Reader.ReadFileItem();
 			ObjectFile = Reader.ReadFileItem();
 			PreprocessedFile = Reader.ReadFileItem();
@@ -315,6 +332,7 @@ namespace UnrealBuildTool
 		{
 			Writer.WriteFileItem(CompilerExe);
 			Writer.WriteInt((int)CompilerType);
+			Writer.WriteString(ToolChainVersion);
 			Writer.WriteFileItem(SourceFile);
 			Writer.WriteFileItem(ObjectFile);
 			Writer.WriteFileItem(PreprocessedFile);

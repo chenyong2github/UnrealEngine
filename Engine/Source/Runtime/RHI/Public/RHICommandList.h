@@ -39,6 +39,10 @@ CSV_DECLARE_CATEGORY_MODULE_EXTERN(RHI_API, RHITFlushes);
 #include "HAL/PlatformStackwalk.h"
 #endif
 
+#ifndef DISABLE_BREADCRUMBS
+#define DISABLE_BREADCRUMBS 1
+#endif
+
 class FApp;
 class FBlendStateInitializerRHI;
 class FGraphicsPipelineStateInitializer;
@@ -244,6 +248,18 @@ public:
 		check(0);
 	}
 };
+
+struct FRHIBreadcrumb
+{
+	FRHIBreadcrumb* Parent;
+	const TCHAR* Name;
+};
+
+struct FBreadcumbState
+{
+	TArray<FString> Names;
+};
+
 
 struct FRHICommandListDebugContext
 {
@@ -567,7 +583,23 @@ public:
 
 	FORCEINLINE const FRHIGPUMask& GetGPUMask() const { return GPUMask; }
 
+protected:
+	FRHIBreadcrumb* PushBreadcrumb_Internal(const TCHAR* Name)
+	{
+		FRHIBreadcrumb* Breadcrumb = (FRHIBreadcrumb*)Alloc<FRHIBreadcrumb>();
+		Breadcrumb->Parent = BreadcrumbStackTop;
+		Breadcrumb->Name = Name;
+		BreadcrumbStackTop = Breadcrumb;
+		return Breadcrumb;
+	}
+	void PopBreadcrumb_Internal()
+	{
+		check(BreadcrumbStackTop); //more poppin' than pushin'
+		BreadcrumbStackTop = BreadcrumbStackTop->Parent;
+
+	}
 private:
+
 	FRHICommandBase* Root;
 	FRHICommandBase** CommandLink;
 	bool bExecuting;
@@ -584,6 +616,7 @@ private:
 
 protected:
 	FRHICommandListBase(FRHIGPUMask InGPUMask);
+	FRHIBreadcrumb* BreadcrumbStackTop = 0;
 
 	bool bAsyncPSOCompileAllowed;
 	FRHIGPUMask GPUMask;
@@ -1875,6 +1908,33 @@ struct FRHICommandPopEvent final : public FRHICommand<FRHICommandPopEvent, FRHIC
 	};
 };
 
+struct FRHICommandPushBreadcrumbString
+{
+	static const TCHAR* TStr() { return TEXT("FRHICommandPushBreadcrumb"); }
+};
+struct FRHICommandPushBreadcrumb final : public FRHICommand<FRHICommandPushBreadcrumb, FRHICommandPushBreadcrumbString>
+{
+	FRHIBreadcrumb* Breadcrumb;
+
+	FORCEINLINE_DEBUGGABLE FRHICommandPushBreadcrumb(FRHIBreadcrumb* InBreadcrumb)
+		: Breadcrumb(InBreadcrumb)
+	{
+	}
+	RHI_API void Execute(FRHICommandListBase& CmdList);
+
+};
+struct FRHICommandPopBreadcrumbString
+{
+	static const TCHAR* TStr() { return TEXT("FRHICommandPushBreadcrumb"); }
+};
+struct FRHICommandPopBreadcrumb final : public FRHICommand<FRHICommandPopBreadcrumb, FRHICommandPopBreadcrumbString>
+{
+	RHI_API void Execute(FRHICommandListBase& CmdList);
+
+};
+
+
+
 FRHICOMMAND_MACRO(FRHICommandInvalidateCachedState)
 {
 	RHI_API void Execute(FRHICommandListBase& CmdList);
@@ -2615,6 +2675,57 @@ public:
 		ALLOC_COMMAND(FRHICommandPopEvent)();
 	}
 
+	FORCEINLINE_DEBUGGABLE void PushBreadcrumb_Static(const TCHAR* Name)
+	{
+#if !DISABLE_BREADCRUMBS
+		FRHIBreadcrumb* Breadcrumb = PushBreadcrumb_Internal(Name);
+		if (Bypass())
+		{
+			GetComputeContext().PushBreadcrumbRHIThread(Breadcrumb);
+			return;
+		}
+		ALLOC_COMMAND(FRHICommandPushBreadcrumb)(Breadcrumb);
+#endif
+	}
+	FORCEINLINE_DEBUGGABLE void PushBreadcrumb_Dynamic(const TCHAR* Name)
+	{
+#if !DISABLE_BREADCRUMBS
+		TCHAR* NameCopy = AllocString(Name);
+		PushBreadcrumb_Static(NameCopy);
+#endif
+	}
+
+	//template nastyness to allow us to have a separate overload for string literals, so we can skip the copy.
+	template<typename T, size_t N = 0>
+	void PushBreadcrumb(T);
+
+	template<size_t N>
+	void PushBreadcrumb(TCHAR const (&Name)[N])
+	{
+		PushBreadcrumb_Static(Name);
+	}
+
+	template<>
+	void PushBreadcrumb(const TCHAR* Name)
+	{
+		PushBreadcrumb_Dynamic(Name);
+	}
+
+	FORCEINLINE_DEBUGGABLE void PopBreadcrumb()
+	{
+#if !DISABLE_BREADCRUMBS
+		PopBreadcrumb_Internal();
+		if (Bypass())
+		{
+			GetComputeContext().PopBreadcrumbRHIThread();
+			return;
+		}
+
+		ALLOC_COMMAND(FRHICommandPopBreadcrumb)();
+#endif
+	}
+
+
 	FORCEINLINE_DEBUGGABLE void BreakPoint()
 	{
 #if !UE_BUILD_SHIPPING
@@ -2742,6 +2853,8 @@ public:
 		}
 	}
 #endif
+	void UnpopBreadcrumbs(FBreadcumbState& State);
+	void RepushBreadcrumbs(FBreadcumbState& State);
 };
 
 class RHI_API FRHICommandList : public FRHIComputeCommandList
@@ -3455,6 +3568,18 @@ public:
 		ALLOC_COMMAND(FRHICommandBackBufferWaitTrackingBeginFrame)(FrameToken, bDeferred);
 	}
 #endif // #if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
+
+#if PLATFORM_REQUIRES_UAV_TO_RTV_TEXTURE_CACHE_FLUSH_WORKAROUND
+	FORCEINLINE_DEBUGGABLE void RHIFlushTextureCacheBOP(FRHITexture* Texture)
+	{
+		if (Bypass())
+		{
+			GetContext().RHIFlushTextureCacheBOP(Texture);
+			return;
+		}
+		ALLOC_COMMAND(FRHICommandFlushTextureCacheBOP)(Texture);
+	}
+#endif // #if PLATFORM_REQUIRES_UAV_TO_RTV_TEXTURE_CACHE_FLUSH_WORKAROUND
 	
 	FORCEINLINE_DEBUGGABLE void CopyBufferRegion(FRHIBuffer* DestBuffer, uint64 DstOffset, FRHIBuffer* SourceBuffer, uint64 SrcOffset, uint64 NumBytes)
 	{

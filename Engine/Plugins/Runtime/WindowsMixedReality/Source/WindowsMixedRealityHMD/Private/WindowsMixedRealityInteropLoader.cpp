@@ -72,7 +72,7 @@ namespace WindowsMixedReality
 			FPlatformProcess::GetDllHandle(_TEXT("Microsoft.MixedReality.SceneUnderstanding.dll"));
 			FPlatformProcess::GetDllHandle(_TEXT("Microsoft.Azure.SpatialAnchors.dll"));
 			FPlatformProcess::PopDllDirectory(*HoloLensLibraryDir);
-#endif // PLATFORM_64BITS && WITH_EDITOR
+#endif // PLATFORM_64BITS
 
 			// Then finally try to load the WMR Interop Library
 			void* MixedRealityInteropLibraryHandle = !MRInteropLibraryPath.IsEmpty() ? FPlatformProcess::GetDllHandle(*MRInteropLibraryPath) : nullptr;
@@ -103,6 +103,13 @@ namespace WindowsMixedReality
 		}
 
 #else // !PLATFORM_HOLOLENS
+		// ASA is unable to find the CoarseRelocUW.dll dependency of Microsoft.Azure.SpatialAnchors.dll on it's own because it doesn't look in the correct path automatically
+		// Therefore we manually load that dll in advance.
+		FString HoloLensLibraryDir = "Engine/Binaries/ThirdParty/Hololens/arm64";
+		FPlatformProcess::PushDllDirectory(*HoloLensLibraryDir);
+		FPlatformProcess::GetDllHandle(_TEXT("CoarseRelocUW.dll"));
+		FPlatformProcess::PopDllDirectory(*HoloLensLibraryDir);
+
 		HMD = new MixedRealityInterop();
 #endif // !PLATFORM_HOLOLENS
 #endif

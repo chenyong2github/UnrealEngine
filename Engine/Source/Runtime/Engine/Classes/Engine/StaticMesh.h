@@ -1055,7 +1055,14 @@ public:
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = StaticMesh)
 	uint8 bSupportPhysicalMaterialMasks : 1;
 
+	/**
+	 * If true, a ray tracing acceleration structure will be built for this mesh and it may be used in ray tracing effects
+	 */
+	UPROPERTY(EditAnywhere, Category = RayTracing)
+	uint8 bSupportRayTracing : 1;
+
 private:
+
 	/**
 	 * If true, StaticMesh has been built at runtime
 	 */

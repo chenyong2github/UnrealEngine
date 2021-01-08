@@ -787,8 +787,7 @@ FViewUniformShaderParameters::FViewUniformShaderParameters()
 
 	SkyIrradianceEnvironmentMap = GIdentityPrimitiveBuffer.SkyIrradianceEnvironmentMapSRV;
 
-	PhysicsFieldClipmapTexture = BlackVolume;
-	PhysicsFieldClipmapSampler = TStaticSamplerState<SF_Trilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+	PhysicsFieldClipmapBuffer = GWhiteVertexBufferWithSRV->ShaderResourceViewRHI;
 
 	// [todo] Default to some other buffer
 	WaterIndirection = GIdentityPrimitiveBuffer.PrimitiveSceneDataBufferSRV;

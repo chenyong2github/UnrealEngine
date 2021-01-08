@@ -20,6 +20,9 @@ struct CORE_API FPhysicsObjectVersion
 		// Groom serialization with import option
 		GroomWithImportSettings,
 
+		// TriangleMesh has map from source vertex index to internal vertex index for per-poly collisoin.
+		TriangleMeshHasVertexIndexMap,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

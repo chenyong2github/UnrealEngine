@@ -2883,17 +2883,16 @@ bool FPropertyHandleBase::GeneratePossibleValues(TArray< TSharedPtr<FString> >& 
 			}
 		}
 	}
-	else if ((Property->IsA(FStrProperty::StaticClass()) || Property->IsA(FNameProperty::StaticClass())) && Property->HasMetaData(TEXT("GetOptions")))
+	else if ((Property->IsA(FStrProperty::StaticClass()) || Property->IsA(FNameProperty::StaticClass())) && Property->GetOwnerProperty()->HasMetaData(TEXT("GetOptions")))
 	{
-		const FString& GetOptionsFunction = Property->GetMetaData(TEXT("GetOptions"));
-		if (!GetOptionsFunction.IsEmpty())
+		const FString GetOptionsFunctionName = Property->GetOwnerProperty()->GetMetaData(TEXT("GetOptions"));
+		if (!GetOptionsFunctionName.IsEmpty())
 		{
 			TArray<UObject*> OutObjects;
 			GetOuterObjects(OutObjects);
 
 			if (OutObjects.Num() > 0)
 			{
-				const FString GetOptionsFunctionName = Property->GetMetaData(TEXT("GetOptions"));
 				FCachedPropertyPath Path(GetOptionsFunctionName);
 				
 				TArray<FString> OptionIntersection;

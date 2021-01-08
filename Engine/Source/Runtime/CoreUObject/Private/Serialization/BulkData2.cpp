@@ -1493,7 +1493,7 @@ void FBulkDataBase::InternalLoadFromPackageResource(void** DstBuffer)
 
 	// Fix up the PackageSegment/Offset to work with streaming if inlined
 	EPackageSegment PackageSegment;
-	if (IsInlined())
+	if (IsInlined() && GEventDrivenLoaderEnabled)
 	{
 		Offset -= IPackageResourceManager::Get().FileSize(PackagePath, EPackageSegment::Header);
 		PackageSegment = EPackageSegment::Exports;

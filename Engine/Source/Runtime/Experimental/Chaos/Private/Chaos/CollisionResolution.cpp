@@ -273,13 +273,16 @@ namespace Chaos
 			FReal Penetration;
 			FVec3 ClosestA, ClosestBInA, Normal;
 			int32 ClosestVertexIndexA, ClosestVertexIndexB;
-			const FReal EpsilonSq = 1.e-5f;
+			
+			// Slightly increased epsilon to reduce error in normal for almost touching objects.
+			const FReal Epsilon = 3.e-3f;
 
 			const FReal ThicknessA = A.GetMargin() + 0.5f * ShapePadding;
 			const FReal ThicknessB = B.GetMargin() + 0.5f * ShapePadding;
-			if (ensure(GJKPenetrationCore<true>(A, B, BToATM, Penetration, ClosestA, ClosestBInA, Normal, ClosestVertexIndexA, ClosestVertexIndexB, ThicknessA, ThicknessB, InitialDir, EpsilonSq)))
+			if (ensure(GJKPenetrationCore<true>(A, B, BToATM, Penetration, ClosestA, ClosestBInA, Normal, ClosestVertexIndexA, ClosestVertexIndexB, ThicknessA, ThicknessB, InitialDir, Epsilon)))
 			{
 				// GJK output is all in the local space of A. We need to transform the B-relative position and the normal in to B-space
+				// The Closest Points are without the margins, as required by the Collision Solver
 				Contact.ShapeMargins[0] = ThicknessA;
 				Contact.ShapeMargins[1] = ThicknessB;
 				Contact.ShapeContactPoints[0] = ClosestA;

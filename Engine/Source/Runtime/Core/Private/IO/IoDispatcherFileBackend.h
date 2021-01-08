@@ -40,7 +40,7 @@ public:
 	TIoStatusOr<uint64> GetSizeForChunk(const FIoChunkId& ChunkId) const;
 	const FIoOffsetAndLength* Resolve(const FIoChunkId& ChunkId) const;
 	const FFileIoStoreContainerFile& GetContainerFile() const { return ContainerFile; }
-	IMappedFileHandle* GetMappedContainerFileHandle();
+	IMappedFileHandle* GetMappedContainerFileHandle(uint64 TocOffset);
 	const FIoContainerId& GetContainerId() const { return ContainerId; }
 	int32 GetOrder() const { return Order; }
 	bool IsEncrypted() const { return EnumHasAnyFlags(ContainerFile.ContainerFlags, EIoContainerFlags::Encrypted); }
@@ -57,6 +57,8 @@ private:
 	FIoContainerId ContainerId;
 	uint32 Index;
 	int32 Order;
+
+	static TAtomic<uint32> GlobalPartitionIndex;
 };
 
 class FFileIoStoreRequestTracker
@@ -73,6 +75,7 @@ public:
 	void AddReadRequestsToResolvedRequest(const FFileIoStoreReadRequestList& Requests, FFileIoStoreResolvedRequest& ResolvedRequest);
 	void CancelIoRequest(FFileIoStoreResolvedRequest& ResolvedRequest);
 	void UpdatePriorityForIoRequest(FFileIoStoreResolvedRequest& ResolvedRequest);
+	void ReleaseIoRequestReferences(FFileIoStoreResolvedRequest& ResolvedRequest);
 
 private:
 	FFileIoStoreRequestAllocator& RequestAllocator;
@@ -152,8 +155,6 @@ private:
 	FFileIoStoreBlockCache BlockCache;
 	FFileIoStoreBufferAllocator BufferAllocator;
 	FFileIoStoreRequestAllocator RequestAllocator;
-	TIoDispatcherSingleThreadedSlabAllocator<FFileIoStoreResolvedRequest> ResolvedRequestAllocator;
-	TIoDispatcherSingleThreadedSlabAllocator<FFileIoStoreResolvedRequest::FRequestLink> LinkAllocator;
 	FFileIoStoreRequestQueue RequestQueue;
 	FFileIoStoreRequestTracker RequestTracker;
 	FFileIoStoreImpl PlatformImpl;

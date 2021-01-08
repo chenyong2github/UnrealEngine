@@ -7,12 +7,16 @@
 #include "GameFramework/Volume.h"
 #include "HierarchicalLODVolume.generated.h"
 
-/** An invisible volume used to manually define/create a HLOD cluster. */
-UCLASS(MinimalAPI)
+/** An invisible volume used to manually define/create an HLOD cluster. */
+UCLASS(HideCategories = (Actor, Collision, Cooking, Input, LOD, Physics, Replication, Rendering), MinimalAPI)
 class AHierarchicalLODVolume : public AVolume
 {
 	GENERATED_UCLASS_BODY()
 
+	virtual bool IsEditorOnly() const override { return true; }
+	virtual bool NeedsLoadForClient() const override { return false; }
+	virtual bool NeedsLoadForServer() const override { return false; }
+	virtual bool IsLevelBoundsRelevant() const override { return false; }
 public:
 	bool AppliesToHLODLevel(int32 LODIdx) const;
 

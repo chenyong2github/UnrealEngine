@@ -3265,10 +3265,17 @@ FString UScriptStruct::GetStructCPPName() const
 
 #if !(UE_BUILD_TEST || UE_BUILD_SHIPPING)
 
+enum class EScriptStructTestCtorSyntax
+{
+	NoInit = 0,
+	CompilerZeroed = 1
+};
+
 struct FScriptStructTestWrapper
 {
 public:
-	FScriptStructTestWrapper(UScriptStruct* InStruct, uint8 InitValue = 0xFD)
+
+	FScriptStructTestWrapper(UScriptStruct* InStruct, uint8 InitValue = 0xFD, EScriptStructTestCtorSyntax ConstrutorSyntax = EScriptStructTestCtorSyntax::NoInit)
 		: ScriptStruct(InStruct)
 		, TempBuffer(nullptr)
 	{
@@ -3293,7 +3300,14 @@ public:
 				int32 InitializedSize = 0;
 				if (StructOps != nullptr)
 				{
-					StructOps->ConstructForTests(TempBuffer);
+					if (ConstrutorSyntax == EScriptStructTestCtorSyntax::NoInit)
+					{
+						StructOps->ConstructForTests(TempBuffer);
+					}
+					else
+					{
+						StructOps->Construct(TempBuffer);
+					}
 					InitializedSize = StructOps->GetSize();
 				}
 
@@ -3343,6 +3357,76 @@ private:
 	uint8* TempBuffer;
 };
 
+static void FindUninitializedScriptStructMembers(UScriptStruct* ScriptStruct, EScriptStructTestCtorSyntax ConstructorSyntax, TSet<const FProperty*>& OutUninitializedProperties)
+{
+	FScriptStructTestWrapper WrapperFF(ScriptStruct, 0xFF, ConstructorSyntax);
+	FScriptStructTestWrapper Wrapper00(ScriptStruct, 0x00, ConstructorSyntax);
+	FScriptStructTestWrapper WrapperAA(ScriptStruct, 0xAA, ConstructorSyntax);
+	FScriptStructTestWrapper Wrapper55(ScriptStruct, 0x55, ConstructorSyntax);
+
+	const void* BadPointer = (void*)0xFFFFFFFFFFFFFFFFull;
+
+	for (const FProperty* Property : TFieldRange<FProperty>(ScriptStruct, EFieldIteratorFlags::ExcludeSuper))
+	{
+#if	WITH_EDITORONLY_DATA
+		static const FName NAME_IgnoreForMemberInitializationTest(TEXT("IgnoreForMemberInitializationTest"));
+		if (Property->HasMetaData(NAME_IgnoreForMemberInitializationTest))
+		{
+			continue;
+		}
+#endif // WITH_EDITORONLY_DATA
+
+		if (const FObjectPropertyBase* ObjectProperty = CastField<const FObjectPropertyBase>(Property))
+		{
+			// Check any reflected pointer properties to make sure they got initialized
+			const UObject* PropValue = ObjectProperty->GetObjectPropertyValue_InContainer(WrapperFF.GetData());
+			if (PropValue == BadPointer)
+			{
+				OutUninitializedProperties.Add(Property);
+			}
+		}
+		else if (const FBoolProperty* BoolProperty = CastField<const FBoolProperty>(Property))
+		{
+			// Check for uninitialized boolean properties (done separately to deal with byte-wide booleans that would evaluate to true with either 0x55 or 0xAA)
+			const bool bValue0 = BoolProperty->GetPropertyValue_InContainer(Wrapper00.GetData());
+			const bool bValue1 = BoolProperty->GetPropertyValue_InContainer(WrapperFF.GetData());
+
+			if (bValue0 != bValue1)
+			{
+				OutUninitializedProperties.Add(Property);
+			}
+		}
+		else if (Property->IsA(FNameProperty::StaticClass()))
+		{
+			// Skip some other types that will crash in equality with garbage data
+			//@TODO: Shouldn't need to skip FName, it's got a default ctor that initializes correctly...
+		}
+		else
+		{
+			bool bShouldInspect = true;
+			if (Property->IsA(FStructProperty::StaticClass()))
+			{
+				// Skip user defined structs since we will consider those structs directly.
+				// Calling again here will just result in false positives
+				const FStructProperty* StructProperty = CastField<FStructProperty>(Property);
+				bShouldInspect = (StructProperty->Struct->StructFlags & STRUCT_NoExport) != 0;
+			}
+
+			if (bShouldInspect)
+			{
+				// Catch all remaining properties
+
+				// Uncomment the following line to aid finding crash sources encountered while running this test. A crash usually indicates an uninitialized pointer
+				// UE_LOG(LogClass, Log, TEXT("Testing %s%s::%s for proper initialization"), ScriptStruct->GetPrefixCPP(), *ScriptStruct->GetName(), *Property->GetNameCPP());
+				if (!Property->Identical_InContainer(WrapperAA.GetData(), Wrapper55.GetData()))
+				{
+					OutUninitializedProperties.Add(Property);
+				}
+			}
+		}
+	}
+}
+
 int32 FStructUtils::AttemptToFindUninitializedScriptStructMembers()
 {
 	auto GetStructLocation = [](const UScriptStruct* ScriptStruct) -> FString {
@@ -3364,9 +3448,10 @@ int32 FStructUtils::AttemptToFindUninitializedScriptStructMembers()
 	int32 UninitializedObjectPropertyCount = 0;
 	UScriptStruct* TestUninitializedScriptStructMembersTestStruct = TBaseStructure<FTestUninitializedScriptStructMembersTest>::Get();
 	check(TestUninitializedScriptStructMembersTestStruct != nullptr);
-	const void* BadPointer = (void*)0xFFFFFFFFFFFFFFFFull;
-
+	
 	{
+		const void* BadPointer = (void*)0xFFFFFFFFFFFFFFFFull;
+
 		// First test if the tests aren't broken
 		FScriptStructTestWrapper WrapperFF(TestUninitializedScriptStructMembersTestStruct, 0xFF);
 		const FObjectPropertyBase* UninitializedProperty = CastFieldChecked<const FObjectPropertyBase>(TestUninitializedScriptStructMembersTestStruct->FindPropertyByName(TEXT("UninitializedObjectReference")));
@@ -3386,78 +3471,45 @@ int32 FStructUtils::AttemptToFindUninitializedScriptStructMembers()
 		}
 	}
 
+	TSet<const FProperty*> UninitializedPropertiesNoInit;
+	TSet<const FProperty*> UninitializedPropertiesZeroed;
 	for (TObjectIterator<UScriptStruct> ScriptIt; ScriptIt; ++ScriptIt)
 	{
 		UScriptStruct* ScriptStruct = *ScriptIt;
 
 		if (FScriptStructTestWrapper::CanRunTests(ScriptStruct) && ScriptStruct != TestUninitializedScriptStructMembersTestStruct)
 		{
-			FScriptStructTestWrapper WrapperFF(ScriptStruct, 0xFF);
-			FScriptStructTestWrapper Wrapper00(ScriptStruct, 0x00);
-			FScriptStructTestWrapper WrapperAA(ScriptStruct, 0xAA);
-			FScriptStructTestWrapper Wrapper55(ScriptStruct, 0x55);
+			UninitializedPropertiesNoInit.Reset();
+			UninitializedPropertiesZeroed.Reset();
 
-			for (const FProperty* Property : TFieldRange<FProperty>(ScriptStruct, EFieldIteratorFlags::ExcludeSuper))
+			// Test the struct by constructing it with 'new FMyStruct();' syntax first. The compiler should zero all members in this case if the 
+			// struct doesn't have a custom default constructor defined
+			FindUninitializedScriptStructMembers(ScriptStruct, EScriptStructTestCtorSyntax::CompilerZeroed, UninitializedPropertiesZeroed);
+			// Test the struct by constructing it with 'new FStruct;' syntax in which case the compiler doesn't zero the properties automatically
+			FindUninitializedScriptStructMembers(ScriptStruct, EScriptStructTestCtorSyntax::NoInit, UninitializedPropertiesNoInit);			
+
+			for (const FProperty* Property : UninitializedPropertiesZeroed)
 			{
-#if	WITH_EDITORONLY_DATA
-				static const FName NAME_IgnoreForMemberInitializationTest(TEXT("IgnoreForMemberInitializationTest"));
-				if (Property->HasMetaData(NAME_IgnoreForMemberInitializationTest))
+				++UninitializedScriptStructMemberCount;
+				if (Property->IsA<FObjectPropertyBase>())
 				{
-					continue;
+					++UninitializedObjectPropertyCount;
 				}
-#endif // WITH_EDITORONLY_DATA
-
-				if (const FObjectPropertyBase* ObjectProperty = CastField<const FObjectPropertyBase>(Property))
+				UE_LOG(LogClass, Warning, TEXT("%s %s%s::%s is not initialized properly even though its struct probably has a custom default constructor.%s"), *Property->GetClass()->GetName(), ScriptStruct->GetPrefixCPP(), *ScriptStruct->GetName(), *Property->GetNameCPP(), *GetStructLocation(ScriptStruct));
+			}
+			for (const FProperty* Property : UninitializedPropertiesNoInit)
+			{
+				if (!UninitializedPropertiesZeroed.Contains(Property))
 				{
-					// Check any reflected pointer properties to make sure they got initialized
-					const UObject* PropValue = ObjectProperty->GetObjectPropertyValue_InContainer(WrapperFF.GetData());
-					if (PropValue == BadPointer)
+					++UninitializedScriptStructMemberCount;
+					if (Property->IsA<FObjectPropertyBase>())
 					{
-
 						++UninitializedObjectPropertyCount;
-						++UninitializedScriptStructMemberCount;
-						UE_LOG(LogClass, Warning, TEXT("ObjectProperty %s%s::%s is not initialized properly.%s"), ScriptStruct->GetPrefixCPP(), *ScriptStruct->GetName(), *Property->GetNameCPP(), *GetStructLocation(ScriptStruct));
+						UE_LOG(LogClass, Warning, TEXT("%s %s%s::%s is not initialized properly.%s"), *Property->GetClass()->GetName(), ScriptStruct->GetPrefixCPP(), *ScriptStruct->GetName(), *Property->GetNameCPP(), *GetStructLocation(ScriptStruct));
 					}
-				}
-				else if (const FBoolProperty* BoolProperty = CastField<const FBoolProperty>(Property))
-				{
-					// Check for uninitialized boolean properties (done separately to deal with byte-wide booleans that would evaluate to true with either 0x55 or 0xAA)
-					const bool Value0 = BoolProperty->GetPropertyValue_InContainer(Wrapper00.GetData());
-					const bool Value1 = BoolProperty->GetPropertyValue_InContainer(WrapperFF.GetData());
-
-					if (Value0 != Value1)
+					else
 					{
-						++UninitializedScriptStructMemberCount;
-						UE_LOG(LogClass, Log, TEXT("BoolProperty %s%s::%s is not initialized properly.%s"), ScriptStruct->GetPrefixCPP(), *ScriptStruct->GetName(), *Property->GetNameCPP(), *GetStructLocation(ScriptStruct));
-					}
-				}
-				else if (Property->IsA(FNameProperty::StaticClass()))
-				{
-					// Skip some other types that will crash in equality with garbage data
-					//@TODO: Shouldn't need to skip FName, it's got a default ctor that initializes correctly...
-				}
-				else
-				{
-					bool ShouldInspect = true;
-					if (Property->IsA(FStructProperty::StaticClass()))
-					{
-						// Skip user defined structs since we will consider those structs directly.
-						// Calling again here will just result in false positives
-						const FStructProperty* StructProperty = CastField<FStructProperty>(Property);
-						ShouldInspect = (StructProperty->Struct->StructFlags & STRUCT_NoExport) != 0;
-					}
-
-					if (ShouldInspect)
-					{
-						// Catch all remaining properties
-
-						// Uncomment the following line to aid finding crash sources encountered while running this test. A crash usually indicates an uninitialized pointer
-						// UE_LOG(LogClass, Log, TEXT("Testing %s%s::%s for proper initialization"), ScriptStruct->GetPrefixCPP(), *ScriptStruct->GetName(), *Property->GetNameCPP());
-						if (!Property->Identical_InContainer(WrapperAA.GetData(), Wrapper55.GetData()))
-						{
-							++UninitializedScriptStructMemberCount;
-							UE_LOG(LogClass, Log, TEXT("%s %s%s::%s is not initialized properly.%s"), *Property->GetClass()->GetName(), ScriptStruct->GetPrefixCPP(), *ScriptStruct->GetName(), *Property->GetNameCPP(), *GetStructLocation(ScriptStruct));
-						}
+						UE_LOG(LogClass, Display, TEXT("%s %s%s::%s is not initialized properly.%s"), *Property->GetClass()->GetName(), ScriptStruct->GetPrefixCPP(), *ScriptStruct->GetName(), *Property->GetNameCPP(), *GetStructLocation(ScriptStruct));
 					}
 				}
 			}
@@ -3468,6 +3520,7 @@ int32 FStructUtils::AttemptToFindUninitializedScriptStructMembers()
 	{
 		UE_LOG(LogClass, Display, TEXT("%i Uninitialized script struct members found including %d object properties"), UninitializedScriptStructMemberCount, UninitializedObjectPropertyCount);
 	}
+
 	return UninitializedScriptStructMemberCount;
 }
 

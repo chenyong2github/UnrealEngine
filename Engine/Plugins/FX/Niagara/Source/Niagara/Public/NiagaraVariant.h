@@ -45,10 +45,10 @@ struct NIAGARA_API FNiagaraVariant
 	bool operator!=(const FNiagaraVariant& Other) const;
 
 private:
-	UPROPERTY(EditAnywhere, Category=Variant)
+	UPROPERTY(EditAnywhere, Category=Variant, Instanced)
 	UObject* Object;
 
-	UPROPERTY(EditAnywhere, Category=Variant)
+	UPROPERTY(EditAnywhere, Category=Variant, Instanced)
 	UNiagaraDataInterface* DataInterface;
 
 	UPROPERTY(EditAnywhere, Category=Variant)

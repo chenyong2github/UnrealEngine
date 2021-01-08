@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ReplaySubsystem.h"
+#include "Engine/Engine.h"
 #include "Engine/DemoNetDriver.h"
 #include "Engine/NetworkObjectList.h"
 #include "ReplayNetConnection.h"

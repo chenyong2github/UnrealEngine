@@ -80,6 +80,11 @@ namespace UnrealBuildTool
 		string CommandArguments { get; }
 
 		/// <summary>
+		/// Version of the command used for this action. This will be considered a dependency.
+		/// </summary>
+		string CommandVersion { get; }
+
+		/// <summary>
 		/// Optional friendly description of the type of command being performed, for example "Compile" or "Link".  Displayed by some executors.
 		/// </summary>
 		string CommandDescription { get; }
@@ -164,6 +169,11 @@ namespace UnrealBuildTool
 		/// Command-line parameters to pass to the program
 		/// </summary>
 		public string CommandArguments { get; set; } = null!;
+		
+		/// <summary>
+		/// Version of the command used for this action. This will be considered a dependency.
+		/// </summary>
+		public string CommandVersion { get; set; } = "0";
 
 		/// <summary>
 		/// Optional friendly description of the type of command being performed, for example "Compile" or "Link".  Displayed by some executors.
@@ -226,6 +236,7 @@ namespace UnrealBuildTool
 			WorkingDirectory = InOther.WorkingDirectory;
 			CommandPath = InOther.CommandPath;
 			CommandArguments = InOther.CommandArguments;
+			CommandVersion = InOther.CommandVersion;
 			CommandDescription = InOther.CommandDescription;
 			StatusDescription = InOther.StatusDescription;
 			bCanExecuteRemotely = InOther.bCanExecuteRemotely;
@@ -241,6 +252,7 @@ namespace UnrealBuildTool
 			WorkingDirectory = Reader.ReadDirectoryReference();
 			CommandPath = Reader.ReadFileReference();
 			CommandArguments = Reader.ReadString();
+			CommandVersion = Reader.ReadString();
 			CommandDescription = Reader.ReadString();
 			StatusDescription = Reader.ReadString();
 			bCanExecuteRemotely = Reader.ReadBool();
@@ -263,6 +275,7 @@ namespace UnrealBuildTool
 			Writer.WriteDirectoryReference(WorkingDirectory);
 			Writer.WriteFileReference(CommandPath);
 			Writer.WriteString(CommandArguments);
+			Writer.WriteString(CommandVersion);
 			Writer.WriteString(CommandDescription);
 			Writer.WriteString(StatusDescription);
 			Writer.WriteBool(bCanExecuteRemotely);
@@ -300,6 +313,12 @@ namespace UnrealBuildTool
 			if(Object.TryGetStringField("CommandArguments", out CommandArguments))
 			{
 				Action.CommandArguments = CommandArguments;
+			}
+
+			string CommandVersion;
+			if (Object.TryGetStringField("CommandVersion", out CommandVersion))
+			{
+				Action.CommandVersion = CommandVersion;
 			}
 
 			string CommandDescription;
@@ -404,6 +423,7 @@ namespace UnrealBuildTool
 			Writer.WriteValue("WorkingDirectory", Action.WorkingDirectory.FullName);
 			Writer.WriteValue("CommandPath", Action.CommandPath.FullName);
 			Writer.WriteValue("CommandArguments", Action.CommandArguments);
+			Writer.WriteValue("CommandVersion", Action.CommandVersion);
 			Writer.WriteValue("CommandDescription", Action.CommandDescription);
 			Writer.WriteValue("StatusDescription", Action.StatusDescription);
 			Writer.WriteValue("bCanExecuteRemotely", Action.bCanExecuteRemotely);
@@ -493,6 +513,7 @@ namespace UnrealBuildTool
 		public DirectoryReference WorkingDirectory => Inner.WorkingDirectory;
 		public FileReference CommandPath => Inner.CommandPath;
 		public string CommandArguments => Inner.CommandArguments;
+		public string CommandVersion => Inner.CommandVersion;
 		public string CommandDescription => Inner.CommandDescription;
 		public string StatusDescription => Inner.StatusDescription;
 		public bool bCanExecuteRemotely => Inner.bCanExecuteRemotely;

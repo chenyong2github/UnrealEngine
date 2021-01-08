@@ -25,6 +25,8 @@ public:
 		: FSlateStyleSet("TemplateSequenceEditorStyle")
 	{
 		const FVector2D Icon16x16(16.0f, 16.0f);
+		const FVector2D Icon24x24(24.0f, 24.0f);
+		const FVector2D Icon48x48(48.0f, 48.0f);
 		const FVector2D Icon64x64(64.0f, 64.0f);
 
 		SetContentRoot(FPaths::EnginePluginsDir() / TEXT("MovieScene/TemplateSequence/Content"));
@@ -35,6 +37,12 @@ public:
 		// asset thumbnail
 		Set("ClassThumbnail.TemplateSequence", new IMAGE_BRUSH("TemplateSequence_16x", Icon16x16));
 		Set("ClassThumbnail.TemplateSequence", new IMAGE_BRUSH("TemplateSequence_64x", Icon64x64));
+
+		// toolbar icons
+		Set("TemplateSequenceEditor.Chain", new IMAGE_BRUSH("Chain_16x", Icon16x16));
+		Set("TemplateSequenceEditor.Chain", new IMAGE_BRUSH("Chain_64x", Icon64x64));
+		Set("TemplateSequenceEditor.Chain", new IMAGE_BRUSH("Chain_48x", Icon48x48));
+		Set("TemplateSequenceEditor.Chain.Small", new IMAGE_BRUSH("Chain_24x", Icon24x24));
 
 		FSlateStyleRegistry::RegisterSlateStyle(*this);
 	}

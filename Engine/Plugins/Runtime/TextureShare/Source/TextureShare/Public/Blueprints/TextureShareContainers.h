@@ -2,18 +2,18 @@
 
 #pragma once
 #include "CoreMinimal.h"
+
 #include "TextureShareEnums.h"
-#include "Containers/TextureShareCoreGenericContainers.h"
 #include "TextureShareCoreContainers.h"
+#include "Containers/TextureShareCoreGenericContainers.h"
 
 #include "RHI.h"
 #include "RHIResources.h"
 
+#include "Engine/Texture2D.h"
+#include "Engine/TextureRenderTarget2D.h"
+
 #include "TextureShareContainers.generated.h"
-
-class UTextureRenderTarget2D;
-class UTexture2D;
-
 
 USTRUCT(BlueprintType)
 struct FTextureShareBPAdditionalData

@@ -106,6 +106,9 @@ public:
 	/** Toggle locking the playback range. */
 	TSharedPtr< FUICommandInfo > TogglePlaybackRangeLocked;
 
+	/** Toggle clean playback mode. */
+	TSharedPtr< FUICommandInfo > ToggleCleanPlaybackMode;
+
 	/** Reruns construction scripts on bound actors every frame. */
 	TSharedPtr< FUICommandInfo > ToggleRerunConstructionScripts;
 

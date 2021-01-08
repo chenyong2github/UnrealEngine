@@ -100,6 +100,9 @@ struct FPrimaryAssetTypeData
 	/** In the editor, paths that we need to scan once asset registry is done loading */
 	TArray<FString> DeferredAssetScanPaths;
 
+	/** Expanded list of asset scan paths and package names, will not include virtual paths */
+	TArray<FString> RealAssetScanPaths;
+
 	FPrimaryAssetTypeData() {}
 
 	FPrimaryAssetTypeData(FName InPrimaryAssetType, UClass* InAssetBaseClass, bool bInHasBlueprintClasses, bool bInIsEditorOnly)
@@ -107,9 +110,107 @@ struct FPrimaryAssetTypeData
 		{}
 };
 
+/** Version of rules with cached data */
+struct FCompiledAssetManagerSearchRules : FAssetManagerSearchRules
+{
+	FCompiledAssetManagerSearchRules(const FAssetManagerSearchRules& InRules)
+		: FAssetManagerSearchRules(InRules)
+		, bShouldCallDelegate(InRules.ShouldIncludeDelegate.IsBound())
+		, bShouldCheckWildcards(false)
+	{
+		for (const FString& String : IncludePatterns)
+		{
+			if (String.Len())
+			{
+				IncludeWildcards.Add(String);
+				bShouldCheckWildcards = true;
+			}
+		}
+
+		for (const FString& String : ExcludePatterns)
+		{
+			if (String.Len())
+			{
+				ExcludeWildcards.Add(String);
+				bShouldCheckWildcards = true;
+			}
+		}
+
+		// Check class first
+		if (AssetBaseClass)
+		{
+			AssetClassNames.Add(AssetBaseClass->GetFName());
+
+#if WITH_EDITOR
+			// Add any old names to the list in case things haven't been resaved
+			TArray<FName> OldNames = FLinkerLoad::FindPreviousNamesForClass(AssetBaseClass->GetPathName(), false);
+			AssetClassNames.Append(OldNames);
+#endif
+		}
+	}
+
+	bool PassesWildcardsAndDelegates(const FAssetData& AssetData, const UAssetManager* AssetManager) const
+	{
+		if (bShouldCheckWildcards)
+		{
+			// Check include and exclude patterns, will pass if no include patterns
+			FString PackageString = AssetData.PackageName.ToString();
+			for (const FString& Wildcard : ExcludeWildcards)
+			{
+				if (PackageString.MatchesWildcard(Wildcard, ESearchCase::IgnoreCase))
+				{
+					return false;
+				}
+			}
+
+			bool bPassesInclude = (IncludeWildcards.Num() == 0);
+			for (const FString& Wildcard : IncludeWildcards)
+			{
+				if (PackageString.MatchesWildcard(Wildcard, ESearchCase::IgnoreCase))
+				{
+					bPassesInclude = true;
+					break;
+				}
+			}
+			if (!bPassesInclude)
+			{
+				return false;
+			}
+		}
+
+		if (!bSkipManagerIncludeCheck)
+		{
+			if (!AssetManager->ShouldIncludeInAssetSearch(AssetData, *this))
+			{
+				return false;
+			}
+		}
+
+		if (bShouldCallDelegate)
+		{
+			if (!ShouldIncludeDelegate.Execute(AssetData, *this))
+			{
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	TArray<FString> IncludeWildcards;
+	TArray<FString> ExcludeWildcards;
+	TArray<FName> AssetClassNames;
+	TSet<FName> DerivedClassNames;
+	bool bShouldCallDelegate;
+	bool bShouldCheckWildcards;
+};
+
 const FPrimaryAssetType UAssetManager::MapType = FName(TEXT("Map"));
 const FPrimaryAssetType UAssetManager::PrimaryAssetLabelType = FName(TEXT("PrimaryAssetLabel"));
 const FPrimaryAssetType UAssetManager::PackageChunkType = FName(TEXT("PackageChunk"));
+const FString UAssetManager::AssetSearchRootsVirtualPath = TEXT("$AssetSearchRoots");
+const FString UAssetManager::DynamicSearchRootsVirtualPath = TEXT("$DynamicSearchRoots");
+FSimpleMulticastDelegate UAssetManager::OnCompletedInitialScanDelegate;
 FSimpleMulticastDelegate UAssetManager::OnAssetManagerCreatedDelegate;
 
 UAssetManager::UAssetManager()
@@ -178,6 +279,9 @@ void UAssetManager::PostInitProperties()
 		LoadRedirectorMaps();
 
 		StreamableManager.SetManagerName(FString::Printf(TEXT("%s.StreamableManager"), *GetPathName()));
+
+		// Add /Game to initial list, games can add additional ones if desired
+		AllAssetSearchRoots.Add(TEXT("/Game"));
 	}
 }
 
@@ -295,7 +399,7 @@ FTimerManager* UAssetManager::GetTimerManager() const
 	return nullptr;
 }
 
-FPrimaryAssetId UAssetManager::DeterminePrimaryAssetIdForObject(const UObject* Object)
+FPrimaryAssetId UAssetManager::DeterminePrimaryAssetIdForObject(const UObject* Object) const
 {
 	const UObject* AssetObject = Object;
 	// First find the object that would be registered, need to use class if we're a BP CDO
@@ -323,7 +427,7 @@ FPrimaryAssetId UAssetManager::DeterminePrimaryAssetIdForObject(const UObject* O
 		if (Object->IsA(TypeData.Info.AssetBaseClassLoaded))
 		{
 			// Check paths, directories will end in /, specific paths will end in full assetname.assetname
-			for (const FString& ScanPath : TypeData.Info.AssetScanPaths)
+			for (const FString& ScanPath : TypeData.RealAssetScanPaths)
 			{
 				if (AssetPath.StartsWith(ScanPath))
 				{
@@ -349,7 +453,7 @@ FPrimaryAssetId UAssetManager::DeterminePrimaryAssetIdForObject(const UObject* O
 	return FPrimaryAssetId();
 }
 
-bool UAssetManager::IsAssetDataBlueprintOfClassSet(const FAssetData& AssetData, const TSet<FName>& ClassNameSet)
+bool UAssetManager::IsAssetDataBlueprintOfClassSet(const FAssetData& AssetData, const TSet<FName>& ClassNameSet) const
 {
 	const FString ParentClassFromData = AssetData.GetTagValueRef<FString>(FBlueprintTags::ParentClassPath);
 	if (!ParentClassFromData.IsEmpty())
@@ -379,31 +483,62 @@ bool UAssetManager::IsAssetDataBlueprintOfClassSet(const FAssetData& AssetData, 
 	return false;
 }
 
-void UAssetManager::SearchAssetRegistryPaths(TArray<FAssetData>& OutAssetDataList, TSet<FName>& OutDerivedClassNames, const TArray<FString>& Directories, const TArray<FString>& PackageNames, UClass* BaseClass, bool bHasBlueprintClasses) const
+int32 UAssetManager::SearchAssetRegistryPaths(TArray<FAssetData>& OutAssetDataList, const FAssetManagerSearchRules& Rules) const
 {
-	FARFilter ARFilter;
-	TArray<FName> ClassNames;
-
-	IAssetRegistry& AssetRegistry = GetAssetRegistry();
-
-	if (BaseClass)
+	if (!Rules.AssetBaseClass)
 	{
-		// Class check
-		if (!bHasBlueprintClasses)
+		return 0;
+	}
+
+	TArray<FString> Directories, PackageNames;
+	TArray<FString> ScanPaths = Rules.AssetScanPaths;
+	// Add path info
+	if (!Rules.bSkipVirtualPathExpansion)
+	{
+		ExpandVirtualPaths(ScanPaths);
+	}
+
+	for (const FString& Path : ScanPaths)
+	{
+		int32 DotIndex = INDEX_NONE;
+		if (Path.FindChar('.', DotIndex))
 		{
-			// For base classes, can do the filter before hand
-			ARFilter.ClassNames.Add(BaseClass->GetFName());
+			FString PackageName = Path.Mid(0, DotIndex); //avoid re-searching for index inside FPackageName::ObjectPathToPackageName
+
+			PackageNames.AddUnique(MoveTemp(PackageName));
+		}
+		else if (Path.Len() > 0)
+		{
+			Directories.AddUnique(GetNormalizedPackagePath(Path, false));
+		}
+	}
 
 #if WITH_EDITOR
-			// Add any old names to the list in case things haven't been resaved
-			TArray<FName> OldNames = FLinkerLoad::FindPreviousNamesForClass(BaseClass->GetPathName(), false);
-			ARFilter.ClassNames.Append(OldNames);
+	// Cooked data has the asset data already set up
+	const bool bShouldDoSynchronousScan = !bIsGlobalAsyncScanEnvironment || Rules.bForceSynchronousScan;
+	if (bShouldDoSynchronousScan)
+	{
+		ScanPathsSynchronous(ScanPaths);
+	}
 #endif
+	
+	FCompiledAssetManagerSearchRules CompiledRules(Rules);
+	int32 InitialAssetCount = OutAssetDataList.Num();
+	FARFilter ARFilter;
+	IAssetRegistry& AssetRegistry = GetAssetRegistry();
 
+	if (Rules.AssetBaseClass)
+	{
+		// Class check
+		if (!Rules.bHasBlueprintClasses)
+		{
+			// Use class directly
+			ARFilter.ClassNames = CompiledRules.AssetClassNames;
 			ARFilter.bRecursiveClasses = true;
 		}
 		else
 		{
+			// Search for all blueprints and then check derived classes later
 			TArray<UClass*> BlueprintCoreDerivedClasses;
 			GetDerivedClasses(UBlueprintCore::StaticClass(), BlueprintCoreDerivedClasses);
 			for (UClass* BPCoreClass : BlueprintCoreDerivedClasses)
@@ -411,8 +546,7 @@ void UAssetManager::SearchAssetRegistryPaths(TArray<FAssetData>& OutAssetDataLis
 				ARFilter.ClassNames.Add(BPCoreClass->GetFName());
 			}
 
-			ClassNames.Add(BaseClass->GetFName());
-			GetAssetRegistry().GetDerivedClassNames(ClassNames, TSet<FName>(), OutDerivedClassNames);
+			GetAssetRegistry().GetDerivedClassNames(CompiledRules.AssetClassNames, TSet<FName>(), CompiledRules.DerivedClassNames);
 		}
 	}
 
@@ -434,10 +568,32 @@ void UAssetManager::SearchAssetRegistryPaths(TArray<FAssetData>& OutAssetDataLis
 	ARFilter.bRecursivePaths = true;
 	ARFilter.bIncludeOnlyOnDiskAssets = !GIsEditor; // In editor check in memory, otherwise don't
 
+	auto FilterLambda = [this, &OutAssetDataList, &CompiledRules](const FAssetData& AssetData)
+	{
+		// Verify blueprint class
+		if (CompiledRules.bHasBlueprintClasses)
+		{
+			if (!IsAssetDataBlueprintOfClassSet(AssetData, CompiledRules.DerivedClassNames))
+			{
+				return true;
+			}
+		}
+
+		if (!CompiledRules.PassesWildcardsAndDelegates(AssetData, this))
+		{
+			return true;
+		}
+
+		// Passed all filters
+		OutAssetDataList.Add(AssetData);
+
+		return true;
+	};
+
 	if (bBothDirectoriesAndPackageNames)
 	{
 		// To get both the directories and package names we have to do two queries, since putting both in the same query only returns assets of those package names AND are in those directories.
-		AssetRegistry.GetAssets(ARFilter, OutAssetDataList);
+		AssetRegistry.EnumerateAssets(ARFilter, FilterLambda);
 
 		for (const FString& PackageName : PackageNames)
 		{
@@ -445,7 +601,86 @@ void UAssetManager::SearchAssetRegistryPaths(TArray<FAssetData>& OutAssetDataLis
 		}
 		ARFilter.PackagePaths.Empty();
 	}
-	AssetRegistry.GetAssets(ARFilter, OutAssetDataList);
+
+	// Search asset registry and apply delegate, will always search entire registry
+	AssetRegistry.EnumerateAssets(ARFilter, FilterLambda);
+
+	return OutAssetDataList.Num() - InitialAssetCount;
+}
+
+bool UAssetManager::DoesAssetMatchSearchRules(const FAssetData& AssetData, const FAssetManagerSearchRules& Rules) const
+{
+	// This is slower than the scan version above when looking for many assets, but works on assets from any source
+	FCompiledAssetManagerSearchRules CompiledRules(Rules);
+
+	// Check class first
+	if (Rules.AssetBaseClass)
+	{
+		GetAssetRegistry().GetDerivedClassNames(CompiledRules.AssetClassNames, TSet<FName>(), CompiledRules.DerivedClassNames);
+
+		if (!Rules.bHasBlueprintClasses)
+		{
+			if (!CompiledRules.DerivedClassNames.Contains(AssetData.AssetClass))
+			{
+				return false;
+			}
+		}
+		else
+		{
+			if (!IsAssetDataBlueprintOfClassSet(AssetData, CompiledRules.DerivedClassNames))
+			{
+				return false;
+			}
+		}
+	}
+
+	TArray<FString> ScanPaths = Rules.AssetScanPaths;
+	// Add path info
+	if (!Rules.bSkipVirtualPathExpansion)
+	{
+		ExpandVirtualPaths(ScanPaths);
+	}
+
+	// If we have any scan paths, verify it's inside one
+	bool bFoundPath = ScanPaths.Num() == 0;
+	for (FString& Path : ScanPaths)
+	{
+		NormalizePackagePath(Path, false);
+		if (AssetData.PackageName.ToString().StartsWith(Path))
+		{
+			bFoundPath = true;
+			break;
+		}
+	}
+
+	if (!bFoundPath)
+	{
+		return false;
+	}
+
+	if (!CompiledRules.PassesWildcardsAndDelegates(AssetData, this))
+	{
+		return false;
+	}
+
+	return true;
+}
+
+bool UAssetManager::ShouldIncludeInAssetSearch(const FAssetData& AssetData, const FAssetManagerSearchRules& SearchRules) const
+{
+	const UAssetManagerSettings& Settings = GetSettings();
+
+	if (Settings.DirectoriesToExclude.Num() > 0)
+	{
+		// Check exclusion path, but only if we have paths as the package name string is slow to generate
+		// Games can override this for more specific checks
+		if (IsPathExcludedFromScan(AssetData.PackageName.ToString()))
+		{
+			return false;
+		}
+	}
+
+	return true;
 }
 
 void UAssetManager::ScanPathsSynchronous(const TArray<FString>& PathsToScan) const
@@ -517,7 +752,6 @@ void UAssetManager::ScanPathsSynchronous(const TArray<FString>& PathsToScan) con
 int32 UAssetManager::ScanPathsForPrimaryAssets(FPrimaryAssetType PrimaryAssetType, const TArray<FString>& Paths, UClass* BaseClass, bool bHasBlueprintClasses, bool bIsEditorOnly, bool bForceSynchronousScan)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UAssetManager::ScanPathsForPrimaryAssets)
-	TArray<FString> Directories, PackageNames;
 	TSharedRef<FPrimaryAssetTypeData>* FoundType = AssetTypeMap.Find(PrimaryAssetType);
 
 	if (bIsEditorOnly && !GIsEditor)
@@ -549,67 +783,42 @@ int32 UAssetManager::ScanPathsForPrimaryAssets(FPrimaryAssetType PrimaryAssetTyp
 	for (const FString& Path : Paths)
 	{
 		TypeData.Info.AssetScanPaths.AddUnique(Path);
-
-		int32 DotIndex = INDEX_NONE;
-		if (Path.FindChar('.', DotIndex))
-		{
-			FString PackageName = Path.Mid(0, DotIndex); //avoid re-searching for index inside FPackageName::ObjectPathToPackageName
-
-			PackageNames.AddUnique(MoveTemp(PackageName));
-		}
-		else
-		{
-			Directories.AddUnique(Path);
-		}
 	}
 
 #if WITH_EDITOR
 	// Cooked data has the asset data already set up
 	const bool bShouldDoSynchronousScan = !bIsGlobalAsyncScanEnvironment || bForceSynchronousScan;
-	if (bShouldDoSynchronousScan)
+	if (!bShouldDoSynchronousScan && GetAssetRegistry().IsLoadingAssets())
 	{
-		ScanPathsSynchronous(Paths);
-	}
-	else
-	{
-		if (GetAssetRegistry().IsLoadingAssets())
+		// Keep track of the paths we asked for so once assets are discovered we will refresh the list
+		for (const FString& Path : Paths)
 		{
-			// Keep track of the paths we asked for so once assets are discovered we will refresh the list
-			for (const FString& Path : Paths)
-			{
-				TypeData.DeferredAssetScanPaths.AddUnique(Path);
-			}
+			TypeData.DeferredAssetScanPaths.AddUnique(Path);
 		}
 	}
 #endif
 
+	FAssetManagerSearchRules SearchRules;
+	SearchRules.AssetBaseClass = BaseClass;
+	SearchRules.AssetScanPaths = Paths;
+	SearchRules.bHasBlueprintClasses = bHasBlueprintClasses;
+	SearchRules.bForceSynchronousScan = bForceSynchronousScan;	
+
+	// Expand paths so we can record them for later
+	ExpandVirtualPaths(SearchRules.AssetScanPaths);
+	SearchRules.bSkipVirtualPathExpansion = true;
+	for (const FString& Path : SearchRules.AssetScanPaths)
+	{
+		TypeData.RealAssetScanPaths.AddUnique(Path);
+	}
+
 	TArray<FAssetData> AssetDataList;
-	TSet<FName> DerivedClassNames;
-
-	SearchAssetRegistryPaths(AssetDataList, DerivedClassNames, Directories, PackageNames, BaseClass, bHasBlueprintClasses);
-
-	// Temporary performance fix while waiting for Ben Zeigler's AssetManager registry scanning changes
-	const bool bPathExclusionsExists = GetSettings().DirectoriesToExclude.Num() > 0;
+	SearchAssetRegistryPaths(AssetDataList, SearchRules);
 
 	int32 NumAdded = 0;
 	// Now add to map or update as needed
 	for (FAssetData& Data : AssetDataList)
 	{
-		// Check exclusion path
-		if (bPathExclusionsExists && IsPathExcludedFromScan(Data.PackageName.ToString()))
-		{
-			continue;
-		}
-
-		// Verify blueprint class
-		if (bHasBlueprintClasses)
-		{
-			if (!IsAssetDataBlueprintOfClassSet(Data, DerivedClassNames))
-			{
-				continue;
-			}
-		}
-
 		FPrimaryAssetId PrimaryAssetId = ExtractPrimaryAssetIdFromData(Data, PrimaryAssetType);
 
 		// Remove invalid or wrong type assets
@@ -651,6 +860,7 @@ int32 UAssetManager::ScanPathsForPrimaryAssets(FPrimaryAssetType PrimaryAssetTyp
 
 void UAssetManager::StartBulkScanning()
 {
+	// TODO switch to an int and support nesting
 	if (ensure(!bIsBulkScanning))
 	{
 		bIsBulkScanning = true;
@@ -672,6 +882,30 @@ void UAssetManager::StopBulkScanning()
 	}
 	
 	RebuildObjectReferenceList();
+}
+
+bool UAssetManager::RegisterSpecificPrimaryAsset(const FPrimaryAssetId& PrimaryAssetId, const FAssetData& NewAssetData)
+{
+	if (!PrimaryAssetId.IsValid())
+	{
+		return false;
+	}
+
+	const TSharedRef<FPrimaryAssetTypeData>* FoundType = AssetTypeMap.Find(PrimaryAssetId.PrimaryAssetType);
+	if (!FoundType)
+	{
+		return false;
+	}
+
+	// If we got this far, it will succeed but might warn
+	UpdateCachedAssetData(PrimaryAssetId, NewAssetData, false);
+
+	if (!bIsBulkScanning)
+	{
+		RebuildObjectReferenceList();
+	}
+
+	return true;
 }
 
 // This determines if we can use a faster conversion path
@@ -2041,16 +2275,17 @@ bool UAssetManager::OnAssetRegistryAvailableAfterInitialization(FName InName, FA
 						FPrimaryAssetId PrimaryAssetId = AssetData.GetPrimaryAssetId();
 						if (PrimaryAssetId.IsValid())
 						{
-							FPrimaryAssetTypeInfo TypeInfo;
-							if (GetPrimaryAssetTypeInfo(PrimaryAssetId.PrimaryAssetType, TypeInfo))
+							TSharedRef<FPrimaryAssetTypeData>* FoundType = AssetTypeMap.Find(PrimaryAssetId.PrimaryAssetType);
+							if (FoundType)
 							{
-								if (ShouldScanPrimaryAssetType(TypeInfo))
+								FPrimaryAssetTypeData& TypeData = FoundType->Get();
+								if (ShouldScanPrimaryAssetType(TypeData.Info))
 								{
 									// Make sure it's in a valid path
 									bool bFoundPath = false;
-									for (const FString& Path : TypeInfo.AssetScanPaths)
+									for (const FString& Path : TypeData.RealAssetScanPaths)
 									{
-										if (AssetData.PackagePath.ToString().Contains(Path))
+										if (AssetData.PackageName.ToString().StartsWith(Path))
 										{
 											bFoundPath = true;
 											break;
@@ -2822,19 +3057,15 @@ bool UAssetManager::DoesPrimaryAssetMatchCustomOverride(FPrimaryAssetId PrimaryA
 	return true;
 }
 
-void UAssetManager::CallOrRegister_OnCompletedInitialScan(FSimpleMulticastDelegate::FDelegate Delegate)
+void UAssetManager::CallOrRegister_OnCompletedInitialScan(FSimpleMulticastDelegate::FDelegate&& Delegate)
 {
-	if (bHasCompletedInitialScan)
+	if (IsValid() && Get().HasInitialScanCompleted())
 	{
 		Delegate.Execute();
 	}
 	else
 	{
-		bool bAlreadyBound = Delegate.GetUObject() != nullptr ? OnCompletedInitialScanDelegate.IsBoundToObject(Delegate.GetUObject()) : false;
-		if (!bAlreadyBound)
-		{
-			OnCompletedInitialScanDelegate.Add(Delegate);
-		}
+		OnCompletedInitialScanDelegate.Add(MoveTemp(Delegate));
 	}
 }
 
@@ -2853,6 +3084,91 @@ void UAssetManager::CallOrRegister_OnAssetManagerCreated(FSimpleMulticastDelegat
 bool UAssetManager::HasInitialScanCompleted() const
 {
 	return bHasCompletedInitialScan;
+}
+
+FDelegateHandle UAssetManager::Register_OnAddedAssetSearchRoot(FOnAddedAssetSearchRoot::FDelegate&& Delegate)
+{
+	return OnAddedAssetSearchRootDelegate.Add(MoveTemp(Delegate));
+}
+
+void UAssetManager::Unregister_OnAddedAssetSearchRoot(FDelegateHandle DelegateHandle)
+{
+	OnAddedAssetSearchRootDelegate.Remove(DelegateHandle);
+}
+
+bool UAssetManager::ExpandVirtualPaths(TArray<FString>& InOutPaths) const
+{
+	bool bMadeChange = false;
+	for (int32 ReadIndex = 0; ReadIndex < InOutPaths.Num(); ReadIndex++)
+	{
+		const FString* PatternString = nullptr;
+		const TArray<FString>* ReplacementStrings = nullptr;
+
+		// Note, this does not support multiple virtual roots, which would conflict
+		if (InOutPaths[ReadIndex].Contains(AssetSearchRootsVirtualPath))
+		{
+			PatternString = &AssetSearchRootsVirtualPath;
+			ReplacementStrings = &GetAssetSearchRoots(true);
+		}
+		else if (InOutPaths[ReadIndex].Contains(DynamicSearchRootsVirtualPath))
+		{
+			PatternString = &DynamicSearchRootsVirtualPath;
+			ReplacementStrings = &GetAssetSearchRoots(false);
+		}
+		
+		if (PatternString)
+		{
+			bMadeChange = true;
+			int32 NumReplacements = ReplacementStrings->Num();
+			if (NumReplacements == 0)
+			{
+				// No replacements, just delete
+				InOutPaths.RemoveAt(ReadIndex);
+				ReadIndex--;
+				continue;
+			}
+
+			// Add room for new strings and then replace
+			FString ReadString = InOutPaths[ReadIndex];
+			if (NumReplacements > 1)
+			{
+				InOutPaths.InsertDefaulted(ReadIndex + 1, NumReplacements - 1);
+			}
+			
+			for (int32 ReplaceIndex = 0; ReplaceIndex < NumReplacements; ReplaceIndex++)
+			{
+				// This replacement is not case sensitive
+				InOutPaths[ReadIndex + ReplaceIndex] = ReadString.Replace(**PatternString, *((*ReplacementStrings)[ReplaceIndex]));
+			}
+
+			// Deal with inserted strings and implicit ++ from for loop
+			ReadIndex += (NumReplacements - 1);
+		}
+	}
+
+	return bMadeChange;
+}
+
+void UAssetManager::AddAssetSearchRoot(const FString& NewRootPath)
+{
+	// Not valid to mount twice, or with case variation
+	FString NormalizedPath = GetNormalizedPackagePath(NewRootPath, false);
+
+	if (AllAssetSearchRoots.Contains(NormalizedPath))
+	{
+		UE_LOG(LogAssetManager, Error, TEXT("AddAssetSearchRoot called twice with path %s!"), *NormalizedPath);
+		return;
+	}
+
+	AllAssetSearchRoots.Add(NormalizedPath);
+	AddedAssetSearchRoots.Add(NormalizedPath);
+
+	OnAddedAssetSearchRootDelegate.Broadcast(NormalizedPath);
+}
+
+const TArray<FString>& UAssetManager::GetAssetSearchRoots(bool bIncludeStartupRoots) const
+{
+	return bIncludeStartupRoots ? AllAssetSearchRoots : AddedAssetSearchRoots;
 }
 
 void UAssetManager::PostInitialAssetScan()
@@ -2996,6 +3312,29 @@ bool UAssetManager::GetContentRootPathFromPackageName(const FString& PackageName
 	}
 
 	return false;
+}
+
+void UAssetManager::NormalizePackagePath(FString& InOutPath, bool bIncludeFinalSlash)
+{
+	InOutPath.ReplaceInline(TEXT("//"), TEXT("/"), ESearchCase::CaseSensitive);
+
+	bool bEndsInSlash = InOutPath.EndsWith(TEXT("/"), ESearchCase::CaseSensitive);
+
+	if (bIncludeFinalSlash && !bEndsInSlash)
+	{
+		InOutPath += TEXT("/");
+	}
+	else if (!bIncludeFinalSlash && bEndsInSlash)
+	{
+		InOutPath.LeftChopInline(1);
+	}
+}
+
+FString UAssetManager::GetNormalizedPackagePath(const FString& InPath, bool bIncludeFinalSlash)
+{
+	FString ReturnPath = InPath;
+	NormalizePackagePath(ReturnPath, bIncludeFinalSlash);
+	return MoveTemp(ReturnPath);
 }
 
 #if WITH_EDITOR
@@ -3717,9 +4056,9 @@ void UAssetManager::OnInMemoryAssetCreated(UObject *Object)
 			{
 				// Make sure it's in a valid path
 				bool bFoundPath = false;
-				for (const FString& Path : TypeData.Info.AssetScanPaths)
+				for (const FString& Path : TypeData.RealAssetScanPaths)
 				{
-					if (NewAssetData.PackagePath.ToString().Contains(Path))
+					if (NewAssetData.PackageName.ToString().StartsWith(Path))
 					{
 						bFoundPath = true;
 						break;

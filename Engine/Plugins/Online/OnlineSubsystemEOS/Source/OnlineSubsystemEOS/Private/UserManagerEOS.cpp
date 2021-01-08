@@ -8,6 +8,7 @@
 #include "IPAddress.h"
 #include "SocketSubsystem.h"
 #include "OnlineError.h"
+#include "EOSSettings.h"
 
 #if WITH_EOS_SDK
 
@@ -84,6 +85,32 @@ static inline EOS_Presence_EStatus ToEOS_Presence_EStatus(EOnlinePresenceState::
 	return EOS_Presence_EStatus::EOS_PS_Offline;
 }
 
+static inline EOS_EExternalCredentialType ToEOS_EExternalCredentialType(FName OSSName)
+{
+	if (OSSName == STEAM_SUBSYSTEM)
+	{
+		return EOS_EExternalCredentialType::EOS_ECT_STEAM_APP_TICKET;
+	}
+	else if (OSSName == PS4_SUBSYSTEM)
+	{
+		return EOS_EExternalCredentialType::EOS_ECT_PSN_ID_TOKEN;
+	}
+	else if (OSSName == LIVE_SUBSYSTEM)
+	{
+		return EOS_EExternalCredentialType::EOS_ECT_XBL_XSTS_TOKEN;
+	}
+	else if (OSSName == SWITCH_SUBSYSTEM)
+	{
+		return EOS_EExternalCredentialType::EOS_ECT_NINTENDO_ID_TOKEN;
+	}
+	else if (OSSName == APPLE_SUBSYSTEM)
+	{
+		return EOS_EExternalCredentialType::EOS_ECT_APPLE_ID_TOKEN;
+	}
+	// Unknown means OpenID
+	return EOS_EExternalCredentialType::EOS_ECT_OPENID_ACCESS_TOKEN;
+}
+
 /** Delegates that are used for internal calls and are meant to be ignored */
 FOnReadFriendsListComplete IgnoredFriendsDelegate;
 IOnlinePresence::FOnPresenceTaskCompleteDelegate IgnoredPresenceDelegate;
@@ -157,7 +184,46 @@ void FUserManagerEOS::LoginStatusChanged(const EOS_Auth_LoginStatusChangedCallba
 	}
 }
 
+IOnlineSubsystem* FUserManagerEOS::GetPlatformOSS()
+{
+	IOnlineSubsystem* PlatformOSS = IOnlineSubsystem::GetByPlatform();
+	if (PlatformOSS == nullptr)
+#if !PLATFORM_DESKTOP
+	{
+		UE_LOG_ONLINE(Error, TEXT("ConnectLoginNoEAS(%d) failed due to no platform OSS"), LocalUserNum);
+	}
+#else
+	{
+		// Attempt to load Steam before treating it as an error
+		PlatformOSS = IOnlineSubsystem::Get(STEAM_SUBSYSTEM);
+	}
+#endif
+	return PlatformOSS;
+}
+
+FString FUserManagerEOS::GetPlatformAuthToken(int32 LocalUserNum)
+{
+	IOnlineSubsystem* PlatformOSS = GetPlatformOSS();
+	if (PlatformOSS == nullptr)
+	{
+		UE_LOG_ONLINE(Error, TEXT("ConnectLoginNoEAS(%d) failed due to no platform OSS"), LocalUserNum);
+		return FString();
+	}
+	IOnlineIdentityPtr PlatformIdentity = PlatformOSS->GetIdentityInterface();
+	if (!PlatformIdentity.IsValid())
+	{
+		UE_LOG_ONLINE(Error, TEXT("ConnectLoginNoEAS(%d) failed due to no platform OSS identity interface"), LocalUserNum);
+		return FString();
+	}
+	// Get the auth token from the platform
+	return PlatformIdentity->GetAuthToken(LocalUserNum);
+}
+
 typedef TEOSCallback<EOS_Auth_OnLoginCallback, EOS_Auth_LoginCallbackInfo> FLoginCallback;
+typedef TEOSCallback<EOS_Connect_OnLoginCallback, EOS_Connect_LoginCallbackInfo> FConnectLoginCallback;
+
+// Chose arbitrarily since the SDK doesn't define it
+#define EOS_MAX_TOKEN_SIZE 4096
 
 struct FAuthCredentials :
 	public EOS_Auth_Credentials
@@ -170,11 +236,26 @@ struct FAuthCredentials :
 		Token = TokenAnsi;
 	}
 	char IdAnsi[EOS_OSS_STRING_BUFFER_LENGTH];
-	char TokenAnsi[EOS_OSS_STRING_BUFFER_LENGTH];
+	char TokenAnsi[EOS_MAX_TOKEN_SIZE];
 };
 
 bool FUserManagerEOS::Login(int32 LocalUserNum, const FOnlineAccountCredentials& AccountCredentials)
 {
+	// Are we configured to run at all?
+	if (!EOSSubsystem->bIsDefaultOSS && !EOSSubsystem->bIsPlatformOSS && !GetDefault<UEOSSettings>()->bUseEAS && !GetDefault<UEOSSettings>()->bUseEOSConnect)
+	{
+		UE_LOG_ONLINE(Warning, TEXT("Neither EAS nor EOS are configured to be used. Failed to login in user (%d)"), LocalUserNum);
+		TriggerOnLoginCompleteDelegates(LocalUserNum, false, *GetLocalUniqueNetIdEOS(LocalUserNum), FString(TEXT("Not configured")));
+		return true;
+	}
+
+	// See if we are configured to just use EOS and not EAS
+	if (!EOSSubsystem->bIsDefaultOSS && !EOSSubsystem->bIsPlatformOSS && !GetDefault<UEOSSettings>()->bUseEAS && GetDefault<UEOSSettings>()->bUseEOSConnect)
+	{
+		// Call the EOS + Platform login path
+		return ConnectLoginNoEAS(LocalUserNum);
+	}
+
 	// We don't support offline logged in, so they are either logged in or not
 	if (GetLoginStatus(LocalUserNum) == ELoginStatus::LoggedIn)
 	{
@@ -193,7 +274,7 @@ bool FUserManagerEOS::Login(int32 LocalUserNum, const FOnlineAccountCredentials&
 	if (AccountCredentials.Type == TEXT("exchangecode"))
 	{
 		// This is how the Epic launcher will pass credentials to you
-		FCStringAnsi::Strncpy(Credentials.TokenAnsi, TCHAR_TO_UTF8(*AccountCredentials.Token), EOS_OSS_STRING_BUFFER_LENGTH);
+		FCStringAnsi::Strncpy(Credentials.TokenAnsi, TCHAR_TO_UTF8(*AccountCredentials.Token), EOS_MAX_TOKEN_SIZE);
 		Credentials.Type = EOS_ELoginCredentialType::EOS_LCT_ExchangeCode;
 	}
 	else if (AccountCredentials.Type == TEXT("developer"))
@@ -201,7 +282,20 @@ bool FUserManagerEOS::Login(int32 LocalUserNum, const FOnlineAccountCredentials&
 		// This is auth via the EOS auth tool
 		Credentials.Type = EOS_ELoginCredentialType::EOS_LCT_Developer;
 		FCStringAnsi::Strncpy(Credentials.IdAnsi, TCHAR_TO_UTF8(*AccountCredentials.Id), EOS_OSS_STRING_BUFFER_LENGTH);
-		FCStringAnsi::Strncpy(Credentials.TokenAnsi, TCHAR_TO_UTF8(*AccountCredentials.Token), EOS_OSS_STRING_BUFFER_LENGTH);
+		FCStringAnsi::Strncpy(Credentials.TokenAnsi, TCHAR_TO_UTF8(*AccountCredentials.Token), EOS_MAX_TOKEN_SIZE);
+	}
+	// See if we are logging in using platform credentials to link to EAS
+	else if (!EOSSubsystem->bIsDefaultOSS && !EOSSubsystem->bIsPlatformOSS && GetDefault<UEOSSettings>()->bUseEAS)
+	{
+		Credentials.Type = EOS_ELoginCredentialType::EOS_LCT_ExternalAuth;
+		FString AuthToken = GetPlatformAuthToken(LocalUserNum);
+		if (AuthToken.IsEmpty())
+		{
+			UE_LOG_ONLINE(Warning, TEXT("Unable to Login() user (%d) due to missing auth parameters"), LocalUserNum);
+			TriggerOnLoginCompleteDelegates(LocalUserNum, false, FUniqueNetIdEOS(), FString(TEXT("Missing auth parameters")));
+			return false;
+		}
+		FCStringAnsi::Strncpy(Credentials.TokenAnsi, TCHAR_TO_UTF8(*AuthToken), EOS_MAX_TOKEN_SIZE);
 	}
 	else
 	{
@@ -209,13 +303,19 @@ bool FUserManagerEOS::Login(int32 LocalUserNum, const FOnlineAccountCredentials&
 		TriggerOnLoginCompleteDelegates(LocalUserNum, false, FUniqueNetIdEOS(), FString(TEXT("Missing auth parameters")));
 		return false;
 	}
+
 	FLoginCallback* CallbackObj = new FLoginCallback();
 	CallbackObj->CallbackLambda = [this, LocalUserNum](const EOS_Auth_LoginCallbackInfo* Data)
 	{
 		if (Data->ResultCode == EOS_EResult::EOS_Success)
 		{
-			// Continue the login process by getting the product user id
-			ConnectLogin(LocalUserNum, Data->LocalUserId);
+			// Continue the login process by getting the product user id for EAS only
+			ConnectLoginEAS(LocalUserNum, Data->LocalUserId);
+		}
+		else if (Data->ResultCode == EOS_EResult::EOS_InvalidUser)
+		{
+			// Link the account
+			LinkEAS(LocalUserNum, Data->ContinuanceToken);
 		}
 		else
 		{
@@ -229,9 +329,93 @@ bool FUserManagerEOS::Login(int32 LocalUserNum, const FOnlineAccountCredentials&
 	return true;
 }
 
-typedef TEOSCallback<EOS_Connect_OnLoginCallback, EOS_Connect_LoginCallbackInfo> FConnectLoginCallback;
+struct FLinkAccountOptions :
+	public EOS_Auth_LinkAccountOptions
+{
+	FLinkAccountOptions(EOS_ContinuanceToken Token)
+		: EOS_Auth_LinkAccountOptions()
+	{
+		ApiVersion = EOS_AUTH_LINKACCOUNT_API_LATEST;
+		ContinuanceToken = Token;
+	}
+};
 
-void FUserManagerEOS::ConnectLogin(int32 LocalUserNum, EOS_EpicAccountId AccountId)
+typedef TEOSCallback<EOS_Auth_OnLinkAccountCallback, EOS_Auth_LinkAccountCallbackInfo> FLinkAccountCallback;
+
+void FUserManagerEOS::LinkEAS(int32 LocalUserNum, EOS_ContinuanceToken Token)
+{
+	FLinkAccountOptions Options(Token);
+	FLinkAccountCallback* CallbackObj = new FLinkAccountCallback();
+	CallbackObj->CallbackLambda = [this, LocalUserNum](const EOS_Auth_LinkAccountCallbackInfo* Data)
+	{
+		if (Data->ResultCode == EOS_EResult::EOS_Success)
+		{
+			// Continue the login process by getting the product user id
+			ConnectLoginEAS(LocalUserNum, Data->LocalUserId);
+		}
+		else
+		{
+			FString ErrorString = FString::Printf(TEXT("Login(%d) failed with EOS result code (%s)"), LocalUserNum, ANSI_TO_TCHAR(EOS_EResult_ToString(Data->ResultCode)));
+			UE_LOG_ONLINE(Warning, TEXT("%s"), *ErrorString);
+			TriggerOnLoginCompleteDelegates(LocalUserNum, false, FUniqueNetIdEOS(), ErrorString);
+		}
+	};
+	EOS_Auth_LinkAccount(EOSSubsystem->AuthHandle, &Options, CallbackObj, CallbackObj->GetCallbackPtr());
+}
+
+struct FConnectCredentials :
+	public EOS_Connect_Credentials
+{
+	FConnectCredentials(EOS_EExternalCredentialType InType, const FString& InToken)
+		: EOS_Connect_Credentials()
+	{
+		ApiVersion = EOS_CONNECT_CREDENTIALS_API_LATEST;
+		Token = TokenAnsi;
+		Type = InType;
+		FCStringAnsi::Strncpy(TokenAnsi, TCHAR_TO_UTF8(*InToken), EOS_OSS_STRING_BUFFER_LENGTH);
+	}
+	char TokenAnsi[EOS_OSS_STRING_BUFFER_LENGTH];
+};
+
+bool FUserManagerEOS::ConnectLoginNoEAS(int32 LocalUserNum)
+{
+	// Get the auth token from the platform
+	FString AuthToken = GetPlatformAuthToken(LocalUserNum);
+	if (AuthToken.IsEmpty())
+	{
+		UE_LOG_ONLINE(Error, TEXT("ConnectLoginNoEAS(%d) failed due to the platform OSS giving an empty auth token"), LocalUserNum);
+		return false;
+	}
+
+	// Now login into our EOS account
+	FConnectCredentials Credentials(ToEOS_EExternalCredentialType(GetPlatformOSS()->GetSubsystemName()), AuthToken);
+	EOS_Connect_LoginOptions Options = { };
+	Options.ApiVersion = EOS_CONNECT_LOGIN_API_LATEST;
+	Options.Credentials = &Credentials;
+
+	FConnectLoginCallback* CallbackObj = new FConnectLoginCallback();
+	CallbackObj->CallbackLambda = [this, LocalUserNum](const EOS_Connect_LoginCallbackInfo* Data)
+	{
+		if (Data->ResultCode == EOS_EResult::EOS_Success)
+		{
+			// We have an account mapping to the platform account, skip to final login
+			FullLoginCallback(LocalUserNum, nullptr, Data->LocalUserId);
+		}
+		else if (Data->ResultCode == EOS_EResult::EOS_InvalidUser)
+		{
+			// We need to create the platform account mapping for this user using the continuation token
+			CreateConnectedLogin(LocalUserNum, nullptr, Data->ContinuanceToken);
+		}
+		else
+		{
+			UE_LOG_ONLINE(Error, TEXT("ConnectLoginNoEAS(%d) failed with EOS result code (%s)"), LocalUserNum, ANSI_TO_TCHAR(EOS_EResult_ToString(Data->ResultCode)));
+		}
+	};
+	EOS_Connect_Login(EOSSubsystem->ConnectHandle, &Options, CallbackObj, CallbackObj->GetCallbackPtr());
+	return true;
+}
+
+bool FUserManagerEOS::ConnectLoginEAS(int32 LocalUserNum, EOS_EpicAccountId AccountId)
 {
 	EOS_Auth_Token* AuthToken = nullptr;
 	EOS_Auth_CopyUserAuthTokenOptions CopyOptions = { };
@@ -277,6 +461,7 @@ void FUserManagerEOS::ConnectLogin(int32 LocalUserNum, EOS_EpicAccountId Account
 		UE_LOG_ONLINE(Error, TEXT("ConnectLogin(%d) failed with EOS result code (%s)"), LocalUserNum, ANSI_TO_TCHAR(EOS_EResult_ToString(CopyResult)));
 		Logout(LocalUserNum);
 	}
+	return true;
 }
 
 void FUserManagerEOS::RefreshConnectLogin(int32 LocalUserNum)
@@ -337,7 +522,6 @@ void FUserManagerEOS::CreateConnectedLogin(int32 LocalUserNum, EOS_EpicAccountId
 	{
 		if (Data->ResultCode == EOS_EResult::EOS_Success)
 		{
-			// We have an account mapping, skip to final login
 			FullLoginCallback(LocalUserNum, AccountId, Data->LocalUserId);
 		}
 		else

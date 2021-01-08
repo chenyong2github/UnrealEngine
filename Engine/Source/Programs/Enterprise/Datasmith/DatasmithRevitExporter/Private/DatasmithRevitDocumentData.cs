@@ -159,6 +159,16 @@ namespace DatasmithRevitExporter
 				MeshActor.SetMesh(ElementMesh.GetName());
 				bOptimizeHierarchy = false;
 			}
+
+			public void ResetMeshMaterials()
+			{
+				string HashedMeshName = ElementMesh?.GetName() ?? "";
+
+				if (DocumentData.MeshMaterialsMap.TryGetValue(HashedMeshName, out _))
+				{
+					DocumentData.MeshMaterialsMap[HashedMeshName].Clear();
+				}
+			}
 		}
 
 		public class FElementData : FBaseElementData
@@ -390,7 +400,7 @@ namespace DatasmithRevitExporter
 				return PivotTransform;
 			}
 
-			public void PushInstance(
+			public FBaseElementData PushInstance(
 				ElementType InInstanceType,
 				Transform InWorldTransform
 			)
@@ -403,6 +413,8 @@ namespace DatasmithRevitExporter
 
 				// The Datasmith instance actor is a component in the hierarchy.
 				InstanceData.ElementActor.SetIsComponent(true);
+
+				return InstanceData;
 			}
 
 			public FBaseElementData PopInstance()
@@ -615,7 +627,7 @@ namespace DatasmithRevitExporter
 				InElement.ElementMesh = new FDatasmithFacadeMesh(HashedMeshName);
 				InElement.ElementMesh.SetLabel(GetActorLabel());
 
-				if(InElement.ElementActor == null)
+				if (InElement.ElementActor == null)
 				{
 					// Create a new Datasmith mesh actor.
 					// Hash the Datasmith mesh actor name to shorten it.
@@ -857,6 +869,7 @@ namespace DatasmithRevitExporter
 		public Dictionary<string, FDatasmithFacadeMesh>	MeshMap = new Dictionary<string, FDatasmithFacadeMesh>();
 		public Dictionary<ElementId, FBaseElementData>	ActorMap = new Dictionary<ElementId, FDocumentData.FBaseElementData>();
 		public Dictionary<string, FMaterialData>		MaterialDataMap = null;
+		public Dictionary<string, FMaterialData>		NewMaterialsMap = new Dictionary<string, FMaterialData>();
 		public Dictionary<string, Dictionary<string, int>> MeshMaterialsMap = null;
 
 		private Stack<FElementData>						ElementDataStack = new Stack<FElementData>();
@@ -962,6 +975,7 @@ namespace DatasmithRevitExporter
 						ExistingActor?.ResetTags();
 						ElementData.InitializePivotPlacement(ref InWorldTransform);
 						ElementData.InitializeElement(InWorldTransform, ElementData);
+						ElementData.ResetMeshMaterials();
 					}
 					else
 					{
@@ -998,10 +1012,10 @@ namespace DatasmithRevitExporter
 
 			ElementData.bIsModified = true;
 
+			ElementId ElemId = ElementData.CurrentElement.Id;
+
 			if (ElementDataStack.Count == 0)
 			{
-				ElementId ElemId = ElementData.CurrentElement.Id;
-
 				if (ActorMap.ContainsKey(ElemId) && ActorMap[ElemId] != ElementData)
 				{
 					// Handle the spurious case of Revit Custom Exporter calling back more than once for the same element.
@@ -1017,8 +1031,12 @@ namespace DatasmithRevitExporter
 			}
 			else
 			{
-				// Add the element mesh actor to the Datasmith actor hierarchy.
-				ElementDataStack.Peek().AddChildActor(ElementData);
+				if (!ActorMap.ContainsKey(ElemId))
+				{
+					// Add the element mesh actor to the Datasmith actor hierarchy.
+					ElementDataStack.Peek().AddChildActor(ElementData);
+					ActorMap[ElemId] = ElementData;
+				}
 			}
 		}
 
@@ -1060,7 +1078,13 @@ namespace DatasmithRevitExporter
 			Transform InWorldTransform
 		)
 		{
-			ElementDataStack.Peek().PushInstance(InInstanceType, InWorldTransform);
+			FElementData CurrentElementData = ElementDataStack.Peek();
+			FBaseElementData NewInstance = CurrentElementData.PushInstance(InInstanceType, InWorldTransform);
+
+			if (DirectLink?.IsElementCached(CurrentElementData.CurrentElement) ?? false)
+			{
+				NewInstance.ResetMeshMaterials();
+			}
 		}
 
 		public void PopInstance()
@@ -1119,6 +1143,7 @@ namespace DatasmithRevitExporter
 
 				// Keep track of a new RPC master material.
 				MaterialDataMap[RPCHashedMaterialName] = new FMaterialData(RPCHashedMaterialName, RPCMaterialName, RPCColor);
+				NewMaterialsMap[RPCHashedMaterialName] = MaterialDataMap[RPCHashedMaterialName];
 			}
 
 			FMaterialData RPCMaterialData = MaterialDataMap[RPCHashedMaterialName];
@@ -1142,6 +1167,7 @@ namespace DatasmithRevitExporter
 			{
 				// Keep track of a new Datasmith master material.
 				MaterialDataMap[CurrentMaterialName] = new FMaterialData(InMaterialNode, CurrentMaterial, InExtraTexturePaths);
+				NewMaterialsMap[CurrentMaterialName] = MaterialDataMap[CurrentMaterialName];
 
 				// A new Datasmith master material was created.
 				return true;
@@ -1540,7 +1566,7 @@ namespace DatasmithRevitExporter
 			UniqueTextureNameSet = (DirectLink != null) ? DirectLink.UniqueTextureNameSet : UniqueTextureNameSet;
 
 			// Add the collected master materials from the material data dictionary to the Datasmith scene.
-			foreach (FMaterialData CollectedMaterialData in MaterialDataMap.Values)
+			foreach (FMaterialData CollectedMaterialData in NewMaterialsMap.Values)
 			{
 				InDatasmithScene.AddMaterial(CollectedMaterialData.MasterMaterial);
 

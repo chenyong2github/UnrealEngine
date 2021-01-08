@@ -16,13 +16,6 @@ namespace UnrealBuildTool
 	public class MacTargetRules
 	{
 		/// <summary>
-		/// Lists Architectures that you want to build
-		/// </summary>
-		[CommandLine("-Arch=", ListSeparator = '+')]
-		[CommandLine("-Architectures=", ListSeparator = '+')]
-		public List<string> Architectures = new List<string>();
-
-		/// <summary>
 		/// Whether to generate dSYM files. Defaults to true for Shipping builds and false
 		/// for all other builds. -dsym will force generation of a dsym for other builds, 
 		/// -NoDsym will force it off for shipping.
@@ -99,12 +92,7 @@ namespace UnrealBuildTool
 		public bool bEnableUndefinedBehaviorSanitizer
 		{
 			get { return Inner.bEnableUndefinedBehaviorSanitizer; }
-		}
-
-		public List<string> Architectures
-		{
-			get { return Inner.Architectures; }
-		}
+		}		
 
 		#if !__MonoCS__
 		#pragma warning restore CS1591
@@ -167,12 +155,39 @@ namespace UnrealBuildTool
 
 			Target.bCheckSystemHeadersForModification = BuildHostPlatform.Current.Platform != UnrealTargetPlatform.Mac;
 
-			bool bCompilingForArm = Target.MacPlatform.Architectures
-				.Where(A => A.StartsWith("Arm", StringComparison.OrdinalIgnoreCase))
-				.Any();
-
 			// Mac-Arm todo - Do we need to compile in two passes so we can set this differently?
+			bool bCompilingForArm = Target.Architecture.IndexOf("arm", StringComparison.OrdinalIgnoreCase) >= 0;
+			bool bCompilingMultipleArchitectures = Target.Architecture.Contains("+");
 			Target.bCompileISPC = !bCompilingForArm;
+			Target.bUsePCHFiles = !bCompilingMultipleArchitectures;
+		}
+
+		/// <summary>
+		/// Returns true since we can do this on Mac (with some caveats, that may necessitate this being an option)
+		/// </summary>
+		/// <param name="InArchitectures">Architectures that are being built</param>
+		public override bool CanBuildArchitecturesInSinglePass(IEnumerable<string> InArchitectures)
+		{
+			return true;
+		}
+
+		/// <summary>
+		/// Allows the platform to override whether the architecture name should be appended to the name of binaries.
+		/// </summary>
+		/// <returns>True if the architecture name should be appended to the binary</returns>
+		public override bool RequiresArchitectureSuffix()
+		{
+			return false;
+		}
+
+		/// <summary>
+		/// Get the default architecture for a project. This may be overriden on the command line to UBT.
+		/// </summary>
+		/// <param name="ProjectFile">Optional project to read settings from </param>
+		public override string GetDefaultArchitecture(FileReference ProjectFile)
+		{
+			// by default use Intel.
+			return MacExports.IntelArchitecture;
 		}
 
 		/// <summary>
@@ -365,7 +380,7 @@ namespace UnrealBuildTool
 				Options |= MacToolChainOptions.OutputDylib;
 			}
 
-			return new MacToolChain(Target.ProjectFile, Options, Target.MacPlatform.Architectures);
+			return new MacToolChain(Target.ProjectFile, Options);
 		}
 
 		/// <summary>

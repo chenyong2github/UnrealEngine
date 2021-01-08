@@ -110,7 +110,19 @@ protected:
 	UPROPERTY(Category = PawnAction, EditDefaultsOnly, BlueprintReadWrite, AdvancedDisplay)
 	uint32 bAlwaysNotifyOnFinished : 1;
 
+	/** TickAction will get called only if this flag is set. To be set in derived action's constructor. 
+	 *	@NOTE Toggling at runtime is not supported */
+	uint32 bWantsTick : 1;
+
 private:
+    /** Indicates the action has been paused */
+    uint32 bPaused : 1;
+
+    uint32 bHasBeenStarted : 1;
+
+    /** set to true when action fails the initial Start call */
+    uint32 bFailedToStart : 1;
+
 	/** indicates whether action is in the process of abortion, and if so on what state */
 	EPawnActionAbortState::Type AbortState;
 	
@@ -118,20 +130,6 @@ private:
 	
 	/** Used exclusively for action events sorting */
 	int32 IndexOnStack;
-	
-	/** Indicates the action has been paused */
-	uint32 bPaused : 1;
-
-	uint32 bHasBeenStarted : 1;
-
-	/** set to true when action fails the initial Start call */
-	uint32 bFailedToStart : 1;
-
-protected:
-	/** TickAction will get called only if this flag is set. To be set in derived action's
-	 *	constructor. 
-	 *	@NOTE Toggling at runtime is not supported */
-	uint32 bWantsTick : 1;
 
 public:
 

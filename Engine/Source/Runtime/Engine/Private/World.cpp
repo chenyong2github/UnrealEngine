@@ -351,6 +351,7 @@ FWorldDelegates::FRefreshLevelScriptActionsEvent FWorldDelegates::RefreshLevelSc
 FWorldDelegates::FOnSeamlessTravelStart FWorldDelegates::OnSeamlessTravelStart;
 FWorldDelegates::FOnSeamlessTravelTransition FWorldDelegates::OnSeamlessTravelTransition;
 FWorldDelegates::FOnCopyWorldData FWorldDelegates::OnCopyWorldData;
+FWorldDelegates::FGameInstanceEvent FWorldDelegates::OnStartGameInstance;
 
 UWorld::FOnWorldInitializedActors FWorldDelegates::OnWorldInitializedActors;
 
@@ -5110,6 +5111,19 @@ AWorldSettings* UWorld::GetWorldSettings( const bool bCheckStreamingPersistent, 
 	return WorldSettings;
 }
 
+FString UWorld::GetDebugDisplayName() const
+{
+#if WITH_EDITOR
+	if (GIsEditor)
+	{
+		extern ENGINE_API FString GPlayInEditorContextString;
+
+		return FString::Printf(TEXT("%s (%s)"), *GPlayInEditorContextString, *GetPathNameSafe(this));
+	}
+#endif
+	return GetPathNameSafe(this);
+}
+
 UWorldPartition* UWorld::GetWorldPartition() const
 {
 	AWorldSettings* WorldSettings = GetWorldSettings(/*bCheckStreamingPersistent*/false, /*bChecked*/false);
@@ -6486,10 +6500,10 @@ UWorld* FSeamlessTravelHandler::Tick()
 			// abort
 			CancelTravel();			
 		}
-		else if ( LoadedWorld->PersistentLevel == nullptr)
+		else if ( LoadedWorld == nullptr || LoadedWorld->PersistentLevel == nullptr)
 		{
 			// Package isn't a level
-			FString Error = FString::Printf(TEXT("Unable to travel to '%s' - package is not a level"), *LoadedPackage->GetName());
+			FString Error = FString::Printf(TEXT("Unable to travel to '%s' - package is not a level"), LoadedPackage ? *LoadedPackage->GetName() : *LoadedWorld->GetName());
 			UE_LOG(LogWorld, Error, TEXT("%s"), *Error);
 			// abort
 			CancelTravel();

@@ -357,4 +357,49 @@ bool FHoloLensPlatformMemory::UnmapNamedSharedMemoryRegion(FSharedMemoryRegion *
 
 	return bAllSucceeded;
 }
+
+#if ENABLE_LOW_LEVEL_MEM_TRACKER
+
+namespace HoloLensPlatformMemory
+{
+	int64 LLMMallocTotal = 0;
+	static size_t LLMPageSize = 4096;
+
+	void* LLMAlloc(size_t Size)
+	{
+		size_t AlignedSize = Align(Size, LLMPageSize);
+
+		off_t DirectMem = 0;
+		void* Addr = VirtualAlloc(NULL, Size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+
+		check(Addr);
+
+		LLMMallocTotal += static_cast<int64>(AlignedSize);
+
+		return Addr;
+	}
+
+	void LLMFree(void* Addr, size_t Size)
+	{
+		VirtualFree(Addr, 0, MEM_RELEASE);
+
+		size_t AlignedSize = Align(Size, LLMPageSize);
+		LLMMallocTotal -= static_cast<int64>(AlignedSize);
+	}
+}
+
+
+bool FHoloLensPlatformMemory::GetLLMAllocFunctions(void* (*&OutAllocFunction)(size_t), void(*&OutFreeFunction)(void*, size_t), int32& OutAlignment)
+{
+	OutAllocFunction = HoloLensPlatformMemory::LLMAlloc;
+	OutFreeFunction = HoloLensPlatformMemory::LLMFree;
+
+	const FPlatformMemoryConstants& MemoryConstants = FHoloLensPlatformMemory::GetConstants();
+	HoloLensPlatformMemory::LLMPageSize = MemoryConstants.PageSize; // Cache for LLM
+	OutAlignment = HoloLensPlatformMemory::LLMPageSize;
+
+	return true;
+}
+
+#endif // ENABLE_LOW_LEVEL_MEM_TRACKER
 #include "HoloLens/HideWindowsPlatformTypes.h"

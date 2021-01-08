@@ -15,6 +15,7 @@
 
 #include "UObject/UObjectGlobals.h"
 #include "UObject/Package.h"
+#include "UObject/PackageReload.h"
 
 
 FString GMovieSceneCompilerVersion = TEXT("7D4B98092FAC4A6B964ECF72D8279EF8");
@@ -283,6 +284,51 @@ UMovieSceneCompiledDataManager::UMovieSceneCompiledDataManager()
 
 	ReallocationVersion = 0;
 	NetworkMask = EMovieSceneServerClientMask::All;
+
+	auto OnPackageReloaded = [this](const EPackageReloadPhase InPackageReloadPhase, FPackageReloadedEvent* InPackageReloadedEvent)
+	{
+		if (InPackageReloadPhase != EPackageReloadPhase::OnPackageFixup)
+		{
+			return;
+		}
+
+		for (const TPair<UObject*, UObject*>& Pair : InPackageReloadedEvent->GetRepointedObjects())
+		{
+			UMovieSceneSequence* OldSequence = Cast<UMovieSceneSequence>(Pair.Key);
+			UMovieSceneSequence* NewSequence = Cast<UMovieSceneSequence>(Pair.Value);
+			if (OldSequence && NewSequence)
+			{
+				FMovieSceneCompiledDataID DataID = this->SequenceToDataIDs.FindRef(OldSequence);
+				if (DataID.IsValid())
+				{
+					// Repoint the data ID for the old sequence to the new sequence
+					{
+						FMovieSceneCompiledDataEntry& Entry = CompiledDataEntries[DataID.Value];
+						this->SequenceToDataIDs.Remove(Entry.SequenceKey);
+
+						// Entry is a ref here, so care is taken to ensure we do not allocate CompiledDataEntries while the ref is around
+						Entry = FMovieSceneCompiledDataEntry();
+						Entry.SequenceKey = NewSequence;
+
+						this->SequenceToDataIDs.Add(Entry.SequenceKey, DataID);
+					}
+
+					// Destroy all the old compiled data as it is no longer valid
+					this->Hierarchies.Remove(DataID.Value);
+					this->TrackTemplates.Remove(DataID.Value);
+					this->TrackTemplateFields.Remove(DataID.Value);
+					this->EntityComponentFields.Remove(DataID.Value);
+
+					++this->ReallocationVersion;
+				}
+			}
+		}
+	};
+
+	if (!HasAnyFlags(RF_ClassDefaultObject))
+	{
+		FCoreUObjectDelegates::OnPackageReloaded.AddWeakLambda(this, OnPackageReloaded);
+	}
 }
 
 void UMovieSceneCompiledDataManager::DestroyAllData()
@@ -1098,7 +1144,7 @@ void UMovieSceneCompiledDataManager::GatherTrack(const FMovieSceneBinding* Objec
 			CompileData.HierarchicalBias        = Params.HierarchicalBias;
 			CompileData.bPriorityTearDown       = EvaluationTrack->HasTearDownPriority();
 
-			auto FindChildWithSection = [Section](FMovieSceneEvalTemplatePtr ChildTemplate)
+			auto FindChildWithSection = [Section](const FMovieSceneEvalTemplatePtr& ChildTemplate)
 			{
 				return ChildTemplate.IsValid() && ChildTemplate->GetSourceSection() == Section;
 			};

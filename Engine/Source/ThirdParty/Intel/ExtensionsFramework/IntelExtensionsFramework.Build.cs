@@ -14,7 +14,7 @@ public class IntelExtensionsFramework : ModuleRules
 		{
 			PublicSystemIncludePaths.Add(IntelExtensionsFrameworkPath);
 
-            PublicDefinitions.Add("INTEL_EXTENSIONS=0");
+            PublicDefinitions.Add("INTEL_EXTENSIONS=1");
         }
         else
         {

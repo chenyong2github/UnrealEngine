@@ -38,7 +38,7 @@ class AUsdStageActor : public AActor
 	friend class FUsdLevelSequenceHelperImpl;
 
 public:
-	UPROPERTY(EditAnywhere, Category = "USD")
+	UPROPERTY(EditAnywhere, Category = "USD", meta = (RelativeToGameDir))
 	FFilePath RootLayer;
 
 	UPROPERTY(EditAnywhere, Category = "USD")

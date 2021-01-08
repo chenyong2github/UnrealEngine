@@ -318,6 +318,8 @@ public:
 	 */
 	void AddWrapperSubMenu( const FText& InMenuLabel, const FText& InToolTip, const FOnGetContent& InSubMenu, const FSlateIcon& InIcon );
 
+	void AddWrapperSubMenu( const FText& InMenuLabel, const FText& InToolTip, const FOnGetContent& InSubMenu, const FSlateIcon& InIcon, const FUIAction& UIAction );
+
 	/**
 	 * Adds a sub-menu which is a menu within a menu
 	 * 

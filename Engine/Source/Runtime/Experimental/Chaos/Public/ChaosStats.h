@@ -86,7 +86,10 @@ DECLARE_CYCLE_STAT_EXTERN(TEXT("[Scene] - EndFrame"), STAT_Scene_EndFrame, STATG
 
 // Field update stats
 DECLARE_CYCLE_STAT_EXTERN(TEXT("Field System Object Parameter Update"), STAT_ParamUpdateField_Object, STATGROUP_Chaos, CHAOS_API);
+DECLARE_CYCLE_STAT_EXTERN(TEXT("Field System Object Force Update"), STAT_ForceUpdateField_Object, STATGROUP_Chaos, CHAOS_API);
+DECLARE_CYCLE_STAT_EXTERN(TEXT("Field System Object Niagara Update"), STAT_NiagaraUpdateField_Object, STATGROUP_Chaos, CHAOS_API);
 DECLARE_CYCLE_STAT_EXTERN(TEXT("[Field Update] DynamicState"), STAT_ParamUpdateField_DynamicState, STATGROUP_Chaos, CHAOS_API);
+DECLARE_CYCLE_STAT_EXTERN(TEXT("[Field Update] ActivateDisabled"), STAT_ParamUpdateField_ActivateDisabled, STATGROUP_Chaos, CHAOS_API);
 DECLARE_CYCLE_STAT_EXTERN(TEXT("[Field Update] ExternalClusterStrain"), STAT_ParamUpdateField_ExternalClusterStrain, STATGROUP_Chaos, CHAOS_API);
 DECLARE_CYCLE_STAT_EXTERN(TEXT("[Field Update] Kill"), STAT_ParamUpdateField_Kill, STATGROUP_Chaos, CHAOS_API);
 DECLARE_CYCLE_STAT_EXTERN(TEXT("[Field Update] LinearVelocity"), STAT_ParamUpdateField_LinearVelocity, STATGROUP_Chaos, CHAOS_API);
@@ -98,3 +101,5 @@ DECLARE_CYCLE_STAT_EXTERN(TEXT("[Field Update] PositionStatic"), STAT_ParamUpdat
 DECLARE_CYCLE_STAT_EXTERN(TEXT("[Field Update] PositionTarget"), STAT_ParamUpdateField_PositionTarget, STATGROUP_Chaos, CHAOS_API);
 DECLARE_CYCLE_STAT_EXTERN(TEXT("[Field Update] PositionAnimated"), STAT_ParamUpdateField_PositionAnimated, STATGROUP_Chaos, CHAOS_API);
 DECLARE_CYCLE_STAT_EXTERN(TEXT("[Field Update] DynamicConstraint"), STAT_ParamUpdateField_DynamicConstraint, STATGROUP_Chaos, CHAOS_API);
+DECLARE_CYCLE_STAT_EXTERN(TEXT("[Field Update] LinearForce"), STAT_ForceUpdateField_LinearForce, STATGROUP_Chaos, CHAOS_API);
+DECLARE_CYCLE_STAT_EXTERN(TEXT("[Field Update] AngularTorque"), STAT_ForceUpdateField_AngularTorque, STATGROUP_Chaos, CHAOS_API);

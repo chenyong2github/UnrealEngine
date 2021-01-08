@@ -2566,10 +2566,18 @@ void UGeometryCollectionComponent::ApplyPhysicsField(bool Enabled, EGeometryColl
 			{
 				switch (MetaData->Type())
 				{
-				case FFieldSystemMetaData::EMetaType::ECommandData_ProcessingResolution:
-					UFieldSystemMetaDataProcessingResolution * ResolutionMeta = static_cast<UFieldSystemMetaDataProcessingResolution*>(MetaData);
-					Command.MetaData.Add(FFieldSystemMetaData::EMetaType::ECommandData_ProcessingResolution).Reset(new FFieldSystemMetaDataProcessingResolution(ResolutionMeta->ResolutionType));
-					break;
+					case FFieldSystemMetaData::EMetaType::ECommandData_ProcessingResolution:
+					{
+						UFieldSystemMetaDataProcessingResolution* ResolutionMeta = static_cast<UFieldSystemMetaDataProcessingResolution*>(MetaData);
+						Command.MetaData.Add(FFieldSystemMetaData::EMetaType::ECommandData_ProcessingResolution).Reset(new FFieldSystemMetaDataProcessingResolution(ResolutionMeta->ResolutionType));
+						break;
+					}
+					case FFieldSystemMetaData::EMetaType::ECommandData_Filter:
+					{
+						UFieldSystemMetaDataFilter* FilterMeta = static_cast<UFieldSystemMetaDataFilter*>(MetaData);
+						Command.MetaData.Add(FFieldSystemMetaData::EMetaType::ECommandData_Filter).Reset(new FFieldSystemMetaDataFilter(FilterMeta->FilterType));
+						break;
+					}
 				}
 			}
 			ensure(!Command.TargetAttribute.IsEqual("None"));

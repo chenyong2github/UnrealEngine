@@ -56,10 +56,13 @@ protected:
 	virtual bool CustomPrepass(float LayoutScaleMultiplier) override;
 	virtual bool Advanced_IsInvalidationRoot() const override;
 	virtual const FSlateInvalidationRoot* Advanced_AsInvalidationRoot() const override;
+	virtual TSharedRef<SWidget> GetRootWidget() override;
 	virtual int32 PaintSlowPath(const FSlateInvalidationContext& Context) override;
+
 private:
 	void OnGlobalInvalidationToggled(bool bGlobalInvalidationEnabled);
 	bool UpdateCachePrequisites(FSlateWindowElementList& OutDrawElements, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, int32 LayerId, const FWidgetStyle& InWidgetStyle) const;
+
 private:
 	FSimpleSlot EmptyChildSlot;
 

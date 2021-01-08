@@ -162,8 +162,8 @@ void DenoiseLightSampleData(FIntPoint Size, TArray<FLightSampleData>& LightSampl
 
 void DenoiseRawData(
 	FIntPoint Size,
-	TArray<FLinearColor>& IncidentLighting,
-	TArray<FLinearColor>& LuminanceSH,
+	TArray<FLinearColor, FAnsiAllocator>& IncidentLighting,
+	TArray<FLinearColor, FAnsiAllocator>& LuminanceSH,
 	FDenoiserContext& DenoiserContext, 
 	bool bPrepadTexels)
 {

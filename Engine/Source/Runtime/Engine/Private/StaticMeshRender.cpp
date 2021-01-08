@@ -245,9 +245,10 @@ FStaticMeshSceneProxy::FStaticMeshSceneProxy(UStaticMeshComponent* InComponent, 
 	const bool bLODsShareStaticLighting = RenderData->bLODsShareStaticLighting || bForceLODsShareStaticLighting;
 
 #if RHI_RAYTRACING
-	bDynamicRayTracingGeometry = InComponent->bEvaluateWorldPositionOffset && MaterialRelevance.bUsesWorldPositionOffset;
+	bSupportRayTracing = InComponent->GetStaticMesh()->bSupportRayTracing;
+	bDynamicRayTracingGeometry = bSupportRayTracing && InComponent->bEvaluateWorldPositionOffset && MaterialRelevance.bUsesWorldPositionOffset;
 	
-	if (IsRayTracingEnabled())
+	if (IsRayTracingEnabled() && bSupportRayTracing)
 	{
 		RayTracingGeometries.AddDefaulted(RenderData->LODResources.Num());
 		for (int32 LODIndex = 0; LODIndex < RenderData->LODResources.Num(); LODIndex++)
@@ -661,7 +662,7 @@ int32 FStaticMeshSceneProxy::CollectOccluderElements(FOccluderElementsCollector&
 void FStaticMeshSceneProxy::CreateRenderThreadResources()
 {
 #if RHI_RAYTRACING
-	if(IsRayTracingEnabled())
+	if(IsRayTracingEnabled() && bSupportRayTracing)
 	{
 		if (bDynamicRayTracingGeometry)
 		{

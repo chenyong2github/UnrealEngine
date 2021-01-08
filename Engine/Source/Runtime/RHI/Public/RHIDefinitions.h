@@ -49,31 +49,29 @@ static_assert(SF_NumFrequencies <= (1 << SF_NumBits), "SF_NumFrequencies will no
 enum EShaderPlatform
 {
 	SP_PCD3D_SM5					= 0,
-	SP_OPENGL_SM4_REMOVED			= 1,	// SUPPORT FOR THIS FEATURE LEVEL HAS BEEN ENTIRELY REMOVED.
+	SP_OPENGL_SM4_REMOVED			UE_DEPRECATED(4.27, "ShaderPlatform is removed; please don't use.") = 1,
 	SP_PS4							= 2,
-	SP_OPENGL_PCES2_REMOVED			= 3,	// SUPPORT FOR THIS FEATURE LEVEL HAS BEEN ENTIRELY REMOVED.
+	SP_OPENGL_PCES2_REMOVED			UE_DEPRECATED(4.27, "ShaderPlatform is removed; please don't use.") = 3,
 	SP_XBOXONE_D3D12				= 4,
-	SP_PCD3D_SM4_REMOVED			= 5,	// SUPPORT FOR THIS FEATURE LEVEL HAS BEEN ENTIRELY REMOVED.
-	SP_OPENGL_SM5_REMOVED			= 6,	// SUPPORT FOR THIS FEATURE LEVEL HAS BEEN ENTIRELY REMOVED.
-	SP_PCD3D_ES2_REMOVED			= 7,	// SUPPORT FOR THIS FEATURE LEVEL HAS BEEN ENTIRELY REMOVED.
-	SP_OPENGL_ES2_ANDROID_REMOVED	= 8,
-	SP_OPENGL_ES2_WEBGL_REMOVED		= 9, 
-	SP_OPENGL_ES2_IOS_REMOVED		= 10,	// SUPPORT FOR THIS FEATURE LEVEL HAS BEEN ENTIRELY REMOVED.
+	SP_PCD3D_SM4_REMOVED			UE_DEPRECATED(4.27, "ShaderPlatform is removed; please don't use.") = 5,
+	SP_OPENGL_SM5_REMOVED			UE_DEPRECATED(4.27, "ShaderPlatform is removed; please don't use.") = 6,
+	SP_PCD3D_ES2_REMOVED			UE_DEPRECATED(4.27, "ShaderPlatform is removed; please don't use.") = 7,
+	SP_OPENGL_ES2_ANDROID_REMOVED	UE_DEPRECATED(4.27, "ShaderPlatform is removed; please don't use.") = 8,
+	SP_OPENGL_ES2_WEBGL_REMOVED		UE_DEPRECATED(4.27, "ShaderPlatform is removed; please don't use.") = 9, 
+	SP_OPENGL_ES2_IOS_REMOVED		UE_DEPRECATED(4.27, "ShaderPlatform is removed; please don't use.") = 10,
 	SP_METAL						= 11,
 	SP_METAL_MRT					= 12,
-	SP_OPENGL_ES31_EXT_REMOVED		= 13,	// SUPPORT FOR THIS FEATURE LEVEL HAS BEEN ENTIRELY REMOVED.
-	/** Used when running in Feature Level ES3_1 in D3D11. */
+	SP_OPENGL_ES31_EXT_REMOVED		UE_DEPRECATED(4.27, "ShaderPlatform is removed; please don't use.") = 13,
 	SP_PCD3D_ES3_1					= 14,
-	/** Used when running in Feature Level ES3_1 in OpenGL. */
 	SP_OPENGL_PCES3_1				= 15,
 	SP_METAL_SM5					= 16,
 	SP_VULKAN_PCES3_1				= 17,
 	SP_METAL_SM5_NOTESS				= 18,
-	SP_VULKAN_SM4_REMOVED			= 19,	// SUPPORT FOR THIS FEATURE LEVEL HAS BEEN ENTIRELY REMOVED.
+	SP_VULKAN_SM4_REMOVED			UE_DEPRECATED(4.27, "ShaderPlatform is removed; please don't use.") = 19,
 	SP_VULKAN_SM5					= 20,
 	SP_VULKAN_ES3_1_ANDROID			= 21,
 	SP_METAL_MACES3_1 				= 22,
-	SP_METAL_MACES2_REMOVED			= 23, // SUPPORT FOR THIS FEATURE LEVEL HAS BEEN ENTIRELY REMOVED.
+	SP_METAL_MACES2_REMOVED			UE_DEPRECATED(4.27, "ShaderPlatform is removed; please don't use.") = 23,
 	SP_OPENGL_ES3_1_ANDROID			= 24,
 	SP_SWITCH						= 25,
 	SP_SWITCH_FORWARD				= 26,
@@ -347,6 +345,15 @@ class RHI_API FGenericDataDrivenShaderPlatformInfo
 	uint32 bTargetsTiledGPU: 1;
 	uint32 bNeedsOfflineCompiler: 1;
 	uint32 bSupportsComputeFramework : 1;
+	uint32 bSupportsDualSourceBlending : 1;
+	uint32 bRequiresGeneratePrevTransformBuffer : 1;
+	uint32 bRequiresRenderTargetDuringRaster : 1;
+	uint32 bRequiresDisableForwardLocalLights : 1;
+	uint32 bCompileSignalProcessingPipeline : 1;
+	uint32 bSupportsTessellation : 1;
+	uint32 bSupportsPerPixelDBufferMask : 1;
+	uint32 bIsHlslcc : 1;
+	uint32 NumberOfComputeThreads : 10;
 
 	// NOTE: When adding fields, you must also add to ParseDataDrivenShaderInfo!
 	uint32 bContainsValidPlatformInfo : 1;
@@ -589,6 +596,51 @@ public:
 	static FORCEINLINE_DEBUGGABLE const bool GetSupportsGen5TemporalAA(const FStaticShaderPlatform Platform)
 	{
 		return Infos[Platform].bSupportsGen5TemporalAA;
+	}
+
+	static FORCEINLINE_DEBUGGABLE const bool GetSupportsDualSourceBlending(const FStaticShaderPlatform Platform)
+	{
+		return Infos[Platform].bSupportsDualSourceBlending;
+	}
+
+	static FORCEINLINE_DEBUGGABLE const bool GetRequiresGeneratePrevTransformBuffer(const FStaticShaderPlatform Platform)
+	{
+		return Infos[Platform].bRequiresGeneratePrevTransformBuffer;
+	}
+
+	static FORCEINLINE_DEBUGGABLE const bool GetRequiresRenderTargetDuringRaster(const FStaticShaderPlatform Platform)
+	{
+		return Infos[Platform].bRequiresRenderTargetDuringRaster;
+	}
+
+	static FORCEINLINE_DEBUGGABLE const bool GetRequiresDisableForwardLocalLights(const FStaticShaderPlatform Platform)
+	{
+		return Infos[Platform].bRequiresDisableForwardLocalLights;
+	}
+
+	static FORCEINLINE_DEBUGGABLE const bool GetCompileSignalProcessingPipeline(const FStaticShaderPlatform Platform)
+	{
+		return Infos[Platform].bCompileSignalProcessingPipeline;
+	}
+
+	static FORCEINLINE_DEBUGGABLE const bool GetSupportsTessellation(const FStaticShaderPlatform Platform)
+	{
+		return Infos[Platform].bSupportsTessellation;
+	}
+
+	static FORCEINLINE_DEBUGGABLE const bool GetSupportsPerPixelDBufferMask(const FStaticShaderPlatform Platform)
+	{
+		return Infos[Platform].bSupportsPerPixelDBufferMask;
+	}
+
+	static FORCEINLINE_DEBUGGABLE const bool GetIsHlslcc(const FStaticShaderPlatform Platform)
+	{
+		return Infos[Platform].bIsHlslcc;
+	}
+
+	static FORCEINLINE_DEBUGGABLE const uint32 GetNumberOfComputeThreads(const FStaticShaderPlatform Platform)
+	{
+		return Infos[Platform].NumberOfComputeThreads;
 	}
 
 private:
@@ -1628,15 +1680,18 @@ inline bool IsD3DPlatform(const FStaticShaderPlatform Platform, bool bIncludeXbo
 
 inline bool IsHlslccShaderPlatform(const FStaticShaderPlatform Platform)
 {
-	return IsMetalPlatform(Platform) || IsVulkanPlatform(Platform) || IsSwitchPlatform(Platform) || IsOpenGLPlatform(Platform);
+	return IsMetalPlatform(Platform) || IsVulkanPlatform(Platform) || IsSwitchPlatform(Platform) || IsOpenGLPlatform(Platform) || FDataDrivenShaderPlatformInfo::GetIsHlslcc(Platform);
 }
 
+UE_DEPRECATED(4.27, "Removed; please don't use.") 
 inline bool IsDeprecatedShaderPlatform(const FStaticShaderPlatform ShaderPlatform)
 {
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	return ShaderPlatform == SP_OPENGL_SM5_REMOVED || ShaderPlatform == SP_PCD3D_SM4_REMOVED || ShaderPlatform == SP_OPENGL_ES2_IOS_REMOVED ||
 		ShaderPlatform == SP_PCD3D_ES2_REMOVED || ShaderPlatform == SP_METAL_MACES2_REMOVED || ShaderPlatform == SP_OPENGL_PCES2_REMOVED ||
 		ShaderPlatform == SP_OPENGL_ES2_ANDROID_REMOVED || ShaderPlatform == SP_OPENGL_ES2_WEBGL_REMOVED ||
 		ShaderPlatform == SP_VULKAN_SM4_REMOVED || ShaderPlatform == SP_OPENGL_SM4_REMOVED;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 inline FStaticFeatureLevel GetMaxSupportedFeatureLevel(const FStaticShaderPlatform InShaderPlatform)

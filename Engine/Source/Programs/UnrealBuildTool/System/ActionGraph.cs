@@ -500,16 +500,16 @@ namespace UnrealBuildTool
 			foreach (FileItem ProducedItem in RootAction.ProducedItems)
 			{
 				// Check if the command-line of the action previously used to produce the item is outdated.
-				string NewProducingCommandLine = RootAction.CommandPath.FullName + " " + RootAction.CommandArguments;
-				if (ActionHistory.UpdateProducingCommandLine(ProducedItem, NewProducingCommandLine))
+				string NewProducingAttributes = string.Format("{0} {1} (ver {2})", RootAction.CommandPath.FullName, RootAction.CommandArguments, RootAction.CommandVersion);
+				if (ActionHistory.UpdateProducingAttributes(ProducedItem, NewProducingAttributes))
 				{
 					if(ProducedItem.Exists)
 					{
 						Log.TraceLog(
-							"{0}: Produced item \"{1}\" was produced by outdated command-line.\n  New command-line: {2}",
+							"{0}: Produced item \"{1}\" was produced by outdated attributes.\n  New attributes: {2}",
 							RootAction.StatusDescription,
 							Path.GetFileName(ProducedItem.AbsolutePath),
-							NewProducingCommandLine
+							NewProducingAttributes
 							);
 					}
 

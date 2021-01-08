@@ -6,6 +6,7 @@
 #include "Camera/CameraShakeBase.h"
 #include "Evaluation/MovieSceneCameraShakeTemplate.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
+#include "UObject/Object.h"
 #include "MatineeCameraShake.generated.h"
 
 class AActor;
@@ -176,6 +177,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = AnimShake)
 	class UCameraAnim* Anim;
 
+	/** Source camera animation sequence to play. Can be null, but can't have both Anim and AnimSequence. */
+	UPROPERTY(EditAnywhere, Category = AnimShake)
+	class UCameraAnimationSequence* AnimSequence;
+
 	/**
 	* If true, play a random snippet of the animation of length Duration.  Implies bLoop and bRandomStartTime = true for the CameraAnim.
 	* If false, play the full anim once, non-looped. Useful for getting variety out of a single looped CameraAnim asset.
@@ -246,7 +251,7 @@ public:
 
 private:
 
-	void DoStartShake();
+	void DoStartShake(const FCameraShakeStartParams& Params);
 	void DoUpdateShake(const FCameraShakeUpdateParams& Params, FCameraShakeUpdateResult& OutResult);
 	void DoScrubShake(const FCameraShakeScrubParams& Params, FCameraShakeUpdateResult& OutResult);
 	void DoStopShake(bool bImmediately);
@@ -274,6 +279,13 @@ protected:
 
 	/** Temp actor to use for playing camera anims. Used when playing a camera anim in non-gameplay context, e.g. in the editor */
 	AActor* TempCameraActorForCameraAnims;
+
+	/** Sequence shake pattern for when using a sequence instead of a camera anim */
+	UPROPERTY(Instanced)
+	class USequenceCameraShakePattern* SequenceShakePattern;
+
+	/** State tracking for the sequence shake pattern */
+	FCameraShakeState SequenceShakeState;
 
 private:
 
@@ -339,7 +351,7 @@ public:
 	UFUNCTION(BlueprintPure, Category="Camera Shakes", meta=(BlueprintAutocast))
 	static UMatineeCameraShake* Conv_MatineeCameraShake(UCameraShakeBase* CameraShake)
 	{
-		return CastChecked<UMatineeCameraShake>(CameraShake);
+		return CastChecked<UMatineeCameraShake>(CameraShake, ECastCheckedType::NullAllowed);
 	}
 };
 

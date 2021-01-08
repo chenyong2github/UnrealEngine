@@ -668,6 +668,7 @@ namespace UnrealBuildTool
 
 				CompileAction.WorkingDirectory = UnrealBuildTool.EngineSourceDirectory;
 				CompileAction.CommandPath = EnvVars.CompilerPath;
+				CompileAction.CommandVersion = EnvVars.ToolChainVersion.ToString();
 
 				string[] AdditionalArguments = String.IsNullOrEmpty(CompileEnvironment.AdditionalArguments) ? new string[0] : new string[] { CompileEnvironment.AdditionalArguments };
 

@@ -12,7 +12,7 @@
 #include "ISequencerTrackEditor.h"
 
 #include "NiagaraScript.h"
-#include "ContentBrowserDelegates.h"
+#include "Widgets/SItemSelector.h"
 
 class FNiagaraSystemInstance;
 class FNiagaraSystemViewModel;
@@ -73,7 +73,7 @@ public:
 	TSharedPtr<FNiagaraSystemViewModel> GetSystemViewModel();
 
 public:
-	FRefreshAssetViewDelegate RefreshAssetView;
+	FRefreshItemSelectorDelegate RefreshItemSelector;
 
 protected:
 	void OnToggleBounds();

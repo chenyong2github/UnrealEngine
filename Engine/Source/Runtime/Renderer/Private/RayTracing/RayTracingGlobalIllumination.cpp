@@ -391,19 +391,9 @@ int32 GetRayTracingGlobalIlluminationSamplesPerPixel(const FViewInfo& View)
 
 bool ShouldRenderRayTracingGlobalIllumination(const FViewInfo& View)
 {
-	if (!IsRayTracingEnabled())
-	{
-		return (false);
-	}
-
 	if (GetRayTracingGlobalIlluminationSamplesPerPixel(View) <= 0)
 	{
 		return false;
-	}
-	
-	if (GetForceRayTracingEffectsCVarValue() >= 0)
-	{
-		return GetForceRayTracingEffectsCVarValue() > 0;
 	}
 
 	if (!View.ViewState)
@@ -411,21 +401,11 @@ bool ShouldRenderRayTracingGlobalIllumination(const FViewInfo& View)
 		return false;
 	}
 
-	int32 RayTracingGISamplesPerPixel = GetRayTracingGlobalIlluminationSamplesPerPixel(View);
-	if (RayTracingGISamplesPerPixel <= 0)
-	{
-		return false;
-	}
-
-	int32 CVarRayTracingGlobalIlluminationValue = CVarRayTracingGlobalIllumination.GetValueOnRenderThread();
-	if (CVarRayTracingGlobalIlluminationValue >= 0)
-	{
-		return (CVarRayTracingGlobalIlluminationValue > 0);
-	}
-	else
-	{
-		return View.FinalPostProcessSettings.RayTracingGIType > ERayTracingGlobalIlluminationType::Disabled;
-	}
+    const int32 CVarRayTracingGlobalIlluminationValue = CVarRayTracingGlobalIllumination.GetValueOnRenderThread();
+	const bool bEnabled = CVarRayTracingGlobalIlluminationValue >= 0
+		? CVarRayTracingGlobalIlluminationValue > 0
+		: View.FinalPostProcessSettings.RayTracingGIType > ERayTracingGlobalIlluminationType::Disabled;
+	return ShouldRenderRayTracingEffect(bEnabled);
 }
 
 bool IsFinalGatherEnabled(const FViewInfo& View)
@@ -680,7 +660,7 @@ IMPLEMENT_GLOBAL_SHADER(FRayTracingGlobalIlluminationFinalGatherRGS, "/Engine/Pr
 
 void FDeferredShadingSceneRenderer::PrepareRayTracingGlobalIllumination(const FViewInfo& View, TArray<FRHIRayTracingShader*>& OutRayGenShaders)
 {
-	if (!CVarRayTracingGlobalIllumination.GetValueOnRenderThread())
+	if (!ShouldRenderRayTracingGlobalIllumination(View))
 	{
 		return;
 	}

@@ -1454,12 +1454,12 @@ void FNiagaraSystemInstance::InitDataInterfaces()
 			check(IsAligned(&DataInterfaceInstanceData[Pair.Value], 16));
 
 			if (Interface->HasPreSimulateTick())
-	{
+			{
 				PreTickDataInterfaces.Add(i);
 			}
 
 			if (Interface->HasPostSimulateTick())
-		{
+			{
 				PostTickDataInterfaces.Add(i);
 			}
 
@@ -1522,6 +1522,7 @@ void FNiagaraSystemInstance::TickDataInterfaces(float DeltaSeconds, bool bPostSi
 		return;
 	}
 
+	bool bRebindVMFuncs = false;
 	if (bPostSimulate)
 	{
 		for (int32 DIPairIndex : PostTickDataInterfaces)
@@ -1535,6 +1536,7 @@ void FNiagaraSystemInstance::TickDataInterfaces(float DeltaSeconds, bool bPostSi
 					// Destroy per instance data in order to not cause any errors on check(...) inside DIs when initializing
 					Interface->DestroyPerInstanceData(&DataInterfaceInstanceData[Pair.Value], this);
 					Interface->InitPerInstanceData(&DataInterfaceInstanceData[Pair.Value], this);
+					bRebindVMFuncs = true;
 				}
 			}
 		}
@@ -1552,8 +1554,47 @@ void FNiagaraSystemInstance::TickDataInterfaces(float DeltaSeconds, bool bPostSi
 					// Destroy per instance data in order to not cause any errors on check(...) inside DIs when initializing
 					Interface->DestroyPerInstanceData(&DataInterfaceInstanceData[Pair.Value], this);
 					Interface->InitPerInstanceData(&DataInterfaceInstanceData[Pair.Value], this);
+					bRebindVMFuncs = true;
 				}
 			}
+		}
+	}
+
+	// If any instance needed to reset, we need to re-cache their bindings, as some DI's require a rebind after reinit
+	// TODO: Maybe make this only rebind for the DIs that were reinitialized.
+	if (bRebindVMFuncs)
+	{
+		// Dirty data interfaces for emitters
+		for (TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe> Simulation : Emitters)
+		{
+			FNiagaraEmitterInstance& Sim = Simulation.Get();
+			if (!Sim.IsDisabled())
+			{
+				Sim.DirtyDataInterfaces();
+			}
+		}
+		
+		// Rebind funcs for system scripts
+		if (FNiagaraSystemSimulation::UseLegacySystemSimulationContexts() == false)
+		{
+			PerInstanceDIFunctions[(int32)ENiagaraSystemSimulationScript::Spawn].Reset();
+			PerInstanceDIFunctions[(int32)ENiagaraSystemSimulationScript::Update].Reset();
+
+			bool bSuccess = true;
+			bSuccess &= SystemSimulation->GetSpawnExecutionContext()->GeneratePerInstanceDIFunctionTable(this, PerInstanceDIFunctions[(int32)ENiagaraSystemSimulationScript::Spawn]);
+			bSuccess &= SystemSimulation->GetUpdateExecutionContext()->GeneratePerInstanceDIFunctionTable(this, PerInstanceDIFunctions[(int32)ENiagaraSystemSimulationScript::Update]);
+
+			if (!bSuccess)
+			{
+				// Some error initializing the per instance function tables.
+				UE_LOG(LogNiagara, Error, TEXT("Error rebinding VM functions after re-initializing data interface(s). Completing system. %s"), *GetNameSafe(Asset.Get()));
+				Complete(true);
+			}
+		}
+		else
+		{
+			SystemSimulation->GetSpawnExecutionContext()->DirtyDataInterfaces();
+			SystemSimulation->GetUpdateExecutionContext()->DirtyDataInterfaces();
 		}
 	}
 }

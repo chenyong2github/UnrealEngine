@@ -397,6 +397,7 @@ struct FSlateCachedElementsHandle
 	bool IsOwnedByWidget(const SWidget* Widget) const;
 
 	bool IsValid() const { return Ptr.IsValid(); }
+	bool HasCachedElements() const;
 
 	bool operator!=(FSlateCachedElementsHandle& Other) const { return Ptr != Other.Ptr; }
 

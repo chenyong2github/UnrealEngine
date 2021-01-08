@@ -1344,6 +1344,7 @@ void FRigControlHierarchy::HandleOnElementRenamed(FRigHierarchyContainer* InCont
 
 void FRigControlHierarchy::PostLoad()
 {
+	RefreshMapping();
 	for (FRigControl& Control : Controls)
 	{
 		for (int32 ValueType = 0; ValueType <= (int32)ERigControlValueType::Maximum; ValueType++)

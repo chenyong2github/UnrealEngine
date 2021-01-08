@@ -429,6 +429,7 @@ USkeletalMesh::USkeletalMesh(const FObjectInitializer& ObjectInitializer)
 #endif
 	SetMinLod(FPerPlatformInt(0));
 	SetDisableBelowMinLodStripping(FPerPlatformBool(false));
+	bSupportRayTracing = true;
 }
 
 USkeletalMesh::USkeletalMesh(FVTableHelper& Helper)
@@ -2473,6 +2474,11 @@ void USkeletalMesh::PostLoadValidateUserSectionData()
 }
 
 #endif // WITH_EDITOR
+
+bool USkeletalMesh::IsPostLoadThreadSafe() const
+{
+	return false;	// PostLoad is not thread safe because of the call to InitMorphTargets, which can call VerifySmartName() that can mutate a shared map in the skeleton.
+}
 
 void USkeletalMesh::PostLoad()
 {
@@ -5368,7 +5374,7 @@ void FSkeletalMeshSceneProxy::CreateBaseMeshBatch(const FSceneView* View, const 
 	BatchElement.FirstIndex = LODData.RenderSections[SectionIndex].BaseIndex;
 	BatchElement.IndexBuffer = LODData.MultiSizeIndexContainer.GetIndexBuffer();
 	BatchElement.MinVertexIndex = LODData.RenderSections[SectionIndex].GetVertexBufferIndex();
-	BatchElement.MaxVertexIndex = LODData.RenderSections[SectionIndex].GetVertexBufferIndex() + LODData.RenderSections[SectionIndex].GetNumVertices();
+	BatchElement.MaxVertexIndex = LODData.RenderSections[SectionIndex].GetVertexBufferIndex() + LODData.RenderSections[SectionIndex].GetNumVertices() - 1;
 	BatchElement.VertexFactoryUserData = FGPUSkinCache::GetFactoryUserData(MeshObject->SkinCacheEntry, SectionIndex);
 	BatchElement.PrimitiveUniformBuffer = GetUniformBuffer();
 	BatchElement.NumPrimitives = LODData.RenderSections[SectionIndex].NumTriangles;

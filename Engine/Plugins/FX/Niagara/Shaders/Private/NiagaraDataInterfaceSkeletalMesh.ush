@@ -10,6 +10,14 @@
 #define DISKELMESH_BONE_INFLUENCES	DISKELMESH_BONE_INFLUENCES_UNLIMITED
 #endif
 
+#define DISKELMESH_PROBALIAS_FORMAT_64			0		// 64 bits : Float probability	: uint alias
+#define DISKELMESH_PROBALIAS_FORMAT_24_8		1		// 32 bits : 8 bits probability	: 24 bits alias
+#define DISKELMESH_PROBALIAS_FORMAT_23_9		2		// 32 bits : 9 bits probability	: 23 bits alias
+
+#ifndef DISKELMESH_PROBALIAS_FORMAT
+#define DISKELMESH_PROBALIAS_FORMAT	DISKELMESH_PROBALIAS_FORMAT_64
+#endif
+
 struct FDISkelMeshContext
 {
 	Buffer<uint>	MeshIndexBuffer;
@@ -23,12 +31,10 @@ struct FDISkelMeshContext
 	Buffer<float4>	MeshTangentBuffer;
 	Buffer<float2>	MeshTexCoordBuffer;
     Buffer<float4>	MeshColorBuffer;
-	Buffer<float>	MeshTriangleSamplerProbaBuffer;
-	Buffer<uint>	MeshTriangleSamplerAliasBuffer;
+	Buffer<uint>	MeshTriangleSamplerProbAliasBuffer;
 	uint			MeshNumSamplingRegionTriangles;
 	uint			MeshNumSamplingRegionVertices;
-	Buffer<float>	MeshSamplingRegionsProbaBuffer;
-	Buffer<uint>	MeshSamplingRegionsAliasBuffer;
+	Buffer<uint>	MeshSamplingRegionsProbAliasBuffer;
 	Buffer<uint>	MeshSampleRegionsTriangleIndices;
 	Buffer<uint>	MeshSampleRegionsVertices;
 	Buffer<uint>	MeshTriangleMatricesOffsetBuffer;
@@ -259,15 +265,27 @@ void DISKelMesh_RandomTriCoord(in FDISkelMeshContext DIContext, uint Seed1, uint
 	{
 		// Uniform area weighted position selection (using alias method from Alias method from FWeightedRandomSampler)
 		uint TriangleIndex = min(uint(RandT0*float(DIContext.MeshTriangleCount)), DIContext.MeshTriangleCount - 1);
-		float TriangleProbability = DIContext.MeshTriangleSamplerProbaBuffer[TriangleIndex];
+
+#if DISKELMESH_PROBALIAS_FORMAT == DISKELMESH_PROBALIAS_FORMAT_64
+		float TriangleProbability = asfloat(DIContext.MeshTriangleSamplerProbAliasBuffer[(TriangleIndex * 2) + 0]);
+		uint TriangleAlias = DIContext.MeshTriangleSamplerProbAliasBuffer[(TriangleIndex * 2) + 1];
+#elif DISKELMESH_PROBALIAS_FORMAT == DISKELMESH_PROBALIAS_FORMAT_24_8
+		uint TriangleProbAlias = DIContext.MeshTriangleSamplerProbAliasBuffer[TriangleIndex];
+		float TriangleProbability = float(TriangleProbAlias & 0xff) / 255.0f;
+		uint TriangleAlias = TriangleProbAlias >> 8;
+#elif DISKELMESH_PROBALIAS_FORMAT == DISKELMESH_PROBALIAS_FORMAT_23_9
+		uint TriangleProbAlias = DIContext.MeshTriangleSamplerProbAliasBuffer[TriangleIndex];
+		float TriangleProbability = float(TriangleProbAlias & 0x1ff) / 511.0f;
+		uint TriangleAlias = TriangleProbAlias >> 9;
+#endif
 
 		// Alias check
 		float RandT1 = DISKelMesh_Random(Seed1, Seed2, Seed3);
 		if( RandT1 > TriangleProbability )
 		{
-			TriangleIndex = DIContext.MeshTriangleSamplerAliasBuffer[TriangleIndex];
+			TriangleIndex = TriangleAlias;
 		}
-		OutTriangle = TriangleIndex;
+		OutTriangle = int(TriangleIndex);
 	}
 
 	OutBaryCoord = DISKelMesh_RandomBarycentricCoord(Seed1, Seed2, Seed3);
@@ -345,13 +363,24 @@ void DISKelMesh_RandomTriangle(in FDISkelMeshContext DIContext, uint Seed1, uint
 	if ( DIContext.UniformTriangleSamplingEnable )
 	{
 		// Uniform area weighted position selection (using alias method from Alias method from FWeightedRandomSampler)
-		float TriangleProbability = DIContext.MeshTriangleSamplerProbaBuffer[TriangleIndex];
+#if DISKELMESH_PROBALIAS_FORMAT == DISKELMESH_PROBALIAS_FORMAT_64
+		float TriangleProbability = asfloat(DIContext.MeshTriangleSamplerProbAliasBuffer[(TriangleIndex * 2) + 0]);
+		uint TriangleAlias = DIContext.MeshTriangleSamplerProbAliasBuffer[(TriangleIndex * 2) + 1];
+#elif DISKELMESH_PROBALIAS_FORMAT == DISKELMESH_PROBALIAS_FORMAT_24_8
+		uint TriangleProbAlias = DIContext.MeshTriangleSamplerProbAliasBuffer[TriangleIndex];
+		float TriangleProbability = float(TriangleProbAlias & 0xff) / 255.0f;
+		uint TriangleAlias = TriangleProbAlias >> 8;
+#elif DISKELMESH_PROBALIAS_FORMAT == DISKELMESH_PROBALIAS_FORMAT_23_9
+		uint TriangleProbAlias = DIContext.MeshTriangleSamplerProbAliasBuffer[TriangleIndex];
+		float TriangleProbability = float(TriangleProbAlias & 0x1ff) / 511.0f;
+		uint TriangleAlias = TriangleProbAlias >> 9;
+#endif
 
 		// Alias check
 		float RandT1 = DISKelMesh_Random(Seed1, Seed2, Seed3);
 		if( RandT1 > TriangleProbability )
 		{
-			TriangleIndex = (int)DIContext.MeshTriangleSamplerAliasBuffer[TriangleIndex];
+			TriangleIndex = int(TriangleAlias);
 		}
 	}
 
@@ -372,11 +401,22 @@ void DISKelMesh_RandomFilteredTriangle(in FDISkelMeshContext DIContext, uint See
 	[branch]
 	if ( DIContext.UniformSamplingRegionEnabled )
 	{
-		float TriangleProbability = DIContext.MeshSamplingRegionsProbaBuffer[RegionTriangle];
+#if DISKELMESH_PROBALIAS_FORMAT == DISKELMESH_PROBALIAS_FORMAT_64
+		float TriangleProbability = asfloat(DIContext.MeshSamplingRegionsProbAliasBuffer[(RegionTriangle * 2) + 0]);
+		uint TriangleAlias = DIContext.MeshSamplingRegionsProbAliasBuffer[(RegionTriangle * 2) + 1];
+#elif DISKELMESH_PROBALIAS_FORMAT == DISKELMESH_PROBALIAS_FORMAT_24_8
+		uint TriangleProbAlias = DIContext.MeshSamplingRegionsProbAliasBuffer[RegionTriangle];
+		float TriangleProbability = float(TriangleProbAlias & 0xff) / 255.0f;
+		uint TriangleAlias = TriangleProbAlias >> 8;
+#elif DISKELMESH_PROBALIAS_FORMAT == DISKELMESH_PROBALIAS_FORMAT_23_9
+		uint TriangleProbAlias = DIContext.MeshSamplingRegionsProbAliasBuffer[RegionTriangle];
+		float TriangleProbability = float(TriangleProbAlias & 0x1ff) / 511.0f;
+		uint TriangleAlias = TriangleProbAlias >> 9;
+#endif
 		float RandT1 = DISKelMesh_Random(Seed1, Seed2, Seed3);
 		if ( RandT1 > TriangleProbability )
 		{
-			RegionTriangle = (int)DIContext.MeshSamplingRegionsAliasBuffer[RegionTriangle];
+			RegionTriangle = TriangleAlias;
 		}
 	}
 	OutTriangle = (int)DIContext.MeshSampleRegionsTriangleIndices[RegionTriangle];
@@ -432,10 +472,10 @@ float4 DISKelMesh_QuatSlerp(float4 Quat1, float4 Quat2, float Slerp)
 
 void DISkelMesh_GetSkinnedBoneCommon(in FDISkelMeshContext DIContext, in int Bone, in float Interp, in bool bWorldSpace, out float3 OutPosition, out float4 OutRotation, out float3 OutVelocity)
 {
-    float3 PrevPosition = DIContext.MeshPrevSamplingBonesBuffer[Bone * 2].xyz;
-    float4 PrevRotation = DIContext.MeshPrevSamplingBonesBuffer[Bone * 2 + 1];
-    float3 CurrPosition = DIContext.MeshCurrSamplingBonesBuffer[Bone * 2].xyz;
-    float4 CurrRotation = DIContext.MeshCurrSamplingBonesBuffer[Bone * 2 + 1];
+    float3 PrevPosition = DIContext.MeshPrevSamplingBonesBuffer[Bone * 3].xyz;
+    float4 PrevRotation = DIContext.MeshPrevSamplingBonesBuffer[Bone * 3 + 1];
+    float3 CurrPosition = DIContext.MeshCurrSamplingBonesBuffer[Bone * 3].xyz;
+    float4 CurrRotation = DIContext.MeshCurrSamplingBonesBuffer[Bone * 3 + 1];
 
     if (bWorldSpace)
     {
@@ -638,6 +678,32 @@ void DISkelMesh_GetFilteredSocketCount(in FDISkelMeshContext DIContext, out int 
     Count = DIContext.NumFilteredSockets;
 }
 
+void DISkelMesh_GetFilteredSocketTransform(in FDISkelMeshContext DIContext, in int SocketIndex, in bool bApplyTransform, out float3 OutTranslation, out float4 OutRotation, out float3 OutScale)
+{
+    if ( DIContext.NumFilteredSockets > 0 )
+	{
+		SocketIndex = clamp(SocketIndex, 0, DIContext.NumFilteredSockets - 1);
+		int BufferOffset = (DIContext.FilteredSocketBoneOffset + SocketIndex) * 3;
+
+		OutTranslation = DIContext.MeshCurrSamplingBonesBuffer[BufferOffset + 0].xyz;
+		OutRotation = DIContext.MeshCurrSamplingBonesBuffer[BufferOffset + 1];
+		OutScale = DIContext.MeshCurrSamplingBonesBuffer[BufferOffset + 2].xyz;
+
+		if (bApplyTransform)
+		{
+			OutTranslation = mul(float4(OutTranslation, 1), DIContext.InstanceTransform).xyz;
+			OutRotation = NiagaraGPU_QuatMul(DIContext.InstanceRotation, OutRotation);
+			OutScale = mul(OutScale, (float3x3)DIContext.InstanceTransform);
+		}
+	}
+	else
+	{
+		OutTranslation = float3(0.0f, 0.0f, 0.0f);
+		OutRotation = float4(0.0f, 0.0f, 0.0f, 1.0f);
+		OutScale = float3(0.0f, 0.0f, 0.0f);
+	}
+}
+
 void DISkelMesh_GetFilteredSocketBoneAt(in FDISkelMeshContext DIContext, in int InSocketIndex, out int Bone)
 {
     Bone = DIContext.FilteredSocketBoneOffset + clamp(InSocketIndex, 0, DIContext.NumFilteredSockets - 1);
@@ -697,12 +763,10 @@ void DISkelMesh_GetFilteredSocketOrBoneAt(in FDISkelMeshContext DIContext, int F
 	Buffer<float4>	MeshTangentBuffer_ ## NAME; \
 	Buffer<float2>	MeshTexCoordBuffer_ ## NAME; \
 	Buffer<float4>	MeshColorBuffer_ ## NAME; \
-	Buffer<float>	MeshTriangleSamplerProbaBuffer_ ## NAME; \
-	Buffer<uint>	MeshTriangleSamplerAliasBuffer_ ## NAME; \
+	Buffer<uint>	MeshTriangleSamplerProbAliasBuffer_ ## NAME; \
 	uint			MeshNumSamplingRegionTriangles_ ## NAME; \
 	uint			MeshNumSamplingRegionVertices_ ## NAME; \
-	Buffer<float>	MeshSamplingRegionsProbaBuffer_ ## NAME; \
-	Buffer<uint>	MeshSamplingRegionsAliasBuffer_ ## NAME; \
+	Buffer<uint>	MeshSamplingRegionsProbAliasBuffer_ ## NAME; \
 	Buffer<uint>	MeshSampleRegionsTriangleIndices_ ## NAME; \
 	Buffer<uint>	MeshSampleRegionsVertices_ ## NAME; \
 	Buffer<uint>	MeshTriangleMatricesOffsetBuffer_ ## NAME; \
@@ -740,12 +804,10 @@ void DISkelMesh_GetFilteredSocketOrBoneAt(in FDISkelMeshContext DIContext, int F
 	DIContext.MeshTangentBuffer = MeshTangentBuffer_ ## NAME; \
 	DIContext.MeshTexCoordBuffer = MeshTexCoordBuffer_ ## NAME; \
 	DIContext.MeshColorBuffer = MeshColorBuffer_ ## NAME; \
-	DIContext.MeshTriangleSamplerProbaBuffer = MeshTriangleSamplerProbaBuffer_ ## NAME; \
-	DIContext.MeshTriangleSamplerAliasBuffer = MeshTriangleSamplerAliasBuffer_ ## NAME; \
+	DIContext.MeshTriangleSamplerProbAliasBuffer = MeshTriangleSamplerProbAliasBuffer_ ## NAME; \
 	DIContext.MeshNumSamplingRegionTriangles = MeshNumSamplingRegionTriangles_ ## NAME; \
 	DIContext.MeshNumSamplingRegionVertices = MeshNumSamplingRegionVertices_ ## NAME; \
-	DIContext.MeshSamplingRegionsProbaBuffer = MeshSamplingRegionsProbaBuffer_ ## NAME; \
-	DIContext.MeshSamplingRegionsAliasBuffer = MeshSamplingRegionsAliasBuffer_ ## NAME; \
+	DIContext.MeshSamplingRegionsProbAliasBuffer = MeshSamplingRegionsProbAliasBuffer_ ## NAME; \
 	DIContext.MeshSampleRegionsTriangleIndices = MeshSampleRegionsTriangleIndices_ ## NAME; \
 	DIContext.MeshSampleRegionsVertices = MeshSampleRegionsVertices_ ## NAME; \
 	DIContext.MeshTriangleMatricesOffsetBuffer = MeshTriangleMatricesOffsetBuffer_ ## NAME; \
