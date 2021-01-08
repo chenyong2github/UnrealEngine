@@ -135,24 +135,17 @@ struct TStructOpsTypeTraits<FInteriorSettings> : public TStructOpsTypeTraitsBase
 
 struct FAudioVolumeProxy
 {
-	FAudioVolumeProxy()
-		: AudioVolumeID(0)
-		, WorldID(0)
-		, Priority(0.f)
-		, BodyInstance(nullptr)
-	{
-	}
-
 	FAudioVolumeProxy(const AAudioVolume* AudioVolume);
 
-	uint32 AudioVolumeID;
-	uint32 WorldID;
-	float Priority;
+	uint32 AudioVolumeID = 0;
+	uint32 WorldID = 0;
+	float Priority = 0.0f;
 	FReverbSettings ReverbSettings;
 	FInteriorSettings InteriorSettings;
 	TArray<FAudioVolumeSubmixSendSettings> SubmixSendSettings;
 	TArray<FAudioVolumeSubmixOverrideSettings> SubmixOverrideSettings;
-	FBodyInstance* BodyInstance; // This is scary
+	FBodyInstance* BodyInstance = nullptr;
+	bool bChanged = false;
 };
 
 UCLASS(hidecategories=(Advanced, Attachment, Collision, Volume))

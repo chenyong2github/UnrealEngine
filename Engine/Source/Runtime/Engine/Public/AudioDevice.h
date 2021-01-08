@@ -796,9 +796,11 @@ public:
 		FInteriorSettings InteriorSettings;
 		TArray<FAudioVolumeSubmixSendSettings> SubmixSendSettings;
 		TArray<FAudioVolumeSubmixOverrideSettings> SubmixOverrideSettings;
+		bool bChanged = false;
 	};
 
 	void GetAudioVolumeSettings(const uint32 WorldID, const FVector& Location, FAudioVolumeSettings& OutSettings) const;
+	void ResetAudioVolumeProxyChangedState();
 
 public:
 

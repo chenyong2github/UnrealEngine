@@ -3249,6 +3249,15 @@ void FAudioDevice::SetDefaultAudioSettings(UWorld* World, const FReverbSettings&
 	}, GET_STATID(STAT_AudioSetDefaultAudioSettings));
 }
 
+void FAudioDevice::ResetAudioVolumeProxyChangedState()
+{
+	for (TPair<uint32, FAudioVolumeProxy>& AudioVolumePair : AudioVolumeProxies)
+	{
+		FAudioVolumeProxy& Proxy = AudioVolumePair.Value;
+		Proxy.bChanged = false;
+	}
+}
+
 void FAudioDevice::GetAudioVolumeSettings(const uint32 WorldID, const FVector& Location, FAudioVolumeSettings& OutSettings) const
 {
 	check(IsInAudioThread());
@@ -3268,6 +3277,7 @@ void FAudioDevice::GetAudioVolumeSettings(const uint32 WorldID, const FVector& L
 				OutSettings.InteriorSettings = Proxy.InteriorSettings;
 				OutSettings.SubmixSendSettings = Proxy.SubmixSendSettings;
 				OutSettings.SubmixOverrideSettings = Proxy.SubmixOverrideSettings;
+				OutSettings.bChanged = Proxy.bChanged;
 				return;
 			}
 		}
@@ -4399,9 +4409,17 @@ void FAudioDevice::UpdateAudioVolumeEffects()
 		}
 	}
 
+	// Reset audio volume proxies to reset state back to before a proxy was updated
+	ResetAudioVolumeProxyChangedState();
+
 	if (PlayerAudioVolumeSettings.AudioVolumeID != CurrentAudioVolumeSettings.AudioVolumeID)
 	{
 		PreviousPlayerAudioVolumeSettings = CurrentAudioVolumeSettings;
+		CurrentAudioVolumeSettings = PlayerAudioVolumeSettings;
+		bReverbChanged = true;
+	}
+	else if (PlayerAudioVolumeSettings.AudioVolumeID == CurrentAudioVolumeSettings.AudioVolumeID && PlayerAudioVolumeSettings.bChanged)
+	{
 		CurrentAudioVolumeSettings = PlayerAudioVolumeSettings;
 		bReverbChanged = true;
 	}
