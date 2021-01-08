@@ -1050,6 +1050,16 @@ bool FControlRigParameterTrackEditor::HasTransformKeyOverridePriority() const
 }
 bool FControlRigParameterTrackEditor::CanAddTransformKeysForSelectedObjects() const
 {
+	// WASD hotkeys to fly the viewport can conflict with hotkeys for setting keyframes (ie. s). 
+	// If the viewport is moving, disregard setting keyframes.
+	for (FLevelEditorViewportClient* LevelVC : GEditor->GetLevelViewportClients())
+	{
+		if (LevelVC && LevelVC->IsMovingCamera())
+		{
+			return false;
+		}
+	}
+
 	if (!GetSequencer()->IsAllowedToChange())
 	{
 		return false;
