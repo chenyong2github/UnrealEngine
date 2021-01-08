@@ -3,10 +3,10 @@
 #pragma once
 
 #include "CoreTypes.h"
-#include "UObject/GCObject.h"
 #include "EntitySystem/MovieSceneEntitySystemTypes.h"
-#include "MovieSceneTracksComponentTypes.h"
 #include "Evaluation/MovieSceneEvaluationField.h"
+#include "MovieSceneTracksComponentTypes.h"
+#include "UObject/GCObject.h"
 
 struct FGuid;
 struct FMovieSceneBinding;
@@ -220,6 +220,53 @@ public:
 	{
 		return Interrogations;
 	}
+
+public:
+
+	/**
+	 * Query the computed value of an animated property.
+	 *
+	 * See the other QueryPropertyValues method description.
+	 *
+	 * @param InPropertyComponent		The type of property being animated on the default channel.
+	 * @param OutValues					The animated values, one for each interrogation time.
+	 */
+	template<typename ValueType, typename OperationalType>
+	void QueryPropertyValues(const TPropertyComponents<ValueType, OperationalType>& InPropertyComponents, TArray<ValueType>& OutValues)
+	{
+		return QueryPropertyValues(InPropertyComponents, FInterrogationChannel::Default(), OutValues);
+	}
+
+	/**
+	 * Query the computed value of an animated property.
+	 *
+	 * All the tracks imported on the given channel are expected to be animating a property of the type described
+	 * by the InPropertyComponents parameter.
+	 *
+	 * @param InPropertyComponent		The type of property being animated on the given channel.
+	 * @param InChannel					The channel on which the property is being animated.
+	 * @param OutValues					The animated values, one for each interrogation time.
+	 */
+	template<typename ValueType, typename OperationalType>
+	void QueryPropertyValues(const TPropertyComponents<ValueType, OperationalType>& InPropertyComponents, FInterrogationChannel InChannel, TArray<ValueType>& OutValues)
+	{
+		FBuiltInComponentTypes* Components = FBuiltInComponentTypes::Get();
+		const FPropertyDefinition& PropertyDefinition = Components->PropertyRegistry.GetDefinition(InPropertyComponents.CompositeID);
+		TArrayView<const FPropertyCompositeDefinition> PropertyComposites = Components->PropertyRegistry.GetComposites(PropertyDefinition);
+
+		TArray<FMovieSceneEntityID> ValueEntityIDs;
+		FindPropertyOutputEntityIDs(PropertyDefinition, InChannel, ValueEntityIDs);
+
+		const int32 NumPropertyValues = Interrogations.Num();
+		check(ValueEntityIDs.Num() == NumPropertyValues);
+		OutValues.SetNum(NumPropertyValues);
+
+		PropertyDefinition.Handler->RebuildFinal(PropertyDefinition, PropertyComposites, ValueEntityIDs, Linker, OutValues);
+	}
+	
+private:
+
+	void FindPropertyOutputEntityIDs(const FPropertyDefinition& PropertyDefinition, FInterrogationChannel Channel, TArray<FMovieSceneEntityID>& OutEntityIDs);
 
 public:
 
