@@ -8,7 +8,6 @@ NiagaraSimulationShader.usf:
 
 #include "NiagaraShaderVersion.ush"
 
-
 #if GPU_SIMULATION
 	#include "/Engine/Private/Common.ush"
 	#include "/Engine/Private/GlobalDistanceFieldShared.ush"
@@ -60,6 +59,10 @@ bool NiagaraAny(bool4 b) { return b.x || b.y || b.z || b.w; }
  * -----------------------------------------------------------------
  */
 #if GPU_SIMULATION
+	#ifndef NIAGARA_PARTICLE_PARTIAL_ENABLED
+		#define NIAGARA_PARTICLE_PARTIAL_ENABLED 0
+	#endif
+
 	// Used to convert from DispatchThreadId to a linear thread id
 	uint DispatchThreadIdToLinear;
 
@@ -477,9 +480,11 @@ int rand_int(int x, int Seed1, int Seed2, int Seed3)
 
 	/* Buffers for particle data and DrawIndirect calls
 	 */
-	Buffer<float> InputFloat;
-	Buffer<int> InputInt;
-	Buffer<half> InputHalf;
+	#if NIAGARA_PARTICLE_PARTIAL_ENABLED == 0
+		Buffer<float> InputFloat;
+		Buffer<int> InputInt;
+		Buffer<half> InputHalf;
+	#endif
 	RWBuffer<int> RWOutputInt;
 	RWBuffer<float> RWOutputFloat;
 	RWBuffer<half> RWOutputHalf;
@@ -669,46 +674,38 @@ int rand_int(int x, int Seed1, int Seed2, int Seed3)
 	 */
 	float InputDataFloat(int DataSetIndex, int RegisterIdx, int InstanceIdx)
 	{
-		return InputFloat[RegisterIdx*ComponentBufferSizeRead + InstanceIdx];
+		#if NIAGARA_PARTICLE_PARTIAL_ENABLED
+			return RWOutputFloat[RegisterIdx*ComponentBufferSizeWrite + InstanceIdx];
+		#else
+			return InputFloat[RegisterIdx*ComponentBufferSizeRead + InstanceIdx];
+		#endif
 	}
 
 	int InputDataInt(int DataSetIndex, int RegisterIdx, int InstanceIdx)
 	{
-		return InputInt[RegisterIdx*ComponentBufferSizeRead + InstanceIdx];
+		#if NIAGARA_PARTICLE_PARTIAL_ENABLED
+			return RWOutputInt[RegisterIdx*ComponentBufferSizeWrite + InstanceIdx];
+		#else
+			return InputInt[RegisterIdx*ComponentBufferSizeRead + InstanceIdx];
+		#endif
 	}
 	
 	bool InputDataBool(int DataSetIndex, int RegisterIdx, int InstanceIdx)
 	{
-		return InputInt[RegisterIdx*ComponentBufferSizeRead + InstanceIdx] == -1;
+		#if NIAGARA_PARTICLE_PARTIAL_ENABLED
+			return RWOutputInt[RegisterIdx*ComponentBufferSizeWrite + InstanceIdx] == -1;
+		#else
+			return InputInt[RegisterIdx*ComponentBufferSizeRead + InstanceIdx] == -1;
+		#endif
 	}
 
 	float InputDataHalf(int DataSetIndex, int RegisterIdx, int InstanceIdx)
 	{
-		return InputHalf[RegisterIdx*ComponentBufferSizeRead + InstanceIdx];
-	}
-
-	/* ---------------------------------------------------------------------
-	 * InputData from RW buffer
-	 * ---------------------------------------------------------------------
-	 */
-	float RWInputDataFloat(int DataSetIndex, int RegisterIdx, int InstanceIdx)
-	{
-		return RWOutputFloat[RegisterIdx*ComponentBufferSizeWrite + InstanceIdx];
-	}
-
-	int RWInputDataInt(int DataSetIndex, int RegisterIdx, int InstanceIdx)
-	{
-		return RWOutputInt[RegisterIdx*ComponentBufferSizeWrite + InstanceIdx];
-	}
-	
-	bool RWInputDataBool(int DataSetIndex, int RegisterIdx, int InstanceIdx)
-	{
-		return RWOutputInt[RegisterIdx*ComponentBufferSizeWrite + InstanceIdx] == -1;
-	}
-
-	float RWInputDataHalf(int DataSetIndex, int RegisterIdx, int InstanceIdx)
-	{
-		return RWOutputHalf[RegisterIdx*ComponentBufferSizeWrite + InstanceIdx];
+		#if NIAGARA_PARTICLE_PARTIAL_ENABLED
+			return RWOutputHalf[RegisterIdx*ComponentBufferSizeWrite + InstanceIdx];
+		#else
+			return InputHalf[RegisterIdx*ComponentBufferSizeRead + InstanceIdx];
+		#endif
 	}
 
 	/* ---------------------------------------------------------------------
