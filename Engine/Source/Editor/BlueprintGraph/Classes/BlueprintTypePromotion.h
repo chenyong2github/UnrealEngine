@@ -113,6 +113,15 @@ public:
 	* @return Const pointer to the primitive promotion table
 	*/
 	static const TMap<FName, TArray<FName>>* const GetPrimativePromotionTable();
+	
+	/**
+	* Get a pointer to an array of available promotion types to a given pin type
+	*
+	* @param Type		The pin type to find available promotions to
+	*
+	* @return const TArray<FName>*	Pointer to the available promotions, nullptr if there are none.
+	*/
+	static const TArray<FName>* GetAvailablePrimitivePromotions(const FEdGraphPinType& Type);
 
 private:
 

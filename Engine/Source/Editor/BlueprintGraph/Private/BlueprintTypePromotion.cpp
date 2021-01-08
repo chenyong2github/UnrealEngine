@@ -111,6 +111,13 @@ const TMap<FName, TArray<FName>>* const FTypePromotion::GetPrimativePromotionTab
 	return nullptr;
 }
 
+const TArray<FName>* FTypePromotion::GetAvailablePrimitivePromotions(const FEdGraphPinType& Type)
+{
+	const TMap<FName, TArray<FName>>* PromoTable = GetPrimativePromotionTable();
+
+	return PromoTable->Find(Type.PinCategory);
+}
+
 bool FTypePromotion::IsValidPromotion(const FEdGraphPinType& A, const FEdGraphPinType& B)
 {
 	// If either of these pin types is a struct, than we have to have some kind of valid
