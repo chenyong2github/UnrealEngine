@@ -180,20 +180,24 @@ BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
 	}
 
 
-		TSharedRef<SWidget> SHLODWidgetItem::GenerateWidgetForColumn(const FName& ColumnName)
+	TSharedRef<SWidget> SHLODWidgetItem::GenerateWidgetForColumn(const FName& ColumnName)
 	{
+		const float DefaultColumnHorizontalPadding = 24.0f;
+		const float LastColumnHorizontalPadding = 8.0f;
+
 		if (ColumnName == TEXT("SceneActorName"))
 		{
 			return SNew(SHorizontalBox)
-
 				+ SHorizontalBox::Slot()
 				.AutoWidth()
+				.Padding(4.0f, 0.0f, 0.0f, 0.0f)
 				.VAlign(VAlign_Center)
 				[
 					SNew(SExpanderArrow, SharedThis(this))
+					.IndentAmount(20)
 				]
 
-			+ SHorizontalBox::Slot()
+				+ SHorizontalBox::Slot()
 				.AutoWidth()
 				.Padding(2.0f, 0.0f)
 				.VAlign(VAlign_Center)
@@ -210,6 +214,7 @@ BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
 			return SNew(SHorizontalBox)
 				+ SHorizontalBox::Slot()
 				.AutoWidth()
+				.Padding(DefaultColumnHorizontalPadding, 0.0f)
 				.VAlign(VAlign_Center)
 				[
 					SNew(STextBlock)
@@ -224,6 +229,7 @@ BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
 			return SNew(SHorizontalBox)
 				+ SHorizontalBox::Slot()
 				.AutoWidth()
+				.Padding(DefaultColumnHorizontalPadding, 0.0f)
 				.VAlign(VAlign_Center)
 				[
 					SNew(STextBlock)
@@ -238,6 +244,7 @@ BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
 			return SNew(SHorizontalBox)
 				+ SHorizontalBox::Slot()
 				.AutoWidth()
+				.Padding(DefaultColumnHorizontalPadding, 0.0f)
 				.VAlign(VAlign_Center)
 				[
 					SNew(STextBlock)
@@ -252,6 +259,7 @@ BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
 			return SNew(SHorizontalBox)
 				+ SHorizontalBox::Slot()
 				.AutoWidth()
+				.Padding(LastColumnHorizontalPadding, 0.0f)
 				.VAlign(VAlign_Center)
 				[
 					SNew(STextBlock)
@@ -259,8 +267,6 @@ BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
 					.ColorAndOpacity(this, &SHLODWidgetItem::GetTint)
 				];
 		}
-
-
 		else
 		{
 			return SNullWidget::NullWidget;

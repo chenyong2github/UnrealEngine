@@ -107,12 +107,11 @@ namespace HLODOutliner
 
 		/** Button handlers */
 		FText GetForceBuildText() const;
+		FText GetForceBuildToolTip() const;
 		FText GetBuildText() const;
-		FReply HandleBuildHLODs();
 		FReply HandleDeleteHLODs();
 		bool CanDeleteHLODs() const;
 		FReply HandlePreviewHLODs();
-		FReply HandleDeletePreviewHLODs();
 		FReply RetrieveActors();
 		FReply HandleBuildLODActors();
 		bool CanBuildLODActors() const;
@@ -120,6 +119,10 @@ namespace HLODOutliner
 		FReply HandleForceBuildLODActors();
 		FReply HandleForceRefresh();
 		FReply HandleSaveAll();
+		FText GetGenerateClustersText() const;
+		FText GetGenerateClustersTooltip() const;
+		FText GetRegenerateClustersText() const;
+		FText GetRegenerateClustersTooltip() const;
 		/** End button handlers */
 
 	private:
@@ -128,6 +131,25 @@ namespace HLODOutliner
 
 		/** De-registers all the callback delegates required for keeping the treeview sync */
 		void DeregisterDelegates();
+
+		/** Builds the toolbar */
+		TSharedRef<SWidget> MakeToolBar();
+
+		/** Builds the toolbar combo menu */
+		TSharedRef<SWidget> GetToolBarButtonMenu();
+
+		/** Delegates to build the toolbar combo button */
+		FText GetToolBarButtonLabel();
+		FText GetToolBarButtonToolTip();
+		FSlateIcon GetToolBarButtonIcon();
+		void OnToolBarButtonClicked();
+		bool IsToolBarButtonEnabled();
+
+		/** Callbacks to make interaction from UI uniform vs. UI updates*/
+		FReply RegenerateClustersFromUI();
+		FReply GenerateClustersFromUI();
+		FReply GenerateProxyMeshesFromUI();
+		FReply BuildClustersAndMeshesFromUI();
 
 		/** Helper function used to determine whether there are any LOD actors present */
 		bool HasHLODActors() const;
@@ -446,7 +468,17 @@ namespace HLODOutliner
 		TSharedPtr<SVerticalBox> MainContentPanel;
 		/** Attribute determining if the outliner UI is enabled*/
 		TAttribute<bool> EnabledAttribute;
-	
+
+		enum ToolBarButtonState
+		{
+			GenerateClusters,
+			GenerateProxyMeshes,
+			RebuildAll
+		};
+
+		/** Dialog state to determine which button to display in the toolbar */
+		ToolBarButtonState ToolBarButtonCurrentState;
+
 		/** Map containing all the nodes with their corresponding keys */
 		TMultiMap<FTreeItemID, FTreeItemPtr> TreeItemsMap;
 

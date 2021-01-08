@@ -779,7 +779,8 @@ void FHierarchicalLODBuilder::BuildMeshesForLODActors(bool bForceAll)
 		}
 
 		FScopedSlowTask SlowTask(105, (LOCTEXT("HierarchicalLOD_BuildLODActorMeshes", "Building LODActor meshes")));
-		SlowTask.MakeDialog();
+		const bool bShowCancelButton = true;
+		SlowTask.MakeDialog(bShowCancelButton);
 
 		const TArray<FHierarchicalSimplification>& BuildLODLevelSettings = LevelIter->GetWorldSettings()->GetHierarchicalLODSetup();
 		UMaterialInterface* BaseMaterial = LevelIter->GetWorldSettings()->GetHierarchicalLODBaseMaterial();
@@ -863,6 +864,9 @@ void FHierarchicalLODBuilder::BuildMeshesForLODActors(bool bForceAll)
 								}
 
 								++LODActorIndex;
+
+								if (SlowTask.ShouldCancel())
+									break;
 							}
 						}
 					}
@@ -875,6 +879,9 @@ void FHierarchicalLODBuilder::BuildMeshesForLODActors(bool bForceAll)
 							Proxy->Clean();
 						}
 					}
+
+					if (SlowTask.ShouldCancel())
+						break;
 				}
 			}
 		}

@@ -126,7 +126,7 @@ FText HLODOutliner::FLODActorItem::GetReductionPercentageAsText() const
 		const uint32 SubActorCount = LODActor->GetNumTrianglesInSubActors();
 		const uint32 MergedCount = LODActor->GetNumTrianglesInMergedMesh();
 		const float PercentageOfOriginal = ((float)MergedCount / (float)SubActorCount) * 100.0f;
-		return  FText::FromString(((SubActorCount != 0) ? FString::SanitizeFloat(PercentageOfOriginal) : TEXT("0")) + "%");
+		return  FText::FromString("%" + ((SubActorCount != 0) ? FString::SanitizeFloat(PercentageOfOriginal) : TEXT("0")));
 	}
 	else
 	{
