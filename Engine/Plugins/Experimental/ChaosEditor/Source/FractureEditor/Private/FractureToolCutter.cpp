@@ -159,11 +159,10 @@ int32 UFractureToolVoronoiCutterBase::ExecuteFracture(const FFractureToolContext
 		TArray<FVector> Sites;
 		GenerateVoronoiSites(FractureContext, Sites);
 		FBox VoronoiBounds = FractureContext.GetBounds();
-		if (CutterSettings->Amplitude > 0.0f)
-		{
-			// expand bounds to make sure noise-perturbed voronoi cells still contain the whole input mesh
-			VoronoiBounds = VoronoiBounds.ExpandBy(CutterSettings->Amplitude);
-		}
+			
+		// expand bounds to make sure noise-perturbed voronoi cells still contain the whole input mesh
+		VoronoiBounds = VoronoiBounds.ExpandBy(CutterSettings->Amplitude + CutterSettings->Grout);
+			
 		FVoronoiDiagram Voronoi(Sites, VoronoiBounds, .1f);
 
 		FPlanarCells VoronoiPlanarCells = FPlanarCells(Sites, Voronoi);
@@ -178,7 +177,7 @@ int32 UFractureToolVoronoiCutterBase::ExecuteFracture(const FFractureToolContext
 			VoronoiPlanarCells.InternalSurfaceMaterials.NoiseSettings = NoiseSettings;
 		}
 
-		return CutMultipleWithPlanarCells(VoronoiPlanarCells, *(FractureContext.GetGeometryCollection()), FractureContext.GetSelection());
+		return CutMultipleWithPlanarCells(VoronoiPlanarCells, *(FractureContext.GetGeometryCollection()), FractureContext.GetSelection(), CutterSettings->Grout);
 	}
 
 	return INDEX_NONE;

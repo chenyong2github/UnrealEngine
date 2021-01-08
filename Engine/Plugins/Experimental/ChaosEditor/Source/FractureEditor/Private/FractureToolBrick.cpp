@@ -293,12 +293,18 @@ int32 UFractureToolBrick::ExecuteFracture(const FFractureToolContext& FractureCo
 		const float HalfDepth = BrickSettings->BrickDepth * 0.5f;
 		const float HalfLength = BrickSettings->BrickLength * 0.5f;
 
-		FVector Max(HalfLength, HalfDepth, HalfHeight);
 		TArray<FBox> BricksToCut;
+
+		// space the bricks by the grout setting, constrained to not erase the bricks or have zero grout
+		// (currently zero grout bricks would break assumptions in the fracture)
+		float MinDim = FMath::Min3(HalfHeight, HalfDepth, HalfLength);
+		float HalfGrout = FMath::Clamp(0.5f * CutterSettings->Grout, MinDim * 0.02f, MinDim * 0.98f);
+		FVector HalfBrick(HalfLength - HalfGrout, HalfDepth - HalfGrout, HalfHeight - HalfGrout);
+		FBox BrickBox(-HalfBrick, HalfBrick);
 
 		for (const FTransform& Trans : BrickTransforms)
 		{
-			BricksToCut.Add(FBox(-Max * 0.95f, Max * 0.95f).TransformBy(Trans));
+			BricksToCut.Add(BrickBox.TransformBy(Trans));
 		}
 
  		FPlanarCells VoronoiPlanarCells = FPlanarCells(BricksToCut);
@@ -313,7 +319,7 @@ int32 UFractureToolBrick::ExecuteFracture(const FFractureToolContext& FractureCo
 			VoronoiPlanarCells.InternalSurfaceMaterials.NoiseSettings = NoiseSettings;
 		}
 
-		return CutMultipleWithPlanarCells(VoronoiPlanarCells, *FractureContext.GetGeometryCollection(), FractureContext.GetSelection());
+		return CutMultipleWithPlanarCells(VoronoiPlanarCells, *FractureContext.GetGeometryCollection(), FractureContext.GetSelection(), 0);
 	}
 
 	return INDEX_NONE;

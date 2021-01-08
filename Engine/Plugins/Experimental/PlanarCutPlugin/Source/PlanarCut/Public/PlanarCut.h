@@ -166,6 +166,7 @@ int32 PLANARCUT_API CutWithPlanarCells(
 	FPlanarCells &Cells,
 	FGeometryCollection& Collection,
 	int32 TransformIdx,
+	double Grout,
 	const TOptional<FTransform>& TransformCells = TOptional<FTransform>(),
 	bool bIncludeOutsideCellInOutput = true,
 	float CheckDistanceAcrossOutsideCellForProximity = 0,
@@ -189,6 +190,7 @@ int32 PLANARCUT_API CutMultipleWithPlanarCells(
 	FPlanarCells &Cells,
 	FGeometryCollection& Collection,
 	const TArrayView<const int32>& TransformIndices,
+	double Grout,
 	const TOptional<FTransform>& TransformCells = TOptional<FTransform>(),
 	bool bIncludeOutsideCellInOutput = true,
 	float CheckDistanceAcrossOutsideCellForProximity = 0,  // TODO: < this param does nothing in the new mode; is only needed in special cases that aren't possible in the UI currently
@@ -212,6 +214,7 @@ int32 PLANARCUT_API CutMultipleWithMultiplePlanes(
 	FInternalSurfaceMaterials& InternalSurfaceMaterials,
 	FGeometryCollection& Collection,
 	const TArrayView<const int32>& TransformIndices,
+	double Grout,
 	const TOptional<FTransform>& TransformCells = TOptional<FTransform>(),
 	bool bSetDefaultInternalMaterialsFromCollection = true,
 	TFunction<void(const FGeometryCollection&, int32, const FGeometryCollection&, int32, float, int32, FGeometryCollection&)> VertexInterpolate = DefaultVertexInterpolation
