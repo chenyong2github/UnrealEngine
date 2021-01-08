@@ -5721,7 +5721,7 @@ bool FBlueprintEditorUtils::IsVariableUsed(const UBlueprint* InBlueprint, const 
 		for (TArray<UEdGraph*>::TConstIterator it(AllGraphs); it; ++it)
 		{
 			const UEdGraph* CurrentGraph = *it;
-
+			check(CurrentGraph);
 			if (CurrentGraph == LocalGraphScope || LocalGraphScope == nullptr)
 			{
 				TArray<UK2Node_Variable*> GraphNodes;
