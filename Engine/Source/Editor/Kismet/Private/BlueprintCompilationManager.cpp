@@ -855,7 +855,10 @@ void FBlueprintCompilationManagerImpl::FlushCompilationQueueImpl(bool bSuppressB
 
 			CompilerData.Compiler->ValidateVariableNames();
 			CompilerData.Compiler->ValidateClassPropertyDefaults();
-
+		}
+		// STAGE V (phase 2): Give the blueprint the possibility for edits
+		for (FCompilerData& CompilerData : CurrentlyCompilingBPs)
+		{
 			UBlueprint* BP = CompilerData.BP;
 			if (BP->bIsRegeneratingOnLoad)
 			{
