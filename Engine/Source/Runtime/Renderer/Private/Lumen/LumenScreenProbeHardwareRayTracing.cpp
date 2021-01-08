@@ -175,56 +175,60 @@ void RenderHardwareRayTracingScreenProbe(
 	const FCompactedTraceParameters& CompactedTraceParameters)
 #if RHI_RAYTRACING
 {
-	FLumenScreenProbeGatherHardwareRayTracingRGS::FParameters* PassParameters = GraphBuilder.AllocParameters<FLumenScreenProbeGatherHardwareRayTracingRGS::FParameters>();
+	FIntPoint RayTracingResolution = FIntPoint(ScreenProbeParameters.ScreenProbeTraceBufferSize.X * ScreenProbeParameters.ScreenProbeTraceBufferSize.Y, 1);
 
-	SetLumenHardwareRayTracingSharedParameters(
-		GraphBuilder,
-		SceneTextures,
-		View,
-		TracingInputs,
-		MeshSDFGridParameters,
-		&PassParameters->SharedParameters
-	);
+	// Trace and shade
+	{
+		FLumenScreenProbeGatherHardwareRayTracingRGS::FParameters* PassParameters = GraphBuilder.AllocParameters<FLumenScreenProbeGatherHardwareRayTracingRGS::FParameters>();
 
-	// Screen-probe gather arguments
-	PassParameters->IndirectTracingParameters = IndirectTracingParameters;
-	PassParameters->ScreenProbeParameters = ScreenProbeParameters;
+		SetLumenHardwareRayTracingSharedParameters(
+			GraphBuilder,
+			SceneTextures,
+			View,
+			TracingInputs,
+			MeshSDFGridParameters,
+			&PassParameters->SharedParameters
+		);
 
-	// Radiance cache arguments
-	FRGSRadianceCacheParameters RGSRadianceCacheParameters;
-	SetupRGSRadianceCacheParametersNew(RadianceCacheParameters, RGSRadianceCacheParameters);
-	PassParameters->RGSRadianceCacheParameters = CreateUniformBufferImmediate(RGSRadianceCacheParameters, UniformBuffer_SingleFrame);
-	PassParameters->RadianceCacheParameters = RadianceCacheParameters;
-	PassParameters->CompactedTraceParameters = CompactedTraceParameters;
+		// Screen-probe gather arguments
+		PassParameters->IndirectTracingParameters = IndirectTracingParameters;
+		PassParameters->ScreenProbeParameters = ScreenProbeParameters;
 
-	// Constants!
-	int LightingMode = CVarLumenScreenProbeGatherHardwareRayTracingLightingMode.GetValueOnRenderThread();
-	int NormalMode = CVarLumenScreenProbeGatherHardwareRayTracingNormalMode.GetValueOnRenderThread();
+		// Radiance cache arguments
+		FRGSRadianceCacheParameters RGSRadianceCacheParameters;
+		SetupRGSRadianceCacheParametersNew(RadianceCacheParameters, RGSRadianceCacheParameters);
+		PassParameters->RGSRadianceCacheParameters = CreateUniformBufferImmediate(RGSRadianceCacheParameters, UniformBuffer_SingleFrame);
+		PassParameters->RadianceCacheParameters = RadianceCacheParameters;
+		PassParameters->CompactedTraceParameters = CompactedTraceParameters;
 
-	FLumenScreenProbeGatherHardwareRayTracingRGS::FPermutationDomain PermutationVector;
-	PermutationVector.Set<FLumenScreenProbeGatherHardwareRayTracingRGS::FNormalModeDim>(NormalMode != 0);
-	PermutationVector.Set<FLumenScreenProbeGatherHardwareRayTracingRGS::FLightingModeDim>(LightingMode);
-	PermutationVector.Set<FLumenScreenProbeGatherHardwareRayTracingRGS::FRadianceCacheDim>(LumenScreenProbeGather::UseRadianceCache(View));
-	PermutationVector.Set<FLumenScreenProbeGatherHardwareRayTracingRGS::FStructuredImportanceSamplingDim>(LumenScreenProbeGather::UseImportanceSampling());
+		// Constants!
+		int LightingMode = CVarLumenScreenProbeGatherHardwareRayTracingLightingMode.GetValueOnRenderThread();
+		int NormalMode = CVarLumenScreenProbeGatherHardwareRayTracingNormalMode.GetValueOnRenderThread();
 
-	TShaderRef<FLumenScreenProbeGatherHardwareRayTracingRGS> RayGenerationShader =
-		View.ShaderMap->GetShader<FLumenScreenProbeGatherHardwareRayTracingRGS>(PermutationVector);
-	ClearUnusedGraphResources(RayGenerationShader, PassParameters);
+		FLumenScreenProbeGatherHardwareRayTracingRGS::FPermutationDomain PermutationVector;
+		PermutationVector.Set<FLumenScreenProbeGatherHardwareRayTracingRGS::FNormalModeDim>(NormalMode != 0);
+		PermutationVector.Set<FLumenScreenProbeGatherHardwareRayTracingRGS::FLightingModeDim>(LightingMode);
+		PermutationVector.Set<FLumenScreenProbeGatherHardwareRayTracingRGS::FRadianceCacheDim>(LumenScreenProbeGather::UseRadianceCache(View));
+		PermutationVector.Set<FLumenScreenProbeGatherHardwareRayTracingRGS::FStructuredImportanceSamplingDim>(LumenScreenProbeGather::UseImportanceSampling());
 
-	auto RayTracingResolution = ScreenProbeParameters.ScreenProbeAtlasViewSize * ScreenProbeParameters.ScreenProbeTracingOctahedronResolution;
-	GraphBuilder.AddPass(
-		RDG_EVENT_NAME("HardwareRayTracing %ux%u LightingMode=%s", RayTracingResolution.X, RayTracingResolution.Y, Lumen::GetRayTracedLightingModeName((Lumen::EHardwareRayTracingLightingMode)LightingMode)),
-		PassParameters,
-		ERDGPassFlags::Compute,
-		[PassParameters, &View, RayGenerationShader, RayTracingResolution](FRHICommandList& RHICmdList)
-		{
-			FRayTracingShaderBindingsWriter GlobalResources;
-			SetShaderParameters(GlobalResources, RayGenerationShader, *PassParameters);
+		TShaderRef<FLumenScreenProbeGatherHardwareRayTracingRGS> RayGenerationShader =
+			View.ShaderMap->GetShader<FLumenScreenProbeGatherHardwareRayTracingRGS>(PermutationVector);
+		ClearUnusedGraphResources(RayGenerationShader, PassParameters);
 
-			FRHIRayTracingScene* RayTracingSceneRHI = View.RayTracingScene.RayTracingSceneRHI;
-			RHICmdList.RayTraceDispatch(View.RayTracingMaterialPipeline, RayGenerationShader.GetRayTracingShader(), RayTracingSceneRHI, GlobalResources, RayTracingResolution.X, RayTracingResolution.Y);
-		}
-	);
+		GraphBuilder.AddPass(
+			RDG_EVENT_NAME("HardwareRayTracing %ux%u LightingMode=%s", RayTracingResolution.X, RayTracingResolution.Y, Lumen::GetRayTracedLightingModeName((Lumen::EHardwareRayTracingLightingMode)LightingMode)),
+			PassParameters,
+			ERDGPassFlags::Compute,
+			[PassParameters, &View, RayGenerationShader, RayTracingResolution](FRHICommandList& RHICmdList)
+			{
+				FRayTracingShaderBindingsWriter GlobalResources;
+				SetShaderParameters(GlobalResources, RayGenerationShader, *PassParameters);
+
+				FRHIRayTracingScene* RayTracingSceneRHI = View.RayTracingScene.RayTracingSceneRHI;
+				RHICmdList.RayTraceDispatch(View.RayTracingMaterialPipeline, RayGenerationShader.GetRayTracingShader(), RayTracingSceneRHI, GlobalResources, RayTracingResolution.X, RayTracingResolution.Y);
+			}
+		);
+	}
 }
 #else // RHI_RAYTRACING
 {

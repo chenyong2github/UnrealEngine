@@ -13,9 +13,6 @@
 #include "LumenScreenProbeCommon.ush"
 #include "LumenHardwareRayTracingCommon.ush"
 
-// FIX: integrating with trace compaction is causing cross-talk between hardware tracing and voxel tracing, causing artificial darkening
-#define IGNORE_TRACE_COMPACTION 1
-
 RaytracingAccelerationStructure TLAS;
 float MaxTraceDistance;
 float SurfaceBias;
@@ -23,50 +20,30 @@ float SurfaceBias;
 RAY_TRACING_ENTRY_RAYGEN(LumenScreenProbeGatherHardwareRayTracingRGS)
 {
 	uint2 DispatchThreadId = DispatchRaysIndex().xy;
+	if (DispatchThreadId.x >= CompactedTraceTexelAllocator[0])
+	{
+		return;
+	}
 
-#if IGNORE_TRACE_COMPACTION
-	uint2 ScreenProbeAtlasCoord = DispatchThreadId.xy / ScreenProbeTracingOctahedronResolution;
-	uint2 TraceTexelCoord = DispatchThreadId.xy - ScreenProbeAtlasCoord * ScreenProbeTracingOctahedronResolution;
-	uint ScreenProbeIndex = ScreenProbeAtlasCoord.y * ScreenProbeAtlasViewSize.x + ScreenProbeAtlasCoord.x;
+	uint ScreenProbeIndex;
+	uint2 TraceTexelCoord;
+	float TraceHitDistance;
+	DecodeTraceTexel(CompactedTraceTexelData[DispatchThreadId.x], ScreenProbeIndex, TraceTexelCoord, TraceHitDistance);
 
 	uint2 ScreenProbeScreenCoord;
 	uint ScreenProbeSubsampleIndex;
 	GetScreenProbeScreenCoord(ScreenProbeIndex, ScreenProbeScreenCoord, ScreenProbeSubsampleIndex);
 
+	uint2 ScreenProbeAtlasCoord = uint2(ScreenProbeIndex % ScreenProbeAtlasViewSize.x, ScreenProbeIndex / ScreenProbeAtlasViewSize.x);
 	uint2 ScreenProbeTracingCoord = GetTraceBufferCoord(ScreenProbeAtlasCoord, TraceTexelCoord);
-	if (all(ScreenProbeIndex < GetNumScreenProbes() && TraceTexelCoord < ScreenProbeTracingOctahedronResolution))
+
 	{
-		float2 ScreenUV = GetScreenUVFromScreenProbeCoord(ScreenProbeScreenCoord, ScreenProbeSubsampleIndex);
-		float SceneDepth = DownsampledDepth.Load(int3(ScreenProbeAtlasCoord, 0)).x;
-		float3 WorldPosition = GetWorldPositionFromScreenUV(ScreenUV, SceneDepth);
-		float3 WorldNormal = DecodeNormal(GBufferATexture.Load(int3(ScreenUV * View.BufferSizeAndInvSize.xy, 0)).xyz);
-
-		bool bHit;
-		float TraceHitDistance = DecodeProbeRayDistance(TraceHit[ScreenProbeTracingCoord].x, bHit);
-
-		if (SceneDepth > 0 && !bHit)
-#else
-	if (DispatchThreadId.x < CompactedTraceTexelAllocator[0])
-	{
-		uint ScreenProbeIndex;
-		uint2 TraceTexelCoord;
-		float TraceHitDistance;
-		DecodeTraceTexel(CompactedTraceTexelData[DispatchThreadId.x], ScreenProbeIndex, TraceTexelCoord, TraceHitDistance);
-
-		uint2 ScreenProbeScreenCoord;
-		uint ScreenProbeSubsampleIndex;
-		GetScreenProbeScreenCoord(ScreenProbeIndex, ScreenProbeScreenCoord, ScreenProbeSubsampleIndex);
-
-		uint2 ScreenProbeAtlasCoord = uint2(ScreenProbeIndex % ScreenProbeAtlasViewSize.x, ScreenProbeIndex / ScreenProbeAtlasViewSize.x);
-		uint2 ScreenProbeTracingCoord = GetTraceBufferCoord(ScreenProbeAtlasCoord, TraceTexelCoord);
-
 		float2 ScreenUV = GetScreenUVFromScreenProbeCoord(ScreenProbeScreenCoord, ScreenProbeSubsampleIndex);
 		float SceneDepth = DownsampledDepth.Load(int3(ScreenProbeAtlasCoord, 0)).x;
 		float3 WorldPosition = GetWorldPositionFromScreenUV(ScreenUV, SceneDepth);
 		float3 WorldNormal = DecodeNormal(GBufferATexture.Load(int3(ScreenUV * View.BufferSizeAndInvSize.xy, 0)).xyz);
 
 		bool bHit = false;
-#endif
 		{
 			float2 ProbeUV;
 			float ConeHalfAngle;
