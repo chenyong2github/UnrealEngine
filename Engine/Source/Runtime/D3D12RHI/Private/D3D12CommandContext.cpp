@@ -489,6 +489,8 @@ void FD3D12CommandContextBase::RHIBeginFrame()
 		SamplerHeap.ToggleDescriptorTablesDirtyFlag(false);
 
 		Device->GetGPUProfiler().BeginFrame(ParentAdapter->GetOwningRHI());
+
+		Device->GetDefaultBufferAllocator().BeginFrame();
 	}
 }
 

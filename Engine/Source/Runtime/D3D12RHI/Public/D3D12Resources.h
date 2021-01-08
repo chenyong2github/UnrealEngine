@@ -8,6 +8,7 @@
 
 #include "BoundShaderStateCache.h"
 #include "D3D12ShaderResources.h"
+#include "RHIPoolAllocator.h"
 
 #if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
 constexpr D3D12_RESOURCE_STATES BackBufferBarrierWriteTransitionTargets = D3D12_RESOURCE_STATE_RENDER_TARGET | D3D12_RESOURCE_STATE_UNORDERED_ACCESS |
@@ -21,6 +22,7 @@ class FD3D12CommandListManager;
 class FD3D12CommandContext;
 class FD3D12CommandListHandle;
 class FD3D12SegListAllocator;
+class FD3D12PoolAllocator;
 struct FD3D12GraphicsPipelineState;
 typedef FD3D12StateCacheBase FD3D12StateCache;
 
@@ -430,7 +432,7 @@ private:
 	}
 };
 
-#ifdef USE_BUCKET_ALLOCATOR
+#if USE_BUCKET_ALLOCATOR
 typedef class FD3D12BucketAllocator FD3D12BaseAllocatorType;
 #else
 typedef class FD3D12BuddyAllocator FD3D12BaseAllocatorType;
@@ -474,9 +476,21 @@ struct FD3D12SegListAllocatorPrivateData
 	}
 };
 
+struct FD3D12PoolAllocatorPrivateData
+{
+	FRHIPoolAllocationData PoolData;
+
+	void Init()
+	{
+		PoolData.Reset();
+	}
+};
+
 class FD3D12ResourceAllocator;
+class FD3D12BaseShaderResource;
+
 // A very light-weight and cache friendly way of accessing a GPU resource
-class FD3D12ResourceLocation : public FD3D12DeviceChild, public FNoncopyable
+class FD3D12ResourceLocation : public FRHIPoolResource, public FD3D12DeviceChild, public FNoncopyable
 {
 public:
 
@@ -496,6 +510,7 @@ public:
 	{
 		AT_Default, // FD3D12BaseAllocatorType
 		AT_SegList, // FD3D12SegListAllocator
+		AT_Pool,	// FD3D12PoolAllocator
 		AT_Unknown = 0xff
 	};
 
@@ -508,11 +523,15 @@ public:
 	static void TransferOwnership(FD3D12ResourceLocation& Destination, FD3D12ResourceLocation& Source);
 
 	// Setters
+	inline void SetOwner(FD3D12BaseShaderResource* InOwner) { Owner = InOwner; }
 	void SetResource(FD3D12Resource* Value);
 	inline void SetType(ResourceLocationType Value) { Type = Value;}
 
 	inline void SetAllocator(FD3D12BaseAllocatorType* Value) { Allocator = Value; AllocatorType = AT_Default; }
 	inline void SetSegListAllocator(FD3D12SegListAllocator* Value) { SegListAllocator = Value; AllocatorType = AT_SegList; }
+	inline void SetPoolAllocator(FD3D12PoolAllocator* Value) { PoolAllocator = Value; AllocatorType = AT_Pool; }
+	inline void ClearAllocator() { Allocator = nullptr; AllocatorType = AT_Unknown; }
+
 	inline void SetMappedBaseAddress(void* Value) { MappedBaseAddress = Value; }
 	inline void SetGPUVirtualAddress(D3D12_GPU_VIRTUAL_ADDRESS Value) { GPUVirtualAddress = Value; }
 	inline void SetOffsetFromBaseOfResource(uint64 Value) { OffsetFromBaseOfResource = Value; }
@@ -520,8 +539,10 @@ public:
 
 	// Getters
 	inline ResourceLocationType GetType() const { return Type; }
+	inline EAllocatorType GetAllocatorType() const { return AllocatorType; }
 	inline FD3D12BaseAllocatorType* GetAllocator() { check(AT_Default == AllocatorType); return Allocator; }
 	inline FD3D12SegListAllocator* GetSegListAllocator() { check(AT_SegList == AllocatorType); return SegListAllocator; }
+	inline FD3D12PoolAllocator* GetPoolAllocator() { check(AT_Pool == AllocatorType); return PoolAllocator; }
 	inline FD3D12Resource* GetResource() const { return UnderlyingResource; }
 	inline void* GetMappedBaseAddress() const { return MappedBaseAddress; }
 	inline D3D12_GPU_VIRTUAL_ADDRESS GetGPUVirtualAddress() const { return GPUVirtualAddress; }
@@ -531,6 +552,11 @@ public:
 	inline FD3D12BuddyAllocatorPrivateData& GetBuddyAllocatorPrivateData() { return AllocatorData.BuddyAllocatorPrivateData; }
 	inline FD3D12BlockAllocatorPrivateData& GetBlockAllocatorPrivateData() { return AllocatorData.BlockAllocatorPrivateData; }
 	inline FD3D12SegListAllocatorPrivateData& GetSegListAllocatorPrivateData() { return AllocatorData.SegListAllocatorPrivateData; }
+	inline FD3D12PoolAllocatorPrivateData& GetPoolAllocatorPrivateData() { return AllocatorData.PoolAllocatorPrivateData; }
+
+	// Pool allocation specific functions
+	bool OnAllocationMoved(FRHIPoolAllocationData* InNewData);
+	void UnlockPoolData();
 
 	const inline bool IsValid() const { return Type != ResourceLocationType::eUndefined; }
 
@@ -606,6 +632,7 @@ private:
 
 	ResourceLocationType Type;
 
+	FD3D12BaseShaderResource* Owner;
 	FD3D12Resource* UnderlyingResource;
 	FD3D12ResidencyHandle* ResidencyHandle;
 
@@ -614,6 +641,7 @@ private:
 	{
 		FD3D12BaseAllocatorType* Allocator;
 		FD3D12SegListAllocator* SegListAllocator;
+		FD3D12PoolAllocator* PoolAllocator;
 	};
 
 	// Union to save memory
@@ -622,6 +650,7 @@ private:
 		FD3D12BuddyAllocatorPrivateData BuddyAllocatorPrivateData;
 		FD3D12BlockAllocatorPrivateData BlockAllocatorPrivateData;
 		FD3D12SegListAllocatorPrivateData SegListAllocatorPrivateData;
+		FD3D12PoolAllocatorPrivateData PoolAllocatorPrivateData;
 	} AllocatorData;
 
 	// Note: These values refer to the start of this location including any padding *NOT* the start of the underlying resource
@@ -727,50 +756,53 @@ struct FD3D12LockedResource : public FD3D12DeviceChild
 class FD3D12BaseShaderResourceView
 {
 protected:
+	virtual ~FD3D12BaseShaderResourceView() { check(BaseShaderResource == nullptr); }
+
 	void Remove();
+	virtual void Recreate(FD3D12ResourceLocation& InResourceLocation) = 0;
 
 	friend class FD3D12BaseShaderResource;
-	FD3D12BaseShaderResource* DynamicResource = nullptr;
+	FD3D12BaseShaderResource* BaseShaderResource = nullptr;
 };
 
 /** The base class of resources that may be bound as shader resources. */
 class FD3D12BaseShaderResource : public FD3D12DeviceChild, public IRefCountedObject
 {
 protected:
-	FCriticalSection DynamicSRVsCS;
-	TArray<class FD3D12BaseShaderResourceView*> DynamicSRVs;
+	FCriticalSection ViewsCS;
+	TArray<class FD3D12BaseShaderResourceView*> Views;
 
 public:
 	FD3D12Resource* GetResource() const { return ResourceLocation.GetResource(); }
 
-	void AddDynamicSRV(FD3D12BaseShaderResourceView* InSRV)
+	void AddView(FD3D12BaseShaderResourceView* InView)
 	{
-		FScopeLock Lock(&DynamicSRVsCS);
-		check(InSRV->DynamicResource == nullptr);
-		InSRV->DynamicResource = this;
-		DynamicSRVs.Add(InSRV);
+		FScopeLock Lock(&ViewsCS);
+		check(InView->BaseShaderResource == nullptr);
+		InView->BaseShaderResource = this;
+		Views.Add(InView);
 	}
 
-	void RemoveDynamicSRV(FD3D12BaseShaderResourceView* InSRV)
+	void RemoveView(FD3D12BaseShaderResourceView* InSRV)
 	{
-		FScopeLock Lock(&DynamicSRVsCS);
-		check(InSRV->DynamicResource == this);
-		InSRV->DynamicResource = nullptr;
-		uint32 Removed = DynamicSRVs.Remove(InSRV);
+		FScopeLock Lock(&ViewsCS);
+		check(InSRV->BaseShaderResource == this);
+		InSRV->BaseShaderResource = nullptr;
+		uint32 Removed = Views.Remove(InSRV);
 		check(Removed == 1);
 	}
 
-	void RemoveAllDynamicSRVs()
+	void RemoveAllViews()
 	{
-		FScopeLock Lock(&DynamicSRVsCS);
-		for (FD3D12BaseShaderResourceView* DynamicSRV : DynamicSRVs)
+		FScopeLock Lock(&ViewsCS);
+		for (FD3D12BaseShaderResourceView* View : Views)
 		{
-			if (DynamicSRV != nullptr)
+			if (View != nullptr)
 			{
-				DynamicSRV->DynamicResource = nullptr;
+				View->BaseShaderResource = nullptr;
 			}
 		}
-		DynamicSRVs.Reset();
+		Views.Reset();
 	}
 
 	void Swap(FD3D12BaseShaderResource& Other)
@@ -778,7 +810,19 @@ public:
 		::Swap(Parent, Other.Parent);
 		ResourceLocation.Swap(Other.ResourceLocation);
 		::Swap(BufferAlignment, Other.BufferAlignment);
-		::Swap(DynamicSRVs, Other.DynamicSRVs);
+		::Swap(Views, Other.Views);
+	}
+
+	void RecreateViews(FD3D12ResourceLocation& InResourceLocation)
+	{
+		FScopeLock Lock(&ViewsCS);
+		for (FD3D12BaseShaderResourceView* View : Views)
+		{
+			if (View != nullptr)
+			{
+				View->Recreate(InResourceLocation);
+			}
+		}
 	}
 
 	FD3D12ResourceLocation ResourceLocation;
@@ -794,19 +838,19 @@ public:
 
 	~FD3D12BaseShaderResource()
 	{
-		for (FD3D12BaseShaderResourceView* DynamicSRV : DynamicSRVs)
+		for (FD3D12BaseShaderResourceView* View : Views)
 		{
-			check(DynamicSRV->DynamicResource == this);
-			DynamicSRV->DynamicResource = nullptr;
+			check(View->BaseShaderResource == this);
+			View->BaseShaderResource = nullptr;
 		}
 	}
 };
 
 inline void FD3D12BaseShaderResourceView::Remove()
 {
-	if (DynamicResource)
+	if (BaseShaderResource)
 	{
-		DynamicResource->RemoveDynamicSRV(this);
+		BaseShaderResource->RemoveView(this);
 	}
 }
 

@@ -1,0 +1,171 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+#pragma once
+
+#include "RHIPoolAllocator.h"
+#include "D3D12Resources.h"
+
+enum class EResourceAllocationStrategy
+{
+	// This strategy uses Placed Resources to sub-allocate a buffer out of an underlying ID3D12Heap.
+	// The benefit of this is that each buffer can have it's own resource state and can be treated
+	// as any other buffer. The downside of this strategy is the API limitation which enforces
+	// the minimum buffer size to 64k leading to large internal fragmentation in the allocator
+	kPlacedResource,
+	// The alternative is to manually sub-allocate out of a single large buffer which allows block
+	// allocation granularity down to 1 byte. However, this strategy is only really valid for buffers which
+	// will be treated as read-only after their creation (i.e. most Index and Vertex buffers). This 
+	// is because the underlying resource can only have one state at a time.
+	kManualSubAllocation
+};
+
+
+// All data required to create a pool
+struct FD3D12ResourceInitConfig
+{
+	bool operator==(const FD3D12ResourceInitConfig& InOther) const
+	{
+		return HeapType == InOther.HeapType &&
+			HeapFlags && InOther.HeapFlags &&
+			ResourceFlags == InOther.ResourceFlags &&
+			InitialResourceState == InOther.InitialResourceState;
+	}
+
+	D3D12_HEAP_TYPE HeapType;
+	D3D12_HEAP_FLAGS HeapFlags;
+	D3D12_RESOURCE_FLAGS ResourceFlags;
+	D3D12_RESOURCE_STATES InitialResourceState;
+};
+
+
+/**
+@brief Stores all required data for a VRAM copy operation - doesn't own the resources
+**/
+struct FD3D12VRAMCopyOperation
+{
+	FD3D12Resource* SourceResource;
+	uint32 SourceOffset;
+	FD3D12Resource* DestResource;
+	uint32 DestOffset;
+	uint32 Size;
+};
+
+// Heap and offset combined to specific location of a resource
+struct FD3D12HeapAndOffset
+{
+	FD3D12Heap* Heap;
+	uint64 Offset;
+};
+
+
+//////////////////////////////////////////////////////////////////////////
+// FD3D12Pool
+//////////////////////////////////////////////////////////////////////////
+
+/**
+@brief D3D12 specific implementation of the FRHIMemoryPool
+**/
+class FD3D12MemoryPool : public FRHIMemoryPool, public FD3D12DeviceChild, public FD3D12MultiNodeGPUObject
+{
+public:
+
+	// Constructor
+	FD3D12MemoryPool(FD3D12Device* ParentDevice, FRHIGPUMask VisibleNodes, const FD3D12ResourceInitConfig& InInitConfig, const FString& Name,
+		EResourceAllocationStrategy InAllocationStrategy, int16 InPoolIndex, uint64 InPoolSize, uint32 InPoolAlignment);
+	~FD3D12MemoryPool();
+
+	// Setup/Shutdown
+	virtual void Init() override;
+	virtual void Destroy() override;
+
+	FD3D12Resource* GetBackingResource() { check(AllocationStrategy == EResourceAllocationStrategy::kManualSubAllocation); return BackingResource.GetReference(); }
+	FD3D12Heap* GetBackingHeap() { check(AllocationStrategy == EResourceAllocationStrategy::kPlacedResource); return BackingHeap.GetReference(); }
+
+	uint64 GetLastUsedFrameFence() const { return LastUsedFrameFence; }
+	void UpdateLastUsedFrameFence(uint64 InFrameFence) { LastUsedFrameFence = FMath::Max(LastUsedFrameFence, InFrameFence); }
+
+protected:
+
+	const FD3D12ResourceInitConfig InitConfig;
+	const FString Name;
+	EResourceAllocationStrategy AllocationStrategy;
+
+	// Actual D3D resource - either resource or heap (see EResourceAllocationStrategy)
+	TRefCountPtr<FD3D12Resource> BackingResource;
+	TRefCountPtr<FD3D12Heap> BackingHeap;
+
+	uint64 LastUsedFrameFence;
+};
+
+
+//////////////////////////////////////////////////////////////////////////
+// FD3D12PoolAllocator
+//////////////////////////////////////////////////////////////////////////
+
+/**
+@brief D3D12 specific implementation of the FRHIPoolAllocator
+**/
+class FD3D12PoolAllocator : public FRHIPoolAllocator, public FD3D12DeviceChild, public FD3D12MultiNodeGPUObject
+{
+public:
+
+	// Constructor
+	FD3D12PoolAllocator(FD3D12Device* ParentDevice, FRHIGPUMask VisibleNodes, const FD3D12ResourceInitConfig& InInitConfig, const FString& InName,
+		EResourceAllocationStrategy InAllocationStrategy, uint64 InPoolSize, uint32 InPoolAlignment, uint32 InMaxAllocationSize);
+	~FD3D12PoolAllocator();
+	
+	// Function names currently have to match with FD3D12DefaultBufferPool until we can make full replacement of the allocator
+	bool SupportsAllocation(D3D12_HEAP_TYPE InHeapType, D3D12_RESOURCE_FLAGS InResourceFlags, EBufferUsageFlags InBufferUsage, ED3D12ResourceStateMode InResourceStateMode) const;
+	void AllocDefaultResource(D3D12_HEAP_TYPE InHeapType, const D3D12_RESOURCE_DESC& InDesc, EBufferUsageFlags InBufferUsage, ED3D12ResourceStateMode InResourceStateMode,
+		D3D12_RESOURCE_STATES InCreateState, uint32 InAlignment, const TCHAR* InName, FD3D12ResourceLocation& ResourceLocation);
+	void Deallocate(FD3D12ResourceLocation& ResourceLocation);
+
+	void CleanUpAllocations(uint64 InFrameLag);
+	void FlushPendingCopyOps(FD3D12CommandContext& InCommandContext);
+
+	void TransferOwnership(FD3D12ResourceLocation& InSource, FD3D12ResourceLocation& InDest);
+	bool IsOwner(FD3D12ResourceLocation& ResourceLocation) const { return ResourceLocation.GetPoolAllocator() == this; }
+
+	EResourceAllocationStrategy GetAllocationStrategy() const { return AllocationStrategy; }
+	FD3D12Resource* GetBackingResource(FD3D12ResourceLocation& InResourceLocation) const;
+	FD3D12HeapAndOffset GetBackingHeapAndAllocationOffsetInBytes(FD3D12ResourceLocation& InResourceLocation) const;
+
+	static FD3D12ResourceInitConfig GetResourceAllocatorInitConfig(D3D12_HEAP_TYPE InHeapType, D3D12_RESOURCE_FLAGS InResourceFlags, EBufferUsageFlags InBufferUsage);
+	static EResourceAllocationStrategy GetResourceAllocationStrategy(D3D12_RESOURCE_FLAGS InResourceFlags, ED3D12ResourceStateMode InResourceStateMode);
+	
+protected:
+
+	// Implementation of FRHIPoolAllocator pure virtuals
+	virtual FRHIMemoryPool* CreateNewPool(int16 InPoolIndex) override;
+	virtual bool HandleDefragRequest(FRHIPoolAllocationData* InSourceBlock, FRHIPoolAllocationData& InTmpTargetBlock) override;
+	
+	// Locked allocation data which needs to do something specific at certain frame fence value	
+	struct FrameFencedAllocationData
+	{
+		enum class EOperation
+		{
+			Invalid,
+			Deallocate,
+			Unlock,
+			Nop,
+		};
+
+		EOperation Operation = EOperation::Invalid;
+		FD3D12Resource* PlacedResource = nullptr;
+		uint64 FrameFence = 0;
+		FRHIPoolAllocationData* AllocationData = nullptr;
+	};
+
+	const FD3D12ResourceInitConfig InitConfig;
+	const FString Name;
+	EResourceAllocationStrategy AllocationStrategy;
+
+	// All operations which need to happen on specific frame fences
+	TArray<FrameFencedAllocationData> FrameFencedOperations;
+
+	// Pending copy ops which need to be flush this frame
+	TArray<FD3D12VRAMCopyOperation> PendingCopyOps;
+
+	// Allocation data pool used to reduce allocation overhead
+	TArray<FRHIPoolAllocationData*> AllocationDataPool;
+};
+

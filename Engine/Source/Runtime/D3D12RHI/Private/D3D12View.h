@@ -885,6 +885,11 @@ public:
 		CreateView(Desc, *ResourceLocation);
 	}
 
+	virtual void Recreate(FD3D12ResourceLocation& InResourceLocation) override
+	{
+		Rename(InResourceLocation);
+	}
+
 	FORCEINLINE bool IsDepthStencilResource()	const { return bContainsDepthPlane || bContainsStencilPlane; }
 	FORCEINLINE bool IsDepthPlaneResource()		const { return bContainsDepthPlane; }
 	FORCEINLINE bool IsStencilPlaneResource()	const { return bContainsStencilPlane; }
@@ -909,7 +914,7 @@ public:
 	FD3D12ResourceLocation ViewLocation;
 };
 
-class FD3D12UnorderedAccessView : public FRHIUnorderedAccessView, public FD3D12View < D3D12_UNORDERED_ACCESS_VIEW_DESC >, public FD3D12LinkedAdapterObject<FD3D12UnorderedAccessView>
+class FD3D12UnorderedAccessView : public FD3D12BaseShaderResourceView, public FRHIUnorderedAccessView, public FD3D12View < D3D12_UNORDERED_ACCESS_VIEW_DESC >, public FD3D12LinkedAdapterObject<FD3D12UnorderedAccessView>
 {
 public:
 	TRefCountPtr<FD3D12Resource> CounterResource;
@@ -928,9 +933,23 @@ public:
 		CreateViewWithCounter(InDesc, InResourceLocation, InCounterResource);
 	}
 
+	~FD3D12UnorderedAccessView()
+	{
+		FD3D12BaseShaderResourceView::Remove();
+	}
+
 	void Initialize(D3D12_UNORDERED_ACCESS_VIEW_DESC& InDesc, FD3D12ResourceLocation& InResourceLocation)
 	{
 		CreateViewWithCounter(InDesc, InResourceLocation, nullptr);
+	}
+
+	virtual void Recreate(FD3D12ResourceLocation& InResourceLocation) override
+	{
+		check(ResourceLocation == &InResourceLocation);
+		check(CounterResource == nullptr);
+		check(InResourceLocation.GetOffsetFromBaseOfResource() == 0);
+
+		Initialize(Desc, InResourceLocation);
 	}
 };
 

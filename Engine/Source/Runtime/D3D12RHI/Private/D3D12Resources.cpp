@@ -535,6 +535,7 @@ HRESULT FD3D12Adapter::CreateBuffer(const D3D12_HEAP_PROPERTIES& HeapProps,
 FD3D12ResourceLocation::FD3D12ResourceLocation(FD3D12Device* Parent)
 	: FD3D12DeviceChild(Parent)
 	, Type(ResourceLocationType::eUndefined)
+	, Owner(nullptr)
 	, UnderlyingResource(nullptr)
 	, ResidencyHandle(nullptr)
 	, Allocator(nullptr)
@@ -590,6 +591,11 @@ void FD3D12ResourceLocation::TransferOwnership(FD3D12ResourceLocation& Destinati
 
 	FMemory::Memmove(&Destination, &Source, sizeof(FD3D12ResourceLocation));
 
+	if (Source.GetAllocatorType() == FD3D12ResourceLocation::AT_Pool)
+	{
+		Source.GetPoolAllocator()->TransferOwnership(Source, Destination);
+	}
+
 	// update tracked allocation
 #if !PLATFORM_WINDOWS && ENABLE_LOW_LEVEL_MEM_TRACKER
 	if (Source.GetType() == ResourceLocationType::eSubAllocation && Source.AllocatorType != AT_SegList)
@@ -623,11 +629,18 @@ void FD3D12ResourceLocation::Swap(FD3D12ResourceLocation& Other)
 	}
 #endif
 
+	// Should not be linked list allocated - otherwise internal linked list data needs to be updated as well in a threadsafe way
+	check(Other.GetAllocatorType() != FD3D12ResourceLocation::AT_Pool);
+	check(GetAllocatorType() != FD3D12ResourceLocation::AT_Pool);
+
 	::Swap(*this, Other);
 }
 
 void FD3D12ResourceLocation::Alias(FD3D12ResourceLocation & Destination, FD3D12ResourceLocation & Source)
 {
+	// Should not be linked list allocated - otherwise internal linked list data needs to be updated as well in a threadsafe way
+	check(Source.GetAllocatorType() != FD3D12ResourceLocation::AT_Pool);
+
 	check(Source.GetResource() != nullptr);
 	Destination.Clear();
 
@@ -641,6 +654,8 @@ void FD3D12ResourceLocation::Alias(FD3D12ResourceLocation & Destination, FD3D12R
 
 void FD3D12ResourceLocation::ReferenceNode(FD3D12Device* DestinationDevice, FD3D12ResourceLocation& Destination, FD3D12ResourceLocation& Source)
 {
+	// Should not be linked list allocated - otherwise internal linked list data needs to be updated as well in a threadsafe way
+	check(Source.GetAllocatorType() != FD3D12ResourceLocation::AT_Pool);
 	check(Source.GetResource() != nullptr);
 	Destination.Clear();
 
@@ -684,6 +699,10 @@ void FD3D12ResourceLocation::ReleaseResource()
 				GetResource(),
 				GetSegListAllocatorPrivateData().Offset,
 				GetSize());
+		}
+		else if (AllocatorType == AT_Pool)
+		{
+			PoolAllocator->Deallocate(*this);
 		}
 		else
 		{
@@ -803,6 +822,67 @@ void FD3D12ResourceLocation::AsStandAlone(FD3D12Resource* Resource, uint32 Buffe
 	bool bIncrement = true;
 	UpdateStandAloneStats(bIncrement);
 }
+
+
+bool FD3D12ResourceLocation::OnAllocationMoved(FRHIPoolAllocationData* InNewData)
+{
+	// Assume linked list allocated for now - only defragging allocator
+	FRHIPoolAllocationData& AllocationData = GetPoolAllocatorPrivateData().PoolData;
+	check(InNewData == &AllocationData);
+	check(AllocationData.IsAllocated()); // Should be allocated
+	check(AllocationData.GetSize() == Size); // Same size
+	check(Type == ResourceLocationType::eSubAllocation); // Suballocated
+	check(GetMappedBaseAddress() == nullptr); // And VRAM only
+	
+	// Get the resource and the actual new allocator
+	FD3D12Resource* CurrentResource = GetResource();
+	FD3D12PoolAllocator* NewAllocator = GetPoolAllocator();
+
+	// If sub allocated and not placed only update the internal data
+	if (NewAllocator->GetAllocationStrategy() == EResourceAllocationStrategy::kManualSubAllocation)
+	{
+		check(!CurrentResource->IsPlacedResource());
+
+		OffsetFromBaseOfResource = AllocationData.GetOffset();
+		UnderlyingResource = NewAllocator->GetBackingResource(*this);
+	}
+	else
+	{
+		check(CurrentResource->IsPlacedResource());
+		check(OffsetFromBaseOfResource == 0);
+
+		// recreate the placed resource (ownership of current resource is already handled during the internal move)
+		FD3D12HeapAndOffset HeapAndOffset = NewAllocator->GetBackingHeapAndAllocationOffsetInBytes(*this);
+
+		CResourceState& ResourceState = CurrentResource->GetResourceState();
+		check(ResourceState.AreAllSubresourcesSame());
+		D3D12_RESOURCE_STATES CreateState = ResourceState.GetSubresourceState(0);
+
+		FD3D12Resource* NewResource = nullptr;
+		VERIFYD3D12RESULT(CurrentResource->GetParentDevice()->GetParentAdapter()->CreatePlacedResource(CurrentResource->GetDesc(), HeapAndOffset.Heap, HeapAndOffset.Offset, CreateState, 
+			ED3D12ResourceStateMode::MultiState, D3D12_RESOURCE_STATE_TBD, nullptr, &NewResource, nullptr)); // CurrentResource->GetName()
+
+		UnderlyingResource = NewResource;
+	}
+
+	GPUVirtualAddress = UnderlyingResource->GetGPUVirtualAddress() + OffsetFromBaseOfResource;
+	ResidencyHandle = UnderlyingResource->GetResidencyHandle();
+
+	// Recreate all the views (SRVs and UAVs)
+	Owner->RecreateViews(*this);
+
+	return true;
+}
+
+
+void FD3D12ResourceLocation::UnlockPoolData()
+{
+	if (AllocatorType == AT_Pool)
+	{
+		GetPoolAllocatorPrivateData().PoolData.Unlock();
+	}
+}
+
 
 /////////////////////////////////////////////////////////////////////
 //	FD3D12 Resource Barrier Batcher

@@ -226,7 +226,7 @@ FShaderResourceViewRHIRef FD3D12DynamicRHI::RHICreateShaderResourceView(const FS
 
 					// Create a Shader Resource View
 					SRV->Initialize(SRVDesc, VertexBuffer->ResourceLocation, CreationStride, StartOffsetBytes);
-					VertexBuffer->AddDynamicSRV(SRV);
+					VertexBuffer->AddView(SRV);
 				}
 			};
 
@@ -310,7 +310,7 @@ FShaderResourceViewRHIRef FD3D12DynamicRHI::RHICreateShaderResourceView(const FS
 
 					// Create a Shader Resource View
 					SRV->Initialize(SRVDesc, StructuredBuffer->ResourceLocation, Stride, StartOffsetBytes);
-					StructuredBuffer->AddDynamicSRV(SRV);
+					StructuredBuffer->AddView(SRV);
 				}
 			};
 
@@ -378,7 +378,7 @@ void FD3D12DynamicRHI::RHIUpdateShaderResourceView(FRHIShaderResourceView* SRV, 
 
 			FD3D12Device* ParentDevice = Buffer->GetParentDevice();
 			SRVD3D12->Initialize(ParentDevice, SRVDesc, Buffer->ResourceLocation, Stride);
-			Buffer->AddDynamicSRV(SRVD3D12);
+			Buffer->AddView(SRVD3D12);
 		}
 	}
 }

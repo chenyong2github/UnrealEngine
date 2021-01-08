@@ -61,6 +61,8 @@ extern int32 GDX12NVAfterMathTrackResources;
 extern int32 GDX12NVAfterMathMarkers;
 #endif
 
+#define USE_BUCKET_ALLOCATOR 0
+
 #include "D3D12Residency.h"
 
 // D3D RHI public headers.

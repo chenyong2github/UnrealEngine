@@ -329,7 +329,7 @@ protected:
 		D3D12_RESOURCE_STATES InCreateState,
 		FRHIResourceCreateInfo& CreateInfo,
 		uint32 Alignment,
-		FD3D12TransientResource& TransientResource,
+		FD3D12Buffer* Buffer,
 		FD3D12ResourceLocation& ResourceLocation);
 
 	// Creates default root and execute indirect signatures

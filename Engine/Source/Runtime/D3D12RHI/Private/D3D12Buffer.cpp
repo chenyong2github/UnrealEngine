@@ -128,6 +128,9 @@ struct FD3D12RHICommandInitializeBuffer final : public FRHICommand<FD3D12RHIComm
 
 				hCommandList.UpdateResidency(SrcResourceLoc.GetResource());
 			}
+
+			// Buffer is now written and ready, so unlock the block (locked after creation and can be defragmented if needed)
+			CurrentBuffer->ResourceLocation.UnlockPoolData();
 		}
 	}
 };
@@ -140,7 +143,7 @@ void FD3D12Adapter::AllocateBuffer(FD3D12Device* Device,
 	D3D12_RESOURCE_STATES InCreateState,
 	FRHIResourceCreateInfo& CreateInfo,
 	uint32 Alignment,
-	FD3D12TransientResource& TransientResource,
+	FD3D12Buffer* Buffer,
 	FD3D12ResourceLocation& ResourceLocation)
 {
 	// Explicitly check that the size is nonzero before allowing CreateBuffer to opaquely fail.
@@ -167,6 +170,7 @@ void FD3D12Adapter::AllocateBuffer(FD3D12Device* Device,
 	else
 	{
 		Device->GetDefaultBufferAllocator().AllocDefaultResource(D3D12_HEAP_TYPE_DEFAULT, InDesc, (EBufferUsageFlags)InUsage, InResourceStateMode, InCreateState, ResourceLocation, Alignment, CreateInfo.DebugName);
+		ResourceLocation.SetOwner(Buffer);
 		check(ResourceLocation.GetSize() == Size);
 	}
 }
@@ -206,7 +210,7 @@ FD3D12Buffer* FD3D12Adapter::CreateRHIBuffer(FRHICommandListImmediate* RHICmdLis
 
 			if (Device->GetGPUIndex() == FirstGPUIndex)
 			{
-				AllocateBuffer(Device, InDesc, Size, InUsage, InResourceStateMode, InitialState, CreateInfo, Alignment, *NewBuffer, NewBuffer->ResourceLocation);
+				AllocateBuffer(Device, InDesc, Size, InUsage, InResourceStateMode, InitialState, CreateInfo, Alignment, NewBuffer, NewBuffer->ResourceLocation);
 				NewBuffer0 = NewBuffer;
 			}
 			else
@@ -228,7 +232,13 @@ FD3D12Buffer* FD3D12Adapter::CreateRHIBuffer(FRHICommandListImmediate* RHICmdLis
 			FD3D12Buffer* NewBuffer = new FD3D12Buffer(Device, Size, InUsage, Stride);
 			NewBuffer->BufferAlignment = Alignment;
 
-			AllocateBuffer(Device, InDesc, Size, InUsage, InResourceStateMode, CreateState, CreateInfo, Alignment, *NewBuffer, NewBuffer->ResourceLocation);
+			AllocateBuffer(Device, InDesc, Size, InUsage, InResourceStateMode, CreateState, CreateInfo, Alignment, NewBuffer, NewBuffer->ResourceLocation);
+
+			// Unlock immediately if no initial data
+			if (CreateInfo.ResourceArray == nullptr)
+			{
+				NewBuffer->ResourceLocation.UnlockPoolData();
+			}
 
 			return NewBuffer;
 		});
@@ -310,13 +320,7 @@ FD3D12Buffer* FD3D12Adapter::CreateRHIBuffer(FRHICommandListImmediate* RHICmdLis
 void FD3D12Buffer::Rename(FD3D12ResourceLocation& NewLocation)
 {
 	FD3D12ResourceLocation::TransferOwnership(ResourceLocation, NewLocation);
-
-	FScopeLock Lock(&DynamicSRVsCS);
-	for (FD3D12BaseShaderResourceView* DynamicSRVBase : DynamicSRVs)
-	{
-		FD3D12ShaderResourceView* DynamicSRV = static_cast<FD3D12ShaderResourceView*>(DynamicSRVBase);
-		DynamicSRV->Rename(ResourceLocation);
-	}
+	RecreateViews(ResourceLocation);
 }
 
 void FD3D12Buffer::RenameLDAChain(FD3D12ResourceLocation& NewLocation)
@@ -335,13 +339,7 @@ void FD3D12Buffer::RenameLDAChain(FD3D12ResourceLocation& NewLocation)
 		for (auto NextBuffer = ++FLinkedObjectIterator(this); NextBuffer; ++NextBuffer)
 		{
 			FD3D12ResourceLocation::ReferenceNode(NextBuffer->GetParentDevice(), NextBuffer->ResourceLocation, ResourceLocation);
-
-			FScopeLock Lock(&NextBuffer->DynamicSRVsCS);
-			for (FD3D12BaseShaderResourceView* DynamicSRVBase : NextBuffer->DynamicSRVs)
-			{
-				FD3D12ShaderResourceView* DynamicSRV = static_cast<FD3D12ShaderResourceView*>(DynamicSRVBase);
-				DynamicSRV->Rename(NextBuffer->ResourceLocation);
-			}
+			NextBuffer->RecreateViews(NextBuffer->ResourceLocation);
 		}
 	}
 }
@@ -362,7 +360,7 @@ void FD3D12Buffer::ReleaseUnderlyingResource()
 	{
 		check(!NextBuffer->LockedData.bLocked && NextBuffer->ResourceLocation.IsValid());
 		NextBuffer->ResourceLocation.Clear();
-		NextBuffer->RemoveAllDynamicSRVs();
+		NextBuffer->RemoveAllViews();
 	}
 }
 

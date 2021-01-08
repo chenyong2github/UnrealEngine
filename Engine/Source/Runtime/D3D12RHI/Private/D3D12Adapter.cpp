@@ -869,7 +869,7 @@ void FD3D12Adapter::InitializeDevices()
 			UploadHeapAllocator[GPUIndex] = new FD3D12DynamicHeapAllocator(this,
 				Devices[GPUIndex],
 				Name,
-				FD3D12BuddyAllocator::EAllocationStrategy::kManualSubAllocation,
+				EResourceAllocationStrategy::kManualSubAllocation,
 				DEFAULT_CONTEXT_UPLOAD_POOL_MAX_ALLOC_SIZE,
 				DEFAULT_CONTEXT_UPLOAD_POOL_SIZE,
 				DEFAULT_CONTEXT_UPLOAD_POOL_ALIGNMENT);
