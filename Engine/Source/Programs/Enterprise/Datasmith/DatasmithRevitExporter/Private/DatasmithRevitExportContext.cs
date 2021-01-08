@@ -423,10 +423,7 @@ namespace DatasmithRevitExporter
 				return;
 			}
 
-			int CurrentMaterialIndex;
-			string CurrentMaterialName;
-			GetCurrentMaterialSlotInfo(out CurrentMaterialName, out CurrentMaterialIndex);
-			GetCurrentMeshElement().SetMaterial(CurrentMaterialName, CurrentMaterialIndex);
+			int CurrentMaterialIndex = DocumentDataStack.Peek().GetCurrentMaterialIndex();
 
 			FDocumentData.FDatasmithPolymesh CurrentMesh = GetCurrentPolymesh();
 
@@ -724,11 +721,6 @@ namespace DatasmithRevitExporter
 		private Transform GetCurrentMeshPointsTransform()
 		{
 			return DocumentDataStack.Peek().GetCurrentMeshPointsTransform();
-		}
-
-		private void GetCurrentMaterialSlotInfo(out string OutMaterialName, out int OutMaterialIndex)
-		{
-			DocumentDataStack.Peek().GetCurrentMaterialSlotInfo(out OutMaterialName, out OutMaterialIndex);
 		}
 
 		private void AddCameraActor(
