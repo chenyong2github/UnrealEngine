@@ -11,6 +11,7 @@
 #include "Curves/RealCurve.h"
 
 struct FEasingAreaHandle;
+struct FSequencerSelectedKey;
 class FMenuBuilder;
 class UMovieSceneSection;
 
@@ -157,6 +158,7 @@ private:
 
 	FPasteContextMenu(FSequencer& InSequencer, const FPasteContextMenuArgs& InArgs)
 		: Sequencer(StaticCastSharedRef<FSequencer>(InSequencer.AsShared()))
+		, bPasteFirstOnly(true)
 		, Args(InArgs)
 	{}
 
@@ -164,7 +166,9 @@ private:
 
 	void AddPasteMenuForTrackType(FMenuBuilder& MenuBuilder, int32 DestinationIndex);
 
-	void PasteInto(int32 DestinationIndex, FName KeyAreaName);
+	void BeginPasteInto();
+	bool PasteInto(int32 DestinationIndex, FName KeyAreaName, TSet<FSequencerSelectedKey>& NewSelection);
+	void EndPasteInto(bool bAnythingPasted, const TSet<FSequencerSelectedKey>& NewSelection);
 
 	void GatherPasteDestinationsForNode(FSequencerDisplayNode& InNode, UMovieSceneSection* InSection, const FName& CurrentScope, TMap<FName, FSequencerClipboardReconciler>& Map);
 
@@ -178,6 +182,8 @@ private:
 		TMap<FName, FSequencerClipboardReconciler> Reconcilers;
 	};
 	TArray<FPasteDestination> PasteDestinations;
+
+	bool bPasteFirstOnly;
 
 	/** Paste arguments */
 	FPasteContextMenuArgs Args;

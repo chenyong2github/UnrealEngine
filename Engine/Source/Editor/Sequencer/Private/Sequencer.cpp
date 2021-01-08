@@ -8220,6 +8220,7 @@ void FSequencer::ImportObjectBindingsFromText(const FString& TextToImport, /*out
 	TempPackage->RemoveFromRoot();
 }
 
+TArray<TSharedPtr<FMovieSceneClipboard>> GClipboardStack;
 
 void FSequencer::CopySelectedObjects(TArray<TSharedPtr<FSequencerObjectBindingNode>>& ObjectNodes, FString& ExportedText)
 {
@@ -8285,7 +8286,13 @@ void FSequencer::CopySelectedObjects(TArray<TSharedPtr<FSequencerObjectBindingNo
 		}
 	}
 
-	ExportObjectBindingsToText(CopyableBindings, /*out*/ ExportedText);
+	if (CopyableBindings.Num() > 0)
+	{
+		ExportObjectBindingsToText(CopyableBindings, /*out*/ ExportedText);
+
+		// Make sure to clear the clipboard for the keys
+		GClipboardStack.Empty();
+	}
 }
 
 
@@ -8336,6 +8343,9 @@ void FSequencer::CopySelectedTracks(TArray<TSharedPtr<FSequencerTrackNode>>& Tra
 	if (CopyableObjects.Num())
 	{
 		ExportObjectsToText(CopyableObjects, /*out*/ ExportedText);
+
+		// Make sure to clear the clipboard for the keys
+		GClipboardStack.Empty();
 	}
 }
 
@@ -11014,8 +11024,6 @@ void FSequencer::StepToPreviousMark()
 }
 
 
-TArray<TSharedPtr<FMovieSceneClipboard>> GClipboardStack;
-
 void FSequencer::CopySelection()
 {
 	if (Selection.GetSelectedKeys().Num() != 0)
@@ -11199,6 +11207,9 @@ void FSequencer::CopySelectedKeys()
 			GClipboardStack.RemoveAt(0, 1);
 		}
 	}
+
+	// Make sure to clear the clipboard for the sections/tracks/bindings
+	FPlatformApplicationMisc::ClipboardCopy(TEXT(""));
 }
 
 void FSequencer::CutSelectedKeys()
@@ -11223,6 +11234,9 @@ void FSequencer::CopySelectedSections()
 	FString ExportedText;
 	FSequencer::ExportObjectsToText(SelectedSections, /*out*/ ExportedText);
 	FPlatformApplicationMisc::ClipboardCopy(*ExportedText);
+
+	// Make sure to clear the clipboard for the keys
+	GClipboardStack.Empty();
 }
 
 void FSequencer::CutSelectedSections()
