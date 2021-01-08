@@ -1909,21 +1909,23 @@ void NiagaraEmitterInstanceBatcher::Run(const FNiagaraGPUSystemTick& Tick, const
 		FIntVector4 SimulationStageIterationInfo = { INDEX_NONE, -1, 0, 0 };
 		float SimulationStageNormalizedIterationIndex = 0.0f;
 
-		if (IterationInterface)
+		if (IterationInterface != nullptr)
 		{
 			const uint32 IterationInstanceCountOffset = IterationInterface->GetGPUInstanceCountOffset(Tick.SystemInstanceID);
 			SimulationStageIterationInfo.X = IterationInstanceCountOffset;
 			SimulationStageIterationInfo.Y = IterationInstanceCountOffset == INDEX_NONE ? TotalNumInstances : 0;
-			if (const FSimulationStageMetaData* StageMetaData = Instance->SimStageData[SimulationStageIndex].StageMetaData)
-			{
-				const int32 NumStages = StageMetaData->MaxStage - StageMetaData->MinStage;
-				ensure((int32(SimulationStageIndex) >= StageMetaData->MinStage) && (int32(SimulationStageIndex) < StageMetaData->MaxStage));
-				const int32 IterationIndex = SimulationStageIndex - StageMetaData->MinStage;
-				SimulationStageIterationInfo.Z = SimulationStageIndex - StageMetaData->MinStage;
-				SimulationStageIterationInfo.W = NumStages;
-				SimulationStageNormalizedIterationIndex = NumStages > 1 ? float(IterationIndex) / float(NumStages - 1) : 1.0f;
-			}
 		}
+
+		if (const FSimulationStageMetaData* StageMetaData = Instance->SimStageData[SimulationStageIndex].StageMetaData)
+		{
+			const int32 NumStages = StageMetaData->MaxStage - StageMetaData->MinStage;
+			ensure((int32(SimulationStageIndex) >= StageMetaData->MinStage) && (int32(SimulationStageIndex) < StageMetaData->MaxStage));
+			const int32 IterationIndex = SimulationStageIndex - StageMetaData->MinStage;
+			SimulationStageIterationInfo.Z = SimulationStageIndex - StageMetaData->MinStage;
+			SimulationStageIterationInfo.W = NumStages;
+			SimulationStageNormalizedIterationIndex = NumStages > 1 ? float(IterationIndex) / float(NumStages - 1) : 1.0f;
+		}
+
 		SetShaderValue(RHICmdList, ComputeShader, Shader->SimulationStageIterationInfoParam, SimulationStageIterationInfo);
 		SetShaderValue(RHICmdList, ComputeShader, Shader->SimulationStageNormalizedIterationIndexParam, SimulationStageNormalizedIterationIndex);
 	}
