@@ -80,7 +80,6 @@ protected:
 	static void OnOpenSubLevelBlueprint( ULevel* InLevel );
 
 private:
-
 	static void RegisterSourceControlMenu();
 	static void RegisterCinematicsMenu();
 
