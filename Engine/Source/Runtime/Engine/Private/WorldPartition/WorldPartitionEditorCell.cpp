@@ -40,15 +40,7 @@ void UWorldPartitionEditorCell::RemoveActor(const FWorldPartitionHandle& ActorHa
 {
 	check(ActorHandle.IsValid());
 	verify(Actors.Remove(ActorHandle));
-
-	if (ActorHandle.IsLoaded())
-	{
-		verify(LoadedActors.Remove(ActorHandle));
-	}
-	else
-	{
-		check(!LoadedActors.Contains(ActorHandle));
-	}
+	LoadedActors.Remove(ActorHandle);
 }
 #endif
 
