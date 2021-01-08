@@ -135,10 +135,10 @@ struct FMulticastRecordOptions
 	FString FuncPathName;
 
 	UPROPERTY()
-	bool bServerSkip;
+	bool bServerSkip = false;
 
 	UPROPERTY()
-	bool bClientSkip;
+	bool bClientSkip = false;
 };
 
 /**
