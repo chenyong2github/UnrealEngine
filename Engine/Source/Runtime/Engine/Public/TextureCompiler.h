@@ -4,8 +4,7 @@
 #include "CoreMinimal.h"
 #include "UObject/WeakObjectPtr.h"
 #include "Containers/Set.h"
-#include "Tickable.h"
-#include "Stats/Stats.h"
+#include "AsyncCompilationHelpers.h"
 
 #if WITH_EDITOR
 
@@ -31,12 +30,12 @@ public:
 	/** 
 	 * Adds textures compiled asynchronously so they are monitored. 
 	 */
-	ENGINE_API void AddTextures(const TArray<UTexture*>& InTextures);
+	ENGINE_API void AddTextures(TArrayView<UTexture* const> InTextures);
 
 	/** 
 	 * Blocks until completion of the requested textures.
 	 */
-	ENGINE_API void FinishCompilation(const TArray<UTexture*>& InTextures);
+	ENGINE_API void FinishCompilation(TArrayView<UTexture* const> InTextures);
 
 	/** 
 	 * Blocks until completion of all async texture compilation.
@@ -68,19 +67,24 @@ public:
 	 */
 	ENGINE_API void Shutdown();
 
-	/** Called once per frame, fetches completed tasks and applies them to the scene. */
-	ENGINE_API void ProcessAsyncTasks(bool bLimitExecutionTime = false);
 
 private:
 	friend class FAssetCompilingManager;
-	bool bHasShutdown = false;
-	TArray<TSet<TWeakObjectPtr<UTexture>>> RegisteredTextureBuckets;
 
-	void PostTextureCompilation(const TSet<UTexture*>& InCompiledTextures);
+	FTextureCompilingManager();
+	
+	void ProcessAsyncTasks(bool bLimitExecutionTime = false);
+	
 	void FinishCompilationsForGame();
 	void ProcessTextures(bool bLimitExecutionTime, int32 MaximumPriority = -1);
 	void UpdateCompilationNotification();
-	void FinishTextureCompilation(UTexture* Texture);
+	
+	void PostCompilation(UTexture* Texture);
+	void PostCompilation(TArrayView<UTexture* const> InCompiledTextures);
+
+	bool bHasShutdown = false;
+	TArray<TSet<TWeakObjectPtr<UTexture>>> RegisteredTextureBuckets;
+	FAsyncCompilationNotification Notification;
 };
 
 #endif

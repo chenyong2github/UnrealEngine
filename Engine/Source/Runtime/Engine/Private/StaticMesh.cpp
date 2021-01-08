@@ -66,9 +66,6 @@
 #include "TessellationRendering.h"
 #include "Misc/MessageDialog.h"
 #include "StaticMeshCompiler.h"
-#include "HAL/PlatformStackWalk.h"
-#include "Hash/CityHash.h"
-#include "Misc/ScopeRWLock.h"
 #include "AssetCompilingManager.h"
 #endif // #if WITH_EDITOR
 
@@ -2857,82 +2854,6 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 #if WITH_EDITOR
 
-namespace StaticMeshImpl
-{
-	struct FStackData
-	{
-		static const uint32 MaxDepth = 24;
-		uint64 Backtrace[MaxDepth]{0};
-		uint64 Cycles = 0;
-		int64  Count  = 0;
-	};
-
-	static FRWLock                  BackTracesLock;
-	static TMap<uint64, FStackData> BackTraces;
-
-	void SaveStack(uint64 Cycles)
-	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(StaticMeshImpl::SaveStackHash);
-		
-		uint64 Backtrace[FStackData::MaxDepth];
-		const uint32 Depth = FPlatformStackWalk::CaptureStackBackTrace(Backtrace, FStackData::MaxDepth);
-		const uint64 StackHash = CityHash64(reinterpret_cast<const char*>(Backtrace), Depth * sizeof(Backtrace[0]));
-
-		// We're already in an editor-only slow path, we don't mind the locking performance.
-		FRWScopeLock Scope(BackTracesLock, SLT_Write);
-		FStackData& StackData = BackTraces.FindOrAdd(StackHash);
-		if (StackData.Count++ == 0)
-		{
-			FPlatformMemory::Memcpy(StackData.Backtrace, Backtrace, sizeof(StackData.Backtrace));
-		}
-		StackData.Cycles += Cycles;
-	}
-
-	void DumpStallStacks()
-	{
-		FRWScopeLock Scope(BackTracesLock, SLT_Write);
-		TArray<FStackData*> Stacks;
-		for (TPair<uint64, FStackData>& Pair : BackTraces)
-		{
-			Stacks.Add(&Pair.Value);
-		}
-		
-		Algo::SortBy(Stacks, [](const FStackData* StackData) { return StackData->Cycles; });
-
-		const int32 HumanReadableStringSize = 4096;
-		ANSICHAR HumanReadableString[HumanReadableStringSize];
-
-		int64 TotalCount = 0;
-		uint64 TotalCycles = 0;
-		for (FStackData* StackData : Stacks)
-		{
-			HumanReadableString[0] = '\0';
-
-			// Start at index 2 to Skip both the CaptureBackTrace and this function
-			for (int32 Index = 2; Index < FStackData::MaxDepth && StackData->Backtrace[Index]; ++Index)
-			{
-				FPlatformStackWalk::ProgramCounterToHumanReadableString(Index, StackData->Backtrace[Index], HumanReadableString, HumanReadableStringSize);
-				FCStringAnsi::Strncat(HumanReadableString, LINE_TERMINATOR_ANSI, HumanReadableStringSize);
-			}
-
-			TotalCount += StackData->Count;
-			TotalCycles += StackData->Cycles;
-			UE_LOG(LogStaticMesh, Display, TEXT("StaticMesh Stall Stack: (count: %llu, time: %s)\n%s"), StackData->Count, *FPlatformTime::PrettyTime(FPlatformTime::ToSeconds64(StackData->Cycles)), ANSI_TO_TCHAR(HumanReadableString));
-		}
-
-		UE_LOG(LogStaticMesh, Display, TEXT("StaticMesh Total Stalls: (count: %llu, time: %s)"), TotalCount, *FPlatformTime::PrettyTime(FPlatformTime::ToSeconds64(TotalCycles)));
-	}
-}
-
-static FAutoConsoleCommand CVarAsyncStaticMeshDumpStallStacks(
-	TEXT("Editor.AsyncStaticMeshDumpStallStacks"),
-	TEXT("Dump all the callstacks that have caused waits on async static mesh compilation."),
-	FConsoleCommandWithArgsDelegate::CreateLambda([](const TArray<FString>& Args)
-	{
-		StaticMeshImpl::DumpStallStacks();
-	})
-);
-
 thread_local const UStaticMesh* FStaticMeshAsyncBuildScope::StaticMeshBeingAsyncCompiled = nullptr;
 
 void UStaticMesh::WaitUntilAsyncPropertyReleased(EStaticMeshAsyncProperties AsyncProperties) const
@@ -2949,13 +2870,13 @@ void UStaticMesh::WaitUntilAsyncPropertyReleased(EStaticMeshAsyncProperties Asyn
 				Verbose,
 				TEXT("Accessing property %s of the StaticMesh while it is still being built asynchronously will force it to be compiled before continuing. "
 					 "For better performance, consider making the caller async aware so it can wait until the static mesh is ready to access this property."
-					 "To better understand where those calls are coming from, you can use Editor.AsyncStaticMeshDumpStallStacks on the console." ),
+					 "To better understand where those calls are coming from, you can use Editor.AsyncAssetDumpStallStacks on the console." ),
 				ToString(AsyncProperties)
 			);
 
 			uint64 StartTime = FPlatformTime::Cycles64();
 			FStaticMeshCompilingManager::Get().FinishCompilation({ const_cast<UStaticMesh*>(this) });
-			StaticMeshImpl::SaveStack(FPlatformTime::Cycles64() - StartTime);
+			AsyncCompilationHelpers::SaveStallStack(FPlatformTime::Cycles64() - StartTime);
 		}
 		else
 		{

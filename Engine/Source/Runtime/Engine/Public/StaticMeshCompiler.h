@@ -4,8 +4,7 @@
 #include "CoreMinimal.h"
 #include "UObject/WeakObjectPtr.h"
 #include "Containers/Set.h"
-#include "Tickable.h"
-#include "Stats/Stats.h"
+#include "AsyncCompilationHelpers.h"
 
 #if WITH_EDITOR
 
@@ -34,12 +33,12 @@ public:
 	/** 
 	 * Adds static meshes compiled asynchronously so they are monitored. 
 	 */
-	ENGINE_API void AddStaticMeshes(const TArray<UStaticMesh*>& InStaticMeshes);
+	ENGINE_API void AddStaticMeshes(TArrayView<UStaticMesh* const> InStaticMeshes);
 
 	/** 
 	 * Blocks until completion of the requested static meshes.
 	 */
-	ENGINE_API void FinishCompilation(const TArray<UStaticMesh*>& InStaticMeshes);
+	ENGINE_API void FinishCompilation(TArrayView<UStaticMesh* const> InStaticMeshes);
 
 	/** 
 	 * Blocks until completion of all async static mesh compilation.
@@ -66,20 +65,25 @@ public:
 	 */
 	ENGINE_API void Shutdown();
 
-	/** Called once per frame, fetches completed tasks and applies them to the scene. */
-	ENGINE_API void ProcessAsyncTasks(bool bLimitExecutionTime = false);
-
 private:
 	friend class FAssetCompilingManager;
-	
+
+	FStaticMeshCompilingManager();
+
+	/** Called once per frame, fetches completed tasks and applies them to the scene. */
+	void ProcessAsyncTasks(bool bLimitExecutionTime = false);
+
 	bool bHasShutdown = false;
 	TSet<TWeakObjectPtr<UStaticMesh>> RegisteredStaticMesh;
+	FAsyncCompilationNotification Notification;
+
 	void FinishCompilationsForGame();
 	void Reschedule();
 	void ProcessStaticMeshes(bool bLimitExecutionTime, int32 MinBatchSize = 1);
 	void UpdateCompilationNotification();
-	void PostStaticMeshesCompilation(const TSet<UStaticMesh*>& InStaticMeshes);
-	void FinishStaticMeshCompilation(UStaticMesh* StaticMesh);
+
+	void PostCompilation(TArrayView<UStaticMesh* const> InStaticMeshes);
+	void PostCompilation(UStaticMesh* StaticMesh);
 };
 
 #endif // #if WITH_EDITOR

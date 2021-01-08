@@ -39,7 +39,7 @@
 #include "Streaming/Texture2DMipDataProvider_DDC.h"
 #include "Streaming/Texture2DMipDataProvider_IO.h"
 #include "Engine/TextureMipDataProviderFactory.h"
-
+#include "AsyncCompilationHelpers.h"
 #include "Async/AsyncFileHandle.h"
 #include "EngineModule.h"
 #include "Engine/Texture2DArray.h"
@@ -272,7 +272,9 @@ const FTexturePlatformData* UTexture2D::GetPlatformData() const
 		FText Msg = FText::Format(LOCTEXT("WaitOnTextureCompilation", "Waiting on texture compilation (%s) ..."), FText::FromString(GetName()));
 		FScopedSlowTask Progress(1.f, Msg, true);
 		Progress.MakeDialog(true);
+		uint64 StartTime = FPlatformTime::Cycles64();
 		PrivatePlatformData->FinishCache();
+		AsyncCompilationHelpers::SaveStallStack(FPlatformTime::Cycles64() - StartTime);
 	}
 #endif
 

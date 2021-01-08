@@ -18,6 +18,26 @@ enum class EQueuedWorkPriority : uint8
 	Count
 };
 
+constexpr inline const TCHAR* LexToString(EQueuedWorkPriority Priority)
+{
+	switch (Priority)
+	{
+	case EQueuedWorkPriority::Highest:
+		return TEXT("Highest");
+	case EQueuedWorkPriority::High:
+		return TEXT("High");
+	case EQueuedWorkPriority::Normal:
+		return TEXT("Normal");
+	case EQueuedWorkPriority::Low:
+		return TEXT("Low");
+	case EQueuedWorkPriority::Lowest:
+		return TEXT("Lowest");
+	default:
+		check(false);
+		return TEXT("Unknown");
+	}
+}
+
 /** 
  *  Priority Queue tailored for FQueuedThreadPool implementation
  *

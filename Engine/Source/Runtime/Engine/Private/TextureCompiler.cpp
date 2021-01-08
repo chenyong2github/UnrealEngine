@@ -6,9 +6,7 @@
 
 #include "Engine/Texture.h"
 #include "ObjectCacheContext.h"
-#include "Framework/Notifications/NotificationManager.h"
 #include "Settings/EditorExperimentalSettings.h"
-#include "Widgets/Notifications/SNotificationList.h"
 #include "Misc/QueuedThreadPoolWrapper.h"
 #include "RendererInterface.h"
 #include "EngineModule.h"
@@ -20,41 +18,21 @@
 #include "TextureDerivedDataTask.h"
 #include "Misc/IQueuedWork.h"
 #include "Components/PrimitiveComponent.h"
+#include "AsyncCompilationHelpers.h"
 #include "AssetCompilingManager.h"
 #include "LevelEditor.h"
 
 #define LOCTEXT_NAMESPACE "TextureCompiler"
 
-static TAutoConsoleVariable<int32> CVarAsyncTextureCompilation(
-	TEXT("Editor.AsyncTextureCompilation"),
-	0,
-	TEXT("0 - Async texture compilation is disabled.\n")
-	TEXT("1 - Async texture compilation is enabled.\n")
-	TEXT("2 - Async texture compilation is enabled but on pause (for debugging).\n")
-	TEXT("When enabled, textures will be replaced by placeholders until they are ready\n")
-	TEXT("to reduce stalls on the game thread and improve overall editor performance."),
-	ECVF_Default);
-
-static TAutoConsoleVariable<int32> CVarAsyncTextureCompilationMaxConcurrency(
-	TEXT("Editor.AsyncTextureCompilationMaxConcurrency"),
-	-1,
-	TEXT("Set the maximum number of concurrent texture compilation, -1 for unlimited."),
-	ECVF_Default);
-
-static FAutoConsoleCommand CVarAsyncTextureCompilationFinishAll(
-	TEXT("Editor.AsyncTextureCompilationFinishAll"),
-	TEXT("Finish all texture compilations"),
-	FConsoleCommandWithArgsDelegate::CreateLambda([](const TArray<FString>& Args)
-	{
-		FTextureCompilingManager::Get().FinishAllCompilation();
-	})
-);
-
-static TAutoConsoleVariable<int32> CVarAsyncTextureCompilationResume(
-	TEXT("Editor.AsyncTextureCompilationResume"),
-	0,
-	TEXT("Number of queued work to resume while paused."),
-	ECVF_Default);
+static AsyncCompilationHelpers::FAsyncCompilationStandardCVars CVarAsyncTextureStandard(
+	TEXT("Texture"),
+	TEXT("textures"),
+	FConsoleCommandDelegate::CreateLambda(
+		[]()
+		{
+			FTextureCompilingManager::Get().FinishAllCompilation();
+		}
+	));
 
 namespace TextureCompilingManagerImpl
 {
@@ -81,25 +59,6 @@ namespace TextureCompilingManagerImpl
 		return (EQueuedWorkPriority)(FMath::Max((uint8)1, (uint8)GetBasePriority(InTexture)) - 1);
 	}
 
-	static const TCHAR* GetPriorityName(EQueuedWorkPriority Priority)
-	{
-		switch (Priority)
-		{
-			case EQueuedWorkPriority::Highest:
-				return TEXT("Highest");
-			case EQueuedWorkPriority::High:
-				return TEXT("High");
-			case EQueuedWorkPriority::Normal:
-				return TEXT("Normal");
-			case EQueuedWorkPriority::Low:
-				return TEXT("Low");
-			case EQueuedWorkPriority::Lowest:
-				return TEXT("Lowest");
-			default:
-				return TEXT("Unknown");
-		}
-	}
-
 	static void EnsureInitializedCVars()
 	{
 		static bool bIsInitialized = false;
@@ -107,47 +66,47 @@ namespace TextureCompilingManagerImpl
 		if (!bIsInitialized)
 		{
 			bIsInitialized = true;
-			GetMutableDefault<UEditorExperimentalSettings>()->OnSettingChanged().AddLambda(
-				[](FName Name)
-				{
-					if (Name == TEXT("bEnableAsyncTextureCompilation"))
-					{
-						CVarAsyncTextureCompilation->Set(GetDefault<UEditorExperimentalSettings>()->bEnableAsyncTextureCompilation ? 1 : 0, ECVF_SetByProjectSetting);
-					}
-				}
-			);
 
-			CVarAsyncTextureCompilation->Set(GetDefault<UEditorExperimentalSettings>()->bEnableAsyncTextureCompilation ? 1 : 0, ECVF_SetByProjectSetting);
-
-			FString Value;
-			if (FParse::Value(FCommandLine::Get(), TEXT("-asynctexturecompilation="), Value))
-			{
-				int32 AsyncTextureCompilationValue = 0;
-				if (Value == TEXT("1") || Value == TEXT("on"))
-				{
-					AsyncTextureCompilationValue = 1;
-				}
-
-				if (Value == TEXT("2") || Value == TEXT("paused"))
-				{
-					AsyncTextureCompilationValue = 2;
-				}
-
-				CVarAsyncTextureCompilation->Set(AsyncTextureCompilationValue, ECVF_SetByCommandline);
-			}
-
-			int32 MaxConcurrency = -1;
-			if (FParse::Value(FCommandLine::Get(), TEXT("-asynctexturecompilationmaxconcurrency="), MaxConcurrency))
-			{
-				CVarAsyncTextureCompilationMaxConcurrency->Set(MaxConcurrency, ECVF_SetByCommandline);
-			}
+			AsyncCompilationHelpers::EnsureInitializedCVars(
+				TEXT("texture"),
+				CVarAsyncTextureStandard.AsyncCompilation,
+				CVarAsyncTextureStandard.AsyncCompilationMaxConcurrency,
+				GET_MEMBER_NAME_CHECKED(UEditorExperimentalSettings, bEnableAsyncTextureCompilation));
 		}
 	}
+}
+
+FTextureCompilingManager::FTextureCompilingManager()
+	: Notification(LOCTEXT("Textures", "Textures"))
+{
 }
 
 EQueuedWorkPriority FTextureCompilingManager::GetBasePriority(UTexture* InTexture) const
 {
 	return TextureCompilingManagerImpl::GetBasePriority(InTexture);
+}
+
+FQueuedThreadPool* FTextureCompilingManager::GetThreadPool() const
+{
+	static FQueuedThreadPoolWrapper* GTextureThreadPool = nullptr;
+	if (GTextureThreadPool == nullptr)
+	{
+		TextureCompilingManagerImpl::EnsureInitializedCVars();
+
+		const auto TexturePriorityMapper = [](EQueuedWorkPriority TexturePriority) { return FMath::Max(TexturePriority, EQueuedWorkPriority::Low); };
+
+		// Textures will be scheduled on the asset thread pool, where concurrency limits might by dynamically adjusted depending on memory constraints.
+		GTextureThreadPool = new FQueuedThreadPoolWrapper(FAssetCompilingManager::Get().GetThreadPool(), -1, TexturePriorityMapper);
+
+		AsyncCompilationHelpers::BindThreadPoolToCVar(
+			GTextureThreadPool,
+			CVarAsyncTextureStandard.AsyncCompilation,
+			CVarAsyncTextureStandard.AsyncCompilationResume,
+			CVarAsyncTextureStandard.AsyncCompilationMaxConcurrency
+		);
+	}
+
+	return GTextureThreadPool;
 }
 
 void FTextureCompilingManager::Shutdown()
@@ -179,65 +138,6 @@ void FTextureCompilingManager::Shutdown()
 	}
 }
 
-FQueuedThreadPool* FTextureCompilingManager::GetThreadPool() const
-{
-	static FQueuedThreadPoolWrapper* GTextureThreadPool = nullptr;
-	if (GTextureThreadPool == nullptr)
-	{
-		TextureCompilingManagerImpl::EnsureInitializedCVars();
-
-		const auto TexturePriorityMapper = [](EQueuedWorkPriority TexturePriority) { return FMath::Max(TexturePriority, EQueuedWorkPriority::Low); };
-		const int32 MaxConcurrency = CVarAsyncTextureCompilationMaxConcurrency.GetValueOnAnyThread();
-
-		// Textures will be scheduled on the asset thread pool, where concurrency limits might by dynamically adjusted depending on memory constraints.
-		GTextureThreadPool = new FQueuedThreadPoolWrapper(FAssetCompilingManager::Get().GetThreadPool(), MaxConcurrency, TexturePriorityMapper);
-
-		CVarAsyncTextureCompilation->SetOnChangedCallback(
-			FConsoleVariableDelegate::CreateLambda(
-				[](IConsoleVariable* Variable)
-				{
-					if (Variable->GetInt() == 2)
-					{
-						GTextureThreadPool->Pause();
-					}
-					else
-					{
-						GTextureThreadPool->Resume();
-					}
-				}
-				)
-			);
-
-		CVarAsyncTextureCompilationResume->SetOnChangedCallback(
-			FConsoleVariableDelegate::CreateLambda(
-				[](IConsoleVariable* Variable)
-				{
-					if (Variable->GetInt() > 0)
-					{
-						GTextureThreadPool->Resume(Variable->GetInt());
-					}
-				}
-				)
-			);
-
-		CVarAsyncTextureCompilationMaxConcurrency->SetOnChangedCallback(
-			FConsoleVariableDelegate::CreateLambda(
-				[](IConsoleVariable* Variable)
-				{
-					GTextureThreadPool->SetMaxConcurrency(Variable->GetInt());
-				}
-				)
-			);
-
-		if (CVarAsyncTextureCompilation->GetInt() == 2)
-		{
-			GTextureThreadPool->Pause();
-		}
-	}
-
-	return GTextureThreadPool;
-}
-
 bool FTextureCompilingManager::IsAsyncTextureCompilationEnabled() const
 {
 	if (bHasShutdown)
@@ -247,59 +147,18 @@ bool FTextureCompilingManager::IsAsyncTextureCompilationEnabled() const
 
 	TextureCompilingManagerImpl::EnsureInitializedCVars();
 
-	return CVarAsyncTextureCompilation.GetValueOnAnyThread() != 0;
+	return CVarAsyncTextureStandard.AsyncCompilation.GetValueOnAnyThread() != 0;
 }
 
 void FTextureCompilingManager::UpdateCompilationNotification()
 {
-	check(IsInGameThread());
-	static TWeakPtr<SNotificationItem> TextureCompilationPtr;
-
-	TSharedPtr<SNotificationItem> NotificationItem = TextureCompilationPtr.Pin();
-
-	const int32 NumRemainingCompilations = GetNumRemainingTextures();
-	if (NumRemainingCompilations == 0)
-	{
-		if (NotificationItem.IsValid())
-		{
-			NotificationItem->SetText(NSLOCTEXT("TextureBuild", "TextureBuildFinished", "Textures are ready!"));
-			NotificationItem->SetCompletionState(SNotificationItem::CS_Success);
-			NotificationItem->ExpireAndFadeout();
-
-			TextureCompilationPtr.Reset();
-		}
-	}
-	else
-	{
-		if (!NotificationItem.IsValid())
-		{
-			FNotificationInfo Info(NSLOCTEXT("TextureBuild", "TextureBuildInProgress", "Preparing Textures"));
-			Info.bFireAndForget = false;
-
-			// Setting fade out and expire time to 0 as the expire message is currently very obnoxious
-			Info.FadeOutDuration = 0.0f;
-			Info.ExpireDuration = 0.0f;
-
-			NotificationItem = FSlateNotificationManager::Get().AddNotification(Info);
-			TextureCompilationPtr = NotificationItem;
-		}
-
-		FFormatNamedArguments Args;
-		Args.Add(TEXT("BuildTasks"), FText::AsNumber(NumRemainingCompilations));
-		FText ProgressMessage = FText::Format(NSLOCTEXT("TextureBuild", "TextureBuildInProgressFormat", "Preparing Textures ({BuildTasks})"), Args);
-
-		NotificationItem->SetCompletionState(SNotificationItem::CS_Pending);
-		NotificationItem->SetVisibility(EVisibility::HitTestInvisible);
-		NotificationItem->SetText(ProgressMessage);
-	}
+	Notification.Update(GetNumRemainingTextures());
 }
 
-void FTextureCompilingManager::FinishTextureCompilation(UTexture* Texture)
+void FTextureCompilingManager::PostCompilation(UTexture* Texture)
 {
-	using namespace TextureCompilingManagerImpl;
-
 	check(IsInGameThread());
-	TRACE_CPUPROFILER_EVENT_SCOPE(FinishTextureCompilation);
+	TRACE_CPUPROFILER_EVENT_SCOPE(FTextureCompilingManager::PostCompilation);
 
 	UE_LOG(LogTexture, Verbose, TEXT("Refreshing texture %s because it is ready"), *Texture->GetName());
 
@@ -334,7 +193,7 @@ int32 FTextureCompilingManager::GetNumRemainingTextures() const
 	return Num;
 }
 
-void FTextureCompilingManager::AddTextures(const TArray<UTexture*>& InTextures)
+void FTextureCompilingManager::AddTextures(TArrayView<UTexture* const> InTextures)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FTextureCompilingManager::AddTextures)
 	check(IsInGameThread());
@@ -366,14 +225,14 @@ void FTextureCompilingManager::AddTextures(const TArray<UTexture*>& InTextures)
 	}
 }
 
-void FTextureCompilingManager::FinishCompilation(const TArray<UTexture*>& InTextures)
+void FTextureCompilingManager::FinishCompilation(TArrayView<UTexture* const> InTextures)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FTextureCompilingManager::FinishCompilation);
 
 	using namespace TextureCompilingManagerImpl;
 	check(IsInGameThread());
 
-	TSet<UTexture*> PendingTextures;
+	TArray<UTexture*> PendingTextures;
 	PendingTextures.Reserve(InTextures.Num());
 
 	int32 TextureIndex = 0;
@@ -390,61 +249,45 @@ void FTextureCompilingManager::FinishCompilation(const TArray<UTexture*>& InText
 
 	if (PendingTextures.Num())
 	{
-		FScopedSlowTask SlowTask((float)PendingTextures.Num(), LOCTEXT("FinishTextureCompilation", "Waiting on texture preparation"), true);
-		SlowTask.MakeDialogDelayed(1.0f);
-
-		struct FTextureTask : public IQueuedWork
+		class FCompilableTexture : public AsyncCompilationHelpers::ICompilable
 		{
+		public:
+			FCompilableTexture(UTexture* InTexture)
+				: Texture(InTexture)
+			{
+			}
+
 			TStrongObjectPtr<UTexture> Texture;
-			FEvent* Event;
-			FTextureTask() { Event = FPlatformProcess::GetSynchEventFromPool(true); }
-			~FTextureTask() { FPlatformProcess::ReturnSynchEventToPool(Event); }
-			void DoThreadedWork() override { FOptionalTaskTagScope Scope(ETaskTag::EParallelGameThread); Texture->FinishCachePlatformData(); Event->Trigger(); };
-			void Abandon() override { }
+			void EnsureCompletion() override { Texture->FinishCachePlatformData(); }
+			FName GetName() override { return Texture->GetFName(); }
+
 		};
 
-		// Perform forced compilation on as many thread as possible in high priority since the game-thread is waiting
-		TArray<FTextureTask> PendingTasks;
-		PendingTasks.SetNum(PendingTextures.Num());
-		
-		int32 PendingTaskIndex = 0;
-		for (UTexture* Texture : PendingTextures)
-		{
-			PendingTasks[PendingTaskIndex].Texture.Reset(Texture);
-			GThreadPool->AddQueuedWork(&PendingTasks[PendingTaskIndex], EQueuedWorkPriority::High);
-			PendingTaskIndex++;
-		}
-
-		auto UpdateProgress =
-			[&SlowTask](float Progress, int32 Done, int32 Total, const FString& CurrentObjectsName)
+		TArray<FCompilableTexture> CompilableTextures(PendingTextures);
+		using namespace AsyncCompilationHelpers;
+		FObjectCacheContextScope ObjectCacheScope;
+		AsyncCompilationHelpers::FinishCompilation(
+			[&CompilableTextures](int32 Index)	-> ICompilable& { return CompilableTextures[Index]; },
+			CompilableTextures.Num(),
+			LOCTEXT("Textures", "Textures"),
+			LogTexture,
+			[this](ICompilable* Object)
 			{
-				return SlowTask.EnterProgressFrame(Progress, FText::FromString(FString::Printf(TEXT("Waiting for textures to be ready %d/%d (%s) ..."), Done, Total, *CurrentObjectsName)));
-			};
+				UTexture* Texture = static_cast<FCompilableTexture*>(Object)->Texture.Get();
+				PostCompilation(Texture);
 
-		for (FTextureTask& PendingTask : PendingTasks)
-		{
-			UTexture* Texture = PendingTask.Texture.Get();
-			const FString TextureName = Texture->GetName();
-			// Be nice with the game thread and tick the progress at 60 fps even when no progress is being made...
-			while (!PendingTask.Event->Wait(16))
-			{
-				UpdateProgress(0.0f, TextureIndex, InTextures.Num(), TextureName);
+				for (TSet<TWeakObjectPtr<UTexture>>& Bucket : RegisteredTextureBuckets)
+				{
+					Bucket.Remove(Texture);
+				}
 			}
-			UE_LOG(LogTexture, Display, TEXT("Waiting for textures to be ready %d/%d (%s) ..."), TextureIndex, InTextures.Num(), *TextureName);
-			UpdateProgress(1.f, TextureIndex++, InTextures.Num(), TextureName);
-			FinishTextureCompilation(Texture);
+		);
 
-			for (TSet<TWeakObjectPtr<UTexture>>& Bucket : RegisteredTextureBuckets)
-			{
-				Bucket.Remove(Texture);
-			}
-		}
+		PostCompilation(PendingTextures);
 	}
-
-	PostTextureCompilation(PendingTextures);
 }
 
-void FTextureCompilingManager::PostTextureCompilation(const TSet<UTexture*>& InCompiledTextures)
+void FTextureCompilingManager::PostCompilation(TArrayView<UTexture* const> InCompiledTextures)
 {
 	using namespace TextureCompilingManagerImpl;
 	if (InCompiledTextures.Num())
@@ -557,8 +400,8 @@ bool FTextureCompilingManager::RequestPriorityChange(UTexture* InTexture, EQueue
 							TEXT("Changing priority of %s (%s) from %s to %s"),
 							*InTexture->GetName(),
 							*GetLODGroupName(InTexture),
-							GetPriorityName(OldPriority),
-							GetPriorityName(InPriority)
+							LexToString(OldPriority),
+							LexToString(InPriority)
 						);
 
 						return true;
@@ -580,7 +423,7 @@ void FTextureCompilingManager::ProcessTextures(bool bLimitExecutionTime, int32 M
 	if (GetNumRemainingTextures())
 	{
 		FObjectCacheContextScope ObjectCacheScope;
-		TSet<UTexture*> ProcessedTextures;
+		TArray<UTexture*> ProcessedTextures;
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(ProcessFinishedTextures);
 
@@ -606,7 +449,7 @@ void FTextureCompilingManager::ProcessTextures(bool bLimitExecutionTime, int32 M
 							const bool bHasTimeLeft = bLimitExecutionTime ? ((FPlatformTime::Seconds() - TickStartTime) < MaxSecondsPerFrame) : true;
 							if ((bIsHighestPrio || bHasTimeLeft) && Texture->IsAsyncCacheComplete())
 							{
-								FinishTextureCompilation(Texture.Get());
+								PostCompilation(Texture.Get());
 								ProcessedTextures.Add(Texture.Get());
 							}
 							else
@@ -677,10 +520,7 @@ void FTextureCompilingManager::ProcessTextures(bool bLimitExecutionTime, int32 M
 			}
 		}
 
-		if (ProcessedTextures.Num())
-		{
-			PostTextureCompilation(ProcessedTextures);
-		}
+		PostCompilation(ProcessedTextures);
 	}
 }
 

@@ -1,0 +1,384 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "AsyncCompilationHelpers.h"
+
+#if WITH_EDITOR
+
+#include "Framework/Notifications/NotificationManager.h"
+#include "Widgets/Notifications/SNotificationList.h"
+#include "Misc/ScopedSlowTask.h"
+#include "ObjectCacheContext.h"
+#include "Misc/CommandLine.h"
+#include "Misc/Parse.h"
+#include "Settings/EditorExperimentalSettings.h"
+#include "Misc/QueuedThreadPoolWrapper.h"
+#include "HAL/IConsoleManager.h"
+#include "HAL/PlatformStackWalk.h"
+#include "Hash/CityHash.h"
+#include "Misc/ScopeRWLock.h"
+
+#define LOCTEXT_NAMESPACE "AsyncCompilation"
+
+DEFINE_LOG_CATEGORY(LogAsyncCompilation);
+
+namespace AsyncCompilationHelpers
+{
+	void DumpStallStacks();
+}
+
+static FAutoConsoleCommand CVarAsyncAssetDumpStallStacks(
+	TEXT("Editor.AsyncAssetDumpStallStacks"),
+	TEXT("Dump all the callstacks that have caused waits on async compilation."),
+	FConsoleCommandWithArgsDelegate::CreateLambda([](const TArray<FString>& Args)
+	{
+		AsyncCompilationHelpers::DumpStallStacks();
+	})
+);
+
+void FAsyncCompilationNotification::Update(int32 NumJobs)
+{
+	check(IsInGameThread());
+	TSharedPtr<SNotificationItem> NotificationItem = NotificationItemPtr.Pin();
+
+	FFormatNamedArguments Args;
+	Args.Add(TEXT("AssetType"), AssetType);
+
+	if (NumJobs == 0)
+	{
+		if (NotificationItem.IsValid())
+		{
+			NotificationItem->SetText(FText::Format(LOCTEXT("AsyncCompilationFinished", "Finished preparing {AssetType}!"), Args));
+			NotificationItem->SetCompletionState(SNotificationItem::CS_Success);
+			NotificationItem->ExpireAndFadeout();
+
+			NotificationItemPtr.Reset();
+		}
+	}
+	else
+	{
+		Args.Add(TEXT("NumJobs"), FText::AsNumber(NumJobs));
+		FText ProgressMessage = FText::Format(LOCTEXT("AsyncCompilationProgress", "Preparing {AssetType} ({NumJobs})"), Args);
+
+		if (!NotificationItem.IsValid())
+		{
+			FNotificationInfo Info(ProgressMessage);
+			Info.bFireAndForget = false;
+
+			// Setting fade out and expire time to 0 as the expire message is currently very obnoxious
+			Info.FadeOutDuration = 0.0f;
+			Info.ExpireDuration = 0.0f;
+
+			NotificationItem = FSlateNotificationManager::Get().AddNotification(Info);
+			NotificationItemPtr = NotificationItem;
+		}
+
+		NotificationItem->SetCompletionState(SNotificationItem::CS_Pending);
+		NotificationItem->SetVisibility(EVisibility::HitTestInvisible);
+		NotificationItem->SetText(ProgressMessage);
+	}
+};
+
+namespace AsyncCompilationHelpers
+{
+	void FinishCompilation(
+		TFunctionRef<ICompilable& (int32 Index)> Getter,
+		int32 Num,
+		const FText& AssetType,
+		const FLogCategoryBase& LogCategory,
+		TFunctionRef<void(ICompilable*)> PostCompileSingle
+	)
+	{
+		check(IsInGameThread());
+
+		FObjectCacheContextScope ObjectCacheScope;
+		if (Num)
+		{
+			TOptional<FScopedSlowTask> SlowTask;
+
+			// Do not create a progress during PostLoad as TickSlate could endup calling too many things
+			if (!FUObjectThreadContext::Get().IsRoutingPostLoad)
+			{
+				FFormatNamedArguments Args;
+				Args.Add(TEXT("AssetType"), AssetType.ToLower());
+
+				SlowTask.Emplace((float)Num, FText::Format(LOCTEXT("WaitingOnFinishCompilation", "Waiting on {AssetType} preparation"), Args), true);
+				SlowTask->MakeDialogDelayed(1.0f, false /*bShowCancelButton*/, true /*bAllowInPIE*/);
+			}
+
+			struct FFinishTask : public IQueuedWork
+			{
+				ICompilable* Job = nullptr;
+				FEvent* Event;
+				FFinishTask() { Event = FPlatformProcess::GetSynchEventFromPool(true); }
+				~FFinishTask() { FPlatformProcess::ReturnSynchEventToPool(Event); }
+				void DoThreadedWork() override
+				{
+					FOptionalTaskTagScope Scope(ETaskTag::EParallelGameThread);
+					Job->EnsureCompletion();
+					Event->Trigger();
+				}
+
+				void Abandon() override { }
+			};
+
+			// Perform forced compilation on as many thread as possible in high priority since the game-thread is waiting
+			TArray<FFinishTask> PendingTasks;
+			PendingTasks.SetNum(Num);
+
+			for (int32 Index = 0; Index < Num; ++Index)
+			{
+				PendingTasks[Index].Job = &Getter(Index);
+				GThreadPool->AddQueuedWork(&PendingTasks[Index], EQueuedWorkPriority::High);
+			}
+
+			auto FormatProgress =
+				[&AssetType](int32 Done, int32 Total, FName ObjectName)
+			{
+				FFormatNamedArguments Args;
+				Args.Add(TEXT("AssetType"), AssetType.ToLower());
+				Args.Add(TEXT("Done"), Done);
+				Args.Add(TEXT("Total"), Total);
+				Args.Add(TEXT("ObjectName"), FText::FromName(ObjectName));
+				return FText::Format(LOCTEXT("WaitingOnFinishCompilationWithCount", "Waiting for {AssetType} to be ready {Done}/{Total} ({ObjectName}) ..."), Args);
+			};
+
+			int32 NumDone = 0;
+			for (FFinishTask& PendingTask : PendingTasks)
+			{
+				ICompilable* Job = PendingTask.Job;
+
+				FText Progress = FormatProgress(NumDone++, Num, Job->GetName());
+
+				// Be nice with the game thread and tick the progress at 60 fps even when no progress is being made...
+				while (!PendingTask.Event->Wait(16))
+				{
+					if (SlowTask.IsSet())
+					{
+						SlowTask->EnterProgressFrame(0.0f, Progress);
+					}
+				}
+
+				if (SlowTask.IsSet())
+				{
+					SlowTask->EnterProgressFrame(1.0f, Progress);
+				}
+
+				UE_LOG_REF(LogCategory, Display, TEXT("%s"), *Progress.ToString());
+
+				PostCompileSingle(Job);
+			}
+		}
+	}
+
+	void EnsureInitializedCVars(
+		const TCHAR* InName,
+		TAutoConsoleVariable<int32>& InCVarAsyncCompilation,
+		TAutoConsoleVariable<int32>& InCVarAsyncCompilationMaxConcurrency,
+		FName InExperimentalSettingsName)
+	{
+		if (InExperimentalSettingsName != NAME_None)
+		{
+			auto UpdateCVarFromSettings =
+				[&InCVarAsyncCompilation, InExperimentalSettingsName]
+				{
+					const UEditorExperimentalSettings* Settings = GetDefault<UEditorExperimentalSettings>();
+					FProperty* Property = Settings->GetClass()->FindPropertyByName(InExperimentalSettingsName);
+					if (Property)
+					{
+						if (FBoolProperty* BoolProperty = CastField<FBoolProperty>(Property))
+						{
+							bool bIsEnabled = BoolProperty->GetPropertyValue(BoolProperty->ContainerPtrToValuePtr<void>(Settings));
+							InCVarAsyncCompilation->Set(bIsEnabled ? 1 : 0, ECVF_SetByProjectSetting);
+						}
+					}
+				};
+
+			GetMutableDefault<UEditorExperimentalSettings>()->OnSettingChanged().AddLambda(
+				[UpdateCVarFromSettings, InExperimentalSettingsName](FName Name)
+				{
+					if (Name == InExperimentalSettingsName)
+					{
+						UpdateCVarFromSettings();
+					}
+				}
+			);
+
+			UpdateCVarFromSettings();
+		}
+
+		FString Value;
+		if (FParse::Value(FCommandLine::Get(), *FString::Printf(TEXT("-async%scompilation="), InName), Value))
+		{
+			int32 AsyncCompilationValue = 0;
+			if (Value == TEXT("1") || Value == TEXT("on"))
+			{
+				AsyncCompilationValue = 1;
+			}
+
+			if (Value == TEXT("2") || Value == TEXT("paused"))
+			{
+				AsyncCompilationValue = 2;
+			}
+
+			InCVarAsyncCompilation->Set(AsyncCompilationValue, ECVF_SetByCommandline);
+		}
+
+		int32 MaxConcurrency = -1;
+		if (FParse::Value(FCommandLine::Get(), *FString::Printf(TEXT("-async%scompilationmaxconcurrency="), InName), MaxConcurrency))
+		{
+			InCVarAsyncCompilationMaxConcurrency->Set(MaxConcurrency, ECVF_SetByCommandline);
+		}
+	}
+
+	void BindThreadPoolToCVar(
+		FQueuedThreadPoolWrapper* InThreadPoolWrapper,
+		TAutoConsoleVariable<int32>& InCVarAsyncCompilation,
+		TAutoConsoleVariable<int32>& InCVarAsyncCompilationResume,
+		TAutoConsoleVariable<int32>& InCVarAsyncCompilationMaxConcurrency
+		)
+	{
+		InCVarAsyncCompilation->SetOnChangedCallback(
+			FConsoleVariableDelegate::CreateLambda(
+				[InThreadPoolWrapper](IConsoleVariable* Variable)
+				{
+					if (Variable->GetInt() == 2)
+					{
+						InThreadPoolWrapper->Pause();
+					}
+					else
+					{
+						InThreadPoolWrapper->Resume();
+					}
+				}
+			)
+		);
+
+		InCVarAsyncCompilationResume->SetOnChangedCallback(
+			FConsoleVariableDelegate::CreateLambda(
+				[InThreadPoolWrapper](IConsoleVariable* Variable)
+				{
+					if (Variable->GetInt() > 0)
+					{
+						InThreadPoolWrapper->Resume(Variable->GetInt());
+					}
+				}
+			)
+		);
+
+		InCVarAsyncCompilationMaxConcurrency->SetOnChangedCallback(
+			FConsoleVariableDelegate::CreateLambda(
+				[InThreadPoolWrapper](IConsoleVariable* Variable)
+				{
+					InThreadPoolWrapper->SetMaxConcurrency(Variable->GetInt());
+				}
+			)
+		);
+
+		if (InCVarAsyncCompilation->GetInt() == 2)
+		{
+			InThreadPoolWrapper->Pause();
+		}
+
+		InThreadPoolWrapper->SetMaxConcurrency(InCVarAsyncCompilationMaxConcurrency->GetInt());
+	}
+
+	FAsyncCompilationStandardCVars::FAsyncCompilationStandardCVars(const TCHAR* AssetType, const TCHAR* AssetTypePluralLowerCase, const FConsoleCommandDelegate& FinishAllCommand)
+		: AsyncCompilation(
+			*FString::Printf(TEXT("Editor.Async%sCompilation"), AssetType),
+			0,	// Constructor default is disabled, need to be activated by one of the activation method
+			*FString::Printf(
+				TEXT("1 - Async %s compilation is enabled.\n")
+				TEXT("2 - Async %s compilation is enabled but on pause (for debugging).\n")
+				TEXT("When enabled, %s will be replaced by placeholders until they are ready\n")
+				TEXT("to reduce stalls on the game thread and improve overall editor performance."),
+				AssetTypePluralLowerCase,
+				AssetTypePluralLowerCase,
+				AssetTypePluralLowerCase
+			),
+			ECVF_Default)
+		, AsyncCompilationMaxConcurrency(
+			*FString::Printf(TEXT("Editor.Async%sCompilationMaxConcurrency"), AssetType),
+			-1,
+			*FString::Printf(
+				TEXT("Set the maximum number of concurrent %s compilation, -1 for unlimited."),
+				AssetTypePluralLowerCase
+			),
+			ECVF_Default)
+		, AsyncCompilationFinishAll(
+			*FString::Printf(TEXT("Editor.Async%sCompilationFinishAll"), AssetType),
+			*FString::Printf(TEXT("Finish all %s compilations"), AssetTypePluralLowerCase),
+			FinishAllCommand)
+		, AsyncCompilationResume(
+			*FString::Printf(TEXT("Editor.Async%sCompilationResume"), AssetType),
+			0,
+			TEXT("Number of queued work to resume while paused."),
+			ECVF_Default)
+	{
+	}
+
+	struct FStackData
+	{
+		static const uint32 MaxDepth = 24;
+		uint64 Backtrace[MaxDepth]{ 0 };
+		uint64 Cycles = 0;
+		int64  Count = 0;
+	};
+
+	static FRWLock                  BackTracesLock;
+	static TMap<uint64, FStackData> BackTraces;
+
+	void SaveStallStack(uint64 Cycles)
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(AsyncCompilationHelpers::SaveStallStack);
+
+		uint64 Backtrace[FStackData::MaxDepth];
+		const uint32 Depth = FPlatformStackWalk::CaptureStackBackTrace(Backtrace, FStackData::MaxDepth);
+		const uint64 StackHash = CityHash64(reinterpret_cast<const char*>(Backtrace), Depth * sizeof(Backtrace[0]));
+
+		// We're already in an editor-only slow path, we don't mind the locking performance.
+		FRWScopeLock Scope(BackTracesLock, SLT_Write);
+		FStackData& StackData = BackTraces.FindOrAdd(StackHash);
+		if (StackData.Count++ == 0)
+		{
+			FPlatformMemory::Memcpy(StackData.Backtrace, Backtrace, sizeof(StackData.Backtrace));
+		}
+		StackData.Cycles += Cycles;
+	}
+
+	void DumpStallStacks()
+	{
+		FRWScopeLock Scope(BackTracesLock, SLT_Write);
+		TArray<FStackData*> Stacks;
+		for (TPair<uint64, FStackData>& Pair : BackTraces)
+		{
+			Stacks.Add(&Pair.Value);
+		}
+
+		Algo::SortBy(Stacks, [](const FStackData* StackData) { return StackData->Cycles; });
+
+		const int32 HumanReadableStringSize = 4096;
+		ANSICHAR HumanReadableString[HumanReadableStringSize];
+		int64 TotalCount = 0;
+
+		uint64 TotalCycles = 0;
+		for (FStackData* StackData : Stacks)
+		{
+			HumanReadableString[0] = '\0';
+
+			// Start at index 2 to Skip both the CaptureBackTrace and this function
+			for (int32 Index = 2; Index < FStackData::MaxDepth && StackData->Backtrace[Index]; ++Index)
+			{
+				FPlatformStackWalk::ProgramCounterToHumanReadableString(Index, StackData->Backtrace[Index], HumanReadableString, HumanReadableStringSize);
+				FCStringAnsi::Strncat(HumanReadableString, LINE_TERMINATOR_ANSI, HumanReadableStringSize);
+			}
+
+			TotalCount += StackData->Count;
+			TotalCycles += StackData->Cycles;
+			UE_LOG(LogAsyncCompilation, Display, TEXT("Async Compilation Stall Stack: (count: %llu, time: %s)\n%s"), StackData->Count, *FPlatformTime::PrettyTime(FPlatformTime::ToSeconds64(StackData->Cycles)), ANSI_TO_TCHAR(HumanReadableString));
+		}
+	}
+}
+
+#undef LOCTEXT_NAMESPACE
+
+#endif // #if WITH_EDITOR

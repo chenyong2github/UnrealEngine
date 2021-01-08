@@ -1,15 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "StaticMeshCompiler.h"
-#include "AssetCompilingManager.h"
-#include "Engine/StaticMesh.h"
 
 #if WITH_EDITOR
 
+#include "AssetCompilingManager.h"
+#include "Engine/StaticMesh.h"
 #include "ObjectCacheContext.h"
-#include "Framework/Notifications/NotificationManager.h"
 #include "Settings/EditorExperimentalSettings.h"
-#include "Widgets/Notifications/SNotificationList.h"
 #include "Misc/QueuedThreadPoolWrapper.h"
 #include "Misc/Optional.h"
 #include "EngineModule.h"
@@ -31,15 +29,15 @@
 
 #define LOCTEXT_NAMESPACE "StaticMeshCompiler"
 
-static TAutoConsoleVariable<int32> CVarAsyncStaticMeshCompilation(
-	TEXT("Editor.AsyncStaticMeshCompilation"),
-	0,
-	TEXT("0 - Async static mesh compilation is disabled.\n")
-	TEXT("1 - Async static mesh compilation is enabled.\n")
-	TEXT("2 - Async static mesh compilation is enabled but on pause (for debugging).\n")
-	TEXT("When enabled, static meshes will be replaced by placeholders until they are ready\n")
-	TEXT("to reduce stalls on the game thread and improve overall editor performance."),
-	ECVF_Default);
+static AsyncCompilationHelpers::FAsyncCompilationStandardCVars CVarAsyncStaticMeshStandard(
+	TEXT("StaticMesh"),
+	TEXT("static meshes"),
+	FConsoleCommandDelegate::CreateLambda(
+		[]()
+		{
+			FStaticMeshCompilingManager::Get().FinishAllCompilation();
+		}
+	));
 
 static TAutoConsoleVariable<int32> CVarAsyncStaticMeshPlayInEditorMode(
 	TEXT("Editor.AsyncStaticMeshPlayInEditorMode"),
@@ -66,27 +64,6 @@ static TAutoConsoleVariable<bool> CVarAsyncStaticMeshDebugDraw(
 	TEXT("Any static meshes that were waited on due to being too close to the player will have their bounding box drawn in red for a couple of seconds."),
 	ECVF_Default);
 
-static TAutoConsoleVariable<int32> CVarAsyncStaticMeshMaxConcurrency(
-	TEXT("Editor.AsyncStaticMeshMaxConcurrency"),
-	-1,
-	TEXT("Set the maximum number of concurrent static mesh compilation, -1 for unlimited."),
-	ECVF_Default);
-
-static FAutoConsoleCommand CVarAsyncStaticMeshCompilationFinishAll(
-	TEXT("Editor.AsyncStaticMeshCompilationFinishAll"),
-	TEXT("Finish all static mesh compilations"),
-	FConsoleCommandWithArgsDelegate::CreateLambda([](const TArray<FString>& Args)
-	{
-		FStaticMeshCompilingManager::Get().FinishAllCompilation();
-	})
-);
-
-static TAutoConsoleVariable<int32> CVarAsyncStaticMeshCompilationResume(
-	TEXT("Editor.AsyncStaticMeshCompilationResume"),
-	0,
-	TEXT("Number of queued work to resume while paused."),
-	ECVF_Default);
-
 namespace StaticMeshCompilingManagerImpl
 {
 	static void EnsureInitializedCVars()
@@ -96,42 +73,19 @@ namespace StaticMeshCompilingManagerImpl
 		if (!bIsInitialized)
 		{
 			bIsInitialized = true;
-			GetMutableDefault<UEditorExperimentalSettings>()->OnSettingChanged().AddLambda(
-				[](FName Name)
-				{
-					if (Name == TEXT("bEnableAsyncStaticMeshCompilation"))
-					{
-						CVarAsyncStaticMeshCompilation->Set(GetDefault<UEditorExperimentalSettings>()->bEnableAsyncStaticMeshCompilation ? 1 : 0, ECVF_SetByProjectSetting);
-					}
-				}
-			);
 
-			CVarAsyncStaticMeshCompilation->Set(GetDefault<UEditorExperimentalSettings>()->bEnableAsyncStaticMeshCompilation ? 1 : 0, ECVF_SetByProjectSetting);
-
-			FString Value;
-			if (FParse::Value(FCommandLine::Get(), TEXT("-asyncstaticmeshcompilation="), Value))
-			{
-				int32 AsyncStaticMeshCompilationValue = 0;
-				if (Value == TEXT("1") || Value == TEXT("on"))
-				{
-					AsyncStaticMeshCompilationValue = 1;
-				}
-
-				if (Value == TEXT("2") || Value == TEXT("paused"))
-				{
-					AsyncStaticMeshCompilationValue = 2;
-				}
-
-				CVarAsyncStaticMeshCompilation->Set(AsyncStaticMeshCompilationValue, ECVF_SetByCommandline);
-			}
-
-			int32 MaxConcurrency = -1;
-			if (FParse::Value(FCommandLine::Get(), TEXT("-asyncstaticmeshmaxconcurrency="), MaxConcurrency))
-			{
-				CVarAsyncStaticMeshMaxConcurrency->Set(MaxConcurrency, ECVF_SetByCommandline);
-			}
+			AsyncCompilationHelpers::EnsureInitializedCVars(
+				TEXT("staticmesh"),
+				CVarAsyncStaticMeshStandard.AsyncCompilation,
+				CVarAsyncStaticMeshStandard.AsyncCompilationMaxConcurrency,
+				GET_MEMBER_NAME_CHECKED(UEditorExperimentalSettings, bEnableAsyncStaticMeshCompilation));
 		}
 	}
+}
+
+FStaticMeshCompilingManager::FStaticMeshCompilingManager()
+	: Notification(LOCTEXT("StaticMeshes", "Static Meshes"))
+{
 }
 
 EQueuedWorkPriority FStaticMeshCompilingManager::GetBasePriority(UStaticMesh* InStaticMesh) const
@@ -146,52 +100,15 @@ FQueuedThreadPool* FStaticMeshCompilingManager::GetThreadPool() const
 	{
 		StaticMeshCompilingManagerImpl::EnsureInitializedCVars();
 
-		const int32 MaxConcurrency = CVarAsyncStaticMeshMaxConcurrency.GetValueOnAnyThread();
-
 		// Static meshes will be scheduled on the asset thread pool, where concurrency limits might by dynamically adjusted depending on memory constraints.
-		GStaticMeshThreadPool = new FQueuedThreadPoolDynamicWrapper(FAssetCompilingManager::Get().GetThreadPool(), MaxConcurrency, [](EQueuedWorkPriority) { return EQueuedWorkPriority::Low; });
+		GStaticMeshThreadPool = new FQueuedThreadPoolDynamicWrapper(FAssetCompilingManager::Get().GetThreadPool(), -1, [](EQueuedWorkPriority) { return EQueuedWorkPriority::Low; });
 
-		CVarAsyncStaticMeshCompilation->SetOnChangedCallback(
-			FConsoleVariableDelegate::CreateLambda(
-				[](IConsoleVariable* Variable)
-				{
-					if (Variable->GetInt() == 2)
-					{
-						GStaticMeshThreadPool->Pause();
-					}
-					else
-					{
-						GStaticMeshThreadPool->Resume();
-					}
-				}
-				)
-			);
-
-		CVarAsyncStaticMeshCompilationResume->SetOnChangedCallback(
-			FConsoleVariableDelegate::CreateLambda(
-				[](IConsoleVariable* Variable)
-				{
-					if (Variable->GetInt() > 0)
-					{
-						GStaticMeshThreadPool->Resume(Variable->GetInt());
-					}
-				}
-				)
-			);
-
-		CVarAsyncStaticMeshMaxConcurrency->SetOnChangedCallback(
-			FConsoleVariableDelegate::CreateLambda(
-				[](IConsoleVariable* Variable)
-				{
-					GStaticMeshThreadPool->SetMaxConcurrency(Variable->GetInt());
-				}
-				)
-			);
-
-		if (CVarAsyncStaticMeshCompilation->GetInt() == 2)
-		{
-			GStaticMeshThreadPool->Pause();
-		}
+		AsyncCompilationHelpers::BindThreadPoolToCVar(
+			GStaticMeshThreadPool,
+			CVarAsyncStaticMeshStandard.AsyncCompilation,
+			CVarAsyncStaticMeshStandard.AsyncCompilationResume,
+			CVarAsyncStaticMeshStandard.AsyncCompilationMaxConcurrency
+		);
 	}
 
 	return GStaticMeshThreadPool;
@@ -205,33 +122,30 @@ void FStaticMeshCompilingManager::Shutdown()
 		check(IsInGameThread());
 		TRACE_CPUPROFILER_EVENT_SCOPE(FStaticMeshCompilingManager::Shutdown)
 
-		if (GetNumRemainingMeshes())
+		TArray<UStaticMesh*> PendingStaticMeshes;
+		PendingStaticMeshes.Reserve(GetNumRemainingMeshes());
+
+		for (TWeakObjectPtr<UStaticMesh>& WeakStaticMesh : RegisteredStaticMesh)
 		{
-			TArray<UStaticMesh*> PendingStaticMeshes;
-			PendingStaticMeshes.Reserve(GetNumRemainingMeshes());
-
-			for (TWeakObjectPtr<UStaticMesh>& WeakStaticMesh : RegisteredStaticMesh)
+			if (WeakStaticMesh.IsValid())
 			{
-				if (WeakStaticMesh.IsValid())
+				UStaticMesh* StaticMesh = WeakStaticMesh.Get();
+				if (!StaticMesh->IsAsyncTaskComplete())
 				{
-					UStaticMesh* StaticMesh = WeakStaticMesh.Get();
-					if (!StaticMesh->IsAsyncTaskComplete())
+					if (StaticMesh->AsyncTask->Cancel())
 					{
-						if (StaticMesh->AsyncTask->Cancel())
-						{
-							StaticMesh->AsyncTask.Reset();
-						}
-					}
-
-					if (StaticMesh->AsyncTask)
-					{
-						PendingStaticMeshes.Add(StaticMesh);
+						StaticMesh->AsyncTask.Reset();
 					}
 				}
-			}
 
-			FinishCompilation(PendingStaticMeshes);
+				if (StaticMesh->AsyncTask)
+				{
+					PendingStaticMeshes.Add(StaticMesh);
+				}
+			}
 		}
+
+		FinishCompilation(PendingStaticMeshes);
 	}
 }
 
@@ -244,54 +158,15 @@ bool FStaticMeshCompilingManager::IsAsyncStaticMeshCompilationEnabled() const
 
 	StaticMeshCompilingManagerImpl::EnsureInitializedCVars();
 
-	return CVarAsyncStaticMeshCompilation.GetValueOnAnyThread() != 0;
+	return CVarAsyncStaticMeshStandard.AsyncCompilation.GetValueOnAnyThread() != 0;
 }
 
 void FStaticMeshCompilingManager::UpdateCompilationNotification()
 {
-	check(IsInGameThread());
-	static TWeakPtr<SNotificationItem> StaticMeshCompilationPtr;
-
-	TSharedPtr<SNotificationItem> NotificationItem = StaticMeshCompilationPtr.Pin();
-
-	const int32 NumRemainingCompilations = GetNumRemainingMeshes();
-	if (NumRemainingCompilations == 0)
-	{
-		if (NotificationItem.IsValid())
-		{
-			NotificationItem->SetText(NSLOCTEXT("StaticMeshBuild", "StaticMeshBuildFinished", "Finished preparing Static Meshes!"));
-			NotificationItem->SetCompletionState(SNotificationItem::CS_Success);
-			NotificationItem->ExpireAndFadeout();
-
-			StaticMeshCompilationPtr.Reset();
-		}
-	}
-	else
-	{
-		if (!NotificationItem.IsValid())
-		{
-			FNotificationInfo Info(NSLOCTEXT("StaticMeshBuild", "StaticMeshBuildInProgress", "Preparing Static Meshes"));
-			Info.bFireAndForget = false;
-
-			// Setting fade out and expire time to 0 as the expire message is currently very obnoxious
-			Info.FadeOutDuration = 0.0f;
-			Info.ExpireDuration = 0.0f;
-
-			NotificationItem = FSlateNotificationManager::Get().AddNotification(Info);
-			StaticMeshCompilationPtr = NotificationItem;
-		}
-
-		FFormatNamedArguments Args;
-		Args.Add(TEXT("BuildTasks"), FText::AsNumber(NumRemainingCompilations));
-		FText ProgressMessage = FText::Format(NSLOCTEXT("StaticMeshBuild", "StaticMeshBuildInProgressFormat", "Preparing Static Meshes ({BuildTasks})"), Args);
-
-		NotificationItem->SetCompletionState(SNotificationItem::CS_Pending);
-		NotificationItem->SetVisibility(EVisibility::HitTestInvisible);
-		NotificationItem->SetText(ProgressMessage);
-	}
+	Notification.Update(GetNumRemainingMeshes());
 }
 
-void FStaticMeshCompilingManager::PostStaticMeshesCompilation(const TSet<UStaticMesh*>& InStaticMeshes)
+void FStaticMeshCompilingManager::PostCompilation(TArrayView<UStaticMesh* const> InStaticMeshes)
 {
 	if (InStaticMeshes.Num())
 	{
@@ -309,7 +184,7 @@ void FStaticMeshCompilingManager::PostStaticMeshesCompilation(const TSet<UStatic
 	}
 }
 
-void FStaticMeshCompilingManager::FinishStaticMeshCompilation(UStaticMesh* StaticMesh)
+void FStaticMeshCompilingManager::PostCompilation(UStaticMesh* StaticMesh)
 {
 	using namespace StaticMeshCompilingManagerImpl;
 	
@@ -317,7 +192,7 @@ void FStaticMeshCompilingManager::FinishStaticMeshCompilation(UStaticMesh* Stati
 	if (StaticMesh->AsyncTask)
 	{
 		check(IsInGameThread());
-		TRACE_CPUPROFILER_EVENT_SCOPE(FinishStaticMeshCompilation);
+		TRACE_CPUPROFILER_EVENT_SCOPE(PostCompilation);
 
 		UE_LOG(LogStaticMesh, Verbose, TEXT("Refreshing static mesh %s because it is ready"), *StaticMesh->GetName());
 
@@ -378,7 +253,7 @@ int32 FStaticMeshCompilingManager::GetNumRemainingMeshes() const
 	return RegisteredStaticMesh.Num();
 }
 
-void FStaticMeshCompilingManager::AddStaticMeshes(const TArray<UStaticMesh*>& InStaticMeshes)
+void FStaticMeshCompilingManager::AddStaticMeshes(TArrayView<UStaticMesh* const> InStaticMeshes)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FStaticMeshCompilingManager::AddStaticMeshes)
 	check(IsInGameThread());
@@ -394,15 +269,13 @@ void FStaticMeshCompilingManager::AddStaticMeshes(const TArray<UStaticMesh*>& In
 	}
 }
 
-void FStaticMeshCompilingManager::FinishCompilation(const TArray<UStaticMesh*>& InStaticMeshes)
+void FStaticMeshCompilingManager::FinishCompilation(TArrayView<UStaticMesh* const> InStaticMeshes)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FStaticMeshCompilingManager::FinishCompilation);
 
-	using namespace StaticMeshCompilingManagerImpl;
 	check(IsInGameThread());
 
-	FObjectCacheContextScope ObjectCacheScope;
-	TSet<UStaticMesh*> PendingStaticMeshes;
+	TArray<UStaticMesh*> PendingStaticMeshes;
 	PendingStaticMeshes.Reserve(InStaticMeshes.Num());
 
 	int32 StaticMeshIndex = 0;
@@ -410,78 +283,41 @@ void FStaticMeshCompilingManager::FinishCompilation(const TArray<UStaticMesh*>& 
 	{
 		if (RegisteredStaticMesh.Contains(StaticMesh))
 		{
-			PendingStaticMeshes.Add(StaticMesh);
+			PendingStaticMeshes.Emplace(StaticMesh);
 		}
 	}
 
 	if (PendingStaticMeshes.Num())
 	{
-		TOptional<FScopedSlowTask> SlowTask;
-
-		// Do not create a progress during PostLoad as TickSlate could endup calling stuff that is not supposed to be called during PostLoad
-		if (!FUObjectThreadContext::Get().IsRoutingPostLoad)
+		class FCompilableStaticMesh : public AsyncCompilationHelpers::ICompilable
 		{
-			SlowTask.Emplace((float)PendingStaticMeshes.Num(), LOCTEXT("FinishStaticMeshCompilation", "Waiting on static meshes preparation"), true);
-			SlowTask->MakeDialogDelayed(1.0f, false /*bShowCancelButton*/, true /*bAllowInPIE*/);
-		}
-
-		struct FStaticMeshTask : public IQueuedWork
-		{
-			TStrongObjectPtr<UStaticMesh> StaticMesh;
-			FEvent* Event;
-			FStaticMeshTask() { Event = FPlatformProcess::GetSynchEventFromPool(true); }
-			~FStaticMeshTask() { FPlatformProcess::ReturnSynchEventToPool(Event); }
-			void DoThreadedWork() override 
+		public:
+			FCompilableStaticMesh(UStaticMesh* InStaticMesh)
+				: StaticMesh(InStaticMesh)
 			{
-				if (StaticMesh->AsyncTask) 
-				{ 
-					StaticMesh->AsyncTask->EnsureCompletion();
-				}
-				Event->Trigger(); 
 			}
 
-			void Abandon() override { }
+			TStrongObjectPtr<UStaticMesh> StaticMesh;
+			void EnsureCompletion() override { if (StaticMesh->AsyncTask) { StaticMesh->AsyncTask->EnsureCompletion(); } }
+			FName GetName() override { return StaticMesh->GetFName(); }
 		};
 
-		// Perform forced compilation on as many thread as possible in high priority since the game-thread is waiting
-		TArray<FStaticMeshTask> PendingTasks;
-		PendingTasks.SetNum(PendingStaticMeshes.Num());
-		
-		int32 PendingTaskIndex = 0;
-		for (UStaticMesh* StaticMesh : PendingStaticMeshes)
-		{
-			PendingTasks[PendingTaskIndex].StaticMesh.Reset(StaticMesh);
-			GThreadPool->AddQueuedWork(&PendingTasks[PendingTaskIndex], EQueuedWorkPriority::High);
-			PendingTaskIndex++;
-		}
-
-		auto UpdateProgress =
-			[&SlowTask](float Progress, int32 Done, int32 Total, const FString& CurrentObjectsName)
+		TArray<FCompilableStaticMesh> CompilableStaticMeshes(PendingStaticMeshes);
+		FObjectCacheContextScope ObjectCacheScope;
+		AsyncCompilationHelpers::FinishCompilation(
+			[&CompilableStaticMeshes](int32 Index)	-> AsyncCompilationHelpers::ICompilable& { return CompilableStaticMeshes[Index]; },
+			CompilableStaticMeshes.Num(),
+			LOCTEXT("StaticMeshes", "Static Meshes"),
+			LogStaticMesh,
+			[this](AsyncCompilationHelpers::ICompilable* Object)
 			{
-				if (SlowTask.IsSet())
-				{
-					return SlowTask->EnterProgressFrame(Progress, FText::FromString(FString::Printf(TEXT("Waiting for static meshes to be ready %d/%d (%s) ..."), Done, Total, *CurrentObjectsName)));
-				}
-			};
-
-		for (FStaticMeshTask& PendingTask : PendingTasks)
-		{
-			UStaticMesh* StaticMesh = PendingTask.StaticMesh.Get();
-			const FString StaticMeshName = StaticMesh->GetName();
-			// Be nice with the game thread and tick the progress at 60 fps even when no progress is being made...
-			while (!PendingTask.Event->Wait(16))
-			{
-				UpdateProgress(0.0f, StaticMeshIndex, InStaticMeshes.Num(), StaticMeshName);
+				UStaticMesh* StaticMesh = static_cast<FCompilableStaticMesh*>(Object)->StaticMesh.Get();
+				PostCompilation(StaticMesh);
+				RegisteredStaticMesh.Remove(StaticMesh);
 			}
-			UE_LOG(LogStaticMesh, Display, TEXT("Waiting for static meshes to be ready %d/%d (%s) ..."), StaticMeshIndex, InStaticMeshes.Num(), *StaticMeshName);
-			UpdateProgress(1.f, StaticMeshIndex++, InStaticMeshes.Num(), StaticMeshName);
+		);
 
-			FinishStaticMeshCompilation(StaticMesh);
-
-			RegisteredStaticMesh.Remove(StaticMesh);
-		}
-
-		PostStaticMeshesCompilation(PendingStaticMeshes);
+		PostCompilation(InStaticMeshes);
 	}
 }
 
@@ -751,7 +587,7 @@ void FStaticMeshCompilingManager::ProcessStaticMeshes(bool bLimitExecutionTime, 
 			const double TickStartTime = FPlatformTime::Seconds();
 
 			TSet<TWeakObjectPtr<UStaticMesh>> StaticMeshesToPostpone;
-			TSet<UStaticMesh*> ProcessedStaticMeshes;
+			TArray<UStaticMesh*> ProcessedStaticMeshes;
 			if (StaticMeshesToProcess.Num())
 			{
 				for (UStaticMesh* StaticMesh : StaticMeshesToProcess)
@@ -759,7 +595,7 @@ void FStaticMeshCompilingManager::ProcessStaticMeshes(bool bLimitExecutionTime, 
 					const bool bHasMeshUpdateLeft = ProcessedStaticMeshes.Num() <= MaxMeshUpdatesPerFrame;
 					if (bHasMeshUpdateLeft && StaticMesh->IsAsyncTaskComplete())
 					{
-						FinishStaticMeshCompilation(StaticMesh);
+						PostCompilation(StaticMesh);
 						ProcessedStaticMeshes.Add(StaticMesh);
 					}
 					else
@@ -771,7 +607,7 @@ void FStaticMeshCompilingManager::ProcessStaticMeshes(bool bLimitExecutionTime, 
 
 			RegisteredStaticMesh = MoveTemp(StaticMeshesToPostpone);
 
-			PostStaticMeshesCompilation(ProcessedStaticMeshes);
+			PostCompilation(ProcessedStaticMeshes);
 		}
 	}
 }
@@ -788,6 +624,6 @@ void FStaticMeshCompilingManager::ProcessAsyncTasks(bool bLimitExecutionTime)
 	UpdateCompilationNotification();
 }
 
-#endif // #if WITH_EDITOR
-
 #undef LOCTEXT_NAMESPACE
+
+#endif // #if WITH_EDITOR

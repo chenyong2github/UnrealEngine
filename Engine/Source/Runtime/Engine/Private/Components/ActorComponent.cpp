@@ -101,7 +101,7 @@ void FRegisterComponentContext::Process()
 #if WITH_EDITOR
 	// This is required for async static mesh compilation in case a scene proxy is not async aware.
 	// A stall until the compilation is finished might occur, and this is only supported on the game thread for now.
-	bSingleThreaded |= FStaticMeshCompilingManager().Get().IsAsyncStaticMeshCompilationEnabled();
+	bSingleThreaded |= FStaticMeshCompilingManager::Get().IsAsyncStaticMeshCompilationEnabled();
 #endif
 
 	FSceneInterface* Scene = World->Scene;

@@ -1,0 +1,76 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+#pragma once
+
+#include "CoreMinimal.h"
+
+#if WITH_EDITOR
+
+#include "HAL/IConsoleManager.h"
+#include "Logging/LogMacros.h"
+
+DECLARE_LOG_CATEGORY_EXTERN(LogAsyncCompilation, Log, All);
+
+class SNotificationItem;
+class FQueuedThreadPoolWrapper;
+
+class FAsyncCompilationNotification
+{
+public:
+	FAsyncCompilationNotification(FText InAssetType)
+		: AssetType(InAssetType)
+	{
+	}
+
+	void Update(int32 NumJobs);
+private:
+	TWeakPtr<SNotificationItem> NotificationItemPtr;
+	FText AssetType;
+};
+
+namespace AsyncCompilationHelpers
+{
+	class FAsyncCompilationStandardCVars
+	{
+	public:
+		TAutoConsoleVariable<int32> AsyncCompilation;
+		TAutoConsoleVariable<int32> AsyncCompilationMaxConcurrency;
+		FAutoConsoleCommand         AsyncCompilationFinishAll;
+		TAutoConsoleVariable<int32> AsyncCompilationResume;
+
+		FAsyncCompilationStandardCVars(const TCHAR* AssetType, const TCHAR* AssetTypePluralLowerCase, const FConsoleCommandDelegate& FinishAllCommand);
+	};
+
+	class ICompilable
+	{
+	public:
+		inline virtual ~ICompilable() {};
+		virtual void EnsureCompletion() = 0;
+		virtual FName GetName() = 0;
+	};
+
+	void FinishCompilation(
+		TFunctionRef<ICompilable& (int32 Index)> Getter,
+		int32 Num,
+		const FText& AssetType,
+		const FLogCategoryBase& LogCategory,
+		TFunctionRef<void(ICompilable*)> PostCompileSingle
+	);
+
+	void EnsureInitializedCVars(
+		const TCHAR* InName,
+		TAutoConsoleVariable<int32>& InCVarAsyncCompilation,
+		TAutoConsoleVariable<int32>& InCVarAsyncCompilationMaxConcurrency,
+		FName ExperimentalSettingsName = NAME_None);
+
+	void BindThreadPoolToCVar(
+		FQueuedThreadPoolWrapper* InThreadPoolWrapper,
+		TAutoConsoleVariable<int32>& InCVarAsyncCompilation,
+		TAutoConsoleVariable<int32>& InCVarAsyncCompilationResume,
+		TAutoConsoleVariable<int32>& InCVarAsyncCompilationMaxConcurrency
+		);
+
+	ENGINE_API void SaveStallStack(uint64 Cycles);
+	ENGINE_API void DumpStallStacks();
+}
+
+#endif // #if WITH_EDITOR
