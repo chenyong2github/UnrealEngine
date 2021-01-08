@@ -327,6 +327,9 @@ public:
 	/** What sort of context menu this node summons */
 	virtual void BuildContextMenu(FMenuBuilder& MenuBuilder);
 
+	/** Context menu for organization */
+	virtual void BuildOrganizeContextMenu(FMenuBuilder& MenuBuilder);
+
 	/** Can this node show the add object bindings menu? */
 	virtual bool CanAddObjectBindingsMenu() const { return false; }
 
