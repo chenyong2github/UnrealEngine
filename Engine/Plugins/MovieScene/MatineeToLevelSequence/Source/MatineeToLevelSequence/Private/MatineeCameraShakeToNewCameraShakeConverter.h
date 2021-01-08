@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "CoreTypes.h"
+
 class FMatineeConverter;
 class IAssetTools;
 class IAssetRegistry;
