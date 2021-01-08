@@ -7,6 +7,7 @@
 
 #include "Features/IModularFeature.h"
 #include "Features/IModularFeatures.h"
+#include "Misc/ConfigCacheIni.h"
 
 #define LOCTEXT_NAMESPACE "EOSPlus"
 
