@@ -419,7 +419,7 @@ void FNiagaraShaderType::BeginCompileShader(
 		nullptr,
 		this,
 		nullptr,//ShaderPipeline,
-		0, // PermutationId
+		PermutationId,
 		TEXT("/Plugin/FX/Niagara/Private/NiagaraEmitterInstanceShader.usf"),
 		TEXT("SimulateMainComputeCS"),
 		FShaderTarget(GetFrequency(), Platform),
