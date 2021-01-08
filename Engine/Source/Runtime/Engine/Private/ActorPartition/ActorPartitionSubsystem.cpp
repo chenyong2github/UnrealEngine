@@ -210,6 +210,10 @@ public:
 
 				FoundActor = CastChecked<APartitionActor>(DescActor);
 				check(FoundActor->GridSize == InGridSize && FoundActor->GetGridGuid() == InGuid);
+				// Typically, this could happen if a PartitionActor was manually deleted (it's now be prevented by APartitionActor::CanDeleteSelectedActor);
+				// If at some point it's decided to be supported, a solution for a found PendingKill PartitionActor is to
+				// call Modify(), Rename the actor to a unique/trash name and behave as if no actor was found
+				check(!FoundActor->IsPendingKill());
 				return false;
 			}
 			return true;

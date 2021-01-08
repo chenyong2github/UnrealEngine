@@ -8,6 +8,8 @@
 #include "WorldPartition/ActorPartition/PartitionActorDesc.h"
 #endif
 
+#define LOCTEXT_NAMESPACE "PartitionActor"
+
 APartitionActor::APartitionActor(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 #if WITH_EDITORONLY_DATA
@@ -24,4 +26,19 @@ TUniquePtr<FWorldPartitionActorDesc> APartitionActor::CreateClassActorDesc() con
 {
 	return TUniquePtr<FWorldPartitionActorDesc>(new FPartitionActorDesc());
 }
+
+bool APartitionActor::CanDeleteSelectedActor(FText& OutReason) const
+{
+	if (!Super::CanDeleteSelectedActor(OutReason))
+	{
+		return false;
+	}
+
+	check(GetLevel());
+	check(GetLevel()->bIsPartitioned);
+	OutReason = LOCTEXT("CantDeleteSelectedPartitionActor", "Can't delete Partition Actor (automatically managed).");
+	return false;
+}
 #endif
+
+#undef LOCTEXT_NAMESPACE
