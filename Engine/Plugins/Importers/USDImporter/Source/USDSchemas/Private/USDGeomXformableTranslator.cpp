@@ -3,6 +3,7 @@
 #include "USDGeomXformableTranslator.h"
 
 #include "UnrealUSDWrapper.h"
+#include "USDAssetCache.h"
 #include "USDConversionUtils.h"
 #include "USDErrorUtils.h"
 #include "USDGeomMeshConversion.h"
@@ -291,7 +292,7 @@ USceneComponent* FUsdGeomXformableTranslator::CreateComponentsEx( TOptional< TSu
 
 				if ( CollapsesChildren( ECollapsingType::Assets ) )
 				{
-					if ( UStaticMesh* PrimStaticMesh = Cast< UStaticMesh >( Context->PrimPathsToAssets.FindRef( PrimPath.GetString() ) ) )
+					if ( UStaticMesh* PrimStaticMesh = Cast< UStaticMesh >( Context->AssetCache.GetAssetForPrim( PrimPath.GetString() ) ) )
 					{
 						// At this time, we only support collapsing static meshes together
 						ComponentType = UStaticMeshComponent::StaticClass();
@@ -355,7 +356,7 @@ void FUsdGeomXformableTranslator::UpdateComponents( USceneComponent* SceneCompon
 		// so we must check for this and assign the new StaticMesh
 		if ( UStaticMeshComponent* StaticMeshComponent = Cast< UStaticMeshComponent >( SceneComponent ) )
 		{
-			UStaticMesh* PrimStaticMesh = Cast< UStaticMesh >( Context->PrimPathsToAssets.FindRef( PrimPath.GetString() ) );
+			UStaticMesh* PrimStaticMesh = Cast< UStaticMesh >( Context->AssetCache.GetAssetForPrim( PrimPath.GetString() ) );
 
 			if ( PrimStaticMesh != StaticMeshComponent->GetStaticMesh() )
 			{

@@ -2,6 +2,7 @@
 
 #include "USDShadeMaterialTranslator.h"
 
+#include "USDAssetCache.h"
 #include "USDAssetImportData.h"
 #include "USDShadeConversion.h"
 #include "USDTypesConversion.h"
@@ -32,11 +33,7 @@ void FUsdShadeMaterialTranslator::CreateAssets()
 
 	FString MaterialHashString = UsdUtils::HashShadeMaterial( ShadeMaterial ).ToString();
 
-	UMaterialInterface* ConvertedMaterial = nullptr;
-	if ( UObject** FoundCachedMaterial = Context->AssetsCache.Find( MaterialHashString ) )
-	{
-		ConvertedMaterial = Cast<UMaterialInterface>( *FoundCachedMaterial );
-	}
+	UMaterialInterface* ConvertedMaterial = Cast<UMaterialInterface>( Context->AssetCache.GetCachedAsset( MaterialHashString ) );
 
 	if ( !ConvertedMaterial )
 	{
@@ -60,14 +57,14 @@ void FUsdShadeMaterialTranslator::CreateAssets()
 					TMap<FString, int32> Unused;
 					TMap<FString, int32>& PrimvarToUVIndex = Context->MaterialToPrimvarToUVIndex ? Context->MaterialToPrimvarToUVIndex->FindOrAdd( PrimPath.GetString() ) : Unused;
 
-					UsdToUnreal::ConvertMaterial( ShadeMaterial, *NewMaterial, Context->AssetsCache, PrimvarToUVIndex );
+					UsdToUnreal::ConvertMaterial( ShadeMaterial, *NewMaterial, &Context->AssetCache, PrimvarToUVIndex );
 
 					FMaterialUpdateContext UpdateContext( FMaterialUpdateContext::EOptions::Default, GMaxRHIShaderPlatform );
 					UpdateContext.AddMaterialInstance( NewMaterial );
 					NewMaterial->PreEditChange( nullptr );
 					NewMaterial->PostEditChange();
 
-					ConvertedMaterial = Cast<UMaterialInterface>( Context->AssetsCache.Add( MaterialHashString, NewMaterial ) );
+					ConvertedMaterial = NewMaterial;
 				}
 #endif // WITH_EDITOR
 			}
@@ -76,46 +73,16 @@ void FUsdShadeMaterialTranslator::CreateAssets()
 				TMap<FString, int32> Unused;
 				TMap<FString, int32>& PrimvarToUVIndex = Context->MaterialToPrimvarToUVIndex ? Context->MaterialToPrimvarToUVIndex->FindOrAdd( PrimPath.GetString() ) : Unused;
 
-				UsdToUnreal::ConvertMaterial( ShadeMaterial, *NewMaterial, Context->AssetsCache, PrimvarToUVIndex );
+				UsdToUnreal::ConvertMaterial( ShadeMaterial, *NewMaterial, &Context->AssetCache, PrimvarToUVIndex );
 
-				ConvertedMaterial = Cast<UMaterialInterface>( Context->AssetsCache.Add( MaterialHashString, NewMaterial ) );
+				ConvertedMaterial = NewMaterial;
 			}
 		}
 	}
 
-	if ( !ConvertedMaterial )
+	if ( ConvertedMaterial )
 	{
-		return;
-	}
-
-	Context->CurrentlyUsedAssets.Add( ConvertedMaterial );
-
-	// This won't work for the new material workflow as the new material instances aren't actually UMaterial
-	if ( UMaterial* ImportedMaterial = Cast<UMaterial>( ConvertedMaterial ) )
-	{
-		TArray<UTexture*> UsedTextures;
-		const bool bAllQualityLevels = true;
-		const bool bAllFeatureLevels = true;
-		ImportedMaterial->GetUsedTextures( UsedTextures, EMaterialQualityLevel::High, bAllQualityLevels, ERHIFeatureLevel::SM5, bAllFeatureLevels );
-		for ( UTexture* UsedTexture : UsedTextures )
-		{
-			Context->CurrentlyUsedAssets.Add( UsedTexture );
-		}
-	}
-	else if ( UMaterialInstance* MaterialInstance = Cast<UMaterialInstance>( ConvertedMaterial ) )
-	{
-		for ( const FTextureParameterValue& TextureValue : MaterialInstance->TextureParameterValues )
-		{
-			if ( TextureValue.ParameterValue )
-			{
-				Context->CurrentlyUsedAssets.Add( TextureValue.ParameterValue );
-			}
-		}
-	}
-
-	FScopeLock Lock( &Context->CriticalSection );
-	{
-		Context->PrimPathsToAssets.Add( PrimPath.GetString(), ConvertedMaterial );
+		Context->AssetCache.CacheAsset( MaterialHashString, ConvertedMaterial, PrimPath.GetString() );
 	}
 }
 

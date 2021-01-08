@@ -12,6 +12,7 @@
 
 #include "USDStageImportContext.generated.h"
 
+class FUsdAssetCache;
 class UUsdStageImportOptions;
 
 USTRUCT()
@@ -39,16 +40,11 @@ struct USDSTAGEIMPORTER_API FUsdStageImportContext
 	UPROPERTY()
 	UUsdStageImportOptions* ImportOptions;
 
-	/** Main property responsible for keeping imported assets alive until they are published*/
-	UPROPERTY()
-	TMap<FString, UObject*> AssetsCache;
-
-	UPROPERTY()
-	TMap<FString, UObject*> PrimPathsToAssets;
-
 	/** Keep track of the parent imported package so that we have something valid to return to upstream code that calls the import factories */
 	UPROPERTY()
 	UPackage* ImportedPackage;
+
+	TSharedPtr<FUsdAssetCache> AssetCache;
 
 	/**
 	 * When parsing materials, we keep track of which primvar we mapped to which UV channel.

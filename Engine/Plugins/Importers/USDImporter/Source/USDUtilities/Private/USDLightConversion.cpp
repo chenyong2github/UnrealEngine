@@ -2,6 +2,7 @@
 
 #include "USDLightConversion.h"
 
+#include "USDAssetCache.h"
 #include "USDConversionUtils.h"
 #include "USDShadeConversion.h"
 #include "USDTypesConversion.h"
@@ -149,7 +150,7 @@ bool UsdToUnreal::ConvertSphereLight( const FUsdStageInfo& StageInfo, const pxr:
 	return true;
 }
 
-bool UsdToUnreal::ConvertDomeLight( const FUsdStageInfo& StageInfo, const pxr::UsdLuxDomeLight& DomeLight, USkyLightComponent& LightComponent, TMap< FString, UObject* >& TexturesCache, double TimeCode )
+bool UsdToUnreal::ConvertDomeLight( const FUsdStageInfo& StageInfo, const pxr::UsdLuxDomeLight& DomeLight, USkyLightComponent& LightComponent, FUsdAssetCache* TexturesCache, double TimeCode )
 {
 	if ( !DomeLight )
 	{
@@ -163,12 +164,16 @@ bool UsdToUnreal::ConvertDomeLight( const FUsdStageInfo& StageInfo, const pxr::U
 		return true;
 	}
 
-	UTextureCube* Cubemap = Cast< UTextureCube >( TexturesCache.FindRef( ResolvedDomeTexturePath ) );
+	UTextureCube* Cubemap = Cast< UTextureCube >( TexturesCache ? TexturesCache->GetCachedAsset( ResolvedDomeTexturePath ) : nullptr );
 
 	if ( !Cubemap )
 	{
-		Cubemap = Cast< UTextureCube >( UsdUtils::CreateTexture( DomeLight.GetTextureFileAttr(), UsdToUnreal::ConvertPath(DomeLight.GetPrim().GetPath()) ) );
-		TexturesCache.Add( ResolvedDomeTexturePath ) = Cubemap;
+		Cubemap = Cast< UTextureCube >( UsdUtils::CreateTexture( DomeLight.GetTextureFileAttr(), UsdToUnreal::ConvertPath( DomeLight.GetPrim().GetPath() ) ) );
+
+		if ( TexturesCache )
+		{
+			TexturesCache->CacheAsset( ResolvedDomeTexturePath, Cubemap );
+		}
 	}
 
 	if ( Cubemap )
@@ -178,6 +183,19 @@ bool UsdToUnreal::ConvertDomeLight( const FUsdStageInfo& StageInfo, const pxr::U
 	}
 
 	return true;
+}
+
+bool UsdToUnreal::ConvertDomeLight( const FUsdStageInfo& StageInfo, const pxr::UsdLuxDomeLight& DomeLight, USkyLightComponent& LightComponent, TMap< FString, UObject* >& TexturesCache, double TimeCode )
+{
+	FUsdAssetCache TempCache{ TexturesCache };
+
+	bool bSuccess = ConvertDomeLight( StageInfo, DomeLight, LightComponent, &TempCache, TimeCode );
+	if ( bSuccess )
+	{
+		TexturesCache = TempCache.GetCachedAssets();
+	}
+
+	return bSuccess;
 }
 
 bool UsdToUnreal::ConvertLuxShapingAPI( const FUsdStageInfo& StageInfo, const pxr::UsdLuxShapingAPI& ShapingAPI, USpotLightComponent& LightComponent, double TimeCode )

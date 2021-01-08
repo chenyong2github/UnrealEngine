@@ -7,6 +7,7 @@
 #include "Templates/Function.h"
 
 #include "UnrealUSDWrapper.h"
+#include "USDAssetCache.h"
 #include "USDLevelSequenceHelper.h"
 #include "USDListener.h"
 #include "USDMemory.h"
@@ -140,8 +141,7 @@ public:
 	void Refresh() const;
 	void ReloadAnimations();
 	float GetTime() { return Time; }
-	TMap< FString, UObject* > GetAssetsCache() { return AssetsCache; } // Intentional copies
-	TMap< FString, UObject* > GetPrimPathsToAssets() { return PrimPathsToAssets; }
+	TWeakPtr<FUsdAssetCache> GetAssetCache() { return AssetCache; }
 	TMap< FString, TMap< FString, int32 > > GetMaterialToPrimvarToUVIndex() { return MaterialToPrimvarToUVIndex; }
 
 public:
@@ -160,7 +160,6 @@ public:
 	void OnPostUsdImport( FString FilePath );
 
 private:
-	void Clear();
 	void OpenUsdStage();
 	void LoadUsdStage();
 
@@ -186,17 +185,11 @@ private:
 	UPROPERTY(Transient)
 	TSet< FString > PrimsToAnimate;
 
-	UPROPERTY( Transient )
+	UPROPERTY(Transient)
 	TMap< UObject*, FString > ObjectsToWatch;
 
 private:
-	/** Hash based assets cache */
-	UPROPERTY(Transient)
-	TMap< FString, UObject* > AssetsCache;
-
-	/** Map of USD Prim Paths to UE assets */
-	UPROPERTY(Transient)
-	TMap< FString, UObject* > PrimPathsToAssets;
+	TSharedPtr<FUsdAssetCache> AssetCache;
 
 	/** Keep track of blend shapes so that we can map 'inbetween shapes' to their separate morph targets when animating */
 	UsdUtils::FBlendShapeMap BlendShapesByPath;

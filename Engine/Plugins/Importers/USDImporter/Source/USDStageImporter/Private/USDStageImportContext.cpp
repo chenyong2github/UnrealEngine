@@ -2,6 +2,7 @@
 
 #include "USDStageImportContext.h"
 
+#include "USDAssetCache.h"
 #include "USDLog.h"
 #include "USDMemory.h"
 #include "USDStageImportOptions.h"
@@ -21,6 +22,7 @@ FUsdStageImportContext::FUsdStageImportContext()
 	bStageWasOriginallyOpen = false;
 	SceneActor = nullptr;
 	ImportedPackage = nullptr;
+	AssetCache = nullptr;
 	OriginalMetersPerUnit = 0.01f;
 }
 
@@ -34,9 +36,6 @@ bool FUsdStageImportContext::Init(const FString& InName, const FString& InFilePa
 	PackagePath = TEXT("/Game/"); // Trailing '/' is needed to set the default path
 
 	FPaths::NormalizeFilename(FilePath);
-
-	AssetsCache.Empty();
-	PrimPathsToAssets.Empty();
 
 	if(!bIsAutomated)
 	{

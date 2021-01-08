@@ -86,13 +86,8 @@ void FUsdLuxLightTranslator::UpdateComponents( USceneComponent* SceneComponent )
 	}
 	else if ( USkyLightComponent* SkyLightComponent = Cast< USkyLightComponent >( SceneComponent ) )
 	{
-		UsdToUnreal::ConvertDomeLight( FUsdStageInfo( Context->Stage ), pxr::UsdLuxDomeLight{ Prim }, *SkyLightComponent, Context->AssetsCache, Context->Time );
+		UsdToUnreal::ConvertDomeLight( FUsdStageInfo( Context->Stage ), pxr::UsdLuxDomeLight{ Prim }, *SkyLightComponent, &Context->AssetCache, Context->Time );
 		SkyLightComponent->Mobility = EComponentMobility::Movable; // We won't bake geometry in the sky light so it needs to be movable
-
-		if ( SkyLightComponent->Cubemap )
-		{
-			Context->CurrentlyUsedAssets.Add( SkyLightComponent->Cubemap );
-		}
 	}
 
 	if ( !LightComponent->IsRegistered() )

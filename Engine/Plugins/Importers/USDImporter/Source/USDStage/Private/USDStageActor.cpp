@@ -3,6 +3,7 @@
 #include "USDStageActor.h"
 
 #include "UnrealUSDWrapper.h"
+#include "USDAssetCache.h"
 #include "USDAssetImportData.h"
 #include "USDConversionUtils.h"
 #include "USDErrorUtils.h"
@@ -75,9 +76,8 @@ struct FUsdStageActorImpl
 	{
 		TSharedRef< FUsdSchemaTranslationContext > TranslationContext = MakeShared< FUsdSchemaTranslationContext >(
 			StageActor->GetUsdStage(),
-			StageActor->PrimPathsToAssets,
-			StageActor->AssetsCache,
-			&StageActor->BlendShapesByPath);
+			*StageActor->AssetCache
+		);
 
 		TranslationContext->Level = StageActor->GetLevel();
 		TranslationContext->ObjectFlags = DefaultObjFlag;
@@ -85,6 +85,7 @@ struct FUsdStageActorImpl
 		TranslationContext->PurposesToLoad = (EUsdPurpose) StageActor->PurposesToLoad;
 		TranslationContext->RenderContext = StageActor->RenderContext;
 		TranslationContext->MaterialToPrimvarToUVIndex = &StageActor->MaterialToPrimvarToUVIndex;
+		TranslationContext->BlendShapesByPath = &StageActor->BlendShapesByPath;
 
 		// Its more convenient to toggle between variants using the USDStage window, as opposed to parsing LODs
 		TranslationContext->bAllowInterpretingLODs = false;
@@ -232,6 +233,8 @@ AUsdStageActor::AUsdStageActor()
 
 	RootComponent = SceneComponent;
 
+	AssetCache = MakeShared<FUsdAssetCache>();
+
 	RootUsdTwin = NewObject<UUsdPrimTwin>(this, TEXT("RootUsdTwin"), DefaultObjFlag);
 	RootUsdTwin->PrimPath = TEXT( "/" );
 
@@ -295,7 +298,7 @@ AUsdStageActor::AUsdStageActor()
 						}
 						// We have a valid filepath but no objects/assets spawned, so it's likely we were just spawned on the
 						// other client, and were replicated here with our RootLayer path already filled out, meaning we should just load that stage
-						else if ( ObjectsToWatch.Num() == 0 && AssetsCache.Num() == 0 )
+						else if ( ObjectsToWatch.Num() == 0 && AssetCache->GetNumAssets() == 0 )
 						{
 							bool bNeedLoad = true;
 
@@ -507,10 +510,10 @@ USDSTAGE_API void AUsdStageActor::Reset()
 	Modify();
 
 	FUsdStageActorImpl::DeselectActorsAndComponents( this );
-	FUsdStageActorImpl::CloseEditorsForAssets( AssetsCache );
+	FUsdStageActorImpl::CloseEditorsForAssets( AssetCache->GetCachedAssets() );
 
-	Clear();
-	AssetsCache.Reset();
+	ObjectsToWatch.Reset();
+	AssetCache->Reset();
 	BlendShapesByPath.Reset();
 	MaterialToPrimvarToUVIndex.Reset();
 
@@ -728,7 +731,7 @@ void AUsdStageActor::SetRootLayer( const FString& RootFilePath )
 	UnrealUSDWrapper::EraseStageFromCache( UsdStage );
 	UsdStage = UE::FUsdStage();
 
-	AssetsCache.Reset(); // We've changed USD file, clear the cache
+	AssetCache->Reset(); // We've changed USD file, clear the cache
 	BlendShapesByPath.Reset();
 	MaterialToPrimvarToUVIndex.Reset();
 
@@ -779,12 +782,12 @@ TArray<UObject*> AUsdStageActor::GetGeneratedAssets( const FString& PrimPath )
 
 	TSet<UObject*> Result;
 
-	if ( UObject** FoundAsset = PrimPathsToAssets.Find( UncollapsedPath ) )
+	if ( UObject* FoundAsset = AssetCache->GetAssetForPrim( UncollapsedPath ) )
 	{
-		Result.Add( *FoundAsset );
+		Result.Add( FoundAsset );
 	}
 
-	for ( const TPair<FString, UObject*>& HashToAsset : AssetsCache )
+	for ( const TPair<FString, UObject*>& HashToAsset : AssetCache->GetCachedAssets() )
 	{
 		if ( UUsdAssetImportData* ImportData = UsdUtils::GetAssetImportData( HashToAsset.Value ) )
 		{
@@ -808,14 +811,14 @@ FString AUsdStageActor::GetSourcePrimPath( UObject* Object )
 		}
 	}
 
-	for ( const TPair<FString, UObject*>& PrimPathToAsset : PrimPathsToAssets )
+	for ( const TPair<FString, UObject*>& PrimPathToAsset : AssetCache->GetAssetPrimLinks() )
 	{
 		if ( PrimPathToAsset.Value == Object )
 		{
 			return PrimPathToAsset.Key;
 		}
 	}
-	for ( const TPair<FString, UObject*>& HashToAsset : AssetsCache )
+	for ( const TPair<FString, UObject*>& HashToAsset : AssetCache->GetCachedAssets() )
 	{
 		if ( HashToAsset.Value == Object )
 		{
@@ -827,12 +830,6 @@ FString AUsdStageActor::GetSourcePrimPath( UObject* Object )
 	}
 
 	return FString();
-}
-
-void AUsdStageActor::Clear()
-{
-	PrimPathsToAssets.Reset();
-	ObjectsToWatch.Reset();
 }
 
 void AUsdStageActor::OpenUsdStage()
@@ -914,7 +911,7 @@ void AUsdStageActor::LoadUsdStage()
 	FScopedSlowTask SlowTask( 1.f, LOCTEXT( "LoadingUDStage", "Loading USD Stage") );
 	SlowTask.MakeDialog();
 
-	Clear();
+	ObjectsToWatch.Reset();
 
 	FUsdStageActorImpl::DeselectActorsAndComponents( this );
 
@@ -1097,10 +1094,14 @@ void AUsdStageActor::Serialize(FArchive& Ar)
 		Ar << RootUsdTwin;
 		Ar << PrimsToAnimate;
 		Ar << ObjectsToWatch;
-		Ar << AssetsCache;
-		Ar << PrimPathsToAssets;
 		Ar << BlendShapesByPath;
 		Ar << MaterialToPrimvarToUVIndex;
+
+		if ( !AssetCache.IsValid() )
+		{
+			AssetCache = MakeShared<FUsdAssetCache>();
+		}
+		Ar << *AssetCache;
 	}
 }
 
@@ -1378,8 +1379,8 @@ void AUsdStageActor::HandlePropertyChangedEvent( FPropertyChangedEvent& Property
 		FUsdStageActorImpl::DiscardStage( UsdStage );
 		UsdStage = UE::FUsdStage();
 
-		FUsdStageActorImpl::CloseEditorsForAssets( AssetsCache );
-		AssetsCache.Reset(); // We've changed USD file, clear the cache
+		FUsdStageActorImpl::CloseEditorsForAssets( AssetCache->GetCachedAssets() );
+		AssetCache->Reset(); // We've changed USD file, clear the cache
 		BlendShapesByPath.Reset();
 		MaterialToPrimvarToUVIndex.Reset();
 		LoadUsdStage();
@@ -1421,7 +1422,7 @@ void AUsdStageActor::LoadAsset( FUsdSchemaTranslationContext& TranslationContext
 	PrimPath = UsdToUnreal::ConvertPath( Prim.GetPrimPath() );
 #endif // #if USE_USD_SDK
 
-	PrimPathsToAssets.Remove( PrimPath );
+	AssetCache->RemoveAssetPrimLink( PrimPath );
 
 	IUsdSchemasModule& UsdSchemasModule = FModuleManager::Get().LoadModuleChecked< IUsdSchemasModule >( TEXT("USDSchemas") );
 	if ( TSharedPtr< FUsdSchemaTranslator > SchemaTranslator = UsdSchemasModule.GetTranslatorRegistry().CreateTranslatorForSchema( TranslationContext.AsShared(), UE::FUsdTyped( Prim ) ) )
@@ -1442,12 +1443,18 @@ void AUsdStageActor::LoadAssets( FUsdSchemaTranslationContext& TranslationContex
 
 	// Clear existing prim/asset association
 	FString StartPrimPath = StartPrim.GetPrimPath().GetString();
-	for ( TMap< FString, UObject* >::TIterator PrimPathToAssetIt = PrimPathsToAssets.CreateIterator(); PrimPathToAssetIt; ++PrimPathToAssetIt )
+	TSet<FString> PrimPathsToRemove;
+	for ( const TPair< FString, UObject* >& PrimPathToAssetIt : AssetCache->GetAssetPrimLinks() )
 	{
-		if ( PrimPathToAssetIt.Key().StartsWith( StartPrimPath ) || PrimPathToAssetIt.Key() == StartPrimPath )
+		const FString& PrimPath = PrimPathToAssetIt.Key;
+		if ( PrimPath.StartsWith( StartPrimPath ) || PrimPath == StartPrimPath )
 		{
-			PrimPathToAssetIt.RemoveCurrent();
+			PrimPathsToRemove.Add( PrimPath );
 		}
+	}
+	for ( const FString& PrimPathToRemove : PrimPathsToRemove )
+	{
+		AssetCache->RemoveAssetPrimLink( PrimPathToRemove );
 	}
 
 	IUsdSchemasModule& UsdSchemasModule = FModuleManager::Get().LoadModuleChecked< IUsdSchemasModule >( TEXT("USDSchemas") );

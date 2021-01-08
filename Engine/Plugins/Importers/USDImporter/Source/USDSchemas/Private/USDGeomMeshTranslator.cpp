@@ -6,6 +6,7 @@
 
 #include "MeshTranslationImpl.h"
 #include "UnrealUSDWrapper.h"
+#include "USDAssetCache.h"
 #include "USDAssetImportData.h"
 #include "USDConversionUtils.h"
 #include "USDGeomMeshConversion.h"
@@ -83,7 +84,7 @@ namespace UsdGeomMeshTranslatorImpl
 	}
 
 	/** Returns true if material infos have changed on the StaticMesh */
-	bool ProcessMaterials( const pxr::UsdPrim& UsdPrim, const TArray<UsdUtils::FUsdPrimMaterialAssignmentInfo>& LODIndexToMaterialInfo, UStaticMesh& StaticMesh, const TMap< FString, UObject* >& PrimPathsToAssets, TMap< FString, UObject* >& AssetsCache, float Time, EObjectFlags Flags )
+	bool ProcessMaterials( const pxr::UsdPrim& UsdPrim, const TArray<UsdUtils::FUsdPrimMaterialAssignmentInfo>& LODIndexToMaterialInfo, UStaticMesh& StaticMesh, FUsdAssetCache& AssetCache, float Time, EObjectFlags Flags )
 	{
 		bool bMaterialAssignementsHaveChanged = false;
 
@@ -93,7 +94,7 @@ namespace UsdGeomMeshTranslatorImpl
 			ExistingAssignments.Add(StaticMaterial.MaterialInterface);
 		}
 
-		TMap<const UsdUtils::FUsdPrimMaterialSlot*, UMaterialInterface*> ResolvedMaterials = MeshTranslationImpl::ResolveMaterialAssignmentInfo(UsdPrim, LODIndexToMaterialInfo, ExistingAssignments, PrimPathsToAssets, AssetsCache, Time, Flags );
+		TMap<const UsdUtils::FUsdPrimMaterialSlot*, UMaterialInterface*> ResolvedMaterials = MeshTranslationImpl::ResolveMaterialAssignmentInfo(UsdPrim, LODIndexToMaterialInfo, ExistingAssignments, AssetCache, Time, Flags );
 
 		uint32 StaticMeshSlotIndex = 0;
 		for ( int32 LODIndex = 0; LODIndex < LODIndexToMaterialInfo.Num(); ++LODIndex )
@@ -164,7 +165,7 @@ namespace UsdGeomMeshTranslatorImpl
 	}
 
 	// #ueent_todo: Merge the code with ProcessMaterials
-	bool ProcessGeometryCacheMaterials( const pxr::UsdPrim& UsdPrim, const TArray< UsdUtils::FUsdPrimMaterialAssignmentInfo >& LODIndexToMaterialInfo, UGeometryCache& GeometryCache, const TMap< FString, UObject* >& PrimPathsToAssets, TMap< FString, UObject* >& AssetsCache, float Time, EObjectFlags Flags)
+	bool ProcessGeometryCacheMaterials( const pxr::UsdPrim& UsdPrim, const TArray< UsdUtils::FUsdPrimMaterialAssignmentInfo >& LODIndexToMaterialInfo, UGeometryCache& GeometryCache, FUsdAssetCache& AssetCache, float Time, EObjectFlags Flags)
 	{
 		bool bMaterialAssignementsHaveChanged = false;
 
@@ -185,12 +186,9 @@ namespace UsdGeomMeshTranslatorImpl
 					FScopedUsdAllocs Allocs;
 
 					// Try reusing an already created DisplayColor material
-					if ( UObject** FoundAsset = AssetsCache.Find( Slot.MaterialSource ) )
+					if ( UMaterialInstanceConstant* ExistingMaterial = Cast< UMaterialInstanceConstant >( AssetCache.GetCachedAsset( Slot.MaterialSource ) ) )
 					{
-						if ( UMaterialInstanceConstant* ExistingMaterial = Cast< UMaterialInstanceConstant >( *FoundAsset ) )
-						{
-							Material = ExistingMaterial;
-						}
+						Material = ExistingMaterial;
 					}
 
 					// Need to create a new DisplayColor material
@@ -214,7 +212,7 @@ namespace UsdGeomMeshTranslatorImpl
 								MaterialInstance = UsdUtils::CreateDisplayColorMaterialInstanceDynamic( DisplayColorDesc.GetValue() );
 							}
 
-							AssetsCache.Add( Slot.MaterialSource, MaterialInstance );
+							AssetCache.CacheAsset( Slot.MaterialSource, MaterialInstance );
 							Material = MaterialInstance;
 						}
 					}
@@ -234,7 +232,7 @@ namespace UsdGeomMeshTranslatorImpl
 						TUsdStore< pxr::UsdPrim > MaterialPrim = UsdPrim.GetStage()->GetPrimAtPath( MaterialPrimPath );
 						if ( MaterialPrim.Get() )
 						{
-							Material = Cast< UMaterialInterface >( PrimPathsToAssets.FindRef( UsdToUnreal::ConvertPath( MaterialPrim.Get().GetPrimPath() ) ) );
+							Material = Cast< UMaterialInterface >( AssetCache.GetAssetForPrim( UsdToUnreal::ConvertPath( MaterialPrim.Get().GetPrimPath() ) ) );
 						}
 					}
 
@@ -278,12 +276,9 @@ namespace UsdGeomMeshTranslatorImpl
 					FScopedUsdAllocs Allocs;
 
 					// Try reusing an already created DisplayColor material
-					if ( UObject** FoundAsset = AssetsCache.Find( Slot.MaterialSource ) )
+					if ( UMaterialInstanceConstant* ExistingMaterial = Cast< UMaterialInstanceConstant >( AssetCache.GetCachedAsset( Slot.MaterialSource ) ) )
 					{
-						if ( UMaterialInstanceConstant* ExistingMaterial = Cast< UMaterialInstanceConstant >( *FoundAsset ) )
-						{
-							Material = ExistingMaterial;
-						}
+						Material = ExistingMaterial;
 					}
 
 					// Need to create a new DisplayColor material
@@ -307,7 +302,7 @@ namespace UsdGeomMeshTranslatorImpl
 								MaterialInstance = UsdUtils::CreateDisplayColorMaterialInstanceDynamic( DisplayColorDesc.GetValue() );
 							}
 
-							AssetsCache.Add( Slot.MaterialSource, MaterialInstance );
+							AssetCache.CacheAsset( Slot.MaterialSource, MaterialInstance );
 							Material = MaterialInstance;
 						}
 					}
@@ -444,7 +439,7 @@ namespace UsdGeomMeshTranslatorImpl
 		SHA1.Final();
 		SHA1.GetHash(&AllLODHash.Hash[0]);
 
-		StaticMesh = Cast< UStaticMesh >( Context.AssetsCache.FindRef( AllLODHash.ToString() ) );
+		StaticMesh = Cast< UStaticMesh >( Context.AssetCache.GetCachedAsset( AllLODHash.ToString() ) );
 
 		if ( !StaticMesh && bHasValidMeshDescription )
 		{
@@ -476,7 +471,7 @@ namespace UsdGeomMeshTranslatorImpl
 
 			StaticMesh->SetLightingGuid();
 
-			Context.AssetsCache.Add( AllLODHash.ToString() ) = StaticMesh;
+			Context.AssetCache.CacheAsset( AllLODHash.ToString(), StaticMesh );
 		}
 		else
 		{
@@ -594,7 +589,7 @@ namespace UsdGeomMeshTranslatorImpl
 		SHA1.Final();
 		SHA1.GetHash( &AllLODHash.Hash[ 0 ] );
 
-		GeometryCache = Cast< UGeometryCache >( Context->AssetsCache.FindRef( AllLODHash.ToString() ) );
+		GeometryCache = Cast< UGeometryCache >( Context->AssetCache.GetCachedAsset( AllLODHash.ToString() ) );
 
 		if ( !GeometryCache && bHasValidMeshDescription )
 		{
@@ -672,7 +667,7 @@ namespace UsdGeomMeshTranslatorImpl
 			MatTimes.Add( 0.0f );
 			UsdTrack->SetMatrixSamples( Mats, MatTimes );
 
-			Context->AssetsCache.Add( AllLODHash.ToString() ) = GeometryCache;
+			Context->AssetCache.CacheAsset( AllLODHash.ToString(), GeometryCache );
 		}
 		else
 		{
@@ -775,8 +770,7 @@ namespace UsdGeomMeshTranslatorImpl
 	}
 
 	/** Warning: This function will temporarily switch the active LOD variant if one exists, so it's *not* thread safe! */
-	void SetMaterialOverrides( const pxr::UsdPrim& Prim, const TArray<UMaterialInterface*>& ExistingAssignments, UMeshComponent& MeshComponent, const TMap< FString, UObject* >& PrimPathsToAssets,
-		TMap< FString, UObject* >& AssetsCache, float Time, EObjectFlags Flags, bool bInterpretLODs, const FName& RenderContext )
+	void SetMaterialOverrides( const pxr::UsdPrim& Prim, const TArray<UMaterialInterface*>& ExistingAssignments, UMeshComponent& MeshComponent, FUsdAssetCache& AssetCache, float Time, EObjectFlags Flags, bool bInterpretLODs, const FName& RenderContext )
 	{
 		if ( !Prim )
 		{
@@ -833,7 +827,7 @@ namespace UsdGeomMeshTranslatorImpl
 		}
 
 		// Resolve all material assignment info
-		TMap<const UsdUtils::FUsdPrimMaterialSlot*, UMaterialInterface*> ResolvedMaterials = MeshTranslationImpl::ResolveMaterialAssignmentInfo( Prim, LODIndexToAssignments, ExistingAssignments, PrimPathsToAssets, AssetsCache, Time, Flags );
+		TMap<const UsdUtils::FUsdPrimMaterialSlot*, UMaterialInterface*> ResolvedMaterials = MeshTranslationImpl::ResolveMaterialAssignmentInfo( Prim, LODIndexToAssignments, ExistingAssignments, AssetCache, Time, Flags );
 
 		// Compare resolved materials with existing assignments, and create overrides if we need to
 		uint32 StaticMeshSlotIndex = 0;
@@ -897,14 +891,9 @@ void FBuildStaticMeshTaskChain::SetupTasks()
 
 			const FString PrimPathString = PrimPath.GetString();
 
-			FScopeLock Lock( &Context->CriticalSection );
-			{
-				Context->PrimPathsToAssets.Add( PrimPathString, StaticMesh );
-			}
-
 			if ( StaticMesh )
 			{
-				Context->CurrentlyUsedAssets.Add( StaticMesh );
+				Context->AssetCache.LinkAssetToPrim( PrimPathString, StaticMesh );
 
 #if WITH_EDITOR
 				if ( bIsNew )
@@ -932,8 +921,7 @@ void FBuildStaticMeshTaskChain::SetupTasks()
 						GetPrim(),
 						LODIndexToMaterialInfo,
 						*StaticMesh,
-						Context->PrimPathsToAssets,
-						Context->AssetsCache,
+						Context->AssetCache,
 						Context->Time,
 						Context->ObjectFlags
 					);
@@ -952,11 +940,6 @@ void FBuildStaticMeshTaskChain::SetupTasks()
 						}
 #endif // WITH_EDITOR
 					}
-				}
-
-				for ( FStaticMaterial& StaticMaterial : StaticMesh->GetStaticMaterials())
-				{
-					Context->CurrentlyUsedAssets.Add( StaticMaterial.MaterialInterface );
 				}
 			}
 
@@ -1130,11 +1113,6 @@ void FGeometryCacheCreateAssetsTaskChain::SetupTasks()
 			const FString PrimPathString = PrimPath.GetString();
 			UGeometryCache* GeometryCache = UsdGeomMeshTranslatorImpl::CreateGeometryCache( PrimPathString, LODIndexToMeshDescription, Context, bIsNew );
 
-			FScopeLock Lock( &Context->CriticalSection );
-			{
-				Context->PrimPathsToAssets.Add( PrimPathString, GeometryCache );
-			}
-
 #if WITH_EDITOR
 			if ( bIsNew && GeometryCache )
 			{
@@ -1147,7 +1125,7 @@ void FGeometryCacheCreateAssetsTaskChain::SetupTasks()
 			bool bMaterialsHaveChanged = false;
 			if ( GeometryCache )
 			{
-				Context->CurrentlyUsedAssets.Add( GeometryCache );
+				Context->AssetCache.LinkAssetToPrim( PrimPathString, GeometryCache );
 
 #if WITH_EDITOR
 				// Only process the materials if we own the GeometryCache. If it's new we know we do
@@ -1155,12 +1133,7 @@ void FGeometryCacheCreateAssetsTaskChain::SetupTasks()
 				if ( ImportData && ImportData->PrimPath == PrimPathString )
 #endif // WITH_EDITOR
 				{
-					bMaterialsHaveChanged = UsdGeomMeshTranslatorImpl::ProcessGeometryCacheMaterials( GetPrim(), LODIndexToMaterialInfo, *GeometryCache, Context->PrimPathsToAssets, Context->AssetsCache, Context->Time, Context->ObjectFlags );
-				}
-
-				for ( UMaterialInterface* Material : GeometryCache->Materials )
-				{
-					Context->CurrentlyUsedAssets.Add( Material );
+					bMaterialsHaveChanged = UsdGeomMeshTranslatorImpl::ProcessGeometryCacheMaterials( GetPrim(), LODIndexToMaterialInfo, *GeometryCache, Context->AssetCache, Context->Time, Context->ObjectFlags );
 				}
 			}
 
@@ -1205,7 +1178,7 @@ USceneComponent* FUsdGeomMeshTranslator::CreateComponents()
 	// Note: This can be here and not in USDGeomXformableTranslator because there is no way that a collapsed mesh prim could end up with a material override
 	if ( UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>( SceneComponent ) )
 	{
-		if ( UStaticMesh* StaticMesh = Cast< UStaticMesh >( Context->PrimPathsToAssets.FindRef( PrimPath.GetString() ) ) )
+		if ( UStaticMesh* StaticMesh = Cast< UStaticMesh >( Context->AssetCache.GetAssetForPrim( PrimPath.GetString() ) ) )
 		{
 #if WITH_EDITOR
 			// If the prim paths match, it means that it was this prim that created (and so "owns") the static mesh,
@@ -1225,18 +1198,12 @@ USceneComponent* FUsdGeomMeshTranslator::CreateComponents()
 					GetPrim(),
 					ExistingAssignments,
 					*StaticMeshComponent,
-					Context->PrimPathsToAssets,
-					Context->AssetsCache,
+					Context->AssetCache,
 					Context->Time,
 					Context->ObjectFlags,
 					Context->bAllowInterpretingLODs,
 					Context->RenderContext
 				);
-
-				for ( UMaterialInterface* OverrideMaterial : StaticMeshComponent->OverrideMaterials )
-				{
-					Context->CurrentlyUsedAssets.Add( OverrideMaterial );
-				}
 			}
 		}
 	}
@@ -1260,7 +1227,7 @@ void FUsdGeomMeshTranslator::UpdateComponents( USceneComponent* SceneComponent )
 	// Set the initial GeometryCache on the GeometryCacheUsdComponent
 	if ( UGeometryCacheUsdComponent* GeometryCacheUsdComponent = Cast< UGeometryCacheUsdComponent >( SceneComponent ) )
 	{
-		UGeometryCache* GeometryCache = Cast< UGeometryCache >( Context->PrimPathsToAssets.FindRef( PrimPath.GetString() ) );
+		UGeometryCache* GeometryCache = Cast< UGeometryCache >( Context->AssetCache.GetAssetForPrim( PrimPath.GetString() ) );
 
 		if ( GeometryCache != GeometryCacheUsdComponent->GetGeometryCache() )
 		{

@@ -4,6 +4,7 @@
 
 #if USE_USD_SDK
 
+#include "USDAssetCache.h"
 #include "USDAssetImportData.h"
 #include "USDConversionUtils.h"
 #include "USDErrorUtils.h"
@@ -344,7 +345,7 @@ namespace UsdShadeConversionImpl
 	};
 	using FParameterValue = TVariant<float, FVector, FTextureParameterValue>;
 
-	bool GetTextureParameterValue( pxr::UsdShadeInput& ShadeInput, TextureGroup LODGroup, FParameterValue& OutValue, UMaterialInterface* Material = nullptr, TMap< FString, UObject* >* TexturesCache = nullptr, TMap<FString, int32>* PrimvarToUVIndex = nullptr )
+	bool GetTextureParameterValue( pxr::UsdShadeInput& ShadeInput, TextureGroup LODGroup, FParameterValue& OutValue, UMaterialInterface* Material = nullptr, FUsdAssetCache* TexturesCache = nullptr, TMap<FString, int32>* PrimvarToUVIndex = nullptr )
 	{
 		FScopedUsdAllocs UsdAllocs;
 
@@ -374,7 +375,7 @@ namespace UsdShadeConversionImpl
 				// We only actually want to retrieve the textures if we have a cache to put them in
 				if ( TexturesCache )
 				{
-					UTexture* Texture = Cast< UTexture >( TexturesCache->FindRef( TexturePath ) );
+					UTexture* Texture = Cast< UTexture >( TexturesCache->GetCachedAsset( TexturePath ) );
 					if ( !Texture )
 					{
 						// Give the same prim path to the texture, so that it ends up imported right next to the material
@@ -418,7 +419,7 @@ namespace UsdShadeConversionImpl
 							);
 						}
 
-						TexturesCache->Add( TexturePath, Texture );
+						TexturesCache->CacheAsset( TexturePath, Texture );
 
 						FTextureParameterValue OutTextureValue;
 						OutTextureValue.Texture = Texture;
@@ -472,7 +473,7 @@ namespace UsdShadeConversionImpl
 		return OutValue.IsType<FTextureParameterValue>();
 	}
 
-	bool GetFloatParameterValue( pxr::UsdShadeConnectableAPI& Connectable, const pxr::TfToken& InputName, float DefaultValue, FParameterValue& OutValue, UMaterialInterface* Material = nullptr, TMap< FString, UObject* >* TexturesCache = nullptr, TMap<FString, int32>* PrimvarToUVIndex = nullptr)
+	bool GetFloatParameterValue( pxr::UsdShadeConnectableAPI& Connectable, const pxr::TfToken& InputName, float DefaultValue, FParameterValue& OutValue, UMaterialInterface* Material = nullptr, FUsdAssetCache* TexturesCache = nullptr, TMap<FString, int32>* PrimvarToUVIndex = nullptr)
 	{
 		FScopedUsdAllocs Allocs;
 
@@ -507,7 +508,7 @@ namespace UsdShadeConversionImpl
 		return true;
 	}
 
-	bool GetVec3ParameterValue( pxr::UsdShadeConnectableAPI& Connectable, const pxr::TfToken& InputName, const FLinearColor& DefaultValue, FParameterValue& OutValue, bool bIsNormalMap = false, UMaterialInterface* Material = nullptr, TMap< FString, UObject* >* TexturesCache = nullptr, TMap<FString, int32>* PrimvarToUVIndex = nullptr )
+	bool GetVec3ParameterValue( pxr::UsdShadeConnectableAPI& Connectable, const pxr::TfToken& InputName, const FLinearColor& DefaultValue, FParameterValue& OutValue, bool bIsNormalMap = false, UMaterialInterface* Material = nullptr, FUsdAssetCache* TexturesCache = nullptr, TMap<FString, int32>* PrimvarToUVIndex = nullptr )
 	{
 		FScopedUsdAllocs Allocs;
 
@@ -1215,12 +1216,12 @@ namespace UsdShadeConversionImpl
 
 bool UsdToUnreal::ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial, UMaterialInstance& Material )
 {
-	TMap< FString, UObject* > TexturesCache;
+	FUsdAssetCache EmptyCache;
 	TMap<FString, int32> PrimvarToUVIndex;
-	return ConvertMaterial( UsdShadeMaterial, Material, TexturesCache, PrimvarToUVIndex );
+	return ConvertMaterial( UsdShadeMaterial, Material, &EmptyCache, PrimvarToUVIndex );
 }
 
-bool UsdToUnreal::ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial, UMaterialInstance& Material, TMap< FString, UObject* >& TexturesCache, TMap< FString, int32 >& PrimvarToUVIndex )
+bool UsdToUnreal::ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial, UMaterialInstance& Material, FUsdAssetCache* TexturesCache, TMap< FString, int32 >& PrimvarToUVIndex )
 {
 	bool bHasMaterialInfo = false;
 
@@ -1262,7 +1263,7 @@ bool UsdToUnreal::ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial
 	// Base color
 	{
 		const bool bIsNormalMap = false;
-		if( UsdShadeConversionImpl::GetVec3ParameterValue( Connectable, UnrealIdentifiers::DiffuseColor, FLinearColor( 0, 0, 0 ), ParameterValue, bIsNormalMap, &Material, &TexturesCache, &PrimvarToUVIndex ))
+		if ( UsdShadeConversionImpl::GetVec3ParameterValue( Connectable, UnrealIdentifiers::DiffuseColor, FLinearColor( 0, 0, 0 ), ParameterValue, bIsNormalMap, &Material, TexturesCache, &PrimvarToUVIndex ) )
 		{
 			UsdShadeConversionImpl::SetParameterValue( Material, TEXT( "BaseColor" ), ParameterValue );
 			bHasMaterialInfo = true;
@@ -1271,7 +1272,7 @@ bool UsdToUnreal::ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial
 
 	// Metallic
 	{
-		if ( UsdShadeConversionImpl::GetFloatParameterValue( Connectable, UnrealIdentifiers::Metallic, 0.f, ParameterValue, &Material, &TexturesCache, &PrimvarToUVIndex ) )
+		if ( UsdShadeConversionImpl::GetFloatParameterValue( Connectable, UnrealIdentifiers::Metallic, 0.f, ParameterValue, &Material, TexturesCache, &PrimvarToUVIndex ) )
 		{
 			UsdShadeConversionImpl::SetParameterValue( Material, TEXT( "Metallic" ), ParameterValue );
 			SetTextureComponentParamForScalarInput( ParameterValue, TEXT( "MetallicTextureComponent" ) );
@@ -1281,7 +1282,7 @@ bool UsdToUnreal::ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial
 
 	// Roughness
 	{
-		if ( UsdShadeConversionImpl::GetFloatParameterValue( Connectable, UnrealIdentifiers::Roughness, 1.f, ParameterValue, &Material, &TexturesCache, &PrimvarToUVIndex ) )
+		if ( UsdShadeConversionImpl::GetFloatParameterValue( Connectable, UnrealIdentifiers::Roughness, 1.f, ParameterValue, &Material, TexturesCache, &PrimvarToUVIndex ) )
 		{
 			UsdShadeConversionImpl::SetParameterValue( Material, TEXT( "Roughness" ), ParameterValue );
 			SetTextureComponentParamForScalarInput( ParameterValue, TEXT( "RoughnessTextureComponent" ) );
@@ -1291,7 +1292,7 @@ bool UsdToUnreal::ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial
 
 	// Opacity
 	{
-		if ( UsdShadeConversionImpl::GetFloatParameterValue( Connectable, UnrealIdentifiers::Opacity, 1.f, ParameterValue, &Material, &TexturesCache, &PrimvarToUVIndex ) )
+		if ( UsdShadeConversionImpl::GetFloatParameterValue( Connectable, UnrealIdentifiers::Opacity, 1.f, ParameterValue, &Material, TexturesCache, &PrimvarToUVIndex ) )
 		{
 			UsdShadeConversionImpl::SetParameterValue( Material, TEXT( "Opacity" ), ParameterValue );
 			SetTextureComponentParamForScalarInput( ParameterValue, TEXT( "OpacityTextureComponent" ) );
@@ -1302,7 +1303,7 @@ bool UsdToUnreal::ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial
 	// Normal
 	{
 		const bool bIsNormalMap = true;
-		if ( UsdShadeConversionImpl::GetVec3ParameterValue( Connectable, UnrealIdentifiers::Normal, FLinearColor( 0, 0, 1 ), ParameterValue, bIsNormalMap, &Material, &TexturesCache, &PrimvarToUVIndex ) )
+		if ( UsdShadeConversionImpl::GetVec3ParameterValue( Connectable, UnrealIdentifiers::Normal, FLinearColor( 0, 0, 1 ), ParameterValue, bIsNormalMap, &Material, TexturesCache, &PrimvarToUVIndex ) )
 		{
 			UsdShadeConversionImpl::SetParameterValue( Material, TEXT( "Normal" ), ParameterValue );
 			bHasMaterialInfo = true;
@@ -1317,12 +1318,12 @@ bool UsdToUnreal::ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial
 
 bool UsdToUnreal::ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial, UMaterial& Material )
 {
-	TMap< FString, UObject* > TexturesCache;
+	FUsdAssetCache EmptyCache;
 	TMap<FString, int32> PrimvarToUVIndex;
-	return ConvertMaterial( UsdShadeMaterial, Material, TexturesCache, PrimvarToUVIndex );
+	return ConvertMaterial( UsdShadeMaterial, Material, &EmptyCache, PrimvarToUVIndex );
 }
 
-bool UsdToUnreal::ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial, UMaterial& Material, TMap< FString, UObject* >& TexturesCache, TMap<FString, int32>& PrimvarToUVIndex )
+bool UsdToUnreal::ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial, UMaterial& Material, FUsdAssetCache* TexturesCache, TMap< FString, int32 >& PrimvarToUVIndex )
 {
 	bool bHasMaterialInfo = false;
 
@@ -1347,7 +1348,7 @@ bool UsdToUnreal::ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial
 	// Base color
 	{
 		const bool bIsNormalMap = false;
-		UsdShadeConversionImpl::GetVec3ParameterValue( Connectable, UnrealIdentifiers::DiffuseColor, FLinearColor( 0, 0, 0 ), ParameterValue, bIsNormalMap, &Material, &TexturesCache, &PrimvarToUVIndex );
+		UsdShadeConversionImpl::GetVec3ParameterValue( Connectable, UnrealIdentifiers::DiffuseColor, FLinearColor( 0, 0, 0 ), ParameterValue, bIsNormalMap, &Material, TexturesCache, &PrimvarToUVIndex );
 		if ( UMaterialExpression* Expression = UsdShadeConversionImpl::GetExpressionForValue( Material, ParameterValue ) )
 		{
 			Material.BaseColor.Expression = Expression;
@@ -1359,7 +1360,7 @@ bool UsdToUnreal::ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial
 
 	// Metallic
 	{
-		UsdShadeConversionImpl::GetFloatParameterValue( Connectable, UnrealIdentifiers::Metallic, 0.f, ParameterValue, &Material, &TexturesCache, &PrimvarToUVIndex );
+		UsdShadeConversionImpl::GetFloatParameterValue( Connectable, UnrealIdentifiers::Metallic, 0.f, ParameterValue, &Material, TexturesCache, &PrimvarToUVIndex );
 		if ( UMaterialExpression* Expression = UsdShadeConversionImpl::GetExpressionForValue( Material, ParameterValue ) )
 		{
 			Material.Metallic.Expression = Expression;
@@ -1371,7 +1372,7 @@ bool UsdToUnreal::ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial
 
 	// Roughness
 	{
-		UsdShadeConversionImpl::GetFloatParameterValue( Connectable, UnrealIdentifiers::Roughness, 1.f, ParameterValue, &Material, &TexturesCache, &PrimvarToUVIndex );
+		UsdShadeConversionImpl::GetFloatParameterValue( Connectable, UnrealIdentifiers::Roughness, 1.f, ParameterValue, &Material, TexturesCache, &PrimvarToUVIndex );
 		if ( UMaterialExpression* Expression = UsdShadeConversionImpl::GetExpressionForValue( Material, ParameterValue ) )
 		{
 			Material.Roughness.Expression = Expression;
@@ -1383,7 +1384,7 @@ bool UsdToUnreal::ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial
 
 	// Opacity
 	{
-		UsdShadeConversionImpl::GetFloatParameterValue( Connectable, UnrealIdentifiers::Opacity, 1.f, ParameterValue, &Material, &TexturesCache, &PrimvarToUVIndex );
+		UsdShadeConversionImpl::GetFloatParameterValue( Connectable, UnrealIdentifiers::Opacity, 1.f, ParameterValue, &Material, TexturesCache, &PrimvarToUVIndex );
 		if ( UMaterialExpression* Expression = UsdShadeConversionImpl::GetExpressionForValue( Material, ParameterValue ) )
 		{
 			Material.Opacity.Expression = Expression;
@@ -1397,7 +1398,7 @@ bool UsdToUnreal::ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial
 	// Normal
 	{
 		const bool bIsNormalMap = true;
-		UsdShadeConversionImpl::GetVec3ParameterValue( Connectable, UnrealIdentifiers::Normal, FLinearColor( 0, 0, 1 ), ParameterValue, bIsNormalMap, &Material, &TexturesCache, &PrimvarToUVIndex );
+		UsdShadeConversionImpl::GetVec3ParameterValue( Connectable, UnrealIdentifiers::Normal, FLinearColor( 0, 0, 1 ), ParameterValue, bIsNormalMap, &Material, TexturesCache, &PrimvarToUVIndex );
 		if ( UMaterialExpression* Expression = UsdShadeConversionImpl::GetExpressionForValue( Material, ParameterValue ) )
 		{
 			Material.Normal.Expression = Expression;
@@ -1412,6 +1413,32 @@ bool UsdToUnreal::ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial
 
 #endif // WITH_EDITOR
 	return bHasMaterialInfo;
+}
+
+bool UsdToUnreal::ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial, UMaterialInstance& Material, TMap< FString, UObject* >& TexturesCache, TMap< FString, int32 >& PrimvarToUVIndex )
+{
+	FUsdAssetCache TempCache{ TexturesCache };
+
+	bool bSuccess = ConvertMaterial( UsdShadeMaterial, Material, &TempCache, PrimvarToUVIndex );
+	if ( bSuccess )
+	{
+		TexturesCache = TempCache.GetCachedAssets();
+	}
+
+	return bSuccess;
+}
+
+bool UsdToUnreal::ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial, UMaterial& Material, TMap< FString, UObject* >& TexturesCache, TMap<FString, int32>& PrimvarToUVIndex )
+{
+	FUsdAssetCache TempCache{ TexturesCache };
+
+	bool bSuccess = ConvertMaterial( UsdShadeMaterial, Material, &TempCache, PrimvarToUVIndex );
+	if ( bSuccess )
+	{
+		TexturesCache = TempCache.GetCachedAssets();
+	}
+
+	return bSuccess;
 }
 
 #if WITH_EDITOR

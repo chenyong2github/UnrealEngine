@@ -20,13 +20,14 @@
 #include "UObject/ObjectMacros.h"
 
 class FRegisteredSchemaTranslator;
-struct FUsdSchemaTranslationContext;
 class FUsdSchemaTranslator;
 class FUsdSchemaTranslatorTaskChain;
 class ULevel;
 class USceneComponent;
 class UStaticMesh;
+class FUsdAssetCache;
 struct FUsdBlendShape;
+struct FUsdSchemaTranslationContext;
 
 class USDSCHEMAS_API FRegisteredSchemaTranslatorHandle
 {
@@ -120,7 +121,7 @@ protected:
 
 struct USDSCHEMAS_API FUsdSchemaTranslationContext : public TSharedFromThis< FUsdSchemaTranslationContext >
 {
-	explicit FUsdSchemaTranslationContext( const UE::FUsdStage& InStage, TMap< FString, UObject* >& InPrimPathsToAssets, TMap< FString, UObject* >& InAssetsCache, UsdUtils::FBlendShapeMap* InBlendShapesByPath = nullptr );
+	explicit FUsdSchemaTranslationContext( const UE::FUsdStage& InStage, FUsdAssetCache& InAssetCache );
 
 	/** pxr::UsdStage we're translating from */
 	UE::FUsdStage Stage;
@@ -143,24 +144,18 @@ struct USDSCHEMAS_API FUsdSchemaTranslationContext : public TSharedFromThis< FUs
 	/** The render context to use when translating materials */
 	FName RenderContext;
 
-	/** Map of translated UsdPrims to UAssets */
-	TMap< FString, UObject* >& PrimPathsToAssets;
+	/** Where the translated assets will be stored */
+	FUsdAssetCache& AssetCache;
 
-	TMap< FString, UObject* >& AssetsCache;
-
-	/** Subset of AssetsCache with assets that were created for/reused by the current translation context. Useful as AssetsCache may contain older/other things */
-	TSet<UObject*> CurrentlyUsedAssets;
 
 	/** Where we place imported blend shapes, if available */
-	UsdUtils::FBlendShapeMap* BlendShapesByPath;
+	UsdUtils::FBlendShapeMap* BlendShapesByPath = nullptr;
 
 	/**
 	 * When parsing materials, we keep track of which primvar we mapped to which UV channel.
 	 * When parsing meshes later, we use this data to place the correct primvar values in each UV channel.
 	 */
-	TMap< FString, TMap< FString, int32 > >* MaterialToPrimvarToUVIndex;
-
-	FCriticalSection CriticalSection;
+	TMap< FString, TMap< FString, int32 > >* MaterialToPrimvarToUVIndex = nullptr;
 
 	bool bAllowCollapsing = true;
 

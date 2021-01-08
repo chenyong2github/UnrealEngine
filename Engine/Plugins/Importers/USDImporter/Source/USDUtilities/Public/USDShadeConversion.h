@@ -21,6 +21,7 @@ PXR_NAMESPACE_OPEN_SCOPE
 PXR_NAMESPACE_CLOSE_SCOPE
 
 class FSHAHash;
+class FUsdAssetCache;
 class UMaterial;
 class UMaterialOptions;
 class UTexture;
@@ -38,8 +39,12 @@ namespace UsdToUnreal
 	 * @return Whether the conversion was successful or not.
 	 */
 	USDUTILITIES_API bool ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial, UMaterialInstance& Material );
-	USDUTILITIES_API bool ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial, UMaterialInstance& Material, TMap< FString, UObject* >& TexturesCache, TMap< FString, int32 >& PrimvarToUVIndex );
+	USDUTILITIES_API bool ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial, UMaterialInstance& Material, FUsdAssetCache* TexturesCache, TMap< FString, int32 >& PrimvarToUVIndex );
 	USDUTILITIES_API bool ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial, UMaterial& Material );
+	USDUTILITIES_API bool ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial, UMaterial& Material, FUsdAssetCache* TexturesCache, TMap< FString, int32 >& PrimvarToUVIndex );
+
+	// DEPRECATED: Prefer the versions receiving FUsdAssetCache objects if one is needed
+	USDUTILITIES_API bool ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial, UMaterialInstance& Material, TMap< FString, UObject* >& TexturesCache, TMap< FString, int32 >& PrimvarToUVIndex );
 	USDUTILITIES_API bool ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial, UMaterial& Material, TMap< FString, UObject* >& TexturesCache, TMap< FString, int32 >& PrimvarToUVIndex );
 }
 

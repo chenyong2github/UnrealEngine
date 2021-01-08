@@ -15,6 +15,7 @@ namespace UnrealBuildTool.Rules
 					"Core",
 					"CoreUObject",
 					"Engine",
+					"GeometryCache",
 					"InputCore",
 					"JsonUtilities",
 					"MainFrame",

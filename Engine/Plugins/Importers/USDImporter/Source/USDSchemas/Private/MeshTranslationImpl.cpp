@@ -2,6 +2,7 @@
 
 #include "MeshTranslationImpl.h"
 
+#include "USDAssetCache.h"
 #include "USDAssetImportData.h"
 #include "USDGeomMeshConversion.h"
 #include "USDLog.h"
@@ -25,7 +26,7 @@
 	#include "pxr/usd/usdShade/material.h"
 #include "USDIncludesEnd.h"
 
-TMap<const UsdUtils::FUsdPrimMaterialSlot*, UMaterialInterface*> MeshTranslationImpl::ResolveMaterialAssignmentInfo( const pxr::UsdPrim& UsdPrim, const TArray<UsdUtils::FUsdPrimMaterialAssignmentInfo>& AssignmentInfo, const TArray<UMaterialInterface*>& ExistingAssignments, const TMap< FString, UObject* >& PrimPathsToAssets, TMap< FString, UObject* >& AssetsCache, float Time, EObjectFlags Flags )
+TMap<const UsdUtils::FUsdPrimMaterialSlot*, UMaterialInterface*> MeshTranslationImpl::ResolveMaterialAssignmentInfo( const pxr::UsdPrim& UsdPrim, const TArray<UsdUtils::FUsdPrimMaterialAssignmentInfo>& AssignmentInfo, const TArray<UMaterialInterface*>& ExistingAssignments, FUsdAssetCache& AssetCache, float Time, EObjectFlags Flags )
 {
 	TMap<const UsdUtils::FUsdPrimMaterialSlot*, UMaterialInterface*> ResolvedMaterials;
 
@@ -46,12 +47,9 @@ TMap<const UsdUtils::FUsdPrimMaterialSlot*, UMaterialInterface*> MeshTranslation
 				FScopedUsdAllocs Allocs;
 
 				// Try reusing an already created DisplayColor material
-				if ( UObject** FoundAsset = AssetsCache.Find( Slot.MaterialSource ) )
+				if ( UMaterialInterface* ExistingMaterial = Cast<UMaterialInterface>( AssetCache.GetCachedAsset( Slot.MaterialSource ) ) )
 				{
-					if ( UMaterialInterface* ExistingMaterial = Cast<UMaterialInterface>( *FoundAsset ) )
-					{
-						Material = ExistingMaterial;
-					}
+					Material = ExistingMaterial;
 				}
 
 				// Need to create a new DisplayColor material
@@ -75,7 +73,7 @@ TMap<const UsdUtils::FUsdPrimMaterialSlot*, UMaterialInterface*> MeshTranslation
 							MaterialInstance = UsdUtils::CreateDisplayColorMaterialInstanceDynamic( DisplayColorDesc.GetValue() );
 						}
 
-						AssetsCache.Add( Slot.MaterialSource, MaterialInstance );
+						AssetCache.CacheAsset( Slot.MaterialSource, MaterialInstance );
 						Material = MaterialInstance;
 					}
 				}
@@ -95,7 +93,7 @@ TMap<const UsdUtils::FUsdPrimMaterialSlot*, UMaterialInterface*> MeshTranslation
 					TUsdStore< pxr::UsdPrim > MaterialPrim = UsdPrim.GetStage()->GetPrimAtPath( MaterialPrimPath );
 					if ( MaterialPrim.Get() )
 					{
-						Material = Cast< UMaterialInterface >( PrimPathsToAssets.FindRef( UsdToUnreal::ConvertPath( MaterialPrim.Get().GetPrimPath() ) ) );
+						Material = Cast< UMaterialInterface >( AssetCache.GetAssetForPrim( UsdToUnreal::ConvertPath( MaterialPrim.Get().GetPrimPath() ) ) );
 					}
 				}
 
