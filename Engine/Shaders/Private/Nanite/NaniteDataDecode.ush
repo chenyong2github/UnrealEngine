@@ -7,7 +7,6 @@
 #include "../SceneData.ush"
 #include "PackedNaniteView.ush"
 
-#define USE_IMPLICIT_TANGENT_SPACE				1														// must match define in NaniteBuilder.cpp
 #define USE_CONSTRAINED_CLUSTERS				1														// must match define in NaniteBuilder.h
 
 #define MAX_STREAMING_REQUESTS					( 128u * 1024u )										// must match define in NaniteResources.h

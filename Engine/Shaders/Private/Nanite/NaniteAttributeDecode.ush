@@ -14,6 +14,19 @@
 #define VERTEX_COLOR_MODE_CONSTANT					1
 #define VERTEX_COLOR_MODE_VARIABLE					2
 
+struct FNaniteAttributeData
+{
+	/** Interpolated vertex color, in linear color space. */
+	half4 VertexColor;
+
+	/** Orthonormal rotation-only transform from tangent space to world space. */
+	half3x3 TangentToWorld;
+
+	float2 TexCoords[MAX_NANITE_UVS];
+
+	half UnMirrored;
+};
+
 #define SIZEOF_UV_RANGE	32
 struct FUVRange
 {
@@ -196,4 +209,154 @@ uint GetMaterialHitProxyId(
 uint GetMaterialBucketIdFromDepth(float Depth)
 {
 	return (uint)(Depth * MAX_STATE_BUCKET_ID);
+}
+
+FNaniteAttributeData GetAttributeData(
+	FCluster Cluster,
+	uint3 TriIndices,
+	float3 PointLocal0,
+	float3 PointLocal1,
+	float3 PointLocal2,
+	FBarycentrics Barycentrics,
+	ByteAddressBuffer ClusterPageData,
+	FInstanceSceneData InstanceData,
+	uint NumTexCoordInterpolators
+)
+{
+	FNaniteAttributeData AttributeData = (FNaniteAttributeData)0;
+
+	// Unpack and interpolate attributes
+	uint DecodeInfoOffset = Cluster.PageBaseAddress + Cluster.DecodeInfoOffset;
+	uint AttributeDataOffset = Cluster.PageBaseAddress + Cluster.AttributeOffset;
+
+	const uint MaxAttributeBits = CalculateMaxAttributeBits(NumTexCoordInterpolators);
+
+	// Unpack normal
+	FBitStreamReaderState AttributeStream0 = BitStreamReader_Create_Aligned(ClusterPageData, AttributeDataOffset, TriIndices.x * Cluster.BitsPerAttribute, MaxAttributeBits);
+	FBitStreamReaderState AttributeStream1 = BitStreamReader_Create_Aligned(ClusterPageData, AttributeDataOffset, TriIndices.y * Cluster.BitsPerAttribute, MaxAttributeBits);
+	FBitStreamReaderState AttributeStream2 = BitStreamReader_Create_Aligned(ClusterPageData, AttributeDataOffset, TriIndices.z * Cluster.BitsPerAttribute, MaxAttributeBits);
+
+	uint NormalBits0 = BitStreamReader_Read(AttributeStream0, 2 * NORMAL_QUANTIZATION_BITS, 2 * NORMAL_QUANTIZATION_BITS);
+	uint NormalBits1 = BitStreamReader_Read(AttributeStream1, 2 * NORMAL_QUANTIZATION_BITS, 2 * NORMAL_QUANTIZATION_BITS);
+	uint NormalBits2 = BitStreamReader_Read(AttributeStream2, 2 * NORMAL_QUANTIZATION_BITS, 2 * NORMAL_QUANTIZATION_BITS);
+
+	float3 TangentZ0 = UnpackNormal(NormalBits0, NORMAL_QUANTIZATION_BITS);
+	float3 TangentZ1 = UnpackNormal(NormalBits1, NORMAL_QUANTIZATION_BITS);
+	float3 TangentZ2 = UnpackNormal(NormalBits2, NORMAL_QUANTIZATION_BITS);
+	float3 TangentZ = normalize(Barycentrics.UVW.x * TangentZ0 + Barycentrics.UVW.y * TangentZ1 + Barycentrics.UVW.z * TangentZ2);
+
+	// Decode vertex color
+	// This needs to happen even if INTERPOLATE_VERTEX_COLOR is not defined as the data might be there regardless of what the shader needs.
+	// When INTERPOLATE_VERTEX_COLOR is not defined, the results are not used and the code mostly disappears.
+	uint4 NumComponentBits = UnpackToUint4(Cluster.ColorBits, 4);
+	uint4 ColorDelta0 = BitStreamReader_Read4(AttributeStream0, NumComponentBits, MAX_COLOR_QUANTIZATION_BITS);
+	uint4 ColorDelta1 = BitStreamReader_Read4(AttributeStream1, NumComponentBits, MAX_COLOR_QUANTIZATION_BITS);
+	uint4 ColorDelta2 = BitStreamReader_Read4(AttributeStream2, NumComponentBits, MAX_COLOR_QUANTIZATION_BITS);
+
+	AttributeData.UnMirrored = 1.0f;
+	AttributeData.VertexColor = float4(1.0f, 1.0f, 1.0f, 1.0f);
+
+	if (Cluster.ColorMode != VERTEX_COLOR_MODE_WHITE)
+	{
+		float4 ColorMin = float4(UnpackByte0(Cluster.ColorMin), UnpackByte1(Cluster.ColorMin), UnpackByte2(Cluster.ColorMin), UnpackByte3(Cluster.ColorMin));
+		if (Cluster.ColorMode == VERTEX_COLOR_MODE_VARIABLE)
+		{
+			AttributeData.VertexColor = (ColorMin + Barycentrics.UVW.x * float4(ColorDelta0) + Barycentrics.UVW.y * float4(ColorDelta1) + Barycentrics.UVW.z * float4(ColorDelta2)) * (1.0f / 255.0f);
+		}
+		else // (Cluster.ColorMode == VERTEX_COLOR_MODE_CONSTANT)
+		{
+			AttributeData.VertexColor = ColorMin * (1.0f / 255.0f);
+		}
+	}
+
+	if (NumTexCoordInterpolators > 0)
+	{
+		UNROLL_N(NumTexCoordInterpolators)
+		for (uint TexCoordIndex = 0; TexCoordIndex < NumTexCoordInterpolators; ++TexCoordIndex)
+		{
+			// Protect against case where Nanite max UV count is lower than what the material may define.
+			if (TexCoordIndex < MAX_NANITE_UVS)
+			{
+				uint2 UVPrec = uint2(BitFieldExtractU32(Cluster.UV_Prec, 4, TexCoordIndex * 8), BitFieldExtractU32(Cluster.UV_Prec, 4, TexCoordIndex * 8 + 4));
+
+				uint2 Bits0_UV = BitStreamReader_Read2(AttributeStream0, UVPrec, MAX_TEXCOORD_QUANTIZATION_BITS);
+				uint2 Bits1_UV = BitStreamReader_Read2(AttributeStream1, UVPrec, MAX_TEXCOORD_QUANTIZATION_BITS);
+				uint2 Bits2_UV = BitStreamReader_Read2(AttributeStream2, UVPrec, MAX_TEXCOORD_QUANTIZATION_BITS);
+			
+				FUVRange UVRange = GetUVRange(ClusterPageData, DecodeInfoOffset, TexCoordIndex);
+				float2 TexCoord0 = UnpackTexCoord(Bits0_UV, UVRange);
+				float2 TexCoord1 = UnpackTexCoord(Bits1_UV, UVRange);
+				float2 TexCoord2 = UnpackTexCoord(Bits2_UV, UVRange);
+
+				float2 TexCoord10 = TexCoord1 - TexCoord0;
+				float2 TexCoord20 = TexCoord2 - TexCoord0;
+
+				float2 TexCoord = TexCoord0 + Barycentrics.UVW.y * TexCoord10 + Barycentrics.UVW.z * TexCoord20;
+				AttributeData.TexCoords[TexCoordIndex] = TexCoord;
+
+				// Generate tangent frame for UV0
+				if (TexCoordIndex == 0)
+				{
+					// Implicit tangent space
+					// Based on Christian Schlüler's derivation: http://www.thetenthplanet.de/archives/1180
+					// The technique derives a tangent space from the interpolated normal and (position,uv) deltas in two not necessarily orthogonal directions.
+					// The described technique uses screen space derivatives as a way to obtain these direction deltas in a pixel shader,
+					// but as we have the triangle vertices explicitly available using the local space corner deltas directly is faster and more convenient.
+
+					float3 PointLocal10 = PointLocal1 - PointLocal0;
+					float3 PointLocal20 = PointLocal2 - PointLocal0;
+
+					bool TangentXValid = abs(TexCoord10.x) + abs(TexCoord20.x) > 1e-6;
+
+					float3 TangentX;
+					float3 TangentY;
+					if (TangentXValid)
+					{
+						float3 Perp2 = cross(TangentZ, PointLocal20);
+						float3 Perp1 = cross(PointLocal10, TangentZ);
+						float3 TangentU = Perp2 * TexCoord10.x + Perp1 * TexCoord20.x;
+						float3 TangentV = Perp2 * TexCoord10.y + Perp1 * TexCoord20.y;
+
+						TangentX = normalize(TangentU);
+						TangentY = cross(TangentZ, TangentX);
+
+						AttributeData.UnMirrored = dot(TangentV, TangentY) < 0.0f ? -1.0f : 1.0f;
+						TangentY *= AttributeData.UnMirrored;
+					}
+					else
+					{
+						const float Sign = TangentZ.z >= 0 ? 1 : -1;
+						const float a = -rcp( Sign + TangentZ.z );
+						const float b = TangentZ.x * TangentZ.y * a;
+	
+						TangentX = float3(1 + Sign * a * Pow2(TangentZ.x), Sign * b, -Sign * TangentZ.x);
+						TangentY = float3(b,  Sign + a * Pow2(TangentZ.y), -TangentZ.y);
+
+						AttributeData.UnMirrored = 1;
+					}
+
+					float3x3 TangentToLocal = float3x3(TangentX, TangentY, TangentZ);
+
+					// Should be Pow2(InvScale) but that requires renormalization
+					float3x3 LocalToWorld = (float3x3)InstanceData.LocalToWorld;
+					float3 InvScale = InstanceData.InvNonUniformScaleAndDeterminantSign.xyz;
+					LocalToWorld[0] *= InvScale.x;
+					LocalToWorld[1] *= InvScale.y;
+					LocalToWorld[2] *= InvScale.z;
+					AttributeData.TangentToWorld = mul(TangentToLocal, LocalToWorld);
+				}
+			}
+		}
+	}
+	else
+	{
+		// No texture coordinates, so there is no valid tangent frame.
+		// TangentToWorld.Z is still being used, so we still have to calculate it.
+
+		// Should be Pow2(InvScale) but that requires renormalization
+		half3 InvScale = InstanceData.InvNonUniformScaleAndDeterminantSign.xyz;
+		AttributeData.TangentToWorld = float3x3(float3(0,0,0), float3(0,0,0), mul(TangentZ * InvScale.z, (float3x3)InstanceData.LocalToWorld));
+	}
+
+	return AttributeData;
 }

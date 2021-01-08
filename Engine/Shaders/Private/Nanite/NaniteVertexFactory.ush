@@ -51,184 +51,71 @@ FMaterialPixelParameters GetMaterialPixelParameters(inout FVertexFactoryInterpol
 {
 	FMaterialPixelParameters Result = (FMaterialPixelParameters)0;
 
-	uint2 PixelPos = SvPosition.xy - float2(0.5f, 0.5f);
-	UlongType Pixel = Nanite.VisBuffer64[PixelPos];
+	const uint2 PixelPos = SvPosition.xy - float2(0.5f, 0.5f);
+	const UlongType Pixel = Nanite.VisBuffer64[PixelPos];
 
 	uint DepthInt = 0;
 	uint VisibleClusterIndex = 0;
 	uint TriIndex = 0;
 	UnpackVisPixel(Pixel, DepthInt, VisibleClusterIndex, TriIndex);
 
-	FNaniteView NaniteView = GetNaniteView( 0 );
+	const FNaniteView NaniteView = GetNaniteView(0);
 	
 	if (VisibleClusterIndex != 0xFFFFFFFF)
 	{
-		FVisibleCluster VisibleCluster = GetVisibleCluster(VisibleClusterIndex);
-		FInstanceSceneData InstanceData = GetInstanceData(VisibleCluster);
+		FVisibleCluster VisibleCluster           = GetVisibleCluster(VisibleClusterIndex);
+		FInstanceSceneData InstanceData          = GetInstanceData(VisibleCluster);
 		FInstanceDynamicData InstanceDynamicData = CalculateInstanceDynamicData(NaniteView, InstanceData);
+		FPrimitiveSceneData PrimitiveData        = GetPrimitiveData(InstanceData.PrimitiveId);
+		FCluster Cluster                         = GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
 
-		FPrimitiveSceneData PrimitiveData = GetPrimitiveData(InstanceData.PrimitiveId);
+		const uint3 TriIndices = ReadTriangleIndices(Cluster, TriIndex);
 
-		FCluster Cluster = GetCluster( VisibleCluster.PageIndex, VisibleCluster.ClusterIndex );
+		const float3 PointLocal0 = DecodePosition(TriIndices.x, Cluster);
+		const float3 PointLocal1 = DecodePosition(TriIndices.y, Cluster);
+		const float3 PointLocal2 = DecodePosition(TriIndices.z, Cluster);
 
-		uint3 TriIndices = ReadTriangleIndices(Cluster, TriIndex);
+		const float4 PointClip0 = mul(float4(PointLocal0, 1), InstanceDynamicData.LocalToClip);
+		const float4 PointClip1 = mul(float4(PointLocal1, 1), InstanceDynamicData.LocalToClip);
+		const float4 PointClip2 = mul(float4(PointLocal2, 1), InstanceDynamicData.LocalToClip);
 
-		float3 PointLocal0 = DecodePosition(TriIndices.x, Cluster);
-		float3 PointLocal1 = DecodePosition(TriIndices.y, Cluster);
-		float3 PointLocal2 = DecodePosition(TriIndices.z, Cluster);
-
-		float4 PointClip0 = mul(float4(PointLocal0, 1), InstanceDynamicData.LocalToClip);
-		float4 PointClip1 = mul(float4(PointLocal1, 1), InstanceDynamicData.LocalToClip);
-		float4 PointClip2 = mul(float4(PointLocal2, 1), InstanceDynamicData.LocalToClip);
-
-		float2 PixelClip = (SvPosition.xy - View.ViewRectMin.xy) * View.ViewSizeAndInvSize.zw * float2(2, -2) + float2(-1, 1);
+		const float2 PixelClip = (SvPosition.xy - View.ViewRectMin.xy) * View.ViewSizeAndInvSize.zw * float2(2, -2) + float2(-1, 1);
 
 		// Calculate perspective correct barycentric coordinates with screen derivatives
-		FBarycentrics Barycentrics = CalculateTriangleBarycentrics(PixelClip, PointClip0, PointClip1, PointClip2);
+		const FBarycentrics Barycentrics = CalculateTriangleBarycentrics(PixelClip, PointClip0, PointClip1, PointClip2);
 
-		// Unpack and interpolate attributes
-		uint DecodeInfoOffset = Cluster.PageBaseAddress + Cluster.DecodeInfoOffset;
-		uint AttributeDataOffset = Cluster.PageBaseAddress + Cluster.AttributeOffset;
+		const FNaniteAttributeData AttributeData = GetAttributeData(
+			Cluster,
+			TriIndices,
+			PointLocal0,
+			PointLocal1,
+			PointLocal2,
+			Barycentrics,
+			ClusterPageData,
+			InstanceData,
+			NUM_TEX_COORD_INTERPOLATORS
+		);
 
-		const uint MaxAttributeBits = CalculateMaxAttributeBits(NUM_TEX_COORD_INTERPOLATORS);
+	#if INTERPOLATE_VERTEX_COLOR
+		Result.VertexColor = AttributeData.VertexColor;
+	#else
+		// Coerce compiler into DCE as much code as possible.
+		Result.VertexColor = float4(1, 1, 1, 1);
+	#endif
 
-		// Unpack normal
-		FBitStreamReaderState AttributeStream0 = BitStreamReader_Create_Aligned(ClusterPageData, AttributeDataOffset, TriIndices.x * Cluster.BitsPerAttribute, MaxAttributeBits);
-		FBitStreamReaderState AttributeStream1 = BitStreamReader_Create_Aligned(ClusterPageData, AttributeDataOffset, TriIndices.y * Cluster.BitsPerAttribute, MaxAttributeBits);
-		FBitStreamReaderState AttributeStream2 = BitStreamReader_Create_Aligned(ClusterPageData, AttributeDataOffset, TriIndices.z * Cluster.BitsPerAttribute, MaxAttributeBits);
+		Result.TangentToWorld = AttributeData.TangentToWorld;
+		Result.UnMirrored = AttributeData.UnMirrored;
 
-		uint NormalBits0 = BitStreamReader_Read(AttributeStream0, 2 * NORMAL_QUANTIZATION_BITS, 2 * NORMAL_QUANTIZATION_BITS);
-		uint NormalBits1 = BitStreamReader_Read(AttributeStream1, 2 * NORMAL_QUANTIZATION_BITS, 2 * NORMAL_QUANTIZATION_BITS);
-		uint NormalBits2 = BitStreamReader_Read(AttributeStream2, 2 * NORMAL_QUANTIZATION_BITS, 2 * NORMAL_QUANTIZATION_BITS);
-
-		float3 TangentZ0 = UnpackNormal(NormalBits0, NORMAL_QUANTIZATION_BITS);
-		float3 TangentZ1 = UnpackNormal(NormalBits1, NORMAL_QUANTIZATION_BITS);
-		float3 TangentZ2 = UnpackNormal(NormalBits2, NORMAL_QUANTIZATION_BITS);
-		float3 TangentZ = normalize(Barycentrics.UVW.x * TangentZ0 + Barycentrics.UVW.y * TangentZ1 + Barycentrics.UVW.z * TangentZ2);
-
-		Result.VertexColor = 1;
-		{
-			// Decode vertex color
-			// This needs to happen even if INTERPOLATE_VERTEX_COLOR is not defined as the data might be there regardless of what the shader needs.
-			// When INTERPOLATE_VERTEX_COLOR is not defined, the results are not used and the code mostly disappears.
-			uint4 NumComponentBits = UnpackToUint4(Cluster.ColorBits, 4);
-			uint4 ColorDelta0 = BitStreamReader_Read4(AttributeStream0, NumComponentBits, MAX_COLOR_QUANTIZATION_BITS);
-			uint4 ColorDelta1 = BitStreamReader_Read4(AttributeStream1, NumComponentBits, MAX_COLOR_QUANTIZATION_BITS);
-			uint4 ColorDelta2 = BitStreamReader_Read4(AttributeStream2, NumComponentBits, MAX_COLOR_QUANTIZATION_BITS);
-
-#if INTERPOLATE_VERTEX_COLOR
-			if (Cluster.ColorMode != VERTEX_COLOR_MODE_WHITE)
-			{
-				float4 ColorMin = float4(UnpackByte0(Cluster.ColorMin), UnpackByte1(Cluster.ColorMin), UnpackByte2(Cluster.ColorMin), UnpackByte3(Cluster.ColorMin));
-				if (Cluster.ColorMode == VERTEX_COLOR_MODE_VARIABLE)
-				{
-					Result.VertexColor = (ColorMin + Barycentrics.UVW.x * float4(ColorDelta0) + Barycentrics.UVW.y * float4(ColorDelta1) + Barycentrics.UVW.z * float4(ColorDelta2)) * (1.0f / 255.0f);
-				}
-				else // (Cluster.ColorMode == VERTEX_COLOR_MODE_CONSTANT)
-				{
-					Result.VertexColor = ColorMin * (1.0f / 255.0f);
-				}
-			}
-#endif
-		}
-
-#if NUM_TEX_COORD_INTERPOLATORS > 0
-		UNROLL
+	#if NUM_TEX_COORD_INTERPOLATORS > 0
+		UNROLL_N(NUM_TEX_COORD_INTERPOLATORS)
 		for (uint TexCoordIndex = 0; TexCoordIndex < NUM_TEX_COORD_INTERPOLATORS; TexCoordIndex++)
 		{
-			uint2 UVPrec = uint2(BitFieldExtractU32(Cluster.UV_Prec, 4, TexCoordIndex * 8), BitFieldExtractU32(Cluster.UV_Prec, 4, TexCoordIndex * 8 + 4));
-
-			uint2 Bits0_UV = BitStreamReader_Read2(AttributeStream0, UVPrec, MAX_TEXCOORD_QUANTIZATION_BITS);
-			uint2 Bits1_UV = BitStreamReader_Read2(AttributeStream1, UVPrec, MAX_TEXCOORD_QUANTIZATION_BITS);
-			uint2 Bits2_UV = BitStreamReader_Read2(AttributeStream2, UVPrec, MAX_TEXCOORD_QUANTIZATION_BITS);
-			
-			FUVRange UVRange = GetUVRange(ClusterPageData, DecodeInfoOffset, TexCoordIndex);
-			float2 TexCoord0 = UnpackTexCoord(Bits0_UV, UVRange);
-			float2 TexCoord1 = UnpackTexCoord(Bits1_UV, UVRange);
-			float2 TexCoord2 = UnpackTexCoord(Bits2_UV, UVRange);
-
-			float2 TexCoord10 = TexCoord1 - TexCoord0;
-			float2 TexCoord20 = TexCoord2 - TexCoord0;
-
-			float2 TexCoord = TexCoord0 + Barycentrics.UVW.y * TexCoord10 + Barycentrics.UVW.z * TexCoord20;
-			Result.TexCoords[TexCoordIndex] = TexCoord;
-
-			// Generate tangent frame for UV0
-			if (TexCoordIndex == 0)
-			{
-#if USE_IMPLICIT_TANGENT_SPACE
-				// Implicit tangent space
-				// Based on Christian Schlüler's derivation: http://www.thetenthplanet.de/archives/1180
-				// The technique derives a tangent space from the interpolated normal and (position,uv) deltas in two not necessarily orthogonal directions.
-				// The described technique uses screen space derivatives as a way to obtain these direction deltas in a pixel shader,
-				// but as we have the triangle vertices explicitly available using the local space corner deltas directly is faster and more convenient.
-
-				float3 PointLocal10 = PointLocal1 - PointLocal0;
-				float3 PointLocal20 = PointLocal2 - PointLocal0;
-
-				bool TangentXValid = abs( TexCoord10.x ) + abs( TexCoord20.x ) > 1e-6;
-
-				float3 TangentX;
-				float3 TangentY;
-				if( TangentXValid )
-				{
-					float3 Perp2 = cross(TangentZ, PointLocal20);
-					float3 Perp1 = cross(PointLocal10, TangentZ);
-					float3 TangentU = Perp2 * TexCoord10.x + Perp1 * TexCoord20.x;
-					float3 TangentV = Perp2 * TexCoord10.y + Perp1 * TexCoord20.y;
-
-					TangentX = normalize( TangentU );
-					TangentY = cross( TangentZ, TangentX );
-
-					Result.UnMirrored = dot( TangentV, TangentY ) < 0.0f ? -1.0f : 1.0f;
-					TangentY *= Result.UnMirrored;
-				}
-				else
-				{
-					const float Sign = TangentZ.z >= 0 ? 1 : -1;
-					const float a = -rcp( Sign + TangentZ.z );
-					const float b = TangentZ.x * TangentZ.y * a;
-	
-					TangentX = float3( 1 + Sign * a * Pow2( TangentZ.x ), Sign * b, -Sign * TangentZ.x );
-					TangentY = float3( b,  Sign + a * Pow2( TangentZ.y ), -TangentZ.y );
-
-					Result.UnMirrored = 1;
-				}
-#else
-				// Interpolated tangent space
-				float3 TangentX0 = UnpackTangent(AttribData0.y, TANGENT_QUANTIZATION_BITS);
-				float3 TangentX1 = UnpackTangent(AttribData1.y, TANGENT_QUANTIZATION_BITS);
-				float3 TangentX2 = UnpackTangent(AttribData2.y, TANGENT_QUANTIZATION_BITS);
-				float3 TangentX = UVW.x * TangentX0 + UVW.y * TangentX1 + UVW.z * TangentX2;
-
-				float3 TangentY = cross(TangentZ, TangentX);
-				TangentY = (int)AttribData0.z < 0 ? -TangentY : TangentY;	// Geometry pipeline ensures vertices in a triangles always have the same handedness
-
-				Result.UnMirrored = AttribData0.z < 0.0f ? -1.0f : 1.0f;
-#endif
-
-				float3x3 TangentToLocal = float3x3(TangentX, TangentY, TangentZ);
-
-				// Should be Pow2(InvScale) but that requires renormalization
-				half3x3 LocalToWorld = (float3x3)InstanceData.LocalToWorld;
-				half3 InvScale = InstanceData.InvNonUniformScaleAndDeterminantSign.xyz;
-				LocalToWorld[0] *= InvScale.x;
-				LocalToWorld[1] *= InvScale.y;
-				LocalToWorld[2] *= InvScale.z;
-				Result.TangentToWorld = mul(TangentToLocal, LocalToWorld);
-			}
+			// Protect against case where Nanite max UV count is lower than what the material may define.
+			Result.TexCoords[TexCoordIndex] = (TexCoordIndex < MAX_NANITE_UVS) ? AttributeData.TexCoords[TexCoordIndex] : float2(0.0f, 0.0f);
 		}
-#else	// NUM_TEX_COORD_INTERPOLATORS == 0
-		{
-			// No texture coordinates, so there is no valid tangent frame.
-			// TangentToWorld.Z is still being used, so we still have to calculate it.
+	#endif
 
-			// Should be Pow2(InvScale) but that requires renormalization
-			half3 InvScale = InstanceData.InvNonUniformScaleAndDeterminantSign.xyz;
-			Result.TangentToWorld = float3x3(float3(0,0,0), float3(0,0,0), mul(TangentZ * InvScale.z, (float3x3)InstanceData.LocalToWorld));
-		}
-#endif
-		float3 PointLocal = Barycentrics.UVW.x * PointLocal0 + Barycentrics.UVW.y * PointLocal1 + Barycentrics.UVW.z * PointLocal2;
+		const float3 PointLocal = Barycentrics.UVW.x * PointLocal0 + Barycentrics.UVW.y * PointLocal1 + Barycentrics.UVW.z * PointLocal2;
 
 		Result.PrevScreenPosition = mul( float4(PointLocal, 1), InstanceDynamicData.PrevLocalToClip );
 		//Result.PrevScreenPosition = float4( Result.PrevScreenPosition.xyz / Result.PrevScreenPosition.w, 1 );
@@ -236,18 +123,18 @@ FMaterialPixelParameters GetMaterialPixelParameters(inout FVertexFactoryInterpol
 		// Update to real depth from VisBuffer
 		SvPosition.z = asfloat(DepthInt);
 
-#if USE_PARTICLE_SUBUVS
+	#if USE_PARTICLE_SUBUVS && NUM_TEX_COORD_INTERPOLATORS > 0
 		// Output TexCoord0 for when previewing materials that use ParticleSubUV.
-		Result.Particle.SubUVCoords[0] = TexCoord;
-		Result.Particle.SubUVCoords[1] = TexCoord;
-#endif	// USE_PARTICLE_SUBUVS
+		Result.Particle.SubUVCoords[0] = Result.TexCoords[0]
+		Result.Particle.SubUVCoords[1] = Result.TexCoords[0]
+	#endif
 
 		// Required for previewing materials that use ParticleColor
 		Result.Particle.Color = half4(1, 1, 1, 1);
 
-#if NEEDS_LIGHTMAP_COORDINATE && NUM_TEX_COORD_INTERPOLATORS > 0
-		uint LightmapDataIndex = PrimitiveData.LightmapDataIndex;
-		uint LightmapUVIndex   = PrimitiveData.LightmapUVIndex;
+	#if NEEDS_LIGHTMAP_COORDINATE && NUM_TEX_COORD_INTERPOLATORS > 0
+		const uint LightmapDataIndex = PrimitiveData.LightmapDataIndex;
+		const uint LightmapUVIndex   = PrimitiveData.LightmapUVIndex;
 		//UnpackLightmapDataAndUVIndex(PrimitiveData.LightmapDataAndUVIndex, LightmapDataIndex, LightmapUVIndex);
 
 		const float2 ShadowmapUV = float2(0, 0); // TODO: Need to support going forward?
@@ -256,13 +143,13 @@ FMaterialPixelParameters GetMaterialPixelParameters(inout FVertexFactoryInterpol
 		Interpolants.LightmapDataIndex = LightmapDataIndex;
 
 		SetLightMapCoordinate(Interpolants, LightmapUV, ShadowmapUV);
-#else
+	#else
 		const float2 LightmapUV = float2(0, 0);
-#endif
+	#endif
 
-#if LIGHTMAP_UV_ACCESS
+	#if LIGHTMAP_UV_ACCESS
 		Result.LightmapUVs = LightmapUV;
-#endif
+	#endif
 
 		Result.TwoSidedSign = 1;
 		Result.PrimitiveId = InstanceData.PrimitiveId;

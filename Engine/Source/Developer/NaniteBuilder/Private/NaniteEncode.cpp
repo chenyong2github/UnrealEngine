@@ -10,7 +10,6 @@
 #include "Async/ParallelFor.h"
 #include "Misc/Compression.h"
 
-#define USE_IMPLICIT_TANGENT_SPACE		1	// must match define in ExportGBuffer.usf
 #define CONSTRAINED_CLUSTER_CACHE_SIZE	32
 #define MAX_CLUSTER_MATERIALS			64
 
