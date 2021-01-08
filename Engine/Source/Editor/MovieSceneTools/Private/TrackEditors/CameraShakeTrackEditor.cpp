@@ -75,7 +75,7 @@ bool FCameraShakeTrackEditor::HandleAssetAdded(UObject* Asset, const FGuid& Targ
 	if (TargetObjectGuid.IsValid())
 	{
 		UBlueprint* const SelectedObject = dynamic_cast<UBlueprint*>(Asset);
-		if (SelectedObject && SelectedObject->GeneratedClass && SelectedObject->GeneratedClass->IsChildOf(UCameraShakeBase::StaticClass()))
+		if (SelectedObject && SelectedObject->GeneratedClass && SelectedObject->GeneratedClass->IsChildOf(UMatineeCameraShake::StaticClass()))
 		{
 			TSubclassOf<UCameraShakeBase> const ShakeClass = *(SelectedObject->GeneratedClass);
 
@@ -134,7 +134,7 @@ void FCameraShakeTrackEditor::AddCameraShakeSubMenu(FMenuBuilder& MenuBuilder, T
 		IAssetRegistry & AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry").Get();
 		TArray<FName> ClassNames;
 		TSet<FName> DerivedClassNames;
-		ClassNames.Add(UCameraShakeBase::StaticClass()->GetFName());
+		ClassNames.Add(UMatineeCameraShake::StaticClass()->GetFName());
 		AssetRegistry.GetDerivedClassNames(ClassNames, TSet<FName>(), DerivedClassNames);
 						
 		AssetPickerConfig.OnShouldFilterAsset = FOnShouldFilterAsset::CreateLambda([DerivedClassNames](const FAssetData& AssetData)
@@ -186,7 +186,7 @@ void FCameraShakeTrackEditor::OnCameraShakeAssetSelected(const FAssetData& Asset
 	FSlateApplication::Get().DismissAllMenus();
 
 	UBlueprint* const SelectedObject = dynamic_cast<UBlueprint*>(AssetData.GetAsset());
-	if (SelectedObject && SelectedObject->GeneratedClass && SelectedObject->GeneratedClass->IsChildOf(UCameraShakeBase::StaticClass()))
+	if (SelectedObject && SelectedObject->GeneratedClass && SelectedObject->GeneratedClass->IsChildOf(UMatineeCameraShake::StaticClass()))
 	{
 		TSubclassOf<UCameraShakeBase> const ShakeClass = *(SelectedObject->GeneratedClass);
 

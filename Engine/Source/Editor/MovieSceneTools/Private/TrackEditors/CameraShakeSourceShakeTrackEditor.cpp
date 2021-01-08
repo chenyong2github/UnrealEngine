@@ -2,6 +2,7 @@
 
 #include "TrackEditors/CameraShakeSourceShakeTrackEditor.h"
 #include "AssetRegistryModule.h"
+#include "Camera/CameraAnim.h"
 #include "Camera/CameraShake.h"
 #include "Camera/CameraShakeSourceComponent.h"
 #include "CommonMovieSceneTools.h"
@@ -47,13 +48,33 @@ public:
 		{
 			FCameraShakeDuration ShakeDuration;
 			const bool bHasDuration = UCameraShakeBase::GetCameraShakeDuration(ShakeClass, ShakeDuration);
-			if (bHasDuration && ShakeDuration.IsFixed())
+			if (bHasDuration)
 			{
-				return FText::FromString(ShakeClassPtr->GetName());
+				// Workaround fix for Matinee camera shakes... will be fixed better in next release.
+				const UMatineeCameraShake* MatineeCameraShakeCDO = Cast<UMatineeCameraShake>(ShakeClass->GetDefaultObject());
+				if (ShakeDuration.IsFixed() || MatineeCameraShakeCDO != nullptr)
+				{
+					const float ShakeDurationTime = MatineeCameraShakeCDO ?
+						FMath::Max(MatineeCameraShakeCDO->OscillationDuration, (MatineeCameraShakeCDO->Anim ? MatineeCameraShakeCDO->Anim->AnimLength : 0.f)) :
+						ShakeDuration.Get();
+
+					if (ShakeDurationTime > SMALL_NUMBER)
+					{
+						return FText::FromString(ShakeClassPtr->GetName());
+					}
+					else
+					{
+						return FText::Format(LOCTEXT("ShakeHasNoDurationWarning", "{0} (warning: shake has no duration)"), FText::FromString(ShakeClassPtr->GetName()));
+					}
+				}
+				else
+				{
+					return FText::FromString(ShakeClassPtr->GetName());
+				}
 			}
 			else
 			{
-				return FText::Format(LOCTEXT("ShakeHasNoDurationWarning", "{0} (warning: shake has no duration)"), FText::FromString(ShakeClassPtr->GetName()));
+				return FText::Format(LOCTEXT("ShakeIsInvalidWarning", "{0} (warning: shake is invalid)"), FText::FromString(ShakeClassPtr->GetName()));
 			}
 		}
 		return LOCTEXT("NoCameraShake", "No Camera Shake");
@@ -108,12 +129,18 @@ public:
 			FCameraShakeDuration ShakeDuration;
 			UCameraShakeBase::GetCameraShakeDuration(CameraShakeClass, ShakeDuration);
 
-			const float ShakeEndInPixels = (ShakeDuration.IsFixed()) ? 
-				TimeConverter.SecondsToPixel(FMath::Min(SectionStartTime + ShakeDuration.Get(), SectionEndTime)) :
-				SectionEndTimeInPixels;
-			const bool bSectionContainsEntireShake = (ShakeDuration.IsFixed() && SectionDuration > ShakeDuration.Get());
+			// Workaround fix for Matinee camera shakes... will be fixed better in next release.
+			const UMatineeCameraShake* MatineeCameraShakeCDO = Cast<UMatineeCameraShake>(CameraShakeClass->GetDefaultObject());
+			const float ShakeDurationTime = MatineeCameraShakeCDO ?
+				FMath::Max(MatineeCameraShakeCDO->OscillationDuration, (MatineeCameraShakeCDO->Anim ? MatineeCameraShakeCDO->Anim->AnimLength : 0.f)) :
+				ShakeDuration.Get();
 
-			if (ShakeDuration.IsFixed())
+			const float ShakeEndInPixels = (ShakeDuration.IsFixed() || MatineeCameraShakeCDO) ?
+				TimeConverter.SecondsToPixel(FMath::Min(SectionStartTime + ShakeDurationTime, SectionEndTime)) :
+				SectionEndTimeInPixels;
+			const bool bSectionContainsEntireShake = ((ShakeDuration.IsFixed() || MatineeCameraShakeCDO) && SectionDuration > ShakeDurationTime);
+
+			if (ShakeDuration.IsFixed() || MatineeCameraShakeCDO)
 			{
 				if (bSectionContainsEntireShake && SectionRange.HasLowerBound())
 				{
@@ -642,7 +669,7 @@ void FCameraShakeSourceShakeTrackEditor::AddOtherCameraShakeBrowserSubMenu(FMenu
 		IAssetRegistry & AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry").Get();
 		TArray<FName> ClassNames;
 		TSet<FName> DerivedClassNames;
-		ClassNames.Add(UCameraShakeBase::StaticClass()->GetFName());
+		ClassNames.Add(UMatineeCameraShake::StaticClass()->GetFName());
 		AssetRegistry.GetDerivedClassNames(ClassNames, TSet<FName>(), DerivedClassNames);
 						
 		AssetPickerConfig.OnShouldFilterAsset = FOnShouldFilterAsset::CreateLambda([DerivedClassNames](const FAssetData& AssetData)
