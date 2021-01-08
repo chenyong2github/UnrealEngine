@@ -138,6 +138,9 @@ struct CORE_API FFortniteMainBranchObjectVersion
 		// Moving Chaos solver properties to allow them to exist in the project physics settings
 		ChaosSolverPropertiesMoved,
 
+		// Moving some UFortGameFeatureData properties and behaviors into the UGameFeatureAction pattern
+		GameFeatureData_MovedComponentListAndCheats,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1
