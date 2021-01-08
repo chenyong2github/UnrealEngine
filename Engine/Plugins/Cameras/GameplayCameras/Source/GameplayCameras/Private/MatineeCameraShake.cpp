@@ -392,10 +392,11 @@ void UMatineeCameraShake::DoUpdateShake(const FCameraShakeUpdateParams& Params, 
 	}
 
 	// Apply the playspace and the scaling so we have an absolute result we can pass to the legacy blueprint API.
+	check(OutResult.Flags == ECameraShakeUpdateResultFlags::Default);
 	const float CurShakeScale = Params.ShakeScale * Params.DynamicScale;
 	ApplyScale(CurShakeScale, OutResult);
-	ApplyPlaySpace(Params, OutResult);
 	ApplyLimits(Params.POV, OutResult);
+	ApplyPlaySpace(Params, OutResult);
 	check(EnumHasAnyFlags(OutResult.Flags, ECameraShakeUpdateResultFlags::ApplyAsAbsolute));
 
 	// Call the legacy blueprint API. We need to convert back and forth.
