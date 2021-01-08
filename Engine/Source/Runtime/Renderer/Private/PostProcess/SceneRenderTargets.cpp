@@ -2391,12 +2391,12 @@ void SetupSceneTextureUniformParameters(
 
 	// Custom Depth / Stencil
 	{
-		const bool bSetupCustomDepth = EnumHasAnyFlags(SetupMode, ESceneTextureSetupMode::CustomDepth);
+		const bool bSetupCustomDepth = EnumHasAnyFlags(SetupMode, ESceneTextureSetupMode::CustomDepth) && SceneContext.bCustomDepthIsValid;
 
 		FRDGTextureRef CustomDepth = DepthDefault;
 		FRHIShaderResourceView* CustomStencilSRV = GSystemTextures.StencilDummySRV;
 
-		if (SceneContext.bCustomDepthIsValid)
+		if (bSetupCustomDepth)
 		{
 			check(SceneContext.CustomDepth && SceneContext.CustomStencilSRV);
 			CustomDepth = GetRDG(SceneContext.CustomDepth);
