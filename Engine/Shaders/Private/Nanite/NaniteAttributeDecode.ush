@@ -22,7 +22,7 @@ struct FNaniteAttributeData
 	/** Orthonormal rotation-only transform from tangent space to world space. */
 	half3x3 TangentToWorld;
 
-	float2 TexCoords[MAX_NANITE_UVS];
+	float2 TexCoords[16];
 
 	half UnMirrored;
 };
