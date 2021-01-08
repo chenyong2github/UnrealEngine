@@ -682,7 +682,7 @@ FMallocBinned3::FPoolInfoSmall* FMallocBinned3::PushNewPoolToFront(FMallocBinned
 	uint32 BlockOfBlocksIndex = Table.BlockOfBlockAllocationBits.AllocBit();
 	if (BlockOfBlocksIndex == MAX_uint32)
 	{
-		Private::OutOfMemory(InBlockSize + 1); // The + 1 will hopefully be a hint that we actually ran out of our 1GB space.
+		return nullptr;
 	}
 	uint8* FreePtr = BlockPointerFromIndecies(InPoolIndex, BlockOfBlocksIndex, BlockOfBlocksSize);
 
@@ -988,6 +988,19 @@ void* FMallocBinned3::MallocExternal(SIZE_T Size, uint32 Alignment)
 		if (!Pool)
 		{
 			Pool = PushNewPoolToFront(Table, Table.BlockSize, PoolIndex, BlockOfBlocksIndex);
+			
+			//Indicates that we run out of Pool memory (512 MB) for this block type
+			if (!Pool)
+			{
+				if ((PoolIndex + 1) < BINNED3_SMALL_POOL_COUNT)
+				{
+					return MallocExternal(SmallPoolTables[PoolIndex + 1].BlockSize, Alignment);
+				}
+				else
+				{
+					return MallocExternal(BINNED3_MAX_SMALL_POOL_SIZE + 1, Alignment);
+				}
+			}
 		}
 
 		const uint32 BlockOfBlocksSize = OsAllocationGranularity * Table.PagesPlatformForBlockOfBlocks;
