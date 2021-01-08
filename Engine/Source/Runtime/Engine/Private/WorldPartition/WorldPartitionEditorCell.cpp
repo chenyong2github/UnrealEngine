@@ -20,6 +20,15 @@ void UWorldPartitionEditorCell::Serialize(FArchive& Ar)
 }
 
 #if WITH_EDITOR
+
+void UWorldPartitionEditorCell::BeginDestroy()
+{
+	// Release WorldPartition Actor Handles/References
+	Actors.Empty();
+	LoadedActors.Empty();
+	Super::BeginDestroy();
+}
+
 void UWorldPartitionEditorCell::AddActor(const FWorldPartitionHandle& ActorHandle)
 {
 	check(ActorHandle.IsValid());

@@ -20,6 +20,7 @@ public:
 	virtual void Serialize(FArchive& Ar) override;
 
 #if WITH_EDITOR
+	virtual void BeginDestroy() override;
 	void AddActor(const FWorldPartitionHandle& ActorHandle);
 	void RemoveActor(const FWorldPartitionHandle& ActorHandle);
 
