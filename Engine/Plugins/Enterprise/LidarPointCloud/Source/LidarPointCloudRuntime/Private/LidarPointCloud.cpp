@@ -1060,8 +1060,9 @@ void ULidarPointCloud::FinishPhysicsAsyncCook(bool bSuccess, UBodySetup* NewBody
 	if (bSuccess)
 	{
 		BodySetup = NewBodySetup;
-		OnPointCloudUpdateCollisionEvent.Broadcast();
+		ReleaseCollisionRendering(); 
 		InitializeCollisionRendering();
+		OnPointCloudUpdateCollisionEvent.Broadcast();
 	}
 
 	bCollisionBuildInProgress = false;
