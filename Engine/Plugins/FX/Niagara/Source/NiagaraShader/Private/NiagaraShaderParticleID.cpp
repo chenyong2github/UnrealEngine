@@ -98,7 +98,8 @@ public:
 	void Execute(FRHICommandList& RHICmdList, ERHIFeatureLevel::Type FeatureLevel, FRHIComputeShader* ComputeShader, uint32 NumIDs, FRHIShaderResourceView* IDToIndexTable, FRWBuffer& FreeIDList, FRWBuffer& FreeIDListSizes, uint32 FreeIDListIndex)
 	{
 		const EShaderPlatform Platform = GShaderPlatformForFeatureLevel[FeatureLevel];
-		const uint32 THREAD_COUNT = (Platform == SP_XBOXONE_D3D12 || Platform == SP_PS4) ? 64 : 128;
+		const uint32 DDPINumThreads = FDataDrivenShaderPlatformInfo::GetNumberOfComputeThreads(Platform);
+		const uint32 THREAD_COUNT = (DDPINumThreads != 0) ? DDPINumThreads : (Platform == SP_XBOXONE_D3D12  ? 64 : 128);
 
 		// To simplify the shader code, the size of the ID table must be a multiple of the thread count.
 		check(NumIDs % THREAD_COUNT == 0);
