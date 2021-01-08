@@ -4,11 +4,9 @@
 
 #include "CoreMinimal.h"
 #include "GameFeatureAction.h"
+#include "GameFramework/CheatManager.h"
 
 #include "GameFeatureAction_AddCheats.generated.h"
-
-class UCheatManager;
-class UCheatManagerExtension;
 
 //////////////////////////////////////////////////////////////////////
 // UGameFeatureAction_AddCheats
