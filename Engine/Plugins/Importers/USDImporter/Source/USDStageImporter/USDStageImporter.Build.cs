@@ -18,6 +18,7 @@ namespace UnrealBuildTool.Rules
 					"GeometryCache",
 					"InputCore",
 					"JsonUtilities",
+					"LevelSequence",
 					"MainFrame",
 					"MessageLog",
 					"RenderCore", // So that we can release resources of reimported meshes

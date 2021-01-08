@@ -17,6 +17,7 @@
 
 FUsdStageImportContext::FUsdStageImportContext()
 {
+	World = nullptr;
 	ImportOptions = NewObject< UUsdStageImportOptions >();
 	bReadFromStageCache = false;
 	bStageWasOriginallyOpen = false;

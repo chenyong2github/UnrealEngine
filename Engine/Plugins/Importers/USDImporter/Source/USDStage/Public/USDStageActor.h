@@ -116,9 +116,6 @@ private:
 	UPROPERTY(VisibleAnywhere, Category = "USD", Transient)
 	ULevelSequence* LevelSequence;
 
-	UPROPERTY(Transient)
-	TMap<FString, ULevelSequence*> LevelSequencesByIdentifier;
-
 public:
 	DECLARE_EVENT_OneParam( AUsdStageActor, FOnActorLoaded, AUsdStageActor* );
 	USDSTAGE_API static FOnActorLoaded OnActorLoaded;

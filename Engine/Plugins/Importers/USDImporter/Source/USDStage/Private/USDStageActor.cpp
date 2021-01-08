@@ -226,7 +226,6 @@ AUsdStageActor::AUsdStageActor()
 	: InitialLoadSet( EUsdInitialLoadSet::LoadAll )
 	, PurposesToLoad( (int32) EUsdPurpose::Proxy )
 	, Time( 0.0f )
-	, LevelSequenceHelper( this )
 {
 	SceneComponent = CreateDefaultSubobject< USceneComponent >( TEXT("SceneComponent0") );
 	SceneComponent->Mobility = EComponentMobility::Static;
@@ -990,10 +989,8 @@ void AUsdStageActor::ReloadAnimations()
 #endif // WITH_EDITOR
 		}
 
-		LevelSequence = nullptr;
-		LevelSequencesByIdentifier.Reset();
-
-		LevelSequenceHelper.InitLevelSequence(UsdStage);
+		LevelSequence = LevelSequenceHelper.Init( UsdStage );
+		LevelSequenceHelper.BindToUsdStageActor( this );
 
 #if WITH_EDITOR
 		if (GIsEditor && GEditor && LevelSequence && bLevelSequenceEditorWasOpened)
@@ -1090,7 +1087,6 @@ void AUsdStageActor::Serialize(FArchive& Ar)
 	{
 		// We want to duplicate these properties for PIE only, as they are required to animate and listen to notices
 		Ar << LevelSequence;
-		Ar << LevelSequencesByIdentifier;
 		Ar << RootUsdTwin;
 		Ar << PrimsToAnimate;
 		Ar << ObjectsToWatch;

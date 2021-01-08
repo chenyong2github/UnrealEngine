@@ -33,6 +33,7 @@
 #include "GeometryCache.h"
 #include "HAL/FileManager.h"
 #include "IAssetTools.h"
+#include "LevelSequence.h"
 #include "Materials/Material.h"
 #include "Materials/MaterialInstance.h"
 #include "Materials/MaterialInterface.h"
@@ -268,7 +269,16 @@ namespace UsdStageImporterImpl
 #endif // #if USE_USD_SDK
 	}
 
-	void ImportActor(UE::FUsdPrim& Prim, FUsdSchemaTranslationContext& TranslationContext)
+	void ImportAnimation(FUsdStageImportContext& ImportContext, UE::FUsdPrim& Prim, USceneComponent* SceneComponent)
+	{
+		UUsdPrimTwin* UsdPrimTwin = NewObject< UUsdPrimTwin >();
+		UsdPrimTwin->PrimPath = Prim.GetPrimPath().GetString();
+		UsdPrimTwin->SceneComponent = SceneComponent;
+
+		ImportContext.LevelSequenceHelper.AddPrim( *UsdPrimTwin );
+	}
+
+	void ImportActor(FUsdStageImportContext& ImportContext, UE::FUsdPrim& Prim, FUsdSchemaTranslationContext& TranslationContext)
 	{
 		IUsdSchemasModule& UsdSchemasModule = FModuleManager::Get().LoadModuleChecked< IUsdSchemasModule >(TEXT("USDSchemas"));
 		bool bExpandChilren = true;
@@ -291,7 +301,7 @@ namespace UsdStageImporterImpl
 			const bool bTraverseInstanceProxies = true;
 			for (UE::FUsdPrim ChildStore : Prim.GetFilteredChildren(bTraverseInstanceProxies))
 			{
-				ImportActor(ChildStore, TranslationContext);
+				ImportActor(ImportContext, ChildStore, TranslationContext);
 			}
 		}
 
@@ -304,6 +314,11 @@ namespace UsdStageImporterImpl
 			{
 				Component->RegisterComponent();
 			}
+
+			if (UsdUtils::IsAnimated(Prim))
+			{
+				ImportAnimation(ImportContext, Prim, Component);
+			}
 		}
 	}
 
@@ -315,17 +330,7 @@ namespace UsdStageImporterImpl
 		}
 
 		UE::FUsdPrim RootPrim = ImportContext.Stage.GetPseudoRoot();
-		ImportActor(RootPrim, TranslationContext);
-	}
-
-	void ImportAnimations(FUsdStageImportContext& ImportContext, FUsdSchemaTranslationContext& TranslationContext)
-	{
-		if (!ImportContext.ImportOptions->bImportActors)
-		{
-			return;
-		}
-
-		// TODO
+		ImportActor(ImportContext, RootPrim, TranslationContext);
 	}
 
 	// Assets coming out of USDSchemas module have default names, so here we do our best to provide them with
@@ -663,6 +668,19 @@ namespace UsdStageImporterImpl
 			FString TargetAssetName = GetUserFriendlyName(Asset, UniqueAssetNames);
 			FString DestPackagePath = FPaths::Combine(ImportContext.PackagePath, ImportContext.ObjectName, AssetTypeFolder, TargetAssetName);
 			PublishAsset(ImportContext, Asset, DestPackagePath, ObjectsToRemap);
+		}
+
+		// Publish the level sequences
+		TArray<ULevelSequence*> LevelSequences;
+		LevelSequences.Append(ImportContext.LevelSequenceHelper.GetSubSequences());
+		LevelSequences.Add(ImportContext.LevelSequenceHelper.GetMainLevelSequence());
+
+		const FString AssetTypeFolder = "Sequences";
+
+		for (ULevelSequence* LevelSequence : LevelSequences)
+		{
+			const FString DestPackagePath = FPaths::Combine(ImportContext.PackagePath, ImportContext.ObjectName, AssetTypeFolder, LevelSequence->GetName());
+			UObject* PublishedLevelSequence = PublishAsset(ImportContext, LevelSequence, DestPackagePath, ObjectsToRemap);
 		}
 	}
 
@@ -1144,6 +1162,8 @@ void UUsdStageImporter::ImportFromFile(FUsdStageImportContext& ImportContext)
 
 	UsdStageImporterImpl::SetupStageForImport(ImportContext);
 
+	ImportContext.LevelSequenceHelper.Init(ImportContext.Stage);
+
 	TMap<UObject*, UObject*> ObjectsToRemap;
 	TSet<UObject*> UsedAssetsAndDependencies;
 	UsdUtils::FBlendShapeMap BlendShapesByPath;
@@ -1171,7 +1191,6 @@ void UUsdStageImporter::ImportFromFile(FUsdStageImportContext& ImportContext)
 		UsdStageImporterImpl::ImportMaterials( ImportContext, TranslationContext.Get() );
 		UsdStageImporterImpl::ImportMeshes( ImportContext, TranslationContext.Get() );
 		UsdStageImporterImpl::ImportActors( ImportContext, TranslationContext.Get() );
-		UsdStageImporterImpl::ImportAnimations( ImportContext, TranslationContext.Get() );
 	}
 	TranslationContext->CompleteTasks();
 

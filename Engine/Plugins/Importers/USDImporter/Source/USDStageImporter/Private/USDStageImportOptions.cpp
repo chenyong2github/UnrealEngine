@@ -2,6 +2,10 @@
 
 #include "USDStageImportOptions.h"
 
+#include "USDSchemasModule.h"
+#include "USDSchemaTranslator.h"
+
+#include "Modules/ModuleManager.h"
 #include "UObject/UnrealType.h"
 
 UUsdStageImportOptions::UUsdStageImportOptions(const FObjectInitializer& ObjectInitializer)
@@ -23,6 +27,9 @@ UUsdStageImportOptions::UUsdStageImportOptions(const FObjectInitializer& ObjectI
 	bPrimPathFolderStructure = false;
 	bCollapse = true;
 	bInterpretLODs = true;
+
+	IUsdSchemasModule& UsdSchemasModule = FModuleManager::Get().LoadModuleChecked< IUsdSchemasModule >( TEXT("USDSchemas") );
+	RenderContextToImport = UsdSchemasModule.GetRenderContextRegistry().GetUniversalRenderContext();
 }
 
 void UUsdStageImportOptions::EnableActorImport( bool bEnable )

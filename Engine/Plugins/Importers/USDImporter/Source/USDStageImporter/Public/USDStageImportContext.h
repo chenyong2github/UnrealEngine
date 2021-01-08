@@ -3,6 +3,7 @@
 #pragma once
 
 #include "UnrealUSDWrapper.h"
+#include "USDLevelSequenceHelper.h"
 #include "USDMemory.h"
 
 #include "UsdWrappers/UsdStage.h"
@@ -43,6 +44,9 @@ struct USDSTAGEIMPORTER_API FUsdStageImportContext
 	/** Keep track of the parent imported package so that we have something valid to return to upstream code that calls the import factories */
 	UPROPERTY()
 	UPackage* ImportedPackage;
+	
+	/** Level sequence that will contain the animation data during the import process */
+	FUsdLevelSequenceHelper LevelSequenceHelper;
 
 	TSharedPtr<FUsdAssetCache> AssetCache;
 
