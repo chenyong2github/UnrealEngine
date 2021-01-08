@@ -174,7 +174,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Whether to retain frame pointers
 		/// </summary>
-		public bool bRetainFramePointers = false;
+		public bool bRetainFramePointers = true;
 
 		/// <summary>
 		/// Enable exception handling
