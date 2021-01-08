@@ -28,6 +28,13 @@ class UNiagaraParameterCollectionInstance;
 class UNiagaraComponentPool;
 struct FNiagaraScalabilityState;
 
+enum class ENiagaraDebugPlayback : uint8
+{
+	Play = 0,
+	Paused,
+	Step,
+};
+
 class FNiagaraViewDataMgr : public FRenderResource
 {
 public:
@@ -180,6 +187,12 @@ public:
 	static void PrimePoolForAllWorlds(UNiagaraSystem* System);
 	void PrimePoolForAllSystems();
 	void PrimePool(UNiagaraSystem* System);
+
+	void SetDebugPlayback(ENiagaraDebugPlayback Mode) { RequestedDebugPlayback = Mode; }
+	ENiagaraDebugPlayback GetDebugPlayback() const { return DebugPlayback; }
+
+	class FNiagaraDebugHud* GetNiagaraDebugHud() { return NiagaraDebugHud.Get(); }
+
 private:
 	// Callback function registered with global world delegates to instantiate world manager when a game world is created
 	static void OnWorldInit(UWorld* World, const UWorld::InitializationValues IVS);
@@ -221,7 +234,6 @@ private:
 	FORCEINLINE_DEBUGGABLE void VisibilityCull(UNiagaraEffectType* EffectType, const FNiagaraSystemScalabilitySettings& ScalabilitySettings, UNiagaraComponent* Component, FNiagaraScalabilityState& OutState);
 	FORCEINLINE_DEBUGGABLE void InstanceCountCull(UNiagaraEffectType* EffectType, UNiagaraSystem* System, const FNiagaraSystemScalabilitySettings& ScalabilitySettings, FNiagaraScalabilityState& OutState);
 
-	
 	static FDelegateHandle OnWorldInitHandle;
 	static FDelegateHandle OnWorldCleanupHandle;
 	static FDelegateHandle OnPostWorldCleanupHandle;
@@ -266,6 +278,10 @@ private:
 	bool bAppHasFocus;
 
 	float WorldLoopTime = 0.0f;
+	
+	ENiagaraDebugPlayback RequestedDebugPlayback = ENiagaraDebugPlayback::Play;
+	ENiagaraDebugPlayback DebugPlayback = ENiagaraDebugPlayback::Play;
+	TUniquePtr<class FNiagaraDebugHud> NiagaraDebugHud;
 };
 
 
