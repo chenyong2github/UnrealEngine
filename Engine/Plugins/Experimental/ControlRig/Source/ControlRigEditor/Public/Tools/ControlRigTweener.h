@@ -4,6 +4,7 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "Misc/FrameNumber.h"
+#include "Curves/KeyHandle.h"
 
 struct FMovieSceneFloatChannel;
 class UControlRig;
