@@ -76,6 +76,8 @@ class NIAGARA_API UNiagaraBaselineController : public UObject
 	
 public:
 
+	virtual bool IsEditorOnly() const override { return true; }
+
 	/** Called from the stats system when we begin gathering stats for the given System asset.*/
 	UFUNCTION(BlueprintNativeEvent)
 	void OnBeginTest();
