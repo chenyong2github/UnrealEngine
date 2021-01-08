@@ -91,7 +91,6 @@ FMaterialPixelParameters GetMaterialPixelParameters(inout FVertexFactoryInterpol
 			PointLocal1,
 			PointLocal2,
 			Barycentrics,
-			ClusterPageData,
 			InstanceData,
 			NUM_TEX_COORD_INTERPOLATORS
 		);

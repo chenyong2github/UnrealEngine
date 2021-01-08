@@ -218,7 +218,6 @@ FNaniteAttributeData GetAttributeData(
 	float3 PointLocal1,
 	float3 PointLocal2,
 	FBarycentrics Barycentrics,
-	ByteAddressBuffer ClusterPageData,
 	FInstanceSceneData InstanceData,
 	uint NumTexCoordInterpolators
 )
