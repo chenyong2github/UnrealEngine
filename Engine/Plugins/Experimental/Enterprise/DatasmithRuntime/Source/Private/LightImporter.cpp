@@ -98,6 +98,8 @@ namespace DatasmithRuntime
 			return EActionResult::Retry;
 		}
 
+		ActionCounter.Increment();
+
 		if (ULightComponent* LightComponent = ActorData.GetObject<ULightComponent>())
 		{
 			LightComponent->IESTexture = TextureProfile;

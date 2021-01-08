@@ -4,6 +4,7 @@
 
 #include "DatasmithRuntimeUtils.h"
 #include "LogCategory.h"
+#include "MaterialImportUtils.h"
 
 #include "DatasmithMaterialElements.h"
 #include "DatasmithUtils.h"
@@ -20,28 +21,6 @@
 namespace DatasmithRuntime
 {
 	void UpdateMaterials(TSet<FSceneGraphId>& MaterialElementSet, TMap< FSceneGraphId, FAssetData >& AssetDataList);
-
-	TSharedPtr< IDatasmithElement > ValidatePbrMaterial( TSharedPtr< IDatasmithUEPbrMaterialElement > PbrMaterialElement, FSceneImporter& SceneImporter )
-	{
-		// Assuming Pbr materials using material attributes are layered materials
-		if (PbrMaterialElement->GetUseMaterialAttributes())
-		{
-			for (int32 Index = 0; Index < PbrMaterialElement->GetExpressionsCount(); ++Index)
-			{
-				IDatasmithMaterialExpression* Expression = PbrMaterialElement->GetExpression(Index);
-				if (Expression && Expression->IsA(EDatasmithMaterialExpressionType::FunctionCall))
-				{
-					IDatasmithMaterialExpressionFunctionCall* FunctionCall = static_cast<IDatasmithMaterialExpressionFunctionCall*>(Expression);
-					TSharedPtr< IDatasmithElement > ElementPtr = SceneImporter.GetElementFromName(MaterialPrefix + FunctionCall->GetFunctionPathName());
-					ensure(ElementPtr.IsValid() && ElementPtr->IsA( EDatasmithElementType::UEPbrMaterial ));
-
-					return ElementPtr;
-				}
-			}
-		}
-
-		return PbrMaterialElement;
-	}
 
 	void FSceneImporter::ProcessMaterialData(FAssetData& MaterialData)
 	{
@@ -61,7 +40,7 @@ namespace DatasmithRuntime
 
 		TSharedPtr< IDatasmithElement >& Element = Elements[ MaterialData.ElementId ];
 
-		FString MaterialName = FString(Element->GetLabel()) + TEXT("_LU_") + FString::FromInt(MaterialData.ElementId);
+		FString MaterialName = FString(Element->GetName()) + TEXT("_LU_") + FString::FromInt(MaterialData.ElementId);
 
 		bool bUsingMaterialFromCache = false;
 
@@ -82,9 +61,9 @@ namespace DatasmithRuntime
 			else
 			{
 #ifdef ASSET_DEBUG
-				MaterialName = FDatasmithUtils::SanitizeObjectName(MaterialName);
-				UPackage* Package = CreatePackage(*FPaths::Combine( TEXT("/Engine/Transient/LU"), MaterialName));
-				MaterialData.Object = TStrongObjectPtr<UObject>( UMaterialInstanceDynamic::Create( nullptr, Package, *MaterialName) );
+				MaterialName = TEXT("M_") + FDatasmithUtils::SanitizeObjectName(MaterialName);
+				UPackage* Package = CreatePackage(*FPaths::Combine( TEXT("/DatasmithContent/Materials"), MaterialName));
+				MaterialData.Object = TWeakObjectPtr<UObject>( UMaterialInstanceDynamic::Create( nullptr, Package, *MaterialName) );
 				MaterialData.Object->SetFlags(RF_Public);
 #else
 				MaterialData.Object = TWeakObjectPtr<UObject>( UMaterialInstanceDynamic::Create( nullptr, nullptr) );
@@ -115,7 +94,6 @@ namespace DatasmithRuntime
 			{
 				this->ProcessTextureData(*ElementIdPtr);
 
-				FTextureData& TextureData = this->TextureDataList[*ElementIdPtr];
 				this->AddToQueue(EQueueTask::NonAsyncQueue, { AssignTextureFunc, *ElementIdPtr, { EDataType::Material, ElementId, (uint16)PropertyIndex } });
 			}
 		};
@@ -178,11 +156,10 @@ namespace DatasmithRuntime
 		}
 		else if ( Element->IsA( EDatasmithElementType::UEPbrMaterial ) )
 		{
-			IDatasmithUEPbrMaterialElement* MaterialElement = static_cast< IDatasmithUEPbrMaterialElement* >( Element.Get() );
-
-			bCreationSuccessful = LoadPbrMaterial(MaterialInstance, MaterialElement);
+			bCreationSuccessful = LoadPbrMaterial(static_cast<IDatasmithUEPbrMaterialElement&>( *Element ), MaterialInstance);
 		}
 
+		ActionCounter.Increment();
 
 		if (bCreationSuccessful)
 		{
@@ -195,6 +172,8 @@ namespace DatasmithRuntime
 					AssetData.AddState(EAssetState::Completed);
 					AssetData.Object.Reset();
 				});
+
+			UE_LOG(LogDatasmithRuntime, Warning, TEXT("Failed to create material %s"), Element->GetName());
 
 			return EActionResult::Failed;
 		}
@@ -239,7 +218,7 @@ namespace DatasmithRuntime
 
 				FName PropertyName(Property->GetName());
 				MaterialInstance->SetTextureParameterValue(PropertyName, Texture);
-#if WITH_EDITOR
+#ifdef ASSET_DEBUG
 				Texture->ClearFlags(RF_Public);
 #endif
 			}
@@ -247,7 +226,7 @@ namespace DatasmithRuntime
 			{
 				FName PropertyName(PbrTexturePropertyNames[Referencer.Slot]);
 				MaterialInstance->SetTextureParameterValue(PropertyName, Texture);
-#if WITH_EDITOR
+#ifdef ASSET_DEBUG
 				Texture->ClearFlags(RF_Public);
 #endif
 			}
