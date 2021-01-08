@@ -1352,7 +1352,7 @@ void UEngine::ConditionalCollectGarbage()
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 		if (CVarStressTestGCWhileStreaming.GetValueOnGameThread() && IsAsyncLoading())
 		{
-			TryCollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS, true);
+			CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS, true);
 		}
 		else if (CVarForceCollectGarbageEveryFrame.GetValueOnGameThread())
 		{
