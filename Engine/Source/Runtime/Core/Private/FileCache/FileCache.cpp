@@ -510,7 +510,7 @@ IMemoryReadStreamRef FFileCacheHandle::ReadDataUncached(FGraphEventArray& OutCom
 	return new FMemoryReadStreamAsyncRequest(AsyncRequest, BytesToRead);
 }
 
-class FMemoryReadStreamCache : public IMemoryReadStream
+class FMemoryReadStreamCache : public IMemoryReadStream //-V1062
 {
 public:
 	virtual const void* Read(int64& OutSize, int64 InOffset, int64 InSize) override

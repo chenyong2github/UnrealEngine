@@ -91,4 +91,10 @@ class SUserWidget : public SCompoundWidget
 		return FMemory::Malloc(InSize);
 	}
 
+	public:
+	// This exists to silence V1062 and provide implementation balance with the new above
+	void operator delete (void* InMem)
+	{
+		FMemory::Free(InMem);
+	}
 };

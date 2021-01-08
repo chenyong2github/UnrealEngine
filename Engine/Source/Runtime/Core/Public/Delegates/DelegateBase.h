@@ -37,7 +37,7 @@ ALIAS_TEMPLATE_TYPE_LAYOUT(template<typename ElementType>, FDelegateAllocatorTyp
 /**
  * Base class for unicast delegates.
  */
-class FDelegateBase
+class FDelegateBase //-V1062
 {
 	template <typename>
 	friend class TMulticastDelegateBase;

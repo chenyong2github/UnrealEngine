@@ -1583,6 +1583,11 @@ public: \
 	inline void* operator new( const size_t InSize, EInternal* InMem ) \
 	{ \
 		return (void*)InMem; \
+	} \
+	/* Eliminate V1062 warning from PVS-Studio while keeping MSVC and Clang happy. */ \
+	inline void operator delete(void* InMem) \
+	{ \
+		::operator delete(InMem); \
 	}
 
 #define DEFINE_FORBIDDEN_DEFAULT_CONSTRUCTOR_CALL(TClass) \
