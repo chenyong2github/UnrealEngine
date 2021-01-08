@@ -17,7 +17,7 @@ void SDetailCategoryTableRow::Construct( const FArguments& InArgs, TSharedRef<FD
 
 	FDetailColumnSizeData& ColumnSizeData = InOwnerTreeNode->GetDetailsView()->GetColumnSizeData();
 
-	TSharedPtr<SHorizontalBox> HeaderBox = SNew(SHorizontalBox)
+	TSharedRef<SHorizontalBox> HeaderBox = SNew(SHorizontalBox)
 		+ SHorizontalBox::Slot()
 		.HAlign(HAlign_Left)
 		.VAlign(VAlign_Fill)
@@ -61,7 +61,7 @@ void SDetailCategoryTableRow::Construct( const FArguments& InArgs, TSharedRef<FD
 	[
 		SNew( SBorder )
 		.BorderImage( FAppStyle::Get().GetBrush( "DetailsView.GridLine") )
-		.Padding( FMargin(0, 0, 0, 1) )
+		.Padding( FMargin(0, 0, SDetailTableRowBase::ScrollbarPaddingSize, 1) )
 		[
 			SNew(SHorizontalBox)
 			+ SHorizontalBox::Slot()
@@ -83,9 +83,9 @@ void SDetailCategoryTableRow::Construct( const FArguments& InArgs, TSharedRef<FD
 				SNew( SBorder )
 				.BorderImage( this, &SDetailCategoryTableRow::GetBackgroundImage )
 				.BorderBackgroundColor( this, &SDetailCategoryTableRow::GetInnerBackgroundColor )
-				.Padding(FMargin(0, 0, SDetailTableRowBase::ScrollbarPaddingSize, 0))
+				.Padding(FMargin(0, 0, 0, 0))
 				[
-					HeaderBox.ToSharedRef()
+					HeaderBox
 				]
 			]
 		]

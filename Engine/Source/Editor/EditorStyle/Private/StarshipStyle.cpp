@@ -2254,14 +2254,7 @@ void FStarshipEditorStyle::FStyle::SetupSequencerStyles()
 			.SetShadowColorAndOpacity(FLinearColor(0, 0, 0, 0.9f)));
 		Set("Sequencer.BreadcrumbIcon", new IMAGE_BRUSH("Common/SmallArrowRight", Icon10x10));
 
-
-		const FButtonStyle DetailsKeyButton = FButtonStyle(NoBorder)
-		.SetNormal(IMAGE_BRUSH("Sequencer/AddKey_Details", FVector2D(11, 11)))
-		.SetHovered(IMAGE_BRUSH("Sequencer/AddKey_Details", FVector2D(11, 11), SelectionColor))
-		.SetPressed(IMAGE_BRUSH("Sequencer/AddKey_Details", FVector2D(11, 11), SelectionColor_Pressed))
-		.SetNormalPadding(FMargin(0, 1))
-		.SetPressedPadding(FMargin(0, 2, 0, 0));
-		Set("Sequencer.AddKey.Details", DetailsKeyButton);
+		Set("Sequencer.AddKey.Details", new IMAGE_BRUSH("Sequencer/AddKey_Details", FVector2D(11, 11)));
 
 		const FSplitterStyle OutlinerSplitterStyle = FSplitterStyle()
 		.SetHandleNormalBrush(FSlateNoResource())
@@ -3147,7 +3140,7 @@ void FStarshipEditorStyle::FStyle::SetupPropertyEditorStyles()
 		FSlateFontInfo MobilityFont = FStyleFonts::Get().Small;
 		MobilityFont.LetterSpacing = 100;
 
-		Set("PropertyWindow.MobilityFont", MobilityFont);
+		Set( "PropertyWindow.MobilityFont", MobilityFont );
 		Set( "PropertyWindow.NoOverlayColor", new FSlateNoResource() );
 		Set( "PropertyWindow.EditConstColor", new FSlateColorBrush( FColor( 152, 152, 152, 80 ) ) );
 		Set( "PropertyWindow.FilteredColor", new FSlateColorBrush( FColor( 0, 255, 0, 80 ) ) );
@@ -3233,7 +3226,33 @@ void FStarshipEditorStyle::FStyle::SetupPropertyEditorStyles()
 			.SetFont(GetFontStyle("DetailsView.CategoryFontStyle"))
 			.SetColorAndOpacity(FStyleColors::ForegroundHeader)
 		);
-		
+
+		FButtonStyle DetailsExtensionMenuButton = FButtonStyle(FStarshipCoreStyle::GetCoreStyle().GetWidgetStyle<FButtonStyle>("NoBorder"))
+			.SetNormalForeground(FStyleColors::Foreground)
+			.SetHoveredForeground(FStyleColors::ForegroundHover)
+			.SetPressedForeground(FStyleColors::ForegroundHover)
+			.SetDisabledForeground(FStyleColors::Foreground)
+			.SetNormalPadding(FMargin(0, 2, 0, 2))
+			.SetPressedPadding(FMargin(0, 3, 0, 1));
+
+		Set("DetailsView.ExtensionToolBar.Button", DetailsExtensionMenuButton);
+
+		FToolBarStyle DetailsExtensionToolBarStyle = FToolBarStyle(FStarshipCoreStyle::GetCoreStyle().GetWidgetStyle<FToolBarStyle>("SlimToolBar"))
+			.SetBackground(FSlateNoResource())
+			.SetIconSize(Icon16x16)
+			.SetLabelPadding(FMargin(0))
+			.SetComboButtonPadding(FMargin(0))
+			.SetBlockPadding(FMargin(2.0f, 0.0f))
+			.SetIndentedBlockPadding(FMargin(0))
+			.SetButtonPadding(FMargin(2, 0))
+			.SetCheckBoxPadding(FMargin(3.0f, 0.0f))
+			.SetButtonStyle(DetailsExtensionMenuButton)
+			.SetSeparatorBrush(FSlateNoResource())
+			.SetSeparatorPadding(FMargin(4.0f, 0.0f))
+			.SetExpandBrush(CORE_IMAGE_BRUSH_SVG("Starship/Common/ellipsis-vertical-narrow", FVector2D(6, 24)));
+
+		Set("DetailsView.ExtensionToolBar", DetailsExtensionToolBarStyle);
+
 		Set("DetailsView.ArrayDropShadow", new IMAGE_BRUSH("Common/ArrayDropShadow", FVector2D(32,2)));
 
 		Set( "DetailsView.TreeView.TableRow", FTableRowStyle()

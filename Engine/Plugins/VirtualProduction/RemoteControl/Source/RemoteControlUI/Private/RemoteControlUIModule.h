@@ -77,16 +77,19 @@ private:
 	void UnregisterDetailRowExtension();
 
 	/** Handle creating the property row extensions.  */
-	void HandleCreatePropertyRowExtension(const FOnGenerateGlobalRowExtensionArgs& InArgs, /*FOnGenerateGlobalRowExtensionArgs::EWidgetPosition InWidgetPosition,*/ TArray<TSharedRef<SWidget>>& OutExtensions);
+	void HandleCreatePropertyRowExtension(const FOnGenerateGlobalRowExtensionArgs& InArgs, TArray<FPropertyRowExtensionButton>& OutExtensions);
 
 	/** Handle getting the icon displayed in the property row extension. */
-	const FSlateBrush* OnGetExposedIcon(TSharedPtr<IPropertyHandle> Handle) const;
+	FSlateIcon OnGetExposedIcon(TSharedPtr<IPropertyHandle> Handle) const;
 
 	/** Handle getting the expose button visibility. */
-	EVisibility OnGetExposeButtonVisibility(TSharedPtr<IPropertyHandle> Handle) const;
+	bool CanToggleExposeProperty(TSharedPtr<IPropertyHandle> Handle) const;
+
+	/** Is the property currently exposed? */
+	ECheckBoxState GetPropertyExposedCheckState(TSharedPtr<IPropertyHandle> Handle) const;
 
 	/** Handle clicking the expose button. */
-	FReply OnToggleExposeProperty(TSharedPtr<IPropertyHandle> Handle);
+	void OnToggleExposeProperty(TSharedPtr<IPropertyHandle> Handle);
 
 	/** Returns whether a property is exposed, unexposed or unexposable. */
 	EPropertyExposeStatus GetPropertyExposeStatus(const TSharedPtr<IPropertyHandle>& Handle) const;

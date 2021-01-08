@@ -1,26 +1,29 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SDetailSingleItemRow.h"
-#include "ObjectPropertyNode.h"
-#include "Widgets/Images/SImage.h"
-#include "Widgets/Input/SButton.h"
-#include "Settings/EditorExperimentalSettings.h"
+
+#include "DetailGroup.h"
+#include "DetailPropertyRow.h"
 #include "DetailWidgetRow.h"
+#include "Editor.h"
 #include "IDetailKeyframeHandler.h"
 #include "IDetailPropertyExtensionHandler.h"
-#include "DetailPropertyRow.h"
-#include "DetailGroup.h"
-#include "HAL/PlatformApplicationMisc.h"
-#include "Editor.h"
-#include "PropertyHandleImpl.h"
+#include "ObjectPropertyNode.h"
+#include "PropertyEditorConstants.h"
 #include "PropertyEditorModule.h"
-#include "Modules/ModuleInterface.h"
-#include "Modules/ModuleManager.h"
+#include "PropertyHandleImpl.h"
 #include "SConstrainedBox.h"
 #include "SDetailExpanderArrow.h"
 #include "SDetailRowIndent.h"
 #include "SResetToDefaultPropertyEditor.h"
-#include "PropertyEditorConstants.h"
+
+#include "HAL/PlatformApplicationMisc.h"
+#include "Modules/ModuleInterface.h"
+#include "Modules/ModuleManager.h"
+#include "Settings/EditorExperimentalSettings.h"
+#include "Widgets/Images/SImage.h"
+#include "Widgets/Input/SButton.h"
+#include "Widgets/Input/SComboButton.h"
 
 namespace DetailWidgetConstants
 {
@@ -50,83 +53,6 @@ namespace SDetailSingleItemRow_Helper
 	}
 }
 
-void SDetailSingleItemRow::OnFavoriteMenuToggle()
-{
-	if (Customization->GetPropertyNode().IsValid() && Customization->GetPropertyNode()->CanDisplayFavorite())
-	{
-		bool bToggle = !Customization->GetPropertyNode()->IsFavorite();
-		Customization->GetPropertyNode()->SetFavorite(bToggle);
-		if (OwnerTreeNode.IsValid())
-		{
-			//////////////////////////////////////////////////////////////////////////
-			// Calculate properly the scrolling offset (by item) to make sure the mouse stay over the same property
-
-			//Get the node item number in case it is expand we have to recursively count all childrens
-			int32 ExpandSize = 0;
-			if (OwnerTreeNode.Pin()->ShouldBeExpanded())
-			{
-				SDetailSingleItemRow_Helper::RecursivelyGetItemShow(OwnerTreeNode.Pin().ToSharedRef(), ExpandSize);
-			}
-			else
-			{
-				//if the item is not expand count is 1
-				ExpandSize = 1;
-			}
-			
-			//Get the number of favorite child (simple and advance) to know if the favorite category will be create or remove
-			int32 SimplePropertiesNum = 0;
-			int32 AdvancePropertiesNum = 0;
-
-			FDetailLayoutBuilderImpl& DetailLayout = OwnerTreeNode.Pin()->GetParentCategory()->GetParentLayoutImpl();
-
-			const FName FavoritesCategoryName = TEXT("Favorites");
-			bool HasCategoryFavorite = DetailLayout.HasCategory(FavoritesCategoryName);
-			if(HasCategoryFavorite)
-			{
-				DetailLayout.DefaultCategory(FavoritesCategoryName).GetCategoryInformation(SimplePropertiesNum, AdvancePropertiesNum);
-			}
-
-			// Check if the property we toggle is an advance property
-			bool IsAdvanceProperty = Customization->GetPropertyNode()->HasNodeFlags(EPropertyNodeFlags::IsAdvanced) == 0 ? false : true;
-
-			// Compute the scrolling offset by item
-			int32 ScrollingOffsetAdd = ExpandSize;
-			int32 ScrollingOffsetRemove = -ExpandSize;
-			if (HasCategoryFavorite)
-			{
-				// Adding the advance button in a category add 1 item
-				ScrollingOffsetAdd += (IsAdvanceProperty && AdvancePropertiesNum == 0) ? 1 : 0;
-
-				if (IsAdvanceProperty && AdvancePropertiesNum == 1)
-				{
-					//Removing the advance button count as 1 item
-					ScrollingOffsetRemove -= 1;
-				}
-				if (AdvancePropertiesNum + SimplePropertiesNum == 1)
-				{
-					//Removing a full category count as 2 items
-					ScrollingOffsetRemove -= 2;
-				}
-			}
-			else
-			{
-				// Adding new category (2 items) adding advance button (1 item)
-				ScrollingOffsetAdd += IsAdvanceProperty ? 3 : 2;
-				
-				// We should never remove an item from favorite if there is no favorite category
-				// Set the remove offset to 0
-				ScrollingOffsetRemove = 0;
-			}
-
-			// Apply the calculated offset
-			OwnerTreeNode.Pin()->GetDetailsView()->MoveScrollOffset(bToggle ? ScrollingOffsetAdd : ScrollingOffsetRemove);
-
-			// Refresh the tree
-			OwnerTreeNode.Pin()->GetDetailsView()->ForceRefresh();
-		}
-	}
-}
-
 void SDetailSingleItemRow::OnArrayDragEnter(const FDragDropEvent& DragDropEvent)
 {
 	bIsHoveredDragTarget = true;
@@ -146,7 +72,9 @@ bool SDetailSingleItemRow::CheckValidDrop(const TSharedPtr<SDetailSingleItemRow>
 		{
 			int32 OriginalIndex = SwappingPropertyNode->GetArrayIndex();
 			int32 NewIndex = SwappablePropertyNode->GetArrayIndex();
-			TSharedPtr<IPropertyHandle> SwappingHandle = PropertyEditorHelpers::GetPropertyHandle(SwappingPropertyNode.ToSharedRef(), OwnerTreeNode.Pin()->GetDetailsView()->GetNotifyHook(), OwnerTreeNode.Pin()->GetDetailsView()->GetPropertyUtilities());
+
+			IDetailsViewPrivate* DetailsView = OwnerTreeNode.Pin()->GetDetailsView();
+			TSharedPtr<IPropertyHandle> SwappingHandle = PropertyEditorHelpers::GetPropertyHandle(SwappingPropertyNode.ToSharedRef(), DetailsView->GetNotifyHook(), DetailsView->GetPropertyUtilities());
 			TSharedPtr<IPropertyHandleArray> ParentHandle = SwappingHandle->GetParentHandle()->AsArray();
 
 			if (ParentHandle.IsValid() && SwappablePropertyNode->GetParentNode() == SwappingPropertyNode->GetParentNode())
@@ -174,34 +102,37 @@ FReply SDetailSingleItemRow::OnArrayDrop(const FDragDropEvent& DragDropEvent)
 		return FReply::Unhandled();
 	}
 
-	if (CheckValidDrop(RowPtr))
+	if (!CheckValidDrop(RowPtr))
 	{
-		TSharedPtr<FPropertyNode> SwappingPropertyNode = RowPtr->SwappablePropertyNode;
-		TSharedPtr<IPropertyHandle> SwappingHandle = PropertyEditorHelpers::GetPropertyHandle(SwappingPropertyNode.ToSharedRef(), OwnerTreeNode.Pin()->GetDetailsView()->GetNotifyHook(), OwnerTreeNode.Pin()->GetDetailsView()->GetPropertyUtilities());
-		TSharedPtr<IPropertyHandleArray> ParentHandle = SwappingHandle->GetParentHandle()->AsArray();
-		int32 OriginalIndex = SwappingPropertyNode->GetArrayIndex();
-		int32 NewIndex = SwappablePropertyNode->GetArrayIndex();
+		return FReply::Unhandled();
+	}
 
-		// Need to swap the moving and target expansion states before saving
-		bool bOriginalSwappableExpansion = SwappablePropertyNode->HasNodeFlags(EPropertyNodeFlags::Expanded) != 0;
-		bool bOriginalSwappingExpansion = SwappingPropertyNode->HasNodeFlags(EPropertyNodeFlags::Expanded) != 0;
-		SwappablePropertyNode->SetNodeFlags(EPropertyNodeFlags::Expanded, bOriginalSwappingExpansion);
-		SwappingPropertyNode->SetNodeFlags(EPropertyNodeFlags::Expanded, bOriginalSwappableExpansion);
+	IDetailsViewPrivate* DetailsView = OwnerTreeNode.Pin()->GetDetailsView();
 
-		IDetailsViewPrivate* DetailsView = OwnerTreeNode.Pin()->GetDetailsView();
-		DetailsView->SaveExpandedItems(SwappablePropertyNode->GetParentNodeSharedPtr().ToSharedRef());
-		FScopedTransaction Transaction(NSLOCTEXT("UnrealEd", "MoveRow", "Move Row"));
+	TSharedPtr<FPropertyNode> SwappingPropertyNode = RowPtr->SwappablePropertyNode;
+	TSharedPtr<IPropertyHandle> SwappingHandle = PropertyEditorHelpers::GetPropertyHandle(SwappingPropertyNode.ToSharedRef(), DetailsView->GetNotifyHook(), DetailsView->GetPropertyUtilities());
+	TSharedPtr<IPropertyHandleArray> ParentHandle = SwappingHandle->GetParentHandle()->AsArray();
+	int32 OriginalIndex = SwappingPropertyNode->GetArrayIndex();
+	int32 NewIndex = SwappablePropertyNode->GetArrayIndex();
 
-		SwappingHandle->GetParentHandle()->NotifyPreChange();
+	// Need to swap the moving and target expansion states before saving
+	bool bOriginalSwappableExpansion = SwappablePropertyNode->HasNodeFlags(EPropertyNodeFlags::Expanded) != 0;
+	bool bOriginalSwappingExpansion = SwappingPropertyNode->HasNodeFlags(EPropertyNodeFlags::Expanded) != 0;
+	SwappablePropertyNode->SetNodeFlags(EPropertyNodeFlags::Expanded, bOriginalSwappingExpansion);
+	SwappingPropertyNode->SetNodeFlags(EPropertyNodeFlags::Expanded, bOriginalSwappableExpansion);
 
-		ParentHandle->MoveElementTo(OriginalIndex, NewIndex);
+	DetailsView->SaveExpandedItems(SwappablePropertyNode->GetParentNodeSharedPtr().ToSharedRef());
+	FScopedTransaction Transaction(NSLOCTEXT("UnrealEd", "MoveRow", "Move Row"));
 
-		FPropertyChangedEvent MoveEvent(SwappingHandle->GetParentHandle()->GetProperty(), EPropertyChangeType::Unspecified);
-		SwappingHandle->GetParentHandle()->NotifyPostChange(EPropertyChangeType::Unspecified);
-		if (DetailsView->GetPropertyUtilities().IsValid())
-		{
-			DetailsView->GetPropertyUtilities()->NotifyFinishedChangingProperties(MoveEvent);
-		}
+	SwappingHandle->GetParentHandle()->NotifyPreChange();
+
+	ParentHandle->MoveElementTo(OriginalIndex, NewIndex);
+
+	FPropertyChangedEvent MoveEvent(SwappingHandle->GetParentHandle()->GetProperty(), EPropertyChangeType::Unspecified);
+	SwappingHandle->GetParentHandle()->NotifyPostChange(EPropertyChangeType::Unspecified);
+	if (DetailsView->GetPropertyUtilities().IsValid())
+	{
+		DetailsView->GetPropertyUtilities()->NotifyFinishedChangingProperties(MoveEvent);
 	}
 
 	return FReply::Handled();
@@ -266,7 +197,8 @@ TSharedPtr<IPropertyHandle> SDetailSingleItemRow::GetPropertyHandle() const
 	TSharedPtr<FPropertyNode> PropertyNode = GetPropertyNode();
 	if (PropertyNode.IsValid())
 	{
-		Handle = PropertyEditorHelpers::GetPropertyHandle(PropertyNode.ToSharedRef(), OwnerTreeNode.Pin()->GetDetailsView()->GetNotifyHook(), OwnerTreeNode.Pin()->GetDetailsView()->GetPropertyUtilities());
+		IDetailsViewPrivate* DetailsView = OwnerTreeNode.Pin()->GetDetailsView();
+		Handle = PropertyEditorHelpers::GetPropertyHandle(PropertyNode.ToSharedRef(), DetailsView->GetNotifyHook(), DetailsView->GetPropertyUtilities());
 	}
 	else if (Customization->GetWidgetRow().PropertyHandles.Num() > 0)
 	{
@@ -299,7 +231,7 @@ void SDetailSingleItemRow::Construct( const FArguments& InArgs, FDetailLayoutCus
 		{
 			FDetailWidgetRow Row = InCustomization->GetWidgetRow();
 
-			TSharedPtr<SWidget> NameWidget, ValueWidget, ExtensionWidget;
+			TSharedPtr<SWidget> NameWidget, ValueWidget;
 
 			NameWidget = Row.NameWidget.Widget;
 
@@ -311,23 +243,24 @@ void SDetailSingleItemRow::Construct( const FArguments& InArgs, FDetailLayoutCus
 					Row.ValueWidget.Widget
 				];
 
-			ExtensionWidget = CreateExtensionWidget(ValueWidget.ToSharedRef(), *Customization, InOwnerTreeNode);
-
-			TAttribute<bool> IsEnabledAttribute = InOwnerTreeNode->IsPropertyEditingEnabled();
+			TAttribute<bool> IsEnabledAttribute;
 			if (Row.IsEnabledAttr.IsBound())
 			{
-				TAttribute<bool> RowEnabledAttr = Row.IsEnabledAttr;
 				TAttribute<bool> PropertyEnabledAttr = InOwnerTreeNode->IsPropertyEditingEnabled();
+				TAttribute<bool> RowEnabledAttr = Row.IsEnabledAttr;
 				IsEnabledAttribute = TAttribute<bool>::Create(
 					[RowEnabledAttr, PropertyEnabledAttr]()
 					{
 						return RowEnabledAttr.Get() && PropertyEnabledAttr.Get();
 					});
 			}
+			else
+			{
+				IsEnabledAttribute = InOwnerTreeNode->IsPropertyEditingEnabled();
+			}
 
 			NameWidget->SetEnabled(IsEnabledAttribute);
 			ValueWidget->SetEnabled(IsEnabledAttribute);
-			ExtensionWidget->SetEnabled(IsEnabledAttribute);
 
 			TSharedRef<SHorizontalBox> RowBox = SNew(SHorizontalBox);
 
@@ -455,13 +388,15 @@ void SDetailSingleItemRow::Construct( const FArguments& InArgs, FDetailLayoutCus
 						NameWidget.ToSharedRef()
 					];
 		
-
 				InnerSplitter->AddSlot()
 					.Value(ColumnSizeData.NameColumnWidth)
 					.OnSlotResized(ColumnSizeData.OnNameColumnResized)
 					[
 						NameColumnBox
 					];
+
+				TSharedRef<SWidget> ExtensionWidget = CreateExtensionWidget();
+				ExtensionWidget->SetEnabled(IsEnabledAttribute);
 
 				// create Value column:
 				// | Left  | Name | Value | Right |
@@ -485,7 +420,7 @@ void SDetailSingleItemRow::Construct( const FArguments& InArgs, FDetailLayoutCus
 						.Padding(5,0,0,0)
 						.AutoWidth()
 						[
-							ExtensionWidget.ToSharedRef()
+							ExtensionWidget
 						]
 					];
 			}
@@ -506,84 +441,60 @@ void SDetailSingleItemRow::Construct( const FArguments& InArgs, FDetailLayoutCus
 					];
 			}
 
-			TSharedRef<SHorizontalBox> RightColumnBox = SNew(SHorizontalBox)
-				.Clipping(EWidgetClipping::OnDemand);
+			TArray<FPropertyRowExtensionButton> ExtensionButtons;
 
-			// reset to default widget
-			bool bCreateResetToDefault = Row.CustomResetToDefault.IsSet();
-
-			TSharedPtr<IPropertyHandle> PropertyHandle = GetPropertyHandle();
-
-			if (PropertyHandle.IsValid())
-			{
-				if (PropertyHandle->HasMetaData("NoResetToDefault") || PropertyHandle->GetInstanceMetaData("NoResetToDefault"))
+			FPropertyRowExtensionButton& ResetToDefault = ExtensionButtons.AddDefaulted_GetRef();
+			ResetToDefault.Icon = TAttribute<FSlateIcon>::Create([this]()
 				{
-					bCreateResetToDefault = false;
-				}
-				else
+					return IsResetToDefaultEnabled() ?
+						FSlateIcon(FAppStyle::Get().GetStyleSetName(), "PropertyWindow.DiffersFromDefault") :
+						FSlateIcon(FAppStyle::Get().GetStyleSetName(), "NoBrush");
+				});
+			ResetToDefault.Label = NSLOCTEXT("PropertyEditor", "ResetToDefault", "Reset to Default");
+			ResetToDefault.ToolTip = TAttribute<FText>::Create([this]()
 				{
-					bCreateResetToDefault = true;
-				}
-			} 
+					return IsResetToDefaultEnabled() ?
+						NSLOCTEXT("PropertyEditor", "ResetToDefaultToolTip", "Reset this property to its default value.") :
+						FText::GetEmpty();
+				});
+			ResetToDefault.UIAction = FUIAction(
+				FExecuteAction::CreateSP(this, &SDetailSingleItemRow::OnResetToDefaultClicked),
+				FCanExecuteAction::CreateSP(this, &SDetailSingleItemRow::IsResetToDefaultEnabled));
 
-			TSharedRef<SWidget> ResetWidget = SNullWidget::NullWidget;
-			if (bCreateResetToDefault)
+			FPropertyRowExtensionButton& CreateKey = ExtensionButtons.AddDefaulted_GetRef();
+			CreateKey.Icon = FSlateIcon(FAppStyle::Get().GetStyleSetName(), "Sequencer.AddKey.Details");
+			CreateKey.Label = NSLOCTEXT("PropertyEditor", "CreateKey", "Create Key");
+			CreateKey.ToolTip = NSLOCTEXT("PropertyEditor", "CreateKeyToolTip", "Add a keyframe for this property.");
+			CreateKey.UIAction = FUIAction(
+				FExecuteAction::CreateSP(this, &SDetailSingleItemRow::OnAddKeyframeClicked),
+				FCanExecuteAction::CreateSP(this, &SDetailSingleItemRow::IsKeyframeButtonEnabled),
+				FGetActionCheckState(),
+				FIsActionButtonVisible::CreateSP(this, &SDetailSingleItemRow::IsKeyframeButtonVisible));
+
+			CreateGlobalExtensionWidgets(ExtensionButtons);
+
+			FSlimHorizontalToolBarBuilder ToolbarBuilder(TSharedPtr<FUICommandList>(), FMultiBoxCustomization::None);
+			ToolbarBuilder.SetLabelVisibility(EVisibility::Collapsed);
+			ToolbarBuilder.SetStyle(&FAppStyle::Get(), "DetailsView.ExtensionToolBar");
+
+			for (const FPropertyRowExtensionButton& Extension : ExtensionButtons)
 			{
-				ResetWidget = SNew(SResetToDefaultPropertyEditor, PropertyHandle)
-					.IsEnabled(IsEnabledAttribute)
-					.CustomResetToDefault(Row.CustomResetToDefault);
-			}	
-			else
-			{
-				// leave space in the reset to default column regardless
-				const FSlateBrush* DiffersFromDefaultBrush = FEditorStyle::GetBrush("PropertyWindow.DiffersFromDefault");
-				ResetWidget = SNew(SSpacer)
-					.Size(DiffersFromDefaultBrush != nullptr ? DiffersFromDefaultBrush->ImageSize : FVector2D(8.0f, 8.0f));
+				ToolbarBuilder.AddToolBarButton(Extension.UIAction, NAME_None, Extension.Label, Extension.ToolTip, Extension.Icon);
 			}
 
+			TSharedRef<SHorizontalBox> RightColumnBox = SNew(SHorizontalBox);
 			RightColumnBox->AddSlot()
-				.HAlign(HAlign_Left)
+				.HAlign(HAlign_Fill)
 				.VAlign(VAlign_Center)
-				.Padding(5,0,0,0)
-				.AutoWidth()
+				.Padding(5,0,5,0)
 				[
-					ResetWidget
+					ToolbarBuilder.MakeWidget()
 				];
-
-			// keyframe button
-			RightColumnBox->AddSlot()
-				.HAlign(HAlign_Left)
-				.VAlign(VAlign_Center)
-				.Padding(5,0,0,0)
-				.AutoWidth()
-				[
-					CreateKeyframeButton(*Customization, InOwnerTreeNode)
-				];
-
-			// fetch global extension widgets 
-			FPropertyEditorModule& PropertyEditorModule = FModuleManager::Get().GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
-
-			TArray<TSharedRef<SWidget>> GlobalWidgetExtensions;
-			FOnGenerateGlobalRowExtensionArgs Args { GetPropertyHandle(), GetPropertyNode(), OwnerTreeNode };
-			PropertyEditorModule.GetGlobalRowExtensionDelegate().Broadcast(Args, GlobalWidgetExtensions);
-
-			if (GlobalWidgetExtensions.Num() > 0)
-			{
-				for (TSharedRef<SWidget>& GlobalRowExtension : GlobalWidgetExtensions)
-				{
-					RightColumnBox->AddSlot()
-						.HAlign(HAlign_Left)
-						.VAlign(VAlign_Center)
-						.AutoWidth()
-						[
-							MoveTemp(GlobalRowExtension)
-						];
-				}
-			}
 
 			OuterSplitter->AddSlot()
 				.Value(ColumnSizeData.RightColumnWidth)
 				.OnSlotResized(ColumnSizeData.OnRightColumnResized)
+				.MinSize(40)
 			[
 				RightColumnBox
 			];
@@ -600,12 +511,13 @@ void SDetailSingleItemRow::Construct( const FArguments& InArgs, FDetailLayoutCus
 	[
 		SNew( SBorder )
 		.BorderImage(FAppStyle::Get().GetBrush( "DetailsView.GridLine"))
-		.Padding( FMargin(0, 0, 0, 1) )
+		.Padding( FMargin(0, 0, SDetailTableRowBase::ScrollbarPaddingSize, 1) )
 		[
 			SNew( SBorder )
 			.BorderImage(FAppStyle::Get().GetBrush("DetailsView.CategoryMiddle"))
 			.BorderBackgroundColor(this, &SDetailSingleItemRow::GetOuterBackgroundColor)
-			.Padding(FMargin( 0.0f, 0.0f, SDetailTableRowBase::ScrollbarPaddingSize, 0.0f ))
+			.Padding(0)
+			.Clipping(EWidgetClipping::ClipToBounds)
 			[
 				Widget
 			]
@@ -622,6 +534,46 @@ void SDetailSingleItemRow::Construct( const FArguments& InArgs, FDetailLayoutCus
 			.OnCanAcceptDrop(ArrayAcceptDropDelegate),
 		InOwnerTableView
 	);
+}
+
+bool SDetailSingleItemRow::IsResetToDefaultEnabled() const
+{
+	FDetailWidgetRow WidgetRow = Customization->GetWidgetRow();
+	TSharedPtr<IPropertyHandle> PropertyHandle = GetPropertyHandle();
+
+	if (PropertyHandle.IsValid())
+	{
+		if (PropertyHandle->HasMetaData("NoResetToDefault") || PropertyHandle->GetInstanceMetaData("NoResetToDefault"))
+		{
+			return false;
+		}
+	}
+
+	if (WidgetRow.CustomResetToDefault.IsSet())
+	{
+		return WidgetRow.CustomResetToDefault.GetValue().IsResetToDefaultVisible(PropertyHandle);
+	}
+	else if (PropertyHandle.IsValid())
+	{
+		return PropertyHandle->CanResetToDefault();
+	} 
+
+	return false;
+}
+
+void SDetailSingleItemRow::OnResetToDefaultClicked() const
+{
+	FDetailWidgetRow WidgetRow = Customization->GetWidgetRow();
+	TSharedPtr<IPropertyHandle> PropertyHandle = GetPropertyHandle();
+
+	if (WidgetRow.CustomResetToDefault.IsSet())
+	{
+		WidgetRow.CustomResetToDefault.GetValue().OnResetToDefaultClicked(PropertyHandle);
+	}
+	else if (PropertyHandle.IsValid())
+	{
+		PropertyHandle->ResetToDefault();
+	}
 }
 
 /** Get the background color of the outer part of the row, which contains the edit condition and extension widgets. */
@@ -768,7 +720,6 @@ bool SDetailSingleItemRow::OnContextMenuOpening(FMenuBuilder& MenuBuilder)
 				CustomMenuData.SlateIcon,
 				CustomMenuData.Action);
 		}
-
 	}
 
 	return true;
@@ -781,7 +732,8 @@ void SDetailSingleItemRow::OnCopyProperty()
 		TSharedPtr<FPropertyNode> PropertyNode = GetPropertyNode();
 		if (PropertyNode.IsValid())
 		{
-			TSharedPtr<IPropertyHandle> Handle = PropertyEditorHelpers::GetPropertyHandle(PropertyNode.ToSharedRef(), OwnerTreeNode.Pin()->GetDetailsView()->GetNotifyHook(), OwnerTreeNode.Pin()->GetDetailsView()->GetPropertyUtilities());
+			IDetailsViewPrivate* DetailsView = OwnerTreeNode.Pin()->GetDetailsView();
+			TSharedPtr<IPropertyHandle> Handle = PropertyEditorHelpers::GetPropertyHandle(PropertyNode.ToSharedRef(), DetailsView->GetNotifyHook(), DetailsView->GetPropertyUtilities());
 
 			FString Value;
 			if (Handle->GetValueAsFormattedString(Value, PPF_Copy) == FPropertyAccess::Success)
@@ -808,7 +760,8 @@ void SDetailSingleItemRow::OnPasteProperty()
 		{
 			FScopedTransaction Transaction(NSLOCTEXT("UnrealEd", "PasteProperty", "Paste Property"));
 
-			TSharedPtr<IPropertyHandle> Handle = PropertyEditorHelpers::GetPropertyHandle(PropertyNode.ToSharedRef(), OwnerTreeNode.Pin()->GetDetailsView()->GetNotifyHook(), OwnerTreeNode.Pin()->GetDetailsView()->GetPropertyUtilities());
+			IDetailsViewPrivate* DetailsView = OwnerTreeNode.Pin()->GetDetailsView();
+			TSharedPtr<IPropertyHandle> Handle = PropertyEditorHelpers::GetPropertyHandle(PropertyNode.ToSharedRef(), DetailsView->GetNotifyHook(), DetailsView->GetPropertyUtilities());
 
 			Handle->SetValueFromFormattedString(ClipboardContent);
 
@@ -899,24 +852,24 @@ bool SDetailSingleItemRow::CanPasteProperty() const
 	return !ClipboardContent.IsEmpty();
 }
 
-TSharedRef<SWidget> SDetailSingleItemRow::CreateExtensionWidget(TSharedRef<SWidget> ValueWidget, FDetailLayoutCustomization& InCustomization, TSharedRef<FDetailTreeNode> InTreeNode)
+TSharedRef<SWidget> SDetailSingleItemRow::CreateExtensionWidget() const
 {
 	TSharedPtr<SWidget> ExtensionWidget = SNullWidget::NullWidget;
 
-	if(InTreeNode->GetParentCategory().IsValid())
+	TSharedPtr<FDetailTreeNode> OwnerTreeNodePinned = OwnerTreeNode.Pin();
+	if (OwnerTreeNodePinned.IsValid())
 	{ 
-		IDetailsViewPrivate* DetailsView = InTreeNode->GetDetailsView();
+		IDetailsViewPrivate* DetailsView = OwnerTreeNodePinned->GetDetailsView();
 		TSharedPtr<IDetailPropertyExtensionHandler> ExtensionHandler = DetailsView->GetExtensionHandler();
-
-		if(ExtensionHandler.IsValid() && InCustomization.HasPropertyNode())
+		if (Customization->HasPropertyNode() && ExtensionHandler.IsValid())
 		{
-			TSharedPtr<IPropertyHandle> Handle = PropertyEditorHelpers::GetPropertyHandle(InCustomization.GetPropertyNode().ToSharedRef(), nullptr, nullptr);
+			TSharedPtr<IPropertyHandle> Handle = PropertyEditorHelpers::GetPropertyHandle(Customization->GetPropertyNode().ToSharedRef(), nullptr, nullptr);
 
-			FObjectPropertyNode* ObjectItemParent = InCustomization.GetPropertyNode()->FindObjectItemParent();
-			UClass* ObjectClass = (ObjectItemParent) ? ObjectItemParent->GetObjectBaseClass() : nullptr;
-			if(Handle->IsValidHandle() && ObjectClass && ExtensionHandler->IsPropertyExtendable(ObjectClass, *Handle))
+			FObjectPropertyNode* ObjectItemParent = Customization->GetPropertyNode()->FindObjectItemParent();
+			UClass* ObjectClass = ObjectItemParent ? ObjectItemParent->GetObjectBaseClass() : nullptr;
+			if (Handle->IsValidHandle() && ObjectClass && ExtensionHandler->IsPropertyExtendable(ObjectClass, *Handle))
 			{
-				FDetailLayoutBuilderImpl& DetailLayout = OwnerTreeNode.Pin()->GetParentCategory()->GetParentLayoutImpl();
+				FDetailLayoutBuilderImpl& DetailLayout = OwnerTreeNodePinned->GetParentCategory()->GetParentLayoutImpl();
 				ExtensionWidget = ExtensionHandler->GenerateExtensionWidget(DetailLayout, ObjectClass, Handle);
 			}
 		}
@@ -925,53 +878,137 @@ TSharedRef<SWidget> SDetailSingleItemRow::CreateExtensionWidget(TSharedRef<SWidg
 	return ExtensionWidget.ToSharedRef();
 }
 
-TSharedRef<SWidget> SDetailSingleItemRow::CreateKeyframeButton( FDetailLayoutCustomization& InCustomization, TSharedRef<FDetailTreeNode> InTreeNode )
+void SDetailSingleItemRow::OnFavoriteMenuToggle()
 {
-	IDetailsViewPrivate* DetailsView = InTreeNode->GetDetailsView();
-
-	KeyframeHandler = DetailsView->GetKeyframeHandler();
-
-	EVisibility SetKeyVisibility = EVisibility::Collapsed;
-
-	if (InCustomization.HasPropertyNode() && KeyframeHandler.IsValid() )
+	if (!Customization->GetPropertyNode().IsValid() || !Customization->GetPropertyNode()->CanDisplayFavorite())
 	{
-		TSharedPtr<IPropertyHandle> Handle = PropertyEditorHelpers::GetPropertyHandle(InCustomization.GetPropertyNode().ToSharedRef(), nullptr, nullptr);
-
-		FObjectPropertyNode* ObjectItemParent = InCustomization.GetPropertyNode()->FindObjectItemParent();
-		UClass* ObjectClass = ObjectItemParent != nullptr ? ObjectItemParent->GetObjectBaseClass() : nullptr;
-		SetKeyVisibility = ObjectClass != nullptr && KeyframeHandler.Pin()->IsPropertyKeyable(ObjectClass, *Handle) ? EVisibility::Visible : EVisibility::Collapsed;
+		return; 
 	}
 
-	return
-		SNew(SButton)
-		.HAlign(HAlign_Left)
-		.VAlign(VAlign_Center)
-		.ContentPadding(0.0f)
-		.ButtonStyle(FEditorStyle::Get(), "Sequencer.AddKey.Details")
-		.Visibility(SetKeyVisibility)
-		.IsEnabled( this, &SDetailSingleItemRow::IsKeyframeButtonEnabled, InTreeNode )
-		.ToolTipText( NSLOCTEXT("PropertyView", "AddKeyframeButton_ToolTip", "Adds a keyframe for this property to the current animation") )
-		.OnClicked( this, &SDetailSingleItemRow::OnAddKeyframeClicked );
+	bool bToggled = !Customization->GetPropertyNode()->IsFavorite();
+	Customization->GetPropertyNode()->SetFavorite(bToggled);
+
+	TSharedPtr<FDetailTreeNode> OwnerTreeNodePinned = OwnerTreeNode.Pin();
+	if (!OwnerTreeNodePinned.IsValid())
+	{
+		return;
+	}
+
+	//////////////////////////////////////////////////////////////////////////
+	// Calculate properly the scrolling offset (by item) to make sure the mouse stay over the same property
+
+	//Get the node item number in case it is expand we have to recursively count all childrens
+	int32 ExpandSize = 0;
+	if (OwnerTreeNodePinned->ShouldBeExpanded())
+	{
+		SDetailSingleItemRow_Helper::RecursivelyGetItemShow(OwnerTreeNodePinned.ToSharedRef(), ExpandSize);
+	}
+	else
+	{
+		//if the item is not expand count is 1
+		ExpandSize = 1;
+	}
+			
+	//Get the number of favorite child (simple and advance) to know if the favorite category will be create or remove
+	int32 SimplePropertiesNum = 0;
+	int32 NumAdvancedProperties = 0;
+
+	FDetailLayoutBuilderImpl& DetailLayout = OwnerTreeNodePinned->GetParentCategory()->GetParentLayoutImpl();
+
+	const FName FavoritesCategoryName = TEXT("Favorites");
+	bool HasFavoritesCategory = DetailLayout.HasCategory(FavoritesCategoryName);
+	if (HasFavoritesCategory)
+	{
+		DetailLayout.DefaultCategory(FavoritesCategoryName).GetCategoryInformation(SimplePropertiesNum, NumAdvancedProperties);
+	}
+
+	// Check if the property we toggle is an advanced property
+	bool IsAdvancedProperty = Customization->GetPropertyNode()->HasNodeFlags(EPropertyNodeFlags::IsAdvanced) != 0;
+
+	// Compute the scrolling offset by item
+	int32 ScrollingOffsetAdd = ExpandSize;
+	int32 ScrollingOffsetRemove = -ExpandSize;
+	if (HasFavoritesCategory)
+	{
+		// Adding the advance button in a category add 1 item
+		ScrollingOffsetAdd += (IsAdvancedProperty && NumAdvancedProperties == 0) ? 1 : 0;
+
+		if (IsAdvancedProperty && NumAdvancedProperties == 1)
+		{
+			//Removing the advance button count as 1 item
+			ScrollingOffsetRemove -= 1;
+		}
+		if (NumAdvancedProperties + SimplePropertiesNum == 1)
+		{
+			//Removing a full category count as 2 items
+			ScrollingOffsetRemove -= 2;
+		}
+	}
+	else
+	{
+		// Adding new category (2 items) adding advance button (1 item)
+		ScrollingOffsetAdd += IsAdvancedProperty ? 3 : 2;
+				
+		// We should never remove an item from favorite if there is no favorite category
+		// Set the remove offset to 0
+		ScrollingOffsetRemove = 0;
+	}
+
+	// Apply the calculated offset
+	IDetailsViewPrivate* DetailsView = OwnerTreeNodePinned->GetDetailsView();
+	DetailsView->MoveScrollOffset(bToggled ? ScrollingOffsetAdd : ScrollingOffsetRemove);
+
+	// Refresh the tree
+	DetailsView->ForceRefresh();
 }
 
-bool SDetailSingleItemRow::IsKeyframeButtonEnabled(TSharedRef<FDetailTreeNode> InTreeNode) const
+void SDetailSingleItemRow::CreateGlobalExtensionWidgets(TArray<FPropertyRowExtensionButton>& OutExtensions) const
 {
-	return
-		InTreeNode->IsPropertyEditingEnabled().Get() &&
-		KeyframeHandler.IsValid() &&
-		KeyframeHandler.Pin()->IsPropertyKeyingEnabled();
+	// fetch global extension widgets 
+	FPropertyEditorModule& PropertyEditorModule = FModuleManager::Get().GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
+
+	FOnGenerateGlobalRowExtensionArgs Args { GetPropertyHandle(), GetPropertyNode(), OwnerTreeNode };
+	PropertyEditorModule.GetGlobalRowExtensionDelegate().Broadcast(Args, OutExtensions);
 }
 
-FReply SDetailSingleItemRow::OnAddKeyframeClicked()
+bool SDetailSingleItemRow::IsKeyframeButtonVisible() const
+{
+	TSharedPtr<IDetailKeyframeHandler> KeyframeHandler = OwnerTreeNode.Pin()->GetDetailsView()->GetKeyframeHandler();
+	if (!Customization->HasPropertyNode() || !KeyframeHandler.IsValid())
+	{
+		return false;
+	}
+
+	TSharedPtr<IPropertyHandle> Handle = PropertyEditorHelpers::GetPropertyHandle(Customization->GetPropertyNode().ToSharedRef(), nullptr, nullptr);
+
+	FObjectPropertyNode* ObjectItemParent = Customization->GetPropertyNode()->FindObjectItemParent();
+	UClass* ObjectClass = ObjectItemParent != nullptr ? ObjectItemParent->GetObjectBaseClass() : nullptr;
+	return ObjectClass != nullptr && KeyframeHandler->IsPropertyKeyable(ObjectClass, *Handle);
+}
+
+bool SDetailSingleItemRow::IsKeyframeButtonEnabled() const
+{
+	TSharedPtr<FDetailTreeNode> OwnerTreeNodePinned = OwnerTreeNode.Pin();
+	if (OwnerTreeNodePinned.IsValid() == false)
+	{
+		return false;
+	}
+
+	TSharedPtr<IDetailKeyframeHandler> KeyframeHandler = OwnerTreeNodePinned->GetDetailsView()->GetKeyframeHandler();
+	return OwnerTreeNodePinned->IsPropertyEditingEnabled().Get() &&
+		KeyframeHandler.IsValid() &&
+		KeyframeHandler->IsPropertyKeyingEnabled();
+}
+
+void SDetailSingleItemRow::OnAddKeyframeClicked()
 {	
-	if( KeyframeHandler.IsValid() )
+	TSharedPtr<IDetailKeyframeHandler> KeyframeHandler = OwnerTreeNode.Pin()->GetDetailsView()->GetKeyframeHandler();
+	if (KeyframeHandler.IsValid())
 	{
 		TSharedPtr<IPropertyHandle> Handle = PropertyEditorHelpers::GetPropertyHandle(Customization->GetPropertyNode().ToSharedRef(), nullptr, nullptr);
 
-		KeyframeHandler.Pin()->OnKeyPropertyClicked(*Handle);
+		KeyframeHandler->OnKeyPropertyClicked(*Handle);
 	}
-
-	return FReply::Handled();
 }
 
 bool SDetailSingleItemRow::IsHighlighted() const

@@ -3,16 +3,18 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Input/Reply.h"
-#include "Widgets/SWidget.h"
 #include "DetailTreeNode.h"
-#include "Widgets/Views/STableViewBase.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "SDetailsViewBase.h"
-#include "SDetailTableRowBase.h"
-#include "DragAndDrop/DecoratedDragDropOp.h"
-#include "ScopedTransaction.h"
 #include "PropertyCustomizationHelpers.h"
+#include "SDetailTableRowBase.h"
+#include "SDetailsViewBase.h"
+#include "ScopedTransaction.h"
+
+#include "DragAndDrop/DecoratedDragDropOp.h"
+#include "Framework/Commands/Commands.h"
+#include "Input/Reply.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/SWidget.h"
+#include "Widgets/Views/STableViewBase.h"
 
 class IDetailKeyframeHandler;
 struct FDetailLayoutCustomization;
@@ -70,10 +72,16 @@ private:
 	bool CanPasteProperty() const;
 	FSlateColor GetOuterBackgroundColor() const;
 	FSlateColor GetInnerBackgroundColor() const;
-	TSharedRef<SWidget> CreateExtensionWidget( TSharedRef<SWidget> ValueWidget, FDetailLayoutCustomization& InCustomization, TSharedRef<FDetailTreeNode> InTreeNode );
-	TSharedRef<SWidget> CreateKeyframeButton( FDetailLayoutCustomization& InCustomization, TSharedRef<FDetailTreeNode> InTreeNode );
-	bool IsKeyframeButtonEnabled(TSharedRef<FDetailTreeNode> InTreeNode) const;
-	FReply OnAddKeyframeClicked();
+
+	void CreateGlobalExtensionWidgets(TArray<FPropertyRowExtensionButton>& ExtensionButtons) const;
+	TSharedRef<SWidget> CreateExtensionWidget() const;
+	TSharedRef<SWidget> CreateKeyframeButton();
+	void OnResetToDefaultClicked() const;
+	bool IsResetToDefaultEnabled() const;
+
+	bool IsKeyframeButtonVisible() const;
+	bool IsKeyframeButtonEnabled() const;
+	void OnAddKeyframeClicked();
 	bool IsHighlighted() const;
 
 	void OnFavoriteMenuToggle();
@@ -95,7 +103,6 @@ private:
 	TSharedPtr<IPropertyHandle> GetPropertyHandle() const;
 
 private:
-	TWeakPtr<IDetailKeyframeHandler> KeyframeHandler;
 	/** Customization for this widget */
 	FDetailLayoutCustomization* Customization;
 	bool bAllowFavoriteSystem;

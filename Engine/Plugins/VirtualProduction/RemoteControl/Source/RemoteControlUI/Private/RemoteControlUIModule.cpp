@@ -116,39 +116,29 @@ void FRemoteControlUIModule::UnregisterAssetTools()
 	RemoteControlPresetActions.Reset();
 }
 
-void FRemoteControlUIModule::HandleCreatePropertyRowExtension(const FOnGenerateGlobalRowExtensionArgs& InArgs, /*FOnGenerateGlobalRowExtensionArgs::EWidgetPosition InWidgetPosition,*/ TArray<TSharedRef<SWidget>>& OutExtensions)
+void FRemoteControlUIModule::HandleCreatePropertyRowExtension(const FOnGenerateGlobalRowExtensionArgs& InArgs, TArray<FPropertyRowExtensionButton>& OutExtensions)
 {
-	ensureMsgf(false, TEXT("EWidgetPosition was removed in UE5.  Code needs to be fixed up."));
-#if 0
-	if (InWidgetPosition == FOnGenerateGlobalRowExtensionArgs::EWidgetPosition::Right)
-	{
-		return;
-	}
-#endif
+	FPropertyRowExtensionButton& ExposeButton = OutExtensions.AddDefaulted_GetRef();
+	ExposeButton.Icon = TAttribute<FSlateIcon>::Create(
+		[this, PropertyHandle = InArgs.PropertyHandle]
+		{
+			return OnGetExposedIcon(PropertyHandle);
+		});
 
-	TSharedRef<SWidget> ExposeButton = 
-		SNew(SVerticalBox)
-		+ SVerticalBox::Slot()
-		.FillHeight(1.0f)
-		.VAlign(VAlign_Center)
-		[
-			SNew(SButton)
-			.IsFocusable(false)
-			.ButtonStyle(FEditorStyle::Get(), "NoBorder")
-			.Visibility_Raw(this, &FRemoteControlUIModule::OnGetExposeButtonVisibility, InArgs.PropertyHandle)
-			.OnClicked_Raw(this, &FRemoteControlUIModule::OnToggleExposeProperty, InArgs.PropertyHandle)
-			[
-				SNew(SImage)
-				.Image_Raw(this, &FRemoteControlUIModule::OnGetExposedIcon, InArgs.PropertyHandle)
-			]
-		];
-		
-
-	OutExtensions.Add(MoveTemp(ExposeButton));
+	ExposeButton.Label = LOCTEXT("ExposeProperty", "Expose Property");
+	ExposeButton.ToolTip = LOCTEXT("ExposePropertyToolTip", "Expose this property to Remote Control.");
+	ExposeButton.UIAction = FUIAction(
+		FExecuteAction::CreateRaw(this, &FRemoteControlUIModule::OnToggleExposeProperty, InArgs.PropertyHandle),
+		FCanExecuteAction::CreateRaw(this, &FRemoteControlUIModule::CanToggleExposeProperty, InArgs.PropertyHandle),
+		FGetActionCheckState::CreateRaw(this, &FRemoteControlUIModule::GetPropertyExposedCheckState, InArgs.PropertyHandle),
+		FIsActionButtonVisible::CreateRaw(this, &FRemoteControlUIModule::CanToggleExposeProperty, InArgs.PropertyHandle)
+	);
 }
 
-const FSlateBrush* FRemoteControlUIModule::OnGetExposedIcon(TSharedPtr<IPropertyHandle> Handle) const
+FSlateIcon FRemoteControlUIModule::OnGetExposedIcon(TSharedPtr<IPropertyHandle> Handle) const
 {
+	FName BrushName("NoBrush");
+
 	if (TSharedPtr<SRemoteControlPanel> Panel = WeakActivePanel.Pin())
 	{
 		if (Panel->GetPreset())
@@ -156,19 +146,19 @@ const FSlateBrush* FRemoteControlUIModule::OnGetExposedIcon(TSharedPtr<IProperty
 			EPropertyExposeStatus Status = GetPropertyExposeStatus(Handle);
 			if (Status == EPropertyExposeStatus::Exposed)
 			{
-				return FEditorStyle::GetBrush(TEXT("Level.VisibleIcon16x"));
+				BrushName = "Level.VisibleIcon16x";
 			}
 			else
 			{
-				return FEditorStyle::GetBrush(TEXT("Level.NotVisibleIcon16x"));
+				BrushName = "Level.NotVisibleIcon16x";
 			}
 		}
 	}
 
-	return FEditorStyle::GetNoBrush();
+	return FSlateIcon(FEditorStyle::Get().GetStyleSetName(), BrushName);
 }
 
-EVisibility FRemoteControlUIModule::OnGetExposeButtonVisibility(TSharedPtr<IPropertyHandle> Handle) const
+bool FRemoteControlUIModule::CanToggleExposeProperty(TSharedPtr<IPropertyHandle> Handle) const
 {
 	if (TSharedPtr<SRemoteControlPanel> Panel = WeakActivePanel.Pin())
 	{
@@ -177,30 +167,42 @@ EVisibility FRemoteControlUIModule::OnGetExposeButtonVisibility(TSharedPtr<IProp
 			EPropertyExposeStatus ExposeStatus = GetPropertyExposeStatus(Handle);
 			if (ExposeStatus == EPropertyExposeStatus::Exposed || ExposeStatus == EPropertyExposeStatus::Unexposed)
 			{
-				return EVisibility::Visible;
-			}
-			else
-			{
-				// Show no icon when property is unexposable.
-				return EVisibility::Hidden;
+				return true;
 			}
 		}
 	}
-	return EVisibility::Collapsed;
+
+	return false;
 }
 
-FReply FRemoteControlUIModule::OnToggleExposeProperty(TSharedPtr<IPropertyHandle> Handle)
+ECheckBoxState FRemoteControlUIModule::GetPropertyExposedCheckState(TSharedPtr<IPropertyHandle> Handle) const
+{
+	if (TSharedPtr<SRemoteControlPanel> Panel = WeakActivePanel.Pin())
+	{
+		if (Panel->GetPreset())
+		{
+			EPropertyExposeStatus ExposeStatus = GetPropertyExposeStatus(Handle);
+			if (ExposeStatus == EPropertyExposeStatus::Exposed)
+			{
+				return ECheckBoxState::Checked;
+			}
+		}
+	}
+
+	return ECheckBoxState::Unchecked;
+}
+
+void FRemoteControlUIModule::OnToggleExposeProperty(TSharedPtr<IPropertyHandle> Handle)
 {
 	if (!ensureMsgf(Handle && Handle->IsValidHandle(), TEXT("Property could not be exposed because the handle was invalid.")))
 	{
-		return FReply::Handled();
+		return;
 	}
 
 	if (TSharedPtr<SRemoteControlPanel> Panel = WeakActivePanel.Pin())
 	{
 		Panel->ToggleProperty(Handle);
 	}
-	return FReply::Handled();
 }
 
 FRemoteControlUIModule::EPropertyExposeStatus FRemoteControlUIModule::GetPropertyExposeStatus(const TSharedPtr<IPropertyHandle>& Handle) const
