@@ -12,7 +12,7 @@
 DECLARE_LOG_CATEGORY_EXTERN(LogBlueprintEditorLib, Warning, All);
 
 UCLASS()
-class UBlueprintEditorLibrary : public UBlueprintFunctionLibrary
+class BLUEPRINTEDITORLIBRARY_API UBlueprintEditorLibrary : public UBlueprintFunctionLibrary
 {
 	GENERATED_UCLASS_BODY()
 public:

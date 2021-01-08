@@ -13,7 +13,8 @@ public class BlueprintEditorLibrary : ModuleRules
 		PrivateIncludePaths.AddRange(
 			new string[] 
 			{
-				"BlueprintEditorLibrary/Private",
+				Path.Combine(ModuleDirectory, "Private"),
+				//"Editor/BlueprintEditorLibrary/Private",
 			}
 		);
 			
