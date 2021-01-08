@@ -906,9 +906,10 @@ public:
 	{}
 
 	FD3D12ShaderResourceViewWithLocation(FD3D12Device* InParent, D3D12_SHADER_RESOURCE_VIEW_DESC& InDesc, FD3D12ResourceLocation& InResourceLocation, uint32 InStride = -1, bool InSkipFastClearFinalize = false)
-		: FD3D12ShaderResourceView(InParent, InDesc, ViewLocation, InStride, InSkipFastClearFinalize)
+		: FD3D12ShaderResourceView(InParent)
 		, ViewLocation(InParent)
 	{
+		Initialize(InDesc, ViewLocation, InStride, 0, InSkipFastClearFinalize);
 	}
 
 	FD3D12ResourceLocation ViewLocation;
