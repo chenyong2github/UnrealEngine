@@ -33,6 +33,10 @@ public:
 	virtual USplineMetadata* GetSplinePointsMetadata() override;
 	virtual const USplineMetadata* GetSplinePointsMetadata() const override;
 
+	virtual TArray<ESplinePointType::Type> GetEnabledSplinePointTypes() const override;
+
+	virtual bool AllowsSplinePointScaleEditing() const override { return false; }
+
 #if WITH_EDITOR
 	DECLARE_EVENT(UWaterSplineComponent, FOnSplineDataChanged);
 	FOnSplineDataChanged& OnSplineDataChanged() { return SplineDataChangedEvent; }

@@ -183,10 +183,10 @@ public:
 	static UActorComponent* GetComponentFromPropertyName(const AActor* CompOwner, const FPropertyNameAndIndex& Property);
 
 	/** Notify that a component property has been modified */
-	static void NotifyPropertyModified(UActorComponent* Component, FProperty* Property);
+	static void NotifyPropertyModified(UActorComponent* Component, FProperty* Property, EPropertyChangeType::Type PropertyChangeType = EPropertyChangeType::Unspecified);
 
 	/** Notify that many component properties have been modified */
-	static void NotifyPropertiesModified(UActorComponent* Component, const TArray<FProperty*>& Properties);
+	static void NotifyPropertiesModified(UActorComponent* Component, const TArray<FProperty*>& Properties, EPropertyChangeType::Type PropertyChangeType = EPropertyChangeType::Unspecified);
 };
 
 struct FCachedComponentVisualizer

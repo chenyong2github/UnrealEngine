@@ -3030,6 +3030,13 @@ void FSplineComponentVisualizer::OnSelectPrevNextSplinePoint(bool bNextPoint, bo
 	}
 }
 
+void FSplineComponentVisualizer::SetCachedRotation(const FQuat& NewRotation)
+{
+	check(SelectionState);
+	SelectionState->Modify();
+	SelectionState->SetCachedRotation(NewRotation);
+}
+
 void FSplineComponentVisualizer::SelectSplinePoint(int32 SelectIndex, bool bAddToSelection)
 {
 	const FScopedTransaction Transaction(LOCTEXT("SelectSplinePoint", "Select Spline Point"));

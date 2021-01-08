@@ -1760,6 +1760,18 @@ TStructOnScope<FActorComponentInstanceData> USplineComponent::GetComponentInstan
 }
 
 
+TArray<ESplinePointType::Type> USplineComponent::GetEnabledSplinePointTypes() const
+{
+	return 
+		{ 
+			ESplinePointType::Linear,
+			ESplinePointType::Curve,
+			ESplinePointType::Constant,
+			ESplinePointType::CurveClamped,
+			ESplinePointType::CurveCustomTangent
+		};
+}
+
 void USplineComponent::ApplyComponentInstanceData(FSplineInstanceData* SplineInstanceData, const bool bPostUCS)
 {
 	check(SplineInstanceData);
