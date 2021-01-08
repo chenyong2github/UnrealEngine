@@ -18,7 +18,7 @@ enum class EQueuedWorkPriority : uint8
 	Count
 };
 
-constexpr inline const TCHAR* LexToString(EQueuedWorkPriority Priority)
+inline const TCHAR* LexToString(EQueuedWorkPriority Priority)
 {
 	switch (Priority)
 	{
