@@ -2425,7 +2425,8 @@ void UEditorEngine::StartPlayInEditorSession(FRequestPlaySessionParams& InReques
 	if (GEditor->IsTransactionActive())
 	{
 		FFormatNamedArguments Args;
-		Args.Add(TEXT("TransactionName"), GEditor->GetTransactionName());
+		FText TransactionName = GEditor->GetTransactionName();
+		Args.Add(TEXT("TransactionName"), TransactionName);
 		if (InRequestParams.WorldType == EPlaySessionWorldType::SimulateInEditor)
 		{
 			Args.Add(TEXT("PlaySession"), NSLOCTEXT("UnrealEd", "SimulatePlaySession", "Simulate"));
@@ -2443,7 +2444,7 @@ void UEditorEngine::StartPlayInEditorSession(FRequestPlaySessionParams& InReques
 		Info.bUseLargeFont = true;
 		FSlateNotificationManager::Get().AddNotification(Info);
 		GEditor->CancelTransaction(0);
-		UE_LOG(LogPlayLevel, Warning, TEXT("Cancelling Open Transaction '%s' to start PIE session."), *GEditor->GetTransactionName().ToString());
+		UE_LOG(LogPlayLevel, Warning, TEXT("Cancelling Open Transaction '%s' to start PIE session."), *TransactionName.ToString());
 	}
 
 	// Prompt the user that Matinee must be closed before PIE can occur. If they don't want
