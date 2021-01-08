@@ -372,11 +372,6 @@ void FChaosScene::OnSyncBodies(Chaos::FPhysicsSolverBase* Solver)
 
 bool FChaosScene::AreAnyTasksPending() const
 {
-	if (!IsCompletionEventComplete())
-	{
-		return true;
-	}
-
 	const Chaos::FPBDRigidsSolver* Solver = GetSolver();
 	if (Solver && Solver->AreAnyTasksPending())
 	{
