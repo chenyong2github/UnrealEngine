@@ -134,30 +134,17 @@ IMPLEMENT_GLOBAL_SHADER(FLumenScreenProbeGatherHardwareRayTracingRGS, "/Engine/P
 
 void FDeferredShadingSceneRenderer::PrepareLumenHardwareRayTracingScreenProbeGather(const FViewInfo& View, TArray<FRHIRayTracingShader*>& OutRayGenShaders)
 {
+	int NormalMode = CVarLumenScreenProbeGatherHardwareRayTracingNormalMode.GetValueOnRenderThread();
+	int LightingMode = CVarLumenScreenProbeGatherHardwareRayTracingLightingMode.GetValueOnRenderThread();
+
 	FLumenScreenProbeGatherHardwareRayTracingRGS::FPermutationDomain PermutationVector;
+	PermutationVector.Set<FLumenScreenProbeGatherHardwareRayTracingRGS::FNormalModeDim>(NormalMode != 0);
+	PermutationVector.Set<FLumenScreenProbeGatherHardwareRayTracingRGS::FLightingModeDim>(LightingMode);
+	PermutationVector.Set<FLumenScreenProbeGatherHardwareRayTracingRGS::FRadianceCacheDim>(LumenScreenProbeGather::UseRadianceCache(View));
+	PermutationVector.Set<FLumenScreenProbeGatherHardwareRayTracingRGS::FStructuredImportanceSamplingDim>(LumenScreenProbeGather::UseImportanceSampling());
+	TShaderRef<FLumenScreenProbeGatherHardwareRayTracingRGS> RayGenerationShader = View.ShaderMap->GetShader<FLumenScreenProbeGatherHardwareRayTracingRGS>(PermutationVector);
 
-	for (int32 StructuredImportanceSampling = 0; StructuredImportanceSampling < 2; ++StructuredImportanceSampling)
-	{
-		PermutationVector.Set<FLumenScreenProbeGatherHardwareRayTracingRGS::FStructuredImportanceSamplingDim>(StructuredImportanceSampling != 0);
-
-		for (int32 UseRadianceCache = 0; UseRadianceCache < 2; ++UseRadianceCache)
-		{
-			PermutationVector.Set<FLumenScreenProbeGatherHardwareRayTracingRGS::FRadianceCacheDim>(UseRadianceCache != 0);
-
-			for (int32 LightingMode = 0; LightingMode < static_cast<int32>(Lumen::EHardwareRayTracingLightingMode::MAX); ++LightingMode)
-			{
-				PermutationVector.Set<FLumenScreenProbeGatherHardwareRayTracingRGS::FLightingModeDim>(LightingMode);
-
-				for (int32 NormalMode = 0; NormalMode < 2; ++NormalMode)
-				{
-					PermutationVector.Set<FLumenScreenProbeGatherHardwareRayTracingRGS::FNormalModeDim>(NormalMode != 0);
-
-					TShaderRef<FLumenScreenProbeGatherHardwareRayTracingRGS> RayGenerationShader = View.ShaderMap->GetShader<FLumenScreenProbeGatherHardwareRayTracingRGS>(PermutationVector);
-					OutRayGenShaders.Add(RayGenerationShader.GetRayTracingShader());
-				}
-			}
-		}
-	}
+	OutRayGenShaders.Add(RayGenerationShader.GetRayTracingShader());
 }
 
 #endif // RHI_RAYTRACING
