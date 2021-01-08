@@ -113,6 +113,7 @@ struct COREUOBJECT_API FAssetBundleData
 	bool ExportTextItem(FString& ValueStr, FAssetBundleData const& DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope) const;
 	bool ImportTextItem(const TCHAR*& Buffer, int32 PortFlags, UObject* Parent, FOutputDevice* ErrorText);
 
+	FString ToDebugString() const;
 };
 
 template<>

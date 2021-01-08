@@ -246,3 +246,25 @@ bool FAssetBundleData::ImportTextItem(const TCHAR*& Buffer, int32 PortFlags, UOb
 
 	return SkipPrefix(/* in-out */ Buffer, EmptyBundles);
 }
+
+FString FAssetBundleData::ToDebugString() const
+{
+	TStringBuilder<220> Result;
+
+	bool bFirstLine = true;
+	for (const FAssetBundleEntry& Data : Bundles)
+	{
+		if (!bFirstLine)
+		{
+			Result.Append(TEXT("\n"));
+		}
+
+		Result.Appendf(TEXT("%s -> (%s)"),
+			*Data.BundleName.ToString(),
+			*FString::JoinBy(Data.BundleAssets, TEXT(", "), [](const FSoftObjectPath& LoadBundle) { return LoadBundle.ToString(); }));
+
+		bFirstLine = false;
+	}
+
+	return Result.ToString();
+}
