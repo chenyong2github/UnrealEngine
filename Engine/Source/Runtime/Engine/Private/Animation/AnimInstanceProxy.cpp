@@ -358,6 +358,11 @@ void FAnimInstanceProxy::PreUpdate(UAnimInstance* InAnimInstance, float DeltaSec
 
 	InitializeObjects(InAnimInstance);
 
+	if (FAnimBlueprintDebugData* DebugData = GetAnimBlueprintDebugData())
+	{
+		DebugData->ResetNodeVisitSites();
+	}
+
 	if (SkelMeshComp)
 	{
 		// Save off LOD level that we're currently using.

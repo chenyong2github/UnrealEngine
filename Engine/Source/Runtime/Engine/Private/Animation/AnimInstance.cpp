@@ -432,19 +432,6 @@ void UAnimInstance::UpdateAnimation(float DeltaSeconds, bool bNeedsValidRootMoti
 #if WITH_EDITOR
 	if (GIsEditor)
 	{
-		// Reset the anim graph visualization
-		if (Proxy.HasRootNode())
-		{
-			if (UAnimBlueprintGeneratedClass* AnimBlueprintClass = Cast<UAnimBlueprintGeneratedClass>(GetClass()))
-			{
-				UAnimBlueprint* AnimBP = Cast<UAnimBlueprint>(AnimBlueprintClass->ClassGeneratedBy);
-				if (AnimBP && AnimBP->GetObjectBeingDebugged() == this)
-				{
-					AnimBlueprintClass->GetAnimBlueprintDebugData().ResetNodeVisitSites();
-				}
-			}
-		}
-
 		// Update the lifetimer and see if we should use the snapshot instead
 		CurrentLifeTimerScrubPosition += DeltaSeconds;
 		LifeTimer = FMath::Max<double>(CurrentLifeTimerScrubPosition, LifeTimer);
