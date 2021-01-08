@@ -3376,6 +3376,12 @@ FReply FPersonaMeshDetails::ApplyLODChanges(int32 LODIndex)
 		return FReply::Handled();
 	}
 	
+	// inject a transaction and mark the mesh as modified so we can undo this state
+	FText TransactionText = FText::Format(LOCTEXT("PersonaReductionApplyLODChanges", "LOD{0} generation"), LODIndex);
+	FScopedTransaction Transaction(TransactionText);
+	SkelMesh->Modify();
+	
+
 	FScopedSuspendAlternateSkinWeightPreview ScopedSuspendAlternateSkinnWeightPreview(SkelMesh);
 	{
 		FScopedSkeletalMeshPostEditChange ScopedPostEditChange(SkelMesh);
