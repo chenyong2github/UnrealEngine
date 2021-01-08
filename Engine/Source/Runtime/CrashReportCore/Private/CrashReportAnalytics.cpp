@@ -54,7 +54,7 @@ void FCrashReportAnalytics::Initialize()
 
 		FAnalyticsET::Config Config;
 		Config.APIServerET = TEXT(CRC_TELEMETRY_URL);
-		Config.APIKeyET = bUseReleaseAccount ? TEXT(PREPROCESSOR_TO_STRING(CRC_TELEMETRY_KEY_RELEASE)) : TEXT(PREPROCESSOR_TO_STRING(CRC_TELEMETRY_KEY_DEV));
+		Config.APIKeyET = bUseReleaseAccount ? TEXT(CRC_TELEMETRY_KEY_RELEASE) : TEXT(CRC_TELEMETRY_KEY_DEV);
 
 	#else
 
