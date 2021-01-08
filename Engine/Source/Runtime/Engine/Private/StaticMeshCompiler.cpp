@@ -317,7 +317,7 @@ void FStaticMeshCompilingManager::FinishCompilation(TArrayView<UStaticMesh* cons
 			}
 		);
 
-		PostCompilation(InStaticMeshes);
+		PostCompilation(PendingStaticMeshes);
 	}
 }
 
