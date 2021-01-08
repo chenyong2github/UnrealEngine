@@ -124,12 +124,9 @@ void FUsdSchemaTranslatorRegistry::Unregister( const FRegisteredSchemaTranslator
 	}
 }
 
-FUsdSchemaTranslationContext::FUsdSchemaTranslationContext( const UE::FUsdStage& InStage, TMap< FString, UObject* >& InPrimPathsToAssets, TMap< FString, UObject* >& InAssetsCache, UsdUtils::FBlendShapeMap* InBlendShapesByPath )
+FUsdSchemaTranslationContext::FUsdSchemaTranslationContext( const UE::FUsdStage& InStage, FUsdAssetCache& InAssetCache )
 	: Stage( InStage )
-	, PrimPathsToAssets( InPrimPathsToAssets )
-	, AssetsCache( InAssetsCache )
-	, BlendShapesByPath( InBlendShapesByPath )
-	, MaterialToPrimvarToUVIndex( nullptr )
+	, AssetCache( InAssetCache )
 {
 	IUsdSchemasModule& UsdSchemasModule = FModuleManager::Get().LoadModuleChecked< IUsdSchemasModule >( TEXT("USDSchemas") );
 	RenderContext = UsdSchemasModule.GetRenderContextRegistry().GetUniversalRenderContext();
