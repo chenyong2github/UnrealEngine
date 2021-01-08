@@ -9,6 +9,7 @@
 #include "HAL/PlatformProcess.h"
 #include "Logging/LogMacros.h"
 #include "Misc/PathViews.h"
+#include "Misc/ScopeLock.h"
 #include "Misc/ScopeRWLock.h"
 #include "Misc/StringBuilder.h"
 #include "TraceServices/Model/AnalysisSession.h"

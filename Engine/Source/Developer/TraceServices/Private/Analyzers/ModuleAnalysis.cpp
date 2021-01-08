@@ -3,6 +3,7 @@
 #include "ModuleAnalysis.h"
 #include "TraceServices/Model/AnalysisSession.h"
 #include "Model/ModuleProvider.h"
+#include "UObject/NameTypes.h"
 
 namespace TraceServices {
 
