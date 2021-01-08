@@ -1060,7 +1060,7 @@ void FMaterial::SerializeInlineShaderMap(FArchive& Ar)
 			}
 			else
 			{
-				UE_LOG(LogMaterial, Error, TEXT("Cooking a material resource (in %s hierarchy) that doesn't have a valid ShaderMap! %s"),
+				UE_LOG(LogMaterial, Warning, TEXT("Cooking a material resource (in %s hierarchy) that doesn't have a valid ShaderMap! %s"),
 					*GetFriendlyName(),
 					(GameThreadShaderMap != nullptr) ? TEXT("Shadermap exists but wasn't compiled successfully (yet?)") : TEXT("Shadermap pointer is null.")
 					);
