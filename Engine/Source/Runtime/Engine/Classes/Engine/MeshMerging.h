@@ -603,17 +603,6 @@ struct FSectionInfo
 	}
 };
 
-/** How to replace instanced */
-UENUM()
-enum class EMeshInstancingReplacementMethod : uint8
-{
-	/** Destructive workflow: remove the original actors when replacing with instanced static meshes */
-	RemoveOriginalActors,
-
-	/** Non-destructive workflow: keep the original actors but hide them and set them to be editor-only */
-	KeepOriginalActorsAsEditorOnly
-};
-
 /** Mesh instance-replacement settings */
 USTRUCT(Blueprintable)
 struct FMeshInstancingSettings
@@ -623,7 +612,6 @@ struct FMeshInstancingSettings
 	FMeshInstancingSettings()
 		: ActorClassToUse(AActor::StaticClass())
 		, InstanceReplacementThreshold(2)
-		, MeshReplacementMethod(EMeshInstancingReplacementMethod::KeepOriginalActorsAsEditorOnly)
 		, bSkipMeshesWithVertexColors(true)
 		, bUseHLODVolumes(true)
 		, ISMComponentToUse(UInstancedStaticMeshComponent::StaticClass())
@@ -636,10 +624,6 @@ struct FMeshInstancingSettings
 	/** The number of static mesh instances needed before a mesh is replaced with an instanced version */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Instancing", meta=(ClampMin=1))
 	int32 InstanceReplacementThreshold;
-
-	/** How to replace the original actors when instancing */
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Instancing")
-	EMeshInstancingReplacementMethod MeshReplacementMethod;
 
 	/**
 	 * Whether to skip the conversion to an instanced static mesh for meshes with vertex colors.

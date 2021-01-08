@@ -24,18 +24,17 @@
 
 #define LOCTEXT_NAMESPACE "SMeshProxyDialog"
 
+//////////////////////////////////////////////////////////////////////////
+// SMeshProxyDialog
 SMeshProxyDialog::SMeshProxyDialog()
 {
-	bRefreshListView = false;
+    MergeStaticMeshComponentsLabel = LOCTEXT("CreateProxyMeshComponentsLabel", "Mesh components used to compute the proxy mesh:");
+	SelectedComponentsListBoxToolTip = LOCTEXT("CreateProxyMeshSelectedComponentsListBoxToolTip", "The selected mesh components will be used to compute the proxy mesh");
+    DeleteUndoLabel = LOCTEXT("DeleteUndo", "Insufficient mesh components found for ProxyLOD merging.");
 }
 
 SMeshProxyDialog::~SMeshProxyDialog()
 {
-	// Remove all delegates
-	USelection::SelectionChangedEvent.RemoveAll(this);
-	USelection::SelectObjectEvent.RemoveAll(this);
-	FEditorDelegates::MapChange.RemoveAll(this);
-	FEditorDelegates::NewCurrentLevel.RemoveAll(this);
 }
 
 BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
@@ -44,177 +43,13 @@ void  SMeshProxyDialog::Construct(const FArguments& InArgs, FMeshProxyTool* InTo
 	checkf(InTool != nullptr, TEXT("Invalid owner tool supplied"));
 	Tool = InTool;
 
-	UpdateSelectedStaticMeshComponents();
-	CreateSettingsView();
-
-	// Create widget layout
-	this->ChildSlot
-	[
-		SNew(SVerticalBox)
-		+ SVerticalBox::Slot()
-		.AutoHeight()
-		.Padding(0, 10, 0, 0)
-		[
-			SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
-			[
-				SNew(SVerticalBox)
-				// Static mesh component selection
-				+ SVerticalBox::Slot()
-				.AutoHeight()
-				.Padding(FEditorStyle::GetMargin("StandardDialog.ContentPadding"))
-				[
-					SNew(SHorizontalBox)
-					+ SHorizontalBox::Slot()
-					.AutoWidth()
-					.VAlign(VAlign_Center)
-					[
-						SNew(STextBlock)
-						.Text(LOCTEXT("CreateProxyMeshComponentsLabel", "Mesh components used to compute the proxy mesh:"))
-					]
-				]
-				+ SVerticalBox::Slot()
-				.AutoHeight()
-				.Padding(FEditorStyle::GetMargin("StandardDialog.ContentPadding"))
-				[
-					SAssignNew(ComponentSelectionControl.ComponentsListView, SListView<TSharedPtr<FMergeComponentData>>)
-					.ListItemsSource(&ComponentSelectionControl.SelectedComponents)
-					.OnGenerateRow(this, &SMeshProxyDialog::MakeComponentListItemWidget)
-					.ToolTipText(LOCTEXT("CreateProxyMeshSelectedComponentsListBoxToolTip", "The selected mesh components will be used to compute the proxy mesh"))
-				]
-			]
-		]
-
-		+ SVerticalBox::Slot()
-		.Padding(0, 10, 0, 0)
-		[
-			SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
-			[
-				SNew(SVerticalBox)
-				// Static mesh component selection
-				+ SVerticalBox::Slot()
-				.Padding(FEditorStyle::GetMargin("StandardDialog.ContentPadding"))
-				[
-					SNew(SHorizontalBox)
-					+ SHorizontalBox::Slot()
-					.VAlign(VAlign_Center)
-					[
-						SettingsView->AsShared()
-					]
-				]
-			]
-		]
-
-		+ SVerticalBox::Slot()
-		.AutoHeight()
-		.Padding(10)
-		[
-			SNew(SBorder)
-			.BorderBackgroundColor(FLinearColor::Yellow)
-			.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
-			.Visibility_Lambda([this]()->EVisibility { return this->GetContentEnabledState() ? EVisibility::Collapsed : EVisibility::Visible; })
-			[
-				SNew(STextBlock)
-				.Text(LOCTEXT("DeleteUndo", "Insufficient mesh components found for ProxyLOD merging."))
-			]
-		]
-	];
-
-
-	// Selection change
-	USelection::SelectionChangedEvent.AddRaw(this, &SMeshProxyDialog::OnLevelSelectionChanged);
-	USelection::SelectObjectEvent.AddRaw(this, &SMeshProxyDialog::OnLevelSelectionChanged);
-	FEditorDelegates::MapChange.AddSP(this, &SMeshProxyDialog::OnMapChange);
-	FEditorDelegates::NewCurrentLevel.AddSP(this, &SMeshProxyDialog::OnNewCurrentLevel);
+	SMeshProxyCommonDialog::Construct(SMeshProxyCommonDialog::FArguments());
 
 	ProxySettings = UMeshProxySettingsObject::Get();
 	SettingsView->SetObject(ProxySettings);
 }
 
-void  SMeshProxyDialog::OnMapChange(uint32 MapFlags)
-{
-	Reset();
-}
-
-void  SMeshProxyDialog::OnNewCurrentLevel()
-{
-	Reset();
-}
-
-void  SMeshProxyDialog::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
-{
-	// Check if we need to update selected components and the listbox
-	if (bRefreshListView == true)
-	{
-		ComponentSelectionControl.UpdateSelectedCompnentsAndListBox();
-
-		bRefreshListView = false;
-	}
-}
-
-
-void SMeshProxyDialog::Reset()
-{
-	bRefreshListView = true;
-}
-
-
-bool SMeshProxyDialog::GetContentEnabledState() const
-{
-	return (GetNumSelectedMeshComponents() >= 1); // Only enabled if a mesh is selected
-}
-
-void SMeshProxyDialog::UpdateSelectedStaticMeshComponents()
-{
-
-	ComponentSelectionControl.UpdateSelectedStaticMeshComponents();
-}
-
-
-TSharedRef<ITableRow> SMeshProxyDialog::MakeComponentListItemWidget(TSharedPtr<FMergeComponentData> ComponentData, const TSharedRef<STableViewBase>& OwnerTable)
-{
-
-	return ComponentSelectionControl.MakeComponentListItemWidget(ComponentData, OwnerTable);
-}
-
-
-void SMeshProxyDialog::CreateSettingsView()
-{
-	// Create a property view
-	FPropertyEditorModule& EditModule = FModuleManager::Get().GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
-
-	FDetailsViewArgs DetailsViewArgs;
-	DetailsViewArgs.bUpdatesFromSelection = true;
-	DetailsViewArgs.bLockable = true;
-	DetailsViewArgs.NameAreaSettings = FDetailsViewArgs::ComponentsAndActorsUseNameArea;
-	DetailsViewArgs.bCustomNameAreaLocation = false;
-	DetailsViewArgs.bCustomFilterAreaLocation = true;
-	DetailsViewArgs.DefaultsOnlyVisibility = EEditDefaultsOnlyNodeVisibility::Hide;
-	DetailsViewArgs.NameAreaSettings = FDetailsViewArgs::ENameAreaSettings::HideNameArea;
-
-
-	// Tiny hack to hide this setting, since we have no way / value to go off to 
-	struct Local
-	{
-		/** Delegate to show all properties */
-		static bool IsPropertyVisible(const FPropertyAndParent& PropertyAndParent, bool bInShouldShowNonEditable)
-		{
-			return (PropertyAndParent.Property.GetFName() != GET_MEMBER_NAME_CHECKED(FMaterialProxySettings, GutterSpace));
-		}
-	};
-
-	SettingsView = EditModule.CreateDetailView(DetailsViewArgs);
-	SettingsView->SetIsPropertyVisibleDelegate(FIsPropertyVisible::CreateStatic(&Local::IsPropertyVisible, true));
-}
-
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION
-
-void SMeshProxyDialog::OnLevelSelectionChanged(UObject* Obj)
-{
-	Reset();
-}
-
 
 void SThirdPartyMeshProxyDialog::Construct(const FArguments& InArgs, FThirdPartyMeshProxyTool* InTool)
 {

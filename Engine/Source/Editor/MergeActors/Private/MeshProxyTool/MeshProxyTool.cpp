@@ -11,6 +11,7 @@
 #include "Components/StaticMeshComponent.h"
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Components/SplineMeshComponent.h"
+#include "Engine/StaticMeshActor.h"
 #include "Engine/Selection.h"
 #include "Editor.h"
 #include "MeshProxyTool/SMeshProxyDialog.h"
@@ -21,6 +22,8 @@
 #include "IMeshReductionInterfaces.h"
 #include "IMeshMergeUtilities.h"
 #include "MeshMergeModule.h"
+
+#include "SMeshProxyDialog.h"
 
 #define LOCTEXT_NAMESPACE "MeshProxyTool"
 
@@ -46,9 +49,8 @@ TSharedRef<SWidget> FMeshProxyTool::GetWidget()
 
 FText FMeshProxyTool::GetTooltipText() const
 {
-	return LOCTEXT("MeshProxyToolTooltip", "Harvest geometry from selected actors and merge them into single mesh.");
+	return LOCTEXT("MeshProxyToolTooltip", "Merge and simplify to a single static mesh actor");
 }
-
 
 FString FMeshProxyTool::GetDefaultPackageName() const
 {
@@ -91,24 +93,59 @@ FString FMeshProxyTool::GetDefaultPackageName() const
 	return PackageName;
 }
 
+const TArray<TSharedPtr<FMergeComponentData>>& FMeshProxyTool::GetSelectedComponentsInWidget() const
+{
+	return ProxyDialog->GetSelectedComponents();
+}
 
-bool FMeshProxyTool::RunMerge(const FString& PackageName)
+void ReplaceSourceActorsByProxyMesh(TArray<UObject*>& NewAssetsToSync, ULevel* Level, TArray<AActor*>& Actors)
+{
+	UStaticMesh* MergedMesh = nullptr;
+	if (NewAssetsToSync.FindItemByClass(&MergedMesh))
+	{
+		Level->Modify();
+
+		UWorld* World = Level->OwningWorld;
+		FActorSpawnParameters Params;
+		Params.OverrideLevel = Level;
+		FRotator MergedActorRotation(ForceInit);
+		// The pivot of the merged mesh is always at the origin
+		FVector MergedActorLocation(0, 0, 0);
+
+		AStaticMeshActor* MergedActor = World->SpawnActor<AStaticMeshActor>(MergedActorLocation, MergedActorRotation, Params);
+		MergedActor->GetStaticMeshComponent()->SetStaticMesh(MergedMesh);
+		MergedActor->SetActorLabel(MergedMesh->GetName());
+		World->UpdateCullDistanceVolumes(MergedActor, MergedActor->GetStaticMeshComponent());
+		GEditor->SelectNone(true, true);
+		GEditor->SelectActor(MergedActor, true, true);
+
+		// Remove source actors
+		for (AActor* Actor : Actors)
+		{
+			Actor->Destroy();
+		}
+	}
+}
+
+bool FMeshProxyTool::RunMerge(const FString& PackageName, const TArray<TSharedPtr<FMergeComponentData>>& SelectedComponents)
 {
 	TArray<AActor*> Actors;
+	TArray<ULevel*> UniqueLevels;
 	TArray<UObject*> AssetsToSync;
+
+	BuildActorsListFromMergeComponentsData(SelectedComponents, Actors, bReplaceSourceActors ? &UniqueLevels : nullptr);
+
+	// This restriction is only for replacement of selected actors with merged mesh actor
+	if (UniqueLevels.Num() > 1 && bReplaceSourceActors)
+	{
+		FText Message = NSLOCTEXT("UnrealEd", "FailedToMergeActorsSublevels_Msg", "The selected actors should be in the same level");
+		const FText Title = NSLOCTEXT("UnrealEd", "FailedToMergeActors_Title", "Unable to merge actors");
+		FMessageDialog::Open(EAppMsgType::Ok, Message, &Title);
+		return false;
+	}
 
 	// Get the module for the mesh merge utilities
 	const IMeshMergeUtilities& MeshMergeUtilities = FModuleManager::Get().LoadModuleChecked<IMeshMergeModule>("MeshMergeUtilities").GetUtilities();
-
-	USelection* SelectedActors = GEditor->GetSelectedActors();
-	for (FSelectionIterator Iter(*SelectedActors); Iter; ++Iter)
-	{
-		AActor* Actor = Cast<AActor>(*Iter);
-		if (Actor)
-		{
-			Actors.Add(Actor);
-		}
-	}
 
 	if (Actors.Num())
 	{
@@ -116,10 +153,11 @@ bool FMeshProxyTool::RunMerge(const FString& PackageName)
 		GEditor->BeginTransaction(LOCTEXT("MeshProxy_Create", "Creating Mesh Proxy"));
 
 		FVector ProxyLocation = FVector::ZeroVector;
+		TArray<UObject*> NewAssetsToSync;
 
 		FCreateProxyDelegate ProxyDelegate;
 		ProxyDelegate.BindLambda(
-			[](const FGuid Guid, TArray<UObject*>& InAssetsToSync)
+			[&NewAssetsToSync](const FGuid Guid, TArray<UObject*>& InAssetsToSync)
 		{
 			//Update the asset registry that a new static mash and material has been created
 			if (InAssetsToSync.Num())
@@ -135,11 +173,12 @@ bool FMeshProxyTool::RunMerge(const FString& PackageName)
 				//Also notify the content browser that the new assets exists
 				FContentBrowserModule& ContentBrowserModule = FModuleManager::Get().LoadModuleChecked<FContentBrowserModule>("ContentBrowser");
 				ContentBrowserModule.Get().SyncBrowserToAssets(InAssetsToSync, true);
+
+				NewAssetsToSync += InAssetsToSync;
 			}
 		});
 
 		// Extracting static mesh components from the selected mesh components in the dialog
-		const TArray<TSharedPtr<FMergeComponentData>>& SelectedComponents = ProxyDialog->GetSelectedComponents();
 		TArray<UStaticMeshComponent*> StaticMeshComponentsToMerge;
 
 		for (const TSharedPtr<FMergeComponentData>& SelectedComponent : SelectedComponents)
@@ -159,6 +198,11 @@ bool FMeshProxyTool::RunMerge(const FString& PackageName)
 			MeshMergeUtilities.CreateProxyMesh(StaticMeshComponentsToMerge, SettingsObject->Settings, nullptr, PackageName, JobGuid, ProxyDelegate);
 		}
 
+		if(bReplaceSourceActors && UniqueLevels[0])
+		{
+			ReplaceSourceActorsByProxyMesh(NewAssetsToSync, UniqueLevels[0], Actors);
+		}
+
 		GEditor->EndTransaction();
 		GWarn->EndSlowTask();
 	}
@@ -166,15 +210,10 @@ bool FMeshProxyTool::RunMerge(const FString& PackageName)
 	return true;
 }
 
-bool FMeshProxyTool::CanMerge() const
-{
-	return ProxyDialog->GetNumSelectedMeshComponents() >= 1;
-}
-
 
 FText FThirdPartyMeshProxyTool::GetTooltipText() const
 {
-	return LOCTEXT("ThirdPartyMeshProxyToolTooltip", "Harvest geometry from selected meshes, merge and simplify them as a single mesh.");
+	return LOCTEXT("ThirdPartyMeshProxyToolTooltip", "Merge and simplify meshes into a single mesh.");
 }
 
 
@@ -219,6 +258,31 @@ FString FThirdPartyMeshProxyTool::GetDefaultPackageName() const
 	return PackageName;
 }
 
+bool FThirdPartyMeshProxyTool::RunMergeFromSelection()
+{
+	FString PackageName;
+	if (GetPackageNameForMergeAction(GetDefaultPackageName(), PackageName))
+	{
+		return RunMerge(PackageName);
+	}
+	else
+	{
+		return false;
+	}
+}
+
+bool FThirdPartyMeshProxyTool::RunMergeFromWidget()
+{
+	FString PackageName;
+	if (GetPackageNameForMergeAction(GetDefaultPackageName(), PackageName))
+	{
+		return RunMerge(PackageName);
+	}
+	else
+	{
+		return false;
+	}
+}
 
 bool FThirdPartyMeshProxyTool::RunMerge(const FString& PackageName)
 {
@@ -244,10 +308,11 @@ bool FThirdPartyMeshProxyTool::RunMerge(const FString& PackageName)
 		GEditor->BeginTransaction(LOCTEXT("MeshProxy_Create", "Creating Mesh Proxy"));
 
 		FVector ProxyLocation = FVector::ZeroVector;
+		TArray<UObject*> NewAssetsToSync;
 		
 		FCreateProxyDelegate ProxyDelegate;
 		ProxyDelegate.BindLambda(
-			[](const FGuid Guid, TArray<UObject*>& InAssetsToSync)
+			[&NewAssetsToSync](const FGuid Guid, TArray<UObject*>& InAssetsToSync)
 		{
 			//Update the asset registry that a new static mash and material has been created
 			if (InAssetsToSync.Num())
@@ -263,11 +328,18 @@ bool FThirdPartyMeshProxyTool::RunMerge(const FString& PackageName)
 				//Also notify the content browser that the new assets exists
 				FContentBrowserModule& ContentBrowserModule = FModuleManager::Get().LoadModuleChecked<FContentBrowserModule>("ContentBrowser");
 				ContentBrowserModule.Get().SyncBrowserToAssets(InAssetsToSync, true);
+
+				NewAssetsToSync += InAssetsToSync;
 			}
 		});		
 
 		FGuid JobGuid = FGuid::NewGuid();
-		MeshMergeUtilities.CreateProxyMesh(Actors, ProxySettings, nullptr, PackageName, JobGuid, ProxyDelegate);	
+		MeshMergeUtilities.CreateProxyMesh(Actors, ProxySettings, nullptr, PackageName, JobGuid, ProxyDelegate);
+
+		if (bReplaceSourceActors && Actors[0]->GetLevel())
+		{
+			ReplaceSourceActorsByProxyMesh(NewAssetsToSync, Actors[0]->GetLevel(), Actors);
+		}
 
 		GEditor->EndTransaction();
 		GWarn->EndSlowTask();
@@ -276,7 +348,12 @@ bool FThirdPartyMeshProxyTool::RunMerge(const FString& PackageName)
 	return true;
 }
 
-bool FThirdPartyMeshProxyTool::CanMerge() const
+bool FThirdPartyMeshProxyTool::CanMergeFromSelection() const
+{
+	return true;
+}
+
+bool FThirdPartyMeshProxyTool::CanMergeFromWidget() const
 {
 	return true;
 }

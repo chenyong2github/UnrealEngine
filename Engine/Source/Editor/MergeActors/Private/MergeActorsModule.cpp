@@ -51,6 +51,10 @@ public:
 	 */
 	virtual bool UnregisterMergeActorsTool(IMergeActorsTool* Tool) override;
 
+	/**
+	 * Get list of registered tools
+	 */
+	virtual void GetRegisteredMergeActorsTools(TArray<IMergeActorsTool*>& OutTools) override;
 
 private:
 
@@ -179,5 +183,14 @@ bool FMergeActorsModule::UnregisterMergeActorsTool(IMergeActorsTool* Tool)
 	return false;
 }
 
+void FMergeActorsModule::GetRegisteredMergeActorsTools(TArray<IMergeActorsTool*>& OutTools)
+{
+	OutTools.Empty();
+	for (const auto& MergeActorTool : MergeActorsTools)
+	{
+		check(MergeActorTool.Get() != nullptr);
+		OutTools.Add(MergeActorTool.Get());
+	}
+}
 
 #undef LOCTEXT_NAMESPACE

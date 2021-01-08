@@ -3,7 +3,6 @@
 #include "SMergeActorsToolbar.h"
 #include "IMergeActorsTool.h"
 #include "Modules/ModuleManager.h"
-#include "Misc/PackageName.h"
 #include "Widgets/SBoxPanel.h"
 #include "Styling/SlateTypes.h"
 #include "Widgets/Layout/SBorder.h"
@@ -12,13 +11,12 @@
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Layout/SScrollBox.h"
 #include "Widgets/Input/SCheckBox.h"
+#include "Widgets/Input/STextComboBox.h"
 #include "EditorStyleSet.h"
 #include "Editor/UnrealEdEngine.h"
 #include "UnrealEdGlobals.h"
 #include "LevelEditor.h"
 #include "IDocumentation.h"
-#include "IContentBrowserSingleton.h"
-#include "ContentBrowserModule.h"
 #include "Styling/ToolBarStyle.h"
 
 #define LOCTEXT_NAMESPACE "SMergeActorsToolbar"
@@ -42,45 +40,66 @@ void SMergeActorsToolbar::Construct(const FArguments& InArgs)
 
 		+ SVerticalBox::Slot()
 		.AutoHeight()
-		.HAlign(HAlign_Left)
 		.Padding(0, 0, 0, 0)
 		[
 			SAssignNew(ToolbarContainer, SBorder)
-			.BorderImage(FEditorStyle::GetBrush("NoBorder"))
-			.Padding(FMargin(4, 0, 0, 0))
+			.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+			.Padding(10)
 		]
 
 		+ SVerticalBox::Slot()
 		.FillHeight(1.0f)
-		.Padding(2, 0, 0, 0)
+		.Padding(0, 0, 0, 0)
 		[
 			SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+			.BorderImage(FStyleDefaults::GetNoBrush())
 			.Padding(0.f)
 			.IsEnabled(this, &SMergeActorsToolbar::GetContentEnabledState)
 			[
-				SNew(SVerticalBox)
-
-				+ SVerticalBox::Slot()
-				.FillHeight(1.0f)
-				.Padding(4, 4, 4, 4)
+				SNew(SScrollBox)
+				+SScrollBox::Slot()
 				[
-					SNew(SScrollBox)
-					+SScrollBox::Slot()
+					SAssignNew(InlineContentHolder, SBox)
+				]
+			]
+		]
+
+		+ SVerticalBox::Slot()
+		.AutoHeight()
+		.VAlign(VAlign_Bottom)
+		[
+			SNew(SBorder)
+			.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+			.Padding(10)
+			[
+				SNew(SHorizontalBox) 
+
+				+ SHorizontalBox::Slot()
+				.HAlign(HAlign_Left)
+				.Padding(FEditorStyle::GetMargin("StandardDialog.ContentPadding"))
+				[
+					SNew(SCheckBox)
+					.Type(ESlateCheckBoxType::CheckBox)
+					.IsChecked_Lambda([this]() { return this->RegisteredTools[CurrentlySelectedTool]->GetReplaceSourceActors() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; })
+					.OnCheckStateChanged_Lambda([this](ECheckBoxState NewValue) { this->RegisteredTools[CurrentlySelectedTool]->SetReplaceSourceActors(NewValue == ECheckBoxState::Checked); })
+					.Content()
 					[
-						SAssignNew(InlineContentHolder, SBox)
+						SNew(STextBlock)
+						.Text(LOCTEXT("ReplaceSourceActorsLabel", "Replace Source Actors"))
+						.Font(FEditorStyle::GetFontStyle("StandardDialog.SmallFont"))
 					]
 				]
 
-				+ SVerticalBox::Slot()
-				.AutoHeight()
+				+ SHorizontalBox::Slot()
 				.HAlign(HAlign_Right)
 				.Padding(4, 4, 10, 4)
 				[
 					SNew(SButton)
+					.ButtonStyle(FEditorStyle::Get(), "PrimaryButton")
+					.TextStyle(FEditorStyle::Get(), "DialogButtonText")
 					.Text(LOCTEXT("MergeActors", "Merge Actors"))
 					.OnClicked(this, &SMergeActorsToolbar::OnMergeActorsClicked)
-					.IsEnabled_Lambda([this]() -> bool { return this->RegisteredTools[CurrentlySelectedTool]->CanMerge();})
+					.IsEnabled_Lambda([this]() -> bool { return this->RegisteredTools[CurrentlySelectedTool]->CanMergeFromWidget(); })
 				]
 			]
 		]
@@ -106,54 +125,21 @@ void SMergeActorsToolbar::OnActorSelectionChanged(const TArray<UObject*>& NewSel
 	bIsContentEnabled = (NewSelection.Num() > 0);
 }
 
-
-void SMergeActorsToolbar::OnToolSelectionChanged(const ECheckBoxState NewCheckedState, int32 ToolIndex)
+void SMergeActorsToolbar::OnToolSelectionChanged(TSharedPtr<FDropDownItem> NewSelection, ESelectInfo::Type SelectInfo)
 {
-	if (NewCheckedState == ECheckBoxState::Checked)
+	int32 Index = 0;
+	if (ToolDropDownEntries.Find(NewSelection, Index) && Index != CurrentlySelectedTool)
 	{
-		CurrentlySelectedTool = ToolIndex;
+		CurrentlySelectedTool = Index;
 		UpdateInlineContent();
 	}
 }
-
-
-ECheckBoxState SMergeActorsToolbar::OnIsToolSelected(int32 ToolIndex) const
-{
-	return (CurrentlySelectedTool == ToolIndex) ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
-}
-
 
 FReply SMergeActorsToolbar::OnMergeActorsClicked()
 {
 	if (CurrentlySelectedTool >= 0 && CurrentlySelectedTool < RegisteredTools.Num())
 	{
-		const FString DefaultPackageName = RegisteredTools[CurrentlySelectedTool]->GetDefaultPackageName();
-		if(DefaultPackageName.Len() > 0)
-		{
-			const FString DefaultPath = FPackageName::GetLongPackagePath(DefaultPackageName);
-			const FString DefaultName = FPackageName::GetShortName(DefaultPackageName);
-
-			// Initialize SaveAssetDialog config
-			FSaveAssetDialogConfig SaveAssetDialogConfig;
-			SaveAssetDialogConfig.DialogTitleOverride = LOCTEXT("CreateMergedActorTitle", "Create Merged Actor");
-			SaveAssetDialogConfig.DefaultPath = DefaultPath;
-			SaveAssetDialogConfig.DefaultAssetName = DefaultName;
-			SaveAssetDialogConfig.ExistingAssetPolicy = ESaveAssetDialogExistingAssetPolicy::AllowButWarn;
-			SaveAssetDialogConfig.AssetClassNames = { UStaticMesh::StaticClass()->GetFName() };
-
-			FContentBrowserModule& ContentBrowserModule = FModuleManager::LoadModuleChecked<FContentBrowserModule>("ContentBrowser");
-			FString SaveObjectPath = ContentBrowserModule.Get().CreateModalSaveAssetDialog(SaveAssetDialogConfig);
-			if (!SaveObjectPath.IsEmpty())
-			{
-				const FString PackageName = FPackageName::ObjectPathToPackageName(SaveObjectPath);
-
-				RegisteredTools[CurrentlySelectedTool]->RunMerge(PackageName);
-			}
-		}
-		else
-		{
-			RegisteredTools[CurrentlySelectedTool]->RunMerge(DefaultPackageName);
-		}
+		RegisteredTools[CurrentlySelectedTool]->RunMergeFromWidget();
 	}
 
 	return FReply::Handled();
@@ -189,43 +175,75 @@ void SMergeActorsToolbar::RemoveTool(IMergeActorsTool* Tool)
 	}
 }
 
+SMergeActorsToolbar::FDropDownItem::FDropDownItem(const FText& InName, const FName& InIconName)
+	: Name(InName), IconName(InIconName)
+{}
 
 void SMergeActorsToolbar::UpdateToolbar()
 {
-	const ISlateStyle& StyleSet = FEditorStyle::Get();
+	// Build tools entries data for the drop-down
+	ToolDropDownEntries.Empty();
 
-	TSharedRef<SHorizontalBox> HorizontalBox =
-		SNew(SHorizontalBox);
-
-	const FToolBarStyle& BaseToolBarStyle = StyleSet.GetWidgetStyle<FToolBarStyle>("ToolBar");
-
-	for (int32 ToolIndex = 0; ToolIndex < RegisteredTools.Num(); ToolIndex++)
+	for(int32 ToolIndex = 0; ToolIndex < RegisteredTools.Num(); ++ToolIndex)
 	{
 		const IMergeActorsTool* Tool = RegisteredTools[ToolIndex];
-
-		HorizontalBox->AddSlot()
-		.Padding(BaseToolBarStyle.ButtonPadding)
-		.AutoWidth()
-		[
-			SNew(SCheckBox)
-			.Style(&BaseToolBarStyle.ToggleButton)
-			.OnCheckStateChanged(this, &SMergeActorsToolbar::OnToolSelectionChanged, ToolIndex)
-			.IsChecked(this, &SMergeActorsToolbar::OnIsToolSelected, ToolIndex)
-			.Padding(BaseToolBarStyle.CheckBoxPadding)
-			.ToolTip(IDocumentation::Get()->CreateToolTip(Tool->GetTooltipText(), nullptr, FString(), FString()))
-			[
-				SNew(SImage)
-				.Image(StyleSet.GetBrush(Tool->GetIconName()))
-			]
-		];
+		ToolDropDownEntries.Add(MakeShareable(new FDropDownItem(Tool->GetTooltipText(), Tool->GetIconName())));
 	}
 
-	TSharedRef<SBorder> ToolbarContent =
-		SNew(SBorder)
-		.Padding(0)
-		.BorderImage(StyleSet.GetBrush("NoBorder"))
+	// Build combo box
+	const ISlateStyle& StyleSet = FEditorStyle::Get();
+
+	TSharedRef <SComboBox<TSharedPtr<FDropDownItem> > > ComboBox =
+		SNew(SComboBox<TSharedPtr<FDropDownItem> >)
+		.OptionsSource(&ToolDropDownEntries)
+		.OnGenerateWidget(this, &SMergeActorsToolbar::MakeWidgetFromEntry)
+		.InitiallySelectedItem(ToolDropDownEntries[CurrentlySelectedTool])
+		.OnSelectionChanged(this, &SMergeActorsToolbar::OnToolSelectionChanged)
+		.Content()
 		[
-			HorizontalBox
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			[
+				SNew(SImage)
+				.Image_Lambda([this](){
+					return FEditorStyle::Get().GetBrush(ToolDropDownEntries[CurrentlySelectedTool]->IconName);
+				})
+			]
+			+ SHorizontalBox::Slot()
+			.FillWidth(1)
+			.VAlign(VAlign_Center)
+			.Padding(5.0, 0, 0, 0)
+			[
+				SNew(STextBlock)
+				.Text_Lambda([this]() -> FText {
+					return ToolDropDownEntries[CurrentlySelectedTool]->Name;
+				})
+			]
+		];
+
+	TSharedRef<SHorizontalBox> ToolbarContent =
+		SNew(SHorizontalBox)
+		+ SHorizontalBox::Slot()
+		.HAlign(HAlign_Left)
+		.VAlign(VAlign_Center)
+		.AutoWidth()
+		[
+			SNew(STextBlock)
+			.Text(LOCTEXT("MergeMethodLabel", "Merge Method"))
+		]
+		+ SHorizontalBox::Slot()
+		.VAlign(VAlign_Center)
+		.Padding(10.0, 0, 0, 0)
+		[
+			ComboBox
+		]
+		// Filler so that the combo box is just the right size
+		+ SHorizontalBox::Slot()
+		[
+			SNew(SBorder)
+			.BorderImage(FStyleDefaults::GetNoBrush())
 		];
 
 	ToolbarContainer->SetContent(ToolbarContent);
@@ -233,6 +251,25 @@ void SMergeActorsToolbar::UpdateToolbar()
 	UpdateInlineContent();
 }
 
+TSharedRef<SWidget> SMergeActorsToolbar::MakeWidgetFromEntry(TSharedPtr<FDropDownItem> InItem)
+{
+	return SNew(SHorizontalBox)
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		.VAlign(VAlign_Center)
+		[
+			SNew(SImage)
+			.Image(FEditorStyle::Get().GetBrush(InItem->IconName))
+		]
+		+ SHorizontalBox::Slot()
+		.FillWidth(1)
+		.VAlign(VAlign_Center)
+		.Padding(5.0, 0, 0, 0)
+		[
+			SNew(STextBlock)
+			.Text(InItem->Name)
+		];
+}
 
 void SMergeActorsToolbar::UpdateInlineContent()
 {

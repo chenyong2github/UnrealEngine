@@ -3093,7 +3093,7 @@ void FMeshMergeUtilities::CreateMergedRawMeshes(FMeshMergeDataTracker& InDataTra
 	}
 }
 
-void FMeshMergeUtilities::MergeComponentsToInstances(const TArray<UPrimitiveComponent*>& ComponentsToMerge, UWorld* World, ULevel* Level, const FMeshInstancingSettings& InSettings, bool bActuallyMerge /*= true*/, FText* OutResultsText /*= nullptr*/) const
+void FMeshMergeUtilities::MergeComponentsToInstances(const TArray<UPrimitiveComponent*>& ComponentsToMerge, UWorld* World, ULevel* Level, const FMeshInstancingSettings& InSettings, bool bActuallyMerge /*= true*/, bool bReplaceSourceActors /* = false */, FText* OutResultsText /*= nullptr*/) const
 {
 	auto HasInstanceVertexColors = [](UStaticMeshComponent* StaticMeshComponent)
 	{
@@ -3329,11 +3329,11 @@ void FMeshMergeUtilities::MergeComponentsToInstances(const TArray<UPrimitiveComp
 				// Now clean up our original actors
 				for(AActor* ActorToCleanUp : ActorsToCleanUp)
 				{
-					if(InSettings.MeshReplacementMethod == EMeshInstancingReplacementMethod::RemoveOriginalActors)
+					if (bReplaceSourceActors)
 					{
 						ActorToCleanUp->Destroy();
 					}
-					else if(InSettings.MeshReplacementMethod == EMeshInstancingReplacementMethod::KeepOriginalActorsAsEditorOnly)
+					else
 					{
 						ActorToCleanUp->Modify();
 						ActorToCleanUp->bIsEditorOnlyActor = true;
@@ -3358,12 +3358,21 @@ void FMeshMergeUtilities::MergeComponentsToInstances(const TArray<UPrimitiveComp
 					GEditor->GetSelectedActors()->EndBatchSelectOperation();
 				};
 
-				FNotificationInfo NotificationInfo(FText::Format(LOCTEXT("CreatedInstancedActorsMessage", "Created {0} Instanced Actor(s)"), FText::AsNumber(ActorEntries.Num())));
-				NotificationInfo.Hyperlink = FSimpleDelegate::CreateLambda(SelectActorsLambda);
-				NotificationInfo.HyperlinkText = LOCTEXT("SelectActorsHyperlink", "Select Actors");
-				NotificationInfo.ExpireDuration = 5.0f;
+				// Always change selection if we removed the source actors,
+				// Otherwise, allow selection change through notification
+				if (bReplaceSourceActors)
+				{
+					SelectActorsLambda();
+				}
+				else
+				{
+					FNotificationInfo NotificationInfo(FText::Format(LOCTEXT("CreatedInstancedActorsMessage", "Created {0} Instanced Actor(s)"), FText::AsNumber(ActorEntries.Num())));
+					NotificationInfo.Hyperlink = FSimpleDelegate::CreateLambda(SelectActorsLambda);
+					NotificationInfo.HyperlinkText = LOCTEXT("SelectActorsHyperlink", "Select Actors");
+					NotificationInfo.ExpireDuration = 5.0f;
 
-				FSlateNotificationManager::Get().AddNotification(NotificationInfo);
+					FSlateNotificationManager::Get().AddNotification(NotificationInfo);
+				}
 			}
 		}
 	}

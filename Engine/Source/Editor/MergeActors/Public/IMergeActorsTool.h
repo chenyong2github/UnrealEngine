@@ -36,17 +36,40 @@ public:
 	virtual FString GetDefaultPackageName() const = 0;
 
 	/**
-	 * Perform merge operation
-	 *
-	 * @param	PackageName		Long package name of the asset to create
-	 * @return	true if the merge succeeded
+	 * Checks if the Replace Source Actors option is selected
 	 */
-	virtual bool RunMerge(const FString& PackageName) = 0;
+	virtual bool GetReplaceSourceActors() const = 0;
+
+	/**
+	 * Changes the Replace Source Actors option
+	 * 
+	 * @param whether to replace the source actors or not
+	 */
+	virtual void SetReplaceSourceActors(bool bReplaceSourceActors) = 0;
+
+	/**
+	 * Perform merge operation from the current selection
+	 *
+	 * @return true if the merge succeeded
+	 */
+	virtual bool RunMergeFromSelection() = 0;
+
+	/**
+	 * Perform merge operation from the selection in the Merge Actors panel
+	 */
+	virtual bool RunMergeFromWidget() = 0;
 	
 	/*
-	* Checks if merge operation is valid
+	* Checks if merge operation is valid from the current selection
 	*
-	* @return true if merge is valid
+	* @return true if merge can be executed
 	*/
-	virtual bool CanMerge() const = 0;
+	virtual bool CanMergeFromSelection() const = 0;
+
+	/*
+	* Checks if merge operation is valid from the current selection
+	*
+	* @return true if merge can be executed
+	*/
+	virtual bool CanMergeFromWidget() const = 0;
 };

@@ -46,15 +46,22 @@ public:
 
 
 private:
+	struct FDropDownItem
+	{
+		FDropDownItem(const FText& InName, const FName& InIconName);
+
+		FText Name;
+		FName IconName;
+	};
+
+	/** Called to create the combo box entries */
+	TSharedRef<SWidget> MakeWidgetFromEntry(TSharedPtr<FDropDownItem> InItem);
 
 	/** Called when the level actor selection changes */
 	void OnActorSelectionChanged(const TArray<UObject*>& NewSelection, bool bForceRefresh);
 
 	/** Called when the currently selected tool changes */
-	void OnToolSelectionChanged(const ECheckBoxState NewCheckedState, int32 ToolIndex);
-
-	/** Called to determine whether a toolbox widget is selected or not */
-	ECheckBoxState OnIsToolSelected(int32 ToolIndex) const;
+	void OnToolSelectionChanged(TSharedPtr<FDropDownItem> NewSelection, ESelectInfo::Type SelectInfo);
 
 	/** Called when the Merge Actors button is clicked */
 	FReply OnMergeActorsClicked();
@@ -67,7 +74,6 @@ private:
 
 	/** Updates the inline content widget for the current tool */
 	void UpdateInlineContent();
-
 
 private:
 
@@ -82,6 +88,9 @@ private:
 
 	/** Whether the merge actors tool panel is enabled or not */
 	bool bIsContentEnabled;
+
+	/** List of register tool names */
+	TArray< TSharedPtr<FDropDownItem> > ToolDropDownEntries;
 
 	/** The container holding the toolbar */
 	TSharedPtr<SBorder> ToolbarContainer;

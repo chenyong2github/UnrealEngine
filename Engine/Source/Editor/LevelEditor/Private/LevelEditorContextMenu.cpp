@@ -49,6 +49,8 @@
 #include "Framework/Commands/GenericCommands.h"
 #include "LevelViewportActions.h"
 #include "ActorGroupingUtils.h"
+#include "IMergeActorsModule.h"
+#include "IMergeActorsTool.h"
 
 #define LOCTEXT_NAMESPACE "LevelViewportContextMenu"
 
@@ -124,6 +126,13 @@ public:
 	 * @param ContextType	The context for this editor menu
 	 */
 	static void FillEditMenu(UToolMenu* Menu);
+
+	/**
+	 * Fills in menu options for the merge actors menu
+	 * 
+	 * @param MenuBuilder	The menu to add items to
+	 */
+	static void FillMergeActorsMenu(UToolMenu* Menu);
 
 private:
 	/**
@@ -308,6 +317,17 @@ void FLevelEditorContextMenu::RegisterActorContextMenu()
 			}
 		}
 
+		if (LevelEditorContext->ContextType == ELevelEditorMenuContext::Viewport || LevelEditorContext->ContextType == ELevelEditorMenuContext::SceneOutliner)
+		{
+			FToolMenuSection& Section = InMenu->AddSection("OpenMergeActor");
+
+			Section.AddSubMenu(
+				"MergeActorsSubMenu",
+				FText::Format(LOCTEXT("MergeActorsSubMenu", "Merge Actors ({0})"), FText::AsNumber(SelectedActors.Num())),
+				LOCTEXT("MergeActorsSubMenu_ToolTip", "Merge actors utils"),
+				FNewToolMenuDelegate::CreateStatic(&FLevelEditorContextMenuImpl::FillMergeActorsMenu));
+		}
+
 		// Go to C++ Code
 		if (SelectionInfo.SelectionClass != NULL)
 		{
@@ -375,11 +395,6 @@ void FLevelEditorContextMenu::RegisterActorContextMenu()
 		if (LevelEditorContext->ContextType == ELevelEditorMenuContext::Viewport || LevelEditorContext->ContextType == ELevelEditorMenuContext::SceneOutliner)
 		{
 			LevelEditorCreateActorMenu::FillAddReplaceContextMenuSections(InMenu, LevelEditorContext);
-
-			FToolMenuSection& Section = InMenu->AddSection("OpenMergeActor");
-			Section.AddMenuEntry(FLevelEditorCommands::Get().OpenMergeActor,
-					LOCTEXT("OpenMergeActor", "Merge Actors"),
-					LOCTEXT("OpenMergeActor_ToolTip", "Click to open the Merge Actor panel"));
 		}
 
 		if (GEditor->PlayWorld != NULL)
@@ -1290,6 +1305,40 @@ void FLevelEditorContextMenuImpl::FillEditMenu( UToolMenu* Menu )
 	Section.AddMenuEntry( FGenericCommands::Get().Duplicate );
 	Section.AddMenuEntry( FGenericCommands::Get().Delete );
 	Section.AddMenuEntry( FGenericCommands::Get().Rename );
+}
+
+void FLevelEditorContextMenuImpl::FillMergeActorsMenu(UToolMenu* Menu)
+{
+	FToolMenuSection& Section = Menu->AddSection("OpenPanel");
+
+	IMergeActorsModule& MergeActorsModule = IMergeActorsModule::Get();
+	TArray<IMergeActorsTool*> MergeActorTools;
+	MergeActorsModule.Get().GetRegisteredMergeActorsTools(MergeActorTools);
+
+	for (IMergeActorsTool* Tool : MergeActorTools)
+	{
+		FUIAction MergeActorToolAction(
+			FExecuteAction::CreateLambda([Tool]() { Tool->RunMergeFromSelection(); }),
+			FCanExecuteAction::CreateLambda([Tool]() { return Tool->CanMergeFromSelection(); }));
+
+		Section.AddMenuEntry(
+			NAME_None,
+			Tool->GetTooltipText(),
+			Tool->GetTooltipText(),
+			FSlateIcon(FEditorStyle::GetStyleSetName(), Tool->GetIconName()),
+			MergeActorToolAction);
+	}
+
+	if (MergeActorTools.Num() > 0)
+	{
+		Section.AddSeparator(NAME_None);
+	}
+
+	Section.AddMenuEntry(
+		FLevelEditorCommands::Get().OpenMergeActor,
+		LOCTEXT("OpenMergeActor", "Merge Actors Settings"),
+		LOCTEXT("OpenMergeActor_ToolTip", "Click to open the Merge Actor panel"),
+		FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.GameSettings"));
 }
 
 void FLevelScriptEventMenuHelper::FillLevelBlueprintEventsMenu(UToolMenu* Menu, const TArray<AActor*>& SelectedActors)

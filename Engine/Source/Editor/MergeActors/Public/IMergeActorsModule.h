@@ -32,4 +32,9 @@ public:
 	 * Unregister an IMergeActorsTool with the module
 	 */
 	MERGEACTORS_API virtual bool UnregisterMergeActorsTool(IMergeActorsTool* Tool) = 0;
+
+	/**
+	 * Get currently registered list of MergeActors tools
+	 */
+	MERGEACTORS_API virtual void GetRegisteredMergeActorsTools(TArray<IMergeActorsTool*>& OutTools) = 0;
 };

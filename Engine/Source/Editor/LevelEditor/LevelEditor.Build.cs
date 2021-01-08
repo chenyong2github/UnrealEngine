@@ -18,6 +18,7 @@ public class LevelEditor : ModuleRules
                 "PortalServices",
                 "Persona",
 				"DataLayerEditor",
+				"MergeActors",
 			}
 		);
 
@@ -106,7 +107,8 @@ public class LevelEditor : ModuleRules
 				"VREditor",
                 "Persona",
 				"LevelAssetEditor",
-            }
+				"MergeActors",
+			}
 		);
 
 		if(Target.bWithLiveCoding)

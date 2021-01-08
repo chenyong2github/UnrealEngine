@@ -2,6 +2,10 @@
 
 #include "MergeProxyUtils/Utils.h"
 
+#include "Misc/PackageName.h"
+#include "IContentBrowserSingleton.h"
+#include "ContentBrowserModule.h"
+
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Components/StaticMeshComponent.h"
@@ -14,6 +18,111 @@
 #include "Components/ShapeComponent.h"
 
 #define LOCTEXT_NAMESPACE "MergeProxyDialog"
+
+void BuildMergeComponentDataFromSelection(TArray<TSharedPtr<FMergeComponentData>>& OutComponentsData, bool bAllowShapeComponents)
+{
+	OutComponentsData.Empty();
+
+	// Retrieve selected actors
+	USelection* SelectedActors = GEditor->GetSelectedActors();
+
+	TSet<AActor*> Actors;
+
+	for (FSelectionIterator Iter(*SelectedActors); Iter; ++Iter)
+	{
+		AActor* Actor = Cast<AActor>(*Iter);
+		if (Actor)
+		{
+			Actors.Add(Actor);
+
+			// Add child actors & actors found under foundations
+			Actor->EditorGetUnderlyingActors(Actors);
+		}
+	}
+
+	for (AActor* Actor : Actors)
+	{
+		check(Actor != nullptr);
+
+		TArray<UPrimitiveComponent*> PrimComponents;
+		Actor->GetComponents<UPrimitiveComponent>(PrimComponents);
+		for (UPrimitiveComponent* PrimComponent : PrimComponents)
+		{
+			bool bInclude = false; // Should put into UI list
+			bool bShouldIncorporate = false; // Should default to part of merged mesh
+			bool bIsMesh = false;
+			if (UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(PrimComponent))
+			{
+				bShouldIncorporate = (StaticMeshComponent->GetStaticMesh() != nullptr);
+				bInclude = true;
+				bIsMesh = true;
+			}
+			else if (UShapeComponent* ShapeComponent = Cast<UShapeComponent>(PrimComponent))
+			{
+				if (bAllowShapeComponents)
+				{
+					bShouldIncorporate = true;
+					bInclude = true;
+				}
+			}
+
+			if (bInclude)
+			{
+				OutComponentsData.Add(TSharedPtr<FMergeComponentData>(new FMergeComponentData(PrimComponent)));
+				TSharedPtr<FMergeComponentData>& ComponentData = OutComponentsData.Last();
+				ComponentData->bShouldIncorporate = bShouldIncorporate;
+			}
+		}
+	}
+}
+
+void BuildActorsListFromMergeComponentsData(const TArray<TSharedPtr<FMergeComponentData>>& InComponentsData, TArray<AActor*>& OutActors, TArray<ULevel*>* OutLevels /* = nullptr */)
+{
+	for (const TSharedPtr<FMergeComponentData>& SelectedComponent : InComponentsData)
+	{
+		if (SelectedComponent->PrimComponent.IsValid())
+		{
+			AActor* Actor = SelectedComponent->PrimComponent.Get()->GetOwner();
+			OutActors.AddUnique(Actor);
+			if (OutLevels)
+				OutLevels->AddUnique(Actor->GetLevel());
+		}
+	}
+}
+
+bool GetPackageNameForMergeAction(const FString& DefaultPackageName, FString& OutPackageName)
+{
+	if (DefaultPackageName.Len() > 0)
+	{
+		const FString DefaultPath = FPackageName::GetLongPackagePath(DefaultPackageName);
+		const FString DefaultName = FPackageName::GetShortName(DefaultPackageName);
+
+		// Initialize SaveAssetDialog config
+		FSaveAssetDialogConfig SaveAssetDialogConfig;
+		SaveAssetDialogConfig.DialogTitleOverride = LOCTEXT("CreateMergedActorTitle", "Create Merged Actor");
+		SaveAssetDialogConfig.DefaultPath = DefaultPath;
+		SaveAssetDialogConfig.DefaultAssetName = DefaultName;
+		SaveAssetDialogConfig.ExistingAssetPolicy = ESaveAssetDialogExistingAssetPolicy::AllowButWarn;
+		SaveAssetDialogConfig.AssetClassNames = { UStaticMesh::StaticClass()->GetFName() };
+
+		FContentBrowserModule& ContentBrowserModule = FModuleManager::LoadModuleChecked<FContentBrowserModule>("ContentBrowser");
+		FString SaveObjectPath = ContentBrowserModule.Get().CreateModalSaveAssetDialog(SaveAssetDialogConfig);
+		if (!SaveObjectPath.IsEmpty())
+		{
+			OutPackageName = FPackageName::ObjectPathToPackageName(SaveObjectPath);
+			return true;
+		}
+		else
+		{
+			return false;
+		}
+	}
+	else
+	{
+		OutPackageName = DefaultPackageName;
+		return true;
+	}
+}
 
 void FComponentSelectionControl::UpdateSelectedCompnentsAndListBox()
 {
@@ -38,75 +147,27 @@ void FComponentSelectionControl::StoreCheckBoxState()
 
 void FComponentSelectionControl::UpdateSelectedStaticMeshComponents()
 {
+	BuildMergeComponentDataFromSelection(SelectedComponents, bAllowShapeComponents);
+
+	// Count number of selected objects & Update check state based on previous data
 	NumSelectedMeshComponents = 0;
 
-	// Retrieve selected actors
-	USelection* SelectedActors = GEditor->GetSelectedActors();
-
-	TSet<AActor*> Actors;
-
-	for (FSelectionIterator Iter(*SelectedActors); Iter; ++Iter)
+	for (TSharedPtr<FMergeComponentData>& ComponentData : SelectedComponents)
 	{
-		AActor* Actor = Cast<AActor>(*Iter);
-		if (Actor)
+		ECheckBoxState* StoredState = StoredCheckBoxStates.Find(ComponentData->PrimComponent.Get());
+		if (StoredState != nullptr)
 		{
-			Actors.Add(Actor);
-
-			// Add child actors & actors found under foundations
-			Actor->EditorGetUnderlyingActors(Actors);
+			ComponentData->bShouldIncorporate = (*StoredState == ECheckBoxState::Checked);
 		}
-	}
 
-	// Retrieve static mesh components from selected actors
-	SelectedComponents.Empty();
-	for (AActor* Actor : Actors)
-	{
-		check(Actor != nullptr);
-
-		TArray<UPrimitiveComponent*> PrimComponents;
-		Actor->GetComponents<UPrimitiveComponent>(PrimComponents);
-		for (UPrimitiveComponent* PrimComponent : PrimComponents)
+		// Keep count of selected meshes
+		const bool bIsMesh = (Cast<UStaticMeshComponent>(ComponentData->PrimComponent.Get()) != nullptr);
+		if (ComponentData->bShouldIncorporate && bIsMesh)
 		{
-			bool bInclude = false; // Should put into UI list
-			bool bShouldIncorporate = false; // Should default to part of merged mesh
-			bool bIsMesh = false;
-			if (UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(PrimComponent))
-			{
-				bShouldIncorporate = (StaticMeshComponent->GetStaticMesh() != nullptr);
-				bInclude = true;
-				bIsMesh = true;
-			}
-			else if (UShapeComponent* ShapeComponent = Cast<UShapeComponent>(PrimComponent))
-			{
-				bShouldIncorporate = true;
-				bInclude = true;
-			}
-
-			if (bInclude)
-			{
-				SelectedComponents.Add(TSharedPtr<FMergeComponentData>(new FMergeComponentData(PrimComponent)));
-				TSharedPtr<FMergeComponentData>& ComponentData = SelectedComponents.Last();
-
-				ComponentData->bShouldIncorporate = bShouldIncorporate;
-
-				// See if we stored a checkbox state for this mesh component, and set accordingly
-				ECheckBoxState* StoredState = StoredCheckBoxStates.Find(PrimComponent);
-				if (StoredState != nullptr)
-				{
-					ComponentData->bShouldIncorporate = (*StoredState == ECheckBoxState::Checked);
-				}
-
-				// Keep count of selected meshes
-				if (ComponentData->bShouldIncorporate && bIsMesh)
-				{
-					NumSelectedMeshComponents++;
-				}
-			}
-
+			NumSelectedMeshComponents++;
 		}
 	}
 }
-
 
 TSharedRef<ITableRow> FComponentSelectionControl::MakeComponentListItemWidget(TSharedPtr<FMergeComponentData> ComponentData, const TSharedRef<STableViewBase>& OwnerTable)
 {

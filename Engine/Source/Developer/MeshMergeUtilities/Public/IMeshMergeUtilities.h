@@ -77,7 +77,7 @@ public:
 	* @param OutResultsText (optional) Results of the merge
 	* @return void
 	*/
-	virtual void MergeComponentsToInstances(const TArray<UPrimitiveComponent*>& ComponentsToMerge, UWorld* World, ULevel* Level, const FMeshInstancingSettings& InSettings, bool bActuallyMerge = true, FText* OutResultsText = nullptr) const = 0;
+	virtual void MergeComponentsToInstances(const TArray<UPrimitiveComponent*>& ComponentsToMerge, UWorld* World, ULevel* Level, const FMeshInstancingSettings& InSettings, bool bActuallyMerge = true, bool bReplaceSourceActors = false, FText* OutResultsText = nullptr) const = 0;
 
 	/**
 	*	Merges list of actors into single proxy mesh

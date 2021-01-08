@@ -22,6 +22,10 @@ struct FMergeComponentData
 	bool bShouldIncorporate;
 };
 
+void BuildMergeComponentDataFromSelection(TArray<TSharedPtr<FMergeComponentData>>& OutComponentsData, bool bAllowShapeComponents);
+void BuildActorsListFromMergeComponentsData(const TArray<TSharedPtr<FMergeComponentData>>& InComponentsData, TArray<AActor*>& OutActors, TArray<ULevel*>* OutLevels = nullptr);
+bool GetPackageNameForMergeAction(const FString& DefaultPackageName, FString& OutPackageName);
+
 struct FComponentSelectionControl
 {
 
@@ -46,4 +50,7 @@ struct FComponentSelectionControl
 	
 	/** Number of selected static mesh components */
 	int32 NumSelectedMeshComponents = 0;
+
+	/** Allow selection of ShapeComponents **/
+	bool bAllowShapeComponents = true;
 };

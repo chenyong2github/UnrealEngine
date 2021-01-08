@@ -28,7 +28,6 @@ UMeshMergingSettingsObject* UMeshMergingSettingsObject::DefaultSettings = nullpt
 bool UMeshMergingSettingsObject::bInitialized = false;
 
 FMeshMergingTool::FMeshMergingTool()
-	: bReplaceSourceActors(false)
 {
 	SettingsObject = UMeshMergingSettingsObject::Get();
 }
@@ -47,7 +46,7 @@ TSharedRef<SWidget> FMeshMergingTool::GetWidget()
 
 FText FMeshMergingTool::GetTooltipText() const
 {
-	return LOCTEXT("MeshMergingToolTooltip", "Harvest geometry from selected actors and merge grouping them by materials.");
+	return LOCTEXT("MeshMergingToolTooltip", "Merge to a single static mesh actor");
 }
 
 FString FMeshMergingTool::GetDefaultPackageName() const
@@ -76,21 +75,18 @@ FString FMeshMergingTool::GetDefaultPackageName() const
 	return PackageName;
 }
 
-bool FMeshMergingTool::RunMerge(const FString& PackageName)
+const TArray<TSharedPtr<FMergeComponentData>>& FMeshMergingTool::GetSelectedComponentsInWidget() const
+{
+	return MergingDialog->GetSelectedComponents();
+}
+
+bool FMeshMergingTool::RunMerge(const FString& PackageName, const TArray<TSharedPtr<FMergeComponentData>>& SelectedComponents)
 {
 	const IMeshMergeUtilities& MeshUtilities = FModuleManager::Get().LoadModuleChecked<IMeshMergeModule>("MeshMergeUtilities").GetUtilities();
-	USelection* SelectedActors = GEditor->GetSelectedActors();
 	TArray<AActor*> Actors;
 	TArray<ULevel*> UniqueLevels;
-	for (FSelectionIterator Iter(*SelectedActors); Iter; ++Iter)
-	{
-		AActor* Actor = Cast<AActor>(*Iter);
-		if (Actor)
-		{
-			Actors.Add(Actor);
-			UniqueLevels.AddUnique(Actor->GetLevel());
-		}
-	}
+
+	BuildActorsListFromMergeComponentsData(SelectedComponents, Actors, bReplaceSourceActors ? &UniqueLevels : nullptr);
 
 	// This restriction is only for replacement of selected actors with merged mesh actor
 	if (UniqueLevels.Num() > 1 && bReplaceSourceActors)
@@ -109,7 +105,6 @@ bool FMeshMergingTool::RunMerge(const FString& PackageName)
 		SlowTask.MakeDialog();
 
 		// Extracting static mesh components from the selected mesh components in the dialog
-		const TArray<TSharedPtr<FMergeComponentData>>& SelectedComponents = MergingDialog->GetSelectedComponents();
 		TArray<UPrimitiveComponent*> ComponentsToMerge;
 
 		for ( const TSharedPtr<FMergeComponentData>& SelectedComponent : SelectedComponents)
@@ -184,14 +179,12 @@ bool FMeshMergingTool::RunMerge(const FString& PackageName)
 		}
 	}
 
-	MergingDialog->Reset();
+	if (MergingDialog)
+	{
+		MergingDialog->Reset();
+	}
 
 	return true;
-}
-
-bool FMeshMergingTool::CanMerge() const
-{	
-	return MergingDialog->GetNumSelectedMeshComponents() >= 1;
 }
 
 #undef LOCTEXT_NAMESPACE
