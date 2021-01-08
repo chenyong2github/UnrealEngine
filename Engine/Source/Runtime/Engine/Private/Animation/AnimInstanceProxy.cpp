@@ -1093,8 +1093,8 @@ void FAnimInstanceProxy::UpdateAnimation_WithRoot(const FAnimationUpdateContext&
 		TGuardValue<bool> ScopeGuard(bUpdatingRoot, true);
 
 		// Anything syncing within this scope is subject to sync groups.
-		// We only enable syncing here for the main proxy or if we have no main proxy
-		const bool bEnableSyncScope = (GetMainInstanceProxy() == nullptr) || (GetMainInstanceProxy() == this);
+		// We only enable syncing here for the main instance or post process instance
+		const bool bEnableSyncScope = GetAnimInstanceObject() == GetSkelMeshComponent()->GetAnimInstance() || GetAnimInstanceObject() == GetSkelMeshComponent()->GetPostProcessInstance();
 		UE::Anim::TOptionalScopedGraphMessage<UE::Anim::FAnimSyncGroupScope> Message(bEnableSyncScope, InContext, InContext);
 
 		// update all nodes

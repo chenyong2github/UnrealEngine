@@ -46,6 +46,9 @@ private:
 	// The proxy that we are running
 	FAnimInstanceProxy& Proxy;
 
+	// The outer proxy, if any, to forward tick records to
+	FAnimInstanceProxy* OuterProxy;
+
 	// The sync group that this scope uses.
 	FName SyncGroup;
 

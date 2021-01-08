@@ -16,9 +16,15 @@ FAnimSyncDebugInfo::FAnimSyncDebugInfo(const FAnimationBaseContext& InContext)
 FAnimSyncGroupScope::FAnimSyncGroupScope(const FAnimationBaseContext& InContext, FName InSyncGroup, EAnimGroupRole::Type InGroupRole)
 	: NodeId(InContext.GetCurrentNodeId())
 	, Proxy(*InContext.AnimInstanceProxy)
+	, OuterProxy(nullptr)
 	, SyncGroup(InSyncGroup)
 	, GroupRole(InGroupRole)
 {
+	// If we have an outer message, grab its proxy for forwarding
+	if(const FAnimSyncGroupScope* OuterMessage = InContext.GetMessage<FAnimSyncGroupScope>())
+	{
+		OuterProxy = OuterMessage->OuterProxy != nullptr ? OuterMessage->OuterProxy : &OuterMessage->Proxy;
+	}
 }
 
 void FAnimSyncGroupScope::AddTickRecord(const FAnimTickRecord& InTickRecord, const FAnimSyncParams& InSyncParams, const FAnimSyncDebugInfo& InDebugInfo)
@@ -54,10 +60,10 @@ void FAnimSyncGroupScope::AddTickRecord(const FAnimTickRecord& InTickRecord, con
 		break;
 	}
 
-	// Forward to main instance if we have one
-	if(Proxy.GetMainInstanceProxy())
+	// Forward to outer instance if we have one
+	if(OuterProxy)
 	{
-		Proxy.GetMainInstanceProxy()->AddTickRecord(InTickRecord, NewSyncParams);
+		OuterProxy->AddTickRecord(InTickRecord, NewSyncParams);
 	}
 	else
 	{
