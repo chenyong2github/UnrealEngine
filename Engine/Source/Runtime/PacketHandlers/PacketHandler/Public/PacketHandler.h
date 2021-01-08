@@ -20,6 +20,7 @@ class ReliabilityHandlerComponent;
 class FDDoSDetection;
 class IAnalyticsProvider;
 class FNetAnalyticsAggregator;
+class PacketHandler;
 
 
 /**
@@ -30,6 +31,10 @@ class FNetAnalyticsAggregator;
 DECLARE_DELEGATE_ThreeParams(FPacketHandlerLowLevelSendTraits, void* /* Data */, int32 /* CountBits */, FOutPacketTraits& /* Traits */);
 
 DECLARE_DELEGATE_ThreeParams(FPacketHandlerLowLevelSend, void* /* Data */, int32 /* CountBytes */, int32 /* CountBits */);
+
+// Delegate for allowing adding of packet handlers without defining them in an ini file
+DECLARE_DELEGATE_OneParam(FPacketHandlerAddComponentByNameDelegate, TArray<FString>& /* HandlerComponentNames */);
+DECLARE_DELEGATE_OneParam(FPacketHandlerAddComponentDelegate, TArray<TSharedPtr<HandlerComponent>>& /* HandlerComponents*/ );
 
 /**
  * Callback for notifying higher-level code that handshaking has completed, and that packets are now ready to send without buffering
@@ -604,6 +609,9 @@ private:
 public:
 	/** Mode of the handler, Client or Server */
 	Handler::Mode Mode;
+
+	static FPacketHandlerAddComponentByNameDelegate& GetAddComponentByNameDelegate();
+	static FPacketHandlerAddComponentDelegate& GetAddComponentDelegate();
 
 private:
 	/** Whether or not this PacketHandler handles connectionless (i.e. non-UNetConnection) data */
