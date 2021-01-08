@@ -162,7 +162,8 @@ void RenderHardwareRayTracingScreenProbe(
 	const FCompactedTraceParameters& CompactedTraceParameters)
 #if RHI_RAYTRACING
 {
-	FIntPoint RayTracingResolution = FIntPoint(ScreenProbeParameters.ScreenProbeTraceBufferSize.X * ScreenProbeParameters.ScreenProbeTraceBufferSize.Y, 1);
+	const uint32 NumTracesPerProbe = ScreenProbeParameters.ScreenProbeTracingOctahedronResolution * ScreenProbeParameters.ScreenProbeTracingOctahedronResolution;
+	FIntPoint RayTracingResolution = FIntPoint(ScreenProbeParameters.ScreenProbeAtlasViewSize.X * ScreenProbeParameters.ScreenProbeAtlasViewSize.Y * NumTracesPerProbe, 1);
 
 	// Trace and shade
 	{
