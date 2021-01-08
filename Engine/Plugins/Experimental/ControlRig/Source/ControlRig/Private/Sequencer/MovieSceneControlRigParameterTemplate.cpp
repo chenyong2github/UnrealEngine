@@ -502,12 +502,36 @@ struct FControlRigParameterPreAnimatedTokenProducer : IMovieScenePreAnimatedToke
 
 						for (TNameAndValue<FTransform>& Value : TransformValues)
 						{
-							if (ControlRig->FindControl(Value.Name))
+							if (FRigControl* RigControl = ControlRig->FindControl(Value.Name))
 							{
-								ControlRig->SetControlValue<FTransform>(Value.Name, Value.Value, true, FRigControlModifiedContext(EControlRigSetKey::Never));
+								switch (RigControl->ControlType)
+								{
+								case ERigControlType::Transform:
+								{
+									ControlRig->SetControlValue<FTransform>(Value.Name, Value.Value, true, FRigControlModifiedContext(EControlRigSetKey::Never));
+									break;
+								}
+								case ERigControlType::TransformNoScale:
+								{
+									FTransformNoScale NoScale = Value.Value;
+									ControlRig->SetControlValue<FTransformNoScale>(Value.Name, NoScale, true, FRigControlModifiedContext(EControlRigSetKey::Never));
+									break;
+								}
+								case ERigControlType::EulerTransform:
+								{
+									FEulerTransform EulerTransform = Value.Value;
+									ControlRig->SetControlValue<FEulerTransform>(Value.Name, EulerTransform, true, FRigControlModifiedContext(EControlRigSetKey::Never));
+									break;
+								}
+
+								}
 							}
 						}
-						ControlRig->GetObjectBinding()->UnbindFromObject();
+						//only unbind if not a component
+						if (Cast<UControlRigComponent>(ControlRig->GetObjectBinding()->GetBoundObject()) == nullptr)
+						{
+							ControlRig->GetObjectBinding()->UnbindFromObject();
+						}
 					}
 				}
 			}
