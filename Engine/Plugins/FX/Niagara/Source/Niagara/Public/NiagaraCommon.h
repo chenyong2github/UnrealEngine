@@ -81,6 +81,17 @@ enum class ENiagaraGpuBufferFormat : uint8
 	Max UMETA(Hidden),
 };
 
+UENUM()
+enum class ENiagaraMipMapGeneration : uint8
+{
+	/** Mips will not be created or automatically generated. */
+	Disabled,
+	/** Mips will be generated after each stage where the interfaces is written to. */
+	PostStage,
+	/** Mips will be generated after all stages have been run if the interface was written to. */
+	PostSimulate,
+};
+
 // TODO: Custom will eventually mean that the default value or binding will be overridden by a subgraph default, i.e. expose it to a "Initialize variable" node. 
 // TODO: Should we add an "Uninitialized" entry, or is that too much friction? 
 UENUM()
