@@ -358,10 +358,12 @@ void FAnimInstanceProxy::PreUpdate(UAnimInstance* InAnimInstance, float DeltaSec
 
 	InitializeObjects(InAnimInstance);
 
+#if WITH_EDITORONLY_DATA
 	if (FAnimBlueprintDebugData* DebugData = GetAnimBlueprintDebugData())
 	{
 		DebugData->ResetNodeVisitSites();
 	}
+#endif
 
 	if (SkelMeshComp)
 	{
