@@ -2122,8 +2122,13 @@ bool UMovieSceneControlRigParameterSection::LoadAnimSequenceIntoThisSection(UAni
 				SourceBones.SetLocalTransform(BoneName, BoneTransform);
 			}
 		}
-
+		if (Index == 0)
+		{
+			//to make sure the first frame looks good we need to do this first. UE-100069
+			ControlRig->Execute(EControlRigState::Update, FRigUnit_InverseExecution::EventName);
+		}
 		ControlRig->Execute(EControlRigState::Update, FRigUnit_InverseExecution::EventName);
+
 		RecordControlRigKey(FrameNumber, true, bKeyReduce);
 		Progress.EnterProgressFrame(1);
 		if (Progress.ShouldCancel())
