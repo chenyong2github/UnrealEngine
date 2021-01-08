@@ -650,9 +650,6 @@ void ULevel::RemoveLoadedActor(AActor* Actor)
 	ActorsForGC.Remove(Actor);
 
 	OnLoadedActorRemovedFromLevelEvent.Broadcast(*Actor);
-
-	Actor->MarkPendingKill();
-	Actor->MarkComponentsAsPendingKill();
 }
 #endif
 
