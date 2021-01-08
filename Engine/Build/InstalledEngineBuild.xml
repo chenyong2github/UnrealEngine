@@ -441,7 +441,10 @@
 	
 	<Agent Name="BuildRules" Type="Win64_Licensee">
 		<Node Name="Compile Rules Assemblies" Produces="#Rules Assemblies">
-			<Spawn Exe="Engine/Binaries/DotNET/UnrealBuildTool/UnrealBuildTool.exe" Arguments="-Mode=QueryTargets"/>
+			<Property Name="UBTPath" Value="Engine/Binaries/DotNET/UnrealBuildTool/UnrealBuildTool.exe"/>
+			<Property Name="UBTPath" Value="Engine/Binaries/DotNET/UnrealBuildTool/UnrealBuildTool" If="'$(HostPlatform)' != 'Win64'"/>
+
+			<Spawn Exe="$(UBTPath)" Arguments="-Mode=QueryTargets"/>
 			<Tag Files="Engine/Intermediate/Build/BuildRules/..." With="#Rules Assemblies"/>
 		</Node>
 	</Agent>
