@@ -365,6 +365,8 @@ void FMemAllocTable::AddDefaultColumns()
 
 		Column.SetDataType(ETableCellDataType::CString);
 
+		Column.SetIsDynamic(true);
+
 		class FBacktraceValueGetter : public FTableCellValueGetter
 		{
 		public:

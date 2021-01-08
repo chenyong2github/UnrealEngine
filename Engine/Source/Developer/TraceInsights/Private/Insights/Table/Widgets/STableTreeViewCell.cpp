@@ -121,24 +121,35 @@ FText STableTreeViewCell::GetValueAsText() const
 
 TSharedRef<SWidget> STableTreeViewCell::GenerateWidgetForTableColumn(const FArguments& InArgs, const TSharedRef<ITableRow>& TableRow)
 {
-	// Note: For performance reason, init the cell text (value) only once.
-	//       If we'll need to update values without recreating the table row/cell widgets, bind .Text to STableTreeViewCell::GetValueAsText
-	//       or add API to explicitly update the text block.
-	FText CellText;
-	if (TableTreeNodePtr->IsGroup())
+	TSharedRef<STextBlock> TextBox = SNew(STextBlock)
+		.TextStyle(FEditorStyle::Get(), TEXT("Profiler.Tooltip"))
+		.ColorAndOpacity(this, &STableTreeViewCell::GetStatsColorAndOpacity)
+		.ShadowColorAndOpacity(this, &STableTreeViewCell::GetShadowColorAndOpacity);
+
+	if (ColumnPtr->IsDynamic())
 	{
-		if (TableTreeNodePtr->HasAggregatedValue(ColumnPtr->GetId()))
-		{
-			CellText = ColumnPtr->GetValueFormatter()->FormatValue(TableTreeNodePtr->GetAggregatedValue(ColumnPtr->GetId()));
-		}
-		else
-		{
-			CellText = FText::FromString(TEXT("-"));
-		}
+		TextBox->SetText(TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateRaw(this, &STableTreeViewCell::GetValueAsText)));
 	}
 	else
 	{
-		CellText = ColumnPtr->GetValueAsText(*TableTreeNodePtr);
+		FText CellText;
+		if (TableTreeNodePtr->IsGroup())
+		{
+			if (TableTreeNodePtr->HasAggregatedValue(ColumnPtr->GetId()))
+			{
+				CellText = ColumnPtr->GetValueFormatter()->FormatValue(TableTreeNodePtr->GetAggregatedValue(ColumnPtr->GetId()));
+			}
+			else
+			{
+				CellText = FText::FromString(TEXT("-"));
+			}
+		}
+		else
+		{
+			CellText = ColumnPtr->GetValueAsText(*TableTreeNodePtr);
+		}
+
+		TextBox->SetText(CellText);
 	}
 
 	return
@@ -151,11 +162,7 @@ TSharedRef<SWidget> STableTreeViewCell::GenerateWidgetForTableColumn(const FArgu
 		.HAlign(ColumnPtr->GetHorizontalAlignment())
 		.Padding(FMargin(2.0f, 0.0f))
 		[
-			SNew(STextBlock)
-			.Text(CellText)
-			.TextStyle(FEditorStyle::Get(), TEXT("Profiler.Tooltip"))
-			.ColorAndOpacity(this, &STableTreeViewCell::GetStatsColorAndOpacity)
-			.ShadowColorAndOpacity(this, &STableTreeViewCell::GetShadowColorAndOpacity)
+			TextBox
 		]
 	;
 }

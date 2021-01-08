@@ -61,6 +61,7 @@ public:
 		, TitleName()
 		, Description()
 		, bIsVisible(false)
+		, bIsDynamic(false)
 		, Flags(ETableColumnFlags::None)
 		, HorizontalAlignment(HAlign_Left)
 		, InitialWidth(60.0f)
@@ -186,6 +187,11 @@ public:
 	TWeakPtr<FTable> GetParentTable() const { return ParentTable; }
 	void SetParentTable(TWeakPtr<FTable> InParentTable) { ParentTable = InParentTable; }
 
+	//////////////////////////////////////////////////
+
+	void SetIsDynamic(bool InValue) { bIsDynamic = InValue; }
+	bool IsDynamic() const { return bIsDynamic; }
+
 private:
 	/** Id of the column. */
 	FName Id;
@@ -204,6 +210,9 @@ private:
 
 	/** Is this column visible? */
 	bool bIsVisible;
+
+	/** If it is not dynamic, the column's value can be cached. */
+	bool bIsDynamic;
 
 	/** Other on/off switches. */
 	ETableColumnFlags Flags;
