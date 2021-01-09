@@ -94,19 +94,20 @@ struct TEPAEntry
 		return TVec3<T>::DotProduct(PlaneNormal, X) - Distance;
 	}
 
-	bool IsOriginProjectedInside(const TVec3<T>* VertsABuffer, const TVec3<T>* VertsBBuffer) const
+	bool IsOriginProjectedInside(const TVec3<T>* VertsABuffer, const TVec3<T>* VertsBBuffer, const T Epsilon) const
 	{
 		//Compare the projected point (PlaneNormal) to the triangle in the plane
-		const TVec3<T> PA = MinkowskiVert(VertsABuffer, VertsBBuffer, IdxBuffer[0]) - PlaneNormal;
-		const TVec3<T> PB = MinkowskiVert(VertsABuffer, VertsBBuffer, IdxBuffer[1]) - PlaneNormal;
-		const TVec3<T> PC = MinkowskiVert(VertsABuffer, VertsBBuffer, IdxBuffer[2]) - PlaneNormal;
+		const TVec3<T> PN = Distance * PlaneNormal;
+		const TVec3<T> PA = MinkowskiVert(VertsABuffer, VertsBBuffer, IdxBuffer[0]) - PN;
+		const TVec3<T> PB = MinkowskiVert(VertsABuffer, VertsBBuffer, IdxBuffer[1]) - PN;
+		const TVec3<T> PC = MinkowskiVert(VertsABuffer, VertsBBuffer, IdxBuffer[2]) - PN;
 
 		const TVec3<T> PACNormal = TVec3<T>::CrossProduct(PA, PC);
 		const T PACSign = TVec3<T>::DotProduct(PACNormal, PlaneNormal);
 		const TVec3<T> PCBNormal = TVec3<T>::CrossProduct(PC, PB);
 		const T PCBSign = TVec3<T>::DotProduct(PCBNormal, PlaneNormal);
 
-		if((PACSign < 0 && PCBSign > 0) || (PACSign > 0 && PCBSign < 0))
+		if((PACSign < -Epsilon && PCBSign > Epsilon) || (PACSign > Epsilon && PCBSign < -Epsilon))
 		{
 			return false;
 		}
@@ -114,7 +115,7 @@ struct TEPAEntry
 		const TVec3<T> PBANormal = TVec3<T>::CrossProduct(PB, PA);
 		const T PBASign = TVec3<T>::DotProduct(PBANormal, PlaneNormal);
 
-		if((PACSign < 0 && PBASign > 0) || (PACSign > 0 && PBASign < 0))
+		if((PACSign < -Epsilon && PBASign > Epsilon) || (PACSign > Epsilon && PBASign < -Epsilon))
 		{
 			return false;
 		}
@@ -381,19 +382,28 @@ void ComputeEPAResults(const TVec3<T>* VertsA, const TVec3<T>* VertsB, const TEP
 	}
 }
 
-enum class EPAResult
+enum class EEPAResult
 {
-	Ok,
-	MaxIterations,
-	BadInitialSimplex
+	Ok,							// Successfully found the contact point to within the tolerance
+	MaxIterations,				// We have a contact point, but did not reach the target tolerance before we hit the iteration limit - result accuracy is unknown
+	Degenerate,					// We hit a degenerate condition in EPA which prevents a solution from being generated (result is invalid but objects may be penetrating)
+	BadInitialSimplex,			// The initial setup did not provide a polytope containing the origin (objects are separated)
 };
+
+inline const bool IsEPASuccess(EEPAResult EPAResult)
+{
+	return (EPAResult == EEPAResult::Ok) || (EPAResult == EEPAResult::MaxIterations);
+}
 
 #ifndef DEBUG_EPA
 #define DEBUG_EPA 0
 #endif
 
+// Expanding Polytope Algorithm for finding the contact point for overlapping convex polyhedra.
+// See e.g., "Collision Detection in Interactive 3D Environments" (Gino van den Bergen, 2004)
+// or "Real-time Collision Detection with Implicit Objects" (Leif Olvang, 2010)
 template <typename T, typename SupportALambda, typename SupportBLambda>
-EPAResult EPA(TArray<TVec3<T>>& VertsABuffer, TArray<TVec3<T>>& VertsBBuffer, const SupportALambda& SupportA, const SupportBLambda& SupportB, T& OutPenetration, TVec3<T>& OutDir, TVec3<T>& WitnessA, TVec3<T>& WitnessB)
+EEPAResult EPA(TArray<TVec3<T>>& VertsABuffer, TArray<TVec3<T>>& VertsBBuffer, const SupportALambda& SupportA, const SupportBLambda& SupportB, T& OutPenetration, TVec3<T>& OutDir, TVec3<T>& WitnessA, TVec3<T>& WitnessB)
 {
 	struct FEPAEntryWrapper
 	{
@@ -409,8 +419,9 @@ EPAResult EPA(TArray<TVec3<T>>& VertsABuffer, TArray<TVec3<T>>& VertsBBuffer, co
 	T UpperBound = TNumericLimits<T>::Max();
 	T LowerBound = TNumericLimits<T>::Lowest();
 
-	// @todo(chaos): pass in epsilon? Does it need to match anything in GJK?
+	// @todo(chaos): Should we pass in Eps? Does it need to match anything used in GJK?
 	constexpr T Eps = 1e-2;
+	constexpr T OriginInsideEps = 0.0f;
 
 	TArray<TEPAEntry<T>> Entries;
 	if(!InitializeEPA(VertsABuffer,VertsBBuffer,SupportA,SupportB, Entries, OutDir))
@@ -419,7 +430,7 @@ EPAResult EPA(TArray<TVec3<T>>& VertsABuffer, TArray<TVec3<T>>& VertsBBuffer, co
 		OutPenetration = 0;
 		WitnessA = TVec3<T>(0);
 		WitnessB = TVec3<T>(0);
-		return EPAResult::BadInitialSimplex;
+		return EEPAResult::BadInitialSimplex;
 	}
 
 #if DEBUG_EPA
@@ -435,22 +446,21 @@ EPAResult EPA(TArray<TVec3<T>>& VertsABuffer, TArray<TVec3<T>>& VertsBBuffer, co
 	{
 		//ensure(Entries[Idx].Distance > -Eps);
 		// Entries[Idx].Distance <= 0.0f is true if the origin is a bit out of the polytope (we need to support this case for robustness)
-		if(Entries[Idx].Distance <= 0.0f || Entries[Idx].IsOriginProjectedInside(VertsABuffer.GetData(), VertsBBuffer.GetData()))
+		if(Entries[Idx].Distance <= 0.0f || Entries[Idx].IsOriginProjectedInside(VertsABuffer.GetData(), VertsBBuffer.GetData(), OriginInsideEps))
 		{
 			Queue.push(FEPAEntryWrapper {&Entries, Idx});
 		}
 	}
-
 	
 	//TEPAEntry<T> BestEntry;
 	//BestEntry.Distance = 0;
-
 	TEPAEntry<T> LastEntry = Queue.size() > 0 ? Entries[Queue.top().Idx] : Entries[0];
 
 	TArray<FEPAFloodEntry> VisibilityBorder;
 	int32 Iteration = 0;
 	int32 constexpr MaxIterations = 128;
-	while(Queue.size() && Iteration++ < MaxIterations)
+	EEPAResult ResultStatus = EEPAResult::MaxIterations;
+	while (Queue.size() && (Iteration++ < MaxIterations))
 	{
 		int32 EntryIdx = Queue.top().Idx;
 		Queue.pop();
@@ -462,16 +472,20 @@ EPAResult EPA(TArray<TVec3<T>>& VertsABuffer, TArray<TVec3<T>>& VertsBBuffer, co
 		}
 		if (Entry.bObsolete)
 		{
+			// @todo(chaos): should this count as an iteration? Currently it does...
 			continue;
 		}
 
-
+		if (Entry.Distance > UpperBound)
+		{
+			ResultStatus = EEPAResult::Ok;
+			break;
+		}
 
 		const TVec3<T> ASupport = SupportA(Entry.PlaneNormal);
 		const TVec3<T> BSupport = SupportB(-Entry.PlaneNormal);
 		const TVec3<T> W = ASupport - BSupport;
 		const T DistanceToSupportPlane = TVec3<T>::DotProduct(Entry.PlaneNormal, W);
-		//ensure(DistanceToSupportPlane > -Eps);
 		if(DistanceToSupportPlane < UpperBound)
 		{
 			UpperBound = DistanceToSupportPlane;
@@ -485,14 +499,15 @@ EPAResult EPA(TArray<TVec3<T>>& VertsABuffer, TArray<TVec3<T>>& VertsBBuffer, co
 		//It's possible the origin is not contained by the CSO. In this case the upper bound will be negative, at which point we should just exit. Maybe return a different enum value?
 		if (FMath::Abs(UpperBound - LowerBound) <= Eps)
 		{
-			//UE_LOG(LogChaos, Warning, TEXT("Iteration:%d"), Iteration);
-			ComputeEPAResults(VertsABuffer.GetData(), VertsBBuffer.GetData(), Entry, OutPenetration, OutDir, WitnessA, WitnessB);
-			return EPAResult::Ok;
+			ResultStatus = EEPAResult::Ok;
+			LastEntry = Entry;
+			break;
 		}
 
 		if (UpperBound < LowerBound)
 		{
 			//we cannot get any better than what we saw, so just return previous face
+			ResultStatus = EEPAResult::Ok;
 			break;
 		}
 
@@ -536,6 +551,7 @@ EPAResult EPA(TArray<TVec3<T>>& VertsABuffer, TArray<TVec3<T>>& VertsBBuffer, co
 				if (!bValidTri)
 				{
 					//couldn't properly expand polytope, so just stop
+					ResultStatus = EEPAResult::Degenerate;
 					bTerminate = true;
 					break;
 				}
@@ -547,7 +563,7 @@ EPAResult EPA(TArray<TVec3<T>>& VertsABuffer, TArray<TVec3<T>>& VertsBBuffer, co
 				if (bValidTri && NewEntry.Distance <= UpperBound)
 				{
 					// NewEntry.Distance <= 0.0f is if the origin is a bit out of the polytope
-					if (NewEntry.Distance <= 0.0f || NewEntry.IsOriginProjectedInside(VertsABuffer.GetData(), VertsBBuffer.GetData()))
+					if (NewEntry.Distance <= 0.0f || NewEntry.IsOriginProjectedInside(VertsABuffer.GetData(), VertsBBuffer.GetData(), OriginInsideEps))
 					{
 						Queue.push(FEPAEntryWrapper{ &Entries, NewIdx });
 					}
@@ -564,12 +580,13 @@ EPAResult EPA(TArray<TVec3<T>>& VertsABuffer, TArray<TVec3<T>>& VertsBBuffer, co
 		else
 		{
 			//couldn't properly expand polytope, just stop now
+			ResultStatus = EEPAResult::Degenerate;
 			break;
 		}
 	}
 
 	ComputeEPAResults(VertsABuffer.GetData(), VertsBBuffer.GetData(), LastEntry, OutPenetration, OutDir, WitnessA, WitnessB);
 	
-	return EPAResult::MaxIterations;
+	return ResultStatus;
 }
 }
