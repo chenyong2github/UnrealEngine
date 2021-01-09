@@ -372,7 +372,23 @@ void USynthComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
-#endif
+#endif //WITH_EDITOR
+
+#if WITH_EDITORONLY_DATA
+void USynthComponent::PostLoad()
+{
+	Super::PostLoad();
+
+	if (bOutputToBusOnly_DEPRECATED)
+	{
+		bEnableBusSends = true;
+		bEnableBaseSubmix = !bOutputToBusOnly_DEPRECATED;
+		bEnableSubmixSends = !bOutputToBusOnly_DEPRECATED;
+		bOutputToBusOnly_DEPRECATED = false;
+	}
+}
+#endif //WITH_EDITORONLY_DATA
+
 
 void USynthComponent::Serialize(FArchive& Ar)
 {
