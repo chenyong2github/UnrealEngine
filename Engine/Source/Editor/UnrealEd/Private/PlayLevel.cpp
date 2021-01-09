@@ -2104,8 +2104,13 @@ void UEditorEngine::EnableWorldSwitchCallbacks(bool bEnable)
 	{
 		// Set up a delegate to be called in Slate when GWorld needs to change.  Slate does not have direct access to the playworld to switch itself
 		FScopedConditionalWorldSwitcher::SwitchWorldForPIEDelegate = FOnSwitchWorldForPIE::CreateUObject(this, &UEditorEngine::OnSwitchWorldsForPIE);
-		ScriptExecutionStartHandle = FBlueprintContextTracker::OnEnterScriptContext.AddUObject(this, &UEditorEngine::OnScriptExecutionStart);
-		ScriptExecutionEndHandle = FBlueprintContextTracker::OnExitScriptContext.AddUObject(this, &UEditorEngine::OnScriptExecutionEnd);
+
+		if (!ScriptExecutionStartHandle.IsValid())
+		{
+			// This function can get called multiple times in multiplayer PIE
+			ScriptExecutionStartHandle = FBlueprintContextTracker::OnEnterScriptContext.AddUObject(this, &UEditorEngine::OnScriptExecutionStart);
+			ScriptExecutionEndHandle = FBlueprintContextTracker::OnExitScriptContext.AddUObject(this, &UEditorEngine::OnScriptExecutionEnd);
+		}
 	}
 	else
 	{
@@ -2115,8 +2120,13 @@ void UEditorEngine::EnableWorldSwitchCallbacks(bool bEnable)
 		// There should never be an active function context when pie is ending!
 		check(!FunctionStackWorldSwitcher);
 
-		FBlueprintContextTracker::OnEnterScriptContext.Remove(ScriptExecutionStartHandle);
-		FBlueprintContextTracker::OnExitScriptContext.Remove(ScriptExecutionEndHandle);
+		if (ScriptExecutionStartHandle.IsValid())
+		{
+			FBlueprintContextTracker::OnEnterScriptContext.Remove(ScriptExecutionStartHandle);
+			ScriptExecutionStartHandle.Reset();
+			FBlueprintContextTracker::OnExitScriptContext.Remove(ScriptExecutionEndHandle);
+			ScriptExecutionEndHandle.Reset();
+		}
 	}
 }
 
