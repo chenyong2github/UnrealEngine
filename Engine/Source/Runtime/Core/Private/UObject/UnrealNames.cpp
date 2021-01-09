@@ -175,10 +175,10 @@ OUTLINE_DECODE_BUFFER bool EqualsSameDimensions(const FNameEntry& Entry, FNameSt
 }
 
 /** Remember to update natvis if you change these */
-enum { FNameMaxBlockBits = 13 }; // Limit block array a bit, still allowing 8k * block size = 1GB - 2G of FName entry data
-enum { FNameBlockOffsetBits = 16 };
-enum { FNameMaxBlocks = 1 << FNameMaxBlockBits };
-enum { FNameBlockOffsets = 1 << FNameBlockOffsetBits };
+static constexpr uint32 FNameMaxBlockBits = 13; // Limit block array a bit, still allowing 8k * block size = 1GB - 2G of FName entry data
+static constexpr uint32 FNameBlockOffsetBits = 16;
+static constexpr uint32 FNameMaxBlocks = 1 << FNameMaxBlockBits;
+static constexpr uint32 FNameBlockOffsets = 1 << FNameBlockOffsetBits;
 
 /** An unpacked FNameEntryId */
 struct FNameEntryHandle
@@ -432,7 +432,9 @@ private:
 		++CurrentBlock;
 		CurrentByteCursor = 0;
 
-		check(CurrentBlock < FNameMaxBlocks);
+		checkf(CurrentBlock < FNameMaxBlocks, TEXT("FName overflow, allocated %dMB of string data. "
+			"FName strings are never freed and should be created sparingly. "
+			"Some system might be generating too many FNames, see call stack. "), FNameMaxBlocks * BlockSizeBytes >> 20);
 
 		// Allocate block unless it's already reserved
 		if (Blocks[CurrentBlock] == nullptr)
