@@ -3277,6 +3277,10 @@ void FSceneRenderer::RenderCustomDepthPass(FRDGBuilder& GraphBuilder)
 	{
 		RDG_GPU_STAT_SCOPE(GraphBuilder, CustomDepth);
 
+		// Only clear once the target for every views it contains.
+		ERenderTargetLoadAction DepthLoadAction = ERenderTargetLoadAction::EClear;
+		ERenderTargetLoadAction StencilLoadAction = bWritesCustomStencilValues ? ERenderTargetLoadAction::EClear : ERenderTargetLoadAction::ENoAction;
+
 		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 		{
 			RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, Views.Num() > 1, "View%d", ViewIndex);
@@ -3290,23 +3294,27 @@ void FSceneRenderer::RenderCustomDepthPass(FRDGBuilder& GraphBuilder)
 				{
 					checkSlow(CustomDepthTextures.MobileCustomDepth && CustomDepthTextures.MobileCustomStencil);
 
-					PassParameters->RenderTargets[0] = FRenderTargetBinding(CustomDepthTextures.MobileCustomDepth, ERenderTargetLoadAction::EClear);
-					PassParameters->RenderTargets[1] = FRenderTargetBinding(CustomDepthTextures.MobileCustomStencil, bWritesCustomStencilValues ? ERenderTargetLoadAction::EClear : ERenderTargetLoadAction::ENoAction);
+					PassParameters->RenderTargets[0] = FRenderTargetBinding(CustomDepthTextures.MobileCustomDepth, DepthLoadAction);
+					PassParameters->RenderTargets[1] = FRenderTargetBinding(CustomDepthTextures.MobileCustomStencil, StencilLoadAction);
 
 					PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(
 						CustomDepthTextures.CustomDepth,
-						ERenderTargetLoadAction::EClear,
-						ERenderTargetLoadAction::EClear,
+						DepthLoadAction,
+						StencilLoadAction,
 						FExclusiveDepthStencil::DepthWrite_StencilWrite);
 				}
 				else
 				{
 					PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(
 						CustomDepthTextures.CustomDepth,
-						ERenderTargetLoadAction::EClear,
-						bWritesCustomStencilValues ? ERenderTargetLoadAction::EClear : ERenderTargetLoadAction::ENoAction,
+						DepthLoadAction,
+						StencilLoadAction,
 						FExclusiveDepthStencil::DepthWrite_StencilWrite);
 				}
+
+				// Next pass, do not clear the shared target, only render into it
+				DepthLoadAction = ERenderTargetLoadAction::ELoad;
+				StencilLoadAction = ERenderTargetLoadAction::ELoad;
 
 				GraphBuilder.AddPass(
 					RDG_EVENT_NAME("CustomDepth"),
