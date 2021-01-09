@@ -5,7 +5,7 @@
 #include "NiagaraCommon.h"
 #include "NiagaraDataInterfaceRW.h"
 #include "ClearQuad.h"
-
+#include "NiagaraStats.h"
 
 #include "NiagaraDataInterfaceNeighborGrid3D.generated.h"
 
@@ -19,6 +19,28 @@ class NeighborGrid3DRWInstanceData
 {
 public:
 
+	~NeighborGrid3DRWInstanceData()
+	{
+#if STATS
+		DEC_MEMORY_STAT_BY(STAT_NiagaraGPUDataInterfaceMemory, GPUMemory);
+#endif
+	}
+
+	void ResizeBuffers()
+	{
+		const int32 NumTotalCells = NumCells.X * NumCells.Y * NumCells.Z;
+		const int32 NumIntsInGridBuffer = NumTotalCells * MaxNeighborsPerCell;
+
+		NeighborhoodCountBuffer.Initialize(sizeof(int32), NumTotalCells, EPixelFormat::PF_R32_SINT, BUF_Static, TEXT("NiagaraNeighborGrid3D::NeighborCount"));
+		NeighborhoodBuffer.Initialize(sizeof(int32), NumIntsInGridBuffer, EPixelFormat::PF_R32_SINT, BUF_Static, TEXT("NiagaraNeighborGrid3D::NeighborsGrid"));
+
+#if STATS
+		DEC_MEMORY_STAT_BY(STAT_NiagaraGPUDataInterfaceMemory, GPUMemory);
+		GPUMemory = NumTotalCells * sizeof(int32) + NumIntsInGridBuffer * sizeof(int32);
+		INC_MEMORY_STAT_BY(STAT_NiagaraGPUDataInterfaceMemory, GPUMemory);
+#endif
+	}
+
 	FIntVector NumCells;
 	float CellSize;
 	bool SetGridFromCellSize;
@@ -29,6 +51,10 @@ public:
 
 	FRWBuffer NeighborhoodBuffer;
 	FRWBuffer NeighborhoodCountBuffer;
+
+#if STATS
+	int32 GPUMemory = 0;
+#endif
 };
 
 struct FNiagaraDataInterfaceProxyNeighborGrid3D : public FNiagaraDataInterfaceProxyRW
