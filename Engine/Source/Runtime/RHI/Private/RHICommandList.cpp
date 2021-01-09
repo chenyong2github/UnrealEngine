@@ -365,7 +365,7 @@ void FRHICommandListExecutor::ExecuteInner_DoExecute(FRHICommandListBase& CmdLis
 		FRHIBreadcrumb const* const* BreadcrumbPointer;
 	} CrashState;
 	CrashState.ThreadName = TEXT("Parallel");
-	CrashState.BreadcrumbPointer = CmdList.Context->GetBreadcrumbStackTop();
+	CrashState.BreadcrumbPointer = CmdList.Context ? CmdList.Context->GetBreadcrumbStackTop() : nullptr;
 	if(IsInRenderingThread())
 	{
 		CrashState.ThreadName = TEXT("RenderingThread");
