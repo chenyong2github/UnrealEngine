@@ -26,8 +26,16 @@
 
 static TAutoConsoleVariable<float> CVarContactShadowLength(
 	TEXT( "r.Shadow.v.ContactShadowLength" ),
-	0.04f,
+	0.02f,
 	TEXT( "Length of the screen space contact shadow trace (smart shadow bias) before the virtual shadow map lookup." ),
+	ECVF_RenderThreadSafe
+);
+
+static TAutoConsoleVariable<float> CVarNormalOffsetWorld(
+	TEXT( "r.Shadow.v.NormalOffsetWorld" ),
+	0.5f,
+	TEXT( "World space offset along surface normal for shadow lookup." )
+	TEXT( "Higher values avoid artifacts on surfaces nearly parallel to the light, but also visibility offset shadows and increase the chance of hitting unmapped pages." ),
 	ECVF_RenderThreadSafe
 );
 
@@ -70,7 +78,7 @@ static TAutoConsoleVariable<int32> CVarSMRTSamplesPerRayDirectional(
 
 static TAutoConsoleVariable<float> CVarSMRTRayLengthScaleDirectional(
 	TEXT( "r.Shadow.v.SMRT.RayLengthScaleDirectional" ),
-	2.0f,
+	1.0f,
 	TEXT( "Length of ray to shoot for directional lights, scaled by distance to camera." )
 	TEXT( "Shorter rays limit the screen space size of shadow penumbra. " )
 	TEXT( "Longer rays require more samples to avoid shadows disconnecting from contact points. " ),
@@ -84,6 +92,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FProjectionParameters, )
 	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 	SHADER_PARAMETER(int32, VirtualShadowMapId)
 	SHADER_PARAMETER(float, ContactShadowLength)
+	SHADER_PARAMETER(float, NormalOffsetWorld)
 	SHADER_PARAMETER(int32, DebugOutputType)
 	SHADER_PARAMETER(int32, SMRTRayCount)
 	SHADER_PARAMETER(int32, SMRTSamplesPerRay)
@@ -191,6 +200,7 @@ static bool AddPass_RenderVirtualShadowMapProjection(
 	PassParameters->VirtualShadowMapId = VirtualShadowMapId;
 	PassParameters->DebugOutputType = CVarVirtualShadowMapDebugProjection.GetValueOnRenderThread();
 	PassParameters->ContactShadowLength = CVarContactShadowLength.GetValueOnRenderThread();
+	PassParameters->NormalOffsetWorld = CVarNormalOffsetWorld.GetValueOnRenderThread();
 
 	PassParameters->RenderTargets[0] = RenderTargetBinding;
 

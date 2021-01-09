@@ -38,9 +38,9 @@ bool ShadowRayCastDirectional(
 	int AbsoluteClipmapIndexAdjacent = VirtualShadowMapId + ClipmapIndexAdjacent;
 
 	// TODO: Experiment with perf of this, etc.
-	bool bSampleTwoClipmapLevels = (ClipmapIndexAdjacent != ClipmapIndex) && (abs(ClipmapLevelFrac - 0.5f) > 0.4f);
+	bool bSampleTwoClipmapLevels = true;
 #if 0
-	bSampleTwoClipmapLevels = false;
+	bSampleTwoClipmapLevels = (ClipmapIndexAdjacent != ClipmapIndex) && (abs(ClipmapLevelFrac - 0.5f) > 0.4f);
 #endif
 
 	const FVirtualShadowMapProjectionShaderData ProjectionData = GetVirtualShadowMapProjectionData(AbsoluteClipmapIndex);
@@ -194,7 +194,7 @@ float TraceDirectional(
 	float RayLengthScale,
 	int DebugOutputType,
 	inout float3 DebugOutput,
-	out float OutHitDistance)
+	inout float InOutHitDistance)
 {
 	float3 WorldPosition = TranslatedWorldPosition - View.PreViewTranslation;
 	float3 ViewPosition = mul(float4(TranslatedWorldPosition, 1.0f), View.TranslatedWorldToView).xyz;
@@ -205,7 +205,7 @@ float TraceDirectional(
 	// and the maximum size a penumbra can be.
 	// Too high values will cause shadows to detach from their contact points (unless more samples are used).
 	// Too low values will greatly restrict how large penumbras can be in screen space.
-	float RayLength = RayLengthScale * DistanceFromViewOrigin;		// TODO: Parameterize
+	float RayLength = RayLengthScale * DistanceFromViewOrigin;
 
 #if USE_RANDOM_SEQUENCE
 	uint Seed = uint(SvPosition.y * View.BufferSizeAndInvSize.x + SvPosition.x);
@@ -218,7 +218,6 @@ float TraceDirectional(
 
 	float StepOffset = InterleavedGradientNoise(SvPosition.xy, View.StateFrameIndexMod8);
 
-	float HitDistance = 500000;		// TODO
 	float RayMissFactor = 0;
 	for (int i = 0; i < RayCount; ++i)
 	{
@@ -229,7 +228,7 @@ float TraceDirectional(
 #endif
 
 		float3 RayDir = GetRandomDirectionalLightRayDir(Light, E);
-		float3 RayStart = WorldPosition;// + RayDir * ContactShadowLengthWorld;
+		float3 RayStart = WorldPosition;// + RayDir * RayStartOffset; TODO!
 
 		bool bHit = ShadowRayCastDirectional(
 			VirtualShadowMapId,
@@ -240,12 +239,11 @@ float TraceDirectional(
 			StepOffset,
 			DebugOutputType,
 			DebugOutput,
-			HitDistance);
+			InOutHitDistance);
 
 		RayMissFactor += bHit ? 0 : 1;
 	}
 	RayMissFactor /= float(RayCount);
 
-	OutHitDistance = HitDistance;
 	return RayMissFactor;
 }

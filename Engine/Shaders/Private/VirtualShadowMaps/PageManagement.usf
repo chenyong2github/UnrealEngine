@@ -198,6 +198,7 @@ StructuredBuffer<int> VirtualShadowMapIdRemap;
 uint NumDirectionalLightSmInds;
 uint bPostBasePass;
 float LodFootprintScale;
+float PageDilationBorderSize;
 
 // Convenience to group up a bunch of data computed for a screen pixel
 struct FScreenPixelData
@@ -299,13 +300,7 @@ uint GetMipLevel(int VirtualShadowMapId, FScreenPixelData Pixel)
 	return CalcMipLevelFromFootprint(LodFootprintScale * Footprint, VSM_MAX_MIP_LEVELS);
 }
 
-uint CalcPageOffsetFromUVMip(uint VirtualShadowMapId, float2 ShadowUv, uint MipLevel)
-{
-	uint2 PageAddress = uint2(ShadowUv * CalcLevelDimsPages(MipLevel));
-	return CalcPageOffset(VirtualShadowMapId, MipLevel, PageAddress);
-}
-
-void MarkPage(uint VirtualShadowMapId, uint MipLevel, FScreenPixelData Pixel)
+void MarkPage(uint VirtualShadowMapId, uint MipLevel, FScreenPixelData Pixel, float2 PageDilationOffset)
 {
 	FVirtualShadowMapProjectionShaderData ProjectionData = ShadowMapProjectionData[VirtualShadowMapId];
 	float4 ShadowUVz = mul(float4(Pixel.WorldPosition + ProjectionData.ShadowPreViewTranslation, 1.0f), ProjectionData.TranslatedWorldToShadowUVMatrix);
@@ -321,12 +316,31 @@ void MarkPage(uint VirtualShadowMapId, uint MipLevel, FScreenPixelData Pixel)
 		return;
 	}
 
-	uint PageOffset = CalcPageOffsetFromUVMip(VirtualShadowMapId, ShadowUVz.xy, MipLevel);
+	float2 PageAddressFloat = ShadowUVz.xy * CalcLevelDimsPages(MipLevel);
+	uint2 PageAddress = uint2(PageAddressFloat);
+	uint PageOffset = CalcPageOffset(VirtualShadowMapId, MipLevel, PageAddress);
 	OutPageRequestFlags[PageOffset] = 1;
+
+	// PageDilationBorderSize == 0 implies PageDilationOffset.xy == 0
+	if (PageDilationBorderSize > 0.0f)
+	{
+		uint2 PageAddress2 = uint2(PageAddressFloat + PageDilationOffset);
+		uint PageOffset2 = CalcPageOffset(VirtualShadowMapId, MipLevel, PageAddress2);
+		if (PageOffset2 != PageOffset)
+		{
+			OutPageRequestFlags[PageOffset2] = 1;
+		}
+		uint2 PageAddress3 = uint2(max(float2(0, 0), PageAddressFloat - PageDilationOffset));
+		uint PageOffset3 = CalcPageOffset(VirtualShadowMapId, MipLevel, PageAddress3);
+		if (PageOffset3 != PageOffset)
+		{
+			OutPageRequestFlags[PageOffset3] = 1;
+		}
+	}
 }
 
 [numthreads(VSM_DEFAULT_CS_GROUP_XY, VSM_DEFAULT_CS_GROUP_XY, 1)]
-void GeneratePageFlagsFromPixels(uint3 GroupId : SV_GroupID, uint GroupIndex : SV_GroupIndex)
+void GeneratePageFlagsFromPixels(uint3 GroupId : SV_GroupID, uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_DispatchThreadId)
 {
 	// Morton order within a group so page access/atomics are more coherent and wave-swizzled gradients are possible.
 	uint2 PixelPos = VSM_DEFAULT_CS_GROUP_XY * GroupId.xy + MortonDecode(GroupIndex);
@@ -337,7 +351,15 @@ void GeneratePageFlagsFromPixels(uint3 GroupId : SV_GroupID, uint GroupIndex : S
 	}
 	
 	FScreenPixelData Pixel = GetScreenPixelData(PixelPos);
-	
+
+	// Dither pattern for page dilation
+	// We don't need to to check all 8 adjacent pages; as long as there's at least a single pixel near the edge
+	// the adjacent one will get mapped. In practice only checking one diagonal seems to work fine and have minimal
+	// overhead.
+	float2 PageDilationOffset = PageDilationBorderSize * 
+		float2(GroupIndex & 1 ? 1.0f : -1.0f,
+			   GroupIndex & 2 ? 1.0f : -1.0f);
+		
 	// excluding unlit to avoid including processing sky dome
 	if (bPostBasePass != 0)
 	{
@@ -365,7 +387,7 @@ void GeneratePageFlagsFromPixels(uint3 GroupId : SV_GroupID, uint GroupIndex : S
 			int ClipmapIndex = max(0, ClipmapLevel - BaseProjectionData.ClipmapLevel);
 			if (ClipmapIndex < BaseProjectionData.ClipmapLevelCount)
 			{
-				MarkPage(ClipmapStartId + ClipmapIndex, 0, Pixel);
+				MarkPage(ClipmapStartId + ClipmapIndex, 0, Pixel, PageDilationOffset);
 			}
 
 			ProjectionIndex += max(1, BaseProjectionData.ClipmapLevelCount);		// Max just to ensure termination even with bad data
@@ -397,7 +419,7 @@ void GeneratePageFlagsFromPixels(uint3 GroupId : SV_GroupID, uint GroupIndex : S
 			if (VirtualShadowMapId != INDEX_NONE)
 			{
 				uint MipLevel = GetMipLevel(VirtualShadowMapId, Pixel);
-				MarkPage(VirtualShadowMapId, MipLevel, Pixel);
+				MarkPage(VirtualShadowMapId, MipLevel, Pixel, PageDilationOffset);
 			}
 		}
 	}

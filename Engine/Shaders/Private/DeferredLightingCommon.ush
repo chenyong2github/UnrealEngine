@@ -104,6 +104,8 @@ float ShadowRayCast(
 
 	float FirstHitTime = -1.0;
 
+	const float StartDepth = SceneTexturesStruct.SceneDepthTexture.SampleLevel( SceneTexturesStruct_SceneDepthTextureSampler, RayStartUVz.xy, 0 ).r;
+
 	UNROLL
 	for( int i = 0; i < NumSteps; i++ )
 	{
@@ -112,6 +114,8 @@ float ShadowRayCast(
 
 		float DepthDiff = SampleUVz.z - SampleDepth;
 		bool Hit = abs( DepthDiff + CompareTolerance ) < CompareTolerance;
+		// Avoid self-intersection with the start pixel (exact comparison due to point sampling depth buffer)
+		Hit = Hit && ( SampleDepth != StartDepth );
 
 		FirstHitTime = (Hit && FirstHitTime < 0.0) ? SampleTime : FirstHitTime;
 
@@ -132,6 +136,7 @@ float ShadowRayCast(
 		bool bValidUV = all( 0.0 < HitUVz.xy && HitUVz.xy < 1.0 );
 		HitDistance = bValidUV ? ( FirstHitTime * RayLength ) : -1.0;
 	}	
+	
 	
 	return HitDistance;
 }

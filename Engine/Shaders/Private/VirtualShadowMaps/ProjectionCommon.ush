@@ -127,7 +127,7 @@ float ComputeVirtualShadowMapOptimalSlopeBias(FVirtualShadowMapProjectionShaderD
 	// 2x factor due to lack of precision (probably)
 	float OptimalSlopeBias = 2.0f * max(0.0f, dot(DepthSlopeUV, TexelCenterOffsetUV));
 	// Clamp to avoid excessive degenerate slope biases causing flickering lit pixels
-	OptimalSlopeBias = min(OptimalSlopeBias, abs(100.0f * ProjectionData.ShadowViewToClipMatrix._33));
+	OptimalSlopeBias = min(OptimalSlopeBias, abs(10.0f * ProjectionData.ShadowViewToClipMatrix._33));
 
 	return OptimalSlopeBias;
 }

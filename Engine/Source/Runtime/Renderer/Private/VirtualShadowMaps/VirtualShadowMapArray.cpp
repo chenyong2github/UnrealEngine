@@ -69,10 +69,11 @@ static TAutoConsoleVariable<float> CVarResolutionLodScale(
 	ECVF_RenderThreadSafe
 );
 
-static TAutoConsoleVariable<float> CVarResolutionPixelCountPercent(
-	TEXT("r.Shadow.v.ResolutionPixelCountPercent"),
-	0.0f,
-	TEXT("If more than this percent of the screen pixels fall into a single page, virtual resolution will be increased. 0 disables. 1-2% typical."),
+static TAutoConsoleVariable<float> CVarPageDilationBorderSize(
+	TEXT("r.Shadow.v.PageDilationBorderSize"),
+	0.05f,
+	TEXT("If a screen pixel falls within this fraction of a page border, the adacent page will also be mapped.")
+	TEXT("Higher values can reduce page misses at screen edges or disocclusions, but increase total page counts."),
 	ECVF_RenderThreadSafe
 );
 
@@ -273,7 +274,7 @@ class FGeneratePageFlagsFromPixelsCS : public FVirtualPageManagementShader
 		SHADER_PARAMETER(uint32, NumDirectionalLightSmInds)
 		SHADER_PARAMETER(uint32, bPostBasePass)
 		SHADER_PARAMETER(float, LodFootprintScale)
-		SHADER_PARAMETER(uint32, LodPixelCountThreshold)
+		SHADER_PARAMETER(float, PageDilationBorderSize)
 	END_SHADER_PARAMETER_STRUCT()
 };
 IMPLEMENT_GLOBAL_SHADER(FGeneratePageFlagsFromPixelsCS, "/Engine/Private/VirtualShadowMaps/PageManagement.usf", "GeneratePageFlagsFromPixels", SF_Compute);
@@ -528,6 +529,8 @@ void FVirtualShadowMapArray::BuildPageAllocations(FRDGBuilder& GraphBuilder, con
 	// Scale the projected footprint by the inverse scale factor such that 2x -> double the res.
 	const float LodFootprintScale = 1.0f / CVarResolutionLodScale.GetValueOnRenderThread();
 
+	const float PageDilationBorderSize = CVarPageDilationBorderSize.GetValueOnRenderThread();
+
 	const TArray<FSortedLightSceneInfo, SceneRenderingAllocator> &SortedLights = SortedLightsInfo.SortedLights;
 	if (ShadowMaps.Num())
 	{
@@ -649,12 +652,7 @@ void FVirtualShadowMapArray::BuildPageAllocations(FRDGBuilder& GraphBuilder, con
 					PassParameters->SceneTexturesStruct = CreateSceneTextureUniformBuffer(GraphBuilder, View.FeatureLevel, ESceneTextureSetupMode::SceneDepth);
 				}
 				PassParameters->bPostBasePass = bPostBasePass;
-				
-				// Number of pixels in a single page before we forcably bump the LOD
-				const float ResolutionPixelCountFactor = CVarResolutionPixelCountPercent.GetValueOnRenderThread() / 100.0f;
-				const uint32 LodPixelCountThreshold = ResolutionPixelCountFactor <= 0.0f ? 0 :
-					static_cast<uint32>(ResolutionPixelCountFactor * static_cast<float>(View.ViewRect.Area()));
-				
+								
 				PassParameters->VisBuffer64 = VisBuffer64;
 				PassParameters->View = View.ViewUniformBuffer;
 				PassParameters->OutPageRequestFlags = GraphBuilder.CreateUAV(PageRequestFlagsRDG);
@@ -663,7 +661,7 @@ void FVirtualShadowMapArray::BuildPageAllocations(FRDGBuilder& GraphBuilder, con
 				PassParameters->ShadowMapProjectionData = GraphBuilder.CreateSRV(ShadowMapProjectionDataRDG);
 				PassParameters->NumDirectionalLightSmInds = DirectionalLightSmInds.Num();
 				PassParameters->LodFootprintScale = LodFootprintScale;
-				PassParameters->LodPixelCountThreshold = LodPixelCountThreshold;
+				PassParameters->PageDilationBorderSize = PageDilationBorderSize;
 				
 				auto ComputeShader = View.ShaderMap->GetShader<FGeneratePageFlagsFromPixelsCS>(PermutationVector);
 
