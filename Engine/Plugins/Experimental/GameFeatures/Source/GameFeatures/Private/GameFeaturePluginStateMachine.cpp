@@ -1112,7 +1112,7 @@ FGameFeaturePluginStateMachineProperties::FGameFeaturePluginStateMachineProperti
 	const FString& InPluginURL,
 	EGameFeaturePluginState::Type DesiredDestination,
 	const FGameFeaturePluginRequestStateMachineDependencies& RequestStateMachineDependenciesDelegate,
-	const TBaseDelegate<void>& RequestUpdateStateMachineDelegate)
+	const TDelegate<void()>& RequestUpdateStateMachineDelegate)
 	: FGameFeaturePluginStateMachineProperties()
 {
 	PluginURL = InPluginURL;

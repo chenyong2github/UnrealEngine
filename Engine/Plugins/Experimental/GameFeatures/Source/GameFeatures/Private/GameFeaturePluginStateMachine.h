@@ -191,7 +191,7 @@ struct FGameFeaturePluginStateMachineProperties
 		const FString& InPluginURL,
 		EGameFeaturePluginState::Type DesiredDestination,
 		const FGameFeaturePluginRequestStateMachineDependencies& RequestStateMachineDependenciesDelegate,
-		const TBaseDelegate<void>& RequestUpdateStateMachineDelegate);
+		const TDelegate<void()>& RequestUpdateStateMachineDelegate);
 
 	EGameFeaturePluginProtocol GetPluginProtocol() const;
 	FString FileProtocolPrefix() const;
