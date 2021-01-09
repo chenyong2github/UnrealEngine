@@ -1675,44 +1675,81 @@ void FBlueprintEditorUtils::PatchCDOSubobjectsIntoExport(UObject* PreviousCDO, U
 		{
 			static void PatchSubObjects(UObject* OldObj, UObject* NewObj)
 			{
-				TMap<FName, UObject*> SubObjLookupTable;
-				ForEachObjectWithOuter(NewObj, [&SubObjLookupTable](UObject* NewSubObj)
-				{
-					if (NewSubObj != nullptr)
-					{
-						SubObjLookupTable.Add(NewSubObj->GetFName(), NewSubObj);
-					}
-				}, /*bIncludeNestedSubObjects =*/false);
-
 				TArray<UObject*> OldSubObjects;
 				GetObjectsWithOuter(OldObj, OldSubObjects, /*bIncludeNestedSubObjects =*/false);
 
-				for (UObject* OldSubObj : OldSubObjects)
+				// Exit now if we don't have any subobjects to process.
+				if (OldSubObjects.Num() == 0)
 				{
-					if (UObject** NewSubObjPtr = SubObjLookupTable.Find(OldSubObj->GetFName()))
+					return;
+				}
+
+				// Used to keep track of subobjects that are patched through an explicitly instanced reference property.
+				TSet<UObject*> PatchedAsInstancedReferenceSet;
+				PatchedAsInstancedReferenceSet.Reserve(OldSubObjects.Num());
+
+				// If the old object's class has explicitly instanced reference properties, the subobject values they contain will be different on the new object
+				// that's replacing it (because they've been re-instanced), so here we patch up the linker's export table to reference the re-instanced ones instead.
+				const UClass* OldObjClass = OldObj->GetClass();
+				if (OldObjClass && OldObjClass->HasAnyClassFlags(CLASS_HasInstancedReference))
+				{
+					// Get the list of subobjects assigned to an explicitly instanced reference property (including containers) for the old object.
+					TSet<FInstancedSubObjRef> OldInstancedSubObjRefs;
+					FFindInstancedReferenceSubobjectHelper::GetInstancedSubObjects(OldObj, OldInstancedSubObjRefs);
+
+					// Resolve new instances through the new object and patch them into the linker's export table.
+					for (const FInstancedSubObjRef& OldInstancedSubObjRef : OldInstancedSubObjRefs)
 					{
-						UObject* NewSubObj = *NewSubObjPtr;
-						if (NewSubObj->IsDefaultSubobject() && OldSubObj->IsDefaultSubobject())
+						if (UObject* OldSubObj = OldInstancedSubObjRef.SubObjInstance)
 						{
-							FLinkerLoad::PRIVATE_PatchNewObjectIntoExport(OldSubObj, NewSubObj);
-
-							UClass* SubObjClass = OldSubObj->GetClass();
-							if (SubObjClass && SubObjClass->HasAnyClassFlags(CLASS_HasInstancedReference))
+							if (UObject* NewSubObj = OldInstancedSubObjRef.PropertyPath.Resolve(NewObj))
 							{
-								TSet<FInstancedSubObjRef> OldInstancedValues;
-								FFindInstancedReferenceSubobjectHelper::GetInstancedSubObjects(OldSubObj, OldInstancedValues);
+								FLinkerLoad::PRIVATE_PatchNewObjectIntoExport(OldSubObj, NewSubObj);
 
-								for (const FInstancedSubObjRef& OldInstancedObj : OldInstancedValues)
-								{
-									if (UObject* NewInstancedObj = OldInstancedObj.PropertyPath.Resolve(NewSubObj))
-									{
-										FLinkerLoad::PRIVATE_PatchNewObjectIntoExport(OldInstancedObj, NewInstancedObj);
-									}
-								}
+								// Recursively find and patch any instances nested within the current subobject.
+								PatchSubObjects(OldSubObj, NewSubObj);
+
+								// Track the old instanced reference so we don't attempt to patch it again below.
+								PatchedAsInstancedReferenceSet.Add(OldSubObj);
 							}
 						}
+					}
+				}
 
-						PatchSubObjects(OldSubObj, NewSubObj);
+				TMap<FName, UObject*> NewSubObjLookupTable;
+				bool bIsNewSubObjLookupTableInitialized = false;
+
+				// Subobject instances not handled above include those assigned to reference properties for which the object type implicitly defaults
+				// to being instanced (e.g. UActorComponent derivatives) and instances not directly assigned to an instanced object reference property.
+				// Here we iterate over those remaining instances, look for a match in the new object, and patch those along with any nested instances.
+				for (UObject* OldSubObj : OldSubObjects)
+				{
+					if (!PatchedAsInstancedReferenceSet.Contains(OldSubObj))
+					{
+						if (!bIsNewSubObjLookupTableInitialized)
+						{
+							NewSubObjLookupTable.Reserve(OldSubObjects.Num());
+							ForEachObjectWithOuter(NewObj, [&NewSubObjLookupTable](UObject* NewSubObj)
+							{
+								if (NewSubObj != nullptr)
+								{
+									NewSubObjLookupTable.Add(NewSubObj->GetFName(), NewSubObj);
+								}
+							}, /*bIncludeNestedSubObjects =*/false);
+
+							bIsNewSubObjLookupTableInitialized = true;
+						}
+
+						if (UObject** NewSubObjPtr = NewSubObjLookupTable.Find(OldSubObj->GetFName()))
+						{
+							UObject* NewSubObj = *NewSubObjPtr;
+							if (OldSubObj->IsDefaultSubobject() && NewSubObj->IsDefaultSubobject())
+							{
+								FLinkerLoad::PRIVATE_PatchNewObjectIntoExport(OldSubObj, NewSubObj);
+							}
+
+							PatchSubObjects(OldSubObj, NewSubObj);
+						}
 					}
 				}
 			}
