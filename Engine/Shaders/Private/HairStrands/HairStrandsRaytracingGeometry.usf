@@ -11,6 +11,14 @@ float StrandHairRadius;
 Buffer<uint4> 	 PositionBuffer;
 RWBuffer<float4> OutputPositionBuffer;
 
+uint HairStrandsVF_bIsCullingEnable;
+#if PERMUTATION_CULLING == 1
+Buffer<uint>	HairStrandsVF_CullingIndirectBuffer;
+Buffer<uint>	HairStrandsVF_CullingIndexBuffer;
+Buffer<float>	HairStrandsVF_CullingRadiusScaleBuffer;
+Buffer<uint>	HairStrandsVF_CullingIndirectBufferArgs;
+#endif
+
 #if PERMUTATION_GROUP_SIZE == 0
 	#define GROUP_SIZE 64
 #elif PERMUTATION_GROUP_SIZE == 1
@@ -18,7 +26,6 @@ RWBuffer<float4> OutputPositionBuffer;
 #else
 	#error Unknown group size	
 #endif
-
 
 struct FControlPoint
 {
@@ -44,44 +51,77 @@ FControlPoint GetControlPoint(uint Index)
 	return Out;
 }
 
-
 float4 PackNormal(float3 V, uint A)
 {
 	return float4(clamp(V,float(-1).xxx,float(1).xxx), 1.0f);
 }
 
+void SetInvalidSegment(uint InVertexIndex)
+{
+	const float NaN = sqrt(-1);
+	const float4 InvalidPoint = float4(NaN, NaN, NaN, NaN);
+
+	const uint BaseOutIndex = InVertexIndex * 12;
+	OutputPositionBuffer[BaseOutIndex]      = InvalidPoint;
+	OutputPositionBuffer[BaseOutIndex + 1]  = InvalidPoint;
+	OutputPositionBuffer[BaseOutIndex + 2]  = InvalidPoint;
+	OutputPositionBuffer[BaseOutIndex + 3]  = InvalidPoint;
+	OutputPositionBuffer[BaseOutIndex + 4]  = InvalidPoint;
+	OutputPositionBuffer[BaseOutIndex + 5]  = InvalidPoint;
+	OutputPositionBuffer[BaseOutIndex + 6]  = InvalidPoint;
+	OutputPositionBuffer[BaseOutIndex + 7]  = InvalidPoint;
+	OutputPositionBuffer[BaseOutIndex + 8]  = InvalidPoint;
+	OutputPositionBuffer[BaseOutIndex + 9]  = InvalidPoint;
+	OutputPositionBuffer[BaseOutIndex + 10] = InvalidPoint;
+	OutputPositionBuffer[BaseOutIndex + 11] = InvalidPoint;
+}
+
 [numthreads(GROUP_SIZE, 1, 1)]
 void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 {
-	const int IndexCurr = DispatchThreadId.x + DispatchThreadId.y * DispatchCountX * GROUP_SIZE;
-	const int MaxVertexCount = int(VertexCount);
-	const uint BaseOutIndex = IndexCurr*12;
+	uint VertexIndex0 = DispatchThreadId.x + DispatchThreadId.y * DispatchCountX * GROUP_SIZE;
+	uint VertexIndex1 = VertexIndex0 + 1;
+	float LodRadiusScale0 = 1;
+	float LodRadiusScale1 = 1;
 
-	FControlPoint P0 = GetControlPoint(IndexCurr);
+#if PERMUTATION_CULLING == 1
+	if (HairStrandsVF_bIsCullingEnable)
+	{
+		const uint VertexCountAfterCulling = HairStrandsVF_CullingIndirectBuffer[3];
+		uint FetchIndex0 = VertexIndex0;
+		uint FetchIndex1 = VertexIndex1;
+		if (FetchIndex0 >= VertexCountAfterCulling)
+		{
+			SetInvalidSegment(VertexIndex0);
+			return;
+		}
+		FetchIndex1 = min(FetchIndex0 + 1, VertexCountAfterCulling - 1);
+
+		VertexIndex0 = HairStrandsVF_CullingIndexBuffer[FetchIndex0];
+		LodRadiusScale0 = HairStrandsVF_CullingRadiusScaleBuffer[FetchIndex0];
+
+		VertexIndex1 = HairStrandsVF_CullingIndexBuffer[FetchIndex1];
+		LodRadiusScale1 = HairStrandsVF_CullingRadiusScaleBuffer[FetchIndex1];
+
+		if (LodRadiusScale0 <= 0.0f)
+		{
+			SetInvalidSegment(VertexIndex0);
+			return;
+		}
+	}
+#endif
+
+	FControlPoint P0 = GetControlPoint(VertexIndex0);
 
 	// Point at the end of a strand is filled with invalid position. The positions/triangle are 
 	// ignored by DXR during BVH building
 	if (P0.PointType == 2)
 	{
-		const float NaN = sqrt(-1);
-		const float4 InvalidPoint = float4(NaN, NaN, NaN, NaN);
-
-		OutputPositionBuffer[BaseOutIndex  ]  = InvalidPoint;
-		OutputPositionBuffer[BaseOutIndex+1]  = InvalidPoint;
-		OutputPositionBuffer[BaseOutIndex+2]  = InvalidPoint;
-		OutputPositionBuffer[BaseOutIndex+3]  = InvalidPoint;
-		OutputPositionBuffer[BaseOutIndex+4]  = InvalidPoint;
-		OutputPositionBuffer[BaseOutIndex+5]  = InvalidPoint;
-		OutputPositionBuffer[BaseOutIndex+6]  = InvalidPoint;
-		OutputPositionBuffer[BaseOutIndex+7]  = InvalidPoint;
-		OutputPositionBuffer[BaseOutIndex+8]  = InvalidPoint;
-		OutputPositionBuffer[BaseOutIndex+9]  = InvalidPoint;
-		OutputPositionBuffer[BaseOutIndex+10] = InvalidPoint;
-		OutputPositionBuffer[BaseOutIndex+11] = InvalidPoint;
+		SetInvalidSegment(VertexIndex0);
 		return;
 	}
 
-	FControlPoint P1 = GetControlPoint(IndexCurr+1);
+	FControlPoint P1 = GetControlPoint(VertexIndex1);
 
 	const float3 Tangent = normalize(P1.Position - P0.Position);
 	float3 B = float3(0,0,-1);
@@ -92,11 +132,12 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 	float3 N = normalize(cross(Tangent, B));
 	B = normalize(cross(N, Tangent));
 
+	const uint BaseOutIndex = VertexIndex0 *12;
 	{
-		const float3 P00 = P0.Position - N * P0.WorldRadius;
-		const float3 P01 = P0.Position + N * P0.WorldRadius;
-		const float3 P10 = P1.Position - N * P1.WorldRadius;
-		const float3 P11 = P1.Position + N * P1.WorldRadius;
+		const float3 P00 = P0.Position - N * P0.WorldRadius * LodRadiusScale0;
+		const float3 P01 = P0.Position + N * P0.WorldRadius * LodRadiusScale0;
+		const float3 P10 = P1.Position - N * P1.WorldRadius * LodRadiusScale1;
+		const float3 P11 = P1.Position + N * P1.WorldRadius * LodRadiusScale1;
 		
 		OutputPositionBuffer[BaseOutIndex  ] = float4(P00, 1);
 		OutputPositionBuffer[BaseOutIndex+1] = float4(P01, 1);
@@ -108,10 +149,10 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 	}
 	
 	{
-		const float3 P00 = P0.Position - B * P0.WorldRadius;
-		const float3 P01 = P0.Position + B * P0.WorldRadius;
-		const float3 P10 = P1.Position - B * P1.WorldRadius;
-		const float3 P11 = P1.Position + B * P1.WorldRadius;
+		const float3 P00 = P0.Position - B * P0.WorldRadius * LodRadiusScale0;
+		const float3 P01 = P0.Position + B * P0.WorldRadius * LodRadiusScale0;
+		const float3 P10 = P1.Position - B * P1.WorldRadius * LodRadiusScale1;
+		const float3 P11 = P1.Position + B * P1.WorldRadius * LodRadiusScale1;
 
 		OutputPositionBuffer[BaseOutIndex+6] = float4(P00, 1);
 		OutputPositionBuffer[BaseOutIndex+7] = float4(P01, 1);
