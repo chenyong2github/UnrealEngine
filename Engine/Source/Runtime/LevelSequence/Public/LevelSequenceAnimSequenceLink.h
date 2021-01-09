@@ -22,11 +22,11 @@ public:
 
 	//From Editor Only UAnimSeqExportOption we cache this since we can re-import dynamically
 	UPROPERTY()
-	bool bExportTransforms;
+	bool bExportTransforms = true;
 	UPROPERTY()
-	bool bExportCurves;
+	bool bExportCurves = true;
 	UPROPERTY()
-	bool bRecordInWorldSpace;
+	bool bRecordInWorldSpace = false;
 
 	void SetAnimSequence(UAnimSequence* InAnimSequence);
 	UAnimSequence* ResolveAnimSequence();
