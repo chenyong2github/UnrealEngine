@@ -548,7 +548,7 @@ void UNiagaraMeshRendererProperties::PostEditChangeProperty(FPropertyChangedEven
 		if (!IsRunningCommandlet() &&
 			PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UNiagaraMeshRendererProperties, bEnableMeshFlipbook) &&
 			bEnableMeshFlipbook &&
-			Meshes.Num() > 1)
+			Meshes.Num() > 0)
 		{
 			// Give the user a chance to cancel doing something that will be destructive to the current mesh data
 			FSuppressableWarningDialog::FSetupInfo Info(
