@@ -164,7 +164,8 @@ void UWeldMeshEdgesTool::UpdateResult()
 	TargetMesh->Copy(OriginalMesh);
 
 	FMergeCoincidentMeshEdges Merger(TargetMesh);
-	Merger.MergeSearchTolerance = this->Tolerance;
+	Merger.MergeVertexTolerance = this->Tolerance;
+	Merger.MergeSearchTolerance = 2*Merger.MergeVertexTolerance;
 	Merger.OnlyUniquePairs = this->bOnlyUnique;
 		
 	if (Merger.Apply() == false)
