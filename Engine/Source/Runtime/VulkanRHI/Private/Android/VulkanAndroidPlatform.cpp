@@ -411,7 +411,7 @@ EPixelFormat FVulkanAndroidPlatform::GetPixelFormatForNonDefaultSwapchain()
 bool FVulkanAndroidPlatform::SupportsTimestampRenderQueries()
 {
 	// standalone devices have newer drivers where timestamp render queries work.
-	return FPlatformMisc::IsStandaloneStereoOnlyDevice();
+	return false;// FPlatformMisc::IsStandaloneStereoOnlyDevice();
 }
 
 void FVulkanAndroidPlatform::OverridePlatformHandlers(bool bInit)
