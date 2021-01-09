@@ -3,7 +3,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "UObject/WeakObjectPtr.h"
 
+class ACameraActor;
 class AMatineeActorCameraAnim;
 class FMatineeConverter;
 class IAssetRegistry;

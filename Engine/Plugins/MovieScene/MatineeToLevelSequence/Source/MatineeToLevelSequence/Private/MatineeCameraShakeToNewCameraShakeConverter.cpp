@@ -9,6 +9,7 @@
 #include "CameraAnimToTemplateSequenceConverter.h"
 #include "CameraAnimationSequence.h"
 #include "ContentBrowserModule.h"
+#include "Editor.h"
 #include "FileHelpers.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "IAssetRegistry.h"
@@ -22,6 +23,9 @@
 #include "Misc/ScopedSlowTask.h"
 #include "SequenceCameraShake.h"
 #include "SourceControlOperations.h"
+#include "Subsystems/AssetEditorSubsystem.h"
+#include "Widgets/Input/SButton.h"
+#include "Widgets/Layout/SSpacer.h"
 #include "Widgets/Notifications/SNotificationList.h"
 
 #define LOCTEXT_NAMESPACE "MatineeCameraShakeToNewCameraShakeConverter"
