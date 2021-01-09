@@ -2680,8 +2680,13 @@ bool UEditorEngine::Map_Load(const TCHAR* Str, FOutputDevice& Ar)
 				
 				if (World == nullptr)
 				{
+					FText Message = FText::Format(NSLOCTEXT("UnrealEd", "MapPackageFindWorldFailed", "Failed to find the world in already loaded world package {0}! See log for more details."), FText::FromString(WorldPackage->GetPathName()));
+					FMessageDialog::Open(EAppMsgType::Ok, Message);
+					GIsEditorLoadingPackage = false;
+
 					FReferenceChainSearch RefChainSearch(WorldPackage, EReferenceChainSearchMode::Shortest | EReferenceChainSearchMode::PrintResults);
-					UE_LOG(LogEditorServer, Fatal, TEXT("Failed to find the world in already loaded world package %s! Referenced by:") LINE_TERMINATOR TEXT("%s"), *WorldPackage->GetPathName(), *RefChainSearch.GetRootPath());
+					UE_LOG(LogEditorServer, Warning, TEXT("Failed to find the world in already loaded world package %s! Referenced by:") LINE_TERMINATOR TEXT("%s"), *WorldPackage->GetPathName(), *RefChainSearch.GetRootPath());
+					return false;
 				}
 
 				if (Context.AudioDeviceID == INDEX_NONE && GEngine->GetAudioDeviceManager())
