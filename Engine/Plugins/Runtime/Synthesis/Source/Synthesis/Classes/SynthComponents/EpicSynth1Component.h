@@ -24,7 +24,7 @@ struct SYNTHESIS_API FEpicSynth1Patch
 
 	// A modular synth patch source (e.g. LFO1/LFO2/Modulation Envelope)
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Synth|Preset")
-	ESynth1PatchSource PatchSource;
+	ESynth1PatchSource PatchSource = ESynth1PatchSource::LFO1;
 
 	// Patch cables to patch destinations from the patch source.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Synth|Preset")

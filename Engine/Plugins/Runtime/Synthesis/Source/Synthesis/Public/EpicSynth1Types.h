@@ -150,11 +150,11 @@ struct SYNTHESIS_API FSynth1PatchCable
 
 	// The patch depth (how much the modulator modulates the destination)
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Synth|Preset")
-	float Depth;
+	float Depth = 0.0f;
 
 	// The patch destination type
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Synth|Preset")
-	ESynth1PatchDestination Destination;
+	ESynth1PatchDestination Destination = ESynth1PatchDestination::Osc1Gain;
 };
 
 USTRUCT(BlueprintType)
@@ -163,10 +163,6 @@ struct SYNTHESIS_API FPatchId
 	GENERATED_USTRUCT_BODY()
 
 	UPROPERTY()
-	int32 Id;
-
-	FPatchId()
-		: Id(INDEX_NONE)
-	{}
+	int32 Id = INDEX_NONE;
 };
 
