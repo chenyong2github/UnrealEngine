@@ -62,7 +62,7 @@ namespace Audio
 	private:
 
 		/** Initializes the bus sends. */
-		void SetupBusData(TArray<FInitAudioBusSend>* OutAudioBusSends = nullptr);
+		void SetupBusData(TArray<FInitAudioBusSend>* OutAudioBusSends = nullptr, bool bEnableBusSends = true);
 
 		/** Frees any resources for this sound source. */
 		void FreeResources();
@@ -115,6 +115,9 @@ namespace Audio
 		FMixerBuffer* MixerBuffer;
 		TSharedPtr<FMixerSourceBuffer, ESPMode::ThreadSafe> MixerSourceBuffer;
 		FMixerSourceVoice* MixerSourceVoice;
+
+		uint32 bPreviousBusEnablement;
+		uint32 bPreviousBaseSubmixEnablement;
 
 		// This holds data copied from FSoundSourceBusSendInfo when a new sound starts playing
 		// so that distance-based level control can be calculated during rendering

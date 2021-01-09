@@ -128,6 +128,10 @@ USynthComponent::USynthComponent(const FObjectInitializer& ObjectInitializer)
 
 	bStopWhenOwnerDestroyed = true;
 
+	bEnableBusSends = true;
+	bEnableBaseSubmix = !bOutputToBusOnly_DEPRECATED;
+	bEnableSubmixSends = !bOutputToBusOnly_DEPRECATED;
+
 	bNeverNeedsRenderUpdate = true;
 	bUseAttachParentBound = true; // Avoid CalcBounds() when transform changes.
 
@@ -239,7 +243,9 @@ void USynthComponent::Initialize(int32 SampleRateOverride)
 		Synth->SoundSubmixSends = SoundSubmixSends;
 		Synth->BusSends = BusSends;
 		Synth->PreEffectBusSends = PreEffectBusSends;
-		Synth->bOutputToBusOnly = bOutputToBusOnly;
+		Synth->bEnableBusSends = bEnableBusSends;
+		Synth->bEnableBaseSubmix = bEnableBaseSubmix;
+		Synth->bEnableSubmixSends = bEnableSubmixSends;
 
 		Synth->Init(this, NumChannels, SampleRate, PreferredBufferLength);
 
