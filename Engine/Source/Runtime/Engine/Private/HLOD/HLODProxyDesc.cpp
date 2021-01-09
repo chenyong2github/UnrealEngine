@@ -120,6 +120,8 @@ bool UHLODProxyDesc::UpdateFromLODActor(const ALODActor* InLODActor)
 
 	Location = RemoveStreamingLevelTransform(InLODActor->GetLevel(), FTransform(InLODActor->GetActorLocation())).GetTranslation();
 
+	HLODBakingTransform = InLODActor->GetWorldSettings()->HLODBakingTransform;
+
 	return true;
 }
 
@@ -222,6 +224,11 @@ bool UHLODProxyDesc::ShouldUpdateDesc(const ALODActor* InLODActor) const
 	FVector LODActorLocation = RemoveStreamingLevelTransform(InLODActor->GetLevel(), FTransform(InLODActor->GetActorLocation())).GetTranslation();
 	const float Tolerance = 0.1f;
 	if (!Location.Equals(LODActorLocation, Tolerance))
+	{
+		return true;
+	}
+
+	if (!HLODBakingTransform.Equals(InLODActor->GetWorldSettings()->HLODBakingTransform))
 	{
 		return true;
 	}
@@ -333,6 +340,8 @@ ALODActor* UHLODProxyDesc::SpawnLODActor(ULevel* InLevel) const
 	{
 		InLevel->GetOutermost()->SetDirtyFlag(false);
 	}
+
+	LODActor->GetWorldSettings()->HLODBakingTransform = HLODBakingTransform;
 
 	return LODActor;
 }

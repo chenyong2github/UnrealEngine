@@ -644,9 +644,13 @@ public:
 	UPROPERTY()
 	int32 NumHLODLevels;
 
-	/** if set to true, all eligible actors in this level will be added to a single cluster representing the entire level (used for small sublevels)*/
+	/** If set to true, all eligible actors in this level will be added to a single cluster representing the entire level (used for small sublevels) */
 	UPROPERTY(EditAnywhere, config, Category = LODSystem, AdvancedDisplay)
 	uint32 bGenerateSingleClusterForLevel : 1;
+
+	/** Specify the transform to apply to the source meshes when building HLODs. */
+	UPROPERTY(EditAnywhere, config, Category = LODSystem, AdvancedDisplay, meta=(DisplayName = "HLOD Baking Transform"))
+	FTransform HLODBakingTransform;
 
 	/************************************/
 	/** EDITOR ONLY SETTINGS **/

@@ -102,6 +102,9 @@ private:
 	FVector Location;
 
 	UPROPERTY()
+	FTransform HLODBakingTransform;
+
+	UPROPERTY()
 	TArray<TSoftObjectPtr<UHLODProxyDesc>> SubHLODDescs;
 #endif
 };
