@@ -1137,13 +1137,6 @@ void FNiagaraDataInterfaceProxyGrid3DCollectionProxy::PreStage(FRHICommandList& 
 			RHICmdList.ClearUAVFloat(ProxyData->DestinationData->GridBuffer.UAV, FVector4(ForceInitToZero));
 			RHICmdList.Transition(FRHITransitionInfo(ProxyData->DestinationData->GridBuffer.UAV, ERHIAccess::UAVCompute, ERHIAccess::UAVCompute));
 		}
-		else if (ProxyData->CurrentData != NULL && ProxyData->DestinationData != NULL)
-		{
-			// in iteration stages we copy the source to destination
-			// FIXME: is this really needed? The Grid2D DI doesn't do it.
-			FRHICopyTextureInfo CopyInfo;
-			RHICmdList.CopyTexture(ProxyData->CurrentData->GridBuffer.Buffer, ProxyData->DestinationData->GridBuffer.Buffer, CopyInfo);
-		}
 	}
 }
 
