@@ -39,6 +39,8 @@ CSV_DECLARE_CATEGORY_MODULE_EXTERN(RHI_API, RHITFlushes);
 #include "HAL/PlatformStackwalk.h"
 #endif
 
+#define DISABLE_BREADCRUMBS 1
+
 class FApp;
 class FBlendStateInitializerRHI;
 class FGraphicsPipelineStateInitializer;
@@ -2755,6 +2757,7 @@ public:
 
 	FORCEINLINE_DEBUGGABLE void PushBreadcrumb_Static(const TCHAR* Name)
 	{
+#if !DISABLE_BREADCRUMBS
 		FRHIBreadcrumb* Breadcrumb = PushBreadcrumb_Internal(Name);
 		if (Bypass())
 		{
@@ -2762,11 +2765,14 @@ public:
 			return;
 		}
 		ALLOC_COMMAND(FRHICommandPushBreadcrumb)(Breadcrumb);
+#endif
 	}
 	FORCEINLINE_DEBUGGABLE void PushBreadcrumb_Dynamic(const TCHAR* Name)
 	{
+#if !DISABLE_BREADCRUMBS
 		TCHAR* NameCopy = AllocString(Name);
 		PushBreadcrumb_Static(NameCopy);
+#endif
 	}
 
 	//template nastyness to allow us to have a separate overload for string literals, so we can skip the copy.
@@ -2787,13 +2793,16 @@ public:
 
 	FORCEINLINE_DEBUGGABLE void PopBreadcrumb()
 	{
+#if !DISABLE_BREADCRUMBS
 		PopBreadcrumb_Internal();
 		if (Bypass())
 		{
 			GetComputeContext().PopBreadcrumbRHIThread();
 			return;
 		}
+
 		ALLOC_COMMAND(FRHICommandPopBreadcrumb)();
+#endif
 	}
 
 
