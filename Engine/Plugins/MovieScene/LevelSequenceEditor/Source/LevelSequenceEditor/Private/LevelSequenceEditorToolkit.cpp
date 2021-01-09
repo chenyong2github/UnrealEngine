@@ -115,6 +115,8 @@ FLevelSequenceEditorToolkit::FLevelSequenceEditorToolkit(const TSharedRef<ISlate
 
 FLevelSequenceEditorToolkit::~FLevelSequenceEditorToolkit()
 {
+	OpenToolkits.Remove(this);
+
 	FLevelEditorSequencerIntegration::Get().RemoveSequencer(Sequencer.ToSharedRef());
 
 	Sequencer->Close();
