@@ -1929,7 +1929,7 @@ FLLMPauseScope::FLLMPauseScope(FName TagName, bool bIsStatTag, uint64 Amount, EL
 		bEnabled = false;
 		return;
 	}
-	Init(TagName, ELLMTag::Untagged, false, bIsStatTag, Amount, TrackerToPause, AllocType);
+	Init(TagName, ELLMTag::Untagged, false, bIsStatTag, Amount, TrackerToPause, InAllocType);
 }
 
 FLLMPauseScope::FLLMPauseScope(ELLMTag TagEnum, bool bIsStatTag, uint64 Amount, ELLMTracker TrackerToPause, ELLMAllocType InAllocType)
@@ -2494,7 +2494,7 @@ namespace LLMPrivate
 			void* Result = FreePages->Allocate();
 			if (FreePages->IsFull())
 			{
-				FreePages->RemoveFromList(FreePages);
+				FreePages->RemoveFromList(FreePages); //-V678
 			}
 			return Result;
 		}
