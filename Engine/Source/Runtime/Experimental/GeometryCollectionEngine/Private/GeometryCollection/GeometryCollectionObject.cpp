@@ -736,13 +736,13 @@ bool UGeometryCollection::Modify(bool bAlwaysMarkDirty /*= true*/)
 	return bSuperResult;
 }
 
-void UGeometryCollection::EnsureDataIsCooked()
+void UGeometryCollection::EnsureDataIsCooked(bool bInitResources)
 {
 	if (StateGuid != LastBuiltGuid)
 	{
 		CreateSimulationDataImp(/*bCopyFromDDC=*/ true);
 		
-		if (FApp::CanEverRender())
+		if (FApp::CanEverRender() && bInitResources)
 		{
 			NaniteData->InitResources(this);
 		}

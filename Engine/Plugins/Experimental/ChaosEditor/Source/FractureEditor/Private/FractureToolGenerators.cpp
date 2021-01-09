@@ -177,6 +177,12 @@ AGeometryCollectionActor* UFractureToolGenerateAsset::ConvertStaticMeshToGeometr
 			if (StaticMeshComponent != nullptr)
 			{
 				UStaticMesh* ComponentStaticMesh = StaticMeshComponent->GetStaticMesh();
+				if (ComponentStaticMesh != nullptr)
+				{
+					// If any of the static meshes have Nanite enabled, also enable on the new geometry collection asset for convenience.
+					FracturedGeometryCollection->EnableNanite |= ComponentStaticMesh->NaniteSettings.bEnabled;
+				}
+
 				FTransform ComponentTransform(StaticMeshComponent->GetComponentTransform());
 				ComponentTransform.SetTranslation((ComponentTransform.GetTranslation() - ActorTransform.GetTranslation()) + ActorOffset);
 
@@ -191,7 +197,14 @@ AGeometryCollectionActor* UFractureToolGenerateAsset::ConvertStaticMeshToGeometr
 
 		FracturedGeometryCollection->InitializeMaterials();
 	}
+
 	AddSingleRootNodeIfRequired(FracturedGeometryCollection);
+
+	if (FracturedGeometryCollection->EnableNanite)
+	{
+		FracturedGeometryCollection->InvalidateCollection();
+		FracturedGeometryCollection->EnsureDataIsCooked(false /* init resources */);
+	}
 
 	return NewActor;
 }

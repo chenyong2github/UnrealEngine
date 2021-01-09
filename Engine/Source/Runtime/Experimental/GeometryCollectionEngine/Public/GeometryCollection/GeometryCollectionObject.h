@@ -152,7 +152,7 @@ public:
 	void Serialize(FArchive& Ar);
 
 #if WITH_EDITOR
-	void EnsureDataIsCooked();
+	void EnsureDataIsCooked(bool bInitResources = true);
 #endif
 
 	/** Accessors for internal geometry collection */
