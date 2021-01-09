@@ -82,7 +82,8 @@ struct FFixedTickState
 	struct FInterpolationState
 	{
 		float AccumulatedTimeMS = 0.f; // accumulated real time
-		int32 LatestRecvFrame = INDEX_NONE;	// Latest server frame we received, set by the AP
+		int32 LatestRecvFrameAP = INDEX_NONE;	// Latest server frame we received, set by the AP
+		int32 LatestRecvFrameSP = INDEX_NONE;	// Latest server frame we received, set by the SP
 		int32 ToFrame = INDEX_NONE;	// Where we are interpolating to (ToFrame-1 -> ToFrame. Both should be valid at all times for anyone interpolating)
 		float PCT = 0.f;
 

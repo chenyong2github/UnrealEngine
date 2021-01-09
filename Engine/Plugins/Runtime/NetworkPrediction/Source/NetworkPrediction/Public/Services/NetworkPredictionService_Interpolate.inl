@@ -26,6 +26,8 @@ namespace NetworkPredictionCVars
 	// These are pretty bare bones. Will move to Insights tracing in the future for interpolation debugging
 	NETSIM_DEVCVAR_SHIPCONST_INT(DrawInterpolation, 0, "np.Interpolation.PrintSync", "Print Sync State buffer during interpolation");
 	NETSIM_DEVCVAR_SHIPCONST_INT(PrintSyncInterpolation, 0, "np.Interpolation.Draw", "Draw interpolation debug state in world");
+
+	NETSIM_DEVCVAR_SHIPCONST_INT(DisableInterpolation, 0, "np.Interpolation.Disable", "Disables smooth interpolation and just Finalizes the last received frame");
 }
 
 
@@ -100,7 +102,13 @@ public:
 		{
 			FNetworkPredictionDriver<ModelDef>::EndInterpolatedPhysics(InstanceData.Info.Driver);
 		}
-
+		
+		FInstance& InterpolationData = Instances[ClientRecvIdx];
+		if (InterpolationData.bTwoValidFrames == false)
+		{
+			// We hid this but never got a chance to unhide it (can happen in possession cases)
+			FNetworkPredictionDriver<ModelDef>::SetHiddenForInterpolation(InstanceData.Info.Driver, false);
+		}
 		
 		ClientRecvBitMask[ClientRecvIdx] = false;
 		Instances.RemoveAt(ClientRecvIdx);
@@ -135,6 +143,21 @@ public:
 			LocalFrameData.AuxState = ClientRecvData.AuxState;
 
 			FInstance& InterpolationData = Instances[ClientRecvIdx];
+
+			if (InterpolationData.bTwoValidFrames == false)
+			{
+				if (InterpolationData.LastWrittenFrame != INDEX_NONE)
+				{
+					InterpolationData.bTwoValidFrames = true;
+					TInstanceData<ModelDef>& InstanceData = DataStore->Instances.GetByIndexChecked(InterpolationData.InstanceIdx);
+					FNetworkPredictionDriver<ModelDef>::SetHiddenForInterpolation(InstanceData.Info.Driver, false);
+				}
+				else
+				{
+					TInstanceData<ModelDef>& InstanceData = DataStore->Instances.GetByIndexChecked(InterpolationData.InstanceIdx);
+					FNetworkPredictionDriver<ModelDef>::SetHiddenForInterpolation(InstanceData.Info.Driver, true);
+				}
+			}
 
 			if (bHasPhysics)
 			{
@@ -189,6 +212,32 @@ public:
 		npEnsureSlow(FromFrame > INDEX_NONE);
 		npEnsureSlow(ToFrame > FromFrame);
 
+		if ( NetworkPredictionCVars::DisableInterpolation() > 0)
+		{
+			for (TConstSetBitIterator<> BitIt(ClientRecvBitMask); BitIt; ++BitIt)
+			{
+				TClientRecvData<ModelDef>& ClientRecvData = DataStore->ClientRecv.GetByIndexChecked(BitIt.GetIndex());
+				TInstanceData<ModelDef>& InstanceData = DataStore->Instances.GetByIndexChecked(ClientRecvData.InstanceIdx);
+				TInstanceFrameState<ModelDef>& Frames = DataStore->Frames.GetByIndexChecked(ClientRecvData.FramesIdx);
+
+				FNetworkPredictionDriver<ModelDef>::FinalizeFrame(InstanceData.Info.Driver, ClientRecvData.SyncState, ClientRecvData.AuxState);
+
+				if (bHasPhysics)
+				{
+					FNetworkPredictionDriver<ModelDef>::FinalizeInterpolatedPhysics(InstanceData.Info.Driver, ClientRecvData.Physics);
+				}
+
+				InstanceData.Info.View->UpdateView(ToFrame, ClientRecvData.SimTimeMS, &Frames.Buffer[TickState->PendingFrame].InputCmd, &ClientRecvData.SyncState, &ClientRecvData.AuxState);
+
+
+				FNetworkPredictionDriver<ModelDef>::DispatchCues(&InstanceData.CueDispatcher.Get(), InstanceData.Info.Driver, ClientRecvData.ServerFrame, ClientRecvData.SimTimeMS, 0);
+			}
+
+			return;
+		}
+
+
+
 		for (auto& It : Instances)
 		{
 			FInstance& Instance = It;
@@ -225,8 +274,6 @@ public:
 				FNetworkPredictionDriver<ModelDef>::Interpolate(SyncAuxType{FromFrameData.SyncState, FromFrameData.AuxState}, SyncAuxType{ToFrameData.SyncState, ToFrameData.AuxState}, 
 					PCT, Instance.SyncState, Instance.AuxState);
 
-				
-
 				// Push results to driver
 				TInstanceData<ModelDef>& InstanceData = DataStore->Instances.GetByIndexChecked(Instance.InstanceIdx);
 				FNetworkPredictionDriver<ModelDef>::FinalizeFrame(InstanceData.Info.Driver, Instance.SyncState, Instance.AuxState);
@@ -240,7 +287,10 @@ public:
 				}
 
 				// Update SimulationView with the frame we are interpolating to
-				InstanceData.Info.View->UpdateView(ToFrame, InterpolatedTimeMS, ToFrameData.InputCmd, ToFrameData.SyncState, ToFrameData.AuxState);
+				// FIXME: so this is kind of bad, we need to do '&Frames.Buffer[TickState->PendingFrame].InputCmd'  to support non-predictive (interpolated) client controlled simulations.
+				// This ensures that View->PendingInputCmd (where ProduceInput service writes to) is always Frames.Buffer[TickState->PendingFrame].InputCmd (where Replicators send cmds from).
+				// Really, it shouldn't be possible to disjoint the input cmds like this. This is awkward + hazardous but since it is a relatively minor, not frequently used feature, its probably ok.
+				InstanceData.Info.View->UpdateView(ToFrame, InterpolatedTimeMS, &Frames.Buffer[TickState->PendingFrame].InputCmd, ToFrameData.SyncState, ToFrameData.AuxState);
 
 				FNetworkPredictionDriver<ModelDef>::DispatchCues(&InstanceData.CueDispatcher.Get(), InstanceData.Info.Driver, FromFrame, InterpolatedTimeMS, 0);
 			}
@@ -258,6 +308,7 @@ private:
 		int32 InstanceIdx;
 		int32 FramesIdx;
 		int32 LastWrittenFrame = INDEX_NONE;
+		bool bTwoValidFrames = false;
 
 		// Last interpolated values. Stored here so that we can maintain FNetworkPredictionStateView to them
 		TConditionalState<SyncType> SyncState;

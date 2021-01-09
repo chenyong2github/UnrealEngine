@@ -2,6 +2,8 @@
 
 #pragma once
 
+struct FNetSimCueDispatcher;
+
 // Generic view into a managed instance's state
 struct FNetworkPredictionStateView
 {
@@ -29,6 +31,10 @@ struct FNetworkPredictionStateView
 	// (these will be null in cases where there is no smoothing/interpolation)
 	void* PresentationSyncState = nullptr;
 	void* PresentationAuxState = nullptr;
+
+	// CueDispatcher is exposed so that game code can invoke OOB cues
+	// Future versions may move this / make Invoking OOB cues go through a different API
+	FNetSimCueDispatcher* CueDispatcher = nullptr;
 
 	void UpdateView(int32 Frame, int32 InSimTimMS, void* Input, void* Sync, void* Aux)
 	{
