@@ -246,7 +246,7 @@ void FDeferredShadingSceneRenderer::RenderDistortion(FRDGBuilder& GraphBuilder, 
 	RDG_GPU_STAT_SCOPE(GraphBuilder, Distortion);
 
 	const FDepthStencilBinding StencilReadBinding(SceneDepthTexture, ERenderTargetLoadAction::ELoad, ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthRead_StencilRead);
-	const FDepthStencilBinding StencilWriteBinding(SceneDepthTexture, ERenderTargetLoadAction::ELoad, ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthRead_StencilWrite);
+	FDepthStencilBinding StencilWriteBinding(SceneDepthTexture, ERenderTargetLoadAction::ELoad, ERenderTargetLoadAction::EClear, FExclusiveDepthStencil::DepthRead_StencilWrite);
 
 	FRDGTextureRef DistortionTexture = nullptr;
 	FGlobalShaderMap* ShaderMap = GetGlobalShaderMap(FeatureLevel);
@@ -309,7 +309,9 @@ void FDeferredShadingSceneRenderer::RenderDistortion(FRDGBuilder& GraphBuilder, 
 			});
 
 			LoadAction = ERenderTargetLoadAction::ELoad;
+			StencilWriteBinding.SetStencilLoadAction(ERenderTargetLoadAction::ELoad);
 		}
+		StencilWriteBinding.SetStencilLoadAction(ERenderTargetLoadAction::ELoad);
 	}
 
 	FRDGTextureDesc DistortedSceneColorDesc = SceneColorTexture->Desc;
