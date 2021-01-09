@@ -240,6 +240,8 @@ public:
 	/** Select next or prev spline point, loops when last point is currently selected */
 	void OnSelectPrevNextSplinePoint(bool bNextPoint, bool bAddToSelection);
 
+	/** Sets the new cached rotation on the visualizer */
+	void SetCachedRotation(const FQuat& NewRotation);
 protected:
 
 	/** Determine if any selected key index is out of range (perhaps because something external has modified the spline) */
