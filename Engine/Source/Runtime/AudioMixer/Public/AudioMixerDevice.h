@@ -255,7 +255,7 @@ namespace Audio
 		void StartAudioBus(uint32 InAudioBusId, int32 InNumChannels, bool bInIsAutomatic);
 		void StopAudioBus(uint32 InAudioBusId);
 		bool IsAudioBusActive(uint32 InAudioBusId);
-		FPatchOutputStrongPtr AddPatchForAudioBus(uint32 InAudioBusId, float InPatchGain);
+		FPatchOutputStrongPtr AddPatchForAudioBus(uint32 InAudioBusId, float InPatchGain = 1.0f);
 
 		// Clock Manager for quantized event handling on Audio Render Thread
 		FQuartzClockManager QuantizedEventClockManager;
@@ -311,8 +311,15 @@ namespace Audio
 
 		TArray<TStrongObjectPtr<UAudioBus>> DefaultAudioBuses;
 
+		struct FActiveBusData
+		{
+			int32 BusId = 0;
+			int32 NumChannels = 0;
+			bool bIsAutomatic = false;
+		};
+
 		// The active audio bus list accessible on the game thread
-		TArray<int32> ActiveAudioBuses_GameThread;
+		TMap<int32, FActiveBusData> ActiveAudioBuses_GameThread;
 
 		/** Ptr to the platform interface, which handles streaming audio to the hardware device. */
 		IAudioMixerPlatformInterface* AudioMixerPlatform;

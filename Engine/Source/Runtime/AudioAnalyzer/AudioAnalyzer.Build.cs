@@ -13,8 +13,9 @@ namespace UnrealBuildTool.Rules
 				{
                     "InputCore",
                     "CoreUObject",
-                    "Engine"
-                }
+                    "Engine",
+					"AudioMixer"
+				}
 			);
 
 			PublicDependencyModuleNames.AddRange(

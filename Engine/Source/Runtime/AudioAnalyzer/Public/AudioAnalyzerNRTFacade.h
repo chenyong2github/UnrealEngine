@@ -10,18 +10,18 @@ namespace Audio
 
 	IAnalyzerNRTFactory* GetAnalyzerNRTFactory(FName InFactoryName);
 
-	/** FAnalyzerNRTBatch
+	/** FAnalyzerNRTFacade
 	 *
-	 * FAnalyzerNRTBatch provides a simplified interface for running 
+	 * FAnalyzerNRTFacade provides a simplified interface for running 
 	 * analyzer factories over complete audio resources.
 	 */
-	class AUDIOANALYZER_API FAnalyzerNRTBatch
+	class AUDIOANALYZER_API FAnalyzerNRTFacade
 	{
 		public:
 			/**
-			 * Create an FAnalyzerNRTBatch with the analyzer settings and factory name.
+			 * Create an FAnalyzerNRTFacade with the analyzer settings and factory name.
 			 */
-			FAnalyzerNRTBatch(TUniquePtr<IAnalyzerNRTSettings> InSettings, const FName& InFactoryName);
+			FAnalyzerNRTFacade(TUniquePtr<IAnalyzerNRTSettings> InSettings, const FName& InFactoryName);
 
 			/**
 			 * Analyze an entire PCM16 encoded audio object.  Audio for the entire sound should be contained within InRawWaveData.

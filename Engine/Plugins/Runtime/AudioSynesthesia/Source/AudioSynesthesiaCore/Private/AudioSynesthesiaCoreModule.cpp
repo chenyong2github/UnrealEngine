@@ -9,6 +9,7 @@
 #include "LoudnessNRTFactory.h"
 #include "ConstantQNRTFactory.h"
 #include "OnsetNRTFactory.h"
+#include "LoudnessFactory.h"
 
 DEFINE_LOG_CATEGORY(LogAudioSynesthesiaCore);
 
@@ -20,23 +21,29 @@ namespace Audio
 			void StartupModule()
 			{
 				// Register factories on startup
-				IModularFeatures::Get().RegisterModularFeature(FLoudnessNRTFactory::GetModularFeatureName(), &LoudnessFactory);
-				IModularFeatures::Get().RegisterModularFeature(FConstantQNRTFactory::GetModularFeatureName(), &ConstantQFactory);
-				IModularFeatures::Get().RegisterModularFeature(FOnsetNRTFactory::GetModularFeatureName(), &OnsetFactory);
+				IModularFeatures::Get().RegisterModularFeature(FLoudnessNRTFactory::GetModularFeatureName(), &LoudnessNRTFactory);
+				IModularFeatures::Get().RegisterModularFeature(FConstantQNRTFactory::GetModularFeatureName(), &ConstantQNRTFactory);
+				IModularFeatures::Get().RegisterModularFeature(FOnsetNRTFactory::GetModularFeatureName(), &OnsetNRTFactory);
+
+				IModularFeatures::Get().RegisterModularFeature(FLoudnessFactory::GetModularFeatureName(), &LoudnessFactory);
 			}
 
 			void ShutdownModule()
 			{
 				// Unregister factories on shutdown
+				IModularFeatures::Get().UnregisterModularFeature(FLoudnessNRTFactory::GetModularFeatureName(), &LoudnessNRTFactory);
+				IModularFeatures::Get().UnregisterModularFeature(FConstantQNRTFactory::GetModularFeatureName(), &ConstantQNRTFactory);
+				IModularFeatures::Get().UnregisterModularFeature(FOnsetNRTFactory::GetModularFeatureName(), &OnsetNRTFactory);
+
 				IModularFeatures::Get().UnregisterModularFeature(FLoudnessNRTFactory::GetModularFeatureName(), &LoudnessFactory);
-				IModularFeatures::Get().UnregisterModularFeature(FConstantQNRTFactory::GetModularFeatureName(), &ConstantQFactory);
-				IModularFeatures::Get().UnregisterModularFeature(FOnsetNRTFactory::GetModularFeatureName(), &OnsetFactory);
 			}
 
 		private:
-			FLoudnessNRTFactory LoudnessFactory;
-			FConstantQNRTFactory ConstantQFactory;
-			FOnsetNRTFactory OnsetFactory;
+			FLoudnessNRTFactory LoudnessNRTFactory;
+			FConstantQNRTFactory ConstantQNRTFactory;
+			FOnsetNRTFactory OnsetNRTFactory;
+
+			FLoudnessFactory LoudnessFactory;
 	};
 
 }

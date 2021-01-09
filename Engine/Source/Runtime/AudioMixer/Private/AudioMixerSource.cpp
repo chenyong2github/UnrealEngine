@@ -405,10 +405,12 @@ namespace Audio
 					if (SoundSourceBus->AudioBus)
 					{
 						InitParams.AudioBusId = SoundSourceBus->AudioBus->GetUniqueID();
+						InitParams.AudioBusChannels = (int32)SoundSourceBus->AudioBus->GetNumChannels();
 					}
 					else
 					{
 						InitParams.AudioBusId = WaveData->GetUniqueID();
+						InitParams.AudioBusChannels = WaveData->NumChannels;
 					}
 
 					if (!WaveData->IsLooping())
@@ -574,11 +576,12 @@ namespace Audio
 			for (FSoundSourceBusSendInfo& SendInfo : WaveInstance->BusSends[BusSendType])
 			{
 				// Avoid redoing duplicate code for sending audio to source bus or audio bus. Most of it is the same other than the bus id.
-				auto SetupBusSend = [this](TArray<FInitAudioBusSend>* AudioBusSends, const FSoundSourceBusSendInfo& InSendInfo, int32 InBusSendType, uint32 InBusId)
+				auto SetupBusSend = [this](TArray<FInitAudioBusSend>* AudioBusSends, const FSoundSourceBusSendInfo& InSendInfo, int32 InBusSendType, uint32 InBusId, int32 InBusChannels)
 				{
 					FInitAudioBusSend BusSend;
 					BusSend.AudioBusId = InBusId;
 					BusSend.SendLevel = InSendInfo.SendLevel;
+					BusSend.BusChannels = InBusChannels;
 
 					if (AudioBusSends)
 					{
@@ -622,29 +625,33 @@ namespace Audio
 				if (SendInfo.SoundSourceBus)
 				{						
 					uint32 BusId;
+					int32 BusChannels;
 
 					// Either use the bus id of the source bus's audio bus id if it was specified
 					if (SendInfo.SoundSourceBus->AudioBus)
 					{
 						BusId = SendInfo.SoundSourceBus->AudioBus->GetUniqueID();
+						BusChannels = (int32)SendInfo.SoundSourceBus->AudioBus->GetNumChannels();
 					}
 					else
 					{
 						// otherwise, use the id of the source bus itself (for an automatic source bus)
 						BusId = SendInfo.SoundSourceBus->GetUniqueID();
+						BusChannels = SendInfo.SoundSourceBus->NumChannels;
 					}
 
 					// Call lambda w/ the correctly derived bus id
-					SetupBusSend(OutAudioBusSends, SendInfo, BusSendType, BusId);
+					SetupBusSend(OutAudioBusSends, SendInfo, BusSendType, BusId, BusChannels);
 				}
 
 				if (SendInfo.AudioBus)
 				{
 					// Only need to send audio to just the specified audio bus
 					uint32 BusId = SendInfo.AudioBus->GetUniqueID();
+					int32 BusChannels = (int32)SendInfo.AudioBus->AudioBusChannels + 1;
 
 					// Note we will be sending audio to both the specified source bus and the audio bus with the same send level
-					SetupBusSend(OutAudioBusSends, SendInfo, BusSendType, BusId);
+					SetupBusSend(OutAudioBusSends, SendInfo, BusSendType, BusId, BusChannels);
 				}
 			}
 		}

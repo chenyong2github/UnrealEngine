@@ -852,7 +852,7 @@ namespace Audio
 					else
 					{
 						// If the bus is not registered, make a new entry. This will default to an automatic audio bus until explicitly made manual later.
-						TSharedPtr<FMixerAudioBus> NewAudioBus = TSharedPtr<FMixerAudioBus>(new FMixerAudioBus(this, true, InitParams.NumInputChannels));
+						TSharedPtr<FMixerAudioBus> NewAudioBus = TSharedPtr<FMixerAudioBus>(new FMixerAudioBus(this, true, InitParams.AudioBusChannels));
 						NewAudioBus->AddInstanceId(SourceId, InitParams.NumInputChannels);
 
 						AudioBuses.Add(InitParams.AudioBusId, NewAudioBus);
@@ -881,7 +881,7 @@ namespace Audio
 					else
 					{
 						// If the bus is not registered, make a new entry. This will default to an automatic audio bus until explicitly made manual later.
-						TSharedPtr<FMixerAudioBus> NewAudioBus(new FMixerAudioBus(this, true, FMath::Min(2, InitParams.NumInputChannels)));
+						TSharedPtr<FMixerAudioBus> NewAudioBus(new FMixerAudioBus(this, true, AudioBusSend.BusChannels));
 
 						// Add a send to it. This will not have a bus instance id (i.e. won't output audio), but 
 						// we register the send anyway in the event that this bus does play, we'll know to send this
@@ -1066,15 +1066,28 @@ namespace Audio
 		return AudioBusIds_AudioThread.Contains(InAudioBusId);
 	}
 
-	FPatchOutputStrongPtr FMixerSourceManager::AddPatchForAudioBus(uint32 InAudioBusId, float PatchGain)
+	void FMixerSourceManager::AddPatchOutputForAudioBus(uint32 InAudioBusId, FPatchOutputStrongPtr& InPatchOutputStrongPtr)
 	{
-		AUDIO_MIXER_CHECK_AUDIO_PLAT_THREAD(MixerDevice);
-		TSharedPtr<FMixerAudioBus> AudioBusPtr = AudioBuses.FindRef(InAudioBusId);
-		if (AudioBusPtr.IsValid())
+		AudioMixerThreadCommand([this, InAudioBusId, InPatchOutputStrongPtr]() mutable
 		{
-			return AudioBusPtr->AddNewPatch(NumOutputFrames * AudioBusPtr->GetNumChannels(), PatchGain);
-		}
-		return nullptr;
+			TSharedPtr<FMixerAudioBus> AudioBusPtr = AudioBuses.FindRef(InAudioBusId);
+			if (AudioBusPtr.IsValid())
+			{
+				AudioBusPtr->AddNewPatchOutput(InPatchOutputStrongPtr);
+			}
+		});
+	}
+
+	void FMixerSourceManager::AddPatchInputForAudioBus(uint32 InAudioBusId, FPatchInput& InPatchInput)
+	{
+		AudioMixerThreadCommand([this, InAudioBusId, InPatchInput]() mutable
+		{
+			TSharedPtr<FMixerAudioBus> AudioBusPtr = AudioBuses.FindRef(InAudioBusId);
+			if (AudioBusPtr.IsValid())
+			{
+				AudioBusPtr->AddNewPatchInput(InPatchInput);
+			}
+		});
 	}
 
 	void FMixerSourceManager::Play(const int32 SourceId)
@@ -1787,7 +1800,19 @@ namespace Audio
 					}
 
 					SourceInfo.NumFramesPlayed += NumFramesPlayed;
-					AudioBusPtr->CopyCurrentBuffer(SourceInfo.PreDistanceAttenuationBuffer, NumFramesPlayed, SourceInfo.NumInputChannels);
+
+					// Retrieve the channel map of going from the audio bus channel count to the source channel count since they may not match
+					int32 NumAudioBusChannels = AudioBusPtr->GetNumChannels();
+					if (NumAudioBusChannels != SourceInfo.NumInputChannels)
+					{
+						Audio::AlignedFloatBuffer ChannelMap;
+						MixerDevice->Get2DChannelMap(SourceInfo.bIsVorbis, AudioBusPtr->GetNumChannels(), SourceInfo.NumInputChannels, SourceInfo.bIsCenterChannelOnly, ChannelMap);
+						AudioBusPtr->CopyCurrentBuffer(ChannelMap, SourceInfo.NumInputChannels, SourceInfo.PreDistanceAttenuationBuffer, NumFramesPlayed);
+					}
+					else
+					{
+						AudioBusPtr->CopyCurrentBuffer(SourceInfo.NumInputChannels, SourceInfo.PreDistanceAttenuationBuffer, NumFramesPlayed);
+					}
 				}
 			}
 			else
@@ -2646,6 +2671,7 @@ namespace Audio
 
 	const float* FMixerSourceManager::GetPreviousAudioBusBuffer(const int32 AudioBusId) const
 	{
+		// This is only called from within a scope-lock
 		const TSharedPtr<FMixerAudioBus> AudioBusPtr = AudioBuses.FindRef(AudioBusId);
 		if (AudioBusPtr.IsValid())
 		{

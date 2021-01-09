@@ -14,6 +14,9 @@ namespace Audio
 		, bIsAutomatic(bInIsAutomatic)
 	{
 		SetNumOutputChannels(NumChannels);
+
+		// Make a patch bus input to push mixed audio sent to audio bus from source manager
+		AudioBusInput = PatchMixerSplitter.AddNewInput(4096, 1.0f);
 	}
 
 	void FMixerAudioBus::SetNumOutputChannels(int32 InNumOutputChannels)
@@ -122,26 +125,9 @@ namespace Audio
 					const int32 NumOutputFrames = SourceManager->GetNumOutputFrames();
 					const int32 NumSourceSamples = NumSourceChannels * NumOutputFrames;
 
-					// If source channels are 1 but the bus is 2 channels, we need to up-mix
-					if (NumSourceChannels == 1 && NumChannels == 2)
+					// If source channels are different than bus channels, we need to up-mix or down-mix
+					if (NumSourceChannels != NumChannels)
 					{
-						int32 BusSampleIndex = 0;
-						for (int32 SourceSampleIndex = 0; SourceSampleIndex < NumSourceSamples; ++SourceSampleIndex)
-						{
-							// Take half the source sample to up-mix to stereo
-							const float SourceSample = 0.5f * AudioBusSend.SendLevel * SourceBufferPtr[SourceSampleIndex];
-
-							// Mix in the source sample
-							for (int32 BusChannel = 0; BusChannel < NumChannels; ++BusChannel)
-							{
-								BusDataBufferPtr[BusSampleIndex++] += SourceSample;
-							}
-						}
-					}
-					// If the source channels is greater than num channels
-					else if (NumSourceChannels > NumChannels)
-					{
-						check(NumChannels == 1 || NumChannels == 2);
 						Audio::AlignedFloatBuffer ChannelMap;
 						SourceManager->Get2DChannelMap(AudioBusSend.SourceId, NumChannels, ChannelMap);
 
@@ -150,77 +136,41 @@ namespace Audio
 						Audio::DownmixBuffer(NumSourceChannels, NumChannels, SourceBufferPtr, DownmixedBuffer.GetData(), NumOutputFrames, ChannelMap.GetData());
 						Audio::MixInBufferFast(DownmixedBuffer.GetData(), BusDataBufferPtr, DownmixedBuffer.Num(), AudioBusSend.SendLevel);
 					}
-					// If they're the same channels, just mix it in
-					else if (ensureMsgf(NumSourceChannels == NumChannels, TEXT("NumSourceChannels=%d, NumChannels=%d"), NumSourceChannels, NumChannels))
+					else
 					{
 						Audio::MixInBufferFast(SourceBufferPtr, BusDataBufferPtr, NumOutputFrames * NumChannels, AudioBusSend.SendLevel);
 					}
 
 					// Push the mixed data to the patch splitter
-					PatchSplitter.PushAudio(BusDataBufferPtr, NumOutputFrames * NumChannels);
-				}				
+					AudioBusInput.PushAudio(BusDataBufferPtr, NumOutputFrames * NumChannels);
+
+					// Process the audio in the patch mixer splitter
+					PatchMixerSplitter.ProcessAudio();
+				}
 			}
 		}
 	}
 
-	void FMixerAudioBus::CopyCurrentBuffer(Audio::AlignedFloatBuffer& OutBuffer, int32 InNumFrames, int32 InNumOutputChannels, EMonoChannelUpmixMethod InMixMethod) const
+	void FMixerAudioBus::CopyCurrentBuffer(Audio::AlignedFloatBuffer& InChannelMap, int32 InNumOutputChannels, AlignedFloatBuffer& OutBuffer, int32 NumOutputFrames) const
 	{
 		const float* RESTRICT CurrentBuffer = GetCurrentBusBuffer();
 
-		if (InNumOutputChannels == 2 && NumChannels == 1)
-		{
-			switch (InMixMethod)
-			{
-			case EMonoChannelUpmixMethod::EqualPower:
-			{
-				static constexpr float Sqrt2Over2Gains[2] = { 0.707106781f, 0.707106781f };
-				MixMonoTo2ChannelsFast(CurrentBuffer, OutBuffer.GetData(), InNumFrames, Sqrt2Over2Gains);
-			}
-			break;
+		check(NumChannels != InNumOutputChannels);
+		Audio::AlignedFloatBuffer DownmixedBuffer;
+		DownmixedBuffer.AddUninitialized(NumOutputFrames * NumChannels);
 
-			case EMonoChannelUpmixMethod::Linear:
-			{
-				static constexpr float HalfGains[2] = { 0.5f, 0.5f };
-				MixMonoTo2ChannelsFast(CurrentBuffer, OutBuffer.GetData(), InNumFrames, HalfGains);
-			}
-			break;
+		Audio::DownmixBuffer(NumChannels, InNumOutputChannels, CurrentBuffer, DownmixedBuffer.GetData(), NumOutputFrames, InChannelMap.GetData());
 
-			case EMonoChannelUpmixMethod::FullVolume:
-			default:
-				MixMonoTo2ChannelsFast(CurrentBuffer, OutBuffer.GetData(), InNumFrames);
-				break;
-			}
-		}
-		else if (InNumOutputChannels == 1 && NumChannels == 2)
-		{
-			BufferSum2ChannelToMonoFast(CurrentBuffer, OutBuffer.GetData(), InNumFrames);
-			switch (InMixMethod)
-			{
-			case EMonoChannelUpmixMethod::EqualPower:
-			{
-				static constexpr float Sqrt2Gain = 1.41421356f;
-				MultiplyBufferByConstantInPlace(OutBuffer, Sqrt2Gain);
-			}
-			break;
+		Audio::MixInBufferFast(DownmixedBuffer.GetData(), OutBuffer.GetData(), DownmixedBuffer.Num(), 1.0f);
+	}
 
-			case EMonoChannelUpmixMethod::Linear:
-			{
-				static constexpr float DoubleGain = 2.0f;
-				MultiplyBufferByConstantInPlace(OutBuffer, DoubleGain);
-			}
-			break;
+	void FMixerAudioBus::CopyCurrentBuffer(int32 InNumOutputChannels, AlignedFloatBuffer& OutBuffer, int32 NumOutputFrames) const
+	{
+		const float* RESTRICT CurrentBuffer = GetCurrentBusBuffer();
 
-			case EMonoChannelUpmixMethod::FullVolume:
-			default:
-				break;
-			}
-		}
-		// Copy into the pre-distance attenuation buffer ptr as channel count should match
-		else
-		{
-			check(InNumOutputChannels == NumChannels);
-			FMemory::Memcpy(OutBuffer.GetData(), CurrentBuffer, sizeof(float) * InNumFrames * InNumOutputChannels);
-		}
+		check(NumChannels == InNumOutputChannels);
+
+		FMemory::Memcpy(OutBuffer.GetData(), CurrentBuffer, sizeof(float) * NumOutputFrames * InNumOutputChannels);
 	}
 
 	const float* FMixerAudioBus::GetCurrentBusBuffer() const
@@ -233,10 +183,21 @@ namespace Audio
 		return MixedSourceData[!CurrentBufferIndex].GetData();
 	}
 
-	FPatchOutputStrongPtr FMixerAudioBus::AddNewPatch(int32 MaxLatencyInSamples, float InGain)
+	void FMixerAudioBus::AddNewPatchOutput(FPatchOutputStrongPtr& InPatchOutputStrongPtr)
 	{
-		return PatchSplitter.AddNewPatch(MaxLatencyInSamples, InGain);
+		PatchMixerSplitter.AddNewOutput(InPatchOutputStrongPtr);
 	}
+
+	void FMixerAudioBus::AddNewPatchInput(FPatchInput& InPatchInput)
+	{
+		return PatchMixerSplitter.AddNewInput(InPatchInput);
+	}
+
+	void FMixerAudioBus::RemovePatchInput(const FPatchInput& PatchInput)
+	{
+		return PatchMixerSplitter.RemovePatch(PatchInput);
+	}
+
 
 
 }

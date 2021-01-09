@@ -104,7 +104,7 @@ namespace Audio
 		friend class FPatchSplitter;
 
 	private:
-		/** Weak pointer to our destination buffer. */
+		/** Strong pointer to our destination buffer. */
 		FPatchOutputStrongPtr OutputHandle;
 
 		/** Counter of the number of push calls until we check OutputHandle.IsUnique() and possibly clean up the output. */
@@ -124,6 +124,9 @@ namespace Audio
 
 		/** Adds a new input to the tap collector. Calling this is thread safe, but individual instances of FPatchInput are only safe to be used from one thread. */
 		FPatchInput AddNewInput(int32 MaxLatencyInSamples, float InGain);
+
+		/** Adds an existing patch input to the patch mixer. */
+		void AddNewInput(FPatchInput& InPatchInput);
 
 		/** Removes a tap from the tap collector. Calling this is thread safe, though FPatchOutput will likely not be deleted until the next call of PopAudio. */
 		void RemovePatch(const FPatchInput& TapInput);
@@ -183,6 +186,9 @@ namespace Audio
 		 */
 		FPatchOutputStrongPtr AddNewPatch(int32 MaxLatencyInSamples, float InGain);
 
+		/** Adds a new a patch from an existing patch output. */
+		void AddNewPatch(FPatchOutputStrongPtr& InPatchOutputStrongPtr);
+
 		/** This call pushes audio to all outputs connected to this splitter. Only should be called from one thread. */
 		int32 PushAudio(const float* InBuffer, int32 InNumSamples);
 
@@ -205,7 +211,7 @@ namespace Audio
 
 	/**
 	 * This class is used to mix multiple inputs from disparate threads to a single mixdown and deliver that mixdown to multiple outputs.
-	 * This class is MPCMC, but only one thread can and should call ProcessAudio().
+	 * This class is MPMC, but only one thread can and should call ProcessAudio().
 	 */
 	class SIGNALPROCESSING_API FPatchMixerSplitter
 	{
@@ -222,8 +228,14 @@ namespace Audio
 		 */
 		FPatchOutputStrongPtr AddNewOutput(int32 MaxLatencyInSamples, float InGain);
 
+		/** Adds a new a patch from an existing patch output. */
+		void AddNewOutput(FPatchOutputStrongPtr& InPatchOutputStrongPtr);
+
 		/** Adds a new input to the tap collector. Calling this is thread safe, but individual instances of FPatchInput are only safe to be used from one thread. */
 		FPatchInput AddNewInput(int32 MaxLatencyInSamples, float InGain);
+
+		/** Adds a new a patch input from an existing patch input object. */
+		void AddNewInput(FPatchInput& InInput);
 
 		/** Removes a tap from the tap collector. Calling this is thread safe, though FPatchOutput will likely not be deleted until the next call of PopAudio. */
 		void RemovePatch(const FPatchInput& TapInput);

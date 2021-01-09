@@ -15,7 +15,7 @@ namespace Audio
 		TArray<IAnalyzerNRTFactory*> RegisteredFactories = IModularFeatures::Get().GetModularFeatureImplementations<IAnalyzerNRTFactory>(IAnalyzerNRTFactory::GetModularFeatureName());
 
 		// Get the factory of interest by matching the name.
-		TArray<Audio::IAnalyzerNRTFactory*> MatchingFactories = RegisteredFactories.FilterByPredicate([InFactoryName](IAnalyzerNRTFactory* Factory) { check(nullptr != Factory); return Factory->GetName() == InFactoryName; });
+		TArray<IAnalyzerNRTFactory*> MatchingFactories = RegisteredFactories.FilterByPredicate([InFactoryName](IAnalyzerNRTFactory* Factory) { check(nullptr != Factory); return Factory->GetName() == InFactoryName; });
 
 		if (0 == MatchingFactories.Num())
 		{
@@ -35,13 +35,13 @@ namespace Audio
 	}
 
 	/**********************************************************/
-	/*************** FAnalyzerNRTBatch ************************/
+	/*************** FAnalyzerNRTFacade ************************/
 	/**********************************************************/
 
 	/**
-	 * Create an FAnalyzerNRTBatch with the analyzer settings and factory name.
+	 * Create an FAnalyzerNRTFacade with the analyzer settings and factory name.
 	 */
-	FAnalyzerNRTBatch::FAnalyzerNRTBatch(TUniquePtr<IAnalyzerNRTSettings> InSettings, const FName& InFactoryName)
+	FAnalyzerNRTFacade::FAnalyzerNRTFacade(TUniquePtr<IAnalyzerNRTSettings> InSettings, const FName& InFactoryName)
 	: Settings(MoveTemp(InSettings))
 	, FactoryName(InFactoryName)
 	{}
@@ -49,7 +49,7 @@ namespace Audio
 	/**
 	 * Analyze an entire PCM16 encoded audio object.  Audio for the entire sound should be contained within InRawWaveData.
 	 */
-	TUniquePtr<IAnalyzerNRTResult> FAnalyzerNRTBatch::AnalyzePCM16Audio(const TArray<uint8>& InRawWaveData, int32 InNumChannels, float InSampleRate)
+	TUniquePtr<IAnalyzerNRTResult> FAnalyzerNRTFacade::AnalyzePCM16Audio(const TArray<uint8>& InRawWaveData, int32 InNumChannels, float InSampleRate)
 	{
 		// Get analyzer factory
 		IAnalyzerNRTFactory* Factory = GetAnalyzerNRTFactory(FactoryName);
@@ -61,7 +61,7 @@ namespace Audio
 			return TUniquePtr<IAnalyzerNRTResult>();
 		}
 
-		// Create result and worker from fractory
+		// Create result and worker from factory
 		FAnalyzerNRTParameters AnalyzerNRTParameters(InSampleRate, InNumChannels);
 
 		TUniquePtr<IAnalyzerNRTResult> Result = Factory->NewResult();

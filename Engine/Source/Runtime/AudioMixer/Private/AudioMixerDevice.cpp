@@ -2282,7 +2282,12 @@ namespace Audio
 				return;
 			}
 
-			ActiveAudioBuses_GameThread.Add(InAudioBusId);
+			FActiveBusData BusData;
+			BusData.BusId = InAudioBusId;
+			BusData.NumChannels = InNumChannels;
+			BusData.bIsAutomatic = bInIsAutomatic;
+
+			ActiveAudioBuses_GameThread.Add(InAudioBusId, BusData);
 
 			FAudioThread::RunCommandOnAudioThread([this, InAudioBusId, InNumChannels, bInIsAutomatic]()
 			{
@@ -2320,16 +2325,33 @@ namespace Audio
 		return SourceManager->IsAudioBusActive(InAudioBusId);
 	}
 
-	FPatchOutputStrongPtr FMixerDevice::AddPatchForAudioBus(uint32 InAudioBusId, float InPatchGain)
+	Audio::FPatchOutputStrongPtr FMixerDevice::AddPatchForAudioBus(uint32 InAudioBusId, float InPatchGain)
 	{
-		if (ensure(!IsInGameThread() && !IsInAudioThread()))
+		FPatchOutputStrongPtr StrongOutputPtr;
+		if (IsInGameThread())
 		{
-			return SourceManager->AddPatchForAudioBus(InAudioBusId, InPatchGain);
+			FActiveBusData* BusData = ActiveAudioBuses_GameThread.Find(InAudioBusId);
+			if (BusData)
+			{
+				int32 NumOutputFrames = SourceManager->GetNumOutputFrames();
+				int32 BusNumChannels = BusData->NumChannels;
+				StrongOutputPtr = MakeShareable(new FPatchOutput(NumOutputFrames * BusData->NumChannels, InPatchGain));
+
+				FAudioThread::RunCommandOnAudioThread([this, InAudioBusId, StrongOutputPtr]() mutable
+				{
+					SourceManager->AddPatchOutputForAudioBus(InAudioBusId, StrongOutputPtr);
+				});
+			}
+			else
+			{
+				UE_LOG(LogAudioMixer, Warning, TEXT("Unable to add a patch output for audio bus because audio bus id '%d' is not active."), InAudioBusId);
+			}
 		}
 		else
 		{
-			return nullptr;
+			UE_LOG(LogAudioMixer, Warning, TEXT("AddPatchForAudioBus can only be called from the game thread."));
 		}
+		return StrongOutputPtr;
 	}
 
 	Audio::FPatchOutputStrongPtr FMixerDevice::AddPatchForSubmix(uint32 InObjectId, float InPatchGain)

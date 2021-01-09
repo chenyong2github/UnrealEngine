@@ -8,8 +8,7 @@
 
 namespace Audio
 {
-	/** FLoudnessNRTSettings
-	 *
+	/**
 	 * Contains settings for loudness analyzer.
 	 */
 	class AUDIOSYNESTHESIACORE_API FLoudnessNRTSettings : public IAnalyzerNRTSettings, public FLoudnessAnalyzerSettings
@@ -24,9 +23,8 @@ namespace Audio
 	};
 
 
-	/** FLoudnessNRTResult
-	 *
-	 * Holds the loundess values per a time step.
+	/** 
+	 * Holds the loudness values per a time step. 
 	 */
 	struct FLoudnessDatum
 	{
@@ -35,87 +33,63 @@ namespace Audio
 		float Energy = 0.f;
 		float Loudness = 0.f;
 	};
+	
 	/** De/Serialize single loudness datum into archive. */
 	AUDIOSYNESTHESIACORE_API FArchive &operator <<(FArchive& Ar, FLoudnessDatum& Datum);
 
-	/** FLoudnessNRTResult
-	 *
-	 * FLoudnessNRTResult contains the temporal evolution of loudness.
-	 */
+	/** FLoudnessNRTResult contains the temporal evolution of loudness. */
 	class AUDIOSYNESTHESIACORE_API FLoudnessNRTResult : public IAnalyzerNRTResult
 	{
 	public:
-		/** ChannelIndexOverall
-		 *
-		 * Denotes the overall loudness channel index as opposed individual channel indices.
-		 */
+		/** Denotes the overall loudness channel index as opposed individual channel indices. */
 		static const int32 ChannelIndexOverall;
 
 		FLoudnessNRTResult();
 
-		/**
-		 * Defines how to serialize result.
-		 */
+		/** Defines how to serialize result. */
 		virtual void Serialize(FArchive& Archive) override;
 
-		/**
-		 * Appends an FLoudnessDatum to the container.
-		 */
+		/** Appends an FLoudnessDatum to the container. */
 		void Add(const FLoudnessDatum& InDatum);
 
 		/** Returns true if this object data for the given channel index */
 		bool ContainsChannel(int32 InChannelIndex) const;
 
-		/**
-		 * Returns const reference to FLoudnessDatum array for individual channel.
-		 */
+		/** Returns const reference to FLoudnessDatum array for individual channel. */
 		const TArray<FLoudnessDatum>& GetChannelLoudnessArray(int32 ChannelIdx) const;
 
-		/**
-		 * Returns const reference to FLoudnessDatum array associated with overall loudness.
-		 */
+		/** Returns const reference to FLoudnessDatum array associated with overall loudness. */
 		const TArray<FLoudnessDatum>& GetLoudnessArray() const;
 
-		/**
-		 * Returns range in dB of overall loudness result given the noise floor.
-		 */
+		/** Returns range in dB of overall loudness result given the noise floor. */
 		float GetLoudnessRange(float InNoiseFloor) const;
-
 
 		/** Returns range in dB of loudness result given the noise floor. */
 		float GetChannelLoudnessRange(int32 InChannelIdx, float InNoiseFloor) const;
 
-		/** Returns the channel indices availabe in result. */
+		/** Returns the channel indices available in result. */
 		void GetChannels(TArray<int32>& OutChannels) const;
 
-		/** Gets the duration of the anlayzed audio. */
+		/** Gets the duration of the analyzed audio. */
 		virtual float GetDurationInSeconds() const override;
 
-		/** Sets the duration of the anlayzed audio. */
+		/** Sets the duration of the analyzed audio. */
 		void SetDurationInSeconds(float InDuration);
 
-		/**
-		 * Returns true if FLoudnessDatum arrays are sorted in chronologically ascending order via their timestamp.
-		 */
+		/** Returns true if FLoudnessDatum arrays are sorted in chronologically ascending order via their timestamp. */
 		bool IsSortedChronologically() const;
 
-		/**
-		 * Sorts FLoudnessDatum arrays in chronologically ascnding order via their timestamp.
-		 */
+		/** Sorts FLoudnessDatum arrays in chronologically ascending order via their timestamp. */
 		void SortChronologically();
 
 	private:
 		float DurationInSeconds;
-
 		TMap<int32, TArray<FLoudnessDatum> > ChannelLoudnessArrays;
-
 		TMap<int32, FFloatInterval> ChannelLoudnessIntervals;
-
 		bool bIsSortedChronologically;
 	};
 
-	/** FLoudnessNRTWorker
-	 *
+	/** 
 	 * FLoudnessNRTWorker performs loudness analysis on input sample buffers.
 	 */
 	class AUDIOSYNESTHESIACORE_API FLoudnessNRTWorker : public IAnalyzerNRTWorker
@@ -143,18 +117,13 @@ namespace Audio
 		int32 NumAnalyzedBuffers;
 		int32 NumHopFrames;
 		int32 NumFrames;
-
 		float SampleRate;
-
 		TArray<float> InternalWindow;
-
 		TUniquePtr<TSlidingBuffer<float>> InternalBuffer;
-
 		TUniquePtr<FMultichannelLoudnessAnalyzer> Analyzer;
 	};
 
-	/** FLoudnessNRTFactory
-	 *
+	/**
 	 * Defines the LoudnessNRT analyzer and creates related classes.
 	 */
 	class AUDIOSYNESTHESIACORE_API FLoudnessNRTFactory : public IAnalyzerNRTFactory
@@ -170,10 +139,7 @@ namespace Audio
 		/** Creates a new FLoudnessNRTResult */
 		virtual TUniquePtr<IAnalyzerNRTResult> NewResult() const override;
 
-		/** 
-		 * Creates a new FLoudnessNRTWorker. This expects IAnalyzerNRTSettings to be a valid pointer to
-		 * a FLoudnessNRTSettings object.
-		 */
+		/** Creates a new FLoudnessNRTWorker. This expects IAnalyzerNRTSettings to be a valid pointer to a FLoudnessNRTSettings object. */
 		virtual TUniquePtr<IAnalyzerNRTWorker> NewWorker(const FAnalyzerNRTParameters& InParams, const IAnalyzerNRTSettings* InSettings) const override;
 	};
 }

@@ -22,7 +22,7 @@ namespace Audio
 	}
 
 	// Use for overall loudness storage
-	const int32 FLoudnessNRTResult::ChannelIndexOverall = -1;
+	const int32 FLoudnessNRTResult::ChannelIndexOverall = INDEX_NONE;
 
 
 	FLoudnessNRTResult::FLoudnessNRTResult()

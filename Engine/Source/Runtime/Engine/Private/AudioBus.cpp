@@ -87,17 +87,7 @@ void UAudioBus::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEve
 			if (Audio::FMixerDevice* MixerDevice = static_cast<Audio::FMixerDevice*>(InDevice))
 			{
 				MixerDevice->StopAudioBus(BusId);
-				switch(NumChannels)
-				{
-					case EAudioBusChannels::Stereo:
-						MixerDevice->StartAudioBus(BusId, 2, false /* bInIsAutomatic */);
-					break;
-
-					case EAudioBusChannels::Mono:
-					default:
-						MixerDevice->StartAudioBus(BusId, 1, false /* bInIsAutomatic */);
-					break;
-				}
+				MixerDevice->StartAudioBus(BusId, (int32)NumChannels + 1, false /* bInIsAutomatic */);
 			}
 		});
 	}

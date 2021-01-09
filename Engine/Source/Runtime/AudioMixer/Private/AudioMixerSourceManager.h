@@ -99,6 +99,7 @@ namespace Audio
 	{
 		uint32 AudioBusId = INDEX_NONE;
 		float SendLevel = 0.0f;
+		int32 BusChannels = 0;
 	};
 
 	struct FMixerSourceVoiceInitParams
@@ -108,6 +109,7 @@ namespace Audio
 		TArray<FMixerSourceSubmixSend> SubmixSends;
 		TArray<FInitAudioBusSend> AudioBusSends[(int32)EBusSendType::Count];
 		uint32 AudioBusId = INDEX_NONE;
+		int32 AudioBusChannels = 0;
 		float SourceBusDuration = 0.0f;
 		uint32 SourceEffectChainId = INDEX_NONE;
 		TArray<FSourceEffectChainEntry> SourceEffectChain;
@@ -163,11 +165,20 @@ namespace Audio
 		void ReleaseSourceId(const int32 SourceId);
 		void InitSource(const int32 SourceId, const FMixerSourceVoiceInitParams& InitParams);
 
-		// Creates an audio bus manually. Returns an audio bus Id.
+		// Creates and starts an audio bus manually.
 		void StartAudioBus(uint32 InAudioBusId, int32 InNumChannels, bool bInIsAutomatic);
+
+		// Stops an audio bus manually
 		void StopAudioBus(uint32 InAudioBusId);
+
+		// Queries if an audio bus is active
 		bool IsAudioBusActive(uint32 InAudioBusId);
-		FPatchOutputStrongPtr AddPatchForAudioBus(uint32 InAudioBusId, float PatchGain);
+
+		// Adds a patch output for an audio bus
+		void AddPatchOutputForAudioBus(uint32 InAudioBusId, FPatchOutputStrongPtr& InPatchOutputStrongPtr);
+
+		// Adds a patch input for an audio bus
+		void AddPatchInputForAudioBus(uint32 InAudioBusId, FPatchInput& InPatchInput);
 
 		void Play(const int32 SourceId);
 		void Stop(const int32 SourceId);

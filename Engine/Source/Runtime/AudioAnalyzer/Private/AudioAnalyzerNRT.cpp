@@ -11,15 +11,15 @@
 
 namespace 
 {
-	class FAudioAnalyzeTask : public FNonAbandonableTask
+	class FAudioAnalyzeNRTTask : public FNonAbandonableTask
 	{
-		friend class FAutoDeleteAsyncTask<FAudioAnalyzeTask>;
+		friend class FAutoDeleteAsyncTask<FAudioAnalyzeNRTTask>;
 
 		public:
-			FAudioAnalyzeTask(
+			FAudioAnalyzeNRTTask(
 					TWeakObjectPtr<UAudioAnalyzerNRT> InAnalyzerUObject, 
 					const UAudioAnalyzerNRT::FResultId InResultId,
-					TUniquePtr<Audio::FAnalyzerNRTBatch>&& InAnalyzerFacade, 
+					TUniquePtr<Audio::FAnalyzerNRTFacade>&& InAnalyzerFacade, 
 					TArray<uint8>&& InRawWaveData,
 					int32 InNumChannels,
 					float InSampleRate)
@@ -45,12 +45,12 @@ namespace
 				});
 			}
 
-			FORCEINLINE TStatId GetStatId() const { RETURN_QUICK_DECLARE_CYCLE_STAT(AudioAnalyzeTask, STATGROUP_ThreadPoolAsyncTasks); }
+			FORCEINLINE TStatId GetStatId() const { RETURN_QUICK_DECLARE_CYCLE_STAT(AudioAnalyzeNRTTask, STATGROUP_ThreadPoolAsyncTasks); }
 
 		private:
 			TWeakObjectPtr<UAudioAnalyzerNRT> AnalyzerUObject;
 			const UAudioAnalyzerNRT::FResultId ResultId;
-			TUniquePtr<Audio::FAnalyzerNRTBatch> AnalyzerFacade;
+			TUniquePtr<Audio::FAnalyzerNRTFacade> AnalyzerFacade;
 			TArray<uint8> RawWaveData;
 			int32 NumChannels;
 			float SampleRate;
@@ -155,13 +155,13 @@ void UAudioAnalyzerNRT::AnalyzeAudio()
 		}
 		
 		// Create analyzer helper object
-		TUniquePtr<Audio::FAnalyzerNRTBatch> BatchAnalyzer = MakeUnique<Audio::FAnalyzerNRTBatch>(GetSettings(SampleRate, NumChannels), GetAnalyzerNRTFactoryName());
+		TUniquePtr<Audio::FAnalyzerNRTFacade> BatchAnalyzer = MakeUnique<Audio::FAnalyzerNRTFacade>(GetSettings(SampleRate, NumChannels), GetAnalyzerNRTFactoryName());
 
 		// Use weak reference in case this object is deleted before analysis is done
 		TWeakObjectPtr<UAudioAnalyzerNRT> AnalyzerPtr(this);
 		
 		// Create and start async task. Parentheses avoids memory leak warnings from static analysis.
-		(new FAutoDeleteAsyncTask<FAudioAnalyzeTask>(AnalyzerPtr, ThisResultId, MoveTemp(BatchAnalyzer), MoveTemp(RawWaveData), NumChannels, SampleRate))->StartBackgroundTask();
+		(new FAutoDeleteAsyncTask<FAudioAnalyzeNRTTask>(AnalyzerPtr, ThisResultId, MoveTemp(BatchAnalyzer), MoveTemp(RawWaveData), NumChannels, SampleRate))->StartBackgroundTask();
 	}
 	else
 	{

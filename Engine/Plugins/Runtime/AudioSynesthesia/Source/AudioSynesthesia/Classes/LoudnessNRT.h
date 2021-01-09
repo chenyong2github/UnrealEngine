@@ -18,7 +18,7 @@ enum class ELoudnessNRTCurveTypeEnum : uint8
 	B		UMETA(DisplayName="B"),
 	/** Loudness Curve C Weighting. Relative to "A" and "B", gives more precedence to frequencies below 1kHz. */
 	C		UMETA(DisplayName="C"),
-	/** Loudness Curve D Weighting. Simlar to "B" but with an emphasis on presence in the 2kHz-6KHz frequency range. */
+	/** Loudness Curve D Weighting. Similar to "B" but with an emphasis on presence in the 2kHz-6KHz frequency range. */
 	D		UMETA(DisplayName="D"),
 	/** No loudness curve weighting. */
 	None	UMETA(DisplayName="None"),

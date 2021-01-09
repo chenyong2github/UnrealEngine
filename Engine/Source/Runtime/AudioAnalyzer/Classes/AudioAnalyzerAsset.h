@@ -7,12 +7,14 @@
 #include "CoreMinimal.h"
 #include "AudioAnalyzerAsset.generated.h"
 
-/** UAudioAnalyzerAsset
+DECLARE_MULTICAST_DELEGATE(FAnalyzeAudioDelegate);
+
+/** UAudioAnalyzerAssetBase
  *
- * UAudioAnalyzerAsset provides the interface for controlling asset actions within the editor.
+ * UAudioAnalyzerAssetBase provides the base interface for controlling asset actions within the editor.
  */
 UCLASS(Abstract, EditInlineNew)
-class AUDIOANALYZER_API UAudioAnalyzerAsset : public UObject
+class AUDIOANALYZER_API UAudioAnalyzerAssetBase : public UObject
 {
 	GENERATED_BODY()
 

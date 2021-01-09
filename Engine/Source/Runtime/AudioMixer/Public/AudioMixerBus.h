@@ -22,8 +22,14 @@ namespace Audio
 	class FMixerAudioBus
 	{
 	public:
-		// Allow anybody to add a patch to retrieve the audio from any thread.
-		FPatchOutputStrongPtr AddNewPatch(int32 MaxLatencyInSamples, float InGain);
+		// Allow anybody to add a pre-existing patch output object to the audio bus
+		void AddNewPatchOutput(FPatchOutputStrongPtr& InPatchOutputStrongPtr);
+
+		// Allow anybody to write audio into this audio bus from any thread.
+		void AddNewPatchInput(FPatchInput& InPatchInput);
+
+		// Allow anybody to write audio into this audio bus from any thread.
+		void RemovePatchInput(const FPatchInput& InPatchInput);
 
 	private:
 
@@ -52,7 +58,7 @@ namespace Audio
 		// Removes the source id from this bus. Returns true if there are no more instances or sends.
 		bool RemoveInstanceId(const int32 InSourceId);
 
-		// Adds a buss end to the bus
+		// Adds a bus send to the bus
 		void AddSend(EBusSendType BusSendType, const FAudioBusSend& InBusSend);
 
 		// Removes the source instance from this bus's send list
@@ -68,7 +74,8 @@ namespace Audio
 		void MixBuffer();
 
 		// Copies the current internal buffer to a provided output buffer. Only supports mono or stereo input/output formats.
-		void CopyCurrentBuffer(AlignedFloatBuffer& OutBuffer, int32 InNumFrames, int32 InNumOutputChannels, EMonoChannelUpmixMethod InMixMethod = EMonoChannelUpmixMethod::EqualPower) const;
+		void CopyCurrentBuffer(Audio::AlignedFloatBuffer& InChannelMap, int32 InNumOutputChannels, AlignedFloatBuffer& OutBuffer, int32 NumOutputFrames) const;
+		void CopyCurrentBuffer(int32 InNumOutputChannels, AlignedFloatBuffer& OutBuffer, int32 NumOutputFrames) const;
 
 		// If this bus was constructed before
 		void SetNumOutputChannels(int32 InNumOutputChannels);
@@ -98,12 +105,15 @@ namespace Audio
 		// Owning soruce manager
 		FMixerSourceManager* SourceManager;
 
-		Audio::FPatchSplitter PatchSplitter;
+		// Multiple places can produce and consume from audio buses
+		Audio::FPatchInput AudioBusInput;
+		Audio::FPatchMixerSplitter PatchMixerSplitter;
 
 		// Was created manually, not via source buses.
 		bool bIsAutomatic;
 
 		friend FMixerSourceManager;
+		friend FMixerSubmix;
 	};
 
 }

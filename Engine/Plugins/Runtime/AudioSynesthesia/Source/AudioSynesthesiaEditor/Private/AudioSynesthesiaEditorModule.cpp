@@ -6,8 +6,11 @@
 #include "AssetToolsModule.h"
 #include "UObject/UObjectIterator.h"
 #include "AudioSynesthesiaNRT.h"
+#include "AudioSynesthesia.h"
 #include "AssetTypeActions_AudioSynesthesiaNRT.h"
 #include "AssetTypeActions_AudioSynesthesiaNRTSettings.h"
+#include "AssetTypeActions_AudioSynesthesiaSettings.h"
+
 
 DEFINE_LOG_CATEGORY(LogAudioSynesthesiaEditor);
 
@@ -30,6 +33,7 @@ public:
 	{
 		RegisterAudioSynesthesiaAssetActions<UAudioSynesthesiaNRT, FAssetTypeActions_AudioSynesthesiaNRT>();
 		RegisterAudioSynesthesiaAssetActions<UAudioSynesthesiaNRTSettings, FAssetTypeActions_AudioSynesthesiaNRTSettings>();
+		RegisterAudioSynesthesiaAssetActions<UAudioSynesthesiaSettings, FAssetTypeActions_AudioSynesthesiaSettings>();
 	}
 
 private:

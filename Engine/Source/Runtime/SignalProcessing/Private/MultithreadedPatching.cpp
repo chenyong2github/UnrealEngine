@@ -191,25 +191,36 @@ namespace Audio
 	{
 	}
 
-
-	FPatchInput FPatchMixer::AddNewInput(int32 MaxLatencyInSamples, float InGain)
+	FPatchInput FPatchMixer::AddNewInput(int32 InMaxLatencyInSamples, float InGain)
 	{
 		FScopeLock ScopeLock(&PendingNewInputsCriticalSection);
 
-		int32 NewPatchIndex = PendingNewInputs.Emplace(new FPatchOutput(MaxLatencyInSamples, InGain));
+		int32 NewPatchIndex = PendingNewInputs.Emplace(new FPatchOutput(InMaxLatencyInSamples, InGain));
 		return FPatchInput(PendingNewInputs[NewPatchIndex]);
 	}
 
-	void FPatchMixer::RemovePatch(const FPatchInput& PatchInput)
+	void FPatchMixer::AddNewInput(FPatchInput& InPatchInput)
+	{
+		if (!InPatchInput.OutputHandle.IsValid())
+		{
+			return;
+		}
+
+		FScopeLock ScopeLock(&PendingNewInputsCriticalSection);
+
+		PendingNewInputs.Add(InPatchInput.OutputHandle);
+	}
+
+	void FPatchMixer::RemovePatch(const FPatchInput& InPatchInput)
 	{
 		// If the output is already disconnected, early exit.
-		if (!PatchInput.OutputHandle.IsValid())
+		if (!InPatchInput.OutputHandle.IsValid())
 		{
 			return;
 		}
 
 		FScopeLock ScopeLock(&InputDeletionCriticalSection);
-		DisconnectedInputs.Add(PatchInput.OutputHandle->PatchID);
+		DisconnectedInputs.Add(InPatchInput.OutputHandle->PatchID);
 	}
 
 	int32 FPatchMixer::PopAudio(float* OutBuffer, int32 OutNumSamples, bool bUseLatestAudio)
@@ -353,7 +364,7 @@ namespace Audio
 	{
 	}
 
-	Audio::FPatchOutputStrongPtr FPatchSplitter::AddNewPatch(int32 MaxLatencyInSamples, float InGain)
+	FPatchOutputStrongPtr FPatchSplitter::AddNewPatch(int32 MaxLatencyInSamples, float InGain)
 	{
 		// Allocate a new FPatchOutput, then store a weak pointer to it in our PendingOutputs array to be added in our next call to PushAudio.
 		FPatchOutputStrongPtr StrongOutputPtr = MakeShareable(new FPatchOutput(MaxLatencyInSamples * 2, InGain));
@@ -364,6 +375,12 @@ namespace Audio
 		}
 
 		return StrongOutputPtr;
+	}
+
+	void FPatchSplitter::AddNewPatch(FPatchOutputStrongPtr& InPatchOutputStrongPtr)
+	{
+		FScopeLock ScopeLock(&PendingOutputsCriticalSection);
+		PendingOutputs.Emplace(InPatchOutputStrongPtr);
 	}
 
 	int32 FPatchSplitter::Num()
@@ -448,14 +465,24 @@ namespace Audio
 	{
 	}
 
-	Audio::FPatchOutputStrongPtr FPatchMixerSplitter::AddNewOutput(int32 MaxLatencyInSamples, float InGain)
+	FPatchOutputStrongPtr FPatchMixerSplitter::AddNewOutput(int32 MaxLatencyInSamples, float InGain)
 	{
 		return Splitter.AddNewPatch(MaxLatencyInSamples, InGain);
 	}
 
-	Audio::FPatchInput FPatchMixerSplitter::AddNewInput(int32 MaxLatencyInSamples, float InGain)
+	void FPatchMixerSplitter::AddNewOutput(FPatchOutputStrongPtr& InPatchOutputStrongPtr)
+	{
+		Splitter.AddNewPatch(InPatchOutputStrongPtr);
+	}
+
+	FPatchInput FPatchMixerSplitter::AddNewInput(int32 MaxLatencyInSamples, float InGain)
 	{
 		return Mixer.AddNewInput(MaxLatencyInSamples, InGain);
+	}
+
+	void FPatchMixerSplitter::AddNewInput(FPatchInput& InInput)
+	{
+		Mixer.AddNewInput(InInput);
 	}
 
 	void FPatchMixerSplitter::RemovePatch(const FPatchInput& TapInput)
