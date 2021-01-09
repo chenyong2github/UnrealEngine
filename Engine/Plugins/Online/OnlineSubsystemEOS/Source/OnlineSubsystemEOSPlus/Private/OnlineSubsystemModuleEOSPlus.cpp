@@ -39,6 +39,9 @@ public:
 
 void FOnlineSubsystemEOSPlusModule::StartupModule()
 {
+	// Force loading of the EOS OSS module in case the plugin manager failed to get the dependencies right
+	FModuleManager::LoadModuleChecked<FOnlineSubsystemModule>(TEXT("OnlineSubsystemEOS"));
+
 	PlusFactory = new FOnlineFactoryEOSPlus();
 
 	// Create and register our singleton factory with the main online subsystem for easy access
