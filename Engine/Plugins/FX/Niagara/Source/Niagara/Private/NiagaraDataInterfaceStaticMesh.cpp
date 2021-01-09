@@ -1575,22 +1575,25 @@ void UNiagaraDataInterfaceStaticMesh::GetFeedback(UNiagaraSystem* Asset, UNiagar
 
 	bool bHasNoMeshAssignedWarning = (Source == nullptr && DefaultMesh == nullptr);
 #if WITH_EDITORONLY_DATA
-	if (bHasNoMeshAssignedWarning && PreviewMesh != nullptr)
+	if (bHasNoMeshAssignedWarning)
 	{
-		bHasNoMeshAssignedWarning = false;
-
-		if (!PreviewMesh->bAllowCPUAccess)
+		if (UStaticMesh* LocalPreviewMesh = PreviewMesh.LoadSynchronous())
 		{
-			FNiagaraDataInterfaceError CPUAccessNotAllowedError(FText::Format(LOCTEXT("CPUAccessNotAllowedError", "This mesh needs CPU access in order to be used properly.({0})"), FText::FromString(PreviewMesh->GetName())),
-				LOCTEXT("CPUAccessNotAllowedErrorSummary", "CPU access error"),
-				FNiagaraDataInterfaceFix::CreateLambda([=]()
-			{
-				PreviewMesh->Modify();
-				PreviewMesh->bAllowCPUAccess = true;
-				return true;
-			}));
+			bHasNoMeshAssignedWarning = false;
 
-			OutErrors.Add(CPUAccessNotAllowedError);
+			if (!LocalPreviewMesh->bAllowCPUAccess)
+			{
+				FNiagaraDataInterfaceError CPUAccessNotAllowedError(FText::Format(LOCTEXT("CPUAccessNotAllowedError", "This mesh needs CPU access in order to be used properly.({0})"), FText::FromString(LocalPreviewMesh->GetName())),
+					LOCTEXT("CPUAccessNotAllowedErrorSummary", "CPU access error"),
+					FNiagaraDataInterfaceFix::CreateLambda([=]()
+					{
+						LocalPreviewMesh->Modify();
+						LocalPreviewMesh->bAllowCPUAccess = true;
+						return true;
+					}));
+
+				OutErrors.Add(CPUAccessNotAllowedError);
+			}
 		}
 	}
 #endif
@@ -1707,7 +1710,7 @@ UStaticMesh* UNiagaraDataInterfaceStaticMesh::GetStaticMesh(TWeakObjectPtr<UScen
 	if (!Mesh && !FoundMeshComponent && (!SystemInstance || !SystemInstance->GetWorld()->IsGameWorld()))
 	{
 		// NOTE: We don't fall back on the preview mesh if we have a valid static mesh component referenced
-		Mesh = PreviewMesh;		
+		Mesh = PreviewMesh.LoadSynchronous();		
 	}
 #endif
 

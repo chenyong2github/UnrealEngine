@@ -1627,7 +1627,7 @@ USkeletalMesh* UNiagaraDataInterfaceSkeletalMesh::GetSkeletalMesh(FNiagaraSystem
 	else if (!SystemInstance || !SystemInstance->GetWorld()->IsGameWorld())
 	{
 		// NOTE: We don't fall back on the preview mesh if we have a valid skeletal mesh component referenced
-		Mesh = PreviewMesh;		
+		Mesh = PreviewMesh.LoadSynchronous();		
 	}
 #endif
 
@@ -2181,9 +2181,9 @@ void UNiagaraDataInterfaceSkeletalMesh::PostLoad()
 	Super::PostLoad();
 
 #if WITH_EDITOR
-	if(PreviewMesh)
+	if(USkeletalMesh* LocalPreviewMesh = PreviewMesh.Get())
 	{
-		PreviewMesh->ConditionalPostLoad();
+		LocalPreviewMesh->ConditionalPostLoad();
 	}
 #endif
 }
