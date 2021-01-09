@@ -19,6 +19,7 @@
 #include "NiagaraComponentPool.h"
 #include "NiagaraComponent.h"
 #include "NiagaraEffectType.h"
+#include "NiagaraDebugHud.h"
 #include "HAL/PlatformApplicationMisc.h"
 
 DECLARE_CYCLE_STAT(TEXT("Niagara Manager Update Scalability Managers [GT]"), STAT_UpdateScalabilityManagers, STATGROUP_Niagara);
@@ -89,7 +90,6 @@ FAutoConsoleCommandWithWorld DumpNiagaraWorldManagerCommand(
 	)
 );
 
-
 static int GEnableNiagaraVisCulling = 1;
 static FAutoConsoleVariableRef CVarEnableNiagaraVisCulling(
 	TEXT("fx.Niagara.Scalability.VisibilityCulling"),
@@ -114,13 +114,46 @@ static FAutoConsoleVariableRef CVarEnableNiagaraInstanceCountCulling(
 	ECVF_Default
 );
 
-
 float GWorldLoopTime = 0.0f;
 static FAutoConsoleVariableRef CVarWorldLoopTime(
 	TEXT("fx.GlobalLoopTime"),
 	GWorldLoopTime,
 	TEXT("If > 0 all Niagara FX will reset every N seconds. \n"),
 	ECVF_Default
+);
+
+FAutoConsoleCommandWithWorldAndArgs GCmdNiagaraPlaybackPause(
+	TEXT("fx.Niagara.Debug.Pause"),
+	TEXT("Pause or unpause Niagara effects, 0 = Play, 1 = Pause"),
+	FConsoleCommandWithWorldAndArgsDelegate::CreateLambda(
+		[](const TArray<FString>& Args, UWorld* World)
+		{
+			if ( Args.Num() != 1 )
+			{
+				return;
+			}
+
+			if ( FNiagaraWorldManager* WorldManager = FNiagaraWorldManager::Get(World) )
+			{
+				const bool bPaused = FCString::Atoi(*Args[0]) != 0;
+				WorldManager->SetDebugPlayback(bPaused ? ENiagaraDebugPlayback::Paused : ENiagaraDebugPlayback::Play);
+			}
+		}
+	)
+);
+
+FAutoConsoleCommandWithWorld GCmdNiagaraPlaybackStep(
+	TEXT("fx.Niagara.Debug.Step"),
+	TEXT("Step a single frame of simulation and pause afterwards"),
+	FConsoleCommandWithWorldDelegate::CreateLambda(
+		[](UWorld* World)
+		{
+			if ( FNiagaraWorldManager* WorldManager = FNiagaraWorldManager::Get(World) )
+			{
+				WorldManager->SetDebugPlayback(ENiagaraDebugPlayback::Step);
+			}
+		}
+	)
 );
 
 FDelegateHandle FNiagaraWorldManager::OnWorldInitHandle;
@@ -211,7 +244,6 @@ FNiagaraWorldManager::FNiagaraWorldManager()
 	, CachedEffectsQuality(INDEX_NONE)
 	, bAppHasFocus(true)
 {
-
 }
 
 void FNiagaraWorldManager::Init(UWorld* InWorld)
@@ -235,6 +267,13 @@ void FNiagaraWorldManager::Init(UWorld* InWorld)
 	//Ideally we'd do this here but it's too early in the init process and the world does not have a Scene yet.
 	//Possibly a later hook we can use.
 	//PrimePoolForAllSystems();
+
+#if !UE_BUILD_SHIPPING
+	if ( World->IsGameWorld() )
+	{
+		NiagaraDebugHud.Reset(new FNiagaraDebugHud(World));
+	}
+#endif
 }
 
 FNiagaraWorldManager::~FNiagaraWorldManager()
@@ -688,6 +727,18 @@ void FNiagaraWorldManager::PostActorTick(float DeltaSeconds)
 	{
 		TickFunc.EndTickGroup = GNiagaraAllowAsyncWorkToEndOfFrame ? TG_LastDemotable : (ETickingGroup)TickFunc.TickGroup;
 	}
+
+	// Tick debug HUD for the world
+	if (NiagaraDebugHud != nullptr)
+	{
+		NiagaraDebugHud->GatherSystemInfo();
+	}
+
+	if ( DebugPlayback == ENiagaraDebugPlayback::Step )
+	{
+		RequestedDebugPlayback = ENiagaraDebugPlayback::Paused;
+		DebugPlayback = ENiagaraDebugPlayback::Paused;
+	}
 }
 
 void FNiagaraWorldManager::MarkSimulationForPostActorWork(FNiagaraSystemSimulation* SystemSimulation)
@@ -711,7 +762,10 @@ void FNiagaraWorldManager::Tick(ETickingGroup TickGroup, float DeltaSeconds, ELe
 	// We do book keeping in the first tick group
 	if ( TickGroup == NiagaraFirstTickGroup )
 	{		
-		//Utility loop feature to trigger all systems to loop on a timer.
+		// Update playback mode
+		DebugPlayback = RequestedDebugPlayback;
+
+		// Utility loop feature to trigger all systems to loop on a timer.
 		if (GWorldLoopTime > 0.0f)
 		{
 			if (WorldLoopTime <= 0.0f)
@@ -750,6 +804,12 @@ void FNiagaraWorldManager::Tick(ETickingGroup TickGroup, float DeltaSeconds, ELe
 		bAppHasFocus = true;
 #endif
 
+		// If we are in paused don't do anything
+		if (DebugPlayback == ENiagaraDebugPlayback::Paused)
+		{
+			return;
+		}
+
 		// Cache player view locations for all system instances to access
 		//-TODO: Do we need to do this per tick group?
 		bCachedPlayerViewLocationsValid = true;
@@ -780,6 +840,12 @@ void FNiagaraWorldManager::Tick(ETickingGroup TickGroup, float DeltaSeconds, ELe
 			check(CollectionInstPair.Value);
 			CollectionInstPair.Value->Tick(World);
 		}
+	}
+
+	// If we are in paused don't do anything
+	if ( DebugPlayback == ENiagaraDebugPlayback::Paused )
+	{
+		return;
 	}
 
 	// Tick skeletal mesh data

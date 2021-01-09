@@ -239,8 +239,9 @@ public:
 class FNiagaraSystemSimulation : public TSharedFromThis<FNiagaraSystemSimulation, ESPMode::ThreadSafe>, FGCObject
 {
 	friend FNiagaraSystemSimulationTickContext;
-public:
+	friend class FNiagaraDebugHud;
 
+public:
 	//FGCObject Interface
 	virtual void AddReferencedObjects(FReferenceCollector& Collector)override;
 	//FGCObject Interface END
