@@ -746,12 +746,13 @@ public:
 		if (TSharedPtr<FMediaPlayerFacade, ESPMode::ThreadSafe> PinnedFacade = Facade.Pin())
 		{
 			const FMediaPlayerLifecycleManagerDelegateOpenRequest* OR = static_cast<const FMediaPlayerLifecycleManagerDelegateOpenRequest*>(OpenRequest.Get());
-			bool bOk = PinnedFacade->ContinueOpen(AsShared(), OR->Url, OR->Options, OR->PlayerOptions.IsSet() ? &OR->PlayerOptions.GetValue() : nullptr, OR->PlayerFactory, OR->bWillCreatePlayer, InstanceID);
-			if (bOk)
+			if (PinnedFacade->ContinueOpen(AsShared(), OR->Url, OR->Options, OR->PlayerOptions.IsSet() ? &OR->PlayerOptions.GetValue() : nullptr, OR->PlayerFactory, OR->bWillCreatePlayer, InstanceID))
 			{
 				SubmittedRequest = true;
 			}
-			return bOk;
+			//note: we return "true" in all cases in which we were able to get to call "ContinueOpen". Failures in here will be messaged to the delegate using the OnMediaPlayerCreateFailed() method
+			// (returning true here allows for capturing an unlikely early death of the facade while protecting us from double-handling the failure of the creation in the delegate)
+			return true;
 		}
 		return false;
 	}
@@ -978,15 +979,22 @@ bool FMediaPlayerFacade::ContinueOpen(IMediaPlayerLifecycleManagerDelegate::ICon
 		class FAsyncResourceReleaseNotification : public IMediaPlayer::IAsyncResourceReleaseNotification
 		{
 		public:
-			FAsyncResourceReleaseNotification(IMediaModule* InMediaModule, IMediaPlayerLifecycleManagerDelegate::IControlRef InDelegateControl) : MediaModule(InMediaModule), DelegateControl(InDelegateControl) {}
+			FAsyncResourceReleaseNotification(IMediaPlayerLifecycleManagerDelegate::IControlRef InDelegateControl) : DelegateControl(InDelegateControl) {}
 
 			virtual void Signal(uint32 ResourceFlags) override
 			{
-				TFunction<void()> NotifyTask = [TargetMediaModule=MediaModule, TargetDelegateControl=DelegateControl, ResourceFlags]()
+				TFunction<void()> NotifyTask = [TargetDelegateControl=DelegateControl, ResourceFlags]()
 				{
-					if (IMediaPlayerLifecycleManagerDelegate* Delegate = TargetMediaModule->GetPlayerLifecycleManagerDelegate())
+					// Get MediaModule & check if it is already unloaded...
+					IMediaModule* TargetMediaModule = FModuleManager::GetModulePtr<IMediaModule>("Media");
+					if (TargetMediaModule)
 					{
-						Delegate->OnMediaPlayerResourcesReleased(TargetDelegateControl, ResourceFlags);
+						// Delegate still there?
+						if (IMediaPlayerLifecycleManagerDelegate* Delegate = TargetMediaModule->GetPlayerLifecycleManagerDelegate())
+						{
+							// Notify it!
+							Delegate->OnMediaPlayerResourcesReleased(TargetDelegateControl, ResourceFlags);
+						}
 					}
 				};
 				Async(EAsyncExecution::TaskGraphMainThread, NotifyTask);
@@ -1000,7 +1008,7 @@ bool FMediaPlayerFacade::ContinueOpen(IMediaPlayerLifecycleManagerDelegate::ICon
 		Player = NewPlayer;
 		PlayerInstanceID = NewPlayerInstanceID;
 		LifecycleManagerDelegateControl = NewLifecycleManagerDelegateControl;
-		PlayerUsesResourceReleaseNotification = LifecycleManagerDelegateControl.IsValid() ? Player->SetAsyncResourceReleaseNotification(TSharedRef<IMediaPlayer::IAsyncResourceReleaseNotification, ESPMode::ThreadSafe>(new FAsyncResourceReleaseNotification(MediaModule, LifecycleManagerDelegateControl))) : false;
+		PlayerUsesResourceReleaseNotification = LifecycleManagerDelegateControl.IsValid() ? Player->SetAsyncResourceReleaseNotification(TSharedRef<IMediaPlayer::IAsyncResourceReleaseNotification, ESPMode::ThreadSafe>(new FAsyncResourceReleaseNotification(LifecycleManagerDelegateControl))) : false;
 	}
 	else
 	{
