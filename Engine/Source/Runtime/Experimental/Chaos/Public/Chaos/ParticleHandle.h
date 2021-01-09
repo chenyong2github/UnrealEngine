@@ -662,12 +662,12 @@ protected:
 		PBDRigidParticleDefaultConstruct<T, d>(*this, Params);
 		ClearCollisionConstraintFlag();
 		SetDisabled(Params.bDisabled);
-		SetPreV(V());
-		SetPreW(W());
-		SetP(X());
-		SetQ(R());
-		SetVSmooth(V());
-		SetWSmooth(W());
+		SetPreV(this->V());
+		SetPreW(this->W());
+		SetP(this->X());
+		SetQ(this->R());
+		SetVSmooth(this->V());
+		SetWSmooth(this->W());
 		SetF(TVector<T, d>(0));
 		SetTorque(TVector<T, d>(0));
 		SetObjectStateLowLevel(Params.bStartSleeping ? EObjectStateType::Sleeping : EObjectStateType::Dynamic);
