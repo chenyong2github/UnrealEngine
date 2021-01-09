@@ -167,7 +167,7 @@ NiagaraEmitterInstanceBatcher::NiagaraEmitterInstanceBatcher(ERHIFeatureLevel::T
 		EGPUSortFlags::AnyKeyPrecision | EGPUSortFlags::KeyGenAfterPreRender | EGPUSortFlags::AnySortLocation | EGPUSortFlags::ValuesAsInt32,
 		Name);
 
-		if (FNiagaraUtilities::AllowGPUParticles(GetShaderPlatform()))
+		if (FNiagaraUtilities::AllowComputeShaders(GetShaderPlatform()))
 		{
 			// Because of culled indirect draw args, we have to update the draw indirect buffer after the sort key generation
 			GPUSortManager->PostPreRenderEvent.AddLambda(
@@ -1389,13 +1389,6 @@ void NiagaraEmitterInstanceBatcher::PreInitViews(FRHICommandListImmediate& RHICm
 	}
 #endif
 
-
-	if (!FNiagaraUtilities::AllowGPUParticles(GetShaderPlatform()))
-	{
-		FinishDispatches();
-		return;
-	}
-
 #if STATS
 	// check if we can process profiling results from previous frames
 	if (GPUProfiler.IsProfilingEnabled())
@@ -1442,7 +1435,7 @@ void NiagaraEmitterInstanceBatcher::PreInitViews(FRHICommandListImmediate& RHICm
 	SimulationsToSort.Reset();
 
 	// Update draw indirect buffer to max possible size.
-	if (bAllowGPUParticleUpdate)
+	if (bAllowGPUParticleUpdate && FNiagaraUtilities::AllowGPUParticles(GetShaderPlatform()))
 	{
 		UpdateInstanceCountManager(RHICmdList);
 		BuildTickStagePasses(RHICmdList, ETickStage::PreInitViews);
@@ -1455,19 +1448,15 @@ void NiagaraEmitterInstanceBatcher::PreInitViews(FRHICommandListImmediate& RHICm
 	else
 	{
 		GPUInstanceCounterManager.ResizeBuffers(RHICmdList, FeatureLevel,  0);
+		FinishDispatches();
 	}
 }
 
 void NiagaraEmitterInstanceBatcher::PostInitViews(FRHICommandListImmediate& RHICmdList, FRHIUniformBuffer* ViewUniformBuffer, bool bAllowGPUParticleUpdate)
 {
-	if (!FNiagaraUtilities::AllowGPUParticles(GetShaderPlatform()))
-	{
-		return;
-	}
-
 	LLM_SCOPE(ELLMTag::Niagara);
 
-	if (bAllowGPUParticleUpdate)
+	if (bAllowGPUParticleUpdate && FNiagaraUtilities::AllowGPUParticles(GetShaderPlatform()))
 	{
 		BuildTickStagePasses(RHICmdList, ETickStage::PostInitViews);
 		ExecuteAll(RHICmdList, ViewUniformBuffer, ETickStage::PostInitViews);
@@ -1476,14 +1465,9 @@ void NiagaraEmitterInstanceBatcher::PostInitViews(FRHICommandListImmediate& RHIC
 
 void NiagaraEmitterInstanceBatcher::PostRenderOpaque(FRHICommandListImmediate& RHICmdList, FRHIUniformBuffer* ViewUniformBuffer, const class FShaderParametersMetadata* SceneTexturesUniformBufferStruct, FRHIUniformBuffer* SceneTexturesUniformBuffer, bool bAllowGPUParticleUpdate)
 {
-	if (!FNiagaraUtilities::AllowGPUParticles(GetShaderPlatform()))
-	{
-		return;
-	}
-
 	LLM_SCOPE(ELLMTag::Niagara);
 
-	if (bAllowGPUParticleUpdate)
+	if (bAllowGPUParticleUpdate && FNiagaraUtilities::AllowGPUParticles(GetShaderPlatform()))
 	{
 		BuildTickStagePasses(RHICmdList, ETickStage::PostOpaqueRender);
 
