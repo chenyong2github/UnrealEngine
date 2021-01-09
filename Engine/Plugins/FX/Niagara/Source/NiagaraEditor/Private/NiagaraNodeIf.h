@@ -1,4 +1,4 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+//// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 #include "NiagaraNodeWithDynamicPins.h"
@@ -12,24 +12,24 @@ struct FPinGuidsForPath
 
 	FPinGuidsForPath()
 		: OutputPinGuid(FGuid())
-		, InputAPinGuid(FGuid())
-		, InputBPinGuid(FGuid())
+		, InputTruePinGuid(FGuid())
+		, InputFalsePinGuid(FGuid())
 	{
 	}
 
 	bool IsValid() const
 	{
-		return OutputPinGuid.IsValid() && InputAPinGuid.IsValid() && InputBPinGuid.IsValid();
+		return OutputPinGuid.IsValid() && InputTruePinGuid.IsValid() && InputFalsePinGuid.IsValid();
 	}
 
 	UPROPERTY()
 	FGuid OutputPinGuid;
 
 	UPROPERTY()
-	FGuid InputAPinGuid;
+	FGuid InputTruePinGuid;
 
 	UPROPERTY()
-	FGuid InputBPinGuid;
+	FGuid InputFalsePinGuid;
 };
 
 UCLASS(MinimalAPI)
@@ -89,7 +89,7 @@ protected:
 	//~ End UNiagaraNodeWithDynamicPins Interface
 
 private:
-	static const FString InputAPinSuffix;
-	static const FString InputBPinSuffix;
+	static const FString InputTruePinSuffix;
+	static const FString InputFalsePinSuffix;
 	static const FName ConditionPinName;
 };
