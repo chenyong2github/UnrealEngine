@@ -159,9 +159,10 @@ void UTexture::UpdateResource()
 			}
 
 			// Init the texture reference, which needs to be set from a render command, since TextureReference.TextureReferenceRHI is gamethread coherent.
-			ENQUEUE_RENDER_COMMAND(SetTextureReference)([this](FRHICommandListImmediate& RHICmdList)
+			FTextureResource* ResourceToInit = Resource;
+			ENQUEUE_RENDER_COMMAND(SetTextureReference)([this, ResourceToInit](FRHICommandListImmediate& RHICmdList)
 			{
-				Resource->SetTextureReference(TextureReference.TextureReferenceRHI);
+				ResourceToInit->SetTextureReference(TextureReference.TextureReferenceRHI);
 			});
 			BeginInitResource(Resource);
 			// Now that the resource is ready for streaming, bind it to the streamer.
