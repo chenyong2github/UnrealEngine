@@ -1989,43 +1989,63 @@ void FRepLayout::UpdateChangelistHistory(
 		UE_LOG(LogRep, Verbose, TEXT("FRepLayout::UpdateChangelistHistory: History overflow, forcing history dump %s, %s"), *ObjectClass->GetName(), *Connection->Describe());
 	}
 
-	for (int32 i = RepState->HistoryStart; i < RepState->HistoryEnd; i++)
+	const bool bDeltaCheckpoint = (Connection->ResendAllDataState == EResendAllDataState::SinceCheckpoint);
+
+	if (bDeltaCheckpoint)
 	{
-		const int32 HistoryIndex = i % FSendingRepState::MAX_CHANGE_HISTORY;
-
-		FRepChangedHistory & HistoryItem = RepState->ChangeHistory[ HistoryIndex ];
-
-		if (HistoryItem.OutPacketIdRange.First == INDEX_NONE)
+		for (int32 i = RepState->HistoryStart; i < RepState->HistoryEnd - 1; i++)
 		{
-			// Hasn't been initialized in PostReplicate yet
-			// No need to go further, otherwise we'll overwrite entries incorrectly.
-			break;
-		}
+			const int32 HistoryIndex = i % FSendingRepState::MAX_CHANGE_HISTORY;
 
-		// All active history items should contain a change list
-		check(HistoryItem.Changed.Num() > 0);
+			FRepChangedHistory& HistoryItem = RepState->ChangeHistory[HistoryIndex];
 
-		if (AckPacketId >= HistoryItem.OutPacketIdRange.Last || HistoryItem.Resend || DumpHistory)
-		{
-			if (HistoryItem.Resend || DumpHistory)
-			{
-				// Merge in nak'd change lists
-				check(OutMerged != NULL);
-				TArray<uint16> Temp = MoveTemp(*OutMerged);
-				MergeChangeList(Data, HistoryItem.Changed, Temp, *OutMerged);
-
-#ifdef SANITY_CHECK_MERGES
-				SanityCheckChangeList(Data, *OutMerged);
-#endif
-
-				if (HistoryItem.Resend)
-				{
-					RepState->NumNaks--;
-				}
-			}
+			// All active history items should contain a change list
+			check(HistoryItem.Changed.Num() > 0);
 
 			HistoryItem.Reset();
 			RepState->HistoryStart++;
+		}
+	}
+	else
+	{
+		for (int32 i = RepState->HistoryStart; i < RepState->HistoryEnd; i++)
+		{
+			const int32 HistoryIndex = i % FSendingRepState::MAX_CHANGE_HISTORY;
+
+			FRepChangedHistory& HistoryItem = RepState->ChangeHistory[HistoryIndex];
+
+			if (HistoryItem.OutPacketIdRange.First == INDEX_NONE)
+			{
+				// Hasn't been initialized in PostReplicate yet
+				// No need to go further, otherwise we'll overwrite entries incorrectly.
+				break;
+			}
+
+			// All active history items should contain a change list
+			check(HistoryItem.Changed.Num() > 0);
+
+			if (AckPacketId >= HistoryItem.OutPacketIdRange.Last || HistoryItem.Resend || DumpHistory)
+			{
+				if (HistoryItem.Resend || DumpHistory)
+				{
+					// Merge in nak'd change lists
+					check(OutMerged != NULL);
+					TArray<uint16> Temp = MoveTemp(*OutMerged);
+					MergeChangeList(Data, HistoryItem.Changed, Temp, *OutMerged);
+
+#ifdef SANITY_CHECK_MERGES
+					SanityCheckChangeList(Data, *OutMerged);
+#endif
+
+					if (HistoryItem.Resend)
+					{
+						RepState->NumNaks--;
+					}
+				}
+
+				HistoryItem.Reset();
+				RepState->HistoryStart++;
+			}
 		}
 	}
 
