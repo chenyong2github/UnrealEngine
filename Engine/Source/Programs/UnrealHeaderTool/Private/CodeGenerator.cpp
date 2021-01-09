@@ -5171,6 +5171,10 @@ void FNativeClassHeaderGenerator::ExportFunctionThunk(FUHTStringBuilder& RPCWrap
 		ApplyAlternatePropertyExportText(Return, ReplacementText, EExportingState::Normal);
 
 		FString ReturnType = ReplacementText;
+		if (Return->HasAnyPropertyFlags(CPF_ConstParm) && CastField<FObjectProperty>(Return))
+		{
+			ReturnType = TEXT("const ") + ReturnType;
+		}
 		RPCWrappers.Logf(TEXT("*(%s%s*)") TEXT(PREPROCESSOR_TO_STRING(RESULT_PARAM)) TEXT("="), *ReturnType, *ReturnExtendedType);
 	}
 
