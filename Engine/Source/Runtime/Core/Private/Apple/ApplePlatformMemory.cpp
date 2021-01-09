@@ -576,12 +576,12 @@ void* _Nullable FApplePlatformMemory::BinnedAllocFromOS(SIZE_T Size)
 	// or we already got rid of the extra memory that was allocated in the front.
 	checkf((reinterpret_cast<SIZE_T>(Pointer) % ExpectedAlignment) == 0, TEXT("BinnedAllocFromOS(): Internal error: did not align the pointer as expected."));
 
-	// do not unmap if we're trying to reduce the number of distinct maps, since holes prevent the Linux kernel from coalescing two adjoining mmap()s into a single VMA
+	// do not unmap if we're trying to reduce the number of distinct maps, since holes prevent the kernel from coalescing two adjoining mmap()s into a single VMA
 	if (!UE4_PLATFORM_REDUCE_NUMBER_OF_MAPS)
 	{
 		// Now unmap the tail only, if any, but leave just enough space for the descriptor
 		void* TailPtr = reinterpret_cast<void*>(reinterpret_cast<SIZE_T>(Pointer) + SizeInWholePages + DescriptorSize);
-		SIZE_T TailSize = ActualSizeMapped - SizeInWholePages - DescriptorSize;
+		SSIZE_T TailSize = ActualSizeMapped - SizeInWholePages - DescriptorSize;
 
 		if (LIKELY(TailSize > 0))
 		{
