@@ -24,7 +24,6 @@ FSingleParticlePhysicsProxy<PARTICLE_TYPE>::FSingleParticlePhysicsProxy(PARTICLE
 	, Handle(InHandle)
 	, PullDataInterpIdx_External(INDEX_NONE)
 {
-	BufferedData = Chaos::FMultiBufferFactory< typename PARTICLE_TYPE::FData >::CreateBuffer(Chaos::EMultiBufferMode::Double);
 }
 
 template< class PARTICLE_TYPE >

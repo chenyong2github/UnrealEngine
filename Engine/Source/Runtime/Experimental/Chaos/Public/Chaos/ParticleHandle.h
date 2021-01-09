@@ -61,59 +61,22 @@ void KinematicGeometryParticleDefaultConstruct(FConcrete& Concrete, const TKinem
 	Concrete.SetV(TVector<T, d>(0));
 	Concrete.SetW(TVector<T, d>(0));
 }
-
-template <typename T, int d, bool bPersistent>
-void PBDRigidParticleHandleImpDefaultConstruct(TPBDRigidParticleHandleImp<T, d, bPersistent>& Concrete, const TPBDRigidParticleParameters<T, d>& Params)
+template <typename T, int d, typename FConcrete>
+void PBDRigidParticleDefaultConstruct(FConcrete& Concrete, const TPBDRigidParticleParameters<T, d>& Params)
 {
 	//don't bother calling parent since the call gets made by the corresponding hierarchy in FConcrete
 	Concrete.SetCollisionGroup(0);
-	Concrete.ClearCollisionConstraintFlag();
-	Concrete.SetDisabled(Params.bDisabled);
-	Concrete.SetPreV(Concrete.V());
-	Concrete.SetPreW(Concrete.W());
-	Concrete.SetP(Concrete.X());
-	Concrete.SetQ(Concrete.R());
-	Concrete.SetVSmooth(Concrete.V());
-	Concrete.SetWSmooth(Concrete.W());
-	Concrete.SetF(TVector<T, d>(0));
-	Concrete.SetTorque(TVector<T, d>(0));
 	Concrete.SetLinearImpulse(TVector<T, d>(0));
 	Concrete.SetAngularImpulse(TVector<T, d>(0));
 	Concrete.SetM(1);
 	Concrete.SetInvM(1);
 	Concrete.SetCenterOfMass(TVector<T,d>(0));
-	Concrete.SetRotationOfMass(TRotation<T,d>::FromIdentity());
+	Concrete.SetRotationOfMass(TRotation<T, d>::FromIdentity());
 	Concrete.SetI(PMatrix<T, d, d>(1, 1, 1));
 	Concrete.SetInvI(PMatrix<T, d, d>(1, 1, 1));
 	Concrete.SetLinearEtherDrag(0.f);
 	Concrete.SetAngularEtherDrag(0.f);
-	Concrete.SetObjectStateLowLevel(Params.bStartSleeping ? EObjectStateType::Sleeping : EObjectStateType::Dynamic);
 	Concrete.SetGravityEnabled(Params.bGravityEnabled);
-	Concrete.SetResimType(EResimType::FullResim);
-}
-
-template <typename T, int d>
-void PBDRigidParticleDefaultConstruct(TPBDRigidParticle<T,d>& Concrete, const TPBDRigidParticleParameters<T, d>& Params)
-{
-	//don't bother calling parent since the call gets made by the corresponding hierarchy in FConcrete
-	Concrete.SetCollisionGroup(0);
-	//Concrete.SetDisabled(Params.bDisabled);
-	Concrete.ClearForces();
-	Concrete.ClearTorques();
-	Concrete.SetLinearImpulse(TVector<T, d>(0));
-	Concrete.SetAngularImpulse(TVector<T, d>(0));
-	Concrete.SetM(1);
-	Concrete.SetInvM(1);
-	Concrete.SetCenterOfMass(TVector<T,d>(0));
-	Concrete.SetRotationOfMass(TRotation<T,d>(FQuat(EForceInit::ForceInit)));
-	Concrete.SetI(PMatrix<T, d, d>(1, 1, 1));
-	Concrete.SetInvI(PMatrix<T, d, d>(1, 1, 1));
-	Concrete.SetLinearEtherDrag(0.f);
-	Concrete.SetAngularEtherDrag(0.f);
-	Concrete.SetObjectState(Params.bStartSleeping ? EObjectStateType::Sleeping : EObjectStateType::Dynamic);
-	Concrete.SetGravityEnabled(Params.bGravityEnabled);
-	Concrete.ClearEvents();
-	Concrete.SetInitialized(false);
 	Concrete.SetResimType(EResimType::FullResim);
 }
 
@@ -696,7 +659,18 @@ protected:
 	TPBDRigidParticleHandleImp<T, d, bPersistent>(TSerializablePtr<TPBDRigidParticles<T, d>> Particles, int32 InIdx, int32 InGlobalIdx, const TPBDRigidParticleParameters<T, d>& Params = TPBDRigidParticleParameters<T, d>())
 		: TKinematicGeometryParticleHandleImp<T, d, bPersistent>(TSerializablePtr<TKinematicGeometryParticles<T, d>>(Particles), InIdx, InGlobalIdx, Params)
 	{
-		PBDRigidParticleHandleImpDefaultConstruct<T, d>(*this, Params);
+		PBDRigidParticleDefaultConstruct<T, d>(*this, Params);
+		ClearCollisionConstraintFlag();
+		SetDisabled(Params.bDisabled);
+		SetPreV(V());
+		SetPreW(W());
+		SetP(X());
+		SetQ(R());
+		SetVSmooth(V());
+		SetWSmooth(W());
+		SetF(TVector<T, d>(0));
+		SetTorque(TVector<T, d>(0));
+		SetObjectStateLowLevel(Params.bStartSleeping ? EObjectStateType::Sleeping : EObjectStateType::Dynamic);
 		SetIsland(INDEX_NONE);
 		SetToBeRemovedOnFracture(false);
 	}
@@ -2210,6 +2184,11 @@ protected:
 		MIsland = INDEX_NONE;
 		MToBeRemovedOnFracture = false;
 		PBDRigidParticleDefaultConstruct<T, d>(*this, DynamicParams);
+		ClearForces();
+		ClearTorques();
+		SetObjectState(DynamicParams.bStartSleeping ? EObjectStateType::Sleeping : EObjectStateType::Dynamic);
+		ClearEvents();
+		SetInitialized(false);
 	}
 public:
 
@@ -2227,7 +2206,7 @@ public:
 		Ar << MToBeRemovedOnFracture;
 	}
 
-	const TUniquePtr<TBVHParticles<T, d>>& CollisionParticles() const { return MCollisionParticles; }
+	//const TUniquePtr<TBVHParticles<T, d>>& CollisionParticles() const { return MCollisionParticles; }
 
 	int32 CollisionGroup() const { return MMiscData.Read().CollisionGroup(); }
 	void SetCollisionGroup(const int32 InCollisionGroup)
@@ -2471,7 +2450,6 @@ private:
 	TParticleProperty<FParticleDynamics, EParticleProperty::Dynamics> MDynamics;
 	TParticleProperty<FParticleDynamicMisc,EParticleProperty::DynamicMisc> MMiscData;
 
-	TUniquePtr<TBVHParticles<T, d>> MCollisionParticles;
 	int32 MIsland;
 	bool MToBeRemovedOnFracture;
 	bool MInitialized;

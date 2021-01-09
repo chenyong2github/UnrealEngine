@@ -23,6 +23,7 @@
 #include "ChaosSolverConfiguration.h"
 #include "Chaos/PullPhysicsDataImp.h"
 #include "Chaos/PhysicsSolverBaseImpl.h"
+#include "PhysicsProxy/PBDRigidParticleProxy.h"
 
 //PRAGMA_DISABLE_OPTIMIZATION
 
