@@ -57,8 +57,8 @@ public class CrashReportClientTarget : TargetRules
 		{
 			AddConfigMacro("CRC_TELEMETRY_URL=", string.Format("\"{0}\"", TelemetryUrl));
 		}
-		AddConfigMacro("CRC_TELEMETRY_KEY_DEV=", TelemetryKey_Dev);
-		AddConfigMacro("CRC_TELEMETRY_KEY_RELEASE=", TelemetryKey_Release);
+		AddConfigMacro("CRC_TELEMETRY_KEY_DEV=", string.Format("\"{0}\"", TelemetryKey_Dev));
+		AddConfigMacro("CRC_TELEMETRY_KEY_RELEASE=", string.Format("\"{0}\"", TelemetryKey_Release));
 
 		GlobalDefinitions.Add("NOINITCRASHREPORTER=1");
 	}
