@@ -1584,7 +1584,9 @@ PyObject* GenerateEnum(PyObject* InSelf, PyObject* InArgs)
 
 PyObject* FlushGeneratedTypeReinstancing(PyObject* InSelf)
 {
+	Py_BEGIN_ALLOW_THREADS
 	FPyWrapperTypeReinstancer::Get().ProcessPending();
+	Py_END_ALLOW_THREADS
 
 	Py_RETURN_NONE;
 }

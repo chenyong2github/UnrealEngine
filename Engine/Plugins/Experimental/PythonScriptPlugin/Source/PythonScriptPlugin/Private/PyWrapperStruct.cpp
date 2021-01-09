@@ -1401,7 +1401,9 @@ public:
 			NewStruct->ClearFlags(RF_Public | RF_Standalone);
 			NewStruct = nullptr;
 
+			Py_BEGIN_ALLOW_THREADS
 			CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS);
+			Py_END_ALLOW_THREADS
 		}
 	}
 
