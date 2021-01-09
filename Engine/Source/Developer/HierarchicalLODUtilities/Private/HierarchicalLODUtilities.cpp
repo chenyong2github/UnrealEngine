@@ -604,7 +604,23 @@ bool FHierarchicalLODUtilities::BuildStaticMeshForLODActor(ALODActor* LODActor, 
 			check(Key.IsValid());
 
 			FLODImposterBatch& LODImposterBatch = ImposterBatches.FindOrAdd(Key);
-			LODImposterBatch.Transforms.Add(Imposter->GetOwner()->GetActorTransform());
+
+			// If we have an ISMC, ensure we include all its instances
+			if (UInstancedStaticMeshComponent* InstancedSMC = Cast<UInstancedStaticMeshComponent>(Imposter))
+			{
+				FTransform ActorTransformWS = InstancedSMC->GetOwner()->GetActorTransform();
+
+				LODImposterBatch.Transforms.Reserve(LODImposterBatch.Transforms.Num() + InstancedSMC->GetInstanceCount());
+				for (const FInstancedStaticMeshInstanceData& InstanceData : InstancedSMC->PerInstanceSMData)
+				{
+					FTransform InstanceTransformWS = FTransform(InstanceData.Transform) * ActorTransformWS;
+					LODImposterBatch.Transforms.Add(InstanceTransformWS);
+				}
+			}
+			else
+			{
+				LODImposterBatch.Transforms.Add(Imposter->GetOwner()->GetActorTransform());
+			}
 
 			// The static mesh hasn't been created yet, do it.
 			if (LODImposterBatch.StaticMesh == nullptr)
