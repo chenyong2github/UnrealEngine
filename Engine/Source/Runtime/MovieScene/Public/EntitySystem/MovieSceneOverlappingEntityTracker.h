@@ -179,6 +179,14 @@ struct TOverlappingEntityTracker
 		NewOutputs.Empty();
 	}
 
+	void FindEntityIDs(ParamType Key, TArray<FMovieSceneEntityID>& OutEntityIDs) const
+	{
+		if (const uint16* OutputIndex = KeyToOutput.Find(Key))
+		{
+			OutputToEntity.MultiFind(*OutputIndex, OutEntityIDs);
+		}
+	}
+
 	const OutputType* FindOutput(FMovieSceneEntityID EntityID) const
 	{
 		if (const uint16* OutputIndex = EntityToOutput.Find(EntityID))
@@ -191,9 +199,9 @@ struct TOverlappingEntityTracker
 		return nullptr;
 	}
 
-	OutputType* FindOutput(FMovieSceneEntityID EntityID)
+	const OutputType* FindOutput(ParamType Key) const
 	{
-		if (const uint16* OutputIndex = EntityToOutput.Find(EntityID))
+		if (const uint16* OutputIndex = KeyToOutput.Find(Key))
 		{
 			if (ensure(Outputs.IsValidIndex(*OutputIndex)))
 			{

@@ -315,6 +315,58 @@ struct TPropertyComponentHandlerImpl<TIntegerSequence<int, Indices...>, Property
 			*RecomposedComposite = AlignedOutput.Value.Recompose(EntityID, NewComposite, InitialValueComposite);
 		}
 	}
+
+	virtual void RebuildOperational(const FPropertyDefinition& PropertyDefinition, TArrayView<const FPropertyCompositeDefinition> Composites, const TArrayView<FMovieSceneEntityID>& EntityIDs, UMovieSceneEntitySystemLinker* Linker, FPropertyComponentArrayView OutResult) override
+	{
+		RebuildOperationalImpl(PropertyDefinition, Composites, EntityIDs, Linker, OutResult.ReinterpretCast<OperationalType>());
+	}
+
+	virtual void RebuildFinal(const FPropertyDefinition& PropertyDefinition, TArrayView<const FPropertyCompositeDefinition> Composites, const TArrayView<FMovieSceneEntityID>& EntityIDs, UMovieSceneEntitySystemLinker* Linker, FPropertyComponentArrayView OutResult) override
+	{
+		TArray<OperationalType> OperationalValues;
+		OperationalValues.SetNum(OutResult.Num());
+		RebuildOperationalImpl(PropertyDefinition, Composites, EntityIDs, Linker, OperationalValues);
+
+		TArrayView<PropertyType> OutResultView = OutResult.ReinterpretCast<PropertyType>();
+		for (int32 Index = 0; Index < OperationalValues.Num(); ++Index)
+		{
+			PropertyType FinalValue;
+			ConvertOperationalPropertyToFinal(OperationalValues[Index], FinalValue);
+			OutResultView[Index] = FinalValue;
+		}
+	}
+
+	template<typename T>
+	T ReadComponentValueOrDefault(const FEntityManager& EntityManager, FMovieSceneEntityID EntityID, TComponentTypeID<T> ComponentTypeID)
+	{
+		TComponentPtr<const T> ComponentPtr = EntityManager.ReadComponent(EntityID, ComponentTypeID);
+		if (ComponentPtr)
+		{
+			return *ComponentPtr;
+		}
+		return T();
+	}
+
+	void RebuildOperationalImpl(const FPropertyDefinition& PropertyDefinition, TArrayView<const FPropertyCompositeDefinition> Composites, const TArrayView<FMovieSceneEntityID>& EntityIDs, UMovieSceneEntitySystemLinker* Linker, TArrayView<OperationalType> OutResults) 
+	{
+		constexpr int32 NumComposites = sizeof...(CompositeTypes);
+		check(Composites.Num() == NumComposites);
+
+		check(OutResults.Num() == EntityIDs.Num());
+
+		FEntityManager& EntityManager = Linker->EntityManager;
+		
+		for (int32 Index = 0; Index < EntityIDs.Num(); ++Index)
+		{
+			FMovieSceneEntityID EntityID(EntityIDs[Index]);
+
+			OperationalType OperationalValue = {
+				ReadComponentValueOrDefault(
+						EntityManager, EntityID, Composites[Indices].ComponentTypeID.ReinterpretCast<CompositeTypes>())...
+			};
+			OutResults[Index] = OperationalValue;
+		}
+	}
 };
 
 
