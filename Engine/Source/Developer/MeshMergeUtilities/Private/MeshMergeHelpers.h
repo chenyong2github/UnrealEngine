@@ -51,9 +51,6 @@ public:
 	/** Propagates deformation along spline to physics geometry data */
 	static void PropagateSplineDeformationToPhysicsGeometry(USplineMeshComponent* SplineMeshComponent, FKAggregateGeom& InOutPhysicsGeometry);
 
-	/** Transforms raw mesh data using InTransform*/
-	static void TransformRawMeshVertexData(const FTransform& InTransform, FMeshDescription &OutRawMesh);
-
 	/** Retrieves all culling landscapes and volumes as FMeshDescription structures. Note the caller is responsible for deleting the heap data managed by CullingRawMeshes */
 	static void RetrieveCullingLandscapeAndVolumes(UWorld* InWorld, const FBoxSphereBounds& EstimatedMeshProxyBounds, const TEnumAsByte<ELandscapeCullingPrecision::Type> PrecisionType, TArray<FMeshDescription*>& CullingRawMeshes);
 

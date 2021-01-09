@@ -61,56 +61,6 @@ namespace MeshProcessingUtils
 		return true;
 	}
 
-	// Same as FMeshMergeHelpers::TransformRawMeshVertexData
-	// Transform raw mesh vertex data by the Static Mesh Component's component to world transformation
-	void TransformRawMeshVertexData(const FTransform& InTransform, FMeshDescription &OutRawMesh)
-	{
-		TVertexAttributesRef<FVector> VertexPositions = OutRawMesh.VertexAttributes().GetAttributesRef<FVector>(MeshAttribute::Vertex::Position);
-		TVertexInstanceAttributesRef<FVector> VertexInstanceNormals = OutRawMesh.VertexInstanceAttributes().GetAttributesRef<FVector>(MeshAttribute::VertexInstance::Normal);
-		TVertexInstanceAttributesRef<FVector> VertexInstanceTangents = OutRawMesh.VertexInstanceAttributes().GetAttributesRef<FVector>(MeshAttribute::VertexInstance::Tangent);
-		TVertexInstanceAttributesRef<float> VertexInstanceBinormalSigns = OutRawMesh.VertexInstanceAttributes().GetAttributesRef<float>(MeshAttribute::VertexInstance::BinormalSign);
-
-		for (const FVertexID VertexID : OutRawMesh.Vertices().GetElementIDs())
-		{
-			VertexPositions[VertexID] = InTransform.TransformPosition(VertexPositions[VertexID]);
-		}
-
-		auto TransformNormal = [&](FVector& Normal)
-		{
-			FMatrix Matrix = InTransform.ToMatrixWithScale();
-			const float DetM = Matrix.Determinant();
-			FMatrix AdjointT = Matrix.TransposeAdjoint();
-			AdjointT.RemoveScaling();
-
-			Normal = AdjointT.TransformVector(Normal);
-			if (DetM < 0.f)
-			{
-				Normal *= -1.0f;
-			}
-		};
-
-		for (const FVertexInstanceID VertexInstanceID : OutRawMesh.VertexInstances().GetElementIDs())
-		{
-			FVector TangentX = VertexInstanceTangents[VertexInstanceID];
-			FVector TangentZ = VertexInstanceNormals[VertexInstanceID];
-			FVector TangentY = FVector::CrossProduct(TangentZ, TangentX).GetSafeNormal() * VertexInstanceBinormalSigns[VertexInstanceID];
-
-			TransformNormal(TangentX);
-			TransformNormal(TangentY);
-			TransformNormal(TangentZ);
-
-			VertexInstanceTangents[VertexInstanceID] = TangentX;
-			VertexInstanceBinormalSigns[VertexInstanceID] = GetBasisDeterminantSign(TangentX, TangentY, TangentZ);
-			VertexInstanceNormals[VertexInstanceID] = TangentZ;
-		}
-
-		const bool bIsMirrored = InTransform.GetDeterminant() < 0.f;
-		if (bIsMirrored)
-		{
-			OutRawMesh.ReverseAllPolygonFacing();
-		}
-	}
-
 	void UpdateUndoBufferSize()
 	{
 		if (MeshProcessingUtils::CheckIfInEditorAndPIE(TEXT("DefeatureMesh")) && GetDefault< UMeshProcessingEnterpriseSettings >())
@@ -335,7 +285,7 @@ void UMeshProcessingLibrary::ApplyJacketingOnMeshActors(const TArray<AActor*>& A
 		const FTransform& ComponentToWorldTransform = StaticMeshComponent->GetComponentTransform();
 
 		// Transform raw mesh vertex data by the Static Mesh Component's component to world transformation
-		MeshProcessingUtils::TransformRawMeshVertexData(ComponentToWorldTransform, *RawMesh);
+		FStaticMeshOperations::ApplyTransform(*RawMesh, ComponentToWorldTransform);
 
 		VertexCount += RawMesh->Vertices().Num();
 		PolygonCount += RawMesh->Polygons().Num();
@@ -648,7 +598,7 @@ void UMeshProcessingLibrary::ApplyJacketingOnMeshActors(const TArray<AActor*>& A
 			FTransform Transform = StaticMeshComponent->GetComponentTransform().Inverse();
 
 			//Apply the inverse component transform
-			MeshProcessingUtils::TransformRawMeshVertexData(Transform, NewRawMesh);
+			FStaticMeshOperations::ApplyTransform(NewRawMesh, Transform);
 
 			TVertexInstanceAttributesRef<FVector> VertexInstanceNormals = NewRawMesh.VertexInstanceAttributes().GetAttributesRef<FVector>(MeshAttribute::VertexInstance::Normal);
 			TVertexInstanceAttributesRef<FVector> VertexInstanceTangents = NewRawMesh.VertexInstanceAttributes().GetAttributesRef<FVector>(MeshAttribute::VertexInstance::Tangent);
