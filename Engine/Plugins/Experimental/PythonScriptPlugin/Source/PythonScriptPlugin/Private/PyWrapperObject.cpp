@@ -1855,12 +1855,20 @@ void UPythonGeneratedClass::ReleasePythonResources()
 		FPyScopedGIL GIL;
 		PyType.Reset();
 		PyPostInitFunction.Reset();
+		for (const TSharedPtr<PyGenUtil::FFunctionDef>& FunctionDef : FunctionDefs)
+		{
+			FunctionDef->PyFunction.Reset();
+		}
 	}
 	else
 	{
 		// Release ownership if Python has been shut down to avoid attempting to delete the objects (which are already dead)
 		PyType.Release();
 		PyPostInitFunction.Release();
+		for (const TSharedPtr<PyGenUtil::FFunctionDef>& FunctionDef : FunctionDefs)
+		{
+			FunctionDef->PyFunction.Release();
+		}
 	}
 
 	PropertyDefs.Reset();
