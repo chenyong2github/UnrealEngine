@@ -6,6 +6,7 @@
 #include "AudioMixerDevice.h"
 #include "AudioMixerSourceVoice.h"
 #include "AudioMixerSubmix.h"
+#include "AudioThread.h"
 #include "IAudioExtensionPlugin.h"
 #include "AudioMixer.h"
 #include "Sound/SoundModulationDestination.h"
@@ -265,9 +266,7 @@ namespace Audio
 			SourceInfo.bUseOcclusionPlugin = false;
 			SourceInfo.bUseReverbPlugin = false;
 			SourceInfo.bHasStarted = false;
-			SourceInfo.bEnableBusSends = false;
-			SourceInfo.bEnableBaseSubmix = false;
-			SourceInfo.bEnableSubmixSends = false;
+			SourceInfo.bOutputToBusOnly = false;
 			SourceInfo.bIsVorbis = false;
 			SourceInfo.bIsBypassingLPF = false;
 			SourceInfo.bIsBypassingHPF = false;
@@ -584,9 +583,7 @@ namespace Audio
 		SourceInfo.bUseOcclusionPlugin = false;
 		SourceInfo.bUseReverbPlugin = false;
 		SourceInfo.bHasStarted = false;
-		SourceInfo.bEnableBusSends = false;
-		SourceInfo.bEnableBaseSubmix = false;
-		SourceInfo.bEnableSubmixSends = false;
+		SourceInfo.bOutputToBusOnly = false;
 		SourceInfo.bIsBypassingLPF = false;
 		SourceInfo.bIsBypassingHPF = false;
 		SourceInfo.bHasPreDistanceAttenuationSend = false;
@@ -824,11 +821,9 @@ namespace Audio
 				SourceInfo.bEffectTailsDone = !InitParams.bPlayEffectChainTails;
 				SourceInfo.SourceEffectChainId = InitParams.SourceEffectChainId;
 
-				// Which forms of routing to enable
-				SourceInfo.bEnableBusSends = InitParams.bEnableBusSends;
-				SourceInfo.bEnableBaseSubmix = InitParams.bEnableBaseSubmix;
-				SourceInfo.bEnableSubmixSends = InitParams.bEnableSubmixSends;
-				
+				// Whether or not to output to bus only
+				SourceInfo.bOutputToBusOnly = InitParams.bOutputToBusOnly;
+
 				// Add the effect chain instances 
 				SourceInfo.SourceEffects = SourceEffectChain;
 				
@@ -2285,12 +2280,12 @@ namespace Audio
 
 			const bool bModActive = MixerDevice->IsModulationPluginEnabled() && MixerDevice->ModulationInterface.IsValid();
 			bool bUpdateModFilters = bModActive && (SourceInfo.bModFiltersUpdated || SourceInfo.LowpassModulation.IsActive() || SourceInfo.HighpassModulation.IsActive());
-			if (SourceInfo.IsRenderingToSubmixes() || bUpdateModFilters)
+			if (!SourceInfo.bOutputToBusOnly || bUpdateModFilters)
 			{
 				// Only scale with distance attenuation and send to source audio to plugins if we're not in output-to-bus only mode
 				const int32 NumOutputSamplesThisSource = NumOutputFrames * SourceInfo.NumInputChannels;
 
-				if (!SourceInfo.IsRenderingToSubmixes())
+				if (SourceInfo.bOutputToBusOnly)
 				{
 					SourceInfo.LowpassModulation.ProcessControl(SourceInfo.LowpassModulationBase);
 					SourceInfo.LowPassFilter.StartFrequencyInterpolation(SourceInfo.LowpassModulation.GetValue(), NumOutputFrames);
@@ -2340,7 +2335,7 @@ namespace Audio
 				}
 			}
 
-			if (SourceInfo.IsRenderingToSubmixes())
+			if (!SourceInfo.bOutputToBusOnly)
 			{
 				// Apply distance attenuation
 				ApplyDistanceAttenuation(SourceInfo, NumSamples);
@@ -2382,7 +2377,7 @@ namespace Audio
 			// If we're in generate buses mode and not a bus, or vice versa, or if we're set to only output audio to buses.
 			// If set to output buses, no need to do any panning for the source. The buses will do the panning.
 			const bool bIsSourceBus = SourceInfo.AudioBusId != INDEX_NONE;
-			if ((bGenerateBuses && !bIsSourceBus) || (!bGenerateBuses && bIsSourceBus) || !SourceInfo.IsRenderingToSubmixes())
+			if ((bGenerateBuses && !bIsSourceBus) || (!bGenerateBuses && bIsSourceBus) || SourceInfo.bOutputToBusOnly)
 			{
 				continue;
 			}
@@ -2882,11 +2877,6 @@ namespace Audio
 				PendingSourceBuffers.RemoveAtSwap(i, 1, false);
 			}
 		}
-	}
-
-	bool FMixerSourceManager::FSourceInfo::IsRenderingToSubmixes() const
-	{
-		return bEnableBaseSubmix || bEnableSubmixSends;
 	}
 
 }
