@@ -144,7 +144,7 @@ public:
 
 	/** Whether or not to only send this audio's output to a bus. If true, this sound will not be audible except through bus sends. */
 	UPROPERTY()
-	uint32 bOutputToBusOnly_DEPRECATED;
+	uint32 bOutputToBusOnly_DEPRECATED : 1;
 
 	/** Whether or not to enable sending this audio's output to buses.  */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Effects)
