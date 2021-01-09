@@ -600,38 +600,6 @@ void FPhysScene_Chaos::RemoveObject(FGeometryCollectionPhysicsProxy* InObject)
 	RemoveFromComponentMaps(InObject);
 }
 
-#if XGE_FIXED
-void FPhysScene_Chaos::UnregisterEvent(const Chaos::EEventType& EventID)
-{
-	check(IsInGameThread());
-
-	Chaos::FPBDRigidsSolver* Solver = GetSolver();
-
-	if (Dispatcher)
-	{
-		Dispatcher->EnqueueCommandImmediate([EventID, InSolver = Solver](Chaos::FPersistentPhysicsTask* PhysThread)
-		{
-			InSolver->GetEventManager()->UnregisterEvent(EventID);
-		});
-	}
-}
-
-void FPhysScene_Chaos::UnregisterEventHandler(const Chaos::EEventType& EventID, const void* Handler)
-{
-	check(IsInGameThread());
-
-	Chaos::FPBDRigidsSolver* Solver = GetSolver();
-
-	if (Dispatcher)
-	{
-		Dispatcher->EnqueueCommandImmediate([EventID, Handler, InSolver = Solver](Chaos::FPersistentPhysicsTask* PhysThread)
-		{
-			InSolver->GetEventManager()->UnregisterHandler(EventID, Handler);
-		});
-	}
-}
-#endif // XGE_FIXED
-
 FPhysicsReplication* FPhysScene_Chaos::GetPhysicsReplication()
 {
 	return PhysicsReplication;

@@ -20,7 +20,7 @@ namespace Chaos
 	/**
 	 * Predefined System Event Types
 	 */
-	enum EEventType : int32
+	enum class EEventType : int32
 	{
 		Collision = 0,
 		Breaking = 1,
@@ -273,10 +273,10 @@ namespace Chaos
 		 * Register a new event into the system, providing the function that will fill the producer side of the event buffer
 		 */
 		template<typename PayloadType>
-		void RegisterEvent(const FEventID& EventID, TFunction<void(const Chaos::TPBDRigidsSolver<Traits>* Solver, PayloadType& EventData)> InFunction)
+		void RegisterEvent(const EEventType& EventType, TFunction<void(const Chaos::TPBDRigidsSolver<Traits>* Solver, PayloadType& EventData)> InFunction)
 		{
 			ContainerLock.WriteLock();
-			InternalRegisterInjector(EventID, new TEventContainer<PayloadType, Traits>(BufferMode, InFunction));
+			InternalRegisterInjector(FEventID(EventType), new TEventContainer<PayloadType, Traits>(BufferMode, InFunction));
 			ContainerLock.WriteUnlock();
 		}
 
@@ -284,25 +284,26 @@ namespace Chaos
 		 * Modify the producer side of the event buffer
 		 */
 		template<typename PayloadType>
-		void ClearEvents(const FEventID& EventID, TFunction<void(PayloadType & EventData)> InFunction)
+		void ClearEvents(const EEventType& EventType, TFunction<void(PayloadType & EventData)> InFunction)
 		{
 			ContainerLock.ReadLock();
 
-			((TEventContainer<PayloadType, Traits>*)(EventContainers[EventID]))->DestroyStaleEvents(InFunction);
+			((TEventContainer<PayloadType, Traits>*)(EventContainers[FEventID(EventType)]))->DestroyStaleEvents(InFunction);
 			ContainerLock.ReadUnlock();
 		}
 
 		/**
 		 * Unregister specified event from system
 		 */
-		void UnregisterEvent(const FEventID& EventID);
+		void UnregisterEvent(const EEventType& EventType);
 
 		/**
 		 * Register a handler that will receive the dispatched events
 		 */
 		template<typename PayloadType, typename HandlerType>
-		void RegisterHandler(const FEventID& EventID, HandlerType* Handler, typename TRawEventHandler<PayloadType, HandlerType>::FHandlerFunction HandlerFunction)
+		void RegisterHandler(const EEventType& EventType, HandlerType* Handler, typename TRawEventHandler<PayloadType, HandlerType>::FHandlerFunction HandlerFunction)
 		{
+			const FEventID EventID = FEventID(EventType);
 			ContainerLock.WriteLock();
 			checkf(EventID < EventContainers.Num(), TEXT("Registering event Handler for an event ID that does not exist"));
 			EventContainers[EventID]->RegisterHandler(new TRawEventHandler<PayloadType, HandlerType>(Handler, HandlerFunction));
@@ -312,7 +313,7 @@ namespace Chaos
 		/**
 		 * Unregister the specified event handler
 		 */
-		void UnregisterHandler(const FEventID& EventID, const void* InHandler);
+		void UnregisterHandler(const EEventType& EventType, const void* InHandler);
 
 		/**
 		 * Called by the solver to invoke the functions that fill the producer side of all the event data buffers

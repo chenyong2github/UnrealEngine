@@ -44,7 +44,7 @@ namespace Chaos
 
 	struct FCollisionEventData;
 
-	enum EEventType : int32;
+	enum class EEventType : int32;
 
 	template<typename PayloadType, typename HandlerType>
 	class TRawEventHandler;
@@ -118,15 +118,6 @@ public:
 	void RemoveObject(FGeometryParticlePhysicsProxy* InObject);
 	void RemoveObject(FGeometryCollectionPhysicsProxy* InObject);
 
-#if XGE_FIXED
-	template<typename PayloadType>
-	void RegisterEvent(const Chaos::EEventType& EventID, TFunction<void(const Chaos::FPBDRigidsSolver* Solver, PayloadType& EventData)> InLambda);
-	void UnregisterEvent(const Chaos::EEventType& EventID);
-
-	template<typename PayloadType, typename HandlerType>
-	void RegisterEventHandler(const Chaos::EEventType& EventID, HandlerType* Handler, typename Chaos::TRawEventHandler<PayloadType, HandlerType>::FHandlerFunction Func);
-	void UnregisterEventHandler(const Chaos::EEventType& EventID, const void* Handler);
-#endif // XGE_FIXED
 	FPhysicsReplication* GetPhysicsReplication();
 	void SetPhysicsReplication(FPhysicsReplication* InPhysicsReplication);
 
