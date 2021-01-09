@@ -2,15 +2,18 @@
 
 #pragma once
 
-#include "CoreTypes.h"
+#include "CoreMinimal.h"
 
 class FMatineeConverter;
 class IAssetTools;
 class IAssetRegistry;
+class UBlueprint;
 class UFactory;
 class UMatineeCameraShake;
 class FCameraAnimToTemplateSequenceConverter;
+class SWidget;
 class UK2Node_VariableGet;
+struct FAssetData;
 
 struct FMatineeCameraShakeToNewCameraShakeConversionStats
 {
