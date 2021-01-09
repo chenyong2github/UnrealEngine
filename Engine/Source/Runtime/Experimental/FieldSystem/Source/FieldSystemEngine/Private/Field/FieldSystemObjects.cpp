@@ -10,7 +10,7 @@ UFieldSystemMetaDataProcessingResolution::NewMetaData() const
 	return new FFieldSystemMetaDataProcessingResolution(ResolutionType);
 }
 
-UFieldSystemMetaDataProcessingResolution* UFieldSystemMetaDataProcessingResolution::SetMetaDataProcessingResolutionType(EFieldResolutionType ResolutionTypeIn)
+UFieldSystemMetaDataProcessingResolution* UFieldSystemMetaDataProcessingResolution::SetMetaDataaProcessingResolutionType(EFieldResolutionType ResolutionTypeIn)
 {
 
 	this->ResolutionType = ResolutionTypeIn;

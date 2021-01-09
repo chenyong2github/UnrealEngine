@@ -73,7 +73,7 @@ public:
 	 * @param    ResolutionType Type of processing resolution used to select the particles on which the field will be applied
 	 */
 	UFUNCTION(BlueprintPure, Category = "Field", DisplayName = "Set Meta Data Resolution")
-	UFieldSystemMetaDataProcessingResolution* SetMetaDataProcessingResolutionType(EFieldResolutionType ResolutionType);
+	UFieldSystemMetaDataProcessingResolution* SetMetaDataaProcessingResolutionType(EFieldResolutionType ResolutionType);
 
 	/** Precessing resolution type used to select the particles on which the field will be applied */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Field")
