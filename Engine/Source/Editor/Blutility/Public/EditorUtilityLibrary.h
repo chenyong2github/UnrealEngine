@@ -35,7 +35,7 @@ public:
 #if WITH_EDITOR
 
 	UFUNCTION(BlueprintCallable, meta = (BlueprintInternalUseOnly = "true"))
-	static UAsyncEditorDelay* AsyncEditorDelay(float Seconds);
+	static UAsyncEditorDelay* AsyncEditorDelay(float Seconds, int32 MinimumFrames = 30);
 
 #endif
 
@@ -46,11 +46,14 @@ public:
 
 public:
 
-	void Start(float Seconds);
+	void Start(float InMinimumSeconds, int32 InMinimumFrames);
 
 private:
 
 	bool HandleComplete(float DeltaTime);
+
+	uint64 EndFrame = 0;
+	double EndTime = 0;
 };
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FAsyncEditorWaitForGameWorldEvent, UWorld*, World);
@@ -85,7 +88,36 @@ private:
 	bool Server;
 };
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FDownloadImageDelegate, UTexture2DDynamic*, Texture);
+UCLASS()
+class BLUTILITY_API UAsyncEditorOpenMapAndFocusActor : public UEditorUtilityBlueprintAsyncActionBase
+{
+	GENERATED_UCLASS_BODY()
+
+public:
+#if WITH_EDITOR
+
+	UFUNCTION(BlueprintCallable, meta = (BlueprintInternalUseOnly = "true"))
+	static UAsyncEditorOpenMapAndFocusActor* AsyncEditorOpenMapAndFocusActor(FSoftObjectPath Map, FString FocusActorName);
+
+#endif
+
+public:
+
+	UPROPERTY(BlueprintAssignable)
+	FAsyncDelayComplete Complete;
+
+public:
+
+	void Start(FSoftObjectPath InMap, FString InFocusActorName);
+
+private:
+
+	bool OnTick(float DeltaTime);
+
+	FSoftObjectPath Map;
+	FString FocusActorName;
+};
+
 
 // Expose editor utility functions to Blutilities 
 UCLASS()
