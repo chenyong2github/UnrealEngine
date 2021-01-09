@@ -612,7 +612,6 @@ namespace DatasmithRuntime
 
 				ensure(DirectLink::InvalidId == ActionTask.GetAssetId());
 				ActionTask.Execute(FAssetData::EmptyAsset);
-				ActionCounter.Increment();
 			}
 		}
 

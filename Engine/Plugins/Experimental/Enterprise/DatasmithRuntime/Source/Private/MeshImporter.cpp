@@ -4,6 +4,7 @@
 
 #include "DatasmithRuntimeUtils.h"
 #include "LogCategory.h"
+#include "MaterialImportUtils.h"
 
 #include "DatasmithImportOptions.h"
 #include "DatasmithMeshUObject.h"
@@ -86,9 +87,9 @@ namespace DatasmithRuntime
 			else
 			{
 #ifdef ASSET_DEBUG
-				FString MeshName = FString(MeshElement->GetLabel()) + TEXT("_LU_") + FString::FromInt(MeshData.ElementId);
+				FString MeshName = TEXT("S_") + FString(MeshElement->GetName()) + TEXT("_LU_") + FString::FromInt(MeshData.ElementId);
 				MeshName = FDatasmithUtils::SanitizeObjectName(MeshName);
-				UPackage* Package = CreatePackage(*FPaths::Combine(TEXT("/Engine/Transient/LU"), MeshName));
+				UPackage* Package = CreatePackage(*FPaths::Combine( TEXT("/DatasmithContent/Meshes"), MeshName));
 				StaticMesh = NewObject< UStaticMesh >(Package, *MeshName, RF_Public);
 #else
 				StaticMesh = NewObject< UStaticMesh >(GetTransientPackage());
@@ -559,6 +560,7 @@ namespace DatasmithRuntime
 
 		if (StaticMesh == nullptr)
 		{
+			ActionCounter.Increment();
 			return EActionResult::Succeeded;
 		}
 
@@ -593,7 +595,7 @@ namespace DatasmithRuntime
 		MeshComponent->BodyInstance.SetCollisionEnabled(ECollisionEnabled::NoCollision);
 
 		MeshComponent->SetStaticMesh(StaticMesh);
-#if WITH_EDITOR
+#ifdef ASSET_DEBUG
 		StaticMesh->ClearFlags(RF_Public);
 #endif
 
@@ -642,6 +644,7 @@ namespace DatasmithRuntime
 		if (Material == nullptr)
 		{
 			// #ue_dsruntime: Log message material not assigned
+			ActionCounter.Increment();
 			return EActionResult::Failed;
 		}
 
@@ -662,14 +665,13 @@ namespace DatasmithRuntime
 				if (!StaticMaterials.IsValidIndex(Referencer.Slot))
 				{
 					ensure(false);
+					ActionCounter.Increment();
 					return EActionResult::Failed;
 				}
 
 				StaticMaterials[Referencer.Slot].MaterialInterface = Material;
 
-				// Update counters
-				ActionCounter.Increment();
-#if WITH_EDITOR
+#ifdef ASSET_DEBUG
 				Material->ClearFlags(RF_Public);
 #endif
 				// Mark dependent mesh components' render state as dirty
@@ -701,30 +703,33 @@ namespace DatasmithRuntime
 				if ((int32)Referencer.Slot >= MeshComponent->GetNumMaterials())
 				{
 					ensure(false);
+					ActionCounter.Increment();
 					return EActionResult::Failed;
 				}
 
 				MeshComponent->SetMaterial(Referencer.Slot, Material);
-				ActionCounter.Increment();
 
 				// Force rebuilding of render data for mesh component
 				MeshComponent->MarkRenderStateDirty();
-#if WITH_EDITOR
+#ifdef ASSET_DEBUG
 				Material->ClearFlags(RF_Public);
 #endif
 			}
 			else
 			{
-				UE_LOG(LogDatasmithRuntime, Log, TEXT("AssignMaterial: Actor %s has no mesh component"), ActorLabel);
 				ensure(false);
+				ActionCounter.Increment();
 				return EActionResult::Failed;
 			}
 		}
 		else
 		{
 			ensure(false);
+			ActionCounter.Increment();
 			return EActionResult::Failed;
 		}
+
+		ActionCounter.Increment();
 
 		return EActionResult::Succeeded;
 	}
