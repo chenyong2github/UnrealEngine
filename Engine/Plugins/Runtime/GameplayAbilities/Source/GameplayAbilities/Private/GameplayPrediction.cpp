@@ -331,8 +331,8 @@ void FReplicatedPredictionKeyItem::OnRep()
 			// Older key that would have gone in this slot
 			if (MapIt.Key() % FReplicatedPredictionKeyMap::KeyRingBufferSize == Index)
 			{
-				// Warn
-				ABILITY_LOG(Warning, TEXT("Passed PredictionKey %d in Delegate map while OnRep'ing %s"), MapIt.Key(), *PredictionKey.ToString());
+				// Message the log, this can happen during normal gameplay due to replication order, but can also indicate an ability-specific issue
+				ABILITY_LOG(Log, TEXT("Passed PredictionKey %d in Delegate map while OnRep'ing %s"), MapIt.Key(), *PredictionKey.ToString());
 
 				// Execute CaughtUp delegates
 				for (auto& Delegate : MapIt.Value().CaughtUpDelegates)
