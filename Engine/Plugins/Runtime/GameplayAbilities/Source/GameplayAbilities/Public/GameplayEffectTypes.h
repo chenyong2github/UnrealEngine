@@ -905,11 +905,11 @@ struct FGameplayEffectRemovalInfo
 
 	/** True when the gameplay effect's duration has not expired, meaning the gameplay effect is being forcefully removed.  */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Removal")
-	bool bPrematureRemoval;
+	bool bPrematureRemoval = false;
 
 	/** Number of Stacks this gameplay effect had before it was removed. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Removal")
-	int32 StackCount;
+	int32 StackCount = 0;
 
 	/** Actor this gameplay effect was targeting. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Removal")

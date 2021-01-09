@@ -45,7 +45,7 @@ struct FGameplayAbilityBindInfo
 	GENERATED_USTRUCT_BODY()
 
 	UPROPERTY(EditAnywhere, Category = BindInfo)
-	TEnumAsByte<EGameplayAbilityInputBinds::Type>	Command;
+	TEnumAsByte<EGameplayAbilityInputBinds::Type>	Command = EGameplayAbilityInputBinds::Ability1;;
 
 	UPROPERTY(EditAnywhere, Category = BindInfo)
 	TSubclassOf<UGameplayAbility>	GameplayAbilityClass;
