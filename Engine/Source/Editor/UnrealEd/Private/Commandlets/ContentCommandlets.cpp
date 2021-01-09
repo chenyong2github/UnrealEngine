@@ -724,7 +724,7 @@ void UResavePackagesCommandlet::LoadAndSaveOnePackage(const FString& Filename)
 						{
 							VerboseMessage(TEXT("Pre ForceGetStatus1"));
 							ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
-							FSourceControlStatePtr SourceControlState = SourceControlProvider.GetState( Package, EStateCacheUsage::ForceUpdate );
+							FSourceControlStatePtr SourceControlState = SourceControlProvider.GetState( Package, bBulkCheckOut ? EStateCacheUsage::Use : EStateCacheUsage::ForceUpdate );
 							if(SourceControlState.IsValid())
 							{
 								FString OtherCheckedOutUser;
@@ -899,6 +899,8 @@ int32 UResavePackagesCommandlet::Main( const FString& Params )
 	bOnlySaveDirtyPackages = Switches.Contains(TEXT("OnlySaveDirtyPackages"));
 	/** if we should auto checkout packages that need to be saved**/
 	bAutoCheckOut = Switches.Contains(TEXT("AutoCheckOutPackages")) || Switches.Contains(TEXT("AutoCheckOut"));
+	/** when checking out packages, check them all out before loading any of them to reduce the number of source control operations while resaving **/
+	bBulkCheckOut = bAutoCheckOut && Switches.Contains(TEXT("BulkCheckOutPackages")) || Switches.Contains(TEXT("BulkCheckOut"));
 	/** if we should simply skip checked out files rather than error-ing out */
 	bSkipCheckedOutFiles = Switches.Contains(TEXT("SkipCheckedOutPackages"));
 	/** if we should auto checkin packages that were checked out**/
@@ -995,6 +997,9 @@ int32 UResavePackagesCommandlet::Main( const FString& Params )
 		GarbageCollectionFrequency = 1;
 	}
 
+	// GarbageCollectionFrequency
+	FParse::Value(*Params, TEXT("GarbageCollectionFrequency="), GarbageCollectionFrequency);
+
 	// Default build on production
 	LightingBuildQuality = Quality_Production;
 	FString QualityStr;
@@ -1061,6 +1066,64 @@ int32 UResavePackagesCommandlet::Main( const FString& Params )
 	if(IsAllowCommandletRendering() && GShaderCompilingManager)
 	{
 		GShaderCompilingManager->ProcessAsyncResults(true, false);
+	}
+
+	// Pre-checkout files in bulk
+	if (bBulkCheckOut && bAutoCheckOut)
+	{
+		UE_LOG(LogContentCommandlet, Display, TEXT("Looking for files to bulk checkout from source control..."));
+		TArray<FString> PackagesPassingFilter;
+		for (int32 PackageIndex = 0; PackageIndex < PackageNames.Num(); PackageIndex++)
+		{
+			const FString& Filename = PackageNames[PackageIndex];
+			bool bIsReadOnly = IFileManager::Get().IsReadOnly(*Filename);
+
+			if (bIsReadOnly)
+			{
+				FLinkerLoad* Linker = LoadPackageLinker(nullptr, *Filename, LOAD_NoVerify);
+				if (Linker)
+				{
+					bool bSavePackage = true;
+					PerformPreloadOperations(Linker, bSavePackage);
+					if (bSavePackage)
+					{
+						PackagesPassingFilter.Add(Filename);
+					}
+				}
+				else
+				{
+					CollectGarbage(RF_NoFlags);
+				}
+			}
+		}
+
+		int32 NumPackages = PackagesPassingFilter.Num();
+		if (NumPackages > 0)
+		{
+			UE_LOG(LogContentCommandlet, Display, TEXT("Considering %d files for bulk checkout from source control..."), NumPackages);
+
+			ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
+			TArray<TSharedRef<ISourceControlState, ESPMode::ThreadSafe>> SourceControlStates;
+			SourceControlProvider.GetState(PackagesPassingFilter, SourceControlStates, EStateCacheUsage::ForceUpdate);
+			ensure(NumPackages == SourceControlStates.Num());
+			TArray<FString> PackagesToCheckout;
+			for (int32 PackageIdx = 0; PackageIdx < NumPackages; ++PackageIdx)
+			{
+				TSharedRef<ISourceControlState, ESPMode::ThreadSafe> SourceControlState = SourceControlStates[PackageIdx];
+				FString OtherCheckedOutUser;
+				if (!SourceControlState->IsCheckedOutOther(&OtherCheckedOutUser) && SourceControlState->IsCurrent())
+				{
+					ensure(FPaths::GetCleanFilename(PackagesPassingFilter[PackageIdx]) == FPaths::GetCleanFilename(SourceControlState->GetFilename()));
+					PackagesToCheckout.Add(*PackagesPassingFilter[PackageIdx]);
+				}
+			}
+
+			if (PackagesToCheckout.Num() > 0)
+			{
+				UE_LOG(LogContentCommandlet, Display, TEXT("Bulk checking out %d files from source control..."), PackagesToCheckout.Num());
+				SourceControlProvider.Execute(ISourceControlOperation::Create<FCheckOut>(), PackagesToCheckout);
+			}
+		}
 	}
 
 	// Iterate over all packages.
