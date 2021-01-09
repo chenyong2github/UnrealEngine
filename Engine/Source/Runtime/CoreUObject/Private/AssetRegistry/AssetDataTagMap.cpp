@@ -1124,7 +1124,7 @@ bool FAssetTagValueRef::Equals(FStringView Str) const
 ////////////////////////////////////////////////////////////////////////////
 
 FAssetDataTagMapSharedView::FAssetDataTagMapSharedView(const FAssetDataTagMapSharedView& O)
-	: Ptr(O.Ptr)
+	: Bits(O.Bits)
 {
 	if (IsFixed())
 	{
@@ -1137,9 +1137,9 @@ FAssetDataTagMapSharedView::FAssetDataTagMapSharedView(const FAssetDataTagMapSha
 }
 
 FAssetDataTagMapSharedView::FAssetDataTagMapSharedView(FAssetDataTagMapSharedView&& O)
-	: Ptr(O.Ptr)
+	: Bits(O.Bits)
 {
-	O.Ptr = nullptr;
+	O.Bits = 0;
 }
 
 FAssetDataTagMapSharedView::FAssetDataTagMapSharedView(FixedTagPrivate::FMapHandle InFixed)
@@ -1160,14 +1160,14 @@ FAssetDataTagMapSharedView::FAssetDataTagMapSharedView(FAssetDataTagMap&& InLoos
 FAssetDataTagMapSharedView& FAssetDataTagMapSharedView::operator=(const FAssetDataTagMapSharedView& O)
 {
 	FAssetDataTagMapSharedView Tmp(O);
-	Swap(Ptr, Tmp.Ptr);
+	Swap(Bits, Tmp.Bits);
 	return *this;
 }
 
 FAssetDataTagMapSharedView& FAssetDataTagMapSharedView::operator=(FAssetDataTagMapSharedView&& O)
 {
 	FAssetDataTagMapSharedView Tmp(MoveTemp(O));
-	Swap(Ptr, Tmp.Ptr);
+	Swap(Bits, Tmp.Bits);
 	return *this;
 }
 

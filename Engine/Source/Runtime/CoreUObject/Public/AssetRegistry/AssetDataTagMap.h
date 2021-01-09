@@ -265,7 +265,7 @@ class COREUOBJECT_API FAssetDataTagMapSharedView
 	{
 		FixedTagPrivate::FMapHandle Fixed;
 		FAssetDataTagMap* Loose;
-		void* Ptr = nullptr;
+		uint64 Bits = 0;
 	};
 
 	bool IsFixed() const
@@ -401,7 +401,7 @@ public:
 
 		TPair<FName, FAssetTagValueRef> operator*() const
 		{
-			check(View.Ptr != nullptr);
+			check(View.Bits != 0);
 			return View.IsFixed()	? MakePair(View.Fixed.At(Index), View.Fixed.StoreIndex)
 									: MakePair((&*View.Loose->begin())[Index]);
 		}
