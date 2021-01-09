@@ -21,7 +21,7 @@ public:
 
 	/** Date of this change */
 	UPROPERTY(Category=Translation, VisibleAnywhere)//, meta=(DisplayName = "Date & Time"))
-	FDateTime DateAndTime;
+	FDateTime DateAndTime = FDateTime(0);
 
 	/** Source at time of this change */
 	UPROPERTY(Category=Translation, VisibleAnywhere, meta=(MultiLine=true))
