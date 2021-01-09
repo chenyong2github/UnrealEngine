@@ -244,7 +244,7 @@ void operator<<(FStructuredArchive::FSlot Slot, FEngineVersion &Version)
 	}
 }
 
-bool ReleaseObjectVersionValidator(const FCustomVersion& Version, const FCustomVersionArray& AllVersions)
+bool ReleaseObjectVersionValidator(const FCustomVersion& Version, const FCustomVersionArray& AllVersions, const TCHAR* DebugContext)
 {
 	// Any asset saved as ReleaseObjectVersion 31 or 32 will be broken in the future due to the
 	// inadvertent changing of release object version in another stream
@@ -252,7 +252,7 @@ bool ReleaseObjectVersionValidator(const FCustomVersion& Version, const FCustomV
 	const bool bInvalidReleaseObjectVersion = (Version.Version == FReleaseObjectVersion::ReleaseObjectVersionFixup || Version.Version == FReleaseObjectVersion::PinTypeIncludesUObjectWrapperFlag);
 	if (bInvalidReleaseObjectVersion)
 	{
-		UE_LOG(LogInit, Error, TEXT("Package must be resaved with an appropriate engine version or else future versions will be incorrectly applied."));
+		UE_LOG(LogInit, Error, TEXT("Package %s must be resaved with an appropriate engine version or else future versions will be incorrectly applied."), DebugContext ? DebugContext : TEXT("(unknown)"));
 	}
 	return !bInvalidReleaseObjectVersion;
 }

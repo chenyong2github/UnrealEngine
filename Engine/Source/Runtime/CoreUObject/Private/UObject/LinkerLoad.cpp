@@ -1376,7 +1376,7 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::UpdateFromPackageFileSummary()
 	bool bCustomVersionIsLatest = true;
 	if (!Summary.bUnversioned)
 	{
-		TArray<FCustomVersionDifference> Diffs = FCurrentCustomVersions::Compare(Summary.GetCustomVersionContainer().GetAllVersions());
+		TArray<FCustomVersionDifference> Diffs = FCurrentCustomVersions::Compare(Summary.GetCustomVersionContainer().GetAllVersions(), *Filename);
 		for (FCustomVersionDifference Diff : Diffs)
 		{
 			bCustomVersionIsLatest = false;
