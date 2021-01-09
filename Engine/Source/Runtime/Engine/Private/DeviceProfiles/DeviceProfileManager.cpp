@@ -109,7 +109,7 @@ static void GetFragmentCvars(const FString& CurrentSectionName, const FString& C
 	}
 }
 
-void UDeviceProfileManager::InitializeCVarsForActiveDeviceProfile(bool bPushSettings, bool bIsDeviceProfilePreview)
+void UDeviceProfileManager::InitializeCVarsForActiveDeviceProfile(bool bPushSettings, bool bIsDeviceProfilePreview, bool bForceReload)
 {
 	FString ActiveProfileName;
 	
@@ -120,7 +120,7 @@ void UDeviceProfileManager::InitializeCVarsForActiveDeviceProfile(bool bPushSett
 		//Ensure we've loaded the device profiles for the active platform.
 		//This can be needed when overriding the device profile.
 		FString ActivePlatformName = DeviceProfileManagerSingleton->ActiveDeviceProfile->DeviceType;
-		FConfigCacheIni::LoadGlobalIniFile(GDeviceProfilesIni, TEXT("DeviceProfiles"), *ActivePlatformName, true);
+		FConfigCacheIni::LoadGlobalIniFile(GDeviceProfilesIni, TEXT("DeviceProfiles"), *ActivePlatformName, bForceReload);
 	}
 	else
 	{
@@ -386,7 +386,7 @@ bool UDeviceProfileManager::DoActiveProfilesReference(const TSet<FString>& Devic
 	return bDoActiveProfilesReferenceQuerySet;
 }
 
-void UDeviceProfileManager::ReapplyDeviceProfile()
+void UDeviceProfileManager::ReapplyDeviceProfile(bool bForceReload)
 {	
 	UDeviceProfile* OverrideProfile = DeviceProfileManagerSingleton->BaseDeviceProfile ? DeviceProfileManagerSingleton->GetActiveProfile() : nullptr;
 	UDeviceProfile* BaseProfile = DeviceProfileManagerSingleton->BaseDeviceProfile ? DeviceProfileManagerSingleton->BaseDeviceProfile : DeviceProfileManagerSingleton->GetActiveProfile();
@@ -398,7 +398,7 @@ void UDeviceProfileManager::ReapplyDeviceProfile()
 
 	// Set base profile and re-apply cvars.
 	SetActiveDeviceProfile(BaseProfile);
-	InitializeCVarsForActiveDeviceProfile();
+	InitializeCVarsForActiveDeviceProfile(false, false, bForceReload);
 
 	if (OverrideProfile)
 	{
