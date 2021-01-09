@@ -122,7 +122,6 @@ inline bool IsSupported(const FStaticShaderPlatform ShaderPlatform)
 	return 
 		ShaderPlatform == SP_PCD3D_SM5 ||
 		ShaderPlatform == SP_XBOXONE_D3D12 ||
-		ShaderPlatform == SP_PS4 ||
 		IsVulkanSM5Platform(ShaderPlatform) ||
 		IsMetalSM5Platform(ShaderPlatform) ||
 		ShaderPlatform == SP_SWITCH ||

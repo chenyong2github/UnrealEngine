@@ -1250,7 +1250,7 @@ RHI_API bool RHISupportsPixelShaderUAVs(const FStaticShaderPlatform Platform)
 
 RHI_API bool RHISupportsIndexBufferUAVs(const FStaticShaderPlatform Platform)
 {
-	return Platform == SP_PCD3D_SM5 || IsVulkanPlatform(Platform) || IsMetalSM5Platform(Platform) || Platform == SP_XBOXONE_D3D12 || Platform == SP_PS4 
+	return Platform == SP_PCD3D_SM5 || IsVulkanPlatform(Platform) || IsMetalSM5Platform(Platform) || Platform == SP_XBOXONE_D3D12
 		|| FDataDrivenShaderPlatformInfo::GetSupportsIndexBufferUAVs(Platform);
 }
 

@@ -213,7 +213,6 @@ bool FMaterialStatsUtils::PlatformNeedsOfflineCompiler(const EShaderPlatform Sha
 {
 	switch (ShaderPlatform)
 	{
-		case SP_PS4:
 		case SP_OPENGL_PCES3_1:
 		case SP_VULKAN_PCES3_1:
 		case SP_VULKAN_SM5:

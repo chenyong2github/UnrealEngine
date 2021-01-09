@@ -823,7 +823,7 @@ public:
 #define HAIR_MATERIAL_DEBUG_OUTPUT 0
 static bool IsPlatformRequiringRenderTargetForMaterialPass(EShaderPlatform Platform)
 {
-	return HAIR_MATERIAL_DEBUG_OUTPUT || Platform == SP_VULKAN_SM5 || Platform == SP_PS4; //#hair_todo: change to a proper RHI(Platform) function
+	return HAIR_MATERIAL_DEBUG_OUTPUT || Platform == SP_VULKAN_SM5 || FDataDrivenShaderPlatformInfo::GetRequiresRenderTargetDuringRaster(Platform); //#hair_todo: change to a proper RHI(Platform) function
 }
 
 class FHairMaterialPS : public FMeshMaterialShader
