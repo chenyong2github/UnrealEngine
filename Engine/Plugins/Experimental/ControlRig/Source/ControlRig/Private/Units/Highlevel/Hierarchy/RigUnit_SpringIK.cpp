@@ -12,19 +12,19 @@ FRigUnit_SpringIK_Execute()
 		return;
 	}
 
-	TArray<FCachedRigElement>& BoneIndices = WorkData.BoneIndices;
+	TArray<FCachedRigElement>& CachedBones = WorkData.CachedBones;
 	FCachedRigElement& CachedPoleVector = WorkData.CachedPoleVector;
 	TArray<FTransform>& Transforms = WorkData.Transforms;
 	FCRSimPointContainer& Simulation = WorkData.Simulation;
 
 	if (Context.State == EControlRigState::Init)
 	{
-		BoneIndices.Reset();
+		CachedBones.Reset();
 		CachedPoleVector.Reset();
 		return;
 	}
 
-	if(BoneIndices.Num() == 0)
+	if(CachedBones.Num() == 0)
 	{
 		Simulation.Reset();
 		Simulation.TimeStep = 1.f / 60.f;
@@ -40,7 +40,7 @@ FRigUnit_SpringIK_Execute()
 
 			while (EndBoneIndex != INDEX_NONE)
 			{
-				BoneIndices.Add(FCachedRigElement((*Hierarchy)[EndBoneIndex].Name, Hierarchy));
+				CachedBones.Add(FCachedRigElement((*Hierarchy)[EndBoneIndex].Name, Hierarchy));
 				if (EndBoneIndex == StartBoneIndex)
 				{
 					break;
@@ -49,20 +49,20 @@ FRigUnit_SpringIK_Execute()
 			}
 		}
 
-		if (BoneIndices.Num() < 3)
+		if (CachedBones.Num() < 3)
 		{
 			UE_CONTROLRIG_RIGUNIT_REPORT_WARNING(TEXT("Didn't find enough bones. You need at least three in the chain!"));
 			return;
 		}
 
-		Algo::Reverse(BoneIndices);
+		Algo::Reverse(CachedBones);
 
-		for (int32 PointIndex = 0; PointIndex < BoneIndices.Num() - 1; PointIndex++)
+		for (int32 PointIndex = 0; PointIndex < CachedBones.Num() - 1; PointIndex++)
 		{
 			Simulation.Points.Add(FCRSimPoint());
 
-			FTransform A = Hierarchy->GetInitialGlobalTransform(BoneIndices[PointIndex]);
-			FTransform B = Hierarchy->GetInitialGlobalTransform(BoneIndices[PointIndex + 1]);
+			FTransform A = Hierarchy->GetInitialGlobalTransform(CachedBones[PointIndex]);
+			FTransform B = Hierarchy->GetInitialGlobalTransform(CachedBones[PointIndex + 1]);
 
 			FCRSimLinearSpring Spring;
 			Spring.SubjectA = PointIndex;
@@ -74,7 +74,7 @@ FRigUnit_SpringIK_Execute()
 			// also add the root based springs
 			if (PointIndex > 1 && RootStrength > SMALL_NUMBER && HierarchyStrength > SMALL_NUMBER)
 			{
-				B = Hierarchy->GetInitialGlobalTransform(BoneIndices[0]);
+				B = Hierarchy->GetInitialGlobalTransform(CachedBones[0]);
 				Spring.SubjectA = PointIndex;
 				Spring.SubjectB = 0;
 				Spring.Equilibrium = FMath::Lerp<float>(0.f, (A.GetLocation() - B.GetLocation()).Size(), FMath::Clamp<float>(RootRatio, 0.f, 1.f));
@@ -83,11 +83,11 @@ FRigUnit_SpringIK_Execute()
 			}
 
 			// also add the effector based springs
-			if(PointIndex > 0 && PointIndex < BoneIndices.Num() - 2 && EffectorStrength > SMALL_NUMBER && HierarchyStrength > SMALL_NUMBER)
+			if(PointIndex > 0 && PointIndex < CachedBones.Num() - 2 && EffectorStrength > SMALL_NUMBER && HierarchyStrength > SMALL_NUMBER)
 			{
-				B = Hierarchy->GetInitialGlobalTransform(BoneIndices[BoneIndices.Num() - 1]);
+				B = Hierarchy->GetInitialGlobalTransform(CachedBones[CachedBones.Num() - 1]);
 				Spring.SubjectA = PointIndex;
-				Spring.SubjectB = BoneIndices.Num() - 1;
+				Spring.SubjectB = CachedBones.Num() - 1;
 				Spring.Equilibrium = FMath::Lerp<float>(0.f, (A.GetLocation() - B.GetLocation()).Size(), FMath::Clamp<float>(EffectorRatio, 0.f, 1.f));
 				Spring.Coefficient = EffectorStrength;
 				Simulation.Springs.Add(Spring);
@@ -99,9 +99,9 @@ FRigUnit_SpringIK_Execute()
 		Simulation.Points.Last().Mass = 0.f;
 
 		// plane constraints
-		for (int32 PointIndex = 0; PointIndex < BoneIndices.Num(); PointIndex++)
+		for (int32 PointIndex = 0; PointIndex < CachedBones.Num(); PointIndex++)
 		{
-			FTransform Transform = Hierarchy->GetGlobalTransform(BoneIndices[PointIndex]);
+			FTransform Transform = Hierarchy->GetGlobalTransform(CachedBones[PointIndex]);
 			Simulation.Points[PointIndex].LinearDamping = Damping;
 			Simulation.Points[PointIndex].Position = Transform.GetLocation();
 
@@ -117,7 +117,7 @@ FRigUnit_SpringIK_Execute()
 		CachedPoleVector = FCachedRigElement(PoleVectorSpace, Hierarchy);
 	}
 
-	if (BoneIndices.Num() < 3)
+	if (CachedBones.Num() < 3)
 	{
 		return;
 	}
@@ -128,9 +128,9 @@ FRigUnit_SpringIK_Execute()
 	}
 
 	Transforms.Reset();
-	for (int32 PointIndex = 0; PointIndex < BoneIndices.Num(); PointIndex++)
+	for (int32 PointIndex = 0; PointIndex < CachedBones.Num(); PointIndex++)
 	{
-		FTransform Transform = Hierarchy->GetGlobalTransform(BoneIndices[PointIndex]);
+		FTransform Transform = Hierarchy->GetGlobalTransform(CachedBones[PointIndex]);
 		Transforms.Add(Transform);
 		if (Simulation.Points[PointIndex].Mass < SMALL_NUMBER || !bLiveSimulation)
 		{
@@ -200,7 +200,7 @@ FRigUnit_SpringIK_Execute()
 			if (!CurrentPole.IsNearlyZero() && !DesiredPole.IsNearlyZero())
 			{
 				PreRotation = FQuat::FindBetweenNormals(CurrentPole, DesiredPole);
-				for (int32 PointIndex = 1; PointIndex < BoneIndices.Num() - 1; PointIndex++)
+				for (int32 PointIndex = 1; PointIndex < CachedBones.Num() - 1; PointIndex++)
 				{
 					if (Simulation.Points[PointIndex].Mass > SMALL_NUMBER)
 					{
@@ -215,7 +215,7 @@ FRigUnit_SpringIK_Execute()
 
 	FVector AccumulatedTarget = FVector::ZeroVector;
 	FVector LastPrimaryTarget = FVector::ZeroVector;
-	for (int32 PointIndex = 0; PointIndex < BoneIndices.Num(); PointIndex++)
+	for (int32 PointIndex = 0; PointIndex < CachedBones.Num(); PointIndex++)
 	{
 		FTransform& Transform = Transforms[PointIndex];
 
@@ -224,7 +224,7 @@ FRigUnit_SpringIK_Execute()
 			Transform.SetLocation(Simulation.GetPointInterpolated(PointIndex).Position);
 		}
 
-		if (PointIndex != BoneIndices.Num() - 1) // skip the effector
+		if (PointIndex != CachedBones.Num() - 1) // skip the effector
 		{
 			Transform.SetRotation(PreRotation * Transform.GetRotation());
 
@@ -261,14 +261,14 @@ FRigUnit_SpringIK_Execute()
 
 		if(bLimitLocalPosition)
 		{
-			int32 ParentIndex = (*Hierarchy)[BoneIndices[PointIndex]].ParentIndex;
+			int32 ParentIndex = (*Hierarchy)[CachedBones[PointIndex]].ParentIndex;
 			if (ParentIndex != INDEX_NONE)
 			{
-				FTransform InitialTransform = Hierarchy->GetInitialGlobalTransform(BoneIndices[PointIndex]);
+				FTransform InitialTransform = Hierarchy->GetInitialGlobalTransform(CachedBones[PointIndex]);
 				FTransform ParentInitialTransform = Hierarchy->GetInitialGlobalTransform(ParentIndex);
 				FTransform ParentTransform = Hierarchy->GetGlobalTransform(ParentIndex);
 				float ExpectedDistance = (InitialTransform.GetLocation() - ParentInitialTransform.GetLocation()).Size();
-				if (ExpectedDistance > SMALL_NUMBER && PointIndex < BoneIndices.Num() - 1)
+				if (ExpectedDistance > SMALL_NUMBER && PointIndex < CachedBones.Num() - 1)
 				{
 					FVector Direction = Transform.GetLocation() - ParentTransform.GetLocation();
 					if (!Direction.IsNearlyZero())
@@ -278,7 +278,7 @@ FRigUnit_SpringIK_Execute()
 				}
 
 				// correct the rotation on the last bone
-				if (PointIndex == BoneIndices.Num() - 2)
+				if (PointIndex == CachedBones.Num() - 2)
 				{
 					FVector Axis = Transform.TransformVectorNoScale(PrimaryAxis);
 					FVector Target = Simulation.GetPointInterpolated(PointIndex + 1).Position - Transform.GetLocation();
@@ -290,7 +290,7 @@ FRigUnit_SpringIK_Execute()
 					}
 				}
 
-				if (ExpectedDistance > SMALL_NUMBER && PointIndex == BoneIndices.Num() - 1)
+				if (ExpectedDistance > SMALL_NUMBER && PointIndex == CachedBones.Num() - 1)
 				{
 					FVector Direction = Transform.GetLocation() - ParentTransform.GetLocation();
 					if (!Direction.IsNearlyZero())
@@ -301,7 +301,7 @@ FRigUnit_SpringIK_Execute()
 			}
 		}
 
-		Hierarchy->SetGlobalTransform(BoneIndices[PointIndex], Transform, bPropagateToChildren);
+		Hierarchy->SetGlobalTransform(CachedBones[PointIndex], Transform, bPropagateToChildren);
 	}
 
 	if (Context.DrawInterface != nullptr && DebugSettings.bEnabled)
