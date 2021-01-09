@@ -387,7 +387,7 @@ struct DATAREGISTRY_API FDataRegistryAcquireResult
 			return nullptr;
 		}
 
-		if (!ensureMsgf(ItemStruct->IsChildOf(T::StaticStruct()), TEXT("Can't cast data item of type %s to %s! Code should check type before calling GetItem"), ItemStruct->GetName(), T::StaticStruct()->GetName()))
+		if (!ensureMsgf(ItemStruct->IsChildOf(T::StaticStruct()), TEXT("Can't cast data item of type %s to %s! Code should check type before calling GetItem"), *ItemStruct->GetName(), *T::StaticStruct()->GetName()))
 		{
 			return nullptr;
 		}
