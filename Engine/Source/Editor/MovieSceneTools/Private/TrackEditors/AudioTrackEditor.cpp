@@ -11,6 +11,7 @@
 #include "Audio.h"
 #include "Sound/SoundBase.h"
 #include "Sound/SoundWave.h"
+#include "Sound/DialogueWave.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Widgets/Layout/SBox.h"
 #include "SequencerSectionPainter.h"
@@ -23,6 +24,7 @@
 #include "CommonMovieSceneTools.h"
 #include "AudioDevice.h"
 #include "Sound/SoundNodeWavePlayer.h"
+#include "Sound/SoundNodeDialoguePlayer.h"
 #include "Slate/SlateTextures.h"
 #include "AudioDecompress.h"
 #include "IContentBrowserSingleton.h"
@@ -71,9 +73,22 @@ USoundWave* DeriveSoundWave(UMovieSceneAudioSection* AudioSection)
 		const TArray<USoundNode*>& AllNodes = SoundCue->AllNodes;
 		for (int32 Index = 0; Index < AllNodes.Num() && SoundWave == nullptr; ++Index)
 		{
-			if (AllNodes[Index] && AllNodes[Index]->IsA<USoundNodeWavePlayer>())
+			if (AllNodes[Index])
 			{
-				SoundWave = Cast<USoundNodeWavePlayer>(AllNodes[Index])->GetSoundWave();
+				if (USoundNodeWavePlayer* SoundNodeWavePlayer = Cast<USoundNodeWavePlayer>(AllNodes[Index]))
+				{
+					SoundWave = SoundNodeWavePlayer->GetSoundWave();
+				}
+				else if (USoundNodeDialoguePlayer* SoundNodeDialoguePlayer = Cast<USoundNodeDialoguePlayer>(AllNodes[Index]))
+				{
+					if (UDialogueWave* DialogueWave = SoundNodeDialoguePlayer->GetDialogueWave())
+					{
+						if (DialogueWave->ContextMappings.Num() > 0)
+						{
+							SoundWave = DialogueWave->ContextMappings[0].SoundWave;
+						}
+					}
+				}
 			}
 		}
 	}
