@@ -361,7 +361,9 @@ export function processOtherBotTargets(
 		const target = '!-'.indexOf(arg[0]) < 0 ? arg : arg.substr(1)
 		const branch = targetBranchGraph.getBranch(target)
 		if (!branch) {
-			errors.push(`Branch '${target}' not found in ${bot}`)
+			if (targetBranchGraph.config.branchNamesToIgnore.indexOf(target.toUpperCase()) < 0) {
+				errors.push(`Branch '${target}' not found in ${bot}`)
+			}
 			continue
 		}
 
@@ -539,12 +541,11 @@ export function computeTargetsImpl(
 
 	const defaultMergeMode: MergeMode = forceStomp ? 'clobber' : 'normal'
 
+	const branchGraph = sourceBranch.parent
 	const requestedMerges = [
 		...defaultTargets.map(name => [name, defaultMergeMode] as [string, MergeMode]),
-		...ri.integrations
+		...ri.integrations.filter(([name, _]) => branchGraph.config.branchNamesToIgnore.indexOf(name.toUpperCase()) < 0)
 	]
-
-	const branchGraph = sourceBranch.parent
 
 	// compute the targets map
 	const skipBranches = new Set<Branch>()
