@@ -8,9 +8,9 @@
 UENUM(BlueprintType)
 enum ESetMaskConditionType
 {
-	Field_Set_Always	        UMETA(DisplayName = "Always"),
-	Field_Set_IFF_NOT_Interior  UMETA(DisplayName = "IFF NOT Interior"),
-	Field_Set_IFF_NOT_Exterior  UMETA(DisplayName = "IFF NOT Exterior"),
+	Field_Set_Always	        UMETA(DisplayName = "Always", ToolTip = "Always set the field node output."),
+	Field_Set_IFF_NOT_Interior  UMETA(DisplayName = "Not Interior", ToolTip = "Only set the field node output if the input is different from the interior value."),
+	Field_Set_IFF_NOT_Exterior  UMETA(DisplayName = "Not Exterior", ToolTip = "Only set the field node output if the input is different from the exterior value."),
 	//~~~
 	//256th entry
 	Field_MaskCondition_Max                 UMETA(Hidden)
@@ -22,10 +22,10 @@ enum ESetMaskConditionType
 UENUM(BlueprintType)
 enum EWaveFunctionType
 {
-	Field_Wave_Cosine	 UMETA(DisplayName = "Cosine"),
-	Field_Wave_Gaussian  UMETA(DisplayName = "Gaussian"),
-	Field_Wave_Falloff  UMETA(DisplayName = "Falloff"),
-	Field_Wave_Decay  UMETA(DisplayName = "Decay"),
+	Field_Wave_Cosine	 UMETA(DisplayName = "Cosine", ToolTip = "Cosine wave that will move in time."),
+	Field_Wave_Gaussian  UMETA(DisplayName = "Gaussian", ToolTip = "Gaussian wave that will move in time."),
+	Field_Wave_Falloff  UMETA(DisplayName = "Falloff", ToolTip = "The radial falloff radius will move along temporal wave."),
+	Field_Wave_Decay  UMETA(DisplayName = "Decay", ToolTip = "The magnitude of the field will decay in time."),
 	//~~~
 	//256th entry
 	Field_Wave_Max       UMETA(Hidden)
@@ -37,10 +37,10 @@ enum EWaveFunctionType
 UENUM(BlueprintType)
 enum EFieldOperationType
 {
-	Field_Multiply  UMETA(DisplayName = "Multiply"),
-	Field_Divide    UMETA(DisplayName = "Divide"),
-	Field_Add       UMETA(DisplayName = "Add"),
-	Field_Substract UMETA(DisplayName = "Subtract"),
+	Field_Multiply  UMETA(DisplayName = "Multiply", ToolTip = "Multiply the fields output values C = B * A"),
+	Field_Divide    UMETA(DisplayName = "Divide", ToolTip = "Divide the fields output values C = B / A"),
+	Field_Add       UMETA(DisplayName = "Add", ToolTip = "Add the fields output values : C = B + A"),
+	Field_Substract UMETA(DisplayName = "Subtract", ToolTip = "Subtract the fields output values : C = B - A"),
 	//~~~
 	//256th entry
 	Field_Operation_Max                 UMETA(Hidden)
@@ -52,8 +52,8 @@ enum EFieldOperationType
 UENUM(BlueprintType)
 enum EFieldCullingOperationType
 {
-	Field_Culling_Inside  UMETA(DisplayName = "Inside"),
-	Field_Culling_Outside UMETA(DisplayName = "Outside"),
+	Field_Culling_Inside  UMETA(DisplayName = "Inside", ToolTip = "Evaluate the input field if the result of the culling field is equal to 0"),
+	Field_Culling_Outside UMETA(DisplayName = "Outside", ToolTip = "Evaluate the input field if the result of the culling field is diferent from 0"),
 	//~~~
 	//256th entry
 	Field_Culling_Operation_Max                 UMETA(Hidden)
@@ -66,9 +66,9 @@ enum EFieldCullingOperationType
 UENUM(BlueprintType)
 enum EFieldResolutionType
 {
-	Field_Resolution_Minimal  UMETA(DisplayName = "Minimal"),
-	Field_Resolution_DisabledParents  UMETA(DisplayName = "Minimal Plus Disabled Parents"),
-	Field_Resolution_Maximum  UMETA(DisplayName = "Maximum"),
+	Field_Resolution_Minimal  UMETA(DisplayName = "Minimum", ToolTip = "Apply the field to all the non disabled particles"),
+	Field_Resolution_DisabledParents  UMETA(DisplayName = "Children", ToolTip = "Apply the field to all the children particles"),
+	Field_Resolution_Maximum  UMETA(DisplayName = "Maximum", ToolTip = "Apply the field to all the solver particles"),
 	//~~~
 	//256th entry
 	Field_Resolution_Max      UMETA(Hidden)
@@ -80,10 +80,10 @@ enum EFieldResolutionType
 UENUM(BlueprintType)
 enum EFieldFilterType
 {
-	Field_Filter_Dynamic  UMETA(DisplayName = "Dynamic"),
-	Field_Filter_Kinematic  UMETA(DisplayName = "Kinematic"),
-	Field_Filter_Static  UMETA(DisplayName = "Static"),
-	Field_Filter_All  UMETA(DisplayName = "All"),
+	Field_Filter_Dynamic  UMETA(DisplayName = "Dynamic", ToolTip = "Apply the field to all the dynamic particles"),
+	Field_Filter_Kinematic  UMETA(DisplayName = "Kinematic", ToolTip = "Apply the field to all the kinematic particles"),
+	Field_Filter_Static  UMETA(DisplayName = "Static", ToolTip = "Apply the field to all the static particles"),
+	Field_Filter_All  UMETA(DisplayName = "Maximum", ToolTip = "Apply the field to all the solver particles"),
 	//~~~
 	//256th entry
 	Field_Filter_Max      UMETA(Hidden)
@@ -95,11 +95,11 @@ enum EFieldFilterType
 UENUM(BlueprintType)
 enum EFieldFalloffType
 {
-	Field_FallOff_None			UMETA(DisplayName = "None"),
-	Field_Falloff_Linear		UMETA(DisplayName = "Linear"),
-	Field_Falloff_Inverse		UMETA(DisplayName = "Inverse"),
-	Field_Falloff_Squared		UMETA(DisplayName = "Squared"),
-	Field_Falloff_Logarithmic	UMETA(DisplayName = "Logarithmic"),
+	Field_FallOff_None			UMETA(DisplayName = "None", ToolTip = "No falloff function is used"),
+	Field_Falloff_Linear		UMETA(DisplayName = "Linear", ToolTip = "The falloff function will be proportional to x"),
+	Field_Falloff_Inverse		UMETA(DisplayName = "Inverse", ToolTip = "The falloff function will be proportional to 1.0/x"),
+	Field_Falloff_Squared		UMETA(DisplayName = "Squared", ToolTip = "The falloff function will be proportional to x*x"),
+	Field_Falloff_Logarithmic	UMETA(DisplayName = "Logarithmic", ToolTip = "The falloff function will be proportional to log(x)"),
 	//~~~
 	//256th entry
 	Field_Falloff_Max           UMETA(Hidden)
@@ -112,22 +112,22 @@ UENUM(BlueprintType)
 enum EFieldPhysicsType
 {
 	Field_None						UMETA(Hidden),
-	Field_DynamicState				UMETA(DisplayName = "DynamicState"),
-	Field_LinearForce				UMETA(DisplayName = "LinearForce", ToolTip = "Add a vector field to the particles linear force"),
-	Field_ExternalClusterStrain		UMETA(DisplayName = "ExternalClusterStrain"),
-	Field_Kill   					UMETA(DisplayName = "Kill"),
-	Field_LinearVelocity			UMETA(DisplayName = "LinearVelocity"),
-	Field_AngularVelociy			UMETA(DisplayName = "AngularVelocity"),
-	Field_AngularTorque				UMETA(DisplayName = "AngularTorque", ToolTip = "Add a vector field to the particles angular torque"),
-	Field_InternalClusterStrain		UMETA(DisplayName = "InternalClusterStrain"),
-	Field_DisableThreshold			UMETA(DisplayName = "DisableThreshold"),
-	Field_SleepingThreshold			UMETA(DisplayName = "SleepingThreshold"),
-	Field_PositionStatic			UMETA(DisplayName = "PositionStatic"),
-	Field_PositionAnimated			UMETA(DisplayName = "PositionAnimated"),
-	Field_PositionTarget			UMETA(DisplayName = "PositionTarget"),
-	Field_DynamicConstraint			UMETA(DisplayName = "DynamicConstraint"),
-	Field_CollisionGroup			UMETA(DisplayName = "CollisionGroup"),
-	Field_ActivateDisabled			UMETA(DisplayName = "ActivateDisabled"),
+	Field_DynamicState				UMETA(DisplayName = "Dynamic State", ToolTip = "Set the dynamic state of a particle (static, dynamic, kinematic...)"),
+	Field_LinearForce				UMETA(DisplayName = "Linear Force", ToolTip = "Add a vector field to the particles linear force."),
+	Field_ExternalClusterStrain		UMETA(DisplayName = "External Strain", ToolTip = "Apply an external strain over the particles. If this strain is over the internal one, the cluster will break."),
+	Field_Kill   					UMETA(DisplayName = "Kill Particle", ToolTip = "Disable the particles for which the field will be higher than 0."),
+	Field_LinearVelocity			UMETA(DisplayName = "Linear Velocity", ToolTip = "Add a vector field to the particles linear velocity."),
+	Field_AngularVelociy			UMETA(DisplayName = "Angular Velocity", ToolTip = "Add a vector field to the particles angular velocity."),
+	Field_AngularTorque				UMETA(DisplayName = "Angular Torque", ToolTip = "Add a vector field to the particles angular torque."),
+	Field_InternalClusterStrain		UMETA(DisplayName = "Internal Strain", ToolTip = "Add a strain field to the particles internal one."),
+	Field_DisableThreshold			UMETA(DisplayName = "Disable Threshold", ToolTip = "Disable the particles if their linear and angular velocity are less than the threshold."),
+	Field_SleepingThreshold			UMETA(DisplayName = "Sleeping Threshold", ToolTip = "Set particles in sleeping mode if their linear and angular velocity are less than the threshold."),
+	Field_PositionStatic			UMETA(DisplayName = "Position Static", ToolTip = "Disabled for now (WIP)"),
+	Field_PositionAnimated			UMETA(DisplayName = "Position Animated", ToolTip = "Disabled for now (WIP)"),
+	Field_PositionTarget			UMETA(DisplayName = "Position Target", ToolTip = "Disabled for now (WIP)"),
+	Field_DynamicConstraint			UMETA(DisplayName = "Dynamic Constraint", ToolTip = "Disabled for now (WIP)"),
+	Field_CollisionGroup			UMETA(DisplayName = "Collision Group", ToolTip = "Set the particles collision group."),
+	Field_ActivateDisabled			UMETA(DisplayName = "Activate Disabled", ToolTip = "Disabled for now (WIP)"),
 	//~~~
 	//256th entry
 	Field_PhysicsType_Max           UMETA(Hidden)
@@ -137,11 +137,11 @@ enum EFieldPhysicsType
 UENUM(BlueprintType)
 enum EFieldVectorType
 {
-	Vector_LinearForce				UMETA(DisplayName = "LinearForce", ToolTip = "Add a vector field to the particles linar force"),
-	Vector_LinearVelocity			UMETA(DisplayName = "LinearVelocity"),
-	Vector_AngularVelocity			UMETA(DisplayName = "AngularVelocity"),
-	Vector_AngularTorque			UMETA(DisplayName = "AngularTorque", ToolTip = "Add a vector field to the particles angular torque"),
-	Vector_PositionTarget			UMETA(DisplayName = "PositionTarget"),
+	Vector_LinearForce				UMETA(DisplayName = "Linear Force", ToolTip = "Add a vector field to the particles linear force."),
+	Vector_LinearVelocity			UMETA(DisplayName = "Linear Velocity", ToolTip = "Add a vector field to the particles linear velocity."),
+	Vector_AngularVelocity			UMETA(DisplayName = "Angular Velocity", ToolTip = "Add a vector field to the particles angular velocity."),
+	Vector_AngularTorque			UMETA(DisplayName = "Angular Torque", ToolTip = "Add a vector field to the particles angular torque."),
+	Vector_PositionTarget			UMETA(DisplayName = "Position Target", ToolTip = "Disabled for now (WIP)"),
 	//~~~
 	//256th entry
 	Vector_TargetMax           UMETA(Hidden)
@@ -150,12 +150,12 @@ enum EFieldVectorType
 UENUM(BlueprintType)
 enum EFieldScalarType
 {
-	Scalar_ExternalClusterStrain		UMETA(DisplayName = "ExternalClusterStrain"),
-	Scalar_Kill   						UMETA(DisplayName = "Kill"),
-	Scalar_DisableThreshold				UMETA(DisplayName = "DisableThreshold"),
-	Scalar_SleepingThreshold			UMETA(DisplayName = "SleepingThreshold"),
-	Scalar_InternalClusterStrain		UMETA(DisplayName = "InternalClusterStrain"),
-	Scalar_DynamicConstraint			UMETA(DisplayName = "DynamicConstraint"),
+	Scalar_ExternalClusterStrain		UMETA(DisplayName = "External Strain", ToolTip = "Apply an external strain over the particles. If this strain is over the internal one, the cluster will break."),
+	Scalar_Kill   						UMETA(DisplayName = "Kill Particle", ToolTip = "Disable the particles for which the field will be higher than 0."),
+	Scalar_DisableThreshold				UMETA(DisplayName = "Disable Threshold", ToolTip = "Disable the particles if their linear and angular velocity are less than the threshold."),
+	Scalar_SleepingThreshold			UMETA(DisplayName = "Sleeping Threshold", ToolTip = "Set particles in sleeping mode if their linear and angular velocity are less than the threshold."),
+	Scalar_InternalClusterStrain		UMETA(DisplayName = "Internal Strain", ToolTip = "Add a strain field to the particles internal one."),
+	Scalar_DynamicConstraint			UMETA(DisplayName = "Dynamic Constraint", ToolTip = "Disabled for now (WIP)"),
 	//~~~
 	//256th entry
 	Scalar_TargetMax           UMETA(Hidden)
@@ -164,11 +164,11 @@ enum EFieldScalarType
 UENUM(BlueprintType)
 enum EFieldIntegerType
 {
-	Integer_DynamicState				UMETA(DisplayName = "DynamicState"),
-	Integer_ActivateDisabled			UMETA(DisplayName = "ActivateDisabled"),
-	Integer_CollisionGroup				UMETA(DisplayName = "CollisionGroup"),
-	Integer_PositionAnimated			UMETA(DisplayName = "PositionAnimated"),
-	Integer_PositionStatic				UMETA(DisplayName = "PositionStatic"),
+	Integer_DynamicState				UMETA(DisplayName = "Dynamic State", ToolTip = "Set the dynamic state of a particle (static, dynamic, kinematic...)"),
+	Integer_ActivateDisabled			UMETA(DisplayName = "Activate Disabled", ToolTip = "Disabled for now (WIP)"),
+	Integer_CollisionGroup				UMETA(DisplayName = "Collision Group", ToolTip = "Set the particles collision group."),
+	Integer_PositionAnimated			UMETA(DisplayName = "Position Animated", ToolTip = "Disabled for now (WIP)"),
+	Integer_PositionStatic				UMETA(DisplayName = "Position Static", ToolTip = "Disabled for now (WIP)"),
 	//~~~
 	//256th entry
 	Integer_TargetMax           UMETA(Hidden)

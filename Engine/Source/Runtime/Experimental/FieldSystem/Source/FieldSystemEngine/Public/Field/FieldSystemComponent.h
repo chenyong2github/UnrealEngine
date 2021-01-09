@@ -69,7 +69,9 @@ public:
 	*
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Field", DisplayName = "Apply Uniform Force")
-	void ApplyLinearForce(bool Enabled, FVector Direction, float Magnitude);
+	void ApplyLinearForce(UPARAM(DisplayName = "Enable Field") bool Enabled, 
+					      UPARAM(DisplayName = "Uniform Direction") FVector Direction, 
+						  UPARAM(DisplayName = "Field Magnitude") float Magnitude);
 
 	/**
 	*  ApplyStayDynamicField
@@ -81,8 +83,10 @@ public:
 	*    @param Radius : Radial influence from the position
 	*
 	*/
-	UFUNCTION(BlueprintCallable, Category = "Field", DisplayName = "Apply Dynamic State")
-	void ApplyStayDynamicField(bool Enabled, FVector Position, float Radius);
+	UFUNCTION(BlueprintCallable, Category = "Field", DisplayName = "Change Dynamic State")
+	void ApplyStayDynamicField(UPARAM(DisplayName = "Enable Field") bool Enabled, 
+							   UPARAM(DisplayName = "Center Position") FVector Position, 
+							   UPARAM(DisplayName = "Falloff Radius") float Radius);
 
 	/**
 	*  ApplyRadialForce
@@ -95,7 +99,9 @@ public:
 	*
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Field", DisplayName = "Apply Radial Force")
-	void ApplyRadialForce(bool Enabled, FVector Position, float Magnitude);
+	void ApplyRadialForce(UPARAM(DisplayName = "Enable Field") bool Enabled, 
+						  UPARAM(DisplayName = "Center Position") FVector Position, 
+					      UPARAM(DisplayName = "Field Magnitude") float Magnitude);
 
 	/**
 	*  ApplyRadialVectorFalloffForce
@@ -109,8 +115,11 @@ public:
 	*    @param Magnitude : The size of the linear force.
 	*
 	*/
-	UFUNCTION(BlueprintCallable, Category = "Field", DisplayName = "Apply Radial Falloff Force")
-	void ApplyRadialVectorFalloffForce(bool Enabled, FVector Position, float Radius, float Magnitude);
+	UFUNCTION(BlueprintCallable, Category = "Field", DisplayName = "Falloff Radial Force")
+	void ApplyRadialVectorFalloffForce(UPARAM(DisplayName = "Enable Field") bool Enabled, 
+									   UPARAM(DisplayName = "Center Position") FVector Position, 
+									   UPARAM(DisplayName = "Falloff Radius") float Radius, 
+									   UPARAM(DisplayName = "Field Magnitude") float Magnitude);
 
 	/**
 	*  ApplyUniformVectorFalloffForce
@@ -125,8 +134,12 @@ public:
 	*    @param Magnitude : The size of the linear force.
 	*
 	*/
-	UFUNCTION(BlueprintCallable, Category = "Field", DisplayName = "Apply Uniform Falloff Force")
-	void ApplyUniformVectorFalloffForce(bool Enabled, FVector Position, FVector Direction, float Radius, float Magnitude);
+	UFUNCTION(BlueprintCallable, Category = "Field", DisplayName = "Falloff Uniform Force")
+	void ApplyUniformVectorFalloffForce(UPARAM(DisplayName = "Enable Field") bool Enabled, 
+										UPARAM(DisplayName = "Center Position") FVector Position, 
+										UPARAM(DisplayName = "Uniform Direction") FVector Direction, 
+										UPARAM(DisplayName = "Falloff Radius") float Radius, 
+										UPARAM(DisplayName = "Field Magnitude") float Magnitude);
 
 	/**
 	*  ApplyStrainField
@@ -141,8 +154,12 @@ public:
 	*    @param Iterations : Levels of evaluation into the cluster hierarchy.
 	*
 	*/
-	UFUNCTION(BlueprintCallable, Category = "Field", DisplayName = "Apply External Cluster Strain")
-	void ApplyStrainField(bool Enabled, FVector Position, float Radius, float Magnitude, int32 Iterations);
+	UFUNCTION(BlueprintCallable, Category = "Field", DisplayName = "Apply External Strain")
+	void ApplyStrainField(UPARAM(DisplayName = "Enable Field") bool Enabled, 
+						  UPARAM(DisplayName = "Center Position") FVector Position, 
+						  UPARAM(DisplayName = "Falloff Radius") float Radius, 
+						  UPARAM(DisplayName = "Field Magnitude") float Magnitude, 
+						  UPARAM(DisplayName = "Cluster Levels") int32 Iterations);
 
 	/**
 	*  AddTransientField
@@ -160,7 +177,10 @@ public:
 	*
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Field", DisplayName = "Add Transient Field")
-	void ApplyPhysicsField(bool Enabled, EFieldPhysicsType Target, UFieldSystemMetaData* MetaData, UFieldNodeBase* Field);
+	void ApplyPhysicsField(UPARAM(DisplayName = "Enable Field") bool Enabled, 
+						   UPARAM(DisplayName = "Physics Type") EFieldPhysicsType Target, 
+						   UPARAM(DisplayName = "Meta Data") UFieldSystemMetaData* MetaData, 
+						   UPARAM(DisplayName = "Field Node") UFieldNodeBase* Field);
 
 	//
 	// Blueprint persistent field interface
@@ -183,7 +203,10 @@ public:
 	*
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Field", DisplayName = "Add Persistent Field")
-	void AddPersistentField(bool Enabled, EFieldPhysicsType Target, UFieldSystemMetaData* MetaData, UFieldNodeBase* Field);
+	void AddPersistentField(UPARAM(DisplayName = "Enable Field") bool Enabled, 
+							UPARAM(DisplayName = "Physics Type") EFieldPhysicsType Target, 
+							UPARAM(DisplayName = "Meta Data")  UFieldSystemMetaData* MetaData, 
+							UPARAM(DisplayName = "Field Node") UFieldNodeBase* Field);
 
 	/**
 	*  RemovePersistenFields
