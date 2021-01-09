@@ -899,7 +899,7 @@ bool SNiagaraBaselineViewport::AddBaseline(UNiagaraEffectType* EffectType)
 		
 	if (UNiagaraBaselineController* Controller = EffectType->GetPerfBaselineController())
 	{
-		if (UNiagaraSystem* System = Controller->System)
+		if (UNiagaraSystem* System = Controller->GetSystem())
 		{
 			if (System->bFixedBounds == false)
 			{

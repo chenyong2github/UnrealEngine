@@ -91,14 +91,14 @@ public:
 	/** Called when the owning actor is ticked. */
 	UFUNCTION(BlueprintNativeEvent)
 	void OnOwnerTick(float DeltaTime);
+
+	/** Returns the System for this baseline. Will synchronously load the system if needed. */
+	UFUNCTION(BlueprintCallable, Category="Baseline")
+	UNiagaraSystem* GetSystem();
 	
 	/** Duration to gather performance stats for the given system. */
 	UPROPERTY(EditAnywhere, Category = "Baseline", BlueprintReadWrite)
 	float TestDuration = 5.0f;
-
-	/** The baseline system to spawn. */
-	UPROPERTY(EditAnywhere, Category="Baseline", BlueprintReadWrite)
-	UNiagaraSystem* System = nullptr;
 
 	/** The effect type this controller is in use by. */
 	UPROPERTY(Category = "Baseline", BlueprintReadOnly)
@@ -107,6 +107,11 @@ public:
 	/** The owning actor for this baseline controller. */
 	UPROPERTY(Category = "Baseline", BlueprintReadOnly)
 	ANiagaraPerfBaselineActor* Owner;
+
+private:
+	/** The baseline system to spawn. */
+	UPROPERTY(EditAnywhere, Category="Baseline")
+	TSoftObjectPtr<UNiagaraSystem> System = nullptr;
 };
 
 /**
