@@ -10,11 +10,6 @@
  */
 class FOnlineSubsystemEOSPlusModule : public IModuleInterface
 {
-private:
-
-	/** Class responsible for creating instance(s) of the subsystem */
-	class FOnlineFactoryEOSPlus* PlusFactory;
-
 public:
 
 	FOnlineSubsystemEOSPlusModule() :
@@ -37,4 +32,10 @@ public:
 		return false;
 	}
 // ~IModuleInterface
+
+private:
+	void LoadBaseOSS();
+
+	/** Class responsible for creating instance(s) of the subsystem */
+	class FOnlineFactoryEOSPlus* PlusFactory;
 };
