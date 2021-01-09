@@ -1,4 +1,4 @@
- /************************************************************************************************************************************\
+/************************************************************************************************************************************\
 |*                                                                                                                                    *|
 |*     Copyright © 2012 NVIDIA Corporation.  All rights reserved.                                                                     *|
 |*                                                                                                                                    *|
@@ -387,7 +387,14 @@ typedef enum _NvAPI_Status
     NVAPI_ERROR_DRIVER_RELOAD_IN_PROGRESS       = -221,    //!< The display driver update in progress.
     NVAPI_WAIT_FOR_HW_RESOURCE                  = -222,    //!< Wait for HW resources allocation
     NVAPI_REQUIRE_FURTHER_HDCP_ACTION           = -223,    //!< operation requires further HDCP action
-    NVAPI_DISPLAY_MUX_TRANSITION_FAILED         = -224     //!< Dynamic Mux transition failure
+    NVAPI_DISPLAY_MUX_TRANSITION_FAILED         = -224,    //!< Dynamic Mux transition failure
+    NVAPI_INVALID_DSC_VERSION                   = -225,    //!< Invalid DSC version
+    NVAPI_INVALID_DSC_SLICECOUNT                = -226,    //!< Invalid DSC slice count
+    NVAPI_INVALID_DSC_OUTPUT_BPP                = -227,    //!< Invalid DSC output BPP
+    NVAPI_FAILED_TO_LOAD_FROM_DRIVER_STORE      = -228,    //!< There was an error while loading nvapi.dll from the driver store.
+    NVAPI_NO_VULKAN                             = -229,    //!< OpenGL does not export Vulkan fake extensions
+    NVAPI_REQUEST_PENDING                       = -230,    //!< A request for NvTOPPs telemetry CData has already been made and is pending a response.
+    NVAPI_RESOURCE_IN_USE                       = -231,    //!< Operation cannot be performed because the resource is in use.
 } NvAPI_Status;
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -536,7 +543,7 @@ NV_DECLARE_HANDLE(NVDX_ObjectHandle);  // DX Objects
 static const NVDX_ObjectHandle NVDX_OBJECT_NONE = 0;
 
 #endif //if defined(_D3D9_H_) || defined(__d3d10_h__) || defined(__d3d11_h__) || defined(__d3d12_h__)
-#if defined(_D3D9_H_) || defined(__d3d10_h__) || defined(__d3d11_h__)
+#if defined(_D3D9_H_) || defined(__d3d10_h__) || defined(__d3d11_h__) || defined(__d3d12_h__)
 
 ///////////////////////////////////////////////////////////////////////////////
 //
@@ -564,7 +571,7 @@ NVAPI_INTERFACE NvAPI_D3D_GetObjectHandleForResource(
     NVDX_ObjectHandle *pHandle);
 
 
-#endif //if defined(_D3D9_H_) || defined(__d3d10_h__) || defined(__d3d11_h__)
+#endif //if defined(_D3D9_H_) || defined(__d3d10_h__) || defined(__d3d11_h__) || defined(__d3d12_h__)
 
 #include"nvapi_lite_salend.h"
 #ifdef __cplusplus
