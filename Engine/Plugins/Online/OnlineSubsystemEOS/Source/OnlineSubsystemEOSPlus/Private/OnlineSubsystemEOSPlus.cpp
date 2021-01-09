@@ -28,13 +28,13 @@ bool FOnlineSubsystemEOSPlus::Init()
 #else
 	BaseOSS = IOnlineSubsystem::GetByPlatform();
 #endif
-	if (BaseOSS != nullptr)
+	if (BaseOSS == nullptr)
 	{
 		UE_LOG_ONLINE(Error, TEXT("FOnlineSubsystemEOSPlus::Init() failed to get the platform OSS"));
 		return false;
 	}
 	EosOSS = IOnlineSubsystem::Get(EOS_SUBSYSTEM);
-	if (EosOSS != nullptr)
+	if (EosOSS == nullptr)
 	{
 		UE_LOG_ONLINE(Error, TEXT("FOnlineSubsystemEOSPlus::Init() failed to get the EOS OSS"));
 		return false;
