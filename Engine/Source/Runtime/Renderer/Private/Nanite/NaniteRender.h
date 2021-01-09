@@ -372,9 +372,7 @@ enum class EOutputBufferMode : uint8
 
 struct FCullingPassData
 {
-	FRDGBufferRef CandidateClusters;
-	FRDGBufferRef CandidateClustersArgs;
-	FRDGBufferRef Nodes;
+	FRDGBufferRef CandidateNodesAndClusters;
 	FRDGBufferRef RasterizeArgsSWHW;
 };
 

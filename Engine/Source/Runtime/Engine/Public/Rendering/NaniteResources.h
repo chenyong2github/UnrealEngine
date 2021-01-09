@@ -35,7 +35,7 @@
 #define CLUSTER_PAGE_GPU_SIZE_BITS				17														// must match define in NaniteDataDecode.ush
 #define CLUSTER_PAGE_GPU_SIZE					( 1 << CLUSTER_PAGE_GPU_SIZE_BITS )						// must match define in NaniteDataDecode.ush
 #define CLUSTER_PAGE_DISK_SIZE					( CLUSTER_PAGE_GPU_SIZE * 2 )							// must match define in NaniteDataDecode.ush
-#define MAX_CLUSTERS_PER_PAGE_BITS				11														// must match define in NaniteDataDecode.ush
+#define MAX_CLUSTERS_PER_PAGE_BITS				10														// must match define in NaniteDataDecode.ush
 #define MAX_CLUSTERS_PER_PAGE_MASK				( ( 1 << MAX_CLUSTERS_PER_PAGE_BITS ) - 1 )				// must match define in NaniteDataDecode.ush
 #define MAX_CLUSTERS_PER_PAGE					( 1 << MAX_CLUSTERS_PER_PAGE_BITS )						// must match define in NaniteDataDecode.ush
 #define MAX_CLUSTERS_PER_GROUP_BITS				9														// must match define in NaniteDataDecode.ush
@@ -50,12 +50,18 @@
 #define MAX_INSTANCES_BITS						24														// must match define in NaniteDataDecode.ush
 #define MAX_INSTANCES							( 1 << MAX_INSTANCES_BITS )								// must match define in NaniteDataDecode.ush
 #define MAX_NODES_PER_PRIMITIVE_BITS			16														// must match define in NaniteDataDecode.ush
-#define NUM_CULLING_FLAG_BITS					3														// must match define in NaniteDataDecode.ush
 #define MAX_RESOURCE_PAGES_BITS					20
 #define MAX_RESOURCE_PAGES						(1 << MAX_RESOURCE_PAGES_BITS)
 #define MAX_GROUP_PARTS_BITS					3
 #define MAX_GROUP_PARTS_MASK					((1 << MAX_GROUP_PARTS_BITS) - 1)
 #define MAX_GROUP_PARTS							(1 << MAX_GROUP_PARTS_BITS)
+
+#define PERSISTENT_CLUSTER_CULLING_GROUP_SIZE	64														// must match define in Culling.ush
+
+#define MAX_BVH_NODE_FANOUT_BITS				3														// must match define in Culling.ush
+#define MAX_BVH_NODE_FANOUT						(1 << MAX_BVH_NODE_FANOUT_BITS)							// must match define in Culling.ush
+
+#define NUM_CULLING_FLAG_BITS					3														// must match define in NaniteDataDecode.ush
 
 #define NUM_PACKED_CLUSTER_FLOAT4S				8														// must match define in NaniteDataDecode.ush
 
@@ -119,14 +125,24 @@ struct FUIntVector
 
 struct FPackedHierarchyNode
 {
-	FSphere		LODBounds[64];
-	FSphere		Bounds[64];
+	FSphere		LODBounds[MAX_BVH_NODE_FANOUT];
+	
 	struct
 	{
-		uint32	MinLODError_MaxParentLODError;
-		uint32	ChildStartReference;
-		uint32	ResourcePageIndex_NumPages_GroupPartSize;
-	} Misc[64];
+		FVector		BoxBoundsCenter;
+		uint32		MinLODError_MaxParentLODError;
+	} Misc0[MAX_BVH_NODE_FANOUT];
+
+	struct
+	{
+		FVector		BoxBoundsExtent;
+		uint32		ChildStartReference;
+	} Misc1[MAX_BVH_NODE_FANOUT];
+	
+	struct
+	{
+		uint32		ResourcePageIndex_NumPages_GroupPartSize;
+	} Misc2[MAX_BVH_NODE_FANOUT];
 };
 
 struct FMaterialTriangle
@@ -182,8 +198,8 @@ struct FPackedCluster
 	uint32		PackedMaterialInfo;
 
 	uint32		ColorMin;
-	uint32		ColorBits;		// R:4, G:4, B:4, A:4
-	uint32		GroupIndex;		// Debug only
+	uint32		ColorBits;						// R:4, G:4, B:4, A:4
+	uint32		GroupIndex;						// Debug only
 	uint32		Pad0;
 
 	uint32		GetNumVerts() const					{ return GetBits(NumVerts_NumTris_BitsPerIndex_QuantizedPosShift, 9, 0); }
@@ -531,16 +547,10 @@ class FGlobalResources : public FRenderResource
 public:
 	struct PassBuffers
 	{
-		TRefCountPtr<FRDGPooledBuffer> NodesBuffer;
-
+		TRefCountPtr<FRDGPooledBuffer> CandidateNodesAndClustersBuffer;
+		
 		// Used for statistics
 		TRefCountPtr<FRDGPooledBuffer> StatsRasterizeArgsSWHWBuffer;
-		TRefCountPtr<FRDGPooledBuffer> StatsCandidateClustersArgsBuffer;
-
-	#if NANITE_USE_SCRATCH_BUFFERS
-		// Used for scratch memory (transient only)
-		TRefCountPtr<FRDGPooledBuffer> ScratchCandidateClustersBuffer;
-	#endif
 	};
 
 	// Used for statistics

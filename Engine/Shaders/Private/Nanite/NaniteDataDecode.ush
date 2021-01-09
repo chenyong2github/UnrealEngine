@@ -17,7 +17,7 @@
 
 #define CLUSTER_PAGE_GPU_SIZE_BITS				17														// must match define in NaniteResources.h
 #define CLUSTER_PAGE_GPU_SIZE					( 1 << CLUSTER_PAGE_SIZE_BITS )							// must match define in NaniteResources.h
-#define MAX_CLUSTERS_PER_PAGE_BITS				11														// must match define in NaniteResources.h
+#define MAX_CLUSTERS_PER_PAGE_BITS				10														// must match define in NaniteResources.h
 #define MAX_CLUSTERS_PER_PAGE_MASK				( ( 1 << MAX_CLUSTERS_PER_PAGE_BITS ) - 1 )				// must match define in NaniteResources.h
 #define MAX_CLUSTERS_PER_PAGE					( 1 << MAX_CLUSTERS_PER_PAGE_BITS )						// must match define in NaniteResources.h
 #define MAX_CLUSTERS_PER_GROUP_BITS				9														// must match define in NaniteResources.h
@@ -33,7 +33,6 @@
 #define	MAX_GPU_PAGES							( 1 << MAX_GPU_PAGES_BITS )								// must match define in NaniteResources.h
 #define MAX_INSTANCES_BITS						24														// must match define in NaniteResources.h
 #define MAX_NODES_PER_PRIMITIVE_BITS			16														// must match define in NaniteResources.h
-#define NUM_CULLING_FLAG_BITS					3														// must match define in NaniteResources.h
 #define MAX_RESOURCE_PAGES_BITS					20														// must match define in NaniteResources.h
 #define MAX_RESOURCE_PAGES						(1 << MAX_FILE_PAGES_BITS)								// must match define in NaniteResources.h
 #define MAX_GROUP_PARTS_BITS					3														// must match define in NaniteResources.h
@@ -48,32 +47,29 @@
 
 #define CLUSTER_FLAG_LEAF						0x1
 
-#define CULLING_FLAG_TEST_LOD					0x1
-#define CULLING_FLAG_USE_HW						0x2
-#define CULLING_FLAG_FROM_DISOCCLUDED_INSTANCE	0x4
-
 #define MAX_TRANSCODE_GROUPS_PER_PAGE			128														// must match define in NaniteResources.h
 
 #define NUM_PACKED_CLUSTER_FLOAT4S				8														// must match define in NaniteResources.h
 
-#define POSITION_QUANTIZATION_BITS					10
+#define POSITION_QUANTIZATION_BITS				10
 
-#define CULLING_PASS_NO_OCCLUSION					0
-#define CULLING_PASS_OCCLUSION_MAIN					1
-#define CULLING_PASS_OCCLUSION_POST					2
-#define CULLING_PASS_EXPLICIT_LIST					3
+#define NUM_CULLING_FLAG_BITS					3														// must match define in NaniteResources.h
+#define CULLING_FLAG_TEST_LOD					0x1
+#define CULLING_FLAG_USE_HW						0x2
+#define CULLING_FLAG_FROM_DISOCCLUDED_INSTANCE	0x4
 
-#define RENDER_FLAG_HAVE_PREV_DRAW_DATA				0x1
-#define RENDER_FLAG_FORCE_HW_RASTER					0x2
-#define RENDER_FLAG_PRIMITIVE_SHADER				0x4
-#define RENDER_FLAG_OUTPUT_STREAMING_REQUESTS		0x8
+
+#define RENDER_FLAG_HAVE_PREV_DRAW_DATA			0x1
+#define RENDER_FLAG_FORCE_HW_RASTER				0x2
+#define RENDER_FLAG_PRIMITIVE_SHADER			0x4
+#define RENDER_FLAG_OUTPUT_STREAMING_REQUESTS	0x8
 
 // Only available with the DEBUG_FLAGS permutation active.
-#define DEBUG_FLAG_WRITE_STATS						0x1
-#define DEBUG_FLAG_CULL_HZB_BOX						0x2
-#define DEBUG_FLAG_CULL_HZB_SPHERE					0x4
-#define DEBUG_FLAG_CULL_FRUSTUM_BOX					0x8
-#define DEBUG_FLAG_CULL_FRUSTUM_SPHERE				0x10
+#define DEBUG_FLAG_WRITE_STATS					0x1
+#define DEBUG_FLAG_CULL_HZB_BOX					0x2
+#define DEBUG_FLAG_CULL_HZB_SPHERE				0x4
+#define DEBUG_FLAG_CULL_FRUSTUM_BOX				0x8
+#define DEBUG_FLAG_CULL_FRUSTUM_SPHERE			0x10
 
 #ifndef DEBUG_FLAGS
 #define DEBUG_FLAGS 0
@@ -126,16 +122,22 @@ struct FStats
 	uint NumViews;
 	uint NumMainInstancesPreCull;
 	uint NumMainInstancesPostCull;
+	uint NumMainVisitedNodes;
+	uint NumMainCandidateClusters;
 	uint NumPostInstancesPreCull;
 	uint NumPostInstancesPostCull;
+	uint NumPostVisitedNodes;
+	uint NumPostCandidateClusters;
 	uint NumLargePageRectClusters;
 };
 
 struct FPersistentState
 {
-	uint	ReadOffset;
-	uint	WriteOffset;
-	int		NumActive;
+	uint	ClusterBatchReadOffset;	// Offset in batches
+	uint	ClusterWriteOffset;		// Offset in individual clusters
+	uint	NodeReadOffset;
+	uint	NodeWriteOffset;
+	int		NodeCount;				// Can temporarily be conservatively higher
 };
 
 struct FVisibleCluster
@@ -146,15 +148,6 @@ struct FVisibleCluster
 	uint	PageIndex;
 	uint	ClusterIndex;
 	uint2	vPage;
-};
-
-struct FVisibleNode
-{
-	uint	Flags;
-	uint	ViewId;
-	uint	InstanceId;
-	uint	NodeIndex;
-	uint	EnabledBitmask[2];
 };
 
 struct FCluster
@@ -191,7 +184,7 @@ struct FCluster
 
 	uint	ColorMin;
 	uint	ColorBits;
-	uint	GroupIndex;	// Debug only
+	uint	GroupIndex;		// Debug only
 
 	// Material Slow path
 	uint	MaterialTableOffset;
@@ -207,8 +200,9 @@ struct FCluster
 
 struct FHierarchyNodeSlice
 {
-	float4	Bounds;
 	float4	LODBounds;
+	float3	BoxBoundsCenter;
+	float3	BoxBoundsExtent;
 	float	MinLODError;
 	float	MaxParentLODError;
 	uint	ChildStartReference;	// Can be node (index) or cluster (page:cluster)
@@ -223,11 +217,8 @@ struct FHierarchyNodeSlice
 struct FInstanceDynamicData
 {
 	float4x4	LocalToClip;
-	float4x4	LocalToView;
 	float4x4	ClipToLocal;
 	float4x4 	PrevLocalToClip;
-	float4x4	PrevLocalToView;
-	float4x4	PrevClipToLocal;
 	float3		ViewPosScaledLocal;
 	float3		ViewForwardScaledLocal;
 	bool		bHasMoved;
@@ -293,16 +284,27 @@ struct FInstanceDraw
 
 RWByteAddressBuffer					OutInstanceDynamicData;
 
-FVisibleCluster GetVisibleCluster( ByteAddressBuffer VisibleClusters, uint ClusterIdx, bool bHasPageData = false )
+
+uint4 PackVisibleCluster(uint ClusterIdx, FVisibleCluster VisibleCluster, bool bHasPageData)
 {
-	uint4 RawData;
-	if( bHasPageData )
-		RawData = uint4( VisibleClusters.Load3( ClusterIdx * 12 ), 0 );
-	else
-		RawData = uint4( VisibleClusters.Load2( ClusterIdx * 8 ), 0, 0 );
+	uint4 RawData = 0;
+	uint BitPos = 1;	// Start at 1 to make sure RawData.x is always != 0xFFFFFFFFu
+	WriteBits(RawData, BitPos, VisibleCluster.Flags, NUM_CULLING_FLAG_BITS);
+	WriteBits(RawData, BitPos, VisibleCluster.ViewId, MAX_VIEWS_PER_CULL_RASTERIZE_PASS_BITS);
+	WriteBits(RawData, BitPos, VisibleCluster.InstanceId, MAX_INSTANCES_BITS);
+	WriteBits(RawData, BitPos, VisibleCluster.PageIndex, MAX_GPU_PAGES_BITS);
+	WriteBits(RawData, BitPos, VisibleCluster.ClusterIndex, MAX_CLUSTERS_PER_PAGE_BITS);
+	if (bHasPageData)
+	{
+		WriteBits(RawData, BitPos, VisibleCluster.vPage.x, 16);
+		WriteBits(RawData, BitPos, VisibleCluster.vPage.y, 16);
+	}
+	return RawData;
+}
 
-	uint BitPos = 0;
-
+FVisibleCluster UnpackVisibleCluster(uint4 RawData, bool bHasPageData = false)
+{
+	uint BitPos = 1;	// Start at 1 to make sure RawData.x is always != 0xFFFFFFFFu
 	FVisibleCluster VisibleCluster;
 	VisibleCluster.Flags		= ReadBits( RawData, BitPos, NUM_CULLING_FLAG_BITS );
 	VisibleCluster.ViewId		= ReadBits( RawData, BitPos, MAX_VIEWS_PER_CULL_RASTERIZE_PASS_BITS );
@@ -320,6 +322,17 @@ FVisibleCluster GetVisibleCluster( ByteAddressBuffer VisibleClusters, uint Clust
 	}
 
 	return VisibleCluster;
+}
+
+FVisibleCluster GetVisibleCluster( ByteAddressBuffer VisibleClusters, uint ClusterIdx, bool bHasPageData = false )
+{
+	uint4 RawData;
+	if( bHasPageData )
+		RawData = uint4( VisibleClusters.Load3( ClusterIdx * 12 ), 0 );
+	else
+		RawData = uint4( VisibleClusters.Load2( ClusterIdx * 8 ), 0, 0 );
+
+	return UnpackVisibleCluster(RawData, bHasPageData);
 }
 
 FVisibleCluster GetVisibleCluster( uint ClusterIdx, bool bHasPageData )
@@ -363,99 +376,6 @@ FInstanceSceneData GetInstanceData( inout FVisibleCluster VisibleCluster )
 	return InstanceData;
 }
 
-void StoreVisibleCluster( RWByteAddressBuffer VisibleClusters, uint ClusterIdx, FVisibleCluster VisibleCluster, bool bHasPageData = false )
-{
-	uint4 RawData = 0;
-	uint BitPos = 0;
-	WriteBits( RawData, BitPos, VisibleCluster.Flags,		NUM_CULLING_FLAG_BITS );
-	WriteBits( RawData, BitPos, VisibleCluster.ViewId,		MAX_VIEWS_PER_CULL_RASTERIZE_PASS_BITS );
-	WriteBits( RawData, BitPos, VisibleCluster.InstanceId,	MAX_INSTANCES_BITS );
-	WriteBits( RawData, BitPos, VisibleCluster.PageIndex,	MAX_GPU_PAGES_BITS );
-	WriteBits( RawData, BitPos, VisibleCluster.ClusterIndex,MAX_CLUSTERS_PER_PAGE_BITS );
-	if( bHasPageData )
-	{
-		WriteBits( RawData, BitPos, VisibleCluster.vPage.x,	16 );
-		WriteBits( RawData, BitPos, VisibleCluster.vPage.y,	16 );
-		VisibleClusters.Store3( ClusterIdx * 12, RawData.xyz );
-	}
-	else
-	{
-		VisibleClusters.Store2( ClusterIdx * 8, RawData.xy );
-	}
-}
-
-FVisibleNode GetVisibleNode( RWCoherentByteAddressBuffer VisibleNodes, uint NodeIdx, bool bHasEnabledMask )
-{
-	uint4 RawData = bHasEnabledMask ? VisibleNodes.Load4( NodeIdx * 16 ) : uint4( VisibleNodes.Load2( NodeIdx * 8 ), 0, 0 );
-	uint BitPos = 0;
-
-	FVisibleNode Node;
-	Node.Flags		= ReadBits( RawData, BitPos, NUM_CULLING_FLAG_BITS );
-	Node.InstanceId	= ReadBits( RawData, BitPos, MAX_INSTANCES_BITS );
-	Node.NodeIndex	= ReadBits( RawData, BitPos, MAX_NODES_PER_PRIMITIVE_BITS );
-	Node.ViewId		= ReadBits( RawData, BitPos, MAX_VIEWS_PER_CULL_RASTERIZE_PASS_BITS );
-	if( bHasEnabledMask )
-	{
-		Node.EnabledBitmask[ 0 ] = RawData.z;
-		Node.EnabledBitmask[ 1 ] = RawData.w;
-	}
-	else
-	{
-		Node.EnabledBitmask[ 0 ] = 0xFFFFFFFFu;
-		Node.EnabledBitmask[ 1 ] = 0xFFFFFFFFu;
-	}
-	
-	return Node;
-}
-
-bool IsVisibleNodeReady( RWCoherentByteAddressBuffer VisibleNodes, uint NodeIdx, bool bHasEnabledMask )
-{
-	const uint Stride = bHasEnabledMask ? 16 : 8;
-	return VisibleNodes.Load( NodeIdx * Stride ) != 0xFFFFFFFF;
-}
-
-void MarkVisibleNodeAsClear( RWCoherentByteAddressBuffer VisibleNodes, uint NodeIdx, bool bHasEnabledMask )
-{
-	const uint Stride = bHasEnabledMask ? 16 : 8;
-	VisibleNodes.Store( NodeIdx * Stride, 0xFFFFFFFF );
-}
-
-uint4 PackVisibleNode( FVisibleNode Node )
-{
-	uint4 RawData = 0;
-	uint BitPos = 0;
-	WriteBits( RawData, BitPos, Node.Flags,			NUM_CULLING_FLAG_BITS );
-	WriteBits( RawData, BitPos, Node.InstanceId,	MAX_INSTANCES_BITS );
-	WriteBits( RawData, BitPos, Node.NodeIndex,		MAX_NODES_PER_PRIMITIVE_BITS );
-	WriteBits( RawData, BitPos, Node.ViewId,		MAX_VIEWS_PER_CULL_RASTERIZE_PASS_BITS );
-	RawData.z = Node.EnabledBitmask[ 0 ];
-	RawData.w = Node.EnabledBitmask[ 1 ];
-	return RawData;
-}
-
-void StoreVisibleNodeSync( RWCoherentByteAddressBuffer VisibleNodes, uint NodeIdx, FVisibleNode VisibleNode, bool bHasEnabledMask )
-{
-	const uint Stride = bHasEnabledMask ? 16 : 8;
-	uint4 RawData = PackVisibleNode( VisibleNode );
-	
-	if(bHasEnabledMask)
-		VisibleNodes.Store3( NodeIdx * Stride + 4, RawData.yzw );
-	else
-		VisibleNodes.Store( NodeIdx * Stride + 4, RawData.y );
-
-	DeviceMemoryBarrier();
-	VisibleNodes.Store( NodeIdx * Stride, RawData.x );
-}
-
-void StoreVisibleNode( RWByteAddressBuffer VisibleNodes, uint NodeIdx, FVisibleNode VisibleNode, bool bHasEnabledMask )
-{
-	uint4 RawData = PackVisibleNode( VisibleNode );
-	if(bHasEnabledMask)
-		VisibleNodes.Store4( NodeIdx * 16, RawData );
-	else
-		VisibleNodes.Store2( NodeIdx * 8, RawData.xy );
-}
-
 FInstanceDynamicData CalculateInstanceDynamicData( FNaniteView NaniteView, FInstanceSceneData InstanceData )
 {
 	float4x4 LocalToWorld = InstanceData.LocalToWorld;
@@ -468,13 +388,10 @@ FInstanceDynamicData CalculateInstanceDynamicData( FNaniteView NaniteView, FInst
 	PrevLocalToTranslatedWorld[3].xyz += NaniteView.PrevPreViewTranslation.xyz;
 
 	FInstanceDynamicData DynamicData;
-	DynamicData.LocalToView = mul( LocalToTranslatedWorld, NaniteView.TranslatedWorldToView );
 	DynamicData.LocalToClip = mul( LocalToTranslatedWorld, NaniteView.TranslatedWorldToClip );
 	DynamicData.ClipToLocal = mul( NaniteView.ClipToWorld, WorldToLocal );
 
-	DynamicData.PrevLocalToView	= mul( PrevLocalToTranslatedWorld, NaniteView.PrevTranslatedWorldToView );
 	DynamicData.PrevLocalToClip	= mul( PrevLocalToTranslatedWorld, NaniteView.PrevTranslatedWorldToClip );
-	DynamicData.PrevClipToLocal	= mul( NaniteView.PrevClipToWorld, WorldToLocal );
 
 	DynamicData.ViewPosScaledLocal = mul( float4( NaniteView.WorldCameraOrigin.xyz, 1 ), WorldToLocal ).xyz * InstanceData.NonUniformScale.xyz;
 	DynamicData.ViewForwardScaledLocal = mul( float4( NaniteView.ViewForward.xyz, 0 ), WorldToLocal ).xyz * InstanceData.NonUniformScale.xyz;

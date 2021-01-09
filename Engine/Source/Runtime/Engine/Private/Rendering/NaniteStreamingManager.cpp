@@ -344,7 +344,6 @@ void FStreamingManager::InitRHI()
 
 	LLM_SCOPE_BYTAG(Nanite);
 
-
 	MaxStreamingPages = (uint32)((uint64)GNaniteStreamingPoolSize * 1024 * 1024 / CLUSTER_PAGE_GPU_SIZE);
 	check(MaxStreamingPages + GNaniteStreamingNumInitialRootPages <= MAX_GPU_PAGES);
 
@@ -767,7 +766,7 @@ void FStreamingManager::ApplyFixups( const FFixupChunk& FixupChunk, const FResou
 		check( HierarchyNodeIndex < (uint32)Resources.HierarchyNodes.Num() );
 		uint32 ChildIndex = Fixup.GetChildIndex();
 		uint32 ChildStartReference = bIsUninstall ? 0xFFFFFFFFu : ( ( TargetGPUPageIndex << MAX_CLUSTERS_PER_PAGE_BITS ) | Fixup.GetClusterGroupPartStartIndex() );
-		uint32 Offset = ( size_t )&( ( (FPackedHierarchyNode*)0 )[ HierarchyOffset + HierarchyNodeIndex ].Misc[ ChildIndex ].ChildStartReference );
+		uint32 Offset = ( size_t )&( ( (FPackedHierarchyNode*)0 )[ HierarchyOffset + HierarchyNodeIndex ].Misc1[ ChildIndex ].ChildStartReference );
 		Hierarchy.UploadBuffer.Add( Offset / sizeof( uint32 ), &ChildStartReference );
 	}
 }
@@ -1129,7 +1128,7 @@ bool FStreamingManager::ProcessNewResources( FRDGBuilder& GraphBuilder)
 
 			if(Fixup.GetPageDependencyNum() == 0)	// Only install part if it has no other dependencies
 			{
-				Resources->HierarchyNodes[HierarchyNodeIndex].Misc[ChildIndex].ChildStartReference = ChildStartReference;
+				Resources->HierarchyNodes[HierarchyNodeIndex].Misc1[ChildIndex].ChildStartReference = ChildStartReference;
 			}
 		}
 		

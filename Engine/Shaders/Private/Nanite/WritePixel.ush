@@ -3,7 +3,9 @@
 #pragma once
 
 #include "../Common.ush"
+#if VIRTUAL_TEXTURE_TARGET
 #include "../VirtualShadowMaps/PageAccessCommon.ush"
+#endif
 
 // Must match ERasterTechnique in NaniteRender.h
 #define RASTER_TECHNIQUE_FALLBACK	0
@@ -24,15 +26,15 @@
 #define NEAR_CLIP 1
 #endif
 
-RWTexture2D<uint>						OutDepthBuffer : register(u0);
-COHERENCY_FLAG RWTexture2D<UlongType>	OutVisBuffer64 : register(u0);
+RWTexture2D<uint>						OutDepthBuffer;
+COHERENCY_FLAG RWTexture2D<UlongType>	OutVisBuffer64;
 
 #if DEBUG_VISUALIZE
-COHERENCY_FLAG RWTexture2D<UlongType>	OutDbgBuffer64 : register(u1);
-RWTexture2D<uint>						OutDbgBuffer32 : register(u2);
+COHERENCY_FLAG RWTexture2D<UlongType>	OutDbgBuffer64;
+RWTexture2D<uint>						OutDbgBuffer32;
 #endif
 
-RWTexture2D<uint> 							LockBuffer : register(u3);
+RWTexture2D<uint> 						LockBuffer;
 
 #if RASTER_TECHNIQUE == RASTER_TECHNIQUE_NVIDIA
 #define NV_SHADER_EXTN_SLOT u7

@@ -88,13 +88,14 @@ static_assert(sizeof(FPackedCluster) == NUM_PACKED_CLUSTER_FLOAT4S * 16, "NUM_PA
 
 FArchive& operator<<(FArchive& Ar, FPackedHierarchyNode& Node)
 {
-	for (uint32 i = 0; i < 64; i++)
+	for (uint32 i = 0; i < MAX_BVH_NODE_FANOUT; i++)
 	{
 		Ar << Node.LODBounds[ i ];
-		Ar << Node.Bounds[ i ];
-		Ar << Node.Misc[ i ].MinLODError_MaxParentLODError;
-		Ar << Node.Misc[ i ].ChildStartReference;
-		Ar << Node.Misc[ i ].ResourcePageIndex_NumPages_GroupPartSize;
+		Ar << Node.Misc0[ i ].BoxBoundsCenter;
+		Ar << Node.Misc0[ i ].MinLODError_MaxParentLODError;
+		Ar << Node.Misc1[ i ].BoxBoundsExtent;
+		Ar << Node.Misc1[ i ].ChildStartReference;
+		Ar << Node.Misc2[ i ].ResourcePageIndex_NumPages_GroupPartSize;
 	}
 	
 	return Ar;
@@ -1046,23 +1047,17 @@ void FGlobalResources::ReleaseRHI()
 	{
 		LLM_SCOPE_BYTAG(Nanite);
 
-		MainPassBuffers.NodesBuffer.SafeRelease();
-		PostPassBuffers.NodesBuffer.SafeRelease();
+		MainPassBuffers.CandidateNodesAndClustersBuffer.SafeRelease();
+		PostPassBuffers.CandidateNodesAndClustersBuffer.SafeRelease();
 
 		MainPassBuffers.StatsRasterizeArgsSWHWBuffer.SafeRelease();
 		PostPassBuffers.StatsRasterizeArgsSWHWBuffer.SafeRelease();
-
-		MainPassBuffers.StatsCandidateClustersArgsBuffer.SafeRelease();
-		PostPassBuffers.StatsCandidateClustersArgsBuffer.SafeRelease();
 
 		StatsBuffer.SafeRelease();
 
 #if NANITE_USE_SCRATCH_BUFFERS
 		PrimaryVisibleClustersBuffer.SafeRelease();
 		ScratchVisibleClustersBuffer.SafeRelease();
-
-		MainPassBuffers.ScratchCandidateClustersBuffer.SafeRelease();
-		PostPassBuffers.ScratchCandidateClustersBuffer.SafeRelease();
 #endif
 
 		delete VertexFactory;
@@ -1078,13 +1073,8 @@ void FGlobalResources::Update(FRDGBuilder& GraphBuilder)
 	// Any buffer may be released from the pool, so check each individually not just one of them.
 	if (!PrimaryVisibleClustersBuffer.IsValid() || 
 		!ScratchVisibleClustersBuffer.IsValid() ||
-		!ScratchOccludedInstancesBuffer.IsValid() ||
-		!MainPassBuffers.ScratchCandidateClustersBuffer.IsValid() ||
-		!PostPassBuffers.ScratchCandidateClustersBuffer.IsValid())
+		!ScratchOccludedInstancesBuffer.IsValid())
 	{
-		FRDGBufferDesc CandidateClustersBufferDesc = FRDGBufferDesc::CreateStructuredDesc(4, 3 * GetMaxCandidateClusters()); // uint3 per cluster
-		CandidateClustersBufferDesc.Usage = EBufferUsageFlags(CandidateClustersBufferDesc.Usage | BUF_ByteAddressBuffer);
-
 		FRDGBufferDesc VisibleClustersBufferDesc = FRDGBufferDesc::CreateStructuredDesc(4, 3 * GetMaxVisibleClusters()); // uint3 per cluster
 		VisibleClustersBufferDesc.Usage = EBufferUsageFlags(VisibleClustersBufferDesc.Usage | BUF_ByteAddressBuffer);
 
@@ -1106,20 +1096,8 @@ void FGlobalResources::Update(FRDGBuilder& GraphBuilder)
 			GetPooledFreeBuffer(GraphBuilder.RHICmdList, VisibleClustersBufferDesc, ScratchVisibleClustersBuffer, TEXT("VisibleClustersSWHW"));
 		}
 
-		if (!MainPassBuffers.ScratchCandidateClustersBuffer.IsValid())
-		{
-			GetPooledFreeBuffer(GraphBuilder.RHICmdList, CandidateClustersBufferDesc, MainPassBuffers.ScratchCandidateClustersBuffer, TEXT("MainPass.CandidateClusters"));
-		}
-
-		if (!PostPassBuffers.ScratchCandidateClustersBuffer.IsValid())
-		{
-			GetPooledFreeBuffer(GraphBuilder.RHICmdList, CandidateClustersBufferDesc, PostPassBuffers.ScratchCandidateClustersBuffer, TEXT("PostPass.CandidateClusters"));
-		}
-
 		check(PrimaryVisibleClustersBuffer.IsValid());
 		check(ScratchVisibleClustersBuffer.IsValid());
-		check(MainPassBuffers.ScratchCandidateClustersBuffer.IsValid());
-		check(PostPassBuffers.ScratchCandidateClustersBuffer.IsValid());
 	}
 	if(!StructureBufferStride8.IsValid())
 	{

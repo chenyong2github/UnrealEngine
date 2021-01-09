@@ -5,6 +5,7 @@
 #include "../WaveOpUtil.ush"
 #include "../VirtualShadowMaps/PageAccessCommon.ush"
 
+#include "Culling.ush"
 #include "NaniteDataDecode.ush"
 #include "HZBCull.ush"
 #include "WritePixel.ush"
@@ -88,7 +89,7 @@ Buffer<uint>							InOccludedInstancesArgs;
 
 RWStructuredBuffer<FInstanceDraw>		OutOccludedInstances;
 RWBuffer<uint>							OutOccludedInstancesArgs;
-RWByteAddressBuffer						OutNodes;
+RWByteAddressBuffer						OutCandidateNodesAndClusters;
 RWStructuredBuffer<FPersistentState>	OutMainAndPostPassPersistentStates;
 
 #if DEBUG_FLAGS
@@ -232,33 +233,35 @@ void InstanceCull(
 			{
 				uint NodeOffset = 0;
 				uint PersistentStateIndex = ( CULLING_PASS == CULLING_PASS_OCCLUSION_POST );
-				WaveInterlockedAddScalar_( OutMainAndPostPassPersistentStates[ PersistentStateIndex ].WriteOffset, 1, NodeOffset );
-				WaveInterlockedAddScalar(  OutMainAndPostPassPersistentStates[ PersistentStateIndex ].NumActive, 1 );
+				WaveInterlockedAddScalar_( OutMainAndPostPassPersistentStates[ PersistentStateIndex ].NodeWriteOffset, 1, NodeOffset );
+				WaveInterlockedAddScalar(  OutMainAndPostPassPersistentStates[ PersistentStateIndex ].NodeCount, 1 );
 
 #if DEBUG_FLAGS
 				if (DebugFlags & DEBUG_FLAG_WRITE_STATS)
 				{
-				#if CULLING_PASS == CULLING_PASS_OCCLUSION_POST
+#if CULLING_PASS == CULLING_PASS_OCCLUSION_POST
 					WaveInterlockedAddScalar( OutStatsBuffer[0].NumPostInstancesPostCull, 1 );
-				#else
+#else
 					WaveInterlockedAddScalar( OutStatsBuffer[0].NumMainInstancesPostCull, 1 );
-				#endif
+#endif
 				}
 #endif
 
-				uint Flags = CULLING_FLAG_TEST_LOD;
+				if(NodeOffset < MaxNodes)
+				{
+					uint Flags = CULLING_FLAG_TEST_LOD;
 #if CULLING_PASS == CULLING_PASS_OCCLUSION_POST
-				Flags |= CULLING_FLAG_FROM_DISOCCLUDED_INSTANCE;
+					Flags |= CULLING_FLAG_FROM_DISOCCLUDED_INSTANCE;
 #endif
 		
-				FVisibleNode Node;
-				Node.Flags = Flags;
-				Node.ViewId = ViewId;
-				Node.InstanceId = InstanceId;
-				Node.NodeIndex = 0;
-				Node.EnabledBitmask[0] = 0xFFFFFFFFu;
-				Node.EnabledBitmask[1] = 0xFFFFFFFFu;
-				StoreVisibleNode( OutNodes, NodeOffset, Node, bIsPostPass );
+					FCandidateNode Node;
+					Node.Flags = Flags;
+					Node.ViewId = ViewId;
+					Node.InstanceId = InstanceId;
+					Node.NodeIndex = 0;
+					Node.EnabledBitmask = BVH_NODE_ENABLE_MASK;
+					StoreCandidateNode( OutCandidateNodesAndClusters, NodeOffset, Node, bIsPostPass );
+				}
 			}
 		}
 	}
@@ -354,8 +357,8 @@ void InstanceCullVSM(
 		if( VisibleMipsMask )
 		{
 			uint NumNodes = countbits( VisibleMipsMask );
-			WaveInterlockedAdd_( OutMainAndPostPassPersistentStates[0].WriteOffset, NumNodes, NodeOffset );
-			WaveInterlockedAdd(  OutMainAndPostPassPersistentStates[0].NumActive, NumNodes );
+			WaveInterlockedAdd_( OutMainAndPostPassPersistentStates[0].NodeWriteOffset, NumNodes, NodeOffset );
+			WaveInterlockedAdd(  OutMainAndPostPassPersistentStates[0].NodeCount, NumNodes );
 
 	#if DEBUG_FLAGS
 			if (DebugFlags & DEBUG_FLAG_WRITE_STATS)
@@ -367,23 +370,21 @@ void InstanceCullVSM(
 
 		// Output visible nodes. Get compaction for free by only looping over set bits in VisibleMipsMask.
 		// Iteration count is equal to the maximum lane output count.
-		while( VisibleMipsMask )
+		while( VisibleMipsMask && NodeOffset < MaxNodes)
 		{
 			uint TargetMipLevel = firstbitlow( VisibleMipsMask );	// Jump to next set bit.
 			VisibleMipsMask &= VisibleMipsMask - 1u;				// Remove bottom bit.
 
 			uint MipViewId = TargetMipLevel * NumPrimaryViews + PrimaryViewId;
 
-			FVisibleNode Node;
+			FCandidateNode Node;
 			Node.Flags = CULLING_FLAG_TEST_LOD;
 			Node.ViewId = MipViewId;
 			Node.InstanceId = InstanceId;
 			Node.NodeIndex = 0;
-			Node.EnabledBitmask[0] = 0xFFFFFFFFu;
-			Node.EnabledBitmask[1] = 0xFFFFFFFFu;
-			StoreVisibleNode( OutNodes, NodeOffset, Node, false );
+			Node.EnabledBitmask = BVH_NODE_ENABLE_MASK;
+			StoreCandidateNode( OutCandidateNodesAndClusters, NodeOffset, Node, false );
 			NodeOffset++;
 		}
 	}
 }
-

@@ -35,6 +35,16 @@ struct FBounds
 		return FBounds(*this) += Other;
 	}
 
+	FORCEINLINE FVector GetCenter() const
+	{
+		return (Max + Min) * 0.5f;
+	}
+
+	FORCEINLINE FVector GetExtent() const
+	{
+		return (Max - Min) * 0.5f;
+	}
+
 	FORCEINLINE float GetSurfaceArea() const
 	{
 		FVector Size = Max - Min;

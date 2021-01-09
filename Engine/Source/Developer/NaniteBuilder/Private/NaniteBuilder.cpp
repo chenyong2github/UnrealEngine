@@ -20,7 +20,7 @@
 // differences, etc.) replace the version GUID below with a new one.
 // In case of merge conflicts with DDC versions, you MUST generate a new GUID
 // and set this new GUID as the version.
-#define NANITE_DERIVEDDATA_VER TEXT("F9D57879-6720-47AC-9085-E6B8C526E5F9")
+#define NANITE_DERIVEDDATA_VER TEXT("AE428F85-6C98-4FC8-A710-B2F4F5BC9CD0")
 
 namespace Nanite
 {
@@ -537,20 +537,20 @@ static bool BuildNaniteData(
 		uint32 ImposterStartTime = FPlatformTime::Cycles();
 		auto& RootChildren = Groups.Last().Children;
 	
-		FImposterAtlas ImposterAtlas( Resources.ImposterAtlas, MeshBounds );
+	FImposterAtlas ImposterAtlas( Resources.ImposterAtlas, MeshBounds );
 
-		ParallelFor( FMath::Square( FImposterAtlas::AtlasSize ),
-			[&]( int32 TileIndex )
+	ParallelFor( FMath::Square( FImposterAtlas::AtlasSize ),
+		[&]( int32 TileIndex )
+		{
+			FIntPoint TilePos(
+				TileIndex % FImposterAtlas::AtlasSize,
+				TileIndex / FImposterAtlas::AtlasSize );
+
+			for( int32 ClusterIndex = 0; ClusterIndex < RootChildren.Num(); ClusterIndex++ )
 			{
-				FIntPoint TilePos(
-					TileIndex % FImposterAtlas::AtlasSize,
-					TileIndex / FImposterAtlas::AtlasSize );
-
-				for( int32 ClusterIndex = 0; ClusterIndex < RootChildren.Num(); ClusterIndex++ )
-				{
-					ImposterAtlas.Rasterize( TilePos, Clusters[ RootChildren[ ClusterIndex ] ], ClusterIndex );
-				}
-			} );
+				ImposterAtlas.Rasterize( TilePos, Clusters[ RootChildren[ ClusterIndex ] ], ClusterIndex );
+			}
+		} );
 
 		UE_LOG(LogStaticMesh, Log, TEXT("Imposter [%.2fs]"), FPlatformTime::ToMilliseconds(FPlatformTime::Cycles() - ImposterStartTime ) / 1000.0f);
 	}
@@ -566,7 +566,7 @@ bool FBuilderModule::Build(
 	FResources& Resources,
 	TArray<FStaticMeshBuildVertex>& Vertices, // TODO: Do not require this vertex type for all users of Nanite
 	TArray<uint32>& TriangleIndices,
-	TArray<int32>& MaterialIndices,
+	TArray<int32>&  MaterialIndices,
 	TArray<uint32>& MeshTriangleCounts,
 	uint32 NumTexCoords,
 	const FMeshNaniteSettings& Settings)

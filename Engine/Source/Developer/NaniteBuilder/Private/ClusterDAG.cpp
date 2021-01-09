@@ -275,7 +275,7 @@ void DAGReduce(TArray< FClusterGroup >& Groups, TArray< FCluster >& Clusters, ui
 	RootClusterGroup.LODBounds = FSphere( 0 );
 	RootClusterGroup.MaxParentLODError = 1e10f;
 	RootClusterGroup.MinLODError = -1.0f;
-	RootClusterGroup.MipLevel = MAX_int32;
+	RootClusterGroup.MipLevel = Clusters[RootIndex].MipLevel + 1;
 	RootClusterGroup.MeshIndex = MeshIndex;
 	Clusters[ RootIndex ].GroupIndex = Groups.Num();
 	Groups.Add( RootClusterGroup );

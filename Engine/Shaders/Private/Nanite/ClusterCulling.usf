@@ -1,5 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+// Nanite visibility culling
+
+// In Nanite scene traversal, visibility determination and LOD selection all happens on the GPU. At the highest level the goal is to calculate a set of triangle clusters
+// that needs to be rasterized based on the Scene and the set of active views.
+// (Scene, Views) -> Clusters for rasterization
+
 #include "../Common.ush"
 #include "../SceneData.ush"
 #include "../WaveOpUtil.ush"
@@ -8,6 +14,10 @@
 
 RWStructuredBuffer<uint> OutDynamicCasterFlags;
 #endif
+
+#include "NaniteDataDecode.ush"
+#include "HZBCull.ush"
+#include "Culling.ush"
 
 #ifndef NEAR_CLIP
 #define NEAR_CLIP 1
@@ -25,34 +35,56 @@ RWStructuredBuffer<uint> OutDynamicCasterFlags;
 #define CLUSTER_PER_PAGE 0
 #endif
 
-#include "NaniteDataDecode.ush"
-#include "HZBCull.ush"
 
-//======================
-// Triangle cluster culling
-//======================
+#define MAX_BVH_NODES_PER_GROUP		(PERSISTENT_CLUSTER_CULLING_GROUP_SIZE / MAX_BVH_NODE_FANOUT)
 
 ByteAddressBuffer			HierarchyBuffer;
-
-RWByteAddressBuffer			OutCandidateClusters;
-RWByteAddressBuffer			OutOccludedClusters;
-RWByteAddressBuffer			OutOccludedNodes;
-RWBuffer< uint >			OutStreamingRequests;	// TODO: Make this a ByteAddressBuffer, so we can store all 3 elements at once. Requires CPU-side readback code to be fixed up.
-
-RWByteAddressBuffer			OutPartTransforms;
-
-RWBuffer< uint >			OutCandidateClustersArgs;
-RWBuffer< uint >			OutOccludedClustersArgs;
-
+Buffer< uint >				OffsetClustersArgsSWHW;
 StructuredBuffer< uint2 >	InTotalPrevDrawClusters;
 
-uint MaxCandidateClusters;
-uint LargePageRectThreshold;
+RWByteAddressBuffer			OutOccludedNodesAndClusters;
+RWBuffer< uint >			OutStreamingRequests;	// TODO: Make this a ByteAddressBuffer, so we can store all 3 elements at once. Requires CPU-side readback code to be fixed up.
+
+globallycoherent RWCoherentStructuredBuffer(FPersistentState)	MainAndPostPassPersistentStates;
+globallycoherent RWCoherentByteAddressBuffer					InOutCandidateNodesAndClusters;
+
+RWByteAddressBuffer			OutVisibleClustersSWHW;
+RWBuffer< uint >			VisibleClustersArgsSWHW;
+
+groupshared uint			GroupNumCandidateNodes;
+groupshared uint			GroupCandidateNodesOffset;
+groupshared uint			GroupOccludedBitmask[MAX_BVH_NODES_PER_GROUP];
+groupshared uint2			GroupCandidateData[PERSISTENT_CLUSTER_CULLING_GROUP_SIZE];
+#if CULLING_PASS == CULLING_PASS_OCCLUSION_POST
+groupshared uint3			GroupNodeData[MAX_BVH_NODES_PER_GROUP];
+#else
+groupshared uint2			GroupNodeData[MAX_BVH_NODES_PER_GROUP];
+#endif
+
+groupshared int				GroupNodeCount;
+
+groupshared uint			GroupNodeBatchStartIndex;
+groupshared uint			GroupNodeMask;
+
+groupshared uint			GroupClusterBatchStartIndex;
+groupshared uint			GroupClusterBatchReadySize;
+groupshared uint			GroupClusterMask[2];
+
 #if DEBUG_FLAGS
 RWStructuredBuffer<FStats>	OutStatsBuffer;
 #endif
 
 float						DisocclusionLodScaleFactor;	// TODO: HACK: Force LOD down first frame an instance is visible to mitigate disocclusion spikes.
+uint						LargePageRectThreshold;
+
+
+#if CULLING_PASS == CULLING_PASS_OCCLUSION_POST
+static const bool bIsPostPass = true;
+static const uint PersistentStateIndex = 1;
+#else
+static const bool bIsPostPass = false;
+static const uint PersistentStateIndex = 0;
+#endif
 
 // Get the area of an "inclusive" rect (which means that the max is inside the rect), also guards against negative area (where min > max)
 uint GetInclusiveRectArea(uint4 Rect)
@@ -65,24 +97,27 @@ uint GetInclusiveRectArea(uint4 Rect)
 	return 0;
 }
 
-
-FHierarchyNodeSlice GetHierarchyNodeSlice( uint NodeIndex, uint LaneIndex )
+FHierarchyNodeSlice GetHierarchyNodeSlice( uint NodeIndex, uint ChildIndex )
 {
-	const uint NodeSize = ( 4 + 4 + 3 ) * 4 * 64;
+	const uint NodeSize = ( 4 + 4 + 4 + 1 ) * 4 * MAX_BVH_NODE_FANOUT;
 
 	uint BaseAddress = NodeIndex * NodeSize;
 
 	FHierarchyNodeSlice Node;
-	Node.LODBounds			=	asfloat(	HierarchyBuffer.Load4( BaseAddress + 16 * LaneIndex ) );
-	Node.Bounds				=	asfloat(	HierarchyBuffer.Load4( BaseAddress + 1024 + 16 * LaneIndex ) );
-	uint3 Misc				=	HierarchyBuffer.Load3( BaseAddress + 2048 + 12 * LaneIndex );
+	Node.LODBounds			=	asfloat(	HierarchyBuffer.Load4( BaseAddress + 16 * ChildIndex) );
+	
+	uint4 Misc0				=	HierarchyBuffer.Load4( BaseAddress + (MAX_BVH_NODE_FANOUT * 16) + 16 * ChildIndex);
+	uint4 Misc1				=	HierarchyBuffer.Load4( BaseAddress + (MAX_BVH_NODE_FANOUT * 32) + 16 * ChildIndex);
+	uint  Misc2				=	HierarchyBuffer.Load ( BaseAddress + (MAX_BVH_NODE_FANOUT * 48) +  4 * ChildIndex);
+	Node.BoxBoundsCenter	=	asfloat( Misc0.xyz );
+	Node.BoxBoundsExtent	=	asfloat( Misc1.xyz );
 
-	Node.MinLODError		=	f16tof32( Misc.x );
-	Node.MaxParentLODError	=	f16tof32( Misc.x >> 16 );
-	Node.ChildStartReference=	Misc.y;
-	Node.bLoaded			=	Misc.y != 0xFFFFFFFFu;
+	Node.MinLODError		=	f16tof32( Misc0.w );
+	Node.MaxParentLODError	=	f16tof32( Misc0.w >> 16 );
+	Node.ChildStartReference=	Misc1.w;
+	Node.bLoaded			=	Misc1.w != 0xFFFFFFFFu;
 
-	uint ResourcePageIndex_NumPages_GroupPartSize = Misc.z;
+	uint ResourcePageIndex_NumPages_GroupPartSize = Misc2;
 	Node.NumChildren		=	BitFieldExtractU32(ResourcePageIndex_NumPages_GroupPartSize, MAX_CLUSTERS_PER_GROUP_BITS, 0);
 	Node.NumPages			=	BitFieldExtractU32(ResourcePageIndex_NumPages_GroupPartSize, MAX_GROUP_PARTS_BITS, MAX_CLUSTERS_PER_GROUP_BITS);
 	Node.StartPageIndex		=	BitFieldExtractU32(ResourcePageIndex_NumPages_GroupPartSize, MAX_RESOURCE_PAGES_BITS, MAX_CLUSTERS_PER_GROUP_BITS + MAX_GROUP_PARTS_BITS);
@@ -177,27 +212,12 @@ bool SmallEnoughToDraw( FNaniteView NaniteView, FInstanceSceneData InstanceData,
 	return bVisible;
 }
 
-groupshared uint	GroupNumCandidateNodes;
-groupshared uint	GroupCandidateNodesOffset;
-groupshared uint	GroupOccludedBitmask[2];
-
-globallycoherent RWCoherentStructuredBuffer(FPersistentState) MainAndPostPassPersistentStates;
-globallycoherent RWCoherentByteAddressBuffer InOutCandidateNodes;
-
-groupshared uint CandidateIndexLDS;
-groupshared uint DoneLDS;
-
-bool IsRootPage( uint PageIndex ) // Keep in sync with NaniteStreamingManager.cpp
-{
-	return PageIndex == 0;
-}
-
 void RequestPageRange( uint RuntimeResourceID, uint StartPageIndex, uint NumPages, uint PriorityCategory, float Priority )
 {
 	if ((RenderFlags & RENDER_FLAG_OUTPUT_STREAMING_REQUESTS) && NumPages > 0)
 	{
 		uint Index;
-		InterlockedAdd( OutStreamingRequests[ 0 ], 1, Index );
+		WaveInterlockedAddScalar_(OutStreamingRequests[0], 1, Index);
 		if( Index < MAX_STREAMING_REQUESTS - 1 )
 		{
 			OutStreamingRequests[ ( 1 + Index ) * 3 + 0 ] = RuntimeResourceID;
@@ -207,302 +227,9 @@ void RequestPageRange( uint RuntimeResourceID, uint StartPageIndex, uint NumPage
 	}
 }
 
-[numthreads( 64, 1, 1 )]
-void PersistentHierarchicalCull(
-	uint GroupIndex		: SV_GroupIndex,
-	uint CandidateIndex : SV_GroupID
-	)  
-{
-#if CULLING_PASS == CULLING_PASS_OCCLUSION_POST
-	const bool bIsPostPass = true;
-	const uint PersistentStateIndex = 1;
-#else
-	const bool bIsPostPass = false;
-	const uint PersistentStateIndex = 0;
-#endif
-
-	while( true )
-	{
-		if (GroupIndex == 0)
-		{
-			InterlockedAdd( MainAndPostPassPersistentStates[ PersistentStateIndex ].ReadOffset, 1, CandidateIndexLDS );
-		}
-		GroupMemoryBarrierWithGroupSync();
-		CandidateIndex = CandidateIndexLDS;
-
-		if( CandidateIndex >= MaxNodes )
-			break;
-
-		if( GroupIndex == 0 )
-		{
-			GroupNumCandidateNodes = 0;
-#if CULLING_PASS == CULLING_PASS_OCCLUSION_MAIN
-			GroupOccludedBitmask[0] = 0u;
-			GroupOccludedBitmask[1] = 0u;
-#endif
-
-			bool bDone = false;	// Workaround: Returning from the loop directly causes FXC to run out of memory. Breaking does not.
-			while (true)
-			{
-				if( IsVisibleNodeReady( InOutCandidateNodes, CandidateIndex, bIsPostPass ) )
-					break;
-
-				ShaderYield();
-				DeviceMemoryBarrier();
-				
-				if( MainAndPostPassPersistentStates[PersistentStateIndex].NumActive > 0 )
-					continue;
-
-				bDone = true;
-				break;
-			}
-
-			DoneLDS = bDone;
-		}
-
-		GroupMemoryBarrierWithGroupSync();
-
-		if (DoneLDS)
-			break;
-		
-		FVisibleNode VisibleNode = GetVisibleNode( InOutCandidateNodes, CandidateIndex, bIsPostPass );
-
-		uint CandidateNodesOffset = 0;
-		uint CandidateClustersOffset = 0;
-
-		FNaniteView NaniteView = GetNaniteView( VisibleNode.ViewId );
-#if CULLING_PASS == CULLING_PASS_OCCLUSION_POST
-		if (VisibleNode.Flags & CULLING_FLAG_FROM_DISOCCLUDED_INSTANCE)
-			NaniteView.LODScale *= DisocclusionLodScaleFactor;
-#endif
-
-		FInstanceSceneData InstanceData = GetInstanceData( VisibleNode.InstanceId );
-		FInstanceDynamicData DynamicData = CalculateInstanceDynamicData(NaniteView, InstanceData);
-
-		// Depth clipping should only be disabled with orthographic projections
-		const bool bNearClip = (NEAR_CLIP != 0);
-
-		const bool bViewHZB = ((NaniteView.Flags & VIEW_FLAG_HZBTEST) != 0);
-
-#if DEBUG_FLAGS
-		const bool bSkipSphereCullFrustum = (DebugFlags & DEBUG_FLAG_CULL_FRUSTUM_SPHERE) == 0;
-		const bool bSkipSphereCullHZB     = (DebugFlags & DEBUG_FLAG_CULL_HZB_SPHERE) == 0;
-#else
-		const bool bSkipSphereCullFrustum = false;
-		const bool bSkipSphereCullHZB     = false;
-#endif
-
-		const  int HierarchyOffset   = InstanceData.NaniteHierarchyOffset;
-		const uint RuntimeResourceID = InstanceData.NaniteRuntimeResourceID;
-
-		FHierarchyNodeSlice HierarchyNodeSlice = GetHierarchyNodeSlice( HierarchyOffset + VisibleNode.NodeIndex, GroupIndex );
-
-		const float MaxObjectScale = InstanceData.NonUniformScale.w;
-		const float ZNear = NaniteView.NearPlane;
-
-#if CULLING_PASS == CULLING_PASS_NO_OCCLUSION || CULLING_PASS == CULLING_PASS_OCCLUSION_MAIN
-		bool bVisible = HierarchyNodeSlice.bEnabled;
-#elif CULLING_PASS == CULLING_PASS_OCCLUSION_POST
-		bool bVisible = ( VisibleNode.EnabledBitmask[ GroupIndex >= 32u ] & ( 1u << ( GroupIndex & 31u ) ) ) != 0u;
-#endif
-		bool bLoaded = HierarchyNodeSlice.bLoaded;
-		
-		uint NumChildren = HierarchyNodeSlice.NumChildren;
-		uint NumVisibleChildren = 0;
-		bool bWasOccluded = false;
-		bool bUseHWRaster = false;
-		float StreamingPriority = 0.0f;
-
-		BRANCH
-		if (bVisible)
-		{
-			float4 Bounds		= HierarchyNodeSlice.Bounds;
-			float4 LODBounds	= HierarchyNodeSlice.LODBounds;
-
-#if CULLING_PASS == CULLING_PASS_NO_OCCLUSION || CULLING_PASS == CULLING_PASS_OCCLUSION_MAIN
-			bVisible = ShouldVisitChild( NaniteView, InstanceData, DynamicData, LODBounds, HierarchyNodeSlice.MinLODError, HierarchyNodeSlice.MaxParentLODError, StreamingPriority );
-		
-			BRANCH
-			if (bVisible)
-			{
-				float3 CenterView = mul( float4( Bounds.xyz, 1 ), DynamicData.LocalToView ).xyz;
-				FFrustumCullData Cull = SphereCullFrustum(CenterView, Bounds.w * MaxObjectScale, NaniteView.ViewToClip, ZNear, bNearClip, bSkipSphereCullFrustum);
-				FScreenRect Rect = GetScreenRect( NaniteView.ViewRect, Cull, 4 );
-
-				bVisible = Cull.bIsVisible && Rect.bOverlapsPixelCenter;
-
-#if VIRTUAL_TEXTURE_TARGET
-				BRANCH
-				if( bVisible )
-				{
-					bVisible = OverlapsAnyValidPage( NaniteView.TargetLayerIndex, NaniteView.TargetMipLevel, NaniteView.ViewRect.xy, Rect, DynamicData.bHasMoved);
-				}
-#endif
-			}
-
-#if CULLING_PASS == CULLING_PASS_OCCLUSION_MAIN || VIRTUAL_TEXTURE_TARGET
-			BRANCH
-			if( bViewHZB && bVisible )
-			{
-				float3 CenterPrevView = mul( float4( Bounds.xyz, 1 ), DynamicData.PrevLocalToView ).xyz;
-				FFrustumCullData PrevCull = SphereCullFrustum(CenterPrevView, Bounds.w * MaxObjectScale, NaniteView.PrevViewToClip, ZNear, bNearClip, bSkipSphereCullFrustum);
-			
-				BRANCH
-				if( PrevCull.bIsVisible && !PrevCull.bCrossesNearPlane )
-				{
-					#if VIRTUAL_TEXTURE_TARGET
-						FScreenRect PrevRect = GetScreenRect( NaniteView.ViewRect, PrevCull, 4 );	// Assume HZBTestViewRect=ViewRect for VSM. Don't load it redundantly.
-						bVisible = bSkipSphereCullHZB ? true : IsVisibleHZB( NaniteView.TargetPrevLayerIndex, NaniteView.TargetMipLevel, PrevRect );
-					#else
-						// TODO Add prev view size to NaniteView
-						FScreenRect PrevRect = GetScreenRect( NaniteView.HZBTestViewRect, PrevCull, 4 );
-						bWasOccluded = bSkipSphereCullHZB ? false : !IsVisibleHZB( PrevRect, true );
-					#endif
-				}
-			}
-#endif
-
-#elif CULLING_PASS == CULLING_PASS_OCCLUSION_POST
-			if (VisibleNode.Flags & CULLING_FLAG_TEST_LOD)
-			{
-				bVisible = ShouldVisitChild( NaniteView, InstanceData, DynamicData, LODBounds, HierarchyNodeSlice.MinLODError, HierarchyNodeSlice.MaxParentLODError, StreamingPriority );
-			}
-		
-			BRANCH
-			if (bVisible)
-			{
-				float3 CenterView = mul( float4( Bounds.xyz, 1 ), DynamicData.LocalToView ).xyz;
-				FFrustumCullData Cull = SphereCullFrustum(CenterView, Bounds.w * MaxObjectScale, NaniteView.ViewToClip, ZNear, bNearClip, bSkipSphereCullFrustum);
-
-				FScreenRect Rect = GetScreenRect( NaniteView.ViewRect, Cull, 4 );
-				Cull.bIsVisible = Cull.bIsVisible && Rect.bOverlapsPixelCenter;
-				
-				BRANCH
-				if (Cull.bIsVisible && !Cull.bCrossesNearPlane)
-				{
-					bWasOccluded = bSkipSphereCullHZB ? false : !IsVisibleHZB( Rect, true );
-				}
-			}
-#endif
-
-			BRANCH
-			if(bVisible)
-			{
-				BRANCH
-				if (!bWasOccluded)
-				{
-					if(!HierarchyNodeSlice.bLeaf)
-					{
-						InterlockedAdd( GroupNumCandidateNodes, 1, CandidateNodesOffset );
-					}
-					else
-					{
-						RequestPageRange( RuntimeResourceID, HierarchyNodeSlice.StartPageIndex, HierarchyNodeSlice.NumPages, NaniteView.StreamingPriorityCategory, StreamingPriority );
-					}
-				
-				}
-#if CULLING_PASS == CULLING_PASS_OCCLUSION_MAIN
-				else
-				{
-					if( bLoaded )
-						InterlockedOr( GroupOccludedBitmask[ GroupIndex >= 32 ], 1u << ( GroupIndex & 31u ) );
-				}
-#endif
-			}
-		}
-
-		GroupMemoryBarrierWithGroupSync();
-
-		if( GroupIndex == 0 )
-		{
-			uint NumNodes = GroupNumCandidateNodes;
-			InterlockedAdd( MainAndPostPassPersistentStates[ PersistentStateIndex ].WriteOffset, NumNodes, GroupCandidateNodesOffset );
-			InterlockedAdd( MainAndPostPassPersistentStates[ PersistentStateIndex ].NumActive, (int)NumNodes - 1 );
-			DeviceMemoryBarrier();
-		}
-		GroupMemoryBarrierWithGroupSync();
-
-		if( bVisible && bLoaded )
-		{
-			if( !bWasOccluded )
-			{
-				if( !HierarchyNodeSlice.bLeaf )
-				{
-					CandidateNodesOffset += GroupCandidateNodesOffset;
-
-					FVisibleNode Node;
-					Node.Flags = VisibleNode.Flags | CULLING_FLAG_TEST_LOD;
-					Node.ViewId = VisibleNode.ViewId;
-					Node.InstanceId = VisibleNode.InstanceId;
-					Node.NodeIndex = HierarchyNodeSlice.ChildStartReference;
-					Node.EnabledBitmask[ 0 ] = 0xFFFFFFFFu;
-					Node.EnabledBitmask[ 1 ] = 0xFFFFFFFFu;
-					StoreVisibleNodeSync( InOutCandidateNodes, CandidateNodesOffset, Node, bIsPostPass );
-				}
-				else
-				{
-					WaveInterlockedAddInGroups( OutCandidateClustersArgs[3], OutCandidateClustersArgs[0], 64, NumChildren, CandidateClustersOffset );
-
-					FVisibleCluster VisibleCluster;
-					VisibleCluster.Flags = VisibleNode.Flags | CULLING_FLAG_TEST_LOD;
-					VisibleCluster.ViewId = VisibleNode.ViewId;
-					VisibleCluster.InstanceId = VisibleNode.InstanceId;
-					VisibleCluster.PageIndex = HierarchyNodeSlice.ChildStartReference >> MAX_CLUSTERS_PER_PAGE_BITS;
-					VisibleCluster.ClusterIndex = HierarchyNodeSlice.ChildStartReference & MAX_CLUSTERS_PER_PAGE_MASK;
-					VisibleCluster.vPage = 0;
-
-					for (uint i = 0; i < NumChildren; i++)
-					{
-						StoreVisibleCluster( OutCandidateClusters, CandidateClustersOffset + i, VisibleCluster, false );
-						VisibleCluster.ClusterIndex++;
-					}
-				}
-			}
-		}
-
-#if CULLING_PASS == CULLING_PASS_OCCLUSION_MAIN
-		if( GroupIndex == 0 )
-		{
-			if( GroupOccludedBitmask[0] | GroupOccludedBitmask[1] )
-			{
-				uint OccludedNodesOffset;
-				InterlockedAdd( MainAndPostPassPersistentStates[1].WriteOffset, 1, OccludedNodesOffset );
-				InterlockedAdd( MainAndPostPassPersistentStates[1].NumActive, 1 );
-
-				FVisibleNode Node;
-				Node.Flags = VisibleNode.Flags & ~CULLING_FLAG_TEST_LOD;
-				Node.ViewId = VisibleNode.ViewId;
-				Node.InstanceId = VisibleNode.InstanceId;
-				Node.NodeIndex = VisibleNode.NodeIndex;
-				Node.EnabledBitmask[ 0 ] = GroupOccludedBitmask[ 0 ];
-				Node.EnabledBitmask[ 1 ] = GroupOccludedBitmask[ 1 ];
-				StoreVisibleNode( OutOccludedNodes, OccludedNodesOffset, Node, true );
-			}
-		}
-#endif
-		
-		MarkVisibleNodeAsClear( InOutCandidateNodes, CandidateIndex, bIsPostPass );	// clear processed element so we leave the buffer cleared for next pass.
-	}
-}
-
-ByteAddressBuffer	InCandidateClusters;
-RWByteAddressBuffer	OutVisibleClustersSWHW;
-
-Buffer< uint >		InCandidateClustersArgs;
-Buffer< uint >		OffsetClustersArgsSWHW;
-
-RWBuffer< uint >	VisibleClustersArgsSWHW;
-RWBuffer< uint >	OccludedClustersArgs;
-
-void CandidateCullInner(
-	FVisibleCluster VisibleCluster,
-	uint InstanceId,
-	uint CandidateIndex,
-	uint GroupIndex
-	)
+void ClusterCull(FVisibleCluster VisibleCluster, uint InstanceId)
 {
 	FInstanceSceneData InstanceData = GetInstanceData( InstanceId );
-
 	FNaniteView NaniteView = GetNaniteView( VisibleCluster.ViewId );
 
 #if CULLING_PASS == CULLING_PASS_OCCLUSION_POST
@@ -517,7 +244,6 @@ void CandidateCullInner(
 	// Near depth clipping should only be disabled with orthographic projections
 	// WARNING: This is a macro/permutation because of FXC code gen issues! Be careful if you change this to test thoroughly!
 	const bool bNearClip = (NEAR_CLIP != 0);
-
 	const bool bViewHZB = ((NaniteView.Flags & VIEW_FLAG_HZBTEST) != 0);
 
 #if DEBUG_FLAGS && COMPILER_PSSL
@@ -528,15 +254,12 @@ void CandidateCullInner(
 	const bool bSkipBoxCullHZB     = false;
 #endif
 
-	const float MaxObjectScale = InstanceData.NonUniformScale.w;	// Max Uniform Scale
-	const float ZNear = NaniteView.NearPlane;
-
 	FCluster Cluster = GetCluster( VisibleCluster.PageIndex, VisibleCluster.ClusterIndex );
 
-	bool bWasOccluded = false;
-	bool bUseHWRaster = false;
-	bool bVisible = CandidateIndex < InCandidateClustersArgs[3];
+	bool bWasOccluded	= false;
+	bool bUseHWRaster	= false;
 	bool bNeedsClipping = false;
+	bool bVisible		= true;
 
 	// Rect of overlapped virtual pages, is inclusive (as in zw is max, not max + 1)
 	uint4 RectPages = 0;
@@ -551,7 +274,7 @@ void CandidateCullInner(
 	BRANCH
 	if( bVisible )
 	{
-		FFrustumCullData Cull = BoxCullFrustum(Cluster.BoxBoundsCenter, Cluster.BoxBoundsExtent, DynamicData.LocalToClip, bNearClip, bSkipBoxCullFrustum);
+		FFrustumCullData Cull = BoxCullFrustum( Cluster.BoxBoundsCenter, Cluster.BoxBoundsExtent, DynamicData.LocalToClip, bNearClip, bSkipBoxCullFrustum );
 		FScreenRect Rect = GetScreenRect( NaniteView.ViewRect, Cull, 4 );
 
 		bVisible = Cull.bIsVisible && ( Rect.bOverlapsPixelCenter || Cull.bCrossesNearPlane );	// Rect from box isn't valid if crossing near plane
@@ -587,16 +310,15 @@ void CandidateCullInner(
 #if DEBUG_FLAGS
 	if (PageRectArea >= LargePageRectThreshold)
 	{
-		InterlockedAdd(OutStatsBuffer[0].NumLargePageRectClusters, 1);
+		WaveInterlockedAddScalar(OutStatsBuffer[0].NumLargePageRectClusters, 1);
 	}
 #endif // DEBUG_FLAGS
-
 
 #if CULLING_PASS == CULLING_PASS_OCCLUSION_MAIN || VIRTUAL_TEXTURE_TARGET
 	BRANCH
 	if( bViewHZB && bVisible )
 	{
-		FFrustumCullData PrevCull = BoxCullFrustum(Cluster.BoxBoundsCenter, Cluster.BoxBoundsExtent, DynamicData.PrevLocalToClip, bNearClip, bSkipBoxCullFrustum);
+		FFrustumCullData PrevCull = BoxCullFrustum( Cluster.BoxBoundsCenter, Cluster.BoxBoundsExtent, DynamicData.PrevLocalToClip, bNearClip, bSkipBoxCullFrustum );
 		
 		BRANCH
 		if (PrevCull.bIsVisible && !PrevCull.bCrossesNearPlane)
@@ -768,7 +490,10 @@ void CandidateCullInner(
 					for( uint x = RectPages.x; x <= RectPages.z; x += VSM_RASTER_WINDOW_PAGES )
 					{
 						VisibleCluster.vPage = uint2(x,y);
-						StoreVisibleCluster( OutVisibleClustersSWHW, ClusterIndex++, VisibleCluster, VIRTUAL_TEXTURE_TARGET );
+						if (ClusterIndex < MaxVisibleClusters)
+						{
+							StoreVisibleCluster( OutVisibleClustersSWHW, ClusterIndex++, VisibleCluster, VIRTUAL_TEXTURE_TARGET );
+						}
 					}
 				}
 			}
@@ -784,7 +509,10 @@ void CandidateCullInner(
 						if ((PageFlag & PageFlagMask) != 0)
 						{
 							VisibleCluster.vPage = uint2(x,y);
-							StoreVisibleCluster( OutVisibleClustersSWHW, ClusterIndex++, VisibleCluster, VIRTUAL_TEXTURE_TARGET );
+							if (ClusterIndex < MaxVisibleClusters)
+							{
+								StoreVisibleCluster( OutVisibleClustersSWHW, ClusterIndex++, VisibleCluster, VIRTUAL_TEXTURE_TARGET );
+							}
 						}
 					}
 				}
@@ -820,60 +548,507 @@ void CandidateCullInner(
 		else
 		{
 			uint OccludedClusterOffset = 0;
-			WaveInterlockedAddScalarInGroups( OutOccludedClustersArgs[3], OutOccludedClustersArgs[0], 64, 1, OccludedClusterOffset );
+			WaveInterlockedAddScalar_( MainAndPostPassPersistentStates[1].ClusterWriteOffset, 1, OccludedClusterOffset );
 
 			if( OccludedClusterOffset < MaxCandidateClusters )
 			{
 				VisibleCluster.Flags = ( bUseHWRaster ? CULLING_FLAG_USE_HW : 0u );
-				StoreVisibleCluster( OutOccludedClusters, OccludedClusterOffset, VisibleCluster, false );
+				
+				StoreCandidateCluster(OutOccludedNodesAndClusters, OccludedClusterOffset, VisibleCluster);
+
+				DeviceMemoryBarrier();
+				uint Bucket = OccludedClusterOffset / PERSISTENT_CLUSTER_CULLING_GROUP_SIZE;
+				OutOccludedNodesAndClusters.InterlockedAdd(GetCullingBatchesOffset() + Bucket * 4, 1);
 			}
 		}
 #endif
 	}
 }
 
-[numthreads(64, 1, 1)]
-void CandidateCull(
-	uint CandidateIndex : SV_DispatchThreadID,
-	uint GroupIndex : SV_GroupIndex,
-	uint GroupID : SV_GroupID
-	)
+void NodeCull(uint BatchReadySize, uint GroupIndex)
 {
-	FVisibleCluster VisibleCluster = GetVisibleCluster( InCandidateClusters, CandidateIndex, false );
-	
-#if COMPILER_SUPPORTS_WAVE_VOTE
-	uint ScalarInstanceId = ToScalarMemory(VisibleCluster.InstanceId);
-	
-	// If all pixels happen to hit the same instance we can scalarize the instance dependent parts of the code
-	if (WaveActiveAllTrue(VisibleCluster.InstanceId == ScalarInstanceId))
-	{
-		CandidateCullInner(VisibleCluster, ScalarInstanceId, CandidateIndex, GroupIndex);
-	}
-	else
+	uint LocalNodeIndex = (GroupIndex >> MAX_BVH_NODE_FANOUT_BITS);
+	uint ChildIndex = GroupIndex & MAX_BVH_NODE_FANOUT_MASK;
+
+#if CULLING_PASS == CULLING_PASS_OCCLUSION_POST
+	uint4 NodeData = uint4(GroupNodeData[LocalNodeIndex], 0);
+#else
+	uint4 NodeData = uint4(GroupNodeData[LocalNodeIndex], 0, 0);
 #endif
+	
+	FCandidateNode CandidateNode = UnpackCandidateNode(NodeData, bIsPostPass);
+	uint CandidateNodesOffset = 0;
+
+	FNaniteView NaniteView = GetNaniteView( CandidateNode.ViewId );
+#if CULLING_PASS == CULLING_PASS_OCCLUSION_POST
+	if (CandidateNode.Flags & CULLING_FLAG_FROM_DISOCCLUDED_INSTANCE)
+		NaniteView.LODScale *= DisocclusionLodScaleFactor;
+#endif
+
+	FInstanceSceneData InstanceData = GetInstanceData(CandidateNode.InstanceId);
+	FInstanceDynamicData DynamicData = CalculateInstanceDynamicData(NaniteView, InstanceData);
+
+	// Depth clipping should only be disabled with orthographic projections
+	const bool bNearClip = (NEAR_CLIP != 0);
+	const bool bViewHZB = ((NaniteView.Flags & VIEW_FLAG_HZBTEST) != 0);
+
+#if DEBUG_FLAGS && COMPILER_PSSL
+	const bool bSkipBoxCullFrustum = (DebugFlags & DEBUG_FLAG_CULL_FRUSTUM_BOX) == 0;
+	const bool bSkipBoxCullHZB = (DebugFlags & DEBUG_FLAG_CULL_HZB_BOX) == 0;
+#else
+	const bool bSkipBoxCullFrustum = false;
+	const bool bSkipBoxCullHZB = false;
+#endif
+
+	const  int HierarchyOffset   = InstanceData.NaniteHierarchyOffset;
+	const uint RuntimeResourceID = InstanceData.NaniteRuntimeResourceID;
+
+	const FHierarchyNodeSlice HierarchyNodeSlice = GetHierarchyNodeSlice( HierarchyOffset + CandidateNode.NodeIndex, ChildIndex );
+
+#if CULLING_PASS == CULLING_PASS_OCCLUSION_POST
+	bool bVisible = (CandidateNode.EnabledBitmask & ( 1u << ChildIndex ) ) != 0u;
+#else
+	bool bVisible = HierarchyNodeSlice.bEnabled;
+#endif
+	bool bLoaded = HierarchyNodeSlice.bLoaded;
+
+	if(LocalNodeIndex >= BatchReadySize)
+		bVisible = false;
+
+	bool bWasOccluded = false;
+	bool bUseHWRaster = false;
+	float StreamingPriority = 0.0f;
+
+	BRANCH
+	if (bVisible)
 	{
-		CandidateCullInner(VisibleCluster, VisibleCluster.InstanceId, CandidateIndex, GroupIndex);
+		float4 LODBounds	= HierarchyNodeSlice.LODBounds;
+
+#if CULLING_PASS == CULLING_PASS_NO_OCCLUSION || CULLING_PASS == CULLING_PASS_OCCLUSION_MAIN
+		bVisible = ShouldVisitChild( NaniteView, InstanceData, DynamicData, LODBounds, HierarchyNodeSlice.MinLODError, HierarchyNodeSlice.MaxParentLODError, StreamingPriority );
+		
+		BRANCH
+		if (bVisible)
+		{
+			FFrustumCullData Cull = BoxCullFrustum( HierarchyNodeSlice.BoxBoundsCenter, HierarchyNodeSlice.BoxBoundsExtent, DynamicData.LocalToClip, bNearClip, bSkipBoxCullFrustum );
+			FScreenRect Rect = GetScreenRect( NaniteView.ViewRect, Cull, 4 );
+
+			bVisible = Cull.bIsVisible && Rect.bOverlapsPixelCenter;
+
+#if VIRTUAL_TEXTURE_TARGET
+			BRANCH
+			if( bVisible )
+			{
+				bVisible = OverlapsAnyValidPage( NaniteView.TargetLayerIndex, NaniteView.TargetMipLevel, NaniteView.ViewRect.xy, Rect, DynamicData.bHasMoved);
+			}
+#endif
+		}
+
+#if CULLING_PASS == CULLING_PASS_OCCLUSION_MAIN || VIRTUAL_TEXTURE_TARGET
+		BRANCH
+		if( bViewHZB && bVisible )
+		{
+			FFrustumCullData PrevCull = BoxCullFrustum( HierarchyNodeSlice.BoxBoundsCenter, HierarchyNodeSlice.BoxBoundsExtent, DynamicData.PrevLocalToClip, bNearClip, bSkipBoxCullFrustum );
+			
+			BRANCH
+			if( PrevCull.bIsVisible && !PrevCull.bCrossesNearPlane )
+			{
+				#if VIRTUAL_TEXTURE_TARGET
+					FScreenRect PrevRect = GetScreenRect( NaniteView.ViewRect, PrevCull, 4 );		// Assume HZBTestViewRect=ViewRect for VSM. Don't load it redundantly.
+					bVisible = bSkipBoxCullHZB ? true : IsVisibleHZB( NaniteView.TargetPrevLayerIndex, NaniteView.TargetMipLevel, PrevRect );
+				#else
+					FScreenRect PrevRect = GetScreenRect( NaniteView.HZBTestViewRect, PrevCull, 4 );
+					bWasOccluded = bSkipBoxCullHZB ? false : !IsVisibleHZB(PrevRect, true);
+				#endif
+			}
+		}
+#endif
+
+#elif CULLING_PASS == CULLING_PASS_OCCLUSION_POST
+		if (bVisible && (CandidateNode.Flags & CULLING_FLAG_TEST_LOD))
+		{
+			bVisible = ShouldVisitChild( NaniteView, InstanceData, DynamicData, LODBounds, HierarchyNodeSlice.MinLODError, HierarchyNodeSlice.MaxParentLODError, StreamingPriority );
+		}
+		
+		BRANCH
+		if (bVisible)
+		{
+			FFrustumCullData Cull = BoxCullFrustum( HierarchyNodeSlice.BoxBoundsCenter, HierarchyNodeSlice.BoxBoundsExtent, DynamicData.LocalToClip, bNearClip, bSkipBoxCullFrustum );
+			FScreenRect Rect = GetScreenRect( NaniteView.ViewRect, Cull, 4 );
+			Cull.bIsVisible = Cull.bIsVisible && Rect.bOverlapsPixelCenter;
+				
+			BRANCH
+			if (Cull.bIsVisible && !Cull.bCrossesNearPlane)
+			{
+				bWasOccluded = bSkipBoxCullHZB ? false : !IsVisibleHZB(Rect, true);
+			}
+		}
+#endif
+	}
+
+	BRANCH
+	if(bVisible)
+	{
+		BRANCH
+		if (!bWasOccluded)
+		{
+			if(!HierarchyNodeSlice.bLeaf)
+			{
+				WaveInterlockedAddScalar_( GroupNumCandidateNodes, 1, CandidateNodesOffset );
+			}
+		}
+#if CULLING_PASS == CULLING_PASS_OCCLUSION_MAIN
+		else
+		{
+			if( bLoaded )
+			{
+				InterlockedOr( GroupOccludedBitmask[ LocalNodeIndex ], 1u << ChildIndex );
+			}
+		}
+#endif
+	}
+
+	GroupMemoryBarrierWithGroupSync();
+
+	if (GroupIndex == 0)
+	{
+		InterlockedAdd(MainAndPostPassPersistentStates[PersistentStateIndex].NodeWriteOffset, GroupNumCandidateNodes, GroupCandidateNodesOffset);
+	}
+
+	GroupMemoryBarrierWithGroupSync();
+
+	// GPU might not be filled, so latency is important here. Kick new jobs as soon as possible.
+	bool bOutputChild = bVisible && bLoaded && !bWasOccluded;
+	if( bOutputChild && !HierarchyNodeSlice.bLeaf)
+	{
+		CandidateNodesOffset += GroupCandidateNodesOffset;
+
+		if (CandidateNodesOffset < MaxNodes)
+		{
+			FCandidateNode Node;
+			Node.Flags = CandidateNode.Flags | CULLING_FLAG_TEST_LOD;
+			Node.ViewId = CandidateNode.ViewId;
+			Node.InstanceId = CandidateNode.InstanceId;
+			Node.NodeIndex = HierarchyNodeSlice.ChildStartReference;
+			Node.EnabledBitmask = BVH_NODE_ENABLE_MASK;
+			StoreCandidateNodeCoherent( InOutCandidateNodesAndClusters, CandidateNodesOffset, Node, bIsPostPass );
+		}
+	}
+	DeviceMemoryBarrierWithGroupSync();
+
+	// Continue with remaining independent work
+	if( bOutputChild && HierarchyNodeSlice.bLeaf )
+	{
+		const uint NumChildren = HierarchyNodeSlice.NumChildren;
+
+		uint CandidateClustersOffset = 0;
+		WaveInterlockedAdd_( MainAndPostPassPersistentStates[PersistentStateIndex].ClusterWriteOffset, NumChildren, CandidateClustersOffset );
+		
+		FVisibleCluster CandidateCluster;
+		CandidateCluster.Flags = CandidateNode.Flags | CULLING_FLAG_TEST_LOD;
+		CandidateCluster.ViewId = CandidateNode.ViewId;
+		CandidateCluster.InstanceId = CandidateNode.InstanceId;
+		CandidateCluster.PageIndex = HierarchyNodeSlice.ChildStartReference >> MAX_CLUSTERS_PER_PAGE_BITS;
+		const uint BaseClusterIndex = HierarchyNodeSlice.ChildStartReference & MAX_CLUSTERS_PER_PAGE_MASK;
+		
+		const uint StartIndex = CandidateClustersOffset;
+		const uint EndIndex = min(CandidateClustersOffset + NumChildren, MaxCandidateClusters);
+
+		// Clusters in a group are consecutive. Instead of writing them all, we only write
+		// the first cluster in each PERSISTENT_CLUSTER_CULLING_GROUP_SIZE-sized batch the group is a part of.
+		// The cluster culling can infer the rest using bitscan.
+		for (uint Index = StartIndex; Index < EndIndex;)
+		{
+			CandidateCluster.ClusterIndex = BaseClusterIndex + (Index - StartIndex);
+			StoreCandidateClusterCoherent(InOutCandidateNodesAndClusters, Index, CandidateCluster);
+			Index = (Index & ~(PERSISTENT_CLUSTER_CULLING_GROUP_SIZE - 1u)) + PERSISTENT_CLUSTER_CULLING_GROUP_SIZE;
+		}
+
+		DeviceMemoryBarrier();
+		
+		// Once the cluster indices have been committed to memory, we can update the cluster counters of the overlapping cluster batches.
+		for (uint Index = StartIndex; Index < EndIndex;)
+		{
+			uint Bucket = Index / PERSISTENT_CLUSTER_CULLING_GROUP_SIZE;
+			uint NextIndex = (Index & ~(PERSISTENT_CLUSTER_CULLING_GROUP_SIZE - 1u)) + PERSISTENT_CLUSTER_CULLING_GROUP_SIZE;
+			uint MaxIndex = min(NextIndex, EndIndex);
+			uint Num = MaxIndex - Index;
+			InOutCandidateNodesAndClusters.InterlockedAdd(GetCullingBatchesOffset() + Bucket * 4, Num);
+			Index = NextIndex;
+		}
+	}
+
+	DeviceMemoryBarrierWithGroupSync();
+	if (GroupIndex == 0)
+	{
+		InterlockedAdd(MainAndPostPassPersistentStates[PersistentStateIndex].NodeCount, (int)GroupNumCandidateNodes - (int)BatchReadySize);
+	}
+
+	if( bVisible && !bWasOccluded && HierarchyNodeSlice.bLeaf )
+	{
+		RequestPageRange(RuntimeResourceID, HierarchyNodeSlice.StartPageIndex, HierarchyNodeSlice.NumPages, NaniteView.StreamingPriorityCategory, StreamingPriority);
+	}
+
+#if CULLING_PASS == CULLING_PASS_OCCLUSION_MAIN
+	if( ChildIndex == 0 && GroupOccludedBitmask[LocalNodeIndex] )
+	{
+		uint OccludedNodesOffset;
+		WaveInterlockedAddScalar_( MainAndPostPassPersistentStates[1].NodeWriteOffset, 1, OccludedNodesOffset );
+		WaveInterlockedAddScalar( MainAndPostPassPersistentStates[1].NodeCount, 1 );
+
+		if(OccludedNodesOffset < MaxNodes)
+		{
+			FCandidateNode Node;
+			Node.Flags = CandidateNode.Flags & ~CULLING_FLAG_TEST_LOD;
+			Node.ViewId = CandidateNode.ViewId;
+			Node.InstanceId = CandidateNode.InstanceId;
+			Node.NodeIndex = CandidateNode.NodeIndex;
+			Node.EnabledBitmask = GroupOccludedBitmask[LocalNodeIndex];
+			StoreCandidateNode( OutOccludedNodesAndClusters, OccludedNodesOffset, Node, true );
+		}
+	}
+#endif
+}
+
+void ProcessClusterBatch(uint BatchStartIndex, uint BatchSize, uint GroupIndex)
+{
+	const uint CandidateIndex = BatchStartIndex * PERSISTENT_CLUSTER_CULLING_GROUP_SIZE + GroupIndex;
+	const bool bLaneEnabled = (GroupIndex < BatchSize);
+	uint2 CandidateRawData = bLaneEnabled ? InOutCandidateNodesAndClusters.Load2(GetCandidateClustersOffset() + CandidateIndex * CandidateClusterSize) : uint2(0xFFFFFFFFu, 0xFFFFFFFFu);
+	bool bValid = CandidateRawData.x != 0xFFFFFFFFu;
+	GroupCandidateData[GroupIndex] = CandidateRawData;
+
+	if (bValid)
+	{
+		InterlockedOr(GroupClusterMask[GroupIndex >> 5], 1u << (GroupIndex & 31u));
+	}
+	GroupMemoryBarrierWithGroupSync();
+	uint2 ValidMask = uint2(GroupClusterMask[0], GroupClusterMask[1]);
+
+	// Find our own cluster or the last one written before us.
+	// Search for highest 1-bit with index <= GroupIndex in ReadyMask.
+	uint FetchIndex = GroupIndex & 32;
+	{
+		const uint LaneMask = BitFieldMaskU32(GroupIndex & 31u, 1) | 1u;
+		uint SearchMask = (FetchIndex ? ValidMask.y : ValidMask.x) & LaneMask;
+		if (SearchMask == 0u)
+		{
+			// Masked high dword of ValidMask was 0. Keep searching in unmasked low dword.
+			// Low dword can never be 0.
+			SearchMask = ValidMask.x;
+			FetchIndex = 0;
+		}
+		FetchIndex += firstbithigh(SearchMask);
+	}
+
+	if (bLaneEnabled)
+	{
+		FVisibleCluster VisibleCluster = UnpackVisibleCluster(uint4(GroupCandidateData[FetchIndex], 0, 0));
+		VisibleCluster.ClusterIndex += GroupIndex - FetchIndex;
+		ClusterCull(VisibleCluster, VisibleCluster.InstanceId);
+	}
+
+	// Clear processed elements so we leave the buffer cleared for next pass.
+	if (bValid)
+	{
+		ClearCandidateClusterCoherent(InOutCandidateNodesAndClusters, CandidateIndex);
+	}
+	InOutCandidateNodesAndClusters.Store(GetCullingBatchesOffset() + BatchStartIndex * 4, 0);
+}
+
+// Persistent threads culling shader
+// This shader is responsible for the recursive culling and traversal of the per-mesh cluster hierarchies.
+// It is also responsible for culling the triangle clusters found during this traversal and producing
+// lists of visible clusters for rasterization. Clusters are binned for SW or HW rasterization based on
+// screen-projected size.
+
+// Mapping tree-culling to the GPU is awkward as the number of leaf nodes that need to be accepted
+// is dynamic and can be anywhere from none to hundreds of thousands. Mapping threads 1:1 to trees can result in
+// extremely long serial processing that severely underutilizes the GPU. Conversely, mapping threads 1:1 to
+// leaf nodes can end up leaving most threads idle.
+
+// What we really need is the ability to dynamically spawn threads for children as they are determined
+// to be visible during the traversal. This is unfortunately not possible (yet), so instead we use
+// persistent threads. We spawn just enough worker threads to fill the GPU, keep them running and manually
+// distribute work to them.
+
+// For this we use a simple MPMC job queue. Instead of spawning new threads, new jobs are added to the queue
+// to be consumed by workers. Initially the queue is populated with work generated by preceding shader passes.
+// When the persistent shader is running, its workers will continuously consuming items from the queue, but also
+// produce new items.
+
+// When BVH nodes are processed they will append work items to the queue for each of the visible children.
+// Clusters are only consumed and will never generate new work. The workers keep running until the queue is empty.
+// At that point the trees have been recursively traversed and all the relevant clusters have been processed.
+
+// A given node can't be processed before all of its ancestors have been processed. This forms a dependency chain
+// of jobs that can be as long as the height of the tree. Especially for small or moderately-sized scenes, the total
+// latency from these dependent jobs can end up determining the total BVH processing time, leaving the GPU underutilized.
+// This issue is one of the main motivations for handling the cluster culling in the same shader.
+// Workers always favor node processing to make progress on the critical path, but when no nodes are available
+// they process clusters while waiting, instead of going idle.
+
+
+[numthreads( PERSISTENT_CLUSTER_CULLING_GROUP_SIZE, 1, 1 )]
+void PersistentClusterCull(uint GroupIndex : SV_GroupIndex)  
+{
+	bool bProcessNodes			= true;						// Should we still try to consume nodes?
+	uint NodeBatchReadyOffset	= MAX_BVH_NODES_PER_GROUP;
+	uint NodeBatchStartIndex	= 0;
+	uint ClusterBatchStartIndex = 0xFFFFFFFFu;
+	
+	while(true)
+	{
+		if (GroupIndex == 0)
+		{
+			GroupNumCandidateNodes	= 0;
+			GroupNodeMask			= 0;
+			GroupClusterMask[0]		= 0;
+			GroupClusterMask[1]		= 0;
+		}
+
+#if CULLING_PASS == CULLING_PASS_OCCLUSION_MAIN
+		if (GroupIndex < MAX_BVH_NODES_PER_GROUP)
+		{
+			GroupOccludedBitmask[GroupIndex] = 0u;
+		}
+#endif
+		
+		GroupMemoryBarrierWithGroupSync();
+
+		uint NodeReadyMask = 0;
+		if (bProcessNodes)	// Try grabbing and processing nodes if they could be available.
+		{
+			if (NodeBatchReadyOffset == MAX_BVH_NODES_PER_GROUP)
+			{
+				// No more data in current batch. Grab a new batch.
+				if (GroupIndex == 0)
+				{
+					InterlockedAdd(MainAndPostPassPersistentStates[PersistentStateIndex].NodeReadOffset, MAX_BVH_NODES_PER_GROUP, GroupNodeBatchStartIndex);
+				}
+				GroupMemoryBarrierWithGroupSync();
+
+				NodeBatchReadyOffset = 0;
+				NodeBatchStartIndex = GroupNodeBatchStartIndex;
+				if (NodeBatchStartIndex >= MaxNodes)
+				{
+					// The node range is out of bounds and so will any future range be.
+					bProcessNodes = false;
+					continue;
+				}	
+			}
+
+			// Check which nodes in the range have been completely written and are ready for processing.
+			const uint NodeIndex = NodeBatchStartIndex + NodeBatchReadyOffset + GroupIndex;
+			bool bNodeReady = (NodeBatchReadyOffset + GroupIndex < MAX_BVH_NODES_PER_GROUP);
+			if (bNodeReady)
+			{
+#if CULLING_PASS == CULLING_PASS_OCCLUSION_POST
+				uint3 NodeData = InOutCandidateNodesAndClusters.Load3(GetCandidateNodesOffset() + NodeIndex * 12);
+#else
+				uint2 NodeData = InOutCandidateNodesAndClusters.Load2(GetCandidateNodesOffset() + NodeIndex * 8);
+#endif
+				bNodeReady = NodeData.x != 0xFFFFFFFFu;
+				GroupNodeData[GroupIndex] = NodeData;
+			}
+
+			if (bNodeReady)
+			{
+				InterlockedOr(GroupNodeMask, 1u << GroupIndex);
+			}
+			GroupMemoryBarrierWithGroupSync();
+			NodeReadyMask = GroupNodeMask;
+
+			// Process nodes if at least the first one is ready.
+			if (NodeReadyMask & 1u)
+			{
+				uint NodeBatchReadySize = firstbitlow(~NodeReadyMask);
+
+				NodeCull(NodeBatchReadySize, GroupIndex);
+				if (GroupIndex < NodeBatchReadySize)
+				{
+					ClearCandidateNodeCoherent(InOutCandidateNodesAndClusters, NodeIndex, bIsPostPass);			// Clear processed element so we leave the buffer cleared for next pass.
+				}
+
+				NodeBatchReadyOffset += NodeBatchReadySize;
+				continue;
+			}
+		}
+
+		GroupMemoryBarrierWithGroupSync();
+
+		// No nodes were ready. Process clusters instead.
+
+		// Grab a range of clusters, if we don't already have one.
+		if (ClusterBatchStartIndex == 0xFFFFFFFFu)
+		{
+			if (GroupIndex == 0)
+			{
+				InterlockedAdd(MainAndPostPassPersistentStates[PersistentStateIndex].ClusterBatchReadOffset, 1, GroupClusterBatchStartIndex);
+			}
+			GroupMemoryBarrierWithGroupSync();
+
+			ClusterBatchStartIndex = GroupClusterBatchStartIndex;
+		}
+
+		if (!bProcessNodes && GroupClusterBatchStartIndex >= GetMaxCandidateClusterBatches())
+			break;	// Has to be break instead of return to make FXC happy.
+
+		if (GroupIndex == 0)
+		{
+			GroupNodeCount = MainAndPostPassPersistentStates[PersistentStateIndex].NodeCount;
+			GroupClusterBatchReadySize = InOutCandidateNodesAndClusters.Load(GetCullingBatchesOffset() + ClusterBatchStartIndex * 4);
+		}
+		GroupMemoryBarrierWithGroupSync();
+
+		uint ClusterBatchReadySize = GroupClusterBatchReadySize;
+		if (!bProcessNodes && ClusterBatchReadySize == 0)	// No more clusters to process and no nodes are available to 
+			break;	// Has to be break instead of return to make FXC happy.
+
+		if ((bProcessNodes && ClusterBatchReadySize == PERSISTENT_CLUSTER_CULLING_GROUP_SIZE) || (!bProcessNodes && ClusterBatchReadySize > 0))
+		{
+			ProcessClusterBatch(ClusterBatchStartIndex, ClusterBatchReadySize, GroupIndex);
+			ClusterBatchStartIndex = 0xFFFFFFFFu;
+		}
+
+		if (bProcessNodes && GroupNodeCount == 0)
+		{
+			bProcessNodes = false;
+		}
 	}
 }
 
-RWCoherentByteAddressBuffer OutNodes;
-uint InitNodesIsPostPass;
+RWByteAddressBuffer		OutCandidateNodesAndClusters;
+uint					InitIsPostPass;
 
-[numthreads( 64, 1, 1 )]
-void InitNodes( uint Index : SV_DispatchThreadID )
+[numthreads(64, 1, 1)]
+void InitCandidateClusters(uint GroupIndex : SV_GroupIndex, uint3 GroupID : SV_GroupID)
 {
-	MarkVisibleNodeAsClear( OutNodes, Index, InitNodesIsPostPass != 0 );
+	const uint Index = ((GroupID.y << 8) + GroupID.x) * 64 + GroupIndex;
+	if (Index < GetMaxCandidateClusterBatches())
+	{
+		OutCandidateNodesAndClusters.Store(Index * 4, 0);
+	}
+
+	if (Index < MaxCandidateClusters)
+	{
+		ClearCandidateCluster(OutCandidateNodesAndClusters, Index);
+	}
+}
+
+[numthreads(64, 1, 1)]
+void InitCandidateNodes(uint GroupIndex : SV_GroupIndex, uint3 GroupID : SV_GroupID)
+{
+	const uint Index = GroupID.x * 64 + GroupIndex;
+	ClearCandidateNode(OutCandidateNodesAndClusters, Index, InitIsPostPass != 0);
 }
 
 RWBuffer< uint > OutOccludedInstancesArgs;
-RWBuffer< uint > OutMainPassCandidateClustersArgs;
-RWBuffer< uint > OutPostPassCandidateClustersArgs;
 
-RWStructuredBuffer< FPersistentState > OutMainAndPostPassPersistentStates;
-
-RWStructuredBuffer< uint2 > InOutTotalPrevDrawClusters;
-RWBuffer< uint > InOutMainPassRasterizeArgsSWHW;
-RWBuffer< uint > InOutPostPassRasterizeArgsSWHW;
+RWStructuredBuffer<FPersistentState>	OutMainAndPostPassPersistentStates;
+RWStructuredBuffer< uint2 >				InOutTotalPrevDrawClusters;
+RWBuffer< uint >						InOutMainPassRasterizeArgsSWHW;
+RWBuffer< uint >						InOutPostPassRasterizeArgsSWHW;
 
 [numthreads(1, 1, 1)]
 void InitArgs()
@@ -882,17 +1057,14 @@ void InitArgs()
 
 	uint2 DrawnClusterCounts = 0;
 
-	OutMainAndPostPassPersistentStates[ 0 ].ReadOffset = 0;
-	OutMainAndPostPassPersistentStates[ 0 ].WriteOffset = 0;
-	OutMainAndPostPassPersistentStates[ 0 ].NumActive = 0;
-	OutMainAndPostPassPersistentStates[ 1 ].ReadOffset = 0;
-	OutMainAndPostPassPersistentStates[ 1 ].WriteOffset = 0;
-	OutMainAndPostPassPersistentStates[ 1 ].NumActive = 0;
-
-	OutMainPassCandidateClustersArgs[ 0 ] = 0;
-	OutMainPassCandidateClustersArgs[ 1 ] = 1;
-	OutMainPassCandidateClustersArgs[ 2 ] = 1;
-	OutMainPassCandidateClustersArgs[ 3 ] = 0;
+	for (uint i = 0; i < 2; i++)
+	{
+		OutMainAndPostPassPersistentStates[i].ClusterBatchReadOffset	= 0;
+		OutMainAndPostPassPersistentStates[i].ClusterWriteOffset		= 0;
+		OutMainAndPostPassPersistentStates[i].NodeReadOffset			= 0;
+		OutMainAndPostPassPersistentStates[i].NodeWriteOffset			= 0;
+		OutMainAndPostPassPersistentStates[i].NodeCount					= 0;
+	}
 
 	DrawnClusterCounts += uint2(InOutMainPassRasterizeArgsSWHW[0], InOutMainPassRasterizeArgsSWHW[HWClusterCounterIndex]);
 	InOutMainPassRasterizeArgsSWHW[ 0 ] = 0;
@@ -919,11 +1091,6 @@ void InitArgs()
 	OutOccludedInstancesArgs[1] = 1;
 	OutOccludedInstancesArgs[2] = 1;
 	OutOccludedInstancesArgs[3] = 0;
-
-	OutPostPassCandidateClustersArgs[0] = 0;
-	OutPostPassCandidateClustersArgs[1] = 1;
-	OutPostPassCandidateClustersArgs[2] = 1;
-	OutPostPassCandidateClustersArgs[3] = 0;
 
 	DrawnClusterCounts += uint2(InOutPostPassRasterizeArgsSWHW[0], InOutPostPassRasterizeArgsSWHW[HWClusterCounterIndex]);
 	InOutPostPassRasterizeArgsSWHW[0] = 0;

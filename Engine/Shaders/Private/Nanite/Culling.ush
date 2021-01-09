@@ -1,0 +1,141 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "../Common.ush"
+#include "NaniteDataDecode.ush"
+
+#define PERSISTENT_CLUSTER_CULLING_GROUP_SIZE	64														// must match define in NaniteResources.h
+
+#define MAX_BVH_NODE_FANOUT_BITS				3														// must match define in NaniteResources.h
+#define MAX_BVH_NODE_FANOUT_MASK				((1 << MAX_BVH_NODE_FANOUT_BITS)-1)						// must match define in NaniteResources.h
+#define MAX_BVH_NODE_FANOUT						(1 << MAX_BVH_NODE_FANOUT_BITS)							// must match define in NaniteResources.h
+#define BVH_NODE_ENABLE_MASK					((1 << MAX_BVH_NODE_FANOUT)-1)
+
+#define CULLING_PASS_NO_OCCLUSION				0
+#define CULLING_PASS_OCCLUSION_MAIN				1
+#define CULLING_PASS_OCCLUSION_POST				2
+#define CULLING_PASS_EXPLICIT_LIST				3
+
+
+uint MaxCandidateClusters;
+
+struct FCandidateNode
+{
+	uint	Flags;
+	uint	ViewId;
+	uint	InstanceId;
+	uint	NodeIndex;
+	uint	EnabledBitmask;
+};
+
+static const uint CandidateClusterSize = 8u;
+
+uint GetCandidateNodeSize(bool bHasEnabledMask)
+{
+	return bHasEnabledMask ? 12u : 8u;
+}
+
+uint GetMaxCandidateClusterBatches() { return MaxCandidateClusters / PERSISTENT_CLUSTER_CULLING_GROUP_SIZE; }
+
+// CandidateNodesAndClusters layout:
+// Culling batch counts, Candidate clusters, Candidate nodes
+uint GetCullingBatchesOffset() { return 0u; }
+uint GetCandidateClustersOffset() { return GetMaxCandidateClusterBatches() * 4u; }
+uint GetCandidateNodesOffset() { return GetCandidateClustersOffset() + MaxCandidateClusters * CandidateClusterSize; }
+
+void ClearCandidateCluster(RWByteAddressBuffer CandidateNodesAndClusters, uint ClusterIndex)
+{
+	CandidateNodesAndClusters.Store(GetCandidateClustersOffset() + ClusterIndex * CandidateClusterSize, 0xFFFFFFFFu);
+}
+
+void ClearCandidateClusterCoherent(RWCoherentByteAddressBuffer CandidateNodesAndClusters, uint ClusterIndex)
+{
+	CandidateNodesAndClusters.Store(GetCandidateClustersOffset() + ClusterIndex * CandidateClusterSize, 0xFFFFFFFFu);
+}
+
+void StoreCandidateCluster(RWByteAddressBuffer CandidateNodesAndClusters, uint ClusterIndex, FVisibleCluster VisibleCluster)
+{
+	uint4 RawData = PackVisibleCluster(ClusterIndex, VisibleCluster, false);
+	CandidateNodesAndClusters.Store2(GetCandidateClustersOffset() + ClusterIndex * CandidateClusterSize, RawData.xy);
+}
+
+void StoreCandidateClusterCoherent(RWCoherentByteAddressBuffer CandidateNodesAndClusters, uint ClusterIndex, FVisibleCluster VisibleCluster)
+{
+	uint4 RawData = PackVisibleCluster(ClusterIndex, VisibleCluster, false);
+	CandidateNodesAndClusters.Store2(GetCandidateClustersOffset() + ClusterIndex * CandidateClusterSize, RawData.xy);
+}
+
+void StoreVisibleCluster(RWByteAddressBuffer VisibleClusters, uint ClusterIdx, FVisibleCluster VisibleCluster, bool bHasPageData = false)
+{
+	uint4 RawData = PackVisibleCluster(ClusterIdx, VisibleCluster, bHasPageData);
+	if (bHasPageData)
+	{
+		VisibleClusters.Store3(ClusterIdx * 12, RawData.xyz);
+	}
+	else
+	{
+		VisibleClusters.Store2(ClusterIdx * 8, RawData.xy);
+	}
+}
+
+uint4 PackCandidateNode(FCandidateNode Node)
+{
+	uint4 RawData = 0;
+	uint BitPos = 1;	// Start at 1 to make sure RawData.x is always != 0xFFFFFFFFu
+	WriteBits(RawData, BitPos, Node.Flags, NUM_CULLING_FLAG_BITS);
+	WriteBits(RawData, BitPos, Node.InstanceId, MAX_INSTANCES_BITS);
+	WriteBits(RawData, BitPos, Node.NodeIndex, MAX_NODES_PER_PRIMITIVE_BITS);
+	WriteBits(RawData, BitPos, Node.ViewId, MAX_VIEWS_PER_CULL_RASTERIZE_PASS_BITS);
+	RawData.z = Node.EnabledBitmask;
+	RawData.w = 0;
+	return RawData;
+}
+
+FCandidateNode UnpackCandidateNode(uint4 RawData, bool bHasEnabledMask)
+{
+	uint BitPos = 1;	// Start at 1 to make sure RawData.x is always != 0xFFFFFFFFu
+	FCandidateNode Node;
+	Node.Flags = ReadBits(RawData, BitPos, NUM_CULLING_FLAG_BITS);
+	Node.InstanceId = ReadBits(RawData, BitPos, MAX_INSTANCES_BITS);
+	Node.NodeIndex = ReadBits(RawData, BitPos, MAX_NODES_PER_PRIMITIVE_BITS);
+	Node.ViewId = ReadBits(RawData, BitPos, MAX_VIEWS_PER_CULL_RASTERIZE_PASS_BITS);
+	Node.EnabledBitmask = bHasEnabledMask ? RawData.z : 0xFFFFFFFFu;
+	return Node;
+}
+
+void ClearCandidateNode(RWByteAddressBuffer CandidateNodesAndClusters, uint NodeIndex, bool bHasEnabledMask)
+{
+	const uint Stride = GetCandidateNodeSize(bHasEnabledMask);
+	CandidateNodesAndClusters.Store(GetCandidateNodesOffset() + NodeIndex * Stride, 0xFFFFFFFF);
+}
+
+void ClearCandidateNodeCoherent(RWCoherentByteAddressBuffer CandidateNodesAndClusters, uint NodeIndex, bool bHasEnabledMask)
+{
+	const uint Stride = GetCandidateNodeSize(bHasEnabledMask);
+	CandidateNodesAndClusters.Store(GetCandidateNodesOffset() + NodeIndex * Stride, 0xFFFFFFFF);
+}
+
+void StoreCandidateNode(RWByteAddressBuffer CandidateNodesAndClusters, uint NodeIndex, FCandidateNode Node, bool bHasEnabledMask)
+{
+	const uint Stride = GetCandidateNodeSize(bHasEnabledMask);
+	uint4 RawData = PackCandidateNode(Node);
+	if (bHasEnabledMask)
+		CandidateNodesAndClusters.Store3(GetCandidateNodesOffset() + NodeIndex * Stride, RawData.xyz);
+	else
+		CandidateNodesAndClusters.Store2(GetCandidateNodesOffset() + NodeIndex * Stride, RawData.xy);
+}
+
+void StoreCandidateNodeCoherent(RWCoherentByteAddressBuffer CandidateNodesAndClusters, uint NodeIndex, FCandidateNode Node, bool bHasEnabledMask)
+{
+	const uint Stride = bHasEnabledMask ? 12 : 8;
+	uint4 RawData = PackCandidateNode(Node);
+
+	if (bHasEnabledMask)
+		CandidateNodesAndClusters.Store2(GetCandidateNodesOffset() + NodeIndex * Stride + 4, RawData.yz);
+	else
+		CandidateNodesAndClusters.Store(GetCandidateNodesOffset() + NodeIndex * Stride + 4, RawData.y);
+
+	DeviceMemoryBarrier();
+	CandidateNodesAndClusters.Store(GetCandidateNodesOffset() + NodeIndex * Stride, RawData.x);
+}

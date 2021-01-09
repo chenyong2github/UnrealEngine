@@ -12,15 +12,13 @@
 uint PackedClusterSize;
 
 StructuredBuffer<FPersistentState>	MainAndPostPassPersistentStates;
-Buffer<uint>						MainPassCandidateClustersArgs;
-Buffer<uint>						PostPassCandidateClustersArgs;
 Buffer<uint>						MainPassRasterizeArgsSWHW;
 Buffer<uint>						PostPassRasterizeArgsSWHW;
 
-StructuredBuffer<FStats>			 InStatsBuffer;
+StructuredBuffer<FStats>			InStatsBuffer;
 RWStructuredBuffer<FStats>			OutStatsBuffer;
 
-RWBuffer<uint>						OutStatsArgs;
+RWBuffer<uint>						OutClusterStatsArgs;
 
 float2 ShaderPrintLeftAlign(float2 ScreenPos, uint Value)
 {
@@ -91,6 +89,20 @@ void PrintStats()
 	ScreenPos = ShaderPrintNewline(ScreenPos);
 
 	ScreenPos.x = ItemX;
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _N_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _O_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _D_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _E_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _V_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _I_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _S_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _I_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _T_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _S_);
+	ScreenPos = ShaderPrintLeftAlign(ScreenPos, InStatsBuffer[0].NumMainVisitedNodes);
+	ScreenPos = ShaderPrintNewline(ScreenPos);
+
+	ScreenPos.x = ItemX;
 	ScreenPos = ShaderPrintSymbol(ScreenPos, _C_);
 	ScreenPos = ShaderPrintSymbol(ScreenPos, _A_);
 	ScreenPos = ShaderPrintSymbol(ScreenPos, _N_);
@@ -101,7 +113,7 @@ void PrintStats()
 	ScreenPos = ShaderPrintSymbol(ScreenPos, _T_);
 	ScreenPos = ShaderPrintSymbol(ScreenPos, _E_);
 	ScreenPos = ShaderPrintSymbol(ScreenPos, _S_);
-	ScreenPos = ShaderPrintLeftAlign(ScreenPos, MainPassCandidateClustersArgs[3]);
+	ScreenPos = ShaderPrintLeftAlign(ScreenPos, InStatsBuffer[0].NumMainCandidateClusters);
 	ScreenPos = ShaderPrintNewline(ScreenPos);
 
 	ScreenPos.x = ItemX;
@@ -185,6 +197,20 @@ void PrintStats()
 	ScreenPos = ShaderPrintNewline(ScreenPos);
 
 	ScreenPos.x = ItemX;
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _N_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _O_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _D_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _E_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _V_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _I_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _S_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _I_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _T_);
+	ScreenPos = ShaderPrintSymbol(ScreenPos, _S_);
+	ScreenPos = ShaderPrintLeftAlign(ScreenPos, InStatsBuffer[0].NumPostVisitedNodes);
+	ScreenPos = ShaderPrintNewline(ScreenPos);
+
+	ScreenPos.x = ItemX;
 	ScreenPos = ShaderPrintSymbol(ScreenPos, _C_);
 	ScreenPos = ShaderPrintSymbol(ScreenPos, _A_);
 	ScreenPos = ShaderPrintSymbol(ScreenPos, _N_);
@@ -195,7 +221,7 @@ void PrintStats()
 	ScreenPos = ShaderPrintSymbol(ScreenPos, _T_);
 	ScreenPos = ShaderPrintSymbol(ScreenPos, _E_);
 	ScreenPos = ShaderPrintSymbol(ScreenPos, _S_);
-	ScreenPos = ShaderPrintLeftAlign(ScreenPos, PostPassCandidateClustersArgs[3]);
+	ScreenPos = ShaderPrintLeftAlign(ScreenPos, InStatsBuffer[0].NumPostCandidateClusters);
 	ScreenPos = ShaderPrintNewline(ScreenPos);
 
 	ScreenPos.x = ItemX;
@@ -316,7 +342,7 @@ void PrintStats()
 }
 
 [numthreads(1, 1, 1)]
-void CalculateStatsArgs()
+void CalculateStats()
 {
 	const uint HWClusterCounterIndex = GetHWClusterCounterIndex(RenderFlags);
 	uint NumClusters = MainPassRasterizeArgsSWHW[0] + MainPassRasterizeArgsSWHW[HWClusterCounterIndex];
@@ -324,9 +350,15 @@ void CalculateStatsArgs()
 	NumClusters += PostPassRasterizeArgsSWHW[0] + PostPassRasterizeArgsSWHW[HWClusterCounterIndex];
 #endif
 	
-	OutStatsArgs[0] = (NumClusters + 63) / 64;
-	OutStatsArgs[1] = 1;
-	OutStatsArgs[2] = 1;
+	OutClusterStatsArgs[0] = (NumClusters + 63) / 64;
+	OutClusterStatsArgs[1] = 1;
+	OutClusterStatsArgs[2] = 1;
+
+	// Other stuff that needs to happen only once
+	OutStatsBuffer[0].NumMainVisitedNodes		= MainAndPostPassPersistentStates[0].NodeWriteOffset;
+	OutStatsBuffer[0].NumMainCandidateClusters	= MainAndPostPassPersistentStates[0].ClusterWriteOffset;
+	OutStatsBuffer[0].NumPostVisitedNodes		= MainAndPostPassPersistentStates[1].NodeWriteOffset;
+	OutStatsBuffer[0].NumPostCandidateClusters	= MainAndPostPassPersistentStates[1].ClusterWriteOffset;
 }
 
 groupshared uint GroupNumTris;
@@ -336,7 +368,7 @@ groupshared uint GroupPositionDataSize;
 groupshared uint GroupAttribDataSize;
 
 [numthreads(64, 1, 1)]
-void CalculateStats(
+void CalculateClusterStats(
 	uint DispatchThreadIndex : SV_DispatchThreadID,
 	uint GroupIndex : SV_GroupIndex
 	)
