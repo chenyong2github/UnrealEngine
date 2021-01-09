@@ -3902,9 +3902,9 @@ void FOpenGLShaderParameterCache::CommitPackedUniformBuffers(FOpenGLLinkedProgra
 			const FOpenGLUniformBuffer* UniformBuffer = (FOpenGLUniformBuffer*)RHIUniformBuffers[BufferIndex].GetReference();
 			// Workaround for null UBs (FORT-323429), additional logging here is to give us a chance to investigate the higher level issue causing the null UB.
 #if !UE_BUILD_SHIPPING
-			UE_CLOG(UniformBuffer == nullptr, LogRHI, Fatal, TEXT("CommitPackedUniformBuffers null UB stage %d, idx %d, %s"), Stage, BufferIndex, *LinkedProgram->Config.ProgramKey.ToString());
+			UE_CLOG(UniformBuffer == nullptr && EmulatedUniformBufferSet.IsValidIndex(BufferIndex), LogRHI, Fatal, TEXT("CommitPackedUniformBuffers null UB stage %d, idx %d (%d), %s"), Stage, BufferIndex, EmulatedUniformBufferSet.Num(), *LinkedProgram->Config.ProgramKey.ToString());
 #endif
-			if (UniformBuffer && EmulatedUniformBufferSet[BufferIndex] != UniformBuffer->UniqueID)
+			if (UniformBuffer && EmulatedUniformBufferSet.IsValidIndex(BufferIndex) && EmulatedUniformBufferSet[BufferIndex] != UniformBuffer->UniqueID)
 			{
 				EmulatedUniformBufferSet[BufferIndex] = UniformBuffer->UniqueID;
 
