@@ -358,8 +358,10 @@ void FContentDirectoryMonitor::ProcessAdditions(const DirectoryWatcher::FTimeLim
 					}
 				}
 
-				// If we didn't create an asset, unload and delete the package we just created
-				if (!NewAsset)
+				// Verify if the package still exists after the import (it may have been cleaned up by the factory if the import was canceled).
+				NewPackage = FindObject<UPackage>(nullptr, *PackagePath);
+				// If we didn't create an asset and the package was not cleaned up, unload and delete the package we just created
+				if (!NewAsset && NewPackage)
 				{
 					TArray<UPackage*> Packages;
 					Packages.Add(NewPackage);
