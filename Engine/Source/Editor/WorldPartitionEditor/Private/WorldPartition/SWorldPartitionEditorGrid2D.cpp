@@ -21,7 +21,7 @@
 
 #define LOCTEXT_NAMESPACE "WorldPartitionEditor"
 
-static TAutoConsoleVariable<int32> CVarShowReloadMiniMapButton(TEXT("MiniMap.ShowReloadButton"), 0, TEXT("Show reload MiniMap button."));
+static TAutoConsoleVariable<int32> CVarShowReloadMiniMapButton(TEXT("wp.MiniMap.ShowReloadButton"), 0, TEXT("Show reload MiniMap button."));
 
 SWorldPartitionEditorGrid2D::FEditorCommands::FEditorCommands()
 	: TCommands<FEditorCommands>
@@ -108,9 +108,16 @@ void SWorldPartitionEditorGrid2D::Construct(const FArguments& InArgs)
 					.AutoWidth()
 					[
 						SNew(SButton)
-						.Text(LOCTEXT("Reload MiniMap", "Reload MiniMap "))
+						.Text(LOCTEXT("ReloadMiniMap", "Reload MiniMap"))
 						.Visibility_Lambda([]() {return CVarShowReloadMiniMapButton.GetValueOnAnyThread() != 0 ? EVisibility::Visible : EVisibility::Hidden;})
 						.OnClicked(this, &SWorldPartitionEditorGrid2D::ReloadMiniMap)
+					]
+					+ SHorizontalBox::Slot()
+					.AutoWidth()
+					[
+						SNew(SButton)
+						.Text(LOCTEXT("FocusSelection", "Focus Selection"))
+						.OnClicked(this, &SWorldPartitionEditorGrid2D::FocusSelection)
 					]
 				]
 			]
@@ -156,15 +163,6 @@ void SWorldPartitionEditorGrid2D::MoveCameraHere()
 		LevelVC->Invalidate();
 		FEditorDelegates::OnEditorCameraMoved.Broadcast(WorldLocation, LevelVC->GetViewRotation(), LevelVC->ViewportType, LevelVC->ViewIndex);
 	}
-}
-
-void SWorldPartitionEditorGrid2D::InvalidatePartition()
-{
-	SWorldPartitionEditorGrid::InvalidatePartition();
-	
-	SelectionStart = FVector2D::ZeroVector;
-	SelectionEnd = FVector2D::ZeroVector;
-	UpdateSelection();
 }
 
 FReply SWorldPartitionEditorGrid2D::OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
@@ -609,7 +607,16 @@ int32 SWorldPartitionEditorGrid2D::OnPaint(const FPaintArgs& Args, const FGeomet
 {
 	if (WorldPartition)
 	{
+		const bool bResetView = !ScreenRect.bIsValid;
+
 		ScreenRect = FBox2D(FVector2D(0, 0), AllottedGeometry.GetLocalSize());
+
+		if (bResetView)
+		{
+			const FBox WorldBounds = WorldPartition->GetWorldBounds();
+			FocusBox(WorldBounds);
+		}
+
 		UpdateTransform();
 
 		LayerId = PaintGrid(AllottedGeometry, MyCullingRect, OutDrawElements, ++LayerId);
@@ -649,6 +656,43 @@ int32 SWorldPartitionEditorGrid2D::PaintSoftwareCursor(const FGeometry& Allotted
 	}
 
 	return LayerId + 1;
+}
+
+FReply SWorldPartitionEditorGrid2D::FocusSelection()
+{
+	FBox SelectionBox(ForceInit);
+
+	USelection* SelectedActors = GEditor->GetSelectedActors();
+	for (FSelectionIterator It(*SelectedActors); It; ++It)
+	{
+		if (AActor* Actor = Cast<AActor>(*It))
+		{
+			FVector Origin;
+			FVector Extent;
+			Actor->GetActorBounds(false, Origin, Extent);
+
+			SelectionBox += FBox(Origin - Extent, Origin + Extent);
+		}
+	}
+
+	FocusBox(SelectionBox);
+	return FReply::Handled();
+}
+
+void SWorldPartitionEditorGrid2D::FocusBox(const FBox& Box) const
+{
+	check(ScreenRect.bIsValid);
+
+	if (Box.GetVolume() > 0.0f)
+	{
+		const FVector2D ScreenExtent = ScreenRect.GetExtent();
+		const FVector2D SelectExtent = FVector2D(Box.GetExtent());
+
+		Trans = -FVector2D(Box.GetCenter());
+		Scale = (ScreenExtent / SelectExtent).GetMin() * 0.75f;
+
+		UpdateTransform();
+	}	
 }
 
 void SWorldPartitionEditorGrid2D::UpdateTransform() const

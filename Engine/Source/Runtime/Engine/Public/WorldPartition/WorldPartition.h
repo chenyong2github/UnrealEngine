@@ -44,8 +44,6 @@ enum class EWorldPartitionInitState
  */
 struct ENGINE_API IWorldPartitionEditor
 {
-	virtual void InvalidatePartition() {}
-	virtual void RecreatePartition() {}
 	virtual void Refresh() {}
 };
 

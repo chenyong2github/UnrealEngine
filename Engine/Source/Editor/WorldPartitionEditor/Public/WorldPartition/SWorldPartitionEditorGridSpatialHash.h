@@ -15,10 +15,12 @@ public:
 	~SWorldPartitionEditorGridSpatialHash();
 
 	void Construct(const FArguments& InArgs);
+
+	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 	
 	int32 PaintGrid(const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId) const override;
 
-	FReply ReloadMiniMap() override;
+	virtual FReply ReloadMiniMap() override;
 
 private:
 	void UpdateWorldMiniMapDetails();

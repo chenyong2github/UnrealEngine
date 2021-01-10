@@ -57,8 +57,6 @@ public:
 		return &NoChildrenInstance;
 	}
 	
-	virtual void InvalidatePartition() {}
-
 	bool GetPlayerView(FVector& Location, FRotator& Rotation) const;
 	bool GetObserverView(FVector& Location, FRotator& Rotation) const;
 

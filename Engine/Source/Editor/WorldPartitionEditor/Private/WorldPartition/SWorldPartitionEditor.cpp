@@ -40,16 +40,6 @@ SWorldPartitionEditor::~SWorldPartitionEditor()
 	}
 }
 
-void SWorldPartitionEditor::InvalidatePartition()
-{
-	GridView.Get()->InvalidatePartition();
-}
-
-void SWorldPartitionEditor::RecreatePartition()
-{
-	ContentParent->SetContent(ConstructContentWidget());
-}
-
 void SWorldPartitionEditor::Refresh()
 {
 	GridView->RefreshSceneOutliner();
@@ -58,7 +48,7 @@ void SWorldPartitionEditor::Refresh()
 void SWorldPartitionEditor::OnBrowseWorld(UWorld* InWorld)
 {
 	World = InWorld;
-	RecreatePartition();
+	ContentParent->SetContent(ConstructContentWidget());
 
 	// No need to unregister as the previous UWorldPartitionSubsystem is already destroyed
 	WorldPartitionChangedDelegateHandle.Reset();

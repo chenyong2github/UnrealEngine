@@ -20,6 +20,7 @@
 #include "ObjectTools.h"
 #include "UObject/ObjectResource.h"
 #include "EditorStyleSet.h"
+#include "Selection.h"
 #include "Engine/World.h"
 #include "Engine/Texture2DDynamic.h"
 #include "Misc/HashBuilder.h"
@@ -55,6 +56,18 @@ void SWorldPartitionEditorGridSpatialHash::Construct(const FArguments& InArgs)
 	SWorldPartitionEditorGrid2D::Construct(SWorldPartitionEditorGrid::FArguments().InWorld(InArgs._InWorld));
 }
 
+void SWorldPartitionEditorGridSpatialHash::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
+{
+	SWorldPartitionEditorGrid2D::Tick(AllottedGeometry, InCurrentTime, InDeltaTime);
+
+	/*static double LastTime = InCurrentTime;
+	if ((InCurrentTime - LastTime) > 15.0)
+	{
+		LastTime = InCurrentTime;
+		ReloadMiniMap();
+	}*/
+}
+
 FReply SWorldPartitionEditorGridSpatialHash::ReloadMiniMap()
 {
 	UE_LOG(LogTemp, Log, TEXT("Reload MiniMap has been clicked"));
@@ -87,7 +100,6 @@ void SWorldPartitionEditorGridSpatialHash::UpdateWorldMiniMapDetails()
 			WorldMiniMapBrush.SetResourceObject(MiniMapTexture);
 		}
 	}
-	
 }
 
 int32 SWorldPartitionEditorGridSpatialHash::PaintGrid(const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId) const

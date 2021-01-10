@@ -38,9 +38,6 @@ public:
 	void UnloadSelectedCells();
 	void MoveCameraHere();
 
-	// IWorldPartitionEditor interface
-	virtual void InvalidatePartition() override;
-
 	virtual FReply OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
 	virtual FReply OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
 	virtual FReply OnMouseMove(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
@@ -56,6 +53,7 @@ public:
 	virtual int32 PaintSoftwareCursor(const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId) const;
 
 	virtual FReply ReloadMiniMap() { return FReply::Handled(); }
+	virtual FReply FocusSelection();
 
 protected:
 	void UpdateTransform() const;
@@ -75,8 +73,10 @@ protected:
 		ArrangedChildren.AddWidget(AllottedGeometry.MakeChild(ChildSlot.GetWidget(), FVector2D(0, 0), AllottedGeometry.GetAbsoluteSize())); 
 	}
 
-	float Scale;
-	FVector2D Trans;
+	void FocusBox(const FBox& Box) const;
+
+	mutable float Scale;
+	mutable FVector2D Trans;
 	
 	mutable FBox2D ScreenRect;
 	mutable FTransform2D WorldToScreen;

@@ -21,8 +21,6 @@ public:
 	~SWorldPartitionEditor();
 
 	// IWorldPartitionEditor interface
-	virtual void InvalidatePartition() override;
-	virtual void RecreatePartition() override;
 	virtual void Refresh() override;
 
 private:
