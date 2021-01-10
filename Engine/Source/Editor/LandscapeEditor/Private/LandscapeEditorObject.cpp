@@ -95,7 +95,7 @@ ULandscapeEditorObject::ULandscapeEditorObject(const FObjectInitializer& ObjectI
 	, AlphaBrushPanU(0.5f)
 	, AlphaBrushPanV(0.5f)
 	, bUseWorldSpacePatternBrush(false)
-	, WorldSpacePatternBrushSettings(FLandscapePatternBrushWorldSpaceSettings{FVector2D::ZeroVector, 0.0f, false, 3200})
+	, WorldSpacePatternBrushSettings(FVector2D::ZeroVector, 0.0f, false, 3200)
 	, AlphaTexture(NULL)
 	, AlphaTextureChannel(EColorChannel::Red)
 	, AlphaTextureSizeX(1)
