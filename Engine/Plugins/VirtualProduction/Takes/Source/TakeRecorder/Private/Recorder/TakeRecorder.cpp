@@ -681,7 +681,7 @@ void UTakeRecorder::InternalTick(const FTimecode& InTimecodeSource, float DeltaT
 	if (Sequencer.IsValid())
 	{
 		FAnimatedRange Range = Sequencer->GetViewRange();
-		UMovieScene*   MovieScene = SequenceAsset->GetMovieScene();
+		UMovieScene* MovieScene = SequenceAsset->GetMovieScene();
 		if (MovieScene)
 		{
 			FFrameRate FrameRate = MovieScene->GetTickResolution();
@@ -747,37 +747,45 @@ void UTakeRecorder::Start(const FTimecode& InTimecodeSource)
 	State = ETakeRecorderState::Started;
 
 	TSharedPtr<ISequencer> Sequencer = WeakSequencer.Pin();
+
+	CurrentFrameTime = FFrameTime(0);
+		
+	// Discard any entity tokens we have so that restore state does not take effect when we delete any sections that recording will be replacing.
 	if (Sequencer.IsValid())
 	{
-		CurrentFrameTime = FFrameTime(0);
-		
-		// Discard any entity tokens we have so that restore state does not take effect when we delete any sections that recording will be replacing.
 		Sequencer->DiscardEntityTokens();
-		UMovieScene*   MovieScene = SequenceAsset->GetMovieScene();
-		if (MovieScene)
+	}
+		
+	UMovieScene* MovieScene = SequenceAsset->GetMovieScene();
+	if (MovieScene)
+	{
+		MovieScene->SetClockSource(EUpdateClockSource::RelativeTimecode);
+		if (Sequencer.IsValid())
 		{
-			MovieScene->SetClockSource(EUpdateClockSource::RelativeTimecode);
 			Sequencer->ResetTimeController();
-
-			FFrameRate FrameRate = MovieScene->GetDisplayRate();
-			FFrameRate TickResolution = MovieScene->GetTickResolution();
-			FFrameNumber PlaybackStartFrame = Parameters.Project.bStartAtCurrentTimecode ? FFrameRate::TransformTime(FFrameTime(InTimecodeSource.ToFrameNumber(FrameRate)), FrameRate, TickResolution).FloorToFrame() : MovieScene->GetPlaybackRange().GetLowerBoundValue();
-
-			// Transform all the sections to start the playback start frame
-			FFrameNumber DeltaFrame = PlaybackStartFrame - MovieScene->GetPlaybackRange().GetLowerBoundValue();
-			if (DeltaFrame != 0)
-			{
-				for (UMovieSceneSection* Section : MovieScene->GetAllSections())
-				{
-					Section->MoveSection(DeltaFrame);
-				}
-			}
-
-			// Set infinite playback range when starting recording. Playback range will be clamped to the bounds of the sections at the completion of the recording
-			MovieScene->SetPlaybackRange(TRange<FFrameNumber>(PlaybackStartFrame, TNumericLimits<int32>::Max() - 1), false);
-			Sequencer->SetGlobalTime(PlaybackStartFrame);
 		}
-		Sequencer->SetPlaybackStatus(EMovieScenePlayerStatus::Playing);
+
+		FFrameRate FrameRate = MovieScene->GetDisplayRate();
+		FFrameRate TickResolution = MovieScene->GetTickResolution();
+		FFrameNumber PlaybackStartFrame = Parameters.Project.bStartAtCurrentTimecode ? FFrameRate::TransformTime(FFrameTime(InTimecodeSource.ToFrameNumber(FrameRate)), FrameRate, TickResolution).FloorToFrame() : MovieScene->GetPlaybackRange().GetLowerBoundValue();
+
+		// Transform all the sections to start the playback start frame
+		FFrameNumber DeltaFrame = PlaybackStartFrame - MovieScene->GetPlaybackRange().GetLowerBoundValue();
+		if (DeltaFrame != 0)
+		{
+			for (UMovieSceneSection* Section : MovieScene->GetAllSections())
+			{
+				Section->MoveSection(DeltaFrame);
+			}
+		}
+
+		// Set infinite playback range when starting recording. Playback range will be clamped to the bounds of the sections at the completion of the recording
+		MovieScene->SetPlaybackRange(TRange<FFrameNumber>(PlaybackStartFrame, TNumericLimits<int32>::Max() - 1), false);
+		if (Sequencer.IsValid())
+		{
+			Sequencer->SetGlobalTime(PlaybackStartFrame);
+			Sequencer->SetPlaybackStatus(EMovieScenePlayerStatus::Playing);
+		}
 	}
 	UTakeRecorderSources* Sources = SequenceAsset->FindMetaData<UTakeRecorderSources>();
 	check(Sources);
@@ -826,13 +834,17 @@ void UTakeRecorder::Stop()
 	if (Sequencer.IsValid())
 	{
 		Sequencer->SetPlaybackStatus(EMovieScenePlayerStatus::Stopped);
-		UMovieScene*   MovieScene = SequenceAsset->GetMovieScene();
-		if (MovieScene)
+	}
+		
+	UMovieScene* MovieScene = SequenceAsset->GetMovieScene();
+	if (MovieScene)
+	{
+		MovieScene->SetClockSource(EUpdateClockSource::Tick);
+
+		if (Sequencer.IsValid())
 		{
-			MovieScene->SetClockSource(EUpdateClockSource::Tick);
 			Sequencer->ResetTimeController();
 		}
-
 	}
 
 	if (bDidEverStartRecording)
@@ -843,7 +855,6 @@ void UTakeRecorder::Stop()
 		TakeRecorderSourcesSettings.bSaveRecordedAssets = Parameters.User.bSaveRecordedAssets || GEditor == nullptr;
 		TakeRecorderSourcesSettings.bRemoveRedundantTracks = Parameters.User.bRemoveRedundantTracks;
 
-		UMovieScene*   MovieScene = SequenceAsset->GetMovieScene();
 		if (MovieScene)
 		{
 			TRange<FFrameNumber> Range = MovieScene->GetPlaybackRange();
