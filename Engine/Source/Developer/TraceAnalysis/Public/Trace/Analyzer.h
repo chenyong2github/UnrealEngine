@@ -6,6 +6,8 @@
 #include "Containers/ArrayView.h"
 #include "Containers/StringView.h"
 
+#include <type_traits>
+
 namespace UE {
 namespace Trace {
 
@@ -61,6 +63,12 @@ public:
 		bool IsArray() const;
 	};
 
+	struct FEventFieldHandle
+	{
+		bool	IsValid() const { return Detail >= 0; }
+		int32	Detail;
+	};
+
 	struct TRACEANALYSIS_API FEventTypeInfo
 	{
 		/** Each event is assigned a unique ID when logged. Not that this is not
@@ -78,6 +86,16 @@ public:
 
 		/** By-index access to fields' type information. */
 		const FEventFieldInfo* GetFieldInfo(uint32 Index) const;
+
+		/** Returns a handle that can used to access events' fields. There is 
+		 * loose validation via ValueType, but one should still exercise caution
+		 * when reading fields with handles.
+		 * @param ValueType The intended type that the field will be interpreted as */
+		template <typename ValueType>
+		FEventFieldHandle GetFieldHandle(const ANSICHAR* FieldName) const;
+
+	private:
+		FEventFieldHandle GetFieldHandleImpl(const ANSICHAR*, int16&) const;
 	};
 
 	struct TRACEANALYSIS_API FArrayReader
@@ -112,6 +130,7 @@ public:
 		 * @param Default Return this value if the given field was not found.
 		 * @return Value of the field (coerced to ValueType) if found, otherwise 0. */
 		template <typename ValueType> ValueType GetValue(const ANSICHAR* FieldName, ValueType Default=ValueType(0)) const;
+		template <typename ValueType> ValueType GetValue(FEventFieldHandle FieldHandle) const;
 
 		/** Returns an object for reading data from an array-type field. A valid
 		 * array reader object will always be return even if no field matching the
@@ -253,6 +272,23 @@ private:
 
 ////////////////////////////////////////////////////////////////////////////////
 template <typename ValueType>
+IAnalyzer::FEventFieldHandle IAnalyzer::FEventTypeInfo::GetFieldHandle(const ANSICHAR* FieldName) const
+{
+	int16 SizeAndType;
+	FEventFieldHandle Handle = GetFieldHandleImpl(FieldName, SizeAndType);
+	if (std::is_floating_point<ValueType>::value)
+	{
+		checkf((SizeAndType < 0), TEXT("Field is not a float-type field"));
+	}
+	else
+	{
+		checkf(SizeAndType >= sizeof(ValueType), TEXT("Field is to small to read as hinted type ValueType"));
+	}
+	return Handle;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+template <typename ValueType>
 ValueType IAnalyzer::CoerceValue(const void* Addr, int16 SizeAndType)
 {
 	switch (SizeAndType)
@@ -278,6 +314,14 @@ ValueType IAnalyzer::FEventData::GetValue(const ANSICHAR* FieldName, ValueType D
 		return CoerceValue<ValueType>(Addr, FieldSizeAndType);
 	}
 	return Default;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+template <typename ValueType>
+ValueType IAnalyzer::FEventData::GetValue(FEventFieldHandle FieldHandle) const
+{
+	const uint8* EventDataPtr = *(const uint8**)this;
+	return *(ValueType*)(EventDataPtr + FieldHandle.Detail);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

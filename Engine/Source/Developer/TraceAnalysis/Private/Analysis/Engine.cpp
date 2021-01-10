@@ -435,6 +435,23 @@ const IAnalyzer::FEventFieldInfo* IAnalyzer::FEventTypeInfo::GetFieldInfo(uint32
 	return (const IAnalyzer::FEventFieldInfo*)(Inner->Fields + Index);
 }
 
+////////////////////////////////////////////////////////////////////////////////
+IAnalyzer::FEventFieldHandle IAnalyzer::FEventTypeInfo::GetFieldHandleImpl(
+	const ANSICHAR* FieldName,
+	int16& SizeAndType) const
+{
+	const auto* Inner = (const FAnalysisEngine::FDispatch*)this;
+	int32 Index = Inner->GetFieldIndex(FieldName);
+	if (Index < 0)
+	{
+		return { -1 };
+	}
+
+	const FAnalysisEngine::FDispatch::FField& Field = Inner->Fields[Index];
+	SizeAndType = Field.SizeAndType;
+	return { Field.Offset };
+}
+
 
 
 ////////////////////////////////////////////////////////////////////////////////
