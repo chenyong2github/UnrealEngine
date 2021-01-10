@@ -587,7 +587,10 @@ FMetalDynamicRHI::FMetalDynamicRHI(ERHIFeatureLevel::Type RequestedFeatureLevel)
     bSupportsD16 = !FParse::Param(FCommandLine::Get(),TEXT("nometalv2")) && Device.SupportsFeatureSet(mtlpp::FeatureSet::macOS_GPUFamily1_v2);
     GRHISupportsHDROutput = FPlatformMisc::MacOSXVersionCompare(10,14,4) >= 0 && Device.SupportsFeatureSet(mtlpp::FeatureSet::macOS_GPUFamily1_v2);
 	GRHIHDRDisplayOutputFormat = (GRHISupportsHDROutput) ? PF_PLATFORM_HDR_0 : PF_B8G8R8A8;
-	GMaxWorkGroupInvocations = 1024;
+	// Based on the spec below, the maxTotalThreadsPerThreadgroup is not a fixed number but calculated according to the device current ability, so the available threads could less than the maximum number.
+	// For safety and keep the consistency for all platform, reduce the maximum number to half of the device based.
+	// https://developer.apple.com/documentation/metal/mtlcomputepipelinedescriptor/2966560-maxtotalthreadsperthreadgroup?language=objc
+	GMaxWorkGroupInvocations = 512;
 #else
 	//@todo investigate gpufam4
 	GMaxComputeSharedMemory = 1 << 14;
@@ -612,7 +615,10 @@ FMetalDynamicRHI::FMetalDynamicRHI(ERHIFeatureLevel::Type RequestedFeatureLevel)
 	}
 	
 	GRHIHDRDisplayOutputFormat = (GRHISupportsHDROutput) ? PF_PLATFORM_HDR_0 : PF_B8G8R8A8;
-	GMaxWorkGroupInvocations = Device.SupportsFeatureSet(mtlpp::FeatureSet::iOS_GPUFamily4_v1) ? 1024 : 512;
+	// Based on the spec below, the maxTotalThreadsPerThreadgroup is not a fixed number but calculated according to the device current ability, so the available threads could less than the maximum number.
+	// For safety and keep the consistency for all platform, reduce the maximum number to half of the device based.
+	// https://developer.apple.com/documentation/metal/mtlcomputepipelinedescriptor/2966560-maxtotalthreadsperthreadgroup?language=objc
+	GMaxWorkGroupInvocations = Device.SupportsFeatureSet(mtlpp::FeatureSet::iOS_GPUFamily4_v1) ? 512 : 256;
 #endif
 	GMaxTextureDimensions = 8192;
 	GMaxCubeTextureDimensions = 8192;
