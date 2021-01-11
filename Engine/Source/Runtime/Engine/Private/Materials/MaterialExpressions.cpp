@@ -11460,7 +11460,7 @@ UMaterialInterface* UMaterialFunction::GetPreviewMaterial()
 {
 	if( nullptr == PreviewMaterial )
 	{
-		PreviewMaterial = NewObject<UMaterial>(GetTransientPackage(), NAME_None, RF_Transient | RF_Public);
+		PreviewMaterial = NewObject<UMaterial>(this, NAME_None, RF_Transient | RF_Public);
 
 		PreviewMaterial->Expressions = FunctionExpressions;
 
