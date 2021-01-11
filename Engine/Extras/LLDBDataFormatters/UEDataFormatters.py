@@ -20,10 +20,10 @@ import lldb.formatters.Logger
 #        open ~/.lldbinit
 # 2) Add the following text to .lldbini and save - modifying the path as appropriate:
 #        settings set target.inline-breakpoint-strategy always
-#        command script import "/Path/To/Epic/UE4/Engine/Extras/LLDBDataFormatters/UE4DataFormatters.py"
+#        command script import "/Path/To/Epic/UE/Engine/Extras/LLDBDataFormatters/UEDataFormatters.py"
 # 3) Restart Xcode
 
-def UE4TCharSummaryProvider(valobj,dict):
+def UETCharSummaryProvider(valobj,dict):
     Data = valobj.GetValue()
     Val = valobj.GetSummary()
     Type = valobj.GetType().GetUnqualifiedType()
@@ -41,7 +41,7 @@ def UE4TCharSummaryProvider(valobj,dict):
         Val = str(ValRef.GetSummary())
     return Val
 
-def UE4FStringSummaryProvider(valobj,dict):
+def UEFStringSummaryProvider(valobj,dict):
     Data = valobj.GetChildMemberWithName('Data')
     ArrayNumVal = Data.GetNumChildren()
     if ArrayNumVal < 0:
@@ -56,7 +56,7 @@ def UE4FStringSummaryProvider(valobj,dict):
         Val = str(ValRef.GetSummary())
         return 'string=' + Val
 
-def UE4FNameEntrySummaryProvider(valobj,dict):
+def UEFNameEntrySummaryProvider(valobj,dict):
     Header = valobj.GetChildMemberWithName('Header')
     DataPtr = valobj.GetChildAtIndex(1).AddressOf().GetValueAsUnsigned(0)
     IsWide = Header.GetChildMemberWithName('bIsWide').GetValueAsUnsigned(0)
@@ -71,7 +71,7 @@ def UE4FNameEntrySummaryProvider(valobj,dict):
         Name = valobj.process.ReadMemory(DataPtr,Len,lldb.SBError())
     return 'name=%s' % Name
 
-def UE4FNameSummaryProvider(valobj,dict):
+def UEFNameSummaryProvider(valobj,dict):
     EntryId = valobj.GetChildMemberWithName('DisplayIndex')
     if not EntryId.IsValid():
         EntryId = valobj.GetChildMemberWithName('ComparisonIndex')
@@ -84,38 +84,38 @@ def UE4FNameSummaryProvider(valobj,dict):
     # FNameDebugVisualizer::OffsetMask = (1 << OffsetBits) - 1 = 65535
     NameEntryExpr = '(FNameEntry*)(GNameBlocksDebug['+str(Index)+' >> 16]+((alignof(FNameEntry) * ('+str(Index)+' & 65535))))'
     NameEntry = valobj.CreateValueFromExpression('NameEntry', NameEntryExpr)
-    NameStr = UE4FNameEntrySummaryProvider(NameEntry, dict)
+    NameStr = UEFNameEntrySummaryProvider(NameEntry, dict)
     if Number != 0:
         return '%s_%s' % (NameStr, Number-1)
     else:
         return '%s' % NameStr
 
-def UE4UObjectBaseSummaryProvider(valobj,dict):
+def UEUObjectBaseSummaryProvider(valobj,dict):
     Name = valobj.GetChildMemberWithName('NamePrivate')
     return Name.GetSummary()
 
-def UE4FFieldClassSummaryProvider(valobj,dict):
+def UEFFieldClassSummaryProvider(valobj,dict):
     Name = valobj.GetChildMemberWithName('Name')
     return Name.GetSummary()
 
-def UE4FFieldSummaryProvider(valobj,dict):
+def UEFFieldSummaryProvider(valobj,dict):
     Name = valobj.GetChildMemberWithName('NamePrivate')
     return Name.GetSummary()
 
-class UE4TWeakObjectPtrSynthProvider:
-    
+class UETWeakObjectPtrSynthProvider:
+
     def __init__(self, valobj, dict):
         logger = lldb.formatters.Logger.Logger()
         self.valobj = valobj
-    
+
     def num_children(self):
         logger = lldb.formatters.Logger.Logger()
         return 1
-    
+
     def get_child_index(self,name):
         logger = lldb.formatters.Logger.Logger()
         return 0
-    
+
     def get_child_at_index(self,index):
         logger = lldb.formatters.Logger.Logger()
         logger >> "Retrieving child " + str(index)
@@ -132,7 +132,7 @@ class UE4TWeakObjectPtrSynthProvider:
 
         Expr = 'nullptr'
         return self.valobj.CreateValueFromExpression('Object', Expr)
-    
+
     def update(self):
         logger = lldb.formatters.Logger.Logger()
         try:
@@ -146,7 +146,7 @@ class UE4TWeakObjectPtrSynthProvider:
     def has_children(self):
             return True
 
-def UE4FWeakObjectPtrSummaryProvider(valobj,dict):
+def UEFWeakObjectPtrSummaryProvider(valobj,dict):
     ObjectSerialNumber = valobj.GetChildMemberWithName('ObjectSerialNumber')
     ObjectSerialNumberVal = ObjectSerialNumber.GetValueAsSigned(0)
     if ObjectSerialNumberVal < 1:
@@ -163,12 +163,12 @@ def UE4FWeakObjectPtrSummaryProvider(valobj,dict):
         Val = valobj.CreateValueFromExpression(str(ObjectIndexVal), Expr)
         return 'object=' + Val.GetValue()
 
-class UE4ChunkedArraySynthProvider:
-    
+class UEChunkedArraySynthProvider:
+
     def __init__(self, valobj, dict):
         logger = lldb.formatters.Logger.Logger()
         self.valobj = valobj
-    
+
     def num_children(self):
         logger = lldb.formatters.Logger.Logger()
         try:
@@ -176,14 +176,14 @@ class UE4ChunkedArraySynthProvider:
             return NumElementsVal;
         except:
             return 0;
-    
+
     def get_child_index(self,name):
         logger = lldb.formatters.Logger.Logger()
         try:
             return int(name.lstrip('[').rstrip(']'))
         except:
             return None
-    
+
     def get_child_at_index(self,index):
         logger = lldb.formatters.Logger.Logger()
         logger >> "Retrieving child " + str(index)
@@ -191,10 +191,10 @@ class UE4ChunkedArraySynthProvider:
         self.ChunkBytes = self.valobj.CreateValueFromExpression('['+str(index)+']', Expr)
         self.ChunkBytesSize = self.ChunkBytes.GetValueAsUnsigned(0)
         assert self.ChunkBytesSize != 0
-        
+
         Expr = '*(*((('+str(self.ElementType.GetName())+'**)'+str(self.AllocatorData.GetValue())+')+'+str(index / self.ChunkBytesSize)+')+'+str(index % self.ChunkBytesSize)+')'
         return self.valobj.CreateValueFromExpression('['+str(index)+']', Expr)
-    
+
     def extract_type(self):
         logger = lldb.formatters.Logger.Logger()
         ArrayType = self.valobj.GetType().GetUnqualifiedType()
@@ -207,7 +207,7 @@ class UE4ChunkedArraySynthProvider:
         else:
             ElementType = None
         return ElementType
-    
+
     def update(self):
         logger = lldb.formatters.Logger.Logger()
         try:
@@ -221,19 +221,19 @@ class UE4ChunkedArraySynthProvider:
             self.AllocatorData = self.AllocatorInstance.GetChildMemberWithName('Data')
         except:
             pass
-    
+
     def has_children(self):
         return True
 
-def UE4ChunkedArraySummaryProvider(valobj,dict):
+def UEChunkedArraySummaryProvider(valobj,dict):
     return 'size=' + str(valobj.GetNumChildren())
 
-class UE4SparseArraySynthProvider:
-    
+class UESparseArraySynthProvider:
+
     def __init__(self, valobj, dict):
         logger = lldb.formatters.Logger.Logger()
         self.valobj = valobj
-    
+
     def num_children(self):
         logger = lldb.formatters.Logger.Logger()
         try:
@@ -242,23 +242,23 @@ class UE4SparseArraySynthProvider:
             return ArrayNumVal - NumBitsVal;
         except:
             return 0;
-    
+
     def get_child_index(self,name):
         logger = lldb.formatters.Logger.Logger()
         try:
             return int(name.lstrip('[').rstrip(']'))
         except:
             return None
-    
+
     def get_child_at_index(self,index):
         logger = lldb.formatters.Logger.Logger()
         logger >> "Retrieving child " + str(index)
         if index < 0:
             return None;
-        
+
         if index >= self.num_children():
             return None;
-        
+
         Val = None
         if self.SecondaryDataDataVal > 0:
             Expr = '(bool)((((int*)'+str(self.SecondaryDataData.GetAddress())+')['+str(index)+'/32] >> '+str(index)+') & 1)'
@@ -272,7 +272,7 @@ class UE4SparseArraySynthProvider:
             return self.AllocatorData.CreateChildAtOffset('['+str(index)+']',offset,self.ElementType)
         else:
             return None
-                
+
     def extract_type(self):
         logger = lldb.formatters.Logger.Logger()
         ArrayType = self.valobj.GetType().GetUnqualifiedType()
@@ -285,7 +285,7 @@ class UE4SparseArraySynthProvider:
         else:
             ElementType = None
         return ElementType
-    
+
     def update(self):
         logger = lldb.formatters.Logger.Logger()
         try:
@@ -303,19 +303,19 @@ class UE4SparseArraySynthProvider:
             self.SecondaryDataDataVal = self.SecondaryDataData.GetValueAsSigned(0)
         except:
             pass
-    
+
     def has_children(self):
         return True
 
-def UE4SparseArraySummaryProvider(valobj,dict):
+def UESparseArraySummaryProvider(valobj,dict):
     return 'size=' + str(valobj.GetNumChildren())
 
-class UE4BitArraySynthProvider:
-   
+class UEBitArraySynthProvider:
+
     def __init__(self, valobj, dict):
         logger = lldb.formatters.Logger.Logger()
         self.valobj = valobj
-    
+
     def num_children(self):
         logger = lldb.formatters.Logger.Logger()
         try:
@@ -367,15 +367,15 @@ class UE4BitArraySynthProvider:
     def has_children(self):
         return True
 
-def UE4BitArraySummaryProvider(valobj,dict):
+def UEBitArraySummaryProvider(valobj,dict):
     return 'size=' + str(valobj.GetNumChildren())
 
-class UE4ArraySynthProvider:
-    
+class UEArraySynthProvider:
+
     def __init__(self, valobj, dict):
         logger = lldb.formatters.Logger.Logger()
         self.valobj = valobj
-    
+
     def num_children(self):
         logger = lldb.formatters.Logger.Logger()
         try:
@@ -390,13 +390,13 @@ class UE4ArraySynthProvider:
             return self.NumChildren + int(name.lstrip('[').rstrip(']'))
         except:
             return self.valobj.GetIndexOfChildWithName(name)
-    
+
     def get_child_at_index(self,index):
         logger = lldb.formatters.Logger.Logger()
         logger >> "Retrieving child " + str(index)
         if index < 0:
             return None;
-        
+
         if index < self.NumChildren:
             logger >> "Existing child " + str(index)
             return self.valobj.GetChildAtIndex(index)
@@ -428,13 +428,13 @@ class UE4ArraySynthProvider:
             ArrayType = ArrayType.GetDereferencedType()
         elif ArrayType.IsPointerType():
             ArrayType = ArrayType.GetPointeeType()
-        
+
         if ArrayType.GetNumberOfTemplateArguments() > 0:
             ElementType = ArrayType.GetTemplateArgumentType(0)
         else:
             ElementType = None
         return ElementType
-    
+
     def update(self):
         logger = lldb.formatters.Logger.Logger()
         try:
@@ -455,28 +455,28 @@ class UE4ArraySynthProvider:
                 self.SecondaryDataData = None
                 self.SecondaryDataDataVal = 0
         except:
-            logger >> "UE4ArraySynthProvider::update failed accessing members"
+            logger >> "UEArraySynthProvider::update failed accessing members"
             pass
         try:
             self.ElementType = self.extract_type()
             self.ElementTypeSize = self.ElementType.GetByteSize()
             assert self.ElementTypeSize != 0
         except:
-            logger >> "UE4ArraySynthProvider::update failed accessing element type"
+            logger >> "UEArraySynthProvider::update failed accessing element type"
             pass
 
     def has_children(self):
         return True
 
-def UE4ArraySummaryProvider(valobj,dict):
+def UEArraySummaryProvider(valobj,dict):
     return 'size=' + str(valobj.GetChildMemberWithName('ArrayNum').GetValueAsSigned(0))
 
-class UE4SetSynthProvider:
-    
+class UESetSynthProvider:
+
     def __init__(self, valobj, dict):
         logger = lldb.formatters.Logger.Logger()
         self.valobj = valobj
-    
+
     def num_children(self):
         logger = lldb.formatters.Logger.Logger()
         try:
@@ -485,20 +485,20 @@ class UE4SetSynthProvider:
             return self.ArrayNumVal - self.NumFreeIndicesVal;
         except:
             return 0;
-    
+
     def get_child_index(self,name):
         logger = lldb.formatters.Logger.Logger()
         try:
             return int(name.lstrip('[').rstrip(']'))
         except:
             return 0
-    
+
     def get_child_at_index(self,index):
         logger = lldb.formatters.Logger.Logger()
         logger >> "Retrieving child " + str(index)
         if index < 0:
             return None;
-        
+
         if index >= self.num_children():
             return None;
         try:
@@ -517,7 +517,7 @@ class UE4SetSynthProvider:
                 return self.valobj.CreateValueFromExpression('['+str(index)+']', '(void*)0xDEADBEEF')
         except:
             return None
-    
+
     def extract_type(self):
         logger = lldb.formatters.Logger.Logger()
         ArrayType = self.valobj.GetType().GetUnqualifiedType()
@@ -530,7 +530,7 @@ class UE4SetSynthProvider:
         else:
             ElementType = None
         return ElementType
-    
+
     def update(self):
         logger = lldb.formatters.Logger.Logger()
         try:
@@ -556,19 +556,19 @@ class UE4SetSynthProvider:
             assert self.ElementTypeSize != 0
         except:
             pass
-    
+
     def has_children(self):
         return True
 
-def UE4SetSummaryProvider(valobj,dict):
+def UESetSummaryProvider(valobj,dict):
     return 'size=' + str(valobj.GetNumChildren())
 
-class UE4MapSynthProvider:
-    
+class UEMapSynthProvider:
+
     def __init__(self, valobj, dict):
         logger = lldb.formatters.Logger.Logger()
         self.valobj = valobj
-    
+
     def num_children(self):
         logger = lldb.formatters.Logger.Logger()
         try:
@@ -577,20 +577,20 @@ class UE4MapSynthProvider:
             return self.ArrayNumVal - self.NumFreeIndicesVal;
         except:
             return 0;
-    
+
     def get_child_index(self,name):
         logger = lldb.formatters.Logger.Logger()
         try:
             return int(name.lstrip('[').rstrip(']'))
         except:
             return 0
-    
+
     def get_child_at_index(self,index):
         logger = lldb.formatters.Logger.Logger()
         logger >> "Retrieving child " + str(index)
         if index < 0:
             return None;
-        
+
         if index >= self.num_children():
             return None;
         try:
@@ -602,14 +602,14 @@ class UE4MapSynthProvider:
             else:
                 Expr = '(bool)((((unsigned int*)'+str(self.AllocationFlagsInlineDataAddr)+')['+str(index)+'/32] >> '+str(index)+') & 1)'
                 HasObject = 1 ##self.AllocationFlagsInlineData.CreateValueFromExpression('['+str(index)+']', Expr).GetValueAsUnsigned(0)
-            
+
             if HasObject == 1:
                 return self.AllocatorInstanceData.CreateChildAtOffset('['+str(index)+']',offset,self.ElementType)
             else:
                 return self.valobj.CreateValueFromExpression('['+str(index)+']', '(void*)0xDEADBEEF')
         except:
             return None
-    
+
     def extract_type(self):
         logger = lldb.formatters.Logger.Logger()
         ArrayType = self.Pairs.GetType().GetUnqualifiedType()
@@ -622,7 +622,7 @@ class UE4MapSynthProvider:
         else:
             ElementType = None
         return ElementType
-    
+
     def update(self):
         logger = lldb.formatters.Logger.Logger()
         try:
@@ -649,40 +649,40 @@ class UE4MapSynthProvider:
             assert self.ElementTypeSize != 0
         except:
             pass
-    
+
     def has_children(self):
         return True
 
-def UE4MapSummaryProvider(valobj,dict):
+def UEMapSummaryProvider(valobj,dict):
     return 'size=' + str(valobj.GetNumChildren())
 
 def __lldb_init_module(debugger,dict):
-    debugger.HandleCommand('type summary add -F UE4DataFormatters.UE4TCharSummaryProvider -e TCHAR -w UE4DataFormatters')
-    debugger.HandleCommand('type summary add -F UE4DataFormatters.UE4FStringSummaryProvider -e -x "FString$" -w UE4DataFormatters')
-    debugger.HandleCommand('type summary add -F UE4DataFormatters.UE4FNameEntrySummaryProvider -e -x "FNameEntry$" -w UE4DataFormatters')
-    debugger.HandleCommand('type summary add -F UE4DataFormatters.UE4FNameSummaryProvider -e -x "FName$" -w UE4DataFormatters')
-    debugger.HandleCommand('type summary add -F UE4DataFormatters.UE4FNameSummaryProvider -e -x "FMinimalName$" -w UE4DataFormatters')
-    debugger.HandleCommand('type summary add -F UE4DataFormatters.UE4UObjectBaseSummaryProvider -e UObject -w UE4DataFormatters')
-    debugger.HandleCommand('type summary add -F UE4DataFormatters.UE4UObjectBaseSummaryProvider -e UObjectBase -w UE4DataFormatters')
-    debugger.HandleCommand('type summary add -F UE4DataFormatters.UE4UObjectBaseSummaryProvider -e UObjectBaseUtility -w UE4DataFormatters')
-    debugger.HandleCommand('type summary add -F UE4DataFormatters.UE4FFieldClassSummaryProvider -e FFieldClass -w UE4DataFormatters')
-    debugger.HandleCommand('type summary add -F UE4DataFormatters.UE4FFieldSummaryProvider -e FField -w UE4DataFormatters')
-    debugger.HandleCommand('type summary add -F UE4DataFormatters.UE4FWeakObjectPtrSummaryProvider -e FWeakObjectPtr -w UE4DataFormatters')
-    debugger.HandleCommand('type synthetic add -l UE4DataFormatters.UE4TWeakObjectPtrSynthProvider -x "TWeakObjectPtr<.+>$" -w UE4DataFormatters')
-    debugger.HandleCommand('type synthetic add -l UE4DataFormatters.UE4TWeakObjectPtrSynthProvider -x "TAutoWeakObjectPtr<.+>$" -w UE4DataFormatters')
-    debugger.HandleCommand('type synthetic add -l UE4DataFormatters.UE4ArraySynthProvider -x "TArray<.+,.+>$" -w UE4DataFormatters')
-    debugger.HandleCommand('type summary add -F UE4DataFormatters.UE4ArraySummaryProvider -e -x "TArray<.+>$" -w UE4DataFormatters')
-    debugger.HandleCommand('type synthetic add -l UE4DataFormatters.UE4BitArraySynthProvider -x "TBitArray<.+>$" -w UE4DataFormatters')
-    debugger.HandleCommand('type summary add -F UE4DataFormatters.UE4BitArraySummaryProvider -e -x "TBitArray<.+>$" -w UE4DataFormatters')
-    debugger.HandleCommand('type synthetic add -l UE4DataFormatters.UE4SparseArraySynthProvider -x "TSparseArray<.+>$" -w UE4DataFormatters')
-    debugger.HandleCommand('type summary add -F UE4DataFormatters.UE4SparseArraySummaryProvider -e -x "TSparseArray<.+>$" -w UE4DataFormatters')
-    debugger.HandleCommand('type synthetic add -l UE4DataFormatters.UE4ChunkedArraySynthProvider -x "TChunkedArray<.+>$" -w UE4DataFormatters')
-    debugger.HandleCommand('type summary add -F UE4DataFormatters.UE4ChunkedArraySummaryProvider -e -x "TChunkedArray<.+>$" -w UE4DataFormatters')
-    debugger.HandleCommand('type synthetic add -l UE4DataFormatters.UE4SetSynthProvider -x "TSet<.+>$" -w UE4DataFormatters')
-    debugger.HandleCommand('type summary add -F UE4DataFormatters.UE4SetSummaryProvider -e -x "TSet<.+>$" -w UE4DataFormatters')
-    debugger.HandleCommand('type synthetic add -l UE4DataFormatters.UE4MapSynthProvider -x "TMap<.+>$" -w UE4DataFormatters')
-    debugger.HandleCommand('type summary add -F UE4DataFormatters.UE4MapSummaryProvider -e -x "TMap<.+>$" -w UE4DataFormatters')
-    debugger.HandleCommand('type synthetic add -l UE4DataFormatters.UE4MapSynthProvider -x "TMapBase<.+>$" -w UE4DataFormatters')
-    debugger.HandleCommand('type summary add -F UE4DataFormatters.UE4MapSummaryProvider -e -x "TMapBase<.+>$" -w UE4DataFormatters')
-    debugger.HandleCommand("type category enable UE4DataFormatters")
+    debugger.HandleCommand('type summary add -F UEDataFormatters.UETCharSummaryProvider -e TCHAR -w UEDataFormatters')
+    debugger.HandleCommand('type summary add -F UEDataFormatters.UEFStringSummaryProvider -e -x "FString$" -w UEDataFormatters')
+    debugger.HandleCommand('type summary add -F UEDataFormatters.UEFNameEntrySummaryProvider -e -x "FNameEntry$" -w UEDataFormatters')
+    debugger.HandleCommand('type summary add -F UEDataFormatters.UEFNameSummaryProvider -e -x "FName$" -w UEDataFormatters')
+    debugger.HandleCommand('type summary add -F UEDataFormatters.UEFNameSummaryProvider -e -x "FMinimalName$" -w UEDataFormatters')
+    debugger.HandleCommand('type summary add -F UEDataFormatters.UEUObjectBaseSummaryProvider -e UObject -w UEDataFormatters')
+    debugger.HandleCommand('type summary add -F UEDataFormatters.UEUObjectBaseSummaryProvider -e UObjectBase -w UEDataFormatters')
+    debugger.HandleCommand('type summary add -F UEDataFormatters.UEUObjectBaseSummaryProvider -e UObjectBaseUtility -w UEDataFormatters')
+    debugger.HandleCommand('type summary add -F UEDataFormatters.UEFFieldClassSummaryProvider -e FFieldClass -w UEDataFormatters')
+    debugger.HandleCommand('type summary add -F UEDataFormatters.UEFFieldSummaryProvider -e FField -w UEDataFormatters')
+    debugger.HandleCommand('type summary add -F UEDataFormatters.UEFWeakObjectPtrSummaryProvider -e FWeakObjectPtr -w UEDataFormatters')
+    debugger.HandleCommand('type synthetic add -l UEDataFormatters.UETWeakObjectPtrSynthProvider -x "TWeakObjectPtr<.+>$" -w UEDataFormatters')
+    debugger.HandleCommand('type synthetic add -l UEDataFormatters.UETWeakObjectPtrSynthProvider -x "TAutoWeakObjectPtr<.+>$" -w UEDataFormatters')
+    debugger.HandleCommand('type synthetic add -l UEDataFormatters.UEArraySynthProvider -x "TArray<.+,.+>$" -w UEDataFormatters')
+    debugger.HandleCommand('type summary add -F UEDataFormatters.UEArraySummaryProvider -e -x "TArray<.+>$" -w UEDataFormatters')
+    debugger.HandleCommand('type synthetic add -l UEDataFormatters.UEBitArraySynthProvider -x "TBitArray<.+>$" -w UEDataFormatters')
+    debugger.HandleCommand('type summary add -F UEDataFormatters.UEBitArraySummaryProvider -e -x "TBitArray<.+>$" -w UEDataFormatters')
+    debugger.HandleCommand('type synthetic add -l UEDataFormatters.UESparseArraySynthProvider -x "TSparseArray<.+>$" -w UEDataFormatters')
+    debugger.HandleCommand('type summary add -F UEDataFormatters.UESparseArraySummaryProvider -e -x "TSparseArray<.+>$" -w UEDataFormatters')
+    debugger.HandleCommand('type synthetic add -l UEDataFormatters.UEChunkedArraySynthProvider -x "TChunkedArray<.+>$" -w UEDataFormatters')
+    debugger.HandleCommand('type summary add -F UEDataFormatters.UEChunkedArraySummaryProvider -e -x "TChunkedArray<.+>$" -w UEDataFormatters')
+    debugger.HandleCommand('type synthetic add -l UEDataFormatters.UESetSynthProvider -x "TSet<.+>$" -w UEDataFormatters')
+    debugger.HandleCommand('type summary add -F UEDataFormatters.UESetSummaryProvider -e -x "TSet<.+>$" -w UEDataFormatters')
+    debugger.HandleCommand('type synthetic add -l UEDataFormatters.UEMapSynthProvider -x "TMap<.+>$" -w UEDataFormatters')
+    debugger.HandleCommand('type summary add -F UEDataFormatters.UEMapSummaryProvider -e -x "TMap<.+>$" -w UEDataFormatters')
+    debugger.HandleCommand('type synthetic add -l UEDataFormatters.UEMapSynthProvider -x "TMapBase<.+>$" -w UEDataFormatters')
+    debugger.HandleCommand('type summary add -F UEDataFormatters.UEMapSummaryProvider -e -x "TMapBase<.+>$" -w UEDataFormatters')
+    debugger.HandleCommand("type category enable UEDataFormatters")
 

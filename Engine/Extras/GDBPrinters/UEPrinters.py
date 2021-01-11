@@ -2,18 +2,18 @@
 # GDB Printers for the Unreal Engine 4
 #
 # How to install:
-# If the file ~/.gdbinit doesn't exist 
+# If the file ~/.gdbinit doesn't exist
 #        touch ~/.gdbinit
 #        open ~/.gdbinit
 #
 # and add the following lines:
 #   python
-#   import sys 
+#   import sys
 #   ...
-#   sys.path.insert(0, '/Path/To/Epic/UE4/Engine/Extras/GDBPrinters')      <--
+#   sys.path.insert(0, '/Path/To/Epic/UE/Engine/Extras/GDBPrinters')      <--
 #   ...
-#   from UE4Printers import register_ue4_printers                          <--
-#   register_ue4_printers (None)                                           <--
+#   from UEPrinters import register_ue_printers                          <--
+#   register_ue_printers (None)                                           <--
 #   ...
 #   end
 
@@ -291,7 +291,7 @@ class TSetPrinter:
 				self.ElementsData = self.Elements["Data"]
 				self.ElementsArrayNum = self.ElementsData['ArrayNum']
 				self.NumFreeIndices = self.Elements['NumFreeIndices']
-			 
+
 				self.AllocatorInstance = self.ElementsData['AllocatorInstance']
 				self.AllocatorInstanceData = self.AllocatorInstance['Data']
 
@@ -432,7 +432,7 @@ class TWeakObjectPtrPrinter:
 			self.Value = val
 			self.Counter = 0
 			self.Object = None
-			
+
 			self.ObjectSerialNumber = int(self.Value['ObjectSerialNumber'])
 			if self.ObjectSerialNumber >= 1:
 				ObjectIndexValue = int(self.Value['ObjectIndex'])
@@ -440,7 +440,7 @@ class TWeakObjectPtrPrinter:
 				ObjectItem = gdb.parse_and_eval(ObjectItemExpr);
 				IsValidObject = int(ObjectItem['SerialNumber']) == self.ObjectSerialNumber
 				if IsValidObject == True:
-					ObjectType = self.Value.type.template_argument(0)			
+					ObjectType = self.Value.type.template_argument(0)
 					self.Object = ObjectItem['Object'].dereference().cast(ObjectType.reference())
 
 		def __iter__(self):
@@ -451,7 +451,7 @@ class TWeakObjectPtrPrinter:
 				raise StopIteration
 
 			self.Counter = self.Counter + 1
-			
+
 			if self.Object != None:
 				return ('Object', self.Object)
 			elif self.ObjectSerialNumber > 0:
@@ -459,13 +459,13 @@ class TWeakObjectPtrPrinter:
 			else:
 				return ('Object', 'nullptr')
 
-			
+
 	def __init__(self, typename, val):
 		self.Value = val
-		
+
 	def children(self):
 		return self._iterator(self.Value)
-		
+
 	def to_string(self):
 		ObjectType = self.Value.type.template_argument(0)
 		return 'TWeakObjectPtr<%s>' % ObjectType.name;
@@ -614,7 +614,7 @@ class TArrayPrinter:
 				self.ArrayNum = self.Value['ArrayNum']
 				if self.ArrayNum.is_optimized_out:
 					self.ArrayNum = 0
-				
+
 				if self.ArrayNum > 0:
 					self.AllocatorInstance = self.Value['AllocatorInstance']
 					self.AllocatorInstanceData = self.AllocatorInstance['Data']
@@ -673,7 +673,7 @@ class TArrayPrinter:
 
 #
 # Register our lookup function. If no objfile is passed use all globally.
-def register_ue4_printers(objfile):
+def register_ue_printers(objfile):
 	if objfile == None:
 		objfile = gdb
 
@@ -691,7 +691,7 @@ def lookup_function (val):
 	if (type.code == gdb.TYPE_CODE_REF) or (type.code == gdb.TYPE_CODE_PTR):
 		type = type.target ()
 
-	# Get the unqualified type, mean remove const nor volatile and strippe of typedefs. 
+	# Get the unqualified type, mean remove const nor volatile and strippe of typedefs.
 	type = type.unqualified ().strip_typedefs ()
 
 	# Get the tag name. The tag name is the name after struct, union, or enum in C and C++
