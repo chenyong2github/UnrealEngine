@@ -816,8 +816,11 @@ public:
 				}
 			}
 			
-			Partition.ContainerFileHandle->Flush();
-			check(Partition.ContainerFileHandle->Tell() == Partition.Offset);
+			if (Partition.ContainerFileHandle)
+			{
+				Partition.ContainerFileHandle->Flush();
+				check(Partition.ContainerFileHandle->Tell() == Partition.Offset);
+			}
 
 			if (Partition.RegionsArchive)
 			{
@@ -1829,7 +1832,12 @@ TIoStatusOr<uint64> FIoStoreTocResource::Write(
 	TocHeader.ContainerId = ContainerSettings.ContainerId;
 	TocHeader.EncryptionKeyGuid = ContainerSettings.EncryptionKeyGuid;
 	TocHeader.ContainerFlags = ContainerSettings.ContainerFlags;
-	if (WriterSettings.MaxPartitionSize)
+	if (TocHeader.TocEntryCount == 0)
+	{
+		TocHeader.PartitionCount = 0;
+		TocHeader.PartitionSize = MAX_uint64;
+	}
+	else if (WriterSettings.MaxPartitionSize)
 	{
 		TocHeader.PartitionCount = uint32(Align(TocResource.CompressionBlocks.Last().GetOffset(), WriterSettings.MaxPartitionSize) / WriterSettings.MaxPartitionSize);
 		TocHeader.PartitionSize = WriterSettings.MaxPartitionSize;
