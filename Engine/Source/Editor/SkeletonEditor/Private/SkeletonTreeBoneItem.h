@@ -85,6 +85,12 @@ private:
 	/** Get the current Blend Scale for this bone */
 	float GetBoneBlendProfileScale() const;
 
+	/** Get the max slider value supported by the selected blend profile's mode*/
+	TOptional<float> GetBlendProfileMaxSliderValue() const;
+
+	/** Get the min slider value supported by the selected blend profile's mode*/
+	TOptional<float> GetBlendProfileMinSliderValue() const;
+
 	/** Used to hide the Bone Profile row widget if there is no current Blend Profile */
 	EVisibility GetBoneBlendProfileVisibility() const;
 

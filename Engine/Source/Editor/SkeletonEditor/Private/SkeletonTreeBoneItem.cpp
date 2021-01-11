@@ -134,7 +134,8 @@ TSharedRef< SWidget > FSkeletonTreeBoneItem::GenerateWidgetForDataColumn(const F
 				.ContentPadding(0.0f)
 				.Delta(0.01f)
 				.MinValue(0.0f)
-				.MaxValue(1.0f)
+				.MinSliderValue(this, &FSkeletonTreeBoneItem::GetBlendProfileMinSliderValue)
+				.MaxSliderValue(this, &FSkeletonTreeBoneItem::GetBlendProfileMaxSliderValue)
 				.Value(this, &FSkeletonTreeBoneItem::GetBoneBlendProfileScale)
 				.OnValueCommitted(this, &FSkeletonTreeBoneItem::OnBlendSliderCommitted)
 				.OnValueChanged(this, &FSkeletonTreeBoneItem::OnBlendSliderCommitted, ETextCommit::OnEnter)
@@ -157,6 +158,26 @@ float FSkeletonTreeBoneItem::GetBoneBlendProfileScale()	const
 	}
 
 	return 0.0;
+}
+
+TOptional<float> FSkeletonTreeBoneItem::GetBlendProfileMaxSliderValue() const
+{
+	if (UBlendProfile* CurrentProfile = GetSkeletonTree()->GetSelectedBlendProfile())
+	{
+		return (CurrentProfile->GetMode() == EBlendProfileMode::WeightFactor) ? 10.0f : 1.0f;
+	}
+
+	return 1.0f;
+}
+
+TOptional<float> FSkeletonTreeBoneItem::GetBlendProfileMinSliderValue() const
+{
+	if (UBlendProfile* CurrentProfile = GetSkeletonTree()->GetSelectedBlendProfile())
+	{
+		return (CurrentProfile->GetMode() == EBlendProfileMode::WeightFactor) ? 1.0f : 0.0f;
+	}
+
+	return 0.0f;
 }
 
 FSlateColor FSkeletonTreeBoneItem::GetRetargetingComboButtonForegroundColor() const
