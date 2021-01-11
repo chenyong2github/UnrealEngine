@@ -431,7 +431,7 @@ FGenericCrashContext::FGenericCrashContext(ECrashContextType InType, const TCHAR
 	, ErrorMessage(InErrorMessage)
 	, NumMinidumpFramesToIgnore(0)
 {
-	CommonBuffer.Reserve( 32768 );
+	CommonBuffer.Reserve( 128 * 1024 ); // NOTE: The Editor command 'debug crash' uses about 112K characters on Windows when the crash is serialized by SerializeContentToBuffer()
 	CrashContextIndex = StaticCrashContextIndex++;
 }
 
@@ -601,6 +601,10 @@ void FGenericCrashContext::SerializeUserSettings(FString& Buffer)
 
 void FGenericCrashContext::SerializeContentToBuffer() const
 {
+	// Clear the buffer in case the content is serialized more than once, keeping the most up to date values and preventing to store several XML documents in the same buffer.
+	// When the buffer is passed to our XML reader, only the first document <FGenericCrashContext></<FGenericCrashContext> is read and further ones (most recent ones) are ignored.
+	CommonBuffer.Reset();
+
 	TCHAR CrashGUID[CrashGUIDLength];
 	GetUniqueCrashName(CrashGUID, CrashGUIDLength);
 

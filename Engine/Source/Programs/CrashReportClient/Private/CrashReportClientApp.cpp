@@ -468,11 +468,7 @@ FPlatformErrorReport CollectErrorReport(FRecoveryService* RecoveryService, uint3
 		}
 	}
 
-	// Setup the FPrimaryCrashProperties singleton. If the path is not set it is most likely
-	// that we have crashed during static init, in which case we need to construct a directory
-	// ourself.
-	CrashContext.SerializeContentToBuffer();
-
+	// If the path is not set it is most likely that we have crashed during static init, in which case we need to construct a directory ourself.
 	FString ReportDirectoryAbsolutePath(SharedCrashContext.CrashFilesDirectory);
 	bool DirectoryExists = true;
 	if (ReportDirectoryAbsolutePath.IsEmpty())
@@ -509,8 +505,15 @@ FPlatformErrorReport CollectErrorReport(FRecoveryService* RecoveryService, uint3
 	}
 #endif
 
-	const TCHAR* CrachContextBuffer = *CrashContext.GetBuffer();
-	FPrimaryCrashProperties::Set(new FCrashContext(ReportDirectoryAbsolutePath / TEXT("CrashContext.runtime-xml"), CrachContextBuffer));
+	// If the crash context wasn't implicitely serialized by SerializeAsXML() above, serialize it now.
+	if (CrashContext.GetBuffer().IsEmpty())
+	{
+		CrashContext.SerializeContentToBuffer();
+	}
+
+	// Setup the FPrimaryCrashProperties singleton.
+	const TCHAR* CrashContextBuffer = *CrashContext.GetBuffer();
+	FPrimaryCrashProperties::Set(new FCrashContext(ReportDirectoryAbsolutePath / TEXT("CrashContext.runtime-xml"), CrashContextBuffer));
 
 	FPlatformErrorReport ErrorReport(ReportDirectoryAbsolutePath);
 
