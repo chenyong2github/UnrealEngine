@@ -14,6 +14,7 @@
 #include "Widgets/Views/STableRow.h"
 #include "Widgets/Views/STreeView.h"
 #include "Editor/HierarchicalLODOutliner/Private/TreeItemID.h"
+#include "Textures/SlateIcon.h"
 
 class AActor;
 class ALODActor;

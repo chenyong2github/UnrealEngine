@@ -14,6 +14,7 @@
 #include "Engine/StaticMeshActor.h"
 #include "Engine/Selection.h"
 #include "Editor.h"
+#include "Misc/MessageDialog.h"
 #include "MeshProxyTool/SMeshProxyDialog.h"
 #include "MeshUtilities.h"
 #include "IContentBrowserSingleton.h"
