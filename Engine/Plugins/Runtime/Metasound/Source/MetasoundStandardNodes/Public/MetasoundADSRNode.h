@@ -2,7 +2,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Internationalization/Text.h"
 
 #include "MetasoundFacade.h"
 
@@ -10,7 +9,7 @@ namespace Metasound
 {
 	/** FADSRNode
 	 *
-	 *  Creates an Attack, Decay Sustain, Release audio processer node. 
+	 *  Creates an Attack, Decay Sustain, Release audio processor node. 
 	 */
 	class METASOUNDSTANDARDNODES_API FADSRNode : public FNodeFacade
 	{
@@ -19,12 +18,12 @@ namespace Metasound
 			/** FADSR node constructor.
 			 *
 			 * @param InName - Name of this node.
-			 * @param InDefaultAttackMs - Default attack in milliseconds.
-			 * @param InDefaultDecayMs - Default decay in milliseconds.
-			 * @param InDefaultSustainMs - Default sustain in milliseconds.
-			 * @param InDefaultReleaseMs - Default release in milliseconds.
+			 * @param InDefaultAttackMs - Default attack duration in milliseconds.
+			 * @param InDefaultDecayMs - Default decay duration in milliseconds.
+			 * @param InDefaultSustainLevel - Default sustain level [0.0f, 1.0f].
+			 * @param InDefaultReleaseMs - Default release duration in milliseconds.
 			 */
-			FADSRNode(const FString& InName, float InDefaultAttackMs, float InDefaultDecayMs, float InDefaultSustainMs, float InDefaultReleaseMs);
+			FADSRNode(const FString& InName, float InDefaultAttackMs, float InDefaultDecayMs, float InDefaultSustainLevel, float InDefaultReleaseMs);
 
 			/**
 			 * Constructor used by the Metasound Frontend.
@@ -33,19 +32,23 @@ namespace Metasound
 
 			virtual ~FADSRNode();
 
+			/** Return default sustain gain [0.0f, 1.0f] */
+			float GetDefaultSustainLevel() const;
+
 			/** Return default attack time in milliseconds */
 			float GetDefaultAttackMs() const;
-			/** Return default attack time in milliseconds */
+
+			/** Return default decay time in milliseconds */
 			float GetDefaultDecayMs() const;
-			/** Return default attack time in milliseconds */
-			float GetDefaultSustainMs() const;
-			/** Return default attack time in milliseconds */
+
+			/** Return default release time in milliseconds */
 			float GetDefaultReleaseMs() const;
 
 		private:
+			float DefaultSustainLevel;
+
 			float DefaultAttackMs;
 			float DefaultDecayMs;
-			float DefaultSustainMs;
 			float DefaultReleaseMs;
 	};
 } // namespace Metasound

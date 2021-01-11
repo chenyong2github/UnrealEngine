@@ -12,6 +12,17 @@ namespace Audio
 	class SIGNALPROCESSING_API FEnvelope
 	{
 	public:
+		// States for the envelope state machine
+		enum class EEnvelopeState
+		{
+			Off,
+			Attack,
+			Decay,
+			Sustain,
+			Release,
+			Shutdown
+		};
+		
 		FEnvelope();
 		virtual ~FEnvelope();
 
@@ -57,6 +68,8 @@ namespace Audio
 		// Optionally outputs the bias output (i.e. -1.0 to 1.0)
 		virtual float Generate(float* BiasedOutput = nullptr);
 
+		virtual EEnvelopeState GetState() const;
+
 		// Sets the envelope attack time in msec
 		virtual void SetAttackTime(const float InAttackTimeMsec);
 
@@ -86,18 +99,6 @@ namespace Audio
 		const FPatchSource GetModSourceBiasEnv() const { return BiasedEnvSource; }
 
 	protected:
-
-		// States for the envelope state machine
-		enum class EEnvelopeState
-		{
-			Off,
-			Attack,
-			Decay,
-			Sustain,
-			Release,
-			Shutdown
-		};
-
 		struct FEnvData
 		{
 			float Coefficient;

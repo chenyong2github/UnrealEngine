@@ -53,6 +53,11 @@ namespace Audio
 		}
 	}
 
+	FEnvelope::EEnvelopeState FEnvelope::GetState() const
+	{
+		return CurrentState;
+	}
+
 	void FEnvelope::SetSimulateAnalog(const bool bInSimulatingAnalog)
 	{
 		bIsSimulatingAnalog = bInSimulatingAnalog;
@@ -73,7 +78,7 @@ namespace Audio
 		Reset();
 
 		// Set the state back to attack no matter where it is
-		CurrentState = EEnvelopeState::Attack;
+		CurrentState = FEnvelope::EEnvelopeState::Attack;
 	}
 
 	// logic for one mono note interrupting another mono note (same voice)
@@ -379,26 +384,26 @@ namespace Audio
 
 	void FEnvelope::SetAttackTime(const float InAttackTimeMsec)
 	{
+		bChanged |= !FMath::IsNearlyEqual(AttackTimeMSec, InAttackTimeMsec);
 		AttackTimeMSec = InAttackTimeMsec;
-		bChanged = true;
 	}
 
 	void FEnvelope::SetDecayTime(const float InDecayTimeMsec)
 	{
+		bChanged |= !FMath::IsNearlyEqual(DecayTimeMsec, InDecayTimeMsec);
 		DecayTimeMsec = InDecayTimeMsec;
-		bChanged = true;
 	}
 
 	void FEnvelope::SetSustainGain(const float InSustainGain)
 	{
+		bChanged |= !FMath::IsNearlyEqual(SustainGain, InSustainGain);
 		SustainGain = InSustainGain;
-		bChanged = true;
 	}
 
 	void FEnvelope::SetReleaseTime(const float InReleaseTimeMsec)
 	{
+		bChanged |= !FMath::IsNearlyEqual(ReleaseTimeMsec, InReleaseTimeMsec);
 		ReleaseTimeMsec = InReleaseTimeMsec;
-		bChanged = true;
 	}
 
 	void FEnvelope::SetInvert(const bool bInInvert)
