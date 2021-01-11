@@ -51,6 +51,7 @@ public:
 
 	virtual bool IsWritable() override { return true; }
 	virtual bool CachedDataProbablyExists(const TCHAR* CacheKey) override;
+	virtual TBitArray<> CachedDataProbablyExistsBatch(TConstArrayView<FString> CacheKeys) override;
 	virtual bool GetCachedData(const TCHAR* CacheKey, TArray<uint8>& OutData) override;
 	virtual EPutStatus PutCachedData(const TCHAR* CacheKey, TArrayView<const uint8> InData, bool bPutEvenIfExists) override;
 	virtual void RemoveCachedData(const TCHAR* CacheKey, bool bTransient) override;
