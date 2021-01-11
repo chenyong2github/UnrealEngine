@@ -3,6 +3,7 @@
 #include "CookPackageData.h"
 
 #include "Algo/AnyOf.h"
+#include "AssetCompilingManager.h"
 #include "CookOnTheSide/CookOnTheFlyServer.h"
 #include "CookPlatformManager.h"
 #include "Containers/StringView.h"
@@ -1427,6 +1428,7 @@ namespace Cook
 		}
 
 		GShaderCompilingManager->ProcessAsyncResults(true /* bLimitExecutionTime */, false /* bBlockOnGlobalShaderCompletion */);
+		FAssetCompilingManager::Get().ProcessAsyncTasks(true);
 
 		FPendingCookedPlatformData* Datas = PendingCookedPlatformDatas.GetData();
 		for (int Index = 0; Index < PendingCookedPlatformDatas.Num();)

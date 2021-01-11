@@ -7,6 +7,7 @@
 #include "CookOnTheSide/CookOnTheFlyServer.h"
 #include "Cooker/PackageNameCache.h"
 
+#include "AssetCompilingManager.h"
 #include "Cooker/CookPackageData.h"
 #include "Cooker/CookPlatformManager.h"
 #include "Cooker/CookProfiling.h"
@@ -8044,6 +8045,7 @@ uint32 UCookOnTheFlyServer::FullLoadAndSave(uint32& CookedPackageCount)
 				{
 					GShaderCompilingManager->ProcessAsyncResults(true, false);
 				}
+				FAssetCompilingManager::Get().ProcessAsyncTasks(true);
 				GIsCookerLoadingPackage = false;
 			}
 		}
@@ -8262,6 +8264,7 @@ uint32 UCookOnTheFlyServer::FullLoadAndSave(uint32& CookedPackageCount)
 					{
 						GShaderCompilingManager->ProcessAsyncResults(true, false);
 					}
+					FAssetCompilingManager::Get().ProcessAsyncTasks(true);
 				}
 			}
 			GIsCookerLoadingPackage = false;
@@ -8314,6 +8317,9 @@ uint32 UCookOnTheFlyServer::FullLoadAndSave(uint32& CookedPackageCount)
 		GCardRepresentationAsyncQueue->BlockUntilAllBuildsComplete();
 	}
 
+	// Wait for all assets to finish compiling
+	FAssetCompilingManager::Get().ProcessAsyncTasks(false);
+
 	// Wait for all platform data to be loaded
 	{
 		UE_LOG(LogCook, Display, TEXT("Waiting for cooked platform data..."));
@@ -8339,6 +8345,7 @@ uint32 UCookOnTheFlyServer::FullLoadAndSave(uint32& CookedPackageCount)
 				}
 			}
 
+			FAssetCompilingManager::Get().ProcessAsyncTasks(true);
 			FPlatformProcess::Sleep(0.001f);
 		}
 

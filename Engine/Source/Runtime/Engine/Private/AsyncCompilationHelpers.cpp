@@ -72,9 +72,12 @@ void FAsyncCompilationNotification::Update(int32 NumJobs)
 			NotificationItemPtr = NotificationItem;
 		}
 
-		NotificationItem->SetCompletionState(SNotificationItem::CS_Pending);
-		NotificationItem->SetVisibility(EVisibility::HitTestInvisible);
-		NotificationItem->SetText(ProgressMessage);
+		if (NotificationItem.IsValid())
+		{
+			NotificationItem->SetCompletionState(SNotificationItem::CS_Pending);
+			NotificationItem->SetVisibility(EVisibility::HitTestInvisible);
+			NotificationItem->SetText(ProgressMessage);
+		}
 	}
 };
 
