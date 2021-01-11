@@ -62,8 +62,9 @@ protected:
 	bool DetachDependantLevelPackages(ULevel* Level);
 	bool RenameWorldPackageWithSuffix(UWorld* World);
 
-	UHLODLayer* CreateHLODLayerFromINI(const FString& InHLODLayerName);
+	void SetupHLOD();
 	void SetupHLODLayerAssets();
+	UHLODLayer* CreateHLODLayerFromINI(const FString& InHLODLayerName);
 
 	void SetActorGuid(AActor* Actor, const FGuid& NewGuid);
 	void CreateWorldMiniMapTexture(UWorld* World);

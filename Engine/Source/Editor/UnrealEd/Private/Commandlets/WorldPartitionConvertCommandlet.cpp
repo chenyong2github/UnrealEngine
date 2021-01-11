@@ -26,6 +26,7 @@
 #include "PackageHelperFunctions.h"
 #include "UObject/MetaData.h"
 #include "Editor.h"
+#include "HLOD/HLODEngineSubsystem.h"
 #include "HierarchicalLOD.h"
 #include "IHierarchicalLODUtilities.h"
 #include "HierarchicalLODUtilitiesModule.h"
@@ -596,6 +597,14 @@ UHLODLayer* UWorldPartitionConvertCommandlet::CreateHLODLayerFromINI(const FStri
 	return HLODLayer;
 }
 
+void UWorldPartitionConvertCommandlet::SetupHLOD()
+{
+	// No need to spawn HLOD actors during the conversion
+	GEngine->GetEngineSubsystem<UHLODEngineSubsystem>()->DisableHLODSpawningOnLoad(true);
+
+	SetupHLODLayerAssets();
+}
+
 void UWorldPartitionConvertCommandlet::SetupHLODLayerAssets()
 {
 	TArray<FString> HLODLayerSectionsNames;
@@ -743,7 +752,7 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 		return 1;
 	}
 
-	SetupHLODLayerAssets();
+	SetupHLOD();
 
 	// Delete existing result from running the commandlet, even if not using the suffix mode to cleanup previous conversion
 	if (!bReportOnly)

@@ -19,6 +19,7 @@
 void UHLODEngineSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	bDisableHLODCleanupOnLoad = false;
+	bDisableHLODSpawningOnLoad = false;
 
 	Super::Initialize(Collection);
 	RegisterRecreateLODActorsDelegates();
@@ -35,6 +36,14 @@ void UHLODEngineSubsystem::DisableHLODCleanupOnLoad(bool bInDisableHLODCleanup)
 	bDisableHLODCleanupOnLoad = bInDisableHLODCleanup;
 }
 
+void UHLODEngineSubsystem::DisableHLODSpawningOnLoad(bool bInDisableHLODSpawning)
+{
+	bDisableHLODSpawningOnLoad = bInDisableHLODSpawning;
+
+	UnregisterRecreateLODActorsDelegates();
+	RegisterRecreateLODActorsDelegates();
+}
+
 void UHLODEngineSubsystem::OnSaveLODActorsToHLODPackagesChanged()
 {
 	UnregisterRecreateLODActorsDelegates();
@@ -49,7 +58,7 @@ void UHLODEngineSubsystem::UnregisterRecreateLODActorsDelegates()
 
 void UHLODEngineSubsystem::RegisterRecreateLODActorsDelegates()
 {
-	if (GetDefault<UHierarchicalLODSettings>()->bSaveLODActorsToHLODPackages)
+	if (GetDefault<UHierarchicalLODSettings>()->bSaveLODActorsToHLODPackages && !bDisableHLODSpawningOnLoad)
 	{
 		OnPostWorldInitializationDelegateHandle = FWorldDelegates::OnPostWorldInitialization.AddUObject(this, &UHLODEngineSubsystem::RecreateLODActorsForWorld);
 		OnLevelAddedToWorldDelegateHandle = FWorldDelegates::LevelAddedToWorld.AddUObject(this, &UHLODEngineSubsystem::RecreateLODActorsForLevel);
