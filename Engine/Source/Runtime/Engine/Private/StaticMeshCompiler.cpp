@@ -4,6 +4,7 @@
 
 #if WITH_EDITOR
 
+#include "Algo/NoneOf.h"
 #include "AssetCompilingManager.h"
 #include "Engine/StaticMesh.h"
 #include "ObjectCacheContext.h"
@@ -272,6 +273,12 @@ void FStaticMeshCompilingManager::AddStaticMeshes(TArrayView<UStaticMesh* const>
 void FStaticMeshCompilingManager::FinishCompilation(TArrayView<UStaticMesh* const> InStaticMeshes)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FStaticMeshCompilingManager::FinishCompilation);
+
+	// Allow calls from any thread if the meshes are already finished compiling.
+	if (Algo::NoneOf(InStaticMeshes, &UStaticMesh::IsCompiling))
+	{
+		return;
+	}
 
 	check(IsInGameThread());
 

@@ -37,6 +37,13 @@ class IInterface_CollisionDataProvider
 	 */
 	virtual bool ContainsPhysicsTriMeshData(bool InUseAllTriData) const { return false; }
 
+	/**
+	 * Poll for availability of asynchronously-populated triangle mesh collision data
+	 *
+	 * @return true if the triangle mesh collision can be accessed without blocking, false otherwise
+	 */
+	virtual bool PollAsyncPhysicsTriMeshData(bool InUseAllTriData) const { return true; }
+
 	/** Do we want to create a negative version of this mesh */
 	virtual bool WantsNegXTriMesh() { return false; }
 

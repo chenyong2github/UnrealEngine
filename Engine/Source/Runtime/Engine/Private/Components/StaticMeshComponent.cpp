@@ -1643,6 +1643,15 @@ bool UStaticMeshComponent::CanEditChange(const FProperty* InProperty) const
 	return Super::CanEditChange(InProperty);
 }
 
+void UStaticMeshComponent::BeginCacheForCookedPlatformData(const ITargetPlatform* TargetPlatform)
+{
+}
+
+bool UStaticMeshComponent::IsCachedCookedPlatformDataLoaded(const ITargetPlatform* TargetPlatform)
+{
+	return !GetStaticMesh() || !GetStaticMesh()->IsCompiling();
+}
+
 #endif // WITH_EDITOR
 
 bool UStaticMeshComponent::SupportsDefaultCollision()

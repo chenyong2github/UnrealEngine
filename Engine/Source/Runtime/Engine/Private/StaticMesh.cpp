@@ -3971,6 +3971,16 @@ void UStaticMesh::GetAssetRegistryTagMetadata(TMap<FName, FAssetRegistryTagMetad
 }
 #endif
 
+#if WITH_EDITOR
+void UStaticMesh::BeginCacheForCookedPlatformData(const ITargetPlatform* TargetPlatform)
+{
+}
+
+bool UStaticMesh::IsCachedCookedPlatformDataLoaded(const ITargetPlatform* TargetPlatform)
+{
+	return !IsCompiling();
+}
+#endif
 
 /*------------------------------------------------------------------------------
 	FStaticMeshSourceModel
@@ -6400,6 +6410,18 @@ bool UStaticMesh::ContainsPhysicsTriMeshDataCheckComplex(bool bInUseAllTriData, 
 		}
 	}
 	return false; 
+}
+
+bool UStaticMesh::PollAsyncPhysicsTriMeshData(bool InUseAllTriData) const
+{
+#if WITH_EDITORONLY_DATA
+	bool bInCheckComplexCollisionMesh = true;
+	if (ComplexCollisionMesh && ComplexCollisionMesh != this && bInCheckComplexCollisionMesh)
+	{
+		return true;
+	}
+#endif
+	return !IsCompiling();
 }
 
 void UStaticMesh::GetMeshId(FString& OutMeshId)

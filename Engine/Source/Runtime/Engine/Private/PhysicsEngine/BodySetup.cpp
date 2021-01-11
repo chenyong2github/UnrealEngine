@@ -1328,7 +1328,20 @@ float UBodySetup::GetClosestPointAndNormal(const FVector& WorldPosition, const F
 #if WITH_EDITOR
 void UBodySetup::BeginCacheForCookedPlatformData(const ITargetPlatform* TargetPlatform)
 {
+}
+
+bool UBodySetup::IsCachedCookedPlatformDataLoaded(const ITargetPlatform* TargetPlatform)
+{
+	if (IInterface_CollisionDataProvider* CDP = Cast<IInterface_CollisionDataProvider>(GetOuter()))
+	{
+		bool bInUseAllTriData = true;
+		if (!CDP->PollAsyncPhysicsTriMeshData(bInUseAllTriData))
+		{
+			return false;
+		}
+	}
 	GetCookedData(TargetPlatform->GetPhysicsFormat(this), true);
+	return true;
 }
 
 void UBodySetup::ClearCachedCookedPlatformData( const ITargetPlatform* TargetPlatform )

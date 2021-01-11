@@ -414,6 +414,8 @@ public:
 	virtual void PreEditUndo() override;
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual bool CanEditChange(const FProperty* InProperty) const override;
+	virtual void BeginCacheForCookedPlatformData(const ITargetPlatform* TargetPlatform) override;
+	virtual bool IsCachedCookedPlatformDataLoaded(const ITargetPlatform* TargetPlatform) override;
 #endif // WITH_EDITOR
 #if WITH_EDITORONLY_DATA
 	virtual void PreSave(const class ITargetPlatform* TargetPlatform) override;
