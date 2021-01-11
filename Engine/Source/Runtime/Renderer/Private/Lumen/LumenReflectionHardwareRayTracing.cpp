@@ -219,15 +219,14 @@ void RenderLumenHardwareRayTracingReflections(
 	int TileSize = CVarLumenReflectionsHardwareRayTracingDeferredMaterialTileSize.GetValueOnRenderThread();
 	FIntPoint DeferredMaterialBufferResolution = RayTracingResolution;
 	DeferredMaterialBufferResolution = FIntPoint::DivideAndRoundUp(DeferredMaterialBufferResolution, TileSize) * TileSize;
+
 	int DeferredMaterialBufferNumElements = DeferredMaterialBufferResolution.X * DeferredMaterialBufferResolution.Y;
 	FRDGBufferDesc Desc = FRDGBufferDesc::CreateStructuredDesc(sizeof(FDeferredMaterialPayload), DeferredMaterialBufferNumElements);
 	FRDGBufferRef DeferredMaterialBuffer = GraphBuilder.CreateBuffer(Desc, TEXT("LumenVisualizeHardwareRayTracingDeferredMaterialBuffer"));
 
-	// Trace to get material-id
-	bool bUseDeferredMaterial = CVarLumenReflectionsHardwareRayTracingDeferredMaterial.GetValueOnRenderThread() != 0;
 	Lumen::EHardwareRayTracingLightingMode LightingMode = static_cast<Lumen::EHardwareRayTracingLightingMode>(CVarLumenReflectionsHardwareRayTracingLightingMode.GetValueOnRenderThread());
-
-	bool bUseMinimalPayload = LightingMode == Lumen::EHardwareRayTracingLightingMode::LightingFromSurfaceCache && !bUseDeferredMaterial;
+	bool bUseMinimalPayload = LightingMode == Lumen::EHardwareRayTracingLightingMode::LightingFromSurfaceCache;
+	bool bUseDeferredMaterial = (CVarLumenReflectionsHardwareRayTracingDeferredMaterial.GetValueOnRenderThread() != 0) && !bUseMinimalPayload;
 	if (bUseDeferredMaterial)
 	{
 		FLumenReflectionHardwareRayTracingDeferredMaterialRGS::FParameters* PassParameters = GraphBuilder.AllocParameters<FLumenReflectionHardwareRayTracingDeferredMaterialRGS::FParameters>();
