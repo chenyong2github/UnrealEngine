@@ -281,6 +281,11 @@ namespace ObjectTools
 				// and if so, offer the user the option to reset the transaction buffer.
 				GEditor->Trans->DisableObjectSerialization();
 				bOutIsReferenced = IsReferenced(InObject, GARBAGE_COLLECTION_KEEPFLAGS, EInternalObjectFlags::GarbageCollectionKeepFlags, true, OutMemoryReferences);
+				if (!bOutIsReferenced)
+				{
+					UE_LOG(LogObjectTools, Warning, TEXT("Detected inconsistencies between reference gathering algorithms. Switching 'Editor.UseLegacyGetReferencersForDeletion' on for the remainder of this editor session."));
+					CVarUseLegacyGetReferencersForDeletion->Set(1);
+				}
 				GEditor->Trans->EnableObjectSerialization();
 			}
 		}
