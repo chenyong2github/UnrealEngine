@@ -489,7 +489,12 @@ void FMovieSceneEntitySystemRunner::GameThread_PostEvaluationPhase()
 
 		for (FInstanceHandle UpdatedInstanceHandle : CurrentInstancesCopy)
 		{
-			InstanceRegistry->MutateInstance(UpdatedInstanceHandle).PostEvaluation(Linker);
+			// We must check for validity here because the cache handles may have become invalid
+			// during this iteration (since there is a re-entrancy window open)
+			if (InstanceRegistry->IsHandleValid(UpdatedInstanceHandle))
+			{
+				InstanceRegistry->MutateInstance(UpdatedInstanceHandle).PostEvaluation(Linker);
+			}
 		}
 	}
 }
