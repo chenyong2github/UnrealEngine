@@ -59,6 +59,11 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TextureShare")
 	UTexture2D* Texture;
 
+	FTextureShareBPTexture2D()
+		: RTT(nullptr)
+		, Texture(nullptr)
+	{}
+
 	//Helpers:
 	bool          IsValid() const;
 	FIntPoint     GetSizeXY() const;
