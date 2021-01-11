@@ -1241,17 +1241,18 @@ void FDynamicMeshEditor::InvertTriangleNormals(const TArray<int>& Triangles)
 
 	if (Mesh->HasAttributes())
 	{
-		for (FDynamicMeshNormalOverlay* Normals : Mesh->Attributes()->GetAllNormalLayers())
+		for (int NormalLayerIndex = 0; NormalLayerIndex < Mesh->Attributes()->NumNormalLayers(); NormalLayerIndex++)
 		{
-			TBitArray<FDefaultBitArrayAllocator> DoneNormals(false, Normals->MaxElementID());
+			FDynamicMeshNormalOverlay* NormalOverlay = Mesh->Attributes()->GetNormalLayer(NormalLayerIndex);
+			TBitArray<FDefaultBitArrayAllocator> DoneNormals(false, NormalOverlay->MaxElementID());
 			for (int TriangleID : Triangles)
 			{
-				FIndex3i ElemTri = Normals->GetTriangle(TriangleID);
+				FIndex3i ElemTri = NormalOverlay->GetTriangle(TriangleID);
 				for (int j = 0; j < 3; ++j)
 				{
-					if (Normals->IsElement(ElemTri[j]) && DoneNormals[ElemTri[j]] == false)
+					if (NormalOverlay->IsElement(ElemTri[j]) && DoneNormals[ElemTri[j]] == false)
 					{
-						Normals->SetElement(ElemTri[j], -Normals->GetElement(ElemTri[j]));
+						NormalOverlay->SetElement(ElemTri[j], -NormalOverlay->GetElement(ElemTri[j]));
 						DoneNormals[ElemTri[j]] = true;
 					}
 				}
@@ -1466,21 +1467,23 @@ void FDynamicMeshEditor::AppendMesh(const FDynamicMesh3* AppendMesh,
 	}
 
 
-	// @todo support multiple UV/normal layer copying
 	// @todo can we have a template fn that does this?
 
 	if (AppendMesh->HasAttributes() && Mesh->HasAttributes())
 	{
-		const FDynamicMeshNormalOverlay* FromNormals = AppendMesh->Attributes()->PrimaryNormals();
-		FDynamicMeshNormalOverlay* ToNormals = Mesh->Attributes()->PrimaryNormals();
-		if (FromNormals != nullptr && ToNormals != nullptr)
-		{
-			FIndexMapi& NormalMap = IndexMapsOut.GetNormalMap(0);
-			NormalMap.Reserve(FromNormals->ElementCount());
-			AppendNormals(AppendMesh, FromNormals, ToNormals,
-				VertexMap, TriangleMap, NormalTransform, NormalMap);
+		int NumNormalLayers = FMath::Min(Mesh->Attributes()->NumNormalLayers(), AppendMesh->Attributes()->NumNormalLayers());
+		for (int NormalLayerIndex = 0; NormalLayerIndex < NumNormalLayers; NormalLayerIndex++)
+		{ 
+			const FDynamicMeshNormalOverlay* FromNormals = AppendMesh->Attributes()->GetNormalLayer(NormalLayerIndex);
+			FDynamicMeshNormalOverlay* ToNormals = Mesh->Attributes()->GetNormalLayer(NormalLayerIndex);
+			if (FromNormals != nullptr && ToNormals != nullptr)
+			{
+				FIndexMapi& NormalMap = IndexMapsOut.GetNormalMap(0);
+				NormalMap.Reserve(FromNormals->ElementCount());
+				AppendNormals(AppendMesh, FromNormals, ToNormals,
+					VertexMap, TriangleMap, NormalTransform, NormalMap);
+			}
 		}
-
 
 		int NumUVLayers = FMath::Min(Mesh->Attributes()->NumUVLayers(), AppendMesh->Attributes()->NumUVLayers());
 		for (int UVLayerIndex = 0; UVLayerIndex < NumUVLayers; UVLayerIndex++)
@@ -1656,8 +1659,6 @@ static void AppendTriangleAttributes(const FDynamicMesh3* FromMesh, int FromTria
 		return;
 	}
 
-	// todo: if we ever support multiple normal layers, copy them all
-	check(FromMesh->Attributes()->NumNormalLayers() == 1);
 
 	for (int UVLayerIndex = 0; UVLayerIndex < FMath::Min(FromMesh->Attributes()->NumUVLayers(), ToMesh->Attributes()->NumUVLayers()); UVLayerIndex++)
 	{
@@ -1678,10 +1679,10 @@ static void AppendTriangleAttributes(const FDynamicMesh3* FromMesh, int FromTria
 	}
 
 
-	const FDynamicMeshNormalOverlay* FromNormalOverlay = FromMesh->Attributes()->PrimaryNormals();
-	FDynamicMeshNormalOverlay* ToNormalOverlay = ToMesh->Attributes()->PrimaryNormals();
-
+	for (int NormalLayerIndex = 0; NormalLayerIndex < FMath::Min(FromMesh->Attributes()->NumNormalLayers(), ToMesh->Attributes()->NumNormalLayers()); NormalLayerIndex++)
 	{
+		const FDynamicMeshNormalOverlay* FromNormalOverlay = FromMesh->Attributes()->GetNormalLayer(NormalLayerIndex);
+		FDynamicMeshNormalOverlay* ToNormalOverlay = ToMesh->Attributes()->GetNormalLayer(NormalLayerIndex);
 		if (FromNormalOverlay->IsSetTriangle(FromTriangleID))
 		{
 			FIndex3i FromElemTri = FromNormalOverlay->GetTriangle(FromTriangleID);

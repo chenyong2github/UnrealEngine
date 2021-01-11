@@ -24,7 +24,8 @@ typedef TDynamicMeshScalarTriangleAttribute<int32> FDynamicMeshPolygroupAttribut
  * FDynamicMeshAttributeSet manages a set of extended attributes for a FDynamicMesh3.
  * This includes UV and Normal overlays, etc.
  * 
- * Currently the default is to always have one UV layer and one Normal layer
+ * Currently the default is to always have one UV layer and one Normal layer, 
+ * but the number of layers can be requested on construction.
  * 
  * @todo current internal structure is a work-in-progress
  */
@@ -33,10 +34,17 @@ class DYNAMICMESH_API FDynamicMeshAttributeSet : public FDynamicMeshAttributeSet
 public:
 
 	FDynamicMeshAttributeSet(FDynamicMesh3* Mesh)
-		: ParentMesh(Mesh), Normals0(Mesh)
+		: ParentMesh(Mesh)
 	{
 		SetNumUVLayers(1);
-		NormalLayers.Add(&Normals0);
+		SetNumNormalLayers(1);
+	}
+
+	FDynamicMeshAttributeSet(FDynamicMesh3* Mesh, int32 NumUVLayers, int32 NumNormalLayers)
+		: ParentMesh(Mesh)
+	{
+		SetNumUVLayers(NumUVLayers);
+		SetNumNormalLayers(NumNormalLayers);
 	}
 
 	virtual ~FDynamicMeshAttributeSet()
@@ -99,9 +107,10 @@ public:
 	/** @return number of Normals layers */
 	virtual int NumNormalLayers() const
 	{
-		checkSlow(NormalLayers.Num() == 1);
-		return 1;
+		return NormalLayers.Num();
 	}
+
+	virtual void SetNumNormalLayers(int Num);
 
 	/** @return true if the given edge is a seam edge in any overlay */
 	virtual bool IsSeamEdge(int EdgeID) const;
@@ -119,27 +128,35 @@ public:
 	// UV Layers 
 	//
 
-	/** @return the UV layer at the given Index */
+	/** @return the UV layer at the given Index  if exists, else nullptr*/
 	FDynamicMeshUVOverlay* GetUVLayer(int Index)
 	{
-		return &UVLayers[Index];
+		if (Index < UVLayers.Num() && Index > -1)
+		{ 
+			return &UVLayers[Index];
+		}
+		return nullptr;
 	}
 
-	/** @return the UV layer at the given Index */
+	/** @return the UV layer at the given Index if exists, else nullptr */
 	const FDynamicMeshUVOverlay* GetUVLayer(int Index) const
 	{
-		return &UVLayers[Index];
+		if (Index < UVLayers.Num() && Index > -1)
+		{
+			return &UVLayers[Index];
+		}
+		return nullptr;
 	}
 
 	/** @return the primary UV layer (layer 0) */
 	FDynamicMeshUVOverlay* PrimaryUV()
 	{
-		return &UVLayers[0];
+		return GetUVLayer(0);
 	}
 	/** @return the primary UV layer (layer 0) */
 	const FDynamicMeshUVOverlay* PrimaryUV() const
 	{
-		return &UVLayers[0];
+		return GetUVLayer(0);
 	}
 
 
@@ -147,35 +164,63 @@ public:
 	// Normal Layers 
 	//
 
-	/** @return the Normal layer at the given Index */
+	/** @return the Normal layer at the given Index if exists, else nullptr */
 	FDynamicMeshNormalOverlay* GetNormalLayer(int Index)
 	{
-		return (Index == 0) ? &Normals0 : nullptr;
+		if (Index < NormalLayers.Num() && Index > -1)
+		{ 
+			return &NormalLayers[Index];
+		}
+		return nullptr;
 	}
 
-	/** @return the Normal layer at the given Index */
+	/** @return the Normal layer at the given Index if exists, else nullptr */
 	const FDynamicMeshNormalOverlay* GetNormalLayer(int Index) const
 	{
-		return (Index == 0) ? &Normals0 : nullptr;
+		if (Index < NormalLayers.Num() && Index > -1)
+		{
+			return &NormalLayers[Index];
+		}
+		return nullptr;
 	}
 
-	/** @return list of all Normal layers */
-	const TArray<FDynamicMeshNormalOverlay*>& GetAllNormalLayers() const
-	{
-		return NormalLayers;
-	}
 
-	/** @return the primary Normal layer (layer 0) */
+	/** @return the primary Normal layer (normal layer 0) if exists, else nullptr */
 	FDynamicMeshNormalOverlay* PrimaryNormals()
 	{
-		return &Normals0;
+		return GetNormalLayer(0);
 	}
-	/** @return the primary Normal layer (layer 0) */
+	/** @return the primary Normal layer (normal layer 0) if exists, else nullptr */
 	const FDynamicMeshNormalOverlay* PrimaryNormals() const
 	{
-		return &Normals0;
+		return GetNormalLayer(0);
+	}
+	/** @return the primary tangent layer ( normal layer 1) if exists, else nullptr */
+	FDynamicMeshNormalOverlay* PrimaryTangents()
+	{
+		return GetNormalLayer(1);
+	}
+	/** @return the primary tangent layer ( normal layer 1) if exists, else nullptr */
+	const FDynamicMeshNormalOverlay* PrimaryTangents() const 
+	{
+		return GetNormalLayer(1);
+	}
+	/** @return the primary biTangent layer ( normal layer 2) if exists, else nullptr */
+	FDynamicMeshNormalOverlay* PrimaryBiTangents()
+	{
+		return GetNormalLayer(2);
+	}
+	/** @return the primary biTangent layer ( normal layer 2) if exists, else nullptr */
+	const FDynamicMeshNormalOverlay* PrimaryBiTangents() const
+	{
+		return GetNormalLayer(2);
 	}
 
+	/** @return true if normal layers exist for the normal, tangent, and bitangent */
+	bool HasTangentSpace() const
+	{
+		return (PrimaryNormals() != nullptr && PrimaryTangents()  != nullptr && PrimaryBiTangents() != nullptr);
+	}
 
 
 	//
@@ -265,11 +310,9 @@ protected:
 	/** Parent mesh of this attribute set */
 	FDynamicMesh3* ParentMesh;
 
-	/** Default Normals layer */
-	FDynamicMeshNormalOverlay Normals0;
-
+	
 	TIndirectArray<FDynamicMeshUVOverlay> UVLayers;
-	TArray<FDynamicMeshNormalOverlay*> NormalLayers;
+	TIndirectArray<FDynamicMeshNormalOverlay> NormalLayers;
 
 	TUniquePtr<FDynamicMeshMaterialAttribute> MaterialIDAttrib;
 
@@ -289,7 +332,10 @@ protected:
 		{
 			UVLayer.InitializeTriangles(MaxTriangleID);
 		}
-		Normals0.InitializeTriangles(MaxTriangleID);
+		for (FDynamicMeshNormalOverlay& NormalLayer : NormalLayers)
+		{
+			NormalLayer.InitializeTriangles(MaxTriangleID);
+		}
 	}
 
 	// These functions are called by the FDynamicMesh3 to update the various
