@@ -42,6 +42,7 @@ public class Kismet : ModuleRules
 				"KismetWidgets",
 				"KismetCompiler",
 				"BlueprintGraph",
+				"BlueprintEditorLibrary",
 				"AnimGraph",
 				"PropertyEditor",
 				"SourceControl",
