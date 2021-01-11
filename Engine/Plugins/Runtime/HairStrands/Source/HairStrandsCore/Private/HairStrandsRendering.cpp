@@ -787,9 +787,9 @@ class FHairCardsDeformationCS : public FGlobalShader
 		SHADER_PARAMETER(uint32, CardsVertexCount)
 		SHADER_PARAMETER(uint32, GuideVertexCount)
 		SHADER_PARAMETER(FVector, GuideRestPositionOffset)
-		SHADER_PARAMETER(FVector, GuideDeformedPositionOffset)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, GuideRestPositionBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, GuideDeformedPositionBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, GuideDeformedPositionOffsetBuffer)
 		SHADER_PARAMETER_SRV(Buffer, CardsRestPositionBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, CardsInterpolationBuffer)
 
@@ -835,9 +835,9 @@ static void AddHairCardsDeformationPass(
 	FHairCardsDeformationCS::FParameters* Parameters = GraphBuilder.AllocParameters<FHairCardsDeformationCS::FParameters>();
 	Parameters->GuideVertexCount			= LOD.Guides.RestResource->GetVertexCount();
 	Parameters->GuideRestPositionOffset		= LOD.Guides.RestResource->PositionOffset;
-	Parameters->GuideDeformedPositionOffset = LOD.Guides.DeformedResource->GetPositionOffset(FHairStrandsDeformedResource::Current);
 	Parameters->GuideRestPositionBuffer		= RegisterAsSRV(GraphBuilder, LOD.Guides.RestResource->RestPositionBuffer);
 	Parameters->GuideDeformedPositionBuffer = RegisterAsSRV(GraphBuilder, LOD.Guides.DeformedResource->GetBuffer(FHairStrandsDeformedResource::Current));
+	Parameters->GuideDeformedPositionOffsetBuffer = RegisterAsSRV(GraphBuilder, LOD.Guides.DeformedResource->GetPositionOffsetBuffer(FHairStrandsDeformedResource::Current));
 	
 	Parameters->CardsVertexCount			= LOD.RestResource->VertexCount;
 	Parameters->CardsRestPositionBuffer		= LOD.RestResource->RestPositionBuffer.ShaderResourceViewRHI;
