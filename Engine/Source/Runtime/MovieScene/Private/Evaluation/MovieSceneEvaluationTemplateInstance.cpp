@@ -55,7 +55,13 @@ UMovieSceneEntitySystemLinker* FMovieSceneRootEvaluationTemplateInstance::Constr
 
 void FMovieSceneRootEvaluationTemplateInstance::Initialize(UMovieSceneSequence& InRootSequence, IMovieScenePlayer& Player, UMovieSceneCompiledDataManager* InCompiledDataManager)
 {
-	bool bReinitialize = (WeakRootSequence.Get() == nullptr);
+	bool bReinitialize = (
+			// Initialize if we weren't initialized before and this is our first sequence.
+			WeakRootSequence.Get() == nullptr ||
+			// Initialize if we lost our linker.
+			EntitySystemLinker == nullptr ||
+			// Initialize if our linker was reset and forced our runner to detach.
+			!EntitySystemRunner.IsAttachedToLinker());
 
 	const UMovieSceneCompiledDataManager* PreviousCompiledDataManager = CompiledDataManager;
 	if (InCompiledDataManager)
@@ -206,17 +212,20 @@ UE::MovieScene::FSequenceInstance* FMovieSceneRootEvaluationTemplateInstance::Fi
 {
 	using namespace UE::MovieScene;
 
-	 FSequenceInstance* SequenceInstance = &EntitySystemLinker->GetInstanceRegistry()->MutateInstance(RootInstanceHandle);
-
-	if (SequenceID == MovieSceneSequenceID::Root)
+	if (ensure(EntitySystemLinker))
 	{
-		return SequenceInstance;
-	}
+		FSequenceInstance* SequenceInstance = &EntitySystemLinker->GetInstanceRegistry()->MutateInstance(RootInstanceHandle);
 
-	FInstanceHandle SubHandle = SequenceInstance->FindSubInstance(SequenceID);
-	if (SubHandle.IsValid())
-	{
-		return &EntitySystemLinker->GetInstanceRegistry()->MutateInstance(SubHandle);
+		if (SequenceID == MovieSceneSequenceID::Root)
+		{
+			return SequenceInstance;
+		}
+
+		FInstanceHandle SubHandle = SequenceInstance->FindSubInstance(SequenceID);
+		if (SubHandle.IsValid())
+		{
+			return &EntitySystemLinker->GetInstanceRegistry()->MutateInstance(SubHandle);
+		}
 	}
 
 	return nullptr;
@@ -226,17 +235,20 @@ const UE::MovieScene::FSequenceInstance* FMovieSceneRootEvaluationTemplateInstan
 {
 	using namespace UE::MovieScene;
 
-	const FSequenceInstance* SequenceInstance = &EntitySystemLinker->GetInstanceRegistry()->GetInstance(RootInstanceHandle);
-
-	if (SequenceID == MovieSceneSequenceID::Root)
+	if (ensure(EntitySystemLinker))
 	{
-		return SequenceInstance;
-	}
+		const FSequenceInstance* SequenceInstance = &EntitySystemLinker->GetInstanceRegistry()->GetInstance(RootInstanceHandle);
 
-	FInstanceHandle SubHandle = SequenceInstance->FindSubInstance(SequenceID);
-	if (SubHandle.IsValid())
-	{
-		return &EntitySystemLinker->GetInstanceRegistry()->GetInstance(SubHandle);
+		if (SequenceID == MovieSceneSequenceID::Root)
+		{
+			return SequenceInstance;
+		}
+
+		FInstanceHandle SubHandle = SequenceInstance->FindSubInstance(SequenceID);
+		if (SubHandle.IsValid())
+		{
+			return &EntitySystemLinker->GetInstanceRegistry()->GetInstance(SubHandle);
+		}
 	}
 
 	return nullptr;
