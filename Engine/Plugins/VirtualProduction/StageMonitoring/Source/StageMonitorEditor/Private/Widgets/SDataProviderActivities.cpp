@@ -192,9 +192,30 @@ void SDataProviderActivities::OnNewStageActivity(TSharedPtr<FStageDataEntry> New
 	Activities.Add(RowData);
 	if (ActivityFilter->GetActivityFilter().DoesItPass(NewActivity))
 	{
-		FilteredActivities.Insert(RowData, 0);
+		InsertActivity(RowData);
+
 		ActivityList->RequestListRefresh();
 	}
+}
+
+void SDataProviderActivities::InsertActivity(TSharedPtr<FDataProviderActivity> Activity)
+{
+	//We might receive messages out of order, make sure we're displaying them in order of source timecode
+	const FStageProviderMessage* ThisActivity = reinterpret_cast<const FStageProviderMessage*>(Activity->ActivityPayload->Data->GetStructMemory());
+
+	const double NewFrameSeconds = ThisActivity->FrameTime.AsSeconds();
+	int32 EntryIndex = 0;
+	for (; EntryIndex < FilteredActivities.Num(); ++EntryIndex)
+	{
+		const FStageProviderMessage* ThisEntry = reinterpret_cast<const FStageProviderMessage*>(FilteredActivities[EntryIndex]->ActivityPayload->Data->GetStructMemory());
+		const double ThisFrameSeconds = ThisEntry->FrameTime.AsSeconds();
+		if (NewFrameSeconds >= ThisFrameSeconds)
+		{
+			break;
+		}
+	}
+
+	FilteredActivities.Insert(Activity, EntryIndex);
 }
 
 void SDataProviderActivities::OnActivityFilterChanged()
@@ -207,7 +228,7 @@ void SDataProviderActivities::OnActivityFilterChanged()
 		const FDataProviderActivityPtr& Activity = Activities.Last(i);
 		if (ActivityFilter->GetActivityFilter().DoesItPass(Activity->ActivityPayload))
 		{
-			FilteredActivities.Add(Activity);
+			InsertActivity(Activity);
 		}
 	}
 

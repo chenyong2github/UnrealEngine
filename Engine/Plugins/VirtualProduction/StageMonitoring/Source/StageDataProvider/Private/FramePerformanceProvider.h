@@ -20,14 +20,17 @@ struct STAGEDATAPROVIDER_API FHitchDetectionMessage : public FStageProviderEvent
 public:
 	FHitchDetectionMessage() = default;
 
-	FHitchDetectionMessage(float InGameThreadTimeWithWaits, float InRenderThreadTimeWithWaits, float InGameThreadTime, float InRenderThreadTime, float InGPUTime, float InTimingThreshold)
+	FHitchDetectionMessage(float InGameThreadTimeWithWaits, float InRenderThreadTimeWithWaits, float InGameThreadTime, float InRenderThreadTime, float InGPUTime, float InTimingThreshold, float InHitchedFPS)
 		: GameThreadWithWaitsMS(InGameThreadTimeWithWaits)
 		, RenderThreadWithWaitsMS(InRenderThreadTimeWithWaits)
 		, GameThreadMS(InGameThreadTime)
 		, RenderThreadMS(InRenderThreadTime)
 		, GPU_MS(InGPUTime)
 		, TimingThreshold(InTimingThreshold)
+		, HitchedTimeFPS(InHitchedFPS)
 	{
+		extern ENGINE_API float GAverageFPS;
+		AverageFPS = GAverageFPS;
 	}
 
 	/** Current GameThread time including any waits read from StatsThread in milliseconds */
@@ -53,6 +56,14 @@ public:
 	/** Timing threshold that was crossed in milliseconds */
 	UPROPERTY(VisibleAnywhere, Category = "Hitch", meta = (Unit = "ms"))
 	float TimingThreshold = 0.f;
+
+	/** FPS correspondent to the timing that triggered the hitch (game or render thread) */
+	UPROPERTY(VisibleAnywhere, Category = "Hitch")
+	float HitchedTimeFPS = 0.f;	
+	
+	/** Average FPS when hitch occured */
+	UPROPERTY(VisibleAnywhere, Category = "Hitch")
+	float AverageFPS = 0.f;
 };
 
 /**

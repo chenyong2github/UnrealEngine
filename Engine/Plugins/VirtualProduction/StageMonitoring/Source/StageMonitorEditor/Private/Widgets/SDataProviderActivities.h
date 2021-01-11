@@ -83,6 +83,7 @@ private:
 	TSharedRef<ITableRow> OnGenerateActivityRowWidget(FDataProviderActivityPtr Item, const TSharedRef<STableViewBase>& OwnerTable);
 	void OnListViewSelectionChanged(FDataProviderActivityPtr InActivity, ESelectInfo::Type SelectInfo);
 	void OnNewStageActivity(TSharedPtr<FStageDataEntry> NewActivity);
+	void InsertActivity(TSharedPtr<FDataProviderActivity> Activity);
 	void OnActivityFilterChanged();
 	void ReloadActivityHistory();
 	void OnStageDataCleared();

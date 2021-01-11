@@ -23,11 +23,14 @@ void FStageMonitorEditorModule::StartupModule()
 	SStageMonitorPanel::RegisterNomadTabSpawner(WorkspaceMenu::GetMenuStructure().GetDeveloperToolsMiscCategory());
 
 	ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings");
-
-	SettingsModule->RegisterSettings("Project", "Plugins", "Stage Monitor Editor",
-		LOCTEXT("StageMonitorEditorName", "Stage Monitor Editor"),
-		LOCTEXT("StageMonitorEditorDescription", "Configure the editor aspects of StageMonitor plugin."),
-		GetMutableDefault<UStageMonitorEditorSettings>());
+	if (SettingsModule)
+	{
+		SettingsModule->RegisterSettings("Project", "Plugins", "Stage Monitor Editor",
+			LOCTEXT("StageMonitorEditorName", "Stage Monitor Editor"),
+			LOCTEXT("StageMonitorEditorDescription", "Configure the editor aspects of StageMonitor plugin."),
+			GetMutableDefault<UStageMonitorEditorSettings>());
+	}
+	
 
 	RegisterCustomizations();
 }
