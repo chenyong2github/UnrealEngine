@@ -97,7 +97,7 @@ if [ "$ACTION" == "build" ]; then
 
 	# Build SCW if this is an editor target
 	if [[ "$TARGET" == *"Editor" ]]; then
-		mono Engine/Binaries/DotNET/UnrealBuildTool.exe ShaderCompileWorker Mac Development $UBT_ARCHFLAG 
+		mono Engine/Binaries/DotNET/UnrealBuildTool.exe ShaderCompileWorker Mac Development
 	fi
 
 elif [ $ACTION == "clean" ]; then
