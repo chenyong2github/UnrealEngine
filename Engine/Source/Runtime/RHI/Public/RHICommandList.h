@@ -2173,6 +2173,8 @@ FRHICOMMAND_MACRO(FRHICommandRayTraceDispatch)
 	FRHIRayTracingScene* Scene;
 	FRayTracingShaderBindings GlobalResourceBindings;
 	FRHIRayTracingShader* RayGenShader;
+	FRHIBuffer* ArgumentBuffer;
+	uint32 ArgumentOffset;
 	uint32 Width;
 	uint32 Height;
 
@@ -2181,8 +2183,21 @@ FRHICOMMAND_MACRO(FRHICommandRayTraceDispatch)
 		, Scene(InScene)
 		, GlobalResourceBindings(InGlobalResourceBindings)
 		, RayGenShader(InRayGenShader)
+		, ArgumentBuffer(nullptr)
+		, ArgumentOffset(0)
 		, Width(InWidth)
 		, Height(InHeight)
+	{}
+
+	FRHICommandRayTraceDispatch(FRayTracingPipelineState* InPipeline, FRHIRayTracingShader* InRayGenShader, FRHIRayTracingScene* InScene, const FRayTracingShaderBindings& InGlobalResourceBindings, FRHIBuffer* InArgumentBuffer, uint32 InArgumentOffset)
+		: Pipeline(InPipeline)
+		, Scene(InScene)
+		, GlobalResourceBindings(InGlobalResourceBindings)
+		, RayGenShader(InRayGenShader)
+		, ArgumentBuffer(InArgumentBuffer)
+		, ArgumentOffset(InArgumentOffset)
+		, Width(0)
+		, Height(0)
 	{}
 
 	RHI_API void Execute(FRHICommandListBase& CmdList);
@@ -3675,6 +3690,24 @@ public:
 		else
 		{
 			ALLOC_COMMAND(FRHICommandRayTraceDispatch)(Pipeline, RayGenShader, Scene, GlobalResourceBindings, Width, Height);
+		}
+	}
+
+	/**
+	 * Trace rays using dimensions from a GPU buffer containing uint[3], interpreted as number of rays in X, Y and Z dimensions.
+	 * ArgumentBuffer must be in ERHIAccess::ReadOnlyExclusiveMask state rather than simply IndirectArgs since it's read as a regular GPU resource on some platforms.
+	 */
+	FORCEINLINE_DEBUGGABLE void RayTraceDispatchIndirect(FRayTracingPipelineState* Pipeline, FRHIRayTracingShader* RayGenShader, FRHIRayTracingScene* Scene, const FRayTracingShaderBindings& GlobalResourceBindings, FRHIBuffer* ArgumentBuffer, uint32 ArgumentOffset)
+	{
+		checkf(GRHISupportsRayTracingDispatchIndirect, TEXT("Indirect ray tracing is not supported on this machine."));
+		if (Bypass())
+		{
+			extern RHI_API FRHIRayTracingPipelineState* GetRHIRayTracingPipelineState(FRayTracingPipelineState*);
+			GetContext().RHIRayTraceDispatchIndirect(GetRHIRayTracingPipelineState(Pipeline), RayGenShader, Scene, GlobalResourceBindings, ArgumentBuffer, ArgumentOffset);
+		}
+		else
+		{
+			ALLOC_COMMAND(FRHICommandRayTraceDispatch)(Pipeline, RayGenShader, Scene, GlobalResourceBindings, ArgumentBuffer, ArgumentOffset);
 		}
 	}
 

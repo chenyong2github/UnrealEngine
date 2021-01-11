@@ -545,7 +545,14 @@ void FRHICommandRayTraceDispatch::Execute(FRHICommandListBase& CmdList)
 {
 	RHISTAT(RayTraceDispatch);
 	extern RHI_API FRHIRayTracingPipelineState* GetRHIRayTracingPipelineState(FRayTracingPipelineState*);
-	INTERNAL_DECORATOR(RHIRayTraceDispatch)(GetRHIRayTracingPipelineState(Pipeline), RayGenShader, Scene, GlobalResourceBindings, Width, Height);
+	if (ArgumentBuffer)
+	{
+		INTERNAL_DECORATOR(RHIRayTraceDispatchIndirect)(GetRHIRayTracingPipelineState(Pipeline), RayGenShader, Scene, GlobalResourceBindings, ArgumentBuffer, ArgumentOffset);
+	}
+	else
+	{
+		INTERNAL_DECORATOR(RHIRayTraceDispatch)(GetRHIRayTracingPipelineState(Pipeline), RayGenShader, Scene, GlobalResourceBindings, Width, Height);
+	}
 }
 
 void FRHICommandSetRayTracingBindings::Execute(FRHICommandListBase& CmdList)

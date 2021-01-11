@@ -567,6 +567,9 @@ extern RHI_API bool GRHISupportsRayTracing;
 /** Whether or not the RHI supports adding new shaders to an existing RT PSO. */
 extern RHI_API bool GRHISupportsRayTracingPSOAdditions;
 
+/** Whether or not the RHI supports indirect ray tracing dispatch commands. */
+extern RHI_API bool GRHISupportsRayTracingDispatchIndirect;
+
 /** Whether or not the RHI supports async building ray tracing acceleration structures. */
 extern RHI_API bool GRHISupportsRayTracingAsyncBuildAccelerationStructure;
 

@@ -13,7 +13,7 @@
 #include "HAL/CriticalSection.h"
 #include "HAL/IConsoleManager.h"
 #include "Misc/ScopeLock.h"
-#include "RayTracingInstanceCopyShader.h" 
+#include "RayTracingInstanceCopyShader.h"
 
 static int32 GRayTracingDebugForceOpaque = 0;
 static FAutoConsoleVariableRef CVarRayTracingDebugForceOpaque(
@@ -3862,9 +3862,49 @@ static void DispatchRays(FD3D12CommandContext& CommandContext,
 	const FD3D12RayTracingPipelineState* Pipeline,
 	uint32 RayGenShaderIndex,
 	FD3D12RayTracingShaderTable* OptShaderTable,
-	const D3D12_DISPATCH_RAYS_DESC& DispatchDesc)
+	const D3D12_DISPATCH_RAYS_DESC& DispatchDesc,
+	FD3D12Buffer* ArgumentBuffer = nullptr, uint32 ArgumentOffset = 0)
 {
-	 SCOPE_CYCLE_COUNTER(STAT_D3D12DispatchRays);
+	SCOPE_CYCLE_COUNTER(STAT_D3D12DispatchRays);
+
+	FD3D12Adapter* Adapter = CommandContext.GetParentDevice()->GetParentAdapter();
+
+	TRefCountPtr<FD3D12Buffer> DispatchRaysDescBuffer;
+
+	if (ArgumentBuffer)
+	{
+		FD3D12CommandListHandle& CommandListHandle = CommandContext.CommandListHandle;
+
+		// Source indirect argument buffer only contains the dispatch dimensions, however D3D12 requires a full D3D12_DISPATCH_RAYS_DESC structure.
+		// We create a new buffer, fill the SBT pointers on CPU and copy the dispatch dimensions into the right place.
+
+		D3D12_RESOURCE_DESC BufferDesc = CD3DX12_RESOURCE_DESC::Buffer(
+			sizeof(D3D12_DISPATCH_RAYS_DESC),
+			D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+			D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT);
+
+		FRHIResourceCreateInfo DispatchRaysDescBufferCreateInfo;
+		DispatchRaysDescBufferCreateInfo.GPUMask = FRHIGPUMask::FromIndex(CommandContext.GetGPUIndex());
+
+		DispatchRaysDescBuffer = Adapter->CreateRHIBuffer(
+			nullptr, BufferDesc, BufferDesc.Alignment,
+			4, BufferDesc.Width, BUF_Static | BUF_DrawIndirect | BUF_UnorderedAccess,
+			ED3D12ResourceStateMode::MultiState, ERHIAccess::UAVCompute,
+			DispatchRaysDescBufferCreateInfo);
+
+		FD3D12Resource* DispatchRaysDescBufferResource = DispatchRaysDescBuffer->GetResource();
+
+		SetName(DispatchRaysDescBufferResource, TEXT("DispatchRaysDescBuffer"));
+
+		{
+			TRHICommandList_RecursiveHazardous<FD3D12CommandContext> RHICmdList(&CommandContext);
+			FShaderResourceViewRHIRef SRV = RHICreateShaderResourceView(ArgumentBuffer, 4, PF_R32_UINT);
+			FUnorderedAccessViewRHIRef UAV = RHICreateUnorderedAccessView(DispatchRaysDescBuffer, PF_R32_UINT);
+			FRayTracingDispatchDescCS::Dispatch(RHICmdList, &DispatchDesc, sizeof(DispatchDesc), offsetof(D3D12_DISPATCH_RAYS_DESC, Width), SRV, ArgumentOffset, UAV);
+		}
+
+		CommandListHandle.AddTransitionBarrier(DispatchRaysDescBufferResource, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT, 0);
+	}
 
 	// Setup state for RT dispatch
 	
@@ -3918,7 +3958,23 @@ static void DispatchRays(FD3D12CommandContext& CommandContext,
 
 		ID3D12GraphicsCommandList4* RayTracingCommandList = CommandContext.CommandListHandle.RayTracingCommandList();
 		RayTracingCommandList->SetPipelineState1(RayTracingStateObject);
-		RayTracingCommandList->DispatchRays(&DispatchDesc);
+
+		if (DispatchRaysDescBuffer)
+		{
+			ID3D12CommandSignature* CommandSignature = Adapter->GetDispatchRaysIndirectCommandSignature();
+			RayTracingCommandList->ExecuteIndirect(
+				CommandSignature,
+				1,
+				DispatchRaysDescBuffer->ResourceLocation.GetResource()->GetResource(),
+				DispatchRaysDescBuffer->ResourceLocation.GetOffsetFromBaseOfResource(),
+				nullptr,
+				0
+			);
+		}
+		else
+		{
+			RayTracingCommandList->DispatchRays(&DispatchDesc);
+		}
 
 		if (CommandContext.IsDefaultContext())
 		{
@@ -4038,6 +4094,34 @@ void FD3D12CommandContext::RHIRayTraceDispatch(FRHIRayTracingPipelineState* InRa
 	DispatchDesc.Depth = 1;
 
 	DispatchRays(*this, GlobalResourceBindings, Pipeline, RayGenShaderIndex, ShaderTable, DispatchDesc);
+}
+
+void FD3D12CommandContext::RHIRayTraceDispatchIndirect(FRHIRayTracingPipelineState* InRayTracingPipelineState, FRHIRayTracingShader* RayGenShaderRHI,
+	FRHIRayTracingScene* InScene,
+	const FRayTracingShaderBindings& GlobalResourceBindings,
+	FRHIBuffer* ArgumentBuffer, uint32 ArgumentOffset)
+{
+	checkf(GRHISupportsRayTracingDispatchIndirect, TEXT("RHIRayTraceDispatchIndirect may not be used because DXR 1.1 is not supported on this machine."));
+
+	const FD3D12RayTracingPipelineState* Pipeline = FD3D12DynamicRHI::ResourceCast(InRayTracingPipelineState);
+
+	FD3D12RayTracingScene* Scene = FD3D12DynamicRHI::ResourceCast(InScene);
+
+	FD3D12RayTracingShaderTable* ShaderTable = Scene->FindOrCreateShaderTable(Pipeline, GetParentDevice());
+
+	if (ShaderTable->bIsDirty)
+	{
+		ShaderTable->CopyToGPU(GetParentDevice());
+	}
+
+	Scene->UpdateResidency(*this);
+
+	FD3D12RayTracingShader* RayGenShader = FD3D12DynamicRHI::ResourceCast(RayGenShaderRHI);
+	const int32 RayGenShaderIndex = Pipeline->RayGenShaders.Find(RayGenShader->GetHash());
+	checkf(RayGenShaderIndex != INDEX_NONE, TEXT("RayGen shader is not present in the given ray tracing pipeline. All RayGen shaders must be declared when creating RTPSO."));
+
+	D3D12_DISPATCH_RAYS_DESC DispatchDesc = ShaderTable->GetDispatchRaysDesc(RayGenShaderIndex, 0, Pipeline->bAllowHitGroupIndexing);
+	DispatchRays(*this, GlobalResourceBindings, Pipeline, RayGenShaderIndex, ShaderTable, DispatchDesc, RetrieveObject<FD3D12Buffer>(ArgumentBuffer), ArgumentOffset);
 }
 
 static void SetRayTracingHitGroup(

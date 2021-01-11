@@ -843,6 +843,7 @@ bool GRHISupportsFirstInstance = false;
 bool GRHISupportsDynamicResolution = false;
 bool GRHISupportsRayTracing = false;
 bool GRHISupportsRayTracingPSOAdditions = false;
+bool GRHISupportsRayTracingDispatchIndirect = false;
 bool GRHISupportsRayTracingAsyncBuildAccelerationStructure = false;
 bool GRHISupportsRayTracingAMDHitToken = false;
 bool GRHISupportsWaveOperations = false;

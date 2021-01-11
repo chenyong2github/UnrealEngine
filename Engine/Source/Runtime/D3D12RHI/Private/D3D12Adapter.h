@@ -126,6 +126,7 @@ public:
 	FORCEINLINE ID3D12CommandSignature* GetDrawIndexedIndirectCommandSignature() { return DrawIndexedIndirectCommandSignature; }
 	FORCEINLINE ID3D12CommandSignature* GetDispatchIndirectGraphicsCommandSignature() { return DispatchIndirectGraphicsCommandSignature; }
 	FORCEINLINE ID3D12CommandSignature* GetDispatchIndirectComputeCommandSignature() { return DispatchIndirectComputeCommandSignature; }
+	FORCEINLINE ID3D12CommandSignature* GetDispatchRaysIndirectCommandSignature() { return DispatchRaysIndirectCommandSignature; }
 
 	FORCEINLINE FD3D12PipelineStateCache& GetPSOCache() { return PipelineStateCache; }
 
@@ -376,6 +377,7 @@ protected:
 	TRefCountPtr<ID3D12CommandSignature> DrawIndexedIndirectCommandSignature;
 	TRefCountPtr<ID3D12CommandSignature> DispatchIndirectGraphicsCommandSignature;
 	TRefCountPtr<ID3D12CommandSignature> DispatchIndirectComputeCommandSignature;
+	TRefCountPtr<ID3D12CommandSignature> DispatchRaysIndirectCommandSignature;
 
 	FD3D12FenceCorePool FenceCorePool;
 

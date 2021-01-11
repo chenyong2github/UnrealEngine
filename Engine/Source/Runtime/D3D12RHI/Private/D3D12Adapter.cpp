@@ -806,6 +806,7 @@ void FD3D12Adapter::InitializeDevices()
 						UE_LOG(LogD3D12RHI, Log, TEXT("D3D12 ray tracing 1.1 is supported."));
 
 						GRHISupportsRayTracingPSOAdditions = true;
+						GRHISupportsRayTracingDispatchIndirect = true;
 					}
 				}
 			}
@@ -936,6 +937,22 @@ void FD3D12Adapter::CreateSignatures()
 	indirectParameterDesc[0].Type = D3D12XBOX_INDIRECT_ARGUMENT_TYPE_DISPATCH_L2; // D3D12XBOX_INDIRECT_ARGUMENT_TYPE_DISPATCH_SINGLE
 #endif
 	VERIFYD3D12RESULT(Device->CreateCommandSignature(&commandSignatureDesc, nullptr, IID_PPV_ARGS(DispatchIndirectComputeCommandSignature.GetInitReference())));
+
+#if D3D12_RHI_RAYTRACING
+	if (GRHISupportsRayTracingDispatchIndirect)
+	{
+		D3D12_COMMAND_SIGNATURE_DESC SignatureDesc = {};
+		SignatureDesc.NumArgumentDescs = 1;
+		SignatureDesc.ByteStride = sizeof(D3D12_DISPATCH_RAYS_DESC);
+		SignatureDesc.NodeMask = FRHIGPUMask::All().GetNative();
+
+		D3D12_INDIRECT_ARGUMENT_DESC ArgumentDesc[1] = {};
+		ArgumentDesc[0].Type = D3D12_INDIRECT_ARGUMENT_TYPE_DISPATCH_RAYS;
+		SignatureDesc.pArgumentDescs = ArgumentDesc;
+
+		VERIFYD3D12RESULT(Device->CreateCommandSignature(&SignatureDesc, nullptr, IID_PPV_ARGS(DispatchRaysIndirectCommandSignature.GetInitReference())));
+	}
+#endif // D3D12_RHI_RAYTRACING
 }
 
 
@@ -1017,6 +1034,7 @@ void FD3D12Adapter::Cleanup()
 	DrawIndexedIndirectCommandSignature.SafeRelease();
 	DispatchIndirectGraphicsCommandSignature.SafeRelease();
 	DispatchIndirectComputeCommandSignature.SafeRelease();
+	DispatchRaysIndirectCommandSignature.SafeRelease();
 
 	FenceCorePool.Destroy();
 
