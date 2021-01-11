@@ -3033,11 +3033,12 @@ void FixupMaterialSlotNames_Implementation(TArray<MaterialSlotType>& MaterialSlo
 			}
 		}
 
-		FString UniqueName = MaterialSlot.ImportedMaterialSlotName.ToString();
+		FString BaseMaterialSlotName = MaterialSlot.ImportedMaterialSlotName.ToString();
+		FString UniqueName = BaseMaterialSlotName;
 		int32 UniqueIndex = 1;
 		while (UniqueMImportedaterialSlotName.Contains(FName(*UniqueName)))
 		{
-			UniqueName = FString::Printf(TEXT("%s_%d"), *UniqueName, UniqueIndex);
+			UniqueName = FString::Printf(TEXT("%s_%d"), *BaseMaterialSlotName, UniqueIndex);
 			UniqueIndex++;
 		}
 		MaterialSlot.ImportedMaterialSlotName = FName(*UniqueName);
