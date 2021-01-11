@@ -33,13 +33,17 @@ namespace SkeletalSimplifier
 			Empty();
 		}
 
-
 		/**
 		* Constructor allocates index and vertex buffer.
 		*/
-		TSkinnedSkeletalMesh(int32 NumTriangles, int32 NumVertices)
+		TSkinnedSkeletalMesh(int32 NumTriangles, int32 NumVertices) :
+			IndexBuffer(NULL),
+			VertexBuffer(NULL),
+			NumTris(0),
+			NumVerts(0),
+			TexCoordNum(0)
 		{
-			Resize(NumTris, NumVerts);
+			Resize(NumTriangles, NumVertices);
 		}
 
 		/**
