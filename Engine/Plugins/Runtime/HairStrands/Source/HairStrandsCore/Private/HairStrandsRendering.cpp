@@ -1345,9 +1345,9 @@ void ComputeHairStrandsInterpolation(
 	Instance->HairGroupPublicData->VFInput.Meshes	= FHairGroupPublicData::FVertexFactoryInput::FMeshes();
 	const EHairGeometryType InstanceGeometryType = Instance->GeometryType;
 
-	DECLARE_GPU_STAT(HairStrandsInterpolationCluster);
-	RDG_EVENT_SCOPE(GraphBuilder, "HairStrandsInterpolationCluster");
-	RDG_GPU_STAT_SCOPE(GraphBuilder, HairStrandsInterpolationCluster);
+	DECLARE_GPU_STAT(HairStrandsInterpolation);
+	RDG_EVENT_SCOPE(GraphBuilder, "HairStrandsInterpolation");
+	RDG_GPU_STAT_SCOPE(GraphBuilder, HairStrandsInterpolation);
 
 	// Debug mode:
 	// * None	: Display hair normally
@@ -1673,17 +1673,26 @@ void ComputeHairStrandsInterpolation(
 	Instance->HairGroupPublicData->bSupportVoxelization = Instance->Strands.Modifier.bSupportVoxelization && Instance->bCastShadow;
 }
 
+bool HasHairInstanceSimulationEnable(FHairGroupInstance* Instance, int32 MeshLODIndex)
+{
+	const bool bHasNoSimulation = !Instance || (Instance && Instance->Guides.bIsSimulationEnable && IsHairLODSimulationEnabled(MeshLODIndex)) || !IsHairStrandsBindingEnable();
+	return !bHasNoSimulation;
+}
+
 void ResetHairStrandsInterpolation(
 	FRDGBuilder& GraphBuilder,
 	FGlobalShaderMap* ShaderMap,
 	FHairGroupInstance* Instance,
 	int32 MeshLODIndex)
 {
-	if (!Instance || (Instance && Instance->Guides.bIsSimulationEnable && IsHairLODSimulationEnabled(MeshLODIndex)) || !IsHairStrandsBindingEnable()) return;
+	if (!HasHairInstanceSimulationEnable(Instance, MeshLODIndex))
+	{
+		return;
+	}
 
-	DECLARE_GPU_STAT(HairStrandsResetInterpolation);
-	RDG_EVENT_SCOPE(GraphBuilder, "HairStrandsResetInterpolation");
-	RDG_GPU_STAT_SCOPE(GraphBuilder, HairStrandsResetInterpolation);
+	DECLARE_GPU_STAT(HairStrandsGuideDeform);
+	RDG_EVENT_SCOPE(GraphBuilder, "HairStrandsGuideDeform");
+	RDG_GPU_STAT_SCOPE(GraphBuilder, HairStrandsGuideDeform);
 
 	FRDGExternalBuffer RawDeformedPositionBuffer = Instance->Guides.DeformedResource->GetBuffer(FHairStrandsDeformedResource::Current);
 	FRDGImportedBuffer DeformedPositionBuffer = Register(GraphBuilder, RawDeformedPositionBuffer, ERDGImportedBufferFlags::CreateUAV);
