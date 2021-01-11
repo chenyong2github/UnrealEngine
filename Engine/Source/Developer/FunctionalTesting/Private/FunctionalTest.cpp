@@ -26,6 +26,8 @@
 #include "Misc/RuntimeErrors.h"
 #include "FunctionalTestBase.h"
 
+CORE_API ELogVerbosity::Type GetAutomationLogLevel(ELogVerbosity::Type Verbosity, FAutomationTestBase* CurrentTest);
+
 namespace
 {
 	template <typename T>
@@ -216,7 +218,7 @@ bool AFunctionalTest::RunTest(const TArray<FString>& Params)
 
 	if (FunctionalTest)
 	{
-		FunctionalTest->SetLogErrorAndWarningHandling(bSuppressErrors, bSuppressErrors, bWarningsAreErrors);
+		FunctionalTest->SetLogErrorAndWarningHandling(bSuppressErrors, bSuppressWarnings, bWarningsAreErrors);
 		FunctionalTest->SetFunctionalTestRunning(GetName());
 	}
 
@@ -864,7 +866,12 @@ void AFunctionalTest::AddError(const FString& Message)
 
 void AFunctionalTest::LogStep(ELogVerbosity::Type Verbosity, const FString& Message)
 {
-	FString FullMessage(Message);
+	TStringBuilder<256> FullMessage;
+
+	FullMessage.Append(GetName());
+	FullMessage.Append(TEXT(": "));
+	FullMessage.Append(Message);
+
 	if ( IsInStep() )
 	{
 		FullMessage.Append(TEXT(" in step: "));
@@ -876,20 +883,65 @@ void AFunctionalTest::LogStep(ELogVerbosity::Type Verbosity, const FString& Mess
 		FullMessage.Append(StepName);
 	}
 
-	switch ( Verbosity )
+	const int32 STACK_OFFSET = 2;
+	FFunctionalTestBase* CurrentFunctionalTest = static_cast<FFunctionalTestBase*>(FAutomationTestFramework::Get().GetCurrentTest());
+
+	ELogVerbosity::Type EffectiveVerbosity = Verbosity;
+
+	// Evaluate the log level based on the properties of the test
+	if (ensure(CurrentFunctionalTest))
 	{
-		case ELogVerbosity::Display:
-		case ELogVerbosity::Log:
+		EffectiveVerbosity = GetAutomationLogLevel(EffectiveVerbosity, CurrentFunctionalTest);
+	}
+
+	switch (EffectiveVerbosity)
+	{
+	case ELogVerbosity::Log:
+		if (CurrentFunctionalTest)
+		{
+			CurrentFunctionalTest->AddInfo(*FullMessage, STACK_OFFSET);
+		}
+		else
+		{
+			UE_VLOG(this, LogFunctionalTest, Log, TEXT("%s"), *FullMessage);
+			UE_LOG(LogFunctionalTest, Log, TEXT("%s"), *FullMessage);
+		}
+		break;
+
+	case ELogVerbosity::Display:
+		if (CurrentFunctionalTest)
+		{
+			CurrentFunctionalTest->AddInfo(*FullMessage, STACK_OFFSET);
+		}
+		else
+		{
 			UE_VLOG(this, LogFunctionalTest, Display, TEXT("%s"), *FullMessage);
 			UE_LOG(LogFunctionalTest, Display, TEXT("%s"), *FullMessage);
+		}
 		break;
-		case ELogVerbosity::Warning:
+
+	case ELogVerbosity::Warning:
+		if (CurrentFunctionalTest)
+		{
+			CurrentFunctionalTest->AddWarning(*FullMessage, STACK_OFFSET);
+		}
+		else
+		{
 			UE_VLOG(this, LogFunctionalTest, Warning, TEXT("%s"), *FullMessage);
 			UE_LOG(LogFunctionalTest, Warning, TEXT("%s"), *FullMessage);
+		}
 		break;
-		case ELogVerbosity::Error:
+
+	case ELogVerbosity::Error:
+		if (CurrentFunctionalTest)
+		{
+			CurrentFunctionalTest->AddError(*FullMessage, STACK_OFFSET);
+		}
+		else
+		{
 			UE_VLOG(this, LogFunctionalTest, Error, TEXT("%s"), *FullMessage);
 			UE_LOG(LogFunctionalTest, Error, TEXT("%s"), *FullMessage);
+		}
 		break;
 	}
 }

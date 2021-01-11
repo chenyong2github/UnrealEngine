@@ -602,7 +602,7 @@ namespace Gauntlet
 				}
 				catch (Exception Ex)
 				{
-					Log.Info("Unable to make device registration: {0}", Ex.Message);
+					Log.Info("Unable to make device registration: {0}", Ex);
 					return false;
 				}
 
