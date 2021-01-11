@@ -15,8 +15,6 @@
 #include "Widgets/Notifications/SNotificationList.h"
 
 
-IMPLEMENT_MODULE( FDefaultModuleImpl, SourceControlWindows );
-
 #if SOURCE_CONTROL_WITH_SLATE
 
 #define LOCTEXT_NAMESPACE "SourceControlWindows"

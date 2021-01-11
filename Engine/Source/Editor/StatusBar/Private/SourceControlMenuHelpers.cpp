@@ -5,6 +5,7 @@
 #include "SourceControlOperations.h"
 #include "ISourceControlProvider.h"
 #include "ISourceControlModule.h"
+#include "ISourceControlWindowsModule.h"
 #include "SourceControlMenuHelpers.h"
 #include "SourceControlWindows.h"
 #include "FileHelpers.h"
@@ -35,17 +36,24 @@ void FSourceControlCommands::RegisterCommands()
 {
 	UI_COMMAND(ConnectToSourceControl, "Connect to Source Control...", "Opens a dialog to connect to source control.", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(ChangeSourceControlSettings, "Change Source Control Settings...", "Opens a dialog to change source control settings.", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(ViewChangelists, "View Changelists...", "Open the Source Control Changelist tab.", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(CheckOutModifiedFiles, "Check Out Modified Files...", "Opens a dialog to check out any assets which have been modified.", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(SubmitToSourceControl, "Submit to Source Control...", "Opens a dialog with check in options for content and levels.",   EUserInterfaceActionType::Button, FInputChord());
 
 	ActionList->MapAction(
 		ConnectToSourceControl,
-		FExecuteAction::CreateStatic(&FSourceControlCommands::ConnectToSourceControl_Clicked)                        
+		FExecuteAction::CreateStatic(&FSourceControlCommands::ConnectToSourceControl_Clicked)
 	);
 
 	ActionList->MapAction(
 		ChangeSourceControlSettings,
 		FExecuteAction::CreateStatic(&FSourceControlCommands::ConnectToSourceControl_Clicked)
+	);
+
+	ActionList->MapAction(
+		ViewChangelists,
+		FExecuteAction::CreateStatic(&FSourceControlCommands::ViewChangelists_Clicked),
+		FCanExecuteAction::CreateStatic(&FSourceControlCommands::ViewChangelists_CanExecute)
 	);
 
 	ActionList->MapAction(
@@ -67,6 +75,23 @@ void FSourceControlCommands::ConnectToSourceControl_Clicked()
 	// Show login window regardless of current status - its useful as a shortcut to change settings.
 	ISourceControlModule& SourceControlModule = ISourceControlModule::Get();
 	SourceControlModule.ShowLoginDialog(FSourceControlLoginClosed(), ELoginWindowMode::Modeless, EOnLoginWindowStartup::PreserveProvider);
+}
+
+bool FSourceControlCommands::ViewChangelists_CanExecute()
+{
+	ISourceControlModule& SourceControlModule = ISourceControlModule::Get();
+	if (ISourceControlModule::Get().IsEnabled() &&
+		ISourceControlModule::Get().GetProvider().IsAvailable())
+	{
+		return true;
+	}
+
+	return false;
+}
+
+void FSourceControlCommands::ViewChangelists_Clicked()
+{
+	ISourceControlWindowsModule::Get().ShowChangelistsTab();
 }
 
 bool FSourceControlCommands::CheckOutModifiedFiles_CanExecute()
@@ -159,6 +184,13 @@ TSharedRef<SWidget> FSourceControlMenuHelpers::GenerateSourceControlMenuContent(
 		}));
 
 	Section.AddSeparator("SourceControlConnectionSeparator");
+
+	Section.AddMenuEntry(
+		FSourceControlCommands::Get().ViewChangelists,
+		TAttribute<FText>(),
+		TAttribute<FText>(),
+		FSlateIcon(FEditorStyle::GetStyleSetName(), "SourceControl.ChangelistsTab")
+	);
 
 	Section.AddMenuEntry(
 		FSourceControlCommands::Get().CheckOutModifiedFiles,

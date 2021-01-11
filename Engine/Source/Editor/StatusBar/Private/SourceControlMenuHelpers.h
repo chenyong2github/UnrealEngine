@@ -22,6 +22,8 @@ public:
 private:
 
 	static void ConnectToSourceControl_Clicked();
+	static bool ViewChangelists_CanExecute();
+	static void ViewChangelists_Clicked();
 	static bool CheckOutModifiedFiles_CanExecute();
 	static void CheckOutModifiedFiles_Clicked();
 	static bool SubmitToSourceControl_CanExecute();
@@ -33,6 +35,7 @@ public:
 	 */
 	TSharedPtr< FUICommandInfo > ConnectToSourceControl;
 	TSharedPtr< FUICommandInfo > ChangeSourceControlSettings;
+	TSharedPtr< FUICommandInfo > ViewChangelists;
 	TSharedPtr< FUICommandInfo > CheckOutModifiedFiles;
 	TSharedPtr< FUICommandInfo > SubmitToSourceControl;
 
