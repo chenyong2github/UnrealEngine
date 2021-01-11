@@ -87,7 +87,7 @@ pygments_style = 'sphinx'
 html_theme_path = ['../themes']
 
 # The theme to use for HTML and HTML Help pages.
-html_theme = 'ue4api'
+html_theme = 'ue_api'
 
 # Theme options are theme-specific and customize the look and feel of a theme.
 html_theme_options = {

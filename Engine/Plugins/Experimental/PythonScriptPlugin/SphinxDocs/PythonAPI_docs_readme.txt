@@ -4,10 +4,10 @@ Unreal Python API HTML generation using the Python Online Docs Commandlet
 This commandlet can be run manually to generate the Python API HTML files locally or it can be set up on an automated server that periodically refreshes the docs online.
 
 
-Install UE4 and the Python plugin
+Install Unreal Engine and the Python plugin
 ---------------------------------------
 
-Ensure the version of UE4 that you want to be working with is installed and the PythonScriptPlugin is enabled. Python 2.7 now comes auto-installed with UE4 and the doc generation commandlet will use that version so you don't need to install it yourself. All the other dependencies (such as the Sphinx Python doc generation tool) will automatically be downloaded and installed as needed when this commandlet is run.
+Ensure the version of Unreal Engine that you want to be working with is installed and the PythonScriptPlugin is enabled. Python 3.7 now comes auto-installed with Unreal Engine and the doc generation commandlet will use that version so you don't need to install it yourself. All the other dependencies (such as the Sphinx Python doc generation tool) will automatically be downloaded and installed as needed when this commandlet is run.
 
 Note that the auto-install of Sphinx adds about 50MB.
 
@@ -53,7 +53,7 @@ https://github.com/steenhulthin/reStructuredText_NPP
 Run the PythonOnlineDocs commandlet
 ---------------------------------------
 
-The command-line arguments sent to the UE4 Editor to run the PythonOnlineDocs commandlet looks like this for the UE4 Editor with the standard Engine API documented:
+The command-line arguments sent to the Unreal Engine Editor to run the PythonOnlineDocs commandlet looks like this for the Unreal Engine Editor with the standard Engine API documented:
 
 -run=PythonOnlineDocs -NoShaderCompile -IncludeEngine -EnableAllPlugins
 
@@ -85,7 +85,7 @@ Filter options:
 Other useful options:
 -HTMLLog           : Output additional Python info, warnings and errors including feedback from running Sphinx (which has many warnings that can be safely ignored)
 -NoShaderCompile   : Don't compile shaders (shaders aren't needed by the PythonOnlineDocs commandlet)
--EnableAllPlugins  : Include all the plugins known to the UE4 editor
+-EnableAllPlugins  : Include all the plugins known to the Unreal Engine editor
 -ExceptPlugins=""  : Don't include specified plugins. Some plugins cause issues or aren't needed in the Python API docs.
 -NoHTML            : Don't run Sphinx, potentially run Sphinx manually to build the HTML files see "Unreal Python API HTML generation manually using Sphinx"
 
