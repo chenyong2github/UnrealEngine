@@ -184,7 +184,7 @@ private:
 	void DestroyGraphAndTree();
 
 	/** Called when the view properties menu option is chosen. */
-	void OnMenuViewProperties( UObject* InObject );
+	void OnMenuViewProperties( AActor* InActor );
 
 	/** Called when the show object in editor menu option is chosen. */
 	void OnMenuShowEditor( UObject* InObject );

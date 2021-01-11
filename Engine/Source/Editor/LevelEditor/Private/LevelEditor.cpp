@@ -418,6 +418,16 @@ void FLevelEditorModule::BroadcastActorSelectionChanged(const TArray<UObject*>& 
 	ActorSelectionChangedEvent.Broadcast(NewSelection, bForceRefresh);
 }
 
+void FLevelEditorModule::BroadcastElementSelectionChanged(const UTypedElementSelectionSet* SelectionSet, bool bForceRefresh)
+{
+	ElementSelectionChangedEvent.Broadcast(SelectionSet, bForceRefresh);
+}
+
+void FLevelEditorModule::BroadcastOverridePropertyEditorSelection(const TArray<AActor*>& NewSelection, bool bForceRefresh)
+{
+	OverridePropertyEditorSelectionEvent.Broadcast(NewSelection, bForceRefresh);
+}
+
 void FLevelEditorModule::BroadcastRedrawViewports( bool bInvalidateHitProxies )
 {
 	RedrawLevelEditingViewportsEvent.Broadcast( bInvalidateHitProxies );

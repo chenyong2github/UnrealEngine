@@ -18,6 +18,7 @@ class IAssetViewport;
 class SLevelEditor;
 class UAnimSequence;
 class USkeletalMeshComponent;
+class UTypedElementSelectionSet;
 
 enum class EMapChangeType : uint8;
 
@@ -204,6 +205,7 @@ public:
 	/** Called when a level editor widget has been created */
 	DECLARE_EVENT_OneParam(FLevelEditorModule, FOnLevelEditorCreated, TSharedPtr<ILevelEditor>);
 	virtual FOnLevelEditorCreated& OnLevelEditorCreated() { return LevelEditorCreatedEvent; }
+	
 	/**
 	 * Called when actor selection changes
 	 * 
@@ -211,6 +213,20 @@ public:
 	 */
 	virtual void BroadcastActorSelectionChanged(const TArray<UObject*>& NewSelection, bool bForceRefresh=false);
 	
+	/**
+	 * Called when element selection changes
+	 *
+	 * @param SelectionSet	Set of selected elements
+	 */
+	virtual void BroadcastElementSelectionChanged(const UTypedElementSelectionSet* SelectionSet, bool bForceRefresh=false);
+
+	/**
+	 * Called to set property editors to show the given actors, even if those actors aren't in the current selection set
+	 * 
+	 * @param NewSelection	List of actors to edit the properties of
+	 */
+	virtual void BroadcastOverridePropertyEditorSelection(const TArray<AActor*>& NewSelection, bool bForceRefresh=false);
+
 	/**
 	 * Called by the engine when level editing viewports need to be redrawn
 	 * 
@@ -237,6 +253,14 @@ public:
 	/** Called when actor selection changes */
 	DECLARE_EVENT_TwoParams(FLevelEditorModule, FActorSelectionChangedEvent, const TArray<UObject*>&, bool);
 	virtual FActorSelectionChangedEvent& OnActorSelectionChanged() { return ActorSelectionChangedEvent; }
+
+	/** Called when element selection changes */
+	DECLARE_EVENT_TwoParams(FLevelEditorModule, FElementSelectionChangedEvent, const UTypedElementSelectionSet*, bool);
+	virtual FElementSelectionChangedEvent& OnElementSelectionChanged() { return ElementSelectionChangedEvent; }
+
+	/** Called to set property editors to show the given actors, even if those actors aren't in the current selection set */
+	DECLARE_EVENT_TwoParams(FLevelEditorModule, FOverridePropertyEditorSelectionEvent, const TArray<AActor*>&, bool);
+	virtual FOverridePropertyEditorSelectionEvent& OnOverridePropertyEditorSelection() { return OverridePropertyEditorSelectionEvent; }
 
 	/** Called when level editor viewports should be redrawn */
 	DECLARE_EVENT_OneParam( FLevelEditorModule, FRedrawLevelEditingViewportsEvent, bool );
@@ -410,6 +434,12 @@ private:
 
 	/** Multicast delegate executed when actor selection changes */
 	FActorSelectionChangedEvent ActorSelectionChangedEvent;
+
+	/** Multicast delegate executed when element selection changes */
+	FElementSelectionChangedEvent ElementSelectionChangedEvent;
+
+	/** Multicast delegate executed to set property editors to show the given actors, even if those actors aren't in the current selection set */
+	FOverridePropertyEditorSelectionEvent OverridePropertyEditorSelectionEvent;
 
 	/** Multicast delegate executed when viewports should be redrawn */
 	FRedrawLevelEditingViewportsEvent RedrawLevelEditingViewportsEvent;

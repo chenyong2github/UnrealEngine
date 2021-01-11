@@ -1962,23 +1962,18 @@ void SLevelViewport::OnCreateCameraActor(UClass* InClass)
 	pNewCamera->GetCameraComponent()->SetFieldOfView( ViewportClient->ViewFOV );
 
 	// Deselect any currently selected actors
-	GUnrealEd->SelectNone( true, true );
+	GUnrealEd->SelectNone( false, true );
 	GEditor->GetSelectedActors()->DeselectAll();
 	GEditor->GetSelectedObjects()->DeselectAll();
 
 	// Select newly created Camera
-	TArray<UObject *> SelectedActors;
-	GEditor->SelectActor( pNewCamera, true, false );
-	SelectedActors.Add( pNewCamera );
+	GEditor->SelectActor( pNewCamera, true, true );
 
 	// Send notification about actors that may have changed
 	ULevel::LevelDirtiedEvent.Broadcast();
-	
-	// Update the details window with the actors we have just selected
-	GUnrealEd->UpdateFloatingPropertyWindowsFromActorList( SelectedActors );
 
 	// Redraw viewports to show new camera
-	GEditor->RedrawAllViewports();	
+	GEditor->RedrawAllViewports();
 }
 
 bool SLevelViewport::IsPerspectiveViewport() const

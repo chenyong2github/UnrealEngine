@@ -263,12 +263,12 @@ public:
 	virtual void UpdateFloatingPropertyWindows(bool bForceRefresh=false);
 
 	/**
-	*	Updates the property windows of the actors in the supplied ActorList
+	*	Updates the property windows to show the data of the supplied ActorList
 	*
-	*	@param	ActorList	The list of actors whose property windows should be updated
+	*	@param	ActorList	The list of actors to show the properties for
 	*
 	*/
-	virtual void UpdateFloatingPropertyWindowsFromActorList(const TArray< UObject *>& ActorList, bool bForceRefresh=false);
+	virtual void UpdateFloatingPropertyWindowsFromActorList(const TArray<AActor*>& ActorList, bool bForceRefresh=false);
 
 	/**
 	 * Called whenever the actor selection has changed to invalidate any cached state

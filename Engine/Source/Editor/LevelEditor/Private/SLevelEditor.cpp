@@ -251,7 +251,8 @@ void SLevelEditor::Initialize( const TSharedRef<SDockTab>& OwnerTab, const TShar
 
 	FModuleManager::Get().LoadModuleChecked("StatusBar");
 
-	LevelEditorModule.OnActorSelectionChanged().AddSP(this, &SLevelEditor::OnActorSelectionChanged);
+	LevelEditorModule.OnElementSelectionChanged().AddSP(this, &SLevelEditor::OnElementSelectionChanged);
+	LevelEditorModule.OnOverridePropertyEditorSelection().AddSP(this, &SLevelEditor::OnOverridePropertyEditorSelection);
 
 	TSharedRef<SWidget> ContentArea = RestoreContentArea( OwnerTab, OwnerWindow );
 	TSharedRef<SWidget> MenuBar =
@@ -1807,11 +1808,24 @@ void SLevelEditor::HandleAssetsDeleted(const TArray<UClass*>& DeletedClasses)
 	}
 }
 
-void SLevelEditor::OnActorSelectionChanged(const TArray<UObject*>& NewSelection, bool bForceRefresh)
+void SLevelEditor::OnElementSelectionChanged(const UTypedElementSelectionSet* SelectionSet, bool bForceRefresh)
 {
 	for (TSharedRef<SActorDetails> ActorDetails : GetAllActorDetails())
 	{
-		ActorDetails->SetObjects(NewSelection, bForceRefresh || bNeedsRefresh);
+		if (ActorDetails->IsObservingSelectionSet(SelectionSet))
+		{
+			ActorDetails->RefreshSelection(bForceRefresh || bNeedsRefresh);
+		}
+	}
+
+	bNeedsRefresh = false;
+}
+
+void SLevelEditor::OnOverridePropertyEditorSelection(const TArray<AActor*>& NewSelection, bool bForceRefresh)
+{
+	for (TSharedRef<SActorDetails> ActorDetails : GetAllActorDetails())
+	{
+		ActorDetails->OverrideSelection(NewSelection, bForceRefresh || bNeedsRefresh);
 	}
 
 	bNeedsRefresh = false;
@@ -1893,25 +1907,7 @@ void SLevelEditor::AddStandaloneLevelViewport( const TSharedRef<SLevelViewport>&
 
 TSharedRef<SWidget> SLevelEditor::CreateActorDetails( const FName TabIdentifier )
 {
-	TSharedRef<SActorDetails> ActorDetails = SNew( SActorDetails, TabIdentifier, LevelEditorCommands, GetTabManager() );
-
-	// Immediately update it (otherwise it will appear empty)
-	{
-		TArray<UObject*> SelectedActors;
-		for( FSelectionIterator It( GEditor->GetSelectedActorIterator() ); It; ++It )
-		{
-			AActor* Actor = static_cast<AActor*>( *It );
-			checkSlow( Actor->IsA( AActor::StaticClass() ) );
-
-			if( !Actor->IsPendingKill() )
-			{
-				SelectedActors.Add( Actor );
-			}
-		}
-
-		const bool bForceRefresh = true;
-		ActorDetails->SetObjects( SelectedActors, bForceRefresh );
-	}
+	TSharedRef<SActorDetails> ActorDetails = SNew( SActorDetails, GetMutableElementSelectionSet(), TabIdentifier, LevelEditorCommands, GetTabManager() );
 
 	ActorDetails->SetActorDetailsRootCustomization(ActorDetailsObjectFilter, ActorDetailsRootCustomization);
 	ActorDetails->SetSCSEditorUICustomization(ActorDetailsSCSEditorUICustomization);

@@ -447,7 +447,7 @@ TSharedPtr< SWidget > SReferenceTree::BuildMenuWidget()
 				FUIAction SelectActorAction( FExecuteAction::CreateStatic( ReferenceTreeView::Helpers::SelectObjectInEditor, SelectedObject ) );
 				MenuBuilder.AddMenuEntry(NSLOCTEXT("ReferenceTreeView", "SelectActor", "Select Actor"), NSLOCTEXT("ReferenceTreeView", "SelectActor_Tooltip", "Select the actor in the viewport."), FSlateIcon(), SelectActorAction);
 
-				FUIAction ViewPropertiesAction( FExecuteAction::CreateRaw( this, &SReferenceTree::OnMenuViewProperties, SelectedObject ) );
+				FUIAction ViewPropertiesAction( FExecuteAction::CreateRaw( this, &SReferenceTree::OnMenuViewProperties, Actor ) );
 				MenuBuilder.AddMenuEntry(NSLOCTEXT("ReferenceTreeView", "ViewProperties", "View Properties"), NSLOCTEXT("ReferenceTreeView", "ViewProperties_Tooltip", "View the actor's properties."), FSlateIcon(), ViewPropertiesAction);	
 			}
 			else
@@ -525,15 +525,15 @@ void SReferenceTree::DestroyGraphAndTree()
 	ReferenceGraph.Empty();
 }
 
-void SReferenceTree::OnMenuViewProperties( UObject* InObject )
+void SReferenceTree::OnMenuViewProperties( AActor* InActor )
 {
 	// Show the property windows and create one if necessary
 	GUnrealEd->ShowActorProperties();
 
 	// Show the property window for the actor
-	TArray<UObject*> Objects;
-	Objects.Add( InObject );
-	GUnrealEd->UpdateFloatingPropertyWindowsFromActorList( Objects );
+	TArray<AActor*> Actors;
+	Actors.Add(InActor);
+	GUnrealEd->UpdateFloatingPropertyWindowsFromActorList(Actors);
 }
 
 void SReferenceTree::OnMenuShowEditor( UObject* InObject )

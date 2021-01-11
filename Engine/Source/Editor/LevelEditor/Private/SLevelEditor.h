@@ -229,8 +229,11 @@ private:
 	/** Handles deletion of assets */
 	void HandleAssetsDeleted(const TArray<UClass*>& DeletedClasses);
 
-	/** Called when actors are selected or unselected */
-	void OnActorSelectionChanged(const TArray<UObject*>& NewSelection, bool bForceRefresh = false);
+	/** Called when element selection changes */
+	void OnElementSelectionChanged(const UTypedElementSelectionSet* SelectionSet, bool bForceRefresh = false);
+
+	/** Called to set property editors to show the given actors, even if those actors aren't in the current selection set */
+	void OnOverridePropertyEditorSelection(const TArray<AActor*>& NewSelection, bool bForceRefresh = false);
 
 	/** Called when an actor changes outer */
 	void OnLevelActorOuterChanged(AActor* InActor = nullptr, UObject* InOldOuter = nullptr);

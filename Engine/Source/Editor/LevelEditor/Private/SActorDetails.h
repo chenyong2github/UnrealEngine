@@ -7,8 +7,9 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Framework/Text/SlateHyperlinkRun.h"
+#include "Containers/ArrayView.h"
 #include "EditorUndoClient.h"
-
+#include "Elements/Interfaces/TypedElementDetailsInterface.h"
 
 class AActor;
 class FSCSEditorTreeNode;
@@ -20,30 +21,43 @@ class SSCSEditor;
 class SSplitter;
 class UBlueprint;
 class FDetailsViewObjectFilter;
+class UTypedElementSelectionSet;
 
 /**
  * Wraps a details panel customized for viewing actors
  */
-class SActorDetails : public SCompoundWidget, public FEditorUndoClient
+class SActorDetails : public SCompoundWidget, public FEditorUndoClient, public FGCObject
 {
 public:
 	SLATE_BEGIN_ARGS(SActorDetails) {}
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs, const FName TabIdentifier, TSharedPtr<FUICommandList> InCommandList, TSharedPtr<FTabManager> InTabManager);
+	void Construct(const FArguments& InArgs, UTypedElementSelectionSet* InSelectionSet, const FName TabIdentifier, TSharedPtr<FUICommandList> InCommandList, TSharedPtr<FTabManager> InTabManager);
 	~SActorDetails();
 
 	/**
-	 * Sets the objects to be viewed by the details panel
-	 *
-	 * @param InObjects	The objects to set
+	 * Return true if this details panel is observing the given selection set.
 	 */
-	void SetObjects(const TArray<UObject*>& InObjects, bool bForceRefresh = false);
+	bool IsObservingSelectionSet(const UTypedElementSelectionSet* InSelectionSet) const;
+
+	/**
+	 * Update the view based on our observed selection set.
+	 */
+	void RefreshSelection(const bool bForceRefresh = false);
+
+	/**
+	 * Update the view based on the given set of actors.
+	 */
+	void OverrideSelection(const TArray<AActor*>& InActors, const bool bForceRefresh = false);
 
 	/** FEditorUndoClient Interface */
 	virtual void PostUndo(bool bSuccess) override;
 	virtual void PostRedo(bool bSuccess) override;
 	
+	//~ FGCObject
+	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+	virtual FString GetReferencerName() const override;
+
 	/**
 	 * Sets the filter that should be used to filter incoming actors in or out of the details panel
 	 *
@@ -55,16 +69,18 @@ public:
 	void SetSCSEditorUICustomization(TSharedPtr<class ISCSEditorUICustomization> ActorDetailsSCSEditorUICustomization);
 
 private:
-	AActor* GetSelectedActorInEditor() const;
+	void RefreshTopLevelElements(TArrayView<const TTypedElement<UTypedElementDetailsInterface>> InDetailsElements, const bool bForceRefresh, const bool bOverrideLock);
+	void RefreshSCSTreeElements(TArrayView<const TSharedPtr<class FSCSEditorTreeNode>> InSelectedNodes, const bool bForceRefresh, const bool bOverrideLock);
+	void SetElementDetailsObjects(TArrayView<const TUniquePtr<ITypedElementDetailsObject>> InElementDetailsObjects, const bool bForceRefresh, const bool bOverrideLock);
+
 	AActor* GetActorContext() const;
 	bool GetAllowComponentTreeEditing() const;
 
 	void OnComponentsEditedInWorld();
-	void OnEditorSelectionChanged(UObject* Object);
+	void OnElementSelectionChanged(const UTypedElementSelectionSet* InSelectionSet);
 	void OnSCSEditorTreeViewSelectionChanged(const TArray<TSharedPtr<class FSCSEditorTreeNode> >& SelectedNodes);
 	void OnSCSEditorTreeViewItemDoubleClicked(const TSharedPtr<class FSCSEditorTreeNode> ClickedNode);
 	void UpdateComponentTreeFromEditorSelection();
-	void OnDetailsViewObjectArrayChanged(const FString& InTitle, const TArray<UObject*>& InObjects);
 
 	bool IsPropertyReadOnly(const struct FPropertyAndParent& PropertyAndParent) const;
 	bool IsPropertyEditingEnabled() const;
@@ -85,8 +101,14 @@ private:
 	TSharedPtr<SBox> ComponentsBox;
 	TSharedPtr<class SSCSEditor> SCSEditor;
 
-	// The actor selected when the details panel was locked
-	TWeakObjectPtr<AActor> LockedActorSelection;
+	// The selection set this details panel is observing
+	UTypedElementSelectionSet* SelectionSet = nullptr;
+
+	// Array of top-level elements that are currently being edited
+	TArray<TUniquePtr<ITypedElementDetailsObject>> TopLevelElements;
+
+	// Array of component elements that are being edited from the SCS tree selection
+	TArray<TUniquePtr<ITypedElementDetailsObject>> SCSTreeElements;
 
 	// The current component blueprint selection
 	TWeakObjectPtr<UBlueprint> SelectedBPComponentBlueprint;
@@ -94,10 +116,4 @@ private:
 
 	// Used to prevent reentrant changes
 	bool bSelectionGuard = false;
-
-	// True if the actor details has any component to show.
-	bool bHasComponentsToShow = false;
-
-	// True if the actor "root" node in the SCS editor is currently shown as selected
-	bool bShowingRootActorNodeSelected = false;
 };
