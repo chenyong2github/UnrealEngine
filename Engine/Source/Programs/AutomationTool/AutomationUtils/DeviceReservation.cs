@@ -217,7 +217,7 @@ namespace AutomationTool.DeviceReservation
 
 	public sealed class Reservation
 	{
-		public string[] DeviceNames { get; set; }
+		public string[] DeviceNames { get; set; } = new string[] { };
 		public string HostName { get; set; }
 		public DateTime StartDateTime { get; set; }
 		public TimeSpan Duration { get; set; }
