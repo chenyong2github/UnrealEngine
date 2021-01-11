@@ -4,8 +4,6 @@
 
 #include "RenderGraph.h"
 
-class FSceneView;
-
 /** A uniform buffer containing common scene textures used by materials or global shaders. */
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FSceneTextureUniformParameters, RENDERER_API)
 	// Scene Color / Depth
@@ -26,7 +24,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FSceneTextureUniformParameters, RENDERER_AP
 
 	// Custom Depth / Stencil
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, CustomDepthTexture)
-	SHADER_PARAMETER_SRV(Texture2D<uint2>, CustomStencilTexture)
+	SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D<uint2>, CustomStencilTexture)
 
 	// Misc
 	SHADER_PARAMETER_SAMPLER(SamplerState, PointClampSampler)
@@ -73,13 +71,12 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FMobileSceneTextureUniformParameters, RENDE
 	SHADER_PARAMETER_SAMPLER(SamplerState, CustomDepthTextureSampler)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, MobileCustomStencilTexture)
 	SHADER_PARAMETER_SAMPLER(SamplerState, MobileCustomStencilTextureSampler)
-	SHADER_PARAMETER_UAV(RWBuffer<uint>, VirtualTextureFeedbackUAV)
 	// GBuffer
-	SHADER_PARAMETER_TEXTURE(Texture2D, GBufferATexture)
-	SHADER_PARAMETER_TEXTURE(Texture2D, GBufferBTexture)
-	SHADER_PARAMETER_TEXTURE(Texture2D, GBufferCTexture)
-	SHADER_PARAMETER_TEXTURE(Texture2D, GBufferDTexture)
-	SHADER_PARAMETER_TEXTURE(Texture2D, SceneDepthAuxTexture)
+	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, GBufferATexture)
+	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, GBufferBTexture)
+	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, GBufferCTexture)
+	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, GBufferDTexture)
+	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SceneDepthAuxTexture)
 	SHADER_PARAMETER_SAMPLER(SamplerState, GBufferATextureSampler)
 	SHADER_PARAMETER_SAMPLER(SamplerState, GBufferBTextureSampler)
 	SHADER_PARAMETER_SAMPLER(SamplerState, GBufferCTextureSampler)
@@ -91,8 +88,15 @@ enum class EMobileSceneTextureSetupMode : uint32
 {
 	None			= 0,
 	SceneColor		= 1 << 0,
-	CustomDepth		= 1 << 1,
-	All = SceneColor | CustomDepth
+	SceneDepth		= 1 << 1,
+	CustomDepth		= 1 << 2,
+	GBufferA		= 1 << 3,
+	GBufferB		= 1 << 4,
+	GBufferC		= 1 << 5,
+	GBufferD		= 1 << 6,
+	SceneDepthAux	= 1 << 7,
+	GBuffers		= GBufferA | GBufferB | GBufferC | GBufferD | SceneDepthAux,
+	All				= SceneColor | SceneDepth | CustomDepth | GBuffers
 };
 ENUM_CLASS_FLAGS(EMobileSceneTextureSetupMode);
 
@@ -132,35 +136,108 @@ extern RENDERER_API FSceneTextureShaderParameters CreateSceneTextureShaderParame
 	ERHIFeatureLevel::Type FeatureLevel,
 	ESceneTextureSetupMode SetupMode = ESceneTextureSetupMode::All);
 
+/** Struct containing references to extracted RHI resources after RDG execution. All textures are
+ *  left in an SRV read state, so they can safely be used for read without being re-imported into
+ *  RDG. Likewise, the uniform buffer is non-RDG and can be used as is.
+ */
+class RENDERER_API FSceneTextureExtracts : public FRenderResource
+{
+public:
+	FRHIUniformBuffer* GetUniformBuffer() const
+	{
+		return UniformBuffer.IsValid() ? UniformBuffer : MobileUniformBuffer;
+	}
+
+	TUniformBufferRef<FSceneTextureUniformParameters> GetUniformBufferRef() const
+	{
+		return UniformBuffer;
+	}
+
+	TUniformBufferRef<FMobileSceneTextureUniformParameters> GetMobileUniformBufferRef() const
+	{
+		return MobileUniformBuffer;
+	}
+
+	FRHITexture* GetDepthTexture() const
+	{
+		return Depth ? Depth->GetShaderResourceRHI() : nullptr;
+	}
+
+	void QueueExtractions(FRDGBuilder& GraphBuilder, const FSceneTextures& SceneTextures);
+
+private:
+	void Release();
+	void ReleaseDynamicRHI() override;
+
+	// Contains the resolved scene depth target.
+	TRefCountPtr<IPooledRenderTarget> Depth;
+
+	// Contains the custom depth targets.
+	TRefCountPtr<IPooledRenderTarget> CustomDepth;
+	TRefCountPtr<IPooledRenderTarget> MobileCustomDepth;
+	TRefCountPtr<IPooledRenderTarget> MobileCustomStencil;
+
+	// Contains RHI scene texture uniform buffers referencing the extracted textures.
+	TUniformBufferRef<FSceneTextureUniformParameters> UniformBuffer;
+	TUniformBufferRef<FMobileSceneTextureUniformParameters> MobileUniformBuffer;
+};
+
+/** Returns the global scene texture extracts struct. */
+const RENDERER_API FSceneTextureExtracts& GetSceneTextureExtracts();
+
+/** Returns whether scene textures have been initialized. */
+extern RENDERER_API bool IsSceneTexturesValid();
+
+/** Returns the full-resolution scene texture extent. */
+extern RENDERER_API FIntPoint GetSceneTextureExtent();
+
+/** Returns the feature level being used by the renderer. */
+extern RENDERER_API ERHIFeatureLevel::Type GetSceneTextureFeatureLevel();
+
+
+///////////////////////////////////////////////////////////////////////////
+// Deprecated APIs
+
+class FSceneRenderTargets;
+
 UE_DEPRECATED(5.0, "SetupSceneTextureUniforParameters now requires an FRDGBuilder.")
-extern RENDERER_API void SetupSceneTextureUniformParameters(
-	const FSceneRenderTargets& SceneContext,
-	ERHIFeatureLevel::Type FeatureLevel,
-	ESceneTextureSetupMode SetupMode,
-	FSceneTextureUniformParameters& OutParameters);
+inline void SetupSceneTextureUniformParameters(const FSceneRenderTargets&, ERHIFeatureLevel::Type, ESceneTextureSetupMode, FSceneTextureUniformParameters&)
+{
+	checkNoEntry();
+}
 
 UE_DEPRECATED(5.0, "CreateSceneTextureUniformBuffer now requires an FRDGBuilder.")
-extern RENDERER_API TUniformBufferRef<FSceneTextureUniformParameters> CreateSceneTextureUniformBuffer(
-	FRHIComputeCommandList& RHICmdList,
-	ERHIFeatureLevel::Type FeatureLevel,
-	ESceneTextureSetupMode SetupMode = ESceneTextureSetupMode::All);
+inline TUniformBufferRef<FSceneTextureUniformParameters> CreateSceneTextureUniformBuffer(FRHIComputeCommandList&, ERHIFeatureLevel::Type, ESceneTextureSetupMode SetupMode = ESceneTextureSetupMode::All)
+{
+	checkNoEntry();
+	return {};
+}
 
 UE_DEPRECATED(5.0, "SetupMobileSceneTextureUniformParameters now requires an FRDGBuilder.")
-extern RENDERER_API void SetupMobileSceneTextureUniformParameters(
-	const FSceneRenderTargets& SceneContext,
-	EMobileSceneTextureSetupMode SetupMode,
-	FMobileSceneTextureUniformParameters& SceneTextureParameters);
+inline void SetupMobileSceneTextureUniformParameters(const FSceneRenderTargets&, EMobileSceneTextureSetupMode, FMobileSceneTextureUniformParameters&)
+{
+	checkNoEntry();
+}
 
 /** Creates the RHI mobile scene texture uniform buffer with passthrough RDG resources. */
 UE_DEPRECATED(5.0, "CreateMobileSceneTextureUniformBuffer now requires an FRDGBuilder.")
-extern RENDERER_API TUniformBufferRef<FMobileSceneTextureUniformParameters> CreateMobileSceneTextureUniformBuffer(
-	FRHIComputeCommandList& RHICmdList,
-	EMobileSceneTextureSetupMode SetupMode = EMobileSceneTextureSetupMode::All);
+inline TUniformBufferRef<FMobileSceneTextureUniformParameters> CreateMobileSceneTextureUniformBuffer(FRHIComputeCommandList&, EMobileSceneTextureSetupMode SetupMode = EMobileSceneTextureSetupMode::All)
+{
+	checkNoEntry();
+	return {};
+}
 
 UE_DEPRECATED(5.0, "Use CreateSceneTextureShaderParameters instead.")
-extern RENDERER_API TRefCountPtr<FRHIUniformBuffer> CreateSceneTextureUniformBufferDependentOnShadingPath(
-	FRHIComputeCommandList& RHICmdList,
-	ERHIFeatureLevel::Type FeatureLevel,
-	ESceneTextureSetupMode SetupMode = ESceneTextureSetupMode::All);
+inline TRefCountPtr<FRHIUniformBuffer> CreateSceneTextureUniformBufferDependentOnShadingPath(FRHIComputeCommandList&, ERHIFeatureLevel::Type, ESceneTextureSetupMode SetupMode = ESceneTextureSetupMode::All)
+{
+	checkNoEntry();
+	return {};
+}
 
-extern RENDERER_API bool IsSceneTexturesValid(FRHICommandListImmediate& RHICmdList);
+UE_DEPRECATED(5.0, "IsSceneTexturesValid no longer requires a command list.")
+inline bool IsSceneTexturesValid(FRHICommandListImmediate&)
+{
+	return IsSceneTexturesValid();
+}
+
+//////////////////////////////////////////////////////////////////////////

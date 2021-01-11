@@ -1831,7 +1831,7 @@ void FDeferredShadingSceneRenderer::RenderShadowProjections(
 						const FLinearColor ClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 						{
 							FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(
-								SceneTextures.Extent,
+								SceneTextures.Config.Extent,
 								PF_FloatRGBA,
 								FClearValueBinding(ClearColor),
 								TexCreate_ShaderResource | TexCreate_RenderTargetable);

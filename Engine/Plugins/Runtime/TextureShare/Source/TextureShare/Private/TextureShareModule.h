@@ -5,7 +5,9 @@
 #include "ITextureShareCore.h"
 #include "TextureShareDisplayManager.h"
 
+class FRDGBuilder;
 struct IPooledRenderTarget;
+struct FSceneTextures;
 
 class FTextureShareModule 
 	: public ITextureShare
@@ -40,14 +42,14 @@ public:
 	virtual bool ReceiveTexture_RenderThread(FRHICommandListImmediate& RHICmdList, const TSharedPtr<ITextureShareItem>& ShareItem, const FString& TextureName, FRHITexture* DstTexture, const FIntRect* DstTextureRect = nullptr) override;
 
 	// Rendered callback (capture scene textures)
-	void OnResolvedSceneColor_RenderThread(FRHICommandListImmediate& RHICmdList, class FSceneRenderTargets& SceneContext, class FSceneViewFamily& ViewFamily);
+	void OnResolvedSceneColor_RenderThread(FRDGBuilder& GraphBuilder, const FSceneTextures& SceneTextures, class FSceneViewFamily& ViewFamily);
 	void OnPostRenderViewFamily_RenderThread(FRHICommandListImmediate& RHICmdList, class FSceneViewFamily& ViewFamily);
 
 protected:
 	bool SendTexture_RenderThread(FRHICommandListImmediate& RHICmdList, const TSharedPtr<ITextureShareItem>& ShareItem, const FString& TextureName, const TRefCountPtr<IPooledRenderTarget>& PooledRenderTargetRef);
 
 protected:
-	bool SendSceneContext_RenderThread(FRHICommandListImmediate& RHICmdList, const FString& ShareName, class FSceneRenderTargets& SceneContext, class FSceneViewFamily& ViewFamily);
+	bool SendSceneContext_RenderThread(FRDGBuilder& GraphBuilder, const FString& ShareName, const FSceneTextures& SceneTextures, class FSceneViewFamily& ViewFamily);
 	bool SendPostRender_RenderThread(FRHICommandListImmediate& RHICmdList, const FString& ShareName, class FSceneViewFamily& ViewFamily);
 
 	void RemoveSceneContextCallback(const FString& ShareName);

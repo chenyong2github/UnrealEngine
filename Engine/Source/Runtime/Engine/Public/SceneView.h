@@ -903,7 +903,6 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT_WITH_CONSTRUCTOR(FViewUniformShaderParamete
 	SHADER_PARAMETER_SRV(StructuredBuffer<float4>, WaterData)
 
 	SHADER_PARAMETER_UAV(RWBuffer<uint>, VTFeedbackBuffer)
-	SHADER_PARAMETER_UAV(RWTexture2D<uint>, QuadOverdraw)
 	SHADER_PARAMETER_SRV(Buffer<uint>, EditorVisualizeLevelInstanceIds)
 	SHADER_PARAMETER_SRV(Buffer<uint>, EditorSelectedHitProxyIds)
 

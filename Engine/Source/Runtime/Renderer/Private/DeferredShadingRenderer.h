@@ -209,6 +209,7 @@ public:
 		FExclusiveDepthStencil::Type BasePassDepthStencilAccess,
 		const FForwardBasePassTextures& ForwardBasePassTextures,
 		const FDBufferTextures& DBufferTextures,
+		FRDGTextureRef QuadOverdrawTexture,
 		bool bParallelBasePass,
 		bool bRenderLightmapDensity);
 
@@ -232,7 +233,7 @@ public:
 
 	void RenderSingleLayerWaterReflections(
 		FRDGBuilder& GraphBuilder,
-		FRDGTextureRef SceneColorTexture,
+		const FSceneTextures& SceneTextures,
 		const FSceneWithoutWaterTextures& SceneWithoutWaterTextures);
 
 	void RenderOcclusion(
@@ -347,13 +348,10 @@ private:
 		const TArray<FProjectedShadowInfo*, SceneRenderingAllocator>& ViewDependentWholeSceneShadows,
 		TArray<FProjectedShadowInfo*, SceneRenderingAllocator>& OutPreShadows);
 
-	/**
-	* Performs once per frame setup prior to visibility determination.
-	*/
-	void PreVisibilityFrameSetup(FRDGBuilder& GraphBuilder);
+	void PreVisibilityFrameSetup(FRDGBuilder& GraphBuilder, const FSceneTexturesConfig& SceneTexturesConfig);
 
 	/** Determines which primitives are visible for each view. */
-	bool InitViews(FRDGBuilder& GraphBuilder, FExclusiveDepthStencil::Type BasePassDepthStencilAccess, struct FILCUpdatePrimTaskData& ILCTaskData);
+	bool InitViews(FRDGBuilder& GraphBuilder, const FSceneTexturesConfig& SceneTexturesConfig, FExclusiveDepthStencil::Type BasePassDepthStencilAccess, struct FILCUpdatePrimTaskData& ILCTaskData);
 
 	void InitViewsPossiblyAfterPrepass(FRDGBuilder& GraphBuilder, struct FILCUpdatePrimTaskData& ILCTaskData);
 	void UpdateLumenCardAtlasAllocation(FRDGBuilder& GraphBuilder, const FViewInfo& MainView, bool bReallocateAtlas, bool bRecaptureLumenSceneOnce);
@@ -419,6 +417,7 @@ private:
 	/** Render diffuse indirect (regardless of the method) of the views into the scene color. */
 	FSSDSignalTextures RenderLumenProbeHierarchy(
 		FRDGBuilder& GraphBuilder,
+		const FSceneTextures& SceneTextures,
 		const HybridIndirectLighting::FCommonParameters& CommonParameters,
 		const ScreenSpaceRayTracing::FPrevSceneColorMip& PrevSceneColor,
 		const FViewInfo& View,
@@ -476,7 +475,7 @@ private:
 
 	FSSDSignalTextures RenderLumenScreenProbeGather(
 		FRDGBuilder& GraphBuilder,
-		TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTextures,
+		const FSceneTextures& SceneTextures,
 		const ScreenSpaceRayTracing::FPrevSceneColorMip& PrevSceneColorMip,
 		FRDGTextureRef LightingChannelsTexture,
 		const FViewInfo& View,
@@ -488,12 +487,12 @@ private:
 	void RenderScreenProbeGatherVisualizeTraces(
 		FRDGBuilder& GraphBuilder,
 		const FViewInfo& View,
-		FRDGTextureRef SceneColor);
+		const FMinimalSceneTextures& SceneTextures);
 
 	void RenderScreenProbeGatherVisualizeHardwareTraces(
 		FRDGBuilder& GraphBuilder,
 		const FViewInfo& View,
-		FRDGTextureRef SceneColor);
+		const FMinimalSceneTextures& SceneTextures);
 
 	void RenderLumenProbe(
 		FRDGBuilder& GraphBuilder,
@@ -513,16 +512,17 @@ private:
 	FRDGTextureRef RenderLumenReflections(
 		FRDGBuilder& GraphBuilder,
 		const FViewInfo& View,
-		const FSceneTextureParameters& SceneTextures,
+		const FSceneTextures& SceneTextures,
 		const class FLumenMeshSDFGridParameters& MeshSDFGridParameters,
 		FLumenReflectionCompositeParameters& OutCompositeParameters);
 
-	void RenderLumenSceneVisualization(FRDGBuilder& GraphBuilder);
-	void RenderLumenRadianceCacheVisualization(FRDGBuilder& GraphBuilder);
+	void RenderLumenSceneVisualization(FRDGBuilder& GraphBuilder, const FMinimalSceneTextures& SceneTextures);
+	void RenderLumenRadianceCacheVisualization(FRDGBuilder& GraphBuilder, const FMinimalSceneTextures& SceneTextures);
 	void LumenScenePDIVisualization();
 
 	void RenderRadianceCache(
-		FRDGBuilder& GraphBuilder, 
+		FRDGBuilder& GraphBuilder,
+		const FMinimalSceneTextures& SceneTextures,
 		const FLumenCardTracingInputs& TracingInputs, 
 		const FViewInfo& View, 
 		const class LumenProbeHierarchy::FHierarchyParameters* ProbeHierarchyParameters,
@@ -783,7 +783,7 @@ private:
 
 	void ComputeVolumetricFog(FRDGBuilder& GraphBuilder);
 
-	void VisualizeVolumetricLightmap(FRDGBuilder& GraphBuilder, const FMinimalSceneTextures& SceneTextures);
+	void VisualizeVolumetricLightmap(FRDGBuilder& GraphBuilder, const FSceneTextures& SceneTextures);
 
 	/** Render image based reflections (SSR, Env, SkyLight) without compute shaders */
 	void RenderStandardDeferredImageBasedReflections(FRHICommandListImmediate& RHICmdList, FGraphicsPipelineStateInitializer& GraphicsPSOInit, bool bReflectionEnv, const TRefCountPtr<IPooledRenderTarget>& DynamicBentNormalAO, TRefCountPtr<IPooledRenderTarget>& VelocityRT);
@@ -821,7 +821,7 @@ private:
 
 	void RenderRayTracingReflections(
 		FRDGBuilder& GraphBuilder,
-		const FSceneTextureParameters& SceneTextures,
+		const FSceneTextures& SceneTextures,
 		const FViewInfo& View,
 		int DenoiserMode,
 		const FRayTracingReflectionOptions& Options,
@@ -908,7 +908,7 @@ private:
 	void VisualizeRectLightMipTree(FRHICommandListImmediate& RHICmdList, const FViewInfo& View, const FRWBuffer& RectLightMipTree, const FIntVector& RectLightMipTreeDimensions);
 
 	void GenerateSkyLightVisibilityRays(FRDGBuilder& GraphBuilder, FRDGBufferRef& SkyLightVisibilityRays, FIntVector& Dimensions);
-	void VisualizeSkyLightMipTree(FRHICommandListImmediate& RHICmdList, const FViewInfo& View, FRWBuffer& SkyLightMipTreePosX, FRWBuffer& SkyLightMipTreePosY, FRWBuffer& SkyLightMipTreePosZ, FRWBuffer& SkyLightMipTreeNegX, FRWBuffer& SkyLightMipTreeNegY, FRWBuffer& SkyLightMipTreeNegZ, const FIntVector& SkyLightMipDimensions);
+	void VisualizeSkyLightMipTree(FRHICommandListImmediate& RHICmdList, const FViewInfo& View, const TRefCountPtr<IPooledRenderTarget>& SceneColor, FRWBuffer& SkyLightMipTreePosX, FRWBuffer& SkyLightMipTreePosY, FRWBuffer& SkyLightMipTreePosZ, FRWBuffer& SkyLightMipTreeNegX, FRWBuffer& SkyLightMipTreeNegY, FRWBuffer& SkyLightMipTreeNegZ, const FIntVector& SkyLightMipDimensions);
 
 	void RenderRayTracingSkyLight(
 		FRDGBuilder& GraphBuilder,
@@ -947,11 +947,6 @@ private:
 		const FViewInfo& View,
 		TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer,
 		FRDGTextureRef SceneColorOutputTexture);
-
-	void BuildVarianceMipTree(FRHICommandListImmediate& RHICmdList, const FViewInfo& View, FTextureRHIRef MeanAndDeviationTexture,
-		FRWBuffer& VarianceMipTree, FIntVector& VarianceMipTreeDimensions);
-
-	void VisualizeVarianceMipTree(FRHICommandListImmediate& RHICmdList, const FViewInfo& View, const FRWBuffer& VarianceMipTree, FIntVector VarianceMipTreeDimensions);
 
 	void ComputePathCompaction(FRHICommandListImmediate& RHICmdList, const FViewInfo& View, FRHITexture* RadianceTexture, FRHITexture* SampleCountTexture, FRHITexture* PixelPositionTexture,
 		FRHIUnorderedAccessView* RadianceSortedRedUAV, FRHIUnorderedAccessView* RadianceSortedGreenUAV, FRHIUnorderedAccessView* RadianceSortedBlueUAV, FRHIUnorderedAccessView* RadianceSortedAlphaUAV, FRHIUnorderedAccessView* SampleCountSortedUAV);

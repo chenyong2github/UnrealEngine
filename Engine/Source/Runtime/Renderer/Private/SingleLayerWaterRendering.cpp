@@ -276,7 +276,6 @@ static FSceneWithoutWaterTextures AddCopySceneWithoutWaterPass(
 	const FRDGTextureDesc& SceneColorDesc = SceneColorTexture->Desc;
 	const FRDGTextureDesc& SceneDepthDesc = SceneColorTexture->Desc;
 
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 	const int32 RefractionDownsampleFactor = FMath::Clamp(GSingleLayerWaterRefractionDownsampleFactor, 1, 8);
 	const FIntPoint RefractionResolution = FIntPoint::DivideAndRoundDown(SceneColorDesc.Extent, RefractionDownsampleFactor);
 	FRDGTextureRef SceneColorWithoutSingleLayerWaterTexture = GraphBuilder.RegisterExternalTexture(GSystemTextures.BlackDummy);
@@ -366,13 +365,16 @@ END_SHADER_PARAMETER_STRUCT()
 
 void FDeferredShadingSceneRenderer::RenderSingleLayerWaterReflections(
 	FRDGBuilder& GraphBuilder,
-	FRDGTextureRef SceneColorTexture,
+	const FSceneTextures& SceneTextures,
 	const FSceneWithoutWaterTextures& SceneWithoutWaterTextures)
 {
 	if (CVarWaterSingleLayer.GetValueOnRenderThread() <= 0 || CVarWaterSingleLayerReflection.GetValueOnRenderThread() <= 0)
 	{
 		return;
 	}
+
+	const FRDGSystemTextures& SystemTextures = FRDGSystemTextures::Get(GraphBuilder);
+	FRDGTextureRef SceneColorTexture = SceneTextures.Color.Resolve;
 
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 	{
@@ -387,8 +389,8 @@ void FDeferredShadingSceneRenderer::RenderSingleLayerWaterReflections(
 		RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, Views.Num() > 1, "View%d", ViewIndex);
 
 		FRDGTextureRef ReflectionsColor = nullptr;
-		FRDGTextureRef BlackDummy = GraphBuilder.RegisterExternalTexture(GSystemTextures.BlackDummy);
-		FSceneTextureParameters SceneTextures = GetSceneTextureParameters(GraphBuilder);
+		FRDGTextureRef BlackDummy = SystemTextures.Black;
+		const FSceneTextureParameters SceneTextureParameters = GetSceneTextureParameters(GraphBuilder, SceneTextures);
 
 		auto SetCommonParameters = [&](FSingleLayerWaterCommonShaderParameters& Parameters)
 		{
@@ -399,7 +401,7 @@ void FDeferredShadingSceneRenderer::RenderSingleLayerWaterReflections(
 			Parameters.SceneNoWaterDepthTexture = SceneWithoutWaterTextures.DepthTexture ? SceneWithoutWaterTextures.DepthTexture : BlackDummy;
 			Parameters.SceneNoWaterDepthSampler = TStaticSamplerState<SF_Point>::GetRHI();
 			Parameters.SceneNoWaterMinMaxUV = SceneWithoutWaterTextures.Views[ViewIndex].MinMaxUV;
-			Parameters.SceneTextures = SceneTextures;
+			Parameters.SceneTextures = SceneTextureParameters;
 			Parameters.ViewUniformBuffer = GetShaderBinding(View.ViewUniformBuffer);
 			Parameters.ReflectionCaptureData = View.ReflectionCaptureUniformBuffer;
 			{
@@ -488,7 +490,7 @@ void FDeferredShadingSceneRenderer::RenderSingleLayerWaterReflections(
 			{
 				float UpscaleFactor = 1.0;
 				FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(
-					SceneTextures.SceneDepthTexture->Desc.Extent / UpscaleFactor,
+					SceneTextures.Config.Extent / UpscaleFactor,
 					PF_FloatRGBA,
 					FClearValueBinding::None,
 					TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV);
@@ -524,7 +526,7 @@ void FDeferredShadingSceneRenderer::RenderSingleLayerWaterReflections(
 					GraphBuilder,
 					View,
 					&View.PrevViewInfo,
-					SceneTextures,
+					SceneTextureParameters,
 					DenoiserInputs,
 					RayTracingConfig);
 
@@ -551,7 +553,7 @@ void FDeferredShadingSceneRenderer::RenderSingleLayerWaterReflections(
 
 			const bool bDenoise = false;
 			ScreenSpaceRayTracing::RenderScreenSpaceReflections(
-				GraphBuilder, SceneTextures, SceneColorTexture, View, SSRQuality, bDenoise, &DenoiserInputs, bRunTiled ? &TiledScreenSpaceReflection : nullptr);
+				GraphBuilder, SceneTextureParameters, SceneTextures.Color.Resolve, View, SSRQuality, bDenoise, &DenoiserInputs, bRunTiled ? &TiledScreenSpaceReflection : nullptr);
 
 			ReflectionsColor = DenoiserInputs.Color;
 
@@ -559,8 +561,8 @@ void FDeferredShadingSceneRenderer::RenderSingleLayerWaterReflections(
 			{
 				check(View.ViewState);
 				FTAAPassParameters TAASettings(View);
-				TAASettings.SceneDepthTexture = SceneTextures.SceneDepthTexture;
-				TAASettings.SceneVelocityTexture = SceneTextures.GBufferVelocityTexture;
+				TAASettings.SceneDepthTexture = SceneTextureParameters.SceneDepthTexture;
+				TAASettings.SceneVelocityTexture = SceneTextureParameters.GBufferVelocityTexture;
 				TAASettings.Pass = ETAAPassConfig::ScreenSpaceReflections;
 				TAASettings.SceneColorInput = DenoiserInputs.Color;
 				TAASettings.bOutputRenderTargetable = true;
@@ -689,7 +691,7 @@ void FDeferredShadingSceneRenderer::RenderSingleLayerWater(
 	if (!IsAnyForwardShadingEnabled(ShaderPlatform))
 	{
 		// If supported render SSR, the composite pass in non deferred and/or under water effect.
-		RenderSingleLayerWaterReflections(GraphBuilder, SceneTextures.Color.Resolve, SceneWithoutWaterTextures);
+		RenderSingleLayerWaterReflections(GraphBuilder, SceneTextures, SceneWithoutWaterTextures);
 	}
 }
 
@@ -713,7 +715,6 @@ void FDeferredShadingSceneRenderer::RenderSingleLayerWaterInner(
 
 	const bool bRenderInParallel = GRHICommandList.UseParallelAlgorithms() && CVarParallelSingleLayerWaterPass.GetValueOnRenderThread() == 1;
 
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 	const FRDGSystemTextures& SystemTextures = FRDGSystemTextures::Get(GraphBuilder);
 
 	FRenderTargetBindingSlots RenderTargets;

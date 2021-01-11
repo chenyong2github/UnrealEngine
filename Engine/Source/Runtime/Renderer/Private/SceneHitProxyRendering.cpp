@@ -212,7 +212,7 @@ IMPLEMENT_MATERIAL_SHADER_TYPE(,FHitProxyPS,TEXT("/Engine/Private/HitProxyPixelS
 
 #if WITH_EDITOR
 
-void InitHitProxyRender(FRDGBuilder& GraphBuilder, const FSceneRenderer* SceneRenderer, FRDGTextureRef& OutHitProxyTexture, FRDGTextureRef& OutHitProxyDepthTexture)
+void InitHitProxyRender(FRDGBuilder& GraphBuilder, const FSceneRenderer* SceneRenderer, const FSceneTexturesConfig& SceneTexturesConfig, FRDGTextureRef& OutHitProxyTexture, FRDGTextureRef& OutHitProxyDepthTexture)
 {
 	auto& ViewFamily = SceneRenderer->ViewFamily;
 	auto FeatureLevel = ViewFamily.Scene->GetFeatureLevel();
@@ -228,18 +228,16 @@ void InitHitProxyRender(FRDGBuilder& GraphBuilder, const FSceneRenderer* SceneRe
 	GSystemTextures.InitializeTextures(GraphBuilder.RHICmdList, FeatureLevel);
 	FRDGSystemTextures::Create(GraphBuilder);
 
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
-	// Allocate the maximum scene render target space for the current view family.
-	SceneContext.Allocate(GraphBuilder, SceneRenderer);
+	const FMinimalSceneTextures& SceneTextures = FMinimalSceneTextures::Create(GraphBuilder, SceneTexturesConfig);
 
 	// Create a texture to store the resolved light attenuation values, and a render-targetable surface to hold the unresolved light attenuation values.
 	{
-		FRDGTextureDesc Desc(FRDGTextureDesc::Create2D(SceneContext.GetBufferSizeXY(), PF_B8G8R8A8, FClearValueBinding::Black, TexCreate_RenderTargetable | TexCreate_ShaderResource));
+		FRDGTextureDesc Desc(FRDGTextureDesc::Create2D(SceneTexturesConfig.Extent, PF_B8G8R8A8, FClearValueBinding::Black, TexCreate_RenderTargetable | TexCreate_ShaderResource));
 		OutHitProxyTexture = GraphBuilder.CreateTexture(Desc, TEXT("HitProxy"));
 
 		// create non-MSAA version for hit proxies on PC if needed
 		const EShaderPlatform CurrentShaderPlatform = GShaderPlatformForFeatureLevel[FeatureLevel];
-		FRDGTextureDesc DepthDesc = Translate(SceneContext.SceneDepthZ->GetDesc(), ERenderTargetTexture::Targetable);
+		FRDGTextureDesc DepthDesc = SceneTextures.Depth.Target->Desc;
 
 		if (DepthDesc.NumSamples > 1 && RHISupportsSeparateMSAAAndResolveTextures(CurrentShaderPlatform))
 		{
@@ -248,7 +246,7 @@ void InitHitProxyRender(FRDGBuilder& GraphBuilder, const FSceneRenderer* SceneRe
 		}
 		else
 		{
-			OutHitProxyDepthTexture = GraphBuilder.RegisterExternalTexture(SceneContext.SceneDepthZ);
+			OutHitProxyDepthTexture = SceneTextures.Depth.Target;
 		}
 	}
 }
@@ -554,13 +552,14 @@ void FMobileSceneRenderer::RenderHitProxies(FRDGBuilder& GraphBuilder)
 	PrepareViewRectsForRendering();
 
 #if WITH_EDITOR
+	FSceneTexturesConfig SceneTexturesConfig = FSceneTexturesConfig::Create(ViewFamily);
 
 	FRDGTextureRef HitProxyTexture = nullptr;
 	FRDGTextureRef HitProxyDepthTexture = nullptr;
-	InitHitProxyRender(GraphBuilder, this, HitProxyTexture, HitProxyDepthTexture);
+	InitHitProxyRender(GraphBuilder, this, SceneTexturesConfig, HitProxyTexture, HitProxyDepthTexture);
 
 	// Find the visible primitives.
-	InitViews(GraphBuilder);
+	InitViews(GraphBuilder, SceneTexturesConfig);
 
 	GEngine->GetPreRenderDelegateEx().Broadcast(GraphBuilder);
 
@@ -575,13 +574,6 @@ void FMobileSceneRenderer::RenderHitProxies(FRDGBuilder& GraphBuilder)
 
 	GEngine->GetPostRenderDelegateEx().Broadcast(GraphBuilder);
 #endif
-
-	if (bDeferredShading)
-	{
-		// Release the original reference on the scene render targets
-		FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
-		SceneContext.AdjustGBufferRefCount(GraphBuilder.RHICmdList, -1);
-	}
 }
 
 void FDeferredShadingSceneRenderer::RenderHitProxies(FRDGBuilder& GraphBuilder)
@@ -595,19 +587,23 @@ void FDeferredShadingSceneRenderer::RenderHitProxies(FRDGBuilder& GraphBuilder)
 	PrepareViewRectsForRendering();
 
 #if WITH_EDITOR
+	const FSceneTexturesConfig SceneTexturesConfig = FSceneTexturesConfig::Create(ViewFamily);
+	FSceneTexturesConfig::Set(SceneTexturesConfig);
+
 	FRDGTextureRef HitProxyTexture = nullptr;
 	FRDGTextureRef HitProxyDepthTexture = nullptr;
 
-	InitHitProxyRender(GraphBuilder, this, HitProxyTexture, HitProxyDepthTexture);
+	InitHitProxyRender(GraphBuilder, this, SceneTexturesConfig, HitProxyTexture, HitProxyDepthTexture);
 
 	const FIntPoint HitProxyTextureSize = HitProxyDepthTexture->Desc.Extent;
 
 	// Find the visible primitives.
-	FILCUpdatePrimTaskData ILCTaskData;
-	bool bDoInitViewAftersPrepass = InitViews(GraphBuilder, FExclusiveDepthStencil::DepthWrite_StencilWrite, ILCTaskData);
-	if (bDoInitViewAftersPrepass)
 	{
-		InitViewsPossiblyAfterPrepass(GraphBuilder, ILCTaskData);
+		FILCUpdatePrimTaskData ILCTaskData;
+		if (InitViews(GraphBuilder, SceneTexturesConfig, FExclusiveDepthStencil::DepthWrite_StencilWrite, ILCTaskData))
+		{
+			InitViewsPossiblyAfterPrepass(GraphBuilder, ILCTaskData);
+		}
 	}
 
 	extern TSet<IPersistentViewUniformBufferExtension*> PersistentViewUniformBufferExtensions;

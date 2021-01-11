@@ -112,7 +112,7 @@ void FDeferredShadingSceneRenderer::AddClusteredDeferredShadingPass(
 		RDG_GPU_STAT_SCOPE(GraphBuilder, ClusteredShading);
 		RDG_EVENT_SCOPE(GraphBuilder, "ClusteredShading");
 
-		const FIntPoint SceneTextureExtent = SceneTextures.Extent;
+		const FIntPoint SceneTextureExtent = SceneTextures.Config.Extent;
 
 		for (int32 ViewIndex = 0, Num = Views.Num(); ViewIndex < Num; ViewIndex++)
 		{

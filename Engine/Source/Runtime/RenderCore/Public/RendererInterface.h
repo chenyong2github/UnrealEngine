@@ -21,13 +21,13 @@
 class FCanvas;
 class FMaterial;
 class FSceneInterface;
-class FSceneRenderTargets;
 class FSceneView;
 class FSceneViewFamily;
 class FSceneTextureUniformParameters;
 class FGlobalDistanceFieldParameterData;
 struct FMeshBatch;
 struct FSynthBenchmarkResults;
+struct FSceneTextures;
 class FShader;
 class FShaderMapPointerTable;
 class FRDGBuilder;
@@ -696,13 +696,13 @@ public:
 	/** @return The number of lights that affect a primitive. */
 	virtual uint32 GetNumDynamicLightsAffectingPrimitive(const class FPrimitiveSceneInfo* PrimitiveSceneInfo,const class FLightCacheInterface* LCI) = 0;
 
-	/** Forces reallocation of scene render targets. */
-	virtual void ReallocateSceneRenderTargets() = 0;
+	UE_DEPRECATED(5.0, "ReallocateSceneRenderTargets is deprecated and no longer necessary. Please remove.")
+	virtual void ReallocateSceneRenderTargets() {}
 
 	virtual void OnWorldCleanup(UWorld* World, bool bSessionEnded, bool bCleanupResources, bool bWorldChanged) = 0;
 
-	/** Sets the buffer size of the render targets. */
-	virtual void SceneRenderTargetsSetBufferSize(uint32 SizeX, uint32 SizeY) = 0;
+	UE_DEPRECATED(5.0, "SceneRenderTargetsSetBufferSize is deprecated and no longer necessary. Please remove.")
+	virtual void SceneRenderTargetsSetBufferSize(uint32 SizeX, uint32 SizeY) {}
 
 	virtual void InitializeSystemTextures(FRHICommandListImmediate& RHICmdList) = 0;
 
@@ -762,7 +762,7 @@ public:
 	virtual void RemoveOverlayRenderDelegate(FDelegateHandle OverlayRenderDelegate) = 0;
 
 	/** Delegate that is called upon resolving scene color. */
-	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnResolvedSceneColor, FRDGBuilder& /*GraphBuilder*/, FSceneRenderTargets& /*SceneContext*/);
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnResolvedSceneColor, FRDGBuilder& /*GraphBuilder*/, const FSceneTextures& /*SceneTextures*/);
 
 	/** Accessor for post scene color resolve delegates */
 	virtual FOnResolvedSceneColor& GetResolvedSceneColorCallbacks() = 0;

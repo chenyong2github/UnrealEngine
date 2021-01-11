@@ -24,6 +24,7 @@
 #include "ScenePrivateBase.h"
 #include "PostProcess/SceneRenderTargets.h"
 #include "SceneCore.h"
+#include "SceneOcclusion.h"
 #include "LightSceneInfo.h"
 #include "SceneRendering.h"
 #include "DeferredShadingRenderer.h"
@@ -3072,7 +3073,7 @@ static bool IsLargeCameraMovement(FSceneView& View, const FMatrix& PrevViewMatri
 		Distance.SizeSquared() > CameraTranslationThreshold * CameraTranslationThreshold;
 }
 
-void FSceneRenderer::PreVisibilityFrameSetup(FRDGBuilder& GraphBuilder)
+void FSceneRenderer::PreVisibilityFrameSetup(FRDGBuilder& GraphBuilder, const FSceneTexturesConfig& SceneTexturesConfig)
 {
 	FRHICommandListImmediate& RHICmdList = GraphBuilder.RHICmdList;
 
@@ -3201,13 +3202,17 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRDGBuilder& GraphBuilder)
 			View.bDisableQuerySubmissions = true;
 			View.bIgnoreExistingQueries = true;
 		}
-		FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 
 		// set up the screen area for occlusion
-		float NumPossiblePixels = SceneContext.UseDownsizedOcclusionQueries() && IsValidRef(SceneContext.SmallDepthZ) ?
-			(float)View.ViewRect.Width() / SceneContext.GetSmallColorDepthDownsampleFactor() * (float)View.ViewRect.Height() / SceneContext.GetSmallColorDepthDownsampleFactor() :
-			View.ViewRect.Width() * View.ViewRect.Height();
-		View.OneOverNumPossiblePixels = NumPossiblePixels > 0.0 ? 1.0f / NumPossiblePixels : 0.0f;
+		{
+			float OcclusionPixelMultiplier = 1.0f;
+			if (UseDownsampledOcclusionQueries())
+			{
+				OcclusionPixelMultiplier = 1.0f / static_cast<float>(FMath::Square(SceneTexturesConfig.SmallDepthDownsampleFactor));
+			}
+			float NumPossiblePixels = static_cast<float>(View.ViewRect.Width() * View.ViewRect.Height()) * OcclusionPixelMultiplier;
+			View.OneOverNumPossiblePixels = NumPossiblePixels > 0.0 ? 1.0f / NumPossiblePixels : 0.0f;
+		}
 
 		// Still need no jitter to be set for temporal feedback on SSR (it is enabled even when temporal AA is off).
 		check(View.TemporalJitterPixels.X == 0.0f);
@@ -4448,7 +4453,7 @@ uint32 GetShadowQuality();
 /** 
 * Performs once per frame setup prior to visibility determination.
 */
-void FDeferredShadingSceneRenderer::PreVisibilityFrameSetup(FRDGBuilder& GraphBuilder)
+void FDeferredShadingSceneRenderer::PreVisibilityFrameSetup(FRDGBuilder& GraphBuilder, const FSceneTexturesConfig& SceneTexturesConfig)
 {
 	// Possible stencil dither optimization approach
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
@@ -4457,20 +4462,20 @@ void FDeferredShadingSceneRenderer::PreVisibilityFrameSetup(FRDGBuilder& GraphBu
 		View.bAllowStencilDither = DepthPass.bDitheredLODTransitionsUseStencil;
 	}
 
-	FSceneRenderer::PreVisibilityFrameSetup(GraphBuilder);
+	FSceneRenderer::PreVisibilityFrameSetup(GraphBuilder, SceneTexturesConfig);
 }
 
 /**
  * Initialize scene's views.
  * Check visibility, build visible mesh commands, etc.
  */
-bool FDeferredShadingSceneRenderer::InitViews(FRDGBuilder& GraphBuilder, FExclusiveDepthStencil::Type BasePassDepthStencilAccess, struct FILCUpdatePrimTaskData& ILCTaskData)
+bool FDeferredShadingSceneRenderer::InitViews(FRDGBuilder& GraphBuilder, const FSceneTexturesConfig& SceneTexturesConfig, FExclusiveDepthStencil::Type BasePassDepthStencilAccess, struct FILCUpdatePrimTaskData& ILCTaskData)
 {
 	SCOPED_NAMED_EVENT(FDeferredShadingSceneRenderer_InitViews, FColor::Emerald);
 	SCOPE_CYCLE_COUNTER(STAT_InitViewsTime);
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(InitViews_Scene);
 
-	PreVisibilityFrameSetup(GraphBuilder);
+	PreVisibilityFrameSetup(GraphBuilder, SceneTexturesConfig);
 
 	FRHICommandListImmediate& RHICmdList = GraphBuilder.RHICmdList;
 

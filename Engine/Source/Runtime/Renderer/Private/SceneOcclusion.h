@@ -113,3 +113,5 @@ public:
 	FOcclusionQueryPS() {}
 };
 
+// Returns whether occlusion queries should be downsampled.
+extern RENDERER_API bool UseDownsampledOcclusionQueries();

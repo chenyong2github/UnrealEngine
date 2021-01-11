@@ -787,8 +787,6 @@ void FDeferredShadingSceneRenderer::RenderBasePass(
 
 	const FExclusiveDepthStencil ExclusiveDepthStencil(BasePassDepthStencilAccess);
 
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
-
 	TStaticArray<FRDGTextureRef, MaxSimultaneousRenderTargets> BasePassTextures;
 	uint32 BasePassTextureCount = SceneTextures.GetGBufferRenderTargets(BasePassTextures);
 	TArrayView<FRDGTextureRef> BasePassTexturesView = MakeArrayView(BasePassTextures.GetData(), BasePassTextureCount);
@@ -797,9 +795,9 @@ void FDeferredShadingSceneRenderer::RenderBasePass(
 
 	if (bRequiresRHIClear)
 	{
-		if (ViewFamily.EngineShowFlags.ShaderComplexity)
+		if (ViewFamily.EngineShowFlags.ShaderComplexity && SceneTextures.QuadOverdraw)
 		{
-			SceneContext.ClearQuadOverdrawUAV(GraphBuilder);
+			AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(SceneTextures.QuadOverdraw), FUintVector4(0, 0, 0, 0));
 		}
 
 		if (ViewFamily.EngineShowFlags.ShaderComplexity || ViewFamily.EngineShowFlags.StationaryLightOverlap)
@@ -861,18 +859,16 @@ void FDeferredShadingSceneRenderer::RenderBasePass(
 		}
 	}
 
+#if WITH_EDITOR
 	if (ViewFamily.EngineShowFlags.Wireframe)
 	{
 		checkf(ExclusiveDepthStencil.IsDepthWrite(), TEXT("Wireframe base pass requires depth-write, but it is set to read-only."));
 
-		SceneContext.GetEditorPrimitivesColor(GraphBuilder.RHICmdList);
-		SceneContext.GetEditorPrimitivesDepth(GraphBuilder.RHICmdList);
-
 		BasePassTextureCount = 1;
-		BasePassTextures[0] = GraphBuilder.RegisterExternalTexture(SceneContext.EditorPrimitivesColor, ERenderTargetTexture::Targetable);
+		BasePassTextures[0] = SceneTextures.EditorPrimitiveColor;
 		BasePassTexturesView = MakeArrayView(BasePassTextures.GetData(), BasePassTextureCount);
 
-		BasePassDepthTexture = GraphBuilder.RegisterExternalTexture(SceneContext.EditorPrimitivesDepth, ERenderTargetTexture::Targetable);
+		BasePassDepthTexture = SceneTextures.EditorPrimitiveDepth;
 
 		auto* PassParameters = GraphBuilder.AllocParameters<FRenderTargetParameters>();
 		PassParameters->RenderTargets = GetRenderTargetBindings(ERenderTargetLoadAction::EClear, BasePassTexturesView);
@@ -880,6 +876,7 @@ void FDeferredShadingSceneRenderer::RenderBasePass(
 
 		GraphBuilder.AddPass(RDG_EVENT_NAME("WireframeClear"), PassParameters, ERDGPassFlags::Raster, [](FRHICommandList&) {});
 	}
+#endif
 
 	// Render targets bindings should remain constant at this point.
 	FRenderTargetBindingSlots BasePassRenderTargets = GetRenderTargetBindings(ERenderTargetLoadAction::ELoad, BasePassTexturesView);
@@ -891,7 +888,7 @@ void FDeferredShadingSceneRenderer::RenderBasePass(
 	ForwardBasePassTextures.ScreenSpaceShadowMask = ForwardShadowMaskTexture;
 
 	GraphBuilder.SetCommandListStat(GET_STATID(STAT_CLM_BasePass));
-	RenderBasePassInternal(GraphBuilder, BasePassRenderTargets, BasePassDepthStencilAccess, ForwardBasePassTextures, DBufferTextures, bDoParallelBasePass, bRenderLightmapDensity);
+	RenderBasePassInternal(GraphBuilder, BasePassRenderTargets, BasePassDepthStencilAccess, ForwardBasePassTextures, DBufferTextures, SceneTextures.QuadOverdraw, bDoParallelBasePass, bRenderLightmapDensity);
 	GraphBuilder.SetCommandListStat(GET_STATID(STAT_CLM_AfterBasePass));
 
 	if (ViewFamily.ViewExtensions.Num() > 0)
@@ -1060,6 +1057,7 @@ void FDeferredShadingSceneRenderer::RenderBasePassInternal(
 	FExclusiveDepthStencil::Type BasePassDepthStencilAccess,
 	const FForwardBasePassTextures& ForwardBasePassTextures,
 	const FDBufferTextures& DBufferTextures,
+	FRDGTextureRef QuadOverdrawTexture,
 	bool bParallelBasePass,
 	bool bRenderLightmapDensity)
 {
@@ -1069,12 +1067,12 @@ void FDeferredShadingSceneRenderer::RenderBasePassInternal(
 	if (bRenderLightmapDensity)
 	{
 		// Override the base pass with the lightmap density pass if the viewmode is enabled.
-		RenderLightMapDensities(GraphBuilder, Views, Scene, BasePassRenderTargets);
+		RenderLightMapDensities(GraphBuilder, Views, BasePassRenderTargets);
 	}
 	else if (ViewFamily.UseDebugViewPS())
 	{
 		// Override the base pass with one of the debug view shader mode (see EDebugViewShaderMode) if required.
-		RenderDebugViewMode(GraphBuilder, Views, Scene, BasePassRenderTargets);
+		RenderDebugViewMode(GraphBuilder, Views, QuadOverdrawTexture, BasePassRenderTargets);
 	}
 	else
 	{

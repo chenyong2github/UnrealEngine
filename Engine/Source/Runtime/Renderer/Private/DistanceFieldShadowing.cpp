@@ -124,7 +124,7 @@ int32 GetDFShadowDownsampleFactor()
 
 FIntPoint GetBufferSizeForDFShadows()
 {
-	return FIntPoint::DivideAndRoundDown(FSceneRenderTargets::Get().GetBufferSizeXY(), GetDFShadowDownsampleFactor());
+	return FIntPoint::DivideAndRoundDown(GetSceneTextureExtent(), GetDFShadowDownsampleFactor());
 }
 
 TGlobalResource<FDistanceFieldObjectBufferResource> GShadowCulledObjectBuffers;

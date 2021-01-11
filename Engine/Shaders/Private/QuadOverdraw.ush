@@ -45,7 +45,7 @@ float ComplexityToFloat(uint Complexity)
 	return (float)Complexity / (float)QO_FRACTIONNAL_COMPLEXITY;
 }
 
-#define RWQuadBuffer View.QuadOverdraw
+#define RWQuadBuffer DebugViewModePass.QuadOverdraw
 
 #if OUTPUT_QUAD_OVERDRAW
 

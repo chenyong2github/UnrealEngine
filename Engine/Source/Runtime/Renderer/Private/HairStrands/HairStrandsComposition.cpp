@@ -672,12 +672,12 @@ void RenderHairComposition(
 				const bool bWriteFullGBuffer	= View.Family->ViewMode == VMI_VisualizeBuffer || (GHairWriteGBufferData == 3);
 				if (bWriteFullGBuffer || bWritePartialGBuffer)
 				{
-					FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
-					const FRDGTextureRef GBufferATexture = TryRegisterExternalTexture(GraphBuilder, SceneContext.GBufferA);
-					const FRDGTextureRef GBufferBTexture = TryRegisterExternalTexture(GraphBuilder, SceneContext.GBufferB);
-					const FRDGTextureRef GBufferCTexture = TryRegisterExternalTexture(GraphBuilder, SceneContext.GBufferC);
-					const FRDGTextureRef GBufferDTexture = TryRegisterExternalTexture(GraphBuilder, SceneContext.GBufferD);
-					const FRDGTextureRef GBufferETexture = TryRegisterExternalTexture(GraphBuilder, SceneContext.GBufferE);
+					const FSceneTextures& SceneTextures = FSceneTextures::Get(GraphBuilder);
+					const FRDGTextureRef GBufferATexture = SceneTextures.GBufferA;
+					const FRDGTextureRef GBufferBTexture = SceneTextures.GBufferB;
+					const FRDGTextureRef GBufferCTexture = SceneTextures.GBufferC;
+					const FRDGTextureRef GBufferDTexture = SceneTextures.GBufferD;
+					const FRDGTextureRef GBufferETexture = SceneTextures.GBufferE;
 					if (bWritePartialGBuffer && GBufferATexture && GBufferBTexture)
 					{
 						AddHairVisibilityGBufferWritePass(

@@ -269,7 +269,7 @@ class FHairDebugPrintCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer, HairVisibilityNodeData)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, HairVisibilityIndirectArgsBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, HairMacroGroupAABBBuffer)
-		SHADER_PARAMETER_SRV(Texture2D, DepthStencilTexture)
+		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D, DepthStencilTexture)
 		SHADER_PARAMETER_SAMPLER(SamplerState, LinearSampler)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
 		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderPrint::FShaderParameters, ShaderPrintUniformBuffer)
@@ -294,7 +294,7 @@ static void AddDebugHairPrintPass(
 	const EHairDebugMode InDebugMode,
 	const FHairStrandsVisibilityData& VisibilityData,
 	const FHairStrandsMacroGroupDatas& MacroGroupDatas,
-	const FShaderResourceViewRHIRef& InDepthStencilTexture)
+	FRDGTextureSRVRef InDepthStencilTexture)
 {
 	if (!VisibilityData.CategorizationTexture || !VisibilityData.NodeIndex || !VisibilityData.NodeData || !InDepthStencilTexture) return;
 
@@ -354,11 +354,11 @@ class FHairDebugPS : public FGlobalShader
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, NodeIndex)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, TileIndexTexture)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer, NodeData)
-		SHADER_PARAMETER_SRV(Texture2D, DepthStencilTexture)
+		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D, DepthStencilTexture)
 		SHADER_PARAMETER_SAMPLER(SamplerState, LinearSampler)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
 		RENDER_TARGET_BINDING_SLOTS()
-		END_SHADER_PARAMETER_STRUCT()
+	END_SHADER_PARAMETER_STRUCT()
 
 public:
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsHairStrandsSupported(EHairStrandsShaderType::Tool, Parameters.Platform); }
@@ -371,7 +371,7 @@ static void AddDebugHairPass(
 	const FViewInfo* View,
 	const EHairDebugMode InDebugMode,
 	const FHairStrandsVisibilityData& VisibilityData,
-	const FShaderResourceViewRHIRef& InDepthStencilTexture,
+	FRDGTextureSRVRef InDepthStencilTexture,
 	FRDGTextureRef& OutTarget)
 {
 	check(OutTarget);
@@ -1098,11 +1098,11 @@ void RenderHairStrandsDebugInfo(
 	const uint32 ViewIndex = 0;
 	FViewInfo& View = Views[ViewIndex];
 	const FSceneViewFamily& ViewFamily = *(View.Family);
-	FSceneRenderTargets& SceneTargets = FSceneRenderTargets::Get();
+	const FSceneTextures& SceneTextures = FSceneTextures::Get(GraphBuilder);
 
 	{
 		FHairStrandsBookmarkParameters Params = CreateHairStrandsBookmarkParameters(Views[0]);
-		Params.SceneColorTexture = SceneTargets.GetSceneColor();
+		Params.SceneColorTexture = SceneColorTexture;
 		RunHairStrandsBookmark(GraphBuilder, EHairStrandsBookmark::ProcessDebug, Params);
 	}
 
@@ -1136,7 +1136,7 @@ void RenderHairStrandsDebugInfo(
 		{
 			const FHairStrandsVisibilityData& VisibilityData = HairDatas->HairVisibilityViews.HairDatas[ViewIndex];
 			const FHairStrandsMacroGroupDatas& MacroGroupDatas = InMacroGroupViews.Views[ViewIndex];
-			AddDebugHairPrintPass(GraphBuilder, &View, HairDebugMode, VisibilityData, MacroGroupDatas, SceneTargets.SceneStencilSRV);
+			AddDebugHairPrintPass(GraphBuilder, &View, HairDebugMode, VisibilityData, MacroGroupDatas, SceneTextures.Stencil);
 		}
 
 		// CPU bound of macro groups
@@ -1299,8 +1299,8 @@ void RenderHairStrandsDebugInfo(
 		{
 			const FHairStrandsVisibilityData& VisibilityData = HairDatas->HairVisibilityViews.HairDatas[ViewIndex];
 			const FHairStrandsMacroGroupDatas& MacroGroupDatas = InMacroGroupViews.Views[ViewIndex];
-			AddDebugHairPass(GraphBuilder, &View, HairDebugMode, VisibilityData, SceneTargets.SceneStencilSRV, SceneColorTexture);
-			AddDebugHairPrintPass(GraphBuilder, &View, HairDebugMode, VisibilityData, MacroGroupDatas, SceneTargets.SceneStencilSRV);
+			AddDebugHairPass(GraphBuilder, &View, HairDebugMode, VisibilityData, SceneTextures.Stencil, SceneColorTexture);
+			AddDebugHairPrintPass(GraphBuilder, &View, HairDebugMode, VisibilityData, MacroGroupDatas, SceneTextures.Stencil);
 		}
 	}
 

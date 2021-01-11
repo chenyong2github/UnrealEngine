@@ -141,6 +141,7 @@ void SetupMobileBasePassUniformParameters(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
 	EMobileBasePass BasePass,
+	FRDGTextureRef ScreenSpaceAOTexture,
 	FMobileBasePassUniformParameters& BasePassParameters)
 {
 	SetupFogUniformParameters(GraphBuilder, View, BasePassParameters.Fog);
@@ -191,9 +192,9 @@ void SetupMobileBasePassUniformParameters(
 
 	BasePassParameters.EyeAdaptationBuffer = GetEyeAdaptationBuffer(View);
 
-	if (BasePass == EMobileBasePass::Opaque && GAmbientOcclusionMobileOutputs.IsValid())
+	if (BasePass == EMobileBasePass::Opaque && HasBeenProduced(ScreenSpaceAOTexture))
 	{
-		BasePassParameters.AmbientOcclusionTexture = GraphBuilder.RegisterExternalTexture(GAmbientOcclusionMobileOutputs.AmbientOcclusionTexture);
+		BasePassParameters.AmbientOcclusionTexture = ScreenSpaceAOTexture;
 	}
 	else
 	{
@@ -206,10 +207,11 @@ void SetupMobileBasePassUniformParameters(
 TRDGUniformBufferRef<FMobileBasePassUniformParameters> CreateMobileBasePassUniformBuffer(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
-	EMobileBasePass BasePass)
+	EMobileBasePass BasePass,
+	FRDGTextureRef ScreenSpaceAO)
 {
 	FMobileBasePassUniformParameters* BasePassParameters = GraphBuilder.AllocParameters<FMobileBasePassUniformParameters>();
-	SetupMobileBasePassUniformParameters(GraphBuilder, View, BasePass, *BasePassParameters);
+	SetupMobileBasePassUniformParameters(GraphBuilder, View, BasePass, ScreenSpaceAO, *BasePassParameters);
 	return GraphBuilder.CreateUniformBuffer(BasePassParameters);
 }
 
@@ -297,7 +299,11 @@ void SetupMobileSkyReflectionUniformParameters(FSkyLightSceneProxy* SkyLight, FM
 	Parameters.TextureSampler = CaptureTexture->SamplerStateRHI;
 }
 
-void FMobileSceneRenderer::RenderMobileBasePass(FRDGBuilder& GraphBuilder, FRenderTargetBindingSlots& BasePassRenderTargets, const TArrayView<const FViewInfo*> PassViews)
+void FMobileSceneRenderer::RenderMobileBasePass(
+	FRDGBuilder& GraphBuilder,
+	FRenderTargetBindingSlots& BasePassRenderTargets,
+	const TArrayView<const FViewInfo*> PassViews,
+	FRDGTextureRef ScreenSpaceAO)
 {
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(RenderBasePass);
 	RDG_EVENT_SCOPE(GraphBuilder, "MobileBasePass");
@@ -320,7 +326,7 @@ void FMobileSceneRenderer::RenderMobileBasePass(FRDGBuilder& GraphBuilder, FRend
 		auto* OpaqueBasePassParameters = GraphBuilder.AllocParameters<FMobileBasePassParameters>();
 		OpaqueBasePassParameters->View = View.GetShaderParameters();
 		OpaqueBasePassParameters->RenderTargets = BasePassRenderTargets;
-		OpaqueBasePassParameters->MobileBasePass = CreateMobileBasePassUniformBuffer(GraphBuilder, View, EMobileBasePass::Opaque);
+		OpaqueBasePassParameters->MobileBasePass = CreateMobileBasePassUniformBuffer(GraphBuilder, View, EMobileBasePass::Opaque, ScreenSpaceAO);
 
 		GraphBuilder.AddPass(RDG_EVENT_NAME("RenderOpaqueBasePass"), OpaqueBasePassParameters, ERDGPassFlags::Raster | ERDGPassFlags::SkipRenderPass,
 			[this, &View, OpaqueBasePassParameters](FRHICommandListImmediate& RHICmdList)

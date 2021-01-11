@@ -203,8 +203,6 @@ static void GetLightMaterial(const FCachedLightMaterial& DefaultLightMaterial, c
 
 static void RenderDirectLight(FRHICommandListImmediate& RHICmdList, const FScene& Scene, const FViewInfo& View, const FCachedLightMaterial& DefaultLightMaterial)
 {
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
-
 	FLightSceneInfo* DirectionalLight = nullptr;
 	for (int32 ChannelIdx = 0; ChannelIdx < UE_ARRAY_COUNT(Scene.MobileDirectionalLights) && !DirectionalLight; ChannelIdx++)
 	{
@@ -266,7 +264,7 @@ static void RenderDirectLight(FRHICommandListImmediate& RHICmdList, const FScene
 	
 	RHICmdList.SetStencilRef(StencilRef);
 			
-	const FIntPoint TargetSize = SceneContext.GetBufferSizeXY();
+	const FIntPoint TargetSize = GetSceneTextureExtent();
 	
 	DrawRectangle(
 		RHICmdList, 

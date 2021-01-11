@@ -14,6 +14,7 @@ class FViewport;
 class FTextureShareModule;
 class FSceneViewFamily;
 class FRDGBuilder;
+struct FSceneTextures;
 
 class FTextureShareDisplayManager
 {
@@ -41,7 +42,7 @@ public:
 
 private:
 	/** Rendered callback (get scene textures to share) */
-	void OnResolvedSceneColor_RenderThread(FRDGBuilder& GraphBuilder, class FSceneRenderTargets& SceneContext);
+	void OnResolvedSceneColor_RenderThread(FRDGBuilder& GraphBuilder, const FSceneTextures& SceneTextures);
 
 	bool IsSceneSharingValid() const
 	{ return bIsRenderedCallbackAssigned && DisplayExtensions.Num()>0; }

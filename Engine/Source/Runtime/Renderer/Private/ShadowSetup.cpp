@@ -32,6 +32,12 @@
 #include "VirtualShadowMaps/VirtualShadowMapCacheManager.h"
 #include "VirtualShadowMaps/VirtualShadowMapClipmap.h"
 
+/** Number of cube map shadow depth surfaces that will be created and used for rendering one pass point light shadows. */
+static const int32 NumCubeShadowDepthSurfaces = 5;
+
+/** Number of surfaces used for translucent shadows. */
+static const int32 NumTranslucencyShadowSurfaces = 2;
+
 static float GMinScreenRadiusForShadowCaster = 0.01f;
 static FAutoConsoleVariableRef CVarMinScreenRadiusForShadowCaster(
 	TEXT("r.Shadow.RadiusThreshold"),
@@ -490,6 +496,119 @@ static bool GetBestShadowTransform(const FVector& ZAxis,const FBoundingBoxVertex
 		return false;
 	}
 }
+
+int32 GetMaxShadowResolution(ERHIFeatureLevel::Type FeatureLevel)
+{
+	static const auto* MaxShadowResolutionCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Shadow.MaxResolution"));
+	int32 MaxShadowResolution = MaxShadowResolutionCVar->GetValueOnRenderThread();
+
+	if (FeatureLevel < ERHIFeatureLevel::SM5)
+	{
+		// ensure there is always enough space for mobile renderer's tiled shadow maps
+		// by reducing the shadow map resolution.
+		int32 MaxShadowDepthBufferDim = FMath::Max(GMaxShadowDepthBufferSizeX, GMaxShadowDepthBufferSizeY);
+		if (MaxShadowResolution * 2 > MaxShadowDepthBufferDim)
+		{
+			MaxShadowResolution = MaxShadowDepthBufferDim / 2;
+		}
+	}
+
+	return MaxShadowResolution;
+}
+
+/** Returns the size of the shadow depth buffer, taking into account platform limitations and game specific resolution limits. */
+static FIntPoint GetShadowDepthTextureResolution(ERHIFeatureLevel::Type FeatureLevel)
+{
+	int32 MaxShadowRes = GetMaxShadowResolution(FeatureLevel);
+	const FIntPoint ShadowBufferResolution(
+		FMath::Clamp(MaxShadowRes, 1, (int32)GMaxShadowDepthBufferSizeX),
+		FMath::Clamp(MaxShadowRes, 1, (int32)GMaxShadowDepthBufferSizeY));
+
+	return ShadowBufferResolution;
+}
+
+static int32 GetTranslucentShadowDownsampleFactor()
+{
+	return 2;
+}
+
+static FIntPoint GetPreShadowCacheTextureResolution(ERHIFeatureLevel::Type FeatureLevel)
+{
+	const FIntPoint ShadowDepthResolution = GetShadowDepthTextureResolution(FeatureLevel);
+	// Higher numbers increase cache hit rate but also memory usage
+	const int32 ExpandFactor = GetTranslucentShadowDownsampleFactor();
+
+	float Factor = CVarPreShadowResolutionFactor.GetValueOnRenderThread();
+
+	FIntPoint Ret;
+
+	Ret.X = FMath::Clamp(FMath::TruncToInt(ShadowDepthResolution.X * Factor) * ExpandFactor, 1, (int32)GMaxShadowDepthBufferSizeX);
+	Ret.Y = FMath::Clamp(FMath::TruncToInt(ShadowDepthResolution.Y * Factor) * ExpandFactor, 1, (int32)GMaxShadowDepthBufferSizeY);
+
+	return Ret;
+}
+
+static FIntPoint GetTranslucentShadowDepthTextureResolution()
+{
+	FIntPoint ShadowDepthResolution = GetShadowDepthTextureResolution(ERHIFeatureLevel::SM5);
+
+	const int32 Factor = 2;
+
+	ShadowDepthResolution.X = FMath::Clamp(ShadowDepthResolution.X / Factor, 1, (int32)GMaxShadowDepthBufferSizeX);
+	ShadowDepthResolution.Y = FMath::Clamp(ShadowDepthResolution.Y / Factor, 1, (int32)GMaxShadowDepthBufferSizeY);
+
+	return ShadowDepthResolution;
+}
+
+/** Returns an index in the range [0, NumCubeShadowDepthSurfaces) given an input resolution. */
+static int32 GetCubeShadowDepthZIndex(ERHIFeatureLevel::Type FeatureLevel, int32 ShadowResolution)
+{
+	FIntPoint ObjectShadowBufferResolution = GetShadowDepthTextureResolution(FeatureLevel);
+
+	// Use a lower resolution because cubemaps use a lot of memory
+	ObjectShadowBufferResolution.X /= 2;
+	ObjectShadowBufferResolution.Y /= 2;
+	const int32 SurfaceSizes[NumCubeShadowDepthSurfaces] =
+	{
+		ObjectShadowBufferResolution.X,
+		ObjectShadowBufferResolution.X / 2,
+		ObjectShadowBufferResolution.X / 4,
+		ObjectShadowBufferResolution.X / 8,
+		CVarMinShadowResolution.GetValueOnRenderThread()
+	};
+
+	for (int32 SearchIndex = 0; SearchIndex < NumCubeShadowDepthSurfaces; SearchIndex++)
+	{
+		if (ShadowResolution >= SurfaceSizes[SearchIndex])
+		{
+			return SearchIndex;
+		}
+	}
+
+	check(0);
+	return 0;
+}
+
+/** Returns the appropriate resolution for a given cube shadow index. */
+static int32 GetCubeShadowDepthZResolution(ERHIFeatureLevel::Type FeatureLevel, int32 ShadowIndex)
+{
+	checkSlow(ShadowIndex >= 0 && ShadowIndex < NumCubeShadowDepthSurfaces);
+	FIntPoint ObjectShadowBufferResolution = GetShadowDepthTextureResolution(FeatureLevel);
+
+	// Use a lower resolution because cubemaps use a lot of memory
+	ObjectShadowBufferResolution.X = FMath::Max(ObjectShadowBufferResolution.X / 2, 1);
+	ObjectShadowBufferResolution.Y = FMath::Max(ObjectShadowBufferResolution.Y / 2, 1);
+	const int32 SurfaceSizes[NumCubeShadowDepthSurfaces] =
+	{
+		ObjectShadowBufferResolution.X,
+		FMath::Max(ObjectShadowBufferResolution.X / 2, 1),
+		FMath::Max(ObjectShadowBufferResolution.X / 4, 1),
+		FMath::Max(ObjectShadowBufferResolution.X / 8, 1),
+		CVarMinShadowResolution.GetValueOnRenderThread()
+	};
+	return SurfaceSizes[ShadowIndex];
+}
+
 
 FProjectedShadowInfo::FProjectedShadowInfo()
 	: ShadowDepthView(NULL)
@@ -2202,7 +2321,7 @@ struct FComparePreshadows
 };
 
 /** Removes stale shadows and attempts to add new preshadows to the cache. */
-void FSceneRenderer::UpdatePreshadowCache(FSceneRenderTargets& SceneContext)
+void FSceneRenderer::UpdatePreshadowCache()
 {
 	if (ShouldUseCachePreshadows() && !Views[0].bIsSceneCapture)
 	{
@@ -2210,7 +2329,7 @@ void FSceneRenderer::UpdatePreshadowCache(FSceneRenderTargets& SceneContext)
 		if (Scene->PreshadowCacheLayout.GetSizeX() == 0)
 		{
 			// Initialize the texture layout if necessary
-			const FIntPoint PreshadowCacheBufferSize = SceneContext.GetPreShadowCacheTextureResolution();
+			const FIntPoint PreshadowCacheBufferSize = GetPreShadowCacheTextureResolution(FeatureLevel);
 			Scene->PreshadowCacheLayout = FTextureLayout(1, 1, PreshadowCacheBufferSize.X, PreshadowCacheBufferSize.Y, false, ETextureLayoutAspectRatio::None, false);
 		}
 
@@ -2451,12 +2570,10 @@ void FSceneRenderer::CreatePerObjectProjectedShadow(
 		}
 	}
 
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
-	
 	// Shadowing constants.
 	
 	const uint32 MaxShadowResolutionSetting = GetCachedScalabilityCVars().MaxShadowResolution;
-	const FIntPoint ShadowBufferResolution = SceneContext.GetShadowDepthTextureResolution();
+	const FIntPoint ShadowBufferResolution = GetShadowDepthTextureResolution(FeatureLevel);
 	const uint32 MaxShadowResolution = FMath::Min<int32>(MaxShadowResolutionSetting, ShadowBufferResolution.X) - SHADOW_BORDER * 2;
 	const uint32 MaxShadowResolutionY = FMath::Min<int32>(MaxShadowResolutionSetting, ShadowBufferResolution.Y) - SHADOW_BORDER * 2;
 	const uint32 MinShadowResolution     = FMath::Max<int32>(0, CVarMinShadowResolution.GetValueOnRenderThread());
@@ -2626,14 +2743,16 @@ void FSceneRenderer::CreatePerObjectProjectedShadow(
 				// Create a projected shadow for this interaction's shadow.
 				FProjectedShadowInfo* ProjectedShadowInfo = new(FMemStack::Get(),1,16) FProjectedShadowInfo;
 
+				const FIntPoint TranslucentShadowTextureResolution = GetTranslucentShadowDepthTextureResolution();
+
 				if(ProjectedShadowInfo->SetupPerObjectProjection(
 					LightSceneInfo,
 					PrimitiveSceneInfo,
 					ShadowInitializer,
 					false,					// no preshadow
 					// Size was computed for the full res opaque shadow, convert to downsampled translucent shadow size with proper clamping
-					FMath::Clamp<int32>(SizeX / SceneContext.GetTranslucentShadowDownsampleFactor(), 1, SceneContext.GetTranslucentShadowDepthTextureResolution().X - SHADOW_BORDER * 2),
-					FMath::Clamp<int32>(MaxShadowResolutionY / SceneContext.GetTranslucentShadowDownsampleFactor(), 1, SceneContext.GetTranslucentShadowDepthTextureResolution().Y - SHADOW_BORDER * 2),
+					FMath::Clamp<int32>(SizeX / GetTranslucentShadowDownsampleFactor(), 1, TranslucentShadowTextureResolution.X - SHADOW_BORDER * 2),
+					FMath::Clamp<int32>(MaxShadowResolutionY / GetTranslucentShadowDownsampleFactor(), 1, TranslucentShadowTextureResolution.Y - SHADOW_BORDER * 2),
 					SHADOW_BORDER,
 					MaxScreenPercent,
 					true))					// translucent shadow
@@ -2669,7 +2788,7 @@ void FSceneRenderer::CreatePerObjectProjectedShadow(
 			// Round down to the nearest power of two so that resolution changes are always doubling or halving the resolution, which increases filtering stability.
 			int32 PreshadowSizeX = 1 << (FMath::CeilLogTwo(FMath::TruncToInt(MaxDesiredResolution * CVarPreShadowResolutionFactor.GetValueOnRenderThread())) - 1);
 
-			const FIntPoint PreshadowCacheResolution = SceneContext.GetPreShadowCacheTextureResolution();
+			const FIntPoint PreshadowCacheResolution = GetPreShadowCacheTextureResolution(FeatureLevel);
 			checkSlow(PreshadowSizeX <= PreshadowCacheResolution.X);
 			bool bIsOutsideWholeSceneShadow = true;
 
@@ -3062,8 +3181,6 @@ void FSceneRenderer::CreateWholeSceneProjectedShadow(
 	TArray<FWholeSceneProjectedShadowInitializer, TInlineAllocator<6> > ProjectedShadowInitializers;
 	if (LightSceneInfo->Proxy->GetWholeSceneProjectedShadowInitializer(ViewFamily, ProjectedShadowInitializers))
 	{
-		FSceneRenderTargets& SceneContext_ConstantsOnly = FSceneRenderTargets::Get();
-
 		checkSlow(ProjectedShadowInitializers.Num() > 0);
 
 		// Shadow resolution constants.
@@ -3071,7 +3188,7 @@ void FSceneRenderer::CreateWholeSceneProjectedShadow(
 		const uint32 EffectiveDoubleShadowBorder = ShadowBorder * 2;
 		const uint32 MinShadowResolution = FMath::Max<int32>(0, CVarMinShadowResolution.GetValueOnRenderThread());
 		const int32 MaxShadowResolutionSetting = GetCachedScalabilityCVars().MaxShadowResolution;
-		const FIntPoint ShadowBufferResolution = SceneContext_ConstantsOnly.GetShadowDepthTextureResolution();
+		const FIntPoint ShadowBufferResolution = GetShadowDepthTextureResolution(FeatureLevel);
 		const uint32 MaxShadowResolution = FMath::Min(MaxShadowResolutionSetting, ShadowBufferResolution.X) - EffectiveDoubleShadowBorder;
 		const uint32 MaxShadowResolutionY = FMath::Min(MaxShadowResolutionSetting, ShadowBufferResolution.Y) - EffectiveDoubleShadowBorder;
 		const uint32 ShadowFadeResolution = FMath::Max<int32>(0, CVarShadowFadeResolution.GetValueOnRenderThread());
@@ -3166,7 +3283,7 @@ void FSceneRenderer::CreateWholeSceneProjectedShadow(
 				if (ProjectedShadowInitializer.bOnePassPointLightShadow)
 				{
 					// Round to a resolution that is supported for one pass point light shadows
-					SizeX = SizeY = SceneContext_ConstantsOnly.GetCubeShadowDepthZResolution(SceneContext_ConstantsOnly.GetCubeShadowDepthZIndex(MaxDesiredResolution));
+					SizeX = SizeY = GetCubeShadowDepthZResolution(FeatureLevel, GetCubeShadowDepthZIndex(FeatureLevel, MaxDesiredResolution));
 				}
 
 				const bool bNeedsVirtualShadowMap = bNaniteEnabled
@@ -4142,8 +4259,6 @@ void FSceneRenderer::AddViewDependentWholeSceneShadowsForView(
 
 			static_assert(INDEX_NONE == -1, "INDEX_NONE != -1!");
 
-			FSceneRenderTargets& SceneContext_ConstantsOnly = FSceneRenderTargets::Get();
-
 			float MaxShadowCascadeDistance = 0.0f;
 
 			// todo: this code can be simplified by computing all the distances in one place - avoiding some redundant work and complexity
@@ -4269,8 +4384,6 @@ void FSceneRenderer::AddViewDependentWholeSceneShadowsForView(
 
 void FSceneRenderer::AllocateShadowDepthTargets(FRHICommandListImmediate& RHICmdList)
 {
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
-
 	// Sort visible shadows based on their allocation needs
 	// 2d shadowmaps for this frame only that can be atlased across lights
 	TArray<FProjectedShadowInfo*, SceneRenderingAllocator> Shadows;
@@ -4476,7 +4589,7 @@ void FSceneRenderer::AllocateShadowDepthTargets(FRHICommandListImmediate& RHICmd
 	{
 		if (!Scene->PreShadowCacheDepthZ)
 		{
-			FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(SceneContext.GetPreShadowCacheTextureResolution(), PF_ShadowDepth, FClearValueBinding::None, TexCreate_None, TexCreate_DepthStencilTargetable | TexCreate_ShaderResource, false));
+			FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(GetPreShadowCacheTextureResolution(FeatureLevel), PF_ShadowDepth, FClearValueBinding::None, TexCreate_None, TexCreate_DepthStencilTargetable | TexCreate_ShaderResource, false));
 			Desc.AutoWritable = false;
 			GRenderTargetPool.FindFreeElement(RHICmdList, Desc, Scene->PreShadowCacheDepthZ, TEXT("PreShadowCacheDepthZ"), ERenderTargetTransience::NonTransient);
 		}
@@ -4562,8 +4675,7 @@ void FSceneRenderer::AllocateAtlasedShadowDepthTargets(
 		return;
 	}
 
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
-	const FIntPoint MaxTextureSize = SceneContext.GetShadowDepthTextureResolution();
+	const FIntPoint MaxTextureSize = GetShadowDepthTextureResolution(FeatureLevel);
 
 	TArray<FLayoutAndAssignedShadows, SceneRenderingAllocator> Layouts;
 	Layouts.Add(FLayoutAndAssignedShadows(MaxTextureSize));
@@ -4816,8 +4928,7 @@ void FSceneRenderer::AllocateTranslucentShadowDepthTargets(FRHICommandListImmedi
 {
 	if (TranslucentShadows.Num() > 0 && FeatureLevel >= ERHIFeatureLevel::SM5)
 	{
-		FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
-		const FIntPoint TranslucentShadowBufferResolution = SceneContext.GetTranslucentShadowDepthTextureResolution();
+		const FIntPoint TranslucentShadowBufferResolution = GetTranslucentShadowDepthTextureResolution();
 
 		// Start with an empty atlas for per-object shadows (don't allow packing object shadows into the CSM atlas atm)
 		SortedShadowsForShadowDepthPass.TranslucencyShadowMapAtlases.AddDefaulted();
@@ -5062,7 +5173,7 @@ void FSceneRenderer::InitDynamicShadows(FRHICommandListImmediate& RHICmdList, FG
 	//SetupFallbackShadowMaps();
 
 	// Clear old preshadows and attempt to add new ones to the cache
-	UpdatePreshadowCache(FSceneRenderTargets::Get());
+	UpdatePreshadowCache();
 
 	// Gathers the list of primitives used to draw various shadow types
 	GatherShadowPrimitives(PreShadows, ViewDependentWholeSceneShadowsThatNeedCulling, bStaticSceneOnly);

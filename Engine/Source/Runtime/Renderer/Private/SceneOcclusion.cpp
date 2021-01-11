@@ -70,6 +70,19 @@ static FAutoConsoleVariableRef CVarEnableComputeBuildHZB(
 	ECVF_RenderThreadSafe
 	);
 
+int32 GDownsampledOcclusionQueries = 0;
+static FAutoConsoleVariableRef CVarDownsampledOcclusionQueries(
+	TEXT("r.DownsampledOcclusionQueries"),
+	GDownsampledOcclusionQueries,
+	TEXT("Whether to issue occlusion queries to a downsampled depth buffer"),
+	ECVF_RenderThreadSafe
+);
+
+bool UseDownsampledOcclusionQueries()
+{
+	return GDownsampledOcclusionQueries != 0;
+}
+
 DEFINE_GPU_STAT(HZB);
 
 /** Random table for occlusion **/
@@ -1335,17 +1348,15 @@ void FDeferredShadingSceneRenderer::RenderOcclusion(
 	{
 		RDG_GPU_STAT_SCOPE(GraphBuilder, HZB);
 
-		FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
-
 		uint32 DownsampleFactor = 1;
 		FRDGTextureRef SceneDepthTexture = SceneTextures.Depth.Target;
 		FRDGTextureRef OcclusionDepthTexture = SceneDepthTexture;
 
 		// Update the quarter-sized depth buffer with the current contents of the scene depth texture.
 		// This needs to happen before occlusion tests, which makes use of the small depth buffer.
-		if (SceneContext.UseDownsizedOcclusionQueries())
+		if (UseDownsampledOcclusionQueries())
 		{
-			DownsampleFactor = SceneContext.GetSmallColorDepthDownsampleFactor();
+			DownsampleFactor = SceneTextures.Config.SmallDepthDownsampleFactor;
 			OcclusionDepthTexture = SceneTextures.SmallDepth;
 
 			for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
@@ -1354,7 +1365,7 @@ void FDeferredShadingSceneRenderer::RenderOcclusion(
 				RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
 
 				const FScreenPassTexture SceneDepth(SceneDepthTexture, View.ViewRect);
-				const FScreenPassRenderTarget SmallDepth(SceneTextures.SmallDepth, GetDownscaledRect(View.ViewRect, DownsampleFactor), ERenderTargetLoadAction::ELoad);
+				const FScreenPassRenderTarget SmallDepth(SceneTextures.SmallDepth, GetDownscaledRect(View.ViewRect, DownsampleFactor), GetLoadActionIfProduced(OcclusionDepthTexture, ERenderTargetLoadAction::ENoAction));
 				AddDownsampleDepthPass(GraphBuilder, View, SceneDepth, SmallDepth, EDownsampleDepthFilter::Max);
 			}
 		}
@@ -1394,7 +1405,7 @@ void FDeferredShadingSceneRenderer::RenderOcclusion(
 			GraphBuilder.AddPass(
 				RDG_EVENT_NAME("BeginOcclusionTests"),
 				PassParameters,
-				ERDGPassFlags::Raster,
+				ERDGPassFlags::Raster | ERDGPassFlags::NeverCull,
 				[this, LocalQueriesPerView = MoveTemp(QueriesPerView), DownsampleFactor](FRHICommandListImmediate& RHICmdList)
 			{
 				BeginOcclusionTests(RHICmdList, Views, FeatureLevel, LocalQueriesPerView, DownsampleFactor);

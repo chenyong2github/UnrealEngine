@@ -10,6 +10,8 @@
 #include "RHIDefinitions.h"
 #include "SceneTypes.h"
 
+#define WITH_DEBUG_VIEW_MODES !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+
 class UMaterialInterface;
 struct FSlowTask;
 struct FMeshMaterialShaderPermutationParameters;
@@ -34,7 +36,7 @@ enum EDebugViewShaderMode
 	DVSM_MAX
 };
 
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#if WITH_DEBUG_VIEW_MODES
 /** Returns true if the vertex shader (and potential hull and domain) should be compiled on the given platform. */
 ENGINE_API bool AllowDebugViewVSDSHS(EShaderPlatform Platform);
 /** Returns true if the shader mode can be enabled. This is only for UI elements as no shader platform is actually passed. */

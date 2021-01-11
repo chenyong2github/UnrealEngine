@@ -45,8 +45,7 @@ void InitialiseStrataFrameSceneData(FSceneRenderer& SceneRenderer, FRDGBuilder& 
 
 	if (IsStrataEnabled())
 	{
-		FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
-		FIntPoint BufferSizeXY = SceneContext.GetBufferSizeXY();
+		FIntPoint BufferSizeXY = GetSceneTextureExtent();
 		
 		ResolutionX = BufferSizeXY.X;
 		ResolutionY = BufferSizeXY.Y;

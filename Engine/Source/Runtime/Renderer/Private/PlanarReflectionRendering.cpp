@@ -873,7 +873,7 @@ void FDeferredShadingSceneRenderer::RenderDeferredPlanarReflections(FRDGBuilder&
 				View.ViewRect.Min.X, View.ViewRect.Min.Y,
 				View.ViewRect.Width(), View.ViewRect.Height(),
 				View.ViewRect.Size(),
-				FSceneRenderTargets::Get().GetBufferSizeXY(),
+				GetSceneTextureExtent(),
 				VertexShader,
 				EDRF_UseTriangleOptimization);
 		}

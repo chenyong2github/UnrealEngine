@@ -44,12 +44,10 @@ FScreenPassTexture AddVisualizeLevelInstancePass(FRDGBuilder& GraphBuilder, cons
 
 	RDG_EVENT_SCOPE(GraphBuilder, "EditorVisualizeLevelInstance");
 
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
-	FPersistentUniformBuffers& SceneUniformBuffers = View.Family->Scene->GetRenderScene()->UniformBuffers;
-	const uint32 MsaaSampleCount = SceneContext.GetEditorMSAACompositingSampleCount();
+	const uint32 NumSamples = GetEditorPrimitiveNumSamples();
 
 	// Patch uniform buffers with updated state for rendering the outline mesh draw commands.
-	const FViewInfo* EditorView = UpdateEditorPrimitiveView(SceneContext, View, Inputs.SceneColor.ViewRect);
+	const FViewInfo* EditorView = CreateEditorPrimitiveView(View, Inputs.SceneColor.ViewRect, NumSamples);
 
 	FRDGTextureRef DepthStencilTexture = nullptr;
 
@@ -62,7 +60,7 @@ FScreenPassTexture AddVisualizeLevelInstancePass(FRDGBuilder& GraphBuilder, cons
 			// This is a reversed Z depth surface, so 0.0f is the far plane.
 			DepthStencilDesc.ClearValue = FClearValueBinding((float)ERHIZBuffer::FarPlane, 0);
 			DepthStencilDesc.Flags = TexCreate_DepthStencilTargetable | TexCreate_ShaderResource;
-			DepthStencilDesc.NumSamples = MsaaSampleCount;
+			DepthStencilDesc.NumSamples = NumSamples;
 
 			DepthStencilTexture = GraphBuilder.CreateTexture(DepthStencilDesc, TEXT("LevelInstanceDepth"));
 		}
@@ -137,7 +135,7 @@ FScreenPassTexture AddVisualizeLevelInstancePass(FRDGBuilder& GraphBuilder, cons
 		PassParameters->EditorPrimitivesStencil = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::CreateWithPixelFormat(DepthStencilTexture, PF_X24_G8));
 
 		FVisualizeLevelInstancePS::FPermutationDomain PermutationVector;
-		PermutationVector.Set<FVisualizeLevelInstancePS::FSampleCountDimension>(MsaaSampleCount);
+		PermutationVector.Set<FVisualizeLevelInstancePS::FSampleCountDimension>(NumSamples);
 
 		TShaderMapRef<FVisualizeLevelInstancePS> PixelShader(View.ShaderMap, PermutationVector);
 

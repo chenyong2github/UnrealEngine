@@ -708,7 +708,7 @@ void AddDeferredDecalPass(
 	}
 }
 
-void ExtractNormalsForNextFrameReprojection(FRDGBuilder& GraphBuilder, FSceneRenderTargets& SceneContext, const TArray<FViewInfo>& Views)
+void ExtractNormalsForNextFrameReprojection(FRDGBuilder& GraphBuilder, const FSceneTextures& SceneTextures, const TArray<FViewInfo>& Views)
 {
 	static auto CVarNormalReprojectionEnabled = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Decal.NormalReprojectionEnabled"));
 
@@ -722,12 +722,8 @@ void ExtractNormalsForNextFrameReprojection(FRDGBuilder& GraphBuilder, FSceneRen
 		{
 			if (Views[Index].bStatePrevViewInfoIsReadOnly == false)
 			{
-				GraphBuilder.QueueTextureExtraction(GraphBuilder.RegisterExternalTexture(SceneContext.GBufferA),&Views[Index].ViewState->PrevFrameViewInfo.GBufferA);
+				GraphBuilder.QueueTextureExtraction(SceneTextures.GBufferA,&Views[Index].ViewState->PrevFrameViewInfo.GBufferA);
 			}
 		}
-
 	}
 }
-
-
-

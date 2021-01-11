@@ -1999,8 +1999,6 @@ bool FSceneRenderer::RenderVolumetricCloud(
 			RDG_EVENT_SCOPE(GraphBuilder, "VolumetricCloud");
 			RDG_GPU_STAT_SCOPE(GraphBuilder, VolumetricCloud);
 
-			FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
-
 			FRDGTextureRef SceneDepthZ = SceneTextures.Depth.Resolve;
 
 			FCloudRenderContext CloudRC;
@@ -2115,8 +2113,8 @@ bool FSceneRenderer::RenderVolumetricCloud(
 				}
 				else
 				{
-					DestinationRT = GraphBuilder.RegisterExternalTexture(SceneContext.GetSceneColor(), TEXT("SceneColor"));
-					const FIntVector RtSize = SceneContext.GetSceneColor()->GetDesc().GetSize();
+					DestinationRT = SceneTextures.Color.Target;
+					const FIntPoint RtSize = SceneTextures.Config.Extent;
 
 					if (bShouldUseHighQualityAerialPerspective)
 					{

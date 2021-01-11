@@ -584,8 +584,7 @@ IMPLEMENT_GLOBAL_SHADER(FGenerateCompressedGBuffer, "/Engine/Private/Lumen/Lumen
 void UpdateHistoryScreenProbeGather(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View, 
-	const FSceneTextureParameters& SceneTextures,
-	FIntPoint BufferSize,
+	const FSceneTextures& SceneTextures,
 	FRDGTextureRef& DiffuseIndirect,
 	FRDGTextureRef& RoughSpecularIndirect)
 {
@@ -601,17 +600,18 @@ void UpdateHistoryScreenProbeGather(
 		TRefCountPtr<IPooledRenderTarget>* DepthHistoryState = &ScreenProbeGatherState.DownsampledDepthHistoryRT;
 		TRefCountPtr<IPooledRenderTarget>* HistoryConvergenceState = &ScreenProbeGatherState.HistoryConvergenceStateRT;
 
-		ensureMsgf(SceneTextures.GBufferVelocityTexture->Desc.Format != PF_G16R16, TEXT("Lumen requires 3d velocity.  Update Velocity format code."));
+		ensureMsgf(SceneTextures.Velocity->Desc.Format != PF_G16R16, TEXT("Lumen requires 3d velocity.  Update Velocity format code."));
 
+		const FIntPoint BufferSize = SceneTextures.Config.Extent;
 		const FIntRect NewHistoryViewRect = View.ViewRect;
-		FRDGTextureRef NewDepthHistory = GraphBuilder.CreateTexture(SceneTextures.SceneDepthTexture->Desc, TEXT("DepthHistory"));
+		FRDGTextureRef NewDepthHistory = GraphBuilder.CreateTexture(SceneTextures.Depth.Resolve->Desc, TEXT("DepthHistory"));
 
 		if (*DiffuseIndirectHistoryState0
 			&& !View.bCameraCut 
 			&& !View.bPrevTransformsReset
 			&& !GLumenScreenProbeClearHistoryEveryFrame
 			// If the scene render targets reallocate, toss the history so we don't read uninitialized data
-			&& (*DiffuseIndirectHistoryState0)->GetDesc().Extent == BufferSize
+			&& (*DiffuseIndirectHistoryState0)->GetDesc().Extent == SceneTextures.Config.Extent
 			&& ScreenProbeGatherState.LumenGatherCvars == GLumenGatherCvars)
 		{
 			EPixelFormat HistoryFormat = PF_FloatRGBA;
@@ -641,7 +641,7 @@ void UpdateHistoryScreenProbeGather(
 
 				PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(NewDepthHistory, ERenderTargetLoadAction::ENoAction, FExclusiveDepthStencil::DepthWrite_StencilNop);
 				PassParameters->View = View.ViewUniformBuffer;
-				PassParameters->SceneTextures = SceneTextures;
+				PassParameters->SceneTextures = GetSceneTextureParameters(GraphBuilder, SceneTextures);
 				PassParameters->DiffuseIndirectHistory = OldDiffuseIndirectHistory;
 				PassParameters->RoughSpecularIndirectHistory = OldRoughSpecularIndirectHistory;
 				PassParameters->DiffuseIndirectDepthHistory = OldDepthHistory;
@@ -662,7 +662,7 @@ void UpdateHistoryScreenProbeGather(
 					(DiffuseIndirectHistoryViewRect->Max.X - 0.5f) * InvBufferSize.X,
 					(DiffuseIndirectHistoryViewRect->Max.Y - 0.5f) * InvBufferSize.Y);
 
-				PassParameters->VelocityTexture = SceneTextures.GBufferVelocityTexture;
+				PassParameters->VelocityTexture = SceneTextures.Velocity;
 				PassParameters->VelocityTextureSampler = TStaticSamplerState<SF_Bilinear>::GetRHI();
 				PassParameters->DiffuseIndirect = DiffuseIndirect;
 				PassParameters->RoughSpecularIndirect = RoughSpecularIndirect;
@@ -698,7 +698,7 @@ void UpdateHistoryScreenProbeGather(
 				FCopyDepthPS::FParameters* PassParameters = GraphBuilder.AllocParameters<FCopyDepthPS::FParameters>();
 				PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(NewDepthHistory, ERenderTargetLoadAction::ENoAction, FExclusiveDepthStencil::DepthWrite_StencilNop);
 				PassParameters->View = View.ViewUniformBuffer;
-				PassParameters->SceneTexturesStruct = CreateSceneTextureUniformBuffer(GraphBuilder, View.FeatureLevel);
+				PassParameters->SceneTexturesStruct = SceneTextures.UniformBuffer;
 	
 				FPixelShaderUtils::AddFullscreenPass(
 					GraphBuilder,
@@ -720,7 +720,7 @@ void UpdateHistoryScreenProbeGather(
 		}
 
 		*DiffuseIndirectHistoryViewRect = NewHistoryViewRect;
-		*DiffuseIndirectHistoryScreenPositionScaleBias = View.GetScreenPositionScaleBias(FSceneRenderTargets::Get().GetBufferSizeXY(), View.ViewRect);
+		*DiffuseIndirectHistoryScreenPositionScaleBias = View.GetScreenPositionScaleBias(SceneTextures.Config.Extent, View.ViewRect);
 		ScreenProbeGatherState.LumenGatherCvars = GLumenGatherCvars;
 	}
 	else
@@ -733,7 +733,7 @@ DECLARE_GPU_STAT(LumenScreenProbeGather);
 
 FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 	FRDGBuilder& GraphBuilder,
-	TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer,
+	const FSceneTextures& SceneTextures,
 	const ScreenSpaceRayTracing::FPrevSceneColorMip& PrevSceneColorMip,
 	FRDGTextureRef LightingChannelsTexture,
 	const FViewInfo& View,
@@ -747,25 +747,25 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 	RDG_GPU_STAT_SCOPE(GraphBuilder, LumenScreenProbeGather);
 
 	check(ShouldRenderLumenDiffuseGI(View));
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
+	const FRDGSystemTextures& SystemTextures = FRDGSystemTextures::Get(GraphBuilder);
 
 	if (!LightingChannelsTexture)
 	{
-		LightingChannelsTexture = GraphBuilder.RegisterExternalTexture(GSystemTextures.BlackDummy);
+		LightingChannelsTexture = SystemTextures.Black;
 	}
 
 	if (!GLumenScreenProbeGather)
 	{
 		FSSDSignalTextures ScreenSpaceDenoiserInputs;
 		ScreenSpaceDenoiserInputs.Textures[0] = GraphBuilder.RegisterExternalTexture(GSystemTextures.BlackDummy);
-		FRDGTextureDesc RoughSpecularIndirectDesc = FRDGTextureDesc::Create2D(SceneContext.GetBufferSizeXY(), PF_FloatRGB, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV);
+		FRDGTextureDesc RoughSpecularIndirectDesc = FRDGTextureDesc::Create2D(SceneTextures.Config.Extent, PF_FloatRGB, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV);
 		ScreenSpaceDenoiserInputs.Textures[1] = GraphBuilder.CreateTexture(RoughSpecularIndirectDesc, TEXT("RoughSpecularIndirect"));
 		AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(FRDGTextureUAVDesc(ScreenSpaceDenoiserInputs.Textures[1])), FLinearColor::Black);
 		bLumenUseDenoiserComposite = false;
 		return ScreenSpaceDenoiserInputs;
 	}
 
-	FSceneTextureParameters SceneTextures = GetSceneTextureParameters(GraphBuilder, SceneTexturesUniformBuffer);
+	const FSceneTextureParameters SceneTextureParameters = GetSceneTextureParameters(GraphBuilder, SceneTextures);
 
 	FScreenProbeParameters ScreenProbeParameters;
 	ScreenProbeParameters.ScreenProbeTracingOctahedronResolution = LumenScreenProbeGather::GetTracingOctahedronResolution();
@@ -778,7 +778,7 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 	ScreenProbeParameters.ScreenProbeAtlasViewSize = ScreenProbeParameters.ScreenProbeViewSize;
 	ScreenProbeParameters.ScreenProbeAtlasViewSize.Y += FMath::TruncToInt(ScreenProbeParameters.ScreenProbeViewSize.Y * GLumenScreenProbeGatherAdaptiveProbeAllocationFraction);
 
-	ScreenProbeParameters.ScreenProbeAtlasBufferSize = FIntPoint::DivideAndRoundUp(SceneContext.GetBufferSizeXY(), (int32)ScreenProbeParameters.ScreenProbeDownsampleFactor);
+	ScreenProbeParameters.ScreenProbeAtlasBufferSize = FIntPoint::DivideAndRoundUp(SceneTextures.Config.Extent, (int32)ScreenProbeParameters.ScreenProbeDownsampleFactor);
 	ScreenProbeParameters.ScreenProbeAtlasBufferSize.Y += FMath::TruncToInt(ScreenProbeParameters.ScreenProbeAtlasBufferSize.Y * GLumenScreenProbeGatherAdaptiveProbeAllocationFraction);
 
 	ScreenProbeParameters.ScreenProbeTraceBufferSize = ScreenProbeParameters.ScreenProbeAtlasBufferSize * ScreenProbeParameters.ScreenProbeTracingOctahedronResolution;
@@ -810,8 +810,8 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 		PassParameters->RWDownsampledDepth = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(ScreenProbeParameters.DownsampledDepth));
 		PassParameters->RWDownsampledWorldSpeed = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(ScreenProbeParameters.DownsampledWorldSpeed));
 		PassParameters->View = View.ViewUniformBuffer;
-		PassParameters->SceneTexturesStruct = CreateSceneTextureUniformBuffer(GraphBuilder, View.FeatureLevel);
-		PassParameters->SceneTextures = SceneTextures;
+		PassParameters->SceneTexturesStruct = SceneTextures.UniformBuffer;
+		PassParameters->SceneTextures = SceneTextureParameters;
 		PassParameters->ScreenProbeParameters = ScreenProbeParameters;
 
 		auto ComputeShader = View.ShaderMap->GetShader<FScreenProbeDownsampleDepthUniformCS>(0);
@@ -831,7 +831,7 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 	ScreenProbeParameters.AdaptiveScreenProbeData = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(AdaptiveScreenProbeData, PF_R32_UINT));
 
 	const int32 NumScreenTileSubsamples = ScreenProbeParameters.AdaptiveScreenTileSampleResolution * ScreenProbeParameters.AdaptiveScreenTileSampleResolution;
-	const FIntPoint ScreenProbeViewportBufferSize = FIntPoint::DivideAndRoundUp(SceneContext.GetBufferSizeXY(), (int32)ScreenProbeParameters.ScreenProbeDownsampleFactor);
+	const FIntPoint ScreenProbeViewportBufferSize = FIntPoint::DivideAndRoundUp(SceneTextures.Config.Extent, (int32)ScreenProbeParameters.ScreenProbeDownsampleFactor);
 	FRDGTextureDesc ScreenTileAdaptiveProbeHeaderDesc(FRDGTextureDesc::Create2D(ScreenProbeViewportBufferSize, PF_R32_UINT, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV));
 	FIntPoint ScreenTileAdaptiveProbeIndicesBufferSize = FIntPoint(ScreenProbeViewportBufferSize.X * FMath::Max(NumScreenTileSubsamples, 1), ScreenProbeViewportBufferSize.Y);
 	FRDGTextureDesc ScreenTileAdaptiveProbeIndicesDesc(FRDGTextureDesc::Create2D(ScreenTileAdaptiveProbeIndicesBufferSize, PF_R16_UINT, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV));
@@ -851,7 +851,7 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 			PassParameters->RWScreenTileAdaptiveProbeHeader = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(ScreenProbeParameters.ScreenTileAdaptiveProbeHeader));
 			PassParameters->RWScreenTileAdaptiveProbeIndices = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(ScreenProbeParameters.ScreenTileAdaptiveProbeIndices));
 			PassParameters->View = View.ViewUniformBuffer;
-			PassParameters->SceneTexturesStruct = CreateSceneTextureUniformBuffer(GraphBuilder, View.FeatureLevel);
+			PassParameters->SceneTexturesStruct = SceneTextures.UniformBuffer;
 			PassParameters->ScreenProbeParameters = ScreenProbeParameters;
 
 			auto ComputeShader = View.ShaderMap->GetShader<FScreenProbeAdaptivePlacementCS>(0);
@@ -869,8 +869,8 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 			PassParameters->RWDownsampledDepth = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(ScreenProbeParameters.DownsampledDepth));
 			PassParameters->RWDownsampledWorldSpeed = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(ScreenProbeParameters.DownsampledWorldSpeed));
 			PassParameters->View = View.ViewUniformBuffer;
-			PassParameters->SceneTexturesStruct = CreateSceneTextureUniformBuffer(GraphBuilder, View.FeatureLevel);
-			PassParameters->SceneTextures = SceneTextures;
+			PassParameters->SceneTexturesStruct = SceneTextures.UniformBuffer;
+			PassParameters->SceneTextures = SceneTextureParameters;
 			PassParameters->ScreenProbeParameters = ScreenProbeParameters;
 
 			auto ComputeShader = View.ShaderMap->GetShader<FScreenProbeWriteDepthForAdaptiveProbesCS>(0);
@@ -912,16 +912,17 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 
 	FRDGTextureRef BRDFProbabilityDensityFunction = nullptr;
 	FRDGBufferSRVRef BRDFProbabilityDensityFunctionSH = nullptr;
-	GenerateBRDF_PDF(GraphBuilder, View, BRDFProbabilityDensityFunction, BRDFProbabilityDensityFunctionSH, ScreenProbeParameters);
+	GenerateBRDF_PDF(GraphBuilder, View, SceneTextures, BRDFProbabilityDensityFunction, BRDFProbabilityDensityFunctionSH, ScreenProbeParameters);
 
 	LumenRadianceCache::FRadianceCacheParameters RadianceCacheParameters;
-	RenderRadianceCache(GraphBuilder, TracingInputs, View, nullptr, &ScreenProbeParameters, BRDFProbabilityDensityFunctionSH, RadianceCacheParameters);
+	RenderRadianceCache(GraphBuilder, SceneTextures, TracingInputs, View, nullptr, &ScreenProbeParameters, BRDFProbabilityDensityFunctionSH, RadianceCacheParameters);
 
 	if (LumenScreenProbeGather::UseImportanceSampling())
 	{
 		GenerateImportanceSamplingRays(
-			GraphBuilder, 
-			View, 
+			GraphBuilder,
+			View,
+			SceneTextures,
 			RadianceCacheParameters,
 			BRDFProbabilityDensityFunction,
 			BRDFProbabilityDensityFunctionSH,
@@ -942,7 +943,7 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 		View, 
 		bSSGI,
 		GLumenGatherCvars.TraceCards != 0,
-		SceneTexturesUniformBuffer,
+		SceneTextures.UniformBuffer,
 		PrevSceneColorMip,
 		LightingChannelsTexture,
 		TracingInputs,
@@ -955,18 +956,18 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 
 	FScreenSpaceBentNormalParameters ScreenSpaceBentNormalParameters;
 	ScreenSpaceBentNormalParameters.UseScreenBentNormal = 0;
-	ScreenSpaceBentNormalParameters.ScreenBentNormal = GraphBuilder.RegisterExternalTexture(GSystemTextures.BlackDummy);
-	ScreenSpaceBentNormalParameters.ScreenDiffuseLighting = GraphBuilder.RegisterExternalTexture(GSystemTextures.BlackDummy);
+	ScreenSpaceBentNormalParameters.ScreenBentNormal = SystemTextures.Black;
+	ScreenSpaceBentNormalParameters.ScreenDiffuseLighting = SystemTextures.Black;
 
 	if (LumenScreenProbeGather::UseScreenSpaceBentNormal())
 	{
-		ScreenSpaceBentNormalParameters = ComputeScreenSpaceBentNormal(GraphBuilder, Scene, View, LightingChannelsTexture, ScreenProbeParameters);
+		ScreenSpaceBentNormalParameters = ComputeScreenSpaceBentNormal(GraphBuilder, Scene, View, SceneTextures, LightingChannelsTexture, ScreenProbeParameters);
 	}
 
-	FRDGTextureDesc DiffuseIndirectDesc = FRDGTextureDesc::Create2D(SceneContext.GetBufferSizeXY(), PF_FloatRGBA, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV);
+	FRDGTextureDesc DiffuseIndirectDesc = FRDGTextureDesc::Create2D(SceneTextures.Config.Extent, PF_FloatRGBA, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV);
 	FRDGTextureRef DiffuseIndirect = GraphBuilder.CreateTexture(DiffuseIndirectDesc, TEXT("DiffuseIndirect"));
 
-	FRDGTextureDesc RoughSpecularIndirectDesc = FRDGTextureDesc::Create2D(SceneContext.GetBufferSizeXY(), PF_FloatRGB, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV);
+	FRDGTextureDesc RoughSpecularIndirectDesc = FRDGTextureDesc::Create2D(SceneTextures.Config.Extent, PF_FloatRGB, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV);
 	FRDGTextureRef RoughSpecularIndirect = GraphBuilder.CreateTexture(RoughSpecularIndirectDesc, TEXT("RoughSpecularIndirect"));
 
 	{
@@ -976,7 +977,7 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 		PassParameters->GatherParameters = GatherParameters;
 		PassParameters->ScreenProbeParameters = ScreenProbeParameters;
 		PassParameters->View = View.ViewUniformBuffer;
-		PassParameters->SceneTexturesStruct = CreateSceneTextureUniformBuffer(GraphBuilder, View.FeatureLevel);
+		PassParameters->SceneTexturesStruct = SceneTextures.UniformBuffer;
 		PassParameters->FullResolutionJitterWidth = GLumenScreenProbeFullResolutionJitterWidth;
 		extern float GLumenReflectionMaxRoughnessToTrace;
 		extern float GLumenReflectionRoughnessFadeLength;
@@ -1009,7 +1010,7 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 			FRDGTextureRef CompressedShadingModelTexture;
 			{
 				FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(
-					SceneTextures.SceneDepthTexture->Desc.Extent,
+					SceneTextures.Depth.Resolve->Desc.Extent,
 					PF_R16F,
 					FClearValueBinding::None,					
 					/* InTargetableFlags = */ TexCreate_ShaderResource | TexCreate_UAV);
@@ -1025,7 +1026,7 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 				PassParameters->RWCompressedDepthBufferOutput = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(CompressedDepthTexture));
 				PassParameters->RWCompressedShadingModelOutput = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(CompressedShadingModelTexture));
 				PassParameters->View = View.ViewUniformBuffer;
-				PassParameters->SceneTextures = SceneTextures;
+				PassParameters->SceneTextures = SceneTextureParameters;
 
 				auto ComputeShader = View.ShaderMap->GetShader<FGenerateCompressedGBuffer>(0);
 
@@ -1045,7 +1046,7 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 				GraphBuilder,
 				View, 
 				PreviousViewInfos,
-				SceneTextures,
+				SceneTextureParameters,
 				ScreenSpaceDenoiserInputs,
 				CompressedDepthTexture,
 				CompressedShadingModelTexture);
@@ -1058,7 +1059,6 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 				GraphBuilder,
 				View,
 				SceneTextures,
-				SceneContext.GetBufferSizeXY(),
 				DiffuseIndirect,
 				RoughSpecularIndirect);
 

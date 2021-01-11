@@ -1167,7 +1167,6 @@ void FProjectedShadowInfo::ModifyViewForShadow(FRHICommandList& RHICmdList, FVie
 	// Don't do material texture mip biasing in shadow maps.
 	FoundView->MaterialTextureMipBias = 0;
 
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 	FoundView->CachedViewUniformShaderParameters = MakeUnique<FViewUniformShaderParameters>();
 
 	// Override the view matrix so that billboarding primitives will be aligned to the light
@@ -1176,7 +1175,6 @@ void FProjectedShadowInfo::ModifyViewForShadow(FRHICommandList& RHICmdList, FVie
 
 	FBox VolumeBounds[TVC_MAX];
 	FoundView->SetupUniformBufferParameters(
-		SceneContext,
 		VolumeBounds,
 		TVC_MAX,
 		*FoundView->CachedViewUniformShaderParameters);
@@ -1704,7 +1702,6 @@ void FSceneRenderer::RenderShadowDepthMaps(FRDGBuilder& GraphBuilder)
 {
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(RenderShadows);
 	SCOPED_NAMED_EVENT(FSceneRenderer_RenderShadowDepthMaps, FColor::Emerald);
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 
 	RDG_EVENT_SCOPE(GraphBuilder, "ShadowDepths");
 	RDG_GPU_STAT_SCOPE(GraphBuilder, ShadowDepths);

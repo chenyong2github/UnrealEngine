@@ -3,7 +3,7 @@
 #include "SceneTextureParameters.h"
 #include "SceneRendering.h"
 #include "ScenePrivate.h"
-#include "SceneRenderTargets.h"
+#include "SceneTextures.h"
 #include "SystemTextures.h"
 
 FSceneTextureParameters GetSceneTextureParameters(FRDGBuilder& GraphBuilder)

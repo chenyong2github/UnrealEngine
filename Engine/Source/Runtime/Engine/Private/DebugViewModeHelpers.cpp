@@ -18,7 +18,7 @@
 
 #define LOCTEXT_NAMESPACE "LogDebugViewMode"
 
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#if WITH_DEBUG_VIEW_MODES
 
 static bool PlatformSupportsDebugViewShaders(EShaderPlatform Platform)
 {

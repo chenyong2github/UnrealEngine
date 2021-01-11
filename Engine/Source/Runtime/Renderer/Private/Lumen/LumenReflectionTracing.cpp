@@ -287,7 +287,7 @@ void TraceReflections(
 	const FViewInfo& View,
 	bool bScreenSpaceReflections,
 	bool bTraceCards,
-	const FSceneTextureParameters& SceneTextures,
+	const FSceneTextures& SceneTextures,
 	const FLumenCardTracingInputs& TracingInputs,
 	const FLumenReflectionTracingParameters& ReflectionTracingParameters,
 	const FLumenReflectionTileParameters& ReflectionTileParameters,
@@ -312,12 +312,13 @@ void TraceReflections(
 	FLumenIndirectTracingParameters IndirectTracingParameters;
 	SetupIndirectTracingParametersForReflections(IndirectTracingParameters);
 
+	const FSceneTextureParameters& SceneTextureParameters = GetSceneTextureParameters(GraphBuilder, SceneTextures);
+
 	if (bScreenSpaceReflections)
 	{
 		FReflectionTraceScreenTexturesCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FReflectionTraceScreenTexturesCS::FParameters>();
 
-		FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
-		FRDGTextureRef CurrentSceneColor = GraphBuilder.RegisterExternalTexture(SceneContext.GetSceneColor());
+		FRDGTextureRef CurrentSceneColor = SceneTextures.Color.Resolve;
 		FRDGTextureRef InputColor = CurrentSceneColor;
 
 		if (View.PrevViewInfo.TemporalAAHistory.IsValid())
@@ -335,7 +336,7 @@ void TraceReflections(
 				1.0f / HZBUvFactor.X,
 				1.0f / HZBUvFactor.Y);
 
-			const FVector4 ScreenPositionScaleBias = View.GetScreenPositionScaleBias(SceneTextures.SceneDepthTexture->Desc.Extent, View.ViewRect);
+			const FVector4 ScreenPositionScaleBias = View.GetScreenPositionScaleBias(SceneTextures.Config.Extent, View.ViewRect);
 			const FVector2D HZBUVToScreenUVScale = FVector2D(1.0f / HZBUvFactor.X, 1.0f / HZBUvFactor.Y) * FVector2D(2.0f, -2.0f) * FVector2D(ScreenPositionScaleBias.X, ScreenPositionScaleBias.Y);
 			const FVector2D HZBUVToScreenUVBias = FVector2D(-1.0f, 1.0f) * FVector2D(ScreenPositionScaleBias.X, ScreenPositionScaleBias.Y) + FVector2D(ScreenPositionScaleBias.W, ScreenPositionScaleBias.Z);
 			PassParameters->HZBUVToScreenUVScaleBias = FVector4(HZBUVToScreenUVScale, HZBUVToScreenUVBias);
@@ -344,7 +345,7 @@ void TraceReflections(
 		{
 			FIntPoint ViewportOffset = View.ViewRect.Min;
 			FIntPoint ViewportExtent = View.ViewRect.Size();
-			FIntPoint BufferSize = SceneTextures.SceneDepthTexture->Desc.Extent;
+			FIntPoint BufferSize = SceneTextures.Config.Extent;
 
 			if (View.PrevViewInfo.TemporalAAHistory.IsValid())
 			{
@@ -364,10 +365,10 @@ void TraceReflections(
 
 		PassParameters->View = View.ViewUniformBuffer;
 		PassParameters->PrevSceneColorPreExposureCorrection = InputColor != CurrentSceneColor ? View.PreExposure / View.PrevViewInfo.SceneColorPreExposure : 1.0f;
-		PassParameters->SceneTextures = SceneTextures;
+		PassParameters->SceneTextures = SceneTextureParameters;
 		PassParameters->ColorTexture = InputColor;
 
-		if (InputColor == CurrentSceneColor || !SceneTextures.GBufferVelocityTexture)
+		if (InputColor == CurrentSceneColor || !PassParameters->SceneTextures.GBufferVelocityTexture)
 		{
 			PassParameters->SceneTextures.GBufferVelocityTexture = GSystemTextures.GetBlackDummy(GraphBuilder);
 		}
@@ -427,7 +428,7 @@ void TraceReflections(
 
 				RenderLumenHardwareRayTracingReflections(
 					GraphBuilder,
-					SceneTextures,
+					SceneTextureParameters,
 					View,
 					ReflectionTracingParameters,
 					ReflectionTileParameters,
@@ -452,7 +453,7 @@ void TraceReflections(
 					PassParameters->MeshSDFGridParameters = MeshSDFGridParameters;
 					PassParameters->ReflectionTracingParameters = ReflectionTracingParameters;
 					PassParameters->IndirectTracingParameters = IndirectTracingParameters;
-					PassParameters->SceneTexturesStruct = CreateSceneTextureUniformBuffer(GraphBuilder, View.FeatureLevel);
+					PassParameters->SceneTexturesStruct = SceneTextures.UniformBuffer;
 					PassParameters->CompactedTraceParameters = CompactedTraceParameters;
 
 					FReflectionTraceCardsCS::FPermutationDomain PermutationVector;
@@ -484,7 +485,7 @@ void TraceReflections(
 		GetLumenCardTracingParameters(View, TracingInputs, PassParameters->TracingParameters);
 		PassParameters->ReflectionTracingParameters = ReflectionTracingParameters;
 		PassParameters->IndirectTracingParameters = IndirectTracingParameters;
-		PassParameters->SceneTexturesStruct = CreateSceneTextureUniformBuffer(GraphBuilder, View.FeatureLevel);
+		PassParameters->SceneTexturesStruct = SceneTextures.UniformBuffer;
 		PassParameters->CompactedTraceParameters = CompactedTraceParameters;
 
 		FReflectionTraceVoxelsCS::FPermutationDomain PermutationVector;

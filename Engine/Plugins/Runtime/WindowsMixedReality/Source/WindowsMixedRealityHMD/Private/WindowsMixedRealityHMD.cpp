@@ -1526,24 +1526,19 @@ namespace WindowsMixedReality
 		{
 			SpectatorScreenController->RenderSpectatorScreen_RenderThread(RHICmdList, BackBuffer, SrcTexture, WindowSize);
 		}
+		
 
 #if PLATFORM_HOLOLENS
 		if (bIsMobileMultiViewEnabled && !HMD->IsThirdCameraActive())
 		{
-			FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
-			IPooledRenderTarget* depthRenderTarget = SceneContext.SceneDepthZ.GetReference();
-			if (depthRenderTarget != nullptr)
+			if (FRHITexture* depthTargetableTexture = GetSceneTextureExtracts().GetDepthTexture())
 			{
-				FTextureRHIRef depthTargetableTexture = depthRenderTarget->GetRenderTargetItem().TargetableTexture;
-				if (depthTargetableTexture != nullptr)
+				ID3D11Texture2D* Texture = static_cast<ID3D11Texture2D*>(depthTargetableTexture->GetNativeResource());
+				if (Texture != nullptr)
 				{
-					ID3D11Texture2D* Texture = static_cast<ID3D11Texture2D*>(depthTargetableTexture->GetNativeResource());
-					if (Texture != nullptr)
+					if (mCustomPresent != nullptr)
 					{
-						if (mCustomPresent != nullptr)
-						{
-							mCustomPresent->SetDepthTexture(Texture);
-						}
+						mCustomPresent->SetDepthTexture(Texture);
 					}
 				}
 			}

@@ -11,32 +11,43 @@
 
 class FGlobalShaderMap;
 
+/** Returns whether the resource was produced by a prior pass. */
 inline bool HasBeenProduced(FRDGParentResourceRef Resource)
 {
 	return Resource && Resource->HasBeenProduced();
 }
 
+/** Returns the texture if it was produced by a prior pass, or null otherwise. */
 inline FRDGTextureRef GetIfProduced(FRDGTextureRef Texture, FRDGTextureRef FallbackTexture = nullptr)
 {
 	return HasBeenProduced(Texture) ? Texture : FallbackTexture;
 }
 
+/** Returns the buffer if has been produced by a prior pass, or null otherwise. */
 inline FRDGBufferRef GetIfProduced(FRDGBufferRef Buffer, FRDGBufferRef FallbackBuffer = nullptr)
 {
 	return HasBeenProduced(Buffer) ? Buffer : FallbackBuffer;
 }
 
+/** Returns 'Load' if the texture has already been produced by a prior pass, or the requested initial action. */
 inline ERenderTargetLoadAction GetLoadActionIfProduced(FRDGTextureRef Texture, ERenderTargetLoadAction ActionIfNotProduced)
 {
 	return HasBeenProduced(Texture) ? ERenderTargetLoadAction::ELoad : ActionIfNotProduced;
 }
 
-/** Fetches the RHI texture from an RDG texture or null if the RDG texture is null. */
+/** Returns a binding with the requested initial action, or a load action if the resource has been produced by a prior pass. */
+inline FRenderTargetBinding GetLoadBindingIfProduced(FRDGTextureRef Texture, ERenderTargetLoadAction ActionIfNotProduced)
+{
+	return FRenderTargetBinding(Texture, GetLoadActionIfProduced(Texture, ActionIfNotProduced));
+}
+
+/** Returns the RHI texture from an RDG texture if it exists, or null otherwise. */
 inline FRHITexture* TryGetRHI(FRDGTextureRef Texture)
 {
 	return Texture ? Texture->GetRHI() : nullptr;
 }
 
+/** Returns the pooled render target from an RDG texture if it exists, or null otherwise. */
 inline IPooledRenderTarget* TryGetPooledRenderTarget(FRDGTextureRef Texture)
 {
 	return Texture ? Texture->GetPooledRenderTarget() : nullptr;

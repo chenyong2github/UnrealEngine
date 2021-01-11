@@ -783,7 +783,7 @@ void CaptureSceneToScratchCubemap(FRHICommandListImmediate& RHICmdList, FSceneRe
 		PassParameters->SceneDepthTexture = SceneTextures.Depth.Target;
 
 		const int32 EffectiveSize = CubemapSize;
-		const FIntPoint SceneTextureExtent = SceneTextures.Extent;
+		const FIntPoint SceneTextureExtent = SceneTextures.Config.Extent;
 
 		GraphBuilder.AddPass(
 			RDG_EVENT_NAME("CopySceneToCubeFace"),

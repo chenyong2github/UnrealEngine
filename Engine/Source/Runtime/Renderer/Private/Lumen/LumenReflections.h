@@ -51,7 +51,7 @@ extern void TraceReflections(
 	const FViewInfo& View,
 	bool bScreenSpaceReflections,
 	bool bTraceCards,
-	const FSceneTextureParameters& SceneTextures,
+	const FSceneTextures& SceneTextures,
 	const FLumenCardTracingInputs& TracingInputs,
 	const FLumenReflectionTracingParameters& ReflectionTracingParameters, 
 	const FLumenReflectionTileParameters& ReflectionTileParameters,

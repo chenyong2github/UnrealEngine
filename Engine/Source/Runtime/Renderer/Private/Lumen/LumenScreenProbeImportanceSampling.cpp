@@ -232,10 +232,13 @@ namespace LumenScreenProbeGather
 void GenerateBRDF_PDF(
 	FRDGBuilder& GraphBuilder, 
 	const FViewInfo& View, 
+	const FSceneTextures& SceneTextures,
 	FRDGTextureRef& BRDFProbabilityDensityFunction,
 	FRDGBufferSRVRef& BRDFProbabilityDensityFunctionSH,
 	FScreenProbeParameters& ScreenProbeParameters)
 {
+	const FRDGSystemTextures& SystemTextures = FRDGSystemTextures::Get(GraphBuilder);
+
 	{		
 		const uint32 BRDFOctahedronResolution = GLumenScreenProbeBRDFOctahedronResolution;
 		ScreenProbeParameters.ImportanceSampling.ScreenProbeBRDFOctahedronResolution = BRDFOctahedronResolution;
@@ -253,7 +256,7 @@ void GenerateBRDF_PDF(
 			PassParameters->RWBRDFProbabilityDensityFunction = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(BRDFProbabilityDensityFunction));
 			PassParameters->RWBRDFProbabilityDensityFunctionSH = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(BRDFProbabilityDensityFunctionSHBuffer, PF_R16F));
 			PassParameters->View = View.ViewUniformBuffer;
-			PassParameters->SceneTexturesStruct = CreateSceneTextureUniformBuffer(GraphBuilder, View.FeatureLevel);
+			PassParameters->SceneTexturesStruct = SceneTextures.UniformBuffer;
 			PassParameters->ScreenProbeParameters = ScreenProbeParameters;
 
 			auto ComputeShader = View.ShaderMap->GetShader<FScreenProbeComputeBRDFProbabilityDensityFunctionCS>(0);
@@ -273,7 +276,8 @@ void GenerateBRDF_PDF(
 
 void GenerateImportanceSamplingRays(
 	FRDGBuilder& GraphBuilder, 
-	const FViewInfo& View, 
+	const FViewInfo& View,
+	const FSceneTextures& SceneTextures,
 	const LumenRadianceCache::FRadianceCacheParameters& RadianceCacheParameters,
 	FRDGTextureRef BRDFProbabilityDensityFunction,
 	FRDGBufferSRVRef BRDFProbabilityDensityFunctionSH,
@@ -309,12 +313,13 @@ void GenerateImportanceSamplingRays(
 
 			if (bUseProbeRadianceHistory)
 			{
+				const FRDGSystemTextures& SystemTextures = FRDGSystemTextures::Get(GraphBuilder);
+
 				PassParameters->PrevInvPreExposure = 1.0f / View.PrevViewInfo.SceneColorPreExposure;
 				PassParameters->ImportanceSamplingHistoryScreenPositionScaleBias = ScreenProbeGatherState.ImportanceSamplingHistoryScreenPositionScaleBias;
 
-				FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
-				
-				const FVector2D InvBufferSize(1.0f / SceneContext.GetBufferSizeXY().X, 1.0f / SceneContext.GetBufferSizeXY().Y);
+				const FIntPoint SceneTexturesExtent = GetSceneTextureExtent();
+				const FVector2D InvBufferSize(1.0f / SceneTexturesExtent.X, 1.0f / SceneTexturesExtent.Y);
 
 				// Pull in the max UV to exclude the region which will read outside the viewport due to bilinear filtering
 				PassParameters->ImportanceSamplingHistoryUVMinMax = FVector4(
@@ -323,15 +328,7 @@ void GenerateImportanceSamplingRays(
 					(ScreenProbeGatherState.ImportanceSamplingHistoryViewRect.Max.X - 0.5f) * InvBufferSize.X,
 					(ScreenProbeGatherState.ImportanceSamplingHistoryViewRect.Max.Y - 0.5f) * InvBufferSize.Y);
 
-				FSceneTextureParameters SceneTextures = GetSceneTextureParameters(GraphBuilder);
-
-				// Fallback to a black texture if no velocity.
-				if (!SceneTextures.GBufferVelocityTexture)
-				{
-					SceneTextures.GBufferVelocityTexture = GSystemTextures.GetBlackDummy(GraphBuilder);
-				}
-
-				PassParameters->VelocityTexture = SceneTextures.GBufferVelocityTexture;
+				PassParameters->VelocityTexture = GetIfProduced(SceneTextures.Velocity, SystemTextures.Black);
 
 				PassParameters->ImportanceSamplingHistoryDistanceThreshold = GLumenScreenProbeImportanceSamplingHistoryDistanceThreshold;
 				PassParameters->HistoryScreenProbeRadiance = GraphBuilder.RegisterExternalTexture(ScreenProbeGatherState.ImportanceSamplingHistoryScreenProbeRadiance);
@@ -358,7 +355,7 @@ void GenerateImportanceSamplingRays(
 		}
 
 		ScreenProbeGatherState.ImportanceSamplingHistoryViewRect = View.ViewRect;
-		ScreenProbeGatherState.ImportanceSamplingHistoryScreenPositionScaleBias = View.GetScreenPositionScaleBias(FSceneRenderTargets::Get().GetBufferSizeXY(), View.ViewRect);
+		ScreenProbeGatherState.ImportanceSamplingHistoryScreenPositionScaleBias = View.GetScreenPositionScaleBias(GetSceneTextureExtent(), View.ViewRect);
 	}
 
 	FIntPoint RayInfosForTracingBufferSize = ScreenProbeParameters.ScreenProbeAtlasBufferSize * ScreenProbeParameters.ScreenProbeTracingOctahedronResolution;

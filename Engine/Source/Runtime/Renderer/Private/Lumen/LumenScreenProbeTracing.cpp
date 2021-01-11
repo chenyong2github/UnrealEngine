@@ -404,16 +404,15 @@ void SetupVisualizeTraces(
 void FDeferredShadingSceneRenderer::RenderScreenProbeGatherVisualizeTraces(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
-	FRDGTextureRef SceneColor)
+	const FMinimalSceneTextures& SceneTextures)
 {
 	if (GLumenScreenProbeGatherVisualizeTraces && GVisualizeTracesData.IsValid())
 	{
 		FRDGBufferRef VisualizeTracesData = GraphBuilder.RegisterExternalBuffer(GVisualizeTracesData);
-		FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 
 		FVisualizeTraces* PassParameters = GraphBuilder.AllocParameters<FVisualizeTraces>();
-		PassParameters->RenderTargets[0] = FRenderTargetBinding(SceneColor, ERenderTargetLoadAction::ELoad);
-		PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(GraphBuilder.RegisterExternalTexture(SceneContext.SceneDepthZ), ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthRead_StencilNop);
+		PassParameters->RenderTargets[0] = FRenderTargetBinding(SceneTextures.Color.Target, ERenderTargetLoadAction::ELoad);
+		PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(SceneTextures.Depth.Target, ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthRead_StencilNop);
 		PassParameters->VS.View = View.ViewUniformBuffer;
 		PassParameters->VS.VisualizeTracesData = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(VisualizeTracesData, PF_A32B32G32R32F));
 

@@ -1,15 +1,238 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	CustomDepthRendering.cpp: CustomDepth rendering implementation.
-=============================================================================*/
-
+#include "CustomDepthRendering.h"
 #include "SceneUtils.h"
 #include "DepthRendering.h"
 #include "SceneRendering.h"
 #include "SceneCore.h"
 #include "ScenePrivate.h"
 #include "MeshPassProcessor.inl"
+
+static TAutoConsoleVariable<int32> CVarCustomDepth(
+	TEXT("r.CustomDepth"),
+	1,
+	TEXT("0: feature is disabled\n")
+	TEXT("1: feature is enabled, texture is created on demand\n")
+	TEXT("2: feature is enabled, texture is not released until required (should be the project setting if the feature should not stall)\n")
+	TEXT("3: feature is enabled, stencil writes are enabled, texture is not released until required (should be the project setting if the feature should not stall)"),
+	ECVF_RenderThreadSafe);
+
+static TAutoConsoleVariable<int32> CVarCustomDepthOrder(
+	TEXT("r.CustomDepth.Order"),
+	1,
+	TEXT("When CustomDepth (and CustomStencil) is getting rendered\n")
+	TEXT("  0: Before Base Pass (can be more efficient with AsyncCompute, allows using it in DBuffer pass, no GBuffer blending decals allow GBuffer compression)\n")
+	TEXT("  1: After Base Pass (default)"),
+	ECVF_RenderThreadSafe);
+
+static TAutoConsoleVariable<int32> CVarMobileCustomDepthDownSample(
+	TEXT("r.Mobile.CustomDepthDownSample"),
+	0,
+	TEXT("Perform Mobile CustomDepth at HalfRes \n ")
+	TEXT("0: Off (default)\n ")
+	TEXT("1: On \n "),
+	ECVF_RenderThreadSafe);
+
+static TAutoConsoleVariable<int32> CVarCustomDepthTemporalAAJitter(
+	TEXT("r.CustomDepthTemporalAAJitter"),
+	1,
+	TEXT("If disabled the Engine will remove the TemporalAA Jitter from the Custom Depth Pass. Only has effect when TemporalAA is used."),
+	ECVF_RenderThreadSafe);
+
+DECLARE_GPU_STAT_NAMED(CustomDepth, TEXT("Custom Depth"));
+
+ECustomDepthPassLocation GetCustomDepthPassLocation()
+{
+	switch (CVarCustomDepthOrder.GetValueOnRenderThread())
+	{
+	case 0: return ECustomDepthPassLocation::BeforeBasePass;
+	}
+	return ECustomDepthPassLocation::AfterBasePass;
+}
+
+ECustomDepthMode GetCustomDepthMode()
+{
+	switch (CVarCustomDepth.GetValueOnRenderThread())
+	{
+	case 1: // Fallthrough.
+	case 2: return ECustomDepthMode::Enabled;
+	case 3: return ECustomDepthMode::EnabledWithStencil;
+	}
+	return ECustomDepthMode::Disabled;
+}
+
+bool IsCustomDepthPassWritingStencil(ERHIFeatureLevel::Type FeatureLevel)
+{
+	switch (GetCustomDepthMode())
+	{
+	case ECustomDepthMode::Disabled:
+		return false;
+	case ECustomDepthMode::Enabled:
+		return FeatureLevel <= ERHIFeatureLevel::ES3_1;
+	}
+	return true;
+}
+
+uint32 GetCustomDepthDownsampleFactor(ERHIFeatureLevel::Type FeatureLevel)
+{
+	return FeatureLevel <= ERHIFeatureLevel::ES3_1 && CVarMobileCustomDepthDownSample.GetValueOnRenderThread() > 0 ? 2 : 1;
+}
+
+FCustomDepthTextures FCustomDepthTextures::Create(FRDGBuilder& GraphBuilder, FIntPoint Extent, ERHIFeatureLevel::Type FeatureLevel, uint32 DownsampleFactor)
+{
+	const ECustomDepthMode CustomDepthMode = GetCustomDepthMode();
+
+	if (!IsCustomDepthPassEnabled())
+	{
+		return {};
+	}
+
+	const bool bWritesCustomStencil = IsCustomDepthPassWritingStencil(FeatureLevel);
+	const FIntPoint CustomDepthExtent = FIntPoint::DivideAndRoundUp(Extent, DownsampleFactor);
+
+	FCustomDepthTextures CustomDepthTextures;
+
+	if (FeatureLevel <= ERHIFeatureLevel::ES3_1)
+	{
+		const float DepthFar = (float)ERHIZBuffer::FarPlane;
+		const FClearValueBinding DepthFarColor = FClearValueBinding(FLinearColor(DepthFar, DepthFar, DepthFar, DepthFar));
+
+		ETextureCreateFlags MobileCustomDepthFlags = TexCreate_RenderTargetable | TexCreate_ShaderResource | TexCreate_Memoryless;
+		ETextureCreateFlags MobileCustomStencilFlags = MobileCustomDepthFlags;
+
+		if (!bWritesCustomStencil)
+		{
+			MobileCustomStencilFlags |= TexCreate_Memoryless;
+		}
+
+		const FRDGTextureDesc MobileCustomDepthDesc = FRDGTextureDesc::Create2D(CustomDepthExtent, PF_R16F, DepthFarColor, MobileCustomDepthFlags);
+		const FRDGTextureDesc MobileCustomStencilDesc = FRDGTextureDesc::Create2D(CustomDepthExtent, PF_G8, FClearValueBinding::Transparent, MobileCustomStencilFlags);
+
+		CustomDepthTextures.MobileDepth = GraphBuilder.CreateTexture(MobileCustomDepthDesc, TEXT("MobileCustomDepth"));
+		CustomDepthTextures.MobileStencil = GraphBuilder.CreateTexture(MobileCustomStencilDesc, TEXT("MobileCustomStencil"));
+	}
+
+	const FRDGTextureDesc CustomDepthDesc = FRDGTextureDesc::Create2D(CustomDepthExtent, PF_DepthStencil, FClearValueBinding::DepthFar, GFastVRamConfig.CustomDepth | TexCreate_NoFastClear | TexCreate_DepthStencilTargetable | TexCreate_ShaderResource);
+
+	CustomDepthTextures.Depth = GraphBuilder.CreateTexture(CustomDepthDesc, TEXT("CustomDepth"));
+	CustomDepthTextures.Stencil = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::CreateWithPixelFormat(CustomDepthTextures.Depth, PF_X24_G8));
+	CustomDepthTextures.DepthAction = ERenderTargetLoadAction::EClear;
+	CustomDepthTextures.StencilAction = bWritesCustomStencil ? ERenderTargetLoadAction::EClear : ERenderTargetLoadAction::ENoAction;
+	CustomDepthTextures.DownsampleFactor = DownsampleFactor;
+
+	return CustomDepthTextures;
+}
+
+BEGIN_SHADER_PARAMETER_STRUCT(FCustomDepthPassParameters, )
+	SHADER_PARAMETER_STRUCT_INCLUDE(FViewShaderParameters, View)
+	RENDER_TARGET_BINDING_SLOTS()
+END_SHADER_PARAMETER_STRUCT()
+
+static FViewShaderParameters CreateViewShaderParametersWithoutJitter(const FViewInfo& View)
+{
+	const auto SetupParameters = [](const FViewInfo& View, FViewUniformShaderParameters& Parameters)
+	{
+		FBox VolumeBounds[TVC_MAX];
+		FViewMatrices ModifiedViewMatrices = View.ViewMatrices;
+		ModifiedViewMatrices.HackRemoveTemporalAAProjectionJitter();
+
+		Parameters = *View.CachedViewUniformShaderParameters;
+		View.SetupUniformBufferParameters(ModifiedViewMatrices, ModifiedViewMatrices, VolumeBounds, TVC_MAX, Parameters);
+	};
+
+	FViewUniformShaderParameters ViewUniformParameters;
+	SetupParameters(View, ViewUniformParameters);
+
+	FViewShaderParameters Parameters;
+	Parameters.View = TUniformBufferRef<FViewUniformShaderParameters>::CreateUniformBufferImmediate(ViewUniformParameters, UniformBuffer_SingleFrame);
+
+	if (const FViewInfo* InstancedView = View.GetInstancedView())
+	{
+		SetupParameters(*InstancedView, ViewUniformParameters);
+	}
+
+	Parameters.InstancedView = TUniformBufferRef<FInstancedViewUniformShaderParameters>::CreateUniformBufferImmediate(
+		reinterpret_cast<const FInstancedViewUniformShaderParameters&>(ViewUniformParameters),
+		UniformBuffer_SingleFrame);
+
+	return Parameters;
+}
+
+bool FSceneRenderer::RenderCustomDepthPass(FRDGBuilder& GraphBuilder, const FCustomDepthTextures& CustomDepthTextures)
+{
+	if (!CustomDepthTextures.IsValid())
+	{
+		return false;
+	}
+
+	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(RenderCustomDepthPass);
+	RDG_GPU_STAT_SCOPE(GraphBuilder, CustomDepth);
+
+	const bool bMobilePath = (FeatureLevel <= ERHIFeatureLevel::ES3_1);
+	const bool bWritesCustomStencilValues = IsCustomDepthPassWritingStencil(FeatureLevel);
+
+	bool bCustomDepthRendered = false;
+	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
+	{
+		RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, Views.Num() > 1, "View%d", ViewIndex);
+
+		const FViewInfo& View = Views[ViewIndex];
+
+		if (View.ShouldRenderView() && View.bHasCustomDepthPrimitives)
+		{
+			View.BeginRenderView();
+
+			FCustomDepthPassParameters* PassParameters = GraphBuilder.AllocParameters<FCustomDepthPassParameters>();
+
+			// User requested jitter-free custom depth.
+			if (CVarCustomDepthTemporalAAJitter.GetValueOnRenderThread() == 0 && View.AntiAliasingMethod == AAM_TemporalAA)
+			{
+				PassParameters->View = CreateViewShaderParametersWithoutJitter(View);
+			}
+			else
+			{
+				PassParameters->View = View.GetShaderParameters();
+			}
+
+			const ERenderTargetLoadAction DepthLoadAction = GetLoadActionIfProduced(CustomDepthTextures.Depth, CustomDepthTextures.DepthAction);
+			const ERenderTargetLoadAction StencilLoadAction = GetLoadActionIfProduced(CustomDepthTextures.Depth, CustomDepthTextures.StencilAction);
+
+			if (bMobilePath)
+			{
+				PassParameters->RenderTargets[0] = FRenderTargetBinding(CustomDepthTextures.MobileDepth, DepthLoadAction);
+				PassParameters->RenderTargets[1] = FRenderTargetBinding(CustomDepthTextures.MobileStencil, StencilLoadAction);
+
+				PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(
+					CustomDepthTextures.Depth,
+					DepthLoadAction,
+					DepthLoadAction,
+					FExclusiveDepthStencil::DepthWrite_StencilWrite);
+			}
+			else
+			{
+				PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(
+					CustomDepthTextures.Depth,
+					DepthLoadAction,
+					StencilLoadAction,
+					FExclusiveDepthStencil::DepthWrite_StencilWrite);
+			}
+
+			GraphBuilder.AddPass(
+				RDG_EVENT_NAME("CustomDepth"),
+				PassParameters,
+				ERDGPassFlags::Raster,
+				[this, &View, DownsampleFactor = CustomDepthTextures.DownsampleFactor](FRHICommandList& RHICmdList)
+			{
+				SetStereoViewport(RHICmdList, View, 1.0f / static_cast<float>(DownsampleFactor));
+				View.ParallelMeshDrawCommandPasses[EMeshPass::CustomDepth].DispatchDraw(nullptr, RHICmdList);
+			});
+
+			bCustomDepthRendered = true;
+		}
+	}
+
+	return bCustomDepthRendered;
+}
 
 class FCustomDepthPassMeshProcessor : public FMeshPassProcessor
 {
@@ -55,9 +278,7 @@ void FCustomDepthPassMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT Mesh
 		const ERasterizerFillMode MeshFillMode = ComputeMeshFillMode(MeshBatch, Material, OverrideSettings);
 		const ERasterizerCullMode MeshCullMode = ComputeMeshCullMode(MeshBatch, Material, OverrideSettings);
 		const bool bIsTranslucent = IsTranslucentBlendMode(BlendMode);
-
-
-		const bool bWriteCustomStencilValues = FSceneRenderTargets::IsCustomDepthPassWritingStencil(FeatureLevel);
+		const bool bWriteCustomStencilValues = IsCustomDepthPassWritingStencil(FeatureLevel);
 		float MobileColorValue = 0.0f;
 
 		if (bWriteCustomStencilValues)

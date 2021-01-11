@@ -3720,10 +3720,10 @@ void EmitDepthTargets(
 	RDG_EVENT_SCOPE(GraphBuilder, "Nanite::EmitDepthTargets");
 	RDG_GPU_STAT_SCOPE(GraphBuilder, NaniteDepth);
 
-	FSceneRenderTargets& SceneTargets = FSceneRenderTargets::Get();
-	const EShaderPlatform ShaderPlatform = GetFeatureLevelShaderPlatform(SceneTargets.GetCurrentFeatureLevel());
-
-	const FClearValueBinding DefaultDepthStencil = SceneTargets.GetDefaultDepthClear();
+	const EShaderPlatform ShaderPlatform = View.GetShaderPlatform();
+	const FIntPoint SceneTexturesExtent = GetSceneTextureExtent();	
+	const FClearValueBinding DefaultDepthStencil = GetSceneDepthClearValue();
+	
 	float DefaultDepth = 0.0f;
 	uint32 DefaultStencil = 0;
 	DefaultDepthStencil.GetDepthStencil(DefaultDepth, DefaultStencil);
@@ -3732,18 +3732,18 @@ void EmitDepthTargets(
 
 	// Nanite mask (TODO: unpacked right now, 7bits wasted per pixel).
 	FRDGTextureDesc NaniteMaskDesc = FRDGTextureDesc::Create2D(
-		SceneTargets.GetBufferSizeXY(),
+		SceneTexturesExtent,
 		PF_R8_UINT,
 		FClearValueBinding::Transparent,
 		TexCreate_RenderTargetable | TexCreate_ShaderResource | TexCreate_UAV);
 
-	FRDGTextureDesc VelocityBufferDesc = FVelocityRendering::GetRenderTargetDesc(ShaderPlatform, SceneTargets.GetBufferSizeXY());
+	FRDGTextureDesc VelocityBufferDesc = FVelocityRendering::GetRenderTargetDesc(ShaderPlatform, SceneTexturesExtent);
 
 	// TODO: Can be 16bit UNORM (PF_ShadowDepth) (32bit float w/ 8bit stencil is a waste of bandwidth and memory)
 	FRDGTextureDesc MaterialDepthDesc = FRDGTextureDesc::Create2D(
-		SceneTargets.GetBufferSizeXY(),
+		SceneTexturesExtent,
 		PF_DepthStencil,
-		SceneTargets.GetDefaultDepthClear(),
+		DefaultDepthStencil,
 		TexCreate_DepthStencilTargetable | TexCreate_ShaderResource | TexCreate_InputAttachmentRead | (UseComputeDepthExport() ? TexCreate_UAV : TexCreate_None));
 
 	FRDGTextureRef NaniteMask			= GraphBuilder.CreateTexture(NaniteMaskDesc, TEXT("NaniteMask"));
@@ -3758,7 +3758,7 @@ void EmitDepthTargets(
 		checkf(View.ViewRect.Min.X == 0 && View.ViewRect.Min.Y == 0, TEXT("Viewport offset support is not implemented."));
 
 		const FIntVector DispatchDim = FComputeShaderUtils::GetGroupCount(View.ViewRect.Max, 8); // Only run DepthExport shader on viewport. We have already asserted that ViewRect.Min=0.
-		const uint32 PlatformConfig = RHIGetHTilePlatformConfig(SceneTargets.GetBufferSizeXY().X, SceneTargets.GetBufferSizeXY().Y);
+		const uint32 PlatformConfig = RHIGetHTilePlatformConfig(SceneTexturesExtent.X, SceneTexturesExtent.Y);
 
 		FRDGTextureUAVRef SceneDepthUAV		= GraphBuilder.CreateUAV(FRDGTextureUAVDesc::CreateForMetaData(SceneDepth, ERDGTextureMetaDataAccess::CompressedSurface));
 		FRDGTextureUAVRef SceneStencilUAV	= GraphBuilder.CreateUAV(FRDGTextureUAVDesc::CreateForMetaData(SceneDepth, ERDGTextureMetaDataAccess::Stencil));
@@ -3775,7 +3775,7 @@ void EmitDepthTargets(
 		PassParameters->SOAStrides				= SOAStrides;
 		PassParameters->ClusterPageData			= Nanite::GStreamingManager.GetClusterPageDataSRV();
 		PassParameters->ClusterPageHeaders		= Nanite::GStreamingManager.GetClusterPageHeadersSRV();
-		PassParameters->DepthExportConfig		= FIntVector4(PlatformConfig, SceneTargets.GetBufferSizeXY().X, StencilDecalMask, 0);
+		PassParameters->DepthExportConfig		= FIntVector4(PlatformConfig, SceneTexturesExtent.X, StencilDecalMask, 0);
 		PassParameters->VisBuffer64				= VisBuffer64;
 		PassParameters->Velocity				= VelocityUAV;
 		PassParameters->NaniteMask				= NaniteMaskUAV;

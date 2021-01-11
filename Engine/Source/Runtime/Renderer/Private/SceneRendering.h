@@ -56,8 +56,10 @@ struct FHairStrandsVisibilityViews;
 struct FSortedLightSetSceneInfo;
 struct FStrataSceneData;
 
+struct FSceneTexturesConfig;
 struct FMinimalSceneTextures;
 struct FSceneTextures;
+struct FCustomDepthTextures;
 
 DECLARE_STATS_GROUP(TEXT("Command List Markers"), STATGROUP_CommandListMarkers, STATCAT_Advanced);
 
@@ -474,7 +476,6 @@ class FParallelCommandListSet
 public:
 	const FViewInfo& View;
 	FRHICommandListImmediate& ParentCmdList;
-	FSceneRenderTargets* Snapshot;
 	TStatId	ExecuteStat;
 	int32 Width;
 	int32 NumAlloc;
@@ -1425,7 +1426,6 @@ public:
 
 	/** Creates ViewUniformShaderParameters given a set of view transforms. */
 	RENDERER_API void SetupUniformBufferParameters(
-		FSceneRenderTargets& SceneContext,
 		const FViewMatrices& InViewMatrices,
 		const FViewMatrices& InPrevViewMatrices,
 		FBox* OutTranslucentCascadeBoundsArray, 
@@ -1434,12 +1434,11 @@ public:
 
 	/** Recreates ViewUniformShaderParameters, taking the view transform from the View Matrices */
 	inline void SetupUniformBufferParameters(
-		FSceneRenderTargets& SceneContext,
 		FBox* OutTranslucentCascadeBoundsArray,
 		int32 NumTranslucentCascades,
 		FViewUniformShaderParameters& ViewUniformShaderParameters) const
 	{
-		SetupUniformBufferParameters(SceneContext,
+		SetupUniformBufferParameters(
 			ViewMatrices,
 			PrevViewInfo.ViewMatrices,
 			OutTranslucentCascadeBoundsArray,
@@ -1949,7 +1948,7 @@ protected:
 	void CreateWholeSceneProjectedShadow(FLightSceneInfo* LightSceneInfo, uint32& NumPointShadowCachesUpdatedThisFrame, uint32& NumSpotShadowCachesUpdatedThisFrame);
 
 	/** Updates the preshadow cache, allocating new preshadows that can fit and evicting old ones. */
-	void UpdatePreshadowCache(FSceneRenderTargets& SceneContext);
+	void UpdatePreshadowCache();
 
 	/** Gets a readable light name for use with a draw event. */
 	static void GetLightNameForDrawEvent(const FLightSceneProxy* LightProxy, FString& LightNameWithLevel);
@@ -1964,7 +1963,7 @@ protected:
 	void GatherShadowDynamicMeshElements(FGlobalDynamicIndexBuffer& DynamicIndexBuffer, FGlobalDynamicVertexBuffer& DynamicVertexBuffer, FGlobalDynamicReadBuffer& DynamicReadBuffer);
 
 	/** Performs once per frame setup prior to visibility determination. */
-	void PreVisibilityFrameSetup(FRDGBuilder& GraphBuilder);
+	void PreVisibilityFrameSetup(FRDGBuilder& GraphBuilder, const FSceneTexturesConfig& SceneTexturesConfig);
 
 	/** Computes which primitives are visible and relevant for each view. */
 	void ComputeViewVisibility(FRHICommandListImmediate& RHICmdList, FExclusiveDepthStencil::Type BasePassDepthStencilAccess, FViewVisibleCommandsPerView& ViewCommandsPerView, 
@@ -1991,14 +1990,10 @@ protected:
 	bool ShouldRenderTranslucency() const;
 	bool ShouldRenderTranslucency(ETranslucencyPass::Type TranslucencyPass) const;
 
-	/** TODO: REMOVE if no longer needed: Copies scene color to the viewport's render target after applying gamma correction. */
-	void GammaCorrectToViewportRenderTarget(FRHICommandList& RHICmdList, const FViewInfo* View, float OverrideGamma);
-
 	/** Updates state for the end of the frame. */
 	void RenderFinish(FRDGBuilder& GraphBuilder, FRDGTextureRef ViewFamilyTexture);
 
-	void RenderCustomDepthPassAtLocation(FRDGBuilder& GraphBuilder, int32 Location);
-	void RenderCustomDepthPass(FRDGBuilder& GraphBuilder);
+	bool RenderCustomDepthPass(FRDGBuilder& GraphBuilder, const FCustomDepthTextures& CustomDepthTextures);
 
 	void OnStartRender(FRHICommandListImmediate& RHICmdList);
 
@@ -2032,8 +2027,6 @@ protected:
 
 	/** We should render on screen notification only if any of the scene contains a mesh using a sky material.*/
 	bool ShouldRenderSkyAtmosphereEditorNotifications() const;
-
-	void ResolveSceneColor(FRHICommandListImmediate& RHICmdList);
 
 	/**
 	 * Rounds up lights and sorts them according to what type of renderer supports them. The result is stored in OutSortedLights 
@@ -2095,23 +2088,23 @@ protected:
 	/** Build visibility lists on CSM receivers and non-csm receivers. */
 	void BuildCSMVisibilityState(FLightSceneInfo* LightSceneInfo);
 
-	void InitViews(FRDGBuilder& GraphBuilder);
+	void InitViews(FRDGBuilder& GraphBuilder, FSceneTexturesConfig& SceneTexturesConfig);
 
 	void RenderPrePass(FRDGBuilder& GraphBuilder, FRenderTargetBindingSlots& BasePassRenderTargets);
 
 	/** Renders the opaque base pass for mobile. */
-	void RenderMobileBasePass(FRDGBuilder& GraphBuilder, FRenderTargetBindingSlots& BasePassRenderTargets, const TArrayView<const FViewInfo*> PassViews);
+	void RenderMobileBasePass(FRDGBuilder& GraphBuilder, FRenderTargetBindingSlots& BasePassRenderTargets, const TArrayView<const FViewInfo*> PassViews, FRDGTextureRef ScreenSpaceAO);
 
 	void RenderMobileEditorPrimitives(FRHICommandList& RHICmdList, const FViewInfo& View, const FMeshPassProcessorRenderState& DrawRenderState);
 
 	/** Renders the debug view pass for mobile. */
-	void RenderMobileDebugView(FRDGBuilder& GraphBuilder, const TArrayView<const FViewInfo*> PassViews);
+	void RenderMobileDebugView(FRDGBuilder& GraphBuilder, const TArrayView<const FViewInfo*> PassViews, FRDGTextureRef QuadOverdrawTexture);
 
 	/** Render modulated shadow projections in to the scene, loops over any unrendered shadows until all are processed.*/
 	void RenderModulatedShadowProjections(FRDGBuilder& GraphBuilder, TRDGUniformBufferRef<FMobileSceneTextureUniformParameters> MobileSceneTextures);
 
 	/** Resolves scene depth in case hardware does not support reading depth in the shader */
-	void ConditionalResolveSceneDepth(FRDGBuilder& GraphBuilder, const FViewInfo& View, FRDGTextureMSAA& SceneDepth);
+	void ConditionalResolveSceneDepth(FRDGBuilder& GraphBuilder, const FViewInfo& View, FRDGTextureMSAA SceneDepth);
 
 	/** Issues occlusion queries */
 	void RenderOcclusion(FRDGBuilder& GraphBuilder, FRenderTargetBindingSlots& BasePassRenderTargets);
@@ -2126,10 +2119,10 @@ protected:
 	void RenderDecals(FRDGBuilder& GraphBuilder, FRenderTargetBindingSlots& BasePassRenderTargets, TRDGUniformBufferRef<FMobileSceneTextureUniformParameters> MobileSceneTextures);
 
 	/** Renders the base pass for translucency. */
-	void RenderTranslucency(FRDGBuilder& GraphBuilder, FRenderTargetBindingSlots& BasePassRenderTargets, const TArrayView<const FViewInfo*> PassViews);
+	void RenderTranslucency(FRDGBuilder& GraphBuilder, FRenderTargetBindingSlots& BasePassRenderTargets, const TArrayView<const FViewInfo*> PassViews, FRDGTextureRef ScreenSpaceAO);
 
 	/** On chip pre-tonemap before scene color MSAA resolve (iOS only) */
-	void PreTonemapMSAA(FRDGBuilder& GraphBuilder, FRenderTargetBindingSlots& BasePassRenderTargets);
+	void PreTonemapMSAA(FRDGBuilder& GraphBuilder, FRenderTargetBindingSlots& BasePassRenderTargets, const FMinimalSceneTextures& SceneTextures);
 
 	void SortMobileBasePassAfterShadowInit(FExclusiveDepthStencil::Type BasePassDepthStencilAccess, FViewVisibleCommandsPerView& ViewCommandsPerView);
 	void SetupMobileBasePassAfterShadowInit(FExclusiveDepthStencil::Type BasePassDepthStencilAccess, FViewVisibleCommandsPerView& ViewCommandsPerView);
@@ -2137,12 +2130,10 @@ protected:
 	void UpdateDirectionalLightUniformBuffers(FRDGBuilder& GraphBuilder, const FViewInfo& View);
 	void UpdateSkyReflectionUniformBuffer();
 
-	void RenderForward(FRDGBuilder& GraphBuilder, const TArrayView<const FViewInfo*> ViewList, FRDGTextureRef ViewFamilyTexture, FRDGTextureMSAA& SceneColorMSAA, FRDGTextureMSAA& SceneDepthMSAA, TRDGUniformBufferRef<FMobileSceneTextureUniformParameters> MobileSceneTextures);
-	void RenderDeferred(FRDGBuilder& GraphBuilder, const TArrayView<const FViewInfo*> ViewList, const FSortedLightSetSceneInfo& SortedLightSet, FRDGTextureRef ViewFamilyTexture, FRDGTextureMSAA& SceneColorMSAA, FRDGTextureMSAA& SceneDepthMSAA, TRDGUniformBufferRef<FMobileSceneTextureUniformParameters> MobileSceneTextures);
+	void RenderForward(FRDGBuilder& GraphBuilder, const TArrayView<const FViewInfo*> ViewList, FRDGTextureRef ViewFamilyTexture, const FSceneTextures& SceneTextures);
+	void RenderDeferred(FRDGBuilder& GraphBuilder, const TArrayView<const FViewInfo*> ViewList, const FSortedLightSetSceneInfo& SortedLightSet, FRDGTextureRef ViewFamilyTexture, const FSceneTextures& SceneTextures);
 	
-	void InitAmbientOcclusionOutputs(FRHICommandListImmediate& RHICmdList, const TRefCountPtr<IPooledRenderTarget>& SceneDepthZ);
 	void RenderAmbientOcclusion(FRDGBuilder& GraphBuilder, FRDGTextureRef SceneDepthTexture, FRDGTextureRef AmbientOcclusionTexture);
-	void ReleaseAmbientOcclusionOutputs();
 
 	void InitPixelProjectedReflectionOutputs(FRHICommandListImmediate& RHICmdList, const FIntPoint& BufferSize);
 	void RenderPixelProjectedReflection(FRDGBuilder& GraphBuilder, FRDGTextureRef SceneColorTexture, FRDGTextureRef SceneDepthTexture, FRDGTextureRef PixelProjectedReflectionTexture, const FPlanarReflectionSceneProxy* PlanarReflectionSceneProxy);
@@ -2333,6 +2324,12 @@ void AddResolveSceneDepthPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, 
 /** Resolves all views for scene color / depth. */
 void AddResolveSceneColorPass(FRDGBuilder& GraphBuilder, TArrayView<const FViewInfo> Views, FRDGTextureMSAA SceneColor);
 void AddResolveSceneDepthPass(FRDGBuilder& GraphBuilder, TArrayView<const FViewInfo> Views, FRDGTextureMSAA SceneDepth);
+
+/** Prepares virtual textures for feedback updates. */
+void VirtualTextureFeedbackBegin(FRDGBuilder& GraphBuilder, TArrayView<const FViewInfo> Views, FIntPoint SceneTextureExtent);
+
+/** Finalizes feedback and submits for readback. */
+void VirtualTextureFeedbackEnd(FRDGBuilder& GraphBuilder);
 
 /** Creates a half resolution checkerboard min / max depth buffer from the input full resolution depth buffer. */
 FRDGTextureRef CreateHalfResolutionDepthCheckerboardMinMax(FRDGBuilder& GraphBuilder, TArrayView<const FViewInfo> Views, FRDGTextureRef SceneDepth);

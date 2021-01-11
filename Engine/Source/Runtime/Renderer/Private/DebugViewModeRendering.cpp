@@ -27,7 +27,23 @@ DebugViewModeRendering.cpp: Contains definitions for rendering debug viewmodes.
 
 IMPLEMENT_STATIC_UNIFORM_BUFFER_STRUCT(FDebugViewModePassUniformParameters, "DebugViewModePass", SceneTextures);
 
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#if WITH_DEBUG_VIEW_MODES
+
+int32 GetQuadOverdrawUAVIndex(EShaderPlatform Platform, ERHIFeatureLevel::Type FeatureLevel)
+{
+	if (IsSimpleForwardShadingEnabled(Platform))
+	{
+		return 1;
+	}
+	else if (IsForwardShadingEnabled(Platform))
+	{
+		return FVelocityRendering::BasePassCanOutputVelocity(FeatureLevel) ? 2 : 1;
+	}
+	else // GBuffer
+	{
+		return FVelocityRendering::BasePassCanOutputVelocity(FeatureLevel) ? 7 : 6;
+	}
+}
 
 void SetupDebugViewModePassUniformBufferConstants(const FViewInfo& ViewInfo, FDebugViewModePassUniformParameters& PassParameters)
 {
@@ -69,11 +85,17 @@ void SetupDebugViewModePassUniformBufferConstants(const FViewInfo& ViewInfo, FDe
 	}
 }
 
-TRDGUniformBufferRef<FDebugViewModePassUniformParameters> CreateDebugViewModePassUniformBuffer(FRDGBuilder& GraphBuilder, const FViewInfo& View)
+TRDGUniformBufferRef<FDebugViewModePassUniformParameters> CreateDebugViewModePassUniformBuffer(FRDGBuilder& GraphBuilder, const FViewInfo& View, FRDGTextureRef QuadOverdrawTexture)
 {
+	if (!QuadOverdrawTexture)
+	{
+		QuadOverdrawTexture = GraphBuilder.CreateTexture(FRDGTextureDesc::Create2D(FIntPoint(1, 1), PF_R32_UINT, FClearValueBinding::None, TexCreate_UAV), TEXT("DummyOverdrawUAV"));
+	}
+
 	auto* UniformBufferParameters = GraphBuilder.AllocParameters<FDebugViewModePassUniformParameters>();
 	SetupSceneTextureUniformParameters(GraphBuilder, View.FeatureLevel, ESceneTextureSetupMode::None, UniformBufferParameters->SceneTextures);
 	SetupDebugViewModePassUniformBufferConstants(View, *UniformBufferParameters);
+	UniformBufferParameters->QuadOverdraw = GraphBuilder.CreateUAV(QuadOverdrawTexture);
 	return GraphBuilder.CreateUniformBuffer(UniformBufferParameters);
 }
 
@@ -92,7 +114,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FDebugViewModePassParameters, )
 	RENDER_TARGET_BINDING_SLOTS()
 END_SHADER_PARAMETER_STRUCT()
 
-void RenderDebugViewMode(FRDGBuilder& GraphBuilder, TArrayView<const FViewInfo> Views, FScene* Scene, const FRenderTargetBindingSlots& RenderTargets)
+void RenderDebugViewMode(FRDGBuilder& GraphBuilder, TArrayView<const FViewInfo> Views, FRDGTextureRef QuadOverdrawTexture, const FRenderTargetBindingSlots& RenderTargets)
 {
 	RDG_EVENT_SCOPE(GraphBuilder, "DebugViewMode");
 
@@ -104,14 +126,14 @@ void RenderDebugViewMode(FRDGBuilder& GraphBuilder, TArrayView<const FViewInfo> 
 
 		auto* PassParameters = GraphBuilder.AllocParameters<FDebugViewModePassParameters>();
 		PassParameters->View = View.ViewUniformBuffer;
-		PassParameters->Pass = CreateDebugViewModePassUniformBuffer(GraphBuilder, View);
+		PassParameters->Pass = CreateDebugViewModePassUniformBuffer(GraphBuilder, View, QuadOverdrawTexture);
 		PassParameters->RenderTargets = RenderTargets;
 
 		GraphBuilder.AddPass(
 			{},
 			PassParameters,
 			ERDGPassFlags::Raster,
-			[Scene, &View](FRHICommandList& RHICmdList)
+			[&View](FRHICommandList& RHICmdList)
 		{
 			RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1);
 			View.ParallelMeshDrawCommandPasses[EMeshPass::DebugViewMode].DispatchDraw(nullptr, RHICmdList);
@@ -366,15 +388,13 @@ void InitDebugViewModeInterfaces()
 	FDebugViewModeInterface::SetInterface(DVSM_LODColoration, new FLODColorationInterface());
 }
 
-#else // !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#else // !WITH_DEBUG_VIEW_MODES
 
 void RenderDebugViewMode(
 	FRDGBuilder& GraphBuilder,
 	TArrayView<const FViewInfo> Views,
-	FScene* Scene,
+	FRDGTextureRef QuadOverdrawTexture,
 	const FRenderTargetBindingSlots& RenderTargets)
 {}
 
-#endif // !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-
-
+#endif // WITH_DEBUG_VIEW_MODES

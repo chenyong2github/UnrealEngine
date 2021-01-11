@@ -8,19 +8,4 @@
 #include "CoreMinimal.h"
 #include "RendererInterface.h"
 
-struct FAmbientOcclusionMobileOutputs
-{
-	TRefCountPtr<IPooledRenderTarget> AmbientOcclusionTexture;
-
-	bool IsValid()
-	{
-		return AmbientOcclusionTexture.IsValid();
-	}
-
-	void Release()
-	{
-		AmbientOcclusionTexture.SafeRelease();
-	}
-};
-
-extern FAmbientOcclusionMobileOutputs GAmbientOcclusionMobileOutputs;
+FRDGTextureRef CreateMobileScreenSpaceAOTexture(FRDGBuilder& GraphBuilder, FIntPoint Extent);

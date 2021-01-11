@@ -97,9 +97,8 @@ void FDeferredShadingSceneRenderer::RenderRayTracingPrimaryRaysView(
 	float ResolutionFraction,
 	ERayTracingPrimaryRaysFlag Flags)
 {
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
-
-	FSceneTextureParameters SceneTextures = GetSceneTextureParameters(GraphBuilder);
+	const FSceneTextures& SceneTextures = FSceneTextures::Get(GraphBuilder);
+	const FSceneTextureParameters SceneTextureParameters = GetSceneTextureParameters(GraphBuilder, SceneTextures);
 
 	int32 UpscaleFactor = int32(1.0f / ResolutionFraction);
 	ensure(ResolutionFraction == 1.0 / UpscaleFactor);
@@ -107,7 +106,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingPrimaryRaysView(
 	FIntPoint RayTracingResolution = FIntPoint::DivideAndRoundUp(View.ViewRect.Size(), UpscaleFactor);
 
 	{
-		FRDGTextureDesc Desc = Translate(SceneContext.GetSceneColor()->GetDesc());
+		FRDGTextureDesc Desc = SceneTextures.Color.Target->Desc;
 		Desc.Format = PF_FloatRGBA;
 		Desc.Flags &= ~(TexCreate_FastVRAM | TexCreate_Transient);
 		Desc.Flags |= TexCreate_UAV;
@@ -148,10 +147,9 @@ void FDeferredShadingSceneRenderer::RenderRayTracingPrimaryRaysView(
 	PassParameters->LightDataPacked = View.RayTracingLightData.UniformBuffer;
 	PassParameters->LightDataBuffer = View.RayTracingLightData.LightBufferSRV;
 
-	PassParameters->SceneTextures = SceneTextures;
+	PassParameters->SceneTextures = SceneTextureParameters;
 
-	FRDGTextureRef SceneColorTexture = GraphBuilder.RegisterExternalTexture(SceneContext.GetSceneColor(), TEXT("SceneColor"));
-	PassParameters->SceneColorTexture = SceneColorTexture;
+	PassParameters->SceneColorTexture = SceneTextures.Color.Resolve;
 
 	PassParameters->ReflectionStruct = CreateReflectionUniformBuffer(View, EUniformBufferUsage::UniformBuffer_SingleFrame);
 	PassParameters->FogUniformParameters = CreateFogUniformBuffer(GraphBuilder, View);

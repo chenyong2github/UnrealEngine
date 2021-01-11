@@ -307,11 +307,9 @@ void FScene::AllocateAndCaptureFrameSkyEnvMap(
 	FViewMatrices::FMinimalInitializer SceneCubeViewInitOptions;
 	SceneCubeViewInitOptions.ConstrainedViewRect = FIntRect(FIntPoint(0, 0), FIntPoint(CubeWidth, CubeWidth));
 
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 	FBox VolumeBounds[TVC_MAX];
 	CubeView.CachedViewUniformShaderParameters = MakeUnique<FViewUniformShaderParameters>();
 	CubeView.SetupUniformBufferParameters(
-		SceneContext,
 		VolumeBounds,
 		TVC_MAX,
 		*CubeView.CachedViewUniformShaderParameters);
@@ -555,7 +553,7 @@ void FScene::AllocateAndCaptureFrameSkyEnvMap(
 							// Setup the depth buffer
 							if (bUseDepthBuffer)
 							{
-								FRDGTextureDesc CubeDepthTextureDesc = FRDGTextureDesc::Create2D(FIntPoint(CubeWidth, CubeWidth), PF_DepthStencil, SceneContext.GetDefaultDepthClear(),
+								FRDGTextureDesc CubeDepthTextureDesc = FRDGTextureDesc::Create2D(FIntPoint(CubeWidth, CubeWidth), PF_DepthStencil, GetSceneDepthClearValue(),
 									TexCreate_DepthStencilTargetable | TexCreate_ShaderResource);
 								CubeDepthTexture = GraphBuilder.CreateTexture(CubeDepthTextureDesc, TEXT("CubeDepthTexture"));
 								PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(CubeDepthTexture, ERenderTargetLoadAction::EClear, FExclusiveDepthStencil::DepthWrite_StencilNop);

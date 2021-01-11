@@ -13,8 +13,6 @@
 #include "ScreenPass.h"
 #include "ScenePrivate.h"
 
-FAmbientOcclusionMobileOutputs GAmbientOcclusionMobileOutputs;
-
 static TAutoConsoleVariable<int32> CVarMobileAmbientOcclusion(
 	TEXT("r.Mobile.AmbientOcclusion"),
 	0,
@@ -391,29 +389,14 @@ public:
 
 IMPLEMENT_GLOBAL_SHADER(FGTAOMobile_SpatialFilterPS, "/Engine/Private/PostProcessAmbientOcclusionMobile.usf", "GTAOSpatialFilterPS", SF_Pixel);
 
-void FMobileSceneRenderer::InitAmbientOcclusionOutputs(FRHICommandListImmediate& RHICmdList, const TRefCountPtr<IPooledRenderTarget>& SceneDepthZ)
+FRDGTextureRef CreateMobileScreenSpaceAOTexture(FRDGBuilder& GraphBuilder, FIntPoint SceneTextureExtent)
 {
-	FPooledRenderTargetDesc SceneDepthZDesc = SceneDepthZ->GetDesc();
-
-	const FIntPoint& BufferSize = SceneDepthZDesc.Extent;
-
 	const uint32 DownsampleFactor = 2;
-
-	FIntPoint Extent = FIntPoint::DivideAndRoundUp(BufferSize, DownsampleFactor);
-
+	const FIntPoint Extent = FIntPoint::DivideAndRoundUp(SceneTextureExtent, DownsampleFactor);
 	const bool bUsePixelShader = CVarMobileAmbientOcclusionShaderType.GetValueOnRenderThread() == 2;
-
-	if (!GAmbientOcclusionMobileOutputs.IsValid() || GAmbientOcclusionMobileOutputs.AmbientOcclusionTexture->GetDesc().Extent != Extent || (bUsePixelShader && GAmbientOcclusionMobileOutputs.AmbientOcclusionTexture->GetDesc().Format != PF_G8) || (!bUsePixelShader && GAmbientOcclusionMobileOutputs.AmbientOcclusionTexture->GetDesc().Format != PF_R8G8B8A8))
-	{
-		GAmbientOcclusionMobileOutputs.AmbientOcclusionTexture.SafeRelease();
-
-		GRenderTargetPool.FindFreeElement(RHICmdList, FPooledRenderTargetDesc::Create2DDesc(Extent, bUsePixelShader ? PF_G8 : PF_R8G8B8A8, FClearValueBinding::Black, TexCreate_None, TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV, false, 1, false), GAmbientOcclusionMobileOutputs.AmbientOcclusionTexture, TEXT("AmbientOcclusionTexture"));
-	}
-}
-
-void FMobileSceneRenderer::ReleaseAmbientOcclusionOutputs()
-{
-	GAmbientOcclusionMobileOutputs.Release();
+	return GraphBuilder.CreateTexture(
+		FRDGTextureDesc::Create2D(Extent, bUsePixelShader ? PF_G8 : PF_R8G8B8A8, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV),
+		TEXT("ScreenSpaceAO"));
 }
 
 void FMobileSceneRenderer::RenderAmbientOcclusion(FRDGBuilder& GraphBuilder, FRDGTextureRef SceneDepthTexture, FRDGTextureRef AmbientOcclusionTexture)
@@ -430,7 +413,7 @@ void FMobileSceneRenderer::RenderAmbientOcclusion(FRDGBuilder& GraphBuilder, FRD
 	FRDGTextureUAVRef AmbientOcclusionTextureUAV = GraphBuilder.CreateUAV(AmbientOcclusionTexture);
 
 	const FIntPoint& DepthBufferSize = SceneDepthTexture->Desc.Extent;
-	const FIntPoint& BufferSize = GAmbientOcclusionMobileOutputs.AmbientOcclusionTexture->GetDesc().Extent;
+	const FIntPoint& BufferSize = AmbientOcclusionTexture->Desc.Extent;
 
 	float FallOffEnd = GTAOFalloffEndCVar ? GTAOFalloffEndCVar->GetValueOnRenderThread() : 200.0f;
 	float FallOffStartRatio = GTAOFalloffStartRatioCVar ? FMath::Clamp(GTAOFalloffStartRatioCVar->GetValueOnRenderThread(), 0.0f, 0.999f) : 0.5f;

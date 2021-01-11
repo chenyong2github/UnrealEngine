@@ -916,7 +916,6 @@ void AddSubsurfaceViewPass(
 			ProfileIdTexture = SystemTextures.Black;
 		}
 
-		FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 		FRDGTextureRef VelocityTexture = GetIfProduced(SceneTextures.Velocity, SystemTextures.Black);
 		FSubsurfaceUniformRef UniformBuffer = CreateUniformBuffer(View, MaxGroupCount);
 		
@@ -1312,6 +1311,5 @@ void AddSubsurfacePass(
 
 	FRDGTextureRef SceneColorOutputTexture = GraphBuilder.CreateTexture(SceneTextures.Color.Target->Desc, TEXT("SceneColorSubsurface"));
 	AddSubsurfacePass(GraphBuilder, Views, ViewMask, SceneTextures, SceneColorOutputTexture);
-	ConvertToExternalTexture(GraphBuilder, SceneColorOutputTexture, FSceneRenderTargets::Get().GetSceneColor());
 	SceneTextures.Color = SceneColorOutputTexture;
 }

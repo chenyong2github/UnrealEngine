@@ -604,7 +604,7 @@ void RunHairStrandsDebug(
 	const FGPUSkinCache* SkinCache,
 	const FShaderDrawDebugData* ShaderDrawData,
 	const TArray<FHairGroupInstance*>& Instances,
-	TRefCountPtr<IPooledRenderTarget>& SceneColor,
+	FRDGTextureRef SceneColor,
 	FIntRect Viewport,
 	const TUniformBufferRef<FViewUniformShaderParameters>& ViewUniformBuffer);
 

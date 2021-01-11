@@ -780,6 +780,7 @@ DECLARE_GPU_STAT(LumenProbeDenoiser);
 
 FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenProbeHierarchy(
 	FRDGBuilder& GraphBuilder,
+	const FSceneTextures& SceneTextures,
 	const HybridIndirectLighting::FCommonParameters& CommonParameters,
 	const ScreenSpaceRayTracing::FPrevSceneColorMip& PrevSceneColorMip,
 	const FViewInfo& View,
@@ -794,7 +795,7 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenProbeHierarchy(
 
 	const bool bAntiTileAliasing = CVarAntiTileAliasing.GetValueOnRenderThread() != 0 && View.ViewState;
 
-	const FIntPoint SceneBufferExtent = CommonParameters.SceneTextures.SceneDepthTexture->Desc.Extent;
+	const FIntPoint SceneBufferExtent = SceneTextures.Config.Extent;
 
 	const int32 MaxHierarchDepth = UseRadianceCache(View) ? 2 : kProbeMaxHierarchyDepth;
 	const int32 HierarchyDepth = FMath::Clamp(CVarHierarchyDepth.GetValueOnRenderThread(), 1, MaxHierarchDepth);
@@ -1330,7 +1331,7 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenProbeHierarchy(
 	if (UseRadianceCache(View))
 	{
 		FLumenCardTracingInputs TracingInputs(GraphBuilder, Scene, View);
-		RenderRadianceCache(GraphBuilder, TracingInputs, View, &ProbeHierachyParameters, nullptr, nullptr, RadianceCacheParameters);
+		RenderRadianceCache(GraphBuilder, SceneTextures, TracingInputs, View, &ProbeHierachyParameters, nullptr, nullptr, RadianceCacheParameters);
 	}
 
 	// Full probe occlusion tracing.

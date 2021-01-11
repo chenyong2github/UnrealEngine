@@ -520,7 +520,15 @@ static void AddInitPageRectsPass(FRDGBuilder& GraphBuilder, const FVirtualShadow
 }
 
 
-void FVirtualShadowMapArray::BuildPageAllocations(FRDGBuilder& GraphBuilder, const TArray<FViewInfo> &Views, const FSortedLightSetSceneInfo& SortedLightsInfo, const TArray<FVisibleLightInfo, SceneRenderingAllocator> &VisibleLightInfos, const TArray<Nanite::FRasterResults, TInlineAllocator<2>> &NaniteRasterResults, bool bPostBasePass, FVirtualShadowMapArrayCacheManager *VirtualShadowMapArrayCacheManager)
+void FVirtualShadowMapArray::BuildPageAllocations(
+	FRDGBuilder& GraphBuilder,
+	const FMinimalSceneTextures& SceneTextures,
+	const TArray<FViewInfo>& Views,
+	const FSortedLightSetSceneInfo& SortedLightsInfo,
+	const TArray<FVisibleLightInfo, SceneRenderingAllocator>& VisibleLightInfos,
+	const TArray<Nanite::FRasterResults, TInlineAllocator<2>>& NaniteRasterResults,
+	bool bPostBasePass,
+	FVirtualShadowMapArrayCacheManager* VirtualShadowMapArrayCacheManager)
 {
 	RDG_EVENT_SCOPE(GraphBuilder, "FVirtualShadowMapArray::GeneratePageFlagsFromLightGrid");
 
@@ -643,14 +651,7 @@ void FVirtualShadowMapArray::BuildPageAllocations(FRDGBuilder& GraphBuilder, con
 				FGeneratePageFlagsFromPixelsCS::FParameters* PassParameters = GraphBuilder.AllocParameters< FGeneratePageFlagsFromPixelsCS::FParameters >();
 				PassParameters->CommonParameters = CommonParameters;
 
-				if (bPostBasePass)
-				{
-					PassParameters->SceneTexturesStruct = CreateSceneTextureUniformBuffer(GraphBuilder, View.FeatureLevel, ESceneTextureSetupMode::GBuffers | ESceneTextureSetupMode::SceneDepth);
-				}
-				else
-				{
-					PassParameters->SceneTexturesStruct = CreateSceneTextureUniformBuffer(GraphBuilder, View.FeatureLevel, ESceneTextureSetupMode::SceneDepth);
-				}
+				PassParameters->SceneTexturesStruct = SceneTextures.UniformBuffer;
 				PassParameters->bPostBasePass = bPostBasePass;
 								
 				PassParameters->VisBuffer64 = VisBuffer64;

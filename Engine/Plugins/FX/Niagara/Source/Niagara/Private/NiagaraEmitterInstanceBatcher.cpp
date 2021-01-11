@@ -458,9 +458,8 @@ void NiagaraEmitterInstanceBatcher::ProcessPendingTicksFlush(FRHICommandListImme
 			FViewInfo View(ViewInitOptions);
 			View.CachedViewUniformShaderParameters = MakeUnique<FViewUniformShaderParameters>();
 
-			FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 			FBox UnusedVolumeBounds[TVC_MAX];
-			View.SetupUniformBufferParameters(SceneContext, UnusedVolumeBounds, TVC_MAX, *View.CachedViewUniformShaderParameters);
+			View.SetupUniformBufferParameters(UnusedVolumeBounds, TVC_MAX, *View.CachedViewUniformShaderParameters);
 
 			View.ViewUniformBuffer = TUniformBufferRef<FViewUniformShaderParameters>::CreateUniformBufferImmediate(*View.CachedViewUniformShaderParameters, UniformBuffer_SingleFrame);
 

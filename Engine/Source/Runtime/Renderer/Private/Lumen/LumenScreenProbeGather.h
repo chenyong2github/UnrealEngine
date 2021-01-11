@@ -100,7 +100,8 @@ END_SHADER_PARAMETER_STRUCT()
 
 extern void GenerateBRDF_PDF(
 	FRDGBuilder& GraphBuilder, 
-	const FViewInfo& View, 
+	const FViewInfo& View,
+	const FSceneTextures& SceneTextures,
 	FRDGTextureRef& BRDFProbabilityDensityFunction,
 	FRDGBufferSRVRef& BRDFProbabilityDensityFunctionSH,
 	FScreenProbeParameters& ScreenProbeParameters);
@@ -108,6 +109,7 @@ extern void GenerateBRDF_PDF(
 extern void GenerateImportanceSamplingRays(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
+	const FSceneTextures& SceneTextures,
 	const LumenRadianceCache::FRadianceCacheParameters& RadianceCacheParameters,
 	FRDGTextureRef BRDFProbabilityDensityFunction,
 	FRDGBufferSRVRef BRDFProbabilityDensityFunctionSH,
@@ -155,5 +157,6 @@ extern FScreenSpaceBentNormalParameters ComputeScreenSpaceBentNormal(
 	FRDGBuilder& GraphBuilder,
 	const FScene* Scene,
 	const FViewInfo& View,
+	const FMinimalSceneTextures& SceneTextures,
 	FRDGTextureRef LightingChannelsTexture,
 	const FScreenProbeParameters& ScreenProbeParameters);

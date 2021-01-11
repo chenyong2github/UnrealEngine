@@ -367,7 +367,7 @@ struct FDeepShadowOpaqueParams
 // Opaque mask
 static void AddDeepShadowOpaqueMaskPass(
 	FRDGBuilder& GraphBuilder,
-	const FRDGTextureRef& SceneDepthTexture,
+	FRDGTextureRef SceneDepthTexture,
 	const FViewInfo& View,
 	const FHairOpaqueMaskType HairOpaqueMaskType,
 	const FDeepShadowOpaqueParams& Params,
@@ -628,12 +628,9 @@ static void RenderHairStrandsShadowMask(
 		return;
 
 	DECLARE_GPU_STAT(HairStrandsOpaqueMask);
-	SCOPED_DRAW_EVENT(GraphBuilder.RHICmdList, HairStrandsOpaqueMask);
-	SCOPED_GPU_STAT(GraphBuilder.RHICmdList, HairStrandsOpaqueMask);
-
-	FSceneRenderTargets& SceneTargets = FSceneRenderTargets::Get();
-
-	FRDGTextureRef SceneDepthTexture = GraphBuilder.RegisterExternalTexture(SceneTargets.SceneDepthZ, TEXT("SceneDephtTexture"));
+	RDG_EVENT_SCOPE(GraphBuilder, "HairStrandsOpaqueMask");
+	RDG_GPU_STAT_SCOPE(GraphBuilder, HairStrandsOpaqueMask);
+	const FMinimalSceneTextures& SceneTextures = FSceneTextures::Get(GraphBuilder);
 
 	bool bHasDeepShadow = false;
 	if (!IsHairStrandsForVoxelTransmittanceAndShadowEnable())
@@ -672,7 +669,7 @@ static void RenderHairStrandsShadowMask(
 				Params.DeepShadow_LayerDepths = ComputeDeepShadowLayerDepths(DomData.LayerDistribution);
 				AddDeepShadowOpaqueMaskPass(
 					GraphBuilder,
-					SceneDepthTexture,
+					SceneTextures.Depth.Resolve,
 					View,
 					FHairOpaqueMaskType_DeepShadow,
 					Params,
@@ -700,7 +697,7 @@ static void RenderHairStrandsShadowMask(
 			Params.Voxel_VirtualVoxel = &InMacroGroupDatas.VirtualVoxelResources;
 			AddDeepShadowOpaqueMaskPass(
 				GraphBuilder,
-				SceneDepthTexture,
+				SceneTextures.Depth.Resolve,
 				View,
 				FHairOpaqueMaskType_VirtualVoxel,
 				Params,

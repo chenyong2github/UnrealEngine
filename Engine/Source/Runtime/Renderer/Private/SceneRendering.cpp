@@ -52,6 +52,7 @@
 #include "VisualizeTexturePresent.h"
 #include "MeshDrawCommands.h"
 #include "VT/VirtualTextureSystem.h"
+#include "VT/VirtualTextureFeedback.h"
 #include "HAL/LowLevelMemTracker.h"
 #include "IXRTrackingSystem.h"
 #include "IXRCamera.h"
@@ -69,6 +70,8 @@
 /*-----------------------------------------------------------------------------
 	Globals
 -----------------------------------------------------------------------------*/
+
+static TGlobalResource<FVirtualTextureFeedbackGPU> GVirtualTextureFeedbackGPU;
 
 static TAutoConsoleVariable<int32> CVarCachedMeshDrawCommands(
 	TEXT("r.MeshDrawCommands.UseCachedCommands"),
@@ -113,16 +116,6 @@ FAutoConsoleVariableRef CVarDumpMeshDrawCommandMemoryStats(
 	TEXT("Whether to log mesh draw command memory stats on the next frame"),
 	ECVF_Scalability | ECVF_RenderThreadSafe
 	);
-
-DECLARE_GPU_STAT_NAMED(CustomDepth, TEXT("Custom Depth"));
-
-static TAutoConsoleVariable<int32> CVarCustomDepthTemporalAAJitter(
-	TEXT("r.CustomDepthTemporalAAJitter"),
-	1,
-	TEXT("If disabled the Engine will remove the TemporalAA Jitter from the Custom Depth Pass. Only has effect when TemporalAA is used."),
-	ECVF_RenderThreadSafe
-);
-
 
 /**
  * Console variable controlling whether or not occlusion queries are allowed.
@@ -623,7 +616,6 @@ FFastVramConfig GFastVRamConfig;
 FParallelCommandListSet::FParallelCommandListSet(TStatId InExecuteStat, const FViewInfo& InView, FRHICommandListImmediate& InParentCmdList)
 	: View(InView)
 	, ParentCmdList(InParentCmdList)
-	, Snapshot(nullptr)
 	, ExecuteStat(InExecuteStat)
 	, NumAlloc(0)
 {
@@ -714,7 +706,6 @@ void FParallelCommandListSet::Dispatch(bool bHighPriority)
 		}
 	}
 	CommandLists.Reset();
-	Snapshot = nullptr;
 	Events.Reset();
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_FParallelCommandListSet_Dispatch_ServiceLocalQueue);
 	FTaskGraphInterface::Get().ProcessThreadUntilIdle(RenderThread_Local);
@@ -1140,7 +1131,6 @@ FIntPoint FViewInfo::GetSecondaryViewRectSize() const
 
 /** Creates the view's uniform buffers given a set of view transforms. */
 void FViewInfo::SetupUniformBufferParameters(
-	FSceneRenderTargets& SceneContext,
 	const FViewMatrices& InViewMatrices,
 	const FViewMatrices& InPrevViewMatrices,
 	FBox* OutTranslucentCascadeBoundsArray,
@@ -1149,13 +1139,15 @@ void FViewInfo::SetupUniformBufferParameters(
 {
 	check(Family);
 
+	const FSceneTexturesConfig& SceneTexturesConfig = FSceneTexturesConfig::Get();
+
 	// Create the view's uniform buffer.
 
 	// Mobile multi-view is not side by side
 	const FIntRect EffectiveViewRect = (bIsMobileMultiViewEnabled) ? FIntRect(0, 0, ViewRect.Width(), ViewRect.Height()) : ViewRect;
 
 	// Scene render targets may not be created yet; avoids NaNs.
-	FIntPoint EffectiveBufferSize = SceneContext.GetBufferSizeXY();
+	FIntPoint EffectiveBufferSize = SceneTexturesConfig.Extent;
 	EffectiveBufferSize.X = FMath::Max(EffectiveBufferSize.X, 1);
 	EffectiveBufferSize.Y = FMath::Max(EffectiveBufferSize.Y, 1);
 
@@ -1163,13 +1155,13 @@ void FViewInfo::SetupUniformBufferParameters(
 	SetupCommonViewUniformBufferParameters(
 		ViewUniformShaderParameters,
 		EffectiveBufferSize,
-		SceneContext.GetMSAACount(),
+		SceneTexturesConfig.NumSamples,
 		EffectiveViewRect,
 		InViewMatrices,
 		InPrevViewMatrices
 	);
 
-	const bool bCheckerboardSubsurfaceRendering = IsSubsurfaceCheckerboardFormat(SceneContext.GetSceneColorFormat());
+	const bool bCheckerboardSubsurfaceRendering = IsSubsurfaceCheckerboardFormat(SceneTexturesConfig.ColorFormat);
 	ViewUniformShaderParameters.bCheckerboardSubsurfaceProfileRendering = bCheckerboardSubsurfaceRendering ? 1.0f : 0.0f;
 
 	ViewUniformShaderParameters.IndirectLightingCacheShowFlag = Family->EngineShowFlags.IndirectLightingCache;
@@ -1723,11 +1715,11 @@ void FViewInfo::SetupUniformBufferParameters(
 
 	ViewUniformShaderParameters.PreIntegratedBRDF = GEngine->PreIntegratedSkinBRDFTexture->Resource->TextureRHI;
 
-	ViewUniformShaderParameters.VirtualTextureFeedbackStride = SceneContext.GetVirtualTextureFeedbackBufferSize().X;
+	ViewUniformShaderParameters.VirtualTextureFeedbackStride = GetVirtualTextureFeedbackBufferSize(SceneTexturesConfig.Extent).X;
 	// Use some low(ish) discrepancy sequence to run over every pixel in the virtual texture feedback tile.
-	ViewUniformShaderParameters.VirtualTextureFeedbackJitterOffset = FSceneRenderTargets::SampleVirtualTextureFeedbackSequence(FrameIndex);
+	ViewUniformShaderParameters.VirtualTextureFeedbackJitterOffset = SampleVirtualTextureFeedbackSequence(FrameIndex);
 	// Offset the selected sample index for each frame and add an additional offset each time we iterate over a full virtual texture feedback tile to ensure we get full coverage of sample indices over time.
-	const uint32 NumPixelsInTile = FMath::Square(FSceneRenderTargets::GetVirtualTextureFeedbackScale());
+	const uint32 NumPixelsInTile = FMath::Square(GetVirtualTextureFeedbackScale());
 	ViewUniformShaderParameters.VirtualTextureFeedbackSampleOffset = (FrameIndex % NumPixelsInTile) + (FrameIndex / NumPixelsInTile);
 	
 	ViewUniformShaderParameters.RuntimeVirtualTextureMipLevel = FVector4(ForceInitToZero);
@@ -1794,8 +1786,7 @@ void FViewInfo::SetupUniformBufferParameters(
 		ViewUniformShaderParameters.WaterData = GIdentityPrimitiveBuffer.PrimitiveSceneDataBufferSRV;
 	}
 
-	ViewUniformShaderParameters.VTFeedbackBuffer = SceneContext.GetVirtualTextureFeedbackUAV();
-	ViewUniformShaderParameters.QuadOverdraw = SceneContext.GetQuadOverdrawBufferUAV();
+	ViewUniformShaderParameters.VTFeedbackBuffer = GVirtualTextureFeedbackGPU.GetUAV();
 
 #if WITH_EDITOR
 	if (EditorVisualizeLevelInstanceBuffer.SRV)
@@ -1817,10 +1808,7 @@ void FViewInfo::InitRHIResources()
 
 	CachedViewUniformShaderParameters = MakeUnique<FViewUniformShaderParameters>();
 
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
-
 	SetupUniformBufferParameters(
-		SceneContext,
 		VolumeBounds,
 		TVC_MAX,
 		*CachedViewUniformShaderParameters);
@@ -3256,154 +3244,9 @@ FSceneRenderer* FSceneRenderer::CreateSceneRenderer(const FSceneViewFamily* InVi
 	return SceneRenderer;
 }
 
-void AddServiceLocalQueuePass(FRDGBuilder& GraphBuilder);
-
-void FSceneRenderer::RenderCustomDepthPassAtLocation(FRDGBuilder& GraphBuilder, int32 Location)
-{		
-	extern TAutoConsoleVariable<int32> CVarCustomDepthOrder;
-	int32 CustomDepthOrder = FMath::Clamp(CVarCustomDepthOrder.GetValueOnRenderThread(), 0, 1);
-
-	if (CustomDepthOrder == Location)
-	{
-		QUICK_SCOPE_CYCLE_COUNTER(STAT_FDeferredShadingSceneRenderer_CustomDepthPass);
-		RenderCustomDepthPass(GraphBuilder);
-		AddServiceLocalQueuePass(GraphBuilder);
-	}
-}
-
-BEGIN_SHADER_PARAMETER_STRUCT(FCustomDepthPassParameters, )
-	SHADER_PARAMETER_STRUCT_INCLUDE(FViewShaderParameters, View)
-	RENDER_TARGET_BINDING_SLOTS()
-END_SHADER_PARAMETER_STRUCT()
-
-static FViewShaderParameters CreateViewShaderParametersWithoutJitter(const FViewInfo& View)
-{
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
-
-	const auto SetupParameters = [&SceneContext](const FViewInfo& View, FViewUniformShaderParameters& Parameters)
-	{
-		FBox VolumeBounds[TVC_MAX];
-		FViewMatrices ModifiedViewMatrices = View.ViewMatrices;
-		ModifiedViewMatrices.HackRemoveTemporalAAProjectionJitter();
-
-		Parameters = *View.CachedViewUniformShaderParameters;
-		View.SetupUniformBufferParameters(SceneContext, ModifiedViewMatrices, ModifiedViewMatrices, VolumeBounds, TVC_MAX, Parameters);
-	};
-
-	FViewUniformShaderParameters ViewUniformParameters;
-	SetupParameters(View, ViewUniformParameters);
-
-	FViewShaderParameters Parameters;
-	Parameters.View = TUniformBufferRef<FViewUniformShaderParameters>::CreateUniformBufferImmediate(ViewUniformParameters, UniformBuffer_SingleFrame);
-
-	if (const FViewInfo* InstancedView = View.GetInstancedView())
-	{
-		SetupParameters(*InstancedView, ViewUniformParameters);
-	}
-
-	Parameters.InstancedView = TUniformBufferRef<FInstancedViewUniformShaderParameters>::CreateUniformBufferImmediate(
-		reinterpret_cast<const FInstancedViewUniformShaderParameters&>(ViewUniformParameters),
-		UniformBuffer_SingleFrame);
-
-	return Parameters;
-}
-
-void FSceneRenderer::RenderCustomDepthPass(FRDGBuilder& GraphBuilder)
-{
-	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(RenderCustomDepthPass);
-
-	// do we have primitives in this pass?
-	bool bPrimitives = false;
-
-	if (!Scene->World || (Scene->World->WorldType != EWorldType::EditorPreview && Scene->World->WorldType != EWorldType::Inactive))
-	{
-		for(int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
-		{
-			const FViewInfo& View = Views[ViewIndex];
-			if (View.bHasCustomDepthPrimitives)
-			{
-				bPrimitives = true;
-				break;
-			}
-		}
-	}
-
-	const bool bMobilePath = (FeatureLevel <= ERHIFeatureLevel::ES3_1);
-	const bool bWritesCustomStencilValues = FSceneRenderTargets::IsCustomDepthPassWritingStencil(FeatureLevel);
-
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
-	const FCustomDepthTextures CustomDepthTextures = SceneContext.RequestCustomDepth(GraphBuilder, bPrimitives);
-
-	if (CustomDepthTextures.CustomDepth)
-	{
-		RDG_GPU_STAT_SCOPE(GraphBuilder, CustomDepth);
-
-		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
-		{
-			RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, Views.Num() > 1, "View%d", ViewIndex);
-
-			FViewInfo& View = Views[ViewIndex];
-
-			if (View.ShouldRenderView())
-			{
-				View.BeginRenderView();
-
-				FCustomDepthPassParameters* PassParameters = GraphBuilder.AllocParameters<FCustomDepthPassParameters>();
-				PassParameters->View = View.GetShaderParameters();
-
-				if (CVarCustomDepthTemporalAAJitter.GetValueOnRenderThread() == 0 && View.AntiAliasingMethod == AAM_TemporalAA)
-				{
-					PassParameters->View = CreateViewShaderParametersWithoutJitter(View);
-				}
-
-				if (bMobilePath)
-				{
-					checkSlow(CustomDepthTextures.MobileCustomDepth && CustomDepthTextures.MobileCustomStencil);
-
-					PassParameters->RenderTargets[0] = FRenderTargetBinding(CustomDepthTextures.MobileCustomDepth, ERenderTargetLoadAction::EClear);
-					PassParameters->RenderTargets[1] = FRenderTargetBinding(CustomDepthTextures.MobileCustomStencil, bWritesCustomStencilValues ? ERenderTargetLoadAction::EClear : ERenderTargetLoadAction::ENoAction);
-
-					PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(
-						CustomDepthTextures.CustomDepth,
-						ERenderTargetLoadAction::EClear,
-						ERenderTargetLoadAction::EClear,
-						FExclusiveDepthStencil::DepthWrite_StencilWrite);
-				}
-				else
-				{
-					PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(
-						CustomDepthTextures.CustomDepth,
-						ERenderTargetLoadAction::EClear,
-						bWritesCustomStencilValues ? ERenderTargetLoadAction::EClear : ERenderTargetLoadAction::ENoAction,
-						FExclusiveDepthStencil::DepthWrite_StencilWrite);
-				}
-
-				GraphBuilder.AddPass(
-					RDG_EVENT_NAME("CustomDepth"),
-					PassParameters,
-					ERDGPassFlags::Raster,
-					[this, &View](FRHICommandListImmediate& RHICmdList)
-				{
-					const bool bMobilePath = FSceneInterface::GetShadingPath(View.GetFeatureLevel()) == EShadingPath::Mobile;
-					static const auto MobileCustomDepthDownSampleLocalCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Mobile.CustomDepthDownSample"));
-					const bool bMobileCustomDepthDownSample = bMobilePath && MobileCustomDepthDownSampleLocalCVar && MobileCustomDepthDownSampleLocalCVar->GetValueOnRenderThread() > 0;
-					SetStereoViewport(RHICmdList, View, bMobileCustomDepthDownSample ? 0.5f : 1.0f);
-
-					View.ParallelMeshDrawCommandPasses[EMeshPass::CustomDepth].DispatchDraw(nullptr, RHICmdList);
-				});
-
-				SceneContext.bCustomDepthIsValid = true;
-			}
-		}
-	}
-}
-
 void FSceneRenderer::OnStartRender(FRHICommandListImmediate& RHICmdList)
 {
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
-
 	FVisualizeTexturePresent::OnStartRender(Views[0]);
-	SceneContext.bCustomDepthIsValid = false;
 
 	for (FViewInfo& View : Views)
 	{
@@ -4022,8 +3865,7 @@ void FRendererModule::RemoveOverlayRenderDelegate(FDelegateHandle InOverlayRende
 void FRendererModule::RenderPostOpaqueExtensions(
 	FRDGBuilder& GraphBuilder,
 	TArrayView<const FViewInfo> Views,
-	const FSceneTextures& SceneTextures,
-	const FSceneRenderTargets& SceneContext)
+	const FSceneTextures& SceneTextures)
 {
 	if (PostOpaqueRenderDelegate.IsBound())
 	{
@@ -4041,7 +3883,7 @@ void FRendererModule::RenderPostOpaqueExtensions(
 			RenderParameters.ProjMatrix = View.ViewMatrices.GetProjectionMatrix();
 			RenderParameters.ColorTexture = SceneTextures.Color.Target;
 			RenderParameters.DepthTexture = SceneTextures.Depth.Target;
-			RenderParameters.NormalTexture = TryRegisterExternalTexture(GraphBuilder, SceneContext.GBufferA);
+			RenderParameters.NormalTexture = SceneTextures.GBufferA;
 			RenderParameters.VelocityTexture = SceneTextures.Velocity;
 			RenderParameters.SmallDepthTexture = SceneTextures.SmallDepth;
 			RenderParameters.ViewUniformBuffer = View.ViewUniformBuffer;
@@ -4060,8 +3902,7 @@ void FRendererModule::RenderPostOpaqueExtensions(
 void FRendererModule::RenderOverlayExtensions(
 	FRDGBuilder& GraphBuilder,
 	TArrayView<const FViewInfo> Views,
-	const FSceneTextures& SceneTextures,
-	const FSceneRenderTargets& SceneContext)
+	const FSceneTextures& SceneTextures)
 {
 	if (OverlayRenderDelegate.IsBound())
 	{
@@ -4089,11 +3930,11 @@ void FRendererModule::RenderOverlayExtensions(
 	}
 }
 
-void FRendererModule::RenderPostResolvedSceneColorExtension(FRDGBuilder& GraphBuilder, FSceneRenderTargets& SceneContext)
+void FRendererModule::RenderPostResolvedSceneColorExtension(FRDGBuilder& GraphBuilder, const FSceneTextures& SceneTextures)
 {
 	if (PostResolvedSceneColorCallbacks.IsBound())
 	{
-		PostResolvedSceneColorCallbacks.Broadcast(GraphBuilder, SceneContext);
+		PostResolvedSceneColorCallbacks.Broadcast(GraphBuilder, SceneTextures);
 	}
 }
 
@@ -4414,7 +4255,7 @@ void AddResolveSceneColorPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, 
 		FResolveSceneColorParameters* PassParameters = GraphBuilder.AllocParameters<FResolveSceneColorParameters>();
 		PassParameters->SceneColor = SceneColor.Target;
 		PassParameters->SceneColorFMask = SceneColorFMask;
-		PassParameters->RenderTargets[0] = FRenderTargetBinding(SceneColor.Resolve, ERenderTargetLoadAction::ENoAction);
+		PassParameters->RenderTargets[0] = FRenderTargetBinding(SceneColor.Resolve, SceneColor.Resolve->HasBeenProduced() ? ERenderTargetLoadAction::ELoad : ERenderTargetLoadAction::ENoAction);
 
 		FRDGTextureRef SceneColorTargetable = SceneColor.Target;
 
@@ -4548,15 +4389,6 @@ void AddResolveSceneColorPass(FRDGBuilder& GraphBuilder, TArrayView<const FViewI
 	}
 }
 
-void FSceneRenderer::ResolveSceneColor(FRHICommandListImmediate& RHICmdList)
-{
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
-
-	FRDGBuilder GraphBuilder(RHICmdList);
-	AddResolveSceneColorPass(GraphBuilder, Views, RegisterExternalTextureMSAA(GraphBuilder, SceneContext.GetSceneColor()));
-	GraphBuilder.Execute();
-}
-
 BEGIN_SHADER_PARAMETER_STRUCT(FResolveSceneDepthParameters, )
 	RDG_TEXTURE_ACCESS(SceneDepth, ERHIAccess::SRVGraphics)
 	RENDER_TARGET_BINDING_SLOTS()
@@ -4659,6 +4491,25 @@ void AddResolveSceneDepthPass(FRDGBuilder& GraphBuilder, TArrayView<const FViewI
 	{
 		AddResolveSceneDepthPass(GraphBuilder, Views[ViewIndex], SceneDepth);
 	}
+}
+
+void VirtualTextureFeedbackBegin(FRDGBuilder& GraphBuilder, TArrayView<const FViewInfo> Views, FIntPoint SceneTextureExtent)
+{
+	TArray<FIntRect, TInlineAllocator<4>> ViewRects;
+	ViewRects.AddUninitialized(Views.Num());
+	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
+	{
+		ViewRects[ViewIndex] = Views[ViewIndex].ViewRect;
+	}
+
+	FVirtualTextureFeedbackBufferDesc Desc;
+	Desc.Init2D(SceneTextureExtent, ViewRects, GetVirtualTextureFeedbackScale());
+	GVirtualTextureFeedbackGPU.Begin(GraphBuilder, Desc);
+}
+
+void VirtualTextureFeedbackEnd(FRDGBuilder& GraphBuilder)
+{
+	GVirtualTextureFeedbackGPU.End(GraphBuilder);
 }
 
 FRDGTextureRef CreateHalfResolutionDepthCheckerboardMinMax(FRDGBuilder& GraphBuilder, TArrayView<const FViewInfo> Views, FRDGTextureRef SceneDepthTexture)

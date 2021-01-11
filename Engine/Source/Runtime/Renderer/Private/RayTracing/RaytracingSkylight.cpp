@@ -650,7 +650,7 @@ void FDeferredShadingSceneRenderer::CompositeRayTracingSkyLight(
 			RDG_EVENT_NAME("GlobalIlluminationComposite"),
 			PassParameters,
 			ERDGPassFlags::Raster,
-			[this, &View, PassParameters, SceneTextureExtent = SceneTextures.Extent](FRHICommandListImmediate& RHICmdList)
+			[this, &View, PassParameters, SceneTextureExtent = SceneTextures.Config.Extent](FRHICommandListImmediate& RHICmdList)
 		{
 			TShaderMapRef<FPostProcessVS> VertexShader(View.ShaderMap);
 			TShaderMapRef<FCompositeSkyLightPS> PixelShader(View.ShaderMap);
@@ -765,6 +765,7 @@ IMPLEMENT_SHADER_TYPE(, FVisualizeSkyLightMipTreePS, TEXT("/Engine/Private/RayTr
 void FDeferredShadingSceneRenderer::VisualizeSkyLightMipTree(
 	FRHICommandListImmediate& RHICmdList,
 	const FViewInfo& View,
+	const TRefCountPtr<IPooledRenderTarget>& SceneColor,
 	FRWBuffer& SkyLightMipTreePosX,
 	FRWBuffer& SkyLightMipTreeNegX,
 	FRWBuffer& SkyLightMipTreePosY,
@@ -774,8 +775,6 @@ void FDeferredShadingSceneRenderer::VisualizeSkyLightMipTree(
 	const FIntVector& SkyLightMipDimensions)
 {
 	// Allocate render target
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
-	TRefCountPtr<IPooledRenderTarget> SceneColor = SceneContext.GetSceneColor();
 	FPooledRenderTargetDesc Desc = SceneColor->GetDesc();
 	Desc.Flags &= ~(TexCreate_FastVRAM | TexCreate_Transient);
 	TRefCountPtr<IPooledRenderTarget> SkyLightMipTreeRT;
@@ -825,7 +824,7 @@ void FDeferredShadingSceneRenderer::VisualizeSkyLightMipTree(
 		View.ViewRect.Min.X, View.ViewRect.Min.Y,
 		View.ViewRect.Width(), View.ViewRect.Height(),
 		FIntPoint(View.ViewRect.Width(), View.ViewRect.Height()),
-		SceneContext.GetBufferSizeXY(),
+		GetSceneTextureExtent(),
 		VertexShader);
 	RHICmdList.EndRenderPass();
 	GVisualizeTexture.SetCheckPoint(RHICmdList, SkyLightMipTreeRT);

@@ -120,15 +120,12 @@ void FTextureShareDisplayManager::PreRenderViewFamily_RenderThread(FRHICommandLi
 	CurrentSceneViewFamily = &InViewFamily;
 }
 
-void FTextureShareDisplayManager::OnResolvedSceneColor_RenderThread(FRDGBuilder& GraphBuilder, class FSceneRenderTargets& SceneContext)
+void FTextureShareDisplayManager::OnResolvedSceneColor_RenderThread(FRDGBuilder& GraphBuilder, const FSceneTextures& SceneTextures)
 {
 	// Forward renderer cb with saved viewfamily (Call from RendererModule->GetResolvedSceneColorCallbacks)
 	if (IsSceneSharingValid() && CurrentSceneViewFamily)
 	{
-		AddPass(GraphBuilder, [this, &SceneContext](FRHICommandListImmediate& RHICmdList)
-		{
-			TextureShareModule.OnResolvedSceneColor_RenderThread(RHICmdList, SceneContext, *CurrentSceneViewFamily);
-		});
+		TextureShareModule.OnResolvedSceneColor_RenderThread(GraphBuilder, SceneTextures, *CurrentSceneViewFamily);
 	}
 }
 

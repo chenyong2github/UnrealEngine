@@ -1782,7 +1782,7 @@ void FPixelShaderInOut_MainPS(
 #endif
 
 
-// the following needs to match to the code in FSceneRenderTargets::GetGBufferRenderTargets()
+// the following needs to match to the code in FSceneTextures::GetGBufferRenderTargets()
 #define PIXELSHADEROUTPUT_BASEPASS 1
 //#if USES_GBUFFER
 //#define PIXELSHADEROUTPUT_MRT0 (!SELECTIVE_BASEPASS_OUTPUTS || NEEDS_BASEPASS_VERTEX_FOGGING || USES_EMISSIVE_COLOR || ALLOW_STATIC_LIGHTING || MATERIAL_SHADINGMODEL_SINGLELAYERWATER)

@@ -679,7 +679,7 @@ FAsyncResults ProcessAsync(FRDGBuilder& GraphBuilder, TArrayView<const FViewInfo
 			FGTAOCommonParameters CommonParameters = GetGTAOCommonParameters(GraphBuilder, View, SceneTextures.UniformBuffer, GTAOType);
 
 			{
-				const FIntPoint HorizonTextureSize = FIntPoint::DivideAndRoundUp(SceneTextures.Extent, CommonParameters.DownscaleFactor);
+				const FIntPoint HorizonTextureSize = FIntPoint::DivideAndRoundUp(SceneTextures.Config.Extent, CommonParameters.DownscaleFactor);
 				const FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(HorizonTextureSize, PF_R8G8, FClearValueBinding::White, TexCreate_UAV | TexCreate_RenderTargetable);
 				AsyncResults.HorizonsTexture = GraphBuilder.CreateTexture(Desc, TEXT("ScreenSpaceGTAOHorizons"));
 			}

@@ -577,9 +577,7 @@ void FLayer::Initialize_RenderThread(const FSettings* Settings, FCustomPresent* 
 			}
 
 			FClearValueBinding ColorTextureBinding = FClearValueBinding();
-
-			FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
-			FClearValueBinding DepthTextureBinding = SceneContext.GetDefaultDepthClear();
+			FClearValueBinding DepthTextureBinding = GetSceneDepthClearValue();
 
 			SwapChain = CustomPresent->CreateSwapChain_RenderThread(SizeX, SizeY, ColorFormat, ColorTextureBinding, NumMips, NumSamples, NumSamplesTileMem, ResourceType, ColorTextures, ColorTexCreateFlags, *FString::Printf(TEXT("Oculus Color Swapchain %d"), OvrpLayerId));
 

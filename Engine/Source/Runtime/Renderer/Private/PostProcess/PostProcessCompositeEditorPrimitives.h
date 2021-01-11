@@ -4,8 +4,6 @@
 
 #include "ScreenPass.h"
 #include "OverridePassSequence.h"
-#include "ScenePrivate.h"
-#include "SceneRenderTargets.h"
 
 #if WITH_EDITOR
 
@@ -46,7 +44,7 @@ public:
 };
 
 // Constructs a new view suitable for rendering editor primitives (outlines, helpers, etc).
-const FViewInfo* UpdateEditorPrimitiveView(FSceneRenderTargets& SceneContext, const FViewInfo& ParentView, FIntRect ViewRect);
+const FViewInfo* CreateEditorPrimitiveView(const FViewInfo& ParentView, FIntRect ViewRect, uint32 NumSamples);
 
 struct FEditorPrimitiveInputs
 {

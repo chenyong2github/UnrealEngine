@@ -464,6 +464,7 @@ IMPLEMENT_GLOBAL_SHADER(FMarkRadianceProbesUsedByScreenProbesCS, "/Engine/Privat
 void RadianceCacheMarkUsedProbes(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
+	const FMinimalSceneTextures& SceneTextures,
 	const LumenProbeHierarchy::FHierarchyParameters* ProbeHierarchyParameters,
 	const FScreenProbeParameters* ScreenProbeParameters,
 	const LumenRadianceCache::FRadianceCacheParameters& RadianceCacheParameters,
@@ -522,7 +523,7 @@ void RadianceCacheMarkUsedProbes(
 		FMarkRadianceProbesUsedByScreenProbesCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FMarkRadianceProbesUsedByScreenProbesCS::FParameters>();
 		PassParameters->RWRadianceProbeIndirectionTexture = RadianceProbeIndirectionTextureUAV;
 		PassParameters->View = View.ViewUniformBuffer;
-		PassParameters->SceneTexturesStruct = CreateSceneTextureUniformBuffer(GraphBuilder, View.FeatureLevel, ESceneTextureSetupMode::SceneDepth);
+		PassParameters->SceneTexturesStruct = SceneTextures.UniformBuffer;
 		PassParameters->ScreenProbeParameters = *ScreenProbeParameters;
 		PassParameters->VisualizeLumenScene = View.Family->EngineShowFlags.VisualizeLumenScene != 0 ? 1 : 0;
 		PassParameters->RadianceCacheParameters = RadianceCacheParameters;
@@ -1097,6 +1098,7 @@ bool UpdateRadianceCacheState(FRDGBuilder& GraphBuilder, const FViewInfo& View)
 
 void FDeferredShadingSceneRenderer::RenderRadianceCache(
 	FRDGBuilder& GraphBuilder, 
+	const FMinimalSceneTextures& SceneTextures,
 	const FLumenCardTracingInputs& TracingInputs, 
 	const FViewInfo& View, 
 	const LumenProbeHierarchy::FHierarchyParameters* ProbeHierarchyParameters,
@@ -1206,7 +1208,7 @@ void FDeferredShadingSceneRenderer::RenderRadianceCache(
 		}
 
 		// Mark indirection entries around positions that will be sampled by dependent features as used
-		RadianceCacheMarkUsedProbes(GraphBuilder, View, ProbeHierarchyParameters, ScreenProbeParameters, RadianceCacheParameters, RadianceProbeIndirectionTextureUAV);
+		RadianceCacheMarkUsedProbes(GraphBuilder, View, SceneTextures, ProbeHierarchyParameters, ScreenProbeParameters, RadianceCacheParameters, RadianceProbeIndirectionTextureUAV);
 
 		const bool bPersistentCache = !GRadianceCacheForceFullUpdate 
 			&& View.ViewState 

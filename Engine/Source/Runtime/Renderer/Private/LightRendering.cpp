@@ -598,8 +598,6 @@ private:
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI, View.ViewUniformBuffer);
 		FGlobalShader::SetParameters<FStrataGlobalUniformParameters>(RHICmdList, ShaderRHI, Strata::BindStrataGlobalUniformParameters(View));
 
-		FSceneRenderTargets& SceneRenderTargets = FSceneRenderTargets::Get();
-
 		if(LightAttenuationTexture.IsBound())
 		{
 			if (!ScreenShadowMaskTexture)
@@ -1192,22 +1190,34 @@ BEGIN_SHADER_PARAMETER_STRUCT(FRenderLightParameters, )
 END_SHADER_PARAMETER_STRUCT()
 
 void GetRenderLightParameters(
+	FRDGTextureRef SceneColorTexture,
+	FRDGTextureRef SceneDepthTexture,
+	TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer,
+	FRDGTextureRef ShadowMaskTexture,
+	FRDGTextureRef LightingChannelsTexture,
+	const FHairStrandsVisibilityViews* InHairVisibilityViews,
+	FRenderLightParameters& Parameters)
+{
+	Parameters.SceneTextures = SceneTexturesUniformBuffer;
+	Parameters.ShadowMaskTexture = ShadowMaskTexture;
+	Parameters.LightingChannelsTexture = LightingChannelsTexture;
+	Parameters.HairCategorizationTexture = InHairVisibilityViews && InHairVisibilityViews->HairDatas.Num() > 0 ? InHairVisibilityViews->HairDatas[0].CategorizationTexture : nullptr;
+	Parameters.RenderTargets[0] = FRenderTargetBinding(SceneColorTexture, ERenderTargetLoadAction::ELoad);
+
+	if (SceneDepthTexture)
+	{
+		Parameters.RenderTargets.DepthStencil = FDepthStencilBinding(SceneDepthTexture, ERenderTargetLoadAction::ELoad, ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthRead_StencilWrite);
+	}
+}
+
+void GetRenderLightParameters(
 	const FMinimalSceneTextures& SceneTextures,
 	FRDGTextureRef ShadowMaskTexture,
 	FRDGTextureRef LightingChannelsTexture,
 	const FHairStrandsVisibilityViews* InHairVisibilityViews,
 	FRenderLightParameters& Parameters)
 {
-	Parameters.SceneTextures = SceneTextures.UniformBuffer;
-	Parameters.ShadowMaskTexture = ShadowMaskTexture;
-	Parameters.LightingChannelsTexture = LightingChannelsTexture;
-	Parameters.HairCategorizationTexture = InHairVisibilityViews && InHairVisibilityViews->HairDatas.Num() > 0 ? InHairVisibilityViews->HairDatas[0].CategorizationTexture : nullptr;
-	Parameters.RenderTargets[0] = FRenderTargetBinding(SceneTextures.Color.Target, ERenderTargetLoadAction::ELoad);
-
-	if (SceneTextures.Depth.IsValid())
-	{
-		Parameters.RenderTargets.DepthStencil = FDepthStencilBinding(SceneTextures.Depth.Target, ERenderTargetLoadAction::ELoad, ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthRead_StencilWrite);
-	}
+	GetRenderLightParameters(SceneTextures.Color.Target, SceneTextures.Depth.Target, SceneTextures.UniformBuffer, ShadowMaskTexture, LightingChannelsTexture, InHairVisibilityViews, Parameters);
 }
 
 void FDeferredShadingSceneRenderer::RenderLights(
@@ -1433,7 +1443,7 @@ void FDeferredShadingSceneRenderer::RenderLights(
 
 				if (bDrawShadows || bDrawLightFunction || bDrawPreviewIndicator)
 				{
-					const FRDGTextureDesc Desc(FRDGTextureDesc::Create2D(SceneTextures.Extent, PF_B8G8R8A8, FClearValueBinding::White, TexCreate_RenderTargetable | TexCreate_ShaderResource | GFastVRamConfig.ScreenSpaceShadowMask));
+					const FRDGTextureDesc Desc(FRDGTextureDesc::Create2D(SceneTextures.Config.Extent, PF_B8G8R8A8, FClearValueBinding::White, TexCreate_RenderTargetable | TexCreate_ShaderResource | GFastVRamConfig.ScreenSpaceShadowMask));
 					ScreenShadowMaskTexture = GraphBuilder.CreateTexture(Desc, TEXT("ShadowMaskTexture"));
 					if (bUseHairLighting)
 					{
@@ -1557,7 +1567,7 @@ void FDeferredShadingSceneRenderer::RenderLights(
 								FRDGTextureRef RayTracingShadowMaskTexture;
 								{
 									FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(
-										SceneTextures.Extent,
+										SceneTextures.Config.Extent,
 										PF_FloatRGBA,
 										FClearValueBinding::Black,
 										TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV);
@@ -1567,7 +1577,7 @@ void FDeferredShadingSceneRenderer::RenderLights(
 								FRDGTextureRef RayDistanceTexture;
 								{
 									FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(
-										SceneTextures.Extent,
+										SceneTextures.Config.Extent,
 										PF_R16F,
 										FClearValueBinding::Black,
 										TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV);
@@ -1579,7 +1589,7 @@ void FDeferredShadingSceneRenderer::RenderLights(
 								if (bUseHairLighting)
 								{
 									FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(
-										SceneTextures.Extent,
+										SceneTextures.Config.Extent,
 										PF_FloatRGBA,
 										FClearValueBinding::Black,
 										TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV);
@@ -1696,7 +1706,7 @@ void FDeferredShadingSceneRenderer::RenderLights(
 						FRDGTextureRef RayTracingShadowMaskTexture;
 						{
 							FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(
-								SceneTextures.Extent,
+								SceneTextures.Config.Extent,
 								PF_FloatRGBA,
 								FClearValueBinding::Black,
 								TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV);
@@ -1706,7 +1716,7 @@ void FDeferredShadingSceneRenderer::RenderLights(
 						FRDGTextureRef RayDistanceTexture;
 						{
 							FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(
-								SceneTextures.Extent,
+								SceneTextures.Config.Extent,
 								PF_R16F,
 								FClearValueBinding::Black,
 								TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV);
@@ -1721,7 +1731,7 @@ void FDeferredShadingSceneRenderer::RenderLights(
 						if (bUseHairLighting)
 						{
 							FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(
-								SceneTextures.Extent,
+								SceneTextures.Config.Extent,
 								PF_FloatRGBA,
 								FClearValueBinding::Black,
 								TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV);
@@ -1733,7 +1743,7 @@ void FDeferredShadingSceneRenderer::RenderLights(
 						FRDGTextureRef RayTracingShadowMaskTileTexture;
 						{
 							FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(
-								SceneTextures.Extent,
+								SceneTextures.Config.Extent,
 								PF_FloatRGBA,
 								FClearValueBinding::Black,
 								TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV);
@@ -2244,7 +2254,7 @@ void FDeferredShadingSceneRenderer::RenderLight(
 				View.ViewRect.Min.X, View.ViewRect.Min.Y,
 				View.ViewRect.Width(), View.ViewRect.Height(),
 				View.ViewRect.Size(),
-				FSceneRenderTargets::Get().GetBufferSizeXY(),
+				GetSceneTextureExtent(),
 				VertexShader,
 				EDRF_UseTriangleOptimization);
 		}
@@ -2421,12 +2431,8 @@ void FDeferredShadingSceneRenderer::RenderLightForHair(
 			continue;
 		}
 
-		FMinimalSceneTextures SceneTextures{};
-		SceneTextures.Color = HairVisibilityData.SampleLightingBuffer;
-		SceneTextures.UniformBuffer = SceneTexturesUniformBuffer;
-
 		FRenderLightForHairParameters* PassParameters = GraphBuilder.AllocParameters<FRenderLightForHairParameters>();
-		GetRenderLightParameters(SceneTextures, HairShadowMaskTexture, LightingChannelsTexture, InHairVisibilityViews, PassParameters->Light);
+		GetRenderLightParameters(HairVisibilityData.SampleLightingBuffer, nullptr, SceneTexturesUniformBuffer, HairShadowMaskTexture, LightingChannelsTexture, InHairVisibilityViews, PassParameters->Light);
 		PassParameters->HairIndexAndCountTexture = HairVisibilityData.NodeIndex;
 
 		PassParameters->HairTransmittanceMask = InTransmittanceMaskData.TransmittanceMask;

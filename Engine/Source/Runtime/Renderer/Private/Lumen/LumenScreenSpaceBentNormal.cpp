@@ -51,19 +51,19 @@ FScreenSpaceBentNormalParameters ComputeScreenSpaceBentNormal(
 	FRDGBuilder& GraphBuilder, 
 	const FScene* Scene,
 	const FViewInfo& View, 
+	const FMinimalSceneTextures& SceneTextures,
 	FRDGTextureRef LightingChannelsTexture,
 	const FScreenProbeParameters& ScreenProbeParameters)
 {
 	FScreenSpaceBentNormalParameters OutParameters;
 
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
-	FRDGTextureDesc ScreenBentNormalDesc(FRDGTextureDesc::Create2D(SceneContext.GetBufferSizeXY(), PF_R8G8B8A8, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV));
+	FRDGTextureDesc ScreenBentNormalDesc(FRDGTextureDesc::Create2D(GetSceneTextureExtent(), PF_R8G8B8A8, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV));
 	FRDGTextureRef ScreenBentNormal = GraphBuilder.CreateTexture(ScreenBentNormalDesc, TEXT("ScreenBentNormal"));
 
 	{
 		FScreenSpaceBentNormalCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FScreenSpaceBentNormalCS::FParameters>();
 		PassParameters->RWScreenBentNormal = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(ScreenBentNormal));
-		PassParameters->SceneTexturesStruct = CreateSceneTextureUniformBuffer(GraphBuilder, View.FeatureLevel);
+		PassParameters->SceneTexturesStruct = SceneTextures.UniformBuffer;
 		PassParameters->ScreenProbeParameters = ScreenProbeParameters;
 		PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
 		PassParameters->LightingChannelsTexture = LightingChannelsTexture;

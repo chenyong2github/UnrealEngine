@@ -530,7 +530,7 @@ static void AddVoxelPlainRaymarchingPass(
 	const FSceneView& View,
 	const FHairGroupInstance* Instance,
 	const FShaderDrawDebugData* ShaderDrawData,
-	TRefCountPtr<IPooledRenderTarget>& InOutputTexture)
+	FRDGTextureRef OutputTexture)
 {
 #if 0 // #hair_todo: renable if needed
 	FGlobalShaderMap* ShaderMap = GetGlobalShaderMap(ERHIFeatureLevel::SM5);
@@ -546,7 +546,6 @@ static void AddVoxelPlainRaymarchingPass(
 		FSceneTextureParameters SceneTextures;
 		SetupSceneTextureParameters(GraphBuilder, &SceneTextures);
 
-		FRDGTextureRef OutputTexture = GraphBuilder.RegisterExternalTexture(InOutputTexture);
 		const FIntPoint OutputResolution(OutputTexture->Desc.Extent);
 		const FHairCardsVoxel& CardsVoxel = Instance->HairGroupPublicData->VFInput.Cards.Voxel;
 
@@ -610,7 +609,7 @@ static void AddDrawDebugCardsAtlasPass(
 	const FSceneView& View,
 	const FHairGroupInstance* Instance,
 	const FShaderDrawDebugData* ShaderDrawData,
-	TRefCountPtr<IPooledRenderTarget>& InOutputTexture)
+	FRDGTextureRef SceneColorTexture)
 {
 	FGlobalShaderMap* ShaderMap = GetGlobalShaderMap(ERHIFeatureLevel::SM5);
 
@@ -625,7 +624,6 @@ static void AddDrawDebugCardsAtlasPass(
 		return;
 	}
 
-	FRDGTextureRef SceneColorTexture = GraphBuilder.RegisterExternalTexture(InOutputTexture, TEXT("SceneColorTexture"));
 	FTextureReferenceRHIRef AtlasTexture = nullptr;
 
 	const int32 DebugMode = FMath::Clamp(GHairCardsAtlasDebug, 1, 6);
@@ -786,7 +784,7 @@ void RunHairStrandsDebug(
 	const FGPUSkinCache* SkinCache,
 	const FShaderDrawDebugData* ShaderDrawData,
 	const TArray<FHairGroupInstance*>& Instances,
-	TRefCountPtr<IPooledRenderTarget>& SceneColorRT,
+	FRDGTextureRef SceneColorTexture,
 	FIntRect Viewport,
 	const TUniformBufferRef<FViewUniformShaderParameters>& ViewUniformBuffer)
 {
@@ -794,23 +792,22 @@ void RunHairStrandsDebug(
 
 	if (HairDebugMode == EHairDebugMode::MacroGroups)
 	{
-		FRDGTextureRef SceneColor = GraphBuilder.RegisterExternalTexture(SceneColorRT);
 		FHairDebugCanvasParameter* PassParameters = GraphBuilder.AllocParameters<FHairDebugCanvasParameter>();
 		PassParameters->View = View.ViewUniformBuffer;
-		PassParameters->RenderTargets[0] = FRenderTargetBinding(SceneColor, ERenderTargetLoadAction::ELoad, 0);
+		PassParameters->RenderTargets[0] = FRenderTargetBinding(SceneColorTexture, ERenderTargetLoadAction::ELoad, 0);
 
 		const FSceneView* LocalView = &View;
 		GraphBuilder.AddPass(
 			RDG_EVENT_NAME("HairStrandsMeshProjectionMeshDebug"),
 			PassParameters,
 			ERDGPassFlags::Raster,
-			[LocalView, Viewport, WorldType, Instances, SceneColorRT](FRHICommandListImmediate& RHICmdList)
+			[LocalView, Viewport, WorldType, Instances, SceneColorTexture](FRHICommandListImmediate& RHICmdList)
 		{
 			const float YStep = 14;
 			float ClusterY = 68;
 
 			// Component part of the clusters
-			GroomDebug::FRenderTargetTemp TempRenderTarget(Viewport, (const FTexture2DRHIRef&)SceneColorRT->GetRenderTargetItem().TargetableTexture);
+			GroomDebug::FRenderTargetTemp TempRenderTarget(Viewport, FTexture2DRHIRef(SceneColorTexture->GetRHI()->GetTexture2D()));
 			FCanvas Canvas(&TempRenderTarget, nullptr, LocalView->Family->CurrentRealTime, LocalView->Family->CurrentWorldTime, LocalView->Family->DeltaWorldTime, LocalView->FeatureLevel);
 			Canvas.SetRenderTargetRect(Viewport);
 
@@ -873,7 +870,6 @@ void RunHairStrandsDebug(
 
 	if (HairDebugMode == EHairDebugMode::MeshProjection)
 	{
-		FRDGTextureRef SceneColorTexture = GraphBuilder.RegisterExternalTexture(SceneColorRT, TEXT("SceneColorTexture"));
 		{
 			bool bClearDepth = true;
 			FRDGTextureRef DepthTexture;
@@ -1021,7 +1017,7 @@ void RunHairStrandsDebug(
 	{
 		for (FHairGroupInstance* Instance : Instances)
 		{
-			AddVoxelPlainRaymarchingPass(GraphBuilder, View, Instance, ShaderDrawData, SceneColorRT);
+			AddVoxelPlainRaymarchingPass(GraphBuilder, View, Instance, ShaderDrawData, SceneColorTexture);
 		}
 	}
 
@@ -1029,7 +1025,7 @@ void RunHairStrandsDebug(
 	{
 		for (FHairGroupInstance* Instance : Instances)
 		{
-			AddDrawDebugCardsAtlasPass(GraphBuilder, View, Instance, ShaderDrawData, SceneColorRT);
+			AddDrawDebugCardsAtlasPass(GraphBuilder, View, Instance, ShaderDrawData, SceneColorTexture);
 		}
 	}
 

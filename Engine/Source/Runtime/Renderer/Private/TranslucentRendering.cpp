@@ -326,11 +326,9 @@ FSeparateTranslucencyDimensions UpdateTranslucencyTimers(FRHICommandListImmediat
 		EffectiveScale = 0.5f;
 	}
 
-	const FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
-
 	FSeparateTranslucencyDimensions Dimensions;
-	Dimensions.Extent = GetScaledExtent(SceneContext.GetBufferSizeXY(), EffectiveScale);
-	Dimensions.NumSamples = SceneContext.GetNumSceneColorMSAASamples(Views[0].FeatureLevel);
+	Dimensions.Extent = GetScaledExtent(GetSceneTextureExtent(), EffectiveScale);
+	Dimensions.NumSamples = GetSceneTextureNumSamples();
 	Dimensions.Scale = EffectiveScale;
 	return Dimensions;
 }
@@ -711,7 +709,7 @@ TRDGUniformBufferRef<FTranslucentBasePassUniformParameters> CreateTranslucentBas
 		FIntPoint ViewportExtent = View.ViewRect.Size();
 
 		// Scene render targets might not exist yet; avoids NaNs.
-		FIntPoint EffectiveBufferSize = FSceneRenderTargets::Get().GetBufferSizeXY();
+		FIntPoint EffectiveBufferSize = GetSceneTextureExtent();
 		EffectiveBufferSize.X = FMath::Max(EffectiveBufferSize.X, 1);
 		EffectiveBufferSize.Y = FMath::Max(EffectiveBufferSize.Y, 1);
 

@@ -163,14 +163,6 @@ FRDGPassRef FRDGBuilder::AddPass(
 	return AddPass(Forward<FRDGEventName>(Name), ParameterStructType::FTypeInfo::GetStructMetadata(), ParameterStruct, Flags, Forward<ExecuteLambdaType>(ExecuteLambda));
 }
 
-inline void FRDGBuilder::QueueTextureExtraction(
-	FRDGTextureRef Texture,
-	TRefCountPtr<IPooledRenderTarget>* OutTexturePtr,
-	bool bTransitionToRead)
-{
-	QueueTextureExtraction(Texture, OutTexturePtr, bTransitionToRead ? kDefaultAccessFinal : ERHIAccess::Unknown);
-}
-
 inline void FRDGBuilder::QueueTextureExtraction(FRDGTextureRef Texture, TRefCountPtr<IPooledRenderTarget>* OutTexturePtr, ERHIAccess AccessFinal)
 {
 	QueueTextureExtraction(Texture, OutTexturePtr);

@@ -15,7 +15,6 @@ class FLightCacheInterface;
 class FMaterial;
 class FPrimitiveSceneInfo;
 class FSceneInterface;
-class FSceneRenderTargets;
 class FSceneView;
 class FSceneViewFamily;
 class FSceneViewStateInterface;
@@ -45,9 +44,7 @@ public:
 	virtual void UpdateStaticDrawListsForMaterials(const TArray<const FMaterial*>& Materials) override;
 	virtual FSceneViewStateInterface* AllocateViewState() override;
 	virtual uint32 GetNumDynamicLightsAffectingPrimitive(const FPrimitiveSceneInfo* PrimitiveSceneInfo,const FLightCacheInterface* LCI) override;
-	virtual void ReallocateSceneRenderTargets() override;
 	virtual void OnWorldCleanup(UWorld* World, bool bSessionEnded, bool bCleanupResources, bool bWorldChanged) override;
-	virtual void SceneRenderTargetsSetBufferSize(uint32 SizeX, uint32 SizeY) override;
 	virtual void InitializeSystemTextures(FRHICommandListImmediate& RHICmdList);
 	virtual void DrawTileMesh(FRHICommandListImmediate& RHICmdList, FMeshPassProcessorRenderState& DrawRenderState, const FSceneView& View, FMeshBatch& Mesh, bool bIsHitTesting, const FHitProxyId& HitProxyId, bool bUse128bitRT = false) override;
 	virtual void DebugLogOnCrash() override;
@@ -111,16 +108,14 @@ public:
 	void RenderPostOpaqueExtensions(
 		FRDGBuilder& GraphBuilder,
 		TArrayView<const FViewInfo> Views,
-		const FSceneTextures& SceneTextures,
-		const FSceneRenderTargets& SceneContext);
+		const FSceneTextures& SceneTextures);
 
 	void RenderOverlayExtensions(
 		FRDGBuilder& GraphBuilder,
 		TArrayView<const FViewInfo> Views,
-		const FSceneTextures& SceneTextures,
-		const FSceneRenderTargets& SceneContext);
+		const FSceneTextures& SceneTextures);
 
-	void RenderPostResolvedSceneColorExtension(FRDGBuilder& GraphBuilder, FSceneRenderTargets& SceneContext);
+	void RenderPostResolvedSceneColorExtension(FRDGBuilder& GraphBuilder, const FSceneTextures& SceneTextures);
 
 private:
 	TSet<FSceneInterface*> AllocatedScenes;

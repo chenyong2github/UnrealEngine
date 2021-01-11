@@ -743,6 +743,7 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 			check(ViewPipelineState.DiffuseIndirectDenoiser == IScreenSpaceDenoiser::EMode::Disabled);
 			DenoiserOutputs = RenderLumenProbeHierarchy(
 				GraphBuilder,
+				SceneTextures,
 				CommonDiffuseParameters, PrevSceneColorMip,
 				View, &View.PrevViewInfo);
 		}
@@ -769,7 +770,7 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 
 			DenoiserOutputs = RenderLumenScreenProbeGather(
 				GraphBuilder, 
-				SceneTextures.UniformBuffer,
+				SceneTextures,
 				PrevSceneColorMip, 
 				LightingChannelsTexture,
 				View,
@@ -781,7 +782,7 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 			DenoiserOutputs.Textures[2] = RenderLumenReflections(
 				GraphBuilder,
 				View,
-				CommonDiffuseParameters.SceneTextures, 
+				SceneTextures, 
 				MeshSDFGridParameters,
 				LumenReflectionCompositeParameters);
 
@@ -887,7 +888,7 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 		if (AmbientOcclusionMask && ViewPipelineState.AmbientOcclusionMethod != EAmbientOcclusionMethod::SSAO)
 		{
 			//ensureMsgf(!bApplySSAO, TEXT("Looks like SSAO has been computed for this view but is being overridden."));
-			ensureMsgf(Views.Num() == 1, TEXT("Need to add support for one AO texture per view in FSceneRenderTargets")); // TODO.
+			ensureMsgf(Views.Num() == 1, TEXT("Need to add support for one AO texture per view in FSceneTextures")); // TODO.
 			SceneTextures.ScreenSpaceAO = AmbientOcclusionMask;
 		}
 
@@ -1094,7 +1095,7 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 						View.ViewRect.Min.X, View.ViewRect.Min.Y,
 						View.ViewRect.Width(), View.ViewRect.Height(),
 						View.ViewRect.Size(),
-						FSceneRenderTargets::Get().GetBufferSizeXY(),
+						GetSceneTextureExtent(),
 						VertexShader,
 						View.StereoPass, 
 						false, // TODO.
@@ -1246,7 +1247,7 @@ void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLighting(
 
 				RenderRayTracingReflections(
 					GraphBuilder,
-					SceneTextureParameters,
+					SceneTextures,
 					View,
 					DenoiserMode,
 					RayTracingReflectionOptions,

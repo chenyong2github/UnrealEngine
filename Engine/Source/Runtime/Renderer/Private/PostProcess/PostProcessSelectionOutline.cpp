@@ -50,11 +50,10 @@ FScreenPassTexture AddSelectionOutlinePass(FRDGBuilder& GraphBuilder, const FVie
 
 	RDG_EVENT_SCOPE(GraphBuilder, "EditorSelectionOutlines");
 
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
-	const uint32 MsaaSampleCount = SceneContext.GetEditorMSAACompositingSampleCount();
+	const uint32 NumSamples = GetEditorPrimitiveNumSamples();
 
 	// Patch uniform buffers with updated state for rendering the outline mesh draw commands.
-	const FViewInfo* EditorView = UpdateEditorPrimitiveView(SceneContext, View, Inputs.SceneColor.ViewRect);
+	const FViewInfo* EditorView = CreateEditorPrimitiveView(View, Inputs.SceneColor.ViewRect, NumSamples);
 
 	FRDGTextureRef DepthStencilTexture = nullptr;
 
@@ -67,7 +66,7 @@ FScreenPassTexture AddSelectionOutlinePass(FRDGBuilder& GraphBuilder, const FVie
 			// This is a reversed Z depth surface, so 0.0f is the far plane.
 			DepthStencilDesc.ClearValue = FClearValueBinding((float)ERHIZBuffer::FarPlane, 0);
 			DepthStencilDesc.Flags = TexCreate_DepthStencilTargetable | TexCreate_ShaderResource;
-			DepthStencilDesc.NumSamples = MsaaSampleCount;
+			DepthStencilDesc.NumSamples = NumSamples;
 
 			DepthStencilTexture = GraphBuilder.CreateTexture(DepthStencilDesc, TEXT("SelectionOutline"));
 		}
@@ -172,7 +171,7 @@ FScreenPassTexture AddSelectionOutlinePass(FRDGBuilder& GraphBuilder, const FVie
 		PassParameters->BSPSelectionIntensity = GEngine->BSPSelectionHighlightIntensity;
 
 		FSelectionOutlinePS::FPermutationDomain PermutationVector;
-		PermutationVector.Set<FSelectionOutlinePS::FSampleCountDimension>(MsaaSampleCount);
+		PermutationVector.Set<FSelectionOutlinePS::FSampleCountDimension>(NumSamples);
 
 		TShaderMapRef<FSelectionOutlinePS> PixelShader(View.ShaderMap, PermutationVector);
 

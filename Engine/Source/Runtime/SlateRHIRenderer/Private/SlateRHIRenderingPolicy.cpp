@@ -1047,8 +1047,13 @@ void FSlateRHIRenderingPolicy::DrawElements(
 					const bool bUseInstancing = RenderBatch.InstanceCount > 0 && RenderBatch.InstanceData != nullptr;
 					TShaderRef<FSlateMaterialShaderVS> VertexShader = GetMaterialVertexShader(&Material, bUseInstancing);
 
-					if (VertexShader.IsValid() && PixelShader.IsValid() && IsSceneTexturesValid(RHICmdList))
+					FRHIUniformBuffer* SceneTextureUniformBuffer = GetSceneTextureExtracts().GetUniformBuffer();
+
+					if (VertexShader.IsValid() && PixelShader.IsValid() && SceneTextureUniformBuffer)
 					{
+						const FUniformBufferStaticBindings StaticUniformBuffers(SceneTextureUniformBuffer);
+						SCOPED_UNIFORM_BUFFER_GLOBAL_BINDINGS(RHICmdList, StaticUniformBuffers);
+
 #if WITH_SLATE_VISUALIZERS
 						if (CVarShowSlateBatching.GetValueOnRenderThread() != 0)
 						{

@@ -249,7 +249,7 @@ public:
 			);
 
 		{
-			FIntPoint HistoryBufferSize = FSceneRenderTargets::Get().GetBufferSizeXY() / FIntPoint(GAODownsampleFactor, GAODownsampleFactor);
+			FIntPoint HistoryBufferSize = GetSceneTextureExtent() / FIntPoint(GAODownsampleFactor, GAODownsampleFactor);
 
 			const float InvBufferSizeX = 1.0f / HistoryBufferSize.X;
 			const float InvBufferSizeY = 1.0f / HistoryBufferSize.Y;
@@ -359,9 +359,8 @@ public:
 			);
 
 		SetShaderValue(RHICmdList, ShaderRHI, HistoryWeight, GAOHistoryWeight);
-		FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
-		
-		const FIntPoint DownsampledBufferSize(SceneContext.GetBufferSizeXY() / FIntPoint(GAODownsampleFactor, GAODownsampleFactor));
+
+		const FIntPoint DownsampledBufferSize(GetSceneTextureExtent() / FIntPoint(GAODownsampleFactor, GAODownsampleFactor));
 		const FVector2D BaseLevelTexelSizeValue(1.0f / DownsampledBufferSize.X, 1.0f / DownsampledBufferSize.Y);
 		SetShaderValue(RHICmdList, ShaderRHI, BentNormalAOTexelSize, BaseLevelTexelSizeValue);
 
@@ -473,8 +472,6 @@ void GeometryAwareUpsample(FRDGBuilder& GraphBuilder, const FViewInfo& View, FRD
 		ERDGPassFlags::Raster,
 		[&View, DistanceFieldNormal, BentNormalInterpolation, Parameters](FRHICommandList& RHICmdList)
 	{
-		FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
-
 		RHICmdList.SetViewport(0, 0, 0.0f, View.ViewRect.Width() / GAODownsampleFactor, View.ViewRect.Height() / GAODownsampleFactor, 1.0f);
 
 		FGraphicsPipelineStateInitializer GraphicsPSOInit;
@@ -500,7 +497,7 @@ void GeometryAwareUpsample(FRDGBuilder& GraphBuilder, const FViewInfo& View, FRD
 			0, 0,
 			View.ViewRect.Width() / GAODownsampleFactor, View.ViewRect.Height() / GAODownsampleFactor,
 			FIntPoint(View.ViewRect.Width() / GAODownsampleFactor, View.ViewRect.Height() / GAODownsampleFactor),
-			SceneContext.GetBufferSizeXY() / FIntPoint(GAODownsampleFactor, GAODownsampleFactor),
+			GetSceneTextureExtent() / FIntPoint(GAODownsampleFactor, GAODownsampleFactor),
 			VertexShader);
 	});
 }
@@ -520,7 +517,7 @@ void UpdateHistory(
 	FRDGTextureRef& BentNormalHistoryOutput,
 	const FDistanceFieldAOParameters& Parameters)
 {
-	const FIntPoint SceneTextureExtent = FSceneRenderTargets::Get().GetBufferSizeXY();
+	const FIntPoint SceneTextureExtent = GetSceneTextureExtent();
 
 	if (BentNormalHistoryState && GAOUseHistory)
 	{

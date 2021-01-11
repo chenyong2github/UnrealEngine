@@ -27,13 +27,17 @@ static const float UndefinedStreamingAccuracyIntensity = .015f;
 
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FDebugViewModePassUniformParameters, )
 	SHADER_PARAMETER_STRUCT(FSceneTextureUniformParameters, SceneTextures)
+	SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<uint>, QuadOverdraw)
 	SHADER_PARAMETER_ARRAY(FLinearColor, AccuracyColors, [NumStreamingAccuracyColors])
 	SHADER_PARAMETER_ARRAY(FLinearColor, LODColors, [NumLODColorationColors])
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#if WITH_DEBUG_VIEW_MODES
 
-TRDGUniformBufferRef<FDebugViewModePassUniformParameters> CreateDebugViewModePassUniformBuffer(FRDGBuilder& GraphBuilder, const FViewInfo& View);
+TRDGUniformBufferRef<FDebugViewModePassUniformParameters> CreateDebugViewModePassUniformBuffer(FRDGBuilder& GraphBuilder, const FViewInfo& View, FRDGTextureRef QuadOverdrawTexture);
+
+/** Returns the RT index where the QuadOverdrawUAV will be bound. */
+extern int32 GetQuadOverdrawUAVIndex(EShaderPlatform Platform, ERHIFeatureLevel::Type FeatureLevel);
 
 class FDebugViewModeShaderElementData : public FMeshMaterialShaderElementData
 {
@@ -218,10 +222,10 @@ void AddDebugViewModeShaderTypes(ERHIFeatureLevel::Type FeatureLevel,
 	const FVertexFactoryType* VertexFactoryType,
 	FMaterialShaderTypes& OutShaderTypes);
 
-#endif // !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#endif // WITH_DEBUG_VIEW_MODES
 
 void RenderDebugViewMode(
 	FRDGBuilder& GraphBuilder,
 	TArrayView<const FViewInfo> Views,
-	FScene* Scene,
+	FRDGTextureRef QuadOverdrawTexture,
 	const FRenderTargetBindingSlots& RenderTargets);

@@ -94,7 +94,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FVisualizeRadianceCacheParameters, )
 	RENDER_TARGET_BINDING_SLOTS()
 END_SHADER_PARAMETER_STRUCT()
 
-void FDeferredShadingSceneRenderer::RenderLumenRadianceCacheVisualization(FRDGBuilder& GraphBuilder)
+void FDeferredShadingSceneRenderer::RenderLumenRadianceCacheVisualization(FRDGBuilder& GraphBuilder, const FMinimalSceneTextures& SceneTextures)
 {
 	if (GAllowLumenScene
 		&& DoesPlatformSupportLumenGI(ShaderPlatform)
@@ -108,9 +108,8 @@ void FDeferredShadingSceneRenderer::RenderLumenRadianceCacheVisualization(FRDGBu
 		const FViewInfo& View = Views[0];
 		const FRadianceCacheState& RadianceCacheState = Views[0].ViewState->RadianceCacheState;
 
-		FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
-		FRDGTextureRef SceneColor = GraphBuilder.RegisterExternalTexture(SceneContext.GetSceneColor());
-		FRDGTextureRef SceneDepth = GraphBuilder.RegisterExternalTexture(SceneContext.SceneDepthZ);
+		FRDGTextureRef SceneColor = SceneTextures.Color.Resolve;
+		FRDGTextureRef SceneDepth = SceneTextures.Depth.Resolve;
 
 		const int32 VisualizationClipmapIndex = FMath::Clamp(GLumenRadianceCacheVisualizeClipmapIndex, -1, RadianceCacheState.Clipmaps.Num() - 1);
 		for (int32 ClipmapIndex = 0; ClipmapIndex < RadianceCacheState.Clipmaps.Num(); ++ClipmapIndex)

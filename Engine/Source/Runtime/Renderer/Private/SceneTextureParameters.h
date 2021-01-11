@@ -1,9 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	DeferredShadingRenderer.h: Scene rendering definitions.
-=============================================================================*/
-
 #pragma once
 
 #include "SceneRenderTargetParameters.h"

@@ -4,6 +4,7 @@
 #include "CanvasTypes.h"
 #include "RenderTargetTemp.h"
 #include "UnrealEngine.h"
+#include "SystemTextures.h"
 
 class FVisualizeComplexityApplyPS : public FGlobalShader
 {
@@ -118,15 +119,16 @@ FScreenPassTexture AddVisualizeComplexityPass(FRDGBuilder& GraphBuilder, const F
 
 	PassParameters->MiniFontTexture = GetMiniFontTexture();
 
-	const FSceneRenderTargets& SceneRenderTargets = FSceneRenderTargets::Get();
+	const FSceneTextures& SceneTextures = FSceneTextures::Get(GraphBuilder);
 	const EDebugViewShaderMode DebugViewShaderMode = View.Family->GetDebugViewShaderMode();
 
 	PassParameters->DebugViewShaderMode = DVSM_ShaderComplexity;
 	FVisualizeComplexityApplyPS::EQuadOverdraw QuadOverdrawEnum = FVisualizeComplexityApplyPS::EQuadOverdraw::Disable;
 
-	if (SceneRenderTargets.QuadOverdrawBuffer && AllowDebugViewShaderMode(DVSM_QuadComplexity, View.GetShaderPlatform(), View.FeatureLevel))
+	if (SceneTextures.QuadOverdraw)
 	{
-		PassParameters->QuadOverdrawTexture = GraphBuilder.RegisterExternalTexture(SceneRenderTargets.QuadOverdrawBuffer);
+		const FRDGSystemTextures& SystemTextures = FRDGSystemTextures::Get(GraphBuilder);
+		PassParameters->QuadOverdrawTexture = GetIfProduced(SceneTextures.QuadOverdraw, SystemTextures.Black);
 		PassParameters->DebugViewShaderMode = DebugViewShaderMode;
 		QuadOverdrawEnum = FVisualizeComplexityApplyPS::EQuadOverdraw::Enable;
 	}

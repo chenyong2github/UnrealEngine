@@ -157,7 +157,7 @@ bool FTextureShareModule::GetShare(const FString& ShareName, TSharedPtr<ITexture
 	return ShareCoreAPI.GetTextureShareItem(ShareName, OutShareItem);
 }
 
-void FTextureShareModule::OnResolvedSceneColor_RenderThread(FRHICommandListImmediate& RHICmdList, class FSceneRenderTargets& SceneContext, class FSceneViewFamily& ViewFamily)
+void FTextureShareModule::OnResolvedSceneColor_RenderThread(FRDGBuilder& GraphBuilder, const FSceneTextures& SceneTextures, class FSceneViewFamily& ViewFamily)
 {
 	FScopeLock lock(&DataGuard);
 
@@ -167,7 +167,7 @@ void FTextureShareModule::OnResolvedSceneColor_RenderThread(FRHICommandListImmed
 	{
 		if (It.Value == (int)StereoscopicPass)
 		{
-			SendSceneContext_RenderThread(RHICmdList, It.Key, SceneContext, ViewFamily);
+			SendSceneContext_RenderThread(GraphBuilder, It.Key, SceneTextures, ViewFamily);
 		}
 	}
 }
@@ -197,7 +197,11 @@ bool FTextureShareModule::RegisterTexture(const TSharedPtr<ITextureShareItem>& S
 	return false;
 }
 
-bool FTextureShareModule::SendSceneContext_RenderThread(FRHICommandListImmediate& RHICmdList, const FString& ShareName, class FSceneRenderTargets& SceneContext, class FSceneViewFamily& ViewFamily)
+BEGIN_SHADER_PARAMETER_STRUCT(FSendTextureParameters, )
+	RDG_TEXTURE_ACCESS(Texture, ERHIAccess::CopySrc)
+END_SHADER_PARAMETER_STRUCT()
+
+bool FTextureShareModule::SendSceneContext_RenderThread(FRDGBuilder& GraphBuilder, const FString& ShareName, const FSceneTextures& SceneTextures, class FSceneViewFamily& ViewFamily)
 {
 	TSharedPtr<ITextureShareItem> ShareItem;
 	if (ShareCoreAPI.GetTextureShareItem(ShareName, ShareItem) && ShareItem.IsValid() && ShareItem->IsValid())
@@ -233,19 +237,39 @@ bool FTextureShareModule::SendSceneContext_RenderThread(FRHICommandListImmediate
 			}
 #endif
 
+			const auto AddSendTexturePass = [&](const TCHAR* ShareName, FRDGTextureRef Texture)
+			{
+				if (!HasBeenProduced(Texture))
+				{
+					return;
+				}
 
-			SendTexture_RenderThread(RHICmdList, ShareItem, TextureShareStrings::texture_name::SceneColor, SceneContext.GetSceneColorTexture());
+				FSendTextureParameters* PassParameters = GraphBuilder.AllocParameters<FSendTextureParameters>();
+				PassParameters->Texture = Texture;
 
-			SendTexture_RenderThread(RHICmdList, ShareItem, TextureShareStrings::texture_name::SceneDepth, SceneContext.SceneDepthZ);
-			SendTexture_RenderThread(RHICmdList, ShareItem, TextureShareStrings::texture_name::SmallDepthZ, SceneContext.SmallDepthZ);
+				GraphBuilder.AddPass(
+					RDG_EVENT_NAME("SendTexture_%s", Texture->Name),
+					PassParameters,
+					ERDGPassFlags::Copy | ERDGPassFlags::NeverCull,
+					[this, Texture, ShareItem, ShareName](FRHICommandListImmediate& RHICmdList)
+				{
+					SendTexture_RenderThread(RHICmdList, ShareItem, ShareName, Texture->GetPooledRenderTarget());
+				});
+			};
 
-			SendTexture_RenderThread(RHICmdList, ShareItem, TextureShareStrings::texture_name::GBufferA, SceneContext.GBufferA);
-			SendTexture_RenderThread(RHICmdList, ShareItem, TextureShareStrings::texture_name::GBufferB, SceneContext.GBufferB);
-			SendTexture_RenderThread(RHICmdList, ShareItem, TextureShareStrings::texture_name::GBufferC, SceneContext.GBufferC);
-			SendTexture_RenderThread(RHICmdList, ShareItem, TextureShareStrings::texture_name::GBufferD, SceneContext.GBufferD);
-			SendTexture_RenderThread(RHICmdList, ShareItem, TextureShareStrings::texture_name::GBufferE, SceneContext.GBufferE);
-			SendTexture_RenderThread(RHICmdList, ShareItem, TextureShareStrings::texture_name::GBufferF, SceneContext.GBufferF);
-			SendTexture_RenderThread(RHICmdList, ShareItem, TextureShareStrings::texture_name::Foveation, SceneContext.FoveationTexture);
+			AddSendTexturePass(TextureShareStrings::texture_name::SceneColor, SceneTextures.Color.Resolve);
+
+			AddSendTexturePass(TextureShareStrings::texture_name::SceneDepth, SceneTextures.Depth.Resolve);
+			AddSendTexturePass(TextureShareStrings::texture_name::SmallDepthZ, SceneTextures.SmallDepth);
+
+			AddSendTexturePass(TextureShareStrings::texture_name::GBufferA, SceneTextures.GBufferA);
+			AddSendTexturePass(TextureShareStrings::texture_name::GBufferB, SceneTextures.GBufferB);
+			AddSendTexturePass(TextureShareStrings::texture_name::GBufferC, SceneTextures.GBufferC);
+			AddSendTexturePass(TextureShareStrings::texture_name::GBufferD, SceneTextures.GBufferD);
+			AddSendTexturePass(TextureShareStrings::texture_name::GBufferE, SceneTextures.GBufferE);
+			AddSendTexturePass(TextureShareStrings::texture_name::GBufferF, SceneTextures.GBufferF);
+			AddSendTexturePass(TextureShareStrings::texture_name::Foveation, SceneTextures.Foveation);
+
 			//@todo: Add more textures
 
 			return true;

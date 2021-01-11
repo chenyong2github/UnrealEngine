@@ -293,23 +293,12 @@ void FDeferredShadingSceneRenderer::RenderAnisotropyPass(
 	FRDGBuilder& GraphBuilder, 
 	FSceneTextures& SceneTextures,
 	bool bDoParallelPass
-	)
+)
 {
 	RDG_CSV_STAT_EXCLUSIVE_SCOPE(GraphBuilder, RenderAnisotropyPass);
 	SCOPED_NAMED_EVENT(FDeferredShadingSceneRenderer_RenderAnisotropyPass, FColor::Emerald);
 	SCOPE_CYCLE_COUNTER(STAT_AnisotropyPassDrawTime);
 	RDG_GPU_STAT_SCOPE(GraphBuilder, RenderAnisotropyPass);
-
-	// allocate if necessary, and register new GBufferF to SceneTexures
-	{
-		FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
-		if (!SceneContext.GBufferF)
-		{
-			SceneContext.AllocateAnisotropyTarget(GraphBuilder.RHICmdList);
-			check(SceneContext.GBufferF);
-		}
-		SceneTextures.GBufferF = GraphBuilder.RegisterExternalTexture(SceneContext.GBufferF);
-	}
 
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 	{

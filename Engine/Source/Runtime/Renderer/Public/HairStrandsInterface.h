@@ -377,7 +377,7 @@ struct FHairStrandsBookmarkParameters
 	FIntRect ViewRect; // View 0
 	const FSceneView* View = nullptr;// // View 0
 	TArray<const FSceneView*> AllViews;
-	TRefCountPtr<IPooledRenderTarget> SceneColorTexture = nullptr;
+	FRDGTextureRef SceneColorTexture{};
 
 	bool bHzbRequest = false;
 	bool bHasElements = false;

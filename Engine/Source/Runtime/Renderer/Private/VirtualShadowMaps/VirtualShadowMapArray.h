@@ -7,6 +7,7 @@
 #include "../Nanite/NaniteRender.h"
 #include "SceneTypes.h"
 
+struct FMinimalSceneTextures;
 struct FSortedLightSetSceneInfo;
 class FViewInfo;
 class FProjectedShadowInfo;
@@ -153,7 +154,9 @@ public:
 	void MarkPhysicalPagesRendered(FRDGBuilder& GraphBuilder, const TArray<uint32, SceneRenderingAllocator> &VirtualShadowMapFlags);
 
 	//
-	void BuildPageAllocations(FRDGBuilder& GraphBuilder,
+	void BuildPageAllocations(
+		FRDGBuilder& GraphBuilder,
+		const FMinimalSceneTextures& SceneTextures,
 		const TArray<FViewInfo> &Views, 
 		const FSortedLightSetSceneInfo& SortedLights, 
 		const TArray<FVisibleLightInfo, SceneRenderingAllocator> &VisibleLightInfos, 

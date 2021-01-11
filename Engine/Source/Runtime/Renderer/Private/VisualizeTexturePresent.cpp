@@ -377,7 +377,7 @@ void FVisualizeTexturePresent::PresentContent(FRDGBuilder& GraphBuilder, const F
 
 	Output.LoadAction = ERenderTargetLoadAction::ELoad;
 
-	const FIntPoint BufferSizeXY = FSceneRenderTargets::Get().GetBufferSizeXY();
+	const FIntPoint BufferSizeXY = GetSceneTextureExtent();
 
 	AddDrawCanvasPass(GraphBuilder, {}, View, Output,
 		[VisualizeTexture2D, BufferSizeXY, Desc, &View, InputUVMapping, InputValueMapping](FCanvas& Canvas)

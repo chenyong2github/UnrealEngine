@@ -72,7 +72,6 @@ END_SHADER_PARAMETER_STRUCT()
 void RenderLightMapDensities(
 	FRDGBuilder& GraphBuilder,
 	TArrayView<const FViewInfo> Views,
-	FScene* Scene,
 	const FRenderTargetBindingSlots& RenderTargets)
 {
 	RDG_EVENT_SCOPE(GraphBuilder, "LightMapDensity");
@@ -87,14 +86,14 @@ void RenderLightMapDensities(
 
 		auto* PassParameters = GraphBuilder.AllocParameters<FLightMapDensitiesPassParameters>();
 		PassParameters->View = View.GetShaderParameters();
-		PassParameters->Pass = CreateLightmapDensityPassUniformBuffer(GraphBuilder, Scene->GetFeatureLevel());
+		PassParameters->Pass = CreateLightmapDensityPassUniformBuffer(GraphBuilder, View.GetFeatureLevel());
 		PassParameters->RenderTargets = RenderTargets;
 
 		GraphBuilder.AddPass(
 			{},
 			PassParameters,
 			ERDGPassFlags::Raster,
-			[Scene, &View](FRHICommandList& RHICmdList)
+			[&View](FRHICommandList& RHICmdList)
 		{
 			RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1);
 			View.ParallelMeshDrawCommandPasses[EMeshPass::LightmapDensity].DispatchDraw(nullptr, RHICmdList);

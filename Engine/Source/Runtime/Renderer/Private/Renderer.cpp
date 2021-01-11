@@ -66,12 +66,6 @@ void FRendererModule::ShutdownModule()
 	delete IScreenSpaceDenoiser::GetDefaultDenoiser();
 }
 
-void FRendererModule::ReallocateSceneRenderTargets()
-{
-	FLightPrimitiveInteraction::InitializeMemoryPool();
-	FSceneRenderTargets::Get().UpdateRHI();
-}
-
 void FRendererModule::OnWorldCleanup(UWorld* World, bool bSessionEnded, bool bCleanupResources, bool bWorldChanged)
 {
 	FSceneInterface* Scene = World->Scene;
@@ -88,12 +82,6 @@ void FRendererModule::OnWorldCleanup(UWorld* World, bool bSessionEnded, bool bCl
 		}
 	});
 
-}
-
-void FRendererModule::SceneRenderTargetsSetBufferSize(uint32 SizeX, uint32 SizeY)
-{
-	FSceneRenderTargets::Get().SetBufferSize(SizeX, SizeY);
-	FSceneRenderTargets::Get().UpdateRHI();
 }
 
 void FRendererModule::InitializeSystemTextures(FRHICommandListImmediate& RHICmdList)
@@ -209,14 +197,14 @@ void FRendererModule::DrawTileMesh(FRHICommandListImmediate& RHICmdList, FMeshPa
 		// handle translucent material blend modes, not relevant in MaterialTexCoordScalesAnalysis since it outputs the scales.
 		if (ViewFamily->GetDebugViewShaderMode() == DVSM_OutputMaterialTextureScales)
 		{
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#if WITH_DEBUG_VIEW_MODES
 			// make sure we are doing opaque drawing
 			DrawRenderState.SetBlendState(TStaticBlendState<>::GetRHI());
 			
 			// is this path used on mobile?
 			if (ShadingPath == EShadingPath::Deferred)
 			{
-				PassParameters->DebugViewMode = CreateDebugViewModePassUniformBuffer(GraphBuilder, View);
+				PassParameters->DebugViewMode = CreateDebugViewModePassUniformBuffer(GraphBuilder, View, nullptr);
 
 				GraphBuilder.AddPass({}, PassParameters, PassFlags,
 					[Scene, &View, &Mesh](FRHICommandListImmediate& InRHICmdList)
@@ -234,7 +222,7 @@ void FRendererModule::DrawTileMesh(FRHICommandListImmediate& RHICmdList, FMeshPa
 					});
 				});
 			}
-#endif // !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#endif // WITH_DEBUG_VIEW_MODES
 		}
 		else if (IsTranslucentBlendMode(MaterialBlendMode))
 		{
