@@ -54,10 +54,15 @@ void FFramePerformanceProvider::CheckHitches(int64 Frame)
 		const float GameThreadTime = FPlatformTime::ToMilliseconds(GGameThreadTime);
 		const float RenderThreadTime = FPlatformTime::ToMilliseconds(GRenderThreadTime);
 		const float GPUTime = FPlatformTime::ToMilliseconds(GGPUFrameTime);
+		float HitchedFPS = CachedHitchSettings.MinimumFrameRate.AsDecimal();
+		if (!FMath::IsNearlyZero(FullFrameTime))
+		{
+			HitchedFPS = 1000.0f / FullFrameTime;
+		}
 
 		UE_LOG(LogStageDataProvider, VeryVerbose, TEXT("Hitch detected: FullFrameTime=%f, GameThreadTimeWithWaits=%f, RenderThreadTimeWithWaits=%f, Threshold=%f, GameThreadTime=%f, RenderThreadTime=%f"), FullFrameTime, GameThreadTimeWithWaits, RenderThreadTimeWithWaits, TimeThreshold, GameThreadTime, RenderThreadTime);
 
-		IStageDataProvider::SendMessage<FHitchDetectionMessage>(EStageMessageFlags::None, GameThreadTimeWithWaits, RenderThreadTimeWithWaits, GameThreadTime, RenderThreadTime, GPUTime, TimeThreshold);
+		IStageDataProvider::SendMessage<FHitchDetectionMessage>(EStageMessageFlags::None, GameThreadTimeWithWaits, RenderThreadTimeWithWaits, GameThreadTime, RenderThreadTime, GPUTime, TimeThreshold, HitchedFPS);
 	}
 #endif //STATS
 }
