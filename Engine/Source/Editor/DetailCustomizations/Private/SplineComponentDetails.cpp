@@ -36,6 +36,7 @@
 #include "BlueprintEditorModule.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "HAL/PlatformApplicationMisc.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 
 #define LOCTEXT_NAMESPACE "SplineComponentDetails"
 DEFINE_LOG_CATEGORY_STATIC(LogSplineComponentDetails, Log, All)
