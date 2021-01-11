@@ -2132,8 +2132,8 @@ void UEditorEngine::EnableWorldSwitchCallbacks(bool bEnable)
 
 void UEditorEngine::OnScriptExecutionStart(const FBlueprintContextTracker& ContextTracker, const UObject* ContextObject, const UFunction* ContextFunction)
 {
-	// Only do world switching for game thread callbacks, this is only bound at all in PIE so no need to check GIsEditor
-	if (IsInGameThread())
+	// Only do world switching for game thread callbacks when current world is set, this is only bound at all in PIE so no need to check GIsEditor
+	if (IsInGameThread() && GWorld)
 	{
 		// See if we should create a world switcher, which is true if we don't have one and our PIE info is missing
 		if (!FunctionStackWorldSwitcher && (!GIsPlayInEditorWorld || GPlayInEditorID == -1))
