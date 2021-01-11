@@ -8,6 +8,7 @@
 #include "LandscapeInfo.h"
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionHandle.h"
+#include "UObject/UE5MainStreamObjectVersion.h"
 
 void FLandscapeActorDesc::Init(const AActor* InActor)
 {
@@ -15,9 +16,20 @@ void FLandscapeActorDesc::Init(const AActor* InActor)
 
 	const ALandscapeProxy* LandscapeProxy = CastChecked<ALandscapeProxy>(InActor);
 	check(LandscapeProxy);
-	GridIndexX = LandscapeProxy->LandscapeSectionOffset.X / LandscapeProxy->GridSize;
-	GridIndexY = LandscapeProxy->LandscapeSectionOffset.Y / LandscapeProxy->GridSize;
+	GridIndexX = LandscapeProxy->LandscapeSectionOffset.X / (int32)LandscapeProxy->GridSize;
+	GridIndexY = LandscapeProxy->LandscapeSectionOffset.Y / (int32)LandscapeProxy->GridSize;
 	GridIndexZ = 0;
+}
+
+void FLandscapeActorDesc::Serialize(FArchive& Ar)
+{
+	FPartitionActorDesc::Serialize(Ar);
+
+	if (Ar.IsLoading() && Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::FLandscapeActorDescFixupGridIndices)
+	{
+		GridIndexX = (int32)(GridIndexX * GridSize) / (int32)GridSize;
+		GridIndexY = (int32)(GridIndexY * GridSize) / (int32)GridSize;
+	}
 }
 
 void FLandscapeActorDesc::Unload()

@@ -67,6 +67,9 @@ struct CORE_API FUE5MainStreamObjectVersion
 		// Animation sync groups explicitly specify sync method
 		AnimSyncGroupsExplicitSyncMethod,
 
+		// Fixup FLandscapeActorDesc Grid indices
+		FLandscapeActorDescFixupGridIndices,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1
