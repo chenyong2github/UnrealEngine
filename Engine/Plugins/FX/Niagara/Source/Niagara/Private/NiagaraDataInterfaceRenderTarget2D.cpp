@@ -628,8 +628,15 @@ void FNiagaraDataInterfaceProxyRenderTarget2DProxy::PostStage(FRHICommandList& R
 		if (ProxyData->bWasWrittenTo && (ProxyData->MipMapGeneration == ENiagaraMipMapGeneration::PostStage))
 		{
 			ProxyData->bWasWrittenTo = false;
+
 			check(&RHICmdList == &FRHICommandListExecutor::GetImmediateCommandList());
-			FGenerateMips::Execute(FRHICommandListExecutor::GetImmediateCommandList(), ProxyData->TextureReferenceRHI->GetReferencedTexture());
+
+			FMemMark MemMark(FMemStack::Get());
+			FRDGBuilder GraphBuilder(FRHICommandListExecutor::GetImmediateCommandList());
+			TRefCountPtr<IPooledRenderTarget> PoolRenderTarget = CreateRenderTarget(ProxyData->TextureReferenceRHI->GetReferencedTexture(), TEXT("NiagaraRenderTarget2D"));
+			FRDGTextureRef MipOutputTexture = GraphBuilder.RegisterExternalTexture(PoolRenderTarget);
+			FGenerateMips::Execute(GraphBuilder, MipOutputTexture);
+			GraphBuilder.Execute();
 		}
 	}
 }
@@ -641,8 +648,15 @@ void FNiagaraDataInterfaceProxyRenderTarget2DProxy::PostSimulate(FRHICommandList
 		if (ProxyData->bWasWrittenTo && (ProxyData->MipMapGeneration == ENiagaraMipMapGeneration::PostSimulate))
 		{
 			ProxyData->bWasWrittenTo = false;
+
 			check(&RHICmdList == &FRHICommandListExecutor::GetImmediateCommandList());
-			FGenerateMips::Execute(FRHICommandListExecutor::GetImmediateCommandList(), ProxyData->TextureReferenceRHI->GetReferencedTexture());
+
+			FMemMark MemMark(FMemStack::Get());
+			FRDGBuilder GraphBuilder(FRHICommandListExecutor::GetImmediateCommandList());
+			TRefCountPtr<IPooledRenderTarget> PoolRenderTarget = CreateRenderTarget(ProxyData->TextureReferenceRHI->GetReferencedTexture(), TEXT("NiagaraRenderTarget2D"));
+			FRDGTextureRef MipOutputTexture = GraphBuilder.RegisterExternalTexture(PoolRenderTarget);
+			FGenerateMips::Execute(GraphBuilder, MipOutputTexture);
+			GraphBuilder.Execute();
 		}
 
 #if NIAGARA_COMPUTEDEBUG_ENABLED
