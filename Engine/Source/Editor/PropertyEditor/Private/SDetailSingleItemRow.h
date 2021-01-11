@@ -63,9 +63,9 @@ public:
 
 	void SetIsDragDrop(bool bInIsDragDrop);
 
+	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime);
 protected:
 	virtual bool OnContextMenuOpening( FMenuBuilder& MenuBuilder ) override;
-
 private:
 	void OnCopyProperty();
 	void OnPasteProperty();
@@ -102,12 +102,15 @@ private:
 	TSharedPtr<FPropertyNode> GetPropertyNode() const;
 	TSharedPtr<IPropertyHandle> GetPropertyHandle() const;
 
+	bool UpdateResetToDefault();
 private:
 	/** Customization for this widget */
 	FDetailLayoutCustomization* Customization;
+	FDetailWidgetRow WidgetRow;
 	bool bAllowFavoriteSystem;
 	bool bIsHoveredDragTarget;
 	bool bIsDragDropObject;
+	bool bCachedResetToDefaultEnabled;
 	TSharedPtr<FPropertyNode> SwappablePropertyNode;
 	TSharedPtr<SButton> ExpanderArrow;
 };

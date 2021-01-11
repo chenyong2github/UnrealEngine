@@ -26,15 +26,24 @@ public:
 		, VerticalAlignment( InVAlign )
 		, MinWidth( InMinWidth )
 		, MaxWidth( InMaxWidth )
-		, ParentDecl( InParentDecl )
+		, ParentDecl( &InParentDecl )
 	{
+	}
 
+	FDetailWidgetDecl( class FDetailWidgetRow& InParentDecl, const FDetailWidgetDecl& Other )
+		: Widget( Other.Widget )
+		, HorizontalAlignment( Other.HorizontalAlignment )
+		, VerticalAlignment( Other.VerticalAlignment )
+		, MinWidth( Other.MinWidth )
+		, MaxWidth( Other.MaxWidth )
+		, ParentDecl( &InParentDecl )
+	{
 	}
 
 	FDetailWidgetRow& operator[]( TSharedRef<SWidget> InWidget )
 	{
 		Widget = InWidget;
-		return ParentDecl;
+		return *ParentDecl;
 	}
 
 	FDetailWidgetDecl& VAlign( EVerticalAlignment InAlignment )
@@ -81,7 +90,7 @@ public:
 	TOptional<float> MinWidth;
 	TOptional<float> MaxWidth;
 private:
-	class FDetailWidgetRow& ParentDecl;
+	class FDetailWidgetRow* ParentDecl;
 };
 
 
@@ -108,7 +117,26 @@ public:
 		, RowTagName()
 	{
 	}
-	
+
+	FDetailWidgetRow& operator=(const FDetailWidgetRow& Other)
+	{
+		NameWidget = FDetailWidgetDecl(*this, Other.NameWidget);
+		ValueWidget = FDetailWidgetDecl(*this, Other.ValueWidget);
+		WholeRowWidget = FDetailWidgetDecl(*this, Other.WholeRowWidget);
+		VisibilityAttr = Other.VisibilityAttr;
+		IsEnabledAttr = Other.IsEnabledAttr;
+		FilterTextString = Other.FilterTextString;
+		CopyMenuAction = Other.CopyMenuAction;
+		PasteMenuAction = Other.PasteMenuAction;
+		CustomMenuItems = Other.CustomMenuItems;
+		RowTagName = Other.RowTagName;
+		CustomResetToDefault = Other.CustomResetToDefault;
+		EditConditionValue = Other.EditConditionValue;
+		OnEditConditionValueChanged = Other.OnEditConditionValueChanged;
+		PropertyHandles = Other.PropertyHandles;
+		return *this;
+	}
+
 	/**
 	 * Assigns content to the entire row
 	 */
@@ -304,7 +332,6 @@ public:
 	};
 	/** Custom Action on this row */
 	TArray<FCustomMenuData> CustomMenuItems;
-
 	/* Tag to identify this row */
 	FName RowTagName;
 	/** Custom reset to default handler */

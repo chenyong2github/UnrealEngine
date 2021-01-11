@@ -3259,13 +3259,15 @@ void FStarshipEditorStyle::FStyle::SetupPropertyEditorStyles()
 			.SetIconSize(Icon16x16)
 			.SetLabelPadding(FMargin(0))
 			.SetComboButtonPadding(FMargin(0))
-			.SetBlockPadding(FMargin(2.0f, 0.0f))
+			.SetBlockPadding(FMargin(2, 0))
 			.SetIndentedBlockPadding(FMargin(0))
+			.SetIndentedBlockPadding(FMargin(0))
+			.SetBackgroundPadding(FMargin(0))
 			.SetButtonPadding(FMargin(2, 0))
-			.SetCheckBoxPadding(FMargin(3.0f, 0.0f))
+			.SetCheckBoxPadding(FMargin(3, 0))
 			.SetButtonStyle(DetailsExtensionMenuButton)
 			.SetSeparatorBrush(FSlateNoResource())
-			.SetSeparatorPadding(FMargin(4.0f, 0.0f))
+			.SetSeparatorPadding(FMargin(4, 0))
 			.SetExpandBrush(CORE_IMAGE_BRUSH_SVG("Starship/Common/ellipsis-vertical-narrow", FVector2D(6, 24)));
 
 		Set("DetailsView.ExtensionToolBar", DetailsExtensionToolBarStyle);
