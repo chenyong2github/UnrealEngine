@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MergeActorsTool.h"
+#include "Components/StaticMeshComponent.h"
 
 bool FMergeActorsTool::GetReplaceSourceActors() const
 {
