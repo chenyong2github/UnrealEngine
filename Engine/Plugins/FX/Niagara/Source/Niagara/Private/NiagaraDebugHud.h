@@ -9,8 +9,6 @@ Class used help debugging Niagara simulations
 #include "NiagaraCommon.h"
 #include "RHICommandList.h"
 
-class UWorld;
-
 class FNiagaraDebugHud
 {
 	struct FSystemDebugInfo
@@ -24,16 +22,16 @@ class FNiagaraDebugHud
 	};
 
 public:
-	FNiagaraDebugHud(UWorld* World);
+	FNiagaraDebugHud(class UWorld* World);
 	~FNiagaraDebugHud();
 
 	void GatherSystemInfo();
 
 private:
-	void DebugDrawNiagara(UCanvas* Canvas, APlayerController* PC);
+	void DebugDrawNiagara(class UCanvas* Canvas, class APlayerController* PC);
 
 private:
-	TWeakObjectPtr<UWorld>			WeakWorld;
+	TWeakObjectPtr<class UWorld>	WeakWorld;
 
 	FDelegateHandle					DebugDrawHandle;
 
