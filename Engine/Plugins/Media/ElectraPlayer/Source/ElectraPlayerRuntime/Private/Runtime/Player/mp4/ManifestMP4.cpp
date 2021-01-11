@@ -15,7 +15,7 @@
 #include "Player/mp4/ManifestMP4.h"
 
 
-#define ERRCODE_MANIFEST_MP4_STARTSEGMENT_NOT_FOUND						1
+#define ERRCODE_MANIFEST_MP4_STARTSEGMENT_NOT_FOUND		1
 
 
 namespace Electra
@@ -460,6 +460,69 @@ void FManifestMP4Internal::FTimelineAssetMP4::LogMessage(IInfoLog::ELevel Level,
 }
 
 
+void FManifestMP4Internal::FTimelineAssetMP4::LimitSegmentDownloadSize(TSharedPtrTS<IStreamSegment>& InOutSegment, TSharedPtr<IParserISO14496_12::IAllTrackIterator, ESPMode::ThreadSafe> InAllTrackIterator)
+{
+	// Limit the segment download size.
+	// This helps with downloads that might otherwise take too long or keep the connection open for too long (when downloading a large mp4 from start to finish).
+	const int64 MaxSegmentSize = 4 * 1024 * 1024;
+	if (MaxSegmentSize > 0)
+	{
+		if (InOutSegment.IsValid())
+		{
+			FStreamSegmentRequestMP4* Request = static_cast<FStreamSegmentRequestMP4*>(InOutSegment.Get());
+			const int64 StartOffset = Request->FileStartOffset;
+			TSharedPtr<IParserISO14496_12::IAllTrackIterator, ESPMode::ThreadSafe> AllTrackIterator = InAllTrackIterator;
+			if (!AllTrackIterator.IsValid())
+			{
+				AllTrackIterator = MoovBoxParser->CreateAllTrackIteratorByFilePos(StartOffset);
+			}
+			bool bFirst = true;
+			uint32 TrackId = ~0U;
+			uint32 TrackTimeScale = 0;
+			int64 TrackDur = 0;
+			int64 LastTrackOffset = -1;
+			int64 LastSampleSize = 0;
+			while(AllTrackIterator.IsValid())
+			{
+				const IParserISO14496_12::ITrackIterator* CurrentTrackIt = AllTrackIterator->Current();
+				if (CurrentTrackIt)
+				{
+					LastTrackOffset = CurrentTrackIt->GetSampleFileOffset();
+					LastSampleSize = CurrentTrackIt->GetSampleSize();
+					if (bFirst)
+					{
+						bFirst = false;
+						TrackId = CurrentTrackIt->GetTrack()->GetID();
+						TrackTimeScale = CurrentTrackIt->GetTimescale();
+					}
+					if (TrackId == CurrentTrackIt->GetTrack()->GetID())
+					{
+						TrackDur += CurrentTrackIt->GetDuration();
+					}
+					int64 CurrentTrackOffset = LastTrackOffset;
+					if (CurrentTrackOffset - StartOffset >= MaxSegmentSize)
+					{
+						// Limit reached.
+						Request->FileEndOffset = CurrentTrackOffset - 1;
+						Request->SegmentInternalSize = CurrentTrackOffset - StartOffset;
+						Request->SegmentDuration.SetFromND(TrackDur, TrackTimeScale);
+						Request->bIsLastSegment = false;
+						break;
+					}
+					AllTrackIterator->Next();
+				}
+				else
+				{
+					// Done iterating
+					Request->SegmentInternalSize = LastTrackOffset + LastSampleSize - StartOffset;
+					break;
+				}
+			}
+		}
+	}
+}
+
+
 IManifest::FResult FManifestMP4Internal::FTimelineAssetMP4::GetStartingSegment(TSharedPtrTS<IStreamSegment>& OutSegment, const FPlayStartPosition& StartPosition, ESearchType SearchType, int64 AtAbsoluteFilePos)
 {
 // TODO: If there is a SIDX box we will look in there.
@@ -534,6 +597,8 @@ IManifest::FResult FManifestMP4Internal::FTimelineAssetMP4::GetStartingSegment(T
 					req->Bitrate				= Repr->GetBitrate();
 					req->bStartingOnMOOF		= false;
 					req->bIsContinuationSegment = false;
+					req->bIsFirstSegment		= true;
+					req->bIsLastSegment			= true;
 					req->SegmentDuration		= GetDuration() - req->FirstPTS;
 
 					// FIXME: this may need to add all additional tracks at some point if their individual IDs matter
@@ -542,6 +607,7 @@ IManifest::FResult FManifestMP4Internal::FTimelineAssetMP4::GetStartingSegment(T
 						req->DependentStreams.AddDefaulted_GetRef().StreamType = EStreamType::Audio;
 					}
 
+					LimitSegmentDownloadSize(OutSegment, nullptr);
 					return IManifest::FResult(IManifest::FResult::EType::Found);
 				}
 				else if (err == UEMEDIA_ERROR_END_OF_STREAM)
@@ -558,6 +624,8 @@ IManifest::FResult FManifestMP4Internal::FTimelineAssetMP4::GetStartingSegment(T
 						req->Bitrate				= Repr->GetBitrate();
 						req->bStartingOnMOOF		= false;
 						req->bIsContinuationSegment = false;
+						req->bIsFirstSegment		= false;
+						req->bIsLastSegment			= true;
 						req->bAllTracksAtEOS		= true;
 						//req->DependentStreams.PushBack().StreamType = EStreamType::Audio;
 						return IManifest::FResult(IManifest::FResult::EType::Found);
@@ -649,6 +717,8 @@ IManifest::FResult FManifestMP4Internal::FTimelineAssetMP4::GetStartingSegment(T
 					req->Bitrate				= Repr->GetBitrate();
 					req->bStartingOnMOOF		= false;
 					req->bIsContinuationSegment = false;
+					req->bIsFirstSegment		= true;
+					req->bIsLastSegment			= true;
 					req->SegmentDuration		= GetDuration() - req->FirstPTS;
 
 					// In case the video stream is shorter than audio we still need to add it as a dependent stream
@@ -660,6 +730,7 @@ IManifest::FResult FManifestMP4Internal::FTimelineAssetMP4::GetStartingSegment(T
 
 					// FIXME: there may be subtitle tracks here we need to add as dependent streams.
 
+					LimitSegmentDownloadSize(OutSegment, nullptr);
 					return IManifest::FResult(IManifest::FResult::EType::Found);
 				}
 				else if (err == UEMEDIA_ERROR_END_OF_STREAM)
@@ -673,6 +744,8 @@ IManifest::FResult FManifestMP4Internal::FTimelineAssetMP4::GetStartingSegment(T
 					req->Bitrate				= Repr->GetBitrate();
 					req->bStartingOnMOOF		= false;
 					req->bIsContinuationSegment = false;
+					req->bIsFirstSegment		= false;
+					req->bIsLastSegment			= true;
 					req->bAllTracksAtEOS		= true;
 					// But if there is a video track we add it as a dependent stream that is also at EOS.
 					if (VideoAdaptationSets.Num())
@@ -706,8 +779,23 @@ IManifest::FResult FManifestMP4Internal::FTimelineAssetMP4::GetStartingSegment(T
 
 IManifest::FResult FManifestMP4Internal::FTimelineAssetMP4::GetNextSegment(TSharedPtrTS<IStreamSegment>& OutSegment, TSharedPtrTS<const IStreamSegment> CurrentSegment, const FParamDict& Options)
 {
-	// At the moment we do not break the mp4 down into segments, so the one we had been streaming just now extended
-	// to the end of the asset which is now done.
+	const FStreamSegmentRequestMP4* Request = static_cast<const FStreamSegmentRequestMP4*>(CurrentSegment.Get());
+	if (Request)
+	{
+		// Check if the current request did not already go up to the end of the stream. If so there is no next segment.
+		if (Request->FileEndOffset >= 0)
+		{
+			FPlayStartPosition dummyPos;
+			IManifest::FResult res = GetStartingSegment(OutSegment, dummyPos, ESearchType::Same, Request->FileEndOffset + 1);
+			if (res.GetType() == IManifest::FResult::EType::Found)
+			{
+				FStreamSegmentRequestMP4* NextRequest = static_cast<FStreamSegmentRequestMP4*>(OutSegment.Get());
+				NextRequest->bIsContinuationSegment = true;
+				NextRequest->bIsFirstSegment		= false;
+				return res;
+			}
+		}
+	}
 	return IManifest::FResult(IManifest::FResult::EType::PastEOS);
 }
 

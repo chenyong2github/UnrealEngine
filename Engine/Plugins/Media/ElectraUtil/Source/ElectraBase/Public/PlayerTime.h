@@ -509,6 +509,9 @@ public:
 		return Numerator / (double)Denominator;
 	}
 
+	//! Returns this time value in a custom timebase. Requires internal bigint conversion and is therefor SLOW!
+	int64 GetAsTimebase(uint32 CustomTimebase) const;
+
 	FTimeFraction& SetFromND(int64 InNumerator, uint32 InDenominator)
 	{
 		Numerator   = InNumerator;

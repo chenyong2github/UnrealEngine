@@ -55,10 +55,13 @@ public:
 	EStreamType											PrimaryStreamType;
 	int64												FileStartOffset;			//!< Where to start in the file
 	int64												FileEndOffset;				//!< Where to end in the file (for HTTP range GET requests)
+	int64												SegmentInternalSize;		//!< Size of the segment as defined by internal structures.
 	uint32												PlaybackSequenceID;
 	int32												Bitrate;
 	bool												bStartingOnMOOF;			//!< when using the 'sidx' a segment is expected to start on a 'moof', otherwise inside an 'mdat'.
-	bool												bIsContinuationSegment;
+	bool												bIsContinuationSegment;		//!< true if this segment continues where the previous left off and no sync samples should be expected.
+	bool												bIsFirstSegment;			//!< true if this segment is the first to start with or the first after a seek.
+	bool												bIsLastSegment;				//!< true if this segment is the last.
 
 	bool												bAllTracksAtEOS;
 

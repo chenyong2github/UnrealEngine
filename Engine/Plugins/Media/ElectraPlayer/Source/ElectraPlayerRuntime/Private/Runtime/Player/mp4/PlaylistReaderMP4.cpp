@@ -63,7 +63,7 @@ public:
 	virtual FString GetURL() const override;
 
 	/**
-	 * Returns an interface to the manifest created from the loaded HLS playlists.
+	 * Returns an interface to the manifest created from the loaded mp4 playlists.
 	 *
 	 * @return A shared manifest interface pointer.
 	 */
@@ -91,7 +91,7 @@ private:
 			}
 			bHasBeenAborted = true;
 		}
-		TSharedPtrTS<IElectraHttpManager::FReceiveBuffer>		ReceiveBuffer;
+		TSharedPtrTS<IElectraHttpManager::FReceiveBuffer>	ReceiveBuffer;
 		int64												ParsePos;
 		bool												bHasBeenAborted;
 	};
@@ -129,7 +129,7 @@ private:
 	FMediaEvent												WorkerThreadQuitSignal;
 	bool													bIsWorkerThreadStarted;
 
-	TSharedPtrTS<IElectraHttpManager::FProgressListener>		ProgressListener;
+	TSharedPtrTS<IElectraHttpManager::FProgressListener>	ProgressListener;
 	FReadBuffer												ReadBuffer;
 	bool													bAbort;
 	bool													bHasErrored;
@@ -458,7 +458,7 @@ int64 FPlaylistReaderMP4::GetCurrentOffset() const
 
 IParserISO14496_12::IBoxCallback::EParseContinuation FPlaylistReaderMP4::OnFoundBox(IParserISO14496_12::FBoxType Box, int64 BoxSizeInBytes, int64 FileDataOffset, int64 BoxDataOffset)
 {
-	// The very first box must be an 'ftyp' box by definition. If this is not the case this is not a valid mp4 file.
+	// We require the very first box to be an 'ftyp' box.
 	if (FileDataOffset == 0 && Box != IParserISO14496_12::BoxType_ftyp)
 	{
 		PostError("Invalid mp4 file: first box is not 'ftyp'", ERRCODE_MP4_INVALID_FILE, UEMEDIA_ERROR_FORMAT_ERROR);

@@ -26,10 +26,13 @@ FStreamSegmentRequestMP4::FStreamSegmentRequestMP4()
 	PrimaryStreamType      = EStreamType::Video;
 	FileStartOffset 	   = -1;
 	FileEndOffset   	   = -1;
+	SegmentInternalSize	   = -1;
 	Bitrate 			   = 0;
 	PlaybackSequenceID     = ~0U;
 	bStartingOnMOOF 	   = false;
 	bIsContinuationSegment = false;
+	bIsFirstSegment		   = false;
+	bIsLastSegment		   = false;
 	bAllTracksAtEOS 	   = false;
 	CurrentIteratorBytePos = 0;
 	NumOverallRetries      = 0;
@@ -383,7 +386,32 @@ void FStreamReaderMP4::WorkerThread()
 		HTTP->Parameters.URL				= TimelineAsset->GetMediaURL();
 		HTTP->Parameters.Range.Start		= Request->FileStartOffset;
 		HTTP->Parameters.Range.EndIncluding = Request->FileEndOffset;
-		HTTP->Parameters.SubRangeRequestSize = 1 << 20;
+		// Explicit range?
+		int64 NumRequestedBytes = HTTP->Parameters.Range.GetNumberOfBytes();
+		int32 SubRequestSize = 0;
+		if (NumRequestedBytes > 0)
+		{
+			if (Request->bIsFirstSegment && !Request->bIsLastSegment)
+			{
+				SubRequestSize = 512 << 10;
+			}
+			else if (Request->bIsFirstSegment && Request->bIsLastSegment)
+			{
+				SubRequestSize = 2 << 20;
+			}
+		}
+		else
+		{
+			if (Request->SegmentInternalSize < 0)
+			{
+				SubRequestSize = 2 << 20;
+			}
+		}
+		if (SubRequestSize)
+		{
+			HTTP->Parameters.SubRangeRequestSize = SubRequestSize;
+		}
+
 		HTTP->ReceiveBuffer 				= ReadBuffer.ReceiveBuffer;
 		HTTP->ProgressListener  			= ProgressListener;
 		Parameters.PlayerSessionService->GetHTTPManager()->AddRequest(HTTP);
@@ -426,8 +454,8 @@ void FStreamReaderMP4::WorkerThread()
 				{
 					TSharedPtrTS<FAccessUnit::CodecData> CSD(new FAccessUnit::CodecData);
 					CSD->CodecSpecificData = Track->GetCodecSpecificData();
-					CSD->RawCSD			= Track->GetCodecSpecificDataRAW();
-					CSD->ParsedInfo 		= Track->GetCodecInformation();
+					CSD->RawCSD			   = Track->GetCodecSpecificDataRAW();
+					CSD->ParsedInfo		   = Track->GetCodecInformation();
 					st.CSD = MoveTemp(CSD);
 				}
 				return st;

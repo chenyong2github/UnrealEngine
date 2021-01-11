@@ -87,5 +87,34 @@ namespace Electra
 	}
 
 
+	int64 FTimeFraction::GetAsTimebase(uint32 CustomTimebase) const
+	{
+		// Some shortcuts
+		if (!bIsValid)
+		{
+			return 0;
+		}
+		else if (Numerator == 0)
+		{
+			return 0;
+		}
+		// Infinity?
+		else if (Denominator == 0 || CustomTimebase == 0)
+		{
+			return Numerator >= 0 ? 0x7fffffffffffffffLL : -0x7fffffffffffffffLL;
+		}
+
+		TBigInt<128> n(Numerator);
+		TBigInt<128> d(Denominator);
+		TBigInt<128> s(CustomTimebase);
+
+		n *= s;
+		n /= d;
+
+		int64 r = n.ToInt();
+		return r;
+	}
+
+
 }
 

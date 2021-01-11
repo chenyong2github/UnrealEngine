@@ -551,8 +551,13 @@ namespace Electra
 			}
 			else
 			{
-				// Give a warning to the console about this circumstance.
-				UE_LOG(LogElectraHTTPManager, Warning, TEXT("Receive buffer set to ring buffer mode but no sub range request size specified!"));
+				// Give a warning to the console about this circumstance if the original request is not ranged.
+				// If it is a range request that goes up to the end of the file we cannot say with certainty if this is a problem
+				// since we do not know how large the response is going to be. It could be a few bytes, it could be gigabytes...
+				if (!Handle->ActiveResponse.Range.IsSet())
+				{
+					UE_LOG(LogElectraHTTPManager, Warning, TEXT("Receive buffer set to ring buffer mode but no sub range request size specified!"));
+				}
 			}
 		}
 		// Set the possibly adjusted range.

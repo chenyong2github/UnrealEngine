@@ -1135,7 +1135,7 @@ namespace Electra
 
 		FString GetLanguage() const
 		{
-			return FString(Language, FMEDIA_STATIC_ARRAY_COUNT(Language));
+			return FString(FMEDIA_STATIC_ARRAY_COUNT(Language), Language);
 		}
 
 	private:
@@ -1260,6 +1260,17 @@ namespace Electra
 			int16		MediaRateInteger;
 			int16		MediaRateFraction;
 		};
+
+		int32 GetNumberOfEntries() const
+		{
+			return Entries.Num();
+		}
+
+		const FEntry& GetEntry(int32 EntryIndex) const
+		{
+			return Entries[EntryIndex];
+		}
+
 
 	private:
 		FMP4BoxELST() = delete;
@@ -2171,7 +2182,7 @@ namespace Electra
 		{
 		}
 
-		struct Entry
+		struct FEntry
 		{
 			uint32		SampleCount;
 			uint32		SampleDelta;
@@ -2187,7 +2198,7 @@ namespace Electra
 			return Entries.Num();
 		}
 
-		const Entry& GetEntry(int32 EntryIndex) const
+		const FEntry& GetEntry(int32 EntryIndex) const
 		{
 			return Entries[EntryIndex];
 		}
@@ -2214,7 +2225,7 @@ namespace Electra
 				{
 					RETURN_IF_ERROR(ParseInfo->Reader()->Read(c));					// sample_count
 					RETURN_IF_ERROR(ParseInfo->Reader()->Read(d));					// sample_delta
-					Entry& e = Entries.AddDefaulted_GetRef();
+					FEntry& e = Entries.AddDefaulted_GetRef();
 					e.SampleCount = c;
 					e.SampleDelta = d;
 					// Update total counts for convenience.
@@ -2226,7 +2237,7 @@ namespace Electra
 		}
 
 	private:
-		TArray<Entry>					Entries;
+		TArray<FEntry>					Entries;
 		int64							NumTotalSamples;
 		int64							TotalDuration;
 	};
@@ -2249,7 +2260,7 @@ namespace Electra
 		{
 		}
 
-		struct Entry
+		struct FEntry
 		{
 			uint32		SampleCount;
 			int64		SampleOffset;
@@ -2260,9 +2271,9 @@ namespace Electra
 			return Entries.Num();
 		}
 
-		const Entry GetEntry(int32 EntryIndex) const
+		const FEntry GetEntry(int32 EntryIndex) const
 		{
-			Entry e;
+			FEntry e;
 			e.SampleCount = Entries[EntryIndex].SampleCount;
 			// For box version 0 return the unsigned value, otherwise convert the unsigned to signed (first to 32, then to 64 bits)
 			e.SampleOffset = Version == 0 ? (int64)Entries[EntryIndex].SampleOffset : (int64)((int32)Entries[EntryIndex].SampleOffset);
@@ -2386,7 +2397,7 @@ namespace Electra
 		{
 		}
 
-		struct Entry
+		struct FEntry
 		{
 			uint32		FirstChunk;
 			uint32		SamplesPerChunk;
@@ -2398,7 +2409,7 @@ namespace Electra
 			return Entries.Num();
 		}
 
-		const Entry& GetEntry(int32 EntryIndex) const
+		const FEntry& GetEntry(int32 EntryIndex) const
 		{
 			return Entries[EntryIndex];
 		}
@@ -2430,7 +2441,7 @@ namespace Electra
 					RETURN_IF_ERROR(ParseInfo->Reader()->Read(FirstChunk));			// first_chunk
 					RETURN_IF_ERROR(ParseInfo->Reader()->Read(SamplesPerChunk));	// samples_per_chunk
 					RETURN_IF_ERROR(ParseInfo->Reader()->Read(DescriptionIndex));	// sample_description_index
-					Entry& e = Entries.AddDefaulted_GetRef();
+					FEntry& e = Entries.AddDefaulted_GetRef();
 					e.FirstChunk = FirstChunk;
 					e.SamplesPerChunk = SamplesPerChunk;
 					e.SampleDescriptionIndex = DescriptionIndex;
@@ -2440,7 +2451,7 @@ namespace Electra
 		}
 
 	private:
-		TArray<Entry>	Entries;
+		TArray<FEntry>	Entries;
 	};
 
 
@@ -3469,8 +3480,12 @@ namespace Electra
 			virtual bool IsSyncSample() const override;
 			virtual int64 GetSampleSize() const override;
 			virtual int64 GetSampleFileOffset() const override;
+			virtual int64 GetRawDTS() const override;
+			virtual int64 GetRawPTS() const override;
+			virtual int64 GetCompositionTimeEdit() const override;
+			virtual int64 GetEmptyEditOffset() const override;
 
-			UEMediaError StartAtFirst();
+			UEMediaError StartAtFirstInteral();
 			void SetTrack(const FTrack* InTrack);
 			void SetOptions(const FParamDict& InOptions);
 			bool IsValid() const
@@ -3504,6 +3519,8 @@ namespace Electra
 					CTTSIndex = Other.CTTSIndex;
 					STSSNextSyncSampleNum = Other.STSSNextSyncSampleNum;
 					STSSIndex = Other.STSSIndex;
+					EmptyEditDurationInMediaTimeUnits = Other.EmptyEditDurationInMediaTimeUnits;
+					CompositionTimeEditOffset = Other.CompositionTimeEditOffset;
 					DataOffset = Other.DataOffset;
 					SampleDTS = Other.SampleDTS;
 					SamplePTS = Other.SamplePTS;
@@ -3517,7 +3534,7 @@ namespace Electra
 			}
 
 			FParamDict			Options;
-			const FTrack* Track;
+			const FTrack*		Track;
 
 			bool				bIsFragmented;
 
@@ -3546,6 +3563,8 @@ namespace Electra
 			int32				STSSIndex;
 
 			// Used in all cases
+			int64				EmptyEditDurationInMediaTimeUnits;
+			int64				CompositionTimeEditOffset;
 			int64				DataOffset;
 			int64				SampleDTS;
 			int64				SamplePTS;
@@ -3578,10 +3597,10 @@ namespace Electra
 			const FMP4BoxMVHD* MVHDBox;
 			const FMP4BoxELST* ELSTBox;
 			const FMP4BoxTKHD* TKHDBox;
-			const FMP4Box* MDIABox;
+			const FMP4Box*	   MDIABox;
 			const FMP4BoxMDHD* MDHDBox;
 			const FMP4BoxHDLR* HDLRBox;
-			const FMP4Box* STBLBox;
+			const FMP4Box*	   STBLBox;
 			const FMP4BoxSTSD* STSDBox;
 			const FMP4BoxSTTS* STTSBox;
 			const FMP4BoxCTTS* CTTSBox;
@@ -3590,7 +3609,7 @@ namespace Electra
 			const FMP4BoxSTCO* STCOBox;
 			const FMP4BoxSTSS* STSSBox;
 			// Fragmented track
-			const FMP4Box* MOOFBox;
+			const FMP4Box*	   MOOFBox;
 			const FMP4BoxTREX* TREXBox;
 			const FMP4BoxTFHD* TFHDBox;
 			const FMP4BoxTFDT* TFDTBox;
@@ -3598,6 +3617,9 @@ namespace Electra
 			// Future boxes: sbgp, sgpd, subs, saiz, saio
 
 			FStreamCodecInformation					CodecInformation;
+
+			int64									EmptyEditDurationInMediaTimeUnits;
+			int64									CompositionTimeEditOffset;
 
 			MPEG::FAVCDecoderConfigurationRecord	CodecSpecificDataAVC;
 			MPEG::FESDescriptor						CodecSpecificDataMP4A;
@@ -3727,8 +3749,11 @@ namespace Electra
 		, TREXBox(nullptr)
 		, TFHDBox(nullptr)
 		, TFDTBox(nullptr)
+		, EmptyEditDurationInMediaTimeUnits(0)
+		, CompositionTimeEditOffset(0)
 	{
 	}
+
 	uint32 FParserISO14496_12::FTrack::GetID() const
 	{
 		return TKHDBox ? TKHDBox->GetTrackID() : 0;
@@ -3861,6 +3886,8 @@ namespace Electra
 		CTTSIndex = 0;
 		STSSNextSyncSampleNum = 0;
 		STSSIndex = 0;
+		EmptyEditDurationInMediaTimeUnits = 0;
+		CompositionTimeEditOffset = 0;
 		DataOffset = 0;
 		SampleDTS = 0;
 		SamplePTS = 0;
@@ -3909,7 +3936,7 @@ namespace Electra
 	}
 
 
-	UEMediaError FParserISO14496_12::FTrackIterator::StartAtFirst()
+	UEMediaError FParserISO14496_12::FTrackIterator::StartAtFirstInteral()
 	{
 		// NOTE: All boxes that are referenced here have been checked to exist so accessing them is safe.
 
@@ -3921,6 +3948,10 @@ namespace Electra
 
 		bEOS = false;
 		bIsFragmented = Track->TFHDBox != nullptr;
+
+		// Get the relevant 'elst' values over from the track for convenience.
+		CompositionTimeEditOffset = Track->CompositionTimeEditOffset;
+		EmptyEditDurationInMediaTimeUnits = Track->EmptyEditDurationInMediaTimeUnits;
 
 		if (bIsFragmented)
 		{
@@ -4025,7 +4056,7 @@ namespace Electra
 			// This is because of the interleaving of samples from the contained tracks. How many times the sample size can be added
 			// is determined by the stsc box.
 			STSCIndex = 0;
-			const FMP4BoxSTSC::Entry& stsc0 = Track->STSCBox->GetEntry(0);
+			const FMP4BoxSTSC::FEntry& stsc0 = Track->STSCBox->GetEntry(0);
 			// Establish the file data offset for the first sample.
 			CurrentChunkIndex = stsc0.FirstChunk;
 			DataOffset = Track->STCOBox->GetEntry(CurrentChunkIndex - 1);
@@ -4068,8 +4099,6 @@ namespace Electra
 
 			// Set up the timestamps
 			int64 BaseMediaDecodeTime = 0;
-			// NOTE: There is the unfortunate issue with an edit list which can be used to shift the composition time among other things.
-			//       For the time being we ignore edit lists.
 			SampleDTS = 0;
 			SamplePTS = SampleDTS + CTTSOffset;
 
@@ -4254,7 +4283,7 @@ namespace Electra
 					// Switch to next chunk.
 					++STSCIndex;
 
-					const FMP4BoxSTSC::Entry& stsc = Track->STSCBox->GetEntry(STSCIndex);
+					const FMP4BoxSTSC::FEntry& stsc = Track->STSCBox->GetEntry(STSCIndex);
 					check(CurrentChunkIndex == stsc.FirstChunk);
 					DataOffset = Track->STCOBox->GetEntry(CurrentChunkIndex - 1);
 					NumSamplesInChunk = stsc.SamplesPerChunk;
@@ -4335,7 +4364,7 @@ namespace Electra
 
 	UEMediaError FParserISO14496_12::FTrackIterator::StartAtFirst(bool bNeedSyncSample)
 	{
-		UEMediaError err = StartAtFirst();
+		UEMediaError err = StartAtFirstInteral();
 		if (err == UEMEDIA_ERROR_OK)
 		{
 			for(; err == UEMEDIA_ERROR_OK; err = Next())
@@ -4358,7 +4387,7 @@ namespace Electra
 		//       Otherwise for fragmented files it's tricky to get at the sample flags to find the sync samples unless we would assume there is only
 		//       a single sync sample at the start of the fragment.
 		// So for now we take the shortcut to just iterate.
-		UEMediaError err = StartAtFirst();
+		UEMediaError err = StartAtFirstInteral();
 		if (err == UEMEDIA_ERROR_OK)
 		{
 			FTrackIterator Best;
@@ -4434,12 +4463,12 @@ namespace Electra
 
 	int64 FParserISO14496_12::FTrackIterator::GetDTS() const
 	{
-		return SampleDTS;
+		return SampleDTS + EmptyEditDurationInMediaTimeUnits;
 	}
 
 	int64 FParserISO14496_12::FTrackIterator::GetPTS() const
 	{
-		return SamplePTS;
+		return SamplePTS + EmptyEditDurationInMediaTimeUnits - CompositionTimeEditOffset;
 	}
 
 	int64 FParserISO14496_12::FTrackIterator::GetDuration() const
@@ -4467,6 +4496,25 @@ namespace Electra
 		return DataOffset;
 	}
 
+	int64 FParserISO14496_12::FTrackIterator::GetRawDTS() const
+	{
+		return SampleDTS;
+	}
+
+	int64 FParserISO14496_12::FTrackIterator::GetRawPTS() const
+	{
+		return SamplePTS;
+	}
+
+	int64 FParserISO14496_12::FTrackIterator::GetCompositionTimeEdit() const
+	{
+		return CompositionTimeEditOffset;
+	}
+
+	int64 FParserISO14496_12::FTrackIterator::GetEmptyEditOffset() const
+	{
+		return EmptyEditDurationInMediaTimeUnits;
+	}
 
 
 	/***************************************************************************************************************************************************/
@@ -4592,6 +4640,61 @@ namespace Electra
 							return UEMEDIA_ERROR_FORMAT_ERROR;
 						}
 						// TODO: Check the dinf->dref->url box to not reference any external media!
+
+						// Get the composition time offset and the empty edit from the edit list. Those are necessary to correct the PTS values from
+						// positive values in the 'ctts' box as well as general mapping of the content.
+						if (Track->ELSTBox)
+						{
+							bool bHaveEmptyEdit = false;
+							bool bHaveEmptyEditWarned = false;
+							bool bHaveOffsetEdit = false;
+							bool bHaveOffsetEditWarned = false;
+							for(int32 nEntry=0; nEntry<Track->ELSTBox->GetNumberOfEntries(); ++nEntry)
+							{
+								const FMP4BoxELST::FEntry& ee = Track->ELSTBox->GetEntry(nEntry);
+								// As per 8.6.6.1 the entries we are interested in have a rate of 1, so we use that to narrow down the entries to look at.
+								if (ee.MediaRateInteger == 1 && ee.MediaRateFraction == 0)
+								{
+									// Empty edit?
+									if (ee.MediaTime == -1)
+									{
+										// An empty edit means to insert blank, nonexistent material into the timeline.
+										// Essentially this means that everything from the media track will come after this blank and the best way
+										// to do this is to add the duration of the blank to the timestamps.
+										// However, this means that there will be no _real_ samples for this blank duration and thus nothing in
+										// any of the receive buffers. This should not be a huge blank period since we expect data to arrive in all buffers.
+										if (!bHaveEmptyEdit)
+										{
+											// We can only have a single empty edit.
+											bHaveEmptyEdit = true;
+											Track->EmptyEditDurationInMediaTimeUnits = Track->MDHDBox->GetTimescale() == Timescale ? ee.SegmentDuration : FTimeFraction(ee.SegmentDuration, Timescale).GetAsTimebase(Track->MDHDBox->GetTimescale());
+										}
+										else if (!bHaveEmptyEditWarned)
+										{
+											// Emit a warning.
+											bHaveEmptyEditWarned = true;
+											UE_LOG(LogElectraMP4Parser, Warning, TEXT("Found another empty edit in 'elst' box, ignoring"));
+										}
+									}
+									else if (ee.MediaTime >= 0)
+									{
+										// This defines the part of the media that is mapped to the track timeline's 0 point.
+										// This is commonly used to adjust the composition time offset and we treat it as such.
+										if (!bHaveOffsetEdit)
+										{
+											bHaveOffsetEdit = true;
+											Track->CompositionTimeEditOffset = ee.MediaTime;
+										}
+										else if (!bHaveOffsetEditWarned)
+										{
+											bHaveOffsetEditWarned = true;
+											UE_LOG(LogElectraMP4Parser, Warning, TEXT("Found another media edit in 'elst' box, ignoring"));
+										}
+									}
+								}
+							}
+						}
+
 
 						// Fragmented track?
 						if (MVEXBox)
@@ -4882,7 +4985,6 @@ namespace Electra
 					case FMP4Box::kBox_traf:
 					{
 						// FIXME: for encrypted content we need to also handle: sbgp, sgpd, subs, saiz, saio
-						// FIXME: there can theoretically be several trun boxes in sequence.
 
 						// Get the tfhd box.
 						const FMP4BoxTFHD* TFHDBox = static_cast<const FMP4BoxTFHD*>(Box->FindBox(FMP4Box::kBox_tfhd, 0));
@@ -5036,7 +5138,7 @@ namespace Electra
 			FTrackIterator* TrkIt = static_cast<FTrackIterator*>(Track->CreateIterator());
 			TSharedPtr<ITrackIterator, ESPMode::ThreadSafe> SafeTrkIt(TrkIt);
 			ti->TrackIterators.Add(SafeTrkIt);
-			UEMediaError err = TrkIt->StartAtFirst();
+			UEMediaError err = TrkIt->StartAtFirstInteral();
 			if (err == UEMEDIA_ERROR_OK)
 			{
 				while(TrkIt->GetSampleFileOffset() < InFromFilePos)

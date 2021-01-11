@@ -29,13 +29,12 @@ public:
 
 	FErrorDetail Build(TSharedPtrTS<IParserISO14496_12> MP4Parser, const FString& URL, const HTTP::FConnectionInfo& InConnectionInfo);
 
-
 	virtual EType GetPresentationType() const override;
 	virtual TSharedPtrTS<IPlaybackAssetTimeline> GetTimeline() const override;
 	virtual int64 GetDefaultStartingBitrate() const override;
 	virtual void GetStreamMetadata(TArray<FStreamMetadata>& OutMetadata, EStreamType StreamType) const override;
 	virtual FTimeValue GetMinBufferTime() const override;
-	virtual IStreamReader *CreateStreamReaderHandler() override;
+	virtual IStreamReader* CreateStreamReaderHandler() override;
 	virtual FResult FindPlayPeriod(TSharedPtrTS<IPlayPeriod>& OutPlayPeriod, const FPlayStartPosition& StartPosition, ESearchType SearchType) override;
 
 
@@ -157,6 +156,8 @@ public:
 			return TSharedPtrTS<IPlaybackAssetAdaptationSet>();
 		}
 
+
+		void LimitSegmentDownloadSize(TSharedPtrTS<IStreamSegment>& InOutSegment, TSharedPtr<IParserISO14496_12::IAllTrackIterator, ESPMode::ThreadSafe> AllTrackIterator);
 
 		FResult GetStartingSegment(TSharedPtrTS<IStreamSegment>& OutSegment, const FPlayStartPosition& StartPosition, ESearchType SearchType, int64 AtAbsoluteFilePos);
 		FResult GetNextSegment(TSharedPtrTS<IStreamSegment>& OutSegment, TSharedPtrTS<const IStreamSegment> CurrentSegment, const FParamDict& Options);

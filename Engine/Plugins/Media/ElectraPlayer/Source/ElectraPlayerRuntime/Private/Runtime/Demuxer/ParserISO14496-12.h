@@ -173,6 +173,10 @@ namespace Electra
 			virtual bool IsSyncSample() const = 0;
 			virtual int64 GetSampleSize() const = 0;
 			virtual int64 GetSampleFileOffset() const = 0;
+			virtual int64 GetRawDTS() const = 0;
+			virtual int64 GetRawPTS() const = 0;
+			virtual int64 GetCompositionTimeEdit() const = 0;
+			virtual int64 GetEmptyEditOffset() const = 0;
 		};
 
 		class ITrack
