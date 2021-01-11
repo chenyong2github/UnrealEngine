@@ -34,6 +34,15 @@ struct FInstallBundleCacheReserveResult
 	EInstallBundleCacheReserveResult Result = EInstallBundleCacheReserveResult::Success;
 };
 
+struct FInstallBundleCacheStats
+{
+	FName CacheName;
+	uint64 MaxSize = 0;
+	uint64 UsedSize = 0;
+	uint64 ReservedSize = 0;
+	uint64 FreeSize = 0;
+};
+
 class INSTALLBUNDLEMANAGER_API FInstallBundleCache : public TSharedFromThis<FInstallBundleCache>
 {
 public:
@@ -50,7 +59,10 @@ public:
 
 	// Return the total size of the cache
 	uint64 GetSize() const;
-	// Return the amount of free space in the cache
+	// Return the amount of space in use.  This could possbly exceed GetSize() if the cache size is changed or more 
+	// bundles are added the to cache.
+	uint64 GetUsedSize() const;
+	// Return the amount of free space in the cache, clamped to [0, GetSize()]
 	uint64 GetFreeSpace() const;
 
 	// Called from bundle manager
@@ -64,9 +76,13 @@ public:
 	// Hint to the cache that this bundle is requested, and we should prefer to evict non-requested bundles if possible
 	void HintRequested(FName BundleName, bool bRequested);
 
-private:
-	void CheckInvariants() const;
+	FInstallBundleCacheStats GetStats(bool bDumpToLog = false) const;
 
+private:
+	uint64 GetFreeSpaceInternal(uint64 UsedSize) const;
+
+	void CheckInvariants() const;
+	
 	void UpdateCacheInfoFromSourceInfo(FName BundleName);
 
 private:
