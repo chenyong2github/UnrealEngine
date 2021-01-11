@@ -21,20 +21,19 @@ FDebugViewModeMaterialProxy::FDebugViewModeMaterialProxy(
 )
 	: FMaterial()
 	, MaterialInterface(InMaterialInterface)
-	, Material(nullptr)
+	, Material(InMaterialInterface->GetMaterial())
 	, FeatureLevel(InFeatureLevel)
 	, Usage(EMaterialShaderMapUsage::DebugViewMode)
 	, DebugViewMode(InDebugViewMode)
 	, PixelShaderName(nullptr)
 	, CachedMaterialUsage(0)
 	, bValid(true)
-	, bIsDefaultMaterial(InMaterialInterface->GetMaterial()->IsDefaultMaterial())
+	, bIsDefaultMaterial(Material ? Material->IsDefaultMaterial() : false)
 	, bSynchronousCompilation(InSynchronousCompilation)
 {
 	SetQualityLevelProperties(FeatureLevel);
 	const EShaderPlatform ShaderPlatform = GetFeatureLevelShaderPlatform(FeatureLevel);
 
-	Material = InMaterialInterface->GetMaterial();
 	ReferencedTextures = MaterialInterface->GetReferencedTextures();
 
 	FMaterialResource* Resource = InMaterialInterface->GetMaterialResource(FeatureLevel);
