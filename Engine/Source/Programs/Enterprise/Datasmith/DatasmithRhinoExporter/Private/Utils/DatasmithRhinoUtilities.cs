@@ -203,7 +203,7 @@ namespace DatasmithRhino
 			return TranslationTransform * RotationTransform;
 		}
 
-		public static string EvaluateAttributeUserText(RhinoSceneHierarchyNode InNode, string ValueFormula)
+		public static string EvaluateAttributeUserText(DatasmithActorInfo InNode, string ValueFormula)
 		{
 			if (!ValueFormula.StartsWith("%<") || !ValueFormula.EndsWith(">%"))
 			{
@@ -211,13 +211,13 @@ namespace DatasmithRhino
 				return ValueFormula;
 			}
 
-			RhinoObject NodeObject = InNode.Info.RhinoModelComponent as RhinoObject;
+			RhinoObject NodeObject = InNode.RhinoModelComponent as RhinoObject;
 			RhinoObject ParentObject = null;
-			RhinoSceneHierarchyNode CurrentNode = InNode;
+			DatasmithActorInfo CurrentNode = InNode;
 			while (CurrentNode.LinkedNode != null)
 			{
 				CurrentNode = CurrentNode.LinkedNode;
-				ParentObject = CurrentNode.Info.RhinoModelComponent as RhinoObject;
+				ParentObject = CurrentNode.RhinoModelComponent as RhinoObject;
 			}
 
 			// In case this is an instance of a block sub-object, the ID held in the formula may not have been updated

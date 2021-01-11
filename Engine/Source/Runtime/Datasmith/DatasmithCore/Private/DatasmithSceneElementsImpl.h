@@ -152,6 +152,11 @@ public:
 		static_cast< FDatasmithActorElementImpl* >( InChild.Get() )->Parent.Inner.Reset();
 	}
 
+	virtual const TSharedPtr< IDatasmithActorElement >& GetParentActor() const override
+	{
+		return Parent.View();
+	}
+
 	virtual void SetIsAComponent(bool Value) { UPDATE_BITFLAGS(Flags, Value, EActorFlags::IsAComponent); }
 	virtual bool IsAComponent() const override { return !!(Flags & EActorFlags::IsAComponent); }
 
@@ -376,6 +381,7 @@ public:
 	virtual TSharedPtr<IDatasmithMaterialIDElement> GetMaterialOverride(int32 i) override;
 	virtual TSharedPtr<const IDatasmithMaterialIDElement> GetMaterialOverride(int32 i) const override;
 	virtual void RemoveMaterialOverride(const TSharedPtr< IDatasmithMaterialIDElement >& Material) override;
+	virtual void ResetMaterialOverrides() override;
 
 	virtual const TCHAR* GetStaticMeshPathName() const override;
 	virtual void SetStaticMeshPathName(const TCHAR* InStaticMeshName) override;
@@ -458,6 +464,12 @@ template < typename InterfaceType >
 void FDatasmithMeshActorElementImpl< InterfaceType >::RemoveMaterialOverride(const TSharedPtr< IDatasmithMaterialIDElement >& Material)
 {
 	Materials.Remove(Material);
+}
+
+template < typename InterfaceType >
+void FDatasmithMeshActorElementImpl< InterfaceType >::ResetMaterialOverrides()
+{
+	Materials.Edit().Reset();
 }
 
 template < typename InterfaceType >
@@ -1483,6 +1495,10 @@ public:
 	virtual const TSharedPtr< IDatasmithKeyValueProperty >& GetPropertyByName( const TCHAR* InName ) const override;
 
 	virtual void AddProperty( const TSharedPtr< IDatasmithKeyValueProperty >& Property ) override;
+
+	virtual void RemoveProperty( const TSharedPtr<IDatasmithKeyValueProperty>& Property ) override;
+
+	virtual void ResetProperties() override;
 
 private:
 	TDatasmithReferenceProxy<IDatasmithElement> AssociatedElement;

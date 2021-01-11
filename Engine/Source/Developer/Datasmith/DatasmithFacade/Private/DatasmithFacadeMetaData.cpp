@@ -152,6 +152,16 @@ void FDatasmithFacadeMetaData::SetAssociatedElement(
 	}
 }
 
+void FDatasmithFacadeMetaData::RemoveProperty(
+	const FDatasmithFacadeKeyValueProperty* Property
+)
+{
+	if (Property)
+	{
+		GetDatasmithMetaDataElement()->RemoveProperty( Property->GetDatasmithKeyValueProperty() );
+	}
+}
+
 TSharedRef<IDatasmithMetaDataElement> FDatasmithFacadeMetaData::GetDatasmithMetaDataElement() const
 {
 	return StaticCastSharedRef<IDatasmithMetaDataElement>(GetDatasmithElement());

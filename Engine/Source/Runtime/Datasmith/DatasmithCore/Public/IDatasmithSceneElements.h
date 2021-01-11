@@ -136,6 +136,9 @@ public:
 
 	virtual void RemoveChild(const TSharedPtr< IDatasmithActorElement >& InChild) = 0;
 
+	/** Get the parent actor of the Actor element, returns invalid TSharedPtr if the Actor is directly under the scene root */
+	virtual const TSharedPtr< IDatasmithActorElement >& GetParentActor() const = 0;
+
 	/** Indicates if this actor is a standalone actor or a component, when used in a hierarchy */
 	virtual void SetIsAComponent(bool Value) = 0;
 	virtual bool IsAComponent() const = 0;
@@ -264,6 +267,9 @@ public:
 
 	/** Remove material from the Actor Element */
 	virtual void RemoveMaterialOverride(const TSharedPtr<IDatasmithMaterialIDElement>& Material) = 0;
+
+	/** Remove all material overrides from the Actor Element */
+	virtual void ResetMaterialOverrides() = 0;
 
 	/** Get the path name of the StaticMesh associated with the actor */
 	virtual const TCHAR* GetStaticMeshPathName() const = 0;
@@ -1423,6 +1429,12 @@ public:
 
 	/** Add a property to this meta data */
 	virtual void AddProperty(const TSharedPtr< IDatasmithKeyValueProperty >& Property) = 0;
+
+	/** Remove the property from this meta data */
+	virtual void RemoveProperty( const TSharedPtr<IDatasmithKeyValueProperty>& Property ) = 0;
+
+	/** Remove all properties in this meta data */
+	virtual void ResetProperties() = 0;
 };
 
 class DATASMITHCORE_API IDatasmithDecalActorElement : public IDatasmithCustomActorElement

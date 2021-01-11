@@ -162,6 +162,41 @@ public class FDatasmithFacadeActor : FDatasmithFacadeElement {
     DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeActor_RemoveChild(swigCPtr, FDatasmithFacadeActor.getCPtr(InChild));
   }
 
+  public FDatasmithFacadeActor GetParentActor() {
+	global::System.IntPtr objectPtr = DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeActor_GetParentActor(swigCPtr);
+	if(objectPtr == global::System.IntPtr.Zero)
+	{
+		return null;
+	}
+	else
+	{
+		FDatasmithFacadeActor.EActorType ActorType = (new FDatasmithFacadeActor(objectPtr, false)).GetActorType();
+
+		switch(ActorType)
+		{
+		case FDatasmithFacadeActor.EActorType.DirectionalLight:
+			return new FDatasmithFacadeDirectionalLight(objectPtr, true);
+		case FDatasmithFacadeActor.EActorType.AreaLight:
+			return new FDatasmithFacadeAreaLight(objectPtr, true);
+		case FDatasmithFacadeActor.EActorType.LightmassPortal:
+			return new FDatasmithFacadeLightmassPortal(objectPtr, true);
+		case FDatasmithFacadeActor.EActorType.PointLight:
+			return new FDatasmithFacadePointLight(objectPtr, true);
+		case FDatasmithFacadeActor.EActorType.SpotLight:
+			return new FDatasmithFacadeSpotLight(objectPtr, true);
+		case FDatasmithFacadeActor.EActorType.StaticMeshActor:
+			return new FDatasmithFacadeActorMesh(objectPtr, true);
+		case FDatasmithFacadeActor.EActorType.Camera:
+			return new FDatasmithFacadeActorCamera(objectPtr, true);
+		case FDatasmithFacadeActor.EActorType.Actor:
+			return new FDatasmithFacadeActor(objectPtr, true);
+		case FDatasmithFacadeActor.EActorType.Unsupported:
+		default:
+			return null;
+		}
+	}
+}
+
   public void SetVisibility(bool bInVisibility) {
     DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeActor_SetVisibility(swigCPtr, bInVisibility);
   }

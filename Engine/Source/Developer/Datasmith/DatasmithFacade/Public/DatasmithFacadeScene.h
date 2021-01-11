@@ -142,6 +142,14 @@ public:
 		int32 MetaDataIndex
 	);
 
+	/**
+	 *	Returns a new FDatasmithFacadeMetaData pointing to the MetaData associated to the specified DatasmithElement.
+	 *	If there is no associated metadata or the element is null, the returned value is nullptr.
+	 */
+	FDatasmithFacadeMetaData* GetNewMetaData(
+		FDatasmithFacadeElement* Element
+	);
+
 	void RemoveMetaData(
 		FDatasmithFacadeMetaData* InMetaDataPtr
 	);

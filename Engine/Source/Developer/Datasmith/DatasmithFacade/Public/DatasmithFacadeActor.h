@@ -142,6 +142,16 @@ public:
 		FDatasmithFacadeActor* InChild
 	);
 
+	/**
+	 *	Returns a new FDatasmithFacadeActor pointing to the parent Actor of the actor
+	 *	If there is no parent of if actor is directly under the scene root, the returned value is nullptr.
+	 *	The caller is responsible of deleting the returned object pointer.
+	 */
+	FDatasmithFacadeActor* GetNewParentActor() const
+	{
+		return GetNewFacadeActorFromSharedPtr( GetDatasmithActorElement()->GetParentActor() );
+	}
+
 	// Get a mesh actor's visibility
 	void SetVisibility(
 		bool bInVisibility

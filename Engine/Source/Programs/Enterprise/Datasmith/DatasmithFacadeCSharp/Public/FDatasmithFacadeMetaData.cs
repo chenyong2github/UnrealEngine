@@ -87,4 +87,12 @@ public class FDatasmithFacadeMetaData : FDatasmithFacadeElement {
     DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeMetaData_SetAssociatedElement(swigCPtr, FDatasmithFacadeElement.getCPtr(Element));
   }
 
+  public void RemoveProperty(FDatasmithFacadeKeyValueProperty Property) {
+    DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeMetaData_RemoveProperty(swigCPtr, FDatasmithFacadeKeyValueProperty.getCPtr(Property));
+  }
+
+  public void ResetProperties() {
+    DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeMetaData_ResetProperties(swigCPtr);
+  }
+
 }

@@ -248,6 +248,21 @@ FDatasmithFacadeMetaData* FDatasmithFacadeScene::GetNewMetaData(
 	return nullptr;
 }
 
+FDatasmithFacadeMetaData* FDatasmithFacadeScene::GetNewMetaData(
+	FDatasmithFacadeElement* Element
+)
+{
+	if (Element)
+	{
+		if (TSharedPtr<IDatasmithMetaDataElement> MetaDataElement = SceneRef->GetMetaData(Element->GetDatasmithElement()))
+		{
+			return new FDatasmithFacadeMetaData(MetaDataElement.ToSharedRef());
+		}
+	}
+
+	return nullptr;
+}
+
 void FDatasmithFacadeScene::RemoveMetaData(
 	FDatasmithFacadeMetaData* InMetaDataPtr
 )

@@ -218,7 +218,19 @@ public class FDatasmithFacadeScene : global::System.IDisposable {
   }
 
   public FDatasmithFacadeMetaData GetMetaData(int MetaDataIndex) {
-	global::System.IntPtr objectPtr = DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeScene_GetMetaData(swigCPtr, MetaDataIndex);
+	global::System.IntPtr objectPtr = DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeScene_GetMetaData__SWIG_0(swigCPtr, MetaDataIndex);
+	if(objectPtr == global::System.IntPtr.Zero)
+	{
+		return null;
+	}
+	else
+	{
+		return new FDatasmithFacadeMetaData(objectPtr, true);
+	}
+}
+
+  public FDatasmithFacadeMetaData GetMetaData(FDatasmithFacadeElement Element) {
+	global::System.IntPtr objectPtr = DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeScene_GetMetaData__SWIG_1(swigCPtr, FDatasmithFacadeElement.getCPtr(Element));
 	if(objectPtr == global::System.IntPtr.Zero)
 	{
 		return null;
