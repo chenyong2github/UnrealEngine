@@ -28,6 +28,8 @@ public:
 
 	inline const ByteArray& Bytes() const { return Hash; }
 
+	inline bool IsZero() const;
+
 private:
 	alignas(uint32) ByteArray Hash{};
 };
@@ -76,6 +78,20 @@ private:
 inline FBlake3Hash::FBlake3Hash(const ByteArray& InHash)
 {
 	FMemory::Memcpy(Hash, InHash, sizeof(ByteArray));
+}
+
+inline bool FBlake3Hash::IsZero() const
+{
+	using UInt32Array = uint32[8];
+	static_assert(sizeof(UInt32Array) == sizeof(ByteArray), "Invalid size for UInt32Array");
+	for (uint32 Value : reinterpret_cast<const UInt32Array&>(Hash))
+	{
+		if (Value != 0)
+		{
+			return false;
+		}
+	}
+	return true;
 }
 
 inline bool operator==(const FBlake3Hash& A, const FBlake3Hash& B)
