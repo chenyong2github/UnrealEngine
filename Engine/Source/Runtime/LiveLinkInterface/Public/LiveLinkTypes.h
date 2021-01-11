@@ -157,7 +157,12 @@ struct LIVELINKINTERFACE_API FLiveLinkTime
 	UPROPERTY(EditAnywhere, Category="LiveLink")
 	FQualifiedFrameTime SceneTime;
 
-	FLiveLinkTime() = default;
+	FLiveLinkTime()
+		: WorldTime(0.0)
+		, SceneTime()
+	{
+	}
+
 	FLiveLinkTime(double InWorldTime, const FQualifiedFrameTime& InSceneTime)
 		: WorldTime(InWorldTime)
 		, SceneTime(InSceneTime)

@@ -124,10 +124,10 @@ struct FLiveLinkSourceDebugInfo
 	FLiveLinkSubjectName SubjectName;
 
 	UPROPERTY(VisibleAnywhere, Category = "Debug")
-	int32 SnapshotIndex;
+	int32 SnapshotIndex = 0;
 
 	UPROPERTY(VisibleAnywhere, Category = "Debug")
-	int32 NumberOfBufferAtSnapshot;
+	int32 NumberOfBufferAtSnapshot = 0;
 };
 
 /** Base class for live link source settings (can be replaced by sources themselves) */
