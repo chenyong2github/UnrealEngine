@@ -9,6 +9,7 @@
 #include "SourceControlOperations.h"
 #include "PerforceSourceControlRevision.h"
 #include "PerforceSourceControlCommand.h"
+#include "PerforceSourceControlChangelistState.h"
 #include "PerforceConnection.h"
 #include "PerforceSourceControlModule.h"
 #include "PerforceSourceControlChangeStatusOperation.h"
@@ -1206,6 +1207,23 @@ static void ParseDiffResults(const FP4RecordSet& InRecords, TArray<FString>& Out
 	}
 }
 
+static void ParseChangelistsResults(const FP4RecordSet& InRecords, TArray<FPerforceSourceControlChangelistState>& OutStates)
+{
+	// Iterate over each record found as a result of the command, parsing it for relevant information
+	for (int32 Index = 0; Index < InRecords.Num(); ++Index)
+	{
+		const FP4Record& ClientRecord = InRecords[Index];
+
+		FString ChangelistString = ClientRecord(TEXT("change"));
+		int32 ChangelistNumber = FCString::Atoi(*ChangelistString);
+
+		FPerforceSourceControlChangelist Changelist(ChangelistNumber);
+
+		FPerforceSourceControlChangelistState& State = OutStates.Emplace_GetRef(Changelist);
+		State.Description = ClientRecord(TEXT("desc"));
+		State.bHasShelvedFiles = ClientRecord.Contains(TEXT("shelved"));
+	}
+}
 
 FName FPerforceUpdateStatusWorker::GetName() const
 {
@@ -1437,6 +1455,119 @@ bool FPerforceGetWorkspacesWorker::Execute(FPerforceSourceControlCommand& InComm
 bool FPerforceGetWorkspacesWorker::UpdateStates() const
 {
 	return false;
+}
+
+
+FName FPerforceGetPendingChangelistsWorker::GetName() const
+{
+	return "GetPendingChangelists";
+}
+
+bool FPerforceGetPendingChangelistsWorker::Execute(FPerforceSourceControlCommand& InCommand)
+{
+	FScopedPerforceConnection ScopedConnection(InCommand);
+
+	if (!InCommand.IsCanceled() && ScopedConnection.IsValid())
+	{
+		FPerforceConnection& Connection = ScopedConnection.GetConnection();
+
+		TSharedRef<FUpdatePendingChangelistsStatus, ESPMode::ThreadSafe> Operation = StaticCastSharedRef<FUpdatePendingChangelistsStatus>(InCommand.Operation);
+
+		if (Operation->ShouldUpdateAllChangelists())
+		{
+			// First, insert the default changelist which always exists
+			FPerforceSourceControlChangelistState& State = OutChangelistsStates.Emplace_GetRef(FPerforceSourceControlChangelist::DefaultChangelist);
+
+			TArray<FString> Parameters;
+			Parameters.Add(TEXT("-l"));									// -l			Complete description
+			Parameters.Add(TEXT("-spending"));							// -s pending	Only pending changelists
+			Parameters.Add(TEXT("-u"));									// -u			For user
+			Parameters.Add(InCommand.ConnectionInfo.UserName);			// <username>
+			Parameters.Add(TEXT("-c"));									// -c			For workspace
+			Parameters.Add(InCommand.ConnectionInfo.Workspace);			// <workspace>
+
+			FP4RecordSet Records;
+			InCommand.bCommandSuccessful = Connection.RunCommand(TEXT("changes"), Parameters, Records, InCommand.ResultInfo.ErrorMessages, FOnIsCancelled::CreateRaw(&InCommand, &FPerforceSourceControlCommand::IsCanceled), InCommand.bConnectionDropped);
+
+			ParseChangelistsResults(Records, OutChangelistsStates);
+		}
+
+		// Test whether we should continue processing SCC commands
+		auto ShouldContinueProcessing = [&InCommand]() { return InCommand.bCommandSuccessful && !InCommand.IsCanceled(); };
+
+		if (Operation->ShouldUpdateFilesStates())
+		{
+			for (FPerforceSourceControlChangelistState& ChangelistState : OutChangelistsStates)
+			{
+				if (!ShouldContinueProcessing())
+				{
+					break;
+				}
+
+				TArray<FString> Parameters;
+				Parameters.Add(TEXT("-c"));								// -c			Changelist
+				Parameters.Add(ChangelistState.Changelist.ToString());	// <changelist>
+
+				FP4RecordSet Records;
+				Connection.RunCommand(TEXT("opened"), Parameters, Records, InCommand.ResultInfo.ErrorMessages, FOnIsCancelled::CreateRaw(&InCommand, &FPerforceSourceControlCommand::IsCanceled), InCommand.bConnectionDropped);
+				InCommand.bCommandSuccessful &= InCommand.ResultInfo.ErrorMessages.IsEmpty();
+
+				TArray<FPerforceSourceControlState> OutStates;
+				TMap<FString, FBranchModification> BranchModifications;
+				ParseUpdateStatusResults(Records, InCommand.ResultInfo.ErrorMessages, OutStates, InCommand.ContentRoot, BranchModifications);
+
+				OutCLFilesStates.Add(OutStates);
+			}
+		}
+	}
+
+	if (InCommand.IsCanceled() || !InCommand.bCommandSuccessful)
+	{
+		OutChangelistsStates.Empty();
+		OutCLFilesStates.Empty();
+		OutCLShelvedFilesStates.Empty();
+	}
+
+	return InCommand.bCommandSuccessful;
+}
+
+bool FPerforceGetPendingChangelistsWorker::UpdateStates() const
+{
+	bool bUpdated = false;
+
+	FPerforceSourceControlModule& PerforceSourceControl = FPerforceSourceControlModule::Get();
+	const FDateTime Now = FDateTime::Now();
+
+	// first update cached state from 'changes' call
+	for (int StatusIndex = 0; StatusIndex < OutChangelistsStates.Num(); StatusIndex++)
+	{
+		const FPerforceSourceControlChangelistState& CLStatus = OutChangelistsStates[StatusIndex];
+		TSharedRef<FPerforceSourceControlChangelistState, ESPMode::ThreadSafe> ChangelistState = PerforceSourceControl.GetProvider().GetStateInternal(CLStatus.Changelist);
+		// Timestamp is used to throttle status requests, so update it to current time:
+		*ChangelistState = CLStatus;
+		ChangelistState->TimeStamp = Now;
+		bUpdated = true;
+
+		// Update files states for files in the changelist
+		bool bUpdateFilesStates = OutCLFilesStates.Num() == OutChangelistsStates.Num();
+		if (bUpdateFilesStates)
+		{
+			ChangelistState->Files.Reset(OutCLFilesStates[StatusIndex].Num());
+
+			for (const FPerforceSourceControlState& Status : OutCLFilesStates[StatusIndex])
+			{
+				TSharedRef<FPerforceSourceControlState, ESPMode::ThreadSafe> FileState = PerforceSourceControl.GetProvider().GetStateInternal(Status.LocalFilename);
+				auto History = MoveTemp(FileState->History);
+				*FileState = Status;
+				FileState->History = MoveTemp(History);
+				FileState->TimeStamp = Now;
+				
+				ChangelistState->Files.Add(FileState);
+			}
+		}
+	}
+
+	return bUpdated;
 }
 
 

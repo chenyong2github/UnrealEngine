@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "IPerforceSourceControlWorker.h"
 #include "PerforceSourceControlState.h"
+#include "PerforceSourceControlChangelistState.h"
 
 class FPerforceSourceControlRevision;
 
@@ -137,6 +138,22 @@ public:
 	virtual FName GetName() const override;
 	virtual bool Execute(class FPerforceSourceControlCommand& InCommand) override;
 	virtual bool UpdateStates() const override;
+};
+
+class FPerforceGetPendingChangelistsWorker : public IPerforceSourceControlWorker
+{
+public:
+	virtual ~FPerforceGetPendingChangelistsWorker() {}
+	// IPerforceSourceControlWorker interface
+	virtual FName GetName() const override;
+	virtual bool Execute(class FPerforceSourceControlCommand& InCommand) override;
+	virtual bool UpdateStates() const override;
+
+public:
+	/** Temporary states for results */
+	TArray<FPerforceSourceControlChangelistState> OutChangelistsStates;
+	TArray<TArray<FPerforceSourceControlState>> OutCLFilesStates;
+	TArray<TArray<FPerforceSourceControlState>> OutCLShelvedFilesStates;
 };
 
 class FPerforceCopyWorker : public IPerforceSourceControlWorker

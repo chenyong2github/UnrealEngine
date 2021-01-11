@@ -5,6 +5,7 @@
 #include "HAL/PlatformProcess.h"
 #include "Misc/MessageDialog.h"
 #include "Misc/CommandLine.h"
+#include "Algo/Transform.h"
 #include "Misc/QueuedThreadPool.h"
 #include "Modules/ModuleManager.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
@@ -60,6 +61,23 @@ TSharedRef<FPerforceSourceControlState, ESPMode::ThreadSafe> FPerforceSourceCont
 		// cache an unknown state for this item
 		TSharedRef<FPerforceSourceControlState, ESPMode::ThreadSafe> NewState = MakeShareable( new FPerforceSourceControlState(Filename) );
 		StateCache.Add(Filename, NewState);
+		return NewState;
+	}
+}
+
+TSharedRef<FPerforceSourceControlChangelistState, ESPMode::ThreadSafe> FPerforceSourceControlProvider::GetStateInternal(const FPerforceSourceControlChangelist& InChangelist)
+{
+	TSharedRef<FPerforceSourceControlChangelistState, ESPMode::ThreadSafe>* State = ChangelistsStateCache.Find(InChangelist);
+	if (State != NULL)
+	{
+		// found cached item
+		return (*State);
+	}
+	else
+	{
+		// cache an unknown state for this item
+		TSharedRef<FPerforceSourceControlChangelistState, ESPMode::ThreadSafe> NewState = MakeShareable(new FPerforceSourceControlChangelistState(InChangelist));
+		ChangelistsStateCache.Add(InChangelist, NewState);
 		return NewState;
 	}
 }
@@ -247,19 +265,31 @@ ECommandResult::Type FPerforceSourceControlProvider::GetState( const TArray<FStr
 
 	for( TArray<FString>::TConstIterator It(AbsoluteFiles); It; It++)
 	{
-		TSharedRef<FPerforceSourceControlState, ESPMode::ThreadSafe>* State = StateCache.Find(*It);
-		if(State != NULL)
-		{
-			// found cached item for this file, return that
-			OutState.Add(*State);
-		}
-		else
-		{
-			// cache an unknown state for this item & return that
-			TSharedRef<FPerforceSourceControlState, ESPMode::ThreadSafe> NewState = MakeShareable( new FPerforceSourceControlState(*It) );
-			StateCache.Add(*It, NewState);
-			OutState.Add(NewState);
-		}
+		OutState.Add(GetStateInternal(*It));
+	}
+
+	return ECommandResult::Succeeded;
+}
+
+ECommandResult::Type FPerforceSourceControlProvider::GetState(const TArray<FSourceControlChangelistRef>& InChangelists, TArray<FSourceControlChangelistStateRef>& OutState, EStateCacheUsage::Type InStateCacheUsage)
+{
+	if (!IsEnabled())
+	{
+		return ECommandResult::Failed;
+	}
+
+	if (InStateCacheUsage == EStateCacheUsage::ForceUpdate)
+	{
+		TSharedRef<class FUpdatePendingChangelistsStatus, ESPMode::ThreadSafe> UpdatePendingChangelistsOperation = ISourceControlOperation::Create<FUpdatePendingChangelistsStatus>();
+		UpdatePendingChangelistsOperation->SetChangelistsToUpdate(InChangelists);
+
+		ISourceControlProvider::Execute(UpdatePendingChangelistsOperation, EConcurrency::Synchronous);
+	}
+
+	for (FSourceControlChangelistRef Changelist : InChangelists)
+	{
+		FPerforceSourceControlChangelistRef PerforceChangelist = StaticCastSharedRef<FPerforceSourceControlChangelist>(Changelist);
+		OutState.Add(GetStateInternal(PerforceChangelist.Get()));
 	}
 
 	return ECommandResult::Succeeded;
@@ -508,6 +538,26 @@ TArray< TSharedRef<ISourceControlLabel> > FPerforceSourceControlProvider::GetLab
 	}
 
 	return Labels;
+}
+
+TArray<FSourceControlChangelistRef> FPerforceSourceControlProvider::GetChangelists( EStateCacheUsage::Type InStateCacheUsage )
+{
+	if (!IsEnabled())
+	{
+		return TArray<FSourceControlChangelistRef>();
+	}
+
+	if (InStateCacheUsage == EStateCacheUsage::ForceUpdate)
+	{
+		TSharedRef<class FUpdatePendingChangelistsStatus, ESPMode::ThreadSafe> UpdatePendingChangelistsOperation = ISourceControlOperation::Create<FUpdatePendingChangelistsStatus>();
+		UpdatePendingChangelistsOperation->SetUpdateAllChangelists(true);
+
+		ISourceControlProvider::Execute(UpdatePendingChangelistsOperation, EConcurrency::Synchronous);
+	}
+
+	TArray<FSourceControlChangelistRef> Changelists;
+	Algo::Transform(ChangelistsStateCache, Changelists, [](const auto& Pair) { return MakeShared<FPerforceSourceControlChangelist, ESPMode::ThreadSafe>(Pair.Key); });
+	return Changelists;
 }
 
 #if SOURCE_CONTROL_WITH_SLATE

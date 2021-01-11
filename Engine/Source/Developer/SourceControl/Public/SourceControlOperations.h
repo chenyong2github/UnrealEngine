@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "SourceControlOperationBase.h"
+#include "ISourceControlChangelist.h"
 
 #define LOCTEXT_NAMESPACE "SourceControl"
 
@@ -333,6 +334,91 @@ public:
 	{
 		return LOCTEXT("SourceControl_Resolve", "Resolving file(s) in Source Control...");
 	}
+};
+
+/**
+ * Operation used to retrieve pending changelist(s).
+ */
+class FGetPendingChangelists : public FSourceControlOperationBase
+{
+public:
+	// ISourceControlOperation interface
+	virtual FName GetName() const override
+	{
+		return "GetPendingChangelists";
+	}
+
+	virtual FText GetInProgressString() const override
+	{
+		return LOCTEXT("SourceControl_GetPendingChangelists", "Retrieving pending changelist(s) from Source Control...");
+	}
+};
+
+/**
+ * Operation used to update the source control status of changelist(s)
+ */
+class FUpdatePendingChangelistsStatus : public FSourceControlOperationBase
+{
+public:
+	void SetUpdateFilesStates(bool bInUpdateFilesStates)
+	{
+		bUpdateFilesStates = bInUpdateFilesStates;
+	}
+
+	bool ShouldUpdateFilesStates() const
+	{
+		return bUpdateFilesStates;
+	}
+
+	void SetUpdateShelvedFilesStates(bool bInUpdateShelvedFilesStates)
+	{
+		bUpdateShelvedFilesStates = bInUpdateShelvedFilesStates;
+	}
+
+	bool ShouldUpdateShelvedFilesStates() const
+	{
+		return bUpdateShelvedFilesStates;
+	}
+
+	void SetUpdateAllChangelists(bool bInUpdateAllChangelists)
+	{
+		bUpdateAllChangelists = bInUpdateAllChangelists;
+		ChangelistsToUpdate.Empty();
+	}
+
+	bool ShouldUpdateAllChangelists() const
+	{
+		return bUpdateAllChangelists;
+	}
+
+	void SetChangelistsToUpdate(const TArray<FSourceControlChangelistRef>& InChangelistsToUpdate)
+	{
+		ChangelistsToUpdate = InChangelistsToUpdate;
+		bUpdateAllChangelists = false;
+	}
+
+	const TArray<FSourceControlChangelistRef>& GetChangelistsToUpdate() const
+	{
+		return ChangelistsToUpdate;
+	}
+
+	// ISourceControlOperation interface
+	virtual FName GetName() const override
+	{
+		return "UpdateChangelistsStatus";
+	}
+
+	virtual FText GetInProgressString() const override
+	{
+		return LOCTEXT("SourceControl_UpdateChangelistsStatus", "Updating changelist(s) status from Source Control...");
+	}
+
+private:
+	bool bUpdateFilesStates = false;
+	bool bUpdateShelvedFilesStates = false;
+	bool bUpdateAllChangelists = false;
+
+	TArray<FSourceControlChangelistRef> ChangelistsToUpdate;
 };
 
 #undef LOCTEXT_NAMESPACE

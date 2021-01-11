@@ -173,6 +173,11 @@ ECommandResult::Type FPlasticSourceControlProvider::GetState( const TArray<FStri
 	return ECommandResult::Succeeded;
 }
 
+ECommandResult::Type FPlasticSourceControlProvider::GetState(const TArray<FSourceControlChangelistRef>& InChangelists, TArray<FSourceControlChangelistStateRef>& OutState, EStateCacheUsage::Type InStateCacheUsage)
+{
+	return ECommandResult::Failed;
+}
+
 TArray<FSourceControlStateRef> FPlasticSourceControlProvider::GetCachedStateByPredicate(TFunctionRef<bool(const FSourceControlStateRef&)> Predicate) const
 {
 	TArray<FSourceControlStateRef> Result;
@@ -380,6 +385,11 @@ TArray< TSharedRef<ISourceControlLabel> > FPlasticSourceControlProvider::GetLabe
 {
 	TArray< TSharedRef<ISourceControlLabel> > Tags;
 	return Tags;
+}
+
+TArray<FSourceControlChangelistRef> FPlasticSourceControlProvider::GetChangelists( EStateCacheUsage::Type InStateCacheUsage )
+{
+	return TArray<FSourceControlChangelistRef>();
 }
 
 #if SOURCE_CONTROL_WITH_SLATE

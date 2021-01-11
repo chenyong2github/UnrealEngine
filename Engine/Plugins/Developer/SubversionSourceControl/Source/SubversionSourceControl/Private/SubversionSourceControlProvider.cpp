@@ -118,6 +118,11 @@ ECommandResult::Type FSubversionSourceControlProvider::GetState( const TArray<FS
 	return ECommandResult::Succeeded;
 }
 
+ECommandResult::Type FSubversionSourceControlProvider::GetState(const TArray<FSourceControlChangelistRef>& InChangelists, TArray<FSourceControlChangelistStateRef>& OutState, EStateCacheUsage::Type InStateCacheUsage)
+{
+	return ECommandResult::Failed;
+}
+
 TArray<FSourceControlStateRef> FSubversionSourceControlProvider::GetCachedStateByPredicate(TFunctionRef<bool(const FSourceControlStateRef&)> Predicate) const
 {
 	TArray<FSourceControlStateRef> Result;
@@ -496,6 +501,11 @@ TArray< TSharedRef<ISourceControlLabel> > FSubversionSourceControlProvider::GetL
 	}
 
 	return Labels;
+}
+
+TArray<FSourceControlChangelistRef> FSubversionSourceControlProvider::GetChangelists( EStateCacheUsage::Type InStateCacheUsage )
+{
+	return TArray<FSourceControlChangelistRef>();
 }
 
 #if SOURCE_CONTROL_WITH_SLATE
