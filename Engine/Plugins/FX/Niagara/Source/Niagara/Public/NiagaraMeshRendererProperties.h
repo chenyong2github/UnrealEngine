@@ -160,6 +160,7 @@ public:
 	virtual void GetRendererFeedback(const UNiagaraEmitter* InEmitter, TArray<FText>& OutErrors, TArray<FText>& OutWarnings, TArray<FText>& OutInfo) const override;
 	void OnMeshChanged();
 	void OnMeshPostBuild(UStaticMesh*);
+	void OnAssetReimported(UObject*);
 	void CheckMaterialUsage();
 #endif // WITH_EDITORONLY_DATA
 	virtual void CacheFromCompiledData(const FNiagaraDataSetCompiledData* CompiledData) override;
