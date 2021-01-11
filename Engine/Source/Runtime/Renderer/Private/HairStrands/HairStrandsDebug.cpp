@@ -1156,7 +1156,7 @@ void RenderHairStrandsDebugInfo(
 				DrawWireBox(&ShadowFrustumPDI, Bound, FColor::Red, 0);
 			}
 		}
-
+		#if 0
 		AddDrawCanvasPass(GraphBuilder, {}, View, SceneColor, [ClusterY, &MacroGroupDatas, YStep] (FCanvas& Canvas)
 		{
 			float X = 20;
@@ -1176,6 +1176,7 @@ void RenderHairStrandsDebugInfo(
 				Canvas.DrawShadowedString(X, Y += YStep, *Line, GetStatsFont(), DebugColor);
 			}
 		});
+		#endif
 	}
 
 	if (HairDebugMode == EHairDebugMode::DeepOpacityMaps)
