@@ -5238,10 +5238,6 @@ FGuid FSequencer::MakeNewSpawnable( UObject& Object, UActorFactory* ActorFactory
 		return FGuid();
 	}
 
-	// Override spawn ownership during this process to ensure it never gets destroyed
-	ESpawnOwnership SavedOwnership = Spawnable->GetSpawnOwnership();
-	Spawnable->SetSpawnOwnership(ESpawnOwnership::External);
-
 	// Spawn the object so we can position it correctly, it's going to get spawned anyway since things default to spawned.
 	UObject* SpawnedObject = SpawnRegister->SpawnObject(NewGuid, *MovieScene, ActiveTemplateIDs.Top(), *this);
 
@@ -5250,8 +5246,6 @@ FGuid FSequencer::MakeNewSpawnable( UObject& Object, UActorFactory* ActorFactory
 		FTransformData TransformData;
 		SpawnRegister->SetupDefaultsForSpawnable(SpawnedObject, Spawnable->GetGuid(), TransformData, AsShared(), Settings);
 	}
-
-	Spawnable->SetSpawnOwnership(SavedOwnership);
 
 	return NewGuid;
 }
@@ -11304,7 +11298,6 @@ void FSequencer::CreateCamera()
 	FGuid CameraGuid;
 
 	FMovieSceneSpawnable* Spawnable = nullptr;
-	ESpawnOwnership SavedOwnership = Spawnable ? Spawnable->GetSpawnOwnership() : ESpawnOwnership::InnerSequence;
 
 	if (bCreateAsSpawnable)
 	{
@@ -11315,9 +11308,6 @@ void FSequencer::CreateCamera()
 
 		if (ensure(Spawnable))
 		{
-			// Override spawn ownership during this process to ensure it never gets destroyed
-			SavedOwnership = Spawnable->GetSpawnOwnership();
-			Spawnable->SetSpawnOwnership(ESpawnOwnership::External);
 			Spawnable->SetName(NewName);			
 		}
 
@@ -11353,11 +11343,6 @@ void FSequencer::CreateCamera()
 	OnActorAddedToSequencerEvent.Broadcast(NewCamera, CameraGuid);
 
 	NewCameraAdded(CameraGuid, NewCamera);
-
-	if (bCreateAsSpawnable && ensure(Spawnable))
-	{
-		Spawnable->SetSpawnOwnership(SavedOwnership);
-	}
 
 	NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::MovieSceneStructureItemAdded);
 }
