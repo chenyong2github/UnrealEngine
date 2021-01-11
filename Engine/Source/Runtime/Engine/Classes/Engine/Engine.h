@@ -582,7 +582,7 @@ struct FClassRedirect
 	FName NewClassPackage; 
 
 	UPROPERTY()
-	bool InstanceOnly;
+	bool InstanceOnly = false;
 };
 
 
