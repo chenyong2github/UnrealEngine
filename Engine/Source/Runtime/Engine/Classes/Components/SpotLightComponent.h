@@ -18,11 +18,11 @@ class ENGINE_API USpotLightComponent : public UPointLightComponent
 	GENERATED_UCLASS_BODY()
 
 	/** Degrees. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Light, meta=(UIMin = "1.0", UIMax = "80.0"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Light, meta=(UIMin = "1.0", UIMax = "80.0", ShouldShowInViewport = true))
 	float InnerConeAngle;
 
 	/** Degrees. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Light, meta=(UIMin = "1.0", UIMax = "80.0"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Light, meta=(UIMin = "1.0", UIMax = "80.0", ShouldShowInViewport = true))
 	float OuterConeAngle;
 
 	UFUNCTION(BlueprintCallable, Category="Rendering|Lighting")

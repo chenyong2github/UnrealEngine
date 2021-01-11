@@ -122,6 +122,10 @@ void FPropertyNode::InitNode(const FPropertyNodeInitParams& InitParams)
 	PropertyNodeFlags = EPropertyNodeFlags::NoFlags;
 	SetNodeFlags(EPropertyNodeFlags::IsSparseClassData, bIsSparse);
 
+	static const FName Name_ShouldShowInViewport("ShouldShowInViewport");
+	bool bShouldShowInViewport = Property.IsValid() ? Property->GetBoolMetaData(Name_ShouldShowInViewport) : false;
+	SetNodeFlags(EPropertyNodeFlags::ShouldShowInViewport, bShouldShowInViewport);
+
 	//default to copying from the parent
 	if (ParentNode)
 	{

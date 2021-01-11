@@ -150,7 +150,7 @@ class ENGINE_API UDirectionalLightComponent : public ULightComponent
 	/**
 	 * Whether the directional light can interact with the atmosphere, cloud and generate a visual disk. All of which compose the visual sky.
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category= AtmosphereAndCloud, meta=(DisplayName = "Atmosphere Sun Light"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category= AtmosphereAndCloud, meta=(DisplayName = "Atmosphere Sun Light", ShouldShowInViewport = true))
 	uint32 bUsedAsAtmosphereSunLight : 1;
 
 	/**

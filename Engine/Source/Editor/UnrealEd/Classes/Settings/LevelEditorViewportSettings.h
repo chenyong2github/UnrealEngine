@@ -514,6 +514,9 @@ public:
 	/** The scale to apply to spline tangent lengths */
 	UPROPERTY(EditAnywhere, config, Category = LookAndFeel, AdvancedDisplay, meta = (ClampMin = "0.00"))
 	float SplineTangentScale;
+	
+	UPROPERTY(config)
+	FVector2D LastInViewportMenuLocation;
 
 private:
 

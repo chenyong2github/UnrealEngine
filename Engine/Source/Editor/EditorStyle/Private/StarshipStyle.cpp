@@ -3105,6 +3105,23 @@ void FStarshipEditorStyle::FStyle::SetupPropertyEditorStyles()
 			.SetForegroundColor( DefaultForeground )
 			);
 
+	
+		
+		FLinearColor TransparentHeader = FStyleColors::Recessed.GetSpecifiedColor();
+		TransparentHeader.A = 0.95f;
+		FLinearColor TransparentToolbar = FStyleColors::Header.GetSpecifiedColor();
+		TransparentToolbar.A = 0.95f;
+		FLinearColor TransparentBackground = FStyleColors::Background.GetSpecifiedColor();
+		TransparentBackground.A = 0.75f;
+		Set("PropertyTable.InViewport.Background", new FSlateColorBrush(FSlateColor(TransparentBackground)));
+		Set("PropertyTable.InViewport.Header", new FSlateColorBrush(FSlateColor(TransparentHeader)));
+		// InViewportToolbar
+		{
+			FToolBarStyle InViewportToolbar = FStarshipCoreStyle::GetCoreStyle().GetWidgetStyle<FToolBarStyle>("SlimToolBar");
+			InViewportToolbar.SetBackground(FSlateColorBrush(FSlateColor(TransparentToolbar)));
+			Set("InViewportToolbar", InViewportToolbar);
+		}
+
 		Set( "PropertyTable.Selection.Active",						new IMAGE_BRUSH( "Common/Selection", Icon8x8, SelectionColor ) );
 
 		Set( "PropertyTable.HeaderRow.Column.PathDelimiter",		new IMAGE_BRUSH( "Common/SmallArrowRight", Icon10x10 ) );

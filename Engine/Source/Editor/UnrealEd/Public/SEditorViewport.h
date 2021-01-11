@@ -16,6 +16,7 @@ class FSceneViewport;
 class FUICommandList;
 class SViewport;
 struct FSlateBrush;
+struct FToolMenuContext;
 
 class UNREALED_API SEditorViewport
 	: public SCompoundWidget
@@ -90,6 +91,14 @@ public:
 
 	/** Build the exposure menu using EV100 settings */
 	TSharedRef<SWidget> BuildFixedEV100Menu()  const;
+
+	/**
+ * Called when the user wants to show the in-viewport context menu
+ */
+	virtual void ToggleInViewportContextMenu() {}
+	virtual void HideInViewportContextMenu() {}
+	virtual void UpdateInViewportMenuLocation(const FVector2D InLocation);
+	virtual bool CanToggleInViewportContextMenu() { return false; }
 
 ///////////////////////////////////////////////////////////////////////////////
 // begin feature level control functions block
@@ -256,6 +265,8 @@ protected:
 	
 	/** The last time the viewport was ticked (for visibility determination) */
 	double LastTickTime;
+
+	FVector2D InViewportContextMenuLocation;
 
 private:
 	/** Ensures a Slate tick/paint pass when the viewport is realtime or was invalidated this frame */

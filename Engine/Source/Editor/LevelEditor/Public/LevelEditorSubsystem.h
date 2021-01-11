@@ -17,11 +17,15 @@ class LEVELEDITOR_API ULevelEditorSubsystem : public UEditorSubsystem
 	GENERATED_BODY()
 
 public:
+	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+
+	virtual void Deinitialize() override;
+	void ExtendQuickActionMenu();
 
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility", meta=(DevelopmentOnly))
 	void PilotLevelActor(AActor* ActorToPilot);
-
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility", meta=(DevelopmentOnly))
+	void PilotLevelActor(const FToolMenuContext& InContext);
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility", meta = (DevelopmentOnly))
 	void EjectPilotLevelActor();
 
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility", meta = (DevelopmentOnly))

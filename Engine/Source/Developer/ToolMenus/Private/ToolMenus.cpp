@@ -203,6 +203,8 @@ public:
 
 	void AddStandardEntryToMenuBuilder()
 	{
+		// First, check for a ToolUIAction, otherwise do the rest of this (have CommandList and Command)
+		// Need another variable to store if we are using a keybind from a command
 		if (Block.Command.IsValid())
 		{
 			bool bPopCommandList = false;
@@ -1266,7 +1268,7 @@ void UToolMenus::PopulateToolBarBuilder(FToolBarBuilder& ToolBarBuilder, UToolMe
 
 			if (Block.Type == EMultiBlockType::ToolBarButton)
 			{
-				if (Block.Command.IsValid())
+				if (Block.Command.IsValid() && !Block.IsCommandKeybindOnly())
 				{
 					bool bPopCommandList = false;
 					TSharedPtr<const FUICommandList> CommandListForAction;

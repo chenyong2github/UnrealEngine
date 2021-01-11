@@ -45,7 +45,7 @@ class ENGINE_API ULightComponent : public ULightComponentBase
 	* Color temperature in Kelvin of the blackbody illuminant.
 	* White (D65) is 6500K.
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category = Light, meta = (UIMin = "1700.0", UIMax = "12000.0"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category = Light, meta = (UIMin = "1700.0", UIMax = "12000.0", ShouldShowInViewport = true, DisplayAfter ="bUseTemperature"))
 	float Temperature;
 	
 	UPROPERTY(EditAnywhere, Category = Performance)
@@ -55,7 +55,7 @@ class ENGINE_API ULightComponent : public ULightComponentBase
 	float MaxDistanceFadeRange;
 
 	/** false: use white (D65) as illuminant. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Light, meta=(DisplayName = "Use Temperature"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Light, meta=(DisplayName = "Use Temperature", ShouldShowInViewport = true))
 	uint32 bUseTemperature : 1;
 
 	/** 

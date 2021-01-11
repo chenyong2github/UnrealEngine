@@ -82,9 +82,12 @@
 #include "WorldPartition/DataLayer/WorldDataLayers.h"
 #include "WorldPartition/DataLayer/DataLayer.h"
 #include "DataLayer/DataLayerEditorSubsystem.h"
+#include "SInViewportDetails.h"
+
 
 static const FName LevelEditorName("LevelEditor");
-
+static FAutoConsoleCommand EnableInViewportMenu(TEXT("Editor.EnableInViewportMenu"), TEXT("Enables the new in-viewport property menu"), FConsoleCommandDelegate::CreateStatic(&SLevelViewport::EnableInViewportMenu));
+bool SLevelViewport::bInViewportMenuEnabled = false;
 #define LOCTEXT_NAMESPACE "LevelViewport"
 
 // @todo Slate Hack: Disallow game UI to be used in play in viewport until GWorld problem is fixed
@@ -239,6 +242,9 @@ void SLevelViewport::Construct(const FArguments& InArgs, const FAssetEditorViewp
 
 	FEditorDelegates::PostPIEStarted.AddSP(this, &SLevelViewport::TransitionToPIE);
 	FEditorDelegates::PrePIEEnded.AddSP(this, &SLevelViewport::TransitionFromPIE);
+
+	bIsInViewportMenuShowing = false;
+	bIsInViewportMenuInitialized = false;
 }
 
 void SLevelViewport::ConstructViewportOverlayContent()
@@ -618,6 +624,12 @@ FReply SLevelViewport::OnKeyDown( const FGeometry& MyGeometry, const FKeyEvent& 
 	{
 		Reply = SEditorViewport::OnKeyDown(MyGeometry,InKeyEvent);
 
+		// Otherwise, give the in-viewport context menu a chance to handle the keypress.
+		if (!Reply.IsEventHandled() && InViewportMenu.IsValid())
+		{
+			Reply = InViewportMenu->GetGeneratedToolbarMenu()->OnKeyDown(MyGeometry, InKeyEvent);
+		}
+
 
 		// If we are in immersive mode and the event was not handled, we will check to see if the the 
 		//  optional parent level editor is set.  If it is, we give it a chance to handle the key event.
@@ -717,6 +729,10 @@ bool SLevelViewport::HandleDragObjects(const FGeometry& MyGeometry, const FDragD
 		auto BrushOperation = StaticCastSharedPtr<FBrushBuilderDragDropOp>( Operation );
 
 		new(SelectedAssetDatas) FAssetData(BrushOperation->GetBrushBuilder().Get());
+	}
+	else if (Operation->IsOfType<FInViewportUIDragOperation>())
+	{
+		bValidDrag = true;
 	}
 	else
 	{
@@ -974,19 +990,29 @@ bool SLevelViewport::HandlePlaceDraggedObjects(const FGeometry& MyGeometry, cons
 
 FReply SLevelViewport::OnDrop( const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent )
 {
-	ULevel* CurrentLevel = (GetWorld()) ? GetWorld()->GetCurrentLevel() : nullptr;
-
-	if (CurrentLevel && !FLevelUtils::IsLevelLocked(CurrentLevel))
+	if (DragDropEvent.GetOperation()->IsOfType<FInViewportUIDragOperation>())
 	{
-		return HandlePlaceDraggedObjects(MyGeometry, DragDropEvent, /*bCreateDropPreview=*/false) ? FReply::Handled() : FReply::Unhandled();
+		FVector2D ScreenSpaceDropLocation = DragDropEvent.GetScreenSpacePosition() - DragDropEvent.GetOperationAs<FInViewportUIDragOperation>()->GetDecoratorOffsetFromCursor();
+		UpdateInViewportMenuLocation(MyGeometry.AbsoluteToLocal(ScreenSpaceDropLocation));
+		ToggleInViewportContextMenu();
 	}
 	else
 	{
-		FNotificationInfo Info(LOCTEXT("Error_OperationDisallowedOnLockedLevel", "The requested operation could not be completed because the level is locked."));
-		Info.ExpireDuration = 3.0f;
-		FSlateNotificationManager::Get().AddNotification(Info);
-		return FReply::Handled();
+		ULevel* CurrentLevel = (GetWorld()) ? GetWorld()->GetCurrentLevel() : nullptr;
+
+		if (CurrentLevel && !FLevelUtils::IsLevelLocked(CurrentLevel))
+		{
+			return HandlePlaceDraggedObjects(MyGeometry, DragDropEvent, /*bCreateDropPreview=*/false) ? FReply::Handled() : FReply::Unhandled();
+		}
+		else
+		{
+			FNotificationInfo Info(LOCTEXT("Error_OperationDisallowedOnLockedLevel", "The requested operation could not be completed because the level is locked."));
+			Info.ExpireDuration = 3.0f;
+			FSlateNotificationManager::Get().AddNotification(Info);
+			return FReply::Handled();
+		}
 	}
+	return FReply::Unhandled();
 }
 
 
@@ -4500,6 +4526,104 @@ FText SLevelViewport::GetLockedIconToolTip() const
 UWorld* SLevelViewport::GetWorld() const
 {
 	return ParentLevelEditor.IsValid() ? ParentLevelEditor.Pin()->GetWorld() : nullptr;
+}
+
+void SLevelViewport::ToggleInViewportContextMenu()
+{
+	USelection* ActorSelection = GEditor->GetSelectedActors();
+	if (ActorSelection->Num())
+	{
+		if (!bIsInViewportMenuShowing)
+		{
+			// Set up the correct menu location first
+			if (!bIsInViewportMenuInitialized)
+			{
+				FVector2D NewViewportContextMenuLocation = GetDefault<ULevelEditorViewportSettings>()->LastInViewportMenuLocation;
+				if (!NewViewportContextMenuLocation.IsZero())
+				{
+					UpdateInViewportMenuLocation(NewViewportContextMenuLocation);
+				}
+				else
+				{
+					AActor* SelectedActor = ActorSelection->GetTop<AActor>();
+					FSceneViewFamilyContext ViewFamily(FSceneViewFamily::ConstructionValues(
+						GetActiveViewport(),
+						LevelViewportClient->GetScene(),
+						LevelViewportClient->EngineShowFlags)
+						.SetRealtimeUpdate(IsRealtime()));
+					// SceneView is deleted with the ViewFamily
+					FSceneView* SceneView = LevelViewportClient->CalcSceneView(&ViewFamily);
+					FVector2D ScreenPos;
+					SceneView->WorldToPixel(SelectedActor->GetTransform().GetLocation(), ScreenPos);
+					UpdateInViewportMenuLocation(ScreenPos);
+				}
+				bIsInViewportMenuInitialized = true;
+			}
+
+			bIsInViewportMenuShowing = true;
+			InViewportMenu = SNew(SInViewportDetails)
+				.InOwningViewport(SharedThis(this))
+				.InOwningLevelEditor(ParentLevelEditor.Pin());
+			InViewportMenuWrapper = SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.FillWidth(1.0f)
+				.VAlign(VAlign_Top)
+				.HAlign(HAlign_Left)
+				.Padding(TAttribute<FMargin>(this, &SLevelViewport::GetContextMenuPadding))
+				[
+					InViewportMenu.ToSharedRef()
+				];
+
+			// Immediately update it (otherwise it will appear empty)
+			{
+				TArray<UObject*> SelectedActors;
+				for (FSelectionIterator It(GEditor->GetSelectedActorIterator()); It; ++It)
+				{
+					AActor* Actor = static_cast<AActor*>(*It);
+					checkSlow(Actor->IsA(AActor::StaticClass()));
+
+					if (!Actor->IsPendingKill())
+					{
+						SelectedActors.Add(Actor);
+					}
+				}
+
+				const bool bForceRefresh = true;
+				InViewportMenu->SetObjects(SelectedActors, bForceRefresh);
+			}
+			AddOverlayWidget(InViewportMenuWrapper.ToSharedRef());
+		}
+		else
+		{
+			HideInViewportContextMenu();
+		}
+	
+	}
+}
+
+void SLevelViewport::HideInViewportContextMenu()
+{
+	if (InViewportMenuWrapper.IsValid())
+	{
+		RemoveOverlayWidget(InViewportMenuWrapper.ToSharedRef());
+	}
+	bIsInViewportMenuShowing = false;
+	InViewportMenu.Reset();
+}
+
+bool SLevelViewport::CanToggleInViewportContextMenu()
+{
+	return SLevelViewport::bInViewportMenuEnabled;
+}
+
+void SLevelViewport::EnableInViewportMenu()
+{
+	SLevelViewport::bInViewportMenuEnabled = !SLevelViewport::bInViewportMenuEnabled;
+}
+
+FMargin SLevelViewport::GetContextMenuPadding() const
+{
+	return FMargin(InViewportContextMenuLocation.X, InViewportContextMenuLocation.Y, 0, 0);
 }
 
 void SLevelViewport::RemoveActorPreview( int32 PreviewIndex, AActor* Actor, const bool bRemoveFromDesktopViewport /*=true */ )

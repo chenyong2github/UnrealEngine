@@ -12,10 +12,62 @@
 #include "EditorScriptingHelpers.h"
 #include "LevelEditor.h"
 #include "Modules/ModuleManager.h"
+#include "ToolMenus.h"
+#include "LevelEditorMenuContext.h"
+#include "Elements/Framework/TypedElementSelectionSet.h"
+#include "ToolMenuDelegates.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LevelEditorSubsystem, Log, All);
 
-void ULevelEditorSubsystem::PilotLevelActor(AActor* ActorToPilot)
+#define LOCTEXT_NAMESPACE "LevelEditorSubsystem"
+
+void ULevelEditorSubsystem::Initialize(FSubsystemCollectionBase& Collection)
+{
+	UToolMenus::RegisterStartupCallback(FSimpleMulticastDelegate::FDelegate::CreateUObject(this, &ULevelEditorSubsystem::ExtendQuickActionMenu));
+}
+
+void ULevelEditorSubsystem::Deinitialize()
+{
+	UToolMenus::UnRegisterStartupCallback(this);
+	UToolMenus::UnregisterOwner(this);
+}
+
+void ULevelEditorSubsystem::ExtendQuickActionMenu()
+{
+	FToolMenuOwnerScoped MenuOwner(this);
+	UToolMenu* Menu = UToolMenus::Get()->ExtendMenu("LevelEditor.InViewportPanel");
+	{
+		FToolMenuSection& Section = Menu->FindOrAddSection("QuickActions");
+		FToolMenuEntry& Entry = Section.AddDynamicEntry("LevelActors", FNewToolMenuSectionDelegate::CreateLambda([this](FToolMenuSection& InSection)
+			{
+				UQuickActionMenuContext* Context = InSection.FindContext<UQuickActionMenuContext>();
+				if (Context && Context->CurrentSelection && Context->CurrentSelection->GetElementList()->Num() == 1)
+				{
+				
+					FToolUIAction PilotActorAction;
+					PilotActorAction.ExecuteAction = FToolMenuExecuteAction::CreateUObject(this, &ULevelEditorSubsystem::PilotLevelActor);
+					FToolMenuEntry& PilotActorEntry = InSection.AddEntry(FToolMenuEntry::InitToolBarButton(
+						"PilotActor",
+						PilotActorAction,
+						LOCTEXT("PilotSelectedActor", "Pilot Selected Actor"),
+						LOCTEXT("PilotSelectedActorToolTip", "Move the selected actor around using the viewport controls, and bind the viewport to the actor's location and orientation."),
+						FSlateIcon(FAppStyle::Get().GetStyleSetName(), "LevelViewport.PilotSelectedActor")
+					));
+				//	LevelEditorSubsystem.AddKeybindFromCommand(FLightEditingCommands::Get().SwapLightType);
+				}
+			}));
+	}
+
+}
+
+void ULevelEditorSubsystem::PilotLevelActor(const FToolMenuContext& InContext)
+{
+	UQuickActionMenuContext* QuickMenuContext = InContext.FindContext<UQuickActionMenuContext>();
+	AActor* SelectedActor = QuickMenuContext->CurrentSelection->GetTopSelectedObject<AActor>();
+	PilotLevelActor(SelectedActor);
+}
+
+void ULevelEditorSubsystem::PilotLevelActor(AActor* ActorToPilot) 
 {
 	FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>("LevelEditor");
 
@@ -457,3 +509,5 @@ ULevel* ULevelEditorSubsystem::GetCurrentLevel()
 
 	return World->GetCurrentLevel();
 }
+
+#undef LOCTEXT_NAMESPACE

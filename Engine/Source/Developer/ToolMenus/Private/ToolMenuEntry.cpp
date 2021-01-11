@@ -9,6 +9,7 @@
 #include "Framework/MultiBox/MultiBox.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Internationalization/Internationalization.h"
+#include "Input/Events.h"
 
 
 FToolMenuEntry::FToolMenuEntry() :
@@ -17,7 +18,8 @@ FToolMenuEntry::FToolMenuEntry() :
 	bShouldCloseWindowAfterMenuSelection(true),
 	ScriptObject(nullptr),
 	StyleNameOverride(NAME_None),
-	bAddedDuringRegister(false)
+	bAddedDuringRegister(false),
+	bCommandIsKeybindOnly(false)
 {
 }
 
@@ -29,7 +31,8 @@ FToolMenuEntry::FToolMenuEntry(const FToolMenuOwner InOwner, const FName InName,
 	bShouldCloseWindowAfterMenuSelection(true),
 	ScriptObject(nullptr),
 	StyleNameOverride(NAME_None),
-	bAddedDuringRegister(false)
+	bAddedDuringRegister(false),
+	bCommandIsKeybindOnly(false)
 {
 }
 
@@ -67,6 +70,19 @@ void FToolMenuEntry::AddOptionsDropdown(FUIAction InAction, const FOnGetContent 
 	ToolBarData.OptionsDropdownData->Action = InAction;
 	ToolBarData.OptionsDropdownData->MenuContentGenerator = FNewToolMenuChoice(InMenuContentGenerator);
 	ToolBarData.OptionsDropdownData->ToolTip = InToolTip;
+}
+
+void FToolMenuEntry::AddKeybindFromCommand(const TSharedPtr< const FUICommandInfo >& InCommand)
+{
+	if (Type == EMultiBlockType::ToolBarButton)
+	{
+		Command = InCommand;
+		bCommandIsKeybindOnly = true;
+	}
+	else
+	{
+		ensureMsgf(false, TEXT("Keybinds from commands can only be associated with toolbar buttons."));
+	}
 }
 
 void FToolMenuEntry::SetCommand(const TSharedPtr<const FUICommandInfo>& InCommand, TOptional<FName> InName, const TAttribute<FText>& InLabel, const TAttribute<FText>& InToolTip, const TAttribute<FSlateIcon>& InIcon)
@@ -184,7 +200,6 @@ FToolMenuEntry FToolMenuEntry::InitToolBarButton(const TSharedPtr< const FUIComm
 	Entry.SetCommand(InCommand, InName, InLabel, InToolTip, InIcon);
 	return Entry;
 }
-
 FToolMenuEntry FToolMenuEntry::InitComboButton(const FName InName, const FToolUIActionChoice& InAction, const FNewToolMenuChoice& InMenuContentGenerator, const TAttribute<FText>& InLabel, const TAttribute<FText>& InToolTip, const TAttribute<FSlateIcon>& InIcon, bool bInSimpleComboBox, FName InTutorialHighlightName)
 {
 	FToolMenuEntry Entry(UToolMenus::Get()->CurrentOwner(), InName, EMultiBlockType::ToolBarComboButton);
@@ -227,6 +242,48 @@ void FToolMenuEntry::ResetActions()
 bool FToolMenuEntry::IsNonLegacyDynamicConstruct() const
 {
 	return Construct.IsBound() || IsScriptObjectDynamicConstruct();
+}
+
+bool FToolMenuEntry::IsCommandKeybindOnly() const
+{
+	return bCommandIsKeybindOnly;
+}
+
+bool FToolMenuEntry::CommandAcceptsInput(const FKeyEvent& InKeyEvent) const
+{
+	bool bAccepted = false;
+	for (uint32 i = 0; i < static_cast<uint8>(EMultipleKeyBindingIndex::NumChords); ++i)
+	{
+		// check each bound chord
+		EMultipleKeyBindingIndex ChordIndex = static_cast<EMultipleKeyBindingIndex>(i);
+		const FInputChord& Chord = *Command->GetActiveChord(ChordIndex);
+
+		bAccepted |= Chord.IsValidChord()
+			&& (!Chord.NeedsControl() || InKeyEvent.IsControlDown())
+			&& (!Chord.NeedsAlt() || InKeyEvent.IsAltDown())
+			&& (!Chord.NeedsShift() || InKeyEvent.IsShiftDown())
+			&& (!Chord.NeedsCommand() || InKeyEvent.IsCommandDown())
+			&& Chord.Key == InKeyEvent.GetKey();
+	}
+	return bAccepted;
+}
+
+bool FToolMenuEntry::TryExecuteToolUIAction(const FToolMenuContext& InContext)
+{
+	bool bCanExecute = false;
+	if (Action.GetToolUIAction() && Action.GetToolUIAction()->ExecuteAction.IsBound())
+	{
+		bCanExecute = true;
+		if (Action.GetToolUIAction()->CanExecuteAction.IsBound())
+		{
+			bCanExecute = Action.GetToolUIAction()->CanExecuteAction.Execute(InContext);
+		}
+		if (bCanExecute)
+		{
+			Action.GetToolUIAction()->ExecuteAction.Execute(InContext);
+		}
+	}
+	return bCanExecute;
 }
 
 bool FToolMenuEntry::IsScriptObjectDynamicConstruct() const

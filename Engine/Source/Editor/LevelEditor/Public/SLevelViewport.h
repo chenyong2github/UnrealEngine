@@ -127,7 +127,13 @@ public:
 	virtual void OnFocusViewportToSelection() override;
 	virtual EVisibility GetTransformToolbarVisibility() const override;
 	virtual UWorld* GetWorld() const override;
+	virtual void ToggleInViewportContextMenu() override;
 
+	virtual void HideInViewportContextMenu() override;
+	virtual bool CanToggleInViewportContextMenu() override;
+
+	static void EnableInViewportMenu();
+	FMargin GetContextMenuPadding() const;
 	/**
 	 * Called when the maximize command is executed                   
 	 */
@@ -909,6 +915,11 @@ private:
 
 	/** Whether to show a full toolbar, or a compact one */
 	bool bShowFullToolbar;
+	TSharedPtr<class SWidget> InViewportMenuWrapper;
+	bool bIsInViewportMenuShowing;
+	bool bIsInViewportMenuInitialized;
+	TSharedPtr<class SInViewportDetails> InViewportMenu;
+	static bool bInViewportMenuEnabled;
 protected:
 	void LockActorInternal(AActor* NewActorToLock);
 

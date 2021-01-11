@@ -33,6 +33,30 @@ void UToolMenu::InitMenu(const FToolMenuOwner InOwner, FName InName, FName InPar
 	MenuType = InType;
 }
 
+FReply UToolMenu::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
+{
+	for (int32 i = 0; i < Sections.Num(); ++i)
+	{
+		for (FToolMenuEntry& Entry : Sections[i].Blocks)
+		{
+			if (Entry.Type == EMultiBlockType::ToolBarButton
+				&& Entry.IsCommandKeybindOnly())
+			{
+				if (Entry.CommandAcceptsInput(InKeyEvent))
+				{
+					if (Entry.TryExecuteToolUIAction(Context))
+					{
+						return FReply::Handled();
+					}
+				}
+			}
+		}
+	}
+	return FReply::Unhandled();
+}
+
+
+
 void UToolMenu::InitGeneratedCopy(const UToolMenu* Source, const FName InMenuName, const FToolMenuContext* InContext)
 {
 	// Skip sections

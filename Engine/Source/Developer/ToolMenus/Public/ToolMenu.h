@@ -89,6 +89,8 @@ public:
 	}
 
 
+	FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent);
+
 	friend class UToolMenus;
 
 private:

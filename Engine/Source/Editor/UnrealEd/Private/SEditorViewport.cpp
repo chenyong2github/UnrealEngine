@@ -360,6 +360,12 @@ void SEditorViewport::BindCommands()
 		FCanExecuteAction(),
 		FIsActionChecked::CreateSP( this, &SEditorViewport::IsExposureSettingSelected ) );
 
+	CommandListRef.MapAction(
+		Commands.ToggleInViewportContextMenu,
+		FExecuteAction::CreateSP(this, &SEditorViewport::ToggleInViewportContextMenu),
+		FCanExecuteAction::CreateSP(this, &SEditorViewport::CanToggleInViewportContextMenu)
+	);
+
 	// Simple macro for binding many view mode UI commands
 
 #define MAP_VIEWMODEPARAM_ACTION( ViewModeCommand, ViewModeParam ) \
@@ -610,6 +616,14 @@ TSharedRef<SWidget> SEditorViewport::BuildFixedEV100Menu()  const
 };
 
 				
+void SEditorViewport::UpdateInViewportMenuLocation(const FVector2D InLocation)
+{
+	InViewportContextMenuLocation = InLocation;
+	ULevelEditorViewportSettings* LevelEditorViewportSettings = GetMutableDefault<ULevelEditorViewportSettings>();
+	LevelEditorViewportSettings->LastInViewportMenuLocation = InLocation;
+	LevelEditorViewportSettings->SaveConfig();
+}
+
 float SEditorViewport::OnGetFixedEV100Value() const
 {
 	if( Client.IsValid() )

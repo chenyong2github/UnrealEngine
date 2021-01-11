@@ -65,6 +65,8 @@ namespace EPropertyNodeFlags
 
 	const Type	IsSparseClassData				= 1 << 24;	/** true if the property on this node is part of a sparse class data structure */
 
+	const Type	ShouldShowInViewport			= 1 << 25; /** true if the property should be shown in the viewport context menu */
+
 	const Type 	NoFlags							= 0;
 
 };

@@ -29,14 +29,14 @@ class ENGINE_API ULightComponentBase : public USceneComponent
 	/** 
 	 * Total energy that the light emits.  
 	 */
-	UPROPERTY(BlueprintReadOnly, interp, Category=Light, meta=(DisplayName = "Intensity", UIMin = "0.0", UIMax = "20.0"))
+	UPROPERTY(BlueprintReadOnly, interp, Category=Light, meta=(DisplayName = "Intensity", UIMin = "0.0", UIMax = "20.0", ShouldShowInViewport = true))
 	float Intensity;
 
 	/** 
 	 * Filter color of the light.
 	 * Note that this can change the light's effective intensity.
 	 */
-	UPROPERTY(BlueprintReadOnly, interp, Category=Light, meta=(HideAlphaChannel))
+	UPROPERTY(BlueprintReadOnly, interp, Category=Light, meta=(HideAlphaChannel, ShouldShowInViewport = true))
 	FColor LightColor;
 
 	/** 
@@ -44,7 +44,7 @@ class ENGINE_API ULightComponentBase : public USceneComponent
 	 * A disabled light will not contribute to the scene in any way.  This setting cannot be changed at runtime and unbuilds lighting when changed.
 	 * Setting this to false has the same effect as deleting the light, so it is useful for non-destructive experiments.
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Light)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Light, meta = (ShouldShowInViewport = true))
 	uint32 bAffectsWorld:1;
 
 	/**

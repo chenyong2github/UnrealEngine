@@ -13,6 +13,7 @@ class UActorComponent;
 class SLevelViewport;
 class SLevelViewportToolBar;
 class FLevelEditorViewportClient;
+class UTypedElementSelectionSet;
 
 UCLASS()
 class LEVELEDITOR_API ULevelEditorMenuContext : public UObject
@@ -58,4 +59,14 @@ public:
 	TWeakPtr<const SLevelViewportToolBar> LevelViewportToolBarWidgetConst;
 
 	FLevelEditorViewportClient* GetLevelViewportClient();
+};
+
+
+UCLASS()
+class LEVELEDITOR_API UQuickActionMenuContext : public UObject
+{
+	GENERATED_BODY()
+public:
+	UPROPERTY(Transient)
+	const UTypedElementSelectionSet* CurrentSelection;
 };

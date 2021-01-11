@@ -902,6 +902,7 @@ ULevelEditorViewportSettings::ULevelEditorViewportSettings( const FObjectInitial
 	bAllowScreenRotate = false;
 	// Set a default preview mesh
 	PreviewMeshes.Add(FSoftObjectPath("/Engine/EditorMeshes/ColorCalibrator/SM_ColorCalibrator.SM_ColorCalibrator"));
+	LastInViewportMenuLocation = FVector2D(EForceInit::ForceInitToZero);
 }
 
 void ULevelEditorViewportSettings::PostInitProperties()

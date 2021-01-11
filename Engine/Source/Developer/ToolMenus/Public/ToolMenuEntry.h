@@ -12,10 +12,10 @@
 #include "Framework/MultiBox/MultiBoxDefs.h"
 #include "Framework/Commands/UICommandInfo.h"
 #include "UObject/TextProperty.h"
-
 #include "ToolMenuEntry.generated.h"
 
 class UToolMenuEntryScript;
+struct FKeyEvent;
 
 struct FToolMenuEntrySubMenuData
 {
@@ -121,7 +121,11 @@ struct TOOLMENUS_API FToolMenuEntry
 	void SetCommandList(const TSharedPtr<const FUICommandList>& InCommandList);
 
 	void AddOptionsDropdown(FUIAction InAction, const FOnGetContent InMenuContentGenerator, const TAttribute<FText>& InToolTip = TAttribute<FText>());
+	void AddKeybindFromCommand(const TSharedPtr< const FUICommandInfo >& InCommand);
 
+	bool IsCommandKeybindOnly() const;
+	bool CommandAcceptsInput(const FKeyEvent& InKeyEvent) const;
+	bool TryExecuteToolUIAction(const FToolMenuContext& InContext);
 	friend struct FToolMenuSection;
 	friend class UToolMenuEntryScript;
 
@@ -194,5 +198,8 @@ private:
 	FNewToolMenuDelegateLegacy ConstructLegacy;
 
 	bool bAddedDuringRegister;
+
+	UPROPERTY()
+	bool bCommandIsKeybindOnly;
 };
 

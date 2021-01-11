@@ -195,7 +195,8 @@ public:
 	TSharedPtr< FUICommandInfo > ToggleAutoExposure;
 	/** Toggle game settings exposure */
 	TSharedPtr< FUICommandInfo > ToggleInGameExposure;
-
+	/** Toggle the in-viewport context menu */
+	TSharedPtr< FUICommandInfo > ToggleInViewportContextMenu;
 	/**
 	 * Grid commands
 	 */
