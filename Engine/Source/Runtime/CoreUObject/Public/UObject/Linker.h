@@ -166,6 +166,9 @@ public:
 	/** Serializes the searchable name map */
 	COREUOBJECT_API void SerializeSearchableNamesMap(FArchive &Ar);
 	COREUOBJECT_API void SerializeSearchableNamesMap(FStructuredArchive::FSlot Slot);
+
+	/** Returns the amount of memory allocated by this container, not including sizeof(*this). */
+	COREUOBJECT_API uint32 GetAllocatedSize() const;
 };
 
 

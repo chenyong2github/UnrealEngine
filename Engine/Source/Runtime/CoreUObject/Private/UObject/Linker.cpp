@@ -160,6 +160,25 @@ FName FLinker::GetExportClassName( int32 i )
 	return NAME_Class;
 }
 
+uint32 FLinkerTables::GetAllocatedSize() const
+{
+	uint32 Result = 0;
+	Result += ImportMap.GetAllocatedSize();
+	Result += ExportMap.GetAllocatedSize();
+	Result += DependsMap.GetAllocatedSize();
+	for (const TArray<FPackageIndex>& DependencyList : DependsMap)
+	{
+		Result += DependencyList.GetAllocatedSize();
+	}
+	Result += SoftPackageReferenceList.GetAllocatedSize();
+	Result += SearchableNamesMap.GetAllocatedSize();
+	for (const TPair<FPackageIndex, TArray<FName>>& Pair : SearchableNamesMap)
+	{
+		Result += Pair.Value.GetAllocatedSize();
+	}
+	return Result;
+}
+
 /*----------------------------------------------------------------------------
 	FLinker.
 ----------------------------------------------------------------------------*/
