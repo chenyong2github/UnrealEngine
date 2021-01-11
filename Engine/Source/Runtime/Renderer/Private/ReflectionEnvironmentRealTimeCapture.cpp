@@ -693,8 +693,6 @@ void FScene::AllocateAndCaptureFrameSkyEnvMap(
 		}
 	};
 
-
-
 	auto RenderCubeFaces_GenCubeMips = [&](uint32 CubeMipStart, uint32 CubeMipEnd, TRefCountPtr<IPooledRenderTarget>& SkyRenderTarget)
 	{
 		check(CubeMipStart > 0);	// Never write to mip0 as it has just been redered into
@@ -740,8 +738,6 @@ void FScene::AllocateAndCaptureFrameSkyEnvMap(
 		}
 	};
 
-
-
 	auto RenderCubeFaces_SpecularConvolution = [&](uint32 CubeMipStart, uint32 CubeMipEnd, uint32 FaceStart, uint32 FaceCount, TRefCountPtr<IPooledRenderTarget>& DstRenderTarget, TRefCountPtr<IPooledRenderTarget>& SrcRenderTarget)
 	{
 		check((FaceStart + FaceCount) <= 6);
@@ -779,8 +775,6 @@ void FScene::AllocateAndCaptureFrameSkyEnvMap(
 		}
 	};
 
-
-
 	auto RenderCubeFaces_DiffuseIrradiance = [&](TRefCountPtr<IPooledRenderTarget>& SourceCubemap)
 	{
 		// ComputeDiffuseIrradiance using N uniform samples
@@ -812,7 +806,44 @@ void FScene::AllocateAndCaptureFrameSkyEnvMap(
 
 	const uint32 LastMipLevel = CubeMipCount - 1;
 
-	if (!bTimeSlicedRealTimeCapture || bRealTimeSlicedReflectionCaptureFirstFrame)
+	// Ensure all viewfamilies on all GPU nodes got the full cubemap by running all the capture operations for the first frame.
+	// This ensures a proper initial state when time-slicing the steps.
+	//
+	// When time-slicing, each step will be repeated for each viewfamily, avoiding artifacts that may occur if the step are
+	// incremented without being executed for viewfamilies that have views rendered on different GPUs.
+	//
+	// However, views in the same viewfamily may be rendered on different GPUs, and the current code assumes that
+	// each viewfamily will have a single GPU node associated with them. This code should be refactored to cover the more general case.
+
+	// Update the firt frame detection state variable
+	if (bTimeSlicedRealTimeCapture)
+	{
+		// Only increment frame state for non-additional viewfamilies.
+		if (!MainView.Family->bAdditionalViewFamily)
+		{
+			switch (RealTimeSlicedReflectionCaptureFirstFrameState)
+			{
+			case ERealTimeSlicedReflectionCaptureFirstFrameState::INIT:
+				RealTimeSlicedReflectionCaptureFirstFrameState = ERealTimeSlicedReflectionCaptureFirstFrameState::FIRST_FRAME;
+				break;
+
+			case ERealTimeSlicedReflectionCaptureFirstFrameState::FIRST_FRAME:
+				RealTimeSlicedReflectionCaptureFirstFrameState = ERealTimeSlicedReflectionCaptureFirstFrameState::BEYOND_FIRST_FRAME;
+				break;
+
+			default:
+				break;
+			}
+		}
+	}
+	else
+	{
+		// Reset the time-slicing first frame detection state when not time-slicing.
+		RealTimeSlicedReflectionCaptureFirstFrameState = ERealTimeSlicedReflectionCaptureFirstFrameState::INIT;
+	}
+
+	if (!bTimeSlicedRealTimeCapture 
+		|| (RealTimeSlicedReflectionCaptureFirstFrameState < ERealTimeSlicedReflectionCaptureFirstFrameState::BEYOND_FIRST_FRAME))
 	{
 		// Generate a full cube map in a single frame for the first frame.
 		// Perf number are for a 128x128x6 a cubemap on PS4 with sky and cloud and default settings
@@ -832,26 +863,42 @@ void FScene::AllocateAndCaptureFrameSkyEnvMap(
 		// 0.015ms
 		RenderCubeFaces_DiffuseIrradiance(ConvolvedSkyRenderTarget[ConvolvedSkyRenderTargetReadyIndex]);
 
-		// Reset Scene time slicing state if time slicing is disabled
-		if (!bTimeSlicedRealTimeCapture)
-		{
-			bRealTimeSlicedReflectionCaptureFirstFrame = true;
-			RealTimeSlicedReflectionCaptureState = 0;
-		}
-		else
-		{
-			bRealTimeSlicedReflectionCaptureFirstFrame = false;
-		}
+		// Reset Scene time slicing state so that it starts from the beginning if/when we get out of non-time-sliced.
+		RealTimeSlicedReflectionCaptureState = -1; // Value of -1 indicates this is the first time-sliced iteration.
 	}
 	else
 	{
 		// Each frame we capture the sky and work in ProcessedSkyRenderTarget to generate the specular convolution.
 		// Once done, we copy the result into ConvolvedSkyRenderTarget and generate the sky irradiance SH from there.
 
-		// On the first frame, we always fully initialise the convolution so ConvolvedSkyRenderTargetReadyIndex should alreayd be valid.
+		// On the first frame, we always fully initialise the convolution so ConvolvedSkyRenderTargetReadyIndex should already be valid.
 		check(ConvolvedSkyRenderTargetReadyIndex >= 0 && ConvolvedSkyRenderTargetReadyIndex <= 1);
 		const int32 ConvolvedSkyRenderTargetWorkIndex = 1 - ConvolvedSkyRenderTargetReadyIndex;
 		const int32 TimeSliceCount = 12;
+
+		// Update the current time-slicing state.
+		// Doing this before the state machine evaluation allows us to have the same state for all viewfamilies in the same frame.
+		if (RealTimeSlicedReflectionCaptureState == -1)
+		{
+			// RealTimeSlicedReflectionCaptureState can be -1 to indicate this is the first time-slicing iteration
+
+			// The first one should not be an additional family
+			checkSlow(!MainView.Family->bAdditionalViewFamily);
+
+			// 0 is the first actuable state
+			RealTimeSlicedReflectionCaptureState = 0;
+		}
+		else if (!MainView.Family->bAdditionalViewFamily)
+		{
+			// State should never go past the max value.
+			checkSlow(RealTimeSlicedReflectionCaptureState < TimeSliceCount);
+
+			// Advance the state for the first viewfamily
+			if (++RealTimeSlicedReflectionCaptureState == TimeSliceCount)
+			{
+				RealTimeSlicedReflectionCaptureState = 0;
+			}
+		}
 
 #define DEBUG_TIME_SLICE 0
 #if DEBUG_TIME_SLICE
@@ -945,9 +992,6 @@ void FScene::AllocateAndCaptureFrameSkyEnvMap(
 			// Now use the new cubemap
 			ConvolvedSkyRenderTargetReadyIndex = ConvolvedSkyRenderTargetWorkIndex;
 		}
-
-		RealTimeSlicedReflectionCaptureState++;
-		RealTimeSlicedReflectionCaptureState = RealTimeSlicedReflectionCaptureState == TimeSliceCount ? 0 : RealTimeSlicedReflectionCaptureState;
 
 #if DEBUG_TIME_SLICE
 		}
