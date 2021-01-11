@@ -833,6 +833,9 @@ void RunHairStrandsDebug(
 				const bool bHasSkinInterpolation = Instance->Strands.RestRootResource != nullptr;
 				const bool bHasBindingAsset = bHasSkinInterpolation && !Instance->Strands.bOwnRootResourceAllocation;
 
+				if (!bIsActive)
+					continue;
+
 				Line = FString::Printf(TEXT(" * Id:%d | WorldType:%s | Group:%d/%d | Asset : %s | Skeletal : %s "),
 					Instance->Debug.ComponentId,
 					ToString(Instance->WorldType),
@@ -840,10 +843,10 @@ void RunHairStrandsDebug(
 					Instance->Debug.GroupCount,
 					*Instance->Debug.GroomAssetName,
 					*Instance->Debug.SkeletalComponentName);
-				Canvas.DrawShadowedString(X, Y += YStep, *Line, GetStatsFont(), bIsActive ? DebugColor : InactiveColor);
+
 				if (Instance->Strands.IsValid())
 				{
-					Line = FString::Printf(TEXT("        |> CurveCount : %d | VertexCount : %d | MaxRadius : %f | MaxLength : %f | Skinned: %s | Binding: %s | Simulation: %s| LOD count : %d"),
+					Line += FString::Printf(TEXT("        |> CurveCount : %d | VertexCount : %d | MaxRadius : %f | MaxLength : %f | Skinned: %s | Binding: %s | Simulation: %s| Cluster count : %d | LOD count : %d"),
 						Instance->Strands.Data->GetNumCurves(),
 						Instance->Strands.Data->GetNumPoints(),
 						Instance->HairGroupPublicData->VFInput.Strands.HairRadius,
@@ -851,11 +854,12 @@ void RunHairStrandsDebug(
 						bHasSkinInterpolation ? TEXT("True") : TEXT("False"),
 						bHasBindingAsset ? TEXT("True") : TEXT("False"),
 						Instance->Guides.bIsSimulationEnable ? TEXT("True") : TEXT("False"),
-						Instance->Strands.ClusterCullingResource->Data.ClusterLODInfos.Num());
+						Instance->Strands.ClusterCullingResource->Data.ClusterLODInfos.Num(),
+						Instance->Strands.ClusterCullingResource->Data.CPULODScreenSize.Num());
 				}
 				else
 				{
-					Line = FString::Printf(TEXT("        |> HasStrands : %s | HasCards : %s | HasMeshes : %s"),
+					Line += FString::Printf(TEXT("        |> HasStrands : %s | HasCards : %s | HasMeshes : %s"),
 						Instance->Strands.IsValid() ? TEXT("True") : TEXT("False"),
 						Instance->Cards.IsValid() ? TEXT("True") : TEXT("False"),
 						Instance->Meshes.IsValid() ? TEXT("True") : TEXT("False"));
