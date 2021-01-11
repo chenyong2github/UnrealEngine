@@ -7,10 +7,12 @@
 # Setup Environment & Mono
 source Engine/Build/BatchFiles/Mac/SetupEnvironment.sh -mono Engine/Build/BatchFiles/Mac
 
-# First make sure that the UnrealBuildTool is up-to-date
-if ! xbuild /property:Configuration=Development /verbosity:quiet /nologo /p:NoWarn=1591 Engine/Source/Programs/UnrealBuildTool/UnrealBuildTool.csproj; then
-  echo "Failed to build to build tool (UnrealBuildTool)"
-  exit 1
+# If this is a source drop of the engine make sure that the UnrealBuildTool is up-to-date
+if [ ! -f Engine/Build/InstalledBuild.txt ]; then
+	if ! xbuild /property:Configuration=Development /verbosity:quiet /nologo /p:NoWarn=1591 Engine/Source/Programs/UnrealBuildTool/UnrealBuildTool.csproj; then
+		echo "Failed to build to build tool (UnrealBuildTool)"
+		exit 1
+	fi
 fi
 
 #echo "Raw Args: $*"

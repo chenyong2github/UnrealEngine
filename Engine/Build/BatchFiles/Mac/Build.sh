@@ -7,12 +7,14 @@ cd "`dirname "$0"`/../../../.."
 # Setup Environment and Mono
 source Engine/Build/BatchFiles/Mac/SetupEnvironment.sh -mono Engine/Build/BatchFiles/Mac
 
+
 # Skip UBT and SWC compile step if we're coming in on an SSH connection (ie remote toolchain)
-if [ -z "$SSH_CONNECTION" ]; then
+# or if this is an installed build
+if [ -z "$SSH_CONNECTION" ] && [ ! -f Engine/Build/InstalledBuild.txt ]; then
 	# First make sure that the UnrealBuildTool is up-to-date
 	if ! xbuild /property:Configuration=Development /verbosity:quiet /nologo /p:NoWarn=1591 Engine/Source/Programs/UnrealBuildTool/UnrealBuildTool.csproj; then
-	  echo "Failed to build to build tool (UnrealBuildTool)"
-	  exit 1
+		echo "Failed to build to build tool (UnrealBuildTool)"
+		exit 1
 	fi
 
 	# build SCW if specified
