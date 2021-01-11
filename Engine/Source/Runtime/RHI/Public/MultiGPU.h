@@ -12,7 +12,7 @@
 #if PLATFORM_DESKTOP
 #define WITH_SLI 1	// Implicit SLI
 #define WITH_MGPU 1	// Explicit MGPU
-#define MAX_NUM_GPUS 4
+#define MAX_NUM_GPUS 8
 extern RHI_API uint32 GNumExplicitGPUsForRendering;
 extern RHI_API uint32 GNumAlternateFrameRenderingGroups;
 extern RHI_API uint32 GVirtualMGPU;
