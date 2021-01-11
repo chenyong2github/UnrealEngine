@@ -17,6 +17,8 @@ namespace Gauntlet
 		public float? CpuPeakMemory;
 		public float? PhysicalUsedMemory;
 		public float? PhysicalPeakMemory;
+		public float? StreamingUsedMemory;
+		public float? StreamingPeakMemory;
 		public float? MVP;
 		public float? AvgFps;
 		public float? Hitches;
@@ -41,15 +43,36 @@ namespace Gauntlet
 		{
 			StringBuilder SB = new StringBuilder();
 
+			SB.AppendFormat("Snapshot {0}\n", Name);
+			SB.AppendFormat("Duration\t{0}\n", ProfileLength);
+
+			if (CpuUsedMemory.HasValue)
+			{
+				SB.AppendFormat("CpuUsedMemory:\t\t{0} MB\n", CpuUsedMemory.Value);
+			}
+			if (CpuPeakMemory.HasValue)
+			{
+				SB.AppendFormat("CpuPeakMemory:\t\t{0} MB\n", CpuPeakMemory.Value);
+			}
+			if (PhysicalUsedMemory.HasValue)
+			{
+				SB.AppendFormat("PhysicalUsedMemory:\t\t{0} MB\n", PhysicalUsedMemory.Value);
+			}
+			if (PhysicalPeakMemory.HasValue)
+			{
+				SB.AppendFormat("PhysicalPeakMemory:\t\t{0} MB\n", PhysicalPeakMemory.Value);
+			}
+			if (StreamingUsedMemory.HasValue)
+			{
+				SB.AppendFormat("StreamingUsedMemory:\t\t{0} MB\n", StreamingUsedMemory.Value);
+			}
+			if (StreamingPeakMemory.HasValue)
+			{
+				SB.AppendFormat("StreamingPeakMemory:\t\t{0} MB\n", StreamingPeakMemory.Value);
+			}
+
 			if (ProfileLength > 0)
 			{
-				SB.AppendFormat("Snapshot {0}\n", Name);
-				SB.AppendFormat("Duration\t{0}\n", ProfileLength);
-
-				if (CpuUsedMemory.HasValue)
-				{
-					SB.AppendFormat("Memory:\t\t{0} MB\n", CpuUsedMemory.Value);
-				}
 				if (MVP.HasValue)
 				{
 					SB.AppendFormat("MVP:\t\t{0:0.00}\n", MVP.Value);
@@ -134,6 +157,12 @@ namespace Gauntlet
 				PhysicalPeakMemory = Convert.ToSingle(Groups[2]);
 			});
 
+			RegexUtil.MatchAndApplyGroups(InContent, @"Streaming Memory:[\s\w]+?([\d\.]+)MB,[\s\w:]+?([\d\.]+)MB", (Groups) =>
+			{
+				StreamingUsedMemory = Convert.ToSingle(Groups[1]);
+				StreamingPeakMemory = Convert.ToSingle(Groups[2]);
+			});
+
 			RegexUtil.MatchAndApplyGroups(InContent, @"MVP:\s(\d.+)%,\s.*AvgFPS:(\d.+),\s.*HitchesPerMinute:\s(\d.+),\sAvg\sHitch\s(\d.+)ms", (Groups) =>
 			{
 				MVP = Convert.ToSingle(Groups[1]);
@@ -181,6 +210,7 @@ namespace Gauntlet
 			{
 				DrawnPrims = Convert.ToInt32(Groups[1]);
 			});
+
 			RegexUtil.MatchAndApplyGroups(InContent, @"UnbuiltHLODs:\s(\d.+)", (Groups) =>
 			{
 				UnbuiltHLODs = Convert.ToInt32(Groups[1]);
