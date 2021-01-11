@@ -101,6 +101,7 @@ bool FCollection::Load(FText& OutError)
 		if (Line.Len() == 0)
 		{
 			// Empty line. Done reading headers.
+			++LineIndex;
 			break;
 		}
 
