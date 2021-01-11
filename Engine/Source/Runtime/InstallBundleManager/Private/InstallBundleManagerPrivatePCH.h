@@ -5,5 +5,5 @@
 #include "CoreMinimal.h"
 #include "ProfilingDebugging/CsvProfiler.h"
 
-DECLARE_LOG_CATEGORY_EXTERN(LogInstallBundleManager, Log, All);
+DECLARE_LOG_CATEGORY_EXTERN(LogInstallBundleManager, Display, All);
 CSV_DECLARE_CATEGORY_MODULE_EXTERN(INSTALLBUNDLEMANAGER_API, InstallBundleManager);
