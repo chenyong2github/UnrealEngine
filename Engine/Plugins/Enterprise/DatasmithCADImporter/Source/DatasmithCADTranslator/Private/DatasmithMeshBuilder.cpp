@@ -5,7 +5,6 @@
 #include "CoreTechHelper.h"
 #endif // CAD_INTERFACE
 
-#include "CoreTechFileParser.h"
 #include "IDatasmithSceneElements.h"
 #include "Utility/DatasmithMeshHelper.h"
 

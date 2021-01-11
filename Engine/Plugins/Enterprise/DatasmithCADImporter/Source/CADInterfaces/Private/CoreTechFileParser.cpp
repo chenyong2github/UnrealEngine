@@ -459,7 +459,7 @@ void FCoreTechFileParser::SetFaceMainMaterial(FObjectDisplayDataId& InFaceMateri
 	uint32 FaceColorHash = 0;
 	uint32 BodyColorHash = 0;
 
-	FTessellationData& FaceTessellations = BodyMesh.Faces[FaceIndex];
+	FTessellationData& FaceTessellations = BodyMesh.Faces.Last();
 
 	if (InFaceMaterial.Material > 0)
 	{
