@@ -534,7 +534,8 @@ void FDetailCategoryImpl::RequestItemExpanded(TSharedRef<FDetailTreeNode> TreeNo
 {
 	TSharedPtr<FDetailLayoutBuilderImpl> DetailLayoutBuilderPtr = DetailLayoutBuilder.Pin();
 	if (DetailLayoutBuilderPtr.IsValid() && GetDetailsView())
-	{		GetDetailsView()->RequestItemExpanded(TreeNode, bShouldBeExpanded);
+	{		
+		GetDetailsView()->RequestItemExpanded(TreeNode, bShouldBeExpanded);
 	}
 }
 

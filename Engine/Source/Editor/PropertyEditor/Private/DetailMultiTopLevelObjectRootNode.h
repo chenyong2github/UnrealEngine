@@ -47,6 +47,7 @@ class FDetailMultiTopLevelObjectRootNode : public FDetailTreeNode, public TShare
 public:
 	FDetailMultiTopLevelObjectRootNode(const FDetailNodeList& InChildNodes, const TSharedPtr<IDetailRootObjectCustomization>& RootObjectCustomization, IDetailsViewPrivate* InDetailsView, const FObjectPropertyNode* RootNode);
 private:
+	virtual IDetailsView* GetNodeDetailsView() const override { return DetailsView; }
 	virtual IDetailsViewPrivate* GetDetailsView() const override { return DetailsView; }
 	virtual void OnItemExpansionChanged(bool bIsExpanded, bool bShouldSaveState) override;
 	virtual bool ShouldBeExpanded() const override;

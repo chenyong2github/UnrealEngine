@@ -78,6 +78,11 @@ class IDetailTreeNode
 public:
 	virtual ~IDetailTreeNode() {}
 
+	/** 
+	 * @return Get the details view that this node is contained in.
+	 */
+	virtual class IDetailsView* GetNodeDetailsView() const = 0;
+
 	/**
 	 * @return The type of this node.  Should be used to determine any external styling to apply to the generated r ow
 	 */
@@ -111,6 +116,9 @@ public:
 	 */
 	virtual FName GetNodeName() const = 0;
 
+	/**
+	 * Get the property row that this node is represented by.
+	 */
 	virtual TSharedPtr<class IDetailPropertyRow> GetRow() const = 0;
 
 	/**
