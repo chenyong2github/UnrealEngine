@@ -94,7 +94,7 @@ void FHealthSnapshot::CaptureMemoryStats()
 
 	if (FPlatformProperties::SupportsTextureStreaming() && IStreamingManager::Get().IsTextureStreamingEnabled())
 	{
-		StreamingMemoryMB.Size = IStreamingManager::Get().GetTextureStreamingManager().GetPoolSize() * InvToMb;
+		StreamingMemoryMB.Used = IStreamingManager::Get().GetTextureStreamingManager().GetRequiredPoolSize() * InvToMb;
 		StreamingMemoryMB.Peak = IStreamingManager::Get().GetTextureStreamingManager().GetMaxEverRequired() * InvToMb;
 	}
 }
@@ -207,6 +207,8 @@ void FHealthSnapshot::DumpStats(FOutputDevice& Ar, FName CategoryName)
 
 	Ar.CategorizedLogf(CategoryName, ELogVerbosity::Log, TEXT("CPU Memory: Used %.2fMB, Peak %.2fMB"), CPUMemoryMB.Used, CPUMemoryMB.Peak);
 	Ar.CategorizedLogf(CategoryName, ELogVerbosity::Log, TEXT("Physical Memory: Used %.2fMB, Peak %.2fMB"), PhysicalMemoryMB.Used, PhysicalMemoryMB.Peak);
+	Ar.CategorizedLogf(CategoryName, ELogVerbosity::Log, TEXT("Streaming Memory: Used %.2fMB, Peak %.2fMB"), StreamingMemoryMB.Used, StreamingMemoryMB.Peak);
+
 #if ENABLE_LOW_LEVEL_MEM_TRACKER
 	if (FLowLevelMemTracker::Get().IsEnabled())
 	{
