@@ -305,7 +305,7 @@ struct AIMODULE_API FEnvDirection
 
 	/** defines direction of second line used by test */
 	UPROPERTY(EditDefaultsOnly, Category=Direction, meta=(DisplayName="Mode"))
-	TEnumAsByte<EEnvDirection::Type> DirMode;
+	TEnumAsByte<EEnvDirection::Type> DirMode = EEnvDirection::Type::TwoPoints;
 
 	FText ToText() const;
 };

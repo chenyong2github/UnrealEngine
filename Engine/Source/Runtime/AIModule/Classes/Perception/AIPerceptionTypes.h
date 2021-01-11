@@ -206,6 +206,11 @@ struct AIMODULE_API FAISenseAffiliationFilter
 {
 	GENERATED_USTRUCT_BODY()
 
+	FAISenseAffiliationFilter()
+		: bDetectEnemies(false)
+		, bDetectNeutrals(false)
+		, bDetectFriendlies(false) {}
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Sense")
 	uint32 bDetectEnemies : 1;
 

@@ -255,5 +255,5 @@ public:
 	}
 
 	UPROPERTY()
-	uint32 NavLinkUserId;
+	uint32 NavLinkUserId = 0;
 };

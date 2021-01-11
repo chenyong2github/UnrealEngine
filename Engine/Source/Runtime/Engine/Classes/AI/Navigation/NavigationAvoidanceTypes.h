@@ -83,7 +83,7 @@ struct FNavAvoidanceMask
 			uint32 bGroup31 : 1;
 #if CPP
 		};
-		int32 Packed;
+		int32 Packed = 0;
 	};
 #endif
 
