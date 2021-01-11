@@ -242,6 +242,9 @@ USoundWave::USoundWave(const FObjectInitializer& ObjectInitializer)
 	CachedSampleRateOverride = 0.0f;
 	CachedSoundWaveLoadingBehavior = ESoundWaveLoadingBehavior::Uninitialized;
 
+	bProcedural = false;
+	bRequiresStopFade = false;
+
 #if WITH_EDITOR
 	bWasStreamCachingEnabledOnLastCook = FPlatformCompressionUtilities::IsCurrentPlatformUsingStreamCaching();
 	bLoadedFromCookedData = false;
@@ -1978,6 +1981,15 @@ void USoundWave::Parse(FAudioDevice* AudioDevice, const UPTRINT NodeWaveInstance
 		}
 
 		WaveInstance = &HandleStart(ActiveSound, NodeWaveInstanceHash);
+	}
+	// If the procedural sound has notified as finished, honor it.
+	// Procedural sounds should always only have one instance max.
+	else
+	{
+		if (WaveInstance->bIsFinished && WaveInstance->bAlreadyNotifiedHook && bProcedural)
+		{
+			return;
+		}
 	}
 
 	// Looping sounds are never actually finished

@@ -167,4 +167,8 @@ namespace Metasound
 	};
 
 	DECLARE_METASOUND_DATA_REFERENCE_TYPES(FBop, METASOUNDSTANDARDNODES_API, FBopTypeInfo, FBopReadRef, FBopWriteRef);
+
+	using FTrigger = FBop;
+	using FTriggerReadRef = FBopReadRef;
+	using FTriggerWriteRef = FBopWriteRef;
 }

@@ -370,8 +370,8 @@ public:
 	/** Set to true for programmatically generated audio. */
 	uint8 bProcedural:1;
 	
-	/** Set to true if the source is procedural and currently playing */
-	uint8 bPlayingProcedural : 1;
+	/** Set to true if fade is required when sound is abruptly stopped. */
+	uint8 bRequiresStopFade:1;
 
 	/** Set to true of this is a bus sound source. This will result in the sound wave not generating audio for itself, but generate audio through instances. Used only in audio mixer. */
 	uint8 bIsSourceBus:1;

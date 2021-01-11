@@ -26,6 +26,7 @@ UMetasoundSource::UMetasoundSource(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, FMetasoundAssetBase(GetMonoSourceArchetype())
 {
+	bRequiresStopFade = true;
 	NumChannels = 1;
 	Duration = INDEFINITELY_LOOPING_DURATION;
 	bLooping = true;
@@ -93,9 +94,10 @@ ISoundGeneratorPtr UMetasoundSource::CreateSoundGenerator(const FSoundGeneratorI
 
 	Duration = INDEFINITELY_LOOPING_DURATION;
 	bLooping = true;
+	VirtualizationMode = EVirtualizationMode::PlayWhenSilent;
+
 	SampleRate = InParams.SampleRate;
 	const float BlockRate = 100.f; // Metasound graph gets evaluated 100 times per second.
-
 	FOperatorSettings InSettings(InParams.SampleRate, BlockRate);
 	FMetasoundEnvironment Environment;
 
@@ -150,19 +152,25 @@ ISoundGeneratorPtr UMetasoundSource::CreateSoundGenerator(const FSoundGeneratorI
 		}
 		else if (EMetasoundSourceAudioFormat::Mono == OutputFormat)
 		{
-			if (!Outputs.ContainsDataReadReference<FStereoAudioFormat>(GetAudioOutputName()))
+			if (!Outputs.ContainsDataReadReference<FMonoAudioFormat>(GetAudioOutputName()))
 			{
 				UE_LOG(LogMetasound, Warning, TEXT("MetasoundSource [%s] does not contain mono output [%s] in output"), *GetName(), *GetAudioOutputName());
 			}
 			OutputBuffers = Outputs.GetDataReadReferenceOrConstruct<FMonoAudioFormat>(GetAudioOutputName(), InSettings)->GetBuffers();
 		}
 
+		// References must be cached before moving the operator to the InitParams
+		FDataReferenceCollection Inputs = Operator->GetInputs();
+		FTriggerWriteRef PlayTrigger = Inputs.GetDataWriteReference<FBop>(GetOnPlayInputName());
+		FTriggerReadRef FinishTrigger = Outputs.GetDataReadReferenceOrConstruct<FBop>(GetIsFinishedOutputName(), InSettings, false);
+
 		// Create the FMetasoundGenerator.
 		FMetasoundGeneratorInitParams InitParams =
 		{
 			MoveTemp(Operator),
 			OutputBuffers,
-			Outputs.GetDataReadReferenceOrConstruct<FBop>(GetIsFinishedOutputName(), InSettings, false)
+			MoveTemp(PlayTrigger),
+			MoveTemp(FinishTrigger)
 		};
 
 		return ISoundGeneratorPtr(new FMetasoundGenerator(MoveTemp(InitParams)));
@@ -180,32 +188,31 @@ void UMetasoundSource::PostLoad()
 
 const TArray<FMetasoundArchetype>& UMetasoundSource::GetPreferredArchetypes() const 
 {
-	static TArray<FMetasoundArchetype> Preferred({GetMonoSourceArchetype(), GetStereoSourceArchetype()});
-
+	static const TArray<FMetasoundArchetype> Preferred({GetMonoSourceArchetype(), GetStereoSourceArchetype()});
 	return Preferred;
 }
 
 const FString& UMetasoundSource::GetOnPlayInputName()
 {
-	static FString BopInputName = FString(TEXT("On Play"));
-	return BopInputName;
+	static const FString TriggerInputName = TEXT("On Play");
+	return TriggerInputName;
 }
 
 const FString& UMetasoundSource::GetAudioOutputName()
 {
-	static FString AudioOutputName = FString(TEXT("Generated Audio"));
+	static const FString AudioOutputName = TEXT("Generated Audio");
 	return AudioOutputName;
 }
 
 const FString& UMetasoundSource::GetIsFinishedOutputName()
 {
-	static FString OnFinishedOutputName = FString(TEXT("On Finished"));
+	static const FString OnFinishedOutputName = TEXT("On Finished");
 	return OnFinishedOutputName;
 }
 
 const FString& UMetasoundSource::GetAudioDeviceHandleVariableName()
 {
-	static FString AudioDeviceHandleVarName = FString(TEXT("AudioDeviceHandle"));
+	static const FString AudioDeviceHandleVarName = TEXT("AudioDeviceHandle");
 	return AudioDeviceHandleVarName;
 }
 
@@ -215,13 +222,13 @@ const FMetasoundArchetype& UMetasoundSource::GetBaseArchetype()
 	{
 		FMetasoundArchetype Archetype;
 		
-		FMetasoundInputDescription OnPlayBop;
-		OnPlayBop.Name = UMetasoundSource::GetOnPlayInputName();
-		OnPlayBop.DisplayName = FText::FromString(OnPlayBop.Name);
-		OnPlayBop.TypeName = Metasound::Frontend::GetDataTypeName<Metasound::FBop>();
-		OnPlayBop.ToolTip = LOCTEXT("OnPlayBopToolTip", "Bop executed when this source is first played.");
+		FMetasoundInputDescription OnPlayTrigger;
+		OnPlayTrigger.Name = UMetasoundSource::GetOnPlayInputName();
+		OnPlayTrigger.DisplayName = FText::FromString(OnPlayTrigger.Name);
+		OnPlayTrigger.TypeName = Metasound::Frontend::GetDataTypeName<Metasound::FBop>();
+		OnPlayTrigger.ToolTip = LOCTEXT("OnPlayTriggerToolTip", "Trigger executed when this source is played.");
 
-		Archetype.RequiredInputs.Add(OnPlayBop);
+		Archetype.RequiredInputs.Add(OnPlayTrigger);
 
 		FMetasoundOutputDescription OnFinished;
 		OnFinished.Name = UMetasoundSource::GetIsFinishedOutputName();

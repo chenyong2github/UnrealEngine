@@ -23,6 +23,21 @@ FAutoConsoleVariableRef CVarUseListenerOverrideForSpread(
 	TEXT("0: Use actual distance, 1: use listener override"),
 	ECVF_Default);
 
+static uint32 AudioMixerSourceFadeMinCVar = 512;
+static FAutoConsoleCommand GSetAudioMixerSourceFadeMin(
+	TEXT("au.SourceFadeMin"),
+	TEXT("Sets the length (in samples) of minimum fade when a sound source is stopped. Must be divisible by 4 (vectorization requirement). Ignored for some procedural source types. (Default: 512, Min: 4). \n"),
+	FConsoleCommandWithArgsDelegate::CreateStatic(
+		[](const TArray<FString>& Args)
+		{
+			if (Args.Num() > 0)
+			{
+				const int32 SourceFadeMin = FMath::Max(FCString::Atoi(*Args[0]), 4);
+				AudioMixerSourceFadeMinCVar = AlignArbitrary(SourceFadeMin, 4);
+			}
+		}
+	)
+);
 
 namespace Audio
 {
@@ -758,7 +773,7 @@ namespace Audio
 			StartFrame = FMath::Clamp<int32>((InWaveInstance->StartTime / SoundWave.Duration) * NumTotalFrames, 0, NumTotalFrames);
 		}
 
-		check(!MixerSourceBuffer.IsValid());		
+		check(!MixerSourceBuffer.IsValid());
 		MixerSourceBuffer = FMixerSourceBuffer::Create(AudioDevice->GetSampleRate(), *MixerBuffer, SoundWave, InWaveInstance->LoopingMode, bIsSeeking);
 		
 		if (!MixerSourceBuffer.IsValid())
@@ -865,11 +880,6 @@ namespace Audio
 		// we'll just not actually play the source here. Instead we'll call play when the sound finishes loading.
 		if (MixerSourceVoice && InitializationState == EMixerSourceInitializationState::Initialized)
 		{
-			if (WaveInstance && WaveInstance->WaveData && WaveInstance->WaveData->bProcedural)
-			{
-				WaveInstance->WaveData->bPlayingProcedural = true;
-			}
-
 			MixerSourceVoice->Play();
 		}
 
@@ -895,10 +905,18 @@ namespace Audio
 			return;
 		}
 
-		// Always stop procedural sounds immediately.
-		if (WaveInstance && WaveInstance->WaveData && WaveInstance->WaveData->bProcedural)
+		USoundWave* SoundWave = WaveInstance ? WaveInstance->WaveData : nullptr;
+
+		// If MarkPendingKill() was called, SoundWave can be null
+		if (!SoundWave)
 		{
-			WaveInstance->WaveData->bPlayingProcedural = false;
+			StopNow();
+			return;
+		}
+
+		// Stop procedural sounds immediately that don't require fade
+		if (SoundWave->bProcedural && !SoundWave->bRequiresStopFade)
+		{
 			StopNow();
 			return;
 		}
@@ -906,37 +924,27 @@ namespace Audio
 		if (bIsDone)
 		{
 			StopNow();
+			return;
 		}
-		else if (!bIsStopping)
+
+		if (Playing && !bIsStoppingVoicesEnabled)
 		{
-			// Otherwise, we need to do a quick fade-out of the sound and put the state
-			// of the sound into "stopping" mode. This prevents this source from
-			// being put into the "free" pool and prevents the source from freeing its resources
-			// until the sound has finished naturally (i.e. faded all the way out)
+			StopNow();
+			return;
+		}
 
-			// StopFade will stop a sound with a very small fade to avoid discontinuities
-			if (MixerSourceVoice && Playing)
-			{
-				// if MarkPendingKill() was called, WaveInstance->WaveData is null
-				if (!WaveInstance || !WaveInstance->WaveData)
-				{
-					StopNow();
-					return;
-				}
-				else if (bIsStoppingVoicesEnabled && !WaveInstance->WaveData->bProcedural)
-				{
-					// Let the wave instance know it's stopping
-					WaveInstance->SetStopping(true);
+		// Otherwise, we need to do a quick fade-out of the sound and put the state
+		// of the sound into "stopping" mode. This prevents this source from
+		// being put into the "free" pool and prevents the source from freeing its resources
+		// until the sound has finished naturally (i.e. faded all the way out)
 
-					// TODO: parameterize the number of fades
-					MixerSourceVoice->StopFade(512);
-					bIsStopping = true;
-				}
-				else
-				{
-					StopNow();
-				}
-			}
+		// Let the wave instance know it's stopping
+		if (!bIsStopping)
+		{
+			WaveInstance->SetStopping(true);
+
+			MixerSourceVoice->StopFade(AudioMixerSourceFadeMinCVar);
+			bIsStopping = true;
 			Paused = false;
 		}
 	}

@@ -7,7 +7,7 @@
 #include "MetasoundOscNode.h"
 #include "MetasoundAudioMultiplyNode.h"
 #include "MetasoundADSRNode.h"
-#include "MetasoundPeriodicBopNode.h"
+#include "MetasoundPeriodicTriggerNode.h"
 #include "MetasoundOutputNode.h"
 #include "MetasoundInputNode.h"
 #include "MetasoundOperatorBuilder.h"
@@ -17,10 +17,13 @@
 namespace Metasound
 {
 	FMetasoundGenerator::FMetasoundGenerator(FMetasoundGeneratorInitParams&& InParams)
-		: NumChannels(0)
+		: bIsPlaying(false)
+		, bIsFinished(false)
+		, NumChannels(0)
 		, NumFramesPerExecute(0)
 		, NumSamplesPerExecute(0)
-		, OnFinishedBopRef(InParams.BopOnFinishRef)
+		, OnPlayTriggerRef(InParams.TriggerOnPlayRef)
+		, OnFinishedTriggerRef(InParams.TriggerOnFinishRef)
 	{
 		SetGraph(MoveTemp(InParams));
 	}
@@ -56,7 +59,8 @@ namespace Metasound
 			GraphOutputAudio.Append(InParams.OutputBuffers.GetData(), InParams.OutputBuffers.Num());
 		}
 
-		OnFinishedBopRef = InParams.BopOnFinishRef;
+		OnPlayTriggerRef = InParams.TriggerOnPlayRef;
+		OnFinishedTriggerRef = InParams.TriggerOnFinishRef;
 
 		// The graph operator and graph audio output contain all the values needed
 		// by the sound generator.
@@ -98,6 +102,12 @@ namespace Metasound
 		if (NumSamplesRemaining <= 0)
 		{
 			return 0;
+		}
+
+		if (!bIsPlaying)
+		{
+			OnPlayTriggerRef->BopFrame(0);
+			bIsPlaying = true;
 		}
 
 		if (NumSamplesPerExecute < 1)
@@ -144,9 +154,15 @@ namespace Metasound
 			}
 		}
 
+		if (*OnFinishedTriggerRef)
+		{
+			bIsFinished = true;
+		}
+
+		OnPlayTriggerRef->AdvanceBlock();
+
 		return NumSamplesWritten;
 	}
-
 
 	int32 FMetasoundGenerator::GetDesiredNumSamplesToRenderPerCallback() const
 	{
@@ -156,7 +172,7 @@ namespace Metasound
 
 	bool FMetasoundGenerator::IsFinished() const
 	{
-		return *OnFinishedBopRef;
+		return bIsFinished;
 	}
 
 	int32 FMetasoundGenerator::FillWithBuffer(const Audio::AlignedFloatBuffer& InBuffer, float* OutAudio, int32 MaxNumOutputSamples)
@@ -208,5 +224,3 @@ namespace Metasound
 		// TODO: memcpy for single channel. 
 	}
 } 
-
-

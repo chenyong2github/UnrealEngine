@@ -60,19 +60,8 @@ namespace Audio
 	{
 		LLM_SCOPE(ELLMTag::AudioMixer);
 
-		// Prevent double-triggering procedural soundwaves
-		if (InWave.bProcedural && InWave.IsGeneratingAudio())
-		{
-			UE_LOG(LogAudioMixer, Warning,
-				TEXT("Procedural USoundWave is reinitializing even though it is actively "
-				"generating audio. Sound must be stopped before playing again."));
-
-			// Need to set the procedural sound wave as not looping to allow it to get stopped during sound wave parsing
-			InWave.bLooping = false;
-			return nullptr;
-		}
-
 		TSharedPtr<FMixerSourceBuffer, ESPMode::ThreadSafe> NewSourceBuffer = MakeShareable(new FMixerSourceBuffer(InSampleRate, InBuffer, InWave, InLoopingMode, bInIsSeeking, bInForceSyncDecode));
+
 		return NewSourceBuffer;
 	}
 
@@ -557,6 +546,11 @@ namespace Audio
 			return AsyncRealtimeAudioTask->IsDone();
 		}
 		return true;
+	}
+
+	bool FMixerSourceBuffer::IsGeneratorFinished() const
+	{
+		return bProcedural && SoundGenerator.IsValid() && SoundGenerator->IsFinished();
 	}
 
 	void FMixerSourceBuffer::EnsureAsyncTaskFinishes()

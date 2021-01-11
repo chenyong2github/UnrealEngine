@@ -17,8 +17,8 @@ namespace Metasound
 	{
 		TUniquePtr<Metasound::IOperator> GraphOperator;
 		TArrayView<TDataReadReference<FAudioBuffer>> OutputBuffers;
-		// TODO: BopOnPlayRef;
-		FBopReadRef BopOnFinishRef;
+		FBopWriteRef TriggerOnPlayRef;
+		FBopReadRef TriggerOnFinishRef;
 	};
 
 	/** FMetasoundGenerator generates audio from a given metasound IOperator
@@ -119,14 +119,20 @@ namespace Metasound
 		
 		FExecuter RootExecuter;
 
+		bool bIsPlaying;
+		bool bIsFinished;
+
 		int32 NumChannels;
 		int32 NumFramesPerExecute;
 		int32 NumSamplesPerExecute;
 
 		TArray<FAudioBufferReadRef> GraphOutputAudio;
 
-		// This will be bopped when this metasound is finished playing.
-		FBopReadRef OnFinishedBopRef;
+		// Triggered when metasound is played
+		FBopWriteRef OnPlayTriggerRef;
+
+		// Triggered when metasound is finished
+		FBopReadRef OnFinishedTriggerRef;
 
 		Audio::AlignedFloatBuffer InterleavedAudioBuffer;
 

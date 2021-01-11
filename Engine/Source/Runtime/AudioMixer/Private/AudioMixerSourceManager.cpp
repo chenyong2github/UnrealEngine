@@ -1661,6 +1661,14 @@ namespace Audio
 				if (ensure(SourceInfo.MixerSourceBuffer.IsValid()))
 				{
 					SourceInfo.MixerSourceBuffer->OnBufferEnd();
+					if (SourceInfo.MixerSourceBuffer->IsGeneratorFinished())
+					{
+						SourceInfo.bIsPlaying = false;
+						SourceInfo.bIsPaused = false;
+						SourceInfo.bIsActive = false;
+						SourceInfo.bIsStopping = false;
+						break;
+					}
 				}
 			}
 
@@ -2174,7 +2182,7 @@ namespace Audio
 			// Update volume fade information if we're stopping
 			if (SourceInfo.bIsStopping)
 			{
-				const int32 NumFadeFrames = FMath::Min(SourceInfo.VolumeFadeNumFrames - SourceInfo.VolumeFadeFramePosition, NumOutputFrames);
+				int32 NumFadeFrames = FMath::Min(SourceInfo.VolumeFadeNumFrames - SourceInfo.VolumeFadeFramePosition, NumOutputFrames);
 
 				SourceInfo.VolumeFadeFramePosition += NumFadeFrames;
 				SourceInfo.VolumeSourceDestination = SourceInfo.VolumeFadeSlope * (float) SourceInfo.VolumeFadeFramePosition + SourceInfo.VolumeFadeStart;
@@ -2204,7 +2212,8 @@ namespace Audio
 					}
 					VolumeDestination *= ModVolumeEnd;
 				}
-				Audio::FadeBufferFast(PreDistanceAttenBufferPtr, NumSamples, VolumeStart, VolumeDestination);
+
+				Audio::FadeBufferFast(PreDistanceAttenBufferPtr, NumFadeSamples, VolumeStart, VolumeDestination);
 
 				// Zero the rest of the buffer
 				if (NumFadeFrames < NumOutputFrames)

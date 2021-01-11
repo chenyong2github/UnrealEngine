@@ -49,7 +49,7 @@ namespace Audio
 	/** Class which handles decoding audio for a particular source buffer. */
 	class FMixerSourceBuffer : public ISoundWaveClient
 	{
-	public:		
+	public:
 		static FMixerSourceBufferPtr Create(int32 InSampleRate, FMixerBuffer& InBuffer, USoundWave& InWave, ELoopingMode InLoopingMode, bool bInIsSeeking, bool bInForceSyncDecode = false);
 
 		~FMixerSourceBuffer();
@@ -96,6 +96,10 @@ namespace Audio
 		void OnBeginGenerate();
 		void OnEndGenerate();
 		void ClearWave() { SoundWave = nullptr; }
+
+		// Returns whether or not generator is finished (returns false if generator is invalid)
+		bool IsGeneratorFinished() const;
+
 	private:
 		FMixerSourceBuffer(int32 InSampleRate, FMixerBuffer& InBuffer, USoundWave& InWave, ELoopingMode InLoopingMode, bool bInIsSeeking, bool bInForceSyncDecode = false);
 
