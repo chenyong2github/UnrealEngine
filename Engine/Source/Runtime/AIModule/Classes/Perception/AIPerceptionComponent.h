@@ -29,7 +29,7 @@ struct FActorPerceptionUpdateInfo
 
 	/** Id of to the stimulus source */
 	UPROPERTY(BlueprintReadWrite, Category = "AI|Perception")
-	int32 TargetId;
+	int32 TargetId = -1;
 
 	/** Actor associated to the stimulus (can be null) */
 	UPROPERTY(BlueprintReadWrite, Category = "AI|Perception")

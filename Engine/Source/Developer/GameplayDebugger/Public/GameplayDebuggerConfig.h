@@ -23,6 +23,12 @@ struct FGameplayDebuggerInputConfig
 {
 	GENERATED_USTRUCT_BODY()
 
+	FGameplayDebuggerInputConfig()
+		: bModShift(false)
+		, bModCtrl(false)
+		, bModAlt(false)
+		, bModCmd(false) {}
+
 	UPROPERTY(VisibleAnywhere, Category = Input)
 	FString ConfigName;
 
