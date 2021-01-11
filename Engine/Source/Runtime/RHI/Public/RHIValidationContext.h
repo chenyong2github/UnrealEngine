@@ -45,7 +45,7 @@ public:
 
 	virtual void RHIDispatchIndirectComputeShader(FRHIBuffer* ArgumentBuffer, uint32 ArgumentOffset) override final
 	{
-		Tracker->Assert(ArgumentBuffer->GetWholeResourceIdentity(), ERHIAccess::ReadOnlyExclusiveMask);
+		Tracker->Assert(ArgumentBuffer->GetWholeResourceIdentity(), ERHIAccess::IndirectArgs);
 
 		RHIContext->RHIDispatchIndirectComputeShader(ArgumentBuffer, ArgumentOffset);
 		Tracker->Dispatch();
@@ -927,6 +927,8 @@ public:
 		FRHIBuffer* ArgumentBuffer, uint32 ArgumentOffset) override final
 	{
 		Tracker->Assert(ArgumentBuffer->GetWholeResourceIdentity(), ERHIAccess::IndirectArgs);
+		Tracker->Assert(ArgumentBuffer->GetWholeResourceIdentity(), ERHIAccess::SRVCompute);
+
 		RHIContext->RHIRayTraceDispatchIndirect(RayTracingPipelineState, RayGenShader, Scene, GlobalResourceBindings, ArgumentBuffer, ArgumentOffset);
 	}
 

@@ -3869,7 +3869,8 @@ static void DispatchRays(FD3D12CommandContext& CommandContext,
 
 	FD3D12Adapter* Adapter = CommandContext.GetParentDevice()->GetParentAdapter();
 
-	TRefCountPtr<FD3D12Buffer> DispatchRaysDescBuffer;
+	FVertexBufferRHIRef DispatchRaysDescBufferRHI;
+	FD3D12Buffer* DispatchRaysDescBuffer = nullptr;
 
 	if (ArgumentBuffer)
 	{
@@ -3885,16 +3886,12 @@ static void DispatchRays(FD3D12CommandContext& CommandContext,
 
 		FRHIResourceCreateInfo DispatchRaysDescBufferCreateInfo;
 		DispatchRaysDescBufferCreateInfo.GPUMask = FRHIGPUMask::FromIndex(CommandContext.GetGPUIndex());
+		DispatchRaysDescBufferCreateInfo.DebugName = TEXT("DispatchRaysDescBuffer");
 
-		DispatchRaysDescBuffer = Adapter->CreateRHIBuffer(
-			nullptr, BufferDesc, BufferDesc.Alignment,
-			4, BufferDesc.Width, BUF_Static | BUF_DrawIndirect | BUF_UnorderedAccess,
-			ED3D12ResourceStateMode::MultiState, ERHIAccess::UAVCompute,
-			DispatchRaysDescBufferCreateInfo);
+		DispatchRaysDescBufferRHI = ::RHICreateVertexBuffer(sizeof(D3D12_DISPATCH_RAYS_DESC), BUF_UnorderedAccess | BUF_DrawIndirect, DispatchRaysDescBufferCreateInfo);
+		DispatchRaysDescBuffer = FD3D12DynamicRHI::ResourceCast(DispatchRaysDescBufferRHI.GetReference());
 
 		FD3D12Resource* DispatchRaysDescBufferResource = DispatchRaysDescBuffer->GetResource();
-
-		SetName(DispatchRaysDescBufferResource, TEXT("DispatchRaysDescBuffer"));
 
 		{
 			TRHICommandList_RecursiveHazardous<FD3D12CommandContext> RHICmdList(&CommandContext);

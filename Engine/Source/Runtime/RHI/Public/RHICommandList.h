@@ -3695,7 +3695,7 @@ public:
 
 	/**
 	 * Trace rays using dimensions from a GPU buffer containing uint[3], interpreted as number of rays in X, Y and Z dimensions.
-	 * ArgumentBuffer must be in ERHIAccess::ReadOnlyExclusiveMask state rather than simply IndirectArgs since it's read as a regular GPU resource on some platforms.
+	 * ArgumentBuffer must be in IndirectArgs|SRVCompute state.
 	 */
 	FORCEINLINE_DEBUGGABLE void RayTraceDispatchIndirect(FRayTracingPipelineState* Pipeline, FRHIRayTracingShader* RayGenShader, FRHIRayTracingScene* Scene, const FRayTracingShaderBindings& GlobalResourceBindings, FRHIBuffer* ArgumentBuffer, uint32 ArgumentOffset)
 	{
