@@ -239,7 +239,7 @@ namespace ShaderDrawDebug
 
 	void BeginView(FRHICommandListImmediate& InRHICmdList, FViewInfo& View)
 	{
-		if (!IsShaderDrawDebugEnabled(View))
+		if (!IsShaderDrawDebugEnabled(View) || !IsShaderDrawDebugEnabled())
 		{
 			return;
 		}
