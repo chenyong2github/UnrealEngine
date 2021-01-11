@@ -304,6 +304,7 @@ void FOnlineStatsEOS::WriteStats(EOS_ProductUserId UserId, const FOnlineStatsUse
 	EOS_Stats_IngestStatOptions Options = { };
 	Options.ApiVersion = EOS_STATS_INGESTSTAT_API_LATEST;
 	Options.LocalUserId = UserId;
+	Options.TargetUserId = UserId;
 	Options.Stats = EOSData.GetData();
 	Options.StatsCount = EOSData.Num();
 
