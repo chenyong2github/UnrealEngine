@@ -375,15 +375,21 @@ uint32 UHLODProxy::GetCRC(UStaticMesh* InStaticMesh, uint32 InCRC)
 	return FCrc::MemCrc32(KeyBuffer.GetData(), KeyBuffer.Num(), InCRC);
 }
 
-static void AppendRoundedTransform(const FTransform& InTransform, TArray<uint8>& OutKeyBuffer)
+static void AppendRoundedTransform(const FRotator& ComponentRotation, const FVector& ComponentLocation, const FVector& ComponentScale, TArray<uint8>& OutKeyBuffer)
 {
 	// Include transform - round sufficiently to ensure stability
-	FIntVector Location(InTransform.GetLocation() / THRESH_POINTS_ARE_NEAR);
+	FIntVector Location(FMath::RoundToInt(ComponentLocation.X), FMath::RoundToInt(ComponentLocation.Y), FMath::RoundToInt(ComponentLocation.Z));
 	OutKeyBuffer.Append((uint8*)&Location, sizeof(Location));
-	FIntVector Rotation(InTransform.Rotator().GetNormalized().Vector() / THRESH_POINTS_ARE_NEAR);
+	FVector RotationVector(ComponentRotation.GetNormalized().Vector());
+	FIntVector Rotation(FMath::RoundToInt(RotationVector.X), FMath::RoundToInt(RotationVector.Y), FMath::RoundToInt(RotationVector.Z));
 	OutKeyBuffer.Append((uint8*)&Rotation, sizeof(Rotation));
-	FIntVector Scale(InTransform.GetScale3D() / THRESH_POINTS_ARE_NEAR);
+	FIntVector Scale(FMath::RoundToInt(ComponentScale.X), FMath::RoundToInt(ComponentScale.Y), FMath::RoundToInt(ComponentScale.Z));
 	OutKeyBuffer.Append((uint8*)&Scale, sizeof(Scale));
+}
+
+static void AppendRoundedTransform(const FTransform& InTransform, TArray<uint8>& OutKeyBuffer)
+{
+	AppendRoundedTransform(InTransform.Rotator(), InTransform.GetLocation(), InTransform.GetScale3D(), OutKeyBuffer);
 }
 
 static int32 GetTransformCRC(const FTransform& InTransform, uint32 InCRC)
@@ -403,7 +409,7 @@ uint32 UHLODProxy::GetCRC(UStaticMeshComponent* InComponent, uint32 InCRC, const
 
 	ComponentLocation = TransformComponents.TransformPosition(ComponentLocation);
 	ComponentRotation = TransformComponents.TransformRotation(ComponentRotation.Quaternion()).Rotator();
-	AppendRoundedTransform(FTransform(ComponentRotation, ComponentLocation, ComponentScale), KeyBuffer);
+	AppendRoundedTransform(ComponentRotation, ComponentLocation, ComponentScale, KeyBuffer);
 
 	// Include other relevant properties
 	KeyBuffer.Append((uint8*)&InComponent->ForcedLodModel, sizeof(int32));
