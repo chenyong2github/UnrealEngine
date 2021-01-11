@@ -623,12 +623,14 @@ bool UNiagaraDataInterfaceRenderTarget2D::PerInstanceTickPostSimulate(void* PerI
 
 void FNiagaraDataInterfaceProxyRenderTarget2DProxy::PostStage(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceStageArgs& Context)
 {
-	FRenderTarget2DRWInstanceData_RenderThread* ProxyData = SystemInstancesToProxyData_RT.Find(Context.SystemInstanceID);
-	if (ProxyData->bWasWrittenTo && (ProxyData->MipMapGeneration == ENiagaraMipMapGeneration::PostStage))
+	if (FRenderTarget2DRWInstanceData_RenderThread* ProxyData = SystemInstancesToProxyData_RT.Find(Context.SystemInstanceID))
 	{
-		ProxyData->bWasWrittenTo = false;
-		check(&RHICmdList == &FRHICommandListExecutor::GetImmediateCommandList());
-		FGenerateMips::Execute(FRHICommandListExecutor::GetImmediateCommandList(), ProxyData->TextureReferenceRHI->GetReferencedTexture());
+		if (ProxyData->bWasWrittenTo && (ProxyData->MipMapGeneration == ENiagaraMipMapGeneration::PostStage))
+		{
+			ProxyData->bWasWrittenTo = false;
+			check(&RHICmdList == &FRHICommandListExecutor::GetImmediateCommandList());
+			FGenerateMips::Execute(FRHICommandListExecutor::GetImmediateCommandList(), ProxyData->TextureReferenceRHI->GetReferencedTexture());
+		}
 	}
 }
 
