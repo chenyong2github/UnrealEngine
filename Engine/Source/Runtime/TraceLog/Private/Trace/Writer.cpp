@@ -55,6 +55,10 @@ UE_TRACE_EVENT_BEGIN($Trace, NewTrace, NoSync)
 	UE_TRACE_EVENT_FIELD(uint16, UserUidBias)
 	UE_TRACE_EVENT_FIELD(uint16, Endian)
 	UE_TRACE_EVENT_FIELD(uint8, PointerSize)
+	UE_TRACE_EVENT_FIELD(uint8, FeatureSet)
+UE_TRACE_EVENT_END()
+
+UE_TRACE_EVENT_BEGIN($Trace, SerialSync, NoSync)
 UE_TRACE_EVENT_END()
 
 
@@ -199,6 +203,7 @@ void Writer_MemoryFree(void* Address, uint32 Size)
 
 ////////////////////////////////////////////////////////////////////////////////
 static UPTRINT					GDataHandle;		// = 0
+static bool						GSerialSyncPending;	// = false
 UPTRINT							GPendingDataHandle;	// = 0
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -333,17 +338,29 @@ static void Writer_DescribeAnnounce()
 static void Writer_LogHeader()
 {
 	UE_TRACE_LOG($Trace, NewTrace, TraceLogChannel)
-		<< NewTrace.Serial(uint32(GLogSerial)) // should really atomic-load-relaxed here...
+		<< NewTrace.Serial(AtomicLoadRelaxed(&GLogSerial))
 		<< NewTrace.UserUidBias(EKnownEventUids::User)
 		<< NewTrace.Endian(0x524d)
 		<< NewTrace.PointerSize(sizeof(void*))
 		<< NewTrace.StartCycle(GStartCycle)
-		<< NewTrace.CycleFrequency(TimeGetFrequency());
+		<< NewTrace.CycleFrequency(TimeGetFrequency())
+		<< NewTrace.FeatureSet(1);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 static bool Writer_UpdateConnection()
 {
+	if (GSerialSyncPending)
+	{
+		GSerialSyncPending = false;
+
+		// When analysis receives the "serial sync" event the starting serial
+		// can be established from preceeding synced events.
+		TWriteBufferRedirect<32> SideBuffer;
+		UE_TRACE_LOG($Trace, SerialSync, TraceLogChannel);
+		Writer_SendData(SideBuffer.GetData(), SideBuffer.GetSize());
+	}
+
 	if (!GPendingDataHandle)
 	{
 		return false;
@@ -366,6 +383,7 @@ static bool Writer_UpdateConnection()
 	{
 		IoClose(GPendingDataHandle);
 		GPendingDataHandle = 0;
+		GSerialSyncPending = false;
 		return false;
 	}
 
@@ -418,6 +436,7 @@ static bool Writer_UpdateConnection()
 
 	Writer_CacheOnConnect();
 
+	GSerialSyncPending = true;
 	return true;
 }
 

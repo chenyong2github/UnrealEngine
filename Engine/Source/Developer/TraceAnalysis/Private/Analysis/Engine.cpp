@@ -716,6 +716,7 @@ enum ERouteId : uint16
 {
 	RouteId_NewEvent,
 	RouteId_NewTrace,
+	RouteId_SerialSync,
 	RouteId_Timing,
 	RouteId_ThreadTiming,
 	RouteId_ThreadInfo,
@@ -919,6 +920,7 @@ void FAnalysisEngine::OnAnalysisBegin(const FOnAnalysisContext& Context)
 {
 	auto& Builder = Context.InterfaceBuilder;
 	Builder.RouteEvent(RouteId_NewTrace,		"$Trace", "NewTrace");
+	Builder.RouteEvent(RouteId_SerialSync,		"$Trace", "SerialSync");
 	Builder.RouteEvent(RouteId_NewEvent,		"$Trace", "NewEvent");
 	Builder.RouteEvent(RouteId_Timing,			"$Trace", "Timing");
 	Builder.RouteEvent(RouteId_ThreadTiming,	"$Trace", "ThreadTiming");
@@ -940,6 +942,7 @@ bool FAnalysisEngine::OnEvent(uint16 RouteId, EStyle Style, const FOnEventContex
 	switch (RouteId)
 	{
 	case RouteId_NewTrace:			OnNewTrace(Context);			break;
+	case RouteId_SerialSync:		OnSerialSync(Context);			break;
 	case RouteId_Timing:			OnTiming(Context);				break;
 	case RouteId_ThreadTiming:		OnThreadTiming(Context);		break;
 	case RouteId_ThreadInfo:		OnThreadInfoInternal(Context);	break;
@@ -961,11 +964,25 @@ void FAnalysisEngine::OnNewTrace(const FOnEventContext& Context)
 	uint32 Hint = EventData.GetValue<uint32>("Serial");
 	Hint -= (Serial.Mask + 1) >> 1;
 	Hint &= Serial.Mask;
-	Serial.Value = Hint|0x80000000;
+	Serial.Value = Hint;
+	Serial.Value |= 0xc0000000;
+
+	// Later traces will have an explicit "SerialSync" trace event to indicate
+	// when there is enough data to establish the correct log serial
+	if ((EventData.GetValue<uint8>("FeatureSet") & 1) == 0)
+	{
+		OnSerialSync(Context);
+	}
 
 	UserUidBias = EventData.GetValue<uint32>("UserUidBias", uint32(UE::Trace::Protocol3::EKnownEventUids::User));
 
 	OnTiming(Context);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void FAnalysisEngine::OnSerialSync(const FOnEventContext& Context)
+{
+	Serial.Value &= ~0x40000000;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1535,7 +1552,7 @@ bool FAnalysisEngine::OnDataProtocol2()
 
 		// If the current serial has its MSB set we're currently in a mode trying
 		// to derive the best starting serial.
-		if (int32(Serial.Value) < 0)
+		if (int32(Serial.Value) < 0 && int32(Serial.Value) < int32(0xc0000000))
 		{
 			Serial.Value = (MinLogSerial & Serial.Mask);
 			continue;

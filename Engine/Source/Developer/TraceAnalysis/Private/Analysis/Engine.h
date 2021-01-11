@@ -90,6 +90,7 @@ private:
 	virtual bool		OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext& Context) override;
 	virtual void		OnAnalysisBegin(const FOnAnalysisContext& Context) override;
 	void				OnNewTrace(const FOnEventContext& Context);
+	void				OnSerialSync(const FOnEventContext& Context);
 	void				OnThreadTiming(const FOnEventContext& Context);
 	void				OnThreadInfoInternal(const FOnEventContext& Context);
 	void				OnThreadGroupBegin(const FOnEventContext& Context);
