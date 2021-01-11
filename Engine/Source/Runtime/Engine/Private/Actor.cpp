@@ -411,6 +411,14 @@ void AActor::PostSaveRoot(bool bCleanupIsRequired)
 #endif
 }
 
+void AActor::PreSave(const ITargetPlatform* TargetPlatform)
+{
+	Super::PreSave(TargetPlatform);
+#if WITH_EDITOR
+	FixupDataLayers();
+#endif
+}
+
 #if WITH_EDITOR
 void AActor::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
 {
@@ -730,12 +738,6 @@ void AActor::Serialize(FArchive& Ar)
 				}
 			}
 		}
-	}
-
-	// Fixup DataLayers
-	if (Ar.IsSaving() && !Ar.IsObjectReferenceCollector() && Ar.IsPersistent())
-	{
-		FixupDataLayers();
 	}
 
 	// When duplicating for PIE all components need to be gathered up and duplicated even if there are no other property references to them

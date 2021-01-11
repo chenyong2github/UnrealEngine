@@ -1784,6 +1784,7 @@ public:
 
 	virtual bool PreSaveRoot(const TCHAR* InFilename) override;
 	virtual void PostSaveRoot(bool bCleanupIsRequired) override;
+	virtual void PreSave(const ITargetPlatform* TargetPlatform) override;
 
 #if WITH_EDITOR
 	virtual bool Modify(bool bAlwaysMarkDirty = true) override;
