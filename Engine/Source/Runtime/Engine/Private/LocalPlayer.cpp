@@ -517,7 +517,7 @@ public:
 			bool bAnyEmpty = false;
 			for (int32 i = 0; i < Args.Num(); ++i)
 			{
-				bAnyEmpty |= Args[0].Len() == 0;
+				bAnyEmpty |= Args[i].Len() == 0;
 			}
 			if (bAnyEmpty)
 			{
@@ -535,7 +535,7 @@ public:
 			bool bAnyEmpty = false;
 			for (int32 i = 0; i < Args.Num(); ++i)
 			{
-				bAnyEmpty |= Args[0].Len() == 0;
+				bAnyEmpty |= Args[i].Len() == 0;
 			}
 			if (bAnyEmpty)
 			{
