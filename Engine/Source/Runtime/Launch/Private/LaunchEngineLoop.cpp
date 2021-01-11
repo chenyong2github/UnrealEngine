@@ -2699,6 +2699,9 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	if (!FPlatformProperties::RequiresCookedData())
 	{
+		// Ensure that DDC is initialized from the game thread.
+		GetDerivedDataCacheRef();
+
 		check(!GDistanceFieldAsyncQueue);
 		GDistanceFieldAsyncQueue = new FDistanceFieldAsyncQueue();
 
@@ -2752,10 +2755,6 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 				// This means we can't continue without the global shader map.
 				return 1;
 			}
-		}
-		else if (FPlatformProperties::RequiresCookedData() == false)
-		{
-			GetDerivedDataCacheRef();
 		}
 
 		{
