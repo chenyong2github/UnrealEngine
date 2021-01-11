@@ -422,3 +422,24 @@ void URootMotionModifierConfig_AdjustmentBlendWarp::GetIKBoneTransformAndAlpha(A
 		}
 	}
 }
+
+// URootMotionModifierConfig_AdjustmentBlendWarp
+///////////////////////////////////////////////////////////////
+
+void URootMotionModifierConfig_AdjustmentBlendWarp::AddRootMotionModifierAdjustmentBlendWarp(UMotionWarpingComponent* InMotionWarpingComp, const UAnimSequenceBase* InAnimation, float InStartTime, float InEndTime, FName InSyncPointName, bool bInWarpTranslation, bool bInIgnoreZAxis, bool bInWarpRotation, bool bInWarpIKBones, const TArray<FName>& InIKBones)
+{
+	if (ensureAlways(InMotionWarpingComp))
+	{
+		TSharedPtr<FRootMotionModifier_AdjustmentBlendWarp> NewModifier = MakeShared<FRootMotionModifier_AdjustmentBlendWarp>();
+		NewModifier->Animation = InAnimation;
+		NewModifier->StartTime = InStartTime;
+		NewModifier->EndTime = InEndTime;
+		NewModifier->SyncPointName = InSyncPointName;
+		NewModifier->bWarpTranslation = bInWarpTranslation;
+		NewModifier->bIgnoreZAxis = bInIgnoreZAxis;
+		NewModifier->bWarpRotation = bInWarpRotation;
+		NewModifier->bWarpIKBones = bInWarpIKBones;
+		NewModifier->IKBones = InIKBones;
+		InMotionWarpingComp->AddRootMotionModifier(NewModifier);
+	}
+}

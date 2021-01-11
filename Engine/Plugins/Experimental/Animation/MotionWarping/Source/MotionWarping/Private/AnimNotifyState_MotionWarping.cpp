@@ -2,8 +2,18 @@
 
 #include "AnimNotifyState_MotionWarping.h"
 #include "GameFramework/Actor.h"
+#include "MotionWarpingComponent.h"
+#include "RootMotionModifier.h"
 
 UAnimNotifyState_MotionWarping::UAnimNotifyState_MotionWarping(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+}
+
+void UAnimNotifyState_MotionWarping::AddRootMotionModifier_Implementation(UMotionWarpingComponent* MotionWarpingComp, UAnimSequenceBase* Animation, float StartTime, float EndTime) const
+{
+	if (MotionWarpingComp && RootMotionModifierConfig)
+	{
+		RootMotionModifierConfig->AddRootMotionModifier(MotionWarpingComp, Animation, StartTime, EndTime);
+	}
 }

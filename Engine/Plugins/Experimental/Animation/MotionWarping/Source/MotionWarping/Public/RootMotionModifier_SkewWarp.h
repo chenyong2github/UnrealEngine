@@ -7,7 +7,7 @@
 #include "RootMotionModifier_SkewWarp.generated.h"
 
 USTRUCT()
-struct FRootMotionModifier_SkewWarp : public FRootMotionModifier_Warp
+struct MOTIONWARPING_API FRootMotionModifier_SkewWarp : public FRootMotionModifier_Warp
 {
 	GENERATED_BODY()
 
@@ -21,7 +21,7 @@ public:
 };
 
 UCLASS(meta = (DisplayName = "Skew Warp"))
-class URootMotionModifierConfig_SkewWarp : public URootMotionModifierConfig_Warp
+class MOTIONWARPING_API URootMotionModifierConfig_SkewWarp : public URootMotionModifierConfig_Warp
 {
 	GENERATED_BODY()
 
@@ -30,16 +30,11 @@ public:
 	URootMotionModifierConfig_SkewWarp(const FObjectInitializer& ObjectInitializer)
 		: Super(ObjectInitializer) {}
 
-	virtual TUniquePtr<FRootMotionModifier> CreateRootMotionModifier(const UAnimSequenceBase* Animation, float StartTime, float EndTime) const override
+	virtual void AddRootMotionModifier(UMotionWarpingComponent* MotionWarpingComp, const UAnimSequenceBase* Animation, float StartTime, float EndTime) const override
 	{
-		TUniquePtr<FRootMotionModifier_SkewWarp> Modifier = MakeUnique<FRootMotionModifier_SkewWarp>();
-		Modifier->Animation = Animation;
-		Modifier->StartTime = StartTime;
-		Modifier->EndTime = EndTime;
-		Modifier->SyncPointName = SyncPointName;
-		Modifier->bWarpTranslation = bWarpTranslation;
-		Modifier->bIgnoreZAxis = bIgnoreZAxis;
-		Modifier->bWarpRotation = bWarpRotation;
-		return Modifier;
+		URootMotionModifierConfig_SkewWarp::AddRootMotionModifierSkewWarp(MotionWarpingComp, Animation, StartTime, EndTime, SyncPointName, bWarpTranslation, bIgnoreZAxis, bWarpRotation);
 	}
+
+	UFUNCTION(BlueprintCallable, Category = "Motion Warping")
+	static void AddRootMotionModifierSkewWarp(UMotionWarpingComponent* InMotionWarpingComp, const UAnimSequenceBase* InAnimation, float InStartTime, float InEndTime, FName InSyncPointName, bool bInWarpTranslation, bool bInIgnoreZAxis, bool bInWarpRotation);
 };

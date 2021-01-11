@@ -55,6 +55,7 @@ void FRootMotionModifier_Warp::Update(UMotionWarpingComponent& OwnerComp)
 	const FMotionWarpingSyncPoint* SyncPointPtr = OwnerComp.FindSyncPoint(SyncPointName);
 	if (SyncPointPtr == nullptr)
 	{
+		UE_LOG(LogMotionWarping, Warning, TEXT("Marking RootMotionModifier for removal. Reason: Can't find SyncPoint (%s)"), *SyncPointName.ToString());
 		State = ERootMotionModifierState::MarkedForRemoval;
 		return;
 	}
@@ -173,9 +174,44 @@ void FRootMotionModifier_Warp::PrintLog(const UMotionWarpingComponent& OwnerComp
 	const float Speed = WarpedRootMotion.GetTranslation().Size() / DeltaSeconds;
 	const float EndTimeOffset = CurrentPosition - EndTime;
 
-	UE_LOG(LogMotionWarping, Log, TEXT("FRootMotionModifier_Simple. NetMode: %d Char: %s Window [%f %f][%f %f] DeltaTime: %f WorldTime: %f EndTimeOffset: %f CurrentDist2D: %f FutureDist2D: %f Dot: %f OriginalMotionDelta: %s (%f) FinalMotionDelta: %s (%f) Speed: %f CurrentLocation: %s FutureLocation: %s CurrentRotation: %s FutureRotation: %s"),
-		(int32)CharacterOwner->GetWorld()->GetNetMode(), *GetNameSafe(CharacterOwner), StartTime, EndTime, PreviousPosition, CurrentPosition, DeltaSeconds, CharacterOwner->GetWorld()->GetTimeSeconds(), EndTimeOffset, CurrentDist2D, FutureDist2D, Dot,
+	UE_LOG(LogMotionWarping, Log, TEXT("%s. NetMode: %d Char: %s Anim: %s Window [%f %f][%f %f] DeltaTime: %f WorldTime: %f EndTimeOffset: %f Dist2D: %f FutureDist2D: %f Dot: %f OriginalMotionDelta: %s (%f) FinalMotionDelta: %s (%f) Speed: %f Location: %s FutureLocation: %s Rotation: %s FutureRotation: %s"),
+		*Name, (int32)CharacterOwner->GetWorld()->GetNetMode(), *GetNameSafe(CharacterOwner), *GetNameSafe(Animation.Get()), StartTime, EndTime, PreviousPosition, CurrentPosition, DeltaSeconds, CharacterOwner->GetWorld()->GetTimeSeconds(), EndTimeOffset, CurrentDist2D, FutureDist2D, Dot,
 		*OriginalRootMotion.GetTranslation().ToString(), OriginalRootMotion.GetTranslation().Size(), *WarpedRootMotion.GetTranslation().ToString(), WarpedRootMotion.GetTranslation().Size(), Speed,
 		*CurrentLocation.ToString(), *FutureLocation.ToString(), *CurrentRotation.ToCompactString(), *FutureRotation.ToCompactString());
 }
 #endif
+
+// URootMotionModifierConfig_Warp
+///////////////////////////////////////////////////////////////
+
+void URootMotionModifierConfig_Warp::AddRootMotionModifierSimpleWarp(UMotionWarpingComponent* InMotionWarpingComp, const UAnimSequenceBase* InAnimation, float InStartTime, float InEndTime, FName InSyncPointName, bool bInWarpTranslation, bool bInIgnoreZAxis, bool bInWarpRotation)
+{
+	if (ensureAlways(InMotionWarpingComp))
+	{
+		TSharedPtr<FRootMotionModifier_Warp> NewModifier = MakeShared<FRootMotionModifier_Warp>();
+		NewModifier->Animation = InAnimation;
+		NewModifier->StartTime = InStartTime;
+		NewModifier->EndTime = InEndTime;
+		NewModifier->SyncPointName = InSyncPointName;
+		NewModifier->bWarpTranslation = bInWarpTranslation;
+		NewModifier->bIgnoreZAxis = bInIgnoreZAxis;
+		NewModifier->bWarpRotation = bInWarpRotation;
+		InMotionWarpingComp->AddRootMotionModifier(NewModifier);
+	}
+}
+
+// URootMotionModifierConfig_Scale
+///////////////////////////////////////////////////////////////
+
+void URootMotionModifierConfig_Scale::AddRootMotionModifierScale(UMotionWarpingComponent* InMotionWarpingComp, const UAnimSequenceBase* InAnimation, float InStartTime, float InEndTime, FVector InScale)
+{
+	if (ensureAlways(InMotionWarpingComp))
+	{
+		TSharedPtr<FRootMotionModifier_Scale> NewModifier = MakeShared<FRootMotionModifier_Scale>();
+		NewModifier->Animation = InAnimation;
+		NewModifier->StartTime = InStartTime;
+		NewModifier->EndTime = InEndTime;
+		NewModifier->Scale = InScale;
+		InMotionWarpingComp->AddRootMotionModifier(NewModifier);
+	}
+}

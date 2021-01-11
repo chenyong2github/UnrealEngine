@@ -19,12 +19,15 @@ enum class ERootMotionModifierState : uint8
 	Active,
 
 	/** The modifier has been marked for removal. Usually because the warping window is done */
-	MarkedForRemoval
+	MarkedForRemoval,
+
+	/** The modifier will remain in the list (as long as the window is active) but will not modify the root motion */
+	Disabled
 };
 
 /** Base struct for Root Motion Modifiers */
 USTRUCT()
-struct FRootMotionModifier
+struct MOTIONWARPING_API FRootMotionModifier
 {
 	GENERATED_BODY()
 
@@ -77,28 +80,22 @@ public:
 
 /** Blueprint wrapper around the config properties of a root motion modifier */
 UCLASS(abstract, BlueprintType, EditInlineNew)
-class URootMotionModifierConfig : public UObject
+class MOTIONWARPING_API URootMotionModifierConfig : public UObject
 {
 	GENERATED_BODY()
 
 public:
-
+	
 	URootMotionModifierConfig(const FObjectInitializer& ObjectInitializer)
 		: Super(ObjectInitializer) {}
 
-	/** Creates a RootMotionModifier of the type this object represents */
-	virtual TUniquePtr<FRootMotionModifier> CreateRootMotionModifier(const UAnimSequenceBase* Animation, float StartTime, float EndTime) const PURE_VIRTUAL(URootMotionModifierConfig::CreateRootMotionModifier, return TUniquePtr<FRootMotionModifier>(nullptr););
-
-	/** Checks whether the supplied RootMotionModifier matches the config properties in this object. Should be overridden by subclasses to perform the rest of the comparison. */
-	virtual bool MatchesConfig(const TUniquePtr<FRootMotionModifier>& Modifier, const UAnimSequenceBase* Animation, float StartTime, float EndTime) const
-	{
-		return (Modifier.IsValid() && Modifier->Animation == Animation && Modifier->StartTime == StartTime && Modifier->EndTime == EndTime);
-	}
+	/** Adds a RootMotionModifier of the type this object represents */
+	virtual void AddRootMotionModifier(UMotionWarpingComponent* InMotionWarpingComp, const UAnimSequenceBase* Animation, float StartTime, float EndTime) const PURE_VIRTUAL(URootMotionModifierConfig::AddRootMotionModifier,);
 };
 
 /** Represents a point of alignment in the world */
 USTRUCT(BlueprintType, meta = (HasNativeMake = "MotionWarping.MotionWarpingUtilities.MakeMotionWarpingSyncPoint", HasNativeBreak = "MotionWarping.MotionWarpingUtilities.BreakMotionWarpingSyncPoint"))
-struct FMotionWarpingSyncPoint
+struct MOTIONWARPING_API FMotionWarpingSyncPoint
 {
 	GENERATED_BODY()
 
@@ -107,6 +104,8 @@ struct FMotionWarpingSyncPoint
 		: Location(InLocation), Rotation(InRotation) {}
 	FMotionWarpingSyncPoint(const FVector& InLocation, const FRotator& InRotation)
 		: Location(InLocation), Rotation(InRotation.Quaternion()) {}
+	FMotionWarpingSyncPoint(const FTransform& InTransform)
+		: Location(InTransform.GetLocation()), Rotation(InTransform.GetRotation()) {}
 
 	FORCEINLINE const FVector& GetLocation() const { return Location; }
 	FORCEINLINE const FQuat& GetRotation() const { return Rotation; }
@@ -135,7 +134,7 @@ protected:
 ///////////////////////////////////////////////////////////////
 
 USTRUCT()
-struct FRootMotionModifier_Warp : public FRootMotionModifier
+struct MOTIONWARPING_API FRootMotionModifier_Warp : public FRootMotionModifier
 {
 	GENERATED_BODY()
 
@@ -183,7 +182,7 @@ protected:
 };
 
 UCLASS(meta = (DisplayName = "Simple Warp"))
-class URootMotionModifierConfig_Warp : public URootMotionModifierConfig
+class MOTIONWARPING_API URootMotionModifierConfig_Warp : public URootMotionModifierConfig
 {
 	GENERATED_BODY()
 
@@ -207,41 +206,20 @@ public:
 
 	URootMotionModifierConfig_Warp(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer) {}
 
-	virtual TUniquePtr<FRootMotionModifier> CreateRootMotionModifier(const UAnimSequenceBase* Animation, float StartTime, float EndTime) const override
+	virtual void AddRootMotionModifier(UMotionWarpingComponent* MotionWarpingComp, const UAnimSequenceBase* Animation, float StartTime, float EndTime) const override
 	{
-		TUniquePtr<FRootMotionModifier_Warp> Modifier = MakeUnique<FRootMotionModifier_Warp>();
-		Modifier->Animation = Animation;
-		Modifier->StartTime = StartTime;
-		Modifier->EndTime = EndTime;
-		Modifier->SyncPointName = SyncPointName;
-		Modifier->bWarpTranslation = bWarpTranslation;
-		Modifier->bIgnoreZAxis = bIgnoreZAxis;
-		Modifier->bWarpRotation = bWarpRotation;
-		return Modifier;
+		URootMotionModifierConfig_Warp::AddRootMotionModifierSimpleWarp(MotionWarpingComp, Animation, StartTime, EndTime, SyncPointName, bWarpTranslation, bIgnoreZAxis, bWarpRotation);
 	}
 
-	virtual bool MatchesConfig(const TUniquePtr<FRootMotionModifier>& Modifier, const UAnimSequenceBase* Animation, float StartTime, float EndTime) const override
-	{
-		if (Super::MatchesConfig(Modifier, Animation, StartTime, EndTime))
-		{
-			if (Modifier->GetScriptStruct()->IsChildOf(FRootMotionModifier_Warp::StaticStruct()))
-			{
-				const FRootMotionModifier_Warp* ModifierAsWarp = static_cast<const FRootMotionModifier_Warp*>(Modifier.Get());
-				return (ModifierAsWarp->SyncPointName == SyncPointName &&
-					ModifierAsWarp->bWarpTranslation == bWarpTranslation &&
-					ModifierAsWarp->bIgnoreZAxis == bIgnoreZAxis &&
-					ModifierAsWarp->bWarpRotation == bWarpRotation);
-			}
-		}
-		return false;
-	}
+	UFUNCTION(BlueprintCallable, Category = "Motion Warping")
+	static void AddRootMotionModifierSimpleWarp(UMotionWarpingComponent* InMotionWarpingComp, const UAnimSequenceBase* InAnimation, float InStartTime, float InEndTime, FName InSyncPointName, bool bInWarpTranslation, bool bInIgnoreZAxis, bool bInWarpRotation);
 };
 
 // FRootMotionModifier_Scale
 ///////////////////////////////////////////////////////////////
 
 USTRUCT()
-struct FRootMotionModifier_Scale : public FRootMotionModifier
+struct MOTIONWARPING_API FRootMotionModifier_Scale : public FRootMotionModifier
 {
 	GENERATED_BODY()
 
@@ -264,7 +242,7 @@ public:
 };
 
 UCLASS(meta = (DisplayName = "Scale"))
-class URootMotionModifierConfig_Scale : public URootMotionModifierConfig
+class MOTIONWARPING_API URootMotionModifierConfig_Scale : public URootMotionModifierConfig
 {
 	GENERATED_BODY()
 
@@ -276,26 +254,11 @@ public:
 
 	URootMotionModifierConfig_Scale(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer) {}
 
-	virtual TUniquePtr<FRootMotionModifier> CreateRootMotionModifier(const UAnimSequenceBase* Animation, float StartTime, float EndTime) const override
+	virtual void AddRootMotionModifier(UMotionWarpingComponent* MotionWarpingComp, const UAnimSequenceBase* Animation, float StartTime, float EndTime) const override
 	{
-		TUniquePtr<FRootMotionModifier_Scale> Modifier = MakeUnique<FRootMotionModifier_Scale>();
-		Modifier->Animation = Animation;
-		Modifier->StartTime = StartTime;
-		Modifier->EndTime = EndTime;
-		Modifier->Scale = Scale;
-		return Modifier;
+		URootMotionModifierConfig_Scale::AddRootMotionModifierScale(MotionWarpingComp, Animation, StartTime, EndTime, Scale);
 	}
 
-	virtual bool MatchesConfig(const TUniquePtr<FRootMotionModifier>& Modifier, const UAnimSequenceBase* Animation, float StartTime, float EndTime) const override
-	{
-		if (Super::MatchesConfig(Modifier, Animation, StartTime, EndTime))
-		{
-			if (Modifier->GetScriptStruct()->IsChildOf(FRootMotionModifier_Scale::StaticStruct()))
-			{
-				const FRootMotionModifier_Scale* ModifierAsSimple = static_cast<const FRootMotionModifier_Scale*>(Modifier.Get());
-				return (ModifierAsSimple->Scale == Scale);
-			}
-		}
-		return false;
-	}
+	UFUNCTION(BlueprintCallable, Category = "Motion Warping")
+	static void AddRootMotionModifierScale(UMotionWarpingComponent* InMotionWarpingComp, const UAnimSequenceBase* InAnimation, float InStartTime, float InEndTime, FVector InScale);
 };

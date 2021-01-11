@@ -42,7 +42,7 @@ struct FMotionDeltaTrackContainer
 };
 
 USTRUCT()
-struct FRootMotionModifier_AdjustmentBlendWarp : public FRootMotionModifier_Warp
+struct MOTIONWARPING_API FRootMotionModifier_AdjustmentBlendWarp : public FRootMotionModifier_Warp
 {
 	GENERATED_BODY()
 
@@ -98,7 +98,7 @@ protected:
 };
 
 UCLASS(meta = (DisplayName = "Adjustment Blend Warp"))
-class URootMotionModifierConfig_AdjustmentBlendWarp : public URootMotionModifierConfig_Warp
+class MOTIONWARPING_API URootMotionModifierConfig_AdjustmentBlendWarp : public URootMotionModifierConfig_Warp
 {
 	GENERATED_BODY()
 
@@ -113,20 +113,13 @@ public:
 	URootMotionModifierConfig_AdjustmentBlendWarp(const FObjectInitializer& ObjectInitializer)
 		: Super(ObjectInitializer) {}
 
-	virtual TUniquePtr<FRootMotionModifier> CreateRootMotionModifier(const UAnimSequenceBase* Animation, float StartTime, float EndTime) const override
+	virtual void AddRootMotionModifier(UMotionWarpingComponent* MotionWarpingComp, const UAnimSequenceBase* Animation, float StartTime, float EndTime) const override
 	{
-		TUniquePtr<FRootMotionModifier_AdjustmentBlendWarp> Modifier = MakeUnique<FRootMotionModifier_AdjustmentBlendWarp>();
-		Modifier->Animation = Animation;
-		Modifier->StartTime = StartTime;
-		Modifier->EndTime = EndTime;
-		Modifier->SyncPointName = SyncPointName;
-		Modifier->bWarpTranslation = bWarpTranslation;
-		Modifier->bIgnoreZAxis = bIgnoreZAxis;
-		Modifier->bWarpRotation = bWarpRotation;
-		Modifier->bWarpIKBones = bWarpIKBones;
-		Modifier->IKBones = IKBones;
-		return Modifier;
+		URootMotionModifierConfig_AdjustmentBlendWarp::AddRootMotionModifierAdjustmentBlendWarp(MotionWarpingComp, Animation, StartTime, EndTime, SyncPointName, bWarpTranslation, bIgnoreZAxis, bWarpRotation, bWarpIKBones, IKBones);
 	}
+
+	UFUNCTION(BlueprintCallable, Category = "Motion Warping")
+	static void AddRootMotionModifierAdjustmentBlendWarp(UMotionWarpingComponent* InMotionWarpingComp, const UAnimSequenceBase* InAnimation, float InStartTime, float InEndTime, FName InSyncPointName, bool bInWarpTranslation, bool bInIgnoreZAxis, bool bInWarpRotation, bool bInWarpIKBones, const TArray<FName>& InIKBones);
 
 	UFUNCTION(BlueprintPure, Category = "Motion Warping")
 	static void GetIKBoneTransformAndAlpha(ACharacter* Character, FName BoneName, FTransform& OutTransform, float& OutAlpha);

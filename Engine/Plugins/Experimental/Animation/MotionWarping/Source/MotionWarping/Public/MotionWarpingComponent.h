@@ -25,7 +25,7 @@ struct FMotionWarpingCVars
 #endif
 
 UCLASS()
-class UMotionWarpingUtilities : public UBlueprintFunctionLibrary
+class MOTIONWARPING_API UMotionWarpingUtilities : public UBlueprintFunctionLibrary
 {
 	GENERATED_BODY()
 
@@ -49,8 +49,10 @@ public:
 	static FTransform ExtractRootMotionFromAnimation(const UAnimSequenceBase* Animation, float StartTime, float EndTime);
 };
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FMotionWarpingPreUpdate, class UMotionWarpingComponent*, MotionWarpingComp);
+
 UCLASS(ClassGroup = Movement, meta = (BlueprintSpawnableComponent))
-class UMotionWarpingComponent : public UActorComponent
+class MOTIONWARPING_API UMotionWarpingComponent : public UActorComponent
 {
 	GENERATED_BODY()
 
@@ -60,6 +62,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Config")
 	bool bSearchForWindowsInAnimsWithinMontages;
 
+	/** Event called before Root Motion Modifiers are updated */
+	UPROPERTY(BlueprintAssignable, Category = "Motion Warping")
+	FMotionWarpingPreUpdate OnPreUpdate;
+
 	UMotionWarpingComponent(const FObjectInitializer& ObjectInitializer);
 
 	virtual void InitializeComponent() override;
@@ -68,7 +74,7 @@ public:
 	FORCEINLINE ACharacter* GetCharacterOwner() const { return CharacterOwner.Get(); }
 
 	/** Returns the list of root motion modifiers */
-	FORCEINLINE const TArray<TUniquePtr<FRootMotionModifier>>& GetRootMotionModifiers() const { return RootMotionModifiers; }
+	FORCEINLINE const TArray<TSharedPtr<FRootMotionModifier>>& GetRootMotionModifiers() const { return RootMotionModifiers; }
 
 	/** Find the SyncPoint associated with a specified name */
 	FORCEINLINE const FMotionWarpingSyncPoint* FindSyncPoint(const FName& SyncPointName) const { return SyncPoints.Find(SyncPointName); }
@@ -77,8 +83,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Motion Warping")
 	void AddOrUpdateSyncPoint(FName Name, const FMotionWarpingSyncPoint& SyncPoint);
 
-	/** Check if we contain a RootMotionModifier that matches the supplied config data */
-	bool ContainsMatchingModifier(const URootMotionModifierConfig* Config, const UAnimSequenceBase* Animation, float StartTime, float EndTime) const;
+	/** Check if we contain a RootMotionModifier for the supplied animation and time range */
+	bool ContainsModifier(const UAnimSequenceBase* Animation, float StartTime, float EndTime) const;
+
+	/** Add a new modifier */
+	void AddRootMotionModifier(TSharedPtr<FRootMotionModifier> Modifier);
+
+	/** Mark all the modifiers as Disable */
+	void DisableAllRootMotionModifiers();
 
 protected:
 
@@ -87,7 +99,7 @@ protected:
 	TWeakObjectPtr<ACharacter> CharacterOwner;
 
 	/** List of root motion modifiers */
-	TArray<TUniquePtr<FRootMotionModifier>> RootMotionModifiers;
+	TArray<TSharedPtr<FRootMotionModifier>> RootMotionModifiers;
 
 	UPROPERTY(Transient)
 	TMap<FName, FMotionWarpingSyncPoint> SyncPoints;

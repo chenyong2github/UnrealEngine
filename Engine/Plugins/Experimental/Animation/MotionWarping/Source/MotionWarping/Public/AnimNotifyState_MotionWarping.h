@@ -8,7 +8,7 @@
 
 /** AnimNotifyState used to define a motion warping window in the animation */
 UCLASS(meta = (DisplayName = "Motion Warping"))
-class UAnimNotifyState_MotionWarping : public UAnimNotifyState
+class MOTIONWARPING_API UAnimNotifyState_MotionWarping : public UAnimNotifyState
 {
 	GENERATED_BODY()
 
@@ -18,4 +18,7 @@ public:
 	class URootMotionModifierConfig* RootMotionModifierConfig;
 
 	UAnimNotifyState_MotionWarping(const FObjectInitializer& ObjectInitializer);
+
+	UFUNCTION(BlueprintNativeEvent, Category = "Motion Warping")
+	void AddRootMotionModifier(class UMotionWarpingComponent* MotionWarpingComp, class UAnimSequenceBase* Animation, float StartTime, float EndTime) const;
 };

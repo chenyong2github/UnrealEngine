@@ -152,3 +152,22 @@ FTransform FRootMotionModifier_SkewWarp::ProcessRootMotion(UMotionWarpingCompone
 
 	return FinalRootMotion;
 }
+
+// URootMotionModifierConfig_SkewWarp
+///////////////////////////////////////////////////////////////
+
+void URootMotionModifierConfig_SkewWarp::AddRootMotionModifierSkewWarp(UMotionWarpingComponent* InMotionWarpingComp, const UAnimSequenceBase* InAnimation, float InStartTime, float InEndTime, FName InSyncPointName, bool bInWarpTranslation, bool bInIgnoreZAxis, bool bInWarpRotation)
+{
+	if (ensureAlways(InMotionWarpingComp))
+	{
+		TSharedPtr<FRootMotionModifier_SkewWarp> NewModifier = MakeShared<FRootMotionModifier_SkewWarp>();
+		NewModifier->Animation = InAnimation;
+		NewModifier->StartTime = InStartTime;
+		NewModifier->EndTime = InEndTime;
+		NewModifier->SyncPointName = InSyncPointName;
+		NewModifier->bWarpTranslation = bInWarpTranslation;
+		NewModifier->bIgnoreZAxis = bInIgnoreZAxis;
+		NewModifier->bWarpRotation = bInWarpRotation;
+		InMotionWarpingComp->AddRootMotionModifier(NewModifier);
+	}
+}
