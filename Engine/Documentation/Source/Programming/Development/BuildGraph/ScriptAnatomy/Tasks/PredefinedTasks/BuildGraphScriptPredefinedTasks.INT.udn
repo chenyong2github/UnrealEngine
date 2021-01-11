@@ -348,6 +348,15 @@ Extract files from a zip archive.
 | Tag     | Tag List           | Optional | Tag to be applied to the extracted files.                                         |
 | If      | Condition          | Optional | Whether to execute this task. It is ignored if this condition evaluates to false. |
 
+### Wait
+
+Waits a defined number of seconds.
+
+|         |           |          |                                                                                   |
+| ------- | --------- | -------- | --------------------------------------------------------------------------------- |
+| Seconds | Int32     | Required | Number of seconds to wait.                                                        |
+| If      | Condition | Optional | Whether to execute this task. It is ignored if this condition evaluates to false. |
+
 ### WriteTextFile
 
 Writes text to a file.
