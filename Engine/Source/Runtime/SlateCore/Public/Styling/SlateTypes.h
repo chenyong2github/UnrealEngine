@@ -1409,6 +1409,41 @@ struct SLATECORE_API FSplitterStyle : public FSlateWidgetStyle
 	FSplitterStyle& SetHandleHighlightBrush( const FSlateBrush& InHandleHighlightBrush ){ HandleHighlightBrush = InHandleHighlightBrush; return *this; }
 };
 
+/**
+ * Represents the appearance of an STableView
+ */
+
+USTRUCT(BlueprintType)
+struct SLATECORE_API FTableViewStyle : public FSlateWidgetStyle
+{
+	GENERATED_USTRUCT_BODY()
+
+	FTableViewStyle();
+
+	virtual ~FTableViewStyle() {}
+
+	virtual void GetResources( TArray< const FSlateBrush* >& OutBrushes ) const override;
+
+	static const FName TypeName;
+	virtual const FName GetTypeName() const override { return TypeName; };
+
+	static const FTableViewStyle& GetDefault();
+
+	/** Brush used when a selected row is active */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Appearance)
+	FSlateBrush BackgroundBrush;
+	FTableViewStyle& SetBackgroundBrush( const FSlateBrush& InBackgroundBrush ){ BackgroundBrush = InBackgroundBrush; return *this; }
+
+	/**
+	 * Unlinks all colors in this style.
+	 * @see FSlateColor::Unlink
+	 */
+	void UnlinkColors()
+	{
+		BackgroundBrush.UnlinkColors();
+	}
+};
+
 
 /**
  * Represents the appearance of an STableRow

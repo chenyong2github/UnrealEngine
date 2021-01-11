@@ -13,6 +13,7 @@
 #include "Framework/Views/ITypedTableView.h"
 #include "Framework/Layout/InertialScrollManager.h"
 #include "Framework/Layout/Overscroll.h"
+#include "Styling/SlateTypes.h"
 
 #include "STableViewBase.generated.h"
 
@@ -163,6 +164,9 @@ public:
 	/** Sets the multiplier applied when wheel scrolling. Higher numbers will cover more distance per click of the wheel. */
 	void SetWheelScrollMultiplier(float NewWheelScrollMultiplier);
 
+	/** Sets the Background Brush */
+	void SetBackgroundBrush(const TAttribute<const FSlateBrush*>& InBackgroundBrush);
+
 public:
 
 	// SWidget interface
@@ -182,6 +186,7 @@ public:
 	virtual FReply OnKeyDown( const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent ) override;
 	virtual FCursorReply OnCursorQuery( const FGeometry& MyGeometry, const FPointerEvent& CursorEvent ) const override;
 	virtual int32 OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override;
+	virtual bool ComputeVolatility() const override;
 	virtual FReply OnTouchStarted( const FGeometry& MyGeometry, const FPointerEvent& InTouchEvent ) override;
 	virtual FReply OnTouchMoved( const FGeometry& MyGeometry, const FPointerEvent& InTouchEvent ) override;
 	virtual FReply OnTouchEnded( const FGeometry& MyGeometry, const FPointerEvent& InTouchEvent ) override;
@@ -411,6 +416,9 @@ protected:
 
 	/** Passing over the clipping to SListPanel */
 	virtual void OnClippingChanged() override;
+
+	/** Brush resource representing the background area of the view */
+	FInvalidatableBrushAttribute BackgroundBrush;
 
 protected:
 

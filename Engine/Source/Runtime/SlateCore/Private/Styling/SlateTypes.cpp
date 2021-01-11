@@ -513,6 +513,23 @@ const FSplitterStyle& FSplitterStyle::GetDefault()
 	return Default;
 }
 
+FTableViewStyle::FTableViewStyle()
+	: BackgroundBrush(FSlateNoResource())
+{
+}
+
+void FTableViewStyle::GetResources( TArray< const FSlateBrush* >& OutBrushes ) const
+{
+	OutBrushes.Add( &BackgroundBrush );	
+}
+
+const FName FTableViewStyle::TypeName( TEXT("FTableViewStyle") );
+
+const FTableViewStyle& FTableViewStyle::GetDefault()
+{
+	static FTableViewStyle Default;
+	return Default;
+}
 
 FTableRowStyle::FTableRowStyle()
 	: TextColor(FSlateColor::UseForeground())

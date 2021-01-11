@@ -1638,6 +1638,12 @@ void FStarshipCoreStyle::SetupTableViewStyles(TSharedRef<FStyle>& Style)
 	const FSlateColor SelectionColor = Style->GetSlateColor("SelectionColor");
 	const FSlateColor SelectorColor = Style->GetSlateColor("SelectorColor");
 
+	const FTableViewStyle DefaultTreeViewStyle = FTableViewStyle();
+	Style->Set("ListView", DefaultTreeViewStyle);
+
+	const FTableViewStyle DefaultTableViewStyle = FTableViewStyle();
+	Style->Set("TreeView", DefaultTableViewStyle);
+
 	const FTableRowStyle DefaultTableRowStyle = FTableRowStyle()
 		.SetEvenRowBackgroundBrush(FSlateColorBrush(FStyleColors::Recessed))
 		.SetEvenRowBackgroundHoveredBrush(FSlateColorBrush(FStyleColors::SelectHover))

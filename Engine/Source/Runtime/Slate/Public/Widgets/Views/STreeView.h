@@ -112,7 +112,8 @@ public:
 public:
 	
 	SLATE_BEGIN_ARGS( STreeView<ItemType> )
-		: _OnGenerateRow()
+		: _TreeViewStyle(&FAppStyle::Get().GetWidgetStyle<FTableViewStyle>("TreeView"))
+		, _OnGenerateRow()
 		, _OnGetChildren()
 		, _OnSetExpansionRecursive()
 		, _TreeItemsSource( static_cast< const TArray<ItemType>* >(nullptr) ) //@todo Slate Syntax: Initializing from nullptr without a cast
@@ -141,6 +142,8 @@ public:
 		{
 			this->_Clipping = EWidgetClipping::ClipToBounds;
 		}
+
+		SLATE_STYLE_ARGUMENT( FTableViewStyle, TreeViewStyle )
 
 		SLATE_EVENT( FOnGenerateRow, OnGenerateRow )
 
@@ -252,6 +255,8 @@ public:
 		this->bHighlightParentNodesForSelection = InArgs._HighlightParentNodesForSelection;
 
 		this->bReturnFocusToSelection = InArgs._ReturnFocusToSelection;
+
+		this->SetStyle(InArgs._TreeViewStyle);
 
 		// Check for any parameters that the coder forgot to specify.
 		FString ErrorString;
@@ -712,6 +717,12 @@ public:
 		SListView<ItemType>::RebuildList();
 	}
 
+	void SetStyle(const FTableViewStyle* InStyle)
+	{
+		Style = InStyle;
+		STableViewBase::SetBackgroundBrush( Style != nullptr ? &Style->BackgroundBrush : FStyleDefaults::GetNoBrush() );
+	}
+
 	/**
 	 * Set whether some data item is expanded or not.
 	 * 
@@ -806,6 +817,9 @@ protected:
 
 	/** The delegate that is invoked whenever an item in the tree is expanded or collapsed. */
 	FOnExpansionChanged OnExpansionChanged;
+
+	/** Style resource for the tree */
+	const FTableViewStyle* Style;
 
 private:		
 

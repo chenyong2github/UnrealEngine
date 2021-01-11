@@ -165,24 +165,9 @@ void SSceneOutliner::Construct(const FArguments& InArgs, const FSceneOutlinerIni
 		Toolbar
 	];
 
-	TSharedRef<SVerticalBox> InnerBox = SNew(SVerticalBox);
-
 	VerticalBox->AddSlot()
-	.FillHeight( 1.0f )
-	.Padding(4.0, 4.0)
-	[
-		SNew(SBorder)
-		.BorderImage( FAppStyle::Get().GetBrush("Brushes.Recessed") )
-		.Padding(0.0)
-		[
-			InnerBox
-		]
-	];	
-
-	InnerBox->AddSlot()
 	.FillHeight(1.0)
 	[
-
 		SNew( SOverlay )
 		+SOverlay::Slot()
 		.HAlign( HAlign_Center )
@@ -244,7 +229,7 @@ void SSceneOutliner::Construct(const FArguments& InArgs, const FSceneOutlinerIni
 	// Bottom panel status bar, if enabled by the mode
 	if (Mode->ShowStatusBar())
 	{
-		InnerBox->AddSlot()
+		VerticalBox->AddSlot()
 		.AutoHeight()
 		[
 			SNew(SBorder)

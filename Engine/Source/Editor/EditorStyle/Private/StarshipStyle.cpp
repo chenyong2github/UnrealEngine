@@ -778,6 +778,15 @@ void FStarshipEditorStyle::FStyle::SetupGeneralStyles()
 
 	// Lists, Trees
 	{
+
+		const FTableViewStyle DefaultTreeViewStyle = FTableViewStyle()
+			.SetBackgroundBrush(FSlateColorBrush(FStyleColors::Recessed));
+		Set("ListView", DefaultTreeViewStyle);
+
+		const FTableViewStyle DefaultTableViewStyle = FTableViewStyle()
+			.SetBackgroundBrush(FSlateColorBrush(FStyleColors::Recessed));
+		Set("TreeView", DefaultTableViewStyle);
+
 		Set( "TableView.Row", FTableRowStyle( NormalTableRowStyle) );
 		Set( "TableView.DarkRow",FTableRowStyle( NormalTableRowStyle)
 			.SetEvenRowBackgroundBrush(IMAGE_BRUSH("PropertyView/DetailCategoryMiddle", FVector2D(16, 16)))

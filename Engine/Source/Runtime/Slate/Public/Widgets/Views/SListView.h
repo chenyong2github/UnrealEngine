@@ -9,6 +9,7 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SWidget.h"
 #include "Styling/SlateTypes.h"
+#include "Styling/AppStyle.h"
 #include "Framework/SlateDelegates.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Framework/Views/ITypedTableView.h"
@@ -78,7 +79,8 @@ public:
 
 public:
 	SLATE_BEGIN_ARGS(SListView<ItemType>)
-		: _OnGenerateRow()
+		: _ListViewStyle(&FAppStyle::Get().GetWidgetStyle<FTableViewStyle>("ListView"))
+		, _OnGenerateRow()
 		, _OnEntryInitialized()
 		, _OnRowReleased()
 		, _ListItemsSource()
@@ -107,6 +109,8 @@ public:
 		{
 			this->_Clipping = EWidgetClipping::ClipToBounds;
 		}
+
+		SLATE_STYLE_ARGUMENT( FTableViewStyle, ListViewStyle )
 
 		SLATE_EVENT( FOnGenerateRow, OnGenerateRow )
 		
@@ -221,6 +225,8 @@ public:
 		OnEnteredBadState = InArgs._OnEnteredBadState;
 
 		this->OnKeyDownHandler = InArgs._OnKeyDownHandler;
+
+		this->SetStyle(InArgs._ListViewStyle);
 
 		// Check for any parameters that the coder forgot to specify.
 		FString ErrorString;
@@ -1090,6 +1096,12 @@ public:
 	}
 
 public:	
+
+	void SetStyle(const FTableViewStyle* InStyle)
+	{
+		Style = InStyle;
+		SetBackgroundBrush( Style != nullptr ? &Style->BackgroundBrush : FStyleDefaults::GetNoBrush() );
+	}
 
 	/** Sets the OnEntryInitializer delegate. This delegate is invoked after initializing an entry being generated, before it may be added to the actual widget hierarchy. */
 	void SetOnEntryInitialized(const FOnEntryInitialized& Delegate)
@@ -2173,6 +2185,9 @@ protected:
 
 	/** If true, the item currently slated to be scrolled into view will also be navigated to after being scrolled in */
 	bool bNavigateOnScrollIntoView = false;
+
+	/** Style resource for the list */
+	const FTableViewStyle* Style;
 
 private:
 	struct FGenerationPassGuard
