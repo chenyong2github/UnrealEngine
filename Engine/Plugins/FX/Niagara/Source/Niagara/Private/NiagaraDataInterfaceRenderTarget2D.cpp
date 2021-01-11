@@ -634,26 +634,28 @@ void FNiagaraDataInterfaceProxyRenderTarget2DProxy::PostStage(FRHICommandList& R
 
 void FNiagaraDataInterfaceProxyRenderTarget2DProxy::PostSimulate(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceArgs& Context)
 {
-	FRenderTarget2DRWInstanceData_RenderThread* ProxyData = SystemInstancesToProxyData_RT.Find(Context.SystemInstanceID);
-	if (ProxyData->bWasWrittenTo && (ProxyData->MipMapGeneration == ENiagaraMipMapGeneration::PostSimulate))
+	if (FRenderTarget2DRWInstanceData_RenderThread* ProxyData = SystemInstancesToProxyData_RT.Find(Context.SystemInstanceID))
 	{
-		ProxyData->bWasWrittenTo = false;
-		check(&RHICmdList == &FRHICommandListExecutor::GetImmediateCommandList());
-		FGenerateMips::Execute(FRHICommandListExecutor::GetImmediateCommandList(), ProxyData->TextureReferenceRHI->GetReferencedTexture());
-	}
+		if (ProxyData->bWasWrittenTo && (ProxyData->MipMapGeneration == ENiagaraMipMapGeneration::PostSimulate))
+		{
+			ProxyData->bWasWrittenTo = false;
+			check(&RHICmdList == &FRHICommandListExecutor::GetImmediateCommandList());
+			FGenerateMips::Execute(FRHICommandListExecutor::GetImmediateCommandList(), ProxyData->TextureReferenceRHI->GetReferencedTexture());
+		}
 
 #if NIAGARA_COMPUTEDEBUG_ENABLED
-	if (ProxyData && ProxyData->bPreviewTexture && ProxyData->TextureReferenceRHI.IsValid())
-	{
-		if (FNiagaraGpuComputeDebug* GpuComputeDebug = Context.Batcher->GetGpuComputeDebug())
+		if (ProxyData->bPreviewTexture && ProxyData->TextureReferenceRHI.IsValid())
 		{
-			if (FRHITexture* RHITexture = ProxyData->TextureReferenceRHI->GetReferencedTexture())
+			if (FNiagaraGpuComputeDebug* GpuComputeDebug = Context.Batcher->GetGpuComputeDebug())
 			{
-				GpuComputeDebug->AddTexture(RHICmdList, Context.SystemInstanceID, SourceDIName, RHITexture);
+				if (FRHITexture* RHITexture = ProxyData->TextureReferenceRHI->GetReferencedTexture())
+				{
+					GpuComputeDebug->AddTexture(RHICmdList, Context.SystemInstanceID, SourceDIName, RHITexture);
+				}
 			}
 		}
-	}
 #endif
+	}
 }
 
 FIntVector FNiagaraDataInterfaceProxyRenderTarget2DProxy::GetElementCount(FNiagaraSystemInstanceID SystemInstanceID) const
