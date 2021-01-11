@@ -6,6 +6,10 @@
 #include "AnimGraphAttributes.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "Widgets/Layout/SWrapBox.h"
+#include "Widgets/Layout/SBorder.h"
+#include "Widgets/Images/SImage.h"
+#include "Widgets/SOverlay.h"
+#include "Widgets/SBoxPanel.h"
 #include "SGraphPanel.h"
 
 #define LOCTEXT_NAMESPACE "SGraphPinPose"
