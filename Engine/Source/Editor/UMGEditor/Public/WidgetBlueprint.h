@@ -149,7 +149,7 @@ struct UMGEDITOR_API FDelegateEditorBinding
 	FGuid MemberGuid;
 
 	UPROPERTY()
-	EBindingKind Kind;
+	EBindingKind Kind = EBindingKind::Property;
 
 	bool operator==( const FDelegateEditorBinding& Other ) const
 	{

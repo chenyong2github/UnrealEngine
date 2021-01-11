@@ -35,7 +35,7 @@ public:
 	 * the origin of the widget.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=AnchorData)
-	FVector2D Alignment;
+	FVector2D Alignment = FVector2D::ZeroVector;
 
 	/**
 	* Compares this set of FAnchorData with another for equality.

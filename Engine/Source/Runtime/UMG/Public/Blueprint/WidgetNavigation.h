@@ -24,7 +24,7 @@ struct UMG_API FWidgetNavigationData
 
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Navigation")
-	EUINavigationRule Rule;
+	EUINavigationRule Rule = EUINavigationRule::Escape;
 
 	/** This either the widget to focus, OR the name of the function to call. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Navigation")
