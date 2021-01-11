@@ -1143,10 +1143,11 @@ namespace DatasmithRevitExporter
 			FElementData CurrentElementData = ElementDataStack.Peek();
 			FBaseElementData NewInstance = CurrentElementData.PushInstance(InInstanceType, InWorldTransform);
 
-			if (DirectLink?.IsElementCached(CurrentElementData.CurrentElement) ?? false)
-			{
-				NewInstance.ResetMeshMaterials();
-			}
+			// Reset the state that assigns material slots to material name for this mesh.
+			// If mesh was created for another instance before, it will be reused and nothing happens.
+			// If mesh has become invalid because of some sequence of events and geometry is re-created, 
+			// we need to have the material slots re-assigned!
+			NewInstance.ResetMeshMaterials();
 		}
 
 		public void PopInstance(FDatasmithFacadeScene InDatasmithScene)
