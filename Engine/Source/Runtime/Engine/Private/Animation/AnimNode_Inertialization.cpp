@@ -108,6 +108,19 @@ void FAnimNode_Inertialization::Initialize_AnyThread(const FAnimationInitializeC
 	Deactivate();
 
 	InertializationPoseDiff.Reset();
+	CachedFilteredCurvesUIDs.Reset();
+
+	const USkeleton* Skeleton = Context.AnimInstanceProxy->GetSkeleton();
+	check(Skeleton);
+	for (const FName& CurveName : FilteredCurves)
+	{
+		SmartName::UID_Type NameUID = Skeleton->GetUIDByName(USkeleton::AnimCurveMappingName, CurveName);
+		if (NameUID != SmartName::MaxUID)
+		{
+			// Grab UIDs of filtered curves to avoid lookup later
+			CachedFilteredCurvesUIDs.Add(NameUID);
+		}
+	}
 }
 
 
@@ -378,7 +391,7 @@ void FAnimNode_Inertialization::StartInertialization(FPoseContext& Context, FIne
 		}
 	}
 
-	OutPoseDiff.InitFrom(Context.Pose, Context.Curve, Context.AnimInstanceProxy->GetComponentTransform(), AttachParentName, PreviousPose1, PreviousPose2);
+	OutPoseDiff.InitFrom(Context.Pose, Context.Curve, Context.AnimInstanceProxy->GetComponentTransform(), AttachParentName, PreviousPose1, PreviousPose2, CachedFilteredCurvesUIDs);
 }
 
 
@@ -438,7 +451,7 @@ void FInertializationPose::InitFrom(const FCompactPose& Pose, const FBlendedCurv
 // Prev2		the pose and curves from two frames before
 // DeltaTime	the time elapsed between Prev1 and Pose
 //
-void FInertializationPoseDiff::InitFrom(const FCompactPose& Pose, const FBlendedCurve& Curves, const FTransform& ComponentTransform, const FName& AttachParentName, const FInertializationPose& Prev1, const FInertializationPose& Prev2)
+void FInertializationPoseDiff::InitFrom(const FCompactPose& Pose, const FBlendedCurve& Curves, const FTransform& ComponentTransform, const FName& AttachParentName, const FInertializationPose& Prev1, const FInertializationPose& Prev2, const TSet<SmartName::UID_Type>& FilteredCurvesUIDs)
 {
 	const FBoneContainer& BoneContainer = Pose.GetBoneContainer();
 
@@ -618,6 +631,12 @@ void FInertializationPoseDiff::InitFrom(const FCompactPose& Pose, const FBlended
 		if (CurrIdx == INDEX_NONE || Prev1Idx == INDEX_NONE)
 		{
 			// CurveDiff is zeroed
+			continue;
+		}
+
+		// Check if the curve is in our filter set. Leave CurveDiff zeroed if it is.
+		if (FilteredCurvesUIDs.Contains((SmartName::UID_Type)CurveUID))
+		{
 			continue;
 		}
 

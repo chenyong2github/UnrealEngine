@@ -191,8 +191,9 @@ struct FInertializationPoseDiff
 	// AttachParentName		the current frame's attach parent name (for checking if the attachment has changed)
 	// Prev1				the previous frame's pose
 	// Prev2				the pose from two frames before
+	// FilteredCurvesUIDs	list of curves we don't want to inertialize
 	//
-	void InitFrom(const FCompactPose& Pose, const FBlendedCurve& Curves, const FTransform& ComponentTransform, const FName& AttachParentName, const FInertializationPose& Prev1, const FInertializationPose& Prev2);
+	void InitFrom(const FCompactPose& Pose, const FBlendedCurve& Curves, const FTransform& ComponentTransform, const FName& AttachParentName, const FInertializationPose& Prev1, const FInertializationPose& Prev2, const TSet<SmartName::UID_Type>& FilteredCurvesUIDs);
 
 	// Apply this difference to a pose, decaying over time as InertializationElapsedTime approaches InertializationDuration
 	//
@@ -227,6 +228,10 @@ struct ENGINE_API FAnimNode_Inertialization : public FAnimNode_Base
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Links)
 	FPoseLink Source;
+
+	// List of curves that should not use inertial blending. These curves will instantly change when inertialization begins.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Filter)
+	TArray<FName> FilteredCurves;
 
 public: // FAnimNode_Inertialization
 
@@ -281,6 +286,9 @@ protected:
 
 
 private:
+
+	// Set of UIDs for valid curves in FilteredCurves
+	TSet<SmartName::UID_Type> CachedFilteredCurvesUIDs;
 
 	// Snapshots of the actor pose from past frames
 	TArray<FInertializationPose> PoseSnapshots;
