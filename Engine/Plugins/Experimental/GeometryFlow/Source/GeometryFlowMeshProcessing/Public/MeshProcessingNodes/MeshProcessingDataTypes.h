@@ -45,9 +45,10 @@ enum class EMeshProcessingDataTypes
 
 
 	GenerateCollisionConvexHullsSettings = (int)EDataTypes::BaseMeshProcessingTypes + 200,
+	GenerateSimpleCollisionSettings = (int)EDataTypes::BaseMeshProcessingTypes + 201,
 };
 
 
 
 }	// end namespace GeometryFlow
-}	// en
+}	// end namespace UE
