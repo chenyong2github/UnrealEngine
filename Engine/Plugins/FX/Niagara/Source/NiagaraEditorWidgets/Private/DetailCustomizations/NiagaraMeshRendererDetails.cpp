@@ -28,9 +28,18 @@ public:
 				NameWidget.ToSharedRef()
 			]
 			.ValueContent()
-			.MinDesiredWidth(300.0f)
+			.MinDesiredWidth(TOptional<float>())
 			[
-				ValueWidget.ToSharedRef()
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+					.AutoWidth()
+					[
+						ValueWidget.ToSharedRef()
+					]
+				+ SHorizontalBox::Slot()
+					[
+						ParentProperty->CreateDefaultPropertyButtonWidgets()
+					]
 			];
 	}
 
