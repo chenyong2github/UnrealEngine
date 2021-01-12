@@ -4,6 +4,7 @@
 
 #include "Containers/ArrayView.h"
 #include "UObject/NameTypes.h"
+#include "Templates/Function.h"
 
 #define ALLOW_NAME_BATCH_SAVING (UE_BUILD_DEBUG || UE_BUILD_DEVELOPMENT) && PLATFORM_LITTLE_ENDIAN && !PLATFORM_TCHAR_IS_4_BYTES
 
@@ -22,12 +23,23 @@ CORE_API void ReserveNameBatch(uint32 NameDataBytes, uint32 HashDataBytes);
 
 // Load a name blob with precalculated hashes.
 //
-// Names are rehased if hash algorithm version doesn't match.
+// Names are rehashed if hash algorithm version doesn't match.
 //
 // @param NameData, HashData must be 8-byte aligned.
 CORE_API void LoadNameBatch(TArray<FNameEntryId>& OutNames, TArrayView<const uint8> NameData, TArrayView<const uint8> HashData);
 
 // Load names and precalculated hashes from an archive
 //
-// Names are rehased if hash algorithm version doesn't match.
+// Names are rehashed if hash algorithm version doesn't match.
 CORE_API TArray<FNameEntryId> LoadNameBatch(FArchive& Ar);
+
+// Load names and precalculated hashes from an archive using multiple workers
+//
+// May load synchronously in some cases, like small batches.
+//
+// Names are rehashed if hash algorithm version doesn't match.
+//
+// @param Ar is drained synchronously
+// @param MaxWorkers > 0
+// @return function that waits before returning result, like a simple future.
+CORE_API TFunction<TArray<FNameEntryId>()> LoadNameBatchAsync(FArchive& Ar, uint32 MaxWorkers);
