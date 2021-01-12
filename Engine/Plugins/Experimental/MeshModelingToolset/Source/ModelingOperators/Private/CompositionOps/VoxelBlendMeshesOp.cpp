@@ -39,6 +39,11 @@ void FVoxelBlendMeshesOp::CalculateResult(FProgressCancel* Progress)
 	for (int MeshIdx = 0; MeshIdx < Meshes.Num(); MeshIdx++)
 	{
 		TransformedMeshes.Emplace(*Meshes[MeshIdx]);
+		if (TransformedMeshes[MeshIdx].TriangleCount() == 0)
+		{
+			continue;
+		}
+		
 		if (Transforms[MeshIdx].GetDeterminant() < 0)
 		{
 			TransformedMeshes[MeshIdx].ReverseOrientation(false);
@@ -49,9 +54,13 @@ void FVoxelBlendMeshesOp::CalculateResult(FProgressCancel* Progress)
 		{
 			if (OffsetSolidifySurface > 0)
 			{
+				// positive offsets should be at least a cell wide so we don't end up deleting a bunch of the input surface
+				double CellSize = TransformedMeshes[MeshIdx].GetCachedBounds().MaxDim() / InputVoxelCount;
+				double SafeOffset = FMathd::Max(CellSize * 2, OffsetSolidifySurface);
+
 				FMeshNormals::QuickComputeVertexNormals(TransformedMeshes[MeshIdx]);
 				FExtrudeMesh Extrude(&TransformedMeshes[MeshIdx]);
-				Extrude.DefaultExtrudeDistance = -OffsetSolidifySurface;
+				Extrude.DefaultExtrudeDistance = -SafeOffset;
 				Extrude.IsPositiveOffset = false;
 				Extrude.Apply();
 			}
@@ -68,9 +77,18 @@ void FVoxelBlendMeshesOp::CalculateResult(FProgressCancel* Progress)
 			}
 		}
 
+		if (TransformedMeshes[MeshIdx].TriangleCount() == 0)
+		{
+			continue;
+		}
 		ImplicitBlend.Sources.Add(&TransformedMeshes[MeshIdx]);
 		FAxisAlignedBox3d& SourceBounds = ImplicitBlend.SourceBounds.Add_GetRef(TransformedMeshes[MeshIdx].GetCachedBounds());
 		CombinedBounds.Contain(SourceBounds);
+	}
+
+	if (ImplicitBlend.Sources.Num() == 0)
+	{
+		return;
 	}
 
 	ImplicitBlend.SetCellSizesAndFalloff(CombinedBounds, BlendFalloff, InputVoxelCount, OutputVoxelCount);
