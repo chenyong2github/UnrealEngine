@@ -4,7 +4,7 @@ using Rhino;
 using System;
 using System.IO;
 
-namespace DatasmithRhino
+namespace DatasmithRhino.DirectLink
 {
 	public class DatasmithRhinoDirectLinkManager
 	{

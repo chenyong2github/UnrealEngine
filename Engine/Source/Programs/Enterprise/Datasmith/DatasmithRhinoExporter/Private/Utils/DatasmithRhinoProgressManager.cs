@@ -4,9 +4,14 @@ using Rhino;
 using System;
 using System.Diagnostics;
 
-namespace DatasmithRhino
+namespace DatasmithRhino.Utils
 {
-	public class FDatasmithRhinoProgressManager
+	// Exception thrown when the user cancels.
+	public class DatasmithExportCancelledException : Exception
+	{
+	}
+
+	public class DatasmithRhinoProgressManager
 	{
 		private const int ProgressGranularity = 1000;
 		private const string ExportMainMessage = "Datasmith Export";
@@ -15,24 +20,24 @@ namespace DatasmithRhino
 		private bool bEscapedKeyPressed = false;
 		private Stopwatch EscapeKeyStopwatch = new Stopwatch();
 
-		private static FDatasmithRhinoProgressManager SingeletonInstance;
+		private static DatasmithRhinoProgressManager SingeletonInstance;
 		/**
 		 *  Singleton Instance accessor.
 		 */
-		public static FDatasmithRhinoProgressManager Instance
+		public static DatasmithRhinoProgressManager Instance
 		{
 			get 
 			{
 				if (SingeletonInstance == null)
 				{
-					SingeletonInstance = new FDatasmithRhinoProgressManager();
+					SingeletonInstance = new DatasmithRhinoProgressManager();
 				}
 
 				return SingeletonInstance;
 			}
 		}
 
-		private FDatasmithRhinoProgressManager()
+		private DatasmithRhinoProgressManager()
 		{
 			const int LowerLimit = 0;
 			const int UpperLimit = ProgressGranularity;

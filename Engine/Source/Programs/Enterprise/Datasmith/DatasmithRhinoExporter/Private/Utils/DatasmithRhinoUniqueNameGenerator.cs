@@ -1,11 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using Rhino.DocObjects;
-using System.Collections.Generic;
 
-namespace DatasmithRhino
+namespace DatasmithRhino.Utils
 {
-	public class FUniqueNameGenerator
+	public class DatasmithRhinoUniqueNameGenerator
 	{
 		/// <summary>
 		/// Gives a human readable name based on the type of the given model component. 

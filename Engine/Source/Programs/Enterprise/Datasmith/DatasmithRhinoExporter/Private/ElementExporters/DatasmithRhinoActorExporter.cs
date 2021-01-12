@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-
+using DatasmithRhino.Utils;
 using Rhino;
 using Rhino.DocObjects;
 using Rhino.Geometry;
@@ -231,7 +231,7 @@ namespace DatasmithRhino.ElementExporters
 			if (RhinoLight.LightStyle == LightStyle.CameraSpot || RhinoLight.LightStyle == LightStyle.WorldSpot)
 			{
 				FDatasmithFacadeSpotLight SpotLightElement = LightActor as FDatasmithFacadeSpotLight;
-				double OuterSpotAngle = FDatasmithRhinoUtilities.RadianToDegree(RhinoLight.SpotAngleRadians);
+				double OuterSpotAngle = DatasmithRhinoUtilities.RadianToDegree(RhinoLight.SpotAngleRadians);
 				double InnerSpotAngle = RhinoLight.HotSpot * OuterSpotAngle;
 
 				SpotLightElement.SetOuterConeAngle((float)OuterSpotAngle);
@@ -362,7 +362,7 @@ namespace DatasmithRhino.ElementExporters
 						if (KeysToSyncList.Contains(PropertyName))
 						{
 							// Property exists, update its value.
-							string EvaluatedValue = FDatasmithRhinoUtilities.EvaluateAttributeUserText(InNode, UserStrings.Get(PropertyName));
+							string EvaluatedValue = DatasmithRhinoUtilities.EvaluateAttributeUserText(InNode, UserStrings.Get(PropertyName));
 							Property.SetValue(EvaluatedValue);
 							KeysToSyncList.Remove(PropertyName);
 						}
@@ -377,7 +377,7 @@ namespace DatasmithRhino.ElementExporters
 					for (int KeyIndex = 0; KeyIndex < KeysToSyncList.Count; ++KeyIndex)
 					{
 						string CurrentKey = KeysToSyncList[KeyIndex];
-						string EvaluatedValue = FDatasmithRhinoUtilities.EvaluateAttributeUserText(InNode, UserStrings.Get(CurrentKey));
+						string EvaluatedValue = DatasmithRhinoUtilities.EvaluateAttributeUserText(InNode, UserStrings.Get(CurrentKey));
 
 						DatasmithMetaData.AddPropertyString(CurrentKey, EvaluatedValue);
 					}

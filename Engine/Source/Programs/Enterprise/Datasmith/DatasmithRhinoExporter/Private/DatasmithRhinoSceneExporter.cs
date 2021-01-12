@@ -1,16 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using DatasmithRhino.DirectLink;
 using DatasmithRhino.ElementExporters;
+using DatasmithRhino.Utils;
 using Rhino;
 using System;
 
 namespace DatasmithRhino
 {
-	// Exception thrown when the user cancels.
-	public class DatasmithExportCancelledException : Exception
-	{
-	}
-
 	public static class DatasmithRhinoSceneExporter
 	{
 		public static FDatasmithFacadeScene CreateDatasmithScene(string Filename, RhinoDoc RhinoDocument)
@@ -68,12 +65,12 @@ namespace DatasmithRhino
 
 				DatasmithScene.PreExport();
 
-				FDatasmithRhinoProgressManager.Instance.StartMainTaskProgress("Parsing Document", 0.1f);
+				DatasmithRhinoProgressManager.Instance.StartMainTaskProgress("Parsing Document", 0.1f);
 				ExportContext.ParseDocument();
 
 				if (SynchronizeScene(ExportContext, DatasmithScene) == Rhino.Commands.Result.Success)
 				{
-					FDatasmithRhinoProgressManager.Instance.StartMainTaskProgress("Exporting Scene..", 1);
+					DatasmithRhinoProgressManager.Instance.StartMainTaskProgress("Exporting Scene..", 1);
 					bExportSuccess = OnSceneExportCompleted(DatasmithScene);
 				}
 			}
@@ -89,7 +86,7 @@ namespace DatasmithRhino
 			}
 			finally
 			{
-				FDatasmithRhinoProgressManager.Instance.StopProgress();
+				DatasmithRhinoProgressManager.Instance.StopProgress();
 			}
 
 			return bExportSuccess
@@ -99,16 +96,16 @@ namespace DatasmithRhino
 
 		private static Rhino.Commands.Result SynchronizeScene(DatasmithRhinoExportContext ExportContext, FDatasmithFacadeScene DatasmithScene)
 		{
-			FDatasmithRhinoProgressManager.Instance.StartMainTaskProgress("Exporting Textures", 0.1f);
+			DatasmithRhinoProgressManager.Instance.StartMainTaskProgress("Exporting Textures", 0.1f);
 			DatasmithRhinoTextureExporter.Instance.SynchronizeElements(DatasmithScene, ExportContext);
 
-			FDatasmithRhinoProgressManager.Instance.StartMainTaskProgress("Exporting Materials", 0.2f);
+			DatasmithRhinoProgressManager.Instance.StartMainTaskProgress("Exporting Materials", 0.2f);
 			DatasmithRhinoMaterialExporter.Instance.SynchronizeElements(DatasmithScene, ExportContext);
 
-			FDatasmithRhinoProgressManager.Instance.StartMainTaskProgress("Exporting Meshes", 0.7f);
+			DatasmithRhinoProgressManager.Instance.StartMainTaskProgress("Exporting Meshes", 0.7f);
 			DatasmithRhinoMeshExporter.Instance.SynchronizeElements(DatasmithScene, ExportContext);
 
-			FDatasmithRhinoProgressManager.Instance.StartMainTaskProgress("Exporting Actors", 0.8f);
+			DatasmithRhinoProgressManager.Instance.StartMainTaskProgress("Exporting Actors", 0.8f);
 			DatasmithRhinoActorExporter.Instance.SynchronizeElements(DatasmithScene, ExportContext);
 
 			return Rhino.Commands.Result.Success;

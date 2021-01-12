@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using DatasmithRhino.DirectLink;
 using Rhino;
 using Rhino.Commands;
 

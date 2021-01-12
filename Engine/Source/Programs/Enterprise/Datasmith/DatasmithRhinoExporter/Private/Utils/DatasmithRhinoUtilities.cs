@@ -9,9 +9,9 @@ using System.IO;
 using System.Security.Cryptography;
 using System.Text;
 
-namespace DatasmithRhino
+namespace DatasmithRhino.Utils
 {
-	public static class FDatasmithRhinoUtilities
+	public static class DatasmithRhinoUtilities
 	{
 		public static string GetMaterialHash(Material RhinoMaterial)
 		{

@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using DatasmithRhino.Utils;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -77,7 +78,7 @@ namespace DatasmithRhino.ElementExporters
 
 			foreach (T CurrentElementInfo in GetElementsToSynchronize())
 			{
-				FDatasmithRhinoProgressManager.Instance.UpdateCurrentTaskProgress((float)(++ElementIndex) / TotalNumberOfElements);
+				DatasmithRhinoProgressManager.Instance.UpdateCurrentTaskProgress((float)(++ElementIndex) / TotalNumberOfElements);
 
 				switch (CurrentElementInfo.DirectLinkStatus)
 				{
@@ -174,7 +175,7 @@ namespace DatasmithRhino.ElementExporters
 				{
 					try
 					{
-						FDatasmithRhinoProgressManager.Instance.UpdateCurrentTaskProgress((float)(CompletedElements) / ElementInfosToProcess.Count);
+						DatasmithRhinoProgressManager.Instance.UpdateCurrentTaskProgress((float)(CompletedElements) / ElementInfosToProcess.Count);
 					}
 					catch (DatasmithExportCancelledException)
 					{

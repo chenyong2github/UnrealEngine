@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-using Rhino;
+
+using DatasmithRhino.Utils;
 using Rhino.DocObjects;
 using Rhino.Geometry;
 using System.Collections.Generic;
-using System.IO;
 using System.Drawing;
 using System;
 
@@ -212,9 +212,9 @@ namespace DatasmithRhino.ElementExporters
 			}
 			else
 			{
-				RotX = FDatasmithRhinoUtilities.RadianToDegree(RotX);
-				RotY = FDatasmithRhinoUtilities.RadianToDegree(RotY);
-				RotZ = FDatasmithRhinoUtilities.RadianToDegree(RotZ);
+				RotX = DatasmithRhinoUtilities.RadianToDegree(RotX);
+				RotY = DatasmithRhinoUtilities.RadianToDegree(RotY);
+				RotZ = DatasmithRhinoUtilities.RadianToDegree(RotZ);
 			}
 
 			UVParameters.SetUVTiling((float)Scale.X, (float)Scale.Y);
