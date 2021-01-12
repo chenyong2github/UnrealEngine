@@ -1178,9 +1178,9 @@ FKeyPropertyResult FAudioTrackEditor::AddNewMasterSound( FFrameNumber KeyTime, U
 		}
 
 		KeyPropertyResult.bTrackModified = true;
+		KeyPropertyResult.SectionsCreated.Add(NewSection);
 	}
 
-	KeyPropertyResult.SectionsCreated.Add(NewSection);
 	return KeyPropertyResult;
 }
 
