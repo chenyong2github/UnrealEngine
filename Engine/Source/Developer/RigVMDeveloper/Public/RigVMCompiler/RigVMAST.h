@@ -1052,7 +1052,7 @@ struct RIGVMDEVELOPER_API FRigVMParserASTSettings
 
 	// fold / remove unreachable / constant branches
 	UPROPERTY(EditAnywhere, Category = "AST")
-	bool bFoldConstantBranches;
+	bool bFoldConstantBranches = false;
 
 	// static method to provide fast AST parse settings
 	static FRigVMParserASTSettings Fast()
