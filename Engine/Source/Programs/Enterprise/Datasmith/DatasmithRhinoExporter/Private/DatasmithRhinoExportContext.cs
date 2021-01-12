@@ -220,8 +220,8 @@ namespace DatasmithRhino
 
 	public class DatasmithRhinoExportContext
 	{
-		public RhinoDoc RhinoDocument { get; private set; }
-		public FDatasmithRhinoExportOptions ExportOptions { get; private set; }
+		public RhinoDoc RhinoDocument { get => ExportOptions.RhinoDocument; }
+		public DatasmithRhinoExportOptions ExportOptions { get; private set; }
 		public bool bIsInWorksession {
 			get {
 				//Only check for worksession on Windows, the feature is not implemented on Mac and calling the API throws exception.
@@ -247,9 +247,8 @@ namespace DatasmithRhino
 		private FUniqueNameGenerator MaterialLabelGenerator = new FUniqueNameGenerator();
 		private FUniqueNameGenerator TextureLabelGenerator = new FUniqueNameGenerator();
 
-		public DatasmithRhinoExportContext(RhinoDoc InDoc, FDatasmithRhinoExportOptions InOptions)
+		public DatasmithRhinoExportContext(DatasmithRhinoExportOptions InOptions)
 		{
-			RhinoDocument = InDoc;
 			ExportOptions = InOptions;
 			SceneRoot = new DatasmithActorInfo(ExportOptions.Xform, "SceneRoot", "SceneRoot");
 		}

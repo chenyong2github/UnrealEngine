@@ -37,19 +37,19 @@ namespace DatasmithRhino.Commands
 			get { return "DatasmithExport"; }
 		}
 
-		protected override Result RunCommand(RhinoDoc doc, RunMode mode)
+		protected override Result RunCommand(RhinoDoc RhinoDocument, RunMode Mode)
 		{
-			Result CommandResult = Rhino.Commands.Result.Failure;
+			Result CommandResult = Result.Failure;
 
 			Eto.Forms.SaveFileDialog SaveDialog = new Eto.Forms.SaveFileDialog();
 			Eto.Forms.FileFilter DatasmithFileFilter = new Eto.Forms.FileFilter("Unreal Datasmith", new string[] { ".udatasmith" });
 			SaveDialog.Filters.Add(DatasmithFileFilter);
 			SaveDialog.CurrentFilter = DatasmithFileFilter;
 			SaveDialog.Title = "Export to Datasmith Scene";
-			SaveDialog.FileName = string.IsNullOrEmpty(doc.Name) ? "Untitled" : System.IO.Path.GetFileNameWithoutExtension(doc.Name);
-			if(!string.IsNullOrEmpty(doc.Path))
+			SaveDialog.FileName = string.IsNullOrEmpty(RhinoDocument.Name) ? "Untitled" : System.IO.Path.GetFileNameWithoutExtension(RhinoDocument.Name);
+			if (!string.IsNullOrEmpty(RhinoDocument.Path))
 			{
-				Uri PathUri = new Uri(System.IO.Path.GetDirectoryName(doc.Path));
+				Uri PathUri = new Uri(System.IO.Path.GetDirectoryName(RhinoDocument.Path));
 				SaveDialog.Directory = PathUri;
 			}
 
@@ -57,8 +57,9 @@ namespace DatasmithRhino.Commands
 			if (SaveDialogResult == Eto.Forms.DialogResult.Ok)
 			{
 				string FileName = SaveDialog.FileName;
-				FDatasmithRhinoExportOptions ExportOptions = new FDatasmithRhinoExportOptions(FileName);
-				Rhino.PlugIns.WriteFileResult ExportResult = DatasmithRhinoSceneExporter.Export(doc, ExportOptions);
+				FDatasmithFacadeScene DatasmithScene = DatasmithRhinoSceneExporter.CreateDatasmithScene(FileName, RhinoDocument);
+				DatasmithRhinoExportOptions ExportOptions = new DatasmithRhinoExportOptions(RhinoDocument, DatasmithScene);
+				Rhino.PlugIns.WriteFileResult ExportResult = DatasmithRhinoSceneExporter.ExportToFile(ExportOptions);
 
 				switch (ExportResult)
 				{

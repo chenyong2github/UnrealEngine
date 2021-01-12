@@ -36,14 +36,17 @@ namespace DatasmithRhino.Commands
 			get { return "DatasmithDirectLinkConnections"; }
 		}
 
-		protected override Result RunCommand(RhinoDoc doc, RunMode mode)
+		protected override Result RunCommand(RhinoDoc RhinoDocument, RunMode Mode)
 		{
-			// Usually commands in export plug-ins are used to modify settings and behavior.
-			// The export work itself is performed by the DatasmithRhino6 class.
-			IDirectLinkUI DirectLinkUI = IDatasmithExporterUIModule.Get()?.GetDirectLinkExporterUI();
-			DirectLinkUI?.OpenDirectLinkStreamWindow();
+			DatasmithRhinoDirectLinkManager DirectLinkManager = DatasmithRhinoPlugin.Instance?.DirectLinkManager;
 
-			return Result.Success;
+			bool bSuccess = false;
+			if (DirectLinkManager != null)
+			{
+				DirectLinkManager.OpenConnectionManangementWindow();
+			}
+
+			return bSuccess ? Result.Success : Result.Failure;
 		}
 	}
 }

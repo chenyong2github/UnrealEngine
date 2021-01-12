@@ -1,22 +1,27 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
+using Rhino;
 using Rhino.FileIO;
 using Rhino.Geometry;
 
 namespace DatasmithRhino
 {
-	public class FDatasmithRhinoExportOptions
+	public class DatasmithRhinoExportOptions
 	{
+		public const string UntitledSceneName = "";
+
 		public bool WriteSelectedObjectsOnly { get; private set; } = false;
 		public Transform Xform { get; private set; } = Transform.Identity;
-		public string DestinationFileName { get; private set; }
+		public RhinoDoc RhinoDocument { get; private set; }
+		public FDatasmithFacadeScene DatasmithScene { get; private set; }
 
-		public FDatasmithRhinoExportOptions(string TargetFilePath)
+		public DatasmithRhinoExportOptions(RhinoDoc InRhinoDocument, FDatasmithFacadeScene InDatasmithScene)
 		{
-			DestinationFileName = TargetFilePath;
+			RhinoDocument = InRhinoDocument;
+			DatasmithScene = InDatasmithScene;
 		}
 
-		public FDatasmithRhinoExportOptions(FileWriteOptions RhinoFileWriteOptions, string TargetFilePath)
-			: this(TargetFilePath)
+		public DatasmithRhinoExportOptions(FileWriteOptions RhinoFileWriteOptions, RhinoDoc InRhinoDocument, FDatasmithFacadeScene InDatasmithScene)
+			: this(InRhinoDocument, InDatasmithScene)
 		{
 			WriteSelectedObjectsOnly = RhinoFileWriteOptions.WriteSelectedObjectsOnly;
 			Xform = RhinoFileWriteOptions.Xform;
