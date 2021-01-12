@@ -1,13 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	TransformSolver.cpp: Solver execution class for Transform
-=============================================================================*/
 
 #include "Solvers/TransformSolver.h"
 #include "IKRigDataTypes.h"
 #include "IKRigHierarchy.h"
-#include "Solvers/TransformSolverDefinition.h"
+
+
+UTransformSolver::UTransformSolver()
+	: TransformTargetName(TEXT("TransformTarget"))
+{
+}
 
 void UTransformSolver::InitInternal(const FIKRigTransformModifier& InGlobalTransform)
 {
@@ -16,40 +18,71 @@ void UTransformSolver::InitInternal(const FIKRigTransformModifier& InGlobalTrans
 
 bool UTransformSolver::IsSolverActive() const
 {
-	if (Super::IsSolverActive())
-	{
-		if (UTransformSolverDefinition* SolverDef = Cast<UTransformSolverDefinition>(SolverDefinition))
-		{
-			return (SolverDef->bEnablePosition || SolverDef->bEnableRotation);
-		}
-	}
-
-	return false;
+	return Super::IsSolverActive() && (bEnablePosition || bEnableRotation);
 }
 
 void UTransformSolver::SolveInternal(FIKRigTransformModifier& InOutGlobalTransform, FControlRigDrawInterface* InOutDrawInterface)
 {
-	if (UTransformSolverDefinition* SolverDef = Cast<UTransformSolverDefinition>(SolverDefinition))
+	FIKRigTarget Target;
+	if (!GetEffectorTarget(TransformTarget, Target))
 	{
-		FIKRigTarget Target;
-		if (GetEffectorTarget(SolverDef->TransformTarget, Target))
-		{
-			int32 Index = InOutGlobalTransform.Hierarchy->GetIndex(SolverDef->TransformTarget.Bone);
-			if (Index != INDEX_NONE)
-			{
-				FTransform CurrentTransform = InOutGlobalTransform.GetGlobalTransform(Index);
-
-				if (SolverDef->bEnablePosition)
-				{
-					CurrentTransform.SetLocation(Target.PositionTarget.Position);
-				}
-				if (SolverDef->bEnableRotation)
-				{
-					CurrentTransform.SetRotation(Target.RotationTarget.Rotation.Quaternion());
-				}
-
-				InOutGlobalTransform.SetGlobalTransform(Index, CurrentTransform, true);
-			}
-		}
+		return;
 	}
+	
+	int32 Index = InOutGlobalTransform.Hierarchy->GetIndex(TransformTarget.Bone);
+	if (Index == INDEX_NONE)
+	{
+		return;
+	}
+
+	FTransform CurrentTransform = InOutGlobalTransform.GetGlobalTransform(Index);
+
+	if (bEnablePosition)
+	{
+		CurrentTransform.SetLocation(Target.PositionTarget.Position);
+	}
+	if (bEnableRotation)
+	{
+		CurrentTransform.SetRotation(Target.RotationTarget.Rotation.Quaternion());
+	}
+
+	InOutGlobalTransform.SetGlobalTransform(Index, CurrentTransform, true);
 }
+
+#if WITH_EDITOR
+
+void UTransformSolver::UpdateEffectors()
+{
+	// KIARAN - this doesn't make any sense, why would we remove an effector just because
+	// the solver settings have been toggled off?
+
+	// update tasks - you want to keep old name though if changed
+	bool bActiveTask = bEnablePosition || bEnableRotation;
+
+	// not found, we add new
+	if (bActiveTask)
+	{
+		EnsureToAddEffector(TransformTarget, *TransformTargetName);
+	}
+	// if the opposite, we have to remove
+	else if (!bActiveTask)
+	{
+		EnsureToRemoveEffector(TransformTarget);
+	}
+
+	// trigger a delegate for goal has been updated?
+	OnGoalHasBeenUpdated();
+}
+
+void UTransformSolver::PostEditChangeChainProperty(struct FPropertyChangedChainEvent& PropertyChangedEvent)
+{
+	if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UTransformSolver, bEnablePosition) ||
+		PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UTransformSolver, bEnableRotation))
+	{
+		UpdateEffectors();
+	}
+
+	Super::PostEditChangeChainProperty(PropertyChangedEvent);
+}
+
+#endif// WITH_EDITOR

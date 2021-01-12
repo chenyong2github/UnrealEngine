@@ -7,7 +7,6 @@
 
 #include "IKRigProcessor.h"
 #include "IKRigDefinition.h"
-#include "IKRigSolverDefinition.h"
 #include "IKRigSolver.h"
 #include "Solvers/ConstraintSolver.h"
 
@@ -40,39 +39,24 @@ void UIKRigProcessor::Initialize(const FIKRigTransform& InRefTransform)
 void UIKRigProcessor::Reinitialize()
 {
 	TransformModifier.ResetGlobalTransform(ReferenceTransform);
-
 	IKGoals = RigDefinition->GetGoals();
-
-	// i'm copying this here 
-	TArray<UIKRigSolverDefinition*> SolverDefinitions = RigDefinition->GetSolverDefinitions();
-
 	UIKRigSolver::FIKRigTransformGetter RefTransformGetter = UIKRigSolver::FIKRigTransformGetter::CreateUObject(this, &UIKRigProcessor::GetRefPoseGetter);
 	UIKRigSolver::FIKRigGoalGetter GoalGetter = UIKRigSolver::FIKRigGoalGetter::CreateUObject(this, &UIKRigProcessor::GoalGetter);
 
-	const int32 NumSolvers = SolverDefinitions.Num();
+	TArray<UIKRigSolver*> RigSolvers = RigDefinition->GetSolvers();
+	const int32 NumSolvers = RigSolvers.Num();
 	Solvers.Reset(NumSolvers);
 
 	for (int32 Index = 0; Index < NumSolvers; ++Index)
 	{
-		// it's possible SolverDefinitions.Num() != Solvers.Num()
-		if (SolverDefinitions[Index])
+		TSubclassOf<UIKRigSolver> ClassType = RigSolvers[Index]->GetClass();
+		if (ClassType != nullptr)
 		{
-			TSubclassOf<UIKRigSolver> ClassType = SolverDefinitions[Index]->GetExecutionClass();
-			if (ClassType != nullptr)
-			{
-				UIKRigSolver* NewSolver = NewObject<UIKRigSolver>(this, ClassType);
-				// const transform modifier for hierarchy query
-				NewSolver->Init(SolverDefinitions[Index], TransformModifier, RefTransformGetter, GoalGetter);
-				Solvers.Add(NewSolver);
-			}
+			UIKRigSolver* NewSolver = DuplicateObject(RigSolvers[Index], this);
+			NewSolver->Init(TransformModifier, RefTransformGetter, GoalGetter);
+			Solvers.Add(NewSolver);
 		}
 	}
-
-	// initialize constraint solver
-	CostraintSolver = NewObject<UIKRigConstraintSolver>(this);
-	check (CostraintSolver);
-	CostraintSolver->SetConstraintDefinition(RigDefinition->ConstraintDefinitions);
-	CostraintSolver->Init(RigDefinition->ConstraintDefinitions, TransformModifier, RefTransformGetter, GoalGetter);
 
 	bInitialized = true;
 }
@@ -112,9 +96,6 @@ void UIKRigProcessor::Solve()
 			// Draw interface is pointer in case we want to nullify for optimization
 			Solvers[Index]->Solve(TransformModifier, &DrawInterface);
 		}
-
-		// solve constraint
-		CostraintSolver->Solve(TransformModifier, &DrawInterface);
 	}
 }
 

@@ -1,16 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-/**
- * IKController implementation class
- *
- */
-
 #include "IKRigController.h"
 #include "IKRigDefinition.h"
 #include "AnimationRuntime.h"
-#include "IKRigSolverDefinition.h"
+#include "IKRigSolver.h"
 #include "ScopedTransaction.h"
-#include "IKRigConstraintDefinition.h"
 #include "IKRigConstraint.h"
 
 #define LOCTEXT_NAMESPACE	"IKRigController"
@@ -54,7 +48,7 @@ void UIKRigController::AddReferencedObjects(UObject* InThis, FReferenceCollector
 	{
 		for (auto Iter = DefinitionToControllerMap.CreateIterator(); Iter; ++Iter)
 		{
-			// we add controllers to the list. so that it doens't GCed
+			// we add controllers to the list. so that it doesn't GCed
 			// when do we delete from the list?
 			UIKRigController* Obj = Iter.Value();
 			Collector.AddReferencedObject(Obj);
@@ -66,9 +60,9 @@ void UIKRigController::BeginDestroy()
 {
 	if (IKRigDefinition)
 	{
-		for (int32 Index = 0; Index < IKRigDefinition->SolverDefinitions.Num(); ++Index)
+		for (int32 Index = 0; Index < IKRigDefinition->Solvers.Num(); ++Index)
 		{
-			UninitializeIKRigSolverDefinition(IKRigDefinition->SolverDefinitions[Index]);
+			UninitializeSolver(IKRigDefinition->Solvers[Index]);
 		}
 	}
 
@@ -80,9 +74,9 @@ void UIKRigController::SetIKRigDefinition(UIKRigDefinition* InIKRigDefinition)
 {
 	if (IKRigDefinition)
 	{
-		for (int32 Index = 0; Index < IKRigDefinition->SolverDefinitions.Num(); ++Index)
+		for (int32 Index = 0; Index < IKRigDefinition->Solvers.Num(); ++Index)
 		{
-			UninitializeIKRigSolverDefinition(IKRigDefinition->SolverDefinitions[Index]);
+			UninitializeSolver(IKRigDefinition->Solvers[Index]);
 		}
 	}
 
@@ -90,35 +84,35 @@ void UIKRigController::SetIKRigDefinition(UIKRigDefinition* InIKRigDefinition)
 
 	if (IKRigDefinition)
 	{
-		for (int32 Index = 0; Index < IKRigDefinition->SolverDefinitions.Num(); ++Index)
+		for (int32 Index = 0; Index < IKRigDefinition->Solvers.Num(); ++Index)
 		{
-			InitializeIKRigSolverDefinition(IKRigDefinition->SolverDefinitions[Index]);
+			InitializeSolver(IKRigDefinition->Solvers[Index]);
 		}
 	}
 }
 
-void UIKRigController::InitializeIKRigSolverDefinition(UIKRigSolverDefinition* SolverDef)
+void UIKRigController::InitializeSolver(UIKRigSolver* Solver)
 {
-	if (SolverDef)
+	if (Solver)
 	{
 		// we want to register this controller delegate
 		// if there are multiple controllers managing one IKRigDefinition
 		// we want to ensure that works 
-		FDelegateHandle DelegateHandle = SolverDef->GoalNeedsUpdateDelegate.AddUObject(this, &UIKRigController::UpdateGoal);
-		SolverDelegateHandles.Add(SolverDef) = DelegateHandle;
+		FDelegateHandle DelegateHandle = Solver->GoalNeedsUpdateDelegate.AddUObject(this, &UIKRigController::UpdateGoal);
+		SolverDelegateHandles.Add(Solver) = DelegateHandle;
 
-		SolverDef->UpdateEffectors();
+		Solver->UpdateEffectors();
 	}
 }
 
-void UIKRigController::UninitializeIKRigSolverDefinition(UIKRigSolverDefinition* SolverDef)
+void UIKRigController::UninitializeSolver(UIKRigSolver* Solver)
 {
-	if (SolverDef)
+	if (Solver)
 	{
-		FDelegateHandle* DelegateHandle = SolverDelegateHandles.Find(SolverDef);
+		FDelegateHandle* DelegateHandle = SolverDelegateHandles.Find(Solver);
 		if (ensure(DelegateHandle))
 		{
-			SolverDef->GoalNeedsUpdateDelegate.Remove(*DelegateHandle);
+			Solver->GoalNeedsUpdateDelegate.Remove(*DelegateHandle);
 		}
 	}
 }
@@ -208,19 +202,19 @@ void UIKRigController::ResetHierarchy()
 }
 
 // solver operators
-UIKRigSolverDefinition* UIKRigController::AddSolver(TSubclassOf<UIKRigSolverDefinition> InIKRigSolverDefinitionClass)
+UIKRigSolver* UIKRigController::AddSolver(TSubclassOf<UIKRigSolver> InIKRigSolverClass)
 {
 	if (IKRigDefinition)
 	{
 		FScopedTransaction Transaction(LOCTEXT("AddSolver_Label", "Add Solver"));
 		IKRigDefinition->Modify();
 
-		UIKRigSolverDefinition* NewSolver = NewObject<UIKRigSolverDefinition>(IKRigDefinition, InIKRigSolverDefinitionClass);
+		UIKRigSolver* NewSolver = NewObject<UIKRigSolver>(IKRigDefinition, InIKRigSolverClass);
 		check(NewSolver);
 
 		// todo: set delegate for the goal update
-		IKRigDefinition->SolverDefinitions.Add(NewSolver);
-		InitializeIKRigSolverDefinition(NewSolver);
+		IKRigDefinition->Solvers.Add(NewSolver);
+		InitializeSolver(NewSolver);
 		IKRigDefinition->UpdateGoal();
 		return NewSolver;
 	}
@@ -228,42 +222,42 @@ UIKRigSolverDefinition* UIKRigController::AddSolver(TSubclassOf<UIKRigSolverDefi
 	return nullptr;
 }
 
-int32 UIKRigController::GetTotalSolverCount() const
+int32 UIKRigController::GetNumSolvers() const
 {
 	if (IKRigDefinition)
 	{
-		return IKRigDefinition->SolverDefinitions.Num();
+		return IKRigDefinition->Solvers.Num();
 	}
 
 	return 0;
 }
 
-UIKRigSolverDefinition* UIKRigController::GetSolver(int32 Index) const
+UIKRigSolver* UIKRigController::GetSolver(int32 Index) const
 {
-	if (IKRigDefinition && IKRigDefinition->SolverDefinitions.IsValidIndex(Index))
+	if (IKRigDefinition && IKRigDefinition->Solvers.IsValidIndex(Index))
 	{
-		return IKRigDefinition->SolverDefinitions[Index];
+		return IKRigDefinition->Solvers[Index];
 	}
 
 	return nullptr;
 }
 
-void UIKRigController::RemoveSolver(UIKRigSolverDefinition* SolverToDelete)
+void UIKRigController::RemoveSolver(UIKRigSolver* SolverToDelete)
 {
 	if (IKRigDefinition && SolverToDelete)
 	{
 		FScopedTransaction Transaction(LOCTEXT("RemoveSolver_Label", "Remove Solver"));
 		IKRigDefinition->Modify();
 
-		UninitializeIKRigSolverDefinition(SolverToDelete);
-		IKRigDefinition->SolverDefinitions.Remove(SolverToDelete);
+		UninitializeSolver(SolverToDelete);
+		IKRigDefinition->Solvers.Remove(SolverToDelete);
 		IKRigDefinition->UpdateGoal();
 	}
 }
 
-bool UIKRigController::ValidateSolver(UIKRigSolverDefinition* const SolverDef) const
+bool UIKRigController::ValidateSolver(UIKRigSolver* const Solver) const
 {
-	return (IKRigDefinition && SolverDef && IKRigDefinition->SolverDefinitions.Find(SolverDef) != INDEX_NONE);
+	return (IKRigDefinition && Solver && IKRigDefinition->Solvers.Find(Solver) != INDEX_NONE);
 }
 
 void UIKRigController::UpdateGoal()
@@ -278,11 +272,11 @@ void UIKRigController::UpdateGoal()
 	}
 }
 
-FName UIKRigController::GetGoalName(UIKRigSolverDefinition* InSolverDefinition, const FIKRigEffector& InEffector)
+FName UIKRigController::GetGoalName(UIKRigSolver* InSolver, const FIKRigEffector& InEffector)
 {
-	if (InSolverDefinition)
+	if (InSolver)
 	{
-		FName* GoalName = InSolverDefinition->EffectorToGoal.Find(InEffector);
+		FName* GoalName = InSolver->EffectorToGoal.Find(InEffector);
 		if (GoalName)
 		{
 			return *GoalName;
@@ -292,14 +286,14 @@ FName UIKRigController::GetGoalName(UIKRigSolverDefinition* InSolverDefinition, 
 	return NAME_None;
 }
 
-void UIKRigController::SetGoalName(UIKRigSolverDefinition* InSolverDefinition, const FIKRigEffector& InEffector, const FName& NewGoalName)
+void UIKRigController::SetGoalName(UIKRigSolver* InSolver, const FIKRigEffector& InEffector, const FName& NewGoalName)
 {
-	if (InSolverDefinition)
+	if (InSolver)
 	{
 		FScopedTransaction Transaction(LOCTEXT("SetGoalName_Label", "Set Goal Name"));
-		InSolverDefinition->Modify();
+		InSolver->Modify();
 
-		FName* GoalName = InSolverDefinition->EffectorToGoal.Find(InEffector);
+		FName* GoalName = InSolver->EffectorToGoal.Find(InEffector);
 		if (GoalName)
 		{
 			*GoalName = NewGoalName;
@@ -309,167 +303,20 @@ void UIKRigController::SetGoalName(UIKRigSolverDefinition* InSolverDefinition, c
 	}
 }
 
-void UIKRigController::AutoConfigure(UIKRigSolverDefinition* SolverDef)
+UIKRigConstraint* UIKRigController::AddConstraint(TSubclassOf<UIKRigConstraint> NewConstraintType)
 {
-	if (ValidateSolver(SolverDef))
+	
+	FScopedTransaction Transaction(LOCTEXT("AddConstraint_Label", "Add Constraint"));
+	IKRigDefinition->Modify();
+
+	UIKRigConstraint* NewRigConstraint = NewObject<UIKRigConstraint>(IKRigDefinition, NewConstraintType);
+	if (NewRigConstraint)
 	{
-		FScopedTransaction Transaction(LOCTEXT("AutoConfigure_Label", "Auto Congirure"));
-		SolverDef->Modify();
-
-		SolverDef->AutoConfigure();
+		IKRigDefinition->Constraints.Add(NewRigConstraint);
+		return NewRigConstraint;
 	}
-}
-
-bool UIKRigController::CanAutoConfigure(UIKRigSolverDefinition* SolverDef) const
-{
-	if (ValidateSolver(SolverDef))
-	{
-		return SolverDef->CanAutoConfigure();
-	}
-
-	return false;
-}
-
-// constraint operators
-// create new profile
-void UIKRigController::CreateNewProfile(FName& InNewProfileName)
-{
-	if (IKRigDefinition && InNewProfileName != NAME_None)
-	{
-		FScopedTransaction Transaction(LOCTEXT("CreateNewProfile_Label", "Create New Constraint Profile"));
-		IKRigDefinition->Modify();
-		// we just find or add
-		IKRigDefinition->ConstraintDefinitions->ConstraintProfiles.FindOrAdd(InNewProfileName);
-	}
-}
-
-bool UIKRigController::RemoveConstraintProfile(const FName& InProfileName)
-{
-	if (IKRigDefinition && InProfileName != NAME_None)
-	{
-		FScopedTransaction Transaction(LOCTEXT("RemoveProfile_Label", "Remove Constraint Profile"));
-		IKRigDefinition->Modify();
-		// we just find or add
-		return IKRigDefinition->ConstraintDefinitions->ConstraintProfiles.Remove(InProfileName) > 0;
-
-	}
-
-	return false;
-}
-
-void UIKRigController::RenameProfile(FName InCurrentProfileName, FName& InNewProfileName)
-{
-	// write this 
-	ensure (false);
-	// we don't allow change default profile until we support saving the default profile
-}
-
-FIKRigConstraintProfile* UIKRigController::GetConstraintProfile(const FName& InProfileName) const
-{
-	if (IKRigDefinition)
-	{
-		FName SearchProfileName = (InProfileName == NAME_None)? UIKRigConstraintDefinition::DefaultProfileName : InProfileName;
-		return IKRigDefinition->ConstraintDefinitions->ConstraintProfiles.Find(SearchProfileName);
-	}
-
-	return nullptr;
-}
-
-void UIKRigController::EnsureUniqueConstraintName(FName& InOutName)
-{
-	int32 Index = 1;
-
-	TArray<FName> ConstraintNames;
-
-	GetConstraintNames(ConstraintNames);
-
-	FString NewName = InOutName.ToString();
-	while (ConstraintNames.Contains(FName(*NewName)))
-	{
-		NewName = FString::Format(TEXT("{0}_{1}"), { InOutName.ToString(), Index++ });
-	}
-
-	InOutName = FName(*NewName);
-}
-
-UIKRigConstraint* UIKRigController::AddConstraint(TSubclassOf<UIKRigConstraint> NewConstraintType, FName& InOutNewName, FName InProfile /*= NAME_None*/)
-{
-	FIKRigConstraintProfile* Profile = GetConstraintProfile(InProfile);
-	if (Profile)
-	{
-		FScopedTransaction Transaction(LOCTEXT("AddConstraint_Label", "Add Constraint"));
-		IKRigDefinition->Modify();
-
-		EnsureUniqueConstraintName(InOutNewName);
-		UIKRigConstraint* NewRigConstraint = NewObject<UIKRigConstraint>(IKRigDefinition, NewConstraintType, InOutNewName);
-		if (NewRigConstraint)
-		{
-		
-			Profile->Constraints.Add(NewRigConstraint->GetFName(), NewRigConstraint);
-			return NewRigConstraint;
-		}
-	}
+	
 	return nullptr;	
-}
-
-UIKRigConstraint* UIKRigController::GetConstraint(const FName& InProfileName, const FName& InName) const
-{
-	FIKRigConstraintProfile* Profile = GetConstraintProfile(InProfileName);
-	if (Profile)
-	{
-		UIKRigConstraint** RigConstraint = Profile->Constraints.Find(InName);
-		if (RigConstraint)
-		{
-			return *RigConstraint;
-		}
-	}
-
-	return nullptr;
-}
-
-bool UIKRigController::RemoveConstraint(const FName& InConstraintName)
-{
-	// remove this in all profile
-	if (IKRigDefinition)
-	{
-		FScopedTransaction Transaction(LOCTEXT("AddConstraint_Label", "Add Constraint"));
-		IKRigDefinition->Modify();
-
-		for (auto Iter = IKRigDefinition->ConstraintDefinitions->ConstraintProfiles.CreateIterator(); Iter; ++Iter)
-		{
-			FIKRigConstraintProfile& Profile = Iter.Value();
-			for (auto InnerIter = Profile.Constraints.CreateIterator(); InnerIter; ++InnerIter)
-			{
-				// possible the constraint name may not be there
-				// what this means, when we rename, we have to rename all of them
-				Profile.Constraints.Remove(InConstraintName);
-			}
-		}
-		// remove return?
-		return true;
-	}
-
-	return false;
-}
-
-void UIKRigController::GetConstraintProfileNames(TArray<FName>& OutProfileNames) const
-{
-	if (IKRigDefinition)
-	{
-		OutProfileNames.Reset();
-		IKRigDefinition->ConstraintDefinitions->ConstraintProfiles.GenerateKeyArray(OutProfileNames);
-	}
-}
-
-void UIKRigController::GetConstraintNames(TArray<FName>& OutConstraintNames) const
-{
-	// still can be null if IKRigDefinition is nullptr
-	FIKRigConstraintProfile* DefaultProfile = GetConstraintProfile(NAME_None);
-	if (DefaultProfile)
-	{
-		OutConstraintNames.Reset();
-		DefaultProfile->Constraints.GenerateKeyArray(OutConstraintNames);
-	}
 }
 
 // goal operators
@@ -489,11 +336,11 @@ void UIKRigController::RenameGoal(const FName& OldName, const FName& NewName)
 		FScopedTransaction Transaction(LOCTEXT("RenameGoal_Label", "Rename Goal"));
 		IKRigDefinition->Modify();
 
-		for (UIKRigSolverDefinition* SolverDef : IKRigDefinition->SolverDefinitions)
+		for (UIKRigSolver* Solver : IKRigDefinition->Solvers)
 		{
-			if (SolverDef)
+			if (Solver)
 			{
-				SolverDef->RenameGoal(OldName, NewName);
+				Solver->RenameGoal(OldName, NewName);
 			}
 		}
 		

@@ -1,23 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-/**
- * Contains IKRig Definition 
- *
- *  https://docs.google.com/document/d/1yd8GCfT2aufxSdb5jAzlNTr1SptxEFpS9pWdQY-8LIk/edit#
- */
-
 #pragma once
 
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
-//#include "UObject/WeakObjectPtr.h"
+#include "IKRigConstraint.h"
 #include "IKRigDataTypes.h"
 #include "IKRigHierarchy.h"
 #include "IKRigDefinition.generated.h"
 
-class UIKRigSolverDefinition;
-class UIKRigConstraintDefinition;
+class UIKRigSolver;
 
 UCLASS(Blueprintable)
 class IKRIG_API UIKRigDefinition : public UObject
@@ -25,14 +18,20 @@ class IKRIG_API UIKRigDefinition : public UObject
 	GENERATED_BODY()
 
 public:
+
 	UIKRigDefinition();
 
-	// ensure the goal name is unique
-	void EnsureCreateUniqueGoalName(FName& InOutGoal) const;
-public: 
 	/** Source Asset imported */
 	UPROPERTY()
 	TSoftObjectPtr<UObject> SourceAsset;
+
+	UPROPERTY(EditAnywhere, instanced, Category = Constraints)
+	TArray<UIKRigConstraint*> Constraints;
+
+public:
+
+	// ensure the goal name is unique
+	void EnsureCreateUniqueGoalName(FName& InOutGoal) const;
 
 	// goal related APIs
 	const TMap<FName, FIKRigGoal>& GetGoals() const
@@ -52,9 +51,9 @@ public:
 		return ReferencePose;
 	}
 
-	const TArray<UIKRigSolverDefinition*>& GetSolverDefinitions() const 
+	const TArray<UIKRigSolver*>& GetSolvers() const 
 	{
-		return SolverDefinitions;
+		return Solvers;
 	}
 
 	const FIKRigHierarchy& GetHierarchy() const
@@ -84,18 +83,12 @@ private:
 	UPROPERTY(VisibleAnywhere, Category = "Hierarchy")
 	FIKRigTransform ReferencePose;
 
-	/*********** Solver Definition *********************/
-	// List of solvers, in the order of operations
+	// stack of solvers, executed in order
 	UPROPERTY(EditAnywhere, instanced, Category = "Solver")
-	TArray<UIKRigSolverDefinition*> SolverDefinitions;
-
-public:
-	/*********** Constraint Definition *********************/
-	// contains constraint data
-	UPROPERTY(EditAnywhere, instanced, Category = "Constraint")
-	UIKRigConstraintDefinition* ConstraintDefinitions;
+	TArray<UIKRigSolver*> Solvers;
 
 private:
+
 	/*********** Goals with Default Value******************/
 	// goals data
 	// this is cached by "Unique Internal Name" here
@@ -110,6 +103,7 @@ private:
 	virtual void PostLoad() override;
 	virtual void BeginDestroy() override;
 	// END UObject functions
+
 #if WITH_EDITOR
 	// https ://drive.google.com/file/d/1EO0Ijojx-0jommdHuZv1JYxfCdoFLd44/view
 
@@ -135,7 +129,7 @@ private:
 
 	// ensure it's sorted from parent to children
 	void EnsureSortedCorrectly(bool bReSortIfNeeded=false);
-	void Sanitize();
+	void Sanitize(); // hopefully we can get rid of this
 
 	// TODO: delegate for hierarchy changes
 	DECLARE_MULTICAST_DELEGATE_OneParam(FBoneAdded, FName /*BoneName*/);

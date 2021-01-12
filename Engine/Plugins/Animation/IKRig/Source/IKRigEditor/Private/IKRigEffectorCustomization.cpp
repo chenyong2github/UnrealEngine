@@ -6,7 +6,7 @@
 #include "IDetailChildrenBuilder.h"
 
 #include "IKRigController.h"
-#include "IKRigSolverDefinition.h"
+#include "IKRigSolver.h"
  
 #include "PropertyEditorModule.h"
 #include "PropertyHandle.h"
@@ -50,7 +50,7 @@ void FIKRigEffectorCustomization::CustomizeHeader(TSharedRef<IPropertyHandle> St
 
 		Effector= reinterpret_cast<FIKRigEffector*>(Data);
 		// give me the name of goal by effecto
-		FName CurrentGoalName = IKRigController->GetGoalName(IKRigSolverDefinition.Get(), *Effector);
+		FName CurrentGoalName = IKRigController->GetGoalName(IKRigSolver.Get(), *Effector);
 
 		// go through profile and see if it has mine
 		for (const FName& Goal : Goals)
@@ -116,32 +116,31 @@ void FIKRigEffectorCustomization::SetSolverDefinition(TSharedRef<IPropertyHandle
 	TArray<UObject*> Objects;
 	StructPropertyHandle->GetOuterObjects(Objects);
 
-	IKRigSolverDefinition.Reset();
+	IKRigSolver.Reset();
 	IKRigController.Reset();
 
-	UIKRigSolverDefinition* SelectedSolverDefinition = nullptr;
+	UIKRigSolver* SelectedSolver = nullptr;
 	
 	// currently not allowing multi selection
 	// or if you select different IKRigSolvers, this will break
 	for (UObject* Outer : Objects)
 	{
-		if (UIKRigSolverDefinition* SolverDefinition = Cast<UIKRigSolverDefinition>(Outer))
+		if (UIKRigSolver* Solver = Cast<UIKRigSolver>(Outer))
 		{
-			SelectedSolverDefinition = SolverDefinition;
+			SelectedSolver = Solver;
 			break;
 		}
 	}
 
-	IKRigSolverDefinition = SelectedSolverDefinition;
+	IKRigSolver = SelectedSolver;
 
-	// once we know solver definion, we know outer is IKRigDefinition
-	if (SelectedSolverDefinition)
+	// once we know solver, we know outer is IKRigDefinition
+	if (SelectedSolver)
 	{
-		UIKRigDefinition* IKRigDefinition = Cast<UIKRigDefinition>(SelectedSolverDefinition->GetOuter());
+		UIKRigDefinition* IKRigDefinition = Cast<UIKRigDefinition>(SelectedSolver->GetOuter());
 		if (IKRigDefinition)
 		{
 			IKRigController = UIKRigController::GetControllerByRigDefinition(IKRigDefinition);
-
 			IKRigController->OnGoalModified.AddSP(this, &FIKRigEffectorCustomization::RefreshEffectorGoals);
 		}
 	}
@@ -190,17 +189,17 @@ void FIKRigEffectorCustomization::SetPropertyHandle(TSharedRef<IPropertyHandle> 
 void FIKRigEffectorCustomization::SetNewGoalName(FName Name)
 {
 	// I have to change the mapping of SolverDefinition
-	if (UIKRigSolverDefinition* SolverDef = IKRigSolverDefinition.Get())
+	if (UIKRigSolver* Solver = IKRigSolver.Get())
 	{
-		IKRigController->SetGoalName(SolverDef, *Effector, Name);
+		IKRigController->SetGoalName(Solver, *Effector, Name);
 	}
 }
 
 FName FIKRigEffectorCustomization::GetSelectedEffectorGoal() const
 {
-	if (UIKRigSolverDefinition* SolverDef = IKRigSolverDefinition.Get())
+	if (UIKRigSolver* Solver = IKRigSolver.Get())
 	{
-		return IKRigController->GetGoalName(SolverDef, *Effector);
+		return IKRigController->GetGoalName(Solver, *Effector);
 	}
 
 	return NAME_None;
@@ -218,13 +217,13 @@ void FIKRigEffectorCustomization::OnEffectorGoalSelectionChanged(TSharedPtr<FStr
 
 void FIKRigEffectorCustomization::OnEffectorGoalChanged(const FText& InText, ETextCommit::Type CommitType)
 {
-	if (UIKRigSolverDefinition* SolverDef = IKRigSolverDefinition.Get())
+	if (UIKRigSolver* Solver = IKRigSolver.Get())
 	{
 		FString NewGoalName = InText.ToString();
 		NewGoalName.TrimStartAndEndInline();
 		if (!NewGoalName.IsEmpty())
 		{
-			IKRigController->SetGoalName(SolverDef, *Effector, FName(*NewGoalName));
+			IKRigController->SetGoalName(Solver, *Effector, FName(*NewGoalName));
 		}
 	}
 }

@@ -9,10 +9,11 @@
 #include "IKRigHierarchy.h"
 #include "FBIKConstraint.h"
 #include "JacobianIK.h"
-#include "FullBodyIKSolverDefinition.h"
 #include "FBIKUtil.h"
 #include "FBIKShared.h"
 #include "Drawing/ControlRigDrawInterface.h"
+
+const FName UFullBodyIKSolver::EffectorTargetPrefix = FName(TEXT("FullBodyIKTarget"));
 
 //////////////////////////////////////////////
 // utility functions
@@ -198,41 +199,40 @@ static void AddEffectors(const FIKRigTransformModifier& TransformModifier, const
 	}
 }
 /////////////////////////////////////////////////
+
+UFullBodyIKSolver::UFullBodyIKSolver()
+{
+}
+
 void UFullBodyIKSolver::InitInternal(const FIKRigTransformModifier& InGlobalTransform)
 {
-	if (UFullBodyIKSolverDefinition* SolverDef = Cast<UFullBodyIKSolverDefinition>(SolverDefinition))
-	{
-		LinkData.Reset();
-		EffectorTargets.Reset();
-		EffectorLinkIndices.Reset();
-		LinkDataToHierarchyIndices.Reset();
-		HierarchyToLinkDataMap.Reset();
 
-		// verify the chain
-		AddEffectors(InGlobalTransform, SolverDef->Root, SolverDef->Effectors, LinkData, EffectorTargets, EffectorLinkIndices, LinkDataToHierarchyIndices, HierarchyToLinkDataMap, SolverDef->SolverProperty);
-	}
+	LinkData.Reset();
+	EffectorTargets.Reset();
+	EffectorLinkIndices.Reset();
+	LinkDataToHierarchyIndices.Reset();
+	HierarchyToLinkDataMap.Reset();
+
+	// verify the chain
+	AddEffectors(InGlobalTransform, Root, Effectors, LinkData, EffectorTargets, EffectorLinkIndices, LinkDataToHierarchyIndices, HierarchyToLinkDataMap, SolverProperty);
+	
 }
 
 bool UFullBodyIKSolver::IsSolverActive() const
 {
 	if (Super::IsSolverActive())
 	{
- 		if (UFullBodyIKSolverDefinition* SolverDef = Cast<UFullBodyIKSolverDefinition>(SolverDefinition))
- 		{
-			// i'm not checkinf if this is valid, but we may not know for sure because 
- 			return SolverDef->Effectors.Num() > 1;
- 		}
+		return Effectors.Num() > 1;
 	}
 
 	return false;
 }
 
-void UFullBodyIKSolver::SolveInternal(FIKRigTransformModifier& InOutGlobalTransform, FControlRigDrawInterface* InOutDrawInterface)
+void UFullBodyIKSolver::SolveInternal(
+	FIKRigTransformModifier& InOutGlobalTransform, 
+	FControlRigDrawInterface* InOutDrawInterface)
 {
-
-	UFullBodyIKSolverDefinition* SolverDef = Cast<UFullBodyIKSolverDefinition>(SolverDefinition);
-
-	if (SolverDef && LinkDataToHierarchyIndices.Num() > 0)
+	if (LinkDataToHierarchyIndices.Num() > 0)
 	{
 #if 0
 		// we do this every frame for now
@@ -270,13 +270,12 @@ void UFullBodyIKSolver::SolveInternal(FIKRigTransformModifier& InOutGlobalTransf
 		}
 
 		// update mid effector info
+		const float LinearMotionStrength = FMath::Max(SolverProperty.LinearMotionStrength, SolverProperty.MinLinearMotionStrength);
+		const float AngularMotionStrength = FMath::Max(SolverProperty.AngularMotionStrength, SolverProperty.MinAngularMotionStrength);
+		const float LinearRange = LinearMotionStrength - SolverProperty.MinLinearMotionStrength;
+		const float AngularRange = AngularMotionStrength - SolverProperty.MinAngularMotionStrength;
 
-		const float LinearMotionStrength = FMath::Max(SolverDef->SolverProperty.LinearMotionStrength, SolverDef->SolverProperty.MinLinearMotionStrength);
-		const float AngularMotionStrength = FMath::Max(SolverDef->SolverProperty.AngularMotionStrength, SolverDef->SolverProperty.MinAngularMotionStrength);
-		const float LinearRange = LinearMotionStrength - SolverDef->SolverProperty.MinLinearMotionStrength;
-		const float AngularRange = AngularMotionStrength - SolverDef->SolverProperty.MinAngularMotionStrength;
-
-		const TArray<FFBIKRigEffector>& Effectors = SolverDef->Effectors;
+		//const TArray<FFBIKRigEffector>& Effectors = Effectors;
 
 		// update end effector info
 		for (int32 EffectorIndex = 0; EffectorIndex < Effectors.Num(); ++EffectorIndex)
@@ -299,11 +298,11 @@ void UFullBodyIKSolver::SolveInternal(FIKRigTransformModifier& InOutGlobalTransf
 
 					const float Pull = FMath::Clamp(CurEffector.Pull, 0.f, 1.f);
 					// we want some impact of Pull, in order for Pull to have some impact, we clamp to some number
-					const float TargetClamp = FMath::Clamp(SolverDef->SolverProperty.DefaultTargetClamp, 0.f, 0.7f);
+					const float TargetClamp = FMath::Clamp(SolverProperty.DefaultTargetClamp, 0.f, 0.7f);
 					const float Scale = TargetClamp + Pull * (1.f - TargetClamp);
 					// Pull set up
-					EffectorTarget->LinearMotionStrength = LinearRange * Scale + SolverDef->SolverProperty.MinLinearMotionStrength;
-					EffectorTarget->AngularMotionStrength = AngularRange * Scale + SolverDef->SolverProperty.MinAngularMotionStrength;
+					EffectorTarget->LinearMotionStrength = LinearRange * Scale + SolverProperty.MinLinearMotionStrength;
+					EffectorTarget->AngularMotionStrength = AngularRange * Scale + SolverProperty.MinAngularMotionStrength;
 					EffectorTarget->ConvergeScale = Scale;
 					EffectorTarget->TargetClampScale = Scale;
 
@@ -315,15 +314,15 @@ void UFullBodyIKSolver::SolveInternal(FIKRigTransformModifier& InOutGlobalTransf
 
 		DebugData.Reset();
 
-		const bool bDebugEnabled = SolverDef->DebugOption.bDrawDebugHierarchy || SolverDef->DebugOption.bDrawDebugEffector || SolverDef->DebugOption.bDrawDebugConstraints;
+		const bool bDebugEnabled = DebugOption.bDrawDebugHierarchy || DebugOption.bDrawDebugEffector || DebugOption.bDrawDebugConstraints;
 
 		// we can't reuse memory until we fix the memory issue on RigVM
 		{
 			IKSolver.SolveJacobianIK(LinkData, EffectorTargets,
-				JacobianIK::FSolverParameter(SolverDef->SolverProperty.Damping, true, false, (SolverDef->SolverProperty.bUseJacobianTranspose) ? EJacobianSolver::JacobianTranspose : EJacobianSolver::JacobianPIDLS),
-				SolverDef->SolverProperty.MaxIterations, SolverDef->SolverProperty.Precision, &DebugData);
+				JacobianIK::FSolverParameter(SolverProperty.Damping, true, false, (SolverProperty.bUseJacobianTranspose) ? EJacobianSolver::JacobianTranspose : EJacobianSolver::JacobianPIDLS),
+				SolverProperty.MaxIterations, SolverProperty.Precision, &DebugData);
 
-			if (SolverDef->MotionProperty.bForceEffectorRotationTarget)
+			if (MotionProperty.bForceEffectorRotationTarget)
 			{
 				// if position is reached, we force rotation target
 				for (int32 EffectorIndex = 0; EffectorIndex < Effectors.Num(); ++EffectorIndex)
@@ -336,13 +335,13 @@ void UFullBodyIKSolver::SolveInternal(FIKRigTransformModifier& InOutGlobalTransf
 						{
 							bool bApplyRotation = true;
 
-							if (SolverDef->MotionProperty.bOnlyApplyWhenReachedToTarget)
+							if (MotionProperty.bOnlyApplyWhenReachedToTarget)
 							{
 								// only do this when position is reached? This will conflict with converge scale
 								const FVector& BonePosition = LinkData[EffectorLinkIndex].GetTransform().GetLocation();
 								const FVector& TargetPosition = EffectorTarget->Position;
 
-								bApplyRotation = (FVector(BonePosition - TargetPosition).SizeSquared() <= SolverDef->SolverProperty.Precision * SolverDef->SolverProperty.Precision);
+								bApplyRotation = (FVector(BonePosition - TargetPosition).SizeSquared() <= SolverProperty.Precision * SolverProperty.Precision);
 							}
 
 							if (bApplyRotation)
@@ -369,10 +368,10 @@ void UFullBodyIKSolver::SolveInternal(FIKRigTransformModifier& InOutGlobalTransf
 				{
 					const TArray<FFBIKLinkData>& LocalLink = DebugData[DebugIndex].LinkData;
 
-					FTransform Offset = SolverDef->DebugOption.DrawWorldOffset;
+					FTransform Offset = DebugOption.DrawWorldOffset;
 					Offset.SetLocation(Offset.GetLocation() * (DebugDataNum - DebugIndex));
 
-					if (SolverDef->DebugOption.bDrawDebugHierarchy)
+					if (DebugOption.bDrawDebugHierarchy)
 					{
 						for (int32 LinkIndex = 0; LinkIndex < LocalLink.Num(); ++LinkIndex)
 						{
@@ -381,25 +380,25 @@ void UFullBodyIKSolver::SolveInternal(FIKRigTransformModifier& InOutGlobalTransf
 							FLinearColor DrawColor = FLinearColor::White;
 
 							float LineThickness = 0.f;
-							if (SolverDef->DebugOption.bColorAngularMotionStrength || SolverDef->DebugOption.bColorLinearMotionStrength)
+							if (DebugOption.bColorAngularMotionStrength || DebugOption.bColorLinearMotionStrength)
 							{
 								DrawColor = FLinearColor::Black;
-								if (SolverDef->DebugOption.bColorAngularMotionStrength)
+								if (DebugOption.bColorAngularMotionStrength)
 								{
-									const float Range = FMath::Max(SolverDef->SolverProperty.AngularMotionStrength - SolverDef->SolverProperty.MinAngularMotionStrength, 0.f);
+									const float Range = FMath::Max(SolverProperty.AngularMotionStrength - SolverProperty.MinAngularMotionStrength, 0.f);
 									if (Range > 0.f)
 									{
-										float CurrentStrength = Data.GetAngularMotionStrength() - SolverDef->SolverProperty.MinAngularMotionStrength;
+										float CurrentStrength = Data.GetAngularMotionStrength() - SolverProperty.MinAngularMotionStrength;
 										float Alpha = FMath::Clamp(CurrentStrength / Range, 0.f, 1.f);
 										DrawColor.R = LineThickness = Alpha;
 									}
 								}
-								else if (SolverDef->DebugOption.bColorLinearMotionStrength)
+								else if (DebugOption.bColorLinearMotionStrength)
 								{
-									const float Range = FMath::Max(SolverDef->SolverProperty.LinearMotionStrength - SolverDef->SolverProperty.MinLinearMotionStrength, 0.f);
+									const float Range = FMath::Max(SolverProperty.LinearMotionStrength - SolverProperty.MinLinearMotionStrength, 0.f);
 									if (Range > 0.f)
 									{
-										float CurrentStrength = Data.GetLinearMotionStrength() - SolverDef->SolverProperty.MinLinearMotionStrength;
+										float CurrentStrength = Data.GetLinearMotionStrength() - SolverProperty.MinLinearMotionStrength;
 										float Alpha = FMath::Clamp(CurrentStrength / Range, 0.f, 1.f);
 										DrawColor.B = LineThickness = Alpha;
 									}
@@ -412,14 +411,14 @@ void UFullBodyIKSolver::SolveInternal(FIKRigTransformModifier& InOutGlobalTransf
 								InOutDrawInterface->DrawLine(Offset, Data.GetPreviousTransform().GetLocation(), ParentData.GetPreviousTransform().GetLocation(), DrawColor, LineThickness);
 							}
 
-							if (SolverDef->DebugOption.bDrawDebugAxes)
+							if (DebugOption.bDrawDebugAxes)
 							{
-								InOutDrawInterface->DrawAxes(Offset, Data.GetPreviousTransform(), SolverDef->DebugOption.DrawSize);
+								InOutDrawInterface->DrawAxes(Offset, Data.GetPreviousTransform(), DebugOption.DrawSize);
 							}
 						}
 					}
 
-					if (SolverDef->DebugOption.bDrawDebugEffector)
+					if (DebugOption.bDrawDebugEffector)
 					{
 						for (auto Iter = EffectorTargets.CreateConstIterator(); Iter; ++Iter)
 						{
@@ -427,11 +426,11 @@ void UFullBodyIKSolver::SolveInternal(FIKRigTransformModifier& InOutGlobalTransf
 							if (EffectorTarget.bPositionEnabled)
 							{
 								// draw effector target locations
-								InOutDrawInterface->DrawBox(Offset, FTransform(EffectorTarget.Position), FLinearColor::Yellow, SolverDef->DebugOption.DrawSize);
+								InOutDrawInterface->DrawBox(Offset, FTransform(EffectorTarget.Position), FLinearColor::Yellow, DebugOption.DrawSize);
 							}
 
 							// draw effector link location
-							InOutDrawInterface->DrawBox(Offset, LocalLink[Iter.Key()].GetPreviousTransform(), FLinearColor::Green, SolverDef->DebugOption.DrawSize);
+							InOutDrawInterface->DrawBox(Offset, LocalLink[Iter.Key()].GetPreviousTransform(), FLinearColor::Green, DebugOption.DrawSize);
 						}
 
 						for (int32 Index = 0; Index < DebugData[DebugIndex].TargetVectorSources.Num(); ++Index)
@@ -561,3 +560,59 @@ void UFullBodyIKSolver::SolveInternal(FIKRigTransformModifier& InOutGlobalTransf
 		InOutGlobalTransform.SetGlobalTransform(CurrentItem, LinkTransform, true);
 	}
 }
+
+#if WITH_EDITOR
+
+void UFullBodyIKSolver::UpdateEffectors()
+{
+	// first ensure we add all the effectors
+	for (int32 Index = 0; Index < Effectors.Num(); ++Index)
+	{
+		EnsureToAddEffector(Effectors[Index].Target, TEXT("FBIK_Effector"));
+	}
+
+	// we have more nodes than goals
+	// which means we have something deleted
+	if (Effectors.Num() < EffectorToGoal.Num())
+	{
+		TArray<FIKRigEffector> GoalEffectors;
+		// we have to remove things that don't belong
+		for (auto Iter = EffectorToGoal.CreateIterator(); Iter; ++Iter)
+		{
+			GoalEffectors.Add(Iter.Key());
+		}
+
+		TBitArray<> RemoveFlags(false, GoalEffectors.Num());
+
+		for (int32 Index = 0; Index < Effectors.Num(); ++Index)
+		{
+			int32 Found = GoalEffectors.Find(Effectors[Index].Target);
+
+			if (Found != INDEX_NONE)
+			{
+				RemoveFlags[Found] = true;
+			}
+		}
+
+		for (TConstSetBitIterator<> Iter(RemoveFlags); Iter; ++Iter)
+		{
+			// remove things that don't belong
+			EffectorToGoal.Remove(GoalEffectors[Iter.GetIndex()]);
+		}
+	}
+
+	// trigger a delegate for goal has been updated?
+	OnGoalHasBeenUpdated();
+}
+
+void UFullBodyIKSolver::PostEditChangeChainProperty(struct FPropertyChangedChainEvent& PropertyChangedEvent)
+{
+	if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UFullBodyIKSolver, Effectors))
+	{
+		UpdateEffectors();
+	}
+
+	Super::PostEditChangeChainProperty(PropertyChangedEvent);
+}
+
+#endif// WITH_EDITOR

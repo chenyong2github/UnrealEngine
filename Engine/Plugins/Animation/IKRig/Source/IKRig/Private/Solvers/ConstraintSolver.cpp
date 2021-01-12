@@ -1,12 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-/**
- * Contains IKRig Constraint Solver Definition 
- *
- */
 #include "Solvers/ConstraintSolver.h"
 #include "IKRigConstraint.h"
 
+/*
 // register/unregister query function
 void UIKRigConstraintSolver::RegisterQueryConstraintHandler(const FIKRigQueryConstraint& InQueryConstraintHandler)
 {
@@ -17,9 +14,11 @@ void UIKRigConstraintSolver::UnregisterQueryConstraintHandler()
 {
 
 }
+*/
 
 void UIKRigConstraintSolver::InitInternal(const FIKRigTransformModifier& InGlobalTransform)
 {
+	/*
 	if (ConstraintDefinition)
 	{
 		// we duplicate and create a copy of the objects, so that we can mutate
@@ -39,11 +38,12 @@ void UIKRigConstraintSolver::InitInternal(const FIKRigTransformModifier& InGloba
 
 		// go through all UIKRigConstraint and create copy
 		ActiveProfile = UIKRigConstraintDefinition::DefaultProfileName;
-	}
+	}*/
 }
 
 void UIKRigConstraintSolver::SolveInternal(FIKRigTransformModifier& InOutGlobalTransform, FControlRigDrawInterface* InOutDrawInterface)
 {
+	/*
 	FIKRigConstraintProfile* Current = ConstraintProfiles.Find(ActiveProfile);
 
 	if (Current)
@@ -57,9 +57,10 @@ void UIKRigConstraintSolver::SolveInternal(FIKRigTransformModifier& InOutGlobalT
 				Constraint->Apply(InOutGlobalTransform, InOutDrawInterface);
 			}
 		}
-	}
+	}*/
 }
 
+/*
 void UIKRigConstraintSolver::SolverConstraints(const TArray<FName>& ConstraintsList, FIKRigTransformModifier& InOutGlobalTransform, FControlRigDrawInterface* InOutDrawInterface)
 {
 	FIKRigConstraintProfile* Current = ConstraintProfiles.Find(ActiveProfile);
@@ -77,18 +78,4 @@ void UIKRigConstraintSolver::SolverConstraints(const TArray<FName>& ConstraintsL
 		}
 	}
 }
-
-bool UIKRigConstraintSolver::IsSolverActive() const
-{	
-// later we can do more elaborated version
-	return Super::IsSolverActive();
-}
-
-void UIKRigConstraintSolver::SetConstraintDefinition(UIKRigConstraintDefinition* InConstraintDefinition)
-{
-	ConstraintDefinition = InConstraintDefinition;
-	// reset instanced data
-
-	ConstraintProfiles.Reset();
-	ActiveProfile = UIKRigConstraintDefinition::DefaultProfileName;
-}
+*/

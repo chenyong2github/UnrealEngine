@@ -8,7 +8,6 @@
 #pragma once
 
 #include "IKRigSolver.h"
-#include "IKRigConstraintDefinition.h"
 #include "ConstraintSolver.generated.h"
 
 class UIKRigConstraint;
@@ -22,35 +21,32 @@ class IKRIG_API UIKRigConstraintSolver : public UIKRigSolver
 
 	DECLARE_DELEGATE_TwoParams(FIKRigQueryConstraint, const FName& InConstraintName, UIKRigConstraint& OutConstraint);
 
-	UPROPERTY(transient)
-	UIKRigConstraintDefinition* ConstraintDefinition;
 
 public: 
 	// during we don't mutate bone transform, but you can read it
 	virtual void InitInternal(const FIKRigTransformModifier& InGlobalTransform) override;
 	virtual void SolveInternal(FIKRigTransformModifier& InOutGlobalTransform, FControlRigDrawInterface* InOutDrawInterface) override;
-	virtual bool IsSolverActive() const override;
 
 	// this can be utilized for just subset of constraints
-	void SolverConstraints(const TArray<FName>& ConstraintsList, FIKRigTransformModifier& InOutGlobalTransform, FControlRigDrawInterface* InOutDrawInterface);
+	//void SolverConstraints(const TArray<FName>& ConstraintsList, FIKRigTransformModifier& InOutGlobalTransform, FControlRigDrawInterface* InOutDrawInterface);
 
 	// register/unregister query function
-	void RegisterQueryConstraintHandler(const FIKRigQueryConstraint& InQueryConstraintHandler);
-	void UnregisterQueryConstraintHandler();
+	//void RegisterQueryConstraintHandler(const FIKRigQueryConstraint& InQueryConstraintHandler);
+	//void UnregisterQueryConstraintHandler();
 
-	void SetConstraintDefinition(UIKRigConstraintDefinition* InConstraintDefinition);
+	//void SetConstraintDefinition(UIKRigConstraintDefinition* InConstraintDefinition);
 
 private:
 	// delegate
-	FIKRigQueryConstraint QueryConstraintHandler;
+	//FIKRigQueryConstraint QueryConstraintHandler;
 
 	// current active profile
-	UPROPERTY(transient)
-	FName ActiveProfile;
+	//UPROPERTY(transient)
+	//FName ActiveProfile;
 
 	// instanced information you can mutate from ConstraintDefinition
 	// we want uproperty, so that it doesn't GC-ed
-	UPROPERTY(transient)
-	TMap<FName, FIKRigConstraintProfile> ConstraintProfiles;
+	//UPROPERTY(transient)
+	//TMap<FName, FIKRigConstraintProfile> ConstraintProfiles;
 };
 

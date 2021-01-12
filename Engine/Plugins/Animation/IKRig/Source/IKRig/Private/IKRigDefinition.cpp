@@ -1,17 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	IKRigDefinition.cpp: Composite classes that contains sequence for each section
-=============================================================================*/
-
 #include "IKRigDefinition.h"
-#include "IKRigSolverDefinition.h"
-#include "IKRigConstraintDefinition.h"
+#include "IKRigSolver.h"
 
 UIKRigDefinition::UIKRigDefinition()
 {
-	// we create constraint definition for them
-	ConstraintDefinitions = CreateDefaultSubobject<UIKRigConstraintDefinition>(TEXT("ConstraintDefinition"));
 }
 
 #if WITH_EDITOR
@@ -23,11 +16,11 @@ void UIKRigDefinition::UpdateGoal()
 	Sanitize();
 
 	TArray<FName> ListOfGoals;
-	for (UIKRigSolverDefinition* SolverDef : SolverDefinitions)
+	for (UIKRigSolver* Solver : Solvers)
 	{
-		if (SolverDef)
+		if (Solver)
 		{
-			SolverDef->CollectGoals(ListOfGoals);
+			Solver->CollectGoals(ListOfGoals);
 		}
 	}
 
@@ -72,7 +65,7 @@ void UIKRigDefinition::UpdateGoal()
 void UIKRigDefinition::Sanitize()
 {
 	// sanitize to clean up
-	SolverDefinitions.RemoveAll([this](const UIKRigSolverDefinition* IKDef) { return IKDef == nullptr; });
+	Solvers.RemoveAll([this](const UIKRigSolver* Solver) { return Solver == nullptr; });
 }
 
 /////////////////////////////////////////////////////////

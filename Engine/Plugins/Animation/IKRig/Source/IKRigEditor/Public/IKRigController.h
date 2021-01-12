@@ -1,11 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-/**
- * IKRigController
- *
- * Mutates IKRig asset side
- */
-
 #pragma once
 
 #include "CoreMinimal.h"
@@ -55,34 +49,22 @@ public:
 	// todo: more APIs for hierarchy operators
 
 	// solver operators
-	UIKRigSolverDefinition* AddSolver(TSubclassOf<UIKRigSolverDefinition> InIKRigSolverDefinitionClass);
-	int32 GetTotalSolverCount() const;
-	UIKRigSolverDefinition* GetSolver(int32 Index) const;
-	void RemoveSolver(UIKRigSolverDefinition* SolverToDelete);
-	void AutoConfigure(UIKRigSolverDefinition* SolverDef);
-	bool CanAutoConfigure(UIKRigSolverDefinition* SolverDef) const;
+	UIKRigSolver* AddSolver(TSubclassOf<UIKRigSolver> InSolverClass);
+	void RemoveSolver(UIKRigSolver* SolverToDelete);
+	UIKRigSolver* GetSolver(int32 Index) const;
+	int32 GetNumSolvers() const;
 
-	// constraint operators
-	// create new profile
-	void CreateNewProfile(FName& InNewProfileName);
-	bool RemoveConstraintProfile(const FName& InProfileName);
-	void RenameProfile(FName InCurrentProfileName, FName& InNewProfileName);
-
-	UIKRigConstraint* AddConstraint(TSubclassOf<UIKRigConstraint> NewConstraintType, FName& InOutNewName, FName InProfile=NAME_None);
-	UIKRigConstraint* GetConstraint(const FName& InProfileName, const FName& InName) const;
-	bool RemoveConstraint(const FName& InConstraintName);
-
-	void GetConstraintProfileNames(TArray<FName>& OutProfileNames) const;
-	void GetConstraintNames(TArray<FName>& OutConstraintNames) const;
+	// constraints
+	UIKRigConstraint* AddConstraint(TSubclassOf<UIKRigConstraint> NewConstraintType);
 
 	// goal operators
 	void QueryGoals(TArray<FName>& OutGoals) const;
-	// why do we need rename? @todo: remove - maybe in the fuutre when we want a tool that does rename automatically this could be useful, but for now it's not really
+	// why do we need rename? @todo: remove - maybe in the future when we want a tool that does rename automatically this could be useful, but for now it's not really
 	// goals are collected from solvers, so they could change name, and if it doesn't exists, it doesn't exist
 	void RenameGoal(const FName& OldName, const FName& NewName);
 
-	FName GetGoalName(UIKRigSolverDefinition* InSolverDefinition, const FIKRigEffector& InEffector);
-	void SetGoalName(UIKRigSolverDefinition* InSolverDefinition, const FIKRigEffector& InEffector, const FName& NewGoalName);
+	FName GetGoalName(UIKRigSolver* InSolver, const FIKRigEffector& InEffector);
+	void SetGoalName(UIKRigSolver* InSolver, const FIKRigEffector& InEffector, const FName& NewGoalName);
 
 	// this is to modify default value
 	FIKRigGoal* GetGoal(const FName& InGoalName);
@@ -105,19 +87,18 @@ private:
 	UPROPERTY(transient)
 	UIKRigDefinition* IKRigDefinition = nullptr;
 
-	bool ValidateSolver(UIKRigSolverDefinition* const SolverDef) const;
+	bool ValidateSolver(UIKRigSolver* const Solver) const;
 	void UpdateGoal();
 
 	FIKRigConstraintProfile* GetConstraintProfile(const FName& InProfileName) const;
 
-	void InitializeIKRigSolverDefinition(UIKRigSolverDefinition* SolverDef);
-	void UninitializeIKRigSolverDefinition(UIKRigSolverDefinition* SolverDef);
+	void InitializeSolver(UIKRigSolver* Solver);
+	void UninitializeSolver(UIKRigSolver* Solver);
 
-	TMap<UIKRigSolverDefinition*, FDelegateHandle> SolverDelegateHandles;
+	TMap<UIKRigSolver*, FDelegateHandle> SolverDelegateHandles;
 
 	static TMap<UIKRigDefinition*, UIKRigController*> DefinitionToControllerMap;
 
-	// IKRigDefinition set up
 	void SetIKRigDefinition(UIKRigDefinition* InIKRigDefinition);
 
 	void EnsureUniqueConstraintName(FName& InOutName);

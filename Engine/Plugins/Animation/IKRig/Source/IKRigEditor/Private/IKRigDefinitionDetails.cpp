@@ -9,7 +9,7 @@
 
 #include "IKRigDefinition.h"
 #include "IKRigController.h"
-#include "IKRigSolverDefinition.h"
+#include "IKRigSolver.h"
 #include "IKRigConstraint.h"
 
 #include "ScopedTransaction.h"
@@ -253,7 +253,7 @@ UClass* SelectClass(UClass* ClassType, const FText& TitleText)
 
 FReply FIKRigDefinitionDetails::OnShowSolverClassPicker()
 {
-	UClass* ChosenClass = SelectClass(UIKRigSolverDefinition::StaticClass(), LOCTEXT("SelectSolverClass", "Select Solver Class"));
+	UClass* ChosenClass = SelectClass(UIKRigSolver::StaticClass(), LOCTEXT("SelectSolverClass", "Select Solver Class"));
 	if (ChosenClass)
 	{
 		IKRigController->AddSolver(ChosenClass);
@@ -267,9 +267,7 @@ FReply FIKRigDefinitionDetails::OnShowConstraintClassPicker()
 	UClass* ChosenClass = SelectClass(UIKRigConstraint::StaticClass(), LOCTEXT("SelectConstraintClass", "Select Constraint Class"));
 	if (ChosenClass)
 	{
-		// ask for name of constraint
-		FName NewName(TEXT("NewConstraint"));
-		IKRigController->AddConstraint(ChosenClass, NewName);
+		IKRigController->AddConstraint(ChosenClass);
 	}
 
 	return FReply::Handled();

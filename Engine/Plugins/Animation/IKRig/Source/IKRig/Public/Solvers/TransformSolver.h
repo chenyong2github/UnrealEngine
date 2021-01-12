@@ -1,25 +1,44 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-/**
- * Contains Transform Solver Execution
- *
- */
-
 #pragma once
 
 #include "IKRigSolver.h"
 #include "TransformSolver.generated.h"
 
 
-// run time for UTransformSolverDefinition
 UCLASS()
 class IKRIG_API UTransformSolver : public UIKRigSolver
 {
 	GENERATED_BODY()
 
+public:
+
+	UTransformSolver();
+
+	UPROPERTY(EditAnywhere, Category = "Solver")
+	bool bEnablePosition = true;
+
+	UPROPERTY(EditAnywhere, Category = "Solver")
+	bool bEnableRotation = true;
+
+	UPROPERTY(EditAnywhere, Category = "Solver")
+	FIKRigEffector TransformTarget;
+
 protected:
+	
 	virtual void InitInternal(const FIKRigTransformModifier& InGlobalTransform) override;
 	virtual void SolveInternal(FIKRigTransformModifier& InOutGlobalTransform, FControlRigDrawInterface* InOutDrawInterface) override;
 	virtual bool IsSolverActive() const override;
+
+private:
+#if WITH_EDITOR
+	virtual void UpdateEffectors() override;
+
+	// UObject interface
+	virtual void PostEditChangeChainProperty(struct FPropertyChangedChainEvent& PropertyChangedEvent) override;
+	// UObject interface
+#endif // WITH_EDITOR
+
+	const FString TransformTargetName;
 };
 

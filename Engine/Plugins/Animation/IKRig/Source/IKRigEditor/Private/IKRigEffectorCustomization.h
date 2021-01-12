@@ -6,7 +6,7 @@
 #include "IPropertyTypeCustomization.h"
 #include "IKRigDataTypes.h"
 
-class UIKRigSolverDefinition;
+class UIKRigSolver;
 class UIKRigController;
 class SSearchableComboBox;
 
@@ -31,13 +31,13 @@ private:
 	TSharedPtr<IPropertyHandle> EffectorBoneProperty;
 
 	// Target Skeleton this widget is referencing
-	TWeakObjectPtr<UIKRigSolverDefinition>	IKRigSolverDefinition;
-	TWeakObjectPtr<UIKRigController>		IKRigController;
+	TWeakObjectPtr<UIKRigSolver>		IKRigSolver;
+	TWeakObjectPtr<UIKRigController>	IKRigController;
 
 	// Goal update option
-	TSharedPtr< SSearchableComboBox >			EffectorGoalComboBox;
-	TArray< TSharedPtr< FString > >				EffectorGoalComboList;
-	FIKRigEffector*								Effector;								
+	TSharedPtr<SSearchableComboBox>	EffectorGoalComboBox;
+	TArray<TSharedPtr<FString>>	EffectorGoalComboList;
+	FIKRigEffector*	Effector;								
 
 	TSharedRef<SWidget> MakeEffectorGoalComboWidget(TSharedPtr<FString> InItem);
 	// combo box

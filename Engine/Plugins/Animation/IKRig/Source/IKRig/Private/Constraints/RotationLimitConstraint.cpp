@@ -1,10 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-/**
- * Contains IKRigConstraint Runtime Implementation
- *
- */
-
 #include "RotationLimitConstraint.h"
 #include "IKRigHierarchy.h"
 #include "IKRigDataTypes.h"
