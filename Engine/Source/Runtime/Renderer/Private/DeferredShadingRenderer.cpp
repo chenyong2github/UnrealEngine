@@ -1505,6 +1505,9 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 {
 	const bool bNaniteEnabled = UseNanite(ShaderPlatform) && ViewFamily.EngineShowFlags.NaniteMeshes;
 
+	// Important that this uses consistent logic for whether or not nanite is enabled, so pass in the flag from here
+	VirtualShadowMapArray.Initialize(bNaniteEnabled);
+
 	Scene->UpdateAllPrimitiveSceneInfos(GraphBuilder, true);
 
 	FGPUSceneScopeBeginEndHelper GPUSceneScopeBeginEndHelper(Scene->GPUScene, GPUSceneDynamicContext, *Scene);
@@ -1741,12 +1744,8 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		bComputeLightGrid |= (
 			ShouldRenderVolumetricFog() ||
 			ViewFamily.ViewMode != VMI_Lit ||
-			GAllowLumenScene);
-
-		// TODO: Move decision logic to separate function for readability
-		static const auto EnableVirtualSMCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Shadow.v.Enable"));
-
-		bComputeLightGrid = bComputeLightGrid || EnableVirtualSMCVar->GetValueOnRenderThread() != 0;
+			GAllowLumenScene ||
+			VirtualShadowMapArray.IsEnabled());
 	}
 
 	// force using occ queries for wireframe if rendering is parented or frozen in the first view
@@ -2034,9 +2033,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	// Local helper function to perform virtual shadow map allocation, which can occur early, or late.
 	const auto AllocateVirtualShadowMaps = [&](bool bPostBasePass)
 	{
-		static const auto CVarEnableVirtualSM = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Shadow.v.Enable"));
-
-		if (CVarEnableVirtualSM->GetValueOnRenderThread() != 0)
+		if (VirtualShadowMapArray.IsEnabled())
 		{
 			ensureMsgf(AreLightsInLightGrid(), TEXT("Virtual shadow map setup requires local lights to be injected into the light grid (this may be caused by 'r.LightCulling.Quality=0')."));
 			// ensure(ShadowMapSetupDone)
@@ -2323,6 +2320,15 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 			ComputeVolumetricFog(GraphBuilder);
 		}
 
+		Nanite::GStreamingManager.SubmitFrameStreamingRequests(GraphBuilder);
+	}
+	else if (!bOcclusionBeforeBasePass)
+	{
+		ComputeVolumetricFog(GraphBuilder);
+	}
+
+	if (VirtualShadowMapArray.IsEnabled())
+	{
 		VirtualShadowMapArray.RenderDebugInfo(GraphBuilder, Scene->VirtualShadowMapArrayCacheManager);
 
 		if (Views.Num() > 0)
@@ -2330,16 +2336,10 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 			VirtualShadowMapArray.PrintStats(GraphBuilder, Views[0]);
 		}
 
-		Nanite::GStreamingManager.SubmitFrameStreamingRequests(GraphBuilder);
-
 		if (Scene->VirtualShadowMapArrayCacheManager)
 		{
 			Scene->VirtualShadowMapArrayCacheManager->ExtractFrameData(VirtualShadowMapArray, GraphBuilder);
 		}
-	}
-	else if (!bOcclusionBeforeBasePass)
-	{
-		ComputeVolumetricFog(GraphBuilder);
 	}
 
 	// If not all depth is written during the prepass, kick off async compute cloud after basepass

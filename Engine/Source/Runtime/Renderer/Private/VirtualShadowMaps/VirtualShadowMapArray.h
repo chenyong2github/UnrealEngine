@@ -132,11 +132,19 @@ public:
 	FVirtualShadowMapArray();
 	~FVirtualShadowMapArray();
 
+	void Initialize(bool bInEnabled);
+
+	// Returns true if virtual shadow maps are enabled
+	bool IsEnabled() const
+	{
+		return bEnabled;
+	}
+
 	FVirtualShadowMap *Allocate()
 	{
+		check(IsEnabled());
 		FVirtualShadowMap *SM = new(FMemStack::Get(), 1, 16) FVirtualShadowMap(ShadowMaps.Num());
 		ShadowMaps.Add(SM);
-
 		return SM;
 	}
 
@@ -174,14 +182,16 @@ public:
 	// 
 	void PrintStats(FRDGBuilder& GraphBuilder, const FViewInfo& View);
 
+	// Are virtual shadow maps enabled. We store this at the start of the frame to centralize the logic.
+	bool bEnabled = false;
+
 	TArray<FVirtualShadowMap*, SceneRenderingAllocator> ShadowMaps;
 
 	// Large physical texture of depth format, say 4096^2 or whatever we think is enough texels to go around
 	FRDGTextureRef PhysicalPagePoolRDG = nullptr;
 	// Buffer that serves as the page table for all virtual shadow maps
 	FRDGBufferRef PageTableRDG = nullptr;
-
-	
+		
 	// Buffer that stores flags (uints) marking each page that needs to be rendered and cache status, for all virtual shadow maps.
 	// Flag values defined in PageAccessCommon.ush: VSM_ALLOCATED_FLAG | VSM_INVALID_FLAG
 	FRDGBufferRef PageFlagsRDG = nullptr;

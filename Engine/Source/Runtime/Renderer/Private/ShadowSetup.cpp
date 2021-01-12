@@ -3154,11 +3154,6 @@ void FSceneRenderer::CreateWholeSceneProjectedShadow(
 		return;
 	}
 
-	// Determine if we want a virtual shadow map for this light
-	// TODO: Base this off of a light/editor parameter; for now just all spot lights get virtual shadow maps when the CVar is enabled
-	static const auto EnableVirtualSMCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Shadow.v.Enable"));
-	const bool bNaniteEnabled = UseNanite(ShaderPlatform);
-
 	// Try to create a whole-scene projected shadow initializer for the light.
 	TArray<FWholeSceneProjectedShadowInitializer, TInlineAllocator<6> > ProjectedShadowInitializers;
 	if (LightSceneInfo->Proxy->GetWholeSceneProjectedShadowInitializer(ViewFamily, ProjectedShadowInitializers))
@@ -3268,9 +3263,8 @@ void FSceneRenderer::CreateWholeSceneProjectedShadow(
 					SizeX = SizeY = GetCubeShadowDepthZResolution(FeatureLevel, GetCubeShadowDepthZIndex(FeatureLevel, MaxDesiredResolution));
 				}
 
-				const bool bNeedsVirtualShadowMap = bNaniteEnabled
-					&& (EnableVirtualSMCVar->GetValueOnRenderThread() != 0
-					&& LightSceneInfo->Proxy->GetLightType() == LightType_Spot)
+				const bool bNeedsVirtualShadowMap = VirtualShadowMapArray.IsEnabled()
+					&& (LightSceneInfo->Proxy->GetLightType() == LightType_Spot)
 					&& !ProjectedShadowInitializer.bRayTracedDistanceField;
 
 				int32 NumShadowMaps = 1;
@@ -4197,12 +4191,10 @@ void FSceneRenderer::AddViewDependentWholeSceneShadowsForView(
 {
 	SCOPE_CYCLE_COUNTER(STAT_AddViewDependentWholeSceneShadowsForView);
 
-	static const auto EnableVirtualSMCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Shadow.v.Enable"));
-	const bool bNaniteEnabled = UseNanite(ShaderPlatform);
-	// Note: it is possible for a non-directional light to set up a proxy that requests a view-dependent SM (or several),
-	const bool bDirectionalLight = LightSceneInfo.Proxy->GetLightType() == LightType_Directional;
+	// Note: it is possible for a non-directional light to set up a proxy that requests a view-dependent SM (or several)
 	// Unmodified UE does not use this, so the virtual SM ignores this path for the time being (more likely to be removed).
-	const bool bNeedsVirtualShadowMap = bNaniteEnabled && EnableVirtualSMCVar->GetValueOnRenderThread() != 0 && bDirectionalLight;
+	const bool bDirectionalLight = LightSceneInfo.Proxy->GetLightType() == LightType_Directional;
+	const bool bNeedsVirtualShadowMap = VirtualShadowMapArray.IsEnabled() && bDirectionalLight;
 	const bool bNeedsCompleteShadowMap = bNeedsVirtualShadowMap && CVarCompleteShadowMapResolution.GetValueOnRenderThread() > 0;
 
 	// Allow each view to create a whole scene view dependent shadow

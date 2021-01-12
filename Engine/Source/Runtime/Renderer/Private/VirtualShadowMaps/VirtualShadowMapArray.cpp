@@ -196,6 +196,11 @@ FVirtualShadowMapArray::~FVirtualShadowMapArray()
 	}
 }
 
+void FVirtualShadowMapArray::Initialize(bool bInEnabled)
+{
+	bEnabled = bInEnabled && CVarEnableVirtualShadowMaps.GetValueOnRenderThread() > 0;
+}
+
 void FVirtualShadowMapArray::SetShaderDefines(FShaderCompilerEnvironment& OutEnvironment)
 {
 	OutEnvironment.SetDefine(TEXT("VSM_PAGE_SIZE"), FVirtualShadowMap::PageSize);
@@ -369,8 +374,11 @@ IMPLEMENT_GLOBAL_SHADER(FClearPhysicalPagesCS, "/Engine/Private/VirtualShadowMap
 
 void FVirtualShadowMapArray::ClearPhysicalMemory(FRDGBuilder& GraphBuilder, FRDGTextureRef& PhysicalTexture, FVirtualShadowMapArrayCacheManager *VirtualShadowMapArrayCacheManager)
 {
+	check(IsEnabled());
 	if (ShadowMaps.Num() == 0)
+	{
 		return;
+	}
 
 	RDG_EVENT_SCOPE( GraphBuilder, "FVirtualShadowMapArray::ClearPhysicalMemory" );
 
@@ -419,7 +427,6 @@ void FVirtualShadowMapArray::ClearPhysicalMemory(FRDGBuilder& GraphBuilder, FRDG
 			);
 		}
 	}
-
 }
 
 class FMarkRenderedPhysicalPagesCS : public FVirtualPageManagementShader
@@ -438,6 +445,7 @@ IMPLEMENT_GLOBAL_SHADER(FMarkRenderedPhysicalPagesCS, "/Engine/Private/VirtualSh
 
 void FVirtualShadowMapArray::MarkPhysicalPagesRendered(FRDGBuilder& GraphBuilder, const TArray<uint32, SceneRenderingAllocator> &VirtualShadowMapFlags)
 {
+	check(IsEnabled());
 	if (VirtualShadowMapFlags.Num() == 0)
 	{
 		return;
@@ -530,6 +538,7 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 	bool bPostBasePass,
 	FVirtualShadowMapArrayCacheManager* VirtualShadowMapArrayCacheManager)
 {
+	check(IsEnabled());
 	RDG_EVENT_SCOPE(GraphBuilder, "FVirtualShadowMapArray::GeneratePageFlagsFromLightGrid");
 
 	ensure(NaniteRasterResults.Num() == Views.Num());
@@ -814,6 +823,7 @@ IMPLEMENT_GLOBAL_SHADER(FDebugVisualizeVirtualSmCS, "/Engine/Private/VirtualShad
 
 void FVirtualShadowMapArray::RenderDebugInfo(FRDGBuilder& GraphBuilder, FVirtualShadowMapArrayCacheManager *VirtualShadowMapArrayCacheManager)
 {
+	check(IsEnabled());
 	int32 DebugMethod = CVarDebugVisualizeVirtualSms.GetValueOnRenderThread();
 	if (ShadowMaps.Num() && DebugMethod > 0)
 	{
@@ -897,6 +907,7 @@ IMPLEMENT_GLOBAL_SHADER(FVirtualSmPrintStatsCS, "/Engine/Private/VirtualShadowMa
 
 void FVirtualShadowMapArray::PrintStats(FRDGBuilder& GraphBuilder, const FViewInfo& View)
 {
+	check(IsEnabled());
 	LLM_SCOPE_BYTAG(Nanite);
 
 	// Print stats
