@@ -26,7 +26,7 @@ EDataRegistryAvailability UDataRegistrySource::GetSourceAvailability() const
 	return EDataRegistryAvailability::DoesNotExist;
 }
 
-EDataRegistryAvailability UDataRegistrySource::GetItemAvailability(const FName& ResolvedName, const uint8** InMemoryDataPtr) const
+EDataRegistryAvailability UDataRegistrySource::GetItemAvailability(const FName& ResolvedName, const uint8** PrecachedDataPtr) const
 {
 	return EDataRegistryAvailability::DoesNotExist;
 }

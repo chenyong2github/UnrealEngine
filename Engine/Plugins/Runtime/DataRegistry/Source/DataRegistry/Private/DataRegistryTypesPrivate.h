@@ -51,7 +51,7 @@ struct FCachedDataRegistryItem
 	/** Worst availability of all resources */
 	EDataRegistryAcquireStatus AcquireStatus = EDataRegistryAcquireStatus::NotStarted;
 
-	/** Progress in trying to lookup sources, need a full state machine to deal with dependent resource loads too. This might be a full future implementation */
+	/** What source index it is currently checking, if the acquire is a success this will be the source it found it in */
 	int32 AcquireLookupIndex = -1;
 
 	/** Allocated instance of item struct */
@@ -119,5 +119,5 @@ struct FDataRegistryCache
 	bool RemoveBatchRequest(const FDataRegistryRequestId& RequestId);
 
 	/** Clears entire cache */
-	void ClearCache();
+	void ClearCache(bool bClearRequests);
 };

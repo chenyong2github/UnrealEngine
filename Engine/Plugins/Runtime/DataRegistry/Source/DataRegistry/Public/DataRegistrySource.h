@@ -23,7 +23,7 @@ public:
 	virtual EDataRegistryAvailability GetSourceAvailability() const;
 
 	/** Returns availability of individual item, also get raw memory address if available */
-	virtual EDataRegistryAvailability GetItemAvailability(const FName& ResolvedName, const uint8** InMemoryDataPtr) const;
+	virtual EDataRegistryAvailability GetItemAvailability(const FName& ResolvedName, const uint8** PrecachedDataPtr) const;
 
 	/** Fills in set of all names provided by this source */
 	virtual void GetResolvedNames(TArray<FName>& Names) const;

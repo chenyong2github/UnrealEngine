@@ -934,6 +934,91 @@ void UDataRegistrySubsystem::EndPIE(bool bStartSimulate)
 #endif
 
 
+
+static FAutoConsoleCommand CVarDumpRegistryTypeSummary(
+	TEXT("DataRegistry.DumpTypeSummary"),
+	TEXT("Shows a summary of types known about by the Data Registry system"),
+	FConsoleCommandDelegate::CreateStatic(UDataRegistrySubsystem::DumpRegistryTypeSummary),
+	ECVF_Cheat);
+
+void UDataRegistrySubsystem::DumpRegistryTypeSummary()
+{
+	UDataRegistrySubsystem* Subsystem = Get();
+
+	if (Subsystem)
+	{
+		UE_LOG(LogDataRegistry, Log, TEXT("=========== DataRegistry Type Summary ==========="));
+		
+		TArray<UDataRegistry*> AllRegistries;
+
+		Subsystem->GetAllRegistries(AllRegistries, true);
+
+		for (UDataRegistry* TypeInfo : AllRegistries)
+		{
+			UE_LOG(LogDataRegistry, Log, TEXT("  %s Struct: %s"), *TypeInfo->GetRegistryDescription().ToString(), *GetNameSafe(TypeInfo->GetItemStruct()));
+		}
+	}
+}
+
+static FAutoConsoleCommand CVarDumpCachedItems(
+	TEXT("DataRegistry.DumpCachedItems"),
+	TEXT("Shows a list of every item available cached for the specified registry type. Add All as second parameter to also print value as text"),
+	FConsoleCommandWithArgsDelegate::CreateStatic(UDataRegistrySubsystem::DumpCachedItems),
+	ECVF_Cheat);
+
+void UDataRegistrySubsystem::DumpCachedItems(const TArray<FString>& Args)
+{
+	UDataRegistrySubsystem* Subsystem = Get();
+
+	if (Subsystem)
+	{
+		if (Args.Num() < 1)
+		{
+			UE_LOG(LogDataRegistry, Warning, TEXT("Too few arguments for DumpCachedItems. Include the registry type"));
+			return;
+		}
+
+		FString RegistryTypeString = Args[0];		
+		bool bDumpValues = false;
+		if (Args.Num() > 1 && Args[1] == TEXT("All"))
+		{
+			bDumpValues = true;
+		}
+
+		UDataRegistry* FoundRegistry = Subsystem->GetRegistryForType(FName(*RegistryTypeString));
+		if (!FoundRegistry)
+		{
+			UE_LOG(LogDataRegistry, Warning, TEXT("Invalid registry type %s"), *RegistryTypeString);
+			return;
+		}
+
+		TMap<FDataRegistryId, const uint8*> CachedItems;
+		const UScriptStruct* OutStruct = nullptr;
+		FDataRegistryCacheGetResult Result = FoundRegistry->GetAllCachedItems(CachedItems, OutStruct);
+
+		if (Result.GetItemStatus() != EDataRegistryCacheGetStatus::NotFound)
+		{
+			UE_LOG(LogDataRegistry, Log, TEXT("=========== DataRegistry %s Cached Items ==========="), *RegistryTypeString);
+
+			for (const TPair<FDataRegistryId, const uint8*>& Pair : CachedItems)
+			{
+				FString ValueString;
+				if (bDumpValues && OutStruct && Pair.Value)
+				{
+					OutStruct->ExportText(ValueString, Pair.Value, nullptr, nullptr, PPF_None, nullptr);
+				}
+
+				UE_LOG(LogDataRegistry, Warning, TEXT(" %s: %s"), *Pair.Key.ToString(), *ValueString);
+			}
+		}
+		else
+		{
+			UE_LOG(LogDataRegistry, Warning, TEXT("No cached items found for %s"), *RegistryTypeString);
+		}
+	}
+}
+
+
 /*
 bool ADataRegistryTestActor::TestSyncRead(FDataRegistryId RegistryId)
 {
