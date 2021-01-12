@@ -49,8 +49,11 @@ FUdpMessageTransport::~FUdpMessageTransport()
 
 void FUdpMessageTransport::OnAppPreExit()
 {
+	// Remove any bound delegates. It's no longer relavent for us to send a transport error if we
+	// are in the shutdown phase.
+	TransportErrorDelegate.Unbind();
 	if (MessageProcessor)
-	{		
+	{
 		MessageProcessor->WaitAsyncTaskCompletion();
 	}
 }
