@@ -622,6 +622,8 @@ void FSequencer::Close()
 	// Redraw viewports after restoring pre animated state in case viewports are not set to realtime
 	GEditor->RedrawLevelEditingViewports();
 
+	CachedViewState.RestoreViewState();
+
 	OnCloseEventDelegate.Broadcast(AsShared());
 }
 
