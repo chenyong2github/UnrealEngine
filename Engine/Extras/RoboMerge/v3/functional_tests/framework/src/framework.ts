@@ -219,7 +219,7 @@ export abstract class FunctionalTest {
 		paths: ['\n\tshare ...']
 	}
 
-	abstract async setup(): Promise<void>;
+	abstract setup(): Promise<void>;
 
 	abstract run(): Promise<any>;
 	abstract getBranches(): RobomergeBranchSpec[];
