@@ -394,6 +394,8 @@ void FSplinePointDetails::GenerateSplinePointSelectionControls(IDetailChildrenBu
 
 void FSplinePointDetails::GenerateChildContent(IDetailChildrenBuilder& ChildrenBuilder)
 {
+	check(SplineComp);
+
 	// Select spline point buttons
 	GenerateSplinePointSelectionControls(ChildrenBuilder);
 
@@ -636,7 +638,7 @@ void FSplinePointDetails::GenerateChildContent(IDetailChildrenBuilder& ChildrenB
 		];
 	}
 
-	if (SplineComp && SplineVisualizer.IsValid() && SplineVisualizer->GetSelectedKeys().Num() > 0)
+	if (SplineVisualizer.IsValid() && SplineVisualizer->GetSelectedKeys().Num() > 0)
 	{
 		for (TObjectIterator<UClass> ClassIterator; ClassIterator; ++ClassIterator)
 		{
