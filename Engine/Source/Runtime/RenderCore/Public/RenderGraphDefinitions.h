@@ -62,16 +62,6 @@
 
 /** ENUMS */
 
-enum class ERDGBuilderFlags
-{
-	None = 0,
-
-	/** The builder will not perform any resource barriers. This is only allowed when all resources are registered. This exists
-	 *  as a workaround for the RDG engine port, and will be deprecated immediately once the scaffolding code is removed.
-	 */
-	SkipBarriers = 1 << 0,
-};
-
 /** Flags to annotate a pass with when calling AddPass. */
 enum class ERDGPassFlags : uint8
 {

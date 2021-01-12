@@ -23,7 +23,7 @@
 class RENDERCORE_API FRDGUserValidation final
 {
 public:
-	FRDGUserValidation(FRDGAllocator& Allocator, ERDGBuilderFlags BuilderFlags);
+	FRDGUserValidation(FRDGAllocator& Allocator);
 	FRDGUserValidation(const FRDGUserValidation&) = delete;
 	~FRDGUserValidation();
 
@@ -111,7 +111,6 @@ private:
 	void ExecuteGuard(const TCHAR* Operation, const TCHAR* ResourceName);
 
 	FRDGAllocator& Allocator;
-	ERDGBuilderFlags BuilderFlags;
 	int32 ExpectedNumMarks;
 };
 

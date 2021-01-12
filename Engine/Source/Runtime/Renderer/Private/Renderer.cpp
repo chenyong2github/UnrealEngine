@@ -183,7 +183,7 @@ void FRendererModule::DrawTileMesh(FRHICommandListImmediate& RHICmdList, FMeshPa
 
 		GSystemTextures.InitializeTextures(RHICmdList, FeatureLevel);
 		FMemMark Mark(FMemStack::Get());
-		FRDGBuilder GraphBuilder(RHICmdList, {}, ERDGBuilderFlags::SkipBarriers);
+		FRDGBuilder GraphBuilder(RHICmdList);
 
 		// Initialize the RDG read-only system textures.
 		FRDGSystemTextures::Create(GraphBuilder);

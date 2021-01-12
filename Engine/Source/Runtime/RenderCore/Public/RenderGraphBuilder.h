@@ -22,7 +22,7 @@ class RENDERCORE_API FRDGBuilder
 	: FRDGAllocatorScope
 {
 public:
-	FRDGBuilder(FRHICommandListImmediate& InRHICmdList, FRDGEventName InName = {}, ERDGBuilderFlags Flags = ERDGBuilderFlags::None);
+	FRDGBuilder(FRHICommandListImmediate& InRHICmdList, FRDGEventName InName = {});
 	FRDGBuilder(const FRDGBuilder&) = delete;
 
 	/** Finds an RDG texture associated with the external texture, or returns null if none is found. */
@@ -230,7 +230,6 @@ private:
 	FRHIAsyncComputeCommandListImmediate& RHICmdListAsyncCompute;
 
 	const FRDGEventName BuilderName;
-	const ERDGBuilderFlags BuilderFlags;
 
 	ERDGPassFlags OverridePassFlags(const TCHAR* PassName, ERDGPassFlags Flags, bool bAsyncComputeSupported);
 

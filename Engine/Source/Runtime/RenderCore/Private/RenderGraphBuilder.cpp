@@ -421,12 +421,11 @@ ERDGPassFlags FRDGBuilder::OverridePassFlags(const TCHAR* PassName, ERDGPassFlag
 
 const char* const FRDGBuilder::kDefaultUnaccountedCSVStat = "RDG_Pass";
 
-FRDGBuilder::FRDGBuilder(FRHICommandListImmediate& InRHICmdList, FRDGEventName InName, ERDGBuilderFlags InFlags)
+FRDGBuilder::FRDGBuilder(FRHICommandListImmediate& InRHICmdList, FRDGEventName InName)
 	: RHICmdList(InRHICmdList)
 	, Blackboard(Allocator)
 	, RHICmdListAsyncCompute(FRHICommandListExecutor::GetImmediateAsyncComputeCommandList())
 	, BuilderName(InName)
-	, BuilderFlags(InFlags)
 #if RDG_CPU_SCOPES
 	, CPUScopeStacks(RHICmdList, kDefaultUnaccountedCSVStat)
 #endif
@@ -434,7 +433,7 @@ FRDGBuilder::FRDGBuilder(FRHICommandListImmediate& InRHICmdList, FRDGEventName I
 	, GPUScopeStacks(RHICmdList, RHICmdListAsyncCompute)
 #endif
 #if RDG_ENABLE_DEBUG
-	, UserValidation(Allocator, BuilderFlags)
+	, UserValidation(Allocator)
 	, BarrierValidation(&Passes, BuilderName)
 #endif
 {
@@ -517,7 +516,6 @@ FRDGTextureRef FRDGBuilder::RegisterExternalTexture(
 		TEXT("Externally registered texture '%s' has known RDG state. This means the graph did not sanitize it correctly, or ")
 		TEXT("an IPooledRenderTarget reference was improperly held within a pass."), Texture->Name);
 
-	if (!EnumHasAnyFlags(BuilderFlags, ERDGBuilderFlags::SkipBarriers))
 	{
 		FRDGSubresourceState SubresourceState;
 		SubresourceState.Access = AccessInitial;
@@ -576,10 +574,7 @@ FRDGBufferRef FRDGBuilder::RegisterExternalBuffer(
 		TEXT("Externally registered buffer '%s' has known RDG state. This means the graph did not sanitize it correctly, or ")
 		TEXT("an FRDGPooledBuffer reference was improperly held within a pass."), Buffer->Name);
 
-	if (!EnumHasAnyFlags(BuilderFlags, ERDGBuilderFlags::SkipBarriers))
-	{
-		BufferState.Access = AccessInitial;
-	}
+	BufferState.Access = AccessInitial;
 
 	ExternalBuffers.Add(ExternalPooledBuffer, Buffer);
 
@@ -1777,7 +1772,7 @@ void FRDGBuilder::CollectPassBarriers(FRDGPassHandle PassHandle, FRDGPassHandle&
 		LastUntrackedPassHandle = PassHandle;
 	}
 
-	if (PassesWithEmptyParameters[PassHandle] || EnumHasAnyFlags(BuilderFlags, ERDGBuilderFlags::SkipBarriers))
+	if (PassesWithEmptyParameters[PassHandle])
 	{
 		return;
 	}
@@ -2024,8 +2019,6 @@ void FRDGBuilder::AddTransitionInternal(
 	FRDGPassHandle LastUntrackedPassHandle,
 	const FRHITransitionInfo& TransitionInfo)
 {
-	check(!EnumHasAnyFlags(BuilderFlags, ERDGBuilderFlags::SkipBarriers));
-
 	const ERHIPipeline Graphics = ERHIPipeline::Graphics;
 	const ERHIPipeline AsyncCompute = ERHIPipeline::AsyncCompute;
 
