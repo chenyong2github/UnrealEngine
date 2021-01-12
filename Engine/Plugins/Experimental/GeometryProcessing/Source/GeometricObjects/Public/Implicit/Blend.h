@@ -78,7 +78,7 @@ public:
 			}
 		}
 
-		bool bValidParams = BlendPower > 0 && BlendFalloff > 0 && GridCellSize > 0 && MeshCellSize > 0;
+		bool bValidParams = BlendPower > 0 && BlendFalloff > 0 && GridCellSize > 0 && MeshCellSize > 0 && FMath::IsFinite(GridCellSize) && FMath::IsFinite(MeshCellSize);
 		return bHasSourcesWithBounds && bValidParams;
 	}
 

@@ -76,7 +76,7 @@ public:
 	{
 		bool bValidMeshAndSpatial = Source != nullptr && SourceSpatial != nullptr && SourceSpatial->IsValid();
 		bool bValidWinding = SourceWinding != nullptr;
-		bool bValidParams = SurfaceSearchSteps >= 0 && MeshCellSize > 0;
+		bool bValidParams = SurfaceSearchSteps >= 0 && MeshCellSize > 0 && FMath::IsFinite(MeshCellSize);
 		return bValidMeshAndSpatial && bValidWinding && bValidParams;
 	}
 

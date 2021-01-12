@@ -35,7 +35,7 @@ public:
 	bool bRemoveInternalsAfterSolidify = false;
 
 	/** Offset surface to create when solidifying any open-boundary inputs; if 0 then no offset surfaces are created */
-	UPROPERTY(EditAnywhere, Category = Solidify, meta = (EditCondition = "bSolidifyInput == true"))
+	UPROPERTY(EditAnywhere, Category = Solidify, meta = (EditCondition = "bSolidifyInput == true", UIMin = "0", UIMax = "100", ClampMin = "0", ClampMax = "1000"))
 	double OffsetSolidifySurface = 0.0;
 };
 

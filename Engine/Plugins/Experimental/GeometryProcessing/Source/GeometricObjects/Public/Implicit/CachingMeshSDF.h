@@ -49,6 +49,9 @@ public:
 	// should we try to compute signs? if not, Grid remains unsigned
 	bool bComputeSigns = true;
 
+	// If the number of cells in any dimension may exceed this, CellSize will be automatically increased to keep cell count reasonable
+	int ApproxMaxCellsPerDimension = 4096;
+
 	// What counts as "inside" the mesh. Crossing count does not use triangle
 	// Orientation, so inverted faces are fine, but overlapping shells or self intersections
 	// will be filled using even/odd rules (as seen along X axis...)
@@ -101,14 +104,49 @@ protected:
 	double MaxDistQueryDist;
 
 public:
+
+	bool Validate()
+	{
+		FAxisAlignedBox3d Bounds = Spatial->GetBoundingBox();
+
+		if (Bounds.IsEmpty() || !FMath::IsFinite(Bounds.MaxDim()))
+		{
+			return false;
+		}
+		if (CellSize <= 0 || !FMath::IsFinite(CellSize))
+		{
+			return false;
+		}
+		if (ApproxMaxCellsPerDimension < 5)
+		{
+			return false;
+		}
+		return true;
+	}
+
 	void Initialize()
 	{
+		if (!ensure(Validate()))
+		{
+			return;
+		}
+
 		// figure out Origin & dimensions
-		FAxisAlignedBox3d bounds = Spatial->GetBoundingBox();
+		FAxisAlignedBox3d Bounds = Spatial->GetBoundingBox();
+		
+		float MaxDim = (Bounds.Max - Bounds.Min + ExpandBounds * 2).MaxElement() + 4 * MaxOffsetDistance;
+		if (!ensureMsgf(MaxDim / CellSize <= ApproxMaxCellsPerDimension - 4, TEXT("SDF resolution clamped to avoid excessive memory use")))
+		{
+			CellSize = MaxDim / (ApproxMaxCellsPerDimension - 4);
+			if (!ensure(CellSize > 0 && FMath::IsFinite(CellSize)))
+			{
+				return;
+			}
+		}
 
 		float fBufferWidth = (float)FMath::Max(4 * CellSize, 2 * MaxOffsetDistance + 2 * CellSize);
-		GridOrigin = (FVector3f)bounds.Min - fBufferWidth * FVector3f::One() - (FVector3f)ExpandBounds;
-		FVector3f max = (FVector3f)bounds.Max + fBufferWidth * FVector3f::One() + (FVector3f)ExpandBounds;
+		GridOrigin = (FVector3f)Bounds.Min - fBufferWidth * FVector3f::One() - (FVector3f)ExpandBounds;
+		FVector3f max = (FVector3f)Bounds.Max + fBufferWidth * FVector3f::One() + (FVector3f)ExpandBounds;
 		int NI = (int)((max.X - GridOrigin.X) / CellSize) + 1;
 		int NJ = (int)((max.Y - GridOrigin.Y) / CellSize) + 1;
 		int NK = (int)((max.Z - GridOrigin.Z) / CellSize) + 1;

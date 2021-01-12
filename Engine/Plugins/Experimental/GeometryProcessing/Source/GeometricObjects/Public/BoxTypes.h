@@ -365,9 +365,12 @@ struct TAxisAlignedBox3
 
 	void Contain(const TAxisAlignedBox3<RealType>& Other)
 	{
-		// todo: can be optimized
-		Contain(Other.Min);
-		Contain(Other.Max);
+		Min.X = Min.X < Other.Min.X ? Min.X : Other.Min.X;
+		Min.Y = Min.Y < Other.Min.Y ? Min.Y : Other.Min.Y;
+		Min.Z = Min.Z < Other.Min.Z ? Min.Z : Other.Min.Z;
+		Max.X = Max.X > Other.Max.X ? Max.X : Other.Max.X;
+		Max.Y = Max.Y > Other.Max.Y ? Max.Y : Other.Max.Y;
+		Max.Z = Max.Z > Other.Max.Z ? Max.Z : Other.Max.Z;
 	}
 
 	bool Contains(const FVector3<RealType>& V) const
@@ -600,9 +603,10 @@ struct TAxisAlignedBox2
 
 	inline void Contain(const TAxisAlignedBox2<RealType>& Other)
 	{
-		// todo: can be optimized
-		Contain(Other.Min);
-		Contain(Other.Max);
+		Min.X = Min.X < Other.Min.X ? Min.X : Other.Min.X;
+		Min.Y = Min.Y < Other.Min.Y ? Min.Y : Other.Min.Y;
+		Max.X = Max.X > Other.Max.X ? Max.X : Other.Max.X;
+		Max.Y = Max.Y > Other.Max.Y ? Max.Y : Other.Max.Y;
 	}
 
 	void Contain(const TArray<FVector2<RealType>>& Pts)

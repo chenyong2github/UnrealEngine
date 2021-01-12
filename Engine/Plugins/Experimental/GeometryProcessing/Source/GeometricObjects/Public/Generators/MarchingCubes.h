@@ -57,7 +57,10 @@ public:
 	 */
 	bool bParallelCompute = true;
 
-
+	/**
+	 * Max number of cells on any dimension; if exceeded, CubeSize will be automatically increased to fix
+	 */
+	int SafetyMaxDimension = 4096;
 
 	/**
 	 *  Which rootfinding method will be used to converge on surface along edges
@@ -91,20 +94,25 @@ public:
 	{
 	}
 
-
+	bool Validate()
+	{
+		return CubeSize > 0 && FMath::IsFinite(CubeSize) && !Bounds.IsEmpty() && FMath::IsFinite(Bounds.MaxDim());
+	}
 
 	/**
 	*  Run MC algorithm and generate Output mesh
 	*/
 	FMeshShapeGenerator& Generate() override
 	{
-		int32 nx = (int32)(Bounds.Width() / CubeSize) + 1;
-		int32 ny = (int32)(Bounds.Height() / CubeSize) + 1;
-		int32 nz = (int32)(Bounds.Depth() / CubeSize) + 1;
-		CellDimensions = FVector3i(nx, ny, nz);
+		if (!ensure(Validate()))
+		{
+			return *this;
+		}
+
+		SetDimensions();
 		GridBounds = TAxisAlignedBox3<int>(FVector3i::Zero(), CellDimensions - FVector3i(1,1,1)); // grid bounds are inclusive
 
-		corner_values_grid = FDenseGrid3f(nx+1, ny+1, nz+1, FMathf::MaxReal);
+		corner_values_grid = FDenseGrid3f(CellDimensions.X+1, CellDimensions.Y+1, CellDimensions.Z+1, FMathf::MaxReal);
 		edge_vertices.Reset();
 		corner_values.Reset();
 
@@ -120,17 +128,17 @@ public:
 
 	FMeshShapeGenerator& GenerateContinuation(TArrayView<const FVector3<double>> Seeds)
 	{
-		int nx = (int)(Bounds.Width() / CubeSize) + 1;
-		int ny = (int)(Bounds.Height() / CubeSize) + 1;
-		int nz = (int)(Bounds.Depth() / CubeSize) + 1;
-		CellDimensions = FVector3i(nx, ny, nz);
-		GridBounds = TAxisAlignedBox3<int>(FVector3i::Zero(), CellDimensions - FVector3i(1,1,1)); // grid bounds are inclusive
+		if (!ensure(Validate()))
+		{
+			return *this;
+		}
 
-		UE_LOG(LogTemp, Warning, TEXT("marching cubes dims = %d %d %d"), nx, ny, nz);
+		SetDimensions();
+		GridBounds = TAxisAlignedBox3<int>(FVector3i::Zero(), CellDimensions - FVector3i(1,1,1)); // grid bounds are inclusive
 
 		if (LastGridBounds != GridBounds)
 		{
-			corner_values_grid = FDenseGrid3f(nx + 1, ny + 1, nz + 1, FMathf::MaxReal);
+			corner_values_grid = FDenseGrid3f(CellDimensions.X + 1, CellDimensions.Y + 1, CellDimensions.Z + 1, FMathf::MaxReal);
 			edge_vertices.Reset();
 			corner_values.Reset();
 			if (bParallelCompute)
@@ -176,7 +184,21 @@ protected:
 		double f[8];      // field values at corners
 	};
 
-
+	void SetDimensions()
+	{
+		int NX = (int)(Bounds.Width() / CubeSize) + 1;
+		int NY = (int)(Bounds.Height() / CubeSize) + 1;
+		int NZ = (int)(Bounds.Depth() / CubeSize) + 1;
+		int MaxDim = FMath::Max3(NX, NY, NZ);
+		if (!ensure(MaxDim <= SafetyMaxDimension))
+		{
+			CubeSize = Bounds.MaxDim() / double(SafetyMaxDimension - 1);
+			NX = (int)(Bounds.Width() / CubeSize) + 1;
+			NY = (int)(Bounds.Height() / CubeSize) + 1;
+			NZ = (int)(Bounds.Depth() / CubeSize) + 1;
+		}
+		CellDimensions = FVector3i(NX, NY, NZ);
+	}
 
 	void corner_pos(const FVector3i& IJK, FVector3<double>& Pos)
 	{
