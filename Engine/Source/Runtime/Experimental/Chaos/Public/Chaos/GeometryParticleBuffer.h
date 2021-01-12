@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 #include "Framework/PhysicsProxyBase.h"
+#include "ParticleHandle.h"
+#include "GeometryParticlesfwd.h"
 
 namespace Chaos
 {
