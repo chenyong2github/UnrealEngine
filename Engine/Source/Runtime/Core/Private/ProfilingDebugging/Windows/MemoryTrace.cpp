@@ -821,17 +821,12 @@ FMalloc* MemoryTrace_Create(FMalloc* InMalloc)
 		GSummaryTrace->Initialize();
 #endif
 
-		bool bLight = (Mode == 1);
+		Backtracer_Create(InMalloc);
 
-		if (!bLight)
-		{
-			Backtracer_Create(InMalloc);
-		}
-
-		FVirtualWinApiHooks::Initialize(bLight);
+		FVirtualWinApiHooks::Initialize(false);
 
 		static FUndestructed<FMallocWrapper> MemoryTrace;
-		MemoryTrace.Construct(InMalloc, bLight);
+		MemoryTrace.Construct(InMalloc, false);
 
 		return &MemoryTrace;
 	}

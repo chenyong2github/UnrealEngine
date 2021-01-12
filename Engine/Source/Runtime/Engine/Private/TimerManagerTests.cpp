@@ -205,7 +205,7 @@ bool TimerManagerTest_ValidTimer_HandleLoopingSetDuringExecute(UWorld* World, FA
 	FLoopingTestFunc::Handle = &Handle;
 	FLoopingTestFunc::TimerCalled = 0;
 
-	Test->TestTrue(TIMER_TEST_TEXT("Timer called count starts at 0"), FLoopingTestFunc::TimerCalled == 0);
+	Test->TestTrue(TIMER_TEST_TEXT("Timer called count starts at 0"), FLoopingTestFunc::TimerCalled == 0); //-V547
 
 	TimerManager.SetTimer(Handle, FTimerDelegate::CreateStatic(FLoopingTestFunc::TimerExecute), Rate, true);
 
@@ -213,12 +213,12 @@ bool TimerManagerTest_ValidTimer_HandleLoopingSetDuringExecute(UWorld* World, FA
 	TimerTest_TickWorld(World, KINDA_SMALL_NUMBER);
 
 	TimerTest_TickWorld(World, 3.0f);
-	Test->TestTrue(TIMER_TEST_TEXT("Timer was called first time"), FLoopingTestFunc::TimerCalled == 1);
+	Test->TestTrue(TIMER_TEST_TEXT("Timer was called first time"), FLoopingTestFunc::TimerCalled == 1); //-V547
 	Test->TestTrue(TIMER_TEST_TEXT("Timer was readded"), TimerManager.IsTimerActive(Handle));
 	Test->TestTrue(TIMER_TEST_TEXT("Timer was readded with correct time"), FMath::IsNearlyEqual(TimerManager.GetTimerRemaining(Handle), FLoopingTestFunc::NewTime, 1e-2f));
 
 	TimerTest_TickWorld(World, 1.1f);
-	Test->TestTrue(TIMER_TEST_TEXT("Timer was called second time"), FLoopingTestFunc::TimerCalled == 2);
+	Test->TestTrue(TIMER_TEST_TEXT("Timer was called second time"), FLoopingTestFunc::TimerCalled == 2); //-V547
 	Test->TestFalse(TIMER_TEST_TEXT("Timer handle no longer active"), TimerManager.IsTimerActive(Handle));
 
 	return true;

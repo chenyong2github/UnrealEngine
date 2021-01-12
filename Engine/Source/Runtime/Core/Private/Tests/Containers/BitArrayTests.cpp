@@ -35,7 +35,7 @@ namespace BitArrayTest
 	{
 		FString Out;
 		int32 Index = 0;
-		for (TBitArray<>::FConstIterator It(BitArray); It; ++It)
+		for (TBitArray<>::FConstIterator It(BitArray); It; ++It, ++Index)
 		{
 			if (Index != 0 && Index % 8 == 0)
 			{
