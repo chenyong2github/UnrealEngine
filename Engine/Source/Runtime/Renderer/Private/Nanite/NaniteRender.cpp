@@ -45,7 +45,7 @@
 DECLARE_GPU_STAT_NAMED(NaniteInstanceCull,		TEXT("Nanite Instance Cull"));
 DECLARE_GPU_STAT_NAMED(NaniteInstanceCullVSM,	TEXT("Nanite Instance Cull VSM"));
 
-DECLARE_GPU_STAT_NAMED(NanitePersistentCull,	TEXT("Nanite Persistent Cull"));
+DECLARE_GPU_STAT_NAMED(NaniteClusterCull,	TEXT("Nanite Cluster Cull"));
 
 DEFINE_GPU_STAT(NaniteDebug);
 DEFINE_GPU_STAT(NaniteDepth);
@@ -2532,7 +2532,7 @@ void AddPass_InstanceHierarchyAndClusterCull(
 	}
 
 	{
-		RDG_GPU_STAT_SCOPE(GraphBuilder, NanitePersistentCull);
+		RDG_GPU_STAT_SCOPE(GraphBuilder, NaniteClusterCull);
 		FPersistentClusterCull_CS::FParameters* PassParameters = GraphBuilder.AllocParameters< FPersistentClusterCull_CS::FParameters >();
 
 		PassParameters->GPUSceneParameters		= GPUSceneParameters;
