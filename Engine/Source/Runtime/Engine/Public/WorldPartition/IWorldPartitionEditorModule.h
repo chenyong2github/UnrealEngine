@@ -12,5 +12,6 @@ class IWorldPartitionEditorModule : public IModuleInterface
 public:
 	virtual ~IWorldPartitionEditorModule() {}
 
+	virtual bool IsWorldPartitionEnabled() = 0;
 	virtual bool ConvertMap(const FString& InLongPackageName) = 0;
 };

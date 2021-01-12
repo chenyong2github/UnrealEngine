@@ -13,22 +13,27 @@ public:
 	/**
 	 * Called right after the module DLL has been loaded and the module object has been created
 	 */
-	virtual void StartupModule();
+	virtual void StartupModule() override;
 
 	/**
 	 * Called before the module is unloaded, right before the module object is destroyed.
 	 */
-	virtual void ShutdownModule();
+	virtual void ShutdownModule() override;
 	
 	/**
 	 * Creates a world partition widget
 	 */
 	virtual TSharedRef<class SWidget> CreateWorldPartitionEditor();
+
+	/**
+	 *
+	 */
+	virtual bool IsWorldPartitionEnabled() override;
 	
 	/**
 	 * 
 	 */
-	virtual bool ConvertMap(const FString& InLongPackageName);
+	virtual bool ConvertMap(const FString& InLongPackageName) override;
 
 private:
 	FDelegateHandle LevelEditorExtenderDelegateHandle;

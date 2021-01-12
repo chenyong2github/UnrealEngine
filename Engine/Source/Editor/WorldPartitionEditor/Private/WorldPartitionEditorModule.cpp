@@ -126,6 +126,11 @@ TSharedRef<SWidget> FWorldPartitionEditorModule::CreateWorldPartitionEditor()
 	return SNew(SWorldPartitionEditor).InWorld(EditorWorld);
 }
 
+bool FWorldPartitionEditorModule::IsWorldPartitionEnabled()
+{
+	return GetDefault<UWorldPartitionEditorSettings>()->bEnableWorldPartition;
+}
+
 bool FWorldPartitionEditorModule::ConvertMap(const FString& InLongPackageName)
 {
 	if (!GetDefault<UWorldPartitionEditorSettings>()->bEnableConversionPrompt || ULevel::GetIsLevelPartitionedFromPackage(FName(*InLongPackageName)))

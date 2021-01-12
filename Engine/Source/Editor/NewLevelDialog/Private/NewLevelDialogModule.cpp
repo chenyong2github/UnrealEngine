@@ -27,7 +27,7 @@
 #include "Editor/UnrealEdEngine.h"
 #include "Engine/Texture2D.h"
 #include "UnrealEdGlobals.h"
-
+#include "WorldPartition/IWorldPartitionEditorModule.h"
 
 #define LOCTEXT_NAMESPACE "NewLevelDialog"
 
@@ -87,7 +87,6 @@ private:
 	{
 		FTemplateMapInfo TemplateMapInfo;
 		bool bIsNewLevelItem;
-		bool bIsNewLevelItemPartitioned;
 	};
 
 public:
@@ -125,11 +124,6 @@ public:
 		TSharedPtr<FTemplateListItem> NewItem = MakeShareable(new FTemplateListItem());
 		NewItem->bIsNewLevelItem = true;
 		TemplateItemsList.Add(NewItem);
-
-		// Add an extra item for creating a new, blank partittioned level
-		TSharedPtr<FTemplateListItem> NewItemPartitioned = MakeShareable(new FTemplateListItem());
-		NewItemPartitioned->bIsNewLevelItemPartitioned = true;
-		TemplateItemsList.Add(NewItemPartitioned);
 
 		TSharedRef<SButton> CancelButton = SNew(SButton)
 			.ContentPadding(FMargin(10,3))
@@ -208,12 +202,6 @@ private:
 			Image = SNew(SImage).Image(FEditorStyle::GetBrush(TEXT("NewLevelDialog.Blank")));
 			Text = LOCTEXT("NewLevelItemLabel", "Empty Level");
 		}
-		else if (Template->bIsNewLevelItemPartitioned)
-		{
-			// New partitioned level item
-			Image = SNew(SImage).Image(FEditorStyle::GetBrush(TEXT("NewLevelDialog.PartitionBlank")));
-			Text = LOCTEXT("NewLevelItemPartitionedLabel", "Empty Partition Level");
-		}
 		else if (Template->TemplateMapInfo.ThumbnailTexture)
 		{
 			// Level with thumbnail
@@ -268,12 +256,14 @@ private:
 
 	FReply OnTemplateClicked(TSharedPtr<FTemplateListItem> Template)
 	{
-		if (!Template->bIsNewLevelItem && !Template->bIsNewLevelItemPartitioned)
+		if (!Template->bIsNewLevelItem)
 		{
 			OutTemplateMapPackageName = Template->TemplateMapInfo.Map;
 		}
 		bUserClickedOkay = true;
-		bPartitionedWorld = Template->bIsNewLevelItemPartitioned;
+
+		IWorldPartitionEditorModule& WorldPartitionEditorModule = FModuleManager::LoadModuleChecked<IWorldPartitionEditorModule>("WorldPartitionEditor");
+		bPartitionedWorld = WorldPartitionEditorModule.IsWorldPartitionEnabled();
 		bExternalActors |= bPartitionedWorld;
 
 		ParentWindowPtr.Pin()->RequestDestroyWindow();
