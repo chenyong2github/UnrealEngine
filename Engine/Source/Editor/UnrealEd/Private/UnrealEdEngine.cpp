@@ -1450,6 +1450,12 @@ bool UUnrealEdEngine::HasMountWritePersmissionForPackage(const FString& PackageN
 
 bool UUnrealEdEngine::VerifyMountPointWritePermission(FName MountPoint)
 {
+	// If mount is unknown assume write permissions are fine	
+	if (MountPoint.IsNone())
+	{
+		return true;
+	}
+
 	// Get a unique temp filename under the mount point
 	FString WriteCheckPath = FPackageName::LongPackageNameToFilename(MountPoint.ToString()) + FGuid::NewGuid().ToString();
 
