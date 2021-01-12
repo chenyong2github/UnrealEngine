@@ -176,6 +176,8 @@ IPLSimulationSettings USteamAudioSettings::GetBakedSimulationSettings() const
 #if WITH_EDITOR
 void USteamAudioSettings::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+
 	FName PropertyName = (PropertyChangedEvent.Property != nullptr) ? PropertyChangedEvent.Property->GetFName() : NAME_None;
 
 	auto MaterialPreset = SteamAudio::MaterialPresets[StaticMeshMaterialPreset];
