@@ -15,7 +15,7 @@
 #include "Framework/Commands/Commands.h"
 #include "LightEditorSubsystem.generated.h"
 
-
+struct FToolMenuContext;
 /**
  * Light manipulation actions
  */

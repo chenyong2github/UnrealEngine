@@ -7,6 +7,8 @@
 
 #include "LevelEditorSubsystem.generated.h"
 
+
+struct FToolMenuContext;
 /**
 * ULevelEditorSubsystem
 * Subsystem for exposing Level Editor related functionality to scripts
