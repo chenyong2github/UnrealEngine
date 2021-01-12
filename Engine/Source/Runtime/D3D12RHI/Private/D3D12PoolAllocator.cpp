@@ -44,12 +44,10 @@ void FD3D12MemoryPool::Init()
 		Desc.Properties = HeapProps;
 		Desc.Alignment = 0;
 		Desc.Flags = InitConfig.HeapFlags;
-#if PLATFORM_WINDOWS
 		if (Adapter->IsHeapNotZeroedSupported())
 		{
-			Desc.Flags |= D3D12_HEAP_FLAG_CREATE_NOT_ZEROED;
+			Desc.Flags |= FD3D12_HEAP_FLAG_CREATE_NOT_ZEROED;
 		}
-#endif
 
 		ID3D12Heap* Heap = nullptr;
 		{
