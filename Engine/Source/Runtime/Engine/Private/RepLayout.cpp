@@ -1774,6 +1774,8 @@ bool FRepLayout::ReplicateProperties(
 
 	FRepChangedPropertyTracker*	ChangeTracker = RepState->RepChangedPropertyTracker.Get();
 
+	const bool bRecordingCheckpoint = (OwningChannel->Connection->ResendAllDataState != EResendAllDataState::None);
+
 	TArray<uint16> NewlyActiveChangelist;
 
 	// Rebuild conditional state if needed
@@ -1783,7 +1785,19 @@ bool FRepLayout::ReplicateProperties(
 
 		// Filter out any previously inactive changes from still inactive ones
 		TArray<uint16> InactiveChangelist = MoveTemp(RepState->InactiveChangelist);
-		FilterChangeList(InactiveChangelist, RepState->InactiveParents, RepState->InactiveChangelist, NewlyActiveChangelist);
+		TArray<uint16> NewInactiveChangeList;
+
+		FilterChangeList(InactiveChangelist, RepState->InactiveParents, NewInactiveChangeList, NewlyActiveChangelist);
+
+		// If we're recording a checkpoint, restore the inactive changelist
+		if (bRecordingCheckpoint)
+		{
+			RepState->InactiveChangelist = MoveTemp(InactiveChangelist);
+		}
+		else
+		{
+			RepState->InactiveChangelist = MoveTemp(NewInactiveChangeList);
+		}
 	}
 
 	if (OwningChannel->Connection->ResendAllDataState == EResendAllDataState::SinceOpen)
@@ -1932,11 +1946,10 @@ bool FRepLayout::ReplicateProperties(
 	FilterChangeList(UnfilteredChanged, RepState->InactiveParents, NewlyInactiveChangelist, Changed);
 
 	// If we have any properties that are no longer active, make sure we track them.
-	if (NewlyInactiveChangelist.Num() > 1)
+	if (!bRecordingCheckpoint && (NewlyInactiveChangelist.Num() > 1))
 	{
 		TArray<uint16> Temp = MoveTemp(RepState->InactiveChangelist);
 		MergeChangeList(Data, NewlyInactiveChangelist, Temp, RepState->InactiveChangelist);
-
 	}
 
 	// Send the final merged change list
