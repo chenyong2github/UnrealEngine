@@ -322,7 +322,7 @@ namespace UnrealBuildTool
 			if (NDKDefineInt < 210000 || ForceLDLinker())
 			{
 				// use ld before r21
-				ArPathArm = Utils.CollapseRelativeDirectories(Path.Combine(NDKPath, @"toolchains /arm-linux-androideabi-4.9", ArchitecturePath, @"bin/armv7a-linux-androideabi-ar" + ExeExtension));
+				ArPathArm = Utils.CollapseRelativeDirectories(Path.Combine(NDKPath, @"toolchains/arm-linux-androideabi-4.9", ArchitecturePath, @"bin/armv7a-linux-androideabi-ar" + ExeExtension));
 				ArPathArm64 = Utils.CollapseRelativeDirectories(Path.Combine(NDKPath, @"toolchains/aarch64-linux-android-4.9", ArchitecturePath, @"bin/aarch64-linux-android-ar" + ExeExtension));
 				ArPathx86 = Utils.CollapseRelativeDirectories(Path.Combine(NDKPath, @"toolchains/x86-4.9", ArchitecturePath, @"bin/i686-linux-android-ar" + ExeExtension));
 				ArPathx64 = Utils.CollapseRelativeDirectories(Path.Combine(NDKPath, @"toolchains/x86_64-4.9", ArchitecturePath, @"bin/x86_64-linux-android-ar" + ExeExtension));
@@ -508,15 +508,57 @@ namespace UnrealBuildTool
 			return NDKVersionInt;
 		}
 
-		protected virtual bool ValidateNDK(string PlatformsDir, string ApiString)
+		static string CachedPlatformsFilename = "";
+		static bool CachedPlatformsValid = false;
+		static int CachedMinPlatform = -1;
+		static int CachedMaxPlatform = -1;
+
+		private bool ReadMinMaxPlatforms(string PlatformsFilename, out int MinPlatform, out int MaxPlatform)
 		{
-			if (!Directory.Exists(PlatformsDir))
+			if (!CachedPlatformsFilename.Equals(PlatformsFilename))
+			{
+				// reset cache to defaults
+				CachedPlatformsFilename = PlatformsFilename;
+				CachedPlatformsValid = false;
+				CachedMinPlatform = -1;
+				CachedMaxPlatform = -1;
+
+				// try to read it
+				try
+				{
+					JsonObject PlatformsObj = null;
+					if (JsonObject.TryRead(new FileReference(PlatformsFilename), out PlatformsObj))
+					{
+						CachedPlatformsValid = PlatformsObj.TryGetIntegerField("min", out CachedMinPlatform) && PlatformsObj.TryGetIntegerField("max", out CachedMaxPlatform);
+					}
+				}
+				catch (Exception)
+				{
+				}
+			}
+
+			MinPlatform = CachedMinPlatform;
+			MaxPlatform = CachedMaxPlatform;
+			return CachedPlatformsValid;
+		}
+
+		protected virtual bool ValidateNDK(string PlatformsFilename, string ApiString)
+		{
+			int MinPlatform, MaxPlatform;
+			if (!ReadMinMaxPlatforms(PlatformsFilename, out MinPlatform, out MaxPlatform))
 			{
 				return false;
 			}
 
-			string NDKPlatformDir = Path.Combine(PlatformsDir, ApiString);
-			return Directory.Exists(NDKPlatformDir);
+			if (ApiString.Contains("-"))
+			{
+				int Version;
+				if (int.TryParse(ApiString.Substring(ApiString.LastIndexOf('-') + 1), out Version))
+				{
+					return (Version >= MinPlatform && Version <= MaxPlatform);
+				}
+			}
+			return false;
 		}
 
 		public string GetNdkApiLevel()
@@ -535,23 +577,27 @@ namespace UnrealBuildTool
 				NDKLevel = ProjectNDKLevel;
 			}
 
-			string PlatformsDir = Environment.ExpandEnvironmentVariables("%NDKROOT%/platforms");
+			string PlatformsFilename = Environment.ExpandEnvironmentVariables("%NDKROOT%/meta/platforms.json");
+			if (!File.Exists(PlatformsFilename))
+			{
+				throw new BuildException("No NDK platforms found in {0}", PlatformsFilename);
+			}
+
 			if (NDKLevel == "latest")
 			{
-				// get a list of NDK platforms
-				if (!Directory.Exists(PlatformsDir))
+				int MinPlatform, MaxPlatform;
+				if (!ReadMinMaxPlatforms(PlatformsFilename, out MinPlatform, out MaxPlatform))
 				{
-					throw new BuildException("No NDK platforms found in {0}", PlatformsDir);
+					throw new BuildException("No NDK platforms found in {0}", PlatformsFilename);
 				}
 
-				// return the largest of them
-				NDKLevel = GetLargestApiLevel(Directory.GetDirectories(PlatformsDir));
+				NDKLevel = "android-" + MaxPlatform.ToString();
 			}
 
 			// validate the platform NDK is installed
-			if (!ValidateNDK(PlatformsDir, NDKLevel))
+			if (!ValidateNDK(PlatformsFilename, NDKLevel))
 			{
-				throw new BuildException("The NDK API requested '{0}' not installed in {1}", NDKLevel, PlatformsDir);
+				throw new BuildException("The NDK API requested '{0}' not installed in {1}", NDKLevel, PlatformsFilename);
 			}
 
 			return NDKLevel;

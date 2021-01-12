@@ -11,6 +11,7 @@
 #include <dlfcn.h>
 #include <cxxabi.h>
 #include <stdio.h>
+#include <android/log.h>
 #include "Android/AndroidSignals.h"
 
 #define HAS_LIBUNWIND PLATFORM_ANDROID_ARM64 && !PLATFORM_LUMIN
