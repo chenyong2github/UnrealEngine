@@ -37,7 +37,7 @@ void FTranslationEditorMenu::SetupTranslationEditorMenu( TSharedPtr< FExtender >
 		{
 			static void AddSaveMenuOption( FMenuBuilder& MenuBuilder )
 			{
-				MenuBuilder.AddMenuEntry( FTranslationEditorCommands::Get().SaveTranslations, "SaveTranslations", TAttribute<FText>(), TAttribute<FText>(), FSlateIcon(FEditorStyle::GetStyleSetName(), "AssetEditor.SaveAsset.Greyscale") );
+				MenuBuilder.AddMenuEntry( FTranslationEditorCommands::Get().SaveTranslations, "SaveTranslations", TAttribute<FText>(), TAttribute<FText>(), FSlateIcon(FEditorStyle::GetStyleSetName(), "AssetEditor.SaveAsset") );
 			}
 
 			static void AddTranslationEditorMenu( FMenuBarBuilder& MenuBarBuilder )

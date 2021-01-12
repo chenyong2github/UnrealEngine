@@ -2096,7 +2096,7 @@ TSharedRef<SWidget> FMeshSectionSettingsLayout::OnGenerateCustomSectionWidgetsFo
 				.OnCheckStateChanged(this, &FMeshSectionSettingsLayout::OnSectionCastShadowChanged, SectionIndex)
 			[
 				SNew(STextBlock)
-					.Font(FEditorStyle::GetFontStyle("StaticMeshEditor.NormalFont"))
+					.Font(IDetailLayoutBuilder::GetDetailFont())
 					.Text(LOCTEXT("CastShadow", "Cast Shadow"))
 			]
 		]
@@ -2111,7 +2111,7 @@ TSharedRef<SWidget> FMeshSectionSettingsLayout::OnGenerateCustomSectionWidgetsFo
 				.OnCheckStateChanged(this, &FMeshSectionSettingsLayout::OnSectionCollisionChanged, SectionIndex)
 			[
 				SNew(STextBlock)
-					.Font(FEditorStyle::GetFontStyle("StaticMeshEditor.NormalFont"))
+					.Font(IDetailLayoutBuilder::GetDetailFont())
 					.Text(LOCTEXT("EnableCollision", "Enable Collision"))
 			]
 		]
@@ -2124,7 +2124,7 @@ TSharedRef<SWidget> FMeshSectionSettingsLayout::OnGenerateCustomSectionWidgetsFo
 			.OnCheckStateChanged(this, &FMeshSectionSettingsLayout::OnSectionVisibleInRayTracingChanged, SectionIndex)
 			[
 				SNew(STextBlock)
-				.Font(FEditorStyle::GetFontStyle("StaticMeshEditor.NormalFont"))
+				.Font(IDetailLayoutBuilder::GetDetailFont())
 			.Text(LOCTEXT("VisibleInRayTracing", "Visible In Ray Tracing"))
 			]
 		]
@@ -2137,7 +2137,7 @@ TSharedRef<SWidget> FMeshSectionSettingsLayout::OnGenerateCustomSectionWidgetsFo
 			.OnCheckStateChanged(this, &FMeshSectionSettingsLayout::OnSectionForceOpaqueFlagChanged, SectionIndex)
 			[
 				SNew(STextBlock)
-					.Font(FEditorStyle::GetFontStyle("StaticMeshEditor.NormalFont"))
+					.Font(IDetailLayoutBuilder::GetDetailFont())
 					.Text(LOCTEXT("ForceOpaque", "Force Opaque"))
 			]
 		];
@@ -2700,7 +2700,7 @@ TSharedRef<SWidget> FMeshMaterialsLayout::OnGenerateWidgetsForMaterial(UMaterial
 				.OnCheckStateChanged(this, &FMeshMaterialsLayout::OnOverrideUVDensityChanged, SlotIndex)
 			[
 				SNew(STextBlock)
-					.Font(FEditorStyle::GetFontStyle("StaticMeshEditor.NormalFont"))
+					.Font(IDetailLayoutBuilder::GetDetailFont())
 					.Text(LOCTEXT("OverrideUVDensity", "Override UV Density"))
 			]
 		]
@@ -3538,7 +3538,7 @@ void FLevelOfDetailSettingsLayout::AddLODLevelCategories( IDetailLayoutBuilder& 
 						.AutoWidth()
 						[
 							SNew(STextBlock)
-							.Font(FEditorStyle::GetFontStyle("StaticMeshEditor.NormalFont"))
+							.Font(IDetailLayoutBuilder::GetDetailFont())
 							.Text(this, &FLevelOfDetailSettingsLayout::GetLODScreenSizeTitle, LODIndex)
 							.Visibility( LODIndex > 0 ? EVisibility::Visible : EVisibility::Collapsed )
 						]
@@ -3547,7 +3547,7 @@ void FLevelOfDetailSettingsLayout::AddLODLevelCategories( IDetailLayoutBuilder& 
 						.AutoWidth()
 						[
 							SNew(STextBlock)
-							.Font(FEditorStyle::GetFontStyle("StaticMeshEditor.NormalFont"))
+							.Font(IDetailLayoutBuilder::GetDetailFont())
 							.Text( FText::Format( LOCTEXT("Triangles_MeshSimplification", "Triangles: {0}"), FText::AsNumber( StaticMeshEditor.GetNumTriangles(LODIndex) ) ) )
 						]
 						+ SHorizontalBox::Slot()
@@ -3555,7 +3555,7 @@ void FLevelOfDetailSettingsLayout::AddLODLevelCategories( IDetailLayoutBuilder& 
 						.AutoWidth()
 						[
 							SNew(STextBlock)
-							.Font(FEditorStyle::GetFontStyle("StaticMeshEditor.NormalFont"))
+							.Font(IDetailLayoutBuilder::GetDetailFont())
 							.Text( FText::Format( LOCTEXT("Vertices_MeshSimplification", "Vertices: {0}"), FText::AsNumber( StaticMeshEditor.GetNumVertices(LODIndex) ) ) )
 						]
 					]

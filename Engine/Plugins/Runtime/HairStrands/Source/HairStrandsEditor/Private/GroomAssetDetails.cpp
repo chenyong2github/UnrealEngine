@@ -1004,7 +1004,7 @@ void FGroomRenderingDetails::OnGenerateElementForHairGroup(TSharedRef<IPropertyH
 							.OnClicked(this, &FGroomRenderingDetails::OnSaveCards, GroupIndex, Property)
 							[
 								SNew(SImage)
-								.Image(FEditorStyle::GetBrush("AssetEditor.SaveAsset.Greyscale"))
+								.Image(FEditorStyle::GetBrush("AssetEditor.SaveAsset"))
 							]
 						]
 						+ SHorizontalBox::Slot()

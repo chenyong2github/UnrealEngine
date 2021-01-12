@@ -1260,10 +1260,9 @@ void FStarshipEditorStyle::FStyle::SetupGeneralStyles()
 #if WITH_EDITOR || (IS_PROGRAM && WITH_UNREAL_DEVELOPER_TOOLS)
 	// Asset editors (common)
 	{
-		Set( "AssetEditor.SaveAsset.Greyscale", new IMAGE_BRUSH( "Icons/icon_file_save_16px", Icon16x16 ) );
-		Set( "AssetEditor.SaveAsset", new IMAGE_BRUSH_SVG( "Starship/MainToolbar/save", Icon40x40 ) );
-		Set( "AssetEditor.SaveAssetAs", new IMAGE_BRUSH( "Icons/icon_file_saveas_40x", Icon40x40 ) );
-		Set( "AssetEditor.SaveAssetAs.Small", new IMAGE_BRUSH( "Icons/icon_file_saveas_40x", Icon20x20 ) );
+		Set( "AssetEditor.SaveAsset", new IMAGE_BRUSH_SVG("Starship/Common/SaveCurrent", Icon16x16));
+		Set( "AssetEditor.SaveAssetAs", new IMAGE_BRUSH_SVG("Starship/Common/SaveCurrentAs", Icon16x16));
+
 		Set( "AssetEditor.ReimportAsset", new IMAGE_BRUSH( "Icons/icon_TextureEd_Reimport_40x", Icon40x40 ) );
 		Set( "AssetEditor.ReimportAsset.Small", new IMAGE_BRUSH( "Icons/icon_TextureEd_Reimport_40x", Icon20x20 ) );
 	}
@@ -3165,7 +3164,11 @@ void FStarshipEditorStyle::FStyle::SetupPropertyEditorStyles()
 		FSlateFontInfo MobilityFont = FStyleFonts::Get().Small;
 		MobilityFont.LetterSpacing = 100;
 
-		Set( "PropertyWindow.MobilityFont", MobilityFont );
+		Set("PropertyWindow.MobilityFont", MobilityFont );
+		Set("PropertyWindow.MobilityStatic", new IMAGE_BRUSH_SVG("Starship/Common/MobilityStatic", Icon16x16));
+		Set("PropertyWindow.MobilityStationary", new IMAGE_BRUSH_SVG("Starship/Common/MobilityStationary", Icon16x16));
+		Set("PropertyWindow.MobilityMoveable", new IMAGE_BRUSH_SVG("Starship/Common/MobilityMoveable", Icon16x16));
+
 		Set( "PropertyWindow.NoOverlayColor", new FSlateNoResource() );
 		Set( "PropertyWindow.EditConstColor", new FSlateColorBrush( FColor( 152, 152, 152, 80 ) ) );
 		Set( "PropertyWindow.FilteredColor", new FSlateColorBrush( FColor( 0, 255, 0, 80 ) ) );
@@ -6775,66 +6778,37 @@ void FStarshipEditorStyle::FStyle::SetupToolkitStyles()
 
 	// Static Mesh Editor
 	{
-		Set("StaticMeshEditor.Tabs.Properties", new IMAGE_BRUSH("/Icons/icon_tab_SelectionDetails_16x", Icon16x16));
-		Set("StaticMeshEditor.Tabs.SocketManager", new IMAGE_BRUSH("/Icons/icon_Static_Mesh_SocketManager_16x", Icon16x16));
-		Set("StaticMeshEditor.Tabs.ConvexDecomposition", new IMAGE_BRUSH("/Icons/icon_Static_Mesh_Convex_Decomposition_16x", Icon16x16));
+		Set("StaticMeshEditor.Tabs.Properties", new IMAGE_BRUSH_SVG("Starship/Common/Details", Icon16x16));
+		Set("StaticMeshEditor.Tabs.SocketManager", new IMAGE_BRUSH_SVG("Starship/StaticMeshEditor/SocketManager", Icon16x16));
+		Set("StaticMeshEditor.Tabs.ConvexDecomposition", new IMAGE_BRUSH_SVG("Starship/StaticMeshEditor/ConvexDecomposition", Icon16x16));
+		Set("StaticMeshEditor.SetShowWireframe", new IMAGE_BRUSH_SVG("Starship/Common/BrushWireframe", Icon16x16));
+		Set("StaticMeshEditor.SetShowVertexColor", new IMAGE_BRUSH_SVG( "Starship/Common/SetShowVertexColors", Icon16x16));
+		Set("StaticMeshEditor.SetRealtimePreview", new IMAGE_BRUSH_SVG("Starship/Common/Realtime", Icon16x16));
+		Set("StaticMeshEditor.ReimportMesh", new IMAGE_BRUSH_SVG("Starship/StaticMeshEditor/ReimportMesh", Icon20x20));
+		Set("StaticMeshEditor.SetShowBounds", new IMAGE_BRUSH_SVG("Starship/Common/SetShowBounds", Icon16x16));
+		Set("StaticMeshEditor.SetDrawUVs", new IMAGE_BRUSH_SVG("Starship/Common/SetDrawUVs", Icon20x20));
+		Set("StaticMeshEditor.SetShowCollision", new IMAGE_BRUSH_SVG("Starship/Common/Collision", Icon20x20));
+		Set("StaticMeshEditor.SetShowGrid", new IMAGE_BRUSH_SVG("Starship/Common/Grid", Icon16x16));
+		Set("StaticMeshEditor.ResetCamera", new IMAGE_BRUSH_SVG("Starship/Common/ResetCamera", Icon16x16));
+		Set("StaticMeshEditor.SetShowPivot", new IMAGE_BRUSH_SVG("Starship/Common/SetShowPivot", Icon16x16));
+		Set("StaticMeshEditor.SetShowSockets", new IMAGE_BRUSH_SVG( "Starship/Common/SetShowSockets", Icon16x16));
+		Set("StaticMeshEditor.SaveThumbnail", new IMAGE_BRUSH_SVG( "Starship/Common/SaveThumbnail", Icon16x16));
+		Set("StaticMeshEditor.SetShowNormals", new IMAGE_BRUSH_SVG( "Starship/Common/SetShowNormals", Icon16x16));
+		Set("StaticMeshEditor.SetShowTangents", new IMAGE_BRUSH_SVG("Starship/Common/SetShowTangents", Icon16x16));
+		Set("StaticMeshEditor.SetShowBinormals", new IMAGE_BRUSH_SVG("Starship/Common/SetShowBinormals", Icon16x16));
+		Set("StaticMeshEditor.SetDrawAdditionalData", new IMAGE_BRUSH_SVG( "Starship/StaticMeshEditor/AdditionalData", Icon16x16));
+		Set("StaticMeshEditor.SetShowVertices", new IMAGE_BRUSH_SVG("Starship/Common/SetShowVertices", Icon16x16));
+		Set("StaticMeshEditor.ToggleShowPivots", new IMAGE_BRUSH_SVG("Starship/Common/SetShowPivot", Icon16x16));
+		Set("StaticMeshEditor.ToggleShowSockets", new IMAGE_BRUSH_SVG("Starship/Common/SetShowSockets", Icon16x16));
+		Set("StaticMeshEditor.ToggleShowNormals", new IMAGE_BRUSH_SVG("Starship/Common/SetShowNormals", Icon16x16));
+		Set("StaticMeshEditor.ToggleShowTangents", new IMAGE_BRUSH_SVG("Starship/Common/SetShowTangents", Icon16x16));
+		Set("StaticMeshEditor.ToggleShowBinormals", new IMAGE_BRUSH_SVG("Starship/Common/SetShowBinormals", Icon16x16));
+		Set("StaticMeshEditor.ToggleShowBounds", new IMAGE_BRUSH_SVG("Starship/Common/SetShowBounds", Icon16x16));
+		Set("StaticMeshEditor.ToggleShowGrids", new IMAGE_BRUSH_SVG("Starship/Common/Grid", Icon16x16));
+		Set("StaticMeshEditor.ToggleShowVertices", new IMAGE_BRUSH_SVG("Starship/Common/SetShowVertices", Icon16x16));
+		Set("StaticMeshEditor.ToggleShowWireframes", new IMAGE_BRUSH_SVG("Starship/Common/BrushWireframe", Icon16x16));
+		Set("StaticMeshEditor.ToggleShowVertexColors", new IMAGE_BRUSH_SVG("Starship/Common/SetShowVertexColors", Icon16x16));
 
-		Set( "StaticMeshEditor.NormalFont", DEFAULT_FONT( "Regular", 8 ) );
-		Set( "StaticMeshEditor.SetShowWireframe", new IMAGE_BRUSH( "Icons/icon_StaticMeshEd_Wireframe_40x", Icon40x40 ) );
-		Set( "StaticMeshEditor.SetShowWireframe.Small", new IMAGE_BRUSH( "Icons/icon_StaticMeshEd_Wireframe_40x", Icon20x20 ) );
-		Set( "StaticMeshEditor.SetShowVertexColor", new IMAGE_BRUSH( "Icons/icon_StaticMeshEd_VertColor_40x", Icon40x40 ) );
-		Set( "StaticMeshEditor.SetShowVertexColor.Small", new IMAGE_BRUSH( "Icons/icon_StaticMeshEd_VertColor_40x", Icon20x20 ) );
-		Set( "StaticMeshEditor.SetRealtimePreview", new IMAGE_BRUSH_SVG("Starship/Common/Realtime", Icon16x16));
-
-		Set( "StaticMeshEditor.ReimportMesh", new IMAGE_BRUSH(TEXT("Icons/icon_Persona_ReimportMesh_40x"), Icon40x40));
-		Set( "StaticMeshEditor.ReimportMesh.Small", new IMAGE_BRUSH(TEXT("Icons/icon_Persona_ReimportMesh_40x"), Icon20x20));
-		Set( "StaticMeshEditor.SetShowBounds", new IMAGE_BRUSH( "Icons/icon_StaticMeshEd_Bounds_40x", Icon40x40 ) );
-		Set( "StaticMeshEditor.SetShowBounds.Small", new IMAGE_BRUSH( "Icons/icon_StaticMeshEd_Bounds_40x", Icon20x20 ) );
-		Set( "StaticMeshEditor.SetShowCollision", new IMAGE_BRUSH( "Icons/icon_StaticMeshEd_Collision_40x", Icon40x40 ) );
-		Set( "StaticMeshEditor.SetShowCollision.Small", new IMAGE_BRUSH( "Icons/icon_StaticMeshEd_Collision_40x", Icon20x20 ) );
-		Set( "StaticMeshEditor.SetShowGrid", new IMAGE_BRUSH( "Icons/icon_MatEd_Grid_40x", Icon40x40 ) );
-		Set( "StaticMeshEditor.SetShowGrid.Small", new IMAGE_BRUSH( "Icons/icon_MatEd_Grid_40x", Icon20x20 ) );
-		Set( "StaticMeshEditor.SetDrawUVs", new IMAGE_BRUSH( "Icons/icon_StaticMeshEd_UVOverlay_40x", Icon40x40 ) );
-		Set( "StaticMeshEditor.SetDrawUVs.Small", new IMAGE_BRUSH( "Icons/icon_StaticMeshEd_UVOverlay_40x", Icon20x20 ) );
-		Set( "StaticMeshEditor.ResetCamera", new IMAGE_BRUSH_SVG("Starship/Common/ResetCamera", Icon16x16));
-
-		Set( "StaticMeshEditor.SetShowPivot", new IMAGE_BRUSH( "Icons/icon_StaticMeshEd_ShowPivot_40x", Icon40x40 ) );
-		Set( "StaticMeshEditor.SetShowPivot.Small", new IMAGE_BRUSH( "Icons/icon_StaticMeshEd_ShowPivot_40x", Icon20x20 ) );
-		Set( "StaticMeshEditor.SetShowSockets", new IMAGE_BRUSH( "Icons/icon_StaticMeshEd_ShowSockets_40x", Icon40x40 ) );
-		Set( "StaticMeshEditor.SetShowSockets.Small", new IMAGE_BRUSH( "Icons/icon_StaticMeshEd_ShowSockets_40x", Icon20x20 ) );
-		Set( "StaticMeshEditor.SaveThumbnail", new IMAGE_BRUSH( "Icons/icon_StaticMeshEd_SaveThumbnail_40x", Icon40x40 ) );
-		Set( "StaticMeshEditor.SaveThumbnail.Small", new IMAGE_BRUSH( "Icons/icon_StaticMeshEd_SaveThumbnail_40x", Icon20x20 ) );
-		Set( "StaticMeshEditor.SetShowNormals", new IMAGE_BRUSH( "Icons/icon_StaticMeshEd_Normals_40x", Icon40x40 ) );
-		Set( "StaticMeshEditor.SetShowNormals.Small", new IMAGE_BRUSH( "Icons/icon_StaticMeshEd_Normals_40x", Icon20x20 ) );
-		Set( "StaticMeshEditor.SetShowTangents", new IMAGE_BRUSH( "Icons/icon_StaticMeshEd_Tangents_40x", Icon40x40 ) );
-		Set( "StaticMeshEditor.SetShowTangents.Small", new IMAGE_BRUSH( "Icons/icon_StaticMeshEd_Tangents_40x", Icon20x20 ) );
-		Set( "StaticMeshEditor.SetShowBinormals", new IMAGE_BRUSH( "Icons/icon_StaticMeshEd_Binormals_40x", Icon40x40 ) );
-		Set( "StaticMeshEditor.SetShowBinormals.Small", new IMAGE_BRUSH( "Icons/icon_StaticMeshEd_Binormals_40x", Icon20x20 ) );
-		Set( "StaticMeshEditor.SetDrawAdditionalData", new IMAGE_BRUSH( "Icons/icon_StaticMeshEd_AdditionalData_40x", Icon40x40 ) );
-		Set( "StaticMeshEditor.SetDrawAdditionalData.Small", new IMAGE_BRUSH( "Icons/icon_StaticMeshEd_AdditionalData_40x", Icon20x20 ) );
-		Set( "StaticMeshEditor.GroupSection", new BOX_BRUSH( "Common/RoundedSelection_16x", FMargin( 4.0f / 16.0f ) ) );
-		Set( "StaticMeshEditor.SetShowVertices", new IMAGE_BRUSH("Icons/icon_StaticMeshEd_Vertices_40x", Icon40x40 ) );
-		Set( "StaticMeshEditor.SetShowVertices.Small", new IMAGE_BRUSH("Icons/icon_StaticMeshEd_Vertices_40x", Icon20x20 ) );
-		Set( "StaticMeshEditor.ToggleShowPivots", new IMAGE_BRUSH("Icons/icon_StaticMeshEd_ShowPivot_40x", Icon40x40));
-		Set( "StaticMeshEditor.ToggleShowPivot.Small", new IMAGE_BRUSH("Icons/icon_StaticMeshEd_ShowPivot_40x", Icon20x20));
-		Set( "StaticMeshEditor.ToggleShowSockets", new IMAGE_BRUSH("Icons/icon_StaticMeshEd_ShowSockets_40x", Icon40x40));
-		Set( "StaticMeshEditor.ToggleShowSockets.Small", new IMAGE_BRUSH("Icons/icon_StaticMeshEd_ShowSockets_40x", Icon20x20));
-		Set( "StaticMeshEditor.ToggleShowNormals", new IMAGE_BRUSH("Icons/icon_StaticMeshEd_Normals_40x", Icon40x40));
-		Set( "StaticMeshEditor.ToggleShowNormals.Small", new IMAGE_BRUSH("Icons/icon_StaticMeshEd_Normals_40x", Icon20x20));
-		Set( "StaticMeshEditor.ToggleShowTangents", new IMAGE_BRUSH("Icons/icon_StaticMeshEd_Tangents_40x", Icon40x40));
-		Set( "StaticMeshEditor.TogglShowTangents.Small", new IMAGE_BRUSH("Icons/icon_StaticMeshEd_Tangents_40x", Icon20x20));
-		Set( "StaticMeshEditor.ToggleShowBinormals", new IMAGE_BRUSH("Icons/icon_StaticMeshEd_Binormals_40x", Icon40x40));
-		Set( "StaticMeshEditor.ToggleShowBinormals.Small", new IMAGE_BRUSH("Icons/icon_StaticMeshEd_Binormals_40x", Icon20x20));
-		Set( "StaticMeshEditor.ToggleShowBounds", new IMAGE_BRUSH("Icons/icon_StaticMeshEd_Bounds_40x", Icon40x40));
-		Set( "StaticMeshEditor.ToggleShowBounds.Small", new IMAGE_BRUSH("Icons/icon_StaticMeshEd_Bounds_40x", Icon20x20));
-		Set( "StaticMeshEditor.ToggleShowGrids", new IMAGE_BRUSH("Icons/icon_MatEd_Grid_40x", Icon40x40));
-		Set( "StaticMeshEditor.ToggleShowGrids.Small", new IMAGE_BRUSH("Icons/icon_MatEd_Grid_40x", Icon20x20));
-		Set( "StaticMeshEditor.ToggleShowVertices", new IMAGE_BRUSH("Icons/icon_StaticMeshEd_Vertices_40x", Icon40x40));
-		Set( "StaticMeshEditor.ToggleShowVertices.Small", new IMAGE_BRUSH("Icons/icon_StaticMeshEd_Vertices_40x", Icon20x20));
-		Set( "StaticMeshEditor.ToggleShowWireframes", new IMAGE_BRUSH("Icons/icon_StaticMeshEd_Wireframe_40x", Icon40x40));
-		Set( "StaticMeshEditor.ToggleShowWireframes.Small", new IMAGE_BRUSH("Icons/icon_StaticMeshEd_Wireframe_40x", Icon20x20));
-		Set( "StaticMeshEditor.ToggleShowVertexColors", new IMAGE_BRUSH("Icons/icon_StaticMeshEd_VertColor_40x", Icon40x40));
-		Set( "StaticMeshEditor.ToggleShowVertexColors.Small", new IMAGE_BRUSH("Icons/icon_StaticMeshEd_VertColor_40x", Icon20x20));
 	}
 
 	// Skeletal Mesh Editor
@@ -7497,7 +7471,7 @@ void FStarshipEditorStyle::FStyle::SetupAutomationStyles()
 
 		//test preset icons
 		Set( "AutomationWindow.PresetNew", new IMAGE_BRUSH( "Icons/icon_add_40x", Icon16x16 ) );
-		Set( "AutomationWindow.PresetSave", new IMAGE_BRUSH( "Icons/icon_file_save_16px", Icon16x16 ) );
+		Set( "AutomationWindow.PresetSave", new IMAGE_BRUSH_SVG("Starship/Common/SaveCurrent", Icon16x16));
 		Set( "AutomationWindow.PresetRemove", new IMAGE_BRUSH( "Icons/icon_Cascade_DeleteLOD_40x", Icon16x16 ) );
 
 		//test backgrounds

@@ -53,9 +53,24 @@ void FMobilityCustomization::CreateMobilityCustomization(IDetailCategoryBuilder&
 		// Static Mobility
 		ButtonOptionsPanel->AddSlot(EComponentMobility::Static)
 		[
-			SNew(STextBlock)
-			.Font(FAppStyle::Get().GetFontStyle("PropertyWindow.MobilityFont"))
-			.Text(LOCTEXT("Static", "Static"))
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			.Padding(0.0f, 0.0f, 3.0f, 0.0f)
+			[
+				SNew(SImage)
+				.Image(FAppStyle::Get().GetBrush("PropertyWindow.MobilityStatic"))
+				.ColorAndOpacity(FSlateColor::UseForeground())
+			]
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			[
+				SNew(STextBlock)
+				.Font(FAppStyle::Get().GetFontStyle("PropertyWindow.MobilityFont"))
+				.Text(LOCTEXT("Static", "Static"))
+			]
 		]
 		.ToolTip(StaticTooltip);
 	}
@@ -69,9 +84,24 @@ void FMobilityCustomization::CreateMobilityCustomization(IDetailCategoryBuilder&
 
 		ButtonOptionsPanel->AddSlot(EComponentMobility::Stationary)
 		[
-			SNew(STextBlock)
-			.Font(FAppStyle::Get().GetFontStyle("PropertyWindow.MobilityFont"))
-			.Text(LOCTEXT("Stationary", "Stationary"))
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			.Padding(0.0f, 0.0f, 3.0f, 0.0f)
+			[
+				SNew(SImage)
+				.Image(FAppStyle::Get().GetBrush("PropertyWindow.MobilityStationary"))
+				.ColorAndOpacity(FSlateColor::UseForeground())
+			]
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			[
+				SNew(STextBlock)
+				.Font(FAppStyle::Get().GetFontStyle("PropertyWindow.MobilityFont"))
+				.Text(LOCTEXT("Stationary", "Stationary"))
+			]
 		]
 		.ToolTip(StationaryTooltip);
 	}
@@ -83,9 +113,24 @@ void FMobilityCustomization::CreateMobilityCustomization(IDetailCategoryBuilder&
 	// Movable Mobility
 	ButtonOptionsPanel->AddSlot(EComponentMobility::Movable)
 	[
-		SNew(STextBlock)
-		.Font(FAppStyle::Get().GetFontStyle("PropertyWindow.MobilityFont"))
-		.Text(LOCTEXT("Movable", "Movable"))
+		SNew(SHorizontalBox)
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		.VAlign(VAlign_Center)
+		.Padding(0.0f, 0.0f, 3.0f, 0.0f)
+		[
+			SNew(SImage)
+			.Image(FAppStyle::Get().GetBrush("PropertyWindow.MobilityMoveable"))
+			.ColorAndOpacity(FSlateColor::UseForeground())
+		]
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		.VAlign(VAlign_Center)
+		[
+			SNew(STextBlock)
+			.Font(FAppStyle::Get().GetFontStyle("PropertyWindow.MobilityFont"))
+			.Text(LOCTEXT("Movable", "Movable"))
+		]
 	]
 	.ToolTip(MovableTooltip);
 
