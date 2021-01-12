@@ -80,9 +80,7 @@ public class UEOgg : ModuleRules
 		}
 		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Android))
 		{
-			PublicAdditionalLibraries.Add(Path.Combine(OggLibPath, "Android", "ARMv7", "libogg.a"));
 			PublicAdditionalLibraries.Add(Path.Combine(OggLibPath, "Android", "ARM64", "libogg.a"));
-			PublicAdditionalLibraries.Add(Path.Combine(OggLibPath, "Android", "x86", "libogg.a"));
 			PublicAdditionalLibraries.Add(Path.Combine(OggLibPath, "Android", "x64", "libogg.a"));
 		}
 		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))

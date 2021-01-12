@@ -75,9 +75,7 @@ public class Vorbis : ModuleRules
 		{
 			// toolchain will filter
 			string[] Architectures = new string[] {
-				"ARMv7",
 				"ARM64",
-				"x86",
 				"x64",
 			};
 
@@ -85,7 +83,6 @@ public class Vorbis : ModuleRules
 			{
 				PublicAdditionalLibraries.Add(Path.Combine(VorbisLibPath, "Android", Architecture, "libvorbis.a"));
 			}
-			PublicAdditionalLibraries.Add(Path.Combine(VorbisLibPath, "Android", "ARMv7", "libvorbisenc.a"));
         }
 		else if (Target.Platform == UnrealTargetPlatform.IOS)
 		{

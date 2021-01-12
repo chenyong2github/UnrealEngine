@@ -328,8 +328,8 @@ namespace UnrealBuildTool
 
 				// string for <AdditionalLibraryDirectories>
 				string AdditionalLibDirs = "";
-				AdditionalLibDirs += IntermediateDirectoryPath + @"\obj\local\armeabi-v7a";
-				AdditionalLibDirs += ";" + IntermediateDirectoryPath + @"\obj\local\x86";
+				AdditionalLibDirs += IntermediateDirectoryPath + @"\obj\local\arm64-v8a";
+				AdditionalLibDirs += ";" + IntermediateDirectoryPath + @"\obj\local\x86_64";
 				AdditionalLibDirs += @";$(AdditionalLibraryDirectories)";
 
 				ProjectFileBuilder.AppendLine("    <IncludePath />");
@@ -472,7 +472,7 @@ namespace UnrealBuildTool
 								"		<PackagePath>" + BaseDirectory + "\\Binaries\\Android\\" + ProjectName + "-armv7.apk</PackagePath>" + ProjectFileGenerator.NewLine +
 								"		<LaunchActivity>" + ProjectFileGenerator.NewLine +
 								"		</LaunchActivity>" + ProjectFileGenerator.NewLine +
-								"		<AdditionalSymbolSearchPaths>" + BaseDirectory + "\\Intermediate\\Android\\APK\\obj\\local\\armeabi-v7a;" + BaseDirectory + "\\Intermediate\\Android\\APK\\jni\\armeabi-v7a;" + BaseDirectory + "\\Binaries\\Android;$(AdditionalSymbolSearchPaths)</AdditionalSymbolSearchPaths>" + ProjectFileGenerator.NewLine +
+								"		<AdditionalSymbolSearchPaths>" + BaseDirectory + "\\Intermediate\\Android\\APK\\obj\\local\\arm64-v8a; " + BaseDirectory + "\\Intermediate\\Android\\APK\\jni\\arm64-v8a;" + BaseDirectory + "\\Binaries\\Android;$(AdditionalSymbolSearchPaths)</AdditionalSymbolSearchPaths>" + ProjectFileGenerator.NewLine +
 								"		<DebuggerFlavor>AndroidDebugger</DebuggerFlavor>" + ProjectFileGenerator.NewLine +
 								"	</PropertyGroup>" + ProjectFileGenerator.NewLine +
 								"</Project>";

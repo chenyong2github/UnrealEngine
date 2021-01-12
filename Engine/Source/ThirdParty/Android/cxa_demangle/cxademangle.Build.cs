@@ -14,9 +14,7 @@ public class cxademangle : ModuleRules
 			// suggestion 2
  
 			PublicAdditionalLibraries.AddRange(new string[] {
-				Path.Combine(cxademanglepath, "armeabi-v7a", "libcxa_demangle.a"),
 				Path.Combine(cxademanglepath, "arm64-v8a", "libcxa_demangle.a"),
-				Path.Combine(cxademanglepath, "x86", "libcxa_demangle.a"),
 				Path.Combine(cxademanglepath, "x64", "libcxa_demangle.a"),
 			});
 		}

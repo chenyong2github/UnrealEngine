@@ -47,7 +47,6 @@ namespace UnrealBuildTool.Rules
 			}
 			else if (Target.Platform == UnrealTargetPlatform.Android)
 			{ 
-				PublicAdditionalLibraries.Add(Path.Combine(VivoxLibPath, "armeabi-v7a","libvivox-sdk.so"));
 				PublicAdditionalLibraries.Add(Path.Combine(VivoxLibPath, "arm64-v8a","libvivox-sdk.so"));
 
 				string PluginPath = Utils.MakePathRelativeTo(VivoxSDKPath, Target.RelativeEnginePath);

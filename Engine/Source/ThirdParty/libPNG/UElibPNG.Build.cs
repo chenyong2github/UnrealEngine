@@ -108,9 +108,7 @@ public class UElibPNG : ModuleRules
 		}
 		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Android))
 		{
-			PublicAdditionalLibraries.Add(Path.Combine(LibPNGPath, "Android", "ARMv7", "libpng.a"));
 			PublicAdditionalLibraries.Add(Path.Combine(LibPNGPath, "Android", "ARM64", "libpng.a"));
-			PublicAdditionalLibraries.Add(Path.Combine(LibPNGPath, "Android", "x86", "libpng.a"));
 			PublicAdditionalLibraries.Add(Path.Combine(LibPNGPath, "Android", "x64", "libpng.a"));
 		}
 		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))

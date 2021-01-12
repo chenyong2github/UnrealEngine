@@ -15,7 +15,6 @@ public class HWCPipe : ModuleRules
 
         if (Target.Platform == UnrealTargetPlatform.Android && Target.Configuration != UnrealTargetConfiguration.Shipping)
         {
-            PublicAdditionalLibraries.Add(BasePath + "lib/armeabi-v7a/libhwcpipe.so");
 			PublicAdditionalLibraries.Add(BasePath + "lib/arm64-v8a/libhwcpipe.so");
 
 			string PluginPath = Utils.MakePathRelativeTo(ModuleDirectory, Target.RelativeEnginePath);

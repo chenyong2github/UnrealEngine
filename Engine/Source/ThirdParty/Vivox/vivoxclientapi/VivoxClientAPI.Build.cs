@@ -31,7 +31,6 @@ public class VivoxClientAPI : ModuleRules
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Android)
 		{
-			PublicAdditionalLibraries.Add(Path.Combine(VivoxClientAPIPath, Target.Platform.ToString(), ConfigurationSubdir, "ARMv7", "libvivoxclientapi.a"));
 			PublicAdditionalLibraries.Add(Path.Combine(VivoxClientAPIPath, Target.Platform.ToString(), ConfigurationSubdir, "ARM64", "libvivoxclientapi.a"));
 		}
 	}

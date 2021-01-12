@@ -132,9 +132,7 @@ public class FreeType2 : ModuleRules
 				: Path.Combine("Release", "libfreetype.a");
 
 			// filtered out in the toolchain
-			PublicAdditionalLibraries.Add(Path.Combine(LibPath, "ARMv7", LibName));
 			PublicAdditionalLibraries.Add(Path.Combine(LibPath, "ARM64", LibName));
-			PublicAdditionalLibraries.Add(Path.Combine(LibPath, "x86", LibName));
 			PublicAdditionalLibraries.Add(Path.Combine(LibPath, "x64", LibName));
 		}
 		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))

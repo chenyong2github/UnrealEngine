@@ -161,9 +161,7 @@ public class ICU : ModuleRules
 			string ICULibFolder = UseDebugLibs ? "Debug" : "Release";
 
 			// filtered out in the toolchain
-			PublicAdditionalLibraries.Add(Path.Combine(ICULibPath, "ARMv7", ICULibFolder, ICULibName));
 			PublicAdditionalLibraries.Add(Path.Combine(ICULibPath, "ARM64", ICULibFolder, ICULibName));
-			PublicAdditionalLibraries.Add(Path.Combine(ICULibPath, "x86", ICULibFolder, ICULibName));
 			PublicAdditionalLibraries.Add(Path.Combine(ICULibPath, "x64", ICULibFolder, ICULibName));
 		}
 		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))

@@ -14,7 +14,6 @@ public class OculusOpenXRLoader : ModuleRules
 
 		if (Target.Platform == UnrealTargetPlatform.Android)
 		{
-			RuntimeDependencies.Add(SourceDirectory + "Lib/armeabi-v7a/libopenxr_loader.so");
 			RuntimeDependencies.Add(SourceDirectory + "Lib/arm64-v8a/libopenxr_loader.so");
 		}
 	}

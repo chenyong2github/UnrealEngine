@@ -30,7 +30,6 @@ public class libstrophe : ModuleRules
 		if (Target.Platform == UnrealTargetPlatform.Android)
 		{
 			PublicAdditionalLibraries.Add(Path.Combine(StrophePackagePath, "Android", ConfigName, "arm64", "libstrophe.a"));
-			PublicAdditionalLibraries.Add(Path.Combine(StrophePackagePath, "Android", ConfigName, "armv7", "libstrophe.a"));
 		}
 		else if (Target.Platform == UnrealTargetPlatform.IOS || Target.Platform == UnrealTargetPlatform.Mac)
 		{

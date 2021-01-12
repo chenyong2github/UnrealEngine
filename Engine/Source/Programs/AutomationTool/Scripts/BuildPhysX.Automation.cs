@@ -919,12 +919,10 @@ class BuildPhysX_Android : BuildPhysX.MakefileTargetPlatform
 		NDKDirectory = NDKDirectory.Replace("\"", "");
 
 		string AndroidAPILevel = "android-19";
-		string AndroidABI = "armeabi-v7a";
+		string AndroidABI = "arm64-v8a";
 		switch (Architecture)
 		{
-			case "armv7": AndroidAPILevel = "android-19"; AndroidABI = "armeabi-v7a"; break;
 			case "arm64": AndroidAPILevel = "android-21"; AndroidABI = "arm64-v8a";   break;
-			case "x86":   AndroidAPILevel = "android-19"; AndroidABI = "x86";         break;
 			case "x64":   AndroidAPILevel = "android-21"; AndroidABI = "x86_64";      break;
 		}
 		return " -DANDROID_NDK=\"" + NDKDirectory + "\" -DCMAKE_MAKE_PROGRAM=\"" + NDKDirectory + "\\prebuilt\\windows-x86_64\\bin\\make.exe\" -DANDROID_NATIVE_API_LEVEL=\"" + AndroidAPILevel + "\" -DANDROID_ABI=\"" + AndroidABI + "\" -DANDROID_STL=c++_shared" +

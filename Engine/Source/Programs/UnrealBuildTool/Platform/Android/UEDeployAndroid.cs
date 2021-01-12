@@ -1151,10 +1151,8 @@ namespace UnrealBuildTool
 		{
 			switch (UE4Arch)
 			{
-				case "-armv7":	return "armeabi-v7a";
 				case "-arm64":  return "arm64-v8a";
 				case "-x64":	return "x86_64";
-				case "-x86":	return "x86";
 
 				default: throw new BuildException("Unknown UE4 architecture {0}", UE4Arch);
 			}
@@ -1164,16 +1162,14 @@ namespace UnrealBuildTool
 		{
 			switch (NDKArch)
 			{
-				case "armeabi-v7a": return "-armv7";
 				case "arm64-v8a":   return "-arm64";
-				case "x86":         return "-x86";
 				case "arm64":       return "-arm64";
 				case "x86_64":
 				case "x64":			return "-x64";
 					
 	//				default: throw new BuildException("Unknown NDK architecture '{0}'", NDKArch);
-				// future-proof by returning armv7 for unknown
-				default:            return "-armv7";
+				// future-proof by returning arm64 for unknown
+				default:            return "-arm64";
 			}
 		}
 
@@ -2073,8 +2069,6 @@ namespace UnrealBuildTool
 			Ini.GetBool("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "bSupportAdMob", out bSupportAdMob);
 			bool bValidateTextureFormats;
 			Ini.GetBool("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "bValidateTextureFormats", out bValidateTextureFormats);
-			bool bUseNEONForArmV7 = false;
-			Ini.GetBool("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "bUseNEONForArmV7", out bUseNEONForArmV7);
 			
 			bool bBuildForES31 = false;
 			Ini.GetBool("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "bBuildForES31", out bBuildForES31);
@@ -2353,10 +2347,6 @@ namespace UnrealBuildTool
 			Text.AppendLine(string.Format("\t\t<meta-data android:name=\"com.epicgames.ue4.GameActivity.bAllowIMU\" android:value=\"{0}\"/>", bAllowIMU ? "true" : "false"));
 			Text.AppendLine(string.Format("\t\t<meta-data android:name=\"com.epicgames.ue4.GameActivity.bSupportsVulkan\" android:value=\"{0}\"/>", bSupportsVulkan ? "true" : "false"));
 			Text.AppendLine(string.Format("\t\t<meta-data android:name=\"com.epicgames.ue4.GameActivity.StartupPermissions\" android:value=\"{0}\"/>", StartupPermissions));
-			if (bUseNEONForArmV7)
-			{
-				Text.AppendLine("\t\t<meta-data android:name=\"com.epicgames.ue4.GameActivity.bUseNEONForArmV7\" android:value=\"{true}\"/>");
-			}
 			if (bPackageForDaydream)
 			{
 				Text.AppendLine(string.Format("\t\t<meta-data android:name=\"com.epicgames.ue4.GameActivity.bDaydream\" android:value=\"true\"/>"));
@@ -3433,9 +3423,7 @@ namespace UnrealBuildTool
 
 			// Architecture remapping
 			Dictionary<string, string> ArchRemapping = new Dictionary<string, string>();
-			ArchRemapping.Add("armeabi-v7a", "armv7");
 			ArchRemapping.Add("arm64-v8a", "arm64");
-			ArchRemapping.Add("x86", "x86");
 			ArchRemapping.Add("x86_64", "x64");
 
 			// do we match previous build settings?
@@ -3752,16 +3740,8 @@ namespace UnrealBuildTool
 				switch (NDKArch)
 				{
 					default:
-					case "armeabi-v7a":
-						Excludes = new string[] { "arm64-v8a", "x86", "x86-64" };
-						break;
-
 					case "arm64-v8a":
 						Excludes = new string[] { "armeabi-v7a", "x86", "x86-64" };
-						break;
-
-					case "x86":
-						Excludes = new string[] { "armeabi-v7a", "arm64-v8a", "x86-64" };
 						break;
 
 					case "x86_64":

@@ -64,9 +64,7 @@ public class VorbisFile : ModuleRules
 		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Android))
 		{
 			PublicAdditionalLibraries.Add(Path.Combine(VorbisFileLibPath, "Android", "ARM64", "libvorbisfile.a"));
-			PublicAdditionalLibraries.Add(Path.Combine(VorbisFileLibPath, "Android", "ARMv7", "libvorbisfile.a"));
 			PublicAdditionalLibraries.Add(Path.Combine(VorbisFileLibPath, "Android", "x64", "libvorbisfile.a"));
-			PublicAdditionalLibraries.Add(Path.Combine(VorbisFileLibPath, "Android", "x86", "libvorbisfile.a"));
 		}
 		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
 		{

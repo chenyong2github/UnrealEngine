@@ -42,9 +42,7 @@ namespace UnrealBuildTool.Rules
 
 			string libpath = Path.Combine(ModuleDirectory, "ThirdParty");
 			PrivateIncludePaths.Add(Path.Combine(libpath, "Include"));
-			PublicAdditionalLibraries.Add(Path.Combine(libpath, "armeabi-v7a", "libazurespatialanchorsndk.so"));
 			PublicAdditionalLibraries.Add(Path.Combine(libpath, "arm64-v8a", "libazurespatialanchorsndk.so"));
-			PublicAdditionalLibraries.Add(Path.Combine(libpath, "x86", "libazurespatialanchorsndk.so"));
 		}
 	}
 }

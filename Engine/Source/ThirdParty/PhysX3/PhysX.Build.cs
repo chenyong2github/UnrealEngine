@@ -309,9 +309,7 @@ public class PhysX : ModuleRules
 		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Android))
 		{
 			string[] Architectures = new string[] {
-				"ARMv7",
 				"ARM64",
-				"x86",
 				"x64",
 			};
 

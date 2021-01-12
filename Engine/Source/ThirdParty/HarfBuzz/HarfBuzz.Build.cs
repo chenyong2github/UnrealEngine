@@ -97,9 +97,7 @@ public class HarfBuzz : ModuleRules
 		{
 			// filtered out in the toolchain
 			LibPath = Path.Combine(BuildTypeFolderName, "libharfbuzz.a");
-			PublicAdditionalLibraries.Add(Path.Combine(LibHarfBuzzRootPath, "Android", "ARMv7", LibPath));
 			PublicAdditionalLibraries.Add(Path.Combine(LibHarfBuzzRootPath, "Android", "ARM64", LibPath));
-			PublicAdditionalLibraries.Add(Path.Combine(LibHarfBuzzRootPath, "Android", "x86", LibPath));
 			PublicAdditionalLibraries.Add(Path.Combine(LibHarfBuzzRootPath, "Android", "x64", LibPath));
 		}
 		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))

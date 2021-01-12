@@ -40,9 +40,7 @@ public class GoogleVR : ModuleRules
 		else if (Target.Platform == UnrealTargetPlatform.Android)
 		{
 			// toolchain will filter properly
-			PublicAdditionalLibraries.Add( GoogleVRBaseLibPath + "android/armv7/libgvr.so");
 			PublicAdditionalLibraries.Add( GoogleVRBaseLibPath + "android/arm64/libgvr.so");
-			PublicAdditionalLibraries.Add( GoogleVRBaseLibPath + "android/x86/libgvr.so");
 			PublicAdditionalLibraries.Add( GoogleVRBaseLibPath + "android/x86_64/libgvr.so");
 		}
 		else if (Target.Platform == UnrealTargetPlatform.IOS)

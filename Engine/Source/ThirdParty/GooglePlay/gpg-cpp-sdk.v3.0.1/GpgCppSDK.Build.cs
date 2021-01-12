@@ -15,9 +15,7 @@ public class GpgCppSDK : ModuleRules
 
 			PublicIncludePaths.Add(Path.Combine(GPGAndroidPath, "include/"));
 
-			PublicAdditionalLibraries.Add(Path.Combine(GPGAndroidPath, "lib/c++/armeabi-v7a/libgpg.a"));
 			PublicAdditionalLibraries.Add(Path.Combine(GPGAndroidPath, "lib/c++/arm64-v8a/libgpg.a"));
-			PublicAdditionalLibraries.Add(Path.Combine(GPGAndroidPath, "lib/c++/x86/libgpg.a"));
 		}
 	}
 }

@@ -57,9 +57,7 @@ public class GooglePAD : ModuleRules
 			string PlayCoreIncludePath = Path.Combine(PlayCoreSDKPath, "include");
 			string PlayCoreLibPath = Path.Combine(PlayCoreSDKPath, "libs");
 
-			PublicAdditionalLibraries.Add(Path.Combine(PlayCoreLibPath, "armeabi-v7a", NDKVersion, "c++_shared", "libplaycore.so"));
 			PublicAdditionalLibraries.Add(Path.Combine(PlayCoreLibPath, "arm64-v8a", NDKVersion, "c++_shared", "libplaycore.so"));
-			PublicAdditionalLibraries.Add(Path.Combine(PlayCoreLibPath, "x86", NDKVersion, "c++_shared", "libplaycore.so"));
 			PublicAdditionalLibraries.Add(Path.Combine(PlayCoreLibPath, "x86_64", NDKVersion, "c++_shared", "libplaycore.so"));
 
 			PrivateIncludePaths.Add(PlayCoreIncludePath);

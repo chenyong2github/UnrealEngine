@@ -25,7 +25,6 @@ public class Expat : ModuleRules
 		{
 			string LibraryPath = Path.Combine(ExpatPackagePath, "Android", ConfigName);
 			PublicAdditionalLibraries.Add(Path.Combine(LibraryPath, "arm64", "libexpat.a"));
-			PublicAdditionalLibraries.Add(Path.Combine(LibraryPath, "armv7", "libexpat.a"));
 		}
 		else if (Target.Platform == UnrealTargetPlatform.IOS)
 		{

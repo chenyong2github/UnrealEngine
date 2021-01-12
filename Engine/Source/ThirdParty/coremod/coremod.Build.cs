@@ -37,9 +37,7 @@ public class coremod: ModuleRules
         }
 		else if (Target.Platform == UnrealTargetPlatform.Android)
 		{
-			PublicAdditionalLibraries.Add(LibraryPath + "/lib/Android/x86/libxmp-coremod.a");
 			PublicAdditionalLibraries.Add(LibraryPath + "/lib/Android/x64/libxmp-coremod.a");
-			PublicAdditionalLibraries.Add(LibraryPath + "/lib/Android/armeabi-v7a/libxmp-coremod.a");
 		}
 	}
 }

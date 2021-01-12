@@ -780,10 +780,8 @@ EVisibility SOculusToolWidget::AndroidPackagingVisibility(FName tag) const
 FReply SOculusToolWidget::AndroidQuestArchFix(bool text)
 {
 	UAndroidRuntimeSettings* Settings = GetMutableDefault<UAndroidRuntimeSettings>();
-	Settings->bBuildForArmV7 = false;
 	Settings->bBuildForArm64 = true;
 	Settings->bBuildForX8664 = false;
-	Settings->UpdateSinglePropertyInConfigFile(Settings->GetClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UAndroidRuntimeSettings, bBuildForArmV7)), Settings->GetDefaultConfigFilename());
 	Settings->UpdateSinglePropertyInConfigFile(Settings->GetClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UAndroidRuntimeSettings, bBuildForArm64)), Settings->GetDefaultConfigFilename());
 	Settings->UpdateSinglePropertyInConfigFile(Settings->GetClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UAndroidRuntimeSettings, bBuildForX8664)), Settings->GetDefaultConfigFilename());
 	return FReply::Handled();

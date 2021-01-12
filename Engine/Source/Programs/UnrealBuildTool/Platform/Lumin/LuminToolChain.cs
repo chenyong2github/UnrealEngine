@@ -16,7 +16,6 @@ namespace UnrealBuildTool
 	class LuminToolChain : AndroidToolChain
 	{
 		//static private Dictionary<string, string[]> AllArchNames = new Dictionary<string, string[]> {
-		//	{ "-armv7", new string[] { "armv7", "armeabi-v7a", "android-kk-egl-t124-a32" } },
 		//	{ "-arm64", new string[] { "arm64", "arm64-v8a", "android-L-egl-t132-a64" } },
 		//};
 
@@ -130,9 +129,7 @@ namespace UnrealBuildTool
 			// toolchain params
 			ToolchainParamsArm64 = " --sysroot=\"" + Path.Combine(MLSDKPath, "lumin") + "\"";
 
-			ToolchainLinkParamsArm = ToolchainParamsArm;
 			ToolchainLinkParamsArm64 = ToolchainParamsArm64;
-			ToolchainLinkParamsx86 = ToolchainParamsx86;
 			ToolchainLinkParamsx64 = ToolchainParamsx64;
 		}
 
