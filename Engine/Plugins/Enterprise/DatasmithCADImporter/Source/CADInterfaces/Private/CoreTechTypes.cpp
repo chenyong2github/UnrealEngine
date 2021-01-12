@@ -1,6 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "CoreTechTypes.h"
 
+#include "Misc/Paths.h"
+
+#ifdef CAD_INTERFACE
 // Temporary: This is there because CoreTechTypes.h is a public header which should not be changed for a hotfix
 // Must be move to CoreTechTypes.h for 4.27
 #pragma warning(push)
@@ -9,10 +12,6 @@
 #include "kernel_io/filter_io/filter_io.h"
 #pragma warning(pop)
 // End Temporary
-
-#include "Misc/Paths.h"
-
-#ifdef CAD_INTERFACE
 
 const char* CoreTechLicenseKey =
 #include "CoreTech.lic"
