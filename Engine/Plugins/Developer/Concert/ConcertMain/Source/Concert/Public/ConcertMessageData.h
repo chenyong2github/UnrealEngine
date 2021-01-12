@@ -74,7 +74,7 @@ struct FConcertServerInfo
 
 	/** Contains information on the server settings */
 	UPROPERTY(VisibleAnywhere, Category = "Server Info")
-	EConcertServerFlags ServerFlags;
+	EConcertServerFlags ServerFlags = EConcertServerFlags::None;
 };
 
 /** Holds info on a client connected through concert */
@@ -109,8 +109,8 @@ struct FConcertClientInfo
 	FString DisplayName;
 
 	/** Holds the color of the user avatar in a session. */
-	UPROPERTY(VisibleAnywhere, Category="Client Info")
-	FLinearColor AvatarColor;
+	UPROPERTY(VisibleAnywhere, Category = "Client Info")
+	FLinearColor AvatarColor = {1.0f, 1.0f, 1.0f, 1.0f};
 
 	/** Holds the string representation of the desktop actor class to be used as the avatar for a representation of a client */
 	UPROPERTY(VisibleAnywhere, Category = "Client Info")
@@ -126,11 +126,11 @@ struct FConcertClientInfo
 
 	/** True if this instance was built with editor-data */
 	UPROPERTY(VisibleAnywhere, Category="Client Info")
-	bool bHasEditorData;
+	bool bHasEditorData = true;
 
 	/** True if this platform requires cooked data */
 	UPROPERTY(VisibleAnywhere, Category="Client Info")
-	bool bRequiresCookedData;
+	bool bRequiresCookedData = false;
 
 	CONCERT_API bool operator==(const FConcertClientInfo& Other) const;
 	CONCERT_API bool operator!=(const FConcertClientInfo& Other) const;

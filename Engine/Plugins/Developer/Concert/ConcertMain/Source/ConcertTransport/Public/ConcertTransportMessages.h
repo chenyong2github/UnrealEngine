@@ -43,6 +43,8 @@ enum class EConcertResponseCode : uint8
 UENUM()
 enum class EConcertReliableHandshakeState : uint8
 {
+	/** Handshake initialization state */
+	None,
 	/** Handshake is being negotiated */
 	Negotiate,
 	/** Handshake was successfully negotiated */
@@ -170,19 +172,19 @@ struct FConcertReliableHandshakeData : public FConcertEndpointDiscoveryEvent
 
 	/** State of the handshake */
 	UPROPERTY()
-	EConcertReliableHandshakeState HandshakeState;
+	EConcertReliableHandshakeState HandshakeState = EConcertReliableHandshakeState::None;
 
 	/** Channel ID we're going to send reliable messages of */
 	UPROPERTY(VisibleAnywhere, AdvancedDisplay, Category="Concert Message")
-	uint16 ReliableChannelId;
+	uint16 ReliableChannelId = 0;
 
 	/** The next message index that the remote endpoint is going to send */
 	UPROPERTY(VisibleAnywhere, AdvancedDisplay, Category="Concert Message")
-	uint16 NextMessageIndex;
+	uint16 NextMessageIndex = 0;
 
 	/** It's a timespan encoded in ticks. EndpointTimeoutTick represent the time it takes for the sending endpoint to consider another endpoint timed out */
 	UPROPERTY(config, EditAnywhere, AdvancedDisplay, Category = "Concert Message")
-	int64 EndpointTimeoutTick;
+	int64 EndpointTimeoutTick = 0;
 };
 
 /** Acknowledgment messages to reliable events */
@@ -193,7 +195,7 @@ struct FConcertAckData : public FConcertMessageData
 
 	/** Time when this acknowledgment was sent (UTC) */
 	UPROPERTY(VisibleAnywhere, AdvancedDisplay, Category="Concert Message")
-	int64 AckSendTimeTicks;
+	int64 AckSendTimeTicks  = 0;
 
 	/** ID of the source message we're acknowledging */
 	UPROPERTY(VisibleAnywhere, AdvancedDisplay, Category="Concert Message")

@@ -11,7 +11,7 @@ struct FConcertClientPresenceEventBase
 	GENERATED_BODY()
 
 	UPROPERTY()
-	uint32 TransactionUpdateIndex;
+	uint32 TransactionUpdateIndex = 0;
 };
 
 USTRUCT()
@@ -23,7 +23,7 @@ struct FConcertClientPresenceVisibilityUpdateEvent
 	FGuid ModifiedEndpointId;
 
 	UPROPERTY()
-	bool bVisibility;
+	bool bVisibility = true;
 };
 
 USTRUCT()
