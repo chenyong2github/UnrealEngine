@@ -70,7 +70,7 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="DatasmithRhino.cs" />
+    <Compile Include="DatasmithRhino6.cs" />
     <Compile Include="$(AssemblyInfo)">
       <Link>Properties\AssemblyInfo.cs</Link>
     </Compile>

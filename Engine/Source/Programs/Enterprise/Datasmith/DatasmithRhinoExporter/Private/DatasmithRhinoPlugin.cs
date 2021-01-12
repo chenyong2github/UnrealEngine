@@ -3,7 +3,6 @@
 using Rhino;
 using Rhino.PlugIns;
 using System;
-using System.Collections.Generic;
 
 namespace DatasmithRhino
 {
@@ -15,13 +14,13 @@ namespace DatasmithRhino
 	/// attributes in AssemblyInfo.cs (you might need to click "Project" ->
 	/// "Show All Files" to see it in the "Solution Explorer" window).</para>
 	///</summary>
-	public class DatasmithRhino6 : Rhino.PlugIns.FileExportPlugIn
+	public abstract class DatasmithRhinoPlugin : Rhino.PlugIns.FileExportPlugIn
 	{
 		public override PlugInLoadTime LoadTime { get { return PlugInLoadTime.AtStartup; } }
 		public FDatasmithFacadeScene DatasmithScene = null;
 		public FDatasmithFacadeDirectLink DirectLink = null;
 
-		public DatasmithRhino6()
+		public DatasmithRhinoPlugin()
 		{
 			Instance = this;
 			InitializeDirectLink();
@@ -108,8 +107,8 @@ namespace DatasmithRhino
 			return System.IO.Path.Combine(RhinoPluginFolder, "Resources", "RhinoEngine");
 		}
 
-		///<summary>Gets the only instance of the DatasmithRhino6 plug-in.</summary>
-		public static DatasmithRhino6 Instance {
+		///<summary>Gets the only instance of the DatasmithRhino plug-in.</summary>
+		public static DatasmithRhinoPlugin Instance {
 			get; private set;
 		}
 
