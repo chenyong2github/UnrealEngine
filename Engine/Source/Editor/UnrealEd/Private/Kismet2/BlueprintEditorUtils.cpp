@@ -8842,7 +8842,7 @@ bool FBlueprintEditorUtils::PropertyValueFromString_Direct(const FProperty* Prop
 			int32 IntValue = 0;
 			if (const UEnum* Enum = ByteProperty->Enum)
 			{
-				IntValue = Enum->GetValueByName(FName(*StrValue));
+				IntValue = Enum->GetValueByName(FName(*StrValue, FNAME_Find));
 				bParseSucceeded = (INDEX_NONE != IntValue);
 
 				// If the parse did not succeed, clear out the int to keep the enum value valid
@@ -8860,7 +8860,7 @@ bool FBlueprintEditorUtils::PropertyValueFromString_Direct(const FProperty* Prop
 		}
 		else if (const FEnumProperty* EnumProperty = CastField<const FEnumProperty>(Property))
 		{
-			int64 IntValue = EnumProperty->GetEnum()->GetValueByName(FName(*StrValue));
+			int64 IntValue = EnumProperty->GetEnum()->GetValueByName(FName(*StrValue, FNAME_Find));
 			bParseSucceeded = (INDEX_NONE != IntValue);
 
 			// If the parse did not succeed, clear out the int to keep the enum value valid

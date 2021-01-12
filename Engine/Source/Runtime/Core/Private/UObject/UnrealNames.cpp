@@ -1996,6 +1996,12 @@ struct FNameHelper
 	{
 		if (View.Len >= NAME_SIZE)
 		{
+			// If we're doing a find, and the string is too long, then clearly we didn't find it
+			if (FindType == FNAME_Find)
+			{
+				return FName();
+			}
+
 			checkf(false, TEXT("FName's %d max length exceeded. Got %d characters excluding null-terminator."), NAME_SIZE - 1, View.Len);
 			return FName("ERROR_NAME_SIZE_EXCEEDED");
 		}
