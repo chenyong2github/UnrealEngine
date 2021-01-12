@@ -92,6 +92,8 @@ void UPhononGeometryComponent::UpdateStatistics()
 #if WITH_EDITOR
 void UPhononGeometryComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+
 	FName PropertyName = (PropertyChangedEvent.Property != nullptr) ? PropertyChangedEvent.Property->GetFName() : NAME_None;
 
 	if ((PropertyName == GET_MEMBER_NAME_CHECKED(UPhononGeometryComponent, ExportAllChildren)))
