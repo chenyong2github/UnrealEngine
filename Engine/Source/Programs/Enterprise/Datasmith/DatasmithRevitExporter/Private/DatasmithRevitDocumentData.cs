@@ -98,8 +98,6 @@ namespace DatasmithRevitExporter
 					}
 
 					ElementActor.SetIsComponent(MeshActor.IsComponent());
-					ElementActor.SetAsSelector(MeshActor.IsASelector());
-					ElementActor.SetSelectionIndex(MeshActor.GetSelectionIndex());
 					ElementActor.SetVisibility(MeshActor.GetVisibility());
 
 					for (int ChildIndex = 0; ChildIndex < MeshActor.GetChildrenCount(); ++ChildIndex)
@@ -1123,8 +1121,6 @@ namespace DatasmithRevitExporter
 			}
 
 			CloneActor.SetIsComponent(SourceActor.IsComponent());
-			CloneActor.SetAsSelector(SourceActor.IsASelector());
-			CloneActor.SetSelectionIndex(SourceActor.GetSelectionIndex());
 			CloneActor.SetVisibility(SourceActor.GetVisibility());
 
 			for (int ChildIndex = 0; ChildIndex < SourceActor.GetChildrenCount(); ++ChildIndex)
