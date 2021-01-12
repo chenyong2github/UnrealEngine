@@ -48,14 +48,14 @@ struct FOnlineProxyStoreOffer
 		FText RegularPriceText;
 	/** Regular non-sale price in numeric form for comparison/sorting */
 	UPROPERTY(BlueprintReadOnly, Category = ProductInfo)
-		int32 RegularPrice;
+		int32 RegularPrice = 0;
 
 	/** Final-Pricing (Post-Sales/Discounts) as text for display */
 	UPROPERTY(BlueprintReadOnly, Category = ProductInfo)
 		FText PriceText;
 	/** Final-Price (Post-Sales/Discounts) in numeric form for comparison/sorting */
 	UPROPERTY(BlueprintReadOnly, Category = ProductInfo)
-		int32 NumericPrice;
+		int32 NumericPrice = 0;
 
 	/** Price currency code */
 	UPROPERTY(BlueprintReadOnly, Category = ProductInfo)
@@ -63,13 +63,13 @@ struct FOnlineProxyStoreOffer
 
 	/** Date the offer was released */
 	UPROPERTY(BlueprintReadOnly, Category = ProductInfo)
-		FDateTime ReleaseDate;
+		FDateTime ReleaseDate = FDateTime::MinValue();
 	/** Date this information is no longer valid (maybe due to sale ending, etc) */
 	UPROPERTY(BlueprintReadOnly, Category = ProductInfo)
-		FDateTime ExpirationDate;
+		FDateTime ExpirationDate = FDateTime::MinValue();
 	/** Type of discount currently running on this offer (if any) */
 	UPROPERTY(BlueprintReadOnly, Category = ProductInfo)
-		EOnlineProxyStoreOfferDiscountType DiscountType;
+		EOnlineProxyStoreOfferDiscountType DiscountType = EOnlineProxyStoreOfferDiscountType::NotOnSale;
 	UPROPERTY(BlueprintReadOnly, Category = ProductInfo)
 		TMap<FString, FString> DynamicFields;
 };
