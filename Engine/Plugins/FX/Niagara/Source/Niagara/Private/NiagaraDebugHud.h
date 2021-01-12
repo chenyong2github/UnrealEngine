@@ -8,6 +8,20 @@ Class used help debugging Niagara simulations
 #include "CoreMinimal.h"
 #include "NiagaraCommon.h"
 #include "RHICommandList.h"
+#include "NiagaraDebugHud.generated.h"
+
+UENUM()
+enum class ENiagaraDebugHudSystemVerbosity
+{
+	/** Display no text with the system. */
+	None = 0,
+	/** Display minimal information with the system, i.e. component / system name. */
+	Minimal = 1,
+	/** Display basic information with the system, i.e. Minimal + counts. */
+	Basic = 2,
+	/** Display basic information with the system, i.e. Basic + per emitter information. */
+	Verbose = 3,
+};
 
 class FNiagaraDebugHud
 {

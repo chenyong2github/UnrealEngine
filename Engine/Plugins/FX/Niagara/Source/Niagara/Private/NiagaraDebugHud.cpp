@@ -23,8 +23,8 @@ namespace NiagaraDebugLocal
 	};
 
 	static bool GEnabled = false;
-	static int32 GDisplayLevel = 0;
 	static FVector2D GDisplayLocation = FVector2D(30.0f, 150.0f);
+	static ENiagaraDebugHudSystemVerbosity GSystemVerbosity = ENiagaraDebugHudSystemVerbosity::Minimal;
 	static bool GSystemShowBounds = false;
 	static FString GSystemFilter;
 	static FString GComponentFilter;
@@ -48,10 +48,6 @@ namespace NiagaraDebugLocal
 						{
 							GEnabled = FCString::Atoi(*Arg) != 0;
 						}
-						else if (Arg.RemoveFromStart(TEXT("DisplayLevel=")))
-						{
-							GDisplayLevel = FMath::Clamp(FCString::Atoi(*Arg), 0, 1);
-						}
 						else if (Arg.RemoveFromStart(TEXT("DisplayLocation=")))
 						{
 							TArray<FString> Values;
@@ -64,6 +60,10 @@ namespace NiagaraDebugLocal
 									GDisplayLocation.Y = FCString::Atof(*Values[1]);
 								}
 							}
+						}
+						else if (Arg.RemoveFromStart(TEXT("SystemVerbosity=")))
+						{
+							GSystemVerbosity = FMath::Clamp(ENiagaraDebugHudSystemVerbosity(FCString::Atoi(*Arg)), ENiagaraDebugHudSystemVerbosity::None, ENiagaraDebugHudSystemVerbosity::Verbose);
 						}
 						else if (Arg.RemoveFromStart(TEXT("SystemShowBounds=")))
 						{
@@ -101,9 +101,9 @@ namespace NiagaraDebugLocal
 				{
 					UE_LOG(
 						LogNiagara, Log,
-						TEXT("fx.Niagara.DebugHud Enabled=%d DisplayLevel=%d DisplayLocation=%f,%f SystemShowBounds=%d SystemFilter=%s ComponentFilter=%s SystemVariables=%s ParticleVariables=%s MaxParticlesToDisplay=%d ShowParticlesInWorld=%d"),
+						TEXT("fx.Niagara.DebugHud Enabled=%d DisplayLocation=%f,%f SystemVerbosity=%d SystemShowBounds=%d SystemFilter=%s ComponentFilter=%s SystemVariables=%s ParticleVariables=%s MaxParticlesToDisplay=%d ShowParticlesInWorld=%d"),
 						GEnabled,
-						GDisplayLevel,
+						(int32)GSystemVerbosity,
 						GDisplayLocation.X, GDisplayLocation.Y,
 						GSystemShowBounds,
 						*GSystemFilter,
@@ -650,10 +650,8 @@ void FNiagaraDebugHud::DebugDrawNiagara(UCanvas* InCanvas, APlayerController* PC
 			DrawSystemLocation(InCanvas, bIsActive, ScreenLocation, ComponentRotation);
 
 			// Show system text
-			if ((GDisplayLevel >= 0) && (GDisplayLevel <=1))
+			if ((GSystemVerbosity > ENiagaraDebugHudSystemVerbosity::None) && (GSystemVerbosity <= ENiagaraDebugHudSystemVerbosity::Verbose))
 			{
-				const bool bDetailedEmitter = GDisplayLevel == 1;
-
 				TStringBuilder<1024> StringBuilder;
 				StringBuilder.Appendf(TEXT("Component - %s\n"), *GetNameSafe(NiagaraComponent));
 				StringBuilder.Appendf(TEXT("System - %s\n"), *GetNameSafe(NiagaraSystem));
@@ -678,13 +676,13 @@ void FNiagaraDebugHud::DebugDrawNiagara(UCanvas* InCanvas, APlayerController* PC
 						}
 						ActiveParticles += EmitterInstance->GetNumParticles();
 
-						if ( bDetailedEmitter )
+						if ( GSystemVerbosity == ENiagaraDebugHudSystemVerbosity::Verbose )
 						{
 							StringBuilder.Appendf(TEXT("Emitters %s - State %s - Particles %d\n"), *NiagaraEmitter->GetUniqueEmitterName(), *ExecutionStateEnum->GetNameStringByIndex((int32)EmitterInstance->GetExecutionState()), EmitterInstance->GetNumParticles());
 						}
 					}
 
-					if (!bDetailedEmitter)
+					if ( GSystemVerbosity == ENiagaraDebugHudSystemVerbosity::Basic )
 					{
 						StringBuilder.Appendf(TEXT("Emitters - %d / %d\n"), ActiveEmitters, TotalEmitters);
 						StringBuilder.Appendf(TEXT("Particles - %d\n"), ActiveParticles);
