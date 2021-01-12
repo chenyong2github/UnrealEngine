@@ -25,6 +25,9 @@ public:
 	/** Constructor that adds NumLayers blank layers on top of the image for later use */
 	void Construct(const FArguments& InArgs, int32 NumLayers = 0);
 
+	/** Constructor that sets the base image and any overlay layers defined in the Slate icon */
+	void Construct(const FArguments& InArgs, const FSlateIcon& InIcon);
+
 	//~ Begin SWidget Interface
 	virtual int32 OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override;
 	//~ End SWidget Interface

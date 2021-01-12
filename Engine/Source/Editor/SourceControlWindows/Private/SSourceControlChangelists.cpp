@@ -12,6 +12,7 @@
 #include "ISourceControlProvider.h"
 #include "ISourceControlModule.h"
 #include "SourceControlOperations.h"
+#include "Widgets/Images/SLayeredImage.h"
 
 
 #define LOCTEXT_NAMESPACE "SourceControlChangelist"
@@ -293,8 +294,7 @@ public:
 						.WidthOverride(IconOverlaySize)
 						.HeightOverride(IconOverlaySize)
 						[
-							SNew(SImage)
-							.Image(this, &SFileTableRow::GetSCCStateImage)
+							SNew(SLayeredImage, TreeItem->FileState->GetIcon())
 						]
 					]
 				]
@@ -318,11 +318,6 @@ public:
 	FText GetDisplayText() const
 	{
 		return TreeItem->GetDisplayText();
-	}
-
-	const FSlateBrush* GetSCCStateImage() const
-	{
-		return FEditorStyle::GetBrush(TreeItem->FileState->GetSmallIconName());
 	}
 
 private:

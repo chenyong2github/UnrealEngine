@@ -40,6 +40,13 @@ void SLayeredImage::Construct(const FArguments& InArgs, int32 NumLayers)
 	}
 }
 
+void SLayeredImage::Construct(const FArguments& InArgs, const FSlateIcon& InIcon)
+{
+	SImage::Construct(InArgs);
+
+	SetFromSlateIcon(InIcon);
+}
+
 int32 SLayeredImage::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const
 {
 	// this will draw Image[0]:
