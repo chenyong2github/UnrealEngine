@@ -68,11 +68,11 @@ private:
 
 	FName ReconstructNameFromEditText(const FText& InEditText);
 
-	bool VerifyNameTextChange(const FText& InNewNameText, FText& OutErrorMessage);
+	bool VerifyNameTextChange(const FText& InNewName, FText& OutErrorMessage, FName InOriginalName);
 
 	void NameTextCommitted(const FText& InNewNameText, ETextCommit::Type CommitType);
 
-	bool VerifyNamespaceModifierTextChange(const FText& InNewNameText, FText& OutErrorMessage);
+	bool VerifyNamespaceModifierTextChange(const FText& InNewNamespaceModifier, FText& OutErrorMessage, FName InOriginalNamespaceModifier);
 
 	void NamespaceModifierTextCommitted(const FText& InNewNameText, ETextCommit::Type CommitType);
 
