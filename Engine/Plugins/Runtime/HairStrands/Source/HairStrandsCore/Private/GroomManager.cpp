@@ -155,7 +155,8 @@ static void RunInternalHairStrandsInterpolation(
 			{
 				CachedGeometry = SkinCache->GetCachedGeometry(Instance->Debug.SkeletalComponent->ComponentId.PrimIDValue);
 			}
-			else
+
+			if (CachedGeometry.Sections.Num() == 0)
 			{
 				//#hair_todo: Need to have a (frame) cache to insure that we don't recompute the same projection several time
 				// Actual populate the cache with only the needed part basd on the groom projection data. At the moment it recompute everything ...

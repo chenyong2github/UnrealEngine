@@ -105,15 +105,18 @@ static void GetGroomInterpolationData(
 			continue;
 
 		FCachedGeometry CachedGeometry;
-		if (SkinCache)
+		if (Instance->Debug.SkeletalComponent)
 		{
-			CachedGeometry = SkinCache->GetCachedGeometry(Instance->Debug.SkeletalComponent->ComponentId.PrimIDValue);
-		}
-		else if (Instance->Debug.SkeletalComponent)
-		{
-			const ERHIFeatureLevel::Type FeatureLevel = GMaxRHIFeatureLevel;
-			FGlobalShaderMap* ShaderMap = GetGlobalShaderMap(FeatureLevel);
-			BuildCacheGeometry(GraphBuilder, ShaderMap, Instance->Debug.SkeletalComponent, CachedGeometry);
+			if (SkinCache)
+			{
+				CachedGeometry = SkinCache->GetCachedGeometry(Instance->Debug.SkeletalComponent->ComponentId.PrimIDValue);
+			}
+			
+			if (CachedGeometry.Sections.Num() == 0)
+			{
+				FGlobalShaderMap* ShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
+				BuildCacheGeometry(GraphBuilder, ShaderMap, Instance->Debug.SkeletalComponent, CachedGeometry);
+			}
 		}
 		if (CachedGeometry.Sections.Num() == 0)
 			continue;
@@ -910,7 +913,7 @@ void RunHairStrandsDebug(
 				TArray<int32> HairLODIndices;
 				for (FHairGroupInstance* Instance : Instances)
 				{
-					if (!Instance->HairGroupPublicData || Instance->Guides.RestRootResource == nullptr || Instance->Guides.DeformedRootResource == nullptr)
+					if (Instance->WorldType != WorldType || !Instance->HairGroupPublicData || Instance->Guides.RestRootResource == nullptr || Instance->Guides.DeformedRootResource == nullptr)
 						continue;
 
 					const int32 MeshLODIndex = Instance->Debug.MeshLODIndex;
