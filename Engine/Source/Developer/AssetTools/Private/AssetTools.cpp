@@ -900,10 +900,13 @@ bool UAssetToolsImpl::AdvancedCopyPackages(const TMap<FString, FString>& SourceA
 						MoveDialogInfo.PGN.PackageName = DestFilename;
 						const bool bShouldPromptForDestinationConflict = !bCopyOverAllDestinationOverlaps;
 						UObject* NewObject = ObjectTools::DuplicateSingleObject(ExistingObject, MoveDialogInfo.PGN, ObjectsUserRefusedToFullyLoad, bShouldPromptForDestinationConflict);
-						NewObjects.Add(NewObject);
-						NewObjectSet.Add(NewObject);
-						SuccessfullyCopiedSourcePackages.Add(PackageName);
-						SuccessfullyCopiedDestinationFiles.Add(DestFilename);
+						if (NewObject)
+						{
+							NewObjects.Add(NewObject);
+							NewObjectSet.Add(NewObject);
+							SuccessfullyCopiedSourcePackages.Add(PackageName);
+							SuccessfullyCopiedDestinationFiles.Add(DestFilename);
+						}
 					}
 				}
 			}

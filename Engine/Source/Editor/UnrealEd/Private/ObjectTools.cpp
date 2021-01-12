@@ -1067,9 +1067,19 @@ namespace ObjectTools
 					UBlueprint* BPObjectToUpdate = Cast<UBlueprint>(CurObject);
 					if (BPObjectToUpdate)
 					{
-						FArchiveReplaceObjectRef<UObject> ReplaceAr(BPObjectToUpdate->GeneratedClass->ClassDefaultObject, ReplacementMap, false, true, false);
+						const bool bNullPrivateRefs = false;
+						const bool bIgnoreOuterRef = false;
+						const bool bIgnoreArchetypeRef = false;
+						const bool bDelayStart = false;
+						const bool bIgnoreClassGeneratedByRef = false;
+						FArchiveReplaceObjectRef<UObject> ReplaceAr(BPObjectToUpdate->GeneratedClass->ClassDefaultObject, ReplacementMap, bNullPrivateRefs, bIgnoreOuterRef, bIgnoreArchetypeRef, bDelayStart, bIgnoreClassGeneratedByRef);
 					}
-					FArchiveReplaceObjectRef<UObject> ReplaceAr(CurObject, ReplacementMap, false, true, false);
+					const bool bNullPrivateRefs = false;
+					const bool bIgnoreOuterRef = false;
+					const bool bIgnoreArchetypeRef = false;
+					const bool bDelayStart = false;
+					const bool bIgnoreClassGeneratedByRef = false;
+					FArchiveReplaceObjectRef<UObject> ReplaceAr(CurObject, ReplacementMap, bNullPrivateRefs, bIgnoreOuterRef, bIgnoreArchetypeRef, bDelayStart, bIgnoreClassGeneratedByRef);
 				}
 			}
 		}
@@ -1083,8 +1093,12 @@ namespace ObjectTools
 				GWarn->StatusUpdate( NumObjsReplaced, ReferencingPropertiesMapKeys.Num(), NSLOCTEXT("UnrealEd", "ConsolidateAssetsUpdate_ReplacingReferences", "Replacing Asset References...") );
 
 				UObject* CurReplaceObj = ReferencingPropertiesMapKeys[Index];
-
-				FArchiveReplaceObjectRef<UObject> ReplaceAr( CurReplaceObj, ReplacementMap, false, true, false );
+				const bool bNullPrivateRefs = false;
+				const bool bIgnoreOuterRef = false;
+				const bool bIgnoreArchetypeRef = false;
+				const bool bDelayStart = false;
+				const bool bIgnoreClassGeneratedByRef = false;
+				FArchiveReplaceObjectRef<UObject> ReplaceAr( CurReplaceObj, ReplacementMap, bNullPrivateRefs, bIgnoreOuterRef, bIgnoreArchetypeRef, bDelayStart, bIgnoreClassGeneratedByRef);
 			}
 		}
 		// Now alter the referencing objects the change has completed via PostEditChange,
