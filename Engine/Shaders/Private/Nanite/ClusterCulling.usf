@@ -607,7 +607,7 @@ void NodeCull(uint BatchReadySize, uint GroupIndex)
 	const FHierarchyNodeSlice HierarchyNodeSlice = GetHierarchyNodeSlice( HierarchyOffset + CandidateNode.NodeIndex, ChildIndex );
 
 #if CULLING_PASS == CULLING_PASS_OCCLUSION_POST
-	bool bVisible = (CandidateNode.EnabledBitmask & ( 1u << ChildIndex ) ) != 0u;
+	bool bVisible = HierarchyNodeSlice.bEnabled && (CandidateNode.EnabledBitmask & ( 1u << ChildIndex ) ) != 0u;	// Need to check bEnabled because instance cull always writes full mask
 #else
 	bool bVisible = HierarchyNodeSlice.bEnabled;
 #endif
