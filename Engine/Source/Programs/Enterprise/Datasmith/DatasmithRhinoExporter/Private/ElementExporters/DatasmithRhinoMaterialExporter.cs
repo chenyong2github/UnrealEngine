@@ -15,12 +15,12 @@ namespace DatasmithRhino.ElementExporters
 
 		protected override int GetElementsToSynchronizeCount()
 		{
-			return SceneParser.MaterialHashToMaterialInfo.Count;
+			return ExportContext.MaterialHashToMaterialInfo.Count;
 		}
 
 		protected override IEnumerable<DatasmithMaterialInfo> GetElementsToSynchronize()
 		{
-			return SceneParser.MaterialHashToMaterialInfo.Values;
+			return ExportContext.MaterialHashToMaterialInfo.Values;
 		}
 
 		protected override FDatasmithFacadeElement CreateElement(DatasmithMaterialInfo ElementInfo)
@@ -61,7 +61,7 @@ namespace DatasmithRhino.ElementExporters
 				Texture RhinoTexture = MaterialTextures[TextureIndex];
 				if(RhinoTexture != null)
 				{
-					DatasmithTextureInfo TextureInfo = SceneParser.GetTextureInfoFromRhinoTexture(RhinoTexture.Id);
+					DatasmithTextureInfo TextureInfo = ExportContext.GetTextureInfoFromRhinoTexture(RhinoTexture.Id);
 					if (TextureInfo != null)
 					{
 						AddTextureToMaterial(DSMaterial, TextureInfo, MaterialDiffuseColor);

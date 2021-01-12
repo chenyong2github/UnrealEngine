@@ -26,10 +26,10 @@ namespace DatasmithRhino
 				FDatasmithFacadeScene DatasmithScene = SetUpSceneExport(Options.DestinationFileName, RhinoDocument);
 
 				FDatasmithRhinoProgressManager.Instance.StartMainTaskProgress("Parsing Document", 0.1f);
-				DatasmithRhinoSceneParser SceneParser = new DatasmithRhinoSceneParser(RhinoDocument, Options);
-				SceneParser.ParseDocument();
+				DatasmithRhinoExportContext ExportContext = new DatasmithRhinoExportContext(RhinoDocument, Options);
+				ExportContext.ParseDocument();
 
-				if (SynchronizeScene(SceneParser, DatasmithScene) == Rhino.Commands.Result.Success)
+				if (SynchronizeScene(ExportContext, DatasmithScene) == Rhino.Commands.Result.Success)
 				{
 					FDatasmithRhinoProgressManager.Instance.StartMainTaskProgress("Writing to files..", 1);
 					DatasmithScene.ExportScene();
@@ -74,10 +74,10 @@ namespace DatasmithRhino
 
 				FDatasmithRhinoProgressManager.Instance.StartMainTaskProgress("Parsing Document", 0.1f);
 				FDatasmithRhinoExportOptions Options = new FDatasmithRhinoExportOptions(DocumentName);
-				DatasmithRhinoSceneParser SceneParser = new DatasmithRhinoSceneParser(RhinoDocument, Options);
-				SceneParser.ParseDocument();
+				DatasmithRhinoExportContext ExportContext = new DatasmithRhinoExportContext(RhinoDocument, Options);
+				ExportContext.ParseDocument();
 
-				if (SynchronizeScene(SceneParser, DatasmithScene) == Rhino.Commands.Result.Success)
+				if (SynchronizeScene(ExportContext, DatasmithScene) == Rhino.Commands.Result.Success)
 				{
 					FDatasmithRhinoProgressManager.Instance.StartMainTaskProgress("Broadcasting Datasmith Scene..", 1);
 					DirectLink.UpdateScene(DatasmithScene);
@@ -115,19 +115,19 @@ namespace DatasmithRhino
 			return DatasmithScene;
 		}
 
-		public static Rhino.Commands.Result SynchronizeScene(DatasmithRhinoSceneParser SceneParser, FDatasmithFacadeScene DatasmithScene)
+		public static Rhino.Commands.Result SynchronizeScene(DatasmithRhinoExportContext ExportContext, FDatasmithFacadeScene DatasmithScene)
 		{
 			FDatasmithRhinoProgressManager.Instance.StartMainTaskProgress("Exporting Textures", 0.1f);
-			DatasmithRhinoTextureExporter.Instance.SynchronizeElements(DatasmithScene, SceneParser);
+			DatasmithRhinoTextureExporter.Instance.SynchronizeElements(DatasmithScene, ExportContext);
 
 			FDatasmithRhinoProgressManager.Instance.StartMainTaskProgress("Exporting Materials", 0.2f);
-			DatasmithRhinoMaterialExporter.Instance.SynchronizeElements(DatasmithScene, SceneParser);
+			DatasmithRhinoMaterialExporter.Instance.SynchronizeElements(DatasmithScene, ExportContext);
 
 			FDatasmithRhinoProgressManager.Instance.StartMainTaskProgress("Exporting Meshes", 0.7f);
-			DatasmithRhinoMeshExporter.Instance.SynchronizeElements(DatasmithScene, SceneParser);
+			DatasmithRhinoMeshExporter.Instance.SynchronizeElements(DatasmithScene, ExportContext);
 
 			FDatasmithRhinoProgressManager.Instance.StartMainTaskProgress("Exporting Actors", 0.8f);
-			DatasmithRhinoActorExporter.Instance.SynchronizeElements(DatasmithScene, SceneParser);
+			DatasmithRhinoActorExporter.Instance.SynchronizeElements(DatasmithScene, ExportContext);
 
 			return Rhino.Commands.Result.Success;
 		}

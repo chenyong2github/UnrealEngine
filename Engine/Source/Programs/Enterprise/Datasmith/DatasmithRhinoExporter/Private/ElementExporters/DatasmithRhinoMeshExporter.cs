@@ -15,12 +15,12 @@ namespace DatasmithRhino.ElementExporters
 
 		protected override int GetElementsToSynchronizeCount()
 		{
-			return SceneParser.ObjectIdToMeshInfoDictionary.Count;
+			return ExportContext.ObjectIdToMeshInfoDictionary.Count;
 		}
 
 		protected override IEnumerable<DatasmithMeshInfo> GetElementsToSynchronize()
 		{
-			return SceneParser.ObjectIdToMeshInfoDictionary.Values;
+			return ExportContext.ObjectIdToMeshInfoDictionary.Values;
 		}
 
 		protected override FDatasmithFacadeElement CreateElement(DatasmithMeshInfo ElementInfo)
@@ -104,7 +104,7 @@ namespace DatasmithRhino.ElementExporters
 		private void ParseMeshElement(FDatasmithFacadeMeshElement DatasmithMeshElement, FDatasmithFacadeMesh DatasmithMesh, DatasmithMeshInfo ElementInfo)
 		{
 			List<DatasmithMaterialInfo> MaterialInfos = new List<DatasmithMaterialInfo>(ElementInfo.MaterialIndices.Count);
-			ElementInfo.MaterialIndices.ForEach((MaterialIndex) => MaterialInfos.Add(SceneParser.GetMaterialInfoFromMaterialIndex(MaterialIndex)));
+			ElementInfo.MaterialIndices.ForEach((MaterialIndex) => MaterialInfos.Add(ExportContext.GetMaterialInfoFromMaterialIndex(MaterialIndex)));
 
 			DatasmithMeshElement.SetLabel(ElementInfo.Label);
 			ParseMesh(DatasmithMeshElement, DatasmithMesh, ElementInfo.RhinoMeshes, MaterialInfos);

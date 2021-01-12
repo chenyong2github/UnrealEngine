@@ -40,9 +40,9 @@ namespace DatasmithRhino.ElementExporters
 		protected FDatasmithFacadeScene DatasmithScene;
 
 		/// <summary>
-		/// The SceneParser context.
+		/// The export context.
 		/// </summary>
-		protected DatasmithRhinoSceneParser SceneParser;
+		protected DatasmithRhinoExportContext ExportContext;
 
 		/// <summary>
 		/// Overridable bool indicating if the element synchronization should be run on an async thread.
@@ -53,12 +53,12 @@ namespace DatasmithRhino.ElementExporters
 		/// Function used to synchronize the IDatasmithElement to the IDatasmithScene.
 		/// It applies the state of the DatasmithInfoBase to the IDatasmithElement, as such it takes care of element creation, modification and deletion.
 		/// </summary>
-		/// <param name="DatasmithScene">The DatasmithScene we are syncing to.</param>
-		/// <param name="SceneParser">The SceneParser holding the parsed Rhino document.</param>
-		public void SynchronizeElements(FDatasmithFacadeScene InDatasmithScene, DatasmithRhinoSceneParser InSceneParser)
+		/// <param name="InDatasmithScene">The DatasmithScene we are syncing to.</param>
+		/// <param name="InExportContext">The ExportContext holding the parsed Rhino document.</param>
+		public void SynchronizeElements(FDatasmithFacadeScene InDatasmithScene, DatasmithRhinoExportContext InExportContext)
 		{
 			DatasmithScene = InDatasmithScene;
-			SceneParser = InSceneParser;
+			ExportContext = InExportContext;
 
 			if (bShouldUseThreading)
 			{
@@ -207,47 +207,34 @@ namespace DatasmithRhino.ElementExporters
 		/// <summary>
 		/// Returns the total number of elements to process. Used for progress update.
 		/// </summary>
-		/// <param name="SceneParser"></param>
 		/// <returns></returns>
 		protected abstract int GetElementsToSynchronizeCount();
 
 		/// <summary>
 		/// Returns an enumerator of the derived type of DatasmithInfoBase of the elements to process.
 		/// </summary>
-		/// <param name="SceneParser"></param>
 		/// <returns></returns>
 		protected abstract IEnumerable<T> GetElementsToSynchronize();
 
 		/// <summary>
 		/// Called before AddElement(), creates and returns a new FDatasmithFacadeElement to be added to the DatasmithScene.
 		/// </summary>
-		/// <param name="DatasmithScene"></param>
-		/// <param name="SceneParser"></param>
-		/// <param name="ElementInfo"></param>
+		/// <returns></returns>
 		protected abstract FDatasmithFacadeElement CreateElement(T ElementInfo);
 
 		/// <summary>
 		/// Called after CreateElement() to add the new element to the scene. The distinction between those 2 functions allows for safe asynchronous element creation.
 		/// </summary>
-		/// <param name="DatasmithScene"></param>
-		/// <param name="SceneParser"></param>
-		/// <param name="ElementInfo"></param>
 		protected abstract void AddElement(T ElementInfo);
 
 		/// <summary>
 		/// Called when we need to update the state of an element already existing in the scene.
 		/// </summary>
-		/// <param name="DatasmithScene"></param>
-		/// <param name="SceneParser"></param>
-		/// <param name="ElementInfo"></param>
 		protected abstract void ModifyElement(T ElementInfo);
 
 		/// <summary>
 		/// Called when we need to remove an element currently existing in the scene.
 		/// </summary>
-		/// <param name="DatasmithScene"></param>
-		/// <param name="SceneParser"></param>
-		/// <param name="ElementInfo"></param>
 		protected abstract void DeleteElement(T ElementInfo);
 	}
 }

@@ -16,12 +16,12 @@ namespace DatasmithRhino.ElementExporters
 		protected override int GetElementsToSynchronizeCount()
 		{
 			const bool bImmediateChildrenOnly = false;
-			return SceneParser.SceneRoot.GetChildrenCount(bImmediateChildrenOnly) + 1;
+			return ExportContext.SceneRoot.GetChildrenCount(bImmediateChildrenOnly) + 1;
 		}
 
 		protected override IEnumerable<DatasmithActorInfo> GetElementsToSynchronize()
 		{
-			return SceneParser.SceneRoot;
+			return ExportContext.SceneRoot;
 		}
 
 		protected override FDatasmithFacadeElement CreateElement(DatasmithActorInfo ElementInfo)
@@ -96,7 +96,7 @@ namespace DatasmithRhino.ElementExporters
 						bExportEmptyActor = true;
 					}
 				}
-				else if (SceneParser.ObjectIdToMeshInfoDictionary.ContainsKey(CurrentObject.Id))
+				else if (ExportContext.ObjectIdToMeshInfoDictionary.ContainsKey(CurrentObject.Id))
 				{
 					// If the node's object has a mesh associated to it, export it as a MeshActor.
 					ExportedActor = CreateMeshActor(Node);
@@ -124,7 +124,7 @@ namespace DatasmithRhino.ElementExporters
 					break;
 				case FDatasmithFacadeActorMesh MeshActor:
 					RhinoObject CurrentObject = Node.RhinoModelComponent as RhinoObject;
-					if (SceneParser.ObjectIdToMeshInfoDictionary.TryGetValue(CurrentObject.Id, out DatasmithMeshInfo MeshInfo))
+					if (ExportContext.ObjectIdToMeshInfoDictionary.TryGetValue(CurrentObject.Id, out DatasmithMeshInfo MeshInfo))
 					{
 						SyncMeshActor(MeshActor, Node, MeshInfo);
 					}
@@ -136,7 +136,7 @@ namespace DatasmithRhino.ElementExporters
 
 			SyncTags(DatasmithActor, Node);
 			SyncMetaData(DatasmithActor, Node, DatasmithScene);
-			DatasmithActor.SetLayer(GetLayers(Node, SceneParser));
+			DatasmithActor.SetLayer(GetLayers(Node));
 		}
 
 		private static FDatasmithFacadeActorMesh CreateMeshActor(DatasmithActorInfo InNode)
@@ -163,7 +163,7 @@ namespace DatasmithRhino.ElementExporters
 		{
 			if (InNode.bOverrideMaterial)
 			{
-				DatasmithMaterialInfo MaterialInfo = SceneParser.GetMaterialInfoFromMaterialIndex(InNode.MaterialIndex);
+				DatasmithMaterialInfo MaterialInfo = ExportContext.GetMaterialInfoFromMaterialIndex(InNode.MaterialIndex);
 				if (DatasmithMeshActor.GetMaterialOverridesCount() > 0)
 				{
 					FDatasmithFacadeMaterialID MaterialID = DatasmithMeshActor.GetMaterialOverride(0);
@@ -390,7 +390,7 @@ namespace DatasmithRhino.ElementExporters
 			}
 		}
 
-		private static string GetLayers(DatasmithActorInfo InNode, DatasmithRhinoSceneParser SceneParser)
+		private string GetLayers(DatasmithActorInfo InNode)
 		{
 			bool bIsSameAsParentLayer =
 				!(InNode.bHasRhinoLayer
@@ -403,7 +403,7 @@ namespace DatasmithRhino.ElementExporters
 			}
 			else
 			{
-				return SceneParser.GetNodeLayerString(InNode);
+				return ExportContext.GetNodeLayerString(InNode);
 			}
 		}
 	}

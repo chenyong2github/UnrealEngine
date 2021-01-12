@@ -218,7 +218,7 @@ namespace DatasmithRhino
 	}
 
 
-	public class DatasmithRhinoSceneParser
+	public class DatasmithRhinoExportContext
 	{
 		public RhinoDoc RhinoDocument { get; private set; }
 		public FDatasmithRhinoExportOptions ExportOptions { get; private set; }
@@ -247,7 +247,7 @@ namespace DatasmithRhino
 		private FUniqueNameGenerator MaterialLabelGenerator = new FUniqueNameGenerator();
 		private FUniqueNameGenerator TextureLabelGenerator = new FUniqueNameGenerator();
 
-		public DatasmithRhinoSceneParser(RhinoDoc InDoc, FDatasmithRhinoExportOptions InOptions)
+		public DatasmithRhinoExportContext(RhinoDoc InDoc, FDatasmithRhinoExportOptions InOptions)
 		{
 			RhinoDocument = InDoc;
 			ExportOptions = InOptions;

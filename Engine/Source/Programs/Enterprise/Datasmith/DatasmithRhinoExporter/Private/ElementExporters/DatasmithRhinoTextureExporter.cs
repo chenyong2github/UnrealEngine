@@ -12,12 +12,12 @@ namespace DatasmithRhino.ElementExporters
 
 		protected override int GetElementsToSynchronizeCount()
 		{
-			return SceneParser.TextureHashToTextureInfo.Count;
+			return ExportContext.TextureHashToTextureInfo.Count;
 		}
 
 		protected override IEnumerable<DatasmithTextureInfo> GetElementsToSynchronize()
 		{
-			return SceneParser.TextureHashToTextureInfo.Values;
+			return ExportContext.TextureHashToTextureInfo.Values;
 		}
 
 		protected override FDatasmithFacadeElement CreateElement(DatasmithTextureInfo ElementInfo)
