@@ -192,12 +192,14 @@ void TJointConstraintProxy<Chaos::FJointConstraint>::PushStateOnGameThread(Chaos
 			if (Constraint->IsDirty(Chaos::EJointConstraintFlags::LinearBreakForce))
 			{
 				JointSettingsBuffer.LinearBreakForce = Constraint->GetLinearBreakForce();
+				JointSettingsBuffer.LinearPlasticityLimit = Constraint->GetLinearPlasticityLimit();
 				DirtyFlagsBuffer.MarkDirty(Chaos::EJointConstraintFlags::LinearBreakForce);
 			}
 
 			if (Constraint->IsDirty(Chaos::EJointConstraintFlags::AngularBreakTorque))
 			{
 				JointSettingsBuffer.AngularBreakTorque = Constraint->GetAngularBreakTorque();
+				JointSettingsBuffer.AngularPlasticityLimit = Constraint->GetAngularPlasticityLimit();
 				DirtyFlagsBuffer.MarkDirty(Chaos::EJointConstraintFlags::AngularBreakTorque);
 			}
 
@@ -343,11 +345,13 @@ void TJointConstraintProxy<Chaos::FJointConstraint>::PushStateOnPhysicsThread(Ch
 			if (DirtyFlagsBuffer.IsDirty(Chaos::EJointConstraintFlags::LinearBreakForce))
 			{
 				ConstraintSettings.LinearBreakForce = JointSettingsBuffer.LinearBreakForce;
+				ConstraintSettings.LinearPlasticityLimit = JointSettingsBuffer.LinearPlasticityLimit;
 			}
 
 			if (DirtyFlagsBuffer.IsDirty(Chaos::EJointConstraintFlags::AngularBreakTorque))
 			{
 				ConstraintSettings.AngularBreakTorque = JointSettingsBuffer.AngularBreakTorque;
+				ConstraintSettings.AngularPlasticityLimit = JointSettingsBuffer.AngularPlasticityLimit;
 			}
 
 			if (DirtyFlagsBuffer.IsDirty(Chaos::EJointConstraintFlags::UserData))
