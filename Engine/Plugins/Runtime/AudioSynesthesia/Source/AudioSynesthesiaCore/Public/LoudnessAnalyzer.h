@@ -73,13 +73,13 @@ namespace Audio
             FLoudnessAnalyzer(float InSampleRate, const FLoudnessAnalyzerSettings& InSettings);
 
 			/**
-			 * Calculats the perceptual energy for the input samples.  The number of 
+			 * Calculate the perceptual energy for the input samples.  The number of 
 			 * input samples must be equal to the FFTSize supplied in FLoudnessAnalyzerSettings.
 			 */
             float CalculatePerceptualEnergy(TArrayView<const float> InSampleView);
 
 			/**
-			 * Calculats the loudness for the input samples.  The number of  input samples must 
+			 * Calculate the loudness for the input samples.  The number of  input samples must 
 			 * be equal to the FFTSize supplied in FLoudnessAnalyzerSettings.
 			 */
             float CalculateLoudness(TArrayView<const float> InSampleView);

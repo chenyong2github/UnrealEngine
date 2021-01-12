@@ -9,20 +9,11 @@ namespace Audio
 	// Use for overall loudness storage
 	const int32 FLoudnessResult::ChannelIndexOverall = INDEX_NONE;
 
-	FLoudnessResult::FLoudnessResult()
-	:	DurationInSeconds(0.f)
-	{
-	}
-
 	void FLoudnessResult::Add(const FLoudnessEntry& InDatum)
 	{
 		// Store loudness data in appropriate channel
 		TArray<FLoudnessEntry>& LoudnessArray = ChannelLoudnessArrays.FindOrAdd(InDatum.Channel);
 		LoudnessArray.Add(InDatum);
-
-		// Update intervals per channel
-		FFloatInterval& Interval = ChannelLoudnessIntervals.FindOrAdd(InDatum.Channel);
-		Interval.Include(InDatum.Loudness);
 	}
 
 	const TArray<FLoudnessEntry>& FLoudnessResult::GetChannelLoudnessArray(int32 ChannelIdx) const

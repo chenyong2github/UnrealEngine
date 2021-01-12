@@ -5,15 +5,6 @@
 #include "InterpolateSorted.h"
 #include "AudioSynesthesiaLog.h"
 
-ULoudnessSettings::ULoudnessSettings()
-	: AnalysisPeriod(0.01f)
-	, MinimumFrequency(20.f)
-	, MaximumFrequency(20000.f)
-	, CurveType(ELoudnessCurveTypeEnum::D)
-	, NoiseFloorDb(-60.f)
-	, ExpectedMaxLoudness(0.0f)
-{}
-
 TUniquePtr<Audio::IAnalyzerSettings> ULoudnessSettings::GetSettings(const int32 InSampleRate, const int32 InNumChannels) const
 {
 	TUniquePtr<Audio::FLoudnessSettings> Settings = MakeUnique<Audio::FLoudnessSettings>();

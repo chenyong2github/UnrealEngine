@@ -35,31 +35,31 @@ class AUDIOSYNESTHESIA_API ULoudnessSettings : public UAudioSynesthesiaSettings
 	GENERATED_BODY()
 public:
 
-	ULoudnessSettings();
+	ULoudnessSettings() {}
 
 	/** Number of seconds between loudness measurements */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = AudioAnalyzer, meta = (ClampMin = "0.01", ClampMax = "0.25"))
-	float AnalysisPeriod;
+	float AnalysisPeriod = 0.01f;
 
 	/** Minimum analysis frequency for calculating loudness. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = AudioAnalyzer, meta = (ClampMin = "20.0", ClampMax = "20000"))
-	float MinimumFrequency;
+	float MinimumFrequency = 20.0f;
 
 	/** Maximum analysis frequency for calculating loudness. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = AudioAnalyzer, meta = (ClampMin = "20.0", ClampMax = "20000"))
-	float MaximumFrequency;
+	float MaximumFrequency = 20000.0f;
 
 	/** Type of equal loudness curve used in calculations */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = AudioAnalyzer)
-	ELoudnessCurveTypeEnum CurveType;
+	ELoudnessCurveTypeEnum CurveType = ELoudnessCurveTypeEnum::D;
 
 	/** dB level to denote silence.  Used when calculating normalized loudness. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, AdvancedDisplay, Category = AudioAnalyzer, meta = (ClampMin = "-100.0", ClampMax = "0"))
-	float NoiseFloorDb;
+	float NoiseFloorDb = -60.0f;
 
 	/** dB level to denote silence.  Used when calculating normalized loudness. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, AdvancedDisplay, Category = AudioAnalyzer, meta = (ClampMin = "-100.0", ClampMax = "0"))
-	float ExpectedMaxLoudness;
+	float ExpectedMaxLoudness = 0.0f;
 
 	/** Convert ULoudnessSettings to FLoudnessSettings */
 	TUniquePtr<Audio::IAnalyzerSettings> GetSettings(const int32 InSampleRate, const int32 InNumChannels) const;

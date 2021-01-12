@@ -41,7 +41,7 @@ namespace Audio
 		 */
 		static const int32 ChannelIndexOverall;
 
-		FLoudnessResult();
+		FLoudnessResult() {}
 
 		/** Appends an FLoudnessDatum to the container. */
 		void Add(const FLoudnessEntry& InDatum);
@@ -56,9 +56,7 @@ namespace Audio
 		int32 GetNumChannels() const;
 
 	private:
-		float DurationInSeconds;
 		TMap<int32, TArray<FLoudnessEntry> > ChannelLoudnessArrays;
-		TMap<int32, FFloatInterval> ChannelLoudnessIntervals;
 	};
 
 	/**
