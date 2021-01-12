@@ -712,24 +712,25 @@ void FOpenGLEventQuery::WaitForCompletion()
 	// Wait up to 1/2 second for sync execution
 	FOpenGL::EFenceResult Status = FOpenGL::ClientWaitSync( Sync, 0, 500*1000*1000);
 
-	if ( Status != FOpenGL::FR_AlreadySignaled && Status != FOpenGL::FR_ConditionSatisfied )
+	switch (Status)
 	{
-		//failure of some type, determine type and send diagnostic message
-		if ( Status == FOpenGL::FR_TimeoutExpired )
-		{
-			UE_LOG(LogRHI, Log, TEXT("Timed out while waiting for GPU to catch up. (500 ms)"));
-		}
-		else if ( Status == FOpenGL::FR_WaitFailed )
-		{
-			UE_LOG(LogRHI, Log, TEXT("Wait on GPU failed in driver"));
-		}
-		else
-		{
-			UE_LOG(LogRHI, Log, TEXT("Unknown error while waiting on GPU"));
-			check(0);
-		}
-	}
+	case FOpenGL::FR_AlreadySignaled:
+	case FOpenGL::FR_ConditionSatisfied:
+		break;
 
+	case FOpenGL::FR_TimeoutExpired:
+		UE_LOG(LogRHI, Log, TEXT("Timed out while waiting for GPU to catch up. (500 ms)"));
+		break;
+
+	case FOpenGL::FR_WaitFailed:
+		UE_LOG(LogRHI, Log, TEXT("Wait on GPU failed in driver"));
+		break;
+
+	default:
+	    UE_LOG(LogRHI, Log, TEXT("Unknown error while waiting on GPU"));
+	    check(0);
+		break;
+	}	
 }
 
 void FOpenGLEventQuery::InitDynamicRHI()

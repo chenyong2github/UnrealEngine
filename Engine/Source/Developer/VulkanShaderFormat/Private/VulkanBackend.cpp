@@ -2031,7 +2031,7 @@ class FGenerateVulkanVisitor : public ir_visitor
 				}
 			}
 		}
-		else if (deref->op == ir_image_dimensions)
+		else if (deref->op == ir_image_dimensions) //-V547
 		{
 			check(!bIsStructured);
 			ralloc_asprintf_append(buffer, "imageSize( ");

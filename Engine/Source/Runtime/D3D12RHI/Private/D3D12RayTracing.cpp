@@ -2479,8 +2479,9 @@ void FD3D12RayTracingGeometry::BuildAccelerationStructure(FD3D12CommandContext& 
 		// #dxr_todo: Add explicit vertex count to FRayTracingGeometrySegment.
 		const uint32 MaxSegmentVertices = (VertexBuffer->ResourceLocation.GetSize() - Segment.VertexBufferOffset) / Segment.VertexBufferStride;
 
-		if (GeometryType == D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES)
+		switch (GeometryType)
 		{
+		case D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES:
 			switch (Segment.VertexBufferElementType)
 			{
 			case VET_Float4:
@@ -2534,16 +2535,17 @@ void FD3D12RayTracingGeometry::BuildAccelerationStructure(FD3D12CommandContext& 
 
 			Desc.Triangles.VertexBuffer.StartAddress = SystemParameters.VertexBuffer;
 			Desc.Triangles.VertexBuffer.StrideInBytes = Segment.VertexBufferStride;
-		}
-		else if (GeometryType == D3D12_RAYTRACING_GEOMETRY_TYPE_PROCEDURAL_PRIMITIVE_AABBS)
-		{
+			break;
+
+		case D3D12_RAYTRACING_GEOMETRY_TYPE_PROCEDURAL_PRIMITIVE_AABBS:
 			Desc.AABBs.AABBCount = Segment.NumPrimitives;
 			Desc.AABBs.AABBs.StartAddress = SystemParameters.VertexBuffer;
 			Desc.AABBs.AABBs.StrideInBytes = Segment.VertexBufferStride;
-		}
-		else
-		{
+			break;
+
+		default:
 			checkf(false, TEXT("Unexpected ray tracing geometry type"));
+			break;
 		}
 
 		VertexBuffer->ResourceLocation.GetResource()->UpdateResidency(CommandContext.CommandListHandle);

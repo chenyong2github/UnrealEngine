@@ -101,7 +101,9 @@ void SAssetDialog::Construct(const FArguments& InArgs, const FSharedAssetDialogC
 	// Open and save specific configuration
 	FText ConfirmButtonText;
 	bool bIncludeNameBox = false;
-	if ( DialogType == EAssetDialogType::Open )
+	switch (DialogType)
+	{
+	case EAssetDialogType::Open:
 	{
 		const FOpenAssetDialogConfig& OpenAssetConfig = static_cast<const FOpenAssetDialogConfig&>(InConfig);
 		PathPickerConfig.bAllowContextMenu = true;
@@ -109,8 +111,10 @@ void SAssetDialog::Construct(const FArguments& InArgs, const FSharedAssetDialogC
 		AssetPickerConfig.SelectionMode = OpenAssetConfig.bAllowMultipleSelection ? ESelectionMode::Multi : ESelectionMode::Single;
 		AssetPickerConfig.bFocusSearchBoxWhenOpened = true;
 		bIncludeNameBox = false;
+		break;
 	}
-	else if ( DialogType == EAssetDialogType::Save )
+
+	case EAssetDialogType::Save:
 	{
 		const FSaveAssetDialogConfig& SaveAssetConfig = static_cast<const FSaveAssetDialogConfig&>(InConfig);
 		PathPickerConfig.bAllowContextMenu = true;
@@ -120,10 +124,12 @@ void SAssetDialog::Construct(const FArguments& InArgs, const FSharedAssetDialogC
 		bIncludeNameBox = true;
 		ExistingAssetPolicy = SaveAssetConfig.ExistingAssetPolicy;
 		SetCurrentlyEnteredAssetName(SaveAssetConfig.DefaultAssetName);
+		break;
 	}
-	else
-	{
+
+	default:
 		ensureMsgf(0, TEXT("AssetDialog type %d is not supported."), DialogType);
+		break;
 	}
 
 	PathPicker = StaticCastSharedRef<SPathPicker>(FContentBrowserSingleton::Get().CreatePathPicker(PathPickerConfig));
@@ -649,42 +655,41 @@ void SAssetDialog::HandleAssetViewFolderEntered(const FString& NewPath)
 
 bool SAssetDialog::IsConfirmButtonEnabled() const
 {
-	if ( DialogType == EAssetDialogType::Open )
+	switch (DialogType)
 	{
+	case EAssetDialogType::Open:
 		return CurrentlySelectedAssets.Num() > 0;
-	}
-	else if ( DialogType == EAssetDialogType::Save )
-	{
+	case EAssetDialogType::Save:
 		return bLastInputValidityCheckSuccessful;
+	default:
+	    ensureMsgf(0, TEXT("AssetDialog type %d is not supported."), DialogType);
+	    return false;
 	}
-	else
-	{
-		ensureMsgf(0, TEXT("AssetDialog type %d is not supported."), DialogType);
-	}
-
-	return false;
 }
 
 FReply SAssetDialog::OnConfirmClicked()
 {
-	if ( DialogType == EAssetDialogType::Open )
+	switch (DialogType)
+	{
+	case EAssetDialogType::Open:
 	{
 		TArray<FAssetData> SelectedAssets = GetCurrentSelectionDelegate.Execute();
 		if (SelectedAssets.Num() > 0)
 		{
 			ChooseAssetsForOpen(SelectedAssets);
 		}
-	}
-	else if ( DialogType == EAssetDialogType::Save )
-	{
-		// @todo save asset validation (e.g. "asset already exists" check)
-		CommitObjectPathForSave();
-	}
-	else
-	{
-		ensureMsgf(0, TEXT("AssetDialog type %d is not supported."), DialogType);
+		break;
 	}
 
+	case EAssetDialogType::Save:
+		// @todo save asset validation (e.g. "asset already exists" check)
+		CommitObjectPathForSave();
+		break;
+
+	default:
+		ensureMsgf(0, TEXT("AssetDialog type %d is not supported."), DialogType);
+		break;
+	}
 	return FReply::Handled();
 }
 
@@ -711,20 +716,24 @@ void SAssetDialog::OnAssetsActivated(const TArray<FAssetData>& SelectedAssets, E
 	const bool bCorrectActivationMethod = (ActivationType == EAssetTypeActivationMethod::DoubleClicked || ActivationType == EAssetTypeActivationMethod::Opened);
 	if (SelectedAssets.Num() > 0 && bCorrectActivationMethod)
 	{
-		if ( DialogType == EAssetDialogType::Open )
+		switch (DialogType)
 		{
+		case EAssetDialogType::Open:
 			ChooseAssetsForOpen(SelectedAssets);
-		}
-		else if ( DialogType == EAssetDialogType::Save )
+			break;
+
+		case EAssetDialogType::Save:
 		{
 			const FAssetData& AssetData = SelectedAssets[0];
 			SetCurrentlySelectedPath(AssetData.PackagePath.ToString());
 			SetCurrentlyEnteredAssetName(AssetData.AssetName.ToString());
 			CommitObjectPathForSave();
+			break;
 		}
-		else
-		{
+
+		default:
 			ensureMsgf(0, TEXT("AssetDialog type %d is not supported."), DialogType);
+			break;
 		}
 	}
 }

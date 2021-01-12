@@ -2212,7 +2212,9 @@ FVector USkinnedMeshComponent::GetBoneLocation(FName BoneName, EBoneSpaces::Type
 		return FVector::ZeroVector;
 	}
 
-	if( Space == EBoneSpaces::ComponentSpace )
+	switch (Space)
+	{
+	case EBoneSpaces::ComponentSpace:
 	{
 		const USkinnedMeshComponent* const MasterPoseComponentInst = MasterPoseComponent.Get();
 		if(MasterPoseComponentInst)
@@ -2227,22 +2229,21 @@ FVector USkinnedMeshComponent::GetBoneLocation(FName BoneName, EBoneSpaces::Type
 					return MasterPoseComponentInst->GetComponentSpaceTransforms()[ParentBoneIndex].GetLocation();
 				}
 			}
-			
+
 			// return empty vector
-			return FVector::ZeroVector;			
+			return FVector::ZeroVector;
 		}
 		else
 		{
 			return GetComponentSpaceTransforms()[BoneIndex].GetLocation();
 		}
 	}
-	else if (Space == EBoneSpaces::WorldSpace)
-	{
+
+	case EBoneSpaces::WorldSpace:
 		// To support non-uniform scale (via LocalToWorld), use GetBoneMatrix
 		return GetBoneMatrix(BoneIndex).GetOrigin();
-	}
-	else
-	{
+
+	default:
 		check(false); // Unknown BoneSpace
 		return FVector::ZeroVector;
 	}

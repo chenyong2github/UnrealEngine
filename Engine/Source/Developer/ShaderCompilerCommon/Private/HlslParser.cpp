@@ -1082,7 +1082,7 @@ namespace CrossCompiler
 			{
 				break;
 			}
-			else if (Result == EParseResult::NotMatched)
+			else if (Result == EParseResult::NotMatched) //-V547
 			{
 				Parser.Scanner.SourceError(TEXT("Internal error on function parameter!\n"));
 				return ParseResultError();

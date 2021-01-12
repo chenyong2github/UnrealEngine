@@ -1925,7 +1925,7 @@ void SNiagaraParameterMapView::RenameParameter(TSharedPtr<FNiagaraParameterActio
 			}
 		}
 	}
-	else if (ToolkitType == SYSTEM)
+	else if (ToolkitType == SYSTEM) //-V547
 	{
 		UNiagaraSystem* System = CachedSystem.Get();
 		if (System != nullptr)

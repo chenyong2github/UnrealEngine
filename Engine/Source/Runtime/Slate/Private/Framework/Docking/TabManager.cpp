@@ -1200,37 +1200,49 @@ void FTabManager::InsertNewDocumentTab(FName PlaceholderId, const FSearchPrefere
 
 void FTabManager::InsertNewDocumentTab( FName PlaceholderId, ESearchPreference::Type SearchPreference, const TSharedRef<SDockTab>& UnmanagedTab )
 {
-	if ( SearchPreference == ESearchPreference::PreferLiveTab )
+	switch (SearchPreference)
+	{
+	case ESearchPreference::PreferLiveTab:
 	{
 		FLiveTabSearch Search;
 		InsertDocumentTab(PlaceholderId, Search, UnmanagedTab, true);
+		break;
 	}
-	else if ( SearchPreference == ESearchPreference::RequireClosedTab )
+
+	case ESearchPreference::RequireClosedTab:
 	{
 		FRequireClosedTab Search;
 		InsertDocumentTab(PlaceholderId, Search, UnmanagedTab, true);
+		break;
 	}
-	else
-	{
+
+	default:
 		check(false);
+		break;
 	}
 }
 
 void FTabManager::RestoreDocumentTab( FName PlaceholderId, ESearchPreference::Type SearchPreference, const TSharedRef<SDockTab>& UnmanagedTab )
 {
-	if ( SearchPreference == ESearchPreference::PreferLiveTab )
+	switch (SearchPreference)
+	{
+	case ESearchPreference::PreferLiveTab:
 	{
 		FLiveTabSearch Search;
 		InsertDocumentTab(PlaceholderId, Search, UnmanagedTab, false);
+		break;
 	}
-	else if ( SearchPreference == ESearchPreference::RequireClosedTab )
+
+	case ESearchPreference::RequireClosedTab:
 	{
 		FRequireClosedTab Search;
 		InsertDocumentTab(PlaceholderId, Search, UnmanagedTab, false);
+		break;
 	}
-	else
-	{
+
+	default:
 		check(false);
+		break;
 	}
 }
 

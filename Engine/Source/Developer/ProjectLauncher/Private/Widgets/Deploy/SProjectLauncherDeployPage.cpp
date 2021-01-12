@@ -165,29 +165,19 @@ FText SProjectLauncherDeployPage::HandleDeploymentModeComboButtonContentText() c
 
 	if (SelectedProfile.IsValid())
 	{
-		ELauncherProfileDeploymentModes::Type DeploymentMode = SelectedProfile->GetDeploymentMode();
-
-		if (DeploymentMode == ELauncherProfileDeploymentModes::CopyToDevice)
+		switch (SelectedProfile->GetDeploymentMode())
 		{
+		case ELauncherProfileDeploymentModes::CopyToDevice:
 			return LOCTEXT("CopyToDeviceAction", "Copy to device");
-		}
-
-		if (DeploymentMode == ELauncherProfileDeploymentModes::DoNotDeploy)
-		{
+		case ELauncherProfileDeploymentModes::DoNotDeploy:
 			return LOCTEXT("DoNotDeployAction", "Do not deploy");
-		}
-
-		if (DeploymentMode == ELauncherProfileDeploymentModes::FileServer)
-		{
+		case ELauncherProfileDeploymentModes::FileServer:
 			return LOCTEXT("FileServerAction", "File server");
-		}
-
-		if (DeploymentMode == ELauncherProfileDeploymentModes::CopyRepository)
-		{
+		case ELauncherProfileDeploymentModes::CopyRepository:
 			return LOCTEXT("CopyRepositoryAction", "Copy repository");
+		default:
+			return LOCTEXT("DeploymentModeComboButtonDefaultText", "Select...");
 		}
-
-		return LOCTEXT("DeploymentModeComboButtonDefaultText", "Select...");
 	}
 
 	return FText::GetEmpty();
