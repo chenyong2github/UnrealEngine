@@ -527,6 +527,12 @@ void UMovieSceneSequencePlayer::PlayTo(FMovieSceneSequencePlaybackParams InPlayb
 
 void UMovieSceneSequencePlayer::SetPlaybackPosition(FMovieSceneSequencePlaybackParams InPlaybackParams)
 {
+	if (NeedsQueueLatentAction())
+	{
+		QueueLatentAction(FMovieSceneSequenceLatentActionDelegate::CreateUObject(this, &UMovieSceneSequencePlayer::SetPlaybackPosition, InPlaybackParams));
+		return;
+	}
+
 	FFrameTime NewPosition = InPlaybackParams.GetPlaybackPosition(this);
 
 	UpdateTimeCursorPosition(NewPosition, InPlaybackParams.UpdateMethod);
