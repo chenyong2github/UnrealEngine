@@ -31,6 +31,7 @@
 #include "ProfilingDebugging/ExternalProfiler.h"
 #include "ProfilingDebugging/MiscTrace.h"
 #include "ProfilingDebugging/ScopedTimers.h"
+#include "Misc/ConfigCacheIni.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogTaskGraph, Log, All);
 
@@ -1288,13 +1289,19 @@ public:
 				Name = FString::Printf(TEXT("TaskGraphThreadNP %d"), ThreadIndex - (LastExternalThread + 1));
 				ThreadPri = TPri_BelowNormal; // we want normal tasks below normal threads like the game thread
 			}
+
+			int32 StackSize;
+
 #if WITH_EDITOR
-			uint32 StackSize = 1024 * 1024;
-#elif ( UE_BUILD_SHIPPING || UE_BUILD_TEST )
-			uint32 StackSize = 384 * 1024;
+			StackSize = 1024 * 1024;
+#elif (!UE_BUILD_SHIPPING && !UE_BUILD_TEST)
+			StackSize = 512 * 1024;
 #else
-			uint32 StackSize = 512 * 1024;
+			StackSize = 384 * 1024;
 #endif
+
+			GConfig->GetInt(TEXT("Core.System"), TEXT("TaskThreadStackSize"), StackSize, GEngineIni);
+
 			if (GroupName != PrevGroupName)
 			{
 				Trace::ThreadGroupEnd();
