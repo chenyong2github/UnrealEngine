@@ -789,15 +789,6 @@ bool FProjectedShadowInfo::SetupPerObjectProjection(
 
 		MinPreSubjectZ = Initializer.MinLightW;
 
-		// Store the view matrix
-		// Reorder the vectors to match the main view, since ShadowViewMatrix will be used to override the main view's view matrix during shadow depth rendering
-		ShadowViewMatrix = Initializer.WorldToLight *
-			FMatrix(
-			FPlane(0, 0, 1, 0),
-			FPlane(1, 0, 0, 0),
-			FPlane(0, 1, 0, 0),
-			FPlane(0, 0, 0, 1));
-
 		GetViewFrustumBounds(CasterOuterFrustum, TranslatedWorldToClipOuterMatrix, true);
 		GetViewFrustumBounds(ReceiverInnerFrustum, ReceiverInnerMatrix, true);
 		
@@ -927,15 +918,6 @@ void FProjectedShadowInfo::SetupWholeSceneProjection(
 	float MaxSubjectDepth = bDirectionalLight ? 1.0f : MinSubjectZ;
 
 	InvMaxSubjectDepth = 1.0f / MaxSubjectDepth;
-
-	// Store the view matrix
-	// Reorder the vectors to match the main view, since ShadowViewMatrix will be used to override the main view's view matrix during shadow depth rendering
-	ShadowViewMatrix = Initializer.WorldToLight * 
-		FMatrix(
-		FPlane(0,	0,	1,	0),
-		FPlane(1,	0,	0,	0),
-		FPlane(0,	1,	0,	0),
-		FPlane(0,	0,	0,	1));
 
 	// Any meshes between the light and the subject can cast shadows, also any meshes inside the subject region
 	const FMatrix CasterOuterMatrix = WorldToViewScaledInner * BorderScaleMatrix * FShadowProjectionMatrix(Initializer.MinLightW, MaxSubjectZ, Initializer.WAxis);

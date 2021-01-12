@@ -463,6 +463,7 @@ void FTranslucencyDepthPassMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRIC
 }
 
 BEGIN_SHADER_PARAMETER_STRUCT(FTranslucencyDepthPassParameters, )
+	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FTranslucencyDepthPassUniformParameters, PassUniformBuffer)
 	RENDER_TARGET_BINDING_SLOTS()
 END_SHADER_PARAMETER_STRUCT()
@@ -482,6 +483,7 @@ void FProjectedShadowInfo::RenderTranslucencyDepths(FRDGBuilder& GraphBuilder, F
 	auto* PassParameters = GraphBuilder.AllocParameters<FTranslucencyDepthPassParameters>();
 	PassParameters->PassUniformBuffer = PassUniformBuffer;
 	PassParameters->RenderTargets = InRenderTargets;
+	PassParameters->View = ShadowDepthView->ViewUniformBuffer;
 
 	FString EventName;
 #if WANTS_DRAW_MESH_EVENTS

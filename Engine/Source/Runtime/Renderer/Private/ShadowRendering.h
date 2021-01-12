@@ -249,9 +249,9 @@ public:
 	/** A translation that is applied to world-space before transforming by one of the shadow matrices. */
 	FVector PreShadowTranslation;
 
-	/** The effective view matrix of the shadow, used as an override to the main view's view matrix when rendering the shadow depth pass. */
-	FMatrix ShadowViewMatrix;
-
+	/** 
+	 * The view matrix of the shadow, ALSO used as an override to the main view's view matrix when rendering the shadow depth pass. 
+	 */
 	FMatrix TranslatedWorldToView;
 
 	/** View space to clip space. Excluding border area. */
