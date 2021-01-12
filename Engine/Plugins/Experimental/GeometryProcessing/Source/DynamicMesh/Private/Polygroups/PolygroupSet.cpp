@@ -63,14 +63,14 @@ void FPolygroupSet::RecalculateMaxGroupID()
 	{
 		for (int32 tid : Mesh->TriangleIndicesItr())
 		{
-			MaxGroupID = FMath::Max(MaxGroupID, PolygroupAttrib->GetValue(tid));
+			MaxGroupID = FMath::Max(MaxGroupID, PolygroupAttrib->GetValue(tid) + 1);
 		}
 	}
 	else
 	{
 		for (int32 tid : Mesh->TriangleIndicesItr())
 		{
-			MaxGroupID = FMath::Max(MaxGroupID, Mesh->GetTriangleGroup(tid));
+			MaxGroupID = FMath::Max(MaxGroupID, Mesh->GetTriangleGroup(tid) + 1);
 		}
 	}
 }

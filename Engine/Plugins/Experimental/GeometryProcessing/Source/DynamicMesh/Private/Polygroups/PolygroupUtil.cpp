@@ -20,9 +20,25 @@ FDynamicMeshPolygroupAttribute* UE::Geometry::FindPolygroupLayerByName(FDynamicM
 }
 
 
-int32 UE::Geometry::FindPolygroupLayerIndex(FDynamicMesh3& Mesh, FDynamicMeshPolygroupAttribute* Layer)
+int32 UE::Geometry::FindPolygroupLayerIndexByName(const FDynamicMesh3& Mesh, FName Name)
 {
-	FDynamicMeshAttributeSet* AttributeSet = Mesh.Attributes();
+	const FDynamicMeshAttributeSet* AttributeSet = Mesh.Attributes();
+	if (AttributeSet == nullptr) return -1;
+	int32 NumPolygroupLayers = AttributeSet->NumPolygroupLayers();
+	for (int32 k = 0; k < NumPolygroupLayers; ++k)
+	{
+		if (AttributeSet->GetPolygroupLayer(k)->GetName() == Name)
+		{
+			return k;
+		}
+	}
+	return -1;
+}
+
+
+int32 UE::Geometry::FindPolygroupLayerIndex(const FDynamicMesh3& Mesh, const FDynamicMeshPolygroupAttribute* Layer)
+{
+	const FDynamicMeshAttributeSet* AttributeSet = Mesh.Attributes();
 	if (AttributeSet == nullptr) return -1;
 	int32 NumPolygroupLayers = AttributeSet->NumPolygroupLayers();
 	for (int32 k = 0; k < NumPolygroupLayers; ++k)
@@ -33,4 +49,15 @@ int32 UE::Geometry::FindPolygroupLayerIndex(FDynamicMesh3& Mesh, FDynamicMeshPol
 		}
 	}
 	return -1;
+}
+
+
+int32 UE::Geometry::ComputeGroupIDBound(const FDynamicMesh3& Mesh, const FDynamicMeshPolygroupAttribute* Layer)
+{
+	int Bound = 0;
+	for (int TID : Mesh.TriangleIndicesItr())
+	{
+		Bound = FMath::Max(Bound, Layer->GetValue(TID) + 1);
+	}
+	return Bound;
 }

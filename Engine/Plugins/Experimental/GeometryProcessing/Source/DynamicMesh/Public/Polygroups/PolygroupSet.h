@@ -21,6 +21,7 @@ namespace Geometry
  * 
  * To support unique Polygroup ID allocation, FPolygroupSet calculates the maximum GroupID on creation, and 
  * updates this maximum across SetGroup() calls. AllocateNewGroupID() can be used to provide new unused GroupIDs.
+ * For consistency with FDynamicMesh3, MaxGroupID is set such that all GroupIDs are less than MaxGroupID
  *
  */
 struct DYNAMICMESH_API FPolygroupSet
@@ -28,7 +29,7 @@ struct DYNAMICMESH_API FPolygroupSet
 	FDynamicMesh3* Mesh = nullptr;
 	FDynamicMeshPolygroupAttribute* PolygroupAttrib = nullptr;
 	int32 GroupLayerIndex = -1;
-	int32 MaxGroupID = 0;
+	int32 MaxGroupID = 0; // Note: all group IDs are less than MaxGroupID
 
 	/** Initialize a PolygroupSet for the given Mesh, and standard triangle group layer */
 	explicit FPolygroupSet(FDynamicMesh3* MeshIn);
@@ -80,7 +81,7 @@ struct DYNAMICMESH_API FPolygroupSet
 				Mesh->SetTriangleGroup(TriangleID, NewGroupID);
 			}
 		}
-		MaxGroupID = FMath::Max(MaxGroupID, NewGroupID);
+		MaxGroupID = FMath::Max(MaxGroupID, NewGroupID + 1);
 	}
 
 	/**
@@ -93,7 +94,7 @@ struct DYNAMICMESH_API FPolygroupSet
 	 */
 	int32 AllocateNewGroupID()
 	{
-		return ++MaxGroupID;
+		return MaxGroupID++;
 	}
 };
 
