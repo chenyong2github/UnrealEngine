@@ -9,6 +9,8 @@
 #include "Components/SceneCaptureComponent2D.h"
 #include "CineCameraComponent.h"
 #include "TextureResource.h"
+
+#include "Engine/Texture2D.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "Engine/Scene.h"
 
@@ -29,9 +31,12 @@ public:
 	TArray<USceneCaptureComponent2D*> SourceFrames;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PICP")
-	UTextureRenderTarget2D* DestinationFrame;		
-};
+	UTextureRenderTarget2D* DestinationFrame;
 
+	FPicpFrameBlendingParameters() 
+		: DestinationFrame(nullptr)
+	{}
+};
 
 USTRUCT(BlueprintType, Category = "PICP")
 struct FPicpOverlayFrameBlendingPair
@@ -47,8 +52,11 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PICP")
 	ECameraOverlayRenderMode OverlayBlendMode;
-};
 
+	FPicpOverlayFrameBlendingPair() 
+		: SourceFrameCapture(nullptr)
+	{}
+};
 
 USTRUCT(BlueprintType, Category = "PICP")
 struct FPicpCameraChromakey
@@ -67,8 +75,12 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PICP")
 	EChromakeyMarkerUVSource ChromakeyMarkerUVSource = EChromakeyMarkerUVSource::ScreenSpace;
-};
 
+	FPicpCameraChromakey() 
+		: ChromakeyOverlayFrame(nullptr)
+		, ChromakeyMarkerTexture(nullptr)
+	{}
+};
 
 USTRUCT(BlueprintType, Category = "PICP")
 struct FPicpCameraBlendingParameters
@@ -93,4 +105,9 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PICP")
 	FPicpCameraChromakey  CameraChromakey;
+
+	FPicpCameraBlendingParameters() 
+		: CameraOverlayFrame(nullptr)
+		, CineCamera(nullptr)
+	{}
 };
