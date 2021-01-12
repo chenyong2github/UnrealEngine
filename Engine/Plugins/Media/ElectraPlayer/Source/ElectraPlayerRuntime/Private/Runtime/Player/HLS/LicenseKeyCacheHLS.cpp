@@ -51,6 +51,8 @@ ILicenseKeyCacheHLS* ILicenseKeyCacheHLS::Create(IPlayerSessionServices* Session
 FLicenseKeyCacheHLS::FLicenseKeyCacheHLS(IPlayerSessionServices* InSessionServices, const FParamDict& InOptions)
 	: Options(InOptions)
 	, SessionServices(InSessionServices)
+	, Cache(kMaxCacheEntries)
+
 {
 }
 
