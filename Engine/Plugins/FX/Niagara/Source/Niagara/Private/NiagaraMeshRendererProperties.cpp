@@ -390,6 +390,13 @@ void UNiagaraMeshRendererProperties::PostLoad()
 		}
 	}
 
+#if WITH_EDITOR
+	if (GIsEditor)
+	{
+		GEditor->GetEditorSubsystem<UImportSubsystem>()->OnAssetReimport.AddUObject(this, &UNiagaraMeshRendererProperties::OnAssetReimported);
+	}
+#endif
+
 	PostLoadBindings(ENiagaraRendererSourceDataMode::Particles);
 
 	for ( const FNiagaraMeshMaterialOverride& OverrideMaterial : OverrideMaterials )
@@ -501,6 +508,8 @@ void UNiagaraMeshRendererProperties::BeginDestroy()
 				MeshProperties.Mesh->OnPostMeshBuild().RemoveAll(this);
 			}
 		}
+
+		GEditor->GetEditorSubsystem<UImportSubsystem>()->OnAssetReimport.RemoveAll(this);
 	}
 #endif
 }
@@ -608,6 +617,18 @@ void UNiagaraMeshRendererProperties::OnMeshChanged()
 void UNiagaraMeshRendererProperties::OnMeshPostBuild(UStaticMesh*)
 {
 	OnMeshChanged();
+}
+
+void UNiagaraMeshRendererProperties::OnAssetReimported(UObject* Object)
+{
+	for (auto& MeshInfo : Meshes)
+	{
+		if (MeshInfo.Mesh == Object)
+		{
+			OnMeshChanged();
+			break;
+		}
+	}
 }
 
 void UNiagaraMeshRendererProperties::CheckMaterialUsage()
