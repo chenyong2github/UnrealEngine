@@ -431,7 +431,7 @@ namespace Audio
 			return MakeUnique<TCircularOutputBuffer<int16>>(Requirements);
 			//return MakeUnique<TDecoderOutputOwnBuffer<int16>>(Requirements);
 		}
-		checkNoEntry();
+		checkNoEntry(); //-V779
 		return nullptr;
 	}
 
@@ -451,7 +451,7 @@ namespace Audio
 			Output->SetArrayViewBytes(InExternalMemory);
 			return Output;
 		}
-		checkNoEntry();
+		checkNoEntry(); //-V779
 		return nullptr;
 	}
 
