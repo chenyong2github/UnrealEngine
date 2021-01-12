@@ -1163,6 +1163,15 @@ namespace EpicGames.Core
 			}
 		}
 
+		/// <summary>
+		/// Allows the platform to optionally returns a path to the internal SDK
+		/// </summary>
+		/// <returns>Valid path to the internal SDK, null otherwise</returns>
+		public virtual string GetInternalSDKPath()
+		{
+			return null;
+		}
+
 		#endregion
 
 		#region public AutoSDKs Utility

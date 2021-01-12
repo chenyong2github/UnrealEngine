@@ -31,7 +31,7 @@ namespace UnrealBuildTool
 	/// <summary>
 	/// Linux-specific target settings
 	/// </summary>
-	public class LinuxTargetRules
+	public partial class LinuxTargetRules
 	{
 		/// <summary>
 		/// Constructor
@@ -85,22 +85,8 @@ namespace UnrealBuildTool
 	/// <summary>
 	/// Read-only wrapper for Linux-specific target settings
 	/// </summary>
-	public class ReadOnlyLinuxTargetRules
+	public partial class ReadOnlyLinuxTargetRules
 	{
-		/// <summary>
-		/// The private mutable settings object
-		/// </summary>
-		private LinuxTargetRules Inner;
-
-		/// <summary>
-		/// Constructor
-		/// </summary>
-		/// <param name="Inner">The settings object to wrap</param>
-		public ReadOnlyLinuxTargetRules(LinuxTargetRules Inner)
-		{
-			this.Inner = Inner;
-		}
-
 		/// <summary>
 		/// Accessors for fields on the inner TargetRules instance
 		/// </summary>

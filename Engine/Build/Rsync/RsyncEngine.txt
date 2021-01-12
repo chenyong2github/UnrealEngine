@@ -7,18 +7,13 @@
 #  * Directories will not be recursed through unless their parent directories match a rule.
 #  * If directories match a protect rule, it applies to the entire directory and short-circuits traversal of the contents.
 
-# These platform files are relied on by BuildTool so must be included (even though platform is irrelevant)
-+ /Source/Programs/UnrealBuildTool/Platform/Lumin/**
-+ /Source/Programs/UnrealBuildTool/Platform/Linux/**
-protect /Source/Programs/UnrealBuildTool/Platform/Lumin/**
-protect /Source/Programs/UnrealBuildTool/Platform/Linux/**
-
 # Exclude anything for platforms we don't care about
 - /**/Win32/
 - /**/Win64/
 - /Plugins/**/Android/
 - /Source/ThirdParty/**/Android/
 - /**/Lumin/**
++ /Source/Programs/UnrealBuildTool/Platform/Linux/LinuxCommon.cs
 - /**/Linux/**
 - /**/PS4/
 - /**/Switch/
@@ -39,11 +34,9 @@ protect /Source/Programs/UnrealBuildTool/Platform/Linux/**
 # Binaries
 + /Binaries/
 
-# Binaries/DotNET: Include C# tools
+# Binaries/DotNET and UnrealBuildTool
 + /Binaries/DotNET/
 + /Binaries/DotNET/AgentInterface.dll
-+ /Binaries/DotNET/UnrealBuildTool.exe
-+ /Binaries/DotNET/UnrealBuildTool.pdb
 + /Binaries/DotNET/BuildUtilities.dll
 + /Binaries/DotNET/BuildUtilities.pdb
 + /Binaries/DotNET/DotNETUtilities.dll
@@ -51,6 +44,7 @@ protect /Source/Programs/UnrealBuildTool/Platform/Linux/**
 + /Binaries/DotNET/Ionic.Zip.Reduced.dll
 + /Binaries/DotNET/IOS/
 + /Binaries/DotNET/IOS/**
+protect /Binaries/DotNET/UnrealBuildTool/**
 
 # Binaries/Mac: Include DsymExporter, ignore everything else
 + /Binaries/Mac/
@@ -224,6 +218,7 @@ protect /Binaries/ThirdParty/Mono/Mac/etc/mono/registry/last-btime
 + /Build/TVOS/
 + /Build/TVOS/**
 protect /Build/IOS/*.PackageVersionCounter
+protect /Build/BatchFiles/Mac/*.crlf
 
 # Config: Include everything
 + /Config/
@@ -285,6 +280,9 @@ protect /Saved/
 + /Source/Programs/AutomationTool/
 + /Source/Programs/DotNETCommon/
 + /Source/Programs/UnrealBuildTool/
++ /Source/Programs/Shared/
++ /Source/Programs/Shared/EpicGames.Core/
+- /Source/Programs/Shared/*/
 + /Source/Programs/UnrealPak/
 + /Source/Programs/UnrealHeaderTool/
 + /Source/Programs/UnrealHeaderTool/**.def
@@ -292,6 +290,12 @@ protect /Saved/
 - /Source/Programs/**/bin/
 - /Source/Programs/**/obj/
 - /Source/Programs/*/
+# these are built on the remote Mac
+protect /Source/Programs/DotNETCommon/obj/**
+protect /Source/Programs/DotNETCommon/BuildUtilities/bin/**
+protect /Source/Programs/UnrealBuildTool/obj/**
+protect /Source/Programs/Shared/EpicGames.Core/obj/**
+protect /Source/Programs/Shared/EpicGames.Core/bin/**
 
 # Source/ThirdParty: Whitelist specific file types
 + /Source/ThirdParty/**/

@@ -120,7 +120,7 @@ namespace UnrealBuildTool
 		/// Returns a path to the internal SDK
 		/// </summary>
 		/// <returns>Valid path to the internal SDK, null otherwise</returns>
-		public string GetInternalSDKPath()
+		public override string GetInternalSDKPath()
 		{
 			string SDKRoot = Environment.GetEnvironmentVariable(SDKRootEnvVar);
 			if (!String.IsNullOrEmpty(SDKRoot))

@@ -17,7 +17,7 @@ namespace UnrealBuildTool
 	/// <summary>
 	/// Lumin-specific target settings
 	/// </summary>	
-	public class LuminTargetRules
+	public partial class LuminTargetRules
 	{
 		/// <summary>
 		/// Lists GPU Architectures that you want to build (mostly used for mobile etc.)
@@ -35,22 +35,8 @@ namespace UnrealBuildTool
 	/// <summary>
 	/// Read-only wrapper for Android-specific target settings
 	/// </summary>
-	public class ReadOnlyLuminTargetRules
+	public partial class ReadOnlyLuminTargetRules
 	{
-		/// <summary>
-		/// The private mutable settings object
-		/// </summary>
-		private LuminTargetRules Inner;
-
-		/// <summary>
-		/// Constructor
-		/// </summary>
-		/// <param name="Inner">The settings object to wrap</param>
-		public ReadOnlyLuminTargetRules(LuminTargetRules Inner)
-		{
-			this.Inner = Inner;
-		}
-
 		/// <summary>
 		/// Accessors for fields on the inner TargetRules instance
 		/// </summary>
