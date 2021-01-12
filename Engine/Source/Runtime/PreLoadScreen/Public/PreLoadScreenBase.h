@@ -23,7 +23,7 @@ public:
     virtual void OnPlay(TWeakPtr<SWindow> TargetWindow) override { OwningWindow = TargetWindow; }
 
     //By default have a small added tick delay so we don't super spin out while waiting on other threads to load data / etc.
-    virtual float GetAddedTickDelay() override { return 0.02f; }
+    virtual float GetAddedTickDelay() override { return 0.00f; }
 
 	virtual void Init() override {}
     
