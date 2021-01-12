@@ -717,7 +717,7 @@ private:
 	 */
 	mutable float LastRenderTime;
 
-	/** Same as LastRenderTimeOnScreen but only updated if the component is on screen. Used by the texture streamer. */
+	/** Same as LastRenderTime but only updated if the component is on screen. Used by the texture streamer. */
 	mutable float LastRenderTimeOnScreen;
 
 	friend class FPrimitiveSceneInfo;
