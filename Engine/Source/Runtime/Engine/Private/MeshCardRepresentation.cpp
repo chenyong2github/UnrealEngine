@@ -300,6 +300,12 @@ void FCardRepresentationAsyncQueue::CancelBuild(UStaticMesh* StaticMesh)
 	CancelBackgroundTask(TasksToCancel);
 	for (FAsyncCardRepresentationTask* Task : TasksToCancel)
 	{
+		if (Task->GeneratedCardRepresentation != nullptr)
+		{
+			// Rendering thread may still be referencing the old one, use the deferred cleanup interface to delete it next frame when it is safe
+			BeginCleanup(Task->GeneratedCardRepresentation);
+		}
+
 		delete Task;
 	}
 }

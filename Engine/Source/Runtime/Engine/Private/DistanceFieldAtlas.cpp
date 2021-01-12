@@ -1148,6 +1148,14 @@ void FDistanceFieldAsyncQueue::CancelBuild(UStaticMesh* StaticMesh)
 	CancelBackgroundTask(TasksToCancel);
 	for (FAsyncDistanceFieldTask* Task : TasksToCancel)
 	{
+		if (Task->GeneratedVolumeData != nullptr)
+		{
+			Task->GeneratedVolumeData->VolumeTexture.Release();
+
+			// Rendering thread may still be referencing the old one, use the deferred cleanup interface to delete it next frame when it is safe
+			BeginCleanup(Task->GeneratedVolumeData);
+		}
+
 		delete Task;
 	}
 }
