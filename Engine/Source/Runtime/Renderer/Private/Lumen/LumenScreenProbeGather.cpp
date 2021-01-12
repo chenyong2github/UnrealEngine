@@ -641,7 +641,7 @@ void UpdateHistoryScreenProbeGather(
 
 				PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(NewDepthHistory, ERenderTargetLoadAction::ENoAction, FExclusiveDepthStencil::DepthWrite_StencilNop);
 				PassParameters->View = View.ViewUniformBuffer;
-				PassParameters->SceneTextures = GetSceneTextureParameters(GraphBuilder, SceneTextures);
+				PassParameters->SceneTextures = GetSceneTextureParameters(GraphBuilder, SceneTextures.UniformBuffer);
 				PassParameters->DiffuseIndirectHistory = OldDiffuseIndirectHistory;
 				PassParameters->RoughSpecularIndirectHistory = OldRoughSpecularIndirectHistory;
 				PassParameters->DiffuseIndirectDepthHistory = OldDepthHistory;
