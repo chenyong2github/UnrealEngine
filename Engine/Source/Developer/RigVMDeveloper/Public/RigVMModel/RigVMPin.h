@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "RigVMCore/RigVMRegistry.h"
+#include "RigVMCompiler/RigVMASTProxy.h"
 #include "RigVMPin.generated.h"
 
 class URigVMGraph;
@@ -78,7 +79,7 @@ class RIGVMDEVELOPER_API URigVMPin : public UObject
 public:
 
 	// A map used to override pin default values
-	typedef TMap<URigVMPin*, FString> FDefaultValueOverride;
+	typedef TMap<FRigVMASTProxy, FString> FDefaultValueOverride;
 
 	// Splits a PinPath at the start, so for example "Node.Color.R" becomes "Node" and "Color.R"
 	static bool SplitPinPathAtStart(const FString& InPinPath, FString& LeftMost, FString& Right);
@@ -188,7 +189,7 @@ public:
 	FString GetDefaultValue() const;
 
 	// Returns the default value with an additional override ma
-	FString GetDefaultValue(const FDefaultValueOverride& InDefaultValueOverride) const;
+	FString GetDefaultValue(const FDefaultValueOverride& InDefaultValueOverride, const FRigVMASTProxy& InProxy) const;
 
 	// Returns true if the default value provided is valid
 	bool IsValidDefaultValue(const FString& InDefaultValue) const;

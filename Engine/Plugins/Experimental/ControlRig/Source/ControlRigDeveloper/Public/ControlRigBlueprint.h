@@ -110,6 +110,9 @@ public:
 	TArray<URigVMGraph*> GetAllModels() const;
 
 	UFUNCTION(BlueprintCallable, Category = "Control Rig Blueprint")
+	URigVMFunctionLibrary* GetLocalFunctionLibrary() const;
+
+	UFUNCTION(BlueprintCallable, Category = "Control Rig Blueprint")
 	URigVMController* GetController(URigVMGraph* InGraph = nullptr) const;
 
 	UFUNCTION(BlueprintCallable, Category = "Control Rig Blueprint")
@@ -133,6 +136,9 @@ protected:
 
 	UPROPERTY(BlueprintReadOnly, Category = "VM")
 	URigVMGraph* Model;
+
+	UPROPERTY(BlueprintReadOnly, Category = "VM")
+	URigVMFunctionLibrary* FunctionLibrary;
 
 	UPROPERTY(BlueprintReadOnly, transient, Category = "VM")
 	TMap<URigVMGraph*, URigVMController*> Controllers;

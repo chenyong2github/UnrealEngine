@@ -203,7 +203,8 @@ void URigVMController::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URi
 			if (InGraph->RuntimeAST.IsValid())
 			{
 				URigVMPin* RootPin = CastChecked<URigVMPin>(InSubject)->GetRootPin();
-				const FRigVMExprAST* Expression = InGraph->GetRuntimeAST()->GetExprForSubject(RootPin);
+				FRigVMASTProxy RootPinProxy = FRigVMASTProxy::MakeFromUObject(RootPin);
+				const FRigVMExprAST* Expression = InGraph->GetRuntimeAST()->GetExprForSubject(RootPinProxy);
 				if (Expression == nullptr)
 				{
 					InGraph->ClearAST();

@@ -145,7 +145,9 @@ bool URigVMCompiler::Compile(URigVMGraph* InGraph, URigVMController* InControlle
 	{
 		AST = MakeShareable(new FRigVMParserAST(InGraph, InController, Settings.ASTSettings, InExternalVariables, UserData));
 		InGraph->RuntimeAST = AST;
+#if UE_BUILD_DEBUG
 		//UE_LOG(LogRigVMDeveloper, Display, TEXT("%s"), *AST->DumpDot());
+#endif
 	}
 	ensure(AST.IsValid());
 
@@ -192,7 +194,8 @@ bool URigVMCompiler::Compile(URigVMGraph* InGraph, URigVMController* InControlle
 	{
 		if (URigVMParameterNode* ParameterNode = Cast<URigVMParameterNode>(Node))
 		{
-			const FRigVMExprAST* ParameterExpr = AST->GetExprForSubject(ParameterNode);
+			FRigVMASTProxy ParameterNodeProxy = FRigVMASTProxy::MakeFromUObject(ParameterNode);
+			const FRigVMExprAST* ParameterExpr = AST->GetExprForSubject(ParameterNodeProxy);
 			if (!ParameterExpr || ParameterExpr->IsA(FRigVMExprAST::NoOp))
 			{
 				FName Name = ParameterNode->GetParameterName();
@@ -500,7 +503,8 @@ int32 URigVMCompiler::TraverseCallExtern(const FRigVMCallExternExprAST* InExpr, 
 			{
 				if (Pin->RequiresWatch())
 				{
-					FRigVMVarExprAST TempVarExpr(FRigVMExprAST::EType::Var, Pin);
+					FRigVMASTProxy PinProxy = FRigVMASTProxy::MakeFromUObject(Pin);
+					FRigVMVarExprAST TempVarExpr(FRigVMExprAST::EType::Var, PinProxy);
 					TempVarExpr.ParserPtr = InExpr->GetParser();
 					FindOrAddRegister(&TempVarExpr, WorkData, true);
 				}
@@ -1176,6 +1180,23 @@ FString URigVMCompiler::GetPinHash(URigVMPin* InPin, const FRigVMVarExprAST* InV
 			return FString::Printf(TEXT("%sVariable::%s%s"), *Prefix, *VariableNode->GetVariableName().ToString(), *Suffix);
 		}
 	}
+	else
+	{
+		if (InVarExpr)
+		{
+			FRigVMASTProxy NodeProxy = InVarExpr->GetProxy().GetSibling(Node);
+			if (const FRigVMExprAST* NodeExpr = InVarExpr->GetParser()->GetExprForSubject(NodeProxy))
+			{
+				// rely on the proxy callstack to differentiate registers
+				FString CallStackPath = NodeProxy.GetCallstack().GetCallPath(false /* include last */);
+				if (!CallStackPath.IsEmpty())
+				{
+					Prefix += CallStackPath + TEXT("|");
+				}
+			}
+		}
+	}
+
 	return FString::Printf(TEXT("%s%s%s"), *Prefix, *InPin->GetPinPath(true /*  full node path */), *Suffix);
 }
 
@@ -1353,14 +1374,14 @@ FRigVMOperand URigVMCompiler::FindOrAddRegister(const FRigVMVarExprAST* InVarExp
 
 				int32 DesiredArraySize = VMStruct->GetArraySize(Pin->GetFName(), WorkData.RigVMUserData);
 
-				DefaultValues = URigVMPin::SplitDefaultValue(Pin->GetDefaultValue(DefaultValueOverride));
+				DefaultValues = URigVMPin::SplitDefaultValue(Pin->GetDefaultValue(DefaultValueOverride, InVarExpr->GetProxy()));
 
 				if (DefaultValues.Num() != DesiredArraySize)
 				{
 					FString DefaultValue;
 					if (Pin->GetArraySize() > 0)
 					{
-						DefaultValue = Pin->GetSubPins()[0]->GetDefaultValue(DefaultValueOverride);
+						DefaultValue = Pin->GetSubPins()[0]->GetDefaultValue(DefaultValueOverride, InVarExpr->GetProxy());
 					}
 
 					DefaultValues.Reset();
@@ -1372,7 +1393,7 @@ FRigVMOperand URigVMCompiler::FindOrAddRegister(const FRigVMVarExprAST* InVarExp
 			}
 			else
 			{
-				DefaultValues = URigVMPin::SplitDefaultValue(Pin->GetDefaultValue(DefaultValueOverride));
+				DefaultValues = URigVMPin::SplitDefaultValue(Pin->GetDefaultValue(DefaultValueOverride, InVarExpr->GetProxy()));
 			}
 
 			while (DefaultValues.Num() < Pin->GetSubPins().Num())
@@ -1382,7 +1403,7 @@ FRigVMOperand URigVMCompiler::FindOrAddRegister(const FRigVMVarExprAST* InVarExp
 		}
 		else if (URigVMEnumNode* EnumNode = Cast<URigVMEnumNode>(Pin->GetNode()))
 		{
-			FString EnumValueStr = EnumNode->GetDefaultValue(DefaultValueOverride);
+			FString EnumValueStr = EnumNode->GetDefaultValue(DefaultValueOverride, InVarExpr->GetProxy());
 			if (UEnum* Enum = EnumNode->GetEnum())
 			{
 				DefaultValues.Add(FString::FromInt((int32)Enum->GetValueByNameString(EnumValueStr)));
@@ -1394,7 +1415,7 @@ FRigVMOperand URigVMCompiler::FindOrAddRegister(const FRigVMVarExprAST* InVarExp
 		}
 		else
 		{
-			DefaultValues.Add(Pin->GetDefaultValue(DefaultValueOverride));
+			DefaultValues.Add(Pin->GetDefaultValue(DefaultValueOverride, InVarExpr->GetProxy()));
 		}
 
 		UScriptStruct* ScriptStruct = Pin->GetScriptStruct();

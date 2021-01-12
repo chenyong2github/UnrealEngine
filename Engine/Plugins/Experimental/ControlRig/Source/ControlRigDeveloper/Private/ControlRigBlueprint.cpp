@@ -53,6 +53,7 @@ UControlRigBlueprint::UControlRigBlueprint(const FObjectInitializer& ObjectIniti
 	VMRecompilationBracket = 0;
 
 	Model = ObjectInitializer.CreateDefaultSubobject<URigVMGraph>(this, TEXT("RigVMModel"));
+	FunctionLibrary = ObjectInitializer.CreateDefaultSubobject<URigVMFunctionLibrary>(this, TEXT("RigVMFunctionLibrary"));
 
 	Validator = ObjectInitializer.CreateDefaultSubobject<UControlRigValidator>(this, TEXT("ControlRigValidator"));
 
@@ -429,6 +430,11 @@ TArray<URigVMGraph*> UControlRigBlueprint::GetAllModels() const
 	Models.Add(GetModel());
 	Models.Append(GetModel()->GetContainedGraphs(true /* recursive */));
 	return Models;
+}
+
+URigVMFunctionLibrary* UControlRigBlueprint::GetLocalFunctionLibrary() const
+{
+	return FunctionLibrary;
 }
 
 URigVMController* UControlRigBlueprint::GetController(URigVMGraph* InGraph) const
@@ -1363,7 +1369,8 @@ void UControlRigBlueprint::HandleModifiedEvent(ERigVMGraphNotifType InNotifType,
 					URigVMPin* RootPin = Pin->GetRootPin();
 					if (const FRigVMOperand* Operand = PinToOperandMap.Find(RootPin->GetPinPath()))
 					{
-						if(const FRigVMExprAST* Expression = InGraph->GetRuntimeAST()->GetExprForSubject(RootPin))
+						FRigVMASTProxy RootPinProxy = FRigVMASTProxy::MakeFromUObject(RootPin);
+						if(const FRigVMExprAST* Expression = InGraph->GetRuntimeAST()->GetExprForSubject(RootPinProxy))
 						{
 							bRequiresRecompile = Expression->NumParents() > 1;
 						}

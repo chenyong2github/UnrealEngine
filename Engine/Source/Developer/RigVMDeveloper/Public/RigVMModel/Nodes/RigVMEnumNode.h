@@ -34,7 +34,7 @@ public:
 	UObject* GetCPPTypeObject() const;
 
 	// Returns the default value of the parameter as a string
-	FString GetDefaultValue(const URigVMPin::FDefaultValueOverride& InDefaultValueOverride = URigVMPin::FDefaultValueOverride()) const;
+	FString GetDefaultValue(const URigVMPin::FDefaultValueOverride& InDefaultValueOverride = URigVMPin::FDefaultValueOverride(), const FRigVMASTProxy& InProxy = FRigVMASTProxy()) const;
 
 	// Override of node title
 	virtual FLinearColor GetNodeColor() const override { return FLinearColor::Blue; }
