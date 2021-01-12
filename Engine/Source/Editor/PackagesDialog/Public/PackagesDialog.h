@@ -100,8 +100,7 @@ public:
 	 * @param	InIconName		The name of the icon to display
 	 * @param	InIconToolTip	The tooltip to display
 	 */
-	virtual void AddPackageItem(UPackage* InPackage, ECheckBoxState InChecked, 
-								bool InDisabled = false, FString InIconName=TEXT("SavePackages.SCC_DlgNoIcon"), FString InIconToolTip=TEXT(""));
+	virtual void AddPackageItem(UPackage* InPackage, ECheckBoxState InChecked, bool InDisabled = false, FString InIconName=TEXT(""), FString InIconToolTip=TEXT(""));
 
 	/**
 	 * Adds a new button to the package dialog window

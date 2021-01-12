@@ -324,6 +324,11 @@ TSharedRef<ISlateStyle> FStarshipCoreStyle::Create()
 		Style->Set("Icons.CircleArrowUp", new IMAGE_BRUSH_SVG("Starship/Common/circle-arrow-up", Icon16x16));
 		Style->Set("Icons.CircleArrowDown", new IMAGE_BRUSH_SVG("Starship/Common/circle-arrow-down", Icon16x16));
 
+		Style->Set("Icons.ArrowLeft", new IMAGE_BRUSH_SVG("Starship/Common/arrow-left", Icon16x16));
+		Style->Set("Icons.ArrowRight", new IMAGE_BRUSH_SVG("Starship/Common/arrow-right", Icon16x16));
+		Style->Set("Icons.ArrowUp", new IMAGE_BRUSH_SVG("Starship/Common/arrow-up", Icon16x16));
+		Style->Set("Icons.ArrowDown", new IMAGE_BRUSH_SVG("Starship/Common/arrow-down", Icon16x16));
+
 		Style->Set("Icons.Check", new IMAGE_BRUSH_SVG("Starship/Common/check", Icon16x16));
 
 		Style->Set("Icons.FolderOpen", new IMAGE_BRUSH_SVG("Starship/Common/folder-open", Icon16x16));

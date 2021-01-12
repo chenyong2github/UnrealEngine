@@ -3,6 +3,7 @@
 #include "PerforceSourceControlState.h"
 #include "PerforceSourceControlRevision.h"
 #include "Misc/EngineVersion.h"
+#include "Styling/AppStyle.h"
 
 #define LOCTEXT_NAMESPACE "PerforceSourceControl.State"
 
@@ -78,93 +79,50 @@ TSharedPtr<class ISourceControlRevision, ESPMode::ThreadSafe> FPerforceSourceCon
 	return FindHistoryRevision(PendingResolveRevNumber);
 }
 
-FName FPerforceSourceControlState::GetIconName() const
+FSlateIcon FPerforceSourceControlState::GetIcon() const
 {
-	if( !IsCurrent() )
+	if (!IsCurrent())
 	{
-		return FName("Perforce.NotAtHeadRevision");
+		return FSlateIcon(FAppStyle::GetAppStyleSetName(), "Perforce.NotAtHeadRevision");
 	}
 	else if (State != EPerforceState::CheckedOut && State != EPerforceState::CheckedOutOther)
 	{
 		if (IsCheckedOutInOtherBranch())
 		{
-			return FName("Perforce.CheckedOutByOtherUserOtherBranch");
+			return FSlateIcon(FAppStyle::GetAppStyleSetName(), "Perforce.CheckedOutByOtherUserOtherBranch", NAME_None, "SourceControl.LockOverlay");
 		}
 
 		if (IsModifiedInOtherBranch())
 		{
-			return FName("Perforce.ModifiedOtherBranch");
+			return FSlateIcon(FAppStyle::GetAppStyleSetName(), "Perforce.ModifiedOtherBranch");
 		}
 	}
 
 
-	switch(State)
+	switch (State)
 	{
 	default:
 	case EPerforceState::DontCare:
-		return NAME_None;
+		return FSlateIcon();
 	case EPerforceState::CheckedOut:
-		return FName("Perforce.CheckedOut");
+		return FSlateIcon(FAppStyle::GetAppStyleSetName(), "Perforce.CheckedOut");
 	case EPerforceState::ReadOnly:
-		return NAME_None;
+		return FSlateIcon();
 	case EPerforceState::NotInDepot:
-		return FName("Perforce.NotInDepot");
+		return FSlateIcon(FAppStyle::GetAppStyleSetName(), "Perforce.NotInDepot");
 	case EPerforceState::CheckedOutOther:
-		return FName("Perforce.CheckedOutByOtherUser");
+		return FSlateIcon(FAppStyle::GetAppStyleSetName(), "Perforce.CheckedOutByOtherUser", NAME_None, "SourceControl.LockOverlay");
 	case EPerforceState::Ignore:
-		return NAME_None;
+		return FSlateIcon();
 	case EPerforceState::OpenForAdd:
-		return FName("Perforce.OpenForAdd");
+		return FSlateIcon(FAppStyle::GetAppStyleSetName(), "Perforce.OpenForAdd");
 	case EPerforceState::MarkedForDelete:
-		return FName("Perforce.MarkedForDelete");
+		return FSlateIcon(FAppStyle::GetAppStyleSetName(), "Perforce.MarkedForDelete");
 	case EPerforceState::Branched:
-		return FName("Perforce.Branched");
+		return FSlateIcon(FAppStyle::GetAppStyleSetName(), "Perforce.Branched");
 	}
 }
 
-FName FPerforceSourceControlState::GetSmallIconName() const
-{
-	if( !IsCurrent() )
-	{
-		return FName("Perforce.NotAtHeadRevision_Small");
-	}
-	else if (State != EPerforceState::CheckedOut && State != EPerforceState::CheckedOutOther)
-	{
-		if (IsCheckedOutInOtherBranch())
-		{
-			return FName("Perforce.CheckedOutByOtherUserOtherBranch_Small");
-		}
-
-		if (IsModifiedInOtherBranch())
-		{
-			return FName("Perforce.ModifiedOtherBranch_Small");
-		}
-	}
-
-
-	switch(State)
-	{
-	default:
-	case EPerforceState::DontCare:
-		return NAME_None;
-	case EPerforceState::CheckedOut:
-		return FName("Perforce.CheckedOut_Small");
-	case EPerforceState::ReadOnly:
-		return NAME_None;
-	case EPerforceState::NotInDepot:
-		return FName("Perforce.NotInDepot_Small");
-	case EPerforceState::CheckedOutOther:
-		return FName("Perforce.CheckedOutByOtherUser_Small");
-	case EPerforceState::Ignore:
-		return NAME_None;
-	case EPerforceState::OpenForAdd:
-		return FName("Perforce.OpenForAdd_Small");
-	case EPerforceState::MarkedForDelete:
-		return FName("Perforce.MarkedForDelete_Small");
-	case EPerforceState::Branched:
-		return FName("Perforce.Branched_Small");
-	}
-}
 
 FText FPerforceSourceControlState::GetDisplayName() const
 {

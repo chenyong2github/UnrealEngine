@@ -37,6 +37,7 @@
 #include "ContentBrowserModule.h"
 #include "ContentBrowserUtils.h"
 #include "ContentBrowserDataSource.h"
+#include "Widgets/Images/SLayeredImage.h"
 
 #define LOCTEXT_NAMESPACE "ContentBrowser"
 
@@ -184,13 +185,13 @@ TSharedRef<SWidget> FAssetViewItemHelper::CreateListTileItemContents(T* const In
 		ItemContentsOverlay->AddSlot()
 		.HAlign(HAlign_Right)
 		.VAlign(VAlign_Top)
+		.Padding(FMargin(0.0f, 3.0f, 3.0f, 0.0f))
 		[
 			SNew(SBox)
-			.MaxDesiredWidth(InTileOrListItem, &T::GetStateIconImageSize)
-			.MaxDesiredHeight(InTileOrListItem, &T::GetStateIconImageSize)
+			.WidthOverride(InTileOrListItem, &T::GetStateIconImageSize)
+			.HeightOverride(InTileOrListItem, &T::GetStateIconImageSize)
 			[
-				SNew(SImage)
-				.Image(InTileOrListItem, &T::GetSCCStateImage)
+				InTileOrListItem->GenerateSourceControlIconWidget()
 			]
 		];
 
@@ -403,7 +404,6 @@ void SAssetViewItem::Construct( const FArguments& InArgs )
 	AssetItem->OnItemDataChanged().AddSP(this, &SAssetViewItem::OnAssetDataChanged);
 
 	AssetDirtyBrush = FEditorStyle::GetBrush("ContentBrowser.ContentDirty");
-	SCCStateBrush = nullptr;
 
 	// Set our tooltip - this will refresh each time it's opened to make sure it's up-to-date
 	SetToolTip(SNew(SAssetViewItemToolTip).AssetViewItem(SharedThis(this)));
@@ -570,11 +570,6 @@ FText SAssetViewItem::GetAssetClassText() const
 	return DisplayNameAttributeValue.IsValid() ? DisplayNameAttributeValue.GetValue<FText>() : FText();
 }
 
-const FSlateBrush* SAssetViewItem::GetSCCStateImage() const
-{
-	return ThumbnailEditMode.Get() ? FEditorStyle::GetNoBrush() : SCCStateBrush;
-}
-
 void SAssetViewItem::HandleSourceControlProviderChanged(ISourceControlProvider& OldProvider, ISourceControlProvider& NewProvider)
 {
 	OldProvider.UnregisterSourceControlStateChanged_Handle(SourceControlStateChangedDelegateHandle);
@@ -583,7 +578,6 @@ void SAssetViewItem::HandleSourceControlProviderChanged(ISourceControlProvider& 
 	// Reset this so the state will be queried from the new provider on the next Tick
 	SourceControlStateDelay = 0.0f;
 	bSourceControlStateRequested = false;
-	SCCStateBrush = nullptr;
 	
 	HandleSourceControlStateChanged();
 }
@@ -598,7 +592,10 @@ void SAssetViewItem::HandleSourceControlStateChanged()
 			FSourceControlStatePtr SourceControlState = ISourceControlModule::Get().GetProvider().GetState(AssetFilename, EStateCacheUsage::Use);
 			if (SourceControlState)
 			{
-				SCCStateBrush = FEditorStyle::GetBrush(SourceControlState->GetIconName());
+				if (SCCStateWidget.IsValid())
+				{
+					SCCStateWidget->SetFromSlateIcon(SourceControlState->GetIcon());
+				}
 			}
 		}
 	}
@@ -607,6 +604,14 @@ void SAssetViewItem::HandleSourceControlStateChanged()
 const FSlateBrush* SAssetViewItem::GetDirtyImage() const
 {
 	return IsDirty() ? AssetDirtyBrush : NULL;
+}
+
+TSharedRef<SWidget> SAssetViewItem::GenerateSourceControlIconWidget()
+{
+	TSharedRef<SLayeredImage> Image = SNew(SLayeredImage).Image(FStyleDefaults::GetNoBrush());
+	SCCStateWidget = Image;
+
+	return Image;
 }
 
 TSharedRef<SWidget> SAssetViewItem::GenerateExtraStateIconWidget(TAttribute<float> InMaxExtraStateIconWidth) const
@@ -1596,7 +1601,7 @@ FOptionalSize SAssetListItem::GetExtraStateIconMaxWidth() const
 
 FOptionalSize SAssetListItem::GetStateIconImageSize() const
 {
-	float IconSize = GetThumbnailBoxSize().Get() * 0.3;
+	float IconSize = FMath::TruncToFloat(GetThumbnailBoxSize().Get() * 0.3);
 	return IconSize > 12 ? IconSize : 12;
 }
 
@@ -1835,7 +1840,7 @@ FOptionalSize SAssetTileItem::GetExtraStateIconMaxWidth() const
 
 FOptionalSize SAssetTileItem::GetStateIconImageSize() const
 {
-	float IconSize = GetThumbnailBoxSize().Get() * 0.2;
+	float IconSize = FMath::TruncToFloat(GetThumbnailBoxSize().Get() * 0.2);
 	return IconSize > 12 ? IconSize : 12;
 }
 
@@ -2040,8 +2045,8 @@ TSharedRef<SWidget> SAssetColumnItem::GenerateWidgetForColumn( const FName& Colu
 					.WidthOverride(IconOverlaySize)
 					.HeightOverride(IconOverlaySize)
 					[
-						SNew(SImage)
-						.Image(this, &SAssetColumnItem::GetSCCStateImage)
+						SAssignNew(SCCStateWidget, SLayeredImage)
+						.Image(FStyleDefaults::GetNoBrush())
 					]
 				]
 

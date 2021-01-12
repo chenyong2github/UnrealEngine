@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Widgets/Images/SLayeredImage.h"
+#include "Textures/SlateIcon.h"
 
 void SLayeredImage::Construct(const FArguments& InArgs, const TArray<ImageLayer>& InLayers)
 {
@@ -64,6 +65,24 @@ int32 SLayeredImage::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGe
 void SLayeredImage::AddLayer(TAttribute<const FSlateBrush*> Brush, TAttribute<FSlateColor> Color)
 {
 	Layers.Emplace(MoveTemp(Brush), MoveTemp(Color));
+}
+
+void SLayeredImage::SetFromSlateIcon(const FSlateIcon& InIcon)
+{
+	RemoveAllLayers();
+
+	SetImage(InIcon.GetIcon());
+
+	const FSlateBrush* OverlayIcon = InIcon.GetOverlayIcon();
+	if (OverlayIcon)
+	{
+		AddLayer(OverlayIcon);
+	}
+}
+
+void SLayeredImage::RemoveAllLayers()
+{
+	Layers.Empty();
 }
 
 int32 SLayeredImage::GetNumLayers() const

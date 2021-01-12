@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Textures/SlateIcon.h"
 
 class ISourceControlRevision;
 class ISourceControlState;
@@ -59,16 +60,23 @@ public:
 	virtual TSharedPtr<class ISourceControlRevision, ESPMode::ThreadSafe> GetBaseRevForMerge() const = 0;
 
 	/**
+	 * Gets the icon we should use to display the state in a UI.
+	 */
+	virtual FSlateIcon GetIcon() const = 0;
+
+	/**
 	 * Get the name of the icon graphic we should use to display the state in a UI.
 	 * @returns the name of the icon to display
 	 */
-	virtual FName GetIconName() const = 0;
+	UE_DEPRECATED(5.0, "GetIconName has been replaced by GetIcon.")
+	virtual FName GetIconName() const { return NAME_None; }
 		
 	/**
 	 * Get the name of the small icon graphic we should use to display the state in a UI.
 	 * @returns the name of the icon to display
 	 */	
-	virtual FName GetSmallIconName() const = 0;
+	UE_DEPRECATED(5.0, "GetSmallIconName has been replaced by GetIcon.")
+	virtual FName GetSmallIconName() const { return NAME_None; }
 
 	/**
 	 * Get a text representation of the state

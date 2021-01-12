@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GitSourceControlState.h"
+#include "Styling/AppStyle.h"
 
 #define LOCTEXT_NAMESPACE "GitSourceControl.State"
 
@@ -55,62 +56,34 @@ TSharedPtr<class ISourceControlRevision, ESPMode::ThreadSafe> FGitSourceControlS
 	return nullptr;
 }
 
-// @todo add Slate icons for git specific states (NotAtHead vs Conflicted...)
-FName FGitSourceControlState::GetIconName() const
+FSlateIcon FGitSourceControlState::GetIcon() const
 {
-	switch(WorkingCopyState)
+	switch (WorkingCopyState)
 	{
 	case EWorkingCopyState::Modified:
-		return FName("Subversion.CheckedOut");
+		return FSlateIcon(FAppStyle::GetAppStyleSetName(), "Subversion.CheckedOut");
 	case EWorkingCopyState::Added:
-		return FName("Subversion.OpenForAdd");
+		return FSlateIcon(FAppStyle::GetAppStyleSetName(), "Subversion.OpenForAdd");
 	case EWorkingCopyState::Renamed:
 	case EWorkingCopyState::Copied:
-		return FName("Subversion.Branched");
+		return FSlateIcon(FAppStyle::GetAppStyleSetName(), "Subversion.Branched");
 	case EWorkingCopyState::Deleted: // Deleted & Missing files does not show in Content Browser
 	case EWorkingCopyState::Missing:
-		return FName("Subversion.MarkedForDelete");
+		return FSlateIcon(FAppStyle::GetAppStyleSetName(), "Subversion.MarkedForDelete");
 	case EWorkingCopyState::Conflicted:
-		return FName("Subversion.NotAtHeadRevision");
+		return FSlateIcon(FAppStyle::GetAppStyleSetName(), "Subversion.NotAtHeadRevision");
 	case EWorkingCopyState::NotControlled:
-		return FName("Subversion.NotInDepot");
+		return FSlateIcon(FAppStyle::GetAppStyleSetName(), "Subversion.NotInDepot");
 	case EWorkingCopyState::Unknown:
 	case EWorkingCopyState::Unchanged: // Unchanged is the same as "Pristine" (not checked out) for Perforce, ie no icon
 	case EWorkingCopyState::Ignored:
 	default:
-		return NAME_None;
+		return FSlateIcon();
 	}
 
-	return NAME_None;
+	return FSlateIcon();
 }
 
-FName FGitSourceControlState::GetSmallIconName() const
-{
-	switch(WorkingCopyState)
-	{
-	case EWorkingCopyState::Modified:
-		return FName("Subversion.CheckedOut_Small");
-	case EWorkingCopyState::Added:
-		return FName("Subversion.OpenForAdd_Small");
-	case EWorkingCopyState::Renamed:
-	case EWorkingCopyState::Copied:
-		return FName("Subversion.Branched_Small");
-	case EWorkingCopyState::Deleted: // Deleted & Missing files can appear in the Submit to Source Control window
-	case EWorkingCopyState::Missing:
-		return FName("Subversion.MarkedForDelete_Small");
-	case EWorkingCopyState::Conflicted:
-		return FName("Subversion.NotAtHeadRevision_Small");
-	case EWorkingCopyState::NotControlled:
-		return FName("Subversion.NotInDepot_Small");
-	case EWorkingCopyState::Unknown:
-	case EWorkingCopyState::Unchanged: // Unchanged is the same as "Pristine" (not checked out) for Perforce, ie no icon
-	case EWorkingCopyState::Ignored:
-	default:
-		return NAME_None;
-	}
-
-	return NAME_None;
-}
 
 FText FGitSourceControlState::GetDisplayName() const
 {

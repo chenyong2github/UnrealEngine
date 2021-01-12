@@ -464,7 +464,7 @@ TSharedRef<SWidget> SPackagesDialog::GenerateWidgetForItemAndColumn( TSharedPtr<
 	check(Item.IsValid());
 
 	// Choose the icon based on the severity
-	const FSlateBrush* IconBrush = FEditorStyle::GetBrush( *( Item->GetIconName() ) );
+	const FSlateBrush* IconBrush = Item->GetIconName().IsEmpty() ? FStyleDefaults::GetNoBrush() : FEditorStyle::GetBrush(*(Item->GetIconName()));
 
 	const FMargin RowPadding(3, 0, 0, 0);
 

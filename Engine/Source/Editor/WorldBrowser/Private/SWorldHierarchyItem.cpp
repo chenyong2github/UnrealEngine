@@ -765,7 +765,7 @@ const FSlateBrush* SWorldHierarchyItem::GetSCCStateImage() const
 		FSourceControlStatePtr SourceControlState = ISourceControlModule::Get().GetProvider().GetState(PackageName, EStateCacheUsage::Use);
 		if(SourceControlState.IsValid())
 		{
-			return FEditorStyle::GetBrush(SourceControlState->GetSmallIconName());
+			return FEditorStyle::GetBrush(SourceControlState->GetIcon().GetStyleSetName());
 		}
 	}
 

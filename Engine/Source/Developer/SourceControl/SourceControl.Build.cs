@@ -12,6 +12,7 @@ public class SourceControl : ModuleRules
 			new string[] {
 				"Core",
 				"CoreUObject",
+				"SlateCore",
 				"InputCore",
 			}
 		);
@@ -21,7 +22,6 @@ public class SourceControl : ModuleRules
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
 				"Slate",
-				"SlateCore",
 				"EditorStyle"
 			}
 		);

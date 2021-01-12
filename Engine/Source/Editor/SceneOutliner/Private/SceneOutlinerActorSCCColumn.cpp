@@ -7,10 +7,11 @@
 #include "ISourceControlProvider.h"
 #include "ISourceControlModule.h"
 #include "SourceControlHelpers.h"
+#include "Widgets/Images/SLayeredImage.h"
 
 #define LOCTEXT_NAMESPACE "SceneOutlinerSourceControlColumn"
 
-class SSourceControlWidget : public SImage
+class SSourceControlWidget : public SLayeredImage
 {
 public:
 	SLATE_BEGIN_ARGS(SSourceControlWidget) {}
@@ -25,9 +26,7 @@ public:
 		SImage::Construct(
 			SImage::FArguments()
 			.ColorAndOpacity(this, &SSourceControlWidget::GetForegroundColor)
-			.Image(this, &SSourceControlWidget::GetBrush));
-
-		SCCStateBrush = nullptr;
+			.Image(FStyleDefaults::GetNoBrush()));
 
 		FSceneOutlinerTreeItemPtr TreeItemPtr = WeakTreeItem.Pin();
 		if (TreeItemPtr.IsValid())
@@ -50,9 +49,9 @@ public:
 
 			// Check if there is already a cached state for this item
 			FSourceControlStatePtr SourceControlState = ISourceControlModule::Get().GetProvider().GetState(ExternalPackageName, EStateCacheUsage::Use);
-			if (SourceControlState.IsValid() && SourceControlState->GetSmallIconName() != NAME_None)
+			if (SourceControlState.IsValid())
 			{
-				SCCStateBrush = FEditorStyle::GetBrush(SourceControlState->GetSmallIconName());
+				UpdateSourceControlStateIcon(SourceControlState);
 			}
 			else
 			{
@@ -74,7 +73,8 @@ private:
 		FSourceControlStatePtr SourceControlState = ISourceControlModule::Get().GetProvider().GetState(ExternalPackageName, EStateCacheUsage::ForceUpdate);
 		if (SourceControlState.IsValid())
 		{
-			SCCStateBrush = FEditorStyle::GetBrush(SourceControlState->GetSmallIconName());
+			UpdateSourceControlStateIcon(SourceControlState);
+
 		}
 		return FReply::Handled();
 	}
@@ -84,7 +84,7 @@ private:
 		FSourceControlStatePtr SourceControlState = ISourceControlModule::Get().GetProvider().GetState(ExternalPackageName, EStateCacheUsage::Use);
 		if (SourceControlState.IsValid())
 		{
-			SCCStateBrush = FEditorStyle::GetBrush(SourceControlState->GetSmallIconName());
+			UpdateSourceControlStateIcon(SourceControlState);
 		}
 	}
 
@@ -93,14 +93,24 @@ private:
 		OldProvider.UnregisterSourceControlStateChanged_Handle(SourceControlStateChangedDelegateHandle);
 		SourceControlStateChangedDelegateHandle = NewProvider.RegisterSourceControlStateChanged_Handle(FSourceControlStateChanged::FDelegate::CreateSP(this, &SSourceControlWidget::HandleSourceControlStateChanged));
 		
-		SCCStateBrush = nullptr;
+		UpdateSourceControlStateIcon(nullptr);
+
 		ISourceControlModule::Get().QueueStatusUpdate(ExternalPackageName);
 	}
 
-	/** Get the brush for this widget */
-	const FSlateBrush* GetBrush() const
+	void UpdateSourceControlStateIcon(FSourceControlStatePtr SourceControlState)
 	{
-		return SCCStateBrush;
+		if(SourceControlState.IsValid())
+		{
+			FSlateIcon Icon = SourceControlState->GetIcon();
+			
+			SetFromSlateIcon(Icon);
+		}
+		else
+		{
+			SetImage(nullptr);
+			RemoveAllLayers();
+		}
 	}
 
 	/** The tree item we relate to */
@@ -108,9 +118,6 @@ private:
 
 	/** Reference back to the outliner so we can set visibility of a whole selection */
 	TWeakPtr<ISceneOutliner> WeakOutliner;
-
-	/** Cached brush for the source control state */
-	const FSlateBrush* SCCStateBrush;
 
 	/** Cache the items external package name */
 	FString ExternalPackageName;

@@ -25,7 +25,9 @@
 #include "EditorStyleSet.h"
 #include "Widgets/Views/SListView.h"
 #include "Widgets/Views/STileView.h"
+#include "Textures/SlateIcon.h"
 
+class SLayeredImage;
 class SAssetListItem;
 class SAssetTileItem;
 class FAssetViewItem;
@@ -183,11 +185,11 @@ protected:
 	/** Gets the name of the class of this asset */
 	FText GetAssetClassText() const;
 
-	/** Gets the brush for the source control indicator image */
-	const FSlateBrush* GetSCCStateImage() const;
-
 	/** Gets the brush for the dirty indicator image */
 	const FSlateBrush* GetDirtyImage() const;
+
+	/** Generates the source control icon widget */
+	TSharedRef<SWidget> GenerateSourceControlIconWidget();
 
 	/** Generate a widget to inject extra external state indicator on the asset. */
 	TSharedRef<SWidget> GenerateExtraStateIconWidget(TAttribute<float> InMaxExtraStateIconWidth) const;
@@ -318,8 +320,8 @@ protected:
 	/** True when a drag is over this item with a drag operation that we know how to handle. The operation itself may not be valid to drop. */
 	bool bDraggedOver;
 
-	/** Cached brush for the source control state */
-	const FSlateBrush* SCCStateBrush;
+	/** Widget for the source control state */
+	TSharedPtr<SLayeredImage> SCCStateWidget;
 
 	/** Delegate handle for the HandleSourceControlStateChanged function callback */
 	FDelegateHandle SourceControlStateChangedDelegateHandle;

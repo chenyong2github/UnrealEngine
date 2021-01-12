@@ -54,14 +54,9 @@ TSharedPtr<ISourceControlRevision, ESPMode::ThreadSafe> FConcertSourceControlSta
 	return ActualState.IsValid() ? ActualState->GetBaseRevForMerge() : TSharedPtr<ISourceControlRevision, ESPMode::ThreadSafe>();
 }
 
-FName FConcertSourceControlStateProxy::GetIconName() const
+FSlateIcon FConcertSourceControlStateProxy::GetIcon() const
 {
-	return ActualState.IsValid() ? ActualState->GetIconName() : NAME_None;
-}
-
-FName FConcertSourceControlStateProxy::GetSmallIconName() const
-{
-	return ActualState.IsValid() ? ActualState->GetSmallIconName() : NAME_None;
+	return ActualState.IsValid() ? ActualState->GetIcon() : FSlateIcon();
 }
 
 FText FConcertSourceControlStateProxy::GetDisplayName() const

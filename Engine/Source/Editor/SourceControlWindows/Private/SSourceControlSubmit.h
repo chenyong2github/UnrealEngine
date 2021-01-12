@@ -55,7 +55,7 @@ public:
 	FText GetFileName() const { return FileName; }
 
 	/** Returns the name of the icon to be used in the list item widget */
-	FName GetIconName() const { return Item->GetSmallIconName(); }
+	FName GetIconName() const { return Item->GetIcon().GetStyleName(); }
 
 	/** Returns the tooltip text for the icon */
 	FText GetIconTooltip() const { return Item->GetDisplayTooltip(); }

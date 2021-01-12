@@ -1121,10 +1121,10 @@ void FStarshipEditorStyle::FStyle::SetupGeneralStyles()
 	// Package Dialog
 	{
 		Set( "PackageDialog.ListHeader", new BOX_BRUSH( "Old/SavePackages/ListHeader", 4.0f/32.0f ) );
-		Set( "SavePackages.SCC_DlgCheckedOutOther", new IMAGE_BRUSH( "Old/SavePackages/SCC_DlgCheckedOutOther", FVector2D( 18, 16 ) ) );
-		Set( "SavePackages.SCC_DlgNotCurrent", new IMAGE_BRUSH( "Old/SavePackages/SCC_DlgNotCurrent", FVector2D( 18, 16 ) ) );
-		Set( "SavePackages.SCC_DlgReadOnly", new IMAGE_BRUSH( "Old/SavePackages/SCC_DlgReadOnly", FVector2D( 18, 16 ) ) );
-		Set( "SavePackages.SCC_DlgNoIcon", new FSlateNoResource() );
+		Set( "SavePackages.SCC_DlgCheckedOutOther", new CORE_IMAGE_BRUSH_SVG( "Starship/SourceControl/SCC_DlgCheckedOutOther", Icon16x16));
+		Set( "SavePackages.SCC_DlgNotCurrent", new CORE_IMAGE_BRUSH_SVG("Starship/SourceControl/SCC_DlgNotCurrent", Icon16x16));
+		Set( "SavePackages.SCC_DlgReadOnly", new CORE_IMAGE_BRUSH_SVG("Starship/SourceControl/SCC_DlgReadOnly", Icon16x16));
+
 	}
 #endif // WITH_EDITOR || (IS_PROGRAM && WITH_UNREAL_DEVELOPER_TOOLS)
 
@@ -6350,20 +6350,7 @@ void FStarshipEditorStyle::FStyle::SetupContentBrowserStyle()
 
 		Set( "ContentBrowser.DirectoryUp", new IMAGE_BRUSH("Icons/icon_folder_up_16x", Icon16x16) );
 		Set( "ContentBrowser.PathPickerButton", new IMAGE_BRUSH("Icons/ellipsis_12x", Icon12x12, FLinearColor::Black) );
-		Set( "ContentBrowser.SCC_CheckedOut", new IMAGE_BRUSH( "ContentBrowser/SCC_CheckedOut", Icon32x32) );
-		Set( "ContentBrowser.SCC_OpenForAdd", new IMAGE_BRUSH( "ContentBrowser/SCC_ContentAdd", Icon32x32) );
-		Set( "ContentBrowser.SCC_CheckedOutByOtherUser", new IMAGE_BRUSH( "ContentBrowser/SCC_CheckedOutByOtherUser", Icon32x32) );
-		Set( "ContentBrowser.SCC_CheckedOutByOtherUserOtherBranch", new IMAGE_BRUSH("ContentBrowser/SCC_CheckedOutByOtherUserOtherBranch", Icon32x32));
-		Set( "ContentBrowser.SCC_ModifiedOtherBranch", new IMAGE_BRUSH("ContentBrowser/SCC_ModifiedOtherBranch", Icon32x32));
-		Set( "ContentBrowser.SCC_NotAtHeadRevision", new IMAGE_BRUSH( "ContentBrowser/SCC_NotAtHeadRevision", Icon32x32) );
-		Set( "ContentBrowser.SCC_NotInDepot", new IMAGE_BRUSH( "ContentBrowser/SCC_ContentMissing", Icon32x32) );
-		Set( "ContentBrowser.SCC_CheckedOut_Small", new IMAGE_BRUSH( "ContentBrowser/SCC_CheckedOut", Icon16x16) );
-		Set( "ContentBrowser.SCC_OpenForAdd_Small", new IMAGE_BRUSH( "ContentBrowser/SCC_ContentAdd", Icon16x16) );
-		Set( "ContentBrowser.SCC_CheckedOutByOtherUser_Small", new IMAGE_BRUSH( "ContentBrowser/SCC_CheckedOutByOtherUser", Icon16x16) );
-		Set( "ContentBrowser.SCC_CheckedOutByOtherUserOtherBranch_Small", new IMAGE_BRUSH("ContentBrowser/SCC_CheckedOutByOtherUserOtherBranch", Icon16x16));
-		Set( "ContentBrowser.SCC_ModifiedOtherBranch_Small", new IMAGE_BRUSH("ContentBrowser/SCC_ModifiedOtherBranch", Icon16x16));
-		Set( "ContentBrowser.SCC_NotAtHeadRevision_Small", new IMAGE_BRUSH( "ContentBrowser/SCC_NotAtHeadRevision", Icon16x16) );
-		Set( "ContentBrowser.SCC_NotInDepot_Small", new IMAGE_BRUSH("ContentBrowser/SCC_ContentMissing", Icon16x16) );
+
 		Set( "ContentBrowser.ContentDirty", new IMAGE_BRUSH( "ContentBrowser/ContentDirty", Icon16x16) );
 		Set( "ContentBrowser.AssetDragDropTooltipBackground", new BOX_BRUSH( "Old/Menu_Background", FMargin(8.0f/64.0f) ) );
 		Set( "ContentBrowser.CollectionTreeDragDropBorder", new BOX_BRUSH( "Old/Window/ViewportDebugBorder", 0.8f ) );
@@ -7385,81 +7372,65 @@ void FStarshipEditorStyle::FStyle::SetupSourceControlStyles()
 		Set("SourceControl.StatusIcon.Unknown", new CORE_IMAGE_BRUSH_SVG("Starship/Common/help", Icon16x16, FStyleColors::AccentYellow));
 
 		Set("SourceControl.ChangelistsTab", new CORE_IMAGE_BRUSH_SVG("Starship/Common/check-circle", Icon16x16));
-		Set("SourceControl.Changelist", new IMAGE_BRUSH_SVG("Starship/AssetIcons/StaticMeshActor_64", Icon20x20, FStyleColors::AccentRed));
+		Set("SourceControl.Changelist", new CORE_IMAGE_BRUSH_SVG("Starship/SourceControl/SCC_Changelist", Icon16x16, FStyleColors::AccentRed));
 
-		Set( "SourceControl.Add", new IMAGE_BRUSH( "Old/SourceControl/SCC_Action_Add",Icon10x10));
-		Set( "SourceControl.Edit", new IMAGE_BRUSH( "Old/SourceControl/SCC_Action_Edit",Icon10x10));
-		Set( "SourceControl.Delete", new IMAGE_BRUSH( "Old/SourceControl/SCC_Action_Delete",Icon10x10));
-		Set( "SourceControl.Branch", new IMAGE_BRUSH( "Old/SourceControl/SCC_Action_Branch",Icon10x10));
-		Set( "SourceControl.Integrate", new IMAGE_BRUSH( "Old/SourceControl/SCC_Action_Integrate",Icon10x10));
-		Set( "SourceControl.Settings.StatusBorder", new BOX_BRUSH( "Common/GroupBorder", FMargin(4.0f/16.0f), FLinearColor(0.5f,0.5f,0.5f,1.0f)  ) );
-		Set( "SourceControl.Settings.StatusFont", FTextBlockStyle(NormalText).SetFont(DEFAULT_FONT( "Bold", 12 ) ));
+		Set("SourceControl.Add", new CORE_IMAGE_BRUSH_SVG( "Starship/SourceControl/SCC_ContentAdd",Icon16x16));
+		Set("SourceControl.Edit", new CORE_IMAGE_BRUSH_SVG( "Starship/SourceControl/SCC_CheckedOut", Icon16x16));
+		Set("SourceControl.Delete", new CORE_IMAGE_BRUSH_SVG( "Starship/SourceControl/SCC_MarkedForDelete", Icon16x16));
+		Set("SourceControl.Branch", new CORE_IMAGE_BRUSH_SVG( "Starship/SourceControl/SCC_Branched", Icon16x16));
+		Set("SourceControl.Integrate", new CORE_IMAGE_BRUSH_SVG( "Starship/SourceControl/SCC_Action_Integrate", Icon16x16));
 
-		Set( "SourceControl.LoginWindow.Font", DEFAULT_FONT( "Regular", 8 ) );
-		Set( "SourceControl.ProgressWindow.Warning", new IMAGE_BRUSH( "Icons/alert", Icon32x32) );
+		Set("SourceControl.LockOverlay", new CORE_IMAGE_BRUSH_SVG("Starship/SourceControl/SCC_Lock", Icon16x16));
+
+		Set("SourceControl.Settings.StatusBorder", new BOX_BRUSH( "Common/GroupBorder", FMargin(4.0f/16.0f), FLinearColor(0.5f,0.5f,0.5f,1.0f)  ) );
+		Set("SourceControl.Settings.StatusFont", FTextBlockStyle(NormalText).SetFont(DEFAULT_FONT( "Bold", 12 ) ));
+
+		Set("SourceControl.LoginWindow.Font", DEFAULT_FONT( "Regular", 8 ) );
+		Set("SourceControl.ProgressWindow.Warning", new IMAGE_BRUSH( "Icons/alert", Icon32x32) );
 
 		// Menu commands
-		Set( "SourceControl.Actions.Sync", new IMAGE_BRUSH( "Icons/icon_SCC_Sync_16x", Icon16x16 ) );
-		Set( "SourceControl.Actions.Submit", new IMAGE_BRUSH( "Icons/icon_SCC_Submit_16x", Icon16x16 ) );
-		Set( "SourceControl.Actions.Diff", new IMAGE_BRUSH( "Icons/icon_SCC_Diff_16x", Icon16x16 ) );
-		Set( "SourceControl.Actions.Revert", new IMAGE_BRUSH( "Icons/icon_SCC_Revert_16x", Icon16x16 ) );
-		Set( "SourceControl.Actions.Connect", new IMAGE_BRUSH( "Icons/icon_SCC_Connect_16x", Icon16x16 ) );
-		Set( "SourceControl.Actions.History", new IMAGE_BRUSH( "Icons/icon_SCC_History_16x", Icon16x16 ) );
-		Set( "SourceControl.Actions.CheckOut", new IMAGE_BRUSH( "ContentBrowser/SCC_CheckedOut", Icon16x16 ) );
-		Set( "SourceControl.Actions.Add", new IMAGE_BRUSH( "ContentBrowser/SCC_ContentAdd", Icon16x16 ) );
-		Set( "SourceControl.Actions.Refresh", new IMAGE_BRUSH( "Icons/icon_Refresh_16x", Icon16x16 ) );
-		Set( "SourceControl.Actions.ChangeSettings", new IMAGE_BRUSH( "Icons/icon_SCC_Change_Source_Control_Settings_16x", Icon16x16 ) );
+		Set("SourceControl.Actions.Sync", new CORE_IMAGE_BRUSH_SVG( "Starship/Common/arrow-right", Icon16x16));
+		Set("SourceControl.Actions.Submit", new CORE_IMAGE_BRUSH_SVG( "Starship/Common/arrow-left", Icon16x16));
+		Set("SourceControl.Actions.Diff", new CORE_IMAGE_BRUSH_SVG( "Starship/SourceControl/SCC_Action_Diff", Icon16x16));
+		Set("SourceControl.Actions.Revert", new CORE_IMAGE_BRUSH_SVG( "Starship/SourceControl/icon_SCC_Revert", Icon16x16));
+		Set("SourceControl.Actions.Connect", new CORE_IMAGE_BRUSH_SVG( "Starship/SourceControl/icon_SCC_Connect", Icon16x16));
+		Set("SourceControl.Actions.History", new CORE_IMAGE_BRUSH_SVG( "Starship/SourceControl/icon_SCC_History", Icon16x16));
+		Set("SourceControl.Actions.Add", new CORE_IMAGE_BRUSH_SVG("Starship/SourceControl/SCC_CheckedOut", Icon16x16));
+		Set("SourceControl.Actions.ChangeSettings", new CORE_IMAGE_BRUSH_SVG("Starship/SourceControl/icon_SCC_Change_Source_Control_Settings", Icon16x16));
+		Set("SourceControl.Actions.CheckOut", new CORE_IMAGE_BRUSH_SVG("Starship/SourceControl/SCC_CheckedOut", Icon16x16));
+		Set("SourceControl.Actions.Refresh", new CORE_IMAGE_BRUSH_SVG("Starship/Common/Undo", Icon16x16));
+		
 	}
 #endif // WITH_EDITOR || (IS_PROGRAM && WITH_UNREAL_DEVELOPER_TOOLS)
 
 	// Perforce
 #if WITH_EDITOR || (IS_PROGRAM && WITH_UNREAL_DEVELOPER_TOOLS)
 	{
-		Set( "Perforce.CheckedOut", new IMAGE_BRUSH( "ContentBrowser/SCC_CheckedOut", Icon32x32) );
-		Set( "Perforce.CheckedOut_Small", new IMAGE_BRUSH( "ContentBrowser/SCC_CheckedOut", Icon16x16) );
-		Set( "Perforce.OpenForAdd", new IMAGE_BRUSH( "ContentBrowser/SCC_ContentAdd", Icon32x32) );
-		Set( "Perforce.OpenForAdd_Small", new IMAGE_BRUSH( "ContentBrowser/SCC_ContentAdd", Icon16x16) );
-		Set( "Perforce.CheckedOutByOtherUser", new IMAGE_BRUSH( "ContentBrowser/SCC_CheckedOutByOtherUser", Icon32x32) );
-		Set( "Perforce.CheckedOutByOtherUser_Small", new IMAGE_BRUSH( "ContentBrowser/SCC_CheckedOutByOtherUser", Icon16x16) );
-		Set( "Perforce.CheckedOutByOtherUserOtherBranch", new IMAGE_BRUSH("ContentBrowser/SCC_CheckedOutByOtherUserOtherBranch", Icon32x32));
-		Set( "Perforce.CheckedOutByOtherUserOtherBranch_Small", new IMAGE_BRUSH("ContentBrowser/SCC_CheckedOutByOtherUserOtherBranch", Icon16x16));
-		Set( "Perforce.ModifiedOtherBranch", new IMAGE_BRUSH("ContentBrowser/SCC_ModifiedOtherBranch", Icon32x32));
-		Set( "Perforce.ModifiedOtherBranch_Small", new IMAGE_BRUSH("ContentBrowser/SCC_ModifiedOtherBranch", Icon16x16));
-		Set( "Perforce.MarkedForDelete", new IMAGE_BRUSH( "ContentBrowser/SCC_MarkedForDelete", Icon32x32) );
-		Set( "Perforce.MarkedForDelete_Small", new IMAGE_BRUSH( "ContentBrowser/SCC_MarkedForDelete", Icon16x16) );
-		Set( "Perforce.NotAtHeadRevision", new IMAGE_BRUSH( "ContentBrowser/SCC_NotAtHeadRevision", Icon32x32) );
-		Set( "Perforce.NotAtHeadRevision_Small", new IMAGE_BRUSH( "ContentBrowser/SCC_NotAtHeadRevision", Icon16x16) );
-		Set( "Perforce.NotInDepot", new IMAGE_BRUSH( "ContentBrowser/SCC_ContentMissing", Icon32x32) );
-		Set( "Perforce.NotInDepot_Small", new IMAGE_BRUSH( "ContentBrowser/SCC_ContentMissing", Icon16x16) );
-		Set( "Perforce.Branched", new IMAGE_BRUSH( "ContentBrowser/SCC_Branched", Icon32x32) );
-		Set( "Perforce.Branched_Small", new IMAGE_BRUSH( "ContentBrowser/SCC_Branched", Icon16x16) );
-	}
-#endif // WITH_EDITOR || (IS_PROGRAM && WITH_UNREAL_DEVELOPER_TOOLS)
+		Set("Perforce.CheckedOut", new CORE_IMAGE_BRUSH_SVG("Starship/SourceControl/SCC_CheckedOut", Icon16x16, FStyleColors::AccentRed));
+		Set("Perforce.OpenForAdd", new CORE_IMAGE_BRUSH_SVG("Starship/SourceControl/SCC_ContentAdd", Icon16x16, FStyleColors::AccentRed));
+		Set("Perforce.CheckedOutByOtherUser", new CORE_IMAGE_BRUSH_SVG("Starship/SourceControl/SCC_CheckedOut", Icon16x16, FStyleColors::AccentYellow));
+		Set("Perforce.CheckedOutByOtherUserOtherBranch", new CORE_IMAGE_BRUSH_SVG("Starship/SourceControl/SCC_CheckedOut", Icon16x16, FStyleColors::AccentBlue));
+		Set("Perforce.ModifiedOtherBranch", new CORE_IMAGE_BRUSH_SVG("Starship/SourceControl/SCC_ModifiedOtherBranch", Icon16x16, FStyleColors::AccentRed));
+		Set("Perforce.MarkedForDelete", new CORE_IMAGE_BRUSH_SVG("Starship/SourceControl/SCC_MarkedForDelete", Icon16x16, FStyleColors::AccentRed));
+		Set("Perforce.NotAtHeadRevision", new CORE_IMAGE_BRUSH_SVG("Starship/SourceControl/SCC_ModifiedOtherBranch", Icon16x16, FStyleColors::AccentYellow));
+		Set("Perforce.NotInDepot", new CORE_IMAGE_BRUSH_SVG("Starship/SourceControl/SCC_NotInDepot", Icon16x16, FStyleColors::AccentYellow));
+		Set("Perforce.Branched", new CORE_IMAGE_BRUSH_SVG("Starship/SourceControl/SCC_Branched", Icon16x16, FStyleColors::AccentGreen));
 
+	}
 	// Subversion
-#if WITH_EDITOR || (IS_PROGRAM && WITH_UNREAL_DEVELOPER_TOOLS)
 	{
-		Set( "Subversion.CheckedOut", new IMAGE_BRUSH( "ContentBrowser/SCC_CheckedOut", Icon32x32) );
-		Set( "Subversion.CheckedOut_Small", new IMAGE_BRUSH( "ContentBrowser/SCC_CheckedOut", Icon16x16) );
-		Set( "Subversion.OpenForAdd", new IMAGE_BRUSH( "ContentBrowser/SCC_ContentAdd", Icon32x32) );
-		Set( "Subversion.OpenForAdd_Small", new IMAGE_BRUSH( "ContentBrowser/SCC_ContentAdd", Icon16x16) );
-		Set( "Subversion.CheckedOutByOtherUser", new IMAGE_BRUSH( "ContentBrowser/SCC_CheckedOutByOtherUser", Icon32x32) );
-		Set( "Subversion.CheckedOutByOtherUser_Small", new IMAGE_BRUSH( "ContentBrowser/SCC_CheckedOutByOtherUser", Icon16x16) );
-		Set( "Subversion.CheckedOutByOtherUserOtherBranch", new IMAGE_BRUSH("ContentBrowser/SCC_CheckedOutByOtherUserOtherBranch", Icon32x32));
-		Set( "Subversion.CheckedOutByOtherUserOtherBranch_Small", new IMAGE_BRUSH("ContentBrowser/SCC_CheckedOutByOtherUserOtherBranch", Icon16x16));
-		Set( "Subversion.ModifiedOtherBranch", new IMAGE_BRUSH("ContentBrowser/SCC_ModifiedOtherBranch", Icon32x32));
-		Set( "Subversion.ModifiedOtherBranch_Small", new IMAGE_BRUSH("ContentBrowser/SCC_ModifiedOtherBranch", Icon16x16));
-		Set( "Subversion.MarkedForDelete", new IMAGE_BRUSH( "ContentBrowser/SCC_MarkedForDelete", Icon32x32) );
-		Set( "Subversion.MarkedForDelete_Small", new IMAGE_BRUSH( "ContentBrowser/SCC_MarkedForDelete", Icon16x16) );
-		Set( "Subversion.NotAtHeadRevision", new IMAGE_BRUSH( "ContentBrowser/SCC_NotAtHeadRevision", Icon32x32) );
-		Set( "Subversion.NotAtHeadRevision_Small", new IMAGE_BRUSH( "ContentBrowser/SCC_NotAtHeadRevision", Icon16x16) );
-		Set( "Subversion.NotInDepot", new IMAGE_BRUSH( "ContentBrowser/SCC_ContentMissing", Icon32x32) );
-		Set( "Subversion.NotInDepot_Small", new IMAGE_BRUSH( "ContentBrowser/SCC_ContentMissing", Icon16x16) );
-		Set( "Subversion.Branched", new IMAGE_BRUSH( "ContentBrowser/SCC_Branched", Icon32x32) );
-		Set( "Subversion.Branched_Small", new IMAGE_BRUSH( "ContentBrowser/SCC_Branched", Icon16x16) );
+		Set("Subversion.CheckedOut", new CORE_IMAGE_BRUSH_SVG("Starship/SourceControl/SCC_CheckedOut", Icon16x16, FStyleColors::AccentRed));
+		Set("Subversion.OpenForAdd", new CORE_IMAGE_BRUSH_SVG("Starship/SourceControl/SCC_ContentAdd", Icon16x16, FStyleColors::AccentRed));
+		Set("Subversion.CheckedOutByOtherUser", new CORE_IMAGE_BRUSH_SVG("Starship/SourceControl/SCC_CheckedOut", Icon16x16, FStyleColors::AccentYellow));
+		Set("Subversion.CheckedOutByOtherUserOtherBranch", new CORE_IMAGE_BRUSH_SVG("Starship/SourceControl/SCC_CheckedOut", Icon16x16, FStyleColors::AccentBlue));
+		Set("Subversion.ModifiedOtherBranch", new CORE_IMAGE_BRUSH_SVG("Starship/SourceControl/SCC_ModifiedOtherBranch", Icon16x16, FStyleColors::AccentRed));
+		Set("Subversion.MarkedForDelete", new CORE_IMAGE_BRUSH_SVG("Starship/SourceControl/SCC_MarkedForDelete", Icon16x16, FStyleColors::AccentRed));
+		Set("Subversion.NotAtHeadRevision", new CORE_IMAGE_BRUSH_SVG("Starship/SourceControl/SCC_ModifiedOtherBranch", Icon16x16, FStyleColors::AccentYellow));
+		Set("Subversion.NotInDepot", new CORE_IMAGE_BRUSH_SVG("Starship/SourceControl/SCC_NotInDepot", Icon16x16, FStyleColors::AccentYellow));
+		Set("Subversion.Branched", new CORE_IMAGE_BRUSH_SVG("Starship/SourceControl/SCC_Branched", Icon16x16, FStyleColors::AccentGreen));
 	}
 #endif // WITH_EDITOR || (IS_PROGRAM && WITH_UNREAL_DEVELOPER_TOOLS)
-	}
+}
 
 void FStarshipEditorStyle::FStyle::SetupAutomationStyles()
 {

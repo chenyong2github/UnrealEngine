@@ -5,6 +5,8 @@
 #include "CoreMinimal.h"
 #include "Widgets/Images/SImage.h"
 
+struct FSlateIcon;
+
 /** A slate widget to draw an arbitrary number of images over top of each other */
 class SLATECORE_API SLayeredImage : public SImage
 {
@@ -29,6 +31,12 @@ public:
 
 	/** Adds a new layer to the top of the Image given a brush and color */
 	void AddLayer(TAttribute<const FSlateBrush*> Brush, TAttribute<FSlateColor> Color = FLinearColor::White);
+
+	/** Sets the base image and any overlay layers defined in the Slate icon. Note: removes all layers */
+	void SetFromSlateIcon(const FSlateIcon& InIcon);
+
+	/** Removes all layers */
+	void RemoveAllLayers();
 
 	/** Returns the total number of layers, including the base image. */
 	int32 GetNumLayers() const;
@@ -63,7 +71,6 @@ public:
 	void SetLayerColor(int32 Index, TAttribute<FSlateColor>&& Color);
 
 private:
-	
 	/** An array to hold the additional draw layers */
-	TArray<ImageLayer> Layers;
+	TArray<ImageLayer,TInlineAllocator<2>> Layers;
 };

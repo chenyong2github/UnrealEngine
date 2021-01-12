@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SubversionSourceControlState.h"
+#include "Styling/AppStyle.h"
 
 #define LOCTEXT_NAMESPACE "SubversionSourceControl.State"
 
@@ -46,74 +47,39 @@ TSharedPtr<class ISourceControlRevision, ESPMode::ThreadSafe> FSubversionSourceC
 	return FindHistoryRevision(PendingMergeBaseFileRevNumber);
 }
 
-FName FSubversionSourceControlState::GetIconName() const
+FSlateIcon FSubversionSourceControlState::GetIcon() const
 {
-	if(LockState == ELockState::Locked)
+	if (LockState == ELockState::Locked)
 	{
-		return FName("Subversion.CheckedOut");
+		return FSlateIcon(FAppStyle::GetAppStyleSetName(), "Subversion.CheckedOut");
 	}
-	else if(LockState == ELockState::LockedOther)
+	else if (LockState == ELockState::LockedOther)
 	{
-		return FName("Subversion.CheckedOutByOtherUser");
+		return FSlateIcon(FAppStyle::GetAppStyleSetName(), "Subversion.CheckedOutByOtherUser");
 	}
 	else if (!IsCurrent())
 	{
-		return FName("Subversion.NotAtHeadRevision");
+		return FSlateIcon(FAppStyle::GetAppStyleSetName(), "Subversion.NotAtHeadRevision");
 	}
 
-	switch(WorkingCopyState)
+	switch (WorkingCopyState)
 	{
 	case EWorkingCopyState::Added:
-		if(bCopied)
+		if (bCopied)
 		{
-			return FName("Subversion.Branched");
+			return FSlateIcon(FAppStyle::GetAppStyleSetName(), "Subversion.Branched");
 		}
 		else
 		{
-			return FName("Subversion.OpenForAdd");
+			return FSlateIcon(FAppStyle::GetAppStyleSetName(), "Subversion.OpenForAdd");
 		}
 	case EWorkingCopyState::NotControlled:
-		return FName("Subversion.NotInDepot");
+		return FSlateIcon(FAppStyle::GetAppStyleSetName(), "Subversion.NotInDepot");
 	case EWorkingCopyState::Deleted:
-		return FName("Subversion.MarkedForDelete");
+		return FSlateIcon(FAppStyle::GetAppStyleSetName(), "Subversion.MarkedForDelete");
 	}
 
-	return NAME_None;
-}
-
-FName FSubversionSourceControlState::GetSmallIconName() const
-{
-	if(LockState == ELockState::Locked)
-	{
-		return FName("Subversion.CheckedOut_Small");
-	}
-	else if(LockState == ELockState::LockedOther)
-	{
-		return FName("Subversion.CheckedOutByOtherUser_Small");
-	}
-	else if (!IsCurrent())
-	{
-		return FName("Subversion.NotAtHeadRevision_Small");
-	}
-
-	switch(WorkingCopyState)
-	{
-	case EWorkingCopyState::Added:
-		if(bCopied)
-		{
-			return FName("Subversion.Branched_Small");
-		}
-		else
-		{
-			return FName("Subversion.OpenForAdd_Small");
-		}
-	case EWorkingCopyState::NotControlled:
-		return FName("Subversion.NotInDepot_Small");
-	case EWorkingCopyState::Deleted:
-		return FName("Subversion.MarkedForDelete_Small");
-	}
-
-	return NAME_None;
+	return FSlateIcon();
 }
 
 FText FSubversionSourceControlState::GetDisplayName() const

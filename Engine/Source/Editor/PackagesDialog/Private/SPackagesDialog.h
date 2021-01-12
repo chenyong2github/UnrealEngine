@@ -116,7 +116,7 @@ private:
 class FPackageItem : public TSharedFromThis<FPackageItem>
 {
 public:
-	FPackageItem(UPackage* InPackage, const FString& InAssetName, const FString& InFileName, const FString& InOwnerName, ECheckBoxState InState, bool InDisabled = false, FString InIconName=TEXT("SavePackages.SCC_DlgNoIcon"), FString InIconToolTip=TEXT(""))
+	FPackageItem(UPackage* InPackage, const FString& InAssetName, const FString& InFileName, const FString& InOwnerName, ECheckBoxState InState, bool InDisabled = false, FString InIconName=TEXT(""), FString InIconToolTip=TEXT(""))
 		: Package(InPackage)
 		, AssetName(InAssetName)
 		, PackageName(FPackageName::ObjectPathToPackageName(InPackage->GetName()))

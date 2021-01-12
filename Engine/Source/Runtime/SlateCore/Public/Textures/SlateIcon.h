@@ -146,7 +146,4 @@ private:
 
 	// Name of the style for the status overlay icon
 	FName StatusOverlayStyleName;
-
-	// Whether this icon has been explicitly set-up.
-	bool bIsSet;
 };
