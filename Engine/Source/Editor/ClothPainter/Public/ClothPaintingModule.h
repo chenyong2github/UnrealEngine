@@ -11,7 +11,7 @@ class UEditorExperimentalSettings;
 class ISkeletalMeshEditor;
 class SClothPaintTab;
 
-const static FName PaintModeID = "ClothPaintMode";
+CLOTHPAINTER_API extern const FName PaintModeID;
 
 class FClothPaintingModule : public IModuleInterface
 {

@@ -25,6 +25,8 @@
 
 #define LOCTEXT_NAMESPACE "ClothPaintingModule"
 
+const FName PaintModeID = "ClothPaintMode";
+
 IMPLEMENT_MODULE(FClothPaintingModule, ClothPainter);
 
 DECLARE_DELEGATE_OneParam(FOnToggleClothPaintMode, bool);

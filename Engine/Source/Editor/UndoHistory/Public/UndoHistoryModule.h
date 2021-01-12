@@ -6,7 +6,7 @@
 #include "Framework/Docking/TabManager.h"
 #include "Interfaces/IUndoHistoryModule.h"
 
-static const FName UndoHistoryTabName("UndoHistory");
+UNDOHISTORY_API extern const FName UndoHistoryTabName;
 
 /**
 * Implements the UndoHistory module.

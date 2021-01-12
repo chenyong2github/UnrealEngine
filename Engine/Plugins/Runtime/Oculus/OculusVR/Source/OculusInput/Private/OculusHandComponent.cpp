@@ -8,6 +8,8 @@
 
 #include "GameFramework/PlayerController.h"
 
+const FQuat HandRootFixupRotation = FQuat(-0.5f, -0.5f, 0.5f, 0.5f);
+
 UOculusHandComponent::UOculusHandComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {

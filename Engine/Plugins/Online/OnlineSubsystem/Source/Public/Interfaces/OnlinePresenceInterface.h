@@ -36,7 +36,7 @@ extern ONLINESUBSYSTEM_API const FString CustomPresenceDataKey;
 extern ONLINESUBSYSTEM_API const FString DefaultAppIdKey;
 
 /** User friendly name of the client that sent the presence update */
-const FString DefaultProductNameKey = TEXT("ProductName");
+extern ONLINESUBSYSTEM_API const FString DefaultProductNameKey;
 
 /** Platform of the client that sent the presence update */
 extern ONLINESUBSYSTEM_API const FString DefaultPlatformKey;

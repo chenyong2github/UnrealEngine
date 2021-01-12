@@ -7,6 +7,8 @@
 
 #define LOCTEXT_NAMESPACE "FUndoHistoryModule"
 
+const FName UndoHistoryTabName("UndoHistory");
+
 void FUndoHistoryModule::StartupModule()
 {
 	FGlobalTabmanager::Get()->RegisterNomadTabSpawner(UndoHistoryTabName, FOnSpawnTab::CreateRaw(this, &FUndoHistoryModule::HandleSpawnSettingsTab))

@@ -19,7 +19,7 @@ enum class ESystemGestureBehavior : uint8
 	SwapMaterial
 };
 
-static const FQuat HandRootFixupRotation = FQuat(-0.5f, -0.5f, 0.5f, 0.5f);
+OCULUSINPUT_API extern const FQuat HandRootFixupRotation;
 
 UCLASS(Blueprintable, meta = (BlueprintSpawnableComponent), ClassGroup = OculusHand)
 class OCULUSINPUT_API UOculusHandComponent : public UPoseableMeshComponent

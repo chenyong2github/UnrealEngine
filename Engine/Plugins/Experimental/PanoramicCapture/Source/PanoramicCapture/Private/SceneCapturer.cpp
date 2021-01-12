@@ -33,6 +33,8 @@
 
 #define LOCTEXT_NAMESPACE "LogStereoPanorama"
 
+const FName StereoPanoramaLogName("LogStereoPanorama");
+
 // always combine both eyes
 const bool CombineAtlasesOnOutput = true;
 
