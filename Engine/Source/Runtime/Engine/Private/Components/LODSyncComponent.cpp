@@ -176,7 +176,7 @@ void ULODSyncComponent::UpdateLOD()
 	// update latest LOD
 	// this should tick first and it will set forced LOD
 	// individual component will update it correctly
-	int32 CurrentWorkingLOD = 0xff;
+	int32 HighestPriLOD = 0xff;
 	// we want to ensure we have a valid set of the driving components
 	if (DriveComponents.Num() > 0)
 	{
@@ -185,12 +185,14 @@ void ULODSyncComponent::UpdateLOD()
 		bool bHaveValidSetting = false;
 		if (ForcedLOD >= 0 && ForcedLOD < CurrentNumLODs)
 		{
-			CurrentWorkingLOD = ForcedLOD;
+			HighestPriLOD = ForcedLOD;
 			bHaveValidSetting = true;
 			UE_LOG(LogLODSync, Verbose, TEXT("LOD Sync : Using ForcedLOD [%d]"), ForcedLOD);
 		}
 		else
 		{
+			bool bHaveVisibleComponent = false;
+			int32 HighestPriVisibleLOD = 0xff;
 			for (UPrimitiveComponent* Component : DriveComponents)
 			{
 				if (Component)
@@ -201,26 +203,42 @@ void ULODSyncComponent::UpdateLOD()
 					if (DesiredSyncLOD >= 0)
 					{
 						const int32 DesiredLOD = GetSyncMappingLOD(Component->GetFName(), DesiredSyncLOD);
-						UE_LOG(LogLODSync, Verbose, TEXT("LOD Sync Drivers : %s - Source LOD [%d] RemappedLOD[%d]"), *GetNameSafe(Component), DesiredSyncLOD, DesiredLOD);
-						// we're looking for lowest LOD (highest fidelity)
-						CurrentWorkingLOD = FMath::Min(CurrentWorkingLOD, DesiredLOD);
+						// Array is in priority order (last one is highest priority)
+						HighestPriLOD = DesiredLOD;
 						bHaveValidSetting = true;
+
+						if (Component->WasRecentlyRendered())
+						{
+							bHaveVisibleComponent = true;
+							HighestPriVisibleLOD = DesiredLOD;
+							UE_LOG(LogLODSync, Verbose, TEXT("LOD Sync Drivers : %s (VISIBLE) - Source LOD [%d] RemappedLOD[%d]"), *GetNameSafe(Component), DesiredSyncLOD, DesiredLOD);
+						}
+						else
+						{
+							UE_LOG(LogLODSync, Verbose, TEXT("LOD Sync Drivers : %s - Source LOD [%d] RemappedLOD[%d]"), *GetNameSafe(Component), DesiredSyncLOD, DesiredLOD);
+						}
 					}
 				}
+			}
+
+			// If we found a visible component, use that, if not, use highest priority that wasn't visible
+			if (bHaveVisibleComponent)
+			{
+				HighestPriLOD = HighestPriVisibleLOD;
 			}
 		}
 
 		if (bHaveValidSetting)
 		{
 			// ensure current WorkingLOD is with in the range
-			CurrentWorkingLOD = FMath::Clamp(CurrentWorkingLOD, 0, CurrentNumLODs - 1);
-			UE_LOG(LogLODSync, Verbose, TEXT("LOD Sync : Current LOD (%d)"), CurrentWorkingLOD);
+			HighestPriLOD = FMath::Clamp(HighestPriLOD, 0, CurrentNumLODs - 1);
+			UE_LOG(LogLODSync, Verbose, TEXT("LOD Sync : Current LOD (%d)"), HighestPriLOD);
 			for (UPrimitiveComponent* Component : SubComponents)
 			{
 				if (Component)
 				{
 					ILODSyncInterface* LODInterface = Cast<ILODSyncInterface>(Component);
-					const int32 NewLOD = GetCustomMappingLOD(Component->GetFName(), CurrentWorkingLOD);
+					const int32 NewLOD = GetCustomMappingLOD(Component->GetFName(), HighestPriLOD);
 					UE_LOG(LogLODSync, Verbose, TEXT("LOD Sync Setter : %s - New LOD [%d]"), *GetNameSafe(Component), NewLOD);
 					LODInterface->SetSyncLOD(NewLOD);
 				}
