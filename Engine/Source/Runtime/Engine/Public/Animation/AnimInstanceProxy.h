@@ -60,46 +60,46 @@ struct FQueuedDrawDebugItem
 	GENERATED_BODY()
 
 	UPROPERTY(Transient)
-	TEnumAsByte<EDrawDebugItemType::Type> ItemType;
+	TEnumAsByte<EDrawDebugItemType::Type> ItemType = EDrawDebugItemType::DirectionalArrow;
 
 	UPROPERTY(Transient)
-	FVector StartLoc;
+	FVector StartLoc = FVector(0.f);
 
 	UPROPERTY(Transient)
-	FVector EndLoc;
+	FVector EndLoc = FVector(0.f);
 
 	UPROPERTY(Transient)
-	FVector Center;
+	FVector Center = FVector(0.f);
 
 	UPROPERTY(Transient)
-	FRotator Rotation;
+	FRotator Rotation = FRotator(0.f);
 
 	UPROPERTY(Transient)
-	float Radius;
+	float Radius = 0.f;
 
 	UPROPERTY(Transient)
-	float Size;
+	float Size = 0.f;
 
 	UPROPERTY(Transient)
-	int32 Segments;
+	int32 Segments = 0;
 
 	UPROPERTY(Transient)
-	FColor Color;
+	FColor Color = FColor(0);
 
 	UPROPERTY(Transient)
-	bool bPersistentLines;
+	bool bPersistentLines = false;
 
 	UPROPERTY(Transient)
-	float LifeTime;
+	float LifeTime = 0.f;
 
 	UPROPERTY(Transient)
-	float Thickness;
+	float Thickness = 0.f;
 
 	UPROPERTY(Transient)
 	FString Message;
 
 	UPROPERTY(Transient)
-	FVector2D TextScale;
+	FVector2D TextScale = FVector2D(0.f);
 };
 
 /** Proxy object passed around during animation tree update in lieu of a UAnimInstance */

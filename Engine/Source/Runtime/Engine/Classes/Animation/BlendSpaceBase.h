@@ -31,11 +31,11 @@ struct FInterpolationParameter
 
 	/** Interpolation Time for input, when it gets input, it will use this time to interpolate to target, used for smoother interpolation. */
 	UPROPERTY(EditAnywhere, Category=Parameter)
-	float InterpolationTime;
+	float InterpolationTime = 0.f;
 
 	/** Type of interpolation used for filtering the input value to decide how to get to target. */
 	UPROPERTY(EditAnywhere, Category=Parameter)
-	TEnumAsByte<EFilterInterpolationType> InterpolationType;
+	TEnumAsByte<EFilterInterpolationType> InterpolationType = EFilterInterpolationType::BSIT_Average;
 };
 
 USTRUCT()

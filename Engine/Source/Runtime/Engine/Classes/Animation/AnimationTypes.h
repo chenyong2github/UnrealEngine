@@ -14,7 +14,7 @@ struct ENGINE_API FNamedFloat
 
 public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Float")
-	float Value;
+	float Value = 0.f;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Float")
 	FName Name;
@@ -28,7 +28,7 @@ struct ENGINE_API FNamedVector
 
 public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Vector")
-	FVector Value;
+	FVector Value = FVector(0.f);
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Vector")
 	FName Name;
@@ -42,7 +42,7 @@ struct ENGINE_API FNamedColor
 
 public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Color")
-	FColor Value;
+	FColor Value = FColor(0);
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Color")
 	FName Name;

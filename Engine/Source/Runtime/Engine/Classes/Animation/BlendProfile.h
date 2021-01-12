@@ -19,7 +19,7 @@ struct FBlendProfileBoneEntry
 	FBoneReference BoneReference;
 
 	UPROPERTY(EditAnywhere, Category=BoneSettings)
-	float BlendScale;
+	float BlendScale = 0.f;
 };
 
 //////////////////////////////////////////////////////////////////////////
