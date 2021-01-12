@@ -320,6 +320,7 @@ UAnimSequence* FAnimationRecorder::StopRecord(bool bShowMessage)
 					ValuesToRecord.SetNum(NumFrames);
 
 					bool bSeenThisCurve = false;
+					int32 WriteIndex = 0;
 					for (int32 FrameIndex = 0; FrameIndex < NumFrames; ++FrameIndex)
 					{
 						const float TimeToRecord = FrameIndex*IntervalTime;
@@ -342,8 +343,10 @@ UAnimSequence* FAnimationRecorder::StopRecord(bool bShowMessage)
 
 							if (FloatCurveData)
 							{
-								TimesToRecord[FrameIndex] = TimeToRecord;
-								ValuesToRecord[FrameIndex] = CurCurveValue;
+								TimesToRecord[WriteIndex] = TimeToRecord;
+								ValuesToRecord[WriteIndex] = CurCurveValue;
+
+								++WriteIndex;
 							}
 						}
 					}
@@ -352,7 +355,7 @@ UAnimSequence* FAnimationRecorder::StopRecord(bool bShowMessage)
 					if (FloatCurveData)
 					{
 						TArray<FRichCurveKey> Keys;
-						for (int32 Index = 0; Index < TimesToRecord.Num(); ++Index)
+						for (int32 Index = 0; Index < WriteIndex; ++Index)
 						{
 							FRichCurveKey Key(TimesToRecord[Index], ValuesToRecord[Index]);
 							Key.InterpMode = InterpMode;
