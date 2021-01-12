@@ -570,7 +570,7 @@ void FLayer::Initialize_RenderThread(const FSettings* Settings, FCustomPresent* 
 			const bool bNeedsSRGBFlag = bNeedsTexSrgbCreate || CustomPresent->IsSRGB(OvrpLayerDesc.Format);
 
 			ETextureCreateFlags ColorTexCreateFlags = TexCreate_ShaderResource | TexCreate_RenderTargetable | (bNeedsSRGBFlag ? TexCreate_SRGB : TexCreate_None);
-			ETextureCreateFlags DepthTexCreateFlags = TexCreate_ShaderResource | TexCreate_DepthStencilTargetable;
+			ETextureCreateFlags DepthTexCreateFlags = TexCreate_ShaderResource | TexCreate_DepthStencilTargetable | TexCreate_InputAttachmentRead;
 
 			if (Desc.Texture.IsValid())
 			{
