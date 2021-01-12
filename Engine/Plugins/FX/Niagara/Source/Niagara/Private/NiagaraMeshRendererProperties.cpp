@@ -7,7 +7,9 @@
 #include "NiagaraBoundsCalculatorHelper.h"
 #include "NiagaraCustomVersion.h"
 #include "Modules/ModuleManager.h"
+
 #if WITH_EDITOR
+#include "Editor.h"
 #include "AssetThumbnail.h"
 #include "Styling/SlateIconFinder.h"
 #include "Internationalization/Regex.h"
@@ -17,6 +19,7 @@
 #include "Widgets/SWidget.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Notifications/SNotificationList.h"
+#include "Subsystems/ImportSubsystem.h"
 #endif
 
 
