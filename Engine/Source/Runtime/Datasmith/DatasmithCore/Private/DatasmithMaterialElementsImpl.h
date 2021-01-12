@@ -272,6 +272,46 @@ protected:
 	TReflected<FString> FunctionPathName;
 };
 
+class FDatasmithMaterialExpressionCustomImpl : public FDatasmithMaterialExpressionImpl< IDatasmithMaterialExpressionCustom >
+{
+public:
+	FDatasmithMaterialExpressionCustomImpl();
+
+	virtual int32 GetInputCount() const override { return Inputs.Num(); }
+	virtual IDatasmithExpressionInput* GetInput( int32 Index ) override;
+	virtual const IDatasmithExpressionInput* GetInput( int32 Index ) const override { return Inputs.IsValidIndex( Index ) ? Inputs[Index].Get() : nullptr; }
+
+	virtual void SetCode(const TCHAR* InCode) override { Code = InCode; }
+	virtual const TCHAR* GetCode() const override { return *Code.Get(this->Store); }
+
+	virtual void SetDescription(const TCHAR* InDescription) override { Description = InDescription; }
+	virtual const TCHAR* GetDescription() const override { return *Description.Get(this->Store); }
+
+	virtual void SetOutputType(EDatasmithShaderDataType InOutputType) override { OutputType = InOutputType; }
+	virtual EDatasmithShaderDataType GetOutputType() const override { return OutputType; }
+
+	virtual int32 GetIncludeFilePathCount() const override { return IncludeFilePaths.Get(Store).Num(); }
+	virtual void AddIncludeFilePath(const TCHAR* Path) override { IncludeFilePaths.Edit(Store).Add(Path); }
+	virtual const TCHAR* GetIncludeFilePath(int32 Index) const override { return IncludeFilePaths.Get(Store).IsValidIndex(Index) ? *IncludeFilePaths.Get(Store)[Index] : TEXT(""); }
+
+	virtual int32 GetAdditionalDefineCount() const override { return Defines.Get(Store).Num(); }
+	virtual void AddAdditionalDefine(const TCHAR* Define) override { Defines.Edit(Store).Add(Define); }
+	virtual const TCHAR* GetAdditionalDefine(int32 Index) const override { return Defines.Get(Store).IsValidIndex(Index) ? *Defines.Get(Store)[Index] : TEXT(""); }
+
+	virtual int32 GetArgumentNameCount() const override { return ArgNames.Get(Store).Num(); }
+	virtual void SetArgumentName(int32 ArgIndex, const TCHAR* ArgName) override;
+	virtual const TCHAR* GetArgumentName(int32 Index) const override { return ArgNames.Get(Store).IsValidIndex(Index) ? *ArgNames.Get(Store)[Index] : TEXT("");}
+
+protected:
+	TReflected<FString> Code;
+	TReflected<FString> Description;
+	TReflected<EDatasmithShaderDataType, uint32> OutputType = EDatasmithShaderDataType::Float1;
+	TReflected<TArray<FString>> IncludeFilePaths;
+	TReflected<TArray<FString>> Defines;
+	TReflected<TArray<FString>> ArgNames;
+	TDatasmithReferenceArrayProxy< FDatasmithExpressionInputImpl > Inputs;
+};
+
 class DATASMITHCORE_API FDatasmithUEPbrMaterialElementImpl : public FDatasmithBaseMaterialElementImpl< IDatasmithUEPbrMaterialElement >
 {
 public:

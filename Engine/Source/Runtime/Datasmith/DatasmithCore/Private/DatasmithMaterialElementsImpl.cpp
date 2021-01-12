@@ -43,6 +43,9 @@ void FDatasmithExpressionInputImpl::SetExpression( IDatasmithMaterialExpression*
 		case EDatasmithMaterialExpressionType::TextureCoordinate:
 			Expression.Edit() = static_cast<FDatasmithMaterialExpressionTextureCoordinateImpl*>(InExpression)->AsShared();
 			break;
+		case EDatasmithMaterialExpressionType::Custom:
+			Expression.Edit() = static_cast<FDatasmithMaterialExpressionCustomImpl*>(InExpression)->AsShared();
+			break;
 		case EDatasmithMaterialExpressionType::None:
 		default:
 			check( false );
@@ -143,11 +146,11 @@ TSharedPtr< IDatasmithKeyValueProperty >& FDatasmithMaterialExpressionGenericImp
 
 const TSharedPtr< IDatasmithKeyValueProperty >& FDatasmithMaterialExpressionGenericImpl::GetPropertyByName( const TCHAR* InName ) const
 {
-	const TSharedPtr< IDatasmithKeyValueProperty >* FindResult = Properties.View().FindByPredicate( [&InName]( const TSharedPtr<IDatasmithKeyValueProperty>& CurrentKeyValue ) 
-		{ 
-			return FCString::Strcmp( CurrentKeyValue->GetName(), InName ) == 0; 
+	const TSharedPtr< IDatasmithKeyValueProperty >* FindResult = Properties.View().FindByPredicate( [&InName]( const TSharedPtr<IDatasmithKeyValueProperty>& CurrentKeyValue )
+		{
+			return FCString::Strcmp( CurrentKeyValue->GetName(), InName ) == 0;
 		});
-	
+
 	return FindResult ? *FindResult : NullPropertyPtr;
 }
 
@@ -265,6 +268,9 @@ IDatasmithMaterialExpression* FDatasmithUEPbrMaterialElementImpl::AddMaterialExp
 	case EDatasmithMaterialExpressionType::TextureCoordinate:
 		Expression = MakeShared< FDatasmithMaterialExpressionTextureCoordinateImpl >();
 		break;
+	case EDatasmithMaterialExpressionType::Custom:
+		Expression = MakeShared < FDatasmithMaterialExpressionCustomImpl>();
+		break;
 	default:
 		check( false );
 		break;
@@ -286,3 +292,48 @@ const TCHAR* FDatasmithUEPbrMaterialElementImpl::GetParentLabel() const
 		return *ParentLabel.Get( Store );
 	}
 }
+
+FDatasmithMaterialExpressionCustomImpl::FDatasmithMaterialExpressionCustomImpl() : FDatasmithMaterialExpressionImpl< IDatasmithMaterialExpressionCustom >(EDatasmithMaterialExpressionType::Custom)
+{
+	RegisterReferenceProxy(Inputs, "Inputs");
+	Store.RegisterParameter(Code, "Code");
+	Store.RegisterParameter(Description, "Description");
+	Store.RegisterParameter(OutputType, "OutputType");
+	Store.RegisterParameter(IncludeFilePaths, "IncludeFilePaths");
+	Store.RegisterParameter(Defines, "Defines");
+	Store.RegisterParameter(ArgNames, "ArgNames");
+}
+
+
+IDatasmithExpressionInput* FDatasmithMaterialExpressionCustomImpl::GetInput(int32 Index)
+{
+	if (!ensure(Index >= 0))
+	{
+		return nullptr;
+	}
+
+	while (!Inputs.IsValidIndex(Index))
+	{
+		Inputs.Add(MakeShared< FDatasmithExpressionInputImpl >(*FString::FromInt(Inputs.Num())));
+	}
+
+	return Inputs[Index].Get();
+}
+
+
+void FDatasmithMaterialExpressionCustomImpl::SetArgumentName(int32 ArgIndex, const TCHAR* ArgName)
+{
+	if (!ensure(ArgIndex >= 0))
+	{
+		return;
+	}
+
+	auto& Names = ArgNames.Edit(Store);
+	while (!Names.IsValidIndex(ArgIndex))
+	{
+		int32 CurrentIndex = Names.Num();
+		Names.Add(FString::Printf(TEXT("Arg%d"), CurrentIndex));
+	}
+	Names[ArgIndex] = ArgName;
+}
+

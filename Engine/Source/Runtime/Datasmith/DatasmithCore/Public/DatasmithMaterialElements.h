@@ -41,7 +41,7 @@ public:
 
 	//Needed while we have the deprecated IsA() implementation to avoid declaration conflict.
 	using IDatasmithElement::IsA;
-	
+
 	UE_DEPRECATED(4.27, "Deprecated, please use GetExpressionType() instead")
 	EDatasmithMaterialExpressionType GetType() const { return GetExpressionType(); }
 	virtual EDatasmithMaterialExpressionType GetExpressionType() const = 0;
@@ -134,7 +134,7 @@ public:
 class IDatasmithMaterialExpressionFlattenNormal : public IDatasmithMaterialExpression
 {
 public:
-	/** 
+	/**
 	 * Inputs
 	 */
 	virtual IDatasmithExpressionInput& GetNormal() = 0;
@@ -147,6 +147,32 @@ public:
 	 * Outputs:
 	 * - RGB
 	 */
+};
+
+// see UMaterialExpressionCustom
+class IDatasmithMaterialExpressionCustom : public IDatasmithMaterialExpression
+{
+public:
+	virtual void SetCode(const TCHAR* InCode) = 0;
+	virtual const TCHAR* GetCode() const = 0;
+
+	virtual void SetOutputType(EDatasmithShaderDataType InOutputType) = 0;
+	virtual EDatasmithShaderDataType GetOutputType() const = 0;
+
+	virtual void SetDescription(const TCHAR* InDescription) = 0;
+	virtual const TCHAR* GetDescription() const = 0;
+
+	virtual int32 GetIncludeFilePathCount() const = 0;
+	virtual void AddIncludeFilePath(const TCHAR* Path) = 0;
+	virtual const TCHAR* GetIncludeFilePath(int32 Index) const = 0;
+
+	virtual int32 GetAdditionalDefineCount() const = 0;
+	virtual void AddAdditionalDefine(const TCHAR* Define) = 0;
+	virtual const TCHAR* GetAdditionalDefine(int32 Index) const = 0;
+
+	virtual int32 GetArgumentNameCount() const = 0;
+	virtual void SetArgumentName(int32 ArgIndex, const TCHAR* ArgName) = 0;
+	virtual const TCHAR* GetArgumentName(int32 ArgIndex) const = 0;
 };
 
 class IDatasmithMaterialExpressionGeneric : public IDatasmithMaterialExpression
@@ -274,4 +300,10 @@ template<>
 inline IDatasmithMaterialExpressionTextureCoordinate* IDatasmithUEPbrMaterialElement::AddMaterialExpression< IDatasmithMaterialExpressionTextureCoordinate >()
 {
 	return static_cast< IDatasmithMaterialExpressionTextureCoordinate* >( AddMaterialExpression( EDatasmithMaterialExpressionType::TextureCoordinate ) );
+}
+
+template<>
+inline IDatasmithMaterialExpressionCustom* IDatasmithUEPbrMaterialElement::AddMaterialExpression< IDatasmithMaterialExpressionCustom >()
+{
+	return static_cast< IDatasmithMaterialExpressionCustom* >( AddMaterialExpression( EDatasmithMaterialExpressionType::Custom ) );
 }

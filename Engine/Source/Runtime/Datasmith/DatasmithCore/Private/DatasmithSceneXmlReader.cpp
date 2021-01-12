@@ -82,6 +82,17 @@ namespace DatasmithSceneXmlReaderImpl
 	{
 		return InString.ToBool();
 	}
+
+	UE_NODISCARD FString UnsanitizeXMLText(const FString& InString)
+	{
+		FString OutString = InString;
+		OutString.ReplaceInline( TEXT("&apos;"), TEXT("'")  );
+		OutString.ReplaceInline( TEXT("&quot;"), TEXT("\"") );
+		OutString.ReplaceInline( TEXT("&gt;"),   TEXT(">")  );
+		OutString.ReplaceInline( TEXT("&lt;"),   TEXT("<")  );
+		OutString.ReplaceInline( TEXT("&amp;"),  TEXT("&")  );
+		return OutString;
+	}
 }
 
 FString FDatasmithSceneXmlReader::ResolveFilePath(const FString& AssetFile) const
@@ -1773,6 +1784,48 @@ void FDatasmithSceneXmlReader::ParseUEPbrMaterial(FXmlNode* InNode, TSharedPtr< 
 				{
 					IDatasmithMaterialExpressionFunctionCall* FunctionCall = static_cast< IDatasmithMaterialExpressionFunctionCall* >( Expression );
 					FunctionCall->SetFunctionPathName( *ChildNode->GetAttribute( TEXT("Function") ) );
+				}
+			}
+			else if ( ChildNode->GetTag() == TEXT("Custom") )
+			{
+				if ( IDatasmithMaterialExpressionCustom* Expression = OutElement->AddMaterialExpression<IDatasmithMaterialExpressionCustom>() )
+				{
+					for (const FXmlNode* CustomChildNode : ChildNode->GetChildrenNodes())
+					{
+						if (CustomChildNode == nullptr)
+						{
+							continue;
+						}
+
+						if (CustomChildNode->GetTag() == TEXT("Code"))
+						{
+							const FString& SanitizedContent = CustomChildNode->GetContent();
+							const FString& Content = DatasmithSceneXmlReaderImpl::UnsanitizeXMLText(SanitizedContent);
+							Expression->SetCode(*Content);
+						}
+						else if (CustomChildNode->GetTag() == TEXT("Include"))
+						{
+							const FString& Path = DatasmithSceneXmlReaderImpl::UnsanitizeXMLText(CustomChildNode->GetAttribute(TEXT("path")));
+							Expression->AddIncludeFilePath(*Path);
+						}
+						else if (CustomChildNode->GetTag() == TEXT("Define"))
+						{
+							const FString& Value = DatasmithSceneXmlReaderImpl::UnsanitizeXMLText(CustomChildNode->GetAttribute(TEXT("value")));
+							Expression->AddAdditionalDefine(*Value);
+						}
+						else if (CustomChildNode->GetTag() == TEXT("Arg"))
+						{
+							int32 Index = DatasmithSceneXmlReaderImpl::ValueFromString<int32>(CustomChildNode->GetAttribute(TEXT("index")));
+							const FString& Value = DatasmithSceneXmlReaderImpl::UnsanitizeXMLText(CustomChildNode->GetAttribute(TEXT("name")));
+							Expression->SetArgumentName(Index, *Value);
+						}
+					}
+
+					const FString& Description = ChildNode->GetAttribute( TEXT("Description") );
+					Expression->SetDescription( *Description );
+
+					int32 OutputType = DatasmithSceneXmlReaderImpl::ValueFromString< int32 >( ChildNode->GetAttribute( TEXT("OutputType") ) );;
+					Expression->SetOutputType(EDatasmithShaderDataType(OutputType));
 				}
 			}
 			else

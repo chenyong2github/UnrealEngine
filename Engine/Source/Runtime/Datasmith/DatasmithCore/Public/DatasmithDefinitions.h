@@ -80,7 +80,7 @@ ENUM_CLASS_FLAGS( EDatasmithElementVariantSubType ); // Define bitwise operators
 /** Subtype of the MaterialExpression EDatasmithElementType, containing property value, variant, variant set, etc. */
 enum class EDatasmithMaterialExpressionType : uint64
 {
-	None              = 0, 
+	None              = 0,
 	ConstantBool      = 1 << 0,
 	ConstantColor     = 1 << 1,
 	ConstantScalar    = 1 << 2,
@@ -89,6 +89,7 @@ enum class EDatasmithMaterialExpressionType : uint64
 	Generic           = 1 << 5,
 	Texture           = 1 << 6,
 	TextureCoordinate = 1 << 7,
+	Custom            = 1 << 8,
 };
 
 ENUM_CLASS_FLAGS( EDatasmithMaterialExpressionType ); // Define bitwise operators for EDatasmithMaterialExpressionType
@@ -304,6 +305,17 @@ enum class EDatasmithBlendMode
 	ClearCoat,
 	Screen,
 	Softlight
+};
+
+/** material shader data Types */
+// see ECustomMaterialOutputType
+enum class EDatasmithShaderDataType
+{
+	Float1 = 1,
+	Float2 = 2,
+	Float3 = 3,
+	Float4 = 4,
+	MaterialAttribute = 5,
 };
 
 /** Key-value property */

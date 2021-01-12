@@ -294,7 +294,7 @@ UMaterialExpressionFunctionOutput* FDatasmithMaterialExpressions::FindOrAddOutpu
 		if ( Func->FunctionExpressions[i]->IsA< UMaterialExpressionFunctionOutput >() )
 		{
 			return StaticCast< UMaterialExpressionFunctionOutput* >( Func->FunctionExpressions[i] );
-		}		
+		}
 	}
 
 	return CreateMaterialExpression< UMaterialExpressionFunctionOutput >( Func );
@@ -1826,7 +1826,7 @@ void FDatasmithMaterialExpressions::ForEachParamsNameInMaterial(const TSharedPtr
 					CallbackForEach( ParamName, EDatasmithMaterialExpressionType::ConstantColor, ExpressionIndex );
 				}
 			}
-		
+
 			else if ( MaterialExpression->IsSubType( (uint64)EDatasmithMaterialExpressionType::ConstantScalar ) )
 			{
 				if ( ShouldExpressionBeAParameter( static_cast<IDatasmithMaterialExpressionScalar&>( *MaterialExpression ) ) )
@@ -1838,7 +1838,7 @@ void FDatasmithMaterialExpressions::ForEachParamsNameInMaterial(const TSharedPtr
 			else if ( MaterialExpression->IsSubType( (uint64)EDatasmithMaterialExpressionType::Generic ) )
 			{
 				if ( ShouldExpressionBeAParameter( static_cast<IDatasmithMaterialExpressionGeneric&>( *MaterialExpression ) ) )
-				{ 
+				{
 					FName ParamName = GenerateParamName<EDatasmithMaterialExpressionType::Generic>( *MaterialExpression, ExpressionIndex + 1 );
 					CallbackForEach( ParamName, EDatasmithMaterialExpressionType::Generic, ExpressionIndex );
 				}
@@ -2898,6 +2898,10 @@ UMaterialExpression* FDatasmithMaterialExpressions::CreateExpression( IDatasmith
 	{
 		return CreateFunctionCallExpression( *static_cast< IDatasmithMaterialExpressionFunctionCall* >( MaterialExpression ), AssetsContext, UnrealMaterialOrFunction );
 	}
+	else if ( MaterialExpression->IsSubType( (uint64)EDatasmithMaterialExpressionType::Custom ) )
+	{
+		return CreateCustomExpression( *static_cast< IDatasmithMaterialExpressionCustom* >( MaterialExpression ), AssetsContext, UnrealMaterialOrFunction );
+	}
 	else
 	{
 		ensure( false );
@@ -3011,6 +3015,62 @@ UMaterialExpression* FDatasmithMaterialExpressions::CreateScalarExpression( IDat
 
 	return Result;
 }
+
+UMaterialExpression* FDatasmithMaterialExpressions::CreateCustomExpression(IDatasmithMaterialExpressionCustom& DatasmithCustom, const FDatasmithAssetsImportContext& AssetsContext, UObject* UnrealMaterialOrFunction)
+{
+	UMaterialExpressionCustom* CustomExpression = CreateMaterialExpression< UMaterialExpressionCustom >( UnrealMaterialOrFunction );
+	CustomExpression->Code = DatasmithCustom.GetCode();
+
+	auto DatasmithTypeToNative = [](EDatasmithShaderDataType DatasmithValue) -> ECustomMaterialOutputType
+	{
+		switch (DatasmithValue)
+		{
+			case EDatasmithShaderDataType::Float1: return ECustomMaterialOutputType::CMOT_Float1;
+			case EDatasmithShaderDataType::Float2: return ECustomMaterialOutputType::CMOT_Float2;
+			case EDatasmithShaderDataType::Float3: return ECustomMaterialOutputType::CMOT_Float3;
+			case EDatasmithShaderDataType::Float4: return ECustomMaterialOutputType::CMOT_Float4;
+			case EDatasmithShaderDataType::MaterialAttribute: return ECustomMaterialOutputType::CMOT_MaterialAttributes;
+			default: return ECustomMaterialOutputType::CMOT_Float1; // log
+		}
+	};
+
+	CustomExpression->OutputType = DatasmithTypeToNative(DatasmithCustom.GetOutputType());
+	CustomExpression->Description = DatasmithCustom.GetDescription();
+
+	if (DatasmithCustom.GetArgumentNameCount() > CustomExpression->Inputs.Num())
+	{
+		CustomExpression->Inputs.AddDefaulted(DatasmithCustom.GetArgumentNameCount() - CustomExpression->Inputs.Num());
+	}
+	for (int32 Index = 0; Index < DatasmithCustom.GetArgumentNameCount(); ++Index)
+	{
+		CustomExpression->Inputs[Index].InputName = DatasmithCustom.GetArgumentName(Index);
+	}
+
+	for (int32 IncludeFilePathIndex = 0; IncludeFilePathIndex < DatasmithCustom.GetIncludeFilePathCount(); ++IncludeFilePathIndex)
+	{
+		CustomExpression->IncludeFilePaths.Add(DatasmithCustom.GetIncludeFilePath(IncludeFilePathIndex));
+	}
+
+	for (int32 AdditionalDefineIndex = 0; AdditionalDefineIndex < DatasmithCustom.GetAdditionalDefineCount(); ++AdditionalDefineIndex)
+	{
+		FCustomDefine& Define = CustomExpression->AdditionalDefines.AddDefaulted_GetRef();
+		FString DefineStr = DatasmithCustom.GetAdditionalDefine(AdditionalDefineIndex);
+
+		int32 Index = -1;
+		if (DefineStr.FindChar(TEXT('='), Index))
+		{
+			Define.DefineName = DefineStr.Left(Index);
+			Define.DefineValue = DefineStr.RightChop(Index+1);
+		}
+		else
+		{
+			Define.DefineName = DefineStr;
+		}
+	}
+
+	return CustomExpression;
+}
+
 
 UMaterialExpression* FDatasmithMaterialExpressions::CreateGenericExpression( IDatasmithMaterialExpressionGeneric& DatasmithGeneric, const FDatasmithAssetsImportContext& AssetsContext, UObject* UnrealMaterialOrFunction )
 {
@@ -3159,23 +3219,23 @@ void FDatasmithMaterialExpressions::CreateUEPbrMaterialGraph(const TSharedPtr< I
 	}
 
 	ConnectExpression( MaterialElement.ToSharedRef(), MaterialExpressions, MaterialElement->GetBaseColor().GetExpression(), GetMaterialOrFunctionSlot( UnrealMaterialOrFunction, EDatasmithTextureSlot::DIFFUSE ), MaterialElement->GetBaseColor().GetOutputIndex() );
-	
+
 	ConnectExpression( MaterialElement.ToSharedRef(), MaterialExpressions, MaterialElement->GetMetallic().GetExpression(), GetMaterialOrFunctionSlot( UnrealMaterialOrFunction, EDatasmithTextureSlot::METALLIC ), MaterialElement->GetMetallic().GetOutputIndex() );
-	
+
 	ConnectExpression( MaterialElement.ToSharedRef(), MaterialExpressions, MaterialElement->GetSpecular().GetExpression(), GetMaterialOrFunctionSlot( UnrealMaterialOrFunction, EDatasmithTextureSlot::SPECULAR ), MaterialElement->GetSpecular().GetOutputIndex() );
-	
+
 	ConnectExpression( MaterialElement.ToSharedRef(), MaterialExpressions, MaterialElement->GetRoughness().GetExpression(), GetMaterialOrFunctionSlot( UnrealMaterialOrFunction, EDatasmithTextureSlot::ROUGHNESS ), MaterialElement->GetRoughness().GetOutputIndex() );
-	
+
 	ConnectExpression( MaterialElement.ToSharedRef(), MaterialExpressions, MaterialElement->GetEmissiveColor().GetExpression(), GetMaterialOrFunctionSlot( UnrealMaterialOrFunction, EDatasmithTextureSlot::EMISSIVECOLOR ), MaterialElement->GetEmissiveColor().GetOutputIndex() );
-	
+
 	ConnectExpression( MaterialElement.ToSharedRef(), MaterialExpressions, MaterialElement->GetAmbientOcclusion().GetExpression(), GetMaterialOrFunctionSlot( UnrealMaterialOrFunction, EDatasmithTextureSlot::AMBIANTOCCLUSION ), MaterialElement->GetAmbientOcclusion().GetOutputIndex() );
-	
+
 	if ( MaterialElement->GetOpacity().GetExpression() )
 	{
 		if ( GetUEPbrImportBlendMode(MaterialElement, AssetsContext) == BLEND_Translucent )
 		{
 			ConnectExpression( MaterialElement.ToSharedRef(), MaterialExpressions, MaterialElement->GetOpacity().GetExpression(), GetMaterialOrFunctionSlot( UnrealMaterialOrFunction, EDatasmithTextureSlot::OPACITY ), MaterialElement->GetOpacity().GetOutputIndex() );
-			
+
 			ConnectExpression( MaterialElement.ToSharedRef(), MaterialExpressions, MaterialElement->GetRefraction().GetExpression(), GetMaterialOrFunctionSlot( UnrealMaterialOrFunction, EDatasmithTextureSlot::REFRACTION ), MaterialElement->GetRefraction().GetOutputIndex() );
 		}
 		else
@@ -3198,7 +3258,7 @@ void FDatasmithMaterialExpressions::CreateUEPbrMaterialGraph(const TSharedPtr< I
 				{
 					if ( MaterialOutputExpression->GetInputs().IsValidIndex( ExpressionInput ) )
 					{
-						ConnectExpression( MaterialElement.ToSharedRef(), MaterialExpressions, DatasmithExpression->GetInput( ExpressionInput )->GetExpression(), 
+						ConnectExpression( MaterialElement.ToSharedRef(), MaterialExpressions, DatasmithExpression->GetInput( ExpressionInput )->GetExpression(),
 							MaterialOutputExpression->GetInput( ExpressionInput ), DatasmithExpression->GetInput( ExpressionInput )->GetOutputIndex() );
 					}
 				}
@@ -3217,7 +3277,7 @@ UMaterialFunction* FDatasmithMaterialExpressions::CreateUEPbrMaterialFunction(UP
 		AssetsContext.GetParentContext().LogError(FailReason);
 		return nullptr;
 	}
-	
+
 	UMaterialFunction* UnrealMaterialFunc = NewObject<UMaterialFunction>(Package, FName(*MaterialFunctionName), ObjectFlags);
 
 	CreateUEPbrMaterialGraph(MaterialElement, AssetsContext, UnrealMaterialFunc);
@@ -3247,7 +3307,7 @@ EBlendMode FDatasmithMaterialExpressions::GetUEPbrImportBlendMode(const TSharedP
 		if (MaterialExpression && MaterialExpression->IsSubType((uint64)EDatasmithMaterialExpressionType::FunctionCall))
 		{
 			IDatasmithMaterialExpressionFunctionCall* MaterialExpressionFunctionCall = static_cast< IDatasmithMaterialExpressionFunctionCall* >(MaterialExpression);
-				
+
 			const TSharedRef<IDatasmithBaseMaterialElement>* MaterialFunction = FDatasmithFindAssetTypeHelper<UMaterialFunction>::GetImportedElementByName(AssetsContext, MaterialExpressionFunctionCall->GetFunctionPathName());
 			if (MaterialFunction && (*MaterialFunction)->IsA(EDatasmithElementType::UEPbrMaterial))
 			{
@@ -3379,7 +3439,7 @@ UMaterialInterface* FDatasmithMaterialExpressions::CreateUEPbrMaterialInstance(U
 
 			UTexture2D* Texture2D = Cast<UTexture2D>(Texture);
 			UTexture* DefaultTexture = nullptr;
-			if (Texture2D && MaterialInstance->GetMaterial()->GetTextureParameterDefaultValue(ParameterName, DefaultTexture) && 
+			if (Texture2D && MaterialInstance->GetMaterial()->GetTextureParameterDefaultValue(ParameterName, DefaultTexture) &&
 				!Texture2D->VirtualTextureStreaming != !DefaultTexture->VirtualTextureStreaming)
 			{
 				if (Texture2D->VirtualTextureStreaming)
