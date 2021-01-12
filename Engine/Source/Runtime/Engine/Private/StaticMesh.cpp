@@ -3845,6 +3845,19 @@ bool UStaticMesh::IsReadyForFinishDestroy()
 	{
 		return false;
 	}
+
+	if (GetRenderData())
+	{
+		if (GDistanceFieldAsyncQueue)
+		{
+			GDistanceFieldAsyncQueue->CancelBuild(this);
+		}
+
+		if (GCardRepresentationAsyncQueue)
+		{
+			GCardRepresentationAsyncQueue->CancelBuild(this);
+		}
+	}
 #endif
 
 	if (!Super::IsReadyForFinishDestroy())
