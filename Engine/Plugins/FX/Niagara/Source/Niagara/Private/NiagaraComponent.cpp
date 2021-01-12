@@ -2742,8 +2742,10 @@ void UNiagaraComponent::SetOverrideParameterStoreValue(const FNiagaraVariableBas
 {
 	if (InKey.IsDataInterface())
 	{
-		UNiagaraDataInterface* DuplicatedDI = DuplicateObject(InValue.GetDataInterface(), this);
+		UNiagaraDataInterface* OriginalDI = InValue.GetDataInterface();
+		UNiagaraDataInterface* DuplicatedDI = DuplicateObject(OriginalDI, this);
 		OverrideParameters.SetDataInterface(DuplicatedDI, InKey);
+		DuplicatedDI->SetUsedByGPUEmitter(OriginalDI->IsUsedWithGPUEmitter(nullptr));
 	}
 	else if (InKey.IsUObject())
 	{
