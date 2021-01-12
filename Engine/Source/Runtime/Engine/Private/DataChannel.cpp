@@ -4312,7 +4312,7 @@ FAutoConsoleCommandWithWorld DeleteDormantActorCommand(
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 static void	FindNetGUID( const TArray<FString>& Args, UWorld* InWorld )
 {
-	for (FObjectIterator ObjIt(UNetDriver::StaticClass()); ObjIt; ++ObjIt)
+	for (FThreadSafeObjectIterator ObjIt(UNetDriver::StaticClass()); ObjIt; ++ObjIt)
 	{
 		UNetDriver * Driver = Cast< UNetDriver >( *ObjIt );
 

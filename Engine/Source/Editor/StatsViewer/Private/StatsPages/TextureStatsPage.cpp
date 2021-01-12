@@ -150,7 +150,7 @@ struct TextureStatsGenerator : public FFindReferencedAssets
 		const int32 MaxRecursionDepth = 0;
 
 		// Mark all objects so we don't get into an endless recursion
-		for (FObjectIterator It; It; ++It)
+		for (FThreadSafeObjectIterator It; It; ++It)
 		{
 			// Skip the level, world, and any packages that should be ignored
 			if ( ShouldSearchForAssets(*It,IgnoreClasses,IgnorePackages,false) )

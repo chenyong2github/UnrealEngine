@@ -149,7 +149,7 @@ FArchiveTraceRoute::FArchiveTraceRoute( UObject* TargetObject, TMap<UObject*,FTr
 
 	// search for objects that have the right flags and add them to the list of objects that we're going to start with
 	// all other objects need to be tagged so that we can tell whether they've been serialized or not.
-	for( FObjectIterator It; It; ++It )
+	for( FThreadSafeObjectIterator It; It; ++It )
 	{
 		UObject* CurrentObject = *It;
 		if ( CurrentObject->HasAnyFlags(RequiredFlags) || CurrentObject->IsRooted() )
@@ -173,7 +173,7 @@ FArchiveTraceRoute::FArchiveTraceRoute( UObject* TargetObject, TMap<UObject*,FTr
 	ObjectGraph.Shrink();
 
 	// we're done with serialization; clear the tags so that we don't interfere with anything else
-	for( FObjectIterator It; It; ++It )
+	for( FThreadSafeObjectIterator It; It; ++It )
 	{
 		It->UnMark(OBJECTMARK_TagExp);
 	}

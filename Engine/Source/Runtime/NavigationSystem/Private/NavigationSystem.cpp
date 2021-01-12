@@ -792,7 +792,7 @@ void UNavigationSystemV1::PostEditChangeChainProperty(FPropertyChangedChainEvent
 		}
 		else if (PropName == NAME_AllowClientSideNavigation && HasAnyFlags(RF_ClassDefaultObject))
 		{
-			for (FObjectIterator It(UNavigationSystemModuleConfig::StaticClass()); It; ++It)
+			for (FThreadSafeObjectIterator It(UNavigationSystemModuleConfig::StaticClass()); It; ++It)
 			{
 				((UNavigationSystemModuleConfig*)*It)->UpdateWithNavSysCDO(*this);
 			}

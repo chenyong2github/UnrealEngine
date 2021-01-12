@@ -145,7 +145,7 @@ void FFindReferencedAssets::BuildAssetList(UObject *Object, const TArray<UClass*
 	// Create a new entry for this actor.
 	new( LocalReferencers ) FReferencedAssets( Object );
 
-	for (FObjectIterator It; It; ++It)
+	for (FThreadSafeObjectIterator It; It; ++It)
 	{
 		// Skip the level, world, and any packages that should be ignored
 		if ( ShouldSearchForAssets(*It, IgnoreClasses, IgnorePackages, bIncludeDefaultRefs) )

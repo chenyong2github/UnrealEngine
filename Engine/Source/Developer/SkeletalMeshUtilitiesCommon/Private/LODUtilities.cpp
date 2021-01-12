@@ -1402,7 +1402,7 @@ bool FLODUtilities::RestoreSkeletalMeshLODImportedData(USkeletalMesh* SkeletalMe
 
 void FLODUtilities::RefreshLODChange(const USkeletalMesh* SkeletalMesh)
 {
-	for (FObjectIterator Iter(USkeletalMeshComponent::StaticClass()); Iter; ++Iter)
+	for (FThreadSafeObjectIterator Iter(USkeletalMeshComponent::StaticClass()); Iter; ++Iter)
 	{
 		USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(*Iter);
 		if  (SkeletalMeshComponent->SkeletalMesh == SkeletalMesh)

@@ -951,7 +951,7 @@ void UAssetEditorSubsystem::OpenEditorsForAssets(const TArray<FName>& AssetsToOp
 
 void UAssetEditorSubsystem::RegisterEditorModes()
 {
-	for (FObjectIterator EditorModeIter(UEdMode::StaticClass()); EditorModeIter; ++EditorModeIter)
+	for (FThreadSafeObjectIterator EditorModeIter(UEdMode::StaticClass()); EditorModeIter; ++EditorModeIter)
 	{
 		UEdMode* EditorMode = Cast<UEdMode>(*EditorModeIter);
 		UClass* ModeClass = EditorMode->GetClass();

@@ -1049,7 +1049,7 @@ void UEditableStaticMeshAdapter::UpdateCollision()
 	// @todo mesheditor perf: This is a pretty heavy operation, and overlaps with what we're already doing in RecreateRenderStateContext
 	// a little bit.  Ideally we do everything in a single pass.  Furthermore, if this could be updated lazily it would be faster.
 	{
-		for( FObjectIterator Iter( UStaticMeshComponent::StaticClass() ); Iter; ++Iter )
+		for( FThreadSafeObjectIterator Iter(UStaticMeshComponent::StaticClass() ); Iter; ++Iter )
 		{
 			UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>( *Iter );
 			if( StaticMeshComponent->GetStaticMesh() == StaticMesh )

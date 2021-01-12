@@ -155,6 +155,9 @@ void UObjectBase::DeferredRegister(UClass *UClassStaticClass,const TCHAR* Packag
 
 	// Add to the global object table.
 	AddObject(FName(InName), EInternalObjectFlags::None);
+	// At this point all compiled-in objects should have already been fully constructed so it's safe to remove the NotFullyConstructed flag
+	// which was set in FUObjectArray::AllocateUObjectIndex (called from AddObject)
+	GUObjectArray.IndexToObject(InternalIndex)->ClearFlags(EInternalObjectFlags::PendingConstruction);
 
 	// Make sure that objects disregarded for GC are part of root set.
 	check(!GUObjectArray.IsDisregardForGC(this) || GUObjectArray.IndexToObject(InternalIndex)->IsRootSet());
@@ -185,7 +188,7 @@ void UObjectBase::AddObject(FName InName, EInternalObjectFlags InSetInternalFlag
 		InternalFlagsToSet |= EInternalObjectFlags::Native;
 		ObjectFlags &= ~RF_MarkAsNative;
 	}
-	AllocateUObjectIndexForCurrentThread(this);
+	GUObjectArray.AllocateUObjectIndex(this);
 	check(InName != NAME_None && InternalIndex >= 0);
 	if (InternalFlagsToSet != EInternalObjectFlags::None)
 	{

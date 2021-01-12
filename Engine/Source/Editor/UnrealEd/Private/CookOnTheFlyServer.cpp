@@ -3306,7 +3306,7 @@ private:
 			if (FilterPackageName(InPackage, PackageFilter))
 			{
 				TArray<FString> AllObjects;
-				for (FObjectIterator It; It; ++It)
+				for (FThreadSafeObjectIterator It; It; ++It)
 				{
 					AllObjects.Add(*It->GetFullName());
 				}

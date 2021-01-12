@@ -3350,7 +3350,7 @@ void UStaticMesh::BroadcastNavCollisionChange()
 {
 	if (FNavigationSystem::WantsComponentChangeNotifies())
 	{
-		for (FObjectIterator Iter(UStaticMeshComponent::StaticClass()); Iter; ++Iter)
+		for (FThreadSafeObjectIterator Iter(UStaticMeshComponent::StaticClass()); Iter; ++Iter)
 		{
 			UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(*Iter);
 			UWorld* MyWorld = StaticMeshComponent->GetWorld();
@@ -5551,7 +5551,7 @@ bool UStaticMesh::BuildFromMeshDescriptions(const TArray<const FMeshDescription*
 
 	if (!bNewMesh)
 	{
-		for (FObjectIterator Iter(UStaticMeshComponent::StaticClass()); Iter; ++Iter)
+		for (FThreadSafeObjectIterator Iter(UStaticMeshComponent::StaticClass()); Iter; ++Iter)
 		{
 			UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(*Iter);
 			if (StaticMeshComponent->GetStaticMesh() == this)

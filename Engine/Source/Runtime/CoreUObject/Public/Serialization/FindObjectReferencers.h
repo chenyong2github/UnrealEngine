@@ -37,7 +37,7 @@ public:
 		FFindReferencersArchive FindReferencerAr(nullptr, (TArray<UObject*>&)TargetObjects, bFindAlsoWeakReferences);
 
 		// Loop over every object to find any reference that may exist for the target objects
-		for (FObjectIterator It; It; ++It)
+		for (FThreadSafeObjectIterator It; It; ++It)
 		{
 			UObject* PotentialReferencer = *It;
 			if ( !TargetObjects.Contains(PotentialReferencer)

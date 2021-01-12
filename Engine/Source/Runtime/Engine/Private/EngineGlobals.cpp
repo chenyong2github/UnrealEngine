@@ -156,7 +156,7 @@ void ReattachComponents(const TArray<FString>& Args)
 	if( ParseObject<UClass>( *Args[0], TEXT("CLASS="), Class, ANY_PACKAGE ) &&
 		Class->IsChildOf(UActorComponent::StaticClass()) )
 	{
-		for( FObjectIterator It(Class); It; ++It )
+		for( FThreadSafeObjectIterator It(Class); It; ++It )
 		{
 			UActorComponent* ActorComponent = Cast<UActorComponent>(*It);
 			if( ActorComponent )

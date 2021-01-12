@@ -138,7 +138,7 @@ void FAutomationEditorCommonUtils::NullReferencesToObject(UObject* InObject)
 
 	// Find all the properties (and their corresponding objects) that refer to any of the objects to be replaced
 	TMap< UObject*, TArray<FProperty*> > ReferencingPropertiesMap;
-	for (FObjectIterator ObjIter; ObjIter; ++ObjIter)
+	for (FThreadSafeObjectIterator ObjIter; ObjIter; ++ObjIter)
 	{
 		UObject* CurObject = *ObjIter;
 

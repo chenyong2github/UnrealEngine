@@ -121,17 +121,17 @@ bool FDebugToolExec::Exec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar 
 	}
 	else if (FParse::Command(&Cmd,TEXT("EDITOBJECT")))
 	{
-		UClass* searchClass = NULL;
-		UObject* foundObj = NULL;
+		UClass* SearchClass = NULL;
+		UObject* FoundObj = NULL;
 		// Search by class.
-		if (ParseObject<UClass>(Cmd, TEXT("CLASS="), searchClass, ANY_PACKAGE))
+		if (ParseObject<UClass>(Cmd, TEXT("CLASS="), SearchClass, ANY_PACKAGE))
 		{
 			// pick the first valid object
-			for (FObjectIterator It(searchClass); It && foundObj == NULL; ++It) 
+			for (FThreadSafeObjectIterator It(SearchClass); It && FoundObj == NULL; ++It)
 			{
 				if (!It->IsPendingKill() && !It->IsTemplate())
 				{
-					foundObj = *It;
+					FoundObj = *It;
 				}
 			}
 		}
@@ -143,27 +143,27 @@ bool FDebugToolExec::Exec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar 
 			if ( FParse::Value(Cmd, TEXT("NAME="), searchName) )
 			{
 				// Look for actor by name.
-				for( TObjectIterator<UObject> It; It && foundObj == NULL; ++It )
+				for( TObjectIterator<UObject> It; It && FoundObj == NULL; ++It )
 				{
 					if (It->GetFName() == searchName) 
 					{
-						foundObj = *It;
+						FoundObj = *It;
 					}
 				}
 			}
 			else if ( FParse::Token(Cmd,SearchPathName, true) )
 			{
-				foundObj = FindObject<UObject>(ANY_PACKAGE,*SearchPathName);
+				FoundObj = FindObject<UObject>(ANY_PACKAGE,*SearchPathName);
 			}
 		}
 
 		// Bring up an property editing window for the found object.
-		if (foundObj != NULL)
+		if (FoundObj != NULL)
 		{
 			// not allowed in the editor unless it is a PIE object as this command can have far reaching effects such as impacting serialization
-			if (!GIsEditor || (!foundObj->IsTemplate() && foundObj->GetOutermost()->HasAnyPackageFlags(PKG_PlayInEditor)))
+			if (!GIsEditor || (!FoundObj->IsTemplate() && FoundObj->GetOutermost()->HasAnyPackageFlags(PKG_PlayInEditor)))
 			{
-				EditObject(foundObj, true);
+				EditObject(FoundObj, true);
 			}
 		}
 		else

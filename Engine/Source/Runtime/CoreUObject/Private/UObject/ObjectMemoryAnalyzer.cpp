@@ -80,7 +80,7 @@ void FObjectMemoryAnalyzer::AnalyzeObjects( UClass* InBaseClass )
 
 	uint32 ExclusionFlags = (AnalyzeFlags&EAnalyzeFlags::IncludeDefaultObjects)==0 ? (RF_ClassDefaultObject|RF_ArchetypeObject) : 0;
 	// Determine root objects
-	for( FObjectIterator It(InBaseClass, false, (EObjectFlags)ExclusionFlags); It; ++It )
+	for( FThreadSafeObjectIterator It(InBaseClass, false, (EObjectFlags)ExclusionFlags); It; ++It )
 	{
 		UObject* Object	= *It;
 
@@ -96,7 +96,7 @@ void FObjectMemoryAnalyzer::AnalyzeObjects( UClass* InBaseClass )
 	}
 
 	// mark 'loose' objets as root objects as well
-	for( FObjectIterator It(InBaseClass, false, (EObjectFlags)ExclusionFlags); It; ++It )
+	for( FThreadSafeObjectIterator It(InBaseClass, false, (EObjectFlags)ExclusionFlags); It; ++It )
 	{
 		UObject* Object	= *It;
 
@@ -110,7 +110,7 @@ void FObjectMemoryAnalyzer::AnalyzeObjects( UClass* InBaseClass )
 		}
 	}
 
-	for( FObjectIterator It(InBaseClass, false, (EObjectFlags)ExclusionFlags); It; ++It )
+	for( FThreadSafeObjectIterator It(InBaseClass, false, (EObjectFlags)ExclusionFlags); It; ++It )
 	{
 		UObject* Object	= *It;
 		
@@ -326,7 +326,7 @@ int32 FObjectMemoryAnalyzer::GetResults(TArray<FObjectMemoryUsage>& Results)
 	{
 		uint32 ExclusionFlags = (AnalyzeFlags&EAnalyzeFlags::IncludeDefaultObjects)==0 ? (RF_ClassDefaultObject|RF_ArchetypeObject) : 0;
 
-		for( FObjectIterator It(BaseClass, false, (EObjectFlags)ExclusionFlags); It; ++It )
+		for( FThreadSafeObjectIterator It(BaseClass, false, (EObjectFlags)ExclusionFlags); It; ++It )
 		{
 			UObject* Object	= *It;
 			if (!(AnalyzeFlags&EAnalyzeFlags::IncludeDefaultObjects) && Object->IsDefaultSubobject()) { continue; };

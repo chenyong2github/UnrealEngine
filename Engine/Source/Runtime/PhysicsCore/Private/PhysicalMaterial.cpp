@@ -56,7 +56,7 @@ void UPhysicalMaterial::PostEditChangeProperty(FPropertyChangedEvent& PropertyCh
 
 void UPhysicalMaterial::RebuildPhysicalMaterials()
 {
-	for (FObjectIterator Iter(UPhysicalMaterial::StaticClass()); Iter; ++Iter)
+	for (FThreadSafeObjectIterator Iter(UPhysicalMaterial::StaticClass()); Iter; ++Iter)
 	{
 		if (UPhysicalMaterial * PhysicalMaterial = Cast<UPhysicalMaterial>(*Iter))
 		{

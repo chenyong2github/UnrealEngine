@@ -2996,7 +2996,7 @@ void UObject::OutputReferencers( FOutputDevice& Ar, FReferencerInformationList* 
 
 void UObject::RetrieveReferencers( TArray<FReferencerInformation>* OutInternalReferencers, TArray<FReferencerInformation>* OutExternalReferencers )
 {
-	for( FObjectIterator It; It; ++It )
+	for( FThreadSafeObjectIterator It; It; ++It )
 	{
 		UObject* Object = *It;
 
@@ -3554,7 +3554,7 @@ bool StaticExec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
 						bool bShowDefaultObjects = FParse::Command(&Str,TEXT("SHOWDEFAULTS"));
 						bool bShowPendingKills = FParse::Command(&Str, TEXT("SHOWPENDINGKILLS"));
 						bool bShowDetailedInfo = FParse::Command(&Str, TEXT("DETAILED"));
-						for ( FObjectIterator It; It; ++It )
+						for ( FThreadSafeObjectIterator It; It; ++It )
 						{
 							UObject* CurrentObject = *It;
 
@@ -3822,7 +3822,7 @@ bool StaticExec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
 		{
 			Ar.Logf(TEXT("------------------------------------------------------------------------------"));
 
-			for (FObjectIterator It; It; ++It)
+			for (FThreadSafeObjectIterator It; It; ++It)
 			{
 				UObject* Target = *It;
 
@@ -3894,7 +3894,7 @@ bool StaticExec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
 		{
 			int32 Num=0;
 			int32 NumTransactional=0;
-			for( FObjectIterator It; It; ++It )
+			for( FThreadSafeObjectIterator It; It; ++It )
 			{
 				Num++;
 				if (It->HasAnyFlags(RF_Transactional))
@@ -3909,7 +3909,7 @@ bool StaticExec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
 		else if( FParse::Command(&Str,TEXT("MARK")) )
 		{
 			UE_LOG(LogObj, Log,  TEXT("Marking objects") );
-			for( FObjectIterator It; It; ++It )
+			for( FThreadSafeObjectIterator It; It; ++It )
 			{
 				DebugMarkAnnotation.Set(*It);
 			}
@@ -3918,7 +3918,7 @@ bool StaticExec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
 		else if( FParse::Command(&Str,TEXT("MARKCHECK")) )
 		{
 			UE_LOG(LogObj, Log,  TEXT("Unmarked (new) objects:") );
-			for( FObjectIterator It; It; ++It )
+			for( FThreadSafeObjectIterator It; It; ++It )
 			{
 				if(!DebugMarkAnnotation.Get(*It))
 				{
@@ -3932,7 +3932,7 @@ bool StaticExec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
 			UE_LOG(LogObj, Log,  TEXT("InvMarking existing objects") );
 			DebugInvMarkWeakPtrs.Empty();
 			DebugInvMarkNames.Empty();
-			for( FObjectIterator It; It; ++It )
+			for( FThreadSafeObjectIterator It; It; ++It )
 			{
 				DebugInvMarkWeakPtrs.Add(TWeakObjectPtr<>(*It));
 				DebugInvMarkNames.Add(It->GetFullName());
@@ -3968,7 +3968,7 @@ bool StaticExec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
 			FlushAsyncLoading();
 
 			DebugSpikeMarkAnnotation.ClearAll();
-			for( FObjectIterator It; It; ++It )
+			for( FThreadSafeObjectIterator It; It; ++It )
 			{
 				DebugSpikeMarkAnnotation.Set(*It);
 			}
@@ -4149,7 +4149,7 @@ bool StaticExec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
 				bool bRecurse = FParse::Bool(Str, TEXT("RECURSE"), Dummy);
 
 				// Iterate through the object list
-				for( FObjectIterator It; It; ++It )
+				for( FThreadSafeObjectIterator It; It; ++It )
 				{
 					// if this object is within the package specified, serialize the object
 					// into a specialized archive which logs object names encountered during
