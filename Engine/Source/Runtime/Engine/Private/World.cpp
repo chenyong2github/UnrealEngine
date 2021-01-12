@@ -4530,11 +4530,8 @@ void UWorld::CleanupWorldInternal(bool bSessionEnded, bool bCleanupResources, UW
 
 	if(FXSystem && bWorldChanged)
 	{
-		FFXSystemInterface::Destroy( FXSystem );
-		Scene->SetFXSystem(NULL);
-		FXSystem = NULL;
+		FFXSystemInterface::QueueDestroyGPUSimulation(FXSystem);
 	}
-
 }
 
 UGameViewportClient* UWorld::GetGameViewport() const
