@@ -460,6 +460,7 @@ struct FControlRigParameterPreAnimatedTokenProducer : IMovieScenePreAnimatedToke
 						}
 
 						FControlRigBindingHelper::UnBindFromSequencerInstance(ControlRig);
+						
 						for (TNameAndValue<float>& Value : ScalarValues)
 						{
 							if (ControlRig->FindControl(Value.Name))
@@ -701,7 +702,39 @@ struct FControlRigParameterExecutionToken : IMovieSceneExecutionToken
 				{
 					if (UControlRigComponent* ControlRigComponent = Cast<UControlRigComponent>(ControlRig->GetObjectBinding()->GetBoundObject()))
 					{
-						// todo
+						if (AActor* Actor = Cast<AActor>(BoundObjects[0].Get()))
+						{
+							if (UControlRigComponent* NewControlRigComponent = Actor->FindComponentByClass<UControlRigComponent>())
+							{
+								if (NewControlRigComponent != ControlRigComponent)
+								{
+									ControlRig->GetObjectBinding()->BindToObject(BoundObjects[0].Get());
+									if (NewControlRigComponent->GetControlRig() != ControlRig)
+									{
+										NewControlRigComponent->SetControlRig(ControlRig);
+									}
+									else
+									{
+										ControlRig->Initialize();
+									}
+								}
+							}
+						}
+						else if (UControlRigComponent* NewControlRigComponent = Cast<UControlRigComponent>(BoundObjects[0].Get()))
+						{
+							if (NewControlRigComponent != ControlRigComponent)
+							{
+								ControlRig->GetObjectBinding()->BindToObject(BoundObjects[0].Get());
+								if (NewControlRigComponent->GetControlRig() != ControlRig)
+								{
+									NewControlRigComponent->SetControlRig(ControlRig);
+								}
+								else
+								{
+									ControlRig->Initialize();
+								}
+							}
+						}
 					}
 					else if (USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(ControlRig->GetObjectBinding()->GetBoundObject()))
 					{
