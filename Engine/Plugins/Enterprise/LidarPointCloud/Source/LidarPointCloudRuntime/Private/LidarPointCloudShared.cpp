@@ -73,8 +73,10 @@ void FLidarPointCloudDataBuffer::Resize(const int32& NewBufferSize, bool bForce 
 	}
 }
 
-FLidarPointCloudDataBufferManager::FLidarPointCloudDataBufferManager(const int32& BufferSize)
+FLidarPointCloudDataBufferManager::FLidarPointCloudDataBufferManager(const int32& BufferSize, const int32& MaxNumberOfBuffers)
 	: BufferSize(BufferSize)
+	, MaxNumberOfBuffers(MaxNumberOfBuffers)
+	, NumBuffersCreated(1)
 	, Head(FLidarPointCloudDataBuffer())
 	, Tail(&Head)
 {
@@ -104,6 +106,7 @@ FLidarPointCloudDataBuffer* FLidarPointCloudDataBufferManager::GetFreeBuffer()
 	FLidarPointCloudDataBuffer* OutBuffer = nullptr;
 
 	// Find available memory allocation
+	do
 	{
 		TList<FLidarPointCloudDataBuffer>* Iterator = &Head;
 		while (Iterator)
@@ -116,7 +119,7 @@ FLidarPointCloudDataBuffer* FLidarPointCloudDataBufferManager::GetFreeBuffer()
 
 			Iterator = Iterator->Next;
 		}
-	}
+	} while (!OutBuffer && MaxNumberOfBuffers > 0 && NumBuffersCreated >= MaxNumberOfBuffers);
 
 	// If none found, add a new one
 	if (!OutBuffer)
@@ -125,6 +128,7 @@ FLidarPointCloudDataBuffer* FLidarPointCloudDataBufferManager::GetFreeBuffer()
 		Tail = Tail->Next;
 		OutBuffer = &Tail->Element;
 		OutBuffer->Initialize(BufferSize);
+		++NumBuffersCreated;
 	}
 
 	OutBuffer->bInUse = true;

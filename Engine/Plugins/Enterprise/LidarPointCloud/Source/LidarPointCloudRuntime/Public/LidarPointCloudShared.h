@@ -569,7 +569,8 @@ private:
 class FLidarPointCloudDataBufferManager
 {
 public:
-	FLidarPointCloudDataBufferManager(const int32& BufferSize);
+	/** If MaxNumberOfBuffers is 0, no limit is applied */
+	FLidarPointCloudDataBufferManager(const int32& BufferSize, const int32& MaxNumberOfBuffers = 0);
 	~FLidarPointCloudDataBufferManager();
 	FLidarPointCloudDataBufferManager(const FLidarPointCloudDataBufferManager&) = delete;
 	FLidarPointCloudDataBufferManager(FLidarPointCloudDataBufferManager&&) = delete;
@@ -582,6 +583,8 @@ public:
 
 private:
 	int32 BufferSize;
+	int32 MaxNumberOfBuffers;
+	int32 NumBuffersCreated;
 	TList<FLidarPointCloudDataBuffer> Head;
 	TList<FLidarPointCloudDataBuffer>* Tail;
 };
