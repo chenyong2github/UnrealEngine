@@ -3179,6 +3179,7 @@ void FSceneRenderer::RenderCustomDepthPassAtLocation(FRDGBuilder& GraphBuilder, 
 }
 
 BEGIN_SHADER_PARAMETER_STRUCT(FCustomDepthPassParameters, )
+	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FMobileSceneTextureUniformParameters, MobileSceneTextures)
 	RENDER_TARGET_BINDING_SLOTS()
 END_SHADER_PARAMETER_STRUCT()
 
@@ -3237,6 +3238,8 @@ void FSceneRenderer::RenderCustomDepthPass(FRDGBuilder& GraphBuilder)
 						DepthLoadAction,
 						StencilLoadAction,
 						FExclusiveDepthStencil::DepthWrite_StencilWrite);
+
+					PassParameters->MobileSceneTextures = CreateMobileSceneTextureUniformBuffer(GraphBuilder, EMobileSceneTextureSetupMode::None);
 				}
 				else
 				{
