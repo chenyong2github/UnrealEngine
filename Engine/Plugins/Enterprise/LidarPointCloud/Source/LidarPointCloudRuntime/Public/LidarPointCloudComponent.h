@@ -83,10 +83,12 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Appearance")
 	ELidarPointCloudColorationMode ColorSource;
 
+private:
 	/** Affects the shape of points. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Appearance")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Appearance", BlueprintSetter = SetPointShape, meta = (AllowPrivateAccess = "true", DeprecatedProperty, DeprecationMessage="Use GetPointShape() / SetPointShape() instead."))
 	ELidarPointCloudSpriteShape PointShape;
 
+public:
 	/** Affects the orientation of points. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Appearance")
 	ELidarPointCloudSpriteOrientation PointOrientation;
@@ -492,6 +494,14 @@ public:
 public:
 	UFUNCTION(BlueprintCallable, Category = "Components|LidarPointCloud")
 	void SetPointCloud(ULidarPointCloud *InPointCloud);
+
+	/** Returns the current Point Shape */
+	UFUNCTION(BlueprintPure, Category = "Components|LidarPointCloud")
+	FORCEINLINE ELidarPointCloudSpriteShape GetPointShape() const { return PointShape; }
+
+	/** Sets new Point Shape */
+	UFUNCTION(BlueprintCallable, Category = "Components|LidarPointCloud")
+	void SetPointShape(ELidarPointCloudSpriteShape NewPointShape);
 
 	/** Applies specified rendering parameters (Brightness, Saturation, etc) to the selected material */
 	UFUNCTION(BlueprintCallable, Category = "Components|LidarPointCloud|Rendering")

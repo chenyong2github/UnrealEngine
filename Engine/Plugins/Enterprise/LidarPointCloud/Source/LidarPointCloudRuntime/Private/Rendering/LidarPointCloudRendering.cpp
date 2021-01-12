@@ -324,7 +324,7 @@ public:
 		UserDataElement.BoundsSize = BoundsSize;
 		UserDataElement.ElevationColorBottom = FVector(Component->ColorSource == ELidarPointCloudColorationMode::None ? FColor::White : Component->ElevationColorBottom);
 		UserDataElement.ElevationColorTop = FVector(Component->ColorSource == ELidarPointCloudColorationMode::None ? FColor::White : Component->ElevationColorTop);
-		UserDataElement.bUseCircle = bUsesSprites && Component->PointShape == ELidarPointCloudSpriteShape::Circle;
+		UserDataElement.bUseCircle = bUsesSprites && Component->GetPointShape() == ELidarPointCloudSpriteShape::Circle;
 		UserDataElement.bUseColorOverride = Component->ColorSource != ELidarPointCloudColorationMode::Data;
 		UserDataElement.bUseElevationColor = Component->ColorSource == ELidarPointCloudColorationMode::Elevation || Component->ColorSource == ELidarPointCloudColorationMode::None;
 		UserDataElement.Offset = Component->Offset;

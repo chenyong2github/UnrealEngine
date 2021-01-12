@@ -145,6 +145,12 @@ void ULidarPointCloudComponent::SetPointCloud(ULidarPointCloud *InPointCloud)
 	}
 }
 
+void ULidarPointCloudComponent::SetPointShape(ELidarPointCloudSpriteShape NewPointShape)
+{
+	PointShape = NewPointShape;
+	UpdateMaterial();
+}
+
 void ULidarPointCloudComponent::ApplyRenderingParameters()
 {
 	if (UMaterialInstanceDynamic* DynMaterial = Cast<UMaterialInstanceDynamic>(Material))
@@ -221,7 +227,7 @@ void ULidarPointCloudComponent::PostEditChangeProperty(FPropertyChangedEvent& Pr
 
 		if (IS_PROPERTY(PointShape))
 		{
-			UpdateMaterial();
+			SetPointShape(PointShape);
 		}
 	}
 
