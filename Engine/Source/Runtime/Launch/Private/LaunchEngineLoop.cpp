@@ -2134,7 +2134,9 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 	{
 		SCOPED_BOOT_TIMING("Init FQueuedThreadPool's");
 
-		int StackSize = 128;
+		int32 StackSize = 128 * 1024;
+		GConfig->GetInt(TEXT("Core.System"), TEXT("PoolThreadStackSize"), StackSize, GEngineIni);
+
 		bool bForceEditorStackSize = false;
 #if WITH_EDITOR
 		bForceEditorStackSize = true;
@@ -2142,9 +2144,8 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 
 		if (bHasEditorToken || bForceEditorStackSize)
 		{
-			StackSize = 1000;
+			StackSize = 1024 * 1024;
 		}
-
 
 		{
 			GThreadPool = FQueuedThreadPool::Allocate();
@@ -2155,7 +2156,7 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 			{
 				NumThreadsInThreadPool = 1;
 			}
-			verify(GThreadPool->Create(NumThreadsInThreadPool, StackSize * 1024, TPri_SlightlyBelowNormal, TEXT("ThreadPool")));
+			verify(GThreadPool->Create(NumThreadsInThreadPool, StackSize, TPri_SlightlyBelowNormal, TEXT("ThreadPool")));
 		}
 		{
 			GBackgroundPriorityThreadPool = FQueuedThreadPool::Allocate();
@@ -2165,7 +2166,7 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 				NumThreadsInThreadPool = 1;
 			}
 
-			verify(GBackgroundPriorityThreadPool->Create(NumThreadsInThreadPool, StackSize * 1024, TPri_Lowest, TEXT("BackgroundThreadPool")));
+			verify(GBackgroundPriorityThreadPool->Create(NumThreadsInThreadPool, StackSize, TPri_Lowest, TEXT("BackgroundThreadPool")));
 		}
 
 #if WITH_EDITOR
@@ -2177,7 +2178,7 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 
 			// The default priority is above normal on Windows, which WILL make the system unresponsive when the thread-pool is heavily used.
 			// Also need to be lower than the game-thread to avoid impacting the frame rate with too much preemption. 
-			verify(GLargeThreadPool->Create(NumThreadsInLargeThreadPool, StackSize * 1024, TPri_SlightlyBelowNormal, TEXT("LargeThreadPool")));
+			verify(GLargeThreadPool->Create(NumThreadsInLargeThreadPool, StackSize, TPri_SlightlyBelowNormal, TEXT("LargeThreadPool")));
 		}
 #endif
 	}
