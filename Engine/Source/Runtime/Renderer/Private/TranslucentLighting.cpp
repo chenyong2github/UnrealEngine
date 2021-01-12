@@ -481,6 +481,7 @@ void FProjectedShadowInfo::RenderTranslucencyDepths(FRDGBuilder& GraphBuilder, F
 	TRDGUniformBufferRef<FTranslucencyDepthPassUniformParameters> PassUniformBuffer = GraphBuilder.CreateUniformBuffer(TranslucencyDepthPassParameters);
 
 	auto* PassParameters = GraphBuilder.AllocParameters<FTranslucencyDepthPassParameters>();
+	PassParameters->View = ShadowDepthView->ViewUniformBuffer;
 	PassParameters->PassUniformBuffer = PassUniformBuffer;
 	PassParameters->RenderTargets = InRenderTargets;
 	PassParameters->View = ShadowDepthView->ViewUniformBuffer;
