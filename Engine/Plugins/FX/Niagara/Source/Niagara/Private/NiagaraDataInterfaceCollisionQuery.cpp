@@ -576,8 +576,11 @@ public:
 
 		FRHIComputeShader* ComputeShaderRHI = Context.Shader.GetComputeShader();
 		
+		//-Note: Scene textures will not exist in the Mobile rendering path
 		TUniformBufferRef<FSceneTextureUniformParameters> SceneTextureUniformParams = GNiagaraViewDataManager.GetSceneTextureUniformParameters();
+		check(!PassUniformBuffer.IsBound() || SceneTextureUniformParams);
 		SetUniformBufferParameter(RHICmdList, ComputeShaderRHI, PassUniformBuffer/*Shader->GetUniformBufferParameter(SceneTexturesUniformBufferStruct)*/, SceneTextureUniformParams);
+
 		if (GlobalDistanceFieldParameters.IsBound() && Context.Batcher)
 		{
 			GlobalDistanceFieldParameters.Set(RHICmdList, ComputeShaderRHI, Context.Batcher->GetGlobalDistanceFieldParameters());
