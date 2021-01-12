@@ -18,6 +18,7 @@ class FAudioThumbnail;
 class FMenuBuilder;
 class FSequencerSectionPainter;
 class USoundWave;
+class UMovieSceneAudioTrack;
 
 /**
  * Tools for audio tracks
@@ -66,10 +67,10 @@ public:
 protected:
 
 	/** Delegate for AnimatablePropertyChanged in HandleAssetAdded for master sounds */
-	FKeyPropertyResult AddNewMasterSound(FFrameNumber KeyTime, class USoundBase* Sound, int32 RowIndex);
+	FKeyPropertyResult AddNewMasterSound(FFrameNumber KeyTime, class USoundBase* Sound, UMovieSceneAudioTrack* Track, int32 RowIndex);
 
 	/** Delegate for AnimatablePropertyChanged in HandleAssetAdded for attached sounds */
-	FKeyPropertyResult AddNewAttachedSound(FFrameNumber KeyTime, class USoundBase* Sound, TArray<TWeakObjectPtr<UObject>> ObjectsToAttachTo);
+	FKeyPropertyResult AddNewAttachedSound(FFrameNumber KeyTime, class USoundBase* Sound, UMovieSceneAudioTrack* Track, TArray<TWeakObjectPtr<UObject>> ObjectsToAttachTo);
 
 private:
 
