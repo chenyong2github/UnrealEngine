@@ -25,18 +25,13 @@ struct FDataprepSetLODsReductionSettings
 {
 	GENERATED_BODY()
 
-	FDataprepSetLODsReductionSettings()
-		: PercentTriangles(0.5f)
-		, ScreenSize(0.5f)
-	{ }
-
 	// Percentage of triangles to keep. Ranges from 0.0 to 1.0: 1.0 = no reduction, 0.0 = no triangles.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SetLODsReductionSettings, meta=(UIMin = "0.0", UIMax = "1.0"))
-	float PercentTriangles;
+	float PercentTriangles = 0.5f;
 
 	// ScreenSize to display this LOD. Ranges from 0.0 to 1.0.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SetLODsReductionSettings, meta=(UIMin = "0.0", UIMax = "1.0"))
-	float ScreenSize;
+	float ScreenSize = 0.5f;
 };
 
 UCLASS(Experimental, Category = MeshOperation, Meta = (DisplayName="Set LODs", ToolTip = "For each static mesh to process, replace the existing static mesh's LODs with new ones based on the set of reduction settings") )

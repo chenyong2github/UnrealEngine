@@ -73,9 +73,7 @@ struct FDataprepParameterizationBinding
 	GENERATED_BODY()
 
 	FDataprepParameterizationBinding()
-		: ObjectBinded( nullptr )
-		, PropertyChain()
-		, ValueTypeValidationData()
+		: ValueTypeValidationData()
 	{}
 
 	FDataprepParameterizationBinding(UDataprepParameterizableObject* InObjectBinded, TArray<FDataprepPropertyLink> InPropertyChain);
@@ -88,7 +86,7 @@ struct FDataprepParameterizationBinding
 	bool operator==(const FDataprepParameterizationBinding& Other) const;
 
 	UPROPERTY()
-	UDataprepParameterizableObject* ObjectBinded;
+	UDataprepParameterizableObject* ObjectBinded = nullptr;
 
 	UPROPERTY()
 	TArray<FDataprepPropertyLink> PropertyChain;

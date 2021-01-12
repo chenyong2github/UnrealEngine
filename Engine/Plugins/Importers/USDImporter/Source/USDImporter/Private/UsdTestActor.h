@@ -22,7 +22,7 @@ struct FUsdTestStruct2
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, Category = "UsdTestStruct2")
-	float FloatProperty;
+	float FloatProperty = 0.0f;
 
 	UPROPERTY(EditAnywhere, Category = "UsdTestStruct2")
 	FString StringProperty;
@@ -34,10 +34,10 @@ struct FUsdTestStruct
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, Category = "UsdTestStruct")
-	int32 IntProperty;
+	int32 IntProperty = 0;
 
 	UPROPERTY(EditAnywhere, Category = "UsdTestStruct")
-	EUsdTestEnum EnumProperty;
+	EUsdTestEnum EnumProperty = EUsdTestEnum::EnumVal1;
 
 	UPROPERTY(EditAnywhere, Category = "UsdTestStruct")
 	TArray<FLinearColor> ColorProperty;

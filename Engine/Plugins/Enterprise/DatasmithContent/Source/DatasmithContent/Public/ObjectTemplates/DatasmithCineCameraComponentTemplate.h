@@ -18,10 +18,10 @@ struct FDatasmithCameraFilmbackSettingsTemplate
 	GENERATED_BODY()
 
 	UPROPERTY()
-	float SensorWidth;
+	float SensorWidth = 0.0f;
 
 	UPROPERTY()
-	float SensorHeight;
+	float SensorHeight = 0.0f;
 
 	void Apply( FCameraFilmbackSettings* Destination, const FDatasmithCameraFilmbackSettingsTemplate* PreviousTemplate );
 	void Load( const FCameraFilmbackSettings& Source );
@@ -34,7 +34,7 @@ struct FDatasmithCameraLensSettingsTemplate
 	GENERATED_BODY()
 
 	UPROPERTY()
-	float MaxFStop;
+	float MaxFStop = 0.0f;
 
 	void Apply( FCameraLensSettings* Destination, const FDatasmithCameraLensSettingsTemplate* PreviousTemplate );
 	void Load( const FCameraLensSettings& Source );
@@ -47,10 +47,10 @@ struct FDatasmithCameraFocusSettingsTemplate
 	GENERATED_BODY()
 
 	UPROPERTY()
-	ECameraFocusMethod FocusMethod;
+	ECameraFocusMethod FocusMethod = ECameraFocusMethod::DoNotOverride;
 
 	UPROPERTY()
-	float ManualFocusDistance;
+	float ManualFocusDistance = 0.0f;
 
 	void Apply( FCameraFocusSettings* Destination, const FDatasmithCameraFocusSettingsTemplate* PreviousTemplate );
 	void Load( const FCameraFocusSettings& Source );
@@ -88,10 +88,10 @@ public:
 	uint8 bOverride_DepthOfFieldFstop:1;
 
 	UPROPERTY()
-	float WhiteTemp;
+	float WhiteTemp = 0.0f;
 
 	UPROPERTY()
-	float VignetteIntensity;
+	float VignetteIntensity = 0.0f;
 
 	UPROPERTY()
 	FLinearColor FilmWhitePoint;
@@ -103,13 +103,13 @@ public:
 	TEnumAsByte< enum EAutoExposureMethod > AutoExposureMethod;
 
 	UPROPERTY()
-	float CameraISO;
+	float CameraISO = 0.0f;
 
 	UPROPERTY()
-	float CameraShutterSpeed;
+	float CameraShutterSpeed = 0.0f;
 
 	UPROPERTY()
-	float DepthOfFieldFstop;
+	float DepthOfFieldFstop = 0.0f;
 
 public:
 	FDatasmithPostProcessSettingsTemplate();
@@ -135,10 +135,10 @@ public:
 	FDatasmithCameraFocusSettingsTemplate FocusSettings;
 
 	UPROPERTY()
-	float CurrentFocalLength;
+	float CurrentFocalLength = 0.0f;
 
 	UPROPERTY()
-	float CurrentAperture;
+	float CurrentAperture = 0.0f;
 
 	UPROPERTY()
 	FDatasmithPostProcessSettingsTemplate PostProcessSettings;

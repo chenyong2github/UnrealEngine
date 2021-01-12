@@ -670,15 +670,16 @@ struct FLidarPointCloudTraceHit
 
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Collision")
-	ALidarPointCloudActor* Actor;
+	ALidarPointCloudActor* Actor = nullptr;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Collision")
-	ULidarPointCloudComponent* Component;
+	ULidarPointCloudComponent* Component = nullptr;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Collision")
 	TArray<FLidarPointCloudPoint> Points;
 
-	FLidarPointCloudTraceHit() : FLidarPointCloudTraceHit(nullptr, nullptr) {}
+	FLidarPointCloudTraceHit() {}
+
 	FLidarPointCloudTraceHit(ALidarPointCloudActor* Actor, ULidarPointCloudComponent* Component)
 		: Actor(Actor)
 		, Component(Component)
