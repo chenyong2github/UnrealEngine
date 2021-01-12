@@ -56,6 +56,8 @@ namespace Chaos
 	class FPersistentPhysicsTask;
 	class FChaosArchive;
 	class FRewindData;
+	class FSingleParticleProxy;
+	class FGeometryParticleBuffer;
 
 	template <typename T,typename R,int d>
 	class ISpatialAccelerationCollection;
@@ -129,6 +131,9 @@ namespace Chaos
 		//
 		//  Object API
 		//
+
+		Chaos::FSingleParticleProxy* RegisterObject_External(TUniquePtr<Chaos::FGeometryParticleBuffer>&& GTParticleBuffer);
+		void UnregisterObject_External(Chaos::FSingleParticleProxy* Proxy);
 
 		void RegisterObject(Chaos::TGeometryParticle<float, 3>* GTParticle);
 		void UnregisterObject(Chaos::TGeometryParticle<float, 3>* GTParticle);

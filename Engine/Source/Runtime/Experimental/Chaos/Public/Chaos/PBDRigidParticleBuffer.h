@@ -25,6 +25,16 @@ public:
 		SetInitialized(false);
 	}
 
+	static const FPBDRigidParticleBuffer* Cast(const FGeometryParticleBuffer* Buffer)
+	{
+		return Buffer && Buffer->ObjectType() >= EParticleType::Rigid ? static_cast<const FPBDRigidParticleBuffer*>(Buffer) : nullptr;
+	}
+
+	static FPBDRigidParticleBuffer* Cast(FGeometryParticleBuffer* Buffer)
+	{
+		return Buffer && Buffer->ObjectType() >= EParticleType::Rigid ? static_cast<FPBDRigidParticleBuffer*>(Buffer) : nullptr;
+	}
+
 	int32 CollisionGroup() const { return MMiscData.Read().CollisionGroup(); }
 	void SetCollisionGroup(const int32 InCollisionGroup)
 	{
