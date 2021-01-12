@@ -29,6 +29,7 @@
 #include "SResetToDefaultPropertyEditor.h"
 #include "PropertyPathHelpers.h"
 #include "PropertyTextUtilities.h"
+#include "HAL/PlatformApplicationMisc.h"
 
 #define LOCTEXT_NAMESPACE "PropertyHandleImplementation"
 
@@ -2289,6 +2290,15 @@ TSharedRef<SWidget> FPropertyHandleBase::CreateDefaultPropertyButtonWidgets() co
 	return SNullWidget::NullWidget;
 }
 
+void FPropertyHandleBase::CreateDefaultPropertyCopyPasteActions(FUIAction& OutCopyAction, FUIAction& OutPasteAction) const
+{
+	if(Implementation.IsValid())
+	{
+		OutCopyAction.ExecuteAction.BindStatic(&FPropertyHandleBase::CopyValueToClipboard, TWeakPtr<FPropertyValueImpl>(Implementation.ToSharedRef()));
+		OutPasteAction.ExecuteAction.BindStatic(&FPropertyHandleBase::PasteValueFromClipboard, TWeakPtr<FPropertyValueImpl>(Implementation.ToSharedRef()));
+	}
+}
+
 bool FPropertyHandleBase::IsEditConst() const
 {
 	return Implementation->IsEditConst();
@@ -3220,6 +3230,33 @@ FText FPropertyHandleBase::GetDefaultCategoryText() const
 	}
 
 	return FText::GetEmpty();
+}
+
+void FPropertyHandleBase::CopyValueToClipboard(TWeakPtr<FPropertyValueImpl> ImplementationWeak)
+{
+	TSharedPtr<FPropertyValueImpl> Implementation = ImplementationWeak.Pin();
+	if (Implementation.IsValid())
+	{
+		FString Value;
+		if (Implementation->GetValueAsString(Value, PPF_Copy) == FPropertyAccess::Success)
+		{
+			FPlatformApplicationMisc::ClipboardCopy(*Value);
+		}
+	}
+}
+
+void FPropertyHandleBase::PasteValueFromClipboard(TWeakPtr<FPropertyValueImpl> ImplementationWeak)
+{
+	TSharedPtr<FPropertyValueImpl> Implementation = ImplementationWeak.Pin();
+	if (Implementation.IsValid())
+	{
+		FString Value;
+		FPlatformApplicationMisc::ClipboardPaste(Value);
+		if (Value.IsEmpty() == false)
+		{
+			Implementation->SetValueAsString(Value, EPropertyValueSetFlags::DefaultFlags);
+		}
+	}
 }
 
 /** Implements common property value functions */
