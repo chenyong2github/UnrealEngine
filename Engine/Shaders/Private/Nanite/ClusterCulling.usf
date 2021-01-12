@@ -261,8 +261,10 @@ void ClusterCull(FVisibleCluster VisibleCluster, uint InstanceId)
 	bool bNeedsClipping = false;
 	bool bVisible		= true;
 
+#if VIRTUAL_TEXTURE_TARGET
 	// Rect of overlapped virtual pages, is inclusive (as in zw is max, not max + 1)
-	uint4 RectPages = 0;
+	uint4 RectPages = PageRectBounds[NaniteView.TargetLayerIndex * VSM_MAX_MIP_LEVELS + NaniteView.TargetMipLevel];
+#endif // VIRTUAL_TEXTURE_TARGET
 
 #if CULLING_PASS == CULLING_PASS_NO_OCCLUSION || CULLING_PASS == CULLING_PASS_OCCLUSION_MAIN
 	BRANCH
@@ -282,24 +284,22 @@ void ClusterCull(FVisibleCluster VisibleCluster, uint InstanceId)
 		bUseHWRaster = bUseHWRaster || bNeedsClipping;
 
 #if VIRTUAL_TEXTURE_TARGET
-		// TODO: Don't know which pages bounds overlaps if crosses near plane. Disable for now.
-		bVisible = bVisible && !Cull.bCrossesNearPlane;
-
 		BRANCH
-		if( bVisible )
+		if( bVisible && !Cull.bCrossesNearPlane )
 		{
 			bVisible = OverlapsAnyValidPage( NaniteView.TargetLayerIndex, NaniteView.TargetMipLevel, NaniteView.ViewRect.xy, Rect, DynamicData.bHasMoved );
 
-			RectPages = uint4( NaniteView.ViewRect.xyxy + Rect.Pixels ) >> VSM_LOG2_PAGE_SIZE;
+			uint4 ClusterRectPages = uint4( NaniteView.ViewRect.xyxy + Rect.Pixels ) >> VSM_LOG2_PAGE_SIZE;
 
-			// Clip to actually allocated pages
-			// TODO: move this to be done as part of or before the overlap test?
-			uint4 AllocatedBounds = PageRectBounds[NaniteView.TargetLayerIndex * VSM_MAX_MIP_LEVELS + NaniteView.TargetMipLevel];
-			RectPages.xy = max(RectPages.xy, AllocatedBounds.xy);
-			RectPages.zw = min(RectPages.zw, AllocatedBounds.zw);
+			// Clip to committed pages pages
+			RectPages.xy = max(RectPages.xy, ClusterRectPages.xy);
+			RectPages.zw = min(RectPages.zw, ClusterRectPages.zw);
 		}
-#endif
+#endif // VIRTUAL_TEXTURE_TARGET
 	}
+
+#if VIRTUAL_TEXTURE_TARGET
+
 	// Cull any rect that doesn't overlap any physical pages, note inclusive rect means area of {0,0,0,0} is 1 (not culled)
 	uint PageRectArea = GetInclusiveRectArea(RectPages);
 	if (PageRectArea == 0)
@@ -313,6 +313,7 @@ void ClusterCull(FVisibleCluster VisibleCluster, uint InstanceId)
 		WaveInterlockedAddScalar(OutStatsBuffer[0].NumLargePageRectClusters, 1);
 	}
 #endif // DEBUG_FLAGS
+#endif // VIRTUAL_TEXTURE_TARGET
 
 #if CULLING_PASS == CULLING_PASS_OCCLUSION_MAIN || VIRTUAL_TEXTURE_TARGET
 	BRANCH
