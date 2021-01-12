@@ -112,6 +112,13 @@ FAutoConsoleVariableRef CVarNaniteMaxPixelsPerEdge(
 	TEXT("")
 	);
 
+int32 GNaniteImposterMaxPixels = 5;
+FAutoConsoleVariableRef CVarNaniteImposterMaxPixels(
+	TEXT("r.Nanite.ImposterMaxPixels"),
+	GNaniteImposterMaxPixels,
+	TEXT("")
+);
+
 float GNaniteMinPixelsPerEdgeHW = 18.0f;
 FAutoConsoleVariableRef CVarNaniteMinPixelsPerEdgeHW(
 	TEXT("r.Nanite.MinPixelsPerEdgeHW"),
@@ -546,6 +553,7 @@ class FInstanceCull_CS : public FNaniteShader
 	BEGIN_SHADER_PARAMETER_STRUCT( FParameters, )
 		SHADER_PARAMETER( uint32, NumInstances )
 		SHADER_PARAMETER( uint32, MaxNodes )
+		SHADER_PARAMETER( int32,  ImposterMaxPixels )
 		
 		SHADER_PARAMETER_STRUCT_INCLUDE( FCullingParameters, CullingParameters )
 		SHADER_PARAMETER_STRUCT_INCLUDE( FGPUSceneParameters, GPUSceneParameters )
@@ -2450,6 +2458,8 @@ void AddPass_InstanceHierarchyAndClusterCull(
 
 		PassParameters->NumInstances						= CullingContext.NumInstancesPreCull;
 		PassParameters->MaxNodes							= Nanite::FGlobalResources::GetMaxNodes();
+		PassParameters->ImposterMaxPixels					= GNaniteImposterMaxPixels;
+
 		PassParameters->GPUSceneParameters					= GPUSceneParameters;
 		PassParameters->RasterParameters					= RasterContext.Parameters;
 		PassParameters->CullingParameters					= CullingParameters;

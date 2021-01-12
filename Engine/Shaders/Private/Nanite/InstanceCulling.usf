@@ -83,6 +83,7 @@ void DrawImposter( FNaniteView NaniteView, FInstanceSceneData InstanceData, uint
 uint NumInstances;
 uint NumViews;
 uint NumPrimaryViews;
+int ImposterMaxPixels;
 
 StructuredBuffer<FInstanceDraw>			InInstanceDraws;
 Buffer<uint>							InOccludedInstancesArgs;
@@ -221,7 +222,7 @@ void InstanceCull(
 			{
 				FScreenRect Rect = GetScreenRect( NaniteView.ViewRect, Cull, 4 );
 
-				if( all( Rect.Pixels.zw - Rect.Pixels.xy < 6 ) )
+				if( all( Rect.Pixels.zw - Rect.Pixels.xy <= ImposterMaxPixels ) )
 				{
 					DrawImposter( NaniteView, InstanceData, InstanceId, Rect );
 					bIsVisible = false;
