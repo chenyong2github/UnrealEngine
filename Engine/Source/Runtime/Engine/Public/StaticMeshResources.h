@@ -932,6 +932,8 @@ public:
 		return GetCurrentFirstLODIdx_Internal();
 	}
 
+	virtual int32 GetLightMapCoordinateIndex() const override;
+
 protected:
 	/** Configures mesh batch vertex / index state. Returns the number of primitives used in the element. */
 	uint32 SetMeshElementGeometrySource(

@@ -998,7 +998,8 @@ bool FSceneProxy::HasDistanceFieldRepresentation() const
 
 int32 FSceneProxy::GetLightMapCoordinateIndex() const
 {
-	return StaticMesh != nullptr ? StaticMesh->GetLightMapCoordinateIndex() : INDEX_NONE;
+	const int32 LightMapCoordinateIndex = StaticMesh != nullptr ? StaticMesh->GetLightMapCoordinateIndex() : INDEX_NONE;
+	return LightMapCoordinateIndex;
 }
 
 bool FSceneProxy::IsCollisionView(const FEngineShowFlags& EngineShowFlags, bool& bDrawSimpleCollision, bool& bDrawComplexCollision) const

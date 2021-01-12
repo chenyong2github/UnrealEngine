@@ -270,7 +270,7 @@ FNaniteAttributeData GetAttributeData(
 
 	if (NumTexCoordInterpolators > 0)
 	{
-		UNROLL_N(NumTexCoordInterpolators)
+		UNROLL
 		for (uint TexCoordIndex = 0; TexCoordIndex < NumTexCoordInterpolators; ++TexCoordIndex)
 		{
 			// Protect against case where Nanite max UV count is lower than what the material may define.

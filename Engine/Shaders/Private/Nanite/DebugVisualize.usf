@@ -81,17 +81,43 @@ void DebugVisualize(uint3 PixelPos : SV_DispatchThreadID)
 		UnpackDbgPixel(DbgPixel, DebugDepthInt, DebugValueMax);
 		uint DebugValueAdd = DbgBuffer32[PixelPos.xy];
 
-		FVisibleCluster VisibleCluster = GetVisibleCluster(VisibleClusterIndex);
-		FInstanceSceneData InstanceData = GetInstanceData( VisibleCluster );
+		FVisibleCluster VisibleCluster           = GetVisibleCluster(VisibleClusterIndex);
+		FInstanceSceneData InstanceData          = GetInstanceData(VisibleCluster);
 		FInstanceDynamicData InstanceDynamicData = CalculateInstanceDynamicData(NaniteView, InstanceData);
+		FPrimitiveSceneData PrimitiveData        = GetPrimitiveData(InstanceData.PrimitiveId);
+		FCluster Cluster                         = GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
+
+		const uint3 TriIndices = ReadTriangleIndices(Cluster, TriIndex);
+
+		const float3 PointLocal0 = DecodePosition(TriIndices.x, Cluster);
+		const float3 PointLocal1 = DecodePosition(TriIndices.y, Cluster);
+		const float3 PointLocal2 = DecodePosition(TriIndices.z, Cluster);
+
+		const float4 PointClip0 = mul(float4(PointLocal0, 1), InstanceDynamicData.LocalToClip);
+		const float4 PointClip1 = mul(float4(PointLocal1, 1), InstanceDynamicData.LocalToClip);
+		const float4 PointClip2 = mul(float4(PointLocal2, 1), InstanceDynamicData.LocalToClip);
+
+		const float2 PixelClip = (PixelPos.xy - View.ViewRectMin.xy) * View.ViewSizeAndInvSize.zw * float2(2, -2) + float2(-1, 1);
+
+		// Calculate perspective correct barycentric coordinates with screen derivatives
+		const FBarycentrics Barycentrics = CalculateTriangleBarycentrics(PixelClip, PointClip0, PointClip1, PointClip2);
+
+		const FNaniteAttributeData AttributeData = GetAttributeData(
+			Cluster,
+			TriIndices,
+			PointLocal0,
+			PointLocal1,
+			PointLocal2,
+			Barycentrics,
+			InstanceData,
+			Cluster.NumUVs
+		);
 
 		const int HierarchyOffset = InstanceData.NaniteHierarchyOffset;
-		FCluster Cluster = GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
-
 		const uint VisualizeMode = GetVisualizeMode();
+
 		if (VisualizeMode == VISUALIZE_TRIANGLES)
 		{
-	
 			// Sobel edge detect depth
 			static int SobelX[] =
 			{
@@ -199,7 +225,16 @@ void DebugVisualize(uint3 PixelPos : SV_DispatchThreadID)
 		}
 		else if (VisualizeMode == VISUALIZE_LIGHTMAP_UVS)
 		{
-			Result = float3(1, 1, 0);
+			const float2 LightmapUVs = AttributeData.TexCoords[PrimitiveData.LightmapUVIndex];
+			Result = float3(LightmapUVs.x, LightmapUVs.y, 0);
+		}
+		else if (VisualizeMode == VISUALIZE_LIGHTMAP_UV_INDEX)
+		{
+			Result = IntToColor(PrimitiveData.LightmapUVIndex);
+		}
+		else if (VisualizeMode == VISUALIZE_LIGHTMAP_DATA_INDEX)
+		{
+			Result = IntToColor(PrimitiveData.LightmapDataIndex);
 		}
 	}
 	else

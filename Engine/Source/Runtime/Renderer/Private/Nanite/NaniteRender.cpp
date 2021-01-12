@@ -337,6 +337,8 @@ static bool UsePrimitiveShader()
 #define VISUALIZE_HIT_PROXY_ID						20
 #define VISUALIZE_NANITE_MASK						21
 #define VISUALIZE_LIGHTMAP_UVS						22
+#define VISUALIZE_LIGHTMAP_UV_INDEX					23
+#define VISUALIZE_LIGHTMAP_DATA_INDEX				24
 
 int32 GNaniteDebugVisualize = 0;
 FAutoConsoleVariableRef CVarNaniteDebugVisualize(
@@ -1773,7 +1775,7 @@ void FNaniteMeshProcessor::AddMeshBatch(
 	const bool bAllowLowQualityLightMaps = (!CVarSupportLowQualityLightmap) || (CVarSupportLowQualityLightmap->GetValueOnAnyThread() != 0);
 
 	// Determine light map policy type
-	ELightMapPolicyType SelectedLightMapPolicyType = ELightMapPolicyType::LMP_NO_LIGHTMAP;
+	FUniformLightMapPolicy LightMapPolicy = FUniformLightMapPolicy(LMP_NO_LIGHTMAP);
 	if (LightMapInteraction.GetType() == LMIT_Texture)
 	{
 		if (bAllowHighQualityLightMaps)
@@ -1784,16 +1786,16 @@ void FNaniteMeshProcessor::AddMeshBatch(
 
 			if (ShadowMapInteraction.GetType() == SMIT_Texture)
 			{
-				SelectedLightMapPolicyType = LMP_DISTANCE_FIELD_SHADOWS_AND_HQ_LIGHTMAP;
+				LightMapPolicy = FUniformLightMapPolicy(LMP_DISTANCE_FIELD_SHADOWS_AND_HQ_LIGHTMAP);
 			}
 			else
 			{
-				SelectedLightMapPolicyType = LMP_HQ_LIGHTMAP;
+				LightMapPolicy = FUniformLightMapPolicy(LMP_HQ_LIGHTMAP);
 			}
 		}
 		else if (bAllowLowQualityLightMaps)
 		{
-			SelectedLightMapPolicyType = LMP_LQ_LIGHTMAP;
+			LightMapPolicy = FUniformLightMapPolicy(LMP_LQ_LIGHTMAP);
 		}
 	}
 	else
@@ -1807,7 +1809,7 @@ void FNaniteMeshProcessor::AddMeshBatch(
 				|| PrimitiveSceneProxy->NeedsUnbuiltPreviewLighting()
 				|| PrimitiveSceneProxy->GetLightmapType() == ELightmapType::ForceVolumetric))
 		{
-			SelectedLightMapPolicyType = LMP_PRECOMPUTED_IRRADIANCE_VOLUME_INDIRECT_LIGHTING;
+			LightMapPolicy = FUniformLightMapPolicy(LMP_PRECOMPUTED_IRRADIANCE_VOLUME_INDIRECT_LIGHTING);
 		}
 		else if (bIsLitMaterial
 			&& IsIndirectLightingCacheAllowed(FeatureLevel)
@@ -1832,12 +1834,12 @@ void FNaniteMeshProcessor::AddMeshBatch(
 						|| (bPrimitiveIsMovable && PrimitiveSceneProxy->GetIndirectLightingCacheQuality() == ILCQ_Volume)))
 				{
 					// Use a light map policy that supports reading indirect lighting from a volume texture for dynamic objects
-					SelectedLightMapPolicyType = LMP_CACHED_VOLUME_INDIRECT_LIGHTING;
+					LightMapPolicy = FUniformLightMapPolicy(LMP_CACHED_VOLUME_INDIRECT_LIGHTING);
 				}
 				else
 				{
 					// Use a light map policy that supports reading indirect lighting from a single SH sample
-					SelectedLightMapPolicyType = LMP_CACHED_POINT_INDIRECT_LIGHTING;
+					LightMapPolicy = FUniformLightMapPolicy(LMP_CACHED_POINT_INDIRECT_LIGHTING);
 				}
 			}
 		}
@@ -1849,7 +1851,7 @@ void FNaniteMeshProcessor::AddMeshBatch(
 	GetBasePassShaders<FUniformLightMapPolicy>(
 		Material,
 		MeshBatch.VertexFactory->GetType(),
-		SelectedLightMapPolicyType,
+		LightMapPolicy,
 		FeatureLevel,
 		bRenderAtmosphericFog,
 		bRenderSkylight,
@@ -1872,7 +1874,7 @@ void FNaniteMeshProcessor::AddMeshBatch(
 	PassShaders.VertexShader = NaniteVertexShader;
 	PassShaders.PixelShader  = BasePassPixelShader;
 
-	TBasePassShaderElementData<FUniformLightMapPolicy> ShaderElementData(nullptr);
+	TBasePassShaderElementData<FUniformLightMapPolicy> ShaderElementData(MeshBatch.LCI);
 	ShaderElementData.InitializeMeshMaterialData(ViewIfDynamicMeshCommand, nullptr, MeshBatch, -1, false);
 
 	BuildMeshDrawCommands(

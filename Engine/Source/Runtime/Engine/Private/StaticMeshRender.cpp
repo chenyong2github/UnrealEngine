@@ -407,6 +407,12 @@ void FStaticMeshSceneProxy::SetEvaluateWorldPositionOffsetInRayTracing(bool NewV
 #endif
 }
 
+int32 FStaticMeshSceneProxy::GetLightMapCoordinateIndex() const
+{
+	const int32 LightMapCoordinateIndex = StaticMesh != nullptr ? StaticMesh->GetLightMapCoordinateIndex() : INDEX_NONE;
+	return LightMapCoordinateIndex;
+}
+
 FStaticMeshSceneProxy::~FStaticMeshSceneProxy()
 {
 #if RHI_RAYTRACING

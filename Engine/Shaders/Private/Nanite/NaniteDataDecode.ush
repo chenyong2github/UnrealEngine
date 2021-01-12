@@ -114,6 +114,8 @@ uint GetHWClusterCounterIndex(uint InRenderFlags)
 #define VISUALIZE_HIT_PROXY_ID						20
 #define VISUALIZE_NANITE_MASK						21
 #define VISUALIZE_LIGHTMAP_UVS						22
+#define VISUALIZE_LIGHTMAP_UV_INDEX					23
+#define VISUALIZE_LIGHTMAP_DATA_INDEX				24
 
 struct FStats
 {

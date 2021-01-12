@@ -3,6 +3,7 @@
 #pragma once
 
 #include "../VertexFactoryCommon.ush"
+#include "../LightmapData.ush"
 #include "NaniteDataDecode.ush"
 #include "NaniteAttributeDecode.ush"
 
@@ -17,12 +18,13 @@ struct FVertexFactoryInterpolantsVSToPS
 };
 
 #if NEEDS_LIGHTMAP_COORDINATE
+
 void GetLightMapCoordinates(FVertexFactoryInterpolantsVSToPS Interpolants, out float2 LightmapUV0, out float2 LightmapUV1, out uint LightmapDataIndex)
 {
 	LightmapUV0 = Interpolants.LightMapCoordinate.xy * float2(1.0, 0.5);
 	LightmapUV1 = LightmapUV0 + float2(0.0, 0.5);
 
-#if VF_USE_PRIMITIVE_SCENE_DATA && NEEDS_LIGHTMAP_COORDINATE
+#if VF_USE_PRIMITIVE_SCENE_DATA
 	LightmapDataIndex = Interpolants.LightmapDataIndex;
 #else
 	LightmapDataIndex = 0;
@@ -31,7 +33,7 @@ void GetLightMapCoordinates(FVertexFactoryInterpolantsVSToPS Interpolants, out f
 
 void GetShadowMapCoordinate(FVertexFactoryInterpolantsVSToPS Interpolants, out float2 ShadowMapCoordinate, out uint LightmapDataIndex)
 {
-#if VF_USE_PRIMITIVE_SCENE_DATA && NEEDS_LIGHTMAP_COORDINATE
+#if VF_USE_PRIMITIVE_SCENE_DATA
 	LightmapDataIndex = Interpolants.LightmapDataIndex;
 #else
 	LightmapDataIndex = 0;
@@ -44,7 +46,15 @@ void SetLightMapCoordinate(inout FVertexFactoryInterpolantsVSToPS Interpolants, 
 	Interpolants.LightMapCoordinate.xy = InLightMapCoordinate;
 	Interpolants.LightMapCoordinate.zw = InShadowMapCoordinate;
 }
+
+void SetLightMapDataIndex(inout FVertexFactoryInterpolantsVSToPS Interpolants, uint LightmapDataIndex)
+{
+#if VF_USE_PRIMITIVE_SCENE_DATA
+	Interpolants.LightmapDataIndex = LightmapDataIndex;
 #endif
+}
+
+#endif // NEEDS_LIGHTMAP_COORDINATE
 
 /** Converts from vertex factory specific interpolants to a FMaterialPixelParameters, which is used by material inputs. */
 FMaterialPixelParameters GetMaterialPixelParameters(inout FVertexFactoryInterpolantsVSToPS Interpolants, inout float4 SvPosition)
@@ -84,6 +94,18 @@ FMaterialPixelParameters GetMaterialPixelParameters(inout FVertexFactoryInterpol
 		// Calculate perspective correct barycentric coordinates with screen derivatives
 		const FBarycentrics Barycentrics = CalculateTriangleBarycentrics(PixelClip, PointClip0, PointClip1, PointClip2);
 
+	#if NEEDS_LIGHTMAP_COORDINATE
+		// Materials without any texture coordinates referenced will
+		// set NUM_TEX_COORD_INTERPOLATORS to 0 which will cause GetAttributeData
+		// to skip loading any texture coordinates from Nanite data, including light
+		// map UVs. In this case we cannot use the literal constant and must use the
+		// count stored on the cluster data.
+		const uint NumTexCoords = Cluster.NumUVs;
+	#else
+		// Prefer literal constant to optimize shader codegen.
+		const uint NumTexCoords = NUM_TEX_COORD_INTERPOLATORS;
+	#endif
+
 		const FNaniteAttributeData AttributeData = GetAttributeData(
 			Cluster,
 			TriIndices,
@@ -92,7 +114,7 @@ FMaterialPixelParameters GetMaterialPixelParameters(inout FVertexFactoryInterpol
 			PointLocal2,
 			Barycentrics,
 			InstanceData,
-			NUM_TEX_COORD_INTERPOLATORS
+			NumTexCoords
 		);
 
 	#if INTERPOLATE_VERTEX_COLOR
@@ -106,7 +128,7 @@ FMaterialPixelParameters GetMaterialPixelParameters(inout FVertexFactoryInterpol
 		Result.UnMirrored = AttributeData.UnMirrored;
 
 	#if NUM_TEX_COORD_INTERPOLATORS > 0
-		UNROLL_N(NUM_TEX_COORD_INTERPOLATORS)
+		UNROLL
 		for (uint TexCoordIndex = 0; TexCoordIndex < NUM_TEX_COORD_INTERPOLATORS; TexCoordIndex++)
 		{
 			// Protect against case where Nanite max UV count is lower than what the material may define.
@@ -124,30 +146,49 @@ FMaterialPixelParameters GetMaterialPixelParameters(inout FVertexFactoryInterpol
 
 	#if USE_PARTICLE_SUBUVS && NUM_TEX_COORD_INTERPOLATORS > 0
 		// Output TexCoord0 for when previewing materials that use ParticleSubUV.
-		Result.Particle.SubUVCoords[0] = Result.TexCoords[0]
-		Result.Particle.SubUVCoords[1] = Result.TexCoords[0]
+		Result.Particle.SubUVCoords[0] = Result.TexCoords[0];
+		Result.Particle.SubUVCoords[1] = Result.TexCoords[0];
 	#endif
 
 		// Required for previewing materials that use ParticleColor
 		Result.Particle.Color = half4(1, 1, 1, 1);
 
-	#if NEEDS_LIGHTMAP_COORDINATE && NUM_TEX_COORD_INTERPOLATORS > 0
-		const uint LightmapDataIndex = PrimitiveData.LightmapDataIndex;
-		const uint LightmapUVIndex   = PrimitiveData.LightmapUVIndex;
+	#if NEEDS_LIGHTMAP_COORDINATE
+
+		// TODO: Instancing support
+
+		float2 LightMapCoordinate = 0;
+		float2 ShadowMapCoordinate = 0;
+
+		const uint LightMapDataIndex = PrimitiveData.LightmapDataIndex;
+		const uint LightMapUVIndex   = PrimitiveData.LightmapUVIndex;
 		//UnpackLightmapDataAndUVIndex(PrimitiveData.LightmapDataAndUVIndex, LightmapDataIndex, LightmapUVIndex);
 
-		const float2 ShadowmapUV = float2(0, 0); // TODO: Need to support going forward?
-		const float2 LightmapUV  = Result.TexCoords[LightmapUVIndex];
+		float2 LightMapCoordinateInput = AttributeData.TexCoords[LightMapUVIndex];
+		const float2 LightMapUVs = LightMapCoordinateInput;
 
-		Interpolants.LightmapDataIndex = LightmapDataIndex;
+		float4 LightMapCoordinateScaleBias = GetLightmapData(LightMapDataIndex).LightMapCoordinateScaleBias;
+		LightMapCoordinate = LightMapCoordinateInput * LightMapCoordinateScaleBias.xy + LightMapCoordinateScaleBias.zw;
 
-		SetLightMapCoordinate(Interpolants, LightmapUV, ShadowmapUV);
+	#if STATICLIGHTING_TEXTUREMASK
+		float4 ShadowMapCoordinateScaleBias = GetLightmapData(LightMapDataIndex).ShadowMapCoordinateScaleBias;
+
+		//#if USE_INSTANCING
+		//	ShadowMapCoordinate = LightMapCoordinateInput * ShadowMapCoordinateScaleBias.xy + GetInstanceShadowMapBias(Intermediates);
+		//#else
+			ShadowMapCoordinate = LightMapCoordinateInput * ShadowMapCoordinateScaleBias.xy + ShadowMapCoordinateScaleBias.zw;
+		//#endif
+	#endif	// STATICLIGHTING_TEXTUREMASK
+
+		SetLightMapCoordinate(Interpolants, LightMapCoordinate, ShadowMapCoordinate);
+		SetLightMapDataIndex(Interpolants, LightMapDataIndex);
 	#else
-		const float2 LightmapUV = float2(0, 0);
+		const float2 LightMapUVs = float2(0.0f, 0.0f);
 	#endif
 
 	#if LIGHTMAP_UV_ACCESS
-		Result.LightmapUVs = LightmapUV;
+		// Store unscaled/unbiased lightmap UVs
+		Result.LightmapUVs = LightMapUVs;
 	#endif
 
 		Result.TwoSidedSign = 1;
