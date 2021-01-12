@@ -35,6 +35,8 @@ IPLMaterial UPhononMaterialComponent::GetMaterialPreset() const
 #if WITH_EDITOR
 void UPhononMaterialComponent::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
 {
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+
 	FName PropertyName = (PropertyChangedEvent.Property != NULL) ? PropertyChangedEvent.Property->GetFName() : NAME_None;
 
 	IPLMaterial SelectedMaterialPreset = SteamAudio::MaterialPresets[MaterialPreset];
