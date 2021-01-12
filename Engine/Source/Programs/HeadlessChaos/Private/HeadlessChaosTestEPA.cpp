@@ -1055,7 +1055,7 @@ namespace ChaosTest
 			FVec3 ClosestA, ClosestB, Normal;
 			int32 ClosestVertexIndexA, ClosestVertexIndexB;
 
-			auto result = GJKPenetration<true>(BoatConvex, ScaledGroundConvex, BToATM, Penetration, ClosestA, ClosestB, Normal, ClosestVertexIndexA, ClosestVertexIndexB, 0.0f, FVec3(1, 0, 0), 0.0f);
+			auto result = GJKPenetration<true>(BoatConvex, ScaledGroundConvex, BToATM, Penetration, ClosestA, ClosestB, Normal, ClosestVertexIndexA, ClosestVertexIndexB, 0.0f, 0.0f, FVec3(1, 0, 0));
 
 			FVec3 WorldLocation = BoatTransform.TransformPosition(ClosestA);
 			FVec3 WorldNormal = BoatTransform.TransformVectorNoScale(Normal);
@@ -1083,7 +1083,7 @@ namespace ChaosTest
 			FVec3 ClosestA, ClosestB, Normal;
 			int32 ClosestVertexIndexA, ClosestVertexIndexB;
 
-			auto result = GJKPenetration<true, float>(Triangle, BoatConvex, QueryTM, Penetration, ClosestA, ClosestB, Normal, ClosestVertexIndexA, ClosestVertexIndexB, 0.0f);
+			auto result = GJKPenetration<true, float>(Triangle, BoatConvex, QueryTM, Penetration, ClosestA, ClosestB, Normal, ClosestVertexIndexA, ClosestVertexIndexB);
 
 			// Confirm normal is valid and close to expected normal.
 			float dot = FVec3::DotProduct(ExpectedNormal, Normal);
@@ -1118,7 +1118,7 @@ namespace ChaosTest
 		FReal Penetration;
 		FVec3 ClosestA, ClosestB, NormalA;
 		int32 ClosestVertexIndexA, ClosestVertexIndexB;
-		GJKPenetration<true>(A, B, BToATM, Penetration, ClosestA, ClosestB, NormalA, ClosestVertexIndexA, ClosestVertexIndexB, 0.0f, InitialDir, 0.0f);
+		GJKPenetration<true>(A, B, BToATM, Penetration, ClosestA, ClosestB, NormalA, ClosestVertexIndexA, ClosestVertexIndexB, 0.0f, 0.0f, InitialDir);
 
 		FVec3 Location = ATM.TransformPosition(ClosestA);
 		FVec3 Normal = -ATM.TransformVectorNoScale(NormalA);
@@ -1141,7 +1141,7 @@ namespace ChaosTest
 			FReal Penetration;
 			FVec3 ClosestA, ClosestB, NormalA;
 			int32 ClosestVertexIndexA, ClosestVertexIndexB;
-			GJKPenetration<true>(A, B, BToATM, Penetration, ClosestA, ClosestB, NormalA, ClosestVertexIndexA, ClosestVertexIndexB, 0.0f, InitialDir, 0.0f);
+			GJKPenetration<true>(A, B, BToATM, Penetration, ClosestA, ClosestB, NormalA, ClosestVertexIndexA, ClosestVertexIndexB, 0.0f, 0.0f, InitialDir);
 
 			FVec3 Location = ATM.TransformPosition(ClosestA);  // These transforms are not really necessary since they are identity
 			FVec3 Normal = ATM.TransformVectorNoScale(NormalA);
@@ -1165,7 +1165,7 @@ namespace ChaosTest
 			FReal Penetration;
 			FVec3 ClosestA, ClosestB, NormalA;
 			int32 ClosestVertexIndexA, ClosestVertexIndexB;
-			GJKPenetration<true>(A, B, BToATM, Penetration, ClosestA, ClosestB, NormalA, ClosestVertexIndexA, ClosestVertexIndexB, 0.0f, InitialDir, 0.0f);
+			GJKPenetration<true>(A, B, BToATM, Penetration, ClosestA, ClosestB, NormalA, ClosestVertexIndexA, ClosestVertexIndexB, 0.0f, 0.0f, InitialDir);
 
 			FVec3 Location = ATM.TransformPosition(ClosestA);  // These transforms are not really necessary since they are identity
 			FVec3 Normal = ATM.TransformVectorNoScale(NormalA);

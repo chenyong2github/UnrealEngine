@@ -476,6 +476,10 @@ namespace ChaosTest
 	template <typename T>
 	void ScaledRaycast()
 	{
+		// Note: Spheres cannot be thickened by adding a margin to a wrapper type (such as TImplicitObjectScaled) 
+		// because Spheres already have their margin set to maximum (margins are always internal to the shape).
+		// Therefore we expect the "thickened" results below to be the same as the unthickened.
+
 		T Time;
 		TVector<T, 3> Position;
 		TVector<T, 3> Normal;
@@ -506,7 +510,7 @@ namespace ChaosTest
 
 		bHit = UnscaledThickened.Raycast(TVector<T, 3>(1, 1, 8), TVector<T, 3>(0, 0, -1), 8, 0, Time, Position, Normal, FaceIndex);
 		EXPECT_TRUE(bHit);
-		EXPECT_FLOAT_EQ(Time, 5 - Thickness);
+		EXPECT_FLOAT_EQ(Time, 5);
 		EXPECT_EQ(FaceIndex, INDEX_NONE);
 
 		EXPECT_FLOAT_EQ(Normal.X, 0);
@@ -532,7 +536,7 @@ namespace ChaosTest
 
 		bHit = UniformScaledThickened.Raycast(TVector<T, 3>(2, 2, 8), TVector<T, 3>(0, 0, -1), 8, 0, Time, Position, Normal, FaceIndex);
 		EXPECT_TRUE(bHit);
-		EXPECT_FLOAT_EQ(Time, 2 - Thickness * 2);
+		EXPECT_FLOAT_EQ(Time, 2);
 		EXPECT_EQ(FaceIndex, INDEX_NONE);
 
 		EXPECT_FLOAT_EQ(Normal.X, 0);
@@ -558,7 +562,7 @@ namespace ChaosTest
 
 		bHit = NonUniformScaledThickened.Raycast(TVector<T, 3>(2, 1, 8), TVector<T, 3>(0, 0, -1), 8, 0, Time, Position, Normal, FaceIndex);
 		EXPECT_TRUE(bHit);
-		EXPECT_FLOAT_EQ(Time, 5 - Thickness);
+		EXPECT_FLOAT_EQ(Time, 5);
 		EXPECT_EQ(FaceIndex, INDEX_NONE);
 
 		EXPECT_FLOAT_EQ(Normal.X, 0);
@@ -585,7 +589,7 @@ namespace ChaosTest
 
 		bHit = UniformScaledThickened.Raycast(TVector<T, 3>(2, 2, 8), TVector<T, 3>(0, 0, -1), 8, 1, Time, Position, Normal, FaceIndex);
 		EXPECT_TRUE(bHit);
-		EXPECT_FLOAT_EQ(Time, 1 - Thickness * 2);
+		EXPECT_FLOAT_EQ(Time, 1);
 		EXPECT_EQ(FaceIndex, INDEX_NONE);
 
 		EXPECT_FLOAT_EQ(Normal.X, 0);

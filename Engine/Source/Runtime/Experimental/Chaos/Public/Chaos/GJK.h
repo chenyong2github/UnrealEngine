@@ -49,9 +49,9 @@ namespace Chaos
 				break;	//if taking too long just stop. This should never happen
 			}
 			const TVector<T, 3> NegV = -V;
-			const TVector<T, 3> SupportA = A.SupportCore(NegV);
+			const TVector<T, 3> SupportA = A.SupportCore(NegV, 0.0f);
 			const TVector<T, 3> VInB = AToBRotation * V;
-			const TVector<T, 3> SupportBLocal = B.SupportCore(VInB);
+			const TVector<T, 3> SupportBLocal = B.SupportCore(VInB, 0.0f);
 			const TVector<T, 3> SupportB = BToATM.TransformPositionNoScale(SupportBLocal);
 			const TVector<T, 3> W = SupportA - SupportB;
 
@@ -109,7 +109,7 @@ namespace Chaos
 	// the Thickness) use GJKPenetration().
 	//
 	template <bool bNegativePenetrationAllowed = false, typename T, typename TGeometryA, typename TGeometryB>
-	bool GJKPenetrationCore(const TGeometryA& A, const TGeometryB& B, const TRigidTransform<T, 3>& BToATM, T& OutPenetration, TVec3<T>& OutClosestA, TVec3<T>& OutClosestB, TVec3<T>& OutNormal, int32& OutClosestVertexIndexA, int32& OutClosestVertexIndexB, const T ThicknessA, const T ThicknessB, const TVector<T, 3>& InitialDir = TVector<T, 3>(1, 0, 0), const T Epsilon = 1.e-3)
+	bool GJKPenetration(const TGeometryA& A, const TGeometryB& B, const TRigidTransform<T, 3>& BToATM, T& OutPenetration, TVec3<T>& OutClosestA, TVec3<T>& OutClosestB, TVec3<T>& OutNormal, int32& OutClosestVertexIndexA, int32& OutClosestVertexIndexB, const T InThicknessA = 0.0f, const T InThicknessB = 0.0f, const TVector<T, 3>& InitialDir = TVector<T, 3>(1, 0, 0), const T Epsilon = 1.e-3)
 	{
 		int32 VertexIndexA = INDEX_NONE;
 		int32 VertexIndexB = INDEX_NONE;
@@ -117,7 +117,7 @@ namespace Chaos
 		auto SupportAFunc = [&A, &VertexIndexA](const TVec3<T>& V)
 		{
 			VertexIndexA = INDEX_NONE;
-			return A.SupportCore(V);
+			return A.SupportCore(V, 0.0f);
 		};
 
 		const TRotation<T, 3> AToBRotation = BToATM.GetRotation().Inverse();
@@ -126,7 +126,7 @@ namespace Chaos
 		{
 			VertexIndexB = INDEX_NONE;
 			const TVector<T, 3> VInB = AToBRotation * V;
-			const TVector<T, 3> SupportBLocal = B.SupportCore(VInB);
+			const TVector<T, 3> SupportBLocal = B.SupportCore(VInB, 0.0f);
 			return BToATM.TransformPositionNoScale(SupportBLocal);
 		};
 
@@ -148,6 +148,8 @@ namespace Chaos
 		bool bIsContact = false;				// True if shapes are within Epsilon or overlapping - GJK cannot provide a solution
 		int NumIterations = 0;
 		T Distance = FLT_MAX;
+		const T ThicknessA = InThicknessA + A.GetMargin();
+		const T ThicknessB = InThicknessB + B.GetMargin();
 		const T SeparatedDistance = ThicknessA + ThicknessB + Epsilon;
 		while (!bIsContact && !bIsDegenerate)
 		{
@@ -167,6 +169,7 @@ namespace Chaos
 				return false;
 			}
 
+			// If we didn't move to at least ConvergedDistance or closer, assume we have reached a minimum
 			const T ConvergenceTolerance = 1.e-4f;
 			const T ConvergedDistance = (1.0f - ConvergenceTolerance) * Distance;
 			if (VW > ConvergedDistance)
@@ -223,8 +226,8 @@ namespace Chaos
 				// EPA has a solution - return it now
 				OutNormal = MTD;
 				OutPenetration = Penetration + ThicknessA + ThicknessB;
-				OutClosestA = ClosestA;
-				OutClosestB = ClosestBInA;
+				OutClosestA = ClosestA + MTD * ThicknessA;
+				OutClosestB = ClosestBInA - MTD * ThicknessB;
 				OutClosestVertexIndexA = VertexIndexA;
 				OutClosestVertexIndexB = VertexIndexB;
 				return true;
@@ -259,8 +262,8 @@ namespace Chaos
 
 			T Penetration = ThicknessA + ThicknessB - Distance;
 			OutPenetration = Penetration;
-			OutClosestA = ClosestA;
-			OutClosestB = ClosestBInA;
+			OutClosestA = ClosestA + Normal * ThicknessA;
+			OutClosestB = ClosestBInA - Normal * ThicknessB;
 			OutClosestVertexIndexA = VertexIndexA;
 			OutClosestVertexIndexB = VertexIndexB;
 
@@ -269,22 +272,6 @@ namespace Chaos
 			// @todo(chaos): we should pass back failure for the degenerate case so we can decide how to handle it externally.
 			return (bNegativePenetrationAllowed || (Penetration >= 0.0f));
 		}
-	}
-
-	// Calculate the penetration depth of two geometries.
-	// See comments on GJKPenetrationCore for more information.
-	// OutClosestA and OutClosestB are the closest or deepest-penetrating points on the surface of the two geometries (i.e., the surface including
-	// the margin), both in the space of A.
-	//
-	template <bool bNegativePenetrationAllowed = false, typename T, typename TGeometryA, typename TGeometryB>
-	bool GJKPenetration(const TGeometryA& A, const TGeometryB& B, const TRigidTransform<T, 3>& BToATM, T& OutPenetration, TVec3<T>& OutClosestA, TVec3<T>& OutClosestB, TVec3<T>& OutNormal, int32& OutClosestVertexIndexA, int32& OutClosestVertexIndexB, const T InThicknessA = 0, const TVector<T, 3>& InitialDir = TVector<T, 3>(1, 0, 0), const T InThicknessB = 0, const T Epsilon = 1.e-3)
-	{
-		T NetThicknessA = InThicknessA + A.GetMargin();
-		T NetThicknessB = InThicknessB + B.GetMargin();
-		bool bSuccess = GJKPenetrationCore<bNegativePenetrationAllowed, T, TGeometryA, TGeometryB>(A, B, BToATM, OutPenetration, OutClosestA, OutClosestB, OutNormal, OutClosestVertexIndexA, OutClosestVertexIndexB, NetThicknessA, NetThicknessB, InitialDir, Epsilon);
-		OutClosestA += OutNormal * NetThicknessA;
-		OutClosestB -= OutNormal * NetThicknessB;
-		return bSuccess;
 	}
 
 
@@ -468,13 +455,13 @@ namespace Chaos
 
 		auto SupportAFunc = [&A](const TVec3<T>& V)
 		{
-			return A.SupportCore(V);
+			return A.SupportCore(V, 0.0f);
 		};
 
 		auto SupportBFunc = [&B, &AToBRotation, &BToARotation](const TVec3<T>& V)
 		{
 			const TVector<T, 3> VInB = AToBRotation * V;
-			const TVector<T, 3> SupportBLocal = B.SupportCore(VInB);
+			const TVector<T, 3> SupportBLocal = B.SupportCore(VInB, 0.0f);
 			return BToARotation * SupportBLocal;
 		};
 
@@ -660,7 +647,7 @@ namespace Chaos
 					auto SupportBAtOriginFunc = [&](const TVec3<T>& Dir)
 					{
 						const TVector<T, 3> DirInB = AToBRotation * Dir;
-						const TVector<T, 3> SupportBLocal = B.SupportCore(DirInB);
+						const TVector<T, 3> SupportBLocal = B.SupportCore(DirInB, 0.0f);
 						return StartTM.TransformPositionNoScale(SupportBLocal);
 					};
 

@@ -4,9 +4,7 @@
 #include "Chaos/Capsule.h"
 #include "Chaos/Convex.h"
 #include "Chaos/ImplicitObjectScaled.h"
-//#include "Chaos/ImplicitFwd.h"
 #include "Chaos/Collision/PBDCollisionConstraint.h"
-//#include "Chaos/CollisionResolution.h"
 
 //PRAGMA_DISABLE_OPTIMIZATION
 
@@ -24,6 +22,16 @@ namespace Chaos
 			const Chaos::FReal CullDistance,
 			const Chaos::FReal Dt,
 			Chaos::FRigidBodyPointContactConstraint& Constraint);
+
+		template <typename ConvexImplicitType1, typename ConvexImplicitType2>
+		void ConstructConvexConvexOneShotManifold(
+			const ConvexImplicitType1& Implicit1,
+			const FRigidTransform3& Convex1Transform, //world
+			const ConvexImplicitType2& Implicit2,
+			const FRigidTransform3& Convex2Transform, //world
+			const FReal CullDistance,
+			const FReal Dt,
+			FRigidBodyPointContactConstraint& Constraint);
 	}
 }
 
@@ -34,7 +42,7 @@ namespace ChaosTest
 
 	
 
-	TEST(OneShotManifoldTest, Boxes)
+	TEST(OneShotManifoldTests, OneShotBoxBox)
 	{
 		FReal Dt = 1 / 30.0f;
 		// Test 1 is a degenerate case where 2 boxes are on top of each other. Make sure that it does not crash
@@ -220,5 +228,51 @@ namespace ChaosTest
 		}
 
 	}
+
+	// Test that we correctly identify edge-edge contacts and calculate the correct separation
+	// even when we have large margins.
+	GTEST_TEST(OneShotManifoldTests, TestConvexMarginEdgeEdge)
+	{
+		FReal Dt = 1 / 30.0f;
+		FReal CullingDistance = 100.0f;
+		FReal HalfSize = 100.0f;
+		FReal Margin = 0.2f * HalfSize;
+		float ExpectedPhi = 0.0f;
+		float Offset = 2.0f * HalfSize * FMath::Sqrt(2.0f);
+
+		TArray<FVec3> BoxVerts = 
+		{
+			FVec3(-HalfSize, -HalfSize, -HalfSize),
+			FVec3(-HalfSize,  HalfSize, -HalfSize),
+			FVec3( HalfSize,  HalfSize, -HalfSize),
+			FVec3( HalfSize, -HalfSize, -HalfSize),
+			FVec3(-HalfSize, -HalfSize,  HalfSize),
+			FVec3(-HalfSize,  HalfSize,  HalfSize),
+			FVec3( HalfSize,  HalfSize,  HalfSize),
+			FVec3( HalfSize, -HalfSize,  HalfSize),
+		};
+		TParticles<FReal, 3> BoxParticles(MoveTemp(BoxVerts));
+
+		// First box rotated 45 degrees about Z and placed at the oirigin
+		// Second box rotated 45 degrees about Z and placed along X axis so that we have edge-edge contact with specified Phi
+		FConvex Convex(BoxParticles, Margin);
+		FRigidTransform3 Convex1Transform = FRigidTransform3(FVec3(0.0f, 0.0f, 0.0f), FRotation3::FromAxisAngle(FVec3(0.0f, 0.0f, 1.0f), FMath::DegreesToRadians(45)));
+		FRigidTransform3 Convex2Transform = FRigidTransform3(FVec3(Offset + ExpectedPhi, 0.0f, 0.0f), FRotation3::FromAxisAngle(FVec3(0.0f, 1.0f, 0.0f), FMath::DegreesToRadians(45)));
+
+		FRigidBodyPointContactConstraint Constraint;
+
+		Collisions::ConstructConvexConvexOneShotManifold(Convex, Convex1Transform, Convex, Convex2Transform, CullingDistance, Dt, Constraint);
+		int ContactCount = Constraint.GetManifoldPoints().Num();
+		EXPECT_EQ(ContactCount, 1);
+		if (ContactCount > 0)
+		{
+			EXPECT_NEAR(Constraint.GetManifoldPoints()[0].ContactPoint.Phi, 0.0f, 0.01f);
+			EXPECT_NEAR(Constraint.GetManifoldPoints()[0].ContactPoint.Location.X, 0.5f * Offset, 0.01f);
+		}
+	}
+
+	//GTEST_TEST(OneShotManifoldTests, TestNonUniformScaledConvexMargin)
+	//{
+	//}
 
 }
