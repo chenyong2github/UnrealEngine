@@ -174,8 +174,7 @@ void UMotionWarpingComponent::Update()
 					for (const FAnimNotifyEvent& NotifyEvent : AnimSegment->AnimReference->Notifies)
 					{
 						const UAnimNotifyState_MotionWarping* MotionWarpingNotify = NotifyEvent.NotifyStateClass ? Cast<UAnimNotifyState_MotionWarping>(NotifyEvent.NotifyStateClass) : nullptr;
-						const URootMotionModifierConfig* MotionWarpingConfig = MotionWarpingNotify ? MotionWarpingNotify->RootMotionModifierConfig : nullptr;
-						if (MotionWarpingConfig)
+						if (MotionWarpingNotify)
 						{
 							const float NotifyStartTime = FMath::Clamp(NotifyEvent.GetTriggerTime(), 0.f, AnimSegment->AnimReference->GetPlayLength());
 							const float NotifyEndTime = FMath::Clamp(NotifyEvent.GetEndTriggerTime(), 0.f, AnimSegment->AnimReference->GetPlayLength());
@@ -271,4 +270,9 @@ void UMotionWarpingComponent::AddOrUpdateSyncPoint(FName Name, const FMotionWarp
 		FMotionWarpingSyncPoint& MotionWarpingSyncPoint = SyncPoints.FindOrAdd(Name);
 		MotionWarpingSyncPoint = SyncPoint;
 	}
+}
+
+int32 UMotionWarpingComponent::RemoveSyncPoint(FName Name)
+{
+	return SyncPoints.Remove(Name);
 }

@@ -138,15 +138,22 @@ FTransform FRootMotionModifier_SkewWarp::ProcessRootMotion(UMotionWarpingCompone
 
 	if(bWarpRotation)
 	{
-		const FQuat WarpedRotation = WarpRotation(OwnerComp, RootMotionTotal, InRootMotion, DeltaSeconds);
+		const FQuat WarpedRotation = WarpRotation(OwnerComp, InRootMotion, RootMotionTotal, DeltaSeconds);
 		FinalRootMotion.SetRotation(WarpedRotation);
 	}
 
 	// Debug
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-	if (FMotionWarpingCVars::CVarMotionWarpingDebug.GetValueOnGameThread() > 0)
+	const int32 DebugLevel = FMotionWarpingCVars::CVarMotionWarpingDebug.GetValueOnGameThread();
+	if (DebugLevel > 0)
 	{
 		PrintLog(OwnerComp, TEXT("FRootMotionModifier_Skew"), InRootMotion, FinalRootMotion);
+
+		if (DebugLevel >= 2)
+		{
+			const float DrawDebugDuration = FMotionWarpingCVars::CVarMotionWarpingDrawDebugDuration.GetValueOnGameThread();
+			DrawDebugCoordinateSystem(OwnerComp.GetWorld(), CachedSyncPoint.GetLocation(), CachedSyncPoint.Rotator(), 50.f, false, DrawDebugDuration, 0, 1.f);
+		}
 	}
 #endif
 

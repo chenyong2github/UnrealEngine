@@ -83,6 +83,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Motion Warping")
 	void AddOrUpdateSyncPoint(FName Name, const FMotionWarpingSyncPoint& SyncPoint);
 
+	/** Removes sync point associated with the specified key  */
+	UFUNCTION(BlueprintCallable, Category = "Motion Warping")
+	int32 RemoveSyncPoint(FName Name);
+
 	/** Check if we contain a RootMotionModifier for the supplied animation and time range */
 	bool ContainsModifier(const UAnimSequenceBase* Animation, float StartTime, float EndTime) const;
 
