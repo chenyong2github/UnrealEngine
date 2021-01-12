@@ -60,7 +60,7 @@ void FThreadProvider::AddThread(uint32 Id, const TCHAR* Name, EThreadPriority Pr
 	if (Name != nullptr)
 	{
 		ThreadInfo->Name = Session.StoreString(Name);
-		if (!FCString::Strcmp(Name, TEXT("RHIThread")))
+		if (!FCString::Strcmp(Name, TEXT("RHIThread"))) //-V1051
 		{
 			const TCHAR* GroupName = Session.StoreString(TEXT("Render"));
 			SetThreadGroup(Id, GroupName);

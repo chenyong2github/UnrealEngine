@@ -592,7 +592,7 @@ void FKismetConnectionDrawingPolicy::SetIncompatiblePinDrawState(const TSharedPt
 		if (CheckPin != StartPin)
 		{
 			const FPinConnectionResponse Response = StartPin->GetPinObj()->GetSchema()->CanCreateConnection(StartPin->GetPinObj(), CheckPin->GetPinObj());
-			if (Response.Response == CONNECT_RESPONSE_DISALLOW)
+			if (Response.Response == CONNECT_RESPONSE_DISALLOW) //-V1051
 			{
 				CheckPin->SetPinColorModifier(FLinearColor(0.25f, 0.25f, 0.25f, 0.5f));
 			}

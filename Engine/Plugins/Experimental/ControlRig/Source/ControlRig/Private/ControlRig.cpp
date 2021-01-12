@@ -1138,7 +1138,7 @@ void UControlRig::CreateRigControlsForCurveContainer()
 		for (FRigCurve& Curve : CurveContainer)
 		{
 			FString Name = Curve.Name.ToString();
-			if (Name.Contains(CTRLName) && Hierarchy.ControlHierarchy.GetIndex(Curve.Name) == INDEX_NONE)
+			if (Name.Contains(CTRLName) && Hierarchy.ControlHierarchy.GetIndex(Curve.Name) == INDEX_NONE) //-V1051
 			{
 				FRigControlValue Value;
 				Value.Set<float>(Curve.Value);

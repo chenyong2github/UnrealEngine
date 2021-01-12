@@ -525,7 +525,7 @@ void UViewportWorldInteraction::SetTransformer( UViewportTransformer* NewTransfo
 		ViewportTransformer = nullptr;
 	}
 
-	this->ViewportTransformer = NewTransformer;
+	ViewportTransformer = NewTransformer;
 
 	if( ViewportTransformer == nullptr )
 	{

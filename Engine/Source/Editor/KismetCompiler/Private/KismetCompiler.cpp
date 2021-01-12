@@ -3829,7 +3829,7 @@ void FKismetCompilerContext::ProcessOneFunctionGraph(UEdGraph* SourceGraph, bool
 	FunctionList.Add(&Context);
 	Context.SourceGraph = FunctionGraph;
 
-	if (FBlueprintEditorUtils::IsDelegateSignatureGraph(SourceGraph))
+	if (FBlueprintEditorUtils::IsDelegateSignatureGraph(SourceGraph)) //-V1051
 	{
 		Context.SetDelegateSignatureName(SourceGraph->GetFName());
 	}

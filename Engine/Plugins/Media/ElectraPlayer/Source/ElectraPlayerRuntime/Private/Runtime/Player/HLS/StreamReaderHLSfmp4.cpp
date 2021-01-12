@@ -169,7 +169,7 @@ UEMediaError FStreamReaderHLSfmp4::Create(IPlayerSessionServices* InPlayerSessio
 
 	if (!InCreateParam.MemoryProvider ||
 		!InCreateParam.EventListener ||
-		!InCreateParam.PlayerSessionService)
+		!InCreateParam.PlayerSessionService) //-V1051
 	{
 		return UEMEDIA_ERROR_BAD_ARGUMENTS;
 	}

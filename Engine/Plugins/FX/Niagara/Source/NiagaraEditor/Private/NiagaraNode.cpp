@@ -344,7 +344,7 @@ void UNiagaraNode::AutowireNewNode(UEdGraphPin* FromPin)
 			if (Pin->Direction == DesiredDirection)
 			{
 				const FPinConnectionResponse Response = Schema->CanCreateConnection(FromPin, Pin);
-				if (Response.Response != ECanCreateConnectionResponse::CONNECT_RESPONSE_DISALLOW)
+				if (Response.Response != ECanCreateConnectionResponse::CONNECT_RESPONSE_DISALLOW) //-V1051
 				{
 					FirstPinOfSameType = Pin;
 					break;

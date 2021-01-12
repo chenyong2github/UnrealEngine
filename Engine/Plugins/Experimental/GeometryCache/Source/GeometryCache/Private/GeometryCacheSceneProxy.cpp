@@ -677,7 +677,7 @@ void FGeometryCacheSceneProxy::FrameUpdate() const
 					TrackProxy->NextFrameIndex = OldFrameIndex;
 
 					// Decode the new next frame
-					if (TrackProxy->GetMeshData(NextFrameIndex, *TrackProxy->NextFrameMeshData))
+					if (TrackProxy->GetMeshData(NextFrameIndex, *TrackProxy->NextFrameMeshData)) //-V1051
 					{
 						bDecodedAnything = true;
 						// Only register this if we actually successfully decoded

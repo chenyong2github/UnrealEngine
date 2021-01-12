@@ -1485,7 +1485,7 @@ void FUniformExpressionSet::FillUniformBuffer(const FMaterialRenderContext& Mate
 				ensure(PageTable0RHI);
 				*ResourceTablePageTexture0Ptr = PageTable0RHI;
 
-				if (ResourceTablePageTexture1Ptr != nullptr)
+				if (ResourceTablePageTexture1Ptr != nullptr) //-V1051
 				{
 					FRHITexture* PageTable1RHI = AllocatedVT->GetPageTableTexture(1u);
 					ensure(PageTable1RHI);
@@ -1500,7 +1500,7 @@ void FUniformExpressionSet::FillUniformBuffer(const FMaterialRenderContext& Mate
 			{
 				// Don't have valid resources to bind for this VT, so make sure something is bound
 				*ResourceTablePageTexture0Ptr = GBlackUintTexture->TextureRHI;
-				if (ResourceTablePageTexture1Ptr != nullptr)
+				if (ResourceTablePageTexture1Ptr != nullptr) //-V1051
 				{
 					*ResourceTablePageTexture1Ptr = GBlackUintTexture->TextureRHI;
 				}

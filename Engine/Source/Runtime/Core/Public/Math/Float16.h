@@ -155,7 +155,7 @@ FORCEINLINE void FFloat16::Set(float FP32Value)
              uint32 Mantissa = FP32.Components.Mantissa | 0x800000; // Hidden 1 bit
              Components.Mantissa = (uint16)(Mantissa >> (14 - NewExp));
 			 // Check for rounding
-             if ( (Mantissa >> (13 - NewExp)) & 1 )
+             if ( (Mantissa >> (13 - NewExp)) & 1 ) //-V1051
 			 {
                  Encoded++; // Round, might overflow into exp bit, but this is OK
 			 }

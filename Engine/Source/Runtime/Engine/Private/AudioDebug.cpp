@@ -2468,7 +2468,7 @@ namespace Audio
 				if (const int32* SoundInfoIndex = ActiveSoundToInfoIndex.Find(ActiveSound))
 				{
 					const USoundClass* SoundClass = ActiveSound->GetSoundClass();
-					if (const USoundClass* WaveSoundClass = WaveInstance->SoundClass)
+					if (const USoundClass* WaveSoundClass = WaveInstance->SoundClass) //-V1051
 					{
 						SoundClass = WaveSoundClass;
 					}

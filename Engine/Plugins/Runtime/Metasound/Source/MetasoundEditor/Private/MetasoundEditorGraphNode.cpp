@@ -150,7 +150,7 @@ void UMetasoundEditorGraphNode::AutowireNewNode(UEdGraphPin* FromPin)
 			UEdGraphPin* Pin = Pins[i];
 			check(Pin);
 			FPinConnectionResponse Response = Schema->CanCreateConnection(FromPin, Pin);
-			if (ECanCreateConnectionResponse::CONNECT_RESPONSE_MAKE == Response.Response)
+			if (ECanCreateConnectionResponse::CONNECT_RESPONSE_MAKE == Response.Response) //-V1051
 			{
 				if (Schema->TryCreateConnection(FromPin, Pin))
 				{
