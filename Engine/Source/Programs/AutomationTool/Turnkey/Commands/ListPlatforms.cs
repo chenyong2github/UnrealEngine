@@ -1,6 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using System;
 using System.Collections.Generic;
 using UnrealBuildTool;
 using AutomationTool;
@@ -13,22 +12,11 @@ namespace Turnkey.Commands
 		protected override void Execute(string[] CommandOptions)
 		{
 			TurnkeyUtils.Log("");
-			TurnkeyUtils.Log("Valid Platforms:");
-			string PlatformString = TurnkeyUtils.ParseParamValue("Platform", null, CommandOptions);
+			TurnkeyUtils.Log("Platform Information:");
 
-			foreach (UnrealTargetPlatform TargetPlatform in UnrealTargetPlatform.GetValidPlatforms())
+			List<UnrealTargetPlatform> ChosenPlatforms = TurnkeyUtils.GetPlatformsFromCommandLineOrUser(CommandOptions, null);
+			foreach (UnrealTargetPlatform TargetPlatform in ChosenPlatforms)
 			{
-				// HACK UNTIUL WIN32 IS GONE COMPLETELY
-				if (TargetPlatform == UnrealTargetPlatform.Win32 || TargetPlatform == UnrealTargetPlatform.XboxOne)
-				{
-					continue;
-				}
-
-				if (PlatformString != null && UnrealTargetPlatform.Parse(PlatformString) != TargetPlatform)
-				{
-					continue;
-				}
-
 				Platform Platform = Platform.Platforms[new TargetPlatformDescriptor(TargetPlatform)];
 				UEBuildPlatformSDK SDK = UEBuildPlatformSDK.GetSDKForPlatform(TargetPlatform.ToString());
 				if (SDK == null || !SDK.bIsSdkAllowedOnHost)

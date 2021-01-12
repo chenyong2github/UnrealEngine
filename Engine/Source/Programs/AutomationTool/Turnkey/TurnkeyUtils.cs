@@ -115,8 +115,8 @@ namespace Turnkey
 				PossiblePlatforms = UnrealTargetPlatform.GetValidPlatforms().ToList();
 			}
 
-			// HACK UNTIL WIN32 IS GONE
-			PossiblePlatforms = PossiblePlatforms.Where(x => x != UnrealTargetPlatform.Win32 && x != UnrealTargetPlatform.XboxOne).ToList();
+			// Remove known bad platforms and platforms that don't have a UEPlatformSDK
+			PossiblePlatforms = PossiblePlatforms.Where(x => x != UnrealTargetPlatform.Win32 && x != UnrealTargetPlatform.XboxOne && UEBuildPlatformSDK.GetSDKForPlatform(x.ToString()) != null).ToList();
 
 			// sort by name
 			PossiblePlatforms.Sort((x, y) => string.Compare(x.ToString(), y.ToString()));

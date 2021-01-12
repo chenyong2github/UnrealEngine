@@ -108,12 +108,15 @@ namespace Turnkey.Commands
 
 				SdkUtils.LocalAvailability LocalState = SdkUtils.GetLocalAvailability(AutomationPlatform, bUpdateIfNeeded);
 
-				string ManualSDKVersion, AutoSDKVersion;
-				string MinAllowedVersion, MaxAllowedVersion;
-				string MinSoftwareAllowedVersion, MaxSoftwareAllowedVersion;
-				PlatformSDK.GetInstalledVersions(out ManualSDKVersion, out AutoSDKVersion);
-				PlatformSDK.GetValidVersionRange(out MinAllowedVersion, out MaxAllowedVersion);
-				PlatformSDK.GetValidSoftwareVersionRange(out MinSoftwareAllowedVersion, out MaxSoftwareAllowedVersion);
+				string ManualSDKVersion = "", AutoSDKVersion = "";
+				string MinAllowedVersion = "", MaxAllowedVersion = "";
+				string MinSoftwareAllowedVersion = "", MaxSoftwareAllowedVersion = "";
+				if (PlatformSDK != null)
+				{
+					PlatformSDK.GetInstalledVersions(out ManualSDKVersion, out AutoSDKVersion);
+					PlatformSDK.GetValidVersionRange(out MinAllowedVersion, out MaxAllowedVersion);
+					PlatformSDK.GetValidSoftwareVersionRange(out MinSoftwareAllowedVersion, out MaxSoftwareAllowedVersion);
+				}
 
 				SdkUtils.LocalAvailability ReportedState = LocalState;
 				string StatusString;
@@ -136,6 +139,11 @@ namespace Turnkey.Commands
 
 				TurnkeyUtils.Report("{0}: (Status={1}, Installed={2}, AutoSDK={3}, MinAllowed={4}, MaxAllowed={5}, Flags=\"{6}\")", Platform, StatusString, ManualSDKVersion, AutoSDKVersion,
 					MinAllowedVersion, MaxAllowedVersion, ReportedState.ToString());
+
+				if (PlatformSDK == null)
+				{
+					continue;
+				}
 
 				// install if out of date, or if forcing it
 				if (bForceSdkInstall || (bUpdateIfNeeded && TurnkeyUtils.ExitCode != AutomationTool.ExitCode.Success))

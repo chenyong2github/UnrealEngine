@@ -40,6 +40,13 @@ namespace Turnkey
 		{
 			LocalAvailability Result = LocalAvailability.None;
 
+			// for some legacy NDA platforms, we could have an UnrealTargetPlatform but no registered SDK
+			UEBuildPlatformSDK SDK = UEBuildPlatformSDK.GetSDKForPlatform(AutomationPlatform.PlatformType.ToString());
+			if (SDK == null)
+			{
+				return Result;
+			}
+
 			// no need to retrieve anything if we aren't allowing updates
 			CopyProviderRetriever Retriever = new CopyProviderRetriever();
 
@@ -51,8 +58,6 @@ namespace Turnkey
 			{
 				Result |= LocalAvailability.Platform_InvalidHostPrerequisites;
 			}
-
-			UEBuildPlatformSDK SDK = UEBuildPlatformSDK.GetSDKForPlatform(AutomationPlatform.PlatformType.ToString());
 
 			string ManualSDKVersion, AutoSDKVersion;
 			SDK.GetInstalledVersions(out ManualSDKVersion, out AutoSDKVersion);
