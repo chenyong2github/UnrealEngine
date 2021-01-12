@@ -3574,8 +3574,8 @@ FVector2D FSlateApplication::CalculateTooltipWindowPosition( const FSlateRect& I
 	const FSlateRect WorkAreaRect( 
 		PlatformWorkArea.Left, 
 		PlatformWorkArea.Top, 
-		PlatformWorkArea.Left+(PlatformWorkArea.Right - PlatformWorkArea.Left), 
-		PlatformWorkArea.Top+(PlatformWorkArea.Bottom - PlatformWorkArea.Top) );
+		PlatformWorkArea.Right, 
+		PlatformWorkArea.Bottom);
 
 	float DPIScale = 1.0f; 
 
@@ -3650,8 +3650,8 @@ FVector2D FSlateApplication::CalculatePopupWindowPosition(const FSlateRect& InAn
 		const FSlateRect WorkAreaRect(
 			PlatformWorkArea.Left,
 			PlatformWorkArea.Top,
-			PlatformWorkArea.Left + (PlatformWorkArea.Right - PlatformWorkArea.Left),
-			PlatformWorkArea.Top + (PlatformWorkArea.Bottom - PlatformWorkArea.Top));
+			PlatformWorkArea.Right,
+			PlatformWorkArea.Bottom);
 
 		FVector2D ProposedPlacement = InProposedPlacement;
 

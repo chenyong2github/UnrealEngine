@@ -1967,7 +1967,7 @@ bool FTextLayout::RemoveAt( const FTextLocation& Location, int32 Count )
 	FLineModel& LineModel = LineModels[LineIndex];
 
 	//Make sure we aren't trying to remove more characters then we have
-	Count = RemoveLocation + Count > LineModel.Text->Len() ? Count - ((RemoveLocation + Count) - LineModel.Text->Len()) : Count;
+	Count = FMath::Min(Count, LineModel.Text->Len() - RemoveLocation);
 
 	if (Count == 0)
 	{
