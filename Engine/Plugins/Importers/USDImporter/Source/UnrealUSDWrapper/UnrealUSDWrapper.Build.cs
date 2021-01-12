@@ -32,6 +32,7 @@ namespace UnrealBuildTool.Rules
 				var PythonSourceTPSDir = Path.Combine(EngineDir, "Source", "ThirdParty", "Python3", Target.Platform.ToString());
 				var PythonBinaryTPSDir = Path.Combine(EngineDir, "Binaries", "ThirdParty", "Python3", Target.Platform.ToString());
 				string IntelTBBLibs = Path.Combine(Target.UEThirdPartySourceDirectory, "Intel", "TBB", "IntelTBB-2019u8", "lib", Target.Platform.ToString());
+				string IntelTBBBinaries = Path.Combine(Target.UEThirdPartyBinariesDirectory, "Intel", "TBB", Target.Platform.ToString());
 				string IntelTBBIncludes = Path.Combine(Target.UEThirdPartySourceDirectory, "Intel", "TBB", "IntelTBB-2019u8", "include");
 
 				if (Target.Platform == UnrealTargetPlatform.Win64)
@@ -40,7 +41,7 @@ namespace UnrealBuildTool.Rules
 
 					// TBB
 					PublicAdditionalLibraries.Add(Path.Combine(IntelTBBLibs, "vc14", "tbb.lib"));
-					RuntimeDependencies.Add(Path.Combine("$(TargetOutputDir)", "tbb.dll"), Path.Combine(IntelTBBLibs, "vc14", "tbb.dll"));
+					RuntimeDependencies.Add(Path.Combine("$(TargetOutputDir)", "tbb.dll"), Path.Combine(IntelTBBBinaries, "tbb.dll"));
 
 					// Python3
 					PublicIncludePaths.Add(Path.Combine(PythonSourceTPSDir, "include"));
@@ -73,13 +74,13 @@ namespace UnrealBuildTool.Rules
 
 					// TBB
 					PublicSystemIncludePaths.Add(IntelTBBIncludes);
-					PrivateRuntimeLibraryPaths.Add(IntelTBBLibs);
-					PublicAdditionalLibraries.Add(Path.Combine(IntelTBBLibs, "libtbb.so"));
-					PublicAdditionalLibraries.Add(Path.Combine(IntelTBBLibs, "libtbbmalloc.so"));
-					RuntimeDependencies.Add(Path.Combine(IntelTBBLibs, "libtbb.so"));
-					RuntimeDependencies.Add(Path.Combine(IntelTBBLibs, "libtbb.so.2"));
-					RuntimeDependencies.Add(Path.Combine(IntelTBBLibs, "libtbbmalloc.so"));
-					RuntimeDependencies.Add(Path.Combine(IntelTBBLibs, "libtbbmalloc.so.2"));
+					PrivateRuntimeLibraryPaths.Add(IntelTBBBinaries);
+					PublicAdditionalLibraries.Add(Path.Combine(IntelTBBBinaries, "libtbb.so"));
+					PublicAdditionalLibraries.Add(Path.Combine(IntelTBBBinaries, "libtbbmalloc.so"));
+					RuntimeDependencies.Add(Path.Combine(IntelTBBBinaries, "libtbb.so"));
+					RuntimeDependencies.Add(Path.Combine(IntelTBBBinaries, "libtbb.so.2"));
+					RuntimeDependencies.Add(Path.Combine(IntelTBBBinaries, "libtbbmalloc.so"));
+					RuntimeDependencies.Add(Path.Combine(IntelTBBBinaries, "libtbbmalloc.so.2"));
 
 					// Python3
 					PublicIncludePaths.Add(Path.Combine(PythonSourceTPSDir, "include"));
@@ -106,8 +107,8 @@ namespace UnrealBuildTool.Rules
 					PublicDefinitions.Add("USD_USES_SYSTEM_MALLOC=0");
 
 					// TBB
-					RuntimeDependencies.Add(Path.Combine(IntelTBBLibs, "libtbb.dylib"));
-					RuntimeDependencies.Add(Path.Combine(IntelTBBLibs, "libtbbmalloc.dylib"));
+					RuntimeDependencies.Add(Path.Combine(IntelTBBBinaries, "libtbb.dylib"));
+					RuntimeDependencies.Add(Path.Combine(IntelTBBBinaries, "libtbbmalloc.dylib"));
 
 					// Python3
 					PublicIncludePaths.Add(Path.Combine(PythonSourceTPSDir, "include"));

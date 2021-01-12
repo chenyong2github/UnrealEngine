@@ -90,7 +90,7 @@ public class ResonanceAudio : ModuleRules
         }
 
         // Always use the official version of IntelTBB
-        string IntelTBBLibs = Target.UEThirdPartySourceDirectory + "Intel/TBB/IntelTBB-2019u8/lib/";
+        string IntelTBBLibs = Target.UEThirdPartyBinariesDirectory + "Intel/TBB/";
 
 		//Embree support:
         if (Target.Platform == UnrealTargetPlatform.Win64)
@@ -100,8 +100,8 @@ public class ResonanceAudio : ModuleRules
             PublicIncludePaths.Add(SDKDir + "include");
             PublicAdditionalLibraries.Add(SDKDir + "lib/embree.2.14.0.lib");
             RuntimeDependencies.Add("$(TargetOutputDir)/embree.2.14.0.dll", SDKDir + "lib/embree.2.14.0.dll");
-            RuntimeDependencies.Add("$(TargetOutputDir)/tbb.dll", IntelTBBLibs + "Win64/vc14/tbb.dll");
-            RuntimeDependencies.Add("$(TargetOutputDir)/tbbmalloc.dll", IntelTBBLibs + "Win64/vc14/tbbmalloc.dll");
+            RuntimeDependencies.Add("$(TargetOutputDir)/tbb.dll", IntelTBBLibs + "Win64/tbb.dll");
+            RuntimeDependencies.Add("$(TargetOutputDir)/tbbmalloc.dll", IntelTBBLibs + "Win64/tbbmalloc.dll");
 			PublicDefinitions.Add("USE_EMBREE=1");
 			PrivateDefinitions.Add("USE_EMBRE_FOR_RESONANCE=1");
 		}
