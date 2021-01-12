@@ -1284,7 +1284,7 @@ public:
 	FString PinName;
 	
 	UPROPERTY()
-	ERigVMPinDirection Direction;
+	ERigVMPinDirection Direction = ERigVMPinDirection::Input;
 
 	UPROPERTY()
 	FString CPPType;
@@ -1316,7 +1316,7 @@ public:
 	FString PinName;
 	
 	UPROPERTY()
-	ERigVMPinDirection Direction;
+	ERigVMPinDirection Direction = ERigVMPinDirection::Input;
 
 	UPROPERTY()
 	FString CPPType;

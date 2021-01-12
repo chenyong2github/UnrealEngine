@@ -61,7 +61,7 @@ struct ENGINE_API FAnimNode_AssetPlayerBase : public FAnimNode_Base
 
 	// How synchronization is determined
 	UPROPERTY()
-	EAnimSyncMethod Method;
+	EAnimSyncMethod Method = EAnimSyncMethod::DoNotSync;
 
 	/** If true, "Relevant anim" nodes that look for the highest weighted animation in a state will ignore
 	 *  this node

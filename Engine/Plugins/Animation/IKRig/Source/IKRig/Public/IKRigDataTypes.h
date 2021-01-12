@@ -96,7 +96,7 @@ struct IKRIG_API FIKRigEffector
 	GENERATED_BODY()
 
 	UPROPERTY()
-	FGuid Guid;
+	FGuid Guid = FGuid();
 
 	UPROPERTY(EditAnywhere, Category = FIKRigEffector)
 	FName Bone;

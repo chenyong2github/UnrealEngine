@@ -31,7 +31,7 @@ struct IKRIG_API FAnimNode_IKRig : public FAnimNode_Base
 
 	/** For every evaluation, we'll start with refpose, this is safer if you have joints that don't exists in the target */
 	UPROPERTY(EditAnywhere, Category = Solver)
-	bool bStartFromRefPose;
+	bool bStartFromRefPose = false;
 
 #if WITH_EDITORONLY_DATA
 	/** Toggle drawing of axes to debug joint rotation*/
