@@ -1241,7 +1241,9 @@ public:
 			NewClass->ClearFlags(RF_Public | RF_Standalone);
 			NewClass = nullptr;
 
+			Py_BEGIN_ALLOW_THREADS
 			CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS);
+			Py_END_ALLOW_THREADS
 		}
 	}
 
@@ -1839,11 +1841,36 @@ void UPythonGeneratedClass::PostInitInstance(UObject* InObj)
 	}
 }
 
+void UPythonGeneratedClass::BeginDestroy()
+{
+	ReleasePythonResources();
+	Super::BeginDestroy();
+}
 
 void UPythonGeneratedClass::ReleasePythonResources()
 {
-	PyType.Reset();
-	PyPostInitFunction.Reset();
+	// This may be called after Python has already shut down
+	if (Py_IsInitialized())
+	{
+		FPyScopedGIL GIL;
+		PyType.Reset();
+		PyPostInitFunction.Reset();
+		for (const TSharedPtr<PyGenUtil::FFunctionDef>& FunctionDef : FunctionDefs)
+		{
+			FunctionDef->PyFunction.Reset();
+		}
+	}
+	else
+	{
+		// Release ownership if Python has been shut down to avoid attempting to delete the objects (which are already dead)
+		PyType.Release();
+		PyPostInitFunction.Release();
+		for (const TSharedPtr<PyGenUtil::FFunctionDef>& FunctionDef : FunctionDefs)
+		{
+			FunctionDef->PyFunction.Release();
+		}
+	}
+
 	PropertyDefs.Reset();
 	FunctionDefs.Reset();
 	PyMetaData = FPyWrapperObjectMetaData();
@@ -2014,6 +2041,7 @@ DEFINE_FUNCTION(UPythonGeneratedClass::CallPythonFunction)
 		{
 			PyUtil::ReThrowPythonError();
 		}
+		PySelf.Reset(); // Need to reset this while still under the GIL
 	}
 }
 
