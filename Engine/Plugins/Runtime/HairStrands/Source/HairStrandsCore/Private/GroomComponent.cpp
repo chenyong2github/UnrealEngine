@@ -886,6 +886,7 @@ public:
 		Result.bDynamicRelevance	= true;
 		Result.bRenderCustomDepth	= ShouldRenderCustomDepth();
 		Result.bVelocityRelevance	= bUseCardsOrMesh;
+		Result.bUsesLightingChannels= GetLightingChannelMask() != GetDefaultLightingChannelMask();
 
 		// Selection only
 		#if WITH_EDITOR
