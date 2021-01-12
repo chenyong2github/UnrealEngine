@@ -2116,9 +2116,7 @@ struct FRelevancePacket
 			// Cache the nearest reflection proxy if needed
 			if (PrimitiveSceneInfo->NeedsReflectionCaptureUpdate())
 			{
-				// mobile should not have any outstanding reflection capture update requests at this point
-				ensure(Scene->GetShadingPath() != EShadingPath::Mobile);
-		
+				// mobile should not have any outstanding reflection capture update requests at this point, except for when lighting isn't rebuilt		
 				PrimitiveSceneInfo->CacheReflectionCaptures();
 
 				// With forward shading we need to track reflection capture cache updates
