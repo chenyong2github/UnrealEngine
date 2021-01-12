@@ -133,7 +133,7 @@ namespace
 
 	UClass* GetGenericExpressionClass(IDatasmithMaterialExpressionGeneric& GenericExpression)
 	{
-		constexpr TCHAR* MaterialExpressionCharPtr = TEXT("MaterialExpression");
+		const TCHAR* MaterialExpressionCharPtr = TEXT("MaterialExpression");
 		const int32 MaterialExpressionLength = FCString::Strlen( MaterialExpressionCharPtr );
 		const int32 ExpressionNameLength = FCString::Strlen( GenericExpression.GetExpressionName() );
 
@@ -145,10 +145,7 @@ namespace
 	}
 
 	template<EDatasmithMaterialExpressionType ExpressionType>
-	FString GetDefaultParameterName()
-	{
-		static_assert(false, "Not implemented for this expression type");
-	}
+	FString GetDefaultParameterName();
 
 	template<>
 	FString GetDefaultParameterName<EDatasmithMaterialExpressionType::ConstantBool>()
@@ -206,10 +203,7 @@ namespace
 	}
 
 	template<class IDatasmithMaterialExpression>
-	bool ShouldExpressionBeAParameter(IDatasmithMaterialExpression& Expression)
-	{
-		static_assert(false, "Not implemented for this expression type");
-	}
+	bool ShouldExpressionBeAParameter(IDatasmithMaterialExpression& Expression);
 
 	template<>
 	bool ShouldExpressionBeAParameter(IDatasmithMaterialExpressionColor& ExpressionColor)

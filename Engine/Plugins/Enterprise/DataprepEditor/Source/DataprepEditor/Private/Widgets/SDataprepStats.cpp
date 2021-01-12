@@ -238,7 +238,7 @@ void SDataprepStats::SetStats(const TSharedPtr<FDataprepStats>& InStats, bool bI
 
 void SDataprepStats::ClearStats(bool bInClearPreExecuteStats, bool bInClearPostExecuteStats)
 {
-	for (const FStatListEntryPtr EntryPtr : ListEntries) 
+	for (const FStatListEntryPtr& EntryPtr : ListEntries) 
 	{
 		if (EntryPtr->StatName == NAME_None)
 		{
