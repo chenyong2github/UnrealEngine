@@ -627,7 +627,9 @@ void UGroomAsset::PostLoad()
 								InitResources();
 
 								// This will update the GroomComponents that are using groom that was async loaded
-								FGroomComponentRecreateRenderStateContext RecreateContext(this);
+								{
+									FGroomComponentRecreateRenderStateContext RecreateContext(this);
+								}
 
 								OnGroomAsyncLoadFinished.Broadcast();
 							});
@@ -2116,6 +2118,13 @@ void UGroomAsset::InitStrandsResources()
 
 			if (GroupData.Strands.ClusterCullingData.IsValid())
 			{
+				// LOD visibility is not serialized into FHairStrandsClusterCullingData as it does not affect the actual generated data. For consistency we 
+				// patch the LOD visibility with the groom asset value, which might be different from what has been serialized
+				for (uint32 LODIt = 0, LODCount = GroupData.Strands.ClusterCullingData.LODVisibility.Num(); LODIt < LODCount; ++LODIt)
+				{
+					GroupData.Strands.ClusterCullingData.LODVisibility[LODIt] = HairGroupsLOD[GroupIndex].LODs[LODIt].bVisible;
+				}
+
 				GroupData.Strands.ClusterCullingResource = new FHairStrandsClusterCullingResource(GroupData.Strands.ClusterCullingData);
 				BeginInitResource(GroupData.Strands.ClusterCullingResource);
 			}
