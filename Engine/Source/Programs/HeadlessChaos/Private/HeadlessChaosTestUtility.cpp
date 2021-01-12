@@ -622,7 +622,7 @@ namespace ChaosTest {
 		InParticles.InvM() = 1.f;
 		InParticles.I() = PMatrix<T, 3, 3>(1.f, 0.f, 0.f, 0.f, 1.f, 0.f, 0.f, 0.f, 1.f);
 		InParticles.InvI() = PMatrix<T, 3, 3>(1.f, 0.f, 0.f, 0.f, 1.f, 0.f, 0.f, 0.f, 1.f);
-		InParticles.SetDynamicGeometry(MakeUnique<FConvex>(Cube, 0.0f));
+		InParticles.SetDynamicGeometry(MakeUnique<FConvex>(Cube, Margin));
 		InParticles.SetObjectStateLowLevel(EObjectStateType::Dynamic);
 
 		::ChaosTest::SetParticleSimDataToCollide({ &InParticles });

@@ -381,12 +381,17 @@ namespace Chaos
 			return ChosenPt;
 		}
 
-		FORCEINLINE TVector<T, d> SupportCore(const TVector<T, d>& Direction) const
+		// Support vertex in the specified direction, assuming each face has been moved inwards by InMargin
+		FORCEINLINE TVector<T, d> SupportCore(const TVector<T, d>& Direction, float InMargin) const
 		{
+			// Each corner is 90 degrees, so vertex offset the same (apart from sign) for every vertex
+			const float InvRoot3 = 0.5773502692f;	// 1/sqrt(3)
+			const float MarginDelta = InMargin * InvRoot3;
+
 			TVector<T, d> ChosenPt;
 			for (int Axis = 0; Axis < d; ++Axis)
 			{
-				ChosenPt[Axis] = Direction[Axis] < 0 ? MMin[Axis] : MMax[Axis];
+				ChosenPt[Axis] = Direction[Axis] < 0 ? MMin[Axis] + MarginDelta : MMax[Axis] - MarginDelta;
 			}
 
 			return ChosenPt;

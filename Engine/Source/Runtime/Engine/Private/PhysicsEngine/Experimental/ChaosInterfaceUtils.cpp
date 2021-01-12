@@ -227,7 +227,7 @@ namespace ChaosInterface
 				HalfExtents.Y = FMath::Max(HalfExtents.Y, KINDA_SMALL_NUMBER);
 				HalfExtents.Z = FMath::Max(HalfExtents.Z, KINDA_SMALL_NUMBER);
 
-				const float CollisionMargin = FMath::Min(2.0f * HalfExtents.GetAbsMax() * CollisionMarginFraction, CollisionMarginMax);
+				const float CollisionMargin = FMath::Min(2.0f * HalfExtents.GetMin() * CollisionMarginFraction, CollisionMarginMax);
 
 				// TAABB can handle translations internally but if we have a rotation we need to wrap it in a transform
 				TUniquePtr<Chaos::FImplicitObject> Implicit;
@@ -306,7 +306,8 @@ namespace ChaosInterface
 				const FTransform& ConvexTransform = InParams.LocalTransform;
 				if (const auto& ConvexImplicit = CollisionBody.GetChaosConvexMesh())
 				{
-					const float CollisionMargin = FMath::Min(CollisionBody.ElemBox.GetSize().GetMax() * CollisionMarginFraction, CollisionMarginMax);
+					const FVector ScaledSize = (Scale * CollisionBody.ElemBox.GetSize());
+					const float CollisionMargin = FMath::Min(ScaledSize.GetMin() * CollisionMarginFraction, CollisionMarginMax);
 
 					if (!ConvexTransform.GetTranslation().IsNearlyZero() || !ConvexTransform.GetRotation().IsIdentity())
 					{
@@ -321,11 +322,13 @@ namespace ChaosInterface
 					{
 						// NOTE: CollisionMargin is on the Instance/Scaled wrapper, not the inner convex (which has no margin). This means that convex shapes grow by the margion size...
 						TUniquePtr<Chaos::FImplicitObject> Implicit;
-						if (Scale == FVector(1))
-						{
-							Implicit = TUniquePtr<Chaos::FImplicitObject>(new Chaos::TImplicitObjectInstanced<Chaos::FConvex>(ConvexImplicit, CollisionMargin));
-						}
-						else
+						// @chaos(todo): the collision detection narrow phase strips the instanced wrapper but shouldn't because it contains the margin. We need to fix that. 
+						// For now, to get things working, all convexes are scaled...
+						//if (Scale == FVector(1))
+						//{
+						//	Implicit = TUniquePtr<Chaos::FImplicitObject>(new Chaos::TImplicitObjectInstanced<Chaos::FConvex>(ConvexImplicit, CollisionMargin));
+						//}
+						//else
 						{
 							Implicit = TUniquePtr<Chaos::FImplicitObject>(new Chaos::TImplicitObjectScaled<Chaos::FConvex>(ConvexImplicit, Scale, CollisionMargin));
 						}

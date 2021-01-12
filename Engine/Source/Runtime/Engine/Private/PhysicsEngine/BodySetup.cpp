@@ -1476,13 +1476,7 @@ void UBodySetup::GetGeometryDDCKey(FString& OutString) const
 		CDP->GetMeshId(MeshIdString);
 	}
 
-#if WITH_CHAOS
-	const int32 ConvexMarginType = Chaos::Chaos_Collision_ConvexMarginType;
-#else
-	const int32 ConvexMarginType = 0;
-#endif
-
-	OutString = FString::Printf(TEXT("%s_%s_%s_%d_%d_%d_%d_%f_%f_%d_%d"),
+	OutString = FString::Printf(TEXT("%s_%s_%s_%d_%d_%d_%d_%f_%f_%d"),
 		*BodySetupGuid.ToString(),
 		*MeshIdString,
 		*AggGeom.MakeDDCKey().ToString(),
@@ -1492,7 +1486,6 @@ void UBodySetup::GetGeometryDDCKey(FString& OutString) const
 		(int32)GetCollisionTraceFlag(),
 		UPhysicsSettings::Get()->SolverOptions.CollisionMarginFraction,
 		UPhysicsSettings::Get()->SolverOptions.CollisionMarginMax,
-		ConvexMarginType,
 		(int32)BODY_SETUP_GEOMETRY_KEY_VER);
 
 	if (bSupportUVsAndFaceRemap)

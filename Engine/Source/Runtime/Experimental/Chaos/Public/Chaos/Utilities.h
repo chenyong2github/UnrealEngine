@@ -483,5 +483,66 @@ namespace Chaos
 			return V;
 		}
 
+		// For implementation notes, see "Realtime Collision Detection", Christer Ericson, 2005
+		inline void NearestPointsOnLineSegments(
+			const FVec3& P1, const FVec3& Q1,
+			const FVec3& P2, const FVec3& Q2,
+			FReal& S, FReal& T,
+			FVec3& C1, FVec3& C2,
+			const FReal Epsilon = 1.e-4f)
+		{
+			const FReal EpsilonSq = Epsilon * Epsilon;
+			const FVec3 D1 = Q1 - P1;
+			const FVec3 D2 = Q2 - P2;
+			const FVec3 R = P2 - Q2;
+			const FReal A = FVec3::DotProduct(D1, D1);
+			const FReal B = FVec3::DotProduct(D1, D2);
+			const FReal C = FVec3::DotProduct(D1, R);
+			const FReal E = FVec3::DotProduct(D2, D2);
+			const FReal F = FVec3::DotProduct(D2, R);
+
+			S = 0.0f;
+			T = 0.0f;
+
+			if ((A <= EpsilonSq) && (B <= EpsilonSq))
+			{
+				// Both segments are points
+			}
+			else if (A <= Epsilon)
+			{
+				// First segment (only) is a point
+				T = FMath::Clamp(F / E, 0.0f, 1.0f);
+			}
+			else if (E <= Epsilon)
+			{
+				// Second segment (only) is a point
+				S = FMath::Clamp(-C / A, 0.0f, 1.0f);
+			}
+			else
+			{
+				const FReal Denom = A * E - B * B;
+				if (Denom != 0.0f)
+				{
+					S = FMath::Clamp((B * F - C * E) / Denom, 0.0f, 1.0f);
+				}
+				T = (B * S + F) / E;
+
+				if (T < 0.0f)
+				{
+					S = FMath::Clamp(-C / A, 0.0f, 1.0f);
+					T = 0.0f;
+				}
+				else if (T > 1.0f)
+				{
+					S = FMath::Clamp((B - C) / A, 0.0f, 1.0f);
+					T = 1.0f;
+				}
+			}
+
+			C1 = P1 + S * D1;
+			C2 = P2 + T * D2;
+		}
+
+
 	} // namespace Utilities
 } // namespace Chaos

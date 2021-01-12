@@ -41,29 +41,12 @@ namespace Chaos
 
 		/**
 		 * Create a box with the specified size and margin (Min and Max is the desired size including the margin). 
-		 * The core geometry will be shrunk by the margin.
-		 * E.g.,
-		 * 	TBox<T, d>(FVec3(-0.5f), FVec3(0.5f), 0.1f);
-		 * will be a box with a bounds of size 1.0f on each axis, but the geometry is actually an AABB
-		 * of size 0.8 with a margin of 0.1 (and rounded corners).
-		 * 
-		 * NOTE: If the margin is larger than the smallest box dimension, the box size will be increased to support the margin.
 		 */ 
 		FORCEINLINE TBox(const TVector<T, d>& InMin, const TVector<T, d>& InMax, FReal InMargin)
 			: FImplicitObject(EImplicitObject::FiniteConvex, ImplicitObjectType::Box)
 		{
-			// Remove Margin from Min and Max
-			FVec3 Min = InMin + FVec3(InMargin);
-			FVec3 Max = InMax - FVec3(InMargin);
-
-			// If we have a negative extent in any direction, fix it
-			const FReal MinDim = KINDA_SMALL_NUMBER;
-			const FVec3 NegExtents = 0.5f * TVector<T, d>::Max(Min - Max + MinDim, FVec3(0));	// +ve for any extents less than MinDim including negative
-			Min -= NegExtents;
-			Max += NegExtents;
-
-			AABB = TAABB<T, d>(Min, Max);
-			SetMargin(InMargin);
+			AABB = TAABB<T, d>(InMin, InMax);
+			SetMargin(ClampedMargin(InMargin));
 		}
 
 		FORCEINLINE TBox(const TBox<T, d>& Other)
@@ -112,14 +95,6 @@ namespace Chaos
 		}
 
 		/**
-		 * The core shape use for low-level collision detection. This is the box reduce by the margin size.
-		 */
-		const TAABB<T, d>& GetCore() const
-		{
-			return AABB;
-		}
-
-		/**
 		 * Returns sample points centered about the origin.
 		 */
 		TArray<TVector<T, d>> ComputeLocalSamplePoints() const
@@ -145,28 +120,35 @@ namespace Chaos
 			return BoundingBox().Contains(Point, Tolerance);
 		}
 
-		// Minimum extents, including margin
-		FORCEINLINE const TVector<T, d> Min() const
+		// Minimum extents
+		FORCEINLINE const TVector<T, d>& Min() const
 		{
-			return AABB.Min() - TVector<T, d>(GetMargin());
+			return AABB.Min();
 		}
 		
-		// Maximum extents, including margin
-		FORCEINLINE const TVector<T, d> Max() const
+		// Maximum extents
+		FORCEINLINE const TVector<T, d>& Max() const
 		{ 
-			return AABB.Max() + TVector<T, d>(GetMargin());
+			return AABB.Max();
 		}
 
-		// Extents, including margin
+		// Extents
 		FORCEINLINE const TAABB<T, d> BoundingBox() const
 		{
-			return TAABB<T, d>(Min(), Max());
+			return AABB;
+		}
+
+		// Apply a limit to the specified margin that prevents the box inverting
+		FORCEINLINE float ClampedMargin(float InMargin) const
+		{
+			float MaxMargin = 0.5f * AABB.Extents().Min();
+			return FMath::Min(InMargin, MaxMargin);
 		}
 
 		// Return the distance and normal is the closest point on the surface to Pos. Negative for penetration.
 		virtual T PhiWithNormal(const TVector<T, d>& Pos, TVector<T, d>& Normal) const override
 		{
-			return AABB.PhiWithNormal(Pos, Normal) - GetMargin();
+			return AABB.PhiWithNormal(Pos, Normal);
 		}
 
 		static FORCEINLINE bool RaycastFast(const TVector<T,d>& InMin, const TVector<T,d>& InMax, const TVector<T, d>& StartPoint, const TVector<T, d>& Dir, const TVector<T, d>& InvDir, const bool* bParallel, const T Length, const T InvLength, T& OutTime, TVector<T, d>& OutPosition)
@@ -176,10 +158,8 @@ namespace Chaos
 
 		virtual bool CHAOS_API Raycast(const TVector<T, d>& StartPoint, const TVector<T, d>& Dir, const T Length, const T Thickness, T& OutTime, TVector<T, d>& OutPosition, TVector<T, d>& OutNormal, int32& OutFaceIndex) const override
 		{
-			if (AABB.Raycast(StartPoint, Dir, Length, Thickness + GetMargin(), OutTime, OutPosition, OutNormal, OutFaceIndex))
+			if (AABB.Raycast(StartPoint, Dir, Length, Thickness, OutTime, OutPosition, OutNormal, OutFaceIndex))
 			{
-				// The AABB Raycast treats thickness as the ray thickness, so correct the position for the box margin
-				OutPosition += GetMargin() * OutNormal;
 				return true;
 			}
 			return false;
@@ -187,12 +167,12 @@ namespace Chaos
 
 		TVector<T, d> FindClosestPoint(const TVector<T, d>& StartPoint, const T Thickness = (T)0) const
 		{
-			return AABB.FindClosestPoint(StartPoint, Thickness + GetMargin());
+			return AABB.FindClosestPoint(StartPoint, Thickness);
 		}
 
 		virtual Pair<TVector<T, d>, bool> FindClosestIntersectionImp(const TVector<T, d>& StartPoint, const TVector<T, d>& EndPoint, const T Thickness) const override
 		{
-			return AABB.FindClosestIntersectionImp(StartPoint, EndPoint, Thickness + GetMargin());
+			return AABB.FindClosestIntersectionImp(StartPoint, EndPoint, Thickness);
 		}
 
 		virtual TVector<T, d> FindGeometryOpposingNormal(const TVector<T, d>& DenormDir, int32 FaceIndex, const TVector<T, d>& OriginalNormal) const override
@@ -201,7 +181,7 @@ namespace Chaos
 		}
 
 		// Get the index of the plane that most opposes the normal
-		int32 GetMostOpposingPlane(const FVec3& Normal) const
+		int32 GetMostOpposingPlane(const TVector<T, d>& Normal) const
 		{
 			int32 AxisIndex = FVec3(Normal.GetAbs()).MaxAxis();
 			if (Normal[AxisIndex] > 0.0f)
@@ -212,9 +192,47 @@ namespace Chaos
 		}
 
 		// Get the index of the plane that most opposes the normal (VertexIndex is ignored)
-		int32 GetMostOpposingPlaneWithVertex(int32 VertexIndex, const FVec3& Normal) const
+		int32 GetMostOpposingPlaneWithVertex(int32 VertexIndex, const TVector<T, d>& Normal) const
 		{
 			return GetMostOpposingPlane(Normal);
+		}
+
+		// Get the nearest point on an edge
+		TVector<T, d> GetClosestEdgePosition(int32 PlaneIndexHint, const TVector<T, d>& Position) const
+		{
+			TVector<T, d> ClosestEdgePosition = FVec3(0);
+			if (PlaneIndexHint >= 0)
+			{
+				FReal ClosestDistanceSq = FLT_MAX;
+
+				const TArrayView<const int32> PlaneVertexIndices = GetPlaneVertices(PlaneIndexHint);
+				if (PlaneVertexIndices.Num() > 0)
+				{
+					FVec3 P0 = GetVertex(PlaneVertexIndices[PlaneVertexIndices.Num() - 1]);
+					for (int32 PlaneVertexIndex = 0; PlaneVertexIndex < PlaneVertexIndices.Num(); ++PlaneVertexIndex)
+					{
+						const int32 VertexIndex = PlaneVertexIndices[PlaneVertexIndex];
+						const TVector<T, d> P1 = GetVertex(VertexIndex);
+
+						const TVector<T, d> EdgePosition = FMath::ClosestPointOnLine(P0, P1, Position);
+						const FReal EdgeDistanceSq = (EdgePosition - Position).SizeSquared();
+
+						if (EdgeDistanceSq < ClosestDistanceSq)
+						{
+							ClosestDistanceSq = EdgeDistanceSq;
+							ClosestEdgePosition = EdgePosition;
+						}
+
+						P0 = P1;
+					}
+				}
+			}
+			else
+			{
+				// @todo(chaos)
+				check(false);
+			}
+			return ClosestEdgePosition;
 		}
 
 		// Get the set of planes that pass through the specified vertex
@@ -248,32 +266,39 @@ namespace Chaos
 			return AABB.Center() + 0.5f * (Vertex * AABB.Extents());
 		}
 
-		// Returns a position on the outer shape including the margin
+		// Returns a position on the shape
 		FORCEINLINE TVector<T, d> Support(const TVector<T, d>& Direction, const T Thickness) const
 		{
-			return AABB.Support(Direction, GetMargin() + Thickness);
+			return AABB.Support(Direction, Thickness);
 		}
 
 		// Returns a position on the core shape excluding the margin
-		FORCEINLINE TVector<T, d> SupportCore(const TVector<T, d>& Direction) const
+		FORCEINLINE TVector<T, d> SupportCore(const TVector<T, d>& Direction, float InMargin) const
 		{
-			return AABB.SupportCore(Direction);
+			return AABB.SupportCore(Direction, InMargin + GetMargin());
+		}
+
+		FORCEINLINE TVector<T, d> SupportCoreScaled(const TVector<T, d>& Direction, float InMargin, const TVector<T, d>& Scale) const
+		{
+			const FReal InvScale = 1.0f / Scale[0];
+			const FReal NetMargin = InvScale * (InMargin + GetMargin());
+			return SupportCore(Direction * Scale, NetMargin) * Scale;
 		}
 
 		FORCEINLINE TVector<T, d> Center() const { return AABB.Center(); }
 		FORCEINLINE TVector<T, d> GetCenter() const { return AABB.GetCenter(); }
 		FORCEINLINE TVector<T, d> GetCenterOfMass() const { return AABB.GetCenterOfMass(); }
-		FORCEINLINE TVector<T, d> Extents() const { return AABB.Extents() + TVector<T, d>(2.0f * GetMargin()); }
+		FORCEINLINE TVector<T, d> Extents() const { return AABB.Extents(); }
 
 		int LargestAxis() const
 		{
 			return AABB.LargestAxis();
 		}
 
-		// Area of the box including margin, but treating corners as square rather than rounded
+		// Area of the box
 		FORCEINLINE T GetArea() const { return BoundingBox().GetArea(); }
 
-		// Volume of the box including margin, but treating corners as square rather than rounded
+		// Volume of the box
 		FORCEINLINE T GetVolume() const { return BoundingBox().GetVolume(); }
 
 		FORCEINLINE PMatrix<T, d, d> GetInertiaTensor(const T Mass) const { return GetInertiaTensor(Mass, Extents()); }
@@ -377,8 +402,6 @@ namespace Chaos
 		{
 			return AABB.GetTypeHash();
 		}
-
-		//const TAABB<T, d>& GetAABB() const { return AABB; }
 
 	private:
 		TAABB<T, d> AABB;

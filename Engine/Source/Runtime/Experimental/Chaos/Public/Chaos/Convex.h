@@ -72,7 +72,11 @@ namespace Chaos
 	};
 
 
-
+	//
+	// Note: While Convex technically supports a margin, the margin is typically a property of the
+	// instance wrapper (ImplicitScaled, ImplicitTransformed, or ImplicitInstanced). Usually the
+	// margin on the convex itself is zero.
+	//
 	class CHAOS_API FConvex final : public FImplicitObject
 	{
 	public:
@@ -139,12 +143,12 @@ namespace Chaos
 
 			CreateStructureData(MoveTemp(FaceIndices));
 
-			ApplyMargin(InMargin);
+			SetMargin(InMargin);
 		}
 
 	private:
-		void ApplyMargin(FReal InMargin);
-		void ShrinkCore(FReal InMargin);
+		void MovePlanesAndRebuild(FReal InDelta);
+
 		void CreateStructureData(TArray<TArray<int32>>&& FaceIndices);
 
 	public:
@@ -158,7 +162,7 @@ namespace Chaos
 			return LocalBoundingBox;
 		}
 
-		// Return the distance to the surface (including the margin)
+		// Return the distance to the surface
 		virtual FReal PhiWithNormal(const FVec3& x, FVec3& Normal) const override
 		{
 			float Phi = PhiWithNormalInternal(x, Normal);
@@ -198,11 +202,11 @@ namespace Chaos
 					Normal = FVector::ForwardVector;
 				}
 			}
-			return Phi - GetMargin();
+			return Phi;
 		}
 
 	private:
-		// Distance to the core shape (excluding margin)
+		// Distance to the surface
 		FReal PhiWithNormalInternal(const FVec3& x, FVec3& Normal) const
 		{
 			const int32 NumPlanes = Planes.Num();
@@ -239,13 +243,11 @@ namespace Chaos
 			OutFaceIndex = INDEX_NONE;	//finding face is expensive, should be called directly by user
 			const FRigidTransform3 StartTM(StartPoint, FRotation3::FromIdentity());
 			const TSphere<FReal, 3> Sphere(FVec3(0), Thickness);
-			return GJKRaycast(*this, Sphere, StartTM, Dir, Length, OutTime, OutPosition, OutNormal, GetMargin());
+			return GJKRaycast(*this, Sphere, StartTM, Dir, Length, OutTime, OutPosition, OutNormal);
 		}
 
 		virtual Pair<FVec3, bool> FindClosestIntersectionImp(const FVec3& StartPoint, const FVec3& EndPoint, const FReal Thickness) const override
 		{
-			// @todo(chaos): margin
-
 			const int32 NumPlanes = Planes.Num();
 			TArray<Pair<FReal, FVec3>> Intersections;
 			Intersections.Reserve(FMath::Min(static_cast<int32>(NumPlanes*.1), 16)); // Was NumPlanes, which seems excessive.
@@ -277,6 +279,9 @@ namespace Chaos
 		// Get the index of the plane that most opposes the normal, assuming it passes through the specified vertex
 		int32 GetMostOpposingPlaneWithVertex(int32 VertexIndex, const FVec3& Normal) const;
 
+		// Get the nearest point on an edge of the specified face
+		FVec3 GetClosestEdgePosition(int32 PlaneIndex, const FVec3& Position) const;
+
 		// Get the set of planes that pass through the specified vertex
 		TArrayView<const int32> GetVertexPlanes(int32 VertexIndex) const;
 
@@ -306,7 +311,6 @@ namespace Chaos
 		}
 
 
-		// @todo(chaos): margin
 		virtual int32 FindMostOpposingFace(const FVec3& Position, const FVec3& UnitDir, int32 HintFaceIndex, FReal SearchDist) const override;
 
 		FVec3 FindGeometryOpposingNormal(const FVec3& DenormDir, int32 FaceIndex, const FVec3& OriginalNormal) const
@@ -322,54 +326,162 @@ namespace Chaos
 			return FVec3(0.f, 0.f, 1.f);
 		}
 
-		// @todo(chaos): margin
 		virtual int32 FindClosestFaceAndVertices(const FVec3& Position, TArray<FVec3>& FaceVertices, FReal SearchDist = 0.01) const override;
 
-		// Return support point on the core shape ignoring margin
-		FORCEINLINE FVec3 SupportCore(const FVec3& Direction) const
-		{
-			return SupportImpl(Direction, 0);
-		}
-
-		// Return support point on the outer shape including margin
-		FORCEINLINE FVec3 Support(const FVec3& Direction, const FReal Thickness) const
-		{
-			return SupportImpl(Direction, GetMargin() + Thickness);
-		}
-
 	private:
-		FVec3 SupportImpl(const FVec3& Direction, const FReal Thickness) const
+		int32 GetSupportVertex(const FVec3& Direction) const
 		{
 			FReal MaxDot = TNumericLimits<FReal>::Lowest();
-			int32 MaxVIdx = 0;
+			int32 MaxVIdx = INDEX_NONE;
 			const int32 NumVertices = SurfaceParticles.Size();
 
-			if(ensure(NumVertices > 0))
+			if (ensure(NumVertices > 0))
 			{
-				for(int32 Idx = 0; Idx < NumVertices; ++Idx)
+				for (int32 Idx = 0; Idx < NumVertices; ++Idx)
 				{
 					const FReal Dot = FVec3::DotProduct(SurfaceParticles.X(Idx), Direction);
-					if(Dot > MaxDot)
+					if (Dot > MaxDot)
 					{
 						MaxDot = Dot;
 						MaxVIdx = Idx;
 					}
 				}
 			}
-			else
+
+			return MaxVIdx;
+		}
+
+		FVec3 GetMarginAdjustedVertex(int32 VertexIndex, float InMargin) const
+		{
+			// @chaos(todo): moving the vertices this way based on margin is only valid for small margins. If the margin
+			// is large enough to cause a face to reduce to zero size, vertices should be merged and the path is non-linear.
+			// This can be fixed with some extra data in the convex structure, but for now we accept the fact that large 
+			// margins on convexes with small faces can cause non-convex core shapes.
+
+			// Get 3 planes that contribute to this vertex
+			TArrayView<const int32> PlaneIndices = GetVertexPlanes(VertexIndex);
+			if (PlaneIndices.Num() >= 3)
 			{
-				UE_LOG(LogChaos, Warning, TEXT("Attempting to get a support for an empty convex. Returning object center."));
-				return FVec3(0);
+				// Move the planes by the margin and recalculate the interection
+				// @todo(chaos): calculate dV/dm per vertex and store it in StructureData
+				FVec3 PlanesPos;
+				FPlane NewPlanes[3] =
+				{
+					FPlane(Planes[PlaneIndices[0]].X() - InMargin * Planes[PlaneIndices[0]].Normal(), Planes[PlaneIndices[0]].Normal()),
+					FPlane(Planes[PlaneIndices[1]].X() - InMargin * Planes[PlaneIndices[1]].Normal(), Planes[PlaneIndices[1]].Normal()),
+					FPlane(Planes[PlaneIndices[2]].X() - InMargin * Planes[PlaneIndices[2]].Normal(), Planes[PlaneIndices[2]].Normal()),
+				};
+				if (FMath::IntersectPlanes3(PlanesPos, NewPlanes[0], NewPlanes[1], NewPlanes[2]))
+				{
+					return PlanesPos;
+				}
 			}
 
-			if (Thickness)
+			return FVec3(0);
+		}
+
+		FVec3 GetMarginAdjustedVertexScaled(int32 VertexIndex, float InMargin, const FVec3& Scale) const
+		{
+			// Get 3 planes that contribute to this vertex
+			TArrayView<const int32> PlaneIndices = GetVertexPlanes(VertexIndex);
+			if (PlaneIndices.Num() >= 3)
 			{
-				return SurfaceParticles.X(MaxVIdx) + Direction.GetUnsafeNormal() * Thickness;
+				// Move the planes by the margin and recalculate the interection
+				// @todo(chaos): calculate dV/dm per vertex and store it in StructureData (but see todo above)
+				const FVec3 NewPlaneX = Scale * GetVertex(VertexIndex);
+				const FVec3 NewPlaneNs[3] = 
+				{
+					(Scale * Planes[PlaneIndices[0]].Normal()).GetUnsafeNormal(),
+					(Scale * Planes[PlaneIndices[1]].Normal()).GetUnsafeNormal(),
+					(Scale * Planes[PlaneIndices[2]].Normal()).GetUnsafeNormal(),
+				};
+				FReal NewPlaneDs[3] = 
+				{
+					FVec3::DotProduct(NewPlaneX, NewPlaneNs[0]) - InMargin,
+					FVec3::DotProduct(NewPlaneX, NewPlaneNs[1]) - InMargin,
+					FVec3::DotProduct(NewPlaneX, NewPlaneNs[2]) - InMargin,
+				};
+				FPlane NewPlanes[3] =
+				{
+					FPlane(NewPlaneNs[0], NewPlaneDs[0]),
+					FPlane(NewPlaneNs[1], NewPlaneDs[1]),
+					FPlane(NewPlaneNs[2], NewPlaneDs[2]),
+				};
+
+				FVec3 AdjustedVertexPos;
+				if (FMath::IntersectPlanes3(AdjustedVertexPos, NewPlanes[0], NewPlanes[1], NewPlanes[2]))
+				{
+					return AdjustedVertexPos;
+				}
 			}
-			return SurfaceParticles.X(MaxVIdx);
+
+			return FVec3(0);
 		}
 
 	public:
+		// Return support point on the core shape (the convex shape with all planes moved inwards by margin).
+		FVec3 SupportCore(const FVec3& Direction, float InMargin) const
+		{
+			const int32 SupportVertexIndex = GetSupportVertex(Direction);
+			if (SupportVertexIndex != INDEX_NONE)
+			{
+				// @chaos(todo): apply an upper limit to the margin to prevent an inverted shape
+				const float NetMargin = InMargin + GetMargin();
+				if (NetMargin > SMALL_NUMBER)
+				{
+					return GetMarginAdjustedVertex(SupportVertexIndex, NetMargin);
+				}
+				return SurfaceParticles.X(SupportVertexIndex);
+			}
+			return FVec3(0);
+		}
+
+		// SupportCore with non-uniform scale support. This is required for the margin in scaled
+		// space to by uniform. Note in this version all the inputs are in outer container's (scaled shape) space
+		FVec3 SupportCoreScaled(const FVec3& Direction, float InMargin, const FVec3& Scale) const
+		{
+			// Find the supporting vertex index
+			const FVec3 DirectionScaled = Scale * Direction;	// Not normalized
+			const int32 SupportVertexIndex = GetSupportVertex(DirectionScaled);
+
+			// Adjust the vertex position based on margin
+			FVec3 VertexPosition = FVec3(0);
+			if (SupportVertexIndex != INDEX_NONE)
+			{
+				// Note: Shapes wrapped in a non-uniform scale should not have their own margin
+				// because we do not support non-uniformly scaled margins on convex (to do so would 
+				// require that we dupe the convex data for each scale).
+				const FReal InverseScale = 1.0f / Scale[0];
+				const float NetMargin = InMargin + InverseScale * GetMargin();
+
+				// @chaos(todo): apply an upper limit to the margin to prevent a non-convex or null shape (also see comments in GetMarginAdjustedVertex)
+				if (NetMargin > SMALL_NUMBER)
+				{
+					VertexPosition = GetMarginAdjustedVertexScaled(SupportVertexIndex, NetMargin, Scale);
+				}
+				else
+				{
+					VertexPosition = Scale * SurfaceParticles.X(SupportVertexIndex);
+				}
+			}
+			return VertexPosition;
+		}
+
+		// Return support point on the shape
+		FORCEINLINE FVec3 Support(const FVec3& Direction, const FReal Thickness) const
+		{
+			const int32 MaxVIdx = GetSupportVertex(Direction);
+			if (MaxVIdx != INDEX_NONE)
+			{
+				if (Thickness != 0.0f)
+				{
+					return SurfaceParticles.X(MaxVIdx) + Direction.GetUnsafeNormal() * Thickness;
+				}
+				return SurfaceParticles.X(MaxVIdx);
+			}
+			return FVec3(0);
+		}
+
 		virtual FString ToString() const
 		{
 			return FString::Printf(TEXT("Convex"));
@@ -528,6 +640,4 @@ namespace Chaos
 		float Volume;
 		FVec3 CenterOfMass;
 	};
-
-	extern CHAOS_API int32 Chaos_Collision_ConvexMarginType;
 }
