@@ -1,6 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using DatasmithRhino.ElementExporters;
 using Rhino;
 using Rhino.DocObjects;
 using Rhino.Geometry;
@@ -848,7 +847,7 @@ namespace DatasmithRhino
 
 			if (GuidToHierarchyActorNodeDictionary.TryGetValue(ObjectID, out DatasmithActorInfo HierarchyActorNode))
 			{
-				Vector3d PivotOffset = DatasmithRhinoMeshExporter.CenterMeshesOnPivot(Meshes);
+				Vector3d PivotOffset = FDatasmithRhinoUtilities.CenterMeshesOnPivot(Meshes);
 				List<int> MaterialIndices = new List<int>(Attributes.Count);
 				for (int AttributeIndex = 0; AttributeIndex < Attributes.Count; ++AttributeIndex)
 				{

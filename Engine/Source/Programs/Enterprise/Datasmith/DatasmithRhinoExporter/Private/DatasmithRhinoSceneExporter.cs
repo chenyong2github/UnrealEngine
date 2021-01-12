@@ -13,7 +13,18 @@ namespace DatasmithRhino
 
 	public static class DatasmithRhinoSceneExporter
 	{
+		public static FDatasmithFacadeScene CreateDatasmithScene(string Filename, RhinoDoc RhinoDocument)
+		{
+			string RhinoAppName = RhinoApp.Name;
+			string RhinoVersion = RhinoApp.ExeVersion.ToString();
+			FDatasmithFacadeElement.SetCoordinateSystemType(FDatasmithFacadeElement.ECoordinateSystemType.RightHandedZup);
+			FDatasmithFacadeElement.SetWorldUnitScale((float)RhinoMath.UnitScale(RhinoDocument.ModelUnitSystem, UnitSystem.Centimeters));
+			FDatasmithFacadeScene DatasmithScene = new FDatasmithFacadeScene("Rhino", "Robert McNeel & Associates", "Rhino3D", RhinoVersion);
+			DatasmithScene.SetOutputPath(System.IO.Path.GetDirectoryName(Filename));
+			DatasmithScene.SetName(System.IO.Path.GetFileNameWithoutExtension(Filename));
 
+			return DatasmithScene;
+		}
 
 		public static Rhino.PlugIns.WriteFileResult ExportToFile(DatasmithRhinoExportOptions Options)
 		{
@@ -84,19 +95,6 @@ namespace DatasmithRhino
 			return bExportSuccess
 				? Rhino.Commands.Result.Success
 				: Rhino.Commands.Result.Failure;
-		}
-
-		public static FDatasmithFacadeScene CreateDatasmithScene(string Filename, RhinoDoc RhinoDocument)
-		{
-			string RhinoAppName = RhinoApp.Name;
-			string RhinoVersion = RhinoApp.ExeVersion.ToString();
-			FDatasmithFacadeElement.SetCoordinateSystemType(FDatasmithFacadeElement.ECoordinateSystemType.RightHandedZup);
-			FDatasmithFacadeElement.SetWorldUnitScale((float)RhinoMath.UnitScale(RhinoDocument.ModelUnitSystem, UnitSystem.Centimeters));
-			FDatasmithFacadeScene DatasmithScene = new FDatasmithFacadeScene("Rhino", "Robert McNeel & Associates", "Rhino3D", RhinoVersion);
-			DatasmithScene.SetOutputPath(System.IO.Path.GetDirectoryName(Filename));
-			DatasmithScene.SetName(System.IO.Path.GetFileNameWithoutExtension(Filename));
-
-			return DatasmithScene;
 		}
 
 		private static Rhino.Commands.Result SynchronizeScene(DatasmithRhinoExportContext ExportContext, FDatasmithFacadeScene DatasmithScene)

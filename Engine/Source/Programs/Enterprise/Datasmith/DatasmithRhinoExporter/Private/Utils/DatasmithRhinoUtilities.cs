@@ -4,6 +4,7 @@ using Rhino;
 using Rhino.DocObjects;
 using Rhino.Geometry;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Security.Cryptography;
 using System.Text;
@@ -201,6 +202,26 @@ namespace DatasmithRhino
 			Transform TranslationTransform = Transform.Translation(new Vector3d(Center));
 
 			return TranslationTransform * RotationTransform;
+		}
+
+		/// <summary>
+		/// Center the given meshes on the pivot determined from the union of their bounding boxes. Returns the pivot point.
+		/// </summary>
+		/// <param name="RhinoMeshes"></param>
+		/// <returns>The pivot point on which the Mesh was centered</returns>
+		public static Vector3d CenterMeshesOnPivot(List<Mesh> RhinoMeshes)
+		{
+			BoundingBox MeshesBoundingBox = RhinoMeshes[0].GetBoundingBox(true);
+
+			for (int MeshIndex = 1; MeshIndex < RhinoMeshes.Count; ++MeshIndex)
+			{
+				MeshesBoundingBox.Union(RhinoMeshes[MeshIndex].GetBoundingBox(true));
+			}
+
+			Vector3d PivotPoint = new Vector3d(MeshesBoundingBox.Center.X, MeshesBoundingBox.Center.Y, MeshesBoundingBox.Center.Z);
+			RhinoMeshes.ForEach((CurrentMesh) => CurrentMesh.Translate(-PivotPoint));
+
+			return PivotPoint;
 		}
 
 		public static string EvaluateAttributeUserText(DatasmithActorInfo InNode, string ValueFormula)

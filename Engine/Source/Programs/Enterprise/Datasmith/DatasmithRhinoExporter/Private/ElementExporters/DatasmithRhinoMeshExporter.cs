@@ -1,9 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-using Rhino.DocObjects;
+
 using Rhino.Geometry;
 using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace DatasmithRhino.ElementExporters
 {
@@ -77,26 +75,6 @@ namespace DatasmithRhino.ElementExporters
 			BoundingBox MeshBoundingBox = RhinoMesh.GetBoundingBox(true);
 			Vector3d PivotPoint = new Vector3d(MeshBoundingBox.Center.X, MeshBoundingBox.Center.Y, MeshBoundingBox.Center.Z);
 			RhinoMesh.Translate(-PivotPoint);
-
-			return PivotPoint;
-		}
-
-		/// <summary>
-		/// Center the given meshes on the pivot determined from the union of their bounding boxes. Returns the pivot point.
-		/// </summary>
-		/// <param name="RhinoMeshes"></param>
-		/// <returns>The pivot point on which the Mesh was centered</returns>
-		public static Vector3d CenterMeshesOnPivot(List<Mesh> RhinoMeshes)
-		{
-			BoundingBox MeshesBoundingBox = RhinoMeshes[0].GetBoundingBox(true);
-
-			for (int MeshIndex = 1; MeshIndex < RhinoMeshes.Count; ++MeshIndex)
-			{
-				MeshesBoundingBox.Union(RhinoMeshes[MeshIndex].GetBoundingBox(true));
-			}
-
-			Vector3d PivotPoint = new Vector3d(MeshesBoundingBox.Center.X, MeshesBoundingBox.Center.Y, MeshesBoundingBox.Center.Z);
-			RhinoMeshes.ForEach((CurrentMesh) => CurrentMesh.Translate(-PivotPoint));
 
 			return PivotPoint;
 		}
