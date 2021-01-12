@@ -179,6 +179,10 @@ public:
 		UTexture2D* Texture = nullptr;
 		FVector2D Tiling = FVector2D(1.f, 1.f);
 		FVector Scale = FVector(1.f, 1.f, 1.f);
+
+		// Multiplying colors by value bigger than this will have them clamped(e.g. diffuse is clamped by one in the shader)
+		float MaxColorFactorToAvoidClamping = FLT_MAX;
+
 		EMaterialSamplerType SamplerType = SAMPLERTYPE_LinearColor;
 		FVector Constant = FVector(1.f, 1.f, 1.f);
 	};
@@ -602,6 +606,32 @@ public:
 			return ExpressionTextureSample;
 		}
 
+		// Sample color Texture taking into account provided IntensityFactor in such way that color is not scaled too much(resulting in distortion/saturation after being clamped by 1  in the shader) 
+		FMaterialExpressionWrapper SampleBaseColorTexture(FProcessedTextureSource Source, FMaterialExpressionWrapper Coordinate, float IntensityFactor)
+		{
+			if (Source.Texture)
+			{
+				auto Sampled = SampleTexture(Source.SamplerType, Source.Texture, Coordinate);
+				if (Source.Scale != FVector::OneVector) 
+				{
+					// Use 'MaxColorFactorToAvoidClamping' factor instead of passed intensity in came MaxColorFactorToAvoidClamping is smaller:
+					// - if Intensity(computed reflectance) is even smaller we won't loose(due to clamping) color information
+					// - if Intensity is larger than MaxColorFactorToAvoidClamping this means that texture colors will be clamped after multiplied by Intensity and color will be altered
+					// E.g. is we have BRFD color like (5, 2, 0.5) - strong red reflection, medium green, and (relatively)slight blue
+					// Passing (5, 2, 0.5) to Diffuse Color will clamp this to (1, 1, 0.5) - a yellow-white color(instead of almost red original)
+					// Ideally, modulating it by 1/5 will give (1, 0.4, 0.01) - same reddish color
+					// This way, in case texture consists of colors that are mostly too reflective, we can have something closer to original material colors than just keeping (1, 1, 0.5)
+					float Scale = FMath::Min(IntensityFactor, Source.MaxColorFactorToAvoidClamping);
+					return Mul(Sampled, Constant(Source.Scale*Scale));
+				}
+				else 
+				{
+					return Mul(Sampled, Constant(IntensityFactor));
+				}
+			}
+			return Constant(Source.Constant);
+		}
+
 		FMaterialExpressionWrapper SampleTexture(FProcessedTextureSource Source, FMaterialExpressionWrapper Coordinate)
 		{
 			if (Source.Texture)
@@ -907,7 +937,7 @@ public:
 				if (bHasBRDFColorsTexture)
 				{
 					auto UV = Append(Mul(ThetaF, 1.f / HALF_PI), Mul(ThetaI, 1.f / HALF_PI));
-					BaseColor = Mul(SampleTexture(BRDFColorsTexture, UV), SpecularityFitted);
+					BaseColor = SampleBaseColorTexture(BRDFColorsTexture, UV, SpecularityFitted);
 				}
 				else
 				{
@@ -1890,6 +1920,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 									Texture->Filter = TF_Nearest;
 
 									Texture->UpdateResource();
+									Texture->PostEditChange();
 									Texture->MarkPackageDirty();
 
 									Material.SetFlakesThetaFISliceLUT(Texture);
@@ -2182,6 +2213,10 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			NewMaterial->AssetImportData = NewObject<UAssetImportData>(NewMaterial, TEXT("AssetImportData"));
 			NewMaterial->AssetImportData->Update(Filename);
 			UMaterialEditingLibrary::LayoutMaterialExpressions(NewMaterial);
+
+			NewMaterial->MarkPackageDirty();
+			NewMaterial->PostEditChange();
+
 		}
 
 		return true;
@@ -2230,17 +2265,25 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		// In general, compressing float into is hard(impossible) unless we use some properties of existing data...
 
 		int32 PixelCount = TextureSource.Width * TextureSource.Height;
+		FVector PixelValueMin(FLT_MAX, FLT_MAX, FLT_MAX);
 		FVector PixelValueMax(0.f, 0.f, 0.f);
 		for (int PixelIndex = 0; PixelIndex < PixelCount; PixelIndex++)
 		{
-			PixelValueMax = PixelValueMax.ComponentMax(TextureSource.GetRGB(PixelIndex));
+			FVector PixelValue = TextureSource.GetRGB(PixelIndex);
+			PixelValueMax = PixelValueMax.ComponentMax(PixelValue);
+			PixelValueMin = PixelValueMin.ComponentMin(PixelValue);
 		}
 
-		FVector Scale = PixelValueMax.ComponentMax(FVector(0.1f)); // make sure we won't normalize by too small values for some of the color components
-		
 		TArray<uint16> PixelsCompressed;
 		if (!PixelValueMax.IsNearlyZero())
 		{
+			FVector Scale = PixelValueMax.ComponentMax(FVector(0.1f)); // make sure we won't normalize by too small values for some of the color components
+
+			if ((PixelValueMin.GetMax() > 1.0f))
+			{
+				ProcessedTextureSource.MaxColorFactorToAvoidClamping = 1.0f / PixelValueMin.GetMax();
+			}
+
 			PixelsCompressed.SetNumUninitialized(TextureSource.Width * TextureSource.Height * 4);
 
 			for (int PixelIndex = 0; PixelIndex < PixelCount; PixelIndex++)
