@@ -10,9 +10,11 @@
 namespace GeometryCollectionTest
 {
 	using namespace ChaosTest;
-	// deliberately choosing values outside EEventType defaults
-	static const int32 CustomEvent1 = 5;
-	static const int32 CustomEvent2 = 6;
+
+	// These were previously integers outside of range of event enum, deliberately not using existing events. API changed,
+	// and we need to provide enum. Casting int out of range of enum to enum is undefined, so just using existing events. 
+	static const EEventType CustomEvent1 = EEventType::Breaking;
+	static const EEventType CustomEvent2 = EEventType::Sleeping;
 
 	struct EventTestData
 	{
