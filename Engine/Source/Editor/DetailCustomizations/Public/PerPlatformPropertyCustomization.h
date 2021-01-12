@@ -23,7 +23,7 @@ struct FPerPlatformPropertyCustomNodeBuilderArgs
 	TAttribute<TArray<FName>> PlatformOverrideNames;
 
 	/** Is overriding per-property enabled */
-	TAttribute<bool> IsEnabled;
+	TAttribute<bool> IsEnabled = true;
 
 	/** Callback to generate a widget for a specific platform row */
 	FOnGenerateWidget OnGenerateWidgetForPlatformRow;

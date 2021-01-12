@@ -672,6 +672,12 @@ class UPropertyEditorTestObject : public UObject
 	UPROPERTY(EditAnywhere, Category = AdvancedProperties)
 	FGuid Guid;
 
+	UPROPERTY(EditAnywhere, Category = AdvancedProperties)
+	FPerPlatformFloat PerPlatformFloat;
+
+	UPROPERTY(EditAnywhere, Category = AdvancedProperties)
+	FPerPlatformInt PerPlatformInt;
+
 	UPROPERTY()
 	bool bInlineEditConditionWithoutMetaToggle;
 
