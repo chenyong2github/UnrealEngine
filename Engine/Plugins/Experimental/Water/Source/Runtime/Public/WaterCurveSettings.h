@@ -14,17 +14,17 @@ struct FWaterCurveSettings
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Water)
-	bool bUseCurveChannel;
+	bool bUseCurveChannel = true;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Water)
 	UCurveFloat* ElevationCurveAsset = nullptr;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Water)
-	float ChannelEdgeOffset;
+	float ChannelEdgeOffset = 0.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Water)
-	float ChannelDepth;
+	float ChannelDepth = 0.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Water)
-	float CurveRampWidth;
+	float CurveRampWidth = 512.0f;
 };
