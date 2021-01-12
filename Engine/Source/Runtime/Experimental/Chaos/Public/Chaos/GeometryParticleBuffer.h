@@ -5,8 +5,6 @@
 namespace Chaos
 {
 
-class FPhysicsSolverBase;
-
 class CHAOS_API FGeometryParticleBuffer
 {
 public:
@@ -230,25 +228,7 @@ public:
 		}
 	}
 
-	void SetProxy(IPhysicsProxyBase* InProxy)
-	{
-		Proxy = InProxy;
-		if (Proxy)
-		{
-			if (MDirtyFlags.IsDirty())
-			{
-				if (FPhysicsSolverBase* PhysicsSolverBase = Proxy->GetSolver<FPhysicsSolverBase>())
-				{
-					PhysicsSolverBase->AddDirtyProxy(Proxy);
-				}
-			}
-		}
-
-		for (auto& Shape : MShapesArray)
-		{
-			Shape->SetProxy(Proxy);
-		}
-	}
+	void SetProxy(IPhysicsProxyBase* InProxy);
 
 private:
 
