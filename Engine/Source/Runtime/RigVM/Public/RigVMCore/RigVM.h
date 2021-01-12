@@ -223,9 +223,9 @@ public:
 			RegisterIndex = WorkMemoryPtr->Add<T>(WorkMemoryPtr->SupportsNames() ? InName : NAME_None, DefaultValues[0], 1);
 		}
 		else
-	{
-			RegisterIndex = WorkMemoryPtr->AddFixedArray<T>(WorkMemoryPtr->SupportsNames() ? InName : NAME_None, FRigVMFixedArray<T>(DefaultValues), 1);
-	}
+		{
+			RegisterIndex = WorkMemoryPtr->AddStaticArray<T>(WorkMemoryPtr->SupportsNames() ? InName : NAME_None, FRigVMFixedArray<T>(DefaultValues), 1);
+		}
 
 		if (RegisterIndex == INDEX_NONE)
 	{
