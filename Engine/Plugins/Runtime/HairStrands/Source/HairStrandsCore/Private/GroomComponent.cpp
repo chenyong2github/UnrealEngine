@@ -586,6 +586,10 @@ public:
 		if (!IsHairRayTracingEnabled() || HairGroups.Num() == 0)
 			return;
 
+		const bool bWireframe = AllowDebugViewmodes() && Context.ReferenceViewFamily.EngineShowFlags.Wireframe;
+		if (bWireframe)
+			return;
+
 		for (uint32 GroupIt = 0, GroupCount = HairGroups.Num(); GroupIt < GroupCount; ++GroupIt)
 		{
 			const FHairGroup& GroupData = HairGroups[GroupIt];
