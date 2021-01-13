@@ -132,23 +132,7 @@ TSharedRef<SWidget> STableTreeViewCell::GenerateWidgetForTableColumn(const FArgu
 	}
 	else
 	{
-		FText CellText;
-		if (TableTreeNodePtr->IsGroup())
-		{
-			if (TableTreeNodePtr->HasAggregatedValue(ColumnPtr->GetId()))
-			{
-				CellText = ColumnPtr->GetValueFormatter()->FormatValue(TableTreeNodePtr->GetAggregatedValue(ColumnPtr->GetId()));
-			}
-			else
-			{
-				CellText = FText::FromString(TEXT("-"));
-			}
-		}
-		else
-		{
-			CellText = ColumnPtr->GetValueAsText(*TableTreeNodePtr);
-		}
-
+		FText CellText = ColumnPtr->GetValueAsText(*TableTreeNodePtr);
 		TextBox->SetText(CellText);
 	}
 

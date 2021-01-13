@@ -81,10 +81,25 @@ void FMemAllocTable::AddDefaultColumns()
 		public:
 			virtual const TOptional<FTableCellValue> GetValue(const FTableColumn& Column, const FBaseTreeNode& Node) const override
 			{
-				const FMemAllocNode& MemAllocNode = static_cast<const FMemAllocNode&>(Node);
-				const FMemoryAlloc* Alloc = MemAllocNode.GetMemAlloc();
-				const double AllocStartTime = Alloc ? Alloc->GetStartTime() : 0.0;
-				return TOptional<FTableCellValue>(FTableCellValue(AllocStartTime));
+				if (Node.IsGroup())
+				{
+					const FTableTreeNode& NodePtr = static_cast<const FTableTreeNode&>(Node);
+					if (NodePtr.HasAggregatedValue(Column.GetId()))
+					{
+						return NodePtr.GetAggregatedValue(Column.GetId());
+					}
+					else
+					{
+						return FTableCellValue(TEXT("-"));
+					}
+				}
+				else
+				{
+					const FMemAllocNode& MemAllocNode = static_cast<const FMemAllocNode&>(Node);
+					const FMemoryAlloc* Alloc = MemAllocNode.GetMemAlloc();
+					const double AllocStartTime = Alloc ? Alloc->GetStartTime() : 0.0;
+					return TOptional<FTableCellValue>(FTableCellValue(AllocStartTime));
+				}
 			}
 		};
 		TSharedRef<ITableCellValueGetter> Getter = MakeShared<FMemAllocStartTimeValueGetter>();
@@ -124,10 +139,25 @@ void FMemAllocTable::AddDefaultColumns()
 		public:
 			virtual const TOptional<FTableCellValue> GetValue(const FTableColumn& Column, const FBaseTreeNode& Node) const override
 			{
-				const FMemAllocNode& MemAllocNode = static_cast<const FMemAllocNode&>(Node);
-				const FMemoryAlloc* Alloc = MemAllocNode.GetMemAlloc();
-				const double AllocEndTime = Alloc ? Alloc->GetEndTime() : 0.0;
-				return TOptional<FTableCellValue>(FTableCellValue(AllocEndTime));
+				if (Node.IsGroup())
+				{
+					const FTableTreeNode& NodePtr = static_cast<const FTableTreeNode&>(Node);
+					if (NodePtr.HasAggregatedValue(Column.GetId()))
+					{
+						return NodePtr.GetAggregatedValue(Column.GetId());
+					}
+					else
+					{
+						return FTableCellValue(TEXT("-"));
+					}
+				}
+				else
+				{
+					const FMemAllocNode& MemAllocNode = static_cast<const FMemAllocNode&>(Node);
+					const FMemoryAlloc* Alloc = MemAllocNode.GetMemAlloc();
+					const double AllocEndTime = Alloc ? Alloc->GetEndTime() : 0.0;
+					return TOptional<FTableCellValue>(FTableCellValue(AllocEndTime));
+				}
 			}
 		};
 		TSharedRef<ITableCellValueGetter> Getter = MakeShared<FMemAllocStartTimeValueGetter>();
@@ -249,10 +279,25 @@ void FMemAllocTable::AddDefaultColumns()
 		public:
 			virtual const TOptional<FTableCellValue> GetValue(const FTableColumn& Column, const FBaseTreeNode& Node) const override
 			{
-				const FMemAllocNode& MemAllocNode = static_cast<const FMemAllocNode&>(Node);
-				const FMemoryAlloc* Alloc = MemAllocNode.GetMemAlloc();
-				const uint64 AllocSize = Alloc ? Alloc->GetSize() : 0;
-				return TOptional<FTableCellValue>(FTableCellValue(static_cast<int64>(AllocSize)));
+				if (Node.IsGroup())
+				{
+					const FTableTreeNode& NodePtr = static_cast<const FTableTreeNode&>(Node);
+					if (NodePtr.HasAggregatedValue(Column.GetId()))
+					{
+						return NodePtr.GetAggregatedValue(Column.GetId());
+					}
+					else
+					{
+						return FTableCellValue(TEXT("-"));
+					}
+				}
+				else
+				{
+					const FMemAllocNode& MemAllocNode = static_cast<const FMemAllocNode&>(Node);
+					const FMemoryAlloc* Alloc = MemAllocNode.GetMemAlloc();
+					const uint64 AllocSize = Alloc ? Alloc->GetSize() : 0;
+					return TOptional<FTableCellValue>(FTableCellValue(static_cast<int64>(AllocSize)));
+				}
 			}
 		};
 		TSharedRef<ITableCellValueGetter> Getter = MakeShared<FMemAllocSizeValueGetter>();
