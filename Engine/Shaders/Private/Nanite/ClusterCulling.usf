@@ -55,11 +55,6 @@ groupshared uint			GroupNumCandidateNodes;
 groupshared uint			GroupCandidateNodesOffset;
 groupshared uint			GroupOccludedBitmask[MAX_BVH_NODES_PER_GROUP];
 groupshared uint2			GroupCandidateData[PERSISTENT_CLUSTER_CULLING_GROUP_SIZE];
-#if CULLING_PASS == CULLING_PASS_OCCLUSION_POST
-groupshared uint3			GroupNodeData[MAX_BVH_NODES_PER_GROUP];
-#else
-groupshared uint2			GroupNodeData[MAX_BVH_NODES_PER_GROUP];
-#endif
 
 groupshared int				GroupNodeCount;
 
@@ -566,15 +561,16 @@ void ClusterCull(FVisibleCluster VisibleCluster, uint InstanceId)
 	}
 }
 
-void NodeCull(uint BatchReadySize, uint GroupIndex)
+void NodeCull(uint BatchStart, uint BatchSize, uint GroupIndex)
 {
-	uint LocalNodeIndex = (GroupIndex >> MAX_BVH_NODE_FANOUT_BITS);
-	uint ChildIndex = GroupIndex & MAX_BVH_NODE_FANOUT_MASK;
+	const uint LocalNodeIndex = (GroupIndex >> MAX_BVH_NODE_FANOUT_BITS);
+	const uint ChildIndex = GroupIndex & MAX_BVH_NODE_FANOUT_MASK;
+	const uint NodeIndex = BatchStart + LocalNodeIndex;
 
 #if CULLING_PASS == CULLING_PASS_OCCLUSION_POST
-	uint4 NodeData = uint4(GroupNodeData[LocalNodeIndex], 0);
+	uint4 NodeData = uint4(InOutCandidateNodesAndClusters.Load3(GetCandidateNodesOffset() + NodeIndex * 12), 0);
 #else
-	uint4 NodeData = uint4(GroupNodeData[LocalNodeIndex], 0, 0);
+	uint4 NodeData = uint4(InOutCandidateNodesAndClusters.Load2(GetCandidateNodesOffset() + NodeIndex * 8), 0, 0);
 #endif
 	
 	FCandidateNode CandidateNode = UnpackCandidateNode(NodeData, bIsPostPass);
@@ -613,7 +609,7 @@ void NodeCull(uint BatchReadySize, uint GroupIndex)
 #endif
 	bool bLoaded = HierarchyNodeSlice.bLoaded;
 
-	if(LocalNodeIndex >= BatchReadySize)
+	if(LocalNodeIndex >= BatchSize)
 		bVisible = false;
 
 	bool bWasOccluded = false;
@@ -779,10 +775,15 @@ void NodeCull(uint BatchReadySize, uint GroupIndex)
 		}
 	}
 
+	if (GroupIndex < BatchSize)
+	{
+		ClearCandidateNodeCoherent(InOutCandidateNodesAndClusters, BatchStart + GroupIndex, bIsPostPass);			// Clear processed element so we leave the buffer cleared for next pass.
+	}
+
 	DeviceMemoryBarrierWithGroupSync();
 	if (GroupIndex == 0)
 	{
-		InterlockedAdd(MainAndPostPassPersistentStates[PersistentStateIndex].NodeCount, (int)GroupNumCandidateNodes - (int)BatchReadySize);
+		InterlockedAdd(MainAndPostPassPersistentStates[PersistentStateIndex].NodeCount, (int)GroupNumCandidateNodes - (int)BatchSize);
 	}
 
 	if( bVisible && !bWasOccluded && HierarchyNodeSlice.bLeaf )
@@ -944,34 +945,25 @@ void PersistentClusterCull(uint GroupIndex : SV_GroupIndex)
 			bool bNodeReady = (NodeBatchReadyOffset + GroupIndex < MAX_BVH_NODES_PER_GROUP);
 			if (bNodeReady)
 			{
-#if CULLING_PASS == CULLING_PASS_OCCLUSION_POST
-				uint3 NodeData = InOutCandidateNodesAndClusters.Load3(GetCandidateNodesOffset() + NodeIndex * 12);
-#else
-				uint2 NodeData = InOutCandidateNodesAndClusters.Load2(GetCandidateNodesOffset() + NodeIndex * 8);
-#endif
-				bNodeReady = NodeData.x != 0xFFFFFFFFu;
-				GroupNodeData[GroupIndex] = NodeData;
+				bNodeReady = InOutCandidateNodesAndClusters.Load(GetCandidateNodesOffset() + NodeIndex * GetCandidateNodeSize(bIsPostPass)) != 0xFFFFFFFFu;
 			}
 
 			if (bNodeReady)
 			{
 				InterlockedOr(GroupNodeMask, 1u << GroupIndex);
 			}
-			GroupMemoryBarrierWithGroupSync();
+			AllMemoryBarrierWithGroupSync();
 			NodeReadyMask = GroupNodeMask;
 
 			// Process nodes if at least the first one is ready.
 			if (NodeReadyMask & 1u)
 			{
-				uint NodeBatchReadySize = firstbitlow(~NodeReadyMask);
+				uint NodeBatchStart = NodeBatchStartIndex + NodeBatchReadyOffset;
+				uint NodeBatchSize = firstbitlow(~NodeReadyMask);
 
-				NodeCull(NodeBatchReadySize, GroupIndex);
-				if (GroupIndex < NodeBatchReadySize)
-				{
-					ClearCandidateNodeCoherent(InOutCandidateNodesAndClusters, NodeIndex, bIsPostPass);			// Clear processed element so we leave the buffer cleared for next pass.
-				}
+				NodeCull(NodeBatchStart, NodeBatchSize, GroupIndex);
 
-				NodeBatchReadyOffset += NodeBatchReadySize;
+				NodeBatchReadyOffset += NodeBatchSize;
 				continue;
 			}
 		}
