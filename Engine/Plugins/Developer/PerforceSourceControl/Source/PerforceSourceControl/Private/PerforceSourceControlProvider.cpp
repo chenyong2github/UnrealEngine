@@ -396,12 +396,12 @@ void FPerforceSourceControlProvider::OutputCommandMessages(const FPerforceSource
 
 	for (int32 ErrorIndex = 0; ErrorIndex < InCommand.ResultInfo.ErrorMessages.Num(); ++ErrorIndex)
 	{
-		SourceControlLog.Error(FText::Format(LOCTEXT("OutputCommandMessagesFormatError", "CommandMessage Error: {0}"), InCommand.ResultInfo.ErrorMessages[ErrorIndex]));
+		SourceControlLog.Error(FText::Format(LOCTEXT("OutputCommandMessagesFormatError", "CommandMessage Command: {0}, Error: {1}"), FText::FromName(InCommand.Operation->GetName()), InCommand.ResultInfo.ErrorMessages[ErrorIndex]));
 	}
 
 	for (int32 InfoIndex = 0; InfoIndex < InCommand.ResultInfo.InfoMessages.Num(); ++InfoIndex)
 	{
-		SourceControlLog.Info(FText::Format(LOCTEXT("OutputCommandMessagesFormatInfo", "CommandMessage Info: {0}"), InCommand.ResultInfo.InfoMessages[InfoIndex]));
+		SourceControlLog.Info(FText::Format(LOCTEXT("OutputCommandMessagesFormatInfo", "CommandMessage Command: {0}, Info: {1}"), FText::FromName(InCommand.Operation->GetName()), InCommand.ResultInfo.InfoMessages[InfoIndex]));
 	}
 }
 
