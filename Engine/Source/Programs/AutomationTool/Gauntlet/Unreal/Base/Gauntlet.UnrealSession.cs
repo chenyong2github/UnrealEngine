@@ -1084,8 +1084,6 @@ namespace Gauntlet
 							Log.Info("Saved gif to {0}", GifPath);
 						}
 					}
-
-					Directory.Delete(TempScreenshotPath, true);
 				}
 				catch (Exception Ex)
 				{
