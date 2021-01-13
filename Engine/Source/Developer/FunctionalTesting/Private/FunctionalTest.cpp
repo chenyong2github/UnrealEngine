@@ -889,9 +889,13 @@ void AFunctionalTest::LogStep(ELogVerbosity::Type Verbosity, const FString& Mess
 	ELogVerbosity::Type EffectiveVerbosity = Verbosity;
 
 	// Evaluate the log level based on the properties of the test
-	if (ensure(CurrentFunctionalTest))
+	if (CurrentFunctionalTest)
 	{
 		EffectiveVerbosity = GetAutomationLogLevel(EffectiveVerbosity, CurrentFunctionalTest);
+	}
+	else
+	{
+		UE_LOG(LogFunctionalTest, Warning, TEXT("FunctionalTest '%s' ran test '%s' when no functional test was active. This result will not be tracked."), *GetName(), *Message);
 	}
 
 	switch (EffectiveVerbosity)
