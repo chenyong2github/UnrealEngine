@@ -1146,7 +1146,6 @@ FNaniteGeometryCollectionSceneProxy::FNaniteGeometryCollectionSceneProxy(UGeomet
 		Instance.InstanceToLocal.SetIdentity();
 		Instance.LocalToInstance.SetIdentity();
 		Instance.LocalToWorld.SetIdentity();
-		Instance.WorldToLocal.SetIdentity();
 		Instance.RenderBounds = GeometryNaniteData[GeometryIndex].RenderBounds;
 		Instance.LocalBounds = Instance.RenderBounds;
 	}
@@ -1155,12 +1154,6 @@ FNaniteGeometryCollectionSceneProxy::FNaniteGeometryCollectionSceneProxy(UGeomet
 FPrimitiveViewRelevance FNaniteGeometryCollectionSceneProxy::GetViewRelevance(const FSceneView* View) const
 {
 	LLM_SCOPE_BYTAG(Nanite);
-
-#if WITH_EDITOR
-	const bool bOptimizedRelevance = false;
-#else
-	const bool bOptimizedRelevance = false;// GNaniteOptimizedRelevance != 0;
-#endif
 
 	FPrimitiveViewRelevance Result;
 	Result.bDrawRelevance = IsShown(View) && View->Family->EngineShowFlags.NaniteMeshes;
@@ -1173,26 +1166,18 @@ FPrimitiveViewRelevance FNaniteGeometryCollectionSceneProxy::GetViewRelevance(co
 	// Should always be covered by constructor of Nanite scene proxy.
 	Result.bRenderInMainPass = true;
 
-	if (bOptimizedRelevance) // No dynamic relevance if optimized.
-	{
-		MaterialRelevance.SetPrimitiveViewRelevance(Result);
-		Result.bVelocityRelevance = IsMovable();
-	}
-	else
-	{
 #if WITH_EDITOR
-		//only check these in the editor
-		Result.bEditorVisualizeLevelInstanceRelevance = IsEditingLevelInstanceChild();
-		Result.bEditorStaticSelectionRelevance = (IsSelected() || IsHovered());
+	// Only check these in the editor
+	Result.bEditorVisualizeLevelInstanceRelevance = IsEditingLevelInstanceChild();
+	Result.bEditorStaticSelectionRelevance = (IsSelected() || IsHovered());
 #endif
 
-		bool bSetDynamicRelevance = false;
+	bool bSetDynamicRelevance = false;
 
-		Result.bOpaque = true;
+	Result.bOpaque = true;
 
-		MaterialRelevance.SetPrimitiveViewRelevance(Result);
-		Result.bVelocityRelevance = Result.bOpaque && Result.bRenderInMainPass && IsMovable();
-	}
+	MaterialRelevance.SetPrimitiveViewRelevance(Result);
+	Result.bVelocityRelevance = Result.bOpaque && Result.bRenderInMainPass && IsMovable();
 
 	return Result;
 }
@@ -1304,7 +1289,6 @@ void FNaniteGeometryCollectionSceneProxy::SetConstantData_RenderThread(FGeometry
 		Instance.InstanceToLocal	= NewConstantData->RestTransforms[TransformIndex];
 		Instance.LocalToInstance	= Instance.LocalToWorld.Inverse();
 		Instance.LocalToWorld		= Instance.InstanceToLocal;
-		Instance.WorldToLocal		= Instance.LocalToInstance;
 		Instance.PrimitiveId		= NaniteData.PrimitiveId;
 		Instance.RenderBounds		= NaniteData.RenderBounds;
 		Instance.LocalBounds		= Instance.RenderBounds.TransformBy(Instance.InstanceToLocal);
@@ -1342,7 +1326,6 @@ void FNaniteGeometryCollectionSceneProxy::SetDynamicData_RenderThread(FGeometryC
 			Instance.InstanceToLocal	= NewDynamicData->Transforms[TransformIndex];
 			Instance.LocalToInstance	= Instance.LocalToWorld.Inverse();
 			Instance.LocalToWorld		= Instance.InstanceToLocal;
-			Instance.WorldToLocal		= Instance.LocalToInstance;
 			Instance.PrimitiveId		= NaniteData.PrimitiveId;
 			Instance.RenderBounds		= NaniteData.RenderBounds;
 			Instance.LocalBounds		= Instance.RenderBounds.TransformBy(Instance.InstanceToLocal);

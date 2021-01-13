@@ -316,7 +316,7 @@ struct FMaterialPixelParameters
 	float2	LightmapUVs;
 #endif
 
-#if USE_INSTANCING
+#if USE_INSTANCING || VF_NANITE
 	half4 PerInstanceParams;
 #endif
 
@@ -975,7 +975,7 @@ float GetPerInstanceRandom(FMaterialVertexParameters Parameters)
 /** Get the per-instance random value when instancing */
 float GetPerInstanceRandom(FMaterialPixelParameters Parameters)
 {
-#if USE_INSTANCING
+#if USE_INSTANCING || VF_NANITE
 	return Parameters.PerInstanceParams.x;
 #else
 	return 0.0;

@@ -2834,20 +2834,32 @@ void UInstancedStaticMeshComponent::SetupNewInstanceData(FInstancedStaticMeshIns
 
 static bool ComponentRequestsCPUAccess(UInstancedStaticMeshComponent* InComponent, ERHIFeatureLevel::Type FeatureLevel)
 {
+	bool bNeedsCPUAccess = false;
+
+	// Check mesh distance fields
 	if (FeatureLevel > ERHIFeatureLevel::ES3_1)
 	{
 		static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.GenerateMeshDistanceFields"));
 
-		bool bNeedsCPUAccess = (InComponent->CastShadow && InComponent->bAffectDistanceFieldLighting 
+		bNeedsCPUAccess |= (InComponent->CastShadow && InComponent->bAffectDistanceFieldLighting 
 			// Distance field algorithms need access to instance data on the CPU
 			&& (CVar->GetValueOnAnyThread(true) != 0 || (InComponent->GetStaticMesh() && InComponent->GetStaticMesh()->bGenerateMeshDistanceField)));
-
-		// Ray tracing needs instance transforms on CPU
-		bNeedsCPUAccess |= IsRayTracingEnabled();
-
-		return bNeedsCPUAccess;
 	}
-	return false;
+
+	// Ray tracing needs instance transforms on CPU
+	bNeedsCPUAccess |= IsRayTracingEnabled();
+
+	// Check Nanite
+	if (FeatureLevel >= ERHIFeatureLevel::SM5)
+	{
+		// TODO: Call UseNanite()
+		//static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Nanite"));
+		
+		// Nanite needs lightmap/shadowmap UV biases and per instance random values accessible from GPUScene
+		bNeedsCPUAccess |= (InComponent->GetStaticMesh() && InComponent->GetStaticMesh()->NaniteSettings.bEnabled);
+	}
+
+	return bNeedsCPUAccess;
 }
 
 void UInstancedStaticMeshComponent::GetInstancesMinMaxScale(FVector& MinScale, FVector& MaxScale) const

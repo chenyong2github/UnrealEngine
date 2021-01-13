@@ -9,14 +9,15 @@ FInstanceSceneShaderData::FInstanceSceneShaderData(const FPrimitiveInstance& Ins
 	Setup(GetInstanceUniformShaderParameters(
 		Instance.LocalToWorld,
 		Instance.PrevLocalToWorld,
-		Instance.WorldToLocal,
 		Instance.LocalBounds.Origin,
 		Instance.LocalBounds.BoxExtent,
 		Instance.NonUniformScale,
 		Instance.InvNonUniformScaleAndDeterminantSign,
+		Instance.LightMapAndShadowMapUVBias,
 		Instance.NaniteInfo,
 		Instance.PrimitiveId,
-		Instance.LastUpdateSceneFrameNumber
+		Instance.LastUpdateSceneFrameNumber,
+		Instance.PerInstanceRandom
 	));
 }
 
@@ -24,17 +25,20 @@ void FInstanceSceneShaderData::Setup(const FInstanceUniformShaderParameters& Ins
 {
 	// Note: layout must match GetInstanceData in usf
 
+	// TODO: Could shrink instance size further if r.AllowStaticLighting=false. This is a read-only cvar
+	// that will cause all shaders to recompile if changed.
+
 	InstanceUniformShaderParameters.LocalToWorld.To3x4MatrixTranspose((float*)&Data[0]);
 	InstanceUniformShaderParameters.PrevLocalToWorld.To3x4MatrixTranspose((float*)&Data[3]);
-	InstanceUniformShaderParameters.WorldToLocal.To3x4MatrixTranspose((float*)&Data[6]);
-	Data[9]    = *(const FVector4*)&InstanceUniformShaderParameters.NonUniformScale;
-	Data[10]   = *(const FVector4*)&InstanceUniformShaderParameters.InvNonUniformScaleAndDeterminantSign;
-	Data[11]   = *(const FVector *)&InstanceUniformShaderParameters.LocalBoundsCenter;
-	Data[11].W = *(const    float*)&InstanceUniformShaderParameters.PrimitiveId;
-	Data[12]   = *(const FVector *)&InstanceUniformShaderParameters.LocalBoundsExtent;
-	Data[12].W = *(const    float*)&InstanceUniformShaderParameters.LastUpdateSceneFrameNumber;
-	Data[13].X = *(const    float*)&InstanceUniformShaderParameters.NaniteRuntimeResourceID;
-	Data[13].Y = *(const    float*)&InstanceUniformShaderParameters.NaniteHierarchyOffset_AndHasImposter;
-	Data[13].Z = 0.0f;
-	Data[13].W = 0.0f;
+	Data[6]    = *(const FVector4*)&InstanceUniformShaderParameters.NonUniformScale;
+	Data[7]    = *(const FVector4*)&InstanceUniformShaderParameters.InvNonUniformScaleAndDeterminantSign;
+	Data[8]    = *(const FVector *)&InstanceUniformShaderParameters.LocalBoundsCenter;
+	Data[8].W  = *(const    float*)&InstanceUniformShaderParameters.PrimitiveId;
+	Data[9]    = *(const FVector *)&InstanceUniformShaderParameters.LocalBoundsExtent;
+	Data[9].W  = *(const    float*)&InstanceUniformShaderParameters.LastUpdateSceneFrameNumber;
+	Data[10].X = *(const    float*)&InstanceUniformShaderParameters.NaniteRuntimeResourceID;
+	Data[10].Y = *(const    float*)&InstanceUniformShaderParameters.NaniteHierarchyOffset_AndHasImposter;
+	Data[10].Z = *(const    float*)&InstanceUniformShaderParameters.PerInstanceRandom;
+	Data[10].W = 0.0f; // Unused
+	Data[11]   = *(const FVector4*)&InstanceUniformShaderParameters.LightMapAndShadowMapUVBias;
 }

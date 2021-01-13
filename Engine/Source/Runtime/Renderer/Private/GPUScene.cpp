@@ -651,7 +651,6 @@ void FGPUScene::UpdateInternal(FRHICommandListImmediate& RHICmdList, FScene& Sce
 									PrimitiveInstance.LocalBounds = PrimitiveInstance.RenderBounds;// .TransformBy(PrimitiveInstance.LocalToWorld);
 									PrimitiveInstance.LocalToWorld = PrimitiveInstance.InstanceToLocal * PrimitiveSceneProxy->GetLocalToWorld();
 									PrimitiveInstance.PrevLocalToWorld = PrimitiveInstance.InstanceToLocal * OutPreviousLocalToWorld;
-									PrimitiveInstance.WorldToLocal = PrimitiveInstance.LocalToWorld.Inverse();
 									PrimitiveInstance.LastUpdateSceneFrameNumber = SceneFrameNumber;
 
 									{

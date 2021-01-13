@@ -34,14 +34,15 @@ struct FPrimitiveInstance
 	FMatrix  LocalToInstance;
 	FMatrix  LocalToWorld;
 	FMatrix  PrevLocalToWorld;
-	FMatrix  WorldToLocal;
 	FVector4 NonUniformScale;
 	FVector4 InvNonUniformScaleAndDeterminantSign;
 	FBoxSphereBounds RenderBounds;
 	FBoxSphereBounds LocalBounds;
+	FVector4 LightMapAndShadowMapUVBias;
 	uint32 PrimitiveId;
 	FNaniteInfo NaniteInfo;
 	uint32 LastUpdateSceneFrameNumber;
+	float PerInstanceRandom;
 };
 
 /** 
@@ -52,7 +53,6 @@ struct FPrimitiveInstance
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FInstanceUniformShaderParameters,ENGINE_API)
 	SHADER_PARAMETER(FMatrix,  LocalToWorld)
 	SHADER_PARAMETER(FMatrix,  PrevLocalToWorld)
-	SHADER_PARAMETER(FMatrix,  WorldToLocal)
 	SHADER_PARAMETER(FVector4, NonUniformScale)
 	SHADER_PARAMETER(FVector4, InvNonUniformScaleAndDeterminantSign)
 	SHADER_PARAMETER(FVector,  LocalBoundsCenter)
@@ -61,50 +61,54 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FInstanceUniformShaderParameters,ENGINE_API
 	SHADER_PARAMETER(uint32,   LastUpdateSceneFrameNumber)
 	SHADER_PARAMETER(uint32,   NaniteRuntimeResourceID)
 	SHADER_PARAMETER(uint32,   NaniteHierarchyOffset_AndHasImposter)
-	SHADER_PARAMETER(uint32,   Unused2)
+	SHADER_PARAMETER(float,    PerInstanceRandom)
 	SHADER_PARAMETER(uint32,   Unused3)
+	SHADER_PARAMETER(FVector4, LightMapAndShadowMapUVBias)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 /** Initializes the instance uniform shader parameters. */
 inline FInstanceUniformShaderParameters GetInstanceUniformShaderParameters(
 	const FMatrix&  LocalToWorld,
 	const FMatrix&  PrevLocalToWorld,
-	const FMatrix&  WorldToLocal,
 	const FVector&  LocalBoundsCenter,
 	const FVector&  LocalBoundsExtent,
 	const FVector4& NonUniformScale,
 	const FVector4& InvNonUniformScaleAndDeterminantSign,
+	const FVector4& LightMapAndShadowMapUVBias,
 	const FNaniteInfo& NaniteInfo,
 	uint32 PrimitiveId,
-	uint32 LastUpdateSceneFrameNumber
+	uint32 LastUpdateSceneFrameNumber,
+	float PerInstanceRandom
 )
 {
 	FInstanceUniformShaderParameters Result;
 	Result.LocalToWorld							= LocalToWorld;
 	Result.PrevLocalToWorld						= PrevLocalToWorld;
-	Result.WorldToLocal							= WorldToLocal;
 	Result.NonUniformScale						= NonUniformScale;
 	Result.InvNonUniformScaleAndDeterminantSign	= InvNonUniformScaleAndDeterminantSign;
+	Result.LightMapAndShadowMapUVBias			= LightMapAndShadowMapUVBias;
 	Result.PrimitiveId							= PrimitiveId;
 	Result.LocalBoundsCenter					= LocalBoundsCenter;
 	Result.LocalBoundsExtent					= LocalBoundsExtent;
 	Result.NaniteRuntimeResourceID				= NaniteInfo.RuntimeResourceID;
 	Result.NaniteHierarchyOffset_AndHasImposter	= NaniteInfo.HierarchyOffset_AndHasImposter;
 	Result.LastUpdateSceneFrameNumber			= LastUpdateSceneFrameNumber;
+	Result.PerInstanceRandom					= PerInstanceRandom;
 	return Result;
 }
 
 inline TUniformBufferRef<FInstanceUniformShaderParameters> CreateInstanceUniformBufferImmediate(
 	const FMatrix&  LocalToWorld,
 	const FMatrix&  PrevLocalToWorld,
-	const FMatrix&  WorldToLocal,
 	const FVector&  LocalBoundsCenter,
 	const FVector&  LocalBoundsExtent,
 	const FVector4& NonUniformScale,
 	const FVector4& InvNonUniformScaleAndDeterminantSign,
+	const FVector4& LightMapAndShadowMapUVBias,
 	const FNaniteInfo& NaniteInfo,
 	uint32 PrimitiveId,
-	uint32 LastUpdateSceneFrameNumber
+	uint32 LastUpdateSceneFrameNumber,
+	float PerInstanceRandom
 )
 {
 	check(IsInRenderingThread());
@@ -112,14 +116,15 @@ inline TUniformBufferRef<FInstanceUniformShaderParameters> CreateInstanceUniform
 		GetInstanceUniformShaderParameters(
 			LocalToWorld,
 			PrevLocalToWorld,
-			WorldToLocal,
 			LocalBoundsCenter,
 			LocalBoundsExtent,
 			NonUniformScale,
 			InvNonUniformScaleAndDeterminantSign,
+			LightMapAndShadowMapUVBias,
 			NaniteInfo,
 			PrimitiveId,
-			LastUpdateSceneFrameNumber
+			LastUpdateSceneFrameNumber,
+			PerInstanceRandom
 		),
 		UniformBuffer_MultiFrame
 	);
@@ -127,8 +132,8 @@ inline TUniformBufferRef<FInstanceUniformShaderParameters> CreateInstanceUniform
 
 struct FInstanceSceneShaderData
 {
-	// Must match usf
-	enum { InstanceDataStrideInFloat4s = 14 };
+	// Must match GetInstanceData() in SceneData.ush
+	enum { InstanceDataStrideInFloat4s = 12 };
 
 	FVector4 Data[InstanceDataStrideInFloat4s];
 
@@ -137,14 +142,15 @@ struct FInstanceSceneShaderData
 		Setup(GetInstanceUniformShaderParameters(
 			FMatrix::Identity,
 			FMatrix::Identity,
-			FMatrix::Identity,
 			FVector::ZeroVector,
 			FVector::ZeroVector,
 			FVector4(1.0f, 1.0f, 1.0f, 1.0f),
 			FVector4(1.0f, 1.0f, 1.0f, 1.0f),
+			FVector4(-11.0f, -22.0f, -33.0f, -44.0f), // TODO: Do something cleaner to indicate instanced LM/SM UV bias vs. uniform
 			FNaniteInfo(),
 			0,
-			0xFFFFFFFFu
+			0xFFFFFFFFu,
+			0.0f
 		));
 	}
 

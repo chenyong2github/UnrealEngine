@@ -153,10 +153,10 @@ FMaterialPixelParameters GetMaterialPixelParameters(inout FVertexFactoryInterpol
 		// Required for previewing materials that use ParticleColor
 		Result.Particle.Color = half4(1, 1, 1, 1);
 
+		// X = per-instance random, Y = per-instance fade out amount, Z = hide/show flag, W = dither fade cutoff
+		Result.PerInstanceParams = float4(InstanceData.PerInstanceRandom, 0.0f, 0.0f, 0.0f);
+
 	#if NEEDS_LIGHTMAP_COORDINATE
-
-		// TODO: Instancing support
-
 		float2 LightMapCoordinate = 0;
 		float2 ShadowMapCoordinate = 0;
 
@@ -167,18 +167,27 @@ FMaterialPixelParameters GetMaterialPixelParameters(inout FVertexFactoryInterpol
 		float2 LightMapCoordinateInput = AttributeData.TexCoords[LightMapUVIndex];
 		const float2 LightMapUVs = LightMapCoordinateInput;
 
-		float4 LightMapCoordinateScaleBias = GetLightmapData(LightMapDataIndex).LightMapCoordinateScaleBias;
-		LightMapCoordinate = LightMapCoordinateInput * LightMapCoordinateScaleBias.xy + LightMapCoordinateScaleBias.zw;
+		const float4 LightMapCoordinateScaleBias = GetLightmapData(LightMapDataIndex).LightMapCoordinateScaleBias;
+		if (InstanceData.UseInstanceData)
+		{
+			LightMapCoordinate = LightMapCoordinateInput * LightMapCoordinateScaleBias.xy + InstanceData.LightMapAndShadowMapUVBias.xy;
+		}
+		else
+		{
+			LightMapCoordinate = LightMapCoordinateInput * LightMapCoordinateScaleBias.xy + LightMapCoordinateScaleBias.zw;
+		}
 
 	#if STATICLIGHTING_TEXTUREMASK
-		float4 ShadowMapCoordinateScaleBias = GetLightmapData(LightMapDataIndex).ShadowMapCoordinateScaleBias;
-
-		//#if USE_INSTANCING
-		//	ShadowMapCoordinate = LightMapCoordinateInput * ShadowMapCoordinateScaleBias.xy + GetInstanceShadowMapBias(Intermediates);
-		//#else
+		const float4 ShadowMapCoordinateScaleBias = GetLightmapData(LightMapDataIndex).ShadowMapCoordinateScaleBias;
+		if (InstanceData.UseInstanceData)
+		{
+			ShadowMapCoordinate = LightMapCoordinateInput * ShadowMapCoordinateScaleBias.xy + InstanceData.LightMapAndShadowMapUVBias.zw;
+		}
+		else
+		{
 			ShadowMapCoordinate = LightMapCoordinateInput * ShadowMapCoordinateScaleBias.xy + ShadowMapCoordinateScaleBias.zw;
-		//#endif
-	#endif	// STATICLIGHTING_TEXTUREMASK
+		}
+	#endif
 
 		SetLightMapCoordinate(Interpolants, LightMapCoordinate, ShadowMapCoordinate);
 		SetLightMapDataIndex(Interpolants, LightMapDataIndex);

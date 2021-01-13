@@ -10,6 +10,7 @@
 #include "Engine/Engine.h"
 #include "Engine/MapBuildDataRegistry.h"
 #include "Engine/StaticMesh.h"
+#include "Engine/InstancedStaticMesh.h"
 #include "Materials/Material.h"
 #include "RenderingThread.h"
 #include "UnifiedBuffer.h"
@@ -447,9 +448,10 @@ FSceneProxy::FSceneProxy(UStaticMeshComponent* Component)
 	Instance.InstanceToLocal.SetIdentity();
 	Instance.LocalToInstance.SetIdentity();
 	Instance.LocalToWorld.SetIdentity();
-	Instance.WorldToLocal.SetIdentity();
 	Instance.RenderBounds = Component->GetStaticMesh()->GetBounds();
 	Instance.LocalBounds = Instance.RenderBounds;
+	Instance.LightMapAndShadowMapUVBias = FVector4(-11.0f, -22.0f, -33.0f, -44.0f); // TODO: Do something cleaner to indicate instanced LM/SM UV bias vs. uniform
+	Instance.PerInstanceRandom = 0;
 
 #if RHI_RAYTRACING
 	if (IsRayTracingEnabled())
@@ -474,14 +476,32 @@ FSceneProxy::FSceneProxy(UInstancedStaticMeshComponent* Component)
 		FTransform InstanceTransform;
 		Component->GetInstanceTransform(InstanceIndex, InstanceTransform);
 
+		FVector4 InstanceTransformVec[3];
+		FVector4 InstanceLightMapAndShadowMapUVBias = FVector4(-11.0f, -22.0f, -33.0f, -44.0f); // TODO: Do something cleaner to indicate instanced LM/SM UV bias vs. uniform
+		FVector4 InstanceOrigin = FVector::ZeroVector;
+
+		if (Component->PerInstanceRenderData != nullptr && Component->PerInstanceRenderData->InstanceBuffer_GameThread != nullptr)
+		{
+			if (Component->PerInstanceRenderData->InstanceBuffer_GameThread->IsValidIndex(InstanceIndex))
+			{
+				Component->PerInstanceRenderData->InstanceBuffer_GameThread->GetInstanceShaderValues(
+					InstanceIndex,
+					InstanceTransformVec,
+					InstanceLightMapAndShadowMapUVBias,
+					InstanceOrigin
+				);
+			}
+		}
+
 		FPrimitiveInstance& Instance = Instances[InstanceIndex];
 		Instance.PrimitiveId = ~uint32(0);
 		Instance.InstanceToLocal = InstanceTransform.ToMatrixWithScale();
-		Instance.LocalToInstance = Instance.LocalToWorld.Inverse();
 		Instance.LocalToWorld = Instance.InstanceToLocal;
-		Instance.WorldToLocal = Instance.LocalToInstance;
+		Instance.LocalToInstance = Instance.LocalToWorld.Inverse();
 		Instance.RenderBounds = Component->GetStaticMesh()->GetBounds();
 		Instance.LocalBounds = Instance.RenderBounds.TransformBy(Instance.InstanceToLocal);
+		Instance.LightMapAndShadowMapUVBias = InstanceLightMapAndShadowMapUVBias;
+		Instance.PerInstanceRandom = InstanceOrigin.W; // Per-instance random packed into W component
 	}
 }
 
