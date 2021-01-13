@@ -207,10 +207,14 @@ bool FDataRegistryCache::RemoveBatchRequest(const FDataRegistryRequestId& Reques
 	return false;
 }
 
-void FDataRegistryCache::ClearCache()
+void FDataRegistryCache::ClearCache(bool bClearRequests)
 {
 	LookupCache.Reset();
-	BatchRequests.Reset();
+
+	if (bClearRequests)
+	{
+		BatchRequests.Reset();
+	}
 }
 
 TArray<TSharedPtr<FDataRegistryResolver> > FDataRegistryResolverScope::ResolverStack;

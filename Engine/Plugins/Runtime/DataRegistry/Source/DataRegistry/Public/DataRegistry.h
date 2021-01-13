@@ -64,6 +64,9 @@ public:
 	/** Unregisters all previously registered assets in a specific registry with a specific priority, can be used as a batch reset. Returns number of assets unregistered */
 	virtual int32 UnregisterAssetsWithPriority(int32 AssetPriority);
 
+	/** Returns the worst availability for anything stored in this registry, if this is Precached then this registry is a wrapper around already loaded data */
+	virtual EDataRegistryAvailability GetLowestAvailability() const;
+
 	/** Gets the current general cache policy */
 	const FDataRegistryCachePolicy& GetRuntimeCachePolicy() const;
 
@@ -73,7 +76,7 @@ public:
 	/** Applies the cache policy, is called regularly but can be manually executed */
 	virtual void ApplyCachePolicy();
 
-	/** Checks if a result is still valid */
+	/** Checks if a previous cached get is still valid */
 	virtual bool IsCacheGetResultValid(FDataRegistryCacheGetResult Result) const;
 
 	/** Returns the current cache version for a successful get, may change depending on stack-specific resolve settings */
@@ -82,11 +85,14 @@ public:
 	/** Bump the cache version from some external event like game-specific file loading */
 	virtual void InvalidateCacheVersion();
 
-	/** Resolves an item id into a specific source and unique id, this can remap the names using game-specific rules */
-	virtual bool ResolveDataRegistryId(FDataRegistryLookup& OutLookup, const FDataRegistryId& ItemId, const uint8** InMemoryDataPtr = nullptr) const;
+	/** Accesses the delegate called when cache version changes */
+	virtual FDataRegistryCacheVersionCallback& OnCacheVersionInvalidated();
+
+	/** Resolves an item id into a specific source and unique id, this can remap the names using game-specific rules. PrecachedDataPtr will be set if it is precached by another system */
+	virtual bool ResolveDataRegistryId(FDataRegistryLookup& OutLookup, const FDataRegistryId& ItemId, const uint8** PrecachedDataPtr = nullptr) const;
 
 	/** Fills in a list of all item ids provided by this registry, sorted for display */
-	virtual void GetPossibleRegistryIds(TArray<FDataRegistryId>& OutRegistryIds) const;
+	virtual void GetPossibleRegistryIds(TArray<FDataRegistryId>& OutRegistryIds, bool bSortForDisplay = true) const;
 
 	/** Start an async request for a single item */
 	virtual bool AcquireItem(const FDataRegistryId& ItemId, FDataRegistryItemAcquiredCallback DelegateToCall);
@@ -125,6 +131,13 @@ public:
 
 		return nullptr;
 	}
+
+	/** 
+	 * Fills in a map with all cached (and precached) ids and items for fast iteration. 
+	 * This will use the current resolve context so may not always be valid, and multiple ids can map to the same raw pointer
+	 */
+	virtual FDataRegistryCacheGetResult GetAllCachedItems(TMap<FDataRegistryId, const uint8*>& OutItemMap, const UScriptStruct*& OutItemStruct) const;
+
 
 	// Internal functions called from sources and subclasses
 	
@@ -191,6 +204,9 @@ protected:
 	/** Runtime override */
 	FDataRegistryCachePolicy RuntimeCachePolicy;
 
+	/** Callback for when cache version changes, might be moved later */
+	FDataRegistryCacheVersionCallback OnCacheVersionInvalidatedCallback;
+
 	/** Refresh the RuntimeSources list */
 	virtual void RefreshRuntimeSources();
 
@@ -203,8 +219,8 @@ protected:
 	/** Adds all possible source ids for resolved name to set, regardless of request context, default just uses the name */
 	virtual void AddAllIdsForResolvedName(TSet<FDataRegistryId>& PossibleIds, const FName& ResolvedName, const UDataRegistrySource* RegistrySource) const;
 
-	/** Returns cached data or raw memory ptr */
-	const FCachedDataRegistryItem* FindCachedData(const FDataRegistryId& ItemId, const uint8** InMemoryDataPtr = nullptr) const;
+	/** Returns internal cached data or raw memory ptr for precached data */
+	const FCachedDataRegistryItem* FindCachedData(const FDataRegistryId& ItemId, const uint8** PrecachedDataPtr = nullptr) const;
 
 	/** Advances state machine for a cached entry */
 	virtual void HandleCacheEntryState(const FDataRegistryLookup& Lookup, FCachedDataRegistryItem& CachedEntry);

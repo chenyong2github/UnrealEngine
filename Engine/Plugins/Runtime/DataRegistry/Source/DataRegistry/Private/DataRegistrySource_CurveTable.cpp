@@ -28,9 +28,9 @@ void UDataRegistrySource_CurveTable::SetCachedTable(bool bForceLoad /*= false*/)
 	CachedTable = nullptr;
 	UCurveTable* FoundTable = SourceTable.Get();
 
-	if (!FoundTable && (bForceLoad || TableRules.bUseHardReference))
+	if (!FoundTable && (bForceLoad || TableRules.bPrecacheTable))
 	{
-		if (IsTransientSource() && TableRules.bUseHardReference && !bForceLoad)
+		if (IsTransientSource() && TableRules.bPrecacheTable && !bForceLoad)
 		{
 			// Possibly bad sync load, should we warn?
 		}
@@ -72,7 +72,7 @@ void UDataRegistrySource_CurveTable::SetCachedTable(bool bForceLoad /*= false*/)
 		}
 	}
 
-	if (PreloadTable != CachedTable && TableRules.bUseHardReference)
+	if (PreloadTable != CachedTable && TableRules.bPrecacheTable)
 	{
 		ensureMsgf(GIsEditor || !PreloadTable, TEXT("Switching a valid PreloadTable to a new table should only happen in the editor!"));
 		PreloadTable = CachedTable;
@@ -96,9 +96,9 @@ void UDataRegistrySource_CurveTable::PostLoad()
 
 EDataRegistryAvailability UDataRegistrySource_CurveTable::GetSourceAvailability() const
 {
-	if (TableRules.bUseHardReference)
+	if (TableRules.bPrecacheTable)
 	{
-		return EDataRegistryAvailability::InMemory;
+		return EDataRegistryAvailability::PreCached;
 	}
 	else
 	{
@@ -106,7 +106,7 @@ EDataRegistryAvailability UDataRegistrySource_CurveTable::GetSourceAvailability(
 	}
 }
 
-EDataRegistryAvailability UDataRegistrySource_CurveTable::GetItemAvailability(const FName& ResolvedName, const uint8** InMemoryDataPtr) const
+EDataRegistryAvailability UDataRegistrySource_CurveTable::GetItemAvailability(const FName& ResolvedName, const uint8** PrecachedDataPtr) const
 {
 	LastAccessTime = UDataRegistry::GetCurrentTime();
 
@@ -116,15 +116,15 @@ EDataRegistryAvailability UDataRegistrySource_CurveTable::GetItemAvailability(co
 
 		if (FoundCurve)
 		{
-			if (TableRules.bUseHardReference)
+			if (TableRules.bPrecacheTable)
 			{
 				// Return struct if found
-				if (InMemoryDataPtr)
+				if (PrecachedDataPtr)
 				{
-					*InMemoryDataPtr = (const uint8 *)FoundCurve;
+					*PrecachedDataPtr = (const uint8 *)FoundCurve;
 				}
 
-				return EDataRegistryAvailability::InMemory;
+				return EDataRegistryAvailability::PreCached;
 			}
 			else
 			{
@@ -196,7 +196,7 @@ void UDataRegistrySource_CurveTable::TimerUpdate(float CurrentTime, float TimerU
 	Super::TimerUpdate(CurrentTime, TimerUpdateFrequency);
 
 	// If we have a valid keep seconds, see if it has expired and release cache if needed
-	if (TableRules.CachedTableKeepSeconds >= 0 && !TableRules.bUseHardReference && CachedTable)
+	if (TableRules.CachedTableKeepSeconds >= 0 && !TableRules.bPrecacheTable && CachedTable)
 	{
 		if (CurrentTime - LastAccessTime > TableRules.CachedTableKeepSeconds)
 		{
