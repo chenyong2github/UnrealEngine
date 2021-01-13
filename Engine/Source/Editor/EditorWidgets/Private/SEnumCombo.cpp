@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SEnumCombobox.h"
+#include "SEnumCombo.h"
 #include "EditorStyleSet.h"
 #include "Types/SlateEnums.h"
 #include "Widgets/SToolTip.h"

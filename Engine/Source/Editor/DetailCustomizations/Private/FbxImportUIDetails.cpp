@@ -18,7 +18,7 @@
 #include "Misc/Attribute.h"
 #include "Misc/Guid.h"
 #include "PropertyHandle.h"
-#include "SEnumCombobox.h"
+#include "SEnumCombo.h"
 #include "Templates/Tuple.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Images/SImage.h"

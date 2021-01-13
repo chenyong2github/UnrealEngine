@@ -7,7 +7,7 @@
 #include "SBlueprintEditorToolbar.h"
 #include "ControlRigEditorMode.h"
 #include "SKismetInspector.h"
-#include "SEnumCombobox.h"
+#include "SEnumCombo.h"
 #include "Framework/Commands/GenericCommands.h"
 #include "Editor.h"
 #include "Graph/ControlRigGraph.h"

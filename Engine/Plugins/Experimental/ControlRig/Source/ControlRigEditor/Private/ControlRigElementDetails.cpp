@@ -18,7 +18,7 @@
 #include "ControlRigBlueprint.h"
 #include "Graph/ControlRigGraph.h"
 #include "PropertyCustomizationHelpers.h"
-#include "SEnumCombobox.h"
+#include "SEnumCombo.h"
 #include "ControlRig/Private/Units/Execution/RigUnit_BeginExecution.h"
 
 #define LOCTEXT_NAMESPACE "ControlRigElementDetails"

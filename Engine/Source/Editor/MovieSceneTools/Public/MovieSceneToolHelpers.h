@@ -15,7 +15,7 @@
 #include "MovieSceneTranslator.h"
 #include "MovieSceneSpawnable.h"
 #include "MovieSceneCaptureSettings.h"
-#include "SEnumCombobox.h"
+#include "SEnumCombo.h"
 #include "Animation/AnimSequence.h"
 #include "INodeAndChannelMappings.h"
 
