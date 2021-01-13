@@ -986,7 +986,7 @@ public:
 					}
 					else
 					{
-						UE_LOG(LogStreaming, Fatal, TEXT("Failed reading header for container '0x%llX' (%s)"), ContainerId.Value(), *Result.Status().ToString());
+						UE_LOG(LogStreaming, Warning, TEXT("Failed reading header for container '0x%llX' (%s)"), ContainerId.Value(), *Result.Status().ToString());
 					}
 
 					if (--Remaining == 0)
