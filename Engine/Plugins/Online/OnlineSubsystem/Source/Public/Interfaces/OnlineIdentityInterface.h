@@ -177,6 +177,19 @@ typedef FOnLoginFlowLogout::FDelegate FOnLoginFlowLogoutDelegate;
 DECLARE_DELEGATE_TwoParams(FOnRevokeAuthTokenCompleteDelegate, const FUniqueNetId& /*UserId*/, const FOnlineError& /*OnlineError*/);
 
 /**
+ * A struct for the external account token in case we need per platform fields
+ */
+struct FExternalAuthToken
+{
+	TArray<uint8> TokenData;
+
+	inline bool HasTokenData() const
+	{
+		return TokenData.Num() > 0;
+	}
+};
+
+/**
  * Interface for registration/authentication of user identities
  */
 class IOnlineIdentity
@@ -409,6 +422,26 @@ public:
 	 * @param Delegate delegate to execute when the async task completes
 	 */
 	virtual void RevokeAuthToken(const FUniqueNetId& LocalUserId, const FOnRevokeAuthTokenCompleteDelegate& Delegate) = 0;
+
+	/**
+	 * Delegate executed when the user's auth ticket has arrived
+	 *
+	 * @param LocalUserNum the controller number of the associated user
+	 * @param bWasSuccessful whether the ticket was successfully retrieved or not
+	 * @param AuthToken the token to use with linked auth
+	 */
+	DECLARE_DELEGATE_ThreeParams(FOnGetLinkedAccountAuthTokenCompleteDelegate, int32 /*LocalUserNum*/, bool /*bWasSuccessful*/, const FExternalAuthToken& /*AuthToken*/);
+
+	/**
+	 * Gets a user's platform specific authentication ticket used to sign into linked account(s)
+	 *
+	 * @param LocalUserNum the controller number of the associated user
+	 */
+	virtual void GetLinkedAccountAuthToken(int32 LocalUserNum, const FOnGetLinkedAccountAuthTokenCompleteDelegate& Delegate) const
+	{
+		FExternalAuthToken EmptyToken;
+		Delegate.ExecuteIfBound(LocalUserNum, false, EmptyToken);
+	}
 
 	/**
 	 * Delegate executed when we get a user privilege result.
