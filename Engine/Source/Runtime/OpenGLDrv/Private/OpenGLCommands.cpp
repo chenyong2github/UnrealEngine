@@ -1992,7 +1992,7 @@ void FOpenGLDynamicRHI::SetupVertexArraysVAB(FOpenGLContextState& ContextState, 
 					KnowsDivisor[StreamIndex] = true;
 					Divisor[StreamIndex] = VertexElement.Divisor;
 
-					if ((Attr.StreamOffset != VertexElement.Offset) ||
+					if ((Attr.StreamOffset != VertexElement.Offset) || //-V1013
 						(Attr.Size != VertexElement.Size) ||
 						(Attr.Type != VertexElement.Type) ||
 						(Attr.bNormalized != VertexElement.bNormalized))
