@@ -3,6 +3,7 @@
 #pragma once
 
 #include "AssetDataTagMap.h"
+#include "Async/Async.h"
 
 struct FAssetRegistrySerializationOptions;
 
@@ -175,7 +176,37 @@ namespace FixedTagPrivate
 		FValueId IndexValue(FName Key, FAssetTagValueRef Value);
 	};
 
+	enum class ELoadOrder { Member, TextFirst };
+
 	COREUOBJECT_API void SaveStore(const FStoreData& Store, FArchive& Ar);
 	COREUOBJECT_API TRefCountPtr<const FStore> LoadStore(FArchive& Ar);
+
+	/// Loads tag store with async creation of expensive tag values
+	///
+	/// Caller should:
+	/// * Call ReadInitialDataAndKickLoad()
+	/// * Call LoadFinalData()
+	/// * Wait for future before resolving stored tag values
+	class FAsyncStoreLoader
+	{
+	public:
+		COREUOBJECT_API FAsyncStoreLoader();
+
+		/// 1) Read initial data and kick expensive tag value creation task
+		///
+		/// Won't load FNames to allow concurrent name batch loading
+		/// 
+		/// @return handle to step 3
+		COREUOBJECT_API TFuture<void> ReadInitialDataAndKickLoad(FArchive& Ar, uint32 MaxWorkerTasks);
+
+		/// 2) Read remaining data, including FNames
+		///
+		/// @return indexed store, usable for FPartialMapHandle::MakeFullHandle()
+		COREUOBJECT_API TRefCountPtr<const FStore> LoadFinalData(FArchive& Ar);
+
+	private:
+		FStore* Store = nullptr;
+		ELoadOrder Order;
+	};
 
 } // end namespace FixedTagPrivate

@@ -45,7 +45,7 @@ static TSharedPtr<FAssetBundleData, ESPMode::ThreadSafe> ParseAssetBundles(const
 
 }}} // end namespace UE::AssetData::Private
 
-FAssetData::FAssetData(FName InPackageName, FName InPackagePath, FName InAssetName, FName InAssetClass, FAssetDataTagMap InTags, TArray<int32> InChunkIDs, uint32 InPackageFlags)
+FAssetData::FAssetData(FName InPackageName, FName InPackagePath, FName InAssetName, FName InAssetClass, FAssetDataTagMap InTags, TArrayView<const int32> InChunkIDs, uint32 InPackageFlags)
 	: PackageName(InPackageName)
 	, PackagePath(InPackagePath)
 	, AssetName(InAssetName)
@@ -62,7 +62,7 @@ FAssetData::FAssetData(FName InPackageName, FName InPackagePath, FName InAssetNa
 	ObjectPath = FName(FStringView(ObjectPathStr));
 }
 
-FAssetData::FAssetData(const FString& InLongPackageName, const FString& InObjectPath, FName InAssetClass, FAssetDataTagMap InTags, TArray<int32> InChunkIDs, uint32 InPackageFlags)
+FAssetData::FAssetData(const FString& InLongPackageName, const FString& InObjectPath, FName InAssetClass, FAssetDataTagMap InTags, TArrayView<const int32> InChunkIDs, uint32 InPackageFlags)
 	: ObjectPath(*InObjectPath)
 	, PackageName(*InLongPackageName)
 	, AssetClass(InAssetClass)

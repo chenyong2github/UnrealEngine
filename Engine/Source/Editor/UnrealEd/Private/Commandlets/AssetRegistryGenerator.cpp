@@ -728,9 +728,7 @@ void FAssetRegistryGenerator::InjectEncryptionData(FAssetRegistryState& TargetSt
 
 			for (FName EncryptedRootPackageName : EncryptedRootAssets)
 			{
-				const TArray<const FAssetData*>& PackageAssets = TargetState.GetAssetsByPackageName(EncryptedRootPackageName);
-
-				for (const FAssetData* PackageAsset : PackageAssets)
+				for (const FAssetData* PackageAsset : TargetState.GetAssetsByPackageName(EncryptedRootPackageName))
 				{
 					FAssetData* AssetData = const_cast<FAssetData*>(PackageAsset);
 
@@ -865,10 +863,9 @@ void FAssetRegistryGenerator::UpdateKeptPackagesAssetData()
 {
 	for (FName PackageName : KeptPackages)
 	{
-		const TArray<const FAssetData*>& PreviousAssetDatas = PreviousState.GetAssetsByPackageName(PackageName);
-		for (int I = 0; I < PreviousAssetDatas.Num(); ++I)
+		for (const FAssetData* PreviousAssetData : PreviousState.GetAssetsByPackageName(PackageName))
 		{
-			State.UpdateAssetData(*PreviousAssetDatas[I]);
+			State.UpdateAssetData(*PreviousAssetData);
 		}
 	}
 }
@@ -2031,8 +2028,7 @@ void FAssetRegistryGenerator::FixupPackageDependenciesForChunks(FSandboxPlatform
 		check(FinalChunkManifests[PakchunkIndex]);
 		for (const TPair<FName, FString>& Asset : *FinalChunkManifests[PakchunkIndex])
 		{
-			const TArray<const FAssetData*> AssetIndexArray = State.GetAssetsByPackageName(Asset.Key);
-			for (const FAssetData* AssetData : AssetIndexArray)
+			for (const FAssetData* AssetData : State.GetAssetsByPackageName(Asset.Key))
 			{
 				// Chunk Ids are safe to modify in place
 				const_cast<FAssetData*>(AssetData)->ChunkIDs.AddUnique(PakchunkIndex);
