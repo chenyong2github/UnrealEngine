@@ -7429,7 +7429,7 @@ bool UCookOnTheFlyServer::GetAllPackageFilenamesFromAssetRegistry( const FString
 				const FName PackageName = Packages[AssetIndex]->PackageName;
 
 				FString StandardFilename;
-				if (!GetPackageNameCache().CalculateCacheData(PackageName, PackageFilename, StandardFilename, OutPackageFilenames[AssetIndex]))
+				if (!GetPackageNameCache().CalculateCacheData(PackageName, StandardFilename, OutPackageFilenames[AssetIndex]))
 				{
 					if (bVerifyPackagesExist)
 					{
@@ -7442,13 +7442,13 @@ bool UCookOnTheFlyServer::GetAllPackageFilenamesFromAssetRegistry( const FString
 
 						if (FPackageName::TryConvertLongPackageNameToFilename(PackageNameStr, StandardFilename, bContainsMap ? FPackageName::GetMapPackageExtension() : FPackageName::GetAssetPackageExtension()))
 						{
-							PackageFilename = FPaths::ConvertRelativePathToFull(StandardFilename);
+							StandardFilename = FPaths::ConvertRelativePathToFull(StandardFilename);
 							OutPackageFilenames[AssetIndex] = FName(StandardFilename);
 						}
 					}
 				}
-
-				PackageToStandardFileNames[AssetIndex] = TTuple<FName, FString, FString>(PackageName, MoveTemp(PackageFilename), MoveTemp(StandardFilename));
+				
+				PackageToStandardFileNames[AssetIndex] = TTuple<FName, FString>(PackageName, MoveTemp(StandardFilename));
 			});
 
 		for (int32 Idx = OutPackageFilenames.Num() - 1; Idx >= 0; --Idx)
