@@ -262,8 +262,8 @@ static void UpdateSceneCaptureContentDeferred_RenderThread(
 		FRDGBuilder GraphBuilder(RHICmdList, RDG_EVENT_NAME("SceneCapture"));
 #endif
 
-		FRDGTextureRef OutputTexture = RegisterExternalTexture(GraphBuilder, RenderTarget->GetRenderTargetTexture(), TEXT("SceneCapture"));
-		AddClearRenderTargetPass(GraphBuilder, OutputTexture, FLinearColor::Black, SceneRenderer->Views[0].UnscaledViewRect);
+		FRDGTextureRef TargetTexture = RegisterExternalTexture(GraphBuilder, RenderTarget->GetRenderTargetTexture(), TEXT("SceneCaptureTarget"));
+		AddClearRenderTargetPass(GraphBuilder, TargetTexture, FLinearColor::Black, SceneRenderer->Views[0].UnscaledViewRect);
 
 		// Render the scene normally
 		{
@@ -273,8 +273,11 @@ static void UpdateSceneCaptureContentDeferred_RenderThread(
 
 		if (bGenerateMips)
 		{
-			FGenerateMips::Execute(GraphBuilder, OutputTexture, GenerateMipsParams);
+			FGenerateMips::Execute(GraphBuilder, TargetTexture, GenerateMipsParams);
 		}
+
+		FRDGTextureRef ResolveTexture = RegisterExternalTexture(GraphBuilder, RenderTargetTexture->TextureRHI, TEXT("SceneCaptureResolve"));
+		AddCopyToResolveTargetPass(GraphBuilder, TargetTexture, ResolveTexture, ResolveParams);
 
 		GraphBuilder.Execute();
 	}
