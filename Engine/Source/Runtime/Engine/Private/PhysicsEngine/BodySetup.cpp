@@ -1926,7 +1926,9 @@ TArray<int32> FKConvexElem::GetChaosConvexIndices() const
 		}
 
 		TArray<Chaos::TVector<int32, 3>> Triangles;
-		Chaos::FConvexBuilder::BuildConvexHull(ConvexParticles, Triangles);
+		Chaos::FConvexBuilder::Params BuildParams;
+		BuildParams.HorizonEpsilon = Chaos::FConvexBuilder::SuggestEpsilon(ConvexParticles);
+		Chaos::FConvexBuilder::BuildConvexHull(ConvexParticles, Triangles, BuildParams);
 
 		ResultIndexData.Reserve(Triangles.Num() * 3);
 		for (Chaos::TVector<int32, 3> Tri : Triangles)
