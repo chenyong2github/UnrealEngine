@@ -86,7 +86,7 @@ namespace
 	class NinePoints
 	{
 	public:
-		NinePoints(){ aa = ab = ac = ba = bb = bc = ca = cb = cc; }
+		NinePoints(){ aa = ab = ac = ba = bb = bc = ca = cb = cc = 0; }
 		float aa, ab, ac, ba, bb, bc, ca, cb, cc;
 	};
 

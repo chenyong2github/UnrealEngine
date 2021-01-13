@@ -25,7 +25,7 @@ namespace Audio
 
 	FEnvelopeFollower::FEnvelopeFollower(const float InSampleRate, const float InAttackTimeMsec, const float InReleaseTimeMSec, const EPeakMode::Type InMode, const bool bInIsAnalg)
 	{
-		Init(InSampleRate, InAttackTimeMsec, InReleaseTimeMSec, InMode, bIsAnalog);
+		Init(InSampleRate, InAttackTimeMsec, InReleaseTimeMSec, InMode, bInIsAnalg);
 	}
 
 	FEnvelopeFollower::~FEnvelopeFollower()
