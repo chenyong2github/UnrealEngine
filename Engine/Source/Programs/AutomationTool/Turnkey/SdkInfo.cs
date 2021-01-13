@@ -21,9 +21,11 @@ namespace Turnkey
 			AutoSdk_VariableExists = 1,
 			AutoSdk_ValidVersionExists = 2,
 			AutoSdk_InvalidVersionExists = 4,
-			// InstalledSdk_BuildOnlyWasInstalled = 8,
+			
+			InstalledSdk_ValidInactiveVersionExists = 8,
 			InstalledSdk_ValidVersionExists = 16,
 			InstalledSdk_InvalidVersionExists = 32,
+
 			Platform_ValidHostPrerequisites = 64,
 			Platform_InvalidHostPrerequisites = 128,
 
@@ -106,6 +108,16 @@ namespace Turnkey
 				else
 				{
 					Result |= LocalAvailability.InstalledSdk_InvalidVersionExists;
+				}
+			}
+
+
+			// look for other, inactive, versions
+			foreach (string AlternateVersion in SDK.GetAllInstalledSDKVersions())
+			{
+				if (SDK.IsVersionValid(AlternateVersion, bForAutoSDK: false))
+				{
+					Result |= LocalAvailability.InstalledSdk_ValidInactiveVersionExists;
 				}
 			}
 

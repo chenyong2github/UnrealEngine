@@ -172,6 +172,26 @@ namespace EpicGames.Core
 		public abstract string GetMainVersion();
 
 		/// <summary>
+		/// Return a list of full SDK versions that are already installed and can be quickly switched to without running any installers.
+		/// </summary>
+		/// <returns></returns>
+		public virtual string[] GetAllInstalledSDKVersions()
+		{
+			return new string[] { };
+		}
+
+		/// <summary>
+		/// Switch to another version of the SDK than what GetInstalledSDKVersion() returns. This will be one of the versions returned from GetAllInstalledSDKVersions()
+		/// </summary>
+		/// <param name="Version">String name of the version to switch to</param>
+		/// <param name="bSwitchForThisProcessOnly">If true, only switch for this process (usually via process environment variable). If false, switch permanently (usually via system-wide environment variable)</param>
+		/// <returns>True if successful</returns>
+		public virtual bool SwitchToAlternateSDK(string Version, bool bSwitchForThisProcessOnly)
+		{
+			return false;
+		}
+
+		/// <summary>
 		/// Gets the valid string range of Sdk versions. TryConvertVersionToInt() will need to succeed to make this usable for range checks
 		/// </summary>
 		/// <param name="MinVersion">Smallest version allowed</param>

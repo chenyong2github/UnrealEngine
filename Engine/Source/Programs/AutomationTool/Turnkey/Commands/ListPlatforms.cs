@@ -40,6 +40,9 @@ namespace Turnkey.Commands
 				TurnkeyUtils.Log("  Valid Manual SDK Installed? {0}", bIsManualSdkValid);
 				TurnkeyUtils.Log("  Valid Auto SDK Installed? {0}", bIsAutoSdkValid);
 
+				string[] AllVersions = SDK.GetAllInstalledSDKVersions();
+				TurnkeyUtils.Log("  AllVersions Installed: {0}", string.Join(",", AllVersions));
+
 				// look for available sdks
 				List<FileSource> MatchingFullSdks = TurnkeyManifest.FilterDiscoveredFileSources(TargetPlatform, FileSource.SourceType.Full);
 				if (MatchingFullSdks == null || MatchingFullSdks.Count == 0)

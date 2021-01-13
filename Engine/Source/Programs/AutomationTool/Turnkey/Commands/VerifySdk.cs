@@ -97,6 +97,8 @@ namespace Turnkey.Commands
 
 			CopyProviderRetriever Retriever = new CopyProviderRetriever();
 
+			TurnkeyUtils.StartTrackingExternalEnvVarChanges();
+
 			// check all the platforms
 			foreach (var Pair in PlatformsAndDevices)
 			{
@@ -157,6 +159,24 @@ namespace Turnkey.Commands
 // 								continue;
 // 							}
 // 						}
+
+					// if the platform has a valid sdk but isn't the "installed one", then try to switch to it
+					if ((LocalState & SdkUtils.LocalAvailability.InstalledSdk_ValidInactiveVersionExists) != 0)
+					{
+
+						// find the highest number that is valid (because a valid version exists, we know there will be at least one valid version)
+						string BestAlternateVersion = PlatformSDK.GetAllInstalledSDKVersions().ToList().OrderByDescending(x => x).Where(x => PlatformSDK.IsVersionValid(x, false)).First();
+
+						bool bWasSwitched = PlatformSDK.SwitchToAlternateSDK(BestAlternateVersion, false);
+
+						if (bWasSwitched == true)
+						{
+							TurnkeyUtils.Log("Fast-switched to already-installed version {0}", BestAlternateVersion);
+
+							// if SwitchToAlternateSDK returns true, then we are good to go!
+							continue;
+						}
+					}
 
 					FileSource BestSdk = null;
 					// find the best Sdk, prioritizing as request
@@ -269,6 +289,8 @@ namespace Turnkey.Commands
 					}
 				}
 			}
+
+			TurnkeyUtils.EndTrackingExternalEnvVarChanges();
 		}
 	}
 }
