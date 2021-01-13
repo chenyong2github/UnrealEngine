@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AppleControllerInterface.h"
+#include "HAL/PlatformTime.h"
 
 DEFINE_LOG_CATEGORY(LogAppleController);
 
