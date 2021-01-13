@@ -9,11 +9,10 @@
 
 namespace Metasound
 {
-	class METASOUNDSTANDARDNODES_API FAudioMultiplyNode : public FNodeFacade
+	class METASOUNDSTANDARDNODES_API FGainMultiplyNode : public FNodeFacade
 	{
 		public:
-			FAudioMultiplyNode(const FString& InInstanceName);
-			FAudioMultiplyNode(const FNodeInitData& InInitData);
+			FGainMultiplyNode(const FString& InInstanceName);
+			FGainMultiplyNode(const FNodeInitData& InInitData);
 	};
-
 } // namespace Metasound

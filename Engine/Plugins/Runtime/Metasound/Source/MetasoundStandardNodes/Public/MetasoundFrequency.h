@@ -66,10 +66,40 @@ namespace Metasound
 				: FFrequency(InValue, EFrequencyResolution::Hertz)
 			{}
 
+			/** Implicit operator used for math operations. */
+			operator float() const
+			{
+				return FrequencyInHz;
+			}
+
+			FFrequency& operator+=(const FFrequency& InOther)
+			{
+				FrequencyInHz += InOther.GetHertz();
+				return *this;
+			}
+
+			FFrequency& operator-=(const FFrequency& InOther)
+			{
+				FrequencyInHz += InOther.GetHertz();
+				return *this;
+			}
+
+			FFrequency& operator*=(const FFrequency& InOther)
+			{
+				FrequencyInHz *= InOther.GetHertz();
+				return *this;
+			}
+
+			FFrequency& operator/=(const FFrequency& InOther)
+			{
+				FrequencyInHz /= InOther.GetHertz();
+				return *this;
+			}
+
 			/** Set the frequency in hertz. */
 			void SetHertz(float InHz)
 			{
-				FrequencyInHz = InHz;	
+				FrequencyInHz = InHz;
 			}
 
 			/** Set the frequency in kilohertz. */
@@ -81,7 +111,7 @@ namespace Metasound
 			/** Set the frequency in megahertz. */
 			void SetMegahertz(float InMHz)
 			{
-				FrequencyInHz = InMHz * 1e6f; 
+				FrequencyInHz = InMHz * 1e6f;
 			}
 
 			/** Set the frequency in radians per a sample.

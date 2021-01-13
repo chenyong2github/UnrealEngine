@@ -3,16 +3,13 @@
 
 #include "DSP/Dsp.h"
 #include "MetasoundBop.h"
-#include "MetasoundOperatorInterface.h"
-#include "MetasoundOscNode.h"
-#include "MetasoundAudioMultiplyNode.h"
-#include "MetasoundADSRNode.h"
-#include "MetasoundPeriodicTriggerNode.h"
-#include "MetasoundOutputNode.h"
+#include "MetasoundFrequency.h"
+#include "MetasoundGraph.h"
 #include "MetasoundInputNode.h"
 #include "MetasoundOperatorBuilder.h"
-#include "MetasoundGraph.h"
-#include "MetasoundFrequency.h"
+#include "MetasoundOperatorInterface.h"
+#include "MetasoundOutputNode.h"
+
 
 namespace Metasound
 {
