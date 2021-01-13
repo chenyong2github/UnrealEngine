@@ -2,6 +2,8 @@
 
 #include "Chaos/GeometryParticleBuffer.h"
 #include "Chaos/PBDRigidParticleBuffer.h"
+#include "Chaos/ImplicitObject.h"
+#include "Chaos/Framework/PhysicsSolverBase.h"
 
 namespace Chaos
 {
@@ -179,6 +181,26 @@ void FGeometryParticleBuffer::MarkDirty(const EParticleFlags DirtyBits, bool bIn
 				PhysicsSolverBase->AddDirtyProxy(Proxy);
 			}
 		}
+	}
+}
+
+void FGeometryParticleBuffer::SetProxy(IPhysicsProxyBase* InProxy)
+{
+	Proxy = InProxy;
+	if (Proxy)
+	{
+		if (MDirtyFlags.IsDirty())
+		{
+			if (FPhysicsSolverBase* PhysicsSolverBase = Proxy->GetSolver<FPhysicsSolverBase>())
+			{
+				PhysicsSolverBase->AddDirtyProxy(Proxy);
+			}
+		}
+	}
+
+	for (auto& Shape : MShapesArray)
+	{
+		Shape->SetProxy(Proxy);
 	}
 }
 
