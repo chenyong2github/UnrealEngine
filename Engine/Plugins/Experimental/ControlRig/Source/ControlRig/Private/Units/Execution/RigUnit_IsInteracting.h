@@ -19,5 +19,5 @@ struct CONTROLRIG_API FRigUnit_IsInteracting : public FRigUnit
 
 	// The execution result
 	UPROPERTY(EditAnywhere, Transient, DisplayName = "Interacting", Category = "Execution", meta = (Output))
-	bool bIsInteracting;
+	bool bIsInteracting = false;
 };
