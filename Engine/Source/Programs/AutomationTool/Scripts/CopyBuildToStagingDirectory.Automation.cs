@@ -2424,6 +2424,13 @@ public partial class Project : CommandUtils
 						Dictionary<string, string> IoStoreResponseFile = new Dictionary<string, string>();
 						foreach (var Entry in PakParams.UnrealPakResponseFile)
 						{
+							// Temporary solution to filter non cooked packages from I/O store container file(s)
+							if (SC.OnlyAllowPackagesFromStdCookPathInIoStore && !Entry.Key.ToLower().Contains("\\saved\\cooked\\"))
+							{
+								UnrealPakResponseFile.Add(Entry.Key, Entry.Value);
+								continue;
+							}
+
 							if (Path.GetExtension(Entry.Key).Contains(".uasset") ||
 								Path.GetExtension(Entry.Key).Contains(".umap"))
 							{

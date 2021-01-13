@@ -100,6 +100,16 @@ DECLARE_INTRINSIC_TYPE_LAYOUT(FBulkDataAllocation);
 typedef TFunction<void(bool bWasCancelled, IBulkDataIORequest*)> FBulkDataIORequestCallBack;
 
 /**
+ * Creates a bulk data request from the I/O store backend.
+ */
+TUniquePtr<IBulkDataIORequest> CreateBulkDataIoDispatcherRequest(
+	const FIoChunkId& InChunkID,
+	int64 InOffsetInBulkData = 0,
+	int64 InBytesToRead = INDEX_NONE,
+	FBulkDataIORequestCallBack* InCompleteCallback = nullptr,
+	uint8* InUserSuppliedMemory = nullptr);
+
+/**
  * @documentation @todo documentation
  */
 class COREUOBJECT_API FBulkDataBase

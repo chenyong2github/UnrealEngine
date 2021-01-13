@@ -4181,7 +4181,7 @@ void UAssetManager::RefreshAssetData(UObject* ChangedObject)
 	{
 		// Same AssetId, this will update cache out of the in memory object
 		UClass* Class = Cast<UClass>(ChangedObject);
-		FAssetData NewData(Class ? Class->ClassGeneratedBy : ChangedObject);
+		FAssetData NewData(Class && Class->ClassGeneratedBy ? Class->ClassGeneratedBy : ChangedObject);
 
 		if (ensure(NewData.IsValid()))
 		{

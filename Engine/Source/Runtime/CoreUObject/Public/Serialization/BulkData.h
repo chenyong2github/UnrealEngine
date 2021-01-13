@@ -11,6 +11,9 @@
 #include "Serialization/FileRegions.h"
 #include "BulkDataCommon.h"
 #include "BulkData2.h"
+#if WITH_IOSTORE_IN_EDITOR
+#include "UObject/PackageId.h"
+#endif
 
 #if WITH_EDITOR == 0 && WITH_EDITORONLY_DATA == 0 //Runtime
 	#define USE_NEW_BULKDATA 1 // Set to 1 to enable 
@@ -446,7 +449,7 @@ public:
 	*/
 	bool IsUsingIODispatcher() const
 	{
-		return false;
+		return (BulkDataFlags & BULKDATA_UsesIoDispatcher) != 0;
 	}
 
 	/**
@@ -738,6 +741,18 @@ private:
 	void DetachFromArchive( FArchive* Ar, bool bEnsureBulkDataIsLoaded );
 #endif // WITH_EDITOR
 
+#if WITH_IOSTORE_IN_EDITOR
+	/**
+	 * Serialize bulk data structure from I/O store.
+	 *
+	 * @param Ar	Archive to serialize with
+	 * @param Owner	Object owning the bulk data
+	 * @param Idx	Index of bulk data item being serialized
+	 * @param bAttemptFileMapping	If true, attempt to map this instead of loading it into malloc'ed memory
+	 */
+	void SerializeFromIoStore( FArchive& Ar, UObject* Owner, int32 Idx, bool bAttemptFileMapping );
+#endif
+
 	/*-----------------------------------------------------------------------------
 		Internal helpers
 	-----------------------------------------------------------------------------*/
@@ -824,6 +839,10 @@ protected:
 	/** weak pointer to the linker this bulk data originally belonged to. */
 	TWeakObjectPtr<UPackage> Package;
 #endif // WITH_EDITOR
+#if WITH_IOSTORE_IN_EDITOR
+	/** Package ID used for creating I/O chunk IDs */
+	FPackageId			PackageId;
+#endif
 };
 
 template<typename ElementType>

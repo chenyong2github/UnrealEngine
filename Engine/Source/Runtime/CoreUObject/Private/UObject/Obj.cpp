@@ -1137,7 +1137,7 @@ void UObject::PostLoadSubobjects( FObjectInstancingGraph* OuterInstanceGraph/*=N
 
 		// Cooked data will already have its subobjects fully instanced as uninstanced subobjects are only due to newly introduced subobjects in
 		// an archetype that an instance of that object hasn't been saved with
-		if (!FPlatformProperties::RequiresCookedData())
+		if (!FPlatformProperties::RequiresCookedData() && !GetPackage()->HasAnyPackageFlags(PKG_Cooked))
 		{
 			FObjectInstancingGraph CurrentInstanceGraph;
 

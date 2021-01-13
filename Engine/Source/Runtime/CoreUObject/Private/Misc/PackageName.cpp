@@ -1038,8 +1038,11 @@ bool FPackageName::DoesPackageExist(const FString& LongPackageName, const FGuid*
 
 			return true;
 		}
-
-		return false;
+	
+		// Try to find uncooked packages on disk when I/O store is enabled in editor builds
+#if !WITH_IOSTORE_IN_EDITOR
+		return false; 
+#endif
 	}
 
 	// Convert to filename (no extension yet).

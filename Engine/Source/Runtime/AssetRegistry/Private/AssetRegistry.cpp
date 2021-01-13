@@ -68,7 +68,7 @@ FAssetRegistryInterface GAssetRegistryInterface;
 DEFINE_LOG_CATEGORY(LogAssetRegistry);
 
 #if ASSETREGISTRY_ENABLE_PREMADE_REGISTRY_IN_EDITOR 
-int32 LoadPremadeAssetRegistryInEditor = 0;
+int32 LoadPremadeAssetRegistryInEditor = WITH_IOSTORE_IN_EDITOR ? 1 : 0;
 static FAutoConsoleVariableRef CVarLoadPremadeRegistryInEditor(
 	TEXT("AssetRegistry.LoadPremadeRegistryInEditor"),
 	LoadPremadeAssetRegistryInEditor,

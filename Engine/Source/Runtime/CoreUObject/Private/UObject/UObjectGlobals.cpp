@@ -56,6 +56,9 @@
 #include "HAL/LowLevelMemStats.h"
 #include "Misc/CoreDelegates.h"
 #include "ProfilingDebugging/CsvProfiler.h"
+#if WITH_IOSTORE_IN_EDITOR
+#include "IO/IoDispatcher.h"
+#endif
 #include "ProfilingDebugging/LoadTimeTracker.h"
 
 DEFINE_LOG_CATEGORY(LogUObjectGlobals);
@@ -1093,8 +1096,11 @@ UPackage* LoadPackageInternal(UPackage* InOuter, const TCHAR* InLongPackageNameO
 
 	UPackage* Result = nullptr;
 
-	if (FPlatformProperties::RequiresCookedData() && GEventDrivenLoaderEnabled
-		&& EVENT_DRIVEN_ASYNC_LOAD_ACTIVE_AT_RUNTIME
+	if ((FPlatformProperties::RequiresCookedData() && GEventDrivenLoaderEnabled
+		&& EVENT_DRIVEN_ASYNC_LOAD_ACTIVE_AT_RUNTIME)
+#if WITH_IOSTORE_IN_EDITOR
+		|| FIoDispatcher::IsInitialized()
+#endif
 		)
 	{
 		FString InName;
@@ -1119,7 +1125,11 @@ UPackage* LoadPackageInternal(UPackage* InOuter, const TCHAR* InLongPackageNameO
 		}
 
 		FName PackageFName(*InPackageName);
-
+#if WITH_IOSTORE_IN_EDITOR
+		// Use the old loader if an uncooked package exists on disk
+		const bool bDoesUncookedPackageExist = FPackageName::DoesPackageExist(InPackageName, nullptr, nullptr, true) && !DoesPackageExistInIoStore(FName(*InPackageName));
+		if (!bDoesUncookedPackageExist)
+#endif
 		{
 			if (FCoreDelegates::OnSyncLoadPackage.IsBound())
 			{
@@ -1132,10 +1142,10 @@ UPackage* LoadPackageInternal(UPackage* InOuter, const TCHAR* InLongPackageNameO
 			{
 				FlushAsyncLoading(RequestID);
 			}
-		}
 
-		Result = (InOuter ? InOuter : FindObjectFast<UPackage>(nullptr, PackageFName));
-		return Result;
+			Result = (InOuter ? InOuter : FindObjectFast<UPackage>(nullptr, PackageFName));
+			return Result;
+		}
 	}
 
 	FString FileToLoad;

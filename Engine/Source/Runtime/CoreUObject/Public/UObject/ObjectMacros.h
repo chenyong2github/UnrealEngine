@@ -111,7 +111,7 @@ enum EPackageFlags
 	PKG_EditorOnly					= 0x00000040,	///< This is editor-only package (for example: editor module script package)
 	PKG_Developer					= 0x00000080,	///< Developer module
 	PKG_UncookedOnly				= 0x00000100,	///< Loaded only in uncooked builds (i.e. runtime in editor)
-//	PKG_Unused						= 0x00000200,
+	PKG_Cooked						= 0x00000200,	///< Package is cooked
 //	PKG_Unused						= 0x00000400,
 //	PKG_Unused						= 0x00000800,
 //	PKG_Unused						= 0x00001000,
