@@ -12,6 +12,8 @@
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FBoneWeightTestBasic, "System.AnimationCore.BoneWeight.Basic", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::SmokeFilter)
 bool FBoneWeightTestBasic::RunTest(const FString& Parameters)
 {
+	using namespace UE::AnimationCore;
+
 	// Correct values (uint8)
 	{
 		FBoneWeight BWMin(FBoneIndexType(2), uint8(0));
@@ -75,6 +77,8 @@ bool FBoneWeightTestBasic::RunTest(const FString& Parameters)
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FBoneWeightsSettingsTest, "System.AnimationCore.BoneWeights.Settings", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::SmokeFilter)
 bool FBoneWeightsSettingsTest::RunTest(const FString& Parameters)
 {
+	using namespace UE::AnimationCore;
+
 	// Ensure that no-one's tampered with the defaults.
 	FBoneWeightsSettings S;
 
@@ -88,6 +92,8 @@ bool FBoneWeightsSettingsTest::RunTest(const FString& Parameters)
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FBoneWeightsTestBasic, "System.AnimationCore.BoneWeights.Basic", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::SmokeFilter)
 bool FBoneWeightsTestBasic::RunTest(const FString& Parameters)
 {
+	using namespace UE::AnimationCore;
+
 	{
 		const TCHAR* Name = TEXT("FBoneWeights::FBoneWeights");
 
@@ -348,6 +354,8 @@ bool FBoneWeightsTestBasic::RunTest(const FString& Parameters)
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FBoneWeightsTestCreate, "System.AnimationCore.BoneWeights.Create", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::SmokeFilter)
 bool FBoneWeightsTestCreate::RunTest(const FString& Parameters)
 {
+	using namespace UE::AnimationCore;
+
 	{
 		static const FBoneIndexType Bones[MaxInlineBoneWeightCount] = { 0, 1, 2, 3, 0, 0, 0, 0, 0, 0, 0, 0 };
 		static const uint8 Influences[MaxInlineBoneWeightCount] = { 255, 31, 63, 127, 0, 0, 0, 0, 0, 0, 0, 0 };
@@ -407,10 +415,12 @@ struct FSimpleWeight
 	float Weight;
 };
 
-static FBoneWeights CreateWeights(
+static UE::AnimationCore::FBoneWeights CreateWeights(
 	std::initializer_list<FSimpleWeight> InWeights
 	)
 {
+	using namespace UE::AnimationCore;
+
 	// We only add raw values.
 	FBoneWeightsSettings S;
 	S.SetNormalizeType(EBoneWeightNormalizeType::None);
@@ -429,6 +439,8 @@ static FBoneWeights CreateWeights(
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FBoneWeightsTestBlend, "System.AnimationCore.BoneWeights.Blend", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::SmokeFilter)
 bool FBoneWeightsTestBlend::RunTest(const FString& Parameters)
 {
+	using namespace UE::AnimationCore;
+
 	{
 		const TCHAR* Name = TEXT("FBoneWeights::Blend[Both Empty]");
 		auto BWA = CreateWeights({});
