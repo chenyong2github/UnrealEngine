@@ -282,6 +282,7 @@ struct FBoneWeightNullAdapter
 
 	static int32 Num(const ContainerType& InContainer)
 	{
+		return INDEX_NONE;
 	}
 
 	static FBoneWeight Get(const ContainerType& InContainer, int32 InIndex)
