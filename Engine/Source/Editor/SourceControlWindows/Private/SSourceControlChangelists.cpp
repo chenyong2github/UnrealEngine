@@ -61,6 +61,11 @@ SSourceControlChangelistsWidget::SSourceControlChangelistsWidget()
 
 void SSourceControlChangelistsWidget::Construct(const FArguments& InArgs)
 {
+	// Register delegates
+	ISourceControlModule& SCCModule = ISourceControlModule::Get();
+	SCCModule.RegisterProviderChanged(FSourceControlProviderChanged::FDelegate::CreateSP(this, &SSourceControlChangelistsWidget::OnSourceControlProviderChanged));
+	SourceControlStateChangedDelegateHandle = SCCModule.GetProvider().RegisterSourceControlStateChanged_Handle(FSourceControlStateChanged::FDelegate::CreateSP(this, &SSourceControlChangelistsWidget::OnSourceControlStateChanged));
+
 	TreeView = CreateTreeviewWidget();
 
 	Refresh();
@@ -76,37 +81,65 @@ void SSourceControlChangelistsWidget::Construct(const FArguments& InArgs)
 
 void SSourceControlChangelistsWidget::Refresh()
 {
-	ISourceControlModule& SourceControlModule = ISourceControlModule::Get();
-	ISourceControlProvider& SourceControlProvider = SourceControlModule.GetProvider();
+	if (ISourceControlModule::Get().IsEnabled())
+	{
+		UpdatePendingChangelistsOperation = ISourceControlOperation::Create<FUpdatePendingChangelistsStatus>();
+		UpdatePendingChangelistsOperation->SetUpdateAllChangelists(true);
+		UpdatePendingChangelistsOperation->SetUpdateFilesStates(true);
 
-	UpdatePendingChangelistsOperation = ISourceControlOperation::Create<FUpdatePendingChangelistsStatus>();
-	UpdatePendingChangelistsOperation->SetUpdateAllChangelists(true);
-	UpdatePendingChangelistsOperation->SetUpdateFilesStates(true);
+		ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
+		SourceControlProvider.Execute(UpdatePendingChangelistsOperation.ToSharedRef(), EConcurrency::Asynchronous, FSourceControlOperationComplete::CreateSP(this, &SSourceControlChangelistsWidget::OnChangelistsStatusUpdated));
+	}
+	else
+	{
+		// No provider available, clear changelist tree
+		ChangelistsNodes.Empty();
+		TreeView->RequestTreeRefresh();
+	}
+}
 
-	SourceControlProvider.Execute(UpdatePendingChangelistsOperation.ToSharedRef(), EConcurrency::Asynchronous, FSourceControlOperationComplete::CreateSP(this, &SSourceControlChangelistsWidget::OnChangelistsStatusUpdated));
+void SSourceControlChangelistsWidget::OnSourceControlProviderChanged(ISourceControlProvider& OldProvider, ISourceControlProvider& NewProvider)
+{
+	OldProvider.UnregisterSourceControlStateChanged_Handle(SourceControlStateChangedDelegateHandle);
+	SourceControlStateChangedDelegateHandle = NewProvider.RegisterSourceControlStateChanged_Handle(FSourceControlStateChanged::FDelegate::CreateSP(this, &SSourceControlChangelistsWidget::OnSourceControlStateChanged));
+
+	OnSourceControlStateChanged();
+}
+
+void SSourceControlChangelistsWidget::OnSourceControlStateChanged()
+{
+	Refresh();
 }
 
 void SSourceControlChangelistsWidget::OnChangelistsStatusUpdated(const FSourceControlOperationRef& InOperation, ECommandResult::Type InType)
 {
-	ISourceControlModule& SourceControlModule = ISourceControlModule::Get();
-	ISourceControlProvider& SourceControlProvider = SourceControlModule.GetProvider();
-
-	TArray<FSourceControlChangelistStateRef> ChangelistsStates;
-	SourceControlProvider.GetState(SourceControlProvider.GetChangelists(EStateCacheUsage::Use), ChangelistsStates, EStateCacheUsage::Use);
-
-	ChangelistsNodes.Reset(ChangelistsStates.Num());
-
-	for (FSourceControlChangelistStateRef ChangelistState : ChangelistsStates)
+	if (ISourceControlModule::Get().IsEnabled())
 	{
-		FChangelistTreeItemRef ChangelistTreeItem = MakeShareable(new FChangelistTreeItem(ChangelistState));
+		ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
 
-		for (FSourceControlStateRef FileRef : ChangelistState->GetFilesStates())
+		TArray<FSourceControlChangelistRef> Changelists = SourceControlProvider.GetChangelists(EStateCacheUsage::Use);
+
+		TArray<FSourceControlChangelistStateRef> ChangelistsStates;
+		SourceControlProvider.GetState(Changelists, ChangelistsStates, EStateCacheUsage::Use);
+
+		ChangelistsNodes.Reset(ChangelistsStates.Num());
+
+		for (FSourceControlChangelistStateRef ChangelistState : ChangelistsStates)
 		{
-			FChangelistTreeItemRef FileTreeItem = MakeShareable(new FFileTreeItem(FileRef));
-			ChangelistTreeItem->AddChild(FileTreeItem);
-		}
+			FChangelistTreeItemRef ChangelistTreeItem = MakeShareable(new FChangelistTreeItem(ChangelistState));
 
-		ChangelistsNodes.Add(ChangelistTreeItem);
+			for (FSourceControlStateRef FileRef : ChangelistState->GetFilesStates())
+			{
+				FChangelistTreeItemRef FileTreeItem = MakeShareable(new FFileTreeItem(FileRef));
+				ChangelistTreeItem->AddChild(FileTreeItem);
+			}
+
+			ChangelistsNodes.Add(ChangelistTreeItem);
+		}
+	}
+	else
+	{
+		ChangelistsNodes.Empty();
 	}
 
 	TreeView->RequestTreeRefresh();

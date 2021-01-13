@@ -93,6 +93,9 @@ private:
 	void Refresh();
 	void OnChangelistsStatusUpdated(const FSourceControlOperationRef&, ECommandResult::Type);
 
+	void OnSourceControlStateChanged();
+	void OnSourceControlProviderChanged(ISourceControlProvider& OldProvider, ISourceControlProvider& NewProvider);
+
 private:
 
 	/** Changelists (root nodes) */
@@ -102,4 +105,7 @@ private:
 	TSharedPtr<SChangelistTree> TreeView;
 
 	TSharedPtr<class FUpdatePendingChangelistsStatus, ESPMode::ThreadSafe> UpdatePendingChangelistsOperation;
+
+	/** Source control state changed delegate handle */
+	FDelegateHandle SourceControlStateChangedDelegateHandle;
 };
