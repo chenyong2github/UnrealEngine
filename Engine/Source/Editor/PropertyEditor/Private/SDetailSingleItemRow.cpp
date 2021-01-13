@@ -519,7 +519,7 @@ void SDetailSingleItemRow::Construct( const FArguments& InArgs, FDetailLayoutCus
 			OuterSplitter->AddSlot()
 				.Value(ColumnSizeData.RightColumnWidth)
 				.OnSlotResized(ColumnSizeData.OnRightColumnResized)
-				.MinSize(40)
+				.MinSize(50)
 			[
 				RightColumnBox
 			];
