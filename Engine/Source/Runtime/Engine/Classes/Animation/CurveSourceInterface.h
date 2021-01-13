@@ -26,7 +26,7 @@ struct ENGINE_API FNamedCurveValue
 
 	/** The value of the curve */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Curve")
-	float Value;
+	float Value = 0.f;
 };
 
 /** A source for curves */
