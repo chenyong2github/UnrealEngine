@@ -2454,7 +2454,7 @@ void FOpenGLFrontend::CompileShader(const FShaderCompilerInput& Input, FShaderCo
 #if VALIDATE_GLSL_WITH_DRIVER
 		PrecompileShader(Output, Input, GlslShaderSource, Version, Frequency);
 #else // VALIDATE_GLSL_WITH_DRIVER
-		int32 SourceLen = FCStringAnsi::Strlen(GlslShaderSource);
+		int32 SourceLen = FCStringAnsi::Strlen(GlslShaderSource); //-V595
 		Output.Target = Input.Target;
 		BuildShaderOutput(Output, Input, GlslShaderSource, SourceLen, Version);
 #endif // VALIDATE_GLSL_WITH_DRIVER

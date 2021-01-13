@@ -586,7 +586,10 @@ bool FADPCMAudioInfo::StreamCompressedData(uint8* Destination, bool bLooping, ui
 	if (bDecompressorReleased)
 	{
 		UE_LOG(LogAudio, Error, TEXT("Stream Compressed Data called after release!"));
-		FMemory::Memzero(Destination, BufferSize);
+		if (Destination != nullptr)
+		{
+			FMemory::Memzero(Destination, BufferSize);
+		}
 		return true;
 	}
 

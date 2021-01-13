@@ -451,7 +451,7 @@ UObject* FDatasmithImporterImpl::FinalizeAsset( UObject* SourceAsset, const TCHA
 
 	TArray< FMigratedTemplatePairType > MigratedTemplates = MigrateTemplates( SourceAsset, ExistingAsset, ReferencesToRemap, false );
 
-	UObject* FinalAsset = PublicizeAsset( SourceAsset, AssetPath, ExistingAsset );
+	UObject* FinalAsset = PublicizeAsset( SourceAsset, AssetPath, ExistingAsset ); //-V595
 
 	ApplyMigratedTemplates( MigratedTemplates, FinalAsset );
 
