@@ -3,10 +3,13 @@
 #include "SNiagaraDebugger.h"
 
 #include "Modules/ModuleManager.h"
+#include "Widgets/Images/SImage.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/SOverlay.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Layout/SScrollBox.h"
+#include "Interfaces/ITargetPlatform.h"
+#include "Interfaces/ITargetPlatformManagerModule.h"
 #include "EditorWidgetsModule.h"
 #include "PropertyEditorModule.h"
 #include "PlatformInfo.h"
