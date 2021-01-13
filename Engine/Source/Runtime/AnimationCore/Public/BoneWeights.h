@@ -42,7 +42,10 @@ public:
 	/**
 	* The maximum raw weight value for a bone influence.
 	*/
-	static constexpr FBoneIndexType MaxRawWeight = TNumericLimits<FBoneIndexType>::Max();
+	static constexpr FBoneIndexType GetMaxRawWeight() 
+	{
+		return TNumericLimits<FBoneIndexType>::Max();
+	}
 
 	/** A standard predicate we use for sorting by weight, in a descending order of weights */
 	static bool DescSortByWeightPredicate(const FBoneWeight& A, const FBoneWeight& B)
@@ -104,7 +107,7 @@ public:
 	void SetWeight(float InWeight)
 	{
 		InWeight = FMath::Clamp(InWeight, 0.0f, 1.0f);
-		RawWeight = uint16(InWeight * float(MaxRawWeight) + 0.5f);
+		RawWeight = uint16(InWeight * float(GetMaxRawWeight()) + 0.5f);
 	}
 
 	/**
@@ -112,7 +115,7 @@ public:
 	*/
 	float GetWeight() const
 	{
-		return RawWeight / float(MaxRawWeight);
+		return RawWeight / float(GetMaxRawWeight());
 	}
 
 	/**
@@ -209,7 +212,7 @@ public:
 	FBoneWeightsSettings& SetWeightThreshold(float InWeightThreshold)
 	{
 		InWeightThreshold = FMath::Clamp(InWeightThreshold, 0.0f, 1.0f);
-		WeightThreshold = uint16(InWeightThreshold * FBoneWeight::MaxRawWeight + 0.5f);
+		WeightThreshold = uint16(InWeightThreshold * FBoneWeight::GetMaxRawWeight() + 0.5f);
 		WeightThreshold = FMath::Max(WeightThreshold, uint16(1));
 		return *this;
 	}
@@ -740,7 +743,7 @@ void TBoneWeights<ContainerAdapter>::SetBoneWeightsInternal(
 	if (NumEntries == 0 && InSettings.HasDefaultBoneIndex())
 	{
 		ContainerAdapter::SetNum(Container, 1);
-		ContainerAdapter::Set(Container, 0, FBoneWeight(InSettings.GetDefaultBoneIndex(), FBoneWeight::MaxRawWeight));
+		ContainerAdapter::Set(Container, 0, FBoneWeight(InSettings.GetDefaultBoneIndex(), FBoneWeight::GetMaxRawWeight()));
 		return;
 	}
 
@@ -898,7 +901,7 @@ void TBoneWeights<ContainerAdapter>::Blend(
 		if (InSettings.HasDefaultBoneIndex())
 		{
 			ContainerAdapter::SetNum(Container, 1);
-			ContainerAdapter::Set(Container, 0, FBoneWeight{InSettings.GetDefaultBoneIndex(), FBoneWeight::MaxRawWeight});
+			ContainerAdapter::Set(Container, 0, FBoneWeight{InSettings.GetDefaultBoneIndex(), FBoneWeight::GetMaxRawWeight()});
 		}
 		else
 		{
@@ -934,8 +937,8 @@ void TBoneWeights<ContainerAdapter>::Blend(
 	TArray<FBoneWeight, TInlineAllocator<MaxInlineBoneWeightCount * 2>> BoneWeights;
 	BoneWeights.Reserve(InBoneWeightsA.Num() + InBoneWeightsB.Num());
 
-	int32 RawBiasB = int32(InBias * float(FBoneWeight::MaxRawWeight));
-	int32 RawBiasA = FBoneWeight::MaxRawWeight - RawBiasB;
+	int32 RawBiasB = int32(InBias * float(FBoneWeight::GetMaxRawWeight()));
+	int32 RawBiasA = FBoneWeight::GetMaxRawWeight() - RawBiasB;
 
 	int32 IndexA = 0, IndexB = 0;
 	for (; IndexA < InBoneWeightsA.Num() && IndexB < InBoneWeightsB.Num(); /**/)
@@ -949,7 +952,7 @@ void TBoneWeights<ContainerAdapter>::Blend(
 		// advance until we hit the end of either array after which we blindly copy the remains.
 		if (BWA.GetBoneIndex() == BWB.GetBoneIndex())
 		{
-			uint16 RawWeight = (BWA.GetRawWeight() * RawBiasA + BWB.GetRawWeight() * RawBiasB) / FBoneWeight::MaxRawWeight;
+			uint16 RawWeight = (BWA.GetRawWeight() * RawBiasA + BWB.GetRawWeight() * RawBiasB) / FBoneWeight::GetMaxRawWeight();
 
 			BoneWeights.Emplace(BWA.GetBoneIndex(), RawWeight);
 			IndexA++;
@@ -1035,7 +1038,7 @@ void TBoneWeights<ContainerAdapter>::NormalizeWeights(
 		{
 			// Set the weight to full for the sole entry if normalizing always.
 			FBoneWeight BoneWeight = ContainerAdapter::Get(Container, 0);
-			BoneWeight.SetRawWeight(FBoneWeight::MaxRawWeight);
+			BoneWeight.SetRawWeight(FBoneWeight::GetMaxRawWeight());
 			ContainerAdapter::Set(Container, 0, BoneWeight);
 		}
 		return;
@@ -1050,7 +1053,7 @@ void TBoneWeights<ContainerAdapter>::NormalizeWeights(
 	}
 
 	if ((InNormalizeType == EBoneWeightNormalizeType::Always && ensure(WeightSum != 0)) ||
-		WeightSum > FBoneWeight::MaxRawWeight)
+		WeightSum > FBoneWeight::GetMaxRawWeight())
 	{
 		int64 Correction = 0;
 
@@ -1062,8 +1065,8 @@ void TBoneWeights<ContainerAdapter>::NormalizeWeights(
 		for (int32 Index = 0; Index < NumWeights; Index++)
 		{
 			FBoneWeight BW = ContainerAdapter::Get(Container, Index);
-			int64 ScaledWeight = int64(BW.GetRawWeight()) * FBoneWeight::MaxRawWeight + Correction;
-			BW.SetRawWeight(uint16(FMath::Min(ScaledWeight / WeightSum, int64(FBoneWeight::MaxRawWeight))));
+			int64 ScaledWeight = int64(BW.GetRawWeight()) * FBoneWeight::GetMaxRawWeight() + Correction;
+			BW.SetRawWeight(uint16(FMath::Min(ScaledWeight / WeightSum, int64(FBoneWeight::GetMaxRawWeight()))));
 			Correction = ScaledWeight - BW.GetRawWeight() * WeightSum;
 			ContainerAdapter::Set(Container, Index, BW);
 		}

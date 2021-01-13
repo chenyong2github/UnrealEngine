@@ -136,7 +136,7 @@ void FBoneWeights::NormalizeWeights(
 	{
 		if (InNormalizeType == EBoneWeightNormalizeType::Always)
 		{
-			BoneWeights[0].SetRawWeight(FBoneWeight::MaxRawWeight);
+			BoneWeights[0].SetRawWeight(FBoneWeight::GetMaxRawWeight());
 		}
 		return;
 	}
@@ -150,7 +150,7 @@ void FBoneWeights::NormalizeWeights(
 	}
 
 	if ((InNormalizeType == EBoneWeightNormalizeType::Always && ensure(WeightSum != 0)) ||
-	    WeightSum > FBoneWeight::MaxRawWeight)
+	    WeightSum > FBoneWeight::GetMaxRawWeight())
 	{
 		int64 Correction = 0;
 
@@ -161,8 +161,8 @@ void FBoneWeights::NormalizeWeights(
 		// aren't needlessly lost after scaling.
 		for (FBoneWeight& BW : BoneWeights)
 		{
-			int64 ScaledWeight = int64(BW.GetRawWeight()) * FBoneWeight::MaxRawWeight + Correction;
-			BW.SetRawWeight(uint16(FMath::Min(ScaledWeight / WeightSum, int64(FBoneWeight::MaxRawWeight))));
+			int64 ScaledWeight = int64(BW.GetRawWeight()) * FBoneWeight::GetMaxRawWeight() + Correction;
+			BW.SetRawWeight(uint16(FMath::Min(ScaledWeight / WeightSum, int64(FBoneWeight::GetMaxRawWeight()))));
 			Correction = ScaledWeight - BW.GetRawWeight() * WeightSum;
 		}
 	}

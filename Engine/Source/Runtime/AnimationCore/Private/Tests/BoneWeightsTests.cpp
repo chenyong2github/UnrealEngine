@@ -30,7 +30,7 @@ bool FBoneWeightTestBasic::RunTest(const FString& Parameters)
 
 		FBoneWeight BWMax(FBoneIndexType(0), uint8(255));
 		UTEST_EQUAL(TEXT("FBoneWeight max value (uint8)"), BWMax.GetWeight(), 1.0f);
-		UTEST_EQUAL(TEXT("FBoneWeight max raw value (uint8)"), BWMax.GetRawWeight(), FBoneWeight::MaxRawWeight);
+		UTEST_EQUAL(TEXT("FBoneWeight max raw value (uint8)"), BWMax.GetRawWeight(), FBoneWeight::GetMaxRawWeight());
 	}
 
 	// Correct values (uint16)
@@ -42,12 +42,12 @@ bool FBoneWeightTestBasic::RunTest(const FString& Parameters)
 
 		// Since uint16::max / 2 -is equal to 32767.5
 		FBoneWeight BWMid(FBoneIndexType(0), uint16(0x7FFF));
-		UTEST_EQUAL(TEXT("FBoneWeight mid value (uint16)"), BWMid.GetWeight(), 0x7FFF / float(FBoneWeight::MaxRawWeight));
+		UTEST_EQUAL(TEXT("FBoneWeight mid value (uint16)"), BWMid.GetWeight(), 0x7FFF / float(FBoneWeight::GetMaxRawWeight()));
 		UTEST_EQUAL(TEXT("FBoneWeight mid raw value (uint16)"), BWMid.GetRawWeight(), 0x7FFF);
 
-		FBoneWeight BWMax(FBoneIndexType(0), uint16(FBoneWeight::MaxRawWeight));
+		FBoneWeight BWMax(FBoneIndexType(0), uint16(FBoneWeight::GetMaxRawWeight()));
 		UTEST_EQUAL(TEXT("FBoneWeight max value (uint16)"), BWMax.GetWeight(), 1.0f);
-		UTEST_EQUAL(TEXT("FBoneWeight max raw value (uint16)"), BWMax.GetRawWeight(), FBoneWeight::MaxRawWeight);
+		UTEST_EQUAL(TEXT("FBoneWeight max raw value (uint16)"), BWMax.GetRawWeight(), FBoneWeight::GetMaxRawWeight());
 	}
 
 	// Copy constructor
@@ -125,7 +125,7 @@ bool FBoneWeightsTestBasic::RunTest(const FString& Parameters)
 
 		FBoneWeight BI = A[0];
 		UTEST_EQUAL(Name, BI.GetWeight(), 1.0f);
-		UTEST_EQUAL(Name, BI.GetRawWeight(), FBoneWeight::MaxRawWeight);
+		UTEST_EQUAL(Name, BI.GetRawWeight(), FBoneWeight::GetMaxRawWeight());
 	}
 
 	// Check normalization works
@@ -205,7 +205,7 @@ bool FBoneWeightsTestBasic::RunTest(const FString& Parameters)
 		FBoneWeights A;
 		for (uint32 Index = 0; Index < MaxInlineBoneWeightCount; Index++)
 		{
-			A.SetBoneWeight(FBoneIndexType(Index), Index == 0 ? 1.0f : 2.0f / float(FBoneWeight::MaxRawWeight), SN);
+			A.SetBoneWeight(FBoneIndexType(Index), Index == 0 ? 1.0f : 2.0f / float(FBoneWeight::GetMaxRawWeight()), SN);
 		}
 
 		A.Renormalize(SA);
@@ -225,7 +225,7 @@ bool FBoneWeightsTestBasic::RunTest(const FString& Parameters)
 				UTEST_EQUAL(NameSub, int32(A[Index].GetRawWeight()), 2);
 			}
 		}
-		UTEST_EQUAL(Name, WeightSum, int32(FBoneWeight::MaxRawWeight));
+		UTEST_EQUAL(Name, WeightSum, int32(FBoneWeight::GetMaxRawWeight()));
 
 
 	}
