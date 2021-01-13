@@ -111,7 +111,7 @@ struct FRigUnit_MultiFABRIK_EndEffector
 	 * The transform of the effector in global space
 	 */
 	UPROPERTY(meta = (Input))
-	FVector Location;
+	FVector Location = FVector(0.f);
 };
 /**
  * The FABRIK solver can solve multi chains within a root using multi effectors

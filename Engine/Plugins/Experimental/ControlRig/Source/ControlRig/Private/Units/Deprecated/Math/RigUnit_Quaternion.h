@@ -44,10 +44,10 @@ struct FRigUnit_UnaryQuaternionOp : public FRigUnit
 	GENERATED_BODY()
 
 	UPROPERTY(meta=(Input))
-	FQuat Argument;
+	FQuat Argument = FQuat::Identity;
 
 	UPROPERTY(meta=(Output))
-	FQuat Result;
+	FQuat Result = FQuat::Identity;
 };
 
 USTRUCT(meta = (DisplayName = "Inverse(Quaternion)", Category = "Math|Quaternion", Deprecated="4.23.0"))
@@ -65,13 +65,13 @@ struct FRigUnit_QuaternionToAxisAndAngle : public FRigUnit
 	GENERATED_BODY()
 
 	UPROPERTY(meta = (Input))
-	FQuat Argument;
+	FQuat Argument = FQuat::Identity;
 
 	UPROPERTY(meta = (Output))
-	FVector Axis;
+	FVector Axis = FVector(0.f);
 
 	UPROPERTY(meta = (Output))
-	float Angle;
+	float Angle = 0.f;
 
 	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
