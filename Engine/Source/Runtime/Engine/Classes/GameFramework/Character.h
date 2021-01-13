@@ -621,10 +621,10 @@ public:
 	/** 
 	 * Make the character jump on the next update.	 
 	 * If you want your character to jump according to the time that the jump key is held,
-	 * then you can set JumpKeyHoldTime to some non-zero value. Make sure in this case to
+	 * then you can set JumpMaxHoldTime to some non-zero value. Make sure in this case to
 	 * call StopJumping() when you want the jump's z-velocity to stop being applied (such 
 	 * as on a button up event), otherwise the character will carry on receiving the 
-	 * velocity until JumpKeyHoldTime is reached.
+	 * velocity until JumpKeyHoldTime reaches JumpMaxHoldTime.
 	 */
 	UFUNCTION(BlueprintCallable, Category=Character)
 	virtual void Jump();
