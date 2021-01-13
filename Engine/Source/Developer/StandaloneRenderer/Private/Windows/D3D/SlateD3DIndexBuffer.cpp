@@ -74,8 +74,6 @@ void FSlateD3DIndexBuffer::ResizeBuffer( uint32 NumIndices )
 				FMemory::Memcpy(Indices, SavedIndices, BufferSize);
 
 				Unlock();
-
-				delete[] SavedIndices;
 			}
 
 			MaxNumIndices = NumIndices;
@@ -85,6 +83,8 @@ void FSlateD3DIndexBuffer::ResizeBuffer( uint32 NumIndices )
 			LogSlateD3DRendererFailure(TEXT("FSlateD3DIndexBuffer::ResizeBuffer() - ID3D11Device::CreateBuffer"), Hr);
 			GEncounteredCriticalD3DDeviceError = true;
 		}
+
+		delete[] SavedIndices;
 	}
 }
 

@@ -143,7 +143,7 @@ IBaseFilter* FindEncodingFilter(const FString& Name)
 	IEnumMoniker* EnumIterator = nullptr;
 	if (DeviceDenumerator->CreateClassEnumerator(CLSID_VideoCompressorCategory, &EnumIterator, 0) != S_OK)
 	{
-		return nullptr;
+		return nullptr; //-V773 - Temporary to avoid side effects
 	}
 
 	IMoniker* Moniker = nullptr;

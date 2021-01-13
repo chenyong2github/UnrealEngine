@@ -84,8 +84,6 @@ void FSlateD3DVertexBuffer::ResizeBuffer( uint32 NewSize )
 				FMemory::Memcpy(Vertices, SavedVertices, BufferSize);
 
 				Unlock();
-
-				delete[] SavedVertices;
 			}
 
 			BufferSize = NewSize;
@@ -95,6 +93,8 @@ void FSlateD3DVertexBuffer::ResizeBuffer( uint32 NewSize )
 			LogSlateD3DRendererFailure(TEXT("FSlateD3DVertexBuffer::ResizeBuffer() - ID3D11Device::CreateBuffer"), Hr);
 			GEncounteredCriticalD3DDeviceError = true;
 		}
+
+		delete[] SavedVertices;
 	}
 }
 
