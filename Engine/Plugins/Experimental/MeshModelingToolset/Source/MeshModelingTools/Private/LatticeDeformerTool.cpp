@@ -196,6 +196,8 @@ void ULatticeDeformerTool::StartPreview()
 
 	Preview->Setup(TargetWorld, LatticeDeformOpCreator);
 
+	Preview->SetIsMeshTopologyConstant(true, EMeshRenderAttributeFlags::Positions | EMeshRenderAttributeFlags::VertexNormals);
+
 	FComponentMaterialSet MaterialSet;
 	ComponentTarget->GetMaterialSet(MaterialSet);
 	Preview->ConfigureMaterials(MaterialSet.Materials,

@@ -124,6 +124,18 @@ public:
 	void SetVisibility(bool bVisible);
 
 	/**
+	 * If set to true, then it will be assumed that the mesh topology (i.e. triangle/edge connectivity) remains constant,
+	 * which will allow updates after the first one to modify existing render proxy buffers rather than creating entirely
+	 * new ones. This will give a significant speedup to tools that do not add/remove vertices or affect their connectivity.
+	 *
+	 * @param bOn
+	 * @param ChangingAttributes If bOn is set to true, determines which attributes need updating. For instance, if a tool 
+	 *  moves verts without changing their UV's, then one would probably pass "EMeshRenderAttributeFlags::Positions | EMeshRenderAttributeFlags::VertexNormals".
+	 *  Has no effect if bOn was set to false.
+	 */
+	void SetIsMeshTopologyConstant(bool bOn, EMeshRenderAttributeFlags ChangingAttributes = EMeshRenderAttributeFlags::All);
+
+	/**
 	 * Set time that Preview will wait before showing working material
 	 */
 	void SetWorkingMaterialDelay(float TimeInSeconds) { SecondsBeforeWorkingMaterial = TimeInSeconds; }
@@ -166,6 +178,11 @@ protected:
 	bool bResultValid = false;
 
 	bool bVisible = true;
+
+	// Used for partial/fast updates of the preview mesh render proxy.
+	bool bMeshTopologyIsConstant = false;
+	EMeshRenderAttributeFlags ChangingAttributeFlags = EMeshRenderAttributeFlags::All;
+	bool bMeshInitialized = false;
 
 	float SecondsBeforeWorkingMaterial = 2.0;
 

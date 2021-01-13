@@ -277,13 +277,21 @@ public:
 
 	/**
 	 * Update the internal mesh by copying the given Mesh
+	 * @param Mesh to copy.
+	 * @param UpdateMode Type of rendering update required. Should be FullUpdate if topology changes, otherwise can be FastUpdate.
+	 * @param ModifiedAttribs Only relevant in case of FastUpdate- determines which attributes actually changed.
 	 */
-	void UpdatePreview(const FDynamicMesh3* Mesh);
+	void UpdatePreview(const FDynamicMesh3* Mesh, ERenderUpdateMode UpdateMode = ERenderUpdateMode::FullUpdate, 
+		EMeshRenderAttributeFlags ModifiedAttribs = EMeshRenderAttributeFlags::All);
 
 	/**
 	 * Update the internal mesh by moving in the given Mesh
+	 * @param Mesh to move.
+	 * @param UpdateMode Type of rendering update required. Should be FullUpdate if topology changes, otherwise can be FastUpdate.
+	 * @param ModifiedAttribs Only relevant in case of FastUpdate- determines which attributes actually changed.
 	 */
-	void UpdatePreview(FDynamicMesh3&& Mesh);
+	void UpdatePreview(FDynamicMesh3&& Mesh, ERenderUpdateMode UpdateMode = ERenderUpdateMode::FullUpdate,
+		EMeshRenderAttributeFlags ModifiedAttribs = EMeshRenderAttributeFlags::All);
 
 	/**
 	 * Initialize the internal mesh based on the given MeshDescription
@@ -339,7 +347,7 @@ public:
 	 * but do not update/rebuild rendering data structures. NotifyDeferredEditOcurred() must be
 	 * called to complete a deferred edit, this will update the rendering mesh.
 	 * DeferredEditMesh can be called multiple times before NotifyDeferredEditCompleted() is called.
-	 * @param EditFunc function that is applied to the internal mes
+	 * @param EditFunc function that is applied to the internal mesh
 	 * @param bRebuildSpatial if true, and internal spatial data structure is enabled, rebuild it for updated mesh
 	 */
 	void DeferredEditMesh(TFunctionRef<void(FDynamicMesh3&)> EditFunc, bool bRebuildSpatial);

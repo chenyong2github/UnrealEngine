@@ -224,30 +224,24 @@ void UPreviewMesh::ClearPreview()
 }
 
 
-void UPreviewMesh::UpdatePreview(const FDynamicMesh3* Mesh)
+void UPreviewMesh::UpdatePreview(const FDynamicMesh3* Mesh, ERenderUpdateMode UpdateMode,
+	EMeshRenderAttributeFlags ModifiedAttribs)
 {
 	DynamicMeshComponent->SetDrawOnTop(this->bDrawOnTop);
 
 	DynamicMeshComponent->GetMesh()->Copy(*Mesh);
-	DynamicMeshComponent->NotifyMeshUpdated();
 
-	if (bBuildSpatialDataStructure)
-	{
-		MeshAABBTree.SetMesh(DynamicMeshComponent->GetMesh(), true);
-	}
+	NotifyDeferredEditCompleted(UpdateMode, ModifiedAttribs, bBuildSpatialDataStructure);
 }
 
-void UPreviewMesh::UpdatePreview(FDynamicMesh3&& Mesh)
+void UPreviewMesh::UpdatePreview(FDynamicMesh3&& Mesh, ERenderUpdateMode UpdateMode, 
+	EMeshRenderAttributeFlags ModifiedAttribs)
 {
 	DynamicMeshComponent->SetDrawOnTop(this->bDrawOnTop);
 
 	*(DynamicMeshComponent->GetMesh()) = MoveTemp(Mesh);
-	DynamicMeshComponent->NotifyMeshUpdated();
 
-	if (bBuildSpatialDataStructure)
-	{
-		MeshAABBTree.SetMesh(DynamicMeshComponent->GetMesh(), true);
-	}
+	NotifyDeferredEditCompleted(UpdateMode, ModifiedAttribs, bBuildSpatialDataStructure);
 }
 
 

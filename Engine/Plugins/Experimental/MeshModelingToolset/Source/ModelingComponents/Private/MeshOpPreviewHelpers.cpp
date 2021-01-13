@@ -10,6 +10,7 @@ void UMeshOpPreviewWithBackgroundCompute::Setup(UWorld* InWorld, IDynamicMeshOpe
 
 	BackgroundCompute = MakeUnique<FBackgroundDynamicMeshComputeSource>(OpGenerator);
 	bResultValid = false;
+	bMeshInitialized = false;
 }
 
 FDynamicMeshOpResult UMeshOpPreviewWithBackgroundCompute::Shutdown()
@@ -76,7 +77,14 @@ void UMeshOpPreviewWithBackgroundCompute::UpdateResults()
 
 		TUniquePtr<FDynamicMesh3> ResultMesh = MeshOp->ExtractResult();
 		PreviewMesh->SetTransform((FTransform)MeshOp->GetResultTransform());
-		PreviewMesh->UpdatePreview(ResultMesh.Get());  // copies the mesh @todo we could just give ownership to the Preview!
+
+		UPreviewMesh::ERenderUpdateMode UpdateType = (bMeshTopologyIsConstant && bMeshInitialized) ?
+			UPreviewMesh::ERenderUpdateMode::FastUpdate
+			: UPreviewMesh::ERenderUpdateMode::FullUpdate;
+		
+		PreviewMesh->UpdatePreview(MoveTemp(*ResultMesh), UpdateType, ChangingAttributeFlags);
+		bMeshInitialized = true;
+
 		PreviewMesh->SetVisible(bVisible);
 		bResultValid = true;
 
@@ -127,6 +135,12 @@ void UMeshOpPreviewWithBackgroundCompute::SetVisibility(bool bVisibleIn)
 {
 	bVisible = bVisibleIn;
 	PreviewMesh->SetVisible(bVisible);
+}
+
+void UMeshOpPreviewWithBackgroundCompute::SetIsMeshTopologyConstant(bool bOn, EMeshRenderAttributeFlags ChangingAttributesIn)
+{
+	bMeshTopologyIsConstant = bOn;
+	ChangingAttributeFlags = ChangingAttributesIn;
 }
 
 
