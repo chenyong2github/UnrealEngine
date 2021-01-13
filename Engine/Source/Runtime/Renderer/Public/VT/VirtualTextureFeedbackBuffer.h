@@ -4,6 +4,15 @@
 
 #include "RenderGraphResources.h"
 
+/** Returns the scale used to divide the scene texture resolution to get the virtual texture feedback resolution. */
+extern int32 GetVirtualTextureFeedbackScale();
+
+/** Get size for a virtual texture feedback buffer. This is calculated internally by applying GetVirtualTextureFeedbackScale() to the SceneTextureExtent. */
+extern FIntPoint GetVirtualTextureFeedbackBufferSize(FIntPoint InSceneTextureExtent);
+
+/** Returns a value from the sampling sequence used to traverse each feedback tile. */
+extern uint32 SampleVirtualTextureFeedbackSequence(uint32 InFrameIndex);
+
 /** 
  * Description of how to interpret an RHIBuffer that is being fed to the virtual texture feedback system.
  * For example a buffer may be a simple flat buffer, or a 2D screen-space buffer with rectangles representing multiple player viewports.
@@ -30,17 +39,8 @@ struct FVirtualTextureFeedbackBufferDesc
 	int32 TotalReadSize = 0;
 };
 
-/** Returns a value from the sampling sequence used to traverse the feedback tile. */
-extern uint32 SampleVirtualTextureFeedbackSequence(uint32 FrameIndex);
-
-/** Get size of screen tiles used for virtual texture feedback. We evaluate one feedback item from each tile per frame. */
-extern FIntPoint GetVirtualTextureFeedbackBufferSize(FIntPoint SceneTextureExtent);
-
-/** Returns the scale used to divide the against the scene texture resolution to get the virtual texture feedback resolution. */
-extern int32 GetVirtualTextureFeedbackScale();
-
 /** GPU feedback buffer for tracking virtual texture requests from the GPU. */
-class FVirtualTextureFeedbackGPU : public FRenderResource
+class FVirtualTextureFeedbackBuffer : public FRenderResource
 {
 public:
 	// Allocates and prepares the feedback buffer for submission.
@@ -72,5 +72,5 @@ private:
  * Multiple buffers can be transferred per frame using this function.
  * The function can be called from the render thread only.
 */
-RENDERER_API void SubmitVirtualTextureFeedbackBuffer(class FRHICommandListImmediate& RHICmdList, FVertexBufferRHIRef const& Buffer, FVirtualTextureFeedbackBufferDesc const& Desc);
-RENDERER_API void SubmitVirtualTextureFeedbackBuffer(class FRDGBuilder& GraphBuilder, class FRDGBuffer* Buffer, FVirtualTextureFeedbackBufferDesc const& Desc);
+RENDERER_API void SubmitVirtualTextureFeedbackBuffer(class FRHICommandListImmediate& RHICmdList, FVertexBufferRHIRef const& InBuffer, FVirtualTextureFeedbackBufferDesc const& InDesc);
+RENDERER_API void SubmitVirtualTextureFeedbackBuffer(class FRDGBuilder& GraphBuilder, class FRDGBuffer* InBuffer, FVirtualTextureFeedbackBufferDesc const& InDesc);

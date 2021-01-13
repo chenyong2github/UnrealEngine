@@ -71,7 +71,7 @@
 	Globals
 -----------------------------------------------------------------------------*/
 
-static TGlobalResource<FVirtualTextureFeedbackGPU> GVirtualTextureFeedbackGPU;
+static TGlobalResource<FVirtualTextureFeedbackBuffer> GVirtualTextureFeedbackBuffer;
 
 static TAutoConsoleVariable<int32> CVarCachedMeshDrawCommands(
 	TEXT("r.MeshDrawCommands.UseCachedCommands"),
@@ -1786,7 +1786,7 @@ void FViewInfo::SetupUniformBufferParameters(
 		ViewUniformShaderParameters.WaterData = GIdentityPrimitiveBuffer.PrimitiveSceneDataBufferSRV;
 	}
 
-	ViewUniformShaderParameters.VTFeedbackBuffer = GVirtualTextureFeedbackGPU.GetUAV();
+	ViewUniformShaderParameters.VTFeedbackBuffer = GVirtualTextureFeedbackBuffer.GetUAV();
 
 #if WITH_EDITOR
 	if (EditorVisualizeLevelInstanceBuffer.SRV)
@@ -4504,12 +4504,12 @@ void VirtualTextureFeedbackBegin(FRDGBuilder& GraphBuilder, TArrayView<const FVi
 
 	FVirtualTextureFeedbackBufferDesc Desc;
 	Desc.Init2D(SceneTextureExtent, ViewRects, GetVirtualTextureFeedbackScale());
-	GVirtualTextureFeedbackGPU.Begin(GraphBuilder, Desc);
+	GVirtualTextureFeedbackBuffer.Begin(GraphBuilder, Desc);
 }
 
 void VirtualTextureFeedbackEnd(FRDGBuilder& GraphBuilder)
 {
-	GVirtualTextureFeedbackGPU.End(GraphBuilder);
+	GVirtualTextureFeedbackBuffer.End(GraphBuilder);
 }
 
 FRDGTextureRef CreateHalfResolutionDepthCheckerboardMinMax(FRDGBuilder& GraphBuilder, TArrayView<const FViewInfo> Views, FRDGTextureRef SceneDepthTexture)

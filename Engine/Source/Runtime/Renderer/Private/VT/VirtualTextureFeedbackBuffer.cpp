@@ -1,8 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "VT/VirtualTextureFeedbackBuffer.h"
-#include "VT/VirtualTextureFeedback.h"
+
 #include "RenderGraphUtils.h"
+#include "VT/VirtualTextureFeedback.h"
 
 int32 GVirtualTextureFeedbackFactor = 16;
 static FAutoConsoleVariableRef CVarVirtualTextureFeedbackFactor(
@@ -13,28 +14,28 @@ static FAutoConsoleVariableRef CVarVirtualTextureFeedbackFactor(
 	ECVF_RenderThreadSafe | ECVF_ReadOnly /*Read-only as shaders are compiled with this value*/
 );
 
-uint32 SampleVirtualTextureFeedbackSequence(uint32 FrameIndex)
+int32 GetVirtualTextureFeedbackScale()
+{
+	// Round to nearest power of two to ensure that shader maths is efficient and sampling sequence logic is simple.
+	return FMath::RoundUpToPowerOfTwo(FMath::Max(GVirtualTextureFeedbackFactor, 1));
+}
+
+FIntPoint GetVirtualTextureFeedbackBufferSize(FIntPoint InSceneTextureExtent)
+{
+	return FIntPoint::DivideAndRoundUp(InSceneTextureExtent, FMath::Max(GetVirtualTextureFeedbackScale(), 1));
+}
+
+uint32 SampleVirtualTextureFeedbackSequence(uint32 InFrameIndex)
 {
 	const uint32 TileSize = GetVirtualTextureFeedbackScale();
 	const uint32 TileSizeLog2 = FMath::CeilLogTwo(TileSize);
 	const uint32 SequenceSize = FMath::Square(TileSize);
-	const uint32 PixelIndex = FrameIndex % SequenceSize;
+	const uint32 PixelIndex = InFrameIndex % SequenceSize;
 	const uint32 PixelAddress = ReverseBits(PixelIndex) >> (32U - 2 * TileSizeLog2);
 	const uint32 X = FMath::ReverseMortonCode2(PixelAddress);
 	const uint32 Y = FMath::ReverseMortonCode2(PixelAddress >> 1);
 	const uint32 PixelSequenceIndex = X + Y * TileSize;
 	return PixelSequenceIndex;
-}
-
-FIntPoint GetVirtualTextureFeedbackBufferSize(FIntPoint SceneTextureExtent)
-{
-	return FIntPoint::DivideAndRoundUp(SceneTextureExtent, FMath::Max(GetVirtualTextureFeedbackScale(), 1));
-}
-
-int32 GetVirtualTextureFeedbackScale()
-{
-	// Round to nearest power of two to ensure that shader maths is efficient and sampling sequence logic is simple.
-	return FMath::RoundUpToPowerOfTwo(FMath::Max(GVirtualTextureFeedbackFactor, 1));
 }
 
 void FVirtualTextureFeedbackBufferDesc::Init(int32 InBufferSize)
@@ -74,17 +75,7 @@ void FVirtualTextureFeedbackBufferDesc::Init2D(FIntPoint InUnscaledBufferSize, T
 	}
 }
 
-void SubmitVirtualTextureFeedbackBuffer(FRHICommandListImmediate& RHICmdList, FVertexBufferRHIRef const& Buffer, FVirtualTextureFeedbackBufferDesc const& Desc)
-{
-	GVirtualTextureFeedback.TransferGPUToCPU(RHICmdList, Buffer, Desc);
-}
-
-void SubmitVirtualTextureFeedbackBuffer(class FRDGBuilder& GraphBuilder, FRDGBuffer* Buffer, FVirtualTextureFeedbackBufferDesc const& Desc)
-{
-	GVirtualTextureFeedback.TransferGPUToCPU(GraphBuilder, Buffer, Desc);
-}
-
-void FVirtualTextureFeedbackGPU::Begin(FRDGBuilder& GraphBuilder, const FVirtualTextureFeedbackBufferDesc& InDesc)
+void FVirtualTextureFeedbackBuffer::Begin(FRDGBuilder& GraphBuilder, const FVirtualTextureFeedbackBufferDesc& InDesc)
 {
 	// NOTE: Transitions and allocations are handled manually right now, because the VT feedback UAV is used by
 	// the view uniform buffer, which is not an RDG uniform buffer. If it can be factored out into its own RDG
@@ -112,7 +103,7 @@ void FVirtualTextureFeedbackGPU::Begin(FRDGBuilder& GraphBuilder, const FVirtual
 	});
 }
 
-void FVirtualTextureFeedbackGPU::End(FRDGBuilder& GraphBuilder)
+void FVirtualTextureFeedbackBuffer::End(FRDGBuilder& GraphBuilder)
 {
 	AddPass(GraphBuilder, RDG_EVENT_NAME("VirtualTextureFeedbackCopy"), [this](FRHICommandListImmediate& RHICmdList)
 	{
@@ -122,8 +113,18 @@ void FVirtualTextureFeedbackGPU::End(FRDGBuilder& GraphBuilder)
 	});
 }
 
-void FVirtualTextureFeedbackGPU::ReleaseRHI()
+void FVirtualTextureFeedbackBuffer::ReleaseRHI()
 {
 	PooledBuffer = nullptr;
 	UAV = nullptr;
+}
+
+void SubmitVirtualTextureFeedbackBuffer(FRHICommandListImmediate& RHICmdList, FVertexBufferRHIRef const& InBuffer, FVirtualTextureFeedbackBufferDesc const& InDesc)
+{
+	GVirtualTextureFeedback.TransferGPUToCPU(RHICmdList, InBuffer, InDesc);
+}
+
+void SubmitVirtualTextureFeedbackBuffer(class FRDGBuilder& GraphBuilder, FRDGBuffer* InBuffer, FVirtualTextureFeedbackBufferDesc const& InDesc)
+{
+	GVirtualTextureFeedback.TransferGPUToCPU(GraphBuilder, InBuffer, InDesc);
 }
