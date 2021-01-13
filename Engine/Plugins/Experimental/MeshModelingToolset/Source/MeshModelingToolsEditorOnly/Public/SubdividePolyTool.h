@@ -110,5 +110,7 @@ protected:
 	// Determine if the mesh group topology can be used for Catmull-Clark or Bilinear subdivision. If not, we can only 
 	// Loop subdivision on the original triangle mesh.
 	bool CheckGroupTopology(FText& Message);
+
+	void CapSubdivisionLevel(ESubdivisionScheme Scheme, int DesiredLevel);
 };
 

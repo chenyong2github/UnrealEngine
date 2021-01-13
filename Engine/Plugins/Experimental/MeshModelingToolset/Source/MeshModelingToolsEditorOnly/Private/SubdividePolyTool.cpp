@@ -121,6 +121,42 @@ bool USubdividePolyTool::CheckGroupTopology(FText& Message)
 	return true;
 }
 
+
+void USubdividePolyTool::CapSubdivisionLevel(ESubdivisionScheme Scheme, int DesiredLevel)
+{
+	// Stolen from UDisplaceMeshTool::ValidateSubdivisions
+	constexpr int MaxFaces = 3000000;
+
+	int NumOriginalFaces = MaxFaces;
+	if (Scheme == ESubdivisionScheme::Loop)
+	{
+		NumOriginalFaces = OriginalMesh->TriangleCount();
+	}
+	else
+	{
+		constexpr bool bAutoCompute = true;
+		FGroupTopology Topo(OriginalMesh.Get(), bAutoCompute);
+		NumOriginalFaces = Topo.Groups.Num();
+	}
+	int MaxLevel = (int)floor(log2(MaxFaces / NumOriginalFaces) / 2.0);
+
+	if (DesiredLevel > MaxLevel)
+	{
+		FText WarningText = FText::Format(LOCTEXT("SubdivisionLevelTooHigh", "Subdivision level clamped: desired subdivision level ({0}) exceeds maximum level ({1}) for a mesh with this number of faces."),
+										  FText::AsNumber(DesiredLevel),
+										  FText::AsNumber(MaxLevel));
+		GetToolManager()->DisplayMessage(WarningText, EToolMessageLevel::UserWarning);
+		Properties->SubdivisionLevel = MaxLevel;
+		Properties->SilentUpdateWatched();		// Don't trigger this function again due to setting SubdivisionLevel above
+	}
+	else
+	{
+		// Clear possible lingering warning message
+		GetToolManager()->DisplayMessage(FText(), EToolMessageLevel::UserWarning);
+	}
+}
+
+
 void USubdividePolyTool::Setup()
 {
 	UInteractiveTool::Setup();
@@ -178,7 +214,8 @@ void USubdividePolyTool::Setup()
 	}
 
 	check(Properties->SubdivisionLevel >= 1);	// Should be enforced by UPROPERTY meta tags
-
+	
+	CapSubdivisionLevel(Properties->SubdivisionScheme, Properties->SubdivisionLevel);
 	PreviewDynamicMeshComponent->SetRenderMeshPostProcessor(MakeUnique<SubdivPostProcessor>(Properties->SubdivisionLevel,
 																							Properties->SubdivisionScheme,
 																							Properties->NormalComputationMethod,
@@ -211,15 +248,19 @@ void USubdividePolyTool::Setup()
 	};
 
 	// Watch for property changes
-	Properties->WatchProperty(Properties->SubdivisionLevel, [this, RebuildMeshPostProcessor](int)
+	Properties->WatchProperty(Properties->SubdivisionLevel, [this, RebuildMeshPostProcessor](int NewSubdLevel)
 	{
+		CapSubdivisionLevel(Properties->SubdivisionScheme, NewSubdLevel);
 		RebuildMeshPostProcessor();
 	});
-	Properties->WatchProperty(Properties->SubdivisionScheme, [this, RebuildMeshPostProcessor](ESubdivisionScheme)
+
+	Properties->WatchProperty(Properties->SubdivisionScheme, [this, RebuildMeshPostProcessor](ESubdivisionScheme NewScheme)
 	{
+		CapSubdivisionLevel(NewScheme, Properties->SubdivisionLevel);
 		RebuildMeshPostProcessor();
 		bPreviewGeometryNeedsUpdate = true;		// Switch from rendering poly cage to all triangle edges
 	});
+
 	Properties->WatchProperty(Properties->NormalComputationMethod, [this, RebuildMeshPostProcessor](ESubdivisionOutputNormals)
 	{
 		RebuildMeshPostProcessor();

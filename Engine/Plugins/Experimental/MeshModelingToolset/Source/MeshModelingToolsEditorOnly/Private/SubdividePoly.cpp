@@ -303,26 +303,23 @@ bool FSubdividePoly::ComputeTopologySubdivision()
 
 	TArray<int> BoundaryVertsPerFace;
 	TArray<int> NumVertsPerFace;
-	int TotalNumVertices = 0;
 	OpenSubdiv::Far::TopologyDescriptor::FVarChannel UVChannel;
 	TArray<int> UVBuffer;
 
 	auto DescriptorFromTriangleMesh = [this, &NumVertsPerFace, &BoundaryVertsPerFace, &UVChannel, &UVBuffer]
 	(OpenSubdiv::Far::TopologyDescriptor& Descriptor)
 	{
-		int TotalNumVertices = 0;
-
 		for (auto TriangleID : OriginalMesh.TriangleIndicesItr())
 		{
 			FIndex3i TriangleVertices = OriginalMesh.GetTriangle(TriangleID);
 			NumVertsPerFace.Add(3);
-			TotalNumVertices += 3;
 			BoundaryVertsPerFace.Add(TriangleVertices[0]);
 			BoundaryVertsPerFace.Add(TriangleVertices[1]);
 			BoundaryVertsPerFace.Add(TriangleVertices[2]);
 		}
 
-		Descriptor.numVertices = TotalNumVertices;
+		// TODO: We should probably create a compact mesh descriptor for subdivision to operate on. UETOOL-2944
+		Descriptor.numVertices = OriginalMesh.MaxVertexID();
 		Descriptor.numFaces = OriginalMesh.TriangleCount();
 		Descriptor.numVertsPerFace = NumVertsPerFace.GetData();
 		Descriptor.vertIndicesPerFace = BoundaryVertsPerFace.GetData();
