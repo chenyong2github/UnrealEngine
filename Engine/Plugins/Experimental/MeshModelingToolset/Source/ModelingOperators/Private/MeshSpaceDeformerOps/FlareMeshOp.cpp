@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-#include "ModelingOperators\Public\SpaceDeformerOps\FlareMeshOp.h"
+#include "SpaceDeformerOps\FlareMeshOp.h"
+
+#include "Async/ParallelFor.h"
 #include "DynamicMeshAttributeSet.h"
 
 
@@ -34,6 +36,12 @@ double  inverseSinerp(const T& valueBetween, const T& value1, const T& value2)
 //Flares along the Z axis
 void FFlareMeshOp::CalculateResult(FProgressCancel* Progress)
 {
+	FMeshSpaceDeformerOp::CalculateResult(Progress);
+
+	if (!OriginalMesh || (Progress && Progress->Cancelled()))
+	{
+		return;
+	}
 
 	float Det = ObjectToGizmo.Determinant();
 
@@ -49,18 +57,21 @@ void FFlareMeshOp::CalculateResult(FProgressCancel* Progress)
 	const double ZMin = -LowerBoundsInterval * AxesHalfLength;
 	const double ZMax =  UpperBoundsInterval * AxesHalfLength;
 
-
-
 	if (ResultMesh->HasAttributes())
 	{
 		// Fix the normals first if they exist.
 
 		FDynamicMeshNormalOverlay* Normals = ResultMesh->Attributes()->PrimaryNormals();
-		for (int ElID : Normals->ElementIndicesItr())
+		ParallelFor(Normals->MaxElementID(), [this, Normals, &GizmoToObject, ZMin, ZMax](int32 ElID)
 		{
+			if (!Normals->IsElement(ElID))
+			{
+				return;
+			}
+
 			// get the vertex
 			auto VertexID = Normals->GetParentVertex(ElID);
-			const FVector3d& SrcPos = TargetMesh->GetVertex(VertexID);
+			const FVector3d& SrcPos = ResultMesh->GetVertex(VertexID);
 
 			FVector3f SrcNormalF = Normals->GetElement(ElID);
 			FVector3d SrcNormal; 
@@ -124,13 +135,22 @@ void FFlareMeshOp::CalculateResult(FProgressCancel* Progress)
 			FVector3f RotatedNoramlF;
 			RotatedNoramlF[0] = RotatedNormal[0]; RotatedNoramlF[1] = RotatedNormal[1]; RotatedNoramlF[2] = RotatedNormal[2];
 			Normals->SetElement(ElID, RotatedNoramlF);
-		}
+		});
 	}
 
-	for (int VertexID : TargetMesh->VertexIndicesItr())
+	if (Progress && Progress->Cancelled())
 	{
+		return;
+	}
+
+	ParallelFor(ResultMesh->MaxVertexID(), [this, &GizmoToObject, ZMin, ZMax](int32 VertexID)
+	{
+		if (!ResultMesh->IsVertex(VertexID))
+		{
+			return;
+		}
 		
-		const FVector3d SrcPos = TargetMesh->GetVertex(VertexID);
+		const FVector3d SrcPos = ResultMesh->GetVertex(VertexID);
 
 		const double SrcPos4[4] = { SrcPos[0], SrcPos[1], SrcPos[2], 1.0 };
 
@@ -165,7 +185,7 @@ void FFlareMeshOp::CalculateResult(FProgressCancel* Progress)
 		}
 
 		// set the position
-		TargetMesh->SetVertex(VertexID, FVector3d(DstPos4[0], DstPos4[1], DstPos4[2]));
-	}
+		ResultMesh->SetVertex(VertexID, FVector3d(DstPos4[0], DstPos4[1], DstPos4[2]));
+	});
 
 }

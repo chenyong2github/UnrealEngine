@@ -1,12 +1,19 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-#include "ModelingOperators\Public\SpaceDeformerOps\BendMeshOp.h"
+#include "SpaceDeformerOps\BendMeshOp.h"
+
+#include "Async/ParallelFor.h"
 #include "DynamicMeshAttributeSet.h"
 
 
 //Bends along the Y-axis
 void FBendMeshOp::CalculateResult(FProgressCancel* Progress)
 {
+	FMeshSpaceDeformerOp::CalculateResult(Progress);
 
+	if (!OriginalMesh || (Progress && Progress->Cancelled()))
+	{
+		return;
+	}
 
 	// Matrix from gizmo space (z-up) to a y-up space
 	FMatrix ToYUp(EForceInit::ForceInitToZero);
@@ -29,7 +36,6 @@ void FBendMeshOp::CalculateResult(FProgressCancel* Progress)
 			}
 		}
 	}
-
 
 	float Det = ObjectToYUpGizmo.Determinant();
 
@@ -66,17 +72,26 @@ void FBendMeshOp::CalculateResult(FProgressCancel* Progress)
 	const double K = ThetaRadians / AxesHalfLength;
 	const double Ik = 1.0 / K;
 
+	if (Progress && Progress->Cancelled())
+	{
+		return;
+	}
 
 	if (ResultMesh->HasAttributes())
 	{
 		// Fix the normals first if they exist.
 
 		FDynamicMeshNormalOverlay* Normals = ResultMesh->Attributes()->PrimaryNormals();
-		for (int ElID : Normals->ElementIndicesItr())
+		ParallelFor(Normals->MaxElementID(), [this, Normals, &ObjectToYUpGizmo, &YUpGizmoToObject, YMin, YMax, Y0, K, Ik](int32 ElID)
 		{
+			if (!Normals->IsElement(ElID))
+			{
+				return;
+			}
+
 			// get the vertex
 			auto VertexID = Normals->GetParentVertex(ElID);
-			const FVector3d& SrcPos = TargetMesh->GetVertex(VertexID);
+			const FVector3d& SrcPos = ResultMesh->GetVertex(VertexID);
 
 			FVector3f SrcNormalF = Normals->GetElement(ElID);
 			FVector3d SrcNormal;
@@ -147,13 +162,23 @@ void FBendMeshOp::CalculateResult(FProgressCancel* Progress)
 			FVector3f RotatedNoramlF;
 			RotatedNoramlF[0] = RotatedNormal[0]; RotatedNoramlF[1] = RotatedNormal[1]; RotatedNoramlF[2] = RotatedNormal[2];
 			Normals->SetElement(ElID, RotatedNoramlF);
-		}
+		});
 	}
 
-	for (int VertexID : TargetMesh->VertexIndicesItr())
+	if (Progress && Progress->Cancelled())
 	{
+		return;
+	}
+
+	ParallelFor(ResultMesh->MaxVertexID(), [this, &ObjectToYUpGizmo, &YUpGizmoToObject, YMin, YMax, Y0, K, Ik](int32 VertexID)
+	{
+		if (!ResultMesh->IsVertex(VertexID))
+		{
+			return;
+		}
+
 		//const FVector3d& SrcPos = OriginalPositions[VertexID];
-		const FVector3d SrcPos = TargetMesh->GetVertex(VertexID);
+		const FVector3d SrcPos = ResultMesh->GetVertex(VertexID);
 		const double SrcPos4[4] = { SrcPos[0], SrcPos[1], SrcPos[2], 1.0};
 
 		// Position in gizmo space
@@ -208,7 +233,6 @@ void FBendMeshOp::CalculateResult(FProgressCancel* Progress)
 			}
 		}
 
-		TargetMesh->SetVertex(VertexID, FVector3d(DstPos4[0], DstPos4[1], DstPos4[2]));
-	}
-
+		ResultMesh->SetVertex(VertexID, FVector3d(DstPos4[0], DstPos4[1], DstPos4[2]));
+	});
 }
