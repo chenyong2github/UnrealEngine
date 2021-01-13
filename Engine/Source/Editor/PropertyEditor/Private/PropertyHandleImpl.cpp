@@ -2452,7 +2452,20 @@ void FPropertyHandleBase::GetOuterObjects( TArray<UObject*>& OuterObjects ) cons
 			}
 		}
 	}
+}
 
+const UClass* FPropertyHandleBase::GetOuterBaseClass() const
+{
+	if (Implementation->GetPropertyNode().IsValid())
+	{
+		FObjectPropertyNode* ObjectNode = Implementation->GetPropertyNode()->FindObjectItemParent();
+		if (ObjectNode)
+		{
+			return ObjectNode->GetObjectBaseClass();
+		}
+	}
+
+	return nullptr;
 }
 
 void FPropertyHandleBase::ReplaceOuterObjects(const TArray<UObject*>& OuterObjects)

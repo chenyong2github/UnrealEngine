@@ -451,6 +451,7 @@ public:
 	virtual void AccessRawData( TArray<const void*>& RawData ) const override;
 	virtual uint32 GetNumOuterObjects() const override;
 	virtual void GetOuterObjects(TArray<UObject*>& OuterObjects) const override;
+	virtual const UClass* GetOuterBaseClass() const override;
 	virtual void ReplaceOuterObjects(const TArray<UObject*>& OuterObjects) override;
 	virtual void GetOuterPackages(TArray<UPackage*>& OuterPackages) const override;
 	virtual FPropertyAccess::Result GetNumChildren( uint32& OutNumChildren ) const override;

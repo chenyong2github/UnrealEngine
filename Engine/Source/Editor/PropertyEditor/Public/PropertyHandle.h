@@ -416,6 +416,13 @@ public:
 	virtual void GetOuterObjects( TArray<UObject*>& OuterObjects ) const = 0;
 
 	/**
+	 * Get the shared base class of the objects that contain this property.
+	 *
+	 * @return The shared base class of the outer objects, or null if none are selected.
+	 */
+	virtual const UClass* GetOuterBaseClass() const = 0;
+
+	/**
 	 * Set the outer objects for this property
 	 *
 	 * @param OuterObjects An array that contains the new outer objects
