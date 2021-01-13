@@ -9,6 +9,8 @@
 #include "Elements/Interfaces/TypedElementObjectInterface.h"
 #include "Elements/Framework/TypedElementSelectionSet.h"
 #include "LevelEditorMenuContext.h"
+#include "ActorFactories/ActorFactory.h"
+#include "Editor.h"
 
 #define LOCTEXT_NAMESPACE "EditorLightSubsystem"
 

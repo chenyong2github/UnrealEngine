@@ -27,6 +27,7 @@ class IDetailTreeNode;
 class IPropertyRowGenerator;
 class ILevelEditor;
 class UToolMenu;
+class SDockingTabStack;
 
 /** A Sample implementation of IDragDropOperation */
 class FInViewportUIDragOperation : public FDragDropOperation
