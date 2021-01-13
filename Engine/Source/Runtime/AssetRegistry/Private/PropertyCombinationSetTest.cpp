@@ -150,7 +150,7 @@ protected:
 						{
 							uint32 ExistingValue = ExistingValues[ExistingIndex];
 							bAddedAlreadyExists = bAddedAlreadyExists | (AddValue == ExistingValue);
-							bAddedIsRedundant = bAddedIsRedundant | IsRedundantChild(AddValue, ExistingValue);
+							bAddedIsRedundant = bAddedIsRedundant | IsRedundantChild(AddValue, ExistingValue); //-V792
 							bool bExistingIsRedundant = IsRedundantChild(ExistingValue, AddValue);
 							if (bExistingIsRedundant)
 							{
