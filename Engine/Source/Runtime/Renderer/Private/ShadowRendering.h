@@ -653,6 +653,15 @@ private:
 		struct FAddSubjectPrimitiveStats& OutStats,
 		struct FAddSubjectPrimitiveOverflowedIndices& OverflowBuffer) const;
 
+
+	/*
+	 * Helper to calculate the LOD such that we do not repeat this in threaded & non threaded versions
+	 * NOTE: Reads and modifies the CurrentView.PrimitivesLODMask for the given primitive. 
+	 * Storing it is an optimization for the case where a primitive is not visible in the main view but in several shadow views (e.g., cascades).
+	 * This also creates a potential data race if we ever process multiple shadows infos for the same view and primitive in parallel (e.g., cascades).
+	 */
+	FORCEINLINE_DEBUGGABLE FLODMask CalcAndUpdateLODToRender(FViewInfo& CurrentView, const FBoxSphereBounds& Bounds, const FPrimitiveSceneInfo* PrimitiveSceneInfo, int32 ForcedLOD) const;
+
 	/** Will return if we should draw the static mesh for the shadow, and will perform lazy init of primitive if it wasn't visible */
 	bool ShouldDrawStaticMeshes(FViewInfo& InCurrentView, FPrimitiveSceneInfo* InPrimitiveSceneInfo);
 
