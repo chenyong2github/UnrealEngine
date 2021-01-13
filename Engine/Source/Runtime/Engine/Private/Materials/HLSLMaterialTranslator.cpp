@@ -7536,11 +7536,11 @@ int32 FHLSLMaterialTranslator::StrataCreateAndRegisterNullMaterial()
 	return OutputCodeChunk;
 }
 
-int32 FHLSLMaterialTranslator::StrataSlabBSDF(int32 Albedo, int32 Reflectivity, int32 Metallic, int32 RoughnessX, int32 RoughnessY, int32 SSSProfileId, int32 SSSDMFPAlbedo, int32 SSSDMFPRadius, int32 Normal, int32 Tangent, uint8 SharedNormalIndex)
+int32 FHLSLMaterialTranslator::StrataSlabBSDF(int32 BaseColor, int32 Reflectivity, int32 Metallic, int32 RoughnessX, int32 RoughnessY, int32 SSSProfileId, int32 SSSDMFPAlbedo, int32 SSSDMFPRadius, int32 Normal, int32 Tangent, uint8 SharedNormalIndex)
 {
 	return AddCodeChunk(
 		MCT_Strata, TEXT("GetStrataSlabBSDF(%s, %s, %s, float2(%s, %s), %s, %s, %s, %u, Parameters.SharedNormals.NormalTypes) /* Normal = %s ; Tangent = %s */"),
-		*GetParameterCode(Albedo),
+		*GetParameterCode(BaseColor),
 		*GetParameterCode(Reflectivity),
 		*GetParameterCode(Metallic),
 		*GetParameterCode(RoughnessX),
@@ -7554,11 +7554,11 @@ int32 FHLSLMaterialTranslator::StrataSlabBSDF(int32 Albedo, int32 Reflectivity, 
 	);
 }
 
-int32 FHLSLMaterialTranslator::StrataSheenBSDF(int32 Albedo, int32 Roughness, int32 Normal, uint8 SharedNormalIndex)
+int32 FHLSLMaterialTranslator::StrataSheenBSDF(int32 BaseColor, int32 Roughness, int32 Normal, uint8 SharedNormalIndex)
 {
 	return AddCodeChunk(
 		MCT_Strata, TEXT("GetStrataSheenBSDF(%s, %s, %u) /* %s */"),
-		*GetParameterCode(Albedo),
+		*GetParameterCode(BaseColor),
 		*GetParameterCode(Roughness),
 		SharedNormalIndex,
 		*GetParameterCode(Normal)

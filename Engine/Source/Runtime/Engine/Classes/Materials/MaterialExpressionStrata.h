@@ -41,45 +41,45 @@ class UMaterialExpressionStrataSlabBSDF : public UMaterialExpression // STRATA_T
 	GENERATED_UCLASS_BODY()
 
 	/**
-	 * Albedo (type = float3, unit = unitless, defaults to 0.18)
+	 * Defines the overall color of the Material. (type = float3, unit = unitless, defaults to 0.18)
 	 */
 	UPROPERTY()
 	FExpressionInput BaseColor;
 
 	/**
-	 * 0 means dielectric, 1 means conductor (type = float, unit = unitless, defaults to 0)
+	 * Controls how \"metal-like\" your surface looks like. 0 means dielectric, 1 means conductor (type = float, unit = unitless, defaults to 0)
 	 */
 	UPROPERTY()
 	FExpressionInput Metallic;
 	
 	/**
-	 * Reflectivity when view direction is perpendicular to the surface, also known as F0 (type = float, unit = unitless, defaults to plastic 0.5)
+	 * Used to scale the current amount of specularity on non-metallic surfaces and is a value between 0 and 1 (type = float, unit = unitless, defaults to plastic 0.5)
 	 */
 	UPROPERTY()
-	FExpressionInput Reflectivity;
+	FExpressionInput Specular;
 
 	// STRATA_TODO: edge or F82 EdgeColor?
 
 	/**
-	 * RoughnessX (type = float, unit = unitless, defaults to 0)
+	 * Controls how rough the Material is. Roughness of 0 (smooth) is a mirror reflection and 1 (rough) is completely matte or diffuse. When using anisotropy, it is the roughness used along the Tangent axis. (type = float, unit = unitless, defaults to 0)
 	 */
 	UPROPERTY()
 	FExpressionInput RoughnessX;
 		
 	/**
-	 * RoughnessY (type = float, unit = unitless), If not plugged in, RoughnessY is set to RoughnessX to get an isotropic behavior.
+	 * Controls the roughness along the secondary surface tangent vector (perpendicular to Tangent). (type = float, unit = unitless). If not plugged in, RoughnessY is set to RoughnessX to disable anisotropy, resulting in an isotropic behavior.
 	 */
 	UPROPERTY()
 	FExpressionInput RoughnessY;
 
 	/**
-	 * Normal (type = float3, unit = unitless, defaults to vertex normal)
+	 * Take the surface normal as input. The normal is considered tangent or world space according to the space properties on the main material node. (type = float3, unit = unitless, defaults to vertex normal)
 	 */
 	UPROPERTY()
 	FExpressionInput Normal;
 
 	/**
-	* Tangent (type = float3, unit = unitless, defaults to vertex tangent)
+	* Take a surface tangent as input. The tangent is considered tangent or world space according to the space properties on the main material node. (type = float3, unit = unitless, defaults to vertex tangent)
 	*/
 	UPROPERTY()
 	FExpressionInput Tangent;
@@ -119,10 +119,10 @@ class UMaterialExpressionStrataSheenBSDF : public UMaterialExpression
 	GENERATED_UCLASS_BODY()
 
 	/**
-	* Albedo (type = float3, unit = unitless)
+	* Defines the overall color of the Material. (type = float3, unit = unitless)
 	*/
 	UPROPERTY()
-	FExpressionInput Albedo;
+	FExpressionInput BaseColor;
 
 	/**
 	 * Roughness (type = float, unit = unitless)
@@ -131,7 +131,7 @@ class UMaterialExpressionStrataSheenBSDF : public UMaterialExpression
 	FExpressionInput Roughness;
 
 	/**
-	 * Normal (type = float3, unit = unitless)
+	 * Take the surface normal as input. The normal is considered tangent or world space according to the space properties on the main material node. (type = float3, unit = unitless)
 	 */
 	UPROPERTY()
 	FExpressionInput Normal;
@@ -154,7 +154,7 @@ class UMaterialExpressionStrataVolumetricFogCloudBSDF : public UMaterialExpressi
 	GENERATED_UCLASS_BODY()
 
 	/**
-	* Albedo (type = float3, unit = unitless, default = 0)
+	* The single scattering Albedo defining the overall color of the Material (type = float3, unit = unitless, default = 0)
 	*/
 	UPROPERTY()
 	FExpressionInput Albedo;
@@ -325,7 +325,7 @@ class UMaterialExpressionStrataSingleLayerWaterBSDF : public UMaterialExpression
 	FExpressionInput TopMaterialOpacity;
 
 	/**
-	 * Albedo (type = float3, unit = unitless, defaults to black)
+	* The single scattering Albedo defining the overall color of the Material (type = float3, unit = unitless, default = 0)
 	 */
 	UPROPERTY()
 	FExpressionInput WaterAlbedo;

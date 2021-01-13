@@ -57,7 +57,7 @@ void StrataGetBSDFRoughness(in FStrataBSDF BSDF, inout float R)
 	{
 	case STRATA_BSDF_TYPE_SLAB:
 	{
-		R = SLAB_ROUGHNESS0(BSDF);
+		R = SLAB_ROUGHNESSX(BSDF);
 		break;
 	}
 	case STRATA_BSDF_TYPE_SHEEN:
@@ -159,10 +159,10 @@ FStrataEvaluateResult StrataEvaluateBSDF(FStrataBSDFContext BSDFContext, FShadow
 	{
 		case STRATA_BSDF_TYPE_SLAB:
 		{
-			const float3 BaseColor = SLAB_ALBEDO(BSDFContext.BSDF);
+			const float3 BaseColor = SLAB_BASECOLOR(BSDFContext.BSDF);
 			const float  Metallic = SLAB_METALLIC(BSDFContext.BSDF);
 			const float3 DiffuseColor = BaseColor - BaseColor * Metallic;
-			const float SafeRoughness = MakeRoughnessSafe(SLAB_ROUGHNESS0(BSDFContext.BSDF));
+			const float SafeRoughness = MakeRoughnessSafe(SLAB_ROUGHNESSX(BSDFContext.BSDF));
 			float a2 = Pow4(SafeRoughness);
 
 			Sample.DiffusePathValue	= Diffuse_Chan(DiffuseColor, a2, BSDFContext.SatNoV, BSDFContext.SatNoL, BSDFContext.Context.VoH, BSDFContext.Context.NoH);
@@ -170,11 +170,11 @@ FStrataEvaluateResult StrataEvaluateBSDF(FStrataBSDFContext BSDFContext, FShadow
 			Sample.bSubsurface		= BSDF_GETHASSCATTERING(BSDFContext.BSDF) > 0;
 
 
-			const float3 F0 = ComputeF0(SLAB_REFLECTIVITY(BSDFContext.BSDF), BaseColor, Metallic);
+			const float3 F0 = ComputeF0(SLAB_SPECULAR(BSDFContext.BSDF), BaseColor, Metallic);
 			// STRATA_TODO F82
 
-			const float SafeRoughness0 = MakeRoughnessSafe(SLAB_ROUGHNESS0(BSDFContext.BSDF));
-			const float SafeRoughness1 = MakeRoughnessSafe(SLAB_ROUGHNESS1(BSDFContext.BSDF));
+			const float SafeRoughnessX = MakeRoughnessSafe(SLAB_ROUGHNESSX(BSDFContext.BSDF));
+			const float SafeRoughnessY = MakeRoughnessSafe(SLAB_ROUGHNESSY(BSDFContext.BSDF));
 
 			const bool bHasAnisotropy = BSDF_GETANISOTROPY(BSDFContext.BSDF);
 			float D = 0;
@@ -183,8 +183,8 @@ FStrataEvaluateResult StrataEvaluateBSDF(FStrataBSDFContext BSDFContext, FShadow
 			if (bHasAnisotropy)
 			{
 				// Generalized microfacet specular
-				float Alpha0 = Pow2(SafeRoughness0);
-				float Alpha1 = Pow2(SafeRoughness1);
+				float Alpha0 = Pow2(SafeRoughnessX);
+				float Alpha1 = Pow2(SafeRoughnessY);
 				D = D_GGXaniso(Alpha0, Alpha1, BSDFContext.Context.NoH, BSDFContext.Context.XoH, BSDFContext.Context.YoH);
 				Vis = Vis_SmithJointAniso(Alpha0, Alpha1, BSDFContext.Context.NoV, BSDFContext.Context.NoL, BSDFContext.Context.XoV, BSDFContext.Context.XoL, BSDFContext.Context.YoV, BSDFContext.Context.YoL);
 				PDF = VisibleGGXPDF_aniso(BSDFContext.TangentV, BSDFContext.TangentH, float2(Alpha0, Alpha1));
@@ -192,7 +192,7 @@ FStrataEvaluateResult StrataEvaluateBSDF(FStrataBSDFContext BSDFContext, FShadow
 			else
 			{
 				// Special override for roughness for supporting area light integrator with Sphere/Tube/Disk light, which modifies/increase roughness.
-				const float a2 = BSDFContext.a2Override > 0 ? BSDFContext.a2Override : Pow4(SafeRoughness0);
+				const float a2 = BSDFContext.a2Override > 0 ? BSDFContext.a2Override : Pow4(SafeRoughnessX);
 
 				// Generalized microfacet specular
 				D = D_GGX(a2, BSDFContext.Context.NoH);
@@ -210,7 +210,7 @@ FStrataEvaluateResult StrataEvaluateBSDF(FStrataBSDFContext BSDFContext, FShadow
 
 		case STRATA_BSDF_TYPE_SHEEN:
 		{
-			const float3 F0  = SHEEN_ALBEDO(BSDFContext.BSDF);
+			const float3 F0  = SHEEN_BASECOLOR(BSDFContext.BSDF);
 			const float SafeRoughness = MakeRoughnessSafe(SHEEN_ROUGHNESS(BSDFContext.BSDF));
 
 			// Special override for roughness for supporting area light integrator with Sphere/Tube/Disk light, which modifies/increase roughness.
@@ -295,7 +295,7 @@ FStrataImportanceSampleResult StrataImportanceSampleBSDF(FStrataPixelHeader Stra
 	{
 		case STRATA_BSDF_TYPE_SLAB:
 		{
-			const float3 BaseColor = SLAB_ALBEDO(BSDFContext.BSDF);
+			const float3 BaseColor = SLAB_BASECOLOR(BSDFContext.BSDF);
 			const float  Metallic = SLAB_METALLIC(BSDFContext.BSDF);
 
 			// STRATA_TODO take into account roughness
@@ -304,20 +304,20 @@ FStrataImportanceSampleResult StrataImportanceSampleBSDF(FStrataPixelHeader Stra
 			PDF = ImportanceSample.w;
 			Sample.DiffuseConeAngle = 1.0f / PDF;
 
-			const float3 F0 = ComputeF0(SLAB_REFLECTIVITY(BSDF), BaseColor, Metallic);
+			const float3 F0 = ComputeF0(SLAB_SPECULAR(BSDF), BaseColor, Metallic);
 			// STRATA_TODO F82
 
-			const float SafeRoughness0 = MakeRoughnessSafe(SLAB_ROUGHNESS0(BSDFContext.BSDF));
+			const float SafeRoughnessX = MakeRoughnessSafe(SLAB_ROUGHNESSX(BSDFContext.BSDF));
 			const bool bHasAnisotropy = BSDF_GETANISOTROPY(BSDFContext.BSDF);
 			float4 GGXSample = 0;
 			if (bHasAnisotropy)
 			{
-				const float SafeRoughness1 = MakeRoughnessSafe(SLAB_ROUGHNESS1(BSDFContext.BSDF));
-				GGXSample = ImportanceSampleVisibleGGX_aniso(UniformSampleDisk(E), float2(Pow2(SafeRoughness0), Pow2(SafeRoughness1)), BSDFContext.TangentV);
+				const float SafeRoughnessY = MakeRoughnessSafe(SLAB_ROUGHNESSY(BSDFContext.BSDF));
+				GGXSample = ImportanceSampleVisibleGGX_aniso(UniformSampleDisk(E), float2(Pow2(SafeRoughnessX), Pow2(SafeRoughnessY)), BSDFContext.TangentV);
 			}
 			else
 			{
-				GGXSample = ImportanceSampleVisibleGGX(UniformSampleDisk(E), Pow4(SafeRoughness0), BSDFContext.TangentV);
+				GGXSample = ImportanceSampleVisibleGGX(UniformSampleDisk(E), Pow4(SafeRoughnessX), BSDFContext.TangentV);
 			}
 
 			float3 WorldH = mul(GGXSample.xyz, BSDFContext.TangentBasis);
@@ -364,7 +364,7 @@ FStrataImportanceSampleResult StrataImportanceSampleBSDF(FStrataPixelHeader Stra
 
 struct FStrataEnvLightResult
 {
-	float3 DiffuseAlbedo;
+	float3 DiffuseColor;
 	float3 DiffuseNormal;
 
 	float3 SpecularDirection;
@@ -383,31 +383,30 @@ FStrataEnvLightResult StrataEvaluateForEnvLight(FStrataBSDFContext BSDFContext, 
 	{
 		case STRATA_BSDF_TYPE_SLAB:
 		{
-			const float3 BaseColor = SLAB_ALBEDO(BSDFContext.BSDF);
+			const float3 BaseColor = SLAB_BASECOLOR(BSDFContext.BSDF);
 			const float  Metallic = SLAB_METALLIC(BSDFContext.BSDF);
-			const float3 DiffuseColor = BaseColor - BaseColor * Metallic;
 
-			StrataEnvLightResult.DiffuseAlbedo = DiffuseColor;
+			StrataEnvLightResult.DiffuseColor = BaseColor - BaseColor * Metallic;
 			StrataEnvLightResult.DiffuseNormal = BSDFContext.N;
 			StrataEnvLightResult.bSubsurface = BSDF_GETHASSCATTERING(BSDFContext.BSDF) > 0;
 
 			BRANCH
 			if (bEnableSpecular)
 			{
-				const float3 F0 = ComputeF0(SLAB_REFLECTIVITY(BSDFContext.BSDF), BaseColor, Metallic);
+				const float3 F0 = ComputeF0(SLAB_SPECULAR(BSDFContext.BSDF), BaseColor, Metallic);
 				// STRATA_TODO F82
 
-				float SafeRoughness0 = MakeRoughnessSafe(SLAB_ROUGHNESS0(BSDFContext.BSDF));
+				float SafeRoughnessX = MakeRoughnessSafe(SLAB_ROUGHNESSX(BSDFContext.BSDF));
 
 				const bool bHasAnisotropy = BSDF_GETANISOTROPY(BSDFContext.BSDF);
 				if (bHasAnisotropy)
 				{
-					const float SafeRoughness1 = MakeRoughnessSafe(SLAB_ROUGHNESS1(BSDFContext.BSDF));
+					const float SafeRoughnessY = MakeRoughnessSafe(SLAB_ROUGHNESSY(BSDFContext.BSDF));
 
 					// Modified the BSDF normal (and roughness)
 					float Anisotropy = 0;
-					GetAnisotropicFactor(SafeRoughness0, SafeRoughness1, Anisotropy, SafeRoughness0);
-					ModifyGGXAnisotropicNormalRoughness(BSDFContext.X, Anisotropy, SafeRoughness0, BSDFContext.N, BSDFContext.V);
+					GetAnisotropicFactor(SafeRoughnessX, SafeRoughnessY, Anisotropy, SafeRoughnessX);
+					ModifyGGXAnisotropicNormalRoughness(BSDFContext.X, Anisotropy, SafeRoughnessX, BSDFContext.N, BSDFContext.V);
 
 					// Update context (only needs: NoL/SatNoL/R) with the new N
 					BSDFContext.Context.NoL = dot(BSDFContext.N, BSDFContext.L);
@@ -415,18 +414,18 @@ FStrataEnvLightResult StrataEvaluateForEnvLight(FStrataBSDFContext BSDFContext, 
 					BSDFContext.R = 2 * dot(BSDFContext.V, BSDFContext.N) * BSDFContext.N - BSDFContext.V;
 				}
 
-				float3 EvalEnvBRDF = EnvBRDFApprox(F0, SafeRoughness0, BSDFContext.SatNoV);
+				float3 EvalEnvBRDF = EnvBRDFApprox(F0, SafeRoughnessX, BSDFContext.SatNoV);
 
-				StrataEnvLightResult.SpecularDirection = StrataGetOffSpecularPeakReflectionDir(BSDFContext.N, BSDFContext.R, SafeRoughness0);
+				StrataEnvLightResult.SpecularDirection = StrataGetOffSpecularPeakReflectionDir(BSDFContext.N, BSDFContext.R, SafeRoughnessX);
 				StrataEnvLightResult.SpecularWeight = EvalEnvBRDF;
-				StrataEnvLightResult.SpecularSafeRoughness = SafeRoughness0;
+				StrataEnvLightResult.SpecularSafeRoughness = SafeRoughnessX;
 			}
 			break;
 		}
 
 		case STRATA_BSDF_TYPE_SHEEN:
 		{
-			StrataEnvLightResult.DiffuseAlbedo = SHEEN_ALBEDO(BSDFContext.BSDF);;
+			StrataEnvLightResult.DiffuseColor = SHEEN_BASECOLOR(BSDFContext.BSDF);;
 			StrataEnvLightResult.DiffuseNormal = BSDFContext.N;
 			break;
 		}
@@ -453,7 +452,7 @@ FStrataEnvLightResult StrataEvaluateForEnvLight(FStrataBSDFContext BSDFContext, 
 			float3 L = normalize(V - N * dot(V, N));
 			StrataEnvLightResult.DiffuseNormal = L;
 
-			StrataEnvLightResult.DiffuseAlbedo = PI * HairShading(GBuffer, L, V, N, TransmissionShadow, TransmittanceData, BacklitEnabled, Area, Random);
+			StrataEnvLightResult.DiffuseColor = PI * HairShading(GBuffer, L, V, N, TransmissionShadow, TransmittanceData, BacklitEnabled, Area, Random);
 			// No specular environment contribution as of today if not using the special HairStrand render path
 			break;
 		}

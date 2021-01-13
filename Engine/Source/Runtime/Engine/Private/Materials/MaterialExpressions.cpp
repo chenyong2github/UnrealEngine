@@ -19683,7 +19683,7 @@ int32 UMaterialExpressionStrataSlabBSDF::Compile(class FMaterialCompiler* Compil
 
 	int32 OutputCodeChunk = Compiler->StrataSlabBSDF(
 		CompileWithDefaultFloat3(Compiler, BaseColor, 0.18f, 0.18f, 0.18f),
-		CompileWithDefaultFloat1(Compiler, Reflectivity, 0.5f),
+		CompileWithDefaultFloat1(Compiler, Specular, 0.5f),
 		CompileWithDefaultFloat1(Compiler, Metallic, 0.0f),
 		RoughnessXCodeChunk,
 		RoughnessYCodeChunk,
@@ -19713,13 +19713,13 @@ uint32 UMaterialExpressionStrataSlabBSDF::GetInputType(int32 InputIndex)
 	switch (InputIndex)
 	{
 	case 0:
-		return MCT_Float3; // Albedo
+		return MCT_Float3; // BaseColor
 		break;
 	case 1:
 		return MCT_Float1; // Metallic
 		break;
 	case 2:
-		return MCT_Float1; // Reflectivity
+		return MCT_Float1; // Specular
 		break;
 	case 3:
 		return MCT_Float1; // RoughnessX
@@ -19749,7 +19749,7 @@ FName UMaterialExpressionStrataSlabBSDF::GetInputName(int32 InputIndex) const
 {
 	if (InputIndex == 0)
 	{
-		return TEXT("Albedo");
+		return TEXT("BaseColor");
 	}
 	else if (InputIndex == 1)
 	{
@@ -19757,7 +19757,7 @@ FName UMaterialExpressionStrataSlabBSDF::GetInputName(int32 InputIndex) const
 	}
 	else if (InputIndex == 2)
 	{
-		return TEXT("Reflectivity");
+		return TEXT("Specular");
 	}
 	else if (InputIndex == 3)
 	{
@@ -19831,7 +19831,7 @@ int32 UMaterialExpressionStrataSheenBSDF::Compile(class FMaterialCompiler* Compi
 	uint8 SharedNormalIndex = StrataCompilationInfoCreateSharedNormal(Compiler, NormalCodeChunk);
 
 	int32 OutputCodeChunk = Compiler->StrataSheenBSDF(
-		CompileWithDefaultFloat3(Compiler, Albedo,		0.0f, 0.0f, 0.0f),
+		CompileWithDefaultFloat3(Compiler, BaseColor,	0.0f, 0.0f, 0.0f),
 		CompileWithDefaultFloat1(Compiler, Roughness,	0.0f),
 		NormalCodeChunk,
 		SharedNormalIndex);

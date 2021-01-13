@@ -39,7 +39,7 @@ float4 StrataEnvironmentLighting(
 
 		// Diffuse component
 		float3 DiffuseSkyLighting = 0;
-		if (any(StrataEnvLight.DiffuseAlbedo > 0.0f))
+		if (any(StrataEnvLight.DiffuseColor > 0.0f))
 		{
 			// Apply bent normal if needed
 			#if APPLY_SKY_SHADOWING
@@ -54,7 +54,7 @@ float4 StrataEnvironmentLighting(
 			// Finally sample the sky diffuse contribution (spherical harmonic, Lambert BRDF)
 			float3 DiffuseLookup = GetSkySHDiffuse(StrataEnvLight.DiffuseNormal) * View.SkyLightColor.rgb;			// STRATA_TODO compute SH coefficients for ON or Chan
 			// And accumulate
-			DiffuseSkyLighting = BSDFThroughput * (SkyVisData.SkyDiffuseLookUpMul * DiffuseLookup + SkyVisData.SkyDiffuseLookUpAdd) * StrataEnvLight.DiffuseAlbedo;
+			DiffuseSkyLighting = BSDFThroughput * (SkyVisData.SkyDiffuseLookUpMul * DiffuseLookup + SkyVisData.SkyDiffuseLookUpAdd) * StrataEnvLight.DiffuseColor;
 		}
 
 		// Specular component

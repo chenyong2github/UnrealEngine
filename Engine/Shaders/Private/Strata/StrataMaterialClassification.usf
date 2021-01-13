@@ -43,15 +43,15 @@ void ComputePostProcessBSDFData(
 	{
 	case STRATA_BSDF_TYPE_SLAB:
 	{
-		const float3 F0 = ComputeF0(SLAB_REFLECTIVITY(BSDF), SLAB_ALBEDO(BSDF), SLAB_METALLIC(BSDF));
+		const float3 F0 = ComputeF0(SLAB_SPECULAR(BSDF), SLAB_BASECOLOR(BSDF), SLAB_METALLIC(BSDF));
 
 		if (bTopLayer)
 		{
 			// Setup SSR for the top layer
-			TopLayer.Roughness += BSDFCoverageAvg * SLAB_ROUGHNESS0(BSDF);
+			TopLayer.Roughness += BSDFCoverageAvg * SLAB_ROUGHNESSX(BSDF);
 			TopLayer.AccumRoughnessCount += BSDFCoverageAvg;
 
-			const float SafeRoughness = MakeRoughnessSafe(SLAB_ROUGHNESS0(BSDF));
+			const float SafeRoughness = MakeRoughnessSafe(SLAB_ROUGHNESSX(BSDF));
 			TopLayer.BaseColor += BSDFCoverage * EnvBRDFApprox(F0, SafeRoughness, saturate(ContextNoLight.NoV));
 		}
 
@@ -62,7 +62,7 @@ void ComputePostProcessBSDFData(
 			SSS.bHasProfile	= BSDF_GETHASSSSPROFILE(BSDF);
 			SSS.Profile		= SLAB_SSSPROFILEID(BSDF);
 			SSS.RadiusScale	= SLAB_SSSPROFILERADIUS(BSDF);
-			SSS.BaseColor	= SLAB_ALBEDO(BSDF);
+			SSS.BaseColor	= SLAB_BASECOLOR(BSDF);
 			SSS.DMFPAlbedo	= SLAB_SSSDMFPALBEDO(BSDF);
 			SSS.DMFPRadius	= SLAB_SSSDMFPRADIUS(BSDF);
 		}
@@ -71,7 +71,7 @@ void ComputePostProcessBSDFData(
 
 	case STRATA_BSDF_TYPE_SHEEN:
 	{
-		const float3 F0  = SHEEN_ALBEDO(BSDF);
+		const float3 F0  = SHEEN_BASECOLOR(BSDF);
 		const float3 F   = F_Schlick(F0, ContextNoLight.VoH);
 
 		if (bTopLayer)

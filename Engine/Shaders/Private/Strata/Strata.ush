@@ -105,18 +105,18 @@ struct FStrataBSDF
 #define BSDF_SETWEIGHT10F(X, Weight)	BSDF_SETSTATE(X, STATE_BITS_WEIGHT10F, STATE_BIT_OFFSET_WEIGHT10F, Weight)
 
 #if STRATA_INLINE_SHADING
-#define BSDF_SETEMISSIVE(X, V)	X.Emissive = V
-#define BSDF_GETEMISSIVE(X)		X.Emissive
+#define BSDF_SETEMISSIVE(X, V)			X.Emissive = V
+#define BSDF_GETEMISSIVE(X)				X.Emissive
 #else
-#define BSDF_SETEMISSIVE(X, V)	X
-#define BSDF_GETEMISSIVE(X)		0.0f
+#define BSDF_SETEMISSIVE(X, V)			X
+#define BSDF_GETEMISSIVE(X)				0.0f
 #endif
 
-#define SLAB_ALBEDO(X)					X.VGPRs[0].xyz
-#define SLAB_REFLECTIVITY(X)			X.VGPRs[0].w
+#define SLAB_BASECOLOR(X)				X.VGPRs[0].xyz
+#define SLAB_SPECULAR(X)				X.VGPRs[0].w
 #define SLAB_METALLIC(X)				X.VGPRs[1].x
-#define SLAB_ROUGHNESS0(X)				X.VGPRs[1].y
-#define SLAB_ROUGHNESS1(X)				X.VGPRs[1].z
+#define SLAB_ROUGHNESSX(X)				X.VGPRs[1].y
+#define SLAB_ROUGHNESSY(X)				X.VGPRs[1].z
 // Either with SSS profile
 #define SLAB_SSSPROFILEID(X)			X.VGPRs[2].x
 #define SLAB_SSSPROFILERADIUS(X)		X.VGPRs[2].y
@@ -124,7 +124,7 @@ struct FStrataBSDF
 #define SLAB_SSSDMFPALBEDO(X)			X.VGPRs[2].xyz
 #define SLAB_SSSDMFPRADIUS(X)			X.VGPRs[2].w
 
-#define SHEEN_ALBEDO(X)					X.VGPRs[0].xyz
+#define SHEEN_BASECOLOR(X)				X.VGPRs[0].xyz
 #define SHEEN_ROUGHNESS(X)				X.VGPRs[0].w
 
 #define VOLUMETRICFOGCLOUD_ALBEDO(X)	X.VGPRs[0].xyz
@@ -157,8 +157,8 @@ void StrataRequestSharedNormalTangentBasis(inout uint NormalTypes, uint Index);
 
 uint   PackR11G11B10F(float3 rgb);
 float3 UnpackR11G11B10F(uint rgb);
-uint   PackAlbedoLinearToGamma2AlphaLinear(float4 rgba);
-float4 UnpackAlbedoGamma2ToLinearAlphaLinear(uint rgba);
+uint   PackColorLinearToGamma2AlphaLinear(float4 rgba);
+float4 UnpackColorGamma2ToLinearAlphaLinear(uint rgba);
 uint   StrataPackNormal(in float3 Normal);
 float3 StrataUnpackNormal(uint PackedNormal);
 
@@ -227,14 +227,14 @@ void FinalizeTopLayerData(inout FStrataTopLayerData Out)
 uint2 StrataPackTopLayerData(FStrataTopLayerData In)
 {
 	uint2 Out = 0;
-	Out.x = PackAlbedoLinearToGamma2AlphaLinear(float4(In.BaseColor, In.Roughness));
+	Out.x = PackColorLinearToGamma2AlphaLinear(float4(In.BaseColor, In.Roughness));
 	Out.y = StrataPackNormal(In.Normal);
 	return Out;
 }
 
 FStrataTopLayerData StrataUnpackTopLayerData(uint2 In)
 {
-	const float4 BaseColorAndRoughness = UnpackAlbedoGamma2ToLinearAlphaLinear(In.x);
+	const float4 BaseColorAndRoughness = UnpackColorGamma2ToLinearAlphaLinear(In.x);
 
 	FStrataTopLayerData Out = (FStrataTopLayerData)0;
 	Out.Normal = StrataUnpackNormal(In.y);
@@ -254,9 +254,9 @@ bool StrataHasShadingModel(uint ShadingModels, uint ShadingModel)
 	return (ShadingModels & (1 << ShadingModel)) > 0;
 }
 
-bool StrataHasAnisotropy(in float Roughness0, float Roughness1)
+bool StrataHasAnisotropy(in float RoughnessX, float RoughnessY)
 {
-	return Roughness0 != Roughness1;
+	return RoughnessX != RoughnessY;
 }
 
 // Return true if a BSDF has a custom area light integrator
@@ -304,7 +304,7 @@ FStrataData GetInitialisedStrataData()
 }
 
 FStrataData GetStrataSlabBSDF(
-	float3 Albedo, float Reflectivity, float Metallic, float2 Roughness,
+	float3 BaseColor, float Specular, float Metallic, float2 Roughness,
 	float SSSProfileID, float3 SSSDMFPAlbedo, float SSSDMFPRadius,
 	uint SharedNormalIndex, inout uint SharedNormalTypes)
 {
@@ -327,11 +327,11 @@ FStrataData GetStrataSlabBSDF(
 	const bool bHasSSSProfile = SSSProfileID > 0;
 	BSDF_SETHASSSSPROFILE	(StrataData.Layers[0].BSDFs[0],		bHasSSSProfile ? 1 : 0);
 
-	SLAB_ALBEDO				(StrataData.Layers[0].BSDFs[0])		= Albedo;
-	SLAB_REFLECTIVITY		(StrataData.Layers[0].BSDFs[0])		= Reflectivity;
+	SLAB_BASECOLOR			(StrataData.Layers[0].BSDFs[0])		= BaseColor;
+	SLAB_SPECULAR			(StrataData.Layers[0].BSDFs[0])		= Specular;
 	SLAB_METALLIC			(StrataData.Layers[0].BSDFs[0])		= Metallic;
-	SLAB_ROUGHNESS0			(StrataData.Layers[0].BSDFs[0])		= Roughness.x;
-	SLAB_ROUGHNESS1			(StrataData.Layers[0].BSDFs[0])		= Roughness.y;
+	SLAB_ROUGHNESSX			(StrataData.Layers[0].BSDFs[0])		= Roughness.x;
+	SLAB_ROUGHNESSY			(StrataData.Layers[0].BSDFs[0])		= Roughness.y;
 	if (bHasSSSProfile)
 	{
 		SLAB_SSSPROFILEID	(StrataData.Layers[0].BSDFs[0])		= SSSProfileID;
@@ -347,7 +347,7 @@ FStrataData GetStrataSlabBSDF(
 	return StrataData;
 }
 
-FStrataData GetStrataSheenBSDF(float3 Albedo, float Roughness, uint SharedNormalIndex)
+FStrataData GetStrataSheenBSDF(float3 BaseColor, float Roughness, uint SharedNormalIndex)
 {
 	FStrataData StrataData = GetInitialisedStrataData();
 	StrataData.LayerCount++;
@@ -356,7 +356,7 @@ FStrataData GetStrataSheenBSDF(float3 Albedo, float Roughness, uint SharedNormal
 	BSDF_SETTYPE			(StrataData.Layers[0].BSDFs[0],		STRATA_BSDF_TYPE_SHEEN);
 	BSDF_SETNORMALID		(StrataData.Layers[0].BSDFs[0],		SharedNormalIndex);
 	BSDF_SETISTOPLAYER		(StrataData.Layers[0].BSDFs[0],		0);
-	SHEEN_ALBEDO			(StrataData.Layers[0].BSDFs[0])		= Albedo;
+	SHEEN_BASECOLOR			(StrataData.Layers[0].BSDFs[0])		= BaseColor;
 	SHEEN_ROUGHNESS			(StrataData.Layers[0].BSDFs[0])		= Roughness;
 
 	StrataData.Layers[0].BSDFs[0].Weight						= 1.0f;
@@ -619,11 +619,11 @@ FStrataData StrataVerticalLayering(FStrataData Top, FStrataData Base)
 
 void SanitizeStrataSlab(inout FStrataBSDF BSDF)
 {
-	SLAB_ALBEDO(BSDF) = saturate(SLAB_ALBEDO(BSDF));
-	SLAB_REFLECTIVITY(BSDF) = saturate(SLAB_REFLECTIVITY(BSDF));
+	SLAB_BASECOLOR(BSDF) = saturate(SLAB_BASECOLOR(BSDF));
+	SLAB_SPECULAR(BSDF) = saturate(SLAB_SPECULAR(BSDF));
 	SLAB_METALLIC(BSDF) = saturate(SLAB_METALLIC(BSDF));
-	SLAB_ROUGHNESS0(BSDF) = saturate(SLAB_ROUGHNESS0(BSDF));
-	SLAB_ROUGHNESS1(BSDF) = saturate(SLAB_ROUGHNESS1(BSDF));
+	SLAB_ROUGHNESSX(BSDF) = saturate(SLAB_ROUGHNESSX(BSDF));
+	SLAB_ROUGHNESSY(BSDF) = saturate(SLAB_ROUGHNESSY(BSDF));
 	SLAB_SSSPROFILERADIUS(BSDF) = max(0.0f, SLAB_SSSPROFILERADIUS(BSDF));
 	SLAB_SSSDMFPALBEDO(BSDF) = saturate(SLAB_SSSDMFPALBEDO(BSDF));
 	SLAB_SSSDMFPRADIUS(BSDF) = clamp(SLAB_SSSDMFPRADIUS(BSDF), 0.0f, SSS_PROFILE_PERPIXEL_MAXRADIUS);
@@ -631,7 +631,7 @@ void SanitizeStrataSlab(inout FStrataBSDF BSDF)
 
 void SanitizeStrataSheen(inout FStrataBSDF BSDF)
 {
-	SHEEN_ALBEDO(BSDF) = saturate(SHEEN_ALBEDO(BSDF));
+	SHEEN_BASECOLOR(BSDF) = saturate(SHEEN_BASECOLOR(BSDF));
 	SHEEN_ROUGHNESS(BSDF) = saturate(SHEEN_ROUGHNESS(BSDF));
 }
 
@@ -739,7 +739,7 @@ float4 UnpackR16G16B16A16F(uint2 AB)
 	return float4(r, g, b, a);
 }
 
-uint PackAlbedoLinearToGamma2(float3 rgb)
+uint PackColorLinearToGamma2(float3 rgb)
 {
 	uint r = (uint(sqrt(saturate(rgb.r)) * 255.0f) << 16);
 	uint g = (uint(sqrt(saturate(rgb.g)) * 255.0f) << 8);
@@ -747,7 +747,7 @@ uint PackAlbedoLinearToGamma2(float3 rgb)
 	return r | g | b;
 }
 
-float3 UnpackAlbedoGamma2ToLinear(uint rgb)
+float3 UnpackColorGamma2ToLinear(uint rgb)
 {
 	float r = float((rgb >> 16) & 0x000000FF);
 	float g = float((rgb >> 8)  & 0x000000FF);
@@ -756,7 +756,7 @@ float3 UnpackAlbedoGamma2ToLinear(uint rgb)
 	return Gamma2 * Gamma2;	// Simple gamma 2.0
 }
 
-uint PackAlbedoLinearToGamma2AlphaLinear(float4 rgba)
+uint PackColorLinearToGamma2AlphaLinear(float4 rgba)
 {
 	uint r = (uint(sqrt(saturate(rgba.r)) * 255.0f) << 24);
 	uint g = (uint(sqrt(saturate(rgba.g)) * 255.0f) << 16);
@@ -765,7 +765,7 @@ uint PackAlbedoLinearToGamma2AlphaLinear(float4 rgba)
 	return r | g | b | a;
 }
 
-float4 UnpackAlbedoGamma2ToLinearAlphaLinear(uint rgba)
+float4 UnpackColorGamma2ToLinearAlphaLinear(uint rgba)
 {
 	float r = float((rgba >> 24) & 0x000000FF);
 	float g = float((rgba >> 16) & 0x000000FF);
@@ -989,14 +989,14 @@ void StrataLoad_R11_G11_B10F(ByteAddressBuffer StrataBuffer, inout uint ByteOffs
 	C = temp.z;
 }
 
-void StrataLoad_AlbedoGamma2ToLinear(ByteAddressBuffer StrataBuffer, inout uint ByteOffset, inout float3 A)
+void StrataLoad_ColorGamma2ToLinear(ByteAddressBuffer StrataBuffer, inout uint ByteOffset, inout float3 A)
 {
-	A = UnpackAlbedoGamma2ToLinear(StrataLoadUint1(StrataBuffer, ByteOffset));
+	A = UnpackColorGamma2ToLinear(StrataLoadUint1(StrataBuffer, ByteOffset));
 }
 
-void StrataLoad_AlbedoGamma2ToLinearAlphaLinear(ByteAddressBuffer StrataBuffer, inout uint ByteOffset, inout float3 RGB, inout float A)
+void StrataLoad_ColorGamma2ToLinearAlphaLinear(ByteAddressBuffer StrataBuffer, inout uint ByteOffset, inout float3 RGB, inout float A)
 {
-	float4 Data = UnpackAlbedoGamma2ToLinearAlphaLinear(StrataLoadUint1(StrataBuffer, ByteOffset));
+	float4 Data = UnpackColorGamma2ToLinearAlphaLinear(StrataLoadUint1(StrataBuffer, ByteOffset));
 	RGB = Data.rgb;
 	A = Data.a;
 }
@@ -1067,15 +1067,15 @@ void PackStrataOut(
 			{
 			case STRATA_BSDF_TYPE_SLAB:
 			{
-				const float3 F0 = ComputeF0(SLAB_REFLECTIVITY(BSDF), SLAB_ALBEDO(BSDF), SLAB_METALLIC(BSDF));
+				const float3 F0 = ComputeF0(SLAB_SPECULAR(BSDF), SLAB_BASECOLOR(BSDF), SLAB_METALLIC(BSDF));
 
 				if (bTopLayer)
 				{
 					// Setup SSR for the top layer
-					TopLayer.Roughness += BSDFCoverageAvg * SLAB_ROUGHNESS0(BSDF);
+					TopLayer.Roughness += BSDFCoverageAvg * SLAB_ROUGHNESSX(BSDF);
 					TopLayer.AccumRoughnessCount += BSDFCoverageAvg;
 
-					const float SafeRoughness = MakeRoughnessSafe(SLAB_ROUGHNESS0(BSDF));
+					const float SafeRoughness = MakeRoughnessSafe(SLAB_ROUGHNESSX(BSDF));
 					TopLayer.BaseColor += BSDFCoverage * EnvBRDFApprox(F0, SafeRoughness, saturate(ContextNoLight.NoV));
 				}
 
@@ -1086,7 +1086,7 @@ void PackStrataOut(
 					SSS.bHasProfile	= BSDF_GETHASSSSPROFILE(BSDF);
 					SSS.Profile		= SLAB_SSSPROFILEID(BSDF);
 					SSS.RadiusScale	= SLAB_SSSPROFILERADIUS(BSDF);
-					SSS.BaseColor	= SLAB_ALBEDO(BSDF);
+					SSS.BaseColor	= SLAB_BASECOLOR(BSDF);
 					SSS.DMFPAlbedo	= SLAB_SSSDMFPALBEDO(BSDF);
 					SSS.DMFPRadius	= SLAB_SSSDMFPRADIUS(BSDF);
 				}
@@ -1098,7 +1098,7 @@ void PackStrataOut(
 
 			case STRATA_BSDF_TYPE_SHEEN:
 			{
-				const float3 F0  = SHEEN_ALBEDO(BSDF);
+				const float3 F0  = SHEEN_BASECOLOR(BSDF);
 				const float3 F = F_Schlick(F0, ContextNoLight.VoH);
 
 				if (bTopLayer)
@@ -1251,8 +1251,8 @@ void PackStrataOut(
 			{
 			case STRATA_BSDF_TYPE_SLAB:
 			{
-				STRATA_STORE_UINT1(PackAlbedoLinearToGamma2AlphaLinear(float4(SLAB_ALBEDO(BSDF), SLAB_ROUGHNESS0(BSDF))));
-				STRATA_STORE_UINT1(PackRGBA8(float4(SLAB_REFLECTIVITY(BSDF), SLAB_METALLIC(BSDF), SLAB_ROUGHNESS1(BSDF), 0)));
+				STRATA_STORE_UINT1(PackColorLinearToGamma2AlphaLinear(float4(SLAB_BASECOLOR(BSDF), SLAB_ROUGHNESSX(BSDF))));
+				STRATA_STORE_UINT1(PackRGBA8(float4(SLAB_SPECULAR(BSDF), SLAB_METALLIC(BSDF), SLAB_ROUGHNESSY(BSDF), 0)));
 
 				if (BSDF_GETHASSCATTERING(BSDF))
 				{
@@ -1262,7 +1262,7 @@ void PackStrataOut(
 					}
 					else
 					{
-						STRATA_STORE_UINT1(PackAlbedoLinearToGamma2AlphaLinear(float4(SLAB_SSSDMFPALBEDO(BSDF), SLAB_SSSDMFPRADIUS(BSDF) / SSS_PROFILE_PERPIXEL_MAXRADIUS)));
+						STRATA_STORE_UINT1(PackColorLinearToGamma2AlphaLinear(float4(SLAB_SSSDMFPALBEDO(BSDF), SLAB_SSSDMFPRADIUS(BSDF) / SSS_PROFILE_PERPIXEL_MAXRADIUS)));
 					}
 				}
 				// 8 bytes
@@ -1270,20 +1270,20 @@ void PackStrataOut(
 			break;
 			case STRATA_BSDF_TYPE_SHEEN:
 			{
-				STRATA_STORE_UINT1(PackAlbedoLinearToGamma2AlphaLinear(float4(SHEEN_ALBEDO(BSDF), SHEEN_ROUGHNESS(BSDF))));
+				STRATA_STORE_UINT1(PackColorLinearToGamma2AlphaLinear(float4(SHEEN_BASECOLOR(BSDF), SHEEN_ROUGHNESS(BSDF))));
 				// 4 bytes
 			}
 			break;
 			case STRATA_BSDF_TYPE_HAIR:
 			{
-				STRATA_STORE_UINT1(PackAlbedoLinearToGamma2AlphaLinear(float4(HAIR_BASECOLOR(BSDF), HAIR_ROUGHNESS(BSDF))));
+				STRATA_STORE_UINT1(PackColorLinearToGamma2AlphaLinear(float4(HAIR_BASECOLOR(BSDF), HAIR_ROUGHNESS(BSDF))));
 				STRATA_STORE_UINT1(PackR11G11B10F(float3(HAIR_SCATTER(BSDF), HAIR_SPECULAR(BSDF), HAIR_BACKLIT(BSDF))));
 				// 8 bytes
 			}
 			break;
 			case STRATA_BSDF_TYPE_SINGLELAYERWATER:
 			{
-				STRATA_STORE_UINT1(PackAlbedoLinearToGamma2AlphaLinear(float4(SLW_BASECOLOR(BSDF), 0.0f)));
+				STRATA_STORE_UINT1(PackColorLinearToGamma2AlphaLinear(float4(SLW_BASECOLOR(BSDF), 0.0f)));
 				STRATA_STORE_UINT1(PackRGBA8(float4(SLW_METALLIC(BSDF), SLW_SPECULAR(BSDF), SLW_ROUGHNESS(BSDF), SLW_TOPMATERIALOPACITY(BSDF))));
 			}
 			break;
@@ -1357,12 +1357,12 @@ FStrataBSDF UnpackStrataBSDFIn(ByteAddressBuffer StrataBuffer, inout uint ByteOf
 	{
 	case STRATA_BSDF_TYPE_SLAB:
 	{
-		StrataLoad_AlbedoGamma2ToLinearAlphaLinear(StrataBuffer, ByteOffset, SLAB_ALBEDO(OutBSDF), SLAB_ROUGHNESS0(OutBSDF));
+		StrataLoad_ColorGamma2ToLinearAlphaLinear(StrataBuffer, ByteOffset, SLAB_BASECOLOR(OutBSDF), SLAB_ROUGHNESSX(OutBSDF));
 		{
 			float4 Data = UnpackRGBA8(StrataLoadUint1(StrataBuffer, ByteOffset));
-			SLAB_REFLECTIVITY(OutBSDF) = Data.x;
+			SLAB_SPECULAR(OutBSDF) = Data.x;
 			SLAB_METALLIC(OutBSDF) = Data.y;
-			SLAB_ROUGHNESS1(OutBSDF) = Data.z;
+			SLAB_ROUGHNESSY(OutBSDF) = Data.z;
 		}
 		if (BSDF_GETHASSCATTERING(OutBSDF))
 		{
@@ -1374,7 +1374,7 @@ FStrataBSDF UnpackStrataBSDFIn(ByteAddressBuffer StrataBuffer, inout uint ByteOf
 			}
 			else
 			{
-				StrataLoad_AlbedoGamma2ToLinearAlphaLinear(StrataBuffer, ByteOffset, SLAB_SSSDMFPALBEDO(OutBSDF), SLAB_SSSDMFPRADIUS(OutBSDF));
+				StrataLoad_ColorGamma2ToLinearAlphaLinear(StrataBuffer, ByteOffset, SLAB_SSSDMFPALBEDO(OutBSDF), SLAB_SSSDMFPRADIUS(OutBSDF));
 				SLAB_SSSDMFPRADIUS(OutBSDF) *= SSS_PROFILE_PERPIXEL_MAXRADIUS;
 			}
 		}
@@ -1382,19 +1382,19 @@ FStrataBSDF UnpackStrataBSDFIn(ByteAddressBuffer StrataBuffer, inout uint ByteOf
 	break;
 	case STRATA_BSDF_TYPE_SHEEN:
 	{
-		StrataLoad_AlbedoGamma2ToLinearAlphaLinear(StrataBuffer, ByteOffset, SHEEN_ALBEDO(OutBSDF), SHEEN_ROUGHNESS(OutBSDF));
+		StrataLoad_ColorGamma2ToLinearAlphaLinear(StrataBuffer, ByteOffset, SHEEN_BASECOLOR(OutBSDF), SHEEN_ROUGHNESS(OutBSDF));
 	}
 	break;
 	case STRATA_BSDF_TYPE_HAIR:
 	{
-		StrataLoad_AlbedoGamma2ToLinearAlphaLinear(StrataBuffer, ByteOffset, HAIR_BASECOLOR(OutBSDF), HAIR_ROUGHNESS(OutBSDF));
+		StrataLoad_ColorGamma2ToLinearAlphaLinear(StrataBuffer, ByteOffset, HAIR_BASECOLOR(OutBSDF), HAIR_ROUGHNESS(OutBSDF));
 		StrataLoad_R11_G11_B10F(StrataBuffer, ByteOffset, HAIR_SCATTER(OutBSDF), HAIR_SPECULAR(OutBSDF), HAIR_BACKLIT(OutBSDF));
 		// 8 bytes
 	}
 	break;
 	case STRATA_BSDF_TYPE_SINGLELAYERWATER:
 	{
-		StrataLoad_AlbedoGamma2ToLinearAlphaLinear(StrataBuffer, ByteOffset, SLW_BASECOLOR(OutBSDF), DummyFloat);
+		StrataLoad_ColorGamma2ToLinearAlphaLinear(StrataBuffer, ByteOffset, SLW_BASECOLOR(OutBSDF), DummyFloat);
 		float4 Data = UnpackRGBA8(StrataLoadUint1(StrataBuffer, ByteOffset));
 		SLW_METALLIC(OutBSDF) = Data.x;
 		SLW_SPECULAR(OutBSDF) = Data.y;
