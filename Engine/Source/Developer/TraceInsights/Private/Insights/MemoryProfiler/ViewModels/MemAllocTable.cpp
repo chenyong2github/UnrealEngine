@@ -386,7 +386,7 @@ void FMemAllocTable::AddDefaultColumns()
 
 					if (Callstack)
 					{
-						const TraceServices::FStackFrame* Frame = Callstack->Frame(2);
+						const TraceServices::FStackFrame* Frame = Callstack->Frame(FMath::Min(2u, Callstack->Num()));
 						const TraceServices::QueryResult Result = Frame->Symbol->Result.load(std::memory_order_acquire);
 						switch (Result)
 						{
@@ -400,6 +400,10 @@ void FMemAllocTable::AddDefaultColumns()
 							Value = Frame->Symbol->Name;
 							break;
 						}
+					}
+					else
+					{
+						Value = DisplayStrings[1];
 					}
 				}
 				else
