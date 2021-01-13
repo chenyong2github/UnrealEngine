@@ -3,7 +3,7 @@ import * as System from 'fs'
 
 export function mkdir(path: string) {
 
-	return new Promise((done, fail) => {
+	return new Promise<void>((done, fail) => {
 		System.mkdir(path, {recursive: true, mode: 0o777}, err => {
 			if (err && err.code !== 'EEXIST') {
 				fail(err)
@@ -29,7 +29,7 @@ export function readFile(path: string) {
 }
 
 export function writeFile(path: string, content: string) {
-	return new Promise((done, fail) => {
+	return new Promise<void>((done, fail) => {
 		System.writeFile(path, content, 'ascii', err => {
 			if (err) {
 				fail(err)
@@ -42,7 +42,7 @@ export function writeFile(path: string, content: string) {
 }
 
 export function appendToFile(path: string, content: string) {
-	return new Promise((done, fail) => {
+	return new Promise<void>((done, fail) => {
 		System.appendFile(path, content, 'ascii', (err: Error) => {
 			if (err) {
 				fail(err)

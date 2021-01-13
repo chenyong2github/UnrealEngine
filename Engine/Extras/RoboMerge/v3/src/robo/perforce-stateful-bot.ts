@@ -207,7 +207,7 @@ export abstract class PerforceStatefulBot implements BotIPC {
 	/**
 	 * You can use the helper function PerforceStatefulBot.setBotToLatestClInBranch to accomplish this.
 	 */
-	abstract async setBotToLatestCl(): Promise<void>
+	abstract setBotToLatestCl(): Promise<void>
 
-	abstract async tick(): Promise<boolean>;
+	abstract tick(): Promise<boolean>;
 }
