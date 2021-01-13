@@ -1129,9 +1129,24 @@ void FNiagaraDataInterfaceProxyGrid3DCollectionProxy::PreStage(FRHICommandList& 
 		// we start.  If a user wants to access data from the previous stage, then they can read from the current data.
 
 		// #todo(dmp): we might want to expose an option where we have buffers that are write only and need a clear (ie: no buffering like the neighbor grid).  They would be considered transient perhaps?  It'd be more
-		// memory efficient since it would theoretically not require any double buffering.
+		// memory efficient since it would theoretically not require any double buffering.		
+
+		// #todo(dmp): for now, if there is an output DI that is NOT an iteration DI AND if both the iteration DI and this DI have the same total number of instances, do not do the UAV clear prior to the stage.
+		// this isn't optimal, but should work to some degree to reduce overhead in cases where we have multiple grids of the same resolution being processed/written to in 1 stage
+		FNiagaraDataInterfaceProxyRW* IterationInterface = Context.ComputeInstanceData->SimStageData[Context.SimulationStageIndex].AlternateIterationSource;
 		if (!Context.IsIterationStage)
 		{
+			if (IterationInterface != nullptr)
+			{
+				const FIntVector ElementCount = IterationInterface->GetElementCount(Context.SystemInstanceID);
+				const uint64 TotalNumInstances = ElementCount.X * ElementCount.Y * ElementCount.Z;
+			
+				if (TotalNumInstances == ProxyData->NumCells.X * ProxyData->NumCells.Y * ProxyData->NumCells.Z)
+				{
+					return;
+				}
+			}
+
 			check(ProxyData->DestinationData);
 			RHICmdList.Transition(FRHITransitionInfo(ProxyData->DestinationData->GridBuffer.UAV, ERHIAccess::SRVMask, ERHIAccess::UAVCompute));
 			RHICmdList.ClearUAVFloat(ProxyData->DestinationData->GridBuffer.UAV, FVector4(ForceInitToZero));
