@@ -668,7 +668,7 @@ private:
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_DispatchTickGroup);
 		for (int32 IndexInner = 0; IndexInner < TG_MAX; IndexInner++)
 		{
-			TArray<TGraphTask<FTickFunctionTask>*>& TickArray = HiPriTickTasks[WorldTickGroup][IndexInner];
+			TArray<TGraphTask<FTickFunctionTask>*>& TickArray = HiPriTickTasks[WorldTickGroup][IndexInner]; //-V781
 			if (IndexInner < WorldTickGroup)
 			{
 				check(TickArray.Num() == 0); // makes no sense to have and end TG before the start TG
@@ -684,7 +684,7 @@ private:
 		}
 		for (int32 IndexInner = 0; IndexInner < TG_MAX; IndexInner++)
 		{
-			TArray<TGraphTask<FTickFunctionTask>*>& TickArray = TickTasks[WorldTickGroup][IndexInner];
+			TArray<TGraphTask<FTickFunctionTask>*>& TickArray = TickTasks[WorldTickGroup][IndexInner]; //-V781
 			if (IndexInner < WorldTickGroup)
 			{
 				check(TickArray.Num() == 0); // makes no sense to have and end TG before the start TG

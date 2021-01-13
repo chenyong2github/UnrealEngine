@@ -1236,7 +1236,7 @@ bool FParse::SchemeNameFromURI(const TCHAR* URI, FString& OutSchemeName)
 	{
 		if(!FChar::IsAlpha(URI[Idx]) && !FChar::IsDigit(URI[Idx]) && URI[Idx] != TEXT('+') && URI[Idx] != TEXT('.') && URI[Idx] != TEXT('-'))
 		{
-			if(URI[Idx] == TEXT(':') && Idx > 0)
+			if(Idx > 0 && URI[Idx] == TEXT(':'))
 			{
 				OutSchemeName = FString(Idx, URI);
 				return true;

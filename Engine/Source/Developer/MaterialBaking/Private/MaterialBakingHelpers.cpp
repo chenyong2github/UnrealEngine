@@ -283,7 +283,7 @@ namespace FMaterialBakingHelpersImpl
 						PreviousY = Y - 1;
 						NextRowsLeft->Add(Y - 1);
 					}
-					if (!RowCompleted[Y] && RowRemainingPixels[RowIndex] && PreviousY < Y)
+					if (PreviousY < Y && !RowCompleted[Y] && RowRemainingPixels[RowIndex])
 					{
 						PreviousY = Y;
 						NextRowsLeft->Add(Y);

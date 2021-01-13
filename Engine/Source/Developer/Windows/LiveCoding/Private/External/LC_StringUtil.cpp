@@ -89,7 +89,9 @@ namespace string
 	std::wstring ToWideString(const char* utf8Str, size_t count)
 	{
 		size_t length = 0u;
-		while ((utf8Str[length] != '\0') && (length < count))
+		// BEGIN EPIC MOD - PVS FIX
+		while ((length < count) && (utf8Str[length] != '\0'))
+		// END EPIC MOD
 		{
 			// find null-terminator
 			++length;

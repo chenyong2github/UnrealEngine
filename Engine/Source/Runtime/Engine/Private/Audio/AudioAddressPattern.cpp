@@ -46,7 +46,7 @@ bool FAudioAddressPattern::BracePatternMatches(const FString& Pattern, int32 Pat
 		{
 			bMatches = false;
 			PartIndex = PartIter;
-			while (Pattern[PatternIter] != ',' && PatternIter < PatternEndIndex)
+			while (PatternIter < PatternEndIndex && Pattern[PatternIter] != ',')
 			{
 				++PatternIter;
 			}
