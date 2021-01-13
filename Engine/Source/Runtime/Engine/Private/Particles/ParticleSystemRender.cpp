@@ -4150,7 +4150,7 @@ int32 FDynamicBeam2EmitterData::FillData_Noise(FAsyncBufferFillData& Me) const
 
 					InterimDrawPosition = LastDrawPosition;
 					// Tessellate between the current position and the last position
-					for (int32 TessIndex = 0; TessIndex < TessFactor; TessIndex++)
+					for (int32 TessIndex = 0; TessIndex < TessFactor; TessIndex++) //-V1008
 					{
 						InterpDrawPos = FMath::CubicInterp(
 							LastDrawPosition, LastTangent,
@@ -4269,7 +4269,7 @@ int32 FDynamicBeam2EmitterData::FillData_Noise(FAsyncBufferFillData& Me) const
 
 					// Tessellate this segment
 					InterimDrawPosition = LastDrawPosition;
-					for (int32 TessIndex = 0; TessIndex < TessFactor; TessIndex++)
+					for (int32 TessIndex = 0; TessIndex < TessFactor; TessIndex++) //-V1008
 					{
 						InterpDrawPos = FMath::CubicInterp(
 							LastDrawPosition, LastTangent,

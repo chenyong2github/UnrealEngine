@@ -403,7 +403,7 @@ protected:
 						TPropertyCombinationSet<BitWidth> Set1;
 						TPropertyCombinationSet<BitWidth> Set2;
 						bool bFirst = true;
-						for (int n = 0; n < SplitIndex; ++n)
+						for (int n = 0; n < SplitIndex; ++n) //-V1008
 						{
 							Set1.Add(bFirst ? FirstIndex : SecondIndex);
 							bFirst = false;

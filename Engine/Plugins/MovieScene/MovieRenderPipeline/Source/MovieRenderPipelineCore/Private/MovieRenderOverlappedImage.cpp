@@ -261,7 +261,7 @@ void FImageOverlappedPlane::AccumulateSinglePlane(const TArray64<float>& InRawDa
 				int32 ActualWidthExtra4 = ActualWidth - 4 * ActualWidthGroup4;
 
 
-				for (int32 IterStart = 0; IterStart < NumSkipX; IterStart++)
+				for (int32 IterStart = 0; IterStart < NumSkipX; IterStart++) //-V1008
 				{
 					int32 DstX = ActualDstX0 + IterStart;
 

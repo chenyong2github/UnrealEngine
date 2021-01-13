@@ -135,7 +135,7 @@ void FD3D12Device::CreateCommandContexts()
 		}
 	}
 
-	for (uint32 i = 0; i < NumAsyncComputeContexts; ++i)
+	for (uint32 i = 0; i < NumAsyncComputeContexts; ++i) //-V1008
 	{		
 		const bool bIsDefaultContext = (i == 0); //-V547
 		const ED3D12CommandQueueType CommandQueueType = ED3D12CommandQueueType::Async;
