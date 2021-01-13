@@ -2,6 +2,7 @@
 
 #include "UObject/UnrealNames.h"
 #include "UObject/NameBatchSerialization.h"
+#include "Async/Async.h"
 #include "Misc/AssertionMacros.h"
 #include "Misc/MessageDialog.h"
 #include "Math/NumericLimits.h"
@@ -457,14 +458,14 @@ private:
 // and asset data gatherer thread during editor startup.
 // At runtime the async loading thread contends with game thread during asset loading.
 #if WITH_CASE_PRESERVING_NAME
-enum { FNamePoolShardBits = 10 };
+constexpr uint32 FNamePoolShardBits = 10;
 #else
-enum { FNamePoolShardBits = 8 };
+constexpr uint32 FNamePoolShardBits = 8;
 #endif
 
-enum { FNamePoolShards = 1 << FNamePoolShardBits };
-enum { FNamePoolInitialSlotBits = 8 };
-enum { FNamePoolInitialSlotsPerShard = 1 << FNamePoolInitialSlotBits };
+constexpr uint32 FNamePoolShards = 1 << FNamePoolShardBits;
+constexpr uint32 FNamePoolInitialSlotBits = 8;
+constexpr uint32 FNamePoolInitialSlotsPerShard = 1 << FNamePoolInitialSlotBits;
 
 /** Hashes name into 64 bits that determines shard and slot index.
  *	
@@ -3228,6 +3229,34 @@ static void LoadDisplayNames(const TArray<FNameComparisonLoad>& ComparisonLoads)
 
 #endif  // WITH_CASE_PRESERVING_NAME
 
+// Helper struct for loading part of a name batch into a shard
+struct FShardTarget
+{
+	uint32 Num;
+	uint32 SortIdx;
+};
+using FShardTargetArray = FShardTarget[FNamePoolShards];
+
+static void InitializeTargets(FShardTargetArray& Targets, const TArrayView<const uint64> Hashes)
+{
+	FMemory::Memzero(Targets);
+
+	// Count names / shard
+	for (uint64 Hash : Hashes)
+	{
+		Targets[FNameHash::GetShardIndex(Hash)].Num++;
+	}
+
+	// Set starting index per shard
+	uint32 SortIdx = 0;
+	for (FShardTarget& Target : Targets)
+	{
+		Target.SortIdx = SortIdx;
+		SortIdx += Target.Num;
+	}
+
+	check(SortIdx == Hashes.Num());
+}
 
 
 static void LoadInterleavedNameBatchInShardOrder(	TArray<FNameEntryId>& Out,
@@ -3239,13 +3268,8 @@ static void LoadInterleavedNameBatchInShardOrder(	TArray<FNameEntryId>& Out,
 
 	const uint32 Num = Out.Num();
 
-	// Number of names per shard + index into ShardSortedLoads
-	struct FShardTarget
-	{
-		uint32 Num;
-		uint32 SortIdx;
-	}
-	Targets[FNamePoolShards] = {};
+	FShardTargetArray Targets;
+	InitializeTargets(Targets, Hashes);
 	
 	// Generate name views and count names / shard
 	TArray<FNameStringView> Names;
@@ -3253,20 +3277,9 @@ static void LoadInterleavedNameBatchInShardOrder(	TArray<FNameEntryId>& Out,
 	const uint8* NameIt = HeadersAndStrings.GetData();
 	for (uint32 Idx = 0; Idx < Num; ++Idx)
 	{
-		uint64 Hash = INTEL_ORDER64(Hashes[Idx]);
-		Targets[FNameHash::GetShardIndex(Hash)].Num++;
 		Names[Idx] = LoadNameHeader(/* in-out */ NameIt).CastToNameView(); 
 	}
 	check(NameIt == HeadersAndStrings.end());
-
-	// Set starting index per shard
-	uint32 SortIdx = 0;
-	for (FShardTarget& Target : Targets)
-	{
-		Target.SortIdx = SortIdx;
-		SortIdx += Target.Num;
-	}
-	check(SortIdx == Num);
 
 	// Prepare batch loading requests sorted by shard index
 	TArray<FNameComparisonLoad> ShardSortedLoads;
@@ -3306,7 +3319,7 @@ static void LoadSeparatedNameBatchInShardOrder(	TArray<FNameEntryId>& Out,
 	check(Out.Num() == Headers.Num());
 
 	// Number of names and bytes per shard + indices into shard sorted arrays
-	struct FShardTarget
+	struct FExtendedShardTarget
 	{
 		uint32 NumNames;
 		uint32 NumBytes;
@@ -3318,7 +3331,7 @@ static void LoadSeparatedNameBatchInShardOrder(	TArray<FNameEntryId>& Out,
 	// Count names and bytes per shard
 	for (int32 Idx = 0; Idx < Headers.Num(); ++Idx)
 	{
-		FShardTarget& Target = Targets[FNameHash::GetShardIndex(INTEL_ORDER64(Hashes[Idx]))];
+		FExtendedShardTarget& Target = Targets[FNameHash::GetShardIndex(INTEL_ORDER64(Hashes[Idx]))];
 		++Target.NumNames;
 		Target.NumBytes += Headers[Idx].NumBytes();
 	}
@@ -3327,7 +3340,7 @@ static void LoadSeparatedNameBatchInShardOrder(	TArray<FNameEntryId>& Out,
 	uint32 ByteIdx = 0;
 	uint32 NameIdx = 0;
 
-	for (FShardTarget& Target : Targets)
+	for (FExtendedShardTarget& Target : Targets)
 	{
 		Target.NameIdx = NameIdx;
 		Target.ByteIdx = ByteIdx;
@@ -3357,7 +3370,7 @@ static void LoadSeparatedNameBatchInShardOrder(	TArray<FNameEntryId>& Out,
 		uint64 Hash = INTEL_ORDER64(Hashes[Idx]);
 
 		// Copy name data in read order
-		FShardTarget& Target = Targets[FNameHash::GetShardIndex(Hash)];
+		FExtendedShardTarget& Target = Targets[FNameHash::GetShardIndex(Hash)];
 		void* NameData = &ShardSortedStrings[Target.ByteIdx];
 		const FNameStringView Name(NameData, Header.Len(), !!Header.IsUtf16());
 
@@ -3375,7 +3388,7 @@ static void LoadSeparatedNameBatchInShardOrder(	TArray<FNameEntryId>& Out,
 	// Loop over shards and issue batch loads
 	FNamePool& Pool = GetNamePoolPostInit();
 	FNameComparisonLoad* LoadIt = ShardSortedLoads.GetData();
-	for (FShardTarget& Target : Targets)
+	for (FExtendedShardTarget& Target : Targets)
 	{
 		TArrayView<FNameComparisonLoad> Batch(LoadIt, Target.NumNames);
 		LoadIt += Target.NumNames;
@@ -3416,52 +3429,145 @@ void LoadNameBatch(TArray<FNameEntryId>& OutNames, TArrayView<const uint8> NameD
 	}
 }
 
+struct FNameBatchLoader
+{
+	TArrayView<const uint64> Hashes;
+	TArrayView<const FSerializedNameHeader> Headers;
+	TArrayView<const uint8> Strings;
+	TArray<uint8> Data;
+
+	// @return true if there's anything to load
+	bool Read(FArchive& Ar)
+	{
+		uint32 Num = 0;
+		Ar << Num;
+
+		if (Num == 0)
+		{
+			return false;		
+		}
+
+		uint32 NumStringBytes = 0;
+		Ar << NumStringBytes;
+
+		uint64 HashVersion = 0;
+		Ar << HashVersion;
+		bool bUseSavedHashes = CanUseSavedHashes(HashVersion);
+
+		// Allocate and load hashes, headers and string data in one go
+		uint32 NumHashBytes = sizeof(uint64) * Num;
+		uint32 NumHeaderBytes = sizeof(FSerializedNameHeader) * Num;
+		Data.SetNumUninitialized(NumHashBytes + NumHeaderBytes + NumStringBytes);
+		Ar.Serialize(Data.GetData(), Data.Num());
+
+		TArrayView<const uint64> SavedHashes = TArrayView<const uint64>(reinterpret_cast<const uint64*>(Data.GetData()), Num);
+		Hashes = bUseSavedHashes ? SavedHashes : TArrayView<const uint64>();
+		Headers = TArrayView<const FSerializedNameHeader>(reinterpret_cast<const FSerializedNameHeader*>(SavedHashes.end()), Num);
+		Strings = TArrayView<const uint8>(reinterpret_cast<const uint8*>(Headers.end()), NumStringBytes);
+
+		return true;
+	}
+
+	TArray<FNameEntryId> Load()
+	{
+		check(Headers.Num());
+
+		TArray<FNameEntryId> Out;
+		Out.SetNumUninitialized(Headers.Num());
+
+		if (Hashes.Num() == 0)
+		{
+			LoadSeparatedNameBatchInInputOrder(Out, Headers, Strings);
+		}
+		else if (Headers.Num() < FNamePoolShards)
+		{
+			LoadSeparatedNameBatchInInputOrder(Out, Hashes.GetData(), Headers, Strings);
+		}
+		else
+		{
+			LoadSeparatedNameBatchInShardOrder(Out, Hashes.GetData(), Headers, Strings);
+		}
+
+		return Out;
+	}
+};
+
 TArray<FNameEntryId> LoadNameBatch(FArchive& Ar)
 {
-	uint32 Num = 0;
-	Ar << Num;
+	FNameBatchLoader Loader;
 
-	if (Num == 0)
+	if (Loader.Read(Ar))
 	{
-		return {};
+		return Loader.Load();
 	}
-		
-	uint32 NumStringBytes = 0;
-	Ar << NumStringBytes;
 
-	uint64 HashVersion = 0;
-	Ar << HashVersion;
+	return TArray<FNameEntryId>();
+}
 
-	// Allocate and load hashes, headers and string data in one go
-	uint32 NumHashBytes = sizeof(uint64) * Num;
-	uint32 NumHeaderBytes = sizeof(FSerializedNameHeader) * Num;
-	TArray<uint8> Data;
-	Data.SetNumUninitialized(NumHashBytes + NumHeaderBytes + NumStringBytes);
-	Ar.Serialize(Data.GetData(), Data.Num());
-	
-	TArrayView<const uint64> Hashes(reinterpret_cast<const uint64*>(Data.GetData()), Num);
-	TArrayView<const FSerializedNameHeader> Headers(reinterpret_cast<const FSerializedNameHeader*>(Hashes.end()), Num);
-	TArrayView<const uint8> Strings(reinterpret_cast<const uint8*>(Headers.end()), NumStringBytes);
-	check(&Data.Last() ==  &Strings.Last());
-
-	TArray<FNameEntryId> Out;
-	Out.SetNumUninitialized(Headers.Num());
-
-	if (!CanUseSavedHashes(HashVersion))
+struct FNameBatchAsyncLoader : FNameBatchLoader
+{	
+	~FNameBatchAsyncLoader()
 	{
-		LoadSeparatedNameBatchInInputOrder(Out, Headers, Strings);
+		FGenericPlatformProcess::ReturnSynchEventToPool(/* can be null */ DoneEvent);
 	}
-	else if (Num < FNamePoolShards)
+
+	bool ShouldLoadAsync(uint32 MaxWorkers) const
 	{
-		LoadSeparatedNameBatchInInputOrder(Out, Hashes.GetData(), Headers, Strings);
+		return MaxWorkers && Hashes.Num() >= FNamePoolShards && Hashes.Num() > 30000;
 	}
-	else
+
+	void PrepareWork()
+	{
+		DoneEvent = FPlatformProcess::GetSynchEventFromPool();
+		Out.SetNumUninitialized(Headers.Num());
+	}
+
+	void DoWork()
 	{
 		LoadSeparatedNameBatchInShardOrder(Out, Hashes.GetData(), Headers, Strings);
+		DoneEvent->Trigger();
 	}
 
-	return Out;
+	TArray<FNameEntryId> GetResult()
+	{
+		check(DoneEvent);
+
+		DoneEvent->Wait();
+		FPlatformProcess::ReturnSynchEventToPool(DoneEvent);
+		DoneEvent = nullptr;
+
+		return MoveTemp(Out);
+	}
+
+	FEvent* DoneEvent = nullptr;
+	TArray<FNameEntryId> Out;
+};
+
+TFunction<TArray<FNameEntryId>()> LoadNameBatchAsync(FArchive& Ar, uint32 MaxWorkers)
+{
+	check(MaxWorkers > 0);
+
+	// Ref-count since worker tasks may outlive the returned function
+	TSharedPtr<FNameBatchAsyncLoader, ESPMode::ThreadSafe> Loader(new FNameBatchAsyncLoader);
+
+	if (Loader->Read(Ar))
+	{
+		if (Loader->ShouldLoadAsync(MaxWorkers))
+		{
+			Loader->PrepareWork();
+			Async(EAsyncExecution::TaskGraph, [=](){ Loader->DoWork(); });
+			return [=](){ return Loader->GetResult(); };
+		}
+		else
+		{
+			// Sync load
+			return [Out = Loader->Load()]() { return Out; };
+		}
+	}
+
+	return []() { return TArray<FNameEntryId>(); };
 }
+
 
 #if 0 && ALLOW_NAME_BATCH_SAVING  
 
