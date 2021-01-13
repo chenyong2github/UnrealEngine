@@ -520,7 +520,7 @@ void DISkelMesh_GetTriangleCoordAtUV(in FDISkelMeshContext DIContext, int InUvSe
 
 	uint BufferLength = 0;
 	DIContext.UvMappingBuffer.GetDimensions(BufferLength);
-	if (BufferLength < MinUvMappingBufferSize)
+	if (BufferLength < MinValidUvMappingBufferSize)
 	{
 		return;
 	}
