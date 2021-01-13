@@ -315,9 +315,15 @@ void FVulkanDevice::CreateDevice()
 	FVulkanPlatform::EnablePhysicalDeviceFeatureExtensions(DeviceInfo);
 
 #if VULKAN_SUPPORTS_NV_DEVICE_DIAGNOSTIC_CONFIG
+	VkPhysicalDeviceDiagnosticsConfigFeaturesNV DeviceDiagnosticsNV;
 	VkDeviceDiagnosticsConfigCreateInfoNV DeviceDiagnosticsConfigCreateInfoNV;
 	if (OptionalDeviceExtensions.HasNVDeviceDiagnosticConfig)
 	{
+		ZeroVulkanStruct(DeviceDiagnosticsNV, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DIAGNOSTICS_CONFIG_FEATURES_NV);
+		DeviceDiagnosticsNV.pNext = const_cast<void*>(DeviceInfo.pNext);
+		DeviceDiagnosticsNV.diagnosticsConfig = VK_TRUE;
+		DeviceInfo.pNext = &DeviceDiagnosticsNV;
+
 		ZeroVulkanStruct(DeviceDiagnosticsConfigCreateInfoNV, VK_STRUCTURE_TYPE_DEVICE_DIAGNOSTICS_CONFIG_CREATE_INFO_NV);
 		DeviceDiagnosticsConfigCreateInfoNV.flags = VK_DEVICE_DIAGNOSTICS_CONFIG_ENABLE_SHADER_DEBUG_INFO_BIT_NV | VK_DEVICE_DIAGNOSTICS_CONFIG_ENABLE_RESOURCE_TRACKING_BIT_NV | VK_DEVICE_DIAGNOSTICS_CONFIG_ENABLE_AUTOMATIC_CHECKPOINTS_BIT_NV;
 		DeviceDiagnosticsConfigCreateInfoNV.pNext = const_cast<void*>(DeviceInfo.pNext);
