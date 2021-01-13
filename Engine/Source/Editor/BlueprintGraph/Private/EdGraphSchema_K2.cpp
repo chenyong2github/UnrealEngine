@@ -3167,6 +3167,9 @@ void UEdGraphSchema_K2::CreateFunctionGraphTerminators(UEdGraph& Graph, UClass* 
 			{
 				NextExec->MakeLinkTo(ParentNodeExec);
 				NextExec = FindExecutionPin(*ParentNode, EGPD_Output);
+
+				// Link any params from the function entry node to the parent node inputs
+				LinkDataPinFromOutputToInput(EntryNode, ParentNode);
 			}
 
 			NextNode = ParentNode;
