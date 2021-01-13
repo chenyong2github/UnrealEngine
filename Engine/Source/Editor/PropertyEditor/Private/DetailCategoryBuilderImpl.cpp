@@ -532,8 +532,7 @@ bool FDetailCategoryImpl::IsAdvancedDropdownEnabled() const
 
 void FDetailCategoryImpl::RequestItemExpanded(TSharedRef<FDetailTreeNode> TreeNode, bool bShouldBeExpanded)
 {
-	TSharedPtr<FDetailLayoutBuilderImpl> DetailLayoutBuilderPtr = DetailLayoutBuilder.Pin();
-	if (DetailLayoutBuilderPtr.IsValid() && GetDetailsView())
+	if (GetDetailsView())
 	{		
 		GetDetailsView()->RequestItemExpanded(TreeNode, bShouldBeExpanded);
 	}
@@ -662,6 +661,16 @@ void FDetailCategoryImpl::SetDisplayName(FName InCategoryName, const FText& Loca
 	}
 }
 
+IDetailsViewPrivate* FDetailCategoryImpl::GetDetailsView() const
+{
+	TSharedPtr<FDetailLayoutBuilderImpl> DetailLayoutBuilderPtr = DetailLayoutBuilder.Pin();
+	if (DetailLayoutBuilderPtr.IsValid())
+	{
+		return DetailLayoutBuilderPtr->GetDetailsView();
+	}
+
+	return nullptr;
+}
 
 TSharedRef<ITableRow> FDetailCategoryImpl::GenerateWidgetForTableView(const TSharedRef<STableViewBase>& OwnerTable, bool bAllowFavoriteSystem)
 {
@@ -1035,6 +1044,6 @@ void FDetailCategoryImpl::GenerateLayout()
 
 bool FDetailCategoryImpl::IsParentEnabled() const
 {
-	TSharedPtr<FDetailLayoutBuilderImpl> DetailLayoutBuilderPtr = DetailLayoutBuilder.Pin();
-	return !DetailLayoutBuilderPtr.IsValid() || !DetailLayoutBuilderPtr->GetDetailsView() || DetailLayoutBuilderPtr->GetDetailsView()->IsPropertyEditingEnabled();
+	IDetailsViewPrivate* DetailsView = GetDetailsView();
+	return !DetailsView || DetailsView->IsPropertyEditingEnabled();
 }

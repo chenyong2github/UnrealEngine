@@ -180,8 +180,8 @@ public:
 	virtual void SetSortOrder(int32 InSortOrder) override;
 
 	/** FDetailTreeNode interface */
-	virtual IDetailsView* GetNodeDetailsView() const override { return DetailLayoutBuilder.Pin()->GetDetailsView(); }
-	virtual IDetailsViewPrivate* GetDetailsView() const override { return DetailLayoutBuilder.Pin()->GetDetailsView(); }
+	virtual IDetailsView* GetNodeDetailsView() const override { return GetDetailsView(); }
+	virtual IDetailsViewPrivate* GetDetailsView() const override;
 	virtual TSharedRef< ITableRow > GenerateWidgetForTableView(const TSharedRef<STableViewBase>& OwnerTable, bool bAllowFavoriteSystem) override;
 	virtual bool GenerateStandaloneWidget(FDetailWidgetRow& OutRow) const override;
 
