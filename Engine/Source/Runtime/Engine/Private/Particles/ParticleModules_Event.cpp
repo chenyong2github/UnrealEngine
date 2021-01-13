@@ -102,7 +102,7 @@ void UParticleModuleEventGenerator::PostEditChangeProperty(FPropertyChangedEvent
 		check(Emitter);
 		OuterObj = Emitter->GetOuter();
 	}
-	UParticleSystem* PartSys = PartSys = CastChecked<UParticleSystem>(OuterObj);
+	UParticleSystem* PartSys = CastChecked<UParticleSystem>(OuterObj);
 	if (PartSys)
 	{
 		PartSys->PostEditChangeProperty(PropertyChangedEvent);

@@ -121,7 +121,7 @@ FThumbnailRenderingInfo* UThumbnailManager::GetRenderingInfo(UObject* Object)
 	TArray<FThumbnailRenderingInfo>& ThumbnailTypes = RenderableThumbnailTypes;
 
 	// Get the class to check against.
-	UClass *ClassToCheck = ClassToCheck = Object->GetClass();
+	UClass *ClassToCheck = Object->GetClass();
 	
 	// Search for the cached entry and do the slower if not found
 	FThumbnailRenderingInfo* RenderInfo = RenderInfoMap.FindRef(ClassToCheck);

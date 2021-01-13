@@ -911,7 +911,7 @@ void UDatasmithDirProducer::FixPlmXmlHierarchy()
 			SceneActor->SetActorLabel(Label);
 			SceneActor->SpriteScale = 0.1f;
 
-			USceneComponent* RootComponent = RootComponent = NewObject<USceneComponent>(SceneActor, *Label, RF_Transactional);
+			USceneComponent* RootComponent = NewObject<USceneComponent>(SceneActor, *Label, RF_Transactional);
 			RootComponent->SetWorldTransform(FTransform::Identity);
 			RootComponent->Mobility = EComponentMobility::Static;
 			RootComponent->bVisualizeComponent = true;

@@ -1031,7 +1031,7 @@ void UParticleModuleOrientationAxisLock::PostEditChangeProperty(FPropertyChanged
 		check(Emitter);
 		OuterObj = Emitter->GetOuter();
 	}
-	UParticleSystem* PartSys = PartSys = CastChecked<UParticleSystem>(OuterObj);
+	UParticleSystem* PartSys = CastChecked<UParticleSystem>(OuterObj);
 
 	FProperty* PropertyThatChanged = PropertyChangedEvent.Property;
 	if (PropertyThatChanged)
