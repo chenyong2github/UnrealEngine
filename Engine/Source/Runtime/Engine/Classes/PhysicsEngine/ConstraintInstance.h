@@ -50,6 +50,10 @@ struct ENGINE_API FConstraintProfileProperties
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = Angular, meta = (editcondition = "bAngularBreakable", ClampMin = "0.0"))
 	float AngularBreakThreshold;
 
+	/** Degree threshold from target angle needed to reset the target angle.*/
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = Angular, meta = (editcondition = "bAngularPlasticity", ClampMin = "0.0"))
+	float AngularPlasticityThreshold;
+
 	UPROPERTY(EditAnywhere, Category = Linear)
 	FLinearConstraint LinearLimit;
 
@@ -101,6 +105,10 @@ struct ENGINE_API FConstraintProfileProperties
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = Angular)
 	uint8 bAngularBreakable : 1;
 
+	/** Whether it is possible to reset target rotations from the angular displacement. */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = Angular)
+	uint8 bAngularPlasticity : 1;
+
 	/** Whether it is possible to break the joint with linear force. */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = Linear)
 	uint8 bLinearBreakable : 1;
@@ -110,10 +118,13 @@ struct ENGINE_API FConstraintProfileProperties
 	/** Updates physx joint properties from unreal properties (limits, drives, flags, etc...) */
 	void Update_AssumesLocked(const FPhysicsConstraintHandle& InConstraintRef, float AverageMass, float UseScale) const;
 
-	/** Updates physx joint breakable properties (threshold, etc...)*/
+	/** Updates joint breakable properties (threshold, etc...)*/
 	void UpdateBreakable_AssumesLocked(const FPhysicsConstraintHandle& InConstraintRef) const;
 
-	/** Updates physx joint flag based on profile properties */
+	/** Updates joint breakable properties (threshold, etc...)*/
+	void UpdatePlasticity_AssumesLocked(const FPhysicsConstraintHandle& InConstraintRef) const;
+
+	/** Updates joint flag based on profile properties */
 	void UpdateConstraintFlags_AssumesLocked(const FPhysicsConstraintHandle& InConstraintRef) const;
 
 #if WITH_EDITOR
@@ -472,6 +483,17 @@ public:
 		UpdateBreakable();
 	}
 
+	/** Sets the Angular Plasticity properties
+	*	@param bInAngularPlasticity 	Whether it is possible to reset the target angles
+	*	@param InAngularPlasticityThreshold	Delta from target needed to reset the target joint
+	*/
+	void SetAngularPlasticity(bool bInAngularPlasticity, float InAngularPlasticityThreshold)
+	{
+		ProfileInstance.bAngularPlasticity = bInAngularPlasticity;
+		ProfileInstance.AngularPlasticityThreshold = InAngularPlasticityThreshold;
+		UpdatePlasticity();
+	}
+
 	// @todo document
 	void CopyConstraintGeometryFrom(const FConstraintInstance* FromInstance);
 
@@ -704,6 +726,7 @@ private:
 		const FTransform& Con1Frame, const FTransform& Con2Frame, bool bDrawAsPoint) const;
 
 	void UpdateBreakable();
+	void UpdatePlasticity();
 	void UpdateDriveTarget();
 
 	FOnConstraintBroken OnConstraintBrokenDelegate;

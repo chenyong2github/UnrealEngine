@@ -160,7 +160,9 @@ namespace Chaos
 		FReal AngularDriveDamping;
 
 		FReal LinearBreakForce;
+		FReal LinearPlasticityLimit;
 		FReal AngularBreakTorque;
+		FReal AngularPlasticityLimit;
 
 		void* UserData;
 	};

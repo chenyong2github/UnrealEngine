@@ -130,11 +130,13 @@ FConstraintProfileProperties::FConstraintProfileProperties()
 	, ProjectionAngularAlpha(0.0f)
 	, LinearBreakThreshold(300.f)
 	, AngularBreakThreshold(500.f)
+	, AngularPlasticityThreshold(10.f)
 	, bDisableCollision(false)
 	, bParentDominates(false)
 	, bEnableProjection(true)
 	, bEnableSoftProjection(false)
 	, bAngularBreakable(false)
+	, bAngularPlasticity(false)
 	, bLinearBreakable(false)
 {
 }
@@ -170,6 +172,22 @@ void FConstraintProfileProperties::UpdateBreakable_AssumesLocked(const FPhysicsC
 	const float AngularBreakForce = bAngularBreakable ? AngularBreakThreshold : MAX_FLT;
 
 	FPhysicsInterface::SetBreakForces_AssumesLocked(InConstraintRef, LinearBreakForce, AngularBreakForce);
+}
+
+void FConstraintInstance::UpdatePlasticity()
+{
+	FPhysicsInterface::ExecuteOnUnbrokenConstraintReadWrite(ConstraintHandle, [&](const FPhysicsConstraintHandle& InUnbrokenConstraint)
+		{
+			ProfileInstance.UpdatePlasticity_AssumesLocked(InUnbrokenConstraint);
+		});
+}
+
+void FConstraintProfileProperties::UpdatePlasticity_AssumesLocked(const FPhysicsConstraintHandle& InConstraintRef) const
+{
+	const float LinearPlasticityLimit = MAX_FLT; // todo(Chaos) : implement
+	const float AngularPlasticityLimit = bAngularPlasticity ? FMath::DegreesToRadians(AngularPlasticityThreshold) : MAX_FLT;
+
+	FPhysicsInterface::SetPlasticityLimits_AssumesLocked(InConstraintRef, LinearPlasticityLimit, AngularPlasticityLimit);
 }
 
 void FConstraintInstance::UpdateDriveTarget()
@@ -499,6 +517,7 @@ void FConstraintProfileProperties::Update_AssumesLocked(const FPhysicsConstraint
 	TwistLimit.UpdateTwistLimit_AssumesLocked(InConstraintRef, AverageMass);
 
 	UpdateBreakable_AssumesLocked(InConstraintRef);
+	UpdatePlasticity_AssumesLocked(InConstraintRef);
 
 	// Motors
 	FPhysicsInterface::UpdateLinearDrive_AssumesLocked(InConstraintRef, LinearDrive);
