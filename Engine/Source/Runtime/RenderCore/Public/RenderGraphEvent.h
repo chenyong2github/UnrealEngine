@@ -53,7 +53,7 @@ public:
 	using FPushFunction = void(*)(FRHIComputeCommandList&, const TScopeType*, bool bRDGEvents);
 	using FPopFunction = void(*)(FRHIComputeCommandList&, const TScopeType*, bool bRDGEvents);
 
-	TRDGScopeStack(FRHIComputeCommandList& InRHICmdList, FPushFunction InPushFunction, FPopFunction InPopFunction, bool bRDGEvent);
+	TRDGScopeStack(FRHIComputeCommandList& InRHICmdList, FPushFunction InPushFunction, FPopFunction InPopFunction);
 	~TRDGScopeStack();
 
 	//////////////////////////////////////////////////////////////////////////
@@ -102,9 +102,6 @@ private:
 
 	/** Stacks of scopes pushed to the RHI command list during execution. */
 	TStaticArray<const TScopeType*, kScopeStackDepthMax> ScopeStack;
-
-	/** Are RDG Events enabled for these scopes */
-	bool bRDGEvents;
 };
 
 class FRDGPass;
