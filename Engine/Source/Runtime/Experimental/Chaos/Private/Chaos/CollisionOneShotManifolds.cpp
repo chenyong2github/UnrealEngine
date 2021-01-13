@@ -709,6 +709,25 @@ namespace Chaos
 			const FReal Dt,
 			FRigidBodyPointContactConstraint& Constraint);
 
+		template
+		void ConstructConvexConvexOneShotManifold<FImplicitBox3, TImplicitObjectInstanced<FImplicitConvex3>>(
+			const FImplicitBox3& Implicit1,
+			const FRigidTransform3& Convex1Transform, //world
+			const TImplicitObjectInstanced<FImplicitConvex3>& Implicit2,
+			const FRigidTransform3& Convex2Transform, //world
+			const FReal CullDistance,
+			const FReal Dt,
+			FRigidBodyPointContactConstraint& Constraint);
+
+		template
+		void ConstructConvexConvexOneShotManifold<TImplicitObjectInstanced<FImplicitConvex3>, FImplicitBox3>(
+			const TImplicitObjectInstanced<FImplicitConvex3>& Implicit1,
+			const FRigidTransform3& Convex1Transform, //world
+			const FImplicitBox3& Implicit2,
+			const FRigidTransform3& Convex2Transform, //world
+			const FReal CullDistance,
+			const FReal Dt,
+			FRigidBodyPointContactConstraint& Constraint);
 
 		template
 		void ConstructConvexConvexOneShotManifold<FImplicitBox3, TImplicitObjectScaled<FImplicitConvex3>>(
@@ -741,6 +760,16 @@ namespace Chaos
 			FRigidBodyPointContactConstraint& Constraint);
 
 		template
+		void ConstructConvexConvexOneShotManifold<TImplicitObjectInstanced<FImplicitConvex3>, FImplicitConvex3>(
+			const TImplicitObjectInstanced<FImplicitConvex3>& Implicit1,
+			const FRigidTransform3& Convex1Transform, //world
+			const FImplicitConvex3& Implicit2,
+			const FRigidTransform3& Convex2Transform, //world
+			const FReal CullDistance,
+			const FReal Dt,
+			FRigidBodyPointContactConstraint& Constraint);
+
+		template
 		void ConstructConvexConvexOneShotManifold<TImplicitObjectScaled<FImplicitConvex3>, FImplicitConvex3>(
 			const TImplicitObjectScaled<FImplicitConvex3>& Implicit1,
 			const FRigidTransform3& Convex1Transform, //world
@@ -751,8 +780,48 @@ namespace Chaos
 			FRigidBodyPointContactConstraint& Constraint);
 
 		template
+		void ConstructConvexConvexOneShotManifold<FImplicitConvex3, TImplicitObjectInstanced<FImplicitConvex3>>(
+			const FImplicitConvex3& Implicit1,
+			const FRigidTransform3& Convex1Transform, //world
+			const TImplicitObjectInstanced<FImplicitConvex3>& Implicit2,
+			const FRigidTransform3& Convex2Transform, //world
+			const FReal CullDistance,
+			const FReal Dt,
+			FRigidBodyPointContactConstraint& Constraint);
+
+		template
 		void ConstructConvexConvexOneShotManifold<FImplicitConvex3, TImplicitObjectScaled<FImplicitConvex3>>(
 			const FImplicitConvex3& Implicit1,
+			const FRigidTransform3& Convex1Transform, //world
+			const TImplicitObjectScaled<FImplicitConvex3>& Implicit2,
+			const FRigidTransform3& Convex2Transform, //world
+			const FReal CullDistance,
+			const FReal Dt,
+			FRigidBodyPointContactConstraint& Constraint);
+
+		template
+		void ConstructConvexConvexOneShotManifold<TImplicitObjectInstanced<FImplicitConvex3>, TImplicitObjectInstanced<FImplicitConvex3>>(
+			const TImplicitObjectInstanced<FImplicitConvex3>& Implicit1,
+			const FRigidTransform3& Convex1Transform, //world
+			const TImplicitObjectInstanced<FImplicitConvex3>& Implicit2,
+			const FRigidTransform3& Convex2Transform, //world
+			const FReal CullDistance,
+			const FReal Dt,
+			FRigidBodyPointContactConstraint& Constraint);
+
+		template
+		void ConstructConvexConvexOneShotManifold<TImplicitObjectScaled<FImplicitConvex3>, TImplicitObjectInstanced<FImplicitConvex3>>(
+			const TImplicitObjectScaled<FImplicitConvex3>& Implicit1,
+			const FRigidTransform3& Convex1Transform, //world
+			const TImplicitObjectInstanced<FImplicitConvex3>& Implicit2,
+			const FRigidTransform3& Convex2Transform, //world
+			const FReal CullDistance,
+			const FReal Dt,
+			FRigidBodyPointContactConstraint& Constraint);
+
+		template
+		void ConstructConvexConvexOneShotManifold<TImplicitObjectInstanced<FImplicitConvex3>, TImplicitObjectScaled<FImplicitConvex3>>(
+			const TImplicitObjectInstanced<FImplicitConvex3>& Implicit1,
 			const FRigidTransform3& Convex1Transform, //world
 			const TImplicitObjectScaled<FImplicitConvex3>& Implicit2,
 			const FRigidTransform3& Convex2Transform, //world
