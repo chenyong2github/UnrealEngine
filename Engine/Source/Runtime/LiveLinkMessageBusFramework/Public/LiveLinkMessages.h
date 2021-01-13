@@ -118,6 +118,6 @@ struct UE_DEPRECATED(4.23, "FLiveLinkSubjectDataMessage is deprecated. Please us
 
 	// Incrementing time for interpolation
 	UPROPERTY()
-	double Time;
+	double Time = 0.0;
 };
 PRAGMA_ENABLE_DEPRECATION_WARNINGS

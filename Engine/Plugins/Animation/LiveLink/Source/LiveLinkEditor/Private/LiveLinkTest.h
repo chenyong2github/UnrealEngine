@@ -38,7 +38,7 @@ struct FLiveLinkTestFrameDataInternal : public FLiveLinkBaseFrameData
 	GENERATED_BODY()
 
 	UPROPERTY()
-	float NotInterpolated;
+	float NotInterpolated = 0.f;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Test", Interp)
 	FVector SingleVector = FVector::ZeroVector;
