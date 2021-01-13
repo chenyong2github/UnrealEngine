@@ -1146,6 +1146,8 @@ ALandscapeProxy::ALandscapeProxy(const FObjectInitializer& ObjectInitializer)
 #if WITH_EDITORONLY_DATA
 	LandscapeProxies.Add(this);
 #endif
+
+	GridPlacement = EActorGridPlacement::Location;
 }
 
 #if WITH_EDITORONLY_DATA
