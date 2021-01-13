@@ -73,6 +73,11 @@ class ENGINE_API ULODSyncComponent : public UActorComponent
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = LOD)
 	int32 ForcedLOD = -1;
 
+	/** 
+	 *	Array of components whose LOD may drive or be driven by this component.
+	 *  Components that are flagged as 'Drive' are treated as being in priority order, with the last component having highest priority. The highest priority
+	 *  visible component will set the LOD for all other components. If no components are visible, then the highest priority non-visible component will set LOD.
+	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = LOD)
 	TArray<FComponentSync> ComponentsToSync;
 
