@@ -66,6 +66,46 @@ static FLinearColor HairLODColor(1.0f, 0.5f, 0.0f);
 
 #define LOCTEXT_NAMESPACE "GroomRenderingDetails"
 
+static int32 GHairCardsProcerudalResolution = 4096;
+static int32 GHairCardsProcerudalResolution_LOD0 = -1;
+static int32 GHairCardsProcerudalResolution_LOD1 = -1;
+static int32 GHairCardsProcerudalResolution_LOD2 = -1;
+static int32 GHairCardsProcerudalResolution_LOD3 = -1;
+static int32 GHairCardsProcerudalResolution_LOD4 = -1;
+static int32 GHairCardsProcerudalResolution_LOD5 = -1;
+static int32 GHairCardsProcerudalResolution_LOD6 = -1;
+static int32 GHairCardsProcerudalResolution_LOD7 = -1;
+static FAutoConsoleVariableRef CVarHairCardsProcerudalResolution(TEXT("r.HairStrands.CardsAtlas.DefaultResolution"), GHairCardsProcerudalResolution, TEXT("Default cards atlas resolution."));
+static FAutoConsoleVariableRef CVarHairCardsProcerudalResolution_LOD0(TEXT("r.HairStrands.CardsAtlas.DefaultResolution.LOD0"), GHairCardsProcerudalResolution_LOD0, TEXT("Default cards atlas resolution for LOD0."));
+static FAutoConsoleVariableRef CVarHairCardsProcerudalResolution_LOD1(TEXT("r.HairStrands.CardsAtlas.DefaultResolution.LOD1"), GHairCardsProcerudalResolution_LOD1, TEXT("Default cards atlas resolution for LOD1."));
+static FAutoConsoleVariableRef CVarHairCardsProcerudalResolution_LOD2(TEXT("r.HairStrands.CardsAtlas.DefaultResolution.LOD2"), GHairCardsProcerudalResolution_LOD2, TEXT("Default cards atlas resolution for LOD2."));
+static FAutoConsoleVariableRef CVarHairCardsProcerudalResolution_LOD3(TEXT("r.HairStrands.CardsAtlas.DefaultResolution.LOD3"), GHairCardsProcerudalResolution_LOD3, TEXT("Default cards atlas resolution for LOD3."));
+static FAutoConsoleVariableRef CVarHairCardsProcerudalResolution_LOD4(TEXT("r.HairStrands.CardsAtlas.DefaultResolution.LOD4"), GHairCardsProcerudalResolution_LOD4, TEXT("Default cards atlas resolution for LOD4."));
+static FAutoConsoleVariableRef CVarHairCardsProcerudalResolution_LOD5(TEXT("r.HairStrands.CardsAtlas.DefaultResolution.LOD5"), GHairCardsProcerudalResolution_LOD5, TEXT("Default cards atlas resolution for LOD5."));
+static FAutoConsoleVariableRef CVarHairCardsProcerudalResolution_LOD6(TEXT("r.HairStrands.CardsAtlas.DefaultResolution.LOD6"), GHairCardsProcerudalResolution_LOD6, TEXT("Default cards atlas resolution for LOD6."));
+static FAutoConsoleVariableRef CVarHairCardsProcerudalResolution_LOD7(TEXT("r.HairStrands.CardsAtlas.DefaultResolution.LOD7"), GHairCardsProcerudalResolution_LOD7, TEXT("Default cards atlas resolution for LOD7."));
+
+static uint32 GetHairCardsAtlasResolution(int32 InLODIndex, int32 PrevResolution)
+{
+	uint32 OutResolution = GHairCardsProcerudalResolution;
+
+	const uint32 LODIndex = FMath::Clamp(InLODIndex, 0, 7);
+	switch (LODIndex)
+	{
+	case 0: OutResolution = GHairCardsProcerudalResolution_LOD0 >= 0 ? GHairCardsProcerudalResolution_LOD0 : uint32(GHairCardsProcerudalResolution); break;
+	case 1: OutResolution = GHairCardsProcerudalResolution_LOD1 >= 0 ? GHairCardsProcerudalResolution_LOD1 : uint32(PrevResolution * 0.5f); break;
+	case 2: OutResolution = GHairCardsProcerudalResolution_LOD2 >= 0 ? GHairCardsProcerudalResolution_LOD2 : uint32(PrevResolution * 0.5f); break;
+	case 3: OutResolution = GHairCardsProcerudalResolution_LOD3 >= 0 ? GHairCardsProcerudalResolution_LOD3 : uint32(PrevResolution * 0.5f); break;
+	case 4: OutResolution = GHairCardsProcerudalResolution_LOD4 >= 0 ? GHairCardsProcerudalResolution_LOD4 : uint32(PrevResolution * 0.5f); break;
+	case 5: OutResolution = GHairCardsProcerudalResolution_LOD5 >= 0 ? GHairCardsProcerudalResolution_LOD5 : uint32(PrevResolution * 0.5f); break;
+	case 6: OutResolution = GHairCardsProcerudalResolution_LOD6 >= 0 ? GHairCardsProcerudalResolution_LOD5 : uint32(PrevResolution * 0.5f); break;
+	case 7: OutResolution = GHairCardsProcerudalResolution_LOD6 >= 0 ? GHairCardsProcerudalResolution_LOD6 : uint32(PrevResolution * 0.5f); break;
+	}
+
+	const uint32 MinResolution = 128;
+	const uint32 MaxResolution = 16384;
+	return FMath::Clamp(OutResolution, MinResolution, MaxResolution);
+}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Array panel for hair strands infos
@@ -465,6 +505,27 @@ FReply FGroomRenderingDetails::OnAddGroup(FProperty* Property)
 	{
 		FScopedTransaction Transaction(FText::FromString(TEXT("AddCardsGroup")));
 		GroomAsset->HairGroupsCards.AddDefaulted();
+
+		const int32 LODCount = GroomAsset->HairGroupsCards.Num();
+		if (LODCount > 1)
+		{
+			const FHairGroupsCardsSourceDescription& Prev = GroomAsset->HairGroupsCards[LODCount - 2];
+			FHairGroupsCardsSourceDescription& Current = GroomAsset->HairGroupsCards[LODCount - 1];
+
+			Current.SourceType = Prev.SourceType;
+			Current.GroupIndex = Prev.GroupIndex;
+			Current.LODIndex = FMath::Min(Prev.LODIndex + 1, 7);
+
+			// Prefill the LOD setting with basic preset
+			Current.ProceduralSettings.TextureSettings.AtlasMaxResolution  = GetHairCardsAtlasResolution(Current.LODIndex, Prev.ProceduralSettings.TextureSettings.AtlasMaxResolution);
+			Current.ProceduralSettings.TextureSettings.PixelPerCentimeters = Prev.ProceduralSettings.TextureSettings.PixelPerCentimeters * 0.75f;
+		}
+		else
+		{
+			FHairGroupsCardsSourceDescription& Current = GroomAsset->HairGroupsCards[LODCount - 1];
+			Current.ProceduralSettings.TextureSettings.AtlasMaxResolution  = GetHairCardsAtlasResolution(0,0);
+			Current.LODIndex = 0;
+		}
 
 		FPropertyChangedEvent PropertyChangedEvent(Property, EPropertyChangeType::ArrayAdd);
 		GroomAsset->PostEditChangeProperty(PropertyChangedEvent);
