@@ -284,16 +284,19 @@ namespace UE4Array_Private
  * Caution: as noted below some methods are not safe for element types that require constructors.
  *
  **/
-template<typename InElementType, typename InAllocator>
+template<typename InElementType, typename InAllocatorType>
 class TArray
 {
 	template <typename OtherInElementType, typename OtherAllocator>
 	friend class TArray;
 
 public:
-	typedef typename InAllocator::SizeType SizeType;
+	typedef typename InAllocatorType::SizeType SizeType;
 	typedef InElementType ElementType;
-	typedef InAllocator   Allocator;
+	typedef InAllocatorType AllocatorType;
+
+	// This member type name is deprecated, new code should prefer the "AllocatorType" name instead
+	typedef InAllocatorType Allocator;
 
 	typedef typename TChooseClass<
 		Allocator::NeedsElementType,

@@ -286,6 +286,10 @@ class TSet
 public:
 	static const bool SupportsFreezeMemoryImage = TAllocatorTraits<Allocator>::SupportsFreezeMemoryImage && THasTypeLayout<InElementType>::Value;
 
+	typedef InElementType ElementType;
+	typedef KeyFuncs    KeyFuncsType;
+	typedef Allocator   AllocatorType;
+
 private:
 	friend struct TContainerTraits<TSet>;
 
@@ -298,8 +302,6 @@ private:
 	typedef TSetElement<InElementType> SetElementType;
 
 public:
-	typedef InElementType ElementType;
-
 	/** Initialization constructor. */
 	FORCEINLINE TSet()
 	:	HashSize(0)

@@ -1103,8 +1103,8 @@ template <typename AllocatorType, typename InDerivedType = void>
 class TScriptMap;
 
 /** A TMapBase specialization that only allows a single value associated with each key.*/
-template<typename KeyType, typename ValueType, typename SetAllocator /*= FDefaultSetAllocator*/, typename KeyFuncs /*= TDefaultMapHashableKeyFuncs<KeyType,ValueType,false>*/>
-class TMap : public TSortableMapBase<KeyType, ValueType, SetAllocator, KeyFuncs>
+template<typename InKeyType, typename InValueType, typename SetAllocator /*= FDefaultSetAllocator*/, typename KeyFuncs /*= TDefaultMapHashableKeyFuncs<KeyType,ValueType,false>*/>
+class TMap : public TSortableMapBase<InKeyType, InValueType, SetAllocator, KeyFuncs>
 {
 	friend struct TContainerTraits<TMap>;
 
@@ -1114,6 +1114,11 @@ class TMap : public TSortableMapBase<KeyType, ValueType, SetAllocator, KeyFuncs>
 	static_assert(!KeyFuncs::bAllowDuplicateKeys, "TMap cannot be instantiated with a KeyFuncs which allows duplicate keys");
 
 public:
+	typedef InKeyType      KeyType;
+	typedef InValueType    ValueType;
+	typedef SetAllocator   SetAllocatorType;
+	typedef KeyFuncs       KeyFuncsType;
+
 	typedef TSortableMapBase<KeyType, ValueType, SetAllocator, KeyFuncs> Super;
 	typedef typename Super::KeyInitType KeyInitType;
 	typedef typename Super::KeyConstPointerType KeyConstPointerType;
