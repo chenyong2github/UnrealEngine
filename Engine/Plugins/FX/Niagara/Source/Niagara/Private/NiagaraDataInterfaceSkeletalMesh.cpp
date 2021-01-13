@@ -391,7 +391,7 @@ void FSkeletalMeshSkinningData::UpdateBoneTransforms()
 					if (MasterIndex != INDEX_NONE && MasterIndex < MasterTransforms.Num())
 					{
 						CurrTransforms[BoneIndex] = MasterTransforms[MasterIndex];
-						CurrBones[BoneIndex] = SkelMesh->GetRefBasesInvMatrix()[BoneIndex] * MasterTransforms[MasterIndex].ToMatrixWithScale();
+						CurrBones[BoneIndex] = (SkelMesh->GetRefSkeleton().GetRefBonePose()[BoneIndex] * MasterTransforms[MasterIndex]).ToMatrixWithScale();
 						bFoundMaster = true;
 					}
 				}
