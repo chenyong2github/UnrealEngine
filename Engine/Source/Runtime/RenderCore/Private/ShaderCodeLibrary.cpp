@@ -51,6 +51,9 @@ ShaderCodeLibrary.cpp: Bound shader state cache implementation.
 // allow introspection (e.g. dumping the contents) for easier debugging
 #define UE_SHADERLIB_WITH_INTROSPECTION			!UE_BUILD_SHIPPING
 
+// In some development-only scenario (e.g. LaunchOn), the library is chunked, but the build isn't pak'd. We need to find the chunk files manually then.
+#define UE_SHADERLIB_SUPPORT_CHUNK_DISCOVERY	!UE_BUILD_SHIPPING
+
 DEFINE_LOG_CATEGORY(LogShaderLibrary);
 
 static uint32 GShaderCodeArchiveVersion = 2;
@@ -104,6 +107,15 @@ namespace UE
 				FString MountPoint;
 				/** Chunk ID */
 				int32 ChunkId;
+
+#if UE_SHADERLIB_SUPPORT_CHUNK_DISCOVERY
+				FMountedPakFileInfo(const FString& InMountPoint, int32 InChunkId)
+					: PakFilename(TEXT("Fake")),
+					MountPoint(InMountPoint),
+					ChunkId(InChunkId)
+				{
+				}
+#endif // UE_SHADERLIB_SUPPORT_CHUNK_DISCOVERY
 
 				FMountedPakFileInfo(const IPakFile& PakFile)
 					: PakFilename(PakFile.PakGetPakFilename()),
@@ -1843,6 +1855,50 @@ public:
 				}
 
 				bResult = (Library->GetNumComponents() > PrevNumComponents);
+
+#if UE_SHADERLIB_SUPPORT_CHUNK_DISCOVERY
+				if (!bResult)
+				{
+					// Some deployment flows (e.g. Launch on) avoid pak files despite project packaging settings. 
+					// In case we run under such circumstances, we need to discover the components ourselves
+					if (FPlatformFileManager::Get().FindPlatformFile(TEXT("PakFile")) == nullptr)
+					{
+						UE_LOG(LogShaderLibrary, Display, TEXT("Running without a pakfile and did not find a monolithic library '%s' - attempting disk search for its chunks"), *Name, Library->GetNumComponents());
+
+						TArray<FString> UshaderbytecodeFiles;
+						FString SearchMask = Directory / FString::Printf(TEXT("ShaderArchive-*%s*.ushaderbytecode"), *Name);
+						IFileManager::Get().FindFiles(UshaderbytecodeFiles, *SearchMask, true, false);
+
+						if (UshaderbytecodeFiles.Num() > 0)
+						{
+							UE_LOG(LogShaderLibrary, Display, TEXT("   ....  found %d files"), UshaderbytecodeFiles.Num());
+							for (const FString& Filename : UshaderbytecodeFiles)
+							{
+								const TCHAR* ChunkSubstring = TEXT("_Chunk");
+								const int kChunkSubstringSize = 6; // stlren(ChunkSubstring)
+								int32 ChunkSuffix = Filename.Find(ChunkSubstring, ESearchCase::IgnoreCase, ESearchDir::FromEnd);
+								if (ChunkSuffix != INDEX_NONE && ChunkSuffix + kChunkSubstringSize < Filename.Len())
+								{
+									const TCHAR* ChunkIDString = &Filename[ChunkSuffix + kChunkSubstringSize];
+									int32 ChunkID = FCString::Atoi(ChunkIDString);
+									if (ChunkID >= 0)
+									{
+										// create a fake FPakFileMountedInfo
+										FMountedPakFileInfo PakFileInfo(Directory, ChunkID);
+										Library->OnPakFileMounted(PakFileInfo);
+									}
+								}
+							}
+
+							bResult = (Library->GetNumComponents() > PrevNumComponents);
+						}
+						else
+						{
+							UE_LOG(LogShaderLibrary, Display, TEXT("   ....  not found"));
+						}
+					}
+				}
+#endif // UE_SHADERLIB_SUPPORT_CHUNK_DISCOVERY
 			}
 
 			if (bResult)
