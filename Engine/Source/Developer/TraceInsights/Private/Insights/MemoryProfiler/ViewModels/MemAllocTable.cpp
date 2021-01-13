@@ -431,7 +431,7 @@ void FMemAllocTable::AddDefaultColumns()
 
 					if (Callstack)
 					{
-						const TraceServices::FStackFrame* Frame = Callstack->Frame(FMath::Min(2u, Callstack->Num()));
+						const TraceServices::FStackFrame* Frame = Callstack->Frame(FMath::Min(2u, Callstack->Num()-1));
 						const TraceServices::QueryResult Result = Frame->Symbol->Result.load(std::memory_order_acquire);
 						switch (Result)
 						{
