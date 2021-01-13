@@ -64,6 +64,8 @@ public:
 	/** simplification tolerance when simplifying 2D convex hulls, eg for swept/projected hulls */
 	double HullSimplifyTolerance = 1.0;
 
+	bool bUseExactComputationForBox = false;
+
 	//
 	// setup/initialization
 	//

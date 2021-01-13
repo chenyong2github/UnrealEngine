@@ -18,6 +18,8 @@ THIRD_PARTY_INCLUDES_END
 #pragma warning(pop)
 #endif
 
+#include "ConvexHull3.h"
+
 #include "GteUtil.h"
 
 template <typename RealType>
@@ -27,7 +29,6 @@ struct TMinVolumeBox3Internal
 	using PreciseBoxNumberType = gte::BSRational<gte::UIntegerAP32>;
 	using DVector3 = gte::Vector3<double>;
 
-	bool bUseExactHull;
 	bool bUseExactBox;
 	TArray<DVector3> DoubleInput;
 
@@ -41,37 +42,40 @@ struct TMinVolumeBox3Internal
 
 	bool ComputeResult()
 	{
-		gte::OrientedBox3<double> MinimalBox;
+		gte::OrientedBox3<double> MinimalBox = gte::OrientedBox3<double>();
 
-		if (bUseExactHull)
+		FConvexHull3d HullCompute;
+		bSolutionOK = HullCompute.Solve(DoubleInput.Num(),
+										[this](int32 Index) 
 		{
-			// compute convex hull 
-			gte::ConvexHull3<double, PreciseHullNumberType> HullCompute;
-			bSolutionOK = HullCompute(DoubleInput.Num(), &DoubleInput[0], 0.0);
-			if (bSolutionOK)
-			{
-				// compute minimal box for convex hull
-				std::vector<gte::TriangleKey<true>> const& HullTriangles = HullCompute.GetHullUnordered();
-				int const numIndices = static_cast<int>(3 * HullTriangles.size());
-				int const* indices = static_cast<int const*>(&HullTriangles[0].V[0]);
-				if (bUseExactBox)
-				{
-					gte::MinimumVolumeBox3<double, PreciseBoxNumberType> BoxCompute;
-					MinimalBox = BoxCompute(DoubleInput.Num(), &DoubleInput[0], numIndices, indices);
-				}
-				else
-				{
-					gte::MinimumVolumeBox3<double, double> BoxCompute;
-					MinimalBox = BoxCompute(DoubleInput.Num(), &DoubleInput[0], numIndices, indices);
-				}
-			}
+			return FVector3d{ DoubleInput[Index][0], DoubleInput[Index][1], DoubleInput[Index][2]};
+		});
+
+		if (!bSolutionOK)
+		{
+			return false;
+		}
+
+		int NumIndices = 3 * HullCompute.GetTriangles().Num();
+		if (NumIndices < 1)
+		{
+			bSolutionOK = false;
+			return false;
+		}
+
+		const int* Indices = static_cast<const int*>(&(HullCompute.GetTriangles()[0][0]));		// Eww
+
+		if (bUseExactBox)
+		{
+			gte::MinimumVolumeBox3<double, PreciseBoxNumberType> BoxCompute;
+			MinimalBox = BoxCompute(DoubleInput.Num(), &DoubleInput[0], NumIndices, Indices);
 		}
 		else
 		{
 			gte::MinimumVolumeBox3<double, double> DoubleCompute;
-			MinimalBox = DoubleCompute(DoubleInput.Num(), &DoubleInput[0], true);
-			bSolutionOK = true;
+			MinimalBox = DoubleCompute(DoubleInput.Num(), &DoubleInput[0], NumIndices, Indices);
 		}
+		bSolutionOK = true;
 
 		// if resulting box is not finite, something went wrong, just return an empty box
 		FVector3d Extents = Convert(MinimalBox.extent);
@@ -96,9 +100,9 @@ struct TMinVolumeBox3Internal
 
 
 template<typename RealType>
-bool TMinVolumeBox3<RealType>::Solve(int32 NumPoints, TFunctionRef<FVector3<RealType>(int32)> GetPointFunc, bool bUseExactHull, bool bUseExactBox)
+bool TMinVolumeBox3<RealType>::Solve(int32 NumPoints, TFunctionRef<FVector3<RealType>(int32)> GetPointFunc, bool bUseExactBox)
 {
-	Initialize(NumPoints, bUseExactHull, bUseExactBox);
+	Initialize(NumPoints, bUseExactBox);
 	check(Internal);
 
 	for (int32 k = 0; k < NumPoints; ++k)
@@ -125,10 +129,9 @@ void TMinVolumeBox3<RealType>::GetResult(TOrientedBox3<RealType>& BoxOut)
 
 
 template<typename RealType>
-void TMinVolumeBox3<RealType>::Initialize(int32 NumPoints, bool bUseExactHull, bool bUseExactBox)
+void TMinVolumeBox3<RealType>::Initialize(int32 NumPoints, bool bUseExactBox)
 {
 	Internal = MakePimpl<TMinVolumeBox3Internal<RealType>>();
-	Internal->bUseExactHull = bUseExactHull;
 	Internal->bUseExactBox = bUseExactBox;
 	Internal->DoubleInput.SetNum(NumPoints);
 }
