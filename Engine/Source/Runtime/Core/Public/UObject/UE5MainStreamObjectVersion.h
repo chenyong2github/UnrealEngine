@@ -70,6 +70,9 @@ struct CORE_API FUE5MainStreamObjectVersion
 		// Fixup FLandscapeActorDesc Grid indices
 		FLandscapeActorDescFixupGridIndices,
 
+		// FoliageType with HLOD support
+		FoliageTypeIncludeInHLOD,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

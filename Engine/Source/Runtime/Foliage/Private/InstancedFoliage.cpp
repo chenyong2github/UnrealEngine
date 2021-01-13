@@ -42,6 +42,7 @@ InstancedFoliage.cpp: Instanced foliage implementation.
 #include "EngineGlobals.h"
 #include "Engine/StaticMesh.h"
 #include "DrawDebugHelpers.h"
+#include "UObject/UE5MainStreamObjectVersion.h"
 #include "UObject/FortniteMainBranchObjectVersion.h"
 #include "PreviewScene.h"
 #include "FoliageActor.h"
@@ -469,6 +470,10 @@ UFoliageType::UFoliageType(const FObjectInitializer& ObjectInitializer)
 	bEnableDiscardOnLoad = false;
 
 #if WITH_EDITORONLY_DATA
+	bIncludeInHLOD = true;
+#endif
+
+#if WITH_EDITORONLY_DATA
 	// Deprecated since FFoliageCustomVersion::FoliageTypeCustomization
 	ScaleMinX_DEPRECATED = 1.0f;
 	ScaleMinY_DEPRECATED = 1.0f;
@@ -495,6 +500,7 @@ void UFoliageType::Serialize(FArchive& Ar)
 	Super::Serialize(Ar);
 
 	Ar.UsingCustomVersion(FFoliageCustomVersion::GUID);
+	Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
 
 	// we now have mask configurations for every color channel
 	if (Ar.IsLoading() && Ar.IsPersistent() && !Ar.HasAnyPortFlags(PPF_Duplicate | PPF_DuplicateForPIE) && VertexColorMask_DEPRECATED != FOLIAGEVERTEXCOLORMASK_Disabled)
@@ -578,6 +584,11 @@ void UFoliageType::Serialize(FArchive& Ar)
 
 			ProceduralScale.Min = MinScale_DEPRECATED;
 			ProceduralScale.Max = MaxScale_DEPRECATED;
+		}
+
+		if (Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::FoliageTypeIncludeInHLOD)
+		{
+			bIncludeInHLOD = false;
 		}
 	}
 #endif// WITH_EDITORONLY_DATA
@@ -1466,6 +1477,12 @@ void FFoliageStaticMesh::UpdateComponentSettings(const UFoliageType_InstancedSta
 		if (Component->CustomDepthStencilValue != FoliageType->CustomDepthStencilValue)
 		{
 			Component->CustomDepthStencilValue = FoliageType->CustomDepthStencilValue;
+			bNeedsMarkRenderStateDirty = true;
+		}
+
+		if (Component->bEnableAutoLODGeneration != FoliageType->bIncludeInHLOD)
+		{
+			Component->bEnableAutoLODGeneration = FoliageType->bIncludeInHLOD;
 			bNeedsMarkRenderStateDirty = true;
 		}
 

@@ -554,6 +554,14 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = VirtualTexture, meta = (DisplayName = "Draw in Main Pass"))
 	ERuntimeVirtualTextureMainPassType VirtualTextureRenderPassType = ERuntimeVirtualTextureMainPassType::Exclusive;
 
+public:
+	// HLOD
+
+#if WITH_EDITORONLY_DATA
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=HLOD)
+	uint32 bIncludeInHLOD:1;
+#endif // WITH_EDITORONLY_DATA
+
 private:
 
 #if WITH_EDITORONLY_DATA
