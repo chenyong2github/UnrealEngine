@@ -299,6 +299,23 @@ void AddDumpToColorArrayPass(FRDGBuilder& GraphBuilder, FScreenPassTexture Input
 	});
 }
 
+EPixelFormat OverridePostProcessingColorFormat(const EPixelFormat InFormat)
+{
+	EPixelFormat OutputFormat = InFormat;
+	
+	static const auto CVarPostProcessingColorFormat = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.PostProcessingColorFormat"));
+
+	if (CVarPostProcessingColorFormat && CVarPostProcessingColorFormat->GetValueOnRenderThread() == 1)
+	{
+		if (OutputFormat == PF_FloatRGBA)
+		{
+			OutputFormat = PF_A32B32G32R32F;
+		}
+	}
+	
+	return OutputFormat;
+}
+
 FScreenPassTexture AddVisualizeGBufferOverviewPass(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
@@ -310,7 +327,10 @@ FScreenPassTexture AddVisualizeGBufferOverviewPass(
 	check(Inputs.bDumpToFile || Inputs.bOverview || PostProcessSettings.BufferVisualizationPipes.Num() > 0);
 
 	FScreenPassTexture Output;
-	const EPixelFormat OutputFormat = Inputs.bOutputInHDR ? PF_FloatRGBA : PF_Unknown;
+	
+	// Respect the r.PostProcessingColorFormat cvar just like the main rendering path
+	const EPixelFormat OutputFormat = OverridePostProcessingColorFormat(Inputs.bOutputInHDR ? PF_FloatRGBA : PF_Unknown);
+
 	TArray<FVisualizeBufferTile> Tiles;
 
 	RDG_EVENT_SCOPE(GraphBuilder, "VisualizeGBufferOverview");
