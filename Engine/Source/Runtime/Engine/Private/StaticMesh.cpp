@@ -1247,6 +1247,7 @@ void FStaticMeshLODResources::InitResources(UStaticMesh* Parent)
 
 	if (Parent->bSupportGpuUniformlyDistributedSampling && Parent->bSupportUniformlyDistributedSampling && Parent->bAllowCPUAccess)
 	{
+		AreaWeightedSectionSamplersBuffer.Init(&AreaWeightedSectionSamplers);
 		BeginInitResource(&AreaWeightedSectionSamplersBuffer);
 	}
 
@@ -5001,15 +5002,6 @@ void UStaticMesh::PostLoad()
 
 	if (RenderData)
 	{
-		if (bSupportGpuUniformlyDistributedSampling)
-		{
-			// Initialise pointers to samplers
-			for (FStaticMeshLODResources &LOD : RenderData->LODResources)
-			{
-				LOD.AreaWeightedSectionSamplersBuffer.Init(&LOD.AreaWeightedSectionSamplers);
-			}
-		}
-
 		// check the MinLOD values are all within range
 		bool bFixedMinLOD = false;
 		int32 MinAvailableLOD = FMath::Max<int32>(RenderData->LODResources.Num() - 1, 0);
