@@ -17,9 +17,9 @@ class MODELINGCOMPONENTS_API UPolygroupLayersProperties : public UInteractiveToo
 	GENERATED_BODY()
 public:
 
-	/** Select vertex weight map. If configured, the weight map value will be sampled to modulate displacement intensity. */
+	/** Select polygroup layer. */
 	UPROPERTY(EditAnywhere, Category = PolygroupLayers, meta = (GetOptions = GetGroupLayersFunc))
-	FName ActiveGroupLayer;
+	FName ActiveGroupLayer = "Default";
 
 	// this function is called provide set of available group layers
 	UFUNCTION()
@@ -31,7 +31,9 @@ public:
 
 	void InitializeGroupLayers(const FDynamicMesh3* Mesh);
 
-	// return true if any option other than "None" is selected
+	void InitializeGroupLayers(const TSet<FName>& LayerNames);
+
+	// return true if any option other than "Default" is selected
 	bool HasSelectedPolygroup() const;
 
 	void SetSelectedFromPolygroupIndex(int32 Index);

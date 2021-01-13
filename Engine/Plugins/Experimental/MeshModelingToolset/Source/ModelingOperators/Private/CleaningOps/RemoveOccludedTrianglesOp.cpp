@@ -10,7 +10,7 @@
 #include "Operations/RemoveOccludedTriangles.h"
 #include "Selections/MeshConnectedComponents.h"
 #include "Selections/MeshFaceSelection.h"
-
+#include "Polygroups/PolygroupSet.h"
 
 #include "Async/ParallelFor.h"
 
@@ -65,6 +65,38 @@ void FRemoveOccludedTrianglesOp::CalculateResult(FProgressCancel* Progress)
 		SelectedTris = Selection.AsArray();
 	};
 
+	auto SetNewGroupSelection = [](FDynamicMesh3& Mesh, const TArray<int>& SelectedTris, FName LayerName, bool bActiveGroupIsDefault)
+	{
+		// don't add any new groups if there's nothing to select
+		if (SelectedTris.Num() == 0)
+		{
+			return FIndex2i::Invalid();
+		}
+
+		auto SetGroup = [](UE::Geometry::FPolygroupSet& ActiveGroupSet, const TArray<int>& SelectedTris)
+		{
+			int32 JacketGroupID = ActiveGroupSet.AllocateNewGroupID();
+
+			for (int TID : SelectedTris)
+			{
+				ActiveGroupSet.SetGroup(TID, JacketGroupID);
+			}
+
+			return FIndex2i(JacketGroupID, ActiveGroupSet.GroupLayerIndex);
+		};
+
+		if (!bActiveGroupIsDefault)
+		{
+			UE::Geometry::FPolygroupSet ActiveGroupSet(&Mesh, LayerName);
+			return SetGroup(ActiveGroupSet, SelectedTris);
+		}
+		else
+		{
+			UE::Geometry::FPolygroupSet ActiveGroupSet(&Mesh);
+			return SetGroup(ActiveGroupSet, SelectedTris);
+		}
+	};
+
 	if (bOnlySelfOcclude)
 	{
 		TRemoveOccludedTriangles<FDynamicMesh3> SelfJacket(ResultMesh.Get());
@@ -85,7 +117,17 @@ void FRemoveOccludedTrianglesOp::CalculateResult(FProgressCancel* Progress)
 		{
 			ShrinkSelection(*ResultMesh.Get(), SelfJacket.RemovedT, ShrinkRemoval);
 		}
-		SelfJacket.RemoveSelected();
+
+		if (bSetTriangleGroupInsteadOfRemoving)
+		{
+			FIndex2i GroupIDAndLayerIndex = SetNewGroupSelection(*ResultMesh.Get(), SelfJacket.RemovedT, ActiveGroupLayer, bActiveGroupLayerIsDefault);
+			CreatedGroupID = GroupIDAndLayerIndex.A;
+			CreatedGroupLayerIndex = GroupIDAndLayerIndex.B;
+		}
+		else
+		{
+			SelfJacket.RemoveSelected();
+		}
 	}
 	else
 	{
@@ -107,7 +149,17 @@ void FRemoveOccludedTrianglesOp::CalculateResult(FProgressCancel* Progress)
 		{
 			ShrinkSelection(*ResultMesh.Get(), Jacket.RemovedT, ShrinkRemoval);
 		}
-		Jacket.RemoveSelected();
+
+		if (bSetTriangleGroupInsteadOfRemoving)
+		{
+			FIndex2i GroupIDAndLayerIndex = SetNewGroupSelection(*ResultMesh.Get(), Jacket.RemovedT, ActiveGroupLayer, bActiveGroupLayerIsDefault);
+			CreatedGroupID = GroupIDAndLayerIndex.A;
+			CreatedGroupLayerIndex = GroupIDAndLayerIndex.B;
+		}
+		else
+		{
+			Jacket.RemoveSelected();
+		}
 	}
 
 	if (MinTriCountConnectedComponent > 0 || MinAreaConnectedComponent > 0)

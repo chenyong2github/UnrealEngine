@@ -68,8 +68,22 @@ public:
 
 	int MinTriCountConnectedComponent = 0;
 
+	// if true, we will set triangle group IDs for occluded triangles, rather than deleting the triangles
+	bool bSetTriangleGroupInsteadOfRemoving = false;
+
+	// name of the group layer to use if we are setting triangle groups instead of removing occluded triangles
+	FName ActiveGroupLayer;
+
+	// if true, the ActiveGroupLayer is the name of the "default" layer, so we'll use the built-in group IDs
+	bool bActiveGroupLayerIsDefault = true;
+
 	EOcclusionCalculationMode InsideMode =
 		EOcclusionCalculationMode::FastWindingNumber;
+
+
+	// outputs, used when bSetTriangleGroupInsteadOfRemoving is true
+	int CreatedGroupID = -1;
+	int CreatedGroupLayerIndex = -1;
 
 
 	void SetTransform(const FTransform& Transform);

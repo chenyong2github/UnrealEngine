@@ -11,6 +11,8 @@
 #include "DynamicMesh3.h"
 #include "MeshAdapter.h"
 #include "BaseTools/SingleClickTool.h"
+#include "PropertySets/PolygroupLayersProperties.h"
+
 #include "RemoveOccludedTrianglesTool.generated.h"
 
 class IAssetGenerationAPI;
@@ -48,7 +50,12 @@ enum class EOcclusionCalculationUIMode : uint8
 	RaycastOcclusionSamples
 };
 
-
+UENUM()
+enum class EOccludedAction : uint8
+{
+	Remove,
+	SetNewGroup
+};
 
 /**
  * Standard properties
@@ -94,6 +101,10 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = RemoveIslands, meta = (UIMin = "0", ClampMin = "0"))
 	int MinTriCountIsland = 0;
+
+	/** What action to perform on occluded triangles */
+	UPROPERTY(EditAnywhere, Category = Action)
+	EOccludedAction Action = EOccludedAction::Remove;
 };
 
 
@@ -175,6 +186,9 @@ protected:
 	URemoveOccludedTrianglesToolProperties* BasicProperties;
 
 	UPROPERTY()
+	UPolygroupLayersProperties* PolygroupLayersProperties;
+
+	UPROPERTY()
 	URemoveOccludedTrianglesAdvancedProperties* AdvancedProperties;
 
 	UPROPERTY()
@@ -196,12 +210,18 @@ protected:
 	TArray<int32> PreviewToTargetIdx;
 	TArray<int32> TargetToPreviewIdx;
 
+	// Group IDs for occluded triangles, per mesh in the Previews array, if OccludedAction is SetNewGroup
+	TArray<int32> OccludedGroupIDs;
+	// Selected layer indices for Group IDs, per mesh in the Previews array
+	TArray<int32> OccludedGroupLayers;
+
 	UWorld* TargetWorld;
 	IAssetGenerationAPI* AssetAPI;
 
 	FViewCameraState CameraState;
 
 	void SetupPreviews();
+	void MakePolygroupLayerProperties();
 
 	void GenerateAsset(const TArray<FDynamicMeshOpResult>& Results);
 };

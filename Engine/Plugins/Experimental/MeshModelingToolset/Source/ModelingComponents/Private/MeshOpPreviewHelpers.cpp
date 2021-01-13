@@ -59,10 +59,20 @@ void UMeshOpPreviewWithBackgroundCompute::Tick(float DeltaTime)
 		{
 			PreviewMesh->ClearOverrideRenderMaterial();
 		}
+
+		if (SecondaryMaterial != nullptr)
+		{
+			PreviewMesh->SetSecondaryRenderMaterial(SecondaryMaterial);
+		}
+		else
+		{
+			PreviewMesh->ClearSecondaryRenderMaterial();
+		}
 	}
 	else
 	{
 		PreviewMesh->SetOverrideRenderMaterial(WorkingMaterial);
+		PreviewMesh->ClearSecondaryRenderMaterial();
 	}
 }
 

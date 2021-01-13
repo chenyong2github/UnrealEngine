@@ -7,6 +7,7 @@
 
 void UPolygroupLayersProperties::InitializeGroupLayers(const FDynamicMesh3* Mesh)
 {
+	GroupLayersList.Reset();
 	GroupLayersList.Add(TEXT("Default"));		// always have standard group
 	if (Mesh->Attributes())
 	{
@@ -15,6 +16,21 @@ void UPolygroupLayersProperties::InitializeGroupLayers(const FDynamicMesh3* Mesh
 			FName Name = Mesh->Attributes()->GetPolygroupLayer(k)->GetName();
 			GroupLayersList.Add(Name.ToString());
 		}
+	}
+
+	if (GroupLayersList.Contains(ActiveGroupLayer.ToString()) == false)		// discard restored value if it doesn't apply
+	{
+		ActiveGroupLayer = FName(GroupLayersList[0]);
+	}
+}
+
+void UPolygroupLayersProperties::InitializeGroupLayers(const TSet<FName>& LayerNames)
+{
+	GroupLayersList.Reset();
+	GroupLayersList.Add(TEXT("Default"));		// always have standard group
+	for (const FName& Name : LayerNames)
+	{
+		GroupLayersList.Add(Name.ToString());
 	}
 
 	if (GroupLayersList.Contains(ActiveGroupLayer.ToString()) == false)		// discard restored value if it doesn't apply

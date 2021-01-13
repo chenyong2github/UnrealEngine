@@ -7,6 +7,7 @@
 #include "ToolSetupUtil.h"
 
 #include "DynamicMesh3.h"
+#include "Polygroups/PolygroupUtil.h"
 #include "BaseBehaviors/MultiClickSequenceInputBehavior.h"
 #include "Selection/SelectClickedAction.h"
 
@@ -136,19 +137,58 @@ void URemoveOccludedTrianglesTool::Setup()
 			EToolMessageLevel::UserWarning);
 	}
 
+	// initialize the PreviewMesh+BackgroundCompute object
+	SetupPreviews();
+
 	BasicProperties = NewObject<URemoveOccludedTrianglesToolProperties>(this, TEXT("Remove Occluded Triangle Settings"));
 	AdvancedProperties = NewObject<URemoveOccludedTrianglesAdvancedProperties>(this, TEXT("Advanced Settings"));
+	MakePolygroupLayerProperties();
+
+	BasicProperties->WatchProperty(BasicProperties->Action,
+		[this](EOccludedAction Action) { SetToolPropertySourceEnabled(PolygroupLayersProperties, Action == EOccludedAction::SetNewGroup); }
+	);
 
 	// initialize our properties
 	AddToolPropertySource(BasicProperties);
+	AddToolPropertySource(PolygroupLayersProperties);
 	AddToolPropertySource(AdvancedProperties);
 
-	// initialize the PreviewMesh+BackgroundCompute object
-	SetupPreviews();
+	for (UMeshOpPreviewWithBackgroundCompute* Preview : Previews)
+	{
+		Preview->InvalidateResult();
+	}
 
 	GetToolManager()->DisplayMessage(
 		LOCTEXT("RemoveOccludedTrianglesToolDescription", "Remove triangles that are fully contained within the selected Meshes, and hence cannot be visible with opaque shading."),
 		EToolMessageLevel::UserNotification);
+}
+
+
+void URemoveOccludedTrianglesTool::MakePolygroupLayerProperties()
+{
+	PolygroupLayersProperties = NewObject<UPolygroupLayersProperties>(this, TEXT("Polygroup Layer"));
+	auto GetGroupLayerNames = [](const FDynamicMesh3& Mesh)
+	{
+		TSet<FName> Names;
+
+		if (Mesh.Attributes())
+		{
+			for (int32 LayerIdx = 0; LayerIdx < Mesh.Attributes()->NumPolygroupLayers(); LayerIdx++)
+			{
+				FName Name = Mesh.Attributes()->GetPolygroupLayer(LayerIdx)->GetName();
+				Names.Add(Name);
+			}
+		}
+
+		return Names;
+	};
+	check(OriginalDynamicMeshes.Num() > 0);
+	TSet<FName> CommonLayerNames = GetGroupLayerNames(*OriginalDynamicMeshes[0]);
+	for (int32 Idx = 1; Idx < OriginalDynamicMeshes.Num(); Idx++)
+	{
+		CommonLayerNames = CommonLayerNames.Intersect(GetGroupLayerNames(*OriginalDynamicMeshes[Idx]));
+	}
+	PolygroupLayersProperties->InitializeGroupLayers(CommonLayerNames);
 }
 
 
@@ -174,6 +214,12 @@ void URemoveOccludedTrianglesTool::SetupPreviews()
 	auto EnterProgressFrame = [](float Progress) {};
 #endif
 
+	// create a "magic pink" secondary material to mark occluded faces (to be used if we are setting a new triangle group instead of removing faces)
+	UMaterialInterface* OccludedMaterial = ToolSetupUtil::GetSelectionMaterial(FLinearColor(0.9f, 0.1f, 0.9f), GetToolManager());
+
+	OccludedGroupIDs.Init(-1, NumPreviews);
+	OccludedGroupLayers.Init(-1, NumPreviews);
+
 	OriginalDynamicMeshes.SetNum(NumPreviews);
 	PreviewToCopyIdx.Reset(); PreviewToCopyIdx.SetNum(NumPreviews);
 	for (int32 TargetIdx = 0; TargetIdx < NumTargets; TargetIdx++)
@@ -181,6 +227,26 @@ void URemoveOccludedTrianglesTool::SetupPreviews()
 		EnterProgressFrame(1);
 		
 		int PreviewIdx = TargetToPreviewIdx[TargetIdx];
+
+		// used to choose which triangles need to use the special "OccludedMaterial" secondary material, when the Occluded Action == SetNewGroup
+		auto IsOccludedGroupFn = [this, PreviewIdx](const FDynamicMesh3* Mesh, int32 TriangleID)
+		{
+			int GroupID = OccludedGroupIDs[PreviewIdx];
+			if (GroupID >= 0)
+			{
+				int LayerIndex = OccludedGroupLayers[PreviewIdx];
+				if (LayerIndex < 0)
+				{
+					return Mesh->GetTriangleGroup(TriangleID) == GroupID;
+				}
+				else
+				{
+					check(Mesh->HasAttributes() && Mesh->Attributes()->NumPolygroupLayers() > LayerIndex);
+					return Mesh->Attributes()->GetPolygroupLayer(LayerIndex)->GetValue(TriangleID) == GroupID;
+				}
+			}
+			return false;
+		};
 
 		bool bHasConverted = OriginalDynamicMeshes[PreviewIdx].IsValid();
 
@@ -206,6 +272,19 @@ void URemoveOccludedTrianglesTool::SetupPreviews()
 			Preview->PreviewMesh->SetTransform(ComponentTargets[TargetIdx]->GetWorldTransform());
 			Preview->PreviewMesh->UpdatePreview(OriginalDynamicMeshes[PreviewIdx].Get());
 			Preview->SetVisibility(true);
+
+			// configure secondary render material
+			Preview->SecondaryMaterial = OccludedMaterial;
+
+			// Set occluded layer index and group IDs
+			Previews[PreviewIdx]->OnOpCompleted.AddLambda([this, PreviewIdx](const FDynamicMeshOperator* UncastOp) {
+				const FRemoveOccludedTrianglesOp* Op = static_cast<const FRemoveOccludedTrianglesOp*>(UncastOp);
+				OccludedGroupIDs[PreviewIdx] = Op->CreatedGroupID;
+				OccludedGroupLayers[PreviewIdx] = Op->CreatedGroupLayerIndex;
+			});
+			
+			// enable secondary triangle buffers
+			Preview->PreviewMesh->EnableSecondaryTriangleBuffers(MoveTemp(IsOccludedGroupFn));
 		}
 		else
 		{
@@ -224,6 +303,9 @@ void URemoveOccludedTrianglesTool::SetupPreviews()
 			
 			PreviewMesh->SetVisible(true);
 
+			PreviewMesh->SetSecondaryRenderMaterial(OccludedMaterial);
+			PreviewMesh->EnableSecondaryTriangleBuffers(MoveTemp(IsOccludedGroupFn));
+
 			Previews[PreviewIdx]->OnMeshUpdated.AddLambda([this, CopyIdx](UMeshOpPreviewWithBackgroundCompute* Compute) {
 				PreviewCopies[CopyIdx]->UpdatePreview(Compute->PreviewMesh->GetPreviewDynamicMesh());
 			});
@@ -233,11 +315,6 @@ void URemoveOccludedTrianglesTool::SetupPreviews()
 	}
 
 	CombinedMeshTrees->BuildAcceleration();
-
-	for (UMeshOpPreviewWithBackgroundCompute* Preview : Previews)
-	{
-		Preview->InvalidateResult();
-	}
 }
 
 
@@ -285,6 +362,10 @@ TUniquePtr<FDynamicMeshOperator> URemoveOccludedTrianglesOperatorFactory::MakeNe
 {
 	TUniquePtr<FRemoveOccludedTrianglesOp> Op = MakeUnique<FRemoveOccludedTrianglesOp>();
 	Op->NormalOffset = Tool->AdvancedProperties->NormalOffset;
+	Op->bSetTriangleGroupInsteadOfRemoving = Tool->BasicProperties->Action == EOccludedAction::SetNewGroup;
+	Op->ActiveGroupLayer = Tool->PolygroupLayersProperties->ActiveGroupLayer;
+	Op->bActiveGroupLayerIsDefault = !Tool->PolygroupLayersProperties->HasSelectedPolygroup();
+
 	switch (Tool->BasicProperties->OcclusionTestMethod)
 	{
 	case EOcclusionCalculationUIMode::GeneralizedWindingNumber:
@@ -356,12 +437,14 @@ void URemoveOccludedTrianglesTool::OnTick(float DeltaTime)
 		for (int CopyIdx : PreviewToCopyIdx[PreviewIdx])
 		{
 			if (bIsWorking)
-			{		
+			{
 				PreviewCopies[CopyIdx]->SetOverrideRenderMaterial(Preview->WorkingMaterial);
+				PreviewCopies[CopyIdx]->ClearSecondaryRenderMaterial();
 			}
 			else
 			{
 				PreviewCopies[CopyIdx]->ClearOverrideRenderMaterial();
+				PreviewCopies[CopyIdx]->SetSecondaryRenderMaterial(Preview->SecondaryMaterial);
 			}
 		}
 	}

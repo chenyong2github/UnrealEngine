@@ -172,6 +172,10 @@ public:
 	// if non-null, this material is swapped in when a background compute is active
 	UPROPERTY()
 	UMaterialInterface* WorkingMaterial = nullptr;
+	
+	// secondary render material to forward to PreviewMesh if set
+	UPROPERTY()
+	UMaterialInterface* SecondaryMaterial = nullptr;
 
 protected:
 	// state flag, if true then we have valid result
