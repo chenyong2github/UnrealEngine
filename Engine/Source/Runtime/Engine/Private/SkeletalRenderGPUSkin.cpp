@@ -133,6 +133,8 @@ void FMorphVertexBuffer::ReleaseDynamicRHI()
 	UAVValue.SafeRelease();
 	VertexBufferRHI.SafeRelease();
 	SRVValue.SafeRelease();
+	NormalizationBufferRHI.SafeRelease();
+	NormalizationBufferUAV.SafeRelease();
 }
 
 /*-----------------------------------------------------------------------------
