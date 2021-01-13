@@ -11,7 +11,7 @@
 struct FIKRigEffector;
 struct FIKRigTarget;
 struct FIKRigTransform;
-struct FIKRigTransformModifier;
+struct FIKRigTransforms;
 struct FControlRigDrawInterface;
 
 // run time processor 
@@ -22,16 +22,16 @@ class IKRIG_API UIKRigSolver : public UObject
 
 public: 
 	/** Required delegates to run this solver */
-	DECLARE_DELEGATE_RetVal(const FIKRigTransform&, FIKRigTransformGetter);
+	DECLARE_DELEGATE_RetVal(const TArray<FTransform>&, FIKRigTransformGetter);
 	DECLARE_DELEGATE_RetVal_TwoParams(bool, FIKRigGoalGetter, const FName& /*InGoalName*/, FIKRigTarget& /*OutTarget*/);
 
 	// input hierarchy and ref pose? 
-	void Init(const FIKRigTransformModifier& TransformModifier, FIKRigTransformGetter InRefPoseGetter, FIKRigGoalGetter InGoalGetter/*, FSolveConstraint& InConstraintHandler*/);
+	void Init(const FIKRigTransforms& TransformModifier, FIKRigTransformGetter InRefPoseGetter, FIKRigGoalGetter InGoalGetter/*, FSolveConstraint& InConstraintHandler*/);
 
 	// input : goal getter or goals
 	// output : modified pose - GlobalTransforms
 	// or use SolverInternal function
-	void Solve(FIKRigTransformModifier& InOutGlobalTransform, FControlRigDrawInterface* InOutDrawInterface);
+	void Solve(FIKRigTransforms& InOutGlobalTransform, FControlRigDrawInterface* InOutDrawInterface);
 
 	const TIKRigEffectorMap<FName>& GetEffectorToGoal() const
 	{
@@ -42,12 +42,12 @@ public:
 
 protected:
 
-	virtual void InitInternal(const FIKRigTransformModifier& InGlobalTransform) {};
-	virtual void SolveInternal(FIKRigTransformModifier& InOutGlobalTransform, FControlRigDrawInterface* InOutDrawInterface) {};
+	virtual void InitInternal(const FIKRigTransforms& InGlobalTransform) {};
+	virtual void SolveInternal(FIKRigTransforms& InOutGlobalTransform, FControlRigDrawInterface* InOutDrawInterface) {};
 	virtual bool IsSolverActive() const;
 
 	bool GetEffectorTarget(const FIKRigEffector& InEffector, FIKRigTarget& OutTarget) const;
-	const FIKRigTransform& GetReferencePose() const;
+	const TArray<FTransform>& GetRefPoseTransforms() const;
 
 	UPROPERTY(EditAnywhere, Category = "Definition")
 	bool bEnabled = true;

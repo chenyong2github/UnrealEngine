@@ -128,74 +128,17 @@ struct TIKRigEffectorMapKeyFuncs : public TDefaultMapKeyFuncs<const FIKRigEffect
 template <typename ValueType>
 using TIKRigEffectorMap = TMap<FIKRigEffector, ValueType, FDefaultSetAllocator, TIKRigEffectorMapKeyFuncs<ValueType>>;
 
-// If you want to modify this, use FIKRigTransformModifier
-USTRUCT()
-struct IKRIG_API FIKRigTransform
-{
-	GENERATED_BODY()
-
-private:
-	UPROPERTY(VisibleAnywhere, Category = FIKRigTransform)
-	TArray<FTransform> GlobalTransforms;
-
-public:
-	int32 GetNum() const 
-	{
-		return GlobalTransforms.Num();
-	}
-
-	bool IsValidIndex(int32 Index) const
-	{
-		return GlobalTransforms.IsValidIndex(Index);
-	}
-
-	const TArray<FTransform>& GetGlobalTransforms() const
-	{
-		return GlobalTransforms;
-	}
-
-	const FTransform& GetGlobalTransform(int32 Index) const
-	{
-		if (GlobalTransforms.IsValidIndex(Index))
-		{
-			return GlobalTransforms[Index];
-		}
-
-		return FTransform::Identity;
-	}
-
-	FTransform GetRelativeTransform(int32 Index, int32 BaseIndex) const
-	{
-		if (GlobalTransforms.IsValidIndex(Index))
-		{
-			if (GlobalTransforms.IsValidIndex(BaseIndex))
-			{
-				return (GlobalTransforms[Index].GetRelativeTransform(GlobalTransforms[BaseIndex]));
-			}
-			else
-			{
-				return GlobalTransforms[Index];
-			}
-		}
-
-		return FTransform::Identity;
-	}
-	friend struct FIKRigTransformModifier;
-	friend class UIKRigDefinition;
-	friend class UIKRigController;
-};
-
 // allows transform to be modified 
 // use this class to modify transform
 // @todo: ref pose getter 
-struct IKRIG_API FIKRigTransformModifier
+struct IKRIG_API FIKRigTransforms
 {
-	FIKRigTransformModifier()
+	FIKRigTransforms()
 		: Hierarchy(nullptr)
 	{
 	}
 
-	FIKRigTransformModifier(const FIKRigHierarchy* InHierarchy);
+	FIKRigTransforms(const FIKRigHierarchy* InHierarchy);
 
 	void SetGlobalTransform(int32 Index, const FTransform& InTransform, bool bPropagate);
 	void SetLocalTransform(int32 Index, const FTransform& InTransform, bool bUpdate);
@@ -203,29 +146,23 @@ struct IKRIG_API FIKRigTransformModifier
 	const FTransform& GetLocalTransform(int32 Index) const;
 	const FTransform& GetGlobalTransform(int32 Index) const;
 
-	void ResetGlobalTransform(const FIKRigTransform& InTransform);
+	void SetAllGlobalTransforms(const TArray<FTransform>& InTransforms);
 
 	const FIKRigHierarchy* Hierarchy;
 
 private:
 
-	// we use this info to modify 
-	// ensure memory cycle for these are valid through
-	FIKRigTransform GlobalTransforms;
+	TArray<FTransform> GlobalTransforms;
 	TArray<FTransform> LocalTransforms;
 	TBitArray<>	LocalTransformDirtyFlags;
 
 	void EnsureLocalTransformsExist();
 	void RecalculateLocalTransform();
 	void UpdateLocalTransform(int32 Index);
-	/* This function does propagate through children
-	 * of the current index and keeps last LocalTransform to up to date
-	 */
+	/* this function propagates to children and updates LocalTransforms*/
 	void SetGlobalTransform_Internal(int32 Index, const FTransform& InTransform);
-
-	/** Set Global Transform Recursive 
-	 *	
-	 */
 	void SetGlobalTransform_Recursive(int32 Index, const FTransform& InTransform);
+
+	FTransform GetRelativeTransform(int32 Index, int32 BaseIndex) const;
 };
 

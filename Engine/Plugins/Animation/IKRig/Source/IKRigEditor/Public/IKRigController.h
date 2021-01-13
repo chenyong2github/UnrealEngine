@@ -27,17 +27,22 @@ class IKRIGEDITOR_API UIKRigController : public UObject
 	GENERATED_BODY()
 
 public:
-	// hierarchy operators
+
 	void SetSkeleton(const FReferenceSkeleton& InSkeleton);
-	// const hierarchy getter
 	const FIKRigHierarchy* GetHierarchy() const
 	{
 		return (IKRigDefinition)? &IKRigDefinition->Hierarchy : nullptr;
 	}
 
-	const FIKRigTransform* GetReferenceTransform() const
+	const TArray<FTransform>& GetRefPoseTransforms() const
 	{
-		return (IKRigDefinition) ? &IKRigDefinition->ReferencePose : nullptr;
+		if (IKRigDefinition)
+		{
+			return IKRigDefinition->RefPoseTransforms;
+		}
+
+		static TArray<FTransform> Dummy;
+		return Dummy;
 	}
 
 	bool AddBone(const FName& InName, const FName& InParent, const FTransform& InGlobalTransform);

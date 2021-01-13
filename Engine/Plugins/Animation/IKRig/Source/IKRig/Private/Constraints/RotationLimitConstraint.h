@@ -52,7 +52,7 @@ class IKRIG_API URotationLimitConstraint : public UIKRigConstraint
 	UPROPERTY(EditAnywhere, Category = "Offset")
 	FRotator Offset;
 public: 
-	virtual void SetupInternal(const FIKRigTransformModifier& InOutTransformModifier) override;
-	virtual void Apply(FIKRigTransformModifier& InOutTransformModifier, FControlRigDrawInterface* InOutDrawInterface) override;
+	virtual void SetupInternal(const FIKRigTransforms& InOutTransformModifier) override;
+	virtual void Apply(FIKRigTransforms& InOutTransformModifier, FControlRigDrawInterface* InOutDrawInterface) override;
 };
 

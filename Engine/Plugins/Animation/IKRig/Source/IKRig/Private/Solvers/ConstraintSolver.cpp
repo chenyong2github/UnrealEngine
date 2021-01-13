@@ -16,7 +16,7 @@ void UIKRigConstraintSolver::UnregisterQueryConstraintHandler()
 }
 */
 
-void UIKRigConstraintSolver::InitInternal(const FIKRigTransformModifier& InGlobalTransform)
+void UIKRigConstraintSolver::InitInternal(const FIKRigTransforms& InGlobalTransform)
 {
 	/*
 	if (ConstraintDefinition)
@@ -41,7 +41,7 @@ void UIKRigConstraintSolver::InitInternal(const FIKRigTransformModifier& InGloba
 	}*/
 }
 
-void UIKRigConstraintSolver::SolveInternal(FIKRigTransformModifier& InOutGlobalTransform, FControlRigDrawInterface* InOutDrawInterface)
+void UIKRigConstraintSolver::SolveInternal(FIKRigTransforms& InOutGlobalTransform, FControlRigDrawInterface* InOutDrawInterface)
 {
 	/*
 	FIKRigConstraintProfile* Current = ConstraintProfiles.Find(ActiveProfile);

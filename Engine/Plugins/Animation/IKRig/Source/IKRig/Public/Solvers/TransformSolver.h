@@ -26,8 +26,8 @@ public:
 
 protected:
 	
-	virtual void InitInternal(const FIKRigTransformModifier& InGlobalTransform) override;
-	virtual void SolveInternal(FIKRigTransformModifier& InOutGlobalTransform, FControlRigDrawInterface* InOutDrawInterface) override;
+	virtual void InitInternal(const FIKRigTransforms& InGlobalTransform) override;
+	virtual void SolveInternal(FIKRigTransforms& InOutGlobalTransform, FControlRigDrawInterface* InOutDrawInterface) override;
 	virtual bool IsSolverActive() const override;
 
 private:

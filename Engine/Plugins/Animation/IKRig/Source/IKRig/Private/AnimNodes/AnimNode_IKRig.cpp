@@ -32,7 +32,7 @@ void FAnimNode_IKRig::Evaluate_AnyThread(FPoseContext& Output)
 
 	if (RigProcessor)
 	{
-		FIKRigTransformModifier& TransformModifier = RigProcessor->GetIKRigTransformModifier();
+		FIKRigTransforms& TransformModifier = RigProcessor->GetIKRigTransformModifier();
 
 		if (bStartFromRefPose)
 		{

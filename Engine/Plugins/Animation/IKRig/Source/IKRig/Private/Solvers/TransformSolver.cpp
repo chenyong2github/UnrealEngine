@@ -11,7 +11,7 @@ UTransformSolver::UTransformSolver()
 {
 }
 
-void UTransformSolver::InitInternal(const FIKRigTransformModifier& InGlobalTransform)
+void UTransformSolver::InitInternal(const FIKRigTransforms& InGlobalTransform)
 {
 	
 }
@@ -21,7 +21,7 @@ bool UTransformSolver::IsSolverActive() const
 	return Super::IsSolverActive() && (bEnablePosition || bEnableRotation);
 }
 
-void UTransformSolver::SolveInternal(FIKRigTransformModifier& InOutGlobalTransform, FControlRigDrawInterface* InOutDrawInterface)
+void UTransformSolver::SolveInternal(FIKRigTransforms& InOutGlobalTransform, FControlRigDrawInterface* InOutDrawInterface)
 {
 	FIKRigTarget Target;
 	if (!GetEffectorTarget(TransformTarget, Target))

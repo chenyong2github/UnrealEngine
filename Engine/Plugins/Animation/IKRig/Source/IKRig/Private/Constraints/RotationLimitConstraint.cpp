@@ -5,7 +5,7 @@
 #include "IKRigDataTypes.h"
 #include "IKRig.h"
 
-void URotationLimitConstraint::SetupInternal(const FIKRigTransformModifier& InOutTransformModifier)
+void URotationLimitConstraint::SetupInternal(const FIKRigTransforms& InOutTransformModifier)
 {
 	if (TargetBone != NAME_None)
 	{
@@ -28,7 +28,7 @@ void URotationLimitConstraint::SetupInternal(const FIKRigTransformModifier& InOu
 	}
 }
 
-void URotationLimitConstraint::Apply(FIKRigTransformModifier& InOutTransformModifier, FControlRigDrawInterface* InOutDrawInterface)
+void URotationLimitConstraint::Apply(FIKRigTransforms& InOutTransformModifier, FControlRigDrawInterface* InOutDrawInterface)
 {
 	if (ConstrainedIndex != INDEX_NONE)
 	{

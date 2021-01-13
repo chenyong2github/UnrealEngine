@@ -22,23 +22,23 @@ void UIKRigProcessor::SetIKRigDefinition(UIKRigDefinition* InRigDefinition, bool
 
 	if (RigDefinition && bInitialize)
 	{
-		TransformModifier = FIKRigTransformModifier(&RigDefinition->GetHierarchy());
+		Transforms = FIKRigTransforms(&RigDefinition->GetHierarchy());
 		Initialize(RigDefinition->GetReferencePose());
 	}
 }
 
-void UIKRigProcessor::Initialize(const FIKRigTransform& InRefTransform)
+void UIKRigProcessor::Initialize(const TArray<FTransform>& InRefPoseTransforms)
 {
 	if (RigDefinition)
 	{
-		ReferenceTransform = InRefTransform;
+		RefPoseTransforms = InRefPoseTransforms;
 		Reinitialize();
 	}
 }
 
 void UIKRigProcessor::Reinitialize()
 {
-	TransformModifier.ResetGlobalTransform(ReferenceTransform);
+	Transforms.SetAllGlobalTransforms(RefPoseTransforms);
 	IKGoals = RigDefinition->GetGoals();
 	UIKRigSolver::FIKRigTransformGetter RefTransformGetter = UIKRigSolver::FIKRigTransformGetter::CreateUObject(this, &UIKRigProcessor::GetRefPoseGetter);
 	UIKRigSolver::FIKRigGoalGetter GoalGetter = UIKRigSolver::FIKRigGoalGetter::CreateUObject(this, &UIKRigProcessor::GoalGetter);
@@ -53,7 +53,7 @@ void UIKRigProcessor::Reinitialize()
 		if (ClassType != nullptr)
 		{
 			UIKRigSolver* NewSolver = DuplicateObject(RigSolvers[Index], this);
-			NewSolver->Init(TransformModifier, RefTransformGetter, GoalGetter);
+			NewSolver->Init(Transforms, RefTransformGetter, GoalGetter);
 			Solvers.Add(NewSolver);
 		}
 	}
@@ -61,9 +61,9 @@ void UIKRigProcessor::Reinitialize()
 	bInitialized = true;
 }
 
-const FIKRigTransform& UIKRigProcessor::GetRefPoseGetter() 
+const TArray<FTransform>& UIKRigProcessor::GetRefPoseGetter()
 {
-	return ReferenceTransform;
+	return RefPoseTransforms;
 }
 
 bool UIKRigProcessor::GoalGetter(const FName& InGoalName, FIKRigTarget& OutTarget)
@@ -94,7 +94,7 @@ void UIKRigProcessor::Solve()
 		for (int32 Index = 0; Index < Solvers.Num(); ++Index)
 		{
 			// Draw interface is pointer in case we want to nullify for optimization
-			Solvers[Index]->Solve(TransformModifier, &DrawInterface);
+			Solvers[Index]->Solve(Transforms, &DrawInterface);
 		}
 	}
 }
@@ -143,9 +143,9 @@ void UIKRigProcessor::GetGoals(TArray<FName>& OutNames) const
 	IKGoals.GenerateKeyArray(OutNames);
 }
 
-FIKRigTransformModifier& UIKRigProcessor::GetIKRigTransformModifier() 
+FIKRigTransforms& UIKRigProcessor::GetIKRigTransformModifier() 
 {
-	return TransformModifier;
+	return Transforms;
 }
 
 const FIKRigHierarchy* UIKRigProcessor::GetHierarchy() const
@@ -160,5 +160,5 @@ const FIKRigHierarchy* UIKRigProcessor::GetHierarchy() const
 
 void UIKRigProcessor::ResetToRefPose()
 {
-	TransformModifier.ResetGlobalTransform(ReferenceTransform);
+	Transforms.SetAllGlobalTransforms(RefPoseTransforms);
 }

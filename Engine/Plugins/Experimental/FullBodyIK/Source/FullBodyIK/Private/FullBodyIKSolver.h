@@ -99,8 +99,8 @@ private:
 	TArray<FJacobianDebugData> DebugData;
 
 protected:
-	virtual void InitInternal(const FIKRigTransformModifier& InGlobalTransform) override;
-	virtual void SolveInternal(FIKRigTransformModifier& InOutGlobalTransform, FControlRigDrawInterface* InOutDrawInterface) override;
+	virtual void InitInternal(const FIKRigTransforms& InGlobalTransforms) override;
+	virtual void SolveInternal(FIKRigTransforms& InOutGlobalTransforms, FControlRigDrawInterface* InOutDrawInterface) override;
 	virtual bool IsSolverActive() const override;
 
 public:

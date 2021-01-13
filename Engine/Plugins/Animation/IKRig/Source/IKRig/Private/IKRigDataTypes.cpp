@@ -1,13 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	IKRigDataTypes.cpp: IKRig Data Type impelmentation file
-=============================================================================*/
-
 #include "IKRigDataTypes.h"
 #include "IKRigHierarchy.h"
 
-FIKRigTransformModifier::FIKRigTransformModifier(const FIKRigHierarchy* InHierarchy)
+FIKRigTransforms::FIKRigTransforms(const FIKRigHierarchy* InHierarchy)
 	: Hierarchy(InHierarchy)
 {
 	ensure(Hierarchy != nullptr);
@@ -15,48 +11,48 @@ FIKRigTransformModifier::FIKRigTransformModifier(const FIKRigHierarchy* InHierar
 
 // we don't want to allocate local transforms until required
 // so we don't do this in the constructor but on demand when to be used
-void FIKRigTransformModifier::EnsureLocalTransformsExist()
+void FIKRigTransforms::EnsureLocalTransformsExist()
 {
 	// first check validation
-	if (Hierarchy&& Hierarchy->GetNum() == GlobalTransforms.GetNum())
+	if (Hierarchy&& Hierarchy->GetNum() == GlobalTransforms.Num())
 	{
-		if (LocalTransforms.Num() != GlobalTransforms.GetNum())
+		if (LocalTransforms.Num() != GlobalTransforms.Num())
 		{
-			LocalTransforms.SetNumUninitialized(GlobalTransforms.GetNum());
-			LocalTransformDirtyFlags.Init(true, GlobalTransforms.GetNum());
+			LocalTransforms.SetNumUninitialized(GlobalTransforms.Num());
+			LocalTransformDirtyFlags.Init(true, GlobalTransforms.Num());
 		}
 	}
 }
 
-void FIKRigTransformModifier::RecalculateLocalTransform()
+void FIKRigTransforms::RecalculateLocalTransform()
 {
 	// make sure to call EnsureLocalTransformsExist before getting here
-	check (Hierarchy && LocalTransforms.Num() == GlobalTransforms.GetNum());
+	check (Hierarchy && LocalTransforms.Num() == GlobalTransforms.Num());
 	
 	for (TConstSetBitIterator<> It(LocalTransformDirtyFlags); It; ++It)
 	{
 		const int32 BoneIndex = It.GetIndex();
 		const int32 ParentIndex = Hierarchy->GetParentIndex(BoneIndex);
-		LocalTransforms[BoneIndex] = GlobalTransforms.GetRelativeTransform(BoneIndex, ParentIndex);
+		LocalTransforms[BoneIndex] = GetRelativeTransform(BoneIndex, ParentIndex);
 	}
 
 	// clear the bits
-	LocalTransformDirtyFlags.Init(false, GlobalTransforms.GetNum());
+	LocalTransformDirtyFlags.Init(false, GlobalTransforms.Num());
 }
 
-void FIKRigTransformModifier::UpdateLocalTransform(int32 Index)
+void FIKRigTransforms::UpdateLocalTransform(int32 Index)
 {
 	EnsureLocalTransformsExist();
 
 	if (Hierarchy && Hierarchy->IsValidIndex(Index) && LocalTransformDirtyFlags[Index])
 	{
 		int32 ParentIndex = Hierarchy->GetParentIndex(Index);
-		LocalTransforms[Index] = GlobalTransforms.GetRelativeTransform(Index, ParentIndex);
+		LocalTransforms[Index] = GetRelativeTransform(Index, ParentIndex);
 		LocalTransformDirtyFlags[Index] = false;
 	}
 }
 
-void FIKRigTransformModifier::SetGlobalTransform(int32 Index, const FTransform& InTransform, bool bPropagate)
+void FIKRigTransforms::SetGlobalTransform(int32 Index, const FTransform& InTransform, bool bPropagate)
 {
 	if (GlobalTransforms.IsValidIndex(Index))
 	{
@@ -67,7 +63,7 @@ void FIKRigTransformModifier::SetGlobalTransform(int32 Index, const FTransform& 
 		}
 		else
 		{
-			GlobalTransforms.GlobalTransforms[Index] = InTransform;
+			GlobalTransforms[Index] = InTransform;
 
 			// if we have local transform, we also update
 			if (LocalTransforms.IsValidIndex(Index))
@@ -79,7 +75,7 @@ void FIKRigTransformModifier::SetGlobalTransform(int32 Index, const FTransform& 
 	}
 }
 
-void FIKRigTransformModifier::SetLocalTransform(int32 Index, const FTransform& InTransform, bool bPropagate)
+void FIKRigTransforms::SetLocalTransform(int32 Index, const FTransform& InTransform, bool bPropagate)
 {
 	// we go through global 
 	// because we can't just update local only
@@ -92,26 +88,31 @@ void FIKRigTransformModifier::SetLocalTransform(int32 Index, const FTransform& I
 	}
 }
 
-const FTransform& FIKRigTransformModifier::GetLocalTransform(int32 Index) const
+const FTransform& FIKRigTransforms::GetLocalTransform(int32 Index) const
 {
 	if (Hierarchy && Hierarchy->IsValidIndex(Index))
 	{
 		// this is because this requires to modify LocalTransforms
-		const_cast<FIKRigTransformModifier*>(this)->UpdateLocalTransform(Index);
+		const_cast<FIKRigTransforms*>(this)->UpdateLocalTransform(Index);
 		return LocalTransforms[Index];
 	}
 
 	return FTransform::Identity;
 }
 
-const FTransform& FIKRigTransformModifier::GetGlobalTransform(int32 Index) const
+const FTransform& FIKRigTransforms::GetGlobalTransform(int32 Index) const
 {
-	return GlobalTransforms.GetGlobalTransform(Index);
+	if (GlobalTransforms.IsValidIndex(Index))
+	{
+		return GlobalTransforms[Index];
+	}
+
+	return FTransform::Identity;
 }
 /* This function does propagate through children
 	* of the current index and keeps last LocalTransform to up to date
 	*/
-void FIKRigTransformModifier::SetGlobalTransform_Internal(int32 Index, const FTransform& InTransform)
+void FIKRigTransforms::SetGlobalTransform_Internal(int32 Index, const FTransform& InTransform)
 {
 	// first calculate local transform if not found
 	EnsureLocalTransformsExist();
@@ -128,9 +129,9 @@ void FIKRigTransformModifier::SetGlobalTransform_Internal(int32 Index, const FTr
 /** Set Global Transform Recursive
 	*
 	*/
-void FIKRigTransformModifier::SetGlobalTransform_Recursive(int32 Index, const FTransform& InTransform)
+void FIKRigTransforms::SetGlobalTransform_Recursive(int32 Index, const FTransform& InTransform)
 {
-	GlobalTransforms.GlobalTransforms[Index] = InTransform;
+	GlobalTransforms[Index] = InTransform;
 	TArray<int32> Children = Hierarchy->FindChildren(Index);
 	for (int32 Child : Children)
 	{
@@ -140,14 +141,31 @@ void FIKRigTransformModifier::SetGlobalTransform_Recursive(int32 Index, const FT
 	}
 }
 
-void FIKRigTransformModifier::ResetGlobalTransform(const FIKRigTransform& InTransform)
+void FIKRigTransforms::SetAllGlobalTransforms(const TArray<FTransform>& InTransforms)
 {
-	if (Hierarchy && Hierarchy->GetNum() == InTransform.GetNum())
+	if (Hierarchy && Hierarchy->GetNum() == InTransforms.Num())
 	{
-		GlobalTransforms = InTransform;
+		GlobalTransforms = InTransforms;
 
 		// we don't want previous transform data
 		LocalTransforms.Reset();
 		LocalTransformDirtyFlags.Reset();
 	}
+}
+
+FTransform FIKRigTransforms::GetRelativeTransform(int32 ChildIndex, int32 ParentIndex) const
+{
+	if (GlobalTransforms.IsValidIndex(ChildIndex))
+	{
+		if (GlobalTransforms.IsValidIndex(ParentIndex))
+		{
+			return (GlobalTransforms[ChildIndex].GetRelativeTransform(GlobalTransforms[ParentIndex]));
+		}
+		else
+		{
+			return GlobalTransforms[ChildIndex];
+		}
+	}
+
+	return FTransform::Identity;
 }

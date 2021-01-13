@@ -1,10 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-/**
- * Contains IKRig Definition runtime code. This takes IKRigDefinition asset as an input
- *
- */
-
 #pragma once
 
 #include "CoreMinimal.h"
@@ -33,7 +28,7 @@ private:
 
 	// reference transform
 	UPROPERTY(transient)
-	FIKRigTransform ReferenceTransform;
+	TArray<FTransform> RefPoseTransforms;
 
 	// solvers
 	UPROPERTY(transient)
@@ -48,18 +43,16 @@ private:
 	UPROPERTY(transient)
 	TMap<FName, FIKRigGoal> IKGoals;
 
-	FIKRigTransformModifier TransformModifier;
+	FIKRigTransforms Transforms;
 	FControlRigDrawInterface DrawInterface;
 
 	bool bInitialized = false;
 
 public: 
 
-	// IKRigProcessor implementation functions
-	// Set IKRigDefinition 
 	// if bInitialize is true, it will use Default Ref transform of IKRigDefinition to initialize
 	void SetIKRigDefinition(UIKRigDefinition* InRigDefinition, bool bInitialize = false);
-	void Initialize(const FIKRigTransform& InRefTransform);
+	void Initialize(const TArray<FTransform>& InRefPoseTransforms);
 	void Reinitialize();
 	void Terminate();
 	void Solve();
@@ -69,7 +62,7 @@ public:
 	void SetGoalRotation(const FName& GoalName, const FRotator& InRotation);
 	void SetGoalTarget(const FName& GoalName, const FIKRigTarget& InTarget);
 	void GetGoals(TArray<FName>& OutNames) const;
-	FIKRigTransformModifier& GetIKRigTransformModifier();
+	FIKRigTransforms& GetIKRigTransformModifier();
 	const FIKRigHierarchy* GetHierarchy() const;
 
 	void ResetToRefPose();
@@ -80,6 +73,6 @@ private:
 
 	// delegate functions
 	bool GoalGetter(const FName& InGoalName, FIKRigTarget& OutTarget);
-	const FIKRigTransform& GetRefPoseGetter();
+	const TArray<FTransform>& GetRefPoseGetter();
 };
 

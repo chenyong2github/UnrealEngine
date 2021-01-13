@@ -24,8 +24,8 @@ class IKRIG_API UIKRigConstraintSolver : public UIKRigSolver
 
 public: 
 	// during we don't mutate bone transform, but you can read it
-	virtual void InitInternal(const FIKRigTransformModifier& InGlobalTransform) override;
-	virtual void SolveInternal(FIKRigTransformModifier& InOutGlobalTransform, FControlRigDrawInterface* InOutDrawInterface) override;
+	virtual void InitInternal(const FIKRigTransforms& InGlobalTransform) override;
+	virtual void SolveInternal(FIKRigTransforms& InOutGlobalTransform, FControlRigDrawInterface* InOutDrawInterface) override;
 
 	// this can be utilized for just subset of constraints
 	//void SolverConstraints(const TArray<FName>& ConstraintsList, FIKRigTransformModifier& InOutGlobalTransform, FControlRigDrawInterface* InOutDrawInterface);

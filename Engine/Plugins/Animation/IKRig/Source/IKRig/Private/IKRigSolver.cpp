@@ -6,7 +6,7 @@
 #include "IKRigDefinition.h"
 
 // input hierarchy and ref pose? 
-void UIKRigSolver::Init(const FIKRigTransformModifier& TransformModifier, FIKRigTransformGetter InRefPoseGetter, FIKRigGoalGetter InGoalGetter)
+void UIKRigSolver::Init(const FIKRigTransforms& TransformModifier, FIKRigTransformGetter InRefPoseGetter, FIKRigGoalGetter InGoalGetter)
 {
 	//SolverDefinition = InSolverDefinition;
 
@@ -27,7 +27,7 @@ bool UIKRigSolver::IsSolverActive() const
 
 // input : goal getter or goals
 // output : modified pose - GlobalTransforms
-void UIKRigSolver::Solve(FIKRigTransformModifier& InOutGlobalTransform, FControlRigDrawInterface* InOutDrawInterface)
+void UIKRigSolver::Solve(FIKRigTransforms& InOutGlobalTransform, FControlRigDrawInterface* InOutDrawInterface)
 {
 	if (IsSolverActive())
 	{
@@ -50,14 +50,14 @@ bool UIKRigSolver::GetEffectorTarget(const FIKRigEffector& InEffector, FIKRigTar
 	return false;
 }
 
-const FIKRigTransform& UIKRigSolver::GetReferencePose() const
+const TArray<FTransform>& UIKRigSolver::GetRefPoseTransforms() const
 {
 	if (RefPoseGetter.IsBound())
 	{
 		return RefPoseGetter.Execute();
 	}
 
-	static FIKRigTransform Dummy;
+	static TArray<FTransform> Dummy;
 	return Dummy;
 }
 

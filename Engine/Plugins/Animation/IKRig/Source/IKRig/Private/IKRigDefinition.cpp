@@ -86,9 +86,9 @@ bool UIKRigDefinition::AddBone(const FName& InName, const FName& InParent, const
 		if (InParent == NAME_None || Hierarchy.FindIndexFromBoneArray(InParent) != INDEX_NONE)
 		{
 			Hierarchy.Bones.Add(FIKRigBone(InName, InParent));
-			ReferencePose.GlobalTransforms.Add(InGlobalTransform);
+			RefPoseTransforms.Add(InGlobalTransform);
 
-			check (Hierarchy.Bones.Num() == ReferencePose.GetNum());
+			check (Hierarchy.Bones.Num() == RefPoseTransforms.Num());
 
 			Hierarchy.RebuildCacheData();
 			BoneAddedDelegate.Broadcast(InName);
@@ -134,11 +134,11 @@ bool UIKRigDefinition::RemoveBone(const FName& InName)
 	if (Index != INDEX_NONE)
 	{
 		// remove all children
-		FRemoveChild::RemoveChild_Recursively(Hierarchy, Hierarchy.Bones, ReferencePose.GlobalTransforms, InName);
+		FRemoveChild::RemoveChild_Recursively(Hierarchy, Hierarchy.Bones, RefPoseTransforms, InName);
 
 		// shrink now
 		Hierarchy.Bones.Shrink();
-		ReferencePose.GlobalTransforms.Shrink();
+		RefPoseTransforms.Shrink();
 		Hierarchy.RebuildCacheData();
 		BoneRemovedDelegate.Broadcast(InName);
 		return true;
@@ -332,14 +332,14 @@ void UIKRigDefinition::EnsureSortedCorrectly(bool bReSortIfNeeded)
 			{
 				if (Name == NewBones[Jndex].Name)
 				{
-					NewTransforms[Jndex] = ReferencePose.GlobalTransforms[Index];
+					NewTransforms[Jndex] = RefPoseTransforms[Index];
 				}
 			}
 		}
 
 		// override back to it
 		Hierarchy.Bones = NewBones;
-		ReferencePose.GlobalTransforms = NewTransforms;
+		RefPoseTransforms = NewTransforms;
 		Hierarchy.RebuildCacheData();
 	}
 }
@@ -349,7 +349,7 @@ void UIKRigDefinition::ResetHierarchy()
 	Hierarchy.Bones.Reset();
 	Hierarchy.ParentIndices.Reset();
 	Hierarchy.RuntimeNameLookupTable.Reset();
-	ReferencePose.GlobalTransforms.Reset();
+	RefPoseTransforms.Reset();
 }
 
 void UIKRigDefinition::EnsureCreateUniqueGoalName(FName& InOutGoal) const

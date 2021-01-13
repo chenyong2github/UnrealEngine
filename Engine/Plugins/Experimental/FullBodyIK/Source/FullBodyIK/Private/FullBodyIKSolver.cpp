@@ -18,7 +18,7 @@ const FName UFullBodyIKSolver::EffectorTargetPrefix = FName(TEXT("FullBodyIKTarg
 //////////////////////////////////////////////
 // utility functions
 ////////////////////////////////////////////////
-static float EnsureToAddBoneToLinkData(const FIKRigTransformModifier& TransformModifier, const int32 CurrentItem, TArray<FFBIKLinkData>& LinkData,
+static float EnsureToAddBoneToLinkData(const FIKRigTransforms& TransformModifier, const int32 CurrentItem, TArray<FFBIKLinkData>& LinkData,
 	TMap<int32, int32>& HierarchyToLinkDataMap, TMap<int32, int32>& LinkDataToHierarchyIndices)
 {
 	float ChainLength = 0;
@@ -84,7 +84,7 @@ static void AddToEffectorTarget(int32 EffectorIndex, const int32 Effector, TMap<
 }
 
 // the output should be from current index -> to root parent 
-static bool GetBoneChain(const FIKRigTransformModifier& TransformModifier, const FName& Root, const FName& Current, TArray<int32>& ChainIndices)
+static bool GetBoneChain(const FIKRigTransforms& TransformModifier, const FName& Root, const FName& Current, TArray<int32>& ChainIndices)
 {
 	ChainIndices.Reset();
 
@@ -110,7 +110,7 @@ static bool GetBoneChain(const FIKRigTransformModifier& TransformModifier, const
 	return ChainIndices.Num() > 0;
 }
 
-static void AddEffectors(const FIKRigTransformModifier& TransformModifier, const FName Root, const TArray<FFBIKRigEffector>& Effectors,
+static void AddEffectors(const FIKRigTransforms& TransformModifier, const FName Root, const TArray<FFBIKRigEffector>& Effectors,
 	TArray<FFBIKLinkData>& LinkData, TMap<int32, FFBIKEffectorTarget>& EffectorTargets, TArray<int32>& EffectorLinkIndices,
 	TMap<int32, int32>& LinkDataToHierarchyIndices, TMap<int32, int32>& HierarchyToLinkDataMap, const FSolverInput& SolverProperty)
 {
@@ -204,7 +204,7 @@ UFullBodyIKSolver::UFullBodyIKSolver()
 {
 }
 
-void UFullBodyIKSolver::InitInternal(const FIKRigTransformModifier& InGlobalTransform)
+void UFullBodyIKSolver::InitInternal(const FIKRigTransforms& InGlobalTransform)
 {
 
 	LinkData.Reset();
@@ -229,7 +229,7 @@ bool UFullBodyIKSolver::IsSolverActive() const
 }
 
 void UFullBodyIKSolver::SolveInternal(
-	FIKRigTransformModifier& InOutGlobalTransform, 
+	FIKRigTransforms& InOutGlobalTransform, 
 	FControlRigDrawInterface* InOutDrawInterface)
 {
 	if (LinkDataToHierarchyIndices.Num() > 0)

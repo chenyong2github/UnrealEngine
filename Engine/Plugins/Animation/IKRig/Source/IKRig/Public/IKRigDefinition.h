@@ -46,9 +46,9 @@ public:
 		return NameArray;
 	}
 
-	const FIKRigTransform& GetReferencePose() const
+	const TArray<FTransform>& GetReferencePose() const
 	{
-		return ReferencePose;
+		return RefPoseTransforms;
 	}
 
 	const TArray<UIKRigSolver*>& GetSolvers() const 
@@ -81,7 +81,7 @@ private:
 	// IKRigDefinition interface handles the integrity of (this and Hierarchy)
 	// Use IKRigController for APIs
 	UPROPERTY(VisibleAnywhere, Category = "Hierarchy")
-	FIKRigTransform ReferencePose;
+	TArray<FTransform> RefPoseTransforms;
 
 	// stack of solvers, executed in order
 	UPROPERTY(EditAnywhere, instanced, Category = "Solver")
