@@ -88,13 +88,15 @@ private:
 	TSharedRef<ITableRow> OnGenerateRow(FChangelistTreeItemPtr InTreeItem, const TSharedRef<STableViewBase>& OwnerTable);
 	void OnGetChildren(FChangelistTreeItemPtr InParent, TArray<FChangelistTreeItemPtr>& OutChildren);
 
-	bool OnIsSelectableOrNavigable(FChangelistTreeItemPtr InItem) const;
-
+	void RequestRefresh();
 	void Refresh();
-	void OnChangelistsStatusUpdated(const FSourceControlOperationRef&, ECommandResult::Type);
+	void ClearChangelistsTree();
 
 	void OnSourceControlStateChanged();
 	void OnSourceControlProviderChanged(ISourceControlProvider& OldProvider, ISourceControlProvider& NewProvider);
+	void OnChangelistsStatusUpdated(const FSourceControlOperationRef& InOperation, ECommandResult::Type InType);
+
+	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 
 private:
 
@@ -104,8 +106,8 @@ private:
 	/** Changelist treeview widget */
 	TSharedPtr<SChangelistTree> TreeView;
 
-	TSharedPtr<class FUpdatePendingChangelistsStatus, ESPMode::ThreadSafe> UpdatePendingChangelistsOperation;
-
 	/** Source control state changed delegate handle */
 	FDelegateHandle SourceControlStateChangedDelegateHandle;
+
+	bool bShouldRefresh;
 };
