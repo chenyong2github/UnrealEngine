@@ -2968,7 +2968,7 @@ void FLevelStreamingGCHelper::VerifyLevelsGotRemovedByGC()
 #if DO_GUARD_SLOW
 		int32 FailCount = 0;
 		// Iterate over all objects and find out whether they reside in a GC'ed level package.
-		for( FObjectIterator It; It; ++It )
+		for( FThreadSafeObjectIterator It; It; ++It )
 		{
 			UObject* Object = *It;
 			// Check whether object's outermost is in the list.

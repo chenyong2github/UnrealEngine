@@ -29,7 +29,7 @@ private:
 
 	void PhysicsAssetChanged(const UPhysicsAsset* InPhysAsset)
 	{
-		for (FObjectIterator Iter(UWheeledVehicleMovementComponent::StaticClass()); Iter; ++Iter)
+		for (FThreadSafeObjectIterator Iter(UWheeledVehicleMovementComponent::StaticClass()); Iter; ++Iter)
 		{
 			UWheeledVehicleMovementComponent * WheeledVehicleMovementComponent = Cast<UWheeledVehicleMovementComponent>(*Iter);
 			if (USkeletalMeshComponent * SkeltalMeshComponent = Cast<USkeletalMeshComponent>(WheeledVehicleMovementComponent->UpdatedComponent))

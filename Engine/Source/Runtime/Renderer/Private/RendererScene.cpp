@@ -1167,7 +1167,7 @@ FScene::FScene(UWorld* InWorld, bool bInRequiresHitProxies, bool bInIsEditorScen
 FScene::~FScene()
 {
 #if 0 // if you have component that has invalid scene, try this code to see this is reason. 
-	for (FObjectIterator Iter(UActorComponent::StaticClass()); Iter; ++Iter)
+	for (FThreadSafeObjectIterator Iter(UActorComponent::StaticClass()); Iter; ++Iter)
 	{
 		UActorComponent * ActorComp = CastChecked<UActorComponent>(*Iter);
 		if (ActorComp->GetScene() == this)
