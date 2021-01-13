@@ -410,6 +410,7 @@ void UControlRig::Execute(const EControlRigState InState, const FName& InEventNa
 	}
 
 	FRigUnitContext Context;
+	DrawInterface.Reset();
 	Context.DrawInterface = &DrawInterface;
 	Context.DrawContainer = &DrawContainer;
 
