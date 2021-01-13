@@ -6,7 +6,7 @@
 #include "EdGraph/EdGraphNode.h"
 #include "UObject/ObjectMacros.h"
 #include "MetasoundFrontend.h"
-#include "MetasoundFrontendDataLayout.h"
+#include "MetasoundFrontendController.h"
 #include "MetasoundFrontendRegistries.h"
 
 #include "MetasoundEditorGraphNode.generated.h"

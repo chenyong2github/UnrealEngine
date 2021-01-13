@@ -9,7 +9,7 @@
 #include "MetasoundEditorGraph.generated.h"
 
 // Forward Declarations
-struct FMetasoundDocument;
+struct FMetasoundFrontendDocument;
 
 
 UCLASS(MinimalAPI)

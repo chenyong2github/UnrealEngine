@@ -21,7 +21,7 @@ static FAutoConsoleCommand GPushFloatCommand(
 			FName ChannelName = FName(*Args[0]);
 			float ValueToPush = TCString<TCHAR>::Atof(*Args[1]);
 
-			Metasound::FDataTypeLiteralParam LiteralParam(ValueToPush);
+			Metasound::FLiteral LiteralParam(ValueToPush);
 
 			if (!Metasound::FDataTransmissionCenter::Get().PushLiteral(ChannelName, LiteralParam))
 			{
@@ -47,7 +47,7 @@ static FAutoConsoleCommand GPushBoolCommand(
 
 			bool ValueToPush = ValueAsInt != 0;
 
-			Metasound::FDataTypeLiteralParam LiteralParam(ValueToPush);
+			Metasound::FLiteral LiteralParam(ValueToPush);
 
 			if (!Metasound::FDataTransmissionCenter::Get().PushLiteral(ChannelName, LiteralParam))
 			{
@@ -71,7 +71,7 @@ static FAutoConsoleCommand GPushIntCommand(
 			FName ChannelName = FName(*Args[0]);
 			int32 ValueToPush = TCString<TCHAR>::Atoi(*Args[1]);
 
-			Metasound::FDataTypeLiteralParam LiteralParam(ValueToPush);
+			Metasound::FLiteral LiteralParam(ValueToPush);
 
 			if (!Metasound::FDataTransmissionCenter::Get().PushLiteral(ChannelName, LiteralParam))
 			{
@@ -94,7 +94,7 @@ static FAutoConsoleCommand GPushStringCommand(
 
 			FName ChannelName = FName(*Args[0]);
 
-			Metasound::FDataTypeLiteralParam LiteralParam(Args[1]);
+			Metasound::FLiteral LiteralParam(Args[1]);
 
 			if (!Metasound::FDataTransmissionCenter::Get().PushLiteral(ChannelName, LiteralParam))
 			{

@@ -109,37 +109,37 @@ namespace Metasound
 					FName PinType = NAME_None;
 					switch (RegistryInfo.PreferredLiteralType)
 					{
-						case ELiteralArgType::Boolean:
+						case ELiteralType::Boolean:
 						{
 							PinType = FGraphBuilder::PinPrimitiveBoolean;
 						}
 						break;
 
-						case ELiteralArgType::Float:
+						case ELiteralType::Float:
 						{
 							PinType = FGraphBuilder::PinPrimitiveFloat;
 						}
 						break;
 
-						case ELiteralArgType::Integer:
+						case ELiteralType::Integer:
 						{
 							PinType = FGraphBuilder::PinPrimitiveInteger;
 						}
 						break;
 
-						case ELiteralArgType::String:
+						case ELiteralType::String:
 						{
 							PinType = FGraphBuilder::PinPrimitiveString;
 						}
 						break;
 
-						case ELiteralArgType::UObjectProxy:
+						case ELiteralType::UObjectProxy:
 						{
 							PinType = FGraphBuilder::PinPrimitiveUObject;
 						}
 						break;
 
-						case ELiteralArgType::UObjectProxyArray:
+						case ELiteralType::UObjectProxyArray:
 						{
 							PinType = FGraphBuilder::PinPrimitiveUObjectArray;
 						}
@@ -147,10 +147,10 @@ namespace Metasound
 
 						// Register atypical primitives
 						default:
-						case ELiteralArgType::None:
-						case ELiteralArgType::Invalid:
+						case ELiteralType::None:
+						case ELiteralType::Invalid:
 						{
-							static_assert(static_cast<int32>(ELiteralArgType::Invalid) == 7, "Possible missing binding of pin category to primitive type");
+							static_assert(static_cast<int32>(ELiteralType::Invalid) == 7, "Possible missing binding of pin category to primitive type");
 						}
 						break;
 					}
@@ -177,8 +177,8 @@ namespace Metasound
 					FOnGetDetailCustomizationInstance::CreateLambda([]() { return MakeShared<FMetasoundDetailCustomization>(UMetasoundSource::GetDocumentPropertyName()); }));
 
 				PropertyModule.RegisterCustomPropertyTypeLayout(
-					"MetasoundLiteralDescription",
-					FOnGetPropertyTypeCustomizationInstance::CreateLambda([]() { return MakeShared<FMetasoundLiteralDescriptionDetailCustomization>(); }));
+					"MetasoundFrontendLiteral",
+					FOnGetPropertyTypeCustomizationInstance::CreateLambda([]() { return MakeShared<FMetasoundFrontendLiteralDetailCustomization>(); }));
 
 				StyleSet = MakeShared<FSlateStyle>();
 

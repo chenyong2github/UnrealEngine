@@ -2,7 +2,12 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "EdGraph/EdGraph.h"
+#include "EdGraph/EdGraphNode.h"
+#include "EdGraph/EdGraphPin.h"
 #include "MetasoundFrontend.h"
+#include "MetasoundFrontendController.h"
+
 
 // Forward Declarations
 class UEdGraphNode;
@@ -12,13 +17,6 @@ class UMetasoundEditorGraphNode;
 
 namespace Metasound
 {
-	namespace Frontend
-	{
-		// Forward Declarations
-		class FNodeHandle;
-		struct FNodeClassInfo;
-	} // namespace Frontend
-
 	namespace Editor
 	{
 		class FGraphBuilder
@@ -62,15 +60,15 @@ namespace Metasound
 
 			static void RebuildGraph(UObject& InMetasound);
 
-			static void RebuildNodePins(UMetasoundEditorGraphNode& InGraphNode, Frontend::FNodeHandle& InNodeHandle, bool bInRecordTransaction = true);
+			static void RebuildNodePins(UMetasoundEditorGraphNode& InGraphNode, Frontend::FNodeHandle InNodeHandle, bool bInRecordTransaction = true);
 
 			// Adds an Input UEdGraphPin to a UMetasoundEditorGraphNode
-			static UEdGraphPin* AddPinToNode(UMetasoundEditorGraphNode& InEditorNode, Frontend::FInputHandle& InInputHandle);
+			static UEdGraphPin* AddPinToNode(UMetasoundEditorGraphNode& InEditorNode, Frontend::FInputHandle InInputHandle);
 
 			// Adds an Output UEdGraphPin to a UMetasoundEditorGraphNode
-			static UEdGraphPin* AddPinToNode(UMetasoundEditorGraphNode& InEditorNode, Frontend::FOutputHandle& InOutputHandle);
+			static UEdGraphPin* AddPinToNode(UMetasoundEditorGraphNode& InEditorNode, Frontend::FOutputHandle InOutputHandle);
 
-			// Adds and removes nodes, pins and connections so that the UEdGraph of the Metasound matches the FMetasoundDocumentModel
+			// Adds and removes nodes, pins and connections so that the UEdGraph of the Metasound matches the FMetasoundFrontendDocumentModel
 			//
 			// @return True if the UEdGraph was altered, false otherwise. 
 			static bool SynchronizeGraph(UObject& InMetasound);
@@ -81,7 +79,7 @@ namespace Metasound
 			static bool SynchronizeNodePins(UMetasoundEditorGraphNode& InEditorNode, Frontend::FNodeHandle InNode);
 
 			// Adds and removes connections so that the UEdGraph of the metasound has the same
-			// connections as the FMetasoundDocument graph.
+			// connections as the FMetasoundFrontendDocument graph.
 			//
 			// @return True if the UEdGraph was altered. False otherwise. 
 			static bool SynchronizeConnections(UObject& InMetasound);

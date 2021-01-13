@@ -528,7 +528,7 @@ namespace Metasound
 	template<typename DataType>
 	struct TLiteralTraits
 	{
-		using TVariantConstructorTraits = DataFactoryPrivate::TDataTypeVariantConstructorTraits<DataType, FDataTypeLiteralParam::FVariantType>;
+		using TVariantConstructorTraits = DataFactoryPrivate::TDataTypeVariantConstructorTraits<DataType, FLiteral::FVariantType>;
 
 		static constexpr bool bIsParsableFromAnyLiteralType = TVariantConstructorTraits::bIsDefaultConstructible || TVariantConstructorTraits::bIsConstructibleWithSettings || TVariantConstructorTraits::bIsConstructibleWithArgs || TVariantConstructorTraits::bIsConstructibleWithSettingsAndArgs;
 
@@ -542,35 +542,35 @@ namespace Metasound
 		 * an FOperatorSettings with the literals constructor arg type, or one that
 		 * accpets the literal constructor arg type. It returns False otherwise.
 		 */
-		static const bool IsParsable(const FDataTypeLiteralParam& InLiteral)
+		static const bool IsParsable(const FLiteral& InLiteral)
 		{
-			switch (InLiteral.ConstructorArgType)
+			switch (InLiteral.GetType())
 			{
-				case ELiteralArgType::Boolean:
+				case ELiteralType::Boolean:
 
 					return TIsParsable<DataType, bool>::Value;
 
-				case ELiteralArgType::Integer:
+				case ELiteralType::Integer:
 
 					return TIsParsable<DataType, int32>::Value;
 
-				case ELiteralArgType::Float:
+				case ELiteralType::Float:
 
 					return TIsParsable<DataType, float>::Value;
 
-				case ELiteralArgType::String:
+				case ELiteralType::String:
 
 					return TIsParsable<DataType, FString>::Value;
 
-				case ELiteralArgType::UObjectProxy:
+				case ELiteralType::UObjectProxy:
 
 					return TIsParsable<DataType, Audio::IProxyDataPtr>::Value;
 
-				case ELiteralArgType::UObjectProxyArray:
+				case ELiteralType::UObjectProxyArray:
 
 					return TIsParsable<DataType, TArray<Audio::IProxyDataPtr>>::Value;
 
-				case ELiteralArgType::None:
+				case ELiteralType::None:
 
 					return TIsParsable<DataType>::Value;
 
@@ -702,7 +702,7 @@ namespace Metasound
 	/** A base factory type for creating objects related to Metasound DataTypes. 
 	 *
 	 * TDataLiteralFactory provides a unified interface for constructing objects using 
-	 * a FOperatorSettings and FDataTypeLiteralParam. The various factory 
+	 * a FOperatorSettings and FLiteral. The various factory 
 	 * methods determine how strictly the DataType constructors must match the 
 	 * arguments to the factory method.
 	 *
@@ -742,44 +742,44 @@ namespace Metasound
 		 * @return An object related to the DataType. The exact type determined by
 		 *         the CreatorType class template parameter.
 		 */
-		static auto CreateExplicitArgs(const FOperatorSettings& InSettings, const FDataTypeLiteralParam& InLiteral)
+		static auto CreateExplicitArgs(const FOperatorSettings& InSettings, const FLiteral& InLiteral)
 		{
-			switch (InLiteral.ConstructorArgType)
+			switch (InLiteral.GetType())
 			{
-				case ELiteralArgType::Boolean:
+				case ELiteralType::Boolean:
 
-					return CreateExplicitArgs<bool>(InSettings, InLiteral.ConstructorArg);
+					return CreateExplicitArgs<bool>(InSettings, InLiteral.Value);
 
-				case ELiteralArgType::Integer:
+				case ELiteralType::Integer:
 
-					return CreateExplicitArgs<int>(InSettings, InLiteral.ConstructorArg);
+					return CreateExplicitArgs<int>(InSettings, InLiteral.Value);
 
-				case ELiteralArgType::Float:
+				case ELiteralType::Float:
 
-					return CreateExplicitArgs<float>(InSettings, InLiteral.ConstructorArg);
+					return CreateExplicitArgs<float>(InSettings, InLiteral.Value);
 
-				case ELiteralArgType::String:
+				case ELiteralType::String:
 
-					return CreateExplicitArgs<FString>(InSettings, InLiteral.ConstructorArg);
+					return CreateExplicitArgs<FString>(InSettings, InLiteral.Value);
 
-				case ELiteralArgType::UObjectProxy:
+				case ELiteralType::UObjectProxy:
 
-					return CreateExplicitArgs<Audio::IProxyDataPtr>(InSettings, InLiteral.ConstructorArg);
+					return CreateExplicitArgs<Audio::IProxyDataPtr>(InSettings, InLiteral.Value);
 
-				case ELiteralArgType::UObjectProxyArray:
+				case ELiteralType::UObjectProxyArray:
 
-					return CreateExplicitArgs<TArray<Audio::IProxyDataPtr>>(InSettings, InLiteral.ConstructorArg);
+					return CreateExplicitArgs<TArray<Audio::IProxyDataPtr>>(InSettings, InLiteral.Value);
 
-				case ELiteralArgType::None:
+				case ELiteralType::None:
 
-					return CreateExplicitArgs<void>(InSettings, InLiteral.ConstructorArg);
+					return CreateExplicitArgs<void>(InSettings, InLiteral.Value);
 
-				case ELiteralArgType::Invalid:
+				case ELiteralType::Invalid:
 				default:
 
 					checkNoEntry();
 
-					return CreateAny(InSettings, InLiteral.ConstructorArg);
+					return CreateAny(InSettings, InLiteral.Value);
 			}
 		}
 	};

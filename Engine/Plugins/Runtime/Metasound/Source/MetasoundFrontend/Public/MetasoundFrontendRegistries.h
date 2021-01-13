@@ -5,20 +5,21 @@
 #include "CoreMinimal.h"
 #include "IAudioProxyInitializer.h"
 #include "MetasoundDataReference.h"
-#include "MetasoundFrontendDataLayout.h"
+#include "MetasoundFrontendDocument.h"
+#include "MetasoundLiteral.h"
 #include "MetasoundNodeInterface.h"
 #include "MetasoundOperatorInterface.h"
 
 namespace Metasound
 {
 	typedef TFunction<TUniquePtr<Metasound::INode>(::Metasound::FInputNodeConstructorParams&&)> FCreateInputNodeFunction;
-	typedef TFunction<TUniquePtr<Metasound::INode>(const ::Metasound::FOutputNodeConstrutorParams&)> FCreateOutputNodeFunction;
+	typedef TFunction<TUniquePtr<Metasound::INode>(const ::Metasound::FOutputNodeConstructorParams&)> FCreateOutputNodeFunction;
 
 	// This function is used to create a proxy from a datatype's base uclass.
 	typedef TFunction<Audio::IProxyDataPtr(UObject*)> FCreateAudioProxyFunction;
 
 	typedef TFunction<TUniquePtr<Metasound::INode>(const Metasound::FNodeInitData&)> FCreateMetasoundNodeFunction;
-	typedef TFunction<FMetasoundClassDescription()> FCreateMetasoundClassDescriptionFunction;
+	typedef TFunction<FMetasoundFrontendClass()> FCreateMetasoundFrontendClassFunction;
 
 	// Various elements that we pass to the frontend registry based on templated type traits.
 	struct FDataTypeRegistryInfo
@@ -27,7 +28,7 @@ namespace Metasound
 		FName DataTypeName;
 
 		// What type we should default to using for literals.
-		ELiteralArgType PreferredLiteralType = ELiteralArgType::Invalid;
+		ELiteralType PreferredLiteralType = ELiteralType::Invalid;
 
 		// This indicates the type can only be constructed with FOperatorSettings or the default constructor.
 		bool bIsDefaultParsable = false;
@@ -75,11 +76,11 @@ namespace Metasound
 			// This lambda can be used to get an INodeBase for this specific node class.
 			FCreateMetasoundNodeFunction CreateNode;
 
-			FCreateMetasoundClassDescriptionFunction CreateClassDescription;
+			FCreateMetasoundFrontendClassFunction CreateFrontendClass;
 
-			FNodeRegistryElement(FCreateMetasoundNodeFunction&& InCreateNodeFunction, FCreateMetasoundClassDescriptionFunction&& InCreateDescriptionFunction)
+			FNodeRegistryElement(FCreateMetasoundNodeFunction&& InCreateNodeFunction, FCreateMetasoundFrontendClassFunction&& InCreateDescriptionFunction)
 				: CreateNode(MoveTemp(InCreateNodeFunction))
-				, CreateClassDescription(InCreateDescriptionFunction)
+				, CreateFrontendClass(InCreateDescriptionFunction)
 			{
 			}
 		};
@@ -125,6 +126,7 @@ namespace Metasound
 			// A list of nodes that can perform a conversion between the two datatypes described in the FConverterNodeRegistryKey for this map element.
 			TArray<FConverterNodeInfo> PotentialConverterNodes;
 		};
+
 	}
 
 	struct FDataTypeConstructorCallbacks
@@ -132,8 +134,12 @@ namespace Metasound
 		// This constructs a TInputNode<> with the corresponding datatype.
 		FCreateInputNodeFunction CreateInputNode;
 
+		FCreateMetasoundFrontendClassFunction CreateFrontendInputClass;
+
 		// This constructs a TOutputNode<> with the corresponding datatype.
 		FCreateOutputNodeFunction CreateOutputNode;
+
+		FCreateMetasoundFrontendClassFunction CreateFrontendOutputClass;
 
 		// For datatypes that use a UObject literal or a UObject literal array, this lambda generates a literal from the corresponding UObject.
 		FCreateAudioProxyFunction CreateAudioProxy;
@@ -171,10 +177,10 @@ public:
 	TMap<FNodeRegistryKey, FNodeRegistryElement>& GetExternalNodeRegistry();
 
 	TUniquePtr<Metasound::INode> ConstructInputNode(const FName& InInputType, Metasound::FInputNodeConstructorParams&& InParams);
-	TUniquePtr<Metasound::INode> ConstructOutputNode(const FName& InOutputType, const Metasound::FOutputNodeConstrutorParams& InParams);
+	TUniquePtr<Metasound::INode> ConstructOutputNode(const FName& InOutputType, const Metasound::FOutputNodeConstructorParams& InParams);
 
-	Metasound::FDataTypeLiteralParam GenerateLiteralForUObject(const FName& InDataType, UObject* InObject);
-	Metasound::FDataTypeLiteralParam GenerateLiteralForUObjectArray(const FName& InDataType, TArray<UObject*> InObjectArray);
+	Metasound::FLiteral GenerateLiteralForUObject(const FName& InDataType, UObject* InObject);
+	Metasound::FLiteral GenerateLiteralForUObjectArray(const FName& InDataType, TArray<UObject*> InObjectArray);
 
 	// Create a new instance of a C++ implemented node from the registry.
 	TUniquePtr<Metasound::INode> ConstructExternalNode(const FName& InNodeType, uint32 InNodeHash, const Metasound::FNodeInitData& InInitData);
@@ -184,24 +190,29 @@ public:
 	TArray<FConverterNodeInfo> GetPossibleConverterNodes(const FName& FromDataType, const FName& ToDataType);
 
 	// Get the desired kind of literal for a given data type. Returns EConstructorArgType::Invalid if the data type couldn't be found.
-	Metasound::ELiteralArgType GetDesiredLiteralTypeForDataType(FName InDataType) const;
+	Metasound::ELiteralType GetDesiredLiteralTypeForDataType(FName InDataType) const;
 
 	UClass* GetLiteralUClassForDataType(FName InDataType) const;
 
+	template<typename ArgType>
+	bool DoesDataTypeSupportLiteralType(FName InDataType) const
+	{
+		return DoesDataTypeSupportLiteralType(InDataType, Metasound::TLiteralTypeInfo<ArgType>::GetLiteralArgTypeEnum());
+	}
 
 	// Get whether we can build a literal of this specific type for InDataType.
-	bool DoesDataTypeSupportLiteralType(FName InDataType, Metasound::ELiteralArgType InLiteralType) const;
+	bool DoesDataTypeSupportLiteralType(FName InDataType, Metasound::ELiteralType InLiteralType) const;
 
-	bool RegisterDataType(const FDataTypeRegistryInfo& InDataInfo, FDataTypeConstructorCallbacks&& InCallbacks);
+	bool RegisterDataType(const FDataTypeRegistryInfo& InDataInfo, const FDataTypeConstructorCallbacks& InCallbacks);
 
 	/** Register external node with the frontend.
 	 *
 	 * @param InCreateNode - Function for creating node from FNodeInitData.
-	 * @param InCreateDescription - Function for creating a FMetasoundClassDescription.
+	 * @param InCreateDescription - Function for creating a FMetasoundFrontendClass.
 	 *
 	 * @return True on success.
 	 */
-	bool RegisterExternalNode(Metasound::FCreateMetasoundNodeFunction&& InCreateNode, Metasound::FCreateMetasoundClassDescriptionFunction&& InCreateDescription);
+	bool RegisterExternalNode(Metasound::FCreateMetasoundNodeFunction&& InCreateNode, Metasound::FCreateMetasoundFrontendClassFunction&& InCreateDescription);
 
 	bool RegisterConversionNode(const FConverterNodeRegistryKey& InNodeKey, const FConverterNodeInfo& InNodeInfo);
 
@@ -211,7 +222,11 @@ public:
 	}
 
 	static FNodeRegistryKey GetRegistryKey(const FNodeInfo& InNodeMetadata);
+	static FNodeRegistryKey GetRegistryKey(const FMetasoundFrontendClassMetadata& InNodeMetadata);
 	static bool GetRegistryKey(const FNodeRegistryElement& InElement, FNodeRegistryKey& OutKey);
+	static bool GetFrontendClassFromRegistered(const FMetasoundFrontendClassMetadata& InMetadata, FMetasoundFrontendClass& OutClass);
+	static bool GetInputNodeClassMetadataForDataType(const FName& InDataTypeName, FMetasoundFrontendClassMetadata& OutMetadata);
+	static bool GetOutputNodeClassMetadataForDataType(const FName& InDataTypeName, FMetasoundFrontendClassMetadata& OutMetadata);
 
 	// Return any data types that can be used as a metasound input type or output type.
 	TArray<FName> GetAllValidDataTypes();
@@ -249,6 +264,7 @@ private:
 	};
 
 	TMap<FName, FDataTypeRegistryElement> DataTypeRegistry;
+	TMap<FNodeRegistryKey, FDataTypeRegistryElement> DataTypeNodeRegistry;
 };
 
 

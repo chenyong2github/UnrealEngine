@@ -8,7 +8,7 @@
 
 UMetasound::UMetasound(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
-	, FMetasoundAssetBase(FMetasoundArchetype())
+	, FMetasoundAssetBase(FMetasoundFrontendArchetype())
 {
 }
 
@@ -42,31 +42,31 @@ void UMetasound::SetGraph(UEdGraph* InGraph)
 #endif // WITH_EDITORONLY_DATA
 
 // Returns document object responsible for serializing asset
-Metasound::Frontend::TAccessPtr<FMetasoundDocument> UMetasound::GetDocument()
+Metasound::Frontend::TAccessPtr<FMetasoundFrontendDocument> UMetasound::GetDocument()
 {
-	return Metasound::Frontend::MakeAccessPtr(MetasoundDocumentAccessPoint, MetasoundDocument);
+	return Metasound::Frontend::MakeAccessPtr(MetasoundDocument.AccessPoint, MetasoundDocument);
 }
 
 // Returns document object responsible for serializing asset
-Metasound::Frontend::TAccessPtr<const FMetasoundDocument> UMetasound::GetDocument() const
+Metasound::Frontend::TAccessPtr<const FMetasoundFrontendDocument> UMetasound::GetDocument() const
 {
-	return Metasound::Frontend::MakeAccessPtr<const FMetasoundDocument>(MetasoundDocumentAccessPoint, MetasoundDocument);
+	return Metasound::Frontend::MakeAccessPtr<const FMetasoundFrontendDocument>(MetasoundDocument.AccessPoint, MetasoundDocument);
 }
 
-const TArray<FMetasoundArchetype>& UMetasound::GetPreferredArchetypes() const
+const TArray<FMetasoundFrontendArchetype>& UMetasound::GetPreferredArchetypes() const
 {
 	// Not preferred archetypes for a basic UMetasound.
-	static const TArray<FMetasoundArchetype> Preferred;
+	static const TArray<FMetasoundFrontendArchetype> Preferred;
 	return Preferred;
 }
 
-bool UMetasound::IsArchetypeSupported(const FMetasoundArchetype& InArchetype) const
+bool UMetasound::IsArchetypeSupported(const FMetasoundFrontendArchetype& InArchetype) const
 {
 	// All archetypes are supported.
 	return true;
 }
 
-const FMetasoundArchetype& UMetasound::GetPreferredArchetype(const FMetasoundDocument& InDocument) const
+const FMetasoundFrontendArchetype& UMetasound::GetPreferredArchetype(const FMetasoundFrontendDocument& InDocument) const
 {
 	// Prefer to keep original archetype.
 	return InDocument.Archetype;
@@ -74,7 +74,7 @@ const FMetasoundArchetype& UMetasound::GetPreferredArchetype(const FMetasoundDoc
 
 // This can be used to update the metadata (name, author, etc) for this metasound.
 // @param InMetadata may be updated with any corrections we do to the input metadata.
-void UMetasound::SetMetadata(FMetasoundClassMetadata& InMetadata)
+void UMetasound::SetMetadata(FMetasoundFrontendClassMetadata& InMetadata)
 {
 	FMetasoundAssetBase::SetMetadata(InMetadata);
 	MarkPackageDirty();

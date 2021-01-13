@@ -1,6 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+
 #include "MetasoundArchetype.h"
+
+#include "Algo/ForEach.h"
+#include "MetasoundFrontendDocument.h"
 
 namespace Metasound
 {
@@ -8,39 +12,31 @@ namespace Metasound
 	{
 		namespace MetasoundArchetypeIntrinsics
 		{
-
-			bool IsLessThanInputDescription(const FMetasoundInputDescription& InputA, const FMetasoundInputDescription& InputB)
+			bool IsLessThanVertex(const FMetasoundFrontendVertex& VertexA, const FMetasoundFrontendVertex& VertexB)
 			{
-				// For archetypes we can ignore display name, tooltip and literalvalue.
-				if (InputA.Name == InputB.Name)
+				// For archetypes we can ignore metadata when comparing
+				if (VertexA.Name == VertexB.Name)
 				{
-					return InputA.TypeName.FastLess(InputB.TypeName);
+					return VertexA.TypeName.FastLess(VertexB.TypeName);
 				}
-				return InputA.Name < InputB.Name;
+				return VertexA.Name < VertexB.Name;
 			}
 
-			bool IsLessThanOutputDescription(const FMetasoundOutputDescription& OutputA, const FMetasoundOutputDescription& OutputB)
+			bool IsLessThanEnvironmentVariable(const FMetasoundFrontendEnvironmentVariable& EnvironmentA, const FMetasoundFrontendEnvironmentVariable& EnvironmentB)
 			{
-				// For archetypes we can ignore display name and tooltip
-				if (OutputA.Name == OutputB.Name)
+				// For archetypes we can ignore metadata when comparing
+				if (EnvironmentA.Name == EnvironmentB.Name)
 				{
-					return OutputA.TypeName.FastLess(OutputB.TypeName);
+					return EnvironmentA.TypeName.FastLess(EnvironmentB.TypeName);
 				}
-				return OutputA.Name < OutputB.Name;
+				return EnvironmentA.Name < EnvironmentB.Name;
 			}
 
-			bool IsLessThanEnvironmentDescription(const FMetasoundEnvironmentVariableDescription& EnvironmentA, const FMetasoundEnvironmentVariableDescription& EnvironmentB)
+			bool IsEquivalentEnvironmentVariable(const FMetasoundFrontendEnvironmentVariable& EnvironmentA, const FMetasoundFrontendEnvironmentVariable& EnvironmentB)
 			{
 				// For archetypes we can ignore display name and tooltip
-				return (EnvironmentA.Name < EnvironmentB.Name);
+				return (EnvironmentA.Name == EnvironmentB.Name) && (EnvironmentA.TypeName == EnvironmentB.TypeName);
 			}
-
-			bool IsEquivalentEnvironmentDescription(const FMetasoundEnvironmentVariableDescription& EnvironmentA, const FMetasoundEnvironmentVariableDescription& EnvironmentB)
-			{
-				// For archetypes we can ignore display name and tooltip
-				return (EnvironmentA.Name == EnvironmentB.Name);
-			}
-
 
 
 			template<typename Type>
@@ -54,13 +50,13 @@ namespace Metasound
 				return PointerArray;
 			}
 
-			template<typename DescriptionType, typename ComparisonType>
-			void DescriptionSetDifference(const TArray<DescriptionType>& InDescriptionsA, const TArray<DescriptionType>& InDescriptionsB, TArray<const DescriptionType*>& OutUniqueDescriptionsA, TArray<const DescriptionType*>& OutUniqueDescriptionsB, ComparisonType Compare)
+			template<typename FrontendTypeA, typename FrontendTypeB, typename ComparisonType>
+			void SetDifference(const TArray<FrontendTypeA>& InSetA, const TArray<FrontendTypeB>& InSetB, TArray<const FrontendTypeA*>& OutUniqueA, TArray<const FrontendTypeB*>& OutUniqueB, ComparisonType Compare)
 			{
-				TArray<const DescriptionType*> SortedA = MakePointerToArrayElements(InDescriptionsA);
+				TArray<const FrontendTypeA*> SortedA = MakePointerToArrayElements(InSetA);
 				SortedA.Sort(Compare);
 
-				TArray<const DescriptionType*> SortedB = MakePointerToArrayElements(InDescriptionsB);
+				TArray<const FrontendTypeB*> SortedB = MakePointerToArrayElements(InSetB);
 				SortedB.Sort(Compare);
 
 				int32 IndexA = 0;
@@ -70,12 +66,12 @@ namespace Metasound
 				{
 					if (Compare(*SortedA[IndexA], *SortedB[IndexB]))
 					{
-						OutUniqueDescriptionsA.Add(SortedA[IndexA]);
+						OutUniqueA.Add(SortedA[IndexA]);
 						IndexA++;
 					}
 					else if (Compare(*SortedB[IndexB], *SortedA[IndexA]))
 					{
-						OutUniqueDescriptionsB.Add(SortedB[IndexB]);
+						OutUniqueB.Add(SortedB[IndexB]);
 						IndexB++;
 					}
 					else
@@ -87,71 +83,71 @@ namespace Metasound
 				}
 			}
 
-			template<typename DescriptionType, typename ComparisonType>
-			bool IsDescriptionSetEquivalent(const TArray<DescriptionType>& InDescriptionsA, const TArray<DescriptionType>& InDescriptionsB, ComparisonType Compare)
+			template<typename FrontendTypeA, typename FrontendTypeB, typename ComparisonType>
+			bool IsSetEquivalent(const TArray<FrontendTypeA>& InSetA, const TArray<FrontendTypeB>& InSetB, ComparisonType Compare)
 			{
-				TArray<const DescriptionType*> UniqueA;
-				TArray<const DescriptionType*> UniqueB;
+				TArray<const FrontendTypeA*> UniqueA;
+				TArray<const FrontendTypeB*> UniqueB;
 
-				DescriptionSetDifference(InDescriptionsA, InDescriptionsB, UniqueA, UniqueB, Compare);
+				SetDifference(InSetA, InSetB, UniqueA, UniqueB, Compare);
 
 				return (UniqueA.Num() == 0) && (UniqueB.Num() == 0);
 			}
 			
-			template<typename DescriptionType, typename ComparisonType>
-			bool IsDescriptionSetIncluded(const TArray<DescriptionType>& InSubset, const TArray<DescriptionType>& InSuperset, ComparisonType Compare)
+			template<typename FrontendTypeA, typename FrontendTypeB, typename ComparisonType>
+			bool IsSetIncluded(const TArray<FrontendTypeA>& InSubset, const TArray<FrontendTypeB>& InSuperset, ComparisonType Compare)
 			{
-				TArray<const DescriptionType*> UniqueSubset;
-				TArray<const DescriptionType*> UniqueSuperset;
+				TArray<const FrontendTypeA*> UniqueSubset;
+				TArray<const FrontendTypeB*> UniqueSuperset;
 
-				DescriptionSetDifference(InSubset, InSuperset, UniqueSubset, UniqueSuperset, Compare);
+				SetDifference(InSubset, InSuperset, UniqueSubset, UniqueSuperset, Compare);
 
 				return UniqueSubset.Num() == 0;
 			}
 
-			template<typename DescriptionType, typename ComparisonType>
-			int32 DescriptionSetDifferenceCount(const TArray<DescriptionType>& InDescriptionsA, const TArray<DescriptionType>& InDescriptionsB, ComparisonType Compare)
+			template<typename FrontendTypeA, typename FrontendTypeB, typename ComparisonType>
+			int32 SetDifferenceCount(const TArray<FrontendTypeA>& InSetA, const TArray<FrontendTypeB>& InSetB, ComparisonType Compare)
 			{
-				TArray<const DescriptionType*> UniqueA;
-				TArray<const DescriptionType*> UniqueB;
+				TArray<const FrontendTypeA*> UniqueA;
+				TArray<const FrontendTypeB*> UniqueB;
 
-				DescriptionSetDifference(InDescriptionsA, InDescriptionsB, UniqueA, UniqueB, Compare);
+				SetDifference(InSetA, InSetB, UniqueA, UniqueB, Compare);
 
 				return UniqueA.Num() + UniqueB.Num();
 			}
 		}
 
-		bool IsSubsetOfArchetype(const FMetasoundArchetype& InSubsetArchetype, const FMetasoundArchetype& InSupersetArchetype)
+		bool IsSubsetOfArchetype(const FMetasoundFrontendArchetype& InSubsetArchetype, const FMetasoundFrontendArchetype& InSupersetArchetype)
 		{
 			using namespace MetasoundArchetypeIntrinsics;
 
-			const bool bIsInputSetIncluded = IsDescriptionSetIncluded(InSubsetArchetype.RequiredInputs, InSupersetArchetype.RequiredInputs, &IsLessThanInputDescription);
+			const bool bIsInputSetIncluded = IsSetIncluded(InSubsetArchetype.Interface.Inputs, InSupersetArchetype.Interface.Inputs, &IsLessThanVertex);
 
-			const bool bIsOutputSetIncluded = IsDescriptionSetIncluded(InSubsetArchetype.RequiredOutputs, InSupersetArchetype.RequiredOutputs, &IsLessThanOutputDescription);
+			const bool bIsOutputSetIncluded = IsSetIncluded(InSubsetArchetype.Interface.Outputs, InSupersetArchetype.Interface.Outputs, &IsLessThanVertex);
 
-			const bool bIsEnvironmentVariableSetIncluded = IsDescriptionSetIncluded(InSubsetArchetype.EnvironmentVariables, InSupersetArchetype.EnvironmentVariables, &IsLessThanEnvironmentDescription);
+			const bool bIsEnvironmentVariableSetIncluded = IsSetIncluded(InSubsetArchetype.Interface.Environment, InSupersetArchetype.Interface.Environment, &IsLessThanEnvironmentVariable);
 
 			return bIsInputSetIncluded && bIsOutputSetIncluded && bIsEnvironmentVariableSetIncluded;
 		}
 
-		bool IsEquivalentArchetype(const FMetasoundArchetype& InInputArchetype, const FMetasoundArchetype& InTargetArchetype)
+		bool IsEquivalentArchetype(const FMetasoundFrontendArchetype& InInputArchetype, const FMetasoundFrontendArchetype& InTargetArchetype)
 		{
 			using namespace MetasoundArchetypeIntrinsics;
 
-			const bool bIsInputSetEquivalent = IsDescriptionSetEquivalent(InTargetArchetype.RequiredInputs, InInputArchetype.RequiredInputs, &IsLessThanInputDescription);
+			const bool bIsInputSetEquivalent = IsSetEquivalent(InTargetArchetype.Interface.Inputs, InInputArchetype.Interface.Inputs, &IsLessThanVertex);
 
-			const bool bIsOutputSetEquivalent = IsDescriptionSetEquivalent(InTargetArchetype.RequiredOutputs, InInputArchetype.RequiredOutputs, &IsLessThanOutputDescription);
+			const bool bIsOutputSetEquivalent = IsSetEquivalent(InTargetArchetype.Interface.Outputs, InInputArchetype.Interface.Outputs, &IsLessThanVertex);
 
-			const bool bIsEnvironmentVariableSetEquivalent = IsDescriptionSetEquivalent(InTargetArchetype.EnvironmentVariables, InInputArchetype.EnvironmentVariables, &IsLessThanEnvironmentDescription);
+			const bool bIsEnvironmentVariableSetEquivalent = IsSetEquivalent(InTargetArchetype.Interface.Environment, InInputArchetype.Interface.Environment, &IsLessThanEnvironmentVariable);
 
 			return bIsInputSetEquivalent && bIsOutputSetEquivalent && bIsEnvironmentVariableSetEquivalent;
 		}
 
-		bool IsEqualArchetype(const FMetasoundArchetype& InInputArchetype, const FMetasoundArchetype& InTargetArchetype)
+		bool IsEqualArchetype(const FMetasoundFrontendArchetype& InInputArchetype, const FMetasoundFrontendArchetype& InTargetArchetype)
 		{
-			bool bIsMetadataEqual = InInputArchetype.ArchetypeName == InTargetArchetype.ArchetypeName;
-			bIsMetadataEqual &= InInputArchetype.MajorVersion == InTargetArchetype.MajorVersion;
-			bIsMetadataEqual &= InInputArchetype.MinorVersion == InTargetArchetype.MinorVersion;
+			bool bIsMetadataEqual = InInputArchetype.Name == InTargetArchetype.Name;
+			bIsMetadataEqual &= InInputArchetype.Version.Major == InTargetArchetype.Version.Major;
+			bIsMetadataEqual &= InInputArchetype.Version.Minor== InTargetArchetype.Version.Minor;
 
 			if (bIsMetadataEqual)
 			{
@@ -163,73 +159,78 @@ namespace Metasound
 			return false;
 		}
 
-		int32 InputOutputDifferenceCount(const FMetasoundDocument& InDocument, const FMetasoundArchetype& InArchetype)
+		int32 InputOutputDifferenceCount(const FMetasoundFrontendDocument& InDocument, const FMetasoundFrontendArchetype& InArchetype)
 		{
 			using namespace MetasoundArchetypeIntrinsics;
 
-			int32 DiffCount = DescriptionSetDifferenceCount(InDocument.RootClass.Inputs, InArchetype.RequiredInputs, &IsLessThanInputDescription);
+			int32 DiffCount = SetDifferenceCount(InDocument.RootGraph.Interface.Inputs, InArchetype.Interface.Inputs, &IsLessThanVertex);
 
-			DiffCount += DescriptionSetDifferenceCount(InDocument.RootClass.Outputs, InArchetype.RequiredOutputs, &IsLessThanOutputDescription);
+			DiffCount += SetDifferenceCount(InDocument.RootGraph.Interface.Outputs, InArchetype.Interface.Outputs, &IsLessThanVertex);
 
 			return DiffCount;
 		}
 
-		int32 InputOutputDifferenceCount(const FMetasoundArchetype& InArchetypeA, const FMetasoundArchetype& InArchetypeB)
+		int32 InputOutputDifferenceCount(const FMetasoundFrontendArchetype& InArchetypeA, const FMetasoundFrontendArchetype& InArchetypeB)
 		{
 			using namespace MetasoundArchetypeIntrinsics;
 
-			int32 DiffCount = DescriptionSetDifferenceCount(InArchetypeA.RequiredInputs, InArchetypeB.RequiredInputs, &IsLessThanInputDescription);
+			int32 DiffCount = SetDifferenceCount(InArchetypeA.Interface.Inputs, InArchetypeB.Interface.Inputs, &IsLessThanVertex);
 
-			DiffCount += DescriptionSetDifferenceCount(InArchetypeA.RequiredOutputs, InArchetypeB.RequiredOutputs, &IsLessThanOutputDescription);
+			DiffCount += SetDifferenceCount(InArchetypeA.Interface.Outputs, InArchetypeB.Interface.Outputs, &IsLessThanVertex);
 
 			return DiffCount;
 		}
 
-		void GatherRequiredEnvironmentVariables(const FMetasoundDocument& InDocument, TArray<FMetasoundEnvironmentVariableDescription>& OutEnvironmentVariables)
+		void GatherRequiredEnvironmentVariables(const FMetasoundFrontendDocument& InDocument, TArray<FMetasoundFrontendEnvironmentVariable>& OutEnvironmentVariables)
 		{
-			using namespace MetasoundArchetypeIntrinsics;
-
-			OutEnvironmentVariables = InDocument.RootClass.EnvironmentVariables;
-
-			for (const FMetasoundClassDescription& MetasoundClass : InDocument.Dependencies)
+			auto GatherRequiredEnvironmentVariablesFromClass = [&](const FMetasoundFrontendClass& InClass)
 			{
-				for (const FMetasoundEnvironmentVariableDescription& EnvVar : MetasoundClass.EnvironmentVariables)
-				{
-					auto IsEquivalentEnvVar = [&](const FMetasoundEnvironmentVariableDescription& OtherEnvVar) 
-					{ 
-						return IsEquivalentEnvironmentDescription(EnvVar, OtherEnvVar); 
-					};
+				using namespace MetasoundArchetypeIntrinsics;
 
-					// Basically same as TArray::AddUnique except uses the `IsEquivalentEnvironmentDescription` instead of `operator==` to test for uniqueness.
-					if (nullptr == OutEnvironmentVariables.FindByPredicate(IsEquivalentEnvVar))
+				for (const FMetasoundFrontendClassEnvironmentVariable& EnvVar : InClass.Interface.Environment)
+				{
+					if (EnvVar.bIsRequired)
 					{
-						OutEnvironmentVariables.Add(EnvVar);
+						auto IsEquivalentEnvVar = [&](const FMetasoundFrontendEnvironmentVariable& OtherEnvVar) 
+						{ 
+							return IsEquivalentEnvironmentVariable(EnvVar, OtherEnvVar); 
+						};
+
+						// Basically same as TArray::AddUnique except uses the `IsEquivalentEnvironmentVariable` instead of `operator==` to test for uniqueness.
+						if (nullptr == OutEnvironmentVariables.FindByPredicate(IsEquivalentEnvVar))
+						{
+							OutEnvironmentVariables.Add(EnvVar);
+						}
 					}
 				}
-			}
+			};
+
+			GatherRequiredEnvironmentVariablesFromClass(InDocument.RootGraph);
+			Algo::ForEach(InDocument.Dependencies, GatherRequiredEnvironmentVariablesFromClass);
+			Algo::ForEach(InDocument.Subgraphs, GatherRequiredEnvironmentVariablesFromClass);
 		}
 
-		const FMetasoundArchetype* FindMostSimilarArchetypeSupportingEnvironment(const FMetasoundDocument& InDocument, const TArray<FMetasoundArchetype>& InCandidateArchetypes)
+		const FMetasoundFrontendArchetype* FindMostSimilarArchetypeSupportingEnvironment(const FMetasoundFrontendDocument& InDocument, const TArray<FMetasoundFrontendArchetype>& InCandidateArchetypes)
 		{
 			using namespace MetasoundArchetypeIntrinsics;
 
-			const FMetasoundArchetype* Result = nullptr;
+			const FMetasoundFrontendArchetype* Result = nullptr;
 
-			TArray<const FMetasoundArchetype*> CandidateArchs = MakePointerToArrayElements(InCandidateArchetypes);
+			TArray<const FMetasoundFrontendArchetype*> CandidateArchs = MakePointerToArrayElements(InCandidateArchetypes);
 
-			TArray<FMetasoundEnvironmentVariableDescription> AllDocumentEnvironmentVariables;
+			TArray<FMetasoundFrontendEnvironmentVariable> AllDocumentEnvironmentVariables;
 			GatherRequiredEnvironmentVariables(InDocument, AllDocumentEnvironmentVariables);
 
 			// Remove all archetypes which do not provide all environment variables. 
-			auto DoesNotProvideAllEnvironmentVariables = [&](const FMetasoundArchetype* CandidateArch)
+			auto DoesNotProvideAllEnvironmentVariables = [&](const FMetasoundFrontendArchetype* CandidateArch)
 			{
-				return !IsDescriptionSetIncluded(AllDocumentEnvironmentVariables, CandidateArch->EnvironmentVariables, &IsLessThanEnvironmentDescription);
+				return !IsSetIncluded(AllDocumentEnvironmentVariables, CandidateArch->Interface.Environment, &IsLessThanEnvironmentVariable);
 			};
 
 			CandidateArchs.RemoveAll(DoesNotProvideAllEnvironmentVariables);
 
 			// Return the archetype with the least amount of differences.
-			auto DifferencesFromDocument = [&](const FMetasoundArchetype* CandidateArch) -> int32
+			auto DifferencesFromDocument = [&](const FMetasoundFrontendArchetype* CandidateArch) -> int32
 			{ 
 				return InputOutputDifferenceCount(InDocument, *CandidateArch); 
 			};

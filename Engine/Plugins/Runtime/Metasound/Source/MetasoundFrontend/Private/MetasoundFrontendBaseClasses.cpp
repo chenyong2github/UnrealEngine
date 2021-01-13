@@ -21,7 +21,7 @@ namespace Metasound
 			return FMetasoundFrontendRegistryContainer::Get()->ConstructInputNode(InInputType, MoveTemp(InParams));
 		}
 
-		TUniquePtr<INode> ConstructOutputNode(const FName& InOutputType, const FOutputNodeConstrutorParams& InParams)
+		TUniquePtr<INode> ConstructOutputNode(const FName& InOutputType, const FOutputNodeConstructorParams& InParams)
 		{
 			return FMetasoundFrontendRegistryContainer::Get()->ConstructOutputNode(InOutputType, InParams);
 		}
@@ -31,9 +31,10 @@ namespace Metasound
 			return FMetasoundFrontendRegistryContainer::Get()->ConstructExternalNode(InNodeType, InNodeHash, InInitData);
 		}
 
-		void SetLiteralDescription(FMetasoundLiteralDescription& OutDescription, bool InValue)
+#if 0
+		void SetLiteralDescription(FMetasoundFrontendLiteral& OutDescription, bool InValue)
 		{
-			OutDescription.LiteralType = EMetasoundLiteralType::Bool;
+			OutDescription.LiteralType = EMetasoundFrontendLiteralType::Bool;
 			OutDescription.AsBool = InValue;
 			OutDescription.AsInteger = 0;
 			OutDescription.AsFloat = 0.0f;
@@ -42,9 +43,9 @@ namespace Metasound
 			OutDescription.AsUObjectArray.Empty();
 		}
 
-		void SetLiteralDescription(FMetasoundLiteralDescription& OutDescription, int32 InValue)
+		void SetLiteralDescription(FMetasoundFrontendLiteral& OutDescription, int32 InValue)
 		{
-			OutDescription.LiteralType = EMetasoundLiteralType::Integer;
+			OutDescription.LiteralType = EMetasoundFrontendLiteralType::Integer;
 			OutDescription.AsBool = false;
 			OutDescription.AsInteger = InValue;
 			OutDescription.AsFloat = 0.0f;
@@ -53,9 +54,9 @@ namespace Metasound
 			OutDescription.AsUObjectArray.Empty();
 		}
 
-		void SetLiteralDescription(FMetasoundLiteralDescription& OutDescription, float InValue)
+		void SetLiteralDescription(FMetasoundFrontendLiteral& OutDescription, float InValue)
 		{
-			OutDescription.LiteralType = EMetasoundLiteralType::Float;
+			OutDescription.LiteralType = EMetasoundFrontendLiteralType::Float;
 			OutDescription.AsBool = false;
 			OutDescription.AsInteger = 0;
 			OutDescription.AsFloat = InValue;
@@ -64,9 +65,9 @@ namespace Metasound
 			OutDescription.AsUObjectArray.Empty();
 		}
 
-		void SetLiteralDescription(FMetasoundLiteralDescription& OutDescription, const FString& InValue)
+		void SetLiteralDescription(FMetasoundFrontendLiteral& OutDescription, const FString& InValue)
 		{
-			OutDescription.LiteralType = EMetasoundLiteralType::String;
+			OutDescription.LiteralType = EMetasoundFrontendLiteralType::String;
 			OutDescription.AsBool = false;
 			OutDescription.AsInteger = 0;
 			OutDescription.AsFloat = 0.0f;
@@ -75,9 +76,9 @@ namespace Metasound
 			OutDescription.AsUObjectArray.Empty();
 		}
 
-		void SetLiteralDescription(FMetasoundLiteralDescription& OutDescription, UObject* InValue)
+		void SetLiteralDescription(FMetasoundFrontendLiteral& OutDescription, UObject* InValue)
 		{
-			OutDescription.LiteralType = EMetasoundLiteralType::UObject;
+			OutDescription.LiteralType = EMetasoundFrontendLiteralType::UObject;
 			OutDescription.AsBool = false;
 			OutDescription.AsInteger = 0;
 			OutDescription.AsFloat = 0.0f;
@@ -87,9 +88,9 @@ namespace Metasound
 
 		}
 
-		void SetLiteralDescription(FMetasoundLiteralDescription& OutDescription, const TArray<UObject*>& InValue)
+		void SetLiteralDescription(FMetasoundFrontendLiteral& OutDescription, const TArray<UObject*>& InValue)
 		{
-			OutDescription.LiteralType = EMetasoundLiteralType::UObjectArray;
+			OutDescription.LiteralType = EMetasoundFrontendLiteralType::UObjectArray;
 			OutDescription.AsBool = false;
 			OutDescription.AsInteger = 0;
 			OutDescription.AsFloat = 0.0f;
@@ -98,9 +99,9 @@ namespace Metasound
 			OutDescription.AsUObjectArray = InValue;
 		}
 
-		void ClearLiteralDescription(FMetasoundLiteralDescription& OutDescription)
+		void ClearLiteralDescription(FMetasoundFrontendLiteral& OutDescription)
 		{
-			OutDescription.LiteralType = EMetasoundLiteralType::None;
+			OutDescription.LiteralType = EMetasoundFrontendLiteralType::None;
 			OutDescription.AsBool = false;
 			OutDescription.AsInteger = 0;
 			OutDescription.AsFloat = 0.0f;
@@ -108,190 +109,191 @@ namespace Metasound
 			OutDescription.AsUObject = nullptr;
 			OutDescription.AsUObjectArray.Empty();
 		}
+#endif
 
-		FDataTypeLiteralParam GetLiteralParamForDataType(FName InDataType, const FMetasoundLiteralDescription& InDescription)
+		FLiteral GetLiteralParamForDataType(FName InDataType, const FMetasoundFrontendLiteral& InDescription)
 		{
-			EMetasoundLiteralType LiteralType = InDescription.LiteralType;
+			EMetasoundFrontendLiteralType LiteralType = InDescription.Type;
 			FMetasoundFrontendRegistryContainer* Registry = FMetasoundFrontendRegistryContainer::Get();
 
 			switch (LiteralType)
 			{
-				case EMetasoundLiteralType::None:
+				case EMetasoundFrontendLiteralType::None:
 				{
 					return GetDefaultParamForDataType(InDataType);
 				}
-				case EMetasoundLiteralType::Bool:
+				case EMetasoundFrontendLiteralType::Bool:
 				{
-					if (!Registry->DoesDataTypeSupportLiteralType(InDataType, ELiteralArgType::Boolean))
+					if (!Registry->DoesDataTypeSupportLiteralType(InDataType, ELiteralType::Boolean))
 					{
-						return FDataTypeLiteralParam::InvalidParam();
+						return FLiteral::CreateInvalid();
 					}
 					else
 					{
-						return FDataTypeLiteralParam(InDescription.AsBool);
+						return FLiteral(InDescription.AsBool);
 					}
 				}
-				case EMetasoundLiteralType::Float:
+				case EMetasoundFrontendLiteralType::Float:
 				{
-					if (!Registry->DoesDataTypeSupportLiteralType(InDataType, ELiteralArgType::Float))
+					if (!Registry->DoesDataTypeSupportLiteralType(InDataType, ELiteralType::Float))
 					{
-						return FDataTypeLiteralParam::InvalidParam();
+						return FLiteral::CreateInvalid();
 					}
 					else
 					{
-						return FDataTypeLiteralParam(InDescription.AsFloat);
+						return FLiteral(InDescription.AsFloat);
 					}
 				}
-				case EMetasoundLiteralType::Integer:
+				case EMetasoundFrontendLiteralType::Integer:
 				{
-					if (!Registry->DoesDataTypeSupportLiteralType(InDataType, ELiteralArgType::Integer))
+					if (!Registry->DoesDataTypeSupportLiteralType(InDataType, ELiteralType::Integer))
 					{
-						return FDataTypeLiteralParam::InvalidParam();
+						return FLiteral::CreateInvalid();
 					}
 					else
 					{
-						return FDataTypeLiteralParam(InDescription.AsInteger);
+						return FLiteral(InDescription.AsInteger);
 					}
 				}
-				case EMetasoundLiteralType::String:
+				case EMetasoundFrontendLiteralType::String:
 				{
-					if (!Registry->DoesDataTypeSupportLiteralType(InDataType, ELiteralArgType::String))
+					if (!Registry->DoesDataTypeSupportLiteralType(InDataType, ELiteralType::String))
 					{
-						return FDataTypeLiteralParam::InvalidParam();
+						return FLiteral::CreateInvalid();
 					}
 					else
 					{
-						return FDataTypeLiteralParam(InDescription.AsString);
+						return FLiteral(InDescription.AsString);
 					}
 				}
-				case EMetasoundLiteralType::UObject:
+				case EMetasoundFrontendLiteralType::UObject:
 				{
-					if (!Registry->DoesDataTypeSupportLiteralType(InDataType, ELiteralArgType::UObjectProxy))
+					if (!Registry->DoesDataTypeSupportLiteralType(InDataType, ELiteralType::UObjectProxy))
 					{
-						return FDataTypeLiteralParam::InvalidParam();
+						return FLiteral::CreateInvalid();
 					}
 					else
 					{
 						return Registry->GenerateLiteralForUObject(InDataType, InDescription.AsUObject);
 					}
 				}
-				case EMetasoundLiteralType::UObjectArray:
+				case EMetasoundFrontendLiteralType::UObjectArray:
 				{
-					if (!Registry->DoesDataTypeSupportLiteralType(InDataType, ELiteralArgType::UObjectProxyArray))
+					if (!Registry->DoesDataTypeSupportLiteralType(InDataType, ELiteralType::UObjectProxyArray))
 					{
-						return FDataTypeLiteralParam::InvalidParam();
+						return FLiteral::CreateInvalid();
 					}
 					else
 					{
 						return Registry->GenerateLiteralForUObjectArray(InDataType, InDescription.AsUObjectArray);
 					}
 				}
-				case EMetasoundLiteralType::Invalid:
+				case EMetasoundFrontendLiteralType::Invalid:
 				default:
 				{
-					return FDataTypeLiteralParam::InvalidParam();
+					return FLiteral::CreateInvalid();
 				}
 			}
 		}
 
-		bool DoesDataTypeSupportLiteralType(FName InDataType, EMetasoundLiteralType InLiteralType)
+		bool DoesDataTypeSupportLiteralType(FName InDataType, EMetasoundFrontendLiteralType InLiteralType)
 		{
 			switch (InLiteralType)
 			{
-			case EMetasoundLiteralType::None:
-				return DoesDataTypeSupportLiteralType(InDataType, ELiteralArgType::None);
-			case EMetasoundLiteralType::Bool:
-				return DoesDataTypeSupportLiteralType(InDataType, ELiteralArgType::Boolean);
-			case EMetasoundLiteralType::Float:
-				return DoesDataTypeSupportLiteralType(InDataType, ELiteralArgType::Float);
-			case EMetasoundLiteralType::Integer:
-				return DoesDataTypeSupportLiteralType(InDataType, ELiteralArgType::Integer);
-			case EMetasoundLiteralType::String:
-				return DoesDataTypeSupportLiteralType(InDataType, ELiteralArgType::String);
-			case EMetasoundLiteralType::UObject:
-				return DoesDataTypeSupportLiteralType(InDataType, ELiteralArgType::UObjectProxy);
-			case EMetasoundLiteralType::UObjectArray:
-				return DoesDataTypeSupportLiteralType(InDataType, ELiteralArgType::UObjectProxyArray);
-			case EMetasoundLiteralType::Invalid:
+			case EMetasoundFrontendLiteralType::None:
+				return DoesDataTypeSupportLiteralType(InDataType, ELiteralType::None);
+			case EMetasoundFrontendLiteralType::Bool:
+				return DoesDataTypeSupportLiteralType(InDataType, ELiteralType::Boolean);
+			case EMetasoundFrontendLiteralType::Float:
+				return DoesDataTypeSupportLiteralType(InDataType, ELiteralType::Float);
+			case EMetasoundFrontendLiteralType::Integer:
+				return DoesDataTypeSupportLiteralType(InDataType, ELiteralType::Integer);
+			case EMetasoundFrontendLiteralType::String:
+				return DoesDataTypeSupportLiteralType(InDataType, ELiteralType::String);
+			case EMetasoundFrontendLiteralType::UObject:
+				return DoesDataTypeSupportLiteralType(InDataType, ELiteralType::UObjectProxy);
+			case EMetasoundFrontendLiteralType::UObjectArray:
+				return DoesDataTypeSupportLiteralType(InDataType, ELiteralType::UObjectProxyArray);
+			case EMetasoundFrontendLiteralType::Invalid:
 			default:
 				return false;
 			}
 		}
 
-		bool DoesDataTypeSupportLiteralType(FName InDataType, ELiteralArgType InLiteralType)
+		bool DoesDataTypeSupportLiteralType(FName InDataType, ELiteralType InLiteralType)
 		{
 			FMetasoundFrontendRegistryContainer* Registry = FMetasoundFrontendRegistryContainer::Get();
 
 			return Registry->DoesDataTypeSupportLiteralType(InDataType, InLiteralType);
 		}
 
-		Metasound::FDataTypeLiteralParam GetLiteralParam(const FMetasoundLiteralDescription& InDescription)
+		Metasound::FLiteral GetLiteralParam(const FMetasoundFrontendLiteral& InDescription)
 		{
-			EMetasoundLiteralType LiteralType = InDescription.LiteralType;
+			EMetasoundFrontendLiteralType LiteralType = InDescription.Type;
 
 			switch (LiteralType)
 			{
-				case EMetasoundLiteralType::Bool:
+				case EMetasoundFrontendLiteralType::Bool:
 				{
-					return FDataTypeLiteralParam(InDescription.AsBool);
+					return FLiteral(InDescription.AsBool);
 				}
-				case EMetasoundLiteralType::Float:
+				case EMetasoundFrontendLiteralType::Float:
 				{
-					return FDataTypeLiteralParam(InDescription.AsFloat);
+					return FLiteral(InDescription.AsFloat);
 				}
-				case EMetasoundLiteralType::Integer:
+				case EMetasoundFrontendLiteralType::Integer:
 				{
-					return FDataTypeLiteralParam(InDescription.AsInteger);
+					return FLiteral(InDescription.AsInteger);
 				}
-				case EMetasoundLiteralType::String:
+				case EMetasoundFrontendLiteralType::String:
 				{
-					return FDataTypeLiteralParam(InDescription.AsString);
+					return FLiteral(InDescription.AsString);
 				}
-				case EMetasoundLiteralType::UObject:
-				case EMetasoundLiteralType::UObjectArray:
-				case EMetasoundLiteralType::None:
-				case EMetasoundLiteralType::Invalid:
+				case EMetasoundFrontendLiteralType::UObject:
+				case EMetasoundFrontendLiteralType::UObjectArray:
+				case EMetasoundFrontendLiteralType::None:
+				case EMetasoundFrontendLiteralType::Invalid:
 				default:
 				{
-					return FDataTypeLiteralParam::InvalidParam();
+					return FLiteral::CreateInvalid();
 				}
 			}
 		}
 
-		Metasound::FDataTypeLiteralParam GetDefaultParamForDataType(FName InDataType)
+		Metasound::FLiteral GetDefaultParamForDataType(FName InDataType)
 		{
 			FMetasoundFrontendRegistryContainer* Registry = FMetasoundFrontendRegistryContainer::Get();
 
-			ELiteralArgType DesiredArgType = Registry->GetDesiredLiteralTypeForDataType(InDataType);
+			ELiteralType DesiredArgType = Registry->GetDesiredLiteralTypeForDataType(InDataType);
 
 			switch (DesiredArgType)
 			{
-				case Metasound::ELiteralArgType::Boolean:
+				case Metasound::ELiteralType::Boolean:
 				{
-					return FDataTypeLiteralParam(false);
+					return FLiteral(false);
 				}
-				case Metasound::ELiteralArgType::Integer:
+				case Metasound::ELiteralType::Integer:
 				{
-					return FDataTypeLiteralParam(0);
+					return FLiteral(0);
 				}
-				case Metasound::ELiteralArgType::Float:
+				case Metasound::ELiteralType::Float:
 				{
-					return FDataTypeLiteralParam(0.0f);
+					return FLiteral(0.0f);
 				}
-				case Metasound::ELiteralArgType::String:
+				case Metasound::ELiteralType::String:
 				{
-					return FDataTypeLiteralParam(FString());
+					return FLiteral(FString());
 				}
-				case Metasound::ELiteralArgType::UObjectProxy:
-				case Metasound::ELiteralArgType::UObjectProxyArray:
-				case Metasound::ELiteralArgType::None:
+				case Metasound::ELiteralType::UObjectProxy:
+				case Metasound::ELiteralType::UObjectProxyArray:
+				case Metasound::ELiteralType::None:
 				{
-					return FDataTypeLiteralParam();
+					return FLiteral();
 				}
-				case Metasound::ELiteralArgType::Invalid:
+				case Metasound::ELiteralType::Invalid:
 				default:
 				{
-					return FDataTypeLiteralParam::InvalidParam();
+					return FLiteral::CreateInvalid();
 				}
 			}
 
@@ -506,12 +508,14 @@ namespace Metasound
 			return true;
 		}
 
-		FDescriptionAccessPoint::FDescriptionAccessPoint(TAccessPtr<FMetasoundDocument> InRootDocumentPtr)
+#if 0
+
+		FDescriptionAccessPoint::FDescriptionAccessPoint(TAccessPtr<FMetasoundFrontendDocument> InRootDocumentPtr)
 			: RootDocumentPtr(InRootDocumentPtr)
 		{
 		}
 
-		FMetasoundDocument& FDescriptionAccessPoint::GetRootChecked() const
+		FMetasoundFrontendDocument& FDescriptionAccessPoint::GetRootChecked() const
 		{
 			check(RootDocumentPtr.IsValid());
 
@@ -527,7 +531,7 @@ namespace Metasound
 
 			FDescPath CurrentPath = InPathFromRoot;
 			
-			OutPtr.Set<FMetasoundDocument*>(RootDocumentPtr.Get());
+			OutPtr.Set<FMetasoundFrontendDocument*>(RootDocumentPtr.Get());
 			FDescriptionUnwindStep CurrentStep = { OutPtr, Path::EDescType::Document };
 
 			while (CurrentPath.Num() != 0 && CurrentStep.Type != Path::EDescType::Invalid)
@@ -541,7 +545,7 @@ namespace Metasound
 		}
 
 
-		FDescriptionAccessPoint::FDescriptionUnwindStep FDescriptionAccessPoint::GoToNextFromDocument(FMetasoundDocument& InDocument, FDescPath& InPath, const Path::FElement& InNext) const
+		FDescriptionAccessPoint::FDescriptionUnwindStep FDescriptionAccessPoint::GoToNextFromDocument(FMetasoundFrontendDocument& InDocument, FDescPath& InPath, const Path::FElement& InNext) const
 		{
 			check(RootDocumentPtr.IsValid());
 			switch (InNext.CurrentDescType)
@@ -549,14 +553,14 @@ namespace Metasound
 				case Path::EDescType::Document:
 				{
 					FDescriptionUnwindStep UnwindStep;
-					UnwindStep.DescriptionStructPtr.Set<FMetasoundDocument*>(&InDocument);
+					UnwindStep.DescriptionStructPtr.Set<FMetasoundFrontendDocument*>(&InDocument);
 					UnwindStep.Type = Path::EDescType::Document;
 					return UnwindStep;
 				}
 				case Path::EDescType::Class:
 				{
 					FDescriptionUnwindStep UnwindStep;
-					UnwindStep.DescriptionStructPtr.Set<FMetasoundClassDescription*>(&(InDocument.RootClass));
+					UnwindStep.DescriptionStructPtr.Set<FMetasoundFrontendClass*>(&(InDocument.RootGraph));
 					UnwindStep.Type = Path::EDescType::Class;
 					return UnwindStep;
 				}
@@ -579,26 +583,26 @@ namespace Metasound
 						return FDescriptionUnwindStep::CreateInvalid();
 					}
 
-					if (DependencyID == FMetasoundClassDescription::RootClassID)
+					if (DependencyID == FMetasoundFrontendClass::RootClassID)
 					{
 						FDescriptionUnwindStep UnwindStep;
-						UnwindStep.DescriptionStructPtr.Set<FMetasoundClassDescription*>(&(InDocument.RootClass));
+						UnwindStep.DescriptionStructPtr.Set<FMetasoundFrontendClass*>(&(InDocument.RootGraph));
 						UnwindStep.Type = Path::EDescType::Class;
 						return UnwindStep;
 					}
 
-					TArray<FMetasoundClassDescription>& DependenciesList = InDocument.Dependencies;
+					TArray<FMetasoundFrontendClass>& DependenciesList = InDocument.Dependencies;
 
 					// Dependencies can be looked up by ID or by name.
 					if (DependencyID != INDEX_NONE)
 					{
 						// Scan the dependencies list for the matching lookup ID.
-						for (FMetasoundClassDescription& Dependency : DependenciesList)
+						for (FMetasoundFrontendClass& Dependency : DependenciesList)
 						{
 							if (Dependency.UniqueID == DependencyID)
 							{
 								FDescriptionUnwindStep UnwindStep;
-								UnwindStep.DescriptionStructPtr.Set<FMetasoundClassDescription*>(&Dependency);
+								UnwindStep.DescriptionStructPtr.Set<FMetasoundFrontendClass*>(&Dependency);
 								UnwindStep.Type = Path::EDescType::Class;
 								return UnwindStep;
 							}
@@ -609,12 +613,12 @@ namespace Metasound
 						// TODO: remove this chunk of code in the "else{}" block. Not sure if it has to be here. 
 						checkNoEntry();
 						// fall back to scanning the dependencies list for the matching lookup name.
-						for (FMetasoundClassDescription& Dependency : DependenciesList)
+						for (FMetasoundFrontendClass& Dependency : DependenciesList)
 						{
 							if (Dependency.Metadata.NodeName == DependencyName)
 							{
 								FDescriptionUnwindStep UnwindStep;
-								UnwindStep.DescriptionStructPtr.Set<FMetasoundClassDescription*>(&Dependency);
+								UnwindStep.DescriptionStructPtr.Set<FMetasoundFrontendClass*>(&Dependency);
 								UnwindStep.Type = Path::EDescType::Class;
 								return UnwindStep;
 							}
@@ -632,14 +636,14 @@ namespace Metasound
 			return FDescriptionUnwindStep::CreateInvalid();
 		}
 
-		FDescriptionAccessPoint::FDescriptionUnwindStep FDescriptionAccessPoint::GoToNextFromClass(FMetasoundClassDescription& InClassDescription, FDescPath& InPath, const Path::FElement& InNext) const
+		FDescriptionAccessPoint::FDescriptionUnwindStep FDescriptionAccessPoint::GoToNextFromClass(FMetasoundFrontendClass& InClassDescription, FDescPath& InPath, const Path::FElement& InNext) const
 		{
 			switch (InNext.CurrentDescType)
 			{
 				case Path::EDescType::Graph:
 				{
 					FDescriptionUnwindStep UnwindStep;
-					UnwindStep.DescriptionStructPtr.Set<FMetasoundGraphDescription*>(&(InClassDescription.Graph));
+					UnwindStep.DescriptionStructPtr.Set<FMetasoundFrontendGraph*>(&(InClassDescription.Graph));
 					UnwindStep.Type = Path::EDescType::Graph;
 					return UnwindStep;
 				}
@@ -663,13 +667,13 @@ namespace Metasound
 					FString& InputName = InputElement.LookupName;
 
 					// Scan the inputs list for the lookup name.
-					TArray<FMetasoundInputDescription>& InputsList = InClassDescription.Inputs;
-					for (FMetasoundInputDescription& Input : InputsList)
+					TArray<FMetasoundFrontendClassInput>& InputsList = InClassDescription.Inputs;
+					for (FMetasoundFrontendClassInput& Input : InputsList)
 					{
 						if (Input.Name == InputName)
 						{
 							FDescriptionUnwindStep UnwindStep;
-							UnwindStep.DescriptionStructPtr.Set<FMetasoundInputDescription*>(&Input);
+							UnwindStep.DescriptionStructPtr.Set<FMetasoundFrontendClassInput*>(&Input);
 							UnwindStep.Type = Path::EDescType::Input;
 							return UnwindStep;
 						}
@@ -692,13 +696,13 @@ namespace Metasound
 					FString& OutputName = OutputElement.LookupName;
 
 					// Scan the outputs list for the lookup name.
-					TArray<FMetasoundOutputDescription>& OutputsList = InClassDescription.Outputs;
-					for (FMetasoundOutputDescription& Output : OutputsList)
+					TArray<FMetasoundFrontendClassOutput>& OutputsList = InClassDescription.Outputs;
+					for (FMetasoundFrontendClassOutput& Output : OutputsList)
 					{
 						if (Output.Name == OutputElement.LookupName)
 						{
 							FDescriptionUnwindStep UnwindStep;
-							UnwindStep.DescriptionStructPtr.Set<FMetasoundOutputDescription*>(&Output);
+							UnwindStep.DescriptionStructPtr.Set<FMetasoundFrontendClassOutput*>(&Output);
 							UnwindStep.Type = Path::EDescType::Output;
 							return UnwindStep;
 						}
@@ -711,7 +715,7 @@ namespace Metasound
 				case Path::EDescType::Metadata:
 				{
 					FDescriptionUnwindStep UnwindStep;
-					UnwindStep.DescriptionStructPtr.Set<FMetasoundClassMetadata*>(&(InClassDescription.Metadata));
+					UnwindStep.DescriptionStructPtr.Set<FMetasoundFrontendClassMetadata*>(&(InClassDescription.Metadata));
 					UnwindStep.Type = Path::EDescType::Metadata;
 
 					return UnwindStep;
@@ -740,13 +744,13 @@ namespace Metasound
 			{
 				case Path::EDescType::Document:
 				{
-					FMetasoundDocument* Document = InElement.DescriptionStructPtr.Get<FMetasoundDocument*>();
+					FMetasoundFrontendDocument* Document = InElement.DescriptionStructPtr.Get<FMetasoundFrontendDocument*>();
 					return GoToNextFromDocument(*Document, InPath, NextStep);
 					break;
 				}
 				case Path::EDescType::Class:
 				{
-					FMetasoundClassDescription* ClassDescription = InElement.DescriptionStructPtr.Get<FMetasoundClassDescription*>();
+					FMetasoundFrontendClass* ClassDescription = InElement.DescriptionStructPtr.Get<FMetasoundFrontendClass*>();
 					return GoToNextFromClass(*ClassDescription, InPath, NextStep);
 					break;
 				}
@@ -757,7 +761,7 @@ namespace Metasound
 						return FDescriptionUnwindStep::CreateInvalid();
 					}
 
-					FMetasoundGraphDescription* GraphDescription = InElement.DescriptionStructPtr.Get<FMetasoundGraphDescription*>();
+					FMetasoundFrontendGraph* GraphDescription = InElement.DescriptionStructPtr.Get<FMetasoundFrontendGraph*>();
 				
 					if (!ensureAlwaysMsgf(InPath.Path.Num() != 0, TEXT("Incomplete path! path stopped at Nodes list without specifying a node ID.")))
 					{
@@ -774,13 +778,13 @@ namespace Metasound
 				
 					int32 NodeID = NodeElement.LookupID;
 
-					TArray<FMetasoundNodeDescription>& NodeList = GraphDescription->Nodes;
-					for (FMetasoundNodeDescription& Node : NodeList)
+					TArray<FMetasoundFrontendNode>& NodeList = GraphDescription->Nodes;
+					for (FMetasoundFrontendNode& Node : NodeList)
 					{
 						if (Node.UniqueID == NodeID)
 						{
 							FDescriptionUnwindStep UnwindStep;
-							UnwindStep.DescriptionStructPtr.Set<FMetasoundNodeDescription*>(&Node);
+							UnwindStep.DescriptionStructPtr.Set<FMetasoundFrontendNode*>(&Node);
 							UnwindStep.Type = Path::EDescType::Node;
 							return UnwindStep;
 						}
@@ -959,6 +963,7 @@ namespace Metasound
 
 			return OutString;
 		}
+#endif
 
 		
 

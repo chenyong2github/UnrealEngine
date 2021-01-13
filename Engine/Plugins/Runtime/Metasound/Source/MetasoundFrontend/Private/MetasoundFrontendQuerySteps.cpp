@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "MetasoundFrontend.h"
-#include "MetasoundFrontendDataLayout.h"
+#include "MetasoundFrontendDocument.h"
 
 namespace Metasound
 {
@@ -14,7 +14,7 @@ namespace Metasound
 
 		for (const Frontend::FNodeClassInfo& ClassInfo : ClassInfos)
 		{
-			OutEntries.Emplace(TInPlaceType<FMetasoundClassDescription>(), Frontend::GenerateClassDescription(ClassInfo));
+			OutEntries.Emplace(TInPlaceType<FMetasoundFrontendClass>(), Frontend::GenerateClassDescription(ClassInfo));
 		}
 	}
 
@@ -25,10 +25,10 @@ namespace Metasound
 
 	bool FFilterClassesByInputVertexDataType::Filter(const FFrontendQueryEntry& InEntry) const
 	{
-		check(InEntry.Value.IsType<FMetasoundClassDescription>());
+		check(InEntry.Value.IsType<FMetasoundFrontendClass>());
 
-		return InEntry.Value.Get<FMetasoundClassDescription>().Inputs.ContainsByPredicate(
-			[this](const FMetasoundInputDescription& InDesc)
+		return InEntry.Value.Get<FMetasoundFrontendClass>().Interface.Inputs.ContainsByPredicate(
+			[this](const FMetasoundFrontendClassInput& InDesc)
 			{
 				return InDesc.TypeName == InputVertexTypeName;
 			}
@@ -42,8 +42,8 @@ namespace Metasound
 
 	bool FFilterClassesByOutputVertexDataType::Filter(const FFrontendQueryEntry& InEntry) const
 	{
-		return InEntry.Value.Get<FMetasoundClassDescription>().Outputs.ContainsByPredicate(
-			[this](const FMetasoundOutputDescription& InDesc)
+		return InEntry.Value.Get<FMetasoundFrontendClass>().Interface.Outputs.ContainsByPredicate(
+			[this](const FMetasoundFrontendClassOutput& InDesc)
 			{
 				return InDesc.TypeName == OutputVertexTypeName;
 			}

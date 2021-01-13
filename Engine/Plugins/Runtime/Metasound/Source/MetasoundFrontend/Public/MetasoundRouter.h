@@ -242,7 +242,7 @@ namespace Metasound
 
 		virtual FName GetDataType() { return FName(); };
 
-		virtual bool PushLiteral(const FDataTypeLiteralParam& InParam) { return false; }
+		virtual bool PushLiteral(const FLiteral& InParam) { return false; }
 
 	protected:
 		virtual TUniquePtr<IReceiver> ConstructNewReceiverImplementation(const FReceiverInitParams& InitParams) { return nullptr; };
@@ -523,7 +523,7 @@ namespace Metasound
 			return GetDataTypeName();
 		}
 
-		virtual bool PushLiteral(const FDataTypeLiteralParam& InParam)
+		virtual bool PushLiteral(const FLiteral& InParam)
 		{
 			if (TLiteralTraits<TDataType>::IsParsable(InParam))
 			{
@@ -899,7 +899,7 @@ namespace Metasound
 			}
 		}
 
-		bool PushLiteral(FName InChannelName, const FDataTypeLiteralParam& InParam)
+		bool PushLiteral(FName InChannelName, const FLiteral& InParam)
 		{
 			FScopeLock ScopeLock(&DataChannelMapMutationLock);
 			if (TSharedRef<IDataChannel>* ExistingChannelPtr = DataChannelMap.Find(InChannelName))
@@ -1114,7 +1114,7 @@ namespace Metasound
 
 		// Pushes a literal parameter to a specific data channel in the global router.
 		// returns false if the literal type isn't supported.
-		bool PushLiteral(FName GlobalChannelName, const FDataTypeLiteralParam& InParam)
+		bool PushLiteral(FName GlobalChannelName, const FLiteral& InParam)
 		{
 			return GlobalRouter.PushLiteral(GlobalChannelName, InParam);
 		}

@@ -12,7 +12,7 @@ class FDetailWidgetRow;
 class IPropertyTypeCustomizationUtils;
 
 
-class FMetasoundLiteralDescriptionDetailCustomization : public IPropertyTypeCustomization
+class FMetasoundFrontendLiteralDetailCustomization : public IPropertyTypeCustomization
 {
 public:
 	//~ Begin IPropertyTypeCustomization

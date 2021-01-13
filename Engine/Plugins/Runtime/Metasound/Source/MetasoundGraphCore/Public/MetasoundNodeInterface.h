@@ -22,7 +22,7 @@ namespace Metasound
 	struct FNodeInitData
 	{
 		FString InstanceName;
-		TMap<FName, FDataTypeLiteralParam> ParamMap;
+		TMap<FName, FLiteral> ParamMap;
 
 		template<typename ParamType>
 		ParamType GetParamValue(FName ParamName)
@@ -31,6 +31,14 @@ namespace Metasound
 
 			return TDataTypeLiteralFactory<ParamType>::CreateAny(ParamMap[ParamName]);
 		}
+	};
+
+	// TODO: update FNodeInfo with this as class name.
+	struct FNodeClassName
+	{
+		FString Namespace;
+		FString Name;
+		FString Variant;
 	};
 
 	/** Provides metadata for a given node. */

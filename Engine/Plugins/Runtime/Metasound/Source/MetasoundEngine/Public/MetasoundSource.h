@@ -3,7 +3,7 @@
 
 #include "CoreMinimal.h"
 #include "MetasoundFrontend.h"
-#include "MetasoundFrontendDataLayout.h"
+#include "MetasoundFrontendDocument.h"
 #include "MetasoundAssetBase.h"
 
 #include "Sound/SoundWaveProcedural.h"
@@ -34,14 +34,7 @@ class METASOUNDENGINE_API UMetasoundSource : public USoundWaveProcedural, public
 
 protected:
 	UPROPERTY(EditAnywhere, Category = CustomView)
-	FMetasoundDocument RootMetasoundDocument;
-
-	// MetasoundSourceAccessPoint allows the RootMetasoundDocument to be safely
-	// accessed via the TAccessPtr. The lifetime of MetasoundSourceAccessPoint is
-	// tied to the lifetime of RootMetasoundDocument by their coexistence as members
-	// of the same class. When MetasoundSourceAccessPoint is destructed, the documents
-	// access ptr becomes invalid. 
-	Metasound::Frontend::FAccessPoint MetasoundSourceAccessPoint;
+	FMetasoundFrontendDocument RootMetasoundDocument;
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
@@ -112,7 +105,7 @@ public:
 
 	// Updates the Metasound's metadata (name, author, etc).
 	// @param InMetadata Metadata containing corrections to the class metadata.
-	void SetMetadata(FMetasoundClassMetadata& InMetadata) override;
+	void SetMetadata(FMetasoundFrontendClassMetadata& InMetadata) override;
 
 	bool IsPlayable() const override;
 	bool SupportsSubtitles() const override;
@@ -121,22 +114,22 @@ public:
 	void PostLoad() override;
 
 	// Get the most up to date archetype for metasound sources.
-	const TArray<FMetasoundArchetype>& GetPreferredArchetypes() const override;
+	const TArray<FMetasoundFrontendArchetype>& GetPreferredArchetypes() const override;
 
 protected:
 
-	Metasound::Frontend::TAccessPtr<FMetasoundDocument> GetDocument() override
+	Metasound::Frontend::TAccessPtr<FMetasoundFrontendDocument> GetDocument() override
 	{
 		// Return document using FAccessPoint to inform the TAccessPtr when the 
 		// object is no longer valid.
-		return Metasound::Frontend::MakeAccessPtr<FMetasoundDocument>(MetasoundSourceAccessPoint, RootMetasoundDocument);
+		return Metasound::Frontend::MakeAccessPtr<FMetasoundFrontendDocument>(RootMetasoundDocument.AccessPoint, RootMetasoundDocument);
 	}
 
-	Metasound::Frontend::TAccessPtr<const FMetasoundDocument> GetDocument() const override
+	Metasound::Frontend::TAccessPtr<const FMetasoundFrontendDocument> GetDocument() const override
 	{
 		// Return document using FAccessPoint to inform the TAccessPtr when the 
 		// object is no longer valid.
-		return Metasound::Frontend::MakeAccessPtr<const FMetasoundDocument>(MetasoundSourceAccessPoint, RootMetasoundDocument);
+		return Metasound::Frontend::MakeAccessPtr<const FMetasoundFrontendDocument>(RootMetasoundDocument.AccessPoint, RootMetasoundDocument);
 	}
 
 private:
@@ -145,7 +138,7 @@ private:
 	static const FString& GetAudioOutputName();
 	static const FString& GetIsFinishedOutputName();
 	static const FString& GetAudioDeviceHandleVariableName();
-	static const FMetasoundArchetype& GetBaseArchetype();
-	static const FMetasoundArchetype& GetMonoSourceArchetype();
-	static const FMetasoundArchetype& GetStereoSourceArchetype();
+	static const FMetasoundFrontendArchetype& GetBaseArchetype();
+	static const FMetasoundFrontendArchetype& GetMonoSourceArchetype();
+	static const FMetasoundFrontendArchetype& GetStereoSourceArchetype();
 };

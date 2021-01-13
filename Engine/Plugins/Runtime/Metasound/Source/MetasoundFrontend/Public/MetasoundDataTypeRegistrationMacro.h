@@ -116,7 +116,7 @@ namespace Metasound
 		AttemptToRegisterConverter<TDataType, FString>();
 	}
 
-	template<typename TDataType, ELiteralArgType PreferredArgType = ELiteralArgType::None, typename UClassToUse = UObject>
+	template<typename TDataType, ELiteralType PreferredArgType = ELiteralType::None, typename UClassToUse = UObject>
 	bool RegisterDataTypeWithFrontend()
 	{
 		// if we reenter this code (because DECLARE_METASOUND_DATA_REFERENCE_TYPES was called twice with the same type),
@@ -136,9 +136,25 @@ namespace Metasound
 			return TUniquePtr<INode>(new TInputNode<TDataType>(InParams.InNodeName, InParams.InVertexName, MoveTemp(InParams.InitParam)));
 		};
 
-		FCreateOutputNodeFunction OutputNodeConstructor = [](const FOutputNodeConstrutorParams& InParams) -> TUniquePtr<INode>
+		FCreateMetasoundFrontendClassFunction CreateFrontendInputClass = []() -> FMetasoundFrontendClass
+		{
+			// Create class info using prototype node
+			// TODO: register input nodes with static class info.
+  			static TInputNode<TDataType> Prototype(TEXT(""), TEXT(""), FLiteral());
+			return Metasound::Frontend::GenerateClassDescription(Prototype.GetMetadata(), EMetasoundFrontendClassType::Input);
+		};
+
+		FCreateOutputNodeFunction OutputNodeConstructor = [](const FOutputNodeConstructorParams& InParams) -> TUniquePtr<INode>
 		{
 			return TUniquePtr<INode>(new TOutputNode<TDataType>(InParams.InNodeName, InParams.InVertexName));
+		};
+
+		FCreateMetasoundFrontendClassFunction CreateFrontendOutputClass = []() -> FMetasoundFrontendClass
+		{
+			// Create class info using prototype node
+			// TODO: register input nodes with static class info.
+			static TOutputNode<TDataType> Prototype(TEXT(""), TEXT(""));
+			return Metasound::Frontend::GenerateClassDescription(Prototype.GetMetadata(), EMetasoundFrontendClassType::Output);
 		};
 		
 		// By default, this function should not be used, unless the preferred arg type is UObjectProxy or UObjectProxyArray, and UClassToUse should be specified.
@@ -176,7 +192,14 @@ namespace Metasound
 		static const FName DataTypeName = GetMetasoundDataTypeName<TDataType>();
 
 		// Pack all of our various constructor lambdas to a single struct.
-		FDataTypeConstructorCallbacks Callbacks = { MoveTemp(InputNodeConstructor), MoveTemp(OutputNodeConstructor), MoveTemp(ProxyGenerator) };
+		FDataTypeConstructorCallbacks Callbacks = 
+		{ 
+			MoveTemp(InputNodeConstructor), 
+			MoveTemp(CreateFrontendInputClass),
+			MoveTemp(OutputNodeConstructor), 
+			MoveTemp(CreateFrontendOutputClass),
+			MoveTemp(ProxyGenerator) 
+		};
 
 
 		FDataTypeRegistryInfo RegistryInfo;
@@ -217,11 +240,11 @@ namespace Metasound
 // This should be used to expose a datatype as a potential input or output for a metasound graph.
 // The first argument to the macro is the class to expose.
 // the second argument is the display name of that type in the Metasound editor.
-// Optionally, a Metasound::ELiteralArgType can be passed in to designate a preferred literal type-
-// For example, if Metasound::ELiteralArgType::Float is passed in, we will default to using a float parameter to create this datatype.
+// Optionally, a Metasound::ELiteralType can be passed in to designate a preferred literal type-
+// For example, if Metasound::ELiteralType::Float is passed in, we will default to using a float parameter to create this datatype.
 // If no argument is passed in, we will infer a literal type to use.
 // If 
-// Metasound::ELiteralArgType::Invalid can be used to enforce that we don't provide space for a literal, in which case you should have a default constructor or a constructor that takes [const FOperatorSettings&] implemented.
+// Metasound::ELiteralType::Invalid can be used to enforce that we don't provide space for a literal, in which case you should have a default constructor or a constructor that takes [const FOperatorSettings&] implemented.
 // If you pass in a preferred arg type, please make sure that the passed in datatype has a matching constructor, since we won't check this until runtime.
 
 #define CANNOT_REGISTER_METASOUND_DATA_TYPE_ASSERT_STRING(DataType) \

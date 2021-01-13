@@ -10,7 +10,7 @@ namespace Metasound
 {
 	/** Interface for an entry into the Metasound-UObject Registry. 
 	 *
-	 * An entry provides information linking a FMetasoundArchetype to a UClass.
+	 * An entry provides information linking a FMetasoundFrontendArchetype to a UClass.
 	 * It also provides methods for accessing the FMetasoundAssetBase from a UObject.
 	 */
 	class IMetasoundUObjectRegistryEntry
@@ -126,7 +126,7 @@ namespace Metasound
 	/** IMetaoundUObjectRegistry contains IMetasoundUObjectRegistryEntrys. 
 	 *
 	 * Registered UObject classes can utilize the Metasound Editor. It also enables
-	 * the creation of a UObject directly from a FMetasoundDocument.
+	 * the creation of a UObject directly from a FMetasoundFrontendDocument.
 	 */
 	class METASOUNDENGINE_API IMetasoundUObjectRegistry
 	{
@@ -145,17 +145,17 @@ namespace Metasound
 			{
 				static_assert(std::is_base_of<FMetasoundAssetBase, UClassType>::value, "UClass must be derived from FMetasoundAssetBase");
 
-				const TArray<FMetasoundArchetype>& PreferredArchetypes = GetDefault<UClassType>()->GetPreferredArchetypes();
+				const TArray<FMetasoundFrontendArchetype>& PreferredArchetypes = GetDefault<UClassType>()->GetPreferredArchetypes();
 
-				for (const FMetasoundArchetype& Arch : PreferredArchetypes)
+				for (const FMetasoundFrontendArchetype& Arch : PreferredArchetypes)
 				{
-					IMetasoundUObjectRegistry::RegisterUClassArchetype<UClassType>(Arch.ArchetypeName);
+					IMetasoundUObjectRegistry::RegisterUClassArchetype<UClassType>(Arch.Name);
 				}
 			}
 
 			/** Register an archetype for the UClass. 
 			 *
-			 * @param InArchetypeName - An FMetasoundDocument to associate with the UClass.
+			 * @param InArchetypeName - An FMetasoundFrontendDocument to associate with the UClass.
 			 */
 			template<typename UClassType>
 			static void RegisterUClassArchetype(const FName& InArchetypeName)
@@ -174,12 +174,12 @@ namespace Metasound
 			/** Creates a new object from a metasound doucment.
 			 *
 			 * @param InClass - A registered UClass to create.
-			 * @param InDocucument - The FMetasoundDocument to use when creating the class.
+			 * @param InDocucument - The FMetasoundFrontendDocument to use when creating the class.
 			 * @param InPath - If in editor, the created asset will be stored at this content path.
 			 *
 			 * @return A new object. A nullptr on error.
 			 */
-			virtual UObject* NewObject(UClass* InClass, const FMetasoundDocument& InDocument, const FString& InPath) const = 0;
+			virtual UObject* NewObject(UClass* InClass, const FMetasoundFrontendDocument& InDocument, const FString& InPath) const = 0;
 
 			/** Returns true if the InObject is of a class or child class which is registered. */
 			virtual bool IsRegisteredClass(UObject* InObject) const = 0;

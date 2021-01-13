@@ -3,10 +3,11 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "MetasoundFrontend.h"
+#include "MetasoundFrontendDocument.h"
+#include "MetasoundFrontendRegistries.h"
 #include "MetasoundNodeInterface.h"
 #include "Templates/IntegralConstant.h"
-#include "MetasoundFrontend.h"
-#include "MetasoundFrontendRegistries.h"
 
 namespace Metasound
 {
@@ -44,7 +45,7 @@ namespace Metasound
 			{
 				return TUniquePtr<Metasound::INode>(new FNodeType(InInitData));
 			},
-			[=]() -> FMetasoundClassDescription
+			[=]() -> FMetasoundFrontendClass
 			{
 				return Metasound::Frontend::GenerateClassDescription(InMetadata);
 			}

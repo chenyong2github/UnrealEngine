@@ -5,7 +5,6 @@
 #include "CoreMinimal.h"
 
 #include "MetasoundFrontend.h"
-#include "MetasoundFrontendDataLayout.h"
 #include "MetasoundGraph.h"
 #include "MetasoundNodeInterface.h"
 
@@ -29,7 +28,7 @@ namespace Metasound
 
 			/** Add an input node to this graph.
 			 *
-			 * @param InNodeID - The NodeID related to the parent FMetasoundClassDescription.
+			 * @param InNodeID - The NodeID related to the parent FMetasoundFrontendClass.
 			 * @param InIndex - The positional index for the input.
 			 * @param InVertexKey - The key for the graph input vertex.
 			 * @param InNode - A unique pointer to an input node. 
@@ -38,7 +37,7 @@ namespace Metasound
 
 			/** Add an output node to this graph.
 			 *
-			 * @param InNodeID - The NodeID related to the parent FMetasoundClassDescription.
+			 * @param InNodeID - The NodeID related to the parent FMetasoundFrontendClass.
 			 * @param InIndex - The positional index for the output.
 			 * @param InVertexKey - The key for the graph output vertex.
 			 * @param InNode - A unique pointer to an output node. 
@@ -47,7 +46,7 @@ namespace Metasound
 
 			/** Store a node on this graph. 
 			 *
-			 * @param InNodeID - The NodeID related to the parent FMetasoundClassDescription.
+			 * @param InNodeID - The NodeID related to the parent FMetasoundFrontendClass.
 			 * @param InNode - A unique pointer to a node. 
 			 */
 			void AddNode(int32 InNodeID, TUniquePtr<INode> InNode);
@@ -93,7 +92,7 @@ namespace Metasound
 	};
 
 	/** FFrontendGraphBuilder builds a FFrontendGraph from a FMetasoundDoucment
-	 * or FMetasoundClassDescription.
+	 * or FMetasoundFrontendClass.
 	 */
 	class FFrontendGraphBuilder
 	{
@@ -105,40 +104,34 @@ namespace Metasound
 		 *
 		 * @return True if all dependencies are C++ classes. False otherwise.
 		 */
-		bool IsFlat(const FMetasoundDocument& InDocument) const;
+		bool IsFlat(const FMetasoundFrontendDocument& InDocument) const;
 
-		/** Check that all dependencies are C++ class dependencies. 
-		 * 
-		 * @param InDependencies - Array of dependencies to check.
-		 *
-		 * @return True if all dependencies are C++ classes. False otherwise.
-		 */
-		bool IsFlat(const FMetasoundClassDescription& InRoot, const TArray<FMetasoundClassDescription>& InDependencies) const;
-		
+		bool IsFlat(const FMetasoundFrontendGraphClass& InRoot, const TArray<FMetasoundFrontendClass>& InDependencies) const;
+
 		/* Metasound document should be in order to create this graph. */
-		TUniquePtr<FFrontendGraph> CreateGraph(const FMetasoundDocument& InDocument) const;
+		TUniquePtr<FFrontendGraph> CreateGraph(const FMetasoundFrontendDocument& InDocument) const;
 
-		/** Creates a graph given the root class and all of it's dependencies. */
-		TUniquePtr<FFrontendGraph> CreateGraph(const FMetasoundClassDescription& InRootClass, const TArray<FMetasoundClassDescription>& InDependencies) const;
+		/* Metasound document should be in order to create this graph. */
+		TUniquePtr<FFrontendGraph> CreateGraph(const FMetasoundFrontendGraphClass& InGraph, const TArray<FMetasoundFrontendGraphClass>& InSubgraphs, const TArray<FMetasoundFrontendClass>& InDependencies) const;
+
 
 	private:
 
-		TUniquePtr<INode> CreateInputNode(const FMetasoundNodeDescription& InNode, const FMetasoundInputDescription& InDescription) const;
+		const FMetasoundFrontendClassInput* FindClassInputForInputNode(const FMetasoundFrontendGraphClass& InOwningGraph, const FMetasoundFrontendNode& InInputNode, int32& OutClassInputIndex) const;
 
-		TUniquePtr<INode> CreateOutputNode(const FMetasoundNodeDescription& InNode, const FMetasoundOutputDescription& InDescription) const;
+		const FMetasoundFrontendClassOutput* FindClassOutputForOutputNode(const FMetasoundFrontendGraphClass& InOwningGraph, const FMetasoundFrontendNode& InOutputNode, int32& OutClassOutputIndex) const;
 
-		TUniquePtr<INode> CreateExternalNode(const FMetasoundNodeDescription& InNode, const FMetasoundClassDescription& InClass) const;
+		const FMetasoundFrontendVertexLiteral* FindInputLiteralForInputNode(const FMetasoundFrontendNode& InInputNode, const FMetasoundFrontendClass& InInputNodeClass, const FMetasoundFrontendClassInput& InOwningGraphClassInput) const;
 
-		void SplitNodesByType(const TArray<FMetasoundNodeDescription>& InNodes, TArray<FMetasoundNodeDescription>& OutExternalNodes, TArray<FMetasoundNodeDescription>& OutInputNodes, TArray<FMetasoundNodeDescription>& OutOutputNodes) const;
+		TUniquePtr<INode> CreateInputNode(const FMetasoundFrontendNode& InNode, const FMetasoundFrontendClass& InClass, const FMetasoundFrontendClassInput& InOwningGraphClassInput) const;
 
+		TUniquePtr<INode> CreateOutputNode(const FMetasoundFrontendNode& InNode, const FMetasoundFrontendClass& InExternal) const;
+
+		TUniquePtr<INode> CreateExternalNode(const FMetasoundFrontendNode& InNode, const FMetasoundFrontendClass& InClass) const;
 
 		// TODO: add errors here. Most will be a "PromptIfMissing"...
-		void AddExternalNodesToGraph(const TArray<FMetasoundNodeDescription>& InNodes, const TMap<int32, const FMetasoundClassDescription*>& InClasses, FFrontendGraph& OutGraph) const;
+		void AddNodesToGraph(const FMetasoundFrontendGraphClass& InGraphClass, const TMap<int32, const FMetasoundFrontendClass*>& InClasses, FFrontendGraph& OutGraph) const;
 
-		void AddEdgesToGraph(const FMetasoundGraphDescription& InGraphDescription, FFrontendGraph& OutGraph) const;
-
-		void AddInputDestinationsToGraph(const TArray<FMetasoundInputDescription>& InInputDescriptions, const TArray<FMetasoundNodeDescription>& InNodes, FFrontendGraph& OutGraph) const;
-		void AddOutputSourcesToGraph(const TArray<FMetasoundOutputDescription>& InOutputDescriptions, const TArray<FMetasoundNodeDescription>& InNodes, FFrontendGraph& OutGraph) const;
-
+		void AddEdgesToGraph(const FMetasoundFrontendGraph& InGraphDescription, FFrontendGraph& OutGraph) const;
 	};
 }

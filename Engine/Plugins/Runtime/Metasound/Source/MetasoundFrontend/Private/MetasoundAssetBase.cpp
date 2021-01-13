@@ -6,7 +6,10 @@
 #include "HAL/FileManager.h"
 #include "IStructSerializerBackend.h"
 #include "MetasoundArchetype.h"
+#include "MetasoundFrontendController.h"
+#include "MetasoundFrontendTransform.h"
 #include "MetasoundJsonBackend.h"
+#include "MetasoundLog.h"
 #include "StructSerializer.h"
 
 const FString FMetasoundAssetBase::FileExtension(TEXT(".metasound"));
@@ -15,23 +18,29 @@ FMetasoundAssetBase::FMetasoundAssetBase()
 {
 }
 
-FMetasoundAssetBase::FMetasoundAssetBase(const FMetasoundArchetype& InArchetype)
+FMetasoundAssetBase::FMetasoundAssetBase(const FMetasoundFrontendArchetype& InArchetype)
 :	Archetype(InArchetype)
 {
 }
 
-void FMetasoundAssetBase::SetMetadata(FMetasoundClassMetadata& InMetadata)
+void FMetasoundAssetBase::SetMetadata(FMetasoundFrontendClassMetadata& InMetadata)
 {
-	InMetadata.NodeType = EMetasoundClassType::MetasoundGraph;
-	GetDocumentChecked().RootClass.Metadata = InMetadata;
+	FMetasoundFrontendDocument& Doc = GetDocumentChecked();
+	Doc.RootGraph.Metadata = InMetadata;
+
+	if (Doc.RootGraph.Metadata.Type != EMetasoundFrontendClassType::Graph)
+	{
+		UE_LOG(LogMetasound, Display, TEXT("Forcing class type to EMetasoundFrontendClassType::Graph on root graph metadata"));
+		Doc.RootGraph.Metadata.Type = EMetasoundFrontendClassType::Graph;
+	}
 }
 
-const FMetasoundArchetype& FMetasoundAssetBase::GetArchetype() const
+const FMetasoundFrontendArchetype& FMetasoundAssetBase::GetArchetype() const
 {
 	return Archetype;
 }
 
-bool FMetasoundAssetBase::SetArchetype(const FMetasoundArchetype& InArchetype)
+bool FMetasoundAssetBase::SetArchetype(const FMetasoundFrontendArchetype& InArchetype)
 {
 	if (IsArchetypeSupported(InArchetype))
 	{
@@ -45,9 +54,9 @@ bool FMetasoundAssetBase::SetArchetype(const FMetasoundArchetype& InArchetype)
 	return false;
 }
 
-bool FMetasoundAssetBase::IsArchetypeSupported(const FMetasoundArchetype& InArchetype) const
+bool FMetasoundAssetBase::IsArchetypeSupported(const FMetasoundFrontendArchetype& InArchetype) const
 {
-	auto IsEqualArchetype = [&](const FMetasoundArchetype& SupportedArchetype)
+	auto IsEqualArchetype = [&](const FMetasoundFrontendArchetype& SupportedArchetype)
 	{
 		return Metasound::Frontend::IsEqualArchetype(InArchetype, SupportedArchetype);
 	};
@@ -55,7 +64,7 @@ bool FMetasoundAssetBase::IsArchetypeSupported(const FMetasoundArchetype& InArch
 	return Algo::AnyOf(GetPreferredArchetypes(), IsEqualArchetype);
 }
 
-const FMetasoundArchetype& FMetasoundAssetBase::GetPreferredArchetype(const FMetasoundDocument& InDocument) const
+const FMetasoundFrontendArchetype& FMetasoundAssetBase::GetPreferredArchetype(const FMetasoundFrontendDocument& InDocument) const
 {
 	// Default to archetype provided in case it is supported. 
 	if (IsArchetypeSupported(InDocument.Archetype))
@@ -64,7 +73,7 @@ const FMetasoundArchetype& FMetasoundAssetBase::GetPreferredArchetype(const FMet
 	}
 
 	// If existing archetype is not supported, get the most similar that still supports the documents environment.
-	const FMetasoundArchetype* SimilarArchetype = Metasound::Frontend::FindMostSimilarArchetypeSupportingEnvironment(InDocument, GetPreferredArchetypes());
+	const FMetasoundFrontendArchetype* SimilarArchetype = Metasound::Frontend::FindMostSimilarArchetypeSupportingEnvironment(InDocument, GetPreferredArchetypes());
 
 	if (nullptr != SimilarArchetype)
 	{
@@ -75,12 +84,12 @@ const FMetasoundArchetype& FMetasoundAssetBase::GetPreferredArchetype(const FMet
 	return GetArchetype();
 }
 
-void FMetasoundAssetBase::SetDocument(const FMetasoundDocument& InDocument, bool bForceUpdateArchetype)
+void FMetasoundAssetBase::SetDocument(const FMetasoundFrontendDocument& InDocument, bool bForceUpdateArchetype)
 {
-	FMetasoundDocument& Document = GetDocumentChecked();
+	FMetasoundFrontendDocument& Document = GetDocumentChecked();
 	Document = InDocument;
 
-	FMetasoundArchetype NewArch = InDocument.Archetype;
+	FMetasoundFrontendArchetype NewArch = InDocument.Archetype;
 
 	if (bForceUpdateArchetype || (!IsArchetypeSupported(NewArch)))
 	{
@@ -92,64 +101,38 @@ void FMetasoundAssetBase::SetDocument(const FMetasoundDocument& InDocument, bool
 
 void FMetasoundAssetBase::ConformDocumentToArchetype()
 {
-	FMetasoundDocument& Document = GetDocumentChecked();
+	FMetasoundFrontendDocument& Document = GetDocumentChecked();
 	Document.Archetype = GetArchetype();
-	GetRootGraphHandle().FixDocumentToMatchArchetype();
+
+	Metasound::Frontend::FMatchRootGraphToArchetype Transform;
+	Transform.Transform(GetDocumentHandle());
 }
 
-FMetasoundClassMetadata FMetasoundAssetBase::GetMetadata()
+FMetasoundFrontendClassMetadata FMetasoundAssetBase::GetMetadata()
 {
-	return GetDocumentChecked().RootClass.Metadata;
+	return GetDocumentChecked().RootGraph.Metadata;
 }
 
-Metasound::Frontend::FDescriptionAccessPoint FMetasoundAssetBase::GetGraphAccessPoint() 
+/*
+Metasound::Frontend::FDescriptionAccessPoint FMetasoundAssetBase::GetGraphAccessPoint()
 {
 	return Metasound::Frontend::FDescriptionAccessPoint(GetDocument());
+}
+*/
+
+Metasound::Frontend::FDocumentHandle FMetasoundAssetBase::GetDocumentHandle()
+{
+	return Metasound::Frontend::IDocumentController::CreateDocumentHandle(GetDocument());
 }
 
 Metasound::Frontend::FGraphHandle FMetasoundAssetBase::GetRootGraphHandle()
 {
-	using FDescPath = Metasound::Frontend::FDescPath;
-	using FGraphHandle = Metasound::Frontend::FGraphHandle;
-	using FHandleInitParams = Metasound::Frontend::FHandleInitParams;
-	using EFromDocument = Metasound::Frontend::Path::EFromDocument;
-	using EFromClass = Metasound::Frontend::Path::EFromClass;
-
-	FDescPath PathToGraph = FDescPath()[EFromDocument::ToRootClass][EFromClass::ToGraph];
-	FHandleInitParams InitParams = { GetGraphAccessPoint(), PathToGraph, INDEX_NONE, GetDocumentChecked().RootClass.UniqueID, MakeWeakObjectPtr(GetOwningAsset()) };
-	return FGraphHandle(GetPrivateToken(), InitParams);
-}
-
-TArray<Metasound::Frontend::FGraphHandle> FMetasoundAssetBase::GetAllSubgraphHandles()
-{
-	using FDescPath = Metasound::Frontend::FDescPath;
-	using FGraphHandle = Metasound::Frontend::FGraphHandle;
-	using FHandleInitParams = Metasound::Frontend::FHandleInitParams;
-	using EFromDocument = Metasound::Frontend::Path::EFromDocument;
-	using EFromClass = Metasound::Frontend::Path::EFromClass;
-
-	TArray<FGraphHandle> OutArray;
-
-	FDescPath RootPathForDependencyGraphs = FDescPath()[EFromDocument::ToDependencies];
-
-	TArray<FMetasoundClassDescription>& DependenciesList = GetDocumentChecked().Dependencies;
-	for (FMetasoundClassDescription& Dependency : DependenciesList)
-	{
-		const bool bIsSubgraph = Dependency.Metadata.NodeType == EMetasoundClassType::MetasoundGraph && Dependency.Graph.Nodes.Num() > 0;
-		if (bIsSubgraph)
-		{
-			FDescPath SubgraphPath = RootPathForDependencyGraphs[Dependency.UniqueID][EFromClass::ToGraph];
-			FHandleInitParams InitParams = { GetGraphAccessPoint(), SubgraphPath, INDEX_NONE, Dependency.UniqueID, MakeWeakObjectPtr(GetOwningAsset()) };
-			OutArray.Emplace(GetPrivateToken(), InitParams);
-		}
-	}
-
-	return OutArray;
+	return GetDocumentHandle()->GetRootGraph();
 }
 
 bool FMetasoundAssetBase::ImportFromJSON(const FString& InJSON)
 {
-	Metasound::Frontend::TAccessPtr<FMetasoundDocument> Document = GetDocument();
+	Metasound::Frontend::TAccessPtr<FMetasoundFrontendDocument> Document = GetDocument();
 	if (ensure(Document.IsValid()))
 	{
 		return Metasound::Frontend::ImportJSONToMetasound(InJSON, *Document);
@@ -159,7 +142,7 @@ bool FMetasoundAssetBase::ImportFromJSON(const FString& InJSON)
 
 bool FMetasoundAssetBase::ImportFromJSONAsset(const FString& InAbsolutePath)
 {
-	Metasound::Frontend::TAccessPtr<FMetasoundDocument> Document = GetDocument();
+	Metasound::Frontend::TAccessPtr<FMetasoundFrontendDocument> Document = GetDocument();
 	if (ensure(Document.IsValid()))
 	{
 		return Metasound::Frontend::ImportJSONAssetToMetasound(InAbsolutePath, *Document);
@@ -167,17 +150,17 @@ bool FMetasoundAssetBase::ImportFromJSONAsset(const FString& InAbsolutePath)
 	return false;
 }
 
-FMetasoundDocument& FMetasoundAssetBase::GetDocumentChecked()
+FMetasoundFrontendDocument& FMetasoundAssetBase::GetDocumentChecked()
 {
-	Metasound::Frontend::TAccessPtr<FMetasoundDocument> DocAccessPtr = GetDocument();
+	Metasound::Frontend::TAccessPtr<FMetasoundFrontendDocument> DocAccessPtr = GetDocument();
 
 	check(DocAccessPtr.IsValid());
 	return *DocAccessPtr;
 }
 
-const FMetasoundDocument& FMetasoundAssetBase::GetDocumentChecked() const
+const FMetasoundFrontendDocument& FMetasoundAssetBase::GetDocumentChecked() const
 {
-	Metasound::Frontend::TAccessPtr<const FMetasoundDocument> DocAccessPtr = GetDocument();
+	Metasound::Frontend::TAccessPtr<const FMetasoundFrontendDocument> DocAccessPtr = GetDocument();
 
 	check(DocAccessPtr.IsValid());
 	return *DocAccessPtr;

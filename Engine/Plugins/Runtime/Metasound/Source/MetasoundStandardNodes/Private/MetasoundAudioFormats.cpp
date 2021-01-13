@@ -3,16 +3,15 @@
 #include "MetasoundAudioFormats.h"
 
 #include "CoreMinimal.h"
-#include "MetasoundDataReference.h"
 #include "MetasoundAudioBuffer.h"
+#include "MetasoundDataReference.h"
+#include "MetasoundLiteral.h"
+#include "MetasoundDataTypeRegistrationMacro.h"
 
-REGISTER_METASOUND_DATATYPE(Metasound::FUnformattedAudio, "Audio:Unformatted")
-REGISTER_METASOUND_DATATYPE(Metasound::FMonoAudioFormat, "Audio:Mono")
-REGISTER_METASOUND_DATATYPE(Metasound::FStereoAudioFormat, "Audio:Stereo")
-
-// FMultichannelAudio cannot be used as an input type because it's channel count
-// cannot be changed at runtime. Hence, it is not registered.
-DEFINE_METASOUND_DATA_TYPE(Metasound::FMultichannelAudioFormat, "Audio:Multichannel")
+REGISTER_METASOUND_DATATYPE(Metasound::FUnformattedAudio, "Audio:Unformatted");
+REGISTER_METASOUND_DATATYPE(Metasound::FMonoAudioFormat, "Audio:Mono");
+REGISTER_METASOUND_DATATYPE(Metasound::FStereoAudioFormat, "Audio:Stereo");
+REGISTER_METASOUND_DATATYPE(Metasound::FMultichannelAudioFormat, "Audio:Multichannel", ELiteralType::Integer);
 
 namespace Metasound
 {

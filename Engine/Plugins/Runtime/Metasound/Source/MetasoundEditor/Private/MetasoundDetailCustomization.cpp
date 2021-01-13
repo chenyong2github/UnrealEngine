@@ -37,7 +37,7 @@ namespace Metasound
 			return FName(InBasePath.ToString() + TEXT(".") + InPropertyName.ToString());
 		}
 
-		template <typename T>
+		template <typename T, typename MetadataType>
 		void BuildIOFixedArray(IDetailLayoutBuilder& InDetailLayout, FName CategoryName, FName InPropertyName, const TSet<FString>& RequiredValues, bool bIsInput)
 		{
 			IDetailCategoryBuilder& CategoryBuilder = InDetailLayout.EditCategory(CategoryName);
@@ -48,25 +48,18 @@ namespace Metasound
 			ArrayHandle->GetNumElements(NumElements);
 			for (int32 i = 0; i < static_cast<int32>(NumElements); ++i)
 			{
-				TMap<FName, TSharedPtr<IPropertyHandle>> ChildProperties;
 				TSharedRef<IPropertyHandle> ArrayItemHandle = ArrayHandle->GetElement(i);
-				uint32 NumChildren = 0;
-				ArrayItemHandle->GetNumChildren(NumChildren);
-				for (int32 j = 0; j < static_cast<int32>(NumChildren); ++j)
-				{
-					TSharedPtr<IPropertyHandle> PropertyHandle = ArrayItemHandle->GetChildHandle(j);
-					FProperty* Property = PropertyHandle->GetProperty();
-					if (ensureAlways(Property))
-					{
-						const FName PropertyName = Property->GetFName();
-						ChildProperties.Add(PropertyName, PropertyHandle);
-					}
-				}
 
-				TSharedPtr<IPropertyHandle> TypeProperty = ChildProperties.FindChecked(GET_MEMBER_NAME_CHECKED(T, TypeName));
-				TSharedPtr<IPropertyHandle> ToolTipProperty = ChildProperties.FindChecked(GET_MEMBER_NAME_CHECKED(T, ToolTip));
-				TSharedPtr<IPropertyHandle> DisplayNameProperty = ChildProperties.FindChecked(GET_MEMBER_NAME_CHECKED(T, DisplayName));
-				TSharedPtr<IPropertyHandle> NameProperty = ChildProperties.FindChecked(GET_MEMBER_NAME_CHECKED(T, Name));
+				const FName TypeNamePropertyName = GET_MEMBER_NAME_CHECKED(T, TypeName);
+				const FName NamePropertyName = GET_MEMBER_NAME_CHECKED(T, TypeName);
+				const FName ToolTipPropertyName = GET_MEMBER_NAME_CHECKED(MetadataType, Description);
+				const FName DisplayNamePropertyName = GET_MEMBER_NAME_CHECKED(MetadataType, DisplayName);
+
+				TSharedPtr<IPropertyHandle> TypeProperty = ArrayItemHandle->GetChildHandle(TypeNamePropertyName);
+				TSharedPtr<IPropertyHandle> NameProperty = ArrayItemHandle->GetChildHandle(NamePropertyName);
+
+				TSharedPtr<IPropertyHandle> ToolTipProperty = ArrayItemHandle->GetChildHandle(ToolTipPropertyName, true /* bRecurse */);
+				TSharedPtr<IPropertyHandle> DisplayNameProperty = ArrayItemHandle->GetChildHandle(DisplayNamePropertyName, true /* bRecurse */);
 
 				FString Name;
 				const bool bNameFound = NameProperty->GetValue(Name) == FPropertyAccess::Success;
@@ -113,8 +106,18 @@ namespace Metasound
 
 				if (bIsInput)
 				{
-					TSharedPtr<IPropertyHandle> LiteralValueProperty = ChildProperties.FindChecked(GET_MEMBER_NAME_CHECKED(FMetasoundInputDescription, LiteralValue));
-					CategoryBuilder.AddProperty(LiteralValueProperty);
+					const FName DefaultsPropertyName = GET_MEMBER_NAME_CHECKED(FMetasoundFrontendClassInput, Defaults);
+					TSharedPtr<IPropertyHandle> DefaultsProperty = ArrayItemHandle->GetChildHandle(DefaultsPropertyName);
+
+					TSharedPtr<IPropertyHandleArray> DefaultsArrayHandle = DefaultsProperty->AsArray();
+
+					uint32 NumDefaults = 0;
+					DefaultsArrayHandle->GetNumElements(NumDefaults);
+					for (uint32 InputLiteralIndex = 0; InputLiteralIndex < NumDefaults; ++InputLiteralIndex)
+					{
+						TSharedPtr<IPropertyHandle> LiteralHandle = DefaultsArrayHandle->GetElement(InputLiteralIndex)->GetChildHandle(GET_MEMBER_NAME_CHECKED(FMetasoundFrontendVertexLiteral, Value));
+						CategoryBuilder.AddProperty(LiteralHandle);
+					}
 				}
 			}
 
@@ -133,13 +136,13 @@ namespace Metasound
 
 		FName FMetasoundDetailCustomization::GetMetadataRootClassPath() const
 		{
-			return Metasound::Editor::BuildChildPath(DocumentPropertyName, GET_MEMBER_NAME_CHECKED(FMetasoundDocument, RootClass));
+			return Metasound::Editor::BuildChildPath(DocumentPropertyName, GET_MEMBER_NAME_CHECKED(FMetasoundFrontendDocument, RootGraph));
 		}
 
 		FName FMetasoundDetailCustomization::GetMetadataPropertyPath() const
 		{
 			const FName RootClass = FName(GetMetadataRootClassPath());
-			return Metasound::Editor::BuildChildPath(RootClass, GET_MEMBER_NAME_CHECKED(FMetasoundClassDescription, Metadata));
+			return Metasound::Editor::BuildChildPath(RootClass, GET_MEMBER_NAME_CHECKED(FMetasoundFrontendClass, Metadata));
 		}
 
 		void FMetasoundDetailCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailLayout)
@@ -152,11 +155,12 @@ namespace Metasound
 			TArray<TWeakObjectPtr<UObject>> ObjectsCustomized;
 			DetailLayout.GetObjectsBeingCustomized(ObjectsCustomized);
 
-			const FName AuthorPropertyPath = BuildChildPath(GetMetadataPropertyPath(), GET_MEMBER_NAME_CHECKED(FMetasoundClassMetadata, AuthorName));
-			const FName DescPropertyPath = BuildChildPath(GetMetadataPropertyPath(), GET_MEMBER_NAME_CHECKED(FMetasoundClassMetadata, MetasoundDescription));
-			const FName NodeTypePropertyPath = BuildChildPath(GetMetadataPropertyPath(), GET_MEMBER_NAME_CHECKED(FMetasoundClassMetadata, NodeType));
-			const FName MajorVersionPropertyPath = BuildChildPath(GetMetadataPropertyPath(), GET_MEMBER_NAME_CHECKED(FMetasoundClassMetadata, MajorVersion));
-			const FName MinorVersionPropertyPath = BuildChildPath(GetMetadataPropertyPath(), GET_MEMBER_NAME_CHECKED(FMetasoundClassMetadata, MinorVersion));
+			const FName AuthorPropertyPath = BuildChildPath(GetMetadataPropertyPath(), GET_MEMBER_NAME_CHECKED(FMetasoundFrontendClassMetadata, Author));
+			const FName DescPropertyPath = BuildChildPath(GetMetadataPropertyPath(), GET_MEMBER_NAME_CHECKED(FMetasoundFrontendClassMetadata, Description));
+			const FName NodeTypePropertyPath = BuildChildPath(GetMetadataPropertyPath(), GET_MEMBER_NAME_CHECKED(FMetasoundFrontendClassMetadata, Type));
+			const FName VersionPropertyPath = BuildChildPath(GetMetadataPropertyPath(), GET_MEMBER_NAME_CHECKED(FMetasoundFrontendClassMetadata, Version));
+			const FName MajorVersionPropertyPath = BuildChildPath(VersionPropertyPath, GET_MEMBER_NAME_CHECKED(FMetasoundFrontendVersionNumber, Major));
+			const FName MinorVersionPropertyPath = BuildChildPath(VersionPropertyPath, GET_MEMBER_NAME_CHECKED(FMetasoundFrontendVersionNumber, Minor));
 
 			TSharedPtr<IPropertyHandle> AuthorHandle = DetailLayout.GetProperty(AuthorPropertyPath);
 			TSharedPtr<IPropertyHandle> DescHandle = DetailLayout.GetProperty(DescPropertyPath);
@@ -183,22 +187,23 @@ namespace Metasound
 				FMetasoundAssetBase* MetasoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(Objects[0].Get());
 				check(MetasoundAsset);
 
-				Frontend::FGraphHandle GraphHandle = MetasoundAsset->GetRootGraphHandle();
-				for (const FMetasoundInputDescription& Desc : GraphHandle.GetRequiredInputs())
+				Frontend::FDocumentHandle DocumentHandle = MetasoundAsset->GetDocumentHandle();
+				for (const FMetasoundFrontendClassVertex& Desc : DocumentHandle->GetRequiredInputs())
 				{
 					RequiredInputs.Add(Desc.Name);
 				}
-				for (const FMetasoundOutputDescription& Desc : GraphHandle.GetRequiredOutputs())
+				for (const FMetasoundFrontendClassVertex& Desc : DocumentHandle->GetRequiredOutputs())
 				{
 					RequiredOutputs.Add(Desc.Name);
 				}
 			}
 
-			const FName InputsPropertyPath = BuildChildPath(GetMetadataRootClassPath(), GET_MEMBER_NAME_CHECKED(FMetasoundClassDescription, Inputs));
-			const FName OutputsPropertyPath = BuildChildPath(GetMetadataRootClassPath(), GET_MEMBER_NAME_CHECKED(FMetasoundClassDescription, Outputs));
+			const FName InterfacePropertyPath = BuildChildPath(GetMetadataRootClassPath(), GET_MEMBER_NAME_CHECKED(FMetasoundFrontendClass, Interface));
+			const FName InputsPropertyPath = BuildChildPath(InterfacePropertyPath, GET_MEMBER_NAME_CHECKED(FMetasoundFrontendClassInterface, Inputs));
+			const FName OutputsPropertyPath = BuildChildPath(InterfacePropertyPath, GET_MEMBER_NAME_CHECKED(FMetasoundFrontendClassInterface, Outputs));
 
-			BuildIOFixedArray<FMetasoundInputDescription>(DetailLayout, "Inputs", InputsPropertyPath, RequiredInputs, true /* bIsInput */);
-			BuildIOFixedArray<FMetasoundOutputDescription>(DetailLayout, "Outputs", OutputsPropertyPath, RequiredOutputs, false /* bIsInput */);
+			BuildIOFixedArray<FMetasoundFrontendClassInput, FMetasoundFrontendVertexMetadata>(DetailLayout, "Inputs", InputsPropertyPath, RequiredInputs, true /* bIsInput */);
+			BuildIOFixedArray<FMetasoundFrontendClassOutput, FMetasoundFrontendVertexMetadata>(DetailLayout, "Outputs", OutputsPropertyPath, RequiredOutputs, false /* bIsInput */);
 
 			// Hack to hide parent structs for nested metadata properties
 			DetailLayout.HideCategory("CustomView");

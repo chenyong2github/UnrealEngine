@@ -393,15 +393,15 @@ namespace Metasound
 				// TODO: use the same directory as the currently open metasound
 				const FString OutputPath = FString("/Game/ImportedMetasound/GeneratedMetasound");
 
-				FMetasoundDocument MetasoundDoc;
+				FMetasoundFrontendDocument MetasoundDoc;
 
 				if (Frontend::ImportJSONAssetToMetasound(InputPath, MetasoundDoc))
 				{
-					TArray<UClass*> ImportClasses = IMetasoundUObjectRegistry::Get().GetUClassesForArchetype(MetasoundDoc.Archetype.ArchetypeName);
+					TArray<UClass*> ImportClasses = IMetasoundUObjectRegistry::Get().GetUClassesForArchetype(MetasoundDoc.Archetype.Name);
 
 					if (ImportClasses.Num() < 1)
 					{
-						UE_LOG(LogTemp, Warning, TEXT("Cannot create UObject from Metasound document. No UClass supports archetype \"%s\""), *MetasoundDoc.Archetype.ArchetypeName.ToString());
+						UE_LOG(LogTemp, Warning, TEXT("Cannot create UObject from Metasound document. No UClass supports archetype \"%s\""), *MetasoundDoc.Archetype.Name.ToString());
 					}
 					else
 					{
@@ -410,7 +410,7 @@ namespace Metasound
 							for (UClass* Cls : ImportClasses)
 							{
 								// TODO: could do a modal dialog to give user choice of import type.
-								UE_LOG(LogTemp, Warning, TEXT("Duplicate UClass support archetype \"%s\" with UClass \"%s\""), *MetasoundDoc.Archetype.ArchetypeName.ToString(), *Cls->GetName());
+								UE_LOG(LogTemp, Warning, TEXT("Duplicate UClass support archetype \"%s\" with UClass \"%s\""), *MetasoundDoc.Archetype.Name.ToString(), *Cls->GetName());
 							}
 						}
 
@@ -438,7 +438,7 @@ namespace Metasound
 
 			// TODO: We could just make this an object.
 			const FString Path = FPaths::ProjectSavedDir() / TEXT("Metasounds") + FPaths::ChangeExtension(Metasound->GetPathName(), MetasoundExtension);
-			InMetasoundAsset->GetRootGraphHandle().ExportToJSONAsset(Path);
+			InMetasoundAsset->GetDocumentHandle()->ExportToJSONAsset(Path);
 		}
 
 		void FEditor::Play()
@@ -696,18 +696,24 @@ namespace Metasound
 			check(ParentMetasoundObject);
 			if (FMetasoundAssetBase* MetasoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(ParentMetasoundObject))
 			{
-				Frontend::FGraphHandle GraphHandle = MetasoundAsset->GetRootGraphHandle();
+				Frontend::FConstDocumentHandle DocumentHandle = MetasoundAsset->GetDocumentHandle();
 				for (FGraphPanelSelectionSet::TConstIterator NodeIt(SelectedNodes); NodeIt; ++NodeIt)
 				{
 					UMetasoundEditorGraphNode* Node = CastChecked<UMetasoundEditorGraphNode>(*NodeIt);
 					Frontend::FNodeHandle NodeHandle = Node->GetNodeHandle();
 
-					if (NodeHandle.GetNodeType() == EMetasoundClassType::Input)
+					if (NodeHandle->GetClassType() == EMetasoundFrontendClassType::Input)
 					{
-						if (GraphHandle.IsRequiredInput(NodeHandle.GetNodeName()))
+						auto IsRequiredInput = [&](const Frontend::FConstInputHandle& InputHandle) 
+						{ 
+							return DocumentHandle->IsRequiredInput(InputHandle->GetName()); 
+						};
+						TArray<Frontend::FConstInputHandle> NodeInputs = NodeHandle->GetConstInputs();
+
+						if (Frontend::FConstInputHandle* InputHandle = NodeInputs.FindByPredicate(IsRequiredInput))
 						{
 							FNotificationInfo Info(FText::Format(LOCTEXT("Metasounds_CannotDeleteRequiredInput",
-								"'Required Input '{0}' cannot be deleted."), GraphHandle.GetInputDisplayName(NodeHandle.GetNodeName())));
+								"'Required Input '{0}' cannot be deleted."), (*InputHandle)->GetDisplayName()));
 							Info.bFireAndForget = true;
 							Info.ExpireDuration = 2.0f;
 							Info.bUseThrobber = true;
@@ -716,12 +722,18 @@ namespace Metasound
 						}
 					}
 
-					if (NodeHandle.GetNodeType() == EMetasoundClassType::Output)
+					if (NodeHandle->GetClassType() == EMetasoundFrontendClassType::Output)
 					{
-						if (GraphHandle.IsRequiredOutput(NodeHandle.GetNodeName()))
+						auto IsRequiredOutput = [&](const Frontend::FConstOutputHandle& OutputHandle) 
+						{ 
+							return DocumentHandle->IsRequiredOutput(OutputHandle->GetName()); 
+						};
+						TArray<Frontend::FConstOutputHandle> NodeOutputs = NodeHandle->GetConstOutputs();
+
+						if (Frontend::FConstOutputHandle* OutputHandle = NodeOutputs.FindByPredicate(IsRequiredOutput))
 						{
 							FNotificationInfo Info(FText::Format(LOCTEXT("Metasounds_CannotDeleteRequiredOutput",
-								"'Required Output '{0}' cannot be deleted."), GraphHandle.GetOutputDisplayName(NodeHandle.GetNodeName())));
+								"'Required Output '{0}' cannot be deleted."), (*OutputHandle)->GetDisplayName()));
 							Info.bFireAndForget = true;
 							Info.ExpireDuration = 2.0f;
 							Info.bUseThrobber = true;
@@ -779,56 +791,51 @@ namespace Metasound
 			using namespace Metasound::Frontend;
 
 			// Export the selected nodes and place the text on the clipboard
-			const FGraphPanelSelectionSet SelectedNodes = MetasoundGraphEditor->GetSelectedNodes();
-
-			TMap<uint32, FNodeHandle> HandlesToCopy;
-			for (FGraphPanelSelectionSet::TConstIterator SelectedIter(SelectedNodes); SelectedIter; ++SelectedIter)
-			{
-				if (UMetasoundEditorGraphNode* Node = Cast<UMetasoundEditorGraphNode>(*SelectedIter))
-				{
-					HandlesToCopy.Add(Node->GetNodeID(), Node->GetNodeHandle());
-					Node->PrepareForCopying();
-				}
-			}
-
-			FMetasoundAssetBase* MetasoundAsset = Metasound::IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(Metasound);
-			check(MetasoundAsset);
-			FGraphHandle GraphHandle = MetasoundAsset->GetRootGraphHandle();
-
-			UMetasound* MetasoundCopy = NewObject<UMetasound>();
-			FGraphHandle CopyGraphHandle = InitMetasound(*MetasoundCopy);
-
-			GraphHandle.CopyGraph(CopyGraphHandle);
-
-			TArray<FNodeHandle> AllCopiedNodes = CopyGraphHandle.GetAllNodes();
-			for (FNodeHandle& Node : AllCopiedNodes)
-			{
-				if (!HandlesToCopy.Contains(Node.GetNodeID()))
-				{
-					if (Node.GetNodeType() == EMetasoundClassType::Input)
-					{
-						CopyGraphHandle.RemoveInput(Node.GetNodeName());
-					}
-					else if (Node.GetNodeType() == EMetasoundClassType::Output)
-					{
-						CopyGraphHandle.RemoveOutput(Node.GetNodeName());
-					}
-					else
-					{
-						CopyGraphHandle.RemoveNode(Node);
-					}
-				}
-			}
-
-			FString ExportedEdText;
-			FEdGraphUtilities::ExportNodesToText(SelectedNodes, ExportedEdText);
-
-			FMetasoundEditorData EditorData;
-			EditorData.GraphData = ExportedEdText;
-			CopyGraphHandle.SetEditorData(EditorData);
-
-			const FString JSONToCopy = CopyGraphHandle.ExportToJSON();
-			FPlatformApplicationMisc::ClipboardCopy(*JSONToCopy);
+			/* TODO: rethink how this is performed. Current implementation does not
+			 * handle case where nodes are not in the root graph. 
+			 *
+			 * GraphHandle should support exporting selection of nodes to a FMetasoundFrontendDocument as nodes on the root class. 
+			 */
+			 
+			//const FGraphPanelSelectionSet SelectedNodes = MetasoundGraphEditor->GetSelectedNodes();
+			//
+			//TMap<int32, FNodeHandle> HandlesToCopy;
+			//for (FGraphPanelSelectionSet::TConstIterator SelectedIter(SelectedNodes); SelectedIter; ++SelectedIter)
+			//{
+				//if (UMetasoundEditorGraphNode* Node = Cast<UMetasoundEditorGraphNode>(*SelectedIter))
+				//{
+					//HandlesToCopy.Add(Node->GetID(), Node->GetNodeHandle());
+					//Node->PrepareForCopying();
+				//}
+			//}
+//
+			//FMetasoundAssetBase* MetasoundAsset = Metasound::IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(Metasound);
+			//check(MetasoundAsset);
+			//FGraphHandle GraphHandle = MetasoundAsset->GetRootGraphHandle();
+//
+			//UMetasound* MetasoundCopy = NewObject<UMetasound>();
+			//FGraphHandle CopyGraphHandle = InitMetasound(*MetasoundCopy);
+//
+			//GraphHandle->CopyGraph(CopyGraphHandle);
+//
+			//TArray<FNodeHandle> AllCopiedNodes = CopyGraphHandle->GetAllNodes();
+			//for (FNodeHandle& Node : AllCopiedNodes)
+			//{
+				//if (!HandlesToCopy.Contains(Node->GetID()))
+				//{
+					//CopyGraphHandle->RemoveNode(Node);
+				//}
+			//}
+//
+			//FString ExportedEdText;
+			//FEdGraphUtilities::ExportNodesToText(SelectedNodes, ExportedEdText);
+//
+			//FMetasoundEditorData EditorData;
+			//EditorData.GraphData = ExportedEdText;
+			//CopyGraphHandle.SetEditorData(EditorData);
+//
+			//const FString JSONToCopy = CopyGraphHandle.ExportToJSON();
+			//FPlatformApplicationMisc::ClipboardCopy(*JSONToCopy);
 		}
 
 		bool FEditor::CanCopyNodes() const
@@ -902,7 +909,7 @@ namespace Metasound
 // 			FEdGraphUtilities::ImportNodesFromText(Graph, PastedDocument.EditorData.GraphData, PastedNodes);
 // 
 // 			// Clear out, no reason to hold a bunch of references to data no longer needed.
-// 			PastedDocument = FMetasoundDocument();
+// 			PastedDocument = FMetasoundFrontendDocument();
 // 
 // 			FVector2D AvgNodePosition = FVector2D::ZeroVector;
 // 			for (UEdGraphNode* Node : PastedNodes)
@@ -947,7 +954,7 @@ namespace Metasound
 // 			FMetasoundAssetBase* AssetBase = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(Metasound);
 // 			check(AssetBase);
 // 
-// 			PastedDocument = FMetasoundDocument();
+// 			PastedDocument = FMetasoundFrontendDocument();
 // 			const bool bCanImportDocument = Metasound::Frontend::ImportJSONToMetasound(ClipboardContent, PastedDocument);
 // 			if (!bCanImportDocument)
 // 			{

@@ -61,7 +61,7 @@ namespace Metasound
 
 			using FDataWriteReference = TDataWriteReference<DataType>;
 
-			TInputOperatorLiteralFactory(FDataTypeLiteralParam&& InInitParam)
+			TInputOperatorLiteralFactory(FLiteral&& InInitParam)
 			:	InitParam(MoveTemp(InInitParam))
 			{
 			}
@@ -70,7 +70,7 @@ namespace Metasound
 
 		private:
 
-			FDataTypeLiteralParam InitParam;
+			FLiteral InitParam;
 	};
 
 	/** TInputOperatorFactory initializes the DataType at construction. It uses
@@ -149,7 +149,7 @@ namespace Metasound
 
 			/* Construct a TInputNode using the TInputOperatorLiteralFactory<> and moving
 			 * InParam to the TInputOperatorLiteralFactory constructor.*/
-			explicit TInputNode(const FString& InNodeDescription, const FString& InVertexName, FDataTypeLiteralParam&& InParam)
+			explicit TInputNode(const FString& InNodeDescription, const FString& InVertexName, FLiteral&& InParam)
 			:	FNode(InNodeDescription, GetNodeInfo(InVertexName))
 			,	VertexName(InVertexName)
 			,	Interface(DeclareVertexInterface(InVertexName))

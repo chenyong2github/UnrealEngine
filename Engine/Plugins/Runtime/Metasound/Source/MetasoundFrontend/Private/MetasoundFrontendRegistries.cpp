@@ -1,7 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MetasoundFrontendRegistries.h"
+
 #include "CoreMinimal.h"
+#include "MetasoundLog.h"
 #include "Misc/ScopeLock.h"
 #include "HAL/PlatformTime.h"
 
@@ -113,7 +115,7 @@ TUniquePtr<Metasound::INode> FMetasoundFrontendRegistryContainer::ConstructInput
 	}
 }
 
-TUniquePtr<Metasound::INode> FMetasoundFrontendRegistryContainer::ConstructOutputNode(const FName& InOutputType, const Metasound::FOutputNodeConstrutorParams& InParams)
+TUniquePtr<Metasound::INode> FMetasoundFrontendRegistryContainer::ConstructOutputNode(const FName& InOutputType, const Metasound::FOutputNodeConstructorParams& InParams)
 {
 	if (ensureAlwaysMsgf(DataTypeRegistry.Contains(InOutputType), TEXT("Couldn't find data type %s!"), *InOutputType.ToString()))
 	{
@@ -125,27 +127,27 @@ TUniquePtr<Metasound::INode> FMetasoundFrontendRegistryContainer::ConstructOutpu
 	}
 }
 
-Metasound::FDataTypeLiteralParam FMetasoundFrontendRegistryContainer::GenerateLiteralForUObject(const FName& InDataType, UObject* InObject)
+Metasound::FLiteral FMetasoundFrontendRegistryContainer::GenerateLiteralForUObject(const FName& InDataType, UObject* InObject)
 {
 	if (ensureAlwaysMsgf(DataTypeRegistry.Contains(InDataType), TEXT("Couldn't find data type %s!"), *InDataType.ToString()))
 	{
 		 Audio::IProxyDataPtr ProxyPtr = DataTypeRegistry[InDataType].Callbacks.CreateAudioProxy(InObject);
 		 if (ensureAlwaysMsgf(ProxyPtr.IsValid(), TEXT("UObject failed to create a valid proxy!")))
 		 {
-			 return Metasound::FDataTypeLiteralParam(MoveTemp(ProxyPtr));
+			 return Metasound::FLiteral(MoveTemp(ProxyPtr));
 		 }
 		 else
 		 {
-			 return Metasound::FDataTypeLiteralParam();
+			 return Metasound::FLiteral();
 		 }
 	}
 	else
 	{
-		return Metasound::FDataTypeLiteralParam();
+		return Metasound::FLiteral();
 	}
 }
 
-Metasound::FDataTypeLiteralParam FMetasoundFrontendRegistryContainer::GenerateLiteralForUObjectArray(const FName& InDataType, TArray<UObject*> InObjectArray)
+Metasound::FLiteral FMetasoundFrontendRegistryContainer::GenerateLiteralForUObjectArray(const FName& InDataType, TArray<UObject*> InObjectArray)
 {
 	if (ensureAlwaysMsgf(DataTypeRegistry.Contains(InDataType), TEXT("Couldn't find data type %s!"), *InDataType.ToString()))
 	{
@@ -161,11 +163,11 @@ Metasound::FDataTypeLiteralParam FMetasoundFrontendRegistryContainer::GenerateLi
 			}
 		}
 
-		return Metasound::FDataTypeLiteralParam(MoveTemp(ProxyArray));
+		return Metasound::FLiteral(MoveTemp(ProxyArray));
 	}
 	else
 	{
-		return Metasound::FDataTypeLiteralParam();
+		return Metasound::FLiteral();
 	}
 }
 
@@ -198,17 +200,17 @@ TArray<::Metasound::Frontend::FConverterNodeInfo> FMetasoundFrontendRegistryCont
 	}
 }
 
-Metasound::ELiteralArgType FMetasoundFrontendRegistryContainer::GetDesiredLiteralTypeForDataType(FName InDataType) const
+Metasound::ELiteralType FMetasoundFrontendRegistryContainer::GetDesiredLiteralTypeForDataType(FName InDataType) const
 {
 	if (!DataTypeRegistry.Contains(InDataType))
 	{
-		return Metasound::ELiteralArgType::Invalid;
+		return Metasound::ELiteralType::Invalid;
 	}
 
 	const FDataTypeRegistryElement& DataTypeInfo = DataTypeRegistry[InDataType];
 	
 	// If there's a designated preferred literal type for this datatype, use that.
-	if (DataTypeInfo.Info.PreferredLiteralType != Metasound::ELiteralArgType::None)
+	if (DataTypeInfo.Info.PreferredLiteralType != Metasound::ELiteralType::None)
 	{
 		return DataTypeInfo.Info.PreferredLiteralType;
 	}
@@ -216,30 +218,30 @@ Metasound::ELiteralArgType FMetasoundFrontendRegistryContainer::GetDesiredLitera
 	// Otherwise, we opt for the highest precision construction option available.
 	if (DataTypeInfo.Info.bIsStringParsable)
 	{
-		return Metasound::ELiteralArgType::String;
+		return Metasound::ELiteralType::String;
 	}
 	else if (DataTypeInfo.Info.bIsFloatParsable)
 	{
-		return Metasound::ELiteralArgType::Float;
+		return Metasound::ELiteralType::Float;
 	}
 	else if (DataTypeInfo.Info.bIsIntParsable)
 	{
-		return Metasound::ELiteralArgType::Integer;
+		return Metasound::ELiteralType::Integer;
 	}
 	else if (DataTypeInfo.Info.bIsBoolParsable)
 	{
-		return Metasound::ELiteralArgType::Boolean;
+		return Metasound::ELiteralType::Boolean;
 	}
 	else if (DataTypeInfo.Info.bIsDefaultParsable)
 	{
-		return Metasound::ELiteralArgType::None;
+		return Metasound::ELiteralType::None;
 	}
 	else
 	{
 		// if we ever hit this, something has gone terribly wrong with the REGISTER_METASOUND_DATATYPE macro.
 		// we should have failed to compile if any of these are false.
 		checkNoEntry();
-		return Metasound::ELiteralArgType::Invalid;
+		return Metasound::ELiteralType::Invalid;
 	}
 }
 
@@ -256,7 +258,7 @@ UClass* FMetasoundFrontendRegistryContainer::GetLiteralUClassForDataType(FName I
 	}
 }
 
-bool FMetasoundFrontendRegistryContainer::DoesDataTypeSupportLiteralType(FName InDataType, Metasound::ELiteralArgType InLiteralType) const
+bool FMetasoundFrontendRegistryContainer::DoesDataTypeSupportLiteralType(FName InDataType, Metasound::ELiteralType InLiteralType) const
 {
 	if (!DataTypeRegistry.Contains(InDataType))
 	{
@@ -268,35 +270,35 @@ bool FMetasoundFrontendRegistryContainer::DoesDataTypeSupportLiteralType(FName I
 	
 	switch (InLiteralType)
 	{
-		case Metasound::ELiteralArgType::Boolean:
+		case Metasound::ELiteralType::Boolean:
 		{
 			return DataTypeInfo.Info.bIsBoolParsable;
 		}
-		case Metasound::ELiteralArgType::Integer:
+		case Metasound::ELiteralType::Integer:
 		{
 			return DataTypeInfo.Info.bIsIntParsable;
 		}
-		case Metasound::ELiteralArgType::Float:
+		case Metasound::ELiteralType::Float:
 		{
 			return DataTypeInfo.Info.bIsFloatParsable;
 		}
-		case Metasound::ELiteralArgType::String:
+		case Metasound::ELiteralType::String:
 		{
 			return DataTypeInfo.Info.bIsStringParsable;
 		}
-		case Metasound::ELiteralArgType::UObjectProxy:
+		case Metasound::ELiteralType::UObjectProxy:
 		{
 			return DataTypeInfo.Info.bIsProxyParsable;
 		}
-		case Metasound::ELiteralArgType::UObjectProxyArray:
+		case Metasound::ELiteralType::UObjectProxyArray:
 		{
 			return DataTypeInfo.Info.bIsProxyArrayParsable;
 		}
-		case Metasound::ELiteralArgType::None:
+		case Metasound::ELiteralType::None:
 		{
 			return DataTypeInfo.Info.bIsDefaultParsable;
 		}
-		case Metasound::ELiteralArgType::Invalid:
+		case Metasound::ELiteralType::Invalid:
 		default:
 		{
 			return false;
@@ -304,7 +306,7 @@ bool FMetasoundFrontendRegistryContainer::DoesDataTypeSupportLiteralType(FName I
 	}
 }
 
-bool FMetasoundFrontendRegistryContainer::RegisterDataType(const ::Metasound::FDataTypeRegistryInfo& InDataInfo, ::Metasound::FDataTypeConstructorCallbacks&& InCallbacks)
+bool FMetasoundFrontendRegistryContainer::RegisterDataType(const ::Metasound::FDataTypeRegistryInfo& InDataInfo, const ::Metasound::FDataTypeConstructorCallbacks& InCallbacks)
 {
 	if (!ensureAlwaysMsgf(!DataTypeRegistry.Contains(InDataInfo.DataTypeName), TEXT("Name collision when trying to register Metasound Data Type %s! Make sure that you created a unique name for your data type, and that REGISTER_METASOUND_DATATYPE isn't called in a public header."), *InDataInfo.DataTypeName.ToString()))
 	{
@@ -313,14 +315,22 @@ bool FMetasoundFrontendRegistryContainer::RegisterDataType(const ::Metasound::FD
 	}
 	else
 	{
-		FDataTypeRegistryElement InElement = { MoveTemp(InCallbacks), InDataInfo };
-		DataTypeRegistry.Add(InDataInfo.DataTypeName, MoveTemp(InElement));
-		UE_LOG(LogTemp, Display, TEXT("Registered Metasound Datatype %s."), *InDataInfo.DataTypeName.ToString());
+		FDataTypeRegistryElement InElement = { InCallbacks, InDataInfo };
+
+		DataTypeRegistry.Add(InDataInfo.DataTypeName, InElement);
+
+		Metasound::Frontend::FNodeRegistryKey InputNodeRegistryKey = GetRegistryKey(InCallbacks.CreateFrontendInputClass().Metadata);
+		DataTypeNodeRegistry.Add(InputNodeRegistryKey, InElement);
+
+		Metasound::Frontend::FNodeRegistryKey OutputNodeRegistryKey = GetRegistryKey(InCallbacks.CreateFrontendOutputClass().Metadata);
+		DataTypeNodeRegistry.Add(OutputNodeRegistryKey, InElement);
+
+		UE_LOG(LogMetasound, Display, TEXT("Registered Metasound Datatype %s."), *InDataInfo.DataTypeName.ToString());
 		return true;
 	}
 }
 
-bool FMetasoundFrontendRegistryContainer::RegisterExternalNode(Metasound::FCreateMetasoundNodeFunction&& InCreateNode, Metasound::FCreateMetasoundClassDescriptionFunction&& InCreateDescription)
+bool FMetasoundFrontendRegistryContainer::RegisterExternalNode(Metasound::FCreateMetasoundNodeFunction&& InCreateNode, Metasound::FCreateMetasoundFrontendClassFunction&& InCreateDescription)
 {
 	FNodeRegistryElement RegistryElement = FNodeRegistryElement(MoveTemp(InCreateNode), MoveTemp(InCreateDescription));
 
@@ -341,11 +351,11 @@ bool FMetasoundFrontendRegistryContainer::RegisterExternalNode(Metasound::FCreat
 
 bool FMetasoundFrontendRegistryContainer::GetRegistryKey(const Metasound::Frontend::FNodeRegistryElement& InElement, Metasound::Frontend::FNodeRegistryKey& OutKey)
 {
-	if (InElement.CreateClassDescription)
+	if (InElement.CreateFrontendClass)
 	{
-		FMetasoundClassDescription Description = InElement.CreateClassDescription();
+		FMetasoundFrontendClass FrontendClass = InElement.CreateFrontendClass();
 
-		OutKey = MetasoundFrontendRegistryPrivate::GetRegistryKey(FName(Description.Metadata.NodeName), Description.Metadata.MajorVersion);
+		OutKey = GetRegistryKey(FrontendClass.Metadata);
 
 		return true;
 	}
@@ -356,6 +366,74 @@ bool FMetasoundFrontendRegistryContainer::GetRegistryKey(const Metasound::Fronte
 Metasound::Frontend::FNodeRegistryKey FMetasoundFrontendRegistryContainer::GetRegistryKey(const FNodeInfo& InNodeMetadata)
 {
 	return MetasoundFrontendRegistryPrivate::GetRegistryKey(InNodeMetadata.ClassName, InNodeMetadata.MajorVersion);
+}
+
+Metasound::Frontend::FNodeRegistryKey FMetasoundFrontendRegistryContainer::GetRegistryKey(const FMetasoundFrontendClassMetadata& InNodeMetadata)
+{
+	return MetasoundFrontendRegistryPrivate::GetRegistryKey(FName(InNodeMetadata.Name.Name), InNodeMetadata.Version.Major);
+}
+
+bool FMetasoundFrontendRegistryContainer::GetFrontendClassFromRegistered(const FMetasoundFrontendClassMetadata& InMetadata, FMetasoundFrontendClass& OutClass)
+{
+	FMetasoundFrontendRegistryContainer* Registry = FMetasoundFrontendRegistryContainer::Get();
+
+	if (ensure(nullptr != Registry))
+	{
+		Metasound::Frontend::FNodeRegistryKey RegistryKey = GetRegistryKey(InMetadata);
+
+		if (InMetadata.Type == EMetasoundFrontendClassType::External)
+		{
+			if (Registry->ExternalNodeRegistry.Contains(RegistryKey))
+			{
+				OutClass = Registry->ExternalNodeRegistry[RegistryKey].CreateFrontendClass();
+				return true;
+			}
+		}
+		else if (InMetadata.Type == EMetasoundFrontendClassType::Input)
+		{
+			if (Registry->DataTypeNodeRegistry.Contains(RegistryKey))
+			{
+				OutClass = Registry->DataTypeNodeRegistry[RegistryKey].Callbacks.CreateFrontendInputClass();
+				return true;
+			}
+		}
+		else if (InMetadata.Type == EMetasoundFrontendClassType::Output)
+		{
+			if (Registry->DataTypeNodeRegistry.Contains(RegistryKey))
+			{
+				OutClass = Registry->DataTypeNodeRegistry[RegistryKey].Callbacks.CreateFrontendOutputClass();
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+
+bool FMetasoundFrontendRegistryContainer::GetInputNodeClassMetadataForDataType(const FName& InDataTypeName, FMetasoundFrontendClassMetadata& OutMetadata)
+{
+	if (FMetasoundFrontendRegistryContainer* Registry = FMetasoundFrontendRegistryContainer::Get())
+	{
+		if (Registry->DataTypeRegistry.Contains(InDataTypeName))
+		{
+			OutMetadata = Registry->DataTypeRegistry[InDataTypeName].Callbacks.CreateFrontendInputClass().Metadata;
+			return true;
+		}
+	}
+	return false;
+}
+
+bool FMetasoundFrontendRegistryContainer::GetOutputNodeClassMetadataForDataType(const FName& InDataTypeName, FMetasoundFrontendClassMetadata& OutMetadata)
+{
+	if (FMetasoundFrontendRegistryContainer* Registry = FMetasoundFrontendRegistryContainer::Get())
+	{
+		if (Registry->DataTypeRegistry.Contains(InDataTypeName))
+		{
+			OutMetadata = Registry->DataTypeRegistry[InDataTypeName].Callbacks.CreateFrontendOutputClass().Metadata;
+			return true;
+		}
+	}
+	return false;
 }
 
 bool FMetasoundFrontendRegistryContainer::RegisterConversionNode(const FConverterNodeRegistryKey& InNodeKey, const FConverterNodeInfo& InNodeInfo)

@@ -8,6 +8,7 @@
 #include "IDetailsView.h"
 #include "IMetasoundEditor.h"
 #include "MetasoundFrontend.h"
+#include "MetasoundFrontendController.h"
 #include "Misc/NotifyHook.h"
 #include "SMetasoundPalette.h"
 #include "Textures/SlateIcon.h"
@@ -193,7 +194,7 @@ namespace Metasound
 			bool bPassedValidation = true;
 
 			/** Document used when pasting from clipboard to avoid deserializing twice */
-			FMetasoundDocument PastedDocument;
+			FMetasoundFrontendDocument PastedDocument;
 		};
 	} // namespace Editor
 } // namespace Metasound

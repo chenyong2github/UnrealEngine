@@ -7,8 +7,8 @@
 #include "Algo/Transform.h"
 #include "CoreMinimal.h"
 #include "MetasoundFrontend.h"
-#include "MetasoundFrontendDataLayout.h"
 #include "MetasoundGraph.h"
+#include "MetasoundLog.h"
 #include "MetasoundNodeInterface.h"
 
 namespace Metasound
@@ -143,196 +143,377 @@ namespace Metasound
 	}
 
 
-	TUniquePtr<INode> FFrontendGraphBuilder::CreateInputNode(const FMetasoundNodeDescription& InNode, const FMetasoundInputDescription& InDescription) const
+	TUniquePtr<INode> FFrontendGraphBuilder::CreateInputNode(const FMetasoundFrontendNode& InNode, const FMetasoundFrontendClass& InClass, const FMetasoundFrontendClassInput& InOwningGraphClassInput) const
 	{
-		if (!ensureAlwaysMsgf(Frontend::DoesDataTypeSupportLiteralType(InDescription.TypeName, InDescription.LiteralValue.LiteralType), TEXT("[%s] cannot be constructed with the provided literal type."), *InDescription.TypeName.ToString()))
+		const FMetasoundFrontendVertexLiteral* VertexLiteral = FindInputLiteralForInputNode(InNode, InClass, InOwningGraphClassInput);
+
+		if (nullptr != VertexLiteral)
 		{
-			return TUniquePtr<INode>(nullptr);
+			if (ensure(InNode.Interface.Inputs.Num() == 1))
+			{
+				const FMetasoundFrontendVertex& InputVertex = InNode.Interface.Inputs[0];
+
+				const bool IsLiteralParsableByDataType = Frontend::DoesDataTypeSupportLiteralType(InputVertex.TypeName, VertexLiteral->Value.Type);
+
+				if (IsLiteralParsableByDataType)
+				{
+					FLiteral Literal = Frontend::GetLiteralParamForDataType(InputVertex.TypeName, VertexLiteral->Value);
+
+					FInputNodeConstructorParams InitParams =
+					{
+						InNode.Name,
+						InputVertex.Name,
+						MoveTemp(Literal)
+					};
+
+					// TODO: create input node using external class definition
+					return FMetasoundFrontendRegistryContainer::Get()->ConstructInputNode(InputVertex.TypeName, MoveTemp(InitParams));
+				}
+				else
+				{
+					UE_LOG(LogMetasound, Error, TEXT("Cannot create input node [NodeID:%d]. [Vertex:%s] cannot be constructed with the provided literal type."), InNode.ID, *InputVertex.Name);
+				}
+			}
+		}
+		else
+		{
+			UE_LOG(LogMetasound, Error, TEXT("Cannot create input node [NodeID:%d]. No default literal set for input node."), InNode.ID);
 		}
 
-		FDataTypeLiteralParam LiteralParam = Frontend::GetLiteralParamForDataType(InDescription.TypeName, InDescription.LiteralValue);
-
-		FInputNodeConstructorParams InitParams =
-		{
-			InDescription.Name,
-			InDescription.Name,
-			MoveTemp(LiteralParam)
-		};
-
-		return FMetasoundFrontendRegistryContainer::Get()->ConstructInputNode(InDescription.TypeName, MoveTemp(InitParams));
+		return TUniquePtr<INode>(nullptr);
 	}
 
-	TUniquePtr<INode> FFrontendGraphBuilder::CreateOutputNode(const FMetasoundNodeDescription& InNode, const FMetasoundOutputDescription& InDescription) const
+	TUniquePtr<INode> FFrontendGraphBuilder::CreateOutputNode(const FMetasoundFrontendNode& InNode, const FMetasoundFrontendClass& InClass) const
 	{
-		FOutputNodeConstrutorParams InitParams =
-		{
-			InDescription.Name,
-			InDescription.Name,
-		};
+		check(InClass.Metadata.Type == EMetasoundFrontendClassType::Output);
+		check(InNode.ClassID == InClass.ID);
 
-		return FMetasoundFrontendRegistryContainer::Get()->ConstructOutputNode(InDescription.TypeName, InitParams);
+		if (ensure(InNode.Interface.Outputs.Num() == 1))
+		{
+			const FMetasoundFrontendVertex& OutputVertex = InNode.Interface.Outputs[0];
+
+			FOutputNodeConstructorParams InitParams =
+			{
+				InNode.Name,
+				OutputVertex.Name,
+			};
+
+			// TODO: create output node using external class definition
+			return FMetasoundFrontendRegistryContainer::Get()->ConstructOutputNode(OutputVertex.TypeName, InitParams);
+		}
+		return TUniquePtr<INode>(nullptr);
 	}
 
-	TUniquePtr<INode> FFrontendGraphBuilder::CreateExternalNode(const FMetasoundNodeDescription& InNode, const FMetasoundClassDescription& InClass) const
+	TUniquePtr<INode> FFrontendGraphBuilder::CreateExternalNode(const FMetasoundFrontendNode& InNode, const FMetasoundFrontendClass& InClass) const
 	{
-		check(InClass.Metadata.NodeType == EMetasoundClassType::External);
-		check(InNode.ObjectTypeOfNode == EMetasoundClassType::External);
-
-		// We found a match. now we just need to create the input node.
-		const FMetasoundExternalClassLookupInfo& LookupInfo = InClass.ExternalNodeClassLookupInfo;
+		check(InClass.Metadata.Type == EMetasoundFrontendClassType::External);
+		check(InNode.ClassID == InClass.ID);
 
 		FNodeInitData InitData;
 
 		InitData.InstanceName.Append(InNode.Name);
 		InitData.InstanceName.AppendChar('_');
-		InitData.InstanceName.AppendInt(InNode.UniqueID);
-		
+		InitData.InstanceName.AppendInt(InNode.ID);
+
 		// Copy over our initialization params.
+		/*
 		for (auto& StaticParamTuple : InNode.StaticParameters)
 		{
-			FDataTypeLiteralParam LiteralParam = Frontend::GetLiteralParam(StaticParamTuple.Value);
+			FLiteral LiteralParam = Frontend::GetLiteralParam(StaticParamTuple.Value);
 
 			if (LiteralParam.IsValid())
 			{
 				InitData.ParamMap.Add(StaticParamTuple.Key, MoveTemp(LiteralParam));
 			}
 		}
+		*/
+		
+		// TODO: handle check to see if node interface conforms to class interface here. 
+		// TODO: check to see if external object supports class interface.
 
-		return FMetasoundFrontendRegistryContainer::Get()->ConstructExternalNode(LookupInfo.ExternalNodeClassName, LookupInfo.ExternalNodeClassHash, InitData);
+		Metasound::Frontend::FNodeRegistryKey Key = FMetasoundFrontendRegistryContainer::GetRegistryKey(InClass.Metadata);
+
+		return FMetasoundFrontendRegistryContainer::Get()->ConstructExternalNode(Key.NodeName, Key.NodeHash, InitData);
+	}
+
+
+	const FMetasoundFrontendClassInput* FFrontendGraphBuilder::FindClassInputForInputNode(const FMetasoundFrontendGraphClass& InOwningGraph, const FMetasoundFrontendNode& InInputNode, int32& OutClassInputIndex) const
+	{
+		OutClassInputIndex = INDEX_NONE;
+
+		// TODO: assumes input node has exactly one input 
+		if (ensure(InInputNode.Interface.Inputs.Num() == 1))
+		{
+			const FName& TypeName = InInputNode.Interface.Inputs[0].TypeName;
+
+			auto IsMatchingInput = [&](const FMetasoundFrontendClassInput& GraphInput)
+			{
+				return (InInputNode.ID == GraphInput.NodeID);
+			};
+
+			OutClassInputIndex = InOwningGraph.Interface.Inputs.IndexOfByPredicate(IsMatchingInput);
+			if (INDEX_NONE != OutClassInputIndex)
+			{
+				return &InOwningGraph.Interface.Inputs[OutClassInputIndex];
+			}
+		}
+		return nullptr;
+	}
+
+	const FMetasoundFrontendClassOutput* FFrontendGraphBuilder::FindClassOutputForOutputNode(const FMetasoundFrontendGraphClass& InOwningGraph, const FMetasoundFrontendNode& InOutputNode, int32& OutClassOutputIndex) const
+	{
+		OutClassOutputIndex = INDEX_NONE;
+
+		// TODO: assumes input node has exactly one input 
+		if (ensure(InOutputNode.Interface.Outputs.Num() == 1))
+		{
+			const FName& TypeName = InOutputNode.Interface.Outputs[0].TypeName;
+
+			auto IsMatchingOutput = [&](const FMetasoundFrontendClassOutput& GraphOutput)
+			{
+				return (InOutputNode.ID == GraphOutput.NodeID);
+			};
+
+			OutClassOutputIndex = InOwningGraph.Interface.Outputs.IndexOfByPredicate(IsMatchingOutput);
+			if (INDEX_NONE != OutClassOutputIndex)
+			{
+				return &InOwningGraph.Interface.Outputs[OutClassOutputIndex];
+			}
+		}
+		return nullptr;
+	}
+
+	const FMetasoundFrontendVertexLiteral* FFrontendGraphBuilder::FindInputLiteralForInputNode(const FMetasoundFrontendNode& InInputNode, const FMetasoundFrontendClass& InInputNodeClass, const FMetasoundFrontendClassInput& InOwningGraphClassInput) const
+	{
+		// Default value priority is:
+		// 1. A value set directly on the node
+		// 2. A default value of the owning graph
+		// 3. A default value on the input node class.
+
+		const FMetasoundFrontendVertexLiteral* VertexLiteral = nullptr;
+
+		// Check for default value directly on node.
+		if (ensure(InInputNode.Interface.Inputs.Num() == 1))
+		{
+			const FMetasoundFrontendVertex& InputVertex = InInputNode.Interface.Inputs[0];
+
+			// Currently only support one point on input vertex.
+			if (ensure(InputVertex.PointIDs.Num() == 1))
+			{
+				VertexLiteral = InInputNode.InputLiterals.FindByPredicate(
+					[&](const FMetasoundFrontendVertexLiteral& InVertexLiteral)
+					{
+						return InVertexLiteral.PointID == InputVertex.PointIDs[0];
+					}
+				);
+			}
+		}
+
+		// Check for default value on owning graph.
+		if (nullptr == VertexLiteral)
+		{
+			if (ensure(InOwningGraphClassInput.PointIDs.Num() == 1))
+			{
+				int32 PointID = InOwningGraphClassInput.PointIDs[0];
+
+				VertexLiteral = InOwningGraphClassInput.Defaults.FindByPredicate(
+					[&](const FMetasoundFrontendVertexLiteral& InVertexLiteral)
+					{
+						return InVertexLiteral.PointID == PointID;
+					}
+				);
+			}
+		}
+
+		// Check for default value on input node class
+		if (nullptr == VertexLiteral && ensure(InInputNodeClass.Interface.Inputs.Num() == 1))
+		{
+			const FMetasoundFrontendClassInput& InputNodeClassInput = InInputNodeClass.Interface.Inputs[0];
+
+			if (ensure(InputNodeClassInput.PointIDs.Num() == 1))
+			{
+				int32 PointID = InputNodeClassInput.PointIDs[0];
+
+				VertexLiteral = InputNodeClassInput.Defaults.FindByPredicate(
+					[&](const FMetasoundFrontendVertexLiteral& InVertexLiteral)
+					{
+						return InVertexLiteral.PointID == PointID;
+					}
+				);
+			}
+		}
+
+		return VertexLiteral;
 	}
 
 	// TODO: add errors here. Most will be a "PromptIfMissing"...
-	void FFrontendGraphBuilder::AddExternalNodesToGraph(const TArray<FMetasoundNodeDescription>& InNodes, const TMap<int32, const FMetasoundClassDescription*>& InClasses, FFrontendGraph& OutGraph) const
+	void FFrontendGraphBuilder::AddNodesToGraph(const FMetasoundFrontendGraphClass& InGraphClass, const TMap<int32, const FMetasoundFrontendClass*>& InClasses, FFrontendGraph& OutGraph) const
 	{
-		for (const FMetasoundNodeDescription& Node : InNodes)
+		for (const FMetasoundFrontendNode& Node : InGraphClass.Graph.Nodes)
 		{
-			if (Node.ObjectTypeOfNode == EMetasoundClassType::External)
-			{
-				const FMetasoundClassDescription* ClassDesc = InClasses.FindRef(Node.DependencyID);
+			const FMetasoundFrontendClass* NodeClass = InClasses.FindRef(Node.ClassID);
 
-				if (ensure(nullptr != ClassDesc))
+			if (ensure(nullptr != NodeClass))
+			{
+				switch (NodeClass->Metadata.Type)
 				{
-					OutGraph.AddNode(Node.UniqueID, CreateExternalNode(Node, *ClassDesc));
+					case EMetasoundFrontendClassType::Input:
+						{
+							int32 InputIndex = INDEX_NONE;
+							const FMetasoundFrontendClassInput* ClassInput = FindClassInputForInputNode(InGraphClass, Node, InputIndex);
+
+							if ((nullptr != ClassInput) && (INDEX_NONE != InputIndex))
+							{
+
+								OutGraph.AddInputNode(Node.ID, InputIndex, ClassInput->Name, CreateInputNode(Node, *NodeClass, *ClassInput));
+							}
+							else
+							{
+								UE_LOG(LogMetasound, Error, TEXT("Failed to match input node [NodeID:%d, NodeName:%s] to owning graph [ClassID:%d] output."), Node.ID, *Node.Name, InGraphClass.ID);
+							}
+						}
+
+						break;
+
+					case EMetasoundFrontendClassType::Output:
+						{
+							int32 OutputIndex = INDEX_NONE;
+							const FMetasoundFrontendClassOutput* ClassOutput = FindClassOutputForOutputNode(InGraphClass, Node, OutputIndex);
+
+							if ((nullptr != ClassOutput) && (INDEX_NONE != OutputIndex))
+							{
+								OutGraph.AddOutputNode(Node.ID, OutputIndex, ClassOutput->Name, CreateOutputNode(Node, *NodeClass));
+							}
+							else
+							{
+								UE_LOG(LogMetasound, Error, TEXT("Failed to match output node [NodeID:%d, NodeName:%s] to owning graph [ClassID:%d] output."), Node.ID, *Node.Name, InGraphClass.ID);
+							}
+						}
+
+						break;
+
+					default:
+						OutGraph.AddNode(Node.ID, CreateExternalNode(Node, *NodeClass));
 				}
 			}
 		}
 	}
 
-	void FFrontendGraphBuilder::AddEdgesToGraph(const FMetasoundGraphDescription& InGraphDescription, FFrontendGraph& OutGraph) const
+	void FFrontendGraphBuilder::AddEdgesToGraph(const FMetasoundFrontendGraph& InFrontendGraph, FFrontendGraph& OutGraph) const
 	{
-		for (const FMetasoundNodeDescription& NodeDescription : InGraphDescription.Nodes)
+		// Pair of frontend node and core node. The frontend node can be one of
+		// several types.
+		struct FCoreNodeAndFrontendVertex
 		{
-			const INode* ToNode = OutGraph.FindNode(NodeDescription.UniqueID);
+			const INode* Node = nullptr;
+			const FMetasoundFrontendVertex* Vertex = nullptr;
+		};
 
-			if (nullptr == ToNode)
+		// TODO: add support for array vertices.
+		typedef TTuple<int32, int32> FNodeIDPointID;
+
+		TMap<FNodeIDPointID, FCoreNodeAndFrontendVertex> NodeSourcesByID;
+		TMap<FNodeIDPointID, FCoreNodeAndFrontendVertex> NodeDestinationsByID;
+
+		// Add nodes to NodeID/PointID map
+		for (const FMetasoundFrontendNode& Node : InFrontendGraph.Nodes)
+		{
+			const INode* CoreNode = OutGraph.FindNode(Node.ID);
+			if (nullptr == CoreNode)
 			{
-				// TODO: log errror. 
+				UE_LOG(LogMetasound, Display, TEXT("Could not find referenced node [ID:%d]"), Node.ID);
 				continue;
 			}
 
-			for (const FMetasoundNodeConnectionDescription& InputConnection : NodeDescription.InputConnections)
+			for (const FMetasoundFrontendVertex& Vertex : Node.Interface.Inputs)
 			{
-				const bool bIsConnected = InputConnection.NodeID != FMetasoundNodeConnectionDescription::DisconnectedNodeID;
-				if (!bIsConnected)
+				for (int32 PointID : Vertex.PointIDs)
 				{
-					continue;
+					NodeDestinationsByID.Add(FNodeIDPointID(Node.ID, PointID), FCoreNodeAndFrontendVertex({CoreNode, &Vertex}));
 				}
+			}
 
-				const INode* FromNode = OutGraph.FindNode(InputConnection.NodeID);
-				if (nullptr == FromNode)
+			for (const FMetasoundFrontendVertex& Vertex : Node.Interface.Outputs)
+			{
+				for (int32 PointID : Vertex.PointIDs)
 				{
-					// TODO: log error.
-					continue;
+					NodeSourcesByID.Add(FNodeIDPointID(Node.ID, PointID), FCoreNodeAndFrontendVertex({CoreNode, &Vertex}));
 				}
-
-				OutGraph.AddDataEdge(*FromNode, *InputConnection.OutputName, *ToNode, *InputConnection.InputName);
 			}
-		}
-	}
+		};
+		
 
-	void FFrontendGraphBuilder::AddInputDestinationsToGraph(const TArray<FMetasoundInputDescription>& InInputDescriptions, const TArray<FMetasoundNodeDescription>& InNodes, FFrontendGraph& OutGraph) const
-	{
-		for (int32 InputIndex = 0; InputIndex < InInputDescriptions.Num(); InputIndex++)
+		for (const FMetasoundFrontendEdge& Edge : InFrontendGraph.Edges)
 		{
-			const FMetasoundInputDescription& InputDescription = InInputDescriptions[InputIndex];
+			const FNodeIDPointID DestinationKey(Edge.ToNodeID, Edge.ToPointID);
+			const FCoreNodeAndFrontendVertex* DestinationNodeAndVertex = NodeDestinationsByID.Find(DestinationKey);
 
-			auto IsInputWithSameName = [&](const FMetasoundNodeDescription& InNode) 
-			{ 
-				return (InNode.Name == InputDescription.Name) && (InNode.ObjectTypeOfNode == EMetasoundClassType::Input);
-			};
-
-			const FMetasoundNodeDescription* NodeDescription = InNodes.FindByPredicate(IsInputWithSameName);
-
-			if (nullptr == NodeDescription)
+			if (nullptr == DestinationNodeAndVertex)
 			{
-				// TODO: add error.
+				// TODO: bubble up error
+				UE_LOG(LogMetasound, Error, TEXT("Failed to add edge. Could not find destination [NodeID:%d, PointID:%d]"), Edge.ToNodeID, Edge.ToPointID);
 				continue;
 			}
 
-			OutGraph.AddInputNode(NodeDescription->UniqueID, InputIndex, InputDescription.Name, CreateInputNode(*NodeDescription, InputDescription));
-		}
-	}
-
-	void FFrontendGraphBuilder::AddOutputSourcesToGraph(const TArray<FMetasoundOutputDescription>& InOutputDescriptions, const TArray<FMetasoundNodeDescription>& InNodes, FFrontendGraph& OutGraph) const
-	{
-		for (int32 OutputIndex = 0; OutputIndex < InOutputDescriptions.Num(); OutputIndex++)
-		{
-			const FMetasoundOutputDescription& OutputDescription = InOutputDescriptions[OutputIndex];
-
-			auto IsOutputWithSameName = [&](const FMetasoundNodeDescription& InNode) 
-			{ 
-				return (InNode.Name == OutputDescription.Name) && (InNode.ObjectTypeOfNode == EMetasoundClassType::Output);
-			};
-
-			const FMetasoundNodeDescription* NodeDescription = InNodes.FindByPredicate(IsOutputWithSameName);
-
-			if (nullptr == NodeDescription)
+			if (nullptr == DestinationNodeAndVertex->Node)
 			{
-				// TODO: add error.
+				// TODO: bubble up error
+				UE_LOG(LogMetasound, Warning, TEXT("Skipping edge. Null destination node [ID:%d]"), Edge.ToNodeID);
 				continue;
 			}
 
-			OutGraph.AddOutputNode(NodeDescription->UniqueID, OutputIndex, OutputDescription.Name, CreateOutputNode(*NodeDescription, OutputDescription));
-		}
-	}
+			const FNodeIDPointID SourceKey(Edge.FromNodeID, Edge.FromPointID);
+			const FCoreNodeAndFrontendVertex* SourceNodeAndVertex = NodeSourcesByID.Find(SourceKey);
 
-	void FFrontendGraphBuilder::SplitNodesByType(const TArray<FMetasoundNodeDescription>& InNodes, TArray<FMetasoundNodeDescription>& OutExternalNodes, TArray<FMetasoundNodeDescription>& OutInputNodes, TArray<FMetasoundNodeDescription>& OutOutputNodes) const
-	{
-		for (const FMetasoundNodeDescription& Node : InNodes)
-		{
-			switch (Node.ObjectTypeOfNode)
+			if (nullptr == SourceNodeAndVertex)
 			{
-				case EMetasoundClassType::External:
+				UE_LOG(LogMetasound, Error, TEXT("Failed to add edge. Could not find source [NodeID:%d, PointID:%d]"), Edge.FromNodeID, Edge.FromPointID);
+				continue;
+			}
 
-					OutExternalNodes.Add(Node);
-					break;
+			if (nullptr == SourceNodeAndVertex->Node)
+			{
+				// TODO: bubble up error
+				UE_LOG(LogMetasound, Warning, TEXT("Skipping edge. Null source node [ID:%d]"), Edge.FromNodeID);
+				continue;
+			}
 
-				case EMetasoundClassType::Input:
+			const INode* FromNode = SourceNodeAndVertex->Node;
+			const FVertexKey FromVertexKey = SourceNodeAndVertex->Vertex->Name;
 
-					OutInputNodes.Add(Node);
-					break;
+			const INode* ToNode = DestinationNodeAndVertex->Node;
+			const FVertexKey ToVertexKey = DestinationNodeAndVertex->Vertex->Name;
 
-				case EMetasoundClassType::Output:
+			bool bSuccess = OutGraph.AddDataEdge(*FromNode, FromVertexKey,  *ToNode, ToVertexKey);
 
-					OutOutputNodes.Add(Node);
-					break;
-
-				default:
-					checkNoEntry();
+			if (!bSuccess)
+			{
+				UE_LOG(LogMetasound, Error, TEXT("Failed to connect edge from [NodeID:%d, PointID:%d] to [NodeID:%d, PointID:%d]"), Edge.FromNodeID, Edge.FromPointID, Edge.ToNodeID, Edge.ToPointID);
 			}
 		}
 	}
 
 	/** Check that all dependencies are C++ class dependencies. */
-	bool FFrontendGraphBuilder::IsFlat(const FMetasoundDocument& InDocument) const
+	bool FFrontendGraphBuilder::IsFlat(const FMetasoundFrontendDocument& InDocument) const
 	{
-		return IsFlat(InDocument.RootClass, InDocument.Dependencies);
+		if (InDocument.Subgraphs.Num() > 0)
+		{
+			return false;
+		}
+
+		return IsFlat(InDocument.RootGraph, InDocument.Dependencies);
 	}
 
-	bool FFrontendGraphBuilder::IsFlat(const FMetasoundClassDescription& InRoot, const TArray<FMetasoundClassDescription>& InDependencies) const
+	bool FFrontendGraphBuilder::IsFlat(const FMetasoundFrontendGraphClass& InRoot, const TArray<FMetasoundFrontendClass>& InDependencies) const
 	{
 		// All dependencies are external dependencies in a flat graph
-		auto IsClassExternal = [&](const FMetasoundClassDescription& InDesc) { return InDesc.Metadata.NodeType == EMetasoundClassType::External; };
+		auto IsClassExternal = [&](const FMetasoundFrontendClass& InDesc) 
+		{ 
+			bool bIsExternal = (InDesc.Metadata.Type == EMetasoundFrontendClassType::External) ||
+				(InDesc.Metadata.Type == EMetasoundFrontendClassType::Input) ||
+				(InDesc.Metadata.Type == EMetasoundFrontendClassType::Output);
+			return bIsExternal;
+		};
 		const bool bIsEveryDependencyExternal = Algo::AllOf(InDependencies, IsClassExternal);
 
 		if (!bIsEveryDependencyExternal)
@@ -340,74 +521,54 @@ namespace Metasound
 			return false;
 		}
 
-		// None of the nodes are subgraphs in a flat graph
-		auto IsGraphNode = [&](const FMetasoundNodeDescription& InDesc) { return InDesc.ObjectTypeOfNode == EMetasoundClassType::MetasoundGraph; };
-		const bool bIsAnyNodeAGraph = Algo::AnyOf(InRoot.Graph.Nodes, IsGraphNode);
-
-		if (bIsAnyNodeAGraph)
-		{
-			return false;
-		}
-
-		// All the dependencies are available in a flat graph.
+		// All the dependencies are met 
 		TSet<int32> AvailableDependencies;
-		Algo::Transform(InDependencies, AvailableDependencies, [](const FMetasoundClassDescription& InDesc) { return InDesc.UniqueID; });
+		Algo::Transform(InDependencies, AvailableDependencies, [](const FMetasoundFrontendClass& InDesc) { return InDesc.ID; });
 
-		auto IsDependencyMet = [&](const FMetasoundNodeDescription& InNode) 
+		auto IsDependencyMet = [&](const FMetasoundFrontendNode& InNode) 
 		{ 
-			// Currently, input/output nodes do not have dependencies. This may change.
-			const bool bIsInputOrOutput = (InNode.ObjectTypeOfNode == EMetasoundClassType::Input) || (InNode.ObjectTypeOfNode == EMetasoundClassType::Output);
-			const bool bIsExternal = InNode.ObjectTypeOfNode == EMetasoundClassType::External;
-
-			return bIsInputOrOutput || (bIsExternal && AvailableDependencies.Contains(InNode.DependencyID));
+			return AvailableDependencies.Contains(InNode.ClassID);
 		};
 
 		const bool bIsEveryDependencyMet = Algo::AllOf(InRoot.Graph.Nodes, IsDependencyMet);
+
 		return bIsEveryDependencyMet;
 	}
 
-	
-	/* Metasound document should be inflated by now. */
-	TUniquePtr<FFrontendGraph> FFrontendGraphBuilder::CreateGraph(const FMetasoundDocument& InDocument) const
+	TUniquePtr<FFrontendGraph> FFrontendGraphBuilder::CreateGraph(const FMetasoundFrontendGraphClass& InGraph, const TArray<FMetasoundFrontendGraphClass>& InSubgraphs, const TArray<FMetasoundFrontendClass>& InDependencies) const
 	{
-		return CreateGraph(InDocument.RootClass, InDocument.Dependencies);
-	}
-
-	TUniquePtr<FFrontendGraph> FFrontendGraphBuilder::CreateGraph(const FMetasoundClassDescription& InRoot, const TArray<FMetasoundClassDescription>& InDependencies) const
-	{
-		if (!IsFlat(InRoot, InDependencies))
+		if (!IsFlat(InGraph, InDependencies))
 		{
-			checkNoEntry();
+			// Likely this will change in the future and the builder will be able
+			// to build graphs with subgraphs..
+			UE_LOG(LogMetasound, Error, TEXT("Provided graph not flat. FFrontendGraphBuilder can only build flat graphs"));
 			return TUniquePtr<FFrontendGraph>(nullptr);
 		}
 
-		TUniquePtr<FFrontendGraph> Graph = MakeUnique<FFrontendGraph>(InRoot.Metadata.NodeName);
 
-		TMap<int32, const FMetasoundClassDescription*> NodeMap;
+		TMap<int32, const FMetasoundFrontendClass*> ClassMap;
 
-		for (const FMetasoundClassDescription& InDesc : InDependencies)
+		for (const FMetasoundFrontendClass& ExtClass : InDependencies)
 		{
-			NodeMap.Add(InDesc.UniqueID, &InDesc);
+			ClassMap.Add(ExtClass.ID, &ExtClass);
 		}
 
-		TArray<FMetasoundNodeDescription> ExternalNodes;
-		TArray<FMetasoundNodeDescription> InputNodes;
-		TArray<FMetasoundNodeDescription> OutputNodes;
-
-		SplitNodesByType(InRoot.Graph.Nodes, ExternalNodes, InputNodes, OutputNodes);
+		TUniquePtr<FFrontendGraph> MetasoundGraph = MakeUnique<FFrontendGraph>(InGraph.Metadata.Name.Name);
 
 		// TODO: will likely want to bubble up errors here for case where
 		// a datatype or node is not registered. 
-		AddExternalNodesToGraph(ExternalNodes, NodeMap, *Graph);
+		AddNodesToGraph(InGraph, ClassMap, *MetasoundGraph);
 
-		AddInputDestinationsToGraph(InRoot.Inputs, InputNodes, *Graph);
+		AddEdgesToGraph(InGraph.Graph, *MetasoundGraph);
 
-		AddOutputSourcesToGraph(InRoot.Outputs, OutputNodes, *Graph);
+		check(MetasoundGraph->OwnsAllReferencedNodes());
 
-		AddEdgesToGraph(InRoot.Graph, *Graph);
-
-		check(Graph->OwnsAllReferencedNodes());
-
-		return MoveTemp(Graph);
+		return MoveTemp(MetasoundGraph);
+	}
+	
+	/* Metasound document should be inflated by now. */
+	TUniquePtr<FFrontendGraph> FFrontendGraphBuilder::CreateGraph(const FMetasoundFrontendDocument& InDocument) const
+	{
+		return CreateGraph(InDocument.RootGraph, InDocument.Subgraphs, InDocument.Dependencies);
 	}
 }

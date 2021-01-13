@@ -5,6 +5,7 @@
 #include "Algo/Copy.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Async/Async.h"
+#include "Async/TaskGraphInterfaces.h"
 #include "CoreMinimal.h"
 #include "UObject/Object.h"
 
@@ -46,7 +47,7 @@ namespace Metasound
 				return Classes;
 			}
 
-			UObject* NewObject(UClass* InClass, const FMetasoundDocument& InDocument, const FString& InPath) const override
+			UObject* NewObject(UClass* InClass, const FMetasoundFrontendDocument& InDocument, const FString& InPath) const override
 			{
 				auto IsChildClassOfRegisteredClass = [&](const IMetasoundUObjectRegistryEntry* Entry)
 				{
@@ -57,7 +58,7 @@ namespace Metasound
 
 				for (const IMetasoundUObjectRegistryEntry* Entry : EntriesForClass)
 				{
-					if (Entry->GetArchetypeName() == InDocument.Archetype.ArchetypeName)
+					if (Entry->GetArchetypeName() == InDocument.Archetype.Name)
 					{
 						return NewObject(*Entry, InDocument, InPath);
 					}
@@ -91,7 +92,7 @@ namespace Metasound
 			}
 
 		private:
-			UObject* NewObject(const IMetasoundUObjectRegistryEntry& InEntry, const FMetasoundDocument& InDocument, const FString& InPath) const
+			UObject* NewObject(const IMetasoundUObjectRegistryEntry& InEntry, const FMetasoundFrontendDocument& InDocument, const FString& InPath) const
 			{
 				UPackage* PackageToSaveTo = nullptr;
 
@@ -114,7 +115,7 @@ namespace Metasound
 					PackageToSaveTo = GetTransientPackage();
 				}
 
-				UObject* NewMetasoundObject = InEntry.NewObject(PackageToSaveTo, *InDocument.RootClass.Metadata.NodeName);
+				UObject* NewMetasoundObject = InEntry.NewObject(PackageToSaveTo, *InDocument.RootGraph.Metadata.Name.GetFullName());
 				FMetasoundAssetBase* NewAssetBase = InEntry.Cast(NewMetasoundObject);
 				if (ensure(nullptr != NewAssetBase))
 				{

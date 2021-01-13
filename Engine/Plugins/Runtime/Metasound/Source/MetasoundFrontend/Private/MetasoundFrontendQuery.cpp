@@ -4,7 +4,7 @@
 
 #include "Algo/Sort.h"
 #include "CoreMinimal.h"
-#include "MetasoundFrontendDataLayout.h"
+#include "MetasoundFrontendDocument.h"
 
 namespace Metasound
 {

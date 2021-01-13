@@ -21,13 +21,13 @@ UObject* UMetasoundFactory::FactoryCreateNew(UClass* InClass, UObject* InParent,
 {
 	UMetasound* NewMetasound = NewObject<UMetasound>(InParent, Name, Flags);
 
-	FMetasoundClassMetadata Metadata;
+	FMetasoundFrontendClassMetadata Metadata;
 
-	Metadata.NodeName = NewMetasound->GetName();
-	Metadata.MajorVersion = 1;
-	Metadata.MinorVersion = 0;
-	Metadata.NodeType = EMetasoundClassType::MetasoundGraph;
-	Metadata.AuthorName = FText::FromString(UKismetSystemLibrary::GetPlatformUserName());
+	Metadata.Name = FMetasoundFrontendClassName{TEXT(""), NewMetasound->GetName(), TEXT("")};
+	Metadata.Version.Major = 1;
+	Metadata.Version.Minor = 0;
+	Metadata.Type = EMetasoundFrontendClassType::Graph;
+	Metadata.Author = FText::FromString(UKismetSystemLibrary::GetPlatformUserName());
 
 	NewMetasound->SetMetadata(Metadata);
 
@@ -50,13 +50,13 @@ UObject* UMetasoundSourceFactory::FactoryCreateNew(UClass* InClass, UObject* InP
 {
 	UMetasoundSource* MetasoundSource = NewObject<UMetasoundSource>(InParent, Name, Flags);
 
-	FMetasoundClassMetadata Metadata;
+	FMetasoundFrontendClassMetadata Metadata;
 
-	Metadata.NodeName = MetasoundSource->GetName();
-	Metadata.MajorVersion = 1;
-	Metadata.MinorVersion = 0;
-	Metadata.NodeType = EMetasoundClassType::MetasoundGraph;
-	Metadata.AuthorName = FText::FromString(UKismetSystemLibrary::GetPlatformUserName());
+	Metadata.Name = FMetasoundFrontendClassName{TEXT(""), MetasoundSource->GetName(), TEXT("")};
+	Metadata.Version.Major = 1;
+	Metadata.Version.Minor = 0;
+	Metadata.Type = EMetasoundFrontendClassType::Graph;
+	Metadata.Author = FText::FromString(UKismetSystemLibrary::GetPlatformUserName());
 
 	MetasoundSource->SetMetadata(Metadata);
 

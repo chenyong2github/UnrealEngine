@@ -3,7 +3,7 @@
 
 #include "CoreMinimal.h"
 #include "MetasoundFrontend.h"
-#include "MetasoundFrontendDataLayout.h"
+#include "MetasoundFrontendDocument.h"
 #include "MetasoundAssetBase.h"
 
 
@@ -30,15 +30,13 @@ class METASOUNDENGINE_API UMetasound : public UObject, public FMetasoundAssetBas
 
 protected:
 	UPROPERTY(EditAnywhere, Category = CustomView)
-	FMetasoundDocument MetasoundDocument;
-
-	Metasound::Frontend::FAccessPoint MetasoundDocumentAccessPoint;
+	FMetasoundFrontendDocument MetasoundDocument;
 
 	// Returns document object responsible for serializing asset
-	Metasound::Frontend::TAccessPtr<FMetasoundDocument> GetDocument() override;
+	Metasound::Frontend::TAccessPtr<FMetasoundFrontendDocument> GetDocument() override;
 
 	// Returns document object responsible for serializing asset
-	Metasound::Frontend::TAccessPtr<const FMetasoundDocument> GetDocument() const override;
+	Metasound::Frontend::TAccessPtr<const FMetasoundFrontendDocument> GetDocument() const override;
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
@@ -77,15 +75,15 @@ public:
 		return const_cast<UObject*>(CastChecked<const UObject>(this));
 	}
 
-	const TArray<FMetasoundArchetype>& GetPreferredArchetypes() const override;
+	const TArray<FMetasoundFrontendArchetype>& GetPreferredArchetypes() const override;
 
-	bool IsArchetypeSupported(const FMetasoundArchetype& InArchetype) const override;
+	bool IsArchetypeSupported(const FMetasoundFrontendArchetype& InArchetype) const override;
 
-	const FMetasoundArchetype& GetPreferredArchetype(const FMetasoundDocument& InDocument) const override;
+	const FMetasoundFrontendArchetype& GetPreferredArchetype(const FMetasoundFrontendDocument& InDocument) const override;
 
 	// Updates the Metasound's metadata (name, author, etc).
 	// @param InMetadata Metadata containing corrections to the class metadata.
-	void SetMetadata(FMetasoundClassMetadata& InMetadata) override;
+	void SetMetadata(FMetasoundFrontendClassMetadata& InMetadata) override;
 
 	void PostLoad() override;
 

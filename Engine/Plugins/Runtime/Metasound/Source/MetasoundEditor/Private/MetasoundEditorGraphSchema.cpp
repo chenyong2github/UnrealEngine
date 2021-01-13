@@ -341,43 +341,54 @@ const FPinConnectionResponse UMetasoundEditorGraphSchema::CanCreateConnection(co
 		return FPinConnectionResponse(CONNECT_RESPONSE_DISALLOW, LOCTEXT("ConnectionTypeIncorrect", "Connection pin types do not match"));
 	}
 
+	// TODO: use IDs to connect rather than names. Likely needs a UMetasoundEditorGraphPin
+	//int32 InputPointID = InputPin->GetMetasoundPointID();
+	//int32 InputPointID = OutputPin->GetMetasoundPointID();
+
 	UMetasoundEditorGraphNode* InputGraphNode = CastChecked<UMetasoundEditorGraphNode>(InputPin->GetOwningNode());
 	Metasound::Frontend::FNodeHandle InputNodeHandle = InputGraphNode->GetNodeHandle();
-	Metasound::Frontend::FInputHandle InputHandle = InputNodeHandle.GetInputWithName(InputPin->GetName());
+	TArray<Metasound::Frontend::FInputHandle> InputHandles = InputNodeHandle->GetInputsWithVertexName(InputPin->GetName());
 
 	UMetasoundEditorGraphNode* OutputGraphNode = CastChecked<UMetasoundEditorGraphNode>(OutputPin->GetOwningNode());
 	Metasound::Frontend::FNodeHandle OutputNodeHandle = OutputGraphNode->GetNodeHandle();
-	Metasound::Frontend::FOutputHandle OutputHandle = OutputNodeHandle.GetOutputWithName(OutputPin->GetName());
+	TArray<Metasound::Frontend::FOutputHandle> OutputHandles = OutputNodeHandle->GetOutputsWithVertexName(OutputPin->GetName());
 
-	// TODO: Implement YesWithConverterNode to provide conversion options
-	Metasound::Frontend::FConnectability Connectability = InputHandle.CanConnectTo(OutputHandle);
-	if (Connectability.Connectable != Metasound::Frontend::FConnectability::EConnectable::Yes)
+	if (ensure((InputHandles.Num() == 1) && (OutputHandles.Num() == 1)))
 	{
-		const FName InputType = InputHandle.GetInputType();
-		const FName OutputType = OutputHandle.GetOutputType();
-		return FPinConnectionResponse(CONNECT_RESPONSE_DISALLOW, FText::Format(
-			LOCTEXT("ConnectionTypeIncompatibleFormat", "Output pin of type '{0}' cannot be connected to input pin of type '{1}'"),
-			FText::FromName(OutputType),
-			FText::FromName(InputType)
-		));
+		Metasound::Frontend::FInputHandle InputHandle = InputHandles[0];
+		Metasound::Frontend::FOutputHandle OutputHandle = OutputHandles[0];
+		// TODO: Implement YesWithConverterNode to provide conversion options
+		Metasound::Frontend::FConnectability Connectability = InputHandle->CanConnectTo(*OutputHandle);
+		if (Connectability.Connectable != Metasound::Frontend::FConnectability::EConnectable::Yes)
+		{
+			const FName InputType = InputHandle->GetDataType();
+			const FName OutputType = OutputHandle->GetDataType();
+			return FPinConnectionResponse(CONNECT_RESPONSE_DISALLOW, FText::Format(
+				LOCTEXT("ConnectionTypeIncompatibleFormat", "Output pin of type '{0}' cannot be connected to input pin of type '{1}'"),
+				FText::FromName(OutputType),
+				FText::FromName(InputType)
+			));
+		}
+
+		// Break existing connections on inputs only - multiple output connections are acceptable
+		if (InputPin->LinkedTo.Num() > 0)
+		{
+			ECanCreateConnectionResponse ReplyBreakOutputs;
+			if (InputPin == PinA)
+			{
+				ReplyBreakOutputs = CONNECT_RESPONSE_BREAK_OTHERS_A;
+			}
+			else
+			{
+				ReplyBreakOutputs = CONNECT_RESPONSE_BREAK_OTHERS_B;
+			}
+			return FPinConnectionResponse(ReplyBreakOutputs, LOCTEXT("ConnectionReplace", "Replace existing connections"));
+		}
+
+		return FPinConnectionResponse(CONNECT_RESPONSE_MAKE, TEXT(""));
 	}
 
-	// Break existing connections on inputs only - multiple output connections are acceptable
-	if (InputPin->LinkedTo.Num() > 0)
-	{
-		ECanCreateConnectionResponse ReplyBreakOutputs;
-		if (InputPin == PinA)
-		{
-			ReplyBreakOutputs = CONNECT_RESPONSE_BREAK_OTHERS_A;
-		}
-		else
-		{
-			ReplyBreakOutputs = CONNECT_RESPONSE_BREAK_OTHERS_B;
-		}
-		return FPinConnectionResponse(ReplyBreakOutputs, LOCTEXT("ConnectionReplace", "Replace existing connections"));
-	}
-
-	return FPinConnectionResponse(CONNECT_RESPONSE_MAKE, TEXT(""));
+	return FPinConnectionResponse(CONNECT_RESPONSE_DISALLOW, LOCTEXT("ConnectionInternalError", "Internal error. Metasound node vertex handle mismatch."));
 }
 
 bool UMetasoundEditorGraphSchema::TryCreateConnection(UEdGraphPin* PinA, UEdGraphPin* PinB) const
@@ -394,17 +405,23 @@ bool UMetasoundEditorGraphSchema::TryCreateConnection(UEdGraphPin* PinA, UEdGrap
 	{
 		UMetasoundEditorGraphNode* InputGraphNode = CastChecked<UMetasoundEditorGraphNode>(InputPin->GetOwningNode());
 		Metasound::Frontend::FNodeHandle InputNodeHandle = InputGraphNode->GetNodeHandle();
-		Metasound::Frontend::FInputHandle InputHandle = InputNodeHandle.GetInputWithName(InputPin->GetName());
+		TArray<Metasound::Frontend::FInputHandle> InputHandles = InputNodeHandle->GetInputsWithVertexName(InputPin->GetName());
 
 		UMetasoundEditorGraphNode* OutputGraphNode = CastChecked<UMetasoundEditorGraphNode>(OutputPin->GetOwningNode());
 		Metasound::Frontend::FNodeHandle OutputNodeHandle = OutputGraphNode->GetNodeHandle();
-		Metasound::Frontend::FOutputHandle OutputHandle = OutputNodeHandle.GetOutputWithName(OutputPin->GetName());
+		TArray<Metasound::Frontend::FOutputHandle> OutputHandles = OutputNodeHandle->GetOutputsWithVertexName(OutputPin->GetName());
 
-		// TODO: Implement YesWithConverterNode with selected conversion option
-		if (!ensure(InputHandle.Connect(OutputHandle)))
+		if (ensure((InputHandles.Num() == 1) && (OutputHandles.Num() == 1)))
 		{
-			InputPin->BreakLinkTo(PinB);
-			return false;
+			Metasound::Frontend::FInputHandle InputHandle = InputHandles[0];
+			Metasound::Frontend::FOutputHandle OutputHandle = OutputHandles[0];
+
+			// TODO: Implement YesWithConverterNode with selected conversion option
+			if (!ensure(InputHandle->Connect(*OutputHandle)))
+			{
+				InputPin->BreakLinkTo(PinB);
+				return false;
+			}
 		}
 	}
 	return bModified;
@@ -424,28 +441,42 @@ FText UMetasoundEditorGraphSchema::GetPinDisplayName(const UEdGraphPin* Pin) con
 
 	UMetasoundEditorGraphNode* Node = CastChecked<UMetasoundEditorGraphNode>(Pin->GetOwningNode());
 	FNodeHandle NodeHandle = Node->GetNodeHandle();
-	const EMetasoundClassType ClassType = NodeHandle.GetClassInfo().NodeType;
+	const EMetasoundFrontendClassType ClassType = NodeHandle->GetClassType();
 
 	switch (ClassType)
 	{
-		case EMetasoundClassType::Input:
+		case EMetasoundFrontendClassType::Input:
 		{
-			FGraphHandle GraphHandle = Node->GetRootGraphHandle();
-			return GraphHandle.GetInputDisplayName(NodeHandle.GetNodeName());
+			TArray<FOutputHandle> OutputHandles = NodeHandle->GetOutputsWithVertexName(Pin->GetName());
+			if (ensure(OutputHandles.Num() > 0))
+			{
+				return OutputHandles[0]->GetDisplayName();
+			}
+			else
+			{
+				return Super::GetPinDisplayName(Pin);
+			}
 		}
 
-		case EMetasoundClassType::Output:
+		case EMetasoundFrontendClassType::Output:
 		{
-			FGraphHandle GraphHandle = Node->GetRootGraphHandle();
-			return GraphHandle.GetOutputDisplayName(NodeHandle.GetNodeName());
+			TArray<FInputHandle> InputHandles = NodeHandle->GetInputsWithVertexName(Pin->GetName());
+			if (ensure(InputHandles.Num() > 0))
+			{
+				return InputHandles[0]->GetDisplayName();
+			}
+			else
+			{
+				return Super::GetPinDisplayName(Pin);
+			}
 		}
 
-		case EMetasoundClassType::External:
-		case EMetasoundClassType::MetasoundGraph:
-		case EMetasoundClassType::Invalid:
+		case EMetasoundFrontendClassType::External:
+		case EMetasoundFrontendClassType::Graph:
+		case EMetasoundFrontendClassType::Invalid:
 		default:
 		{
-			static_assert(static_cast<int32>(EMetasoundClassType::Invalid) == 4, "Possible missing EMetasoundClassType case coverage");
+			static_assert(static_cast<int32>(EMetasoundFrontendClassType::Invalid) == 4, "Possible missing EMetasoundFrontendClassType case coverage");
 			return Super::GetPinDisplayName(Pin);
 		}
 	}
@@ -466,21 +497,21 @@ void UMetasoundEditorGraphSchema::BreakNodeLinks(UEdGraphNode& TargetNode) const
 	Super::BreakNodeLinks(TargetNode);
 
 	FNodeHandle NodeHandle = CastChecked<UMetasoundEditorGraphNode>(&TargetNode)->GetNodeHandle();
-	const uint32 NodeID = NodeHandle.GetNodeID();
+	const uint32 NodeID = NodeHandle->GetID();
 
 	FGraphHandle GraphHandle = CastChecked<UMetasoundEditorGraphNode>(&TargetNode)->GetRootGraphHandle();
-	TArray<FNodeHandle> AllNodes = GraphHandle.GetAllNodes();
+	TArray<FNodeHandle> AllNodes = GraphHandle->GetNodes();
 	for (Metasound::Frontend::FNodeHandle& IterNode : AllNodes)
 	{
-		if (NodeID != IterNode.GetNodeID())
+		if (NodeID != IterNode->GetID())
 		{
-			TArray<FInputHandle> Inputs = IterNode.GetAllInputs();
+			TArray<FInputHandle> Inputs = IterNode->GetInputs();
 			for (FInputHandle& Input : Inputs)
 			{
-				FOutputHandle Output = Input.GetCurrentlyConnectedOutput();
-				if (Output.GetOwningNodeID() == NodeID)
+				FOutputHandle Output = Input->GetCurrentlyConnectedOutput();
+				if (Output->GetOwningNodeID() == NodeID)
 				{
-					Input.Disconnect(Output);
+					Input->Disconnect(*Output);
 				}
 			}
 		}
@@ -493,11 +524,12 @@ void UMetasoundEditorGraphSchema::BreakPinLinks(UEdGraphPin& TargetPin, bool bSe
 
 	const FScopedTransaction Transaction(NSLOCTEXT("UnrealEd", "GraphEd_BreakPinLinks", "Break Pin Links"));
 
+	TArray<FInputHandle> InputHandles;
+
 	if (TargetPin.Direction == EGPD_Input)
 	{
 		FNodeHandle NodeHandle = CastChecked<UMetasoundEditorGraphNode>(TargetPin.GetOwningNode())->GetNodeHandle();
-		FInputHandle InputHandle = NodeHandle.GetInputWithName(TargetPin.GetName());
-		InputHandle.Disconnect();
+		InputHandles = NodeHandle->GetInputsWithVertexName(TargetPin.GetName());
 	}
 	else
 	{
@@ -505,9 +537,13 @@ void UMetasoundEditorGraphSchema::BreakPinLinks(UEdGraphPin& TargetPin, bool bSe
 		for (UEdGraphPin* Pin : TargetPin.LinkedTo)
 		{
 			FNodeHandle NodeHandle = CastChecked<UMetasoundEditorGraphNode>(Pin->GetOwningNode())->GetNodeHandle();
-			FInputHandle InputHandle = NodeHandle.GetInputWithName(Pin->GetName());
-			InputHandle.Disconnect();
+			InputHandles.Append(NodeHandle->GetInputsWithVertexName(Pin->GetName()));
 		}
+	}
+
+	for (FInputHandle Handle : InputHandles)
+	{
+		Handle->Disconnect();
 	}
 
 	Super::BreakPinLinks(TargetPin, bSendsNodeNotifcation);
@@ -575,11 +611,11 @@ void UMetasoundEditorGraphSchema::GetAllMetasoundActions(FGraphActionMenuBuilder
 	const TArray<FNodeClassInfo> ClassInfos = GetAllAvailableNodeClasses();
 	for (const FNodeClassInfo& ClassInfo : ClassInfos)
 	{
-		const FMetasoundClassDescription ClassDescription = GenerateClassDescription(ClassInfo);
-		const FMetasoundClassMetadata Metadata = ClassDescription.Metadata;
-		const FText Tooltip = Metadata.AuthorName.IsEmpty()
-			? Metadata.MetasoundDescription
-			: FText::Format(LOCTEXT("MetasoundTooltipAuthorFormat", "{0}\nAuthor: {1}"), Metadata.MetasoundDescription, Metadata.AuthorName);
+		const FMetasoundFrontendClass ClassDescription = GenerateClassDescription(ClassInfo);
+		const FMetasoundFrontendClassMetadata Metadata = ClassDescription.Metadata;
+		const FText Tooltip = Metadata.Author.IsEmpty()
+			? Metadata.Description
+			: FText::Format(LOCTEXT("MetasoundTooltipAuthorFormat", "{0}\nAuthor: {1}"), Metadata.Description, Metadata.Author);
 
 		TSharedPtr<FMetasoundGraphSchemaAction_NewNode> NewNodeAction = MakeShared<FMetasoundGraphSchemaAction_NewNode>
 		(

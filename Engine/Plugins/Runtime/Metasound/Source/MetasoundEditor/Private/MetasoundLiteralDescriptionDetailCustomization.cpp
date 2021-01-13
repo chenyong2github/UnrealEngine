@@ -9,8 +9,8 @@
 #include "IDetailChildrenBuilder.h"
 #include "IDetailGroup.h"
 #include "Layout/Visibility.h"
-#include "MetasoundFrontendDataLayout.h"
 #include "MetasoundFrontend.h"
+#include "MetasoundFrontendDocument.h"
 #include "MetasoundFrontendRegistries.h"
 #include "Misc/AssertionMacros.h"
 #include "Misc/Attribute.h"
@@ -27,62 +27,62 @@ namespace Metasound
 {
 	namespace Editor
 	{
-		TSharedPtr<IPropertyHandle> GetLiteralHandleForType(TSharedRef<IPropertyHandle> StructPropertyHandle, EMetasoundLiteralType LiteralType)
+		TSharedPtr<IPropertyHandle> GetLiteralHandleForType(TSharedRef<IPropertyHandle> StructPropertyHandle, EMetasoundFrontendLiteralType LiteralType)
 		{
 			switch (LiteralType)
 			{
-			case EMetasoundLiteralType::Bool:
+			case EMetasoundFrontendLiteralType::Bool:
 			{
-				return StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FMetasoundLiteralDescription, AsBool));
+				return StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FMetasoundFrontendLiteral, AsBool));
 			}
 
-			case EMetasoundLiteralType::Float:
+			case EMetasoundFrontendLiteralType::Float:
 			{
-				return StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FMetasoundLiteralDescription, AsFloat));
+				return StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FMetasoundFrontendLiteral, AsFloat));
 			}
 
-			case EMetasoundLiteralType::Integer:
+			case EMetasoundFrontendLiteralType::Integer:
 			{
-				return StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FMetasoundLiteralDescription, AsInteger));
+				return StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FMetasoundFrontendLiteral, AsInteger));
 			}
 
-			case EMetasoundLiteralType::String:
+			case EMetasoundFrontendLiteralType::String:
 			{
-				return StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FMetasoundLiteralDescription, AsString));
+				return StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FMetasoundFrontendLiteral, AsString));
 			}
 
-			case EMetasoundLiteralType::UObject:
+			case EMetasoundFrontendLiteralType::UObject:
 			{
-				return StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FMetasoundLiteralDescription, AsUObject));
+				return StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FMetasoundFrontendLiteral, AsUObject));
 			}
 
-			case EMetasoundLiteralType::UObjectArray:
+			case EMetasoundFrontendLiteralType::UObjectArray:
 			{
-				return StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FMetasoundLiteralDescription, AsUObjectArray));
+				return StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FMetasoundFrontendLiteral, AsUObjectArray));
 			}
 
-			case EMetasoundLiteralType::None:
+			case EMetasoundFrontendLiteralType::None:
 			default:
-				static_assert(static_cast<int32>(EMetasoundLiteralType::Invalid) == 7, "Possible missing case coverage for EMetasoundLiteralType");
+				static_assert(static_cast<int32>(EMetasoundFrontendLiteralType::Invalid) == 7, "Possible missing case coverage for EMetasoundFrontendLiteralType");
 				return TSharedPtr<IPropertyHandle>();
 			}
 		}
 
 		TSharedPtr<IPropertyHandle> GetActiveLiteralHandle(TSharedRef<IPropertyHandle> StructPropertyHandle, TSharedRef<IPropertyHandle> TypeEnumHandle)
 		{
-			uint8 Value = static_cast<uint8>(EMetasoundLiteralType::None);
+			uint8 Value = static_cast<uint8>(EMetasoundFrontendLiteralType::None);
 			if (TypeEnumHandle->GetValue(Value) == FPropertyAccess::Result::Success)
 			{
-				const EMetasoundLiteralType LiteralType = static_cast<EMetasoundLiteralType>(Value);
+				const EMetasoundFrontendLiteralType LiteralType = static_cast<EMetasoundFrontendLiteralType>(Value);
 				return GetLiteralHandleForType(StructPropertyHandle, LiteralType);
 			}
 
 			return TSharedPtr<IPropertyHandle>();
 		}
 
-		bool IsLiteralTypeActive(TSharedRef<IPropertyHandle> TypeEnumHandle, EMetasoundLiteralType LiteralType)
+		bool IsLiteralTypeActive(TSharedRef<IPropertyHandle> TypeEnumHandle, EMetasoundFrontendLiteralType LiteralType)
 		{
-			uint8 Value = static_cast<uint8>(EMetasoundLiteralType::None);
+			uint8 Value = static_cast<uint8>(EMetasoundFrontendLiteralType::None);
 			TypeEnumHandle->GetValue(Value);
 
 			return Value == static_cast<uint8>(LiteralType);
@@ -91,26 +91,26 @@ namespace Metasound
 } // namespace Metasound
 
 
-void FMetasoundLiteralDescriptionDetailCustomization::CustomizeHeader(TSharedRef<IPropertyHandle> StructPropertyHandle, FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& StructCustomizationUtils)
+void FMetasoundFrontendLiteralDetailCustomization::CustomizeHeader(TSharedRef<IPropertyHandle> StructPropertyHandle, FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& StructCustomizationUtils)
 {
 }
 
-void FMetasoundLiteralDescriptionDetailCustomization::CustomizeChildren(TSharedRef<IPropertyHandle> StructPropertyHandle, IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils)
+void FMetasoundFrontendLiteralDetailCustomization::CustomizeChildren(TSharedRef<IPropertyHandle> StructPropertyHandle, IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils)
 {
-	TSharedRef<IPropertyHandle> TypeEnumHandle = StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FMetasoundLiteralDescription, LiteralType)).ToSharedRef();
+	TSharedRef<IPropertyHandle> TypeEnumHandle = StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FMetasoundFrontendLiteral, Type)).ToSharedRef();
 
 
 	FName OwningDataTypeName;
 	UClass* OwningDataTypeClass = nullptr;
-	EMetasoundLiteralType PreferredLiteralType = EMetasoundLiteralType::None;
+	EMetasoundFrontendLiteralType PreferredLiteralType = EMetasoundFrontendLiteralType::None;
 
 	// Grab the preferred uclass for the owning data type.
-	TSharedPtr<IPropertyHandle> InputDescription = StructPropertyHandle->GetParentHandle();
+	TSharedPtr<IPropertyHandle> InputDescription = StructPropertyHandle->GetParentHandle()->GetParentHandle()->GetParentHandle();
 
 	// TODO: Ensure that StructPropertyHandle is an FMetasoundInputDescription.
 	if (InputDescription)
 	{
-		TSharedPtr<IPropertyHandle> DataTypeNameHandle = InputDescription->GetChildHandle(GET_MEMBER_NAME_CHECKED(FMetasoundInputDescription, TypeName));
+		TSharedPtr<IPropertyHandle> DataTypeNameHandle = InputDescription->GetChildHandle(GET_MEMBER_NAME_CHECKED(FMetasoundFrontendClassInput, TypeName));
 		if (DataTypeNameHandle)
 		{
 			
@@ -126,7 +126,7 @@ void FMetasoundLiteralDescriptionDetailCustomization::CustomizeChildren(TSharedR
 
 	struct FTypeEditorInfo
 	{
-		EMetasoundLiteralType LiteralType;
+		EMetasoundFrontendLiteralType LiteralType;
 		TSharedRef<IPropertyHandle> TypeEnumHandle;
 		TSharedPtr<IPropertyHandle> PropertyHandle;
 		FText DisplayName;
@@ -134,7 +134,7 @@ void FMetasoundLiteralDescriptionDetailCustomization::CustomizeChildren(TSharedR
 
 		TSharedRef<SWidget> CreatePropertyValueWidget(bool bDisplayDefaultPropertyButtons = true) const
 		{
-			if (LiteralType == EMetasoundLiteralType::UObject)
+			if (LiteralType == EMetasoundFrontendLiteralType::UObject)
 			{
 				auto ValidateAsset = [CachedDataTypeUClass = OwningDataTypeUClass](const UObject* InObject, FText& OutReason)  -> bool
 				{
@@ -153,11 +153,11 @@ void FMetasoundLiteralDescriptionDetailCustomization::CustomizeChildren(TSharedR
 					// If this asset selector was set to no asset, clear out the literal description.
 					if (InObject)
 					{
-						CachedEnumHandle->SetValue(static_cast<uint8>(EMetasoundLiteralType::UObject));
+						CachedEnumHandle->SetValue(static_cast<uint8>(EMetasoundFrontendLiteralType::UObject));
 					}
 					else
 					{
-						CachedEnumHandle->SetValue(static_cast<uint8>(EMetasoundLiteralType::None));
+						CachedEnumHandle->SetValue(static_cast<uint8>(EMetasoundFrontendLiteralType::None));
 					}
 				};
 
@@ -182,7 +182,7 @@ void FMetasoundLiteralDescriptionDetailCustomization::CustomizeChildren(TSharedR
 					.DisplayThumbnail(true)
 					.NewAssetFactories(FactoriesToUse);
 			}
-			else if (LiteralType == EMetasoundLiteralType::UObjectArray)
+			else if (LiteralType == EMetasoundFrontendLiteralType::UObjectArray)
 			{
 				// TODO: Implement.
 				return SNullWidget::NullWidget;
@@ -194,59 +194,59 @@ void FMetasoundLiteralDescriptionDetailCustomization::CustomizeChildren(TSharedR
 		}
 	};
 
-	static_assert(static_cast<int32>(EMetasoundLiteralType::Invalid) == 7, "Possible missing property descriptor for literal customization display");
+	static_assert(static_cast<int32>(EMetasoundFrontendLiteralType::Invalid) == 7, "Possible missing property descriptor for literal customization display");
 	const TArray<FTypeEditorInfo> TypePropertyInfo =
 	{
 		FTypeEditorInfo
 		{
-			EMetasoundLiteralType::Bool,
+			EMetasoundFrontendLiteralType::Bool,
 			TypeEnumHandle,
-			StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FMetasoundLiteralDescription, AsBool)),
+			StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FMetasoundFrontendLiteral, AsBool)),
 			LOCTEXT("Metasound_LiteralDisplayNameBool", "Bool"),
 			nullptr
 		},
 
 		FTypeEditorInfo
 		{
-			EMetasoundLiteralType::Integer,
+			EMetasoundFrontendLiteralType::Integer,
 			TypeEnumHandle,
-			StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FMetasoundLiteralDescription, AsInteger)),
+			StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FMetasoundFrontendLiteral, AsInteger)),
 			LOCTEXT("Metasound_LiteralDisplayNameInteger", "Int32"),
 			nullptr
 		},
 
 		FTypeEditorInfo
 		{
-			EMetasoundLiteralType::Float,
+			EMetasoundFrontendLiteralType::Float,
 			TypeEnumHandle,
-			StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FMetasoundLiteralDescription, AsFloat)),
+			StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FMetasoundFrontendLiteral, AsFloat)),
 			LOCTEXT("Metasound_LiteralDisplayNameFloat", "Float"),
 			nullptr
 		},
 
 		FTypeEditorInfo
 		{
-			EMetasoundLiteralType::String,
+			EMetasoundFrontendLiteralType::String,
 			TypeEnumHandle,
-			StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FMetasoundLiteralDescription, AsString)),
+			StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FMetasoundFrontendLiteral, AsString)),
 			LOCTEXT("Metasound_LiteralDisplayNameString", "String"),
 			nullptr
 		},
 
 		FTypeEditorInfo
 		{
-			EMetasoundLiteralType::UObject,
+			EMetasoundFrontendLiteralType::UObject,
 			TypeEnumHandle,
-			StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FMetasoundLiteralDescription, AsUObject)),
+			StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FMetasoundFrontendLiteral, AsUObject)),
 			LOCTEXT("Metasound_LiteralDisplayNameUObject", "UObject"),
 			OwningDataTypeClass
 		},
 
 		FTypeEditorInfo
 		{
-			EMetasoundLiteralType::UObjectArray,
+			EMetasoundFrontendLiteralType::UObjectArray,
 			TypeEnumHandle,
-			StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FMetasoundLiteralDescription, AsUObjectArray)),
+			StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FMetasoundFrontendLiteral, AsUObjectArray)),
 			LOCTEXT("Metasound_LiteralDisplayNameUObjectArray", "UObjectArray"),
 			OwningDataTypeClass
 		},

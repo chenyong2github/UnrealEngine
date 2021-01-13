@@ -3,8 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "MetasoundFrontendDataLayout.h"
-#include "Misc/Variant.h"
+#include "MetasoundFrontendDocument.h"
+#include "Misc/TVariant.h"
 
 namespace Metasound
 {
@@ -13,7 +13,7 @@ namespace Metasound
 	 */
 	struct FFrontendQueryEntry
 	{
-		using FValue = TVariant<FMetasoundDocument, FMetasoundClassDescription, FMetasoundNodeDescription, FMetasoundGraphDescription>;
+		using FValue = TVariant<FMetasoundFrontendDocument, FMetasoundFrontendClass, FMetasoundFrontendNode>;
 		using FKey = int32;
 
 		static constexpr FKey InvalidKey = 0xFFFFFFFF;
