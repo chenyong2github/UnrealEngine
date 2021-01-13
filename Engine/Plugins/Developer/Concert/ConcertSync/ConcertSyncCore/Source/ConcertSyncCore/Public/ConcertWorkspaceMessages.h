@@ -74,11 +74,11 @@ struct FConcertSyncEventRequest
 
 	/** The type of event to sync. Only Package and Transaction event types are supported. */
 	UPROPERTY()
-	EConcertSyncActivityEventType EventType;
+	EConcertSyncActivityEventType EventType = EConcertSyncActivityEventType::None;
 
 	/** The ID of the event to sync. */
 	UPROPERTY()
-	int64 EventId;
+	int64 EventId = 0;
 };
 
 /** Response to a FConcertSyncEventRequest request. */
@@ -130,7 +130,7 @@ struct FConcertResourceLockEvent
 	TArray<FName> ResourceNames;
 
 	UPROPERTY()
-	EConcertResourceLockType LockType;
+	EConcertResourceLockType LockType = EConcertResourceLockType::None;
 };
 
 USTRUCT()
@@ -145,7 +145,7 @@ struct FConcertResourceLockRequest
 	TArray<FName> ResourceNames;
 
 	UPROPERTY()
-	EConcertResourceLockType LockType;
+	EConcertResourceLockType LockType = EConcertResourceLockType::None;;
 };
 
 USTRUCT()
@@ -157,12 +157,13 @@ struct FConcertResourceLockResponse
 	TMap<FName, FGuid> FailedResources;
 
 	UPROPERTY()
-	EConcertResourceLockType LockType;
+	EConcertResourceLockType LockType = EConcertResourceLockType::None;;
 };
 
 UENUM()
 enum class EConcertPlaySessionEventType : uint8
 {
+	None,
 	BeginPlay,
 	SwitchPlay,
 	EndPlay,
@@ -174,7 +175,7 @@ struct FConcertPlaySessionEvent
 	GENERATED_BODY()
 
 	UPROPERTY()
-	EConcertPlaySessionEventType EventType;
+	EConcertPlaySessionEventType EventType = EConcertPlaySessionEventType::None;
 
 	UPROPERTY()
 	FGuid PlayEndpointId;
