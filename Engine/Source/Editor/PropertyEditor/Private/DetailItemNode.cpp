@@ -317,6 +317,11 @@ bool FDetailItemNode::GenerateStandaloneWidget(FDetailWidgetRow& OutRow) const
 			];
 		}
 
+		OutRow.CopyMenuAction = Row.CopyMenuAction;
+		OutRow.PasteMenuAction = Row.PasteMenuAction;
+		OutRow.CustomMenuItems = Row.CustomMenuItems;
+		OutRow.FilterTextString = Row.FilterTextString;
+
 		bResult = true;
 	}
 

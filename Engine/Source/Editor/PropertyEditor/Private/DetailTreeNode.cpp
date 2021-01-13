@@ -29,6 +29,13 @@ FNodeWidgets FDetailTreeNode::CreateNodeWidgets() const
 		}
 	}
 
+	Widgets.Actions.CopyMenuAction = Row.CopyMenuAction;
+	Widgets.Actions.PasteMenuAction = Row.PasteMenuAction;
+	for (const FDetailWidgetRow::FCustomMenuData& CustomMenuItem : Row.CustomMenuItems)
+	{
+		Widgets.Actions.CustomMenuItems.Add(FNodeWidgetActionsCustomMenuData(CustomMenuItem.Action, CustomMenuItem.Name, CustomMenuItem.Tooltip, CustomMenuItem.SlateIcon));
+	}
+
 	return Widgets;
 }
 
