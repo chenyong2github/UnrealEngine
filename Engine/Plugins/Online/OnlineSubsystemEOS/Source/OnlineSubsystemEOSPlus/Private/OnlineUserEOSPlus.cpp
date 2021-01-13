@@ -93,7 +93,7 @@ FOnlineUserEOSPlus::FOnlineUserEOSPlus(FOnlineSubsystemEOSPlus* InSubsystem)
 	for (int32 LocalUserNum = 0; LocalUserNum < MAX_LOCAL_PLAYERS; LocalUserNum++)
 	{
 		BaseIdentityInterface->AddOnLoginStatusChangedDelegate_Handle(LocalUserNum, FOnLoginStatusChangedDelegate::CreateRaw(this, &FOnlineUserEOSPlus::OnLoginStatusChanged));
-		BaseIdentityInterface->AddOnLoginCompleteDelegate_Handle(LocalUserNum, FOnLoginCompleteDelegate::CreateRaw(this, &FOnlineUserEOSPlus::OnLoginComplete));
+		EOSIdentityInterface->AddOnLoginCompleteDelegate_Handle(LocalUserNum, FOnLoginCompleteDelegate::CreateRaw(this, &FOnlineUserEOSPlus::OnLoginComplete));
 		BaseIdentityInterface->AddOnLogoutCompleteDelegate_Handle(LocalUserNum, FOnLogoutCompleteDelegate::CreateRaw(this, &FOnlineUserEOSPlus::OnLogoutComplete));
 
 		BaseFriendsInterface->AddOnFriendsChangeDelegate_Handle(LocalUserNum, FOnFriendsChangeDelegate::CreateRaw(this, &FOnlineUserEOSPlus::OnFriendsChanged));
@@ -208,7 +208,6 @@ void FOnlineUserEOSPlus::OnEOSLoginChanged(int32 LocalUserNum)
 	ELoginStatus::Type LoginStatus = EOSIdentityInterface->GetLoginStatus(LocalUserNum);
 	if (LoginStatus == ELoginStatus::LoggedIn)
 	{
-		AddPlayer(LocalUserNum);
 		TriggerOnLoginChangedDelegates(LocalUserNum);
 	}
 	else if (LoginStatus == ELoginStatus::NotLoggedIn)
@@ -238,11 +237,14 @@ void FOnlineUserEOSPlus::OnControllerPairingChanged(int32 LocalUserNum, FControl
 
 void FOnlineUserEOSPlus::OnLoginComplete(int32 LocalUserNum, bool bWasSuccessful, const FUniqueNetId& UserId, const FString& Error)
 {
-	TSharedPtr<FUniqueNetIdEOSPlus> NetIdPlus = GetNetIdPlus(UserId.ToString());
-	if (!NetIdPlus.IsValid())
+	if (bWasSuccessful)
 	{
-		return;
+		AddPlayer(LocalUserNum);
 	}
+
+	TSharedPtr<FUniqueNetIdEOSPlus> NetIdPlus = LocalUserNumToNetIdPlus[LocalUserNum];
+	check(NetIdPlus.IsValid());
+
 	TriggerOnLoginCompleteDelegates(LocalUserNum, bWasSuccessful, *NetIdPlus, Error);
 }
 
@@ -270,7 +272,7 @@ void FOnlineUserEOSPlus::AddPlayer(int32 LocalUserNum)
 
 	// Add the local account
 	TSharedPtr<FUserOnlineAccount> BaseAccount = BaseIdentityInterface->GetUserAccount(*BaseNetId);
-	TSharedPtr<FUserOnlineAccount> EOSAccount = BaseIdentityInterface->GetUserAccount(*EOSNetId);
+	TSharedPtr<FUserOnlineAccount> EOSAccount = EOSIdentityInterface->GetUserAccount(*EOSNetId);
 	TSharedRef<FOnlineUserAccountPlus> PlusAccount = MakeShared<FOnlineUserAccountPlus>(BaseAccount, EOSAccount);
 	NetIdPlusToUserAccountMap.Add(PlusNetId->ToString(), PlusAccount);
 }
