@@ -8,6 +8,8 @@
 #include "PerforceConnection.h"
 #include "Logging/MessageLog.h"
 
+#define LOCTEXT_NAMESPACE "PerforceSourceControl"
+
 const FString& FPerforceSourceControlLabel::GetName() const
 {
 	return Name;
@@ -66,7 +68,7 @@ bool FPerforceSourceControlLabel::GetFileRevisions( const TArray<FString>& InFil
 			// output errors if any
 			for (int32 ErrorIndex = 0; ErrorIndex < ErrorMessages.Num(); ++ErrorIndex)
 			{
-				FMessageLog("SourceControl").Error(ErrorMessages[ErrorIndex]);
+				FMessageLog("SourceControl").Error(FText::Format(LOCTEXT("GetFileRevisionsErrorFormat","GetFileRevisions Error: {0}"), ErrorMessages[ErrorIndex]));
 			}
 		}
 	}
@@ -97,10 +99,12 @@ bool FPerforceSourceControlLabel::Sync( const TArray<FString>& InFilenames ) con
 			// output errors if any
 			for (int32 ErrorIndex = 0; ErrorIndex < ErrorMessages.Num(); ++ErrorIndex)
 			{
-				FMessageLog("SourceControl").Error(ErrorMessages[ErrorIndex]);
+				FMessageLog("SourceControl").Error(FText::Format(LOCTEXT("GetFileRevisionsErrorFormat", "Sync Error: {0}"), ErrorMessages[ErrorIndex]));
 			}
 		}
 	}
 
 	return bCommandOK;
 }
+
+#undef LOCTEXT_NAMESPACE

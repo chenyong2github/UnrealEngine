@@ -54,7 +54,7 @@ bool FPerforceSourceControlRevision::Get( FString& InOutFilename ) const
 		{
 			for(auto Iter(ErrorMessages.CreateConstIterator()); Iter; Iter++)
 			{
-				FMessageLog("SourceControl").Error(*Iter);
+				FMessageLog("SourceControl").Error(FText::Format(LOCTEXT("PerforceSourceControlRevisionGetErrorFormat", "FPerforceSourceControlRevision::Get print Error: {0}"), *Iter));
 			}
 		}
 	}
@@ -90,7 +90,7 @@ static FString GetUserFromChangelist(int32 ChangeNumber, FPerforceConnection& In
 	{
 		for(auto Iter(ErrorMessages.CreateConstIterator()); Iter; Iter++)
 		{
-			FMessageLog("SourceControl").Error(*Iter);
+			FMessageLog("SourceControl").Error(FText::Format(LOCTEXT("GetUserFromChangelistErrorFormat", "GetUserFromChangelist Error: {0}"), *Iter));
 		}
 	}
 
@@ -161,7 +161,7 @@ bool FPerforceSourceControlRevision::GetAnnotated( TArray<FAnnotationLine>& OutL
 		{
 			for(auto Iter(ErrorMessages.CreateConstIterator()); Iter; Iter++)
 			{
-				FMessageLog("SourceControl").Error(*Iter);
+				FMessageLog("SourceControl").Error(FText::Format(LOCTEXT("GetAnnotatedErrorFormat", "GetAnnotated Error: {0}"), *Iter));
 			}
 		}
 	}

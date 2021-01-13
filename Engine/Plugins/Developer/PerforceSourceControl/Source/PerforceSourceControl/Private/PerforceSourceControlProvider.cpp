@@ -396,12 +396,12 @@ void FPerforceSourceControlProvider::OutputCommandMessages(const FPerforceSource
 
 	for (int32 ErrorIndex = 0; ErrorIndex < InCommand.ResultInfo.ErrorMessages.Num(); ++ErrorIndex)
 	{
-		SourceControlLog.Error(InCommand.ResultInfo.ErrorMessages[ErrorIndex]);
+		SourceControlLog.Error(FText::Format(LOCTEXT("OutputCommandMessagesFormatError", "CommandMessage Error: {0}"), InCommand.ResultInfo.ErrorMessages[ErrorIndex]));
 	}
 
 	for (int32 InfoIndex = 0; InfoIndex < InCommand.ResultInfo.InfoMessages.Num(); ++InfoIndex)
 	{
-		SourceControlLog.Info(InCommand.ResultInfo.InfoMessages[InfoIndex]);
+		SourceControlLog.Info(FText::Format(LOCTEXT("OutputCommandMessagesFormatInfo", "CommandMessage Info: {0}"), InCommand.ResultInfo.InfoMessages[InfoIndex]));
 	}
 }
 
@@ -502,7 +502,7 @@ TArray< TSharedRef<ISourceControlLabel> > FPerforceSourceControlProvider::GetLab
 			// output errors if any
 			for (int32 ErrorIndex = 0; ErrorIndex < ErrorMessages.Num(); ++ErrorIndex)
 			{
-				FMessageLog("SourceControl").Warning(ErrorMessages[ErrorIndex]);
+				FMessageLog("SourceControl").Warning(FText::Format(LOCTEXT("GetLabelsErrorFormat", "GetLabels Warning: {0}"), ErrorMessages[ErrorIndex]));
 			}
 		}
 	}
