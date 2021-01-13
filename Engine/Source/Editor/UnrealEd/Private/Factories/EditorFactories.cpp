@@ -1488,7 +1488,7 @@ UObject* UPackageFactory::FactoryCreateText( UClass* Class, UObject* InParent, F
 		}
 	}
 
-	for (FObjectIterator ObjIt; ObjIt; ++ObjIt)
+	for (FThreadSafeObjectIterator ObjIt; ObjIt; ++ObjIt)
 	{
 		UObject* LoadObject = *ObjIt;
 

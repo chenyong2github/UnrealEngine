@@ -951,7 +951,7 @@ void UUnrealEdEngine::GetPackageList( TArray<UPackage*>* InPackages, UClass* InC
 {
 	InPackages->Empty();
 
-	for( FObjectIterator It ; It ; ++It )
+	for( FThreadSafeObjectIterator It; It ; ++It )
 	{
 		if( It->GetOuter() && It->GetOuter() != GetTransientPackage() )
 		{

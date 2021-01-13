@@ -8125,7 +8125,7 @@ void FBlueprintEditorUtils::FixLevelScriptActorBindings(ALevelScriptActor* Level
 void FBlueprintEditorUtils::ListPackageContents(UPackage* Package, FOutputDevice& Ar)
 {
 	Ar.Logf(TEXT("Package %s contains:"), *Package->GetName());
-	for (FObjectIterator ObjIt; ObjIt; ++ObjIt)
+	for (FThreadSafeObjectIterator ObjIt; ObjIt; ++ObjIt)
 	{
 		if (ObjIt->GetOuter() == Package)
 		{
@@ -8150,7 +8150,7 @@ bool FBlueprintEditorUtils::KismetDiagnosticExec(const TCHAR* InStream, FOutputD
 		TSet<UPackage*> BadPackages;
 
 		// Run thru every object in the world
-		for (FObjectIterator ObjectIt; ObjectIt; ++ObjectIt)
+		for (FThreadSafeObjectIterator ObjectIt; ObjectIt; ++ObjectIt)
 		{
 			UObject* TestObj = *ObjectIt;
 
@@ -8254,7 +8254,7 @@ bool FBlueprintEditorUtils::KismetDiagnosticExec(const TCHAR* InStream, FOutputD
 		for (UPackage* BadPackage : BadPackages)
 		{
 			Ar.Logf(TEXT("\nBad package %s contains:"), *BadPackage->GetName());
-			for (FObjectIterator ObjIt; ObjIt; ++ObjIt)
+			for (FThreadSafeObjectIterator ObjIt; ObjIt; ++ObjIt)
 			{
 				if (ObjIt->GetOuter() == BadPackage)
 				{
@@ -8311,7 +8311,7 @@ bool FBlueprintEditorUtils::KismetDiagnosticExec(const TCHAR* InStream, FOutputD
 	else if (FParse::Command(&Str, TEXT("ListRootSetObjects")))
 	{
 		UE_LOG(LogBlueprintDebug, Log, TEXT("--- LISTING ROOTSET OBJ ---"));
-		for( FObjectIterator it; it; ++it )
+		for( FThreadSafeObjectIterator it; it; ++it )
 		{
 			UObject* CurrObj = *it;
 			if( CurrObj->IsRooted() )

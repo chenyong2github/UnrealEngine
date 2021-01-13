@@ -2259,7 +2259,7 @@ int32 UReplaceActorCommandlet::Main(const FString& Params)
 			if( World == NULL )
 			{
 				UE_LOG(LogPackageUtilities, Display, TEXT("%s (not a map)"), *FileName);
-				for( FObjectIterator It; It; ++It )
+				for( FThreadSafeObjectIterator It; It; ++It )
 				{
 					UObject* OldObject = *It;
 					if( ( OldObject->GetOutermost() == Package )

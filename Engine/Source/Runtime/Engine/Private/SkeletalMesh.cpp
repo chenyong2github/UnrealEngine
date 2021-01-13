@@ -1177,7 +1177,7 @@ void RefreshSkelMeshOnPhysicsAssetChange(const USkeletalMesh* InSkeletalMesh)
 {
 	if (InSkeletalMesh)
 	{
-		for (FObjectIterator Iter(USkeletalMeshComponent::StaticClass()); Iter; ++Iter)
+		for (FThreadSafeObjectIterator Iter(USkeletalMeshComponent::StaticClass()); Iter; ++Iter)
 		{
 			USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(*Iter);
 			// if PhysicsAssetOverride is NULL, it uses SkeletalMesh Physics Asset, so I'll need to update here

@@ -349,7 +349,7 @@ void UEditorEngine::EndPlayMap()
 	FGameDelegates::Get().GetEndPlayMapDelegate().Broadcast();
 	
 	// find objects like Textures in the playworld levels that won't get garbage collected as they are marked RF_Standalone
-	for (FObjectIterator It; It; ++It)
+	for (FThreadSafeObjectIterator It; It; ++It)
 	{
 		UObject* Object = *It;
 
@@ -429,7 +429,7 @@ void UEditorEngine::EndPlayMap()
 	}
 
 	// Make sure that all objects in the temp levels were entirely garbage collected.
-	for( FObjectIterator ObjectIt; ObjectIt; ++ObjectIt )
+	for(FThreadSafeObjectIterator ObjectIt; ObjectIt; ++ObjectIt )
 	{
 		UObject* Object = *ObjectIt;
 		if( Object->GetOutermost()->HasAnyPackageFlags(PKG_PlayInEditor))

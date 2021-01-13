@@ -312,7 +312,10 @@ class FAsyncPurge : public FRunnable
 			check(Object->HasAllFlags(RF_FinishDestroyed | RF_BeginDestroyed));
 			if (!bMultithreaded || Object->IsDestructionThreadSafe())
 			{
+				// Can't lock once for the entire batch here as it could hold the lock for too long
+				GUObjectArray.LockInternalArray();
 				Object->~UObject();
+				GUObjectArray.UnlockInternalArray();
 				GUObjectAllocator.FreeUObject(Object);
 				GUnreachableObjects[ObjCurrentPurgeObjectIndex] = nullptr;
 			}
@@ -345,6 +348,9 @@ class FAsyncPurge : public FRunnable
 		int32 ProcessedObjectsCount = 0;
 		bool bFinishedDestroyingObjects = true;
 
+		// Lock once for the entire batch
+		GUObjectArray.LockInternalArray();
+
 		// Cache the number of objects to destroy locally. The number may grow later but that's ok, we'll catch up to it in the next tick
 		const int32 LocalNumObjectsToDestroyOnGameThread = NumObjectsToDestroyOnGameThread;
 
@@ -372,6 +378,8 @@ class FAsyncPurge : public FRunnable
 			}
 			++ObjCurrentPurgeObjectIndexOnGameThread;
 		}
+
+		GUObjectArray.UnlockInternalArray();
 
 		// Make sure that when we reach the end of GUnreachableObjects array, there's no objects to destroy left
 		check(!bFinishedDestroyingObjects || NumObjectsDestroyedOnGameThread == LocalNumObjectsToDestroyOnGameThread);
@@ -1156,7 +1164,7 @@ public:
 					UObject* Object = (UObject*)ObjectItem->Object;
 
 					// We can't collect garbage during an async load operation and by now all unreachable objects should've been purged.
-					checkf(!ObjectItem->IsUnreachable(), TEXT("%s"), *Object->GetFullName());
+					checkf(!ObjectItem->HasAnyFlags(EInternalObjectFlags::Unreachable|EInternalObjectFlags::PendingConstruction), TEXT("%s"), *Object->GetFullName());
 
 					// Keep track of how many objects are around.
 					ObjectCountDuringMarkPhase++;

@@ -1250,11 +1250,6 @@ bool ClassHasInstancesAsyncLoading(const UClass* ClassToLookFor)
 	return false;
 }
 
-void AllocateUObjectIndexForCurrentThread(UObjectBase* Object)
-{
-	GUObjectArray.AllocateUObjectIndex(Object);
-}
-
 void HashObject(UObjectBase* Object)
 {
 	SCOPE_CYCLE_COUNTER( STAT_Hash_HashObject );

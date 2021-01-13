@@ -359,7 +359,7 @@ TValueOrError<TSharedPtr<FVMReflection>, FExpressionError> FVMReflectionParser::
 						{
 							const EObjectFlags ExcludeFlags = EObjectFlags::RF_ClassDefaultObject | EObjectFlags::RF_ArchetypeObject;
 
-							for (FObjectIterator It(FindClass, false, ExcludeFlags); It; ++It)
+							for (FThreadSafeObjectIterator It(FindClass, false, ExcludeFlags); It; ++It)
 							{
 								FString CurName = It->GetName();
 

@@ -392,7 +392,7 @@ namespace ObjectTools
 			,	IgnoreClasses( InIgnoreClasses )
 	{
 		// Mark objects.
-		for ( FObjectIterator It ; It ; ++It )
+		for ( FThreadSafeObjectIterator It; It ; ++It )
 		{
 			if ( ShouldSearchForAssets(*It) )
 			{
@@ -896,7 +896,7 @@ namespace ObjectTools
 				}
 			}
 
-			for ( FObjectIterator ObjIter; ObjIter; ++ObjIter )
+			for ( FThreadSafeObjectIterator ObjIter; ObjIter; ++ObjIter )
 			{
 				// Always clear the root set flags
 				UObject* CurrentObject = *ObjIter;
@@ -990,7 +990,7 @@ namespace ObjectTools
 		// Find the referencers of the objects to be replaced
 		FFindReferencersArchive FindRefsArchive( nullptr, OutInfo.ReplaceableObjects );
 
-		for ( FObjectIterator ObjIter; ObjIter; ++ObjIter )
+		for ( FThreadSafeObjectIterator ObjIter; ObjIter; ++ObjIter )
 		{
 			UObject* CurObject = *ObjIter;
 
@@ -2734,7 +2734,7 @@ namespace ObjectTools
 				Algo::Sort(InterestSet, TLess<UObject*>());
 				InterestSetAdditions.Reset();
 
-				for (FObjectIterator It; It; ++It)
+				for (FThreadSafeObjectIterator It; It; ++It)
 				{
 					UObject* Object = *It;
 					if (Algo::BinarySearch(InterestSet, Object, TLess<UObject*>()) != INDEX_NONE)
@@ -4190,7 +4190,7 @@ namespace ObjectTools
 
 		TArray<UObject*> ObjectsInLevels;
 
-		for( FObjectIterator It; It; ++It )
+		for( FThreadSafeObjectIterator It; It; ++It )
 		{
 			UObject* Obj = *It;
 

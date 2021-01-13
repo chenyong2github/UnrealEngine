@@ -179,7 +179,7 @@ void FKismet2CompilerModule::RecoverCorruptedBlueprint(class UBlueprint* Bluepri
 	UPackage* Package = Blueprint->GetOutermost();
 
 	// Get rid of any stale classes
-	for (FObjectIterator ObjIt; ObjIt; ++ObjIt)
+	for (FThreadSafeObjectIterator ObjIt; ObjIt; ++ObjIt)
 	{
 		UObject* TestObject = *ObjIt;
 		if (TestObject->GetOuter() == Package)

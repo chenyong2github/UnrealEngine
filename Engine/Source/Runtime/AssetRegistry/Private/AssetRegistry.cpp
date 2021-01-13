@@ -1011,7 +1011,7 @@ bool UAssetRegistryImpl::EnumerateAssets(const FARCompiledFilter& InFilter, TFun
 		}
 		else
 		{
-			for (FObjectIterator ObjIt; ObjIt; ++ObjIt)
+			for (FThreadSafeObjectIterator ObjIt; ObjIt; ++ObjIt)
 			{
 				bool bContinue = true;
 				FilterInMemoryObjectLambda(*ObjIt, bContinue);
@@ -1073,7 +1073,7 @@ bool UAssetRegistryImpl::EnumerateAllAssets(TFunctionRef<bool(const FAssetData&)
 	// All in memory assets
 	if (!bIncludeOnlyOnDiskAssets)
 	{
-		for (FObjectIterator ObjIt; ObjIt; ++ObjIt)
+		for (FThreadSafeObjectIterator ObjIt; ObjIt; ++ObjIt)
 		{
 			if (ObjIt->IsAsset())
 			{

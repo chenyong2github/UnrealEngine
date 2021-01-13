@@ -482,7 +482,7 @@ void FHotReloadClassReinstancer::UpdateDefaultProperties()
 
 		// Update properties on all existing instances of the class
 		const UPackage* TransientPackage = GetTransientPackage();
-		for (FObjectIterator It(NewClass); It; ++It)
+		for (FThreadSafeObjectIterator It(NewClass); It; ++It)
 		{
 			UObject* ObjectPtr = *It;
 			if (ObjectPtr->IsPendingKill() || ObjectPtr->GetOutermost() == TransientPackage)

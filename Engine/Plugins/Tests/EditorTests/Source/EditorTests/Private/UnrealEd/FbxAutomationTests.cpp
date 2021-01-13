@@ -284,7 +284,7 @@ bool FFbxImportAssetsAutomationTest::RunTest(const FString& Parameters)
 						UPackage *Package = AssetData.GetPackage();
 						if (Package != nullptr)
 						{
-							for (FObjectIterator It; It; ++It)
+							for (FThreadSafeObjectIterator It; It; ++It)
 							{
 								UObject* ExistingObject = *It;
 								if ((ExistingObject->GetOutermost() == Package) )
@@ -1742,7 +1742,7 @@ bool FFbxImportAssetsAutomationTest::RunTest(const FString& Parameters)
 					UPackage *Package = AssetData.GetPackage();
 					if (Package != nullptr)
 					{
-						for (FObjectIterator It; It; ++It)
+						for (FThreadSafeObjectIterator It; It; ++It)
 						{
 							UObject* ExistingObject = *It;
 							if ((ExistingObject->GetOutermost() == Package))

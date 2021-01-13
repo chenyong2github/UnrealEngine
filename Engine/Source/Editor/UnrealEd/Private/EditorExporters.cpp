@@ -620,8 +620,10 @@ bool ULevelExporterSTL::ExportText( const FExportObjectInnerContext* Context, UO
 	UWorld* World = CastChecked<UWorld>(Object);
 	ULevel* Level = World->PersistentLevel;
 
-	for( FObjectIterator It; It; ++It )
+	for (FThreadSafeObjectIterator It; It; ++It)
+	{
 		It->UnMark(EObjectMark(OBJECTMARK_TagImp | OBJECTMARK_TagExp));
+	}
 
 	//
 	// GATHER TRIANGLES

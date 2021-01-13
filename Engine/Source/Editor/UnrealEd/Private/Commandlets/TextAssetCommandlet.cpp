@@ -232,7 +232,7 @@ void GenerateSchema()
 	FStructuredArchive StructuredArchive(JsonFormatter);
 	FStructuredArchiveRecord RootRecord = StructuredArchive.Open().EnterRecord();
 
-	for (FObjectIterator It(UClass::StaticClass()); It; ++It)
+	for (FThreadSafeObjectIterator It(UClass::StaticClass()); It; ++It)
 	{
 		UClass* Class = Cast<UClass>(*It);
 		if (Class)

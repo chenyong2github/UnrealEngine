@@ -542,12 +542,12 @@ enum class EInternalObjectFlags : int32
 	Unreachable = 1 << 28, ///< Object is not reachable on the object graph.
 	PendingKill = 1 << 29, ///< Objects that are pending destruction (invalid for gameplay but valid objects)
 	RootSet = 1 << 30, ///< Object will not be garbage collected, even if unreferenced.
-	//~ UnusedFlag = 1 << 31,
+	PendingConstruction = 1 << 31, ///< Object didn't have its class constructor called yet (only the UObjectBase one to initialize its most basic members)
 
 	GarbageCollectionKeepFlags = Native | Async | AsyncLoading,
 
 	//~ Make sure this is up to date!
-	AllFlags = ReachableInCluster | ClusterRoot | Native | Async | AsyncLoading | Unreachable | PendingKill | RootSet
+	AllFlags = ReachableInCluster | ClusterRoot | Native | Async | AsyncLoading | Unreachable | PendingKill | RootSet | PendingConstruction
 };
 ENUM_CLASS_FLAGS(EInternalObjectFlags);
 

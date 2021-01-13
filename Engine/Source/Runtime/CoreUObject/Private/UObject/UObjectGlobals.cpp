@@ -428,7 +428,7 @@ void GlobalSetProperty( const TCHAR* Value, UClass* Class, FProperty* Property, 
 	if ( Property != NULL && Class != NULL )
 	{
 		// Apply to existing objects of the class.
-		for( FObjectIterator It; It; ++It )
+		for( FThreadSafeObjectIterator It; It; ++It )
 		{	
 			UObject* Object = *It;
 			if( Object->IsA(Class) && !Object->IsPendingKill() )
@@ -2477,7 +2477,9 @@ UObject* StaticAllocateObject
 				// Finish destroying the object.
 				Obj->ConditionalFinishDestroy();
 			}
+			GUObjectArray.LockInternalArray();
 			Obj->~UObject();
+			GUObjectArray.UnlockInternalArray();
 			bWasConstructedOnOldObject	= true;
 		}
 		else
@@ -2664,6 +2666,9 @@ FObjectInitializer::~FObjectInitializer()
 		return;
 	}
 #endif // USE_CIRCULAR_DEPENDENCY_LOAD_DEFERRING
+
+	// At this point the object has had its native constructor called so it's safe to be used
+	Obj->ClearInternalFlags(EInternalObjectFlags::PendingConstruction);
 
 	const bool bIsCDO = Obj->HasAnyFlags(RF_ClassDefaultObject);
 	UClass* Class = Obj->GetClass();
@@ -3225,7 +3230,7 @@ void FScopedObjectFlagMarker::SaveObjectFlags()
 {
 	StoredObjectFlags.Empty();
 
-	for (FObjectIterator It; It; ++It)
+	for (FThreadSafeObjectIterator It; It; ++It)
 	{
 		UObject* Obj = *It;
 		StoredObjectFlags.Add(*It, FStoredObjectFlags(Obj->GetFlags(), Obj->GetInternalFlags()));
@@ -3517,7 +3522,7 @@ public:
 		FoundReferencesList = FoundReferences;
 
 		// Iterate over all objects.
-		for( FObjectIterator It; It; ++It )
+		for( FThreadSafeObjectIterator It; It; ++It )
 		{
 			UObject* Object	= *It;
 			checkSlow(Object->IsValidLowLevel());
@@ -3656,7 +3661,7 @@ bool IsReferenced(UObject*& Obj, EObjectFlags KeepFlags, EInternalObjectFlags In
 	bool bTempReferenceList = false;
 
 	// Tag objects.
-	for( FObjectIterator It; It; ++It )
+	for( FThreadSafeObjectIterator It; It; ++It )
 	{
 		UObject* Object = *It;
 		Object->ClearFlags( RF_TagGarbageTemp );
