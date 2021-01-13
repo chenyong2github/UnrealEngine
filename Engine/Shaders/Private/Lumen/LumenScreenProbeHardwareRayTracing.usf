@@ -13,13 +13,31 @@
 #include "LumenScreenProbeCommon.ush"
 #include "LumenHardwareRayTracingCommon.ush"
 
+#ifndef DIM_NORMAL_MODE
+#define DIM_NORMAL_MODE SDF_NORMAL_TYPE
+#endif
+
+#ifndef DIM_LIGHTING_MODE
+#define DIM_LIGHTING_MODE LIGHTING_FROM_SURFACE_CACHE
+#endif
+
 RaytracingAccelerationStructure TLAS;
 float MaxTraceDistance;
 float SurfaceBias;
 
+StructuredBuffer<FDeferredMaterialPayload> DeferredMaterialBuffer;
+
 RAY_TRACING_ENTRY_RAYGEN(LumenScreenProbeGatherHardwareRayTracingRGS)
 {
 	uint2 DispatchThreadId = DispatchRaysIndex().xy;
+
+	FDeferredMaterialPayload DeferredMaterialPayload;
+	if (DIM_DEFERRED_MATERIAL_MODE)
+	{
+		DeferredMaterialPayload = DeferredMaterialBuffer[DispatchRaysIndex().x];
+		DispatchThreadId = uint2(DeferredMaterialPayload.PixelCoordinates, 0);
+	}
+
 	if (DispatchThreadId.x >= CompactedTraceTexelAllocator[0])
 	{
 		return;
@@ -36,6 +54,18 @@ RAY_TRACING_ENTRY_RAYGEN(LumenScreenProbeGatherHardwareRayTracingRGS)
 
 	uint2 ScreenProbeAtlasCoord = uint2(ScreenProbeIndex % ScreenProbeAtlasViewSize.x, ScreenProbeIndex / ScreenProbeAtlasViewSize.x);
 	uint2 ScreenProbeTracingCoord = GetTraceBufferCoord(ScreenProbeAtlasCoord, TraceTexelCoord);
+
+	if (DIM_DEFERRED_MATERIAL_MODE)
+	{
+		TraceHitDistance = DeferredMaterialPayload.HitT;
+
+		if (DeferredMaterialPayload.SortKey == RAY_TRACING_DEFERRED_MATERIAL_KEY_INVALID)
+		{
+			bool bHit = false;
+			RWTraceHit[ScreenProbeTracingCoord] = EncodeProbeRayDistance(MaxTraceDistance, bHit, false);
+			return;
+		}
+	}
 
 	{
 		float2 ScreenUV = GetScreenUVFromScreenProbeCoord(ScreenProbeScreenCoord, ScreenProbeSubsampleIndex);
@@ -58,12 +88,6 @@ RAY_TRACING_ENTRY_RAYGEN(LumenScreenProbeGatherHardwareRayTracingRGS)
 
 			float NormalBias = 0.1;
 			ApplyPositionBias(Ray.Origin, Ray.Direction, WorldNormal, max(NormalBias, SurfaceBias * 0.5));
-			if (DIM_RADIANCE_CACHE)
-			{
-				bool bCoveredByRadianceCache = false;
-				float ProbeOcclusionDistance = GetRadianceProbeOcclusionDistanceWithInterpolation(WorldPosition, WorldConeDirection, bCoveredByRadianceCache);
-				Ray.TMax = min(MaxTraceDistance, ProbeOcclusionDistance);
-			}
 
 			FRayCone RayCone = (FRayCone)0;
 			RayCone = PropagateRayCone(RayCone, ConeHalfAngle, 0.0);
@@ -74,12 +98,126 @@ RAY_TRACING_ENTRY_RAYGEN(LumenScreenProbeGatherHardwareRayTracingRGS)
 			Context.TraceCoord = ScreenProbeScreenCoord;
 			Context.LinearCoord = ScreenProbeScreenCoord.y * ScreenProbeViewSize.x + ScreenProbeScreenCoord.x;
 
-			float3 Radiance;
-			bHit = TraceAndCalculateRayTracedLighting(Ray, Context, DIM_LIGHTING_MODE, DIM_NORMAL_MODE, TraceHitDistance, Radiance);
+			bool bTraceRay = true;
+			if (DIM_DEFERRED_MATERIAL_MODE)
+			{
+				bTraceRay = DeferredMaterialPayload.SortKey < RAY_TRACING_DEFERRED_MATERIAL_KEY_RAY_MISS;
+				if (bTraceRay)
+				{
+					float Epsilon = 0.5;
+					Ray.TMin = max(0, DeferredMaterialPayload.HitT - Epsilon);
+					// Note: adjusting TMax will not properly account for masked materials because of restricted any-hit length
+					Ray.TMax = DeferredMaterialPayload.HitT + Epsilon;
+				}
+			}
+
+			if (DIM_RADIANCE_CACHE)
+			{
+				bool bCoveredByRadianceCache = false;
+				float ProbeOcclusionDistance = GetRadianceProbeOcclusionDistanceWithInterpolation(WorldPosition, WorldConeDirection, bCoveredByRadianceCache);
+				Ray.TMax = min(Ray.TMax, ProbeOcclusionDistance);
+			}
+
+			float3 Radiance = 0.0;
+			if (bTraceRay)
+			{
+				float HitDistance;
+				float TOffset = RebaseRay(Ray);
+				bool bUseMinimalPayload = (DIM_LIGHTING_MODE == LIGHTING_FROM_SURFACE_CACHE) && (DIM_DEFERRED_MATERIAL_MODE == 0);
+				if (bUseMinimalPayload)
+				{
+					bHit = TraceAndCalculateRayTracedLightingFromSurfaceCache(Ray, Context, DIM_NORMAL_MODE, HitDistance, Radiance);
+				}
+				else
+				{
+					bHit = TraceAndCalculateRayTracedLighting(Ray, Context, DIM_LIGHTING_MODE, DIM_NORMAL_MODE, HitDistance, Radiance);
+				}
+				RebaseTraceHitDistance(HitDistance, TOffset);
+#if !DIM_DEFERRED_MATERIAL_MODE
+				TraceHitDistance = HitDistance;
+#endif
+			}
 			Radiance *= View.PreExposure;
 			RWTraceRadiance[ScreenProbeTracingCoord] = Radiance;
 		}
 
 		RWTraceHit[ScreenProbeTracingCoord] = EncodeProbeRayDistance(TraceHitDistance, bHit, false);
 	}
+}
+
+RWStructuredBuffer<FDeferredMaterialPayload> RWDeferredMaterialBuffer;
+int2 DeferredMaterialBufferResolution;
+uint TileSize;
+
+RAY_TRACING_ENTRY_RAYGEN(LumenScreenProbeGatherHardwareRayTracingDeferredMaterialRGS)
+{
+	uint2 DispatchThreadId = DispatchRaysIndex().xy;
+	if (DispatchThreadId.x >= CompactedTraceTexelAllocator[0])
+	{
+		return;
+	}
+
+	uint ScreenProbeIndex;
+	uint2 TraceTexelCoord;
+	float TraceHitDistance;
+	DecodeTraceTexel(CompactedTraceTexelData[DispatchThreadId.x], ScreenProbeIndex, TraceTexelCoord, TraceHitDistance);
+
+	uint2 ScreenProbeScreenCoord;
+	uint ScreenProbeSubsampleIndex;
+	GetScreenProbeScreenCoord(ScreenProbeIndex, ScreenProbeScreenCoord, ScreenProbeSubsampleIndex);
+
+	uint2 ScreenProbeAtlasCoord = uint2(ScreenProbeIndex % ScreenProbeAtlasViewSize.x, ScreenProbeIndex / ScreenProbeAtlasViewSize.x);
+	uint2 ScreenProbeTracingCoord = GetTraceBufferCoord(ScreenProbeAtlasCoord, TraceTexelCoord);
+	float2 ScreenUV = GetScreenUVFromScreenProbeCoord(ScreenProbeScreenCoord, ScreenProbeSubsampleIndex);
+
+	float SceneDepth = DownsampledDepth.Load(int3(ScreenProbeAtlasCoord, 0)).x;
+	float3 WorldPosition = GetWorldPositionFromScreenUV(ScreenUV, SceneDepth);
+	float3 WorldNormal = DecodeNormal(GBufferATexture.Load(int3(ScreenUV * View.BufferSizeAndInvSize.xy, 0)).xyz);
+	
+	float2 ProbeUV;
+	float ConeHalfAngle;
+	GetProbeTracingUV(ScreenProbeAtlasCoord, TraceTexelCoord, GetProbeTexelCenter(ScreenProbeScreenCoord), 1, ProbeUV, ConeHalfAngle);
+	float3 WorldConeDirection = OctahedralMapToDirection(ProbeUV);
+
+	RayDesc Ray;
+	Ray.Origin = WorldPosition;
+	Ray.Direction = WorldConeDirection;
+	Ray.TMin = TraceHitDistance;
+	Ray.TMax = MaxTraceDistance;
+
+	float NormalBias = 0.1;
+	ApplyPositionBias(Ray.Origin, Ray.Direction, WorldNormal, max(NormalBias, SurfaceBias * 0.5));
+
+	if (DIM_RADIANCE_CACHE)
+	{
+		bool bCoveredByRadianceCache = false;
+		float ProbeOcclusionDistance = GetRadianceProbeOcclusionDistanceWithInterpolation(WorldPosition, WorldConeDirection, bCoveredByRadianceCache);
+		Ray.TMax = min(Ray.TMax, ProbeOcclusionDistance);
+	}
+
+	FRayCone RayCone = (FRayCone)0;
+	RayCone.SpreadAngle = View.EyeToPixelSpreadAngle;
+	RayCone = PropagateRayCone(RayCone, ConeHalfAngle, SceneDepth);
+
+	FRayTracedLightingContext Context;
+	Context.TLAS = TLAS;
+	Context.RayCone = RayCone;
+	Context.TraceCoord = ScreenProbeScreenCoord;
+	Context.LinearCoord = ScreenProbeScreenCoord.y * ScreenProbeViewSize.x + ScreenProbeScreenCoord.x;
+
+	float TOffset = RebaseRay(Ray);
+	FDeferredMaterialPayload DeferredMaterialPayload = (FDeferredMaterialPayload)0;
+	bool bIsHit = TraceDeferredMaterialRay(Ray, Context, DeferredMaterialPayload);
+	RebaseTraceHitDistance(DeferredMaterialPayload.HitT, TOffset);
+
+	// Encode max trace distance in the case of an invalid or miss condition
+	if (!bIsHit)
+	{
+		DeferredMaterialPayload.HitT = MaxTraceDistance;
+	}
+
+	// Remap the coordinate to that of the initial dispatch index
+	DeferredMaterialPayload.PixelCoordinates = DispatchThreadId.x;
+
+	RWDeferredMaterialBuffer[DispatchThreadId.x] = DeferredMaterialPayload;
 }

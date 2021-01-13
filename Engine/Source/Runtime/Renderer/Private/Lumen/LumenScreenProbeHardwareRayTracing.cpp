@@ -17,6 +17,8 @@
 #include "LumenScreenProbeGather.h"
 
 #if RHI_RAYTRACING
+
+#include "RayTracing/RayTracingDeferredMaterials.h"
 #include "RayTracing/RaytracingOptions.h"
 #include "RayTracing/RayTracingLighting.h"
 #include "LumenHardwareRayTracingCommon.h"
@@ -47,7 +49,29 @@ static TAutoConsoleVariable<int32> CVarLumenScreenProbeGatherHardwareRayTracingN
 	TEXT("1: Geometry normal"),
 	ECVF_RenderThreadSafe
 );
-#endif
+
+static TAutoConsoleVariable<int32> CVarLumenScreenProbeGatherHardwareRayTracingDeferredMaterial(
+	TEXT("r.Lumen.ScreenProbeGather.HardwareRayTracing.DeferredMaterial"),
+	1,
+	TEXT("Enables deferred material pipeline (Default = 1)"),
+	ECVF_RenderThreadSafe
+);
+
+static TAutoConsoleVariable<int32> CVarLumenScreenProbeGatherHardwareRayTracingMinimalPayload(
+	TEXT("r.Lumen.ScreenProbeGather.HardwareRayTracing.MinimalPayload"),
+	1,
+	TEXT("Enables deferred material pipeline (Default = 1)"),
+	ECVF_RenderThreadSafe
+);
+
+static TAutoConsoleVariable<int32> CVarLumenScreenProbeGatherHardwareRayTracingDeferredMaterialTileSize(
+	TEXT("r.Lumen.ScreenProbeGather.HardwareRayTracing.DeferredMaterial.TileDimension"),
+	64,
+	TEXT("Determines the tile dimension for material sorting (Default = 64)"),
+	ECVF_RenderThreadSafe
+);
+
+#endif // RHI_RAYTRACING
 
 namespace Lumen
 {
@@ -104,14 +128,16 @@ class FLumenScreenProbeGatherHardwareRayTracingRGS : public FLumenHardwareRayTra
 	DECLARE_GLOBAL_SHADER(FLumenScreenProbeGatherHardwareRayTracingRGS)
 	SHADER_USE_ROOT_PARAMETER_STRUCT(FLumenScreenProbeGatherHardwareRayTracingRGS, FLumenHardwareRayTracingRGS)
 
+	class FDeferredMaterialModeDim : SHADER_PERMUTATION_BOOL("DIM_DEFERRED_MATERIAL_MODE");
 	class FNormalModeDim : SHADER_PERMUTATION_BOOL("DIM_NORMAL_MODE");
 	class FLightingModeDim : SHADER_PERMUTATION_INT("DIM_LIGHTING_MODE", static_cast<int32>(Lumen::EHardwareRayTracingLightingMode::MAX));
 	class FRadianceCacheDim : SHADER_PERMUTATION_BOOL("DIM_RADIANCE_CACHE");
 	class FStructuredImportanceSamplingDim : SHADER_PERMUTATION_BOOL("STRUCTURED_IMPORTANCE_SAMPLING");
-	using FPermutationDomain = TShaderPermutationDomain<FNormalModeDim, FLightingModeDim, FRadianceCacheDim, FStructuredImportanceSamplingDim>;
+	using FPermutationDomain = TShaderPermutationDomain<FDeferredMaterialModeDim, FNormalModeDim, FLightingModeDim, FRadianceCacheDim, FStructuredImportanceSamplingDim>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenHardwareRayTracingRGS::FSharedParameters, SharedParameters)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FDeferredMaterialPayload>, DeferredMaterialBuffer)
 
 		// Screen probes
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenIndirectTracingParameters, IndirectTracingParameters)
@@ -132,12 +158,47 @@ class FLumenScreenProbeGatherHardwareRayTracingRGS : public FLumenHardwareRayTra
 
 IMPLEMENT_GLOBAL_SHADER(FLumenScreenProbeGatherHardwareRayTracingRGS, "/Engine/Private/Lumen/LumenScreenProbeHardwareRayTracing.usf", "LumenScreenProbeGatherHardwareRayTracingRGS", SF_RayGen);
 
+class FLumenScreenProbeGatherHardwareRayTracingDeferredMaterialRGS : public FLumenHardwareRayTracingDeferredMaterialRGS
+{
+	DECLARE_GLOBAL_SHADER(FLumenScreenProbeGatherHardwareRayTracingDeferredMaterialRGS)
+	SHADER_USE_ROOT_PARAMETER_STRUCT(FLumenScreenProbeGatherHardwareRayTracingDeferredMaterialRGS, FLumenHardwareRayTracingDeferredMaterialRGS)
+
+	class FRadianceCacheDim : SHADER_PERMUTATION_BOOL("DIM_RADIANCE_CACHE");
+	class FStructuredImportanceSamplingDim : SHADER_PERMUTATION_BOOL("STRUCTURED_IMPORTANCE_SAMPLING");
+	using FPermutationDomain = TShaderPermutationDomain<FRadianceCacheDim, FStructuredImportanceSamplingDim>;
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenHardwareRayTracingDeferredMaterialRGS::FDeferredMaterialParameters, DeferredMaterialParameters)
+
+		// Screen probes
+		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenIndirectTracingParameters, IndirectTracingParameters)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FScreenProbeParameters, ScreenProbeParameters)
+
+		// Radiance cache
+		SHADER_PARAMETER_STRUCT_INCLUDE(LumenRadianceCache::FRadianceCacheParameters, RadianceCacheParameters)
+		SHADER_PARAMETER_STRUCT_REF(FRGSRadianceCacheParameters, RGSRadianceCacheParameters)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FCompactedTraceParameters, CompactedTraceParameters)
+	END_SHADER_PARAMETER_STRUCT()
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FLumenHardwareRayTracingRGS::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("UE_RAY_TRACING_DISPATCH_1D"), 1);
+		OutEnvironment.SetDefine(TEXT("DIM_DEFERRED_MATERIAL_MODE"), 0);
+		OutEnvironment.SetDefine(TEXT("DIM_RADIANCE_CACHE"), 0);
+	}
+};
+
+IMPLEMENT_GLOBAL_SHADER(FLumenScreenProbeGatherHardwareRayTracingDeferredMaterialRGS, "/Engine/Private/Lumen/LumenScreenProbeHardwareRayTracing.usf", "LumenScreenProbeGatherHardwareRayTracingDeferredMaterialRGS", SF_RayGen);
+
 void FDeferredShadingSceneRenderer::PrepareLumenHardwareRayTracingScreenProbeGather(const FViewInfo& View, TArray<FRHIRayTracingShader*>& OutRayGenShaders)
 {
+	bool bUseDeferredMaterial = CVarLumenScreenProbeGatherHardwareRayTracingDeferredMaterial.GetValueOnRenderThread() != 0;
 	int NormalMode = CVarLumenScreenProbeGatherHardwareRayTracingNormalMode.GetValueOnRenderThread();
 	int LightingMode = CVarLumenScreenProbeGatherHardwareRayTracingLightingMode.GetValueOnRenderThread();
 
 	FLumenScreenProbeGatherHardwareRayTracingRGS::FPermutationDomain PermutationVector;
+	PermutationVector.Set<FLumenScreenProbeGatherHardwareRayTracingRGS::FDeferredMaterialModeDim>(bUseDeferredMaterial);
 	PermutationVector.Set<FLumenScreenProbeGatherHardwareRayTracingRGS::FNormalModeDim>(NormalMode != 0);
 	PermutationVector.Set<FLumenScreenProbeGatherHardwareRayTracingRGS::FLightingModeDim>(LightingMode);
 	PermutationVector.Set<FLumenScreenProbeGatherHardwareRayTracingRGS::FRadianceCacheDim>(LumenScreenProbeGather::UseRadianceCache(View));
@@ -145,6 +206,33 @@ void FDeferredShadingSceneRenderer::PrepareLumenHardwareRayTracingScreenProbeGat
 	TShaderRef<FLumenScreenProbeGatherHardwareRayTracingRGS> RayGenerationShader = View.ShaderMap->GetShader<FLumenScreenProbeGatherHardwareRayTracingRGS>(PermutationVector);
 
 	OutRayGenShaders.Add(RayGenerationShader.GetRayTracingShader());
+}
+
+void FDeferredShadingSceneRenderer::PrepareLumenHardwareRayTracingScreenProbeGatherDeferredMaterial(const FViewInfo& View, TArray<FRHIRayTracingShader*>& OutRayGenShaders)
+{
+	FLumenScreenProbeGatherHardwareRayTracingDeferredMaterialRGS::FPermutationDomain PermutationVector;
+	PermutationVector.Set<FLumenScreenProbeGatherHardwareRayTracingDeferredMaterialRGS::FRadianceCacheDim>(LumenScreenProbeGather::UseRadianceCache(View));
+	PermutationVector.Set<FLumenScreenProbeGatherHardwareRayTracingDeferredMaterialRGS::FStructuredImportanceSamplingDim>(LumenScreenProbeGather::UseImportanceSampling());
+	TShaderRef<FLumenScreenProbeGatherHardwareRayTracingDeferredMaterialRGS> RayGenerationShader = View.ShaderMap->GetShader<FLumenScreenProbeGatherHardwareRayTracingDeferredMaterialRGS>(PermutationVector);
+	OutRayGenShaders.Add(RayGenerationShader.GetRayTracingShader());
+}
+
+void FDeferredShadingSceneRenderer::PrepareLumenHardwareRayTracingScreenProbeGatherLumenMaterial(const FViewInfo& View, TArray<FRHIRayTracingShader*>& OutRayGenShaders)
+{
+	Lumen::EHardwareRayTracingLightingMode LightingMode = static_cast<Lumen::EHardwareRayTracingLightingMode>(CVarLumenScreenProbeGatherHardwareRayTracingLightingMode.GetValueOnRenderThread());
+	bool bUseMinimalPayload = LightingMode == Lumen::EHardwareRayTracingLightingMode::LightingFromSurfaceCache;
+
+	if (Lumen::UseHardwareRayTracedScreenProbeGather() && bUseMinimalPayload)
+	{
+		FLumenScreenProbeGatherHardwareRayTracingRGS::FPermutationDomain PermutationVector;
+		PermutationVector.Set<FLumenScreenProbeGatherHardwareRayTracingRGS::FDeferredMaterialModeDim>(0);
+		PermutationVector.Set<FLumenScreenProbeGatherHardwareRayTracingRGS::FNormalModeDim>(0);
+		PermutationVector.Set<FLumenScreenProbeGatherHardwareRayTracingRGS::FLightingModeDim>(0);
+		PermutationVector.Set<FLumenScreenProbeGatherHardwareRayTracingRGS::FRadianceCacheDim>(LumenScreenProbeGather::UseRadianceCache(View));
+		PermutationVector.Set<FLumenScreenProbeGatherHardwareRayTracingRGS::FStructuredImportanceSamplingDim>(LumenScreenProbeGather::UseImportanceSampling());
+		TShaderRef<FLumenScreenProbeGatherHardwareRayTracingRGS> RayGenerationShader = View.ShaderMap->GetShader<FLumenScreenProbeGatherHardwareRayTracingRGS>(PermutationVector);
+		OutRayGenShaders.Add(RayGenerationShader.GetRayTracingShader());
+	}
 }
 
 #endif // RHI_RAYTRACING
@@ -165,6 +253,73 @@ void RenderHardwareRayTracingScreenProbe(
 	const uint32 NumTracesPerProbe = ScreenProbeParameters.ScreenProbeTracingOctahedronResolution * ScreenProbeParameters.ScreenProbeTracingOctahedronResolution;
 	FIntPoint RayTracingResolution = FIntPoint(ScreenProbeParameters.ScreenProbeAtlasViewSize.X * ScreenProbeParameters.ScreenProbeAtlasViewSize.Y * NumTracesPerProbe, 1);
 
+	int TileSize = CVarLumenScreenProbeGatherHardwareRayTracingDeferredMaterialTileSize.GetValueOnRenderThread();
+	FIntPoint DeferredMaterialBufferResolution = RayTracingResolution;
+	DeferredMaterialBufferResolution.X = FMath::DivideAndRoundUp(DeferredMaterialBufferResolution.X, TileSize) * TileSize;
+
+	int DeferredMaterialBufferNumElements = DeferredMaterialBufferResolution.X * DeferredMaterialBufferResolution.Y;
+	FRDGBufferDesc Desc = FRDGBufferDesc::CreateStructuredDesc(sizeof(FDeferredMaterialPayload), DeferredMaterialBufferNumElements);
+	FRDGBufferRef DeferredMaterialBuffer = GraphBuilder.CreateBuffer(Desc, TEXT("LumenVisualizeHardwareRayTracingDeferredMaterialBuffer"));
+
+	Lumen::EHardwareRayTracingLightingMode LightingMode = static_cast<Lumen::EHardwareRayTracingLightingMode>(CVarLumenScreenProbeGatherHardwareRayTracingLightingMode.GetValueOnRenderThread());
+	bool bUseMinimalPayload = LightingMode == Lumen::EHardwareRayTracingLightingMode::LightingFromSurfaceCache && (CVarLumenScreenProbeGatherHardwareRayTracingMinimalPayload.GetValueOnRenderThread() != 0);
+	bool bUseDeferredMaterial = (CVarLumenScreenProbeGatherHardwareRayTracingDeferredMaterial.GetValueOnRenderThread() != 0) && !bUseMinimalPayload;
+	if (bUseDeferredMaterial)
+	{
+		FLumenScreenProbeGatherHardwareRayTracingDeferredMaterialRGS::FParameters* PassParameters = GraphBuilder.AllocParameters<FLumenScreenProbeGatherHardwareRayTracingDeferredMaterialRGS::FParameters>();
+		SetLumenHardwareRayTracingSharedParameters(
+			GraphBuilder,
+			SceneTextures,
+			View,
+			TracingInputs,
+			MeshSDFGridParameters,
+			&PassParameters->DeferredMaterialParameters.SharedParameters);
+
+		PassParameters->IndirectTracingParameters = IndirectTracingParameters;
+		PassParameters->ScreenProbeParameters = ScreenProbeParameters;
+
+		// Radiance cache arguments
+		FRGSRadianceCacheParameters RGSRadianceCacheParameters;
+		SetupRGSRadianceCacheParametersNew(RadianceCacheParameters, RGSRadianceCacheParameters);
+		PassParameters->RGSRadianceCacheParameters = CreateUniformBufferImmediate(RGSRadianceCacheParameters, UniformBuffer_SingleFrame);
+		PassParameters->RadianceCacheParameters = RadianceCacheParameters;
+		PassParameters->CompactedTraceParameters = CompactedTraceParameters;
+
+		// Compact tracing becomes a 1D buffer..
+		DeferredMaterialBufferResolution = FIntPoint(DeferredMaterialBufferNumElements, 1);
+
+		// Output..
+		PassParameters->DeferredMaterialParameters.RWDeferredMaterialBuffer = GraphBuilder.CreateUAV(DeferredMaterialBuffer);
+		PassParameters->DeferredMaterialParameters.DeferredMaterialBufferResolution = DeferredMaterialBufferResolution;
+		PassParameters->DeferredMaterialParameters.TileSize = TileSize;
+
+		// Permutation settings
+		FLumenScreenProbeGatherHardwareRayTracingDeferredMaterialRGS::FPermutationDomain PermutationVector;
+		PermutationVector.Set<FLumenScreenProbeGatherHardwareRayTracingDeferredMaterialRGS::FRadianceCacheDim>(LumenScreenProbeGather::UseRadianceCache(View));
+		PermutationVector.Set<FLumenScreenProbeGatherHardwareRayTracingDeferredMaterialRGS::FStructuredImportanceSamplingDim>(LumenScreenProbeGather::UseImportanceSampling());
+		TShaderRef<FLumenScreenProbeGatherHardwareRayTracingDeferredMaterialRGS> RayGenerationShader =
+			View.ShaderMap->GetShader<FLumenScreenProbeGatherHardwareRayTracingDeferredMaterialRGS>(PermutationVector);
+		ClearUnusedGraphResources(RayGenerationShader, PassParameters);
+
+		GraphBuilder.AddPass(
+			RDG_EVENT_NAME("HardwareRayTracing(Payload=Deferred) %ux%u", DeferredMaterialBufferResolution.X, DeferredMaterialBufferResolution.Y),
+			PassParameters,
+			ERDGPassFlags::Compute,
+			[PassParameters, &View, RayGenerationShader, DeferredMaterialBufferResolution](FRHICommandList& RHICmdList)
+			{
+				FRayTracingShaderBindingsWriter GlobalResources;
+				SetShaderParameters(GlobalResources, RayGenerationShader, *PassParameters);
+
+				FRHIRayTracingScene* RayTracingSceneRHI = View.RayTracingScene.RayTracingSceneRHI;
+				RHICmdList.RayTraceDispatch(View.RayTracingMaterialGatherPipeline, RayGenerationShader.GetRayTracingShader(), RayTracingSceneRHI, GlobalResources, DeferredMaterialBufferResolution.X, DeferredMaterialBufferResolution.Y);
+			}
+		);
+
+		// Sort by material-id
+		const uint32 SortSize = 5; // 4096 elements
+		SortDeferredMaterials(GraphBuilder, View, SortSize, DeferredMaterialBufferNumElements, DeferredMaterialBuffer);
+	}
+
 	// Trace and shade
 	{
 		FLumenScreenProbeGatherHardwareRayTracingRGS::FParameters* PassParameters = GraphBuilder.AllocParameters<FLumenScreenProbeGatherHardwareRayTracingRGS::FParameters>();
@@ -177,6 +332,7 @@ void RenderHardwareRayTracingScreenProbe(
 			MeshSDFGridParameters,
 			&PassParameters->SharedParameters
 		);
+		PassParameters->DeferredMaterialBuffer = GraphBuilder.CreateSRV(DeferredMaterialBuffer);
 
 		// Screen-probe gather arguments
 		PassParameters->IndirectTracingParameters = IndirectTracingParameters;
@@ -190,12 +346,12 @@ void RenderHardwareRayTracingScreenProbe(
 		PassParameters->CompactedTraceParameters = CompactedTraceParameters;
 
 		// Constants!
-		int LightingMode = CVarLumenScreenProbeGatherHardwareRayTracingLightingMode.GetValueOnRenderThread();
 		int NormalMode = CVarLumenScreenProbeGatherHardwareRayTracingNormalMode.GetValueOnRenderThread();
 
 		FLumenScreenProbeGatherHardwareRayTracingRGS::FPermutationDomain PermutationVector;
+		PermutationVector.Set<FLumenScreenProbeGatherHardwareRayTracingRGS::FDeferredMaterialModeDim>(bUseDeferredMaterial);
 		PermutationVector.Set<FLumenScreenProbeGatherHardwareRayTracingRGS::FNormalModeDim>(NormalMode != 0);
-		PermutationVector.Set<FLumenScreenProbeGatherHardwareRayTracingRGS::FLightingModeDim>(LightingMode);
+		PermutationVector.Set<FLumenScreenProbeGatherHardwareRayTracingRGS::FLightingModeDim>(static_cast<int>(LightingMode));
 		PermutationVector.Set<FLumenScreenProbeGatherHardwareRayTracingRGS::FRadianceCacheDim>(LumenScreenProbeGather::UseRadianceCache(View));
 		PermutationVector.Set<FLumenScreenProbeGatherHardwareRayTracingRGS::FStructuredImportanceSamplingDim>(LumenScreenProbeGather::UseImportanceSampling());
 
@@ -203,17 +359,21 @@ void RenderHardwareRayTracingScreenProbe(
 			View.ShaderMap->GetShader<FLumenScreenProbeGatherHardwareRayTracingRGS>(PermutationVector);
 		ClearUnusedGraphResources(RayGenerationShader, PassParameters);
 
+		const TCHAR* PassName = bUseDeferredMaterial ? TEXT("DeferredMaterialAndLighting") : TEXT("HardwareRayTracing");
+		const TCHAR* LightingModeName = Lumen::GetRayTracedLightingModeName((Lumen::EHardwareRayTracingLightingMode)LightingMode);
+		const TCHAR* PayloadName = bUseMinimalPayload ? TEXT("Minimal") : TEXT("Default");
 		GraphBuilder.AddPass(
-			RDG_EVENT_NAME("HardwareRayTracing %ux%u LightingMode=%s", RayTracingResolution.X, RayTracingResolution.Y, Lumen::GetRayTracedLightingModeName((Lumen::EHardwareRayTracingLightingMode)LightingMode)),
+			RDG_EVENT_NAME("%s(LightingMode=%s Payload=%s) %ux%u", PassName, LightingModeName, PayloadName, RayTracingResolution.X, RayTracingResolution.Y),
 			PassParameters,
 			ERDGPassFlags::Compute,
-			[PassParameters, &View, RayGenerationShader, RayTracingResolution](FRHICommandList& RHICmdList)
+			[PassParameters, &View, RayGenerationShader, RayTracingResolution, bUseMinimalPayload](FRHICommandList& RHICmdList)
 			{
 				FRayTracingShaderBindingsWriter GlobalResources;
 				SetShaderParameters(GlobalResources, RayGenerationShader, *PassParameters);
 
 				FRHIRayTracingScene* RayTracingSceneRHI = View.RayTracingScene.RayTracingSceneRHI;
-				RHICmdList.RayTraceDispatch(View.RayTracingMaterialPipeline, RayGenerationShader.GetRayTracingShader(), RayTracingSceneRHI, GlobalResources, RayTracingResolution.X, RayTracingResolution.Y);
+				FRayTracingPipelineState* RayTracingPipeline = bUseMinimalPayload ? View.LumenHardwareRayTracingMaterialPipeline : View.RayTracingMaterialPipeline;
+				RHICmdList.RayTraceDispatch(RayTracingPipeline, RayGenerationShader.GetRayTracingShader(), RayTracingSceneRHI, GlobalResources, RayTracingResolution.X, RayTracingResolution.Y);
 			}
 		);
 	}
