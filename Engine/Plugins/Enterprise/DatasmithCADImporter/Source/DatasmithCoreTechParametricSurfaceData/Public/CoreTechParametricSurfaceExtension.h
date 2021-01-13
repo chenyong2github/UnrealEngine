@@ -4,9 +4,10 @@
 
 #include "CoreMinimal.h"
 
-#include "DatasmithCustomAction.h"
 #include "DatasmithAdditionalData.h"
+#include "DatasmithCustomAction.h"
 #include "DatasmithImportOptions.h"
+#include "DatasmithUtils.h"
 
 #include "CoreTechParametricSurfaceExtension.generated.h"
 
@@ -18,13 +19,13 @@ struct DATASMITHCORETECHPARAMETRICSURFACEDATA_API FCoreTechSceneParameters
 
 	// value from FDatasmithUtils::EModelCoordSystem
 	UPROPERTY()
-	uint8 ModelCoordSys;
+	uint8 ModelCoordSys = (uint8)FDatasmithUtils::EModelCoordSystem::ZUp_LeftHanded;
 
 	UPROPERTY()
-	float MetricUnit;
+	float MetricUnit = 0.01f;
 
 	UPROPERTY()
-	float ScaleFactor;
+	float ScaleFactor = 1.0f;
 };
 
 USTRUCT()
@@ -33,16 +34,16 @@ struct DATASMITHCORETECHPARAMETRICSURFACEDATA_API FCoreTechMeshParameters
 	GENERATED_BODY()
 
 	UPROPERTY()
-	bool bNeedSwapOrientation;
+	bool bNeedSwapOrientation = false;
 
 	UPROPERTY()
-	bool bIsSymmetric;
+	bool bIsSymmetric = false;
 
 	UPROPERTY()
-	FVector SymmetricOrigin;
+	FVector SymmetricOrigin = FVector::ZeroVector;
 
 	UPROPERTY()
-	FVector SymmetricNormal;
+	FVector SymmetricNormal = FVector::ZeroVector;
 };
 
 

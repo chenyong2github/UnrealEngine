@@ -18,13 +18,13 @@ USTRUCT(noexport)
 struct FDoubleVector
 {
 	UPROPERTY()
-	double X;
+	double X = 0.0;
 
 	UPROPERTY()
-	double Y;
+	double Y = 0.0;
 
 	UPROPERTY()
-	double Z;
+	double Z = 0.0;
 };
 #endif
 

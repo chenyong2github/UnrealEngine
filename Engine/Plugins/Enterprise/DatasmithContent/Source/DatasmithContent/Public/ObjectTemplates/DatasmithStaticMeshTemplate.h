@@ -120,10 +120,10 @@ public:
 	FDatasmithMeshSectionInfoMapTemplate SectionInfoMap;
 
 	UPROPERTY( VisibleAnywhere, Category = StaticMesh )
-	int32 LightMapCoordinateIndex;
+	int32 LightMapCoordinateIndex = INDEX_NONE;
 
 	UPROPERTY( VisibleAnywhere, Category = StaticMesh )
-	int32 LightMapResolution;
+	int32 LightMapResolution = 0;
 
 	UPROPERTY( VisibleAnywhere, Category = StaticMesh )
 	TArray< FDatasmithMeshBuildSettingsTemplate > BuildSettings;
