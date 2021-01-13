@@ -7,7 +7,7 @@ namespace Chaos
 
 class FPhysicsSolverBase;
 
-class FGeometryParticleBuffer
+class CHAOS_API FGeometryParticleBuffer
 {
 public:
 	FGeometryParticleBuffer(const TGeometryParticleParameters<FReal, 3>& StaticParams = TGeometryParticleParameters<FReal, 3>())

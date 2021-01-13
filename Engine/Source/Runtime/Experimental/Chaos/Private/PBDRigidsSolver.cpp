@@ -23,7 +23,7 @@
 #include "ChaosSolverConfiguration.h"
 #include "Chaos/PullPhysicsDataImp.h"
 #include "Chaos/PhysicsSolverBaseImpl.h"
-#include "PhysicsProxy/PBDRigidParticleProxy.h"
+#include "PhysicsProxy/SingleParticleProxy.h"
 
 //PRAGMA_DISABLE_OPTIMIZATION
 
@@ -363,6 +363,41 @@ namespace Chaos
 		TEXT("The max bounds before moving object into a large objects structure. Only applies on object registration")
 		TEXT(""),
 		ECVF_Default);
+
+	template <typename Traits>
+	Chaos::FSingleParticleProxy* TPBDRigidsSolver<Traits>::RegisterObject_External(TUniquePtr<Chaos::FGeometryParticleBuffer>&& GTParticleBuffer)
+	{
+		LLM_SCOPE(ELLMTag::Chaos);
+
+		if (GTParticleBuffer->Geometry() && GTParticleBuffer->Geometry()->HasBoundingBox() && GTParticleBuffer->Geometry()->BoundingBox().Extents().Max() >= MaxBoundsForTree)
+		{
+			GTParticleBuffer->SetSpatialIdx(FSpatialAccelerationIdx{ 1,0 });
+		}
+		if (!ensure(GTParticleBuffer->IsParticleValid()))
+		{
+			return nullptr;
+		}
+
+		GTParticleBuffer->SetUniqueIdx(GetEvolution()->GenerateUniqueIdx());
+		FSingleParticleProxy* Proxy = new FSingleParticleProxy(MoveTemp(GTParticleBuffer));
+
+		//todo: remove this
+		//TrackGTParticle_External(*Proxy->GetBuffer());
+
+		Proxy->SetSolver(this);
+
+		AddDirtyProxy(Proxy);
+
+		//TODO: switch structure to use proxy
+		//UpdateParticleInAccelerationStructure_External(GTParticle, /*bDelete=*/false);
+		return Proxy;
+	}
+
+	template <typename Traits>
+	void TPBDRigidsSolver<Traits>::UnregisterObject_External(Chaos::FSingleParticleProxy* Proxy)
+	{
+		//TODO
+	}
 
 	template <typename Traits>
 	void TPBDRigidsSolver<Traits>::RegisterObject(TGeometryParticle<float, 3>* GTParticle)

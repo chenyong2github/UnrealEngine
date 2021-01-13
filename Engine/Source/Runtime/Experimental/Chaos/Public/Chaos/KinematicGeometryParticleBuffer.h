@@ -18,6 +18,16 @@ public:
 		KinematicGeometryParticleDefaultConstruct<FReal, 3>(*this, KinematicParams);
 	}
 
+	static const FKinematicGeometryParticleBuffer* Cast(const FGeometryParticleBuffer* Buffer)
+	{
+		return Buffer && Buffer->ObjectType() >= EParticleType::Kinematic ? static_cast<const FKinematicGeometryParticleBuffer*>(Buffer) : nullptr;
+	}
+
+	static FKinematicGeometryParticleBuffer* Cast(FGeometryParticleBuffer* Buffer)
+	{
+		return Buffer && Buffer->ObjectType() >= EParticleType::Kinematic ? static_cast<FKinematicGeometryParticleBuffer*>(Buffer) : nullptr;
+	}
+
 	const FVec3& V() const { return MVelocities.Read().V(); }
 	void SetV(const FVec3& InV, bool bInvalidate = true);
 
