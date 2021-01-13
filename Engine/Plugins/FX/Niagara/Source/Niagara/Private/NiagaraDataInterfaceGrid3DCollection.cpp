@@ -1141,7 +1141,7 @@ void FNiagaraDataInterfaceProxyGrid3DCollectionProxy::PreStage(FRHICommandList& 
 				const FIntVector ElementCount = IterationInterface->GetElementCount(Context.SystemInstanceID);
 				const uint64 TotalNumInstances = ElementCount.X * ElementCount.Y * ElementCount.Z;
 			
-				if (TotalNumInstances == ProxyData->NumCells.X * ProxyData->NumCells.Y * ProxyData->NumCells.Z)
+				if (ElementCount.X == ProxyData->NumCells.X && ElementCount.Y == ProxyData->NumCells.Y && ElementCount.Z == ProxyData->NumCells.Z)
 				{
 					return;
 				}
