@@ -4300,12 +4300,14 @@ void FEngineLoop::Exit()
 	{
 		GDistanceFieldAsyncQueue->Shutdown();
 		delete GDistanceFieldAsyncQueue;
+		GDistanceFieldAsyncQueue = nullptr;
 	}
 
 	if (GCardRepresentationAsyncQueue)
 	{
 		GCardRepresentationAsyncQueue->Shutdown();
 		delete GCardRepresentationAsyncQueue;
+		GCardRepresentationAsyncQueue = nullptr;
 	}
 #endif // WITH_ENGINE
 

@@ -3846,9 +3846,6 @@ bool UStaticMesh::IsReadyForFinishDestroy()
 		return false;
 	}
 
-	// The following code block was causing a shutdown crash in the editor, so
-	// disabling it for now pending investigation.
-#if 0 
 	if (GetRenderData())
 	{
 		if (GDistanceFieldAsyncQueue)
@@ -3861,8 +3858,6 @@ bool UStaticMesh::IsReadyForFinishDestroy()
 			GCardRepresentationAsyncQueue->CancelBuild(this);
 		}
 	}
-#endif //0
-
 #endif
 
 	if (!Super::IsReadyForFinishDestroy())
