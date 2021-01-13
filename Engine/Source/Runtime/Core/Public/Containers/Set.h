@@ -176,7 +176,7 @@ public:
 	FORCEINLINE TSetElementBase() {}
 
 	/** Initialization constructor. */
-	template <typename InitType, typename = typename TEnableIf<!TAreTypesEqual<TSetElementBase, typename TDecay<InitType>::Type>::Value>::Type> explicit FORCEINLINE TSetElementBase(InitType&& InValue) : Value(Forward<InitType>(InValue)) {}
+	template <typename InitType, typename = std::enable_if_t<!TAreTypesEqual<TSetElementBase, typename TDecay<InitType>::Type>::Value>> explicit FORCEINLINE TSetElementBase(InitType&& InValue) : Value(Forward<InitType>(InValue)) {}
 
 	TSetElementBase(TSetElementBase&&) = default;
 	TSetElementBase(const TSetElementBase&) = default;
@@ -203,7 +203,7 @@ public:
 	FORCEINLINE TSetElementBase() {}
 
 	/** Initialization constructor. */
-	template <typename InitType, typename = typename TEnableIf<!TAreTypesEqual<TSetElementBase, typename TDecay<InitType>::Type>::Value>::Type> explicit FORCEINLINE TSetElementBase(InitType&& InValue) : Value(Forward<InitType>(InValue)) {}
+	template <typename InitType, typename = std::enable_if_t<!TAreTypesEqual<TSetElementBase, typename TDecay<InitType>::Type>::Value>> explicit FORCEINLINE TSetElementBase(InitType&& InValue) : Value(Forward<InitType>(InValue)) {}
 
 	TSetElementBase(TSetElementBase&&) = default;
 	TSetElementBase(const TSetElementBase&) = default;
@@ -231,7 +231,7 @@ public:
 	{}
 
 	/** Initialization constructor. */
-	template <typename InitType, typename = typename TEnableIf<!TAreTypesEqual<TSetElement, typename TDecay<InitType>::Type>::Value>::Type> explicit FORCEINLINE TSetElement(InitType&& InValue) : Super(Forward<InitType>(InValue)) {}
+	template <typename InitType, typename = std::enable_if_t<!TAreTypesEqual<TSetElement, typename TDecay<InitType>::Type>::Value>> explicit FORCEINLINE TSetElement(InitType&& InValue) : Super(Forward<InitType>(InValue)) {}
 
 	TSetElement(TSetElement&&) = default;
 	TSetElement(const TSetElement&) = default;
@@ -349,7 +349,7 @@ public:
 
 private:
 	template <typename SetType>
-	static FORCEINLINE typename TEnableIf<TContainerTraits<SetType>::MoveWillEmptyContainer>::Type MoveOrCopy(SetType& ToSet, SetType& FromSet)
+	static FORCEINLINE std::enable_if_t<TContainerTraits<SetType>::MoveWillEmptyContainer> MoveOrCopy(SetType& ToSet, SetType& FromSet)
 	{
 		ToSet.Elements = (ElementArrayType&&)FromSet.Elements;
 
@@ -360,7 +360,7 @@ private:
 	}
 
 	template <typename SetType>
-	static FORCEINLINE typename TEnableIf<!TContainerTraits<SetType>::MoveWillEmptyContainer>::Type MoveOrCopy(SetType& ToSet, SetType& FromSet)
+	static FORCEINLINE std::enable_if_t<!TContainerTraits<SetType>::MoveWillEmptyContainer> MoveOrCopy(SetType& ToSet, SetType& FromSet)
 	{
 		ToSet = FromSet;
 	}
