@@ -4281,7 +4281,7 @@ bool FPakProcessedReadRequest::CheckCompletion(const FPakEntry& FileEntry, int32
 	}
 	{
 		int64 BlockStart = int64(BlockIndex) * int64(FileEntry.CompressionBlockSize);
-		int64 BlockEnd = int64(BlockIndex + 1) * int64(FileEntry.CompressionBlockSize);
+		int64 BlockEnd = (int64(BlockIndex) + 1) * int64(FileEntry.CompressionBlockSize);
 		if (Offset >= BlockEnd || Offset + BytesToRead <= BlockStart)
 		{
 			return false;

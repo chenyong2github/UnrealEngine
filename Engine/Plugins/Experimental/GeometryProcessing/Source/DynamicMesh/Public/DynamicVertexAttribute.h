@@ -292,7 +292,7 @@ public:
 		{
 			return;
 		}
-		size_t NeededSize = size_t((VertexID+1) * AttribDimension);
+		size_t NeededSize = (size_t(VertexID)+1) * AttribDimension;
 		if (NeededSize > AttribValues.Num())
 		{
 			AttribValues.Resize(NeededSize, GetDefaultAttributeValue());
