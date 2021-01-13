@@ -96,42 +96,40 @@ namespace Metasound
 			return Categories;
 		}
 
-		FString FGraphBuilder::GenerateUniqueInputName(UObject& InMetasound, const FName InBaseName)
+		FString FGraphBuilder::GenerateUniqueInputName(const UObject& InMetasound, const FName InBaseName)
 		{
 			FString NameBase = GetDataTypeDisplayName(InBaseName);
-			FMetasoundAssetBase* MetasoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(&InMetasound);
+			const FMetasoundAssetBase* MetasoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(&InMetasound);
 			check(MetasoundAsset);
 
-			// TODO: To achieve const correctness, this needs a FConstGraphHandle.
-			const Frontend::FGraphHandle GraphHandle = MetasoundAsset->GetRootGraphHandle();
+			const Frontend::FConstGraphHandle GraphHandle = MetasoundAsset->GetRootGraphHandle();
 
 			int32 i = 1;
-			FString NewNodeName = NameBase + FString::Printf(TEXT("_%02d"), i);
-			while (GraphHandle->ContainsInputNodeWithName(NewNodeName))
+			FString NewInputName = NameBase + FString::Printf(TEXT("_%02d"), i);
+			while (GraphHandle->ContainsInputVertexWithName(NewInputName))
 			{
-				NewNodeName = NameBase + FString::Printf(TEXT("_%02d"), ++i);
+				NewInputName = NameBase + FString::Printf(TEXT("_%02d"), ++i);
 			}
 
-			return NewNodeName;
+			return NewInputName;
 		}
 
-		FString FGraphBuilder::GenerateUniqueOutputName(UObject& InMetasound, const FName InBaseName)
+		FString FGraphBuilder::GenerateUniqueOutputName(const UObject& InMetasound, const FName InBaseName)
 		{
 			FString NameBase = GetDataTypeDisplayName(InBaseName);
-			FMetasoundAssetBase* MetasoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(&InMetasound);
+			const FMetasoundAssetBase* MetasoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(&InMetasound);
 			check(MetasoundAsset);
 
-			// TODO: To achieve const correctness, this needs a FConstGraphHandle.
-			const Frontend::FGraphHandle GraphHandle = MetasoundAsset->GetRootGraphHandle();
+			const Frontend::FConstGraphHandle GraphHandle = MetasoundAsset->GetRootGraphHandle();
 
 			int32 i = 1;
-			FString NewNodeName = NameBase + FString::Printf(TEXT("_%02d"), i);
-			while (GraphHandle->ContainsOutputNodeWithName(NewNodeName))
+			FString NewOutputName = NameBase + FString::Printf(TEXT("_%02d"), i);
+			while (GraphHandle->ContainsOutputVertexWithName(NewOutputName))
 			{
-				NewNodeName = NameBase + FString::Printf(TEXT("_%02d"), ++i);
+				NewOutputName = NameBase + FString::Printf(TEXT("_%02d"), ++i);
 			}
 
-			return NewNodeName;
+			return NewOutputName;
 		}
 
 		UEdGraphNode* FGraphBuilder::AddInput(UObject& InMetasound, const FVector2D& Location, const FString& InName, const FName InTypeName, const FText& InToolTip, bool bInSelectNewNode)

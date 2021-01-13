@@ -1982,28 +1982,28 @@ FGetClassInputFromClassWithName
 			return GetNodesByPredicate(IsInputNode);
 		}
 
-		bool FGraphController::ContainsOutputNodeWithName(const FString& InName) const
+		bool FGraphController::ContainsOutputVertexWithName(const FString& InName) const
 		{
-			if (GraphClassPtr.IsValid())
+			if (const FMetasoundFrontendGraphClass* GraphClass = GraphClassPtr.Get())
 			{
-				auto IsOutputNodeWithSameName = [&](const FMetasoundFrontendClass& NodeClass, const FMetasoundFrontendNode& Node) 
+				auto IsOutputVertexWithSameName = [&](const FMetasoundFrontendClassOutput& ClassOutput) 
 				{ 
-					return (NodeClass.Metadata.Type == EMetasoundFrontendClassType::Output) && (Node.Name == InName); 
+					return ClassOutput.Name == InName;
 				};
-				return ContainsNodesAndClassesByPredicate(IsOutputNodeWithSameName);
+				return GraphClass->Interface.Outputs.ContainsByPredicate(IsOutputVertexWithSameName);
 			}
 			return false;
 		}
 
-		bool FGraphController::ContainsInputNodeWithName(const FString& InName) const
+		bool FGraphController::ContainsInputVertexWithName(const FString& InName) const
 		{
-			if (GraphClassPtr.IsValid())
+			if (const FMetasoundFrontendGraphClass* GraphClass = GraphClassPtr.Get())
 			{
-				auto IsInputNodeWithSameName = [&](const FMetasoundFrontendClass& NodeClass, const FMetasoundFrontendNode& Node) 
+				auto IsInputVertexWithSameName = [&](const FMetasoundFrontendClassInput& ClassInput) 
 				{ 
-					return (NodeClass.Metadata.Type == EMetasoundFrontendClassType::Input) && (Node.Name == InName); 
+					return ClassInput.Name == InName;
 				};
-				return ContainsNodesAndClassesByPredicate(IsInputNodeWithSameName);
+				return GraphClass->Interface.Inputs.ContainsByPredicate(IsInputVertexWithSameName);
 			}
 			return false;
 		}
@@ -2060,6 +2060,7 @@ FGetClassInputFromClassWithName
 						{
 							FMetasoundFrontendNode& Node = GraphClass->Graph.Nodes.Emplace_GetRef(*InputClass);
 
+							Node.Name = InClassInput.Name;
 							Node.ID = NewNodeID();
 
 							// TODO: have something that checks if input node has valid interface.
@@ -2137,6 +2138,7 @@ FGetClassInputFromClassWithName
 						{
 							FMetasoundFrontendNode& Node = GraphClass->Graph.Nodes.Emplace_GetRef(*OutputClass);
 
+							Node.Name = InClassOutput.Name;
 							Node.ID = NewNodeID();
 
 							// TODO: have something that checks if input node has valid interface.

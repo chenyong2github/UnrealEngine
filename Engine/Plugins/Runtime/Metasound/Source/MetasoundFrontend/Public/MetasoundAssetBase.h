@@ -97,9 +97,11 @@ public:
 
 	// Returns handle for the root metasound graph of this asset.
 	Metasound::Frontend::FDocumentHandle GetDocumentHandle();
+	Metasound::Frontend::FConstDocumentHandle GetDocumentHandle() const;
 
 	// Returns handle for the root metasound graph of this asset.
 	Metasound::Frontend::FGraphHandle GetRootGraphHandle();
+	Metasound::Frontend::FConstGraphHandle GetRootGraphHandle() const;
 
 
 	// Overwrites the existing document. If the document's archetype is not supported,

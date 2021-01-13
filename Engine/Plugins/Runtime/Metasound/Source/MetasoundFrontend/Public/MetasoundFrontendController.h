@@ -346,19 +346,19 @@ namespace Metasound
 			/** Returns all input nodes in the graph. */
 			virtual TArray<FConstNodeHandle> GetConstInputNodes() const = 0;
 
-			/** Returns true if an output node with the given NodeName exists.
+			/** Returns true if an output vertex with the given Name exists.
 			 *
-			 * @param InName - Name of node.
-			 * @return True if the node exists, false otherwise. 
+			 * @param InName - Name of vertex.
+			 * @return True if the vertex exists, false otherwise. 
 			 */
-			virtual bool ContainsOutputNodeWithName(const FString& InName) const = 0;
+			virtual bool ContainsOutputVertexWithName(const FString& InName) const = 0;
 
-			/** Returns true if an input node with the given NodeName exists.
+			/** Returns true if an input vertex with the given Name exists.
 			 *
-			 * @param InName - Name of node.
-			 * @return True if the node exists, false otherwise. 
+			 * @param InName - Name of vertex.
+			 * @return True if the vertex exists, false otherwise. 
 			 */
-			virtual bool ContainsInputNodeWithName(const FString& InName) const = 0;
+			virtual bool ContainsInputVertexWithName(const FString& InName) const = 0;
 
 			/** Returns a handle to an existing output node for the given graph output name.
 			 * If no output exists with the given name, an invalid node handle is returned. 
@@ -580,6 +580,8 @@ namespace Metasound
 
 			/** Create a document from FMetasoundFrontendDocument description pointer. */
 			static FDocumentHandle CreateDocumentHandle(TAccessPtr<FMetasoundFrontendDocument> InDocument);
+			/** Create a document from FMetasoundFrontendDocument description pointer. */
+			static FConstDocumentHandle CreateDocumentHandle(TAccessPtr<const FMetasoundFrontendDocument> InDocument);
 
 			IDocumentController() = default;
 			virtual ~IDocumentController() = default;

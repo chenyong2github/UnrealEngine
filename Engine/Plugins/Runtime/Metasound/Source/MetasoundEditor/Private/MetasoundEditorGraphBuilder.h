@@ -38,9 +38,9 @@ namespace Metasound
 			// Adds a node handle with the given class info
 			static Frontend::FNodeHandle AddNodeHandle(UObject& InMetasound, const Frontend::FNodeClassInfo& InClassInfo);
 
-			static FString GenerateUniqueInputName(UObject& InMetasound, const FName InBaseName);
+			static FString GenerateUniqueInputName(const UObject& InMetasound, const FName InBaseName);
 
-			static FString GenerateUniqueOutputName(UObject& InMetasound, const FName InBaseName);
+			static FString GenerateUniqueOutputName(const UObject& InMetasound, const FName InBaseName);
 
 			static FString GetDataTypeDisplayName(const FName& InDataTypeName);
 

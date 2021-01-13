@@ -113,19 +113,22 @@ FMetasoundFrontendClassMetadata FMetasoundAssetBase::GetMetadata()
 	return GetDocumentChecked().RootGraph.Metadata;
 }
 
-/*
-Metasound::Frontend::FDescriptionAccessPoint FMetasoundAssetBase::GetGraphAccessPoint()
-{
-	return Metasound::Frontend::FDescriptionAccessPoint(GetDocument());
-}
-*/
-
 Metasound::Frontend::FDocumentHandle FMetasoundAssetBase::GetDocumentHandle()
 {
 	return Metasound::Frontend::IDocumentController::CreateDocumentHandle(GetDocument());
 }
 
+Metasound::Frontend::FConstDocumentHandle FMetasoundAssetBase::GetDocumentHandle() const
+{
+	return Metasound::Frontend::IDocumentController::CreateDocumentHandle(GetDocument());
+}
+
 Metasound::Frontend::FGraphHandle FMetasoundAssetBase::GetRootGraphHandle()
+{
+	return GetDocumentHandle()->GetRootGraph();
+}
+
+Metasound::Frontend::FConstGraphHandle FMetasoundAssetBase::GetRootGraphHandle() const
 {
 	return GetDocumentHandle()->GetRootGraph();
 }

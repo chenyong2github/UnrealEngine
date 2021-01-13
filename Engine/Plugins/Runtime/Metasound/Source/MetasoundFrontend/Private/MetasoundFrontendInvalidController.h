@@ -193,8 +193,8 @@ namespace Metasound
 			TArray<TSharedRef<const INodeController>> GetConstOutputNodes() const override { return TArray<TSharedRef<const INodeController>>(); }
 			TArray<TSharedRef<const INodeController>> GetConstInputNodes() const override { return TArray<TSharedRef<const INodeController>>(); }
 
-			bool ContainsOutputNodeWithName(const FString& InName) const override { return false; }
-			bool ContainsInputNodeWithName(const FString& InName) const override { return false; }
+			bool ContainsOutputVertexWithName(const FString& InName) const override { return false; }
+			bool ContainsInputVertexWithName(const FString& InName) const override { return false; }
 
 			TSharedRef<const INodeController> GetOutputNodeWithName(const FString& InName) const override { return FInvalidNodeController::GetInvalid(); }
 			TSharedRef<const INodeController> GetInputNodeWithName(const FString& InName) const override { return FInvalidNodeController::GetInvalid(); }

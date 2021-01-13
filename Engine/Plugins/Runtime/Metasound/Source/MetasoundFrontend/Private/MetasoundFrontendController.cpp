@@ -40,5 +40,11 @@ namespace Metasound
 			// Create using standard document controller.
 			return FDocumentController::CreateDocumentHandle(InDocument);
 		}
+
+		FConstDocumentHandle IDocumentController::CreateDocumentHandle(TAccessPtr<const FMetasoundFrontendDocument> InDocument)
+		{
+			// Create using standard document controller. 
+			return FDocumentController::CreateDocumentHandle(ConstCastAccessPtr<FMetasoundFrontendDocument>(InDocument));
+		}
 	}
 }

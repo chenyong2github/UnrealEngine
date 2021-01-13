@@ -631,8 +631,8 @@ namespace Metasound
 			TArray<FNodeHandle> GetOutputNodes() override;
 			TArray<FConstNodeHandle> GetConstOutputNodes() const override;
 
-			bool ContainsInputNodeWithName(const FString& InName) const override;
-			bool ContainsOutputNodeWithName(const FString& InName) const override;
+			bool ContainsInputVertexWithName(const FString& InName) const override;
+			bool ContainsOutputVertexWithName(const FString& InName) const override;
 
 			FConstNodeHandle GetInputNodeWithName(const FString& InName) const override;
 			FConstNodeHandle GetOutputNodeWithName(const FString& InName) const override;
