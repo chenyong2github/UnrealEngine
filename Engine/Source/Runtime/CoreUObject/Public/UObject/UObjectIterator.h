@@ -221,7 +221,8 @@ protected:
 typedef TObjectIteratorBase<EObjectIteratorThreadSafetyOptions::None> FUnsafeObjectIterator;
 
 /** Deprecating the old FObjectIterator class which is now synonymous with FUnsafeObjectIterator */
-typedef FUnsafeObjectIterator UE_DEPRECATED(4.27, "FObjectIterator is not thread safe, use FThreadSafeObjectIterator or FPresistentThreadSafeObjectIterator instead.") FObjectIterator;
+UE_DEPRECATED(4.27, "FObjectIterator is not thread safe, use FThreadSafeObjectIterator or FPresistentThreadSafeObjectIterator instead.")
+typedef FUnsafeObjectIterator FObjectIterator;
 
 
 /**
