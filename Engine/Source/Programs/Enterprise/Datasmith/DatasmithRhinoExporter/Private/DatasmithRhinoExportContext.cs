@@ -93,7 +93,6 @@ namespace DatasmithRhino
 			System.Diagnostics.Debug.Assert(InLinkedNode.bIsInstanceDefinition, "Trying to create an instance from a node belonging in the root tree");
 			LinkedNode = InLinkedNode;
 			LayerIndices.UnionWith(InLinkedNode.LayerIndices);
-			WorldTransform = Transform.Multiply(InLinkedNode.WorldTransform, WorldTransform);
 		}
 
 		public void AddChild(DatasmithActorInfo ChildHierarchyNodeInfo)
