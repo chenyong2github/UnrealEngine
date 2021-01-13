@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using DatasmithRhino.Utils;
 using Rhino;
 using Rhino.DocObjects;
 using Rhino.Geometry;
@@ -75,7 +76,7 @@ namespace DatasmithRhino
 			MaterialIndex = InMaterialIndex;
 			bOverrideMaterial = bInOverrideMaterial;
 
-			WorldTransform = FDatasmithRhinoUtilities.GetModelComponentTransform(RhinoModelComponent);
+			WorldTransform = DatasmithRhinoUtilities.GetModelComponentTransform(RhinoModelComponent);
 		}
 
 		private void SetParent(DatasmithActorInfo InParent)
@@ -242,9 +243,9 @@ namespace DatasmithRhino
 		private Dictionary<int, string> LayerIndexToLayerString = new Dictionary<int, string>();
 		private Dictionary<int, HashSet<int>> LayerIndexToLayerIndexHierarchy = new Dictionary<int, HashSet<int>>();
 		private List<string> GroupNameList = new List<string>();
-		private FUniqueNameGenerator ActorLabelGenerator = new FUniqueNameGenerator();
-		private FUniqueNameGenerator MaterialLabelGenerator = new FUniqueNameGenerator();
-		private FUniqueNameGenerator TextureLabelGenerator = new FUniqueNameGenerator();
+		private DatasmithRhinoUniqueNameGenerator ActorLabelGenerator = new DatasmithRhinoUniqueNameGenerator();
+		private DatasmithRhinoUniqueNameGenerator MaterialLabelGenerator = new DatasmithRhinoUniqueNameGenerator();
+		private DatasmithRhinoUniqueNameGenerator TextureLabelGenerator = new DatasmithRhinoUniqueNameGenerator();
 
 		public DatasmithRhinoExportContext(DatasmithRhinoExportOptions InOptions)
 		{
@@ -254,11 +255,11 @@ namespace DatasmithRhino
 
 		public void ParseDocument()
 		{
-			FDatasmithRhinoProgressManager.Instance.UpdateCurrentTaskProgress(0.33f);
+			DatasmithRhinoProgressManager.Instance.UpdateCurrentTaskProgress(0.33f);
 			ParseGroupNames();
-			FDatasmithRhinoProgressManager.Instance.UpdateCurrentTaskProgress(0.66f);
+			DatasmithRhinoProgressManager.Instance.UpdateCurrentTaskProgress(0.66f);
 			ParseRhinoHierarchy();
-			FDatasmithRhinoProgressManager.Instance.UpdateCurrentTaskProgress(1f);
+			DatasmithRhinoProgressManager.Instance.UpdateCurrentTaskProgress(1f);
 			ParseRhinoMeshes();
 		}
 
@@ -378,7 +379,7 @@ namespace DatasmithRhino
 
 		private string BuildLayerString(Layer CurrentLayer, DatasmithActorInfo ParentNode)
 		{
-			return BuildLayerString(FUniqueNameGenerator.GetTargetName(CurrentLayer), ParentNode);
+			return BuildLayerString(DatasmithRhinoUniqueNameGenerator.GetTargetName(CurrentLayer), ParentNode);
 		}
 
 		private string BuildLayerString(string LayerName, DatasmithActorInfo ParentNode)
@@ -543,7 +544,7 @@ namespace DatasmithRhino
 		{
 			string Name = GetModelComponentName(InModelComponent);
 			string Label = bIsInstanceDefinition
-				? FUniqueNameGenerator.GetTargetName(InModelComponent)
+				? DatasmithRhinoUniqueNameGenerator.GetTargetName(InModelComponent)
 				: ActorLabelGenerator.GenerateUniqueName(InModelComponent);
 			List<string> Tags = GetTags(InModelComponent);
 			const bool bOverrideMaterial = false;
@@ -657,7 +658,7 @@ namespace DatasmithRhino
 					? IndexedMaterial = Material.DefaultMaterial
 					: RhinoDocument.Materials.FindIndex(MaterialIndex);
 
-				string MaterialHash = FDatasmithRhinoUtilities.GetMaterialHash(IndexedMaterial);
+				string MaterialHash = DatasmithRhinoUtilities.GetMaterialHash(IndexedMaterial);
 				MaterialIndexToMaterialHashDictionary.Add(MaterialIndex, MaterialHash);
 
 				AddMaterialHashMapping(MaterialHash, IndexedMaterial);
@@ -679,7 +680,7 @@ namespace DatasmithRhino
 					Texture RhinoTexture = MaterialTextures[TextureIndex];
 					if(RhinoTexture != null)
 					{
-						string TextureHash = FDatasmithRhinoUtilities.GetTextureHash(RhinoTexture);
+						string TextureHash = DatasmithRhinoUtilities.GetTextureHash(RhinoTexture);
 						AddTextureHashMapping(TextureHash, RhinoTexture);
 					}
 				}
@@ -694,7 +695,7 @@ namespace DatasmithRhino
 
 				if (!TextureHashToTextureInfo.ContainsKey(TextureHash))
 				{
-					if (FDatasmithRhinoUtilities.GetRhinoTextureNameAndPath(RhinoTexture, out string TextureName, out string TexturePath))
+					if (DatasmithRhinoUtilities.GetRhinoTextureNameAndPath(RhinoTexture, out string TextureName, out string TexturePath))
 					{
 						TextureName = TextureLabelGenerator.GenerateUniqueNameFromBaseName(TextureName);
 						TextureHashToTextureInfo.Add(TextureHash, new DatasmithTextureInfo(RhinoTexture, TextureName, TexturePath));
@@ -708,7 +709,7 @@ namespace DatasmithRhino
 			List<string> NodeTags = new List<string>();
 			NodeTags.Add(string.Format("Rhino.ID: {0}", InModelComponent.Id));
 
-			string ComponentTypeString = FUniqueNameGenerator.GetDefaultTypeName(InModelComponent);
+			string ComponentTypeString = DatasmithRhinoUniqueNameGenerator.GetDefaultTypeName(InModelComponent);
 			NodeTags.Add(string.Format("Rhino.Entity.Type: {0}", ComponentTypeString));
 
 			//Add the groups this object belongs to.
@@ -847,7 +848,7 @@ namespace DatasmithRhino
 
 			if (GuidToHierarchyActorNodeDictionary.TryGetValue(ObjectID, out DatasmithActorInfo HierarchyActorNode))
 			{
-				Vector3d PivotOffset = FDatasmithRhinoUtilities.CenterMeshesOnPivot(Meshes);
+				Vector3d PivotOffset = DatasmithRhinoUtilities.CenterMeshesOnPivot(Meshes);
 				List<int> MaterialIndices = new List<int>(Attributes.Count);
 				for (int AttributeIndex = 0; AttributeIndex < Attributes.Count; ++AttributeIndex)
 				{
