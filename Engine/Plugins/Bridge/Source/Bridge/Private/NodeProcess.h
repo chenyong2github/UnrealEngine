@@ -1,12 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 #include "CoreMinimal.h"
-//#include "HoloLens/HoloLensPlatformProcess.h"
-#if PLATFORM_WINDOWS
-#include "GenericPlatform/GenericPlatformProcess.h"
-#elif PLATFORM_MAC
-#include "Mac/MacPlatformMisc.h"
-#endif
+
+//#if PLATFORM_WINDOWS
+//#include "GenericPlatform/GenericPlatformProcess.h"
+//#elif PLATFORM_MAC
+//#include "Mac/MacPlatformMisc.h"
+//#endif
+
+struct FProcHandle;
 
 class FNodeProcessManager
 {
@@ -16,7 +18,7 @@ private:
 
 	const FString BridgePluginName = TEXT("Bridge");
 	uint32 OutProcessId = 0;
-	//FProcHandle NodeProcessHandle;
+	FProcHandle NodeProcessHandle;
 
 	const FString GetProcessURL() const;
 	const FString GetPluginPath() const;	
