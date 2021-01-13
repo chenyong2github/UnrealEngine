@@ -4,6 +4,8 @@
 
 #include "CoreMinimal.h"
 #include "Types/SlateEnums.h"
+#include "Framework/Commands/UIAction.h"
+#include "Textures/SlateIcon.h"
 
 class IPropertyHandle;
 class SWidget;
