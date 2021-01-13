@@ -29,22 +29,26 @@ UFXSystemComponent* UAnimNotifyState_TimedNiagaraEffect::SpawnEffect(USkeletalMe
 
 UFXSystemComponent* UAnimNotifyState_TimedNiagaraEffect::GetSpawnedEffect(UMeshComponent* MeshComp)
 {
-	TArray<USceneComponent*> Children;
-	MeshComp->GetChildrenComponents(false, Children);
-
-	if (Children.Num())
+	if (MeshComp)
 	{
-		for (USceneComponent* Component : Children)
+		TArray<USceneComponent*> Children;
+		MeshComp->GetChildrenComponents(false, Children);
+
+		if (Children.Num())
 		{
-			if (Component && Component->ComponentHasTag(GetSpawnedComponentTag()))
+			for (USceneComponent* Component : Children)
 			{
-				if (UFXSystemComponent* FXComponent = CastChecked<UFXSystemComponent>(Component))
+				if (Component && Component->ComponentHasTag(GetSpawnedComponentTag()))
 				{
-					return FXComponent;
+					if (UFXSystemComponent* FXComponent = CastChecked<UFXSystemComponent>(Component))
+					{
+						return FXComponent;
+					}
 				}
 			}
 		}
 	}
+
 	return nullptr;
 }
 
