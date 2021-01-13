@@ -16,8 +16,9 @@ class FNiagaraDetailSourcedArrayBuilder : public FDetailArrayBuilder
 										, public TSharedFromThis<FNiagaraDetailSourcedArrayBuilder>
 {
 public:
-	FNiagaraDetailSourcedArrayBuilder(TSharedRef<IPropertyHandle> InBaseProperty, const TArray<TSharedPtr<FName>>& InOptionsSource, const FName InFNameSubproperty = NAME_None, bool InGenerateHeader = true, bool InDisplayResetToDefault = true, bool InDisplayElementNum = true);
+	FNiagaraDetailSourcedArrayBuilder(TSharedRef<IPropertyHandle> InBaseProperty, const TArray<TSharedPtr<FName>>& InOptionsSource, const FName InFNameSubproperty = NAME_None, bool InGenerateHeader = true, bool InDisplayResetToDefault = true, bool InDisplayElementNum = true, bool InAllowAutoFill = true);
 	
+	virtual void GenerateHeaderRowContent(FDetailWidgetRow& NodeRow) override;
 	virtual void GenerateChildContent(IDetailChildrenBuilder& ChildrenBuilder) override;
 	
 	void SetSourceArray(TArray<TSharedPtr<FName>>& InOptionsSource);
@@ -32,4 +33,6 @@ private:
 	TSharedPtr<IPropertyHandleArray> ArrayProperty;
 	/** Subproperty of type FName that needs to be edited - in case of FName wrappers */
 	FName FNameSubproperty;
+	/** Whether or not to add a context menu option to reset the array to the list of all possible options */
+	bool bAllowAutoFill;
 };
