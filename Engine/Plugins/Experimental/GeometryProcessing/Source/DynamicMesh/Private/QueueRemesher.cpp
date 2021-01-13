@@ -85,7 +85,7 @@ int FQueueRemesher::FastSplitIteration()
 	double MaxEdgeLengthSqr = MaxEdgeLength * MaxEdgeLength;
 
 	// Callback after an edge is split: enqueue new edges whose lengths are long enough
-	PostEdgeSplitFunction = [this, &MaxEdgeLengthSqr](int EdgeID, int VertexA, int VertexB, int NewVertex)
+	PostEdgeSplitFunction = [this, &MaxEdgeLengthSqr](int EdgeID, int VertexA, int VertexB, int NewVertex) //-V1047 - This lambda is cleared before routine exit
 	{
 		FVector3d NewVertexPosition = Mesh->GetVertex(NewVertex);
 		for (auto eid : Mesh->VtxEdgesItr(NewVertex))

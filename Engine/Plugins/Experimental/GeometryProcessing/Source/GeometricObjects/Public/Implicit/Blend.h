@@ -219,7 +219,7 @@ protected:
 			}
 		}
 
-		MarchingCubes.Implicit = [&Blend](const FVector3d& Pt) {return Blend.Value(Pt);};
+		MarchingCubes.Implicit = [&Blend](const FVector3d& Pt) {return Blend.Value(Pt);}; //-V1047 - This lambda is cleared before routine exit
 
 		MarchingCubes.GenerateContinuation(Seeds);
 
