@@ -278,4 +278,7 @@ private:
 	/** Viewport used when generating the performance baselines for Niagara systems. */
 	TSharedPtr<SNiagaraBaselineViewport> BaselineViewport;
 #endif
+
+	static const FName NiagaraDebuggerTabName;
+	TSharedRef<class SDockTab> SpawnNiagaraDebugger(const class FSpawnTabArgs& Args);
 };

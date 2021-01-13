@@ -146,6 +146,10 @@
 #include "NiagaraEffectType.h"
 #include "SNiagaraSystemViewport.h"
 
+#include "Editor/WorkspaceMenuStructure/Public/WorkspaceMenuStructure.h"
+#include "Editor/WorkspaceMenuStructure/Public/WorkspaceMenuStructureModule.h"
+#include "SNiagaraDebugger.h"
+
 #include "NiagaraPerfBaseline.h"
 
 IMPLEMENT_MODULE( FNiagaraEditorModule, NiagaraEditor );
@@ -157,6 +161,8 @@ const FLinearColor FNiagaraEditorModule::WorldCentricTabColorScale(0.0f, 0.0f, 0
 TArray<TPair<FName, FNiagaraParameterScopeInfo>> FNiagaraEditorModule::RegisteredParameterScopeInfos;
 
 EAssetTypeCategories::Type FNiagaraEditorModule::NiagaraAssetCategory;
+
+const FName FNiagaraEditorModule::NiagaraDebuggerTabName(TEXT("NiagaraDebugger"));
 
 int32 GbShowNiagaraDeveloperWindows = 0;
 static FAutoConsoleVariableRef CVarShowNiagaraDeveloperWindows(
@@ -1081,10 +1087,20 @@ void FNiagaraEditorModule::StartupModule()
 #if NIAGARA_PERF_BASELINES
 	UNiagaraEffectType::OnGeneratePerfBaselines().BindRaw(this, &FNiagaraEditorModule::GeneratePerfBaselines);
 #endif
+
+	FGlobalTabmanager::Get()->RegisterNomadTabSpawner(NiagaraDebuggerTabName, FOnSpawnTab::CreateRaw(this, &FNiagaraEditorModule::SpawnNiagaraDebugger))
+		.SetDisplayName(NSLOCTEXT("UnrealEditor", "NiagaraDebuggerTab", "Niagara Debugger"))
+		.SetTooltipText(NSLOCTEXT("UnrealEditor", "NiagaraDebuggerTooltipText", "Open the Niagara Debugger Tab."))
+		.SetGroup(WorkspaceMenu::GetMenuStructure().GetDeveloperToolsDebugCategory());
 }
 
 void FNiagaraEditorModule::ShutdownModule()
 {
+	if (FSlateApplication::IsInitialized())
+	{
+		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(NiagaraDebuggerTabName);
+	}
+
 	MenuExtensibilityManager.Reset();
 	ToolBarExtensibilityManager.Reset();
 	
@@ -1605,6 +1621,17 @@ void FNiagaraEditorModule::OnPerfBaselineWindowClosed(const TSharedRef<SWindow>&
 {
 	ClosedWindow->SetContent(SNullWidget::NullWidget);
 	BaselineViewport.Reset();
+}
+
+TSharedRef<SDockTab> FNiagaraEditorModule::SpawnNiagaraDebugger(const FSpawnTabArgs& Args)
+{
+	return SNew(SDockTab)
+		.Icon(FEditorStyle::GetBrush("DebugTools.TabIcon"))
+		.TabRole(ETabRole::NomadTab)
+		.Label(NSLOCTEXT("NiagaraDebugger", "NiagaraDebuggerTabTitle", "Niagara Debugger"))
+		[
+			SNew(SNiagaraDebugger)
+		];
 }
 
 #endif
