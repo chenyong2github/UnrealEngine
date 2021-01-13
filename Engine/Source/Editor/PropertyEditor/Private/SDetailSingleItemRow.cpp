@@ -927,7 +927,7 @@ void SDetailSingleItemRow::CreateGlobalExtensionWidgets(TArray<FPropertyRowExten
 
 bool SDetailSingleItemRow::IsKeyframeButtonVisible() const
 {
-	if (OwnerTreeNode.IsValid())
+	if (OwnerTreeNode.Pin().IsValid())
 	{
 		if (IDetailsViewPrivate* DetailsView = OwnerTreeNode.Pin()->GetDetailsView())
 		{
