@@ -538,7 +538,51 @@ void FIOSInputInterface::SendControllerEvents()
         ScrollDeltaY = 0.f;
     }
     
+    // Generic Controller update
     FAppleControllerInterface::SendControllerEvents();
+    
+#if PLATFORM_TVOS
+	// tvOS specific controller enumeration to handle micro input if no gamepad
+	for(int32 i = 0; i < UE_ARRAY_COUNT(Controllers); ++i)
+ 	{
+		FUserController& Controller = Controllers[i];
+		if(Controller.PreviousExtendedGamepad == nil)
+		{
+			GCController* Cont = Controller.Controller;
+			GCMicroGamepad* MicroGamepad = [Cont capture].microGamepad;
+			if (MicroGamepad != nil)
+			{
+				const GCMicroGamepad* PreviousMicroGamepad = Controller.PreviousMicroGamepad;
+
+				HandleButtonGamepad(FGamepadKeyNames::FaceButtonBottom, i);
+				HandleButtonGamepad(FGamepadKeyNames::FaceButtonLeft, i);
+				HandleButtonGamepad(FGamepadKeyNames::SpecialRight, i);
+				
+				// if we want virtual joysticks, then use the dpad values (and drain the touch queue to not leak memory)
+				if (bUseRemoteAsVirtualJoystick_DEPRECATED)
+				{
+					HandleAnalogGamepad(FGamepadKeyNames::LeftAnalogX, i);
+					HandleAnalogGamepad(FGamepadKeyNames::LeftAnalogY, i);
+
+					HandleButtonGamepad(FGamepadKeyNames::LeftStickUp, i);
+					HandleButtonGamepad(FGamepadKeyNames::LeftStickDown, i);
+					HandleButtonGamepad(FGamepadKeyNames::LeftStickRight, i);
+					HandleButtonGamepad(FGamepadKeyNames::LeftStickLeft, i);
+				}
+				// otherwise, process touches like ios for the remote's index
+				else
+				{
+					ProcessTouchesAndKeys(Cont.playerIndex, LocalTouchInputStack, LocalKeyInputStack);
+				}
+
+						 
+				[Controller.PreviousMicroGamepad release];
+				Controller.PreviousMicroGamepad = MicroGamepad;
+				[Controller.PreviousMicroGamepad retain];
+			}
+		}
+	}
+#endif
 }
 
 void FIOSInputInterface::QueueTouchInput(const TArray<TouchInput>& InTouchEvents)

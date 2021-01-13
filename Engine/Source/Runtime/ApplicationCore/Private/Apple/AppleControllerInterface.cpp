@@ -1,4 +1,3 @@
-
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AppleControllerInterface.h"
@@ -177,8 +176,6 @@ void FAppleControllerInterface::HandleDisconnect(GCController* Controller)
 
 void FAppleControllerInterface::SendControllerEvents()
 {
-	int32 ControllerIndex = -1;
-    
     for(int32 i = 0; i < UE_ARRAY_COUNT(Controllers); ++i)
  	{
         GCController* Cont = Controllers[i].Controller;
@@ -193,9 +190,7 @@ void FAppleControllerInterface::SendControllerEvents()
         {
             ExtendedGamepad = [Cont.extendedGamepad saveSnapshot];
         }
-#if PLATFORM_TVOS
-        GCMicroGamepad* MicroGamepad = [Cont capture].microGamepad;
-#endif
+
 		GCMotion* Motion = Cont.motion;
 		
 		// make sure the connection handler has run on this guy
@@ -252,39 +247,6 @@ void FAppleControllerInterface::SendControllerEvents()
             Controller.PreviousExtendedGamepad = ExtendedGamepad;
             [Controller.PreviousExtendedGamepad retain];
 		}
-#if PLATFORM_TVOS
-        // get micro input (shouldn't have the other two)
-        else if (MicroGamepad != nil)
-        {
-            const GCMicroGamepad* PreviousMicroGamepad = Controller.PreviousMicroGamepad;
-
-            HandleButtonGamepad(FGamepadKeyNames::FaceButtonBottom, i);
-            HandleButtonGamepad(FGamepadKeyNames::FaceButtonLeft, i);
-            HandleButtonGamepad(FGamepadKeyNames::SpecialRight, i);
-            
-			// if we want virtual joysticks, then use the dpad values (and drain the touch queue to not leak memory)
-			if (bUseRemoteAsVirtualJoystick_DEPRECATED)
-			{
-                HandleAnalogGamepad(FGamepadKeyNames::LeftAnalogX, i);
-                HandleAnalogGamepad(FGamepadKeyNames::LeftAnalogY, i);
-
-                HandleButtonGamepad(FGamepadKeyNames::LeftStickUp, i);
-                HandleButtonGamepad(FGamepadKeyNames::LeftStickDown, i);
-                HandleButtonGamepad(FGamepadKeyNames::LeftStickRight, i);
-                HandleButtonGamepad(FGamepadKeyNames::LeftStickLeft, i);
-			}
-			// otherwise, process touches like ios for the remote's index
-			else
-			{
-				ProcessTouchesAndKeys(Cont.playerIndex, LocalTouchInputStack, LocalKeyInputStack);
-			}
-
-                     
-			[Controller.PreviousMicroGamepad release];
-			Controller.PreviousMicroGamepad = MicroGamepad;
-			[Controller.PreviousMicroGamepad retain];
-        }
-#endif
 	}
 }
 
