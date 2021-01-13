@@ -11,12 +11,12 @@ class IDetailKeyframeHandler
 public:
 	virtual ~IDetailKeyframeHandler(){}
 
-	virtual bool IsPropertyKeyable(UClass* InObjectClass, const class IPropertyHandle& PropertyHandle) const = 0;
+	virtual bool IsPropertyKeyable(const UClass* InObjectClass, const IPropertyHandle& PropertyHandle) const = 0;
 
 	virtual bool IsPropertyKeyingEnabled() const = 0;
 
 	virtual void OnKeyPropertyClicked(const IPropertyHandle& KeyedPropertyHandle) = 0;
 
-	virtual bool IsPropertyAnimated(const class IPropertyHandle& PropertyHandle, UObject *ParentObject) const = 0;
+	virtual bool IsPropertyAnimated(const IPropertyHandle& PropertyHandle, UObject* ParentObject) const = 0;
 
 };

@@ -9,7 +9,12 @@
 
 class FPropertyPath;
 struct FPropertyChangedEvent;
+class IDetailCustomization;
+class IDetailTreeNode;
 class IPropertyHandle;
+class IPropertyTypeIdentifier;
+class IPropertyTypeCustomization;
+class SWidget;
 
 struct FPropertyAndParent
 {
@@ -41,10 +46,10 @@ DECLARE_DELEGATE_RetVal(bool, FIsCustomRowVisibilityFiltered);
 DECLARE_DELEGATE_RetVal_TwoParams(bool, FIsCustomRowVisible, FName /*InRowName*/, FName /*InParentName*/);
 
 /** Delegate called to get a detail layout for a specific object class */
-DECLARE_DELEGATE_RetVal( TSharedRef<class IDetailCustomization>, FOnGetDetailCustomizationInstance );
+DECLARE_DELEGATE_RetVal( TSharedRef<IDetailCustomization>, FOnGetDetailCustomizationInstance );
 
 /** Delegate called to get a property layout for a specific property type */
-DECLARE_DELEGATE_RetVal( TSharedRef<class IPropertyTypeCustomization>, FOnGetPropertyTypeCustomizationInstance );
+DECLARE_DELEGATE_RetVal( TSharedRef<IPropertyTypeCustomization>, FOnGetPropertyTypeCustomizationInstance );
 
 /** Notification for when a property view changes */
 DECLARE_DELEGATE_TwoParams( FOnObjectArrayChanged, const FString&, const TArray<UObject*>& );
@@ -59,12 +64,12 @@ DECLARE_DELEGATE_OneParam( FOnPropertySelectionChanged, FProperty* )
 DECLARE_DELEGATE_OneParam( FOnPropertyDoubleClicked, FProperty* )
 
 /** Notification for when a property is clicked by the user*/
-DECLARE_DELEGATE_OneParam( FOnPropertyClicked, const TSharedPtr< class FPropertyPath >& )
+DECLARE_DELEGATE_OneParam( FOnPropertyClicked, const TSharedPtr<FPropertyPath >& )
 
 /** */
 DECLARE_DELEGATE_OneParam( FConstructExternalColumnHeaders, const TSharedRef< class SHeaderRow >& )
 
-DECLARE_DELEGATE_RetVal_TwoParams( TSharedRef< class SWidget >, FConstructExternalColumnCell,  const FName& /*ColumnName*/, const TSharedRef< class IPropertyTreeRow >& /*RowWidget*/)
+DECLARE_DELEGATE_RetVal_TwoParams( TSharedRef< SWidget >, FConstructExternalColumnCell,  const FName& /*ColumnName*/, const TSharedRef< class IPropertyTreeRow >& /*RowWidget*/)
 
 /** Delegate called to see if a property editing is enabled */
 DECLARE_DELEGATE_RetVal(bool, FIsPropertyEditingEnabled );
@@ -80,10 +85,8 @@ struct FOnGenerateGlobalRowExtensionArgs
 {
 	/** The detail row's property handle. */
 	TSharedPtr<IPropertyHandle> PropertyHandle;
-	/** The detail row's property node. */
-	TSharedPtr<class FPropertyNode> PropertyNode;
 	/** The detail row's owner tree node. */
-	TWeakPtr<class IDetailTreeNode> OwnerTreeNode;
+	TWeakPtr<IDetailTreeNode> OwnerTreeNode;
 };
 
 /** 
@@ -125,11 +128,11 @@ struct FPropertyTypeLayoutCallback
 {
 	FOnGetPropertyTypeCustomizationInstance PropertyTypeLayoutDelegate;
 
-	TSharedPtr<class IPropertyTypeIdentifier> PropertyTypeIdentifier;
+	TSharedPtr<IPropertyTypeIdentifier> PropertyTypeIdentifier;
 
 	bool IsValid() const { return PropertyTypeLayoutDelegate.IsBound(); }
 
-	TSharedRef<class IPropertyTypeCustomization> GetCustomizationInstance() const;
+	TSharedRef<IPropertyTypeCustomization> GetCustomizationInstance() const;
 };
 
 
@@ -145,7 +148,7 @@ struct FPropertyTypeLayoutCallbackList
 
 	void Remove(const TSharedPtr<IPropertyTypeIdentifier>& InIdentifier);
 
-	const FPropertyTypeLayoutCallback& Find(const class IPropertyHandle& PropertyHandle) const;
+	const FPropertyTypeLayoutCallback& Find(const IPropertyHandle& PropertyHandle) const;
 };
 
 /** This is a multimap as there many be more than one customization per property type */

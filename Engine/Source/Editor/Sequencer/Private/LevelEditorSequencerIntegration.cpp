@@ -5,6 +5,7 @@
 #include "Styling/SlateIconFinder.h"
 #include "PropertyHandle.h"
 #include "IDetailKeyframeHandler.h"
+#include "IDetailTreeNode.h"
 #include "GameDelegates.h"
 #include "Settings/LevelEditorPlaySettings.h"
 #include "Editor/PropertyEditor/Public/PropertyEditorModule.h"
@@ -63,7 +64,7 @@ public:
 		Sequencers.Remove(InSequencer);
 	}
 
-	virtual bool IsPropertyKeyable(UClass* InObjectClass, const IPropertyHandle& InPropertyHandle) const
+	virtual bool IsPropertyKeyable(const UClass* InObjectClass, const IPropertyHandle& InPropertyHandle) const
 	{
 		FCanKeyPropertyParams CanKeyPropertyParams(InObjectClass, InPropertyHandle);
 
@@ -221,21 +222,6 @@ void FLevelEditorSequencerIntegration::Initialize(const FLevelEditorSequencerInt
 	ActivateDetailHandler(Options);
 	ActivateSequencerEditorMode();
 	BindLevelEditorCommands();
-
-	{
-		FPropertyEditorModule& EditModule = FModuleManager::Get().GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
-
-		FDelegateHandle Handle = EditModule.OnPropertyEditorOpened().AddRaw(this, &FLevelEditorSequencerIntegration::OnPropertyEditorOpened);
-		AcquiredResources.Add(
-			[=]{
-				FPropertyEditorModule* EditModulePtr = FModuleManager::Get().GetModulePtr<FPropertyEditorModule>("PropertyEditor");
-				if (EditModulePtr)
-				{
-					EditModulePtr->OnPropertyEditorOpened().Remove(Handle);
-				}
-			}
-		);
-	}
 
 	{
 		FLevelEditorModule& LevelEditorModule = FModuleManager::Get().GetModuleChecked<FLevelEditorModule>("LevelEditor");
@@ -795,9 +781,91 @@ void FLevelEditorSequencerIntegration::MakeBrowseToSelectedActorSubMenu(FMenuBui
 	}
 }
 
+static TSharedPtr<IDetailKeyframeHandler> GetKeyframeHandler(TWeakPtr<IDetailTreeNode> OwnerTreeNode)
+{
+	TSharedPtr<IDetailTreeNode> OwnerTreeNodePtr = OwnerTreeNode.Pin();
+	if (!OwnerTreeNodePtr.IsValid())
+	{
+		return TSharedPtr<IDetailKeyframeHandler>();
+	}
+
+	IDetailsView* DetailsView = OwnerTreeNodePtr->GetNodeDetailsView();
+	if (DetailsView == nullptr)
+	{
+		return TSharedPtr<IDetailKeyframeHandler>();
+	}
+
+	return DetailsView->GetKeyframeHandler();
+}
+
+static bool IsKeyframeButtonVisible(TWeakPtr<IDetailTreeNode> OwnerTreeNode, TSharedPtr<IPropertyHandle> PropertyHandle)
+{
+	TSharedPtr<IDetailKeyframeHandler> KeyframeHandler = GetKeyframeHandler(OwnerTreeNode);
+	if (!KeyframeHandler.IsValid() || !PropertyHandle.IsValid())
+	{
+		return false;
+	}
+
+	const UClass* ObjectClass = PropertyHandle->GetOuterBaseClass();
+	if (ObjectClass == nullptr)
+	{
+		return false;
+	}
+
+	return KeyframeHandler->IsPropertyKeyable(ObjectClass, *PropertyHandle);
+}
+
+static bool IsKeyframeButtonEnabled(TWeakPtr<IDetailTreeNode> OwnerTreeNode)
+{
+	TSharedPtr<IDetailKeyframeHandler> KeyframeHandler = GetKeyframeHandler(OwnerTreeNode);
+	if (!KeyframeHandler.IsValid())
+	{
+		return false;
+	}
+
+	return KeyframeHandler->IsPropertyKeyingEnabled();
+}
+
+static void OnAddKeyframeClicked(TWeakPtr<IDetailTreeNode> OwnerTreeNode, TSharedPtr<IPropertyHandle> PropertyHandle)
+{
+	TSharedPtr<IDetailKeyframeHandler> KeyframeHandler = GetKeyframeHandler(OwnerTreeNode);
+	if (!KeyframeHandler.IsValid() || !PropertyHandle.IsValid())
+	{
+		return;
+	}
+
+	KeyframeHandler->OnKeyPropertyClicked(*PropertyHandle);
+}
+
+
+static void RegisterDetailsExtensionHandler(const FOnGenerateGlobalRowExtensionArgs& Args, TArray<FPropertyRowExtensionButton>& OutExtensionButtons)
+{
+	// local copy for capturing in handlers below
+	TSharedPtr<IPropertyHandle> PropertyHandle = Args.PropertyHandle;
+	if (!PropertyHandle.IsValid())
+	{
+		return;
+	}
+
+	static FSlateIcon CreateKeyIcon(FAppStyle::Get().GetStyleSetName(), "Sequencer.AddKey.Details");
+
+	TWeakPtr<IDetailTreeNode> OwnerTreeNode = Args.OwnerTreeNode;
+
+	FPropertyRowExtensionButton& CreateKey = OutExtensionButtons.AddDefaulted_GetRef();
+	CreateKey.Icon = CreateKeyIcon;
+	CreateKey.Label = NSLOCTEXT("PropertyEditor", "CreateKey", "Create Key");
+	CreateKey.ToolTip = NSLOCTEXT("PropertyEditor", "CreateKeyToolTip", "Add a keyframe for this property.");
+	CreateKey.UIAction = FUIAction(
+		FExecuteAction::CreateStatic(&OnAddKeyframeClicked, OwnerTreeNode, PropertyHandle),
+		FCanExecuteAction::CreateStatic(&IsKeyframeButtonEnabled, OwnerTreeNode),
+		FGetActionCheckState(),
+		FIsActionButtonVisible::CreateStatic(&IsKeyframeButtonVisible, OwnerTreeNode, PropertyHandle)
+	);
+}
+
 void FLevelEditorSequencerIntegration::ActivateDetailHandler(const FLevelEditorSequencerIntegrationOptions& Options)
 {
-	FName DetailHandlerName("DetailHandler");
+	static FName DetailHandlerName("DetailHandler");
 
 	AcquiredResources.Release(DetailHandlerName);
 
@@ -817,7 +885,7 @@ void FLevelEditorSequencerIntegration::ActivateDetailHandler(const FLevelEditorS
 	FDelegateHandle OnPropertyEditorOpenedHandle = EditModule.OnPropertyEditorOpened().AddRaw(this, &FLevelEditorSequencerIntegration::OnPropertyEditorOpened);
 
 	auto DeactivateDetailKeyframeHandler =
-		[this, OnPropertyEditorOpenedHandle]
+		[this, OnPropertyEditorOpenedHandle]()
 		{
 			FPropertyEditorModule* EditModulePtr = FModuleManager::Get().GetModulePtr<FPropertyEditorModule>("PropertyEditor");
 			if (!EditModulePtr)
@@ -842,9 +910,11 @@ void FLevelEditorSequencerIntegration::ActivateDetailHandler(const FLevelEditorS
 			}
 		};
 
+	EditModule.GetGlobalRowExtensionDelegate().AddStatic(&RegisterDetailsExtensionHandler);
+
 	FName DetailHandlerRefreshName("DetailHandlerRefresh");
 	auto RefreshDetailHandler =
-		[]
+		[]()
 		{
 			FPropertyEditorModule* EditModulePtr = FModuleManager::Get().GetModulePtr<FPropertyEditorModule>("PropertyEditor");
 			if (!EditModulePtr)

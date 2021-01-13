@@ -38,13 +38,13 @@ FPropertyPath PropertyHandleToPropertyPath(const UClass* OwnerClass, const IProp
 	return PropertyPath;
 }
 
-FCanKeyPropertyParams::FCanKeyPropertyParams(UClass* InObjectClass, const FPropertyPath& InPropertyPath)
+FCanKeyPropertyParams::FCanKeyPropertyParams(const UClass* InObjectClass, const FPropertyPath& InPropertyPath)
 	: ObjectClass(InObjectClass)
 	, PropertyPath(InPropertyPath)
 {
 }
 
-FCanKeyPropertyParams::FCanKeyPropertyParams(UClass* InObjectClass, const IPropertyHandle& InPropertyHandle)
+FCanKeyPropertyParams::FCanKeyPropertyParams(const UClass* InObjectClass, const IPropertyHandle& InPropertyHandle)
 	: ObjectClass(InObjectClass)
 	, PropertyPath(PropertyHandleToPropertyPath(InObjectClass, InPropertyHandle))
 {

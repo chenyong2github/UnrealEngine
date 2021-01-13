@@ -75,13 +75,9 @@ private:
 
 	void CreateGlobalExtensionWidgets(TArray<FPropertyRowExtensionButton>& ExtensionButtons) const;
 	TSharedRef<SWidget> CreateExtensionWidget() const;
-	TSharedRef<SWidget> CreateKeyframeButton();
 	void OnResetToDefaultClicked() const;
 	bool IsResetToDefaultEnabled() const;
 
-	bool IsKeyframeButtonVisible() const;
-	bool IsKeyframeButtonEnabled() const;
-	void OnAddKeyframeClicked();
 	bool IsHighlighted() const;
 
 	void OnFavoriteMenuToggle();

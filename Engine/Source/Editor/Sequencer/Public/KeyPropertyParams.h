@@ -19,14 +19,14 @@ struct SEQUENCER_API FCanKeyPropertyParams
 	 * @param InObjectClass the class of the object which has the property to be keyed.
 	 * @param InPropertyPath path get from the root object to the property to be keyed.
 	 */
-	FCanKeyPropertyParams(UClass* InObjectClass, const FPropertyPath& InPropertyPath);
+	FCanKeyPropertyParams(const UClass* InObjectClass, const FPropertyPath& InPropertyPath);
 
 	/**
 	* Creates new can key property parameters.
 	* @param InObjectClass the class of the object which has the property to be keyed.
 	* @param InPropertyHandle a handle to the property to be keyed.
 	*/
-	FCanKeyPropertyParams(UClass* InObjectClass, const IPropertyHandle& InPropertyHandle);
+	FCanKeyPropertyParams(const UClass* InObjectClass, const IPropertyHandle& InPropertyHandle);
 
 	const UStruct* FindPropertyContainer(const FProperty* ForProperty) const;
 
