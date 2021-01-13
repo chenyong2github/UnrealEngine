@@ -2599,6 +2599,8 @@ FSceneViewFamily::FSceneViewFamily(const ConstructionValues& CVS)
 		EngineShowFlags.ScreenPercentage = false;
 	}
 
+	// TODO: Re-enable Mobile Multi-View on all platforms when all desktop XR plugins support it
+#if (PLATFORM_HOLOLENS || PLATFORM_ANDROID || PLATFORM_LUMIN)
 	if (GEngine && GEngine->IsStereoscopic3D())
 	{
 		static const auto MobileMultiViewCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("vr.MobileMultiView"));
@@ -2606,6 +2608,7 @@ FSceneViewFamily::FSceneViewFamily(const ConstructionValues& CVS)
 		const bool bUsingMobileRenderer = FSceneInterface::GetShadingPath(GetFeatureLevel()) == EShadingPath::Mobile;
 		bRequireMultiView = (GSupportsMobileMultiView || GRHISupportsArrayIndexFromAnyShader) && bUsingMobileRenderer && bSkipPostprocessing && (MobileMultiViewCVar && MobileMultiViewCVar->GetValueOnAnyThread() != 0);
 	}
+#endif
 }
 
 FSceneViewFamily::~FSceneViewFamily()
