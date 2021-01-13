@@ -53,6 +53,8 @@ const FName FNiagaraConstants::UniqueOutputScopeName(TEXT("OutputModule"));
 const FName FNiagaraConstants::ScriptTransientScopeName(TEXT("ScriptTransient"));
 const FName FNiagaraConstants::ScriptPersistentScopeName(TEXT("ScriptPersistent"));
 
+const int32 FNiagaraConstants::MaxParameterLength(256);
+
 void FNiagaraConstants::Init()
 {
 	if (SystemParameters.Num() == 0)
