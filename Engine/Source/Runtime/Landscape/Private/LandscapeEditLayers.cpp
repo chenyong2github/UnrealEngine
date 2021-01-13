@@ -1373,6 +1373,39 @@ bool ALandscape::IsMaterialResourceCompiled(FMaterialResource* InMaterialResourc
 	return InMaterialResource->HasValidGameThreadShaderMap();
 }
 
+bool ALandscape::ComputeLandscapeLayerBrushInfo(FTransform& OutLandscapeTransform, FIntPoint& OutLandscapeSize, FIntPoint& OutLandscapeRenderTargetSize)
+{
+	ULandscapeInfo* Info = GetLandscapeInfo();
+	if (Info == nullptr)
+	{
+		return false;
+	}
+
+	FIntRect LandscapeExtent;
+	if (!Info->GetLandscapeExtent(LandscapeExtent.Min.X, LandscapeExtent.Min.Y, LandscapeExtent.Max.X, LandscapeExtent.Max.Y))
+	{
+		return false;
+	}
+
+	ALandscape* Landscape = GetLandscapeActor();
+	if (Landscape == nullptr)
+	{
+		return false;
+	}
+	
+	OutLandscapeTransform = Landscape->GetTransform();
+	FVector OffsetVector(LandscapeExtent.Min.X, LandscapeExtent.Min.Y, 0.f);
+	FVector Translation = OutLandscapeTransform.TransformFVector4(OffsetVector);
+	OutLandscapeTransform.SetTranslation(Translation);
+	OutLandscapeSize = LandscapeExtent.Max - LandscapeExtent.Min;
+
+	const FIntPoint ComponentCounts = ComputeComponentCounts();
+	OutLandscapeRenderTargetSize.X = FMath::RoundUpToPowerOfTwo(((SubsectionSizeQuads + 1) * NumSubsections) * ComponentCounts.X);
+	OutLandscapeRenderTargetSize.Y = FMath::RoundUpToPowerOfTwo(((SubsectionSizeQuads + 1) * NumSubsections) * ComponentCounts.Y);
+
+	return true;
+}
+
 void ALandscape::CreateLayersRenderingResource()
 {
 	ULandscapeInfo* Info = GetLandscapeInfo();

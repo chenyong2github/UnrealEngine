@@ -308,6 +308,10 @@ public:
 	LANDSCAPE_API void ForceUpdateLayersContent(bool bIntermediateRender = false);
 	LANDSCAPE_API void InitializeLandscapeLayersWeightmapUsage();
 
+#if WITH_EDITOR
+	LANDSCAPE_API bool ComputeLandscapeLayerBrushInfo(FTransform& OutLandscapeTransform, FIntPoint& OutLandscapeSize, FIntPoint& OutLandscapeRenderTargetSize);
+#endif // WITH_EDITOR
+
 private:
 	void CreateLayersRenderingResource();
 	void GetLandscapeComponentNeighborsToRender(ULandscapeComponent* LandscapeComponent, TSet<ULandscapeComponent*>& NeighborComponents) const;
