@@ -21,7 +21,10 @@ public:
 	virtual void GenerateHeaderRowContent(FDetailWidgetRow& NodeRow) override
 	{
 		TSharedPtr<SWidget> NameWidget = ParentProperty->CreatePropertyNameWidget();
-		TSharedPtr<SWidget> ValueWidget = MeshProperty->CreatePropertyValueWidget();		
+		TSharedPtr<SWidget> ValueWidget = MeshProperty->CreatePropertyValueWidget();
+		FUIAction CopyAction;
+		FUIAction PasteAction;
+		ParentProperty->CreateDefaultPropertyCopyPasteActions(CopyAction, PasteAction);
 		NodeRow
 			.NameContent()
 			[
@@ -40,7 +43,9 @@ public:
 					[
 						ParentProperty->CreateDefaultPropertyButtonWidgets()
 					]
-			];
+			]
+			.CopyAction(CopyAction)
+			.PasteAction(PasteAction);
 	}
 
 	virtual void GenerateChildContent(IDetailChildrenBuilder& ChildrenBuilder) override

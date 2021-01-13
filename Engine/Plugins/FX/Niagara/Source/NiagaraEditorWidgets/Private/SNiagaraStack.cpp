@@ -34,6 +34,7 @@
 #include "Widgets/Input/SCheckBox.h"
 #include "NiagaraEmitter.h"
 #include "IDetailTreeNode.h"
+#include "Stack/NiagaraStackPropertyRowUtilities.h"
 #include "Stack/SNiagaraStackFunctionInputName.h"
 #include "Stack/SNiagaraStackFunctionInputValue.h"
 #include "Stack/SNiagaraStackItem.h"
@@ -58,7 +59,6 @@
 #include "Framework/Commands/UICommandList.h"
 #include "ViewModels/NiagaraOverviewGraphViewModel.h"
 #include "Widgets/SNiagaraParameterName.h"
-
 
 #define LOCTEXT_NAMESPACE "NiagaraStack"
 
@@ -1008,8 +1008,12 @@ SNiagaraStack::FRowWidgets SNiagaraStack::ConstructNameAndValueWidgetsForItem(UN
 	{
 		UNiagaraStackPropertyRow* PropertyRow = CastChecked<UNiagaraStackPropertyRow>(Item);
 		FNodeWidgets PropertyRowWidgets = PropertyRow->GetDetailTreeNode()->CreateNodeWidgets();
+
 		TAttribute<bool> IsEnabled;
 		IsEnabled.BindUObject(Item, &UNiagaraStackEntry::GetIsEnabledAndOwnerIsEnabled);
+
+		Container->AddFillRowContextMenuHandler(FNiagaraStackPropertyRowUtilities::CreateOnFillRowContextMenu(PropertyRow->GetDetailTreeNode()->CreatePropertyHandle(), PropertyRowWidgets.Actions));
+
 		if (PropertyRowWidgets.WholeRowWidget.IsValid())
 		{
 			Container->SetOverrideNameWidth(PropertyRowWidgets.WholeRowWidgetLayoutData.MinWidth, PropertyRowWidgets.WholeRowWidgetLayoutData.MaxWidth);
