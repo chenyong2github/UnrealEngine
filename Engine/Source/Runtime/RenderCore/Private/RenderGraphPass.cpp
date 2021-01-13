@@ -12,7 +12,7 @@ static FRDGPassHandlesByPipeline GetPassesByPipeline(const FRDGPass* Pass)
 	return Passes;
 }
 
-FUniformBufferStaticBindings FRDGParameterStruct::GetGlobalUniformBuffers() const
+FUniformBufferStaticBindings FRDGParameterStruct::GetStaticUniformBuffers() const
 {
 	FUniformBufferStaticBindings GlobalUniformBuffers;
 
@@ -337,6 +337,6 @@ const TCHAR* FRDGPass::GetName() const
 void FRDGPass::Execute(FRHIComputeCommandList& RHICmdList)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_FRDGPass_Execute);
-	RHICmdList.SetGlobalUniformBuffers(ParameterStruct.GetGlobalUniformBuffers());
+	RHICmdList.SetStaticUniformBuffers(ParameterStruct.GetStaticUniformBuffers());
 	ExecuteImpl(RHICmdList);
 }

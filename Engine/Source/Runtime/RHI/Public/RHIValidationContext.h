@@ -164,10 +164,10 @@ public:
 		RHIContext->RHISetShaderParameter(Shader, BufferIndex, BaseIndex, NumBytes, NewValue);
 	}
 
-	virtual void RHISetGlobalUniformBuffers(const FUniformBufferStaticBindings& InUniformBuffers) override final
+	virtual void RHISetStaticUniformBuffers(const FUniformBufferStaticBindings& InUniformBuffers) override final
 	{
 		InUniformBuffers.Bind(State.GlobalUniformBuffers.Bindings);
-		RHIContext->RHISetGlobalUniformBuffers(InUniformBuffers);
+		RHIContext->RHISetStaticUniformBuffers(InUniformBuffers);
 	}
 
 	virtual void RHIPushEvent(const TCHAR* Name, FColor Color) override final
@@ -671,10 +671,10 @@ public:
 		RHIContext->RHISetShaderParameter(Shader, BufferIndex, BaseIndex, NumBytes, NewValue);
 	}
 
-	virtual void RHISetGlobalUniformBuffers(const FUniformBufferStaticBindings& InUniformBuffers) override final
+	virtual void RHISetStaticUniformBuffers(const FUniformBufferStaticBindings& InUniformBuffers) override final
 	{
 		InUniformBuffers.Bind(State.GlobalUniformBuffers.Bindings);
-		RHIContext->RHISetGlobalUniformBuffers(InUniformBuffers);
+		RHIContext->RHISetStaticUniformBuffers(InUniformBuffers);
 	}
 
 	virtual void RHISetStencilRef(uint32 StencilRef) override final

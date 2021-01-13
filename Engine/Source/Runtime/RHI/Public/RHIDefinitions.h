@@ -1052,7 +1052,7 @@ enum class EUniformBufferBindingFlags : uint8
 	/** If set, the uniform buffer can be bound as an RHI shader parameter on an RHI shader (i.e. RHISetShaderUniformBuffer). */
 	Shader = 1 << 0,
 
-	/** If set, the uniform buffer can be bound globally through a static slot (i.e. RHISetGlobalUniformBuffers). */
+	/** If set, the uniform buffer can be bound globally through a static slot (i.e. RHISetStaticUniformBuffers). */
 	Static = 1 << 1,
 
 	/** If set, the uniform buffer can be bound globally or per-shader, depending on the use case. Only one binding model should be

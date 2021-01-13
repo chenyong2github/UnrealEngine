@@ -28,8 +28,8 @@ DECLARE_DWORD_COUNTER_STAT(TEXT("Immed. Command count"), STAT_ImmedCmdListCount,
 
 UE_TRACE_CHANNEL_DEFINE(RHICommandsChannel);
 
-#if VALIDATE_UNIFORM_BUFFER_GLOBAL_BINDINGS
-bool FScopedUniformBufferGlobalBindings::bRecursionGuard = false;
+#if VALIDATE_UNIFORM_BUFFER_STATIC_BINDINGS
+bool FScopedUniformBufferStaticBindings::bRecursionGuard = false;
 #endif
 
 #if !PLATFORM_USES_FIXED_RHI_CLASS

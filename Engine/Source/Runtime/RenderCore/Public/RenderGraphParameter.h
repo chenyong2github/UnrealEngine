@@ -242,8 +242,8 @@ public:
 	template <typename FunctionType>
 	void EnumerateUniformBuffers(FunctionType Function) const;
 
-	/** Returns a set of static global uniform buffer bindings for the parameter struct. */
-	FUniformBufferStaticBindings GetGlobalUniformBuffers() const;
+	/** Returns a set of static uniform buffer bindings for the parameter struct. */
+	FUniformBufferStaticBindings GetStaticUniformBuffers() const;
 
 	/** Returns the render pass info generated from the render target binding slots. */
 	FRHIRenderPassInfo GetRenderPassInfo() const;
@@ -297,7 +297,7 @@ FORCEINLINE static FRHIRenderPassInfo GetRenderPassInfo(TParameterStruct* Parame
 
 /** Helper function to get RHI global uniform buffers out of a pass parameters struct. */
 template <typename TParameterStruct>
-FORCEINLINE static FUniformBufferStaticBindings GetGlobalUniformBuffers(TParameterStruct* Parameters)
+FORCEINLINE static FUniformBufferStaticBindings GetStaticUniformBuffers(TParameterStruct* Parameters)
 {
-	return FRDGParameterStruct(Parameters).GetGlobalUniformBuffers();
+	return FRDGParameterStruct(Parameters).GetStaticUniformBuffers();
 }

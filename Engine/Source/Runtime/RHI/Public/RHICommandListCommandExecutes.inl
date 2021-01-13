@@ -430,10 +430,10 @@ void FRHICommandWriteGPUFence::Execute(FRHICommandListBase& CmdList)
 	}
 }
 
-void FRHICommandSetGlobalUniformBuffers::Execute(FRHICommandListBase& CmdList)
+void FRHICommandSetStaticUniformBuffers::Execute(FRHICommandListBase& CmdList)
 {
-	RHISTAT(SetGlobalUniformBuffers);
-	INTERNAL_DECORATOR_COMPUTE(RHISetGlobalUniformBuffers)(UniformBuffers);
+	RHISTAT(SetStaticUniformBuffers);
+	INTERNAL_DECORATOR_COMPUTE(RHISetStaticUniformBuffers)(UniformBuffers);
 }
 
 void FRHICommandBuildLocalUniformBuffer::Execute(FRHICommandListBase& CmdList)

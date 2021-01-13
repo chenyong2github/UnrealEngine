@@ -458,17 +458,17 @@ public:
 	template <typename ParameterStructType>
 	FParallelCommandListBindings(ParameterStructType* ParameterStruct)
 		: RenderPassInfo(GetRenderPassInfo(ParameterStruct))
-		, GlobalUniformBuffers(GetGlobalUniformBuffers(ParameterStruct))
+		, StaticUniformBuffers(GetStaticUniformBuffers(ParameterStruct))
 	{}
 
 	inline void SetOnCommandList(FRHICommandList& RHICmdList) const
 	{
 		RHICmdList.BeginRenderPass(RenderPassInfo, TEXT("Parallel"));
-		RHICmdList.SetGlobalUniformBuffers(GlobalUniformBuffers);
+		RHICmdList.SetStaticUniformBuffers(StaticUniformBuffers);
 	}
 
 	FRHIRenderPassInfo RenderPassInfo;
-	FUniformBufferStaticBindings GlobalUniformBuffers;
+	FUniformBufferStaticBindings StaticUniformBuffers;
 };
 
 class FParallelCommandListSet

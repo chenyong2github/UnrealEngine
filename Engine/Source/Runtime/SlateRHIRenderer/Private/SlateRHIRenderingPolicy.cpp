@@ -1052,7 +1052,7 @@ void FSlateRHIRenderingPolicy::DrawElements(
 					if (VertexShader.IsValid() && PixelShader.IsValid() && SceneTextureUniformBuffer)
 					{
 						const FUniformBufferStaticBindings StaticUniformBuffers(SceneTextureUniformBuffer);
-						SCOPED_UNIFORM_BUFFER_GLOBAL_BINDINGS(RHICmdList, StaticUniformBuffers);
+						SCOPED_UNIFORM_BUFFER_STATIC_BINDINGS(RHICmdList, StaticUniformBuffers);
 
 #if WITH_SLATE_VISUALIZERS
 						if (CVarShowSlateBatching.GetValueOnRenderThread() != 0)

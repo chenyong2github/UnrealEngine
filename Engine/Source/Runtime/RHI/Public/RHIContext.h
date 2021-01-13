@@ -30,9 +30,9 @@ struct FRayTracingLocalShaderBindings;
 struct FRHIBreadcrumb;
 enum class EAsyncComputeBudget;
 
-#define VALIDATE_UNIFORM_BUFFER_GLOBAL_BINDINGS (!UE_BUILD_SHIPPING && !UE_BUILD_TEST)
+#define VALIDATE_UNIFORM_BUFFER_STATIC_BINDINGS (!UE_BUILD_SHIPPING && !UE_BUILD_TEST)
 
-/** A list of global uniform buffer bindings. */
+/** A list of static uniform buffer bindings. */
 class FUniformBufferStaticBindings
 {
 public:
@@ -56,7 +56,7 @@ public:
 		const FUniformBufferStaticSlot Slot = Layout.StaticSlot;
 		checkf(IsUniformBufferStaticSlotValid(Slot), TEXT("Attempted to set a global uniform buffer %s with an invalid slot."), *Layout.GetDebugName());
 
-#if VALIDATE_UNIFORM_BUFFER_GLOBAL_BINDINGS
+#if VALIDATE_UNIFORM_BUFFER_STATIC_BINDINGS
 		ensureMsgf(INDEX_NONE == Slots.Find(Slot), TEXT("Uniform Buffer %s was added twice to the binding array."), *Layout.GetDebugName());
 #endif
 
@@ -110,6 +110,9 @@ private:
 	TArray<FRHIUniformBuffer*, TInlineAllocator<InlineUniformBufferCount>> UniformBuffers;
 	int32 SlotCount = 0;
 };
+
+UE_DEPRECATED(5.0, "Please rename to FUniformBufferStaticBindings")
+typedef FUniformBufferStaticBindings FUniformBufferGlobalBindings;
 
 /** Context that is capable of doing Compute work.  Can be async or compute on the gfx pipe. */
 class IRHIComputeContext
@@ -206,10 +209,13 @@ public:
 
 	virtual void RHISetShaderParameter(FRHIComputeShader* ComputeShader, uint32 BufferIndex, uint32 BaseIndex, uint32 NumBytes, const void* NewValue) = 0;
 
-	virtual void RHISetGlobalUniformBuffers(const FUniformBufferStaticBindings& InUniformBuffers)
+	virtual void RHISetStaticUniformBuffers(const FUniformBufferStaticBindings& InUniformBuffers)
 	{
 		/** empty default implementation. */
 	}
+
+	UE_DEPRECATED(5.0, "Please rename to RHISetStaticUniformBuffers.")
+	virtual void RHISetGlobalUniformBuffers(const FUniformBufferStaticBindings& InUniformBuffers) {}
 
 	virtual void RHIPushEvent(const TCHAR* Name, FColor Color) = 0;
 

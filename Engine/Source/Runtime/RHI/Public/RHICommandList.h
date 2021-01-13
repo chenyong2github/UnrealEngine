@@ -1648,11 +1648,11 @@ FRHICOMMAND_MACRO(FRHICommandClearColorTextures)
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
-FRHICOMMAND_MACRO(FRHICommandSetGlobalUniformBuffers)
+FRHICOMMAND_MACRO(FRHICommandSetStaticUniformBuffers)
 {
 	FUniformBufferStaticBindings UniformBuffers;
 
-	FORCEINLINE_DEBUGGABLE FRHICommandSetGlobalUniformBuffers(const FUniformBufferStaticBindings& InUniformBuffers)
+	FORCEINLINE_DEBUGGABLE FRHICommandSetStaticUniformBuffers(const FUniformBufferStaticBindings& InUniformBuffers)
 		: UniformBuffers(InUniformBuffers)
 	{}
 	RHI_API void Execute(FRHICommandListBase& CmdList);
@@ -2304,14 +2304,20 @@ public:
 
 	inline FRHIComputeShader* GetBoundComputeShader() const { return BoundComputeShaderRHI; }
 
+	UE_DEPRECATED(5.0, "Please rename to SetStaticUniformBuffers")
 	FORCEINLINE_DEBUGGABLE void SetGlobalUniformBuffers(const FUniformBufferStaticBindings& UniformBuffers)
+	{
+		SetStaticUniformBuffers(UniformBuffers);
+	}
+
+	FORCEINLINE_DEBUGGABLE void SetStaticUniformBuffers(const FUniformBufferStaticBindings& UniformBuffers)
 	{
 		if (Bypass())
 		{
-			GetComputeContext().RHISetGlobalUniformBuffers(UniformBuffers);
+			GetComputeContext().RHISetStaticUniformBuffers(UniformBuffers);
 			return;
 		}
-		ALLOC_COMMAND(FRHICommandSetGlobalUniformBuffers)(UniformBuffers);
+		ALLOC_COMMAND(FRHICommandSetStaticUniformBuffers)(UniformBuffers);
 	}
 
 	FORCEINLINE_DEBUGGABLE void SetShaderUniformBuffer(FRHIComputeShader* Shader, uint32 BaseIndex, FRHIUniformBuffer* UniformBuffer)
@@ -4776,40 +4782,46 @@ struct FScopedGPUMask
 	#define SCOPED_GPU_MASK(RHICmdList, GPUMask)
 #endif // WITH_MGPU
 
-struct RHI_API FScopedUniformBufferGlobalBindings
+struct RHI_API FScopedUniformBufferStaticBindings
 {
-	FScopedUniformBufferGlobalBindings(FRHIComputeCommandList& InRHICmdList, FUniformBufferStaticBindings UniformBuffers)
+	FScopedUniformBufferStaticBindings(FRHIComputeCommandList& InRHICmdList, FUniformBufferStaticBindings UniformBuffers)
 		: RHICmdList(InRHICmdList)
 	{
-#if VALIDATE_UNIFORM_BUFFER_GLOBAL_BINDINGS
+#if VALIDATE_UNIFORM_BUFFER_STATIC_BINDINGS
 		checkf(!bRecursionGuard, TEXT("Uniform buffer global binding scope has been called recursively!"));
 		bRecursionGuard = true;
 #endif
 
-		RHICmdList.SetGlobalUniformBuffers(UniformBuffers);
+		RHICmdList.SetStaticUniformBuffers(UniformBuffers);
 	}
 
 	template <typename... TArgs>
-	FScopedUniformBufferGlobalBindings(FRHIComputeCommandList& InRHICmdList, TArgs... Args)
-		: FScopedUniformBufferGlobalBindings(InRHICmdList, FUniformBufferStaticBindings{ Args... })
+	FScopedUniformBufferStaticBindings(FRHIComputeCommandList& InRHICmdList, TArgs... Args)
+		: FScopedUniformBufferStaticBindings(InRHICmdList, FUniformBufferStaticBindings{ Args... })
 	{}
 
-	~FScopedUniformBufferGlobalBindings()
+	~FScopedUniformBufferStaticBindings()
 	{
-		RHICmdList.SetGlobalUniformBuffers(FUniformBufferStaticBindings());
+		RHICmdList.SetStaticUniformBuffers(FUniformBufferStaticBindings());
 
-#if VALIDATE_UNIFORM_BUFFER_GLOBAL_BINDINGS
+#if VALIDATE_UNIFORM_BUFFER_STATIC_BINDINGS
 		bRecursionGuard = false;
 #endif
 	}
 
 	FRHIComputeCommandList& RHICmdList;
 
-#if VALIDATE_UNIFORM_BUFFER_GLOBAL_BINDINGS
+#if VALIDATE_UNIFORM_BUFFER_STATIC_BINDINGS
 	static bool bRecursionGuard;
 #endif
 };
 
+#define SCOPED_UNIFORM_BUFFER_STATIC_BINDINGS(RHICmdList, UniformBuffers) FScopedUniformBufferStaticBindings PREPROCESSOR_JOIN(UniformBuffers, __LINE__){ RHICmdList, UniformBuffers }
+
+UE_DEPRECATED(5.0, "Please rename to FScopedUniformBufferStaticBindings, or use the SCOPED_UNIFORM_BUFFER_STATIC_BINDINGS instead.")
+typedef FScopedUniformBufferStaticBindings FScopedUniformBufferGlobalBindings;
+
+// UE_DEPRECATED(5.0)
 #define SCOPED_UNIFORM_BUFFER_GLOBAL_BINDINGS(RHICmdList, UniformBuffers) FScopedUniformBufferGlobalBindings PREPROCESSOR_JOIN(UniformBuffers, __LINE__){ RHICmdList, UniformBuffers }
 
 // Single commandlist for async compute generation.  In the future we may expand this to allow async compute command generation

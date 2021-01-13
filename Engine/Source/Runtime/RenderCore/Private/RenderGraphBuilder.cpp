@@ -1331,7 +1331,7 @@ void FRDGBuilder::Execute()
 		ExecutePass(EpiloguePass);
 	}
 
-	RHICmdList.SetGlobalUniformBuffers({});
+	RHICmdList.SetStaticUniformBuffers({});
 
 #if WITH_MGPU
 	if (NameForTemporalEffect != NAME_None)
