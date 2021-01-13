@@ -4,6 +4,14 @@
 #include "Chaos/PBDRigidParticleBuffer.h"
 #include "Chaos/ImplicitObject.h"
 #include "Chaos/Framework/PhysicsSolverBase.h"
+#include "Chaos/CastingUtilities.h"
+#include "Chaos/ImplicitObjectScaled.h"
+#include "Chaos/Convex.h"
+#include "Chaos/Box.h"
+#include "Chaos/Capsule.h"
+#include "Chaos/Sphere.h"
+#include "Chaos/TriangleMeshImplicitObject.h"
+#include "Chaos/ImplicitObjectTransformed.h"
 
 namespace Chaos
 {
