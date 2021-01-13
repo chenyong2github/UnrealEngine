@@ -364,6 +364,7 @@ private:
 	TMap<FString, TSharedPtr<FUniqueNetIdEOSPlus>> EOSNetIdToNetIdPlus;
 	TMap<FString, TSharedPtr<const FUniqueNetId>> NetIdPlusToBaseNetId;
 	TMap<FString, TSharedPtr<const FUniqueNetId>> NetIdPlusToEOSNetId;
+	TMap<FString, TSharedPtr<FUniqueNetIdEOSPlus>> NetIdPlusToNetIdPlus;
 	TMap<int32, TSharedPtr<FUniqueNetIdEOSPlus>> LocalUserNumToNetIdPlus;
 
 	/** Online user variants maps */
