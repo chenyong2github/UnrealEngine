@@ -35,7 +35,7 @@ public:
 	//~ Begin SDisplayClusterConfiguratorBaseNode interface
 	virtual UObject* GetEditingObject() const override;
 	virtual void SetNodePositionOffset(const FVector2D InLocalOffset) override;
-	virtual void SetNodeSize(const FVector2D InLocalSize) override;
+	virtual void SetNodeSize(const FVector2D InLocalSize, bool bFixedAspectRatio) override;
 	virtual const FVector2D GetNodeSize() const override;
 	virtual void OnSelectedItemSet(const TSharedRef<IDisplayClusterConfiguratorTreeItem>& InTreeItem) override;
 	//~ End SDisplayClusterConfiguratorBaseNode interface

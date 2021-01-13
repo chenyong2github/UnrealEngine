@@ -329,4 +329,141 @@ void FDisplayClusterConfiguratorOutputMappingCanvasSlot::SetZOrder(uint32 InZOrd
 	ZOrder = InZOrder;
 }
 
+FORCEINLINE bool Intrudes(const FBox2D& BoxA, const FBox2D& BoxB)
+{
+	// Similar to FBox2D::Intersects, but ignores the case where the box edges are touching.
+
+	if ((BoxA.Min.X >= BoxB.Max.X) || (BoxB.Min.X >= BoxA.Max.X))
+	{
+		return false;
+	}
+
+	if ((BoxA.Min.Y >= BoxB.Max.Y) || (BoxB.Min.Y >= BoxA.Max.Y))
+	{
+		return false;
+	}
+
+	return true;
+}
+
+FVector2D FDisplayClusterConfiguratorOutputMappingCanvasSlot::FindNonOverlappingOffset(TWeakPtr<IDisplayClusterConfiguratorOutputMappingSlot> InSlot, const FVector2D& InDesiredOffset)
+{
+	FVector2D BestOffset = InDesiredOffset;
+
+	if (TSharedPtr<IDisplayClusterConfiguratorOutputMappingSlot> SlotPtr = InSlot.Pin())
+	{
+		const FBox2D OriginalSlotBounds = FBox2D(SlotPtr->GetLocalPosition(), SlotPtr->GetLocalPosition() + SlotPtr->GetLocalSize());
+		FBox2D SlotBounds = OriginalSlotBounds.ShiftBy(BestOffset);
+		FVector2D SlotCenter = SlotBounds.GetCenter();
+
+		for (int32 ChildIndex = 0; ChildIndex < ChildrenSlots.Num(); ChildIndex++)
+		{
+			// Skip check against self
+			if (InSlot == ChildrenSlots[ChildIndex])
+			{
+				continue;
+			}
+
+			// Break if we have hit a best offset of zero; there is no offset that can be performed that doesn't cause intersection.
+			if (BestOffset.IsNearlyZero())
+			{
+				break;
+			}
+
+			if (TSharedPtr<IDisplayClusterConfiguratorOutputMappingSlot> Child = ChildrenSlots[ChildIndex].Pin())
+			{
+				if (Child->GetType() == FDisplayClusterConfiguratorOutputMappingBuilder::FSlot::Window && !Child->GetLocalSize().IsZero())
+				{
+					const FBox2D ChildBounds = FBox2D(Child->GetLocalPosition(), Child->GetLocalPosition() + Child->GetLocalSize());
+					const FVector2D ChildCenter = ChildBounds.GetCenter();
+
+					if (Intrudes(SlotBounds, ChildBounds))
+					{
+						// If there is an intersection, we want to modify the desired offset in such a way that the new offset leaves the slot outside of the child's bounds.
+						// Best way to do this is to move the slot either along the x or y axis a distance equal to the penetration depth along that axis. We must pick the 
+						// axis that results in a new offset that is smaller than the desired one.
+						const FBox2D IntersectionBox = FBox2D(FVector2D::Max(SlotBounds.Min, ChildBounds.Min), FVector2D::Min(SlotBounds.Max, ChildBounds.Max));
+						const FVector2D AxisDepths = IntersectionBox.GetSize();
+
+						// The direction determines which way we need to move the slot to avoid intersection, which is always in the direction that moves the slot bound's
+						// center away from the child bound's center.
+						const FVector2D Direction = FVector2D(FMath::Sign(SlotCenter.X - ChildCenter.X), FMath::Sign(SlotCenter.Y - ChildCenter.Y));
+						const FVector2D XShift = BestOffset + Direction.X * FVector2D(AxisDepths.X, 0);
+						const FVector2D YShift = BestOffset + Direction.Y * FVector2D(0, AxisDepths.Y);
+
+						BestOffset = XShift.Size() < YShift.Size() ? XShift : YShift;
+						SlotBounds = OriginalSlotBounds.ShiftBy(BestOffset);
+						SlotCenter = SlotBounds.GetCenter();
+					}
+				}
+			}
+		}
+	}
+
+	return BestOffset;
+}
+
+FVector2D FDisplayClusterConfiguratorOutputMappingCanvasSlot::FindNonOverlappingSize(TWeakPtr<IDisplayClusterConfiguratorOutputMappingSlot> InSlot, const FVector2D& InDesiredSize, const bool bFixedApsectRatio)
+{
+	FVector2D BestSize = InDesiredSize;
+
+	if (TSharedPtr<IDisplayClusterConfiguratorOutputMappingSlot> SlotPtr = InSlot.Pin())
+	{
+		const FVector2D OriginalSlotSize = SlotPtr->GetLocalSize();
+		const float AspectRatio = OriginalSlotSize.X / OriginalSlotSize.Y;
+		FVector2D SizeChange = BestSize - OriginalSlotSize;
+
+		// If desired size is smaller in both dimensions to the slot's current size, can return it immediately, as shrinking a slot can't cause any new intersections.
+		if (SizeChange < FVector2D::ZeroVector)
+		{
+			return BestSize;
+		}
+
+		FBox2D SlotBounds = FBox2D(SlotPtr->GetLocalPosition(), SlotPtr->GetLocalPosition() + InDesiredSize);
+
+		for (int32 ChildIndex = 0; ChildIndex < ChildrenSlots.Num(); ChildIndex++)
+		{
+			// Skip check against self
+			if (InSlot == ChildrenSlots[ChildIndex])
+			{
+				continue;
+			}
+
+			// If the best size has shrunk to be less than or euqal to current size, simply return the current size, as there is no larger size
+			// that doesn't cause intersection.
+			if (SizeChange.IsNearlyZero())
+			{
+				break;
+			}
+
+			if (TSharedPtr<IDisplayClusterConfiguratorOutputMappingSlot> Child = ChildrenSlots[ChildIndex].Pin())
+			{
+				if (Child->GetType() == FDisplayClusterConfiguratorOutputMappingBuilder::FSlot::Window && !Child->GetLocalSize().IsZero())
+				{
+					FBox2D ChildBounds = FBox2D(Child->GetLocalPosition(), Child->GetLocalPosition() + Child->GetLocalSize());
+
+					if (Intrudes(SlotBounds, ChildBounds))
+					{
+						// If there is an intersection, we want to modify the desired size in such a way that the new size leaves the slot outside of the child's bounds.
+						// Best way to do this is to change the slot size along the x or y axis a distance equal to the penetration depth along that axis. We must pick the 
+						// axis that results in a new size change that is smaller than the desired one. In the case where aspect ratio is fixed, we need to shift the other
+						// axis as well a proportional amount.
+						const FBox2D IntersectionBox = FBox2D(ChildBounds.Min, SlotBounds.Max);
+						const FVector2D AxisDepths = IntersectionBox.GetSize();
+
+						const FVector2D XShift = SizeChange - FVector2D(AxisDepths.X, bFixedApsectRatio ? AxisDepths.X / AspectRatio : 0);
+						const FVector2D YShift = SizeChange - FVector2D(bFixedApsectRatio ? AxisDepths.Y * AspectRatio : 0, AxisDepths.Y);
+
+						SizeChange = XShift.Size() < YShift.Size() ? XShift : YShift;
+						BestSize = OriginalSlotSize + SizeChange;
+						SlotBounds.Max = SlotPtr->GetLocalPosition() + BestSize;
+					}
+				}
+			}
+		}
+	}
+
+	return BestSize;
+}
+
 #undef LOCTEXT_NAMESPACE

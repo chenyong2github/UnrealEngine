@@ -62,7 +62,8 @@ FReply SDisplayClusterConfiguratorResizer::OnMouseMove(const FGeometry& MyGeomet
 
 		FVector2D NewNodeSize = MouseEvent.GetScreenSpacePosition() - BaseNode->GetTickSpaceGeometry().GetAbsolutePosition();
 
-		if (IsFixedAspectRatio.Get(false))
+		bool bIsFixedAspectRatio = IsFixedAspectRatio.Get(false);
+		if (bIsFixedAspectRatio)
 		{
 			// If the aspect ratio is fixed, first get the node's current size to compute the ratio from,
 			// then force the new node size to match that aspect ratio.
@@ -91,7 +92,7 @@ FReply SDisplayClusterConfiguratorResizer::OnMouseMove(const FGeometry& MyGeomet
 			NewNodeSize.Y = 0.f;
 		}
 
-		BaseNode->SetNodeSize(NewNodeSize);
+		BaseNode->SetNodeSize(NewNodeSize, bIsFixedAspectRatio);
 
 		return FReply::Handled();
 	}

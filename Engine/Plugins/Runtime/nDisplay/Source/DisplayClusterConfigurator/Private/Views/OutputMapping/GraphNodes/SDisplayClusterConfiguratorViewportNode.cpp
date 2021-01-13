@@ -184,21 +184,30 @@ void SDisplayClusterConfiguratorViewportNode::SetNodePositionOffset(const FVecto
 {
 	TSharedPtr<FDisplayClusterConfiguratorOutputMappingViewportSlot> ViewportSlot = ViewportSlotPtr.Pin();
 	check(ViewportSlot.IsValid());
-	
-	ViewportSlot->SetLocalPosition(ViewportSlot->GetLocalPosition() + InLocalOffset);
+
+	TSharedPtr<IDisplayClusterConfiguratorOutputMappingSlot> ParentSlot = ViewportSlot->GetParentSlot();
+	check(ParentSlot.IsValid());
+
+	FVector2D BestOffset = ParentSlot->FindNonOverlappingOffset(ViewportSlotPtr, InLocalOffset);
+	ViewportSlot->SetLocalPosition(ViewportSlot->GetLocalPosition() + BestOffset);
 }
 
-void SDisplayClusterConfiguratorViewportNode::SetNodeSize(const FVector2D InLocalSize)
+void SDisplayClusterConfiguratorViewportNode::SetNodeSize(const FVector2D InLocalSize, bool bFixedAspectRatio)
 {
 	TSharedPtr<FDisplayClusterConfiguratorOutputMappingViewportSlot> ViewportSlot = ViewportSlotPtr.Pin();
 	check(ViewportSlot.IsValid());
 
-	NodeSlotBox->SetWidthOverride(InLocalSize.X);
-	NodeSlotBox->SetHeightOverride(InLocalSize.Y);
+	TSharedPtr<IDisplayClusterConfiguratorOutputMappingSlot> ParentSlot = ViewportSlot->GetParentSlot();
+	check(ParentSlot.IsValid());
 
-	NodeSlot->SlotSize(InLocalSize);
+	FVector2D BestSize = ParentSlot->FindNonOverlappingSize(ViewportSlotPtr, InLocalSize, bFixedAspectRatio);
 
-	ViewportSlot->SetLocalSize(InLocalSize);
+	NodeSlotBox->SetWidthOverride(BestSize.X);
+	NodeSlotBox->SetHeightOverride(BestSize.Y);
+
+	NodeSlot->SlotSize(BestSize);
+
+	ViewportSlot->SetLocalSize(BestSize);
 }
 
 const FVector2D SDisplayClusterConfiguratorViewportNode::GetNodeSize() const

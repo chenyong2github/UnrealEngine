@@ -84,6 +84,10 @@ public:
 	virtual void SetZOrder(uint32 InZOrder) override;
 
 	virtual void SetPreviewTexture(UTexture* InTexture) override {};
+
+	virtual FVector2D FindNonOverlappingOffset(TWeakPtr<IDisplayClusterConfiguratorOutputMappingSlot> InSlot, const FVector2D& InDesiredOffset) override;
+	virtual FVector2D FindNonOverlappingSize(TWeakPtr<IDisplayClusterConfiguratorOutputMappingSlot> InSlot, const FVector2D& InDesiredSize, const bool bFixedApsectRatio) override;
+
 	//~ End IDisplayClusterConfiguratorOutputMappingSlot Interface
 
 private:

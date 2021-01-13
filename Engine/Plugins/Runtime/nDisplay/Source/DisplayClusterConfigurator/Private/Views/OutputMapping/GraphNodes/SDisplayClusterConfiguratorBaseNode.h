@@ -36,10 +36,10 @@ public:
 	/**
 	 * Apply new node size
 	 *
-	 * @param InLocalSize				Size in local space
-	 *
+	 * @param InLocalSize - Size in local space
+	 * @param bFixedAspectRatio - Indicates the node should have a fixed aspect ratio
 	 */
-	virtual void SetNodeSize(const FVector2D InLocalSize) {}
+	virtual void SetNodeSize(const FVector2D InLocalSize, bool bFixedAspectRatio) {}
 
 	/**
 	 * Gets the node's current size

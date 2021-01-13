@@ -220,4 +220,23 @@ public:
 	 *
 	 */
 	virtual void SetPreviewTexture(UTexture* InTexture) = 0;
+
+	/**
+	 * Finds an offset that can be applied to the specified slot that doesn't cause any overlap with this slot's children.
+	 * 
+	 * @param InSlot - The slot being offset
+	 * @param InDesiredOffset - The desired offset being applied to the slot
+	 * @return Returns an offset that can be applied to the slot that does not cause any overlap
+	 */
+	virtual FVector2D FindNonOverlappingOffset(TWeakPtr<IDisplayClusterConfiguratorOutputMappingSlot> InSlot, const FVector2D& InDesiredOffset) = 0;
+
+	/**
+	 * Finds a size that can be applied to the specified slot that doesn't cause any overlap with this slot's children.
+	 *
+	 * @param InSlot - The slot being resized
+	 * @param InDesiredSize - The desired size being applied to the slot
+	 * @param bFixedApsectRatio - Whether the size's apsect ratio should be fixed
+	 * @return Returns a size that can be applied to the slot that does not cause any overlap
+	 */
+	virtual FVector2D FindNonOverlappingSize(TWeakPtr<IDisplayClusterConfiguratorOutputMappingSlot> InSlot, const FVector2D& InDesiredSize, const bool bFixedApsectRatio) = 0;
 };

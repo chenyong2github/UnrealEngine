@@ -288,7 +288,7 @@ void FDisplayClusterConfiguratorOutputMappingViewportSlot::OnPostEditChangeChain
 		check(CfgViewport != nullptr);
 
 		LocalSize = CalculateLocalSize(FVector2D(CfgViewport->Region.W, CfgViewport->Region.H));
-		NodeWidget->SetNodeSize(LocalSize);
+		NodeWidget->SetNodeSize(LocalSize, false);
 	}
 }
 
