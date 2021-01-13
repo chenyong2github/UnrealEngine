@@ -2748,25 +2748,29 @@ void UParticleModuleLocationSkelVertSurface::GetSkeletalMeshComponentSource(FPar
 		int32 MinLOD = INDEX_NONE;
 		if (NewSkelMeshComp && NewSkelMeshComp->GetScene() && NewSkelMeshComp->SkeletalMesh)
 		{
-			MinLOD = NewSkelMeshComp->SkeletalMesh->MinLod.GetValue();
 			FSkeletalMeshRenderData* SkelMeshResource = NewSkelMeshComp->GetSkeletalMeshRenderData();
-			FSkinWeightVertexBuffer* SkinWeightBuffer = NewSkelMeshComp->GetSkinWeightBuffer(MinLOD);
-			FSkeletalMeshLODRenderData& LODData = SkelMeshResource->LODRenderData[MinLOD];
-			bool LODDataNumVerticesCorrect = LODData.GetNumVertices() > 0;
-			bool LODDataPositonNumVerticesCorrect = LODData.StaticVertexBuffers.PositionVertexBuffer.GetNumVertices() > 0;
-			bool bSkinWeightBuffer = SkinWeightBuffer != nullptr;
-			bool SkinWeightBufferNumVerticesCorrect = bSkinWeightBuffer && (SkinWeightBuffer->GetNumVertices() > 0 && SkinWeightBuffer->GetNeedsCPUAccess());
-			bool bIndexBufferValid = LODData.MultiSizeIndexContainer.IsIndexBufferValid();
-			bool bIndexBufferFound = bIndexBufferValid && (LODData.MultiSizeIndexContainer.GetIndexBuffer() != nullptr);
-			bool bIndexBufferNumCorrect = bIndexBufferFound && (LODData.MultiSizeIndexContainer.GetIndexBuffer()->Num() > 0);
+			MinLOD = SkelMeshResource->GetFirstValidLODIdx(NewSkelMeshComp->SkeletalMesh->MinLod.GetValue());
 
-			bMeshIsValid = LODDataNumVerticesCorrect &&
-				LODDataPositonNumVerticesCorrect &&
-				bSkinWeightBuffer &&
-				SkinWeightBufferNumVerticesCorrect &&
-				bIndexBufferValid &&
-				bIndexBufferFound &&
-				bIndexBufferNumCorrect;
+			if (MinLOD != INDEX_NONE)
+			{
+				FSkinWeightVertexBuffer* SkinWeightBuffer = NewSkelMeshComp->GetSkinWeightBuffer(MinLOD);
+				FSkeletalMeshLODRenderData& LODData = SkelMeshResource->LODRenderData[MinLOD];
+				bool LODDataNumVerticesCorrect = LODData.GetNumVertices() > 0;
+				bool LODDataPositonNumVerticesCorrect = LODData.StaticVertexBuffers.PositionVertexBuffer.GetNumVertices() > 0;
+				bool bSkinWeightBuffer = SkinWeightBuffer != nullptr;
+				bool SkinWeightBufferNumVerticesCorrect = bSkinWeightBuffer && (SkinWeightBuffer->GetNumVertices() > 0 && SkinWeightBuffer->GetNeedsCPUAccess());
+				bool bIndexBufferValid = LODData.MultiSizeIndexContainer.IsIndexBufferValid();
+				bool bIndexBufferFound = bIndexBufferValid && (LODData.MultiSizeIndexContainer.GetIndexBuffer() != nullptr);
+				bool bIndexBufferNumCorrect = bIndexBufferFound && (LODData.MultiSizeIndexContainer.GetIndexBuffer()->Num() > 0);
+
+				bMeshIsValid = LODDataNumVerticesCorrect &&
+					LODDataPositonNumVerticesCorrect &&
+					bSkinWeightBuffer &&
+					SkinWeightBufferNumVerticesCorrect &&
+					bIndexBufferValid &&
+					bIndexBufferFound &&
+					bIndexBufferNumCorrect;
+			}
 		}
 
 
