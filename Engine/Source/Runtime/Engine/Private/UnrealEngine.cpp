@@ -16468,7 +16468,9 @@ int32 UEngine::RenderStatSlateBatches(UWorld* World, FViewport* Viewport, FCanva
 #if !UE_BUILD_SHIPPING
 bool UEngine::ToggleStatParticlePerf(UWorld* World, FCommonViewportClient* ViewportClient, const TCHAR* Stream)
 {
+#if WITH_PARTICLE_PERF_STATS
 	FParticlePerfStatsManager::TogglePerfStatsRender(World);
+#endif
 	return false;
 }
 
