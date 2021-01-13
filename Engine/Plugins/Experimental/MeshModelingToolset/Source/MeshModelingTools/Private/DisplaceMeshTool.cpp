@@ -356,10 +356,10 @@ namespace DisplaceMeshToolLocals{
 
 	void FDisplaceMeshOp::CalculateResult(FProgressCancel* Progress)
 	{
-		if (Progress->Cancelled()) return;
+		if (Progress && Progress->Cancelled()) return;
 		ResultMesh->Copy(*SourceMesh);
 
-		if (Progress->Cancelled()) return;
+		if (Progress && Progress->Cancelled()) return;
 
 		if (DisplacementType == EDisplaceMeshToolDisplaceType::DisplacementMap && !Parameters.DisplacementMap)
 		{
@@ -369,7 +369,7 @@ namespace DisplaceMeshToolLocals{
 		SourceNormals = FMeshNormals(SourceMesh.Get());
 		SourceNormals.ComputeVertexNormals();
 
-		if (Progress->Cancelled()) return;
+		if (Progress && Progress->Cancelled()) return;
 		// cache initial positions
 		SourcePositions.SetNum(SourceMesh->MaxVertexID());
 		for (int vid : SourceMesh->VertexIndicesItr())
@@ -377,10 +377,10 @@ namespace DisplaceMeshToolLocals{
 			SourcePositions[vid] = SourceMesh->GetVertex(vid);
 		}
 
-		if (Progress->Cancelled()) return;
+		if (Progress && Progress->Cancelled()) return;
 		DisplacedPositions.SetNum(SourceMesh->MaxVertexID());
 
-		if (Progress->Cancelled()) return;
+		if (Progress && Progress->Cancelled()) return;
 
 		ComputeDisplacement::FDirectionalFilter DirectionalFilter{ Parameters.bEnableFilter,
 			FVector3d(Parameters.FilterDirection),

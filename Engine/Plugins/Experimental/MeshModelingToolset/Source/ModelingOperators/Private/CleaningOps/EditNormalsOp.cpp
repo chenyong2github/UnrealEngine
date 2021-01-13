@@ -19,7 +19,7 @@ void FEditNormalsOp::SetTransform(const FTransform& Transform) {
 
 void FEditNormalsOp::CalculateResult(FProgressCancel* Progress)
 {
-	if (Progress->Cancelled())
+	if (Progress && Progress->Cancelled())
 	{
 		return;
 	}
@@ -31,7 +31,7 @@ void FEditNormalsOp::CalculateResult(FProgressCancel* Progress)
 		ResultMesh->EnableAttributes();
 	}
 
-	if (Progress->Cancelled())
+	if (Progress && Progress->Cancelled())
 	{
 		return;
 	}
@@ -44,7 +44,7 @@ void FEditNormalsOp::CalculateResult(FProgressCancel* Progress)
 		FMeshRepairOrientation Repair(ResultMesh.Get());
 		Repair.OrientComponents();
 
-		if (Progress->Cancelled())
+		if (Progress && Progress->Cancelled())
 		{
 			return;
 		}
@@ -52,7 +52,7 @@ void FEditNormalsOp::CalculateResult(FProgressCancel* Progress)
 		Repair.SolveGlobalOrientation(&Tree);
 	}
 
-	if (Progress->Cancelled())
+	if (Progress && Progress->Cancelled())
 	{
 		return;
 	}
@@ -76,7 +76,7 @@ void FEditNormalsOp::CalculateResult(FProgressCancel* Progress)
 		}
 	}
 
-	if (Progress->Cancelled())
+	if (Progress && Progress->Cancelled())
 	{
 		return;
 	}
@@ -112,7 +112,7 @@ void FEditNormalsOp::CalculateResult(FProgressCancel* Progress)
 		}
 	}
 
-	if (Progress->Cancelled())
+	if (Progress && Progress->Cancelled())
 	{
 		return;
 	}
@@ -127,7 +127,7 @@ void FEditNormalsOp::CalculateResult(FProgressCancel* Progress)
 		MeshNormals.CopyToOverlay(ResultMesh->Attributes()->PrimaryNormals(), false);
 	}
 
-	if (Progress->Cancelled())
+	if (Progress && Progress->Cancelled())
 	{
 		return;
 	}

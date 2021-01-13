@@ -23,7 +23,7 @@ void FEdgeLoopInsertionOp::CalculateResult(FProgressCancel* Progress)
 {
 	bSucceeded = false;
 
-	if (Progress->Cancelled())
+	if (Progress && Progress->Cancelled())
 	{
 		return;
 	}
@@ -33,7 +33,7 @@ void FEdgeLoopInsertionOp::CalculateResult(FProgressCancel* Progress)
 	*ResultTopology = *OriginalTopology;
 	ResultTopology->RetargetOnClonedMesh(ResultMesh.Get());
 
-	if (Progress->Cancelled())
+	if (Progress && Progress->Cancelled())
 	{
 		return;
 	}

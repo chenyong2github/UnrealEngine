@@ -15,14 +15,14 @@ void FSelfUnionMeshesOp::SetTransform(const FTransform& Transform) {
 
 void FSelfUnionMeshesOp::CalculateResult(FProgressCancel* Progress)
 {
-	if (Progress->Cancelled())
+	if (Progress && Progress->Cancelled())
 	{
 		return;
 	}
 
 	*ResultMesh = *CombinedMesh;
 
-	if (Progress->Cancelled())
+	if (Progress && Progress->Cancelled())
 	{
 		return;
 	}
@@ -33,7 +33,7 @@ void FSelfUnionMeshesOp::CalculateResult(FProgressCancel* Progress)
 	Union.bTrackAllNewEdges = (bTryCollapseExtraEdges);
 	bool bSuccess = Union.Compute();
 
-	if (Progress->Cancelled())
+	if (Progress && Progress->Cancelled())
 	{
 		return;
 	}
@@ -84,7 +84,7 @@ void FSelfUnionMeshesOp::CalculateResult(FProgressCancel* Progress)
 		};
 		OpenBoundary.Compute();
 
-		if (Progress->Cancelled())
+		if (Progress && Progress->Cancelled())
 		{
 			return;
 		}

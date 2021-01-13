@@ -21,7 +21,7 @@ void FUVProjectionOp::SetTransform(const FTransform& Transform) {
 
 void FUVProjectionOp::CalculateResult(FProgressCancel* Progress)
 {
-	if (Progress->Cancelled())
+	if (Progress && Progress->Cancelled())
 	{
 		return;
 	}
@@ -58,6 +58,11 @@ void FUVProjectionOp::CalculateResult(FProgressCancel* Progress)
 	{
 		return FVector2f(float(P[Ax1]) * Ax1Scale * Scale.X + Offset.X, float(P[Ax2]) * Ax2Scale * Scale.Y + Offset.Y);
 	};
+
+	if (Progress && Progress->Cancelled())
+	{
+		return;
+	}
 
 	int MaxVertexID = ResultMesh->MaxVertexID();
 	int MaxTriangleID = ResultMesh->MaxTriangleID();

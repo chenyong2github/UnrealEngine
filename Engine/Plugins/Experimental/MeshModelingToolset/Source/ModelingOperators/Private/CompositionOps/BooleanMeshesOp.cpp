@@ -15,7 +15,7 @@ void FBooleanMeshesOp::SetTransform(const FTransform& Transform) {
 
 void FBooleanMeshesOp::CalculateResult(FProgressCancel* Progress)
 {
-	if (Progress->Cancelled())
+	if (Progress && Progress->Cancelled())
 	{
 		return;
 	}
@@ -66,7 +66,7 @@ void FBooleanMeshesOp::CalculateResult(FProgressCancel* Progress)
 	}
 
 	FMeshBoolean MeshBoolean(Meshes[FirstIdx].Get(), (FTransform3d)Transforms[FirstIdx], Meshes[OtherIdx].Get(), (FTransform3d)Transforms[OtherIdx], ResultMesh.Get(), Op);
-	if (Progress->Cancelled())
+	if (Progress && Progress->Cancelled())
 	{
 		return;
 	}
@@ -77,7 +77,7 @@ void FBooleanMeshesOp::CalculateResult(FProgressCancel* Progress)
 	bool bSuccess = MeshBoolean.Compute();
 	ResultTransform = MeshBoolean.ResultTransform;
 
-	if (Progress->Cancelled())
+	if (Progress && Progress->Cancelled())
 	{
 		return;
 	}
@@ -129,7 +129,7 @@ void FBooleanMeshesOp::CalculateResult(FProgressCancel* Progress)
 		};
 		OpenBoundary.Compute();
 
-		if (Progress->Cancelled())
+		if (Progress && Progress->Cancelled())
 		{
 			return;
 		}

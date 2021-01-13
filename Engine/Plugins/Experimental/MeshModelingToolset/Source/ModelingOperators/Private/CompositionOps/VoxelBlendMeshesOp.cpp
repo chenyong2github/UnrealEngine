@@ -22,7 +22,7 @@ void FVoxelBlendMeshesOp::SetTransform(const FTransform& Transform) {
 
 void FVoxelBlendMeshesOp::CalculateResult(FProgressCancel* Progress)
 {
-	if (Progress->Cancelled())
+	if (Progress && Progress->Cancelled())
 	{
 		return;
 	}
@@ -78,10 +78,10 @@ void FVoxelBlendMeshesOp::CalculateResult(FProgressCancel* Progress)
 
 	ImplicitBlend.CancelF = [&Progress]()
 	{
-		return Progress->Cancelled();
+		return Progress && Progress->Cancelled();
 	};
 
-	if (Progress->Cancelled())
+	if (Progress && Progress->Cancelled())
 	{
 		return;
 	}

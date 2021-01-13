@@ -376,7 +376,7 @@ void FParameterizeMeshOp::CalculateResult(FProgressCancel* Progress)
 
 	ResultMesh = MakeUnique<FDynamicMesh3>(*InputMesh);
 
-	if (Progress->Cancelled())
+	if (Progress && Progress->Cancelled())
 	{
 		return;
 	}
@@ -394,7 +394,7 @@ void FParameterizeMeshOp::CalculateResult(FProgressCancel* Progress)
 	const bool bSplitIntoMultiple = true;
 
 	// The UV atlas callback uses a float progress-based interrupter. 
-	TFunction<bool(float)> Iterrupter = [Progress](float)->bool {return !Progress->Cancelled(); };
+	TFunction<bool(float)> Iterrupter = [Progress](float)->bool {return !(Progress && Progress->Cancelled()); };
 
 	if (UnwrapType == EParamOpUnwrapType::MinStretch && IslandMode == EParamOpIslandMode::Auto)
 	{
@@ -457,7 +457,7 @@ void FParameterizeMeshOp::CalculateResult(FProgressCancel* Progress)
 			if (bComputedUVs) SuccessCount++;
 		}
 
-		if (Progress->Cancelled())
+		if (Progress && Progress->Cancelled())
 		{
 			return;
 		}
@@ -504,7 +504,7 @@ void FParameterizeMeshOp::CalculateResult(FProgressCancel* Progress)
 				}
 			}
 
-			if (Progress->Cancelled())
+			if (Progress && Progress->Cancelled())
 			{
 				return;
 			}

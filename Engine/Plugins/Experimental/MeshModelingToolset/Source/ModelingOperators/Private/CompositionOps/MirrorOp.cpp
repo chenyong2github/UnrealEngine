@@ -11,14 +11,14 @@ void FMirrorOp::SetTransform(const FTransform& Transform) {
 
 void FMirrorOp::CalculateResult(FProgressCancel* Progress)
 {
-	if (Progress->Cancelled())
+	if (Progress && Progress->Cancelled())
 	{
 		return;
 	}
 
 	ResultMesh->Copy(*OriginalMesh, true, true, true, true);
 	
-	if (Progress->Cancelled())
+	if (Progress && Progress->Cancelled())
 	{
 		return;
 	}
@@ -36,7 +36,7 @@ void FMirrorOp::CalculateResult(FProgressCancel* Progress)
 		Cutter.PlaneTolerance = PlaneTolerance;
 		Cutter.Cut();
 
-		if (Progress->Cancelled())
+		if (Progress && Progress->Cancelled())
 		{
 			return;
 		}

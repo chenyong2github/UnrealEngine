@@ -18,7 +18,7 @@ void FPlaneCutOp::SetTransform(const FTransform& Transform) {
 
 void FPlaneCutOp::CalculateResult(FProgressCancel* Progress)
 {
-	if (Progress->Cancelled())
+	if (Progress && Progress->Cancelled())
 	{
 		return;
 	}
@@ -28,14 +28,14 @@ void FPlaneCutOp::CalculateResult(FProgressCancel* Progress)
 	
 	FMeshPlaneCut Cut(ResultMesh.Get(), LocalPlaneOrigin, LocalPlaneNormal);
 
-	if (Progress->Cancelled())
+	if (Progress && Progress->Cancelled())
 	{
 		return;
 	}
 	Cut.UVScaleFactor = UVScaleFactor;
 
 
-	if (Progress->Cancelled())
+	if (Progress && Progress->Cancelled())
 	{
 		return;
 	}
@@ -82,7 +82,7 @@ void FPlaneCutOp::CalculateResult(FProgressCancel* Progress)
 	}
 
 
-	if (Progress->Cancelled())
+	if (Progress && Progress->Cancelled())
 	{
 		return;
 	}
@@ -91,7 +91,7 @@ void FPlaneCutOp::CalculateResult(FProgressCancel* Progress)
 		Cut.HoleFill(ConstrainedDelaunayTriangulate<double>, bFillSpans);
 	}
 
-	if (Progress->Cancelled())
+	if (Progress && Progress->Cancelled())
 	{
 		return;
 	}

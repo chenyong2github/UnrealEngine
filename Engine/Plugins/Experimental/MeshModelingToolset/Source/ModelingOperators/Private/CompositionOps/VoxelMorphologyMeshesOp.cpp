@@ -23,7 +23,7 @@ void FVoxelMorphologyMeshesOp::SetTransform(const FTransform& Transform) {
 
 void FVoxelMorphologyMeshesOp::CalculateResult(FProgressCancel* Progress)
 {
-	if (Progress->Cancelled())
+	if (Progress && Progress->Cancelled())
 	{
 		return;
 	}
@@ -112,12 +112,12 @@ void FVoxelMorphologyMeshesOp::CalculateResult(FProgressCancel* Progress)
 	
 	ImplicitMorphology.CancelF = [&Progress]()
 	{
-		return Progress->Cancelled();
+		return Progress && Progress->Cancelled();
 	};
 
 	;
 
-	if (Progress->Cancelled())
+	if (Progress && Progress->Cancelled())
 	{
 		return;
 	}

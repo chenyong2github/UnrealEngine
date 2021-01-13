@@ -11,7 +11,7 @@
 
 void FVoxelBaseOp::PostProcessResult(FProgressCancel* Progress, double MeshCellSize)
 {
-	if (Progress->Cancelled())
+	if (Progress && Progress->Cancelled())
 	{
 		return;
 	}
@@ -21,6 +21,10 @@ void FVoxelBaseOp::PostProcessResult(FProgressCancel* Progress, double MeshCellS
 		UE::MeshAutoRepair::RemoveInternalTriangles(*ResultMesh.Get(), true, EOcclusionTriangleSampling::Centroids, EOcclusionCalculationMode::FastWindingNumber);
 	}
 
+	if (Progress && Progress->Cancelled())
+	{
+		return;
+	}
 
 	bool bFixNormals = bAutoSimplify;
 	{
@@ -33,6 +37,11 @@ void FVoxelBaseOp::PostProcessResult(FProgressCancel* Progress, double MeshCellS
 			const double MaxDisplacementSqr = SimplifyMaxErrorFactor * SimplifyMaxErrorFactor * MeshCellSize * MeshCellSize;
 			Reducer.SimplifyToMaxError(MaxDisplacementSqr);
 		}
+	}
+
+	if (Progress && Progress->Cancelled())
+	{
+		return;
 	}
 
 	if (bFixNormals)
@@ -60,6 +69,11 @@ void FVoxelBaseOp::PostProcessResult(FProgressCancel* Progress, double MeshCellS
 	{
 		// if nothing was simplified, just use quick vertex normals
 		FMeshNormals::QuickComputeVertexNormals(*ResultMesh.Get());
+	}
+
+	if (Progress && Progress->Cancelled())
+	{
+		return;
 	}
 
 	if (MinComponentVolume > 0 || MinComponentArea > 0)

@@ -166,7 +166,7 @@ void FEmbedPolygonsOp::BooleanPath(FProgressCancel* Progress)
 		unimplemented();
 	}
 
-	if (Progress->Cancelled())
+	if (Progress && Progress->Cancelled())
 	{
 		return;
 	}
@@ -177,7 +177,7 @@ void FEmbedPolygonsOp::BooleanPath(FProgressCancel* Progress)
 	Boolean.bPutResultInInputSpace = true;
 	bool bBoolSuccess = Boolean.Compute();
 
-	if (Progress->Cancelled())
+	if (Progress && Progress->Cancelled())
 	{
 		return;
 	}
@@ -192,7 +192,7 @@ void FEmbedPolygonsOp::BooleanPath(FProgressCancel* Progress)
 		};
 		OpenBoundary.Compute();
 
-		if (Progress->Cancelled())
+		if (Progress && Progress->Cancelled())
 		{
 			return;
 		}
@@ -234,7 +234,7 @@ void FEmbedPolygonsOp::CalculateResult(FProgressCancel* Progress)
 {
 	bOperationSucceeded = false;
 
-	if (Progress->Cancelled())
+	if (Progress && Progress->Cancelled())
 	{
 		return;
 	}
@@ -280,7 +280,7 @@ void FEmbedPolygonsOp::CalculateResult(FProgressCancel* Progress)
 		}
 	}
 
-	if (Progress->Cancelled())
+	if (Progress && Progress->Cancelled())
 	{
 		return;
 	}
@@ -418,7 +418,7 @@ void FEmbedPolygonsOp::CalculateResult(FProgressCancel* Progress)
 		return bResult;
 	};
 
-	if (Progress->Cancelled())
+	if (Progress && Progress->Cancelled())
 	{
 		return;
 	}

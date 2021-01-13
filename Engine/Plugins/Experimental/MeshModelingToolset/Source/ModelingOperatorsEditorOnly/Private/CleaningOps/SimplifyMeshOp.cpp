@@ -100,7 +100,7 @@ void ComputeSimplify(FDynamicMesh3* TargetMesh, const bool bReproject,
 
 void FSimplifyMeshOp::CalculateResult(FProgressCancel* Progress)
 {
-	if (Progress->Cancelled())
+	if (Progress && Progress->Cancelled())
 	{
 		return;
 	}
@@ -109,7 +109,7 @@ void FSimplifyMeshOp::CalculateResult(FProgressCancel* Progress)
 	const FMeshDescription* MeshDescription = OriginalMeshDescription.Get();
 	FDynamicMesh3* TargetMesh = ResultMesh.Get();
 
-	if (Progress->Cancelled())
+	if (Progress && Progress->Cancelled())
 	{
 		return;
 	}
@@ -164,7 +164,7 @@ void FSimplifyMeshOp::CalculateResult(FProgressCancel* Progress)
 		const FMeshDescription* SrcMeshDescription = OriginalMeshDescription.Get();
 		FMeshDescription DstMeshDescription(*SrcMeshDescription);
 
-		if (Progress->Cancelled())
+		if (Progress && Progress->Cancelled())
 		{
 			return;
 		}
@@ -172,7 +172,7 @@ void FSimplifyMeshOp::CalculateResult(FProgressCancel* Progress)
 		FOverlappingCorners OverlappingCorners;
 		FStaticMeshOperations::FindOverlappingCorners(OverlappingCorners, *SrcMeshDescription, 1.e-5);
 
-		if (Progress->Cancelled())
+		if (Progress && Progress->Cancelled())
 		{
 			return;
 		}
@@ -210,7 +210,7 @@ void FSimplifyMeshOp::CalculateResult(FProgressCancel* Progress)
 			MeshReduction->ReduceMeshDescription(DstMeshDescription, Error, *SrcMeshDescription, OverlappingCorners, ReductionSettings);
 		}
 
-		if (Progress->Cancelled())
+		if (Progress && Progress->Cancelled())
 		{
 			return;
 		}
@@ -237,7 +237,7 @@ void FSimplifyMeshOp::CalculateResult(FProgressCancel* Progress)
 				bFailedModifyNeedsRegen = true;
 			}
 
-			if (Progress->Cancelled())
+			if (Progress && Progress->Cancelled())
 			{
 				return;
 			}
@@ -247,7 +247,7 @@ void FSimplifyMeshOp::CalculateResult(FProgressCancel* Progress)
 				bFailedModifyNeedsRegen = true;
 			}
 
-			if (Progress->Cancelled())
+			if (Progress && Progress->Cancelled())
 			{
 				return;
 			}
@@ -266,7 +266,7 @@ void FSimplifyMeshOp::CalculateResult(FProgressCancel* Progress)
 	}
 
 
-	if (Progress->Cancelled())
+	if (Progress && Progress->Cancelled())
 	{
 		return;
 	}

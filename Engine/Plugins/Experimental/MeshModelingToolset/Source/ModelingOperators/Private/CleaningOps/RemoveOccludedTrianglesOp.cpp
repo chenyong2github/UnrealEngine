@@ -49,7 +49,7 @@ void FRemoveOccludedTrianglesOp::SetTransform(const FTransform& Transform)
 
 void FRemoveOccludedTrianglesOp::CalculateResult(FProgressCancel* Progress)
 {
-	if (Progress->Cancelled())
+	if (Progress && Progress->Cancelled())
 	{
 		return;
 	}
@@ -70,7 +70,7 @@ void FRemoveOccludedTrianglesOp::CalculateResult(FProgressCancel* Progress)
 		TRemoveOccludedTriangles<FDynamicMesh3> SelfJacket(ResultMesh.Get());
 		FDynamicMeshAABBTree3 SelfAABB(ResultMesh.Get());
 		TFastWindingTree<FDynamicMesh3> SelfFWTree(&SelfAABB);
-		if (Progress->Cancelled())
+		if (Progress && Progress->Cancelled())
 		{
 			return;
 		}
@@ -91,7 +91,7 @@ void FRemoveOccludedTrianglesOp::CalculateResult(FProgressCancel* Progress)
 	{
 		TRemoveOccludedTriangles<TIndexMeshArrayAdapter<int, double, FVector3d>> Jacket(ResultMesh.Get());
 
-		if (Progress->Cancelled())
+		if (Progress && Progress->Cancelled())
 		{
 			return;
 		}

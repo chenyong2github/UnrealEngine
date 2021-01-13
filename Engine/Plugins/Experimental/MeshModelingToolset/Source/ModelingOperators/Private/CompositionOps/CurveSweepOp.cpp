@@ -14,7 +14,7 @@ void FCurveSweepOp::CalculateResult(FProgressCancel* Progress)
 {
 	check(Progress != nullptr);
 
-	if (Progress->Cancelled())
+	if (Progress && Progress->Cancelled())
 	{
 		return;
 	}
@@ -50,7 +50,7 @@ void FCurveSweepOp::CalculateResult(FProgressCancel* Progress)
 	CurveSweeper.DiagonalTolerance = DiagonalTolerance;
 	CurveSweeper.Generate();
 
-	if (Progress->Cancelled())
+	if (Progress && Progress->Cancelled())
 	{
 		return;
 	}
@@ -62,7 +62,7 @@ void FCurveSweepOp::CalculateResult(FProgressCancel* Progress)
 	{
 		for (int CapIndex = 0; CapIndex < 2; ++CapIndex)
 		{
-			if (Progress->Cancelled())
+			if (Progress && Progress->Cancelled())
 			{
 				return;
 			}
@@ -154,7 +154,7 @@ void FCurveSweepOp::CalculateResult(FProgressCancel* Progress)
 
 	if (bSharpNormals)
 	{
-		if (Progress->Cancelled())
+		if (Progress && Progress->Cancelled())
 		{
 			return;
 		}
@@ -172,7 +172,7 @@ void FCurveSweepOp::CalculateResult(FProgressCancel* Progress)
 		NormalsUtility.ComputeTriangleNormals();
 		const TArray<FVector3d>& Normals = NormalsUtility.GetNormals();
 
-		if (Progress->Cancelled())
+		if (Progress && Progress->Cancelled())
 		{
 			return;
 		}
@@ -184,7 +184,7 @@ void FCurveSweepOp::CalculateResult(FProgressCancel* Progress)
 				return Normals[TA].Dot(Normals[TB]) > NormalDotProdThreshold;
 			}, 0);
 
-		if (Progress->Cancelled())
+		if (Progress && Progress->Cancelled())
 		{
 			return;
 		}
@@ -194,7 +194,7 @@ void FCurveSweepOp::CalculateResult(FProgressCancel* Progress)
 		NormalsUtility.CopyToOverlay(ResultMesh->Attributes()->PrimaryNormals(), false);
 	}
 
-	if (Progress->Cancelled())
+	if (Progress && Progress->Cancelled())
 	{
 		return;
 	}

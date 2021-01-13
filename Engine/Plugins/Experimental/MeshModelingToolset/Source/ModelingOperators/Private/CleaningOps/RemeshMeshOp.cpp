@@ -47,7 +47,7 @@ void FRemeshMeshOp::SetTransform(const FTransform& Transform)
 
 void FRemeshMeshOp::CalculateResult(FProgressCancel* Progress)
 {
-	if (Progress->Cancelled())
+	if (Progress && Progress->Cancelled())
 	{
 		return;
 	}
@@ -55,7 +55,7 @@ void FRemeshMeshOp::CalculateResult(FProgressCancel* Progress)
 	bool bDiscardAttributesImmediately = bDiscardAttributes && !bPreserveSharpEdges;
 	ResultMesh->Copy(*OriginalMesh, true, true, true, !bDiscardAttributesImmediately);
 
-	if (Progress->Cancelled())
+	if (Progress && Progress->Cancelled())
 	{
 		return;
 	}

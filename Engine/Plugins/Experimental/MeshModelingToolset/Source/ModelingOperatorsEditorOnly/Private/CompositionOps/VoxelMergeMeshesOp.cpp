@@ -34,7 +34,7 @@ void FVoxelMergeMeshesOp::CalculateResult(FProgressCancel* Progress)
 	FVector MergedOrigin = VoxelCSGTool->ComputeUnion(*InputMeshArray, MergedMeshesDescription, AdaptivityD, CSGIsoSurface);
 	ResultTransform = FTransform3d(MergedOrigin);
 
-	if (Progress->Cancelled())
+	if (Progress && Progress->Cancelled())
 	{
 		return;
 	}
@@ -51,7 +51,7 @@ void FVoxelMergeMeshesOp::CalculateResult(FProgressCancel* Progress)
 
 		for (int32 i = 0; i < NumRemeshes; ++i)
 		{
-			if (Progress->Cancelled())
+			if (Progress && Progress->Cancelled())
 			{
 				return;
 			}
@@ -74,7 +74,7 @@ void FVoxelMergeMeshesOp::CalculateResult(FProgressCancel* Progress)
 	FMeshDescriptionToDynamicMesh Converter;
 	Converter.Convert(&MergedMeshesDescription, *ResultMesh);
 
-	if (Progress->Cancelled())
+	if (Progress && Progress->Cancelled())
 	{
 		return;
 	}

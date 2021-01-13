@@ -73,7 +73,7 @@ void FVoxelBooleanMeshesOp::CalculateResult(FProgressCancel* Progress)
 
 	ResultTransform = FTransform3d(MergedOrigin);
 
-	if (Progress->Cancelled())
+	if (Progress && Progress->Cancelled())
 	{
 		return;
 	}
@@ -90,7 +90,7 @@ void FVoxelBooleanMeshesOp::CalculateResult(FProgressCancel* Progress)
 
 		for (int32 i = 0; i < NumRemeshes; ++i)
 		{
-			if (Progress->Cancelled())
+			if (Progress && Progress->Cancelled())
 			{
 				return;
 			}
@@ -114,7 +114,7 @@ void FVoxelBooleanMeshesOp::CalculateResult(FProgressCancel* Progress)
 	FMeshDescriptionToDynamicMesh Converter;
 	Converter.Convert(&ResultMeshDescription, *ResultMesh);
 
-	if (Progress->Cancelled())
+	if (Progress && Progress->Cancelled())
 	{
 		return;
 	}

@@ -86,7 +86,7 @@ void FHoleFillOp::CalculateResult(FProgressCancel* Progress)
 {
 	NumFailedLoops = 0;
 
-	if (Progress->Cancelled())
+	if (Progress && Progress->Cancelled())
 	{
 		return;
 	}
@@ -98,7 +98,7 @@ void FHoleFillOp::CalculateResult(FProgressCancel* Progress)
 		return;
 	}
 
-	if (Progress->Cancelled())
+	if (Progress && Progress->Cancelled())
 	{
 		return;
 	}
@@ -182,7 +182,7 @@ void FHoleFillOp::CalculateResult(FProgressCancel* Progress)
 			Editor.SetTriangleUVsFromProjection(Filler->NewTriangles, ProjectionFrame, MeshUVScaleFactor);
 		}
 
-		if (Progress->Cancelled())
+		if (Progress && Progress->Cancelled())
 		{
 			return;
 		}

@@ -21,7 +21,7 @@ void FVoxelSolidifyMeshesOp::SetTransform(const FTransform& Transform) {
 
 void FVoxelSolidifyMeshesOp::CalculateResult(FProgressCancel* Progress)
 {
-	if (Progress->Cancelled())
+	if (Progress && Progress->Cancelled())
 	{
 		return;
 	}
@@ -75,7 +75,7 @@ void FVoxelSolidifyMeshesOp::CalculateResult(FProgressCancel* Progress)
 	Solidify.bSolidAtBoundaries = bSolidAtBoundaries;
 	Solidify.ExtendBounds = ExtendBounds;
 
-	if (Progress->Cancelled())
+	if (Progress && Progress->Cancelled())
 	{
 		return;
 	}
