@@ -3,6 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Templates/Casts.h"
+#include "UObject/UObjectBaseUtility.h"
 
 /*
  * A stack describing the model object which led to this invocation.
