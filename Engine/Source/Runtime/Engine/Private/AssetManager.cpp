@@ -3854,13 +3854,13 @@ bool UAssetManager::VerifyCanCookPackage(FName PackageName, bool bLogError) cons
 	return bRetVal;
 }
 
-bool UAssetManager::GetPackageChunkIds(FName PackageName, const ITargetPlatform* TargetPlatform, TArrayView<const int32> ExistingChunkList, TArray<int32>& OutChunkList, TArray<int32>* OutOverrideChunkList) const
+bool UAssetManager::GetPackageChunkIds(FName PackageName, const ITargetPlatform* TargetPlatform, const TArray<int32>& ExistingChunkList, TArray<int32>& OutChunkList, TArray<int32>* OutOverrideChunkList) const
 {
 	// Include preset chunks
-	OutChunkList.Append(ExistingChunkList.GetData(), ExistingChunkList.Num());
+	OutChunkList.Append(ExistingChunkList);
 	if (OutOverrideChunkList)
 	{
-		OutOverrideChunkList->Append(ExistingChunkList.GetData(), ExistingChunkList.Num());
+		OutOverrideChunkList->Append(ExistingChunkList);
 	}
 
 	if (PackageName.ToString().StartsWith(TEXT("/Engine/"), ESearchCase::CaseSensitive))
@@ -3882,7 +3882,7 @@ bool UAssetManager::GetPackageChunkIds(FName PackageName, const ITargetPlatform*
 	return GetPrimaryAssetSetChunkIds(Managers, TargetPlatform, ExistingChunkList, OutChunkList);
 }
 
-bool UAssetManager::GetPrimaryAssetSetChunkIds(const TSet<FPrimaryAssetId>& PrimaryAssetSet, const class ITargetPlatform* TargetPlatform, TArrayView<const int32> ExistingChunkList, TArray<int32>& OutChunkList) const
+bool UAssetManager::GetPrimaryAssetSetChunkIds(const TSet<FPrimaryAssetId>& PrimaryAssetSet, const class ITargetPlatform* TargetPlatform, const TArray<int32>& ExistingChunkList, TArray<int32>& OutChunkList) const
 {
 	bool bFoundAny = false;
 	int32 HighestChunk = 0;

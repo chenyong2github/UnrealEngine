@@ -571,32 +571,6 @@ bool FAssetRegistryState::GetAssets(const FARCompiledFilter& Filter, const TSet<
 	});
 }
 
-template<class ArrayType>
-TArray<FAssetData*> FindAssets(const TMap<FName, ArrayType>& Map, const TSet<FName>& Keys)
-{
-	TArray<TArrayView<FAssetData* const>> Matches;
-	Matches.Reserve(Keys.Num());
-	uint32 TotalMatches = 0;
-
-	for (FName Key : Keys)
-	{
-		if (const ArrayType* Assets = Map.Find(Key))
-		{
-			Matches.Add(MakeArrayView(*Assets));
-			TotalMatches += Assets->Num();
-		}
-	}
-
-	TArray<FAssetData*> Out;
-	Out.Reserve(TotalMatches);
-	for (TArrayView<FAssetData* const> Assets : Matches)
-	{
-		Out.Append(Assets.GetData(), Assets.Num());
-	}
-
-	return Out;
-}
-
 bool FAssetRegistryState::EnumerateAssets(const FARCompiledFilter& Filter, const TSet<FName>& PackageNamesToSkip, TFunctionRef<bool(const FAssetData&)> Callback) const
 {
 	// Verify filter input. If all assets are needed, use EnumerateAllAssets() instead.
@@ -614,19 +588,47 @@ bool FAssetRegistryState::EnumerateAssets(const FARCompiledFilter& Filter, const
 	// On disk package names
 	if (Filter.PackageNames.Num() > 0)
 	{
-		FilterResults.Emplace(FindAssets(CachedAssetsByPackageName, Filter.PackageNames));
+		TArray<FAssetData*>& PackageNameFilter = FilterResults.Emplace_GetRef();
+		PackageNameFilter.Reserve(Filter.PackageNames.Num());
+
+		for (FName PackageName : Filter.PackageNames)
+		{
+			if (const TArray<FAssetData*>* PackageAssets = CachedAssetsByPackageName.Find(PackageName))
+			{
+				PackageNameFilter.Append(*PackageAssets);
+			}
+		}
 	}
 
 	// On disk package paths
 	if (Filter.PackagePaths.Num() > 0)
 	{
-		FilterResults.Emplace(FindAssets(CachedAssetsByPath, Filter.PackagePaths));
+		TArray<FAssetData*>& PathFilter = FilterResults.Emplace_GetRef();
+		PathFilter.Reserve(Filter.PackagePaths.Num());
+
+		for (FName PackagePath : Filter.PackagePaths)
+		{
+			if (const TArray<FAssetData*>* PathAssets = CachedAssetsByPath.Find(PackagePath))
+			{
+				PathFilter.Append(*PathAssets);
+			}
+		}
 	}
 
 	// On disk classes
 	if (Filter.ClassNames.Num() > 0)
 	{
-		FilterResults.Emplace(FindAssets(CachedAssetsByClass, Filter.ClassNames));
+		TArray<FAssetData*>& ClassFilter = FilterResults.Emplace_GetRef();
+		// Sometimes number of assets matching this filter is correlated to number of assets matching previous filters 
+		ClassFilter.Reserve(FilterResults[0].Num());
+
+		for (FName ClassName : Filter.ClassNames)
+		{
+			if (const TArray<FAssetData*>* ClassAssets = CachedAssetsByClass.Find(ClassName))
+			{
+				ClassFilter.Append(*ClassAssets);
+			}
+		}
 	}
 
 	// On disk object paths
@@ -1060,13 +1062,8 @@ bool FAssetRegistryState::Load(FArchive& OriginalAr, const FAssetRegistryLoadOpt
 	}
 	else
 	{
-		FAssetRegistryReader Reader(OriginalAr, Options.ParallelWorkers);
-	
-		// Load won't resolve asset registry tag values loaded in parallel
-		// and can run before WaitForTasks
+		FAssetRegistryReader Reader(OriginalAr);
 		Load(Reader, Version, Options);
-
-		Reader.WaitForTasks();
 	}
 
 	return !OriginalAr.IsError();
@@ -1078,6 +1075,9 @@ void FAssetRegistryState::Load(Archive&& Ar, FAssetRegistryVersion::Type Version
 	// serialize number of objects
 	int32 LocalNumAssets = 0;
 	Ar << LocalNumAssets;
+	
+	CachedAssetsByObjectPath.Reserve(LocalNumAssets);
+	CachedAssetsByPackageName.Reserve(LocalNumAssets);
 
 	// allocate one single block for all asset data structs (to reduce tens of thousands of heap allocations)
 	TArrayView<FAssetData> PreallocatedAssetDataBuffer(new FAssetData[LocalNumAssets], LocalNumAssets);
@@ -1085,9 +1085,8 @@ void FAssetRegistryState::Load(Archive&& Ar, FAssetRegistryVersion::Type Version
 	for (FAssetData& NewAssetData : PreallocatedAssetDataBuffer)
 	{
 		NewAssetData.SerializeForCache(Ar);
+		AddAssetData(&NewAssetData);
 	}
-
-	SetAssetDatas(PreallocatedAssetDataBuffer, Options);
 
 	if (Version < FAssetRegistryVersion::AddedDependencyFlags)
 	{
@@ -1150,6 +1149,8 @@ void FAssetRegistryState::Load(Archive&& Ar, FAssetRegistryVersion::Type Version
 			}
 		}
 	}
+
+	Shrink();
 }
 
 void FAssetRegistryState::LoadDependencies(FArchive& Ar)
@@ -1249,7 +1250,7 @@ uint32 FAssetRegistryState::GetAllocatedSize(bool bLogDetailed) const
 
 	uint32 MapArrayMemory = 0;
 	auto SubArray = 
-		[&MapArrayMemory](const auto& A)
+		[&MapArrayMemory](const TMap<FName, TArray<FAssetData*>>& A)
 	{
 		for (auto& Pair : A)
 		{
@@ -1346,7 +1347,7 @@ FDependsNode* FAssetRegistryState::ResolveRedirector(FDependsNode* InDependency,
 		if (CachedAssetsByPackageName.Contains(CurrentDependency->GetPackageName()))
 		{
 			// Get the list of assets contained in this package
-			TArray<FAssetData*, TInlineAllocator<1>>& Assets = CachedAssetsByPackageName[CurrentDependency->GetPackageName()];
+			TArray<FAssetData*>& Assets = CachedAssetsByPackageName[CurrentDependency->GetPackageName()];
 
 			for (FAssetData* Asset : Assets)
 			{
@@ -1402,93 +1403,11 @@ FDependsNode* FAssetRegistryState::ResolveRedirector(FDependsNode* InDependency,
 	return Result;
 }
 
-void FAssetRegistryState::SetAssetDatas(TArrayView<FAssetData> AssetDatas, const FAssetRegistryLoadOptions& Options)
-{
-	ensure(NumAssets == 0);
-
-	NumAssets = AssetDatas.Num();
-	
-	auto SetPathCache = [&]() 
-	{
-		CachedAssetsByObjectPath.Empty(AssetDatas.Num());
-		for (FAssetData& AssetData : AssetDatas)
-		{
-			CachedAssetsByObjectPath.Add(AssetData.ObjectPath, &AssetData);
-		}
-	};
-
-	// FAssetDatas sharing package name are very rare.
-	// Reserve up front and don't bother shrinking. 
-	auto SetPackageNameCache = [&]() 
-	{
-		CachedAssetsByPackageName.Empty(AssetDatas.Num());
-		for (FAssetData& AssetData : AssetDatas)
-		{
-			TArray<FAssetData*, TInlineAllocator<1>>& PackageAssets = CachedAssetsByPackageName.FindOrAdd(AssetData.PackageName);
-			PackageAssets.Add(&AssetData);
-		}
-	};
-
-	auto SetOtherCaches = [&]()
-	{
-		auto ShrinkMultimap = [](TMap<FName, TArray<FAssetData*> >& Map)
-		{
-			Map.Shrink();
-			for (auto& Pair : Map)
-			{
-				Pair.Value.Shrink();
-			}
-		};
-
-		CachedAssetsByPath.Empty();
-		for (FAssetData& AssetData : AssetDatas)
-		{
-			TArray<FAssetData*>& PathAssets = CachedAssetsByPath.FindOrAdd(AssetData.PackagePath);
-			PathAssets.Add(&AssetData);
-		}
-		ShrinkMultimap(CachedAssetsByPath);
-
-		CachedAssetsByClass.Empty();
-		for (FAssetData& AssetData : AssetDatas)
-		{
-			TArray<FAssetData*>& ClassAssets = CachedAssetsByClass.FindOrAdd(AssetData.AssetClass);
-			ClassAssets.Add(&AssetData);
-		}
-		ShrinkMultimap(CachedAssetsByClass);
-
-		CachedAssetsByTag.Empty();
-		for (FAssetData& AssetData : AssetDatas)
-		{
-			for (const TPair<FName, FAssetTagValueRef>& Pair : AssetData.TagsAndValues)
-			{
-				TArray<FAssetData*>& TagAssets = CachedAssetsByTag.FindOrAdd(Pair.Key);
-				TagAssets.Add(&AssetData);
-			}
-		}
-		ShrinkMultimap(CachedAssetsByTag);
-	};
-
-	if (Options.ParallelWorkers <= 1)
-	{
-		SetPathCache();
-		SetPackageNameCache();
-		SetOtherCaches();
-	}
-	else
-	{
-		TFuture<void> Task1 = Async(EAsyncExecution::TaskGraph, [=](){ SetPathCache(); });
-		TFuture<void> Task2 = Async(EAsyncExecution::TaskGraph, [=](){ SetPackageNameCache(); });
-		SetOtherCaches();
-		Task1.Wait();
-		Task2.Wait();
-	}
-}
-
 void FAssetRegistryState::AddAssetData(FAssetData* AssetData)
 {
 	NumAssets++;
 
-	TArray<FAssetData*, TInlineAllocator<1>>& PackageAssets = CachedAssetsByPackageName.FindOrAdd(AssetData->PackageName);
+	TArray<FAssetData*>& PackageAssets = CachedAssetsByPackageName.FindOrAdd(AssetData->PackageName);
 	TArray<FAssetData*>& PathAssets = CachedAssetsByPath.FindOrAdd(AssetData->PackagePath);
 	TArray<FAssetData*>& ClassAssets = CachedAssetsByClass.FindOrAdd(AssetData->AssetClass);
 
@@ -1542,8 +1461,8 @@ void FAssetRegistryState::UpdateAssetData(FAssetData* AssetData, const FAssetDat
 	// Update PackageName
 	if (AssetData->PackageName != NewAssetData.PackageName)
 	{
-		TArray<FAssetData*, TInlineAllocator<1>>* OldPackageAssets = CachedAssetsByPackageName.Find(AssetData->PackageName);
-		TArray<FAssetData*, TInlineAllocator<1>>& NewPackageAssets = CachedAssetsByPackageName.FindOrAdd(NewAssetData.PackageName);
+		TArray<FAssetData*>* OldPackageAssets = CachedAssetsByPackageName.Find(AssetData->PackageName);
+		TArray<FAssetData*>& NewPackageAssets = CachedAssetsByPackageName.FindOrAdd(NewAssetData.PackageName);
 
 		OldPackageAssets->Remove(AssetData);
 		NewPackageAssets.Add(AssetData);
@@ -1606,7 +1525,7 @@ void FAssetRegistryState::RemoveAssetData(FAssetData* AssetData, bool bRemoveDep
 
 	if (ensure(AssetData))
 	{
-		TArray<FAssetData*, TInlineAllocator<1>>* OldPackageAssets = CachedAssetsByPackageName.Find(AssetData->PackageName);
+		TArray<FAssetData*>* OldPackageAssets = CachedAssetsByPackageName.Find(AssetData->PackageName);
 		TArray<FAssetData*>* OldPathAssets = CachedAssetsByPath.Find(AssetData->PackagePath);
 		TArray<FAssetData*>* OldClassAssets = CachedAssetsByClass.Find(AssetData->AssetClass);
 
@@ -1718,6 +1637,32 @@ bool FAssetRegistryState::RemoveDependsNode(const FAssetIdentifier& Identifier)
 	}
 
 	return false;
+}
+
+void FAssetRegistryState::Shrink()
+{
+	for (auto& Pair : CachedAssetsByObjectPath)
+	{
+		Pair.Value->Shrink();
+	}
+	auto ShrinkIn =
+		[](TMap<FName, TArray<FAssetData*> >& Map)
+	{
+		Map.Shrink();
+		for (auto& Pair : Map)
+		{
+			Pair.Value.Shrink();
+		}
+	};
+	CachedAssetsByObjectPath.Shrink();
+	ShrinkIn(CachedAssetsByPackageName);
+	ShrinkIn(CachedAssetsByPath);
+	ShrinkIn(CachedAssetsByClass);
+	ShrinkIn(CachedAssetsByTag);
+	ShrinkIn(CachedAssetsByPackageName);
+	CachedDependsNodes.Shrink();
+	CachedPackageData.Shrink();
+	CachedAssetsByObjectPath.Shrink();
 }
 
 void FAssetRegistryState::GetPrimaryAssetsIds(TSet<FPrimaryAssetId>& OutPrimaryAssets) const
@@ -1945,7 +1890,7 @@ void FAssetRegistryState::Dump(const TArray<FString>& Arguments, TArray<FString>
 		}
 	};
 
-	auto PrintAssetDataMap = [&AddLine, &PageBuffer](FString Name, const auto& AssetMap)
+	auto PrintAssetDataMap = [&AddLine, &PageBuffer](FString Name, const TMap<FName, TArray<FAssetData*>>& AssetMap)
 	{
 		PageBuffer.Appendf(TEXT("--- Begin %s ---"), *Name);
 		AddLine();
@@ -1960,7 +1905,7 @@ void FAssetRegistryState::Dump(const TArray<FString>& Arguments, TArray<FString>
 		int32 ValidCount = 0;
 		for (const FName& Key : Keys)
 		{
-			const auto& AssetArray = AssetMap.FindChecked(Key);
+			const TArray<FAssetData*> AssetArray = AssetMap.FindChecked(Key);
 			if (AssetArray.Num() == 0)
 			{
 				continue;

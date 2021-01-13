@@ -120,45 +120,16 @@ void FAssetRegistryWriter::SerializeTagsAndBundles(const FAssetData& Out)
 
 #endif
 
-FAssetRegistryReader::FAssetRegistryReader(FArchive& Inner, int32 NumWorkers)
+FAssetRegistryReader::FAssetRegistryReader(FArchive& Inner)
 	: FArchiveProxy(Inner)
 {
 	check(IsLoading());
-
-	if (NumWorkers > 0)
-	{
-		TFunction<TArray<FNameEntryId> ()> GetFutureNames = LoadNameBatchAsync(*this, NumWorkers);
-
-		FixedTagPrivate::FAsyncStoreLoader StoreLoader;
-		Task = StoreLoader.ReadInitialDataAndKickLoad(*this, NumWorkers);
-		
-		Names = GetFutureNames();
-		Tags = StoreLoader.LoadFinalData(*this);
-	}
-	else
-	{
-		Names = LoadNameBatch(Inner);
-		Tags = FixedTagPrivate::LoadStore(*this);
-	}
-}
-
-FAssetRegistryReader::~FAssetRegistryReader()
-{
-	WaitForTasks();
-}
-
-void FAssetRegistryReader::WaitForTasks()
-{
-	if (Task.IsValid())
-	{
-		Task.Wait();
-	}
+	Names = LoadNameBatch(Inner);
+	Tags = FixedTagPrivate::LoadStore(*this);
 }
 
 FArchive& FAssetRegistryReader::operator<<(FName& Out)
 {
-	checkf(Names.Num() > 0, TEXT("Attempted to load FName before name batch loading has finished"));
-
 	uint32 Index = 0;
 	uint32 Number = NAME_NO_NUMBER_INTERNAL;
 	
