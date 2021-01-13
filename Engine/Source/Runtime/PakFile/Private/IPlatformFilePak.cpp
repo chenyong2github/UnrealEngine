@@ -1875,6 +1875,14 @@ private: // below here we assume CachedFilesScopeLock until we get to the next s
 						continue;
 					}
 					int32 CacheIndex = CachedPakData[RealPakIndex].ActualPakFile->GetCacheIndex();
+					if (CacheIndex < 0 || OffsetAndPakIndexOfSavedBlocked.Num() <= CacheIndex)
+					{
+						// It appears that rare crashes in shipped builds can hit this case.
+						// Without the CacheIndex we will no longer be able to trim the cache. This isn't a problem if the PakFile
+						// has actually been deleted, but that doesn't appear to be the case since Handle is still non-null.
+						UE_LOG(LogPakFile, Error, TEXT("TrimCache1: Non-deleted Pak File %s has invalid CacheIndex %d."), *CachedPakData[RealPakIndex].Name.ToString(), CacheIndex);
+						continue;
+					}
 					if (CacheVisitedAlready[CacheIndex] == true)
 						continue;
 					CacheVisitedAlready[CacheIndex] = true;
@@ -1937,6 +1945,14 @@ private: // below here we assume CachedFilesScopeLock until we get to the next s
 						continue;
 					}
 					int32 CacheIndex = CachedPakData[RealPakIndex].ActualPakFile->GetCacheIndex();
+					if (CacheIndex < 0 || OffsetAndPakIndexOfSavedBlocked.Num() <= CacheIndex)
+					{
+						// It appears that rare crashes in shipped builds can hit this case.
+						// Without the CacheIndex we will no longer be able to trim the cache. This isn't a problem if the PakFile
+						// has actually been deleted, but that doesn't appear to be the case since Handle is still non-null.
+						UE_LOG(LogPakFile, Error, TEXT("TrimCache2: Non-deleted Pak File %s has invalid CacheIndex %d."), *CachedPakData[RealPakIndex].Name.ToString(), CacheIndex);
+						continue;
+					}
 
 					int32 NumToRemove = 0;
 
@@ -2005,6 +2021,14 @@ private: // below here we assume CachedFilesScopeLock until we get to the next s
 					continue;
 				}
 				int32 CacheIndex = CachedPakData[RealPakIndex].ActualPakFile->GetCacheIndex();
+				if (CacheIndex < 0 || OffsetAndPakIndexOfSavedBlocked.Num() <= CacheIndex)
+				{
+					// It appears that rare crashes in shipped builds can hit this case.
+					// Without the CacheIndex we will no longer be able to trim the cache. This isn't a problem if the PakFile
+					// has actually been deleted, but that doesn't appear to be the case since Handle is still non-null.
+					UE_LOG(LogPakFile, Error, TEXT("TrimCache3: Non-deleted Pak File %s has invalid CacheIndex %d."), *CachedPakData[RealPakIndex].Name.ToString(), CacheIndex);
+					continue;
+				}
 				int32 NumToKeep = bDiscardAll ? 0 : GPakCache_NumUnreferencedBlocksToCache;
 				int32 NumToRemove = FMath::Max<int32>(0, OffsetAndPakIndexOfSavedBlocked[CacheIndex].Num() - NumToKeep);
 				if (NumToRemove)
