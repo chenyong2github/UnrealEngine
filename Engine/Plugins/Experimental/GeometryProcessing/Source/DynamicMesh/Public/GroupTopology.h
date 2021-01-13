@@ -97,6 +97,14 @@ struct DYNAMICMESH_API FGroupTopologySelection
 			&& SelectedGroupIDs.Includes(Selection.SelectedGroupIDs);
 	}
 
+	bool operator==(const FGroupTopologySelection& Selection) const
+	{
+		return SelectedCornerIDs.Num() == Selection.SelectedCornerIDs.Num()
+			&& SelectedEdgeIDs.Num() == Selection.SelectedEdgeIDs.Num()
+			&& SelectedGroupIDs.Num() == Selection.SelectedGroupIDs.Num()
+			&& Contains(Selection);
+	}
+
 	inline bool IsSelectedTriangle(const FDynamicMesh3* Mesh, const FGroupTopology* Topology, int32 TriangleID) const;
 
 

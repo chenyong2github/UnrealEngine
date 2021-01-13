@@ -582,6 +582,9 @@ void UPolygonSelectionMechanic::OnUpdateModifierState(int ModifierID, bool bIsOn
 
 void UPolygonSelectionMechanic::OnDragRectangleStarted()
 {
+	ParentTool->GetToolManager()->BeginUndoTransaction(LOCTEXT("SelectionChange", "Selection"));
+	BeginChange();
+
 	PreDragPersistentSelection = PersistentSelection;
 	PersistentSelection.Clear();
 }
@@ -622,8 +625,14 @@ void UPolygonSelectionMechanic::OnDragRectangleChanged(const FCameraRectangle& C
 
 void UPolygonSelectionMechanic::OnDragRectangleFinished()
 {
-	SelectionTimestamp++;
-	OnSelectionChanged.Broadcast();
+	if (!(PersistentSelection == PreDragPersistentSelection))
+	{
+		SelectionTimestamp++;
+		OnSelectionChanged.Broadcast();
+	}
+
+	EndChangeAndEmitIfModified();
+	ParentTool->GetToolManager()->EndUndoTransaction();
 }
 
 
