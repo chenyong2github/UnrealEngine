@@ -1311,7 +1311,7 @@ void AWaterBody::PostLoad()
 		// Try to retrieve wave data from BP properties when it was defined in BP : 
 		if (UClass* WaterBodyClass = GetClass())
 		{
-			if ((WaterBodyClass->ClassGeneratedBy != nullptr) && bHasWaveSpectrumSettings_DEPRECATED)
+			if (WaterBodyClass->ClassGeneratedBy != nullptr)
 			{
 				FStructProperty* OldWaveStructProperty = nullptr;
 				for (FProperty* BPProperty = WaterBodyClass->PropertyLink; BPProperty != nullptr; BPProperty = BPProperty->PropertyLinkNext)
@@ -1362,9 +1362,6 @@ void AWaterBody::PostLoad()
 						}
 					}
 				}
-
-				// WaveSpectrumSettings has been deprecated, we don't need to do it anymore, ever: 
-				bHasWaveSpectrumSettings_DEPRECATED = false;
 			}
 		}
 	}
@@ -1383,13 +1380,10 @@ void AWaterBody::PostLoad()
 	}
 
 #if WITH_EDITORONLY_DATA
-	if ((GetLinkerCustomVersion(FWaterCustomVersion::GUID) < FWaterCustomVersion::MoveTerrainCarvingSettingsToWater) && bHasTerrainCarvingSettingsSettings_DEPRECATED)
+	if (GetLinkerCustomVersion(FWaterCustomVersion::GUID) < FWaterCustomVersion::MoveTerrainCarvingSettingsToWater)
 	{
 		static_assert(sizeof(WaterHeightmapSettings) == sizeof(TerrainCarvingSettings_DEPRECATED), "Both old and old water heightmap settings struct should be exactly similar");
 		FMemory::Memcpy((void*)&WaterHeightmapSettings, (void*)&TerrainCarvingSettings_DEPRECATED, sizeof(WaterHeightmapSettings));
-
-		// TerrainCarvingSettings has been deprecated, we don't need to do it anymore, ever: 
-		bHasTerrainCarvingSettingsSettings_DEPRECATED = false;
 	}
 #endif
 
