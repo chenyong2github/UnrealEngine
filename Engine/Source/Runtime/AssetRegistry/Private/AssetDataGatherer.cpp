@@ -503,7 +503,7 @@ uint32 FAssetDataGatherer::Run()
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FAssetDataGatherer::Run)
 	
-	static constexpr uint32 RemovedCacheSerializationVersionMagic = 0x89ABCDEF;
+	static constexpr uint32 RemovedCacheSerializationVersionMagic = 0xCBA78339;
 
 	if ( bLoadAndSaveCache )
 	{
