@@ -171,7 +171,9 @@ namespace Chaos
 		, AngularDriveStiffness(0)
 		, AngularDriveDamping(0)
 		, LinearBreakForce(FLT_MAX)
+		, LinearPlasticityLimit(FLT_MAX)
 		, AngularBreakTorque(FLT_MAX)
+		, AngularPlasticityLimit(FLT_MAX)
 		, UserData(nullptr)
 	{
 		if (bChaos_Joint_ISPC_Enabled)
@@ -528,7 +530,6 @@ namespace Chaos
 			BreakCallback(Handles[ConstraintIndex]);
 		}
 	}
-
 
 	void FPBDJointConstraints::FixConstraints(int32 ConstraintIndex)
 	{
@@ -1311,6 +1312,11 @@ namespace Chaos
 			ApplyBreakThreshold(Dt, ConstraintIndex, Solver.GetNetLinearImpulse(), Solver.GetNetAngularImpulse());
 		}
 
+		if (/*(JointSettings.LinearPlasticityLimit != FLT_MAX) ||*/ (JointSettings.AngularPlasticityLimit != FLT_MAX)) // todo(chaos) : Implement Linear Plasticity
+		{
+			ApplyPlasticityLimits(Dt, ConstraintIndex, Solver.GetP(1) - Solver.GetP(0), Solver.GetQ(0).Inverse() * Solver.GetQ(1));
+		}
+
 		return Solver.GetIsActive() || !bChaos_Joint_EarlyOut_Enabled;
 	}
 
@@ -1416,6 +1422,22 @@ namespace Chaos
 		}
 	}
 
+
+	void FPBDJointConstraints::ApplyPlasticityLimits(const FReal Dt, int32 ConstraintIndex, const FVec3& LinearDisplacement, const FRotation3& AngularDisplacement)
+	{
+		FPBDJointSettings& JointSettings = ConstraintSettings[ConstraintIndex];
+
+		// @todo(chaos) : Implement Linear case
+
+		if (JointSettings.AngularPlasticityLimit)
+		{
+			const FReal AngleDeg = JointSettings.AngularDrivePositionTarget.AngularDistance(AngularDisplacement);
+			if (AngleDeg > JointSettings.AngularPlasticityLimit)
+			{
+				JointSettings.AngularDrivePositionTarget = AngularDisplacement;
+			}
+		}
+	}
 
 	// Assign an Island, Level and Color to each constraint. Constraints must be processed in Level order, but
 	// constraints of the same color are independent and can be processed in parallel (SIMD or Task)

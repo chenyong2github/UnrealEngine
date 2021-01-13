@@ -661,6 +661,11 @@ void UPhysicsConstraintComponent::SetAngularBreakable(bool bAngularBreakable, fl
 	ConstraintInstance.SetAngularBreakable(bAngularBreakable, AngularBreakThreshold);
 }
 
+void UPhysicsConstraintComponent::SetAngularPlasticity(bool bAngularPlasticity, float AngularPlasticityThreshold)
+{
+	ConstraintInstance.SetAngularPlasticity(bAngularPlasticity, AngularPlasticityThreshold);
+}
+
 float UPhysicsConstraintComponent::GetCurrentTwist() const
 {
 	const float CurrentTwistRads = ConstraintInstance.GetCurrentTwist();

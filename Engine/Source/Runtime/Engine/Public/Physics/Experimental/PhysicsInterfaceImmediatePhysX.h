@@ -353,6 +353,7 @@ struct ENGINE_API FPhysicsInterface_ImmediatePhysX
 	static void SetProjectionEnabled_AssumesLocked(const FPhysicsConstraintReference_ImmediatePhysX& InConstraintRef, bool bInProjectionEnabled, float InLinearTolerance = 0.0f, float InAngularToleranceDegrees = 0.0f);
 	static void SetParentDominates_AssumesLocked(const FPhysicsConstraintReference_ImmediatePhysX& InConstraintRef, bool bInParentDominates);
 	static void SetBreakForces_AssumesLocked(const FPhysicsConstraintReference_ImmediatePhysX& InConstraintRef, float InLinearBreakForce, float InAngularBreakForce);
+	static void SetPlasticityLimits_AssumesLocked(const FPhysicsConstraintHandle& InConstraintRef, float InLinearBreakForce, float InAngularBreakTorque);
 	static void SetLocalPose(const FPhysicsConstraintReference_ImmediatePhysX& InConstraintRef, const FTransform& InPose, EConstraintFrame::Type InFrame);
 
 	static void SetLinearMotionLimitType_AssumesLocked(const FPhysicsConstraintReference_ImmediatePhysX& InConstraintRef, PhysicsInterfaceTypes::ELimitAxis InAxis, ELinearConstraintMotion InMotion);

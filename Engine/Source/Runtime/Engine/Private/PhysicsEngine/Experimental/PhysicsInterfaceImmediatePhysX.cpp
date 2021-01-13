@@ -1394,6 +1394,11 @@ void FPhysicsInterface_ImmediatePhysX::SetBreakForces_AssumesLocked(const FPhysi
     */
 }
 
+void FPhysicsInterface_ImmediatePhysX::SetPlasticityLimits_AssumesLocked(const FPhysicsConstraintHandle& InConstraintRef, float InLinearBreakForce, float InAngularBreakTorque)
+{
+	// @todo(chaos) : Implement
+}
+
 void FPhysicsInterface_ImmediatePhysX::SetLocalPose(const FPhysicsConstraintHandle& InConstraintRef, const FTransform& InPose, EConstraintFrame::Type InFrame)
 {
     if (InFrame == EConstraintFrame::Frame1)
