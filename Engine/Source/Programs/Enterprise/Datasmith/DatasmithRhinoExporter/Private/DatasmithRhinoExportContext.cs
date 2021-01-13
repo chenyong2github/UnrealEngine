@@ -2,6 +2,7 @@
 
 using DatasmithRhino.Utils;
 using Rhino;
+using Rhino.Display;
 using Rhino.DocObjects;
 using Rhino.Geometry;
 using System;
@@ -245,6 +246,7 @@ namespace DatasmithRhino
 		private DatasmithRhinoUniqueNameGenerator ActorLabelGenerator = new DatasmithRhinoUniqueNameGenerator();
 		private DatasmithRhinoUniqueNameGenerator MaterialLabelGenerator = new DatasmithRhinoUniqueNameGenerator();
 		private DatasmithRhinoUniqueNameGenerator TextureLabelGenerator = new DatasmithRhinoUniqueNameGenerator();
+		private ViewportInfo ActiveViewportInfo;
 
 		public DatasmithRhinoExportContext(DatasmithRhinoExportOptions InOptions)
 		{
@@ -254,6 +256,10 @@ namespace DatasmithRhino
 
 		public void ParseDocument()
 		{
+			RhinoViewport ActiveViewport = RhinoDocument.Views.ActiveView?.ActiveViewport;
+			//Update current active viewport.
+			ActiveViewportInfo = ActiveViewport == null ? null : new ViewportInfo(ActiveViewport);
+
 			DatasmithRhinoProgressManager.Instance.UpdateCurrentTaskProgress(0.33f);
 			ParseGroupNames();
 			DatasmithRhinoProgressManager.Instance.UpdateCurrentTaskProgress(0.66f);
@@ -453,12 +459,16 @@ namespace DatasmithRhino
 					&& InObject.IsSelected(/*checkSubObjects=*/true) == 0;
 		}
 
-		private static bool IsUnsupportedObject(RhinoObject InObject)
+		private bool IsUnsupportedObject(RhinoObject InObject)
 		{
+//Disabling obsolete warning as GetRenderPrimitiveList() is deprecated since Rhino5 but as of Rhino7 no alternative exists.
+#pragma warning disable CS0612
 			// Geometry objects without meshes are currently not supported, unless they are points.
 			return InObject.ComponentType == ModelComponentType.ModelGeometry 
 				&& !InObject.IsMeshable(MeshType.Render)
-				&& InObject.ObjectType != ObjectType.Point;
+				&& InObject.ObjectType != ObjectType.Point
+				&& (InObject.ObjectType != ObjectType.Curve || null == InObject.GetRenderPrimitiveList(ActiveViewportInfo, true));
+#pragma warning restore CS0612
 		}
 
 		private void InstanciateDefinition(DatasmithActorInfo ParentNode, DatasmithActorInfo DefinitionNode)
@@ -780,7 +790,18 @@ namespace DatasmithRhino
 
 			foreach (RhinoObject CurrentObject in DocObjects)
 			{
-				Mesh[] RenderMeshes = CurrentObject.GetMeshes(MeshType.Render);
+				Mesh[] RenderMeshes = null;
+				if (ActiveViewportInfo != null)
+				{
+//Disabling obsolete warning as GetRenderPrimitiveList() is deprecated since Rhino5 but as of Rhino7 no alternative exists.
+#pragma warning disable CS0612
+					RenderMeshes = CurrentObject.GetRenderPrimitiveList(ActiveViewportInfo, false)?.ToMeshArray();
+#pragma warning restore CS0612
+				}
+				if (RenderMeshes == null)
+				{
+					RenderMeshes = CurrentObject.GetMeshes(MeshType.Render);
+				}
 
 				if (RenderMeshes != null && RenderMeshes.Length > 0)
 				{
