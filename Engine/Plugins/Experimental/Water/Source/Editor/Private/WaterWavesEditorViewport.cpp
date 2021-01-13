@@ -8,13 +8,16 @@
 #include "WaterBodyCustomActor.h"
 #include "SCommonEditorViewportToolbarBase.h"
 #include "WaterEditorSettings.h"
+#include "WaterEditorModule.h"
 #include "WaterSplineComponent.h"
 
 #include "WaterSubsystem.h"
 
 SWaterWavesEditorViewport::SWaterWavesEditorViewport()
-	: PreviewScene(MakeShareable(new FAdvancedPreviewScene(FPreviewScene::ConstructionValues())))
 {
+	// Temporarily allow water subsystem to be created on preview worlds because we need one here : 
+	UWaterSubsystem::FScopedAllowWaterSubsystemOnPreviewWorld AllowWaterSubsystemOnPreviewWorldScope(true);
+	PreviewScene = MakeShareable(new FAdvancedPreviewScene(FPreviewScene::ConstructionValues()));
 }
 
 void SWaterWavesEditorViewport::Construct(const FArguments& InArgs)
@@ -63,10 +66,7 @@ void SWaterWavesEditorViewport::AddReferencedObjects(FReferenceCollector& Collec
 
 TSharedRef<FEditorViewportClient> SWaterWavesEditorViewport::MakeEditorViewportClient()
 {
-	EditorViewportClient = MakeShareable(new FEditorViewportClient(nullptr, PreviewScene.Get(), SharedThis(this)));
-	EditorViewportClient->bSetListenerPosition = false;
-	EditorViewportClient->SetRealtime(true);
-	EditorViewportClient->EngineShowFlags.Grid = false;
+	EditorViewportClient = MakeShareable(new FWaterWavesEditorViewportClient(PreviewScene.Get(), SharedThis(this)));
 	return EditorViewportClient.ToSharedRef();
 }
 
@@ -81,3 +81,26 @@ void SWaterWavesEditorViewport::SetShouldPauseWaveTime(bool bShouldFreeze)
 	check(WaterSubsystem != nullptr);
 	WaterSubsystem->SetShouldPauseWaveTime(bShouldFreeze);
 }
+
+
+// ----------------------------------------------------------------------------------
+
+FWaterWavesEditorViewportClient::FWaterWavesEditorViewportClient(FPreviewScene* InPreviewScene, const TWeakPtr<SEditorViewport>& InEditorViewportWidget)
+	: FEditorViewportClient(nullptr, InPreviewScene, InEditorViewportWidget)
+{
+	bSetListenerPosition = false;
+	SetRealtime(true);
+	EngineShowFlags.Grid = false;
+}
+
+void FWaterWavesEditorViewportClient::Tick(float DeltaSeconds)
+{
+	Super::Tick(DeltaSeconds);
+
+	// Tick the preview scene world.
+	if (!GIntraFrameDebuggingGameThread)
+	{
+		PreviewScene->GetWorld()->Tick(IsRealtime() ? LEVELTICK_All : LEVELTICK_TimeOnly, DeltaSeconds);
+	}
+}
+

@@ -30,9 +30,6 @@ class ENGINE_API UMaterialParameterCollectionInstance : public UObject
 	virtual void FinishDestroy() override;
 	//~ End UObject Interface.
 
-	/** Returns true if this parameter collection instance is valid */
-	bool IsValid() const { return World.IsValid() && Collection; }
-
 	/** Initializes the instance with the collection it is based off of and the world it is owned by. */
 	void SetCollection(UMaterialParameterCollection* InCollection, UWorld* InWorld);
 
