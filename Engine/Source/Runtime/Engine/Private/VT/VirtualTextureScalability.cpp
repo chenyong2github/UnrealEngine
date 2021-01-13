@@ -16,7 +16,7 @@ namespace VirtualTextureScalability
 #if WITH_EDITOR
 	static TAutoConsoleVariable<int32> CVarVTMaxUploadsPerFrameInEditor(
 		TEXT("r.VT.MaxUploadsPerFrameInEditor"),
-		64,
+		32,
 		TEXT("Max number of page uploads per frame when in editor"),
 		ECVF_RenderThreadSafe
 	);
@@ -39,7 +39,7 @@ namespace VirtualTextureScalability
 #if WITH_EDITOR
 	static TAutoConsoleVariable<int32> CVarVTMaxContinuousUpdatesPerFrameInEditor(
 		TEXT("r.VT.MaxContinuousUpdatesPerFrameInEditor"),
-		128,
+		8,
 		TEXT("Max number of page uploads for pages that are already mapped when in editor."),
 		ECVF_RenderThreadSafe | ECVF_Scalability
 	);
