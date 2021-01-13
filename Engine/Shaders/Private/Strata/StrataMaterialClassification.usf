@@ -41,86 +41,30 @@ void ComputePostProcessBSDFData(
 
 	switch (BSDF_GETTYPE(BSDF))
 	{
-	case STRATA_BSDF_TYPE_DIFFUSE:
+	case STRATA_BSDF_TYPE_SLAB:
 	{
+		const float3 F0 = ComputeF0(SLAB_REFLECTIVITY(BSDF), SLAB_ALBEDO(BSDF), SLAB_METALLIC(BSDF));
+
 		if (bTopLayer)
 		{
-			TopLayer.Roughness += BSDFCoverageAvg * FullyRough; // Do not trigger SSR by using fully rough
+			// Setup SSR for the top layer
+			TopLayer.Roughness += BSDFCoverageAvg * SLAB_ROUGHNESS0(BSDF);
 			TopLayer.AccumRoughnessCount += BSDFCoverageAvg;
+
+			const float SafeRoughness = MakeRoughnessSafe(SLAB_ROUGHNESS0(BSDF));
+			TopLayer.BaseColor += BSDFCoverage * EnvBRDFApprox(F0, SafeRoughness, saturate(ContextNoLight.NoV));
 		}
 
 		// Select the first/toppest layer with subsurface scattering
-		if (BSDF_GETHASSCATTERING(BSDF) && BSDFCoverageAvg > 0 && DIFFUSE_SSSPROFILERADIUS(BSDF) > 0 && !SSS.bHasSubsurface)
+		if (BSDF_GETHASSCATTERING(BSDF) && BSDFCoverageAvg > 0 && SLAB_SSSPROFILERADIUS(BSDF) > 0 && !SSS.bHasSubsurface)
 		{
 			SSS.bHasSubsurface = true;
 			SSS.bHasProfile	= BSDF_GETHASSSSPROFILE(BSDF);
-			SSS.Profile		= DIFFUSE_SSSPROFILEID(BSDF);
-			SSS.RadiusScale	= DIFFUSE_SSSPROFILERADIUS(BSDF);
-			SSS.BaseColor	= DIFFUSE_ALBEDO(BSDF);
-			SSS.DMFPAlbedo	= DIFFUSE_SSSDMFPALBEDO(BSDF);
-			SSS.DMFPRadius	= DIFFUSE_SSSDMFPRADIUS(BSDF);
-		}
-		break;
-	}
-
-	case STRATA_BSDF_TYPE_DIELECTRIC:
-	{
-		if (BSDF_GETHASSCATTERING(BSDF))
-		{
-			Classification.bHasSubsurface = true;
-			if (BSDF_GETHASSSSPROFILE(BSDF))
-			{
-				Classification.bHasSubsurfaceProfile = true;
-			}
-		}
-
-		float F0 = DielectricIorToF0(DIELECTRIC_IOR(BSDF));
-		float3 F = F_Schlick(F0, ContextNoLight.VoH);
-
-		if (bTopLayer)
-		{
-			TopLayer.Roughness += DIELECTRIC_ROUGHNESS0(BSDF);
-			TopLayer.AccumRoughnessCount += 1.0f;
-
-			const float SafeRoughness = MakeRoughnessSafe(DIELECTRIC_ROUGHNESS0(BSDF));
-			TopLayer.BaseColor += BSDFCoverage * EnvBRDFApprox(F0, SafeRoughness, saturate(ContextNoLight.NoV));
-		}
-		break;
-	}
-
-	case STRATA_BSDF_TYPE_CONDUCTOR:
-	{
-		float3 F = F_Schlick(CONDUCTOR_REFLECTIVITY(BSDF), CONDUCTOR_EDGECOLOR(BSDF), ContextNoLight.VoH);
-
-		if (bTopLayer)
-		{
-			TopLayer.Roughness += CONDUCTOR_ROUGHNESS0(BSDF);
-			TopLayer.AccumRoughnessCount += 1.0f;
-
-			const float SafeRoughness = MakeRoughnessSafe(CONDUCTOR_ROUGHNESS0(BSDF));
-			TopLayer.BaseColor += BSDFCoverage * EnvBRDFApprox(CONDUCTOR_REFLECTIVITY(BSDF), CONDUCTOR_EDGECOLOR(BSDF), SafeRoughness, saturate(ContextNoLight.NoV));;
-		}
-		break;
-	}
-
-	case STRATA_BSDF_TYPE_VOLUME:
-	{
-		const float3 Albedo					= VOLUME_ALBEDO(BSDF);
-		const float3 ExtinctionCoefficients = VOLUME_EXTINCTION(BSDF);
-		const float3 ScatteringCoefficients = Albedo * ExtinctionCoefficients;
-		const float3 AbsorptionCoefficients = ExtinctionCoefficients - ScatteringCoefficients;
-		const float  Thickness				= VOLUME_THICKNESS(BSDF);
-
-		const float3 SafeExtinctionThreshold = 0.000001f;
-		const float3 SafeExtinctionCoefficients = max(SafeExtinctionThreshold, ExtinctionCoefficients);
-
-		const float PathLength = Thickness / max(0.0001f, abs(ContextNoLight.NoV));
-		const float3 SafePathSegmentTransmittance = exp(-SafeExtinctionCoefficients * PathLength);
-				
-		if (bTopLayer)
-		{
-			TopLayer.Roughness += BSDFCoverageAvg * FullyRough; // Do not trigger SSR by using fully rough
-			TopLayer.AccumRoughnessCount += BSDFCoverageAvg;
+			SSS.Profile		= SLAB_SSSPROFILEID(BSDF);
+			SSS.RadiusScale	= SLAB_SSSPROFILERADIUS(BSDF);
+			SSS.BaseColor	= SLAB_ALBEDO(BSDF);
+			SSS.DMFPAlbedo	= SLAB_SSSDMFPALBEDO(BSDF);
+			SSS.DMFPRadius	= SLAB_SSSDMFPRADIUS(BSDF);
 		}
 		break;
 	}

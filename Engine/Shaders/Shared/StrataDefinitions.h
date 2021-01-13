@@ -21,15 +21,12 @@
 #define STRATA_PACKED_NORMAL_STRIDE_BYTES	4
 
 
-#define STRATA_BSDF_TYPE_DIFFUSE			0
-#define STRATA_BSDF_TYPE_DIELECTRIC			1
-#define STRATA_BSDF_TYPE_CONDUCTOR			2
-#define STRATA_BSDF_TYPE_VOLUME				3
-#define STRATA_BSDF_TYPE_SHEEN				4
-#define STRATA_BSDF_TYPE_VOLUMETRICFOGCLOUD	5
-#define STRATA_BSDF_TYPE_UNLIT				6
-#define STRATA_BSDF_TYPE_HAIR				7
-#define STRATA_BSDF_TYPE_SINGLELAYERWATER	8
-// When more than 16 BSDF must exists, please update STATE_BITS_BSDF and FStrataClassification.ShadingModels packing in Strata.ush
+#define STRATA_BSDF_TYPE_SLAB				0
+#define STRATA_BSDF_TYPE_SHEEN				1
+#define STRATA_BSDF_TYPE_VOLUMETRICFOGCLOUD	2
+#define STRATA_BSDF_TYPE_UNLIT				3
+#define STRATA_BSDF_TYPE_HAIR				4
+#define STRATA_BSDF_TYPE_SINGLELAYERWATER	5
+// When more than 8 BSDF must exists, please update STATE_BITS_BSDF and FStrataClassification.ShadingModels packing in Strata.ush
 
 

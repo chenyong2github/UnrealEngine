@@ -392,10 +392,7 @@ public:
 
 	// Strata
 	virtual int32 StrataCreateAndRegisterNullMaterial() = 0;
-	virtual int32 StrataDiffuseBSDF(int32 Albedo, int32 Roughness, int32 SSSProfileId, int32 SSSDMFPRadiusScale, int32 SSSDMFPAlebdo, int32 SSSDMFPRadius, int32 Normal, uint8 SharedNormalIndex) = 0;
-	virtual int32 StrataDielectricBSDF(int32 RoughnessX, int32 RoughnessY, int32 IOR, int32 Tint, int32 Normal, int32 Tangent, uint8 SharedNormalIndex) = 0;
-	virtual int32 StrataConductorBSDF(int32 Reflectivity, int32 EdgeColor, int32 RoughnessX, int32 RoughnessY, int32 Normal, int32 Tangent, uint8 SharedNormalIndex) = 0;
-	virtual int32 StrataVolumeBSDF(int32 Albedo, int32 Extinction, int32 Anisotropy, int32 Thickness, int32 Normal, uint8 SharedNormalIndex) = 0;
+	virtual int32 StrataSlabBSDF(int32 Albedo, int32 Reflectivity, int32 Metallic, int32 RoughnessX, int32 RoughnessY, int32 SSSProfileId, int32 SSSDMFPAlbedo, int32 SSSDMFPRadius, int32 Normal, int32 Tangent, uint8 SharedNormalIndex) = 0;
 	virtual int32 StrataSheenBSDF(int32 Albedo, int32 Roughness, int32 Normal, uint8 SharedNormalIndex) = 0;
 	virtual int32 StrataVolumetricFogCloudBSDF(int32 Albedo, int32 Extinction, int32 Emissive, int32 AmbientOcclusion) = 0;
 	virtual int32 StrataUnlitBSDF(int32 Emissive, int32 TransmittanceColor) = 0;
@@ -811,24 +808,9 @@ public:
 		return Compiler->StrataCreateAndRegisterNullMaterial();
 	}
 
-	virtual int32 StrataDiffuseBSDF(int32 Albedo, int32 Roughness, int32 SSSProfileId, int32 SSSDMFPRadiusScale, int32 SSSDMFPAlebdo, int32 SSSDMFPRadius, int32 Normal, uint8 SharedNormalIndex) override
+	virtual int32 StrataSlabBSDF(int32 Albedo, int32 Reflectivity, int32 Metallic, int32 RoughnessX, int32 RoughnessY, int32 SSSProfileId, int32 SSSDMFPAlbedo, int32 SSSDMFPRadius, int32 Normal, int32 Tangent, uint8 SharedNormalIndex) override
 	{
-		return Compiler->StrataDiffuseBSDF(Albedo, Roughness, SSSProfileId, SSSDMFPRadiusScale, SSSDMFPAlebdo, SSSDMFPRadius, Normal, SharedNormalIndex);
-	}
-
-	virtual int32 StrataDielectricBSDF(int32 RoughnessX, int32 RoughnessY, int32 IOR, int32 Tint, int32 Normal, int32 Tangent, uint8 SharedNormalIndex) override
-	{
-		return Compiler->StrataDielectricBSDF(RoughnessX, RoughnessY, IOR, Tint, Normal, Tangent, SharedNormalIndex);
-	}
-
-	virtual int32 StrataConductorBSDF(int32 Reflectivity, int32 EdgeColor, int32 RoughnessX, int32 RoughnessY, int32 Normal, int32 Tangent, uint8 SharedNormalIndex) override
-	{
-		return Compiler->StrataConductorBSDF(Reflectivity, EdgeColor, RoughnessX, RoughnessY, Normal, Tangent, SharedNormalIndex);
-	}
-
-	virtual int32 StrataVolumeBSDF(int32 Albedo, int32 Extinction, int32 Anisotropy, int32 Thickness, int32 Normal, uint8 SharedNormalIndex) override
-	{
-		return Compiler->StrataVolumeBSDF(Albedo, Extinction, Anisotropy, Thickness, Normal, SharedNormalIndex);
+		return Compiler->StrataSlabBSDF(Albedo, Reflectivity, Metallic, RoughnessX, RoughnessY, SSSProfileId, SSSDMFPAlbedo, SSSDMFPRadius, Normal, Tangent, SharedNormalIndex);
 	}
 
 	virtual int32 StrataSheenBSDF(int32 Albedo, int32 Roughness, int32 Normal, uint8 SharedNormalIndex) override

@@ -19646,7 +19646,7 @@ static int32 CompileWithDefaultTangentWS(class FMaterialCompiler* Compiler, FExp
 
 #endif // WITH_EDITOR
 
-UMaterialExpressionStrataDiffuseBSDF::UMaterialExpressionStrataDiffuseBSDF(const FObjectInitializer& ObjectInitializer)
+UMaterialExpressionStrataSlabBSDF::UMaterialExpressionStrataSlabBSDF(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	struct FConstructorStatics
@@ -19661,10 +19661,17 @@ UMaterialExpressionStrataDiffuseBSDF::UMaterialExpressionStrataDiffuseBSDF(const
 }
 
 #if WITH_EDITOR
-int32 UMaterialExpressionStrataDiffuseBSDF::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+int32 UMaterialExpressionStrataSlabBSDF::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
 {
 	int32 NormalCodeChunk = CompileWithDefaultNormalWS(Compiler, Normal);
-	uint8 SharedNormalIndex = StrataCompilationInfoCreateSharedNormal(Compiler, NormalCodeChunk);
+
+	bool bDefaultTangentIsUsed = false;
+	int32 TangentCodeChunk = CompileWithDefaultTangentWS(Compiler, Tangent, &bDefaultTangentIsUsed);
+	uint8 SharedNormalIndex = bDefaultTangentIsUsed ? StrataCompilationInfoCreateSharedNormal(Compiler, NormalCodeChunk) : StrataCompilationInfoCreateSharedNormal(Compiler, NormalCodeChunk, TangentCodeChunk);
+
+	int32 RoughnessXCodeChunk = CompileWithDefaultFloat1(Compiler, RoughnessX, 0.0f);
+	// If not plugged in, RoughnessYCodeChunk is set to RoughnessXCodeChunk to get an isotropic behavior
+	int32 RoughnessYCodeChunk = CompileWithDefaultCodeChunk(Compiler, RoughnessY, RoughnessXCodeChunk);
 
 	int32 SSSProfileCodeChunk = INDEX_NONE;
 	const bool bHasScattering = SubsurfaceProfile != nullptr;
@@ -19674,51 +19681,63 @@ int32 UMaterialExpressionStrataDiffuseBSDF::Compile(class FMaterialCompiler* Com
 		SSSProfileCodeChunk = Compiler->ForceCast(Compiler->ScalarParameter(NameSubsurfaceProfile, 1.0f), MCT_Float1);
 	}
 
-	int32 OutputCodeChunk = Compiler->StrataDiffuseBSDF(
-		CompileWithDefaultFloat3(Compiler, Albedo,		0.18f, 0.18f, 0.18f),
-		CompileWithDefaultFloat1(Compiler, Roughness,	0.0f),
-		SSSProfileCodeChunk != INDEX_NONE ? SSSProfileCodeChunk : Compiler->Constant(0.0f),		
-		CompileWithDefaultFloat1(Compiler, DiffuseMeanFreePathRadiusScale,	0.0f),
+	int32 OutputCodeChunk = Compiler->StrataSlabBSDF(
+		CompileWithDefaultFloat3(Compiler, BaseColor, 0.18f, 0.18f, 0.18f),
+		CompileWithDefaultFloat1(Compiler, Reflectivity, 0.5f),
+		CompileWithDefaultFloat1(Compiler, Metallic, 0.0f),
+		RoughnessXCodeChunk,
+		RoughnessYCodeChunk,
+		SSSProfileCodeChunk != INDEX_NONE ? SSSProfileCodeChunk : Compiler->Constant(0.0f),	
 		CompileWithDefaultFloat3(Compiler, DiffuseMeanFreePathAlbedo, 0.0f, 0.0f, 0.0f),
 		CompileWithDefaultFloat1(Compiler, DiffuseMeanFreePathRadius, 0.0f),
 		NormalCodeChunk,
+		TangentCodeChunk,
 		SharedNormalIndex);
-	StrataCompilationInfoCreateSingleBSDFMaterial(Compiler, OutputCodeChunk, SharedNormalIndex, STRATA_BSDF_TYPE_DIFFUSE, bHasScattering);
+	StrataCompilationInfoCreateSingleBSDFMaterial(Compiler, OutputCodeChunk, SharedNormalIndex, STRATA_BSDF_TYPE_SLAB, bHasScattering);
 
 	return OutputCodeChunk;
 }
 
-void UMaterialExpressionStrataDiffuseBSDF::GetCaption(TArray<FString>& OutCaptions) const
+void UMaterialExpressionStrataSlabBSDF::GetCaption(TArray<FString>& OutCaptions) const
 {
-	OutCaptions.Add(TEXT("Strata Diffuse BSDF"));
+	OutCaptions.Add(TEXT("Strata Slab BSDF"));
 }
 
-uint32 UMaterialExpressionStrataDiffuseBSDF::GetOutputType(int32 OutputIndex)
+uint32 UMaterialExpressionStrataSlabBSDF::GetOutputType(int32 OutputIndex)
 {
 	return MCT_Strata;
 }
 
-uint32 UMaterialExpressionStrataDiffuseBSDF::GetInputType(int32 InputIndex)
+uint32 UMaterialExpressionStrataSlabBSDF::GetInputType(int32 InputIndex)
 {
 	switch (InputIndex)
 	{
 	case 0:
-		return MCT_Float3;
+		return MCT_Float3; // Albedo
 		break;
 	case 1:
-		return MCT_Float1;
+		return MCT_Float1; // Metallic
 		break;
 	case 2:
-		return MCT_Float3;
+		return MCT_Float1; // Reflectivity
 		break;
 	case 3:
-		return MCT_Float3;
+		return MCT_Float1; // RoughnessX
 		break;
 	case 4:
-		return MCT_Float1;
+		return MCT_Float1; // RoughnessY
 		break;
 	case 5:
-		return MCT_Float1;
+		return MCT_Float3; // Normal
+		break;
+	case 6:
+		return MCT_Float3; // Tangent
+		break;
+	case 7:
+		return MCT_Float3; // DMFP Albedo
+		break;
+	case 8:
+		return MCT_Float1; // DMFP Radius
 		break;
 	}
 
@@ -19726,7 +19745,7 @@ uint32 UMaterialExpressionStrataDiffuseBSDF::GetInputType(int32 InputIndex)
 	return MCT_Float1;
 }
 
-FName UMaterialExpressionStrataDiffuseBSDF::GetInputName(int32 InputIndex) const
+FName UMaterialExpressionStrataSlabBSDF::GetInputName(int32 InputIndex) const
 {
 	if (InputIndex == 0)
 	{
@@ -19734,33 +19753,45 @@ FName UMaterialExpressionStrataDiffuseBSDF::GetInputName(int32 InputIndex) const
 	}
 	else if (InputIndex == 1)
 	{
-		return TEXT("Roughness");
+		return TEXT("Metallic");
 	}
 	else if (InputIndex == 2)
 	{
-		return TEXT("Normal");
+		return TEXT("Reflectivity");
 	}
 	else if (InputIndex == 3)
 	{
-		return TEXT("DMFP Albedo");
+		return TEXT("RoughnessX");
 	}
 	else if (InputIndex == 4)
 	{
-		return TEXT("DMFP Radius");
+		return TEXT("RoughnessY");
 	}
 	else if (InputIndex == 5)
 	{
-		return TEXT("DMFP Scale");
+		return TEXT("Normal");
+	}
+	else if (InputIndex == 6)
+	{
+		return TEXT("Tangent");
+	}
+	else if (InputIndex == 7)
+	{
+		return TEXT("DMFP Albedo");
+	}
+	else if (InputIndex == 8)
+	{
+		return TEXT("DMFP Radius");
 	}
 	return TEXT("Unknown");
 }
 
-bool UMaterialExpressionStrataDiffuseBSDF::IsResultStrataMaterial(int32 OutputIndex)
+bool UMaterialExpressionStrataSlabBSDF::IsResultStrataMaterial(int32 OutputIndex)
 {
 	return true;
 }
 
-void UMaterialExpressionStrataDiffuseBSDF::GatherStrataMaterialInfo(FStrataMaterialInfo& StrataMaterialInfo, int32 OutputIndex)
+void UMaterialExpressionStrataSlabBSDF::GatherStrataMaterialInfo(FStrataMaterialInfo& StrataMaterialInfo, int32 OutputIndex)
 {
 	const bool bIsScaleInputConnected = true; // STRATA_TODO
 	if (SubsurfaceProfile || bIsScaleInputConnected)
@@ -19777,265 +19808,6 @@ void UMaterialExpressionStrataDiffuseBSDF::GatherStrataMaterialInfo(FStrataMater
 	}
 }
 #endif // WITH_EDITOR
-
-
-
-UMaterialExpressionStrataDielectricBSDF::UMaterialExpressionStrataDielectricBSDF(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer)
-{
-	struct FConstructorStatics
-	{
-		FText NAME_Strata;
-		FConstructorStatics() : NAME_Strata(LOCTEXT("Strata BSDFs", "Strata BSDFs")) { }
-	};
-	static FConstructorStatics ConstructorStatics;
-#if WITH_EDITORONLY_DATA
-	MenuCategories.Add(ConstructorStatics.NAME_Strata);
-#endif
-}
-
-#if WITH_EDITOR
-int32 UMaterialExpressionStrataDielectricBSDF::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
-{
-	int32 NormalCodeChunk = CompileWithDefaultNormalWS(Compiler, Normal);
-	int32 TangentCodeChunk = CompileWithDefaultTangentWS(Compiler, Tangent);
-	uint8 SharedNormalIndex = StrataCompilationInfoCreateSharedNormal(Compiler, NormalCodeChunk, TangentCodeChunk);
-
-	int32 RoughnessXCodeChunk = CompileWithDefaultFloat1(Compiler, RoughnessX, 0.0f);
-	// If not plugged in, RoughnessYCodeChunk is set to RoughnessXCodeChunk to get an isotropic behavior
-	int32 RoughnessYCodeChunk = CompileWithDefaultCodeChunk(Compiler, RoughnessY, RoughnessXCodeChunk);
-
-	int32 OutputCodeChunk = Compiler->StrataDielectricBSDF(
-		RoughnessXCodeChunk,
-		RoughnessYCodeChunk,
-		CompileWithDefaultFloat1(Compiler, IOR,	1.5f),	// Default to Glass
-		CompileWithDefaultFloat3(Compiler, Tint,1.0f, 1.0f, 1.0f),
-		NormalCodeChunk,
-		TangentCodeChunk,
-		SharedNormalIndex);
-	StrataCompilationInfoCreateSingleBSDFMaterial(Compiler, OutputCodeChunk, SharedNormalIndex, STRATA_BSDF_TYPE_DIELECTRIC);
-
-	return OutputCodeChunk;
-}
-
-void UMaterialExpressionStrataDielectricBSDF::GetCaption(TArray<FString>& OutCaptions) const
-{
-	OutCaptions.Add(TEXT("Strata Dielectric BSDF"));
-}
-
-uint32 UMaterialExpressionStrataDielectricBSDF::GetOutputType(int32 OutputIndex)
-{
-	return MCT_Strata;
-}
-
-uint32 UMaterialExpressionStrataDielectricBSDF::GetInputType(int32 InputIndex)
-{
-	switch (InputIndex)
-	{
-	case 0:
-		return MCT_Float1;
-		break;
-	case 1:
-		return MCT_Float3;
-		break;
-	case 2:
-		return MCT_Float1;
-		break;
-	case 3:
-		return MCT_Float1;
-		break;
-	case 4:
-		return MCT_Float3;
-		break;
-	case 5:
-		return MCT_Float3;
-		break;
-	}
-
-	check(false);
-	return MCT_Float1;
-}
-
-bool UMaterialExpressionStrataDielectricBSDF::IsResultStrataMaterial(int32 OutputIndex)
-{
-	return true;
-}
-
-void UMaterialExpressionStrataDielectricBSDF::GatherStrataMaterialInfo(FStrataMaterialInfo& StrataMaterialInfo, int32 OutputIndex)
-{
-	StrataMaterialInfo.AddShadingModel(SSM_DefaultLit);
-}
-#endif // WITH_EDITOR
-
-
-
-UMaterialExpressionStrataConductorBSDF::UMaterialExpressionStrataConductorBSDF(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer)
-{
-	struct FConstructorStatics
-	{
-		FText NAME_Strata;
-		FConstructorStatics() : NAME_Strata(LOCTEXT("Strata BSDFs", "Strata BSDFs")) { }
-	};
-	static FConstructorStatics ConstructorStatics;
-#if WITH_EDITORONLY_DATA
-	MenuCategories.Add(ConstructorStatics.NAME_Strata);
-#endif
-}
-
-#if WITH_EDITOR
-int32 UMaterialExpressionStrataConductorBSDF::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
-{
-	int32 NormalCodeChunk = CompileWithDefaultNormalWS(Compiler, Normal);
-	int32 TangentCodeChunk = CompileWithDefaultTangentWS(Compiler, Tangent);
-	uint8 SharedNormalIndex = StrataCompilationInfoCreateSharedNormal(Compiler, NormalCodeChunk, TangentCodeChunk);
-
-	int32 RoughnessXCodeChunk = CompileWithDefaultFloat1(Compiler, RoughnessX, 0.0f);
-	// If not plugged in, RoughnessYCodeChunk is set to RoughnessXCodeChunk to get an isotropic behavior
-	int32 RoughnessYCodeChunk = CompileWithDefaultCodeChunk(Compiler, RoughnessY, RoughnessXCodeChunk);
-
-	int32 OutputCodeChunk = Compiler->StrataConductorBSDF(
-		CompileWithDefaultFloat3(Compiler, Reflectivity,	0.947f, 0.776f, 0.371f),	// Default to Gold
-		CompileWithDefaultFloat3(Compiler, EdgeColor,		1.000f, 0.982f, 0.753f),	// Default to Gold
-		RoughnessXCodeChunk,
-		RoughnessYCodeChunk,
-		NormalCodeChunk,
-		TangentCodeChunk,
-		SharedNormalIndex);
-	StrataCompilationInfoCreateSingleBSDFMaterial(Compiler, OutputCodeChunk, SharedNormalIndex, STRATA_BSDF_TYPE_CONDUCTOR);
-
-	return OutputCodeChunk;
-}
-
-void UMaterialExpressionStrataConductorBSDF::GetCaption(TArray<FString>& OutCaptions) const
-{
-	OutCaptions.Add(TEXT("Strata Conductor BSDF"));
-}
-
-uint32 UMaterialExpressionStrataConductorBSDF::GetOutputType(int32 OutputIndex)
-{
-	return MCT_Strata;
-}
-
-uint32 UMaterialExpressionStrataConductorBSDF::GetInputType(int32 InputIndex)
-{
-	switch (InputIndex)
-	{
-	case 0:
-		return MCT_Float3;
-		break;
-	case 1:
-		return MCT_Float3;
-		break;
-	case 2:
-		return MCT_Float1;
-		break;
-	case 3:
-		return MCT_Float1;
-		break;
-	case 4:
-		return MCT_Float3;
-		break;
-	case 5:
-		return MCT_Float3;
-		break;
-	}
-
-	check(false);
-	return MCT_Float1;
-}
-
-bool UMaterialExpressionStrataConductorBSDF::IsResultStrataMaterial(int32 OutputIndex)
-{
-	return true;
-}
-
-void UMaterialExpressionStrataConductorBSDF::GatherStrataMaterialInfo(FStrataMaterialInfo& StrataMaterialInfo, int32 OutputIndex)
-{
-	StrataMaterialInfo.AddShadingModel(SSM_DefaultLit);
-}
-#endif // WITH_EDITOR
-
-
-
-UMaterialExpressionStrataVolumeBSDF::UMaterialExpressionStrataVolumeBSDF(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer)
-{
-	struct FConstructorStatics
-	{
-		FText NAME_Strata;
-		FConstructorStatics() : NAME_Strata(LOCTEXT("Strata BSDFs", "Strata BSDFs")) { }
-	};
-	static FConstructorStatics ConstructorStatics;
-#if WITH_EDITORONLY_DATA
-	MenuCategories.Add(ConstructorStatics.NAME_Strata);
-#endif
-}
-
-#if WITH_EDITOR
-int32 UMaterialExpressionStrataVolumeBSDF::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
-{
-	int32 NormalCodeChunk = Compiler->VertexNormal();
-	uint8 SharedNormalIndex = StrataCompilationInfoCreateSharedNormal(Compiler, NormalCodeChunk);
-
-	bool DefaultAlbedoIsUsed = false;
-	int32 OutputCodeChunk = Compiler->StrataVolumeBSDF(
-		CompileWithDefaultFloat3(Compiler, Albedo,		0.0f, 0.0f, 0.0f, &DefaultAlbedoIsUsed),  // Default must be 0 to remove memory used by Albedo when it is not pluged (bHasScattering==false)
-		CompileWithDefaultFloat3(Compiler, Extinction,	0.0f, 0.0f, 0.0f),
-		CompileWithDefaultFloat1(Compiler, Anisotropy,	0.0f),
-		CompileWithDefaultFloat1(Compiler, Thickness,	0.001f),	// default = 1mm
-		NormalCodeChunk,
-		SharedNormalIndex);
-
-	const bool bHasScattering = !DefaultAlbedoIsUsed;
-	StrataCompilationInfoCreateSingleBSDFMaterial(Compiler, OutputCodeChunk, SharedNormalIndex, STRATA_BSDF_TYPE_VOLUME, bHasScattering);
-
-	return OutputCodeChunk;
-}
-
-void UMaterialExpressionStrataVolumeBSDF::GetCaption(TArray<FString>& OutCaptions) const
-{
-	OutCaptions.Add(TEXT("Strata Volume BSDF"));
-}
-
-uint32 UMaterialExpressionStrataVolumeBSDF::GetOutputType(int32 OutputIndex)
-{
-	return MCT_Strata;
-}
-
-uint32 UMaterialExpressionStrataVolumeBSDF::GetInputType(int32 InputIndex)
-{
-	switch (InputIndex)
-	{
-	case 0:
-		return MCT_Float3;
-		break;
-	case 1:
-		return MCT_Float3;
-		break;
-	case 2:
-		return MCT_Float1;
-		break;
-	case 3:
-		return MCT_Float1;
-		break;
-	}
-
-	check(false);
-	return MCT_Float1;
-}
-
-bool UMaterialExpressionStrataVolumeBSDF::IsResultStrataMaterial(int32 OutputIndex)
-{
-	return true;
-}
-
-void UMaterialExpressionStrataVolumeBSDF::GatherStrataMaterialInfo(FStrataMaterialInfo& StrataMaterialInfo, int32 OutputIndex)
-{
-	StrataMaterialInfo.AddShadingModel(SSM_DefaultLit);
-}
-#endif // WITH_EDITOR
-
 
 
 UMaterialExpressionStrataSheenBSDF::UMaterialExpressionStrataSheenBSDF(const FObjectInitializer& ObjectInitializer)

@@ -36,27 +36,53 @@ class UMaterialExpressionStrataBSDF : public UMaterialExpression
 }*/
 
 UCLASS(MinimalAPI, collapsecategories, hidecategories = Object)
-class UMaterialExpressionStrataDiffuseBSDF : public UMaterialExpression // STRATA_TODO the single diffuse model to keep when we remove al lthe tests
+class UMaterialExpressionStrataSlabBSDF : public UMaterialExpression // STRATA_TODO the single diffuse model to keep when we remove al lthe tests
 {
 	GENERATED_UCLASS_BODY()
 
 	/**
-	 * Albedo (type = float3, unit = unitless)
+	 * Albedo (type = float3, unit = unitless, defaults to 0.18)
 	 */
 	UPROPERTY()
-	FExpressionInput Albedo;
+	FExpressionInput BaseColor;
 
 	/**
-	 * Roughness (type = float, unit = unitless)
+	 * 0 means dielectric, 1 means conductor (type = float, unit = unitless, defaults to 0)
 	 */
 	UPROPERTY()
-	FExpressionInput Roughness;
+	FExpressionInput Metallic;
+	
+	/**
+	 * Reflectivity when view direction is perpendicular to the surface, also known as F0 (type = float, unit = unitless, defaults to plastic 0.5)
+	 */
+	UPROPERTY()
+	FExpressionInput Reflectivity;
+
+	// STRATA_TODO: edge or F82 EdgeColor?
 
 	/**
-	 * Normal (type = float3, unit = unitless)
+	 * RoughnessX (type = float, unit = unitless, defaults to 0)
+	 */
+	UPROPERTY()
+	FExpressionInput RoughnessX;
+		
+	/**
+	 * RoughnessY (type = float, unit = unitless), If not plugged in, RoughnessY is set to RoughnessX to get an isotropic behavior.
+	 */
+	UPROPERTY()
+	FExpressionInput RoughnessY;
+
+	/**
+	 * Normal (type = float3, unit = unitless, defaults to vertex normal)
 	 */
 	UPROPERTY()
 	FExpressionInput Normal;
+
+	/**
+	* Tangent (type = float3, unit = unitless, defaults to vertex tangent)
+	*/
+	UPROPERTY()
+	FExpressionInput Tangent;
 
 	/**
 	 * Mean free path albedo. Only used when no sub-surface profile is provided. (type = float3, unit = unitless)
@@ -69,12 +95,6 @@ class UMaterialExpressionStrataDiffuseBSDF : public UMaterialExpression // STRAT
 	 */
 	UPROPERTY(meta = (DisplayName = "DMFP Radius"))
 	FExpressionInput DiffuseMeanFreePathRadius;
-
-	/**
-	 * SSS radius scale (type = float, unit = unitless)
-	 */
-	UPROPERTY(meta = (DisplayName = "DMFP Scale"))
-	FExpressionInput DiffuseMeanFreePathRadiusScale;
 
 	/** SubsurfaceProfile, for Screen Space Subsurface Scattering. The profile needs to be set up on both the Strata diffuse node, and the material node at the moment. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Material, meta = (DisplayName = "Subsurface Profile"))
@@ -89,153 +109,6 @@ class UMaterialExpressionStrataDiffuseBSDF : public UMaterialExpression // STRAT
 	virtual bool IsResultStrataMaterial(int32 OutputIndex) override;
 	virtual void GatherStrataMaterialInfo(FStrataMaterialInfo& StrataMaterialInfo, int32 OutputIndex) override;
 	virtual FName GetInputName(int32 InputIndex) const override;
-#endif
-	//~ End UMaterialExpression Interface
-};
-
-UCLASS(MinimalAPI, collapsecategories, hidecategories = Object)
-class UMaterialExpressionStrataDielectricBSDF : public UMaterialExpression
-{
-	GENERATED_UCLASS_BODY()
-	
-	/**
-	 * The index of refraction of the surface (type = float, unit = unitless, default=1.5 for glass)
-	 */
-	UPROPERTY()
-	FExpressionInput IOR;
-
-	/**
-	 * A global color tint multiplied with the specular color, not physically based (type = float3, unit = unitless)
-	 */
-	UPROPERTY()
-	FExpressionInput Tint;
-		
-	/**
-	 * RoughnessX (type = float, unit = unitless)
-	 */
-	UPROPERTY()
-	FExpressionInput RoughnessX;
-		
-	/**
-	 * RoughnessY (type = float, unit = unitless), If not plugged in, RoughnessY is set to RoughnessX to get an isotropic behavior.
-	 */
-	UPROPERTY()
-	FExpressionInput RoughnessY;
-
-	/**
-	 * Normal (type = float3, unit = unitless)
-	 */
-	UPROPERTY()
-	FExpressionInput Normal;
-
-	/**
-	* Tangent (type = float3, unit = unitless)
-	*/
-	UPROPERTY()
-	FExpressionInput Tangent;
-
-	//~ Begin UMaterialExpression Interface
-#if WITH_EDITOR
-	virtual int32 Compile(class FMaterialCompiler* Compiler, int32 OutputIndex) override;
-	virtual void GetCaption(TArray<FString>& OutCaptions) const override;
-	virtual uint32 GetOutputType(int32 OutputIndex) override;
-	virtual uint32 GetInputType(int32 InputIndex) override;
-	virtual bool IsResultStrataMaterial(int32 OutputIndex) override;
-	virtual void GatherStrataMaterialInfo(FStrataMaterialInfo& StrataMaterialInfo, int32 OutputIndex) override;
-#endif
-	//~ End UMaterialExpression Interface
-};
-
-UCLASS(MinimalAPI, collapsecategories, hidecategories = Object)
-class UMaterialExpressionStrataConductorBSDF : public UMaterialExpression
-{
-	GENERATED_UCLASS_BODY()
-		
-	/**
-	 * Reflectivity when view direction is perpendicular to the surface, also known as F0 (type = float3, unit = unitless, defaults to gold)
-	 */
-	UPROPERTY()
-	FExpressionInput Reflectivity;
-	
-	/**
-	 * Reflectivity when the view direction is tangent to the surface (type = float3, unit = unitless, defaults to gold)
-	 */
-	UPROPERTY()
-	FExpressionInput EdgeColor;
-		
-	/**
-	 * RoughnessX (type = float, unit = unitless)
-	 */
-	UPROPERTY()
-	FExpressionInput RoughnessX;
-		
-	/**
-	 * RoughnessY (type = float, unit = unitless), If not plugged in, RoughnessY is set to RoughnessX to get an isotropic behavior.
-	 */
-	UPROPERTY()
-	FExpressionInput RoughnessY;
-
-	/**
-	 * Normal (type = float3, unit = unitless)
-	 */
-	UPROPERTY()
-	FExpressionInput Normal;
-
-	/**
-	 * Tangent (type = float3, unit = unitless)
-	 */
-	UPROPERTY()
-	FExpressionInput Tangent;
-
-	//~ Begin UMaterialExpression Interface
-#if WITH_EDITOR
-	virtual int32 Compile(class FMaterialCompiler* Compiler, int32 OutputIndex) override;
-	virtual void GetCaption(TArray<FString>& OutCaptions) const override;
-	virtual uint32 GetOutputType(int32 OutputIndex) override;
-	virtual uint32 GetInputType(int32 InputIndex) override;
-	virtual bool IsResultStrataMaterial(int32 OutputIndex) override;
-	virtual void GatherStrataMaterialInfo(FStrataMaterialInfo& StrataMaterialInfo, int32 OutputIndex) override;
-#endif
-	//~ End UMaterialExpression Interface
-};
-
-UCLASS(MinimalAPI, collapsecategories, hidecategories = Object)
-class UMaterialExpressionStrataVolumeBSDF : public UMaterialExpression
-{
-	GENERATED_UCLASS_BODY()
-		
-	/**
-	 * Albedo (type = float3, unit = unitless)
-	 */
-	UPROPERTY()
-	FExpressionInput Albedo;
-	
-	/**
-	 * The rate at which light is absorbed or scattered by the medium. Mean Free Path = 1 / Extinction. (type = float3, unit = 1/m)
-	 */
-	UPROPERTY()
-	FExpressionInput Extinction;
-
-	/**
-	 * Anisotropy of the volume with values lower than 0 representing back-scattering, equal 0 representing isotropic scattering and greater than 0 representing forward scattering. (type = float, unit = unitless, defaults to 0)
-	 */
-	UPROPERTY()
-	FExpressionInput Anisotropy;
-
-	/**
-	 * Thickness (type = float, unit = meters, default = 1mm)
-	 */
-	UPROPERTY()
-	FExpressionInput Thickness;
-
-	//~ Begin UMaterialExpression Interface
-#if WITH_EDITOR
-	virtual int32 Compile(class FMaterialCompiler* Compiler, int32 OutputIndex) override;
-	virtual void GetCaption(TArray<FString>& OutCaptions) const override;
-	virtual uint32 GetOutputType(int32 OutputIndex) override;
-	virtual uint32 GetInputType(int32 InputIndex) override;
-	virtual bool IsResultStrataMaterial(int32 OutputIndex) override;
-	virtual void GatherStrataMaterialInfo(FStrataMaterialInfo& StrataMaterialInfo, int32 OutputIndex) override;
 #endif
 	//~ End UMaterialExpression Interface
 };

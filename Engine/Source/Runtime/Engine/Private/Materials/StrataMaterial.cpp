@@ -9,17 +9,8 @@ FString GetStrataBSDFName(uint8 BSDFType)
 {
 	switch (BSDFType)
 	{
-	case STRATA_BSDF_TYPE_DIFFUSE:
-		return TEXT("DIFFUSE");
-		break;
-	case STRATA_BSDF_TYPE_DIELECTRIC:
-		return TEXT("DIELECTRIC");
-		break;
-	case STRATA_BSDF_TYPE_CONDUCTOR:
-		return TEXT("CONDUCTOR");
-		break;
-	case STRATA_BSDF_TYPE_VOLUME:
-		return TEXT("VOLUME");
+	case STRATA_BSDF_TYPE_SLAB:
+		return TEXT("SLAB");
 		break;
 	case STRATA_BSDF_TYPE_SHEEN:
 		return TEXT("SHEEN");
@@ -285,31 +276,10 @@ FStrataMaterialAnalysisResult StrataCompilationInfoMaterialAnalysis(FMaterialCom
 
 			switch (BSDF.Type)
 			{
-			case STRATA_BSDF_TYPE_DIFFUSE:
-			{
-				Result.RequestedByteCount += UintByteSize;
-				if (BSDF.bHasScattering)
-				{
-					Result.RequestedByteCount += UintByteSize;
-				}
-				break;
-			}
-			case STRATA_BSDF_TYPE_DIELECTRIC:
+			case STRATA_BSDF_TYPE_SLAB:
 			{
 				Result.RequestedByteCount += UintByteSize;
 				Result.RequestedByteCount += UintByteSize;
-				break;
-			}
-			case STRATA_BSDF_TYPE_CONDUCTOR:
-			{
-				Result.RequestedByteCount += UintByteSize;
-				Result.RequestedByteCount += UintByteSize;
-				break;
-			}
-			case STRATA_BSDF_TYPE_VOLUME:
-			{
-				Result.RequestedByteCount += UintByteSize;
-
 				if (BSDF.bHasScattering)
 				{
 					Result.RequestedByteCount += UintByteSize;
