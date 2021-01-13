@@ -74,6 +74,7 @@ bool UNiagaraDataInterfaceOcclusion::GetFunctionHLSL(const FNiagaraDataInterface
 		static const TCHAR *FormatSample = TEXT(R"(
 			void {FunctionName}(in float3 In_SampleCenterWorldPos, in float In_SampleWindowWidthWorld, in float In_SampleWindowHeightWorld, in float In_SampleSteps, out float Out_VisibilityFraction, out float Out_SampleFraction)
 			{
+			#if FEATURE_LEVEL >= FEATURE_LEVEL_SM5
 				float CameraDistance = length(In_SampleCenterWorldPos.xyz - View.WorldViewOrigin.xyz);
 				float4 SamplePosition = float4(In_SampleCenterWorldPos + View.PreViewTranslation, 1);
 				float4 ClipPosition = mul(SamplePosition, View.TranslatedWorldToClip);
@@ -121,6 +122,10 @@ bool UNiagaraDataInterfaceOcclusion::GetFunctionHLSL(const FNiagaraDataInterface
 				}
 				Out_VisibilityFraction = TotalSamples > 0 ? 1 - OccludedSamples / TotalSamples : 0;
 				Out_SampleFraction = Steps == 0 ? 0 : (TotalSamples / (Steps * Steps));
+			#else
+				Out_VisibilityFraction = 1;
+				Out_SampleFraction = 1;
+			#endif
 			}
 		)");
 		OutHLSL += FString::Format(FormatSample, ArgsSample);
@@ -131,6 +136,7 @@ bool UNiagaraDataInterfaceOcclusion::GetFunctionHLSL(const FNiagaraDataInterface
 		static const TCHAR *FormatSample = TEXT(R"(
 			void {FunctionName}(in float3 In_SampleCenterWorldPos, in float In_SampleWindowDiameterWorld, in float In_SampleRays, in float In_SampleStepsPerRay, out float Out_VisibilityFraction, out float Out_SampleFraction)
 			{
+			#if FEATURE_LEVEL >= FEATURE_LEVEL_SM5
 				const float PI = 3.14159265;
 				const float SPIRAL_TURN = 2 * PI * 0.61803399; // use golden ratio to rotate sample pattern each ring so we get a spiral
 				float CameraDistance = length(In_SampleCenterWorldPos.xyz - View.WorldViewOrigin.xyz);
@@ -191,6 +197,10 @@ bool UNiagaraDataInterfaceOcclusion::GetFunctionHLSL(const FNiagaraDataInterface
 				}
 				Out_VisibilityFraction = TotalSamples > 0 ? 1 - OccludedSamples / TotalSamples : 0;
 				Out_SampleFraction = Steps == 0 ? 0 : (TotalSamples / (Rays * Steps + 1));
+			#else
+				Out_VisibilityFraction = 1;
+				Out_SampleFraction = 1;
+			#endif
 			}
 		)");
 		OutHLSL += FString::Format(FormatSample, ArgsSample);
@@ -287,7 +297,9 @@ public:
 		check(IsInRenderingThread());
 		FRHIComputeShader* ComputeShaderRHI = RHICmdList.GetBoundComputeShader();
 
+		//-Note: Scene textures will not exist in the Mobile rendering path
 		TUniformBufferRef<FSceneTextureUniformParameters> SceneTextureUniformParams = GNiagaraViewDataManager.GetSceneTextureUniformParameters();
+		check(!PassUniformBuffer.IsBound() || SceneTextureUniformParams);
 		SetUniformBufferParameter(RHICmdList, ComputeShaderRHI, PassUniformBuffer, SceneTextureUniformParams);
 	}
 

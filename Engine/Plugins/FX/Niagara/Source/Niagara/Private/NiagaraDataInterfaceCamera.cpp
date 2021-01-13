@@ -15,24 +15,6 @@
 
 #define LOCTEXT_NAMESPACE "NiagaraDataInterfaceCamera"
 
-
-IMPLEMENT_TYPE_LAYOUT(FNiagaraDataInterfaceParametersCS_CameraQuery);
-
-void FNiagaraDataInterfaceParametersCS_CameraQuery::Bind(const FNiagaraDataInterfaceGPUParamInfo& ParameterInfo, const class FShaderParameterMap& ParameterMap)
-{
-	PassUniformBuffer.Bind(ParameterMap, FSceneTextureUniformParameters::StaticStructMetadata.GetShaderVariableName());
-}
-
-void FNiagaraDataInterfaceParametersCS_CameraQuery::Set(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const
-{
-	check(IsInRenderingThread());
-	FRHIComputeShader* ComputeShaderRHI = RHICmdList.GetBoundComputeShader();
-
-	TUniformBufferRef<FSceneTextureUniformParameters> SceneTextureUniformParams = GNiagaraViewDataManager.GetSceneTextureUniformParameters();
-	SetUniformBufferParameter(RHICmdList, ComputeShaderRHI, PassUniformBuffer, SceneTextureUniformParams);
-}
-
-
 const FName UNiagaraDataInterfaceCamera::GetViewPropertiesName(TEXT("GetViewPropertiesGPU"));
 const FName UNiagaraDataInterfaceCamera::GetClipSpaceTransformsName(TEXT("GetClipSpaceTransformsGPU"));
 const FName UNiagaraDataInterfaceCamera::GetViewSpaceTransformsName(TEXT("GetViewSpaceTransformsGPU"));
@@ -631,8 +613,5 @@ bool UNiagaraDataInterfaceCamera::Equals(const UNiagaraDataInterface* Other) con
 	return OtherTyped->PlayerControllerIndex == PlayerControllerIndex &&
 		OtherTyped->bRequireCurrentFrameData == bRequireCurrentFrameData ;
 }
-
-
-IMPLEMENT_NIAGARA_DI_PARAMETER(UNiagaraDataInterfaceCamera, FNiagaraDataInterfaceParametersCS_CameraQuery);
 
 #undef LOCTEXT_NAMESPACE
