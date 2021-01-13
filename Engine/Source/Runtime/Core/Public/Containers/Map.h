@@ -15,6 +15,7 @@
 #include "Templates/Tuple.h"
 #include "Templates/UnrealTemplate.h"
 #include "Templates/UnrealTypeTraits.h"
+#include <type_traits>
 
 #define ExchangeB(A,B) {bool T=A; A=B; B=T;}
 

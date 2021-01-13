@@ -24,6 +24,7 @@
 #include "Templates/ChooseClass.h"
 #include "Templates/Sorting.h"
 #include "Templates/AlignmentTemplates.h"
+#include <type_traits>
 
 
 #if UE_BUILD_SHIPPING || UE_BUILD_TEST
