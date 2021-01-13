@@ -480,10 +480,11 @@ void UNiagaraFunctionLibrary::SetTextureObject(UNiagaraComponent* NiagaraSystem,
 		return;
 	}
 
+	// In the editor we must set the parameter before SetParameterOverride as it will duplicate the DataInterface
+	TextureDI->SetTexture(Texture);
 #if WITH_EDITOR
 	NiagaraSystem->SetParameterOverride(Variable, FNiagaraVariant(TextureDI));
 #endif
-	TextureDI->SetTexture(Texture);
 }
 
 void UNiagaraFunctionLibrary::SetVolumeTextureObject(UNiagaraComponent* NiagaraSystem, const FString& OverrideName, UVolumeTexture* Texture)
@@ -518,10 +519,11 @@ void UNiagaraFunctionLibrary::SetVolumeTextureObject(UNiagaraComponent* NiagaraS
 		return;
 	}
 
+	// In the editor we must set the parameter before SetParameterOverride as it will duplicate the DataInterface
+	TextureDI->SetTexture(Texture);
 #if WITH_EDITOR
 	NiagaraSystem->SetParameterOverride(Variable, FNiagaraVariant(TextureDI));
 #endif
-	TextureDI->SetTexture(Texture);
 }
 
 UNiagaraDataInterface* UNiagaraFunctionLibrary::GetDataInterface(UClass* DIClass, UNiagaraComponent* NiagaraSystem, FName OverrideName)
