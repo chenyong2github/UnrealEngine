@@ -278,7 +278,7 @@ bool FDMXProtocolSACN::SendDiscovery(const TArray<uint16>& Universes)
 	FDMXProtocolUDPE131DiscoveryLayerPacket DiscoveryLayer;
 	if (Universes.Num() == ACN_DMX_SIZE)
 	{
-		FMemory::Memcpy(DiscoveryLayer.Universes, Universes.GetData(), ACN_DMX_SIZE);
+		FMemory::Memcpy(DiscoveryLayer.Universes, Universes.GetData(), ACN_DMX_SIZE * sizeof(uint16));
 	}
 	else
 	{
