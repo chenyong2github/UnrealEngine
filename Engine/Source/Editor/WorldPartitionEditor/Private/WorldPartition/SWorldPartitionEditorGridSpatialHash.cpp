@@ -47,10 +47,10 @@ void SWorldPartitionEditorGridSpatialHash::Construct(const FArguments& InArgs)
 	{
 		UWorldPartitionEditorSpatialHash* EditorSpatialHash = (UWorldPartitionEditorSpatialHash*)WorldPartition->EditorHash;
 
-		bShowActors = true;
-
 		//Update MiniMap data for drawing  
 		UpdateWorldMiniMapDetails();
+
+		bShowActors = !WorldMiniMapBrush.HasUObject();
 	}
 
 	SWorldPartitionEditorGrid2D::Construct(SWorldPartitionEditorGrid::FArguments().InWorld(InArgs._InWorld));
