@@ -12,8 +12,8 @@ using UnrealBuildTool;
 /********************************
  
 	-	Check out these files for reference:
-		-	//depot/UE4/Engine/Source/ThirdParty/libPNG/UE4_BuildThirdPartyLib.bat
-		-	//depot/UE4/Engine/Source/ThirdParty/libPNG/UE4_BuildThirdPartyLib_Mac.command
+		-	//UE5/Main/Engine/Source/ThirdParty/libPNG/UE_BuildThirdPartyLib.bat
+		-	//UE5/Main/Engine/Source/ThirdParty/libPNG/UE_BuildThirdPartyLib_Mac.command
 	-	Make new files with the same names in the root of your library directory.
 		-	The program that builds the libraries will automatically find the script and call it if it exists
 		-	You will likely have to open projects in Visual Studio or Xcode to find out the name of the targets, etc
@@ -29,13 +29,6 @@ using UnrealBuildTool;
 			-	From Engine/Build/BatchFiles, do:
 				-	RunUAT BuildThirdPartyLibs [-libs=lib1+lib2+lib3] [-changelist=NNNN]
 			-	When you use this script, it won't submit to p4, so just revert when your done testing
-	-	Once it's all done and you've checked in your scripts, update this file and mark the appropriate library/platform with the brownish background:
-		-	\\epicgames.net\Root\UE3\Platforms\Docs\ThirdPartyLibraries.xlsx
-	-	If you feel extra confident, you can run the Jenkins script to compile all libraries:
-		-	http://jenkins/view/UE4/job/UE4_BuildThirdPartyLibs/
-		-	This will check in all compiled libraries!
-		-	I haven't tested how well it will indicate libraries that failed to compile. It will check in the ones that worked, and revert the ones that aren't updated.
-		-	This is first pass of the Jenkins job, but we really need a lot of libraries being compiled to really abuse it!
 
  *******************************/
 
@@ -57,9 +50,9 @@ class BuildThirdPartyLibs : BuildCommand
 	static private string DefaultLibraryDir = "Engine/Source/ThirdParty";
 
 	// batch/script file to look for when compiling
-	static private string WindowsCompileScript = "UE4_BuildThirdPartyLib.bat";
-	static private string MacCompileScript = "UE4_BuildThirdPartyLib_Mac.command";
-	static private string LinuxCompileScript = "UE4_BuildThirdPartyLib_Linux.sh";
+	static private string WindowsCompileScript = "UE_BuildThirdPartyLib.bat";
+	static private string MacCompileScript = "UE_BuildThirdPartyLib_Mac.command";
+	static private string LinuxCompileScript = "UE_BuildThirdPartyLib_Linux.sh";
 
 	public override void ExecuteBuild()
 	{
