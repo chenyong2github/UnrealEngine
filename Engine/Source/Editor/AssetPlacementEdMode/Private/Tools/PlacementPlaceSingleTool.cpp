@@ -31,11 +31,15 @@ void UPlacementModePlaceSingleTool::OnEndDrag(const FRay& Ray)
 			PlacementInfo.FinalizedTransform = FTransform(LastBrushStamp.HitResult.ImpactPoint);
 			PlacementInfo.PreferredLevel = GEditor->GetEditorWorldContext().World()->GetCurrentLevel();
 
+			FPlacementOptions PlacementOptions;
+			PlacementOptions.bPreferBatchPlacement = true;
+			PlacementOptions.bPreferInstancedPlacement = true;
+
 			UPlacementSubsystem* PlacementSubsystem = GEditor->GetEditorSubsystem<UPlacementSubsystem>();
 			if (PlacementSubsystem)
 			{
 				FScopedTransaction Transaction(NSLOCTEXT("PlacementMode", "SinglePlaceAsset", "Place Single Asset"));
-				PlacementSubsystem->PlaceAsset(PlacementInfo, FPlacementOptions());
+				PlacementSubsystem->PlaceAsset(PlacementInfo, PlacementOptions);
 			}
 		}
 	}

@@ -11,7 +11,7 @@
 class AActor;
 struct FAssetData;
 
-UCLASS(MinimalAPI, config=Editor)
+UCLASS(MinimalAPI, Abstract, Transient)
 class UActorFactoryStaticMesh : public UActorFactory
 {
 	GENERATED_UCLASS_BODY()
@@ -24,6 +24,3 @@ class UActorFactoryStaticMesh : public UActorFactory
 	virtual FQuat AlignObjectToSurfaceNormal(const FVector& InSurfaceNormal, const FQuat& ActorRotation) const override;
 	//~ End UActorFactory Interface
 };
-
-
-
