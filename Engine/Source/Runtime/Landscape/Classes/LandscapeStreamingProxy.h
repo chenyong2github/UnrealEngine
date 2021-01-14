@@ -37,6 +37,7 @@ public:
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual bool CanEditChange(const FProperty* InProperty) const override;
 	virtual void PostRegisterAllComponents() override;
+	virtual AActor* GetSceneOutlinerParent() const;
 #endif
 	//~ End UObject Interface
 
