@@ -137,6 +137,9 @@ bool UProceduralFoliageComponent::ExecuteSimulation(TArray<FDesiredFoliageInstan
 		// Establish basic info about the tiles
 		const float TileSize = FoliageSpawner->TileSize;
 		const FVector WorldPosition = GetWorldPosition();
+		FBox ActorVolumeBounds = GetBounds();
+		FVector2D ActorVolumeLocation = FVector2D(ActorVolumeBounds.GetCenter());
+		const float ActorVolumeMaxExtent = FVector2D(ActorVolumeBounds.GetExtent()).GetMax();
 		FTileLayout TileLayout;
 		GetTileLayout(TileLayout);
 
@@ -206,7 +209,7 @@ bool UProceduralFoliageComponent::ExecuteSimulation(TArray<FDesiredFoliageInstan
 					const FTransform TileTM(OrientedOffset + WorldPosition);
 
 					TArray<FDesiredFoliageInstance>* DesiredInstances = new TArray<FDesiredFoliageInstance>();
-					CompositeTile->ExtractDesiredInstances(*DesiredInstances, TileTM, ProceduralGuid, TileLayout.HalfHeight, BoundsBodyInstance, true);
+					CompositeTile->ExtractDesiredInstances(*DesiredInstances, TileTM, ActorVolumeLocation, ActorVolumeMaxExtent, ProceduralGuid, TileLayout.HalfHeight, BoundsBodyInstance, true);
 
 					return DesiredInstances;
 					

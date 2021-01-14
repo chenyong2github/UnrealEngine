@@ -388,6 +388,56 @@ FArchive& operator<<(FArchive& Ar, FFoliageInfo& Info)
 }
 
 //
+// FFoliageDensityFalloff
+//
+
+FFoliageDensityFalloff::FFoliageDensityFalloff()
+{
+	FRichCurve* FalloffRichCurve = FalloffCurve.GetRichCurve();
+	FalloffRichCurve->AddKey(0.f, 1.f);
+	FalloffRichCurve->AddKey(1.f, 0.f);
+}
+
+bool FFoliageDensityFalloff::IsInstanceFiltered(const FVector2D& InstancePosition, const FVector2D& Origin, float MaxDistance) const
+{
+	float KeepPointProbability = GetDensityFalloffValue(InstancePosition, Origin, MaxDistance);
+	check(KeepPointProbability >= 0.f && KeepPointProbability <= 1.f);
+	if (KeepPointProbability < 1.f)
+	{
+		int32 PointSeed = GetRandomSeedForPosition(InstancePosition);
+		FRandomStream LocalRandomStream(PointSeed);
+		float Rand = LocalRandomStream.FRand();
+		return (Rand > KeepPointProbability);
+	}
+	return false;
+}
+
+float FFoliageDensityFalloff::GetDensityFalloffValue(const FVector2D& Position, const FVector2D& Origin, float MaxDistance) const
+{
+	float KeepPointProbability = 1.f;
+	if (bUseFalloffCurve)
+	{
+		float Distance = FVector2D::Distance(Position, Origin);
+		float NormalizedDistance = MaxDistance > 0.f ? (Distance / MaxDistance) : 1.f;
+		if (NormalizedDistance > 1.f)
+			NormalizedDistance = 1.f;
+		const FRichCurve* FalloffRichCurve = FalloffCurve.GetRichCurveConst();
+		KeepPointProbability = FMath::Clamp(FalloffRichCurve->Eval(NormalizedDistance), 0.f, 1.f);
+	}
+	return KeepPointProbability;
+}
+
+int32 FFoliageDensityFalloff::GetRandomSeedForPosition(const FVector2D& Position)
+{
+	// generate a unique random seed for a given position (precision = cm)
+	int32 Xcm = FMath::RoundToInt(Position.X);
+	int32 Ycm = FMath::RoundToInt(Position.Y);
+	// use the int32 hashing function to avoid patterns by spreading out distribution : 
+	return HashCombine(GetTypeHash(Xcm), GetTypeHash(Ycm));
+}
+
+
+//
 // UFoliageType
 //
 
@@ -4521,7 +4571,22 @@ bool AInstancedFoliageActor::FoliageTrace(const UWorld* InWorld, FHitResult& Out
 				const AProceduralFoliageVolume* ProceduralFoliageVolume = ProceduralFoliageBlockingVolume->ProceduralFoliageVolume;
 				if (ProceduralFoliageVolume == nullptr || ProceduralFoliageVolume->ProceduralComponent == nullptr || ProceduralFoliageVolume->ProceduralComponent->GetProceduralGuid() == DesiredInstance.ProceduralGuid)
 				{
-					return false;
+					if (!ProceduralFoliageBlockingVolume->DensityFalloff.bUseFalloffCurve)
+					{
+						return false;
+					}
+					else if (UBrushComponent* Brush = ProceduralFoliageBlockingVolume->GetBrushComponent())
+					{
+						FBox ActorVolumeBounds = Brush->Bounds.GetBox();
+						FVector2D ActorVolumeLocation = FVector2D(ActorVolumeBounds.GetCenter());
+						const float ActorVolumeMaxExtent = FVector2D(ActorVolumeBounds.GetExtent()).GetMax();
+
+						const FVector2D Origin(ProceduralFoliageBlockingVolume->GetActorTransform().GetLocation());
+						if (ProceduralFoliageBlockingVolume->DensityFalloff.IsInstanceFiltered(FVector2D(Hit.ImpactPoint), ActorVolumeLocation, ActorVolumeMaxExtent))
+						{
+							return false;
+						}
+					}
 				}
 			}
 			else if (HitObjectHandle.IsValid() && HitObjectHandle.DoesRepresentClass(AProceduralFoliageVolume::StaticClass())) //we never want to collide with our spawning volume

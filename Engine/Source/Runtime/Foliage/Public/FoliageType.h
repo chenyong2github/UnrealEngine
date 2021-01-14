@@ -79,6 +79,31 @@ enum class EFoliageScaling : uint8
 	LockYZ
 };
 
+USTRUCT()
+struct FFoliageDensityFalloff
+{
+	GENERATED_USTRUCT_BODY()
+
+	FFoliageDensityFalloff();
+
+	UPROPERTY(Category = Procedural, EditAnywhere, meta = (Subcategory = "Density"))
+	bool bUseFalloffCurve = false;
+
+	/**
+	 * Density as a function of normalized distance (i.e. distance from Procedural Foliage Volume / Max Volume Extent).
+	 * X = 0 corresponds to Normalized distance = 0, X = 1 corresponds to Normalized distance = Max distance.
+	 * Y = 0 corresponds to 0% probability of keeping instance, Y = 1 corresponds to 100% probability of keeping instance.
+	 */
+	UPROPERTY(Category = Procedural, EditAnywhere, meta = (Subcategory = "Density", XAxisName = "Normalized Distance", YAxisName = "Density Factor"))
+	FRuntimeFloatCurve FalloffCurve;
+
+	FOLIAGE_API bool IsInstanceFiltered(const FVector2D& Position, const FVector2D& Origin, float MaxDistance) const;
+	FOLIAGE_API float GetDensityFalloffValue(const FVector2D& Position, const FVector2D& Origin, float MaxDistance) const;
+
+private:
+
+	static int32 GetRandomSeedForPosition(const FVector2D& Position);
+};
 
 UCLASS(hidecategories = Object, editinlinenew, MinimalAPI, BlueprintType, Blueprintable)
 class UFoliageType : public UObject
@@ -448,6 +473,9 @@ public:
 	 */
 	UPROPERTY(Category = Procedural, EditAnywhere, meta = (Subcategory = "Growth", XAxisName = "Normalized Age", YAxisName = "Scale Factor"))
 	FRuntimeFloatCurve ScaleCurve;
+
+	UPROPERTY(Category = Procedural, EditAnywhere)
+	FFoliageDensityFalloff DensityFalloff;
 
 	UPROPERTY(Transient)
 	int32 ChangeCount;

@@ -6,6 +6,7 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "GameFramework/Volume.h"
+#include "FoliageType.h"
 #include "ProceduralFoliageBlockingVolume.generated.h"
 
 class AProceduralFoliageVolume;
@@ -18,6 +19,9 @@ class AProceduralFoliageBlockingVolume : public AVolume
 
 	UPROPERTY(Category = ProceduralFoliage, EditAnywhere)
 	AProceduralFoliageVolume* ProceduralFoliageVolume;
+
+	UPROPERTY(Category = ProceduralFoliage, EditAnywhere)
+	FFoliageDensityFalloff DensityFalloff;
 };
 
 

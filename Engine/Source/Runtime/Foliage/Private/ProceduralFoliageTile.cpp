@@ -465,7 +465,7 @@ void UProceduralFoliageTile::BeginDestroy()
 	RemoveInstances();
 }
 
-void UProceduralFoliageTile::ExtractDesiredInstances(TArray<FDesiredFoliageInstance>& OutInstances, const FTransform& WorldTM, const FGuid& ProceduralGuid, const float HalfHeight, const FBodyInstance* VolumeBodyInstance, bool bEmptyTileInfo)
+void UProceduralFoliageTile::ExtractDesiredInstances(TArray<FDesiredFoliageInstance>& OutInstances, const FTransform& WorldTM, const FVector2D& ActorVolumeLocation, float ActorVolumeMaxExtent, const FGuid& ProceduralGuid, const float HalfHeight, const FBodyInstance* VolumeBodyInstance, bool bEmptyTileInfo)
 {
 	InstancesToArray();
 
@@ -480,6 +480,13 @@ void UProceduralFoliageTile::ExtractDesiredInstances(TArray<FDesiredFoliageInsta
 		FVector EndRay = StartRay;
 		EndRay.Z -= (HalfHeight*2.f + 10.f);	//add 10cm to bottom position of raycast. This is needed because volume is usually placed directly on geometry and then you get precision issues
 
+		// Apply FoliageType's Falloff
+		FVector2D Position(StartRay);
+		if (Instance.Type->DensityFalloff.IsInstanceFiltered(Position, ActorVolumeLocation, ActorVolumeMaxExtent))
+		{
+			continue;
+		}
+		
 		FDesiredFoliageInstance* DesiredInst = new (OutInstances)FDesiredFoliageInstance(StartRay, EndRay, Instance.GetMaxRadius());
 		DesiredInst->Rotation = Instance.Rotation;
 		DesiredInst->ProceduralGuid = ProceduralGuid;
