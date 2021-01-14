@@ -145,8 +145,7 @@ bool FHoloLensARSystem::WMRCreateAnchor(const wchar_t* AnchorId, FVector InPosit
 		const float WorldScale = 1.0 / TrackingSystem->GetWorldToMetersScale();
 		DirectX::XMFLOAT3 Position = WindowsMixedReality::WMRUtility::ToMixedRealityVector(InPosition * WorldScale);
 		DirectX::XMFLOAT4 RotationQuat = WindowsMixedReality::WMRUtility::ToMixedRealityQuaternion(InRotationQuat);
-		WindowsMixedReality::HMDTrackingOrigin Origin = WindowsMixedReality::WMRUtility::ToMixedRealityTrackingOrigin(TrackingSystem->GetTrackingOrigin());
-		return WMRInterop->CreateAnchor(AnchorId, Position, RotationQuat, Origin);
+		return WMRInterop->CreateAnchor(AnchorId, Position, RotationQuat);
 	}
 #endif
 
@@ -177,11 +176,10 @@ bool FHoloLensARSystem::WMRGetAnchorTransform(const wchar_t* AnchorId, FTransfor
 #if WITH_WINDOWS_MIXED_REALITY
 	if (WMRInterop)
 	{
-		WindowsMixedReality::HMDTrackingOrigin Origin = WindowsMixedReality::WMRUtility::ToMixedRealityTrackingOrigin(TrackingSystem->GetTrackingOrigin());
 		DirectX::XMFLOAT3 scale;
 		DirectX::XMFLOAT4 rot;
 		DirectX::XMFLOAT3 trans;
-		if (WMRInterop->GetAnchorPose(AnchorId, scale, rot, trans, Origin))
+		if (WMRInterop->GetAnchorPose(AnchorId, scale, rot, trans))
 		{
 			const float WorldScale = TrackingSystem->GetWorldToMetersScale();
 			FVector Translation = WindowsMixedReality::WMRUtility::FromMixedRealityVector(trans);
