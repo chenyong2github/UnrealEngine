@@ -9,6 +9,9 @@ PathTracingMaterialCommon.usf: Brdf utility functions
 #include "../PathTracingCommon.ush"
 #include "/Engine/Private/BRDF.ush"
 
+// be conservative since the GPU may be aggressive with floating point optimizations
+#define GGX_MIN_ROUGHNESS 0.01
+
 float3 GetMaterialEmission(FMaterialClosestHitPayload HitInfo)
 {
 	return HitInfo.Radiance;
@@ -112,7 +115,8 @@ bool IsTwoSidedFoliageMaterial(FMaterialClosestHitPayload HitInfo)
 
 bool IsMaterialTransmissive(FMaterialClosestHitPayload HitInfo)
 {
-	return HitInfo.ShadingModelID == SHADINGMODELID_TWOSIDED_FOLIAGE;
+	return HitInfo.ShadingModelID == SHADINGMODELID_TWOSIDED_FOLIAGE ||
+		   (HitInfo.BlendingMode == RAY_TRACING_BLEND_MODE_TRANSLUCENT && HitInfo.Roughness != 0 && HitInfo.Opacity < 1);
 }
 
 // Takes as input the sample weight and pdf for a certain lobe of a mixed model, together with the probability of picking that lobe

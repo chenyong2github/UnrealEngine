@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================================
-PathTracingSpecularTransmission.usf: Pure specular transmission BTDF sampling functions
+PathTracingSpecularTransmission.usf: Refractive BSDFs (pure singular and microfacet based)
 ===============================================================================================*/
 
 #pragma once
@@ -20,16 +20,15 @@ void SpecularRefraction_SampleMaterial(
 	float3 WorldNormal = GetWorldNormal(Payload);
 
 	// #dxr_todo: Maintain a refraction stack on the path tracing payload
-	// #dxr_todo Determine if parameterization from Specular is still the proper path forward
-	//float Ior = Payload.Ior;
-	float Ior = DielectricF0ToIor(DielectricSpecularToF0(Payload.Specular));
+	float Ior = Payload.Ior;
 	float Eta = bIsEntering ? Ior : 1.0 / Ior;
 
 	// Throughput is 1 since we pick reflect/refract according to the fresnel term
 	OutWeight = 1.0;
 	OutPdf = POSITIVE_INFINITY;
 
-	if (SampleRefraction(RayDirection, WorldNormal, Eta, RandSample.x, OutDirection))
+	float F = 0;
+	if (SampleRefraction(RayDirection, WorldNormal, Eta, RandSample.x, OutDirection, F))
 	{
 		OutPositionBiasSign = -1;
 	}
@@ -43,4 +42,226 @@ void SpecularTransmission_EvalMaterial(out float3 OutThroughput, out float OutPd
 {
 	OutThroughput = 0;
 	OutPdf = 0;
+}
+
+void RoughGlass_SampleMaterial(
+	float3 RayDirection,
+	FMaterialClosestHitPayload Payload,
+	float4 RandSample,
+	out float3 OutDirection,
+	out float3 OutWeight,
+	out float OutPdf,
+	out float OutPositionBiasSign)
+{
+
+	OutDirection = 0;
+	OutWeight = 0;
+	OutPdf = 0;
+	OutPositionBiasSign = 1;
+
+	// NOTE: IsFrontFace() determines polygon orientation, because the normal is always flipped towards in the incoming ray
+	bool bIsEntering = Payload.IsFrontFace();
+	float3 N_World = GetWorldNormal(Payload);
+	float3 V_World = -RayDirection;
+
+	// #dxr_todo: Maintain a refraction stack on the path tracing payload
+	float Ior = Payload.Ior;
+	float Eta = bIsEntering ? Ior : 1.0 / Ior;
+
+	float Roughness = max(GetRoughness(Payload), GGX_MIN_ROUGHNESS);
+	float2 Alpha;
+	float3x3 Basis;
+	if (Payload.HasAnisotropy())
+	{
+		// Material is anisotropic, our shading frame should use the tangent vector
+		GetAnisotropicRoughness(Roughness * Roughness, Payload.Anisotropy, Alpha.x, Alpha.y);
+		float3 X = Payload.WorldTangent;
+		float3 Y = normalize(cross(N_World, X));
+		Basis = float3x3(cross(Y, N_World), Y, N_World);
+	}
+	else
+	{
+		// No anisotropy, just pick an arbitrary basis
+		Alpha = Roughness * Roughness;
+		Basis = GetTangentBasis(N_World);
+	}
+
+
+	float3 V = mul(Basis, V_World);
+	float NoV = saturate(V.z);
+
+	if (NoV == 0)
+	{
+		// invalid grazing angle
+		return;
+	}
+
+	float3 H = ImportanceSampleVisibleGGX_aniso(UniformSampleDisk(RandSample.xy), Alpha, V).xyz;
+	float3 N = float3(0, 0, 1);
+	float NoH = saturate(H.z);
+	float VoH = saturate(dot(V, H));
+
+	float3 L = 0;
+	float Fresnel = 0;
+	if (SampleRefraction(-V, H, Eta, RandSample.z, L, Fresnel))
+	{
+		// ray should be refracted
+		if (L.z >= 0)
+		{
+			// masked direction
+			return;
+		}
+		float NoL = saturate(-L.z);
+		float LoH = dot(L, H);
+
+		// FIXME: this can be further simplified
+		const float CosThetaM4 = Pow2(NoH);
+		const float TanThetaM2 = (Pow2(H.x / Alpha.x) + Pow2(H.y / Alpha.y)) / Pow2(NoH);
+		const float D = 1 / (PI * Pow2(1 + TanThetaM2) * Alpha.x * Alpha.y * CosThetaM4);
+		const float Lambda_o = 0.5 * (-1.0 + sqrt(1.0 + (Pow2(L.x * Alpha.x) + Pow2(L.y * Alpha.y)) / Pow2(L.z)));
+		const float Lambda_i = 0.5 * (-1.0 + sqrt(1.0 + (Pow2(V.x * Alpha.x) + Pow2(V.y * Alpha.y)) / Pow2(V.z)));
+		const float G2 = 1 / (Lambda_i + Lambda_o + 1);
+		const float G1 = 1 / (Lambda_i + 1);
+
+		const float3 Ht = (Eta * L + V);
+
+		OutWeight = (G2 / G1);
+		OutPdf = (Fresnel * abs(LoH * VoH) * (Eta * Eta) * (G1 * D)) / (dot(Ht, Ht) * abs(V.z));
+
+		OutPositionBiasSign = -1;
+	}
+	else
+	{
+		// ray should be reflected
+		if (L.z <= 0)
+		{
+			// masked direction
+			return;
+		}
+		float NoL = saturate(L.z);
+
+		// Specular lobe
+		if (NoL > 0 && NoV > 0)
+		{
+			// Assume NoH > 0
+			// FIXME: this can be further simplified
+			const float CosThetaM4 = Pow2(NoH);
+			const float TanThetaM2 = (Pow2(H.x / Alpha.x) + Pow2(H.y / Alpha.y)) / Pow2(NoH);
+			const float D = 1 / (PI * Pow2(1 + TanThetaM2) * Alpha.x * Alpha.y * CosThetaM4);
+			const float Lambda_o = 0.5 * (-1.0 + sqrt(1.0 + (Pow2(L.x * Alpha.x) + Pow2(L.y * Alpha.y)) / Pow2(L.z)));
+			const float Lambda_i = 0.5 * (-1.0 + sqrt(1.0 + (Pow2(V.x * Alpha.x) + Pow2(V.y * Alpha.y)) / Pow2(V.z)));
+			const float G2 = 1 / (Lambda_i + Lambda_o + 1);
+			const float G1 = 1 / (Lambda_i + 1);
+
+			OutWeight = (G2 / G1);
+			OutPdf = (Fresnel * G1 * D * 0.25f) / NoV;
+		}
+	}
+
+	// transform to world space
+	OutDirection = normalize(mul(L, Basis));
+}
+
+void RoughGlass_EvalMaterial(
+	float3 IncomingDirection,
+	float3 OutgoingDirection,
+	FMaterialClosestHitPayload Payload,
+	out float3 OutWeight,
+	out float OutPdf)
+{
+	OutWeight = 0;
+	OutPdf = 0;
+
+	// NOTE: IsFrontFace() determines polygon orientation, because the normal is always flipped towards in the incoming ray
+	bool bIsEntering = Payload.IsFrontFace();
+	float3 V_World = -IncomingDirection;
+	float3 L_World = OutgoingDirection;
+	float3 N_World = GetWorldNormal(Payload);
+
+	// #dxr_todo: Maintain a refraction stack on the path tracing payload
+	float Ior = Payload.Ior;
+	float Eta = bIsEntering ? Ior : 1.0 / Ior;
+
+	float Roughness = max(GetRoughness(Payload), GGX_MIN_ROUGHNESS);
+	float2 Alpha;
+	float3x3 Basis;
+	if (Payload.HasAnisotropy())
+	{
+		// Material is anisotropic, our shading frame should use the tangent vector
+		GetAnisotropicRoughness(Roughness * Roughness, Payload.Anisotropy, Alpha.x, Alpha.y);
+		float3 X = Payload.WorldTangent;
+		float3 Y = normalize(cross(N_World, X));
+		Basis = float3x3(cross(Y, N_World), Y, N_World);
+	}
+	else
+	{
+		// No anisotropy, just pick an arbitrary basis
+		Alpha = Roughness * Roughness;
+		Basis = GetTangentBasis(N_World);
+	}
+
+	// move vectors into right shading frame
+	float3 V = mul(Basis, V_World);
+	float3 L = mul(Basis, L_World);
+
+	if (V.z <= 0)
+	{
+		// invalid input
+		return;
+	}
+
+	float NoV = saturate(V.z);
+	if (L.z > 0)
+	{
+		// reflection side
+		float3 H = normalize(L + V);
+		float NoL = saturate(L.z);
+		float NoH = saturate(H.z);
+		float VoH = saturate(dot(V, H));
+
+		// FIXME: this can be further simplified
+		const float CosThetaM4 = Pow2(NoH);
+		const float TanThetaM2 = (Pow2(H.x / Alpha.x) + Pow2(H.y / Alpha.y)) / Pow2(NoH);
+		const float D = 1 / (PI * Pow2(1 + TanThetaM2) * Alpha.x * Alpha.y * CosThetaM4);
+		const float Lambda_o = 0.5 * (-1.0 + sqrt(1.0 + (Pow2(L.x * Alpha.x) + Pow2(L.y * Alpha.y)) / Pow2(L.z)));
+		const float Lambda_i = 0.5 * (-1.0 + sqrt(1.0 + (Pow2(V.x * Alpha.x) + Pow2(V.y * Alpha.y)) / Pow2(V.z)));
+		const float G2 = 1 / (Lambda_i + Lambda_o + 1);
+		const float G1 = 1 / (Lambda_i + 1);
+
+		const float Fr = FresnelReflectance(VoH, Eta);
+
+		OutWeight = (G2 / G1);
+		OutPdf = (Fr * G1 * D * 0.25f) / NoV;
+	}
+	else if (L.z < 0)
+	{
+		// refraction side
+		float NoL = saturate(-L.z);
+		float3 Ht = -(Eta * L + V);
+		Ht = (Eta < 1.0f) ? -Ht : Ht;
+		float3 Htn = normalize(Ht);
+
+		float VoH = dot(V, Htn);
+		float Ft = 1.0f - FresnelReflectance(VoH, Eta);
+		if (Ft > 0)
+		{
+			const float LoH = dot(L, Htn);
+			const float NoH = Htn.z;
+			if (NoH <= 0.0)
+			{
+				return;
+			}
+			// FIXME: this can be further simplified
+			const float CosThetaM4 = Pow2(NoH);
+			const float TanThetaM2 = (Pow2(Htn.x / Alpha.x) + Pow2(Htn.y / Alpha.y)) / Pow2(NoH);
+			const float D = 1 / (PI * Pow2(1 + TanThetaM2) * Alpha.x * Alpha.y * CosThetaM4);
+			const float Lambda_o = 0.5 * (-1.0 + sqrt(1.0 + (Pow2(L.x * Alpha.x) + Pow2(L.y * Alpha.y)) / Pow2(L.z)));
+			const float Lambda_i = 0.5 * (-1.0 + sqrt(1.0 + (Pow2(V.x * Alpha.x) + Pow2(V.y * Alpha.y)) / Pow2(V.z)));
+			const float G2 = 1 / (Lambda_i + Lambda_o + 1);
+			const float G1 = 1 / (Lambda_i + 1);
+
+			OutWeight = (G2 / G1);
+			OutPdf = (Ft * abs(LoH * VoH) * (Eta * Eta) * (G1 * D)) / (dot(Ht, Ht) * abs(V.z));
+		}
+	}
 }

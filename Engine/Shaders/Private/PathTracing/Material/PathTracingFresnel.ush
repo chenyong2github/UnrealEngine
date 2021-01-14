@@ -13,7 +13,8 @@ float FresnelReflectance(float CosI, float Eta)
 
 	float g2 = Eta * Eta - 1 + CosI * CosI;
 
-	if (g2 >= 0) {
+	if (g2 >= 0)
+	{
 		float c = abs(CosI);
 		float g = sqrt(g2);
 		float a2 = Pow2((g - c) / (g + c));
@@ -25,14 +26,15 @@ float FresnelReflectance(float CosI, float Eta)
 }
 
 // returns true if we sampled a refraction, or false if we reflected (or TIR occured)
-bool SampleRefraction(float3 RayDirection, float3 Normal, float Eta, float RandSample, out float3 OutDirection)
+bool SampleRefraction(float3 RayDirection, float3 Normal, float Eta, float RandSample, out float3 OutDirection, out float OutFresnel)
 {
 	// Compute refracted direction and Fresnel term at the same time to re-use intermediate values
 	// and to get matching results for the TIR condition
 	float CosI = abs(dot(RayDirection, Normal));
 	float g2 = Eta * Eta - 1.0 + CosI * CosI;
 
-	if (g2 >= 0.0) {
+	if (g2 >= 0.0)
+	{
 		float c = CosI;
 		float g = sqrt(g2);
 		float a2 = Pow2((g - c) / (g + c));
@@ -43,9 +45,16 @@ bool SampleRefraction(float3 RayDirection, float3 Normal, float Eta, float RandS
 		// This assumes RandSample is in [0,1)
 		if (RandSample >= Fr)
 		{
+			OutFresnel = 1 - Fr;
 			OutDirection = normalize(RayDirection + Normal * (c - g));
 			return true;
 		}
+		OutFresnel = Fr;
+	}
+	else
+	{
+		// TIR
+		OutFresnel = 1.0;
 	}
 	// either TIR, or sampled reflection
 	OutDirection = RayDirection + (2 * CosI) * Normal;

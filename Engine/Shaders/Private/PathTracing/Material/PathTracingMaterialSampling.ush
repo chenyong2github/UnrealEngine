@@ -29,7 +29,8 @@ bool IsNeeValidMaterial(FMaterialClosestHitPayload Payload)
 	return true;
 #else
 
-	if (IsPureSpecularTransmission(Payload))
+	if (Payload.BlendingMode == RAY_TRACING_BLEND_MODE_MODULATE ||
+		Payload.BlendingMode == RAY_TRACING_BLEND_MODE_ALPHA_HOLDOUT)
 	{
 		return false;
 	}
@@ -41,7 +42,7 @@ bool IsNeeValidMaterial(FMaterialClosestHitPayload Payload)
 		case SHADINGMODELID_DEFAULT_LIT:		
 		case SHADINGMODELID_CLEAR_COAT:			
 		case SHADINGMODELID_TWOSIDED_FOLIAGE:	
-		default:								
+		default:
 			return true;
 	}
 #endif
@@ -69,12 +70,88 @@ void SampleMaterial(
 	{
 		Lambert_SampleMaterial(Payload, RandSample, OutDirection, OutWeight, OutPdf);
 	}
-#else	
-	if (IsPureSpecularTransmission(Payload))
+#else
+
+	if (Payload.BlendingMode == RAY_TRACING_BLEND_MODE_MODULATE)
 	{
-		SpecularRefraction_SampleMaterial(RayDirection, Payload, RandSample, OutDirection, OutWeight, OutPdf, OutPositionBiasSign);
+		OutDirection = RayDirection;
+		OutWeight = Payload.Radiance;
+		OutPdf = POSITIVE_INFINITY;
+		OutPositionBiasSign = -1;
 		return;
 	}
+
+	if (Payload.BlendingMode == RAY_TRACING_BLEND_MODE_ALPHA_HOLDOUT)
+	{
+		OutDirection = RayDirection;
+		OutWeight = 1;
+		OutPdf = POSITIVE_INFINITY;
+		OutPositionBiasSign = -1;
+		return;
+	}
+
+	// Decide the overall weight of the BRDF portion vs. the translucent portion
+	// Note that the translucent portion could be refraction, transparency or SSS
+	float BrdfWeight = 1;
+	float TransWeight = 0;
+	float BrdfProb = 1;
+	switch (Payload.BlendingMode)
+	{
+		case RAY_TRACING_BLEND_MODE_TRANSLUCENT:
+			BrdfWeight = 1;
+			TransWeight = 1;
+			BrdfProb = Payload.Opacity;
+			break;
+		case RAY_TRACING_BLEND_MODE_ADDITIVE:
+			BrdfWeight = 1 + Payload.Opacity;
+			TransWeight = 1 + Payload.Opacity;
+			BrdfProb = Payload.Opacity / (1 + Payload.Opacity);
+			break;
+		case RAY_TRACING_BLEND_MODE_ALPHA_COMPOSITE:
+			BrdfWeight = 2 - Payload.Opacity;;
+			TransWeight = 2 - Payload.Opacity;
+			BrdfProb = 1 / (2 - Payload.Opacity);
+			break;
+		default:
+			// opaque or one of the modes handled above
+			break;
+	}
+
+	if (RandSample.x < BrdfProb)
+	{
+		// we randomly decided to sample the brdf portion of the material
+		RandSample.x /= BrdfProb;
+	}
+	else
+	{
+		// we randomly decided to sample the translucent portion
+		RandSample.x = (RandSample.x - BrdfProb) / (1 - BrdfProb);
+		// now decide what to do based on blend mode
+		if (Payload.BlendingMode == RAY_TRACING_BLEND_MODE_TRANSLUCENT && Payload.Ior != 1.0)
+		{
+			// refraction model
+			if (Payload.Roughness == 0)
+			{
+				SpecularRefraction_SampleMaterial(RayDirection, Payload, RandSample, OutDirection, OutWeight, OutPdf, OutPositionBiasSign);
+			}
+			else
+			{
+				RoughGlass_SampleMaterial(RayDirection, Payload, RandSample, OutDirection, OutWeight, OutPdf, OutPositionBiasSign);
+			}
+			OutWeight *= TransWeight;
+			OutPdf *= 1 - BrdfProb;
+		}
+		else
+		{
+			// plain transparency
+			OutDirection = RayDirection;
+			OutWeight = TransWeight;
+			OutPdf = POSITIVE_INFINITY; // * 1 - BrdfProb
+			OutPositionBiasSign = -1;
+		}
+		return;
+	}
+
 	switch (Payload.ShadingModelID)
 	{
 		case SHADINGMODELID_UNLIT:
@@ -85,19 +162,22 @@ void SampleMaterial(
 			return;
 		case SHADINGMODELID_DEFAULT_LIT:
 			DefaultLit_SampleMaterial(RayDirection, Payload, RandSample, OutDirection, OutWeight, OutPdf);
-			return;
+			break;
 		case SHADINGMODELID_CLEAR_COAT:
 			ClearCoat_SampleMaterial(RayDirection, Payload, RandSample, OutDirection, OutWeight, OutPdf);
-			return;
+			break;
 		case SHADINGMODELID_TWOSIDED_FOLIAGE:
 			TwoSidedFoliage_SampleMaterial(RayDirection, Payload, RandSample, OutDirection, OutWeight, OutPdf, OutPositionBiasSign);
-			return;
+			break;
 		default:
 			Lambert_SampleMaterial(Payload, RandSample, OutDirection, OutWeight, OutPdf);
 			break;
 	}
-#endif
 
+	// final adjustment to weight / prob based on the stochastic decision for translucency earlier
+	OutWeight *= BrdfWeight;
+	OutPdf *= BrdfProb;
+#endif
 }
 
 void EvalMaterial(
@@ -120,11 +200,49 @@ void EvalMaterial(
 		Lambert_EvalMaterial(OutgoingDirection, Payload, OutWeight, OutPdf);
 	}
 #else
-	if (IsPureSpecularTransmission(Payload))
+
+	if (Payload.BlendingMode == RAY_TRACING_BLEND_MODE_MODULATE ||
+		Payload.BlendingMode == RAY_TRACING_BLEND_MODE_ALPHA_HOLDOUT)
 	{
-		SpecularTransmission_EvalMaterial(OutWeight, OutPdf);
+		OutWeight = 0;
+		OutPdf = 0;
 		return;
 	}
+
+	// Decide the overall weight of the BRDF portion vs. the translucent portion
+	// Note that the translucent portion could be refraction, transparency or SSS
+	float BrdfWeight = 1;
+	float TransWeight = 0;
+	float BrdfProb = 1;
+	switch (Payload.BlendingMode)
+	{
+		case RAY_TRACING_BLEND_MODE_TRANSLUCENT:
+			// brdf:   Opacity
+			// glass:  1.0 - Opacity
+			BrdfWeight = 1;
+			TransWeight = 1;
+			BrdfProb = Payload.Opacity;
+			break;
+		case RAY_TRACING_BLEND_MODE_ADDITIVE:
+			// brdf:   Opacity
+			// transp: 1.0
+			BrdfWeight = 1 + Payload.Opacity;
+			TransWeight = 1 + Payload.Opacity;
+			BrdfProb = Payload.Opacity / (1 + Payload.Opacity);
+			break;
+		case RAY_TRACING_BLEND_MODE_ALPHA_COMPOSITE:
+			// brdf:   1.0
+			// transp: 1.0 - Opacity
+			BrdfWeight = 2 - Payload.Opacity;;
+			TransWeight = 2 - Payload.Opacity;
+			BrdfProb = 1 / (2 - Payload.Opacity);
+			break;
+		default:
+			// opaque or one of the modes handled above
+			break;
+	}
+
+	// NOTE: the translucent portions are all singular -- so we can ignore them in the eval method for now as they have Pdf=+inf for a single direction only
 
 	switch (Payload.ShadingModelID)
 	{
@@ -144,6 +262,26 @@ void EvalMaterial(
 		default:
 			Lambert_EvalMaterial(OutgoingDirection, Payload, OutWeight, OutPdf);
 			break;
+	}
+
+	// final adjustment to weight / prob for translucency
+	OutWeight *= BrdfWeight;
+	OutPdf *= BrdfProb;
+
+	if (BrdfProb < 1.0)
+	{
+		if (Payload.BlendingMode == RAY_TRACING_BLEND_MODE_TRANSLUCENT && Payload.Ior != 1.0)
+		{
+			// refraction model (only evaluate for rough case as singular can't be evaluated)
+			if (Payload.Roughness != 0)
+			{
+				float3 GlassWeight = 0;
+				float GlassPdf = 0;
+				RoughGlass_EvalMaterial(IncomingDirection, OutgoingDirection, Payload, GlassWeight, GlassPdf);
+
+				AddLobeWithMIS(OutWeight, OutPdf, GlassWeight, GlassPdf, 1.0 - BrdfProb);
+			}
+		}
 	}
 #endif
 }

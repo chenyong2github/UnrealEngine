@@ -134,14 +134,6 @@ RAY_TRACING_ENTRY_RAYGEN(PathTracingMainRG)
 			break;
 		}
 
-		if (Payload.ShadingModelID == SHADINGMODELID_SUBSURFACE)
-		{
-			// for now just approximate SSS by moving it into the diffuse color
-			Payload.DiffuseColor += Payload.CustomData.xyz;
-			Payload.Opacity = 1; // overwrite radius
-			Payload.ShadingModelID == SHADINGMODELID_DEFAULT_LIT;
-		}
-
 		// add in surface emission (except for modulate blend mode which uses Radiance as the transparency multiplier)
 		if (Payload.BlendingMode != RAY_TRACING_BLEND_MODE_MODULATE)
 		{
@@ -161,6 +153,16 @@ RAY_TRACING_ENTRY_RAYGEN(PathTracingMainRG)
 		if (dot(Ray.Direction, Payload.WorldNormal) > 0.0)
 		{
 			Payload.WorldNormal = -Payload.WorldNormal;
+		}
+
+		// material tweaks to workaround path tracer limitations
+		if (Payload.ShadingModelID == SHADINGMODELID_SUBSURFACE)
+		{
+			// for now just approximate SSS by moving it into the diffuse color
+			Payload.DiffuseColor += Payload.CustomData.xyz;
+			Payload.DiffuseColor = saturate(Payload.DiffuseColor);
+			Payload.Opacity = 1; // overwrite radius
+			Payload.ShadingModelID = SHADINGMODELID_DEFAULT_LIT;
 		}
 
 		// Choose a random number for both Light sampling and BxDF sampling
