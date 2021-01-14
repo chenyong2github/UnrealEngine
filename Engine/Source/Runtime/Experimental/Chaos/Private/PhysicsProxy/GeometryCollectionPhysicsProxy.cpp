@@ -25,6 +25,7 @@
 #include "GeometryCollection/ManagedArrayCollection.h"
 #include "Modules/ModuleManager.h"
 #include "Chaos/PullPhysicsDataImp.h"
+#include "Chaos/PBDRigidsEvolution.h"
 
 #ifndef TODO_REIMPLEMENT_INIT_COMMANDS
 #define TODO_REIMPLEMENT_INIT_COMMANDS 0
@@ -405,8 +406,8 @@ FGeometryCollectionPhysicsProxy::~FGeometryCollectionPhysicsProxy()
 float ReportHighParticleFraction = -1.f;
 FAutoConsoleVariableRef CVarReportHighParticleFraction(TEXT("p.gc.ReportHighParticleFraction"), ReportHighParticleFraction, TEXT("Report any objects with particle fraction above this threshold"));
 
-
-void FGeometryCollectionPhysicsProxy::Initialize()
+template <typename Traits>
+void FGeometryCollectionPhysicsProxy::Initialize(Chaos::TPBDRigidsEvolutionBase<Traits> *Evolution)
 {
 	check(IsInGameThread());
 
@@ -529,6 +530,8 @@ void FGeometryCollectionPhysicsProxy::Initialize()
 		{
 			GTParticles[Index] = Chaos::TGeometryParticle<Chaos::FReal, 3>::CreateParticle();
 			Chaos::TGeometryParticle<Chaos::FReal, 3>* P = GTParticles[Index].Get();
+
+			GTParticles[Index]->SetUniqueIdx(Evolution->GenerateUniqueIdx());
 
 			const FTransform& T = Parameters.WorldTransform * GameThreadCollection.Transform[Index];
 			P->SetX(T.GetTranslation(), false);
@@ -717,6 +720,7 @@ void FGeometryCollectionPhysicsProxy::InitializeBodiesPT(Chaos::TPBDRigidsSolver
 
 				// We're on the physics thread here but we've already set up the GT particles and we're just linking here
 				Handle->GTGeometryParticle() = GTParticles[Idx].Get();
+				Handle->SetUniqueIdx(GTParticles[Idx]->UniqueIdx());
 
 				check(SolverParticleHandles[Idx]->GetParticleType() == Handle->GetParticleType());
 				RigidsSolver->GetEvolution()->CreateParticle(Handle);
@@ -1349,9 +1353,25 @@ void FGeometryCollectionPhysicsProxy::OnRemoveFromSolver(Chaos::TPBDRigidsSolver
 {
 	const FGeometryDynamicCollection& DynamicCollection = PhysicsThreadCollection;
 
+	Chaos::TPBDRigidsEvolutionGBF<Traits>* Evolution = RBDSolver->GetEvolution();
+
 	for (const FClusterHandle* Handle : SolverClusterHandles)
 	{
 		RBDSolver->RemoveParticleToProxy(Handle);
+	}
+
+	for (FClusterHandle* Handle : SolverParticleHandles)
+	{	
+		if(Chaos::TPBDRigidClusteredParticleHandle<Chaos::FReal, 3> * Cluster = Handle->CastToClustered())
+		{
+			Evolution->GetRigidClustering().GetTopLevelClusterParents().Remove(Cluster);
+			Evolution->GetRigidClustering().GetChildrenMap().Remove(Cluster);
+			Evolution->DestroyParticle(Cluster);
+		}
+		else
+		{
+			Evolution->DestroyParticle(Handle);
+		}
 	}
 }
 
@@ -2776,7 +2796,8 @@ void FGeometryCollectionPhysicsProxy::ParameterUpdateCallback(Chaos::TPBDRigidsS
 		const Chaos::FClusterCreationParameters<float> & Parameters);\
 	template void FGeometryCollectionPhysicsProxy::FieldForcesUpdateCallback(\
 		Chaos::TPBDRigidsSolver<Chaos::Traits>* InSolver,\
-		FParticlesType& Particles,Chaos::TArrayCollectionArray<FVector>& Force,Chaos::TArrayCollectionArray<FVector>& Torque,const float Time);
+		FParticlesType& Particles,Chaos::TArrayCollectionArray<FVector>& Force,Chaos::TArrayCollectionArray<FVector>& Torque,const float Time);\
+	template void FGeometryCollectionPhysicsProxy::Initialize(Chaos::TPBDRigidsEvolutionBase<Chaos::Traits>* Evolution);
 
 #include "Chaos/EvolutionTraits.inl"
 #undef EVOLUTION_TRAIT

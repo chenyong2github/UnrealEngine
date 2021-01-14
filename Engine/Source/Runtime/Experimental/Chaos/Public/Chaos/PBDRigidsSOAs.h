@@ -217,13 +217,34 @@ public:
 
 	void DestroyParticle(TGeometryParticleHandle<T, d>* Particle)
 	{
-		check(Particle->CastToClustered() == nullptr);	//not supported
-
 		auto PBDRigid = Particle->CastToRigidParticle();
 		if(PBDRigid)
 		{
 			RemoveFromMapAndArray(PBDRigid, ActiveParticlesToIndex, ActiveParticlesArray);
 			RemoveFromMapAndArray(PBDRigid, TransientDirtyToIndex, TransientDirtyArray);
+
+			if (auto PBDRigidClustered = Particle->CastToClustered())
+			{
+				if (Particle->GetParticleType() == Chaos::EParticleType::GeometryCollection)
+				{
+					bGeometryCollectionDirty = true;
+				}
+				else // clustered
+				{
+					RemoveFromMapAndArray(PBDRigidClustered,
+						NonDisabledClusteredToIndex, NonDisabledClusteredArray);
+
+					if (Particle->ObjectState() == EObjectStateType::Dynamic)
+					{
+						RemoveFromMapAndArray(PBDRigidClustered,
+							ActiveClusteredToIndex, ActiveClusteredArray);
+					}
+				}
+			}
+			else
+			{
+				Particle->MoveToSOA(*DynamicDisabledParticles);
+			}
 
 			// Check for sleep events referencing this particle
 			// TODO think about this case more

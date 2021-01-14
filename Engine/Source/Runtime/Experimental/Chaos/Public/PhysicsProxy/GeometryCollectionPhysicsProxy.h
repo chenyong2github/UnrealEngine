@@ -25,6 +25,9 @@ namespace Chaos
 	template <typename T> struct FClusterCreationParameters;
 
 	struct FDirtyGeometryCollectionData;
+
+	template <typename Traits>
+	class TPBDRigidsEvolutionBase;
 }
 
 class FStubGeometryCollectionData : public Chaos::FParticleData 
@@ -58,7 +61,7 @@ public:
 	typedef TPhysicsProxy<FGeometryCollectionPhysicsProxy, FStubGeometryCollectionData> Base;
 	typedef FCollisionStructureManager::FSimplicial FSimplicial;
 	typedef Chaos::TPBDRigidParticleHandle<float, 3> FParticleHandle;
-	typedef Chaos::TPBDRigidClusteredParticleHandle<float, 3> FClusterHandle;
+	typedef Chaos::TPBDRigidClusteredParticleHandle<Chaos::FReal, 3> FClusterHandle;
 
 	/** Proxy publics */
 	using FInitFunc = TFunction<void(FSimulationParameters&)>;
@@ -90,7 +93,8 @@ public:
 	 * Construct \c PTDynamicCollection, copying attributes from the game thread, 
 	 * and prepare for simulation.
 	 */
-	void Initialize();
+	template <typename Traits>
+	void Initialize(Chaos::TPBDRigidsEvolutionBase<Traits>* Evolution);
 	void Reset() { }
 
 	/** 
@@ -203,6 +207,9 @@ public:
 	{
 		return GTParticles;
 	}
+
+	/* Implemented so we can construct TAccelerationStructureHandle. */
+	virtual void* GetHandleUnsafe() const override { return nullptr; }
 
 protected:
 	/**
@@ -345,7 +352,8 @@ private:
 		const Chaos::FClusterCreationParameters<float> & Parameters);\
 	extern template void FGeometryCollectionPhysicsProxy::FieldForcesUpdateCallback(\
 		Chaos::TPBDRigidsSolver<Chaos::Traits>* InSolver,\
-		FParticlesType& Particles,Chaos::TArrayCollectionArray<FVector>& Force,Chaos::TArrayCollectionArray<FVector>& Torque,const float Time);
+		FParticlesType& Particles,Chaos::TArrayCollectionArray<FVector>& Force,Chaos::TArrayCollectionArray<FVector>& Torque,const float Time);\
+	extern template void FGeometryCollectionPhysicsProxy::Initialize(Chaos::TPBDRigidsEvolutionBase<Chaos::Traits>* Evolution);
 
 #include "Chaos/EvolutionTraits.inl"
 #undef EVOLUTION_TRAIT
