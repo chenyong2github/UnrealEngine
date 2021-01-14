@@ -29,6 +29,10 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.  */
 PROTECTED int
 unw_is_signal_frame (unw_cursor_t *cursor)
 {
+  // ANDROID: prevent deref of IP and triggering xom signal.
+  if (unw_is_signal_frame_test_disabled())
+    return 0;
+
   struct cursor *c = (struct cursor *) cursor;
   unw_word_t w0, w1, ip;
   unw_addr_space_t as;

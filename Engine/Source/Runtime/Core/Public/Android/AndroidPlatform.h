@@ -68,6 +68,10 @@ typedef FAndroidTypes FPlatformTypes;
 #define PLATFORM_GLOBAL_LOG_CATEGORY				LogAndroid
 #define PLATFORM_RHITHREAD_DEFAULT_BYPASS			0
 
+#ifndef RUNNING_WITH_ASAN
+	#define RUNNING_WITH_ASAN						0
+#endif
+
 // Conditionally set in AndroidToolChain.cs
 // always set to 1 for ARM64 builds
 // set to 1 for ARMV7 builds if bUseNEONForArmV7=True in AndroidRuntimeSettings section

@@ -307,6 +307,9 @@ extern void unw_map_cursor_clear (unw_map_cursor_t *);
 extern int unw_map_cursor_create (unw_map_cursor_t *, pid_t);
 extern void unw_map_cursor_destroy (unw_map_cursor_t *);
 extern int unw_map_cursor_get_next (unw_map_cursor_t *, unw_map_t *);
+// option to disable unw_is_signal_frame test. it dereferences IP, reading executable memory on OS 10 can throw 'execute-only (no-read) memory access error' sigsegv.
+extern void unw_disable_signal_frame_test(int);
+extern int unw_is_signal_frame_test_disabled(void);
 /* End of ANDROID update. */
 
 extern unw_addr_space_t unw_local_addr_space;

@@ -15,7 +15,7 @@ template <typename FuncType>
 class TFunction;
 
 #if PLATFORM_ANDROID_ARM64
-	#define PLATFORM_BREAK()	__asm__(".inst 0xd4200000")
+	#define PLATFORM_BREAK()	raise(SIGTRAP)
 #elif PLATFORM_ANDROID_ARM
 	#define PLATFORM_BREAK()	__asm__("trap")
 #else
