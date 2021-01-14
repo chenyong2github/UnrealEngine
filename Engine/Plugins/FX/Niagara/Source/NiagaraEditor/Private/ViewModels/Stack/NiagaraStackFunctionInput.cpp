@@ -923,7 +923,7 @@ void UNiagaraStackFunctionInput::RefreshFromMetaData()
 			bShowEditConditionInline = false;
 		}
 
-		if (EditConditionError.IsEmpty() == false)
+		if (EditConditionError.IsEmpty() == false && bIsVisible)
 		{
 			UE_LOG(LogNiagaraEditor, Warning, TEXT("Edit condition failed to bind.  Function: %s Input: %s Message: %s"), 
 				*OwningFunctionCallNode->GetFunctionName(), *InputParameterHandle.GetName().ToString(), *EditConditionError.ToString());
@@ -932,7 +932,7 @@ void UNiagaraStackFunctionInput::RefreshFromMetaData()
 		FText VisibleConditionError;
 		VisibleCondition.Refresh(InputMetaData->VisibleCondition, VisibleConditionError);
 
-		if (VisibleConditionError.IsEmpty() == false)
+		if (VisibleConditionError.IsEmpty() == false && bIsVisible)
 		{
 			UE_LOG(LogNiagaraEditor, Warning, TEXT("Visible condition failed to bind.  Function: %s Input: %s Message: %s"),
 				*OwningFunctionCallNode->GetFunctionName(), *InputParameterHandle.GetName().ToString(), *VisibleConditionError.ToString());

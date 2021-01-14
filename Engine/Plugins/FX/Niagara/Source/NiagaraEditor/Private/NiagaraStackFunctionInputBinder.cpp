@@ -123,6 +123,13 @@ bool FNiagaraStackFunctionInputBinder::TryBindInternal(
 				return false;
 			}
 
+			if (DefaultPin == nullptr)
+			{
+				OutErrorMessage = LOCTEXT("MiddingDefaultError", "Could not find the default pin for this input in the source graph, it may be hidden by a static switch.");
+				Reset();
+				return false;
+			}
+
 			if (FNiagaraStackGraphUtilities::IsRapidIterationType(InputType))
 			{
 				RapidIterationParameter = FNiagaraStackGraphUtilities::CreateRapidIterationParameter(
