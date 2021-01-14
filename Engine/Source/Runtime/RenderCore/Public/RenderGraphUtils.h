@@ -617,6 +617,11 @@ FORCEINLINE FRDGBufferRef CreateStructuredBuffer(
 	const TArray<ElementType, AllocatorType>& InitialData,
 	ERDGInitialDataFlags InitialDataFlags = ERDGInitialDataFlags::None)
 {
+	static const ElementType DummyElement = ElementType();
+	if (InitialData.Num() == 0)
+	{
+		return CreateStructuredBuffer(GraphBuilder, Name, InitialData.GetTypeSize(), 1, &DummyElement, InitialData.GetTypeSize());
+	}
 	return CreateStructuredBuffer(GraphBuilder, Name, InitialData.GetTypeSize(), InitialData.Num(), InitialData.GetData(), InitialData.Num() * InitialData.GetTypeSize(), InitialDataFlags);
 }
 
