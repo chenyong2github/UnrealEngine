@@ -19,9 +19,9 @@ USTRUCT(BlueprintType)
 struct FTextureShareBPAdditionalData
 {
 	GENERATED_BODY()
-public:
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TextureShare")
-	int FrameNumber;
+	int FrameNumber = 0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TextureShare")
 	FMatrix PrjMatrix;
@@ -37,6 +37,13 @@ public:
 
 	//@todo: add more data
 
+	FTextureShareBPAdditionalData()
+		: PrjMatrix(ForceInitToZero)
+		, ViewLocation(ForceInitToZero)
+		, ViewRotation(ForceInitToZero)
+		, ViewScale(ForceInitToZero)
+	{}
+
 	// Convert type from bp back to cpp
 	FTextureShareAdditionalData operator*() const;
 };
@@ -46,7 +53,7 @@ USTRUCT(BlueprintType)
 struct FTextureShareBPTexture2D
 {
 	GENERATED_BODY()
-public:
+
 	// Texture unique name
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TextureShare")
 	FString Id;
@@ -76,7 +83,7 @@ USTRUCT(BlueprintType)
 struct FTextureShareBPPostprocess
 {
 	GENERATED_BODY()
-public:
+
 	// Send Additional data
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TextureShare")
 	FTextureShareBPAdditionalData AdditionalData;
@@ -94,7 +101,7 @@ USTRUCT(BlueprintType)
 struct FTextureShareBPSyncPolicy
 {
 	GENERATED_BODY()
-public:
+
 	// Synchronize Session state events (BeginSession/EndSession)
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TextureShare")
 	ETextureShareBPSyncConnect Connection = ETextureShareBPSyncConnect::Default;
@@ -119,7 +126,7 @@ USTRUCT(BlueprintType)
 struct FTextureShareBPTimeOut
 {
 	GENERATED_BODY()
-public:
+
 	// Wait for processes shares connection (ETextureShareBPSyncConnect::Sync) [Seconds, zero for infinite]
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TextureShare")
 	float ConnectionSync = 0;
@@ -142,6 +149,7 @@ public:
 
 	FTextureShareBPTimeOut()
 	{}
+
 	FTextureShareBPTimeOut(const FTextureShareTimeOut& Init);
 
 	FTextureShareTimeOut operator*() const;
@@ -151,7 +159,7 @@ USTRUCT(BlueprintType)
 struct FTextureShareBPSyncPolicySettings
 {
 	GENERATED_BODY()
-public:
+
 	// Default values for sync policy on local process
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TextureShare")
 	FTextureShareBPSyncPolicy DefaultSyncPolicy;
@@ -162,6 +170,7 @@ public:
 
 	FTextureShareBPSyncPolicySettings()
 	{};
+
 	FTextureShareBPSyncPolicySettings(const FTextureShareSyncPolicySettings& Init);
 
 	FTextureShareSyncPolicySettings operator*() const;
