@@ -788,7 +788,15 @@ namespace MoviePipeline
 				TArray64<FLinearColor> FullSizeData;
 				FullSizeData.AddUninitialized(RawSize.X * RawSize.Y);
 
-				if (SamplePixelData->GetType() == EImagePixelType::Float16)
+				if (SamplePixelData->GetType() == EImagePixelType::Float32)
+				{
+					const void* RawDataPtr;
+					int64 RawDataSize;
+					SamplePixelData->GetRawData(RawDataPtr, RawDataSize);
+
+					FMemory::Memcpy(FullSizeData.GetData(), RawDataPtr, RawDataSize);
+				}
+				else if (SamplePixelData->GetType() == EImagePixelType::Float16)
 				{
 					const void* RawDataPtr;
 					int64 RawDataSize;
