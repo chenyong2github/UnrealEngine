@@ -841,10 +841,12 @@ void UWorldPartition::BeginDestroy()
 {
 	Super::BeginDestroy();
 
+#if WITH_EDITOR
 	for (TUniquePtr<FWorldPartitionActorDesc>& ActorDescPtr : ActorDescList)
 	{
 		ActorDescPtr.Release();
 	}
+#endif
 }
 
 UWorldPartitionStreamingPolicy* UWorldPartition::GetStreamingPolicy() const
