@@ -20,6 +20,8 @@ FAllocatedVirtualTexture::FAllocatedVirtualTexture(FVirtualTextureSystem* InSyst
 	, RefCount(1)
 	, FrameAllocated(InFrame)
 	, Space(nullptr)
+	, VirtualPageX(~0u)
+	, VirtualPageY(~0u)
 {
 	check(IsInRenderingThread());
 	FMemory::Memzero(TextureLayers);
@@ -114,6 +116,15 @@ FAllocatedVirtualTexture::FAllocatedVirtualTexture(FVirtualTextureSystem* InSyst
 
 FAllocatedVirtualTexture::~FAllocatedVirtualTexture()
 {
+}
+
+void FAllocatedVirtualTexture::AssignVirtualAddress(uint32 vAddress)
+{
+	checkf(VirtualAddress == ~0u, TEXT("Trying to assign vAddress to AllocatedVT, already assigned"));
+	check(vAddress != ~0u);
+	VirtualAddress = vAddress;
+	VirtualPageX = FMath::ReverseMortonCode2(vAddress);
+	VirtualPageY = FMath::ReverseMortonCode2(vAddress >> 1);
 }
 
 void FAllocatedVirtualTexture::Destroy(FVirtualTextureSystem* System)
