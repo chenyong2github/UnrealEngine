@@ -1637,6 +1637,12 @@ void FStaticMeshOperations::ComputeMikktTangents(FMeshDescription& MeshDescripti
 		MeshDescription.Compact(Remappings);
 	}
 
+	int32 NumTriangles = MeshDescription.Triangles().Num();
+	if (NumTriangles == 0)
+	{
+		return; // nothing to compute
+	}
+
 	// we can use mikktspace to calculate the tangents
 	SMikkTSpaceInterface MikkTInterface;
 	MikkTInterface.m_getNormal = MeshDescriptionMikktSpaceInterface::MikkGetNormal;
