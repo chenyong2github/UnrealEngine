@@ -50,8 +50,8 @@ class TRDGScopeStack final
 {
 	static constexpr uint32 kScopeStackDepthMax = 8;
 public:
-	using FPushFunction = void(*)(FRHIComputeCommandList&, const TScopeType*, bool bRDGEvents);
-	using FPopFunction = void(*)(FRHIComputeCommandList&, const TScopeType*, bool bRDGEvents);
+	using FPushFunction = void(*)(FRHIComputeCommandList&, const TScopeType*);
+	using FPopFunction = void(*)(FRHIComputeCommandList&, const TScopeType*);
 
 	TRDGScopeStack(FRHIComputeCommandList& InRHICmdList, FPushFunction InPushFunction, FPopFunction InPopFunction);
 	~TRDGScopeStack();
