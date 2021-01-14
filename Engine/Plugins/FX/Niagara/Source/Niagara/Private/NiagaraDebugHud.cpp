@@ -26,6 +26,7 @@ namespace NiagaraDebugLocal
 	static FVector2D GDisplayLocation = FVector2D(30.0f, 150.0f);
 	static ENiagaraDebugHudSystemVerbosity GSystemVerbosity = ENiagaraDebugHudSystemVerbosity::Minimal;
 	static bool GSystemShowBounds = false;
+	static bool GSystemShowActiveOnlyInWorld = true;
 	static FString GSystemFilter;
 	static FString GComponentFilter;
 	static TMap<TWeakObjectPtr<UNiagaraSystem>, FCachedVariables> GCachedSystemVariables;
@@ -68,6 +69,10 @@ namespace NiagaraDebugLocal
 						else if (Arg.RemoveFromStart(TEXT("SystemShowBounds=")))
 						{
 							GSystemShowBounds = FCString::Atoi(*Arg) != 0;
+						}
+						else if (Arg.RemoveFromStart(TEXT("SystemShowActiveOnlyInWorld=")))
+						{
+							GSystemShowActiveOnlyInWorld = FCString::Atoi(*Arg) != 0;
 						}
 						else if (Arg.RemoveFromStart(TEXT("SystemFilter=")))
 						{
@@ -393,8 +398,9 @@ void FNiagaraDebugHud::GatherSystemInfo()
 
 		check(NiagaraComponent->GetAsset() != nullptr);
 
+		const bool bIsActive = NiagaraComponent->IsActive();
 		const bool bHasScalability = NiagaraComponent->IsRegisteredWithScalabilityManager();
-		if (!NiagaraComponent->IsActive() && !bHasScalability )
+		if (!bIsActive && !bHasScalability )
 		{
 			continue;
 		}
@@ -406,7 +412,7 @@ void FNiagaraDebugHud::GatherSystemInfo()
 			SystemDebugInfo.bShowInWorld = !GSystemFilter.IsEmpty() && SystemDebugInfo.SystemName.Contains(GSystemFilter);
 		}
 
-		if (SystemDebugInfo.bShowInWorld)
+		if (SystemDebugInfo.bShowInWorld && (bIsActive || !GSystemShowActiveOnlyInWorld))
 		{
 			if ( GComponentFilter.IsEmpty() || NiagaraComponent->GetName().Contains(GComponentFilter) )
 			{
@@ -420,7 +426,7 @@ void FNiagaraDebugHud::GatherSystemInfo()
 			++SystemDebugInfo.TotalScalability;
 		}
 
-		if ( NiagaraComponent->IsActive() )
+		if (bIsActive)
 		{
 			// Accumulate totals
 			int32 ActiveEmitters = 0;
@@ -558,6 +564,7 @@ void FNiagaraDebugHud::DebugDrawNiagara(UCanvas* InCanvas, APlayerController* PC
 
 	// Draw in world components
 	UEnum* ExecutionStateEnum = StaticEnum<ENiagaraExecutionState>();
+	UEnum* PoolingMethodEnum = StaticEnum<ENCPoolMethod>();
 	for ( TWeakObjectPtr<UNiagaraComponent> WeakComponent : InWorldComponents )
 	{
 		UNiagaraComponent* NiagaraComponent = WeakComponent.Get();
@@ -655,6 +662,18 @@ void FNiagaraDebugHud::DebugDrawNiagara(UCanvas* InCanvas, APlayerController* PC
 				TStringBuilder<1024> StringBuilder;
 				StringBuilder.Appendf(TEXT("Component - %s\n"), *GetNameSafe(NiagaraComponent));
 				StringBuilder.Appendf(TEXT("System - %s\n"), *GetNameSafe(NiagaraSystem));
+				if (GSystemVerbosity == ENiagaraDebugHudSystemVerbosity::Verbose)
+				{
+					StringBuilder.Appendf(TEXT("System ActualState %s - RequestedState %s\n"), *ExecutionStateEnum->GetNameStringByIndex((int32)SystemInstance->GetActualExecutionState()), *ExecutionStateEnum->GetNameStringByIndex((int32)SystemInstance->GetRequestedExecutionState()));
+					if (NiagaraComponent->IsRegisteredWithScalabilityManager())
+					{
+						StringBuilder.Append(TEXT("Has Scalability\n"));
+					}
+					if (NiagaraComponent->PoolingMethod != ENCPoolMethod::None)
+					{
+						StringBuilder.Appendf(TEXT("Pooled - %s\n"), *PoolingMethodEnum->GetNameStringByIndex((int32)NiagaraComponent->PoolingMethod));
+					}
+				}
 
 				if (bIsActive)
 				{
