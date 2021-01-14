@@ -48,7 +48,6 @@ public:
 	{
 		TSharedRef<FStaticMeshEditor> NewStaticMeshEditor(new FStaticMeshEditor());
 		NewStaticMeshEditor->InitStaticMeshEditor(Mode, InitToolkitHost, StaticMesh);
-		OnStaticMeshEditorOpened().Broadcast(NewStaticMeshEditor);
 		return NewStaticMeshEditor;
 	}
 
