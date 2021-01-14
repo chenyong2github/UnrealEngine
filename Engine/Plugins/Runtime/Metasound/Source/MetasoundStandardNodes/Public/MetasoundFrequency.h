@@ -80,7 +80,7 @@ namespace Metasound
 
 			FFrequency& operator-=(const FFrequency& InOther)
 			{
-				FrequencyInHz += InOther.GetHertz();
+				FrequencyInHz -= InOther.GetHertz();
 				return *this;
 			}
 
