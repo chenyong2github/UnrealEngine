@@ -2836,27 +2836,35 @@ static bool ComponentRequestsCPUAccess(UInstancedStaticMeshComponent* InComponen
 {
 	bool bNeedsCPUAccess = false;
 
-	// Check mesh distance fields
-	if (FeatureLevel > ERHIFeatureLevel::ES3_1)
-	{
-		static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.GenerateMeshDistanceFields"));
-
-		bNeedsCPUAccess |= (InComponent->CastShadow && InComponent->bAffectDistanceFieldLighting 
-			// Distance field algorithms need access to instance data on the CPU
-			&& (CVar->GetValueOnAnyThread(true) != 0 || (InComponent->GetStaticMesh() && InComponent->GetStaticMesh()->bGenerateMeshDistanceField)));
-	}
-
 	// Ray tracing needs instance transforms on CPU
 	bNeedsCPUAccess |= IsRayTracingEnabled();
 
-	// Check Nanite
-	if (FeatureLevel >= ERHIFeatureLevel::SM5)
+	const UStaticMesh* StaticMesh = InComponent->GetStaticMesh();
+
+	// Check mesh distance fields
+	if (StaticMesh)
 	{
-		// TODO: Call UseNanite()
-		//static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Nanite"));
-		
-		// Nanite needs lightmap/shadowmap UV biases and per instance random values accessible from GPUScene
-		bNeedsCPUAccess |= (InComponent->GetStaticMesh() && InComponent->GetStaticMesh()->NaniteSettings.bEnabled);
+		const FStaticMeshRenderData* RenderData = StaticMesh->GetRenderData();
+
+		if (FeatureLevel > ERHIFeatureLevel::ES3_1)
+		{
+			static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.GenerateMeshDistanceFields"));
+
+			bNeedsCPUAccess |= (InComponent->CastShadow && InComponent->bAffectDistanceFieldLighting
+				// Distance field algorithms need access to instance data on the CPU
+				&& (CVar->GetValueOnAnyThread(true) != 0 || StaticMesh->bGenerateMeshDistanceField));
+		}
+
+		// Check Nanite
+		if (RenderData && FeatureLevel >= ERHIFeatureLevel::SM5)
+		{
+			// TODO: Call UseNanite(GetScene()->GetShaderPlatform())?
+			//static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Nanite"));
+
+			// Nanite needs lightmap/shadowmap UV biases and per instance random values accessible from GPUScene
+			const bool bHasNaniteData = RenderData->NaniteResources.PageStreamingStates.Num() > 0;
+			bNeedsCPUAccess |= bHasNaniteData;
+		}
 	}
 
 	return bNeedsCPUAccess;
