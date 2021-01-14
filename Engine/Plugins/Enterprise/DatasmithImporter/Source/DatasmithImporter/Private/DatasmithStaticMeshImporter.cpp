@@ -101,8 +101,8 @@ void FDatasmithStaticMeshImporter::CleanupMeshDescriptions(TArray<FMeshDescripti
 	TSet<FPolygonID> PolygonsToDelete;
 	for (FMeshDescription& MeshDescription : MeshDescriptions)
 	{
-		FStaticMeshConstAttributes Attributes(MeshDescription);
-		const TVertexAttributesConstRef<FVector> VertexPositions = Attributes.GetVertexPositions();
+		FStaticMeshAttributes Attributes(MeshDescription);
+		const TVertexAttributesRef<FVector> VertexPositions = Attributes.GetVertexPositions();
 		if (VertexPositions.IsValid())
 		{
 			for (const FVertexID VertexID : MeshDescription.Vertices().GetElementIDs())
@@ -116,6 +116,28 @@ void FDatasmithStaticMeshImporter::CleanupMeshDescriptions(TArray<FMeshDescripti
 					}
 				}
 			}
+		}
+
+		// Remove UV channels containing UV coordinates with Nan.
+		// This crashes the editor on Mac, see UE-106145.
+		TVertexInstanceAttributesRef<FVector2D> VertexInstanceUVs = Attributes.GetVertexInstanceUVs();
+		for ( int32 Index = VertexInstanceUVs.GetNumIndices() - 1; Index >= 0 ; --Index)
+		{
+			for (FVertexInstanceID InstanceID : MeshDescription.VertexInstances().GetElementIDs())
+			{
+				FVector2D UVCoords = VertexInstanceUVs.Get(InstanceID, Index);
+				if (UVCoords.ContainsNaN())
+				{
+					VertexInstanceUVs.RemoveIndex(Index);
+					break;
+				}
+			}
+		}
+
+		// Add at least one UV channel if all incoming ones contained coordinates with NaN
+		if (VertexInstanceUVs.GetNumIndices() == 0)
+		{
+			DatasmithMeshHelper::CreateDefaultUVs(MeshDescription);
 		}
 
 		if (PolygonsToDelete.Num() > 0)
