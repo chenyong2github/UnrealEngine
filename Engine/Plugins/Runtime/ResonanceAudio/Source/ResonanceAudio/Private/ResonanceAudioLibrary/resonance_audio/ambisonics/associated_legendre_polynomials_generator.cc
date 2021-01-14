@@ -95,10 +95,12 @@ size_t AssociatedLegendrePolynomialsGenerator::GetIndex(int degree,
                                                         int order) const {
   CheckIndexValidity(degree, order);
   size_t result;
+  const size_t sdegree = static_cast<size_t>(degree);
+  const size_t sorder = static_cast<size_t>(order);
   if (compute_negative_order_) {
-    result = static_cast<size_t>(degree * (degree + 1) + order);
+    result = sdegree * (sdegree + 1) + sorder;
   } else {
-    result = static_cast<size_t>((degree * (degree + 1)) / 2 + order);
+    result = (sdegree * (sdegree + 1)) / 2 + sorder;
   }
   DCHECK_GE(result, 0U);
   DCHECK_LT(result, GetNumValues());

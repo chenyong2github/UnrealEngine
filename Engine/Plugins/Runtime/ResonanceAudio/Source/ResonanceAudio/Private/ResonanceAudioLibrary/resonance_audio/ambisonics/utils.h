@@ -57,7 +57,8 @@ struct GetNumPeriphonicComponentsStatic {
 // Returns the number of spherical harmonics for a periphonic ambisonic sound
 // field of |ambisonic_order|.
 inline size_t GetNumPeriphonicComponents(int ambisonic_order) {
-  return static_cast<size_t>((ambisonic_order + 1) * (ambisonic_order + 1));
+  const size_t sambisonic_order = static_cast<size_t>(ambisonic_order);
+  return (sambisonic_order + 1) * (sambisonic_order + 1);
 }
 
 // Returns the number of periphonic spherical harmonics (SHs) for a particular
