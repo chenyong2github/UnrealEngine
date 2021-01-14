@@ -313,6 +313,14 @@ void FMobileSceneRenderer::InitViews(FRHICommandListImmediate& RHICmdList)
 
 	check(Scene);
 
+	if (bUseVirtualTexturing)
+	{
+		SCOPED_GPU_STAT(RHICmdList, VirtualTextureUpdate);
+		// AllocateResources needs to be called before RHIBeginScene
+		FVirtualTextureSystem::Get().AllocateResources(RHICmdList, FeatureLevel);
+		FVirtualTextureSystem::Get().CallPendingCallbacks();
+	}
+
 	FILCUpdatePrimTaskData ILCTaskData;
 	FViewVisibleCommandsPerView ViewCommandsPerView;
 	ViewCommandsPerView.SetNum(Views.Num());
@@ -390,14 +398,6 @@ void FMobileSceneRenderer::InitViews(FRHICommandListImmediate& RHICmdList)
 	if (ShouldRenderSkyAtmosphere(Scene, ViewFamily.EngineShowFlags))
 	{
 		InitSkyAtmosphereForViews(RHICmdList);
-	}
-		
-	if (bUseVirtualTexturing)
-	{
-		SCOPED_GPU_STAT(RHICmdList, VirtualTextureUpdate);
-		// AllocateResources needs to be called before RHIBeginScene
-		FVirtualTextureSystem::Get().AllocateResources(RHICmdList, FeatureLevel);
-		FVirtualTextureSystem::Get().CallPendingCallbacks();
 	}
 
 	if (bRequiresPixelProjectedPlanarRelfectionPass)
