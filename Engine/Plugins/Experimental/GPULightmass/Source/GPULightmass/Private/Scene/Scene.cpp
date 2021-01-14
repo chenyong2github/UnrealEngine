@@ -804,9 +804,12 @@ void FScene::AddGeometryInstanceFromComponent(UStaticMeshComponent* InComponent)
 			0,
 			INDEX_NONE,
 			INDEX_NONE,
-			false,
-			nullptr
-			);
+			/* bOutputVelocity = */ false,
+			nullptr,
+			/* bCastContactShadow = */ true,
+			INDEX_NONE,
+			0
+		);
 
 		for (int32 LODIndex = 0; LODIndex < InstanceLightmapRenderStateInitializers.Num(); LODIndex++)
 		{
@@ -1078,8 +1081,12 @@ void FScene::AddGeometryInstanceFromComponent(UInstancedStaticMeshComponent* InC
 			0,
 			INDEX_NONE,
 			INDEX_NONE,
-			false,
-			nullptr), UniformBuffer_MultiFrame);
+			/* bOutputVelocity = */ false,
+			nullptr,
+			/* bCastContactShadow = */ true,
+			INDEX_NONE,
+			0
+		), UniformBuffer_MultiFrame);
 
 		for (int32 LODIndex = 0; LODIndex < InstanceLightmapRenderStateInitializers.Num(); LODIndex++)
 		{
@@ -1368,8 +1375,12 @@ void FScene::AddGeometryInstanceFromComponent(ULandscapeComponent* InComponent)
 			0,
 			INDEX_NONE,
 			INDEX_NONE,
-			false,
-			nullptr), UniformBuffer_MultiFrame);
+			/* bOutputVelocity = */ false,
+			nullptr,
+			/* bCastContactShadow = */ true,
+			INDEX_NONE,
+			0
+		), UniformBuffer_MultiFrame);
 
 		int32 MaxLOD = 0;
 		InstanceRenderStateRef->LandscapeFixedGridUniformShaderParameters.AddDefaulted(MaxLOD + 1);

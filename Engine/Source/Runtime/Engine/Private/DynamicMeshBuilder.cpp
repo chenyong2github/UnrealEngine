@@ -870,7 +870,11 @@ void FDynamicMeshBuilder::GetMesh(
 				INDEX_NONE,
 				INDEX_NONE,
 				INDEX_NONE,
-				false
+				/* bOutputVelocity = */ false,
+				nullptr,
+				/* bCastContactShadow = */ true,
+				INDEX_NONE,
+				0
 			);
 
 
@@ -963,9 +967,12 @@ void FDynamicMeshBuilder::GetMeshElement(const FMatrix& LocalToWorld, const FMat
 				INDEX_NONE,
 				INDEX_NONE,
 				INDEX_NONE,
-				false
+				/* bOutputVelocity = */ false,
+				nullptr,
+				/* bCastContactShadow = */ true,
+				INDEX_NONE,
+				0
 			);
-
 
 			if (IsInGameThread())
 			{
@@ -1043,8 +1050,12 @@ void FDynamicMeshBuilder::Draw(FPrimitiveDrawInterface* PDI,const FMatrix& Local
 			INDEX_NONE,
 			INDEX_NONE,
 			INDEX_NONE,
-			false
-			);
+			/* bOutputVelocity = */ false,
+			nullptr,
+			/* bCastContactShadow = */ true,
+			INDEX_NONE,
+			0
+		);
 
 
 		if (IsInGameThread())
@@ -1079,7 +1090,7 @@ void FDynamicMeshBuilder::Draw(FPrimitiveDrawInterface* PDI,const FMatrix& Local
 
 		// Clear the resource pointers so they cannot be overwritten accidentally.
 		// These resources will be released by the PDI.
-		VertexBuffer = NULL;
-		IndexBuffer = NULL;
+		VertexBuffer = nullptr;
+		IndexBuffer = nullptr;
 	}
 }
