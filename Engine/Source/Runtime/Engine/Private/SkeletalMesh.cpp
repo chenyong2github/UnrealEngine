@@ -2449,6 +2449,152 @@ void USkeletalMesh::PostLoadValidateUserSectionData()
 	}
 }
 
+void USkeletalMesh::PostLoadVerifyAndFixBadTangent()
+{
+	IMeshUtilities& MeshUtilities = FModuleManager::Get().LoadModuleChecked<IMeshUtilities>("MeshUtilities");
+	bool bFoundBadTangents = false;
+	for (int32 LodIndex = 0; LodIndex < GetLODNum(); LodIndex++)
+	{
+		if (!IsLODImportedDataEmpty(LodIndex))
+		{
+			//No need to verify skeletalmesh that have valid imported data, the tangents will always exist in this case
+			continue;
+		}
+		const FSkeletalMeshLODInfo* LODInfoPtr = GetLODInfo(LodIndex);
+		if (!LODInfoPtr || LODInfoPtr->bHasBeenSimplified)
+		{
+			//No need to validate simplified LOD
+			continue;
+		}
+
+		auto ComputeTriangleTangent = [&MeshUtilities](const FSoftSkinVertex& VertexA, const FSoftSkinVertex& VertexB, const FSoftSkinVertex& VertexC, TArray<FVector>& OutTangents)
+		{
+			MeshUtilities.CalculateTriangleTangent(VertexA, VertexB, VertexC, OutTangents, FLT_MIN);
+		};
+
+		FSkeletalMeshLODModel& ThisLODModel = ImportedModel->LODModels[LodIndex];
+		const int32 SectionNum = ThisLODModel.Sections.Num();
+		TArray<FSoftSkinVertex> Vertices;
+		TMap<int32, TArray<FVector>> TriangleTangents;
+
+		for (int32 SectionIndex = 0; SectionIndex < SectionNum; ++SectionIndex)
+		{
+			FSkelMeshSection& Section = ThisLODModel.Sections[SectionIndex];
+			const int32 NumVertices = Section.GetNumVertices();
+			//We inspect triangle per section so we need to reset the array when we start a new section.
+			TriangleTangents.Reset();
+			for (int32 VertexIndex = 0; VertexIndex < NumVertices; ++VertexIndex)
+			{
+				FSoftSkinVertex& SoftSkinVertex = Section.SoftVertices[VertexIndex];
+				//Make sure we have normalized tangents
+				auto NormalizedTangent = [](FVector& Tangent)
+				{
+					if (Tangent.ContainsNaN() || Tangent.SizeSquared() < THRESH_VECTOR_NORMALIZED)
+					{
+						//This is a degenerated tangent, we will set it to zero. It will be fix by the
+						//FixTangent lambda function.
+						Tangent = FVector::ZeroVector;
+						return false;
+					}
+					else if (!Tangent.IsNormalized())
+					{
+						//This is not consider has a bad normal since the tangent vector is not near zero.
+						//We are just making sure the tangent is normalize.
+						Tangent.Normalize();
+					}
+					return true;
+				};
+
+				/** Call this lambda only if you need to fix the tangent */
+				auto FixTangent = [&VertexIndex, &Section, &TriangleTangents, &ComputeTriangleTangent](FVector& TangentA, const FVector& TangentB, const FVector& TangentC, const int32 Offset)
+				{
+					//If the two other axis are valid, fix the tangent with a cross product and normalize the answer.
+					if (TangentB.IsNormalized() && TangentC.IsNormalized())
+					{
+						TangentA = FVector::CrossProduct(TangentB, TangentC);
+						TangentA.Normalize();
+					}
+					else
+					{
+						//We do not have any valid data to help us for fixing this normal so apply the triangle normals, this will create a faceted mesh but this is better then a black not shade mesh.
+						int32 FaceVertexIndex = FMath::Floor<int32>(VertexIndex / 3) * 3;
+						TArray<FVector>& Tangents = TriangleTangents.FindOrAdd(FaceVertexIndex);
+						if (Tangents.Num() == 0)
+						{
+							ComputeTriangleTangent(Section.SoftVertices[FaceVertexIndex], Section.SoftVertices[FaceVertexIndex + 1], Section.SoftVertices[FaceVertexIndex + 2], Tangents);
+							const FVector Axis[3] = { {1.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f, 1.0f} };
+							if (!ensure(Tangents.Num() == 3))
+							{
+								Tangents.Empty(3);
+								Tangents.AddZeroed(3);
+							}
+							for (int32 TangentIndex = 0; TangentIndex < Tangents.Num(); ++TangentIndex)
+							{
+								if (Tangents[TangentIndex].IsNearlyZero())
+								{
+									Tangents[TangentIndex] = Axis[TangentIndex];
+								}
+							}
+							if (!ensure(Tangents.Num() == 3))
+							{
+								//We are not able to compute the triangle tangent, this is probably a degenerated triangle
+								Tangents.Empty(3);
+								
+								Tangents.Add(Axis[0]);
+								Tangents.Add(Axis[1]);
+								Tangents.Add(Axis[2]);
+							}
+						}
+						//Use the offset to know which tangent type we are setting (0: Tangent X, 1: bi-normal Y, 2: Normal Z)
+						TangentA = Tangents[(Offset) % 3];
+					}
+					return false;
+				};
+
+				//The SoftSkinVertex TangentZ is a FVector4 so we must use a temporary FVector to be able to pass reference
+				FVector TangentZ = SoftSkinVertex.TangentZ;
+				//Make sure the tangent space is normalize before fixing bad tangent, because we want to do a cross product
+				//of 2 valid axis if possible. If not possible we will use the triangle normal.
+				bool ValidTangentX = NormalizedTangent(SoftSkinVertex.TangentX);
+				bool ValidTangentY = NormalizedTangent(SoftSkinVertex.TangentY);
+				bool ValidTangentZ = NormalizedTangent(TangentZ);
+
+				if (!ValidTangentX)
+				{
+					bFoundBadTangents = true;
+					ValidTangentX = FixTangent(SoftSkinVertex.TangentX, SoftSkinVertex.TangentY, TangentZ, 0);
+				}
+				if (!ValidTangentY)
+				{
+					bFoundBadTangents = true;
+					ValidTangentY = FixTangent(SoftSkinVertex.TangentY, TangentZ, SoftSkinVertex.TangentX, 1);
+				}
+				if (!ValidTangentZ)
+				{
+					bFoundBadTangents = true;
+					ValidTangentZ = FixTangent(TangentZ, SoftSkinVertex.TangentX, SoftSkinVertex.TangentY, 2);
+				}
+
+				//Make sure the result tangent space is orthonormal, only if we succeed to 
+				if (ValidTangentX && ValidTangentY && ValidTangentZ)
+				{
+					FVector::CreateOrthonormalBasis(
+						SoftSkinVertex.TangentX,
+						SoftSkinVertex.TangentY,
+						TangentZ
+					);
+				}
+				SoftSkinVertex.TangentZ = TangentZ;
+			}
+		}
+	}
+	if (bFoundBadTangents)
+	{
+		//Notify the user that we have to fix the normals on this model.
+		UE_ASSET_LOG(LogSkeletalMesh, Warning, this, TEXT("Find some bad tangent! please re-import this skeletal mesh asset to fix the issue. The shading of the skeletal mesh will be bad and faceted."));
+	}
+}
+
 #endif // WITH_EDITOR
 
 bool USkeletalMesh::IsPostLoadThreadSafe() const
@@ -2610,6 +2756,8 @@ void USkeletalMesh::PostLoad()
 		}
 
 		PostLoadValidateUserSectionData();
+
+		PostLoadVerifyAndFixBadTangent();
 
 		if (GetResourceForRendering() == nullptr)
 		{
