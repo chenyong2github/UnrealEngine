@@ -22,6 +22,24 @@ public:
 	{
 		TSharedPtr<SWidget> NameWidget = ParentProperty->CreatePropertyNameWidget();
 		TSharedPtr<SWidget> ValueWidget = MeshProperty->CreatePropertyValueWidget();
+
+		if (bCanResetToDefault)
+		{
+			TSharedPtr<SHorizontalBox> Container;
+			SAssignNew(Container, SHorizontalBox)
+				+ SHorizontalBox::Slot()
+					.AutoWidth()
+					[
+						ValueWidget.ToSharedRef()
+					]
+				+ SHorizontalBox::Slot()
+					[
+						ParentProperty->CreateDefaultPropertyButtonWidgets()
+					];
+
+			ValueWidget = Container;
+		}
+
 		FUIAction CopyAction;
 		FUIAction PasteAction;
 		ParentProperty->CreateDefaultPropertyCopyPasteActions(CopyAction, PasteAction);
@@ -31,18 +49,9 @@ public:
 				NameWidget.ToSharedRef()
 			]
 			.ValueContent()
-			.MinDesiredWidth(TOptional<float>())
+			.MinDesiredWidth(300.0f)
 			[
-				SNew(SHorizontalBox)
-				+ SHorizontalBox::Slot()
-					.AutoWidth()
-					[
-						ValueWidget.ToSharedRef()
-					]
-				+ SHorizontalBox::Slot()
-					[
-						ParentProperty->CreateDefaultPropertyButtonWidgets()
-					]
+				ValueWidget.ToSharedRef()
 			]
 			.CopyAction(CopyAction)
 			.PasteAction(PasteAction);
