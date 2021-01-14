@@ -541,3 +541,5 @@ float3 VertexFactoryGetWorldNormal(FVertexFactoryInput Input, FVertexFactoryInte
 {
 	return float3(0,0,1);
 }
+
+#include "/Engine/Private/VertexFactoryDefaultInterface.ush"

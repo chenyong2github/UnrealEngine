@@ -18,7 +18,7 @@
 
 #define USE_HAIR_COMPLEX_TRANSMITTANCE 1
 
-#if MANUAL_VERTEX_FETCH 
+#if MANUAL_VERTEX_FETCH
 	Buffer<float4> VertexFetch_InstanceOriginBuffer;
 	Buffer<float4> VertexFetch_InstanceTransformBuffer;
 #endif
@@ -59,7 +59,7 @@ struct FVertexFactoryInput
 #endif	
 };
 
-#if RAYHITGROUPSHADER 
+#if RAYHITGROUPSHADER
 FVertexFactoryInput LoadVertexFactoryInputForHGS(uint TriangleIndex, int VertexIndex)
 {
 	// #hair_todo
@@ -505,3 +505,5 @@ float3x3 VertexFactoryGetTangentToLocalDS(FVertexFactoryInterpolantsVSToDS Inter
 	return TangentToWorld;
 }
 #endif // #if USING_TESSELLATION
+
+#include "/Engine/Private/VertexFactoryDefaultInterface.ush"

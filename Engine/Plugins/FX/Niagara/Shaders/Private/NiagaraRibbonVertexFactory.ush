@@ -946,3 +946,5 @@ FVertexFactoryInterpolantsVSToPS VertexFactoryAssignInterpolants(FVertexFactoryI
 }
 
 #endif
+
+#include "/Engine/Private/VertexFactoryDefaultInterface.ush"

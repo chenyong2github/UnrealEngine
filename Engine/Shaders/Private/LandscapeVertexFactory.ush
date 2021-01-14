@@ -200,7 +200,7 @@ FVertexFactoryInput LoadVertexFactoryInputForHGS(uint TriangleIndex, int VertexI
 #if COMPUTESHADER
 FVertexFactoryInput LoadVertexFactoryInputForDynamicUpdate(uint TriangleIndex, int VertexIndex, uint PrimitiveId)
 {
-	FVertexFactoryInput Input;
+	FVertexFactoryInput Input = (FVertexFactoryInput)0;
 
 	float4 LodValues = GetLodValues(GetComponentLinearIndex());
 	uint SubsectionSizeQuadsCurrentLOD = LodValues.z;
@@ -629,7 +629,6 @@ void GetShadowMapCoordinate(FVertexFactoryInterpolantsVSToPS Interpolants, out f
 
 FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput Input)
 {
-
 	FVertexFactoryIntermediates Intermediates;
 	Intermediates.ComponentIndex = GetComponentLinearIndex();
 	Intermediates.LodValues = GetLodValues(Intermediates.ComponentIndex);
@@ -913,3 +912,5 @@ uint VertexFactoryGetPrimitiveId(FVertexFactoryInterpolantsVSToPS Interpolants)
 {
 	return 0;
 }
+
+#include "VertexFactoryDefaultInterface.ush"

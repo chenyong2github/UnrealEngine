@@ -1126,3 +1126,5 @@ float4 VertexFactoryGetTranslatedPrimitiveVolumeBounds(FVertexFactoryInterpolant
 		return TangentToWorld;
 	}
 #endif // #if USING_TESSELLATION
+
+#include "/Engine/Private/VertexFactoryDefaultInterface.ush"

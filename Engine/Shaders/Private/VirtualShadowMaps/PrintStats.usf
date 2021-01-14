@@ -90,6 +90,7 @@ void PrintStats()
 	{
 		ScreenPos = ShaderPrintLeftAlign(ScreenPos, (InStatsBuffer[1] * 100) / InStatsBuffer[0]);
 	}
+
 	ScreenPos = ShaderPrintNewline(ScreenPos);
 
 	ScreenPos.x = ItemX;
@@ -125,5 +126,4 @@ void PrintStats()
 	{
 		ScreenPos = ShaderPrintLeftAlign(ScreenPos, (InStatsBuffer[2] * 100) / InStatsBuffer[0]);
 	}
-
 }

@@ -308,3 +308,5 @@ FMaterialPixelParameters GetMaterialPixelParameters(FVertexFactoryInterpolantsVS
 
 	return Result;
 }
+
+#include "/Engine/Private/VertexFactoryDefaultInterface.ush"

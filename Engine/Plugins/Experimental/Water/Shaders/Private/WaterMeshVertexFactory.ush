@@ -433,3 +433,5 @@ float3 VertexFactoryGetWorldNormal(FVertexFactoryInput Input, FVertexFactoryInte
 		return float3x3(1,0,0,0,1,0,0,0,1);
 	}
 #endif // #if USING_TESSELLATION
+
+#include "/Engine/Private/VertexFactoryDefaultInterface.ush"

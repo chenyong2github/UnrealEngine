@@ -331,7 +331,7 @@ float3 ClothingPosition(FClothVertex ClothVertexInfluences[NUM_INFLUENCES_PER_VE
 	int NumInfluences = 0;
 	float SumWeights = 0.0f;
 	float3 AveragedSimulatedPosition = float3(0, 0, 0);
-	
+
     for (int i = 0; i < NUM_INFLUENCES_PER_VERTEX; ++i )
     {
         const FClothVertex Influence = ClothVertexInfluences[i];
@@ -946,3 +946,5 @@ uint VertexFactoryGetPrimitiveId(FVertexFactoryInterpolantsVSToPS Interpolants)
 {
 	return 0;
 }
+
+#include "VertexFactoryDefaultInterface.ush"
