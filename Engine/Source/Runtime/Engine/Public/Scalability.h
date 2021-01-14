@@ -142,7 +142,7 @@ namespace Scalability
 
 	/** Applies quality levels for temporary status which will NOT be saved to user settings e.g. mobile device low-power mode.
 		Originally active settings are backed-up or restored on toggle. */
-	ENGINE_API void ToggleTemporaryQualityLevels(bool bEnable);
+	ENGINE_API void ToggleTemporaryQualityLevels(bool bEnable, const FQualityLevels& QualityLevelsOverride = FQualityLevels());
 
 	/** Are active scalability settings a temporary override. */
 	ENGINE_API bool IsTemporaryQualityLevelActive();
