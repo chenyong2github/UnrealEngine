@@ -1299,6 +1299,11 @@ public:
 		{
 			// Notify Blueprints that there is a new class to add to the action list
 			ActionDB->RefreshClassActions(NewClass);
+
+			if (OldClass)
+			{
+				ActionDB->RefreshClassActions(OldClass);
+			}
 		}
 
 		// Null the NewClass pointer so the destructor doesn't kill it
