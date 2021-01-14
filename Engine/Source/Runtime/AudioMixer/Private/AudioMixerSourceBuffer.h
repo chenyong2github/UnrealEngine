@@ -135,7 +135,8 @@ namespace Audio
 		uint32 bProcedural : 1;
 		uint32 bIsBus : 1;
 		uint32 bForceSyncDecode : 1;
-	
+		uint32 bHasError : 1;
+		
 		virtual bool OnBeginDestroy(class USoundWave* Wave) override;
 		virtual bool OnIsReadyForFinishDestroy(class USoundWave* Wave) const override;
 		virtual void OnFinishDestroy(class USoundWave* Wave) override;
