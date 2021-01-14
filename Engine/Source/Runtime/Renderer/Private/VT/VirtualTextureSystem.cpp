@@ -613,7 +613,7 @@ FVirtualTextureSpace* FVirtualTextureSystem::AcquireSpace(const FVTSpaceDescript
 					const uint32 vAddress = Space->AllocateVirtualTexture(AllocatedVT);
 					if (vAddress != ~0u)
 					{
-						AllocatedVT->VirtualAddress = vAddress;
+						AllocatedVT->AssignVirtualAddress(vAddress);
 						Space->AddRef();
 						return Space;
 					}
@@ -641,7 +641,7 @@ FVirtualTextureSpace* FVirtualTextureSystem::AcquireSpace(const FVTSpaceDescript
 
 				const uint32 vAddress = Space->AllocateVirtualTexture(AllocatedVT);
 				check(vAddress != ~0u);
-				AllocatedVT->VirtualAddress = vAddress;
+				AllocatedVT->AssignVirtualAddress(vAddress);
 
 				Space->AddRef();
 				return Space;
@@ -1336,17 +1336,16 @@ void FVirtualTextureSystem::GatherRequestsTask(const FGatherRequestsParameters& 
 			continue;
 		}
 
-		const uint32 vPageX = PageEncoded & 0xfff;
-		const uint32 vPageY = (PageEncoded >> 12) & 0xfff;
 		const uint32 vLevelPlusOne = ((PageEncoded >> 24) & 0x0f);
 		const uint32 vLevel = FMath::Max(vLevelPlusOne, 1u) - 1;
-		const uint32 vPosition = FMath::MortonCode2(vPageX) | (FMath::MortonCode2(vPageY) << 1);
-
-		// vPosition holds morton interleaved tileX/Y position, shifted down relative to current mip
-		// vAddress is the same quantity, but shifted to be relative to mip0
-		const uint32 vDimensions = Space->GetDimensions();
-		const uint32 vAddress = vPosition << (vLevel * vDimensions);
-
+		
+		// vPageX/Y passed from shader are relative to the given vLevel, we shift them up so be relative to level0
+		// TODO - should we just do this in the shader?
+		const uint32 vPageX = (PageEncoded & 0xfff) << vLevel;
+		const uint32 vPageY = ((PageEncoded >> 12) & 0xfff) << vLevel;
+		
+		const uint32 vAddress = FMath::MortonCode2(vPageX) | (FMath::MortonCode2(vPageY) << 1);
+	
 		const FAdaptiveVirtualTexture* RESTRICT AdaptiveVT = AdaptiveVTs[ID];
 		if (AdaptiveVT != nullptr && vLevelPlusOne <= 1)
 		{
@@ -1456,6 +1455,9 @@ void FVirtualTextureSystem::GatherRequestsTask(const FGatherRequestsParameters& 
 			++PageUpdateBuffers[PhysicalSpace->GetID()].WorkingSetSize;
 		}
 
+		const uint32 vDimensions = Space->GetDimensions();
+		check(vAddress >= AllocatedVT->GetVirtualAddress());
+
 		for (uint32 ProducerIndex = 0u; ProducerIndex < NumUniqueProducers; ++ProducerIndex)
 		{
 			uint8 GroupMaskToLoad = ProducerGroupMaskToLoad[ProducerIndex];
@@ -1473,30 +1475,37 @@ void FVirtualTextureSystem::GatherRequestsTask(const FGatherRequestsParameters& 
 
 			const uint32 MaxLevel = FMath::Min(Producer->GetMaxLevel(), AllocatedVT->GetMaxLevel());
 			const uint32 ProducerMipBias = AllocatedVT->GetUniqueProducerMipBias(ProducerIndex);
-			uint32 Mapping_vLevel = FMath::Max(vLevel, ProducerMipBias);
 
-			// rescale vAddress to the correct tile within the given mip level
 			// here vLevel is clamped against ProducerMipBias, as ProducerMipBias represents the most detailed level of this producer, relative to the allocated VT
-			uint32 Local_vAddress = AllocatedLocal_vAddress >> (Mapping_vLevel * vDimensions);
+			// used to rescale vAddress to the correct tile within the given mip level
+			uint32 Mapping_vLevel = FMath::Max(vLevel, ProducerMipBias);
 
 			// Local_vLevel is the level within the producer that we want to allocate/map
 			// here we subtract ProducerMipBias (clamped to ensure we don't fall below 0),
 			// which effectively matches more detailed mips of lower resolution producers with less detailed mips of higher resolution producers
 			uint32 Local_vLevel = vLevel - FMath::Min(vLevel, ProducerMipBias);
 
-			// Wrap Local_vAddress for the given producer
-			// For square textures, this could simply be (Local_vAddress % NumTilesInMip), but that doesn't work for non-square
-			// Possible there is a more clever approach to take here
+			// Wrap vAddress for the given producer
+			uint32 Wrapped_vAddress = vAddress;
 			{
-				const uint32 MipScaleFactor = (1u << Local_vLevel);
-				const uint32 ProducerMipWidthInTiles = FMath::DivideAndRoundUp(Producer->GetWidthInTiles(), MipScaleFactor);
-				const uint32 ProducerMipHeightInTiles = FMath::DivideAndRoundUp(Producer->GetHeightInTiles(), MipScaleFactor);
-				uint32 Local_vTileX = FMath::ReverseMortonCode2(Local_vAddress);
-				uint32 Local_vTileY = FMath::ReverseMortonCode2(Local_vAddress >> 1);
-				Local_vTileX %= ProducerMipWidthInTiles;
-				Local_vTileY %= ProducerMipHeightInTiles;
-				Local_vAddress = FMath::MortonCode2(Local_vTileX) | (FMath::MortonCode2(Local_vTileY) << 1);
+				// Scale size of producer up to be relative to size of entire allocated VT
+				const uint32 ProducerScaleFactor = (1u << ProducerMipBias);
+				const uint32 ProducerWidthInPages = Producer->GetWidthInTiles() * ProducerScaleFactor;
+				const uint32 ProducerHeightInPages = Producer->GetHeightInTiles() * ProducerScaleFactor;
+				const uint32 AllocatedPageX = AllocatedVT->GetVirtualPageX();
+				const uint32 AllocatedPageY = AllocatedVT->GetVirtualPageY();
+
+				uint32 Local_vPageX = vPageX - AllocatedPageX;
+				uint32 Local_vTileY = vPageY - AllocatedPageY;
+				if (Local_vPageX >= ProducerWidthInPages || Local_vTileY >= ProducerHeightInPages)
+				{
+					Local_vPageX %= ProducerWidthInPages;
+					Local_vTileY %= ProducerHeightInPages;
+					Wrapped_vAddress = FMath::MortonCode2(Local_vPageX + AllocatedPageX) | (FMath::MortonCode2(Local_vTileY + AllocatedPageY) << 1);
+				}
 			}
+
+			uint32 Local_vAddress = (Wrapped_vAddress - AllocatedVT->GetVirtualAddress()) >> (Mapping_vLevel * vDimensions);
 
 			const uint32 LocalMipBias = Producer->GetVirtualTexture()->GetLocalMipBias(Local_vLevel, Local_vAddress);
 			if (LocalMipBias > 0u)
@@ -1532,7 +1541,7 @@ void FVirtualTextureSystem::GatherRequestsTask(const FGatherRequestsParameters& 
 					ensure(Allocated_vLevel <= AllocatedVT->GetMaxLevel());
 
 					const uint32 AllocatedMapping_vLevel = FMath::Max(Allocated_vLevel, ProducerMipBias);
-					const uint32 Allocated_vAddress = vAddress & (0xffffffff << (Allocated_vLevel * vDimensions));
+					const uint32 Allocated_vAddress = Wrapped_vAddress & (0xffffffff << (Allocated_vLevel * vDimensions));
 
 					AddPageUpdate(PageUpdateBuffers, PageUpdateFlushCount, PhysicalSpace->GetID(), pAddress);
 
@@ -1544,31 +1553,19 @@ void FVirtualTextureSystem::GatherRequestsTask(const FGatherRequestsParameters& 
 							AllocatedVT->GetProducerIndexForPageTableLayer(PageTableLayerIndex) == ProducerIndex)
 						{
 							bool bPageWasMapped = false;
-							if (Allocated_vLevel != vLevel)
+
+							// if we found a lower resolution tile than was requested, it may have already been mapped, check for that first
+							const FTexturePageMap& PageMap = Space->GetPageMapForPageTableLayer(PageTableLayerIndex);
+							const FPhysicalSpaceIDAndAddress PrevPhysicalSpaceIDAndAddress = PageMap.FindPagePhysicalSpaceIDAndAddress(Allocated_vLevel, Allocated_vAddress);
+							if (PrevPhysicalSpaceIDAndAddress.Packed != ~0u)
 							{
-								// if we found a lower resolution tile than was requested, it may have already been mapped, check for that first
-								// don't need to check this if the allocated page is at the level that was requested...if that was already mapped we wouldn't have gotten this far
-								const FTexturePageMap& PageMap = Space->GetPageMapForPageTableLayer(PageTableLayerIndex);
-								const FPhysicalSpaceIDAndAddress PrevPhysicalSpaceIDAndAddress = PageMap.FindPagePhysicalSpaceIDAndAddress(Allocated_vLevel, Allocated_vAddress);
-								if (PrevPhysicalSpaceIDAndAddress.Packed != ~0u)
-								{
-									// if this address was previously mapped, ensure that it was mapped by the same physical space
-									ensure(PrevPhysicalSpaceIDAndAddress.PhysicalSpaceID == PhysicalSpace->GetID());
-									// either it wasn't mapped, or it's mapped to the current physical address...
-									// otherwise that means that the same local tile is mapped to two separate physical addresses, which is an error
-									ensure(PrevPhysicalSpaceIDAndAddress.pAddress == pAddress);
-									bPageWasMapped = true;
-								}
+								// if this address was previously mapped, ensure that it was mapped by the same physical space
+								ensure(PrevPhysicalSpaceIDAndAddress.PhysicalSpaceID == PhysicalSpace->GetID());
+								// either it wasn't mapped, or it's mapped to the current physical address...
+								// otherwise that means that the same local tile is mapped to two separate physical addresses, which is an error
+								ensure(PrevPhysicalSpaceIDAndAddress.pAddress == pAddress);
+								bPageWasMapped = true;
 							}
-#if DO_GUARD_SLOW
-							else
-							{
-								// verify our assumption that the page shouldn't be mapped yet
-								const FTexturePageMap& PageMap = Space->GetPageMapForPageTableLayer(PageTableLayerIndex);
-								const FPhysicalSpaceIDAndAddress PrevPhysicalSpaceIDAndAddress = PageMap.FindPagePhysicalSpaceIDAndAddress(Allocated_vLevel, Allocated_vAddress);
-								checkSlow(PrevPhysicalSpaceIDAndAddress.Packed == ~0u);
-							}
-#endif // DO_GUARD_SLOW
 
 							if (!bPageWasMapped)
 							{
@@ -1592,7 +1589,8 @@ void FVirtualTextureSystem::GatherRequestsTask(const FGatherRequestsParameters& 
 					// page not resident...see if we want to prefetch a page with resolution incrementally larger than what's currently resident
 					// this means we'll ultimately load more data, but these lower resolution pages should load much faster than the requested high resolution page
 					// this should make popping less noticeable
-					const uint32 PrefetchLocal_vLevel = AllocatedLocal_vLevel - FMath::Min(2u, AllocatedLocal_vLevel);
+					uint32 PrefetchLocal_vLevel = AllocatedLocal_vLevel - FMath::Min(2u, AllocatedLocal_vLevel);
+					PrefetchLocal_vLevel = FMath::Min<uint32>(PrefetchLocal_vLevel, AllocatedVT->GetMaxLevel() - ProducerMipBias);
 					if (PrefetchLocal_vLevel > Local_vLevel)
 					{
 						ProducerPhysicalGroupMaskToPrefetchForLevel[PrefetchLocal_vLevel] |= (1u << ProducerGroupIndex);
@@ -1639,7 +1637,7 @@ void FVirtualTextureSystem::GatherRequestsTask(const FGatherRequestsParameters& 
 						const uint32 Prefetch_vLevel = PrefetchLocal_vLevel + ProducerMipBias;
 						ensure(Prefetch_vLevel <= AllocatedVT->GetMaxLevel());
 						const uint32 PrefetchMapping_vLevel = FMath::Max(Prefetch_vLevel, ProducerMipBias);
-						const uint32 Prefetch_vAddress = vAddress & (0xffffffff << (Prefetch_vLevel * vDimensions));
+						const uint32 Prefetch_vAddress = Wrapped_vAddress & (0xffffffff << (Prefetch_vLevel * vDimensions));
 						for (uint32 LoadLayerIndex = 0u; LoadLayerIndex < NumPageTableLayersToLoad; ++LoadLayerIndex)
 						{
 							const uint32 LayerIndex = PageTableLayersToLoad[LoadLayerIndex];
@@ -1669,7 +1667,7 @@ void FVirtualTextureSystem::GatherRequestsTask(const FGatherRequestsParameters& 
 							const uint32 ProducerPhysicalGroupIndex = AllocatedVT->GetProducerPhysicalGroupIndexForPageTableLayer(LayerIndex);
 							if (GroupMaskToLoad & (1u << ProducerPhysicalGroupIndex))
 							{
-								RequestList->AddMappingRequest(LoadRequestIndex, ProducerPhysicalGroupIndex, ID, LayerIndex, vAddress, vLevel, Mapping_vLevel);
+								RequestList->AddMappingRequest(LoadRequestIndex, ProducerPhysicalGroupIndex, ID, LayerIndex, Wrapped_vAddress, vLevel, Mapping_vLevel);
 							}
 						}
 					}
