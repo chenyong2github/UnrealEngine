@@ -1809,10 +1809,10 @@ TArray<UObject*> UAssetToolsImpl::ImportAssetsInternal(const TArray<FString>& Fi
 	bool bReplaceAll = false;
 	bool bDontOverwriteAny = false;
 	bool bDontReplaceAny = false;
-	if (Params.AssetImportTask && Params.AssetImportTask->bAutomated)
+	if (bAutomatedImport)
 	{
-		bOverwriteAll = bReplaceAll = Params.AssetImportTask->bReplaceExisting;
-		bDontOverwriteAny = bDontReplaceAny = !Params.AssetImportTask->bReplaceExisting;
+		bOverwriteAll = bReplaceAll = bForceOverrideExisting;
+		bDontOverwriteAny = bDontReplaceAny = !bForceOverrideExisting;
 	}
 
 	TArray<UFactory*> UsedFactories;
