@@ -26,6 +26,13 @@ static TAutoConsoleVariable<int32> CVarLumenReflectionsHardwareRayTracing(
 	ECVF_RenderThreadSafe
 );
 
+static TAutoConsoleVariable<int32> CVarLumenReflectionsHardwareRayTracingIndirect(
+	TEXT("r.Lumen.Reflections.HardwareRayTracing.Indirect"),
+	1,
+	TEXT("Enables indirect ray tracing dispatch on compatible hardware (Default = 1)"),
+	ECVF_RenderThreadSafe
+);
+
 static TAutoConsoleVariable<int32> CVarLumenReflectionsHardwareRayTracingLightingMode(
 	TEXT("r.Lumen.Reflections.HardwareRayTracing.LightingMode"),
 	0,
@@ -112,8 +119,9 @@ class FLumenReflectionHardwareRayTracingRGS : public FLumenHardwareRayTracingRGS
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenHardwareRayTracingRGS::FSharedParameters, SharedParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FCompactedReflectionTraceParameters, CompactedTraceParameters)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FDeferredMaterialPayload>, DeferredMaterialBuffer)
-		
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FDeferredMaterialPayload>, DeferredMaterialBuffer)		
+		SHADER_PARAMETER_RDG_BUFFER(Buffer<uint>, RayTraceDispatchIndirectArgs)
+
 		// Constants
 		SHADER_PARAMETER(float, MaxTraceDistance)
 
@@ -142,6 +150,7 @@ class FLumenReflectionHardwareRayTracingDeferredMaterialRGS : public FLumenHardw
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenHardwareRayTracingDeferredMaterialRGS::FDeferredMaterialParameters, DeferredMaterialParameters)
 
 		SHADER_PARAMETER_STRUCT_INCLUDE(FCompactedReflectionTraceParameters, CompactedTraceParameters)
+		SHADER_PARAMETER_RDG_BUFFER(Buffer<uint>, RayTraceDispatchIndirectArgs)
 
 		// Constants
 		SHADER_PARAMETER(float, MaxTraceDistance)
@@ -239,6 +248,7 @@ void RenderLumenHardwareRayTracingReflections(
 			&PassParameters->DeferredMaterialParameters.SharedParameters);
 		PassParameters->CompactedTraceParameters = CompactedTraceParameters;
 		PassParameters->MaxTraceDistance = MaxVoxelTraceDistance;
+		PassParameters->RayTraceDispatchIndirectArgs = CompactedTraceParameters.RayTraceDispatchIndirectArgs;
 
 		PassParameters->ReflectionTracingParameters = ReflectionTracingParameters;
 		PassParameters->ReflectionTileParameters = ReflectionTileParameters;
@@ -267,7 +277,18 @@ void RenderLumenHardwareRayTracingReflections(
 				SetShaderParameters(GlobalResources, RayGenerationShader, *PassParameters);
 
 				FRHIRayTracingScene* RayTracingSceneRHI = View.RayTracingScene.RayTracingSceneRHI;
-				RHICmdList.RayTraceDispatch(View.RayTracingMaterialGatherPipeline, RayGenerationShader.GetRayTracingShader(), RayTracingSceneRHI, GlobalResources, DeferredMaterialBufferResolution.X, DeferredMaterialBufferResolution.Y);
+
+				if (GRHISupportsRayTracingDispatchIndirect && CVarLumenReflectionsHardwareRayTracingIndirect.GetValueOnRenderThread() == 1)
+				{
+					PassParameters->RayTraceDispatchIndirectArgs->MarkResourceAsUsed();
+					RHICmdList.RayTraceDispatchIndirect(View.RayTracingMaterialGatherPipeline, RayGenerationShader.GetRayTracingShader(), RayTracingSceneRHI, GlobalResources,
+						PassParameters->RayTraceDispatchIndirectArgs->GetIndirectRHICallBuffer(), 0);
+				}
+				else
+				{
+					RHICmdList.RayTraceDispatch(View.RayTracingMaterialGatherPipeline, RayGenerationShader.GetRayTracingShader(), RayTracingSceneRHI, GlobalResources,
+						DeferredMaterialBufferResolution.X, DeferredMaterialBufferResolution.Y);
+				}
 			}
 		);
 
@@ -289,6 +310,7 @@ void RenderLumenHardwareRayTracingReflections(
 		);
 		PassParameters->CompactedTraceParameters = CompactedTraceParameters;
 		PassParameters->DeferredMaterialBuffer = GraphBuilder.CreateSRV(DeferredMaterialBuffer);
+		PassParameters->RayTraceDispatchIndirectArgs = CompactedTraceParameters.RayTraceDispatchIndirectArgs;
 
 		PassParameters->MaxTraceDistance = MaxVoxelTraceDistance;
 		//int LightingMode = CVarLumenReflectionsHardwareRayTracingLightingMode.GetValueOnRenderThread();
@@ -322,7 +344,18 @@ void RenderLumenHardwareRayTracingReflections(
 
 				FRHIRayTracingScene* RayTracingSceneRHI = View.RayTracingScene.RayTracingSceneRHI;
 				FRayTracingPipelineState* RayTracingPipeline = bUseMinimalPayload ? View.LumenHardwareRayTracingMaterialPipeline : View.RayTracingMaterialPipeline;
-				RHICmdList.RayTraceDispatch(RayTracingPipeline, RayGenerationShader.GetRayTracingShader(), RayTracingSceneRHI, GlobalResources, DispatchResolution.X, DispatchResolution.Y);
+
+				if (GRHISupportsRayTracingDispatchIndirect && CVarLumenReflectionsHardwareRayTracingIndirect.GetValueOnRenderThread() == 1)
+				{
+					PassParameters->RayTraceDispatchIndirectArgs->MarkResourceAsUsed();
+					RHICmdList.RayTraceDispatchIndirect(RayTracingPipeline, RayGenerationShader.GetRayTracingShader(), RayTracingSceneRHI, GlobalResources,
+						PassParameters->RayTraceDispatchIndirectArgs->GetIndirectRHICallBuffer(), 0);
+				}
+				else
+				{
+					RHICmdList.RayTraceDispatch(RayTracingPipeline, RayGenerationShader.GetRayTracingShader(), RayTracingSceneRHI, GlobalResources,
+						DispatchResolution.X, DispatchResolution.Y);
+				}
 			}
 		);
 	}

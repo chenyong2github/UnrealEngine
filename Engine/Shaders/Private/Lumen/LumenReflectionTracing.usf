@@ -172,6 +172,7 @@ void ReflectionCompactTracesCS(
 }
 
 RWBuffer<uint> RWReflectionCompactTracingIndirectArgs;
+RWBuffer<uint> RWReflectionCompactRayTraceDispatchIndirectArgs;
 
 [numthreads(1, 1, 1)]
 void SetupCompactedTracesIndirectArgsCS()
@@ -179,6 +180,11 @@ void SetupCompactedTracesIndirectArgsCS()
 	RWReflectionCompactTracingIndirectArgs[0] = (CompactedTraceTexelAllocator[0] + REFLECTION_THREADGROUP_SIZE_1D - 1) / REFLECTION_THREADGROUP_SIZE_1D;
 	RWReflectionCompactTracingIndirectArgs[1] = 1;
 	RWReflectionCompactTracingIndirectArgs[2] = 1;
+
+	// Ray tracing dispatch dimensions are defined simply in terms of threads/rays, not thread groups.
+	RWReflectionCompactRayTraceDispatchIndirectArgs[0] = CompactedTraceTexelAllocator[0];
+	RWReflectionCompactRayTraceDispatchIndirectArgs[1] = 1;
+	RWReflectionCompactRayTraceDispatchIndirectArgs[2] = 1;
 }
 
 uint CardGridPixelSizeShift;
