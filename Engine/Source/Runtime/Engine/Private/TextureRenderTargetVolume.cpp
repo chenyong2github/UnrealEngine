@@ -205,7 +205,7 @@ UVolumeTexture* UTextureRenderTargetVolume::ConstructTextureVolume(UObject* ObjO
 	VolumeTexture->Source.UnlockMip(0);
 	VolumeTexture->SRGB = bSRGB;
 	// If HDR source image then choose HDR compression settings..
-	VolumeTexture->CompressionSettings = TextureFormat == TSF_RGBA16F ? TextureCompressionSettings::TC_HDR : TextureCompressionSettings::TC_Default;
+	VolumeTexture->CompressionSettings = TextureFormat == TSF_RGBA16F ? TextureCompressionSettings::TC_HDR : TextureCompressionSettings::TC_Default; //-V547 - future proofing
 	// Default to no mip generation for cube render target captures.
 	VolumeTexture->MipGenSettings = TextureMipGenSettings::TMGS_NoMipmaps;
 	VolumeTexture->PostEditChange();

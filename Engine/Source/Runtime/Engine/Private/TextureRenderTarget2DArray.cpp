@@ -200,7 +200,7 @@ UTexture2DArray* UTextureRenderTarget2DArray::ConstructTexture2DArray(UObject* O
 	Texture2DArray->Source.UnlockMip(0);
 	Texture2DArray->SRGB = bSRGB;
 	// If HDR source image then choose HDR compression settings..
-	Texture2DArray->CompressionSettings = TextureFormat == TSF_RGBA16F ? TextureCompressionSettings::TC_HDR : TextureCompressionSettings::TC_Default;
+	Texture2DArray->CompressionSettings = TextureFormat == TSF_RGBA16F ? TextureCompressionSettings::TC_HDR : TextureCompressionSettings::TC_Default; //-V547 - future proofing
 	// Default to no mip generation for cube render target captures.
 	Texture2DArray->MipGenSettings = TextureMipGenSettings::TMGS_NoMipmaps;
 	Texture2DArray->PostEditChange();
