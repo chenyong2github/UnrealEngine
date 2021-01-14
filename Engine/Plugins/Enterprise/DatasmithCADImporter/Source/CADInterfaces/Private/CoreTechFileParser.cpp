@@ -19,6 +19,8 @@
 namespace CADLibrary 
 {
 
+int32 GetIntegerParameterDataValue(CT_OBJECT_ID NodeId, const TCHAR* InMetaDataName);
+
 namespace {
 
 	double Distance(const CT_COORDINATE& Point1, const CT_COORDINATE& Point2)
@@ -249,8 +251,10 @@ uint32 GetFaceTessellation(CT_OBJECT_ID FaceID, TArray<FTessellationData>& FaceT
 		return 0;
 	}
 
+	int32 PatchId = GetIntegerParameterDataValue(FaceID, TEXT("DatasmithFaceId"));
+
 	FTessellationData& Tessellation = FaceTessellationSet.Emplace_GetRef();
-	Tessellation.PatchId = FaceID;
+	Tessellation.PatchId = PatchId;
 	Tessellation.IndexArray.SetNum(IndexCount);
 
 	switch (IndexType)
@@ -689,6 +693,65 @@ FCoreTechFileParser::EProcessResult FCoreTechFileParser::ProcessFile(const FFile
 	return ReadFileWithKernelIO();
 }
 
+// For each face, adds an integer parameter representing the id of the face to avoid re-identation of faces in sub CT file
+// Used by Re-tessellation Rule to Skip Deleted Surfaces
+void AddFaceIdAttribut(CT_OBJECT_ID NodeId)
+{
+	CT_OBJECT_TYPE Type;
+	CT_OBJECT_IO::AskType(NodeId, Type);
+
+	switch (Type)
+	{
+	case CT_INSTANCE_TYPE:
+	{
+		CT_OBJECT_ID ReferenceNodeId;
+		if (CT_INSTANCE_IO::AskChild(NodeId, ReferenceNodeId) == IO_OK)
+		{
+			AddFaceIdAttribut(ReferenceNodeId);
+		}
+		break;
+	}
+
+	case CT_ASSEMBLY_TYPE:
+	case CT_PART_TYPE:
+	case CT_COMPONENT_TYPE:
+	{
+		CT_LIST_IO Children;
+		if (CT_COMPONENT_IO::AskChildren(NodeId, Children) == IO_OK)
+		{
+			Children.IteratorInitialize();
+			CT_OBJECT_ID ChildId;
+			while ((ChildId = Children.IteratorIter()) != 0)
+			{
+				AddFaceIdAttribut(ChildId);
+			}
+		}
+
+		break;
+	}
+
+	case CT_BODY_TYPE:
+	{
+		CT_LIST_IO FaceList;
+		CT_BODY_IO::AskFaces(NodeId, FaceList);
+
+		CT_OBJECT_ID FaceID;
+		FaceList.IteratorInitialize();
+		while ((FaceID = FaceList.IteratorIter()) != 0)
+		{
+			CT_OBJECT_IO::AddAttribute(FaceID, CT_ATTRIB_INTEGER_PARAMETER);
+
+			ensure(CT_CURRENT_ATTRIB_IO::SetStrField(ITH_INTEGER_PARAMETER_NAME, "DatasmithFaceId") == IO_OK);
+			ensure(CT_CURRENT_ATTRIB_IO::SetIntField(ITH_INTEGER_PARAMETER_VALUE, FaceID) == IO_OK);
+		}
+		break;
+	}
+
+	default:
+		break;
+	}
+}
+
 FCoreTechFileParser::EProcessResult FCoreTechFileParser::ReadFileWithKernelIO()
 {
 	CT_IO_ERROR Result = IO_OK;
@@ -768,6 +831,7 @@ FCoreTechFileParser::EProcessResult FCoreTechFileParser::ReadFileWithKernelIO()
 		CT_KERNEL_IO::SaveFile(ObjectList, *FPaths::Combine(CachePath, TEXT("cad"), SceneGraphArchive.ArchiveFileName + TEXT(".ct")), L"Ct");
 	}
 
+	AddFaceIdAttribut(MainId);
 
 	if (ImportParameters.StitchingTechnique != StitchingNone)
 	{
@@ -1279,19 +1343,36 @@ void FCoreTechFileParser::GetStringMetaDataValue(CT_OBJECT_ID NodeId, const TCHA
 	{
 		if (CT_CURRENT_ATTRIB_IO::AskStrField(ITH_STRING_METADATA_NAME, FieldName) != IO_OK)
 		{
-			break;
+			continue;
 		}
 		if (!FCString::Strcmp(InMetaDataName, *AsFString(FieldName)))
 		{
 			CT_STR FieldStrValue;
-			if (CT_CURRENT_ATTRIB_IO::AskStrField(ITH_STRING_METADATA_VALUE, FieldStrValue) != IO_OK)
-			{
-				break;
-			}
+			CT_CURRENT_ATTRIB_IO::AskStrField(ITH_STRING_METADATA_VALUE, FieldStrValue);
 			OutMetaDataValue = AsFString(FieldStrValue);
 			return;
 		}
 	}
+}
+
+int32 GetIntegerParameterDataValue(CT_OBJECT_ID NodeId, const TCHAR* InMetaDataName)
+{
+	CT_STR FieldName;
+	CT_UINT32 IthAttrib = 0;
+	int32 IntegerParameterValue = 0;
+	while (CT_OBJECT_IO::SearchAttribute(NodeId, CT_ATTRIB_INTEGER_PARAMETER, IthAttrib++) == IO_OK)
+	{
+		if (CT_CURRENT_ATTRIB_IO::AskStrField(ITH_INTEGER_PARAMETER_NAME, FieldName) != IO_OK)
+		{
+			continue;
+		}
+		if (!FCString::Strcmp(InMetaDataName, *AsFString(FieldName)))
+		{
+			CT_CURRENT_ATTRIB_IO::AskIntField(ITH_INTEGER_PARAMETER_VALUE, IntegerParameterValue);
+			break;
+		}
+	}
+	return IntegerParameterValue;
 }
 
 void FCoreTechFileParser::ReadNodeMetaData(CT_OBJECT_ID NodeId, TMap<FString, FString>& OutMetaData)
