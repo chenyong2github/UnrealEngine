@@ -1293,7 +1293,7 @@ void UStruct::SerializeVersionedTaggedProperties(FStructuredArchive::FSlot Slot,
 
 	// Determine if this struct supports optional property guid's (UBlueprintGeneratedClasses Only)
 	const bool bArePropertyGuidsAvailable = (UnderlyingArchive.UE4Ver() >= VER_UE4_PROPERTY_GUID_IN_PROPERTY_TAG) && !FPlatformProperties::RequiresCookedData() && ArePropertyGuidsAvailable();
-	const bool bUseRedirects = !FPlatformProperties::RequiresCookedData() || UnderlyingArchive.IsSaveGame();
+	const bool bUseRedirects = (!FPlatformProperties::RequiresCookedData() || UnderlyingArchive.IsSaveGame()) && !UnderlyingArchive.IsUsingEventDrivenLoader();
 
 	if (UnderlyingArchive.IsLoading())
 	{
@@ -1440,7 +1440,7 @@ void UStruct::SerializeVersionedTaggedProperties(FStructuredArchive::FSlot Slot,
 	#endif // WITH_EDITOR
 					// editoronly properties should be skipped if we are NOT the editor, or we are 
 					// the editor but are cooking for console (editoronly implies notforconsole)
-					if ((Property->PropertyFlags & CPF_EditorOnly) && !FPlatformProperties::HasEditorOnlyData() && !GForceLoadEditorOnly)
+					if ((Property->PropertyFlags & CPF_EditorOnly) && ((!FPlatformProperties::HasEditorOnlyData() && !GForceLoadEditorOnly) || UnderlyingArchive.IsUsingEventDrivenLoader()))
 					{
 					}
 					// check for valid array index
@@ -4625,18 +4625,18 @@ void UClass::Serialize( FArchive& Ar )
 		if (ClassDefaultObject == NULL)
 		{
 			check(GConfig);
-			if (GEventDrivenLoaderEnabled)
+			if (GEventDrivenLoaderEnabled || Ar.IsUsingEventDrivenLoader())
 			{
-			ClassDefaultObject = GetDefaultObject();
-			// we do this later anyway, once we find it and set it in the export table. 
-			// ClassDefaultObject->SetFlags(RF_NeedLoad | RF_NeedPostLoad | RF_NeedPostLoadSubobjects);
+				ClassDefaultObject = GetDefaultObject();
+				// we do this later anyway, once we find it and set it in the export table. 
+				// ClassDefaultObject->SetFlags(RF_NeedLoad | RF_NeedPostLoad | RF_NeedPostLoadSubobjects);
 			}
 			else if( !Ar.HasAnyPortFlags(PPF_DuplicateForPIE|PPF_Duplicate) )
 			{
-			UE_LOG(LogClass, Error, TEXT("CDO for class %s did not load!"), *GetPathName());
-			ensure(ClassDefaultObject != NULL);
-			ClassDefaultObject = GetDefaultObject();
-			Ar.ForceBlueprintFinalization();
+				UE_LOG(LogClass, Error, TEXT("CDO for class %s did not load!"), *GetPathName());
+				ensure(ClassDefaultObject != NULL);
+				ClassDefaultObject = GetDefaultObject();
+				Ar.ForceBlueprintFinalization();
 			}
 		}
 	}
@@ -6311,6 +6311,5 @@ IMPLEMENT_CORE_INTRINSIC_CLASS(UDynamicClass, UClass,
 		PRAGMA_ENABLE_SHADOW_VARIABLE_WARNINGS
 	#endif
 #endif
-
 
 #include "UObject/DefineUPropertyMacros.h"

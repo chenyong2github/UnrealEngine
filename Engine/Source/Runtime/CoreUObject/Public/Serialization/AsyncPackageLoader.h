@@ -209,6 +209,12 @@ public:
 	virtual void NotifyUnreachableObjects(const TArrayView<FUObjectItem*>& UnreachableObjects) = 0;
 
 	virtual void FireCompletedCompiledInImport(void* AsyncPackage, FPackageIndex Import) = 0;
+
+protected:
+	static int32 GetNextRequestId();
+
+private:
+	static FThreadSafeCounter NextPackageRequestId;
 };
 
 // Stats for ChartCreation.cpp

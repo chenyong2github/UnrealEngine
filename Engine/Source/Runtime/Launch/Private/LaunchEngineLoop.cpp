@@ -62,6 +62,12 @@
 
 #if !(IS_PROGRAM || WITH_EDITOR)
 #include "IPlatformFilePak.h"
+#endif
+
+#ifndef USE_IO_DISPATCHER 
+#define USE_IO_DISPATCHER (WITH_IOSTORE_IN_EDITOR || !(IS_PROGRAM || WITH_EDITOR))
+#endif
+#if USE_IO_DISPATCHER
 #include "IO/IoDispatcher.h"
 #endif
 
@@ -2313,7 +2319,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		FPlatformMemory::Init();
 	}
 
-#if !(IS_PROGRAM || WITH_EDITOR)
+#if USE_IO_DISPATCHER
 	if (FIoDispatcher::IsInitialized())
 	{
 		SCOPED_BOOT_TIMING("InitIoDispatcher");
@@ -5845,7 +5851,7 @@ void FEngineLoop::AppPreExit( )
 
 #endif
 
-#if !(IS_PROGRAM || WITH_EDITOR)
+#if USE_IO_DISPATCHER
 	FIoDispatcher::Shutdown();
 #endif
 }

@@ -604,7 +604,12 @@ static bool DoesPackageExistForGetPackageLinker(const FString& LongPackageName, 
 	}
 	else
 	{
-		return FPackageName::DoesPackageExist(LongPackageName, Guid, &OutFilename);
+		bool DoesPackageExist = FPackageName::DoesPackageExist(LongPackageName, Guid, &OutFilename, /* AllowTextFormat */ true);
+#if WITH_IOSTORE_IN_EDITOR
+	// Only look for non cooked packages on disk
+	DoesPackageExist &= !DoesPackageExistInIoStore(FName(*LongPackageName));
+#endif
+		return DoesPackageExist;
 	}
 }
 
