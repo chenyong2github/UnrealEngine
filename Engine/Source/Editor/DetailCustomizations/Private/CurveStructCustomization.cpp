@@ -32,6 +32,11 @@ TSharedRef<IPropertyTypeCustomization> FCurveStructCustomization::MakeInstance()
 
 FCurveStructCustomization::~FCurveStructCustomization()
 {
+	if (CurveWidget.IsValid() && CurveWidget->GetCurveOwner() == this)
+	{
+		CurveWidget->SetCurveOwner(nullptr, false);
+	}
+
 	DestroyPopOutWindow();
 }
 

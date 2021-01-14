@@ -245,7 +245,7 @@ public:
 	UNREALED_API void SetZoomToFit(bool bNewZoomToFitVertical, bool bNewZoomToFitHorizontal);
 
 	/** Get the currently edited curve */
-	FCurveOwnerInterface* GetCurveOwner() const;
+	UNREALED_API FCurveOwnerInterface* GetCurveOwner() const;
 
 	/** Construct an object of type UCurveFactory and return it's reference*/
 	UNREALED_API UCurveFactory* GetCurveFactory( );
