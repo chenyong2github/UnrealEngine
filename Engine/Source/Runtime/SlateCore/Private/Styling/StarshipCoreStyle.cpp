@@ -829,6 +829,8 @@ void FStarshipCoreStyle::SetupColors(TSharedRef<FStyle>& Style)
 	Style->Set("Colors.AccentWhite", FStyleColors::AccentWhite);
 	Style->Set("Colors.AccentFolder", FStyleColors::AccentFolder);
 
+	Style->Set("Colors.Warning", FStyleColors::Warning);
+	Style->Set("Colors.Error", FStyleColors::Error);
 
 	Style->Set("Brushes.Black", new FSlateColorBrush(FStyleColors::Black));
 	Style->Set("Brushes.Title", new FSlateColorBrush(FStyleColors::Title));
@@ -873,6 +875,8 @@ void FStarshipCoreStyle::SetupColors(TSharedRef<FStyle>& Style)
 	Style->Set("Brushes.AccentWhite", new FSlateColorBrush(FStyleColors::AccentWhite));
 	Style->Set("Brushes.AccentFolder", new FSlateColorBrush(FStyleColors::AccentFolder));
 
+	Style->Set("Brushes.Warning", new FSlateColorBrush(FStyleColors::Warning));
+	Style->Set("Brushes.Error", new FSlateColorBrush(FStyleColors::Error));
 }
 
 void FStarshipCoreStyle::SetupTextStyles(TSharedRef<FStyle>& Style)

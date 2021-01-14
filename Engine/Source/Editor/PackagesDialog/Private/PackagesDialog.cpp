@@ -14,7 +14,7 @@
 
 IMPLEMENT_MODULE( FPackagesDialogModule, PackagesDialog );
 
-const FVector2D FPackagesDialogModule::DEFAULT_WINDOW_SIZE = FVector2D(600, 400);	// TODO: MIN SIZE SHOULD BE 270, 330 FOR AESTHETICS
+const FVector2D FPackagesDialogModule::DEFAULT_WINDOW_SIZE = FVector2D(640, 492);	
 const FVector2D FPackagesDialogModule::EXTRA_WINDOW_WIDTH = FVector2D(150, 0);
 
 /**

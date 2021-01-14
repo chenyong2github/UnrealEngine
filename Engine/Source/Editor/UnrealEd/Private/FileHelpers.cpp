@@ -4010,7 +4010,7 @@ FEditorFileUtils::EPromptReturnCode FEditorFileUtils::PromptForCheckoutAndSave(c
 		bCheckDirty,
 		bPromptToSave,
 		NSLOCTEXT("PackagesDialogModule", "PackagesDialogTitle", "Save Content"),
-		NSLOCTEXT("PackagesDialogModule", "PackagesDialogMessage", "Select content to save."),
+		NSLOCTEXT("PackagesDialogModule", "PackagesDialogMessage", "Select Content to Save"),
 		OutFailedPackages,
 		bAlreadyCheckedOut,
 		bCanBeDeclined);

@@ -430,6 +430,8 @@ void FStarshipEditorStyle::FStyle::SetupGeneralStyles()
 
 	Set( "WarningStripe", new IMAGE_BRUSH( "Common/WarningStripe", FVector2D(20,6), FLinearColor::White, ESlateBrushTileType::Horizontal ) );
 
+	Set("RoundedWarning", new FSlateRoundedBoxBrush(FStyleColors::Warning, 4.0f));
+	Set("RoundedError", new FSlateRoundedBoxBrush(FStyleColors::Error, 4.0f));
 
 	Set( "Button.Disabled", new BOX_BRUSH( "Common/Button_Disabled", 8.0f/32.0f ) );
 	
