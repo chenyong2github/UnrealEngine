@@ -184,6 +184,13 @@ void UNiagaraMeshRendererProperties::PostInitProperties()
 			return;
 		}
 		InitBindings();
+
+#if WITH_EDITOR
+		if (GIsEditor)
+		{
+			GEditor->GetEditorSubsystem<UImportSubsystem>()->OnAssetReimport.AddUObject(this, &UNiagaraMeshRendererProperties::OnAssetReimported);
+		}
+#endif
 	}
 }
 
@@ -392,13 +399,6 @@ void UNiagaraMeshRendererProperties::PostLoad()
 #endif
 		}
 	}
-
-#if WITH_EDITOR
-	if (GIsEditor)
-	{
-		GEditor->GetEditorSubsystem<UImportSubsystem>()->OnAssetReimport.AddUObject(this, &UNiagaraMeshRendererProperties::OnAssetReimported);
-	}
-#endif
 
 	PostLoadBindings(ENiagaraRendererSourceDataMode::Particles);
 
