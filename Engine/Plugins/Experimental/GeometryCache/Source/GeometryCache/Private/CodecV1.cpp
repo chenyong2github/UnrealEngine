@@ -1041,7 +1041,7 @@ void FCodecV1Decoder::InitLUT()
 	{
 		for (int32 Sign = 0; Sign <= 1; Sign++)
 		{
-			CachedHighBitsLUT[2 + Sign + NumRawBits * 2] = (Sign ? -2 : 1) << NumRawBits;
+			CachedHighBitsLUT[2 + Sign + NumRawBits * 2] = int32(uint32(Sign ? -2 : 1) << NumRawBits);
 		}
 	}
 }
