@@ -357,7 +357,7 @@ FExplicitMotionVectorGeometryCachePreprocessor::~FExplicitMotionVectorGeometryCa
 		{
 			PreviousFrame.MotionVectors.SetNumZeroed(PreviousFrame.Positions.Num());
 		}
-		PreviousFrame.VertexInfo.bHasMotionVectors = true;
+		PreviousFrame.VertexInfo.bHasMotionVectors = PreviousFrame.MotionVectors.Num() > 0;
 
 		DownStreamProcessor->AddMeshSample(PreviousFrame, PreviousFrameTime, bPreviousTopologySame);
 	}
@@ -382,7 +382,7 @@ void FExplicitMotionVectorGeometryCachePreprocessor::AddMeshSample(const FGeomet
 			PreviousFrame.MotionVectors.SetNumZeroed(PreviousFrame.Positions.Num());
 		}
 
-		PreviousFrame.VertexInfo.bHasMotionVectors = true;
+		PreviousFrame.VertexInfo.bHasMotionVectors = PreviousFrame.MotionVectors.Num() > 0;
 		DownStreamProcessor->AddMeshSample(PreviousFrame, PreviousFrameTime, bPreviousTopologySame);
 	}
 

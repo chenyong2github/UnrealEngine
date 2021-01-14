@@ -419,8 +419,11 @@ float UGeometryCacheComponent::GetStartTimeOffset() const
 
 void UGeometryCacheComponent::SetStartTimeOffset(const float NewStartTimeOffset)
 {
-	StartTimeOffset = NewStartTimeOffset;
-	MarkRenderStateDirty();
+	if (!FMath::IsNearlyEqual(StartTimeOffset, NewStartTimeOffset))
+	{
+		StartTimeOffset = NewStartTimeOffset;
+		MarkRenderStateDirty();
+	}
 }
 
 float UGeometryCacheComponent::GetAnimationTime() const
