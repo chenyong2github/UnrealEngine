@@ -26,14 +26,13 @@ struct FPicpFrameBlendingParameters
 {
 	GENERATED_BODY()
 
-public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PICP")
 	TArray<USceneCaptureComponent2D*> SourceFrames;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PICP")
 	UTextureRenderTarget2D* DestinationFrame;
 
-	FPicpFrameBlendingParameters() 
+	FPicpFrameBlendingParameters()
 		: DestinationFrame(nullptr)
 	{}
 };
@@ -43,7 +42,6 @@ struct FPicpOverlayFrameBlendingPair
 {
 	GENERATED_BODY()
 
-public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PICP")
 	FString Id;
 
@@ -51,9 +49,9 @@ public:
 	UTextureRenderTarget2D* SourceFrameCapture;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PICP")
-	ECameraOverlayRenderMode OverlayBlendMode;
+	ECameraOverlayRenderMode OverlayBlendMode = ECameraOverlayRenderMode::Over;
 
-	FPicpOverlayFrameBlendingPair() 
+	FPicpOverlayFrameBlendingPair()
 		: SourceFrameCapture(nullptr)
 	{}
 };
@@ -63,7 +61,6 @@ struct FPicpCameraChromakey
 {
 	GENERATED_BODY()
 
-public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PICP")
 	UTextureRenderTarget2D* ChromakeyOverlayFrame;
 
@@ -71,12 +68,12 @@ public:
 	UTexture2D* ChromakeyMarkerTexture;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PICP")
-	float ChromakeyMarkerScale = 1;
+	float ChromakeyMarkerScale = 1.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PICP")
 	EChromakeyMarkerUVSource ChromakeyMarkerUVSource = EChromakeyMarkerUVSource::ScreenSpace;
 
-	FPicpCameraChromakey() 
+	FPicpCameraChromakey()
 		: ChromakeyOverlayFrame(nullptr)
 		, ChromakeyMarkerTexture(nullptr)
 	{}
@@ -87,7 +84,6 @@ struct FPicpCameraBlendingParameters
 {
 	GENERATED_BODY()
 
-public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PICP")
 	UTextureRenderTarget2D* CameraOverlayFrame;
 
@@ -98,7 +94,7 @@ public:
 	UCineCameraComponent* CineCamera;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PICP")
-	float FieldOfViewMultiplier = 1.0f;
+	float FieldOfViewMultiplier = 1.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PICP")
 	FString RTTViewportId;
@@ -106,8 +102,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PICP")
 	FPicpCameraChromakey  CameraChromakey;
 
-	FPicpCameraBlendingParameters() 
+	FPicpCameraBlendingParameters()
 		: CameraOverlayFrame(nullptr)
+		, SoftEdge(ForceInitToZero)
 		, CineCamera(nullptr)
 	{}
 };
