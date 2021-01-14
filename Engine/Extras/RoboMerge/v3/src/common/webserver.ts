@@ -12,6 +12,7 @@ import { ContextualLogger } from './logger';
 
 const MIME_TYPES = new Map([
 	['js', 'application/javascript'],
+	['ts', 'application/javascript'],
 	['json', 'application/json'],
 	['css', 'text/css'],
 	['text', 'text/plain'],
@@ -19,7 +20,8 @@ const MIME_TYPES = new Map([
 	['html', 'text/html'],
 	['png', 'image/png'],
 	['jpg', 'image/jpeg'],
-	['gif', 'image/gif']
+	['gif', 'image/gif'],
+	['wasm', 'application/wasm'],
 ])
 
 export function ensureRegExp(route: RegExp | string) {
@@ -169,7 +171,7 @@ export class WebServer {
 	async close() {
 		if (this.server) {
 			// close the server to new connections
-			await new Promise((done: () => void, _fail) => this.server!.close(done))
+			await new Promise<void>((done: () => void, _fail) => this.server!.close(done))
 			this.server = null
 		}
 	}
@@ -254,7 +256,7 @@ export class WebServer {
 		}
 
 		// serve the file
-		fs.readFile(Path.join('./public/', filePath), encoding, (err, data) => {
+		fs.readFile(filePath[0] === '/' ? filePath : Path.join('./public/', filePath), encoding, (err, data) => {
 			if (err) {
 				response.writeHead(404)
 				response.end(`File not found: ${filePath}`)
@@ -383,7 +385,7 @@ export class WebServer {
 		}
 
 		response.writeHead(404)
-		response.end('Resource not found')
+		response.end('Resource not found: ' + url.toString() + ' ' + this.handlers.length)
 	}
 
 	private handlers: HandlerInternal[] = []
