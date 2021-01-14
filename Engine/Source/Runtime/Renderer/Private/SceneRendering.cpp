@@ -106,15 +106,6 @@ FAutoConsoleVariableRef CVarDumpInstancingStats(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 	);
 
-static int32 GParallelCmdListInheritBreadcrumbs = 1;
-static FAutoConsoleVariableRef CVarParallelCmdListInheritBreadcrumbs (
-	TEXT("r.ParallelCmdListInheritBreadcrumbs"),
-	GParallelCmdListInheritBreadcrumbs,
-	TEXT("Whether to inherit breadcrumbs to parallel cmd lists"),
-	ECVF_ReadOnly
-);
-
-
 int32 GDumpMeshDrawCommandMemoryStats = 0;
 FAutoConsoleVariableRef CVarDumpMeshDrawCommandMemoryStats(
 	TEXT("r.MeshDrawCommands.LogMeshDrawCommandMemoryStats"),
@@ -736,12 +727,6 @@ FRHICommandList* FParallelCommandListSet::NewParallelCommandList()
 {
 	FRHICommandList* Result = AllocCommandList();
 	Result->ExecuteStat = ExecuteStat;
-	
-	if(GParallelCmdListInheritBreadcrumbs)
-	{
-		Result->InheritBreadcrumbs(ParentCmdList);
-	}
-
 	SetStateOnCommandList(*Result);
 	if (bCreateSceneContext)
 	{
