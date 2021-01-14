@@ -135,6 +135,10 @@ FOnlineUserEOSPlus::~FOnlineUserEOSPlus()
 
 TSharedPtr<FUniqueNetIdEOSPlus> FOnlineUserEOSPlus::GetNetIdPlus(const FString& SourceId)
 {
+	if (NetIdPlusToNetIdPlus.Contains(SourceId))
+	{
+		return NetIdPlusToNetIdPlus[SourceId];
+	}
 	if (BaseNetIdToNetIdPlus.Contains(SourceId))
 	{
 		return BaseNetIdToNetIdPlus[SourceId];
@@ -268,6 +272,7 @@ void FOnlineUserEOSPlus::AddPlayer(int32 LocalUserNum)
 	EOSNetIdToNetIdPlus.Add(EOSNetId->ToString(), PlusNetId);
 	NetIdPlusToBaseNetId.Add(PlusNetId->ToString(), BaseNetId);
 	NetIdPlusToEOSNetId.Add(PlusNetId->ToString(), EOSNetId);
+	NetIdPlusToNetIdPlus.Add(PlusNetId->ToString(), PlusNetId);
 	LocalUserNumToNetIdPlus.Add(LocalUserNum, PlusNetId);
 
 	// Add the local account
