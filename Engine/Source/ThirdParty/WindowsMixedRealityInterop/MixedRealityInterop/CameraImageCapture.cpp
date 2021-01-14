@@ -159,8 +159,7 @@ void OnFrameRecevied(MediaFrameReader SendingFrameReader, MediaFrameArrivedEvent
 			winrt::com_ptr<ABI::Windows::Perception::Spatial::ISpatialCoordinateSystem> TrackingCoordinateSystemABI;
 			winrt::Windows::Perception::Spatial::SpatialCoordinateSystem TrackingCoordinateSystemWinRT = nullptr;
 
-			WindowsMixedReality::HMDTrackingOrigin origin;
-			if (WindowsMixedReality::MixedRealityInterop::QueryCoordinateSystem(*TrackingCoordinateSystemABI.put(), origin))
+			if (WindowsMixedReality::MixedRealityInterop::QueryCoordinateSystem(*TrackingCoordinateSystemABI.put()))
 			{
 				TrackingCoordinateSystemWinRT = convert_from_abi<winrt::Windows::Perception::Spatial::SpatialCoordinateSystem>((::IUnknown*)TrackingCoordinateSystemABI.get());
 				if (TrackingCoordinateSystemWinRT != nullptr)

@@ -252,7 +252,6 @@ namespace WindowsMixedReality
 		void InitTrackingFrame();
 		TRefCountPtr<FWindowsMixedRealityCustomPresent> mCustomPresent = nullptr;
 
-		EHMDTrackingOrigin::Type HMDTrackingOrigin;
 		FIntRect EyeRenderViewport;
 
 		struct Frame
@@ -379,7 +378,7 @@ namespace WindowsMixedReality
 		void SubmitHapticValue(
 			HMDHand hand,
 			float value);
-		bool QueryCoordinateSystem(ABI::Windows::Perception::Spatial::ISpatialCoordinateSystem *& pCoordinateSystem, WindowsMixedReality::HMDTrackingOrigin& trackingOrigin);
+		bool QueryCoordinateSystem(ABI::Windows::Perception::Spatial::ISpatialCoordinateSystem *& pCoordinateSystem);
 		bool IsTrackingAvailable();
 		virtual bool IsTracking(int32 DeviceId) override;
 

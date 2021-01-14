@@ -380,9 +380,12 @@ namespace WindowsMixedReality
 		bool UpdateRenderThreadFrame();
 
 		// Get the latest pose information from our tracking frame.
-		bool GetCurrentPoseRenderThread(DirectX::XMMATRIX& leftView, DirectX::XMMATRIX& rightView, HMDTrackingOrigin& trackingOrigin);
-		static bool QueryCoordinateSystem(ABI::Windows::Perception::Spatial::ISpatialCoordinateSystem *& pCoordinateSystem, HMDTrackingOrigin& trackingOrigin);
+		bool GetCurrentPoseRenderThread(DirectX::XMMATRIX& leftView, DirectX::XMMATRIX& rightView);
+		static bool QueryCoordinateSystem(ABI::Windows::Perception::Spatial::ISpatialCoordinateSystem *& pCoordinateSystem);
 		
+		void SetTrackingOrigin(HMDTrackingOrigin trackingOrigin);
+		HMDTrackingOrigin GetTrackingOrigin();
+
 		DirectX::XMFLOAT4X4 GetProjectionMatrix(HMDEye eye);
 		bool GetHiddenAreaMesh(HMDEye eye, DirectX::XMFLOAT2*& vertices, int& length);
 		bool GetVisibleAreaMesh(HMDEye eye, DirectX::XMFLOAT2*& vertices, int& length);
@@ -464,10 +467,10 @@ namespace WindowsMixedReality
 
 		// Anchors
 		bool IsSpatialAnchorStoreLoaded() const;
-		bool CreateAnchor(const wchar_t* anchorId, const DirectX::XMFLOAT3 position, DirectX::XMFLOAT4 rotationQuat, HMDTrackingOrigin trackingOrigin);
+		bool CreateAnchor(const wchar_t* anchorId, const DirectX::XMFLOAT3 position, DirectX::XMFLOAT4 rotationQuat);
 		void RemoveAnchor(const wchar_t* anchorId);
 		bool DoesAnchorExist(const wchar_t* anchorId) const;
-		bool GetAnchorPose(const wchar_t* anchorId, DirectX::XMFLOAT3& outScale, DirectX::XMFLOAT4& outRot, DirectX::XMFLOAT3& outTrans, HMDTrackingOrigin trackingOrigin) const;
+		bool GetAnchorPose(const wchar_t* anchorId, DirectX::XMFLOAT3& outScale, DirectX::XMFLOAT4& outRot, DirectX::XMFLOAT3& outTrans) const;
 		bool SaveAnchor(const wchar_t* saveId, const wchar_t* anchorId);
 		void RemoveSavedAnchor(const wchar_t* saveId);
 		bool LoadAnchors(std::function<void(const wchar_t* saveId, const wchar_t* anchorId)> anchorIdWritingFunctionPointer);
