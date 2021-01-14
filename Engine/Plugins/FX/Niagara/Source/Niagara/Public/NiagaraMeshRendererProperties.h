@@ -323,7 +323,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Mesh Flipbook", meta = (EditCondition = "bEnableMeshFlipbook && FirstFlipbookFrame != nullptr"))
 	FString FlipbookSuffixFormat;
 
-	/** The number of digits to expect in the frame number of the flipbook page. Set to 1 to not expect any leading zeros in the package names. */
+	/**
+	* The number of digits to expect in the frame number of the flipbook page. A value of 1 will expect no leading zeros in the package names,
+	* and can also be used for names with frame numbers that extend to 10 and beyond (Example: Frame_1, Frame_2, ..., Frame_10, Frame_11, etc.)
+	*/
 	UPROPERTY(EditAnywhere, Category = "Mesh Flipbook", meta = (EditCondition = "bEnableMeshFlipbook && FirstFlipbookFrame != nullptr", ClampMin = 1, ClampMax = 10, NoSpinbox = true))
 	uint32 FlipbookSuffixNumDigits;
 
