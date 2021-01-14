@@ -448,14 +448,16 @@ void NiagaraEmitterInstanceBatcher::ProcessPendingTicksFlush(FRHICommandListImme
 				.SetWorldTimes(0, 0, 0)
 				.SetGammaCorrection(1.0f));
 
+			const FIntRect DummViewRect(0, 0, 128, 128);
 			FSceneViewInitOptions ViewInitOptions;
 			ViewInitOptions.ViewFamily = &ViewFamily;
-			ViewInitOptions.SetViewRectangle(FIntRect(0, 0, 128, 128));
+			ViewInitOptions.SetViewRectangle(DummViewRect);
 			ViewInitOptions.ViewOrigin = FVector::ZeroVector;
 			ViewInitOptions.ViewRotationMatrix = FMatrix::Identity;
 			ViewInitOptions.ProjectionMatrix = FMatrix::Identity;
 
 			FViewInfo View(ViewInitOptions);
+			View.ViewRect = View.UnscaledViewRect;
 			View.CachedViewUniformShaderParameters = MakeUnique<FViewUniformShaderParameters>();
 
 			FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(FRHICommandListExecutor::GetImmediateCommandList());
