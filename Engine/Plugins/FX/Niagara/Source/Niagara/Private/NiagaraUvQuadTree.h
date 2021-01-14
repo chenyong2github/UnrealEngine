@@ -4,6 +4,9 @@
 
 #include "CoreMinimal.h"
 
+#include "Containers/StaticArray.h"
+#include "Math/Box2D.h"
+
 // Largely pulled from TQuadTree (GenericQuadTree.h) but differs in having a way to freeze the data into a buffer suited for the GPU
 // and also will duplicate entries in the tree to reduce the number of elements stuck at the root level (elements overlapping leaves
 // will be duplicated unless their size is on par with the node itself).
