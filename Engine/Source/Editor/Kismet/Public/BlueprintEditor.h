@@ -667,9 +667,10 @@ protected:
 	bool CanZoomToSelection() const;
 
 	// Navigating into/out of graphs
-	void NavigateToParentGraph_Clicked();
+	void NavigateToParentGraph();
+	void NavigateToParentGraphByDoubleClick();
 	bool CanNavigateToParentGraph() const;
-	void NavigateToChildGraph_Clicked();
+	void NavigateToChildGraph();
 	bool CanNavigateToChildGraph() const;
 
 	/** Determines visibility of the parent class manipulation buttons on the menu bar overlay */

@@ -11,7 +11,7 @@
 struct GRAPHEDITOR_API FGraphSplineOverlapResult
 {
 public:
-	FGraphSplineOverlapResult()
+	FGraphSplineOverlapResult(bool InCloseToSpline = false)
 		: Pin1Handle(nullptr)
 		, Pin2Handle(nullptr)
 		, BestPinHandle(nullptr)
@@ -20,10 +20,11 @@ public:
 		, DistanceSquared(FLT_MAX)
 		, DistanceSquaredToPin1(FLT_MAX)
 		, DistanceSquaredToPin2(FLT_MAX)
+		, bCloseToSpline(InCloseToSpline)
 	{
 	}
 
-	FGraphSplineOverlapResult(UEdGraphPin* InPin1, UEdGraphPin* InPin2, float InDistanceSquared, float InDistanceSquaredToPin1, float InDistanceSquaredToPin2)
+	FGraphSplineOverlapResult(UEdGraphPin* InPin1, UEdGraphPin* InPin2, float InDistanceSquared, float InDistanceSquaredToPin1, float InDistanceSquaredToPin2, bool InCloseToSpline)
 		: Pin1Handle(InPin1)
 		, Pin2Handle(InPin2)
 		, BestPinHandle(nullptr)
@@ -32,6 +33,7 @@ public:
 		, DistanceSquared(InDistanceSquared)
 		, DistanceSquaredToPin1(InDistanceSquaredToPin1)
 		, DistanceSquaredToPin2(InDistanceSquaredToPin2)
+		, bCloseToSpline(InCloseToSpline)
 	{
 	}
 
@@ -45,6 +47,16 @@ public:
 	float GetDistanceSquared() const
 	{
 		return DistanceSquared;
+	}
+
+	bool GetCloseToSpline() const
+	{
+		return bCloseToSpline;
+	}
+
+	void SetCloseToSpline(bool InCloseToSpline) 
+	{
+		bCloseToSpline = InCloseToSpline;
 	}
 
 	TSharedPtr<class SGraphPin> GetBestPinWidget(const class SGraphPanel& InGraphPanel) const
@@ -68,4 +80,5 @@ protected:
 	float DistanceSquared;
 	float DistanceSquaredToPin1;
 	float DistanceSquaredToPin2;
+	bool  bCloseToSpline;
 };

@@ -96,6 +96,8 @@ public:
 
 	DECLARE_DELEGATE_TwoParams( FOnDisallowedPinConnection, const UEdGraphPin*, const UEdGraphPin* );
 
+	DECLARE_DELEGATE( FOnDoubleClicked );
+
 	/** Info about events occurring in/on the graph */
 	struct FGraphEditorEvents
 	{
@@ -123,6 +125,8 @@ public:
 		FOnNodeSpawnedByKeymap OnNodeSpawnedByKeymap;
 		/** Called when the user generates a warning tooltip because a connection was invalid */
 		FOnDisallowedPinConnection OnDisallowedPinConnection;
+		/** Called when the graph itself is double clicked */
+		FOnDoubleClicked OnDoubleClicked;
 	};
 
 

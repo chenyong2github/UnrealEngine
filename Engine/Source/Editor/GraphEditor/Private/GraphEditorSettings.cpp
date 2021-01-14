@@ -18,6 +18,7 @@ UGraphEditorSettings::UGraphEditorSettings( const FObjectInitializer& ObjectInit
 	, PaddingTowardsNodeEdge(10.0f)
 	, bTreatSplinesLikePins(true)
 	, SplineHoverTolerance(2.0f)
+	, SplineCloseTolerance(6.0f)
 	, ForwardSplineHorizontalDeltaRange(1000.0f)
 	, ForwardSplineVerticalDeltaRange(1000.0f)
 	, ForwardSplineTangentFromHorizontalDelta(1.0f, 0.0f)

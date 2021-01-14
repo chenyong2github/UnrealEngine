@@ -81,6 +81,7 @@ public:
 		SLATE_EVENT( SGraphEditor::FOnSpawnNodeByShortcut, OnSpawnNodeByShortcut )
 		SLATE_EVENT( FOnUpdateGraphPanel, OnUpdateGraphPanel )
 		SLATE_EVENT( SGraphEditor::FOnDisallowedPinConnection, OnDisallowedPinConnection )
+		SLATE_EVENT( SGraphEditor::FOnDoubleClicked, OnDoubleClicked )
 		//SLATE_ATTRIBUTE( FGraphAppearanceInfo, Appearance )
 	SLATE_END_ARGS()
 
@@ -276,6 +277,9 @@ protected:
 
 	/** Called when the user generates a warning tooltip because a connection was invalid */
 	SGraphEditor::FOnDisallowedPinConnection OnDisallowedPinConnection;
+
+	/** Called when the graph itself is double clicked */
+	SGraphEditor::FOnDoubleClicked OnDoubleClicked;
 
 	/** Whether to draw the overlay indicating we're in PIE */
 	bool bShowPIENotification;

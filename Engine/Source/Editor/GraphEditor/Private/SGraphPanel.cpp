@@ -57,6 +57,7 @@ void SGraphPanel::Construct( const SGraphPanel::FArguments& InArgs )
 	this->OnSpawnNodeByShortcut = InArgs._OnSpawnNodeByShortcut;
 	this->OnUpdateGraphPanel = InArgs._OnUpdateGraphPanel;
 	this->OnDisallowedPinConnection = InArgs._OnDisallowedPinConnection;
+	this->OnDoubleClicked = InArgs._OnDoubleClicked;
 
 	this->bPreservePinPreviewConnection = false;
 	this->PinVisibility = SGraphEditor::Pin_Show;
@@ -442,7 +443,7 @@ int32 SGraphPanel::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeo
 					if (CommentNode == nullptr)
 					{
 						// Wasn't a comment node, disallow the spline interaction
-						OverlapData = FGraphSplineOverlapResult();
+						OverlapData = FGraphSplineOverlapResult(OverlapData.GetCloseToSpline());
 					}
 				}
 			}
@@ -666,6 +667,10 @@ FReply SGraphPanel::OnMouseButtonDoubleClick(const FGeometry& MyGeometry, const 
 
 		const UEdGraphSchema* Schema = GraphObj->GetSchema();
 		Schema->OnPinConnectionDoubleCicked(Pin1, Pin2, DoubleClickPositionInGraphSpace);
+	}
+	else if (!PreviousFrameSplineOverlap.GetCloseToSpline())
+	{
+		OnDoubleClicked.ExecuteIfBound();
 	}
 
 	return SNodePanel::OnMouseButtonDoubleClick(MyGeometry, MouseEvent);

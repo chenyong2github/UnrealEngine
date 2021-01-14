@@ -1488,6 +1488,7 @@ void FBlueprintEditor::SetupGraphEditorEvents(UEdGraph* InGraph, SGraphEditor::F
 	InEvents.OnSpawnNodeByShortcut = SGraphEditor::FOnSpawnNodeByShortcut::CreateSP(this, &FBlueprintEditor::OnSpawnGraphNodeByShortcut, InGraph);
 	InEvents.OnNodeSpawnedByKeymap = SGraphEditor::FOnNodeSpawnedByKeymap::CreateSP(this, &FBlueprintEditor::OnNodeSpawnedByKeymap );
 	InEvents.OnDisallowedPinConnection = SGraphEditor::FOnDisallowedPinConnection::CreateSP(this, &FBlueprintEditor::OnDisallowedPinConnection);
+	InEvents.OnDoubleClicked = SGraphEditor::FOnDoubleClicked::CreateSP(this, &FBlueprintEditor::NavigateToParentGraphByDoubleClick);
 
 	// Custom menu for K2 schemas
 	if(InGraph->Schema != NULL && InGraph->Schema->IsChildOf(UEdGraphSchema_K2::StaticClass()))
@@ -2735,17 +2736,17 @@ void FBlueprintEditor::CreateDefaultCommands()
 		);
 
 	ToolkitCommands->MapAction( FBlueprintEditorCommands::Get().NavigateToParent,
-		FExecuteAction::CreateSP( this, &FBlueprintEditor::NavigateToParentGraph_Clicked ),
+		FExecuteAction::CreateSP( this, &FBlueprintEditor::NavigateToParentGraph ),
 		FCanExecuteAction::CreateSP( this, &FBlueprintEditor::CanNavigateToParentGraph )
 		);
 
 	ToolkitCommands->MapAction( FBlueprintEditorCommands::Get().NavigateToParentBackspace,
-		FExecuteAction::CreateSP( this, &FBlueprintEditor::NavigateToParentGraph_Clicked ),
+		FExecuteAction::CreateSP( this, &FBlueprintEditor::NavigateToParentGraph ),
 		FCanExecuteAction::CreateSP( this, &FBlueprintEditor::CanNavigateToParentGraph )
 		);
 
 	ToolkitCommands->MapAction( FBlueprintEditorCommands::Get().NavigateToChild,
-		FExecuteAction::CreateSP( this, &FBlueprintEditor::NavigateToChildGraph_Clicked ),
+		FExecuteAction::CreateSP( this, &FBlueprintEditor::NavigateToChildGraph ),
 		FCanExecuteAction::CreateSP( this, &FBlueprintEditor::CanNavigateToChildGraph )
 		);
 
@@ -3173,11 +3174,20 @@ bool FBlueprintEditor::CanZoomToSelection() const
 }
 
 // Navigating into/out of graphs
-void FBlueprintEditor::NavigateToParentGraph_Clicked()
+void FBlueprintEditor::NavigateToParentGraphByDoubleClick()
+{
+	UBlueprintEditorSettings const* Settings = GetDefault<UBlueprintEditorSettings>();
+	if (Settings->bDoubleClickNavigatesToParent)
+	{
+		NavigateToParentGraph();
+	}
+}
+
+void FBlueprintEditor::NavigateToParentGraph()
 {
 	if (FocusedGraphEdPtr.IsValid())
 	{
-		if (UEdGraph* ParentGraph = Cast<UEdGraph>(FocusedGraphEdPtr.Pin()->GetCurrentGraph()->GetOuter()))
+		if (UEdGraph* ParentGraph = UEdGraph::GetOuterGraph(FocusedGraphEdPtr.Pin()->GetCurrentGraph()))
 		{
 			OpenDocument(ParentGraph, FDocumentTracker::NavigatingCurrentDocument);
 		}
@@ -3186,10 +3196,10 @@ void FBlueprintEditor::NavigateToParentGraph_Clicked()
 
 bool FBlueprintEditor::CanNavigateToParentGraph() const
 {
-	return FocusedGraphEdPtr.IsValid() && (FocusedGraphEdPtr.Pin()->GetCurrentGraph()->GetOuter()->IsA(UEdGraph::StaticClass()));
+	return FocusedGraphEdPtr.IsValid() && UEdGraph::GetOuterGraph(FocusedGraphEdPtr.Pin()->GetCurrentGraph());
 }
 
-void FBlueprintEditor::NavigateToChildGraph_Clicked()
+void FBlueprintEditor::NavigateToChildGraph()
 {
 	if (FocusedGraphEdPtr.IsValid())
 	{
