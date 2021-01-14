@@ -819,11 +819,11 @@ public:
 	UPROPERTY()
 	TArray<UMaterialInterface*> Materials_DEPRECATED;
 
+#endif // #if WITH_EDITORONLY_DATA
+
 	/** Settings related to building Nanite data. */
 	UPROPERTY()
 	FMeshNaniteSettings NaniteSettings;
-
-#endif // #if WITH_EDITORONLY_DATA
 
 	/** Minimum LOD to use for rendering.  This is the default setting for the mesh and can be overridden by component settings. */
 	UE_DEPRECATED(4.27, "Please do not access this member directly; use UStaticMesh::GetMinLOD() or UStaticMesh::SetMinLOD().")
