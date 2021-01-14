@@ -209,6 +209,9 @@ public:
 	 */
 	virtual bool LoadModulesForEnabledPlugins( const ELoadingPhase::Type LoadingPhase ) = 0;
 
+	/** Returns the highest loading phase that has so far completed */
+	virtual ELoadingPhase::Type GetLastCompletedLoadingPhase() const = 0;
+
 	/**
 	 * Callback for when modules for when LoadModulesForEnabledPlugins() completes loading for a specific phase.
 	 */
