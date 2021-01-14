@@ -2670,6 +2670,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category=Level)
 	ULevel* GetLevel() const;
 
+	/** Return the FTransform of the level this actor is a part of. */
+	UFUNCTION(BlueprintCallable, Category=Level)
+	FTransform GetLevelTransform() const;
+
 	/**	Do anything needed to clear out cross level references; Called from ULevel::PreSave	 */
 	virtual void ClearCrossLevelReferences();
 	

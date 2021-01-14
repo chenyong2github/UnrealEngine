@@ -2079,6 +2079,19 @@ ULevel* AActor::GetLevel() const
 	return GetTypedOuter<ULevel>();
 }
 
+FTransform AActor::GetLevelTransform() const
+{
+	if (ULevel* Level = GetLevel())
+	{
+		if (ULevelStreaming* LevelStreaming = FLevelUtils::FindStreamingLevel(Level))
+		{
+			return LevelStreaming->LevelTransform;
+		}
+	}
+
+	return FTransform::Identity;
+}
+
 bool AActor::IsInPersistentLevel(bool bIncludeLevelStreamingPersistent) const
 {
 	ULevel* MyLevel = GetLevel();
