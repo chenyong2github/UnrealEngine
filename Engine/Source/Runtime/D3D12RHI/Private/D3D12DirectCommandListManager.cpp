@@ -788,17 +788,23 @@ void FD3D12CommandListManager::ReleaseResourceBarrierCommandListAllocator()
 void FD3D12CommandListManager::StartTrackingCommandListTime()
 {
 #if WITH_PROFILEGPU || D3D12_SUBMISSION_GAP_RECORDER
-	check(QueueType == ED3D12CommandQueueType::Default && !GetShouldTrackCmdListTime());
-	ResolvedTimingPairs.Reset();
-	SetShouldTrackCmdListTime(true);
+	check(QueueType == ED3D12CommandQueueType::Default);
+	if (!GetShouldTrackCmdListTime())
+	{
+		ResolvedTimingPairs.Reset();
+		SetShouldTrackCmdListTime(true);
+	}
 #endif
 }
 
 void FD3D12CommandListManager::EndTrackingCommandListTime()
 {
 #if WITH_PROFILEGPU || D3D12_SUBMISSION_GAP_RECORDER
-	check(QueueType == ED3D12CommandQueueType::Default && GetShouldTrackCmdListTime());
-	SetShouldTrackCmdListTime(false);
+	check(QueueType == ED3D12CommandQueueType::Default);
+	if (GetShouldTrackCmdListTime())
+	{
+		SetShouldTrackCmdListTime(false);
+	}
 #endif
 }
 
