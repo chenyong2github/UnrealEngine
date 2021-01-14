@@ -16,13 +16,15 @@ class FHlslNiagaraTranslator;
 class FCompileConstantResolver
 {
 public:
-	FCompileConstantResolver() : Emitter(nullptr), Translator(nullptr), Usage(ENiagaraScriptUsage::Function) {}
-	FCompileConstantResolver(const UNiagaraEmitter* Emitter, ENiagaraScriptUsage Usage) : Emitter(Emitter), Translator(nullptr), Usage(Usage) {}
-	FCompileConstantResolver(const FHlslNiagaraTranslator* Translator) : Emitter(nullptr), Translator(Translator), Usage(ENiagaraScriptUsage::Function) {}
+	FCompileConstantResolver() : Emitter(nullptr), System(nullptr), Translator(nullptr), Usage(ENiagaraScriptUsage::Function) {}
+	FCompileConstantResolver(const UNiagaraEmitter* Emitter, ENiagaraScriptUsage Usage) : Emitter(Emitter), System(nullptr), Translator(nullptr), Usage(Usage) {}
+	FCompileConstantResolver(const UNiagaraSystem* System, ENiagaraScriptUsage Usage) : Emitter(nullptr), System(System), Translator(nullptr), Usage(Usage) {}
+	FCompileConstantResolver(const FHlslNiagaraTranslator* Translator) : Emitter(nullptr), System(nullptr), Translator(Translator), Usage(ENiagaraScriptUsage::Function) {}
 
 	bool ResolveConstant(FNiagaraVariable& OutConstant) const;
 private:
 	const UNiagaraEmitter* Emitter;
+	const UNiagaraSystem* System;
 	const FHlslNiagaraTranslator* Translator;
 	ENiagaraScriptUsage Usage;
 };
