@@ -74,22 +74,19 @@ public:
 		{
 			FRHIUnorderedAccessView* OutputUAV = nullptr;
 
-			if (Context.IsOutputStage)
+			if (FRHITexture* TextureRHI = ProxyData->TextureReferenceRHI->GetReferencedTexture())
 			{
-				if (FRHITexture* TextureRHI = ProxyData->TextureReferenceRHI->GetReferencedTexture())
+				// Note: Because we control the render target it should not changed underneath us without queueing a request to recreate the UAV.  If that assumption changes we would need to track the UAV.
+				if (!ProxyData->UAV.IsValid())
 				{
-					// Note: Because we control the render target it should not changed underneath us without queueing a request to recreate the UAV.  If that assumption changes we would need to track the UAV.
-					if (!ProxyData->UAV.IsValid())
-					{
-						ProxyData->UAV = RHICreateUnorderedAccessView(TextureRHI, 0);
-					}
-
-					OutputUAV = ProxyData->UAV;
-					// FIXME: this transition needs to happen in FNiagaraDataInterfaceProxyRenderTarget2DProxy::PreStage so it doesn't break up the overlap group,
-					// but for some reason it stops working if I move it in there.
-					RHICmdList.Transition(FRHITransitionInfo(OutputUAV, ERHIAccess::SRVMask, ERHIAccess::UAVCompute));
-					ProxyData->bWasWrittenTo = true;
+					ProxyData->UAV = RHICreateUnorderedAccessView(TextureRHI, 0);
 				}
+
+				OutputUAV = ProxyData->UAV;
+				// FIXME: this transition needs to happen in FNiagaraDataInterfaceProxyRenderTarget2DProxy::PreStage so it doesn't break up the overlap group,
+				// but for some reason it stops working if I move it in there.
+				RHICmdList.Transition(FRHITransitionInfo(OutputUAV, ERHIAccess::SRVMask, ERHIAccess::UAVCompute));
+				ProxyData->bWasWrittenTo = true;
 			}
 
 			if (OutputUAV == nullptr)
@@ -105,10 +102,10 @@ public:
 	{
 		if (OutputParam.IsBound())
 		{
-			FNiagaraDataInterfaceProxyRenderTarget2DProxy* VFDI = static_cast<FNiagaraDataInterfaceProxyRenderTarget2DProxy*>(Context.DataInterface);
-			FRenderTarget2DRWInstanceData_RenderThread* ProxyData = VFDI->SystemInstancesToProxyData_RT.Find(Context.SystemInstanceID);
 			OutputParam.UnsetUAV(RHICmdList, Context.Shader.GetComputeShader());
-			if (ProxyData && Context.IsOutputStage)
+
+			FNiagaraDataInterfaceProxyRenderTarget2DProxy* VFDI = static_cast<FNiagaraDataInterfaceProxyRenderTarget2DProxy*>(Context.DataInterface);
+			if ( FRenderTarget2DRWInstanceData_RenderThread* ProxyData = VFDI->SystemInstancesToProxyData_RT.Find(Context.SystemInstanceID) )
 			{
 				if (FRHIUnorderedAccessView* OutputUAV = ProxyData->UAV)
 				{
