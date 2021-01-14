@@ -280,6 +280,8 @@ void UK2Node_PromotableOperator::ExpandNode(FKismetCompilerContext& CompilerCont
 	// Create cast from original 2 inputs to the first intermediate node
 	{
 		UFunction* BestFunc = OpFunction;
+		// Look for a best matching function if we possibly don't have one
+		if(!BestFunc)
 		{
 			TArray<UEdGraphPin*> PinsToConsider =
 			{

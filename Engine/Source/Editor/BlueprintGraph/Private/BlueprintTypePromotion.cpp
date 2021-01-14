@@ -289,6 +289,7 @@ UFunction* FTypePromotion::FindBestMatchingFunc_Internal(FName Operation, const 
 
 	const bool bIsSinglePin = PinsToConsider.Num() == 1;
 	const bool bIsComparisonOp = GetComparisonOpNames().Contains(Operation);
+	const bool bHasStruct = PinsToConsider.ContainsByPredicate([](const UEdGraphPin* Pin) { return Pin && Pin->PinType.PinCategory == UEdGraphSchema_K2::PC_Struct; });
 
 	const UEdGraphSchema_K2* Schema = GetDefault<UEdGraphSchema_K2>();
 		
@@ -313,6 +314,12 @@ UFunction* FTypePromotion::FindBestMatchingFunc_Internal(FName Operation, const 
 			FEdGraphPinType ParamType;
 			if (Schema->ConvertPropertyToPinType(Param, /* out */ ParamType))
 			{
+				// Don't bother with this function if there is a struct param, if no pins have any structs
+				if (ParamType.PinCategory == UEdGraphSchema_K2::PC_Struct && !bHasStruct)
+				{
+					break;
+				}
+
 				for (const UEdGraphPin* Pin : PinsToConsider)
 				{
 					// Give a point for each function parameter that matches up with a pin to consider
