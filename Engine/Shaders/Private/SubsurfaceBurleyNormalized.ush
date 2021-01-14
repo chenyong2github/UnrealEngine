@@ -197,24 +197,38 @@ FBurleyParameter GetBurleyParameters(FGBufferData GBuffer)
 {
 	FBurleyParameter Out = (FBurleyParameter)0;
 #if STRATA_ENABLED
-	const bool bUseProfileData = GBuffer.CustomData.y == 0 && GBuffer.CustomData.z == 0;
-	if (GBuffer.ShadingModelID == SHADINGMODELID_STRATA && !bUseProfileData)
+	if (GBuffer.ShadingModelID == SHADINGMODELID_STRATA)
 	{
-		// Special data encoding from strata packing
-		const float3 MFPAlebdo			= Pow2(GBuffer.CustomData.xyz);
-		const float  MFPRadius			= GBuffer.CustomData.a * SSS_PROFILE_PERPIXEL_MAXRADIUS;
-		const float3 MFPChromaticRadius = MFPAlebdo * MFPRadius;
+		const bool bUseProfileData = GBuffer.CustomData.y == 0 && GBuffer.CustomData.z == 0;
+		if (bUseProfileData)
+		{
+			uint SubsurfaceProfileInt = ExtractSubsurfaceProfileInt(GBuffer);
 
-		const float MaxAlbedo			= max3(MFPAlebdo.x, MFPAlebdo.y, MFPAlebdo.z);
-		const uint MaxAlbedoComponent	= MFPAlebdo.x == MaxAlbedo ? 0 : (MFPAlebdo.y == MaxAlbedo ? 1 : 2);
+			Out.SurfaceAlbedo		= GetSubsurfaceProfileSurfaceAlbedo(SubsurfaceProfileInt);
+			Out.DiffuseMeanFreePath = DecodeDiffuseMeanFreePath(GetSubsurfaceProfileDiffuseMeanFreePath(SubsurfaceProfileInt));
+			Out.WorldUnitScale		= DecodeWorldUnitScale(GetSubsurfaceProfileWorldUnitScale(SubsurfaceProfileInt)) * BURLEY_CM_2_MM;
 
-		Out.SurfaceAlbedo		= float4(GBuffer.BaseColor, MaxAlbedoComponent);
-		Out.DiffuseMeanFreePath	= float4(MFPChromaticRadius, max3(MFPChromaticRadius.x, MFPChromaticRadius.y, MFPChromaticRadius.z));
-		Out.WorldUnitScale		= BURLEY_CM_2_MM;
+			Out.SurfaceOpacity		= 1.0f;
+			Out.DiffuseMeanFreePath*= Out.SurfaceOpacity;
+		}
+		else
+		{
+			// Special data encoding from strata packing
+			const float3 MFPAlebdo			= Pow2(GBuffer.CustomData.xyz);
+			const float  MFPRadius			= GBuffer.CustomData.a * SSS_PROFILE_PERPIXEL_MAXRADIUS * BURLEY_CM_2_MM * 5.0f; // STRATA_TODO why a scale of 5 is needed here?
+			const float3 MFPChromaticRadius = MFPAlebdo * MFPRadius;
 
-		// Mask should always be true, we can probably ignore it?
-		// STRATA_TODO smooth transistion based on pixel footprint
-		Out.SurfaceOpacity		= MFPRadius > 0 ? 1.f : 0.f;
+			const float MaxDMFP				= max3(MFPChromaticRadius.x, MFPChromaticRadius.y, MFPChromaticRadius.z);
+			const uint IndexOfMaxDmfp		= (MFPChromaticRadius.r == MaxDMFP) ? 0 : ((MFPChromaticRadius.b == MaxDMFP) ? 1 : 2);// STARTA_TODO fix the component selection in SubsirfaceProfile, b should map to 2
+
+			Out.SurfaceAlbedo				= float4(GBuffer.BaseColor, GBuffer.BaseColor[IndexOfMaxDmfp]);
+			Out.DiffuseMeanFreePath			= float4(MFPChromaticRadius, MaxDMFP);
+			Out.WorldUnitScale				= DecodeWorldUnitScale(1.0f * ENC_WORLDUNITSCALE_IN_CM_TO_UNIT) * BURLEY_CM_2_MM;
+
+			// STRATA_TODO smooth transistion based on pixel footprint w.r.t. MFPRadius
+			Out.SurfaceOpacity				= 1.0;
+			Out.DiffuseMeanFreePath			*= Out.SurfaceOpacity;
+		}
 	}
 	else
 #endif

@@ -56,7 +56,7 @@ void ComputePostProcessBSDFData(
 		}
 
 		// Select the first/toppest layer with subsurface scattering
-		if (BSDF_GETHASSCATTERING(BSDF) && BSDFCoverageAvg > 0 && SLAB_SSSPROFILERADIUS(BSDF) > 0 && !SSS.bHasSubsurface)
+		if (BSDF_GETHASSCATTERING(BSDF) && BSDFCoverageAvg > 0 && !SSS.bHasSubsurface)
 		{
 			SSS.bHasSubsurface = true;
 			SSS.bHasProfile	= BSDF_GETHASSSSPROFILE(BSDF);
