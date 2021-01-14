@@ -116,12 +116,12 @@ inline uint32 GetTypeHash(const FBlake3Hash& Hash)
 
 inline FAnsiStringBuilderBase& operator<<(FAnsiStringBuilderBase& Builder, const FBlake3Hash& Hash)
 {
-	UE::String::BytesToHex(Hash.Bytes(), Builder);
+	UE::String::BytesToHexLower(Hash.Bytes(), Builder);
 	return Builder;
 }
 
 inline FWideStringBuilderBase& operator<<(FWideStringBuilderBase& Builder, const FBlake3Hash& Hash)
 {
-	UE::String::BytesToHex(Hash.Bytes(), Builder);
+	UE::String::BytesToHexLower(Hash.Bytes(), Builder);
 	return Builder;
 }
