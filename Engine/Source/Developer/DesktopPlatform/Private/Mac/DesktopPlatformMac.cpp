@@ -609,19 +609,13 @@ bool FDesktopPlatformMac::RunUnrealBuildTool(const FText& Description, const FSt
 		return false;
 	}
 
-	// On Mac we launch UBT with Mono
-	FString ScriptPath = FPaths::ConvertRelativePathToFull(RootDir / TEXT("Engine/Build/BatchFiles/Mac/RunMono.sh"));
-	FString CmdLineParams = FString::Printf(TEXT("\"%s\" \"%s\" %s"), *ScriptPath, *UnrealBuildToolPath, *Arguments);
-
 	// Spawn it
-	return FFeedbackContextMarkup::PipeProcessOutput(Description, TEXT("/bin/sh"), CmdLineParams, Warn, &OutExitCode) && OutExitCode == 0;
+	return FFeedbackContextMarkup::PipeProcessOutput(Description, UnrealBuildToolPath, Arguments, Warn, &OutExitCode) && OutExitCode == 0;
 }
 
 bool FDesktopPlatformMac::IsUnrealBuildToolRunning()
 {
-	// For now assume that if mono application is running, we're running UBT
-	// @todo: we need to get the commandline for the mono process and check if UBT.exe is in there.
-	return FPlatformProcess::IsApplicationRunning(TEXT("mono"));
+	return FPlatformProcess::IsApplicationRunning(TEXT("UnrealBuildTool"));
 }
 
 FFeedbackContext* FDesktopPlatformMac::GetNativeFeedbackContext()

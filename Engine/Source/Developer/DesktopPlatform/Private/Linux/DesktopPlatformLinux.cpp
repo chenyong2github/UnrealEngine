@@ -429,19 +429,12 @@ bool FDesktopPlatformLinux::RunUnrealBuildTool(const FText& Description, const F
 	// Write the output
 	Warn->Logf(TEXT("Running %s %s"), *UnrealBuildToolPath, *Arguments);
 
-	// launch UBT with Mono
-	FString ScriptPath = FPaths::ConvertRelativePathToFull(RootDir / TEXT("Engine/Build/BatchFiles/Linux/RunMono.sh"));
-	FString CmdLineParams = FString::Printf(TEXT("\"%s\" \"%s\" %s"), *ScriptPath, *UnrealBuildToolPath, *Arguments);
-
-	// Spawn it with bash (and not sh) because of pushd
-	return FFeedbackContextMarkup::PipeProcessOutput(Description, TEXT("/bin/bash"), CmdLineParams, Warn, &OutExitCode) && OutExitCode == 0;
+	return FFeedbackContextMarkup::PipeProcessOutput(Description, UnrealBuildToolPath, Arguments, Warn, &OutExitCode) && OutExitCode == 0;
 }
 
 bool FDesktopPlatformLinux::IsUnrealBuildToolRunning()
 {
-	// For now assume that if mono application is running, we're running UBT
-	// @todo: we need to get the commandline for the mono process and check if UBT.exe is in there.
-	return FPlatformProcess::IsApplicationRunning(TEXT("mono"));
+	return FPlatformProcess::IsApplicationRunning(TEXT("UnrealBuildTool"));
 }
 
 FFeedbackContext* FDesktopPlatformLinux::GetNativeFeedbackContext()
