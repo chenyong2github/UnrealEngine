@@ -3910,7 +3910,8 @@ void UParticleSystemComponent::OnUnregister()
 	check(GetWorld());
 	SetComponentTickEnabled(false);
 
-	ResetParticles(!bAllowRecycling);
+	bool bEmptyInstances = !bAllowRecycling || GetWorld()->bIsTearingDown;
+	ResetParticles(bEmptyInstances);
 	FXSystem = NULL;
 	Super::OnUnregister();
 
