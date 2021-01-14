@@ -106,7 +106,7 @@ void SDockingTabStack::Construct( const FArguments& InArgs, const TSharedRef<FTa
 		+ SHorizontalBox::Slot() 
 		.FillWidth(1.0f)
 		.VAlign(VAlign_Bottom)
-		.Padding(4.0f, 0.0f, 0.0f, 0.0f)
+		.Padding(0.0f, 0.0f, 0.0f, 0.0f)
 		[
 			SNew(SVerticalBox)
 			.Visibility(EVisibility::SelfHitTestInvisible)
@@ -1130,7 +1130,7 @@ FSlateColor SDockingTabStack::GetUnhideTabWellButtonOpacity() const
 const FSlateBrush* SDockingTabStack::GetTabStackBorderImage() const
 {
 	static const FSlateBrush* MajorTabBackgroundBrush = FAppStyle::Get().GetBrush("Brushes.Title");
-	static const FSlateBrush* MinorTabBackgroundBrush = FAppStyle::Get().GetBrush("Brushes.Recessed");
+	static const FSlateBrush* MinorTabBackgroundBrush = FAppStyle::Get().GetBrush("Brushes.Background");
 	return bShowingTitleBarArea ? MajorTabBackgroundBrush : MinorTabBackgroundBrush;
 }
 

@@ -272,7 +272,7 @@ void SLevelEditor::Initialize( const TSharedRef<SDockTab>& OwnerTab, const TShar
 			FLevelEditorToolBar::MakeLevelEditorToolBar(LevelEditorCommands.ToSharedRef(), SharedThis(this))
 		]
 		+SVerticalBox::Slot()
-		.Padding(0.0f, 1.0f, 0.0f, 0.0f)
+		.Padding(4.0f, 2.f, 4.f, 2.f)
 		.FillHeight( 1.0f )
 		[
 			ContentArea

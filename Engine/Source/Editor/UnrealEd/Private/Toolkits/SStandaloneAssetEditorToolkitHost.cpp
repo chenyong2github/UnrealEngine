@@ -175,13 +175,13 @@ void SStandaloneAssetEditorToolkitHost::RestoreFromLayout( const TSharedRef<FTab
 		.AutoHeight()
 		.Expose(ToolbarSlot)
 		+ SVerticalBox::Slot()
-		.Padding(0.0f, 1.0f, 0.0f, 0.0f)
+		.Padding(4.f, 2.f, 4.f, 2.f)
 		.FillHeight(1.0f)
 		[
 			RestoredUI.ToSharedRef()
 		]
 		+ SVerticalBox::Slot()
-		.Padding(0.0f, 1.0f, 0.0f, 0.0f)
+		.Padding(0.0f, 2.0f, 0.0f, 0.0f)
 		.AutoHeight()
 		[
 			GEditor->GetEditorSubsystem<UStatusBarSubsystem>()->MakeStatusBarWidget(GetMenuName(), HostTab)

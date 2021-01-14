@@ -543,7 +543,7 @@ TSharedRef<ISlateStyle> FStarshipCoreStyle::Create()
 	// SSplitter
 	{
 		Style->Set("Splitter", FSplitterStyle()
-			.SetHandleNormalBrush(FSlateColorBrush(FStyleColors::Recessed))
+			.SetHandleNormalBrush(FSlateColorBrush(FStyleColors::Background))
 			.SetHandleHighlightBrush(FSlateColorBrush(FStyleColors::Secondary))
 		);
 	}
@@ -1499,7 +1499,7 @@ void FStarshipCoreStyle::SetupDockingStyles(TSharedRef<FStyle>& Style)
 		.SetColorOverlayTabBrush(FSlateNoResource())
 		.SetColorOverlayIconBrush(FSlateNoResource())
 		.SetContentAreaBrush(FSlateColorBrush(FStyleColors::Panel))
-		.SetTabWellBrush(FSlateNoResource())
+		.SetTabWellBrush(FSlateColorBrush(FStyleColors::Background))
 		.SetFlashColor(TabFlashColor)
 
 		.SetTabPadding(FMargin(10, 3, 10, 4))
@@ -1523,8 +1523,8 @@ void FStarshipCoreStyle::SetupDockingStyles(TSharedRef<FStyle>& Style)
 
 		.SetColorOverlayTabBrush(FSlateNoResource())
 		.SetColorOverlayIconBrush(FSlateNoResource())
-		.SetContentAreaBrush(FSlateColorBrush(FStyleColors::Recessed))
-		.SetTabWellBrush(FSlateNoResource())
+		.SetContentAreaBrush(FSlateColorBrush(FStyleColors::Background))
+		.SetTabWellBrush(FSlateColorBrush(FStyleColors::Background))
 
 		.SetTabPadding(FMargin(10, 7, 10, 8))
 		.SetOverlapWidth(0.f)
@@ -1757,7 +1757,7 @@ void FStarshipCoreStyle::SetupMultiboxStyles(TSharedRef<FStyle>& Style)
 			.SetComboButtonPadding(FMargin(4.0f, 0.0f))
 			.SetButtonPadding(FMargin(2.0f, 0.f))
 			.SetCheckBoxPadding(FMargin(4.0f, 0.f))
-			.SetSeparatorBrush(FSlateColorBrush(FStyleColors::Recessed))
+			.SetSeparatorBrush(FSlateColorBrush(FStyleColors::Background))
 			.SetSeparatorPadding(FMargin(1.f, 0.f, 1.f, 0.f))
 			.SetLabelStyle(FTextBlockStyle(NormalText).SetFont(FStyleFonts::Get().Normal))
 			.SetEditableTextStyle(FEditableTextBoxStyle(NormalEditableTextBoxStyle).SetFont(FStyleFonts::Get().Normal))
