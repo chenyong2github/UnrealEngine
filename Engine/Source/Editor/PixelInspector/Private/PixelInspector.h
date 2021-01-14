@@ -9,6 +9,8 @@
 #include "PixelInspectorResult.h"
 #include "Misc/NotifyHook.h"
 #include "RendererInterface.h"
+#include "SceneViewExtension.h"
+
 
 class AActor;
 class FSceneInterface;
@@ -17,15 +19,41 @@ class UPixelInspectorView;
 class UTextureRenderTarget2D;
 struct FSlateBrush;
 
+
 namespace PixelInspector
 {
+
+	class FPixelInspectorSceneViewExtension : public FSceneViewExtensionBase
+	{
+	public:
+		FPixelInspectorSceneViewExtension(const FAutoRegister& AutoRegister);
+
+	/** Scene View extension interface. */
+	public:
+		virtual void SetupViewFamily(FSceneViewFamily& InViewFamily) override {};
+		virtual void SetupView(FSceneViewFamily& InViewFamily, FSceneView& InView) override {};
+		virtual void BeginRenderViewFamily(FSceneViewFamily& InViewFamily) override;
+		virtual void PreRenderViewFamily_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneViewFamily& InViewFamily) override {};
+		virtual void PreRenderView_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneView& InView) override {};
+		virtual void SubscribeToPostProcessingPass(EPostProcessingPass PassId, FAfterPassCallbackDelegateArray& InOutPassCallbacks, bool bIsPassEnabled) override;
+
+	public:
+		FScreenPassTexture PostProcessPassAfterFxaa_RenderThread(FRDGBuilder& GraphBuilder, const FSceneView& View, const FPostProcessMaterialInputs& InOutInputs);
+		const EPixelFormat GetPixelFormat() const { return FinalColorPixelFormat; }
+		const float GetGamma() const { return FinalColorGamma; }
+		
+	private:
+		EPixelFormat FinalColorPixelFormat;
+		float FinalColorGamma;
+	};
+
+
 #define WAIT_FRAMENUMBER_BEFOREREADING 5
 	/**
 	* Implements the PixelInspector window.
 	*/
 	class SPixelInspector : public SCompoundWidget, public FNotifyHook
 	{
-
 	public:
 		/** Default constructor. */
 		SPixelInspector();
@@ -123,6 +151,8 @@ namespace PixelInspector
 		*/
 		void SetCurrentViewportInRealtime();
 
+		void SetPixelInspectorState(bool bInIsPixelInspectorEnabled);
+
 	private:
 
 		void ReleaseAllRequests();
@@ -140,7 +170,7 @@ namespace PixelInspector
 		//Buffer management we can do only one pixel inspection per frame
 		//We have two buffer of each type to not halt the render thread when we do the read back from the GPU
 		//FinalColor Buffer
-		UTextureRenderTarget2D* Buffer_FinalColor_RGB8[2];
+		UTextureRenderTarget2D* Buffer_FinalColor_AnyFormat[2];
 		//Depth Buffer
 		UTextureRenderTarget2D* Buffer_Depth_Float[2];
 		//SceneColor Buffer
@@ -173,5 +203,8 @@ namespace PixelInspector
 		uint32 LastViewportId;
 
 		TSharedPtr<IDetailsView> DisplayDetailsView;
-	};
+
+		TSharedPtr< class FPixelInspectorSceneViewExtension, ESPMode::ThreadSafe > PixelInspectorSceneViewExtension;
+
+};
 }

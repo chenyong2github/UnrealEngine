@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using UnrealBuildTool;
+using System.IO;
 
 public class PixelInspectorModule : ModuleRules
 {
@@ -21,8 +22,16 @@ public class PixelInspectorModule : ModuleRules
                 "PropertyEditor",
 			}
         );
-        
-        PrivateDependencyModuleNames.AddRange(
+		var EngineDir = Path.GetFullPath(Target.RelativeEnginePath);
+
+		PrivateIncludePaths.AddRange(
+			new string[] {
+				// required for PostProcessing.
+				Path.Combine(EngineDir, "Source/Runtime/Renderer/Private")
+			}
+		);
+
+		PrivateDependencyModuleNames.AddRange(
              new string[] {
 					"Engine",
                     "UnrealEd"
