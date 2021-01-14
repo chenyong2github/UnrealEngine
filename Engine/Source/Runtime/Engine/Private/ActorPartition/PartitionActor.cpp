@@ -35,9 +35,13 @@ bool APartitionActor::CanDeleteSelectedActor(FText& OutReason) const
 	}
 
 	check(GetLevel());
-	check(GetLevel()->bIsPartitioned);
-	OutReason = LOCTEXT("CantDeleteSelectedPartitionActor", "Can't delete Partition Actor (automatically managed).");
-	return false;
+	if (GetLevel()->bIsPartitioned)
+	{
+		OutReason = LOCTEXT("CantDeleteSelectedPartitionActor", "Can't delete Partition Actor (automatically managed).");
+		return false;
+	}
+
+	return true;
 }
 #endif
 
