@@ -768,57 +768,37 @@ namespace UnrealToUsdImpl
 				}
 			}
 
-			pxr::UsdGeomPrimvarsAPI PrimvarsAPI{ UsdLODPrimGeomMesh };
-			int32 NumInfluencesPerVertex = LODModel.GetMaxBoneInfluences();
-
-			// Joint indices
+			// Joint indices & weights
 			{
-				pxr::UsdGeomPrimvar JointIndicesPrimvar = PrimvarsAPI.CreatePrimvar(
-					pxr::UsdSkelTokens->primvarsSkelJointIndices,
-					pxr::SdfValueTypeNames->IntArray,
-					pxr::UsdGeomTokens->vertex,
-					NumInfluencesPerVertex
-				);
+				pxr::UsdSkelBindingAPI SkelBindingAPI{ UsdLODPrimGeomMesh };
+				const int32 NumInfluencesPerVertex = LODModel.GetMaxBoneInfluences();
 
-				if ( JointIndicesPrimvar )
+				const bool bConstantPrimvar = false;
+				pxr::UsdGeomPrimvar JointIndicesPrimvar = SkelBindingAPI.CreateJointIndicesPrimvar( bConstantPrimvar, NumInfluencesPerVertex );
+				pxr::UsdGeomPrimvar JointWeightsPrimvar = SkelBindingAPI.CreateJointWeightsPrimvar( bConstantPrimvar, NumInfluencesPerVertex );
+
+				if ( JointIndicesPrimvar && JointWeightsPrimvar )
 				{
 					pxr::VtArray< int > JointIndices;
 					JointIndices.reserve( VertexCount * NumInfluencesPerVertex );
 
-					for ( int32 VertexIndex = 0; VertexIndex < VertexCount; ++VertexIndex )
+					pxr::VtArray< float > JointWeights;
+					JointWeights.reserve( VertexCount * NumInfluencesPerVertex );
+
+					const int32 SectionCount = LODModel.Sections.Num();
+					for ( const FSkelMeshSection& Section : LODModel.Sections )
 					{
-						for ( int32 InfluenceIndex = 0; InfluenceIndex < NumInfluencesPerVertex; ++InfluenceIndex )
+						for ( const FSoftSkinVertex& Vertex : Section.SoftVertices )
 						{
-							JointIndices.push_back( Vertices[VertexIndex].InfluenceBones[InfluenceIndex] );
+							for ( int32 InfluenceIndex = 0; InfluenceIndex < NumInfluencesPerVertex; ++InfluenceIndex )
+							{
+								JointIndices.push_back( Section.BoneMap[ Vertex.InfluenceBones [InfluenceIndex ] ] );
+								JointWeights.push_back( Vertex.InfluenceWeights[ InfluenceIndex ] / 255.0f );
+							}
 						}
 					}
 
 					JointIndicesPrimvar.Set( JointIndices, TimeCode );
-				}
-			}
-
-			// Joint weights
-			{
-				pxr::UsdGeomPrimvar JointWeightsPrimvar = PrimvarsAPI.CreatePrimvar(
-					pxr::UsdSkelTokens->primvarsSkelJointWeights,
-					pxr::SdfValueTypeNames->FloatArray,
-					pxr::UsdGeomTokens->vertex,
-					NumInfluencesPerVertex
-				);
-
-				if ( JointWeightsPrimvar )
-				{
-					pxr::VtArray< float > JointWeights;
-					JointWeights.reserve( VertexCount * NumInfluencesPerVertex );
-
-					for ( int32 VertexIndex = 0; VertexIndex < VertexCount; ++VertexIndex )
-					{
-						for ( int32 InfluenceIndex = 0; InfluenceIndex < NumInfluencesPerVertex; ++InfluenceIndex )
-						{
-							JointWeights.push_back( Vertices[ VertexIndex ].InfluenceWeights[ InfluenceIndex ] / 255.0f );
-						}
-					}
-
 					JointWeightsPrimvar.Set( JointWeights, TimeCode );
 				}
 			}
