@@ -328,6 +328,12 @@ namespace Chaos
 
 		virtual int32 FindClosestFaceAndVertices(const FVec3& Position, TArray<FVec3>& FaceVertices, FReal SearchDist = 0.01) const override;
 
+		// Returns a winding order multiplier used in the manifold clipping and required when we have negative scales (See ImplicitObjectScaled)
+		float GetWindingOrder() const
+		{
+			return 1.0f;
+		}
+
 	private:
 		int32 GetSupportVertex(const FVec3& Direction) const
 		{

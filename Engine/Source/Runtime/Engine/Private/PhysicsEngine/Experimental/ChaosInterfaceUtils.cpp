@@ -306,7 +306,7 @@ namespace ChaosInterface
 				const FTransform& ConvexTransform = InParams.LocalTransform;
 				if (const auto& ConvexImplicit = CollisionBody.GetChaosConvexMesh())
 				{
-					const FVector ScaledSize = (Scale * CollisionBody.ElemBox.GetSize());
+					const FVector ScaledSize = (Scale.GetAbs() * CollisionBody.ElemBox.GetSize());	// Note: Scale can be negative
 					const float CollisionMargin = FMath::Min(ScaledSize.GetMin() * CollisionMarginFraction, CollisionMarginMax);
 
 					if (!ConvexTransform.GetTranslation().IsNearlyZero() || !ConvexTransform.GetRotation().IsIdentity())

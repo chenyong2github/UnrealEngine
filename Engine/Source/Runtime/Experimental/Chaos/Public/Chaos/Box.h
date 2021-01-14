@@ -285,6 +285,12 @@ namespace Chaos
 			return SupportCore(Direction * Scale, NetMargin) * Scale;
 		}
 
+		// Returns a winding order multiplier used in the manifold clipping and required when we have negative scales (See ImplicitObjectScaled)
+		FORCEINLINE float GetWindingOrder() const
+		{
+			return 1.0f;
+		}
+
 		FORCEINLINE TVector<T, d> Center() const { return AABB.Center(); }
 		FORCEINLINE TVector<T, d> GetCenter() const { return AABB.GetCenter(); }
 		FORCEINLINE TVector<T, d> GetCenterOfMass() const { return AABB.GetCenterOfMass(); }
