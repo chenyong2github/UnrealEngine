@@ -3,6 +3,7 @@
 #pragma once
 
 #include "EdGraph/EdGraphSchema.h"
+#include "GraphEditorDragDropAction.h"
 #include "ControlRigGraphSchema.generated.h"
 
 class UControlRigBlueprint;
@@ -39,6 +40,44 @@ struct FControlRigPinConnectionResponse
 	ECanCreateConnectionResponse_Extended ExtendedResponse;
 };
 
+/** DragDropAction class for drag and dropping an item from the My Blueprints tree (e.g., variable or function) */
+class CONTROLRIGDEVELOPER_API FControlRigFunctionDragDropAction : public FGraphSchemaActionDragDropAction
+{
+public:
+
+	DRAG_DROP_OPERATOR_TYPE(FControlRigFunctionDragDropAction, FGraphSchemaActionDragDropAction)
+
+	// FGraphEditorDragDropAction interface
+	virtual FReply DroppedOnPanel(const TSharedRef< class SWidget >& Panel, FVector2D ScreenPosition, FVector2D GraphPosition, UEdGraph& Graph) override;
+	virtual FReply DroppedOnPin(FVector2D ScreenPosition, FVector2D GraphPosition) override;
+	virtual FReply DroppedOnAction(TSharedRef<FEdGraphSchemaAction> Action) override;
+	virtual FReply DroppedOnCategory(FText Category) override;
+	virtual void HoverTargetChanged() override;
+	// End of FGraphEditorDragDropAction
+
+	/** Set if operation is modified by alt */
+	void SetAltDrag(bool InIsAltDrag) { bAltDrag = InIsAltDrag; }
+
+	/** Set if operation is modified by the ctrl key */
+	void SetCtrlDrag(bool InIsCtrlDrag) { bControlDrag = InIsCtrlDrag; }
+
+protected:
+
+	/** Constructor */
+	FControlRigFunctionDragDropAction();
+
+	static TSharedRef<FControlRigFunctionDragDropAction> New(TSharedPtr<FEdGraphSchemaAction> InAction, UControlRigBlueprint* InRigBlueprint, UControlRigGraph* InRigGraph);
+
+protected:
+
+	UControlRigBlueprint* SourceRigBlueprint;
+	UControlRigGraph* SourceRigGraph;
+	bool bControlDrag;
+	bool bAltDrag;
+
+	friend class UControlRigGraphSchema;
+};
+
 UCLASS()
 class CONTROLRIGDEVELOPER_API UControlRigGraphSchema : public UEdGraphSchema
 {
@@ -59,6 +98,8 @@ public:
 	virtual FLinearColor GetPinTypeColor(const FEdGraphPinType& PinType) const override;
 	virtual void BreakPinLinks(UEdGraphPin& TargetPin, bool bSendsNodeNotifcation) const override;
 	virtual void BreakSinglePinLink(UEdGraphPin* SourcePin, UEdGraphPin* TargetPin) const override;
+	virtual bool CanGraphBeDropped(TSharedPtr<FEdGraphSchemaAction> InAction) const override;
+	virtual FReply BeginGraphDragAction(TSharedPtr<FEdGraphSchemaAction> InAction) const override;
 	virtual class FConnectionDrawingPolicy* CreateConnectionDrawingPolicy(int32 InBackLayerID, int32 InFrontLayerID, float InZoomFactor, const FSlateRect& InClippingRect, class FSlateWindowElementList& InDrawElements, class UEdGraph* InGraphObj) const override;
 	virtual bool ShouldHidePinDefaultValue(UEdGraphPin* Pin) const override;
 	virtual void TrySetDefaultValue(UEdGraphPin& InPin, const FString& InNewDefaultValue, bool bMarkAsModified = true) const override;
@@ -83,6 +124,7 @@ public:
 	virtual bool CanDuplicateGraph(UEdGraph* InSourceGraph) const { return false; }
 	virtual UEdGraphPin* DropPinOnNode(UEdGraphNode* InTargetNode, const FName& InSourcePinName, const FEdGraphPinType& InSourcePinType, EEdGraphPinDirection InSourcePinDirection) const override;
 	virtual bool SupportsDropPinOnNode(UEdGraphNode* InTargetNode, const FEdGraphPinType& InSourcePinType, EEdGraphPinDirection InSourcePinDirection, FText& OutErrorMessage) const override;
+	virtual void SetPinBeingDroppedOnNode(UEdGraphPin* InSourcePin) const override { PinBeingDropped = InSourcePin; }
 
 	/** Create a graph node for a rig */
 	UControlRigGraphNode* CreateGraphNode(UControlRigGraph* InGraph, const FName& InPropertyName) const;
@@ -105,6 +147,7 @@ private:
 
 	const UEdGraphPin* LastPinForCompatibleCheck = nullptr;
 	bool bLastPinWasInput;
+	mutable UEdGraphPin* PinBeingDropped = nullptr;
 
 	friend class UControlRigRerouteNodeSpawner;
 	friend class UControlRigIfNodeSpawner;

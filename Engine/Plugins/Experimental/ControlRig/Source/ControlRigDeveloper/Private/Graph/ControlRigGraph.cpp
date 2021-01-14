@@ -26,6 +26,7 @@ UControlRigGraph::UControlRigGraph()
 	bSuspendModelNotifications = false;
 	bIsTemporaryGraphForCopyPaste = false;
 	bIsSelecting = false;
+	bIsFunctionDefinition = false;
 }
 
 void UControlRigGraph::Initialize(UControlRigBlueprint* InBlueprint)
@@ -59,6 +60,11 @@ void UControlRigGraph::Serialize(FArchive& Ar)
 
 void UControlRigGraph::CacheNameLists(const FRigHierarchyContainer* HierarchyContainer, const FControlRigDrawContainer* DrawContainer)
 {
+	if (UControlRigGraph* OuterGraph = Cast<UControlRigGraph>(GetOuter()))
+	{
+		return;
+	}
+
 	check(HierarchyContainer);
 	check(DrawContainer);
 
@@ -71,21 +77,37 @@ void UControlRigGraph::CacheNameLists(const FRigHierarchyContainer* HierarchyCon
 
 const TArray<TSharedPtr<FString>>& UControlRigGraph::GetBoneNameList(URigVMPin* InPin) const
 {
+	if (UControlRigGraph* OuterGraph = Cast<UControlRigGraph>(GetOuter()))
+	{
+		return OuterGraph->GetBoneNameList(InPin);
+	}
 	return BoneNameList;
 }
 
 const TArray<TSharedPtr<FString>>& UControlRigGraph::GetControlNameList(URigVMPin* InPin) const
 {
+	if (UControlRigGraph* OuterGraph = Cast<UControlRigGraph>(GetOuter()))
+	{
+		return OuterGraph->GetControlNameList(InPin);
+	}
 	return ControlNameList;
 }
 
 const TArray<TSharedPtr<FString>>& UControlRigGraph::GetSpaceNameList(URigVMPin* InPin) const
 {
+	if (UControlRigGraph* OuterGraph = Cast<UControlRigGraph>(GetOuter()))
+	{
+		return OuterGraph->GetSpaceNameList(InPin);
+	}
 	return SpaceNameList;
 }
 
 const TArray<TSharedPtr<FString>>& UControlRigGraph::GetCurveNameList(URigVMPin* InPin) const
 {
+	if (UControlRigGraph* OuterGraph = Cast<UControlRigGraph>(GetOuter()))
+	{
+		return OuterGraph->GetCurveNameList(InPin);
+	}
 	return CurveNameList;
 }
 
@@ -115,6 +137,11 @@ const TArray<TSharedPtr<FString>>& UControlRigGraph::GetElementNameList(URigVMPi
 
 const TArray<TSharedPtr<FString>>& UControlRigGraph::GetElementNameList(ERigElementType InElementType) const
 {
+	if (UControlRigGraph* OuterGraph = Cast<UControlRigGraph>(GetOuter()))
+	{
+		return OuterGraph->GetElementNameList(InElementType);
+	}
+
 	switch (InElementType)
 	{
 		case ERigElementType::Bone:
@@ -140,6 +167,10 @@ const TArray<TSharedPtr<FString>>& UControlRigGraph::GetElementNameList(ERigElem
 
 const TArray<TSharedPtr<FString>>& UControlRigGraph::GetDrawingNameList(URigVMPin* InPin) const
 {
+	if (UControlRigGraph* OuterGraph = Cast<UControlRigGraph>(GetOuter()))
+	{
+		return OuterGraph->GetDrawingNameList(InPin);
+	}
 	return DrawingNameList;
 }
 

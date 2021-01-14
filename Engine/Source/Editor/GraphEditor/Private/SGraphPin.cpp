@@ -994,10 +994,12 @@ const FSlateBrush* SGraphPin::GetPinBorder() const
 {
 	bool bIsMarkedPin = false;
 	TSharedPtr<SGraphPanel> OwnerPanelPtr = OwnerNodePtr.Pin()->GetOwnerPanel();
-	check(OwnerPanelPtr.IsValid());
-	if (OwnerPanelPtr->MarkedPin.IsValid())
+	if (OwnerPanelPtr.IsValid())
 	{
-		bIsMarkedPin = (OwnerPanelPtr->MarkedPin.Pin() == SharedThis(this));
+		if (OwnerPanelPtr->MarkedPin.IsValid())
+		{
+			bIsMarkedPin = (OwnerPanelPtr->MarkedPin.Pin() == SharedThis(this));
+		}
 	}
 
 	return (IsHovered() || bIsMarkedPin || GraphPinObj->bIsDiffing || bOnlyShowDefaultValue) ? CachedImg_Pin_BackgroundHovered : CachedImg_Pin_Background;

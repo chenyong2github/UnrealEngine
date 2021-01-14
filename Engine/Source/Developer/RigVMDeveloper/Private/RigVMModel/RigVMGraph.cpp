@@ -29,12 +29,12 @@ TArray<URigVMGraph*> URigVMGraph::GetContainedGraphs(bool bRecursive) const
 	TArray<URigVMGraph*> Graphs;
 	for (URigVMNode* Node : GetNodes())
 	{
-		if (URigVMLibraryNode* LibraryNode = Cast<URigVMLibraryNode>(Node))
+		if (URigVMCollapseNode* CollapseNode = Cast<URigVMCollapseNode>(Node))
 		{
-			Graphs.Add(LibraryNode->GetContainedGraph());
+			Graphs.Add(CollapseNode->GetContainedGraph());
 			if (bRecursive)
 			{
-				Graphs.Append(LibraryNode->GetContainedGraph()->GetContainedGraphs(true));
+				Graphs.Append(CollapseNode->GetContainedGraph()->GetContainedGraphs(true));
 			}
 		}
 	}

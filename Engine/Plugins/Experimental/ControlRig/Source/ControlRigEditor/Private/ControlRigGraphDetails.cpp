@@ -19,7 +19,10 @@
 
 #define LOCTEXT_NAMESPACE "ControlRigGraphDetails"
 
-FControlRigArgumentGroupLayout::FControlRigArgumentGroupLayout(URigVMGraph* InGraph, UControlRigBlueprint* InBlueprint, bool bInputs)
+FControlRigArgumentGroupLayout::FControlRigArgumentGroupLayout(
+	URigVMGraph* InGraph, 
+	UControlRigBlueprint* InBlueprint, 
+	bool bInputs)
 	: GraphPtr(InGraph)
 	, ControlRigBlueprintPtr(InBlueprint)
 	, bIsInputGroup(bInputs)
@@ -54,7 +57,8 @@ void FControlRigArgumentGroupLayout::GenerateChildContent(IDetailChildrenBuilder
 					TSharedRef<class FControlRigArgumentLayout> ControlRigArgumentLayout = MakeShareable(new FControlRigArgumentLayout(
 						Pin,
 						Graph,
-						ControlRigBlueprintPtr.Get()));
+						ControlRigBlueprintPtr.Get()
+					));
 					ChildrenBuilder.AddCustomBuilder(ControlRigArgumentLayout);
 					WasContentAdded = true;
 				}
@@ -122,73 +126,73 @@ void FControlRigArgumentLayout::GenerateHeaderRowContent(FDetailWidgetRow& NodeR
 	TypeTreeFilter |= ETypeTreeFilter::AllowExec;
 
 	NodeRow
-	.NameContent()
-	[
-		SNew(SHorizontalBox)
-		+ SHorizontalBox::Slot()
+		.NameContent()
+		[
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
 		.FillWidth(1)
 		.VAlign(VAlign_Center)
 		[
 			SAssignNew(ArgumentNameWidget, SEditableTextBox)
 			.Text(this, &FControlRigArgumentLayout::OnGetArgNameText)
-			.OnTextChanged(this, &FControlRigArgumentLayout::OnArgNameChange)
-			.OnTextCommitted(this, &FControlRigArgumentLayout::OnArgNameTextCommitted)
-			.ToolTipText(this, &FControlRigArgumentLayout::OnGetArgToolTipText)
-			.Font(IDetailLayoutBuilder::GetDetailFont())
-			.IsEnabled(!ShouldPinBeReadOnly())
+		.OnTextChanged(this, &FControlRigArgumentLayout::OnArgNameChange)
+		.OnTextCommitted(this, &FControlRigArgumentLayout::OnArgNameTextCommitted)
+		.ToolTipText(this, &FControlRigArgumentLayout::OnGetArgToolTipText)
+		.Font(IDetailLayoutBuilder::GetDetailFont())
+		.IsEnabled(!ShouldPinBeReadOnly())
 		]
-	]
+		]
 	.ValueContent()
-	.MaxDesiredWidth(980.f)
-	[
-		SNew(SHorizontalBox)
-		+ SHorizontalBox::Slot()
+		.MaxDesiredWidth(980.f)
+		[
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
 		.VAlign(VAlign_Center)
 		.Padding(0.0f, 0.0f, 4.0f, 0.0f)
 		.AutoWidth()
 		[
 			SNew(SPinTypeSelector, FGetPinTypeTree::CreateUObject(K2Schema, &UEdGraphSchema_K2::GetVariableTypeTree))
 			.TargetPinType(this, &FControlRigArgumentLayout::OnGetPinInfo)
-			.OnPinTypePreChanged(this, &FControlRigArgumentLayout::OnPrePinInfoChange)
-			.OnPinTypeChanged(this, &FControlRigArgumentLayout::PinInfoChanged)
-			.Schema(K2Schema)
-			.TypeTreeFilter(TypeTreeFilter)
-			.bAllowArrays(!ShouldPinBeReadOnly())
-			.IsEnabled(!ShouldPinBeReadOnly(true))
-			.Font(IDetailLayoutBuilder::GetDetailFont())
+		.OnPinTypePreChanged(this, &FControlRigArgumentLayout::OnPrePinInfoChange)
+		.OnPinTypeChanged(this, &FControlRigArgumentLayout::PinInfoChanged)
+		.Schema(K2Schema)
+		.TypeTreeFilter(TypeTreeFilter)
+		.bAllowArrays(!ShouldPinBeReadOnly())
+		.IsEnabled(!ShouldPinBeReadOnly(true))
+		.Font(IDetailLayoutBuilder::GetDetailFont())
 		]
-		+ SHorizontalBox::Slot()
+	+ SHorizontalBox::Slot()
 		.AutoWidth()
 		[
 			SNew(SButton)
 			.ButtonStyle(FAppStyle::Get(), TEXT("SimpleButton"))
-			.ContentPadding(0)
-			.IsEnabled(!IsPinEditingReadOnly())
-			.OnClicked(this, &FControlRigArgumentLayout::OnArgMoveUp)
-			.ToolTipText(LOCTEXT("FunctionArgDetailsArgMoveUpTooltip", "Move this parameter up in the list."))
-			[
-				SNew(SImage)
-				.Image(FEditorStyle::GetBrush("Icons.ChevronUp"))
-			.ColorAndOpacity(FSlateColor::UseForeground())
-			]
+		.ContentPadding(0)
+		.IsEnabled(!IsPinEditingReadOnly())
+		.OnClicked(this, &FControlRigArgumentLayout::OnArgMoveUp)
+		.ToolTipText(LOCTEXT("FunctionArgDetailsArgMoveUpTooltip", "Move this parameter up in the list."))
+		[
+			SNew(SImage)
+			.Image(FEditorStyle::GetBrush("Icons.ChevronUp"))
+		.ColorAndOpacity(FSlateColor::UseForeground())
 		]
-		+ SHorizontalBox::Slot()
+		]
+	+ SHorizontalBox::Slot()
 		.AutoWidth()
 		.Padding(2, 0)
 		[
 			SNew(SButton)
 			.ButtonStyle(FAppStyle::Get(), TEXT("SimpleButton"))
-			.ContentPadding(0)
-			.IsEnabled(!IsPinEditingReadOnly())
-			.OnClicked(this, &FControlRigArgumentLayout::OnArgMoveDown)
-			.ToolTipText(LOCTEXT("FunctionArgDetailsArgMoveDownTooltip", "Move this parameter down in the list."))
-			[
-				SNew(SImage)
-				.Image(FEditorStyle::GetBrush("Icons.ChevronDown"))
-			.ColorAndOpacity(FSlateColor::UseForeground())
-			]
+		.ContentPadding(0)
+		.IsEnabled(!IsPinEditingReadOnly())
+		.OnClicked(this, &FControlRigArgumentLayout::OnArgMoveDown)
+		.ToolTipText(LOCTEXT("FunctionArgDetailsArgMoveDownTooltip", "Move this parameter down in the list."))
+		[
+			SNew(SImage)
+			.Image(FEditorStyle::GetBrush("Icons.ChevronDown"))
+		.ColorAndOpacity(FSlateColor::UseForeground())
 		]
-		+ SHorizontalBox::Slot()
+		]
+	+ SHorizontalBox::Slot()
 		.HAlign(HAlign_Right)
 		.VAlign(VAlign_Center)
 		.Padding(10, 0, 0, 0)
@@ -196,49 +200,12 @@ void FControlRigArgumentLayout::GenerateHeaderRowContent(FDetailWidgetRow& NodeR
 		[
 			PropertyCustomizationHelpers::MakeClearButton(FSimpleDelegate::CreateSP(this, &FControlRigArgumentLayout::OnRemoveClicked), LOCTEXT("FunctionArgDetailsClearTooltip", "Remove this parameter."), !IsPinEditingReadOnly())
 		]
-	];
+		];
 }
 
 void FControlRigArgumentLayout::GenerateChildContent(IDetailChildrenBuilder& ChildrenBuilder)
 {
-	if (UEdGraphPin* FoundPin = GetPin())
-	{
-		// Certain types are outlawed at the compiler level, or to keep consistency with variable rules for actors
-		const UClass* ClassObject = Cast<UClass>(FoundPin->PinType.PinSubCategoryObject.Get());
-		const bool bTypeWithNoDefaults = (FoundPin->PinType.PinCategory == UEdGraphSchema_K2::PC_Object) || (FoundPin->PinType.PinCategory == UEdGraphSchema_K2::PC_Class) || (FoundPin->PinType.PinCategory == UEdGraphSchema_K2::PC_Interface)
-			|| (FoundPin->PinType.PinCategory == UEdGraphSchema_K2::PC_SoftObject && ClassObject && ClassObject->IsChildOf(AActor::StaticClass()))
-			|| UEdGraphSchema_K2::IsExecPin(*FoundPin)
-			|| PinPtr.Get()->IsExecuteContext()
-			|| FoundPin->PinType.bIsReference;
-
-		if (!bTypeWithNoDefaults)
-		{
-			DefaultValuePinWidget = FNodeFactory::CreatePinWidget(FoundPin);
-			DefaultValuePinWidget->SetOnlyShowDefaultValue(true);
-			TSharedRef<SWidget> DefaultValueWidget = DefaultValuePinWidget->GetDefaultValueWidget();
-
-			if (DefaultValueWidget != SNullWidget::NullWidget)
-			{
-				ChildrenBuilder.AddCustomRow(LOCTEXT("FunctionArgDetailsDefaultValue", "Default Value"))
-				.NameContent()
-				[
-					SNew(STextBlock)
-					.Text(LOCTEXT("FunctionArgDetailsDefaultValue", "Default Value"))
-					.ToolTipText(LOCTEXT("FunctionArgDetailsDefaultValueParamTooltip", "The default value of the parameter."))
-					.Font(IDetailLayoutBuilder::GetDetailFont())
-				]
-				.ValueContent()
-				.MaxDesiredWidth(512)
-				[
-					DefaultValueWidget
-				];
-			}
-			else
-			{
-				DefaultValuePinWidget.Reset();
-			}
-		}
-	}
+	// we don't show defaults here - we rely on a SControlRigGraphNode widget in the top of the details
 }
 
 void FControlRigArgumentLayout::OnRemoveClicked()
@@ -311,19 +278,17 @@ FReply FControlRigArgumentLayout::OnArgMoveDown()
 
 bool FControlRigArgumentLayout::ShouldPinBeReadOnly(bool bIsEditingPinType/* = false*/) const
 {
-	if (PinPtr.IsValid())
-	{
-		return PinPtr.Get()->IsExecuteContext();
-	}
-	return false;
+	return IsPinEditingReadOnly(bIsEditingPinType);
 }
 
 bool FControlRigArgumentLayout::IsPinEditingReadOnly(bool bIsEditingPinType/* = false*/) const
 {
+	/*
 	if (PinPtr.IsValid())
 	{
 		return PinPtr.Get()->IsExecuteContext();
 	}
+	*/
 	return false;
 }
 
@@ -370,22 +335,6 @@ FEdGraphPinType FControlRigArgumentLayout::OnGetPinInfo() const
 		return UControlRigGraphNode::GetPinTypeForModelPin(PinPtr.Get());
 	}
 	return FEdGraphPinType();
-}
-
-UEdGraphPin* FControlRigArgumentLayout::GetPin() const
-{
-	if (PinPtr.IsValid() && ControlRigBlueprintPtr.IsValid())
-	{
-		UControlRigBlueprint* Blueprint = ControlRigBlueprintPtr.Get();
-		if(UControlRigGraph* RigGraph = Cast<UControlRigGraph>(Blueprint->GetEdGraph(PinPtr.Get()->GetGraph())))
-		{
-			if (UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(RigGraph->FindNodeForModelNodeName(PinPtr.Get()->GetNode()->GetFName())))
-			{
-				return RigNode->FindPin(PinPtr.Get()->GetPinPath());
-			}
-		}
-	}
-	return nullptr;
 }
 
 ECheckBoxState FControlRigArgumentLayout::IsRefChecked() const
@@ -448,6 +397,132 @@ void FControlRigArgumentLayout::OnPrePinInfoChange(const FEdGraphPinType& PinTyp
 	// not needed for Control Rig
 }
 
+FControlRigArgumentDefaultNode::FControlRigArgumentDefaultNode(
+	URigVMGraph* InGraph,
+	UControlRigBlueprint* InBlueprint
+)
+	: GraphPtr(InGraph)
+	, ControlRigBlueprintPtr(InBlueprint)
+{
+	if (GraphPtr.IsValid() && ControlRigBlueprintPtr.IsValid())
+	{
+		ControlRigBlueprintPtr.Get()->OnModified().AddRaw(this, &FControlRigArgumentDefaultNode::HandleModifiedEvent);
+
+		if (URigVMLibraryNode* LibraryNode = Cast<URigVMLibraryNode>(GraphPtr->GetOuter()))
+		{
+			if (UControlRigGraph* RigGraph = Cast<UControlRigGraph>(ControlRigBlueprintPtr->GetEdGraph(LibraryNode->GetGraph())))
+			{
+				GraphChangedDelegateHandle = RigGraph->AddOnGraphChangedHandler(
+					FOnGraphChanged::FDelegate::CreateRaw(this, &FControlRigArgumentDefaultNode::OnGraphChanged)
+				);
+			}
+		}
+	}
+}
+
+FControlRigArgumentDefaultNode::~FControlRigArgumentDefaultNode()
+{
+	if (GraphPtr.IsValid() && ControlRigBlueprintPtr.IsValid())
+	{
+		ControlRigBlueprintPtr.Get()->OnModified().RemoveAll(this);
+
+		if (URigVMLibraryNode* LibraryNode = Cast<URigVMLibraryNode>(GraphPtr->GetOuter()))
+		{
+			if (UControlRigGraph* RigGraph = Cast<UControlRigGraph>(ControlRigBlueprintPtr->GetEdGraph(LibraryNode->GetGraph())))
+			{
+				if (GraphChangedDelegateHandle.IsValid())
+				{
+					RigGraph->RemoveOnGraphChangedHandler(GraphChangedDelegateHandle);
+				}
+			}
+		}
+	}
+}
+
+void FControlRigArgumentDefaultNode::GenerateChildContent(IDetailChildrenBuilder& ChildrenBuilder)
+{
+	if (!GraphPtr.IsValid() || !ControlRigBlueprintPtr.IsValid())
+	{
+		return;
+	}
+
+	UControlRigBlueprint* Blueprint = ControlRigBlueprintPtr.Get();
+	URigVMGraph* Graph = GraphPtr.Get();
+	UControlRigGraphNode* ControlRigGraphNode = nullptr;
+	if (URigVMLibraryNode* LibraryNode = Cast<URigVMLibraryNode>(Graph->GetOuter()))
+	{
+		if (UControlRigGraph* RigGraph = Cast<UControlRigGraph>(Blueprint->GetEdGraph(LibraryNode->GetGraph())))
+		{
+			ControlRigGraphNode = Cast<UControlRigGraphNode>(RigGraph->FindNodeForModelNodeName(LibraryNode->GetFName()));
+		}
+	}
+
+	if (ControlRigGraphNode == nullptr)
+	{
+		return;
+	}
+
+	ChildrenBuilder.AddCustomRow(FText::GetEmpty())
+	.WholeRowContent()
+	.MaxDesiredWidth(980.f)
+	[
+		SAssignNew(OwnedNodeWidget, SControlRigGraphNode).GraphNodeObj(ControlRigGraphNode)
+	];
+}
+
+void FControlRigArgumentDefaultNode::OnGraphChanged(const FEdGraphEditAction& InAction)
+{
+	OnRebuildChildren.ExecuteIfBound();
+}
+
+void FControlRigArgumentDefaultNode::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URigVMGraph* InGraph, UObject* InSubject)
+{
+	if (!GraphPtr.IsValid())
+	{
+		return;
+	}
+
+	URigVMGraph* Graph = GraphPtr.Get();
+	URigVMLibraryNode* LibraryNode = Cast<URigVMLibraryNode>(Graph->GetOuter());
+	if (LibraryNode == nullptr)
+	{
+		return;
+	}
+	if (LibraryNode->GetGraph() != InGraph)
+	{
+		return;
+	}
+
+	switch (InNotifType)
+	{
+		case ERigVMGraphNotifType::PinAdded:
+		case ERigVMGraphNotifType::PinRemoved:
+		case ERigVMGraphNotifType::PinTypeChanged:
+		case ERigVMGraphNotifType::PinRenamed:
+		{
+			URigVMPin* Pin = CastChecked<URigVMPin>(InSubject);
+			if (Pin->GetNode() == LibraryNode)
+			{
+				OnRebuildChildren.ExecuteIfBound();
+			}
+			break;
+		}
+		case ERigVMGraphNotifType::NodeRenamed:
+		{
+			URigVMNode* Node = CastChecked<URigVMNode>(InSubject);
+			if (Node == LibraryNode)
+			{
+				OnRebuildChildren.ExecuteIfBound();
+			}
+			break;
+		}
+		default:
+		{
+			break;
+		}
+	}
+}
+
 TSharedPtr<IDetailCustomization> FControlRigGraphDetails::MakeInstance(TSharedPtr<IBlueprintEditor> InBlueprintEditor)
 {
 	const TArray<UObject*>* Objects = (InBlueprintEditor.IsValid() ? InBlueprintEditor->GetObjectsCurrentlyBeingEdited() : nullptr);
@@ -503,11 +578,13 @@ void FControlRigGraphDetails::CustomizeDetails(IDetailLayoutBuilder& DetailLayou
 	}
 
 	IDetailCategoryBuilder& InputsCategory = DetailLayout.EditCategory("Inputs", LOCTEXT("FunctionDetailsInputs", "Inputs"));
-	TSharedRef<FControlRigArgumentGroupLayout> InputArgumentGroup = MakeShareable(new FControlRigArgumentGroupLayout(Model, Blueprint, true));
+	TSharedRef<FControlRigArgumentGroupLayout> InputArgumentGroup = MakeShareable(new FControlRigArgumentGroupLayout(
+		Model, 
+		Blueprint, 
+		true));
 	InputsCategory.AddCustomBuilder(InputArgumentGroup);
 
 	TSharedRef<SHorizontalBox> InputsHeaderContentWidget = SNew(SHorizontalBox);
-	TWeakPtr<SWidget> WeakInputsHeaderWidget = InputsHeaderContentWidget;
 
 	InputsHeaderContentWidget->AddSlot()
 	.HAlign(HAlign_Right)
@@ -531,11 +608,13 @@ void FControlRigGraphDetails::CustomizeDetails(IDetailLayoutBuilder& DetailLayou
 	InputsCategory.HeaderContent(InputsHeaderContentWidget);
 
 	IDetailCategoryBuilder& OutputsCategory = DetailLayout.EditCategory("Outputs", LOCTEXT("FunctionDetailsOutputs", "Outputs"));
-	TSharedRef<FControlRigArgumentGroupLayout> OutputArgumentGroup = MakeShareable(new FControlRigArgumentGroupLayout(Model, Blueprint, false));
+	TSharedRef<FControlRigArgumentGroupLayout> OutputArgumentGroup = MakeShareable(new FControlRigArgumentGroupLayout(
+		Model, 
+		Blueprint, 
+		false));
 	OutputsCategory.AddCustomBuilder(OutputArgumentGroup);
 
 	TSharedRef<SHorizontalBox> OutputsHeaderContentWidget = SNew(SHorizontalBox);
-	TWeakPtr<SWidget> WeakOutputsHeaderWidget = OutputsHeaderContentWidget;
 
 	OutputsHeaderContentWidget->AddSlot()
 	.HAlign(HAlign_Right)
@@ -557,6 +636,13 @@ void FControlRigGraphDetails::CustomizeDetails(IDetailLayoutBuilder& DetailLayou
 		]
 	];
 	OutputsCategory.HeaderContent(OutputsHeaderContentWidget);
+
+	IDetailCategoryBuilder& DefaultsCategory = DetailLayout.EditCategory("NodeDefaults", LOCTEXT("FunctionDetailsNodeDefaults", "Node Defaults"));
+	TSharedRef<FControlRigArgumentDefaultNode> DefaultsArgumentNode = MakeShareable(new FControlRigArgumentDefaultNode(
+		Model,
+		Blueprint));
+	DefaultsCategory.AddCustomBuilder(DefaultsArgumentNode);
+
 }
 
 bool FControlRigGraphDetails::IsAddNewInputOutputEnabled() const

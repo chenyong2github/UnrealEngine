@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Stats/Stats.h"
 #include "EdGraph/EdGraphPin.h"
+#include "EdGraph/EdGraphSchema.h"
 #include "UObject/GCObject.h"
 #include "Layout/Visibility.h"
 #include "Input/Reply.h"
@@ -514,7 +515,7 @@ public:
 	};
 
 	/** Called when New Function button is clicked */
-	void NewDocument_OnClicked(ECreatedDocumentType GraphType);
+	virtual void NewDocument_OnClicked(ECreatedDocumentType GraphType);
 	FReply NewDocument_OnClick(ECreatedDocumentType GraphType) { NewDocument_OnClicked(GraphType); return FReply::Handled(); }
 
 	/** Called when New Delegate button is clicked */
@@ -1367,6 +1368,11 @@ public:
 	/** Broadcasts a notification whenever the editor needs associated controls to refresh */
 	DECLARE_EVENT ( FBlueprintEditor, FOnRefreshEvent );
 	FOnRefreshEvent& OnRefresh() { return RefreshEvent; }
+
+	/** function used by the SMyBlueprint to determine if an action matches a name.
+	  * This happens during selection of a custom action ( a graph, a variable etc )
+	  */
+	virtual bool OnActionMatchesName(FEdGraphSchemaAction* InAction, const FName& InName) const { return false; }
 
 private:
 	/** Notification used whenever the editor wants associated controls to refresh. */

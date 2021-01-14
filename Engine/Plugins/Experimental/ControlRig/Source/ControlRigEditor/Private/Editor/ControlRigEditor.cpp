@@ -216,7 +216,10 @@ void FControlRigEditor::InitControlRigEditor(const EToolkitMode::Type Mode, cons
 
 	for (UBlueprint* Blueprint : ControlRigBlueprints)
 	{
-		for (UEdGraph* Graph : Blueprint->UbergraphPages)
+		TArray<UEdGraph*> EdGraphs;
+		Blueprint->GetAllGraphs(EdGraphs);
+
+		for (UEdGraph* Graph : EdGraphs)
 		{
 			UControlRigGraph* RigGraph = Cast<UControlRigGraph>(Graph);
 			if (RigGraph == nullptr)
@@ -1760,12 +1763,37 @@ void FControlRigEditor::CreateDefaultTabContents(const TArray<UBlueprint*>& InBl
 	FBlueprintEditor::CreateDefaultTabContents(InBlueprints);
 }
 
+void FControlRigEditor::NewDocument_OnClicked(ECreatedDocumentType GraphType)
+{
+	if (GraphType != FBlueprintEditor::CGT_NewFunctionGraph)
+	{
+		return;
+	}
+
+	if (UControlRigBlueprint* Blueprint = GetControlRigBlueprint())
+	{
+		if (URigVMController* Controller = Blueprint->GetOrCreateController(Blueprint->GetLocalFunctionLibrary()))
+		{
+			if (URigVMLibraryNode* FunctionNode = Controller->AddFunctionToLibrary(TEXT("New Function"), true))
+			{
+				if (UEdGraph* NewGraph = Blueprint->GetEdGraph(FunctionNode->GetContainedGraph()))
+				{
+					OpenDocument(NewGraph, FDocumentTracker::OpenNewDocument);
+					RenameNewlyAddedAction(FunctionNode->GetFName());
+				}
+
+			}
+		}
+	}
+}
+
 bool FControlRigEditor::IsSectionVisible(NodeSectionID::Type InSectionID) const
 {
 	switch (InSectionID)
 	{
 		case NodeSectionID::GRAPH:
 		case NodeSectionID::VARIABLE:
+		case NodeSectionID::FUNCTION:
 		{
 			return true;
 		}
@@ -2628,15 +2656,16 @@ void FControlRigEditor::CacheNameLists()
 
 	if (UControlRigBlueprint* ControlRigBP = GetControlRigBlueprint())
 	{
-		// make sure the bone name list is up 2 date for the editor graph
-		for (UEdGraph* Graph : ControlRigBP->UbergraphPages)
+		TArray<UEdGraph*> EdGraphs;
+		ControlRigBP->GetAllGraphs(EdGraphs);
+
+		for (UEdGraph* Graph : EdGraphs)
 		{
 			UControlRigGraph* RigGraph = Cast<UControlRigGraph>(Graph);
 			if (RigGraph == nullptr)
 			{
 				continue;
 			}
-
 			RigGraph->CacheNameLists(&ControlRigBP->HierarchyContainer, &ControlRigBP->DrawContainer);
 		}
 	}
@@ -3158,7 +3187,10 @@ void FControlRigEditor::OnRigElementRemoved(FRigHierarchyContainer* Container, c
 	FString RemovedElementName = InKey.Name.ToString();
 	ERigElementType RemovedElementType = InKey.Type;
 
-	for (UEdGraph* Graph : Blueprint->UbergraphPages)
+	TArray<UEdGraph*> EdGraphs;
+	Blueprint->GetAllGraphs(EdGraphs);
+
+	for (UEdGraph* Graph : EdGraphs)
 	{
 		UControlRigGraph* RigGraph = Cast<UControlRigGraph>(Graph);
 		if (RigGraph == nullptr)
@@ -3236,7 +3268,10 @@ void FControlRigEditor::OnRigElementRenamed(FRigHierarchyContainer* Container, E
 	FString OldNameStr = InOldName.ToString();
 	FString NewNameStr = InNewName.ToString();
 
-	for (UEdGraph* Graph : Blueprint->UbergraphPages)
+	TArray<UEdGraph*> EdGraphs;
+	Blueprint->GetAllGraphs(EdGraphs);
+
+	for (UEdGraph* Graph : EdGraphs)
 	{
 		UControlRigGraph* RigGraph = Cast<UControlRigGraph>(Graph);
 		if (RigGraph == nullptr)
@@ -4135,6 +4170,15 @@ void FControlRigEditor::OnNodeDoubleClicked(UControlRigBlueprint* InBlueprint, U
 	}
 }
 
+bool FControlRigEditor::OnActionMatchesName(FEdGraphSchemaAction* InAction, const FName& InName) const
+{
+	if (InAction->GetMenuDescription().ToString() == InName.ToString())
+	{
+		return true;
+	}
+	return false;
+}
+
 void FControlRigEditor::UpdateGraphCompilerErrors()
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
@@ -4152,7 +4196,10 @@ void FControlRigEditor::UpdateGraphCompilerErrors()
 			return;
 		}
 
-		for (UEdGraph* Graph : Blueprint->UbergraphPages)
+		TArray<UEdGraph*> EdGraphs;
+		Blueprint->GetAllGraphs(EdGraphs);
+
+		for (UEdGraph* Graph : EdGraphs)
 		{
 			UControlRigGraph* RigGraph = Cast<UControlRigGraph>(Graph);
 			if (RigGraph == nullptr)

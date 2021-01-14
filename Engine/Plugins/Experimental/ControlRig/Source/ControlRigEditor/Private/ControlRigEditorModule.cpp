@@ -1733,6 +1733,20 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 						})
 					));
 
+					if (URigVMCollapseNode* CollapseNode = Cast<URigVMCollapseNode>(RigNode->GetModelNode()))
+					{
+						OrganizationSection.AddMenuEntry(
+							"Promote To Function",
+							LOCTEXT("PromoteToFunction", "Promote To Function"),
+							LOCTEXT("PromoteToFunction_Tooltip", "Turns the Collapse Node into a Function"),
+							FSlateIcon(),
+							FUIAction(FExecuteAction::CreateLambda([Controller, CollapseNode]() {
+								// Controller->PromoteCollapseNodeToFunction(CollapseNode->GetFName());
+								// todo
+							})
+						));
+					}
+
 					if (URigVMLibraryNode* LibraryNode = Cast<URigVMLibraryNode>(RigNode->GetModelNode()))
 					{
 						OrganizationSection.AddMenuEntry(

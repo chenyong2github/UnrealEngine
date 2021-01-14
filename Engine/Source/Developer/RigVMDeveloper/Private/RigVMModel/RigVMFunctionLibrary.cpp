@@ -7,6 +7,11 @@ URigVMFunctionLibrary::URigVMFunctionLibrary()
 {
 }
 
+FString URigVMFunctionLibrary::GetNodePath() const
+{
+	return FString::Printf(TEXT("FunctionLibrary::%s"), *Super::GetNodePath());
+}
+
 TArray<URigVMLibraryNode*> URigVMFunctionLibrary::GetFunctions() const
 {
 	TArray<URigVMLibraryNode*> Functions;
@@ -23,6 +28,11 @@ TArray<URigVMLibraryNode*> URigVMFunctionLibrary::GetFunctions() const
 
 URigVMLibraryNode* URigVMFunctionLibrary::FindFunction(const FName& InFunctionName) const
 {
-	return Cast<URigVMLibraryNode>(FindNodeByName(InFunctionName));
+	FString FunctionNameStr = InFunctionName.ToString();
+	if (FunctionNameStr.StartsWith(TEXT("FunctionLibrary::|")))
+	{
+		FunctionNameStr.RightChopInline(18);
+	}
+	return Cast<URigVMLibraryNode>(FindNodeByName(*FunctionNameStr));
 }
 

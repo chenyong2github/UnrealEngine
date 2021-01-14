@@ -62,6 +62,9 @@ public:
 	UPROPERTY()
 	FString ModelNodePath;
 
+	UPROPERTY()
+	bool bIsFunctionDefinition;
+
 private:
 
 	template<class T>

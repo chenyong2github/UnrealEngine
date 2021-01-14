@@ -10,6 +10,7 @@
 #include "ControlRigBlueprint.h"
 #include "ControlRigEditor.h"
 #include "SGraphPin.h"
+#include "Graph/SControlRigGraphNode.h"
 
 class FMobilityCustomization;
 class IDetailLayoutBuilder;
@@ -17,7 +18,10 @@ class IDetailLayoutBuilder;
 class FControlRigArgumentGroupLayout : public IDetailCustomNodeBuilder, public TSharedFromThis<FControlRigArgumentGroupLayout>
 {
 public:
-	FControlRigArgumentGroupLayout(URigVMGraph* InGraph, UControlRigBlueprint* InBlueprint, bool bInputs);
+	FControlRigArgumentGroupLayout(
+		URigVMGraph* InGraph, 
+		UControlRigBlueprint* InBlueprint, 
+		bool bInputs);
 	virtual ~FControlRigArgumentGroupLayout();
 
 private:
@@ -45,7 +49,10 @@ class FControlRigArgumentLayout : public IDetailCustomNodeBuilder, public TShare
 {
 public:
 
-	FControlRigArgumentLayout(URigVMPin* InPin, URigVMGraph* InGraph, UControlRigBlueprint* InBlueprint)
+	FControlRigArgumentLayout(
+		URigVMPin* InPin, 
+		URigVMGraph* InGraph, 
+		UControlRigBlueprint* InBlueprint)
 		: PinPtr(InPin)
 		, GraphPtr(InGraph)
 		, ControlRigBlueprintPtr(InBlueprint)
@@ -83,9 +90,6 @@ private:
 	void PinInfoChanged(const FEdGraphPinType& PinType);
 	void OnPrePinInfoChange(const FEdGraphPinType& PinType);
 
-	/** Returns the graph pin representing this variable */
-	UEdGraphPin* GetPin() const;
-
 	/** Returns whether the "Pass-by-Reference" checkbox is checked or not */
 	ECheckBoxState IsRefChecked() const;
 
@@ -105,10 +109,39 @@ private:
 
 	/** Holds a weak pointer to the argument name widget, used for error notifications */
 	TWeakPtr<SEditableTextBox> ArgumentNameWidget;
-
-	/** The SGraphPin widget created to show/edit default value */
-	TSharedPtr<SGraphPin> DefaultValuePinWidget;
 };
+
+class FControlRigArgumentDefaultNode : public IDetailCustomNodeBuilder, public TSharedFromThis<FControlRigArgumentDefaultNode>
+{
+public:
+	FControlRigArgumentDefaultNode(
+		URigVMGraph* InGraph,
+		UControlRigBlueprint* InBlueprint
+	);
+	virtual ~FControlRigArgumentDefaultNode();
+
+private:
+	/** IDetailCustomNodeBuilder Interface*/
+	virtual void SetOnRebuildChildren(FSimpleDelegate InOnRegenerateChildren) override { OnRebuildChildren = InOnRegenerateChildren; }
+	virtual void GenerateHeaderRowContent(FDetailWidgetRow& NodeRow) override {}
+	virtual void GenerateChildContent(IDetailChildrenBuilder& ChildrenBuilder) override;
+	virtual void Tick(float DeltaTime) override {}
+	virtual bool RequiresTick() const override { return false; }
+	virtual FName GetName() const override { return NAME_None; }
+	virtual bool InitiallyCollapsed() const override { return false; }
+
+private:
+
+	void OnGraphChanged(const FEdGraphEditAction& InAction);
+	void HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URigVMGraph* InGraph, UObject* InSubject);
+
+	TWeakObjectPtr<URigVMGraph> GraphPtr;
+	TWeakObjectPtr<UControlRigBlueprint> ControlRigBlueprintPtr;
+	FSimpleDelegate OnRebuildChildren;
+	TSharedPtr<SControlRigGraphNode> OwnedNodeWidget;
+	FDelegateHandle GraphChangedDelegateHandle;
+};
+
 
 /** Customization for editing Control Rig graphs */
 class FControlRigGraphDetails : public IDetailCustomization
@@ -135,9 +168,9 @@ private:
 	/** The Blueprint editor we are embedded in */
 	TWeakPtr<IControlRigEditor> ControlRigEditorPtr;
 
-	/** The blueprint we are editing */
-	TWeakObjectPtr<UControlRigBlueprint> ControlRigBlueprintPtr;
-
 	/** The graph we are editing */
 	TWeakObjectPtr<UControlRigGraph> GraphPtr;
+
+	/** The blueprint we are editing */
+	TWeakObjectPtr<UControlRigBlueprint> ControlRigBlueprintPtr;
 };

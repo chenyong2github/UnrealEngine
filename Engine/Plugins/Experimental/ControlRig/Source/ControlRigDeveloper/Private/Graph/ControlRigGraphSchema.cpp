@@ -8,6 +8,7 @@
 #include "Units/RigUnit.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "EdGraphNode_Comment.h"
+#include "EdGraphSchema_K2_Actions.h"
 #include "ScopedTransaction.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "GraphEditorActions.h"
@@ -26,6 +27,78 @@
 #define LOCTEXT_NAMESPACE "ControlRigGraphSchema"
 
 const FName UControlRigGraphSchema::GraphName_ControlRig(TEXT("Rig Graph"));
+
+FReply FControlRigFunctionDragDropAction::DroppedOnPanel(const TSharedRef< class SWidget >& Panel, FVector2D ScreenPosition, FVector2D GraphPosition, UEdGraph& Graph)
+{
+	if (UControlRigGraph* TargetRigGraph = Cast<UControlRigGraph>(&Graph))
+	{
+		if (UControlRigBlueprint* TargetRigBlueprint = Cast<UControlRigBlueprint>(FBlueprintEditorUtils::FindBlueprintForGraph(TargetRigGraph)))
+		{
+			if (URigVMGraph* FunctionDefinitionGraph = SourceRigBlueprint->GetModel(SourceRigGraph))
+			{
+				if (URigVMLibraryNode* FunctionDefinitionNode = Cast<URigVMLibraryNode>(FunctionDefinitionGraph->GetOuter()))
+				{
+					if(URigVMController* TargetController = TargetRigBlueprint->GetController(TargetRigGraph))
+					{
+						TargetController->AddFunctionReferenceNode(FunctionDefinitionNode, GraphPosition);
+					}
+				}
+			}
+		}
+	}
+	return FReply::Unhandled();
+}
+
+FReply FControlRigFunctionDragDropAction::DroppedOnPin(FVector2D ScreenPosition, FVector2D GraphPosition)
+{
+	return FReply::Unhandled();
+}
+
+FReply FControlRigFunctionDragDropAction::DroppedOnAction(TSharedRef<FEdGraphSchemaAction> Action)
+{
+	return FReply::Unhandled();
+}
+
+FReply FControlRigFunctionDragDropAction::DroppedOnCategory(FText Category)
+{
+	// todo
+	/*
+	if (SourceAction.IsValid())
+	{
+		SourceAction->MovePersistentItemToCategory(Category);
+	}
+	*/
+	return FReply::Unhandled();
+}
+
+void FControlRigFunctionDragDropAction::HoverTargetChanged()
+{
+	// todo - see FMyBlueprintItemDragDropAction
+	FGraphSchemaActionDragDropAction::HoverTargetChanged();
+
+	// check for category + graph, everything else we won't allow for now.
+
+	bDropTargetValid = true;
+}
+
+FControlRigFunctionDragDropAction::FControlRigFunctionDragDropAction()
+	: FGraphSchemaActionDragDropAction()
+	, SourceRigBlueprint(nullptr)
+	, SourceRigGraph(nullptr)
+	, bControlDrag(false)
+	, bAltDrag(false)
+{
+}
+
+TSharedRef<FControlRigFunctionDragDropAction> FControlRigFunctionDragDropAction::New(TSharedPtr<FEdGraphSchemaAction> InAction, UControlRigBlueprint* InRigBlueprint, UControlRigGraph* InRigGraph)
+{
+	TSharedRef<FControlRigFunctionDragDropAction> Action = MakeShareable(new FControlRigFunctionDragDropAction);
+	Action->SourceAction = InAction;
+	Action->SourceRigBlueprint = InRigBlueprint;
+	Action->SourceRigGraph = InRigGraph;
+	Action->Construct();
+	return Action;
+}
 
 UControlRigGraphSchema::UControlRigGraphSchema()
 {
@@ -199,6 +272,46 @@ void UControlRigGraphSchema::BreakSinglePinLink(UEdGraphPin* SourcePin, UEdGraph
 	}
 }
 
+bool UControlRigGraphSchema::CanGraphBeDropped(TSharedPtr<FEdGraphSchemaAction> InAction) const
+{
+	if (!InAction.IsValid())
+	{
+		return false;
+	}
+
+	if (InAction->GetTypeId() == FEdGraphSchemaAction_K2Graph::StaticGetTypeId())
+	{
+		FEdGraphSchemaAction_K2Graph* FuncAction = (FEdGraphSchemaAction_K2Graph*)InAction.Get();
+		if (UControlRigGraph* RigGraph = Cast<UControlRigGraph>((UEdGraph*)FuncAction->EdGraph))
+		{
+			return true;
+		}
+	}
+	
+	return false;
+}
+
+FReply UControlRigGraphSchema::BeginGraphDragAction(TSharedPtr<FEdGraphSchemaAction> InAction) const
+{
+	if (!InAction.IsValid())
+	{
+		return FReply::Unhandled();
+	}
+
+	if (InAction->GetTypeId() == FEdGraphSchemaAction_K2Graph::StaticGetTypeId())
+	{
+		FEdGraphSchemaAction_K2Graph* FuncAction = (FEdGraphSchemaAction_K2Graph*)InAction.Get();
+		if (UControlRigGraph* RigGraph = Cast<UControlRigGraph>(FuncAction->EdGraph))
+		{
+			if (UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(FBlueprintEditorUtils::FindBlueprintForGraph(RigGraph)))
+			{
+				return FReply::Handled().BeginDragDrop(FControlRigFunctionDragDropAction::New(InAction, RigBlueprint, RigGraph));
+			}
+		}
+	}
+	return FReply::Unhandled();
+}
+
 FConnectionDrawingPolicy* UControlRigGraphSchema::CreateConnectionDrawingPolicy(int32 InBackLayerID, int32 InFrontLayerID, float InZoomFactor, const FSlateRect& InClippingRect, class FSlateWindowElementList& InDrawElements, class UEdGraph* InGraphObj) const
 {
 #if WITH_EDITOR
@@ -295,9 +408,15 @@ bool UControlRigGraphSchema::TryDeleteGraph(UEdGraph* GraphToDelete) const
 		{
 			if (URigVMGraph* Model = RigBlueprint->GetModel())
 			{
-				if (URigVMLibraryNode* LibraryNode = Cast<URigVMLibraryNode>(Model->FindNode(RigGraph->ModelNodePath)))
+				URigVMLibraryNode* LibraryNode = Cast<URigVMLibraryNode>(Model->FindNode(RigGraph->ModelNodePath));
+				if (LibraryNode == nullptr && RigBlueprint->GetLocalFunctionLibrary())
 				{
-					if (URigVMController* Controller = RigBlueprint->GetController(LibraryNode->GetGraph()))
+					LibraryNode = Cast<URigVMLibraryNode>(RigBlueprint->GetLocalFunctionLibrary()->FindFunction(*RigGraph->ModelNodePath));
+				}
+
+				if (LibraryNode)
+				{
+					if (URigVMController* Controller = RigBlueprint->GetOrCreateController(LibraryNode->GetGraph()))
 					{
 						return Controller->RemoveNode(LibraryNode);
 					}
@@ -316,9 +435,15 @@ bool UControlRigGraphSchema::TryRenameGraph(UEdGraph* GraphToRename, const FName
 		{
 			if (URigVMGraph* Model = RigBlueprint->GetModel())
 			{
-				if (URigVMLibraryNode* LibraryNode = Cast<URigVMLibraryNode>(Model->FindNode(RigGraph->ModelNodePath)))
+				URigVMLibraryNode* LibraryNode = Cast<URigVMLibraryNode>(Model->FindNode(RigGraph->ModelNodePath));
+				if (LibraryNode == nullptr && RigBlueprint->GetLocalFunctionLibrary())
 				{
-					if (URigVMController* Controller = RigBlueprint->GetController(LibraryNode->GetGraph()))
+					LibraryNode = Cast<URigVMLibraryNode>(RigBlueprint->GetLocalFunctionLibrary()->FindFunction(*RigGraph->ModelNodePath));
+				}
+
+				if (LibraryNode)
+				{
+					if (URigVMController* Controller = RigBlueprint->GetOrCreateController(LibraryNode->GetGraph()))
 					{
 						Controller->RenameNode(LibraryNode, InNewName);
 						return true;
@@ -370,12 +495,24 @@ UEdGraphPin* UControlRigGraphSchema::DropPinOnNode(UEdGraphNode* InTargetNode, c
 								TypeObjectPathName = *ExternalVar.TypeObject->GetPathName();
 							}
 
+							FString DefaultValue;
+							if (PinBeingDropped)
+							{
+								if (UControlRigGraphNode* SourceNode = Cast<UControlRigGraphNode>(PinBeingDropped->GetOwningNode()))
+								{
+									if (URigVMPin* SourcePin = SourceNode->GetModelPinFromPinPath(PinBeingDropped->GetName()))
+									{
+										DefaultValue = SourcePin->GetDefaultValue();
+									}
+								}
+							}
+
 							FName ExposedPinName = Controller->AddExposedPin(
 								InSourcePinName,
 								PinDirection,
 								TypeName,
 								TypeObjectPathName,
-								FString()
+								DefaultValue
 							);
 							
 							if (!ExposedPinName.IsNone())

@@ -44,6 +44,8 @@ public:
 	virtual void CleanAndSanitizeClass(UBlueprintGeneratedClass* ClassToClean, UObject*& InOldCDO) override;
 	virtual void MergeUbergraphPagesIn(UEdGraph* Ubergraph) override {};
 	virtual void PreCompileUpdateBlueprintOnLoad(UBlueprint* BP) override;
+	virtual void CreateFunctionList() override {}
+	virtual void ProcessOneFunctionGraph(UEdGraph* SourceGraph, bool bInternalFunction = false) override {}
 
 private:
 

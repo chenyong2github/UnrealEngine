@@ -69,7 +69,7 @@ public:
 
 	virtual bool SupportsGlobalVariables() const override { return true; }
 	virtual bool SupportsLocalVariables() const override { return false; }
-	virtual bool SupportsFunctions() const override { return false; }
+	virtual bool SupportsFunctions() const override { return true; }
 	virtual bool SupportsMacros() const override { return false; }
 	virtual bool SupportsDelegates() const override { return false; }
 	virtual bool SupportsEventGraphs() const override { return false; }
@@ -127,6 +127,11 @@ public:
 #if WITH_EDITOR
 	UEdGraph* GetEdGraph(URigVMGraph* InModel = nullptr) const;
 	UEdGraph* GetEdGraph(const FString& InNodePath) const;
+#endif
+
+#if WITH_EDITORONLY_DATA
+	UPROPERTY()
+	UControlRigGraph* FunctionLibraryEdGraph;
 #endif
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "VM")

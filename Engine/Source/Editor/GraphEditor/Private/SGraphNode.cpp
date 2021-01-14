@@ -479,6 +479,10 @@ void SGraphNode::Tick( const FGeometry& AllottedGeometry, const double InCurrent
 bool SGraphNode::IsSelectedExclusively() const
 {
 	TSharedPtr<SGraphPanel> OwnerPanel = OwnerGraphPanelPtr.Pin();
+	if (!OwnerPanel.IsValid())
+	{
+		return false;
+	}
 
 	if (!OwnerPanel->HasKeyboardFocus() || OwnerPanel->SelectionManager.GetSelectedNodes().Num() > 1)
 	{

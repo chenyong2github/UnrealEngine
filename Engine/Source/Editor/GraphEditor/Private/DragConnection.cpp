@@ -261,6 +261,8 @@ FReply FDragConnection::DroppedOnNode(FVector2D ScreenPosition, FVector2D GraphP
 		{
 			for (UEdGraphPin* SourcePin : ValidSourcePins)
 			{
+				SourcePin->GetSchema()->SetPinBeingDroppedOnNode(SourcePin);
+
 				// Check for pin drop support
 				FText ResponseText;
 				if (SourcePin->GetOwningNode() != NodeOver && SourcePin->GetSchema()->SupportsDropPinOnNode(NodeOver, SourcePin->PinType, SourcePin->Direction, ResponseText))
@@ -288,6 +290,8 @@ FReply FDragConnection::DroppedOnNode(FVector2D ScreenPosition, FVector2D GraphP
 				{
 					bHandledPinDropOnNode = true;
 				}
+
+				SourcePin->GetSchema()->SetPinBeingDroppedOnNode(nullptr);
 			}
 		}
 	}

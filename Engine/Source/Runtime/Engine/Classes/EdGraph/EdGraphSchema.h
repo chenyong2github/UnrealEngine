@@ -949,6 +949,16 @@ class ENGINE_API UEdGraphSchema : public UObject
 	 */
 	virtual bool CanEncapuslateNode(UEdGraphNode const& TestNode) const { return true; }
 
+	/*
+	 * Can the function graph be dropped into another graph
+	 */
+	virtual bool CanGraphBeDropped(TSharedPtr<FEdGraphSchemaAction> InAction) const { return false; }
+
+	/*
+	 * Begins a drag and drop action to drag a graph into another graph
+	 */
+	virtual FReply BeginGraphDragAction(TSharedPtr<FEdGraphSchemaAction> InAction) const { return FReply::Unhandled(); }
+
 	/**
 	 * Gets display information for a graph
 	 *
@@ -1033,6 +1043,13 @@ class ENGINE_API UEdGraphSchema : public UObject
 	 * @return								Returns TRUE if there is support for dropping the pin on the node
 	 */
 	virtual bool SupportsDropPinOnNode(UEdGraphNode* InTargetNode, const FEdGraphPinType& InSourcePinType, EEdGraphPinDirection InSourcePinDirection, FText& OutErrorMessage) const { return false; }
+
+	/**
+	 * Let's the schema know about the next pin being dropped
+	 *
+	 * @param InSourcePin					The pin which is about to be dropped
+	 */
+	virtual void SetPinBeingDroppedOnNode(UEdGraphPin* InSourcePin) const {}
 
 	/**
 	 * Checks if a CacheRefreshID is out of date

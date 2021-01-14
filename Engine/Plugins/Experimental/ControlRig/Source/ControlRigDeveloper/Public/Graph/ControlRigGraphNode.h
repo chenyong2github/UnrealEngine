@@ -80,6 +80,7 @@ public:
 	virtual FText GetNodeTitle(ENodeTitleType::Type TitleType) const override;
 	virtual FLinearColor GetNodeTitleColor() const override;
 	virtual FLinearColor GetNodeBodyTintColor() const;
+	virtual bool ShowPaletteIconOnNode() const override;
 	virtual FSlateIcon GetIconAndTint(FLinearColor& OutColor) const override;
 	virtual void AllocateDefaultPins() override;
 	virtual void ReconstructNode() override;
@@ -201,4 +202,5 @@ private:
 
 	friend class SControlRigGraphNode;
 	friend class FControlRigArgumentLayout;
+	friend class FControlRigGraphDetails;
 };

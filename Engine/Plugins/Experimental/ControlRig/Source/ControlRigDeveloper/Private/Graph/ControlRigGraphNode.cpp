@@ -23,6 +23,9 @@
 #include "RigVMCore/RigVMExecuteContext.h"
 #include "ControlRigDeveloper.h"
 #include "ControlRigObjectVersion.h"
+#include "RigVMModel/Nodes/RigVMFunctionReferenceNode.h"
+#include "RigVMModel/Nodes/RigVMFunctionEntryNode.h"
+#include "RigVMModel/Nodes/RigVMFunctionReturnNode.h"
 
 #if WITH_EDITOR
 #include "IControlRigEditorModule.h"
@@ -82,7 +85,7 @@ void UControlRigGraphNode::ReconstructNode_Internal(bool bForce)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
-	UControlRigGraph* RigGraph = Cast<UControlRigGraph>(GetGraph());
+	UControlRigGraph* RigGraph = Cast<UControlRigGraph>(GetOuter()); 
 	if (RigGraph && !bForce)
 	{
 		if (RigGraph->bIsTemporaryGraphForCopyPaste)
@@ -117,7 +120,10 @@ void UControlRigGraphNode::ReconstructNode_Internal(bool bForce)
 	// Let subclasses do any additional work
 	PostReconstructNode();
 
-	GetGraph()->NotifyGraphChanged();
+	if (RigGraph)
+	{
+		RigGraph->NotifyGraphChanged();
+	}
 }
 
 bool UControlRigGraphNode::IsDeprecated() const
@@ -521,11 +527,36 @@ FLinearColor UControlRigGraphNode::GetNodeBodyTintColor() const
 	return CachedNodeColor * GetNodeOpacityColor();
 }
 
+bool UControlRigGraphNode::ShowPaletteIconOnNode() const
+{
+	if (URigVMNode* ModelNode = GetModelNode())
+	{
+		return ModelNode->IsEvent() ||
+			ModelNode->IsA<URigVMFunctionEntryNode>() ||
+			ModelNode->IsA<URigVMFunctionReturnNode>() ||
+			ModelNode->IsA<URigVMFunctionReferenceNode>();
+	}
+	return false;
+}
+
 FSlateIcon UControlRigGraphNode::GetIconAndTint(FLinearColor& OutColor) const
 {
-	OutColor = GetNodeTitleColor();
-	static FSlateIcon Icon("EditorStyle", "Kismet.AllClasses.FunctionIcon");
-	return Icon;
+	OutColor = FLinearColor::White;
+
+	static FSlateIcon FunctionIcon("EditorStyle", "Kismet.AllClasses.FunctionIcon");
+	static FSlateIcon EventIcon("EditorStyle", "GraphEditor.Event_16x");
+
+	if (URigVMNode* ModelNode = GetModelNode())
+	{
+		if (ModelNode->IsEvent() || 
+			ModelNode->IsA<URigVMFunctionEntryNode>() || 
+			ModelNode->IsA<URigVMFunctionReturnNode>())
+		{
+			return EventIcon;
+		}
+	}
+
+	return FunctionIcon;
 }
 
 void UControlRigGraphNode::GetNodeContextMenuActions(class UToolMenu* Menu, class UGraphNodeContextMenuContext* Context) const
@@ -577,7 +608,7 @@ void UControlRigGraphNode::CopyPinDefaultsToModel(UEdGraphPin* Pin, bool bUndo)
 	if (Pin->Direction != EGPD_Input)
 	{
 		return;
-		}
+	}
 
 	const UEdGraphSchema_K2* K2Schema = GetDefault<UEdGraphSchema_K2>();
 	if (URigVMPin* ModelPin = GetModelPinFromPinPath(Pin->GetName()))
@@ -585,13 +616,13 @@ void UControlRigGraphNode::CopyPinDefaultsToModel(UEdGraphPin* Pin, bool bUndo)
 		if (ModelPin->GetSubPins().Num() > 0)
 		{
 			return;
-	}
+		}
 
 		FString DefaultValue = Pin->DefaultValue;
 		if (DefaultValue == FName(NAME_None).ToString() && Pin->PinType.PinSubCategory == UEdGraphSchema_K2::PC_Name)
 		{
 			DefaultValue = FString();
-	}
+		}
 
 		if (ModelPin->GetDefaultValue() != DefaultValue)
 		{

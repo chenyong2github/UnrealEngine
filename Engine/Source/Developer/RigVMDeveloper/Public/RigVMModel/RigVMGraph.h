@@ -62,7 +62,7 @@ public:
 
 	// Returns the path of this graph as defined by its invoking nodes
 	UFUNCTION(BlueprintCallable, Category = RigVMGraph)
-	FString GetNodePath() const;
+	virtual FString GetNodePath() const;
 
 	// Returns the name of this graph (as defined by the node path)
 	UFUNCTION(BlueprintCallable, Category = RigVMGraph)

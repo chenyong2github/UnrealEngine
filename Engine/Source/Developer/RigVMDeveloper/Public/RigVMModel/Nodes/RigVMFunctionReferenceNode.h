@@ -3,9 +3,10 @@
 #pragma once
 
 #include "RigVMModel/RigVMGraph.h"
-#include "RigVMModel/RigVMFunctionLibrary.h"
 #include "RigVMModel/Nodes/RigVMLibraryNode.h"
 #include "RigVMFunctionReferenceNode.generated.h"
+
+class URigVMFunctionLibrary;
 
 /**
  * The Function Reference Node is a library node which references

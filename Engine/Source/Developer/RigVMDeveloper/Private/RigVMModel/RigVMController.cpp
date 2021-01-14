@@ -282,7 +282,7 @@ URigVMUnitNode* URigVMController::AddUnitNode(UScriptStruct* InScriptStruct, con
 
 			if (!StructMemory->GetEventName().IsNone())
 			{
-				ReportError(TEXT("Event nodes can only be added to top level graphs."));
+				ReportAndNotifyError(TEXT("Event nodes can only be added to top level graphs."));
 				return nullptr;
 			}
 		}
@@ -3002,6 +3002,54 @@ bool URigVMController::RemoveNode(URigVMNode* InNode, bool bSetupUndoRedo, bool 
 
 	Notify(ERigVMGraphNotifType::NodeRemoved, InNode);
 
+	if (URigVMLibraryNode* LibraryNode = Cast<URigVMLibraryNode>(InNode))
+	{
+		if(URigVMFunctionReferenceNode* FunctionReferenceNode = Cast<URigVMFunctionReferenceNode>(LibraryNode))
+		{
+			if (URigVMFunctionLibrary* FunctionLibrary = Cast<URigVMFunctionLibrary>(FunctionReferenceNode->GetLibrary()))
+			{
+				FRigVMFunctionReferenceArray* References = FunctionLibrary->FunctionReferences.Find(FunctionReferenceNode->GetReferencedNode());
+				if (References)
+				{
+					References->FunctionReferences.RemoveAll(
+						[FunctionReferenceNode](TSoftObjectPtr<URigVMFunctionReferenceNode>& FunctionReferencePtr) {
+
+							/*
+							if (!FunctionReferencePtr.IsValid())
+							{
+								FunctionReferencePtr.LoadSynchronous();
+							}
+							*/
+
+							if (!FunctionReferencePtr.IsValid())
+							{
+								return true;
+							}
+							return FunctionReferencePtr.Get() == FunctionReferenceNode;
+					});
+				}
+			}
+		}
+		else if (URigVMFunctionLibrary* FunctionLibrary = Cast<URigVMFunctionLibrary>(LibraryNode->GetGraph()))
+		{
+			const FRigVMFunctionReferenceArray* FunctionReferencesPtr = FunctionLibrary->FunctionReferences.Find(LibraryNode);
+			if (FunctionReferencesPtr)
+			{
+				for (const TSoftObjectPtr<URigVMFunctionReferenceNode>& FunctionReferencePtr : FunctionReferencesPtr->FunctionReferences)
+				{
+					if (FunctionReferencePtr.IsValid())
+					{
+						FunctionReferencePtr->ReferencedNodePtr.Reset();
+
+						FRigVMControllerGraphGuard GraphGuard(this, FunctionReferencePtr->GetGraph(), false);
+						RepopulatePinsOnNode(FunctionReferencePtr.Get(), false, true);
+					}
+				}
+			}
+			FunctionLibrary->FunctionReferences.Remove(LibraryNode);
+		}
+	}
+
 	if (URigVMVariableNode* VariableNode = Cast<URigVMVariableNode>(InNode))
 	{
 		Notify(ERigVMGraphNotifType::VariableRemoved, VariableNode);
@@ -3081,6 +3129,26 @@ bool URigVMController::RenameNode(URigVMNode* InNode, const FName& InNewName, bo
 	{
 		Link->PrepareForCopy();
 		Notify(ERigVMGraphNotifType::LinkAdded, Link);
+	}
+
+	if(URigVMLibraryNode* LibraryNode = Cast<URigVMLibraryNode>(InNode))
+	{
+		if (URigVMFunctionLibrary* FunctionLibrary = Cast<URigVMFunctionLibrary>(LibraryNode->GetGraph()))
+		{
+			FRigVMFunctionReferenceArray* ReferencesEntry = FunctionLibrary->FunctionReferences.Find(LibraryNode);
+			if (ReferencesEntry)
+			{
+				for (TSoftObjectPtr<URigVMFunctionReferenceNode> FunctionReferencePtr : ReferencesEntry->FunctionReferences)
+				{
+					// only update valid, living references
+					if (FunctionReferencePtr.IsValid())
+					{
+						FRigVMControllerGraphGuard GraphGuard(this, FunctionReferencePtr->GetGraph(), false);
+						RenameNode(FunctionReferencePtr.Get(), InNewName, false);
+					}
+				}
+			}
+		}
 	}
 
 	if (bSetupUndoRedo)
@@ -5059,13 +5127,15 @@ FName URigVMController::AddExposedPin(const FName& InPinName, ERigVMPinDirection
 		Notify(ERigVMGraphNotifType::PinAdded, Pin);
 	}
 
-	if (bSetupUndoRedo && !InDefaultValue.IsEmpty())
+	if (!InDefaultValue.IsEmpty())
 	{
+		FRigVMControllerGraphGuard GraphGuard(this, Pin->GetGraph(), false);
 		SetPinDefaultValue(Pin, InDefaultValue, true, bSetupUndoRedo, false);
 	}
 
 	RefreshFunctionPins(Graph->GetEntryNode(), true);
 	RefreshFunctionPins(Graph->GetReturnNode(), true);
+	RefreshFunctionReferences(LibraryNode, false);
 
 	if (bSetupUndoRedo)
 	{
@@ -5120,6 +5190,7 @@ bool URigVMController::RemoveExposedPin(const FName& InPinName, bool bSetupUndoR
 
 	RefreshFunctionPins(Graph->GetEntryNode(), true);
 	RefreshFunctionPins(Graph->GetReturnNode(), true);
+	RefreshFunctionReferences(LibraryNode, false);
 
 	if (bSetupUndoRedo)
 	{
@@ -5244,6 +5315,26 @@ bool URigVMController::RenameExposedPin(const FName& InOldPinName, const FName& 
 		}
 	}
 
+	if (URigVMFunctionLibrary* FunctionLibrary = Cast<URigVMFunctionLibrary>(LibraryNode->GetGraph()))
+	{
+		FRigVMFunctionReferenceArray* ReferencesEntry = FunctionLibrary->FunctionReferences.Find(LibraryNode);
+		if (ReferencesEntry)
+		{
+			for (TSoftObjectPtr<URigVMFunctionReferenceNode> FunctionReferencePtr : ReferencesEntry->FunctionReferences)
+			{
+				// only update valid, living references
+				if (FunctionReferencePtr.IsValid())
+				{
+					if (URigVMPin* EntryPin = FunctionReferencePtr->FindPin(InOldPinName.ToString()))
+					{
+						FRigVMControllerGraphGuard GraphGuard(this, FunctionReferencePtr->GetGraph(), false);
+						Local::RenamePin(this, EntryPin, PinName);
+					}
+				}
+			}
+		}
+	}
+
 	if (bSetupUndoRedo)
 	{
 		ActionStack->EndAction(Action);
@@ -5318,6 +5409,26 @@ bool URigVMController::ChangeExposedPinType(const FName& InPinName, const FStrin
 		}
 	}
 
+	if (URigVMFunctionLibrary* FunctionLibrary = Cast<URigVMFunctionLibrary>(LibraryNode->GetGraph()))
+	{
+		FRigVMFunctionReferenceArray* ReferencesEntry = FunctionLibrary->FunctionReferences.Find(LibraryNode);
+		if (ReferencesEntry)
+		{
+			for (TSoftObjectPtr<URigVMFunctionReferenceNode> FunctionReferencePtr : ReferencesEntry->FunctionReferences)
+			{
+				// only update valid, living references
+				if (FunctionReferencePtr.IsValid())
+				{
+					if (URigVMPin* ReferencedNodePin = FunctionReferencePtr->FindPin(Pin->GetName()))
+					{
+						FRigVMControllerGraphGuard GraphGuard(this, FunctionReferencePtr->GetGraph(), false);
+						ChangePinType(ReferencedNodePin, InCPPType, InCPPTypeObjectPath, bSetupUndoRedo);
+					}
+				}
+			}
+		}
+	}
+
 	if (bSetupUndoRedo)
 	{
 		ActionStack->EndAction(Action);
@@ -5348,6 +5459,23 @@ URigVMFunctionReferenceNode* URigVMController::AddFunctionReferenceNode(URigVMLi
 		return nullptr;
 	}
 
+	if (!InFunctionDefinition->GetGraph()->IsA<URigVMFunctionLibrary>())
+	{
+		ReportAndNotifyError(TEXT("Cannot use the function definition for a function reference node."));
+		return nullptr;
+	}
+
+	URigVMLibraryNode* ParentLibraryNode = Cast<URigVMLibraryNode>(Graph->GetOuter());
+	while (ParentLibraryNode)
+	{
+		if (ParentLibraryNode == InFunctionDefinition)
+		{
+			ReportAndNotifyError(TEXT("You cannot place functions inside of itself or an indirect recursion."));
+			return nullptr;
+		}
+		ParentLibraryNode = Cast<URigVMLibraryNode>(ParentLibraryNode->GetGraph()->GetOuter());
+	}
+
 	FString NodeName = GetValidNodeName(InNodeName.IsEmpty() ? InFunctionDefinition->GetName() : InNodeName);
 	URigVMFunctionReferenceNode* FunctionRefNode = NewObject<URigVMFunctionReferenceNode>(Graph, *NodeName);
 	FunctionRefNode->Position = InNodePosition;
@@ -5355,6 +5483,25 @@ URigVMFunctionReferenceNode* URigVMController::AddFunctionReferenceNode(URigVMLi
 	Graph->Nodes.Add(FunctionRefNode);
 
 	RepopulatePinsOnNode(FunctionRefNode, false, false);
+
+	Notify(ERigVMGraphNotifType::NodeAdded, FunctionRefNode);
+
+	if (URigVMFunctionLibrary* FunctionLibrary = InFunctionDefinition->GetLibrary())
+	{
+		FunctionLibrary->FunctionReferences.FindOrAdd(InFunctionDefinition).FunctionReferences.Add(FunctionRefNode);
+	}
+
+	for (URigVMPin* SourcePin : InFunctionDefinition->Pins)
+	{
+		if (URigVMPin* TargetPin = FunctionRefNode->FindPin(SourcePin->GetName()))
+		{
+			FString DefaultValue = SourcePin->GetDefaultValue();
+			if (!DefaultValue.IsEmpty())
+			{
+				SetPinDefaultValue(TargetPin, DefaultValue, true, false, false);
+			}
+		}
+	}
 
 	if (bSetupUndoRedo)
 	{
@@ -5369,7 +5516,7 @@ URigVMFunctionReferenceNode* URigVMController::AddFunctionReferenceNode(URigVMLi
 	return FunctionRefNode;
 }
 
-URigVMLibraryNode* URigVMController::AddFunctionToLibrary(const FName& InFunctionName, const FVector2D& InNodePosition, bool bSetupUndoRedo)
+URigVMLibraryNode* URigVMController::AddFunctionToLibrary(const FName& InFunctionName, bool bMutable, const FVector2D& InNodePosition, bool bSetupUndoRedo)
 {
 	if (!IsValidGraph())
 	{
@@ -5391,6 +5538,18 @@ URigVMLibraryNode* URigVMController::AddFunctionToLibrary(const FName& InFunctio
 	CollapseNode->Position = InNodePosition;
 	Graph->Nodes.Add(CollapseNode);
 
+	if (bMutable)
+	{
+		URigVMPin* ExecutePin = NewObject<URigVMPin>(CollapseNode, FRigVMStruct::ExecuteContextName);
+		ExecutePin->CPPType = FString::Printf(TEXT("F%s"), *ExecuteContextStruct->GetName());
+		ExecutePin->CPPTypeObject = ExecuteContextStruct;
+		ExecutePin->CPPTypeObjectPath = *ExecutePin->CPPTypeObject->GetPathName();
+		ExecutePin->Direction = ERigVMPinDirection::IO;
+		CollapseNode->Pins.Add(ExecutePin);
+	}
+
+	Notify(ERigVMGraphNotifType::NodeAdded, CollapseNode);
+
 	{
 		FRigVMControllerGraphGuard GraphGuard(this, CollapseNode->GetContainedGraph(), false);
 
@@ -5405,6 +5564,11 @@ URigVMLibraryNode* URigVMController::AddFunctionToLibrary(const FName& InFunctio
 		ReturnNode->Position = FVector2D(250.f, 0.f);
 		RefreshFunctionPins(ReturnNode, false);
 		Notify(ERigVMGraphNotifType::NodeAdded, ReturnNode);
+
+		if (bMutable)
+		{
+			AddLink(EntryNode->FindPin(FRigVMStruct::ExecuteContextName.ToString()), ReturnNode->FindPin(FRigVMStruct::ExecuteContextName.ToString()), false);
+		}
 	}
 
 	if (bSetupUndoRedo)
@@ -7039,12 +7203,18 @@ void URigVMController::RepopulatePinsOnNode(URigVMNode* InNode, bool bFollowCore
 	{
 		if (URigVMLibraryNode* ReferencedNode = FunctionRefNode->GetReferencedNode())
 		{
+			// we want to make sure notify the graph of a potential name change
+			// when repopulating the function ref node
+			Notify(ERigVMGraphNotifType::NodeRenamed, FunctionRefNode);
+
 			TArray<URigVMPin*> Pins = InNode->GetPins();
 			for (URigVMPin* Pin : Pins)
 			{
 				RemovePin(Pin, false, bNotify);
 			}
 			InNode->Pins.Reset();
+
+			TMap<FString, FPinState> ReferencedPinStates = GetPinStates(ReferencedNode);
 
 			for (URigVMPin* ReferencedPin : ReferencedNode->Pins)
 			{
@@ -7060,6 +7230,8 @@ void URigVMController::RepopulatePinsOnNode(URigVMNode* InNode, bool bFollowCore
 
 				Notify(ERigVMGraphNotifType::PinAdded, NewPin);
 			}
+
+			ApplyPinStates(InNode, ReferencedPinStates);
 		}
 	}
 
@@ -7664,4 +7836,30 @@ TArray<FRigVMExternalVariable> URigVMController::GetExternalVariables()
 		return GetExternalVariablesDelegate.Execute();
 	}
 	return TArray<FRigVMExternalVariable>();
+}
+
+void URigVMController::RefreshFunctionReferences(URigVMLibraryNode* InFunctionDefinition, bool bSetupUndoRedo)
+{
+	check(InFunctionDefinition);
+
+	if (URigVMFunctionLibrary* FunctionLibrary = Cast<URigVMFunctionLibrary>(InFunctionDefinition->GetGraph()))
+	{
+		FRigVMFunctionReferenceArray* ReferencesEntry = FunctionLibrary->FunctionReferences.Find(InFunctionDefinition);
+		if (ReferencesEntry)
+		{
+			for (TSoftObjectPtr<URigVMFunctionReferenceNode> FunctionReferencePtr : ReferencesEntry->FunctionReferences)
+			{
+				// only update valid, living references
+				if (FunctionReferencePtr.IsValid())
+				{
+					FRigVMControllerGraphGuard GraphGuard(this, FunctionReferencePtr->GetGraph(), bSetupUndoRedo);
+
+					TArray<URigVMLink*> Links = FunctionReferencePtr->GetLinks();
+					DetachLinksFromPinObjects(&Links, true);
+					RepopulatePinsOnNode(FunctionReferencePtr.Get(), false, true);
+					ReattachLinksToPinObjects(false, &Links, true);
+				}
+			}
+		}
+	}
 }

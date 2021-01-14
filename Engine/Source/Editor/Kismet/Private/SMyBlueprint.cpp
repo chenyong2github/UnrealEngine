@@ -494,6 +494,7 @@ void SMyBlueprint::Construct(const FArguments& InArgs, TWeakPtr<FBlueprintEditor
 		.OnCanRenameSelectedAction(this, &SMyBlueprint::CanRequestRenameOnActionNode)
 		.OnGetSectionTitle(this, &SMyBlueprint::OnGetSectionTitle)
 		.OnGetSectionWidget(this, &SMyBlueprint::OnGetSectionWidget)
+		.OnActionMatchesName(this, &SMyBlueprint::HandleActionMatchesName)
 		.AlphaSortItems(false)
 		.UseSectionStyling(true);
 
@@ -901,6 +902,15 @@ bool SMyBlueprint::CanAddNewElementToSection(int32 InSectionID) const
 		}
 	}
 
+	return false;
+}
+
+bool SMyBlueprint::HandleActionMatchesName(FEdGraphSchemaAction* InAction, const FName& InName) const
+{
+	if (BlueprintEditorPtr.IsValid())
+	{
+		return BlueprintEditorPtr.Pin()->OnActionMatchesName(InAction, InName);
+	}
 	return false;
 }
 
@@ -1694,7 +1704,15 @@ FReply SMyBlueprint::OnActionDragged( const TArray< TSharedPtr<FEdGraphSchemaAct
 		if(InAction->GetTypeId() == FEdGraphSchemaAction_K2Graph::StaticGetTypeId())
 		{
 			FEdGraphSchemaAction_K2Graph* FuncAction = (FEdGraphSchemaAction_K2Graph*)InAction.Get();
-			
+
+			if (FuncAction->EdGraph)
+			{
+				if (FuncAction->EdGraph->GetSchema()->CanGraphBeDropped(InAction))
+				{
+					return FuncAction->EdGraph->GetSchema()->BeginGraphDragAction(InAction);
+				}
+			}
+
 			if (FuncAction->GraphType == EEdGraphSchemaAction_K2Graph::Function ||FuncAction->GraphType == EEdGraphSchemaAction_K2Graph::Interface)
 			{
 				// Callback function to report that the user cannot drop this function in the graph

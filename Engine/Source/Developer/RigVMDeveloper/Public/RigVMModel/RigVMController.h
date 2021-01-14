@@ -497,7 +497,7 @@ public:
 
 	// Adds a function definition to a function library graph
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
-	URigVMLibraryNode* AddFunctionToLibrary(const FName& InFunctionName, const FVector2D& InNodePosition = FVector2D::ZeroVector, bool bSetupUndoRedo = true);
+	URigVMLibraryNode* AddFunctionToLibrary(const FName& InFunctionName, bool bMutable, const FVector2D& InNodePosition = FVector2D::ZeroVector, bool bSetupUndoRedo = true);
 
 	// Removes a function from a function library graph
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
@@ -633,6 +633,8 @@ private:
 
 	FRigVMExternalVariable GetExternalVariableByName(const FName& InExternalVariableName);
 	TArray<FRigVMExternalVariable> GetExternalVariables();
+
+	void RefreshFunctionReferences(URigVMLibraryNode* InFunctionDefinition, bool bSetupUndoRedo);
 
 	UPROPERTY(transient)
 	TArray<URigVMGraph*> Graphs;

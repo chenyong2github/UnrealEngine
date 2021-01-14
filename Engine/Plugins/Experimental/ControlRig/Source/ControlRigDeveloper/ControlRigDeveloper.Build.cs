@@ -53,7 +53,8 @@ namespace UnrealBuildTool.Rules
                         "BlueprintGraph",
                         "PropertyEditor",
                         "RigVMDeveloper",
-                    }
+						"GraphEditor",
+					}
                 );
 
                 PrivateIncludePathModuleNames.Add("ControlRigEditor");

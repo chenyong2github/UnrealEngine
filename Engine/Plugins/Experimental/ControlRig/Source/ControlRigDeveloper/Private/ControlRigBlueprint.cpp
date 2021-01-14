@@ -54,6 +54,15 @@ UControlRigBlueprint::UControlRigBlueprint(const FObjectInitializer& ObjectIniti
 
 	Model = ObjectInitializer.CreateDefaultSubobject<URigVMGraph>(this, TEXT("RigVMModel"));
 	FunctionLibrary = ObjectInitializer.CreateDefaultSubobject<URigVMFunctionLibrary>(this, TEXT("RigVMFunctionLibrary"));
+	FunctionLibraryEdGraph = ObjectInitializer.CreateDefaultSubobject<UControlRigGraph>(this, TEXT("RigVMFunctionLibraryEdGraph"));
+	FunctionLibraryEdGraph->Schema = UControlRigGraphSchema::StaticClass();
+	FunctionLibraryEdGraph->bAllowRenaming = 0;
+	FunctionLibraryEdGraph->bEditable = 0;
+	FunctionLibraryEdGraph->bAllowDeletion = 0;
+	FunctionLibraryEdGraph->bIsFunctionDefinition = false;
+	FunctionLibraryEdGraph->Initialize(this);
+
+	Model->SetDefaultFunctionLibrary(FunctionLibrary);
 
 	Validator = ObjectInitializer.CreateDefaultSubobject<UControlRigValidator>(this, TEXT("ControlRigValidator"));
 
@@ -70,6 +79,7 @@ void UControlRigBlueprint::InitializeModelIfRequired(bool bRecompileVM)
 	if (Controllers.Num() == 0)
 	{
 		GetOrCreateController(Model);
+		GetOrCreateController(FunctionLibrary);
 
 		for (int32 i = 0; i < UbergraphPages.Num(); ++i)
 		{
@@ -85,6 +95,8 @@ void UControlRigBlueprint::InitializeModelIfRequired(bool bRecompileVM)
 				Graph->Initialize(this);
 			}
 		}
+
+		FunctionLibraryEdGraph->Initialize(this);
 
 		HierarchyContainer.OnElementAdded.AddUObject(this, &UControlRigBlueprint::HandleOnElementAdded);
 		HierarchyContainer.OnElementRemoved.AddUObject(this, &UControlRigBlueprint::HandleOnElementRemoved);
@@ -223,17 +235,28 @@ void UControlRigBlueprint::PostLoad()
 
 #if WITH_EDITOR
 
+	TArray<URigVMGraph*> GraphsToDetach;
+	GraphsToDetach.Add(GetModel());
+	GraphsToDetach.Add(GetLocalFunctionLibrary());
+
 	if (!IsInAsyncLoadingThread() || IsRunningCommandlet())
 	{
-		GetOrCreateController()->DetachLinksFromPinObjects();
-		TArray<URigVMNode*> Nodes = Model->GetNodes();
-		for (URigVMNode* Node : Nodes)
+		for (URigVMGraph* GraphToDetach : GraphsToDetach)
 		{
-			GetOrCreateController()->RepopulatePinsOnNode(Node);
+			GetOrCreateController(GraphToDetach)->DetachLinksFromPinObjects();
+			TArray<URigVMNode*> Nodes = GraphToDetach->GetNodes();
+			for (URigVMNode* Node : Nodes)
+			{
+				GetOrCreateController()->RepopulatePinsOnNode(Node);
+			}
 		}
 		SetupPinRedirectorsForBackwardsCompatibility();
 	}
-	GetOrCreateController()->ReattachLinksToPinObjects(true /* follow redirectors */);
+
+	for (URigVMGraph* GraphToDetach : GraphsToDetach)
+	{
+		GetOrCreateController(GraphToDetach)->ReattachLinksToPinObjects(true /* follow redirectors */);
+	}
 
 	RecompileVM();
 	RequestControlRigInit();
@@ -373,15 +396,31 @@ URigVMGraph* UControlRigBlueprint::GetModel(const UEdGraph* InEdGraph) const
 		return Model;
 	}
 
+#if WITH_EDITORONLY_DATA
+	if (InEdGraph == FunctionLibraryEdGraph)
+	{
+		return FunctionLibrary;
+	}
+#endif
+
 	const UControlRigGraph* RigGraph = Cast< UControlRigGraph>(InEdGraph);
 	check(RigGraph);
+
+	FString ModelNodePath = RigGraph->ModelNodePath;
+
+	if (RigGraph->bIsFunctionDefinition)
+	{
+		if (URigVMLibraryNode* LibraryNode = FunctionLibrary->FindFunction(*ModelNodePath))
+		{
+			return LibraryNode->GetContainedGraph();
+		}
+	}
 
 	if (RigGraph->GetOuter() == this)
 	{
 		return Model;
 	}
 
-	FString ModelNodePath = RigGraph->ModelNodePath;
 	ensure(!ModelNodePath.IsEmpty());
 
 	URigVMGraph* SubModel = Model;
@@ -429,6 +468,8 @@ TArray<URigVMGraph*> UControlRigBlueprint::GetAllModels() const
 	TArray<URigVMGraph*> Models;
 	Models.Add(GetModel());
 	Models.Append(GetModel()->GetContainedGraphs(true /* recursive */));
+	Models.Add(GetLocalFunctionLibrary());
+	Models.Append(GetLocalFunctionLibrary()->GetContainedGraphs(true /* recursive */));
 	return Models;
 }
 
@@ -570,13 +611,36 @@ URigVMController* UControlRigBlueprint::GetTemplateController()
 
 UEdGraph* UControlRigBlueprint::GetEdGraph(URigVMGraph* InModel) const
 {
+	if (InModel == nullptr)
+	{
+		return nullptr;
+	}
+
+#if WITH_EDITORONLY_DATA
+	if (InModel == FunctionLibrary)
+	{
+		return FunctionLibraryEdGraph;
+	}
+#endif
+
 	TArray<UEdGraph*> EdGraphs;
 	GetAllGraphs(EdGraphs);
+
+	bool bIsFunctionDefinition = false;
+	if (URigVMLibraryNode* LibraryNode = Cast<URigVMLibraryNode>(InModel->GetOuter()))
+	{
+		bIsFunctionDefinition = LibraryNode->GetGraph()->IsA<URigVMFunctionLibrary>();
+	}
 
 	for (UEdGraph* EdGraph : EdGraphs)
 	{
 		if (UControlRigGraph* RigGraph = Cast<UControlRigGraph>(EdGraph))
 		{
+			if (RigGraph->bIsFunctionDefinition != bIsFunctionDefinition)
+			{
+				continue;
+			}
+
 			if (RigGraph->ModelNodePath == InModel->GetNodePath())
 			{
 				return RigGraph;
@@ -1302,12 +1366,22 @@ void UControlRigBlueprint::RebuildGraphFromModel()
 		{
 			Graph->RemoveNode(Node);
 		}
+
+		if (UControlRigGraph* RigGraph = Cast<UControlRigGraph>(Graph))
+		{
+			if (RigGraph->bIsFunctionDefinition)
+			{
+				FunctionGraphs.Remove(RigGraph);
+			}
+		}
 	}
 
 	TArray<URigVMGraph*> RigGraphs;
 	RigGraphs.Add(GetModel());
+	RigGraphs.Add(GetLocalFunctionLibrary());
 
 	GetOrCreateController(RigGraphs[0])->ResendAllNotifications();
+	GetOrCreateController(RigGraphs[1])->ResendAllNotifications();
 
 	for (int32 RigGraphIndex = 0; RigGraphIndex < RigGraphs.Num(); RigGraphIndex++)
 	{
@@ -1322,6 +1396,18 @@ void UControlRigBlueprint::RebuildGraphFromModel()
 			}
 		}
 	}
+
+	EdGraphs.Reset();
+	GetAllGraphs(EdGraphs);
+
+	for (UEdGraph* Graph : EdGraphs)
+	{
+		if (UControlRigGraph* RigGraph = Cast<UControlRigGraph>(Graph))
+		{
+			RigGraph->CacheNameLists(&HierarchyContainer, &DrawContainer);
+		}
+	}
+
 }
 
 void UControlRigBlueprint::Notify(ERigVMGraphNotifType InNotifType, UObject* InSubject)
@@ -1548,12 +1634,12 @@ void UControlRigBlueprint::HandleModifiedEvent(ERigVMGraphNotifType InNotifType,
 			}
 			case ERigVMGraphNotifType::NodeRenamed:
 			{
-				if (URigVMLibraryNode* LibraryNode = Cast<URigVMLibraryNode>(InSubject))
+				if (URigVMCollapseNode* CollapseNode = Cast<URigVMCollapseNode>(InSubject))
 				{
-					FString NewNodePath = LibraryNode->GetNodePath(true /* recursive */);
+					FString NewNodePath = CollapseNode->GetNodePath(true /* recursive */);
 					FString Left, Right = NewNodePath;
 					URigVMNode::SplitNodePathAtEnd(NewNodePath, Left, Right);
-					FString OldNodePath = LibraryNode->GetPreviousFName().ToString();
+					FString OldNodePath = CollapseNode->GetPreviousFName().ToString();
 					if (!Left.IsEmpty())
 					{
 						OldNodePath = URigVMNode::JoinNodePath(Left, OldNodePath);
@@ -1578,6 +1664,11 @@ void UControlRigBlueprint::HandleModifiedEvent(ERigVMGraphNotifType InNotifType,
 								RigGraph->ModelNodePath = NewNodePathPrefix + RigGraph->ModelNodePath.LeftChop(OldNodePathPrefix.Len());
 							}
 						}
+					}
+
+					if (UEdGraph* ContainedEdGraph = GetEdGraph(CollapseNode->GetContainedGraph()))
+					{
+						ContainedEdGraph->Rename(*CollapseNode->GetEditorSubGraphName(), nullptr);
 					}
 
 					FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(this);
@@ -2388,7 +2479,44 @@ void UControlRigBlueprint::CreateEdGraphForCollapseNodeIfNeeded(URigVMCollapseNo
 		RemoveEdGraphForCollapseNode(InNode, false);
 	}
 
-	if (UControlRigGraph* RigGraph = Cast<UControlRigGraph>(GetEdGraph(InNode->GetGraph())))
+	if (InNode->GetGraph()->IsA<URigVMFunctionLibrary>())
+	{
+		if (URigVMGraph* ContainedGraph = InNode->GetContainedGraph())
+		{
+			bool bFunctionGraphExists = false;
+			for (UEdGraph* FunctionGraph : FunctionGraphs)
+			{
+				if (UControlRigGraph* RigFunctionGraph = Cast<UControlRigGraph>(FunctionGraph))
+				{
+					if (RigFunctionGraph->ModelNodePath == ContainedGraph->GetNodePath())
+					{
+						bFunctionGraphExists = true;
+						break;
+					}
+				}
+			}
+
+			if (!bFunctionGraphExists)
+			{
+				// create a sub graph
+				UControlRigGraph* RigFunctionGraph = NewObject<UControlRigGraph>(this, *InNode->GetName(), RF_Transactional);
+				RigFunctionGraph->Schema = UControlRigGraphSchema::StaticClass();
+				RigFunctionGraph->bAllowRenaming = 1;
+				RigFunctionGraph->bEditable = 1;
+				RigFunctionGraph->bAllowDeletion = 1;
+				RigFunctionGraph->ModelNodePath = ContainedGraph->GetNodePath();
+				RigFunctionGraph->bIsFunctionDefinition = true;
+
+				FunctionGraphs.Add(RigFunctionGraph);
+
+				RigFunctionGraph->Initialize(this);
+
+				GetOrCreateController(ContainedGraph)->ResendAllNotifications();
+			}
+
+		}
+	}
+	else if (UControlRigGraph* RigGraph = Cast<UControlRigGraph>(GetEdGraph(InNode->GetGraph())))
 	{
 		if (URigVMGraph* ContainedGraph = InNode->GetContainedGraph())
 		{
@@ -2413,7 +2541,8 @@ void UControlRigBlueprint::CreateEdGraphForCollapseNodeIfNeeded(URigVMCollapseNo
 				SubRigGraph->bAllowRenaming = 1;
 				SubRigGraph->bEditable = 1;
 				SubRigGraph->bAllowDeletion = 1;
-				SubRigGraph->ModelNodePath = InNode->GetNodePath(true);
+				SubRigGraph->ModelNodePath = ContainedGraph->GetNodePath();
+				SubRigGraph->bIsFunctionDefinition = false;
 
 				RigGraph->SubGraphs.Add(SubRigGraph);
 
@@ -2423,14 +2552,40 @@ void UControlRigBlueprint::CreateEdGraphForCollapseNodeIfNeeded(URigVMCollapseNo
 			}
 		}
 	}
-
 }
 
 bool UControlRigBlueprint::RemoveEdGraphForCollapseNode(URigVMCollapseNode* InNode, bool bNotify)
 {
 	check(InNode);
 
-	if (UControlRigGraph* RigGraph = Cast<UControlRigGraph>(GetEdGraph(InNode->GetGraph())))
+	if (InNode->GetGraph()->IsA<URigVMFunctionLibrary>())
+	{
+		if (URigVMGraph* ContainedGraph = InNode->GetContainedGraph())
+		{
+			for (UEdGraph* FunctionGraph : FunctionGraphs)
+			{
+				if (UControlRigGraph* RigFunctionGraph = Cast<UControlRigGraph>(FunctionGraph))
+				{
+					if (RigFunctionGraph->ModelNodePath == ContainedGraph->GetNodePath())
+					{
+						if (URigVMController* SubController = GetController(ContainedGraph))
+						{
+							SubController->OnModified().RemoveAll(RigFunctionGraph);
+						}
+
+						if (ModifiedEvent.IsBound() && bNotify)
+						{
+							ModifiedEvent.Broadcast(ERigVMGraphNotifType::NodeRemoved, InNode->GetGraph(), InNode);
+						}
+
+						FunctionGraphs.Remove(RigFunctionGraph);
+						return bNotify;
+					}
+				}
+			}
+		}
+	}
+	else if (UControlRigGraph* RigGraph = Cast<UControlRigGraph>(GetEdGraph(InNode->GetGraph())))
 	{
 		if (URigVMGraph* ContainedGraph = InNode->GetContainedGraph())
 		{

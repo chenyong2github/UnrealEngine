@@ -183,6 +183,8 @@ private:
 	FReply OnAddButtonClickedOnSection(int32 InSectionID);
 	bool CanAddNewElementToSection(int32 InSectionID) const;
 
+	bool HandleActionMatchesName(FEdGraphSchemaAction* InAction, const FName& InName) const;
+
 	/** Support functions for checkbox to manage displaying user variables only */
 	bool IsShowingInheritedVariables() const;
 	void OnToggleShowInheritedVariables();
@@ -290,6 +292,7 @@ private:
 
 	/** Helper function indicating whehter we're in editing mode, and can modify the target blueprint */
 	bool IsEditingMode() const;
+
 private:
 	/** List of UI Commands for this scope */
 	TSharedPtr<FUICommandList> CommandList;
