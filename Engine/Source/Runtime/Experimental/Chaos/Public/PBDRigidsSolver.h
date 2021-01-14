@@ -309,7 +309,12 @@ namespace Chaos
 
 		virtual bool AreAnyTasksPending() const override
 		{
-			return GetEvolution()->AreAnyTasksPending();
+			if (IsPendingTasksComplete() == false || GetEvolution()->AreAnyTasksPending())
+			{
+				return true;
+			}
+
+			return false;
 		}
 
 		void BeginDestroy();
