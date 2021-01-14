@@ -26,8 +26,6 @@
 #include "Misc/RuntimeErrors.h"
 #include "FunctionalTestBase.h"
 
-CORE_API ELogVerbosity::Type GetAutomationLogLevel(ELogVerbosity::Type Verbosity, FAutomationTestBase* CurrentTest);
-
 namespace
 {
 	template <typename T>
@@ -886,19 +884,19 @@ void AFunctionalTest::LogStep(ELogVerbosity::Type Verbosity, const FString& Mess
 	const int32 STACK_OFFSET = 2;
 	FFunctionalTestBase* CurrentFunctionalTest = static_cast<FFunctionalTestBase*>(FAutomationTestFramework::Get().GetCurrentTest());
 
-	ELogVerbosity::Type EffectiveVerbosity = Verbosity;
-
-	// Evaluate the log level based on the properties of the test
-	if (CurrentFunctionalTest)
-	{
-		EffectiveVerbosity = GetAutomationLogLevel(EffectiveVerbosity, CurrentFunctionalTest);
-	}
-	else
+	// Warn if we do not have a current functional test. Such a situation prevents Warning/Error results from being associated with an actual test
+	if (!CurrentFunctionalTest)
 	{
 		UE_LOG(LogFunctionalTest, Warning, TEXT("FunctionalTest '%s' ran test '%s' when no functional test was active. This result will not be tracked."), *GetName(), *Message);
 	}
 
-	switch (EffectiveVerbosity)
+	/* 
+		Note - unlike FAutomationTestOutputDevice::Serialize logging we do not downgrade/suppress logging levels based on the properties of the functional test 
+		actor or the project. While AFunctionalTest uses the verbosity enums these messages are  added directly by the test 
+		// (e.g. via AddWarning, AddError, Assert_Equal) so they are not considered side-effect warnings/errors	that may be optionally ignored.
+	*/
+
+	switch (Verbosity)
 	{
 	case ELogVerbosity::Log:
 		if (CurrentFunctionalTest)
