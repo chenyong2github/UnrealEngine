@@ -322,13 +322,11 @@ namespace ChaosInterface
 					{
 						// NOTE: CollisionMargin is on the Instance/Scaled wrapper, not the inner convex (which has no margin). This means that convex shapes grow by the margion size...
 						TUniquePtr<Chaos::FImplicitObject> Implicit;
-						// @chaos(todo): the collision detection narrow phase strips the instanced wrapper but shouldn't because it contains the margin. We need to fix that. 
-						// For now, to get things working, all convexes are scaled...
-						//if (Scale == FVector(1))
-						//{
-						//	Implicit = TUniquePtr<Chaos::FImplicitObject>(new Chaos::TImplicitObjectInstanced<Chaos::FConvex>(ConvexImplicit, CollisionMargin));
-						//}
-						//else
+						if (Scale == FVector(1))
+						{
+							Implicit = TUniquePtr<Chaos::FImplicitObject>(new Chaos::TImplicitObjectInstanced<Chaos::FConvex>(ConvexImplicit, CollisionMargin));
+						}
+						else
 						{
 							Implicit = TUniquePtr<Chaos::FImplicitObject>(new Chaos::TImplicitObjectScaled<Chaos::FConvex>(ConvexImplicit, Scale, CollisionMargin));
 						}

@@ -379,6 +379,7 @@ namespace Chaos
 
 			Utilities::CastHelper(A, AStartTransform, [&](const auto& ADowncast, const FRigidTransform3& AFullTM)
 			{
+				// @todo(chaos): handle instances with margin
 				if (B.SweepGeom(ADowncast, AToBTM, LocalDir, Length, OutTime, Location, Normal, FaceIndex, 0.0f, true))
 				{
 					// @todo(chaos): margin
@@ -415,6 +416,7 @@ namespace Chaos
 
 			Utilities::CastHelper(A, AStartTransform, [&](const auto& ADowncast, const FRigidTransform3& AFullTM)
 			{
+				// @todo(chaos): handle Instanced with margin
 				if (B.LowLevelSweepGeom(ADowncast, AToBTM, LocalDir, Length, OutTime, Location, Normal, FaceIndex, 0.0f, true))
 				{
 					Contact.Location = BTransform.TransformPosition(Location);
@@ -476,6 +478,11 @@ namespace Chaos
 		};
 		template<>
 		struct TConvexImplicitTraits<FImplicitConvex3>
+		{
+			static const bool bSupportsOneShotManifold = true;
+		};
+		template<>
+		struct TConvexImplicitTraits<TImplicitObjectInstanced<FImplicitConvex3>>
 		{
 			static const bool bSupportsOneShotManifold = true;
 		};
@@ -548,9 +555,9 @@ namespace Chaos
 		void UpdateGenericConvexConvexConstraintHelper(const FImplicitObject& A, const FRigidTransform3& ATM, const FImplicitObject& B, const FRigidTransform3& BTM, const FReal CullDistance, const FReal Dt, const FReal ShapePadding, FRigidBodyPointContactConstraint& Constraint)
 		{
 			// This expands to a switch of switches that calls the inner function with the appropriate concrete implicit types
-			Utilities::CastHelper(A, ATM, [&](const auto& ADowncast, const FRigidTransform3& AFullTM)
+			Utilities::CastHelperNoUnwrap(A, ATM, [&](const auto& ADowncast, const FRigidTransform3& AFullTM)
 			{
-				Utilities::CastHelper(B, BTM, [&](const auto& BDowncast, const FRigidTransform3& BFullTM)
+				Utilities::CastHelperNoUnwrap(B, BTM, [&](const auto& BDowncast, const FRigidTransform3& BFullTM)
 				{
 					FConvexConvexUpdaterCaller::Update(ADowncast, AFullTM, BDowncast, BFullTM, CullDistance, Dt, ShapePadding, Constraint);
 				});
@@ -560,9 +567,9 @@ namespace Chaos
 		FContactPoint GenericConvexConvexContactPoint(const FImplicitObject& A, const FRigidTransform3& ATM, const FImplicitObject& B, const FRigidTransform3& BTM, const FReal CullDistance, const FReal ShapePadding)
 		{
 			// This expands to a switch of switches that calls the inner function with the appropriate concrete implicit types
-			return Utilities::CastHelper(A, ATM, [&](const auto& ADowncast, const FRigidTransform3& AFullTM)
+			return Utilities::CastHelperNoUnwrap(A, ATM, [&](const auto& ADowncast, const FRigidTransform3& AFullTM)
 			{
-				return Utilities::CastHelper(B, BTM, [&](const auto& BDowncast, const FRigidTransform3& BFullTM)
+				return Utilities::CastHelperNoUnwrap(B, BTM, [&](const auto& BDowncast, const FRigidTransform3& BFullTM)
 				{
 					return GJKContactPoint(ADowncast, AFullTM, BDowncast, BFullTM, FVec3(1, 0, 0), ShapePadding);
 				});
@@ -572,9 +579,9 @@ namespace Chaos
 		FContactPoint GenericConvexConvexContactPointSwept(const FImplicitObject& A, const FRigidTransform3& ATM, const FImplicitObject& B, const FRigidTransform3& BTM, const FVec3& Dir, const FReal Length, const FReal CullDistance, FReal& TOI)
 		{
 			// This expands to a switch of switches that calls the inner function with the appropriate concrete implicit types
-			return Utilities::CastHelper(A, ATM, [&](const auto& ADowncast, const FRigidTransform3& AFullTM)
+			return Utilities::CastHelperNoUnwrap(A, ATM, [&](const auto& ADowncast, const FRigidTransform3& AFullTM)
 			{
-				return Utilities::CastHelper(B, BTM, [&](const auto& BDowncast, const FRigidTransform3& BFullTM)
+				return Utilities::CastHelperNoUnwrap(B, BTM, [&](const auto& BDowncast, const FRigidTransform3& BFullTM)
 				{
 					return GJKContactPointSwept(ADowncast, AFullTM, BDowncast, BFullTM, Dir, Length, CullDistance, TOI);
 				});
@@ -2551,17 +2558,19 @@ namespace Chaos
 				ConstructConstraints<T_TRAITS>(Particle0, Particle1, Implicit0, Simplicial0, TransformedImplicit1->GetTransformedObject(), Simplicial1, LocalTransform0, TransformedTransform1, CullDistance, Dt, Context, NewConstraints);
 				return;
 			}
-			// Handle Instanced shapes
-			// NOTE: Tri Meshes are handled differently. We should probably do something about this...
+
+			// Strip the Instanced wrapper from most shapes, but not Convex or TriMesh.
+			// Convex collision requires the wrapper because it holds the margin.
+			// @todo(chaos): this collision logic is getting out of hand - can we make a better shape class hierarchy?
 			if (((uint32)Implicit0OuterType & ImplicitObjectType::IsInstanced) || ((uint32)Implicit1OuterType & ImplicitObjectType::IsInstanced))
 			{
-				const FImplicitObject* InnerImplicit0 = Implicit0;
-				const FImplicitObject* InnerImplicit1 = Implicit1;
-				if ((uint32)Implicit0OuterType & ImplicitObjectType::IsInstanced)
+				const FImplicitObject* InnerImplicit0 = nullptr;
+				const FImplicitObject* InnerImplicit1 = nullptr;
+				if (((uint32)Implicit0OuterType & ImplicitObjectType::IsInstanced) && (Implicit0Type != FImplicitConvex3::StaticType()))
 				{
 					InnerImplicit0 = GetInstancedImplicit(Implicit0);
 				}
-				if ((uint32)Implicit1OuterType & ImplicitObjectType::IsInstanced)
+				if (((uint32)Implicit1OuterType & ImplicitObjectType::IsInstanced) && (Implicit1Type != FImplicitConvex3::StaticType()))
 				{
 					InnerImplicit1 = GetInstancedImplicit(Implicit1);
 				}

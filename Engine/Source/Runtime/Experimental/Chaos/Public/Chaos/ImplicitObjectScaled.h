@@ -163,6 +163,58 @@ public:
 		return MObject->GetMaterialIndex(HintIndex);
 	}
 
+	// Get the index of the plane that most opposes the normal
+	int32 GetMostOpposingPlane(const FVec3& Normal) const
+	{
+		return MObject->GetMostOpposingPlane(Normal);
+	}
+
+	// Get the index of the plane that most opposes the normal, assuming it passes through the specified vertex
+	int32 GetMostOpposingPlaneWithVertex(int32 VertexIndex, const FVec3& Normal) const
+	{
+		return MObject->GetMostOpposingPlane(VertexIndex, Normal);
+	}
+
+	// Get the nearest point on an edge of the specified face
+	FVec3 GetClosestEdgePosition(int32 PlaneIndex, const FVec3& Position) const
+	{
+		return MObject->GetClosestEdgePosition(PlaneIndex, Position);
+	}
+
+	// Get the set of planes that pass through the specified vertex
+	TArrayView<const int32> GetVertexPlanes(int32 VertexIndex) const
+	{
+		return MObject->GetVertexPlanes(VertexIndex);
+	}
+
+	// Get the list of vertices that form the boundary of the specified face
+	TArrayView<const int32> GetPlaneVertices(int32 FaceIndex) const
+	{
+		return MObject->GetPlaneVertices(FaceIndex);
+	}
+
+	int32 NumPlanes() const
+	{
+		return MObject->NumPlanes();
+	}
+
+	int32 NumVertices() const
+	{
+		return MObject->NumVertices();
+	}
+
+	// Get the plane at the specified index (e.g., indices from GetVertexPlanes)
+	const TPlaneConcrete<FReal, 3> GetPlane(int32 FaceIndex) const
+	{
+		return MObject->GetPlane(FaceIndex);
+	}
+
+	// Get the vertex at the specified index (e.g., indices from GetPlaneVertices)
+	const FVec3 GetVertex(int32 VertexIndex) const
+	{
+		return MObject->GetVertex(VertexIndex);
+	}
+
 protected:
 	ObjectType MObject;
 	FReal OuterMargin;
@@ -448,7 +500,6 @@ public:
 	{
 		return MObject->GetClosestEdgePosition(PlaneIndex, MInvScale * Position) * MScale;
 	}
-
 
 	// Get the set of planes that pass through the specified vertex
 	TArrayView<const int32> GetVertexPlanes(int32 VertexIndex) const
