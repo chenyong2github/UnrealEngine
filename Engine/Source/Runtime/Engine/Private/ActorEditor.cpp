@@ -830,6 +830,11 @@ bool AActor::EditorCanAttachTo(const AActor* InParent, FText& OutReason) const
 	return true;
 }
 
+AActor* AActor::GetSceneOutlinerParent() const
+{
+	return GetAttachParentActor();
+}
+
 class UHLODLayer* AActor::GetHLODLayer() const
 {
 	return HLODLayer;

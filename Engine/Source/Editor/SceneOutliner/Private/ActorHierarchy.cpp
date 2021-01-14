@@ -80,7 +80,7 @@ FSceneOutlinerTreeItemPtr FActorHierarchy::FindParent(const ISceneOutlinerTreeIt
 	{
 		if (AActor* Actor = ActorTreeItem->Actor.Get())
 		{
-			if (const AActor* ParentActor = Actor->GetAttachParentActor())
+			if (const AActor* ParentActor = Actor->GetSceneOutlinerParent())
 			{
 				if (const FSceneOutlinerTreeItemPtr* ParentItem = Items.Find(ParentActor))
 				{
@@ -312,7 +312,7 @@ FSceneOutlinerTreeItemPtr FActorHierarchy::CreateParentItem(const FSceneOutliner
 	{
 		if (const AActor* Actor = ActorTreeItem->Actor.Get())
 		{
-			if (AActor* ParentActor = Actor->GetAttachParentActor())
+			if (AActor* ParentActor = Actor->GetSceneOutlinerParent())
 			{
 				return Mode->CreateItemFor<FActorTreeItem>(ParentActor, true);
 			}

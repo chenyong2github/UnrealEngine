@@ -5046,6 +5046,16 @@ void ALandscapeStreamingProxy::PostRegisterAllComponents()
 	}
 }
 
+AActor* ALandscapeStreamingProxy::GetSceneOutlinerParent() const
+{
+	if (ULandscapeInfo* LandscapeInfo = GetLandscapeInfo())
+	{
+		return LandscapeInfo->LandscapeActor.Get();
+	}
+
+	return Super::GetSceneOutlinerParent();
+}
+
 void ALandscape::PreEditChange(FProperty* PropertyThatWillChange)
 {
 	PreEditLandscapeMaterial = LandscapeMaterial;

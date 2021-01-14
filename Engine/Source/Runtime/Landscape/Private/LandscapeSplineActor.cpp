@@ -96,4 +96,14 @@ void ALandscapeSplineActor::PostEditMove(bool bFinished)
 	}
 }
 
+AActor* ALandscapeSplineActor::GetSceneOutlinerParent() const
+{
+	if (ULandscapeInfo* LandscapeInfo = GetLandscapeInfo())
+	{
+		return LandscapeInfo->LandscapeActor.Get();
+	}
+
+	return nullptr;
+}
+
 #endif

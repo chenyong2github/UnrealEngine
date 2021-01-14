@@ -34,7 +34,8 @@ public:
 	virtual void PostRegisterAllComponents() override;
 	virtual void UnregisterAllComponents(bool bForReregister = false) override;
 	virtual void PostEditMove(bool bFinished) override;
-	
+	virtual bool EditorCanAttachTo(const AActor* InParent, FText& OutReason) const override { return false; }
+	virtual AActor* GetSceneOutlinerParent() const;
 	virtual bool SupportsForeignSplineMesh() const override { return false; }
 
 	// Interface existes for backward compatibility. Should already be created since its this actor's root component.

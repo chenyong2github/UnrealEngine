@@ -860,7 +860,7 @@ FSceneOutlinerDragValidationInfo FActorBrowsingMode::ValidateDrop(const ISceneOu
 					}
 				}
 
-				if (DragActor->GetAttachParentActor() != ActorTarget)
+				if (DragActor->GetSceneOutlinerParent() != ActorTarget)
 				{
 					bDraggedOntoAttachmentParent = false;
 				}
@@ -994,7 +994,7 @@ FSceneOutlinerDragValidationInfo FActorBrowsingMode::ValidateDrop(const ISceneOu
 				{
 					return FSceneOutlinerDragValidationInfo(ESceneOutlinerDropCompatibility::IncompatibleGeneric, FText::Format(LOCTEXT("Error_AttachChildActor", "Cannot move {0} as it is a child actor."), FText::FromString(Actor->GetActorLabel())));
 				}
-				else if (Actor->GetFolderPath() == DestinationPath && !Actor->GetAttachParentActor() && !bActorContainedInLevelInstance)
+				else if (Actor->GetFolderPath() == DestinationPath && !Actor->GetSceneOutlinerParent() && !bActorContainedInLevelInstance)
 				{
 					FFormatNamedArguments Args;
 					Args.Add(TEXT("SourceName"), FText::FromString(Actor->GetActorLabel()));

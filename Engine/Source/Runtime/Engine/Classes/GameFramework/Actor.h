@@ -2058,6 +2058,9 @@ public:
 	/** Returns true if this actor is allowed to be attached to the given actor */
 	virtual bool EditorCanAttachTo(const AActor* InParent, FText& OutReason) const;
 
+	/** Returns the actor attachement parent that should be used in editor */
+	virtual AActor* GetSceneOutlinerParent() const;
+
 	/** Called before editor copy, true allow export */
 	virtual bool ShouldExport() { return true; }
 
