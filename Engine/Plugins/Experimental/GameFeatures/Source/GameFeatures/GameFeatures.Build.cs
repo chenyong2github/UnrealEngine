@@ -13,8 +13,9 @@ namespace UnrealBuildTool.Rules
                     "CoreUObject",
 					"DeveloperSettings",
 					"Engine",
-                    "ModularGameplay"
-                }
+                    "ModularGameplay",
+					"DataRegistry"
+				}
 			);
 
 			PrivateDependencyModuleNames.AddRange(

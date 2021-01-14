@@ -25,6 +25,10 @@
 		{
 			"Name": "ModularGameplay",
 			"Enabled": true
+		},
+		{
+			"Name": "DataRegistry",
+			"Enabled":  true
 		}
 	]
 }
