@@ -26,6 +26,10 @@ struct FInitializeDesc
 	bool			bUseWorkerThread	= true;
 };
 
+typedef void*		AllocFunc(SIZE_T, uint32);
+typedef void		FreeFunc(void*, SIZE_T, uint32);
+
+UE_TRACE_API void	SetMemoryHooks(AllocFunc Alloc, FreeFunc Free) UE_TRACE_IMPL();
 UE_TRACE_API void	Initialize(const FInitializeDesc& Desc) UE_TRACE_IMPL();
 UE_TRACE_API void	Shutdown() UE_TRACE_IMPL();
 UE_TRACE_API void	Update() UE_TRACE_IMPL();
