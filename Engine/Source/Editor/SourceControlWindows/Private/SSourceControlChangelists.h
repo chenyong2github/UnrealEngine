@@ -66,7 +66,11 @@ protected:
 	TreeItemType Type;
 };
 
-typedef STreeView<FChangelistTreeItemPtr> SChangelistTree;
+class SChangelistTree : public STreeView<FChangelistTreeItemPtr>
+{
+private:
+	virtual void Private_SetItemSelection(FChangelistTreeItemPtr TheItem, bool bShouldBeSelected, bool bWasUserDirected = false) override;
+};
 
 class SSourceControlChangelistsWidget : public SCompoundWidget
 {

@@ -176,6 +176,31 @@ void SSourceControlChangelistsWidget::OnChangelistsStatusUpdated(const FSourceCo
 	Refresh();
 }
 
+void SChangelistTree::Private_SetItemSelection(FChangelistTreeItemPtr TheItem, bool bShouldBeSelected, bool bWasUserDirected)
+{
+	bool bAllowSelectionChange = true;
+
+	if (bShouldBeSelected && !SelectedItems.IsEmpty())
+	{
+		// Prevent selecting changelists and files at the same time.
+		FChangelistTreeItemPtr CurrentlySelectedItem = (*SelectedItems.begin());
+		if (TheItem->GetTreeItemType() != CurrentlySelectedItem->GetTreeItemType())
+		{
+			bAllowSelectionChange = false;
+		}
+		// Prevent selecting items that don't share the same root
+		else if (TheItem->GetParent() != CurrentlySelectedItem->GetParent())
+		{
+			bAllowSelectionChange = false;
+		}
+	}
+
+	if (bAllowSelectionChange)
+	{
+		STreeView::Private_SetItemSelection(TheItem, bShouldBeSelected, bWasUserDirected);
+	}
+}
+
 TSharedRef<SChangelistTree> SSourceControlChangelistsWidget::CreateTreeviewWidget()
 {
 	return SAssignNew(TreeView, SChangelistTree)
