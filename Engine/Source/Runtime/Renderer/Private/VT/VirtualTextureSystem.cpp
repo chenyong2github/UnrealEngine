@@ -1180,7 +1180,11 @@ void FVirtualTextureSystem::Update(FRDGBuilder& GraphBuilder, ERHIFeatureLevel::
 
 		if (MaxRequestUploads < (int32)MergedRequestList->GetNumLoadRequests())
 		{
-			UE_LOG(LogConsoleResponse, Display, TEXT("VT dropped %d load requests."), MergedRequestList->GetNumLoadRequests() - MaxRequestUploads);
+			// Dropping requests is normal but track to log here if we want to tune settings.
+			if (CVarVTVerbose.GetValueOnRenderThread())
+			{
+				UE_LOG(LogConsoleResponse, Display, TEXT("VT dropped %d load requests."), MergedRequestList->GetNumLoadRequests() - MaxRequestUploads);
+			}
 		}
 
 		MergedRequestList->SortRequests(Producers, MemStack, MaxRequestUploads);
