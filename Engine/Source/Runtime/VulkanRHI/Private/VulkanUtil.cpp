@@ -12,6 +12,11 @@
 #include "Misc/OutputDeviceRedirector.h"
 #include "RHIValidationContext.h"
 
+#if NV_AFTERMATH
+#include "GFSDK_Aftermath_GpuCrashDump.h"
+#include "GFSDK_Aftermath_GpuCrashDumpDecoding.h"
+#endif
+
 FVulkanDynamicRHI*	GVulkanRHI = nullptr;
 
 extern CORE_API bool GIsGPUCrashed;
@@ -600,7 +605,7 @@ void FVulkanGPUProfiler::DumpCrashMarkers(void* BufferData)
 	else
 #endif
 	{
-#if VULKAN_SUPPORTS_NV_DIAGNOSTIC_CHECKPOINT
+#if VULKAN_SUPPORTS_NV_DIAGNOSTICS
 		if (Device->GetOptionalExtensions().HasNVDiagnosticCheckpoints)
 		{
 			struct FCheckpointDataNV : public VkCheckpointDataNV
@@ -648,6 +653,90 @@ void FVulkanGPUProfiler::DumpCrashMarkers(void* BufferData)
 		GLog->PanicFlushThreadedLogs();
 		GLog->Flush();
 	}
+}
+#endif
+
+#if NV_AFTERMATH
+void AftermathGpuCrashDumpCallback(const void* CrashDump, const uint32 CrashDumpSize, void* UserData)
+{
+	// Create a GPU crash dump decoder object for the GPU crash dump.
+	GFSDK_Aftermath_GpuCrashDump_Decoder Decoder = {};
+	{
+		GFSDK_Aftermath_Result Result = GFSDK_Aftermath_GpuCrashDump_CreateDecoder(GFSDK_Aftermath_Version_API, CrashDump, CrashDumpSize, &Decoder);
+		if (Result != GFSDK_Aftermath_Result_Success)
+		{
+			UE_LOG(LogVulkanRHI, Warning, TEXT("Unable to initialize create Aftermath decoder (Result %d, CrashDumpSize=%d)"), (int32)Result, CrashDumpSize);
+		}
+	}
+
+	// Use the decoder object to read basic information, like application
+	// name, PID, etc. from the GPU crash dump.
+	GFSDK_Aftermath_GpuCrashDump_BaseInfo BaseInfo = {};
+	{
+		GFSDK_Aftermath_Result Result = GFSDK_Aftermath_GpuCrashDump_GetBaseInfo(Decoder, &BaseInfo);
+		if (Result != GFSDK_Aftermath_Result_Success)
+		{
+			UE_LOG(LogVulkanRHI, Warning, TEXT("Unable to get Aftermath base info (Result %d)"), (int32)Result);
+		}
+	}
+
+	{
+		FArchive* Writer = IFileManager::Get().CreateFileWriter(*(FPaths::ProjectLogDir() / TEXT("vulkan.nv-gpudmp")));
+		if (Writer)
+		{
+			Writer->Serialize((void*)CrashDump, CrashDumpSize);
+			Writer->Close();
+		}
+	}
+
+	// Decode the crash dump to a JSON string.
+	// Step 1: Generate the JSON and get the size.
+	uint32 JsonSize = 0;
+	{
+		GFSDK_Aftermath_Result Result = GFSDK_Aftermath_GpuCrashDump_GenerateJSON(
+			Decoder,
+			GFSDK_Aftermath_GpuCrashDumpDecoderFlags_ALL_INFO,
+			GFSDK_Aftermath_GpuCrashDumpFormatterFlags_NONE,
+			nullptr/*ShaderDebugInfoLookupCallback*/,
+			nullptr/*ShaderLookupCallback*/,
+			nullptr,
+			nullptr/*ShaderSourceDebugInfoLookupCallback*/,
+			UserData,
+			&JsonSize);
+
+			if (Result == GFSDK_Aftermath_Result_Success)
+			{
+				// Step 2: Allocate a buffer and fetch the generated JSON.
+				TArray<ANSICHAR> Json;
+				Json.AddZeroed(JsonSize);
+				GFSDK_Aftermath_Result Result2 = GFSDK_Aftermath_GpuCrashDump_GetJSON(Decoder, (uint32)Json.Num(), Json.GetData());
+				if (Result2 == GFSDK_Aftermath_Result_Success)
+				{
+					FArchive* Writer = IFileManager::Get().CreateFileWriter(*(FPaths::ProjectLogDir() / TEXT("vulkan.nv-gpudmp.json")));
+					if (Writer)
+					{
+						Writer->Serialize((void*)Json.GetData(), Json.Num());
+						Writer->Close();
+					}
+				}
+				else
+				{
+					UE_LOG(LogVulkanRHI, Warning, TEXT("Unable to get Aftermath JSON (Result %d)"), (int32)Result);
+				}
+			}
+			else
+			{
+				UE_LOG(LogVulkanRHI, Warning, TEXT("Unable to get Aftermath JSON Size (Result %d)"), (int32)Result);
+			}
+	}
+}
+
+void AftermathShaderDebugInfoCallback(const void* pShaderDebugInfo, const uint32 shaderDebugInfoSize, void* pUserData)
+{
+}
+
+void AftermathCrashDumpDescriptionCallback(PFN_GFSDK_Aftermath_AddGpuCrashDumpDescription addDescription, void* pUserData)
+{
 }
 #endif
 

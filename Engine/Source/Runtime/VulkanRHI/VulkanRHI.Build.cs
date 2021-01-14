@@ -44,6 +44,11 @@ public class VulkanRHI : ModuleRules
             }
         );
 
+		if (Target.Platform == UnrealTargetPlatform.Win64 || Target.IsInPlatformGroup(UnrealPlatformGroup.Linux))
+		{
+			AddEngineThirdPartyPrivateStaticDependencies(Target, "NVAftermath");
+		}
+
 		if (Target.Platform == UnrealTargetPlatform.Win32 || Target.Platform == UnrealTargetPlatform.Win64
 			|| Target.Platform == UnrealTargetPlatform.Android || Target.Platform == UnrealTargetPlatform.Lumin)
 		{

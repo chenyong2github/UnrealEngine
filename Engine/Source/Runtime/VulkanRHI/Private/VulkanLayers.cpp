@@ -774,19 +774,11 @@ void FOptionalVulkanDeviceExtensions::Setup(const TArray<const ANSICHAR*>& Devic
 	}
 #endif
 
-#if VULKAN_SUPPORTS_NV_DEVICE_DIAGNOSTIC_CONFIG
+#if VULKAN_SUPPORTS_NV_DIAGNOSTICS
 	if (GGPUCrashDebuggingEnabled)
 	{
-		HasNVDeviceDiagnosticConfig = HasExtension(DeviceExtensions, VK_NV_DEVICE_DIAGNOSTICS_CONFIG_EXTENSION_NAME);
+		HasNVDeviceDiagnosticConfig = HasExtension(DeviceExtensions, VK_NV_DEVICE_DIAGNOSTICS_CONFIG_EXTENSION_NAME) && HasExtension(DeviceExtensions, VK_NV_DEVICE_DIAGNOSTIC_CHECKPOINTS_EXTENSION_NAME);
 		bHasAnyCrashExtension = bHasAnyCrashExtension || HasNVDeviceDiagnosticConfig;
-	}
-#endif
-
-#if VULKAN_SUPPORTS_NV_DIAGNOSTIC_CHECKPOINT
-	if (GGPUCrashDebuggingEnabled)
-	{
-		HasNVDiagnosticCheckpoints = HasExtension(DeviceExtensions, VK_NV_DEVICE_DIAGNOSTIC_CHECKPOINTS_EXTENSION_NAME);
-		bHasAnyCrashExtension = bHasAnyCrashExtension || HasNVDiagnosticCheckpoints;
 	}
 #endif
 
