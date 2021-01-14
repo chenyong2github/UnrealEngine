@@ -230,6 +230,7 @@ public:
 	UFUNCTION(BlueprintNativeEvent)
 	void SortWaterBodiesForBrushRender(TArray<AWaterBody*>& InOutWaterBodies) const;
 
+	UFUNCTION(BlueprintCallable, meta = (CallInEditor = "true", Category = "Debug"))
 	void SetupDefaultMaterials();
 
 private:
@@ -291,6 +292,9 @@ private:
 	void ClearCurveCache();
 	void OnCurveUpdated(UCurveBase* Curve, EPropertyChangeType::Type ChangeType);
 	void ComputeWaterLandscapeInfo(FVector& OutRTWorldLocation, FVector& OutRTWorldSizeVector) const;
+	
+	// HACK [jonathan.bard] : this is only needed for data deprecation, when LandscapeTransform and LandscapeRTRes were not serialized: 
+	bool DeprecateWaterLandscapeInfo(FVector& OutRTWorldLocation, FVector& OutRTWorldSizeVector);
 
 	UTextureRenderTarget2D* VelocityPingPongRead(const FBrushRenderContext& BrushRenderContext) const;
 	UTextureRenderTarget2D* VelocityPingPongWrite(const FBrushRenderContext& BrushRenderContext) const;
@@ -308,4 +312,5 @@ private:
 	int32 LastRenderedVelocityRTIndex = 0;
 	// HACK [jonathan.bard] : shouldn't be needed anymore once deprecation is done : 
 	FDelegateHandle OnWorldPostInitHandle;
+	FDelegateHandle OnLevelAddedToWorldHandle;
 };

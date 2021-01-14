@@ -27,6 +27,7 @@
 #include "Algo/Transform.h"
 #include "Curves/CurveFloat.h"
 #include "EngineUtils.h"
+#include "Landscape.h"
 
 AWaterBrushManager::AWaterBrushManager(const FObjectInitializer& ObjectInitializer)
 	: Super()
@@ -90,6 +91,7 @@ void AWaterBrushManager::PostLoad()
 		}
 	}
 
+#if WITH_EDITOR
 	if (GetLinkerCustomVersion(FWaterCustomVersion::GUID) < FWaterCustomVersion::MoveWaterMPCParamsToWaterMesh)
 	{
 		// OnPostLoad, the world is not set so we cannot retrieve the water mesh actor, we have to delay it to post-init :  
@@ -101,13 +103,35 @@ void AWaterBrushManager::PostLoad()
 				if (AWaterMeshActor* WaterMeshActor = It ? *It : nullptr)
 				{
 					FVector RTWorldLocation, RTWorldSizeVector;
-					ComputeWaterLandscapeInfo(RTWorldLocation, RTWorldSizeVector);
-					WaterMeshActor->SetLandscapeInfo(RTWorldLocation, RTWorldSizeVector);
+					if (DeprecateWaterLandscapeInfo(RTWorldLocation, RTWorldSizeVector))
+					{
+						WaterMeshActor->SetLandscapeInfo(RTWorldLocation, RTWorldSizeVector);
+						SetMPCParams();
+					}
 				}
 			}
 		});
 		
+		// Each time a level is added, it might contain a landscape component, hence we need to deprecate RTWorldLocationand RTWorldSizeVector accordingly :
+		OnLevelAddedToWorldHandle = FWorldDelegates::LevelAddedToWorld.AddLambda([this](ULevel* Level, UWorld* World)
+		{
+			if ((World == GetWorld()) && (Level != nullptr))
+			{
+				TActorIterator<AWaterMeshActor> It(World);
+				if (AWaterMeshActor* WaterMeshActor = It ? *It : nullptr)
+				{
+					FVector RTWorldLocation, RTWorldSizeVector;
+					if (DeprecateWaterLandscapeInfo(RTWorldLocation, RTWorldSizeVector))
+					{
+						WaterMeshActor->SetLandscapeInfo(RTWorldLocation, RTWorldSizeVector);
+						SetMPCParams();
+					}
+				}
+			}
+		});
+
 	}
+#endif // WITH_EDITOR
 }
 
 void AWaterBrushManager::BeginDestroy()
@@ -116,6 +140,9 @@ void AWaterBrushManager::BeginDestroy()
 
 	FWorldDelegates::OnPostWorldInitialization.Remove(OnWorldPostInitHandle);
 	OnWorldPostInitHandle.Reset();
+
+	FWorldDelegates::LevelAddedToWorld.Remove(OnLevelAddedToWorldHandle);
+	OnLevelAddedToWorldHandle.Reset();
 }
 	
 
@@ -1026,6 +1053,23 @@ void AWaterBrushManager::ComputeWaterLandscapeInfo(FVector& OutRTWorldLocation, 
 	OutRTWorldSizeVector.Z = 1.0f;
 	OutRTWorldLocation = LandscapeTransform.GetLocation();
 	OutRTWorldLocation -= FVector(LandscapeScale.X, LandscapeScale.Y, 0.0f) * 0.5f;
+}
+
+bool AWaterBrushManager::DeprecateWaterLandscapeInfo(FVector& OutRTWorldLocation, FVector& OutRTWorldSizeVector)
+{
+#if WITH_EDITOR
+	if (ALandscape* Landscape = GetOwningLandscape())
+	{
+		FIntPoint LandscapeSize;
+		if (Landscape->ComputeLandscapeLayerBrushInfo(LandscapeTransform, LandscapeSize, LandscapeRTRes))
+		{
+			ComputeWaterLandscapeInfo(OutRTWorldLocation, OutRTWorldSizeVector);
+			return true;
+		}
+	}
+
+	return false;
+#endif // WITH_EDITOR
 }
 
 void AWaterBrushManager::SetMPCParams()
