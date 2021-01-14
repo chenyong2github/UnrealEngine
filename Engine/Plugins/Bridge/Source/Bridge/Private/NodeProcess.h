@@ -1,14 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 #include "CoreMinimal.h"
+#include "GenericPlatform/GenericPlatformMisc.h"
+#include "GenericPlatform/GenericPlatformProcess.h"
 
-//#if PLATFORM_WINDOWS
-//#include "GenericPlatform/GenericPlatformProcess.h"
-//#elif PLATFORM_MAC
-//#include "Mac/MacPlatformMisc.h"
-//#endif
+#if PLATFORM_WINDOWS
+#include "Windows/WindowsPlatformProcess.h"
+#elif PLATFORM_MAC
+#include "Mac/MacPlatformMisc.h"
+#include "Mac/MacPlatformProcess.h"
+#endif
 
-struct FProcHandle;
+//struct FProcHandle;
 
 class FNodeProcessManager
 {

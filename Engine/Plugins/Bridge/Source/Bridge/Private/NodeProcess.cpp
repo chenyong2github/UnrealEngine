@@ -1,18 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "NodeProcess.h"
 #include "Misc/Paths.h"
-#include "GenericPlatform/GenericPlatformMisc.h"
-#include "GenericPlatform/GenericPlatformProcess.h"
+
 #include <iostream>
 #include <stdlib.h>
 #include <string>
 
-#if PLATFORM_WINDOWS
-#include "Windows/WindowsPlatformProcess.h"
-#elif PLATFORM_MAC
-#include "Mac/MacPlatformMisc.h"
-#include "Mac/MacPlatformProcess.h"
-#endif
+
 
 TSharedPtr<FNodeProcessManager> FNodeProcessManager::NodeProcessManager;
 
