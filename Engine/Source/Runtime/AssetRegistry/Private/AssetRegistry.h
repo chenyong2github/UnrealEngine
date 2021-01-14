@@ -10,6 +10,7 @@
 #include "PackageDependencyData.h"
 #include "AssetDataGatherer.h"
 #include "BackgroundGatherResults.h"
+#include "ModuleDescriptor.h"
 #include "AssetRegistry.generated.h"
 
 class FDependsNode;
@@ -151,6 +152,11 @@ protected:
 private:
 
 	void InitRedirectors();
+	/** Read script packages if all initial plugins have been loaded, otherwise register with the callback to read them once read. */
+	void RegisterReadOfScriptPackages();
+	void OnPluginLoadingPhaseComplete(ELoadingPhase::Type LoadingPhase, bool bPhaseSuccessful);
+	/** If collecting dependencies, create an FAssetPackageData for every script package, to make sure dependencies can find a data for them. */
+	void ReadScriptPackages();
 
 	/**
 	 * Internal implementation for RunAssetsThroughFilter and UseFilterToExcludeAssets

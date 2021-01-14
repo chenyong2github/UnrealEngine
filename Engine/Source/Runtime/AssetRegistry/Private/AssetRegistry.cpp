@@ -26,6 +26,7 @@
 #include "HAL/ThreadHeartBeat.h"
 #include "HAL/PlatformMisc.h"
 #include "AssetRegistryConsoleCommands.h"
+#include "Interfaces/IPluginManager.h"
 
 #if WITH_EDITOR
 #include "IDirectoryWatcher.h"
@@ -491,6 +492,63 @@ void UAssetRegistryImpl::InitRedirectors()
 	}
 }
 
+void UAssetRegistryImpl::RegisterReadOfScriptPackages()
+{
+	if (!BackgroundAssetSearch.IsValid())
+	{
+		return;
+	}
+	IPluginManager& PluginManager = IPluginManager::Get();
+	ELoadingPhase::Type LoadingPhase = PluginManager.GetLastCompletedLoadingPhase();
+	if (LoadingPhase != ELoadingPhase::None && LoadingPhase >= ELoadingPhase::PostEngineInit)
+	{
+		ReadScriptPackages();
+	}
+	else
+	{
+		PluginManager.OnLoadingPhaseComplete().AddUObject(this, &UAssetRegistryImpl::OnPluginLoadingPhaseComplete);
+	}
+}
+
+void UAssetRegistryImpl::OnPluginLoadingPhaseComplete(ELoadingPhase::Type LoadingPhase, bool bPhaseSuccessful)
+{
+	if (LoadingPhase != ELoadingPhase::PostEngineInit)
+	{
+		return;
+	}
+	ReadScriptPackages();
+}
+
+void UAssetRegistryImpl::ReadScriptPackages()
+{
+	if (BackgroundAssetSearch.IsValid())
+	{
+		BackgroundAssetSearch->SetInitialPluginsLoaded();
+		if (BackgroundAssetSearch->IsGatheringDependencies())
+		{
+			// Now that all scripts have been loaded, we need to create AssetPackageDatas for every script
+			// This is also done whenever scripts are referenced in our gather of existing packages,
+			// but we need to complete it for all scripts that were referenced but not yet loaded for packages
+			// that we already gathered
+			// CODEREVIEWTODO: Is there a faster way to get the list of loaded script packages?
+			for (TObjectIterator<UPackage> It; It; ++It)
+			{
+				UPackage* Package = *It;
+				if (Package)
+				{
+					if (Package && FPackageName::IsScriptPackage(Package->GetName()))
+					{
+						FAssetPackageData* ScriptPackageData = State.CreateOrGetAssetPackageData(Package->GetFName());
+						// Get the guid off the script package, it is updated when script is changed so we need to refresh it every run
+						ScriptPackageData->PackageGuid = Package->GetGuid();
+					}
+				}
+			}
+		}
+	}
+	IPluginManager::Get().OnLoadingPhaseComplete().RemoveAll(this);
+}
+
 void UAssetRegistryImpl::InitializeSerializationOptions(FAssetRegistrySerializationOptions& Options, const FString& PlatformIniName) const
 {
 	if (PlatformIniName.IsEmpty())
@@ -696,6 +754,7 @@ UAssetRegistryImpl::~UAssetRegistryImpl()
 	FPackageName::OnContentPathMounted().RemoveAll(this);
 	FPackageName::OnContentPathDismounted().RemoveAll(this);
 	FCoreDelegates::OnPostEngineInit.RemoveAll(this);
+	IPluginManager::Get().OnLoadingPhaseComplete().RemoveAll(this);
 
 #if WITH_EDITOR
 	if (GIsEditor)
@@ -784,6 +843,7 @@ void UAssetRegistryImpl::SearchAllAssets(bool bSynchronousSearch)
 	{
 		// if the BackgroundAssetSearch is already valid then we have already called it before
 		BackgroundAssetSearch = MakeShared<FAssetDataGatherer>(PathsToSearch, TArray<FString>(), BlacklistScanFilters, bSynchronousSearch, EAssetDataCacheMode::UseMonolithicCache);
+		RegisterReadOfScriptPackages();
 	}
 }
 
@@ -2440,7 +2500,7 @@ void UAssetRegistryImpl::DependencyDataGathered(const double TickStartTime, TBac
 
 					if (FPackageName::IsScriptPackage(PackageName))
 					{
-						// Get the guid off the script package, this is updated when script is changed
+						// Get the guid off the script package, it is updated when script is changed so we need to refresh it every run
 						UPackage* Package = FindPackage(nullptr, *PackageName);
 
 						if (Package)

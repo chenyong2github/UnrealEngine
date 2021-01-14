@@ -9,6 +9,7 @@
 #include "HAL/Runnable.h"
 #include "DiskCachedAssetData.h"
 #include "BackgroundGatherResults.h"
+#include <atomic>
 
 /**
  * Minimal amount of information needed about a discovered asset file
@@ -193,6 +194,12 @@ public:
 	/** Set the blacklist filters to use during scanning. */
 	void SetBlacklistScanFilters(const TArray<FString>& InBlacklistScanFilters);
 
+	/** Report whether the gatherer is configured to load depends data in addition to asset data. */
+	bool IsGatheringDependencies() const;
+
+	/** Inform the gatherer that initial plugins have finished loading and it should not retry failed loads in hope of a missing custom version */
+	void SetInitialPluginsLoaded();
+
 private:
 	/** Sort the paths so that items belonging to the current priority path is processed first */
 	void SortPathsByPriority(const int32 MaxNumToSort);
@@ -258,6 +265,9 @@ private:
 
 	/** True if dependency data should be gathered */
 	bool bGatherDependsData;
+
+	/** Async only. Set to true once initial plugins have been loaded. */
+	std::atomic<bool> bInitialPluginsLoaded;
 
 	/** The cached value of the NumPathsToSearch returned by FAssetDataDiscovery the last time we synchronized with it */
 	int32 NumPathsToSearchAtLastSyncPoint;

@@ -428,6 +428,7 @@ FAssetDataGatherer::FAssetDataGatherer(const TArray<FString>& InPaths, const TAr
 	, Thread(nullptr)
 {
 	bGatherDependsData = (GIsEditor && !FParse::Param( FCommandLine::Get(), TEXT("NoDependsGathering") )) || FParse::Param(FCommandLine::Get(),TEXT("ForceDependsGathering"));
+	bInitialPluginsLoaded.store(false);
 
 	if (FParse::Param(FCommandLine::Get(), TEXT("NoAssetRegistryCache")) || FParse::Param(FCommandLine::Get(), TEXT("multiprocess")))
 	{
@@ -972,6 +973,16 @@ void FAssetDataGatherer::SetBlacklistScanFilters(const TArray<FString>& InBlackl
 	}
 }
 
+bool FAssetDataGatherer::IsGatheringDependencies() const
+{
+	return bGatherDependsData;
+}
+
+void FAssetDataGatherer::SetInitialPluginsLoaded()
+{
+	bInitialPluginsLoaded.store(true);
+}
+
 void FAssetDataGatherer::SortPathsByPriority(const int32 MaxNumToSort)
 {
 	FScopeLock CritSectionLock(&WorkerThreadCriticalSection);
@@ -1015,7 +1026,7 @@ bool FAssetDataGatherer::ReadAssetFile(const FString& AssetFilename, TArray<FAss
 		//		have no guarantee that a commandlet or an initialized editor is going to load any more modules/plugins
 		//   -	Likewise, we can only attempt a retry for asynchronous scans, as during a synchronous scan we won't be loading any 
 		//		modules/plugins so it would last forever
-		const bool bAllowRetry = GIsEditor && !IsRunningCommandlet() && !GIsRunning && !bIsSynchronous;
+		const bool bAllowRetry = GIsEditor && !IsRunningCommandlet() && !bInitialPluginsLoaded.load() && !bIsSynchronous;
 		OutCanRetry = bAllowRetry && OpenPackageResult == FPackageReader::EOpenPackageResult::CustomVersionMissing;
 		return false;
 	}
