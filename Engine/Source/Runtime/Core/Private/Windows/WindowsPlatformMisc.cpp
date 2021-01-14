@@ -1799,7 +1799,9 @@ const TCHAR* FWindowsPlatformMisc::GetPlatformFeaturesModuleName()
 int32 FWindowsPlatformMisc::NumberOfWorkerThreadsToSpawn()
 {
 	static int32 MaxServerWorkerThreads = 4;
-	static int32 MaxWorkerThreads = 26;
+
+	extern CORE_API int32 GUseNewTaskBackend;
+	int32 MaxWorkerThreads = GUseNewTaskBackend ? INT32_MAX : 26;
 
 	int32 NumberOfCores = FWindowsPlatformMisc::NumberOfCores();
 	int32 NumberOfCoresIncludingHyperthreads = FWindowsPlatformMisc::NumberOfCoresIncludingHyperthreads();

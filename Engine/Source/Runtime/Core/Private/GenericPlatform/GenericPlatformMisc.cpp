@@ -1181,7 +1181,9 @@ int32 FGenericPlatformMisc::NumberOfCoresIncludingHyperthreads()
 int32 FGenericPlatformMisc::NumberOfWorkerThreadsToSpawn()
 {
 	static int32 MaxGameThreads = 4;
-	static int32 MaxThreads = 16;
+
+	extern CORE_API int32 GUseNewTaskBackend;
+	int32 MaxThreads = GUseNewTaskBackend ? INT32_MAX : 16;
 
 	int32 NumberOfCores = FPlatformMisc::NumberOfCores();
 	int32 MaxWorkerThreadsWanted = (IsRunningGame() || IsRunningDedicatedServer() || IsRunningClientOnly()) ? MaxGameThreads : MaxThreads;

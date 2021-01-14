@@ -56,7 +56,7 @@ namespace LowLevelTasks
 		//try to cancel the task and launching it if the task was in ready state
 		//you still need to wait for task completion before recycling the handle
 		//you can alternatively use FTask::TryCancel if you want to launch the task manually
-		inline bool TryCancelAndLaunch(FTask& Task, EQueuePreference QueuePreference = EQueuePreference::DefaultPreference);		
+		inline bool TryCancelAndLaunchContinuation(FTask& Task, EQueuePreference QueuePreference = EQueuePreference::DefaultPreference);		
 
 		//tries to do some work until the Task is completed
 		template<typename TaskType>
@@ -121,9 +121,9 @@ namespace LowLevelTasks
 		return FScheduler::Get().TryLaunch(Task, QueuePreference);
 	}
 
-	FORCEINLINE_DEBUGGABLE bool TryCancelAndLaunch(FTask& Task, EQueuePreference QueuePreference = EQueuePreference::DefaultPreference)
+	FORCEINLINE_DEBUGGABLE bool TryCancelAndLaunchContinuation(FTask& Task, EQueuePreference QueuePreference = EQueuePreference::DefaultPreference)
 	{
-		return FScheduler::Get().TryCancelAndLaunch(Task, QueuePreference);
+		return FScheduler::Get().TryCancelAndLaunchContinuation(Task, QueuePreference);
 	}
 
 	FORCEINLINE_DEBUGGABLE void BusyWaitForTask(const FTask& Task)
@@ -156,7 +156,7 @@ namespace LowLevelTasks
 		return false;
 	}
 
-	inline bool FScheduler::TryCancelAndLaunch(FTask& Task, EQueuePreference QueuePreference)
+	inline bool FScheduler::TryCancelAndLaunchContinuation(FTask& Task, EQueuePreference QueuePreference)
 	{
 		bool WasCanceled = Task.TryCancel();
 		if(WasCanceled && Task.TryPrepareLaunch())
