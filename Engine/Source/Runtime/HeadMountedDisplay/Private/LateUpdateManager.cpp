@@ -88,6 +88,7 @@ void FLateUpdateManager::Apply_RenderThread(FSceneInterface* Scene, const FTrans
 
 void FLateUpdateManager::CacheSceneInfo(USceneComponent* Component)
 {
+	ensureMsgf(!Component->IsUsingAbsoluteLocation() && !Component->IsUsingAbsoluteRotation(), TEXT("SceneComponents that use absolute location or rotation are not supported by the LateUpdateManager"));
 	// If a scene proxy is present, cache it
 	UPrimitiveComponent* PrimitiveComponent = dynamic_cast<UPrimitiveComponent*>(Component);
 	if (PrimitiveComponent && PrimitiveComponent->SceneProxy)
