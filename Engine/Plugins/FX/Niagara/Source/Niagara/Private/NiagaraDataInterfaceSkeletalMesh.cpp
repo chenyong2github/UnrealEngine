@@ -1,25 +1,26 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraDataInterfaceSkeletalMesh.h"
+
+#include "Animation/SkeletalMeshActor.h"
+#include "Async/ParallelFor.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "Engine/SkeletalMeshSocket.h"
+#include "Internationalization/Internationalization.h"
+#include "NDISkeletalMeshCommon.h"
 #include "NiagaraEmitterInstance.h"
 #include "NiagaraComponent.h"
+#include "NiagaraDataInterfaceSkeletalMeshUvMapping.h"
 #include "NiagaraSettings.h"
+#include "NiagaraStats.h"
 #include "NiagaraSystemInstance.h"
-#include "Internationalization/Internationalization.h"
 #include "NiagaraRenderer.h"
 #include "NiagaraScript.h"
-#include "Animation/SkeletalMeshActor.h"
-#include "Components/SkeletalMeshComponent.h"
-#include "SkeletalMeshTypes.h"
 #include "NiagaraWorldManager.h"
-#include "Async/ParallelFor.h"
-#include "NiagaraStats.h"
 #include "Templates/AlignmentTemplates.h"
-#include "NDISkeletalMeshCommon.h"
-#include "Engine/SkeletalMeshSocket.h"
 #include "ShaderParameterUtils.h"
-#include "NiagaraStats.h"
 #include "ShaderCore.h"
+#include "SkeletalMeshTypes.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraDataInterfaceSkeletalMesh"
 
@@ -589,6 +590,55 @@ void FNDI_SkeletalMesh_GeneratedData::TickGeneratedData(ETickingGroup TickGroup,
 			ToTickPreskin[Index]->Tick(DeltaSeconds, true);
 		});
 	}
+
+	const int32 MappingCount = CachedUvMapping.Num();
+	TArray<int32, TInlineAllocator<32>> MappingsToRemove;
+
+	for (int32 MappingIt = 0; MappingIt < MappingCount; ++MappingIt)
+	{
+		const TSharedPtr<FSkeletalMeshUvMapping>& UvMappingData = CachedUvMapping[MappingIt];;
+
+		if (UvMappingData.IsUnique() || !UvMappingData->IsUsed())
+		{
+			MappingsToRemove.Add(MappingIt);
+		}
+	}
+
+	while (MappingsToRemove.Num())
+	{
+		CachedUvMapping.RemoveAtSwap(MappingsToRemove.Pop(false));
+	}
+}
+
+FSkeletalMeshUvMappingHandle FNDI_SkeletalMesh_GeneratedData::GetCachedUvMapping(TWeakObjectPtr<USkeletalMesh>& MeshObject, int32 InLodIndex, int32 InUvSetIndex, FSkeletalMeshUvMappingUsage Usage, bool bNeedsDataImmediately)
+{
+	check(MeshObject.Get() != nullptr);
+
+	if (!MeshObject.IsValid())
+	{
+		return FSkeletalMeshUvMappingHandle();
+	}
+
+	// Attempt to Find data
+	{
+		FRWScopeLock ReadLock(CachedUvMappingGuard, SLT_ReadOnly);
+		TSharedPtr<FSkeletalMeshUvMapping>* Existing = CachedUvMapping.FindByPredicate([&](const TSharedPtr<FSkeletalMeshUvMapping>& UvMapping)
+			{
+				return UvMapping->Matches(MeshObject, InLodIndex, InUvSetIndex);
+			});
+
+		if (Existing)
+		{
+			return FSkeletalMeshUvMappingHandle(Usage, *Existing, bNeedsDataImmediately);
+		}
+	}
+
+	// We need to add
+	FRWScopeLock WriteLock(CachedUvMappingGuard, SLT_Write);
+	return FSkeletalMeshUvMappingHandle(
+		Usage,
+		CachedUvMapping.Add_GetRef(MakeShared<FSkeletalMeshUvMapping>(MeshObject, InLodIndex, InUvSetIndex)),
+		bNeedsDataImmediately);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -1150,6 +1200,7 @@ struct FNDISkeletalMeshParametersName
 	FString FilteredAndUnfilteredBonesName;
 	FString NumFilteredSocketsName;
 	FString FilteredSocketBoneOffsetName;
+	FString UvMappingBufferName;
 	FString InstanceTransformName;
 	FString InstancePrevTransformName;
 	FString InstanceRotationName;
@@ -1192,6 +1243,7 @@ static void GetNiagaraDataInterfaceParametersName(FNDISkeletalMeshParametersName
 	Names.FilteredAndUnfilteredBonesName = UNiagaraDataInterfaceSkeletalMesh::FilteredAndUnfilteredBonesName + Suffix;
 	Names.NumFilteredSocketsName = UNiagaraDataInterfaceSkeletalMesh::NumFilteredSocketsName + Suffix;
 	Names.FilteredSocketBoneOffsetName = UNiagaraDataInterfaceSkeletalMesh::FilteredSocketBoneOffsetName + Suffix;
+	Names.UvMappingBufferName = UNiagaraDataInterfaceSkeletalMesh::UvMappingBufferName + Suffix;
 	Names.InstanceTransformName = UNiagaraDataInterfaceSkeletalMesh::InstanceTransformName + Suffix;
 	Names.InstancePrevTransformName = UNiagaraDataInterfaceSkeletalMesh::InstancePrevTransformName + Suffix;
 	Names.InstanceRotationName = UNiagaraDataInterfaceSkeletalMesh::InstanceRotationName + Suffix;
@@ -1241,6 +1293,7 @@ public:
 		FilteredAndUnfilteredBones.Bind(ParameterMap, *ParamNames.FilteredAndUnfilteredBonesName);
 		NumFilteredSockets.Bind(ParameterMap, *ParamNames.NumFilteredSocketsName);
 		FilteredSocketBoneOffset.Bind(ParameterMap, *ParamNames.FilteredSocketBoneOffsetName);
+		UvMappingBuffer.Bind(ParameterMap, *ParamNames.UvMappingBufferName);
 		InstanceTransform.Bind(ParameterMap, *ParamNames.InstanceTransformName);
 		InstancePrevTransform.Bind(ParameterMap, *ParamNames.InstancePrevTransformName);
 		InstanceRotation.Bind(ParameterMap, *ParamNames.InstanceRotationName);
@@ -1352,6 +1405,16 @@ public:
 			SetShaderValue(RHICmdList, ComputeShaderRHI, NumFilteredSockets, StaticBuffers->GetNumFilteredSockets());
 			SetShaderValue(RHICmdList, ComputeShaderRHI, FilteredSocketBoneOffset, StaticBuffers->GetFilteredSocketBoneOffset());
 
+			if (InstanceData->UvMappingBuffer)
+			{
+				SetSRVParameter(RHICmdList, ComputeShaderRHI, UvMappingBuffer, InstanceData->UvMappingBuffer->GetSrv());
+			}
+			else
+			{
+				SetSRVParameter(RHICmdList, ComputeShaderRHI, UvMappingBuffer, FNiagaraRenderer::GetDummyIntBuffer());
+
+			}
+
 			SetShaderValue(RHICmdList, ComputeShaderRHI, InstanceTransform, InstanceData->Transform);
 			SetShaderValue(RHICmdList, ComputeShaderRHI, InstancePrevTransform, InstanceData->PrevTransform);
 			SetShaderValue(RHICmdList, ComputeShaderRHI, InstanceRotation, InstanceData->Transform.GetMatrixWithoutScale().ToQuat());
@@ -1402,6 +1465,8 @@ public:
 			SetShaderValue(RHICmdList, ComputeShaderRHI, NumFilteredSockets, 0);
 			SetShaderValue(RHICmdList, ComputeShaderRHI, FilteredSocketBoneOffset, 0);
 
+			SetSRVParameter(RHICmdList, ComputeShaderRHI, UvMappingBuffer, FNiagaraRenderer::GetDummyIntBuffer());
+
 			SetShaderValue(RHICmdList, ComputeShaderRHI, InstanceTransform, FMatrix::Identity);
 			SetShaderValue(RHICmdList, ComputeShaderRHI, InstancePrevTransform, FMatrix::Identity);
 			SetShaderValue(RHICmdList, ComputeShaderRHI, InstanceRotation, FQuat::Identity);
@@ -1445,6 +1510,7 @@ private:
 	LAYOUT_FIELD(FShaderResourceParameter, FilteredAndUnfilteredBones);
 	LAYOUT_FIELD(FShaderParameter, NumFilteredSockets);
 	LAYOUT_FIELD(FShaderParameter, FilteredSocketBoneOffset);
+	LAYOUT_FIELD(FShaderResourceParameter, UvMappingBuffer);
 	LAYOUT_FIELD(FShaderParameter, InstanceTransform);
 	LAYOUT_FIELD(FShaderParameter, InstancePrevTransform);
 	LAYOUT_FIELD(FShaderParameter, InstanceRotation);
@@ -1477,6 +1543,8 @@ void FNiagaraDataInterfaceProxySkeletalMesh::ConsumePerInstanceDataFromGameThrea
 
 	Data.MeshSkinWeightBuffer = SourceData->MeshSkinWeightBuffer;
 	Data.MeshSkinWeightLookupBuffer = SourceData->MeshSkinWeightLookupBuffer;
+
+	Data.UvMappingBuffer = SourceData->UvMappingBuffer;
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -1499,6 +1567,8 @@ void UNiagaraDataInterfaceSkeletalMesh::ProvidePerInstanceDataForRenderThread(vo
 
 	Data->MeshSkinWeightBuffer = SourceData->MeshSkinWeightBuffer;
 	Data->MeshSkinWeightLookupBuffer = SourceData->MeshSkinWeightLookupBuffer;
+
+	Data->UvMappingBuffer = SourceData->UvMapping.GetQuadTreeProxy();
 }
 
 USkeletalMesh* UNiagaraDataInterfaceSkeletalMesh::GetSkeletalMesh(FNiagaraSystemInstance* SystemInstance, TWeakObjectPtr<USceneComponent>& SceneComponent, USkeletalMeshComponent*& FoundSkelComp, FNDISkeletalMesh_InstanceData* InstData)
@@ -1762,6 +1832,26 @@ bool FNDISkeletalMesh_InstanceData::Init(UNiagaraDataInterfaceSkeletalMesh* Inte
 	else
 	{
 		SkinningData = FSkeletalMeshSkinningDataHandle(Usage, nullptr, false);
+	}
+
+	// support for UV mapping
+	{
+		const bool SupportUvMappingCpu = Interface->bSupportUvMappingCpu && SkeletalMesh.IsValid();
+		const bool SupportUvMappingGpu = Interface->bSupportUvMappingGpu && Interface->IsUsedWithGPUEmitter(SystemInstance);
+
+		FSkeletalMeshUvMappingUsage UvMappingUsage(SupportUvMappingCpu, SupportUvMappingGpu);
+
+		if (UvMappingUsage.IsValid())
+		{
+			const bool bNeedsDataImmediately = true;
+
+			FNDI_SkeletalMesh_GeneratedData& GeneratedData = SystemInstance->GetWorldManager()->GetSkeletalMeshGeneratedData();
+			UvMapping = GeneratedData.GetCachedUvMapping(SkeletalMesh, CachedLODIdx, Interface->UvSetIndex, UvMappingUsage, bNeedsDataImmediately);
+		}
+		else
+		{
+			UvMapping = FSkeletalMeshUvMappingHandle(UvMappingUsage, nullptr, false);
+		}
 	}
 
 	//Init area weighting sampler for Sampling regions.
@@ -2639,6 +2729,7 @@ const FString UNiagaraDataInterfaceSkeletalMesh::ExcludeBoneIndexName(TEXT("Excl
 const FString UNiagaraDataInterfaceSkeletalMesh::FilteredAndUnfilteredBonesName(TEXT("FilteredAndUnfilteredBones_"));
 const FString UNiagaraDataInterfaceSkeletalMesh::NumFilteredSocketsName(TEXT("NumFilteredSockets_"));
 const FString UNiagaraDataInterfaceSkeletalMesh::FilteredSocketBoneOffsetName(TEXT("FilteredSocketBoneOffset_"));
+const FString UNiagaraDataInterfaceSkeletalMesh::UvMappingBufferName(TEXT("UvMappingBuffer_"));
 const FString UNiagaraDataInterfaceSkeletalMesh::InstanceTransformName(TEXT("InstanceTransform_"));
 const FString UNiagaraDataInterfaceSkeletalMesh::InstancePrevTransformName(TEXT("InstancePrevTransform_"));
 const FString UNiagaraDataInterfaceSkeletalMesh::InstanceRotationName(TEXT("InstanceRotation_"));
@@ -2755,6 +2846,11 @@ bool UNiagaraDataInterfaceSkeletalMesh::GetFunctionHLSL(const FNiagaraDataInterf
 	else if (FunctionInfo.DefinitionName == FSkeletalMeshInterfaceHelper::GetFilteredTriangleAtName)
 	{
 		static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName} (int FilteredIndex, out {MeshTriCoordinateStructName} OutCoord) { {GetDISkelMeshContextName} DISKelMesh_GetFilteredTriangleAt(DIContext, FilteredIndex, OutCoord.Tri, OutCoord.BaryCoord); }");
+		OutHLSL += FString::Format(FormatSample, ArgsSample);
+	}
+	else if (FunctionInfo.DefinitionName == FSkeletalMeshInterfaceHelper::GetTriangleCoordAtUVName)
+	{
+		static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName} (in int InUVSet, in float2 InUV, out {MeshTriCoordinateStructName} OutCoord, out bool OutIsValid) { {GetDISkelMeshContextName} DISkelMesh_GetTriangleCoordAtUV(DIContext, InUVSet, InUV, OutCoord.Tri, OutCoord.BaryCoord, OutIsValid); }");
 		OutHLSL += FString::Format(FormatSample, ArgsSample);
 	}
 	//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
