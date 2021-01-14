@@ -10,6 +10,8 @@
 // Global user information map
 let robomergeUser
 
+window.showNodeLastChanges = false
+
 // Common mutex variable around displaying error messages
 let clearer = null
 function clearErrorText() {
@@ -831,7 +833,9 @@ function createNodeRow(nodeData, includeActions, includeCollapseControls=true) {
 	}
 
 	// Last Change Column 
-	columnArray.push(renderLastChangeCell_Common(nodeData.bot, nodeData.def.name, '', nodeAPIOp, operationArgs))
+	if (window.showNodeLastChanges) {
+		columnArray.push(renderLastChangeCell_Common(nodeData.bot, nodeData.def.name, nodeData.last_cl, nodeAPIOp, operationArgs))
+	}
 
 	return columnArray
 }
