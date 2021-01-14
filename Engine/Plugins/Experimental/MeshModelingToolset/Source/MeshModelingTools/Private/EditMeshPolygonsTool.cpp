@@ -7,6 +7,7 @@
 #include "CompGeom/PolygonTriangulation.h"
 #include "SegmentTypes.h"
 #include "DynamicMeshAttributeSet.h"
+#include "Mechanics/DragAlignmentMechanic.h"
 #include "MeshNormals.h"
 #include "ToolSceneQueriesUtil.h"
 #include "Intersection/IntersectionUtil.h"
@@ -254,6 +255,9 @@ void UEditMeshPolygonsTool::Setup()
 
 	MultiTransformer = NewObject<UMultiTransformer>(this);
 	MultiTransformer->Setup(GetToolManager()->GetPairedGizmoManager(), GetToolManager());
+	MultiTransformer->SetGizmoVisibility(false);
+	MultiTransformer->SetGizmoRepositionable(true);
+	MultiTransformer->SetDisallowNegativeScaling(true);
 	MultiTransformer->OnTransformStarted.AddUObject(this, &UEditMeshPolygonsTool::OnMultiTransformerTransformBegin);
 	MultiTransformer->OnTransformUpdated.AddUObject(this, &UEditMeshPolygonsTool::OnMultiTransformerTransformUpdate);
 	MultiTransformer->OnTransformCompleted.AddUObject(this, &UEditMeshPolygonsTool::OnMultiTransformerTransformEnd);
@@ -261,7 +265,18 @@ void UEditMeshPolygonsTool::Setup()
 		return CommonProps->bSnapToWorldGrid
 			&& GetToolManager()->GetContextQueriesAPI()->GetCurrentCoordinateSystem() == EToolContextCoordinateSystem::World;
 	});
-	MultiTransformer->SetGizmoVisibility(false);
+	// We allow non uniform scale even when the gizmo mode is set to "world" because we're not scaling components- we're
+	// moving vertices, so we don't care which axes we "scale" along.
+	MultiTransformer->SetIsNonUniformScaleAllowedFunction([]() {
+		return true;
+		});
+
+	DragAlignmentMechanic = NewObject<UDragAlignmentMechanic>(this);
+	DragAlignmentMechanic->Setup(this);
+	DragAlignmentMechanic->InitializeDeformedMeshRayCast(
+		[this]() { return &GetSpatial(); },
+		WorldTransform, &LinearDeformer); // Should happen after PrecomputeTopology so that LinearDeformer is valid
+	MultiTransformer->AddAlignmentMechanic(DragAlignmentMechanic);
 
 	if (bTriangleMode == false)
 	{
@@ -374,6 +389,7 @@ void UEditMeshPolygonsTool::Shutdown(EToolShutdownType ShutdownType)
 	SelectionMechanic->Properties->SaveProperties(this);
 
 	MultiTransformer->Shutdown();
+	DragAlignmentMechanic->Shutdown();
 	// We wait to shut down the selection mechanic in case we need to do work to store the selection.
 
 	if (EditPreview != nullptr)
@@ -746,6 +762,7 @@ void UEditMeshPolygonsTool::CacheUpdate_Gizmo()
 	LastUpdateGizmoScale = MultiTransformer->GetCurrentGizmoScale();
 	GetToolManager()->PostInvalidation();
 	bGizmoUpdatePending = true;
+	bLastUpdateUsedWorldFrame = (MultiTransformer->GetGizmoCoordinateSystem() == EToolContextCoordinateSystem::World);
 }
 
 void UEditMeshPolygonsTool::ComputeUpdate_Gizmo()
@@ -766,16 +783,37 @@ void UEditMeshPolygonsTool::ComputeUpdate_Gizmo()
 	FDynamicMesh3* Mesh = DynamicMeshComponent->GetMesh();
 	if (TranslationDelta.SquaredLength() > 0.0001 || RotateDelta.SquaredLength() > 0.0001 || CurScaleDelta.SquaredLength() > 0.0001)
 	{
-		LinearDeformer.UpdateSolution(Mesh, [&](FDynamicMesh3* TargetMesh, int VertIdx)
+		if (bLastUpdateUsedWorldFrame)
 		{
-			FVector3d PosLocal = TargetMesh->GetVertex(VertIdx);
-			FVector3d PosWorld = WorldTransform.TransformPosition(PosLocal);
-			FVector3d PosGizmo = InitialGizmoFrame.ToFramePoint(PosWorld);
-			PosGizmo = CurScale * PosGizmo;
-			FVector3d NewPosWorld = CurFrame.FromFramePoint(PosGizmo);
-			FVector3d NewPosLocal = WorldTransform.InverseTransformPosition(NewPosWorld);
-			return NewPosLocal;
-		});
+			// For a world frame gizmo, the scaling needs to happen in world aligned gizmo space, but the 
+			// rotation is still encoded in the local gizmo frame change.
+			FQuaterniond RotationToApply = CurFrame.Rotation * InitialGizmoFrame.Rotation.Inverse();
+			LinearDeformer.UpdateSolution(Mesh, [&](FDynamicMesh3* TargetMesh, int VertIdx)
+			{
+				FVector3d PosLocal = TargetMesh->GetVertex(VertIdx);
+				FVector3d PosWorld = WorldTransform.TransformPosition(PosLocal);
+				FVector3d PosWorldGizmo = PosWorld - InitialGizmoFrame.Origin;
+
+				FVector3d NewPosWorld = RotationToApply * (PosWorldGizmo * CurScale) + CurFrame.Origin;
+				FVector3d NewPosLocal = WorldTransform.InverseTransformPosition(NewPosWorld);
+				return NewPosLocal;
+			});
+		}
+		else
+		{
+			LinearDeformer.UpdateSolution(Mesh, [&](FDynamicMesh3* TargetMesh, int VertIdx)
+			{
+				// For a local gizmo, we just get the coordinates in the original frame, scale in that frame,
+				// then interpret them as coordinates in the new frame.
+				FVector3d PosLocal = TargetMesh->GetVertex(VertIdx);
+				FVector3d PosWorld = WorldTransform.TransformPosition(PosLocal);
+				FVector3d PosGizmo = InitialGizmoFrame.ToFramePoint(PosWorld);
+				PosGizmo = CurScale * PosGizmo;
+				FVector3d NewPosWorld = CurFrame.FromFramePoint(PosGizmo);
+				FVector3d NewPosLocal = WorldTransform.InverseTransformPosition(NewPosWorld);
+				return NewPosLocal;
+			});
+		}
 	}
 	else
 	{
@@ -982,6 +1020,8 @@ void UEditMeshPolygonsTool::Render(IToolsContextRenderAPI* RenderAPI)
 	DynamicMeshComponent->bExplicitShowWireframe = CommonProps->bShowWireframe;
 
 	SelectionMechanic->Render(RenderAPI);
+
+	DragAlignmentMechanic->Render(RenderAPI);
 
 	if (ExtrudeHeightMechanic != nullptr)
 	{

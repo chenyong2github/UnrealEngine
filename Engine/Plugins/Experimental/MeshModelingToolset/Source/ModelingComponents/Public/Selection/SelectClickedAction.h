@@ -36,8 +36,8 @@ public:
 
 	// These lists can be used to modify which components are hit tested when doing a ray cast.
 	// By default, all visible components are hit tested.
-	TArray<UPrimitiveComponent*> VisibleComponentsToIgnore;
-	TArray<UPrimitiveComponent*> InvisibleComponentsToHitTest;
+	TArray<const UPrimitiveComponent*> VisibleComponentsToIgnore;
+	TArray<const UPrimitiveComponent*> InvisibleComponentsToHitTest;
 
 	// can alternately track shift modifier, however client must register this modifier w/ behavior
 	static const int ShiftModifier = 1;

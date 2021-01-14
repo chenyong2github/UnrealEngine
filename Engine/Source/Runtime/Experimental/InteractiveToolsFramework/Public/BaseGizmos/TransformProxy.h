@@ -59,22 +59,48 @@ public:
 	 */
 	virtual void EndTransformEditSequence();
 
+	/**
+	 * Clients should call this before a sequence of SetTransform calls that have bSetPivotMode as true
+	 * (see comment in BeginTransformEditSequence).
+	 */
+	virtual void BeginPivotEditSequence();
+
+	/**
+	 * Clients should call this when done with a sequence of SetTransform that have bSetPivotMode as true 
+	 * (see comment in BeginTransformEditSequence).
+	 */
+	virtual void EndPivotEditSequence();
+
 public:
 	/**
-	 * This delegate is fired whenever the internal transform changes, ie
-	 * on AddComponent and SetTransform
+	 * This delegate is fired whenever the transform changes in a way that updates the contained components. I.e.,
+	 * SetTransform is called with bSetPivotMode being false.
 	 */
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnTransformChanged, UTransformProxy*, FTransform);
 	FOnTransformChanged OnTransformChanged;
 
-	/** This delegate is fired when BeginTransformEditSequence() is called to indicate that a transform change has started */
+	/** This delegate is fired when BeginTransformEditSequence() is called to indicate that a sequence of transform updates has started */
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnBeginTransformEdit, UTransformProxy*);
 	FOnBeginTransformEdit OnBeginTransformEdit;
 
-	/** This delegate is fired when EndTransformEditSequence() is called to indicate that a transform change has ended */
+	/** This delegate is fired when EndTransformEditSequence() is called to indicate that a sequence of transform updates has ended */
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnEndTransformEdit, UTransformProxy*);
 	FOnEndTransformEdit OnEndTransformEdit;
 
+	/**
+	 * This delegate is fired whenever the internal transform changes due to a pivot reposition, ie on AddComponent and
+	 * when SetTransform is called with bSetPivotMode being true.
+	 */
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnPivotChanged, UTransformProxy*, FTransform);
+	FOnPivotChanged OnPivotChanged;
+
+	/** This delegate is fired when BeginTransformEditSequence() is called to indicate that a sequence of pivot updates has started */
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnBeginPivotEdit, UTransformProxy*);
+	FOnBeginPivotEdit OnBeginPivotEdit;
+
+	/** This delegate is fired when EndTransformEditSequence() is called to indicate that a sequence of pivot updates has ended */
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnEndPivotEdit, UTransformProxy*);
+	FOnEndPivotEdit OnEndPivotEdit;
 
 	/**
 	 * If true, relative rotation of shared transform is applied to objects before relative translation (ie they rotate in place)
@@ -133,6 +159,7 @@ class INTERACTIVETOOLSFRAMEWORK_API FTransformProxyChange : public FToolCommandC
 public:
 	FTransform From;
 	FTransform To;
+	bool bSetPivotMode = false;
 
 	virtual void Apply(UObject* Object) override;
 	virtual void Revert(UObject* Object) override;
@@ -161,4 +188,6 @@ public:
 	virtual TUniquePtr<FToolCommandChange> EndChange() override;
 	virtual UObject* GetChangeTarget() override;
 	virtual FText GetChangeDescription() override;
+
+	bool bSetPivotMode = false;
 };

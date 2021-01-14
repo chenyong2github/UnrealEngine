@@ -9,7 +9,7 @@
 #include "BaseGizmos/GizmoComponents.h"
 #include "AxisAngleGizmo.generated.h"
 
-
+class UClickDragInputBehavior;
 
 
 UCLASS()
@@ -65,6 +65,35 @@ public:
 	UPROPERTY()
 	TScriptInterface<IGizmoStateTarget> StateTarget;
 
+	/** The mouse click behavior of the gizmo is accessible so that it can be modified to use different mouse keys. */
+	UPROPERTY()
+	UClickDragInputBehavior* MouseBehavior;
+
+	/** 
+	 * This gets checked to see if we should use the custom ray caster to get a destination point for the gizmo, rather
+	 * than grabbing the intersection with the gizmo plane.
+	 */
+	TUniqueFunction<bool()> ShouldUseCustomDestinationFunc = []() {return false; };
+
+	struct FCustomDestinationParams
+	{
+		// Right now we use the custom destination function for aligning to items in the scene, which
+		// we just need the world ray for. If we want to use functions that use other inputs as the
+		// basis for the destination, we would add those parameters here and would make sure that the
+		// gizmo passes them in.
+		const FRay* WorldRay = nullptr;
+	};
+
+	/**
+	 * If ShouldUseCustomDestinationFunc() returns true, this function is used to get a destination point, and
+	 * the output parameter is picked in such a way that the closest axis in the plane of the gizmo (the positive or
+	 * negative x or y, if we're rotating around z, for instance) moves to the closest point in the plane to the
+	 * destination point.
+	 * Used, for instance, for aligning to items in the scene.
+	 */
+	TUniqueFunction<bool(const FCustomDestinationParams& WorldRay, FVector& OutputPoint)> CustomDestinationFunc =
+		[](const FCustomDestinationParams& Params, FVector& OutputPoint) { return false; };
+
 public:
 	UPROPERTY()
 	bool bInInteraction = false;
@@ -97,6 +126,10 @@ public:
 protected:
 	FVector LastHitPosition;
 	float InitialTargetAngle;
+
+	// The angle of the closest axis in the plane of the angle gizmo (will be 0, pi/2, pi, or 3pi/2).
+	// Used for snapping the nearest axis to a ray cast point when using CustomDestinationRayCaster.
+	float ClosestAxisStartAngle;
 
 	static const int SnapAngleModifierID = 1;		// identifier we associate with the shift key
 	bool bEnableSnapAngleModifier = false;			// flag we use to keep track of modifier state

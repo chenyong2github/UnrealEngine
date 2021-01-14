@@ -11,6 +11,7 @@
 #include "ToolContextInterfaces.h"
 #include "InteractiveGizmoManager.generated.h"
 
+class FTransformGizmoActorFactory;
 class UTransformGizmo;
 class UTransformGizmoBuilder;
 
@@ -210,6 +211,7 @@ public:
 	 */
 	virtual UTransformGizmo* CreateCustomTransformGizmo(ETransformGizmoSubElements Elements, void* Owner = nullptr, const FString& InstanceIdentifier = FString());
 
+	virtual UTransformGizmo* CreateCustomRepositionableTransformGizmo(ETransformGizmoSubElements Elements, void* Owner = nullptr, const FString& InstanceIdentifier = FString());
 
 public:
 	// builder identifiers for default gizmo types. Perhaps should have an API for this...
@@ -218,6 +220,7 @@ public:
 	static FString DefaultAxisAngleBuilderIdentifier;
 	static FString DefaultThreeAxisTransformBuilderIdentifier;
 	static const FString CustomThreeAxisTransformBuilderIdentifier;
+	static const FString CustomRepositionableThreeAxisTransformBuilderIdentifier;
 	static FString DefaultScalableSphereBuilderIdentifier;
 
 protected:
@@ -240,5 +243,5 @@ protected:
 	TMap<FString, UInteractiveGizmoBuilder*> GizmoBuilders;
 
 	bool bDefaultGizmosRegistered = false;
-	UTransformGizmoBuilder* CustomThreeAxisBuilder = nullptr;
+	TSharedPtr<FTransformGizmoActorFactory> GizmoActorBuilder;
 };

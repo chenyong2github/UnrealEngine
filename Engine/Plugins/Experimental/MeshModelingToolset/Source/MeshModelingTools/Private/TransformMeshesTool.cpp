@@ -3,6 +3,7 @@
 #include "TransformMeshesTool.h"
 #include "InteractiveToolManager.h"
 #include "InteractiveGizmoManager.h"
+#include "Mechanics/DragAlignmentMechanic.h"
 #include "ToolBuilderUtil.h"
 #include "ToolSetupUtil.h"
 #include "DynamicMesh3.h"
@@ -72,6 +73,10 @@ void UTransformMeshesTool::Setup()
 {
 	UInteractiveTool::Setup();
 
+	// Must be done before creating gizmos, so that we can bind the mechanic to them.
+	DragAlignmentMechanic = NewObject<UDragAlignmentMechanic>(this);
+	DragAlignmentMechanic->Setup(this);
+
 	UClickDragInputBehavior* ClickDragBehavior = NewObject<UClickDragInputBehavior>(this);
 	ClickDragBehavior->Initialize(this);
 	AddInputBehavior(ClickDragBehavior);
@@ -111,10 +116,6 @@ void UTransformMeshesTool::OnTick(float DeltaTime)
 	if (bCurSetPivotMode != TransformProps->bSetPivot)
 	{
 		bool bEnableSetPivot = TransformProps->bSetPivot;
-		if (TransformProps->TransformMode == ETransformMeshesTransformMode::SharedGizmoLocal)
-		{
-			bEnableSetPivot = false;
-		}
 		UpdateSetPivotModes(bEnableSetPivot);
 		bCurSetPivotMode = TransformProps->bSetPivot;
 	}
@@ -123,7 +124,7 @@ void UTransformMeshesTool::OnTick(float DeltaTime)
 
 void UTransformMeshesTool::Render(IToolsContextRenderAPI* RenderAPI)
 {
-	FPrimitiveDrawInterface* PDI = RenderAPI->GetPrimitiveDrawInterface();
+	DragAlignmentMechanic->Render(RenderAPI);
 }
 
 void UTransformMeshesTool::OnPropertyModified(UObject* PropertySet, FProperty* Property)
@@ -219,17 +220,22 @@ void UTransformMeshesTool::SetActiveGizmos_Single(bool bLocalRotations)
 	Transformable.TransformProxy = NewObject<UTransformProxy>(this);
 	Transformable.TransformProxy->bRotatePerObject = bLocalRotations;
 
+	TArray<const UPrimitiveComponent*> ComponentsToIgnoreInAlignment;
+
 	for (TUniquePtr<FPrimitiveComponentTarget>& Target : ComponentTargets)
 	{
 		Transformable.TransformProxy->AddComponent(Target->GetOwnerComponent());
+		ComponentsToIgnoreInAlignment.Add(Target->GetOwnerComponent());
 	}
 
 	// leave out nonuniform scale if we have multiple objects in non-local mode
 	bool bCanNonUniformScale = ComponentTargets.Num() == 1 || bLocalRotations;
 	ETransformGizmoSubElements GizmoElements = (bCanNonUniformScale) ?
 		ETransformGizmoSubElements::FullTranslateRotateScale : ETransformGizmoSubElements::TranslateRotateUniformScale;
-	Transformable.TransformGizmo = GizmoManager->CreateCustomTransformGizmo(GizmoElements, this);
+	Transformable.TransformGizmo = GizmoManager->CreateCustomRepositionableTransformGizmo(GizmoElements, this);
 	Transformable.TransformGizmo->SetActiveTarget(Transformable.TransformProxy);
+
+	DragAlignmentMechanic->AddToGizmo(Transformable.TransformGizmo, &ComponentsToIgnoreInAlignment);
 
 	ActiveGizmos.Add(Transformable);
 }
@@ -238,13 +244,22 @@ void UTransformMeshesTool::SetActiveGizmos_PerObject()
 {
 	check(ActiveGizmos.Num() == 0);
 
+	TArray<const UPrimitiveComponent*> ComponentsToIgnoreInAlignment;
 	for (TUniquePtr<FPrimitiveComponentTarget>& Target : ComponentTargets)
 	{
+		ComponentsToIgnoreInAlignment.Reset();
+
 		FTransformMeshesTarget Transformable;
 		Transformable.TransformProxy = NewObject<UTransformProxy>(this);
 		Transformable.TransformProxy->AddComponent(Target->GetOwnerComponent());
-		Transformable.TransformGizmo = GizmoManager->Create3AxisTransformGizmo(this);
+		ComponentsToIgnoreInAlignment.Add(Target->GetOwnerComponent());
+
+		ETransformGizmoSubElements GizmoElements = ETransformGizmoSubElements::FullTranslateRotateScale;
+		Transformable.TransformGizmo = GizmoManager->CreateCustomRepositionableTransformGizmo(GizmoElements, this);
 		Transformable.TransformGizmo->SetActiveTarget(Transformable.TransformProxy);
+
+		DragAlignmentMechanic->AddToGizmo(Transformable.TransformGizmo, &ComponentsToIgnoreInAlignment);
+
 		ActiveGizmos.Add(Transformable);
 	}
 }
@@ -314,7 +329,7 @@ void UTransformMeshesTool::OnClickDrag(const FInputDeviceRay& DragPos)
 {
 	bool bApplyToPivot = TransformProps->bSetPivot;
 
-	TArray<UPrimitiveComponent*> IgnoreComponents;
+	TArray<const UPrimitiveComponent*> IgnoreComponents;
 	if (bApplyToPivot == false)
 	{
 		int IgnoreIndex = (TransformProps->TransformMode == ETransformMeshesTransformMode::PerObjectGizmo) ?

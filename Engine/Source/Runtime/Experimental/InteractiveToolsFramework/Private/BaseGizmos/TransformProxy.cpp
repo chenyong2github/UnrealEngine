@@ -19,7 +19,7 @@ void UTransformProxy::AddComponent(USceneComponent* Component, bool bModifyCompo
 	Objects.Add(NewObj);
 
 	UpdateSharedTransform();
-	OnTransformChanged.Broadcast(this, SharedTransform);
+	OnPivotChanged.Broadcast(this, SharedTransform);
 }
 
 
@@ -36,6 +36,7 @@ void UTransformProxy::SetTransform(const FTransform& TransformIn)
 	if (bSetPivotMode)
 	{
 		UpdateObjectTransforms();
+		OnPivotChanged.Broadcast(this, SharedTransform);
 	}
 	else
 	{
@@ -55,7 +56,15 @@ void UTransformProxy::EndTransformEditSequence()
 	OnEndTransformEdit.Broadcast(this);
 }
 
+void UTransformProxy::BeginPivotEditSequence()
+{
+	OnBeginPivotEdit.Broadcast(this);
+}
 
+void UTransformProxy::EndPivotEditSequence()
+{
+	OnEndPivotEdit.Broadcast(this);
+}
 
 
 
@@ -66,12 +75,17 @@ void UTransformProxy::UpdateObjects()
 		FTransform CombinedTransform;
 		if (bRotatePerObject && Objects.Num() > 1)
 		{
-			FTransform Temp = SharedTransform.GetRelativeTransform(InitialSharedTransform);
-
+			// We want to apply the compare the shared transform to the shared transform that existed
+			// at the time the object's StartTransform was set, then apply the changes to the StartTransform.
+			// It may seem that FTransform::RelativeTransform() might be of use here, but that gives the
+			// transform from the point of view of the initial frame, which would give us incorrect
+			// translation if the initial frame axes didn't line up with world axes.
 			CombinedTransform = Obj.StartTransform;
-			CombinedTransform.AddToTranslation(Temp.GetTranslation());
-			CombinedTransform.ConcatenateRotation(Temp.GetRotation());
-			CombinedTransform.SetScale3D(CombinedTransform.GetScale3D() * Temp.GetScale3D());
+
+			CombinedTransform.AddToTranslation(SharedTransform.GetTranslation() - InitialSharedTransform.GetTranslation());
+			CombinedTransform.ConcatenateRotation(InitialSharedTransform.GetRotation().Inverse());
+			CombinedTransform.ConcatenateRotation(SharedTransform.GetRotation());
+			CombinedTransform.SetScale3D(CombinedTransform.GetScale3D() * SharedTransform.GetScale3D() / InitialSharedTransform.GetScale3D());
 		}
 		else
 		{
@@ -139,6 +153,8 @@ void UTransformProxy::UpdateObjectTransforms()
 		Obj.RelativeTransform = Obj.StartTransform;
 		Obj.RelativeTransform.SetToRelativeTransform(SharedTransform);
 	}
+
+	InitialSharedTransform = SharedTransform;
 }
 
 
@@ -148,13 +164,21 @@ void UTransformProxy::UpdateObjectTransforms()
 void FTransformProxyChange::Apply(UObject* Object)
 {
 	UTransformProxy* Proxy = CastChecked<UTransformProxy>(Object);
+
+	bool bSavedSetPivotMode = Proxy->bSetPivotMode;
+	Proxy->bSetPivotMode = bSetPivotMode;
 	Proxy->SetTransform(To);
+	Proxy->bSetPivotMode = bSavedSetPivotMode;
 }
 
 void FTransformProxyChange::Revert(UObject* Object)
 {
 	UTransformProxy* Proxy = CastChecked<UTransformProxy>(Object);
+
+	bool bSavedSetPivotMode = Proxy->bSetPivotMode;
+	Proxy->bSetPivotMode = bSetPivotMode;
 	Proxy->SetTransform(From);
+	Proxy->bSetPivotMode = bSavedSetPivotMode;
 }
 
 
@@ -164,7 +188,16 @@ void FTransformProxyChangeSource::BeginChange()
 	{
 		ActiveChange = MakeUnique<FTransformProxyChange>();
 		ActiveChange->From = Proxy->GetTransform();
-		Proxy->BeginTransformEditSequence();
+		ActiveChange->bSetPivotMode = bSetPivotMode;
+
+		if (bSetPivotMode)
+		{
+			Proxy->BeginPivotEditSequence();
+		}
+		else
+		{
+			Proxy->BeginTransformEditSequence();
+		}
 	}
 }
 
@@ -172,7 +205,15 @@ TUniquePtr<FToolCommandChange> FTransformProxyChangeSource::EndChange()
 {
 	if (Proxy.IsValid())
 	{
-		Proxy->EndTransformEditSequence();
+		if (bSetPivotMode)
+		{
+			Proxy->EndPivotEditSequence();
+		}
+		else
+		{
+			Proxy->EndTransformEditSequence();
+		}
+
 		ActiveChange->To = Proxy->GetTransform();
 		return MoveTemp(ActiveChange);
 	}

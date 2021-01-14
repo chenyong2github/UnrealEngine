@@ -108,7 +108,7 @@ public:
 
 	/** @return the set of handle vertices */
 	const TSet<int>& GetHandleVertices() const { return HandleVertices; }
-	/** @return the set of all vertices that will be modified by the deformation*/
+	/** @return the set of all vertices whose positions will be modified by the deformation*/
 	const TSet<int>& GetModifiedVertices() const { return ModifiedVertices; }
 	/** @return the set of all overlay normals that will be modified by the deformation*/
 	const TSet<int>& GetModifiedOverlayNormals() const { return ModifiedOverlayNormals; }

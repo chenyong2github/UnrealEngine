@@ -9,7 +9,7 @@
 FInputRayHit UGizmoComponentHitTarget::IsHit(const FInputDeviceRay& ClickPos) const
 {
 	FInputRayHit Hit;
-	if (Component)
+	if (Component && (!Condition || Condition(ClickPos)))
 	{
 		// if a gizmo is not visible it cannot be hit
 		bool bVisible = Component->IsVisible() && ( Component->GetOwner() && Component->GetOwner()->IsHidden() == false );

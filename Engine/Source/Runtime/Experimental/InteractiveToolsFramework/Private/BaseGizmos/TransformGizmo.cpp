@@ -261,6 +261,93 @@ void UTransformGizmo::SetUpdateCoordSystemFunction(TFunction<void(UPrimitiveComp
 	UpdateCoordSystemFunction = CoordSysFunction;
 }
 
+void UTransformGizmo::SetWorldAlignmentFunctions(
+	TUniqueFunction<bool()>&& ShouldAlignTranslationIn,
+	TUniqueFunction<bool(const FRay&, FVector&)>&& TranslationAlignmentRayCasterIn)
+{
+	// Save these so that later changes of gizmo target keep the settings.
+	ShouldAlignDestination = MoveTemp(ShouldAlignTranslationIn);
+	DestinationAlignmentRayCaster = MoveTemp(TranslationAlignmentRayCasterIn);
+
+	// We allow this function to be called after Setup(), so modify any existing translation/rotation sub gizmos.
+	// Unfortunately we keep all the sub gizmos in one list, and the scaling gizmos are differentiated from the
+	// translation ones mainly in the components they use. So this ends up being a slightly messy set of checks,
+	// but it didn't seem worth keeping a segregated list for something that will only happen once.
+	for (UInteractiveGizmo* SubGizmo : this->ActiveGizmos)
+	{
+		if (UAxisPositionGizmo* CastGizmo = Cast<UAxisPositionGizmo>(SubGizmo))
+		{
+			if (UGizmoComponentHitTarget* CastHitTarget = Cast<UGizmoComponentHitTarget>(CastGizmo->HitTarget.GetObject()))
+			{
+				if (CastHitTarget->Component == GizmoActor->TranslateX
+					|| CastHitTarget->Component == GizmoActor->TranslateY
+					|| CastHitTarget->Component == GizmoActor->TranslateZ)
+				{
+					CastGizmo->ShouldUseCustomDestinationFunc = [this]() { return ShouldAlignDestination(); };
+					CastGizmo->CustomDestinationFunc = 
+						[this](const UAxisPositionGizmo::FCustomDestinationParams& Params, FVector& OutputPoint) { 
+						return DestinationAlignmentRayCaster(*Params.WorldRay, OutputPoint); 
+					};
+				}
+			}
+		}
+		if (UPlanePositionGizmo* CastGizmo = Cast<UPlanePositionGizmo>(SubGizmo))
+		{
+			if (UGizmoComponentHitTarget* CastHitTarget = Cast<UGizmoComponentHitTarget>(CastGizmo->HitTarget.GetObject()))
+			{
+				if (CastHitTarget->Component == GizmoActor->TranslateXY
+					|| CastHitTarget->Component == GizmoActor->TranslateXZ
+					|| CastHitTarget->Component == GizmoActor->TranslateYZ)
+				{
+					CastGizmo->ShouldUseCustomDestinationFunc = [this]() { return ShouldAlignDestination(); };
+					CastGizmo->CustomDestinationFunc =
+						[this](const UPlanePositionGizmo::FCustomDestinationParams& Params, FVector& OutputPoint) {
+						return DestinationAlignmentRayCaster(*Params.WorldRay, OutputPoint);
+					};
+				}
+			}
+		}
+		if (UAxisAngleGizmo* CastGizmo = Cast<UAxisAngleGizmo>(SubGizmo))
+		{
+			CastGizmo->ShouldUseCustomDestinationFunc = [this]() { return ShouldAlignDestination(); };
+			CastGizmo->CustomDestinationFunc =
+				[this](const UAxisAngleGizmo::FCustomDestinationParams& Params, FVector& OutputPoint) {
+				return DestinationAlignmentRayCaster(*Params.WorldRay, OutputPoint);
+			};
+		}
+	}
+}
+
+void UTransformGizmo::SetDisallowNegativeScaling(bool bDisallow)
+{
+	if (bDisallowNegativeScaling != bDisallow)
+	{
+		bDisallowNegativeScaling = bDisallow;
+		for (UInteractiveGizmo* SubGizmo : this->ActiveGizmos)
+		{
+			if (UAxisPositionGizmo* CastGizmo = Cast<UAxisPositionGizmo>(SubGizmo))
+			{
+				if (UGizmoAxisScaleParameterSource* ParamSource = Cast<UGizmoAxisScaleParameterSource>(CastGizmo->ParameterSource.GetObject()))
+				{
+					ParamSource->bClampToZero = bDisallow;
+				}
+			}
+			if (UPlanePositionGizmo* CastGizmo = Cast<UPlanePositionGizmo>(SubGizmo))
+			{
+				if (UGizmoPlaneScaleParameterSource* ParamSource = Cast<UGizmoPlaneScaleParameterSource>(CastGizmo->ParameterSource.GetObject()))
+				{
+					ParamSource->bClampToZero = bDisallow;
+				}
+			}
+		}
+	}
+}
+
+void UTransformGizmo::SetIsNonUniformScaleAllowedFunction(TUniqueFunction<bool()>&& IsNonUniformScaleAllowedIn)
+{
+	IsNonUniformScaleAllowed = MoveTemp(IsNonUniformScaleAllowedIn);
+}
+
 
 void UTransformGizmo::Setup()
 {
@@ -338,9 +425,10 @@ void UTransformGizmo::Tick(float DeltaTime)
 		}
 	}
 
+	bool bShouldShowNonUniformScale = IsNonUniformScaleAllowed();
 	for (UPrimitiveComponent* Component : NonuniformScaleComponents)
 	{
-		Component->SetVisibility(bUseLocalAxes);
+		Component->SetVisibility(bShouldShowNonUniformScale);
 	}
 
 	UpdateCameraAxisSource();
@@ -365,33 +453,9 @@ void UTransformGizmo::SetActiveTarget(UTransformProxy* Target, IToolContextTrans
 	GizmoTransform.SetScale3D(FVector(1, 1, 1));
 	GizmoComponent->SetWorldTransform(GizmoTransform);
 
-	// save current scale because gizmo is not scaled
-	SeparateChildScale = TargetTransform.GetScale3D();
-
-	UGizmoComponentWorldTransformSource* ComponentTransformSource =
-		UGizmoComponentWorldTransformSource::Construct(GizmoComponent, this);
-	FSeparateScaleProvider ScaleProvider = {
-		[this]() { return this->SeparateChildScale; },
-		[this](FVector Scale) { this->SeparateChildScale = Scale; }
-	};
-	ScaledTransformSource = UGizmoScaledTransformSource::Construct(ComponentTransformSource, ScaleProvider, this);
-
-	// Target tracks location of GizmoComponent. Note that TransformUpdated is not called during undo/redo transactions!
-	// We currently rely on the transaction system to undo/redo target object locations. This will not work during runtime...
-	GizmoComponent->TransformUpdated.AddLambda(
-		[this](USceneComponent* Component, EUpdateTransformFlags /*UpdateTransformFlags*/, ETeleportType /*Teleport*/) {
-		//FTransform NewXForm = Component->GetComponentToWorld();
-		//NewXForm.SetScale3D(this->CurTargetScale);
-		FTransform NewXForm = ScaledTransformSource->GetTransform();
-		this->ActiveTarget->SetTransform(NewXForm);
-	});
-	ScaledTransformSource->OnTransformChanged.AddLambda(
-		[this](IGizmoTransformSource* Source)
-	{
-		FTransform NewXForm = ScaledTransformSource->GetTransform();
-		this->ActiveTarget->SetTransform(NewXForm);
-	});
-
+	UGizmoScaledAndUnscaledTransformSources* TransformSource = UGizmoScaledAndUnscaledTransformSources::Construct(
+		UGizmoTransformProxyTransformSource::Construct(ActiveTarget, this), 
+		GizmoComponent, this);
 
 	// This state target emits an explicit FChange that moves the GizmoActor root component during undo/redo.
 	// It also opens/closes the Transaction that saves/restores the target object locations.
@@ -402,7 +466,6 @@ void UTransformGizmo::SetActiveTarget(UTransformProxy* Target, IToolContextTrans
 	StateTarget = UGizmoTransformChangeStateTarget::Construct(GizmoComponent,
 		LOCTEXT("UTransformGizmoTransaction", "Transform"), TransactionProvider, this);
 	StateTarget->DependentChangeSources.Add(MakeUnique<FTransformProxyChangeSource>(Target));
-	StateTarget->ExternalDependentChangeSources.Add(this);
 
 	CameraAxisSource = NewObject<UGizmoConstantFrameAxisSource>(this);
 
@@ -414,50 +477,50 @@ void UTransformGizmo::SetActiveTarget(UTransformProxy* Target, IToolContextTrans
 	// todo should we hold onto these?
 	if (GizmoActor->TranslateX != nullptr)
 	{
-		AddAxisTranslationGizmo(GizmoActor->TranslateX, GizmoComponent, AxisXSource, ScaledTransformSource, StateTarget);
+		AddAxisTranslationGizmo(GizmoActor->TranslateX, GizmoComponent, AxisXSource, TransformSource, StateTarget);
 		ActiveComponents.Add(GizmoActor->TranslateX);
 	}
 	if (GizmoActor->TranslateY != nullptr)
 	{
-		AddAxisTranslationGizmo(GizmoActor->TranslateY, GizmoComponent, AxisYSource, ScaledTransformSource, StateTarget);
+		AddAxisTranslationGizmo(GizmoActor->TranslateY, GizmoComponent, AxisYSource, TransformSource, StateTarget);
 		ActiveComponents.Add(GizmoActor->TranslateY);
 	}
 	if (GizmoActor->TranslateZ != nullptr)
 	{
-		AddAxisTranslationGizmo(GizmoActor->TranslateZ, GizmoComponent, AxisZSource, ScaledTransformSource, StateTarget);
+		AddAxisTranslationGizmo(GizmoActor->TranslateZ, GizmoComponent, AxisZSource, TransformSource, StateTarget);
 		ActiveComponents.Add(GizmoActor->TranslateZ);
 	}
 
 
 	if (GizmoActor->TranslateYZ != nullptr)
 	{
-		AddPlaneTranslationGizmo(GizmoActor->TranslateYZ, GizmoComponent, AxisXSource, ScaledTransformSource, StateTarget);
+		AddPlaneTranslationGizmo(GizmoActor->TranslateYZ, GizmoComponent, AxisXSource, TransformSource, StateTarget);
 		ActiveComponents.Add(GizmoActor->TranslateYZ);
 	}
 	if (GizmoActor->TranslateXZ != nullptr)
 	{
-		AddPlaneTranslationGizmo(GizmoActor->TranslateXZ, GizmoComponent, AxisYSource, ScaledTransformSource, StateTarget);
+		AddPlaneTranslationGizmo(GizmoActor->TranslateXZ, GizmoComponent, AxisYSource, TransformSource, StateTarget);
 		ActiveComponents.Add(GizmoActor->TranslateXZ);
 	}
 	if (GizmoActor->TranslateXY != nullptr)
 	{
-		AddPlaneTranslationGizmo(GizmoActor->TranslateXY, GizmoComponent, AxisZSource, ScaledTransformSource, StateTarget);
+		AddPlaneTranslationGizmo(GizmoActor->TranslateXY, GizmoComponent, AxisZSource, TransformSource, StateTarget);
 		ActiveComponents.Add(GizmoActor->TranslateXY);
 	}
 
 	if (GizmoActor->RotateX != nullptr)
 	{
-		AddAxisRotationGizmo(GizmoActor->RotateX, GizmoComponent, AxisXSource, ScaledTransformSource, StateTarget);
+		AddAxisRotationGizmo(GizmoActor->RotateX, GizmoComponent, AxisXSource, TransformSource, StateTarget);
 		ActiveComponents.Add(GizmoActor->RotateX);
 	}
 	if (GizmoActor->RotateY != nullptr)
 	{
-		AddAxisRotationGizmo(GizmoActor->RotateY, GizmoComponent, AxisYSource, ScaledTransformSource, StateTarget);
+		AddAxisRotationGizmo(GizmoActor->RotateY, GizmoComponent, AxisYSource, TransformSource, StateTarget);
 		ActiveComponents.Add(GizmoActor->RotateY);
 	}
 	if (GizmoActor->RotateZ != nullptr)
 	{
-		AddAxisRotationGizmo(GizmoActor->RotateZ, GizmoComponent, AxisZSource, ScaledTransformSource, StateTarget);
+		AddAxisRotationGizmo(GizmoActor->RotateZ, GizmoComponent, AxisZSource, TransformSource, StateTarget);
 		ActiveComponents.Add(GizmoActor->RotateZ);
 	}
 
@@ -471,45 +534,44 @@ void UTransformGizmo::SetActiveTarget(UTransformProxy* Target, IToolContextTrans
 
 	if (GizmoActor->UniformScale != nullptr)
 	{
-		AddUniformScaleGizmo(GizmoActor->UniformScale, GizmoComponent, CameraAxisSource, CameraAxisSource, ScaledTransformSource, StateTarget);
+		AddUniformScaleGizmo(GizmoActor->UniformScale, GizmoComponent, CameraAxisSource, CameraAxisSource, TransformSource, StateTarget);
 		ActiveComponents.Add(GizmoActor->UniformScale);
 	}
 
 	if (GizmoActor->AxisScaleX != nullptr)
 	{
-		AddAxisScaleGizmo(GizmoActor->AxisScaleX, GizmoComponent, AxisXSource, UnitAxisXSource, ScaledTransformSource, StateTarget);
+		AddAxisScaleGizmo(GizmoActor->AxisScaleX, GizmoComponent, AxisXSource, UnitAxisXSource, TransformSource, StateTarget);
 		ActiveComponents.Add(GizmoActor->AxisScaleX);
 		NonuniformScaleComponents.Add(GizmoActor->AxisScaleX);
 	}
 	if (GizmoActor->AxisScaleY != nullptr)
 	{
-		AddAxisScaleGizmo(GizmoActor->AxisScaleY, GizmoComponent, AxisYSource, UnitAxisYSource, ScaledTransformSource, StateTarget);
+		AddAxisScaleGizmo(GizmoActor->AxisScaleY, GizmoComponent, AxisYSource, UnitAxisYSource, TransformSource, StateTarget);
 		ActiveComponents.Add(GizmoActor->AxisScaleY);
 		NonuniformScaleComponents.Add(GizmoActor->AxisScaleY);
 	}
 	if (GizmoActor->AxisScaleZ != nullptr)
 	{
-		AddAxisScaleGizmo(GizmoActor->AxisScaleZ, GizmoComponent, AxisZSource, UnitAxisZSource, ScaledTransformSource, StateTarget);
+		AddAxisScaleGizmo(GizmoActor->AxisScaleZ, GizmoComponent, AxisZSource, UnitAxisZSource, TransformSource, StateTarget);
 		ActiveComponents.Add(GizmoActor->AxisScaleZ);
 		NonuniformScaleComponents.Add(GizmoActor->AxisScaleZ);
 	}
 
 	if (GizmoActor->PlaneScaleYZ != nullptr)
 	{
-		AddPlaneScaleGizmo(GizmoActor->PlaneScaleYZ, GizmoComponent, AxisXSource, UnitAxisXSource, ScaledTransformSource, StateTarget);
+		AddPlaneScaleGizmo(GizmoActor->PlaneScaleYZ, GizmoComponent, AxisXSource, UnitAxisXSource, TransformSource, StateTarget);
 		ActiveComponents.Add(GizmoActor->PlaneScaleYZ);
 		NonuniformScaleComponents.Add(GizmoActor->PlaneScaleYZ);
 	}
 	if (GizmoActor->PlaneScaleXZ != nullptr)
 	{
-		UPlanePositionGizmo* Gizmo = (UPlanePositionGizmo *)AddPlaneScaleGizmo(GizmoActor->PlaneScaleXZ, GizmoComponent, AxisYSource, UnitAxisYSource, ScaledTransformSource, StateTarget);
-		Gizmo->bFlipX = true;		// unclear why this is necessary...possibly a handedness issue?
+		UPlanePositionGizmo* Gizmo = (UPlanePositionGizmo *)AddPlaneScaleGizmo(GizmoActor->PlaneScaleXZ, GizmoComponent, AxisYSource, UnitAxisYSource, TransformSource, StateTarget);
 		ActiveComponents.Add(GizmoActor->PlaneScaleXZ);
 		NonuniformScaleComponents.Add(GizmoActor->PlaneScaleXZ);
 	}
 	if (GizmoActor->PlaneScaleXY != nullptr)
 	{
-		AddPlaneScaleGizmo(GizmoActor->PlaneScaleXY, GizmoComponent, AxisZSource, UnitAxisZSource, ScaledTransformSource, StateTarget);
+		AddPlaneScaleGizmo(GizmoActor->PlaneScaleXY, GizmoComponent, AxisZSource, UnitAxisZSource, TransformSource, StateTarget);
 		ActiveComponents.Add(GizmoActor->PlaneScaleXY);
 		NonuniformScaleComponents.Add(GizmoActor->PlaneScaleXY);
 	}
@@ -539,19 +601,24 @@ void UTransformGizmo::SetNewGizmoTransform(const FTransform& NewTransform)
 
 	StateTarget->BeginUpdate();
 
-	SeparateChildScale = NewTransform.GetScale3D();
-
 	USceneComponent* GizmoComponent = GizmoActor->GetRootComponent();
 	GizmoComponent->SetWorldTransform(NewTransform);
-	//ActiveTarget->SetTransform(NewTransform);		// this will happen in the GizmoComponent.TransformUpdated delegate handler above
+	ActiveTarget->SetTransform(NewTransform);
 
 	StateTarget->EndUpdate();
 }
 
 
+// TODO: This should either be named to "SetScale" or removed, since it can be done with ReinitializeGizmoTransform
 void UTransformGizmo::SetNewChildScale(const FVector& NewChildScale)
 {
-	SeparateChildScale = NewChildScale;
+	FTransform NewTransform = ActiveTarget->GetTransform();
+	NewTransform.SetScale3D(NewChildScale);
+
+	bool bSavedSetPivotMode = ActiveTarget->bSetPivotMode;
+	ActiveTarget->bSetPivotMode = true;
+	ActiveTarget->SetTransform(NewTransform);
+	ActiveTarget->bSetPivotMode = bSavedSetPivotMode;
 }
 
 
@@ -593,6 +660,12 @@ UInteractiveGizmo* UTransformGizmo::AddAxisTranslationGizmo(
 
 	TranslateGizmo->StateTarget = Cast<UObject>(StateTargetIn);
 
+	TranslateGizmo->ShouldUseCustomDestinationFunc = [this]() { return ShouldAlignDestination(); };
+	TranslateGizmo->CustomDestinationFunc =
+		[this](const UAxisPositionGizmo::FCustomDestinationParams& Params, FVector& OutputPoint) {
+		return DestinationAlignmentRayCaster(*Params.WorldRay, OutputPoint);
+	};
+
 	ActiveGizmos.Add(TranslateGizmo);
 	return TranslateGizmo;
 }
@@ -627,6 +700,12 @@ UInteractiveGizmo* UTransformGizmo::AddPlaneTranslationGizmo(
 	TranslateGizmo->HitTarget = HitTarget;
 
 	TranslateGizmo->StateTarget = Cast<UObject>(StateTargetIn);
+
+	TranslateGizmo->ShouldUseCustomDestinationFunc = [this]() { return ShouldAlignDestination(); };
+	TranslateGizmo->CustomDestinationFunc =
+		[this](const UPlanePositionGizmo::FCustomDestinationParams& Params, FVector& OutputPoint) {
+		return DestinationAlignmentRayCaster(*Params.WorldRay, OutputPoint);
+	};
 
 	ActiveGizmos.Add(TranslateGizmo);
 	return TranslateGizmo;
@@ -665,6 +744,12 @@ UInteractiveGizmo* UTransformGizmo::AddAxisRotationGizmo(
 
 	RotateGizmo->StateTarget = Cast<UObject>(StateTargetIn);
 
+	RotateGizmo->ShouldUseCustomDestinationFunc = [this]() { return ShouldAlignDestination(); };
+	RotateGizmo->CustomDestinationFunc =
+		[this](const UAxisAngleGizmo::FCustomDestinationParams& Params, FVector& OutputPoint) {
+		return DestinationAlignmentRayCaster(*Params.WorldRay, OutputPoint);
+	};
+
 	ActiveGizmos.Add(RotateGizmo);
 
 	return RotateGizmo;
@@ -689,7 +774,7 @@ UInteractiveGizmo* UTransformGizmo::AddAxisScaleGizmo(
 
 	// parameter source maps axis-parameter-change to translation of TransformSource's transform
 	UGizmoAxisScaleParameterSource* ParamSource = UGizmoAxisScaleParameterSource::Construct(ParameterAxisSource, TransformSource, this);
-	//ParamSource->PositionConstraintFunction = [this](const FVector& Pos, FVector& Snapped) { return PositionSnapFunction(Pos, Snapped); };
+	ParamSource->bClampToZero = bDisallowNegativeScaling;
 	ScaleGizmo->ParameterSource = ParamSource;
 
 	// sub-component provides hit target
@@ -725,7 +810,8 @@ UInteractiveGizmo* UTransformGizmo::AddPlaneScaleGizmo(
 
 	// parameter source maps axis-parameter-change to translation of TransformSource's transform
 	UGizmoPlaneScaleParameterSource* ParamSource = UGizmoPlaneScaleParameterSource::Construct(ParameterAxisSource, TransformSource, this);
-	//ParamSource->PositionConstraintFunction = [this](const FVector& Pos, FVector& Snapped) { return PositionSnapFunction(Pos, Snapped); };
+	ParamSource->bClampToZero = bDisallowNegativeScaling;
+	ParamSource->bUseEqualScaling = true;
 	ScaleGizmo->ParameterSource = ParamSource;
 
 	// sub-component provides hit target
@@ -863,54 +949,5 @@ FQuat UTransformGizmo::RotationSnapFunction(const FQuat& DeltaRotation) const
 	}
 	return SnappedDeltaRotation;
 }
-
-void UTransformGizmo::BeginChange()
-{
-	ActiveChange = MakeUnique<FTransformGizmoTransformChange>();
-	ActiveChange->ChildScaleBefore = SeparateChildScale;
-}
-
-TUniquePtr<FToolCommandChange> UTransformGizmo::EndChange()
-{
-	ActiveChange->ChildScaleAfter = SeparateChildScale;
-	return MoveTemp(ActiveChange);
-	ActiveChange = nullptr;
-}
-
-UObject* UTransformGizmo::GetChangeTarget()
-{
-	return this;
-}
-
-FText UTransformGizmo::GetChangeDescription()
-{
-	return LOCTEXT("TransformGizmoChangeDescription", "Transform Change");
-}
-
-
-void UTransformGizmo::ExternalSetChildScale(const FVector& NewScale)
-{
-	SeparateChildScale = NewScale;
-}
-
-
-void FTransformGizmoTransformChange::Apply(UObject* Object)
-{
-	UTransformGizmo* Gizmo = CastChecked<UTransformGizmo>(Object);
-	Gizmo->ExternalSetChildScale(ChildScaleAfter);
-}
-
-
-void FTransformGizmoTransformChange::Revert(UObject* Object)
-{
-	UTransformGizmo* Gizmo = CastChecked<UTransformGizmo>(Object);
-	Gizmo->ExternalSetChildScale(ChildScaleBefore);
-}
-
-FString FTransformGizmoTransformChange::ToString() const
-{
-	return FString(TEXT("TransformGizmo Change"));
-}
-
 
 #undef LOCTEXT_NAMESPACE

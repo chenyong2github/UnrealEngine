@@ -50,6 +50,13 @@ public:
 		 */
 		TFunction<bool(int)> TriangleFilterF = nullptr;
 
+		// If true, then the IMeshSpatial may allow queries even when the underlying mesh has been
+		// modified without updating the queried structure. This may be useful, for instance, to 
+		// run queries against a mesh as it is being interactively modified, but it requires the 
+		// caller to pass an appropriate TriangleFilterF to make sure that modified triangles do
+		// not affect the query.
+		bool bAllowUnsafeModifiedMeshQueries = false;
+
 		FQueryOptions() {}
 		FQueryOptions(TFunction<bool(int)> TriangleFilterF) : TriangleFilterF(TriangleFilterF) {}
 		FQueryOptions(double MaxDistance, TFunction<bool(int)> TriangleFilterF = nullptr) : MaxDistance(MaxDistance), TriangleFilterF(TriangleFilterF) {}

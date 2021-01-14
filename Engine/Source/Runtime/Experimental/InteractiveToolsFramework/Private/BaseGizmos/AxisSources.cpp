@@ -26,14 +26,20 @@ FVector UGizmoComponentAxisSource::GetDirection() const
 
 void UGizmoComponentAxisSource::GetTangentVectors(FVector& TangentXOut, FVector& TangentYOut) const
 {
+	// Note that in giving the tangent vectors, we need to give them in an order that
+	// preserves the handedness of our coordinate system so that we can use the function
+	// for generating planes in which we can measure rotation angles about the input axis.
+	// So, TangentXOut, TangentYOut, and Input(Z) should give a left-handed frame (since 
+	// unreal is left handed).
+
 	const FTransform& WorldTransform = Component->GetComponentToWorld();
 	TangentXOut = FVector(0, 1, 0);
 	TangentYOut = FVector(0, 0, 1);
 	int Index = FMath::Clamp(AxisIndex, 0, 2);
 	if (Index == 1)
 	{
-		TangentXOut = FVector(-1, 0, 0);
-		TangentYOut = FVector(0, 0, 1);
+		TangentXOut = FVector(0, 0, 1);
+		TangentYOut = FVector(1, 0, 0);
 	}
 	else if (Index == 2)
 	{

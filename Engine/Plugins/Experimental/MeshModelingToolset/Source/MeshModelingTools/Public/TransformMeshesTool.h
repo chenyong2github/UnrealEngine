@@ -12,6 +12,7 @@
 
 class UBaseAxisTranslationGizmo;
 class UAxisAngleGizmo;
+class UDragAlignmentMechanic;
 class UTransformGizmo;
 class UTransformProxy;
 
@@ -96,7 +97,7 @@ public:
 	ETransformMeshesTransformMode TransformMode = ETransformMeshesTransformMode::SharedGizmo;
 
 
-	UPROPERTY(EditAnywhere, Category = Options, meta = (EditCondition = "TransformMode == ETransformMeshesTransformMode::SharedGizmo || TransformMode == ETransformMeshesTransformMode::PerObjectGizmo"))
+	UPROPERTY(EditAnywhere, Category = Options)
 	bool bSetPivot = false;
 
 
@@ -173,6 +174,8 @@ protected:
 	UPROPERTY()
 	TArray<FTransformMeshesTarget> ActiveGizmos;
 
+	UPROPERTY()
+	UDragAlignmentMechanic* DragAlignmentMechanic = nullptr;
 
 	ETransformMeshesTransformMode CurTransformMode;
 	void UpdateTransformMode(ETransformMeshesTransformMode NewMode);

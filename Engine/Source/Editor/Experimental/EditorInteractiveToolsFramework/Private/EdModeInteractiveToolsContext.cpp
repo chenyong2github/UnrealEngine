@@ -71,7 +71,8 @@ static bool IsVisibleObjectHit_Internal(const FHitResult& HitResult)
 	return true;
 }
 
-static bool FindNearestVisibleObjectHit_Internal(UWorld* World, FHitResult& HitResultOut, const FVector& Start, const FVector& End, bool bIsSceneGeometrySnapQuery)
+static bool FindNearestVisibleObjectHit_Internal(UWorld* World, FHitResult& HitResultOut, const FVector& Start, const FVector& End,
+	bool bIsSceneGeometrySnapQuery, const TArray<const UPrimitiveComponent*>* ComponentsToIgnore)
 {
 	FCollisionObjectQueryParams ObjectQueryParams(FCollisionObjectQueryParams::AllObjects);
 	FCollisionQueryParams QueryParams = FCollisionQueryParams::DefaultQueryParam;
@@ -89,7 +90,8 @@ static bool FindNearestVisibleObjectHit_Internal(UWorld* World, FHitResult& HitR
 	{
 		if (CurResult.Distance < NearestVisible)
 		{
-			if (IsVisibleObjectHit_Internal(CurResult))
+			if (IsVisibleObjectHit_Internal(CurResult) 
+				&& (!ComponentsToIgnore || !ComponentsToIgnore->Contains(CurResult.Component.Get())))
 			{
 				HitResultOut = CurResult;
 				NearestVisible = CurResult.Distance;
@@ -249,7 +251,8 @@ public:
 		FVector RayDirection = Request.Position - RayStart; RayDirection.Normalize();
 		FVector RayEnd = RayStart + HALF_WORLD_MAX * RayDirection;
 		FHitResult HitResult;
-		bool bHitWorld = FindNearestVisibleObjectHit_Internal(EditorModeManager->GetWorld(), HitResult, RayStart, RayEnd, true);
+		bool bHitWorld = FindNearestVisibleObjectHit_Internal(EditorModeManager->GetWorld(), HitResult, 
+			RayStart, RayEnd, true, Request.ComponentsToIgnore);
 		if (bHitWorld && HitResult.FaceIndex >= 0)
 		{
 			float VisualAngle = OpeningAngleDeg(Request.Position, HitResult.ImpactPoint, RayStart);
@@ -989,14 +992,6 @@ bool UEdModeInteractiveToolsContext::InputKey(FEditorViewportClient* ViewportCli
 				// if alt is down and we are not capturing, somewhere higher in the ViewportClient/EdMode stack 
 				// is going to start doing alt+mouse camera manipulation. So we should ignore this mouse event.
 				if (ViewportClient->IsAltPressed() && InputRouter->HasActiveMouseCapture() == false)
-				{
-					return false;
-				}
-				// TODO: This should no longer be necessary: test and remove.
-				// This is a special-case hack for UMultiClickSequenceInputBehavior, because it holds capture across multiple
-				// mouse clicks, which prevents alt+mouse navigation from working between clicks (very annoying in draw polygon).
-				// Remove this special-case once that tool is fixed to use CollectSurfacePathMechanic instead
-				if (Event == IE_Pressed && bIsLeftMouse && ViewportClient->IsAltPressed() && InputRouter->HasActiveMouseCapture())
 				{
 					return false;
 				}

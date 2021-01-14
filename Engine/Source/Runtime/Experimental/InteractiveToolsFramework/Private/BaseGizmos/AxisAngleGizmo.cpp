@@ -22,7 +22,7 @@ void UAxisAngleGizmo::Setup()
 	UInteractiveGizmo::Setup();
 
 	// Add default mouse input behavior
-	UClickDragInputBehavior* MouseBehavior = NewObject<UClickDragInputBehavior>();
+	MouseBehavior = NewObject<UClickDragInputBehavior>();
 	MouseBehavior->Modifiers.RegisterModifier(SnapAngleModifierID, FInputDeviceState::IsShiftKeyDown);
 	MouseBehavior->Initialize(this);
 	MouseBehavior->SetDefaultPriority(FInputCapturePriority(FInputCapturePriority::DEFAULT_GIZMO_PRIORITY));
@@ -68,8 +68,8 @@ void UAxisAngleGizmo::OnClickPress(const FInputDeviceRay& PressPos)
 {
 	check(bInInteraction == false);
 
-	RotationOrigin = GizmoMath::ProjectPointOntoLine(LastHitPosition, AxisSource->GetOrigin(), RotationAxis);
 	RotationAxis = AxisSource->GetDirection();
+	RotationOrigin = GizmoMath::ProjectPointOntoLine(LastHitPosition, AxisSource->GetOrigin(), RotationAxis);
 
 	if (AxisSource->HasTangentVectors())
 	{
@@ -94,6 +94,12 @@ void UAxisAngleGizmo::OnClickPress(const FInputDeviceRay& PressPos)
 		RotationOrigin, RotationAxis, RotationPlaneX, RotationPlaneY);
 	InteractionCurAngle = InteractionStartAngle;
 
+	// Figure out the angle of the closest axis so that we know what to snap if using alignment.
+	float StartAngleAbs = FMath::Abs(InteractionStartAngle);
+	ClosestAxisStartAngle = StartAngleAbs <= PI / 4 ? 0
+		: StartAngleAbs >= PI * 3 / 4 ? PI
+		: InteractionStartAngle > 0 ? PI / 2 : - PI / 2;
+
 	InitialTargetAngle = AngleSource->GetParameter();
 	AngleSource->BeginModify();
 
@@ -111,29 +117,48 @@ void UAxisAngleGizmo::OnClickDrag(const FInputDeviceRay& DragPos)
 {
 	check(bInInteraction);
 
-	bool bIntersects; FVector IntersectionPoint;
-	GizmoMath::RayPlaneIntersectionPoint(
-		RotationOrigin, RotationAxis,
-		DragPos.WorldRay.Origin, DragPos.WorldRay.Direction,
-		bIntersects, IntersectionPoint);
+	FVector HitPoint;
+	float DeltaAngle;
 
-	if (bIntersects == false)
+	// See if we should use custom destination funtion
+	FCustomDestinationParams Params;
+	Params.WorldRay = &DragPos.WorldRay;
+	if (ShouldUseCustomDestinationFunc() && CustomDestinationFunc(Params, HitPoint))
 	{
-		return;
+		InteractionCurPoint = HitPoint;
+		InteractionCurAngle = GizmoMath::ComputeAngleInPlane(InteractionCurPoint,
+			RotationOrigin, RotationAxis, RotationPlaneX, RotationPlaneY);
+		
+		// Align nearest axis to destination point.
+		DeltaAngle = InteractionCurAngle - ClosestAxisStartAngle;
+	}
+	else
+	{
+		bool bIntersects; FVector IntersectionPoint;
+		GizmoMath::RayPlaneIntersectionPoint(
+			RotationOrigin, RotationAxis,
+			DragPos.WorldRay.Origin, DragPos.WorldRay.Direction,
+			bIntersects, IntersectionPoint);
+
+		if (bIntersects == false)
+		{
+			return;
+		}
+
+		InteractionCurPoint = IntersectionPoint;
+
+		InteractionCurAngle = GizmoMath::ComputeAngleInPlane(InteractionCurPoint,
+			RotationOrigin, RotationAxis, RotationPlaneX, RotationPlaneY);
+
+		DeltaAngle = InteractionCurAngle - InteractionStartAngle;
+		if (bEnableSnapAngleModifier)
+		{
+			DeltaAngle = GizmoMath::SnapToIncrement(DeltaAngle, 3.14159f / 4.0f);				// hardcoded 45-degree snap
+		}
+		
 	}
 
-	InteractionCurPoint = IntersectionPoint;
-
-	InteractionCurAngle = GizmoMath::ComputeAngleInPlane(InteractionCurPoint,
-		RotationOrigin, RotationAxis, RotationPlaneX, RotationPlaneY);
-
-	float DeltaAngle = InteractionCurAngle - InteractionStartAngle;
-	if (bEnableSnapAngleModifier)
-	{
-		DeltaAngle = GizmoMath::SnapToIncrement(DeltaAngle, 3.14159f / 4.0f);				// hardcoded 45-degree snap
-	}
 	float NewAngle = InitialTargetAngle + DeltaAngle;
-
 	AngleSource->SetParameter(NewAngle);
 }
 

@@ -22,7 +22,7 @@ void UPlanePositionGizmo::Setup()
 	UInteractiveGizmo::Setup();
 
 	// Add default mouse input behavior
-	UClickDragInputBehavior* MouseBehavior = NewObject<UClickDragInputBehavior>();
+	MouseBehavior = NewObject<UClickDragInputBehavior>();
 	MouseBehavior->Initialize(this);
 	MouseBehavior->SetDefaultPriority(FInputCapturePriority(FInputCapturePriority::DEFAULT_GIZMO_PRIORITY));
 	AddInputBehavior(MouseBehavior);
@@ -75,15 +75,24 @@ void UPlanePositionGizmo::OnClickPress(const FInputDeviceRay& PressPos)
 
 	InteractionStartPoint = InteractionCurPoint = IntersectionPoint;
 
-	float DirectionSignX = FVector::DotProduct(InteractionStartPoint - AxisSource->GetOrigin(), InteractionAxisX);
+	FVector AxisOrigin = AxisSource->GetOrigin();
+
+	float DirectionSignX = FVector::DotProduct(InteractionStartPoint - AxisOrigin, InteractionAxisX);
 	ParameterSigns.X = (bEnableSignedAxis && DirectionSignX < 0) ? -1.0f : 1.0f;
 	ParameterSigns.X *= (bFlipX) ? -1.0f : 1.0f;
-	float DirectionSignY = FVector::DotProduct(InteractionStartPoint - AxisSource->GetOrigin(), InteractionAxisY);
+	float DirectionSignY = FVector::DotProduct(InteractionStartPoint - AxisOrigin, InteractionAxisY);
 	ParameterSigns.Y = (bEnableSignedAxis && DirectionSignY < 0) ? -1.0f : 1.0f;
 	ParameterSigns.Y *= (bFlipY) ? -1.0f : 1.0f;
 
 	InteractionStartParameter = GizmoMath::ComputeCoordinatesInPlane(IntersectionPoint,
 			InteractionOrigin, InteractionNormal, InteractionAxisX, InteractionAxisY);
+
+	// Figure out how the parameters would need to be adjusted to bring the axis origin to the
+	// interaction start point. This is used when aligning the axis origin to a custom destination.
+	FVector2D OriginParamValue = GizmoMath::ComputeCoordinatesInPlane(AxisOrigin,
+		InteractionOrigin, InteractionNormal, InteractionAxisX, InteractionAxisY);
+	InteractionStartOriginParameterOffset = InteractionStartParameter - OriginParamValue;
+
 	InteractionStartParameter.X *= ParameterSigns.X;
 	InteractionStartParameter.Y *= ParameterSigns.Y;
 	InteractionCurParameter = InteractionStartParameter;
@@ -101,27 +110,44 @@ void UPlanePositionGizmo::OnClickPress(const FInputDeviceRay& PressPos)
 
 void UPlanePositionGizmo::OnClickDrag(const FInputDeviceRay& DragPos)
 {
-	bool bIntersects; FVector IntersectionPoint;
-	GizmoMath::RayPlaneIntersectionPoint(
-		InteractionOrigin, InteractionNormal,
-		DragPos.WorldRay.Origin, DragPos.WorldRay.Direction,
-		bIntersects, IntersectionPoint);
+	FVector HitPoint;
+	FVector2D NewParamValue;
 
-	if (bIntersects == false)
+	// See if we should use the custom destination function.
+	FCustomDestinationParams Params;
+	Params.WorldRay = &DragPos.WorldRay;
+	if (ShouldUseCustomDestinationFunc() && CustomDestinationFunc(Params, HitPoint))
 	{
-		return;
+		InteractionCurPoint = GizmoMath::ProjectPointOntoPlane(HitPoint, InteractionOrigin, InteractionNormal);
+		InteractionCurParameter = GizmoMath::ComputeCoordinatesInPlane(InteractionCurPoint,
+			InteractionOrigin, InteractionNormal, InteractionAxisX, InteractionAxisY);
+
+		InteractionCurParameter += InteractionStartOriginParameterOffset;
+	}
+	else
+	{
+		bool bIntersects; 
+		GizmoMath::RayPlaneIntersectionPoint(
+			InteractionOrigin, InteractionNormal,
+			DragPos.WorldRay.Origin, DragPos.WorldRay.Direction,
+			bIntersects, HitPoint);
+
+		if (bIntersects == false)
+		{
+			return;
+		}
+		InteractionCurPoint = HitPoint;
+
+		InteractionCurParameter = GizmoMath::ComputeCoordinatesInPlane(InteractionCurPoint,
+			InteractionOrigin, InteractionNormal, InteractionAxisX, InteractionAxisY);
+		InteractionCurParameter.X *= ParameterSigns.X;
+		InteractionCurParameter.Y *= ParameterSigns.Y;
 	}
 
-	InteractionCurPoint = IntersectionPoint;
-	InteractionCurParameter = GizmoMath::ComputeCoordinatesInPlane(IntersectionPoint,
-		InteractionOrigin, InteractionNormal, InteractionAxisX, InteractionAxisY);
-	InteractionCurParameter.X *= ParameterSigns.X;
-	InteractionCurParameter.Y *= ParameterSigns.Y;
-
 	FVector2D DeltaParam = InteractionCurParameter - InteractionStartParameter;
-	FVector2D NewValue = InitialTargetParameter + DeltaParam;
+	NewParamValue = InitialTargetParameter + DeltaParam;
 
-	ParameterSource->SetParameter(NewValue);
+	ParameterSource->SetParameter(NewParamValue);
 }
 
 void UPlanePositionGizmo::OnClickRelease(const FInputDeviceRay& ReleasePos)

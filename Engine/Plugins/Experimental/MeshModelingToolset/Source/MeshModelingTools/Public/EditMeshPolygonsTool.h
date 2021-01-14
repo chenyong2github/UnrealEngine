@@ -25,6 +25,7 @@
 #include "EditMeshPolygonsTool.generated.h"
 
 class FMeshVertexChangeBuilder;
+class UDragAlignmentMechanic;
 class UGroupTopologyStorableSelection;
 
 /**
@@ -577,6 +578,9 @@ protected:
 	UPROPERTY()
 	UMultiTransformer* MultiTransformer = nullptr;
 
+	UPROPERTY()
+	UDragAlignmentMechanic* DragAlignmentMechanic = nullptr;
+
 	void OnMultiTransformerTransformBegin();
 	void OnMultiTransformerTransformUpdate();
 	void OnMultiTransformerTransformEnd();
@@ -603,6 +607,7 @@ protected:
 	bool bGizmoUpdatePending = false;
 	FFrame3d LastUpdateGizmoFrame;
 	FVector3d LastUpdateGizmoScale;
+	bool bLastUpdateUsedWorldFrame = false;
 	void ComputeUpdate_Gizmo();
 
 	TUniquePtr<FGroupTopology> Topology;

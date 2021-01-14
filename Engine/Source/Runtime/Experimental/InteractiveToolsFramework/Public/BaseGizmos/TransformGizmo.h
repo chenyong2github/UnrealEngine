@@ -19,8 +19,8 @@ class IGizmoStateTarget;
 class UGizmoConstantFrameAxisSource;
 class UGizmoComponentAxisSource;
 class UGizmoTransformChangeStateTarget;
-class UGizmoScaledTransformSource;
 class FTransformGizmoTransformChange;
+class FRay;
 
 /**
  * ATransformGizmoActor is an Actor type intended to be used with UTransformGizmo,
@@ -236,7 +236,7 @@ public:
  * 
  */
 UCLASS()
-class INTERACTIVETOOLSFRAMEWORK_API UTransformGizmo : public UInteractiveGizmo, public IToolCommandChangeSource
+class INTERACTIVETOOLSFRAMEWORK_API UTransformGizmo : public UInteractiveGizmo
 {
 	GENERATED_BODY()
 
@@ -246,6 +246,37 @@ public:
 	virtual void SetGizmoActorBuilder(TSharedPtr<FTransformGizmoActorFactory> Builder);
 	virtual void SetUpdateHoverFunction(TFunction<void(UPrimitiveComponent*, bool)> HoverFunction);
 	virtual void SetUpdateCoordSystemFunction(TFunction<void(UPrimitiveComponent*, EToolContextCoordinateSystem)> CoordSysFunction);
+	
+	/**
+	 * If used, binds alignment functions to the sub gizmos that they can use to align to geometry in the scene. 
+	 * Specifically, translation and rotation gizmos will check ShouldAlignDestination() to see if they should
+	 * use the custom ray caster (this allows the behavior to respond to modifier key presses, for instance),
+	 * and then use DestinationAlignmentRayCaster() to find a point to align to.
+	 * Subgizmos align to the point in different ways, usually by projecting onto the axis or plane that they
+	 * operate in.
+	 */
+	virtual void SetWorldAlignmentFunctions(
+		TUniqueFunction<bool()>&& ShouldAlignDestination,
+		TUniqueFunction<bool(const FRay&, FVector&)>&& DestinationAlignmentRayCaster
+		);
+
+	/**
+	 * By default, non-uniform scaling handles appear (assuming they exist in the gizmo to begin with), 
+	 * when CurrentCoordinateSystem == EToolContextCoordinateSystem::Local, since components can only be
+	 * locally scaled. However, this can be changed to a custom check here, perhaps to hide them in extra
+	 * conditions or to always show them (if the gizmo is not scaling a component).
+	 */
+	virtual void SetIsNonUniformScaleAllowedFunction(
+		TUniqueFunction<bool()>&& IsNonUniformScaleAllowed
+	);
+
+	/**
+	 * By default, the nonuniform scale components can scale negatively. However, they can be made to clamp
+	 * to zero instead by passing true here. This is useful for using the gizmo to flatten geometry.
+	 *
+	 * TODO: Should this affect uniform scaling too?
+	 */
+	virtual void SetDisallowNegativeScaling(bool bDisallow);
 
 	// UInteractiveGizmo overrides
 	virtual void Setup() override;
@@ -431,42 +462,16 @@ protected:
 	UPROPERTY()
 	UGizmoTransformChangeStateTarget* StateTarget;
 
-
 	/**
-	 * This TransformSource wraps a UGizmoComponentWorldTransformSource that is on the Gizmo Actor directly.
-	 * It tracks the scaling separately (SeparateChildScale is provided as the storage for the scaling).
-	 * This allows the various scaling handles to update the Transform without actually scaling the Gizmo itself.
+	 * These are used to let the translation subgizmos use raycasts into the scene to align the gizmo with scene geometry.
+	 * See comment for SetWorldAlignmentFunctions().
 	 */
-	UPROPERTY()
-	UGizmoScaledTransformSource* ScaledTransformSource;
+	TUniqueFunction<bool()> ShouldAlignDestination = []() { return false; };
+	TUniqueFunction<bool(const FRay&, FVector&)> DestinationAlignmentRayCaster = [](const FRay&, FVector&) {return false; };
 
-	/**
-	 * Scaling on the active target UTransformProxy is stored here. Undo/Redo events update this value via an FTransformGizmoTransformChange.
-	 */
-	FVector SeparateChildScale = FVector(1,1,1);
+	TUniqueFunction<bool()> IsNonUniformScaleAllowed = [this]() { return CurrentCoordinateSystem == EToolContextCoordinateSystem::Local; };
 
-	/**
-	 * This function is called by FTransformGizmoTransformChange to update SeparateChildScale on Undo/Redo.
-	 */
-	void ExternalSetChildScale(const FVector& NewScale);
-
-	friend class FTransformGizmoTransformChange;
-	/**
-	 * Ongoing transform change is tracked here, initialized in the IToolCommandChangeSource implementation.
-	 * Note that currently we only handle the SeparateChildScale this way. The transform changes on the target
-	 * objects are dealt with using the editor Transaction system (and on the Proxy using a FTransformProxyChangeSource attached to the StateTarget).
-	 * The Transaction system is not available at runtime, we should track the entire change in the FChange and update the proxy
-	 */
-	TUniquePtr<FTransformGizmoTransformChange> ActiveChange;
-
-public:
-	// IToolCommandChangeSource implementation, used to initialize and emit ActiveChange
-	virtual void BeginChange();
-	virtual TUniquePtr<FToolCommandChange> EndChange();
-	virtual UObject* GetChangeTarget();
-	virtual FText GetChangeDescription();
-
-
+	bool bDisallowNegativeScaling = false;
 protected:
 
 
@@ -517,27 +522,3 @@ protected:
 	FQuat RotationSnapFunction(const FQuat& DeltaRotation) const;
 
 };
-
-
-
-
-/**
- * FChange for a UTransformGizmo that applies transform change.
- * Currently only handles the scaling part of a transform.
- */
-class INTERACTIVETOOLSFRAMEWORK_API FTransformGizmoTransformChange : public FToolCommandChange
-{
-public:
-	FVector ChildScaleBefore;
-	FVector ChildScaleAfter;
-
-	/** Makes the change to the object */
-	virtual void Apply(UObject* Object) override;
-
-	/** Reverts change to the object */
-	virtual void Revert(UObject* Object) override;
-
-	/** Describes this change (for debugging) */
-	virtual FString ToString() const override;
-};
-

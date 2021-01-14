@@ -44,6 +44,7 @@ public class ModelingComponents : ModuleRules
 			{
 				"CoreUObject",
 				"Engine",
+				"InputCore",
                 "RenderCore",
                 "RHI",
 

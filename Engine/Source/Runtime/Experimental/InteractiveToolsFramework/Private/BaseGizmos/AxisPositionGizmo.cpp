@@ -22,7 +22,7 @@ void UAxisPositionGizmo::Setup()
 	UInteractiveGizmo::Setup();
 
 	// Add default mouse input behavior
-	UClickDragInputBehavior* MouseBehavior = NewObject<UClickDragInputBehavior>();
+	MouseBehavior = NewObject<UClickDragInputBehavior>();
 	MouseBehavior->Initialize(this);
 	MouseBehavior->SetDefaultPriority(FInputCapturePriority(FInputCapturePriority::DEFAULT_GIZMO_PRIORITY));
 	AddInputBehavior(MouseBehavior);
@@ -59,14 +59,24 @@ void UAxisPositionGizmo::OnClickPress(const FInputDeviceRay& PressPos)
 	InteractionOrigin = LastHitPosition;
 	InteractionAxis = AxisSource->GetDirection();
 
-	FVector RayNearestPt; float RayNearestParam;
+	// Find interaction start point and parameter.
+	FVector NearestPt; float RayNearestParam;
 	GizmoMath::NearestPointOnLineToRay(InteractionOrigin, InteractionAxis,
 		PressPos.WorldRay.Origin, PressPos.WorldRay.Direction,
 		InteractionStartPoint, InteractionStartParameter,
-		RayNearestPt, RayNearestParam);
+		NearestPt, RayNearestParam);
 
-	float DirectionSign = FVector::DotProduct(InteractionStartPoint - AxisSource->GetOrigin(), InteractionAxis);
+	FVector AxisOrigin = AxisSource->GetOrigin();
+
+	float DirectionSign = FVector::DotProduct(InteractionStartPoint - AxisOrigin, InteractionAxis);
 	ParameterSign = (bEnableSignedAxis && DirectionSign < 0) ? -1.0f : 1.0f;
+
+	// Figure out how the parameter would need to be adjusted to bring the axis origin to the
+	// interaction start point. This is used when aligning the axis origin to a custom destination.
+	float AxisOriginParamValue;
+	GizmoMath::NearestPointOnLine(InteractionOrigin, InteractionAxis, AxisOrigin,
+		NearestPt, AxisOriginParamValue);
+	InteractionStartAxisOriginParameterOffset = InteractionStartParameter - AxisOriginParamValue;
 
 	InteractionCurPoint = InteractionStartPoint;
 	InteractionStartParameter *= ParameterSign;
@@ -81,24 +91,39 @@ void UAxisPositionGizmo::OnClickPress(const FInputDeviceRay& PressPos)
 	{
 		StateTarget->BeginUpdate();
 	}
+
+	OnClickDrag(PressPos);
 }
 
 void UAxisPositionGizmo::OnClickDrag(const FInputDeviceRay& DragPos)
 {
-	FVector AxisNearestPt; float AxisNearestParam;
-	FVector RayNearestPt; float RayNearestParam;
-	GizmoMath::NearestPointOnLineToRay(InteractionOrigin, InteractionAxis,
-		DragPos.WorldRay.Origin, DragPos.WorldRay.Direction,
-		AxisNearestPt, AxisNearestParam,
-		RayNearestPt, RayNearestParam);
+	FVector HitPoint;
 
-	InteractionCurPoint = AxisNearestPt;
-	InteractionCurParameter = ParameterSign * AxisNearestParam;
+	// See if we should use the custom destination function.
+	FCustomDestinationParams Params;
+	Params.WorldRay = &DragPos.WorldRay;
+	if (ShouldUseCustomDestinationFunc() && CustomDestinationFunc(Params, HitPoint))
+	{
+		GizmoMath::NearestPointOnLine(InteractionOrigin, InteractionAxis, HitPoint,
+			InteractionCurPoint, InteractionCurParameter);
+		InteractionCurParameter += InteractionStartAxisOriginParameterOffset;
+	}
+	else
+	{
+		float RayNearestParam; float AxisNearestParam;
+		FVector RayNearestPt; 
+		GizmoMath::NearestPointOnLineToRay(InteractionOrigin, InteractionAxis,
+			DragPos.WorldRay.Origin, DragPos.WorldRay.Direction,
+			InteractionCurPoint, AxisNearestParam,
+			RayNearestPt, RayNearestParam);
+
+		InteractionCurParameter = ParameterSign * AxisNearestParam;
+	}
 
 	float DeltaParam = InteractionCurParameter - InteractionStartParameter;
-	float NewValue = InitialTargetParameter + DeltaParam;
+	float NewParamValue = InitialTargetParameter + DeltaParam;
 
-	ParameterSource->SetParameter(NewValue);
+	ParameterSource->SetParameter(NewParamValue);
 }
 
 void UAxisPositionGizmo::OnClickRelease(const FInputDeviceRay& ReleasePos)

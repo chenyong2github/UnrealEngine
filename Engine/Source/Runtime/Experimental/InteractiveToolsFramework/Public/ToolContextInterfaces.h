@@ -147,6 +147,9 @@ struct INTERACTIVETOOLSFRAMEWORK_API FSceneSnapQueryRequest
 
 	/** Snap input rotation delta */
 	FQuat DeltaRotation;
+
+	/** Optional: components to consider invisible even if they aren't. */
+	const TArray<const UPrimitiveComponent*>* ComponentsToIgnore = nullptr;
 };
 
 

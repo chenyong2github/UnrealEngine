@@ -62,6 +62,14 @@ public:
 	UPROPERTY()
 	UPrimitiveComponent* Component;
 
+	/**
+	 * If set, this condition is checked before performing the hit test. This gives a way 
+	 * to disable the hit test without hiding the component. This is useful, for instance,
+	 * in a repositionable transform gizmo in world-coordinate mode, where the rotation
+	 * components need to be hittable for movement, but not for repositioning.
+	 */
+	TFunction<bool(const FInputDeviceRay&)> Condition = nullptr;
+
 	/** This function is called to update hover state of the target */
 	TFunction<void(bool)> UpdateHoverFunction;
 

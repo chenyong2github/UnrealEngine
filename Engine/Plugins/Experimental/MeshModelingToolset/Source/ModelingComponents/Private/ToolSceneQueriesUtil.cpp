@@ -135,54 +135,70 @@ bool ToolSceneQueriesUtil::IsPointVisible(const FViewCameraState& CameraState, c
 	return true;
 }
 
-
 bool ToolSceneQueriesUtil::FindSceneSnapPoint(const UInteractiveTool* Tool, const FVector3d& Point, FVector3d& SnapPointOut,
-	bool bVertices, bool bEdges, double VisualAngleThreshold, 
+	bool bVertices, bool bEdges, double VisualAngleThreshold,
 	FSnapGeometry* SnapGeometry, FVector* DebugTriangleOut)
 {
-	double UseThreshold = (VisualAngleThreshold <= 0) ? GetDefaultVisualAngleSnapThreshD() : VisualAngleThreshold;
+	FFindSceneSnapPointParams Params;
+
+	Params.Tool = Tool;
+	Params.Point = &Point;
+	Params.SnapPointOut = &SnapPointOut;
+	Params.bVertices = bVertices;
+	Params.bEdges = bEdges;
+	Params.VisualAngleThreshold = VisualAngleThreshold;
+	Params.SnapGeometryOut = SnapGeometry;
+	Params.DebugTriangleOut = DebugTriangleOut;
+
+	return FindSceneSnapPoint(Params);
+}
+
+bool ToolSceneQueriesUtil::FindSceneSnapPoint(FFindSceneSnapPointParams& Params)
+{
+	double UseThreshold = (Params.VisualAngleThreshold <= 0) ? GetDefaultVisualAngleSnapThreshD() : Params.VisualAngleThreshold;
 
 	FViewCameraState CameraState;
-	Tool->GetToolManager()->GetContextQueriesAPI()->GetCurrentViewState(CameraState);
+	Params.Tool->GetToolManager()->GetContextQueriesAPI()->GetCurrentViewState(CameraState);
 	UseThreshold *= CameraState.GetFOVAngleNormalizationFactor();
 
-	IToolsContextQueriesAPI* QueryAPI = Tool->GetToolManager()->GetContextQueriesAPI();
+	IToolsContextQueriesAPI* QueryAPI = Params.Tool->GetToolManager()->GetContextQueriesAPI();
 	FSceneSnapQueryRequest Request;
 	Request.RequestType = ESceneSnapQueryType::Position;
 	Request.TargetTypes = ESceneSnapQueryTargetType::None;
-	if (bVertices)
+	if (Params.bVertices)
 	{
 		Request.TargetTypes |= ESceneSnapQueryTargetType::MeshVertex;
 	}
-	if (bEdges)
+	if (Params.bEdges)
 	{
 		Request.TargetTypes |= ESceneSnapQueryTargetType::MeshEdge;
 	}
-	Request.Position = (FVector)Point;
+	Request.Position = (FVector)*Params.Point;
 	Request.VisualAngleThresholdDegrees = UseThreshold;
-	
+	Request.ComponentsToIgnore = Params.ComponentsToIgnore;
+
 	TArray<FSceneSnapQueryResult> Results;
 	if (QueryAPI->ExecuteSceneSnapQuery(Request, Results))
 	{
-		SnapPointOut = Results[0].Position;
+		*Params.SnapPointOut = Results[0].Position;
 
-		if (SnapGeometry != nullptr)
+		if (Params.SnapGeometryOut != nullptr)
 		{
 			int iSnap = Results[0].TriSnapIndex;
-			SnapGeometry->Points[0] = Results[0].TriVertices[iSnap];
-			SnapGeometry->PointCount = 1;
+			Params.SnapGeometryOut->Points[0] = Results[0].TriVertices[iSnap];
+			Params.SnapGeometryOut->PointCount = 1;
 			if (Results[0].TargetType == ESceneSnapQueryTargetType::MeshEdge)
 			{
-				SnapGeometry->Points[1] = Results[0].TriVertices[(iSnap+1)%3];
-				SnapGeometry->PointCount = 2;
+				Params.SnapGeometryOut->Points[1] = Results[0].TriVertices[(iSnap+1)%3];
+				Params.SnapGeometryOut->PointCount = 2;
 			}
 		}
 
-		if (DebugTriangleOut != nullptr)
+		if (Params.DebugTriangleOut != nullptr)
 		{
-			DebugTriangleOut[0] = Results[0].TriVertices[0];
-			DebugTriangleOut[1] = Results[0].TriVertices[1];
-			DebugTriangleOut[2] = Results[0].TriVertices[2];
+			Params.DebugTriangleOut[0] = Results[0].TriVertices[0];
+			Params.DebugTriangleOut[1] = Results[0].TriVertices[1];
+			Params.DebugTriangleOut[2] = Results[0].TriVertices[2];
 		}
 
 		return true;
@@ -252,7 +268,7 @@ bool ToolSceneQueriesUtil::IsVisibleObjectHit(const FHitResult& HitResult)
 
 
 bool ToolSceneQueriesUtil::FindNearestVisibleObjectHit(UWorld* World, FHitResult& HitResultOut, const FVector& Start, const FVector& End,
-	const TArray<UPrimitiveComponent*>* IgnoreComponents, const TArray<UPrimitiveComponent*>* InvisibleComponentsToInclude)
+	const TArray<const UPrimitiveComponent*>* IgnoreComponents, const TArray<const UPrimitiveComponent*>* InvisibleComponentsToInclude)
 {
 	FCollisionObjectQueryParams ObjectQueryParams(FCollisionObjectQueryParams::AllObjects);
 	FCollisionQueryParams QueryParams = FCollisionQueryParams::DefaultQueryParam;
@@ -286,7 +302,7 @@ bool ToolSceneQueriesUtil::FindNearestVisibleObjectHit(UWorld* World, FHitResult
 
 
 bool ToolSceneQueriesUtil::FindNearestVisibleObjectHit(UWorld* World, FHitResult& HitResultOut, const FRay& Ray,
-	const TArray<UPrimitiveComponent*>* IgnoreComponents, const TArray<UPrimitiveComponent*>* InvisibleComponentsToInclude)
+	const TArray<const UPrimitiveComponent*>* IgnoreComponents, const TArray<const UPrimitiveComponent*>* InvisibleComponentsToInclude)
 {
 	return FindNearestVisibleObjectHit(World, HitResultOut, Ray.Origin, Ray.PointAt(HALF_WORLD_MAX), IgnoreComponents, InvisibleComponentsToInclude);
 }

@@ -206,6 +206,11 @@ void FGroupTopologyDeformer::CalculateROI(const TArray<int>& HandleGroups, const
 			}
 		}
 	}
+
+	// ModifiedVertices currently holds all the ROI group vertices, but the fixed vertices
+	// don't actually change in position. However we do this after collecting the modified
+	// overlay normals, since those do change.
+	ModifiedVertices = ModifiedVertices.Difference(FixedBoundaryVertices);
 }
 
 

@@ -9,6 +9,7 @@
 #include "BaseGizmos/AxisAngleGizmo.h"
 #include "BaseGizmos/TransformGizmo.h"
 #include "BaseGizmos/IntervalGizmo.h"
+#include "BaseGizmos/RepositionableTransformGizmo.h"
 #include "BaseGizmos/ScalableSphereGizmo.h"
 
 #define LOCTEXT_NAMESPACE "UInteractiveGizmoManager"
@@ -269,6 +270,7 @@ FString UInteractiveGizmoManager::DefaultPlanePositionBuilderIdentifier = TEXT("
 FString UInteractiveGizmoManager::DefaultAxisAngleBuilderIdentifier = TEXT("StandardXFormAxisRotationGizmo");
 FString UInteractiveGizmoManager::DefaultThreeAxisTransformBuilderIdentifier = TEXT("DefaultThreeAxisTransformBuilderIdentifier");
 const FString UInteractiveGizmoManager::CustomThreeAxisTransformBuilderIdentifier = TEXT("CustomThreeAxisTransformBuilderIdentifier");
+const FString UInteractiveGizmoManager::CustomRepositionableThreeAxisTransformBuilderIdentifier = TEXT("CustomRepositionableThreeAxisTransformBuilderIdentifier");
 FString UInteractiveGizmoManager::DefaultScalableSphereBuilderIdentifier = TEXT("DefaultScalableSphereBuilderIdentifier");
 
 void UInteractiveGizmoManager::RegisterDefaultGizmos()
@@ -287,9 +289,15 @@ void UInteractiveGizmoManager::RegisterDefaultGizmos()
 	UTransformGizmoBuilder* TransformBuilder = NewObject<UTransformGizmoBuilder>();
 	RegisterGizmoType(DefaultThreeAxisTransformBuilderIdentifier, TransformBuilder);
 
-	CustomThreeAxisBuilder = NewObject<UTransformGizmoBuilder>();
-	CustomThreeAxisBuilder->GizmoActorBuilder = MakeShared<FTransformGizmoActorFactory>();
+	GizmoActorBuilder = MakeShared<FTransformGizmoActorFactory>();
+
+	UTransformGizmoBuilder* CustomThreeAxisBuilder = NewObject<UTransformGizmoBuilder>();
+	CustomThreeAxisBuilder->GizmoActorBuilder = GizmoActorBuilder;
 	RegisterGizmoType(CustomThreeAxisTransformBuilderIdentifier, CustomThreeAxisBuilder);
+
+	URepositionableTransformGizmoBuilder* CustomRepositionableThreeAxisBuilder = NewObject<URepositionableTransformGizmoBuilder>();
+	CustomRepositionableThreeAxisBuilder->GizmoActorBuilder = GizmoActorBuilder;
+	RegisterGizmoType(CustomRepositionableThreeAxisTransformBuilderIdentifier, CustomRepositionableThreeAxisBuilder);
 
 	UIntervalGizmoBuilder* IntervalGizmoBuilder = NewObject<UIntervalGizmoBuilder>();
 	RegisterGizmoType(UIntervalGizmo::GizmoName, IntervalGizmoBuilder);
@@ -311,8 +319,17 @@ UTransformGizmo* UInteractiveGizmoManager::Create3AxisTransformGizmo(void* Owner
 UTransformGizmo* UInteractiveGizmoManager::CreateCustomTransformGizmo(ETransformGizmoSubElements Elements, void* Owner, const FString& InstanceIdentifier)
 {
 	check(bDefaultGizmosRegistered);
-	CustomThreeAxisBuilder->GizmoActorBuilder->EnableElements = Elements;
+	GizmoActorBuilder->EnableElements = Elements;
 	UInteractiveGizmo* NewGizmo = CreateGizmo(CustomThreeAxisTransformBuilderIdentifier, InstanceIdentifier, Owner);
+	check(NewGizmo);
+	return Cast<UTransformGizmo>(NewGizmo);
+}
+
+UTransformGizmo* UInteractiveGizmoManager::CreateCustomRepositionableTransformGizmo(ETransformGizmoSubElements Elements, void* Owner, const FString& InstanceIdentifier)
+{
+	check(bDefaultGizmosRegistered);
+	GizmoActorBuilder->EnableElements = Elements;
+	UInteractiveGizmo* NewGizmo = CreateGizmo(CustomRepositionableThreeAxisTransformBuilderIdentifier, InstanceIdentifier, Owner);
 	check(NewGizmo);
 	return Cast<UTransformGizmo>(NewGizmo);
 }

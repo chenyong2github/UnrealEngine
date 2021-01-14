@@ -90,6 +90,25 @@ namespace ToolSceneQueriesUtil
 		int PointCount = 0;
 	};
 
+	struct FFindSceneSnapPointParams
+	{
+		// Required inputs/outputs
+		const UInteractiveTool* Tool = nullptr;
+		const FVector3d* Point = nullptr;
+		FVector3d* SnapPointOut = nullptr;
+
+		bool bVertices = true; // If true, try to snap to vertices
+		bool bEdges = false; // If true, try to snap to edges
+		double VisualAngleThreshold = 0; // Visual angle threshold to use. If 0, GetDefaultVisualAngleSnapThresh() is used
+		const TArray<const UPrimitiveComponent*>* ComponentsToIgnore = nullptr;
+		FSnapGeometry* SnapGeometryOut = nullptr; // world-space position of the snap geometry(point / line / polygon)
+		FVector* DebugTriangleOut = nullptr; // if non - null, triangle containing snap is returned if a snap is found
+	};
+
+	/**
+	 * Run a query against the scene to find the best SnapPointOut for the given Point
+	 */
+	MODELINGCOMPONENTS_API bool FindSceneSnapPoint(FFindSceneSnapPointParams& Params);
 
 	/**
 	 * Run a query against the scene to find the best SnapPointOut for the given Point
@@ -104,12 +123,10 @@ namespace ToolSceneQueriesUtil
 		bool bVertices = true, bool bEdges = false, double VisualAngleThreshold = 0, 
 		FSnapGeometry* SnapGeometry = nullptr, FVector* DebugTriangleOut = nullptr);
 
-
 	/**
 	 * Run a query against the scene to find the nearest WorldGrid snap point
 	 */
 	MODELINGCOMPONENTS_API bool FindWorldGridSnapPoint(const UInteractiveTool* Tool, const FVector3d& QueryPoint, FVector3d& GridSnapPointOut);
-
 
 	/**
 	 * @return true if HitResult is a hit on a visible Component of a visible Actor (provides correct result in Editor)
@@ -126,8 +143,8 @@ namespace ToolSceneQueriesUtil
 	 * @return true if a visible hit was found
 	 */
 	MODELINGCOMPONENTS_API bool FindNearestVisibleObjectHit(UWorld* World, FHitResult& HitResultOut, const FVector& Start, const FVector& End,
-		const TArray<UPrimitiveComponent*>* IgnoreComponents = nullptr, 
-		const TArray<UPrimitiveComponent*>* InvisibleComponentsToInclude = nullptr);
+		const TArray<const UPrimitiveComponent*>* IgnoreComponents = nullptr, 
+		const TArray<const UPrimitiveComponent*>* InvisibleComponentsToInclude = nullptr);
 
 
 	/**
@@ -139,7 +156,7 @@ namespace ToolSceneQueriesUtil
 	 * @return true if a visible hit was found
 	 */
 	MODELINGCOMPONENTS_API bool FindNearestVisibleObjectHit(UWorld* World, FHitResult& HitResultOut, const FRay& Ray,
-		const TArray<UPrimitiveComponent*>* IgnoreComponents = nullptr, 
-		const TArray<UPrimitiveComponent*>* InvisibleComponentsToInclude = nullptr);
+		const TArray<const UPrimitiveComponent*>* IgnoreComponents = nullptr, 
+		const TArray<const UPrimitiveComponent*>* InvisibleComponentsToInclude = nullptr);
 
 }
