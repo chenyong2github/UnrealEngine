@@ -160,13 +160,19 @@ uint32 FCoreTechFileParser::GetFileHash()
 {
 	FFileStatData FileStatData = IFileManager::Get().GetStatData(*FileDescription.Path);
 
-		FileSize = FileStatData.FileSize;
+	FileSize = FileStatData.FileSize;
 	FDateTime ModificationTime = FileStatData.ModificationTime;
 
 	uint32 FileHash = GetTypeHash(FileDescription);
 	FileHash = HashCombine(FileHash, GetTypeHash(FileSize));
 	FileHash = HashCombine(FileHash, GetTypeHash(ModificationTime));
 
+	return FileHash;
+}
+
+uint32 GetSceneFileHash(const uint32 InSGHash, const FImportParameters& ImportParam)
+{
+	uint32 FileHash = HashCombine(InSGHash, GetTypeHash(ImportParam.StitchingTechnique));
 	return FileHash;
 }
 
@@ -646,13 +652,15 @@ FCoreTechFileParser::EProcessResult FCoreTechFileParser::ProcessFile(const FFile
 	}
 
 	uint32 FileHash = GetFileHash();
+	FString CTFileName = FString::Printf(TEXT("UEx%08x"), FileHash);
+	FString CTFilePath = FPaths::Combine(CachePath, TEXT("cad"), CTFileName + TEXT(".ct"));
 
-	SceneGraphArchive.ArchiveFileName = FString::Printf(TEXT("UEx%08x"), FileHash);
+	uint32 SceneFileHash = GetSceneFileHash(FileHash, ImportParameters);
+	SceneGraphArchive.ArchiveFileName = FString::Printf(TEXT("UEx%08x"), SceneFileHash);
 
 	FString SceneGraphArchiveFilePath = FPaths::Combine(CachePath, TEXT("scene"), SceneGraphArchive.ArchiveFileName + TEXT(".sg"));
-	FString CTFilePath = FPaths::Combine(CachePath, TEXT("cad"), SceneGraphArchive.ArchiveFileName + TEXT(".ct"));
 
-	uint32 MeshFileHash = GetGeomFileHash(FileHash, ImportParameters);
+	uint32 MeshFileHash = GetGeomFileHash(SceneFileHash, ImportParameters);
 	MeshArchiveFile = FString::Printf(TEXT("UEx%08x"), MeshFileHash);
 	MeshArchiveFilePath = FPaths::Combine(CachePath, TEXT("mesh"), MeshArchiveFile + TEXT(".gm"));
 
@@ -699,39 +707,39 @@ FCoreTechFileParser::EProcessResult FCoreTechFileParser::ReadFileWithKernelIO()
 
 	if (!FileDescription.Configuration.IsEmpty())
 	{
-			if (FileDescription.Extension == "jt")
+		if (FileDescription.Extension == "jt")
+		{
+			LoadOption = FileDescription.Configuration;
+		}
+		else
+		{
+			NumberOfIds = CT_KERNEL_IO::AskFileNbOfIds(*FileDescription.Path);
+			if (NumberOfIds > 1)
 			{
-				LoadOption = FileDescription.Configuration;
-			}
-			else
-			{
-				NumberOfIds = CT_KERNEL_IO::AskFileNbOfIds(*FileDescription.Path);
-				if (NumberOfIds > 1)
+				CT_UINT32 ActiveConfig = CT_KERNEL_IO::AskFileActiveConfig(*FileDescription.Path);
+				for (CT_UINT32 i = 0; i < NumberOfIds; i++)
 				{
-					CT_UINT32 ActiveConfig = CT_KERNEL_IO::AskFileActiveConfig(*FileDescription.Path);
-					for (CT_UINT32 i = 0; i < NumberOfIds; i++)
+					CT_STR ConfValue = CT_KERNEL_IO::AskFileIdIthName(*FileDescription.Path, i);
+					if (FileDescription.Configuration == AsFString(ConfValue))
 					{
-						CT_STR ConfValue = CT_KERNEL_IO::AskFileIdIthName(*FileDescription.Path, i);
-						if (FileDescription.Configuration == AsFString(ConfValue))
-						{
-							ActiveConfig = i;
-							break;
-						}
+						ActiveConfig = i;
+						break;
 					}
-
-					CTImportOption |= CT_LOAD_FLAGS_READ_SPECIFIC_OBJECT;
-					LoadOption = FString::FromInt((int32) ActiveConfig);
 				}
+
+				CTImportOption |= CT_LOAD_FLAGS_READ_SPECIFIC_OBJECT;
+				LoadOption = FString::FromInt((int32)ActiveConfig);
 			}
 		}
+	}
 
 	Result = CT_KERNEL_IO::LoadFile(*FileDescription.Path, MainId, CTImportOption, 0, *LoadOption);
 	if (Result == IO_ERROR_EMPTY_ASSEMBLY)
 	{
 		CT_KERNEL_IO::UnloadModel();
-			CT_FLAGS CTReImportOption = CTImportOption | CT_LOAD_FLAGS_LOAD_EXTERNAL_REF;
-			CTReImportOption &= ~CT_LOAD_FLAGS_READ_ASM_STRUCT_ONLY;  // BUG CT -> Ticket 11685
-			Result = CT_KERNEL_IO::LoadFile(*FileDescription.Path, MainId, CTReImportOption, 0, *LoadOption);
+		CT_FLAGS CTReImportOption = CTImportOption | CT_LOAD_FLAGS_LOAD_EXTERNAL_REF;
+		CTReImportOption &= ~CT_LOAD_FLAGS_READ_ASM_STRUCT_ONLY;  // BUG CT -> Ticket 11685
+		Result = CT_KERNEL_IO::LoadFile(*FileDescription.Path, MainId, CTReImportOption, 0, *LoadOption);
 	}
 
 	// the file is loaded but it's empty, so no data is generate
@@ -749,7 +757,9 @@ FCoreTechFileParser::EProcessResult FCoreTechFileParser::ReadFileWithKernelIO()
 		return EProcessResult::ProcessFailed;
 	}
 
-	FString CTFilePath = FPaths::Combine(CachePath, TEXT("cad"), SceneGraphArchive.ArchiveFileName + TEXT(".ct"));
+	uint32 FileHash = GetFileHash();
+	FString CTFileName = FString::Printf(TEXT("UEx%08x"), FileHash);
+	FString CTFilePath = FPaths::Combine(CachePath, TEXT("cad"), CTFileName + TEXT(".ct"));
 	if(CTFilePath != FileDescription.Path)
 	{
 		CT_LIST_IO ObjectList;
