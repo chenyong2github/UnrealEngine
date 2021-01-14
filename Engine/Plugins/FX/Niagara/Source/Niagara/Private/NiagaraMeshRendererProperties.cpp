@@ -323,7 +323,8 @@ void UNiagaraMeshRendererProperties::GetUsedMeshMaterials(int32 MeshIndex, const
 
 	if (bOverrideMaterials)
 	{
-		for (int32 OverrideIndex = 0; OverrideIndex < OverrideMaterials.Num(); ++OverrideIndex)
+		const int32 NumOverrideMaterials = FMath::Min(OverrideMaterials.Num(), OutMaterials.Num());
+		for (int32 OverrideIndex = 0; OverrideIndex < NumOverrideMaterials; ++OverrideIndex)
 		{
 			if (OutMaterials[OverrideIndex])
 			{
