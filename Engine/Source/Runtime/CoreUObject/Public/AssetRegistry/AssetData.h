@@ -95,7 +95,7 @@ public:
 	COREUOBJECT_API void SetTagsAndAssetBundles(FAssetDataTagMap&& Tags);
 
 	/** The IDs of the pakchunks this asset is located in for streaming install.  Empty if not assigned to a chunk */
-	TArray<int32, TInlineAllocator<2>> ChunkIDs;
+	TArray<int32> ChunkIDs;
 	/** Asset package flags */
 	uint32 PackageFlags = 0;
 
@@ -104,9 +104,9 @@ public:
 	FAssetData() {}
 
 	/** Constructor building the ObjectPath in the form of InPackageName.InAssetName. does not work for object outer-ed to a different package. */
-	COREUOBJECT_API FAssetData(FName InPackageName, FName InPackagePath, FName InAssetName, FName InAssetClass, FAssetDataTagMap InTags = FAssetDataTagMap(), TArrayView<const int32> InChunkIDs = TArrayView<const int32>(), uint32 InPackageFlags = 0);
+	COREUOBJECT_API FAssetData(FName InPackageName, FName InPackagePath, FName InAssetName, FName InAssetClass, FAssetDataTagMap InTags = FAssetDataTagMap(), TArray<int32> InChunkIDs = TArray<int32>(), uint32 InPackageFlags = 0);
 	/** Constructor with a long package name and a full object path which might not be part of the package this asset is in. */
-	COREUOBJECT_API FAssetData(const FString& InLongPackageName, const FString& InObjectPath, FName InAssetClass, FAssetDataTagMap InTags = FAssetDataTagMap(), TArrayView<const int32> InChunkIDs = TArrayView<const int32>(), uint32 InPackageFlags = 0);
+	COREUOBJECT_API FAssetData(const FString& InLongPackageName, const FString& InObjectPath, FName InAssetClass, FAssetDataTagMap InTags = FAssetDataTagMap(), TArray<int32> InChunkIDs = TArray<int32>(), uint32 InPackageFlags = 0);
 
 	/** Constructor taking a UObject. By default trying to create one for a blueprint class will create one for the UBlueprint instead, but this can be overridden */
 	COREUOBJECT_API FAssetData(const UObject* InAsset, bool bAllowBlueprintClass = false);

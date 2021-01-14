@@ -79,7 +79,6 @@ struct FAssetRegistryLoadOptions
 
 	bool bLoadDependencies = true;
 	bool bLoadPackageData = true;
-	int32 ParallelWorkers = 0;
 };
 
 /** The state of an asset registry, this is used internally by IAssetRegistry to represent the disk cache, and is also accessed directly to save/load cooked caches */
@@ -197,14 +196,16 @@ public:
 	 * @param PackageName the path of the package to be looked up
 	 * @return an array of AssetData*, empty if nothing found
 	 */
-	TArrayView<FAssetData const* const> GetAssetsByPackageName(const FName PackageName) const
+	const TArray<const FAssetData*>& GetAssetsByPackageName(const FName PackageName) const
 	{
-		if (const TArray<FAssetData*, TInlineAllocator<1>>* FoundAssetArray = CachedAssetsByPackageName.Find(PackageName))
+		static TArray<const FAssetData*> InvalidArray;
+		const TArray<FAssetData*>* FoundAssetArray = CachedAssetsByPackageName.Find(PackageName);
+		if (FoundAssetArray)
 		{
-			return MakeArrayView(*FoundAssetArray);
+			return reinterpret_cast<const TArray<const FAssetData*>&>(*FoundAssetArray);
 		}
 
-		return TArrayView<FAssetData* const>();
+		return InvalidArray;
 	}
 
 	/**
@@ -358,9 +359,6 @@ private:
 	template<class Archive>
 	void Load(Archive&& Ar, FAssetRegistryVersion::Type Version, const FAssetRegistryLoadOptions& Options);
 
-	/** Initialize the lookup maps */
-	void SetAssetDatas(TArrayView<FAssetData> AssetDatas, const FAssetRegistryLoadOptions& Options);
-
 	/** Find the first non-redirector dependency node starting from InDependency. */
 	FDependsNode* ResolveRedirector(FDependsNode* InDependency, TMap<FName, FAssetData*>& InAllowedAssets, TMap<FDependsNode*, FDependsNode*>& InCache);
 
@@ -373,6 +371,9 @@ private:
 	/** Removes the depends node and updates the dependencies to no longer contain it as as a referencer. */
 	bool RemoveDependsNode(const FAssetIdentifier& Identifier);
 
+	/** Shrink all contained data structures. */
+	void Shrink();
+
 	/** Filter a set of tags and output a copy of the filtered set. */
 	static void FilterTags(const FAssetDataTagMapSharedView& InTagsAndValues, FAssetDataTagMap& OutTagsAndValues, const TSet<FName>* ClassSpecificFilterlist, const FAssetRegistrySerializationOptions & Options);
 
@@ -383,7 +384,7 @@ private:
 	TMap<FName, FAssetData*> CachedAssetsByObjectPath;
 
 	/** The map of package names to asset data for assets saved to disk */
-	TMap<FName, TArray<FAssetData*, TInlineAllocator<1>> > CachedAssetsByPackageName;
+	TMap<FName, TArray<FAssetData*> > CachedAssetsByPackageName;
 
 	/** The map of long package path to asset data for assets saved to disk */
 	TMap<FName, TArray<FAssetData*> > CachedAssetsByPath;

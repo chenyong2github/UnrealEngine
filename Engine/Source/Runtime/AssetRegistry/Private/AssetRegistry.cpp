@@ -78,21 +78,14 @@ static FAutoConsoleVariableRef CVarLoadPremadeRegistryInEditor(
 /** This will always read the ini, public version may return cache */
 static void InitializeSerializationOptionsFromIni(FAssetRegistrySerializationOptions& Options, const FString& PlatformIniName);
 
-static bool LoadAssetRegistry(const TCHAR* Path, const FAssetRegistryLoadOptions& Options, FAssetRegistryState& Out)
+static bool LoadAssetRegistry(const TCHAR* Path, FAssetRegistryState& Out)
 {
 	check(Path);
 
-	TUniquePtr<FArchive> FileReader(IFileManager::Get().CreateFileReader(Path));
-	if (FileReader)
+	TUniquePtr<FArchive> Reader(IFileManager::Get().CreateFileReader(Path));
+	if (Reader)
 	{
-		// It's faster to load the whole file into memory on a Gen5 console
-		TArray64<uint8> Data;
-		Data.SetNumUninitialized(FileReader->TotalSize());
-		FileReader->Serialize(Data.GetData(), Data.Num());
-		check(!FileReader->IsError());
-		
-		FLargeMemoryReader MemoryReader(Data.GetData(), Data.Num());
-		return Out.Load(MemoryReader, Options);
+		return Out.Load(*Reader);
 	}
 
 	return false;
@@ -165,11 +158,7 @@ public:
 private:
 	void Load()
 	{
-		FAssetRegistryLoadOptions Options;
-		const int32 ThreadReduction = 2; // This thread + main thread already has work to do 
-		Options.ParallelWorkers = FMath::Clamp(FPlatformMisc::NumberOfCoresIncludingHyperthreads() - ThreadReduction, 0, 16);
-
-		const bool bLoaded = LoadAssetRegistry(GetPath(), Options, State);
+		const bool bLoaded = LoadAssetRegistry(GetPath(), State);
 		checkf(bLoaded, TEXT("Failed to load %s"), GetPath());
 	}
 
@@ -284,8 +273,7 @@ UAssetRegistryImpl::UAssetRegistryImpl(const FObjectInitializer& ObjectInitializ
 #if ASSETREGISTRY_ENABLE_PREMADE_REGISTRY_IN_EDITOR 
 	if (GIsEditor && !!LoadPremadeAssetRegistryInEditor)
 	{
-		FAssetRegistryLoadOptions LoadOptions;
-		if (LoadAssetRegistry(*(FPaths::ProjectDir() / TEXT("AssetRegistry.bin")), LoadOptions, State))
+		if (LoadAssetRegistry(*(FPaths::ProjectDir() / TEXT("AssetRegistry.bin")), State))
 		{
 			UE_LOG(LogAssetRegistry, Log, TEXT("Loaded premade asset registry"));
 			CachePathsFromState(State);
@@ -2684,7 +2672,7 @@ bool UAssetRegistryImpl::RemoveAssetData(FAssetData* AssetData)
 
 void UAssetRegistryImpl::RemovePackageData(const FName PackageName)
 {
-	TArray<FAssetData*, TInlineAllocator<1>>* PackageAssetsPtr = State.CachedAssetsByPackageName.Find(PackageName);
+	TArray<FAssetData*>* PackageAssetsPtr = State.CachedAssetsByPackageName.Find(PackageName);
 	if (PackageAssetsPtr && PackageAssetsPtr->Num() > 0)
 	{
 		FAssetIdentifier PackageAssetIdentifier(PackageName);
@@ -2701,7 +2689,7 @@ void UAssetRegistryImpl::RemovePackageData(const FName PackageName)
 		}
 
 		// Copy the array since RemoveAssetData may re-allocate it!
-		TArray<FAssetData*, TInlineAllocator<1>> PackageAssets = *PackageAssetsPtr;
+		TArray<FAssetData*> PackageAssets = *PackageAssetsPtr;
 		for (FAssetData* PackageAsset : PackageAssets)
 		{
 			RemoveAssetData(PackageAsset);
@@ -2959,11 +2947,11 @@ void UAssetRegistryImpl::ScanModifiedAssetFiles(const TArray<FString>& InFilePat
 		}
 
 		// Get the assets that are currently inside the package
-		TArray<TArray<FAssetData*, TInlineAllocator<1>>> ExistingFilesAssetData;
+		TArray<TArray<FAssetData*>> ExistingFilesAssetData;
 		ExistingFilesAssetData.Reserve(InFilePaths.Num());
 		for (const FString& PackageName : ModifiedPackageNames)
 		{
-			TArray<FAssetData*, TInlineAllocator<1>>* PackageAssetsPtr = State.CachedAssetsByPackageName.Find(*PackageName);
+			TArray<FAssetData*>* PackageAssetsPtr = State.CachedAssetsByPackageName.Find(*PackageName);
 			if (PackageAssetsPtr && PackageAssetsPtr->Num() > 0)
 			{
 				ExistingFilesAssetData.Add(*PackageAssetsPtr);
@@ -2979,7 +2967,7 @@ void UAssetRegistryImpl::ScanModifiedAssetFiles(const TArray<FString>& InFilePat
 		ScanPathsAndFilesSynchronous(TArray<FString>(), InFilePaths, BlacklistScanFilters, true, EAssetDataCacheMode::NoCache, &FoundAssets, nullptr);
 
 		// Remove any assets that are no longer present in the package
-		for (const TArray<FAssetData*, TInlineAllocator<1>>& OldPackageAssets : ExistingFilesAssetData)
+		for (const TArray<FAssetData*>& OldPackageAssets : ExistingFilesAssetData)
 		{
 			for (FAssetData* OldPackageAsset : OldPackageAssets)
 			{
