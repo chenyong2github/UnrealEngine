@@ -381,8 +381,9 @@ void FDeferredShadingSceneRenderer::RenderRayTracingShadows(
 #endif
 
 BEGIN_SHADER_PARAMETER_STRUCT(FDitheredLODFadingOutMaskParameters, )
-	RENDER_TARGET_BINDING_SLOTS()
+	SHADER_PARAMETER_STRUCT_INCLUDE(FInstanceCullingDrawParams, InstanceCullingDrawParams)
 	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+	RENDER_TARGET_BINDING_SLOTS()
 END_SHADER_PARAMETER_STRUCT()
 
 void FDeferredShadingSceneRenderer::RenderDitheredLODFadingOutMask(FRDGBuilder& GraphBuilder, const FViewInfo& View, FRDGTextureRef SceneDepthTexture)
@@ -395,10 +396,10 @@ void FDeferredShadingSceneRenderer::RenderDitheredLODFadingOutMask(FRDGBuilder& 
 		RDG_EVENT_NAME("DitheredLODFadingOutMask"),
 		PassParameters,
 		ERDGPassFlags::Raster,
-		[this, &View](FRHICommandListImmediate& RHICmdList)
+		[this, &View, PassParameters](FRHICommandListImmediate& RHICmdList)
 	{
 		RHICmdList.SetScissorRect(false, 0, 0, 0, 0);
 		RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0.0f, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1.0f);
-		View.ParallelMeshDrawCommandPasses[EMeshPass::DitheredLODFadingOutMaskPass].DispatchDraw(nullptr, RHICmdList);
+		View.ParallelMeshDrawCommandPasses[EMeshPass::DitheredLODFadingOutMaskPass].DispatchDraw(nullptr, RHICmdList, &PassParameters->InstanceCullingDrawParams);
 	});
 }

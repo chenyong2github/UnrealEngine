@@ -58,6 +58,7 @@
 #include "Lumen/Lumen.h"
 #include "Experimental/Containers/SherwoodHashTable.h"
 #include "RayTracingGeometryManager.h"
+#include "InstanceCulling/InstanceCullingManager.h"
 
 extern int32 GNaniteDebugFlags;
 extern int32 GNaniteShowStats;
@@ -1617,10 +1618,12 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	// Find the visible primitives.
 	GraphBuilder.RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
 
+	FInstanceCullingManager InstanceCullingManager(GInstanceCullingManagerResources);
+
 	bool bDoInitViewAftersPrepass = false;
 	{
 		RDG_GPU_STAT_SCOPE(GraphBuilder, VisibilityCommands);
-		bDoInitViewAftersPrepass = InitViews(GraphBuilder, SceneTexturesConfig, BasePassDepthStencilAccess, ILCTaskData);
+		bDoInitViewAftersPrepass = InitViews(GraphBuilder, SceneTexturesConfig, BasePassDepthStencilAccess, ILCTaskData, InstanceCullingManager);
 	}
 
 	// Compute & commit the final state of the entire dependency topology of the renderer.
@@ -1862,7 +1865,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		// Draw the scene pre-pass / early z pass, populating the scene depth buffer and HiZ
 		if (bNeedsPrePass)
 		{
-			RenderPrePass(GraphBuilder, SceneTextures.Depth.Target);
+			RenderPrePass(GraphBuilder, SceneTextures.Depth.Target, InstanceCullingManager);
 		}
 		else
 		{
@@ -1887,7 +1890,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		{
 			{
 				RDG_RHI_GPU_STAT_SCOPE(GraphBuilder, VisibilityCommands);
-				InitViewsPossiblyAfterPrepass(GraphBuilder, ILCTaskData);
+				InitViewsPossiblyAfterPrepass(GraphBuilder, ILCTaskData, InstanceCullingManager);
 			}
 
 			{
@@ -2075,7 +2078,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 			AllocateVirtualShadowMaps(bAfterBasePass);
 		}
 
-		RenderShadowDepthMaps(GraphBuilder);
+		RenderShadowDepthMaps(GraphBuilder, InstanceCullingManager);
 		AddServiceLocalQueuePass(GraphBuilder);
 	}
 	// End early Shadow depth rendering
@@ -2093,7 +2096,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		InitVolumetricRenderTargetForViews(GraphBuilder, Views);
 	}
 
-	InitVolumetricCloudsForViews(GraphBuilder, bShouldRenderVolumetricCloudBase);
+	InitVolumetricCloudsForViews(GraphBuilder, bShouldRenderVolumetricCloudBase, InstanceCullingManager);
 
 	// Generate sky LUTs once all shadow map has been evaluated (for volumetric light shafts). Requires bOcclusionBeforeBasePass.
 	// This also must happen before the BasePass for Sky material to be able to sample valid LUTs.
@@ -2108,7 +2111,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	if (bRealTimeSkyCaptureEnabled)
 	{
 		FViewInfo& MainView = Views[0];
-		Scene->AllocateAndCaptureFrameSkyEnvMap(GraphBuilder, *this, MainView, bShouldRenderSkyAtmosphere, bShouldRenderVolumetricCloud);
+		Scene->AllocateAndCaptureFrameSkyEnvMap(GraphBuilder, *this, MainView, bShouldRenderSkyAtmosphere, bShouldRenderVolumetricCloud, InstanceCullingManager);
 	}
 
 	// Strata initialisation
@@ -2151,7 +2154,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 		bool bSkipVolumetricRenderTarget = false;
 		bool bSkipPerPixelTracing = true;
-		bAsyncComputeVolumetricCloud = RenderVolumetricCloud(GraphBuilder, SceneTextures, bSkipVolumetricRenderTarget, bSkipPerPixelTracing, HalfResolutionDepthCheckerboardMinMaxTexture, true);
+		bAsyncComputeVolumetricCloud = RenderVolumetricCloud(GraphBuilder, SceneTextures, bSkipVolumetricRenderTarget, bSkipPerPixelTracing, HalfResolutionDepthCheckerboardMinMaxTexture, true, InstanceCullingManager);
 	}
 
 	FHairStrandsRenderingData* HairDatas = nullptr;
@@ -2163,8 +2166,8 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	{
 		if (bHairEnable)
 		{
-			RenderHairPrePass(GraphBuilder, Scene, Views, *HairDatasStorage);
-			RenderHairBasePass(GraphBuilder, Scene, SceneTextures, Views, *HairDatasStorage);
+			RenderHairPrePass(GraphBuilder, Scene, Views, InstanceCullingManager, *HairDatasStorage);
+			RenderHairBasePass(GraphBuilder, Scene, SceneTextures, Views, InstanceCullingManager, *HairDatasStorage);
 			HairDatas = HairDatasStorage;
 		}
 
@@ -2192,7 +2195,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	}
 
 	{
-		RenderBasePass(GraphBuilder, SceneTextures, DBufferTextures, BasePassDepthStencilAccess, ForwardScreenSpaceShadowMaskTexture);
+		RenderBasePass(GraphBuilder, SceneTextures, DBufferTextures, BasePassDepthStencilAccess, ForwardScreenSpaceShadowMaskTexture, InstanceCullingManager);
 		AddServiceLocalQueuePass(GraphBuilder);
 		
 		if (bNaniteEnabled && bShouldApplyNaniteMaterials)
@@ -2304,7 +2307,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 			AllocateVirtualShadowMaps(bAfterBasePass);
 		}
 
-		RenderShadowDepthMaps(GraphBuilder);
+		RenderShadowDepthMaps(GraphBuilder, InstanceCullingManager);
 		
 		{
 			LLM_SCOPE_BYTAG(Lumen);
@@ -2352,7 +2355,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 		bool bSkipVolumetricRenderTarget = false;
 		bool bSkipPerPixelTracing = true;
-		bAsyncComputeVolumetricCloud = RenderVolumetricCloud(GraphBuilder, SceneTextures, bSkipVolumetricRenderTarget, bSkipPerPixelTracing, HalfResolutionDepthCheckerboardMinMaxTexture, true);
+		bAsyncComputeVolumetricCloud = RenderVolumetricCloud(GraphBuilder, SceneTextures, bSkipVolumetricRenderTarget, bSkipPerPixelTracing, HalfResolutionDepthCheckerboardMinMaxTexture, true, InstanceCullingManager);
 	}
 
 	if (GetCustomDepthPassLocation() == ECustomDepthPassLocation::AfterBasePass)
@@ -2384,7 +2387,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	// Hair base pass for deferred shading
 	if (bHairEnable && !IsForwardShadingEnabled(ShaderPlatform))
 	{
-		RenderHairPrePass(GraphBuilder, Scene, Views, *HairDatasStorage);
+		RenderHairPrePass(GraphBuilder, Scene, Views, InstanceCullingManager, *HairDatasStorage);
 		HairDatas = HairDatasStorage;
 	}
 
@@ -2423,7 +2426,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	if (bHairEnable && !IsForwardShadingEnabled(ShaderPlatform))
 	{
 		check(HairDatas);
-		RenderHairBasePass(GraphBuilder, Scene,  SceneTextures, Views, *HairDatasStorage);
+		RenderHairBasePass(GraphBuilder, Scene,  SceneTextures, Views, InstanceCullingManager, *HairDatasStorage);
 	}
 
 	// Rebuild scene textures to include velocity, custom depth, and SSAO.
@@ -2516,7 +2519,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 			// Generate the volumetric cloud render target
 			bool bSkipVolumetricRenderTarget = false;
 			bool bSkipPerPixelTracing = true;
-			RenderVolumetricCloud(GraphBuilder, SceneTextures, bSkipVolumetricRenderTarget, bSkipPerPixelTracing, HalfResolutionDepthCheckerboardMinMaxTexture, false);
+			RenderVolumetricCloud(GraphBuilder, SceneTextures, bSkipVolumetricRenderTarget, bSkipPerPixelTracing, HalfResolutionDepthCheckerboardMinMaxTexture, false, InstanceCullingManager);
 		}
 		// Reconstruct the volumetric cloud render target to be ready to compose it over the scene
 		ReconstructVolumetricRenderTarget(GraphBuilder, Views, SceneTextures.Depth.Resolve, HalfResolutionDepthCheckerboardMinMaxTexture, bAsyncComputeVolumetricCloud);
@@ -2536,7 +2539,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 			RDG_CSV_STAT_EXCLUSIVE_SCOPE(GraphBuilder, RenderTranslucency);
 			SCOPE_CYCLE_COUNTER(STAT_TranslucencyDrawTime);
 			GraphBuilder.SetCommandListStat(GET_STATID(STAT_CLM_Translucency));
-			RenderTranslucency(GraphBuilder, SceneTextures, TranslucencyLightingVolumeTextures, nullptr, ETranslucencyView::UnderWater);
+			RenderTranslucency(GraphBuilder, SceneTextures, TranslucencyLightingVolumeTextures, nullptr, ETranslucencyView::UnderWater, InstanceCullingManager);
 			EnumRemoveFlags(TranslucencyViewsToRender, ETranslucencyView::UnderWater);
 		}
 
@@ -2584,7 +2587,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	{
 		bool bSkipVolumetricRenderTarget = true;
 		bool bSkipPerPixelTracing = false;
-		RenderVolumetricCloud(GraphBuilder, SceneTextures, bSkipVolumetricRenderTarget, bSkipPerPixelTracing, HalfResolutionDepthCheckerboardMinMaxTexture, false);
+		RenderVolumetricCloud(GraphBuilder, SceneTextures, bSkipVolumetricRenderTarget, bSkipPerPixelTracing, HalfResolutionDepthCheckerboardMinMaxTexture, false, InstanceCullingManager);
 	}
 
 	// or composite the off screen buffer over the scene.
@@ -2631,7 +2634,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 		// Render all remaining translucency views.
 		GraphBuilder.SetCommandListStat(GET_STATID(STAT_CLM_Translucency));
-		RenderTranslucency(GraphBuilder, SceneTextures, TranslucencyLightingVolumeTextures, &SeparateTranslucencyTextures, TranslucencyViewsToRender);
+		RenderTranslucency(GraphBuilder, SceneTextures, TranslucencyLightingVolumeTextures, &SeparateTranslucencyTextures, TranslucencyViewsToRender, InstanceCullingManager);
 		AddServiceLocalQueuePass(GraphBuilder);
 		TranslucencyViewsToRender = ETranslucencyView::None;
 
@@ -2750,10 +2753,10 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 	if (bShouldVisualizeVolumetricCloud)
 	{
-		RenderVolumetricCloud(GraphBuilder, SceneTextures, false, true, HalfResolutionDepthCheckerboardMinMaxTexture, false);
+		RenderVolumetricCloud(GraphBuilder, SceneTextures, false, true, HalfResolutionDepthCheckerboardMinMaxTexture, false, InstanceCullingManager);
 		ReconstructVolumetricRenderTarget(GraphBuilder, Views, SceneTextures.Depth.Resolve, HalfResolutionDepthCheckerboardMinMaxTexture, false);
 		ComposeVolumetricRenderTargetOverSceneForVisualization(GraphBuilder, Views, SceneTextures.Color.Target);
-		RenderVolumetricCloud(GraphBuilder, SceneTextures, true, false, HalfResolutionDepthCheckerboardMinMaxTexture, false);
+		RenderVolumetricCloud(GraphBuilder, SceneTextures, true, false, HalfResolutionDepthCheckerboardMinMaxTexture, false, InstanceCullingManager);
 		AddServiceLocalQueuePass(GraphBuilder);
 	}
 
@@ -2808,7 +2811,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 				const Nanite::FRasterResults* NaniteResults = bNaniteEnabled ? &NaniteRasterResults[ViewIndex] : nullptr;
 				RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
 				RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, Views.Num() > 1, "View%d", ViewIndex);
-				AddPostProcessingPasses(GraphBuilder, View, PostProcessingInputs, NaniteResults);
+				AddPostProcessingPasses(GraphBuilder, View, PostProcessingInputs, NaniteResults, InstanceCullingManager);
 			}
 		}
 	}

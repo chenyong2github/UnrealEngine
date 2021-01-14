@@ -276,6 +276,7 @@ void FScene::ValidateSkyLightRealTimeCapture(
 
 BEGIN_SHADER_PARAMETER_STRUCT(FCaptureSkyMeshReflectionPassParameters, )
 	SHADER_PARAMETER_STRUCT_INCLUDE(FViewShaderParameters, View)
+	SHADER_PARAMETER_STRUCT_INCLUDE(FInstanceCullingDrawParams, InstanceCullingDrawParams)
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FOpaqueBasePassUniformParameters, BasePass)
 	RENDER_TARGET_BINDING_SLOTS()
 END_SHADER_PARAMETER_STRUCT()
@@ -283,7 +284,7 @@ END_SHADER_PARAMETER_STRUCT()
 
 void FScene::AllocateAndCaptureFrameSkyEnvMap(
 	FRDGBuilder& GraphBuilder, FSceneRenderer& SceneRenderer, FViewInfo& MainView,
-	bool bShouldRenderSkyAtmosphere, bool bShouldRenderVolumetricCloud)
+	bool bShouldRenderSkyAtmosphere, bool bShouldRenderVolumetricCloud, FInstanceCullingManager& InstanceCullingManager)
 {
 	check(SkyLight && SkyLight->bRealTimeCaptureEnabled && !SkyLight->bHasStaticLighting);
 
@@ -667,7 +668,7 @@ void FScene::AllocateAndCaptureFrameSkyEnvMap(
 					CloudRC.VolumetricCloudShadowTexture[0] = CloudShadowAOData.VolumetricCloudShadowMap[0];
 					CloudRC.VolumetricCloudShadowTexture[1] = CloudShadowAOData.VolumetricCloudShadowMap[1];
 
-					SceneRenderer.RenderVolumetricCloudsInternal(GraphBuilder, CloudRC);
+					SceneRenderer.RenderVolumetricCloudsInternal(GraphBuilder, CloudRC, InstanceCullingManager);
 				}
 			}
 

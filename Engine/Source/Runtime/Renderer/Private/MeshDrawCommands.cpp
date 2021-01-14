@@ -8,6 +8,7 @@ MeshDrawCommandSetup.cpp: Mesh draw command setup.
 #include "RendererModule.h"
 #include "ScenePrivate.h"
 #include "TranslucentRendering.h"
+#include "InstanceCulling/InstanceCullingManager.h"
 
 TGlobalResource<FPrimitiveIdVertexBufferPool> GPrimitiveIdVertexBufferPool;
 
@@ -1019,6 +1020,8 @@ void SortAndMergeDynamicPassMeshDrawCommands(
 void FParallelMeshDrawCommandPass::DispatchPassSetup(
 	FScene* Scene,
 	const FViewInfo& View,
+	FInstanceCullingContext* InstanceCullingContext,
+	FInstanceCullingManager* InstanceCullingManager,
 	EMeshPass::Type PassType,
 	FExclusiveDepthStencil::Type BasePassDepthStencilAccess,
 	FMeshPassProcessor* MeshPassProcessor,
@@ -1044,6 +1047,7 @@ void FParallelMeshDrawCommandPass::DispatchPassSetup(
 	TaskContext.DynamicMeshElementsPassRelevance = DynamicMeshElementsPassRelevance;
 
 	TaskContext.View = &View;
+	TaskContext.Scene = Scene;
 	TaskContext.ShadingPath = Scene->GetShadingPath();
 	TaskContext.ShaderPlatform = Scene->GetShaderPlatform();
 	TaskContext.PassType = PassType;
@@ -1059,6 +1063,9 @@ void FParallelMeshDrawCommandPass::DispatchPassSetup(
 	// Only apply instancing for ISR to main view passes
 	const bool bIsMainViewPass = PassType != EMeshPass::Num && (FPassProcessorManager::GetPassFlags(TaskContext.ShadingPath, TaskContext.PassType) & EMeshPassFlags::MainView) != EMeshPassFlags::None;
 	TaskContext.InstanceFactor = (bIsMainViewPass && View.IsInstancedStereoPass()) ? 2 : 1;
+
+	TaskContext.InstanceCullingContext = InstanceCullingContext; 
+	TaskContext.InstanceCullingManager = InstanceCullingManager;
 
 	// Setup translucency sort key update pass based on view.
 	TaskContext.TranslucencyPass = ETranslucencyPass::TPT_MAX;
@@ -1274,7 +1281,7 @@ public:
 	}
 };
 
-void FParallelMeshDrawCommandPass::DispatchDraw(FParallelCommandListSet* ParallelCommandListSet, FRHICommandList& RHICmdList) const
+void FParallelMeshDrawCommandPass::DispatchDraw(FParallelCommandListSet* ParallelCommandListSet, FRHICommandList& RHICmdList, const FInstanceCullingDrawParams* InstanceCullingDrawParams) const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(ParallelMdcDispatchDraw);
 	if (MaxNumDraws <= 0)

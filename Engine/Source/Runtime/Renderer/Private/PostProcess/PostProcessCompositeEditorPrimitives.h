@@ -68,6 +68,6 @@ struct FEditorPrimitiveInputs
 	EBasePassType BasePassType = EBasePassType::MAX;
 };
 
-FScreenPassTexture AddEditorPrimitivePass(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FEditorPrimitiveInputs& Inputs);
+FScreenPassTexture AddEditorPrimitivePass(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FEditorPrimitiveInputs& Inputs, FInstanceCullingManager& InstanceCullingManager);
 
 #endif

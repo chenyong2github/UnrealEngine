@@ -727,7 +727,8 @@ void FDeferredShadingSceneRenderer::RenderBasePass(
 	FSceneTextures& SceneTextures,
 	const FDBufferTextures& DBufferTextures,
 	FExclusiveDepthStencil::Type BasePassDepthStencilAccess,
-	FRDGTextureRef ForwardShadowMaskTexture)
+	FRDGTextureRef ForwardShadowMaskTexture,
+	FInstanceCullingManager& InstanceCullingManager)
 {
 	const bool bEnableParallelBasePasses = GRHICommandList.UseParallelAlgorithms() && CVarParallelBasePass.GetValueOnRenderThread();
 
@@ -888,7 +889,7 @@ void FDeferredShadingSceneRenderer::RenderBasePass(
 	ForwardBasePassTextures.ScreenSpaceShadowMask = ForwardShadowMaskTexture;
 
 	GraphBuilder.SetCommandListStat(GET_STATID(STAT_CLM_BasePass));
-	RenderBasePassInternal(GraphBuilder, BasePassRenderTargets, BasePassDepthStencilAccess, ForwardBasePassTextures, DBufferTextures, SceneTextures.QuadOverdraw, bDoParallelBasePass, bRenderLightmapDensity);
+	RenderBasePassInternal(GraphBuilder, BasePassRenderTargets, BasePassDepthStencilAccess, ForwardBasePassTextures, DBufferTextures, SceneTextures.QuadOverdraw, bDoParallelBasePass, bRenderLightmapDensity, InstanceCullingManager);
 	GraphBuilder.SetCommandListStat(GET_STATID(STAT_CLM_AfterBasePass));
 
 	if (ViewFamily.ViewExtensions.Num() > 0)
@@ -932,6 +933,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FOpaqueBasePassParameters, )
 	SHADER_PARAMETER_STRUCT_INCLUDE(FViewShaderParameters, View)
 	SHADER_PARAMETER_STRUCT_REF(FReflectionCaptureShaderData, ReflectionCapture)
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FOpaqueBasePassUniformParameters, BasePass)
+	SHADER_PARAMETER_STRUCT_INCLUDE(FInstanceCullingDrawParams, InstanceCullingDrawParams)
 	RENDER_TARGET_BINDING_SLOTS()
 END_SHADER_PARAMETER_STRUCT()
 
@@ -940,7 +942,8 @@ static void RenderEditorPrimitivesForDPG(
 	const FViewInfo& View,
 	FOpaqueBasePassParameters* PassParameters,
 	const FMeshPassProcessorRenderState& DrawRenderState,
-	ESceneDepthPriorityGroup DepthPriorityGroup)
+	ESceneDepthPriorityGroup DepthPriorityGroup,
+	FInstanceCullingManager& InstanceCullingManager)
 {
 	GraphBuilder.AddPass(
 		RDG_EVENT_NAME("%s", *UEnum::GetValueAsString(DepthPriorityGroup)),
@@ -1024,11 +1027,12 @@ static void RenderEditorPrimitives(
 	FRDGBuilder& GraphBuilder,
 	FOpaqueBasePassParameters* PassParameters,
 	const FViewInfo& View,
-	const FMeshPassProcessorRenderState& DrawRenderState)
+	const FMeshPassProcessorRenderState& DrawRenderState,
+	FInstanceCullingManager& InstanceCullingManager)
 {
 	RDG_EVENT_SCOPE(GraphBuilder, "EditorPrimitives");
 
-	RenderEditorPrimitivesForDPG(GraphBuilder, View, PassParameters, DrawRenderState, SDPG_World);
+	RenderEditorPrimitivesForDPG(GraphBuilder, View, PassParameters, DrawRenderState, SDPG_World, InstanceCullingManager);
 
 	if (HasEditorPrimitivesForDPG(View, SDPG_Foreground))
 	{
@@ -1043,11 +1047,11 @@ static void RenderEditorPrimitives(
 			FMeshPassProcessorRenderState NoDepthTestDrawRenderState(DrawRenderState);
 			NoDepthTestDrawRenderState.SetDepthStencilState(TStaticDepthStencilState<true, CF_Always>::GetRHI());
 			NoDepthTestDrawRenderState.SetDepthStencilAccess(FExclusiveDepthStencil::DepthWrite_StencilWrite);
-			RenderEditorPrimitivesForDPG(GraphBuilder, View, DepthWritePassParameters, NoDepthTestDrawRenderState, SDPG_Foreground);
+			RenderEditorPrimitivesForDPG(GraphBuilder, View, DepthWritePassParameters, NoDepthTestDrawRenderState, SDPG_Foreground, InstanceCullingManager);
 		}
 
 		// Render foreground primitives with depth testing
-		RenderEditorPrimitivesForDPG(GraphBuilder, View, PassParameters, DrawRenderState, SDPG_Foreground);
+		RenderEditorPrimitivesForDPG(GraphBuilder, View, PassParameters, DrawRenderState, SDPG_Foreground, InstanceCullingManager);
 	}
 }
 
@@ -1059,7 +1063,8 @@ void FDeferredShadingSceneRenderer::RenderBasePassInternal(
 	const FDBufferTextures& DBufferTextures,
 	FRDGTextureRef QuadOverdrawTexture,
 	bool bParallelBasePass,
-	bool bRenderLightmapDensity)
+	bool bRenderLightmapDensity,
+	FInstanceCullingManager& InstanceCullingManager)
 {
 	RDG_CSV_STAT_EXCLUSIVE_SCOPE(GraphBuilder, RenderBasePass);
 	SCOPED_NAMED_EVENT(FDeferredShadingSceneRenderer_RenderBasePass, FColor::Emerald);
@@ -1110,11 +1115,11 @@ void FDeferredShadingSceneRenderer::RenderBasePassInternal(
 						[this, &View, PassParameters](FRHICommandListImmediate& RHICmdList)
 					{
 						FRDGParallelCommandListSet ParallelCommandListSet(RHICmdList, GET_STATID(STAT_CLP_BasePass), *this, View, FParallelCommandListBindings(PassParameters));
-						View.ParallelMeshDrawCommandPasses[EMeshPass::BasePass].DispatchDraw(&ParallelCommandListSet, RHICmdList);
+						View.ParallelMeshDrawCommandPasses[EMeshPass::BasePass].DispatchDraw(&ParallelCommandListSet, RHICmdList, &PassParameters->InstanceCullingDrawParams);
 					});
 				}
 
-				RenderEditorPrimitives(GraphBuilder, PassParameters, View, DrawRenderState);
+				RenderEditorPrimitives(GraphBuilder, PassParameters, View, DrawRenderState, InstanceCullingManager);
 
 				if (bShouldRenderView && View.Family->EngineShowFlags.Atmosphere)
 				{
@@ -1125,7 +1130,7 @@ void FDeferredShadingSceneRenderer::RenderBasePassInternal(
 						[this, &View, PassParameters](FRHICommandListImmediate& RHICmdList)
 					{
 						FRDGParallelCommandListSet ParallelCommandListSet(RHICmdList, GET_STATID(STAT_CLP_BasePass), *this, View, FParallelCommandListBindings(PassParameters));
-						View.ParallelMeshDrawCommandPasses[EMeshPass::SkyPass].DispatchDraw(&ParallelCommandListSet, RHICmdList);
+						View.ParallelMeshDrawCommandPasses[EMeshPass::SkyPass].DispatchDraw(&ParallelCommandListSet, RHICmdList, &PassParameters->InstanceCullingDrawParams);
 					});
 				}
 			}
@@ -1158,11 +1163,11 @@ void FDeferredShadingSceneRenderer::RenderBasePassInternal(
 						[this, &View, PassParameters](FRHICommandList& RHICmdList)
 					{
 						SetStereoViewport(RHICmdList, View, 1.0f);
-						View.ParallelMeshDrawCommandPasses[EMeshPass::BasePass].DispatchDraw(nullptr, RHICmdList);
+						View.ParallelMeshDrawCommandPasses[EMeshPass::BasePass].DispatchDraw(nullptr, RHICmdList, &PassParameters->InstanceCullingDrawParams);
 					});
 				}
 
-				RenderEditorPrimitives(GraphBuilder, PassParameters, View, DrawRenderState);
+				RenderEditorPrimitives(GraphBuilder, PassParameters, View, DrawRenderState, InstanceCullingManager);
 
 				if (bShouldRenderView && View.Family->EngineShowFlags.Atmosphere)
 				{
@@ -1173,7 +1178,7 @@ void FDeferredShadingSceneRenderer::RenderBasePassInternal(
 						[this, &View, PassParameters](FRHICommandList& RHICmdList)
 					{
 						SetStereoViewport(RHICmdList, View, 1.0f);
-						View.ParallelMeshDrawCommandPasses[EMeshPass::SkyPass].DispatchDraw(nullptr, RHICmdList);
+						View.ParallelMeshDrawCommandPasses[EMeshPass::SkyPass].DispatchDraw(nullptr, RHICmdList, &PassParameters->InstanceCullingDrawParams);
 					});
 				}
 			}

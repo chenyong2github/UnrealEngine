@@ -787,7 +787,8 @@ void FProjectedShadowInfo::SetupProjectionStencilMask(
 	const FSceneRenderer* SceneRender,
 	const TArray<FVector4, TInlineAllocator<8>>& FrustumVertices,
 	bool bMobileModulatedProjections, 
-	bool bCameraInsideShadowFrustum) const
+	bool bCameraInsideShadowFrustum,
+	const FInstanceCullingDrawParams& InstanceCullingDrawParams) const
 {
 	FMeshPassProcessorRenderState DrawRenderState;
 
@@ -964,6 +965,7 @@ void FProjectedShadowInfo::SetupProjectionStencilMask(
 BEGIN_SHADER_PARAMETER_STRUCT(FShadowProjectionPassParameters, )
 	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 	SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureShaderParameters, SceneTextures)
+	SHADER_PARAMETER_STRUCT_INCLUDE(FInstanceCullingDrawParams, InstanceCullingDrawParams)
 	RDG_TEXTURE_ACCESS(HairCategorizationTexture, ERHIAccess::SRVGraphics)
 	RDG_TEXTURE_ACCESS(ShadowTexture0, ERHIAccess::SRVGraphics)
 	RDG_TEXTURE_ACCESS(ShadowTexture1, ERHIAccess::SRVGraphics)
@@ -1022,7 +1024,7 @@ void FProjectedShadowInfo::RenderProjection(
 		RDG_EVENT_NAME("%s", *EventName),
 		PassParameters,
 		ERDGPassFlags::Raster | PassFlags,
-		[this, SceneRender, View, ViewIndex, HairVisibilityData, bProjectingForForwardShading, bMobileModulatedProjections](FRHICommandListImmediate& RHICmdList)
+		[this, SceneRender, View, ViewIndex, HairVisibilityData, bProjectingForForwardShading, bMobileModulatedProjections, PassParameters](FRHICommandListImmediate& RHICmdList)
 	{
 		RHICmdList.SetViewport(View->ViewRect.Min.X, View->ViewRect.Min.Y, 0.0f, View->ViewRect.Max.X, View->ViewRect.Max.Y, 1.0f);
 
@@ -1041,7 +1043,7 @@ void FProjectedShadowInfo::RenderProjection(
 
 		if (!bDepthBoundsTestEnabled && bStencilTestEnabled)
 		{
-			SetupProjectionStencilMask(RHICmdList, View, ViewIndex, SceneRender, FrustumVertices, bMobileModulatedProjections, bCameraInsideShadowFrustum);
+			SetupProjectionStencilMask(RHICmdList, View, ViewIndex, SceneRender, FrustumVertices, bMobileModulatedProjections, bCameraInsideShadowFrustum, PassParameters->InstanceCullingDrawParams);
 		}
 
 		// solid rasterization w/ back-face culling.

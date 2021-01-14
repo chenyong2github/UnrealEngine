@@ -60,4 +60,5 @@ void RenderHairStrandsDeepShadows(
 	FRDGBuilder& GraphBuilder,
 	const class FScene* Scene,
 	const TArray<FViewInfo>& Views,
+	FInstanceCullingManager& InstanceCullingManager,
 	struct FHairStrandsMacroGroupViews& MacroGroupsViews);

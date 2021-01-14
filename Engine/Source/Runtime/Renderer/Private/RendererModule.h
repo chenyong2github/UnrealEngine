@@ -8,6 +8,7 @@
 
 #include "CoreMinimal.h"
 #include "RendererInterface.h"
+#include "Shader.h"
 
 class FCanvas;
 class FHitProxyId;

@@ -464,7 +464,7 @@ public:
 	void ClearDepth(FRHICommandList& RHICmdList) const;
 
 	/** Renders shadow maps for translucent primitives. */
-	void RenderTranslucencyDepths(FRDGBuilder& GraphBuilder, class FSceneRenderer* SceneRenderer, const FRenderTargetBindingSlots& RenderTargets);
+	void RenderTranslucencyDepths(FRDGBuilder& GraphBuilder, class FSceneRenderer* SceneRenderer, const FRenderTargetBindingSlots& RenderTargets, FInstanceCullingManager& InstanceCullingManager);
 
 	static FRHIBlendState* GetBlendStateForProjection(
 		int32 ShadowMapChannel,
@@ -769,7 +769,8 @@ private:
 		const class FSceneRenderer* SceneRender,
 		const TArray<FVector4, TInlineAllocator<8>>& FrustumVertices,
 		bool bMobileModulatedProjections,
-		bool bCameraInsideShadowFrustum) const;
+		bool bCameraInsideShadowFrustum,
+		const FInstanceCullingDrawParams& InstanceCullingDrawParams) const;
 
 	friend class FShadowDepthVS;
 	friend class FShadowDepthBasePS;

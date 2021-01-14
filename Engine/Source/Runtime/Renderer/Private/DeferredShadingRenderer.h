@@ -201,7 +201,8 @@ public:
 		FSceneTextures& SceneTextures,
 		const FDBufferTextures& DBufferTextures,
 		FExclusiveDepthStencil::Type BasePassDepthStencilAccess,
-		FRDGTextureRef ForwardShadowMaskTexture);
+		FRDGTextureRef ForwardShadowMaskTexture,
+		FInstanceCullingManager& InstanceCullingManager);
 
 	void RenderBasePassInternal(
 		FRDGBuilder& GraphBuilder,
@@ -211,7 +212,8 @@ public:
 		const FDBufferTextures& DBufferTextures,
 		FRDGTextureRef QuadOverdrawTexture,
 		bool bParallelBasePass,
-		bool bRenderLightmapDensity);
+		bool bRenderLightmapDensity,
+		FInstanceCullingManager& InstanceCullingManager);
 
 	bool ShouldRenderAnisotropyPass() const;
 
@@ -225,7 +227,7 @@ public:
 		const FSceneTextures& SceneTextures,
 		bool bShouldRenderVolumetricCloud,
 		FSceneWithoutWaterTextures& SceneWithoutWaterTextures);
-	
+
 	void RenderSingleLayerWaterInner(
 		FRDGBuilder& GraphBuilder,
 		const FSceneTextures& SceneTextures,
@@ -351,9 +353,9 @@ private:
 	void PreVisibilityFrameSetup(FRDGBuilder& GraphBuilder, const FSceneTexturesConfig& SceneTexturesConfig);
 
 	/** Determines which primitives are visible for each view. */
-	bool InitViews(FRDGBuilder& GraphBuilder, const FSceneTexturesConfig& SceneTexturesConfig, FExclusiveDepthStencil::Type BasePassDepthStencilAccess, struct FILCUpdatePrimTaskData& ILCTaskData);
+	bool InitViews(FRDGBuilder& GraphBuilder, const FSceneTexturesConfig& SceneTexturesConfig, FExclusiveDepthStencil::Type BasePassDepthStencilAccess, struct FILCUpdatePrimTaskData& ILCTaskData, FInstanceCullingManager& InstanceCullingManager);
 
-	void InitViewsPossiblyAfterPrepass(FRDGBuilder& GraphBuilder, struct FILCUpdatePrimTaskData& ILCTaskData);
+	void InitViewsPossiblyAfterPrepass(FRDGBuilder& GraphBuilder, struct FILCUpdatePrimTaskData& ILCTaskData, FInstanceCullingManager& InstanceCullingManager);
 	void UpdateLumenCardAtlasAllocation(FRDGBuilder& GraphBuilder, const FViewInfo& MainView, bool bReallocateAtlas, bool bRecaptureLumenSceneOnce);
 	void BeginUpdateLumenSceneTasks(FRDGBuilder& GraphBuilder);
 	void UpdateLumenScene(FRDGBuilder& GraphBuilder);
@@ -386,7 +388,7 @@ private:
 
 	void CreateIndirectCapsuleShadows();
 
-	void RenderPrePass(FRDGBuilder& GraphBuilder, FRDGTextureRef SceneDepthTexture);
+	void RenderPrePass(FRDGBuilder& GraphBuilder, FRDGTextureRef SceneDepthTexture, FInstanceCullingManager& InstanceCullingManager);
 	void RenderPrePassHMD(FRDGBuilder& GraphBuilder, FRDGTextureRef SceneDepthTexture);
 
 	void RenderFog(
@@ -590,7 +592,8 @@ private:
 		const FMinimalSceneTextures& SceneTextures,
 		const FTranslucencyLightingVolumeTextures& TranslucencyLightingVolumeTextures,
 		FSeparateTranslucencyTextures* OutSeparateTranslucencyTextures,
-		ETranslucencyView ViewsToRender);
+		ETranslucencyView ViewsToRender,
+		FInstanceCullingManager& InstanceCullingManager);
 
 	/** Renders the scene's translucency given a specific pass. */
 	void RenderTranslucencyInner(
@@ -600,7 +603,8 @@ private:
 		FSeparateTranslucencyTextures* OutSeparateTranslucencyTextures,
 		ETranslucencyView ViewsToRender,
 		FRDGTextureRef SceneColorCopyTexture,
-		ETranslucencyPass::Type TranslucencyPass);
+		ETranslucencyPass::Type TranslucencyPass,
+		FInstanceCullingManager& InstanceCullingManager);
 
 	/** Renders the scene's light shafts */
 	FRDGTextureRef RenderLightShaftOcclusion(

@@ -31,6 +31,7 @@
 #include "Async/ParallelFor.h"
 #include "VirtualShadowMaps/VirtualShadowMapCacheManager.h"
 #include "VirtualShadowMaps/VirtualShadowMapClipmap.h"
+#include "InstanceCulling/InstanceCullingManager.h"
 
 /** Number of cube map shadow depth surfaces that will be created and used for rendering one pass point light shadows. */
 static const int32 NumCubeShadowDepthSurfaces = 5;
@@ -1964,6 +1965,8 @@ void FProjectedShadowInfo::SetupMeshDrawCommandsForShadowDepth(FSceneRenderer& R
 	ShadowDepthPass.DispatchPassSetup(
 		Renderer.Scene,
 		*ShadowDepthView,
+		nullptr, // GPUCULL_TODO: Culling context
+		nullptr, // GPUCULL_TODO: Culling manager
 		EMeshPass::Num,
 		FExclusiveDepthStencil::DepthNop_StencilNop,
 		MeshPassProcessor,
@@ -2148,7 +2151,7 @@ void FProjectedShadowInfo::GatherDynamicMeshElements(FSceneRenderer& Renderer, F
 			SubjectTranslucentPrimitives, ReusedViewsArray, DynamicSubjectTranslucentMeshElements, NumDynamicSubjectTranslucentMeshElements);
 
 		Renderer.MeshCollector.ProcessTasks();
-    }
+	}
 
 	ShadowDepthView->DynamicPrimitiveCollector.Commit();
 
@@ -5156,7 +5159,6 @@ void FSceneRenderer::InitDynamicShadows(FRHICommandListImmediate& RHICmdList, FG
 
 	// Generate mesh element arrays from shadow primitive arrays
 	GatherShadowDynamicMeshElements(DynamicIndexBuffer, DynamicVertexBuffer, DynamicReadBuffer);
-
 }
 
 void FSceneRenderer::AllocateMobileCSMAndSpotLightShadowDepthTargets(FRHICommandListImmediate& RHICmdList, const TArray<FProjectedShadowInfo*, SceneRenderingAllocator>& MobileCSMAndSpotLightShadows)

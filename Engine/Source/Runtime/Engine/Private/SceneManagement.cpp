@@ -1287,3 +1287,5 @@ void FDefaultMobileReflectionCaptureUniformBuffer::InitDynamicRHI()
 
 /** Global uniform buffer containing the default reflection data used in mobile renderer. */
 TGlobalResource<FDefaultMobileReflectionCaptureUniformBuffer> GDefaultMobileReflectionCaptureUniformBuffer;
+
+TGlobalResource<FInstanceCullingManagerResources> GInstanceCullingManagerResources;

@@ -489,6 +489,7 @@ IMPLEMENT_MATERIAL_SHADER_TYPE(, FHairMaterialGBufferPS, TEXT("/Engine/Private/H
 
 BEGIN_SHADER_PARAMETER_STRUCT(FVisibilityMaterialGBufferPassParameters, )
 	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+	SHADER_PARAMETER_STRUCT_INCLUDE(FInstanceCullingDrawParams, InstanceCullingDrawParams)
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FMaterialGBufferPassUniformParameters, UniformBuffer)
 	RENDER_TARGET_BINDING_SLOTS()
 END_SHADER_PARAMETER_STRUCT()
@@ -626,6 +627,7 @@ static void AddHairMaterialGBufferPass(
 	FRDGBuilder& GraphBuilder,
 	const FScene* Scene,
 	const FViewInfo* ViewInfo,
+	FInstanceCullingManager& InstanceCullingManager,
 	const FHairStrandsMacroGroupDatas& MacroGroupDatas,
 
 	FRDGTextureRef InTransmittanceTexture,
@@ -1000,6 +1002,7 @@ IMPLEMENT_STATIC_UNIFORM_BUFFER_STRUCT(FVisibilityMaterialPassUniformParameters,
 
 BEGIN_SHADER_PARAMETER_STRUCT(FVisibilityMaterialPassParameters, )
 	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+	SHADER_PARAMETER_STRUCT_INCLUDE(FInstanceCullingDrawParams, InstanceCullingDrawParams)
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FVisibilityMaterialPassUniformParameters, UniformBuffer)
 	RENDER_TARGET_BINDING_SLOTS()
 END_SHADER_PARAMETER_STRUCT()
@@ -1070,6 +1073,7 @@ static FMaterialPassOutput AddHairMaterialPass(
 	const FViewInfo* ViewInfo,
 	const bool bUpdateSampleCoverage,
 	const FHairStrandsMacroGroupDatas& MacroGroupDatas,
+	FInstanceCullingManager& InstanceCullingManager,
 	const uint32 NodeGroupSize,
 	FRDGTextureRef CompactNodeIndex,
 	FRDGBufferRef CompactNodeVis,
@@ -1348,6 +1352,7 @@ IMPLEMENT_STATIC_UNIFORM_BUFFER_STRUCT(FVisibilityPassUniformParameters, "HairVi
 
 BEGIN_SHADER_PARAMETER_STRUCT(FVisibilityPassParameters, )
 	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+	SHADER_PARAMETER_STRUCT_INCLUDE(FInstanceCullingDrawParams, InstanceCullingDrawParams)
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FVisibilityPassUniformParameters, UniformBuffer)
 	RENDER_TARGET_BINDING_SLOTS()
 END_SHADER_PARAMETER_STRUCT()
@@ -2364,7 +2369,8 @@ static void AddHairVisibilityCommonPass(
 	const FViewInfo* ViewInfo,
 	const FHairStrandsMacroGroupDatas& MacroGroupDatas,
 	const EHairVisibilityRenderMode RenderMode,
-	FVisibilityPassParameters* PassParameters)
+	FVisibilityPassParameters* PassParameters,
+	FInstanceCullingManager& InstanceCullingManager)
 {
 	auto GetPassName = [RenderMode]()
 	{
@@ -2474,6 +2480,7 @@ static void AddHairVisibilityMSAAPass(
 	const FViewInfo* ViewInfo,
 	const FHairStrandsMacroGroupDatas& MacroGroupDatas,
 	const FIntPoint& Resolution,
+	FInstanceCullingManager& InstanceCullingManager,
 	FRDGTextureRef& OutVisibilityIdTexture,
 	FRDGTextureRef& OutVisibilityMaterialTexture,
 	FRDGTextureRef& OutVisibilityAttributeTexture,
@@ -2502,7 +2509,7 @@ static void AddHairVisibilityMSAAPass(
 			ERenderTargetLoadAction::ELoad,
 			ERenderTargetLoadAction::ENoAction,
 			FExclusiveDepthStencil::DepthWrite_StencilNop);
-		AddHairVisibilityCommonPass(GraphBuilder, Scene, ViewInfo, MacroGroupDatas, HairVisibilityRenderMode_MSAA_Visibility, PassParameters);
+		AddHairVisibilityCommonPass(GraphBuilder, Scene, ViewInfo, MacroGroupDatas, HairVisibilityRenderMode_MSAA_Visibility, PassParameters, InstanceCullingManager);
 	}
 	else
 	{
@@ -2551,7 +2558,7 @@ static void AddHairVisibilityMSAAPass(
 			ERenderTargetLoadAction::ELoad,
 			ERenderTargetLoadAction::ENoAction,
 			FExclusiveDepthStencil::DepthWrite_StencilNop);
-		AddHairVisibilityCommonPass(GraphBuilder, Scene, ViewInfo, MacroGroupDatas, HairVisibilityRenderMode_MSAA, PassParameters);
+		AddHairVisibilityCommonPass(GraphBuilder, Scene, ViewInfo, MacroGroupDatas, HairVisibilityRenderMode_MSAA, PassParameters, InstanceCullingManager);
 	}
 }
 
@@ -2561,6 +2568,7 @@ static void AddHairVisibilityPPLLPass(
 	const FViewInfo* ViewInfo,
 	const FHairStrandsMacroGroupDatas& MacroGroupDatas,
 	const FIntPoint& Resolution,
+	FInstanceCullingManager& InstanceCullingManager,
 	FRDGTextureRef& InViewZDepthTexture,
 	FRDGTextureRef& OutVisibilityPPLLNodeCounter,
 	FRDGTextureRef& OutVisibilityPPLLNodeIndex,
@@ -2599,7 +2607,7 @@ static void AddHairVisibilityPPLLPass(
 	}
 
 	PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(InViewZDepthTexture, ERenderTargetLoadAction::ELoad, ERenderTargetLoadAction::ENoAction, FExclusiveDepthStencil::DepthRead_StencilNop);
-	AddHairVisibilityCommonPass(GraphBuilder, Scene, ViewInfo, MacroGroupDatas, HairVisibilityRenderMode_PPLL, PassParameters);
+	AddHairVisibilityCommonPass(GraphBuilder, Scene, ViewInfo, MacroGroupDatas, HairVisibilityRenderMode_PPLL, PassParameters, InstanceCullingManager);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2620,7 +2628,8 @@ static FHairPrimaryTransmittance AddHairViewTransmittancePass(
 	const FHairStrandsMacroGroupDatas& MacroGroupDatas,
 	const FIntPoint& Resolution,
 	const bool bOutputHairCount,
-	FRDGTextureRef SceneDepthTexture)
+	FRDGTextureRef SceneDepthTexture,
+	FInstanceCullingManager& InstanceCullingManager)
 {
 	check(SceneDepthTexture->Desc.Extent == Resolution);
 	const EHairVisibilityRenderMode RenderMode = bOutputHairCount ? HairVisibilityRenderMode_TransmittanceAndHairCount : HairVisibilityRenderMode_Transmittance;
@@ -2647,7 +2656,7 @@ static FHairPrimaryTransmittance AddHairViewTransmittancePass(
 		ERenderTargetLoadAction::ELoad,
 		ERenderTargetLoadAction::ENoAction,
 		FExclusiveDepthStencil::DepthRead_StencilNop);
-	AddHairVisibilityCommonPass(GraphBuilder, Scene, ViewInfo, MacroGroupDatas, RenderMode, PassParameters);
+	AddHairVisibilityCommonPass(GraphBuilder, Scene, ViewInfo, MacroGroupDatas, RenderMode, PassParameters, InstanceCullingManager);
 
 	return Out;
 }
@@ -3171,6 +3180,7 @@ FHairStrandsVisibilityViews RenderHairStrandsVisibilityBuffer(
 	FRDGTextureRef SceneColorTexture,
 	FRDGTextureRef SceneDepthTexture,
 	FRDGTextureRef SceneVelocityTexture,
+	FInstanceCullingManager& InstanceCullingManager,
 	const FHairStrandsMacroGroupViews& MacroGroupViews)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_CLM_RenderHairStrandsVisibility);
@@ -3262,6 +3272,7 @@ FHairStrandsVisibilityViews RenderHairStrandsVisibilityBuffer(
 							&View,
 							false,
 							MacroGroupDatas,
+							InstanceCullingManager,
 							VisibilityData.NodeGroupSize,
 							CompactNodeIndex,
 							CompactNodeData,
@@ -3324,6 +3335,7 @@ FHairStrandsVisibilityViews RenderHairStrandsVisibilityBuffer(
 						GraphBuilder,
 						Scene,
 						&View,
+						InstanceCullingManager,
 						MacroGroupDatas,
 
 						ViewTransmittance.TransmittanceTexture,
@@ -3360,7 +3372,8 @@ FHairStrandsVisibilityViews RenderHairStrandsVisibilityBuffer(
 						MacroGroupDatas,
 						Resolution,
 						bOutputHairCount,
-						SceneDepthTexture);
+						SceneDepthTexture,
+						InstanceCullingManager);
 
 					const bool bHairCountToTransmittance = GHairStrandsHairCountToTransmittance > 0;
 					if (bHairCountToTransmittance)
@@ -3399,6 +3412,7 @@ FHairStrandsVisibilityViews RenderHairStrandsVisibilityBuffer(
 					&View,
 					MacroGroupDatas,
 					Resolution,
+					InstanceCullingManager,
 					MsaaVisibilityResources.IdTexture,
 					MsaaVisibilityResources.MaterialTexture,
 					MsaaVisibilityResources.AttributeTexture,
@@ -3460,6 +3474,7 @@ FHairStrandsVisibilityViews RenderHairStrandsVisibilityBuffer(
 							&View,
 							bUpdateSampleCoverage,
 							MacroGroupDatas,
+							InstanceCullingManager,
 							VisibilityData.NodeGroupSize,
 							CompactNodeIndex,
 							CompactNodeData,
@@ -3539,6 +3554,7 @@ FHairStrandsVisibilityViews RenderHairStrandsVisibilityBuffer(
 						GraphBuilder,
 						Scene,
 						&View,
+						InstanceCullingManager,
 						MacroGroupDatas,
 
 						ViewTransmittance.TransmittanceTexture,
@@ -3572,7 +3588,7 @@ FHairStrandsVisibilityViews RenderHairStrandsVisibilityBuffer(
 				FRDGTextureRef ViewZDepthTexture = SceneDepthTexture;
 
 				// Linked list generation pass
-				AddHairVisibilityPPLLPass(GraphBuilder, Scene, &View, MacroGroupDatas, Resolution, ViewZDepthTexture, PPLLNodeCounterTexture, PPLLNodeIndexTexture, PPLLNodeDataBuffer);
+				AddHairVisibilityPPLLPass(GraphBuilder, Scene, &View, MacroGroupDatas, Resolution, InstanceCullingManager, ViewZDepthTexture, PPLLNodeCounterTexture, PPLLNodeIndexTexture, PPLLNodeDataBuffer);
 
 				// Linked list sorting pass and compaction into common representation
 				{

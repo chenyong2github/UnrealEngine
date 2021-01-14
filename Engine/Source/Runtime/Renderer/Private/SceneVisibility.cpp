@@ -43,6 +43,7 @@
 #include "Math/Halton.h"
 #include "ProfilingDebugging/DiagnosticTable.h"
 #include "Algo/Unique.h"
+#include "InstanceCulling/InstanceCullingManager.h"
 
 /*------------------------------------------------------------------------------
 	Globals
@@ -3877,7 +3878,8 @@ void FSceneRenderer::ComputeViewVisibility(
 	FViewVisibleCommandsPerView& ViewCommandsPerView, 
 	FGlobalDynamicIndexBuffer& DynamicIndexBuffer,
 	FGlobalDynamicVertexBuffer& DynamicVertexBuffer,
-	FGlobalDynamicReadBuffer& DynamicReadBuffer)
+	FGlobalDynamicReadBuffer& DynamicReadBuffer, 
+	FInstanceCullingManager& InstanceCullingManager)
 {
 	SCOPE_CYCLE_COUNTER(STAT_ViewVisibilityTime);
 	SCOPED_NAMED_EVENT(FSceneRenderer_ComputeViewVisibility, FColor::Magenta);
@@ -4252,7 +4254,7 @@ void FSceneRenderer::ComputeViewVisibility(
 		DumpPrimitives(ViewCommands);
 #endif
 
-		SetupMeshPass(View, BasePassDepthStencilAccess, ViewCommands);
+		SetupMeshPass(View, BasePassDepthStencilAccess, ViewCommands, InstanceCullingManager);
 	}
 
 	INC_DWORD_STAT_BY(STAT_ProcessedPrimitives,NumProcessedPrimitives);
@@ -4469,7 +4471,7 @@ void FDeferredShadingSceneRenderer::PreVisibilityFrameSetup(FRDGBuilder& GraphBu
  * Initialize scene's views.
  * Check visibility, build visible mesh commands, etc.
  */
-bool FDeferredShadingSceneRenderer::InitViews(FRDGBuilder& GraphBuilder, const FSceneTexturesConfig& SceneTexturesConfig, FExclusiveDepthStencil::Type BasePassDepthStencilAccess, struct FILCUpdatePrimTaskData& ILCTaskData)
+bool FDeferredShadingSceneRenderer::InitViews(FRDGBuilder& GraphBuilder, const FSceneTexturesConfig& SceneTexturesConfig, FExclusiveDepthStencil::Type BasePassDepthStencilAccess, struct FILCUpdatePrimTaskData& ILCTaskData, FInstanceCullingManager& InstanceCullingManager)
 {
 	SCOPED_NAMED_EVENT(FDeferredShadingSceneRenderer_InitViews, FColor::Emerald);
 	SCOPE_CYCLE_COUNTER(STAT_InitViewsTime);
@@ -4501,7 +4503,7 @@ bool FDeferredShadingSceneRenderer::InitViews(FRDGBuilder& GraphBuilder, const F
 	FViewVisibleCommandsPerView ViewCommandsPerView;
 	ViewCommandsPerView.SetNum(Views.Num());
 
-	ComputeViewVisibility(RHICmdList, BasePassDepthStencilAccess, ViewCommandsPerView, DynamicIndexBufferForInitViews, DynamicVertexBufferForInitViews, DynamicReadBufferForInitViews);
+	ComputeViewVisibility(RHICmdList, BasePassDepthStencilAccess, ViewCommandsPerView, DynamicIndexBufferForInitViews, DynamicVertexBufferForInitViews, DynamicReadBufferForInitViews, InstanceCullingManager);
 
 	DispatchToRHIThread();
 
@@ -4534,7 +4536,7 @@ bool FDeferredShadingSceneRenderer::InitViews(FRDGBuilder& GraphBuilder, const F
 
 	if (!bDoInitViewAftersPrepass)
 	{
-		InitViewsPossiblyAfterPrepass(GraphBuilder, ILCTaskData);
+		InitViewsPossiblyAfterPrepass(GraphBuilder, ILCTaskData, InstanceCullingManager);
 	}
 
 	{
@@ -4629,7 +4631,7 @@ void FSceneRenderer::SetupSceneReflectionCaptureBuffer(FRHICommandListImmediate&
 	}
 }
 
-void FDeferredShadingSceneRenderer::InitViewsPossiblyAfterPrepass(FRDGBuilder& GraphBuilder, struct FILCUpdatePrimTaskData& ILCTaskData)
+void FDeferredShadingSceneRenderer::InitViewsPossiblyAfterPrepass(FRDGBuilder& GraphBuilder, struct FILCUpdatePrimTaskData& ILCTaskData, FInstanceCullingManager& InstanceCullingManager)
 {
 	SCOPED_NAMED_EVENT(FDeferredShadingSceneRenderer_InitViewsPossiblyAfterPrepass, FColor::Emerald);
 	SCOPE_CYCLE_COUNTER(STAT_InitViewsPossiblyAfterPrepass);

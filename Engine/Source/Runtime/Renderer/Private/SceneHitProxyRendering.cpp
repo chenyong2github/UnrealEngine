@@ -27,6 +27,7 @@
 #include "FXSystem.h"
 #include "GPUSortManager.h"
 #include "VT/VirtualTextureSystem.h"
+#include "InstanceCulling/InstanceCullingManager.h"
 
 class FHitProxyShaderElementData : public FMeshMaterialShaderElementData
 {
@@ -254,6 +255,7 @@ void InitHitProxyRender(FRDGBuilder& GraphBuilder, const FSceneRenderer* SceneRe
 BEGIN_SHADER_PARAMETER_STRUCT(FHitProxyPassParameters, )
 	SHADER_PARAMETER_STRUCT_INCLUDE(FViewShaderParameters, View)
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTextures)
+	SHADER_PARAMETER_STRUCT_INCLUDE(FInstanceCullingDrawParams, InstanceCullingDrawParams)
 	RENDER_TARGET_BINDING_SLOTS()
 END_SHADER_PARAMETER_STRUCT()
 
@@ -267,7 +269,8 @@ static void DoRenderHitProxies(
 	const FSceneRenderer* SceneRenderer, 
 	FRDGTextureRef HitProxyTexture, 
 	FRDGTextureRef HitProxyDepthTexture,
-	const TArray<Nanite::FRasterResults, TInlineAllocator<2>>& NaniteRasterResults)
+	const TArray<Nanite::FRasterResults, TInlineAllocator<2>>& NaniteRasterResults,
+	FInstanceCullingManager& InstanceCullingManager)
 {
 	auto& ViewFamily = SceneRenderer->ViewFamily;
 	auto& Views = SceneRenderer->Views;
@@ -569,8 +572,8 @@ void FMobileSceneRenderer::RenderHitProxies(FRDGBuilder& GraphBuilder)
 	DynamicReadBuffer.Commit();
 
 	TArray<Nanite::FRasterResults, TInlineAllocator<2>> NaniteRasterResults;
-
-	::DoRenderHitProxies(GraphBuilder, this, HitProxyTexture, HitProxyDepthTexture, NaniteRasterResults);
+	FInstanceCullingManager InstanceCullingManager(GInstanceCullingManagerResources);
+	::DoRenderHitProxies(GraphBuilder, this, HitProxyTexture, HitProxyDepthTexture, NaniteRasterResults, InstanceCullingManager);
 
 	GEngine->GetPostRenderDelegateEx().Broadcast(GraphBuilder);
 #endif
@@ -597,12 +600,14 @@ void FDeferredShadingSceneRenderer::RenderHitProxies(FRDGBuilder& GraphBuilder)
 
 	const FIntPoint HitProxyTextureSize = HitProxyDepthTexture->Desc.Extent;
 
+	FInstanceCullingManager InstanceCullingManager(GInstanceCullingManagerResources);
+
 	// Find the visible primitives.
 	{
 		FILCUpdatePrimTaskData ILCTaskData;
-		if (InitViews(GraphBuilder, SceneTexturesConfig, FExclusiveDepthStencil::DepthWrite_StencilWrite, ILCTaskData))
+		if (InitViews(GraphBuilder, SceneTexturesConfig, FExclusiveDepthStencil::DepthWrite_StencilWrite, ILCTaskData, InstanceCullingManager))
 		{
-			InitViewsPossiblyAfterPrepass(GraphBuilder, ILCTaskData);
+			InitViewsPossiblyAfterPrepass(GraphBuilder, ILCTaskData, InstanceCullingManager);
 		}
 	}
 
@@ -699,7 +704,7 @@ void FDeferredShadingSceneRenderer::RenderHitProxies(FRDGBuilder& GraphBuilder)
 		}
 	}
 
-	::DoRenderHitProxies(GraphBuilder, this, HitProxyTexture, HitProxyDepthTexture, NaniteRasterResults);
+	::DoRenderHitProxies(GraphBuilder, this, HitProxyTexture, HitProxyDepthTexture, NaniteRasterResults, InstanceCullingManager);
 
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 	{

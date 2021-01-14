@@ -111,6 +111,7 @@ bool FDebugViewModeVS::ShouldCompilePermutation(const FMeshMaterialShaderPermuta
 BEGIN_SHADER_PARAMETER_STRUCT(FDebugViewModePassParameters, )
 	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FDebugViewModePassUniformParameters, Pass)
+	SHADER_PARAMETER_STRUCT_INCLUDE(FInstanceCullingDrawParams, InstanceCullingDrawParams)
 	RENDER_TARGET_BINDING_SLOTS()
 END_SHADER_PARAMETER_STRUCT()
 
@@ -133,10 +134,10 @@ void RenderDebugViewMode(FRDGBuilder& GraphBuilder, TArrayView<const FViewInfo> 
 			{},
 			PassParameters,
 			ERDGPassFlags::Raster,
-			[&View](FRHICommandList& RHICmdList)
+			[&View, PassParameters](FRHICommandList& RHICmdList)
 		{
 			RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1);
-			View.ParallelMeshDrawCommandPasses[EMeshPass::DebugViewMode].DispatchDraw(nullptr, RHICmdList);
+			View.ParallelMeshDrawCommandPasses[EMeshPass::DebugViewMode].DispatchDraw(nullptr, RHICmdList, &PassParameters->InstanceCullingDrawParams);
 		});
 	}
 }

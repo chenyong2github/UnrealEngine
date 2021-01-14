@@ -24,7 +24,7 @@ namespace RuntimeVirtualTexture
 		SHADER_PARAMETER_ARRAY(FVector4, ALPHA_DISTANCE_TABLES, [16])
 		SHADER_PARAMETER_ARRAY(FVector4, RGB_DISTANCE_TABLES, [8])
 	END_GLOBAL_SHADER_PARAMETER_STRUCT()
-	
+
 	IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FEtcParameters, "EtcParameters");
 
 	class FEtcParametersUniformBuffer : public TUniformBuffer<FEtcParameters>
@@ -34,26 +34,26 @@ namespace RuntimeVirtualTexture
 		FEtcParametersUniformBuffer()
 		{
 			FEtcParameters Parameters;
-			Parameters.ALPHA_DISTANCE_TABLES[0] = FVector4(2,  5,  8, 14);
-			Parameters.ALPHA_DISTANCE_TABLES[1] = FVector4(2,  6,  9, 12);
-			Parameters.ALPHA_DISTANCE_TABLES[2] = FVector4(1,  4,  7, 12);
-			Parameters.ALPHA_DISTANCE_TABLES[3] = FVector4(1,  3,  5, 12);
-			Parameters.ALPHA_DISTANCE_TABLES[4] = FVector4(2,  5,  7, 11);
-			Parameters.ALPHA_DISTANCE_TABLES[5] = FVector4(2,  6,  8, 10);
-			Parameters.ALPHA_DISTANCE_TABLES[6] = FVector4(3,  6,  7, 10);
-			Parameters.ALPHA_DISTANCE_TABLES[7] = FVector4(2,  4,  7, 10);
-			Parameters.ALPHA_DISTANCE_TABLES[8] = FVector4(1,  5,  7,  9);
-			Parameters.ALPHA_DISTANCE_TABLES[9] = FVector4(1,  4,  7,  9);
-			Parameters.ALPHA_DISTANCE_TABLES[10] = FVector4(1,  3,  7,  9);
-			Parameters.ALPHA_DISTANCE_TABLES[11] = FVector4(1,  4,  6,  9);
-			Parameters.ALPHA_DISTANCE_TABLES[12] = FVector4(2,  3,  6,  9);
-			Parameters.ALPHA_DISTANCE_TABLES[13] = FVector4(0,  1,  2,  9);
-			Parameters.ALPHA_DISTANCE_TABLES[14] = FVector4(3,  5,  7,  8);
-			Parameters.ALPHA_DISTANCE_TABLES[15] = FVector4(2,  4,  6,  8);
-			
-			Parameters.RGB_DISTANCE_TABLES[0] = FVector4(-8, -2, 2,  8);
-			Parameters.RGB_DISTANCE_TABLES[1] = FVector4(-17, -5, 5,  17);
-			Parameters.RGB_DISTANCE_TABLES[2] = FVector4(-29, -9, 9,  29);
+			Parameters.ALPHA_DISTANCE_TABLES[0] = FVector4(2, 5, 8, 14);
+			Parameters.ALPHA_DISTANCE_TABLES[1] = FVector4(2, 6, 9, 12);
+			Parameters.ALPHA_DISTANCE_TABLES[2] = FVector4(1, 4, 7, 12);
+			Parameters.ALPHA_DISTANCE_TABLES[3] = FVector4(1, 3, 5, 12);
+			Parameters.ALPHA_DISTANCE_TABLES[4] = FVector4(2, 5, 7, 11);
+			Parameters.ALPHA_DISTANCE_TABLES[5] = FVector4(2, 6, 8, 10);
+			Parameters.ALPHA_DISTANCE_TABLES[6] = FVector4(3, 6, 7, 10);
+			Parameters.ALPHA_DISTANCE_TABLES[7] = FVector4(2, 4, 7, 10);
+			Parameters.ALPHA_DISTANCE_TABLES[8] = FVector4(1, 5, 7, 9);
+			Parameters.ALPHA_DISTANCE_TABLES[9] = FVector4(1, 4, 7, 9);
+			Parameters.ALPHA_DISTANCE_TABLES[10] = FVector4(1, 3, 7, 9);
+			Parameters.ALPHA_DISTANCE_TABLES[11] = FVector4(1, 4, 6, 9);
+			Parameters.ALPHA_DISTANCE_TABLES[12] = FVector4(2, 3, 6, 9);
+			Parameters.ALPHA_DISTANCE_TABLES[13] = FVector4(0, 1, 2, 9);
+			Parameters.ALPHA_DISTANCE_TABLES[14] = FVector4(3, 5, 7, 8);
+			Parameters.ALPHA_DISTANCE_TABLES[15] = FVector4(2, 4, 6, 8);
+
+			Parameters.RGB_DISTANCE_TABLES[0] = FVector4(-8, -2, 2, 8);
+			Parameters.RGB_DISTANCE_TABLES[1] = FVector4(-17, -5, 5, 17);
+			Parameters.RGB_DISTANCE_TABLES[2] = FVector4(-29, -9, 9, 29);
 			Parameters.RGB_DISTANCE_TABLES[3] = FVector4(-42, -13, 13, 42);
 			Parameters.RGB_DISTANCE_TABLES[4] = FVector4(-60, -18, 18, 60);
 			Parameters.RGB_DISTANCE_TABLES[5] = FVector4(-80, -24, 24, 80);
@@ -63,7 +63,7 @@ namespace RuntimeVirtualTexture
 			SetContents(Parameters);
 		}
 	};
-	
+
 	const TUniformBufferRef<FEtcParameters>& GetEtcParametersUniformBufferRef()
 	{
 		check(IsInRenderingThread());
@@ -88,13 +88,14 @@ namespace RuntimeVirtualTexture
 		}
 		return false;
 	}
-				
+
 	/** Mesh material shader for writing to the virtual texture. */
 	class FShader_VirtualTextureMaterialDraw : public FMeshMaterialShader
 	{
 	public:
 		BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 			SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+			SHADER_PARAMETER_STRUCT_INCLUDE(FInstanceCullingDrawParams, InstanceCullingDrawParams)
 			RENDER_TARGET_BINDING_SLOTS()
 		END_SHADER_PARAMETER_STRUCT()
 
@@ -181,7 +182,7 @@ namespace RuntimeVirtualTexture
 		template< uint32 AttributeMask >
 		static FRHIBlendState* TGetBlendStateFromAttributeMask()
 		{
-			return TStaticBlendState< 
+			return TStaticBlendState<
 				GetColorMaskFromAttributeMask(AttributeMask, 0), BO_Add, BF_One, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_One,
 				GetColorMaskFromAttributeMask(AttributeMask, 1), BO_Add, BF_One, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_One,
 				GetColorMaskFromAttributeMask(AttributeMask, 2), BO_Add, BF_One, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_One	>::GetRHI();
@@ -550,7 +551,6 @@ namespace RuntimeVirtualTexture
 			SubmitMeshDrawCommands(AllocatedCommands, GraphicsMinimalPipelineStateSet, PrimitiveIdsBuffer, 0, bDynamicInstancing, InstanceFactor, RHICmdList);
 		}
 	}
-
 
 	/** BC Compression compute shader */
 	class FShader_VirtualTextureCompress : public FGlobalShader

@@ -350,7 +350,8 @@ void AddHairStrandsRasterPass(
 	const FVector4& HairRenderInfo,
 	const uint32 HairRenderInfoBits,
 	const FVector& RasterDirection,
-	TPassParameter* PassParameters)
+	TPassParameter* PassParameters,
+	FInstanceCullingManager& InstanceCullingManager)
 {
 	auto GetPassName = [](EHairStrandsRasterPassType Type)
 	{
@@ -442,7 +443,8 @@ void AddHairDeepShadowRasterPass(
 	const FVector4& HairRenderInfo,
 	const uint32 HairRenderInfoBits,
 	const FVector& LightDirection,
-	FHairDeepShadowRasterPassParameters* PassParameters)
+	FHairDeepShadowRasterPassParameters* PassParameters,
+	FInstanceCullingManager& InstanceCullingManager)
 {
 	check(PassType == EHairStrandsRasterPassType::FrontDepth || PassType == EHairStrandsRasterPassType::DeepOpacityMap);
 
@@ -456,7 +458,8 @@ void AddHairDeepShadowRasterPass(
 		HairRenderInfo, 
 		HairRenderInfoBits,
 		LightDirection,
-		PassParameters);
+		PassParameters,
+		InstanceCullingManager);
 }
 
 void AddHairVoxelizationRasterPass(
@@ -468,7 +471,8 @@ void AddHairVoxelizationRasterPass(
 	const FVector4& HairRenderInfo,
 	const uint32 HairRenderInfoBits,
 	const FVector& RasterDirection,
-	FHairVoxelizationRasterPassParameters* PassParameters)
+	FHairVoxelizationRasterPassParameters* PassParameters,
+	FInstanceCullingManager& InstanceCullingManager)
 {
 	AddHairStrandsRasterPass<FHairVoxelizationRasterPassParameters>(
 		GraphBuilder, 
@@ -480,5 +484,6 @@ void AddHairVoxelizationRasterPass(
 		HairRenderInfo, 
 		HairRenderInfoBits,
 		RasterDirection,
-		PassParameters);
+		PassParameters,
+		InstanceCullingManager);
 }

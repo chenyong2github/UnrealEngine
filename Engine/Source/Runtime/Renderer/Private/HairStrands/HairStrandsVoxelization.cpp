@@ -1100,6 +1100,7 @@ static void AddVirtualVoxelizationRasterPass(
 	const FScene* Scene,
 	const FViewInfo* ViewInfo,
 	FVirtualVoxelResources& VoxelResources,
+	FInstanceCullingManager& InstanceCullingManager,
 	FHairStrandsMacroGroupData& MacroGroup)
 {
 	const bool bIsGPUDriven = GHairVirtualVoxelGPUDriven > 0;
@@ -1208,7 +1209,7 @@ static void AddVirtualVoxelizationRasterPass(
 	PassParameters->RenderTargets[0] = FRenderTargetBinding(DebugOutputTexture, ERenderTargetLoadAction::EClear);
 	#endif
 
-	AddHairVoxelizationRasterPass(GraphBuilder, Scene, ViewInfo, PrimitiveSceneInfo, ViewportRect, HairRenderInfo, HairRenderInfoBits, RasterDirection, PassParameters);
+	AddHairVoxelizationRasterPass(GraphBuilder, Scene, ViewInfo, PrimitiveSceneInfo, ViewportRect, HairRenderInfo, HairRenderInfoBits, RasterDirection, PassParameters, InstanceCullingManager);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1399,6 +1400,7 @@ void VoxelizeHairStrands(
 	FRDGBuilder& GraphBuilder, 
 	const FScene* Scene, 
 	const TArray<FViewInfo>& Views,
+	FInstanceCullingManager& InstanceCullingManager,
 	FHairStrandsMacroGroupViews& MacroGroupsViews)
 {
 	if (!IsHairStrandsVoxelizationEnable())
@@ -1432,7 +1434,7 @@ void VoxelizeHairStrands(
 
 			for (FHairStrandsMacroGroupData& MacroGroup : MacroGroupDatas.Datas)
 			{
-				AddVirtualVoxelizationRasterPass(GraphBuilder, Scene, &View, MacroGroupDatas.VirtualVoxelResources, MacroGroup);
+				AddVirtualVoxelizationRasterPass(GraphBuilder, Scene, &View, MacroGroupDatas.VirtualVoxelResources, InstanceCullingManager, MacroGroup);
 			}
 
 			if (GHairVoxelInjectOpaqueDepthEnable > 0)

@@ -1838,7 +1838,7 @@ public:
 		FSkyAtmosphereRenderContext& SkyRenderContext);
 
 	/** Common function to render a cloud layer using shared LUT resources. */
-	void  RenderVolumetricCloudsInternal(FRDGBuilder& GraphBuilder, FCloudRenderContext& CloudRC);
+	void  RenderVolumetricCloudsInternal(FRDGBuilder& GraphBuilder, FCloudRenderContext& CloudRC, FInstanceCullingManager& InstanceCullingManager);
 
 	/** Sets the stereo-compatible RHI viewport. If the view doesn't requires stereo rendering, the standard viewport is set. */
 	void SetStereoViewport(FRHICommandList& RHICmdList, const FViewInfo& View, float ViewportScale = 1.0f) const;
@@ -1867,7 +1867,7 @@ protected:
 
 	void InitDynamicShadows(FRHICommandListImmediate& RHICmdList, FGlobalDynamicIndexBuffer& DynamicIndexBuffer, FGlobalDynamicVertexBuffer& DynamicVertexBuffer, FGlobalDynamicReadBuffer& DynamicReadBuffer);
 
-	void SetupMeshPass(FViewInfo& View, FExclusiveDepthStencil::Type BasePassDepthStencilAccess, FViewCommands& ViewCommands);
+	void SetupMeshPass(FViewInfo& View, FExclusiveDepthStencil::Type BasePassDepthStencilAccess, FViewCommands& ViewCommands, FInstanceCullingManager& InstanceCullingManager);
 
 	void RenderShadowProjections(
 		FRDGBuilder& GraphBuilder,
@@ -1938,7 +1938,7 @@ protected:
 		const TArray<FProjectedShadowInfo*, SceneRenderingAllocator>& ViewDependentWholeSceneShadows,
 		bool bReflectionCaptureScene);
 
-	void RenderShadowDepthMaps(FRDGBuilder& GraphBuilder);
+	void RenderShadowDepthMaps(FRDGBuilder& GraphBuilder, FInstanceCullingManager& InstanceCullingManager);
 	void RenderShadowDepthMapAtlases(FRDGBuilder& GraphBuilder);
 
 	/**
@@ -1967,7 +1967,7 @@ protected:
 
 	/** Computes which primitives are visible and relevant for each view. */
 	void ComputeViewVisibility(FRHICommandListImmediate& RHICmdList, FExclusiveDepthStencil::Type BasePassDepthStencilAccess, FViewVisibleCommandsPerView& ViewCommandsPerView, 
-		FGlobalDynamicIndexBuffer& DynamicIndexBuffer, FGlobalDynamicVertexBuffer& DynamicVertexBuffer, FGlobalDynamicReadBuffer& DynamicReadBuffer);
+		FGlobalDynamicIndexBuffer& DynamicIndexBuffer, FGlobalDynamicVertexBuffer& DynamicVertexBuffer, FGlobalDynamicReadBuffer& DynamicReadBuffer, FInstanceCullingManager& InstanceCullingManager);
 
 	/** Performs once per frame setup after to visibility determination. */
 	void PostVisibilityFrameSetup(FILCUpdatePrimTaskData& OutILCTaskData);
@@ -2011,7 +2011,7 @@ protected:
 	void RenderSkyAtmosphere(FRDGBuilder& GraphBuilder, const FMinimalSceneTextures& SceneTextures);
 
 	/** Initialise volumetric cloud resources.*/
-	void InitVolumetricCloudsForViews(FRDGBuilder& GraphBuilder, bool bShouldRenderVolumetricCloud);
+	void InitVolumetricCloudsForViews(FRDGBuilder& GraphBuilder, bool bShouldRenderVolumetricCloud, FInstanceCullingManager& InstanceCullingManager);
 
 	/** Render volumetric cloud. */
 	bool RenderVolumetricCloud(
@@ -2020,7 +2020,8 @@ protected:
 		bool bSkipVolumetricRenderTarget,
 		bool bSkipPerPixelTracing,
 		FRDGTextureRef HalfResolutionDepthCheckerboardMinMaxTexture,
-		bool bAsyncCompute);
+		bool bAsyncCompute,
+		FInstanceCullingManager& InstanceCullingManager);
 
 	/** Render notification to artist when a sky material is used but it might comtains the camera (and then the sky/background would look black).*/
 	void RenderSkyAtmosphereEditorNotifications(FRDGBuilder& GraphBuilder, FRDGTextureRef SceneColorTexture) const;

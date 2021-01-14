@@ -236,7 +236,7 @@ void AddTemporalAA2Passes(
 	FRDGTextureRef* OutSceneColorTexture,
 	FIntRect* OutSceneColorViewRect);
 
-void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FPostProcessingInputs& Inputs, const Nanite::FRasterResults* NaniteRasterResults)
+void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FPostProcessingInputs& Inputs, const Nanite::FRasterResults* NaniteRasterResults, FInstanceCullingManager& InstanceCullingManager)
 {
 	RDG_CSV_STAT_EXCLUSIVE_SCOPE(GraphBuilder, RenderPostProcessing);
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_PostProcessing_Process);
@@ -918,7 +918,7 @@ void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, c
 		PassInputs.SceneDepth = SceneDepth;
 		PassInputs.BasePassType = FEditorPrimitiveInputs::EBasePassType::Deferred;
 
-		SceneColor = AddEditorPrimitivePass(GraphBuilder, View, PassInputs);
+		SceneColor = AddEditorPrimitivePass(GraphBuilder, View, PassInputs, InstanceCullingManager);
 	}
 #endif
 
@@ -1322,7 +1322,7 @@ static bool IsGaussianActive(const FViewInfo& View)
 	return true;
 }
 
-void AddMobilePostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FMobilePostProcessingInputs& Inputs)
+void AddMobilePostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FMobilePostProcessingInputs& Inputs, FInstanceCullingManager& InstanceCullingManager)
 {
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(RenderPostProcessing);
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_PostProcessing_Process);
@@ -2031,7 +2031,7 @@ void AddMobilePostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& V
 		PassInputs.BasePassType = FEditorPrimitiveInputs::EBasePassType::Mobile;
 		PassInputs.OverrideOutput.LoadAction = View.IsFirstInFamily() ? ERenderTargetLoadAction::EClear : ERenderTargetLoadAction::ELoad;
 
-		SceneColor = AddEditorPrimitivePass(GraphBuilder, View, PassInputs);
+		SceneColor = AddEditorPrimitivePass(GraphBuilder, View, PassInputs, InstanceCullingManager);
 	}
 #endif
 

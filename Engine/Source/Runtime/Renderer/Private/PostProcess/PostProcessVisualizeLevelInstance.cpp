@@ -8,6 +8,7 @@
 #include "CanvasTypes.h"
 #include "RenderTargetTemp.h"
 #include "ClearQuad.h"
+#include "ScenePrivate.h"
 
 namespace
 {
@@ -34,6 +35,15 @@ public:
 
 IMPLEMENT_GLOBAL_SHADER(FVisualizeLevelInstancePS, "/Engine/Private/PostProcessVisualizeLevelInstance.usf", "MainPS", SF_Pixel);
 } //! namespace
+
+
+BEGIN_SHADER_PARAMETER_STRUCT(FVisualizeLevelInstancePassPassParameters, )
+	//SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+	SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureShaderParameters, SceneTextures)
+	SHADER_PARAMETER_STRUCT_INCLUDE(FNaniteVisualizeLevelInstanceParameters, NaniteVisualizeLevelInstanceParameters)
+	SHADER_PARAMETER_STRUCT_INCLUDE(FInstanceCullingDrawParams, InstanceCullingDrawParams)
+	RENDER_TARGET_BINDING_SLOTS()
+END_SHADER_PARAMETER_STRUCT()
 
 FScreenPassTexture AddVisualizeLevelInstancePass(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FVisualizeLevelInstanceInputs& Inputs, const Nanite::FRasterResults *NaniteRasterResults)
 {
@@ -69,13 +79,13 @@ FScreenPassTexture AddVisualizeLevelInstancePass(FRDGBuilder& GraphBuilder, cons
 
 		const FScreenPassTextureViewport SceneColorViewport(Inputs.SceneColor);
 
-		auto* PassParameters = GraphBuilder.AllocParameters<FNaniteVisualizeLevelInstanceParameters>();
+		auto* PassParameters = GraphBuilder.AllocParameters<FVisualizeLevelInstancePassPassParameters>();
 		if (bNaniteEnabled)
 		{
-			Nanite::GetEditorVisualizeLevelInstancePassParameters(GraphBuilder, *Scene, View, SceneColorViewport.Rect, NaniteRasterResults, PassParameters);
+			Nanite::GetEditorVisualizeLevelInstancePassParameters(GraphBuilder, *Scene, View, SceneColorViewport.Rect, NaniteRasterResults, &PassParameters->NaniteVisualizeLevelInstanceParameters);
 		}
 
-		PassParameters->View = EditorView->ViewUniformBuffer;
+		//PassParameters->View = EditorView->ViewUniformBuffer;
 		PassParameters->SceneTextures = Inputs.SceneTextures;
 		PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(
 			DepthStencilTexture,
@@ -95,13 +105,13 @@ FScreenPassTexture AddVisualizeLevelInstancePass(FRDGBuilder& GraphBuilder, cons
 				SCOPED_DRAW_EVENT(RHICmdList, EditorLevelInstance);
 
 				// Run LevelInstance pass on static elements
-				View.ParallelMeshDrawCommandPasses[EMeshPass::EditorLevelInstance].DispatchDraw(nullptr, RHICmdList);
+				View.ParallelMeshDrawCommandPasses[EMeshPass::EditorLevelInstance].DispatchDraw(nullptr, RHICmdList, &PassParameters->InstanceCullingDrawParams);
 			}
 
 			// Render Nanite mesh outlines after regular meshes
 			if (bNaniteEnabled)
 			{
-				Nanite::DrawEditorVisualizeLevelInstance(RHICmdList, View, SceneColorViewport.Rect, *PassParameters);
+				Nanite::DrawEditorVisualizeLevelInstance(RHICmdList, View, SceneColorViewport.Rect, PassParameters->NaniteVisualizeLevelInstanceParameters);
 			}
 		});
 	}

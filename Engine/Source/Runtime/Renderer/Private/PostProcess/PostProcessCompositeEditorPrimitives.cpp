@@ -82,7 +82,7 @@ public:
 
 IMPLEMENT_GLOBAL_SHADER(FCompositeEditorPrimitivesPS, "/Engine/Private/PostProcessCompositeEditorPrimitives.usf", "MainCompositeEditorPrimitivesPS", SF_Pixel);
 
-void RenderEditorPrimitives(FRHICommandListImmediate& RHICmdList, const FViewInfo& View, FMeshPassProcessorRenderState& DrawRenderState)
+void RenderEditorPrimitives(FRHICommandListImmediate& RHICmdList, const FViewInfo& View, FMeshPassProcessorRenderState& DrawRenderState, FInstanceCullingManager& InstanceCullingManager)
 {
 	// Always depth test against other editor primitives
 	DrawRenderState.SetDepthStencilState(TStaticDepthStencilState<
@@ -132,7 +132,7 @@ void RenderEditorPrimitives(FRHICommandListImmediate& RHICmdList, const FViewInf
 	View.BatchedViewElements.Draw(RHICmdList, DrawRenderState, FeatureLevel, bNeedToSwitchVerticalAxis, View, false, 1.0f);
 }
 
-void RenderForegroundEditorPrimitives(FRHICommandListImmediate& RHICmdList, const FViewInfo& View, FMeshPassProcessorRenderState& DrawRenderState)
+void RenderForegroundEditorPrimitives(FRHICommandListImmediate& RHICmdList, const FViewInfo& View, FMeshPassProcessorRenderState& DrawRenderState, FInstanceCullingManager& InstanceCullingManager)
 {
 	const auto FeatureLevel = View.GetFeatureLevel();
 	const auto ShaderPlatform = GShaderPlatformForFeatureLevel[FeatureLevel];
@@ -239,7 +239,8 @@ END_SHADER_PARAMETER_STRUCT()
 FScreenPassTexture AddEditorPrimitivePass(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
-	const FEditorPrimitiveInputs& Inputs)
+	const FEditorPrimitiveInputs& Inputs,
+	FInstanceCullingManager& InstanceCullingManager)
 {
 	check(Inputs.SceneColor.IsValid());
 	check(Inputs.SceneDepth.IsValid());
@@ -313,7 +314,7 @@ FScreenPassTexture AddEditorPrimitivePass(
 				RDG_EVENT_NAME("EditorPrimitives"),
 				PassParameters,
 				ERDGPassFlags::Raster,
-				[&View, PassParameters, EditorView, EditorPrimitivesViewport, SceneDepthViewport, BasePassType, NumSamples](FRHICommandListImmediate& RHICmdList)
+				[&View, &InstanceCullingManager, PassParameters, EditorView, EditorPrimitivesViewport, SceneDepthViewport, BasePassType, NumSamples](FRHICommandListImmediate& RHICmdList)
 			{
 				RHICmdList.SetViewport(EditorPrimitivesViewport.Rect.Min.X, EditorPrimitivesViewport.Rect.Min.Y, 0.0f, EditorPrimitivesViewport.Rect.Max.X, EditorPrimitivesViewport.Rect.Max.Y, 1.0f);
 
@@ -327,7 +328,7 @@ FScreenPassTexture AddEditorPrimitivePass(
 						TEXT("RenderViewEditorPrimitives %dx%d msaa=%d"),
 						EditorPrimitivesViewport.Rect.Width(), EditorPrimitivesViewport.Rect.Height(), NumSamples);
 
-					RenderEditorPrimitives(RHICmdList, *EditorView, DrawRenderState);
+					RenderEditorPrimitives(RHICmdList, *EditorView, DrawRenderState, InstanceCullingManager);
 				}
 
 				// Draw foreground editor primitives.
@@ -336,7 +337,7 @@ FScreenPassTexture AddEditorPrimitivePass(
 						TEXT("RenderViewEditorForegroundPrimitives %dx%d msaa=%d"),
 						EditorPrimitivesViewport.Rect.Width(), EditorPrimitivesViewport.Rect.Height(), NumSamples);
 
-					RenderForegroundEditorPrimitives(RHICmdList, *EditorView, DrawRenderState);
+					RenderForegroundEditorPrimitives(RHICmdList, *EditorView, DrawRenderState, InstanceCullingManager);
 				}
 			});
 		}

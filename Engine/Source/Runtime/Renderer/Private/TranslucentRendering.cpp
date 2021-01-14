@@ -790,7 +790,8 @@ static void RenderViewTranslucencyInner(
 	const FScreenPassTextureViewport Viewport,
 	const float ViewportScale,
 	ETranslucencyPass::Type TranslucencyPass,
-	FRDGParallelCommandListSet* ParallelCommandListSet)
+	FRDGParallelCommandListSet* ParallelCommandListSet,
+	const FInstanceCullingDrawParams& InstanceCullingDrawParams)
 {
 	FMeshPassProcessorRenderState DrawRenderState;
 	DrawRenderState.SetDepthStencilState(TStaticDepthStencilState<false, CF_DepthNearOrEqual>::GetRHI());
@@ -801,7 +802,7 @@ static void RenderViewTranslucencyInner(
 		QUICK_SCOPE_CYCLE_COUNTER(RenderTranslucencyParallel_Start_FDrawSortedTransAnyThreadTask);
 
 		const EMeshPass::Type MeshPass = TranslucencyPassToMeshPass(TranslucencyPass);
-		View.ParallelMeshDrawCommandPasses[MeshPass].DispatchDraw(ParallelCommandListSet, RHICmdList);
+		View.ParallelMeshDrawCommandPasses[MeshPass].DispatchDraw(ParallelCommandListSet, RHICmdList, &InstanceCullingDrawParams);
 	}
 
 	if (IsMainTranslucencyPass(TranslucencyPass))
@@ -894,7 +895,8 @@ static void RenderTranslucencyViewInner(
 	TRDGUniformBufferRef<FTranslucentBasePassUniformParameters> BasePassParameters,
 	ETranslucencyPass::Type TranslucencyPass,
 	bool bResolveColorTexture,
-	bool bRenderInParallel)
+	bool bRenderInParallel,
+	FInstanceCullingManager& InstanceCullingManager)
 {
 	View.BeginRenderView();
 
@@ -921,7 +923,9 @@ static void RenderTranslucencyViewInner(
 			[&SceneRenderer, &View, PassParameters, ViewportScale, Viewport, TranslucencyPass](FRHICommandListImmediate& RHICmdList)
 		{
 			FRDGParallelCommandListSet ParallelCommandListSet(RHICmdList, GET_STATID(STAT_CLP_Translucency), SceneRenderer, View, FParallelCommandListBindings(PassParameters), ViewportScale);
-			RenderViewTranslucencyInner(RHICmdList, SceneRenderer, View, Viewport, ViewportScale, TranslucencyPass, &ParallelCommandListSet);
+			FInstanceCullingDrawParams CullingParams; // GPUCULL_TODO
+			RenderViewTranslucencyInner(RHICmdList, SceneRenderer, View, Viewport, ViewportScale, TranslucencyPass, &ParallelCommandListSet, CullingParams); // GPUCULL_TODO
+			//RenderViewTranslucencyInner(RHICmdList, SceneRenderer, View, Viewport, ViewportScale, TranslucencyPass, &ParallelCommandListSet, PassParameters->InstanceCullingDrawParams); // GPUCULL_TODO
 		});
 
 		if (bResolveColorTexture)
@@ -937,9 +941,11 @@ static void RenderTranslucencyViewInner(
 			RDG_EVENT_NAME("SeparateTranslucency"),
 			PassParameters,
 			ERDGPassFlags::Raster,
-			[&SceneRenderer, &View, ViewportScale, Viewport, TranslucencyPass](FRHICommandListImmediate& RHICmdList)
+			[&SceneRenderer, &View, ViewportScale, Viewport, TranslucencyPass, PassParameters](FRHICommandListImmediate& RHICmdList)
 		{
-			RenderViewTranslucencyInner(RHICmdList, SceneRenderer, View, Viewport, ViewportScale, TranslucencyPass, nullptr);
+			FInstanceCullingDrawParams CullingParams; // GPUCULL_TODO
+			RenderViewTranslucencyInner(RHICmdList, SceneRenderer, View, Viewport, ViewportScale, TranslucencyPass, nullptr, CullingParams); // GPUCULL_TODO
+			//RenderViewTranslucencyInner(RHICmdList, SceneRenderer, View, Viewport, ViewportScale, TranslucencyPass, nullptr, PassParameters->InstanceCullingDrawParams); // GPUCULL_TODO
 		});
 	}
 }
@@ -951,7 +957,8 @@ void FDeferredShadingSceneRenderer::RenderTranslucencyInner(
 	FSeparateTranslucencyTextures* OutSeparateTranslucencyTextures,
 	ETranslucencyView ViewsToRender,
 	FRDGTextureRef SceneColorCopyTexture,
-	ETranslucencyPass::Type TranslucencyPass)
+	ETranslucencyPass::Type TranslucencyPass,
+	FInstanceCullingManager& InstanceCullingManager)
 {
 	if (!ShouldRenderTranslucency(TranslucencyPass))
 	{
@@ -1044,7 +1051,8 @@ void FDeferredShadingSceneRenderer::RenderTranslucencyInner(
 				CreateTranslucentBasePassUniformBuffer(GraphBuilder, View, ViewIndex, TranslucentLightingVolumeTextures, SceneColorCopyTexture, SceneTextureSetupMode),
 				TranslucencyPass,
 				!bCompositeBackToSceneColor,
-				bRenderInParallel);
+				bRenderInParallel,
+				InstanceCullingManager);
 
 			if (bCompositeBackToSceneColor)
 			{
@@ -1096,7 +1104,8 @@ void FDeferredShadingSceneRenderer::RenderTranslucencyInner(
 				CreateTranslucentBasePassUniformBuffer(GraphBuilder, View, ViewIndex, TranslucentLightingVolumeTextures, SceneColorCopyTexture, SceneTextureSetupMode),
 				TranslucencyPass,
 				bResolveColorTexture,
-				bRenderInParallel);
+				bRenderInParallel,
+				InstanceCullingManager);
 
 			AddEndTranslucencyTimerPass(GraphBuilder, View);
 		}
@@ -1108,7 +1117,8 @@ void FDeferredShadingSceneRenderer::RenderTranslucency(
 	const FMinimalSceneTextures& SceneTextures,
 	const FTranslucencyLightingVolumeTextures& TranslucentLightingVolumeTextures,
 	FSeparateTranslucencyTextures* OutSeparateTranslucencyTextures,
-	ETranslucencyView ViewsToRender)
+	ETranslucencyView ViewsToRender,
+	FInstanceCullingManager& InstanceCullingManager)
 {
 	if (!EnumHasAnyFlags(ViewsToRender, ETranslucencyView::UnderWater | ETranslucencyView::AboveWater))
 	{
@@ -1126,12 +1136,12 @@ void FDeferredShadingSceneRenderer::RenderTranslucency(
 
 	if (ViewFamily.AllowTranslucencyAfterDOF())
 	{
-		RenderTranslucencyInner(GraphBuilder, SceneTextures, TranslucentLightingVolumeTextures, OutSeparateTranslucencyTextures, ViewsToRender, SceneColorCopyTexture, ETranslucencyPass::TPT_StandardTranslucency);
-		RenderTranslucencyInner(GraphBuilder, SceneTextures, TranslucentLightingVolumeTextures, OutSeparateTranslucencyTextures, ViewsToRender, SceneColorCopyTexture, ETranslucencyPass::TPT_TranslucencyAfterDOF);
-		RenderTranslucencyInner(GraphBuilder, SceneTextures, TranslucentLightingVolumeTextures, OutSeparateTranslucencyTextures, ViewsToRender, SceneColorCopyTexture, ETranslucencyPass::TPT_TranslucencyAfterDOFModulate);
+		RenderTranslucencyInner(GraphBuilder, SceneTextures, TranslucentLightingVolumeTextures, OutSeparateTranslucencyTextures, ViewsToRender, SceneColorCopyTexture, ETranslucencyPass::TPT_StandardTranslucency, InstanceCullingManager);
+		RenderTranslucencyInner(GraphBuilder, SceneTextures, TranslucentLightingVolumeTextures, OutSeparateTranslucencyTextures, ViewsToRender, SceneColorCopyTexture, ETranslucencyPass::TPT_TranslucencyAfterDOF, InstanceCullingManager);
+		RenderTranslucencyInner(GraphBuilder, SceneTextures, TranslucentLightingVolumeTextures, OutSeparateTranslucencyTextures, ViewsToRender, SceneColorCopyTexture, ETranslucencyPass::TPT_TranslucencyAfterDOFModulate, InstanceCullingManager);
 	}
 	else // Otherwise render translucent primitives in a single bucket.
 	{
-		RenderTranslucencyInner(GraphBuilder, SceneTextures, TranslucentLightingVolumeTextures, OutSeparateTranslucencyTextures, ViewsToRender, SceneColorCopyTexture, ETranslucencyPass::TPT_AllTranslucency);
+		RenderTranslucencyInner(GraphBuilder, SceneTextures, TranslucentLightingVolumeTextures, OutSeparateTranslucencyTextures, ViewsToRender, SceneColorCopyTexture, ETranslucencyPass::TPT_AllTranslucency, InstanceCullingManager);
 	}
 }

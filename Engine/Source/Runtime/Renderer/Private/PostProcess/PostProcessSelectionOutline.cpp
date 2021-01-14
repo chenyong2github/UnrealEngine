@@ -41,6 +41,13 @@ public:
 IMPLEMENT_GLOBAL_SHADER(FSelectionOutlinePS, "/Engine/Private/PostProcessSelectionOutline.usf", "MainPS", SF_Pixel);
 } //! namespace
 
+BEGIN_SHADER_PARAMETER_STRUCT(FSelectionOutlinePassParameters, )
+	SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureShaderParameters, SceneTextures)
+	SHADER_PARAMETER_STRUCT_INCLUDE(FNaniteSelectionOutlineParameters, NaniteSelectionOutlineParameters)
+	SHADER_PARAMETER_STRUCT_INCLUDE(FInstanceCullingDrawParams, InstanceCullingDrawParams)
+	RENDER_TARGET_BINDING_SLOTS()
+END_SHADER_PARAMETER_STRUCT()
+
 FScreenPassTexture AddSelectionOutlinePass(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FSelectionOutlineInputs& Inputs, const Nanite::FRasterResults* NaniteRasterResults)
 {
 	check(Inputs.SceneColor.IsValid());
@@ -71,7 +78,7 @@ FScreenPassTexture AddSelectionOutlinePass(FRDGBuilder& GraphBuilder, const FVie
 			DepthStencilTexture = GraphBuilder.CreateTexture(DepthStencilDesc, TEXT("SelectionOutline"));
 		}
 
-		auto* PassParameters = GraphBuilder.AllocParameters<FNaniteSelectionOutlineParameters>();
+		auto* PassParameters = GraphBuilder.AllocParameters<FSelectionOutlinePassParameters>();
 
 		FScene* Scene = View.Family->Scene->GetRenderScene();
 
@@ -79,10 +86,10 @@ FScreenPassTexture AddSelectionOutlinePass(FRDGBuilder& GraphBuilder, const FVie
 
 		if (bNaniteEnabled)
 		{
-			Nanite::GetEditorSelectionPassParameters(GraphBuilder, *Scene, *EditorView, SceneColorViewport.Rect, NaniteRasterResults, PassParameters);
+			Nanite::GetEditorSelectionPassParameters(GraphBuilder, *Scene, *EditorView, SceneColorViewport.Rect, NaniteRasterResults, &PassParameters->NaniteSelectionOutlineParameters);
 		}
 
-		PassParameters->View = EditorView->ViewUniformBuffer;
+		PassParameters->NaniteSelectionOutlineParameters.View = EditorView->ViewUniformBuffer;
 		PassParameters->SceneTextures = Inputs.SceneTextures;
 		PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(
 			DepthStencilTexture,
@@ -102,13 +109,13 @@ FScreenPassTexture AddSelectionOutlinePass(FRDGBuilder& GraphBuilder, const FVie
 				SCOPED_DRAW_EVENT(RHICmdList, EditorSelection);
 
 				// Run selection pass on static elements
-				View.ParallelMeshDrawCommandPasses[EMeshPass::EditorSelection].DispatchDraw(nullptr, RHICmdList);
+				View.ParallelMeshDrawCommandPasses[EMeshPass::EditorSelection].DispatchDraw(nullptr, RHICmdList, &PassParameters->InstanceCullingDrawParams);
 			}
 
 			// Render Nanite mesh outlines after regular mesh outline, but before borders
 			if (bNaniteEnabled)
 			{
-				Nanite::DrawEditorSelection(RHICmdList, View, SceneColorViewport.Rect, *PassParameters);
+				Nanite::DrawEditorSelection(RHICmdList, View, SceneColorViewport.Rect, PassParameters->NaniteSelectionOutlineParameters);
 			}
 
 			// to get an outline around the objects if it's partly outside of the screen

@@ -229,6 +229,7 @@ bool FDeferredShadingSceneRenderer::ShouldRenderDistortion() const
 BEGIN_SHADER_PARAMETER_STRUCT(FDistortionPassParameters, )
 	SHADER_PARAMETER_STRUCT_INCLUDE(FViewShaderParameters, View)
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FDistortionPassUniformParameters, Pass)
+	SHADER_PARAMETER_STRUCT_INCLUDE(FInstanceCullingDrawParams, InstanceCullingDrawParams)
 	RENDER_TARGET_BINDING_SLOTS()
 END_SHADER_PARAMETER_STRUCT()
 
@@ -302,11 +303,11 @@ void FDeferredShadingSceneRenderer::RenderDistortion(FRDGBuilder& GraphBuilder, 
 				{},
 				PassParameters,
 				ERDGPassFlags::Raster,
-				[this, &View](FRHICommandListImmediate& RHICmdList)
+				[this, &View, PassParameters](FRHICommandListImmediate& RHICmdList)
 			{
 				QUICK_SCOPE_CYCLE_COUNTER(STAT_FSceneRender_RenderDistortion_Accumulate_Meshes);
 				SetStereoViewport(RHICmdList, View);
-				View.ParallelMeshDrawCommandPasses[EMeshPass::Distortion].DispatchDraw(nullptr, RHICmdList);
+				View.ParallelMeshDrawCommandPasses[EMeshPass::Distortion].DispatchDraw(nullptr, RHICmdList, &PassParameters->InstanceCullingDrawParams);
 			});
 
 			LoadAction = ERenderTargetLoadAction::ELoad;

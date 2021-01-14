@@ -11,8 +11,12 @@
 #include "MeshBatch.h"
 #include "Hash/CityHash.h"
 #include "Experimental/Containers/RobinHoodHashTable.h"
+#include "InstanceCulling/InstanceCullingContext.h"
 
 #define MESH_DRAW_COMMAND_DEBUG_DATA ((!UE_BUILD_SHIPPING && !UE_BUILD_TEST) || VALIDATE_MESH_COMMAND_BINDINGS || WANTS_DRAW_MESH_EVENTS)
+
+class FGPUScene;
+class FInstanceCullingDrawParams;
 
 class FRayTracingLocalShaderBindingWriter;
 

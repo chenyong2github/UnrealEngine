@@ -10,6 +10,7 @@ void RenderHairPrePass(
 	FRDGBuilder& GraphBuilder,
 	FScene* Scene,
 	TArray<FViewInfo>& Views,
+	FInstanceCullingManager& InstanceCullingManager,
 	FHairStrandsRenderingData& OutHairDatas)
 {
 	// #hair_todo: Add multi-view
@@ -23,8 +24,8 @@ void RenderHairPrePass(
 		AddServiceLocalQueuePass(GraphBuilder);
 
 		// Voxelization and Deep Opacity Maps
-		VoxelizeHairStrands(GraphBuilder, Scene, Views, OutHairDatas.MacroGroupsPerViews);
-		RenderHairStrandsDeepShadows(GraphBuilder, Scene, Views, OutHairDatas.MacroGroupsPerViews);
+		VoxelizeHairStrands(GraphBuilder, Scene, Views, InstanceCullingManager, OutHairDatas.MacroGroupsPerViews);
+		RenderHairStrandsDeepShadows(GraphBuilder, Scene, Views, InstanceCullingManager, OutHairDatas.MacroGroupsPerViews);
 
 		AddServiceLocalQueuePass(GraphBuilder);
 	}
@@ -35,6 +36,7 @@ void RenderHairBasePass(
 	FScene* Scene,
 	const FSceneTextures& SceneTextures,
 	TArray<FViewInfo>& Views,
+	FInstanceCullingManager& InstanceCullingManager,
 	FHairStrandsRenderingData& OutHairDatas)
 {
 	// #hair_todo: Add multi-view
@@ -56,6 +58,7 @@ void RenderHairBasePass(
 			SceneTextures.Color.Resolve,
 			SceneTextures.Depth.Resolve,
 			SceneTextures.Velocity,
+			InstanceCullingManager,
 			OutHairDatas.MacroGroupsPerViews);
 	}
 }

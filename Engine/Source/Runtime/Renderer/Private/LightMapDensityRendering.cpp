@@ -66,6 +66,7 @@ TRDGUniformBufferRef<FLightmapDensityPassUniformParameters> CreateLightmapDensit
 BEGIN_SHADER_PARAMETER_STRUCT(FLightMapDensitiesPassParameters, )
 	SHADER_PARAMETER_STRUCT_INCLUDE(FViewShaderParameters, View)
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FLightmapDensityPassUniformParameters, Pass)
+	SHADER_PARAMETER_STRUCT_INCLUDE(FInstanceCullingDrawParams, InstanceCullingDrawParams)
 	RENDER_TARGET_BINDING_SLOTS()
 END_SHADER_PARAMETER_STRUCT()
 
@@ -93,10 +94,10 @@ void RenderLightMapDensities(
 			{},
 			PassParameters,
 			ERDGPassFlags::Raster,
-			[&View](FRHICommandList& RHICmdList)
+			[&View, PassParameters](FRHICommandList& RHICmdList)
 		{
 			RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1);
-			View.ParallelMeshDrawCommandPasses[EMeshPass::LightmapDensity].DispatchDraw(nullptr, RHICmdList);
+			View.ParallelMeshDrawCommandPasses[EMeshPass::LightmapDensity].DispatchDraw(nullptr, RHICmdList, &PassParameters->InstanceCullingDrawParams);
 		});
 	}
 }

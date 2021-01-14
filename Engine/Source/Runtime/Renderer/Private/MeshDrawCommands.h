@@ -8,10 +8,13 @@ MeshDrawCommands.h: Mesh draw commands.
 
 #include "MeshPassProcessor.h"
 #include "TranslucencyPass.h"
+#include "InstanceCulling/InstanceCullingContext.h"
+#include "InstanceCulling/InstanceCullingManager.h"
 
 struct FMeshBatchAndRelevance;
 class FStaticMeshBatch;
 class FParallelCommandListSet;
+class FInstanceCullingManager;
 
 /**
  * Global vertex buffer pool used for GPUScene primitive id arrays.
@@ -52,6 +55,8 @@ class FMeshDrawCommandPassSetupTaskContext
 public:
 	FMeshDrawCommandPassSetupTaskContext()
 		: View(nullptr)
+		, Scene(nullptr)
+		, InstanceCullingManager(nullptr)
 		, ShadingPath(EShadingPath::Num)
 		, PassType(EMeshPass::Num)
 		, bUseGPUScene(false)
@@ -72,10 +77,13 @@ public:
 		, VisibleMeshDrawCommandsNum(0)
 		, NewPassVisibleMeshDrawCommandsNum(0)
 		, MaxInstances(1)
+		, InstanceCullingContext(nullptr)
 	{
 	}
 
 	const FViewInfo* View;
+	const FScene* Scene;
+	FInstanceCullingManager* InstanceCullingManager;
 	EShadingPath ShadingPath;
 	EShaderPlatform ShaderPlatform;
 	EMeshPass::Type PassType;
@@ -121,6 +129,9 @@ public:
 	int32 VisibleMeshDrawCommandsNum;
 	int32 NewPassVisibleMeshDrawCommandsNum;
 	int32 MaxInstances;
+
+	FInstanceCullingContext* InstanceCullingContext;
+	FInstanceCullingResult InstanceCullingResult;
 };
 
 /**
@@ -145,6 +156,8 @@ public:
 	void DispatchPassSetup(
 		FScene* Scene,
 		const FViewInfo& View, 
+		FInstanceCullingContext* InstanceCullingContext,
+		FInstanceCullingManager* InstanceCullingManager,
 		EMeshPass::Type PassType, 
 		FExclusiveDepthStencil::Type BasePassDepthStencilAccess,
 		FMeshPassProcessor* MeshPassProcessor,
@@ -161,7 +174,7 @@ public:
 	/**
 	 * Dispatch visible mesh draw command draw task.
 	 */
-	void DispatchDraw(FParallelCommandListSet* ParallelCommandListSet, FRHICommandList& RHICmdList) const;
+	void DispatchDraw(FParallelCommandListSet* ParallelCommandListSet, FRHICommandList& RHICmdList, const FInstanceCullingDrawParams* InstanceCullingDrawParams = nullptr) const;
 
 	void WaitForTasksAndEmpty();
 	void SetDumpInstancingStats(const FString& InPassName);
@@ -178,6 +191,8 @@ public:
 	}
 
 	static bool IsOnDemandShaderCreationEnabled();
+
+	FInstanceCullingContext* GetInstanceCullingContext() { return TaskContext.InstanceCullingContext; }
 
 private:
 	FPrimitiveIdVertexBufferPoolEntry PrimitiveIdVertexBufferPoolEntry;

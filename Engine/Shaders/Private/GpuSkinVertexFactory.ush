@@ -948,3 +948,4 @@ uint VertexFactoryGetPrimitiveId(FVertexFactoryInterpolantsVSToPS Interpolants)
 }
 
 #include "VertexFactoryDefaultInterface.ush"
+

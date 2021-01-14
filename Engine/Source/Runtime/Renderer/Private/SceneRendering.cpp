@@ -3164,7 +3164,7 @@ void FSceneRenderer::RenderFinish(FRDGBuilder& GraphBuilder, FRDGTextureRef View
 	});
 }
 
-void FSceneRenderer::SetupMeshPass(FViewInfo& View, FExclusiveDepthStencil::Type BasePassDepthStencilAccess, FViewCommands& ViewCommands)
+void FSceneRenderer::SetupMeshPass(FViewInfo& View, FExclusiveDepthStencil::Type BasePassDepthStencilAccess, FViewCommands& ViewCommands, FInstanceCullingManager& InstanceCullingManager)
 {
 	SCOPE_CYCLE_COUNTER(STAT_SetupMeshPass);
 
@@ -3210,9 +3210,13 @@ void FSceneRenderer::SetupMeshPass(FViewInfo& View, FExclusiveDepthStencil::Type
 				Pass.SetDumpInstancingStats(GetMeshPassName(PassType));
 			}
 
+			FInstanceCullingContext* InstanceCullingContext = nullptr; // GPUCULL_TODO: InstanceCullingManager.CreateContext(ViewIds, NumViews);
+
 			Pass.DispatchPassSetup(
 				Scene,
 				View,
+				InstanceCullingContext,
+				&InstanceCullingManager,
 				PassType,
 				BasePassDepthStencilAccess,
 				MeshPassProcessor,

@@ -1059,6 +1059,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FShadowDepthPassParameters, )
 	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FMobileShadowDepthPassUniformParameters, MobilePassUniformBuffer)
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FShadowDepthPassUniformParameters, DeferredPassUniformBuffer)
+	SHADER_PARAMETER_STRUCT_INCLUDE(FInstanceCullingDrawParams, InstanceCullingDrawParams)
 	RENDER_TARGET_BINDING_SLOTS()
 END_SHADER_PARAMETER_STRUCT()
 
@@ -1135,7 +1136,7 @@ void FProjectedShadowInfo::RenderDepth(
 			[this, PassParameters](FRHICommandListImmediate& RHICmdList)
 		{
 			FShadowParallelCommandListSet ParallelCommandListSet(RHICmdList, *ShadowDepthView, *this, FParallelCommandListBindings(PassParameters));
-			ShadowDepthPass.DispatchDraw(&ParallelCommandListSet, RHICmdList);
+			ShadowDepthPass.DispatchDraw(&ParallelCommandListSet, RHICmdList, &PassParameters->InstanceCullingDrawParams);
 		});
 	}
 	else
@@ -1144,10 +1145,10 @@ void FProjectedShadowInfo::RenderDepth(
 			RDG_EVENT_NAME("ShadowDepthPass"),
 			PassParameters,
 			ERDGPassFlags::Raster,
-			[this](FRHICommandList& RHICmdList)
+			[this, PassParameters](FRHICommandList& RHICmdList)
 		{
 			SetStateForView(RHICmdList);
-			ShadowDepthPass.DispatchDraw(nullptr, RHICmdList);
+			ShadowDepthPass.DispatchDraw(nullptr, RHICmdList, &PassParameters->InstanceCullingDrawParams);
 		});
 	}
 }
@@ -1698,7 +1699,7 @@ void FSceneRenderer::RenderShadowDepthMapAtlases(FRDGBuilder& GraphBuilder)
 	}
 }
 
-void FSceneRenderer::RenderShadowDepthMaps(FRDGBuilder& GraphBuilder)
+void FSceneRenderer::RenderShadowDepthMaps(FRDGBuilder& GraphBuilder, FInstanceCullingManager &InstanceCullingManager)
 {
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(RenderShadows);
 	SCOPED_NAMED_EVENT(FSceneRenderer_RenderShadowDepthMaps, FColor::Emerald);
@@ -2129,7 +2130,7 @@ void FSceneRenderer::RenderShadowDepthMaps(FRDGBuilder& GraphBuilder)
 		for (FProjectedShadowInfo* ProjectedShadowInfo : ShadowMapAtlas.Shadows)
 		{
 			RDG_GPU_MASK_SCOPE(GraphBuilder, GetGPUMaskForShadow(ProjectedShadowInfo));
-			ProjectedShadowInfo->RenderTranslucencyDepths(GraphBuilder, this, RenderTargets);
+			ProjectedShadowInfo->RenderTranslucencyDepths(GraphBuilder, this, RenderTargets, InstanceCullingManager);
 		}
 	}
 

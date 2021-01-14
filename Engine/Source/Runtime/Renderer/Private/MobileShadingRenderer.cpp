@@ -54,6 +54,7 @@
 #include "GPUSortManager.h"
 #include "MobileDeferredShadingPass.h"
 #include "PlanarReflectionSceneProxy.h"
+#include "InstanceCulling/InstanceCullingManager.h"
 
 uint32 GetShadowQuality();
 
@@ -286,6 +287,8 @@ void FMobileSceneRenderer::SetupMobileBasePassAfterShadowInit(FExclusiveDepthSte
 		Pass.DispatchPassSetup(
 			Scene,
 			View,
+			nullptr, // GPUCULL_TODO: Fix mobile!
+			nullptr, // GPUCULL_TODO: Fix mobile!
 			EMeshPass::BasePass,
 			BasePassDepthStencilAccess,
 			MeshPassProcessor,
@@ -332,7 +335,8 @@ void FMobileSceneRenderer::InitViews(FRDGBuilder& GraphBuilder, FSceneTexturesCo
 	const FExclusiveDepthStencil::Type BasePassDepthStencilAccess = FExclusiveDepthStencil::DepthWrite_StencilWrite;
 
 	PreVisibilityFrameSetup(GraphBuilder, SceneTexturesConfig);
-	ComputeViewVisibility(RHICmdList, BasePassDepthStencilAccess, ViewCommandsPerView, DynamicIndexBuffer, DynamicVertexBuffer, DynamicReadBuffer);
+	FInstanceCullingManager InstanceCullingManager(GInstanceCullingManagerResources); // GPUCULL_TODO: Fix mobile!
+	ComputeViewVisibility(RHICmdList, BasePassDepthStencilAccess, ViewCommandsPerView, DynamicIndexBuffer, DynamicVertexBuffer, DynamicReadBuffer, InstanceCullingManager);
 	PostVisibilityFrameSetup(ILCTaskData);
 
 	const FIntPoint RenderTargetSize = (ViewFamily.RenderTarget->GetRenderTargetTexture().IsValid()) ? ViewFamily.RenderTarget->GetRenderTargetTexture()->GetSizeXY() : ViewFamily.RenderTarget->GetSizeXY();
@@ -627,8 +631,8 @@ void FMobileSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	AddPass(GraphBuilder, PollOcclusionQueriesAndDispatchToRHIThreadPass);
 
 	GraphBuilder.SetCommandListStat(GET_STATID(STAT_CLMM_Shadows));
-
-	RenderShadowDepthMaps(GraphBuilder);
+	FInstanceCullingManager InstanceCullingManager(GInstanceCullingManagerResources); // GPUCULL_TODO: Fix mobile!
+	RenderShadowDepthMaps(GraphBuilder, InstanceCullingManager);
 
 	AddPass(GraphBuilder, PollOcclusionQueriesAndDispatchToRHIThreadPass);
 
@@ -731,7 +735,7 @@ void FMobileSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 				{
 					RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, Views.Num() > 1, "View%d", ViewIndex);
 					PostProcessingInputs.SceneTextures = SceneTextures.MobileUniformBuffer;
-					AddMobilePostProcessingPasses(GraphBuilder, Views[ViewIndex], PostProcessingInputs);
+					AddMobilePostProcessingPasses(GraphBuilder, Views[ViewIndex], PostProcessingInputs, InstanceCullingManager);
 				}
 			}
 		}

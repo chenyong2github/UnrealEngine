@@ -624,6 +624,7 @@ enum EVolumetricCloudRenderViewPsPermutations
 
 BEGIN_SHADER_PARAMETER_STRUCT(FRenderVolumetricCloudRenderViewParametersPS, )
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FRenderVolumetricCloudGlobalParameters, VolumetricCloudRenderViewParamsUB)
+	SHADER_PARAMETER_STRUCT_INCLUDE(FInstanceCullingDrawParams, InstanceCullingDrawParams)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, CloudShadowTexture0)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, CloudShadowTexture1)
 	RENDER_TARGET_BINDING_SLOTS()
@@ -1036,6 +1037,7 @@ private:
 
 BEGIN_SHADER_PARAMETER_STRUCT(FVolumetricCloudShadowParametersPS, )
 	SHADER_PARAMETER_STRUCT_INCLUDE(FViewShaderParameters, View)
+	SHADER_PARAMETER_STRUCT_INCLUDE(FInstanceCullingDrawParams, InstanceCullingDrawParams)
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FRenderVolumetricCloudGlobalParameters, TraceVolumetricCloudParamsUB)
 	RENDER_TARGET_BINDING_SLOTS()
 END_SHADER_PARAMETER_STRUCT()
@@ -1249,7 +1251,7 @@ IMPLEMENT_GLOBAL_SHADER(FCloudShadowTemporalProcessCS, "/Engine/Private/Volumetr
 
 
 
-void FSceneRenderer::InitVolumetricCloudsForViews(FRDGBuilder& GraphBuilder, bool bShouldRenderVolumetricCloud)
+void FSceneRenderer::InitVolumetricCloudsForViews(FRDGBuilder& GraphBuilder, bool bShouldRenderVolumetricCloud, FInstanceCullingManager& InstanceCullingManager)
 {
 	auto CleanUpCloudData = [&Views = Views](FRDGBuilder& GraphBuilder)
 	{
@@ -1848,7 +1850,7 @@ static void GetOutputTexturesWithFallback(FRDGBuilder& GraphBuilder, FCloudRende
 	}
 }
 
-void FSceneRenderer::RenderVolumetricCloudsInternal(FRDGBuilder& GraphBuilder, FCloudRenderContext& CloudRC)
+void FSceneRenderer::RenderVolumetricCloudsInternal(FRDGBuilder& GraphBuilder, FCloudRenderContext& CloudRC, FInstanceCullingManager& InstanceCullingManager)
 {
 	check(CloudRC.MainView);
 	check(CloudRC.CloudInfo);
@@ -1979,7 +1981,8 @@ bool FSceneRenderer::RenderVolumetricCloud(
 	bool bSkipVolumetricRenderTarget,
 	bool bSkipPerPixelTracing,
 	FRDGTextureRef HalfResolutionDepthCheckerboardMinMaxTexture,
-	bool bAsyncCompute)
+	bool bAsyncCompute,
+	FInstanceCullingManager& InstanceCullingManager)
 {
 	check(ShouldRenderVolumetricCloud(Scene, ViewFamily.EngineShowFlags)); // This should not be called if we should not render SkyAtmosphere
 
@@ -2158,7 +2161,7 @@ bool FSceneRenderer::RenderVolumetricCloud(
 				CloudRC.VolumetricCloudShadowTexture[0] = CloudShadowAOData.VolumetricCloudShadowMap[0];
 				CloudRC.VolumetricCloudShadowTexture[1] = CloudShadowAOData.VolumetricCloudShadowMap[1];
 
-				RenderVolumetricCloudsInternal(GraphBuilder, CloudRC);
+				RenderVolumetricCloudsInternal(GraphBuilder, CloudRC, InstanceCullingManager);
 
 				// Render high quality sky light shaft on clouds.
 				if (bShouldUseHighQualityAerialPerspective)

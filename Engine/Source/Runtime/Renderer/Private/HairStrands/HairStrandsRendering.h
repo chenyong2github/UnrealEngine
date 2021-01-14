@@ -34,6 +34,7 @@ void RenderHairPrePass(
 	FRDGBuilder& GraphBuilder,
 	FScene* Scene,
 	TArray<FViewInfo>& Views,
+	FInstanceCullingManager& InstanceCullingManager,
 	FHairStrandsRenderingData& OutHairDatas);
 
 void RenderHairBasePass(
@@ -41,6 +42,7 @@ void RenderHairBasePass(
 	FScene* Scene,
 	const FSceneTextures& SceneTextures,
 	TArray<FViewInfo>& Views,
+	FInstanceCullingManager& InstanceCullingManager,
 	FHairStrandsRenderingData& OutHairDatas);
 
 void RunHairStrandsBookmark(

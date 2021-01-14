@@ -13,6 +13,7 @@
 class FViewInfo;
 struct FVector;
 struct FIntPoint;
+class FInstanceCullingManager;
 
 struct FHairStrandsVisibilityData
 {
@@ -77,9 +78,10 @@ FHairStrandsVisibilityViews RenderHairStrandsVisibilityBuffer(
 	FRDGTextureRef SceneGBufferCTexture,
 	FRDGTextureRef SceneGBufferDTexture,
 	FRDGTextureRef SceneGBufferETexture,
-	FRDGTextureRef ColorTexture,
-	FRDGTextureRef DepthTexture,
-	FRDGTextureRef VelocityTexture,
+	FRDGTextureRef SceneColorTexture,
+	FRDGTextureRef SceneDepthTexture,
+	FRDGTextureRef SceneVelocityTexture,
+	FInstanceCullingManager& InstanceCullingManager,
 	const struct FHairStrandsMacroGroupViews& MacroGroupViews);
 
 void SetUpViewHairRenderInfo(const FViewInfo& ViewInfo, FVector4& OutHairRenderInfo, uint32& OutHairRenderInfoBits, uint32& OutHairComponents);

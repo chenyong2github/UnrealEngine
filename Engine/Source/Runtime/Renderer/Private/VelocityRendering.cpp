@@ -220,6 +220,7 @@ bool FDeferredShadingSceneRenderer::ShouldRenderVelocities() const
 BEGIN_SHADER_PARAMETER_STRUCT(FVelocityPassParameters, )
 	SHADER_PARAMETER_STRUCT_INCLUDE(FViewShaderParameters, View)
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTextures)
+	SHADER_PARAMETER_STRUCT_INCLUDE(FInstanceCullingDrawParams, InstanceCullingDrawParams)
 	RENDER_TARGET_BINDING_SLOTS()
 END_SHADER_PARAMETER_STRUCT()
 
@@ -302,7 +303,7 @@ void FDeferredShadingSceneRenderer::RenderVelocities(
 					[this, &View, &ParallelMeshPass, VelocityPass, PassParameters](FRHICommandListImmediate& RHICmdList)
 				{
 					FRDGParallelCommandListSet ParallelCommandListSet(RHICmdList, GET_STATID(STAT_CLP_Velocity), *this, View, FParallelCommandListBindings(PassParameters));
-					ParallelMeshPass.DispatchDraw(&ParallelCommandListSet, RHICmdList);
+					ParallelMeshPass.DispatchDraw(&ParallelCommandListSet, RHICmdList, &PassParameters->InstanceCullingDrawParams);
 				});
 			}
 			else
@@ -313,10 +314,10 @@ void FDeferredShadingSceneRenderer::RenderVelocities(
 					RDG_EVENT_NAME("Velocity"),
 					PassParameters,
 					ERDGPassFlags::Raster,
-					[this, &View, &ParallelMeshPass](FRHICommandListImmediate& RHICmdList)
+					[this, &View, &ParallelMeshPass, PassParameters](FRHICommandListImmediate& RHICmdList)
 				{
 					SetStereoViewport(RHICmdList, View);
-					ParallelMeshPass.DispatchDraw(nullptr, RHICmdList);
+					ParallelMeshPass.DispatchDraw(nullptr, RHICmdList, &PassParameters->InstanceCullingDrawParams);
 				});
 			}
 		}

@@ -36,6 +36,7 @@ END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 BEGIN_SHADER_PARAMETER_STRUCT(FHairDeepShadowRasterPassParameters, )
 	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+	SHADER_PARAMETER_STRUCT_INCLUDE(FInstanceCullingDrawParams, InstanceCullingDrawParams)
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FHairDeepShadowRasterUniformParameters, UniformBuffer)
 	RENDER_TARGET_BINDING_SLOTS()
 END_SHADER_PARAMETER_STRUCT()
@@ -50,7 +51,8 @@ void AddHairDeepShadowRasterPass(
 	const FVector4& HairRenderInfo,
 	const uint32 HairRenderInfoBits,
 	const FVector& LightDirection,
-	FHairDeepShadowRasterPassParameters* PassParameters);
+	FHairDeepShadowRasterPassParameters* PassParameters,
+	FInstanceCullingManager& InstanceCullingManager);
 
 // ////////////////////////////////////////////////////////////////
 // Voxelization raster pass
@@ -68,6 +70,7 @@ END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 BEGIN_SHADER_PARAMETER_STRUCT(FHairVoxelizationRasterPassParameters, )
 	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+	SHADER_PARAMETER_STRUCT_INCLUDE(FInstanceCullingDrawParams, InstanceCullingDrawParams)
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FHairVoxelizationRasterUniformParameters, UniformBuffer)
 	RENDER_TARGET_BINDING_SLOTS()
 END_SHADER_PARAMETER_STRUCT()
@@ -81,4 +84,5 @@ void AddHairVoxelizationRasterPass(
 	const FVector4& HairRenderInfo,
 	const uint32 HairRenderInfoBits,
 	const FVector& RasterDirection,
-	FHairVoxelizationRasterPassParameters* PassParameters);
+	FHairVoxelizationRasterPassParameters* PassParameters,
+	FInstanceCullingManager& InstanceCullingManager);

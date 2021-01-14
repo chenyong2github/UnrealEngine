@@ -48,7 +48,6 @@ END_SHADER_PARAMETER_STRUCT()
 
 BEGIN_SHADER_PARAMETER_STRUCT(FNaniteVisualizeLevelInstanceParameters, )
 	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
-	SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureShaderParameters, SceneTextures)
 	SHADER_PARAMETER(FVector2D, OutputToInputScale)
 	SHADER_PARAMETER(uint32, MaxVisibleClusters)
 
@@ -60,12 +59,10 @@ BEGIN_SHADER_PARAMETER_STRUCT(FNaniteVisualizeLevelInstanceParameters, )
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint2>, VisBuffer64)
 
 	SHADER_PARAMETER_SRV(ByteAddressBuffer, MaterialHitProxyTable)
-	RENDER_TARGET_BINDING_SLOTS()
 END_SHADER_PARAMETER_STRUCT()
 
 BEGIN_SHADER_PARAMETER_STRUCT(FNaniteSelectionOutlineParameters, )
 	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
-	SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureShaderParameters, SceneTextures)
 	SHADER_PARAMETER(FVector2D, OutputToInputScale)
 	SHADER_PARAMETER(uint32, MaxVisibleClusters)
 
@@ -77,7 +74,6 @@ BEGIN_SHADER_PARAMETER_STRUCT(FNaniteSelectionOutlineParameters, )
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint2>, VisBuffer64)
 
 	SHADER_PARAMETER_SRV(ByteAddressBuffer, MaterialHitProxyTable)
-	RENDER_TARGET_BINDING_SLOTS()
 END_SHADER_PARAMETER_STRUCT()
 
 BEGIN_SHADER_PARAMETER_STRUCT( FRasterParameters, )

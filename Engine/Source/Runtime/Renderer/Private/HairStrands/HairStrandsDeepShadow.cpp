@@ -222,6 +222,7 @@ void RenderHairStrandsDeepShadows(
 	FRDGBuilder& GraphBuilder,
 	const FScene* Scene,
 	const TArray<FViewInfo>& Views,
+	FInstanceCullingManager& InstanceCullingManager,
 	FHairStrandsMacroGroupViews& MacroGroupsViews)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_CLM_RenderDeepShadow);
@@ -464,7 +465,8 @@ void RenderHairStrandsDeepShadows(
 						HairRenderInfo,
 						HairRenderInfoBits,
 						DomData.LightDirection,
-						PassParameters);
+						PassParameters,
+						InstanceCullingManager);
 				}
 
 				// Deep layers
@@ -503,7 +505,8 @@ void RenderHairStrandsDeepShadows(
 						HairRenderInfo,
 						HairRenderInfoBits,
 						DomData.LightDirection,
-						PassParameters);						
+						PassParameters,
+						InstanceCullingManager);
 				}
 				bClear = false;
 			}
