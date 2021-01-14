@@ -1283,6 +1283,7 @@ void FControlRigParameterTrackEditor::OnCurveDisplayChanged(FCurveModel* CurveMo
 			GetSequencer()->SuspendSelectionBroadcast();
 			GetSequencer()->GetSequencerSettings()->SyncCurveEditorSelection(false);
 			GetSequencer()->SelectByChannels(MovieSection, Channels, false, bDisplayed);
+			GetSequencer()->RefreshTree();
 			GetSequencer()->GetSequencerSettings()->SyncCurveEditorSelection(bSync);
 			GetSequencer()->ResumeSelectionBroadcast();
 		}
