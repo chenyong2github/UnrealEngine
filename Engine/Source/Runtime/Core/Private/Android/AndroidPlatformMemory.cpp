@@ -296,6 +296,10 @@ FMalloc* FAndroidPlatformMemory::BaseAllocator()
 	FLowLevelMemTracker::Get().SetProgramSize(Stats.UsedPhysical);
 #endif
 
+#ifdef RUNNING_WITH_ASAN
+	return new FMallocAnsi();
+#endif
+
 #if USE_MALLOC_BINNED3 && PLATFORM_ANDROID_ARM64
 	return new FMallocBinned3();
 #elif USE_MALLOC_BINNED2

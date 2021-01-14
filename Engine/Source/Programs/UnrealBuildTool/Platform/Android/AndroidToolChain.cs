@@ -44,6 +44,28 @@ namespace UnrealBuildTool
 			{ "-lumin", "" }
 		};
 
+		public enum ClangSanitizer
+		{
+			None,
+			Address,
+			HwAddress,
+			UndefinedBehavior,
+			UndefinedBehaviorMinimal,
+			//Thread,
+		};
+
+		public static string GetCompilerOption(ClangSanitizer Sanitizer)
+		{
+			switch (Sanitizer)
+			{
+				case ClangSanitizer.Address: return "address";
+				case ClangSanitizer.HwAddress: return "hwaddress";
+				case ClangSanitizer.UndefinedBehavior:
+				case ClangSanitizer.UndefinedBehaviorMinimal: return "undefined";
+				//case ClangSanitizer.Thread: return "thread";
+				default: return "";
+			}
+		}
 
 		protected FileReference ProjectFile;
 		private bool bUseLdGold;
@@ -906,6 +928,17 @@ namespace UnrealBuildTool
 				Result += " -march=atom";
 			}
 
+			ClangSanitizer Sanitizer = BuildWithSanitizer(ProjectFile);
+			if (Sanitizer != ClangSanitizer.None)
+			{
+				Result += " -fsanitize=" + GetCompilerOption(Sanitizer);
+
+				if (Sanitizer == ClangSanitizer.Address || Sanitizer == ClangSanitizer.HwAddress)
+				{
+					Result += " -fno-omit-frame-pointer -DRUNNING_WITH_ASAN";
+				}
+			}
+
 			return Result;
 		}
 
@@ -1076,6 +1109,12 @@ namespace UnrealBuildTool
 
 			// verbose output from the linker
 			// Result += " -v";
+
+			ClangSanitizer Sanitizer = BuildWithSanitizer(ProjectFile);
+			if (Sanitizer != ClangSanitizer.None)
+			{
+				Result += " -fsanitize=" + GetCompilerOption(Sanitizer);
+			}
 
 			return Result;
 		}
@@ -2523,6 +2562,23 @@ namespace UnrealBuildTool
 
 			CompileOrLinkAction.CommandPath = BuildHostPlatform.Current.Shell;
 			CompileOrLinkAction.CommandDescription = CommandDescription;
+		}
+
+		public static ClangSanitizer BuildWithSanitizer(FileReference ProjectFile)
+		{
+			ConfigHierarchy Ini = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, DirectoryReference.FromFile(ProjectFile), UnrealTargetPlatform.Android);
+			string Sanitizer;
+			Ini.GetString("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "ClangSanitizer", out Sanitizer);
+
+			switch (Sanitizer.ToLower())
+			{
+				case "address": return ClangSanitizer.Address;
+				case "hwaddress": return ClangSanitizer.HwAddress;
+				case "undefinedbehavior": return ClangSanitizer.UndefinedBehavior;
+				case "undefinedbehaviorminimal": return ClangSanitizer.UndefinedBehaviorMinimal;
+				//case "thread": return ClangSanitizer.Thread;
+				default: return ClangSanitizer.None;
+			}
 		}
 	};
 }
