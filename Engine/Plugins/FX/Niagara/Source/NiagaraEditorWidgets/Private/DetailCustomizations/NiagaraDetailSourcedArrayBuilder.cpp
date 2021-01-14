@@ -12,13 +12,40 @@
 
 #define LOCTEXT_NAMESPACE "FNiagaraDetailSourcedArrayBuilder"
 
-FNiagaraDetailSourcedArrayBuilder::FNiagaraDetailSourcedArrayBuilder(TSharedRef<IPropertyHandle> InBaseProperty, const TArray<TSharedPtr<FName>>& InOptionsSource, const FName InFNameSubproperty, bool InGenerateHeader, bool InDisplayResetToDefault, bool InDisplayElementNum)
+FNiagaraDetailSourcedArrayBuilder::FNiagaraDetailSourcedArrayBuilder(TSharedRef<IPropertyHandle> InBaseProperty, const TArray<TSharedPtr<FName>>& InOptionsSource, const FName InFNameSubproperty, bool InGenerateHeader, bool InDisplayResetToDefault, bool InDisplayElementNum, bool InAllowAutoFill)
 	: FDetailArrayBuilder(InBaseProperty, InGenerateHeader, InDisplayResetToDefault, InDisplayElementNum)
 	, OptionsSourceList(InOptionsSource)
 	, ArrayProperty(InBaseProperty->AsArray())
 	, FNameSubproperty(InFNameSubproperty)
+	, bAllowAutoFill(InAllowAutoFill)
 {
-};
+}
+
+void FNiagaraDetailSourcedArrayBuilder::GenerateHeaderRowContent(FDetailWidgetRow& NodeRow)
+{
+	FDetailArrayBuilder::GenerateHeaderRowContent(NodeRow);
+
+	if (bAllowAutoFill)
+	{
+		NodeRow.AddCustomContextMenuAction(
+			FExecuteAction::CreateLambda(
+				[this]()
+				{
+					ArrayProperty->EmptyArray();
+					int32 NumItems = 0;
+					for (TSharedPtr<FName> Name : OptionsSourceList)
+					{
+						ArrayProperty->AddItem();
+						TSharedPtr<IPropertyHandle> Child = ArrayProperty->GetElement(NumItems++);
+						Child->SetValue(*Name);
+					}
+				}
+			),
+			LOCTEXT("AutoFillActionText", "Auto-fill all options"),
+			LOCTEXT("AutoFillActionTooltip", "Resets this list to a list of all possible options")
+		);
+	}
+}
 
 void FNiagaraDetailSourcedArrayBuilder::OnGenerateEntry(TSharedRef<IPropertyHandle> PropertyHandle, int32 ArrayIndex, IDetailChildrenBuilder& ChildrenBuilder)
 {
