@@ -299,7 +299,7 @@ void FMemAllocTable::AddDefaultColumns()
 
 		Column.SetFlags(ETableColumnFlags::ShouldBeVisible | ETableColumnFlags::CanBeHidden | ETableColumnFlags::CanBeFiltered);
 
-		Column.SetHorizontalAlignment(HAlign_Left);
+		Column.SetHorizontalAlignment(HAlign_Right);
 		Column.SetInitialWidth(100.0f);
 
 		Column.SetDataType(ETableCellDataType::Int64);
@@ -358,7 +358,7 @@ void FMemAllocTable::AddDefaultColumns()
 		Column.SetFlags(ETableColumnFlags::ShouldBeVisible | ETableColumnFlags::CanBeHidden | ETableColumnFlags::CanBeFiltered);
 
 		Column.SetHorizontalAlignment(HAlign_Left);
-		Column.SetInitialWidth(100.0f);
+		Column.SetInitialWidth(120.0f);
 
 		Column.SetDataType(ETableCellDataType::CString);
 
@@ -414,7 +414,7 @@ void FMemAllocTable::AddDefaultColumns()
 		Column.SetFlags(ETableColumnFlags::ShouldBeVisible | ETableColumnFlags::CanBeHidden | ETableColumnFlags::CanBeFiltered);
 
 		Column.SetHorizontalAlignment(HAlign_Left);
-		Column.SetInitialWidth(120.0f);
+		Column.SetInitialWidth(550.0f);
 
 		Column.SetDataType(ETableCellDataType::CString);
 
