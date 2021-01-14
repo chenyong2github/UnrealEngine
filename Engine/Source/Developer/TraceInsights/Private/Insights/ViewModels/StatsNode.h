@@ -236,18 +236,15 @@ public:
 	void UpdateAggregatedStatsInt64FromDouble();
 	void UpdateAggregatedStatsDoubleFromInt64();
 
-	const FText FormatValue(double Value) const;
-	const FText FormatValue(int64 Value) const;
+	const FText FormatAggregatedStatsValue(double ValueDbl, int64 ValueInt, bool bForTooltip = false) const;
 
-	const FText FormatAggregatedStatsValue(double ValueDbl, int64 ValueInt) const;
-
-	const FText GetTextForAggregatedStatsSum() const;
-	const FText GetTextForAggregatedStatsMin() const;
-	const FText GetTextForAggregatedStatsMax() const;
-	const FText GetTextForAggregatedStatsAverage() const;
-	const FText GetTextForAggregatedStatsMedian() const;
-	const FText GetTextForAggregatedStatsLowerQuartile() const;
-	const FText GetTextForAggregatedStatsUpperQuartile() const;
+	const FText GetTextForAggregatedStatsSum(bool bForTooltip = false) const;
+	const FText GetTextForAggregatedStatsMin(bool bForTooltip = false) const;
+	const FText GetTextForAggregatedStatsMax(bool bForTooltip = false) const;
+	const FText GetTextForAggregatedStatsAverage(bool bForTooltip = false) const;
+	const FText GetTextForAggregatedStatsMedian(bool bForTooltip = false) const;
+	const FText GetTextForAggregatedStatsLowerQuartile(bool bForTooltip = false) const;
+	const FText GetTextForAggregatedStatsUpperQuartile(bool bForTooltip = false) const;
 
 	/** Sorts children using the specified class instance. */
 	template<typename TSortingClass>

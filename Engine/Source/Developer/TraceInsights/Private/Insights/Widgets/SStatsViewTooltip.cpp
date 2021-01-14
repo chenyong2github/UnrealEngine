@@ -92,13 +92,13 @@ TSharedPtr<SToolTip> SStatsViewTooltip::GetRowTooltip(const TSharedPtr<FStatsNod
 {
 	const FText InstanceCountText = FText::AsNumber(StatsNodePtr->GetAggregatedStats().Count);
 
-	FText SumText = StatsNodePtr->GetTextForAggregatedStatsSum();
-	FText MinText = StatsNodePtr->GetTextForAggregatedStatsMin();
-	FText MaxText = StatsNodePtr->GetTextForAggregatedStatsMax();
-	FText AvgText = StatsNodePtr->GetTextForAggregatedStatsAverage();
-	FText MedText = StatsNodePtr->GetTextForAggregatedStatsMedian();
-	//FText LowText = StatsNodePtr->GetTextForAggregatedStatsLowerQuartile();
-	//FText UppText = StatsNodePtr->GetTextForAggregatedStatsUpperQuartile();
+	FText SumText = StatsNodePtr->GetTextForAggregatedStatsSum(true);
+	FText MinText = StatsNodePtr->GetTextForAggregatedStatsMin(true);
+	FText MaxText = StatsNodePtr->GetTextForAggregatedStatsMax(true);
+	FText AvgText = StatsNodePtr->GetTextForAggregatedStatsAverage(true);
+	FText MedText = StatsNodePtr->GetTextForAggregatedStatsMedian(true);
+	//FText LowText = StatsNodePtr->GetTextForAggregatedStatsLowerQuartile(true);
+	//FText UppText = StatsNodePtr->GetTextForAggregatedStatsUpperQuartile(true);
 
 	TSharedPtr<SGridPanel> GridPanel;
 	TSharedPtr<SHorizontalBox> HBox;
@@ -277,11 +277,12 @@ void SStatsViewTooltip::AddAggregatedStatsRow(TSharedPtr<SGridPanel> Grid, int32
 
 	Grid->AddSlot(1, Row)
 		.Padding(2.0f)
-		.HAlign(HAlign_Right)
+		.HAlign(HAlign_Left)
 		[
 			SNew(STextBlock)
 			.Text(Value)
 			.TextStyle(FEditorStyle::Get(), TEXT("Profiler.Tooltip"))
+			.ColorAndOpacity(Row == 1 ? FLinearColor::Gray : FLinearColor::White)
 		];
 
 	Row++;

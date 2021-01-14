@@ -90,7 +90,7 @@ const FName FStatsNodeMetaGroupName::Memory(TEXT("Memory"));
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-const FText FStatsNode::FormatAggregatedStatsValue(double ValueDbl, int64 ValueInt) const
+const FText FStatsNode::FormatAggregatedStatsValue(double ValueDbl, int64 ValueInt, bool bForTooltip) const
 {
 	if (AggregatedStats.Count > 0)
 	{
@@ -99,11 +99,20 @@ const FText FStatsNode::FormatAggregatedStatsValue(double ValueDbl, int64 ValueI
 			//TODO: if (GetDisplayHint() == FStatsNodeDisplayHint::Seconds)
 			if (GetMetaGroupName() == FStatsNodeMetaGroupName::Time)
 			{
-				return FText::FromString(TimeUtils::FormatTimeAuto(ValueDbl));
+				if (bForTooltip)
+				{
+					return FText::FromString(TimeUtils::FormatTimeAuto(ValueDbl, 2));
+				}
+				else
+				{
+					return FText::FromString(TimeUtils::FormatTimeAuto(ValueDbl, 1));
+				}
 			}
 			else
 			{
-				return FText::AsNumber(ValueDbl);
+				FNumberFormattingOptions FormattingOptions;
+				FormattingOptions.MaximumFractionalDigits = bForTooltip ? 12 : 6;
+				return FText::AsNumber(ValueDbl, &FormattingOptions);
 			}
 		}
 		else
@@ -114,7 +123,25 @@ const FText FStatsNode::FormatAggregatedStatsValue(double ValueDbl, int64 ValueI
 			{
 				if (ValueInt > 0)
 				{
-					return FText::AsMemory(ValueInt);
+					if (bForTooltip)
+					{
+						if (ValueInt < 1024)
+						{
+							return FText::Format(LOCTEXT("Counter_MemValueFmt1", "{0} bytes"), FText::AsNumber(ValueInt));
+						}
+						else
+						{
+							FNumberFormattingOptions FormattingOptions;
+							FormattingOptions.MaximumFractionalDigits = 2;
+							return FText::Format(LOCTEXT("Counter_MemValueFmt2", "{0} ({1} bytes)"), FText::AsMemory(ValueInt, &FormattingOptions), FText::AsNumber(ValueInt));
+						}
+					}
+					else
+					{
+						FNumberFormattingOptions FormattingOptions;
+						FormattingOptions.MaximumFractionalDigits = 1;
+						return FText::AsMemory(ValueInt, &FormattingOptions);
+					}
 				}
 				else if (ValueInt == 0)
 				{
@@ -122,7 +149,25 @@ const FText FStatsNode::FormatAggregatedStatsValue(double ValueDbl, int64 ValueI
 				}
 				else
 				{
-					return FText::FromString(FString::Printf(TEXT("-%s"), *FText::AsMemory(-ValueInt).ToString()));
+					if (bForTooltip)
+					{
+						if (-ValueInt < 1024)
+						{
+							return FText::Format(LOCTEXT("Counter_NegMemValueFmt1", "-{0} bytes"), FText::AsNumber(-ValueInt));
+						}
+						else
+						{
+							FNumberFormattingOptions FormattingOptions;
+							FormattingOptions.MaximumFractionalDigits = 2;
+							return FText::Format(LOCTEXT("Counter_NegMemValueFmt2", "-{0} (-{1} bytes)"), FText::AsMemory(-ValueInt, &FormattingOptions), FText::AsNumber(-ValueInt));
+						}
+					}
+					else
+					{
+						FNumberFormattingOptions FormattingOptions;
+						FormattingOptions.MaximumFractionalDigits = 1;
+						return FText::Format(LOCTEXT("Counter_NegMemValueFmt3", "-{0}"), FText::AsMemory(-ValueInt, &FormattingOptions));
+					}
 				}
 			}
 			else
@@ -137,51 +182,51 @@ const FText FStatsNode::FormatAggregatedStatsValue(double ValueDbl, int64 ValueI
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-const FText FStatsNode::GetTextForAggregatedStatsSum() const
+const FText FStatsNode::GetTextForAggregatedStatsSum(bool bForTooltip) const
 {
-	return FormatAggregatedStatsValue(AggregatedStats.DoubleStats.Sum, AggregatedStats.Int64Stats.Sum);
+	return FormatAggregatedStatsValue(AggregatedStats.DoubleStats.Sum, AggregatedStats.Int64Stats.Sum, bForTooltip);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-const FText FStatsNode::GetTextForAggregatedStatsMin() const
+const FText FStatsNode::GetTextForAggregatedStatsMin(bool bForTooltip) const
 {
-	return FormatAggregatedStatsValue(AggregatedStats.DoubleStats.Min, AggregatedStats.Int64Stats.Min);
+	return FormatAggregatedStatsValue(AggregatedStats.DoubleStats.Min, AggregatedStats.Int64Stats.Min, bForTooltip);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-const FText FStatsNode::GetTextForAggregatedStatsMax() const
+const FText FStatsNode::GetTextForAggregatedStatsMax(bool bForTooltip) const
 {
-	return FormatAggregatedStatsValue(AggregatedStats.DoubleStats.Max, AggregatedStats.Int64Stats.Max);
+	return FormatAggregatedStatsValue(AggregatedStats.DoubleStats.Max, AggregatedStats.Int64Stats.Max, bForTooltip);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-const FText FStatsNode::GetTextForAggregatedStatsAverage() const
+const FText FStatsNode::GetTextForAggregatedStatsAverage(bool bForTooltip) const
 {
-	return FormatAggregatedStatsValue(AggregatedStats.DoubleStats.Average, AggregatedStats.Int64Stats.Average);
+	return FormatAggregatedStatsValue(AggregatedStats.DoubleStats.Average, AggregatedStats.Int64Stats.Average, bForTooltip);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-const FText FStatsNode::GetTextForAggregatedStatsMedian() const
+const FText FStatsNode::GetTextForAggregatedStatsMedian(bool bForTooltip) const
 {
-	return FormatAggregatedStatsValue(AggregatedStats.DoubleStats.Median, AggregatedStats.Int64Stats.Median);
+	return FormatAggregatedStatsValue(AggregatedStats.DoubleStats.Median, AggregatedStats.Int64Stats.Median, bForTooltip);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-const FText FStatsNode::GetTextForAggregatedStatsLowerQuartile() const
+const FText FStatsNode::GetTextForAggregatedStatsLowerQuartile(bool bForTooltip) const
 {
-	return FormatAggregatedStatsValue(AggregatedStats.DoubleStats.LowerQuartile, AggregatedStats.Int64Stats.LowerQuartile);
+	return FormatAggregatedStatsValue(AggregatedStats.DoubleStats.LowerQuartile, AggregatedStats.Int64Stats.LowerQuartile, bForTooltip);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-const FText FStatsNode::GetTextForAggregatedStatsUpperQuartile() const
+const FText FStatsNode::GetTextForAggregatedStatsUpperQuartile(bool bForTooltip) const
 {
-	return FormatAggregatedStatsValue(AggregatedStats.DoubleStats.UpperQuartile, AggregatedStats.Int64Stats.UpperQuartile);
+	return FormatAggregatedStatsValue(AggregatedStats.DoubleStats.UpperQuartile, AggregatedStats.Int64Stats.UpperQuartile, bForTooltip);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

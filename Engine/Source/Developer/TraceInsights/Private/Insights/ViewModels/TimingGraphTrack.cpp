@@ -61,7 +61,32 @@ FString FTimingGraphSeries::FormatValue(double Value) const
 		else if (bIsMemory)
 		{
 			const int64 MemValue = static_cast<int64>(Value);
-			return FString::Printf(TEXT("%s (%s bytes)"), *FText::AsMemory(MemValue).ToString(), *FText::AsNumber(MemValue).ToString());
+			if (MemValue >= 0)
+			{
+				if (MemValue < 1024)
+				{
+					return FString::Printf(TEXT("%s bytes"), *FText::AsNumber(MemValue).ToString());
+				}
+				else
+				{
+					FNumberFormattingOptions FormattingOptions;
+					FormattingOptions.MaximumFractionalDigits = 2;
+					return FString::Printf(TEXT("%s (%s bytes)"), *FText::AsMemory(MemValue, &FormattingOptions).ToString(), *FText::AsNumber(MemValue).ToString());
+				}
+			}
+			else
+			{
+				if (-MemValue < 1024)
+				{
+					return FString::Printf(TEXT("-%s bytes"), *FText::AsNumber(-MemValue).ToString());
+				}
+				else
+				{
+					FNumberFormattingOptions FormattingOptions;
+					FormattingOptions.MaximumFractionalDigits = 2;
+					return FString::Printf(TEXT("-%s (-%s bytes)"), *FText::AsMemory(-MemValue, &FormattingOptions).ToString(), *FText::AsNumber(-MemValue).ToString());
+				}
+			}
 		}
 		else if (bIsFloatingPoint)
 		{
