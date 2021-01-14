@@ -37,7 +37,7 @@
 
 static TAutoConsoleVariable<int32> CVarVTValidateCompressionOnLoad(
 	TEXT("r.VT.ValidateCompressionOnLoad"),
-	0,
+	1,
 	TEXT("Validates that VT data contains no compression errors when loading from DDC")
 	TEXT("This is slow, but allows debugging corrupt VT data (and allows recovering from bad DDC)")
 );
@@ -250,7 +250,7 @@ void FTextureCacheDerivedDataWorker::BuildTexture(bool bReplaceExistingDDC)
 		bool bCompressionValid = true;
 		if (CVarVTValidateCompressionOnSave.GetValueOnAnyThread())
 		{
-			bCompressionValid = DerivedData->VTData->ValidateCompression(Texture.GetPathName());
+			bCompressionValid = DerivedData->VTData->ValidateData(Texture.GetPathName(), true);
 		}
 
 		if (ensureMsgf(bCompressionValid, TEXT("Corrupt Virtual Texture compression for %s, can't store to DDC"), *Texture.GetPathName()))
@@ -493,7 +493,7 @@ void FTextureCacheDerivedDataWorker::DoWork()
 		if (bSucceeded && bForVirtualTextureStreamingBuild && CVarVTValidateCompressionOnLoad.GetValueOnAnyThread())
 		{
 			check(DerivedData->VTData);
-			bSucceeded = DerivedData->VTData->ValidateCompression(Texture.GetPathName());
+			bSucceeded = DerivedData->VTData->ValidateData(Texture.GetPathName(), false);
 			if (!bSucceeded)
 			{
 				UE_LOG(LogTexture, Error, TEXT("Texture %s has corrupt Virtual Texture compression. The texture will be rebuild."), *Texture.GetFullName());

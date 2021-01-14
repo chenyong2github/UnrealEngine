@@ -26,7 +26,7 @@ DEFINE_LOG_CATEGORY(LogVTDiskCache);
 struct FVirtualTextureFileHeader
 {
 	static const uint32 CurrentMagic = 0x4558ACDF;
-	static const uint32 CurrentVersion = 1u;
+	static const uint32 CurrentVersion = 2u;
 
 	uint32 Magic = 0u;
 	uint32 Version = 0u;
@@ -111,6 +111,24 @@ public:
 			return;
 		}
 
+		if (Results.Num() <= 4)
+		{
+			UE_LOG(LogVTDiskCache, Error, TEXT("VT DDC data is too small %d (key: %s)"), Results.Num(), *Chunk->DerivedDataKey);
+			return;
+		}
+
+		// skip size embedded in DDC entry
+		const uint8* ChunkData = Results.GetData() + 4;
+		const int32 ChunkDataSize = Results.Num() - 4;
+
+		FSHAHash Hash;
+		FSHA1::HashBuffer(ChunkData, ChunkDataSize, Hash.Hash);
+		if (Hash != Chunk->BulkDataHash)
+		{
+			UE_LOG(LogVTDiskCache, Error, TEXT("VT DDC data is corrupt (key: %s)"), *Chunk->DerivedDataKey);
+			return;
+		}
+
 		// Write to Disk
 		{
 			TUniquePtr<FArchive> Ar(IFileManager::Get().CreateFileWriter(*TempFilename, 0));
@@ -123,13 +141,12 @@ public:
 			FVirtualTextureFileHeader Header;
 			Header.Magic = FVirtualTextureFileHeader::CurrentMagic;
 			Header.Version = FVirtualTextureFileHeader::CurrentVersion;
-			Header.HashSize = FMath::Min<uint32>(Results.Num() - 4, kMaxHashSize);
-			FSHA1::HashBuffer(Results.GetData() + 4, Header.HashSize, Header.Hash.Hash);
+			Header.HashSize = FMath::Min<uint32>(ChunkDataSize, kMaxHashSize);
+			FSHA1::HashBuffer(ChunkData, Header.HashSize, Header.Hash.Hash);
 			*Ar << Header;
 			const int64 ArchiveOffset = Ar->Tell();
 			check(ArchiveOffset == sizeof(FVirtualTextureFileHeader));
-
-			Ar->Serialize(const_cast<uint8*>(Results.GetData() + 4), Results.Num() - 4); // skip size embedded in DDC entry
+			Ar->Serialize(const_cast<uint8*>(ChunkData), ChunkDataSize);
 		}
 
 		if (PlatformFile.MoveFile(*FinalFilename, *TempFilename))

@@ -31,6 +31,7 @@ enum class EVirtualTextureCodec : uint8
 struct FVirtualTextureDataChunk
 {
 	FByteBulkData BulkData;
+	FSHAHash BulkDataHash;
 	uint32 SizeInBytes;
 	uint32 CodecPayloadSize;
 	uint32 CodecPayloadOffset[VIRTUALTEXTURE_DATA_MAXLAYERS];
@@ -191,8 +192,8 @@ struct FVirtualTextureBuiltData
 	}
 
 	/**
-	* Attempts to decompress every VT tile, to verify data is valid
-	* This will be very slow
+	* Validates the VT data
+	* If bValidateCompression is true, attempts to decompress every VT tile, to verify data is valid. This will be very slow
 	*/
-	bool ValidateCompression(FStringView const& InDDCDebugContext) const;
+	bool ValidateData(FStringView const& InDDCDebugContext, bool bValidateCompression) const;
 };

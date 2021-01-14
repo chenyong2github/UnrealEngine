@@ -767,6 +767,8 @@ void FVirtualTextureDataBuilder::PushDataToChunk(const TArray<FVTSourceTileEntry
 
 	check(ChunkOffset == TotalSize);
 
+	FSHA1::HashBuffer(NewChunkData, TotalSize, Chunk.BulkDataHash.Hash);
+
 	BulkData.Unlock();
 	BulkData.SetBulkDataFlags(BULKDATA_Force_NOT_InlinePayload);
 }
