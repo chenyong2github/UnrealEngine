@@ -254,11 +254,18 @@ void FMacWindow::MoveWindowTo( int32 X, int32 Y )
 
 void FMacWindow::BringToFront( bool bForce )
 {
+	bIsVisible = (bIsVisible || bForce);
+
 	if (!bIsClosed && bIsVisible)
 	{
+		SCOPED_AUTORELEASE_POOL;
+
+		bool bOrderAndKey = IsRegularWindow() || bForce;
+
+		FCocoaWindow* WindowHandleCopy = WindowHandle;
 		MainThreadCall(^{
 			SCOPED_AUTORELEASE_POOL;
-			[WindowHandle orderFrontAndMakeMain:IsRegularWindow() andKey:IsRegularWindow()];
+			[WindowHandleCopy orderFrontAndMakeMain:bOrderAndKey andKey:bOrderAndKey];
 		}, UE4ShowEventMode, true);
 
 		MacApplication->OnWindowOrderedFront(SharedThis(this));
