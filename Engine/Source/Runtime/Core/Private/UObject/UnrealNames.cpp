@@ -1826,7 +1826,8 @@ struct FNameHelper
 	{
 		if (View.Len >= NAME_SIZE)
 		{
-			checkf(false, TEXT("FName's %d max length exceeded. Got %d characters excluding null-terminator."), NAME_SIZE - 1, View.Len);
+			checkf(false, TEXT("FName's %d max length exceeded. Got %d characters excluding null-terminator:\n%.*s"), 
+				NAME_SIZE - 1, View.Len, NAME_SIZE, View.IsAnsi() ? ANSI_TO_TCHAR(View.Data) : View.Data);
 			return FName("ERROR_NAME_SIZE_EXCEEDED");
 		}
 		

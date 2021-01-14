@@ -699,6 +699,12 @@ bool CanRenameAssetFileItem(IAssetTools* InAssetTools, const FContentBrowserAsse
 		return false;
 	}
 
+	if (InNewName && InNewName->Len() >= NAME_SIZE)
+	{
+		SetOptionalErrorMessage(OutErrorMsg, LOCTEXT("Error_AssetNameTooLarge", "This asset name is too long. Please choose a shorter name."));
+		return false;
+	}
+
 	if (InNewName && (InIsTempoarary || InAssetPayload.GetAssetData().AssetName != FName(**InNewName))) // Deliberately ignore case here to allow case-only renames of existing assets
 	{
 		const FString PackageName = InAssetPayload.GetAssetData().PackagePath.ToString() / *InNewName;
