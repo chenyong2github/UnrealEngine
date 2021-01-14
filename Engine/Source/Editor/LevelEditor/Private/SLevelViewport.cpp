@@ -2613,6 +2613,10 @@ void SLevelViewport::RedrawViewport( bool bInvalidateHitProxies )
 	{
 		// Invalidate hit proxies and display pixels.
 		LevelViewportClient->Viewport->Invalidate();
+
+		// Force invalidate hit proxy immediately to avoid a crash
+		// After level change a mouse click can be processed before the deferred invalidate of hitproxies is performed.
+		LevelViewportClient->Viewport->InvalidateHitProxy();
 		
 		// Also update preview viewports
 		for (const FViewportActorPreview& CurActorPreview : ActorPreviews)
@@ -2620,6 +2624,7 @@ void SLevelViewport::RedrawViewport( bool bInvalidateHitProxies )
 			if (CurActorPreview.LevelViewportClient.IsValid())
 			{
 				CurActorPreview.LevelViewportClient->Viewport->Invalidate();
+				CurActorPreview.LevelViewportClient->Viewport->InvalidateHitProxy();
 			}			
 		}
 	}
