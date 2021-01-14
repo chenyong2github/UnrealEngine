@@ -1028,8 +1028,9 @@ TArray<FDatasmithImporterUtils::FFunctionAndMaterialsThatUseIt> FDatasmithImport
 
 		const TSharedPtr<IDatasmithUEPbrMaterialElement> UEPbrMaterialElement = StaticCastSharedPtr<IDatasmithUEPbrMaterialElement>(BaseMaterialElement);
 
-		uint32 BaseMaterialHash = GetTypeHash(UEPbrMaterialElement->GetName());
-		MaterialNameMap.FindOrAddByHash(BaseMaterialHash, BaseMaterialElement->GetName()) = UEPbrMaterialElement;
+		FString BaseMaterialName = BaseMaterialElement->GetName();
+		uint32 BaseMaterialHash = GetTypeHash(BaseMaterialName);
+		MaterialNameMap.FindOrAddByHash(BaseMaterialHash, MoveTemp(BaseMaterialName)) = UEPbrMaterialElement;
 
 		for (int32 MaterialExpressionIndex = 0; MaterialExpressionIndex < UEPbrMaterialElement->GetExpressionsCount(); ++MaterialExpressionIndex)
 		{
