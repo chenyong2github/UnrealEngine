@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "EditorViewportClient.h"
 #include "SAssetEditorViewport.h"
 #include "SCommonEditorViewportToolbarBase.h"
 
@@ -12,6 +13,9 @@ class FEditorViewportClient;
 class AWaterBodyCustom;
 class UWaterWavesAssetReference;
 class SEditorViewport;
+
+
+// ----------------------------------------------------------------------------------
 
 class SWaterWavesEditorViewport : public SAssetEditorViewport, public ICommonEditorViewportToolbarInfoProvider, public FGCObject
 {
@@ -48,4 +52,19 @@ private:
 	TWeakPtr<FWaterWavesEditorToolkit> WaterWavesEditorToolkitPtr;
 
 	AWaterBodyCustom* CustomWaterBody = nullptr;
+};
+
+
+// ----------------------------------------------------------------------------------
+
+class FWaterWavesEditorViewportClient : public FEditorViewportClient
+{
+public:
+	using Super = FEditorViewportClient;
+
+	FWaterWavesEditorViewportClient(FPreviewScene* InPreviewScene, const TWeakPtr<SEditorViewport>& InEditorViewportWidget = nullptr);
+
+	// FEditorViewportClient interface
+	virtual void Tick(float DeltaSeconds) override;
+	// End of FEditorViewportClient
 };

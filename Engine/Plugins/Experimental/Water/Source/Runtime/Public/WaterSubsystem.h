@@ -61,29 +61,32 @@ class WATER_API UWaterSubsystem : public UWorldSubsystem, public FTickableGameOb
 {
 	GENERATED_BODY()
 
+public:
 	UWaterSubsystem();
 
+	// FTickableGameObject implementation Begin
+	virtual UWorld* GetTickableGameObjectWorld() const override { return GetWorld(); }
+	virtual bool IsTickable() const override { return bInitialized; }
+	virtual bool IsTickableInEditor() const override { return bInitialized; }
 	virtual void Tick(float DeltaTime) override;
-
-	/** return the stat id to use for this tickable **/
 	virtual TStatId GetStatId() const override;
+	// FTickableGameObject implementation End
 
+	// UWorldSubsystem implementation Begin
 	/** Override to support water subsystems in editor preview worlds */
 	virtual bool DoesSupportWorldType(EWorldType::Type WorldType) const override;
-public:
+	// UWorldSubsystem implementation End
+
+	// USubsystem implementation Begin
+	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+	virtual void Deinitialize() override;
+	// USubsystem implementation End
 
 	/** Static helper function to get a water subsystem from a world, returns nullptr if world or subsystem don't exist */
 	static UWaterSubsystem* GetWaterSubsystem(const UWorld* InWorld);
 
 	/** Static helper function to get a waterbody manager from a world, returns nullptr if world or manager don't exist */
 	static FWaterBodyManager* GetWaterBodyManager(UWorld* InWorld);
-
-	virtual bool IsTickableInEditor() const override { return true; }
-
-	// Begin USubsystem
-	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
-	virtual void Deinitialize() override;
-	// End USubsystem
 
 	FWaterBodyManager WaterBodyManager;
 
@@ -150,21 +153,26 @@ public:
 	UMaterialParameterCollection* GetMaterialParameterCollection() const {	return MaterialParameterCollection; }
 	
 	void MarkAllWaterMeshesForRebuild();
-public:
-	DECLARE_EVENT_OneParam(UWaterSubsystem, FOnWaterSubsystemInitialized, UWaterSubsystem*)
-	static FOnWaterSubsystemInitialized OnWaterSubsystemInitialized;
 
-	UPROPERTY(BlueprintAssignable, Category = Water)
-	FOnCameraUnderwaterStateChanged OnCameraUnderwaterStateChanged;
+#if WITH_EDITOR
+	/** Little scope object to temporarily change the value of bAllowWaterSubsystemOnPreviewWorld */
+	struct WATER_API FScopedAllowWaterSubsystemOnPreviewWorld
+	{
+		FScopedAllowWaterSubsystemOnPreviewWorld(bool bNewValue);
+		~FScopedAllowWaterSubsystemOnPreviewWorld();
 
-	UPROPERTY(BlueprintAssignable, Category = Water)
-	FOnWaterScalabilityChanged OnWaterScalabilityChanged;
+		// Non-copyable
+	private:
+		FScopedAllowWaterSubsystemOnPreviewWorld() = delete;
+		FScopedAllowWaterSubsystemOnPreviewWorld& operator=(const FScopedAllowWaterSubsystemOnPreviewWorld&) = delete;
+		FScopedAllowWaterSubsystemOnPreviewWorld(const FScopedAllowWaterSubsystemOnPreviewWorld&) = delete;
 
-	UPROPERTY()
-	UStaticMesh* DefaultRiverMesh;
-	
-	UPROPERTY()
-	UStaticMesh* DefaultLakeMesh;
+		bool bPreviousValue = false;
+	};
+	static void SetAllowWaterSubsystemOnPreviewWorld(bool bInValue) { bAllowWaterSubsystemOnPreviewWorld = bInValue; }
+	static bool GetAllowWaterSubsystemOnPreviewWorld() { return bAllowWaterSubsystemOnPreviewWorld; }
+#endif // WITH_EDITOR
+
 private:
 	void NotifyWaterScalabilityChangedInternal(IConsoleVariable* CVar);
 	void NotifyWaterEnabledChangedInternal(IConsoleVariable* CVar);
@@ -179,8 +187,23 @@ private:
 	void ShowOnScreenDebugInfo(const FUnderwaterPostProcessDebugInfo& InDebugInfo);
 #endif // !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 
-private:
+public:
+	DECLARE_EVENT_OneParam(UWaterSubsystem, FOnWaterSubsystemInitialized, UWaterSubsystem*)
+	static FOnWaterSubsystemInitialized OnWaterSubsystemInitialized;
 
+	UPROPERTY(BlueprintAssignable, Category = Water)
+	FOnCameraUnderwaterStateChanged OnCameraUnderwaterStateChanged;
+
+	UPROPERTY(BlueprintAssignable, Category = Water)
+	FOnWaterScalabilityChanged OnWaterScalabilityChanged;
+
+	UPROPERTY()
+	UStaticMesh* DefaultRiverMesh;
+
+	UPROPERTY()
+	UStaticMesh* DefaultLakeMesh;
+
+private:
 	UPROPERTY()
 	mutable AWaterMeshActor* WaterMeshActor;
 
@@ -198,10 +221,16 @@ private:
 	bool bUsingOverrideWorldTimeSeconds;
 	bool bUnderWaterForAudio;
 	bool bPauseWaveTime;
+	bool bInitialized;
 
 	/** The parameter collection asset that holds the global parameters that are updated by this actor */
 	UPROPERTY()
 	UMaterialParameterCollection* MaterialParameterCollection;
 
 	FUnderwaterPostProcessVolume UnderwaterPostProcessVolume;
+
+#if WITH_EDITOR
+	/** By default, there is no water subsystem allowed on preview worlds except when explicitly requested : */
+	static bool bAllowWaterSubsystemOnPreviewWorld;
+#endif // WITH_EDITOR
 };
