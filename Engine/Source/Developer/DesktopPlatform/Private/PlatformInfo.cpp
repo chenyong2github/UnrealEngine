@@ -216,7 +216,6 @@ static void ParseDataDrivenPreviewPlatform(const TCHAR* Name, const FConfigSecti
 	FTextStringHelper::ReadFromBuffer(*GetSectionString(Section, FName("MenuText")), Item.MenuText);
 	FTextStringHelper::ReadFromBuffer(*GetSectionString(Section, FName("MenuTooltip")), Item.MenuTooltip);
 	FTextStringHelper::ReadFromBuffer(*GetSectionString(Section, FName("IconText")), Item.IconText);
-	FTextStringHelper::ReadFromBuffer(*GetSectionString(Section, FName("FriendlyName")), Item.FriendlyName);
 }
 
 void LoadDataDrivenPlatforms()
