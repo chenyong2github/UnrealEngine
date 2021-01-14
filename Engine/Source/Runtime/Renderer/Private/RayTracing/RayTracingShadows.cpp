@@ -392,6 +392,8 @@ void FDeferredShadingSceneRenderer::RenderDitheredLODFadingOutMask(FRDGBuilder& 
 	PassParameters->View = View.ViewUniformBuffer;
 	PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(SceneDepthTexture, ERenderTargetLoadAction::ELoad, ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthWrite_StencilWrite);
 
+	const_cast<FViewInfo&>(View).ParallelMeshDrawCommandPasses[EMeshPass::DitheredLODFadingOutMaskPass].BuildRenderingCommands(GraphBuilder, Scene->GPUScene, PassParameters->InstanceCullingDrawParams);
+
 	GraphBuilder.AddPass(
 		RDG_EVENT_NAME("DitheredLODFadingOutMask"),
 		PassParameters,

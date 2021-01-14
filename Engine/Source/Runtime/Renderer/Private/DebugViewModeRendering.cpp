@@ -115,13 +115,13 @@ BEGIN_SHADER_PARAMETER_STRUCT(FDebugViewModePassParameters, )
 	RENDER_TARGET_BINDING_SLOTS()
 END_SHADER_PARAMETER_STRUCT()
 
-void RenderDebugViewMode(FRDGBuilder& GraphBuilder, TArrayView<const FViewInfo> Views, FRDGTextureRef QuadOverdrawTexture, const FRenderTargetBindingSlots& RenderTargets)
+void RenderDebugViewMode(FRDGBuilder& GraphBuilder, TArrayView<FViewInfo> Views, FRDGTextureRef QuadOverdrawTexture, const FRenderTargetBindingSlots& RenderTargets)
 {
 	RDG_EVENT_SCOPE(GraphBuilder, "DebugViewMode");
 
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
 	{
-		const FViewInfo& View = Views[ViewIndex];
+		FViewInfo& View = Views[ViewIndex];
 		RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
 		RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, Views.Num() > 1, "View%d", ViewIndex);
 
@@ -129,6 +129,11 @@ void RenderDebugViewMode(FRDGBuilder& GraphBuilder, TArrayView<const FViewInfo> 
 		PassParameters->View = View.ViewUniformBuffer;
 		PassParameters->Pass = CreateDebugViewModePassUniformBuffer(GraphBuilder, View, QuadOverdrawTexture);
 		PassParameters->RenderTargets = RenderTargets;
+
+		FScene* Scene = View.Family->Scene->GetRenderScene();
+		check(Scene != nullptr);
+
+		View.ParallelMeshDrawCommandPasses[EMeshPass::DebugViewMode].BuildRenderingCommands(GraphBuilder, Scene->GPUScene, PassParameters->InstanceCullingDrawParams);
 
 		GraphBuilder.AddPass(
 			{},
@@ -393,7 +398,7 @@ void InitDebugViewModeInterfaces()
 
 void RenderDebugViewMode(
 	FRDGBuilder& GraphBuilder,
-	TArrayView<const FViewInfo> Views,
+	TArrayView<FViewInfo> Views,
 	FRDGTextureRef QuadOverdrawTexture,
 	const FRenderTargetBindingSlots& RenderTargets)
 {}

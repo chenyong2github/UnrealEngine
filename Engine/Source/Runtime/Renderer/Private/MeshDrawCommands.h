@@ -172,6 +172,18 @@ public:
 	);
 
 	/**
+	 * Sync with setup task and run post-instance culling job to create the render commands and instance ID lists and optionally vertex instance data.
+	 * Needs to happen after DispatchPassSetup and before DispatchDraw, but not before global instance culling has been done.
+	 */
+	void BuildRenderingCommands(FRDGBuilder& GraphBuilder, FGPUScene& GPUScene, FInstanceCullingDrawParams& OutInstanceCullingDrawParams);
+
+	/**
+	 * Sync with setup task and run post-instance culling job unpack surviving instance IDs into two lists of instance ID + draw command ID.
+	 * The InstanceCountBuffer is initialized to zero and contains the count of entries in InstanceIdBuffer DrawCommandIdsBuffer.
+	 */
+	void BuildInstanceList(FRDGBuilder& GraphBuilder, FGPUScene& GPUScene, FInstanceCullingRdgParams& OutParams);
+
+	/**
 	 * Dispatch visible mesh draw command draw task.
 	 */
 	void DispatchDraw(FParallelCommandListSet* ParallelCommandListSet, FRHICommandList& RHICmdList, const FInstanceCullingDrawParams* InstanceCullingDrawParams = nullptr) const;

@@ -307,7 +307,7 @@ void FMobileSceneRenderer::SetupMobileBasePassAfterShadowInit(FExclusiveDepthSte
  * Initialize scene's views.
  * Check visibility, sort translucent items, etc.
  */
-void FMobileSceneRenderer::InitViews(FRDGBuilder& GraphBuilder, FSceneTexturesConfig& SceneTexturesConfig)
+void FMobileSceneRenderer::InitViews(FRDGBuilder& GraphBuilder, FSceneTexturesConfig& SceneTexturesConfig, FInstanceCullingManager& InstanceCullingManager)
 {
 	FRHICommandListImmediate& RHICmdList = GraphBuilder.RHICmdList;
 	RHICmdList.SetCurrentStat(GET_STATID(STAT_CLMM_InitViews));
@@ -335,7 +335,6 @@ void FMobileSceneRenderer::InitViews(FRDGBuilder& GraphBuilder, FSceneTexturesCo
 	const FExclusiveDepthStencil::Type BasePassDepthStencilAccess = FExclusiveDepthStencil::DepthWrite_StencilWrite;
 
 	PreVisibilityFrameSetup(GraphBuilder, SceneTexturesConfig);
-	FInstanceCullingManager InstanceCullingManager(GInstanceCullingManagerResources); // GPUCULL_TODO: Fix mobile!
 	ComputeViewVisibility(RHICmdList, BasePassDepthStencilAccess, ViewCommandsPerView, DynamicIndexBuffer, DynamicVertexBuffer, DynamicReadBuffer, InstanceCullingManager);
 	PostVisibilityFrameSetup(ILCTaskData);
 
@@ -423,7 +422,7 @@ void FMobileSceneRenderer::InitViews(FRDGBuilder& GraphBuilder, FSceneTexturesCo
 	if (bDynamicShadows && !IsSimpleForwardShadingEnabled(ShaderPlatform))
 	{
 		// Setup dynamic shadows.
-		InitDynamicShadows(RHICmdList);		
+		InitDynamicShadows(RHICmdList, InstanceCullingManager);
 	}
 	else
 	{
@@ -563,8 +562,10 @@ void FMobileSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	GSystemTextures.InitializeTextures(GraphBuilder.RHICmdList, FeatureLevel);
 	FRDGSystemTextures::Create(GraphBuilder);
 
+	FInstanceCullingManager InstanceCullingManager(GInstanceCullingManagerResources);
+
 	// Find the visible primitives and prepare targets and buffers for rendering
-	InitViews(GraphBuilder, SceneTexturesConfig);
+	InitViews(GraphBuilder, SceneTexturesConfig, InstanceCullingManager);
 
 	if (GRHINeedsExtraDeletionLatency || !GRHICommandList.Bypass())
 	{
@@ -631,7 +632,6 @@ void FMobileSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	AddPass(GraphBuilder, PollOcclusionQueriesAndDispatchToRHIThreadPass);
 
 	GraphBuilder.SetCommandListStat(GET_STATID(STAT_CLMM_Shadows));
-	FInstanceCullingManager InstanceCullingManager(GInstanceCullingManagerResources); // GPUCULL_TODO: Fix mobile!
 	RenderShadowDepthMaps(GraphBuilder, InstanceCullingManager);
 
 	AddPass(GraphBuilder, PollOcclusionQueriesAndDispatchToRHIThreadPass);
@@ -1200,6 +1200,8 @@ void FMobileSceneRenderer::RenderMobileDebugView(FRDGBuilder& GraphBuilder, cons
 		{
 			continue;
 		}
+
+		// GPUCULL_TODO: View.ParallelMeshDrawCommandPasses[EMeshPass::DebugViewMode].BuildRenderingCommands(GraphBuilder, Scene->GPUScene);
 
 		auto* PassParameters = GraphBuilder.AllocParameters<FMobileDebugViewPassParameters>();
 		PassParameters->DebugViewMode = CreateDebugViewModePassUniformBuffer(GraphBuilder, View, QuadOverdrawTexture);

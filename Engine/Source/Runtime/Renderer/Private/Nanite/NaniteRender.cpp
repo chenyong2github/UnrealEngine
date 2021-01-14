@@ -460,6 +460,7 @@ END_SHADER_PARAMETER_STRUCT()
 // TODO: is it better to declare the buffers in 'FVirtualShadowMapCommonParameters' and not always have them set? I.e., before they are built.
 BEGIN_SHADER_PARAMETER_STRUCT( FVirtualTargetParameters, )
 	SHADER_PARAMETER_STRUCT_INCLUDE( FVirtualShadowMapCommonParameters, VirtualShadowMapCommon )
+	//SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FVirtualShadowMapCommonParameters, VirtualSmCommon)
 	SHADER_PARAMETER_RDG_BUFFER_SRV( StructuredBuffer< uint2 >,	PageTable )
 	SHADER_PARAMETER_RDG_BUFFER_SRV( StructuredBuffer< uint >, PageFlags )
 	SHADER_PARAMETER_RDG_BUFFER_SRV( StructuredBuffer< uint >, HPageFlags )
@@ -1265,6 +1266,7 @@ class FEmitShadowMapPS : public FNaniteShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(FVirtualShadowMapCommonParameters, CommonVSMParameters)
+		//SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FVirtualShadowMapCommonParameters, VirtualSmCommon)
 		SHADER_PARAMETER( FIntPoint, SourceOffset )
 		SHADER_PARAMETER( float, ViewToClip22 )
 		SHADER_PARAMETER( float, DepthBias )
@@ -3051,6 +3053,7 @@ void CullRasterizeInner(
 	if (VirtualShadowMapArray)
 	{
 		VirtualTargetParameters.VirtualShadowMapCommon = VirtualShadowMapArray->CommonParameters;
+		//VirtualTargetParameters.VirtualSmCommon = VirtualShadowMapArray->GetCommonUniformBuffer(GraphBuilder);
 		VirtualTargetParameters.PageFlags = GraphBuilder.CreateSRV(VirtualShadowMapArray->PageFlagsRDG, PF_R32_UINT);
 		VirtualTargetParameters.HPageFlags = GraphBuilder.CreateSRV(VirtualShadowMapArray->HPageFlagsRDG, PF_R32_UINT);
 		VirtualTargetParameters.PageTable = GraphBuilder.CreateSRV(VirtualShadowMapArray->PageTableRDG);
@@ -3616,6 +3619,7 @@ void EmitFallbackShadowMapFromVSM(
 	auto* PassParameters = GraphBuilder.AllocParameters< FEmitShadowMapPS::FParameters >();
 
 	PassParameters->CommonVSMParameters = VirtualShadowMapArray.CommonParameters;
+	//PassParameters->VirtualSmCommon = VirtualShadowMapArray.GetCommonUniformBuffer(GraphBuilder);
 	PassParameters->ViewToClip22 = ProjectionMatrix.M[2][2];
 	PassParameters->DepthBias = DepthBias;
 	PassParameters->ShadowMapID = ShadowMapID;

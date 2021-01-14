@@ -1281,6 +1281,37 @@ public:
 	}
 };
 
+void FParallelMeshDrawCommandPass::BuildRenderingCommands(FRDGBuilder& GraphBuilder, FGPUScene& GPUScene, FInstanceCullingDrawParams& OutInstanceCullingDrawParams)
+{
+#if defined(GPUCULL_TODO)
+	WaitForMeshPassSetupTask();
+	if (MaxNumDraws <= 0 || !TaskContext.InstanceCullingContext->HasCullingCommands())
+	{
+		OutInstanceCullingDrawParams.DrawIndirectArgsBuffer = nullptr;
+		OutInstanceCullingDrawParams.DrawIndirectArgsBufferAccess = nullptr;
+		OutInstanceCullingDrawParams.InstanceIdOffsetBuffer = nullptr;
+		OutInstanceCullingDrawParams.InstanceIdOffsetBufferAccess = nullptr;
+		return;
+	}
+	// 2. Run finalize culling commands pass
+	TaskContext.InstanceCullingContext->BuildRenderingCommands(GraphBuilder, GPUScene, TaskContext.InstanceCullingResult);
+	TaskContext.InstanceCullingResult.GetDrawParameters(OutInstanceCullingDrawParams);
+#endif
+}
+
+void FParallelMeshDrawCommandPass::BuildInstanceList(FRDGBuilder& GraphBuilder, FGPUScene& GPUScene, FInstanceCullingRdgParams& OutParams)
+{
+#if defined(GPUCULL_TODO)
+	WaitForMeshPassSetupTask();
+	if (MaxNumDraws <= 0)
+	{
+		return;
+	}
+	// Run pass to build ID lists (temporary)
+	TaskContext.InstanceCullingContext->BuildRenderingCommands(GraphBuilder, GPUScene, OutParams);
+#endif
+}
+
 void FParallelMeshDrawCommandPass::DispatchDraw(FParallelCommandListSet* ParallelCommandListSet, FRHICommandList& RHICmdList, const FInstanceCullingDrawParams* InstanceCullingDrawParams) const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(ParallelMdcDispatchDraw);

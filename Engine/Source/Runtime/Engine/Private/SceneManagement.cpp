@@ -342,9 +342,12 @@ void FDynamicPrimitiveUniformBuffer::Set(
 			INDEX_NONE,
 			INDEX_NONE,
 			bOutputVelocity,
-			nullptr
-			)
-		);
+			nullptr,
+			true,
+			INDEX_NONE,
+			0
+		)
+	);
 	UniformBuffer.InitResource();
 }
 

@@ -398,13 +398,16 @@ void FPrimitiveSceneProxy::UpdateUniformBuffer()
 				bHasPrecomputedVolumetricLightmap,
 				DrawsVelocity(), 
 				GetLightingChannelMask(),
+				// GPUCULL_TODO: Defaulting to zero here is not consistent with other places (where they default to INDEX_NONE)
 				PrimitiveSceneInfo ? PrimitiveSceneInfo->GetLightmapDataOffset() : 0,
 				GetLightMapCoordinateIndex(),
 				SingleCaptureIndex,
 				bOutputVelocity || AlwaysHasVelocity(),
 				GetCustomPrimitiveData(),
-				CastsContactShadow()
-				);
+				CastsContactShadow(),
+				PrimitiveSceneInfo ? PrimitiveSceneInfo->GetInstanceDataOffset() : INDEX_NONE,
+				PrimitiveSceneInfo ? PrimitiveSceneInfo->GetNumInstanceDataEntries() : 0
+			);
 
 		if (UniformBuffer.GetReference())
 		{

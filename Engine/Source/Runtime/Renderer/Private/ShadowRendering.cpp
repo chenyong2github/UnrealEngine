@@ -1020,6 +1020,13 @@ void FProjectedShadowInfo::RenderProjection(
 		PassParameters->ShadowTexture1 = GraphBuilder.RegisterExternalTexture(RenderTargets.ColorTargets[1]);
 	}
 
+	// GPUCULL_TODO: get rid of const cast
+	if (ViewIndex < ProjectionStencilingPasses.Num())
+	{
+		FShadowMeshDrawCommandPass& ProjectionStencilingPass = const_cast<FShadowMeshDrawCommandPass&>(ProjectionStencilingPasses[ViewIndex]);
+		// GPUCULL_TODO: ProjectionStencilingPass.BuildRenderingCommands(GraphBuilder, *View, *SceneRender->Scene, PassParameters->InstanceCullingDrawParams);
+	}
+
 	GraphBuilder.AddPass(
 		RDG_EVENT_NAME("%s", *EventName),
 		PassParameters,

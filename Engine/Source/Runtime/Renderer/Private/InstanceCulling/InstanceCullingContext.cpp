@@ -412,8 +412,8 @@ void FInstanceCullingContext::BuildRenderingCommands(FRDGBuilder& GraphBuilder, 
 		);
 	}
 
-
 #else // !ENABLE_DETERMINISTIC_INSTANCE_CULLING
+
 	FBuildInstanceIdBufferAndCommandsFromPrimitiveIdsCs::FParameters* PassParameters = GraphBuilder.AllocParameters<FBuildInstanceIdBufferAndCommandsFromPrimitiveIdsCs::FParameters>();
 
 	// Because the view uniforms are not set up by the time this runs
@@ -473,7 +473,8 @@ void FInstanceCullingContext::BuildRenderingCommands(FRDGBuilder& GraphBuilder, 
 		PassParameters,
 		FIntVector(CullingCommands.Num(), 1, 1)
 	);
-#endif// ENABLE_DETERMINISTIC_INSTANCE_CULLING
+
+#endif // ENABLE_DETERMINISTIC_INSTANCE_CULLING
 
 	Results.DrawIndirectArgsBuffer = DrawIndirectArgsRDG;
 	//ConvertToExternalBuffer(GraphBuilder, DrawIndirectArgsRDG, Results.DrawIndirectArgsBuffer);
@@ -496,6 +497,7 @@ void FInstanceCullingContext::BuildRenderingCommands(FRDGBuilder& GraphBuilder, 
 	{
 		return;
 	}
+
 	RDG_EVENT_SCOPE(GraphBuilder, "BuildRenderingCommands");
 
 	const FInstanceCullingIntermediate& Intermediate = InstanceCullingManager->CullingIntermediate;

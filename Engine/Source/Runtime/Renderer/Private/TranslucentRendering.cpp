@@ -907,6 +907,9 @@ static void RenderTranslucencyViewInner(
 	PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(SceneDepthTexture, ERenderTargetLoadAction::ELoad, ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthRead_StencilWrite);
 	PassParameters->RenderTargets.ResolveRect = FResolveRect(Viewport.Rect);
 
+	const EMeshPass::Type MeshPass = TranslucencyPassToMeshPass(TranslucencyPass);
+	// GPUCULL_TODO: View.ParallelMeshDrawCommandPasses[MeshPass].BuildRenderingCommands(GraphBuilder, SceneRenderer.Scene->GPUScene, PassParameters->InstanceCullingDrawParams);
+
 	if (bRenderInParallel)
 	{
 		PassParameters->RenderTargets[0] = FRenderTargetBinding(SceneColorTexture.Target, nullptr, ERenderTargetLoadAction::ELoad);
@@ -985,7 +988,7 @@ void FDeferredShadingSceneRenderer::RenderTranslucencyInner(
 	{
 		for (int32 ViewIndex = 0, NumProcessedViews = 0; ViewIndex < Views.Num(); ++ViewIndex, ++NumProcessedViews)
 		{
-			const FViewInfo& View = Views[ViewIndex];
+			FViewInfo& View = Views[ViewIndex];
 			const ETranslucencyView TranslucencyView = GetTranslucencyView(View);
 
 			if (!ShouldRenderView(View, TranslucencyView))
@@ -1074,7 +1077,7 @@ void FDeferredShadingSceneRenderer::RenderTranslucencyInner(
 	{
 		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
 		{
-			const FViewInfo& View = Views[ViewIndex];
+			FViewInfo& View = Views[ViewIndex];
 			const ETranslucencyView TranslucencyView = GetTranslucencyView(View);
 
 			if (!ShouldRenderView(View, TranslucencyView))

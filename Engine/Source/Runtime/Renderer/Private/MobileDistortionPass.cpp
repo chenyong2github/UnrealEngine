@@ -67,6 +67,8 @@ FMobileDistortionAccumulateOutputs AddMobileDistortionAccumulatePass(FRDGBuilder
 
 	const FScreenPassTextureViewport SceneColorViewport(Inputs.SceneColor);
 
+	// GPUCULL_TODO: View.ParallelMeshDrawCommandPasses[EMeshPass::Distortion].BuildRenderingCommands(GraphBuilder, Scene->GPUScene);
+
 	GraphBuilder.AddPass(
 		RDG_EVENT_NAME("DistortionAccumulate %dx%d", SceneColorViewport.Rect.Width(), SceneColorViewport.Rect.Height()),
 		PassParameters,

@@ -51,6 +51,8 @@ void FMobileSceneRenderer::RenderTranslucency(FRDGBuilder& GraphBuilder, FRender
 				continue;
 			}
 
+			// GPUCULL_TODO: View.ParallelMeshDrawCommandPasses[MeshPass].BuildRenderingCommands(GraphBuilder, Scene->GPUScene);
+
 			View.BeginRenderView();
 			UpdateDirectionalLightUniformBuffers(GraphBuilder, View);
 
@@ -99,6 +101,7 @@ void FMobileSceneRenderer::RenderInverseOpacity(FRDGBuilder& GraphBuilder, const
 		// Default clear value for a SceneColor is (0,0,0,0), after this passs will blend inverse opacity into final render target with an 1-SrcAlpha op
 		// to make this blending work untouched pixels must have alpha = 1
 		DrawClearQuad(RHICmdList, FLinearColor(0, 0, 0, 1));
+		// GPUCULL_TODO: View.ParallelMeshDrawCommandPasses[EMeshPass::MobileInverseOpacity].BuildRenderingCommands(GraphBuilder, Scene->GPUScene);
 
 		RHICmdList.NextSubpass();
 		if (ShouldRenderTranslucency(ETranslucencyPass::TPT_AllTranslucency) && View.ShouldRenderView())

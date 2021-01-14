@@ -1056,4 +1056,3 @@ FGPUScenePrimitiveCollector::FUploadData* FGPUSceneDynamicContext::AllocateDynam
 	DymamicPrimitiveUploadData.Add(UploadData);
 	return UploadData;
 }
-

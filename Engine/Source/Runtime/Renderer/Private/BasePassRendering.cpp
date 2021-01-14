@@ -945,6 +945,8 @@ static void RenderEditorPrimitivesForDPG(
 	ESceneDepthPriorityGroup DepthPriorityGroup,
 	FInstanceCullingManager& InstanceCullingManager)
 {
+	const FScene* Scene = View.Family->Scene->GetRenderScene();
+
 	GraphBuilder.AddPass(
 		RDG_EVENT_NAME("%s", *UEnum::GetValueAsString(DepthPriorityGroup)),
 		PassParameters,
@@ -1091,7 +1093,7 @@ void FDeferredShadingSceneRenderer::RenderBasePassInternal(
 
 			for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
 			{
-				const FViewInfo& View = Views[ViewIndex];
+				FViewInfo& View = Views[ViewIndex];
 				RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
 				RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, Views.Num() > 1, "View%d", ViewIndex);
 				View.BeginRenderView();
@@ -1108,6 +1110,8 @@ void FDeferredShadingSceneRenderer::RenderBasePassInternal(
 				const bool bShouldRenderView = View.ShouldRenderView();
 				if (bShouldRenderView)
 				{
+					View.ParallelMeshDrawCommandPasses[EMeshPass::BasePass].BuildRenderingCommands(GraphBuilder, Scene->GPUScene, PassParameters->InstanceCullingDrawParams);
+
 					GraphBuilder.AddPass(
 						RDG_EVENT_NAME("BasePassParallel"),
 						PassParameters,
@@ -1123,14 +1127,22 @@ void FDeferredShadingSceneRenderer::RenderBasePassInternal(
 
 				if (bShouldRenderView && View.Family->EngineShowFlags.Atmosphere)
 				{
+					FOpaqueBasePassParameters* SkyPassPassParameters = GraphBuilder.AllocParameters<FOpaqueBasePassParameters>();
+					SkyPassPassParameters->BasePass = PassParameters->BasePass;
+					SkyPassPassParameters->RenderTargets = BasePassRenderTargets;
+					SkyPassPassParameters->View = View.GetShaderParameters();
+					SkyPassPassParameters->ReflectionCapture = View.ReflectionCaptureUniformBuffer;
+
+					View.ParallelMeshDrawCommandPasses[EMeshPass::SkyPass].BuildRenderingCommands(GraphBuilder, Scene->GPUScene, SkyPassPassParameters->InstanceCullingDrawParams);
+
 					GraphBuilder.AddPass(
 						RDG_EVENT_NAME("SkyPassParallel"),
-						PassParameters,
+						SkyPassPassParameters,
 						ERDGPassFlags::Raster | ERDGPassFlags::SkipRenderPass,
-						[this, &View, PassParameters](FRHICommandListImmediate& RHICmdList)
+						[this, &View, SkyPassPassParameters](FRHICommandListImmediate& RHICmdList)
 					{
-						FRDGParallelCommandListSet ParallelCommandListSet(RHICmdList, GET_STATID(STAT_CLP_BasePass), *this, View, FParallelCommandListBindings(PassParameters));
-						View.ParallelMeshDrawCommandPasses[EMeshPass::SkyPass].DispatchDraw(&ParallelCommandListSet, RHICmdList, &PassParameters->InstanceCullingDrawParams);
+						FRDGParallelCommandListSet ParallelCommandListSet(RHICmdList, GET_STATID(STAT_CLP_BasePass), *this, View, FParallelCommandListBindings(SkyPassPassParameters));
+						View.ParallelMeshDrawCommandPasses[EMeshPass::SkyPass].DispatchDraw(&ParallelCommandListSet, RHICmdList, &SkyPassPassParameters->InstanceCullingDrawParams);
 					});
 				}
 			}
@@ -1139,7 +1151,7 @@ void FDeferredShadingSceneRenderer::RenderBasePassInternal(
 		{
 			for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
 			{
-				const FViewInfo& View = Views[ViewIndex];
+				FViewInfo& View = Views[ViewIndex];
 				RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
 				RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, Views.Num() > 1, "View%d", ViewIndex);
 				View.BeginRenderView();
@@ -1156,6 +1168,8 @@ void FDeferredShadingSceneRenderer::RenderBasePassInternal(
 				const bool bShouldRenderView = View.ShouldRenderView();
 				if (bShouldRenderView)
 				{
+					View.ParallelMeshDrawCommandPasses[EMeshPass::BasePass].BuildRenderingCommands(GraphBuilder, Scene->GPUScene, PassParameters->InstanceCullingDrawParams);
+
 					GraphBuilder.AddPass(
 						RDG_EVENT_NAME("BasePass"),
 						PassParameters,
@@ -1171,14 +1185,22 @@ void FDeferredShadingSceneRenderer::RenderBasePassInternal(
 
 				if (bShouldRenderView && View.Family->EngineShowFlags.Atmosphere)
 				{
+					FOpaqueBasePassParameters* SkyPassParameters = GraphBuilder.AllocParameters<FOpaqueBasePassParameters>();
+					SkyPassParameters->BasePass = PassParameters->BasePass;
+					SkyPassParameters->RenderTargets = BasePassRenderTargets;
+					SkyPassParameters->View = View.GetShaderParameters();
+					SkyPassParameters->ReflectionCapture = View.ReflectionCaptureUniformBuffer;
+
+					View.ParallelMeshDrawCommandPasses[EMeshPass::SkyPass].BuildRenderingCommands(GraphBuilder, Scene->GPUScene, SkyPassParameters->InstanceCullingDrawParams);
+
 					GraphBuilder.AddPass(
 						RDG_EVENT_NAME("SkyPass"),
-						PassParameters,
+						SkyPassParameters,
 						ERDGPassFlags::Raster,
-						[this, &View, PassParameters](FRHICommandList& RHICmdList)
+						[this, &View, SkyPassParameters](FRHICommandList& RHICmdList)
 					{
 						SetStereoViewport(RHICmdList, View, 1.0f);
-						View.ParallelMeshDrawCommandPasses[EMeshPass::SkyPass].DispatchDraw(nullptr, RHICmdList, &PassParameters->InstanceCullingDrawParams);
+						View.ParallelMeshDrawCommandPasses[EMeshPass::SkyPass].DispatchDraw(nullptr, RHICmdList, &SkyPassParameters->InstanceCullingDrawParams);
 					});
 				}
 			}

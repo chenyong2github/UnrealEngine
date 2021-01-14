@@ -80,7 +80,7 @@ void RenderLightMapDensities(
 	// Draw the scene's emissive and light-map color.
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
 	{
-		const FViewInfo& View = Views[ViewIndex];
+		FViewInfo& View = const_cast<FViewInfo&>(Views[ViewIndex]);
 		RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
 		RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, Views.Num() > 1, "View%d", ViewIndex);
 		View.BeginRenderView();
@@ -89,6 +89,9 @@ void RenderLightMapDensities(
 		PassParameters->View = View.GetShaderParameters();
 		PassParameters->Pass = CreateLightmapDensityPassUniformBuffer(GraphBuilder, View.GetFeatureLevel());
 		PassParameters->RenderTargets = RenderTargets;
+		FScene* Scene = View.Family->Scene->GetRenderScene();
+		check(Scene != nullptr);
+		View.ParallelMeshDrawCommandPasses[EMeshPass::LightmapDensity].BuildRenderingCommands(GraphBuilder, Scene->GPUScene, PassParameters->InstanceCullingDrawParams);
 
 		GraphBuilder.AddPass(
 			{},

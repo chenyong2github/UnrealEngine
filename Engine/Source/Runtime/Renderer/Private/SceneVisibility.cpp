@@ -2482,29 +2482,29 @@ struct FRelevancePacket
 
 #if WITH_EDITOR
 		auto AddRelevantHitProxiesToArray = [](FRelevancePrimSet<FPrimitiveSceneInfo*>& PrimSet, TArray<uint32>& OutHitProxyArray)
+		{
+			int32 TotalHitProxiesToAdd = 0;
+			for (int32 Idx = 0; Idx < PrimSet.NumPrims; ++Idx)
 			{
-				int32 TotalHitProxiesToAdd = 0;
-				for (int32 Idx = 0; Idx < PrimSet.NumPrims; ++Idx)
+				if (PrimSet.Prims[Idx]->NaniteHitProxyIds.Num())
 				{
-					if (PrimSet.Prims[Idx]->NaniteHitProxyIds.Num())
+					TotalHitProxiesToAdd += PrimSet.Prims[Idx]->NaniteHitProxyIds.Num();
+				}
+			}
+
+			OutHitProxyArray.Reserve(OutHitProxyArray.Num() + TotalHitProxiesToAdd);
+
+			for (int32 Idx = 0; Idx < PrimSet.NumPrims; ++Idx)
+			{
+				if (PrimSet.Prims[Idx]->NaniteHitProxyIds.Num())
+				{
+					for (uint32 IdValue : PrimSet.Prims[Idx]->NaniteHitProxyIds)
 					{
-						TotalHitProxiesToAdd += PrimSet.Prims[Idx]->NaniteHitProxyIds.Num();
+						OutHitProxyArray.Add(IdValue);
 					}
 				}
-
-				OutHitProxyArray.Reserve(OutHitProxyArray.Num() + TotalHitProxiesToAdd);
-
-				for (int32 Idx = 0; Idx < PrimSet.NumPrims; ++Idx)
-				{
-					if (PrimSet.Prims[Idx]->NaniteHitProxyIds.Num())
-					{
-						for (uint32 IdValue : PrimSet.Prims[Idx]->NaniteHitProxyIds)
-						{
-							OutHitProxyArray.Add(IdValue);
-						}
-					}
-				}
-			};
+			}
+		};
 
 		// Add hit proxies from editing LevelInstance Nanite primitives
 		AddRelevantHitProxiesToArray(EditorVisualizeLevelInstancePrimitives, WriteView.EditorVisualizeLevelInstanceIds);
@@ -3845,9 +3845,7 @@ static void UpdateHitProxyIdBuffer(
 	DynamicReadBuffer.Unlock();
 }
 
-static void UpdateEditorVisualizeLevelInstanceHitProxyIds(
-	TArray<FViewInfo>& Views
-	)
+static void UpdateEditorVisualizeLevelInstanceHitProxyIds(TArray<FViewInfo>& Views)
 {
 	int32 ViewCount = Views.Num();
 	for (int32 ViewIdx = 0; ViewIdx < ViewCount; ++ViewIdx)
@@ -3858,9 +3856,7 @@ static void UpdateEditorVisualizeLevelInstanceHitProxyIds(
 	}
 }
 
-static void UpdateEditorSelectedHitProxyIds(
-	TArray<FViewInfo>& Views
-	)
+static void UpdateEditorSelectedHitProxyIds(TArray<FViewInfo>& Views)
 {
 	int32 ViewCount = Views.Num();
 	for (int32 ViewIdx = 0; ViewIdx < ViewCount; ++ViewIdx)
@@ -4643,7 +4639,7 @@ void FDeferredShadingSceneRenderer::InitViewsPossiblyAfterPrepass(FRDGBuilder& G
 		&& !ViewFamily.EngineShowFlags.HitProxies)
 	{
 		// Setup dynamic shadows.
-		InitDynamicShadows(RHICmdList, DynamicIndexBufferForInitShadows, DynamicVertexBufferForInitShadows, DynamicReadBufferForInitShadows);
+		InitDynamicShadows(RHICmdList, DynamicIndexBufferForInitShadows, DynamicVertexBufferForInitShadows, DynamicReadBufferForInitShadows, InstanceCullingManager);
 
 		RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
 	}

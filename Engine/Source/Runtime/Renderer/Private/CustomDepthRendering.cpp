@@ -125,6 +125,7 @@ FCustomDepthTextures FCustomDepthTextures::Create(FRDGBuilder& GraphBuilder, FIn
 
 BEGIN_SHADER_PARAMETER_STRUCT(FCustomDepthPassParameters, )
 	SHADER_PARAMETER_STRUCT_INCLUDE(FViewShaderParameters, View)
+	SHADER_PARAMETER_STRUCT_INCLUDE(FInstanceCullingDrawParams, InstanceCullingDrawParams)
 	RENDER_TARGET_BINDING_SLOTS()
 END_SHADER_PARAMETER_STRUCT()
 
@@ -176,7 +177,7 @@ bool FSceneRenderer::RenderCustomDepthPass(FRDGBuilder& GraphBuilder, const FCus
 	{
 		RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, Views.Num() > 1, "View%d", ViewIndex);
 
-		const FViewInfo& View = Views[ViewIndex];
+		FViewInfo& View = Views[ViewIndex];
 
 		if (View.ShouldRenderView() && View.bHasCustomDepthPrimitives)
 		{
@@ -217,14 +218,16 @@ bool FSceneRenderer::RenderCustomDepthPass(FRDGBuilder& GraphBuilder, const FCus
 					FExclusiveDepthStencil::DepthWrite_StencilWrite);
 			}
 
+			View.ParallelMeshDrawCommandPasses[EMeshPass::CustomDepth].BuildRenderingCommands(GraphBuilder, Scene->GPUScene, PassParameters->InstanceCullingDrawParams);
+
 			GraphBuilder.AddPass(
 				RDG_EVENT_NAME("CustomDepth"),
 				PassParameters,
 				ERDGPassFlags::Raster,
-				[this, &View, DownsampleFactor = CustomDepthTextures.DownsampleFactor](FRHICommandList& RHICmdList)
+				[this, &View, PassParameters, DownsampleFactor = CustomDepthTextures.DownsampleFactor](FRHICommandList& RHICmdList)
 			{
 				SetStereoViewport(RHICmdList, View, 1.0f / static_cast<float>(DownsampleFactor));
-				View.ParallelMeshDrawCommandPasses[EMeshPass::CustomDepth].DispatchDraw(nullptr, RHICmdList);
+				View.ParallelMeshDrawCommandPasses[EMeshPass::CustomDepth].DispatchDraw(nullptr, RHICmdList, &PassParameters->InstanceCullingDrawParams);
 			});
 
 			bCustomDepthRendered = true;

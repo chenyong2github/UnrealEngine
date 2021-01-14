@@ -131,9 +131,11 @@ FPrimitiveSceneShaderData::FPrimitiveSceneShaderData(const FPrimitiveSceneProxy*
 		Proxy->GetPrimitiveSceneInfo()->GetLightmapDataOffset(),
 		Proxy->GetLightMapCoordinateIndex(),
 		SingleCaptureIndex,
-        bOutputVelocity,
+		bOutputVelocity,
 		Proxy->GetCustomPrimitiveData(),
-		Proxy->CastsContactShadow()
+		Proxy->CastsContactShadow(),
+		Proxy->GetPrimitiveSceneInfo()->GetInstanceDataOffset(),
+		Proxy->GetPrimitiveSceneInfo()->GetNumInstanceDataEntries()
 		));
 }
 
@@ -188,7 +190,9 @@ void FPrimitiveSceneShaderData::Setup(const FPrimitiveUniformShaderParameters& P
 	Data[26].W = *(const float*)&PrimitiveUniformShaderParameters.OutputVelocity;
 
 	Data[27].X = *(const float*)&PrimitiveUniformShaderParameters.LightmapUVIndex;
-	// .yzw currently unused
+	Data[27].Y = *reinterpret_cast<const float*>(&PrimitiveUniformShaderParameters.InstanceDataOffset);
+	Data[27].Z = *reinterpret_cast<const float*>(&PrimitiveUniformShaderParameters.NumInstanceDataEntries);
+	Data[27].W = 0.0f; // Unused
 
 	// Set all the custom primitive data float4. This matches the loop in SceneData.ush
 	const int32 CustomPrimitiveDataStartIndex = 28;

@@ -725,7 +725,7 @@ void FDeferredShadingSceneRenderer::RenderSingleLayerWaterInner(
 
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
 	{
-		const FViewInfo& View = Views[ViewIndex];
+		FViewInfo& View = Views[ViewIndex];
 
 		if (!View.ShouldRenderView())
 		{
@@ -735,6 +735,9 @@ void FDeferredShadingSceneRenderer::RenderSingleLayerWaterInner(
 		RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
 		RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, Views.Num() > 1, "View%d", ViewIndex);
 		View.BeginRenderView();
+
+		// GPUCULL_TODO: Ignore for now as water does not work with instancing anyway
+		// View.ParallelMeshDrawCommandPasses[EMeshPass::SingleLayerWaterPass].BuildRenderingCommands(GraphBuilder, Scene->GPUScene);
 
 		FSingleLayerWaterPassParameters* PassParameters = GraphBuilder.AllocParameters<FSingleLayerWaterPassParameters>();
 		PassParameters->View = View.GetShaderParameters();

@@ -303,11 +303,11 @@ void FDeferredShadingSceneRenderer::RenderAnisotropyPass(
 
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 	{
-		const FViewInfo& View = Views[ViewIndex];
+		FViewInfo& View = Views[ViewIndex];
 
 		if (View.ShouldRenderView())
 		{
-			const FParallelMeshDrawCommandPass& ParallelMeshPass = View.ParallelMeshDrawCommandPasses[EMeshPass::AnisotropyPass];
+			FParallelMeshDrawCommandPass& ParallelMeshPass = View.ParallelMeshDrawCommandPasses[EMeshPass::AnisotropyPass];
 
 			if (!ParallelMeshPass.HasAnyDraw())
 			{
@@ -320,6 +320,7 @@ void FDeferredShadingSceneRenderer::RenderAnisotropyPass(
 			PassParameters->View = View.GetShaderParameters();
 			PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(SceneTextures.Depth.Target, ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthRead_StencilNop);
 
+			ParallelMeshPass.BuildRenderingCommands(GraphBuilder, Scene->GPUScene, PassParameters->InstanceCullingDrawParams);
 			if (bDoParallelPass)
 			{
 				AddClearRenderTargetPass(GraphBuilder, SceneTextures.GBufferF);

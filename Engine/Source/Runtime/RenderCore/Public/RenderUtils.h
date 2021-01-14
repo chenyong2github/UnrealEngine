@@ -617,3 +617,13 @@ inline bool UseNanite(EShaderPlatform ShaderPlatform)
 	return bNaniteSupported /*&& GRHISupportsAtomicUInt64*/ && !bForwardShadingEnabled && (EnableNaniteCVar != nullptr && EnableNaniteCVar->GetInt() > 0);
 }
 
+inline bool UseVirtualShadowMaps(EShaderPlatform ShaderPlatform, const FStaticFeatureLevel FeatureLevel)
+{
+	static const auto EnableVirtualSMCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Shadow.v.Enable"));
+
+	// TODO: Add test for required RHI platform stuff like GPUScene
+	// bool bNaniteSupported = DoesPlatformSupportNanite(ShaderPlatform);
+	bool bForwardShadingEnabled = IsForwardShadingEnabled(ShaderPlatform);
+
+	return UseGPUScene(ShaderPlatform, FeatureLevel) && !bForwardShadingEnabled && EnableVirtualSMCVar->GetValueOnAnyThread() != 0;
+}

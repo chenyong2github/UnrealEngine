@@ -226,6 +226,6 @@ void AddDebugViewModeShaderTypes(ERHIFeatureLevel::Type FeatureLevel,
 
 void RenderDebugViewMode(
 	FRDGBuilder& GraphBuilder,
-	TArrayView<const FViewInfo> Views,
+	TArrayView<FViewInfo> Views,
 	FRDGTextureRef QuadOverdrawTexture,
 	const FRenderTargetBindingSlots& RenderTargets);

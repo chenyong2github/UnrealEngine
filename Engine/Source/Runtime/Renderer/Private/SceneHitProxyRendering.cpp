@@ -311,7 +311,7 @@ static void DoRenderHitProxies(
 
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 	{
-		const FViewInfo& View = Views[ViewIndex];
+		FViewInfo& View = const_cast<FViewInfo&>(Views[ViewIndex]);
 		const FScene* LocalScene = SceneRenderer->Scene;
 		View.BeginRenderView();
 
@@ -561,8 +561,10 @@ void FMobileSceneRenderer::RenderHitProxies(FRDGBuilder& GraphBuilder)
 	FRDGTextureRef HitProxyDepthTexture = nullptr;
 	InitHitProxyRender(GraphBuilder, this, SceneTexturesConfig, HitProxyTexture, HitProxyDepthTexture);
 
+	FInstanceCullingManager InstanceCullingManager(GInstanceCullingManagerResources);
+
 	// Find the visible primitives.
-	InitViews(GraphBuilder, SceneTexturesConfig);
+	InitViews(GraphBuilder, SceneTexturesConfig, InstanceCullingManager);
 
 	GEngine->GetPreRenderDelegateEx().Broadcast(GraphBuilder);
 
@@ -572,7 +574,6 @@ void FMobileSceneRenderer::RenderHitProxies(FRDGBuilder& GraphBuilder)
 	DynamicReadBuffer.Commit();
 
 	TArray<Nanite::FRasterResults, TInlineAllocator<2>> NaniteRasterResults;
-	FInstanceCullingManager InstanceCullingManager(GInstanceCullingManagerResources);
 	::DoRenderHitProxies(GraphBuilder, this, HitProxyTexture, HitProxyDepthTexture, NaniteRasterResults, InstanceCullingManager);
 
 	GEngine->GetPostRenderDelegateEx().Broadcast(GraphBuilder);

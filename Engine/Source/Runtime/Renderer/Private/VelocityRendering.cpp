@@ -250,11 +250,11 @@ void FDeferredShadingSceneRenderer::RenderVelocities(
 
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 	{
-		const FViewInfo& View = Views[ViewIndex];
+		FViewInfo& View = Views[ViewIndex];
 
 		if (View.ShouldRenderView())
 		{
-			const FParallelMeshDrawCommandPass& ParallelMeshPass = View.ParallelMeshDrawCommandPasses[MeshPass];
+			FParallelMeshDrawCommandPass& ParallelMeshPass = View.ParallelMeshDrawCommandPasses[MeshPass];
 
 			const bool bHasAnyDraw = ParallelMeshPass.HasAnyDraw();
 			if (!bHasAnyDraw && !bForceVelocity)
@@ -283,6 +283,7 @@ void FDeferredShadingSceneRenderer::RenderVelocities(
 
 			FVelocityPassParameters* PassParameters = GraphBuilder.AllocParameters<FVelocityPassParameters>();
 			PassParameters->View = View.GetShaderParameters();
+			ParallelMeshPass.BuildRenderingCommands(GraphBuilder, Scene->GPUScene, PassParameters->InstanceCullingDrawParams);
 			PassParameters->SceneTextures = SceneTextures.UniformBuffer;
 			PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(
 				SceneTextures.Depth.Resolve,

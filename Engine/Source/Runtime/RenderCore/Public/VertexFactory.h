@@ -85,7 +85,8 @@ enum class EVertexInputStreamType : uint8
 {
 	Default = 0,
 	PositionOnly,
-	PositionAndNormalOnly
+	PositionAndNormalOnly,
+	Count
 };
 
 ENUM_CLASS_FLAGS(EVertexStreamUsage);
@@ -609,6 +610,10 @@ public:
 	FVertexFactory(ERHIFeatureLevel::Type InFeatureLevel) 
 		: FRenderResource(InFeatureLevel)
 	{
+		for (int8& Index : PrimitiveIdStreamIndex)
+		{
+			Index = INDEX_NONE;
+		}
 	}
 
 	virtual FVertexFactoryType* GetType() const { return NULL; }
@@ -733,7 +738,7 @@ protected:
 	
 	bool bSupportsManualVertexFetch = false;
 
-	int8 PrimitiveIdStreamIndex[3] = { -1, -1, -1 }; // Need to match entry count of EVertexInputStreamType
+	int8 PrimitiveIdStreamIndex[static_cast<int>(EVertexInputStreamType::Count)];
 
 private:
 

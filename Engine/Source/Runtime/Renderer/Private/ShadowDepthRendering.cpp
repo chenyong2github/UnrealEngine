@@ -1125,6 +1125,8 @@ void FProjectedShadowInfo::RenderDepth(
 		checkNoEntry();
 	}
 
+	ShadowDepthPass.BuildRenderingCommands(GraphBuilder, Scene->GPUScene, PassParameters->InstanceCullingDrawParams);
+
 	if (bDoParallelDispatch)
 	{
 		RDG_WAIT_FOR_TASKS_CONDITIONAL(GraphBuilder, IsShadowDepthPassWaitForTasksEnabled());

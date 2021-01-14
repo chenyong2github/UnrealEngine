@@ -557,11 +557,11 @@ public:
 
 	/** Gathers dynamic mesh elements for all the shadow's primitives arrays. */
 	void GatherDynamicMeshElements(FSceneRenderer& Renderer, class FVisibleLightInfo& VisibleLightInfo, TArray<const FSceneView*>& ReusedViewsArray, 
-		FGlobalDynamicIndexBuffer& DynamicIndexBuffer, FGlobalDynamicVertexBuffer& DynamicVertexBuffer, FGlobalDynamicReadBuffer& DynamicReadBuffer);
+		FGlobalDynamicIndexBuffer& DynamicIndexBuffer, FGlobalDynamicVertexBuffer& DynamicVertexBuffer, FGlobalDynamicReadBuffer& DynamicReadBuffer, FInstanceCullingManager& InstanceCullingManager);
 
-	void SetupMeshDrawCommandsForShadowDepth(FSceneRenderer& Renderer);
+	void SetupMeshDrawCommandsForShadowDepth(FSceneRenderer& Renderer, FInstanceCullingManager& InstanceCullingManager);
 
-	void SetupMeshDrawCommandsForProjectionStenciling(FSceneRenderer& Renderer);
+	void SetupMeshDrawCommandsForProjectionStenciling(FSceneRenderer& Renderer, FInstanceCullingManager& InstanceCullingManager);
 
 	/** 
 	 * @param View view to check visibility in
@@ -644,6 +644,8 @@ public:
 	}
 
 	bool HasVirtualShadowMap() const { return VirtualShadowMap != nullptr; }
+
+	FParallelMeshDrawCommandPass& GetShadowDepthPass() { return ShadowDepthPass; }
 
 private:
 	// 0 if Setup...() wasn't called yet

@@ -46,11 +46,10 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FPrimitiveUniformShaderParameters,ENGINE_AP
 	SHADER_PARAMETER(FVector, PreSkinnedLocalBoundsMax)	// Local space bounds, pre-skinning
 	SHADER_PARAMETER(uint32, OutputVelocity)
 	SHADER_PARAMETER(uint32, LightmapUVIndex)
-	SHADER_PARAMETER(uint32, Unused1)
-	SHADER_PARAMETER(uint32, Unused2)
-	SHADER_PARAMETER(uint32, Unused3)
+	SHADER_PARAMETER(uint32, InstanceDataOffset)
+	SHADER_PARAMETER(uint32, NumInstanceDataEntries)
+	SHADER_PARAMETER(uint32, Unused)
 	SHADER_PARAMETER_ARRAY(FVector4, CustomPrimitiveData, [FCustomPrimitiveData::NumCustomPrimitiveDataFloat4s]) // Custom data per primitive that can be accessed through material expression parameters and modified through UStaticMeshComponent
-
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 /** Initializes the primitive uniform shader parameters. */
@@ -73,7 +72,9 @@ inline FPrimitiveUniformShaderParameters GetPrimitiveUniformShaderParameters(
 	int32 SingleCaptureIndex,
 	bool bOutputVelocity,
 	const FCustomPrimitiveData* CustomPrimitiveData,
-	bool bCastContactShadow = true
+	bool bCastContactShadow,
+	int32 InstanceDataOffset,
+	int32 NumInstanceDataEntries
 )
 {
 	FPrimitiveUniformShaderParameters Result;
@@ -129,6 +130,10 @@ inline FPrimitiveUniformShaderParameters GetPrimitiveUniformShaderParameters(
 		// Copy at most up to the max supported number of dwords for safety
 		FMemory::Memcpy(&Result.CustomPrimitiveData, CustomPrimitiveData->Data.GetData(), CustomPrimitiveData->Data.GetTypeSize() * FMath::Min(CustomPrimitiveData->Data.Num(), FCustomPrimitiveData::NumCustomPrimitiveDataFloats));
 	}
+
+	Result.InstanceDataOffset = InstanceDataOffset;
+	Result.NumInstanceDataEntries = NumInstanceDataEntries;
+
 	return Result;
 }
 
@@ -150,7 +155,10 @@ inline FPrimitiveUniformShaderParameters GetPrimitiveUniformShaderParameters(
 	uint32 LightmapUVIndex,
 	int32 SingleCaptureIndex,
     bool bOutputVelocity,
-	bool bCastContactShadow = true
+	const FCustomPrimitiveData* CustomPrimitiveData,
+	bool bCastContactShadow,
+	int32 InstanceDataOffset,
+	int32 NumInstanceDataEntries
 )
 {
 	// Pass through call
@@ -172,8 +180,10 @@ inline FPrimitiveUniformShaderParameters GetPrimitiveUniformShaderParameters(
 		LightmapUVIndex,
 		SingleCaptureIndex,
 		bOutputVelocity,
-		nullptr,
-		bCastContactShadow
+		CustomPrimitiveData,
+		bCastContactShadow,
+		InstanceDataOffset,
+		NumInstanceDataEntries
 		);
 }
 
@@ -206,7 +216,10 @@ inline TUniformBufferRef<FPrimitiveUniformShaderParameters> CreatePrimitiveUnifo
 			INDEX_NONE,
 			INDEX_NONE,
 			false,
-			nullptr
+			nullptr,
+			/* bCastContactShadow = */ true,
+			INDEX_NONE,
+			0
 		),
 		UniformBuffer_MultiFrame
 	);
@@ -233,8 +246,11 @@ inline FPrimitiveUniformShaderParameters GetIdentityPrimitiveParameters()
 		INDEX_NONE,
 		INDEX_NONE,
 		false,
-		/* bCastContactShadow = */ true
-		);
+		nullptr,
+		/* bCastContactShadow = */ true,
+		INDEX_NONE,
+		0
+	);
 }
 
 /**
