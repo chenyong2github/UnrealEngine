@@ -1076,15 +1076,16 @@ TArray<FDatasmithImporterUtils::FFunctionAndMaterialsThatUseIt> FDatasmithImport
 			{
 				uint32 DependencyHash = GetTypeHash(Dependency);
 				const TSharedPtr<IDatasmithUEPbrMaterialElement>* NextElement = MaterialNameMap.FindByHash(DependencyHash, Dependency);
-				check(NextElement);
-
-				if (const TSet<FString>* NextElementDependencies = MaterialToFunctionNameMap.FindByHash(DependencyHash, Dependency))
+				if (NextElement)
 				{
-					DepthFirstSearch(*NextElement, *NextElementDependencies, CurrentElement);
-				}
-				else
-				{
-					DepthFirstSearch(*NextElement, TSet<FString>(), CurrentElement);
+					if (const TSet<FString>* NextElementDependencies = MaterialToFunctionNameMap.FindByHash(DependencyHash, Dependency))
+					{
+						DepthFirstSearch(*NextElement, *NextElementDependencies, CurrentElement);
+					}
+					else
+					{
+						DepthFirstSearch(*NextElement, TSet<FString>(), CurrentElement);
+					}
 				}
 			}
 
@@ -1107,15 +1108,16 @@ TArray<FDatasmithImporterUtils::FFunctionAndMaterialsThatUseIt> FDatasmithImport
 			{
 				uint32 DependencyHash = GetTypeHash(Dependency);
 				const TSharedPtr<IDatasmithUEPbrMaterialElement>* CurrentDependency = MaterialNameMap.FindByHash(DependencyHash, Dependency);
-				check(CurrentDependency);
-
-				if (const TSet<FString>* DependenciesOfDependency = MaterialToFunctionNameMap.FindByHash(DependencyHash, Dependency))
+				if (CurrentDependency)
 				{
-					DepthFirstSearch(*CurrentDependency, *DependenciesOfDependency, CurrentElement);
-				}
-				else
-				{
-					DepthFirstSearch(*CurrentDependency, TSet<FString>(), CurrentElement);
+					if (const TSet<FString>* DependenciesOfDependency = MaterialToFunctionNameMap.FindByHash(DependencyHash, Dependency))
+					{
+						DepthFirstSearch(*CurrentDependency, *DependenciesOfDependency, CurrentElement);
+					}
+					else
+					{
+						DepthFirstSearch(*CurrentDependency, TSet<FString>(), CurrentElement);
+					}
 				}
 			}
 		}
