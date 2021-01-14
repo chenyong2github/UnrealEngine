@@ -243,7 +243,12 @@ struct FPropertyAccessPath
 {
 	GENERATED_BODY()
 
-	FPropertyAccessPath() = default;
+	FPropertyAccessPath()
+		: PathSegmentStartIndex(INDEX_NONE)
+		, PathSegmentCount(INDEX_NONE)
+		, bHasEvents(false)
+	{
+	}
 
 private:
 	friend struct FPropertyAccessSystem;
