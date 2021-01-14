@@ -141,10 +141,11 @@ public:
 	 *  The pass name is used by debugging / profiling tools.
 	 */
 	template <typename ParameterStructType, typename ExecuteLambdaType>
-	FRDGPassRef AddPass(FRDGEventName&& Name, const FShaderParametersMetadata* ParametersMetadata, const ParameterStructType* ParameterStruct, ERDGPassFlags Flags, ExecuteLambdaType&& ExecuteLambda);
-	
-	template <typename ParameterStructType, typename ExecuteLambdaType>
 	FRDGPassRef AddPass(FRDGEventName&& Name, const ParameterStructType* ParameterStruct, ERDGPassFlags Flags, ExecuteLambdaType&& ExecuteLambda);
+
+	/** Adds a lambda pass to the graph with a runtime-generated parameter struct. */
+	template <typename ExecuteLambdaType>
+	FRDGPassRef AddPass(FRDGEventName&& Name, const FShaderParametersMetadata* ParametersMetadata, const void* ParameterStruct, ERDGPassFlags Flags, ExecuteLambdaType&& ExecuteLambda);
 
 	/** Adds a lambda pass to the graph without any parameters. This useful for deferring RHI work onto the graph timeline,
 	 *  or incrementally porting code to use the graph system. NeverCull and SkipRenderPass (if Raster) are implicitly added
@@ -230,6 +231,14 @@ private:
 	FRHIAsyncComputeCommandListImmediate& RHICmdListAsyncCompute;
 
 	const FRDGEventName BuilderName;
+
+	template <typename ParameterStructType, typename ExecuteLambdaType>
+	FRDGPassRef AddPassInternal(
+		FRDGEventName&& Name,
+		const FShaderParametersMetadata* ParametersMetadata,
+		const ParameterStructType* ParameterStruct,
+		ERDGPassFlags Flags,
+		ExecuteLambdaType&& ExecuteLambda);
 
 	ERDGPassFlags OverridePassFlags(const TCHAR* PassName, ERDGPassFlags Flags, bool bAsyncComputeSupported);
 

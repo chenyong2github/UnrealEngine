@@ -129,7 +129,7 @@ FRDGPassRef FRDGBuilder::AddPass(
 }
 
 template <typename ParameterStructType, typename ExecuteLambdaType>
-FRDGPassRef FRDGBuilder::AddPass(
+FRDGPassRef FRDGBuilder::AddPassInternal(
 	FRDGEventName&& Name,
 	const FShaderParametersMetadata* ParametersMetadata,
 	const ParameterStructType* ParameterStruct,
@@ -153,6 +153,17 @@ FRDGPassRef FRDGBuilder::AddPass(
 	return Pass;
 }
 
+template <typename ExecuteLambdaType>
+FRDGPassRef FRDGBuilder::AddPass(
+	FRDGEventName&& Name,
+	const FShaderParametersMetadata* ParametersMetadata,
+	const void* ParameterStruct,
+	ERDGPassFlags Flags,
+	ExecuteLambdaType&& ExecuteLambda)
+{
+	return AddPassInternal(Forward<FRDGEventName>(Name), ParametersMetadata, ParameterStruct, Flags, Forward<ExecuteLambdaType>(ExecuteLambda));
+}
+
 template <typename ParameterStructType, typename ExecuteLambdaType>
 FRDGPassRef FRDGBuilder::AddPass(
 	FRDGEventName&& Name,
@@ -160,7 +171,7 @@ FRDGPassRef FRDGBuilder::AddPass(
 	ERDGPassFlags Flags,
 	ExecuteLambdaType&& ExecuteLambda)
 {
-	return AddPass(Forward<FRDGEventName>(Name), ParameterStructType::FTypeInfo::GetStructMetadata(), ParameterStruct, Flags, Forward<ExecuteLambdaType>(ExecuteLambda));
+	return AddPassInternal(Forward<FRDGEventName>(Name), ParameterStructType::FTypeInfo::GetStructMetadata(), ParameterStruct, Flags, Forward<ExecuteLambdaType>(ExecuteLambda));
 }
 
 inline void FRDGBuilder::QueueTextureExtraction(FRDGTextureRef Texture, TRefCountPtr<IPooledRenderTarget>* OutTexturePtr, ERHIAccess AccessFinal)
