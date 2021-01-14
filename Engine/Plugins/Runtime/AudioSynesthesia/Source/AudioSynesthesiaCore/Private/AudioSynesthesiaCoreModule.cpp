@@ -1,15 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-
 #include "AudioSynesthesiaCoreModule.h"
+
 #include "AudioSynesthesiaCoreLog.h"
+#include "ConstantQNRTFactory.h"
 #include "CoreMinimal.h"
+#include "Features/IModularFeatures.h"
+#include "LoudnessFactory.h"
+#include "LoudnessNRTFactory.h"
+#include "MeterFactory.h"
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
-#include "Features/IModularFeatures.h"
-#include "LoudnessNRTFactory.h"
-#include "ConstantQNRTFactory.h"
 #include "OnsetNRTFactory.h"
-#include "LoudnessFactory.h"
 
 DEFINE_LOG_CATEGORY(LogAudioSynesthesiaCore);
 
@@ -26,6 +27,7 @@ namespace Audio
 				IModularFeatures::Get().RegisterModularFeature(FOnsetNRTFactory::GetModularFeatureName(), &OnsetNRTFactory);
 
 				IModularFeatures::Get().RegisterModularFeature(FLoudnessFactory::GetModularFeatureName(), &LoudnessFactory);
+				IModularFeatures::Get().RegisterModularFeature(FMeterFactory::GetModularFeatureName(), &MeterFactory);
 			}
 
 			void ShutdownModule()
@@ -36,6 +38,7 @@ namespace Audio
 				IModularFeatures::Get().UnregisterModularFeature(FOnsetNRTFactory::GetModularFeatureName(), &OnsetNRTFactory);
 
 				IModularFeatures::Get().UnregisterModularFeature(FLoudnessFactory::GetModularFeatureName(), &LoudnessFactory);
+				IModularFeatures::Get().UnregisterModularFeature(FMeterFactory::GetModularFeatureName(), &MeterFactory);
 			}
 
 		private:
@@ -44,6 +47,7 @@ namespace Audio
 			FOnsetNRTFactory OnsetNRTFactory;
 
 			FLoudnessFactory LoudnessFactory;
+			FMeterFactory MeterFactory;
 	};
 
 }
