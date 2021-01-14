@@ -14,15 +14,20 @@ struct FAssetRegistrySerializationOptions;
 class FAssetRegistryReader : public FArchiveProxy
 {
 public:
-	FAssetRegistryReader(FArchive& Inner);
+	/// @param NumWorkers > 0 for parallel loading
+	FAssetRegistryReader(FArchive& Inner, int32 NumWorkers = 0);
+	~FAssetRegistryReader();
 
 	virtual FArchive& operator<<(FName& Value) override;
 
 	void SerializeTagsAndBundles(FAssetData& Out);
 
+	void WaitForTasks();
+
 private:
 	TArray<FNameEntryId> Names;
 	TRefCountPtr<const FixedTagPrivate::FStore> Tags;
+	TFuture<void> Task;
 
 	friend FAssetDataTagMapSharedView LoadTags(FAssetRegistryReader& Reader);
 };

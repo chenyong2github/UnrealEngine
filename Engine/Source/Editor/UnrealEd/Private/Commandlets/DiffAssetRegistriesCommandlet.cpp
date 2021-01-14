@@ -506,7 +506,7 @@ bool	UDiffAssetRegistriesCommandlet::IsInRelevantChunk(FAssetRegistryState& InRe
 		return true;
 
 	}
-	TArray<const FAssetData*> Assets = InRegistryState.GetAssetsByPackageName(InAssetPath);
+	TArrayView<FAssetData const* const> Assets = InRegistryState.GetAssetsByPackageName(InAssetPath);
 
 	if (Assets.Num() && Assets[0]->ChunkIDs.Num())
 	{
@@ -520,7 +520,7 @@ FName UDiffAssetRegistriesCommandlet::GetClassName(FAssetRegistryState& InRegist
 {
 	if (AssetPathToClassName.Contains(InAssetPath) == false)
 	{
-		TArray<const FAssetData*> Assets = InRegistryState.GetAssetsByPackageName(InAssetPath);
+		TArrayView<FAssetData const * const> Assets = InRegistryState.GetAssetsByPackageName(InAssetPath);
 
 		FName NewName = NAME_None;
 		if (Assets.Num() > 0)
@@ -549,7 +549,7 @@ TArray<int32> UDiffAssetRegistriesCommandlet::GetAssetChunks(FAssetRegistryState
 {
 	if (ChunkIdByAssetPath.Contains(InAssetPath) == false)
 	{
-		TArray<const FAssetData*> Assets = InRegistryState.GetAssetsByPackageName(InAssetPath);
+		TArrayView<FAssetData const* const> Assets = InRegistryState.GetAssetsByPackageName(InAssetPath);
 
 		if (Assets.Num() > 0 && Assets[0]->ChunkIDs.Num() > 0)
 		{
