@@ -109,9 +109,9 @@ void FMovieSceneEntitySystemRunner::Flush()
 	{
 		return;
 	}
-	if (!ensureMsgf(Linker->StartEvaluation(*this),
-				TEXT("An evaluation is already running on this linker, and re-entrancy isn't allow at this point")))
+	if (!Linker->StartEvaluation(*this))
 	{
+		UE_LOG(LogMovieScene, Error, TEXT("An evaluation is already running on this linker, and re-entrancy isn't allow at this point"));
 		return;
 	}
 
