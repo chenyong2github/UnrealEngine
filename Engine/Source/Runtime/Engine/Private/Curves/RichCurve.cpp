@@ -753,10 +753,10 @@ void FRichCurve::ReadjustTimeRange(float NewMinTimeRange, float NewMaxTimeRange,
 		{
 			for (int32 KeyIndex = KeysToDelete.Num()-1; KeyIndex >= 0; --KeyIndex)
 			{
-				const FKeyHandle* KeyHandle = KeyHandlesToIndices.FindKey(KeysToDelete[KeyIndex]);
-				if(KeyHandle && IsKeyHandleValid(*KeyHandle))
+				const FKeyHandle KeyHandle = GetKeyHandle(KeysToDelete[KeyIndex]);
+				if(IsKeyHandleValid(KeyHandle))
 				{
-					DeleteKey(*KeyHandle);
+					DeleteKey(KeyHandle);
 				}
 			}
 
