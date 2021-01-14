@@ -491,7 +491,7 @@ template <
 decltype(auto) ToRawPtrTArrayUnsafe(ArrayType&& Array)
 {
 	using ArrayElementType         = typename ArrayTypeNoRef::ElementType;
-	using ArrayAllocatorType       = typename ArrayTypeNoRef::Allocator;
+	using ArrayAllocatorType       = typename ArrayTypeNoRef::AllocatorType;
 	using RawPointerType           = typename ObjectPtr_Private::TRawPointerType<ArrayElementType>::Type;
 	using QualifiedRawPointerType  = typename TCopyQualifiersFromTo<ArrayElementType, RawPointerType>::Type;
 	using NewArrayType             = TArray<QualifiedRawPointerType, ArrayAllocatorType>;
