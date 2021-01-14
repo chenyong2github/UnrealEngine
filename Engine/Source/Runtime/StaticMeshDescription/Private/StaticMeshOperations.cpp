@@ -2070,7 +2070,11 @@ void FStaticMeshOperations::GenerateBoxUV(const FMeshDescription& MeshDescriptio
 			// Apply the gizmo transforms
 			Vertex = Params.Rotation.RotateVector(Vertex);
 			Vertex -= Offset;
-			Vertex /= Size;
+
+			// Normalize coordinates
+			Vertex.X = FMath::IsNearlyZero(Size.X) ? 0.0f : Vertex.X / Size.X;
+			Vertex.Y = FMath::IsNearlyZero(Size.Y) ? 0.0f : Vertex.Y / Size.Y;
+			Vertex.Z = FMath::IsNearlyZero(Size.Z) ? 0.0f : Vertex.Z / Size.Z;
 
 			float UCoord = FVector::DotProduct(Vertex, U) * Params.UVTile.X;
 			float VCoord = FVector::DotProduct(Vertex, V) * Params.UVTile.Y;
