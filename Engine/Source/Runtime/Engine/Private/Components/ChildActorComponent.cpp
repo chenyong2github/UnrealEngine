@@ -577,7 +577,9 @@ void UChildActorComponent::CreateChildActor()
 	if (MyOwner && !MyOwner->HasAuthority())
 	{
 		AActor* ChildClassCDO = (ChildActorClass ? ChildActorClass->GetDefaultObject<AActor>() : nullptr);
-		if (ChildClassCDO && ChildClassCDO->GetIsReplicated())
+		const bool bChildActorTemplateReplicated = ChildActorTemplate && ChildActorTemplate->GetClass() == ChildActorClass && ChildActorTemplate->GetIsReplicated();
+
+		if ((ChildClassCDO && ChildClassCDO->GetIsReplicated()) || bChildActorTemplateReplicated)
 		{
 			// If we belong to an actor that is not authoritative and the child class is replicated then we expect that Actor will be replicated across so don't spawn one
 			return;
