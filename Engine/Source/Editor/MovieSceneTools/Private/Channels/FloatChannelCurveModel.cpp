@@ -36,7 +36,7 @@ public:
 	{
 		UMovieSceneSection* Section = WeakSection.Get();
 
-		if (Section)
+		if (Section && Section->GetTypedOuter<UMovieScene>())
 		{
 			FFrameRate TickResolution = Section->GetTypedOuter<UMovieScene>()->GetTickResolution();
 
@@ -59,7 +59,7 @@ FFloatChannelCurveModel::FFloatChannelCurveModel(TMovieSceneChannelHandle<FMovie
 {
 	FMovieSceneFloatChannel* Channel = InChannel.Get();
 
-	if (Channel && OwningSection)
+	if (Channel && OwningSection && OwningSection->GetTypedOuter<UMovieScene>())
 	{
 		Channel->SetTickResolution(OwningSection->GetTypedOuter<UMovieScene>()->GetTickResolution());
 	}
@@ -70,7 +70,7 @@ void FFloatChannelCurveModel::DrawCurve(const FCurveEditor& CurveEditor, const F
 	FMovieSceneFloatChannel* Channel = GetChannelHandle().Get();
 	UMovieSceneSection*      Section = Cast<UMovieSceneSection>(GetOwningObject());
 
-	if (Channel && Section)
+	if (Channel && Section && Section->GetTypedOuter<UMovieScene>())
 	{
 		FFrameRate   TickResolution   = Section->GetTypedOuter<UMovieScene>()->GetTickResolution();
 
@@ -163,7 +163,7 @@ void FFloatChannelCurveModel::GetKeyAttributes(TArrayView<const FKeyHandle> InKe
 {
 	FMovieSceneFloatChannel* Channel = GetChannelHandle().Get();
 	UMovieSceneSection*      Section = Cast<UMovieSceneSection>(GetOwningObject());
-	if (Channel && Section)
+	if (Channel && Section && Section->GetTypedOuter<UMovieScene>())
 	{
 		TMovieSceneChannelData<FMovieSceneFloatValue> ChannelData = Channel->GetData();
 		TArrayView<const FFrameNumber>    Times  = ChannelData.GetTimes();
@@ -212,7 +212,7 @@ void FFloatChannelCurveModel::SetKeyAttributes(TArrayView<const FKeyHandle> InKe
 {
 	FMovieSceneFloatChannel* Channel = GetChannelHandle().Get();
 	UMovieSceneSection*      Section = Cast<UMovieSceneSection>(GetOwningObject());
-	if (Channel && Section && !IsReadOnly())
+	if (Channel && Section && Section->GetTypedOuter<UMovieScene>() && !IsReadOnly())
 	{
 		bool bAutoSetTangents = false;
 		Section->MarkAsChanged();
@@ -458,7 +458,7 @@ void FFloatChannelCurveModel::GetValueRange(double& MinValue, double& MaxValue) 
 	FMovieSceneFloatChannel* Channel = GetChannelHandle().Get();
 	UMovieSceneSection*      Section = Cast<UMovieSceneSection>(GetOwningObject());
 
-	if (Channel && Section)
+	if (Channel && Section && Section->GetTypedOuter<UMovieScene>())
 	{
 		TArrayView<const FFrameNumber> Times = Channel->GetData().GetTimes();
 		TArrayView<const FMovieSceneFloatValue>   Values = Channel->GetData().GetValues();
