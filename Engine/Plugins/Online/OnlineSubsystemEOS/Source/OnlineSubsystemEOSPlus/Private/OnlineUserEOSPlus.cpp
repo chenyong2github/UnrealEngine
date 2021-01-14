@@ -406,6 +406,12 @@ FPlatformUserId FOnlineUserEOSPlus::GetPlatformUserIdFromUniqueNetId(const FUniq
 	return FPlatformUserId();
 }
 
+void FOnlineUserEOSPlus::GetLinkedAccountAuthToken(int32 LocalUserNum, const FOnGetLinkedAccountAuthTokenCompleteDelegate& Delegate) const
+{
+	// Pass through to the platform layer
+	BaseIdentityInterface->GetLinkedAccountAuthToken(LocalUserNum, Delegate);
+}
+
 void FOnlineUserEOSPlus::OnFriendsChanged()
 {
 	for (int32 LocalUserNum = 0; LocalUserNum < MAX_LOCAL_PLAYERS; LocalUserNum++)

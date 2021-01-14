@@ -339,8 +339,8 @@ PACKAGE_SCOPE:
 	 */
 	FUserManagerEOS() = delete;
 
-	// For mapping EpicAccountId to ProductUserId
 	bool ConnectLoginEAS(int32 LocalUserNum, EOS_EpicAccountId AccountId);
+	void LoginViaExternalAuth(int32 LocalUserNum);
 	void CreateConnectedLogin(int32 LocalUserNum, EOS_EpicAccountId AccountId, EOS_ContinuanceToken Token);
 	void LinkEAS(int32 LocalUserNum, EOS_ContinuanceToken Token);
 	void RefreshConnectLogin(int32 LocalUserNum);
@@ -368,7 +368,7 @@ private:
 	void UpdateFriendPresence(const FString& FriendId, FOnlineUserPresenceRef Presence);
 
 	IOnlineSubsystem* GetPlatformOSS();
-	FString GetPlatformAuthToken(int32 LocalUserNum);
+	void GetPlatformAuthToken(int32 LocalUserNum, const FOnGetLinkedAccountAuthTokenCompleteDelegate& Delegate);
 
 	/** Cached pointer to owning subsystem */
 	FOnlineSubsystemEOS* EOSSubsystem;
