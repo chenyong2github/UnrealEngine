@@ -52,10 +52,10 @@ struct FDirectLinkMsg_EndpointLifecycle
 	{}
 
 	UPROPERTY()
-	uint8 LifecycleState;
+	uint8 LifecycleState = ELifecycle::None;
 
 	UPROPERTY()
-	uint32 EndpointStateRevision;
+	uint32 EndpointStateRevision = 0;
 };
 
 
@@ -88,13 +88,13 @@ struct FDirectLinkMsg_EndpointState
 	{}
 
 	UPROPERTY()
-	uint32 StateRevision;
+	uint32 StateRevision = 0;
 
 	UPROPERTY()
-	uint32 MinProtocolVersion;
+	uint32 MinProtocolVersion = 0;
 
 	UPROPERTY()
-	uint32 ProtocolVersion;
+	uint32 ProtocolVersion = 0;
 
 	UPROPERTY()
 	FString ComputerName;
