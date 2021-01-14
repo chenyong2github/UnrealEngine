@@ -12,6 +12,8 @@ D3D12CommandContext.cpp: RHI  Command Context implementation.
 #include "Windows/HideWindowsPlatformTypes.h"
 #endif
 
+#include "D3D12RayTracing.h"
+
 // Aggressive batching saves ~0.1ms on the RHI thread, reduces executecommandlist calls by around 25%
 int32 GCommandListBatchingMode = CLB_AggressiveBatching;
 
@@ -491,6 +493,10 @@ void FD3D12CommandContextBase::RHIBeginFrame()
 		Device->GetGPUProfiler().BeginFrame(ParentAdapter->GetOwningRHI());
 
 		Device->GetDefaultBufferAllocator().BeginFrame();
+
+#if D3D12_RHI_RAYTRACING
+		Device->GetRayTracingCompactionRequestHandler()->Update(*ContextAtIndex);
+#endif // D3D12_RHI_RAYTRACING
 	}
 }
 

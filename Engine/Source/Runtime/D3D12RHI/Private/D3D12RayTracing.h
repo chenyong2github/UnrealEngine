@@ -28,7 +28,7 @@ public:
 
 	void TransitionBuffers(FD3D12CommandContext& CommandContext);
 	void BuildAccelerationStructure(FD3D12CommandContext& CommandContext, EAccelerationStructureBuildMode BuildMode);
-	void ConditionalCompactAccelerationStructure(FD3D12CommandContext& CommandContext);
+	void CompactAccelerationStructure(FD3D12CommandContext& CommandContext, uint32 InGPUIndex, uint64 InSizeAfterCompaction);
 
 	bool bIsAccelerationStructureDirty[MAX_NUM_GPUS] = {};
 	void SetDirty(FRHIGPUMask GPUMask, bool bState)
@@ -58,9 +58,7 @@ public:
 	TRefCountPtr<FD3D12Buffer> AccelerationStructureBuffers[MAX_NUM_GPUS];
 	TRefCountPtr<FD3D12Buffer> ScratchBuffers[MAX_NUM_GPUS];
 
-	uint64 PostBuildInfoBufferReadbackFences[MAX_NUM_GPUS];
-	TRefCountPtr<FD3D12Buffer> PostBuildInfoBuffers[MAX_NUM_GPUS];
-	FStagingBufferRHIRef PostBuildInfoStagingBuffers[MAX_NUM_GPUS];
+	bool bHasPendingCompactionRequests[MAX_NUM_GPUS];
 
 	// Hit shader parameters per geometry segment
 	TArray<FHitGroupSystemParameters> HitGroupSystemParameters[MAX_NUM_GPUS];
@@ -126,6 +124,36 @@ public:
 	uint64 LastCommandListID = 0;
 
 	FName DebugName;
+};
+
+// Manages all the pending BLAS compaction requests
+class FD3D12RayTracingCompactionRequestHandler : FD3D12DeviceChild
+{
+public:
+
+	UE_NONCOPYABLE(FD3D12RayTracingCompactionRequestHandler)
+
+	FD3D12RayTracingCompactionRequestHandler(FD3D12Device* Device);
+	~FD3D12RayTracingCompactionRequestHandler()
+	{
+		check(PendingRequests.IsEmpty());
+	}
+
+	void RequestCompact(FD3D12RayTracingGeometry* InRTGeometry);
+	bool ReleaseRequest(FD3D12RayTracingGeometry* InRTGeometry);
+
+	void Update(FD3D12CommandContext& InCommandContext);
+
+private:
+
+	FCriticalSection CS;
+	TArray<FD3D12RayTracingGeometry*> PendingRequests;
+	TArray<FD3D12RayTracingGeometry*> ActiveRequests;
+	TArray<D3D12_GPU_VIRTUAL_ADDRESS> ActiveBLASGPUAddresses;
+
+	TRefCountPtr<FD3D12Buffer> PostBuildInfoBuffer;
+	FStagingBufferRHIRef PostBuildInfoStagingBuffer;
+	uint64 PostBuildInfoBufferReadbackFence;
 };
 
 #endif // D3D12_RHI_RAYTRACING

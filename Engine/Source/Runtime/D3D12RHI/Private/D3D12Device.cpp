@@ -4,6 +4,7 @@
 D3D12Device.cpp: D3D device RHI implementation.
 =============================================================================*/
 #include "D3D12RHIPrivate.h"
+#include "D3D12RayTracing.h"
 
 namespace D3D12RHI
 {
@@ -54,6 +55,9 @@ FD3D12Device::FD3D12Device(FRHIGPUMask InGPUMask, FD3D12Adapter* InAdapter) :
 FD3D12Device::~FD3D12Device()
 {
 #if D3D12_RHI_RAYTRACING
+	delete RayTracingCompactionRequestHandler;
+	RayTracingCompactionRequestHandler = nullptr;
+
 	DestroyRayTracingDescriptorCache(); // #dxr_todo UE-72158: unify RT descriptor cache with main FD3D12DescriptorCache
 #endif
 
@@ -307,6 +311,11 @@ void FD3D12Device::SetupAfterDeviceCreation()
 	CreateCommandContexts();
 
 	UpdateMSAASettings();
+
+#if D3D12_RHI_RAYTRACING
+	check(RayTracingCompactionRequestHandler == nullptr);
+	RayTracingCompactionRequestHandler = new FD3D12RayTracingCompactionRequestHandler(this);
+#endif // D3D12_RHI_RAYTRACING
 
 	GPUProfilingData.Init();
 }
