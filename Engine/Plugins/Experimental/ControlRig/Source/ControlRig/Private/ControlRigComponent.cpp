@@ -94,7 +94,16 @@ void UControlRigComponent::OnUnregister()
 {
 	Super::OnUnregister();
 
-	if (!HasAnyFlags(RF_BeginDestroyed))
+	bool bBeginDestroyed = HasAnyFlags(RF_BeginDestroyed);
+	if (!bBeginDestroyed)
+	{
+		if (AActor* Actor = GetOwner())
+		{
+			bBeginDestroyed = Actor->HasAnyFlags(RF_BeginDestroyed);
+		}
+	}
+
+	if (!bBeginDestroyed)
 	{
 		for (TPair<USkeletalMeshComponent*, FCachedSkeletalMeshComponentSettings>& Pair : CachedSkeletalMeshComponentSettings)
 		{
