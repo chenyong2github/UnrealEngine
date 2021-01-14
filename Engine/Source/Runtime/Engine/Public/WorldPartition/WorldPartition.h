@@ -94,6 +94,7 @@ private:
 
 	//~ Begin UObject Interface
 	virtual void Serialize(FArchive& Ar) override;
+	virtual void BeginDestroy() override;
 	//~ End UObject Interface
 
 	static void WorldPartitionOnLevelRemovedFromWorld(class ULevel* Level, UWorld* InWorld);

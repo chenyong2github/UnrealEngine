@@ -143,6 +143,7 @@ FName UWorldPartition::GetWorldPartitionEditorName()
 void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 {
 	UE_SCOPED_TIMER(TEXT("WorldPartition initialize"), LogWorldPartition);
+	TRACE_CPUPROFILER_EVENT_SCOPE(UWorldPartition::Initialize);
 	
 	check(!World || (World == InWorld));
 	if (!ensure(!IsInitialized()))
@@ -834,6 +835,16 @@ void UWorldPartition::Serialize(FArchive& Ar)
 		Ar << EditorHash;
 	}
 #endif
+}
+
+void UWorldPartition::BeginDestroy()
+{
+	Super::BeginDestroy();
+
+	for (TUniquePtr<FWorldPartitionActorDesc>& ActorDescPtr : ActorDescList)
+	{
+		ActorDescPtr.Release();
+	}
 }
 
 UWorldPartitionStreamingPolicy* UWorldPartition::GetStreamingPolicy() const

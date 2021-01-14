@@ -203,7 +203,10 @@ AActor* FWorldPartitionActorDesc::GetActor() const
 		return Actor;
 	}
 
-	Actor = FindObject<AActor>(nullptr, *ActorPath.ToString());
+	if (!IsGarbageCollecting())
+	{
+		Actor = FindObject<AActor>(nullptr, *ActorPath.ToString());
+	}
 
 	if (Actor)
 	{
