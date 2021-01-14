@@ -84,7 +84,7 @@ public:
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-/** Creates a group for unique column value of node. */
+/** Creates a group for each unique value. */
 class FTreeNodeGroupingByUniqueValue : public FTreeNodeGrouping
 {
 public:
@@ -99,6 +99,81 @@ public:
 private:
 	TSharedRef<FTableColumn> ColumnRef;
 };
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/** Creates a group for each unique value (assumes data type of cell values is a simple type). */
+template<typename Type>
+class TTreeNodeGroupingByUniqueValue : public FTreeNodeGroupingByUniqueValue
+{
+public:
+	TTreeNodeGroupingByUniqueValue(TSharedRef<FTableColumn> InColumnRef) : FTreeNodeGroupingByUniqueValue(InColumnRef) {}
+	virtual ~TTreeNodeGroupingByUniqueValue() {}
+
+	virtual void GroupNodes(const TArray<FTableTreeNodePtr>& Nodes, FTableTreeNode& ParentGroup, TWeakPtr<FTable> InParentTable, std::atomic<bool>& bCancelGrouping) const override;
+
+private:
+	static Type GetValue(const FTableCellValue& CellValue);
+};
+
+template<typename Type>
+void TTreeNodeGroupingByUniqueValue<Type>::GroupNodes(const TArray<FTableTreeNodePtr>& Nodes, FTableTreeNode& ParentGroup, TWeakPtr<FTable> InParentTable, std::atomic<bool>& bCancelGrouping) const
+{
+	TMap<Type, FTableTreeNodePtr> GroupMap;
+	FTableTreeNodePtr UnsetGroupPtr = nullptr;
+
+	ParentGroup.ClearChildren();
+
+	for (FTableTreeNodePtr NodePtr : Nodes)
+	{
+		ensure(!NodePtr->IsGroup());
+
+		if (bCancelGrouping)
+		{
+			return;
+		}
+
+		FTableTreeNodePtr GroupPtr = nullptr;
+
+		const TOptional<FTableCellValue> CellValue = GetColumn()->GetValue(*NodePtr);
+		if (CellValue.IsSet())
+		{
+			const Type Value = GetValue(CellValue.GetValue());
+
+			FTableTreeNodePtr* GroupPtrPtr = GroupMap.Find(Value);
+			if (!GroupPtrPtr)
+			{
+				FName GroupName(GetColumn()->GetValueAsText(*NodePtr).ToString());
+				GroupPtr = MakeShared<FTableTreeNode>(GroupName, InParentTable);
+				GroupPtr->SetExpansion(false);
+				ParentGroup.AddChildAndSetGroupPtr(GroupPtr);
+				GroupMap.Add(Value, GroupPtr);
+			}
+			else
+			{
+				GroupPtr = *GroupPtrPtr;
+			}
+		}
+		else
+		{
+			if (!UnsetGroupPtr)
+			{
+				UnsetGroupPtr = MakeShared<FTableTreeNode>(FName(TEXT("<unset>")), InParentTable);
+				UnsetGroupPtr->SetExpansion(false);
+				ParentGroup.AddChildAndSetGroupPtr(UnsetGroupPtr);
+			}
+			GroupPtr = UnsetGroupPtr;
+		}
+
+		GroupPtr->AddChildAndSetGroupPtr(NodePtr);
+	}
+}
+
+typedef TTreeNodeGroupingByUniqueValue<bool> FTreeNodeGroupingByUniqueValueBool;
+typedef TTreeNodeGroupingByUniqueValue<int64> FTreeNodeGroupingByUniqueValueInt64;
+typedef TTreeNodeGroupingByUniqueValue<float> FTreeNodeGroupingByUniqueValueFloat;
+typedef TTreeNodeGroupingByUniqueValue<double> FTreeNodeGroupingByUniqueValueDouble;
+typedef TTreeNodeGroupingByUniqueValue<const TCHAR*> FTreeNodeGroupingByUniqueValueCString;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 

@@ -156,6 +156,10 @@ public:
 	virtual FQueryHandle StartQuery(const FQueryParams& Params) const = 0;
 	virtual void CancelQuery(FQueryHandle Query) const = 0;
 	virtual const FQueryStatus PollQuery(FQueryHandle Query) const = 0;
+
+	// Returns the display name of the specified LLM tag.
+	// Lifetime of returned string matches the session lifetime.
+	virtual const TCHAR* GetTagName(int32 Tag) const = 0;
 };
 
 TRACESERVICES_API const IAllocationsProvider* ReadAllocationsProvider(const IAnalysisSession& Session);

@@ -216,7 +216,10 @@ FText FCStringValueFormatterAsText::FormatValue(const TOptional<FTableCellValue>
 	if (InValue.IsSet())
 	{
 		const TCHAR* Value = InValue.GetValue().CString;
-		return FText::FromString(Value);
+		if (Value)
+		{
+			return FText::FromString(Value);
+		}
 	}
 	return FText::GetEmpty();
 }

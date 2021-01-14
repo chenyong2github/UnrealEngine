@@ -1094,7 +1094,31 @@ void STableTreeView::CreateGroupings()
 	{
 		if (!ColumnRef->IsHierarchy())
 		{
-			AvailableGroupings.Add(MakeShared<FTreeNodeGroupingByUniqueValue>(ColumnRef));
+			switch(ColumnRef->GetDataType())
+			{
+				case ETableCellDataType::Bool:
+					AvailableGroupings.Add(MakeShared<FTreeNodeGroupingByUniqueValueBool>(ColumnRef));
+					break;
+
+				case ETableCellDataType::Int64:
+					AvailableGroupings.Add(MakeShared<FTreeNodeGroupingByUniqueValueInt64>(ColumnRef));
+					break;
+
+				case ETableCellDataType::Float:
+					AvailableGroupings.Add(MakeShared<FTreeNodeGroupingByUniqueValueFloat>(ColumnRef));
+					break;
+
+				case ETableCellDataType::Double:
+					AvailableGroupings.Add(MakeShared<FTreeNodeGroupingByUniqueValueDouble>(ColumnRef));
+					break;
+
+				case ETableCellDataType::CString:
+					AvailableGroupings.Add(MakeShared<FTreeNodeGroupingByUniqueValueCString>(ColumnRef));
+					break;
+
+				default:
+					AvailableGroupings.Add(MakeShared<FTreeNodeGroupingByUniqueValue>(ColumnRef));
+			}
 		}
 	}
 

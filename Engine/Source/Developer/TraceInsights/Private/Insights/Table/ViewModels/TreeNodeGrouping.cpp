@@ -44,11 +44,9 @@ void FTreeNodeGrouping::GroupNodes(const TArray<FTableTreeNodePtr>& Nodes, FTabl
 		if (!GroupPtrPtr)
 		{
 			GroupPtr = MakeShared<FTableTreeNode>(GroupInfo.Name, InParentTable);
-
-			GroupMap.Add(GroupInfo.Name, GroupPtr);
-			ParentGroup.AddChildAndSetGroupPtr(GroupPtr);
-
 			GroupPtr->SetExpansion(GroupInfo.IsExpanded);
+			ParentGroup.AddChildAndSetGroupPtr(GroupPtr);
+			GroupMap.Add(GroupInfo.Name, GroupPtr);
 		}
 		else
 		{
@@ -126,6 +124,18 @@ FTreeNodeGroupInfo FTreeNodeGroupingByUniqueValue::GetGroupForNode(const FBaseTr
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
+// TTreeNodeGroupingByUniqueValue specializations
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+template<> bool TTreeNodeGroupingByUniqueValue<bool>::GetValue(const FTableCellValue& CellValue) { return CellValue.Bool; }
+template<> int64 TTreeNodeGroupingByUniqueValue<int64>::GetValue(const FTableCellValue& CellValue) { return CellValue.Int64; }
+template<> float TTreeNodeGroupingByUniqueValue<float>::GetValue(const FTableCellValue& CellValue) { return CellValue.Float; }
+template<> double TTreeNodeGroupingByUniqueValue<double>::GetValue(const FTableCellValue& CellValue) { return CellValue.Double; }
+template<> const TCHAR* TTreeNodeGroupingByUniqueValue<const TCHAR*>::GetValue(const FTableCellValue& CellValue) { return CellValue.CString; }
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// FTreeNodeGroupingByNameFirstLetter
+////////////////////////////////////////////////////////////////////////////////////////////////////
 
 FTreeNodeGroupingByNameFirstLetter::FTreeNodeGroupingByNameFirstLetter()
 	: FTreeNodeGrouping(
@@ -144,6 +154,8 @@ FTreeNodeGroupInfo FTreeNodeGroupingByNameFirstLetter::GetGroupForNode(const FBa
 	return { *InNode->GetName().GetPlainNameString().Left(1), false };
 }
 
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// FTreeNodeGroupingByType
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 FTreeNodeGroupingByType::FTreeNodeGroupingByType()

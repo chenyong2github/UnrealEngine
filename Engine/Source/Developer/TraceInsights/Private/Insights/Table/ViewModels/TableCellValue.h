@@ -57,7 +57,6 @@ private:
 	const FText Text;
 };
 
-
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 struct FTableCellValue
@@ -65,13 +64,13 @@ struct FTableCellValue
 public:
 	FTableCellValue() : DataType(ETableCellDataType::Unknown) {}
 
-	FTableCellValue(bool Value) : DataType(ETableCellDataType::Bool), Bool(Value) {}
-	FTableCellValue(int64 Value) : DataType(ETableCellDataType::Int64), Int64(Value) {}
-	FTableCellValue(float Value) : DataType(ETableCellDataType::Float), Float(Value) {}
-	FTableCellValue(double Value) : DataType(ETableCellDataType::Double), Double(Value) {}
-	FTableCellValue(const TCHAR* Value) : DataType(ETableCellDataType::CString), CString(Value) {}
-	FTableCellValue(TSharedPtr<ICustomTableCellValue> Value) : DataType(ETableCellDataType::Custom), Custom(Value) {}
-	FTableCellValue(const FText& Value) : DataType(ETableCellDataType::Custom_Text), Custom(MakeShared<FTextCustomTableCellValue>(Value)) {}
+	explicit FTableCellValue(bool Value) : DataType(ETableCellDataType::Bool), Bool(Value) {}
+	explicit FTableCellValue(int64 Value) : DataType(ETableCellDataType::Int64), Int64(Value) {}
+	explicit FTableCellValue(float Value) : DataType(ETableCellDataType::Float), Float(Value) {}
+	explicit FTableCellValue(double Value) : DataType(ETableCellDataType::Double), Double(Value) {}
+	explicit FTableCellValue(const TCHAR* Value) : DataType(ETableCellDataType::CString), CString(Value) {}
+	explicit FTableCellValue(TSharedPtr<ICustomTableCellValue> Value) : DataType(ETableCellDataType::Custom), Custom(Value) {}
+	explicit FTableCellValue(const FText& Value) : DataType(ETableCellDataType::Custom_Text), Custom(MakeShared<FTextCustomTableCellValue>(Value)) {}
 
 	bool AsBool() const
 	{

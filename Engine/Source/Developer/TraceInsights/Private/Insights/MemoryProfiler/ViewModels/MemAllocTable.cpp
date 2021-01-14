@@ -88,18 +88,18 @@ void FMemAllocTable::AddDefaultColumns()
 					{
 						return NodePtr.GetAggregatedValue(Column.GetId());
 					}
-					else
-					{
-						return FTableCellValue(TEXT("-"));
-					}
 				}
-				else
+				else //if (Node->Is<FMemAllocNode>())
 				{
 					const FMemAllocNode& MemAllocNode = static_cast<const FMemAllocNode&>(Node);
 					const FMemoryAlloc* Alloc = MemAllocNode.GetMemAlloc();
-					const double AllocStartTime = Alloc ? Alloc->GetStartTime() : 0.0;
-					return TOptional<FTableCellValue>(FTableCellValue(AllocStartTime));
+					if (Alloc)
+					{
+						return FTableCellValue(Alloc->GetStartTime());
+					}
 				}
+
+				return TOptional<FTableCellValue>();
 			}
 		};
 		TSharedRef<ITableCellValueGetter> Getter = MakeShared<FMemAllocStartTimeValueGetter>();
@@ -146,18 +146,18 @@ void FMemAllocTable::AddDefaultColumns()
 					{
 						return NodePtr.GetAggregatedValue(Column.GetId());
 					}
-					else
-					{
-						return FTableCellValue(TEXT("-"));
-					}
 				}
-				else
+				else //if (Node->Is<FMemAllocNode>())
 				{
 					const FMemAllocNode& MemAllocNode = static_cast<const FMemAllocNode&>(Node);
 					const FMemoryAlloc* Alloc = MemAllocNode.GetMemAlloc();
-					const double AllocEndTime = Alloc ? Alloc->GetEndTime() : 0.0;
-					return TOptional<FTableCellValue>(FTableCellValue(AllocEndTime));
+					if (Alloc)
+					{
+						return FTableCellValue(Alloc->GetEndTime());
+					}
 				}
+
+				return TOptional<FTableCellValue>();
 			}
 		};
 		TSharedRef<ITableCellValueGetter> Getter = MakeShared<FMemAllocStartTimeValueGetter>();
@@ -197,10 +197,25 @@ void FMemAllocTable::AddDefaultColumns()
 		public:
 			virtual const TOptional<FTableCellValue> GetValue(const FTableColumn& Column, const FBaseTreeNode& Node) const override
 			{
-				const FMemAllocNode& MemAllocNode = static_cast<const FMemAllocNode&>(Node);
-				const FMemoryAlloc* Alloc = MemAllocNode.GetMemAlloc();
-				const double AllocDuration = Alloc ? Alloc->GetDuration() : 0.0;
-				return TOptional<FTableCellValue>(FTableCellValue(AllocDuration));
+				if (Node.IsGroup())
+				{
+					const FTableTreeNode& NodePtr = static_cast<const FTableTreeNode&>(Node);
+					if (NodePtr.HasAggregatedValue(Column.GetId()))
+					{
+						return NodePtr.GetAggregatedValue(Column.GetId());
+					}
+				}
+				else //if (Node->Is<FMemAllocNode>())
+				{
+					const FMemAllocNode& MemAllocNode = static_cast<const FMemAllocNode&>(Node);
+					const FMemoryAlloc* Alloc = MemAllocNode.GetMemAlloc();
+					if (Alloc)
+					{
+						return FTableCellValue(Alloc->GetDuration());
+					}
+				}
+
+				return TOptional<FTableCellValue>();
 			}
 		};
 		TSharedRef<ITableCellValueGetter> Getter = MakeShared<FMemAllocStartTimeValueGetter>();
@@ -238,10 +253,25 @@ void FMemAllocTable::AddDefaultColumns()
 		public:
 			virtual const TOptional<FTableCellValue> GetValue(const FTableColumn& Column, const FBaseTreeNode& Node) const override
 			{
-				const FMemAllocNode& MemAllocNode = static_cast<const FMemAllocNode&>(Node);
-				const FMemoryAlloc* Alloc = MemAllocNode.GetMemAlloc();
-				const uint64 AllocAddress = Alloc ? Alloc->GetAddress() : 0;
-				return TOptional<FTableCellValue>(FTableCellValue(static_cast<int64>(AllocAddress)));
+				if (Node.IsGroup())
+				{
+					const FTableTreeNode& NodePtr = static_cast<const FTableTreeNode&>(Node);
+					if (NodePtr.HasAggregatedValue(Column.GetId()))
+					{
+						return NodePtr.GetAggregatedValue(Column.GetId());
+					}
+				}
+				else //if (Node->Is<FMemAllocNode>())
+				{
+					const FMemAllocNode& MemAllocNode = static_cast<const FMemAllocNode&>(Node);
+					const FMemoryAlloc* Alloc = MemAllocNode.GetMemAlloc();
+					if (Alloc)
+					{
+						return FTableCellValue(static_cast<int64>(Alloc->GetAddress()));
+					}
+				}
+
+				return TOptional<FTableCellValue>();
 			}
 		};
 		TSharedRef<ITableCellValueGetter> Getter = MakeShared<FMemAllocAddressValueGetter>();
@@ -286,18 +316,18 @@ void FMemAllocTable::AddDefaultColumns()
 					{
 						return NodePtr.GetAggregatedValue(Column.GetId());
 					}
-					else
-					{
-						return FTableCellValue(TEXT("-"));
-					}
 				}
-				else
+				else //if (Node->Is<FMemAllocNode>())
 				{
 					const FMemAllocNode& MemAllocNode = static_cast<const FMemAllocNode&>(Node);
 					const FMemoryAlloc* Alloc = MemAllocNode.GetMemAlloc();
-					const uint64 AllocSize = Alloc ? Alloc->GetSize() : 0;
-					return TOptional<FTableCellValue>(FTableCellValue(static_cast<int64>(AllocSize)));
+					if (Alloc)
+					{
+						return FTableCellValue(static_cast<int64>(Alloc->GetSize()));
+					}
 				}
+
+				return TOptional<FTableCellValue>();
 			}
 		};
 		TSharedRef<ITableCellValueGetter> Getter = MakeShared<FMemAllocSizeValueGetter>();
@@ -330,63 +360,41 @@ void FMemAllocTable::AddDefaultColumns()
 		Column.SetHorizontalAlignment(HAlign_Left);
 		Column.SetInitialWidth(100.0f);
 
-		Column.SetDataType(ETableCellDataType::Int64);
+		Column.SetDataType(ETableCellDataType::CString);
 
 		class FMemAllocLlmTagValueGetter : public FTableCellValueGetter
 		{
 		public:
 			virtual const TOptional<FTableCellValue> GetValue(const FTableColumn& Column, const FBaseTreeNode& Node) const
 			{
-				//if (Node->Is<FMemAllocNode>())
+				if (Node.IsGroup())
+				{
+					const FTableTreeNode& NodePtr = static_cast<const FTableTreeNode&>(Node);
+					if (NodePtr.HasAggregatedValue(Column.GetId()))
+					{
+						return NodePtr.GetAggregatedValue(Column.GetId());
+					}
+				}
+				else //if (Node->Is<FMemAllocNode>())
 				{
 					const FMemAllocNode& MemAllocNode = static_cast<const FMemAllocNode&>(Node);
 					const FMemoryAlloc* Alloc = MemAllocNode.GetMemAlloc();
-					const FMemoryTagId AllocMemTagId = Alloc ? Alloc->GetMemTag() : 0;
-					return TOptional<FTableCellValue>(FTableCellValue(static_cast<int64>(AllocMemTagId)));
+					if (Alloc)
+					{
+						return FTableCellValue(Alloc->GetTag());
+					}
 				}
-				//else
-				//{
-				//	return TOptional<FTableCellValue>(FText::GetEmpty());
-				//}
+
+				return TOptional<FTableCellValue>();
 			}
 		};
 		TSharedRef<ITableCellValueGetter> Getter = MakeShared<FMemAllocLlmTagValueGetter>();
 		Column.SetValueGetter(Getter);
 
-		class FMemAllocLlmTagValueFormatter : public FTableCellValueFormatter
-		{
-		public:
-			virtual FText FormatValue(const TOptional<FTableCellValue>& InValue) const override
-			{
-				if (InValue.IsSet())
-				{
-					const FMemoryTagId MemTagId = static_cast<FMemoryTagId>(InValue.GetValue().Int64);
-					const FString& TagName = FMemAllocNode::GetAllocMemTagAsString(MemTagId);
-					if (TagName.IsEmpty())
-					{
-						//FText::AsNumber();
-					}
-					return FText::FromString(TagName);
-				}
-				return FText::GetEmpty();
-			}
-			virtual FText FormatValueForTooltip(const TOptional<FTableCellValue>& InValue) const override
-			{
-				if (InValue.IsSet())
-				{
-					const FMemoryTagId MemTagId = static_cast<FMemoryTagId>(InValue.GetValue().Int64);
-					const FString& TagName = FMemAllocNode::GetAllocMemTagAsString(MemTagId);
-					return FText::FromString(FString::Printf(TEXT("%lli (%s)"), MemTagId, *TagName));
-				}
-				return FText::GetEmpty();
-			}
-			virtual FText FormatValue(const FTableColumn& Column, const FBaseTreeNode& Node) const override { return FormatValue(Column.GetValue(Node)); }
-			virtual FText FormatValueForTooltip(const FTableColumn& Column, const FBaseTreeNode& Node) const override { return FormatValueForTooltip(Column.GetValue(Node)); }
-		};
-		TSharedRef<ITableCellValueFormatter> Formatter = MakeShared<FMemAllocLlmTagValueFormatter>();
+		TSharedRef<ITableCellValueFormatter> Formatter = MakeShared<FCStringValueFormatterAsText>();
 		Column.SetValueFormatter(Formatter);
 
-		TSharedRef<ITableCellValueSorter> Sorter = MakeShared<FSorterByInt64Value>(ColumnRef);
+		TSharedRef<ITableCellValueSorter> Sorter = MakeShared<FSorterByCStringValue>(ColumnRef);
 		Column.SetValueSorter(Sorter);
 
 		AddColumn(ColumnRef);
@@ -401,7 +409,7 @@ void FMemAllocTable::AddDefaultColumns()
 
 		Column.SetShortName(LOCTEXT("BacktraceColumnName", "Backtrace"));
 		Column.SetTitleName(LOCTEXT("BacktraceColumnTitle", "Backtrace"));
-		Column.SetDescription(LOCTEXT("BacktraceColumnDesc", "Backtrace id of allocation"));
+		Column.SetDescription(LOCTEXT("BacktraceColumnDesc", "Backtrace of allocation"));
 
 		Column.SetFlags(ETableColumnFlags::ShouldBeVisible | ETableColumnFlags::CanBeHidden | ETableColumnFlags::CanBeFiltered);
 
@@ -417,46 +425,56 @@ void FMemAllocTable::AddDefaultColumns()
 		public:
 			virtual const TOptional<FTableCellValue> GetValue(const FTableColumn& Column, const FBaseTreeNode& Node) const override
 			{
-				static const TCHAR* DisplayStrings[] = {
-					TEXT("Pending..."),
-					TEXT("Not found"),
-					TEXT("-")
-				};
-				const TCHAR* Value = DisplayStrings[0];
-				const FMemAllocNode& MemAllocNode = static_cast<const FMemAllocNode&>(Node);
-				const FMemoryAlloc* Alloc = MemAllocNode.GetMemAlloc();
-				if (Alloc)
+				if (Node.IsGroup())
 				{
-					const TraceServices::FCallstack* Callstack = Alloc->GetCallstack();
+					const FTableTreeNode& NodePtr = static_cast<const FTableTreeNode&>(Node);
+					if (NodePtr.HasAggregatedValue(Column.GetId()))
+					{
+						return NodePtr.GetAggregatedValue(Column.GetId());
+					}
+				}
+				else //if (Node->Is<FMemAllocNode>())
+				{
+					const FMemAllocNode& MemAllocNode = static_cast<const FMemAllocNode&>(Node);
+					const FMemoryAlloc* Alloc = MemAllocNode.GetMemAlloc();
+					if (Alloc)
+					{
+						static const TCHAR* DisplayStrings[] = {
+							TEXT("Pending..."),
+							TEXT("Not found"),
+							TEXT("N/A"),
+						};
 
-					if (Callstack)
-					{
-						const TraceServices::FStackFrame* Frame = Callstack->Frame(FMath::Min(2u, Callstack->Num()-1));
-						const TraceServices::QueryResult Result = Frame->Symbol->Result.load(std::memory_order_acquire);
-						switch (Result)
+						const TCHAR* Value = DisplayStrings[2]; // not available
+
+						const TraceServices::FCallstack* Callstack = Alloc->GetCallstack();
+
+						if (Callstack)
 						{
-						case TraceServices::QueryResult::QR_NotLoaded:
-							Value = DisplayStrings[0];
-							break;
-						case TraceServices::QueryResult::QR_NotFound:
-							Value = DisplayStrings[1];
-							break;
-						case TraceServices::QueryResult::QR_OK:
-							Value = Frame->Symbol->Name;
-							break;
+							check(Callstack->Num() > 0);
+							const TraceServices::FStackFrame* Frame = Callstack->Frame(FMath::Min(2u, Callstack->Num() - 1));
+							check(Frame != nullptr);
+
+							const TraceServices::QueryResult Result = Frame->Symbol->Result.load(std::memory_order_acquire);
+							switch (Result)
+							{
+							case TraceServices::QueryResult::QR_NotLoaded:
+								Value = DisplayStrings[0]; // pending
+								break;
+							case TraceServices::QueryResult::QR_NotFound:
+								Value = DisplayStrings[1]; // not found
+								break;
+							case TraceServices::QueryResult::QR_OK:
+								Value = Frame->Symbol->Name;
+								break;
+							}
 						}
-					}
-					else
-					{
-						Value = DisplayStrings[1];
+
+						return FTableCellValue(Value);
 					}
 				}
-				else
-				{
-					// Parent nodes (i.e. not actual allocation)
-					Value = DisplayStrings[2];
-				}
-				return TOptional<FTableCellValue>(FTableCellValue(Value));
+
+				return TOptional<FTableCellValue>();
 			}
 		};
 		TSharedRef<ITableCellValueGetter> Getter = MakeShared<FBacktraceValueGetter>();

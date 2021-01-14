@@ -101,7 +101,7 @@ TSharedRef<Insights::FTableColumn> FMemTagTreeViewColumnFactory::CreateTypeColum
 		{
 			ensure(Column.GetId() == FMemTagTreeViewColumns::TypeColumnID);
 			const FMemTagNode& MemTagNode = static_cast<const FMemTagNode&>(Node);
-			return TOptional<FTableCellValue>(FTableCellValue(MemTagNodeTypeHelper::ToText(MemTagNode.GetType())));
+			return FTableCellValue(MemTagNodeTypeHelper::ToText(MemTagNode.GetType()));
 		}
 	};
 
@@ -147,7 +147,7 @@ TSharedRef<Insights::FTableColumn> FMemTagTreeViewColumnFactory::CreateTrackerCo
 		{
 			ensure(Column.GetId() == FMemTagTreeViewColumns::TrackerColumnID);
 			const FMemTagNode& MemTagNode = static_cast<const FMemTagNode&>(Node);
-			return TOptional<FTableCellValue>(FTableCellValue(MemTagNode.GetTrackerText()));
+			return FTableCellValue(MemTagNode.GetTrackerText());
 		}
 	};
 
@@ -192,7 +192,7 @@ TSharedRef<Insights::FTableColumn> FMemTagTreeViewColumnFactory::CreateInstanceC
 		{
 			ensure(Column.GetId() == FMemTagTreeViewColumns::InstanceCountColumnID);
 			const FMemTagNode& MemTagNode = static_cast<const FMemTagNode&>(Node);
-			return TOptional<FTableCellValue>(FTableCellValue(static_cast<int64>(MemTagNode.GetAggregatedStats().InstanceCount)));
+			return FTableCellValue(static_cast<int64>(MemTagNode.GetAggregatedStats().InstanceCount));
 		}
 	};
 
@@ -238,7 +238,7 @@ TSharedRef<Insights::FTableColumn> FMemTagTreeViewColumnFactory::CreateMinValueC
 		{
 			ensure(Column.GetId() == FMemTagTreeViewColumns::MinValueColumnID);
 			const FMemTagNode& MemTagNode = static_cast<const FMemTagNode&>(Node);
-			return TOptional<FTableCellValue>(FTableCellValue(static_cast<int64>(MemTagNode.GetAggregatedStats().Min)));
+			return FTableCellValue(static_cast<int64>(MemTagNode.GetAggregatedStats().Min));
 		}
 	};
 
@@ -283,7 +283,7 @@ TSharedRef<Insights::FTableColumn> FMemTagTreeViewColumnFactory::CreateMaxValueC
 		{
 			ensure(Column.GetId() == FMemTagTreeViewColumns::MaxValueColumnID);
 			const FMemTagNode& MemTagNode = static_cast<const FMemTagNode&>(Node);
-			return TOptional<FTableCellValue>(FTableCellValue(static_cast<int64>(MemTagNode.GetAggregatedStats().Max)));
+			return FTableCellValue(static_cast<int64>(MemTagNode.GetAggregatedStats().Max));
 		}
 	};
 
@@ -328,7 +328,7 @@ TSharedRef<Insights::FTableColumn> FMemTagTreeViewColumnFactory::CreateAverageVa
 		{
 			ensure(Column.GetId() == FMemTagTreeViewColumns::AverageValueColumnID);
 			const FMemTagNode& MemTagNode = static_cast<const FMemTagNode&>(Node);
-			return TOptional<FTableCellValue>(FTableCellValue(static_cast<int64>(MemTagNode.GetAggregatedStats().Average)));
+			return FTableCellValue(static_cast<int64>(MemTagNode.GetAggregatedStats().Average));
 		}
 	};
 

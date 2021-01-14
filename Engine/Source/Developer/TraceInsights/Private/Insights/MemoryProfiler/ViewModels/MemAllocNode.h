@@ -86,9 +86,6 @@ public:
 	const FMemoryAlloc* GetMemAlloc() const { return GetMemTableChecked().GetMemAlloc(GetRowIndex()); }
 	const FMemoryAlloc& GetMemAllocChecked() const { return GetMemTableChecked().GetMemAllocChecked(GetRowIndex()); }
 
-	FText GetAllocMemTagAsText() const;
-	static FString GetAllocMemTagAsString(FMemoryTagId InMemTag);
-
 private:
 	const EMemAllocNodeType Type;
 };

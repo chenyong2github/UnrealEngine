@@ -81,25 +81,17 @@ public:
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 
-protected:
-	virtual void OnPreAsyncUpdate() override;
-	virtual void OnPostAsyncUpdate() override;
-
 private:
 	void OnQueryInvalidated();
 	void StartQuery();
 	void UpdateQuery(TraceServices::IAllocationsProvider::EQueryStatus& OutStatus);
 	void CancelQuery();
 
-	TSharedRef<class ITableCellValueFormatter> CreateCachedLlmTagValueFormatter();
-
 private:
 	int32 TabIndex = -1;
 	TSharedPtr<FMemoryRuleSpec> Rule = nullptr;
 	double TimeMarkers[4];
 	TraceServices::IAllocationsProvider::FQueryHandle Query = 0;
-
-	TSharedPtr<class ITableCellValueFormatter> OriginalLlmTagValueFormatter;
 
 	FStopwatch QueryStopwatch;
 };

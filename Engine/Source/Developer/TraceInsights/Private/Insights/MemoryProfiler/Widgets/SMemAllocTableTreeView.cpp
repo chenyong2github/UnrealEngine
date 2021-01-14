@@ -291,24 +291,7 @@ void SMemAllocTableTreeView::UpdateQuery(TraceServices::IAllocationsProvider::EQ
 
 				const uint32 AllocCount = Result->Num();
 				TotalAllocCount += AllocCount;
-#if 0
-				Allocs.Reserve(Allocs.Num() + AllocCount);
 
-				for (uint32 AllocIndex = 0; AllocIndex < AllocCount; ++AllocIndex)
-				{
-					const IAllocationsProvider::FAllocation* Allocation = Result->Get(AllocIndex);
-
-					const double AllocStartTime = Allocation->GetStartTime();
-					const double AllocEndTime = Allocation->GetEndTime();
-					const uint64 AllocAddress = Allocation->GetAddress();
-					const uint64 AllocationSize = Allocation->GetSize();
-					const FMemoryTagId AllocTag = static_cast<FMemoryTagId>(Allocation->GetTag());
-					const uint64 BacktraceId = Allocation->GetBacktraceId();
-
-					//Allocs.Add(FMemoryAlloc(AllocStartTime, AllocEndTime, AllocAddress, AllocationSize, AllocTag, BacktraceId));
-					Allocs.Emplace(AllocStartTime, AllocEndTime, AllocAddress, AllocationSize, AllocTag, BacktraceId);
-				}
-#else // 14% faster, but uses more mem
 				uint64 AllocsDestIndex = Allocs.Num();
 				Allocs.AddUninitialized(AllocCount);
 				for (uint32 AllocIndex = 0; AllocIndex < AllocCount; ++AllocIndex, ++AllocsDestIndex)
@@ -319,10 +302,9 @@ void SMemAllocTableTreeView::UpdateQuery(TraceServices::IAllocationsProvider::EQ
 					Alloc.EndTime = Allocation->GetEndTime();
 					Alloc.Address = Allocation->GetAddress();
 					Alloc.Size = Allocation->GetSize();
-					Alloc.MemTag = static_cast<FMemoryTagId>(Allocation->GetTag());
+					Alloc.Tag = Provider.GetTagName(Allocation->GetTag());
 					Alloc.Callstack = Allocation->GetCallstack();
 				}
-#endif
 
 				PageStopwatch.Stop();
 				const double PageTime = PageStopwatch.GetAccumulatedTime();
@@ -367,95 +349,6 @@ void SMemAllocTableTreeView::CancelQuery()
 		Query = 0;
 		QueryStopwatch.Stop();
 	}
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void SMemAllocTableTreeView::OnPreAsyncUpdate()
-{
-	auto LLMColumn = Table->FindColumn(TEXT("AllocLlmTag"));
-	OriginalLlmTagValueFormatter = LLMColumn->GetValueFormatter();
-	LLMColumn->SetValueFormatter(CreateCachedLlmTagValueFormatter());
-
-	STableTreeView::OnPreAsyncUpdate();
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void SMemAllocTableTreeView::OnPostAsyncUpdate()
-{
-	if (OriginalLlmTagValueFormatter.IsValid())
-	{
-		auto LLMColumn = Table->FindColumn(TEXT("AllocLlmTag"));
-		LLMColumn->SetValueFormatter(OriginalLlmTagValueFormatter.ToSharedRef());
-		OriginalLlmTagValueFormatter = nullptr;
-	}
-
-	STableTreeView::OnPostAsyncUpdate();
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-TSharedRef<ITableCellValueFormatter> SMemAllocTableTreeView::CreateCachedLlmTagValueFormatter()
-{
-	class FCachedMemAllocLlmTagValueFormatter : public FTableCellValueFormatter
-	{
-	public:
-		virtual FText FormatValue(const TOptional<FTableCellValue>& InValue) const override
-		{
-			if (InValue.IsSet())
-			{
-				const FMemoryTagId MemTagId = static_cast<FMemoryTagId>(InValue.GetValue().Int64);
-
-				if (TagIdToStatNameMap.Contains(MemTagId))
-				{
-					FText::FromString(TagIdToStatNameMap[MemTagId]);
-				}
-				return FText::FromString(FString());
-			}
-			return FText::GetEmpty();
-		}
-		virtual FText FormatValueForTooltip(const TOptional<FTableCellValue>& InValue) const override
-		{
-			if (InValue.IsSet())
-			{
-				const FMemoryTagId MemTagId = static_cast<FMemoryTagId>(InValue.GetValue().Int64);
-				if (TagIdToStatNameMap.Contains(MemTagId))
-				{
-					return FText::FromString(FString::Printf(TEXT("%lli (%s)"), MemTagId, *TagIdToStatNameMap[MemTagId]));
-				}
-
-				return FText::FromString(FString::Printf(TEXT("%lli ()"), MemTagId));
-			}
-			return FText::GetEmpty();
-		}
-		virtual FText FormatValue(const FTableColumn& Column, const FBaseTreeNode& Node) const override { return FormatValue(Column.GetValue(Node)); }
-		virtual FText FormatValueForTooltip(const FTableColumn& Column, const FBaseTreeNode& Node) const override { return FormatValueForTooltip(Column.GetValue(Node)); }
-
-		void AddTagToCache(FMemoryTagId TagId, const FString& StatName)
-		{
-			TagIdToStatNameMap.Add(TagId, StatName);
-		}
-
-	private:
-		TMap<FMemoryTagId, FString> TagIdToStatNameMap;
-	};
-
-	TSharedRef<FCachedMemAllocLlmTagValueFormatter> Formatter = MakeShared<FCachedMemAllocLlmTagValueFormatter>();
-
-	TSharedPtr<SMemoryProfilerWindow> ProfilerWindow = FMemoryProfilerManager::Get()->GetProfilerWindow();
-	if (ProfilerWindow)
-	{
-		auto& SharedState = ProfilerWindow->GetSharedState();
-		const Insights::FMemoryTagList& TagList = SharedState.GetTagList();
-		for (FMemoryTag* CurrentTag : TagList.GetTags())
-		{
-			Formatter->AddTagToCache(CurrentTag->GetId(), CurrentTag->GetStatName());
-		}
-
-	}
-
-	return Formatter;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

@@ -166,6 +166,8 @@ public:
 
 	void DebugPrint() const;
 
+	virtual const TCHAR* GetTagName(int32 Tag) const { ReadAccessCheck(); return TagTracker.GetTagString(Tag); }
+
 	//////////////////////////////////////////////////
 	// Edit operations
 

@@ -4,7 +4,6 @@
 
 #include "CoreMinimal.h"
 #include "TraceServices/Model/Callstack.h"
-#include "Insights/MemoryProfiler/ViewModels/MemoryTag.h"
 
 namespace Insights
 {
@@ -16,7 +15,7 @@ class FMemoryAlloc
 	friend class SMemAllocTableTreeView;
 
 public:
-	FMemoryAlloc(double InStartTime, double InEndTime, uint64 InAddress, uint64 InSize, FMemoryTagId InMemTag, const TraceServices::FCallstack* InCallstack);
+	FMemoryAlloc(double InStartTime, double InEndTime, uint64 InAddress, uint64 InSize, const TCHAR* InTag, const TraceServices::FCallstack* InCallstack);
 	~FMemoryAlloc();
 
 	double GetStartTime() const { return StartTime; }
@@ -24,7 +23,7 @@ public:
 	double GetDuration() const { return EndTime - StartTime; }
 	uint64 GetAddress() const { return Address; }
 	uint64 GetSize() const { return Size; }
-	FMemoryTagId GetMemTag() const { return MemTag; }
+	const TCHAR* GetTag() const { return Tag; }
 	const TraceServices::FCallstack* GetCallstack() const { return Callstack; }
 
 private:
@@ -32,7 +31,7 @@ private:
 	double EndTime;
 	uint64 Address;
 	uint64 Size;
-	FMemoryTagId MemTag;
+	const TCHAR* Tag;
 	const TraceServices::FCallstack* Callstack;
 };
 
