@@ -15,12 +15,13 @@ namespace UE
 namespace GeometryFlow
 {
 
-enum class ESimpleCollisionGeometryType
+enum class ESimpleCollisionGeometryType : uint8
 {
-	AlignedBoxes = 1,
-	OrientedBoxes = 2,
-	MinimalSpheres = 3,
-	Capsules = 4
+	AlignedBoxes,
+	OrientedBoxes,
+	MinimalSpheres,
+	Capsules,
+	ConvexHulls
 };
 
 
@@ -28,8 +29,17 @@ struct GEOMETRYFLOWMESHPROCESSING_API FGenerateSimpleCollisionSettings
 {
 	DECLARE_GEOMETRYFLOW_DATA_TYPE_IDENTIFIER(EMeshProcessingDataTypes::GenerateSimpleCollisionSettings);
 
-	ESimpleCollisionGeometryType Type = ESimpleCollisionGeometryType::MinimalSpheres;
+	ESimpleCollisionGeometryType Type = ESimpleCollisionGeometryType::ConvexHulls;
+
+	struct FGenerateConvexHullSettings
+	{
+		int32 SimplifyToTriangleCount = 50;
+		bool bPrefilterVertices = false;
+		int PrefilterGridResolution = 10;
+	} ConvexHullSettings;
+
 };
+
 GEOMETRYFLOW_DECLARE_SETTINGS_TYPES(FGenerateSimpleCollisionSettings, GenerateSimpleCollision);
 
 
@@ -40,7 +50,7 @@ protected:
 
 public:
 	static const FString InParamMesh() { return TEXT("Mesh"); }
-	// TODO: static const FString InParamIndexSets() { return TEXT("TriangleSets"); }	
+	static const FString InParamIndexSets() { return TEXT("TriangleSets"); }	
 	static const FString InParamSettings() { return TEXT("Settings"); }
 	static const FString OutParamGeometry() { return TEXT("Geometry"); }
 
@@ -49,7 +59,7 @@ public:
 	FGenerateSimpleCollisionNode()
 	{
 		AddInput(InParamMesh(), MakeUnique<FDynamicMeshInput>());
-		// TODO: AddInput(InParamIndexSets(), MakeBasicInput<FIndexSets>());
+		AddInput(InParamIndexSets(), MakeBasicInput<FIndexSets>());
 		AddInput(InParamSettings(), MakeBasicInput<FGenerateSimpleCollisionSettings>());
 
 		AddOutput(OutParamGeometry(), MakeBasicOutput<FCollisionGeometry>());

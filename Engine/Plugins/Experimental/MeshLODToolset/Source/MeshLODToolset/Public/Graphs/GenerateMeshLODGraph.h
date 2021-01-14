@@ -15,7 +15,7 @@
 #include "MeshProcessingNodes/MeshDeleteTrianglesNode.h"
 #include "MeshProcessingNodes/MeshAutoGenerateUVsNode.h"
 #include "DataTypes/MeshImageBakingData.h"
-#include "PhysicsNodes/GenerateConvexHullsCollisionNode.h"
+#include "PhysicsNodes/GenerateSimpleCollisionNode.h"
 
 
 class FGenerateMeshLODGraph
@@ -43,9 +43,8 @@ public:
 	void UpdateBakeCacheSettings(const UE::GeometryFlow::FMeshMakeBakingCacheSettings& BakeCacheSettings);
 	const UE::GeometryFlow::FMeshMakeBakingCacheSettings& GetCurrentBakeCacheSettings() const { return CurrentBakeCacheSettings; }
 
-
-	void UpdateGenerateConvexCollisionSettings(const UE::GeometryFlow::FGenerateConvexHullsCollisionSettings& ConvexesSettings);
-	const UE::GeometryFlow::FGenerateConvexHullsCollisionSettings& GetCurrentGenerateConvexCollisionSettings() const { return CurrentGenerateConvexHullsSettings; }
+	void UpdateGenerateSimpleCollisionSettings(const UE::GeometryFlow::FGenerateSimpleCollisionSettings& SimpleCollisionSettings);
+	const UE::GeometryFlow::FGenerateSimpleCollisionSettings& GetCurrentGenerateSimpleCollisionSettings() const { return CurrentGenerateSimpleCollisionSettings; }
 
 
 
@@ -115,9 +114,9 @@ protected:
 
 	UE::GeometryFlow::FGraph::FHandle DecomposeMeshForCollisionNode;
 	
-	UE::GeometryFlow::FGraph::FHandle GenerateConvexesNode;
-	UE::GeometryFlow::FGraph::FHandle GenerateConvexesSettingsNode;
-	UE::GeometryFlow::FGenerateConvexHullsCollisionSettings CurrentGenerateConvexHullsSettings;
+	UE::GeometryFlow::FGraph::FHandle GenerateSimpleCollisionNode;
+	UE::GeometryFlow::FGraph::FHandle GenerateSimpleCollisionSettingsNode;
+	UE::GeometryFlow::FGenerateSimpleCollisionSettings CurrentGenerateSimpleCollisionSettings;
 
 	UE::GeometryFlow::FGraph::FHandle CollisionOutputNode;
 	UE::GeometryFlow::FGraph::FHandle MeshOutputNode;

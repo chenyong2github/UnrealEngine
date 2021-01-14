@@ -213,7 +213,10 @@ bool UGenerateStaticMeshLODProcess::InitializeGenerator()
 	CurrentSettings.BakeResolution = (EGenerateStaticMeshLODBakeResolution)Generator->GetCurrentBakeCacheSettings().Dimensions.GetWidth();
 	CurrentSettings.BakeThickness = Generator->GetCurrentBakeCacheSettings().Thickness;
 
-	CurrentSettings.ConvexTriangleCount = Generator->GetCurrentGenerateConvexCollisionSettings().SimplifyToTriangleCount;
+	CurrentSettings.CollisionType = static_cast<EGenerateStaticMeshSimpleCollisionGeometryType>(Generator->GetCurrentGenerateSimpleCollisionSettings().Type);
+	CurrentSettings.ConvexTriangleCount = Generator->GetCurrentGenerateSimpleCollisionSettings().ConvexHullSettings.SimplifyToTriangleCount;
+	CurrentSettings.bPrefilterVertices = Generator->GetCurrentGenerateSimpleCollisionSettings().ConvexHullSettings.bPrefilterVertices;
+	CurrentSettings.PrefilterGridResolution = Generator->GetCurrentGenerateSimpleCollisionSettings().ConvexHullSettings.PrefilterGridResolution;
 
 
 	return true;
@@ -269,13 +272,15 @@ void UGenerateStaticMeshLODProcess::UpdateSettings(const FGenerateStaticMeshLODP
 
 	if (NewSettings.ConvexTriangleCount != CurrentSettings.ConvexTriangleCount ||
 		NewSettings.bPrefilterVertices != CurrentSettings.bPrefilterVertices ||
-		NewSettings.PrefilterGridResolution != CurrentSettings.PrefilterGridResolution)
+		NewSettings.PrefilterGridResolution != CurrentSettings.PrefilterGridResolution ||
+		NewSettings.CollisionType != CurrentSettings.CollisionType)
 	{
-		UE::GeometryFlow::FGenerateConvexHullsCollisionSettings NewGenConvexSettings = Generator->GetCurrentGenerateConvexCollisionSettings();
-		NewGenConvexSettings.SimplifyToTriangleCount = NewSettings.ConvexTriangleCount;
-		NewGenConvexSettings.bPrefilterVertices = NewSettings.bPrefilterVertices;
-		NewGenConvexSettings.PrefilterGridResolution = NewSettings.PrefilterGridResolution;
-		Generator->UpdateGenerateConvexCollisionSettings(NewGenConvexSettings);
+		UE::GeometryFlow::FGenerateSimpleCollisionSettings NewGenCollisionSettings = Generator->GetCurrentGenerateSimpleCollisionSettings();
+		NewGenCollisionSettings.Type = static_cast<UE::GeometryFlow::ESimpleCollisionGeometryType>(NewSettings.CollisionType);
+		NewGenCollisionSettings.ConvexHullSettings.SimplifyToTriangleCount = NewSettings.ConvexTriangleCount;
+		NewGenCollisionSettings.ConvexHullSettings.bPrefilterVertices = NewSettings.bPrefilterVertices;
+		NewGenCollisionSettings.ConvexHullSettings.PrefilterGridResolution = NewSettings.PrefilterGridResolution;
+		Generator->UpdateGenerateSimpleCollisionSettings(NewGenCollisionSettings);
 	}
 
 	CurrentSettings = NewSettings;

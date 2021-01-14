@@ -24,7 +24,7 @@
 #include "MeshBakingNodes/BakeMeshTextureImageNode.h"
 
 #include "MeshDecompositionNodes/MakeTriangleSetsNode.h"
-#include "PhysicsNodes/GenerateConvexHullsCollisionNode.h"
+#include "PhysicsNodes/GenerateSimpleCollisionNode.h"
 #include "GeometryFlowExecutor.h"
 
 using namespace UE::GeometryFlow;
@@ -226,10 +226,10 @@ void FGenerateMeshLODGraph::UpdateBakeCacheSettings(const UE::GeometryFlow::FMes
 }
 
 
-void FGenerateMeshLODGraph::UpdateGenerateConvexCollisionSettings(const FGenerateConvexHullsCollisionSettings& GenConvexesSettings)
+void FGenerateMeshLODGraph::UpdateGenerateSimpleCollisionSettings(const FGenerateSimpleCollisionSettings& GenSimpleCollisionSettings)
 {
-	UpdateSettingsSourceNodeValue(*Graph, GenerateConvexesSettingsNode, GenConvexesSettings);
-	CurrentGenerateConvexHullsSettings = GenConvexesSettings;
+	UpdateSettingsSourceNodeValue(*Graph, GenerateSimpleCollisionSettingsNode, GenSimpleCollisionSettings);
+	CurrentGenerateSimpleCollisionSettings = GenSimpleCollisionSettings;
 }
 
 
@@ -408,16 +408,16 @@ void FGenerateMeshLODGraph::BuildGraph()
 	Graph->InferConnection(MeshSourceNode, DecomposeMeshForCollisionNode);
 	Graph->InferConnection(IgnoreGroupsForCollisionNode, DecomposeMeshForCollisionNode);
 
-	GenerateConvexesNode = Graph->AddNodeOfType<FGenerateConvexHullsCollisionNode>(TEXT("GenerateConvexes"));
-	Graph->InferConnection(MeshSourceNode, GenerateConvexesNode);
-	Graph->InferConnection(DecomposeMeshForCollisionNode, GenerateConvexesNode);
-	GenerateConvexesSettingsNode = Graph->AddNodeOfType<FGenerateConvexHullsCollisionSettingsSourceNode>(TEXT("GenerateConvexesSettings"));
-	Graph->InferConnection(GenerateConvexesSettingsNode, GenerateConvexesNode);
+	GenerateSimpleCollisionNode = Graph->AddNodeOfType<FGenerateSimpleCollisionNode>(TEXT("GenerateSimpleCollision"));
+	Graph->InferConnection(MeshSourceNode, GenerateSimpleCollisionNode);
+	Graph->InferConnection(DecomposeMeshForCollisionNode, GenerateSimpleCollisionNode);
+	GenerateSimpleCollisionSettingsNode = Graph->AddNodeOfType<FGenerateSimpleCollisionSettingsSourceNode>(TEXT("GenerateSimpleCollisionSettings"));
+	Graph->InferConnection(GenerateSimpleCollisionSettingsNode, GenerateSimpleCollisionNode);
 
 	// final collision output
 
 	CollisionOutputNode = Graph->AddNodeOfType<FCollisionGeometryTransferNode>(TEXT("OutputCollision"));
-	Graph->InferConnection(GenerateConvexesNode, CollisionOutputNode);
+	Graph->InferConnection(GenerateSimpleCollisionNode, CollisionOutputNode);
 
 
 	//
@@ -473,8 +473,8 @@ void FGenerateMeshLODGraph::BuildGraph()
 	IgnoreGroupsForCollision.AppendSet({ 0 });
 	UpdateSettingsSourceNodeValue(*Graph, IgnoreGroupsForCollisionNode, IgnoreGroupsForCollision);
 
-	FGenerateConvexHullsCollisionSettings GenConvexesSettings;
-	UpdateGenerateConvexCollisionSettings(GenConvexesSettings);
+	FGenerateSimpleCollisionSettings GenSimpleCollisionSettings;
+	UpdateGenerateSimpleCollisionSettings(GenSimpleCollisionSettings);
 
 
 	//FString GraphDump = Graph->DebugDumpGraph([](TSafeSharedPtr<FNode> Node)

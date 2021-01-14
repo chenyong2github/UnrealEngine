@@ -32,6 +32,16 @@ enum class EGenerateStaticMeshLODBakeResolution
 	Resolution8192 = 8192 UMETA(DisplayName = "8192 x 8192")
 };
 
+UENUM()
+enum class EGenerateStaticMeshSimpleCollisionGeometryType : uint8
+{
+	AlignedBoxes,
+	OrientedBoxes,
+	MinimalSpheres,
+	Capsules,
+	ConvexHulls
+};
+
 
 USTRUCT()
 struct FGenerateStaticMeshLODProcessSettings
@@ -80,14 +90,18 @@ struct FGenerateStaticMeshLODProcessSettings
 
 	// Convex Hull Settings
 
-	UPROPERTY(EditAnywhere, Category = ConvexCollision, meta = (DisplayName = "Convex Tri Count"))
+	UPROPERTY(EditAnywhere, Category = Collision, meta = (DisplayName = "Collision Type"))
+	EGenerateStaticMeshSimpleCollisionGeometryType CollisionType = EGenerateStaticMeshSimpleCollisionGeometryType::ConvexHulls;
+
+	UPROPERTY(EditAnywhere, Category = Collision, meta = (DisplayName = "Convex Tri Count", 
+														  EditCondition = "CollisionType == EGenerateStaticMeshSimpleCollisionGeometryType::ConvexHulls"))
 	int ConvexTriangleCount = 50;
 
-	UPROPERTY(EditAnywhere, Category = ConvexCollision)
+	UPROPERTY(EditAnywhere, Category = Collision, meta = (EditCondition = "CollisionType == EGenerateStaticMeshSimpleCollisionGeometryType::ConvexHulls"))
 	bool bPrefilterVertices = false;
 
 	/** Grid resolution (along the maximum-length axis) */
-	UPROPERTY(EditAnywhere, Category = ConvexCollision, meta = (EditCondition = "bPrefilterVertices", UIMin = 1, UIMax = 30))
+	UPROPERTY(EditAnywhere, Category = Collision, meta = (EditCondition = "CollisionType == EGenerateStaticMeshSimpleCollisionGeometryType::ConvexHulls && bPrefilterVertices", UIMin = 1, UIMax = 30))
 	int PrefilterGridResolution = 10;
 
 };
