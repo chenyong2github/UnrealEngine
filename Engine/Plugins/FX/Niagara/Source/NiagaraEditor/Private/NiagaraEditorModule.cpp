@@ -139,6 +139,8 @@
 #include "Interfaces/ITargetPlatform.h"
 #include "DeviceProfiles/DeviceProfile.h"
 #include "Containers/Ticker.h"
+#include "Framework/Docking/TabManager.h"
+#include "Widgets/Docking/SDockTab.h"
 #include "NiagaraConstants.h"
 
 #include "ViewModels/Stack/NiagaraStackObjectIssueGenerator.h"
