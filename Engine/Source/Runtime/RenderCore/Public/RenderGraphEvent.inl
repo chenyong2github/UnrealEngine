@@ -7,13 +7,13 @@ TRDGScopeStack<TScopeType>::TRDGScopeStack(
 	FRHIComputeCommandList& InRHICmdList,
 	FPushFunction InPushFunction,
 	FPopFunction InPopFunction,
-	bool bRDGEvents)
+	bool bInRDGEvents)
 	: RHICmdList(InRHICmdList)
 	, MemStack(FMemStack::Get())
 	, PushFunction(InPushFunction)
 	, PopFunction(InPopFunction)
 	, ScopeStack(MakeUniformStaticArray<const TScopeType*, kScopeStackDepthMax>(nullptr))
-	, bRDGEvents(bRDGEvents)
+	, bRDGEvents(bInRDGEvents)
 {}
 
 template <typename TScopeType>
@@ -53,7 +53,7 @@ void TRDGScopeStack<TScopeType>::BeginExecutePass(const TScopeType* ParentScope)
 	int32 TraversedScopeCount = 0;
 
 	// Find common ancestor between current stack and requested scope.
-	while (ParentScope)
+	while (ParentScope && TraversedScopeCount < kScopeStackDepthMax)
 	{
 		TraversedScopes[TraversedScopeCount] = ParentScope;
 
@@ -88,7 +88,7 @@ void TRDGScopeStack<TScopeType>::BeginExecutePass(const TScopeType* ParentScope)
 	}
 
 	// Push new scopes.
-	for (int32 i = TraversedScopeCount - 1; i >= 0; i--)
+	for (int32 i = TraversedScopeCount - 1; i >= 0 && CommonScopeId < static_cast<int32>(kScopeStackDepthMax); i--)
 	{
 		PushFunction(RHICmdList, TraversedScopes[i], bRDGEvents);
 		CommonScopeId++;
