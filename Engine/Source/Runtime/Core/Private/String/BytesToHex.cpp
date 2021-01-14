@@ -9,10 +9,10 @@ namespace UE
 namespace String
 {
 
-template <typename CharType>
-void BytesToHexImpl(TArrayView<const uint8> Bytes, CharType* OutHex)
+template <typename CharType, CharType LetterA>
+static inline void BytesToHexImpl(TConstArrayView<uint8> Bytes, CharType* OutHex)
 {
-	auto NibbleToHex = [](uint8 Value) -> CharType { return Value + (Value > 9 ? 'A' - 10 : '0'); };
+	const auto NibbleToHex = [](uint8 Value) -> CharType { return Value + (Value > 9 ? LetterA - 10 : '0'); };
 	const uint8* Data = Bytes.GetData();
 	
 	for (const uint8* DataEnd = Data + Bytes.Num(); Data != DataEnd; ++Data)
@@ -22,26 +22,48 @@ void BytesToHexImpl(TArrayView<const uint8> Bytes, CharType* OutHex)
 	}
 }
 
-void BytesToHex(TArrayView<const uint8> Bytes, WIDECHAR* OutHex)
+void BytesToHex(TConstArrayView<uint8> Bytes, ANSICHAR* OutHex)
 {
-	BytesToHexImpl(Bytes, OutHex);
+	BytesToHexImpl<ANSICHAR, 'A'>(Bytes, OutHex);
 }
 
-void BytesToHex(TArrayView<const uint8> Bytes, ANSICHAR* OutHex)
+void BytesToHex(TConstArrayView<uint8> Bytes, WIDECHAR* OutHex)
 {
-	BytesToHexImpl(Bytes, OutHex);
+	BytesToHexImpl<WIDECHAR, 'A'>(Bytes, OutHex);
 }
 
-void BytesToHex(TArrayView<const uint8> Bytes, FStringBuilderBase& Builder)
+void BytesToHexLower(TConstArrayView<uint8> Bytes, ANSICHAR* OutHex)
+{
+	BytesToHexImpl<ANSICHAR, 'a'>(Bytes, OutHex);
+}
+
+void BytesToHexLower(TConstArrayView<uint8> Bytes, WIDECHAR* OutHex)
+{
+	BytesToHexImpl<WIDECHAR, 'a'>(Bytes, OutHex);
+}
+
+void BytesToHex(TConstArrayView<uint8> Bytes, FAnsiStringBuilderBase& Builder)
 {
 	const int32 Offset = Builder.AddUninitialized(Bytes.Num() * 2);
-	BytesToHexImpl(Bytes, GetData(Builder) + Offset);
+	BytesToHexImpl<ANSICHAR, 'A'>(Bytes, GetData(Builder) + Offset);
 }
 
-void BytesToHex(TArrayView<const uint8> Bytes, FAnsiStringBuilderBase& Builder)
+void BytesToHex(TConstArrayView<uint8> Bytes, FWideStringBuilderBase& Builder)
 {
 	const int32 Offset = Builder.AddUninitialized(Bytes.Num() * 2);
-	BytesToHexImpl(Bytes, GetData(Builder) + Offset);
+	BytesToHexImpl<WIDECHAR, 'A'>(Bytes, GetData(Builder) + Offset);
+}
+
+void BytesToHexLower(TConstArrayView<uint8> Bytes, FAnsiStringBuilderBase& Builder)
+{
+	const int32 Offset = Builder.AddUninitialized(Bytes.Num() * 2);
+	BytesToHexImpl<ANSICHAR, 'a'>(Bytes, GetData(Builder) + Offset);
+}
+
+void BytesToHexLower(TConstArrayView<uint8> Bytes, FWideStringBuilderBase& Builder)
+{
+	const int32 Offset = Builder.AddUninitialized(Bytes.Num() * 2);
+	BytesToHexImpl<WIDECHAR, 'a'>(Bytes, GetData(Builder) + Offset);
 }
 
 }

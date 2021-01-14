@@ -18,8 +18,8 @@ namespace String
  *
  * @return Number of bytes written to the output.
  */
-CORE_API int32 HexToBytes(const FStringView& Hex, uint8* OutBytes);
-CORE_API int32 HexToBytes(const FAnsiStringView& Hex, uint8* OutBytes);
+CORE_API int32 HexToBytes(FAnsiStringView Hex, uint8* OutBytes);
+CORE_API int32 HexToBytes(FWideStringView Hex, uint8* OutBytes);
 
 }
 }

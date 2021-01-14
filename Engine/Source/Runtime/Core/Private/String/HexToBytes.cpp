@@ -11,7 +11,7 @@ namespace String
 {
 
 template <typename CharType>
-int32 HexToBytesImpl(const TStringView<CharType>& Hex, uint8* const OutBytes)
+static inline int32 HexToBytesImpl(TStringView<CharType> Hex, uint8* const OutBytes)
 {
 	const int32 HexCount = Hex.Len();
 	const CharType* HexPos = Hex.GetData();
@@ -29,14 +29,14 @@ int32 HexToBytesImpl(const TStringView<CharType>& Hex, uint8* const OutBytes)
 	return static_cast<int32>(OutPos - OutBytes);
 }
 
-int32 HexToBytes(const FStringView& Hex, uint8* OutBytes)
-{
-	return HexToBytesImpl<TCHAR>(Hex, OutBytes);
-}
-
-int32 HexToBytes(const FAnsiStringView& Hex, uint8* OutBytes)
+int32 HexToBytes(FAnsiStringView Hex, uint8* OutBytes)
 {
 	return HexToBytesImpl<ANSICHAR>(Hex, OutBytes);
+}
+
+int32 HexToBytes(FWideStringView Hex, uint8* OutBytes)
+{
+	return HexToBytesImpl<WIDECHAR>(Hex, OutBytes);
 }
 
 }
