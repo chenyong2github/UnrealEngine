@@ -3,12 +3,6 @@
 #include "NiagaraUvQuadTree.h"
 
 static float GNiagaraUvQuadTreeDuplicateThreshold = 0.25f;
-static FAutoConsoleVariableRef CVarNiagaraScalabiltiyMinumumMaxDistance(
-	TEXT("fx.Niagara.UvQuadTree.DuplicateThreshold"),
-	GNiagaraUvQuadTreeDuplicateThreshold,
-	TEXT("....."),
-	ECVF_Default
-);
 
 
 FNiagaraUvQuadTree::FNiagaraUvQuadTree(int32 InNodeCapacity, int32 InMaxDepth)
