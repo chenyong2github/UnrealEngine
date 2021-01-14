@@ -176,7 +176,7 @@ void USetCollisionGeometryTool::Shutdown(EToolShutdownType ShutdownType)
 		StaticMesh->CreateNavCollision(/*bIsUpdate=*/true);
 
 		// update physics state on all components using this StaticMesh
-		for (FObjectIterator Iter(UStaticMeshComponent::StaticClass()); Iter; ++Iter)
+		for (FThreadSafeObjectIterator Iter(UStaticMeshComponent::StaticClass()); Iter; ++Iter)
 		{
 			UStaticMeshComponent* SMComponent = Cast<UStaticMeshComponent>(*Iter);
 			if (SMComponent->GetStaticMesh() == StaticMesh)
