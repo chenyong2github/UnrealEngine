@@ -850,7 +850,10 @@ void SDetailsViewBase::Tick( const FGeometry& AllottedGeometry, const double InC
 
 			// Execute any deferred actions
 			for (const FSimpleDelegate& DeferredAction : DeferredActionsCopy)
-		} while (!DeferredActions.IsEmpty());
+			{
+				DeferredAction.ExecuteIfBound();
+			}
+		} while (DeferredActions.Num() > 0);
 	}
 
 	if (bHadDeferredActions)
