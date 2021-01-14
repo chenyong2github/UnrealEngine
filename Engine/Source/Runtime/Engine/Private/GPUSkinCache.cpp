@@ -156,7 +156,7 @@ ENGINE_API bool GPUSkinCacheNeedsDuplicatedVertices()
 #if WITH_EDITOR // Duplicated vertices are used in the editor when merging meshes
 	return true;
 #else
-	return GAllowDupedVertsForRecomputeTangents;
+	return (bool)GAllowDupedVertsForRecomputeTangents;
 #endif
 }
 
