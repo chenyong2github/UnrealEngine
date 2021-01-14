@@ -44,7 +44,7 @@ namespace DatasmithRhino.Commands
 			bool bSuccess = false;
 			if (DirectLinkManager != null)
 			{
-				DirectLinkManager.OpenConnectionManangementWindow();
+				bSuccess = DirectLinkManager.OpenConnectionManangementWindow();
 			}
 
 			return bSuccess ? Result.Success : Result.Failure;

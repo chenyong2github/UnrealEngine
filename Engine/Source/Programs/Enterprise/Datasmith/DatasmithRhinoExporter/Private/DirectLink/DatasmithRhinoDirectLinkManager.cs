@@ -44,6 +44,7 @@ namespace DatasmithRhino.DirectLink
 			if (bInitialized)
 			{
 				RhinoDoc.EndOpenDocument += OnEndOpenDocument;
+				RhinoDoc.NewDocument += OnNewDocument;
 			}
 
 			System.Diagnostics.Debug.Assert(bInitialized);
@@ -54,6 +55,7 @@ namespace DatasmithRhino.DirectLink
 			if (bInitialized)
 			{
 				RhinoDoc.EndOpenDocument -= OnEndOpenDocument;
+				RhinoDoc.NewDocument -= OnNewDocument;
 
 				FDatasmithFacadeDirectLink.Shutdown();
 				bInitialized = false;
@@ -104,6 +106,14 @@ namespace DatasmithRhino.DirectLink
 			if (!Args.Merge && !Args.Reference)
 			{
 				SetupDirectLinkScene(Args.Document, Args.FileName);
+			}
+		}
+
+		private void OnNewDocument(object Sender, DocumentEventArgs Args)
+		{
+			if (Args.Document != null)
+			{
+				SetupDirectLinkScene(Args.Document);
 			}
 		}
 
