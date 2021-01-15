@@ -434,7 +434,7 @@ private:
 	FString GetCurveTypeValueName(ERawCurveTrackTypes InType) const;
 	
 	/** Resizes the curve data stored on the model according to the provided new length and time at which to insert or remove time */
-	void ResizeCurves(float NewLength, float OldLength, float T0, float T1);
+	void ResizeCurves(float NewLength, bool bInserted, float T0, float T1, bool bShouldTransact = true);
 
 	/** Helper functionality to apply any changes in the model's playlength*/
 	void SetPlayLength_Internal(float NewLength, float T0, float T1, bool bShouldTransact);
