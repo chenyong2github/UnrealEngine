@@ -33,7 +33,7 @@ static TAutoConsoleVariable<float> CVarContactShadowLength(
 
 static TAutoConsoleVariable<float> CVarNormalOffsetWorld(
 	TEXT( "r.Shadow.v.NormalOffsetWorld" ),
-	0.5f,
+	0.1f,
 	TEXT( "World space offset along surface normal for shadow lookup." )
 	TEXT( "Higher values avoid artifacts on surfaces nearly parallel to the light, but also visibility offset shadows and increase the chance of hitting unmapped pages." ),
 	ECVF_RenderThreadSafe

@@ -299,7 +299,7 @@ void VirtualShadowMapProjectionDirectionalPS(
 				Light.Direction,
 				LIGHT_TYPE_DIRECTIONAL,
 				TranslatedWorldPosition,
-				float3(0, 0, 0),//EstimatedGeoWorldNormal,
+				EstimatedGeoWorldNormal,
 				ContactShadowLengthWorld,
 				/* out */ DebugOutput,
 				HitDistance);
