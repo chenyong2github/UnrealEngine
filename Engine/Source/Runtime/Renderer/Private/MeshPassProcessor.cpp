@@ -1277,6 +1277,36 @@ void DrawDynamicMeshPassPrivate(
 	}
 }
 
+void DrawDynamicMeshPassPrivate(
+	const FSceneView& View,
+	const FScene &Scene,
+	FRHICommandListImmediate& RHICmdList,
+	FMeshCommandOneFrameArray& VisibleMeshDrawCommands,
+	FDynamicMeshDrawCommandStorage& DynamicMeshDrawCommandStorage,
+	FGraphicsMinimalPipelineStateSet& GraphicsMinimalPipelineStateSet,
+	bool& InNeedsShaderInitialization)
+{
+#if defined(GPUCULL_TODO)
+	check(View.bIsViewInfo);
+
+	if (VisibleMeshDrawCommands.Num() > 0)
+	{
+		const bool bDynamicInstancing = IsDynamicInstancingEnabled(View.GetFeatureLevel());
+
+		FRHIVertexBuffer* PrimitiveIdVertexBuffer = nullptr;
+
+		ApplyViewOverridesToMeshDrawCommands(View, VisibleMeshDrawCommands, DynamicMeshDrawCommandStorage, GraphicsMinimalPipelineStateSet, InNeedsShaderInitialisation);
+		
+		// GPUCULL_TODO: determine if unsupportable OR just not supporting scene primitives (as this requires a multi-pass approach)
+
+		//SortAndSubmitDynamicMeshPassDrawCommands(View, Scene, VisibleMeshDrawCommands, DynamicMeshDrawCommandStorage, GraphicsMinimalPipelineStateSet, RHICmdList);
+
+		//SortAndMergeDynamicPassMeshDrawCommands(View.GetFeatureLevel(), VisibleMeshDrawCommands, DynamicMeshDrawCommandStorage, PrimitiveIdVertexBuffer, InstanceFactor);
+		//SubmitMeshDrawCommandsRange(VisibleMeshDrawCommands, GraphicsMinimalPipelineStateSet, PrimitiveIdVertexBuffer, 0, bDynamicInstancing, 0, VisibleMeshDrawCommands.Num(), InstanceFactor, RHICmdList);
+	}
+#endif
+}
+
 FMeshDrawCommandSortKey CalculateMeshStaticSortKey(const FMeshMaterialShader* VertexShader, const FMeshMaterialShader* PixelShader)
 {
 	FMeshDrawCommandSortKey SortKey;

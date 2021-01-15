@@ -986,6 +986,9 @@ public:
 	/** Non-pipeline state */
 	uint8 StencilRef;
 
+	/** Redundant as already present in CachedPipelineId, but need access for dynamic instancing on GPU. */
+	EPrimitiveType PrimitiveType : PT_NumBits;
+
 	FMeshDrawCommand() {};
 	FMeshDrawCommand(FMeshDrawCommand&& Other) = default;
 	FMeshDrawCommand(const FMeshDrawCommand& Other) = default;
@@ -1279,6 +1282,26 @@ public:
 	// Needed for view overrides
 	ERasterizerFillMode MeshFillMode : ERasterizerFillMode_NumBits + 1;
 	ERasterizerCullMode MeshCullMode : ERasterizerCullMode_NumBits + 1;
+};
+
+struct FCompareFMeshDrawCommands
+{
+	FORCEINLINE bool operator() (FVisibleMeshDrawCommand A, FVisibleMeshDrawCommand B) const
+	{
+		// First order by a sort key.
+		if (A.SortKey != B.SortKey)
+		{
+			return A.SortKey < B.SortKey;
+		}
+
+		// Next order by instancing bucket.
+		if (A.StateBucketId != B.StateBucketId)
+		{
+			return A.StateBucketId < B.StateBucketId;
+		}
+
+		return false;
+	}
 };
 
 template <>

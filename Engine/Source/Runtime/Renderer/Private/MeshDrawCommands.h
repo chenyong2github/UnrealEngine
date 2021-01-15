@@ -229,3 +229,26 @@ extern void SortAndMergeDynamicPassMeshDrawCommands(
 	FDynamicMeshDrawCommandStorage& MeshDrawCommandStorage,
 	FRHIVertexBuffer*& OutPrimitiveIdVertexBuffer,
 	uint32 InstanceFactor);
+
+extern void SortAndMergeDynamicPassMeshDrawCommands(
+	ERHIFeatureLevel::Type FeatureLevel,
+	FMeshCommandOneFrameArray& VisibleMeshDrawCommands,
+	FDynamicMeshDrawCommandStorage& MeshDrawCommandStorage,
+	FInstanceCullingContext* InstanceCullingContext);
+
+void SubmitGPUInstancedMeshDrawCommandsRange(
+	const FMeshCommandOneFrameArray& VisibleMeshDrawCommands,
+	const FGraphicsMinimalPipelineStateSet& GraphicsMinimalPipelineStateSet,
+	int32 StartIndex,
+	int32 NumMeshDrawCommands,
+	FRHIVertexBuffer* InstanceIdsOffsetBuffer, // Bound to a vertex stream to fetch a start offset for all instances, need to be 0-stepping
+	FRHIVertexBuffer* IndirectArgsBuffer, // Overrides the args for the draw call
+	FRHICommandList& RHICmdList);
+
+void SetupGPUInstancedDraws(
+	FInstanceCullingContext& InstanceCullingContext,
+	FMeshCommandOneFrameArray& VisibleMeshDrawCommandsInOut,
+	// Stats
+	int32& MaxInstances,
+	int32& VisibleMeshDrawCommandsNum,
+	int32& NewPassVisibleMeshDrawCommandsNum);

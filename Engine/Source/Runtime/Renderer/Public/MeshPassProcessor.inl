@@ -50,6 +50,7 @@ void FMeshPassProcessor::BuildMeshDrawCommands(
 	FMeshDrawCommand SharedMeshDrawCommand;
 
 	SharedMeshDrawCommand.SetStencilRef(DrawRenderState.GetStencilRef());
+	SharedMeshDrawCommand.PrimitiveType = (EPrimitiveType)MeshBatch.Type;
 
 	FGraphicsMinimalPipelineStateInitializer PipelineState;
 	PipelineState.PrimitiveType = (EPrimitiveType)MeshBatch.Type;
