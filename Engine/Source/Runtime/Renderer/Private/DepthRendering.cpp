@@ -30,6 +30,7 @@
 #include "MeshPassProcessor.inl"
 #include "PixelShaderUtils.h"
 #include "RenderGraphUtils.h"
+#include "SceneRenderingUtils.h"
 
 static TAutoConsoleVariable<int32> CVarParallelPrePass(
 	TEXT("r.ParallelPrePass"),

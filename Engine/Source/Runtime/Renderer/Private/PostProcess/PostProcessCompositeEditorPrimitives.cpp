@@ -7,6 +7,7 @@
 #include "MeshPassProcessor.inl"
 #include "BasePassRendering.h"
 #include "MobileBasePassRendering.h"
+#include "SceneRenderingUtils.h"
 
 namespace
 {

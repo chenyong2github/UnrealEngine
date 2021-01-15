@@ -27,6 +27,7 @@
 #include "FXSystem.h"
 #include "GPUSortManager.h"
 #include "VT/VirtualTextureSystem.h"
+#include "SceneRenderingUtils.h"
 #include "InstanceCulling/InstanceCullingManager.h"
 
 class FHitProxyShaderElementData : public FMeshMaterialShaderElementData
