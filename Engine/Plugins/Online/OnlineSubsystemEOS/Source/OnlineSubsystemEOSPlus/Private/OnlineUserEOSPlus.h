@@ -66,7 +66,17 @@ public:
 // FOnlineUser interface
 	virtual TSharedRef<const FUniqueNetId> GetUserId() const override
 	{
-		return MakeShared<FUniqueNetIdEOSPlus>(BaseItem->GetUserId(), EOSItem->GetUserId());
+		TSharedPtr<const FUniqueNetId> BaseNetId;
+		if (BaseItem.IsValid())
+		{
+			BaseNetId = BaseItem->GetUserId();
+		}
+		TSharedPtr<const FUniqueNetId> EOSNetId;
+		if (EOSItem.IsValid())
+		{
+			EOSNetId = EOSItem->GetUserId();
+		}
+		return MakeShared<FUniqueNetIdEOSPlus>(BaseNetId, EOSNetId);
 	}
 
 	virtual FString GetRealName() const override
