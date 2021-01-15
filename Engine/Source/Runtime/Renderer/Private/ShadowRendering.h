@@ -399,6 +399,8 @@ public:
 	// default constructor
 	FProjectedShadowInfo();
 
+	~FProjectedShadowInfo();
+
 	/**
 	 * for a per-object shadow. e.g. translucent particle system or a dynamic object in a precomputed shadow situation
 	 * @param InParentSceneInfo must not be 0

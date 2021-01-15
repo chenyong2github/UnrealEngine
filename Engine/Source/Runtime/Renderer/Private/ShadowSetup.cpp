@@ -657,6 +657,10 @@ FProjectedShadowInfo::FProjectedShadowInfo()
 {
 }
 
+FProjectedShadowInfo::~FProjectedShadowInfo()
+{
+}
+
 /** Shadow border needs to be wide enough to prevent the shadow filtering from picking up content in other shadowmaps in the atlas. */
 const static uint32 SHADOW_BORDER = 4; 
 
