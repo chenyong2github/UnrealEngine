@@ -202,7 +202,6 @@ void FPrimitiveSceneShaderData::Setup(const FPrimitiveUniformShaderParameters& P
 	}
 }
 
-
 uint16 FPrimitiveSceneShaderData::GetPrimitivesPerTextureLine()
 {
 	// @todo texture size limit over 65536, revisit this in the future :). Currently you can have(with primitiveData = 35 floats4) a max of 122,683,392 primitives

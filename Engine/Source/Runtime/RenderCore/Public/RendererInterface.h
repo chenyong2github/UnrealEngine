@@ -658,6 +658,36 @@ public:
 	virtual void EndFrame() {}
 };
 
+#if defined(GPUCULL_TODO)
+
+/**
+ */
+class IScenePrimitiveRenderingContext
+{
+public:
+	virtual ~IScenePrimitiveRenderingContext()
+	{
+	}
+};
+
+struct FScenePrimitiveRenderingContextScopeHelper
+{
+	FScenePrimitiveRenderingContextScopeHelper(IScenePrimitiveRenderingContext* InScenePrimitiveRenderingContext)
+	: ScenePrimitiveRenderingContext(InScenePrimitiveRenderingContext)
+	{
+	}
+
+	~FScenePrimitiveRenderingContextScopeHelper()
+	{
+		// GPUCULL_TODO: Is new/delete reasonable here?
+		delete ScenePrimitiveRenderingContext;
+	}
+
+	IScenePrimitiveRenderingContext* ScenePrimitiveRenderingContext;
+};
+
+#endif // GPUCULL_TODO
+
 /**
  * The public interface of the renderer module.
  */
@@ -795,5 +825,13 @@ public:
 	virtual void FlushVirtualTextureCache() = 0;
 
 	virtual void RegisterPersistentViewUniformBufferExtension(IPersistentViewUniformBufferExtension* Extension) = 0;
+
+#if defined(GPUCULL_TODO)
+	/**
+	 * Prepare Scene primitive rendering and return context. Ensures all primitives that are created are commited and GPU-Scene is updated and allocates a dynamic primitive context.
+	 * The intended use is for stand-alone rendering that involves Scene proxies (that then may need the machinery to render GPU-Scene aware primitives.
+	 */
+	virtual IScenePrimitiveRenderingContext* BeginScenePrimitiveRendering(FRDGBuilder& GraphBuilder, FSceneViewFamily* ViewFamily) = 0;
+#endif
 };
 

@@ -265,6 +265,32 @@ BEGIN_SHADER_PARAMETER_STRUCT(FHitProxyCopyToViewFamilyParameters, )
 	RENDER_TARGET_BINDING_SLOTS()
 END_SHADER_PARAMETER_STRUCT()
 
+#if defined(GPUCULL_TODO)
+
+static void AddViewMeshElementsPass(const TIndirectArray<FMeshBatch> &MeshElements, FRDGBuilder& GraphBuilder, FHitProxyPassParameters* PassParameters, const FScene* Scene, const FViewInfo& View, const FMeshPassProcessorRenderState& DrawRenderState, FInstanceCullingManager& InstanceCullingManager)
+{
+	AddSimpleMeshPass(GraphBuilder, PassParameters, Scene, View, &InstanceCullingManager, RDG_EVENT_NAME("HitProxyMeshElementsPass"), View.ViewRect,
+		[&View, Scene, DrawRenderState, &MeshElements](FDynamicPassMeshDrawListContext* DynamicMeshPassContext)
+		{
+			FHitProxyMeshProcessor PassMeshProcessor(
+				Scene,
+				&View,
+				View.bAllowTranslucentPrimitivesInHitProxy,
+				DrawRenderState,
+				DynamicMeshPassContext);
+
+			const uint64 DefaultBatchElementMask = ~0ull;
+
+			for (const FMeshBatch& MeshBatch : MeshElements)
+			{
+				PassMeshProcessor.AddMeshBatch(MeshBatch, DefaultBatchElementMask, nullptr);
+			}
+		}
+	);
+}
+
+#endif // GPUCULL_TODO
+
 static void DoRenderHitProxies(
 	FRDGBuilder& GraphBuilder, 
 	const FSceneRenderer* SceneRenderer, 

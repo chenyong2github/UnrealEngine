@@ -3942,6 +3942,43 @@ void FRendererModule::RenderPostResolvedSceneColorExtension(FRDGBuilder& GraphBu
 	}
 }
 
+#if defined(GPUCULL_TODO)
+
+class FScenePrimitiveRenderingContext : public IScenePrimitiveRenderingContext
+{
+public:
+	FScenePrimitiveRenderingContext(FRDGBuilder& GraphBuilder, FScene& Scene) :
+		GPUScene(Scene.GPUScene),
+		GPUSceneDynamicContext(GPUScene)
+	{
+		Scene.UpdateAllPrimitiveSceneInfos(GraphBuilder, false);
+		GPUScene.BeginRender(&Scene, GPUSceneDynamicContext);
+		Scene.GPUScene.Update(GraphBuilder, Scene);
+	}
+
+	virtual ~FScenePrimitiveRenderingContext()
+	{
+		GPUScene.EndRender();
+	}
+
+	FGPUScene& GPUScene;
+	FGPUSceneDynamicContext GPUSceneDynamicContext;
+};
+
+
+IScenePrimitiveRenderingContext* FRendererModule::BeginScenePrimitiveRendering(FRDGBuilder &GraphBuilder, FSceneViewFamily* ViewFamily)
+{
+	check(ViewFamily->Scene);
+	FScene* Scene = ViewFamily->Scene->GetRenderScene();
+	check(Scene);
+
+	FScenePrimitiveRenderingContext* ScenePrimitiveRenderingContext = new FScenePrimitiveRenderingContext(GraphBuilder, *Scene);
+
+	return ScenePrimitiveRenderingContext;
+}
+
+#endif // GPUCULL_TODO
+
 IAllocatedVirtualTexture* FRendererModule::AllocateVirtualTexture(const FAllocatedVTDescription& Desc)
 {
 	return FVirtualTextureSystem::Get().AllocateVirtualTexture(Desc);

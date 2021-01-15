@@ -1817,6 +1817,15 @@ RENDERER_API extern void DrawDynamicMeshPassPrivate(
 	bool& InNeedsShaderInitialisation,
 	uint32 InstanceFactor);
 
+RENDERER_API extern void DrawDynamicMeshPassPrivate(
+	const FSceneView& View,
+	const FScene& Scene,
+	FRHICommandListImmediate& RHICmdList,
+	FMeshCommandOneFrameArray& VisibleMeshDrawCommands,
+	FDynamicMeshDrawCommandStorage& DynamicMeshDrawCommandStorage,
+	FGraphicsMinimalPipelineStateSet& GraphicsMinimalPipelineStateSet,
+	bool& InNeedsShaderInitialization);
+
 RENDERER_API extern FMeshDrawCommandSortKey CalculateMeshStaticSortKey(const FMeshMaterialShader* VertexShader, const FMeshMaterialShader* PixelShader);
 
 inline FMeshDrawCommandSortKey CalculateMeshStaticSortKey(const TShaderRef<FMeshMaterialShader>& VertexShader, const TShaderRef<FMeshMaterialShader>& PixelShader)
@@ -1938,3 +1947,190 @@ private:
 	uint32 GeometrySegmentIndex;
 	uint32 RayTracingInstanceIndex;
 };
+
+#if defined(GPUCULL_TODO)
+
+#if 0
+/**
+ * Same as the parallel one, but intended for use with simpler tasks where the overhead and complexity of parallel is not justified.
+ */
+class SimpleMeshDrawCommandPass
+{
+public:
+
+private:
+	FMeshCommandOneFrameArray VisibleMeshDrawCommands;
+	FInstanceCullingContext InstanceCullingContext;
+};
+
+#endif
+
+/**
+ * Same as the parallel one, but intended for use with simpler tasks where the overhead and complexity of parallel is not justified.
+ */
+class FSimpleMeshDrawCommandPass
+{
+public:
+	RENDERER_API FSimpleMeshDrawCommandPass(const FSceneView& View, FInstanceCullingManager* InstanceCullingManager);
+
+	/**
+	 * Run post-instance culling job to create the render commands and instance ID lists and optionally vertex instance data.
+	 * Needs to happen after DispatchPassSetup and before DispatchDraw, but not before global instance culling has been done.
+	 */
+	RENDERER_API void BuildRenderingCommands(FRDGBuilder& GraphBuilder, const FSceneView& View, const FGPUScene& GPUScene, FInstanceCullingDrawParams& OutInstanceCullingDrawParams);
+	RENDERER_API void BuildRenderingCommands(FRDGBuilder& GraphBuilder, const FSceneView& View, const FScene& Scene, FInstanceCullingDrawParams& OutInstanceCullingDrawParams);
+	RENDERER_API void SubmitDraw(FRHICommandListImmediate& RHICmdList, const FInstanceCullingDrawParams& InstanceCullingDrawParams) const;
+
+	FDynamicPassMeshDrawListContext* GetDynamicPassMeshDrawListContext() { return &DynamicPassMeshDrawListContext; }
+
+private:
+	bool bNeedsInitialization = false;
+	FDynamicPassMeshDrawListContext DynamicPassMeshDrawListContext;
+	FMeshCommandOneFrameArray VisibleMeshDrawCommands;
+	FInstanceCullingContext InstanceCullingContext;
+	FDynamicMeshDrawCommandStorage DynamicMeshDrawCommandStorage;
+	FGraphicsMinimalPipelineStateSet GraphicsMinimalPipelineStateSet;
+
+	// Is set to true if and only if the BuildRenderingCommands has been called with an enabled GPU scene (which implies a valid Scene etc).
+	// Is used to check that we don't submit any draw commands that require a GPU scene without supplying one.
+	bool bSupportsScenePrimitives = false;
+};
+
+// GPUCULL_TODO: Write documentation
+template <typename PassParametersType, typename AddMeshBatchesCallbackLambdaType, typename PassPrologueLambdaType>
+void AddSimpleMeshPass(FRDGBuilder& GraphBuilder, PassParametersType* PassParametersIn, const FScene* Scene, const FSceneView &View, FInstanceCullingManager* InstanceCullingManager, FRDGEventName&& PassName,
+	const ERDGPassFlags& PassFlags,
+	AddMeshBatchesCallbackLambdaType AddMeshBatchesCallback,
+	PassPrologueLambdaType PassPrologueCallback)
+{
+	// TODO: don't do this when the parameters are exclusive (optimization)
+	PassParametersType* PassParameters = GraphBuilder.AllocParameters<PassParametersType>();
+
+	// Copy parameters to ensure we can overwrite the InstanceCullingDrawParams
+	*PassParameters = *PassParametersIn;
+
+	FSimpleMeshDrawCommandPass* SimpleMeshDrawCommandPass = GraphBuilder.AllocObject<FSimpleMeshDrawCommandPass>(View, InstanceCullingManager);
+
+	AddMeshBatchesCallback(SimpleMeshDrawCommandPass->GetDynamicPassMeshDrawListContext());
+
+	// It is legal to render a simple mesh pass without a FScene, but then mesh draw commands must not reference primitive ID streams.
+	if (Scene != nullptr)
+	{
+		SimpleMeshDrawCommandPass->BuildRenderingCommands(GraphBuilder, View, *Scene, PassParameters->InstanceCullingDrawParams);
+	}
+
+	GraphBuilder.AddPass(
+		MoveTemp(PassName),
+		PassParameters,
+		PassFlags,
+		[SimpleMeshDrawCommandPass, PassParameters, PassPrologueCallback](FRHICommandListImmediate& RHICmdList)
+		{
+			PassPrologueCallback(RHICmdList);
+
+			SimpleMeshDrawCommandPass->SubmitDraw(RHICmdList, PassParameters->InstanceCullingDrawParams);
+		}
+	);
+}
+
+// GPUCULL_TODO: Write documentation
+template <typename PassParametersType, typename AddMeshBatchesCallbackLambdaType>
+void AddSimpleMeshPass(FRDGBuilder& GraphBuilder, PassParametersType* PassParameters, const FScene* Scene, const FSceneView& View, FInstanceCullingManager *InstanceCullingManager, FRDGEventName&& PassName, const FIntRect& ViewPortRect,
+	AddMeshBatchesCallbackLambdaType AddMeshBatchesCallback)
+{
+	AddSimpleMeshPass(GraphBuilder, PassParameters, Scene, View, InstanceCullingManager, MoveTemp(PassName), ERDGPassFlags::Raster, AddMeshBatchesCallback,
+		[ViewPortRect](FRHICommandListImmediate& RHICmdList)
+		{
+			RHICmdList.SetViewport(ViewPortRect.Min.X, ViewPortRect.Min.Y, 0.0f, ViewPortRect.Max.X, ViewPortRect.Max.Y, 1.0f);
+		}
+	);
+}
+
+// GPUCULL_TODO: Write documentation
+template <typename PassParametersType, typename AddMeshBatchesCallbackLambdaType>
+void AddSimpleMeshPass(FRDGBuilder& GraphBuilder, PassParametersType* PassParameters, const FScene* Scene, const FSceneView& View, FInstanceCullingManager *InstanceCullingManager, FRDGEventName&& PassName, 
+	const FIntRect& ViewPortRect, 
+	const ERDGPassFlags &PassFlags,
+	AddMeshBatchesCallbackLambdaType AddMeshBatchesCallback)
+{
+	AddSimpleMeshPass(GraphBuilder, PassParameters, Scene, View, InstanceCullingManager, MoveTemp(PassName), PassFlags, AddMeshBatchesCallback,
+		[ViewPortRect](FRHICommandListImmediate& RHICmdList)
+		{
+			RHICmdList.SetViewport(ViewPortRect.Min.X, ViewPortRect.Min.Y, 0.0f, ViewPortRect.Max.X, ViewPortRect.Max.Y, 1.0f);
+		}
+	);
+}
+
+// GPUCULL_TODO: Write documentation
+template <typename PassParametersType, typename AddMeshBatchesCallbackLambdaType, typename PassPrologueLambdaType>
+void AddSimpleMeshPass(FRDGBuilder& GraphBuilder, PassParametersType* PassParametersIn, const FGPUScene& GPUScene, const FSceneView& View, FInstanceCullingManager* InstanceCullingManager, FRDGEventName&& PassName,
+	const ERDGPassFlags& PassFlags,
+	AddMeshBatchesCallbackLambdaType AddMeshBatchesCallback,
+	PassPrologueLambdaType PassPrologueCallback)
+{
+	// TODO: don't do this when the parameters are exclusive (optimization)
+	PassParametersType* PassParameters = GraphBuilder.AllocParameters<PassParametersType>();
+
+	// Copy parameters to ensure we can overwrite the InstanceCullingDrawParams
+	*PassParameters = *PassParametersIn;
+
+	FSimpleMeshDrawCommandPass* SimpleMeshDrawCommandPass = GraphBuilder.AllocObject<FSimpleMeshDrawCommandPass>(View, InstanceCullingManager);
+
+	AddMeshBatchesCallback(SimpleMeshDrawCommandPass->GetDynamicPassMeshDrawListContext());
+
+	SimpleMeshDrawCommandPass->BuildRenderingCommands(GraphBuilder, View, GPUScene, PassParameters->InstanceCullingDrawParams);
+
+	GraphBuilder.AddPass(
+		MoveTemp(PassName),
+		PassParameters,
+		PassFlags,
+		[SimpleMeshDrawCommandPass, PassParameters, PassPrologueCallback](FRHICommandListImmediate& RHICmdList)
+		{
+			PassPrologueCallback(RHICmdList);
+
+			SimpleMeshDrawCommandPass->SubmitDraw(RHICmdList, PassParameters->InstanceCullingDrawParams);
+		}
+	);
+}
+
+// GPUCULL_TODO: Write documentation
+template <typename PassParametersType, typename AddMeshBatchesCallbackLambdaType>
+void AddSimpleMeshPass(FRDGBuilder& GraphBuilder, PassParametersType* PassParameters, const FGPUScene& GPUScene, const FSceneView& View, FInstanceCullingManager* InstanceCullingManager, FRDGEventName&& PassName, const FIntRect& ViewPortRect,
+	AddMeshBatchesCallbackLambdaType AddMeshBatchesCallback)
+{
+	AddSimpleMeshPass(GraphBuilder, PassParameters, GPUScene, View, InstanceCullingManager, MoveTemp(PassName), ERDGPassFlags::Raster, AddMeshBatchesCallback,
+		[ViewPortRect](FRHICommandListImmediate& RHICmdList)
+		{
+			RHICmdList.SetViewport(ViewPortRect.Min.X, ViewPortRect.Min.Y, 0.0f, ViewPortRect.Max.X, ViewPortRect.Max.Y, 1.0f);
+		}
+	);
+}
+
+// GPUCULL_TODO: Write documentation
+template <typename PassParametersType, typename AddMeshBatchesCallbackLambdaType>
+void AddSimpleMeshPass(FRDGBuilder& GraphBuilder, PassParametersType* PassParameters, const FGPUScene& GPUScene, const FSceneView& View, FInstanceCullingManager* InstanceCullingManager, FRDGEventName&& PassName,
+	const FIntRect& ViewPortRect,
+	const ERDGPassFlags& PassFlags,
+	AddMeshBatchesCallbackLambdaType AddMeshBatchesCallback)
+{
+	AddSimpleMeshPass(GraphBuilder, PassParameters, GPUScene, View, InstanceCullingManager, MoveTemp(PassName), PassFlags, AddMeshBatchesCallback,
+		[ViewPortRect](FRHICommandListImmediate& RHICmdList)
+		{
+			RHICmdList.SetViewport(ViewPortRect.Min.X, ViewPortRect.Min.Y, 0.0f, ViewPortRect.Max.X, ViewPortRect.Max.Y, 1.0f);
+		}
+	);
+}
+
+#if 0
+
+// GPUCULL_TODO: Write documentation
+template <typename PassParametersType, typename AddMeshBatchesCallbackLambdaType, typename PassPrologueLambdaType>
+void AddSimpleMeshPass(FRDGBuilder& GraphBuilder, PassParametersType* PassParameters, const FScene* Scene, const FSceneView& View, FRDGEventName&& PassName,
+	AddMeshBatchesCallbackLambdaType AddMeshBatchesCallback)
+{
+	// TODO: ViewRect is only in FViewInfo
+	AddSimpleMeshPass(GraphBuilder, PassParameters, Scene, View, MoveTemp(PassName), View.ViewRect, AddMeshBatchesCallback);
+}
+
+#endif
+
+#endif // GPUCULL_TODO

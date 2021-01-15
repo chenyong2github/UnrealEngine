@@ -1468,3 +1468,73 @@ void FCachedPassMeshDrawListContext::FinalizeCommand(
 
 PassProcessorCreateFunction FPassProcessorManager::JumpTable[(int32)EShadingPath::Num][EMeshPass::Num] = {};
 EMeshPassFlags FPassProcessorManager::Flags[(int32)EShadingPath::Num][EMeshPass::Num] = {};
+
+#if defined(GPUCULL_TODO)
+
+FSimpleMeshDrawCommandPass::FSimpleMeshDrawCommandPass(const FSceneView& View, FInstanceCullingManager* InstanceCullingManager) :
+	bNeedsInitialization(false),
+	DynamicPassMeshDrawListContext(DynamicMeshDrawCommandStorage, VisibleMeshDrawCommands, GraphicsMinimalPipelineStateSet, bNeedsInitialization)
+{
+	check(View.bIsViewInfo);
+	const FViewInfo* ViewInfo = static_cast<const FViewInfo*>(&View);
+	InstanceCullingContext.ViewIds.Add(ViewInfo->GPUSceneViewId);
+	InstanceCullingContext.InstanceCullingManager = InstanceCullingManager;
+}
+
+void FSimpleMeshDrawCommandPass::BuildRenderingCommands(FRDGBuilder& GraphBuilder, const FSceneView& View, const FGPUScene& GPUScene, FInstanceCullingDrawParams& OutInstanceCullingDrawParams)
+{
+	// NOTE: Everything up to InstanceCullingContext.BuildRenderingCommands could be peeled off into an async task.
+	ApplyViewOverridesToMeshDrawCommands(View, VisibleMeshDrawCommands, DynamicMeshDrawCommandStorage, GraphicsMinimalPipelineStateSet, bNeedsInitialization);
+
+	VisibleMeshDrawCommands.Sort(FCompareFMeshDrawCommands());
+
+	FInstanceCullingResult InstanceCullingResult;
+	if (GPUScene.IsEnabled())
+	{
+		int32 MaxInstances = 0;
+		int32 VisibleMeshDrawCommandsNum = 0;
+		int32 NewPassVisibleMeshDrawCommandsNum = 0;
+
+		// 1. do the first thing first
+		SetupGPUInstancedDraws(InstanceCullingContext, VisibleMeshDrawCommands, MaxInstances, VisibleMeshDrawCommandsNum, NewPassVisibleMeshDrawCommandsNum);
+
+		// 2. Run finalize culling commands pass
+		InstanceCullingContext.BuildRenderingCommands(GraphBuilder, GPUScene, InstanceCullingResult);
+		
+		// Signal that scene primitives are supported, used for validation, the existence of a valid InstanceCullingResult is the required signal
+		bSupportsScenePrimitives = true;
+	}
+
+	InstanceCullingResult.GetDrawParameters(OutInstanceCullingDrawParams);
+}
+
+void FSimpleMeshDrawCommandPass::BuildRenderingCommands(FRDGBuilder& GraphBuilder, const FSceneView& View, const FScene& Scene, FInstanceCullingDrawParams& OutInstanceCullingDrawParams)
+{
+	BuildRenderingCommands(GraphBuilder, View, Scene.GPUScene, OutInstanceCullingDrawParams);
+}
+
+void FSimpleMeshDrawCommandPass::SubmitDraw(FRHICommandListImmediate& RHICmdList, const FInstanceCullingDrawParams& InstanceCullingDrawParams) const
+{
+	if (VisibleMeshDrawCommands.Num() > 0)
+	{
+		FRHIVertexBuffer* DrawIndirectArgsBuffer = nullptr;
+		FRHIVertexBuffer* InstanceIdOffsetBuffer = nullptr;
+
+		if (InstanceCullingDrawParams.DrawIndirectArgsBuffer != nullptr && InstanceCullingDrawParams.InstanceIdOffsetBuffer != nullptr)
+		{
+			DrawIndirectArgsBuffer = InstanceCullingDrawParams.DrawIndirectArgsBuffer->GetRHI();
+			InstanceIdOffsetBuffer = InstanceCullingDrawParams.InstanceIdOffsetBuffer->GetRHI();
+		}
+
+		SubmitGPUInstancedMeshDrawCommandsRange(
+			VisibleMeshDrawCommands,
+			GraphicsMinimalPipelineStateSet,
+			0,
+			VisibleMeshDrawCommands.Num(),
+			InstanceIdOffsetBuffer,
+			DrawIndirectArgsBuffer,
+			RHICmdList);
+	}
+}
+
+#endif // GPUCULL_TODO

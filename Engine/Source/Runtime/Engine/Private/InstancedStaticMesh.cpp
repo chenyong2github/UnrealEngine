@@ -626,7 +626,13 @@ void FInstancedStaticMeshVertexFactory::ModifyCompilationEnvironment(const FVert
 		OutEnvironment.SetDefine(TEXT("MANUAL_VERTEX_FETCH"), TEXT("1"));
 	}
 
+#if defined(GPUCULL_TODO)
+	// USE_INSTANCE_CULLING - set up additional instancing attributes (basic instancing is the default)
+	OutEnvironment.SetDefine(TEXT("USE_INSTANCE_CULLING"), TEXT("1"));
+#else
 	OutEnvironment.SetDefine(TEXT("USE_INSTANCING"), TEXT("1"));
+#endif
+
 	if (IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5))
 	{
 		OutEnvironment.SetDefine(TEXT("USE_DITHERED_LOD_TRANSITION_FOR_INSTANCED"), ALLOW_DITHERED_LOD_FOR_INSTANCED_STATIC_MESHES);
@@ -700,6 +706,20 @@ void FInstancedStaticMeshVertexFactory::InitRHI()
 	{
 		Elements.Add(AccessStreamComponent(Data.PositionComponent,0));
 	}
+
+#if defined(GPUCULL_TODO)
+	{
+		const uint8 Index = static_cast<uint8>(EVertexInputStreamType::Default);
+		PrimitiveIdStreamIndex[Index] = -1;
+		const bool bCanUseGPUScene = UseGPUScene(GMaxRHIShaderPlatform, GMaxRHIFeatureLevel);
+		if (GetType()->SupportsPrimitiveIdStream() && bCanUseGPUScene)
+		{
+			// When the VF is used for rendering in normal mesh passes, this vertex buffer and offset will be overridden
+			Elements.Add(AccessStreamComponent(FVertexStreamComponent(&GPrimitiveIdDummy, 0, 0, /*sizeof(uint32)*/0, VET_UInt, EVertexStreamUsage::Instancing), 13));
+			PrimitiveIdStreamIndex[Index] = Elements.Last().StreamIndex;
+		}
+	}
+#endif
 
 	// only tangent,normal are used by the stream. the binormal is derived in the shader
 	uint8 TangentBasisAttributes[2] = { 1, 2 };
@@ -796,7 +816,11 @@ IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FInstancedStaticMeshVertexFactory, SF_Ve
 #if RHI_RAYTRACING
 IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FInstancedStaticMeshVertexFactory, SF_RayHitGroup, FInstancedStaticMeshVertexFactoryShaderParameters);
 #endif
+#if defined(GPUCULL_TODO)
+IMPLEMENT_VERTEX_FACTORY_TYPE_EX(FInstancedStaticMeshVertexFactory,"/Engine/Private/LocalVertexFactory.ush",true,true,true,true,true,true,true,false);
+#else
 IMPLEMENT_VERTEX_FACTORY_TYPE_EX(FInstancedStaticMeshVertexFactory,"/Engine/Private/LocalVertexFactory.ush",true,true,true,true,true,true,false,false);
+#endif
 
 void FInstancedStaticMeshRenderData::InitVertexFactories()
 {
@@ -1024,6 +1048,32 @@ void FInstancedStaticMeshSceneProxy::SetupProxy(UInstancedStaticMeshComponent* I
 	// unselected only
 	UserData_DeselectedInstances = UserData_AllInstances;
 	UserData_DeselectedInstances.bRenderSelected = false;
+
+#if defined(GPUCULL_TODO)
+	const TArray<int32>& InstanceReorderTable = InComponent->InstanceReorderTable;
+	bSupportsInstanceDataBuffer = true;
+	Instances.SetNum(InComponent->GetInstanceCount());
+	for (int32 InInstanceIndex = 0; InInstanceIndex < Instances.Num(); ++InInstanceIndex)
+	{
+		int32 OutInstanceIndex = InInstanceIndex;
+		if (OutInstanceIndex < InstanceReorderTable.Num())
+		{
+			OutInstanceIndex = InstanceReorderTable[OutInstanceIndex];
+		}
+		FTransform InstanceTransform;
+		InComponent->GetInstanceTransform(InInstanceIndex, InstanceTransform);
+
+		FPrimitiveInstance& Instance = Instances[OutInstanceIndex];
+		Instance.PrimitiveId = ~uint32(0);
+		Instance.InstanceToLocal = InstanceTransform.ToMatrixWithScale();
+		// GPUCULL_TODO: not sure this is needed either - might be better to delegate to later anyway since inverse can then be threaded, plus some platforms might not need it at all.
+		Instance.LocalToInstance = Instance.InstanceToLocal.Inverse();
+		// Filled in during GPU Scene update...
+		Instance.LocalToWorld.SetIdentity();
+		Instance.RenderBounds = InComponent->GetStaticMesh()->GetBounds();
+		Instance.LocalBounds = Instance.RenderBounds.TransformBy(Instance.InstanceToLocal);
+	}
+#endif
 }
 
 void FInstancedStaticMeshSceneProxy::DestroyRenderThreadResources()
@@ -2913,7 +2963,11 @@ void UInstancedStaticMeshComponent::InitPerInstanceRenderData(bool InitializeFro
 	UWorld* World = GetWorld();
 	ERHIFeatureLevel::Type FeatureLevel = World != nullptr ? World->FeatureLevel.GetValue() : GMaxRHIFeatureLevel;
 
+#if defined(GPUCULL_TODO)
+	bool KeepInstanceBufferCPUAccess = true;//GIsEditor || InRequireCPUAccess || ComponentRequestsCPUAccess(this, FeatureLevel);
+#else
 	bool KeepInstanceBufferCPUAccess = GIsEditor || InRequireCPUAccess || ComponentRequestsCPUAccess(this, FeatureLevel);
+#endif
 
 	if (InSharedInstanceBufferData != nullptr)
 	{

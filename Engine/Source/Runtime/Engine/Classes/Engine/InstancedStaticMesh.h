@@ -467,7 +467,9 @@ public:
 	,	bHasSelectedInstances(InComponent->SelectedInstances.Num() > 0)
 #endif
 	{
+	#if !defined(GPUCULL_TODO)
 		bVFRequiresPrimitiveUniformBuffer = true;
+	#endif
 		SetupProxy(InComponent);
 
 #if RHI_RAYTRACING

@@ -1861,6 +1861,7 @@ struct FDrawCommandRelevancePacket
 			const int32 StaticMeshCommandInfoIndex = StaticMeshRelevance.GetStaticMeshCommandInfoIndex(PassType);
 			if (StaticMeshCommandInfoIndex >= 0)
 			{
+				// GPUCULL_TODO: Here translates from FCachedMeshDrawCommandInfo -> FVisibleMeshDrawCommand
 				const FCachedMeshDrawCommandInfo& CachedMeshDrawCommand = InPrimitiveSceneInfo->StaticMeshCommandInfos[StaticMeshCommandInfoIndex];
 				const FCachedPassMeshDrawList& SceneDrawList = Scene->CachedDrawLists[PassType];
 
@@ -1872,6 +1873,8 @@ struct FDrawCommandRelevancePacket
 					? &Scene->CachedMeshDrawCommandStateBuckets[PassType].GetByElementId(CachedMeshDrawCommand.StateBucketId).Key
 					: &SceneDrawList.MeshDrawCommands[CachedMeshDrawCommand.CommandIndex];
 
+				// GPUCULL_TODO: We propagate the primitive ID because for static draws the GPU-Scene contains the list of instance IDs for each primitive
+				//           Thus we can re-process the list of primitives into the culled list of instances later.
 				NewVisibleMeshDrawCommand.Setup(
 					MeshDrawCommand,
 					PrimitiveIndex,

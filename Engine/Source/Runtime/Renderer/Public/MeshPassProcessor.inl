@@ -177,3 +177,25 @@ void DrawDynamicMeshPass(const FSceneView& View, FRHICommandList& RHICmdList, co
 	const uint32 InstanceFactor = (!bForceStereoInstancingOff && View.IsInstancedStereoPass()) ? 2 : 1;
 	DrawDynamicMeshPassPrivate(View, RHICmdList, VisibleMeshDrawCommands, DynamicMeshDrawCommandStorage, GraphicsMinimalPipelineStateSet, NeedsShaderInitialisation, InstanceFactor);
 }
+
+#if defined(GPUCULL_TODO)
+
+/**
+* Overload that requires FViewInfo, need to be used when rendering draw commands that make use of Scene features (e.g., require instancing etc).
+*/
+template<typename LambdaType>
+void DrawDynamicMeshPass(const FSceneView& View, const FScene &Scene, FRHICommandListImmediate& RHICmdList, const LambdaType& BuildPassProcessorLambda, bool bForceStereoInstancingOff = false)
+{
+	FDynamicMeshDrawCommandStorage DynamicMeshDrawCommandStorage;
+	FMeshCommandOneFrameArray VisibleMeshDrawCommands;
+	FGraphicsMinimalPipelineStateSet GraphicsMinimalPipelineStateSet;
+	bool NeedsShaderInitialization;
+
+	FDynamicPassMeshDrawListContext DynamicMeshPassContext(DynamicMeshDrawCommandStorage, VisibleMeshDrawCommands, GraphicsMinimalPipelineStateSet, NeedsShaderInitialization);
+
+	BuildPassProcessorLambda(&DynamicMeshPassContext);
+
+	DrawDynamicMeshPassPrivate(View, Scene, RHICmdList, VisibleMeshDrawCommands, DynamicMeshDrawCommandStorage, GraphicsMinimalPipelineStateSet, NeedsShaderInitialization);
+}
+
+#endif // GPUCULL_TODO
