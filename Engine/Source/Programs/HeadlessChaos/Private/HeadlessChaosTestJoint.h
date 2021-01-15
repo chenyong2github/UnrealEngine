@@ -61,11 +61,8 @@ namespace ChaosTest
 		}
 
 		// Create a pendulum chain along the specified direction with the first particle kinematic
-		void InitChain(int32 NumParticles, const FVec3& Dir)
+		void InitChain(int32 NumParticles, const FVec3& Dir, FReal Size = 10.f, FReal Separation = 30.f)
 		{
-			FReal Size = 10.0f;
-			FReal Separation = 30.0f;
-
 			for (int32 ParticleIndex = 0; ParticleIndex < NumParticles; ++ParticleIndex)
 			{
 				FReal D = ParticleIndex * Separation;
