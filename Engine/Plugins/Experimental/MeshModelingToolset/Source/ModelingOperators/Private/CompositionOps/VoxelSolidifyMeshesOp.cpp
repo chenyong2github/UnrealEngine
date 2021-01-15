@@ -55,11 +55,16 @@ void FVoxelSolidifyMeshesOp::CalculateResult(FProgressCancel* Progress)
 		}
 	}
 
-	if (bMakeOffsetSurfaces && OffsetThickness > 0)
+	if (bApplyThickenShells)
 	{
+		// thickness should be at least a cell wide so we don't end up deleting a bunch of the input surface
+		double CellSize = CombinedMesh.GetCachedBounds().MaxDim() / InputVoxelCount;
+		double SafeThickness = FMathd::Max(CellSize * 2, ThickenShells);
+
 		FMeshNormals::QuickComputeVertexNormals(CombinedMesh);
 		FExtrudeMesh Extrude(&CombinedMesh);
-		Extrude.DefaultExtrudeDistance = -OffsetThickness;
+		Extrude.bSkipClosedComponents = true;
+		Extrude.DefaultExtrudeDistance = -SafeThickness;
 		Extrude.IsPositiveOffset = false;
 		Extrude.Apply();
 	}

@@ -64,8 +64,8 @@ TUniquePtr<FDynamicMeshOperator> UVoxelSolidifyMeshesTool::MakeNewOperator()
 
 	Op->bSolidAtBoundaries = SolidifyProperties->bSolidAtBoundaries;
 	Op->WindingThreshold = SolidifyProperties->WindingThreshold;
-	Op->bMakeOffsetSurfaces = SolidifyProperties->bMakeOffsetSurfaces;
-	Op->OffsetThickness = SolidifyProperties->OffsetThickness;
+	Op->bApplyThickenShells = SolidifyProperties->bApplyThickenShells;
+	Op->ThickenShells = SolidifyProperties->ThickenShells;
 	Op->SurfaceSearchSteps = SolidifyProperties->SurfaceSearchSteps;
 	Op->ExtendBounds = SolidifyProperties->ExtendBounds;
 	VoxProperties->SetPropertiesOnOp(*Op);

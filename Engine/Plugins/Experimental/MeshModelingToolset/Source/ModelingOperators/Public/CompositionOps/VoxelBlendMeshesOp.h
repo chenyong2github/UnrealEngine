@@ -22,9 +22,9 @@ public:
 	double BlendFalloff = 10;
 	double BlendPower = 2;
 
-	bool bSolidifyInput = false;
-	bool bRemoveInternalsAfterSolidify = false;
-	double OffsetSolidifySurface = 0.0;
+	bool bVoxWrap = false;
+	bool bRemoveInternalsAfterVoxWrap = false;
+	double ThickenShells = 0.0;
 
 	void SetTransform(const FTransform& Transform);
 

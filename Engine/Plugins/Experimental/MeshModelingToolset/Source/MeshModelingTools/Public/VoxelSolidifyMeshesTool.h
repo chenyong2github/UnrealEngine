@@ -37,13 +37,13 @@ public:
 	UPROPERTY(EditAnywhere, Category = Options)
 	bool bSolidAtBoundaries = true;
 
-	/** If true, treats mesh surfaces with open boundaries as having a fixed, user-defined thickness */
-	UPROPERTY(EditAnywhere, Category = Options)
-	bool bMakeOffsetSurfaces = false;
+	/** If true, uses the ThickenShells setting */
+	UPROPERTY()
+	bool bApplyThickenShells = false;
 
-	/** Thickness of offset surfaces */
-	UPROPERTY(EditAnywhere, Category = Options, meta = (UIMin = ".1", UIMax = "100", ClampMin = ".001", ClampMax = "1000", EditCondition = "bMakeOffsetSurfaces == true"))
-	double OffsetThickness = 5;
+	/** Thicken open-boundary surfaces (extrude them inwards) to ensure they are captured in the VoxWrap output. Units are in world space. */
+	UPROPERTY(EditAnywhere, Category = Options, meta = (UIMin = ".1", UIMax = "100", ClampMin = ".001", ClampMax = "1000", EditCondition = "bApplyThickenShells == true"))
+	double ThickenShells = 5;
 };
 
 

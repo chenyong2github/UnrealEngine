@@ -69,9 +69,9 @@ TUniquePtr<FDynamicMeshOperator> UVoxelMorphologyMeshesTool::MakeNewOperator()
 
 	VoxProperties->SetPropertiesOnOp(*Op);
 	
-	Op->bSolidifyInput = MorphologyProperties->bSolidifyInput;
-	Op->OffsetSolidifySurface = MorphologyProperties->OffsetSolidifySurface;
-	Op->bRemoveInternalsAfterSolidify = MorphologyProperties->bRemoveInternalsAfterSolidify;
+	Op->bVoxWrapInput = MorphologyProperties->bVoxWrap;
+	Op->ThickenShells = MorphologyProperties->ThickenShells;
+	Op->bRemoveInternalsAfterVoxWrap = MorphologyProperties->bRemoveInternalsAfterVoxWrap;
 	Op->Distance = MorphologyProperties->Distance;
 	Op->Operation = MorphologyProperties->Operation;
 

@@ -27,17 +27,17 @@ public:
 	UPROPERTY(EditAnywhere, Category = Morphology, meta = (UIMin = ".1", UIMax = "100", ClampMin = ".001", ClampMax = "1000"))
 	double Distance = 5;
 
-	/** Solidify the input mesh(es) before processing, fixing results for inputs with holes and/or self-intersections */
-	UPROPERTY(EditAnywhere, Category = Solidify)
-	bool bSolidifyInput = false;
+	/** Apply a "VoxWrap" operation to input mesh(es) before computing the morphology.  Fixes results for inputs with holes and/or self-intersections. */
+	UPROPERTY(EditAnywhere, Category = VoxWrapPreprocess)
+	bool bVoxWrap = false;
 
-	/** Remove internal surfaces from the solidified input, before running morphology */
-	UPROPERTY(EditAnywhere, Category = Solidify, meta = (EditCondition = "bSolidifyInput == true"))
-	bool bRemoveInternalsAfterSolidify = false;
+	/** Remove internal surfaces from the VoxWrap output, before computing the morphology. */
+	UPROPERTY(EditAnywhere, Category = VoxWrapPreprocess, meta = (EditCondition = "bVoxWrap == true"))
+	bool bRemoveInternalsAfterVoxWrap = false;
 
-	/** Offset surface to create when solidifying any open-boundary inputs; if 0 then no offset surfaces are created */
-	UPROPERTY(EditAnywhere, Category = Solidify, meta = (EditCondition = "bSolidifyInput == true", UIMin = "0", UIMax = "100", ClampMin = "0", ClampMax = "1000"))
-	double OffsetSolidifySurface = 0.0;
+	/** Thicken open-boundary surfaces (extrude them inwards) before VoxWrapping them. Units are in world space. If 0, no extrusion is applied. */
+	UPROPERTY(EditAnywhere, Category = VoxWrapPreprocess, meta = (EditCondition = "bVoxWrap == true", UIMin = "0", UIMax = "100", ClampMin = "0", ClampMax = "1000"))
+	double ThickenShells = 0.0;
 };
 
 

@@ -50,17 +50,18 @@ void FVoxelBlendMeshesOp::CalculateResult(FProgressCancel* Progress)
 		}
 		MeshTransforms::ApplyTransform(TransformedMeshes[MeshIdx], (FTransform3d)Transforms[MeshIdx]);
 
-		if (bSolidifyInput)
+		if (bVoxWrap)
 		{
-			if (OffsetSolidifySurface > 0)
+			if (ThickenShells > 0 && !TransformedMeshes[MeshIdx].IsClosed())
 			{
-				// positive offsets should be at least a cell wide so we don't end up deleting a bunch of the input surface
+				// thickness should be at least a cell wide so we don't end up deleting a bunch of the input surface
 				double CellSize = TransformedMeshes[MeshIdx].GetCachedBounds().MaxDim() / InputVoxelCount;
-				double SafeOffset = FMathd::Max(CellSize * 2, OffsetSolidifySurface);
+				double SafeThickness = FMathd::Max(CellSize * 2, ThickenShells);
 
 				FMeshNormals::QuickComputeVertexNormals(TransformedMeshes[MeshIdx]);
 				FExtrudeMesh Extrude(&TransformedMeshes[MeshIdx]);
-				Extrude.DefaultExtrudeDistance = -SafeOffset;
+				Extrude.bSkipClosedComponents = true;
+				Extrude.DefaultExtrudeDistance = -SafeThickness;
 				Extrude.IsPositiveOffset = false;
 				Extrude.Apply();
 			}
@@ -71,7 +72,7 @@ void FVoxelBlendMeshesOp::CalculateResult(FProgressCancel* Progress)
 			Solidify.SetCellSizeAndExtendBounds(Spatial.GetBoundingBox(), 0, InputVoxelCount);
 			TransformedMeshes[MeshIdx].Copy(&Solidify.Generate());
 
-			if (bRemoveInternalsAfterSolidify)
+			if (bRemoveInternalsAfterVoxWrap)
 			{
 				UE::MeshAutoRepair::RemoveInternalTriangles(TransformedMeshes[MeshIdx], true, EOcclusionTriangleSampling::Centroids, EOcclusionCalculationMode::FastWindingNumber);
 			}

@@ -69,9 +69,9 @@ TUniquePtr<FDynamicMeshOperator> UVoxelBlendMeshesTool::MakeNewOperator()
 
 	Op->BlendFalloff = BlendProperties->BlendFalloff;
 	Op->BlendPower = BlendProperties->BlendPower;
-	Op->bSolidifyInput = BlendProperties->bSolidifyInput;
-	Op->bRemoveInternalsAfterSolidify = BlendProperties->bRemoveInternalsAfterSolidify;
-	Op->OffsetSolidifySurface = BlendProperties->OffsetSolidifySurface;
+	Op->bVoxWrap = BlendProperties->bVoxWrap;
+	Op->bRemoveInternalsAfterVoxWrap = BlendProperties->bRemoveInternalsAfterVoxWrap;
+	Op->ThickenShells = BlendProperties->ThickenShells;
 
 	VoxProperties->SetPropertiesOnOp(*Op);
 

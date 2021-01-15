@@ -41,9 +41,9 @@ public:
 	double Distance = 1.0;
 	EMorphologyOperation Operation;
 
-	bool bSolidifyInput = false;
-	bool bRemoveInternalsAfterSolidify = false;
-	double OffsetSolidifySurface = 0.0;
+	bool bVoxWrapInput = false;
+	bool bRemoveInternalsAfterVoxWrap = false;
+	double ThickenShells = 0.0;
 
 	void SetTransform(const FTransform& Transform);
 

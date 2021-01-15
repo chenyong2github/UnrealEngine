@@ -70,7 +70,7 @@ void FVoxelMorphologyMeshesOp::CalculateResult(FProgressCancel* Progress)
 			{
 				return MeshTransform.TransformPosition(Pos);
 			}, nullptr
-			);
+		);
 		if (bReverseOrientation)
 		{
 			for (int TID : Meshes[MeshIdx]->TriangleIndicesItr())
@@ -85,30 +85,31 @@ void FVoxelMorphologyMeshesOp::CalculateResult(FProgressCancel* Progress)
 		return;
 	}
 
-	if (bSolidifyInput && OffsetSolidifySurface > 0)
+	if (bVoxWrapInput && ThickenShells > 0)
 	{
 		// positive offsets should be at least a cell wide so we don't end up deleting a bunch of the input surface
 		double CellSize = CombinedMesh.GetCachedBounds().MaxDim() / InputVoxelCount;
-		double SafeOffset = FMathd::Max(CellSize * 2, OffsetSolidifySurface);
+		double SafeThickness = FMathd::Max(CellSize * 2, ThickenShells);
 
 		FMeshNormals::QuickComputeVertexNormals(CombinedMesh);
 		FExtrudeMesh Extrude(&CombinedMesh);
-		Extrude.DefaultExtrudeDistance = -SafeOffset;
+		Extrude.bSkipClosedComponents = true;
+		Extrude.DefaultExtrudeDistance = -SafeThickness;
 		Extrude.IsPositiveOffset = false;
 		Extrude.Apply();
 	}
-
+	
 	ImplicitMorphology.Source = &CombinedMesh;
 	FDynamicMeshAABBTree3 Spatial(&CombinedMesh, true);
 
-	if (bSolidifyInput)
+	if (bVoxWrapInput)
 	{
 		TFastWindingTree<FDynamicMesh3> Winding(&Spatial);
 		TImplicitSolidify<FDynamicMesh3> Solidify(&CombinedMesh, &Spatial, &Winding);
 		Solidify.SetCellSizeAndExtendBounds(Spatial.GetBoundingBox(), 0, InputVoxelCount);
 		CombinedMesh.Copy(&Solidify.Generate());
 
-		if (bRemoveInternalsAfterSolidify)
+		if (bRemoveInternalsAfterVoxWrap)
 		{
 			UE::MeshAutoRepair::RemoveInternalTriangles(CombinedMesh, true, EOcclusionTriangleSampling::Centroids, EOcclusionCalculationMode::FastWindingNumber);
 		}

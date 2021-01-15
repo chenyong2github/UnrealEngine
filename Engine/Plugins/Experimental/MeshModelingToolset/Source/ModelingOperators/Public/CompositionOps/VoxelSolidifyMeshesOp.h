@@ -24,8 +24,8 @@ public:
 	bool bSolidAtBoundaries = true;
 	int SurfaceSearchSteps = 3;
 
-	bool bMakeOffsetSurfaces = false;
-	double OffsetThickness = 5;
+	bool bApplyThickenShells = false;
+	double ThickenShells = 5;
 
 	void SetTransform(const FTransform& Transform);
 
