@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -342,7 +343,7 @@ namespace EpicGames.Core
 		/// <param name="LogFileName">The log filename to display, if any</param>
 		public static void WriteException(Exception Ex, string LogFileName)
 		{
-			string LogSuffix = (LogFileName == null)? "" : String.Format("\n(see {0} for full exception trace)", LogFileName);
+			string LogSuffix = (LogFileName == null) ? "" : String.Format("\n(see {0} for full exception trace)", LogFileName);
 			TraceLog("==============================================================================");
 			TraceError("{0}{1}", ExceptionUtils.FormatException(Ex), LogSuffix);
 			TraceLog("\n{0}", ExceptionUtils.FormatExceptionDetails(Ex));
@@ -1169,6 +1170,38 @@ namespace EpicGames.Core
 				StatusText = NewStatusText;
 				StatusTimer.Restart();
 			}
+		}
+	}
+
+	/// <summary>
+	/// Provider for default logger instances
+	/// </summary>
+	public class DefaultLoggerProvider : ILoggerProvider
+	{
+		/// <inheritdoc/>
+		public ILogger CreateLogger(string CategoryName)
+		{
+			return new DefaultLogger();
+		}
+
+		/// <inheritdoc/>
+		public void Dispose()
+		{
+		}
+	}
+
+	/// <summary>
+	/// Extension methods to support the default logger
+	/// </summary>
+	public static class DefaultLoggerExtensions
+	{
+		/// <summary>
+		/// Adds a regular Epic logger to the builder
+		/// </summary>
+		/// <param name="Builder">Logging builder</param>
+		public static void AddEpicDefault(this ILoggingBuilder Builder)
+		{
+			Builder.Services.AddSingleton<ILoggerProvider, DefaultLoggerProvider>();
 		}
 	}
 }
