@@ -776,6 +776,9 @@ private:
 		bool bCameraInsideShadowFrustum,
 		const FInstanceCullingDrawParams& InstanceCullingDrawParams) const;
 
+
+	FORCEINLINE bool TestPrimitiveFarCascadeConditions(bool bPrimitiveCastsFarShadow, const FBoxSphereBounds& Bounds) const;
+
 	friend class FShadowDepthVS;
 	friend class FShadowDepthBasePS;
 	friend class FShadowVolumeBoundProjectionVS;
