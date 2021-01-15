@@ -129,6 +129,7 @@ FConstraintProfileProperties::FConstraintProfileProperties()
 	, ProjectionLinearAlpha(1.0f)
 	, ProjectionAngularAlpha(0.0f)
 	, LinearBreakThreshold(300.f)
+	, LinearPlasticityThreshold(10.f)
 	, AngularBreakThreshold(500.f)
 	, AngularPlasticityThreshold(10.f)
 	, bDisableCollision(false)
@@ -138,6 +139,7 @@ FConstraintProfileProperties::FConstraintProfileProperties()
 	, bAngularBreakable(false)
 	, bAngularPlasticity(false)
 	, bLinearBreakable(false)
+	, bLinearPlasticity(false)
 {
 }
 
@@ -184,7 +186,7 @@ void FConstraintInstance::UpdatePlasticity()
 
 void FConstraintProfileProperties::UpdatePlasticity_AssumesLocked(const FPhysicsConstraintHandle& InConstraintRef) const
 {
-	const float LinearPlasticityLimit = MAX_FLT; // todo(Chaos) : implement
+	const float LinearPlasticityLimit = bLinearPlasticity ? LinearPlasticityThreshold : FLT_MAX;
 	const float AngularPlasticityLimit = bAngularPlasticity ? FMath::DegreesToRadians(AngularPlasticityThreshold) : MAX_FLT;
 
 	FPhysicsInterface::SetPlasticityLimits_AssumesLocked(InConstraintRef, LinearPlasticityLimit, AngularPlasticityLimit);

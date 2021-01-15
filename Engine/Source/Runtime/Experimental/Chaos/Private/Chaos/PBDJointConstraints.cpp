@@ -1313,9 +1313,9 @@ namespace Chaos
 			ApplyBreakThreshold(Dt, ConstraintIndex, Solver.GetNetLinearImpulse(), Solver.GetNetAngularImpulse());
 		}
 
-		if (/*(JointSettings.LinearPlasticityLimit != FLT_MAX) ||*/ (JointSettings.AngularPlasticityLimit != FLT_MAX)) // todo(chaos) : Implement Linear Plasticity
+		if ((JointSettings.LinearPlasticityLimit != FLT_MAX) || (JointSettings.AngularPlasticityLimit != FLT_MAX))
 		{
-			ApplyPlasticityLimits(Dt, ConstraintIndex, Solver.GetP(1) - Solver.GetP(0), Solver.GetQ(0).Inverse() * Solver.GetQ(1));
+			ApplyPlasticityLimits(Dt, ConstraintIndex, Particle1->X() - Particle0->X(), Particle0->R().Inverse() * Particle1->R());
 		}
 
 		return Solver.GetIsActive() || !bChaos_Joint_EarlyOut_Enabled;
@@ -1427,10 +1427,26 @@ namespace Chaos
 	void FPBDJointConstraints::ApplyPlasticityLimits(const FReal Dt, int32 ConstraintIndex, const FVec3& LinearDisplacement, const FRotation3& AngularDisplacement)
 	{
 		FPBDJointSettings& JointSettings = ConstraintSettings[ConstraintIndex];
+		FTransformPair& ConstraintFrame = ConstraintFrames[ConstraintIndex];
 
-		// @todo(chaos) : Implement Linear case
+		if (!FMath::IsNearlyEqual(JointSettings.LinearPlasticityLimit, FLT_MAX))
+		{
+			FTransform JointTransform = ConstraintFrame[0].GetRelativeTransform(ConstraintFrame[1]);
+			const FReal Delta = LinearDisplacement.Size();
+			const FReal TargetDelta = JointTransform.GetTranslation().Size();
+			if (!FMath::IsNearlyZero(TargetDelta) && !FMath::IsNearlyZero(Delta))
+			{
+				FReal Ratio = Delta / TargetDelta;
+				if ((1.f - Ratio) > JointSettings.LinearPlasticityLimit)
+				{
+					JointTransform.ScaleTranslation(Ratio);
+					ConstraintFrame[1] = JointTransform.GetRelativeTransformReverse(ConstraintFrame[0]);
+				}
+			}
+		}
 
-		if (JointSettings.AngularPlasticityLimit)
+
+		if (!FMath::IsNearlyEqual(JointSettings.AngularPlasticityLimit, FLT_MAX))
 		{
 			const FReal AngleDeg = JointSettings.AngularDrivePositionTarget.AngularDistance(AngularDisplacement);
 			if (AngleDeg > JointSettings.AngularPlasticityLimit)
