@@ -86,10 +86,10 @@ namespace RuntimeVirtualTexture
 	RENDERER_API void RenderPages(FRDGBuilder& GraphBuilder, FRenderPageBatchDesc const& InDesc);
 
 	/** 
-	 * Render a batch of pages for a runtime virtual texture. Performs the required scene rendering setup and 
-	 * creates a graph builder, such that it can be called from a render thread task.
+	 * Render a batch of pages for a runtime virtual texture. 
+	 * Performs the required scene rendering setup such that it can be called from a render thread task.
 	 */
-	RENDERER_API void RenderPagesStandAlone(FRHICommandListImmediate& RHICmdList, FRenderPageBatchDesc const& InDesc);
+	RENDERER_API void RenderPagesStandAlone(FRDGBuilder& GraphBuilder, FRenderPageBatchDesc const& InDesc);
 
 	UE_DEPRECATED(5.0, "This method has been refactored to use an FRDGBuilder instead.")
 	RENDERER_API void RenderPages(FRHICommandListImmediate& RHICmdList, FRenderPageBatchDesc const& InDesc);

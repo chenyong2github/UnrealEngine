@@ -1156,11 +1156,8 @@ namespace RuntimeVirtualTexture
 		}
 	}
 
-	void RenderPagesStandAlone(FRHICommandListImmediate& RHICmdList, FRenderPageBatchDesc const& InDesc)
+	void RenderPagesStandAlone(FRDGBuilder& GraphBuilder, FRenderPageBatchDesc const& InDesc)
 	{
-		FMemMark MemMark(FMemStack::Get());
-		FRDGBuilder GraphBuilder(RHICmdList);
-
 		// This is required to collect dynamic primitives from the views (not used here, but we must provide one).
 		FGPUSceneDynamicContext GPUSceneDynamicContext(InDesc.Scene->GPUScene);
 
@@ -1170,7 +1167,6 @@ namespace RuntimeVirtualTexture
 		FGPUSceneScopeBeginEndHelper GPUSceneScopeBeginEndHelper(InDesc.Scene->GPUScene, GPUSceneDynamicContext, *InDesc.Scene);
 		InDesc.Scene->GPUScene.Update(GraphBuilder, *InDesc.Scene);
 		RenderPages(GraphBuilder, InDesc);
-		GraphBuilder.Execute();
 	}
 
 	void RenderPages(FRHICommandListImmediate& RHICmdList, FRenderPageBatchDesc const& InDesc)

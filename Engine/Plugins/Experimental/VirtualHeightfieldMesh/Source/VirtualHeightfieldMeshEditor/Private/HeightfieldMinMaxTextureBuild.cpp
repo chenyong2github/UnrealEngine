@@ -190,6 +190,9 @@ namespace VirtualHeightfieldMesh
 					MaxLevel, MipLevel = 0](FRHICommandListImmediate& RHICmdList)
 				{
 					// Rendering one page at a time, but could batch here?
+					FMemMark Mark(FMemStack::Get());
+					FRDGBuilder GraphBuilder(RHICmdList);
+
 					const FBox2D TileBox(FVector2D(0, 0), FVector2D(TileSize, TileSize));
 					const FIntRect TileRect(0, 0, TileSize, TileSize);
 
@@ -213,18 +216,15 @@ namespace VirtualHeightfieldMesh
 					Desc.PageDescs[0].UVRange = UVRange;
 					Desc.PageDescs[0].vLevel = MipLevel;
 
-					FMemMark Mark(FMemStack::Get());
-					FRDGBuilder GraphBuilder(RHICmdList);
-
-					RenderPages(GraphBuilder, Desc);
+					RenderPagesStandAlone(GraphBuilder, Desc);
 
 					// Downsample page to texel in output
-
 					FRDGTextureRef SrcTexture = GraphBuilder.RegisterExternalTexture(RenderTileResources.GetTileRenderTarget());
 					FRDGTextureRef DstTexture = GraphBuilder.RegisterExternalTexture(RenderTileResources.GetFinalRenderTarget());
 					FRDGTextureUAVRef DstTextureUAV = GraphBuilder.CreateUAV(DstTexture);
-
+					
 					DownsampleMinMaxAndCopy(GraphBuilder, SrcTexture, FIntPoint(TileSize, TileSize), DstTextureUAV, FIntPoint(TileX, TileY));
+					
 					GraphBuilder.Execute();
 				});
 			}

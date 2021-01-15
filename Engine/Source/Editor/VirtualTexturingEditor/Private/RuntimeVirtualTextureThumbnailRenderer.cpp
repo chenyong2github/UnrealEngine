@@ -81,6 +81,9 @@ void URuntimeVirtualTextureThumbnailRenderer::Draw(UObject* Object, int32 X, int
 	{
 		FMaterialRenderProxy::UpdateDeferredCachedUniformExpressions();
 
+		FMemMark MemMark(FMemStack::Get());
+		FRDGBuilder GraphBuilder(RHICmdList);
+
 		RuntimeVirtualTexture::FRenderPageBatchDesc Desc;
 		Desc.Scene = Scene->GetRenderScene();
 		Desc.RuntimeVirtualTextureMask = 1 << VirtualTextureSceneIndex;
@@ -97,6 +100,8 @@ void URuntimeVirtualTextureThumbnailRenderer::Draw(UObject* Object, int32 X, int
 		Desc.PageDescs[0].UVRange = FBox2D(FVector2D(0, 0), FVector2D(1, 1));
 		Desc.PageDescs[0].vLevel = MaxLevel;
 
-		RuntimeVirtualTexture::RenderPagesStandAlone(RHICmdList, Desc);
+		RuntimeVirtualTexture::RenderPagesStandAlone(GraphBuilder, Desc);
+
+		GraphBuilder.Execute();
 	});
 }
