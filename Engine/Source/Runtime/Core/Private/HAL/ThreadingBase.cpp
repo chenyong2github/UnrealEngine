@@ -90,7 +90,7 @@ FTaskTagScope::FTaskTagScope(bool InTagOnlyIfNone, ETaskTag InTag) : Tag(InTag),
 	}
 	
 	ParentTag = ActiveTaskTag;
-	if (!TagOnlyIfNone || ActiveTaskTag == ETaskTag::ENone)
+	if (!TagOnlyIfNone || ActiveTaskTag == ETaskTag::ENone || ActiveTaskTag == ETaskTag::EBusyWait)
 	{
 		ActiveTaskTag = Tag;
 	}
@@ -111,7 +111,7 @@ FTaskTagScope::FTaskTagScope(bool InTagOnlyIfNone, ETaskTag InTag) : Tag(InTag),
 FTaskTagScope::~FTaskTagScope()
 {
 	checkf(TagOnlyIfNone || ActiveTaskTag == Tag, TEXT("ActiveTaskTag(%x) corrupted needs to be Tag(%x)"), FTaskTagScope::GetCurrentTag(), Tag);
-	if (!TagOnlyIfNone || ParentTag == ETaskTag::ENone)
+	if (!TagOnlyIfNone || ParentTag == ETaskTag::ENone || ParentTag == ETaskTag::EBusyWait)
 	{
 		ActiveTaskTag = ParentTag;
 	}

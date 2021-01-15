@@ -287,10 +287,9 @@ private:
 		InQueuedWork->InternalData = QueuedWorkInternalData;
 		
 		checkSlow(int32(InPriority) < int32(EQueuedWorkPriority::Count));
-		const LowLevelTasks::ETaskPriority Mapping[int32(EQueuedWorkPriority::Count)] = { LowLevelTasks::ETaskPriority::Normal, LowLevelTasks::ETaskPriority::Normal, LowLevelTasks::ETaskPriority::Low, LowLevelTasks::ETaskPriority::Low, LowLevelTasks::ETaskPriority::Low };
+		EQueuedWorkPriority Priority = PriorityMapper(InPriority);
 
-		LowLevelTasks::ETaskPriority Priority = Mapping[int32(PriorityMapper(InPriority))];
-		QueuedWorkInternalData->Task.Init(TEXT("FQueuedLowLevelThreadPoolTask"), Priority, [InQueuedWork]
+		QueuedWorkInternalData->Task.Init(TEXT("FQueuedLowLevelThreadPoolTask"), LowLevelTasks::ETaskPriority::Background, [InQueuedWork]
 		{
 			FMemMark Mark(FMemStack::Get());
 			InQueuedWork->DoThreadedWork();
@@ -372,11 +371,11 @@ protected:
 	}
 
 private:
-	FAAArrayQueue<FQueuedWorkInternalData> PendingWork[int32(LowLevelTasks::ETaskPriority::Count)];
+	FAAArrayQueue<FQueuedWorkInternalData> PendingWork[int32(EQueuedWorkPriority::Count)];
 
 	inline FQueuedWorkInternalData* Dequeue()
 	{
-		for (int32 i = 0; i < int32(LowLevelTasks::ETaskPriority::Count); i++)
+		for (int32 i = 0; i < int32(EQueuedWorkPriority::Count); i++)
 		{
 			FQueuedWorkInternalData* QueuedWork = PendingWork[i].dequeue();
 			if (QueuedWork)
@@ -387,7 +386,7 @@ private:
 		return nullptr;
 	}
 
-	inline void Enqueue(LowLevelTasks::ETaskPriority Priority, FQueuedWorkInternalData* Item)
+	inline void Enqueue(EQueuedWorkPriority Priority, FQueuedWorkInternalData* Item)
 	{
 		PendingWork[int32(Priority)].enqueue(Item);
 	}

@@ -24,7 +24,7 @@ namespace LowLevelTasks
 		UE_NONCOPYABLE(FScheduler);
 		static constexpr uint32 WorkerSpinCycles = 53;
 
-		using FQueueRegistry	= TLocalQueueRegistry<FTask, uint32(ETaskPriority::Count)>;
+		using FQueueRegistry	= TLocalQueueRegistry<>;
 		using FLocalQueueType	= FQueueRegistry::TLocalQueue;
 
 		static thread_local FLocalQueueType* LocalQueue;
@@ -103,8 +103,8 @@ namespace LowLevelTasks
 		CORE_API void BusyWaitInternal(const FConditional& Conditional);
 		FORCENOINLINE void TrySleeping(FSleepEvent* WorkerEvent, FQueueRegistry::FOutOfWork& OutOfWork, uint32& WaitCount, bool& Drowsing);
 		inline bool WakeUpWorker();
-		template<FTask* (FLocalQueueType::*DequeueFunction)()>
-		FORCEINLINE_DEBUGGABLE static bool TryExecuteTaskFrom(FLocalQueueType* Queue, FQueueRegistry::FOutOfWork& OutOfWork);
+		template<FTask* (FLocalQueueType::*DequeueFunction)(bool)>
+		FORCEINLINE_DEBUGGABLE bool TryExecuteTaskFrom(FLocalQueueType* Queue, FQueueRegistry::FOutOfWork& OutOfWork, bool GetBackgroundTask);
 
 	private:
 		FEventQueueType 			SleepEventQueue;
@@ -114,6 +114,7 @@ namespace LowLevelTasks
 		TArray<FLocalQueueType>		WorkerLocalQueues;
 		std::atomic_uint			ActiveWorkers { 0 };
 		std::atomic_uint			NextWorkerId { 0 };
+		std::atomic_uint			ActiveBackgroundTasks { 0 };
 	};
 
 	FORCEINLINE_DEBUGGABLE bool TryLaunch(FTask& Task, EQueuePreference QueuePreference = EQueuePreference::DefaultPreference)

@@ -4,6 +4,7 @@
 #include "Async/Fundamental/Task.h"
 #include "Logging/LogMacros.h"
 #include "Misc/ScopeLock.h" 
+#include "CoreGlobals.h"
 
 namespace LowLevelTasks
 {
@@ -126,17 +127,30 @@ namespace LowLevelTasks
 		return ActiveTask;
 	}
 
-	template<FTask* (FScheduler::FLocalQueueType::*DequeueFunction)()>
-	FORCEINLINE_DEBUGGABLE bool FScheduler::TryExecuteTaskFrom(FLocalQueueType* Queue, FQueueRegistry::FOutOfWork& OutOfWork)
+	template<FTask* (FScheduler::FLocalQueueType::*DequeueFunction)(bool)>
+	FORCEINLINE_DEBUGGABLE bool FScheduler::TryExecuteTaskFrom(FLocalQueueType* Queue, FQueueRegistry::FOutOfWork& OutOfWork, bool GetBackgroundTask)
 	{
-		FTask* Task = (Queue->*DequeueFunction)();
+		int32 NumActiveWorkers = int(ActiveWorkers.load(std::memory_order_relaxed));
+		GetBackgroundTask &= int(ActiveBackgroundTasks.load(std::memory_order_relaxed)) < FMath::Max(1, NumActiveWorkers - 2);
+		FTask* Task = (Queue->*DequeueFunction)(GetBackgroundTask);
 		if (Task)
 		{	
 			OutOfWork.Stop();
+			const bool IsBackgroundTask = Task->GetPriority() == ETaskPriority::Background;
+			if (IsBackgroundTask)
+			{
+				ActiveBackgroundTasks.fetch_add(1, std::memory_order_relaxed);
+			}
+			
 			FTask* OldTask = ActiveTask;
 			ActiveTask = Task;
 			Task->ExecuteTask();
 			ActiveTask = OldTask;
+
+			if (IsBackgroundTask)
+			{
+				ActiveBackgroundTasks.fetch_sub(1, std::memory_order_relaxed);
+			}
 			return true;
 		}
 		return false;
@@ -162,15 +176,15 @@ namespace LowLevelTasks
 		FQueueRegistry::FOutOfWork OutOfWork = QueueRegistry.GetOutOfWorkScope();
 		while (true)
 		{
-			while(TryExecuteTaskFrom<&FLocalQueueType::DequeueLocal>(WorkerLocalQueue, OutOfWork)
-			   || TryExecuteTaskFrom<&FLocalQueueType::DequeueGlobal>(WorkerLocalQueue, OutOfWork))
-			{			
+			while(TryExecuteTaskFrom<&FLocalQueueType::DequeueLocal>(WorkerLocalQueue, OutOfWork, true)
+			   || TryExecuteTaskFrom<&FLocalQueueType::DequeueGlobal>(WorkerLocalQueue, OutOfWork, true))
+			{		
 				Drowsing = false;
 				WaitCount = 0;
 			}
 
-			while(TryExecuteTaskFrom<&FLocalQueueType::DequeueLocal>(WorkerLocalQueue, OutOfWork)
-			   || TryExecuteTaskFrom<&FLocalQueueType::DequeueSteal>(WorkerLocalQueue, OutOfWork))
+			while(TryExecuteTaskFrom<&FLocalQueueType::DequeueLocal>(WorkerLocalQueue, OutOfWork, true)
+			   || TryExecuteTaskFrom<&FLocalQueueType::DequeueSteal>(WorkerLocalQueue, OutOfWork, true))
 			{
 				Drowsing = false;
 				WaitCount = 0;
@@ -208,30 +222,44 @@ namespace LowLevelTasks
 	void FScheduler::BusyWaitInternal(const FConditional& Conditional)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FScheduler::BusyWaitInternal);
+		FTaskTagScope NoneScope(ETaskTag::EBusyWait);
 
 		checkSlow(LocalQueue != nullptr);
 		check(ActiveWorkers.load(std::memory_order_relaxed));
 		FLocalQueueType* WorkerLocalQueue = LocalQueue;
 
 		uint32 WaitCount = 0;
+		bool GetBackgroundtasks = ActiveTask->GetPriority() == ETaskPriority::Background;
+		if (GetBackgroundtasks)
+		{
+			ActiveBackgroundTasks.fetch_sub(1, std::memory_order_relaxed);
+		}
 		FQueueRegistry::FOutOfWork OutOfWork = QueueRegistry.GetOutOfWorkScope();
 		while (true)
 		{
-			while(TryExecuteTaskFrom<&FLocalQueueType::DequeueLocal>(WorkerLocalQueue, OutOfWork)
-			   || TryExecuteTaskFrom<&FLocalQueueType::DequeueGlobal>(WorkerLocalQueue, OutOfWork))
+			while(TryExecuteTaskFrom<&FLocalQueueType::DequeueLocal>(WorkerLocalQueue, OutOfWork, GetBackgroundtasks)
+			   || TryExecuteTaskFrom<&FLocalQueueType::DequeueGlobal>(WorkerLocalQueue, OutOfWork, GetBackgroundtasks))
 			{
 				if (Conditional())
 				{
+					if (GetBackgroundtasks)
+					{
+						ActiveBackgroundTasks.fetch_add(1, std::memory_order_relaxed);
+					}
 					return;
 				}
 				WaitCount = 0;
 			}
 
-			while(TryExecuteTaskFrom<&FLocalQueueType::DequeueLocal>(WorkerLocalQueue, OutOfWork)
-			   || TryExecuteTaskFrom<&FLocalQueueType::DequeueSteal>(WorkerLocalQueue, OutOfWork))
+			while(TryExecuteTaskFrom<&FLocalQueueType::DequeueLocal>(WorkerLocalQueue, OutOfWork, GetBackgroundtasks)
+			   || TryExecuteTaskFrom<&FLocalQueueType::DequeueSteal>(WorkerLocalQueue, OutOfWork, GetBackgroundtasks))
 			{
 				if (Conditional())
 				{
+					if (GetBackgroundtasks)
+					{
+						ActiveBackgroundTasks.fetch_add(1, std::memory_order_relaxed);
+					}
 					return;
 				}
 				WaitCount = 0;
@@ -239,11 +267,16 @@ namespace LowLevelTasks
 
 			if (Conditional())
 			{
+				if (GetBackgroundtasks)
+				{
+					ActiveBackgroundTasks.fetch_add(1, std::memory_order_relaxed);
+				}
 				return;
 			}
 
 			if (WaitCount < WorkerSpinCycles)
 			{
+				OutOfWork.Start();
 				FPlatformProcess::Yield();
 				FPlatformProcess::Yield();
 				WaitCount++;

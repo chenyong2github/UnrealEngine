@@ -97,7 +97,7 @@ static FAutoConsoleVariableRef CVarForkedProcessMaxWorkerThreads(
 	TEXT("Configures the number of worker threads a forked process should spawn if it allows multithreading.")
 );
 
-CORE_API int32 GUseNewTaskBackend = 1;
+CORE_API int32 GUseNewTaskBackend = 0;
 
 #if CREATE_HIPRI_TASK_THREADS || CREATE_BACKGROUND_TASK_THREADS
 	static void ThreadSwitchForABTest(const TArray<FString>& Args)
@@ -1765,9 +1765,6 @@ class FTaskGraphCompatibilityImplementation final : public FTaskGraphInterface
 	TArray<FWorkerThread> NamedThreads;
 
 	FThreadSafeCounter	ReentrancyCheck;
-
-	std::atomic_int					ConcurrentNormalTasks { 0 };
-	std::atomic_int					ConcurrentBackgroundTasks { 0 };
 	FAAArrayQueue<FBaseGraphTask>	QueuedBackgroundTasks;
 
 public:
@@ -1854,58 +1851,15 @@ private:
 		{
 			uint32 ThreadPriority = GetThreadPriorityIndex(InThreadToExecuteOn);
 			check(ThreadPriority < uint32(LowLevelTasks::ETaskPriority::Count));
-			LowLevelTasks::ETaskPriority Conversion[int(ENamedThreads::NumThreadPriorities)] = { LowLevelTasks::ETaskPriority::Normal, LowLevelTasks::ETaskPriority::High, LowLevelTasks::ETaskPriority::Low };
-			
-			const bool IsBackgroundTask = !!(InThreadToExecuteOn & ENamedThreads::BackgroundThreadPriority);
+			LowLevelTasks::ETaskPriority Conversion[int(ENamedThreads::NumThreadPriorities)] = { LowLevelTasks::ETaskPriority::Normal, LowLevelTasks::ETaskPriority::High, LowLevelTasks::ETaskPriority::Background };
+			LowLevelTasks::ETaskPriority Priority = Conversion[ThreadPriority];
 
-			Task->TaskHandle.Init(TEXT("TaskGraphTask"), Conversion[ThreadPriority], [Task, InThreadToExecuteOn]()
+			Task->TaskHandle.Init(TEXT("TaskGraphTask"), Priority, [Task, InThreadToExecuteOn, Deleter(LowLevelTasks::TDeleter<FBaseGraphTask, &FBaseGraphTask::DeleteTask>(Task))]()
 			{
 				Task->Execute(NewTasks, InThreadToExecuteOn, false);
-			}, 
-			[this, Deleter(LowLevelTasks::TDeleter<FBaseGraphTask, &FBaseGraphTask::DeleteTask>(Task)), IsBackgroundTask]()
-			{
-				if (IsBackgroundTask)
-				{
-					ConcurrentBackgroundTasks--;
-				}
-				else
-				{
-					ConcurrentNormalTasks--;
-				}
-
-				const int MaxBackgroundTasks = FMath::Max(1, NumWorkerThreads - 1 - ConcurrentNormalTasks.load(std::memory_order_relaxed));
-				uint32 NumSpawned = 0;
-				while (ConcurrentBackgroundTasks.load(std::memory_order_relaxed) < MaxBackgroundTasks)
-				{
-					FBaseGraphTask* QueuedTask = QueuedBackgroundTasks.dequeue();
-					if (QueuedTask)
-					{
-						ConcurrentBackgroundTasks++;
-						verifySlow(LowLevelTasks::TryLaunch(QueuedTask->TaskHandle, (NumSpawned++) ? LowLevelTasks::EQueuePreference::GlobalQueuePreference : LowLevelTasks::EQueuePreference::LocalQueuePreference));
-						continue;
-					}
-					break;
-				}
 			});
-
-			if (IsBackgroundTask)
-			{
-				const int MaxBackgroundTasks = FMath::Max(1, NumWorkerThreads - 1 - ConcurrentNormalTasks.load(std::memory_order_relaxed));
-				if(ConcurrentBackgroundTasks.load(std::memory_order_relaxed) < MaxBackgroundTasks)
-				{
-					ConcurrentBackgroundTasks++;
-					verifySlow(LowLevelTasks::TryLaunch(Task->TaskHandle, LowLevelTasks::EQueuePreference::GlobalQueuePreference));			
-				}
-				else
-				{
-					QueuedBackgroundTasks.enqueue(Task);
-				}
-			}
-			else
-			{
-				ConcurrentNormalTasks++;
-				verifySlow(LowLevelTasks::TryLaunch(Task->TaskHandle, LowLevelTasks::EQueuePreference::GlobalQueuePreference));
-			}
+	
+			verifySlow(LowLevelTasks::TryLaunch(Task->TaskHandle, LowLevelTasks::EQueuePreference::GlobalQueuePreference));
 			return;
 		}
 
@@ -2043,27 +1997,18 @@ private:
 		}
 		else
 		{
-			if (!FTaskGraphInterface::IsMultithread())
+			LowLevelTasks::BusyWaitUntil([Index(0), &Tasks]() mutable
 			{
-				bool bAnyPending = false;
-				for (int32 Index = 0; Index < Tasks.Num(); Index++)
+				while (Index < Tasks.Num())
 				{
-					FGraphEvent* Task = Tasks[Index].GetReference();
-					if (Task && !Task->IsComplete())
+					if (!Tasks[Index]->IsComplete())
 					{
-						bAnyPending = true;
-						break;
+						return false;
 					}
+					Index++;
 				}
-				if (!bAnyPending)
-				{
-					return;
-				}
-				UE_LOG(LogTaskGraph, Fatal, TEXT("Recursive waits are not allowed in single threaded mode."));
-			}
-			// We will just stall this thread on an event while we wait
-			FScopedEvent Event;
-			TriggerEventWhenTasksComplete(Event.Get(), Tasks, CurrentThreadIfKnown);
+				return true;
+			});
 		}
 	}
 

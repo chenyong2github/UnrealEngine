@@ -9,12 +9,14 @@
 #include "Misc/MessageDialog.h"
 #include "Misc/ScopedSlowTask.h"
 #include "Misc/QueuedThreadPool.h"
+#include "Misc/QueuedThreadPoolWrapper.h"
 #include "HAL/FileManager.h"
 #include "HAL/PlatformAffinity.h"
 #include "Misc/FileHelper.h"
 #include "Internationalization/TextLocalizationManagerGlobals.h"
 #include "Logging/LogSuppressionInterface.h"
 #include "Async/TaskGraphInterfaces.h"
+#include "Async/Fundamental/Scheduler.h"
 #include "MemPro/MemProProfiler.h"
 #include "Misc/TimeGuard.h"
 #include "Misc/Paths.h"
@@ -92,7 +94,6 @@
 	#include "Interfaces/IEditorStyleModule.h"
 	#include "PIEPreviewDeviceProfileSelectorModule.h"
 	#include "AssetCompilingManager.h"
-	#include "Misc/QueuedThreadPoolWrapper.h"
 	#include "ShaderCompiler.h"
 
 	#if PLATFORM_WINDOWS
@@ -2184,7 +2185,6 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 				NumThreadsInLargeThreadPool = FMath::Max(FPlatformMisc::NumberOfCoresIncludingHyperthreads() - 2, 2);
 				NumThreadsInThreadPool = FPlatformMisc::NumberOfWorkerThreadsToSpawn();
 				GLargeThreadPool = FQueuedThreadPool::Allocate();
-
 			}
 			else
 			{
@@ -2216,15 +2216,40 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 		}
 #else
 		{
-			GThreadPool = FQueuedThreadPool::Allocate();
-			int32 NumThreadsInThreadPool = FPlatformMisc::NumberOfWorkerThreadsToSpawn();
-
-			// we are only going to give dedicated servers one pool thread
-			if (FPlatformProperties::IsServerOnly())
+			extern CORE_API int32 GUseNewTaskBackend;
+			if (!GUseNewTaskBackend)
 			{
-				NumThreadsInThreadPool = 1;
+				GThreadPool = FQueuedThreadPool::Allocate();
+				int32 NumThreadsInThreadPool = FPlatformMisc::NumberOfWorkerThreadsToSpawn();
+
+				// we are only going to give dedicated servers one pool thread
+				if (FPlatformProperties::IsServerOnly())
+				{
+					NumThreadsInThreadPool = 1;
+				}
+				verify(GThreadPool->Create(NumThreadsInThreadPool, StackSize * 1024, TPri_SlightlyBelowNormal, TEXT("ThreadPool")));
 			}
-			verify(GThreadPool->Create(NumThreadsInThreadPool, StackSize * 1024, TPri_SlightlyBelowNormal, TEXT("ThreadPool")));
+			else
+			{
+				int NumThreadsInWorkerPool = FMath::Max(LowLevelTasks::FScheduler::Get().GetNumWorkers() - 2, 2u);			
+				if(NumThreadsInWorkerPool < int(LowLevelTasks::FScheduler::Get().GetNumWorkers()))
+				{
+					NumThreadsInWorkerPool = FMath::Max(NumThreadsInWorkerPool - 1, 1);
+					GThreadPool = new FQueuedLowLevelThreadPool(NumThreadsInWorkerPool);
+				}
+				else
+				{
+					GThreadPool = FQueuedThreadPool::Allocate();
+					int32 NumThreadsInThreadPool = FPlatformMisc::NumberOfWorkerThreadsToSpawn();
+
+					// we are only going to give dedicated servers one pool thread
+					if (FPlatformProperties::IsServerOnly())
+					{
+						NumThreadsInThreadPool = 1;
+					}
+					verify(GThreadPool->Create(NumThreadsInThreadPool, StackSize * 1024, TPri_SlightlyBelowNormal, TEXT("ThreadPool")));
+				}
+			}
 		}
 #endif
 		{

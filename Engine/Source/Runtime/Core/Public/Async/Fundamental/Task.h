@@ -15,7 +15,7 @@ namespace LowLevelTasks
 		High,
 		Normal,
 		Default = Normal,
-		Low,
+		Background,
 		Count
 	};
 

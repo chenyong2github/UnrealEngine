@@ -5,9 +5,12 @@
 #include "Math/RandomStream.h"
 #include "Experimental/Containers/FAAArrayQueue.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
+#include "Async/Fundamental/Task.h"
 
 #include <atomic>
 
+namespace LowLevelTasks
+{
 namespace LocalQueue_Impl
 {
 template<uint32 NumItems>
@@ -153,7 +156,7 @@ public:
  * A Dequeue Operation can only be done starting from a LocalQueue, than the GlobalQueue will be checked.                                   *
  * Finally Items might get Stolen from other LocalQueues that are registered with the LocalQueueRegistry.                                   *
  ********************************************************************************************************************************************/
-template<typename ItemType, uint32 NumPriorities, uint32 NumLocalItems = 1024>
+template<uint32 NumLocalItems = 1024>
 class TLocalQueueRegistry
 {
 public:
@@ -164,7 +167,7 @@ public:
 	class FOutOfWork
 	{
 	private:
-		template<typename, uint32, uint32>
+		template<uint32>
 		friend class TLocalQueueRegistry;
 
 		std::atomic_int& NumWorkersLookingForWork;
@@ -218,8 +221,8 @@ public:
 	};
 
 private:
-	using FLocalQueueType	 = LocalQueue_Impl::TWorkStealingQueue2<ItemType, NumLocalItems>;
-	using FOverflowQueueType = FAAArrayQueue<ItemType>;
+	using FLocalQueueType	 = LocalQueue_Impl::TWorkStealingQueue2<FTask, NumLocalItems>;
+	using FOverflowQueueType = FAAArrayQueue<FTask>;
 	using DequeueHazard		 = typename FOverflowQueueType::DequeueHazard;
 
 private:
@@ -250,7 +253,7 @@ private:
 public:
 	class TLocalQueue
 	{
-		template<typename, uint32, uint32>
+		template<uint32>
 		friend class TLocalQueueRegistry;
 
 	public:
@@ -259,7 +262,7 @@ public:
 			checkSlow(Registry);
 			StealHazard = FStealHazard(Registry->QueueCollection, Registry->HazardsCollection);
 			Registry->AddLocalQueue(StealHazard, this);
-			for (int PriorityIndex = 0; PriorityIndex < NumPriorities; PriorityIndex++)
+			for (int32 PriorityIndex = 0; PriorityIndex < int32(ETaskPriority::Count); PriorityIndex++)
 			{
 				DequeueHazards[PriorityIndex] = Registry->OverflowQueues[PriorityIndex].getHeadHazard();
 			}
@@ -279,11 +282,11 @@ public:
 			TLocalQueueRegistry* Registry = Queue->Registry;
 			Queue->Registry = nullptr;
 
-			for (int32 PriorityIndex = 0; PriorityIndex < NumPriorities; PriorityIndex++)
+			for (int32 PriorityIndex = 0; PriorityIndex < int32(ETaskPriority::Count); PriorityIndex++)
 			{
 				while (true)
 				{
-					ItemType* Item;
+					FTask* Item;
 					if (!Queue->LocalQueues[PriorityIndex].Get(Item))
 					{
 						break;
@@ -296,10 +299,10 @@ public:
 
 		//add an item to the local queue and overflow into the global queue if full
 		// returns true if we should wake a worker
-		inline bool Enqueue(ItemType* Item, uint32 PriorityIndex)
+		inline bool Enqueue(FTask* Item, uint32 PriorityIndex)
 		{
 			checkSlow(Registry);
-			checkSlow(PriorityIndex < NumPriorities);
+			checkSlow(PriorityIndex < int32(ETaskPriority::Count));
 			checkSlow(Item != nullptr);
 
 			if (!LocalQueues[PriorityIndex].Put(Item))
@@ -310,12 +313,13 @@ public:
 			return (LocalTasksSinceLastDequeue++ != 0) && Registry->AnyWorkerLookingForWork();
 		}
 
-		inline ItemType* DequeueLocal()
+		inline FTask* DequeueLocal(bool GetBackGroundTasks)
 		{
 			LocalTasksSinceLastDequeue = 0;
-			for (int32 PriorityIndex = 0; PriorityIndex < NumPriorities; PriorityIndex++)
+			int32 MaxPriority = GetBackGroundTasks ? int32(ETaskPriority::Count) : int32(ETaskPriority::Background);
+			for (int32 PriorityIndex = 0; PriorityIndex < MaxPriority; PriorityIndex++)
 			{
-				ItemType* Item;
+				FTask* Item;
 				if (LocalQueues[PriorityIndex].Get(Item))
 				{
 					return Item;
@@ -324,13 +328,14 @@ public:
 			return nullptr;
 		}
 
-		inline ItemType* DequeueGlobal()
+		inline FTask* DequeueGlobal(bool GetBackGroundTasks)
 		{
 			if (Registry->NumActiveWorkers.load(std::memory_order_relaxed) >= (2 * Registry->NumWorkersLookingForWork.load(std::memory_order_relaxed) - 1))
 			{
-				for (int32 PriorityIndex = 0; PriorityIndex < NumPriorities; PriorityIndex++)
+				int32 MaxPriority = GetBackGroundTasks ? int32(ETaskPriority::Count) : int32(ETaskPriority::Background);
+				for (int32 PriorityIndex = 0; PriorityIndex < MaxPriority; PriorityIndex++)
 				{
-					ItemType* Item = Registry->OverflowQueues[PriorityIndex].dequeue(DequeueHazards[PriorityIndex]);
+					FTask* Item = Registry->OverflowQueues[PriorityIndex].dequeue(DequeueHazards[PriorityIndex]);
 					if (Item)
 					{
 						return Item;
@@ -340,7 +345,7 @@ public:
 			return nullptr;
 		}
 
-		inline ItemType* DequeueSteal()
+		inline FTask* DequeueSteal(bool GetBackGroundTasks)
 		{
 			if (Registry->NumActiveWorkers.load(std::memory_order_relaxed) >= (2 * Registry->NumWorkersLookingForWork.load(std::memory_order_relaxed) - 1))
 			{
@@ -349,7 +354,7 @@ public:
 					CachedRandomIndex = Random.GetUnsignedInt();
 				}
 
-				ItemType* Result = Registry->StealItem(StealHazard, CachedRandomIndex, CachedPriorityIndex);
+				FTask* Result = Registry->StealItem(StealHazard, CachedRandomIndex, CachedPriorityIndex, GetBackGroundTasks);
 				if (Result)
 				{
 					return Result;
@@ -360,8 +365,8 @@ public:
 
 	private:
 		static constexpr uint32	InvalidIndex = ~0u;
-		FLocalQueueType			LocalQueues[NumPriorities];
-		DequeueHazard			DequeueHazards[NumPriorities];
+		FLocalQueueType			LocalQueues[uint32(ETaskPriority::Count)];
+		DequeueHazard			DequeueHazards[uint32(ETaskPriority::Count)];
 		FStealHazard			StealHazard;
 		TLocalQueueRegistry*	Registry;
 		FRandomStream			Random;
@@ -425,24 +430,25 @@ private:
 	}
 
 	// StealItem tries to steal an Item from a Registered LocalQueue
-	ItemType* StealItem(FStealHazard& Hazard, uint32& CachedRandomIndex, uint32& CachedPriorityIndex)
+	FTask* StealItem(FStealHazard& Hazard, uint32& CachedRandomIndex, uint32& CachedPriorityIndex, bool GetBackGroundTasks)
 	{
 		FLocalQueueCollection* Queues = Hazard.Get();
 		uint32 NumQueues = Queues->LocalQueues.Num();
+		uint32 MaxPriority = GetBackGroundTasks ? int32(ETaskPriority::Count) : int32(ETaskPriority::Background);
 		CachedRandomIndex = CachedRandomIndex % NumQueues;
 
 		for(uint32 i = 0; i < NumQueues; i++)
 		{
 			TLocalQueue* LocalQueue = Queues->LocalQueues[CachedRandomIndex];
-			for(uint32 j = 0; j < NumPriorities; j++)
+			for(uint32 PriorityIndex = 0; PriorityIndex < MaxPriority; PriorityIndex++)
 			{	
-				ItemType* Item;
+				FTask* Item;
 				if (LocalQueue->LocalQueues[CachedPriorityIndex].Steal(Item))
 				{
 					Hazard.Retire();
 					return Item;
 				}
-				CachedPriorityIndex = ++CachedPriorityIndex < NumPriorities ? CachedPriorityIndex : 0;
+				CachedPriorityIndex = ++CachedPriorityIndex < MaxPriority ? CachedPriorityIndex : 0;
 			}
 			CachedRandomIndex = ++CachedRandomIndex < NumQueues ? CachedRandomIndex : 0;
 		}
@@ -455,9 +461,9 @@ private:
 public:
 	// enqueue an Item directy into the Global OverflowQueue
 	// returns true if we should wake a worker for stealing
-	bool Enqueue(ItemType* Item, uint32 PriorityIndex)
+	bool Enqueue(FTask* Item, uint32 PriorityIndex)
 	{
-		check(PriorityIndex < NumPriorities);
+		check(PriorityIndex < int32(ETaskPriority::Count));
 		check(Item != nullptr);
 
 		OverflowQueues[PriorityIndex].enqueue(Item);
@@ -466,11 +472,11 @@ public:
 	}
 
 	// grab an Item directy from the Global OverflowQueue
-	ItemType* Dequeue()
+	FTask* Dequeue()
 	{
-		for (int32 PriorityIndex = 0; PriorityIndex < NumPriorities; PriorityIndex++)
+		for (int32 PriorityIndex = 0; PriorityIndex < int32(ETaskPriority::Count); PriorityIndex++)
 		{
-			ItemType* Result = OverflowQueues[PriorityIndex].dequeue();
+			FTask* Result = OverflowQueues[PriorityIndex].dequeue();
 			if (Result)
 			{
 				return Result;
@@ -484,18 +490,19 @@ public:
 		return FOutOfWork(NumWorkersLookingForWork);
 	}
 
-private:
 	inline bool AnyWorkerLookingForWork() const
 	{
 		return NumWorkersLookingForWork.load(std::memory_order_acquire) == 0;
 	}
 
-	FOverflowQueueType	  OverflowQueues[NumPriorities];
+private:
+	FOverflowQueueType	  OverflowQueues[uint32(ETaskPriority::Count)];
 	FHazardPointerCollection		  HazardsCollection;
 	std::atomic<FLocalQueueCollection*>	QueueCollection;
 	std::atomic_int NumWorkersLookingForWork { 0 };
 	std::atomic_int NumActiveWorkers { 0 };
 };
 
-template<typename ItemType, uint32 NumPriorities, uint32 NumLocalItems>
-uint32 TLocalQueueRegistry<ItemType, NumPriorities, NumLocalItems>::FOutOfWork::WorkerLookingForWorkTraceId = 0;
+template<uint32 NumLocalItems>
+uint32 TLocalQueueRegistry<NumLocalItems>::FOutOfWork::WorkerLookingForWorkTraceId = 0;
+}
