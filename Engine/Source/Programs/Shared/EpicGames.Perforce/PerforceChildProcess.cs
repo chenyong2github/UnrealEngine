@@ -1,6 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using Datadog.Trace;
 using EpicGames.Core;
 using Microsoft.Extensions.Logging;
 using System;
@@ -55,7 +54,7 @@ namespace EpicGames.Perforce
 		/// <summary>
 		/// Scope object for tracing
 		/// </summary>
-		Scope Scope;
+		ITraceSpan Scope;
 
 		/// <summary>
 		/// Buffer for data from the child process
@@ -90,8 +89,8 @@ namespace EpicGames.Perforce
 			string FullArgumentList = "-G " + Arguments;
 			Logger.LogDebug("Running {0} {1}", PerforceFileName, FullArgumentList);
 
-			Scope = Tracer.Instance.StartActive($"{GetCommandName(Arguments)}", serviceName: "perforce");
-			Scope.Span.SetTag("arguments", FullArgumentList);
+			Scope = TraceSpan.Create($"{GetCommandName(Arguments)}", Service: "perforce");
+			Scope.AddMetadata("arguments", FullArgumentList);
 
 			ChildProcessGroup = new ManagedProcessGroup();
 			ChildProcess = new ManagedProcess(ChildProcessGroup, PerforceFileName, FullArgumentList, null, null, InputData, ProcessPriorityClass.Normal);
