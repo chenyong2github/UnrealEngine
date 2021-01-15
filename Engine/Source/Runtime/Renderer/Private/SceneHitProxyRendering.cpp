@@ -339,11 +339,22 @@ static void DoRenderHitProxies(
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 	{
 		FViewInfo& View = const_cast<FViewInfo&>(Views[ViewIndex]);
-		const FScene* LocalScene = SceneRenderer->Scene;
+		FScene* LocalScene = SceneRenderer->Scene;
 		View.BeginRenderView();
 
 		auto* PassParameters = GraphBuilder.AllocParameters<FHitProxyPassParameters>();
 		PassParameters->View = View.GetShaderParameters();
+
+		// Adjust the visibility map for this view
+		if (View.bAllowTranslucentPrimitivesInHitProxy)
+		{
+			View.ParallelMeshDrawCommandPasses[EMeshPass::HitProxy].BuildRenderingCommands(GraphBuilder, LocalScene->GPUScene, PassParameters->InstanceCullingDrawParams);
+		}
+		else
+		{
+			View.ParallelMeshDrawCommandPasses[EMeshPass::HitProxyOpaqueOnly].BuildRenderingCommands(GraphBuilder, LocalScene->GPUScene, PassParameters->InstanceCullingDrawParams);
+		}
+
 		PassParameters->RenderTargets[0] = FRenderTargetBinding(HitProxyTexture, ERenderTargetLoadAction::ELoad);
 		PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(HitProxyDepthTexture, ERenderTargetLoadAction::ELoad, ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthWrite_StencilWrite);
 		PassParameters->SceneTextures = CreateSceneTextureUniformBuffer(GraphBuilder, SceneRenderer->FeatureLevel, ESceneTextureSetupMode::None);
@@ -352,7 +363,7 @@ static void DoRenderHitProxies(
 			RDG_EVENT_NAME("RenderHitProxies"),
 			PassParameters,
 			ERDGPassFlags::Raster,
-			[SceneRenderer, &View, LocalScene, FeatureLevel, bNeedToSwitchVerticalAxis](FRHICommandList& RHICmdList)
+			[SceneRenderer, &View, LocalScene, FeatureLevel, bNeedToSwitchVerticalAxis, PassParameters](FRHICommandList& RHICmdList)
 		{
 			FMeshPassProcessorRenderState DrawRenderState;
 
@@ -368,11 +379,11 @@ static void DoRenderHitProxies(
 			// Adjust the visibility map for this view
 			if (View.bAllowTranslucentPrimitivesInHitProxy)
 			{
-				View.ParallelMeshDrawCommandPasses[EMeshPass::HitProxy].DispatchDraw(nullptr, RHICmdList);
+				View.ParallelMeshDrawCommandPasses[EMeshPass::HitProxy].DispatchDraw(nullptr, RHICmdList, &PassParameters->InstanceCullingDrawParams);
 			}
 			else
 			{
-				View.ParallelMeshDrawCommandPasses[EMeshPass::HitProxyOpaqueOnly].DispatchDraw(nullptr, RHICmdList);
+				View.ParallelMeshDrawCommandPasses[EMeshPass::HitProxyOpaqueOnly].DispatchDraw(nullptr, RHICmdList, &PassParameters->InstanceCullingDrawParams);
 			}
 
 			DrawDynamicMeshPass(View, RHICmdList,
@@ -579,6 +590,8 @@ void FMobileSceneRenderer::RenderHitProxies(FRDGBuilder& GraphBuilder)
 {
 	Scene->UpdateAllPrimitiveSceneInfos(GraphBuilder);
 
+	FGPUSceneScopeBeginEndHelper GPUSceneScopeBeginEndHelper(Scene->GPUScene, GPUSceneDynamicContext, Scene);
+
 	PrepareViewRectsForRendering();
 
 #if WITH_EDITOR
@@ -613,7 +626,7 @@ void FDeferredShadingSceneRenderer::RenderHitProxies(FRDGBuilder& GraphBuilder)
 
 	Scene->UpdateAllPrimitiveSceneInfos(GraphBuilder);
 
-	FGPUSceneScopeBeginEndHelper GPUSceneScopeBeginEndHelper(Scene->GPUScene, GPUSceneDynamicContext, *Scene);
+	FGPUSceneScopeBeginEndHelper GPUSceneScopeBeginEndHelper(Scene->GPUScene, GPUSceneDynamicContext, Scene);
 
 	PrepareViewRectsForRendering();
 
@@ -661,8 +674,10 @@ void FDeferredShadingSceneRenderer::RenderHitProxies(FRDGBuilder& GraphBuilder)
 
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 	{
-		Scene->GPUScene.UploadDynamicPrimitiveShaderDataForView(GraphBuilder.RHICmdList, *Scene, Views[ViewIndex]);
+		Scene->GPUScene.UploadDynamicPrimitiveShaderDataForView(GraphBuilder.RHICmdList, Scene, Views[ViewIndex]);
 	}
+
+	InstanceCullingManager.CullInstances(GraphBuilder, Scene->GPUScene);
 
 	if (bNaniteEnabled)
 	{

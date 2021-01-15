@@ -1048,7 +1048,7 @@ FScene::FScene(UWorld* InWorld, bool bInRequiresHitProxies, bool bInIsEditorScen
 
 	FeatureLevel = World->FeatureLevel;
 
-	GPUScene.SetEnabled(UseGPUScene(GMaxRHIShaderPlatform, FeatureLevel));
+	GPUScene.SetEnabled(FeatureLevel);
 
 	if (World->FXSystem)
 	{
@@ -2597,6 +2597,11 @@ void FSceneVelocityData::StartFrame(FScene* Scene)
 
 		if (bTrimOld && (InternalFrameIndex - VelocityData.LastFrameUsed) > 10)
 		{
+			if (VelocityData.PrimitiveSceneInfo)
+			{
+				Scene->GPUScene.AddPrimitiveToUpdate(VelocityData.PrimitiveSceneInfo->GetIndex());
+			}
+
 			It.RemoveCurrent();
 		}
 	}

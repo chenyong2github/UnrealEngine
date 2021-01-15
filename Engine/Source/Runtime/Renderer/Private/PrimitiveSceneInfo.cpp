@@ -460,30 +460,6 @@ void FPrimitiveSceneInfo::CacheMeshDrawCommands(FRHICommandListImmediate& RHICmd
 	}
 #endif
 
-	if (UseGPUScene(GMaxRHIShaderPlatform, Scene->GetFeatureLevel()))
-	{
-		SCOPE_CYCLE_COUNTER(STAT_UpdateGPUSceneTime);
-		for (FPrimitiveSceneInfo* SceneInfo : SceneInfos)
-		{
-			check(SceneInfo->InstanceDataOffset == INDEX_NONE);
-			check(SceneInfo->NumInstanceDataEntries == 0);
-			if (SceneInfo->Proxy->SupportsInstanceDataBuffer())
-			{
-				if (const TArray<FPrimitiveInstance>* PrimitiveInstances = SceneInfo->Proxy->GetPrimitiveInstances())
-				{
-					SceneInfo->InstanceDataOffset = Scene->GPUScene.AllocateInstanceSlots(PrimitiveInstances->Num());
-					SceneInfo->NumInstanceDataEntries = PrimitiveInstances->Num();
-				}
-			}
-
-			// Force a primitive update in the GPU scene
-			if (!Scene->GPUScene.PrimitivesMarkedToUpdate[SceneInfo->PackedIndex])
-			{
-				Scene->GPUScene.PrimitivesToUpdate.Add(SceneInfo->PackedIndex);
-				Scene->GPUScene.PrimitivesMarkedToUpdate[SceneInfo->PackedIndex] = true;
-			}
-		}
-	}
 }
 
 void FPrimitiveSceneInfo::RemoveCachedMeshDrawCommands()
@@ -553,17 +529,6 @@ void FPrimitiveSceneInfo::RemoveCachedMeshDrawCommands()
 		CachedRayTracingMeshCommandsHashPerLOD.Empty();
 	}
 #endif
-
-	// Release all instance data slots associated with this primitive.
-	if (InstanceDataOffset != INDEX_NONE && UseGPUScene(GMaxRHIShaderPlatform, Scene->GetFeatureLevel()))
-	{
-		SCOPE_CYCLE_COUNTER(STAT_UpdateGPUSceneTime);
-
-		check(Proxy->SupportsInstanceDataBuffer());
-		Scene->GPUScene.FreeInstanceSlots(InstanceDataOffset, NumInstanceDataEntries);
-		InstanceDataOffset = INDEX_NONE;
-		NumInstanceDataEntries = 0;
-	}
 }
 
 void FPrimitiveSceneInfo::CacheNaniteDrawCommands(FRHICommandListImmediate& RHICmdList, FScene* Scene, const TArrayView<FPrimitiveSceneInfo*>& SceneInfos)
@@ -906,6 +871,39 @@ void FPrimitiveSceneInfo::AddToScene(FRHICommandListImmediate& RHICmdList, FScen
 		}
 	}
 
+	if (Scene->GPUScene.IsEnabled())
+	{
+		SCOPE_CYCLE_COUNTER(STAT_UpdateGPUSceneTime);
+		for (FPrimitiveSceneInfo* SceneInfo : SceneInfos)
+		{
+			check(SceneInfo->InstanceDataOffset == INDEX_NONE);
+			check(SceneInfo->NumInstanceDataEntries == 0);
+			if (SceneInfo->Proxy->SupportsInstanceDataBuffer())
+			{
+				if (const TArray<FPrimitiveInstance>* PrimitiveInstances = SceneInfo->Proxy->GetPrimitiveInstances())
+				{
+					SceneInfo->InstanceDataOffset = Scene->GPUScene.AllocateInstanceSlots(PrimitiveInstances->Num());
+					SceneInfo->NumInstanceDataEntries = PrimitiveInstances->Num();
+				}
+			}
+#if defined(GPUCULL_TODO)
+			else
+			{
+				// Allocate a single 'dummy/fallback' instance for the primitive that gets automatically populated with the data from the primitive
+				SceneInfo->InstanceDataOffset = Scene->GPUScene.AllocateInstanceSlots(1);
+				SceneInfo->NumInstanceDataEntries = 1;
+			}
+#endif //defined(GPUCULL_TODO)
+
+			// Force a primitive update in the GPU scene
+			if (!Scene->GPUScene.PrimitivesMarkedToUpdate[SceneInfo->PackedIndex])
+			{
+				Scene->GPUScene.PrimitivesToUpdate.Add(SceneInfo->PackedIndex);
+				Scene->GPUScene.PrimitivesMarkedToUpdate[SceneInfo->PackedIndex] = true;
+			}
+		}
+	}
+
 	{
 		SCOPED_NAMED_EVENT(FPrimitiveSceneInfo_AddToScene_ReflectionCaptures, FColor::Yellow);
 		for (FPrimitiveSceneInfo* SceneInfo : SceneInfos)
@@ -1073,6 +1071,17 @@ void FPrimitiveSceneInfo::RemoveFromScene(bool bUpdateStaticDrawLists)
 	if (LightmapDataOffset != INDEX_NONE && UseGPUScene(GMaxRHIShaderPlatform, Scene->GetFeatureLevel()))
 	{
 		Scene->GPUScene.LightmapDataAllocator.Free(LightmapDataOffset, NumLightmapDataEntries);
+	}
+
+	// Release all instance data slots associated with this primitive.
+	if (InstanceDataOffset != INDEX_NONE && Scene->GPUScene.IsEnabled())
+	{
+		SCOPE_CYCLE_COUNTER(STAT_UpdateGPUSceneTime);
+
+		check(Proxy->SupportsInstanceDataBuffer() || NumInstanceDataEntries == 1);
+		Scene->GPUScene.FreeInstanceSlots(InstanceDataOffset, NumInstanceDataEntries);
+		InstanceDataOffset = INDEX_NONE;
+		NumInstanceDataEntries = 0;
 	}
 
 	if (Proxy->CastsDynamicIndirectShadow())

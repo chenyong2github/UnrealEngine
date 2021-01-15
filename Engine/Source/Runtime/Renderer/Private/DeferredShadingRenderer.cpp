@@ -1513,7 +1513,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 	Scene->UpdateAllPrimitiveSceneInfos(GraphBuilder, true);
 
-	FGPUSceneScopeBeginEndHelper GPUSceneScopeBeginEndHelper(Scene->GPUScene, GPUSceneDynamicContext, *Scene);
+	FGPUSceneScopeBeginEndHelper GPUSceneScopeBeginEndHelper(Scene->GPUScene, GPUSceneDynamicContext, Scene);
 	if (bNaniteEnabled)
 	{
 		Nanite::GGlobalResources.Update(GraphBuilder); // Needed to managed scratch buffers for Nanite.
@@ -1693,7 +1693,12 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 			FViewInfo& View = Views[ViewIndex];
 			RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
 
-			Scene->GPUScene.UploadDynamicPrimitiveShaderDataForView(GraphBuilder.RHICmdList, *Scene, View);
+			Scene->GPUScene.UploadDynamicPrimitiveShaderDataForView(GraphBuilder.RHICmdList, Scene, View);
+		}
+
+		{
+			// GPUCULL_TODO: Possibly fold into unpack step
+			InstanceCullingManager.CullInstances(GraphBuilder, Scene->GPUScene);
 		}
 
 		if (!bDoInitViewAftersPrepass)
@@ -2072,11 +2077,8 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	// Early Shadow depth rendering
 	if (bOcclusionBeforeBasePass)
 	{
-		if (bNaniteEnabled)
-		{
-			const bool bAfterBasePass = false;
-			AllocateVirtualShadowMaps(bAfterBasePass);
-		}
+		const bool bAfterBasePass = false;
+		AllocateVirtualShadowMaps(bAfterBasePass);
 
 		RenderShadowDepthMaps(GraphBuilder, InstanceCullingManager);
 		AddServiceLocalQueuePass(GraphBuilder);
@@ -2301,11 +2303,8 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	// Shadow and fog after base pass
 	if (!bOcclusionBeforeBasePass)
 	{
-		if (bNaniteEnabled)
-		{
-			const bool bAfterBasePass = true;
-			AllocateVirtualShadowMaps(bAfterBasePass);
-		}
+		const bool bAfterBasePass = true;
+		AllocateVirtualShadowMaps(bAfterBasePass);
 
 		RenderShadowDepthMaps(GraphBuilder, InstanceCullingManager);
 		

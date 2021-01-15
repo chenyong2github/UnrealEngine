@@ -76,6 +76,16 @@ public:
 	 */
 	const TRange<int32> &GetPrimitiveIdRange() const { return PrimitiveIdRange; }
 
+	FORCEINLINE int32 GetInstanceDataOffset(int32 PrimitiveId) const
+	{
+		ensure(bCommitted);
+		ensure(PrimitiveIdRange.Contains(PrimitiveId));
+		ensure(UploadData->bIsUploaded);
+
+		// Assume a 1:1 mapping between primitive ID and instance ID
+		return UploadData->InstanceDataOffset + (PrimitiveId - PrimitiveIdRange.GetLowerBoundValue());
+	}
+
 	int32 Num() const {	return UploadData != nullptr ? UploadData->PrimitiveShaderData.Num() : 0; }
 private:
 
@@ -85,6 +95,7 @@ private:
 	struct FUploadData
 	{
 		TArray<FPrimitiveUniformShaderParameters, TInlineAllocator<8>> PrimitiveShaderData;
+		int32 InstanceDataOffset = INDEX_NONE;
 		bool bIsUploaded = false;
 	};
 
@@ -130,16 +141,18 @@ public:
 	}
 	~FGPUScene();
 
-	void SetEnabled(bool bInIsEnabled) { bIsEnabled = bInIsEnabled; }
-
+	void SetEnabled(ERHIFeatureLevel::Type InFeatureLevel);
+	bool IsEnabled() const { return bIsEnabled; }
 	/**
 	 * Call at start of rendering (but after scene primitives are updated) to let GPU-Scene record scene primitive count 
-	 * and prepare for dynamic primitive allocations
+	 * and prepare for dynamic primitive allocations.
+	 * Scene may be NULL which means there are zero scene primitives (but there may be dynamic ones added later).
 	 */
-	void BeginRender(FScene& Scene, FGPUSceneDynamicContext &GPUSceneDynamicContext);
+	void BeginRender(const FScene* Scene, FGPUSceneDynamicContext &GPUSceneDynamicContext);
 	inline bool IsRendering() const { return bInBeginEndBlock; }
 	void EndRender();
 
+	EShaderPlatform GetShaderPlatform() const { return GShaderPlatformForFeatureLevel[FeatureLevel]; }
 
 	/**
 	 * Allocates a range of space in the instance data buffer for the required number of instances, 
@@ -161,7 +174,7 @@ public:
 	/**
 	 * Upload primitives from View.DynamicPrimitiveCollector.
 	 */
-	void UploadDynamicPrimitiveShaderDataForView(FRHICommandListImmediate& RHICmdList, FScene& Scene, FViewInfo& View);
+	void UploadDynamicPrimitiveShaderDataForView(FRHICommandListImmediate& RHICmdList, FScene* Scene, FViewInfo& View);
 
 	/**
 	 * Pull all pending updates from Scene and upload primitive & instance data.
@@ -227,8 +240,17 @@ private:
 	FGPUSceneDynamicContext* CurrentDynamicContext = nullptr;
 	int32 NumScenePrimitives = 0;
 
+	ERHIFeatureLevel::Type FeatureLevel;
+
+	/**
+	 * Generalized upload that uses an adapter to abstract the data souce. Enables uploading scene primitives & dynamic primitives using a single path.
+	 * @parameter Scene may be null, as it is only needed for the Nanite material table update (which is coupled to the Scene at the moment).
+	 */
+	template<typename ResourceType, typename FUploadDataSourceAdapter>
+	void UploadGeneral(FRHICommandListImmediate& RHICmdList, FScene* Scene, FUploadDataSourceAdapter& UploadDataSourceAdapter);
+
 	template<typename ResourceType>
-	void UploadDynamicPrimitiveShaderDataForViewInternal(FRHICommandListImmediate& RHICmdList, FScene& Scene, FViewInfo& View);
+	void UploadDynamicPrimitiveShaderDataForViewInternal(FRHICommandListImmediate& RHICmdList, FScene* Scene, FViewInfo& View);
 
 	template<typename ResourceType>
 	void UpdateInternal(FRHICommandListImmediate& RHICmdList, FScene& Scene);
@@ -237,7 +259,7 @@ private:
 class FGPUSceneScopeBeginEndHelper
 {
 public:
-	FGPUSceneScopeBeginEndHelper(FGPUScene& InGPUScene, FGPUSceneDynamicContext &GPUSceneDynamicContext, FScene& Scene) :
+	FGPUSceneScopeBeginEndHelper(FGPUScene& InGPUScene, FGPUSceneDynamicContext &GPUSceneDynamicContext, const FScene* Scene) :
 		GPUScene(InGPUScene)
 	{
 		GPUScene.BeginRender(Scene, GPUSceneDynamicContext);
@@ -247,6 +269,7 @@ public:
 	{
 		GPUScene.EndRender();
 	}
+
 private:
 	FGPUSceneScopeBeginEndHelper() = delete;
 	FGPUSceneScopeBeginEndHelper(const FGPUSceneScopeBeginEndHelper&) = delete;

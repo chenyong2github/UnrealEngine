@@ -20,6 +20,9 @@ static TAutoConsoleVariable<int32> CVarCullInstances(
 	ECVF_RenderThreadSafe);
 
 
+#if defined(GPUCULL_TODO)
+
+
 int32 FInstanceCullingManager::RegisterView(const FViewInfo& ViewInfo)
 {
 	Nanite::FPackedViewParams Params;
@@ -38,7 +41,6 @@ int32 FInstanceCullingManager::RegisterView(const Nanite::FPackedViewParams& Par
 	CullingViews.Add(CreatePackedView(Params));
 	return CullingViews.Num() - 1;
 }
-
 
 
 class FCullInstancesCs : public FGlobalShader
@@ -82,8 +84,6 @@ public:
 	END_SHADER_PARAMETER_STRUCT()
 };
 IMPLEMENT_GLOBAL_SHADER(FCullInstancesCs, "/Engine/Private/InstanceCulling/CullInstances.usf", "CullInstancesCs", SF_Compute);
-
-
 
 
 void FInstanceCullingManager::CullInstances(FRDGBuilder& GraphBuilder, FGPUScene& GPUScene)
@@ -144,33 +144,9 @@ void FInstanceCullingManager::CullInstances(FRDGBuilder& GraphBuilder, FGPUScene
 			// All are visible
 			AddClearUAVPass(GraphBuilder, VisibleInstanceFlagsUAV, 0xFFFFFFFF);
 		}
-		//GraphBuilder.QueueBufferExtraction(VisibleInstanceFlagsRDG, &CullingIntermediate.VisibleInstanceFlags);
-		//ConvertToExternalBuffer(GraphBuilder, VisibleInstanceFlagsRDG, CullingIntermediate.VisibleInstanceFlags);
-	}
-	//GraphBuilder.QueueBufferExtraction(InstanceIdOutOffsetBufferRDG, &CullingIntermediate.InstanceIdOutOffsetBuffer);
-	//ConvertToExternalBuffer(GraphBuilder, InstanceIdOutOffsetBufferRDG, CullingIntermediate.InstanceIdOutOffsetBuffer);
-}
-
-#if 0
-void FInstanceCullingManager::ProcessGPUPostCullingJobs(FRDGBuilder& GraphBuilder, FGPUScene &GPUScene)
-{
-	RDG_EVENT_SCOPE(GraphBuilder, "ProcessGPUPostCullingJobs");
-
-	for (auto& GPUPostCullingJob : GPUPostCullingJobs)
-	{
-		GPUPostCullingJob(this, CullingIntermediate.InstanceIdOutOffsetBuffer, GraphBuilder, CullingIntermediate, GPUScene);
 	}
 }
 
-void FInstanceCullingManager::QueueCullingContextForInstanceCulling(FInstanceCullingContext*& InstanceCullingContext, const TSharedPtr<FInstanceCullingResult> &InstanceCullingResult)
-{
-	QueueGPUPostCullingJob([InstanceCullingContext , &InstanceCullingResult](FInstanceCullingManager* InstanceCullingManager, const FRDGBufferRef& InstanceIdOutOffsetBufferRDG, FRDGBuilder& RDGBuilder, const FInstanceCullingIntermediate& Intermediate, FGPUScene &GPUScene)
-		{
-			InstanceCullingContext->BuildRenderingCommands(Intermediate, GPUScene, InstanceIdOutOffsetBufferRDG, RDGBuilder, *InstanceCullingResult);
-		});
-
-}
-#endif
 
 FInstanceCullingContext* FInstanceCullingManager::CreateContext(const int32* ViewIds, int32 NumViews)
 {
@@ -179,3 +155,28 @@ FInstanceCullingContext* FInstanceCullingManager::CreateContext(const int32* Vie
 	InstanceCullingContext->InstanceCullingManager = this;
 	return InstanceCullingContext;
 }
+
+
+#else //!defined(GPUCULL_TODO)
+
+int32 FInstanceCullingManager::RegisterView(const FViewInfo& ViewInfo)
+{
+	return 0;
+}
+
+int32 FInstanceCullingManager::RegisterView(const Nanite::FPackedViewParams& Params)
+{
+	return 0;
+}
+
+void FInstanceCullingManager::CullInstances(FRDGBuilder& GraphBuilder, FGPUScene& GPUScene)
+{
+}
+
+FInstanceCullingContext* FInstanceCullingManager::CreateContext(const int32 * ViewIds, int32 NumViews)
+{
+	return nullptr;
+}
+
+
+#endif // defined(GPUCULL_TODO)

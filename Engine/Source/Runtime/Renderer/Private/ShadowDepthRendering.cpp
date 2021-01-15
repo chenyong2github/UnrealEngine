@@ -1047,7 +1047,7 @@ void FProjectedShadowInfo::BeginRenderView(FRDGBuilder& GraphBuilder, FScene* Sc
 	}
 
 	// This needs to be done for both mobile and deferred
-	Scene->GPUScene.UploadDynamicPrimitiveShaderDataForView(GraphBuilder.RHICmdList, *Scene, *ShadowDepthView);
+	Scene->GPUScene.UploadDynamicPrimitiveShaderDataForView(GraphBuilder.RHICmdList, Scene, *ShadowDepthView);
 }
 
 static bool IsShadowDepthPassWaitForTasksEnabled()

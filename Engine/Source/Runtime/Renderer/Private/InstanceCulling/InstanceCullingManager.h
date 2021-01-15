@@ -94,24 +94,6 @@ public:
 	{
 	}
 
-#if 0
-	// Queue up jobs that need to run after the instance cull has been performed, this may not be a viable option,
-	// instead queue them up on a per-context basis or just do it just before submitting rendering commands.
-	// BUT rendering commands are submitted on their separate threads and I don't know that the RDG builder can handle that?
-	// SO TBD
-	FORCEINLINE void QueueGPUPostCullingJob(TFunction<void(FInstanceCullingManager*, const FRDGBufferRef&, FRDGBuilder&, const FInstanceCullingIntermediate&, FGPUScene&)>&& Job)
-	{
-		GPUPostCullingJobs.Add(MoveTemp(Job));
-	}
-
-	void ProcessGPUPostCullingJobs(FRDGBuilder& GraphBuilder, FGPUScene &GPUScene);
-	/**
-	 * Queue up the context, which after this point should not be touched, note that the pointer is cleared when this function is called, to indicate changed of ownership.
-	 * The result is returned via the CullingResults structure, which can be queried (and blocked upon).
-	 */
-	void QueueCullingContextForInstanceCulling(FInstanceCullingContext* &InstanceCullingContext, const TSharedPtr<FInstanceCullingResult>& InstanceCullingResult);
-#endif // 0
-
 	/**
 	 * Create a context for the instance culling, used to collect draw commands for a render pass. The context lifetime is managed by the Manager, and in general is a single-frame construct
 	 * Once the render pass setup is done, the Culling Context should be queued up for final processing (where the culled instances are used to fill in the draw commands).
