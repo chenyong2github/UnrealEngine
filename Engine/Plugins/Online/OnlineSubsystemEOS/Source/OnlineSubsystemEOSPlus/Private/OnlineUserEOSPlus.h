@@ -67,12 +67,12 @@ public:
 	virtual TSharedRef<const FUniqueNetId> GetUserId() const override
 	{
 		TSharedPtr<const FUniqueNetId> BaseNetId;
-		if (BaseItem.IsValid())
+		if (IsBaseItemValid())
 		{
 			BaseNetId = BaseItem->GetUserId();
 		}
 		TSharedPtr<const FUniqueNetId> EOSNetId;
-		if (EOSItem.IsValid())
+		if (IsEOSItemValid())
 		{
 			EOSNetId = EOSItem->GetUserId();
 		}
@@ -86,7 +86,8 @@ public:
 
 	virtual FString GetDisplayName(const FString& Platform = FString()) const override
 	{
-		if (Platform == TEXT("EOS"))
+		// If they are only an EOS user, then use that
+		if (Platform == TEXT("EOS") || !IsBaseItemValid())
 		{
 			if (IsEOSItemValid())
 			{

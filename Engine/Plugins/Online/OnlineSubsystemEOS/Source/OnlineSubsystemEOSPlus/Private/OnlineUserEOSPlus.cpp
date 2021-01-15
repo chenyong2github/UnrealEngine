@@ -57,7 +57,7 @@ int32 FUniqueNetIdEOSPlus::GetSize() const
 
 bool FUniqueNetIdEOSPlus::IsValid() const
 {
-	return BaseUniqueNetId.IsValid();
+	return BaseUniqueNetId.IsValid() || EOSUniqueNetId.IsValid();
 }
 
 FOnlineUserEOSPlus::FOnlineUserEOSPlus(FOnlineSubsystemEOSPlus* InSubsystem)
