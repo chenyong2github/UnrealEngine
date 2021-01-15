@@ -667,7 +667,7 @@ namespace Gauntlet
 			return true;
 		}
 
-		public bool Disconnect()
+		public bool Disconnect(bool bForce=false)
 		{
 			return true;
 		}
