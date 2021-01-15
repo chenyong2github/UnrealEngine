@@ -26,6 +26,24 @@ CORE_API ELogVerbosity::Type GetAutomationLogLevel(ELogVerbosity::Type LogVerbos
 {
 	ELogVerbosity::Type EffectiveVerbosity = LogVerbosity;
 
+	// agrant-todo: these should be controlled by FAutomationTestBase for 4.27 with the same project-level override that
+	// FunctionalTest has. Now that warnings are correctly associated with tests they need to be something all tests
+	// can leverage, not just functional tests
+	static bool bSuppressLogWarnings = false;
+	static bool bSuppressLogErrors = false;
+	static bool bTreatLogWarningsAsTestErrors = false;
+
+	static FAutomationTestBase* LastTest = nullptr;
+
+	if (CurrentTest != LastTest)
+	{
+		// These can be changed in the editor so can't just be cached for the whole session
+		GConfig->GetBool(TEXT("/Script/AutomationController.AutomationControllerSettings"), TEXT("bSuppressLogErrors"), bSuppressLogErrors, GEngineIni);
+		GConfig->GetBool(TEXT("/Script/AutomationController.AutomationControllerSettings"), TEXT("bSuppressLogWarnings"), bSuppressLogWarnings, GEngineIni);
+		GConfig->GetBool(TEXT("/Script/AutomationController.AutomationControllerSettings"), TEXT("bTreatLogWarningsAsTestErrors"), bTreatLogWarningsAsTestErrors, GEngineIni);
+		LastTest = CurrentTest;
+	}
+
 	if (CurrentTest)
 	{
 		if (CurrentTest->SuppressLogs())
@@ -36,11 +54,11 @@ CORE_API ELogVerbosity::Type GetAutomationLogLevel(ELogVerbosity::Type LogVerbos
 		{
 			if (EffectiveVerbosity == ELogVerbosity::Warning)
 			{
-				if (CurrentTest->SuppressLogWarnings())
+				if (CurrentTest->SuppressLogWarnings() || bSuppressLogWarnings)
 				{
 					EffectiveVerbosity = ELogVerbosity::NoLogging;
 				}
-				else if (CurrentTest->ElevateLogWarningsToErrors())
+				else if (CurrentTest->ElevateLogWarningsToErrors() || bTreatLogWarningsAsTestErrors)
 				{
 					EffectiveVerbosity = ELogVerbosity::Error;
 				}
@@ -48,7 +66,7 @@ CORE_API ELogVerbosity::Type GetAutomationLogLevel(ELogVerbosity::Type LogVerbos
 
 			if (EffectiveVerbosity == ELogVerbosity::Error)
 			{
-				if (CurrentTest->SuppressLogErrors())
+				if (CurrentTest->SuppressLogErrors() ||  bSuppressLogErrors)
 				{
 					EffectiveVerbosity = ELogVerbosity::NoLogging;
 				}
