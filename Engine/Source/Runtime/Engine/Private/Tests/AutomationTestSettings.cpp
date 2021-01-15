@@ -8,5 +8,5 @@ UAutomationTestSettings::UAutomationTestSettings(const FObjectInitializer& Objec
 	: Super(ObjectInitializer)
 {
 	DefaultScreenshotResolution = FIntPoint(1920, 1080);
-	PIETestDuration = 3.f;
+	PIETestDuration = 5.f;
 }
