@@ -80,11 +80,20 @@ void FVoxelMorphologyMeshesOp::CalculateResult(FProgressCancel* Progress)
 		}
 	}
 
+	if (CombinedMesh.TriangleCount() == 0)
+	{
+		return;
+	}
+
 	if (bSolidifyInput && OffsetSolidifySurface > 0)
 	{
+		// positive offsets should be at least a cell wide so we don't end up deleting a bunch of the input surface
+		double CellSize = CombinedMesh.GetCachedBounds().MaxDim() / InputVoxelCount;
+		double SafeOffset = FMathd::Max(CellSize * 2, OffsetSolidifySurface);
+
 		FMeshNormals::QuickComputeVertexNormals(CombinedMesh);
 		FExtrudeMesh Extrude(&CombinedMesh);
-		Extrude.DefaultExtrudeDistance = -OffsetSolidifySurface;
+		Extrude.DefaultExtrudeDistance = -SafeOffset;
 		Extrude.IsPositiveOffset = false;
 		Extrude.Apply();
 	}
@@ -105,6 +114,11 @@ void FVoxelMorphologyMeshesOp::CalculateResult(FProgressCancel* Progress)
 		}
 
 		Spatial.Build(); // rebuild w/ updated mesh
+	}
+
+	if (CombinedMesh.TriangleCount() == 0)
+	{
+		return;
 	}
 
 	ImplicitMorphology.SourceSpatial = &Spatial;
