@@ -3285,6 +3285,9 @@ void FInstancedStaticMeshVertexFactoryShaderParameters::GetElementShaderBindings
 	}
 	if (InstanceOffsetValue > 0 && VertexStreams.Num() > 0)
 	{
+		// GPUCULL_TODO: This here can still work together with the instance attributes for index, but note that all instance attributes then must assume they are offset wrt the on-the-fly generate buffer
+		//          so with the new scheme there is no clear way this can work in the vanilla instancing way as there is an indirection. So either other attributes must be loaded in the shader or they
+		//          would have to be copied as the instance ID is now - not good.
 		VertexFactory->OffsetInstanceStreams(InstanceOffsetValue, InputStreamType, VertexStreams);
 	}
 

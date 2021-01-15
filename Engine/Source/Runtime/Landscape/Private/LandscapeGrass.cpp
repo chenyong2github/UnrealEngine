@@ -174,6 +174,12 @@ static FAutoConsoleVariableRef CVarGrassMaxCreatePerFrame(
 	GGrassMaxCreatePerFrame,
 	TEXT("Maximum number of Grass components to create per frame"));
 
+static int32 GGrassUpdateAllOnRebuild = 0;
+static FAutoConsoleVariableRef CVarUpdateAllOnRebuild(
+	TEXT("grass.UpdateAllOnRebuild"),
+	GGrassUpdateAllOnRebuild,
+	TEXT(""));
+
 DECLARE_CYCLE_STAT(TEXT("Grass Async Build Time"), STAT_FoliageGrassAsyncBuildTime, STATGROUP_Foliage);
 DECLARE_CYCLE_STAT(TEXT("Grass Start Comp"), STAT_FoliageGrassStartComp, STATGROUP_Foliage);
 DECLARE_CYCLE_STAT(TEXT("Grass End Comp"), STAT_FoliageGrassEndComp, STATGROUP_Foliage);
@@ -439,6 +445,8 @@ void FLandscapeGrassWeightMeshProcessor::Process(
 // data also accessible by render thread
 class FLandscapeGrassWeightExporter_RenderThread
 {
+	FSceneInterface* SceneInterface = nullptr;
+
 	FLandscapeGrassWeightExporter_RenderThread(int32 InNumGrassMaps, bool InbNeedsHeightmap, TArray<int32> InHeightMips)
 		: RenderTargetResource(nullptr)
 		, NumPasses(0)
@@ -578,6 +586,7 @@ public:
 		, RenderTargetTexture(nullptr)
 	{
 		check(InLandscapeComponents.Num() > 0);
+		SceneInterface = InLandscapeComponents[0]->GetScene();
 
 		// todo: use a 2d target?
 		TargetSize = FIntPoint(ComponentSizeVerts * NumPasses * InLandscapeComponents.Num(), ComponentSizeVerts);
@@ -2303,7 +2312,7 @@ void ALandscapeProxy::UpdateGrassDataStatus(TSet<UTexture2D*>* OutCurrentForcedS
 
 			if (bHasGrassTypes || bBakeMaterialPositionOffsetIntoCollision)
 			{
-				if (Component->IsGrassMapOutdated() || !Component->GrassData->HasData())
+				if (Component->IsGrassMapOutdated() || !Component->GrassData->HasData() || GGrassUpdateAllOnRebuild != 0)
 				{
 					if (OutComponentsNeedingGrassMapRender)
 					{
