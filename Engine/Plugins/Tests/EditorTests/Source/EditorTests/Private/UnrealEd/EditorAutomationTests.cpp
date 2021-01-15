@@ -176,39 +176,6 @@ bool FGenericImportAssetsAutomationTest::RunTest(const FString& Parameters)
 	return ImportedObjects.Num() == 1;
 }
 
-//////////////////////////////////////////////////////////////////////////
-
-/**
- * Pie Test
- * Verification PIE works
- */
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPIETest, "System.Maps.PIE", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-
-/** 
- * Execute the loading of one map to verify PIE works
- *
- * @param Parameters - Unused for this test
- * @return	TRUE if the test was successful, FALSE otherwise
- */
-bool FPIETest::RunTest(const FString& Parameters)
-{
-	UAutomationTestSettings const* AutomationTestSettings = GetDefault<UAutomationTestSettings>();
-	check(AutomationTestSettings);
-
-	FString MapName = AutomationTestSettings->AutomationTestmap.GetLongPackageName();
-	if (!MapName.IsEmpty())
-	{
-		FAutomationEditorCommonUtils::LoadMap(MapName);
-		FAutomationEditorCommonUtils::RunPIE(AutomationTestSettings->PIETestDuration);
-	}
-	else
-	{
-		UE_LOG(LogEditorAutomationTests, Warning, TEXT("AutomationTestmap not specified. Please set AutomationTestmap filename in ini."));
-	}
-
-	return true;
-}
-
 /**
  * LoadAllMaps
  * Verification automation test to make sure loading all maps succeed without crashing
