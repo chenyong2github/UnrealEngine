@@ -12,7 +12,7 @@ struct FVertexFactoryInterpolantsVSToPS
 	half4	Color : COLOR0;
 #endif
 
-#if USE_INSTANCING
+#if USE_INSTANCING || USE_INSTANCE_CULLING
 	// x = per-instance random, y = per-instance fade out amount, z = hide/show flag, w dither fade cutoff
 	float4  PerInstanceParams : COLOR1;
 #endif

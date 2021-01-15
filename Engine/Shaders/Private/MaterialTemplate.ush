@@ -95,18 +95,22 @@
 #include "/Engine/Private/PaniniProjection.ush"
 #include "/Engine/Private/DBufferNormalReprojection.ush"
 
+#ifndef USE_INSTANCE_CULLING
+	#define USE_INSTANCE_CULLING 0
+#endif
+
 #ifndef USE_DITHERED_LOD_TRANSITION
-    #if USE_INSTANCING
-	    #ifndef USE_DITHERED_LOD_TRANSITION_FOR_INSTANCED
-		    #error "USE_DITHERED_LOD_TRANSITION_FOR_INSTANCED should have been defined"
-	    #endif
-	    #define USE_DITHERED_LOD_TRANSITION USE_DITHERED_LOD_TRANSITION_FOR_INSTANCED
-    #else
-	    #ifndef USE_DITHERED_LOD_TRANSITION_FROM_MATERIAL
-		    #error "USE_DITHERED_LOD_TRANSITION_FROM_MATERIAL should have been defined"
-	    #endif
-	    #define USE_DITHERED_LOD_TRANSITION USE_DITHERED_LOD_TRANSITION_FROM_MATERIAL
-    #endif
+	#if USE_INSTANCING || USE_INSTANCE_CULLING
+		#ifndef USE_DITHERED_LOD_TRANSITION_FOR_INSTANCED
+			#error "USE_DITHERED_LOD_TRANSITION_FOR_INSTANCED should have been defined"
+		#endif
+		#define USE_DITHERED_LOD_TRANSITION USE_DITHERED_LOD_TRANSITION_FOR_INSTANCED
+	#else
+		#ifndef USE_DITHERED_LOD_TRANSITION_FROM_MATERIAL
+			#error "USE_DITHERED_LOD_TRANSITION_FROM_MATERIAL should have been defined"
+		#endif
+		#define USE_DITHERED_LOD_TRANSITION USE_DITHERED_LOD_TRANSITION_FROM_MATERIAL
+	#endif
 #endif
 
 #ifndef USE_STENCIL_LOD_DITHER
@@ -316,7 +320,7 @@ struct FMaterialPixelParameters
 	float2	LightmapUVs;
 #endif
 
-#if USE_INSTANCING || VF_NANITE
+#if USE_INSTANCING || USE_INSTANCE_CULLING || VF_NANITE
 	half4 PerInstanceParams;
 #endif
 
@@ -428,12 +432,16 @@ struct FMaterialVertexParameters
 	float3 WorldPosition;
 	// TangentToWorld[2] is WorldVertexNormal
 	half3x3 TangentToWorld;
-#if USE_INSTANCING
+#if USE_INSTANCING || USE_INSTANCE_CULLING
 	/** Per-instance properties. */
 	float4x4 InstanceLocalToWorld;
 	float3 InstanceLocalPosition;
 	float4 PerInstanceParams;
+#if USE_INSTANCE_CULLING
+	int PrimitiveLocalInstanceIndex;
+#else
 	uint InstanceId;
+#endif
 	uint InstanceOffset;
 
 #elif IS_MESHPARTICLE_FACTORY 
@@ -851,10 +859,16 @@ MaterialFloat2 GetDefaultSceneTextureUV(FMaterialPixelParameters Parameters, con
 /** Get the per-instance custom data when instancing */
 float GetPerInstanceCustomData(FMaterialVertexParameters Parameters, int Index, float DefaultValue)
 {
-#if USE_INSTANCING && USES_PER_INSTANCE_CUSTOM_DATA
-	if(InstanceVF.NumCustomDataFloats > 0)
+#if (USE_INSTANCING || USE_INSTANCE_CULLING) && USES_PER_INSTANCE_CUSTOM_DATA
+	if (InstanceVF.NumCustomDataFloats > 0)
 	{
-		int BufferStartIndex = (Parameters.InstanceId + Parameters.InstanceOffset) * InstanceVF.NumCustomDataFloats; 
+	#if USE_INSTANCE_CULLING
+		int InstanceDataIndex = Parameters.PrimitiveLocalInstanceIndex;
+	#else
+		int InstanceDataIndex = Parameters.InstanceId + Parameters.InstanceOffset;
+	#endif
+
+		int BufferStartIndex = InstanceDataIndex * InstanceVF.NumCustomDataFloats;
 		int FloatIndex = clamp(Index, 0, InstanceVF.NumCustomDataFloats - 1);
 		return InstanceVF.InstanceCustomDataBuffer[BufferStartIndex + FloatIndex];
 	}
@@ -892,7 +906,7 @@ MaterialFloat3 TransformTangentVectorToView(FMaterialPixelParameters Parameters,
 /** Transforms a vector from local space to world space (VS version) */
 MaterialFloat3 TransformLocalVectorToWorld(FMaterialVertexParameters Parameters,MaterialFloat3 InLocalVector)
 {
-	#if USE_INSTANCING || IS_MESHPARTICLE_FACTORY
+	#if USE_INSTANCING || USE_INSTANCE_CULLING || IS_MESHPARTICLE_FACTORY
 		return mul(InLocalVector, (MaterialFloat3x3)Parameters.InstanceLocalToWorld);
 	#else
 		return mul(InLocalVector, GetLocalToWorld3x3(Parameters.PrimitiveId));
@@ -922,7 +936,7 @@ float3 TransformLocalPositionToWorld(FMaterialPixelParameters Parameters,float3 
 /** Transforms a position from local space to absolute world space */
 float3 TransformLocalPositionToWorld(FMaterialVertexParameters Parameters,float3 InLocalPosition)
 {
-	#if USE_INSTANCING || IS_MESHPARTICLE_FACTORY
+	#if USE_INSTANCING || USE_INSTANCE_CULLING || IS_MESHPARTICLE_FACTORY
 		return mul(float4(InLocalPosition, 1), Parameters.InstanceLocalToWorld).xyz;
 	#else
 		return mul(float4(InLocalPosition, 1), GetPrimitiveData(Parameters.PrimitiveId).LocalToWorld).xyz;
@@ -953,7 +967,7 @@ float3 GetObjectWorldPosition(FMaterialTessellationParameters Parameters)
 /** Return the object's position in world space. For instanced meshes, this returns the instance position. */
 float3 GetObjectWorldPosition(FMaterialVertexParameters Parameters)
 {
-	#if USE_INSTANCING || IS_MESHPARTICLE_FACTORY
+	#if USE_INSTANCING || USE_INSTANCE_CULLING || IS_MESHPARTICLE_FACTORY
 		return Parameters.InstanceLocalToWorld[3].xyz;
 	#else
 		return GetPrimitiveData(Parameters.PrimitiveId).ObjectWorldPositionAndRadius.xyz;
@@ -965,7 +979,7 @@ float3 GetObjectWorldPosition(FMaterialVertexParameters Parameters)
 /** Get the per-instance random value when instancing */
 float GetPerInstanceRandom(FMaterialVertexParameters Parameters)
 {
-#if USE_INSTANCING
+#if USE_INSTANCING || USE_INSTANCE_CULLING
 	return Parameters.PerInstanceParams.x;
 #else
 	return 0.0;
@@ -975,7 +989,7 @@ float GetPerInstanceRandom(FMaterialVertexParameters Parameters)
 /** Get the per-instance random value when instancing */
 float GetPerInstanceRandom(FMaterialPixelParameters Parameters)
 {
-#if USE_INSTANCING || VF_NANITE
+#if USE_INSTANCING || USE_INSTANCE_CULLING || VF_NANITE
 	return Parameters.PerInstanceParams.x;
 #else
 	return 0.0;
@@ -985,7 +999,7 @@ float GetPerInstanceRandom(FMaterialPixelParameters Parameters)
 /** Get the per-instance fade-out amount when instancing */
 float GetPerInstanceFadeAmount(FMaterialPixelParameters Parameters)
 {
-#if USE_INSTANCING
+#if USE_INSTANCING || USE_INSTANCE_CULLING
 	return float(Parameters.PerInstanceParams.y);
 #else
 	return float(1.0);
@@ -995,7 +1009,7 @@ float GetPerInstanceFadeAmount(FMaterialPixelParameters Parameters)
 /** Get the per-instance fade-out amount when instancing */
 float GetPerInstanceFadeAmount(FMaterialVertexParameters Parameters)
 {
-#if USE_INSTANCING
+#if USE_INSTANCING || USE_INSTANCE_CULLING
 	return float(Parameters.PerInstanceParams.y);
 #else
 	return float(1.0);
@@ -2197,7 +2211,7 @@ half GetMaterialMaskedOpacity(FPixelMaterialInputs PixelMaterialInputs)
 
 float3 GetMaterialWorldPositionOffset(FMaterialVertexParameters Parameters)
 {
-	#if USE_INSTANCING
+	#if USE_INSTANCING || USE_INSTANCE_CULLING
 		// skip if this instance is hidden
 		if (Parameters.PerInstanceParams.z < 1.f)
 		{
@@ -2209,7 +2223,7 @@ float3 GetMaterialWorldPositionOffset(FMaterialVertexParameters Parameters)
 
 float3 GetMaterialPreviousWorldPositionOffset(FMaterialVertexParameters Parameters)
 {
-	#if USE_INSTANCING
+	#if USE_INSTANCING || USE_INSTANCE_CULLING
 		// skip if this instance is hidden
 		if (Parameters.PerInstanceParams.z < 1.f)
 		{
@@ -2428,9 +2442,9 @@ void ClipLODTransition(FMaterialPixelParameters Parameters, float DitherFactor)
 }
 
 
-#define REQUIRES_VF_ATTRIBUTES_FOR_CLIPPING (USE_INSTANCING && USE_DITHERED_LOD_TRANSITION)
+#define REQUIRES_VF_ATTRIBUTES_FOR_CLIPPING ((USE_INSTANCING || USE_INSTANCE_CULLING) && USE_DITHERED_LOD_TRANSITION)
 
-#if USE_INSTANCING && USE_DITHERED_LOD_TRANSITION
+#if (USE_INSTANCING  || USE_INSTANCE_CULLING) && USE_DITHERED_LOD_TRANSITION
 void ClipLODTransition(FMaterialPixelParameters Parameters)
 {
 	ClipLODTransition(Parameters, Parameters.PerInstanceParams.w);

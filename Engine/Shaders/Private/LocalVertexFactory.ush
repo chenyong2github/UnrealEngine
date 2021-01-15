@@ -15,7 +15,7 @@
 
 #include "/Engine/Generated/UniformBuffers/PrecomputedLightingBuffer.ush"
 
-#if USE_INSTANCING
+#if USE_INSTANCE_CULLING || USE_INSTANCING
 	#ifndef USE_DITHERED_LOD_TRANSITION_FOR_INSTANCED
 		#error "USE_DITHERED_LOD_TRANSITION_FOR_INSTANCED should have been defined"
 	#endif
@@ -27,19 +27,21 @@
 	#define USE_DITHERED_LOD_TRANSITION USE_DITHERED_LOD_TRANSITION_FROM_MATERIAL
 #endif
 
-#if USE_INSTANCING
-#if USE_DITHERED_LOD_TRANSITION
-	float4 InstancingViewZCompareZero;  // w contains random lod scale 
-	float4 InstancingViewZCompareOne;
-	float4 InstancingViewZConstant;
-	float4 InstancingWorldViewOriginZero;
-	float4 InstancingWorldViewOriginOne;
+#if USE_INSTANCE_CULLING || USE_INSTANCING
+	#if USE_DITHERED_LOD_TRANSITION
+		float4 InstancingViewZCompareZero;  // w contains random lod scale 
+		float4 InstancingViewZCompareOne;
+		float4 InstancingViewZConstant;
+		float4 InstancingWorldViewOriginZero;
+		float4 InstancingWorldViewOriginOne;
+	#endif
+	float4 InstancingFadeOutParams;
 #endif
 
+#if USE_INSTANCING
 float4 InstancingOffset;
-float4 InstancingFadeOutParams;
 uint InstanceOffset;
-#endif	// USE_INSTANCING
+#endif
 
 #if USE_SPLINEDEFORM
 float4 SplineParams[10];
@@ -135,7 +137,7 @@ struct FVertexFactoryInput
 	float2	TexCoords[1] : ATTRIBUTE4;
 #endif
 
-#if USE_INSTANCING && !MANUAL_VERTEX_FETCH
+#if (USE_INSTANCING || USE_INSTANCE_CULLING) && !MANUAL_VERTEX_FETCH
 	float4 InstanceOrigin : ATTRIBUTE8;  // per-instance random in w 
 	half4 InstanceTransform1 : ATTRIBUTE9;  // hitproxy.r + 256 * selected in .w
 	half4 InstanceTransform2 : ATTRIBUTE10; // hitproxy.g in .w
@@ -231,7 +233,7 @@ struct FPositionOnlyVertexFactoryInput
 {
 	float4	Position	: ATTRIBUTE0;
 
-#if USE_INSTANCING && !MANUAL_VERTEX_FETCH
+#if (USE_INSTANCING || USE_INSTANCE_CULLING) && !MANUAL_VERTEX_FETCH
 	float4 InstanceOrigin : ATTRIBUTE8;  // per-instance random in w 
 	half4 InstanceTransform1 : ATTRIBUTE9;  // hitproxy.r + 256 * selected in .w
 	half4 InstanceTransform2 : ATTRIBUTE10; // hitproxy.g in .w
@@ -289,6 +291,17 @@ struct FVertexFactoryIntermediates
 	half TangentToWorldSign;
 
 	half4 Color;
+
+#if USE_INSTANCE_CULLING
+	float4 HitProxyId;
+	float PerInstanceRandom;
+	float IsSelected;
+	float IsVisible;
+	// x = per-instance random, y = per-instance fade out amount, z = hide/show flag, w dither fade cutoff
+	float4 PerInstanceParams;
+	float4 InstanceLightmapAndShadowMapUVBias;
+#endif
+
 #if USE_INSTANCING
 		float4 InstanceOrigin;
 		float4 InstanceTransform1;
@@ -443,7 +456,7 @@ FMaterialPixelParameters GetMaterialPixelParameters(FVertexFactoryInterpolantsVS
 
 	// Required for previewing materials that use ParticleColor
 	Result.Particle.Color = half4(1,1,1,1);
-#if USE_INSTANCING
+#if USE_INSTANCING || USE_INSTANCE_CULLING 
 	Result.PerInstanceParams = Interpolants.PerInstanceParams;
 #endif
 
@@ -1159,6 +1172,13 @@ float4 VertexFactoryGetPreviousWorldPosition(FVertexFactoryInput Input, FVertexF
 		return TangentToWorld;
 	}
 #endif // #if USING_TESSELLATION
+
+#if USE_INSTANCE_CULLING
+float4 VertexFactoryGetInstanceHitProxyId(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates)
+{
+	return Intermediates.HitProxyId;
+}
+#endif
 
 #if USE_INSTANCING
 float4 VertexFactoryGetInstanceHitProxyId(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates)
