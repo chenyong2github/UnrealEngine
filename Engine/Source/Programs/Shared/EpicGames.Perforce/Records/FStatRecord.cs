@@ -26,6 +26,12 @@ namespace EpicGames.Perforce
 		public string? ClientFile;
 
 		/// <summary>
+		/// For move operations, shows the counterpart file
+		/// </summary>
+		[PerforceTag("movedFile", Optional = true)]
+		public string? MovedFile;
+
+		/// <summary>
 		/// Local path to file
 		/// </summary>
 		[PerforceTag("path", Optional = true)]
@@ -60,6 +66,12 @@ namespace EpicGames.Perforce
 		/// </summary>
 		[PerforceTag("headTime", Optional = true)]
 		public DateTime HeadTime;
+
+		/// <summary>
+		/// Revision for opened files
+		/// </summary>
+		[PerforceTag("rev", Optional = true)]
+		public int Revision;
 
 		/// <summary>
 		/// Head revision number, if in depot
@@ -119,7 +131,7 @@ namespace EpicGames.Perforce
 		/// Open type, if opened in your workspace
 		/// </summary>
 		[PerforceTag("type", Optional = true)]
-		public FileAction Type;
+		public string? Type;
 
 		/// <summary>
 		/// User who opened the file, if opens

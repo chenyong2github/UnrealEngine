@@ -36,7 +36,18 @@ namespace EpicGames.Perforce
 		/// </summary>
 		public List<T> Data
 		{
-			get { return this.Select(x => x.Data).Where(x => x != null).ToList(); }
+			get
+			{
+				if (Count == 1)
+				{
+					PerforceError? Error = this[0].Error;
+					if (Error != null && Error.Generic == PerforceGenericCode.Empty)
+					{
+						return new List<T>();
+					}
+				}
+				return this.Select(x => x.Data).Where(x => x != null).ToList();
+			}
 		}
 
 		/// <summary>
