@@ -16,6 +16,14 @@
 
 #define LOCTEXT_NAMESPACE "UHoleFillTool"
 
+/**
+ * 4.26 HOTFIX: this is used to keep dynamically-created Material Instances that we pass to USimpleDynamicMeshComponent
+ * from being Garbage Collected. USimpleDynamicMeshComponent stores raw UMaterialInterface* pointers, instead of proper UProperty
+ * pointers, which cannot be fixed in a Hotfix.
+ */
+#include "MeshModelingToolsObjectKeepaliveFix.h"
+static FModelingModeObjectsKeepaliveHelper HoleFillToolObjectKeepalive;
+
 /*
  * ToolBuilder
  */
@@ -126,6 +134,8 @@ void UHoleFillTool::Setup()
 	{
 		return;
 	}
+
+	HoleFillToolObjectKeepalive.Enable();
 
 	// create mesh to operate on
 	OriginalMesh = MakeShared<FDynamicMesh3>();
@@ -290,6 +300,8 @@ void UHoleFillTool::Shutdown(EToolShutdownType ShutdownType)
 
 		GetToolManager()->EndUndoTransaction();
 	}
+
+	HoleFillToolObjectKeepalive.Disable();
 }
 
 FInputRayHit UHoleFillTool::IsHitByClick(const FInputDeviceRay& ClickPos)
@@ -386,6 +398,7 @@ void UHoleFillTool::SetupPreview()
 	UMaterialInterface* SelectionMaterial = ToolSetupUtil::GetSelectionMaterial(FLinearColor(0.8f, 0.75f, 0.0f), GetToolManager());
 	if (SelectionMaterial != nullptr)
 	{
+		HoleFillToolObjectKeepalive.AddKeepaliveObject(SelectionMaterial);
 		Preview->PreviewMesh->SetSecondaryRenderMaterial(SelectionMaterial);
 	}
 

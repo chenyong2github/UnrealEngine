@@ -37,6 +37,13 @@
 
 #define LOCTEXT_NAMESPACE "UEditMeshPolygonsTool"
 
+/**
+ * 4.26 HOTFIX: this is used to keep dynamically-created Material Instances that we pass to USimpleDynamicMeshComponent
+ * from being Garbage Collected. USimpleDynamicMeshComponent stores raw UMaterialInterface* pointers, instead of proper UProperty 
+ * pointers, which cannot be fixed in a Hotfix.
+ */
+#include "MeshModelingToolsObjectKeepaliveFix.h"
+static FModelingModeObjectsKeepaliveHelper EditMeshPolygonsToolObjectKeepalive;
 
 
 /*
@@ -81,6 +88,8 @@ void UEditMeshPolygonsTool::Setup()
 {
 	UMeshSurfacePointTool::Setup();
 
+	EditMeshPolygonsToolObjectKeepalive.Enable();
+
 	// register click behavior
 	USingleClickInputBehavior* ClickBehavior = NewObject<USingleClickInputBehavior>();
 	ClickBehavior->Initialize(this);
@@ -106,6 +115,7 @@ void UEditMeshPolygonsTool::Setup()
 	if (SelectionMaterial != nullptr)
 	{
 		DynamicMeshComponent->SetSecondaryRenderMaterial(SelectionMaterial);
+		EditMeshPolygonsToolObjectKeepalive.AddKeepaliveObject(SelectionMaterial);
 	}
 
 	// enable secondary triangle buffers
@@ -304,6 +314,8 @@ void UEditMeshPolygonsTool::Shutdown(EToolShutdownType ShutdownType)
 		DynamicMeshComponent->DestroyComponent();
 		DynamicMeshComponent = nullptr;
 	}
+
+	EditMeshPolygonsToolObjectKeepalive.Disable();
 }
 
 
@@ -2132,8 +2144,9 @@ void UEditMeshPolygonsTool::UpdateEditPreviewMaterials(EPreviewMaterialType Mate
 		else if (MaterialType == EPreviewMaterialType::PreviewMaterial)
 		{
 			EditPreview->ClearOverrideRenderMaterial();
-			EditPreview->SetMaterial(
-				ToolSetupUtil::GetSelectionMaterial(FLinearColor(0.8f, 0.75f, 0.0f), GetToolManager()));
+			UMaterialInterface* SelectionMaterial = ToolSetupUtil::GetSelectionMaterial(FLinearColor(0.8f, 0.75f, 0.0f), GetToolManager());
+			EditMeshPolygonsToolObjectKeepalive.AddKeepaliveObject(SelectionMaterial);
+			EditPreview->SetMaterial(SelectionMaterial);
 		}
 		else if (MaterialType == EPreviewMaterialType::UVMaterial)
 		{
@@ -2142,6 +2155,7 @@ void UEditMeshPolygonsTool::UpdateEditPreviewMaterials(EPreviewMaterialType Mate
 			{
 				UMaterialInstanceDynamic* CheckerMaterial = UMaterialInstanceDynamic::Create(CheckerMaterialBase, NULL);
 				CheckerMaterial->SetScalarParameterValue("Density", 1);
+				EditMeshPolygonsToolObjectKeepalive.AddKeepaliveObject(CheckerMaterial);
 				EditPreview->SetOverrideRenderMaterial(CheckerMaterial);
 			}
 		}
