@@ -408,14 +408,17 @@ namespace SkelDataConversionImpl
 		FSmartName NewName;
 		Skeleton->AddSmartNameAndModify( USkeleton::AnimCurveMappingName, CurveName, NewName );
 
-		FFloatCurve* Curve = static_cast< FFloatCurve* >( Sequence->RawCurveData.GetCurveData( NewName.UID, ERawCurveTrackTypes::RCT_Float ) );
+
+		const UAnimDataModel* DataModel = Sequence->GetDataModel();
+		UAnimDataController* Controller = Sequence->GetController();
+
+		FAnimationCurveIdentifier CurveId(NewName, ERawCurveTrackTypes::RCT_Float);
+		const FFloatCurve* Curve = DataModel->FindFloatCurve(CurveId);
 		if ( !Curve )
 		{
-			if ( Sequence->RawCurveData.AddCurveData( NewName, AACF_DefaultCurve ) )
-			{
-				Curve = static_cast< FFloatCurve* > ( Sequence->RawCurveData.GetCurveData( NewName.UID, ERawCurveTrackTypes::RCT_Float ) );
-				Curve->Name = NewName;
-			}
+			// If curve doesn't exist, add one
+			Controller->AddCurve(CurveId, AACF_DefaultCurve);
+			Curve = DataModel->FindFloatCurve(CurveId);
 		}
 		else
 		{
@@ -428,16 +431,14 @@ namespace SkelDataConversionImpl
 				);
 			}
 
-			Curve->FloatCurve.Reset();
-			Curve->SetCurveTypeFlags( Curve->GetCurveTypeFlags() | AACF_DefaultCurve );
+			Controller->SetCurveFlags(CurveId, Curve->GetCurveTypeFlags() | AACF_DefaultCurve);
 		}
 
-		Sequence->RawCurveData.RefreshName( NameMapping );
+		Controller->UpdateCurveNamesFromSkeleton(Skeleton, ERawCurveTrackTypes::RCT_Float);
 
 		if ( Curve )
 		{
-			Curve->FloatCurve = SourceData;
-			Curve->FloatCurve.RemoveRedundantKeys( KINDA_SMALL_NUMBER );
+			Controller->SetCurveKeys(CurveId, SourceData.GetConstRefOfKeys());
 		}
 		else
 		{
@@ -1633,8 +1634,6 @@ bool UsdToUnreal::ConvertSkelAnim( const pxr::UsdSkelSkeletonQuery& InUsdSkeleto
 		return false;
 	}
 
-	OutSkeletalAnimationAsset->CleanAnimSequenceForImport();
-
 	TUsdStore<std::vector<double>> UsdJointTransformTimeSamples;
 	AnimQuery.Get().GetJointTransformTimeSamples( &( UsdJointTransformTimeSamples.Get() ) );
 	int32 NumJointTransformSamples = UsdJointTransformTimeSamples.Get().size();
@@ -1666,6 +1665,14 @@ bool UsdToUnreal::ConvertSkelAnim( const pxr::UsdSkelSkeletonQuery& InUsdSkeleto
 	const double SequenceLengthSeconds = FMath::Max<double>( SequenceLengthTimeCodes / TimeCodesPerSecond, MINIMUM_ANIMATION_LENGTH );
 	const int32 NumBakedFrames = FMath::CeilToInt( FMath::Max( SequenceLengthSeconds * FramesPerSecond + 1.0, 1.0 ) );
 	const double IntervalTimeCodes = ( NumBakedFrames > 1 ) ? ( SequenceLengthTimeCodes / ( NumBakedFrames - 1 ) ) : MINIMUM_ANIMATION_LENGTH;
+
+
+	const UAnimDataModel* DataModel = OutSkeletalAnimationAsset->GetDataModel();
+	UAnimDataController* Controller = OutSkeletalAnimationAsset->GetController();
+
+	Controller->OpenBracket(LOCTEXT("ImportUSDAnimData_Bracket", "Importing USD Animation Data"));
+
+	Controller->ResetModel();
 
 	// Bake the animation for each frame.
 	// An alternative route would be to convert the time samples into TransformCurves, add them to UAnimSequence::RawCurveData,
@@ -1708,7 +1715,8 @@ bool UsdToUnreal::ConvertSkelAnim( const pxr::UsdSkelSkeletonQuery& InUsdSkeleto
 
 		for ( int32 BoneIndex = 0; BoneIndex < NumBones; ++BoneIndex )
 		{
-			OutSkeletalAnimationAsset->AddNewRawTrack( BoneInfo[ BoneIndex ].Name, &JointTracks[ BoneIndex ] );
+			Controller->AddBoneTrack(BoneInfo[BoneIndex].Name); 
+			Controller->SetBoneTrackKeys(BoneInfo[BoneIndex].Name, JointTracks[BoneIndex].PosKeys, JointTracks[BoneIndex].RotKeys, JointTracks[BoneIndex].ScaleKeys);
 		}
 	}
 
@@ -1894,10 +1902,10 @@ bool UsdToUnreal::ConvertSkelAnim( const pxr::UsdSkelSkeletonQuery& InUsdSkeleto
 	OutSkeletalAnimationAsset->Interpolation = Stage.Get()->GetInterpolationType() == pxr::UsdInterpolationTypeHeld ? EAnimInterpolationType::Step : EAnimInterpolationType::Linear;
 	OutSkeletalAnimationAsset->ImportFileFramerate = Stage.Get()->GetFramesPerSecond();
 	OutSkeletalAnimationAsset->ImportResampleFramerate = FramesPerSecond;
-	OutSkeletalAnimationAsset->SetSequenceLength(SequenceLengthSeconds);
-	OutSkeletalAnimationAsset->SetNumberOfSampledKeys( NumBakedFrames );
-	OutSkeletalAnimationAsset->MarkRawDataAsModified();	
-	OutSkeletalAnimationAsset->PostProcessSequence();
+
+	Controller->SetPlayLength(SequenceLengthSeconds);
+	Controller->SetFrameRate(FFrameRate(FramesPerSecond, 1));
+	Controller->CloseBracket();
 
 	OutSkeletalAnimationAsset->PostEditChange();
 	OutSkeletalAnimationAsset->MarkPackageDirty();

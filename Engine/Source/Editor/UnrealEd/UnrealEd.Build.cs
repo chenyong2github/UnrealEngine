@@ -195,7 +195,8 @@ public class UnrealEd : ModuleRules
 				"IoStoreUtilities",
 				"EditorInteractiveToolsFramework",
 				"TraceLog",
-				"DeveloperSettings"
+				"DeveloperSettings",
+				"AnimationModifiers"
 			}
 		);
 
@@ -251,7 +252,6 @@ public class UnrealEd : ModuleRules
 				"PortalServices",
 				"BlueprintNativeCodeGen",
 				"OverlayEditor",
-				"AnimationModifiers",
 				"ClothPainter",
 				"Media",
 				"TimeManagementEditor",

@@ -159,7 +159,7 @@ FAnimTimelineTrack_Curve::FAnimTimelineTrack_Curve(const FText& InCurveName, con
 	SetHeight(32.0f);
 }
 
-FAnimTimelineTrack_Curve::FAnimTimelineTrack_Curve(FRichCurve& InCurve, const FSmartName& InName, int32 InCurveIndex, ERawCurveTrackTypes InType, const FText& InCurveName, const FText& InFullCurveName, const FLinearColor& InColor, const FLinearColor& InBackgroundColor, const TSharedRef<FAnimModel>& InModel)
+FAnimTimelineTrack_Curve::FAnimTimelineTrack_Curve(const FRichCurve* InCurve, const FSmartName& InName, int32 InCurveIndex, ERawCurveTrackTypes InType, const FText& InCurveName, const FText& InFullCurveName, const FLinearColor& InColor, const FLinearColor& InBackgroundColor, const TSharedRef<FAnimModel>& InModel)
 	: FAnimTimelineTrack(InCurveName, InCurveName, InModel)
 	, Color(InColor)
 	, BackgroundColor(InBackgroundColor)
@@ -168,11 +168,11 @@ FAnimTimelineTrack_Curve::FAnimTimelineTrack_Curve(FRichCurve& InCurve, const FS
 	, OuterCurveIndex(InCurveIndex)
 	, OuterType(InType)
 {
-	Curves.Add(&InCurve);
+	Curves.Add(InCurve);
 	SetHeight(32.0f);
 }
 
-FAnimTimelineTrack_Curve::FAnimTimelineTrack_Curve(const TArray<FRichCurve*>& InCurves, const FText& InCurveName, const FText& InFullCurveName, const FLinearColor& InColor, const FLinearColor& InBackgroundColor, const TSharedRef<FAnimModel>& InModel)
+FAnimTimelineTrack_Curve::FAnimTimelineTrack_Curve(const TArray<const FRichCurve*>& InCurves, const FText& InCurveName, const FText& InFullCurveName, const FLinearColor& InColor, const FLinearColor& InBackgroundColor, const TSharedRef<FAnimModel>& InModel)
 	: FAnimTimelineTrack(InCurveName, InCurveName, InModel)
 	, Curves(InCurves)
 	, Color(InColor)
@@ -193,7 +193,7 @@ TSharedRef<SWidget> FAnimTimelineTrack_Curve::GenerateContainerWidgetForTimeline
 
 	for(int32 CurveIndex = 0; CurveIndex < Curves.Num(); ++CurveIndex)
 	{
-		FRichCurve* Curve = Curves[CurveIndex];
+		const FRichCurve* Curve = Curves[CurveIndex];
 
 		FSmartName Name;
 		ERawCurveTrackTypes Type;
@@ -363,8 +363,6 @@ FReply FAnimTimelineTrack_Curve::HandleDoubleClicked(const FGeometry& InGeometry
 void FAnimTimelineTrack_Curve::HandleCurveChanged()
 {
 	ZoomToFit();
-
-	GetModel()->GetAnimSequenceBase()->MarkRawDataAsModified();
 }
 
 void FAnimTimelineTrack_Curve::PostUndoRedo()

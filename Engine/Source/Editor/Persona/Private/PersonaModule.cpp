@@ -92,6 +92,7 @@
 #include "SAnimSequenceCurveEditor.h"
 #include "AnimSequenceTimelineCommands.h"
 #include "SAnimMontageSectionsPanel.h"
+#include "Animation/AnimSequenceHelpers.h"
 
 IMPLEMENT_MODULE( FPersonaModule, Persona );
 
@@ -614,7 +615,7 @@ void FPersonaModule::TestSkeletonCurveNamesForUse(const TSharedRef<IEditableSkel
 					UAnimSequence* Seq = Cast<UAnimSequence>(Anim.GetAsset());
 
 					TSharedPtr<FTokenizedMessage> Message;
-					for (FFloatCurve& Curve : Seq->RawCurveData.FloatCurves)
+					for (const FFloatCurve& Curve : Seq->GetDataModel()->GetCurveData().FloatCurves)
 					{
 						if (UnusedNames.Contains(Curve.Name.DisplayName))
 						{
@@ -829,15 +830,18 @@ bool FPersonaModule::ExportToFBX(TArray<TWeakObjectPtr<UAnimSequence>>& AnimSequ
 
 void FPersonaModule::AddLoopingInterpolation(TArray<TWeakObjectPtr<UAnimSequence>>& AnimSequences)
 {
-	FText WarningMessage = LOCTEXT("AddLoopiingInterpolation", "This will add an extra first frame at the end of the animation to create a better looping interpolation. This action cannot be undone. Would you like to proceed?");
+	FText WarningMessage = LOCTEXT("AddLoopingInterpolation", "This will add an extra first frame at the end of the animation to create a better looping interpolation. This action cannot be undone. Would you like to proceed?");
 
 	if (FMessageDialog::Open(EAppMsgType::YesNo, WarningMessage) == EAppReturnType::Yes)
 	{
-		for (auto Animation : AnimSequences)
+		for (TWeakObjectPtr<UAnimSequence>& Animation : AnimSequences)
 		{
 			// get first frame and add to the last frame and go through track
 			// now calculating old animated space bases
-			Animation->AddLoopingInterpolation();
+			if (UAnimSequence* AnimSequence = Animation.Get())
+			{
+				UE::Anim::AnimationData::AddLoopingInterpolation(AnimSequence);
+			}
 		}
 	}
 }

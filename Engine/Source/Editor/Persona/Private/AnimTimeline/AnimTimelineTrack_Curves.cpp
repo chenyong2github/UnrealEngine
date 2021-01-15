@@ -12,6 +12,7 @@
 #include "Animation/AnimMontage.h"
 #include "SAnimOutlinerItem.h"
 #include "Preferences/PersonaOptions.h"
+#include "Animation/AnimData/AnimDataController.h"
 
 #define LOCTEXT_NAMESPACE "FAnimTimelineTrack_Notifies"
 
@@ -53,7 +54,7 @@ TSharedRef<SWidget> FAnimTimelineTrack_Curves::GenerateContainerWidgetForOutline
 			.Text_Lambda([this]()
 			{ 
 				UAnimSequenceBase* AnimSequenceBase = GetModel()->GetAnimSequenceBase();
-				return FText::Format(LOCTEXT("CurveCountFormat", "({0})"), FText::AsNumber(AnimSequenceBase->RawCurveData.FloatCurves.Num())); 
+				return FText::Format(LOCTEXT("CurveCountFormat", "({0})"), FText::AsNumber(AnimSequenceBase->GetDataModel()->GetNumberOfFloatCurves())); 
 			})
 		];
 
@@ -75,14 +76,9 @@ TSharedRef<SWidget> FAnimTimelineTrack_Curves::GenerateContainerWidgetForOutline
 
 void FAnimTimelineTrack_Curves::DeleteAllCurves()
 {
-	const FScopedTransaction Transaction( LOCTEXT("AnimCurve_RemoveAllCurves", "Remove All Curves") );
-
 	UAnimSequenceBase* AnimSequenceBase = GetModel()->GetAnimSequenceBase();
-	AnimSequenceBase->Modify(true);
-	AnimSequenceBase->RawCurveData.DeleteAllCurveData();
-	AnimSequenceBase->MarkRawDataAsModified();
-
-	GetModel()->RefreshTracks();
+	UAnimDataController* Controller = AnimSequenceBase->GetController();
+	Controller->RemoveAllCurvesOfType(ERawCurveTrackTypes::RCT_Float);
 }
 
 TSharedRef<SWidget> FAnimTimelineTrack_Curves::BuildCurvesSubMenu()
@@ -104,7 +100,7 @@ TSharedRef<SWidget> FAnimTimelineTrack_Curves::BuildCurvesSubMenu()
 		);
 
 		UAnimSequenceBase* AnimSequenceBase = GetModel()->GetAnimSequenceBase();
-		if(AnimSequenceBase->RawCurveData.FloatCurves.Num() > 0)
+		if(AnimSequenceBase->GetDataModel()->GetNumberOfFloatCurves() > 0)
 		{
 			MenuBuilder.AddMenuEntry(
 				FAnimSequenceTimelineCommands::Get().RemoveAllCurves->GetLabel(),
@@ -171,15 +167,17 @@ void FAnimTimelineTrack_Curves::FillMetadataEntryMenu(FMenuBuilder& Builder)
 	{
 		TArray<FSmartNameSortItem> SmartNameList;
 
+		const TArray<FFloatCurve>& FloatCurves = AnimSequenceBase->GetDataModel()->GetFloatCurves();
+
 		for (USkeleton::AnimCurveUID Id : CurveUids)
 		{
-			if (!AnimSequenceBase->RawCurveData.GetCurveData(Id))
+			FSmartName SmartName;
+			if (Mapping->FindSmartNameByUID(Id, SmartName) && !FloatCurves.ContainsByPredicate([SmartName](FFloatCurve& Curve)
 			{
-				FName CurveName;
-				if (Mapping->GetName(Id, CurveName))
-				{
-					SmartNameList.Add(FSmartNameSortItem(CurveName, Id));
-				}
+				return Curve.Name == SmartName;
+			}))
+			{
+				SmartNameList.Add(FSmartNameSortItem(SmartName.DisplayName, Id));
 			}
 		}
 
@@ -235,7 +233,7 @@ void FAnimTimelineTrack_Curves::FillVariableCurveMenu(FMenuBuilder& Builder)
 
 		for (USkeleton::AnimCurveUID Id : CurveUids)
 		{
-			if (!AnimSequenceBase->RawCurveData.GetCurveData(Id))
+			if (!AnimSequenceBase->GetDataModel()->FindFloatCurve(FAnimationCurveIdentifier(Id, ERawCurveTrackTypes::RCT_Float)))
 			{
 				FName CurveName;
 				if (Mapping->GetName(Id, CurveName))
@@ -270,19 +268,12 @@ void FAnimTimelineTrack_Curves::AddMetadataEntry(USkeleton::AnimCurveUID Uid)
 	UAnimSequenceBase* AnimSequenceBase = GetModel()->GetAnimSequenceBase();
 	ensureAlways(AnimSequenceBase->GetSkeleton()->GetSmartNameByUID(USkeleton::AnimCurveMappingName, Uid, NewName));
 
-	FScopedTransaction Transaction(LOCTEXT("AddCurveMetadata", "Add Curve Metadata"));
+	UAnimDataController* Controller = AnimSequenceBase->GetController();
+	UAnimDataController::FScopedBracket ScopedBracket(Controller, LOCTEXT("AddCurveMetadata", "Add Curve Metadata"));
 
-	AnimSequenceBase->Modify(true);
-
-	if(AnimSequenceBase->RawCurveData.AddCurveData(NewName))
-	{
-		AnimSequenceBase->MarkRawDataAsModified();
-		FFloatCurve* Curve = static_cast<FFloatCurve *>(AnimSequenceBase->RawCurveData.GetCurveData(Uid, ERawCurveTrackTypes::RCT_Float));
-		Curve->FloatCurve.AddKey(0.0f, 1.0f);
-		Curve->SetCurveTypeFlag(AACF_Metadata, true);
-		
-		GetModel()->RefreshTracks();
-	}
+	const FAnimationCurveIdentifier MetadataCurveId(NewName, ERawCurveTrackTypes::RCT_Float);
+	Controller->AddCurve(MetadataCurveId, AACF_Metadata);
+	Controller->SetCurveKeys(MetadataCurveId, { FRichCurveKey(0.f, 1.f) });	
 }
 
 void FAnimTimelineTrack_Curves::CreateNewMetadataEntryClicked()
@@ -370,10 +361,10 @@ void FAnimTimelineTrack_Curves::AddVariableCurve(USkeleton::AnimCurveUID CurveUi
 	USkeleton* Skeleton = AnimSequenceBase->GetSkeleton();
 	FSmartName NewName;
 	ensureAlways(Skeleton->GetSmartNameByUID(USkeleton::AnimCurveMappingName, CurveUid, NewName));
-	AnimSequenceBase->RawCurveData.AddCurveData(NewName);
-	AnimSequenceBase->MarkRawDataAsModified();
 
-	GetModel()->RefreshTracks();
+	UAnimDataController* Controller = AnimSequenceBase->GetController();
+	const FAnimationCurveIdentifier FloatCurveId(NewName, ERawCurveTrackTypes::RCT_Float);
+	Controller->AddCurve(FloatCurveId);
 }
 
 void FAnimTimelineTrack_Curves::HandleShowCurvePoints()

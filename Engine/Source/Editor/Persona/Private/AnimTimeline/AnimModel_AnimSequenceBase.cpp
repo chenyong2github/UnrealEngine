@@ -21,6 +21,8 @@
 #include "AnimPreviewInstance.h"
 #include "ScopedTransaction.h"
 
+#include "Animation/AnimData/AnimDataController.h"
+
 #define LOCTEXT_NAMESPACE "FAnimModel_AnimSequence"
 
 FAnimModel_AnimSequenceBase::FAnimModel_AnimSequenceBase(const TSharedRef<IPersonaPreviewScene>& InPreviewScene, const TSharedRef<IEditableSkeleton>& InEditableSkeleton, const TSharedRef<FUICommandList>& InCommandList, UAnimSequenceBase* InAnimSequenceBase)
@@ -38,13 +40,14 @@ FAnimModel_AnimSequenceBase::FAnimModel_AnimSequenceBase(const TSharedRef<IPerso
 		bElementNodeDisplayFlag = false;
 	}
 
-	AnimSequenceBase->RegisterOnAnimTrackCurvesChanged(UAnimSequenceBase::FOnAnimTrackCurvesChanged::CreateRaw(this, &FAnimModel_AnimSequenceBase::RefreshTracks));
 	AnimSequenceBase->RegisterOnNotifyChanged(UAnimSequenceBase::FOnNotifyChanged::CreateRaw(this, &FAnimModel_AnimSequenceBase::RefreshSnapTimes));
 	
 	if(GEditor)
 	{
 		GEditor->RegisterForUndo(this);
 	}
+
+	AnimSequenceBase->GetDataModel()->GetModifiedEvent().AddRaw(this, &FAnimModel_AnimSequenceBase::OnDataModelChanged);
 }
 
 FAnimModel_AnimSequenceBase::~FAnimModel_AnimSequenceBase()
@@ -55,7 +58,8 @@ FAnimModel_AnimSequenceBase::~FAnimModel_AnimSequenceBase()
 	}
 
 	AnimSequenceBase->UnregisterOnNotifyChanged(this);
-	AnimSequenceBase->UnregisterOnAnimTrackCurvesChanged(this);
+
+	AnimSequenceBase->GetDataModel()->GetModifiedEvent().RemoveAll(this);
 }
 
 void FAnimModel_AnimSequenceBase::Initialize()
@@ -167,8 +171,6 @@ UAnimSequenceBase* FAnimModel_AnimSequenceBase::GetAnimSequenceBase() const
 
 void FAnimModel_AnimSequenceBase::RefreshNotifyTracks()
 {
-	AnimSequenceBase->InitializeNotifyTrack();
-
 	if(!NotifyRoot.IsValid())
 	{
 		// Add a root track for notifies & then the main 'panel' legacy track
@@ -199,9 +201,10 @@ void FAnimModel_AnimSequenceBase::RefreshCurveTracks()
 	RootTracks.Add(CurveRoot.ToSharedRef());
 
 	// Next add a track for each float curve
-	for(FFloatCurve& FloatCurve : AnimSequenceBase->RawCurveData.FloatCurves)
+	const FAnimationCurveData& AnimationModelCurveData = AnimSequenceBase->GetDataModel()->GetCurveData();
+	for(const FFloatCurve& FloatCurve : AnimationModelCurveData.FloatCurves)
 	{
-		CurveRoot->AddChild(MakeShared<FAnimTimelineTrack_FloatCurve>(FloatCurve, SharedThis(this)));
+		CurveRoot->AddChild(MakeShared<FAnimTimelineTrack_FloatCurve>(&FloatCurve, SharedThis(this)));
 	}
 
 	UAnimSequence* AnimSequence = Cast<UAnimSequence>(AnimSequenceBase);
@@ -217,9 +220,9 @@ void FAnimModel_AnimSequenceBase::RefreshCurveTracks()
 		RootTracks.Add(AdditiveRoot.ToSharedRef());
 
 		// Next add a track for each transform curve
-		for(FTransformCurve& TransformCurve : AnimSequence->RawCurveData.TransformCurves)
+		for(const FTransformCurve& TransformCurve : AnimationModelCurveData.TransformCurves)
 		{
-			TSharedRef<FAnimTimelineTrack_TransformCurve> TransformCurveTrack = MakeShared<FAnimTimelineTrack_TransformCurve>(TransformCurve, SharedThis(this));
+			TSharedRef<FAnimTimelineTrack_TransformCurve> TransformCurveTrack = MakeShared<FAnimTimelineTrack_TransformCurve>(&TransformCurve, SharedThis(this));
 			TransformCurveTrack->SetExpanded(false);
 			AdditiveRoot->AddChild(TransformCurveTrack);
 
@@ -234,33 +237,64 @@ void FAnimModel_AnimSequenceBase::RefreshCurveTracks()
 			
 			FText VectorFormat = LOCTEXT("TransformVectorFormat", "{0}.{1}");
 			FText TranslationName = LOCTEXT("TransformTranslationTrackName", "Translation");
-			TSharedRef<FAnimTimelineTrack_VectorCurve> TranslationCurveTrack = MakeShared<FAnimTimelineTrack_VectorCurve>(TransformCurve.TranslationCurve, TransformCurve.Name, 0, ERawCurveTrackTypes::RCT_Transform, TranslationName, FText::Format(VectorFormat, TransformName, TranslationName), TransformColor, SharedThis(this));
+			TSharedRef<FAnimTimelineTrack_VectorCurve> TranslationCurveTrack = MakeShared<FAnimTimelineTrack_VectorCurve>(&TransformCurve.TranslationCurve, TransformCurve.Name, 0, ERawCurveTrackTypes::RCT_Transform, TranslationName, FText::Format(VectorFormat, TransformName, TranslationName), TransformColor, SharedThis(this));
 			TranslationCurveTrack->SetExpanded(false);
 			TransformCurveTrack->AddChild(TranslationCurveTrack);			
 
 			FText ComponentFormat = LOCTEXT("TransformComponentFormat", "{0}.{1}.{2}");
-			TranslationCurveTrack->AddChild(MakeShared<FAnimTimelineTrack_Curve>(TransformCurve.TranslationCurve.FloatCurves[0], TransformCurve.Name, 0, ERawCurveTrackTypes::RCT_Transform, XName, FText::Format(ComponentFormat, TransformName, TranslationName, XName), XColor, XColor, SharedThis(this)));
-			TranslationCurveTrack->AddChild(MakeShared<FAnimTimelineTrack_Curve>(TransformCurve.TranslationCurve.FloatCurves[1], TransformCurve.Name, 1, ERawCurveTrackTypes::RCT_Transform, YName, FText::Format(ComponentFormat, TransformName, TranslationName, YName), YColor, YColor, SharedThis(this)));
-			TranslationCurveTrack->AddChild(MakeShared<FAnimTimelineTrack_Curve>(TransformCurve.TranslationCurve.FloatCurves[2], TransformCurve.Name, 2, ERawCurveTrackTypes::RCT_Transform, ZName, FText::Format(ComponentFormat, TransformName, TranslationName, ZName), ZColor, ZColor, SharedThis(this)));
+			TranslationCurveTrack->AddChild(MakeShared<FAnimTimelineTrack_Curve>(&TransformCurve.TranslationCurve.FloatCurves[0], TransformCurve.Name, 0, ERawCurveTrackTypes::RCT_Transform, XName, FText::Format(ComponentFormat, TransformName, TranslationName, XName), XColor, XColor, SharedThis(this)));
+			TranslationCurveTrack->AddChild(MakeShared<FAnimTimelineTrack_Curve>(&TransformCurve.TranslationCurve.FloatCurves[1], TransformCurve.Name, 1, ERawCurveTrackTypes::RCT_Transform, YName, FText::Format(ComponentFormat, TransformName, TranslationName, YName), YColor, YColor, SharedThis(this)));
+			TranslationCurveTrack->AddChild(MakeShared<FAnimTimelineTrack_Curve>(&TransformCurve.TranslationCurve.FloatCurves[2], TransformCurve.Name, 2, ERawCurveTrackTypes::RCT_Transform, ZName, FText::Format(ComponentFormat, TransformName, TranslationName, ZName), ZColor, ZColor, SharedThis(this)));
 
 			FText RollName = LOCTEXT("RotationRollTrackName", "Roll");
 			FText PitchName = LOCTEXT("RotationPitchTrackName", "Pitch");
 			FText YawName = LOCTEXT("RotationYawTrackName", "Yaw");
 			FText RotationName = LOCTEXT("TransformRotationTrackName", "Rotation");
-			TSharedRef<FAnimTimelineTrack_VectorCurve> RotationCurveTrack = MakeShared<FAnimTimelineTrack_VectorCurve>(TransformCurve.RotationCurve, TransformCurve.Name, 3, ERawCurveTrackTypes::RCT_Transform, RotationName, FText::Format(VectorFormat, TransformName, RotationName), TransformColor, SharedThis(this));
+			TSharedRef<FAnimTimelineTrack_VectorCurve> RotationCurveTrack = MakeShared<FAnimTimelineTrack_VectorCurve>(&TransformCurve.RotationCurve, TransformCurve.Name, 3, ERawCurveTrackTypes::RCT_Transform, RotationName, FText::Format(VectorFormat, TransformName, RotationName), TransformColor, SharedThis(this));
 			RotationCurveTrack->SetExpanded(false);
 			TransformCurveTrack->AddChild(RotationCurveTrack);
-			RotationCurveTrack->AddChild(MakeShared<FAnimTimelineTrack_Curve>(TransformCurve.RotationCurve.FloatCurves[0], TransformCurve.Name, 3, ERawCurveTrackTypes::RCT_Transform, RollName, FText::Format(ComponentFormat, TransformName, RotationName, RollName), XColor, XColor, SharedThis(this)));
-			RotationCurveTrack->AddChild(MakeShared<FAnimTimelineTrack_Curve>(TransformCurve.RotationCurve.FloatCurves[1], TransformCurve.Name, 4, ERawCurveTrackTypes::RCT_Transform, PitchName, FText::Format(ComponentFormat, TransformName, RotationName, PitchName), YColor, YColor, SharedThis(this)));
-			RotationCurveTrack->AddChild(MakeShared<FAnimTimelineTrack_Curve>(TransformCurve.RotationCurve.FloatCurves[2], TransformCurve.Name, 5, ERawCurveTrackTypes::RCT_Transform, YawName, FText::Format(ComponentFormat, TransformName, RotationName, YawName), ZColor, ZColor, SharedThis(this)));
+			RotationCurveTrack->AddChild(MakeShared<FAnimTimelineTrack_Curve>(&TransformCurve.RotationCurve.FloatCurves[0], TransformCurve.Name, 3, ERawCurveTrackTypes::RCT_Transform, RollName, FText::Format(ComponentFormat, TransformName, RotationName, RollName), XColor, XColor, SharedThis(this)));
+			RotationCurveTrack->AddChild(MakeShared<FAnimTimelineTrack_Curve>(&TransformCurve.RotationCurve.FloatCurves[1], TransformCurve.Name, 4, ERawCurveTrackTypes::RCT_Transform, PitchName, FText::Format(ComponentFormat, TransformName, RotationName, PitchName), YColor, YColor, SharedThis(this)));
+			RotationCurveTrack->AddChild(MakeShared<FAnimTimelineTrack_Curve>(&TransformCurve.RotationCurve.FloatCurves[2], TransformCurve.Name, 5, ERawCurveTrackTypes::RCT_Transform, YawName, FText::Format(ComponentFormat, TransformName, RotationName, YawName), ZColor, ZColor, SharedThis(this)));
 
 			FText ScaleName = LOCTEXT("TransformScaleTrackName", "Scale");
-			TSharedRef<FAnimTimelineTrack_VectorCurve> ScaleCurveTrack = MakeShared<FAnimTimelineTrack_VectorCurve>(TransformCurve.ScaleCurve, TransformCurve.Name, 6, ERawCurveTrackTypes::RCT_Transform, ScaleName, FText::Format(VectorFormat, TransformName, ScaleName), TransformColor, SharedThis(this));
+			TSharedRef<FAnimTimelineTrack_VectorCurve> ScaleCurveTrack = MakeShared<FAnimTimelineTrack_VectorCurve>(&TransformCurve.ScaleCurve, TransformCurve.Name, 6, ERawCurveTrackTypes::RCT_Transform, ScaleName, FText::Format(VectorFormat, TransformName, ScaleName), TransformColor, SharedThis(this));
 			ScaleCurveTrack->SetExpanded(false);
 			TransformCurveTrack->AddChild(ScaleCurveTrack);
-			ScaleCurveTrack->AddChild(MakeShared<FAnimTimelineTrack_Curve>(TransformCurve.ScaleCurve.FloatCurves[0], TransformCurve.Name, 6, ERawCurveTrackTypes::RCT_Transform, XName, FText::Format(ComponentFormat, TransformName, ScaleName, XName), XColor, XColor, SharedThis(this)));
-			ScaleCurveTrack->AddChild(MakeShared<FAnimTimelineTrack_Curve>(TransformCurve.ScaleCurve.FloatCurves[1], TransformCurve.Name, 7, ERawCurveTrackTypes::RCT_Transform, YName, FText::Format(ComponentFormat, TransformName, ScaleName, YName), YColor, YColor, SharedThis(this)));
-			ScaleCurveTrack->AddChild(MakeShared<FAnimTimelineTrack_Curve>(TransformCurve.ScaleCurve.FloatCurves[2], TransformCurve.Name, 8, ERawCurveTrackTypes::RCT_Transform, ZName, FText::Format(ComponentFormat, TransformName, ScaleName, ZName), ZColor, ZColor, SharedThis(this)));
+			ScaleCurveTrack->AddChild(MakeShared<FAnimTimelineTrack_Curve>(&TransformCurve.ScaleCurve.FloatCurves[0], TransformCurve.Name, 6, ERawCurveTrackTypes::RCT_Transform, XName, FText::Format(ComponentFormat, TransformName, ScaleName, XName), XColor, XColor, SharedThis(this)));
+			ScaleCurveTrack->AddChild(MakeShared<FAnimTimelineTrack_Curve>(&TransformCurve.ScaleCurve.FloatCurves[1], TransformCurve.Name, 7, ERawCurveTrackTypes::RCT_Transform, YName, FText::Format(ComponentFormat, TransformName, ScaleName, YName), YColor, YColor, SharedThis(this)));
+			ScaleCurveTrack->AddChild(MakeShared<FAnimTimelineTrack_Curve>(&TransformCurve.ScaleCurve.FloatCurves[2], TransformCurve.Name, 8, ERawCurveTrackTypes::RCT_Transform, ZName, FText::Format(ComponentFormat, TransformName, ScaleName, ZName), ZColor, ZColor, SharedThis(this)));
+		}
+	}
+}
+
+void FAnimModel_AnimSequenceBase::OnDataModelChanged(const EAnimDataModelNotifyType& NotifyType, UAnimDataModel* Model, const FAnimDataModelNotifPayload& PayLoad)
+{
+	NotifyCollector.Handle(NotifyType);
+
+	switch(NotifyType)
+	{ 
+		case EAnimDataModelNotifyType::CurveAdded:
+		case EAnimDataModelNotifyType::CurveRemoved:
+		case EAnimDataModelNotifyType::TrackAdded:
+		case EAnimDataModelNotifyType::TrackChanged:
+		case EAnimDataModelNotifyType::TrackRemoved:
+		case EAnimDataModelNotifyType::SequenceLengthChanged:
+		case EAnimDataModelNotifyType::FrameRateChanged:
+		{
+			if (NotifyCollector.IsNotWithinBracket())
+			{
+				RefreshTracks();
+			}
+			break;
+		}
+		case EAnimDataModelNotifyType::BracketClosed:
+		{
+			if (NotifyCollector.IsNotWithinBracket())
+			{
+				RefreshTracks();
+			}
+			break;
 		}
 	}
 }
@@ -273,7 +307,7 @@ void FAnimModel_AnimSequenceBase::EditSelectedCurves()
 		if(SelectedTrack->IsA<FAnimTimelineTrack_Curve>())
 		{
 			TSharedRef<FAnimTimelineTrack_Curve> CurveTrack = StaticCastSharedRef<FAnimTimelineTrack_Curve>(SelectedTrack);
-			const TArray<FRichCurve*> Curves = CurveTrack->GetCurves();
+			const TArray<const FRichCurve*> Curves = CurveTrack->GetCurves();
 			int32 NumCurves = Curves.Num();
 			for(int32 CurveIndex = 0; CurveIndex < NumCurves; ++CurveIndex)
 			{
@@ -305,7 +339,7 @@ bool FAnimModel_AnimSequenceBase::CanEditSelectedCurves() const
 		if(SelectedTrack->IsA<FAnimTimelineTrack_Curve>())
 		{
 			TSharedRef<FAnimTimelineTrack_Curve> CurveTrack = StaticCastSharedRef<FAnimTimelineTrack_Curve>(SelectedTrack);
-			const TArray<FRichCurve*>& Curves = CurveTrack->GetCurves();
+			const TArray<const FRichCurve*>& Curves = CurveTrack->GetCurves();
 			for(int32 CurveIndex = 0; CurveIndex < Curves.Num(); ++CurveIndex)
 			{
 				if(CurveTrack->CanEditCurve(CurveIndex))
@@ -321,9 +355,8 @@ bool FAnimModel_AnimSequenceBase::CanEditSelectedCurves() const
 
 void FAnimModel_AnimSequenceBase::RemoveSelectedCurves()
 {
-	FScopedTransaction Transaction(LOCTEXT("CurvePanel_RemoveCurves", "Remove Curves"));
-
-	AnimSequenceBase->Modify(true);
+	UAnimDataController* Controller = AnimSequenceBase->GetController();
+	Controller->OpenBracket(LOCTEXT("CurvePanel_RemoveCurves", "Remove Curves"));
 
 	bool bDeletedCurve = false;
 
@@ -333,10 +366,9 @@ void FAnimModel_AnimSequenceBase::RemoveSelectedCurves()
 		{
 			TSharedRef<FAnimTimelineTrack_FloatCurve> FloatCurveTrack = StaticCastSharedRef<FAnimTimelineTrack_FloatCurve>(SelectedTrack);
 
-			FFloatCurve& FloatCurve = FloatCurveTrack->GetFloatCurve();
 			FSmartName CurveName = FloatCurveTrack->GetName();
-
-			if(AnimSequenceBase->RawCurveData.GetCurveData(CurveName.UID))
+			const FAnimationCurveIdentifier FloatCurveId(CurveName, ERawCurveTrackTypes::RCT_Float);
+			if (AnimSequenceBase->GetDataModel()->FindCurve(FloatCurveId))
 			{
 				FSmartName TrackName;
 				if (AnimSequenceBase->GetSkeleton()->GetSmartNameByUID(USkeleton::AnimCurveMappingName, CurveName.UID, TrackName))
@@ -349,7 +381,7 @@ void FAnimModel_AnimSequenceBase::RemoveSelectedCurves()
 					IAnimationEditor::FCurveEditInfo EditInfo(Name, Type, CurveEditIndex);
 					OnStopEditingCurves.ExecuteIfBound(TArray<IAnimationEditor::FCurveEditInfo>({ EditInfo }));
 
-					AnimSequenceBase->RawCurveData.DeleteCurveData(TrackName);
+					Controller->RemoveCurve(FloatCurveId);
 					bDeletedCurve = true;
 				}
 			}
@@ -358,10 +390,12 @@ void FAnimModel_AnimSequenceBase::RemoveSelectedCurves()
 		{
 			TSharedRef<FAnimTimelineTrack_TransformCurve> TransformCurveTrack = StaticCastSharedRef<FAnimTimelineTrack_TransformCurve>(SelectedTrack);
 
-			FTransformCurve& TransformCurve = TransformCurveTrack->GetTransformCurve();
+			const FTransformCurve& TransformCurve = TransformCurveTrack->GetTransformCurve();
 			FSmartName CurveName = TransformCurveTrack->GetName();
 
-			if(AnimSequenceBase->RawCurveData.GetCurveData(CurveName.UID, ERawCurveTrackTypes::RCT_Transform))
+			const FAnimationCurveIdentifier TransformCurveId(CurveName, ERawCurveTrackTypes::RCT_Transform);
+
+			if (AnimSequenceBase->GetDataModel()->FindTransformCurve(TransformCurveId))
 			{
 				FSmartName CurveToDelete;
 				if (AnimSequenceBase->GetSkeleton()->GetSmartNameByUID(USkeleton::AnimTrackCurveMappingName, CurveName.UID, CurveToDelete))
@@ -380,17 +414,18 @@ void FAnimModel_AnimSequenceBase::RemoveSelectedCurves()
 
 					OnStopEditingCurves.ExecuteIfBound(CurveEditInfo);
 
-					AnimSequenceBase->RawCurveData.DeleteCurveData(CurveToDelete, ERawCurveTrackTypes::RCT_Transform);
-					
+					Controller->RemoveCurve(TransformCurveId);
 					bDeletedCurve = true;
 				}
 			}	
 		}
 	}
 
+	Controller->CloseBracket();
+
 	if(bDeletedCurve)
 	{
-		AnimSequenceBase->MarkRawDataAsModified();
+		REFACTOR_V2_WARNING("V2 why is post edit change needed here?");
 		AnimSequenceBase->PostEditChange();
 
 		if (GetPreviewScene()->GetPreviewMeshComponent()->PreviewInstance != nullptr)
@@ -398,8 +433,6 @@ void FAnimModel_AnimSequenceBase::RemoveSelectedCurves()
 			GetPreviewScene()->GetPreviewMeshComponent()->PreviewInstance->RefreshCurveBoneControllers();
 		}
 	}
-
-	RefreshTracks();
 }
 
 void FAnimModel_AnimSequenceBase::SetDisplayFormat(EFrameNumberDisplayFormats InFormat)
@@ -435,7 +468,7 @@ bool FAnimModel_AnimSequenceBase::IsDisplaySecondaryChecked() const
 void FAnimModel_AnimSequenceBase::HandleUndoRedo()
 {
 	// Close any curves that are no longer editable
-	for(FFloatCurve& FloatCurve : AnimSequenceBase->RawCurveData.FloatCurves)
+	for (const FFloatCurve& FloatCurve : AnimSequenceBase->GetDataModel()->GetCurveData().FloatCurves)
 	{
 		if(FloatCurve.GetCurveTypeFlag(AACF_Metadata))
 		{

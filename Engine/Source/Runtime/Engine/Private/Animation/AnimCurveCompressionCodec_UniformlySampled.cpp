@@ -16,7 +16,7 @@ UAnimCurveCompressionCodec_UniformlySampled::UAnimCurveCompressionCodec_Uniforml
 #if WITH_EDITORONLY_DATA
 bool UAnimCurveCompressionCodec_UniformlySampled::Compress(const FCompressibleAnimData& AnimSeq, FAnimCurveCompressionResult& OutResult)
 {
-	const int32 NumCurves = AnimSeq.RawCurveData.FloatCurves.Num();
+	const int32 NumCurves = AnimSeq.RawFloatCurves.Num();
 	const float Duration = AnimSeq.SequenceLength;
 
 	int32 NumSamples;
@@ -37,7 +37,7 @@ bool UAnimCurveCompressionCodec_UniformlySampled::Compress(const FCompressibleAn
 	}
 
 	int32 NumConstantCurves = 0;
-	for (const FFloatCurve& Curve : AnimSeq.RawCurveData.FloatCurves)
+	for (const FFloatCurve& Curve : AnimSeq.RawFloatCurves)
 	{
 		if (Curve.FloatCurve.IsConstant())
 		{
@@ -92,7 +92,7 @@ bool UAnimCurveCompressionCodec_UniformlySampled::Compress(const FCompressibleAn
 		{
 			for (int32 CurveIndex = 0, ConstantCurveIndex = 0; CurveIndex < NumCurves; ++CurveIndex)
 			{
-				const FFloatCurve& Curve = AnimSeq.RawCurveData.FloatCurves[CurveIndex];
+				const FFloatCurve& Curve = AnimSeq.RawFloatCurves[CurveIndex];
 				if (Curve.FloatCurve.IsConstant())
 				{
 					if (Curve.FloatCurve.IsEmpty())
@@ -124,7 +124,7 @@ bool UAnimCurveCompressionCodec_UniformlySampled::Compress(const FCompressibleAn
 
 				for (int32 CurveIndex = 0, AnimatedCurveIndex = 0; CurveIndex < NumCurves; ++CurveIndex)
 				{
-					const FFloatCurve& Curve = AnimSeq.RawCurveData.FloatCurves[CurveIndex];
+					const FFloatCurve& Curve = AnimSeq.RawFloatCurves[CurveIndex];
 					if (Curve.FloatCurve.IsConstant())
 					{
 						// Skip constant curves, their data has already been written

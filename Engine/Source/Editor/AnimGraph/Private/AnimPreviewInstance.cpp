@@ -5,6 +5,7 @@
 #include "Animation/DebugSkelMeshComponent.h"
 #include "AnimationRuntime.h"
 #include "Animation/AnimSequence.h"
+#include "Animation/AnimSequenceHelpers.h"
 
 #if WITH_EDITOR
 #include "ScopedTransaction.h"
@@ -268,14 +269,14 @@ void FAnimPreviewInstanceProxy::RefreshCurveBoneControllers(UAnimationAsset* Ass
 	if(CurrentSequence)
 	{
 		// make sure if this needs source update
-		if ( !CurrentSequence->DoesContainTransformCurves() )
+		if (CurrentSequence->GetDataModel()->GetNumberOfTransformCurves() == 0)
 		{
 			return;
 		}
 
 		GetRequiredBones().SetUseSourceData(true);
 
-		TArray<FTransformCurve>& Curves = CurrentSequence->RawCurveData.TransformCurves;
+		const TArray<FTransformCurve>& Curves = CurrentSequence->GetDataModel()->GetCurveData().TransformCurves;
 		USkeleton* MySkeleton = CurrentSequence->GetSkeleton();
 		for (auto& Curve : Curves)
 		{
@@ -303,7 +304,7 @@ void FAnimPreviewInstanceProxy::UpdateCurveController()
 	if (CurrentSequence && PreviewSkeleton)
 	{
 		TMap<FName, FTransform> ActiveCurves;
-		CurrentSequence->RawCurveData.EvaluateTransformCurveData(PreviewSkeleton, ActiveCurves, GetCurrentTime(), 1.f);
+		UE::Anim::EvaluateTransformCurvesFromModel(CurrentSequence->GetDataModel(), ActiveCurves, GetCurrentTime(), 1.f);
 
 		// make sure those curves exists in the bone controller, otherwise problem
 		if ( ActiveCurves.Num() > 0 )

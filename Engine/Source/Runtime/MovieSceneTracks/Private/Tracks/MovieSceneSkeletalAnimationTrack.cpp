@@ -586,17 +586,22 @@ static FTransform GetWorldTransformForBone(UAnimSequence* AnimSequence, USkeleta
 	{
 		int32 BoneIndex = MeshComponent->GetBoneIndex(BoneName);
 		FTransform BoneTransform;
-		int32 TrackIndex;
+		int32 TrackIndex = INDEX_NONE;
 
-		for (TrackIndex = 0; TrackIndex < AnimSequence->GetRawTrackToSkeletonMapTable().Num(); ++TrackIndex)
+#if WITH_EDITOR
+		const UAnimDataModel* Model = AnimSequence->GetDataModel();
+		if (const FBoneAnimationTrack* TrackData = Model->FindBoneTrackByName(InBoneName))
 		{
-			if (AnimSequence->GetRawTrackToSkeletonMapTable()[TrackIndex].BoneTreeIndex == BoneIndex)
-			{
-				break;
-			}
+			TrackIndex = TrackData->BoneTreeIndex;
 		}
+#else
+		TrackIndex = AnimSequence->GetCompressedTrackToSkeletonMapTable().IndexOfByPredicate([BoneIndex](const FTrackToSkeletonMap& Mapping)
+		{
+			return Mapping.BoneTreeIndex == BoneIndex;
+		});
+#endif
 
-		if (TrackIndex == AnimSequence->GetRawTrackToSkeletonMapTable().Num())
+		if (TrackIndex == INDEX_NONE)
 		{
 			break;
 		}

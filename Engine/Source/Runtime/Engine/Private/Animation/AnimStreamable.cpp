@@ -23,6 +23,10 @@
 #include "Animation/CustomAttributesRuntime.h"
 #include "UObject/UE5MainStreamObjectVersion.h"
 
+#include "Animation/AnimData/AnimDataModel.h"
+#include "Animation/AnimSequenceHelpers.h"
+#include "Animation/AnimData/AnimDataController.h"
+
 CSV_DECLARE_CATEGORY_MODULE_EXTERN(ENGINE_API, Animation);
 
 DECLARE_CYCLE_STAT(TEXT("AnimStreamable GetAnimationPose"), STAT_AnimStreamable_GetAnimationPose, STATGROUP_Anim);
@@ -274,24 +278,22 @@ void UAnimStreamable::GetAnimationPose(FAnimationPoseData& OutAnimationPoseData,
 	if (!HasRunningPlatformData() || RequiredBones.ShouldUseRawData())
 	{
 		//Need to evaluate raw data
-		RawCurveData.EvaluateCurveData(OutCurve, ExtractionContext.CurrentTime);
+		ValidateModel();
 
-		const int32 NumTracks = TrackToSkeletonMapTable.Num();
+		UE::Anim::EvaluateFloatCurvesFromModel(DataModel, OutCurve, ExtractionContext.CurrentTime);
 
 		// Warning if we have invalid data
-
-		for (int32 TrackIndex = 0; TrackIndex < NumTracks; TrackIndex++)
+		for (const FBoneAnimationTrack& AnimationTrack : DataModel->GetBoneAnimationTracks())
 		{
-			const FRawAnimSequenceTrack& TrackToExtract = RawAnimationData[TrackIndex];
-
+			const FRawAnimSequenceTrack& TrackToExtract = AnimationTrack.InternalTrackData;
 			// Bail out (with rather wacky data) if data is empty for some reason.
 			if (TrackToExtract.PosKeys.Num() == 0 || TrackToExtract.RotKeys.Num() == 0)
 			{
-				UE_LOG(LogAnimation, Warning, TEXT("UAnimSequence::GetBoneTransform : No anim data in AnimSequence '%s' Track '%s'"), *GetPathName(), *AnimationTrackNames[TrackIndex].ToString());
+				UE_LOG(LogAnimation, Warning, TEXT("UAnimSequence::GetBoneTransform : No anim data in AnimSequence '%s' Track '%s'"), *GetPathName(), *AnimationTrack.Name.ToString());
 			}
 		}
 
-		BuildPoseFromRawData(RawAnimationData, TrackToSkeletonMapTable, OutPose, ExtractionContext.CurrentTime, Interpolation, NumberOfKeys, GetPlayLength(), RetargetSource);
+		UE::Anim::BuildPoseFromModel(DataModel, OutPose, ExtractionContext.CurrentTime, Interpolation, RetargetSource, MySkeleton->GetRefLocalPoses(RetargetSource));
 
 		if ((ExtractionContext.bExtractRootMotion && RootMotionReset.bEnableRootMotion) || RootMotionReset.bForceRootLock)
 		{
@@ -381,8 +383,10 @@ void UAnimStreamable::PostLoad()
 		}
 		NonConstSeq->ConditionalPostLoad();
 	}
-
-	if (SourceSequence && (GenerateGuidFromRawAnimData(SourceSequence->GetRawAnimationData(), SourceSequence->RawCurveData) != RawDataGuid))
+	
+	const bool bRequiresModelPopulation = GetLinkerCustomVersion(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::IntroducingAnimationDataModel;
+	const FGuid CurrentGuid = SourceSequence ? SourceSequence->GetDataModel()->GenerateGuid() : FGuid();
+	if (SourceSequence && ( CurrentGuid != RawDataGuid || bRequiresModelPopulation))
 	{
 		InitFrom(SourceSequence);
 	}
@@ -449,22 +453,15 @@ void UAnimStreamable::InitFrom(const UAnimSequence* InSourceSequence)
 	BoneCompressionSettings = InSourceSequence->BoneCompressionSettings;
 	CurveCompressionSettings = InSourceSequence->CurveCompressionSettings;
 
-	RawAnimationData = InSourceSequence->GetRawAnimationData();
-	RawCurveData = InSourceSequence->RawCurveData;
+	DataModel = DuplicateObject(InSourceSequence->GetDataModel(), this);
+	Controller->SetModel(DataModel);
 
 	Notifies = InSourceSequence->Notifies;
-
-	TrackToSkeletonMapTable = InSourceSequence->GetRawTrackToSkeletonMapTable();
-	AnimationTrackNames = InSourceSequence->GetAnimationTrackNames();
-	
-	NumberOfKeys = InSourceSequence->GetNumberOfSampledKeys();
-	SetSequenceLength(InSourceSequence->GetPlayLength());
-	
+	Controller->SetPlayLength(InSourceSequence->GetDataModel()->GetPlayLength());
 	RateScale = InSourceSequence->RateScale;
-
 	Interpolation = InSourceSequence->Interpolation;
-
 	RetargetSource = InSourceSequence->RetargetSource;
+	NumberOfKeys = DataModel->GetNumberOfKeys();
 
 	bEnableRootMotion = InSourceSequence->bEnableRootMotion;
 	RootMotionRootLock = InSourceSequence->RootMotionRootLock;
@@ -649,12 +646,13 @@ void UAnimStreamable::RequestCompressedDataForChunk(const FString& ChunkDDCKey, 
 		{
 			FCompressibleAnimRef CompressibleData = MakeShared<FCompressibleAnimData, ESPMode::ThreadSafe>(BoneCompressionSettings, CurveCompressionSettings, GetSkeleton(), Interpolation, Chunk.SequenceLength, ChunkNumFrames+1);
 
-			CompressibleData->RawAnimationData.AddDefaulted(RawAnimationData.Num());
+			const TArray<FBoneAnimationTrack>& BoneAnimationTracks = DataModel->GetBoneAnimationTracks();
+			CompressibleData->TrackToSkeletonMapTable.Empty();
 
-			for (int32 TrackIndex = 0; TrackIndex < RawAnimationData.Num(); ++TrackIndex)
+			for (const FBoneAnimationTrack& AnimTrack : BoneAnimationTracks)
 			{
-				FRawAnimSequenceTrack& SrcTrack = RawAnimationData[TrackIndex];
-				FRawAnimSequenceTrack& DestTrack = CompressibleData->RawAnimationData[TrackIndex];
+				const FRawAnimSequenceTrack& SrcTrack = AnimTrack.InternalTrackData;
+				FRawAnimSequenceTrack& DestTrack = CompressibleData->RawAnimationData.AddDefaulted_GetRef();
 
 				MakeKeyChunk(SrcTrack.PosKeys, DestTrack.PosKeys, NumberOfKeys, FrameStart, FrameEnd);
 				MakeKeyChunk(SrcTrack.RotKeys, DestTrack.RotKeys, NumberOfKeys, FrameStart, FrameEnd);
@@ -662,12 +660,14 @@ void UAnimStreamable::RequestCompressedDataForChunk(const FString& ChunkDDCKey, 
 				{
 					MakeKeyChunk(SrcTrack.ScaleKeys, DestTrack.ScaleKeys, NumberOfKeys, FrameStart, FrameEnd);
 				}
+
+				CompressibleData->TrackToSkeletonMapTable.Add(AnimTrack.BoneTreeIndex);
 			}
 
 			if (FrameStart == 0)
 			{
 				//Crop curve logic broken, for the moment store curve data in always loaded chunk 0
-				CompressibleData->RawCurveData = RawCurveData;
+				CompressibleData->RawFloatCurves = DataModel->GetFloatCurves();
 			}
 
 			/*if (SourceSequence && ChunkIndex == 7)
@@ -683,7 +683,6 @@ void UAnimStreamable::RequestCompressedDataForChunk(const FString& ChunkDDCKey, 
 				SourceSequence = Seq;
 			}*/
 
-			CompressibleData->TrackToSkeletonMapTable = TrackToSkeletonMapTable;
 			AnimCompressor->SetCompressibleData(CompressibleData);
 
 			if (bSkipDDC)
@@ -725,7 +724,7 @@ void UAnimStreamable::RequestCompressedDataForChunk(const FString& ChunkDDCKey, 
 
 void UAnimStreamable::UpdateRawData()
 {
-	RawDataGuid = GenerateGuidFromRawAnimData(RawAnimationData, RawCurveData);
+	RawDataGuid = DataModel->GenerateGuid();
 	RequestCompressedData();
 }
 

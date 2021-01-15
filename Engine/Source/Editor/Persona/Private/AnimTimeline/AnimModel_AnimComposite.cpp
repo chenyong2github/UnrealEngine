@@ -79,9 +79,9 @@ void FAnimModel_AnimComposite::RecalculateSequenceLength()
 		{
 			ClampToEndTime(NewSequenceLength);
 
-			AnimComposite->SetSequenceLength(NewSequenceLength);
+			AnimComposite->SetCompositeLength(NewSequenceLength);
 
-			// Reset view if we changed length (note: has to be done after ->SetSequenceLength)!
+			// Reset view if we changed length (note: has to be done after ->SetCompositeLength)!
 			UpdateRange();
 
 			UAnimPreviewInstance* PreviewInstance = (GetPreviewScene()->GetPreviewMeshComponent()) ? GetPreviewScene()->GetPreviewMeshComponent()->PreviewInstance : nullptr;

@@ -12,6 +12,7 @@
 #include "Animation/AnimSequence.h"
 #include "ControlRig/Private/Units/Execution/RigUnit_InverseExecution.h"
 #include "Misc/ScopedSlowTask.h"
+#include "Animation/AnimSequenceHelpers.h"
 
 #define LOCTEXT_NAMESPACE "MovieSceneControlParameterRigSection"
 
@@ -2097,28 +2098,29 @@ bool UMovieSceneControlRigParameterSection::LoadAnimSequenceIntoThisSection(UAni
 	FScopedSlowTask Progress(NumberOfFrames + ExtraProgress, LOCTEXT("BakingToControlRig_SlowTask", "Baking To Control Rig..."));	
 	Progress.MakeDialog(true);
 
+	const UAnimDataModel* DataModel = AnimSequence->GetDataModel();
+	const FAnimationCurveData& CurveData = DataModel->GetCurveData();
+	const TArray<FBoneAnimationTrack>& BoneAnimationTracks = DataModel->GetBoneAnimationTracks();
+
 	for (int32 Index = 0; Index < NumberOfFrames; ++Index)
 	{
-		const float SequenceSecond = FrameRate.AsSeconds(Index);
+		const float SequenceSecond = AnimSequence->GetTimeAtFrame(Index);
 		FFrameNumber FrameNumber = StartFrame + (FrameRateInFrameNumber * Index);
 
-		for (FFloatCurve& Curve : AnimSequence->RawCurveData.FloatCurves)
+		for (const FFloatCurve& Curve : CurveData.FloatCurves)
 		{
-			float Val = Curve.FloatCurve.Eval(SequenceSecond);
+			const float Val = Curve.FloatCurve.Eval(SequenceSecond);
 			SourceCurves.SetValue(Curve.Name.DisplayName,Val);
 		}
-		for (int32 TrackIndex = 0; TrackIndex < AnimSequence->GetRawAnimationData().Num(); ++TrackIndex)
+
+		for(int32 TrackIndex = 0; TrackIndex < BoneAnimationTracks.Num(); ++TrackIndex)
 		{
-			// verify if this bone exists in skeleton
-			int32 BoneTreeIndex = AnimSequence->GetSkeletonIndexFromRawDataTrackIndex(TrackIndex);
-			if (BoneTreeIndex != INDEX_NONE)
-			{
-				FName BoneName = Skeleton->GetReferenceSkeleton().GetBoneName(BoneTreeIndex);
-				FTransform BoneTransform;
-				AnimSequence->GetRawAnimationTrack(TrackIndex);
-				AnimSequence->ExtractBoneTransform(AnimSequence->GetRawAnimationTrack(TrackIndex), BoneTransform, SequenceSecond);
-				SourceBones.SetLocalTransform(BoneName, BoneTransform);
-			}
+			const FBoneAnimationTrack& AnimationTrack = BoneAnimationTracks[TrackIndex];
+
+			FName BoneName = Skeleton->GetReferenceSkeleton().GetBoneName(AnimationTrack.BoneTreeIndex);
+			FTransform BoneTransform;
+			UE::Anim::GetBoneTransformFromModel(DataModel, BoneTransform, TrackIndex, SequenceSecond, EAnimInterpolationType::Linear);
+			SourceBones.SetLocalTransform(BoneName, BoneTransform);
 		}
 
 		ControlRig->Execute(EControlRigState::Update, FRigUnit_InverseExecution::EventName);

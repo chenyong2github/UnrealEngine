@@ -209,10 +209,11 @@ void SAnimCompositePanel::PostUndoRedo()
 		RegisterActiveTimer(0.f, FWidgetActiveTimerDelegate::CreateSP(this, &SAnimCompositePanel::TriggerRebuildPanel));
 	}
 
+	REFACTOR_V2_WARNING("V2 why is this call necessary? Is this handled through notify callbacks now?");
 	// when undo or redo happens, we still have to recalculate length, so we can't rely on sequence length changes or not
 	if (Composite->GetPlayLength())
 	{
-		Composite->SetSequenceLength(0.f);
+		Composite->SetCompositeLength(0.f);
 	}
 }
 

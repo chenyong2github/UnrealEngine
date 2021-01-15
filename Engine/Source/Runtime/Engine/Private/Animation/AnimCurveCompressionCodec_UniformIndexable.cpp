@@ -83,7 +83,7 @@ UAnimCurveCompressionCodec_UniformIndexable::UAnimCurveCompressionCodec_UniformI
 #if WITH_EDITORONLY_DATA
 bool UAnimCurveCompressionCodec_UniformIndexable::Compress(const FCompressibleAnimData& AnimSeq, FAnimCurveCompressionResult& OutResult)
 {
-	const int32 NumCurves = AnimSeq.RawCurveData.FloatCurves.Num();
+	const int32 NumCurves = AnimSeq.RawFloatCurves.Num();
 	const float Duration = AnimSeq.SequenceLength;
 
 	const FAnimKeyHelper Helper(AnimSeq.SequenceLength, AnimSeq.NumberOfKeys);
@@ -119,10 +119,8 @@ bool UAnimCurveCompressionCodec_UniformIndexable::Compress(const FCompressibleAn
 
 		// Curve 0 Key 0, Curve 0 Key 1, Curve 0 Key N, Curve 1 Key 0, Curve 1 Key 1, Curve 1 Key N, Curve M Key 0, ...
 		const float InvSampleRate = 1.0f / SampleRate;
-		for (int32 CurveIndex = 0; CurveIndex < NumCurves; ++CurveIndex)
+		for (const FFloatCurve& Curve : AnimSeq.RawFloatCurves)
 		{
-			const FFloatCurve& Curve = AnimSeq.RawCurveData.FloatCurves[CurveIndex];
-
 			for (int32 SampleIndex = 0; SampleIndex < NumSamples; ++SampleIndex)
 			{
 				const float SampleTime = FMath::Clamp(SampleIndex * InvSampleRate, 0.0f, Duration);

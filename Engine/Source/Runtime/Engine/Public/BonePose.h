@@ -952,6 +952,7 @@ void FCSPose<PoseType>::ConvertComponentPosesToLocalPosesSafe(FCSPose<PoseType>&
 }
 
 // Populate InOutPose based on raw animation data. 
+UE_DEPRECATED(5.0, "BuildPoseFromRawData has been deprecated, use BuildPoseFromRawData signature with RetargetTransforms parameter")
 extern void BuildPoseFromRawData(
 	const TArray<FRawAnimSequenceTrack>& InAnimationData,
 	const TArray<struct FTrackToSkeletonMap>& TrackToSkeletonMapTable,
@@ -964,6 +965,7 @@ extern void BuildPoseFromRawData(
 	const TMap<int32, const struct FTransformCurve*>* AdditiveBoneTransformCurves = nullptr
 );
 
+UE_DEPRECATED(5.0, "BuildPoseFromRawData has been deprecated, use UE::Anim::BuildPoseFromModel")
 extern void BuildPoseFromRawData(
 	const TArray<FRawAnimSequenceTrack>& InAnimationData, 
 	const TArray<struct FTrackToSkeletonMap>& TrackToSkeletonMapTable, 

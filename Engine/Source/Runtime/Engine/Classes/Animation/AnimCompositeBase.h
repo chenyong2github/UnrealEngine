@@ -310,5 +310,7 @@ class UAnimCompositeBase : public UAnimSequenceBase
 	// and clear the reference if recursive is found. 
 	// We're going to remove the top reference if found
 	virtual bool ContainRecursive(TArray<UAnimCompositeBase*>& CurrentAccumulatedList) PURE_VIRTUAL(UAnimCompositeBase::ContainRecursive, return false; );
+
+	virtual void SetCompositeLength(float InLength) PURE_VIRTUAL(UAnimCompositeBase::SetCompositeLength, );
 };
 

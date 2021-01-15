@@ -297,7 +297,9 @@ void BuildPoseFromRawData(
 	if (MySkeleton)
 	{
 		const TArray<FTransform>& RetargetTransforms = MySkeleton->GetRefLocalPoses(RetargetSource);
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		BuildPoseFromRawData(InAnimationData, TrackToSkeletonMapTable, InOutPose, InTime, Interpolation, NumFrames, SequenceLength, RetargetSource, RetargetTransforms, AdditiveBoneTransformCurves);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 }
 

@@ -136,7 +136,7 @@ void UAnimSet::ResetAnimSet()
 		UAnimSequence* AnimSeq = Sequences[i];
 		if( AnimSeq )
 		{
-			AnimSeq->RecycleAnimSequence();
+			AnimSeq->ResetAnimation();
 		}
 	}
 	Sequences.Empty();
@@ -164,7 +164,7 @@ bool UAnimSet::RemoveAnimSequenceFromAnimSet(UAnimSequence* AnimSeq)
 	if( SequenceIndex != INDEX_NONE )
 	{
 		// Handle reference clean up properly
-		AnimSeq->RecycleAnimSequence();
+		AnimSeq->ResetAnimation();
 		// Remove from array
 		Sequences.RemoveAt(SequenceIndex, 1);
 		if( GIsEditor )

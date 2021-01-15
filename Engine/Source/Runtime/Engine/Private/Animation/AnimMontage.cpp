@@ -18,6 +18,7 @@
 #include "Animation/AnimSingleNodeInstance.h"
 #include "Engine/Engine.h"
 #include "Animation/AnimTrace.h"
+#include "Animation/AnimData/AnimDataController.h"
 
 DEFINE_LOG_CATEGORY(LogAnimMontage);
 
@@ -343,8 +344,9 @@ void UAnimMontage::UnregisterOnMontageChanged(void* Unregister)
 
 void UAnimMontage::PreSave(const class ITargetPlatform* TargetPlatform)
 {
+#if WITH_EDITOR
 	BakeTimeStretchCurve();
-
+#endif // WITH_EDITOR
 	Super::PreSave(TargetPlatform);
 }
 
@@ -362,7 +364,7 @@ void UAnimMontage::PostLoad()
 		if(CurrentCalculatedLength != GetPlayLength())		
 		{
 			UE_LOG(LogAnimMontage, Display, TEXT("UAnimMontage::PostLoad: The actual sequence length for %s does not match the length stored in the asset, please resave the asset."), *GetFullName());
-			 SetSequenceLength(CurrentCalculatedLength);
+			SetCompositeLength(CurrentCalculatedLength);
 		}
 	}
 
@@ -1288,6 +1290,17 @@ bool UAnimMontage::ContainRecursive(TArray<UAnimCompositeBase*>& CurrentAccumula
 	return false;
 }
 
+void UAnimMontage::SetCompositeLength(float InLength)
+{
+#if WITH_EDITOR	
+	Controller->SetPlayLength(InLength);
+#else
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	SetSequenceLength(InLength);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+#endif	
+}
+
 //////////////////////////////////////////////////////////////////////////////////////////////
 // MontageInstance
 /////////////////////////////////////////////////////////////////////////////////////////////
@@ -1351,7 +1364,7 @@ void FAnimMontageInstance::Play(float InPlayRate)
 		BlendInSettings.Blend = Montage->BlendIn;
 		BlendInSettings.BlendMode = Montage->BlendModeIn;
 		BlendInSettings.BlendProfile = Montage->BlendProfileIn;
-	}
+}
 
 	Play(InPlayRate, BlendInSettings);
 }
@@ -1419,7 +1432,7 @@ void FAnimMontageInstance::Stop(const FMontageBlendSettings& InBlendOutSettings,
 		BlendOutArgs.BlendTime = bShouldInertialize ? 0.0f : BlendOutArgs.BlendTime;
 
 		// do not use default Montage->BlendOut 
-		// depending on situation, the BlendOut time can change
+		// depending on situation, the BlendOut time can change 
 		InitializeBlend(FAlphaBlend(BlendOutArgs));
 		BlendStartAlpha = Blend.GetAlpha();
 		Blend.SetDesiredValue(0.f);
@@ -1428,7 +1441,7 @@ void FAnimMontageInstance::Stop(const FMontageBlendSettings& InBlendOutSettings,
 		// Only change the active blend profile if the montage isn't stopped. This is to prevent pops on a sudden blend profile switch
 		ActiveBlendProfile = InBlendOutSettings.BlendProfile;
 
-		if (Montage)
+		if(Montage)
 		{
 			if (UAnimInstance* Inst = AnimInstance.Get())
 			{
@@ -3029,7 +3042,7 @@ UAnimMontage* UAnimMontage::CreateSlotAnimationAsDynamicMontage(UAnimSequenceBas
 	NewSegment.AnimPlayRate = 1.f;
 	NewSegment.StartPos = 0.f;
 	NewSegment.LoopingCount = LoopCount;
-	NewMontage->SetSequenceLength(NewSegment.GetLength());
+	NewMontage->SetCompositeLength(NewSegment.GetLength());
 	NewTrack.AnimTrack.AnimSegments.Add(NewSegment);
 
 	FCompositeSection NewSection;
@@ -3051,12 +3064,13 @@ bool FAnimMontageInstance::CanUseMarkerSync() const
 	return SyncGroupName != NAME_None && IsStopped() && Blend.IsComplete() == false;
 }
 
+#if WITH_EDITOR
 void UAnimMontage::BakeTimeStretchCurve()
 {
 	TimeStretchCurve.Reset();
 
 	// See if Montage is hosting a curve named 'TimeStretchCurveName'
-	FFloatCurve* TimeStretchFloatCurve = nullptr;
+	const FFloatCurve* TimeStretchFloatCurve = nullptr;
 	if (const USkeleton* MySkeleton = GetSkeleton())
 	{
 		if (const FSmartNameMapping* CurveNameMapping = MySkeleton->GetSmartNameContainer(USkeleton::AnimCurveMappingName))
@@ -3064,7 +3078,7 @@ void UAnimMontage::BakeTimeStretchCurve()
 			const USkeleton::AnimCurveUID CurveUID = CurveNameMapping->FindUID(TimeStretchCurveName);
 			if (CurveUID != SmartName::MaxUID)
 			{
-				TimeStretchFloatCurve = (FFloatCurve*)(GetCurveData().GetCurveData(CurveUID));
+				TimeStretchFloatCurve = GetDataModel()->FindFloatCurve(FAnimationCurveIdentifier(CurveUID, ERawCurveTrackTypes::RCT_Float));
 			}
 		}
 	}
@@ -3078,6 +3092,7 @@ void UAnimMontage::BakeTimeStretchCurve()
 	TimeStretchCurve.BakeFromFloatCurve(*TimeStretchFloatCurve, SequenceLength);
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
+#endif // WITH_EDITOR
 
 FMontageBlendSettings::FMontageBlendSettings()
 	: BlendProfile(nullptr)

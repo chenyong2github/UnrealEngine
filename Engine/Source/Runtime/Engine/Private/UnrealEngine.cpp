@@ -5926,7 +5926,7 @@ bool UEngine::HandleListAnimsCommand(const TCHAR* Cmd, FOutputDevice& Ar)
 			NumKeys = AnimSeq->GetNumberOfSampledKeys();
 			SequenceLength = AnimSeq->GetPlayLength();
 			RateScale = AnimSeq->RateScale;
-			NumCurves = AnimSeq->RawCurveData.FloatCurves.Num();
+			NumCurves = AnimSeq->GetCurveData().FloatCurves.Num();
 
 			if (AnimSeq->CompressedData.CompressedDataStructure != nullptr)
 			{

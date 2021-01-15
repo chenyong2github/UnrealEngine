@@ -13,7 +13,7 @@ class FAnimTimelineTrack_FloatCurve : public FAnimTimelineTrack_Curve
 	ANIMTIMELINE_DECLARE_TRACK(FAnimTimelineTrack_FloatCurve, FAnimTimelineTrack_Curve);
 
 public:
-	FAnimTimelineTrack_FloatCurve(FFloatCurve& InCurve, const TSharedRef<FAnimModel>& InModel);
+	FAnimTimelineTrack_FloatCurve(const FFloatCurve* InCurve, const TSharedRef<FAnimModel>& InModel);
 
 	/** FAnimTimelineTrack_Curve interface */
 	virtual TSharedRef<SWidget> MakeTimelineWidgetContainer() override;
@@ -28,7 +28,7 @@ public:
 	virtual void GetCurveEditInfo(int32 InCurveIndex, FSmartName& OutName, ERawCurveTrackTypes& OutType, int32& OutCurveIndex) const override;
 
 	/** Access the curve we are editing */
-	FFloatCurve& GetFloatCurve() { return FloatCurve; }
+	const FFloatCurve* GetFloatCurve() { return FloatCurve; }
 
 	/** Helper function used to get a smart name for a curve */
 	static FText GetFloatCurveName(const TSharedRef<FAnimModel>& InModel, const FSmartName& InSmartName);
@@ -44,10 +44,11 @@ private:
 
 private:
 	/** The curve we are editing */
-	FFloatCurve& FloatCurve;
+	const FFloatCurve* FloatCurve;
 
-	/** The curve name */
+	/** The curve name and identifier */
 	FSmartName CurveName;
+	FAnimationCurveIdentifier CurveId;
 
 	/** Label we can edit */
 	TSharedPtr<SInlineEditableTextBlock> EditableTextLabel;

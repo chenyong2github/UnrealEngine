@@ -45,8 +45,6 @@ class UAnimBoneCompressionSettings;
 class UAnimBoneCompressionCodec;
 class USkeleton;
 
-extern FGuid GenerateGuidFromRawAnimData(const TArray<FRawAnimSequenceTrack>& RawAnimationData, const FRawCurveTracks& RawCurveData);
-
 template<typename ArrayClass>
 struct ENGINE_API FCompressedOffsetDataBase
 {
@@ -215,7 +213,7 @@ public:
 
 	TArray<FBoneData> BoneData;
 
-	FRawCurveTracks RawCurveData;
+	TArray<FFloatCurve> RawFloatCurves;
 
 	float SequenceLength;
 
@@ -256,7 +254,7 @@ public:
 	int32 GetApproxRawCurveSize() const
 	{
 		int32 Total = 0;
-		for (const FFloatCurve& Curve : RawCurveData.FloatCurves)
+		for (const FFloatCurve& Curve : RawFloatCurves)
 		{
 			Total += sizeof(FFloatCurve);
 			Total += sizeof(FRichCurveKey) * Curve.FloatCurve.Keys.Num();

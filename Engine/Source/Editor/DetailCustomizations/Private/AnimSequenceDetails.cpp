@@ -619,7 +619,7 @@ TArray<float> SAnimationRefPoseViewport::GetBars() const
 	TArray<float> Bars;
 	if (AnimRef)
 	{
-		int RefFrameIndex;
+		int32 RefFrameIndex;
 		RefFrameIndexPropertyHandle->GetValue(RefFrameIndex);
 		float Fraction = (AnimRef->GetNumberOfSampledKeys() > 0)? FMath::Clamp<float>((float)RefFrameIndex/(float)AnimRef->GetNumberOfSampledKeys(), 0.f, 1.f) : 0.f;
 		Bars.Add(AnimRef->GetPlayLength() * Fraction);

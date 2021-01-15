@@ -11,85 +11,13 @@
 #include "Animation/AnimCurveCompressionSettings.h"
 #include "AnimationRuntime.h"
 #include "UObject/FortniteMainBranchObjectVersion.h"
+#include "Animation/AnimSequenceHelpers.h"
+#include "Animation/AnimData/AnimDataModel.h"
 
 CSV_DECLARE_CATEGORY_MODULE_EXTERN(ENGINE_API, Animation);
 
 DECLARE_CYCLE_STAT(TEXT("Build Anim Track Pairs"), STAT_BuildAnimTrackPairs, STATGROUP_Anim);
 DECLARE_CYCLE_STAT(TEXT("Extract Pose From Anim Data"), STAT_ExtractPoseFromAnimData, STATGROUP_Anim);
-
-template <typename ArrayType>
-void UpdateSHAWithArray(FSHA1& Sha, const TArray<ArrayType>& Array)
-{
-	Sha.Update((uint8*)Array.GetData(), Array.Num() * Array.GetTypeSize());
-}
-
-void UpdateSHAWithRawTrack(FSHA1& Sha, const FRawAnimSequenceTrack& RawTrack)
-{
-	UpdateSHAWithArray(Sha, RawTrack.PosKeys);
-	UpdateSHAWithArray(Sha, RawTrack.RotKeys);
-	UpdateSHAWithArray(Sha, RawTrack.ScaleKeys);
-}
-
-template<class DataType>
-void UpdateWithData(FSHA1& Sha, const DataType& Data)
-{
-	Sha.Update((uint8*)(&Data), sizeof(DataType));
-}
-
-void UpdateSHAWithCurves(FSHA1& Sha, const FRawCurveTracks& InRawCurveData) 
-{
-	auto UpdateWithFloatCurve = [&Sha](const FRichCurve& Curve)
-	{
-		UpdateWithData(Sha, Curve.DefaultValue);
-		UpdateSHAWithArray(Sha, Curve.GetConstRefOfKeys());
-		UpdateWithData(Sha, Curve.PreInfinityExtrap);
-		UpdateWithData(Sha, Curve.PostInfinityExtrap);
-	};
-
-	for (const FFloatCurve& Curve : InRawCurveData.FloatCurves)
-	{
-		UpdateWithData(Sha, Curve.Name.UID);
-		UpdateWithFloatCurve(Curve.FloatCurve);
-	}
-
-#if WITH_EDITOR
-	for (const FTransformCurve& Curve : InRawCurveData.TransformCurves)
-	{
-		UpdateWithData(Sha, Curve.Name.UID);
-
-		auto UpdateWithComponent = [&Sha, &UpdateWithFloatCurve](const FVectorCurve& VectorCurve)
-		{
-			for (int32 ChannelIndex = 0; ChannelIndex < 3; ++ChannelIndex)
-			{
-				UpdateWithFloatCurve(VectorCurve.FloatCurves[ChannelIndex]);
-			}
-		};
-		
-		UpdateWithComponent(Curve.TranslationCurve);
-		UpdateWithComponent(Curve.RotationCurve);
-		UpdateWithComponent(Curve.ScaleCurve);
-	}
-#endif // WITH_EDITOR
-}
-
-FGuid GenerateGuidFromRawAnimData(const TArray<FRawAnimSequenceTrack>& RawAnimationData, const FRawCurveTracks& RawCurveData)
-{
-	FSHA1 Sha;
-
-	for (const FRawAnimSequenceTrack& Track : RawAnimationData)
-	{
-		UpdateSHAWithRawTrack(Sha, Track);
-	}
-
-	UpdateSHAWithCurves(Sha, RawCurveData);
-
-	Sha.Final();
-
-	uint32 Hash[5];
-	Sha.GetHash((uint8*)Hash);
-	FGuid Guid(Hash[0] ^ Hash[4], Hash[1], Hash[2], Hash[3]);
-	return Guid;
-}
 
 template<typename ArrayValue>
 void StripFramesEven(TArray<ArrayValue>& Keys, const int32 NumFrames)
@@ -152,7 +80,6 @@ void StripFramesOdd(TArray<ArrayValue>& Keys, const int32 NumFrames)
 FCompressibleAnimData::FCompressibleAnimData(class UAnimSequence* InSeq, const bool bPerformStripping)
 	: CurveCompressionSettings(InSeq->CurveCompressionSettings)
 	, BoneCompressionSettings(InSeq->BoneCompressionSettings)
-	, TrackToSkeletonMapTable(InSeq->GetRawTrackToSkeletonMapTable())
 	, Interpolation(InSeq->Interpolation)
 	, SequenceLength(InSeq->GetPlayLength())
 	, NumberOfKeys(InSeq->GetNumberOfSampledKeys())
@@ -175,35 +102,85 @@ FCompressibleAnimData::FCompressibleAnimData(class UAnimSequence* InSeq, const b
 
 	const bool bHasVirtualBones = InSeq->GetSkeleton()->GetVirtualBones().Num() > 0;
 
-	TArray<FName> TempTrackNames;
+	/* Always get the resampled data to start off with */
+	const TArray<FBoneAnimationTrack>& ResampledTrackData = InSeq->GetResampledTrackData();
 
-	if (InSeq->CanBakeAdditive())
+	TArray<FName> TempTrackNames;
+	RawAnimationData.Empty(ResampledTrackData.Num());
+	TrackToSkeletonMapTable.Empty(ResampledTrackData.Num());
+	TempTrackNames.Empty(ResampledTrackData.Num());
+
+	for (const FBoneAnimationTrack& AnimTrack : ResampledTrackData)
 	{
-		InSeq->BakeOutAdditiveIntoRawData(RawAnimationData, TempTrackNames, TrackToSkeletonMapTable, RawCurveData, AdditiveBaseAnimationData);
+		FRawAnimSequenceTrack& Track = RawAnimationData.Add_GetRef(AnimTrack.InternalTrackData);
+		UE::Anim::Compression::SanitizeRawAnimSequenceTrack(Track);
+		TrackToSkeletonMapTable.Add(AnimTrack.BoneTreeIndex);
+		TempTrackNames.Add(AnimTrack.Name);
+	}
+
+	const bool bBakeAdditive = InSeq->CanBakeAdditive();
+	if (bBakeAdditive)
+	{
+		InSeq->BakeOutAdditiveIntoRawData(RawAnimationData, TempTrackNames, TrackToSkeletonMapTable, RawFloatCurves, AdditiveBaseAnimationData);
 	}
 	else
-	{
+    {
 		// In case we require baking down transform curves, do so now meaning Virtual Bone baking will incorporate the correct bone transforms
-		if (InSeq->DoesContainTransformCurves())
-		{
-			InSeq->BakeTrackCurvesToRawAnimationTracks(RawAnimationData, TempTrackNames, TrackToSkeletonMapTable);			
-		}
-		else
-		{
-			RawAnimationData = InSeq->GetRawAnimationData();
-			TrackToSkeletonMapTable = InSeq->GetRawTrackToSkeletonMapTable();
-			TempTrackNames = InSeq->GetAnimationTrackNames();
-		}
+	    if (InSeq->GetDataModel()->GetNumberOfTransformCurves() > 0)
+	    {
+		    InSeq->BakeTrackCurvesToRawAnimationTracks(RawAnimationData, TempTrackNames, TrackToSkeletonMapTable);
+	    }
 
-		RawCurveData = InSeq->RawCurveData;
+		RawFloatCurves = InSeq->GetCurveData().FloatCurves;
 
 		// If we aren't additive we must bake virtual bones
-		if (bHasVirtualBones)
+	    if (bHasVirtualBones)
+	    {
+		    InSeq->BakeOutVirtualBoneTracks(RawAnimationData, TempTrackNames, TrackToSkeletonMapTable);
+	    }
+    } 
+
+	// Apply any key reduction if possible
+	if (RawAnimationData.Num())
+	{ 
+		UE::Anim::Compression::CompressAnimationDataTracks(RawAnimationData, NumberOfKeys, InSeq->GetFName(), -1.f, -1.f);
+		UE::Anim::Compression::CompressAnimationDataTracks(RawAnimationData, NumberOfKeys, InSeq->GetFName());
+	}
+
+	auto IsKeyArrayValidForRemoval = [](const auto& Keys, const auto& IdentityValue) -> bool
+	{
+		return Keys.Num() == 0 || (Keys.Num() == 1 && Keys[0].Equals(IdentityValue));
+	};
+
+	auto IsRawTrackValidForRemoval = [IsKeyArrayValidForRemoval](const FRawAnimSequenceTrack& Track) -> bool
+	{
+		return IsKeyArrayValidForRemoval(Track.PosKeys, FVector::ZeroVector) &&
+			IsKeyArrayValidForRemoval(Track.RotKeys, FQuat::Identity) &&
+			IsKeyArrayValidForRemoval(Track.ScaleKeys, FVector::ZeroVector);
+	};
+
+	// Verify bone track names and data, removing any bone that does not exist on the skeleton
+	// Note on (TrackIndex > 0) below : deliberately stop before track 0, compression code doesn't like getting a completely empty animation
+	for (int32 TrackIndex = RawAnimationData.Num() - 1; TrackIndex > 0; --TrackIndex)
+	{
+		const FRawAnimSequenceTrack& Track = RawAnimationData[TrackIndex];
+		// Try find correct bone index
+		const int32 BoneIndex = RefSkeleton.FindBoneIndex(TempTrackNames[TrackIndex]);
+		if (IsRawTrackValidForRemoval(Track) || (BoneIndex == INDEX_NONE && !bBakeAdditive))
 		{
-			InSeq->BakeOutVirtualBoneTracks(RawAnimationData, TempTrackNames, TrackToSkeletonMapTable);
+			RawAnimationData.RemoveAtSwap(TrackIndex, 1, false);
+			TempTrackNames.RemoveAtSwap(TrackIndex, 1, false);
+			TrackToSkeletonMapTable.RemoveAtSwap(TrackIndex, 1, false);
 		}
 	}
 
+	// Find or add curve names on skeleton
+	const FSmartNameMapping* Mapping = Skeleton->GetSmartNameContainer(USkeleton::AnimCurveMappingName);
+	for (FFloatCurve& Curve : RawFloatCurves)
+	{
+		Skeleton->VerifySmartName(USkeleton::AnimCurveMappingName, Curve.Name);
+	}
+	   
 	if (bPerformStripping)
 	{
 		const int32 NumTracks = RawAnimationData.Num();
@@ -272,12 +249,12 @@ void FCompressibleAnimData::Update(FCompressedAnimSequence& InOutCompressedData)
 	InOutCompressedData.CompressedTrackToSkeletonMapTable = TrackToSkeletonMapTable;
 	InOutCompressedData.CompressedRawDataSize = GetApproxRawSize();
 
-	const int32 NumCurves = RawCurveData.FloatCurves.Num();
+	const int32 NumCurves = RawFloatCurves.Num();
 	InOutCompressedData.CompressedCurveNames.Reset(NumCurves);
 	InOutCompressedData.CompressedCurveNames.AddUninitialized(NumCurves);
 	for (int32 CurveIndex = 0; CurveIndex < NumCurves; ++CurveIndex)
 	{
-		const FFloatCurve& Curve = RawCurveData.FloatCurves[CurveIndex];
+		const FFloatCurve& Curve = RawFloatCurves[CurveIndex];
 		InOutCompressedData.CompressedCurveNames[CurveIndex] = Curve.Name;
 	}
 }

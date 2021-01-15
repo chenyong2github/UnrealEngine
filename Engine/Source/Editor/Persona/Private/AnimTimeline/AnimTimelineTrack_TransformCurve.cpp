@@ -12,25 +12,27 @@
 #include "Animation/DebugSkelMeshComponent.h"
 #include "AnimPreviewInstance.h"
 #include "AnimModel_AnimSequenceBase.h"
+#include "Animation/AnimData/AnimDataController.h"
 
 #define LOCTEXT_NAMESPACE "FAnimTimelineTrack_TransformCurve"
 
 ANIMTIMELINE_IMPLEMENT_TRACK(FAnimTimelineTrack_TransformCurve);
 
-FAnimTimelineTrack_TransformCurve::FAnimTimelineTrack_TransformCurve(FTransformCurve& InCurve, const TSharedRef<FAnimModel>& InModel)
-	: FAnimTimelineTrack_Curve(FAnimTimelineTrack_TransformCurve::GetTransformCurveName(InModel, InCurve.Name), FAnimTimelineTrack_TransformCurve::GetTransformCurveName(InModel, InCurve.Name), InCurve.GetColor(), InCurve.GetColor(), InModel)
+FAnimTimelineTrack_TransformCurve::FAnimTimelineTrack_TransformCurve(const FTransformCurve* InCurve, const TSharedRef<FAnimModel>& InModel)
+	: FAnimTimelineTrack_Curve(FAnimTimelineTrack_TransformCurve::GetTransformCurveName(InModel, InCurve->Name), FAnimTimelineTrack_TransformCurve::GetTransformCurveName(InModel, InCurve->Name), InCurve->GetColor(), InCurve->GetColor(), InModel)
 	, TransformCurve(InCurve)
-	, CurveName(InCurve.Name)
+	, CurveName(InCurve->Name)
+	, CurveId(InCurve->Name, ERawCurveTrackTypes::RCT_Transform)
 {
-	Curves.Add(&InCurve.TranslationCurve.FloatCurves[0]);
-	Curves.Add(&InCurve.TranslationCurve.FloatCurves[1]);
-	Curves.Add(&InCurve.TranslationCurve.FloatCurves[2]);
-	Curves.Add(&InCurve.RotationCurve.FloatCurves[0]);
-	Curves.Add(&InCurve.RotationCurve.FloatCurves[1]);
-	Curves.Add(&InCurve.RotationCurve.FloatCurves[2]);
-	Curves.Add(&InCurve.ScaleCurve.FloatCurves[0]);
-	Curves.Add(&InCurve.ScaleCurve.FloatCurves[1]);
-	Curves.Add(&InCurve.ScaleCurve.FloatCurves[2]);
+	Curves.Add(&InCurve->TranslationCurve.FloatCurves[0]);
+	Curves.Add(&InCurve->TranslationCurve.FloatCurves[1]);
+	Curves.Add(&InCurve->TranslationCurve.FloatCurves[2]);
+	Curves.Add(&InCurve->RotationCurve.FloatCurves[0]);
+	Curves.Add(&InCurve->RotationCurve.FloatCurves[1]);
+	Curves.Add(&InCurve->RotationCurve.FloatCurves[2]);
+	Curves.Add(&InCurve->ScaleCurve.FloatCurves[0]);
+	Curves.Add(&InCurve->ScaleCurve.FloatCurves[1]);
+	Curves.Add(&InCurve->ScaleCurve.FloatCurves[2]);
 }
 
 FLinearColor FAnimTimelineTrack_TransformCurve::GetCurveColor(int32 InCurveIndex) const
@@ -120,11 +122,11 @@ void FAnimTimelineTrack_TransformCurve::DeleteTrack()
 	UAnimSequenceBase* AnimSequenceBase = GetModel()->GetAnimSequenceBase();
 	TSharedRef<FAnimModel_AnimSequenceBase> BaseModel = StaticCastSharedRef<FAnimModel_AnimSequenceBase>(GetModel());
 
-	if(AnimSequenceBase->RawCurveData.GetCurveData(TransformCurve.Name.UID, ERawCurveTrackTypes::RCT_Transform))
+	if(AnimSequenceBase->GetDataModel()->FindTransformCurve(CurveId))
 	{
 		const FScopedTransaction Transaction(LOCTEXT("AnimCurve_DeleteTrack", "Delete Curve"));
 		FSmartName CurveToDelete;
-		if (AnimSequenceBase->GetSkeleton()->GetSmartNameByUID(USkeleton::AnimTrackCurveMappingName, TransformCurve.Name.UID, CurveToDelete))
+		if (AnimSequenceBase->GetSkeleton()->GetSmartNameByUID(USkeleton::AnimTrackCurveMappingName, TransformCurve->Name.UID, CurveToDelete))
 		{
 			// Stop editing these curves in the external editor window
 			TArray<IAnimationEditor::FCurveEditInfo> CurveEditInfo;
@@ -140,12 +142,9 @@ void FAnimTimelineTrack_TransformCurve::DeleteTrack()
 
 			BaseModel->OnStopEditingCurves.ExecuteIfBound(CurveEditInfo);
 
-			AnimSequenceBase->Modify();
-			AnimSequenceBase->RawCurveData.DeleteCurveData(CurveToDelete, ERawCurveTrackTypes::RCT_Transform);
 
-			AnimSequenceBase->MarkRawDataAsModified();
-
-			GetModel()->RefreshTracks();
+			UAnimDataController* Controller = AnimSequenceBase->GetController();
+			Controller->RemoveCurve(CurveId);
 
 			if (GetModel()->GetPreviewScene()->GetPreviewMeshComponent()->PreviewInstance != nullptr)
 			{
@@ -158,7 +157,7 @@ void FAnimTimelineTrack_TransformCurve::DeleteTrack()
 bool FAnimTimelineTrack_TransformCurve::IsEnabled() const
 {
 	UAnimSequenceBase* AnimSequenceBase = GetModel()->GetAnimSequenceBase();
-	FAnimCurveBase* Curve = AnimSequenceBase->RawCurveData.GetCurveData(TransformCurve.Name.UID, ERawCurveTrackTypes::RCT_Transform);
+	const FAnimCurveBase* Curve = AnimSequenceBase->GetDataModel()->FindTransformCurve(CurveId);
 	return Curve && !Curve->GetCurveTypeFlag(AACF_Disabled);
 }
 
@@ -166,29 +165,19 @@ void FAnimTimelineTrack_TransformCurve::ToggleEnabled()
 {
 	UAnimSequenceBase* AnimSequenceBase = GetModel()->GetAnimSequenceBase();
 
-	FAnimCurveBase* Curve = AnimSequenceBase->RawCurveData.GetCurveData(TransformCurve.Name.UID, ERawCurveTrackTypes::RCT_Transform);
-	if (Curve)
+	UAnimDataController* Controller = AnimSequenceBase->GetController();
+	Controller->SetCurveFlag(CurveId, AACF_Disabled, !IsEnabled());
+
+	// need to update curves, otherwise they're not disabled
+	if (GetModel()->GetPreviewScene()->GetPreviewMeshComponent()->PreviewInstance != nullptr)
 	{
-		bool bEnabled = !Curve->GetCurveTypeFlag(AACF_Disabled);
-
-		const FScopedTransaction Transaction(bEnabled ? LOCTEXT("AnimCurve_DisableTrack", "Disable track") : LOCTEXT("AnimCurve_EnableTrack", "Enable track"));
-		AnimSequenceBase->Modify();
-
-		Curve->SetCurveTypeFlag(AACF_Disabled, bEnabled);
-
-		AnimSequenceBase->MarkRawDataAsModified();
-
-		// need to update curves, otherwise they're not disabled
-		if (GetModel()->GetPreviewScene()->GetPreviewMeshComponent()->PreviewInstance != nullptr)
-		{
-			GetModel()->GetPreviewScene()->GetPreviewMeshComponent()->PreviewInstance->RefreshCurveBoneControllers();
-		}
+		GetModel()->GetPreviewScene()->GetPreviewMeshComponent()->PreviewInstance->RefreshCurveBoneControllers();
 	}
 }
 
 void FAnimTimelineTrack_TransformCurve::GetCurveEditInfo(int32 InCurveIndex, FSmartName& OutName, ERawCurveTrackTypes& OutType, int32& OutCurveIndex) const
 {
-	OutName = TransformCurve.Name;
+	OutName = TransformCurve->Name;
 	OutType = ERawCurveTrackTypes::RCT_Transform;
 	OutCurveIndex = InCurveIndex;
 }

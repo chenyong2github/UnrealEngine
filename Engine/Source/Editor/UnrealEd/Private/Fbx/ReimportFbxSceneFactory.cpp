@@ -1435,10 +1435,6 @@ EReimportResult::Type UReimportFbxSceneFactory::ReimportSkeletalMesh(void* VoidF
 								// Notify the asset registry
 								FAssetRegistryModule::AssetCreated(DestSeq);
 							}
-							else
-							{
-								DestSeq->CleanAnimSequenceForImport();
-							}
 							DestSeq->SetSkeleton(Mesh->GetSkeleton());
 							// since to know full path, reimport will need to do same
 							UFbxAnimSequenceImportData* ImportData = UFbxAnimSequenceImportData::GetImportDataForAnimSequence(DestSeq, AnimSequenceImportData);

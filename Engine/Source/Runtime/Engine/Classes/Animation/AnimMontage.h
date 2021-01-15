@@ -918,7 +918,9 @@ public:
 
 	//~Begin UAnimCompositeBase Interface
 	virtual void InvalidateRecursiveAsset() override;
-	virtual bool ContainRecursive(TArray<UAnimCompositeBase*>& CurrentAccumulatedList) override;	//~End UAnimCompositeBase Interface
+	virtual bool ContainRecursive(TArray<UAnimCompositeBase*>& CurrentAccumulatedList) override;
+	virtual void SetCompositeLength(float InLength) override;
+	//~End UAnimCompositeBase Interface
 
 	/** Utility function to create dynamic montage from AnimSequence */
 	ENGINE_API static UAnimMontage* CreateSlotAnimationAsDynamicMontage(UAnimSequenceBase* Asset, FName SlotNodeName, float BlendInTime = 0.25f, float BlendOutTime = 0.25f, float InPlayRate = 1.f, int32 LoopCount = 1, float BlendOutTriggerTime = -1.f, float InTimeToStartMontageAt = 0.f);
@@ -935,7 +937,8 @@ public:
 	FName TimeStretchCurveName;
 
 private:
+#if WITH_EDITOR
 	void BakeTimeStretchCurve();
 	//~End Time Stretch Curve
-
+#endif // WITH_EDITOR
 };

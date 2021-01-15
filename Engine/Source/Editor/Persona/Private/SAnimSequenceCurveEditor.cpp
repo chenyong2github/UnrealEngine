@@ -16,67 +16,189 @@
 #include "Editor.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "EditorStyleSet.h"
+#include "Animation/AnimData/AnimDataController.h"
 
 #define LOCTEXT_NAMESPACE "SAnimSequenceCurveEditor"
 
+FRichCurveEditorModelNamed::FRichCurveEditorModelNamed(const FSmartName& InName, ERawCurveTrackTypes InType, int32 InCurveIndex, UAnimSequenceBase* InAnimSequence, FCurveEditorTreeItemID InTreeId /*= FCurveEditorTreeItemID()*/) : FRichCurveEditorModel(InAnimSequence)
+, Name(InName)
+, AnimSequence(InAnimSequence)
+, CurveIndex(InCurveIndex)
+, Type(InType)
+, TreeId(InTreeId)
+, CurveId(FAnimationCurveIdentifier(Name, Type))
+{
+	CurveModifiedDelegate.AddRaw(this, &FRichCurveEditorModelNamed::CurveHasChanged);
+
+	InAnimSequence->GetDataModel()->GetModifiedEvent().AddRaw(this, &FRichCurveEditorModelNamed::OnModelHasChanged);
+
+	if (Type == ERawCurveTrackTypes::RCT_Transform)
+	{
+		UAnimationCurveIdentifierExtensions::GetTransformChildCurveIdentifier(CurveId, (ETransformCurveChannel)(CurveIndex / 3), (EVectorCurveChannel)(CurveIndex % 3));
+	}
+
+	UpdateCachedCurve();
+}
+
+FRichCurveEditorModelNamed::~FRichCurveEditorModelNamed()
+{
+	AnimSequence->GetDataModel()->GetModifiedEvent().RemoveAll(this);
+}
+
 bool FRichCurveEditorModelNamed::IsValid() const
 {
-	return AnimSequence->GetCurveData().GetCurveData(Name.UID, Type) != nullptr;
+	return AnimSequence->GetDataModel()->FindCurve(FAnimationCurveIdentifier(Name, Type)) != nullptr;
 }
 
 FRichCurve& FRichCurveEditorModelNamed::GetRichCurve()
 {
 	check(AnimSequence.Get() != nullptr);
-
-	FAnimCurveBase* CurveBase = AnimSequence->RawCurveData.GetCurveData(Name.UID, Type);
-	check(CurveBase);	// If this fails lifetime contracts have been violated - this curve should always be present if this model exists
-		
-	switch (Type)
-	{
-	case ERawCurveTrackTypes::RCT_Vector:
-	{
-		FVectorCurve& VectorCurve = *(static_cast<FVectorCurve*>(CurveBase));
-		check(CurveIndex < 3);
-		return VectorCurve.FloatCurves[CurveIndex];
-	}
-	case ERawCurveTrackTypes::RCT_Transform:
-	{
-		FTransformCurve& TransformCurve = *(static_cast<FTransformCurve*>(CurveBase));
-		check(CurveIndex < 9);
-		const int32 SubCurveIndex = CurveIndex % 3;
-		switch(CurveIndex)
-		{
-		default:
-			check(false);
-			// fall through
-		case 0:
-		case 1:
-		case 2:
-			return TransformCurve.TranslationCurve.FloatCurves[SubCurveIndex];
-		case 3:
-		case 4:
-		case 5:
-			return TransformCurve.RotationCurve.FloatCurves[SubCurveIndex];
-		case 6:
-		case 7:
-		case 8:
-			return TransformCurve.ScaleCurve.FloatCurves[SubCurveIndex];
-		}
-			
-	}
-	case ERawCurveTrackTypes::RCT_Float:
-	default:
-	{
-		FFloatCurve& FloatCurve = *(static_cast<FFloatCurve*>(CurveBase));
-		check(CurveIndex == 0);
-		return FloatCurve.FloatCurve;
-	}
-	}
+	return CachedCurve;
 }
 
 const FRichCurve& FRichCurveEditorModelNamed::GetReadOnlyRichCurve() const
 {
 	return const_cast<FRichCurveEditorModelNamed*>(this)->GetRichCurve();
+}
+
+void FRichCurveEditorModelNamed::CurveHasChanged()
+{
+	UAnimDataController* Controller = AnimSequence->GetController();
+
+	switch (Type)
+	{
+		case ERawCurveTrackTypes::RCT_Vector:
+		{
+			ensure(false);
+			break;
+		}
+		case ERawCurveTrackTypes::RCT_Transform:
+		case ERawCurveTrackTypes::RCT_Float:
+		{
+			Controller->SetCurveKeys(CurveId, CachedCurve.GetConstRefOfKeys());
+			break;
+		}
+	}
+}
+
+void FRichCurveEditorModelNamed::OnModelHasChanged(const EAnimDataModelNotifyType& NotifyType, UAnimDataModel* Model, const FAnimDataModelNotifPayload& Payload)
+{
+	NotifyCollector.Handle(NotifyType);
+
+	switch (NotifyType)
+	{
+		case EAnimDataModelNotifyType::CurveAdded:
+		case EAnimDataModelNotifyType::CurveChanged:
+		case EAnimDataModelNotifyType::CurveFlagsChanged:
+		case EAnimDataModelNotifyType::CurveScaled:
+		{
+			if (NotifyCollector.IsNotWithinBracket())
+			{
+				const FCurvePayload& TypedPayload = Payload.GetPayload<FCurvePayload>();
+				if (TypedPayload.Identifier.InternalName == Name)
+				{
+					UpdateCachedCurve();
+				}
+			}
+
+			break;
+		}
+
+		case EAnimDataModelNotifyType::CurveRemoved:
+		{
+			// Curve was removed
+			break;
+		}
+
+		case EAnimDataModelNotifyType::CurveRenamed:
+		{
+			const FCurveRenamedPayload& TypedPayload = Payload.GetPayload<FCurveRenamedPayload>();
+			if (TypedPayload.Identifier == CurveId)
+			{
+				Name = TypedPayload.NewIdentifier.InternalName;
+				CurveId = TypedPayload.NewIdentifier;
+
+				if (NotifyCollector.IsNotWithinBracket())
+				{
+					UpdateCachedCurve();
+				}
+			}
+
+			break;
+		}
+
+		case EAnimDataModelNotifyType::BracketClosed:
+		{
+			if (NotifyCollector.IsNotWithinBracket())
+			{
+				if (NotifyCollector.Contains({ EAnimDataModelNotifyType::CurveAdded, EAnimDataModelNotifyType::CurveChanged, EAnimDataModelNotifyType::CurveFlagsChanged, EAnimDataModelNotifyType::CurveScaled, EAnimDataModelNotifyType::CurveRenamed }))
+				{
+					UpdateCachedCurve();
+				}
+			}
+			break;
+		}
+	}
+}
+
+void FRichCurveEditorModelNamed::UpdateCachedCurve()
+{
+	const FAnimCurveBase* CurveBase = AnimSequence->GetDataModel()->FindCurve(CurveId);
+	
+	check(CurveBase);	// If this fails lifetime contracts have been violated - this curve should always be present if this model exists
+
+	const FRichCurve* CurveToCopyFrom = [this, CurveBase]() -> const FRichCurve*
+	{
+		switch (Type)
+		{
+			case ERawCurveTrackTypes::RCT_Vector:
+			{
+				ensure(false);
+				const FVectorCurve& VectorCurve = *(static_cast<const FVectorCurve*>(CurveBase));
+				check(CurveIndex < 3);
+				return &VectorCurve.FloatCurves[CurveIndex];
+			}
+			case ERawCurveTrackTypes::RCT_Transform:
+			{
+				const FTransformCurve& TransformCurve = *(static_cast<const FTransformCurve*>(CurveBase));
+				check(CurveIndex < 9);
+				const int32 SubCurveIndex = CurveIndex % 3;
+				switch (CurveIndex)
+				{
+				default:
+					check(false);
+					// fall through
+				case 0:
+				case 1:
+				case 2:
+					return &TransformCurve.TranslationCurve.FloatCurves[SubCurveIndex];
+				case 3:
+				case 4:
+				case 5:
+					return &TransformCurve.RotationCurve.FloatCurves[SubCurveIndex];
+				case 6:
+				case 7:
+				case 8:
+					return &TransformCurve.ScaleCurve.FloatCurves[SubCurveIndex];
+				}
+
+			}
+			case ERawCurveTrackTypes::RCT_Float:
+			default:
+			{
+				const FFloatCurve& FloatCurve = *(static_cast<const FFloatCurve*>(CurveBase));
+				check(CurveIndex == 0);
+				return &FloatCurve.FloatCurve;
+			}
+		}
+
+		return nullptr;
+	}();
+	
+	if (ensure(CurveToCopyFrom))
+	{
+		CachedCurve = *CurveToCopyFrom;
+	}
 }
 
 class FAnimSequenceCurveEditorItem : public ICurveEditorTreeItem

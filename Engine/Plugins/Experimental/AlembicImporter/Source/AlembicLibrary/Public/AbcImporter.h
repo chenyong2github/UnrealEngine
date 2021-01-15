@@ -32,6 +32,8 @@ class UAbcImportSettings;
 class FSkeletalMeshImportData;
 class UAbcAssetImportData;
 
+class UAnimDataController;
+
 struct FMeshDescription;
 struct FAbcImportData;
 struct FGeometryCacheMeshData;
@@ -200,7 +202,7 @@ private:
 	void GenerateMorphTargetVertices(FAbcMeshSample* BaseSample, TArray<FMorphTargetDelta> &MorphDeltas, FAbcMeshSample* AverageSample, uint32 WedgeOffset, const TArray<int32>& RemapIndices, const TArray<int32>& UsedVertexIndicesForMorphs, const uint32 VertexOffset, const uint32 IndexOffset, bool bEnableDeltaOffset, FVector& OutOffset);
 	
 	/** Set up correct morph target weights from the PCA compressed data */
-	void SetupMorphTargetCurves(USkeleton* Skeleton, FName ConstCurveName, UAnimSequence* Sequence, const TArray<float> &CurveValues, const TArray<float>& TimeValues);
+	void SetupMorphTargetCurves(USkeleton* Skeleton, FName ConstCurveName, UAnimSequence* Sequence, const TArray<float> &CurveValues, const TArray<float>& TimeValues, UAnimDataController* Controller);
 	
 private:
 	/** Cached ptr for the import settings */

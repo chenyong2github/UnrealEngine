@@ -9,7 +9,7 @@
 
 ANIMTIMELINE_IMPLEMENT_TRACK(FAnimTimelineTrack_VectorCurve);
 
-FAnimTimelineTrack_VectorCurve::FAnimTimelineTrack_VectorCurve(FVectorCurve& InCurve, const FSmartName& InName, int32 InCurveIndex, ERawCurveTrackTypes InType, const FText& InCurveName, const FText& InFullCurveName, const FLinearColor& InColor, const TSharedRef<FAnimModel>& InModel)
+FAnimTimelineTrack_VectorCurve::FAnimTimelineTrack_VectorCurve(const FVectorCurve* InCurve, const FSmartName& InName, int32 InCurveIndex, ERawCurveTrackTypes InType, const FText& InCurveName, const FText& InFullCurveName, const FLinearColor& InColor, const TSharedRef<FAnimModel>& InModel)
 	: FAnimTimelineTrack_Curve(InCurveName, InFullCurveName, InColor, InColor, InModel)
 	, VectorCurve(InCurve)
 {
@@ -17,9 +17,9 @@ FAnimTimelineTrack_VectorCurve::FAnimTimelineTrack_VectorCurve(FVectorCurve& InC
 	OuterCurveIndex = InCurveIndex;
 	OuterType = InType;
 
-	Curves.Add(&InCurve.FloatCurves[0]);
-	Curves.Add(&InCurve.FloatCurves[1]);
-	Curves.Add(&InCurve.FloatCurves[2]);
+	Curves.Add(&InCurve->FloatCurves[0]);
+	Curves.Add(&InCurve->FloatCurves[1]);
+	Curves.Add(&InCurve->FloatCurves[2]);
 }
 
 FLinearColor FAnimTimelineTrack_VectorCurve::GetCurveColor(int32 InCurveIndex) const

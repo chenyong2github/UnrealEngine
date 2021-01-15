@@ -11,6 +11,11 @@
 #include "UObject/FrameworkObjectVersion.h"
 #include "UObject/FortniteMainBranchObjectVersion.h"
 #include "Animation/AnimationPoseData.h"
+#include "Animation/AnimSequenceHelpers.h"
+#include "Animation/AnimData/AnimDataModel.h"
+#include "Animation/AnimData/AnimDataController.h"
+
+#include "UObject/UE5MainStreamObjectVersion.h"
 
 DEFINE_LOG_CATEGORY(LogAnimMarkerSync);
 CSV_DECLARE_CATEGORY_MODULE_EXTERN(ENGINE_API, Animation);
@@ -21,7 +26,31 @@ CSV_DECLARE_CATEGORY_MODULE_EXTERN(ENGINE_API, Animation);
 UAnimSequenceBase::UAnimSequenceBase(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, RateScale(1.0f)
+#if WITH_EDITORONLY_DATA
+	, DataModel(nullptr)
+	, Controller(nullptr)
+#endif // WITH_EDITORONLY_DATA
 {
+#if WITH_EDITOR
+	if (!HasAllFlags(EObjectFlags::RF_ClassDefaultObject))
+	{
+		CreateModel();
+		GetController();
+	}
+#endif // WITH_EDITOR
+}
+
+void UAnimSequenceBase::SetSequenceLength(float NewLength)
+{
+#if WITH_EDITOR
+	// Editor time we update the source data
+	GetController()->SetPlayLength(NewLength);
+#else 
+	// In case this is called during runtime, update the sequence length directly. Current use-case is runtime created Montages.
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	SequenceLength = NewLength;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+#endif
 }
 
 bool UAnimSequenceBase::IsPostLoadThreadSafe() const
@@ -31,6 +60,44 @@ bool UAnimSequenceBase::IsPostLoadThreadSafe() const
 
 void UAnimSequenceBase::PostLoad()
 {
+#if WITH_EDITORONLY_DATA
+	if (!HasAnyFlags(EObjectFlags::RF_ClassDefaultObject))
+	{
+		const bool bRequiresModelCreation = DataModel != nullptr;
+		const bool bRequiresModelPopulation = GetLinkerCustomVersion(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::IntroducingAnimationDataModel;
+		checkf(bRequiresModelPopulation || DataModel != nullptr, TEXT("Invalid Animation Sequence base state, no data model found past upgrade object version"));
+
+		// Construct a new UAnimDataModel instance
+		if (bRequiresModelCreation)
+		{
+			CreateModel();
+		}
+		else
+		{
+			DataModel->GetModifiedEvent().AddUObject(this, &UAnimSequenceBase::OnModelModified);
+		}
+
+		if (USkeleton* MySkeleton = GetSkeleton())
+		{
+			if (FLinkerLoad* SkeletonLinker = MySkeleton->GetLinker())
+			{
+				SkeletonLinker->Preload(MySkeleton);
+			}
+			MySkeleton->ConditionalPostLoad();
+
+			PRAGMA_DISABLE_DEPRECATION_WARNINGS
+			VerifyCurveNames<FFloatCurve>(*MySkeleton, USkeleton::AnimCurveMappingName, RawCurveData.FloatCurves);
+			PRAGMA_ENABLE_DEPRECATION_WARNINGS
+		}
+
+		GetController();
+		if (bRequiresModelPopulation)
+		{
+			PopulateModel();
+		}
+	}
+#endif // WITH_EDITORONLY_DATA
+
 	Super::PostLoad();
 
 	// Convert Notifies to new data
@@ -49,42 +116,51 @@ void UAnimSequenceBase::PostLoad()
 		}
 	}
 
-#if WITH_EDITOR
-	InitializeNotifyTrack();
-#endif
 	RefreshCacheData();
 
 	if(USkeleton* MySkeleton = GetSkeleton())
 	{
+		const bool bDoNotTransactAction = false;
 #if WITH_EDITOR
 		if (GetLinkerCustomVersion(FFortniteMainBranchObjectVersion::GUID) < FFortniteMainBranchObjectVersion::FixUpNoneNameAnimationCurves)
 		{
-			for (int32 Index = 0; Index < RawCurveData.FloatCurves.Num(); ++Index)
+			Controller->OpenBracket(LOCTEXT("FFortniteMainBranchObjectVersion::FixUpNoneNameAnimationCurves_Bracket","FFortniteMainBranchObjectVersion::FixUpNoneNameAnimationCurves"), bDoNotTransactAction);
 			{
-				FFloatCurve& Curve = RawCurveData.FloatCurves[Index];
-				if (Curve.Name.DisplayName == NAME_None)
+				const TArray<FFloatCurve>& FloatCurves = DataModel->GetFloatCurves();
+				for (int32 Index = 0; Index < FloatCurves.Num(); ++Index)
 				{
-					// give unique name
-					Curve.Name.DisplayName = FName(*FString(GetName() + TEXT("_CurveNameFix_") + FString::FromInt(Index)));
-					UE_LOG(LogAnimation, Warning, TEXT("[AnimSequence %s] contains invalid curve name \'None\'. Renaming this to %s. Please fix this curve in the editor. "), *GetFullName(), *Curve.Name.DisplayName.ToString());
+					const FFloatCurve& Curve = FloatCurves[Index];
+					if (Curve.Name.DisplayName == NAME_None)
+					{
+						// give unique name
+						const FName UniqueName = FName(*FString(GetName() + TEXT("_CurveNameFix_") + FString::FromInt(Index)));
+						UE_LOG(LogAnimation, Warning, TEXT("[AnimSequence %s] contains invalid curve name \'None\'. Renaming this to %s. Please fix this curve in the editor. "), *GetFullName(), *Curve.Name.DisplayName.ToString());
+
+						FSmartName NewSmartName = Curve.Name;
+						NewSmartName.DisplayName = UniqueName;
+
+						Controller->RenameCurve(FAnimationCurveIdentifier(Curve.Name, ERawCurveTrackTypes::RCT_Float), FAnimationCurveIdentifier(NewSmartName, ERawCurveTrackTypes::RCT_Float), bDoNotTransactAction);
+					}
 				}
 			}
+			Controller->CloseBracket(bDoNotTransactAction);
 		}
 		else
 		{
-			for (int32 Index = 0; Index < RawCurveData.FloatCurves.Num(); ++Index)
+			const TArray<FFloatCurve>& FloatCurves = DataModel->GetFloatCurves();
+			for (int32 Index = 0; Index < FloatCurves.Num(); ++Index)
 			{
-				const FFloatCurve& Curve = RawCurveData.FloatCurves[Index];
+				const FFloatCurve& Curve = FloatCurves[Index];
 				ensureMsgf(Curve.Name.DisplayName != NAME_None, TEXT("[AnimSequencer %s] has invalid curve name."), *GetFullName());
 			}
 		}
-#endif // WITH_EDITOR
 
-
+		Controller->FindOrAddCurveNamesOnSkeleton(MySkeleton, ERawCurveTrackTypes::RCT_Float, bDoNotTransactAction);
+		Controller->FindOrAddCurveNamesOnSkeleton(MySkeleton, ERawCurveTrackTypes::RCT_Transform, bDoNotTransactAction);
+#else
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		VerifyCurveNames<FFloatCurve>(*MySkeleton, USkeleton::AnimCurveMappingName, RawCurveData.FloatCurves);
-
-#if WITH_EDITOR
-		VerifyCurveNames<FTransformCurve>(*MySkeleton, USkeleton::AnimTrackCurveMappingName, RawCurveData.TransformCurves);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #endif
 
 		// this should continue to add if skeleton hasn't been saved either 
@@ -92,8 +168,16 @@ void UAnimSequenceBase::PostLoad()
 		if (GetLinkerCustomVersion(FFrameworkObjectVersion::GUID) < FFrameworkObjectVersion::MoveCurveTypesToSkeleton
 			|| MySkeleton->GetLinkerCustomVersion(FFrameworkObjectVersion::GUID) < FFrameworkObjectVersion::MoveCurveTypesToSkeleton)
 		{
+
+#if WITH_EDITOR
+			const TArray<FFloatCurve>& FloatCurves = DataModel->GetFloatCurves();
+#else
+			PRAGMA_DISABLE_DEPRECATION_WARNINGS
+			const TArray<FFloatCurve>& FloatCurves = RawCurveData.FloatCurves;
+			PRAGMA_ENABLE_DEPRECATION_WARNINGS
+#endif
 			// fix up curve flags to skeleton
-			for (const FFloatCurve& Curve : RawCurveData.FloatCurves)
+			for (const FFloatCurve& Curve : FloatCurves)
 			{
 				bool bMorphtargetSet = Curve.GetCurveTypeFlag(AACF_DriveMorphTarget_DEPRECATED);
 				bool bMaterialSet = Curve.GetCurveTypeFlag(AACF_DriveMaterial_DEPRECATED);
@@ -106,6 +190,19 @@ void UAnimSequenceBase::PostLoad()
 			}
 		}
 	}
+}
+
+void UAnimSequenceBase::PostDuplicate(EDuplicateMode::Type DuplicateMode)
+{
+	Super::PostDuplicate(DuplicateMode);
+
+#if WITH_EDITOR
+	if (ensure(DataModel))
+	{
+		DataModel->GetModifiedEvent().RemoveAll(this);
+		DataModel->GetModifiedEvent().AddUObject(this, &UAnimSequenceBase::OnModelModified);
+	}
+#endif // WITH_EDITOR
 }
 
 float UAnimSequenceBase::GetPlayLength() const
@@ -150,28 +247,6 @@ bool UAnimSequenceBase::IsNotifyAvailable() const
 {
 	return (Notifies.Num() != 0) && (GetPlayLength() > 0.f);
 }
-
-#if WITH_EDITOR
-void UAnimSequenceBase::RegisterOnAnimCurvesChanged(const FOnAnimCurvesChanged& Delegate)
-{
-	OnAnimCurvesChanged.Add(Delegate);	
-}
-
-void UAnimSequenceBase::UnregisterOnAnimCurvesChanged(void* Unregister)
-{
-	OnAnimCurvesChanged.RemoveAll(Unregister);
-}
-
-void UAnimSequenceBase::RegisterOnAnimTrackCurvesChanged(const FOnAnimTrackCurvesChanged& Delegate)
-{
-	OnAnimTrackCurvesChanged.Add(Delegate);
-}
-
-void UAnimSequenceBase::UnregisterOnAnimTrackCurvesChanged(void* Unregister)
-{
-	OnAnimTrackCurvesChanged.RemoveAll(Unregister);
-}
-#endif 
 
 void UAnimSequenceBase::GetAnimNotifies(const float& StartTime, const float& DeltaTime, const bool bAllowLooping, TArray<const FAnimNotifyEvent *> & OutActiveNotifies) const
 {
@@ -294,8 +369,9 @@ void UAnimSequenceBase::GetAnimNotifiesFromDeltaPositions(const float& PreviousP
 void UAnimSequenceBase::RemapTracksToNewSkeleton(USkeleton* NewSkeleton, bool bConvertSpaces)
 {
 	Super::RemapTracksToNewSkeleton(NewSkeleton, bConvertSpaces);
-	VerifyCurveNames<FFloatCurve>(*NewSkeleton, USkeleton::AnimCurveMappingName, RawCurveData.FloatCurves);
-	VerifyCurveNames<FTransformCurve>(*NewSkeleton, USkeleton::AnimTrackCurveMappingName, RawCurveData.TransformCurves);
+
+	Controller->FindOrAddCurveNamesOnSkeleton(NewSkeleton, ERawCurveTrackTypes::RCT_Float);
+	Controller->FindOrAddCurveNamesOnSkeleton(NewSkeleton, ERawCurveTrackTypes::RCT_Transform);
 }
 #endif
 
@@ -547,12 +623,6 @@ const FFrameRate& UAnimSequenceBase::GetSamplingFrameRate() const
 }
 
 #if WITH_EDITOR
-void UAnimSequenceBase::RefreshCurveData()
-{
-	OnAnimCurvesChanged.Broadcast();
-	OnAnimTrackCurvesChanged.Broadcast();
-}
-
 void UAnimSequenceBase::InitializeNotifyTrack()
 {
 	if ( AnimNotifyTracks.Num() == 0 ) 
@@ -635,9 +705,12 @@ void UAnimSequenceBase::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags)
 	// as possible.
 	FString CurveNameList;
 
-	for(const FFloatCurve& Curve : RawCurveData.FloatCurves)
+	if (DataModel)
 	{
-		CurveNameList += FString::Printf(TEXT("%s%s"), *Curve.Name.DisplayName.ToString(), *USkeleton::CurveTagDelimiter);
+		for(const FFloatCurve& Curve : DataModel->GetFloatCurves())
+		{
+			CurveNameList += FString::Printf(TEXT("%s%s"), *Curve.Name.DisplayName.ToString(), *USkeleton::CurveTagDelimiter);
+		}
 	}
 	OutTags.Add(FAssetRegistryTag(USkeleton::CurveNameTag, CurveNameList, FAssetRegistryTag::TT_Hidden));
 }
@@ -708,9 +781,36 @@ void UAnimSequenceBase::RefreshParentAssetData()
 		NotifyEvent.EndLink.Link(this, NotifyEvent.GetTime() + NotifyEvent.Duration, NotifyEvent.GetSlotIndex());
 	}
 
-	SetSequenceLength(ParentSeqBase->GetPlayLength());
 	RateScale = ParentSeqBase->RateScale;
-	RawCurveData = ParentSeqBase->RawCurveData;
+
+	Controller->OpenBracket(LOCTEXT("RefreshParentAssetData_Bracket", "Refreshing Parent Asset Data"));
+	{
+		const UAnimDataModel* ParentDataModel = ParentSeqBase->GetDataModel();
+
+		Controller->SetPlayLength(ParentDataModel->GetPlayLength());
+		
+		Controller->RemoveAllCurvesOfType(ERawCurveTrackTypes::RCT_Float);
+		for (const FFloatCurve& FloatCurve : ParentDataModel->GetFloatCurves())
+		{
+			const FAnimationCurveIdentifier CurveId(FloatCurve.Name, ERawCurveTrackTypes::RCT_Float);
+			Controller->AddCurve(CurveId, FloatCurve.GetCurveTypeFlags());
+			Controller->SetCurveKeys(CurveId, FloatCurve.FloatCurve.GetConstRefOfKeys());
+		}
+
+		Controller->RemoveAllCurvesOfType(ERawCurveTrackTypes::RCT_Transform);
+		for (const FTransformCurve& TransformCurve : ParentDataModel->GetTransformCurves())
+		{
+			const FAnimationCurveIdentifier CurveId(TransformCurve.Name, ERawCurveTrackTypes::RCT_Transform);
+			Controller->AddCurve(CurveId, TransformCurve.GetCurveTypeFlags());
+
+			TArray<FTransform> Values;
+			TArray<float> Times;
+			TransformCurve.GetKeys(Times, Values);
+
+			Controller->SetTransformCurveKeys(CurveId, Values, Times);
+		}
+	}
+	Controller->CloseBracket();
 
 #if WITH_EDITORONLY_DATA
 	// if you change Notifies array, this will need to be rebuilt
@@ -741,29 +841,55 @@ void UAnimSequenceBase::RefreshParentAssetData()
 void UAnimSequenceBase::EvaluateCurveData(FBlendedCurve& OutCurve, float CurrentTime, bool bForceUseRawData) const
 {
 	CSV_SCOPED_TIMING_STAT(Animation, EvaluateCurveData);
+
+	REFACTOR_V2_WARNING("V2 Curve evaluation goes through original curve data structure. This contains copied data from the model. Goal is to have compressed curve data within AnimSequenceBase so that model would be editor / raw data. And compressed data is used at runtime.");
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	RawCurveData.EvaluateCurveData(OutCurve, CurrentTime);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 float UAnimSequenceBase::EvaluateCurveData(SmartName::UID_Type CurveUID, float CurrentTime, bool bForceUseRawData) const
 {
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	const FFloatCurve* Curve = (const FFloatCurve*)RawCurveData.GetCurveData(CurveUID, ERawCurveTrackTypes::RCT_Float);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+	REFACTOR_V2_WARNING("V2 Curve evaluation goes through original curve data structure. This contains copied data from the model. Goal is to have compressed curve data within AnimSequenceBase so that model would be editor / raw data. And compressed data is used at runtime.");
 	return Curve != nullptr ? Curve->Evaluate(CurrentTime) : 0.0f;
+}
+
+const FRawCurveTracks& UAnimSequenceBase::GetCurveData() const
+{
+	REFACTOR_V2_WARNING("V2 Curve evaluation goes through original curve data structure. This contains copied data from the model. Goal is to have compressed curve data within AnimSequenceBase so that model would be editor / raw data. And compressed data is used at runtime.");
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	return RawCurveData;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 bool UAnimSequenceBase::HasCurveData(SmartName::UID_Type CurveUID, bool bForceUseRawData) const
 {
+#if WITH_EDITOR
+	ValidateModel();
+	return DataModel->FindFloatCurve(FAnimationCurveIdentifier(CurveUID, ERawCurveTrackTypes::RCT_Float)) != nullptr;
+#else
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	return RawCurveData.GetCurveData(CurveUID) != nullptr;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+#endif
 }
 
 void UAnimSequenceBase::Serialize(FArchive& Ar)
 {
 	Ar.UsingCustomVersion(FFrameworkObjectVersion::GUID);
 	Ar.UsingCustomVersion(FFortniteMainBranchObjectVersion::GUID);
+	Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
 
 	Super::Serialize(Ar);
 
 	// fix up version issue and so on
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	RawCurveData.PostSerialize(Ar);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 void UAnimSequenceBase::GetAnimationPose(struct FCompactPose& OutPose, FBlendedCurve & OutCurve, const FAnimExtractContext & ExtractionContext) const
@@ -780,4 +906,291 @@ void UAnimSequenceBase::HandleAssetPlayerTickedInternal(FAnimAssetTickContext &C
 	GetAnimNotifies(PreviousTime, MoveDelta, Instance.bLooping, AnimNotifies);
 	NotifyQueue.AddAnimNotifies(Context.ShouldGenerateNotifies(),AnimNotifies, Instance.EffectiveBlendWeight);
 }
+
+#if WITH_EDITOR
+void UAnimSequenceBase::OnModelModified(const EAnimDataModelNotifyType& NotifyType, UAnimDataModel* Model, const FAnimDataModelNotifPayload& Payload)
+{
+	NotifyCollector.Handle(NotifyType);
+
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	InitializeNotifyTrack();
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+	auto HandleLengthChange = [&](float NewLength, float OldLength, float T0, float T1)
+	{
+		const float StartRemoveTime = T0;
+		const float EndRemoveTime = T1;
+
+		// Total time value for frames that were removed
+		const float Duration = T1 - T0;
+
+		if (NewLength > OldLength)
+		{
+			const float InsertTime = T0;
+			for (FAnimNotifyEvent& Notify : Notifies)
+			{
+				float CurrentTime = Notify.GetTime();
+				float NewDuration = 0.f;
+
+				// if state, make sure to adjust end time
+				if (Notify.NotifyStateClass)
+				{
+					float NotifyDuration = Notify.GetDuration();
+					float NotifyEnd = CurrentTime + NotifyDuration;
+					if (NotifyEnd >= InsertTime)
+					{
+						NewDuration = NotifyDuration + Duration;
+					}
+					else
+					{
+						NewDuration = NotifyDuration;
+					}
+				}
+
+				// Shift out notify by the time alloted for the inserted keys
+				if (CurrentTime >= InsertTime)
+				{
+					CurrentTime += Duration;
+				}
+
+				// Clamps against the sequence length, ensuring that the notify does not end up outside of the playback bounds
+				const float ClampedCurrentTime = FMath::Clamp(CurrentTime, 0.f, NewLength);
+
+				Notify.LinkSequence(this, ClampedCurrentTime);
+
+				Notify.SetDuration(NewDuration);
+
+				if (ClampedCurrentTime == 0.f)
+				{
+					Notify.TriggerTimeOffset = GetTriggerTimeOffsetForType(EAnimEventTriggerOffsets::OffsetAfter);
+				}
+				else if (ClampedCurrentTime == NewLength)
+				{
+					Notify.TriggerTimeOffset = GetTriggerTimeOffsetForType(EAnimEventTriggerOffsets::OffsetBefore);
+				}
+			}
+		}
+		else if (NewLength < OldLength)
+		{
+			// re-locate notifies
+			for (FAnimNotifyEvent& Notify : Notifies)
+			{
+				float CurrentTime = Notify.GetTime();
+				float NewDuration = 0.f;
+				
+				// if state, make sure to adjust end time
+				if (Notify.NotifyStateClass)
+				{
+					float NotifyDuration = Notify.GetDuration();
+					float NotifyEnd = CurrentTime + NotifyDuration;
+					NewDuration = NotifyDuration;
+
+					// If Notify is inside of the trimmed time frame, zero out the duration
+					if (NotifyEnd >= StartRemoveTime && NotifyEnd <= EndRemoveTime)
+					{
+						// small number @todo see if there is define for this
+						NewDuration = DataModel->GetFrameRate().AsInterval();
+					}
+					// If Notify overlaps trimmed time frame, remove trimmed duration
+					else if (CurrentTime < EndRemoveTime && NotifyEnd > EndRemoveTime)
+					{
+						NewDuration = NotifyEnd - Duration - CurrentTime;
+					}
+
+					NewDuration = FMath::Max(NewDuration, (float)DataModel->GetFrameRate().AsInterval());
+				}
+
+				if (CurrentTime >= StartRemoveTime && CurrentTime <= EndRemoveTime)
+				{
+					CurrentTime = StartRemoveTime;
+				}
+				else if (CurrentTime > EndRemoveTime)
+				{
+					CurrentTime -= Duration;
+				}
+
+				const float ClampedCurrentTime = FMath::Clamp(CurrentTime, 0.f, NewLength);
+
+				Notify.LinkSequence(this, ClampedCurrentTime);
+				Notify.SetDuration(NewDuration);
+
+				if (ClampedCurrentTime == 0.f)
+				{
+					Notify.TriggerTimeOffset = GetTriggerTimeOffsetForType(EAnimEventTriggerOffsets::OffsetAfter);
+				}
+				else if (ClampedCurrentTime == NewLength)
+				{
+					Notify.TriggerTimeOffset = GetTriggerTimeOffsetForType(EAnimEventTriggerOffsets::OffsetBefore);
+				}
+			}
+		}	
+	};
+
+	// Source animation curve data can be coarse, so copy the data down and remove any redundant keys
+	auto CopyCurvesFromModel = [this]()
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		RawCurveData.FloatCurves = DataModel->GetFloatCurves();
+		RawCurveData.TransformCurves = DataModel->GetTransformCurves();
+		RawCurveData.RemoveRedundantKeys();
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	};
+
+	switch (NotifyType)
+	{
+		case EAnimDataModelNotifyType::SequenceLengthChanged:
+		{
+			const FSequenceLengthChangedPayload& TypedPayload = Payload.GetPayload<FSequenceLengthChangedPayload>();
+			const float PreviousSequenceLength = TypedPayload.PreviousLength;
+			const float CurrentSequenceLength = Model->GetPlayLength();
+
+			PRAGMA_DISABLE_DEPRECATION_WARNINGS
+			SequenceLength = CurrentSequenceLength;
+			PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+			HandleLengthChange(CurrentSequenceLength, PreviousSequenceLength, TypedPayload.T0, TypedPayload.T1);
+
+			// Ensure that we only clamp the notifies at the end of a bracket
+			if (NotifyCollector.IsNotWithinBracket())
+			{
+				ClampNotifiesAtEndOfSequence();
+				CopyCurvesFromModel();
+			}
+			
+			break;
+		}
+
+		case EAnimDataModelNotifyType::CurveAdded:
+		case EAnimDataModelNotifyType::CurveChanged:
+		case EAnimDataModelNotifyType::CurveRemoved:
+		case EAnimDataModelNotifyType::CurveFlagsChanged:
+		case EAnimDataModelNotifyType::CurveRenamed:
+		case EAnimDataModelNotifyType::CurveScaled:
+		{
+			if (NotifyCollector.IsNotWithinBracket())
+			{
+				CopyCurvesFromModel();
+			}
+			break;
+		}
+
+		case EAnimDataModelNotifyType::Populated:
+		{
+			const float CurrentSequenceLength = Model->GetPlayLength();
+			PRAGMA_DISABLE_DEPRECATION_WARNINGS
+			SequenceLength = CurrentSequenceLength;
+			PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+			if (NotifyCollector.IsNotWithinBracket())
+			{
+				ClampNotifiesAtEndOfSequence();
+				CopyCurvesFromModel();
+			}
+
+			break;
+		}
+
+		case EAnimDataModelNotifyType::BracketClosed:
+		{
+			if (NotifyCollector.IsNotWithinBracket())
+			{
+				const auto CurveCopyNotifies = { EAnimDataModelNotifyType::CurveAdded, EAnimDataModelNotifyType::CurveChanged, EAnimDataModelNotifyType::CurveRemoved, EAnimDataModelNotifyType::CurveFlagsChanged, EAnimDataModelNotifyType::CurveRenamed, EAnimDataModelNotifyType::CurveScaled, EAnimDataModelNotifyType::Populated, EAnimDataModelNotifyType::Reset };
+
+				const auto LengthChangingNotifies = { EAnimDataModelNotifyType::SequenceLengthChanged, EAnimDataModelNotifyType::FrameRateChanged, EAnimDataModelNotifyType::Reset, EAnimDataModelNotifyType::Populated };
+
+				if (NotifyCollector.Contains(CurveCopyNotifies) || NotifyCollector.Contains(LengthChangingNotifies))
+				{
+					CopyCurvesFromModel();
+				}
+				
+				if (NotifyCollector.Contains(LengthChangingNotifies))
+				{
+					CopyCurvesFromModel();
+					ClampNotifiesAtEndOfSequence();
+				}
+			}
+			break;
+		}
+	}
+}
+
+UAnimDataModel* UAnimSequenceBase::GetDataModel() const
+{
+	ValidateModel();
+	return DataModel;
+}
+
+UAnimDataController* UAnimSequenceBase::GetController()
+{
+	ValidateModel();
+
+	if (HasAllFlags(EObjectFlags::RF_ClassDefaultObject))
+	{
+		return nullptr;
+	}
+
+	if (Controller == nullptr)
+	{
+		Controller = NewObject<UAnimDataController>(GetTransientPackage());		
+	}
+
+	if (Controller->GetModel() != DataModel)
+	{
+		Controller->SetModel(DataModel);
+	}
+	return Controller;
+}
+
+void UAnimSequenceBase::PopulateModel()
+{
+	check(!HasAnyFlags(EObjectFlags::RF_ClassDefaultObject));	
+	
+	// Make a copy of the current data, to mitigate any changes due to notify callbacks
+	const FFrameRate FrameRate = GetSamplingFrameRate();
+	const float PlayLength = GetPlayLength();
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	const FRawCurveTracks CurveData = RawCurveData;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+		
+	UAnimDataController::FScopedBracket ScopedBracket(Controller, LOCTEXT("UAnimSequenceBase::PopulateModel_Bracket", "Generating Animation Model Data for Animation Sequence Base"));
+	Controller->SetPlayLength(PlayLength);
+	Controller->SetFrameRate(FrameRate);
+
+	USkeleton* TargetSkeleton = GetSkeleton();	
+	UE::Anim::CopyCurveDataToModel(CurveData, TargetSkeleton, Controller);	
+}
+
+void UAnimSequenceBase::ValidateModel() const
+{
+	checkf(DataModel != nullptr, TEXT("Invalidate data model"));
+}
+
+void UAnimSequenceBase::CopyDataModel(const UAnimDataModel* ModelToDuplicate)
+{
+	checkf(ModelToDuplicate != nullptr, TEXT("Invalidate data model"));
+	if (DataModel)
+	{
+		DataModel->GetModifiedEvent().RemoveAll(this);
+	}
+
+	DataModel = DuplicateObject(ModelToDuplicate, this);
+	GetController()->SetModel(DataModel);
+	DataModel->GetModifiedEvent().AddUObject(this, &UAnimSequenceBase::OnModelModified);
+}
+
+void UAnimSequenceBase::CreateModel()
+{	
+	if (DataModel == nullptr)
+	{
+		DataModel = CreateDefaultSubobject<UAnimDataModel>(FName(TEXT("AnimationDataModel")));
+	}
+
+	GetController()->SetModel(DataModel);
+	
+	DataModel->GetModifiedEvent().RemoveAll(this);
+	DataModel->GetModifiedEvent().AddUObject(this, &UAnimSequenceBase::OnModelModified);
+}
+#endif // WITH_EDITOR
+
 #undef LOCTEXT_NAMESPACE 
+

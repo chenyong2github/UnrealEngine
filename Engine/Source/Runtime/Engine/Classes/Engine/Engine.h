@@ -3193,6 +3193,7 @@ public:
 	//~ Begin Transaction Interfaces.
 	virtual int32 BeginTransaction(const TCHAR* TransactionContext, const FText& Description, UObject* PrimaryObject) { return INDEX_NONE; }
 	virtual int32 EndTransaction() { return INDEX_NONE; }
+	virtual bool CanTransact() { return false; }
 	virtual void CancelTransaction(int32 Index) { }
 #endif
 

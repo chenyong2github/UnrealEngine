@@ -27,6 +27,8 @@ class FMemoryWriter;
 // Enable this if you want to locally measure detailed anim perf.  Disabled by default as it is introduces a lot of additional profile markers and associated overhead.
 #define ENABLE_VERBOSE_ANIM_PERF_TRACKING 0
 
+#define MAX_ANIMATION_TRACKS 65535
+
 namespace EAnimEventTriggerOffsets
 {
 	enum Type
@@ -839,21 +841,21 @@ struct ENGINE_API FTrackToSkeletonMap
 * One element is used as a simple compression scheme where if all keys are the same, they'll be
 * reduced to 1 key that is constant over the entire sequence.
 */
-USTRUCT()
+USTRUCT(BlueprintType)
 struct ENGINE_API FRawAnimSequenceTrack
 {
 	GENERATED_USTRUCT_BODY()
 
 	/** Position keys. */
-	UPROPERTY()
+	UPROPERTY(BlueprintReadOnly, Category=TrackData)
 	TArray<FVector> PosKeys;
 
 	/** Rotation keys. */
-	UPROPERTY()
+	UPROPERTY(BlueprintReadOnly, Category = TrackData)
 	TArray<FQuat> RotKeys;
 
 	/** Scale keys. */
-	UPROPERTY()
+	UPROPERTY(BlueprintReadOnly, Category = TrackData)
 	TArray<FVector> ScaleKeys;
 
 	// Serializer.
@@ -869,6 +871,8 @@ struct ENGINE_API FRawAnimSequenceTrack
 
 		return Ar;
 	}
+
+	static const uint32 SingleKeySize = sizeof(FVector) + sizeof(FQuat) + sizeof(FVector);
 };
 
 

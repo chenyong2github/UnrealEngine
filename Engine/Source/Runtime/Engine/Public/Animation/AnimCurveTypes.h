@@ -8,6 +8,7 @@
 #include "Animation/SmartName.h"
 #include "Animation/Skeleton.h"
 #include "Curves/RichCurve.h"
+#include "Misc/EnumRange.h"
 #include "AnimCurveTypes.generated.h"
 
 /** This is curve flags that are saved in asset and **/
@@ -31,6 +32,8 @@ enum EAnimAssetCurveFlags
 	AACF_Disabled = 0x00000040 UMETA(Hidden), // per asset
 };
 static const EAnimAssetCurveFlags AACF_DefaultCurve = AACF_Editable;
+
+ENUM_RANGE_BY_FIRST_AND_LAST(EAnimAssetCurveFlags, AACF_DriveMorphTarget_DEPRECATED, AACF_Disabled);
 
 /** UI Curve Parameter type
  * This gets name, and cached UID and use it when needed
@@ -69,7 +72,7 @@ struct ENGINE_API FAnimCurveParam
 /**
  * Float curve data for one track
  */
-USTRUCT()
+USTRUCT(BlueprintType)
 struct ENGINE_API FAnimCurveBase
 {
 	GENERATED_USTRUCT_BODY()
@@ -153,7 +156,7 @@ private:
 #endif
 };
 
-USTRUCT()
+USTRUCT(BlueprintType)
 struct FFloatCurve : public FAnimCurveBase
 {
 	GENERATED_USTRUCT_BODY()
@@ -211,7 +214,7 @@ struct FVectorCurve : public FAnimCurveBase
 	int32 GetNumKeys() const;
 };
 
-USTRUCT()
+USTRUCT(BlueprintType)
 struct FTransformCurve: public FAnimCurveBase
 {
 	GENERATED_USTRUCT_BODY()
@@ -771,11 +774,11 @@ struct ENGINE_API FBlendedHeapCurve : public FBaseBlendedCurve<FDefaultAllocator
 {
 };
 
-UENUM()
+UENUM(BlueprintType)
 enum class ERawCurveTrackTypes : uint8
 {
 	RCT_Float UMETA(DisplayName = "Float Curve"),
-	RCT_Vector UMETA(DisplayName = "Vector Curve"),
+	RCT_Vector UMETA(DisplayName = "Vector Curve", Hidden),
 	RCT_Transform UMETA(DisplayName = "Transformation Curve"),
 	RCT_MAX
 };

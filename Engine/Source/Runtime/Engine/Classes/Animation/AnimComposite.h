@@ -54,6 +54,7 @@ public:
 	//~ Begin UAnimCompositeBase Interface
 	virtual void InvalidateRecursiveAsset() override;
 	virtual bool ContainRecursive(TArray<UAnimCompositeBase*>& CurrentAccumulatedList) override;
+	virtual void SetCompositeLength(float InLength) override;
 	//~End UAnimCompositeBase Interface
 };
 

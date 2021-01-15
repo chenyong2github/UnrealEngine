@@ -66,12 +66,7 @@ bool UAnimSequenceFactory::ConfigureProperties()
 
 UObject* UAnimSequenceFactory::FactoryCreateNew(UClass* Class, UObject* InParent, FName Name, EObjectFlags Flags, UObject* Context, FFeedbackContext* Warn)
 {
-	//
 	UAnimSequence* AnimSequence = NewObject<UAnimSequence>(InParent, Class, Name, Flags);
-
-	// @todo I think this will crash, we should support differentoptions
-	AnimSequence->SetSequenceLength(0.f);
-	AnimSequence->SetNumberOfSampledKeys(0);
 	
 	if (TargetSkeleton)
 	{

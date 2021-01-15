@@ -10,6 +10,9 @@
 #include "ScopedTransaction.h"
 #include "Animation/BlendSpaceBase.h"
 #include "AnimationEditorPreviewScene.h"
+#include "Animation/AnimData/AnimDataModel.h"
+#include "Animation/AnimData/AnimDataController.h"
+#include "Animation/AnimSequenceHelpers.h"
 
 #define LOCTEXT_NAMESPACE "AnimationScrubPanel"
 
@@ -474,8 +477,12 @@ void SAnimationScrubPanel::OnCropAnimSequence( bool bFromStart, float CurrentTim
 				//Call modify to restore anim sequence current state
 				AnimSequence->Modify();
 
-				// Crop the raw anim data.
-				AnimSequence->CropRawAnimData( CurrentTime, bFromStart );
+
+				const float TrimStart = bFromStart ? 0.f : CurrentTime;
+				const float TrimEnd = bFromStart ? CurrentTime : AnimSequence->GetPlayLength();
+
+				// Trim off the user-selected part of the raw anim data.
+				UE::Anim::AnimationData::Trim(AnimSequence, TrimStart, TrimEnd);
 
 				//Resetting slider position to the first frame
 				PreviewInstance->SetPosition( 0.0f, false );
@@ -503,10 +510,10 @@ void SAnimationScrubPanel::OnAppendAnimSequence( bool bFromStart, int32 NumOfFra
 			AnimSequence->Modify();
 
 			// Crop the raw anim data.
-			int32 StartFrame = (bFromStart)? 0 : AnimSequence->GetNumberOfSampledKeys() - 1;
+			int32 StartFrame = (bFromStart)? 0 : AnimSequence->GetDataModel()->GetNumberOfFrames() - 1;
 			int32 EndFrame = StartFrame + NumOfFrames;
 			int32 CopyFrame = StartFrame;
-			AnimSequence->InsertFramesToRawAnimData(StartFrame, EndFrame, CopyFrame);
+			UE::Anim::AnimationData::DuplicateKeys(AnimSequence, StartFrame, NumOfFrames, CopyFrame);
 
 			OnSetInputViewRange.ExecuteIfBound(0, AnimSequence->GetPlayLength());
 		}
@@ -529,10 +536,9 @@ void SAnimationScrubPanel::OnInsertAnimSequence( bool bBefore, int32 CurrentFram
 			//Call modify to restore anim sequence current state
 			AnimSequence->Modify();
 
-			// Crop the raw anim data.
-			int32 StartFrame = (bBefore)? CurrentFrame : CurrentFrame + 1;
-			int32 EndFrame = StartFrame + 1;
-			AnimSequence->InsertFramesToRawAnimData(StartFrame, EndFrame, CurrentFrame);
+			// Duplicate specified key
+			const int32 StartFrame = (bBefore)? CurrentFrame : CurrentFrame + 1;
+			UE::Anim::AnimationData::DuplicateKeys(AnimSequence, StartFrame, 1, CurrentFrame);
 
 			OnSetInputViewRange.ExecuteIfBound(0, AnimSequence->GetPlayLength());
 		}
@@ -557,7 +563,8 @@ void SAnimationScrubPanel::OnReZeroAnimSequence(int32 FrameIndex)
 				AnimSequence->Modify();
 
 				// As above, animations don't have any idea of hierarchy, so we don't know for sure if track 0 is the root bone's track.
-				FRawAnimSequenceTrack& RawTrack = AnimSequence->GetRawAnimationTrack(0);
+				const FBoneAnimationTrack& AnimationTrack = AnimSequence->GetDataModel()->GetBoneTrackByIndex(0);
+				FRawAnimSequenceTrack RawTrack = AnimationTrack.InternalTrackData;
 
 				// Find vector that would translate current root bone location onto origin.
 				FVector FrameTransform = FVector::ZeroVector;
@@ -583,9 +590,8 @@ void SAnimationScrubPanel::OnReZeroAnimSequence(int32 FrameIndex)
 					RawTrack.PosKeys[i] += ApplyTranslation;
 				}
 
-				// Handle Raw Data changing
-				AnimSequence->MarkRawDataAsModified();
-				AnimSequence->OnRawDataChanged();
+				UAnimDataController* Controller = AnimSequence->GetController();
+				Controller->SetBoneTrackKeys(AnimationTrack.Name, RawTrack.PosKeys, RawTrack.RotKeys, RawTrack.ScaleKeys);
 
 				AnimSequence->MarkPackageDirty();
 			}

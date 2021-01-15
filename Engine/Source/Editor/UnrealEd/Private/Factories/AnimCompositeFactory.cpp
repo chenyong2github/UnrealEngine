@@ -89,7 +89,7 @@ UObject* UAnimCompositeFactory::FactoryCreateNew(UClass* Class, UObject* InParen
 			NewSegment.StartPos = 0.f;
 
 			AnimComposite->AnimationTrack.AnimSegments.Add(NewSegment);
-			AnimComposite->SetSequenceLength(AnimComposite->AnimationTrack.GetLength());
+			AnimComposite->SetCompositeLength(AnimComposite->AnimationTrack.GetLength());
 		}
 		
 		AnimComposite->SetSkeleton( TargetSkeleton );

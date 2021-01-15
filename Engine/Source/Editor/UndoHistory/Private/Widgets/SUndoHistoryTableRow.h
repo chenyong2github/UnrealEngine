@@ -64,6 +64,7 @@ public:
 			TransactionId = InArgs._Transaction->GetId();
 			ContextObject = InArgs._Transaction->GetContext().PrimaryObject;
 			Title = InArgs._Transaction->GetTitle();
+			Description = InArgs._Transaction->GetDescription();
 		}
 
 		if (ContextObject != nullptr)
@@ -107,6 +108,7 @@ public:
 				[
 					SNew(STextBlock)
 						.Text(Title)
+						.ToolTipText(Description)
 						.ColorAndOpacity(this, &SUndoHistoryTableRow::HandleTitleTextColorAndOpacity)
 				];
 		}
@@ -141,6 +143,9 @@ private:
 
 	/** Holds the transaction's title text. */
 	FText Title;
+
+	/** Holds the transaction's description text. */
+	FText Description;
 
 	/** Delegate called when the Goto button is clicked */
 	FOnGotoTransactionClicked OnGotoTransactionClicked;

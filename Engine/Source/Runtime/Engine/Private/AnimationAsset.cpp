@@ -10,6 +10,10 @@
 #include "UObject/LinkerLoad.h"
 #include "Animation/BlendSpaceBase.h"
 #include "Animation/PoseAsset.h"
+#include "Animation/AnimSequenceHelpers.h"
+#include "Animation/AnimData/AnimDataController.h"
+
+#define LOCTEXT_NAMESPACE "AnimationAsset"
 
 #define LEADERSCORE_ALWAYSLEADER  	2.f
 #define LEADERSCORE_MONTAGE			3.f
@@ -401,6 +405,13 @@ bool UAnimationAsset::ReplaceSkeleton(USkeleton* NewSkeleton, bool bConvertSpace
 				}
 				AnimAsset->ConditionalPostLoad();
 
+				// This ensure that in subsequent behaviour the RawData GUID is never 'new-ed' but always calculated from the 
+				// raw animation data itself.
+				if (UAnimSequence* Sequence = Cast<UAnimSequence>(AnimAsset))
+				{
+					Sequence->GetController()->OpenBracket(LOCTEXT("ReplaceSkeleton_Bracket", "Replacing USkeleton"));
+				}
+
 				// these two are different functions for now
 				// technically if you have implementation for Remap, it will also set skeleton 
 				AnimAsset->RemapTracksToNewSkeleton(NewSkeleton, bConvertSpaces);
@@ -411,17 +422,26 @@ bool UAnimationAsset::ReplaceSkeleton(USkeleton* NewSkeleton, bool bConvertSpace
 			{
 				if (UAnimSequence* Seq = Cast<UAnimSequence>(AnimAsset))
 				{
-					// We don't force gen here as that can cause us to constantly generate
-					// new anim ddc keys if users never resave anims that need to remap.
-					Seq->PostProcessSequence(false);
+					Seq->GetController()->CloseBracket();
 				}
 			}
 		}
 
-		RemapTracksToNewSkeleton(NewSkeleton, bConvertSpaces);
-		if (UAnimSequence* Seq = Cast<UAnimSequence>(this))
-		{
-			Seq->PostProcessSequence(false);
+		UAnimSequence* Seq = Cast<UAnimSequence>(this);
+		{			
+			// This ensure that in subsequent behaviour the RawData GUID is never 'new-ed' but always calculated from the 
+			// raw animation data itself.
+			if (Seq)
+			{
+				Seq->GetController()->OpenBracket(LOCTEXT("ReplaceSkeleton_Bracket", "Replacing USkeleton"));
+			}
+  
+			RemapTracksToNewSkeleton(NewSkeleton, bConvertSpaces);
+
+			if (Seq)
+			{
+				Seq->GetController()->CloseBracket();
+			}
 		}
 
 		PostEditChange();
@@ -714,3 +734,4 @@ void FBlendSampleData::NormalizeDataWeight(TArray<FBlendSampleData>& SampleDataL
 	}
 }
 
+#undef LOCTEXT_NAMESPACE // "AnimationAsset"

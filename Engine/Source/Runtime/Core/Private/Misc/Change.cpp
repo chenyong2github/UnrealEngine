@@ -54,7 +54,17 @@ FString FCompoundChange::ToString() const
 			}
 		}
 
-		Text += FString::Printf( TEXT( " (%i sub-change%s)" ), TotalValidSubchanges, TotalValidSubchanges == 1 ? TEXT( "s" ) : TEXT( "" ) );
+		Text += FString::Printf( TEXT( " (%i sub-change%s):" ), TotalValidSubchanges, TotalValidSubchanges == 1 ? TEXT( "s" ) : TEXT( "" ) );
+
+		for (int32 ChangeIndex = Input.Subchanges.Num() - 1; ChangeIndex >= 0; --ChangeIndex)
+		{
+			const TUniquePtr<FChange>& Subchange = Input.Subchanges[ChangeIndex];
+			if (Subchange != nullptr)
+			{
+				Text += TEXT("\n\t");
+				Text += Subchange->ToString();
+			}
+		}
 	}
 	else
 	{

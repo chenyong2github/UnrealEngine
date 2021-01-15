@@ -450,10 +450,15 @@ int32 UMovieSceneSkeletalAnimationSection::SetBoneIndexForRootMotionCalculations
 	{ 
 		//but if not first find first
 		int32 RootIndex = INDEX_NONE;
-		for (int32 TrackIndex = 0; TrackIndex < AnimSequence->GetRawAnimationData().Num(); ++TrackIndex)
+#if WITH_EDITOR
+		const UAnimDataModel* DataModel = AnimSequence->GetDataModel();
+		const TArray<FBoneAnimationTrack>& BoneAnimationTracks = DataModel->GetBoneAnimationTracks();
+		const int32 NumTracks = BoneAnimationTracks.Num();
+		for (int32 TrackIndex = 0; TrackIndex < NumTracks; ++TrackIndex)
 		{
+			const FBoneAnimationTrack& AnimationTrack = BoneAnimationTracks[TrackIndex];
 			// verify if this bone exists in skeleton
-			int32 BoneTreeIndex = AnimSequence->GetSkeletonIndexFromRawDataTrackIndex(TrackIndex);
+			const int32 BoneTreeIndex = AnimationTrack.BoneTreeIndex;
 			if (BoneTreeIndex != INDEX_NONE)
 			{
 				int32 ParentIndex = AnimSequence->GetSkeleton()->GetReferenceSkeleton().GetParentIndex(BoneTreeIndex);
@@ -468,6 +473,29 @@ int32 UMovieSceneSkeletalAnimationSection::SetBoneIndexForRootMotionCalculations
 				}
 			}
 		}
+	#else
+		const TArray<FTrackToSkeletonMap>& BoneMappings = AnimSequence->GetCompressedTrackToSkeletonMapTable();
+		const int32 NumTracks = BoneMappings.Num();
+		for (int32 TrackIndex = 0; TrackIndex < NumTracks; ++TrackIndex)
+		{
+			const FTrackToSkeletonMap& Mapping = BoneMappings[TrackIndex];
+			// verify if this bone exists in skeleton
+			const int32 BoneTreeIndex = Mapping.BoneTreeIndex;
+			if (BoneTreeIndex != INDEX_NONE)
+			{
+				int32 ParentIndex = AnimSequence->GetSkeleton()->GetReferenceSkeleton().GetParentIndex(BoneTreeIndex);
+				if (ParentIndex == INDEX_NONE)
+				{
+					RootIndex = TrackIndex;
+				}
+				else if (ParentIndex == RootIndex)
+				{
+					TempRootBoneIndex = TrackIndex;
+					break;
+				}
+			}
+		}
+	#endif
 	}
 	return TempRootBoneIndex.GetValue();
 }

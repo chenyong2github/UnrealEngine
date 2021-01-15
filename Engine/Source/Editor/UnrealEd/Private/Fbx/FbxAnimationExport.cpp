@@ -32,7 +32,7 @@ namespace UnFbx
 			return false;
 		}
 
-		const float FrameRate = AnimSeq->GetSamplingFrameRate().AsDecimal();
+		const float FrameRate = AnimSeq->GetDataModel()->GetFrameRate().AsDecimal();
 		//Configure the scene time line
 		{
 			FbxGlobalSettings& SceneGlobalSettings = Scene->GetGlobalSettings();
@@ -332,7 +332,7 @@ void FFbxExporter::IterateInsideAnimSequence(const UAnimSequence* AnimSeq, float
 {
 	float AnimTime = AnimStartOffset;
 	float AnimEndTime = (AnimSeq->GetPlayLength() - AnimEndOffset);
-	double TimePerKey = AnimSeq->GetSamplingFrameRate().AsInterval();
+	double TimePerKey = AnimSeq->GetDataModel()->GetFrameRate().AsInterval();
 	const float AnimTimeIncrement = TimePerKey * AnimPlayRate;
 	uint32 AnimFrameIndex = 0;
 

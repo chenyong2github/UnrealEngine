@@ -1096,6 +1096,11 @@ int32 UEditorEngine::BeginTransaction(const FText& Description)
 	return BeginTransaction(NULL, Description, NULL);
 }
 
+bool UEditorEngine::CanTransact()
+{
+	return Trans != nullptr;
+}
+
 int32 UEditorEngine::EndTransaction()
 {
 	int32 Index = INDEX_NONE;

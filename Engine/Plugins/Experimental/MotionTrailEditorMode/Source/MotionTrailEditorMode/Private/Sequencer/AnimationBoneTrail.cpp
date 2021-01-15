@@ -12,6 +12,7 @@
 #include "ISequencer.h"
 #include "MovieSceneSequence.h"
 #include "Exporters/AnimSeqExportOption.h"
+#include "Animation/AnimSequenceHelpers.h"
 
 namespace UE 
 {
@@ -111,7 +112,7 @@ void FAnimTrajectoryCache::GetSpaceBasedAnimationData(TArray<TArray<FTransform>>
 		for (int32 BoneIndex = 0; BoneIndex < NumBones; ++BoneIndex)
 		{
 			FName BoneName = MySkeleton->GetReferenceSkeleton().GetBoneName(BoneIndex);
-			int32 TrackIndex = CachedAnimSequence->GetAnimationTrackNames().Find(BoneName);
+			int32 TrackIndex = CachedAnimSequence->GetDataModel()->GetBoneTrackIndexByName(BoneName);
 			SkelToTrackIdx[BoneIndex] = TrackIndex;
 		}
 	}
@@ -124,12 +125,11 @@ void FAnimTrajectoryCache::GetSpaceBasedAnimationData(TArray<TArray<FTransform>>
 
 		if (TrackIndex != INDEX_NONE)
 		{
-			auto& RawAnimation = CachedAnimSequence->GetRawAnimationData()[TrackIndex];
 			// fill up keys - calculate PK1 * K1
 			for (int32 Key = 0; Key < NumKeys; ++Key)
 			{
 				FTransform AnimatedLocalKey;
-				CachedAnimSequence->ExtractBoneTransform(CachedAnimSequence->GetRawAnimationData(), AnimatedLocalKey, TrackIndex, Interval*Key);
+				UE::Anim::GetBoneTransformFromModel(CachedAnimSequence->GetDataModel(), AnimatedLocalKey, TrackIndex, Interval * Key, CachedAnimSequence->Interpolation);
 
 				if (ParentBoneIndex != INDEX_NONE)
 				{

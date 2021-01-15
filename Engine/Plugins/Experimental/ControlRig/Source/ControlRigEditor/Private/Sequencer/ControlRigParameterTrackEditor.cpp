@@ -2853,7 +2853,7 @@ void FControlRigParameterSection::OnAnimationAssetSelectedForFK(const FAssetData
 		UObject* BoundObject = nullptr;
 		USkeleton* Skeleton = AcquireSkeletonFromObjectGuid(ObjectBinding, &BoundObject, SequencerPtr);
 
-		if (AnimSequence && AutoRig && Skeleton && AnimSequence->GetRawAnimationData().Num() > 0)
+		if (AnimSequence && AutoRig && Skeleton && AnimSequence->GetDataModel()->GetNumBoneTracks() > 0)
 		{
 			FScopedTransaction Transaction(LOCTEXT("BakeAnimation_Transaction", "Bake Animation To FK Control Rig"));
 			Section->Modify();

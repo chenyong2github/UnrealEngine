@@ -20,15 +20,17 @@
 #include "Widgets/Layout/SBox.h"
 #include "AnimModel_AnimSequenceBase.h"
 #include "SAnimOutlinerItem.h"
+#include "Animation/AnimData/AnimDataController.h"
 
 #define LOCTEXT_NAMESPACE "FAnimTimelineTrack_FloatCurve"
 
 ANIMTIMELINE_IMPLEMENT_TRACK(FAnimTimelineTrack_FloatCurve);
 
-FAnimTimelineTrack_FloatCurve::FAnimTimelineTrack_FloatCurve(FFloatCurve& InCurve, const TSharedRef<FAnimModel>& InModel)
-	: FAnimTimelineTrack_Curve(InCurve.FloatCurve, InCurve.Name, 0, ERawCurveTrackTypes::RCT_Float, FText::FromName(InCurve.Name.DisplayName), FText::FromName(InCurve.Name.DisplayName), InCurve.GetColor(), InCurve.GetColor(), InModel)
+FAnimTimelineTrack_FloatCurve::FAnimTimelineTrack_FloatCurve(const FFloatCurve* InCurve, const TSharedRef<FAnimModel>& InModel)
+	: FAnimTimelineTrack_Curve(&InCurve->FloatCurve, InCurve->Name, 0, ERawCurveTrackTypes::RCT_Float, FText::FromName(InCurve->Name.DisplayName), FText::FromName(InCurve->Name.DisplayName), InCurve->GetColor(), InCurve->GetColor(), InModel)
 	, FloatCurve(InCurve)
-	, CurveName(InCurve.Name)
+	, CurveName(InCurve->Name)
+	, CurveId(FAnimationCurveIdentifier(InCurve->Name, ERawCurveTrackTypes::RCT_Float))
 {
 	SetHeight(32.0f);
 }
@@ -48,14 +50,14 @@ TSharedRef<SWidget> FAnimTimelineTrack_FloatCurve::MakeTimelineWidgetContainer()
 		}
 		else
 		{
-			return FloatCurve.GetCurveTypeFlag(AACF_Metadata) ? FloatCurve.GetColor().Desaturate(0.25f) : FloatCurve.GetColor().Desaturate(0.75f); 
+			return FloatCurve->GetCurveTypeFlag(AACF_Metadata) ? FloatCurve->GetColor().Desaturate(0.25f) : FloatCurve->GetColor().Desaturate(0.75f);
 		}
 	};
 
 	return
 		SAssignNew(TimelineWidgetContainer, SBorder)
 		.Padding(0.0f)
-		.BorderImage_Lambda([this](){ return FloatCurve.GetCurveTypeFlag(AACF_Metadata) ? FEditorStyle::GetBrush("Sequencer.Section.SelectedSectionOverlay") : FEditorStyle::GetBrush("AnimTimeline.Outliner.DefaultBorder"); })
+		.BorderImage_Lambda([this](){ return FloatCurve->GetCurveTypeFlag(AACF_Metadata) ? FEditorStyle::GetBrush("Sequencer.Section.SelectedSectionOverlay") : FEditorStyle::GetBrush("AnimTimeline.Outliner.DefaultBorder"); })
 		.BorderBackgroundColor_Lambda(ColorLambda)
 		[
 			CurveWidget
@@ -99,7 +101,7 @@ TSharedRef<SWidget> FAnimTimelineTrack_FloatCurve::BuildCurveTrackMenu()
 {
 	FMenuBuilder MenuBuilder(true, GetModel()->GetCommandList());
 
-	bool bIsMetadata = FloatCurve.GetCurveTypeFlag(AACF_Metadata);
+	bool bIsMetadata = FloatCurve->GetCurveTypeFlag(AACF_Metadata);
 
 	MenuBuilder.BeginSection("Curve", bIsMetadata ? LOCTEXT("CurveMetadataMenuSection", "Curve Metadata") : LOCTEXT("CurveMenuSection", "Curve"));
 	{
@@ -154,13 +156,10 @@ void FAnimTimelineTrack_FloatCurve::ConvertCurveToMetaData()
 	IAnimationEditor::FCurveEditInfo EditInfo(CurveName, ERawCurveTrackTypes::RCT_Float, 0);
 	StaticCastSharedRef<FAnimModel_AnimSequenceBase>(GetModel())->OnStopEditingCurves.ExecuteIfBound(TArray<IAnimationEditor::FCurveEditInfo>({ EditInfo }));
 
-	FScopedTransaction Transaction(LOCTEXT("CurvePanel_ConvertCurveToMetaData", "Convert curve to metadata"));
-	AnimSequenceBase->Modify(true);
-	FloatCurve.SetCurveTypeFlag(AACF_Metadata, true);
-
-	// We're moving to a metadata curve, we need to clear out the keys.
-	FloatCurve.FloatCurve.Reset();
-	FloatCurve.FloatCurve.AddKey(0.0f, 1.0f);
+	UAnimDataController* Controller = AnimSequenceBase->GetController();
+	UAnimDataController::FScopedBracket ScopedBracket(Controller, LOCTEXT("ConvertCurveToMetaData_Bracket", "Converting curve to metadata"));
+	Controller->SetCurveFlag(CurveId, AACF_Metadata, true);
+	Controller->SetCurveKeys(CurveId, { FRichCurveKey(0.f, 1.f) });	
 
 	ZoomToFit();
 }
@@ -169,32 +168,31 @@ void FAnimTimelineTrack_FloatCurve::ConvertMetaDataToCurve()
 {
 	UAnimSequenceBase* AnimSequenceBase = GetModel()->GetAnimSequenceBase();
 
-	FScopedTransaction Transaction(LOCTEXT("CurvePanel_ConvertMetaDataToCurve", "Convert metadata to curve"));
-	AnimSequenceBase->Modify(true);
-	FloatCurve.SetCurveTypeFlag(AACF_Metadata, false);
+	UAnimDataController* Controller = AnimSequenceBase->GetController();
+	UAnimDataController::FScopedBracket ScopedBracket(Controller, LOCTEXT("CurvePanel_ConvertMetaDataToCurve", "Convert metadata to curve"));
+	Controller->SetCurveFlag(CurveId, AACF_Metadata, false);	
 }
 
 void FAnimTimelineTrack_FloatCurve::RemoveCurve()
 {
 	UAnimSequenceBase* AnimSequenceBase = GetModel()->GetAnimSequenceBase();
 
-	FScopedTransaction Transaction(LOCTEXT("CurvePanel_RemoveCurve", "Remove Curve"));
-	
-	if(AnimSequenceBase->RawCurveData.GetCurveData(FloatCurve.Name.UID))
+	if(AnimSequenceBase->GetDataModel()->FindFloatCurve(FAnimationCurveIdentifier(FloatCurve->Name, ERawCurveTrackTypes::RCT_Float)))
 	{
 		FSmartName TrackName;
-		if (AnimSequenceBase->GetSkeleton()->GetSmartNameByUID(USkeleton::AnimCurveMappingName, FloatCurve.Name.UID, TrackName))
+		if (AnimSequenceBase->GetSkeleton()->GetSmartNameByUID(USkeleton::AnimCurveMappingName, FloatCurve->Name.UID, TrackName))
 		{
 			// Stop editing this curve in the external editor window
 			IAnimationEditor::FCurveEditInfo EditInfo(CurveName, ERawCurveTrackTypes::RCT_Float, 0);
 			StaticCastSharedRef<FAnimModel_AnimSequenceBase>(GetModel())->OnStopEditingCurves.ExecuteIfBound(TArray<IAnimationEditor::FCurveEditInfo>({ EditInfo }));
 
 			AnimSequenceBase->Modify(true);
-			AnimSequenceBase->RawCurveData.DeleteCurveData(TrackName);
-			AnimSequenceBase->MarkRawDataAsModified();
+
+			UAnimDataController* Controller = AnimSequenceBase->GetController();
+			Controller->RemoveCurve(CurveId);
+
+			REFACTOR_V2_WARNING("V2 what is the reasoning behind this call?");
 			AnimSequenceBase->PostEditChange();
-			
-			GetModel()->RefreshTracks();
 		}
 	}
 }
@@ -218,18 +216,16 @@ void FAnimTimelineTrack_FloatCurve::OnCommitCurveName(const FText& InText, EText
 
 			const FSmartNameMapping* NameMapping = Skeleton->GetSmartNameContainer(USkeleton::AnimCurveMappingName);
 
-			FScopedTransaction Transaction(LOCTEXT("CurveEditor_RenameCurve", "Rename Curve"));
-
-			AnimSequenceBase->Modify();
-
 			FSmartName NewSmartName;
 			if (NameMapping->FindSmartName(RequestedName, NewSmartName))
 			{
 				// Already in use in this sequence, and if it's not my UID
-				if (NewSmartName.UID != FloatCurve.Name.UID && AnimSequenceBase->RawCurveData.GetCurveData(NewSmartName.UID) != nullptr)
+				const TArray<FFloatCurve>& FloatCurves = AnimSequenceBase->GetDataModel()->GetFloatCurves();
+				if (NewSmartName.UID != FloatCurve->Name.UID && !FloatCurves.ContainsByPredicate([NewSmartName](FFloatCurve& Curve)
 				{
-					Transaction.Cancel();
-
+					return Curve.Name == NewSmartName;
+				}))
+				{
 					FFormatNamedArguments Args;
 					Args.Add(TEXT("InvalidName"), FText::FromName(RequestedName));
 					FNotificationInfo Info(FText::Format(LOCTEXT("AnimCurveRenamedInUse", "The name \"{InvalidName}\" is already used."), Args));
@@ -249,7 +245,6 @@ void FAnimTimelineTrack_FloatCurve::OnCommitCurveName(const FText& InText, EText
 			{
 				if(!Skeleton->AddSmartNameAndModify(USkeleton::AnimCurveMappingName, RequestedName, NewSmartName))
 				{
-					Transaction.Cancel();
 					FNotificationInfo Info(LOCTEXT("AnimCurveRenamedError", "Failed to rename curve smart name, check the log for errors."));
 
 					Info.bUseLargeFont = false;
@@ -264,18 +259,19 @@ void FAnimTimelineTrack_FloatCurve::OnCommitCurveName(const FText& InText, EText
 				}
 			}
 
-			FloatCurve.Name.UID = NewSmartName.UID;
-			FloatCurve.Name.DisplayName = NewSmartName.DisplayName;
-
-			CurveName = FloatCurve.Name;
-			FullCurveName = FText::FromName(FloatCurve.Name.DisplayName);
+			UAnimDataController* Controller = AnimSequenceBase->GetController();
+			UAnimDataController::FScopedBracket ScopedBracket(Controller, LOCTEXT("CurveEditor_RenameCurve", "Renaming Curve"));
+          
+			FAnimationCurveIdentifier NewCurveId(NewSmartName, ERawCurveTrackTypes::RCT_Float);
+			Controller->RenameCurve(CurveId, NewCurveId);
+			Controller->RemoveBoneTracksMissingFromSkeleton(AnimSequenceBase->GetSkeleton());           
 		}
 	}
 }
 
 FText FAnimTimelineTrack_FloatCurve::GetLabel() const
 {
-	return FAnimTimelineTrack_FloatCurve::GetFloatCurveName(GetModel(), FloatCurve.Name);
+	return FAnimTimelineTrack_FloatCurve::GetFloatCurveName(GetModel(), FloatCurve->Name);
 }
 
 FText FAnimTimelineTrack_FloatCurve::GetFloatCurveName(const TSharedRef<FAnimModel>& InModel, const FSmartName& InSmartName)
@@ -295,7 +291,7 @@ FText FAnimTimelineTrack_FloatCurve::GetFloatCurveName(const TSharedRef<FAnimMod
 
 bool FAnimTimelineTrack_FloatCurve::CanEditCurve(int32 InCurveIndex) const
 {
-	return !FloatCurve.GetCurveTypeFlag(AACF_Metadata);
+	return !FloatCurve->GetCurveTypeFlag(AACF_Metadata);
 }
 
 void FAnimTimelineTrack_FloatCurve::RequestRename()
@@ -319,17 +315,13 @@ void FAnimTimelineTrack_FloatCurve::AddCurveTrackButton(TSharedPtr<SHorizontalBo
 
 	auto GetValue = [this]()
 	{
-		return FloatCurve.Color;
+		return FloatCurve->Color;
 	};
 
 	auto SetValue = [this](FLinearColor InNewColor)
 	{
 		UAnimSequenceBase* AnimSequenceBase = GetModel()->GetAnimSequenceBase();
-		FScopedTransaction Transaction(LOCTEXT("SetCurveColor", "Set Curve Color"));
-		AnimSequenceBase->Modify(true);
-		FloatCurve.Color = InNewColor;
-
-		Color = InNewColor;
+		AnimSequenceBase->GetController()->SetCurveColor(CurveId, InNewColor);
 
 		// Set display curves too
 		for(const TPair<FCurveModelID, TUniquePtr<FCurveModel>>& CurvePair : CurveEditor->GetCurves())
@@ -338,14 +330,24 @@ void FAnimTimelineTrack_FloatCurve::AddCurveTrackButton(TSharedPtr<SHorizontalBo
 		}
 	};
 
-	auto OnGetMenuContent = [GetValue, SetValue]()
+	auto OnGetMenuContent = [this, GetValue, SetValue]()
 	{
 		// Open a color picker
 		return SNew(SColorPicker)
 			.TargetColorAttribute_Lambda(GetValue)
 			.UseAlpha(false)
 			.DisplayInlineVersion(true)
-			.OnColorCommitted_Lambda(SetValue);
+			.OnColorCommitted_Lambda(SetValue)
+			.OnInteractivePickBegin_Lambda([this]()
+			{
+				UAnimSequenceBase* AnimSequenceBase = GetModel()->GetAnimSequenceBase();
+				AnimSequenceBase->GetController()->OpenBracket(LOCTEXT("EditCurveColor_Bracket", "Editing Curve Color"));				
+			})
+			.OnInteractivePickEnd_Lambda([this]()
+			{
+				UAnimSequenceBase* AnimSequenceBase = GetModel()->GetAnimSequenceBase();
+				AnimSequenceBase->GetController()->CloseBracket();
+			});
 	};
 
 	InnerHorizontalBox->AddSlot()
@@ -375,7 +377,7 @@ void FAnimTimelineTrack_FloatCurve::AddCurveTrackButton(TSharedPtr<SHorizontalBo
 
 FLinearColor FAnimTimelineTrack_FloatCurve::GetCurveColor(int32 InCurveIndex) const
 { 
-	return FloatCurve.Color; 
+	return FloatCurve->Color; 
 }
 
 void FAnimTimelineTrack_FloatCurve::GetCurveEditInfo(int32 InCurveIndex, FSmartName& OutName, ERawCurveTrackTypes& OutType, int32& OutCurveIndex) const

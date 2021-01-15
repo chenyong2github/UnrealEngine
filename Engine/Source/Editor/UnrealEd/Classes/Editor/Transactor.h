@@ -14,6 +14,7 @@
 #include "Serialization/ArchiveUObject.h"
 #include "Misc/ITransaction.h"
 #include "Serialization/ArchiveSerializedPropertyChain.h"
+#include "Algo/Find.h"
 #include "Transactor.generated.h"
 
 /*-----------------------------------------------------------------------------
@@ -652,6 +653,34 @@ public:
 	{
 		return Title;
 	}
+
+	/** Returns the description of each contained Object Record */
+	FText GetDescription() const
+	{			
+		if (Algo::FindByPredicate(Records, [](const FObjectRecord& Record)
+		{
+			return Record.CustomChange.IsValid();
+		}))
+        {
+			FString ConcatenatedRecords;
+			for (const FObjectRecord& Record : Records)
+			{
+				if (Record.CustomChange.IsValid())
+				{
+					if (ConcatenatedRecords.Len())
+					{
+						ConcatenatedRecords += TEXT("\n");
+					}
+					ConcatenatedRecords += Record.CustomChange->ToString();
+				}
+			}
+
+			return FText::FromString(ConcatenatedRecords);
+        }
+
+		return GetTitle();
+	}
+
 
 	/** Serializes a reference to a transaction in a given archive. */
 	friend FArchive& operator<<( FArchive& Ar, FTransaction& T )

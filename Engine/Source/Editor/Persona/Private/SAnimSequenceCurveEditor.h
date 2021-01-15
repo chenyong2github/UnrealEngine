@@ -23,25 +23,27 @@ class FTabManager;
 class FRichCurveEditorModelNamed : public FRichCurveEditorModel
 {
 public:
-	FRichCurveEditorModelNamed(const FSmartName& InName, ERawCurveTrackTypes InType, int32 InCurveIndex, UAnimSequenceBase* InAnimSequence, FCurveEditorTreeItemID InTreeId = FCurveEditorTreeItemID())
-		: FRichCurveEditorModel(InAnimSequence)
-		, Name(InName)
-		, AnimSequence(InAnimSequence)
-		, CurveIndex(InCurveIndex)
-		, Type(InType)
-		, TreeId(InTreeId)
-	{
-	}
+	FRichCurveEditorModelNamed(const FSmartName& InName, ERawCurveTrackTypes InType, int32 InCurveIndex, UAnimSequenceBase* InAnimSequence, FCurveEditorTreeItemID InTreeId = FCurveEditorTreeItemID());
+
+	virtual ~FRichCurveEditorModelNamed();
 
 	virtual bool IsValid() const override;
 	virtual FRichCurve& GetRichCurve() override;
 	virtual const FRichCurve& GetReadOnlyRichCurve() const override;
+
+	void CurveHasChanged();
+	void OnModelHasChanged(const EAnimDataModelNotifyType& NotifyType, UAnimDataModel* Model, const FAnimDataModelNotifPayload& Payload);
+	void UpdateCachedCurve();
 
 	FSmartName Name;
 	TWeakObjectPtr<UAnimSequenceBase> AnimSequence;
 	int32 CurveIndex;
 	ERawCurveTrackTypes Type;
 	FCurveEditorTreeItemID TreeId;
+	
+	FAnimationCurveIdentifier CurveId;
+	UE::Anim::FAnimDataModelNotifyCollector NotifyCollector;
+	FRichCurve CachedCurve;
 };
 
 class SAnimSequenceCurveEditor : public IAnimSequenceCurveEditor, public FEditorUndoClient

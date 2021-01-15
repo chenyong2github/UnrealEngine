@@ -73,7 +73,7 @@ enum ERichCurveKeyTimeCompressionFormat
 };
 
 /** One key in a rich, editable float curve */
-USTRUCT()
+USTRUCT(BlueprintType)
 struct ENGINE_API FRichCurveKey
 {
 	GENERATED_USTRUCT_BODY()
@@ -91,11 +91,11 @@ struct ENGINE_API FRichCurveKey
 	TEnumAsByte<ERichCurveTangentWeightMode> TangentWeightMode;
 
 	/** Time at this key */
-	UPROPERTY(EditAnywhere, Category="Key")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Key")
 	float Time;
 
 	/** Value at this key */
-	UPROPERTY(EditAnywhere, Category="Key")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Key")
 	float Value;
 
 	/** If RCIM_Cubic, the arriving tangent at this key */

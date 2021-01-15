@@ -19,6 +19,8 @@
 #include "ContentBrowserModule.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "Editor.h"
+#include "Animation/AnimData/AnimDataController.h"
+#include "AnimationBlueprintLibrary.h"
 
 #define LOCTEXT_NAMESPACE "EditorAnimUtils"
 
@@ -251,11 +253,13 @@ namespace EditorAnimUtils
 				// Copy curve data from source asset, preserving data in the target if present.
 				if (OldSkeleton)
 				{
-					EditorAnimUtils::CopyAnimCurves(OldSkeleton, NewSkeleton, AnimSequenceToRetarget, USkeleton::AnimCurveMappingName, ERawCurveTrackTypes::RCT_Float);
+					UAnimationBlueprintLibrary::CopyAnimationCurveNamesToSkeleton(OldSkeleton, NewSkeleton, AnimSequenceToRetarget, ERawCurveTrackTypes::RCT_Float);
 
 					// clear transform curves since those curves won't work in new skeleton
 					// since we're deleting curves, mark this rebake flag off
-					AnimSequenceToRetarget->RawCurveData.TransformCurves.Empty();
+					UAnimDataController* Controller = AnimSequenceToRetarget->GetController();
+					Controller->RemoveAllCurvesOfType(ERawCurveTrackTypes::RCT_Transform);
+
 					// I can't copy transform curves yet because transform curves need retargeting. 
 					//EditorAnimUtils::CopyAnimCurves(OldSkeleton, NewSkeleton, AssetToRetarget, USkeleton::AnimTrackCurveMappingName, FRawCurveTracks::TransformType);
 				}
@@ -496,39 +500,9 @@ namespace EditorAnimUtils
 		}
 	}
 
-	void CopyAnimCurves(USkeleton* OldSkeleton, USkeleton* NewSkeleton, UAnimSequenceBase *SequenceBase, const FName ContainerName, ERawCurveTrackTypes CurveType )
+	void CopyAnimCurves(USkeleton* OldSkeleton, USkeleton* NewSkeleton, UAnimSequenceBase* SequenceBase, const FName ContainerName, ERawCurveTrackTypes CurveType)
 	{
-		// Copy curve data from source asset, preserving data in the target if present.
-		const FSmartNameMapping* OldNameMapping = OldSkeleton->GetSmartNameContainer(ContainerName);
-		SequenceBase->RawCurveData.RefreshName(OldNameMapping, CurveType);
-
-		switch (CurveType)
-		{
-		case ERawCurveTrackTypes::RCT_Float:
-			{
-				for(FFloatCurve& Curve : SequenceBase->RawCurveData.FloatCurves)
-				{
-					NewSkeleton->AddSmartNameAndModify(ContainerName, Curve.Name.DisplayName, Curve.Name);
-				}
-				break;
-			}
-		case ERawCurveTrackTypes::RCT_Vector:
-			{
-				for(FVectorCurve& Curve : SequenceBase->RawCurveData.VectorCurves)
-				{
-					NewSkeleton->AddSmartNameAndModify(ContainerName, Curve.Name.DisplayName, Curve.Name);
-				}
-				break;
-			}
-		case ERawCurveTrackTypes::RCT_Transform:
-			{
-				for(FTransformCurve& Curve : SequenceBase->RawCurveData.TransformCurves)
-				{
-					NewSkeleton->AddSmartNameAndModify(ContainerName, Curve.Name.DisplayName, Curve.Name);
-				}
-				break;
-			}
-		}
+		UAnimationBlueprintLibrary::CopyAnimationCurveNamesToSkeleton(OldSkeleton, NewSkeleton, SequenceBase, CurveType);
 	}
 
 	FString FNameDuplicationRule::Rename(const UObject* Asset) const

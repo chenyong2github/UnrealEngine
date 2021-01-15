@@ -5,6 +5,8 @@
 #include "AnimTimelineTrack.h"
 #include "Animation/Skeleton.h"
 #include "EditorUndoClient.h"
+#include "AnimModel.h"
+#include "Animation/AnimData/CurveIdentifier.h"
 
 class SBorder;
 class FCurveEditor;
@@ -18,8 +20,8 @@ class FAnimTimelineTrack_Curve : public FAnimTimelineTrack, public FSelfRegister
 
 public:
 	FAnimTimelineTrack_Curve(const FText& InCurveName, const FText& InFullCurveName, const FLinearColor& InColor, const FLinearColor& InBackgroundColor, const TSharedRef<FAnimModel>& InModel);
-	FAnimTimelineTrack_Curve(FRichCurve& InCurve, const FSmartName& InName, int32 InCurveIndex, ERawCurveTrackTypes InType, const FText& InCurveName, const FText& InFullCurveName, const FLinearColor& InColor, const FLinearColor& InBackgroundColor, const TSharedRef<FAnimModel>& InModel);
-	FAnimTimelineTrack_Curve(const TArray<FRichCurve*>& InCurves, const FText& InCurveName, const FText& InFullCurveName, const FLinearColor& InColor, const FLinearColor& InBackgroundColor, const TSharedRef<FAnimModel>& InModel);
+	FAnimTimelineTrack_Curve(const FRichCurve* InCurve, const FSmartName& InName, int32 InCurveIndex, ERawCurveTrackTypes InType, const FText& InCurveName, const FText& InFullCurveName, const FLinearColor& InColor, const FLinearColor& InBackgroundColor, const TSharedRef<FAnimModel>& InModel);
+	FAnimTimelineTrack_Curve(const TArray<const FRichCurve*>& InCurves, const FText& InCurveName, const FText& InFullCurveName, const FLinearColor& InColor, const FLinearColor& InBackgroundColor, const TSharedRef<FAnimModel>& InModel);
 
 	/** FAnimTimelineTrack interface */
 	virtual TSharedRef<SWidget> GenerateContainerWidgetForTimeline() override;
@@ -32,7 +34,7 @@ public:
 	virtual void PostRedo(bool bSuccess) override { PostUndoRedo(); }
 
 	/** Access the curve we are editing */
-	const TArray<FRichCurve*>& GetCurves() { return Curves; }
+	const TArray<const FRichCurve*>& GetCurves() { return Curves; }
 
 	/** Get a color for the curve widget (and edited curves) */
 	virtual FLinearColor GetCurveColor(int32 InCurveIndex) const;
@@ -79,7 +81,7 @@ protected:
 
 protected:
 	/** The curve we are editing */
-	TArray<FRichCurve*> Curves;
+	TArray<const FRichCurve*> Curves;
 
 	/** The color of the curve */
 	FLinearColor Color;

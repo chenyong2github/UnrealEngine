@@ -30,6 +30,7 @@
 #include "Engine/DataAsset.h"
 #include "Animation/PreviewCollectionInterface.h"
 #include "HAL/PlatformApplicationMisc.h"
+#include "Animation/AnimData/AnimDataController.h"
 
 const FString FEditableSkeleton::SocketCopyPasteHeader = TEXT("SocketCopyPasteBuffer");
 
@@ -305,6 +306,8 @@ void FEditableSkeleton::RenameSmartname(const FName InContainerName, SmartName::
 			GWarn->BeginSlowTask(FText::Format(LOCTEXT("RenameCurvesTaskDesc", "Renaming curve for skeleton {0}"), FText::FromString(Skeleton->GetName())), true);
 			FScopedTransaction Transaction(LOCTEXT("RenameCurvesTransactionName", "Rename skeleton curve"));
 
+			FAnimationCurveIdentifier CurveId(CurveToRename, ERawCurveTrackTypes::RCT_Float);
+
 			// Remove curves from animation assets
 			for (FAssetData& Data : AnimationAssets)
 			{
@@ -314,16 +317,15 @@ void FEditableSkeleton::RenameSmartname(const FName InContainerName, SmartName::
 				{
 					SequenceBase->Modify();
 
-					if (FAnimCurveBase* CurrentCurveData = SequenceBase->RawCurveData.GetCurveData(CurveToRename.UID))
+					if (SequenceBase->GetDataModel()->FindFloatCurve(CurveId))
 					{
-						CurrentCurveData->Name.DisplayName = InNewName;
-						SequenceBase->MarkRawDataAsModified();
+						UAnimDataController* Controller = SequenceBase->GetController();
+
+						FAnimationCurveIdentifier NewCurveId(FSmartName(InNewName, InNameUid), ERawCurveTrackTypes::RCT_Float);
+						Controller->RenameCurve(CurveId, NewCurveId);
 						if (UAnimSequence* Seq = Cast<UAnimSequence>(SequenceBase))
 						{
 							SequencesToRecompress.Add(Seq);
-							PRAGMA_DISABLE_DEPRECATION_WARNINGS
-							Seq->ClearCompressedCurveData();
-							PRAGMA_ENABLE_DEPRECATION_WARNINGS
 						}
 					}
 				}
@@ -339,7 +341,6 @@ void FEditableSkeleton::RenameSmartname(const FName InContainerName, SmartName::
 			GWarn->BeginSlowTask(LOCTEXT("RebuildingAnimations", "Rebaking/compressing modified animations"), true);
 
 			//Make sure skeleton is correct before compression 
-
 			Skeleton->RenameSmartnameAndModify(InContainerName, InNameUid, InNewName);
 
 			// Rebake/compress the animations
@@ -477,33 +478,24 @@ void FEditableSkeleton::RemoveSmartnamesAndFixupAnimations(const FName& InContai
 				{
 					USkeleton* MySkeleton = Sequence->GetSkeleton();
 					Sequence->Modify(true);
+
+					UAnimDataController* Controller = Sequence->GetController();
+					UAnimDataController::FScopedBracket ScopedBracket(Controller, LOCTEXT("DeleteCurvesNotOnSkeletonBracket", "Deleting curves that no longer exist on Skeleton"));
 					for (FName Name : InNames)
 					{
 						FSmartName CurveToDelete;
 						if (MySkeleton->GetSmartNameByName(USkeleton::AnimCurveMappingName, Name, CurveToDelete))
 						{
-							Sequence->RawCurveData.DeleteCurveData(CurveToDelete);
+							const FAnimationCurveIdentifier CurveId(CurveToDelete, ERawCurveTrackTypes::RCT_Float);
+							Controller->RemoveCurve(CurveId);
 						}
 					}
-					Sequence->MarkRawDataAsModified();
 				}
 				else if (UPoseAsset* PoseAsset = Cast<UPoseAsset>(Asset))
 				{
 					PoseAsset->Modify();
 					PoseAsset->RemoveSmartNames(InNames);
 				}
-			}
-			GWarn->EndSlowTask();
-
-			GWarn->BeginSlowTask(LOCTEXT("RebuildingAnimations", "Rebaking/compressing modified animations"), true);
-
-			// Rebake/compress the animations
-			for (TObjectIterator<UAnimSequence> It; It; ++It)
-			{
-				UAnimSequence* Seq = *It;
-
-				GWarn->StatusUpdate(1, 2, FText::Format(LOCTEXT("RebuildingAnimationsStatus", "Rebuilding {0}"), FText::FromString(Seq->GetName())));
-				Seq->RequestSyncAnimRecompression();
 			}
 			GWarn->EndSlowTask();
 

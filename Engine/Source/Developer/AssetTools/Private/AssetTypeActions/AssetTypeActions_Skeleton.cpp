@@ -903,22 +903,26 @@ void FAssetTypeActions_Skeleton::RetargetSkeleton(TArray<FAssetToRemapSkeleton>&
 			UObject* Asset = RenameData.Asset.Get();
 			if ( Asset )
 			{
-				if ( UAnimationAsset * AnimAsset = Cast<UAnimationAsset>(Asset) )
+				if ( UAnimationAsset* AnimAsset = Cast<UAnimationAsset>(Asset) )
 				{
-					UAnimSequenceBase * SequenceBase = Cast<UAnimSequenceBase>(AnimAsset);
-					if (SequenceBase)
+					TUniquePtr<UAnimDataController::FScopedBracket> ScopedBracket;
+
+					if (UAnimSequenceBase* SequenceBase = Cast<UAnimSequenceBase>(AnimAsset))
 					{
-						EditorAnimUtils::CopyAnimCurves(OldSkeleton, NewSkeleton, SequenceBase, USkeleton::AnimCurveMappingName, ERawCurveTrackTypes::RCT_Float);
+						UAnimDataController* Controller = SequenceBase->GetController();
+						ScopedBracket = MakeUnique<UAnimDataController::FScopedBracket>(Controller, LOCTEXT("FAssetTypeActions_Skeleton_Bracket", "Retargeting Skeleton"));
+
+						Controller->FindOrAddCurveNamesOnSkeleton(NewSkeleton, ERawCurveTrackTypes::RCT_Float);
 						
-						if (UAnimSequence * Sequence = Cast<UAnimSequence>(SequenceBase))
+						if (UAnimSequence* Sequence = Cast<UAnimSequence>(SequenceBase))
 						{
-							EditorAnimUtils::CopyAnimCurves(OldSkeleton, NewSkeleton, Sequence, USkeleton::AnimTrackCurveMappingName, ERawCurveTrackTypes::RCT_Transform);
+							Controller->FindOrAddCurveNamesOnSkeleton(NewSkeleton, ERawCurveTrackTypes::RCT_Transform);
 						}
 					}
 					
 					AnimAsset->ReplaceSkeleton(NewSkeleton, bConvertSpaces);
 				}
-				else if ( UAnimBlueprint * AnimBlueprint = Cast<UAnimBlueprint>(Asset) )
+				else if ( UAnimBlueprint* AnimBlueprint = Cast<UAnimBlueprint>(Asset) )
 				{
 					AnimBlueprints.Add(AnimBlueprint);
 				}

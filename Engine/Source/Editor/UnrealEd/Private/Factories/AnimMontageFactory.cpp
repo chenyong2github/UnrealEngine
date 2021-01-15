@@ -91,7 +91,7 @@ UObject* UAnimMontageFactory::FactoryCreateNew(UClass* Class, UObject* InParent,
 			FSlotAnimationTrack& NewTrack = AnimMontage->SlotAnimTracks[0];
 			NewTrack.AnimTrack.AnimSegments.Add(NewSegment);
 
-			AnimMontage->SetSequenceLength(SourceAnimation->GetPlayLength());
+			AnimMontage->SetCompositeLength(SourceAnimation->GetPlayLength());
 		}
 
 		AnimMontage->SetSkeleton(TargetSkeleton);

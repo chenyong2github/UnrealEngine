@@ -73,6 +73,9 @@ struct CORE_API FUE5MainStreamObjectVersion
 		// FoliageType with HLOD support
 		FoliageTypeIncludeInHLOD,
 
+		// Introducing UAnimDataModel sub-object for UAnimSequenceBase containing all animation source data
+		IntroducingAnimationDataModel,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

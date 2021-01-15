@@ -81,19 +81,19 @@ class CORE_API FSwapChange : public FChange
 {
 
 public:
-	virtual EChangeStyle GetChangeType() override
+	virtual EChangeStyle GetChangeType() final
 	{
 		return FChange::EChangeStyle::InPlaceSwap;
 	}
 
 	/** Makes the change to the object */
-	virtual void Apply(UObject* Object) override
+	virtual void Apply(UObject* Object) final
 	{
 		check(false);
 	}
 
 	/** Reverts change to the object */
-	virtual void Revert(UObject* Object) override
+	virtual void Revert(UObject* Object) final
 	{
 		check(false);
 	}
@@ -109,12 +109,12 @@ class CORE_API FCommandChange : public FChange
 {
 
 public:
-	virtual EChangeStyle GetChangeType() override
+	virtual EChangeStyle GetChangeType() final
 	{
 		return FChange::EChangeStyle::CommandPattern;
 	}
 
-	virtual TUniquePtr<FChange> Execute(UObject* Object)
+	virtual TUniquePtr<FChange> Execute(UObject* Object) final
 	{
 		check(false);
 		return nullptr;

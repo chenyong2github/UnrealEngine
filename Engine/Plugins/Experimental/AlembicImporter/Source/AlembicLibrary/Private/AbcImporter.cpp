@@ -52,6 +52,7 @@ THIRD_PARTY_INCLUDES_END
 #include "GeometryCacheCodecV1.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "Editor.h"
+#include "Animation/AnimData/AnimDataController.h"
 
 #define LOCTEXT_NAMESPACE "AbcImporter"
 
@@ -645,17 +646,21 @@ TArray<UObject*> FAbcImporter::ImportAsSkeletalMesh(UObject* InParent, EObjectFl
 		// Create animation sequence for the skeleton
 		UAnimSequence* Sequence = CreateObjectInstance<UAnimSequence>(InParent, FString::Printf(TEXT("%s_Animation"), *SkeletalMesh->GetName()), Flags);
 		Sequence->SetSkeleton(Skeleton);
-		Sequence->SetSequenceLength(AbcFile->GetImportLength());
-		Sequence->ImportFileFramerate = AbcFile->GetFramerate();
-		Sequence->ImportResampleFramerate = AbcFile->GetFramerate();
-
-		// Add 1 because of the way AnimSequence computes its framerate
-		Sequence->SetNumberOfSampledKeys(AbcFile->GetImportNumFrames() + 1);
 
 		int32 ObjectIndex = 0;
 		uint32 TriangleOffset = 0;
 		uint32 WedgeOffset = 0;
 		uint32 VertexOffset = 0;
+
+		UAnimDataController* Controller = Sequence->GetController();
+
+		Controller->OpenBracket(LOCTEXT("ImportAsSkeletalMesh", "Importing Alembic Animation"));
+
+		Controller->SetPlayLength(AbcFile->GetImportLength());
+		Controller->SetFrameRate( FFrameRate(AbcFile->GetFramerate(), 1));
+
+		Sequence->ImportFileFramerate = AbcFile->GetFramerate();
+		Sequence->ImportResampleFramerate = 1.0f / (float)AbcFile->GetFramerate();
 
 		{
 #if WITH_EDITOR
@@ -715,7 +720,7 @@ TArray<UObject*> FAbcImporter::ImportAsSkeletalMesh(UObject* InParent, EObjectFl
 							FName ConstCurveName = *CurveName;
 
 							// Sets up the morph target curves with the sample values and time keys
-							SetupMorphTargetCurves(Skeleton, ConstCurveName, Sequence, CurveValues, TimeValues);
+							SetupMorphTargetCurves(Skeleton, ConstCurveName, Sequence, CurveValues, TimeValues, Controller);
 						}
 						else
 						{
@@ -740,10 +745,10 @@ TArray<UObject*> FAbcImporter::ImportAsSkeletalMesh(UObject* InParent, EObjectFl
 
 					const FReferenceSkeleton& RefSkeleton = SkeletalMesh->GetRefSkeleton();
 					const TArray<FMeshBoneInfo>& BonesInfo = RefSkeleton.GetRawRefBoneInfo();
-					Sequence->AddNewRawTrack(BonesInfo[0].Name, &RootBoneTrack);
-				}
 
-				Sequence->RawCurveData.RemoveRedundantKeys();
+					Controller->AddBoneTrack(BonesInfo[0].Name);
+					Controller->SetBoneTrackKeys(BonesInfo[0].Name, RootBoneTrack.PosKeys, RootBoneTrack.RotKeys, RootBoneTrack.ScaleKeys);
+				}
 
 				WedgeOffset += CompressedData.AverageSample->Indices.Num();
 				VertexOffset += CompressedData.AverageSample->Vertices.Num();
@@ -774,10 +779,10 @@ TArray<UObject*> FAbcImporter::ImportAsSkeletalMesh(UObject* InParent, EObjectFl
 
 		SkeletalMesh->MarkPackageDirty();
 
-		// Retrieve the name mapping container
-		const FSmartNameMapping* NameMapping = Skeleton->GetSmartNameContainer(USkeleton::AnimCurveMappingName);
-		Sequence->RawCurveData.RefreshName(NameMapping);
-		Sequence->MarkRawDataAsModified();
+		Controller->UpdateCurveNamesFromSkeleton(Skeleton, ERawCurveTrackTypes::RCT_Float);
+
+		Controller->CloseBracket();
+
 		Sequence->PostEditChange();
 		Sequence->SetPreviewMesh(SkeletalMesh);
 		Sequence->MarkPackageDirty();
@@ -803,20 +808,24 @@ TArray<UObject*> FAbcImporter::ImportAsSkeletalMesh(UObject* InParent, EObjectFl
 	return GeneratedObjects;
 }
 
-void FAbcImporter::SetupMorphTargetCurves(USkeleton* Skeleton, FName ConstCurveName, UAnimSequence* Sequence, const TArray<float> &CurveValues, const TArray<float>& TimeValues)
+void FAbcImporter::SetupMorphTargetCurves(USkeleton* Skeleton, FName ConstCurveName, UAnimSequence* Sequence, const TArray<float> &CurveValues, const TArray<float>& TimeValues, UAnimDataController* Controller)
 {
 	FSmartName NewName;
 	Skeleton->AddSmartNameAndModify(USkeleton::AnimCurveMappingName, ConstCurveName, NewName);
 
-	check(Sequence->RawCurveData.AddCurveData(NewName));
-	FFloatCurve * NewCurve = static_cast<FFloatCurve *> (Sequence->RawCurveData.GetCurveData(NewName.UID, ERawCurveTrackTypes::RCT_Float));
+	FAnimationCurveIdentifier CurveId(NewName, ERawCurveTrackTypes::RCT_Float);
+	Controller->AddCurve(CurveId);
 
+	const FFloatCurve* NewCurve = Sequence->GetDataModel()->FindFloatCurve(CurveId);
+	ensure(NewCurve);
+
+	FRichCurve RichCurve;
 	for (int32 KeyIndex = 0; KeyIndex < CurveValues.Num(); ++KeyIndex)
 	{
 		const float CurveValue = CurveValues[KeyIndex];
 		const float TimeValue = TimeValues[KeyIndex];
 
-		FKeyHandle NewKeyHandle = NewCurve->FloatCurve.AddKey(TimeValue, CurveValue, false);
+		FKeyHandle NewKeyHandle = RichCurve.AddKey(TimeValue, CurveValue, false);
 
 		ERichCurveInterpMode NewInterpMode = RCIM_Linear;
 		ERichCurveTangentMode NewTangentMode = RCTM_Auto;
@@ -827,9 +836,10 @@ void FAbcImporter::SetupMorphTargetCurves(USkeleton* Skeleton, FName ConstCurveN
 		float LeaveTangentWeight = 0.f;
 		float ArriveTangentWeight = 0.f;
 
-		NewCurve->FloatCurve.SetKeyInterpMode(NewKeyHandle, NewInterpMode);
-		NewCurve->FloatCurve.SetKeyTangentMode(NewKeyHandle, NewTangentMode);
-		NewCurve->FloatCurve.SetKeyTangentWeightMode(NewKeyHandle, NewTangentWeightMode);
+		RichCurve.SetKeyInterpMode(NewKeyHandle, NewInterpMode);
+		RichCurve.SetKeyTangentMode(NewKeyHandle, NewTangentMode);
+		RichCurve.SetKeyTangentWeightMode(NewKeyHandle, NewTangentWeightMode);
+
 
 		// When data isn't compressed, add keys to remove inbetween frames interpolation
 		if (ImportSettings && ImportSettings->CompressionSettings.BaseCalculationType == EBaseCalculationType::NoCompression)
@@ -843,15 +853,17 @@ void FAbcImporter::SetupMorphTargetCurves(USkeleton* Skeleton, FName ConstCurveN
 				{
 					const float NextTimeValue = TimeValues[NextKeyIndex];
 					const float SubTimeStep = (NextTimeValue - TimeValue) / 20.f;
-					FKeyHandle StepKeyHandle = NewCurve->FloatCurve.AddKey(NextTimeValue - SubTimeStep, CurveValue, false);
+					FKeyHandle StepKeyHandle = RichCurve.AddKey(NextTimeValue - SubTimeStep, CurveValue, false);
 
-					NewCurve->FloatCurve.SetKeyInterpMode(StepKeyHandle, NewInterpMode);
-					NewCurve->FloatCurve.SetKeyTangentMode(StepKeyHandle, NewTangentMode);
-					NewCurve->FloatCurve.SetKeyTangentWeightMode(StepKeyHandle, NewTangentWeightMode);
+					RichCurve.SetKeyInterpMode(StepKeyHandle, NewInterpMode);
+					RichCurve.SetKeyTangentMode(StepKeyHandle, NewTangentMode);
+					RichCurve.SetKeyTangentWeightMode(StepKeyHandle, NewTangentWeightMode);
 				}
 			}
 		}
 	}
+
+	Controller->SetCurveKeys(CurveId, RichCurve.GetConstRefOfKeys());
 }
 
 const bool FAbcImporter::CompressAnimationDataUsingPCA(const FAbcCompressionSettings& InCompressionSettings, const bool bRunComparison /*= false*/)

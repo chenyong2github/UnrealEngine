@@ -13,7 +13,7 @@ class FAnimTimelineTrack_VectorCurve : public FAnimTimelineTrack_Curve
 	ANIMTIMELINE_DECLARE_TRACK(FAnimTimelineTrack_VectorCurve, FAnimTimelineTrack_Curve);
 
 public:
-	FAnimTimelineTrack_VectorCurve(FVectorCurve& InCurve, const FSmartName& InName, int32 InCurveIndex, ERawCurveTrackTypes InType, const FText& InCurveName, const FText& InFullCurveName, const FLinearColor& InColor, const TSharedRef<FAnimModel>& InModel);
+	FAnimTimelineTrack_VectorCurve(const FVectorCurve* InCurve, const FSmartName& InName, int32 InCurveIndex, ERawCurveTrackTypes InType, const FText& InCurveName, const FText& InFullCurveName, const FLinearColor& InColor, const TSharedRef<FAnimModel>& InModel);
 
 	/** FAnimTimelineTrack_Curve interface */
 	virtual FLinearColor GetCurveColor(int32 InCurveIndex) const override;
@@ -22,9 +22,9 @@ public:
 	virtual void GetCurveEditInfo(int32 InCurveIndex, FSmartName& OutName, ERawCurveTrackTypes& OutType, int32& OutCurveIndex) const override;
 
 	/** Access the curve we are editing */
-	FVectorCurve& GetVectorCurve() { return VectorCurve; }
+	const FVectorCurve& GetVectorCurve() { return *VectorCurve; }
 
 private:
 	/** The curve we are editing */
-	FVectorCurve& VectorCurve;
+	const FVectorCurve* VectorCurve;
 };

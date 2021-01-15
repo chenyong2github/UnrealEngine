@@ -685,13 +685,14 @@ void FAnimationEditor::OnRemoveBoneTrack()
 {
 	if ( FMessageDialog::Open(EAppMsgType::YesNo, LOCTEXT("WarningOnRemovingBoneTracks", "This will clear all bone transform of the animation, source data, and edited layer information. This doesn't remove notifies, and curves. Do you want to continue?")) == EAppReturnType::Yes)
 	{
-		FScopedTransaction ScopedTransaction(LOCTEXT("RemoveAnimation", "Remove Track"));
-
 		UAnimSequence* AnimSequence = Cast<UAnimSequence>(AnimationAsset);
 		if (AnimSequence)
 		{
-			AnimSequence->Modify();
-			AnimSequence->RemoveAllTracks();
+			UAnimDataController* Controller = AnimSequence->GetController();
+			UAnimDataController::FScopedBracket ScopedBracket(Controller, LOCTEXT("OnRemoveBoneTrack_Bracket", "Removing all Bone Animation and Transform Curve Tracks"));
+
+			Controller->RemoveAllBoneTracks();
+			Controller->RemoveAllCurvesOfType(ERawCurveTrackTypes::RCT_Transform);			
 		}
 	}
 }
@@ -773,13 +774,10 @@ void FAnimationEditor::CopyCurveToSoundWave(const FAssetData& SoundWaveAssetData
 	UCurveTable* CurveTable = SoundWave->GetInternalCurveData();
 
 	// iterate over curves in anim data
-	const int32 NumCurves = Sequence->RawCurveData.FloatCurves.Num();
-	for (int32 CurveIdx = 0; CurveIdx < NumCurves; CurveIdx++)
+	for (const FFloatCurve& FloatCurve : Sequence->GetDataModel()->GetFloatCurves())
 	{
-		FFloatCurve& AnimCurve = Sequence->RawCurveData.FloatCurves[CurveIdx];
-
-		FRichCurve* Curve = FindOrAddCurve(CurveTable, AnimCurve.Name.DisplayName);
-		*Curve = AnimCurve.FloatCurve; // copy data
+		FRichCurve* Curve = FindOrAddCurve(CurveTable, FloatCurve.Name.DisplayName);
+		*Curve = FloatCurve.FloatCurve; // copy data
 	}
 
 	// we will need to add a curve to tell us the time we want to start playing audio

@@ -13,6 +13,8 @@
 #include "UObject/UObjectIterator.h"
 #include "UObject/AnimObjectVersion.h"
 
+#define LOCTEXT_NAMESPACE "AnimationModifier"
+
 UAnimationModifier::UAnimationModifier()
 	: PreviouslyAppliedModifier(nullptr)
 {
@@ -44,13 +46,17 @@ void UAnimationModifier::ApplyToAnimationSequence(class UAnimSequence* InAnimati
 	/** In case this modifier has been previously applied, revert it using the serialised out version at the time */	
 	if (PreviouslyAppliedModifier)
 	{
-
 		PreviouslyAppliedModifier->Modify();
 		PreviouslyAppliedModifier->OnRevert(CurrentAnimSequence);
 	}
 
-	/** Reverting and applying, populates the log with possible warnings and or errors to notify the user about */
-	OnApply(CurrentAnimSequence);
+	UAnimDataController* Controller = CurrentAnimSequence->GetController();
+
+	{
+		UAnimDataController::FScopedBracket ScopedBracket(Controller, LOCTEXT("ApplyModifierBracket", "Applying Animation Modifier"));
+		/** Reverting and applying, populates the log with possible warnings and or errors to notify the user about */
+		OnApply(CurrentAnimSequence);
+	}
 
 	// Apply transaction
 	ModifierTransaction.BeginOperation();
@@ -80,12 +86,9 @@ void UAnimationModifier::ApplyToAnimationSequence(class UAnimSequence* InAnimati
 		AnimationDataTransaction.Apply();
 		AnimationDataTransaction.EndOperation();
 		CurrentAnimSequence->RefreshCacheData();
-		CurrentAnimSequence->RefreshCurveData();
 	}
 	else
-	{		
-		UpdateCompressedAnimationData();
-		
+	{
 		/** Mark the previous modifier pending kill, as it will be replaced with the current modifier state */
 		if (PreviouslyAppliedModifier)
 		{
@@ -97,8 +100,6 @@ void UAnimationModifier::ApplyToAnimationSequence(class UAnimSequence* InAnimati
 		CurrentAnimSequence->PostEditChange();
 		CurrentSkeleton->PostEditChange();
 		CurrentAnimSequence->RefreshCacheData();
-		CurrentAnimSequence->RefreshCurveData();
-		CurrentAnimSequence->MarkRawDataAsModified();
 
 		UpdateStoredRevisions();
 	}
@@ -132,20 +133,22 @@ void UAnimationModifier::RevertFromAnimationSequence(class UAnimSequence* InAnim
 		Transaction.SaveObject(this);
 
 		PreviouslyAppliedModifier->Modify();
-		PreviouslyAppliedModifier->OnRevert(CurrentAnimSequence);
+
+		UAnimDataController* Controller = CurrentAnimSequence->GetController();
+
+		{
+			UAnimDataController::FScopedBracket ScopedBracket(Controller, LOCTEXT("RevertModifierBracket", "Reverting Animation Modifier"));
+			PreviouslyAppliedModifier->OnRevert(CurrentAnimSequence);
+		}
 
 		// Apply transaction
 		Transaction.BeginOperation();
 		Transaction.Apply();
 		Transaction.EndOperation();
 
-		UpdateCompressedAnimationData();
-
 	    CurrentAnimSequence->PostEditChange();
 	    CurrentSkeleton->PostEditChange();
 	    CurrentAnimSequence->RefreshCacheData();
-	    CurrentAnimSequence->RefreshCurveData();
-	    CurrentAnimSequence->MarkRawDataAsModified();
 
 		ResetStoredRevisions();
 
@@ -254,3 +257,5 @@ void UAnimationModifier::SetInstanceRevisionGuid(FGuid Guid)
 {
 	RevisionGuid = Guid;
 }
+
+#undef LOCTEXT_NAMESPACE

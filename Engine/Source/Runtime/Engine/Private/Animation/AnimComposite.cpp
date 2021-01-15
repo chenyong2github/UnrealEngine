@@ -7,6 +7,7 @@
 #include "Animation/AnimComposite.h"
 #include "Animation/AnimationPoseData.h"
 #include "Animation/CustomAttributesRuntime.h"
+#include "Animation/AnimData/AnimDataController.h"
 
 UAnimComposite::UAnimComposite(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -139,4 +140,15 @@ bool UAnimComposite::ContainRecursive(TArray<UAnimCompositeBase*>& CurrentAccumu
 	}
 
 	return false;
+}
+
+void UAnimComposite::SetCompositeLength(float InLength)
+{
+#if WITH_EDITOR		
+	Controller->SetPlayLength(InLength);
+#else
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	SetSequenceLength(InLength);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+#endif	
 }

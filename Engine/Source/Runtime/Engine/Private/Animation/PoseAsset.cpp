@@ -8,6 +8,9 @@
 #include "Animation/AnimSequence.h"
 #include "Animation/AnimSequenceBase.h"
 #include "Animation/AnimationPoseData.h"
+#include "Animation/AnimData/AnimDataModel.h"
+#include "Animation/AnimSequenceHelpers.h"
+
 #define LOCTEXT_NAMESPACE "PoseAsset"
 
 // utility function 
@@ -1192,7 +1195,12 @@ void UPoseAsset::CreatePoseFromAnimation(class UAnimSequence* AnimSequence, cons
 				FMemMark Mark(FMemStack::Get());
 
 				// set up track data - @todo: add revaliation code when checked
-				for (const FName& TrackName : AnimSequence->GetAnimationTrackNames())
+				UAnimDataModel* DataModel = AnimSequence->GetDataModel();
+
+				TArray<FName> TrackNames;
+				DataModel->GetBoneTrackNames(TrackNames);
+
+				for (const FName& TrackName : TrackNames)
 				{
 					PoseContainer.Tracks.Add(TrackName);
 				}
@@ -1200,7 +1208,7 @@ void UPoseAsset::CreatePoseFromAnimation(class UAnimSequence* AnimSequence, cons
 				// now create pose transform
 				TArray<FTransform> NewPose;
 				
-				const int32 NumTracks = AnimSequence->GetAnimationTrackNames().Num();
+				const int32 NumTracks = TrackNames.Num();
 				NewPose.Reset(NumTracks);
 				NewPose.AddUninitialized(NumTracks);
 
@@ -1209,7 +1217,9 @@ void UPoseAsset::CreatePoseFromAnimation(class UAnimSequence* AnimSequence, cons
 				float IntervalBetweenKeys = (NumPoses > 1)? AnimSequence->GetPlayLength() / (NumPoses -1 ) : 0.f;
 
 				// add curves - only float curves
-				const int32 TotalFloatCurveCount = AnimSequence->RawCurveData.FloatCurves.Num();
+				const FAnimationCurveData& AnimationCurveData = DataModel->GetCurveData();
+
+				const int32 TotalFloatCurveCount = AnimationCurveData.FloatCurves.Num();
 				
 				// have to construct own UIDList;
 				// copy default UIDLIst
@@ -1217,7 +1227,7 @@ void UPoseAsset::CreatePoseFromAnimation(class UAnimSequence* AnimSequence, cons
 
 				if (TotalFloatCurveCount > 0)
 				{
-					for (const FFloatCurve& Curve : AnimSequence->RawCurveData.FloatCurves)
+					for (const FFloatCurve& Curve : AnimationCurveData.FloatCurves)
 					{
 						PoseContainer.Curves.Add(FAnimCurveBase(Curve.Name, Curve.GetCurveTypeFlags()));
 						UIDList.Add(Curve.Name.UID);
@@ -1232,8 +1242,7 @@ void UPoseAsset::CreatePoseFromAnimation(class UAnimSequence* AnimSequence, cons
 					// now get rawanimationdata, and each key is converted to new pose
 					for (int32 TrackIndex = 0; TrackIndex < NumTracks; ++TrackIndex)
 					{
-						const auto& RawTrack = AnimSequence->GetRawAnimationTrack(TrackIndex);
-						AnimSequence->ExtractBoneTransform(RawTrack, NewPose[TrackIndex], PoseIndex);
+						UE::Anim::GetBoneTransformFromModel(AnimSequence->GetDataModel(), NewPose[TrackIndex], TrackIndex, PoseIndex);
 					}
 
 					if (TotalFloatCurveCount > 0)

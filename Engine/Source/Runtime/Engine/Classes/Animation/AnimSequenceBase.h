@@ -13,6 +13,8 @@
 #include "Animation/AnimationAsset.h"
 #include "Animation/AnimCurveTypes.h"
 #include "Animation/AnimNotifyQueue.h"
+#include "Animation/AnimData/AnimDataModelNotifyCollector.h"
+
 #include "AnimSequenceBase.generated.h"
 
 UENUM()
@@ -24,6 +26,16 @@ enum ETypeAdvanceAnim
 };
 
 struct FAnimationPoseData;
+struct FAnimDataModelNotifPayload;
+class UAnimDataModel;
+class UAnimDataController;
+enum class EAnimDataModelNotifyType : uint8;
+
+#if 0
+#define REFACTOR_V2_WARNING(text) EMIT_CUSTOM_WARNING(text)
+#else
+#define REFACTOR_V2_WARNING(text)
+#endif
 
 UCLASS(abstract, BlueprintType)
 class ENGINE_API UAnimSequenceBase : public UAnimationAsset
@@ -36,19 +48,12 @@ public:
 	TArray<struct FAnimNotifyEvent> Notifies;
 
 	/** Length (in seconds) of this AnimSequence if played back with a speed of 1.0. */
-	UE_DEPRECATED(5.0, "Direct access to SequenceLength should be removed, use GetPlayLength or SetSequenceLength instead")
+	UE_DEPRECATED(5.0, "Public access to SequenceLength is deprecated, use GetPlayLength or UAnimDataController::SetPlayLength instead")
 	UPROPERTY(Category=Length, AssetRegistrySearchable, VisibleAnywhere, BlueprintReadOnly)
 	float SequenceLength;
 
-	virtual void SetSequenceLength(float NewLength) 	
-	{
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		if (NewLength > 0.f)
-		{
-			SequenceLength = NewLength;
-		}
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	}
+	UE_DEPRECATED(5.0, "SetSequenceLength is deprecated use UAnimDataController::SetPlayLength instead")
+	virtual void SetSequenceLength(float NewLength);
 
 	/** Number for tweaking playback rate of this animation globally. */
 	UPROPERTY(EditAnywhere, Category=Animation)
@@ -57,6 +62,7 @@ public:
 	/**
 	 * Raw uncompressed float curve data 
 	 */
+	UE_DEPRECATED(5.0, "Public access to RawCurveData is deprecated, see UAnimDataModel for source data or use GetCurveData for runtime instead")
 	UPROPERTY()
 	struct FRawCurveTracks RawCurveData;
 
@@ -69,6 +75,7 @@ public:
 	//~ Begin UObject Interface
 	virtual void PostLoad() override;
 	virtual bool IsPostLoadThreadSafe() const override;
+	virtual void PostDuplicate(EDuplicateMode::Type DuplicateMode) override;
 	//~ End UObject Interface
 
 	/** Returns the total play length of the montage, if played back with a speed of 1.0. */
@@ -118,7 +125,7 @@ public:
 	virtual void EvaluateCurveData(FBlendedCurve& OutCurve, float CurrentTime, bool bForceUseRawData = false) const;
 	virtual float EvaluateCurveData(SmartName::UID_Type CurveUID, float CurrentTime, bool bForceUseRawData = false) const;
 
-	virtual const FRawCurveTracks& GetCurveData() const { return RawCurveData; }
+	virtual const FRawCurveTracks& GetCurveData() const;
 	virtual bool HasCurveData(SmartName::UID_Type CurveUID, bool bForceUseRawData = false) const;
 
 	/** Return Number of Keys **/
@@ -132,7 +139,6 @@ public:
 	virtual const FFrameRate& GetSamplingFrameRate() const;
 
 #if WITH_EDITOR
-
 	/** Get the frame number for the provided time */
 	virtual int32 GetFrameAtTime(const float Time) const;
 
@@ -164,7 +170,8 @@ public:
 	virtual void RefreshCacheData();
 
 #if WITH_EDITOR
-	void RefreshCurveData();
+	UE_DEPRECATED(5.0, "Updating of any relevent Curve data is now handled through the UAnimDataModel notifies")
+	void RefreshCurveData() {}
 #endif // WITH_EDITOR
 
 	//~ Begin UAnimationAsset Interface
@@ -172,11 +179,8 @@ public:
 	virtual void RemapTracksToNewSkeleton(USkeleton* NewSkeleton, bool bConvertSpaces) override;
 #endif
 	virtual void TickAssetPlayer(FAnimTickRecord& Instance, struct FAnimNotifyQueue& NotifyQueue, FAnimAssetTickContext& Context) const override;
-
 	void TickByMarkerAsFollower(FMarkerTickRecord &Instance, FMarkerTickContext &MarkerContext, float& CurrentTime, float& OutPreviousTime, const float MoveDelta, const bool bLooping) const;
-
 	void TickByMarkerAsLeader(FMarkerTickRecord& Instance, FMarkerTickContext& MarkerContext, float& CurrentTime, float& OutPreviousTime, const float MoveDelta, const bool bLooping) const;
-
 	//~ End UAnimationAsset Interface
 
 	/**
@@ -218,6 +222,7 @@ public:
 
 #if WITH_EDITOR
 	// Store that our raw data has changed so that we can get correct compressed data later on
+	UE_DEPRECATED(5.0, "MarkRawDataAsModified has been deprecated, any (Raw Data) modification should be applied using the UAnimDataController API instead. This will handle updating the GUID instead.")
 	virtual void MarkRawDataAsModified(bool bForceNewRawDatGuid = true) {}
 
 private:
@@ -234,30 +239,25 @@ public:
 	// ideally this would be animsequcnebase, but we might have some issue with that. For now, just allow AnimSequence
 	virtual class UAnimSequence* GetAdditiveBasePose() const { return nullptr; }
 
+	typedef FSimpleMulticastDelegate::FDelegate FOnAnimCurvesChanged;
+	/** Registers a delegate to be called after anim curves have changed*/
+	UE_DEPRECATED(5.0, "Functionality has been deprecated, register to UAnimDataModel::GetModifiedEvent instead")
+	void RegisterOnAnimCurvesChanged(const FOnAnimCurvesChanged& Delegate) {}
+
+	UE_DEPRECATED(5.0, "Functionality has been deprecated, register to UAnimDataModel::GetModifiedEvent instead")
+	void UnregisterOnAnimCurvesChanged(void* Unregister) {}
+
+	typedef FSimpleMulticastDelegate::FDelegate FOnAnimTrackCurvesChanged;
+	/** Registers a delegate to be called after anim track curves have changed*/
+	UE_DEPRECATED(5.0, "Functionality has been deprecated, register to UAnimDataModel::GetModifiedEvent instead")
+	void RegisterOnAnimTrackCurvesChanged(const FOnAnimTrackCurvesChanged& Delegate) {}
+
+	UE_DEPRECATED(5.0, "Functionality has been deprecated, register to UAnimDataModel::GetModifiedEvent instead")
+	void UnregisterOnAnimTrackCurvesChanged(void* Unregister) {}
 #endif
+
 	// return true if anim notify is available 
 	virtual bool IsNotifyAvailable() const;
-
-#if WITH_EDITOR
-private:
-	DECLARE_MULTICAST_DELEGATE(FOnAnimCurvesChangedMulticaster);
-	FOnAnimCurvesChangedMulticaster OnAnimCurvesChanged;
-
-	DECLARE_MULTICAST_DELEGATE(FOnAnimTrackCurvesChangedMulticaster);
-	FOnAnimTrackCurvesChangedMulticaster OnAnimTrackCurvesChanged;
-
-public:
-	typedef FOnAnimCurvesChangedMulticaster::FDelegate FOnAnimCurvesChanged;	
-	/** Registers a delegate to be called after anim curves have changed*/
-	void RegisterOnAnimCurvesChanged(const FOnAnimCurvesChanged& Delegate);
-	void UnregisterOnAnimCurvesChanged(void* Unregister);
-
-	typedef FOnAnimTrackCurvesChangedMulticaster::FDelegate FOnAnimTrackCurvesChanged;
-	/** Registers a delegate to be called after anim track curves have changed*/
-	void RegisterOnAnimTrackCurvesChanged(const FOnAnimTrackCurvesChanged& Delegate);
-	void UnregisterOnAnimTrackCurvesChanged(void* Unregister);
-#endif
-
 protected:
 	template <typename DataType>
 	void VerifyCurveNames(USkeleton& Skeleton, const FName& NameContainer, TArray<DataType>& CurveList)
@@ -267,4 +267,43 @@ protected:
 			Skeleton.VerifySmartName(NameContainer, Curve.Name);
 		}
 	}
+#if WITH_EDITOR
+public:
+	/** Returns the UAnimDataModel object embedded in this UAnimSequenceBase */
+	UAnimDataModel* GetDataModel() const;
+
+	/** Returns the transient UAnimDataController set to operate on DataModel */
+	UAnimDataController* GetController();
+
+protected:
+	/** Populates the UAnimDataModel object according to any pre-existing data. (overrides expect to populate the model according to their data) */
+	virtual void PopulateModel();
+
+	/** Callback registered to UAnimDatModel::GetModifiedEvent for the embedded object */
+	virtual void OnModelModified(const EAnimDataModelNotifyType& NotifyType, UAnimDataModel* Model, const FAnimDataModelNotifPayload& Payload);
+
+	/** Validates that DataModel contains a valid UAnimDataModel object */
+	void ValidateModel() const;
+
+	/** Replaces the current DataModel, if any, with the provided one */
+	void CopyDataModel(const UAnimDataModel* ModelToDuplicate);
+private:
+	/** Creates a new UAnimDataModel instance and sets DataModel accordingly */
+	void CreateModel();
+#endif // WITH_EDITOR
+
+#if WITH_EDITORONLY_DATA
+protected:
+	/** UAnimDataModel instance containing source animation data */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Animation Model")
+	UAnimDataModel* DataModel;
+
+	/** UAnimDataController instance set to operate on DataModel */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Transient, DuplicateTransient, Category = "Animation Model")
+	UAnimDataController* Controller;
+	
+	/** Helper object that keeps track of any controller brackets, and all unique notify types that are broadcasted during it */
+	UE::Anim::FAnimDataModelNotifyCollector NotifyCollector;
+#endif // WITH_EDITORONLY_DATA
+
 };

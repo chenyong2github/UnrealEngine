@@ -214,5 +214,7 @@ namespace EditorAnimUtils
 	}
 
 	// utility functions
-	UNREALED_API void CopyAnimCurves(USkeleton* OldSkeleton, USkeleton* NewSkeleton, UAnimSequenceBase *SequenceBase, const FName ContainerName, ERawCurveTrackTypes CurveType );
+	UE_DEPRECATED(5.0, "CopyAnimCurves has been deprecated, see UAnimationBlueprintLibrary::CopyAnimationCurveNamesToSkeleton instead")
+	UNREALED_API void CopyAnimCurves(USkeleton* OldSkeleton, USkeleton* NewSkeleton, UAnimSequenceBase* SequenceBase, const FName ContainerName, ERawCurveTrackTypes CurveType);
+
 } // namespace EditorAnimUtils

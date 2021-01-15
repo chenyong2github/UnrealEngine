@@ -894,6 +894,7 @@ public:
 	//~ Begin Transaction Interfaces.
 	virtual int32 BeginTransaction(const TCHAR* TransactionContext, const FText& Description, UObject* PrimaryObject) override;
 	int32 BeginTransaction(const FText& Description);
+	virtual bool CanTransact() override;
 	virtual int32 EndTransaction() override;
 	virtual void CancelTransaction(int32 Index) override;
 	void ResetTransaction(const FText& Reason);

@@ -4311,15 +4311,11 @@ void SAnimNotifyPanel::DeleteSelectedNodeObjects()
 	Update();
 }
 
-void SAnimNotifyPanel::SetSequence(class UAnimSequenceBase *	InSequence)
+void SAnimNotifyPanel::SetSequence(class UAnimSequenceBase*	InSequence)
 {
 	if (InSequence != Sequence)
 	{
 		Sequence = InSequence;
-		// @todo anim : this is kinda hack to make sure it has 1 track is alive
-		// we can do this whenever import or asset is created, but it's more places to handle than here
-		// the function name in that case will need to change
-		Sequence->InitializeNotifyTrack();
 		Update();
 	}
 }

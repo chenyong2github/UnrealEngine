@@ -33,6 +33,9 @@
 #include "Widgets/Input/SSpinBox.h"
 #include "SAnimTimelineTransportControls.h"
 #include "Animation/AnimSequence.h"
+#include "Animation/AnimData/AnimDataController.h"
+#include "Animation/AnimData/AnimDataModel.h"
+#include "Runtime/Engine/Classes/Animation/AnimSequenceHelpers.h"
 
 #define LOCTEXT_NAMESPACE "SAnimTimeline"
 
@@ -491,14 +494,16 @@ void SAnimTimeline::OnCropAnimSequence( bool bFromStart, float CurrentTime )
 
 				//Call modify to restore anim sequence current state
 				AnimSequence->Modify();
+				
+				const float TrimStart = bFromStart ? 0.f : CurrentTime;
+				const float TrimEnd = bFromStart ? CurrentTime : AnimSequence->GetPlayLength();
 
-				// Crop the raw anim data.
-				AnimSequence->CropRawAnimData( CurrentTime, bFromStart );
+				// Trim off the user-selected part of the raw anim data.
+				UE::Anim::AnimationData::Trim(AnimSequence, TrimStart, TrimEnd);
+
 
 				//Resetting slider position to the first frame
 				PreviewInstance->SetPosition( 0.0f, false );
-
-				Model.Pin()->RefreshTracks();
 			}
 		}
 	}
@@ -521,12 +526,8 @@ void SAnimTimeline::OnAppendAnimSequence( bool bFromStart, int32 NumOfFrames )
 			AnimSequence->Modify();
 
 			// Crop the raw anim data.
-			int32 StartFrame = (bFromStart)? 0 : AnimSequence->GetNumberOfSampledKeys() - 1;
-			int32 EndFrame = StartFrame + NumOfFrames;
-			int32 CopyFrame = StartFrame;
-			AnimSequence->InsertFramesToRawAnimData(StartFrame, EndFrame, CopyFrame);
-
-			Model.Pin()->RefreshTracks();
+			const int32 StartFrame = (bFromStart)? 0 : AnimSequence->GetDataModel()->GetNumberOfFrames() - 1;
+			UE::Anim::AnimationData::DuplicateKeys(AnimSequence, StartFrame, 1, StartFrame);
 		}
 	}
 }
@@ -548,11 +549,8 @@ void SAnimTimeline::OnInsertAnimSequence( bool bBefore, int32 CurrentFrame )
 			AnimSequence->Modify();
 
 			// Crop the raw anim data.
-			int32 StartFrame = (bBefore)? CurrentFrame : CurrentFrame + 1;
-			int32 EndFrame = StartFrame + 1;
-			AnimSequence->InsertFramesToRawAnimData(StartFrame, EndFrame, CurrentFrame);
-
-			Model.Pin()->RefreshTracks();
+			const int32 StartFrame = (bBefore)? CurrentFrame : CurrentFrame + 1;
+			UE::Anim::AnimationData::DuplicateKeys(AnimSequence, StartFrame, 1, CurrentFrame);
 		}
 	}
 }
@@ -575,7 +573,8 @@ void SAnimTimeline::OnReZeroAnimSequence(int32 FrameIndex)
 				AnimSequence->Modify();
 
 				// As above, animations don't have any idea of hierarchy, so we don't know for sure if track 0 is the root bone's track.
-				FRawAnimSequenceTrack& RawTrack = AnimSequence->GetRawAnimationTrack(0);
+				const FBoneAnimationTrack& AnimationTrack = AnimSequence->GetDataModel()->GetBoneTrackByIndex(0);
+				FRawAnimSequenceTrack RawTrack = AnimationTrack.InternalTrackData;
 
 				// Find vector that would translate current root bone location onto origin.
 				FVector FrameTransform = FVector::ZeroVector;
@@ -601,13 +600,10 @@ void SAnimTimeline::OnReZeroAnimSequence(int32 FrameIndex)
 					RawTrack.PosKeys[i] += ApplyTranslation;
 				}
 
-				// Handle Raw Data changing
-				AnimSequence->MarkRawDataAsModified();
-				AnimSequence->OnRawDataChanged();
+				UAnimDataController* Controller = AnimSequence->GetController();
+				Controller->SetBoneTrackKeys(AnimationTrack.Name, RawTrack.PosKeys, RawTrack.RotKeys, RawTrack.ScaleKeys);
 
 				AnimSequence->MarkPackageDirty();
-
-				Model.Pin()->RefreshTracks();
 			}
 		}
 	}
@@ -741,7 +737,7 @@ bool SAnimTimeline::GetGridMetrics(float PhysicalWidth, double& OutMajorInterval
 	FSlateFontInfo SmallLayoutFont = FCoreStyle::GetDefaultFontStyle("Regular", 8);
 	TSharedRef<FSlateFontMeasure> FontMeasureService = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
 
-	FFrameRate DisplayRate(FMath::RoundToInt(Model.Pin()->GetFrameRate()), 1);
+	FFrameRate DisplayRate(FMath::Max(FMath::RoundToInt(Model.Pin()->GetFrameRate()), 1), 1);
 	double BiggestTime = ViewRange.Get().GetUpperBoundValue();
 	FString TickString = NumericTypeInterface->ToString((BiggestTime * DisplayRate).FrameNumber.Value);
 	FVector2D MaxTextSize = FontMeasureService->Measure(TickString, SmallLayoutFont);
@@ -751,7 +747,7 @@ bool SAnimTimeline::GetGridMetrics(float PhysicalWidth, double& OutMajorInterval
 	float MinTickPx = MaxTextSize.X + 5.f;
 	float DesiredMajorTickPx = MaxTextSize.X * MajorTickMultiplier;
 
-	if (PhysicalWidth > 0)
+	if (PhysicalWidth > 0 && DisplayRate.AsDecimal() > 0)
 	{
 		return ComputeGridSpacing(
 			DisplayRate,
@@ -784,6 +780,7 @@ void SAnimTimeline::OnColumnFillCoefficientChanged(float FillCoefficient, int32 
 
 void SAnimTimeline::HandleKeyComplete()
 {
+	REFACTOR_V2_WARNING("V2 remove this function and verify that behaviour remained the same");
 	Model.Pin()->RefreshTracks();
 }
 

@@ -15,6 +15,9 @@
 #include "Engine/Engine.h"
 #include "LevelSequence.h"
 #include "UObject/UObjectBaseUtility.h"
+#include "Animation/AnimData/AnimDataController.h"
+
+#define LOCTEXT_NAMESPACE "MovieSceneAnimationTrackRecorder"
 
 DEFINE_LOG_CATEGORY(AnimationSerialization);
 
@@ -362,32 +365,47 @@ bool UMovieSceneAnimationTrackRecorder::LoadRecordedFile(const FString& FileName
 
 								CreateAnimationAssetAndSequence(Actor,AnimationDirectory);
 
-								AnimSequence->RecycleAnimSequence();
-								AnimSequence->SetSequenceLength(0.f);
-								AnimSequence->SetNumberOfSampledKeys(0);
-								for (int32 TrackIndex = 0; TrackIndex < Header.AnimationTrackNames.Num(); ++TrackIndex)
-								{
-									AnimSequence->AddNewRawTrack(Header.AnimationTrackNames[TrackIndex]);
+								AnimSequence->DeleteNotifyTrackData();
 
-								}
-								AnimSequence->InitializeNotifyTrack();
-
-								for (const FAnimationSerializedFrame& SerializedFrame : InFrames)
+								UAnimDataController* Controller = AnimSequence->GetController();
 								{
-									const FSerializedAnimation &Frame = SerializedFrame.Frame;
-									for (int32 TrackIndex = 0; TrackIndex < Frame.AnimationData.Num(); ++TrackIndex)
+									UAnimDataController::FScopedBracket ScopedBracket(Controller, LOCTEXT("LoadRecordedFile_Bracket", "Loading recorded animation file"));
+
+									Controller->ResetModel();
+
+									const float FloatDenominator = 1000.0f;
+									const float Numerator = FloatDenominator / Header.IntervalTime;
+									Controller->SetFrameRate(FFrameRate(Numerator, FloatDenominator));
+
+									int32 MaxNumberOfKeys = 0;
+									for (int32 TrackIndex = 0; TrackIndex < Header.AnimationTrackNames.Num(); ++TrackIndex)
 									{
-										FRawAnimSequenceTrack& RawTrack = AnimSequence->GetRawAnimationTrack(TrackIndex);
-										RawTrack.PosKeys.Add(Frame.AnimationData[TrackIndex].PosKey);
-										RawTrack.RotKeys.Add(Frame.AnimationData[TrackIndex].RotKey);
-										RawTrack.ScaleKeys.Add(Frame.AnimationData[TrackIndex].ScaleKey);
-									}
-								}
-								AnimSequence->SetNumberOfSampledKeys( InFrames.Num() );
-								AnimSequence->SetSequenceLength((AnimSequence->GetNumberOfSampledKeys() > 1) ? (AnimSequence->GetNumberOfSampledKeys() - 1) * Header.IntervalTime : MINIMUM_ANIMATION_LENGTH);
+										Controller->AddBoneTrack(Header.AnimationTrackNames[TrackIndex]);
 
-								//fix up notifies todo notifies mz
-								AnimSequence->PostProcessSequence();
+										TArray<FVector> PosKeys;
+										TArray<FQuat> RotKeys;
+										TArray<FVector> ScaleKeys;
+
+										// Generate key arrays
+										for (const FAnimationSerializedFrame& SerializedFrame : InFrames)
+										{
+											const FSerializedAnimation& Frame = SerializedFrame.Frame;
+											PosKeys.Add(Frame.AnimationData[TrackIndex].PosKey);
+											RotKeys.Add(Frame.AnimationData[TrackIndex].RotKey);
+											ScaleKeys.Add(Frame.AnimationData[TrackIndex].ScaleKey);
+										}
+
+										MaxNumberOfKeys = FMath::Max(MaxNumberOfKeys, PosKeys.Num());
+										MaxNumberOfKeys = FMath::Max(MaxNumberOfKeys, RotKeys.Num());
+										MaxNumberOfKeys = FMath::Max(MaxNumberOfKeys, ScaleKeys.Num());
+
+										Controller->SetBoneTrackKeys(Header.AnimationTrackNames[TrackIndex], PosKeys, RotKeys, ScaleKeys);
+									}
+
+									Controller->SetPlayLength((MaxNumberOfKeys > 1) ? (MaxNumberOfKeys - 1) * Header.IntervalTime : MINIMUM_ANIMATION_LENGTH);
+									Controller->NotifyPopulated();
+								}
+
 								AnimSequence->MarkPackageDirty();
 								FFrameRate TickResolution = InMovieScene->GetTickResolution();;
 
@@ -425,3 +443,4 @@ bool UMovieSceneAnimationTrackRecorder::LoadRecordedFile(const FString& FileName
 	
 	return false;
 }
+#undef LOCTEXT_NAMESPACE // "MovieSceneAnimationTrackRecorder"

@@ -31,6 +31,7 @@
 #include "Animation/AnimBlueprint.h"
 #include "UObject/AnimObjectVersion.h"
 #include "EngineUtils.h"
+#include "Animation/AnimData/AnimDataModel.h"
 
 #define LOCTEXT_NAMESPACE "Skeleton"
 #define ROOT_BONE_PARENT	INDEX_NONE
@@ -776,10 +777,17 @@ int32 USkeleton::GetRawAnimationTrackIndex(const int32 InSkeletonBoneIndex, cons
 {
 	if( InSkeletonBoneIndex != INDEX_NONE )
 	{
-		return InAnimSeq->GetRawTrackToSkeletonMapTable().IndexOfByPredicate([&](const FTrackToSkeletonMap& TrackToSkel)
+#if WITH_EDITOR
+		return InAnimSeq->GetDataModel()->GetBoneAnimationTracks().IndexOfByPredicate([InSkeletonBoneIndex](const FBoneAnimationTrack& AnimationTrack)
 		{
-			return TrackToSkel.BoneTreeIndex == InSkeletonBoneIndex;
+			return AnimationTrack.BoneTreeIndex == InSkeletonBoneIndex;
 		});
+#else
+		return InAnimSeq->GetCompressedTrackToSkeletonMapTable().IndexOfByPredicate([InSkeletonBoneIndex](const FTrackToSkeletonMap& Mapping)
+		{
+			return Mapping.BoneTreeIndex == InSkeletonBoneIndex;
+		});
+#endif
 	}
 
 	return INDEX_NONE;

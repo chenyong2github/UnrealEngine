@@ -13,7 +13,7 @@ class FAnimTimelineTrack_TransformCurve : public FAnimTimelineTrack_Curve
 	ANIMTIMELINE_DECLARE_TRACK(FAnimTimelineTrack_TransformCurve, FAnimTimelineTrack_Curve);
 
 public:
-	FAnimTimelineTrack_TransformCurve(FTransformCurve& InCurve, const TSharedRef<FAnimModel>& InModel);
+	FAnimTimelineTrack_TransformCurve(const FTransformCurve* InCurve, const TSharedRef<FAnimModel>& InModel);
 
 	/** FAnimTimelineTrack_Curve interface */
 	virtual FLinearColor GetCurveColor(int32 InCurveIndex) const override;
@@ -23,7 +23,7 @@ public:
 	virtual void GetCurveEditInfo(int32 InCurveIndex, FSmartName& OutName, ERawCurveTrackTypes& OutType, int32& OutCurveIndex) const override;
 
 	/** Access the curve we are editing */
-	FTransformCurve& GetTransformCurve() { return TransformCurve; }
+	const FTransformCurve& GetTransformCurve() { return *TransformCurve; }
 
 	/** Helper function used to get a smart name for a curve */
 	static FText GetTransformCurveName(const TSharedRef<FAnimModel>& InModel, const FSmartName& InSmartName);
@@ -43,8 +43,9 @@ private:
 
 private:
 	/** The curve we are editing */
-	FTransformCurve& TransformCurve;
+	const FTransformCurve* TransformCurve;
 
-	/** The curve name */
+	/** The curve name and identifier */
 	FSmartName CurveName;
+	FAnimationCurveIdentifier CurveId;
 };

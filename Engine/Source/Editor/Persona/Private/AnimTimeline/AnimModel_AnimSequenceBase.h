@@ -6,6 +6,8 @@
 #include "PersonaDelegates.h"
 #include "SAnimTimingPanel.h"
 #include "EditorUndoClient.h"
+#include "Animation/AnimSequenceHelpers.h"
+#include "Animation/AnimData/AnimDataModelNotifyCollector.h"
 
 class UAnimSequenceBase;
 class FAnimTimelineTrack_Notifies;
@@ -60,6 +62,9 @@ protected:
 	/** Refresh curve tracks */
 	void RefreshCurveTracks();
 
+	/** Callback for any change made to the UAnimDataModel embedded in the AnimSequenceBase instance this represents */
+	void OnDataModelChanged(const EAnimDataModelNotifyType& NotifyType, UAnimDataModel* Model, const FAnimDataModelNotifPayload& PayLoad);
+
 private:
 	/** UI handlers */
 	void EditSelectedCurves();
@@ -91,4 +96,6 @@ private:
 
 	/** Display flags for notifies track */
 	bool NotifiesTimingElementNodeDisplayFlags[ETimingElementType::Max];
+
+	UE::Anim::FAnimDataModelNotifyCollector NotifyCollector;
 };
