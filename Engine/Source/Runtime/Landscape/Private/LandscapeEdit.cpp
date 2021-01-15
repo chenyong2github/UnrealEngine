@@ -13,6 +13,7 @@ LandscapeEdit.cpp: Landscape editing
 #include "UObject/Package.h"
 #include "Misc/PackageName.h"
 #include "Landscape.h"
+#include "LandscapeEditReadback.h"
 #include "LandscapeStreamingProxy.h"
 #include "LandscapeInfo.h"
 #include "LandscapeComponent.h"
@@ -4460,9 +4461,8 @@ void ALandscape::SplitHeightmap(ULandscapeComponent* Comp, ALandscapeProxy* Targ
 	check(Comp->GetLandscapeProxy()->HasLayersContent() == DstProxy->CanHaveLayersContent());
 	if (Comp->GetLandscapeProxy()->HasLayersContent() && DstProxy->CanHaveLayersContent())
 	{
-		FLandscapeLayersTexture2DCPUReadBackResource* NewCPUReadBackResource = new FLandscapeLayersTexture2DCPUReadBackResource(NewHeightmapTexture->Source.GetSizeX(), NewHeightmapTexture->Source.GetSizeY(), NewHeightmapTexture->GetPixelFormat(), NewHeightmapTexture->Source.GetNumMips());
-		BeginInitResource(NewCPUReadBackResource);
-		DstProxy->HeightmapsCPUReadBack.Add(NewHeightmapTexture, NewCPUReadBackResource);
+		FLandscapeEditLayerReadback* NewCPUReadback = new FLandscapeEditLayerReadback();
+		DstProxy->HeightmapsCPUReadback.Add(NewHeightmapTexture, NewCPUReadback);
 
 		// Free OldHeightmapTexture's CPUReadBackResource if not used by any component
 		bool FreeCPUReadBack = true;
@@ -4476,14 +4476,13 @@ void ALandscape::SplitHeightmap(ULandscapeComponent* Comp, ALandscapeProxy* Targ
 		}
 		if (FreeCPUReadBack)
 		{
-			FLandscapeLayersTexture2DCPUReadBackResource** OldCPUReadBackResource = SrcProxy->HeightmapsCPUReadBack.Find(OldHeightmapTexture);
-			if (OldCPUReadBackResource)
+			FLandscapeEditLayerReadback** OldCPUReadback = SrcProxy->HeightmapsCPUReadback.Find(OldHeightmapTexture);
+			if (OldCPUReadback)
 			{
-				if (FLandscapeLayersTexture2DCPUReadBackResource* ResourceToDelete = *OldCPUReadBackResource)
+				if (FLandscapeEditLayerReadback* ResourceToDelete = *OldCPUReadback)
 				{
-					ReleaseResourceAndFlush(ResourceToDelete);
 					delete ResourceToDelete;
-					SrcProxy->HeightmapsCPUReadBack.Remove(OldHeightmapTexture);
+					SrcProxy->HeightmapsCPUReadback.Remove(OldHeightmapTexture);
 				}
 			}
 		}
