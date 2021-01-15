@@ -112,6 +112,7 @@ namespace ImmediatePhysics_Chaos
 		ConstraintSettings.AngularDriveForceMode = EJointForceMode::Acceleration;
 
 		ConstraintSettings.LinearBreakForce = (Profile.bLinearBreakable) ? Chaos::ConstraintSettings::LinearBreakScale() * Profile.LinearBreakThreshold : FLT_MAX;
+		ConstraintSettings.LinearPlasticityLimit = (Profile.bLinearPlasticity) ? FMath::Clamp((float)Profile.LinearPlasticityThreshold, 0.f, 1.f) : FLT_MAX;
 		ConstraintSettings.AngularBreakTorque = (Profile.bAngularBreakable) ? Chaos::ConstraintSettings::AngularBreakScale() * Profile.AngularBreakThreshold : FLT_MAX;
 		ConstraintSettings.AngularPlasticityLimit = (Profile.bAngularPlasticity) ? Profile.AngularPlasticityThreshold : FLT_MAX;
 

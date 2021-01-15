@@ -269,6 +269,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Physics|Components|PhysicsConstraint")
 	void SetLinearBreakable(bool bLinearBreakable, float LinearBreakThreshold);
 
+	/** Sets the Linear Plasticity properties
+	*	@param bLinearPlasticity		    Whether it is possible to reset the target angle from the Linear displacement
+	*	@param LinearPlasticityThreshold	Percent deformation needed to reset the rest length of the joint
+	*/
+	UFUNCTION(BlueprintCallable, Category = "Physics|Components|PhysicsConstraint")
+	void SetLinearPlasticity(bool bLinearPlasticity, float LinearPlasticityThreshold);
+
 	/** Sets the Angular Breakable properties
 	*	@param bAngularBreakable		Whether it is possible to break the joint with angular force
 	*	@param AngularBreakThreshold	Torque needed to break the joint
