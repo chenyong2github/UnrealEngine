@@ -501,8 +501,8 @@ private:
 	FOverflowQueueType	  OverflowQueues[uint32(ETaskPriority::Count)];
 	FHazardPointerCollection		  HazardsCollection;
 	std::atomic<FLocalQueueCollection*>	QueueCollection;
-	std::atomic_int NumWorkersLookingForWork[2] { 0 };
-	std::atomic_int NumActiveWorkers[2] { 0 };
+	std::atomic_int NumWorkersLookingForWork[2] = { {0}, {0} };
+	std::atomic_int NumActiveWorkers[2] = { {0}, {0} };
 };
 
 template<uint32 NumLocalItems>
