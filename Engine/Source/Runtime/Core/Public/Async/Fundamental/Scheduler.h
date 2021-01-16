@@ -101,14 +101,14 @@ namespace LowLevelTasks
 		void WorkerMain(struct FSleepEvent* WorkerEvent, FLocalQueueType* ExternalWorkerLocalQueue, uint32 WaitCycles, bool bPermitBackgroundWork);
 		CORE_API void LaunchInternal(FTask& Task, EQueuePreference QueuePreference);
 		CORE_API void BusyWaitInternal(const FConditional& Conditional);
-		FORCENOINLINE void TrySleeping(FSleepEvent* WorkerEvent, FQueueRegistry::FOutOfWork& OutOfWork, uint32& WaitCount, bool& Drowsing);
-		inline bool WakeUpWorker();
+		FORCENOINLINE void TrySleeping(FSleepEvent* WorkerEvent, FQueueRegistry::FOutOfWork& OutOfWork, uint32& WaitCount, bool& Drowsing, bool bBackgroundWorker);
+		inline bool WakeUpWorker(bool bBackgroundWorker);
 
 		template<FTask* (FLocalQueueType::*DequeueFunction)(bool)>
 		static bool TryExecuteTaskFrom(FLocalQueueType* Queue, FQueueRegistry::FOutOfWork& OutOfWork, bool bPermitBackgroundWork);
 
 	private:
-		FEventQueueType 			SleepEventQueue;
+		FEventQueueType 			SleepEventQueue[2];
 		FQueueRegistry 				QueueRegistry;
 		FCriticalSection 			WorkerThreadsCS;
 		TArray<TUniquePtr<FThread>> WorkerThreads;
@@ -219,7 +219,7 @@ namespace LowLevelTasks
 		}
 	}
 
-	inline void FScheduler::TrySleeping(FSleepEvent* WorkerEvent, FQueueRegistry::FOutOfWork& OutOfWork, uint32& WaitCount, bool& Drowsing)
+	inline void FScheduler::TrySleeping(FSleepEvent* WorkerEvent, FQueueRegistry::FOutOfWork& OutOfWork, uint32& WaitCount, bool& Drowsing, bool bBackgroundWorker)
 	{
 		ESleepState DrowsingState1 = ESleepState::Drowsing;
 		ESleepState DrowsingState2 = ESleepState::Drowsing;
@@ -241,7 +241,7 @@ namespace LowLevelTasks
 		{
 			verifySlow(OutOfWork.Stop() == !Drowsing);
 			Drowsing = true;
-			SleepEventQueue.enqueue(WorkerEvent);
+			SleepEventQueue[bBackgroundWorker].enqueue(WorkerEvent);
 			FPlatformProcess::SleepNoStats(0); // State one: (Running -> Drowsing)
 		}
 		else
@@ -250,9 +250,9 @@ namespace LowLevelTasks
 		}
 	}
 
-	inline bool FScheduler::WakeUpWorker()
+	inline bool FScheduler::WakeUpWorker(bool bBackgroundWorker)
 	{
-		FSleepEvent* WorkerEvent = SleepEventQueue.dequeue();
+		FSleepEvent* WorkerEvent = SleepEventQueue[bBackgroundWorker].dequeue();
 		if (WorkerEvent)
 		{
 			// Solving State : (Running -> Drowsing) -> Running  OR ((Running -> Drowsing) -> Drowsing) -> Running OR (((Running -> Drowsing) -> Sleeping) -> Running)

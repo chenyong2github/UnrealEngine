@@ -91,9 +91,9 @@ namespace LowLevelTasks
 		if(OldActiveWorkers != 0 && ActiveWorkers.compare_exchange_strong(OldActiveWorkers, 0, std::memory_order_relaxed))
 		{
 			FScopeLock Lock(&WorkerThreadsCS);
-			while (WakeUpWorker())
-			{
-			}
+			while (WakeUpWorker(true)) {}
+			while (WakeUpWorker(false)) {}
+
 			for (TUniquePtr<FThread>& Thread : WorkerThreads)
 			{
 				Thread->Join();
@@ -112,18 +112,25 @@ namespace LowLevelTasks
 	{
 		if (ActiveWorkers.load(std::memory_order_relaxed))
 		{
+			bool bIsBackgroundTask = Task.IsBackgroundTask();
 			if (LocalQueue && QueuePreference != EQueuePreference::GlobalQueuePreference)
 			{
 				if (LocalQueue->Enqueue(&Task, uint32(Task.GetPriority())))
 				{
-					WakeUpWorker();
+					if (!WakeUpWorker(bIsBackgroundTask) && !bIsBackgroundTask)
+					{
+						WakeUpWorker(true);
+					}
 				}
 			}
 			else
 			{
 				if (QueueRegistry.Enqueue(&Task, uint32(Task.GetPriority())))
 				{
-					WakeUpWorker();
+					if (!WakeUpWorker(bIsBackgroundTask) && !bIsBackgroundTask)
+					{
+						WakeUpWorker(true);
+					}
 				}
 			}
 		}
@@ -204,12 +211,10 @@ namespace LowLevelTasks
 				continue;
 			}
 
-			TrySleeping(WorkerEvent, OutOfWork, WaitCount, Drowsing);
+			TrySleeping(WorkerEvent, OutOfWork, WaitCount, Drowsing, bPermitBackgroundWork);
 		}
 
-		while (WakeUpWorker())
-		{
-		}
+		while (WakeUpWorker(bPermitBackgroundWork)) {}
 
 		FLocalQueueType::DeleteLocalQueue(WorkerLocalQueue, ExternalWorkerLocalQueue != nullptr);
 		LocalQueue = nullptr;
@@ -227,7 +232,7 @@ namespace LowLevelTasks
 		FLocalQueueType* WorkerLocalQueue = LocalQueue;
 
 		uint32 WaitCount = 0;
-		bool bPermitBackgroundWork = ActiveTask && (ActiveTask->GetPriority() == ETaskPriority::BackgroundNormal || ActiveTask->GetPriority() == ETaskPriority::BackgroundLow);
+		bool bPermitBackgroundWork = ActiveTask && ActiveTask->IsBackgroundTask();
 		FQueueRegistry::FOutOfWork OutOfWork = QueueRegistry.GetOutOfWorkScope();
 		while (true)
 		{

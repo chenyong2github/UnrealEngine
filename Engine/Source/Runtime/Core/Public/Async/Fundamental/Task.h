@@ -187,6 +187,7 @@ namespace LowLevelTasks
 
 		inline const TCHAR* GetDebugName() const;
 		inline ETaskPriority GetPriority() const;
+		inline bool IsBackgroundTask() const;
 
 	public:
 		FTask()
@@ -313,5 +314,10 @@ namespace LowLevelTasks
 	inline const TCHAR* FTask::GetDebugName() const
 	{
 		return PackedData.load(std::memory_order_relaxed).GetDebugName(); 
+	}
+
+	inline bool FTask::IsBackgroundTask() const
+	{
+		return PackedData.load(std::memory_order_relaxed).GetPriority() >= ETaskPriority::BackgroundNormal;
 	}
 }
