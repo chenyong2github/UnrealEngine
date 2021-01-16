@@ -61,6 +61,9 @@ public:
 	virtual void RemoveNamedSession(FName SessionName) override;
 	virtual EOnlineSessionState::Type GetSessionState(FName SessionName) const override;
 	virtual bool HasPresenceSession() override;
+	virtual class FNamedOnlineSession* AddNamedSession(FName SessionName, const FOnlineSessionSettings& SessionSettings) override;
+	virtual class FNamedOnlineSession* AddNamedSession(FName SessionName, const FOnlineSession& Session) override;
+
 // ~IOnlineSession Interface
 
 PACKAGE_SCOPE:
@@ -93,6 +96,11 @@ PACKAGE_SCOPE:
 	/** Reference to the owning EOS plus subsystem */
 	FOnlineSubsystemEOSPlus* EOSPlus;
 	bool bUseEOSSessions;
+
+	/** Critical sections for thread safe operation of session lists */
+	mutable FCriticalSection SessionLock;
+	/** Current session settings */
+	TArray<FNamedOnlineSession> Sessions;
 
 	IOnlineSessionPtr BaseSessionInterface;
 	IOnlineSessionPtr EOSSessionInterface;
