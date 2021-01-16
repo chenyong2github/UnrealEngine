@@ -74,10 +74,10 @@ namespace Metasound
 					Info.Author = PluginAuthor;
 					Info.PromptIfMissing = PluginNodeMissingPrompt;
 					Info.DefaultInterface = DeclareVertexInterface();
-					Info.ImageName = TEXT("MetasoundEditor.Speaker");
-					Info.bShowName = false;
-					Info.bShowInputNames = false;
-					Info.bShowOutputNames = false;
+					//Info.ImageName = TEXT("MetasoundEditor.Speaker");
+					//Info.bShowName = false;
+					//Info.bShowInputNames = false;
+					//Info.bShowOutputNames = false;
 					Info.CategoryHierarchy = { LOCTEXT("Metasound_MathCategory", "Math") };
 
 					return Info;
