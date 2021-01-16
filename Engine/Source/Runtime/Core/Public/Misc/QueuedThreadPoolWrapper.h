@@ -289,7 +289,7 @@ private:
 		checkSlow(int32(InPriority) < int32(EQueuedWorkPriority::Count));
 		EQueuedWorkPriority Priority = PriorityMapper(InPriority);
 
-		QueuedWorkInternalData->Task.Init(TEXT("FQueuedLowLevelThreadPoolTask"), LowLevelTasks::ETaskPriority::Background, [InQueuedWork]
+		QueuedWorkInternalData->Task.Init(TEXT("FQueuedLowLevelThreadPoolTask"), LowLevelTasks::ETaskPriority::BackgroundLow, [InQueuedWork]
 		{
 			FMemMark Mark(FMemStack::Get());
 			InQueuedWork->DoThreadedWork();

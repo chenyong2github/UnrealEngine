@@ -33,7 +33,7 @@ namespace LowLevelTasks
 		}
 	}
 
-	TUniquePtr<FThread> FScheduler::CreateWorker(FLocalQueueType* ExternalWorkerLocalQueue, EThreadPriority Priority, bool bIsForkable)
+	TUniquePtr<FThread> FScheduler::CreateWorker(FLocalQueueType* ExternalWorkerLocalQueue, EThreadPriority Priority, bool bPermitBackgroundWork, bool bIsForkable)
 	{
 		uint32 WorkerId = NextWorkerId++;
 		const uint32 WaitTimes[8] = { 23, 31, 41, 37, 47, 29, 19, 43 };
@@ -41,21 +41,25 @@ namespace LowLevelTasks
 		uint64 ThreadAffinityMask = FPlatformAffinity::GetTaskGraphThreadMask();
 		return MakeUnique<FThread>
 		(
-			*FString::Printf(TEXT("Task Worker #%d"), WorkerId),
-			[this, ExternalWorkerLocalQueue, WaitTime]
+			bPermitBackgroundWork ? *FString::Printf(TEXT("Background Worker #%d"), WorkerId) : *FString::Printf(TEXT("Task Worker #%d"), WorkerId),
+			[this, ExternalWorkerLocalQueue, WaitTime, bPermitBackgroundWork]
 			{ 
 				FSleepEvent Event;
-				WorkerMain(&Event, ExternalWorkerLocalQueue, WaitTime);
+				WorkerMain(&Event, ExternalWorkerLocalQueue, WaitTime, bPermitBackgroundWork);
 			}, 0, Priority, ThreadAffinityMask
 		);
 	}
 
-	void FScheduler::StartWorkers(uint32 NumWorkers, EThreadPriority Priority, bool bIsForkable)
+	void FScheduler::StartWorkers(uint32 NumWorkers, uint32 NumBackgroundWorkers, EThreadPriority WorkerPriority,  EThreadPriority BackgroundPriority, bool bIsForkable)
 	{
-		NumWorkers = NumWorkers == 0 ? FPlatformMisc::NumberOfWorkerThreadsToSpawn() : NumWorkers;
+		if (NumWorkers == 0)
+		{
+			NumWorkers = 2;
+			NumBackgroundWorkers = FMath::Max(1, FPlatformMisc::NumberOfWorkerThreadsToSpawn() - 2);
+		}
 
 		uint32 OldActiveWorkers = ActiveWorkers.load(std::memory_order_relaxed);
-		if(OldActiveWorkers == 0 && FPlatformProcess::SupportsMultithreading() && ActiveWorkers.compare_exchange_strong(OldActiveWorkers, NumWorkers, std::memory_order_relaxed))
+		if(OldActiveWorkers == 0 && FPlatformProcess::SupportsMultithreading() && ActiveWorkers.compare_exchange_strong(OldActiveWorkers, NumWorkers + NumBackgroundWorkers, std::memory_order_relaxed))
 		{
 			UE::Trace::ThreadGroupBegin(TEXT("Task Workers"));
 			FScopeLock Lock(&WorkerThreadsCS);
@@ -63,12 +67,17 @@ namespace LowLevelTasks
 			check(!WorkerLocalQueues.Num());
 			check(NextWorkerId == 0);
 
-			WorkerThreads.Reserve(NumWorkers);
-			WorkerLocalQueues.Reserve(NumWorkers);
+			WorkerThreads.Reserve(NumWorkers + NumBackgroundWorkers);
+			WorkerLocalQueues.Reserve(NumWorkers + NumBackgroundWorkers);
 			for (uint32 WorkerId = 0; WorkerId < NumWorkers; ++WorkerId)
 			{
 				WorkerLocalQueues.Emplace(QueueRegistry);
-				WorkerThreads.Add(CreateWorker(&WorkerLocalQueues.Last(), Priority, bIsForkable));
+				WorkerThreads.Add(CreateWorker(&WorkerLocalQueues.Last(), WorkerPriority, false, bIsForkable));
+			}
+			for (uint32 WorkerId = 0; WorkerId < NumBackgroundWorkers; ++WorkerId)
+			{
+				WorkerLocalQueues.Emplace(QueueRegistry);
+				WorkerThreads.Add(CreateWorker(&WorkerLocalQueues.Last(), BackgroundPriority, true, bIsForkable));
 			}
 			UE::Trace::ThreadGroupEnd();
 		}
@@ -128,35 +137,22 @@ namespace LowLevelTasks
 	}
 
 	template<FTask* (FScheduler::FLocalQueueType::*DequeueFunction)(bool)>
-	FORCEINLINE_DEBUGGABLE bool FScheduler::TryExecuteTaskFrom(FLocalQueueType* Queue, FQueueRegistry::FOutOfWork& OutOfWork, bool GetBackgroundTask)
+	bool FScheduler::TryExecuteTaskFrom(FLocalQueueType* Queue, FQueueRegistry::FOutOfWork& OutOfWork, bool bPermitBackgroundWork)
 	{
-		int32 NumActiveWorkers = int(ActiveWorkers.load(std::memory_order_relaxed));
-		GetBackgroundTask &= int(ActiveBackgroundTasks.load(std::memory_order_relaxed)) < FMath::Max(1, NumActiveWorkers - 2);
-		FTask* Task = (Queue->*DequeueFunction)(GetBackgroundTask);
+		FTask* Task = (Queue->*DequeueFunction)(bPermitBackgroundWork);
 		if (Task)
 		{	
-			OutOfWork.Stop();
-			const bool IsBackgroundTask = Task->GetPriority() == ETaskPriority::Background;
-			if (IsBackgroundTask)
-			{
-				ActiveBackgroundTasks.fetch_add(1, std::memory_order_relaxed);
-			}
-			
+			OutOfWork.Stop();		
 			FTask* OldTask = ActiveTask;
 			ActiveTask = Task;
 			Task->ExecuteTask();
 			ActiveTask = OldTask;
-
-			if (IsBackgroundTask)
-			{
-				ActiveBackgroundTasks.fetch_sub(1, std::memory_order_relaxed);
-			}
 			return true;
 		}
 		return false;
 	}
 
-	void FScheduler::WorkerMain(FSleepEvent* WorkerEvent, FLocalQueueType* ExternalWorkerLocalQueue, uint32 WaitCycles)
+	void FScheduler::WorkerMain(FSleepEvent* WorkerEvent, FLocalQueueType* ExternalWorkerLocalQueue, uint32 WaitCycles, bool bPermitBackgroundWork)
 	{
 		FMemory::SetupTLSCachesOnCurrentThread();
 
@@ -176,15 +172,15 @@ namespace LowLevelTasks
 		FQueueRegistry::FOutOfWork OutOfWork = QueueRegistry.GetOutOfWorkScope();
 		while (true)
 		{
-			while(TryExecuteTaskFrom<&FLocalQueueType::DequeueLocal>(WorkerLocalQueue, OutOfWork, true)
-			   || TryExecuteTaskFrom<&FLocalQueueType::DequeueGlobal>(WorkerLocalQueue, OutOfWork, true))
+			while(TryExecuteTaskFrom<&FLocalQueueType::DequeueLocal>(WorkerLocalQueue, OutOfWork, bPermitBackgroundWork)
+			   || TryExecuteTaskFrom<&FLocalQueueType::DequeueGlobal>(WorkerLocalQueue, OutOfWork, bPermitBackgroundWork))
 			{		
 				Drowsing = false;
 				WaitCount = 0;
 			}
 
-			while(TryExecuteTaskFrom<&FLocalQueueType::DequeueLocal>(WorkerLocalQueue, OutOfWork, true)
-			   || TryExecuteTaskFrom<&FLocalQueueType::DequeueSteal>(WorkerLocalQueue, OutOfWork, true))
+			while(TryExecuteTaskFrom<&FLocalQueueType::DequeueLocal>(WorkerLocalQueue, OutOfWork, bPermitBackgroundWork)
+			   || TryExecuteTaskFrom<&FLocalQueueType::DequeueSteal>(WorkerLocalQueue, OutOfWork, bPermitBackgroundWork))
 			{
 				Drowsing = false;
 				WaitCount = 0;
@@ -229,37 +225,25 @@ namespace LowLevelTasks
 		FLocalQueueType* WorkerLocalQueue = LocalQueue;
 
 		uint32 WaitCount = 0;
-		bool GetBackgroundtasks = ActiveTask && (ActiveTask->GetPriority() == ETaskPriority::Background);
-		if (GetBackgroundtasks)
-		{
-			ActiveBackgroundTasks.fetch_sub(1, std::memory_order_relaxed);
-		}
+		bool bPermitBackgroundWork = ActiveTask && (ActiveTask->GetPriority() == ETaskPriority::BackgroundNormal || ActiveTask->GetPriority() == ETaskPriority::BackgroundLow);
 		FQueueRegistry::FOutOfWork OutOfWork = QueueRegistry.GetOutOfWorkScope();
 		while (true)
 		{
-			while(TryExecuteTaskFrom<&FLocalQueueType::DequeueLocal>(WorkerLocalQueue, OutOfWork, GetBackgroundtasks)
-			   || TryExecuteTaskFrom<&FLocalQueueType::DequeueGlobal>(WorkerLocalQueue, OutOfWork, GetBackgroundtasks))
+			while(TryExecuteTaskFrom<&FLocalQueueType::DequeueLocal>(WorkerLocalQueue, OutOfWork, bPermitBackgroundWork)
+			   || TryExecuteTaskFrom<&FLocalQueueType::DequeueGlobal>(WorkerLocalQueue, OutOfWork, bPermitBackgroundWork))
 			{
 				if (Conditional())
 				{
-					if (GetBackgroundtasks)
-					{
-						ActiveBackgroundTasks.fetch_add(1, std::memory_order_relaxed);
-					}
 					return;
 				}
 				WaitCount = 0;
 			}
 
-			while(TryExecuteTaskFrom<&FLocalQueueType::DequeueLocal>(WorkerLocalQueue, OutOfWork, GetBackgroundtasks)
-			   || TryExecuteTaskFrom<&FLocalQueueType::DequeueSteal>(WorkerLocalQueue, OutOfWork, GetBackgroundtasks))
+			while(TryExecuteTaskFrom<&FLocalQueueType::DequeueLocal>(WorkerLocalQueue, OutOfWork, bPermitBackgroundWork)
+			   || TryExecuteTaskFrom<&FLocalQueueType::DequeueSteal>(WorkerLocalQueue, OutOfWork, bPermitBackgroundWork))
 			{
 				if (Conditional())
 				{
-					if (GetBackgroundtasks)
-					{
-						ActiveBackgroundTasks.fetch_add(1, std::memory_order_relaxed);
-					}
 					return;
 				}
 				WaitCount = 0;
@@ -267,10 +251,6 @@ namespace LowLevelTasks
 
 			if (Conditional())
 			{
-				if (GetBackgroundtasks)
-				{
-					ActiveBackgroundTasks.fetch_add(1, std::memory_order_relaxed);
-				}
 				return;
 			}
 

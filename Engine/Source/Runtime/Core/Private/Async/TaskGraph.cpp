@@ -1773,7 +1773,10 @@ public:
 	{
 		if (FTaskGraphInterface::IsMultithread())
 		{
-			LowLevelTasks::FScheduler::Get().StartWorkers(NumWorkerThreads, EThreadPriority::TPri_Normal, FForkProcessHelper::IsForkedMultithreadInstance());
+			int32 NumBackgroundWorkers = FMath::Max(1, NumWorkerThreads - 2);
+			int32 NumWorkers =  FMath::Max(1, NumWorkerThreads - NumBackgroundWorkers);
+
+			LowLevelTasks::FScheduler::Get().StartWorkers(NumWorkers, NumBackgroundWorkers, EThreadPriority::TPri_Normal, EThreadPriority::TPri_BelowNormal, FForkProcessHelper::IsForkedMultithreadInstance());
 			NumNamedThreads = ENamedThreads::ActualRenderingThread + 1;
 			ENamedThreads::bHasBackgroundThreads = 1;
 			ENamedThreads::bHasHighPriorityThreads = 1;
@@ -1839,8 +1842,11 @@ public:
 	{
 		if (FTaskGraphInterface::IsMultithread())
 		{
+			int32 NumBackgroundWorkers = FMath::Max(1, NumWorkerThreads - 2);
+			int32 NumWorkers =  FMath::Max(1, NumWorkerThreads - NumBackgroundWorkers);
+
 			LowLevelTasks::FScheduler::Get().StopWorkers();
-			LowLevelTasks::FScheduler::Get().StartWorkers(NumWorkerThreads, Pri, FForkProcessHelper::IsForkedMultithreadInstance());
+			LowLevelTasks::FScheduler::Get().StartWorkers(NumWorkers, NumBackgroundWorkers, Pri, EThreadPriority::TPri_BelowNormal, FForkProcessHelper::IsForkedMultithreadInstance());
 		}
 	}
 
@@ -1851,7 +1857,7 @@ private:
 		{
 			uint32 ThreadPriority = GetThreadPriorityIndex(InThreadToExecuteOn);
 			check(ThreadPriority < uint32(LowLevelTasks::ETaskPriority::Count));
-			LowLevelTasks::ETaskPriority Conversion[int(ENamedThreads::NumThreadPriorities)] = { LowLevelTasks::ETaskPriority::Normal, LowLevelTasks::ETaskPriority::High, LowLevelTasks::ETaskPriority::Background };
+			LowLevelTasks::ETaskPriority Conversion[int(ENamedThreads::NumThreadPriorities)] = { LowLevelTasks::ETaskPriority::Normal, LowLevelTasks::ETaskPriority::High, LowLevelTasks::ETaskPriority::BackgroundNormal };
 			LowLevelTasks::ETaskPriority Priority = Conversion[ThreadPriority];
 
 			Task->TaskHandle.Init(TEXT("TaskGraphTask"), Priority, [Task, InThreadToExecuteOn, Deleter(LowLevelTasks::TDeleter<FBaseGraphTask, &FBaseGraphTask::DeleteTask>(Task))]()
@@ -2085,7 +2091,7 @@ private:
 			const LowLevelTasks::FTask* Task = LowLevelTasks::FScheduler::Get().GetActiveTask();
 			if (Task != nullptr)
 			{
-				ENamedThreads::Type Conversion[int(LowLevelTasks::ETaskPriority::Count)] = { ENamedThreads::HighThreadPriority, ENamedThreads::NormalThreadPriority, ENamedThreads::BackgroundThreadPriority };
+				ENamedThreads::Type Conversion[int(LowLevelTasks::ETaskPriority::Count)] = { ENamedThreads::HighThreadPriority, ENamedThreads::NormalThreadPriority, ENamedThreads::BackgroundThreadPriority, ENamedThreads::BackgroundThreadPriority };
 				CurrentThreadIfKnown = (ENamedThreads::Type)(ENamedThreads::AnyThread | Conversion[int(Task->GetPriority())]);
 			}
 		}
