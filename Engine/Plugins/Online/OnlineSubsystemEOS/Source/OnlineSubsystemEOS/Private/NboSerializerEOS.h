@@ -48,6 +48,15 @@ public:
 		Ar << UniqueId.ProductUserIdStr;
 		return Ar;
 	}
+
+	/**
+	 * Adds string Unique Id to the buffer
+	 */
+	friend inline FNboSerializeToBufferEOS& operator<<(FNboSerializeToBufferEOS& Ar, const FUniqueNetIdString& UniqueId)
+	{
+		Ar << UniqueId.UniqueNetIdStr;
+		return Ar;
+	}
 };
 
 /**
@@ -84,6 +93,15 @@ public:
 		Ar >> UniqueId.UniqueNetIdStr;
 		Ar >> UniqueId.EpicAccountIdStr;
 		Ar >> UniqueId.ProductUserIdStr;
+		return Ar;
+	}
+
+	/**
+	 * Reads string Unique Id from the buffer
+	 */
+	friend inline FNboSerializeFromBufferEOS& operator>>(FNboSerializeFromBufferEOS& Ar, FUniqueNetIdString& UniqueId)
+	{
+		Ar >> UniqueId.UniqueNetIdStr;
 		return Ar;
 	}
 };
