@@ -20,7 +20,8 @@ namespace LowLevelTasks
 		RegisteredLocalQueue = LocalQueue == nullptr;
 		if (RegisteredLocalQueue)
 		{
-			LocalQueue = FLocalQueueType::AllocateLocalQueue(Scheduler.QueueRegistry);
+			bool bPermitBackgroundWork = ActiveTask && ActiveTask->IsBackgroundTask();
+			LocalQueue = FLocalQueueType::AllocateLocalQueue(Scheduler.QueueRegistry, bPermitBackgroundWork);
 		}
 	}
 
@@ -28,7 +29,8 @@ namespace LowLevelTasks
 	{
 		if (RegisteredLocalQueue)
 		{
-			FLocalQueueType::DeleteLocalQueue(LocalQueue);
+			bool bPermitBackgroundWork = ActiveTask && ActiveTask->IsBackgroundTask();
+			FLocalQueueType::DeleteLocalQueue(LocalQueue, bPermitBackgroundWork);
 			LocalQueue = nullptr;
 		}
 	}
@@ -71,14 +73,14 @@ namespace LowLevelTasks
 			UE::Trace::ThreadGroupBegin(TEXT("Foreground Workers"));
 			for (uint32 WorkerId = 0; WorkerId < NumWorkers; ++WorkerId)
 			{
-				WorkerLocalQueues.Emplace(QueueRegistry);
+				WorkerLocalQueues.Emplace(QueueRegistry, false);
 				WorkerThreads.Add(CreateWorker(&WorkerLocalQueues.Last(), WorkerPriority, false, bIsForkable));
 			}
 			UE::Trace::ThreadGroupEnd();
 			UE::Trace::ThreadGroupBegin(TEXT("Background Workers"));
 			for (uint32 WorkerId = 0; WorkerId < NumBackgroundWorkers; ++WorkerId)
 			{
-				WorkerLocalQueues.Emplace(QueueRegistry);
+				WorkerLocalQueues.Emplace(QueueRegistry, true);
 				WorkerThreads.Add(CreateWorker(&WorkerLocalQueues.Last(), BackgroundPriority, true, bIsForkable));
 			}
 			UE::Trace::ThreadGroupEnd();
@@ -172,13 +174,13 @@ namespace LowLevelTasks
 		}
 		else
 		{
-			LocalQueue = FLocalQueueType::AllocateLocalQueue(QueueRegistry);
+			LocalQueue = FLocalQueueType::AllocateLocalQueue(QueueRegistry, bPermitBackgroundWork);
 		}
 		FLocalQueueType* WorkerLocalQueue = LocalQueue;
 
 		bool Drowsing = false;
 		uint32 WaitCount = 0;
-		FQueueRegistry::FOutOfWork OutOfWork = QueueRegistry.GetOutOfWorkScope();
+		FQueueRegistry::FOutOfWork OutOfWork = QueueRegistry.GetOutOfWorkScope(bPermitBackgroundWork);
 		while (true)
 		{
 			while(TryExecuteTaskFrom<&FLocalQueueType::DequeueLocal>(WorkerLocalQueue, OutOfWork, bPermitBackgroundWork)
@@ -216,7 +218,7 @@ namespace LowLevelTasks
 
 		while (WakeUpWorker(bPermitBackgroundWork)) {}
 
-		FLocalQueueType::DeleteLocalQueue(WorkerLocalQueue, ExternalWorkerLocalQueue != nullptr);
+		FLocalQueueType::DeleteLocalQueue(WorkerLocalQueue, bPermitBackgroundWork, ExternalWorkerLocalQueue != nullptr);
 		LocalQueue = nullptr;
 
 		FMemory::ClearAndDisableTLSCachesOnCurrentThread();
@@ -233,7 +235,7 @@ namespace LowLevelTasks
 
 		uint32 WaitCount = 0;
 		bool bPermitBackgroundWork = ActiveTask && ActiveTask->IsBackgroundTask();
-		FQueueRegistry::FOutOfWork OutOfWork = QueueRegistry.GetOutOfWorkScope();
+		FQueueRegistry::FOutOfWork OutOfWork = QueueRegistry.GetOutOfWorkScope(bPermitBackgroundWork);
 		while (true)
 		{
 			while(TryExecuteTaskFrom<&FLocalQueueType::DequeueLocal>(WorkerLocalQueue, OutOfWork, bPermitBackgroundWork)
