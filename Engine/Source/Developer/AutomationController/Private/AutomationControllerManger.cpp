@@ -189,12 +189,11 @@ void FAutomationControllerManager::RunTests(const bool bInIsLocalSession)
 		}
 	}
 	
-	// remove existing results.
-	// #agrant todo - make this optional via the UI. Maybe rename these too?
-	UE_LOG(LogAutomationController, Display, TEXT("Clearing past reports and temp files from %s"), *FPaths::AutomationDir());
-	IFileManager::Get().DeleteDirectory(*FPaths::AutomationReportsDir(), false, true);
+	// Clear the logs and transient folders. Reports can be manually cleared by the user in the UI if they so desire
+	UE_LOG(LogAutomationController, Display, TEXT("Clearing %s and %s"), *FPaths::AutomationLogDir(), *FPaths::AutomationTransientDir());
 	IFileManager::Get().DeleteDirectory(*FPaths::AutomationLogDir(), false, true);
 	IFileManager::Get().DeleteDirectory(*FPaths::AutomationTransientDir(), false, true);
+
 
 	// Inform the UI we are running tests
 	if ( ClusterDistributionMask != 0 )
@@ -300,10 +299,19 @@ void FAutomationControllerManager::ProcessComparisonQueue()
 
 				FString ProjectDir = FPaths::ProjectDir();
 	
-				// Paths in the result are relative to the project directory. Note we want to use the report paths
-				LocalFiles.Add(TEXT("approved"), FPaths::Combine(ProjectDir, Result.ApprovedFilePath));
+				// Paths in the result are relative to the project directory.	
 				LocalFiles.Add(TEXT("unapproved"), FPaths::Combine(ProjectDir, Result.IncomingFilePath));
-				LocalFiles.Add(TEXT("difference"), FPaths::Combine(ProjectDir, Result.ComparisonFilePath));
+
+				// unapproved should always be valid. but approved/difference may be empty if this is a new screenshot
+				if (Result.ApprovedFilePath.Len())
+				{
+					LocalFiles.Add(TEXT("approved"), FPaths::Combine(ProjectDir, Result.ApprovedFilePath));
+				}
+
+				if (Result.ComparisonFilePath.Len())
+				{
+					LocalFiles.Add(TEXT("difference"), FPaths::Combine(ProjectDir, Result.ComparisonFilePath));
+				}
 
 				Report->AddArtifact(ClusterIndex, CurrentTestPass, FAutomationArtifact(UniqueId, Entry->TestName, EAutomationArtifactType::Comparison, LocalFiles));
 			}
@@ -716,28 +724,12 @@ void FAutomationControllerManager::ProcessResults()
 
 		UE_LOG(LogAutomationController, Display, TEXT("Exporting Automation Report to %s."), *ReportExportPath);
 
-		if (IFileManager::Get().DirectoryExists(*ReportExportPath))
-		{
-			FDateTime StepTime = FDateTime::Now();
-
-			UE_LOG(LogAutomationController, Display, TEXT("Existing report directory found, deleting %s."), *ReportExportPath);
-
-			if (!IFileManager::Get().DeleteDirectory(*ReportExportPath, false, true))
-			{
-				UE_LOG(LogAutomationController, Warning, TEXT("Failed to delete %s."));
-			}
-			else
-			{
-				UE_LOG(LogAutomationController, Display, TEXT("Deleted directory in %.02f Seconds"), (FDateTime::Now() - StepTime).GetTotalSeconds());
-			}
-		}
-
 		FAutomatedTestPassResults SerializedPassResults;
 
 		{
 			FDateTime StepTime = FDateTime::Now();
 
-			UE_LOG(LogAutomationController, Display, TEXT("Exporting comparison results to %s..."), *ReportExportPath);
+			UE_LOG(LogAutomationController, Log, TEXT("Exporting comparison results to %s..."), *ReportExportPath);
 
 			FScreenshotExportResults ExportResults = ScreenshotManager->ExportComparisonResultsAsync(ReportExportPath).Get();
 
@@ -755,14 +747,14 @@ void FAutomationControllerManager::ProcessResults()
 				SerializedPassResults.ComparisonExportDirectory = ReportURLPath / FString::FromInt(FEngineVersion::Current().GetChangelist());
 			}
 
-			UE_LOG(LogAutomationController, Display, TEXT("Exported results in %.02f Seconds"), (FDateTime::Now() - StepTime).GetTotalSeconds());
+			UE_LOG(LogAutomationController, Log, TEXT("Exported results in %.02f Seconds"), (FDateTime::Now() - StepTime).GetTotalSeconds());
 		}
 
 
 		{
 			FDateTime StepTime = FDateTime::Now();
 
-			UE_LOG(LogAutomationController, Display, TEXT("Copying artifacts to %s..."), *ReportExportPath);
+			UE_LOG(LogAutomationController, Log, TEXT("Copying artifacts to %s..."), *ReportExportPath);
 
 			SerializedPassResults.Tests.StableSort([](const FAutomatedTestResult& A, const FAutomatedTestResult& B) {
 				if (A.GetErrorTotal() > 0)
@@ -831,7 +823,7 @@ void FAutomationControllerManager::ProcessResults()
 							// Show occasional progress for larger result sets
 							if ((CopiedFileArtifacts % 50) == 0)
 							{
-								UE_LOG(LogAutomationController, Display, TEXT("Copied %d of %d files in %.02f Seconds"), CopiedFileArtifacts, TotalFileArtifacts, (FDateTime::Now() - StepTime).GetTotalSeconds());
+								UE_LOG(LogAutomationController, Log, TEXT("Copied %d of %d files in %.02f Seconds"), CopiedFileArtifacts, TotalFileArtifacts, (FDateTime::Now() - StepTime).GetTotalSeconds());
 							}
 						}
 					});
@@ -842,12 +834,12 @@ void FAutomationControllerManager::ProcessResults()
 				//UE_LOG(LogAutomationController, Verbose, TEXT("Copied %d files from test %s"), TestArtifactCount, *Test.TestDisplayName);
 			}
 
-			UE_LOG(LogAutomationController, Display, TEXT("Copied %d files in %.02f Seconds"), TotalFileArtifacts, (FDateTime::Now() - StepTime).GetTotalSeconds());
+			UE_LOG(LogAutomationController, Log, TEXT("Copied %d files in %.02f Seconds"), TotalFileArtifacts, (FDateTime::Now() - StepTime).GetTotalSeconds());
 		}
 
 		{
 			FDateTime StepTime = FDateTime::Now();
-			UE_LOG(LogAutomationController, Display, TEXT("Writing reports to %s..."), *ReportExportPath);
+			UE_LOG(LogAutomationController, Log, TEXT("Writing reports to %s..."), *ReportExportPath);
 
 			// Generate Json
 			GenerateJsonTestPassSummary(SerializedPassResults, StartTime);
@@ -855,17 +847,23 @@ void FAutomationControllerManager::ProcessResults()
 			// Generate Html
 			GenerateHtmlTestPassSummary(SerializedPassResults, StartTime);
 
+			UE_LOG(LogAutomationController, Log, TEXT("Exported report to '%s' in %.02f Seconds"), *ReportExportPath, (FDateTime::Now() - StepTime).GetTotalSeconds());
+		}
+
+		if (!ReportURLPath.IsEmpty())
+		{
+			UE_LOG(LogAutomationController, Display, TEXT("Report can be viewed in a browser at '%s'"), DeveloperReportUrl.IsEmpty() ? *ReportURLPath : *DeveloperReportUrl);
+
 			if (!DeveloperReportUrl.IsEmpty())
 			{
 				UE_LOG(LogAutomationController, Display, TEXT("Launching Report URL %s."), *DeveloperReportUrl);
 
 				FPlatformProcess::LaunchURL(*DeveloperReportUrl, nullptr, nullptr);
 			}
-			UE_LOG(LogAutomationController, Display, TEXT("Wrote reports in %.02f Seconds"), (FDateTime::Now() - StepTime).GetTotalSeconds());
 		}
-
-		UE_LOG(LogAutomationController, Display, TEXT("Completed exporting all results in %.02f Seconds"), (FDateTime::Now() - StartTime).GetTotalSeconds());
 	}
+
+	UE_LOG(LogAutomationController, Display, TEXT("Report can be opened in the editor at '%s'"), ReportExportPath.IsEmpty() ? *FPaths::ConvertRelativePathToFull(FPaths::AutomationReportsDir()) : *ReportExportPath);
 
 	// Then clean our array for the next pass.
 	OurPassResults.ClearAllEntries();
