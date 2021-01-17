@@ -24,6 +24,7 @@
 #include "Lumen/LumenSceneRendering.h"
 
 extern int32 GGPUSceneInstanceClearList;
+extern int32 GGPUSceneInstanceBVH;
 
 /** An implementation of FStaticPrimitiveDrawInterface that stores the drawn elements for the rendering thread to use. */
 class FBatchingSPDI : public FStaticPrimitiveDrawInterface
@@ -459,7 +460,6 @@ void FPrimitiveSceneInfo::CacheMeshDrawCommands(FRHICommandListImmediate& RHICmd
 		}
 	}
 #endif
-
 }
 
 void FPrimitiveSceneInfo::RemoveCachedMeshDrawCommands()
@@ -884,6 +884,17 @@ void FPrimitiveSceneInfo::AddToScene(FRHICommandListImmediate& RHICmdList, FScen
 				{
 					SceneInfo->InstanceDataOffset = Scene->GPUScene.AllocateInstanceSlots(PrimitiveInstances->Num());
 					SceneInfo->NumInstanceDataEntries = PrimitiveInstances->Num();
+
+					if( GGPUSceneInstanceBVH )
+					{
+						for( int32 InstanceIndex = 0; InstanceIndex < PrimitiveInstances->Num(); ++InstanceIndex )
+						{
+							const FPrimitiveInstance& PrimitiveInstance = (*PrimitiveInstances)[ InstanceIndex ];
+
+							FBox WorldBox = PrimitiveInstance.LocalBounds.TransformBy( SceneInfo->Proxy->GetLocalToWorld() ).GetBox();
+							Scene->InstanceBVH.Add( FBounds( { WorldBox.Min, WorldBox.Max } ), SceneInfo->InstanceDataOffset + InstanceIndex );
+						}
+					}
 				}
 			}
 #if defined(GPUCULL_TODO)
@@ -1079,6 +1090,14 @@ void FPrimitiveSceneInfo::RemoveFromScene(bool bUpdateStaticDrawLists)
 		SCOPE_CYCLE_COUNTER(STAT_UpdateGPUSceneTime);
 
 		check(Proxy->SupportsInstanceDataBuffer() || NumInstanceDataEntries == 1);
+		if( GGPUSceneInstanceBVH )
+		{
+			for( int32 InstanceIndex = 0; InstanceIndex < NumInstanceDataEntries; InstanceIndex++ )
+			{
+				Scene->InstanceBVH.Remove( InstanceDataOffset + InstanceIndex );
+			}
+		}
+
 		Scene->GPUScene.FreeInstanceSlots(InstanceDataOffset, NumInstanceDataEntries);
 		InstanceDataOffset = INDEX_NONE;
 		NumInstanceDataEntries = 0;

@@ -58,6 +58,7 @@
 #include "VolumetricRenderTargetViewStateData.h"
 #include "GPUScene.h"
 #include "CompositionLighting/PostProcessDeferredDecals.h"
+#include "DynamicBVH.h"
 
 /** Factor by which to grow occlusion tests **/
 #define OCCLUSION_SLOP (1.0f)
@@ -2622,6 +2623,8 @@ public:
 
 	/** An octree containing the primitives in the scene. */
 	FScenePrimitiveOctree PrimitiveOctree;
+
+	FDynamicBVH<4> InstanceBVH;
 
 	/** Indicates whether this scene requires hit proxy rendering. */
 	bool bRequiresHitProxies;

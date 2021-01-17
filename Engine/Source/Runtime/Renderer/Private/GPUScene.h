@@ -211,6 +211,7 @@ public:
 	FScatterUploadBuffer	InstanceUploadBuffer;
 	uint32					InstanceDataSOAStride;	// Distance between arrays in float4s
 	TSet<uint32>			InstanceClearList;
+	FRWBufferStructured		InstanceBVHBuffer;
 
 	/** GPU light map data */
 	FGrowOnlySpanAllocator	LightmapDataAllocator;

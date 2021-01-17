@@ -50,6 +50,15 @@ FAutoConsoleVariableRef CVarGPUSceneParallelUpdate(
 	ECVF_RenderThreadSafe
 );
 
+int32 GGPUSceneInstanceBVH = 0;
+FAutoConsoleVariableRef CVarGPUSceneInstanceBVH(
+	TEXT("r.GPUScene.InstanceBVH"),
+	GGPUSceneInstanceBVH,
+	TEXT("Add instances to BVH. (WIP)"),
+	ECVF_RenderThreadSafe | ECVF_ReadOnly
+);
+
+
 template<typename ResourceType>
 ResourceType* GetMirrorGPU(FGPUScene& GPUScene);
 
@@ -169,6 +178,13 @@ FGPUScenePrimitiveCollector::FUploadData* FGPUScenePrimitiveCollector::AllocateU
 {
 	return GPUSceneDynamicContext->AllocateDynamicPrimitiveData();
 }
+
+struct FBVHNode
+{
+	uint32		ChildIndexes[4];
+	FVector4	ChildMin[3];
+	FVector4	ChildMax[3];
+};
 
 
 /**
@@ -517,6 +533,11 @@ void FGPUScene::UploadGeneral(FRHICommandListImmediate& RHICmdList, FScene *Scen
 		const uint32 InstanceDataSizeReserve = FMath::RoundUpToPowerOfTwo(FMath::Max(InstanceDataAllocator.GetMaxSize(), 256));
 		const bool bResizedInstanceData = ResizeResourceSOAIfNeeded(RHICmdList, InstanceDataBuffer, InstanceDataSizeReserve * sizeof(FInstanceSceneShaderData::Data), InstanceDataNumArrays, TEXT("InstanceData"));
 		InstanceDataSOAStride = InstanceDataSizeReserve;
+
+		{
+			const uint32 NumNodes = FMath::RoundUpToPowerOfTwo( FMath::Max( Scene->InstanceBVH.GetNumNodes(), 256 ) );
+			ResizeResourceIfNeeded( RHICmdList, InstanceBVHBuffer, NumNodes * sizeof( FBVHNode ), TEXT("InstanceBVH") );
+		}
 
 		const uint32 LightMapDataBufferSize = FMath::RoundUpToPowerOfTwo(FMath::Max(LightmapDataAllocator.GetMaxSize(), 256));
 		const bool bResizedLightmapData = ResizeResourceIfNeeded(RHICmdList, LightmapDataBuffer, LightMapDataBufferSize * sizeof(FLightmapSceneShaderData::Data), TEXT("LightmapData"));
@@ -886,6 +907,35 @@ void FGPUScene::UploadGeneral(FRHICommandListImmediate& RHICmdList, FScene *Scen
 			else if (bResizedInstanceData)
 			{
 				RHICmdList.Transition(FRHITransitionInfo(InstanceDataBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::SRVMask));
+			}
+
+			if( Scene->InstanceBVH.GetNumDirty() > 0 )
+			{
+				InstanceUploadBuffer.Init( Scene->InstanceBVH.GetNumDirty(), sizeof( FBVHNode ), true, TEXT("InstanceUploadBuffer") );
+
+				Scene->InstanceBVH.ForAllDirty(
+					[&]( uint32 NodeIndex, const auto& Node )
+					{
+						FBVHNode GPUNode;
+						for( int i = 0; i < 4; i++ )
+						{
+							GPUNode.ChildIndexes[i] = Node.ChildIndexes[i];
+
+							GPUNode.ChildMin[0][i] = Node.ChildBounds[i].Min.X;
+							GPUNode.ChildMin[1][i] = Node.ChildBounds[i].Min.Y;
+							GPUNode.ChildMin[2][i] = Node.ChildBounds[i].Min.Z;
+
+							GPUNode.ChildMax[0][i] = Node.ChildBounds[i].Max.X;
+							GPUNode.ChildMax[1][i] = Node.ChildBounds[i].Max.Y;
+							GPUNode.ChildMax[2][i] = Node.ChildBounds[i].Max.Z;
+						}
+
+						InstanceUploadBuffer.Add( NodeIndex, &GPUNode );
+					} );
+
+				RHICmdList.Transition( FRHITransitionInfo( InstanceBVHBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute ) );
+				InstanceUploadBuffer.ResourceUploadTo( RHICmdList, InstanceBVHBuffer, false );
+				RHICmdList.Transition( FRHITransitionInfo( InstanceBVHBuffer.UAV, ERHIAccess::UAVCompute, ERHIAccess::SRVMask ) );
 			}
 
 			if (NumLightmapDataUploads > 0)
