@@ -2923,12 +2923,15 @@ namespace HairCards
 					PrevCenterPoint = CenterPoint;
 				}
 
-				// Normalize length to have a parametric distance
-				for (const FSimilarUVVertices& Similar : SimilarVertex)
+				if (SimilarVertex.Num() > 1)
 				{
-					for (uint32 VertexIndex : Similar.Indices)
+					// Normalize length to have a parametric distance
+					for (const FSimilarUVVertices& Similar : SimilarVertex)
 					{
-						InCards.CoordU[VertexIndex] /= TotalLength;
+						for (uint32 VertexIndex : Similar.Indices)
+						{
+							InCards.CoordU[VertexIndex] /= TotalLength;
+						}
 					}
 				}
 			}
