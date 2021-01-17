@@ -495,7 +495,7 @@ public:
 private:
 	inline bool AnyWorkerLookingForWork(bool bBackgroundWorker) const
 	{
-		return NumWorkersLookingForWork[bBackgroundWorker].load(std::memory_order_acquire) == 0;
+		return (NumWorkersLookingForWork[bBackgroundWorker].load(std::memory_order_acquire) == 0) && (bBackgroundWorker || (NumWorkersLookingForWork[true].load(std::memory_order_acquire) == 0));
 	}
 
 	FOverflowQueueType	  OverflowQueues[uint32(ETaskPriority::Count)];

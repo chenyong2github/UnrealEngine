@@ -293,15 +293,13 @@ public:
 private:
 	void ScheduleTasks()
 	{
-		LowLevelTasks::EQueuePreference QueuePreference = LowLevelTasks::EQueuePreference::LocalQueuePreference;
 		while (!bIsPaused && TaskCount < MaxConcurrency)
 		{
 			FQueuedWorkInternalData* QueuedWork = Dequeue();
 			if (QueuedWork)
 			{
 				TaskCount++;
-				verifySlow(LowLevelTasks::TryLaunch(QueuedWork->Task, QueuePreference));
-				QueuePreference = LowLevelTasks::EQueuePreference::GlobalQueuePreference;
+				verifySlow(LowLevelTasks::TryLaunch(QueuedWork->Task, LowLevelTasks::EQueuePreference::LocalQueuePreference));
 			}
 			else
 			{

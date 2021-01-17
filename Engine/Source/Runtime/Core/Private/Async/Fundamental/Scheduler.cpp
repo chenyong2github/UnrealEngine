@@ -113,8 +113,14 @@ namespace LowLevelTasks
 	void FScheduler::LaunchInternal(FTask& Task, EQueuePreference QueuePreference)
 	{
 		if (ActiveWorkers.load(std::memory_order_relaxed))
-		{
-			bool bIsBackgroundTask = Task.IsBackgroundTask();
+		{			
+			const bool bIsBackgroundTask = Task.IsBackgroundTask();
+			const bool bIsBackgroundWorker = ActiveTask && ActiveTask->IsBackgroundTask();
+			if (bIsBackgroundTask && !bIsBackgroundWorker)
+			{
+				QueuePreference = EQueuePreference::GlobalQueuePreference;
+			}
+
 			if (LocalQueue && QueuePreference != EQueuePreference::GlobalQueuePreference)
 			{
 				if (LocalQueue->Enqueue(&Task, uint32(Task.GetPriority())))
@@ -156,7 +162,10 @@ namespace LowLevelTasks
 			OutOfWork.Stop();		
 			FTask* OldTask = ActiveTask;
 			ActiveTask = Task;
-			Task->ExecuteTask();
+			{
+				TRACE_CPUPROFILER_EVENT_SCOPE(ExecuteTask);
+				Task->ExecuteTask();
+			}
 			ActiveTask = OldTask;
 			return true;
 		}
