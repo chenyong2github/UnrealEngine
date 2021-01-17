@@ -1035,7 +1035,7 @@ namespace Gauntlet
 
 			bool IsDevBuild = InContext.TestParams.ParseParam("dev");
 
-			string DestSavedDir = Path.Combine(InDestArtifactPath, "Saved");
+			string DestSavedDir = InDestArtifactPath;
 			string SourceSavedDir = "";
 
 			// save the contents of the saved directory
@@ -1091,6 +1091,31 @@ namespace Gauntlet
 				}
 			}
 
+			Dictionary<string, string> LongCrashReporterStringToIndex = new Dictionary<string, string>();
+
+			// Filter that truncates some overly long file paths like CrashReporter files. These are particularly problematic with 
+			// testflights which append a long random name to the destination folder, easily pushing past 260 chars.
+			Func<string, string> TruncateLongPathFilter= (X =>
+			{
+				// /UE4CC-Windows-F0DD9BB04C3C9250FAF39D8AB4A88556/
+				Match M = Regex.Match(X, @"UE4CC-.+-([\dA-Fa-f]+)");
+
+				if (M.Success)
+				{
+					string LongString = M.Groups[1].ToString();
+
+					if (!LongCrashReporterStringToIndex.ContainsKey(LongString))
+					{
+						LongCrashReporterStringToIndex[LongString] = LongCrashReporterStringToIndex.Keys.Count.ToString("D2");
+					}
+
+					string ShortSring = LongCrashReporterStringToIndex[LongString];
+					X = X.Replace(LongString, ShortSring);
+				}				
+
+				return X;
+			});
+
 			// don't archive data in dev mode, because peoples saved data could be huuuuuuuge!
 			if (IsEditor == false)
 			{
@@ -1099,7 +1124,7 @@ namespace Gauntlet
 
 				if (Directory.Exists(SourceSavedDir))
 				{
-					Utils.SystemHelpers.CopyDirectory(SourceSavedDir, DestSavedDir);
+					Utils.SystemHelpers.CopyDirectory(SourceSavedDir, DestSavedDir, Utils.SystemHelpers.CopyOptions.Default, TruncateLongPathFilter);
 					Log.Info("Archived artifacts to to {0}", DestSavedDir);
 				}
 				else
@@ -1131,7 +1156,7 @@ namespace Gauntlet
 					{
 						// Grab the final dir name to copy everything into so everything's not just going into root artifact dir.
 						string IntendedCopyLocation = Path.Combine(InDestArtifactPath, DirToCopy.Name);
-						Utils.SystemHelpers.CopyDirectory(SourcePath, IntendedCopyLocation);
+						Utils.SystemHelpers.CopyDirectory(SourcePath, IntendedCopyLocation, Utils.SystemHelpers.CopyOptions.Default, TruncateLongPathFilter);
 					}
 				}
 			}

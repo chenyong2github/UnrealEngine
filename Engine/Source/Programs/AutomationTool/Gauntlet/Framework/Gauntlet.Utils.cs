@@ -224,6 +224,9 @@ namespace Gauntlet
 
 		static int ECSuspendCount = 0;
 
+		static int SanitizationSuspendCount = 0;
+
+
 		public static void AddCallback(Action<string> CB)
 		{
 			if (Callbacks == null)
@@ -299,6 +302,16 @@ namespace Gauntlet
 			}
 		}
 
+		public static void SuspendSanitization()
+		{
+			SanitizationSuspendCount++;
+		}
+
+		public static void ResumeSanitization()
+		{
+			--SanitizationSuspendCount;
+		}
+
 		/// <summary>
 		/// Santi
 		/// </summary>
@@ -334,7 +347,7 @@ namespace Gauntlet
 			// EC detects error statements in the log as a failure. Need to investigate best way of 
 			// reporting errors, but not errors we've handled from tools.
 			// Probably have Log.Error which does not sanitize?
-			if (Sanitize)
+			if (Sanitize && SanitizationSuspendCount == 0)
 			{
 				string[] Triggers = { "Warning:", "Error:", "Exception:" };
 
@@ -919,45 +932,43 @@ namespace Gauntlet
 					}
 				}
 
-				// List of relative-path files to copy to dest
-				List<string> CopyList = new List<string>();
+				// List of source files to copy. The first item is the full (and possibly transformed)
+				// dest path, the second is the source
+				List<Tuple<FileInfo, FileInfo>> CopyList = new List<Tuple<FileInfo, FileInfo>>();
 
 				// List of relative path files in dest to delete
 				List<string> DeletionList = new List<string>();
 
 				foreach (FileInfo SourceInfo in SourceFiles)
 				{
-					string SourceFilePath = SourceInfo.FullName.Replace(SourceDir.FullName, "");
+					string RelativeSourceFilePath = SourceInfo.FullName.Replace(SourceDir.FullName, "");
 
 					// remove leading seperator
-					if (SourceFilePath.First() == Path.DirectorySeparatorChar)
+					if (RelativeSourceFilePath.First() == Path.DirectorySeparatorChar)
 					{
-						SourceFilePath = SourceFilePath.Substring(1);
+						RelativeSourceFilePath = RelativeSourceFilePath.Substring(1);
 					}
 
-					string DestFilePath = Options.Transform(SourceFilePath);
+					string RelativeDestFilePath = Options.Transform(RelativeSourceFilePath);
 
 					FileInfo DestInfo = null;
 
 					// We may have destination info if mirroring where we prebuild it all, if not
 					// grab it now
-					if (DestStructure.ContainsKey(DestFilePath))
+					if (DestStructure.ContainsKey(RelativeDestFilePath))
 					{
-						DestInfo = DestStructure[DestFilePath];
+						DestInfo = DestStructure[RelativeDestFilePath];
 					}
 					else
 					{
-						string FullDestPath = Path.Combine(DestDir.FullName, DestFilePath);
-						if (File.Exists(FullDestPath))
-						{
-							DestInfo = new FileInfo(FullDestPath);
-						}
+						string FullDestPath = Path.Combine(DestDir.FullName, RelativeDestFilePath);
+						DestInfo = new FileInfo(FullDestPath);						
 					}
 
-					if (DestInfo == null)
+					if (DestInfo.Exists == false)
 					{
 						// No copy in dest, add it to the list
-						CopyList.Add(SourceFilePath);
+						CopyList.Add(new Tuple<FileInfo, FileInfo>(DestInfo, SourceInfo));
 					}
 					else
 					{
@@ -971,7 +982,7 @@ namespace Gauntlet
 						if (DestInfo.Length != SourceInfo.Length ||
 							TimeDelta > Threshhold)
 						{
-							CopyList.Add(SourceFilePath);
+							CopyList.Add(new Tuple<FileInfo, FileInfo>(DestInfo, SourceInfo));
 						}
 						else
 						{
@@ -986,7 +997,7 @@ namespace Gauntlet
 						}
 
 						// Remove it from the map
-						DestStructure.Remove(DestFilePath);
+						DestStructure.Remove(RelativeDestFilePath);
 					}
 				}
 
@@ -1074,40 +1085,14 @@ namespace Gauntlet
 				Globals.AbortHandlers.Add(CancelHandler);
 
 				// now do the work
-				Parallel.ForEach(CopyList, POptions, RelativePath =>
-				{ 
+				Parallel.ForEach(CopyList, POptions, FilePair =>
+				{
 					// ensure path exists
-					string DestPath = Path.Combine(DestDir.FullName, RelativePath);
-
-					if (Options.Transform != null)
-					{
-						DestPath = Options.Transform(DestPath);
-					}
-
-					string SourcePath = Path.Combine(SourceDir.FullName, RelativePath);
-					FileInfo DestInfo;
-					FileInfo SrcInfo;
-
-					// wrap FileInfo creation with exception handler as can throw and want informative error
-					try
-					{
-						DestInfo = new FileInfo(DestPath);
-						SrcInfo = new FileInfo(SourcePath);
-					}
-					catch (Exception Ex)
-					{
-						throw new Exception(string.Format("FileInfo creation failed for Source:{0}, Dest:{1}, with: {2}", SourcePath, DestPath, Ex.Message));
-					}
+					FileInfo DestInfo = FilePair.Item1;
+					FileInfo SrcInfo = FilePair.Item2;
 
 					// ensure directory exists
 					DestInfo.Directory.Create();
-
-					string DestFile = DestInfo.FullName;
-
-					if (Options.Transform != null)
-					{
-						DestFile = Options.Transform(DestFile);
-					}
 
 					int Tries = 0;
 					bool Copied = false;
@@ -1118,27 +1103,26 @@ namespace Gauntlet
 						{
 							if (Options.Verbose)
 							{
-								Log.Info("Copying to {0}", DestFile);
+								Log.Info("Copying to {0}", DestInfo.FullName);
 							}
 							else
 							{
-								Log.Verbose("Copying to {0}", DestFile);
+								Log.Verbose("Copying to {0}", DestInfo.FullName);
 							}
 
-							SrcInfo.CopyTo(DestFile, true);
+							SrcInfo.CopyTo(DestInfo.FullName, true);
 
-							// Clear and read-only attrib and set last write time
-							FileInfo DestFileInfo = new FileInfo(DestFile);
-							DestFileInfo.IsReadOnly = false;
-							DestFileInfo.LastWriteTime = SrcInfo.LastWriteTime;
+							// Clear attributes and set last write time
+							DestInfo.Attributes = FileAttributes.Normal;
+							DestInfo.LastWriteTime = SrcInfo.LastWriteTime;
 							Copied = true;
 						}
 						catch (Exception ex)
 						{
 							if (Tries++ < Options.Retries)
 							{
-								Log.Info("Copy to {0} failed, retrying {1} of {2} in 30 secs..", DestFile, Tries, Options.Retries);
-								// todo - make param..
+								Log.Info("Copy to {0} failed, retrying {1} of {2} in 30 secs..", DestInfo.FullName, Tries, Options.Retries);
+								Log.Verbose("\t{0}", ex);
 								Thread.Sleep(30000);
 							}
 							else
@@ -1150,7 +1134,7 @@ namespace Gauntlet
 
 								// Warn with message if we're exceeding long path, otherwise throw an exception
 								const int MAX_PATH = 260;
-								bool LongPath = BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64 && (SourcePath.Length >= MAX_PATH || DestFile.Length >= MAX_PATH);
+								bool LongPath = BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64 && (SrcInfo.FullName.Length >= MAX_PATH || DestInfo.FullName.Length >= MAX_PATH);
 
 								if (!LongPath)
 								{
@@ -1168,7 +1152,7 @@ namespace Gauntlet
 									// Filter out some known unneeded files which can cause this warning, and log the message instead
 									string[] Blacklist = new string[]{ "UE4CC-XboxOne", "PersistentDownloadDir" };
 									string Message = string.Format("Long path file copy failed with {0}.  Please verify that this file is not required.", ex.Message);
-									if ( Blacklist.FirstOrDefault(B => { return SourcePath.IndexOf(B, StringComparison.OrdinalIgnoreCase) >= 0; }) == null)
+									if ( Blacklist.FirstOrDefault(B => { return SrcInfo.FullName.IndexOf(B, StringComparison.OrdinalIgnoreCase) >= 0; }) == null)
 									{
 										Log.Warning(Message); 
 									}
