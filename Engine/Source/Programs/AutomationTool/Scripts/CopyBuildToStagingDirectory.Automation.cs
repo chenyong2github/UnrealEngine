@@ -28,6 +28,63 @@ public partial class Project : CommandUtils
 
 	private static readonly object SyncLock = new object();
 
+	public struct OrderFile
+	{
+		public enum OrderFileType
+		{
+			Game,
+			Cooker,
+			Editor,
+			Invalid
+		}
+
+		public OrderFile(FileReference FileRef)
+		{
+			File = FileRef;
+
+			// Get the File Type from the file name
+			string FileName = FileRef.GetFileNameWithoutExtension();
+			if (FileName.Contains("GameOpenOrder"))
+			{
+				OrderType = OrderFileType.Game;
+			}
+			else if (FileName.Contains("CookerOpenOrder"))
+			{
+				OrderType = OrderFileType.Cooker;
+			}
+			else if (FileName.Contains("EditorOpenOrder"))
+			{
+				OrderType = OrderFileType.Editor;
+			}
+			else
+			{
+				OrderType = OrderFileType.Invalid;
+				CommandUtils.LogWarning("Unable to parse FileOpenOrder type \"{0}\"", FileName);
+			}
+
+			//Check if we have an order number
+			AppendOrder = -1;
+			int index = FileName.LastIndexOf("_");
+			if (index != -1)
+			{
+				index++;
+				string Number = FileName.Substring(index, FileName.Length - index);
+				AppendOrder = Convert.ToInt32(Number);
+			}
+
+			if(OrderType == OrderFileType.Cooker && AppendOrder == -1)
+            {
+				// make sure to sort CookerOpenOrder.log at the end since its produce by the cooking stage
+				AppendOrder = Int32.MaxValue;
+			}
+		}
+		public int AppendOrder;
+
+		public OrderFileType OrderType;
+
+		public FileReference File;
+	};
+
 	/// <returns>The path for the BuildPatchTool executable depending on host platform.</returns>
 	private static string GetBuildPatchToolExecutable()
 	{
@@ -115,7 +172,7 @@ public partial class Project : CommandUtils
 		return Result;
 	}
 
-	static public string GetUnrealPakArguments(FileReference ProjectPath, Dictionary<string, string> UnrealPakResponseFile, FileReference OutputLocation, FileReference PakOrderFileLocation, string PlatformOptions, bool Compressed, EncryptionAndSigning.CryptoSettings CryptoSettings, FileReference CryptoKeysCacheFilename, String PatchSourceContentPath, string EncryptionKeyGuid, FileReference SecondaryPakOrderFileLocation=null)
+	static public string GetUnrealPakArguments(FileReference ProjectPath, Dictionary<string, string> UnrealPakResponseFile, FileReference OutputLocation, List<OrderFile> PakOrderFileLocations, string PlatformOptions, bool Compressed, EncryptionAndSigning.CryptoSettings CryptoSettings, FileReference CryptoKeysCacheFilename, String PatchSourceContentPath, string EncryptionKeyGuid, List<OrderFile> SecondaryPakOrderFileLocations)
 	{
 		StringBuilder CmdLine = new StringBuilder(MakePathSafeToUseWithCommandLine(ProjectPath.FullName));
 		CmdLine.AppendFormat(" {0}", MakePathSafeToUseWithCommandLine(OutputLocation.FullName));
@@ -132,13 +189,13 @@ public partial class Project : CommandUtils
 		{
 			CmdLine.AppendFormat(" -cryptokeys={0}", CommandUtils.MakePathSafeToUseWithCommandLine(CryptoKeysCacheFilename.FullName));
 		}
-		if (PakOrderFileLocation != null)
+		if (PakOrderFileLocations != null && PakOrderFileLocations.Count() > 0)
 		{
-			CmdLine.AppendFormat(" -order={0}", CommandUtils.MakePathSafeToUseWithCommandLine(PakOrderFileLocation.FullName));
+			CmdLine.AppendFormat(" -order={0}", string.Join(",", PakOrderFileLocations.Select(u => u.File.FullName).ToArray()));
 		}
-		if (SecondaryPakOrderFileLocation != null)
+		if (SecondaryPakOrderFileLocations != null && SecondaryPakOrderFileLocations.Count() > 0)
 		{
-			CmdLine.AppendFormat(" -secondaryOrder={0}", CommandUtils.MakePathSafeToUseWithCommandLine(SecondaryPakOrderFileLocation.FullName));
+			CmdLine.AppendFormat(" -secondaryOrder={0}", string.Join(",", SecondaryPakOrderFileLocations.Select(u => u.File.FullName).ToArray()));
 		}
 		if (!String.IsNullOrEmpty(PatchSourceContentPath)) 
 		{
@@ -226,14 +283,14 @@ public partial class Project : CommandUtils
 		}
 	}
 
-	static public void RunUnrealPak(ProjectParams Params, Dictionary<string, string> UnrealPakResponseFile, FileReference OutputLocation, FileReference PakOrderFileLocation, string PlatformOptions, bool Compressed, EncryptionAndSigning.CryptoSettings CryptoSettings, FileReference CryptoKeysCacheFilename, String PatchSourceContentPath, string EncryptionKeyGuid, FileReference SecondaryPakOrderFileLocation = null)
+	static public void RunUnrealPak(ProjectParams Params, Dictionary<string, string> UnrealPakResponseFile, FileReference OutputLocation, List<OrderFile> PakOrderFileLocations, string PlatformOptions, bool Compressed, EncryptionAndSigning.CryptoSettings CryptoSettings, FileReference CryptoKeysCacheFilename, String PatchSourceContentPath, string EncryptionKeyGuid, List<OrderFile> SecondaryPakOrderFileLocations = null)
 	{
 		if (UnrealPakResponseFile.Count < 1)
 		{
 			return;
 		}
 
-		string Arguments = GetUnrealPakArguments(Params.RawProjectPath, UnrealPakResponseFile, OutputLocation, PakOrderFileLocation, PlatformOptions, Compressed, CryptoSettings, CryptoKeysCacheFilename, PatchSourceContentPath, EncryptionKeyGuid, SecondaryPakOrderFileLocation);
+		string Arguments = GetUnrealPakArguments(Params.RawProjectPath, UnrealPakResponseFile, OutputLocation, PakOrderFileLocations, PlatformOptions, Compressed, CryptoSettings, CryptoKeysCacheFilename, PatchSourceContentPath, EncryptionKeyGuid, SecondaryPakOrderFileLocations);
 		RunAndLog(CmdEnv, GetUnrealPakLocation().FullName, Arguments, Options: ERunOptions.Default | ERunOptions.UTF8Output);
 	}
 
@@ -1925,7 +1982,7 @@ public partial class Project : CommandUtils
 		Dictionary<string, string> PakResponseFile = CreatePakResponseFileFromStagingManifest(SC, SC.CrashReporterUFSFiles);
 		FileReference OutputLocation = FileReference.Combine(SC.RuntimeRootDir, "Engine", "Programs", "CrashReportClient", "Content", "Paks", "CrashReportClient.pak");
 
-		RunUnrealPak(Params, PakResponseFile, OutputLocation, null, null, Params.Compressed, null, null, null, null);
+		RunUnrealPak(Params, PakResponseFile, OutputLocation, null, null, Params.Compressed, null, null, null, null, null);
 	}
 
 	/// <summary>
@@ -2228,6 +2285,78 @@ public partial class Project : CommandUtils
 			}
 		}
 
+		// Find primary and secondary order files if they exist
+		List<FileReference> PakOrderFileLocations = new List<FileReference>();
+
+		// preferred files
+		string[] OrderFileNames = new string[] { "GameOpenOrder*.log", "CookerOpenOrder*.log", "EditorOpenOrder.log" };
+
+		// search CookPlaform (e.g. IOSClient and then regular platform (e.g. IOS).
+		string[] OrderLocations = new string[] { SC.FinalCookPlatform, SC.StageTargetPlatform.GetTargetPlatformDescriptor().Type.ToString() };
+
+		List<OrderFile> OrderFiles = new List<OrderFile>();
+
+		for (int OrderFileIndex = 0; OrderFileIndex < OrderFileNames.Length; OrderFileIndex++)
+		{
+			string OrderFileName = OrderFileNames[OrderFileIndex];
+			foreach (string OrderLocation in OrderLocations)
+			{
+				// Add input file to control order of file within the pak
+				DirectoryReference PakOrderFileLocationBase = DirectoryReference.Combine(SC.ProjectRoot, "Platforms", OrderLocation, "Build", "FileOpenOrder");
+				if (!DirectoryReference.Exists(PakOrderFileLocationBase))
+				{
+					PakOrderFileLocationBase = DirectoryReference.Combine(SC.ProjectRoot, "Build", OrderLocation, "FileOpenOrder");
+				}
+
+				FileReference[] FileLocations = CommandUtils.FindFiles(OrderFileName, false, PakOrderFileLocationBase);
+
+				if (FileLocations != null)
+				{
+					foreach (var File in FileLocations)
+					{
+						OrderFile FileOrder = new OrderFile(File);
+
+						//check if the file is alreay in the list
+						if (!OrderFiles.Any(o => o.File.FullName.Equals(File.FullName)))
+						{
+							OrderFiles.Add(FileOrder);
+						}
+					}
+				}
+			}
+		}
+
+		// sort all file open order: GameOpenOrder.log, GameOPenOrder_1.log, GameOpenOrder_2.log, Cooker_OpenOrder_1,CookerOpenOrder.log 
+		OrderFiles.Sort(
+			delegate (OrderFile x, OrderFile y)
+			{
+				int compare = (x.OrderType.CompareTo(y.OrderType));
+				if (compare == 0)
+				{
+					return (x.AppendOrder.CompareTo(y.AppendOrder));
+				}
+				return compare;
+			}
+		);
+
+		//Only allow Editor open order as a primary input
+		if (OrderFiles.Count() > 1 && OrderFiles[0].OrderType != OrderFile.OrderFileType.Editor)
+		{
+			OrderFiles.RemoveAll(x => x.OrderType == OrderFile.OrderFileType.Editor);
+		}
+
+        // Check second order 
+        bool bUseSecondaryOrder = false;
+        PlatformGameConfig.GetBool("/Script/UnrealEd.ProjectPackagingSettings", "bPakUsesSecondaryOrder", out bUseSecondaryOrder);
+
+		if(!bUseSecondaryOrder)
+        {
+			OrderFiles.RemoveAll(x => (x.OrderType == OrderFile.OrderFileType.Cooker && x.AppendOrder == Int32.MaxValue));
+
+			// chekc if theres a merging cookopenorder file
+			bUseSecondaryOrder = OrderFiles.Any(x => x.OrderType == OrderFile.OrderFileType.Cooker);
+		}	
+
 		List<Tuple<FileReference, StagedFileReference, string>> Outputs = new List<Tuple<FileReference, StagedFileReference, string>>();
 		foreach (CreatePakParams PakParams in PakParamsList)
 		{
@@ -2255,48 +2384,6 @@ public partial class Project : CommandUtils
 			OutputRelativeLocation = SC.StageTargetPlatform.Remap(OutputRelativeLocation);
 
 			FileReference OutputLocation = FileReference.Combine(SC.RuntimeRootDir, OutputRelativeLocation.Name);
-
-			// Find primary and secondary order files if they exist
-			List<FileReference> PakOrderFileLocations = new List<FileReference>();
-
-			// preferred files
-			string[] OrderFileNames = new string[] { "GameOpenOrder.log", "CookerOpenOrder.log", "EditorOpenOrder.log" };
-
-			// search CookPlaform (e.g. IOSClient and then regular platform (e.g. IOS).
-			string[] OrderLocations = new string[] { SC.FinalCookPlatform, SC.StageTargetPlatform.GetTargetPlatformDescriptor().Type.ToString() };
-
-			for (int OrderFileIndex=0;OrderFileIndex<OrderFileNames.Length; OrderFileIndex++)
-			{	
-				string OrderFileName = OrderFileNames[OrderFileIndex];
-				foreach (string OrderLocation in OrderLocations)
-				{
-					// Add input file to control order of file within the pak
-					DirectoryReference PakOrderFileLocationBase = DirectoryReference.Combine(SC.ProjectRoot, "Platforms", OrderLocation, "Build", "FileOpenOrder");
-					if (!DirectoryReference.Exists(PakOrderFileLocationBase))
-					{
-						PakOrderFileLocationBase = DirectoryReference.Combine(SC.ProjectRoot, "Build", OrderLocation, "FileOpenOrder");
-					}
-
-					FileReference FileLocation = FileReference.Combine(PakOrderFileLocationBase, OrderFileName);
-
-					if (FileExists_NoExceptions(FileLocation.FullName))
-					{
-						// Special case: Don't use editor open order as a secondary order file for UnrealPak
-						// It's better to just use cooker order in that case
-						if ( OrderFileIndex >= 2 && PakOrderFileLocations.Count >= 1 )
-						{
-							FileLocation = null;
-						}
-						PakOrderFileLocations.Add(FileLocation);
-						break;
-					}
-				}
-
-				if (PakOrderFileLocations.Count == 2)
-				{
-					break;
-				}
-			}
 
 			bool bCopiedExistingPak = false;
 
@@ -2363,15 +2450,13 @@ public partial class Project : CommandUtils
 				}
 				if (!bCopiedExistingPak)
 				{
-					FileReference PrimaryOrderFile   = (PakOrderFileLocations.Count >= 1) ? PakOrderFileLocations[0] : null;
-					FileReference SecondaryOrderFile = null;
+					List<OrderFile> PrimaryOrderFiles = OrderFiles.FindAll(x => (x.OrderType == OrderFile.OrderFileType.Game || x.OrderType == OrderFile.OrderFileType.Editor));
+					List<OrderFile> SecondaryOrderFiles = null;
 
 					// Add a secondary order if there is one specified
-					bool bUseSecondaryOrder = false;
-					PlatformGameConfig.GetBool("/Script/UnrealEd.ProjectPackagingSettings", "bPakUsesSecondaryOrder", out bUseSecondaryOrder);
-					if (bUseSecondaryOrder && PakOrderFileLocations.Count >= 2)
+					if (bUseSecondaryOrder && OrderFiles.Count >= 1)
 					{
-						SecondaryOrderFile = PakOrderFileLocations[1];
+						SecondaryOrderFiles = OrderFiles.FindAll(x => x.OrderType == OrderFile.OrderFileType.Cooker);
 					}
 
 					string AdditionalArgs = PatchOptions;
@@ -2385,13 +2470,6 @@ public partial class Project : CommandUtils
 					if (bPakFallbackOrderForNonUassetFiles)
 					{
 						AdditionalArgs += " -fallbackOrderForNonUassetFiles";
-					}
-
-					bool bPakMoveBulkAndUptnlOrderLast = false;
-					PlatformGameConfig.GetBool("/Script/UnrealEd.ProjectPackagingSettings", "bPakMoveBulkAndUptnlOrderLast", out bPakMoveBulkAndUptnlOrderLast);
-					if (bPakMoveBulkAndUptnlOrderLast)
-					{
-						AdditionalArgs += " -moveBulkAndUptnlOrderLast";
 					}
 
 					ConfigHierarchy PlatformEngineConfig;
@@ -2480,14 +2558,14 @@ public partial class Project : CommandUtils
 						Params.RawProjectPath,
 						UnrealPakResponseFile,
 						OutputLocation,
-						PrimaryOrderFile,
+						PrimaryOrderFiles,
 						SC.StageTargetPlatform.GetPlatformPakCommandLine(Params, SC) + AdditionalArgs + BulkOption + CompressionFormats + " " + Params.AdditionalPakOptions,
 						PakParams.bCompressed,
 						CryptoSettings,
 						CryptoKeysCacheFilename,
 						PatchSourceContentPath,
 						PakParams.EncryptionKeyGuid,
-						SecondaryOrderFile));
+						SecondaryOrderFiles));
 
 					LogNames.Add(OutputLocation.GetFileNameWithoutExtension());
 				}
@@ -2513,33 +2591,12 @@ public partial class Project : CommandUtils
 				}
 			}
 
-			FileReference GameOpenOrderFileLocation = null;
-			FileReference CookerOpenOrderFileLocation = null;
-			// search CookPlaform (e.g. IOSClient and then regular platform (e.g. IOS).
-			string[] OrderLocations = new string[] { SC.FinalCookPlatform, SC.StageTargetPlatform.GetTargetPlatformDescriptor().Type.ToString() };
+			List<OrderFile> PrimaryOrderFiles = OrderFiles.FindAll(x => (x.OrderType == OrderFile.OrderFileType.Game || x.OrderType == OrderFile.OrderFileType.Editor));
+			List<OrderFile> SecondaryOrderFiles = null;
 
-			foreach (string OrderLocation in OrderLocations.Reverse())
+			if (bUseSecondaryOrder && OrderFiles.Count >= 1)
 			{
-				DirectoryReference IoStoreOrderFileLocationBase = DirectoryReference.Combine(SC.ProjectRoot, "Platforms", OrderLocation, "Build", "FileOpenOrder");
-				if (!DirectoryReference.Exists(IoStoreOrderFileLocationBase))
-				{
-					IoStoreOrderFileLocationBase = DirectoryReference.Combine(SC.ProjectRoot, "Build", OrderLocation, "FileOpenOrder");
-				}
-				FileReference FileLocation = FileReference.Combine(IoStoreOrderFileLocationBase, "GameOpenOrder.log");
-				if (FileExists_NoExceptions(FileLocation.FullName))
-				{
-					GameOpenOrderFileLocation = FileLocation;
-				}
-				bool bUseSecondaryOrder = false;
-				PlatformGameConfig.GetBool("/Script/UnrealEd.ProjectPackagingSettings", "bPakUsesSecondaryOrder", out bUseSecondaryOrder);
-				if (bUseSecondaryOrder)
-				{
-					FileLocation = FileReference.Combine(IoStoreOrderFileLocationBase, "CookerOpenOrder.log");
-					if (FileExists_NoExceptions(FileLocation.FullName))
-					{
-						CookerOpenOrderFileLocation = FileLocation;
-					}
-				}
+				SecondaryOrderFiles = OrderFiles.FindAll(x => x.OrderType == OrderFile.OrderFileType.Cooker);
 			}
 
 			string AdditionalArgs =
@@ -2574,7 +2631,7 @@ public partial class Project : CommandUtils
 
 			AdditionalArgs += " " + Params.AdditionalIoStoreOptions;
 
-			RunIoStore(Params, SC, IoStoreCommandsFileName, GameOpenOrderFileLocation, CookerOpenOrderFileLocation, AdditionalArgs);
+			RunIoStore(Params, SC, IoStoreCommandsFileName, PrimaryOrderFiles, SecondaryOrderFiles, AdditionalArgs);
 		}
 
 		// Do any additional processing on the command output
@@ -2734,7 +2791,7 @@ public partial class Project : CommandUtils
 		}
 	}
 
-	private static void RunIoStore(ProjectParams Params, DeploymentContext SC, string CommandsFileName, FileReference GameOpenOrderFileLocation, FileReference CookerOpenOrderFileLocation, string AdditionalArgs)
+	private static void RunIoStore(ProjectParams Params, DeploymentContext SC, string CommandsFileName, List<OrderFile> GameOpenOrderFileLocations, List<OrderFile> CookerOpenOrderFileLocations, string AdditionalArgs)
 	{
 		StagedFileReference GlobalContainerOutputRelativeLocation;
 		GlobalContainerOutputRelativeLocation = StagedFileReference.Combine(SC.RelativeProjectRootForStage, "Content", "Paks", "global.utoc");
@@ -2785,13 +2842,13 @@ public partial class Project : CommandUtils
 		}
 
 		CommandletParams += String.Format(" -CookedDirectory={0} -Commands={1}", MakePathSafeToUseWithCommandLine(SC.PlatformCookDir.ToString()), MakePathSafeToUseWithCommandLine(CommandsFileName));
-		if (GameOpenOrderFileLocation != null)
+		if (GameOpenOrderFileLocations != null)
 		{
-			CommandletParams += String.Format(" -GameOrder={0}", MakePathSafeToUseWithCommandLine(GameOpenOrderFileLocation.FullName));
+			CommandletParams += String.Format(" -GameOrder={0}", string.Join(",", GameOpenOrderFileLocations.Select(u => u.File.FullName).ToArray()));
 		}
-		if (CookerOpenOrderFileLocation != null)
+		if (CookerOpenOrderFileLocations != null)
 		{
-			CommandletParams += String.Format(" -CookerOrder={0}", MakePathSafeToUseWithCommandLine(CookerOpenOrderFileLocation.FullName));
+			CommandletParams += String.Format(" -CookerOrder={0}", string.Join(",", CookerOpenOrderFileLocations.Select(u => u.File.FullName).ToArray()));
 		}
 		if (!string.IsNullOrWhiteSpace(AdditionalArgs))
 		{
