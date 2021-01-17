@@ -333,6 +333,11 @@ namespace Gauntlet
 		/// <returns></returns>
 		public bool HasRequestExit()
 		{
+			if (GetAllMatches(@"Engine exit requested \(.+\)").Any())
+			{
+				return true;
+			}
+
 			string[] Completion = GetAllMatchingLines("F.+::RequestExit");
 			string[] ErrorCompletion = GetAllMatchingLines("StaticShutdownAfterError");
 
