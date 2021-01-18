@@ -41,6 +41,11 @@ public:
 	virtual void SetConversionPromptEnabled(bool bEnabled) override;
 
 	/**
+	 *
+	 */
+	virtual float GetMinimumWorldSize() const override;
+
+	/**
 	 * 
 	 */
 	virtual bool ConvertMap(const FString& InLongPackageName) override;

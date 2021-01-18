@@ -27,6 +27,7 @@
 #include "ScopedTransaction.h"
 #include "UnrealEdMisc.h"
 #include "AssetRegistryModule.h"
+#include "WorldPartition/IWorldPartitionEditorModule.h"
 #include "WorldPartition/WorldPartitionLevelStreamingDynamic.h"
 #include "WorldPartition/WorldPartitionEditorHash.h"
 #include "WorldPartition/WorldPartitionEditorSpatialHash.h"
@@ -261,8 +262,15 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 			// Load the always loaded cell, don't call LoadCells to avoid creating a transaction
 			UpdateLoadingEditorCell(EditorHash->GetAlwaysLoadedCell(), true);
 
+			// If the world is smaller than the project setting's minimum world size, load all cells
+			IWorldPartitionEditorModule& WorldPartitionEditorModule = FModuleManager::LoadModuleChecked<IWorldPartitionEditorModule>("WorldPartitionEditor");
+			const float MinimumWorldSize = WorldPartitionEditorModule.GetMinimumWorldSize();
+			const bool bWorldIsSmallerThanMinimumWorldSize = GetWorldBounds().GetVolume() <= (MinimumWorldSize * MinimumWorldSize * MinimumWorldSize);
+			
 			// When loading a subworld, load all actors
-			if (!IsMainWorldPartition())
+			const bool bWorldIsSubPartition = !IsMainWorldPartition();
+
+			if (bWorldIsSubPartition || bWorldIsSmallerThanMinimumWorldSize)
 			{
 				EditorHash->ForEachCell([this](UWorldPartitionEditorCell* Cell)
 				{
