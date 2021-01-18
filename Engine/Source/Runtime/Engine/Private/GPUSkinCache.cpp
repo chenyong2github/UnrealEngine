@@ -151,6 +151,15 @@ ENGINE_API bool IsGPUSkinCacheAvailable(EShaderPlatform Platform)
 	return (GEnableGPUSkinCacheShaders != 0 || GForceRecomputeTangents != 0) && DoesPlatformSupportGPUSkinCache(Platform);
 }
 
+ENGINE_API bool GPUSkinCacheNeedsDuplicatedVertices()
+{
+#if WITH_EDITOR // Duplicated vertices are used in the editor when merging meshes
+	return true;
+#else
+	return GAllowDupedVertsForRecomputeTangents;
+#endif
+}
+
 // We don't have it always enabled as it's not clear if this has a performance cost
 // Call on render thread only!
 // Should only be called if SM5 (compute shaders, atomics) are supported.
