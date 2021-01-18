@@ -29,7 +29,7 @@ public:
 
 	virtual void* Allocate(uint64 Size) override
 	{
-		uint64 AllocationSize = Size + (16 - 1) / 16;
+		uint64 AllocationSize = Size + (-int64(Size) & 15);
 		if (!CurrentSlab || CurrentSlabAllocatedSize + AllocationSize > SlabSize)
 		{
 			TotalAllocatedSize += SlabSize;
