@@ -493,6 +493,7 @@ void FD3D12CommandContextBase::RHIBeginFrame()
 		Device->GetGPUProfiler().BeginFrame(ParentAdapter->GetOwningRHI());
 
 		Device->GetDefaultBufferAllocator().BeginFrame();
+		Device->GetTextureAllocator().BeginFrame();
 
 #if D3D12_RHI_RAYTRACING
 		Device->GetRayTracingCompactionRequestHandler()->Update(*ContextAtIndex);

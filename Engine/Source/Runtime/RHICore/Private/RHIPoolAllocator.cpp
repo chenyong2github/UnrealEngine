@@ -196,6 +196,8 @@ FRHIMemoryPool::FRHIMemoryPool(int16 InPoolIndex, uint64 InPoolSize, uint32 InPo
 	AligmnentWaste(0), 
 	AllocatedBlocks(0)
 {	
+	// PoolSize should fit in 32 bits because FRHIPoolAllocationData only stores 32bit size
+	check(PoolSize < UINT32_MAX);
 }
 
 
@@ -518,8 +520,7 @@ FRHIPoolAllocator::~FRHIPoolAllocator()
 
 
 void FRHIPoolAllocator::Initialize()
-{
-	Pools.Add(CreateNewPool(0));
+{	
 }
 
 

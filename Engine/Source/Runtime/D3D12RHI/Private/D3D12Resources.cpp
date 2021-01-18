@@ -461,9 +461,6 @@ HRESULT FD3D12Adapter::CreatePlacedResource(const D3D12_RESOURCE_DESC& InDesc, F
 
 	if (SUCCEEDED(hr))
 	{
-		// Set a default name (can override later).
-		SetName(pResource, Name);
-
 		FD3D12Device* Device = BackingHeap->GetParentDevice();
 		const D3D12_HEAP_DESC HeapDesc = Heap->GetDesc();
 
@@ -477,6 +474,9 @@ HRESULT FD3D12Adapter::CreatePlacedResource(const D3D12_RESOURCE_DESC& InDesc, F
 			InDesc,
 			BackingHeap,
 			HeapDesc.Properties.Type);
+
+		// Set a default name (can override later).
+		SetName(*ppOutResource, Name);
 
 		(*ppOutResource)->AddRef();
 	}
@@ -800,15 +800,15 @@ void FD3D12ResourceLocation::SetResource(FD3D12Resource* Value)
 }
 
 
-void FD3D12ResourceLocation::AsStandAlone(FD3D12Resource* Resource, uint32 BufferSize, bool bInIsTransient)
+void FD3D12ResourceLocation::AsStandAlone(FD3D12Resource* Resource, uint64 InSize, bool bInIsTransient)
 {
 	SetType(FD3D12ResourceLocation::ResourceLocationType::eStandAlone);
 	SetResource(Resource);
-	SetSize(BufferSize);
+	SetSize(InSize);
 
 	if (!IsCPUInaccessible(Resource->GetHeapType()))
 	{
-		D3D12_RANGE range = { 0, IsCPUWritable(Resource->GetHeapType()) ? 0 : BufferSize };
+		D3D12_RANGE range = { 0, IsCPUWritable(Resource->GetHeapType()) ? 0 : InSize };
 		SetMappedBaseAddress(Resource->Map(&range));
 	}
 	SetGPUVirtualAddress(Resource->GetGPUVirtualAddress());
@@ -849,13 +849,38 @@ bool FD3D12ResourceLocation::OnAllocationMoved(FRHIPoolAllocationData* InNewData
 		// recreate the placed resource (ownership of current resource is already handled during the internal move)
 		FD3D12HeapAndOffset HeapAndOffset = NewAllocator->GetBackingHeapAndAllocationOffsetInBytes(*this);
 
-		CResourceState& ResourceState = CurrentResource->GetResourceState();
-		check(ResourceState.AreAllSubresourcesSame());
-		D3D12_RESOURCE_STATES CreateState = ResourceState.GetSubresourceState(0);
+		D3D12_RESOURCE_STATES CreateState;
+		ED3D12ResourceStateMode ResourceStateMode;
+		if (CurrentResource->RequiresResourceStateTracking())
+		{			
+			CResourceState& ResourceState = CurrentResource->GetResourceState();
+			if (ResourceState.AreAllSubresourcesSame())
+			{
+				// All resource states the same so we can just create the resource at that state and know everything is fine
+				CreateState = ResourceState.GetSubresourceState(0);
+			}
+			else
+			{
+				// Force in the readable state when there are different states (or use just state of subresource 0?)
+				// ideally restore all subresources in correct state? needed for when not using GUseInternalTransitions anymore because then it needs to match the set state from the engine
+				check(GUseInternalTransitions);
+				CreateState = CurrentResource->GetReadableState();
+			}
+			ResourceStateMode = ED3D12ResourceStateMode::MultiState;
+		}
+		else
+		{
+			CreateState = CurrentResource->GetDefaultResourceState();
+			ResourceStateMode = ED3D12ResourceStateMode::Default;
+		}
+
+		// TODO: fix retrieval of ClearValue from owner (currently not a problem because not defragging RT/DS resource yet)
+		D3D12_CLEAR_VALUE* ClearValue = nullptr;
+
+		FName Name = CurrentResource->GetName();
 
 		FD3D12Resource* NewResource = nullptr;
-		VERIFYD3D12RESULT(CurrentResource->GetParentDevice()->GetParentAdapter()->CreatePlacedResource(CurrentResource->GetDesc(), HeapAndOffset.Heap, HeapAndOffset.Offset, CreateState, 
-			ED3D12ResourceStateMode::MultiState, D3D12_RESOURCE_STATE_TBD, nullptr, &NewResource, nullptr)); // CurrentResource->GetName()
+		VERIFYD3D12RESULT(CurrentResource->GetParentDevice()->GetParentAdapter()->CreatePlacedResource(CurrentResource->GetDesc(), HeapAndOffset.Heap, HeapAndOffset.Offset, CreateState, ResourceStateMode, D3D12_RESOURCE_STATE_TBD, ClearValue, &NewResource, *Name.ToString()));
 
 		UnderlyingResource = NewResource;
 	}

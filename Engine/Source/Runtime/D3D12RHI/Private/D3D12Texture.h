@@ -13,7 +13,8 @@ void SafeCreateTexture2D(FD3D12Device* pDevice,
 	FD3D12Adapter* Adapter,
 	const D3D12_RESOURCE_DESC& TextureDesc,
 	const D3D12_CLEAR_VALUE* ClearValue, 
-	FD3D12ResourceLocation* OutTexture2D, 
+	FD3D12ResourceLocation* OutTexture2D,
+	FD3D12BaseShaderResource* Owner,
 	uint8 Format, 
 	ETextureCreateFlags Flags,
 	D3D12_RESOURCE_STATES InitialState,
@@ -54,6 +55,7 @@ public:
 		{
 			DepthStencilViews[SubResourceIndex] = View;
 			NumDepthStencilViews = FMath::Max(SubResourceIndex + 1, NumDepthStencilViews);
+			AddView(View);
 		}
 		else
 		{
@@ -66,6 +68,7 @@ public:
 		if (SubResourceIndex < (uint32)RenderTargetViews.Num())
 		{
 			RenderTargetViews[SubResourceIndex] = View;
+			AddView(View);
 		}
 		else
 		{
@@ -77,6 +80,7 @@ public:
 	{
 		RenderTargetViews.Empty(1);
 		RenderTargetViews.Add(View);
+		AddView(View);
 	}
 
 	int64 GetMemorySize() const
@@ -102,7 +106,7 @@ public:
 	FD3D12BaseShaderResource* GetBaseShaderResource() const { return BaseShaderResource; }
 	inline const FTextureRHIRef& GetAliasingSourceTexture() const { return AliasingSourceTexture; }
 
-	void SetShaderResourceView(FD3D12ShaderResourceView* InShaderResourceView) { ShaderResourceView = InShaderResourceView; }
+	void SetShaderResourceView(FD3D12ShaderResourceView* InShaderResourceView) { ShaderResourceView = InShaderResourceView; AddView(InShaderResourceView); }
 
 	static inline bool ShouldDeferCmdListOperation(FRHICommandList* RHICmdList)
 	{
@@ -119,7 +123,7 @@ public:
 		return true;
 	}
 
-	void UpdateTexture(const D3D12_TEXTURE_COPY_LOCATION& DestCopyLocation, uint32 DestX, uint32 DestY, uint32 DestZ, const D3D12_TEXTURE_COPY_LOCATION& SourceCopyLocation);
+	void UpdateTexture(uint32 MipIndex, uint32 DestX, uint32 DestY, uint32 DestZ, const D3D12_TEXTURE_COPY_LOCATION& SourceCopyLocation);
 	void CopyTextureRegion(uint32 DestX, uint32 DestY, uint32 DestZ, FD3D12TextureBase* SourceTexture, const D3D12_BOX& SourceBox);
 	void InitializeTextureData(class FRHICommandListImmediate* RHICmdList, const void* InitData, uint32 InitDataSize, uint32 SizeX, uint32 SizeY, uint32 SizeZ, uint32 NumSlices, uint32 NumMips, EPixelFormat Format, D3D12_RESOURCE_STATES DestinationState);
 

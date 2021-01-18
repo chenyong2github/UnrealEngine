@@ -817,6 +817,13 @@ public:
 		Initialize(InDesc, InResourceLocation, InStride, InStartOffsetBytes, InSkipFastClearFinalize);
 	}
 
+	template<typename TextureType>
+	FD3D12ShaderResourceView(TextureType* InTexture, D3D12_SHADER_RESOURCE_VIEW_DESC& InDesc)
+		: FD3D12ShaderResourceView(InTexture->GetParentDevice(), InDesc, InTexture->ResourceLocation)
+	{
+		InTexture->AddView(this);
+	}
+
 	~FD3D12ShaderResourceView()
 	{
 		// Non-resident mesh LODs can lead to null SRVs being created
@@ -1018,7 +1025,7 @@ public:
 };
 #endif
 
-class FD3D12RenderTargetView : public FD3D12View<D3D12_RENDER_TARGET_VIEW_DESC>, public FRHIResource, public FD3D12LinkedAdapterObject<FD3D12RenderTargetView>
+class FD3D12RenderTargetView : public FD3D12BaseShaderResourceView, public FD3D12View<D3D12_RENDER_TARGET_VIEW_DESC>, public FRHIResource, public FD3D12LinkedAdapterObject<FD3D12RenderTargetView>
 {
 public:
 	FD3D12RenderTargetView(FD3D12Device* InParent, const D3D12_RENDER_TARGET_VIEW_DESC& InRTVDesc, FD3D12ResourceLocation& InResourceLocation)
@@ -1026,9 +1033,22 @@ public:
 	{
 		CreateView(InRTVDesc, InResourceLocation);
 	}
+	
+	~FD3D12RenderTargetView()
+	{
+		FD3D12BaseShaderResourceView::Remove();
+	}
+
+	virtual void Recreate(FD3D12ResourceLocation& InResourceLocation) override
+	{
+		check(ResourceLocation == &InResourceLocation);
+		check(InResourceLocation.GetOffsetFromBaseOfResource() == 0);
+
+		CreateView(Desc, InResourceLocation);
+	}
 };
 
-class FD3D12DepthStencilView : public FD3D12View<D3D12_DEPTH_STENCIL_VIEW_DESC>, public FRHIResource, public FD3D12LinkedAdapterObject<FD3D12DepthStencilView>
+class FD3D12DepthStencilView : public FD3D12BaseShaderResourceView, public FD3D12View<D3D12_DEPTH_STENCIL_VIEW_DESC>, public FRHIResource, public FD3D12LinkedAdapterObject<FD3D12DepthStencilView>
 {
 	const bool bHasDepth;
 	const bool bHasStencil;
@@ -1065,6 +1085,11 @@ public:
 		}
 	}
 
+	~FD3D12DepthStencilView()
+	{
+		FD3D12BaseShaderResourceView::Remove();
+	}
+
 	bool HasDepth() const
 	{
 		return bHasDepth;
@@ -1085,6 +1110,14 @@ public:
 	{
 		check(bHasStencil);
 		return StencilOnlyViewSubresourceSubset;
+	}
+
+	virtual void Recreate(FD3D12ResourceLocation& InResourceLocation) override
+	{
+		check(ResourceLocation == &InResourceLocation);
+		check(InResourceLocation.GetOffsetFromBaseOfResource() == 0);
+
+		CreateView(Desc, InResourceLocation);
 	}
 };
 

@@ -273,6 +273,7 @@ FD3D12Texture2D* GetSwapChainSurface(FD3D12Device* Parent, EPixelFormat PixelFor
 				BackBufferDesc,
 				nullptr, // &ClearValueBinding,
 				&NewTexture->ResourceLocation,
+				NewTexture,
 				PixelFormat,
 				TexCreate_RenderTargetable |  TexCreate_ShaderResource,
 				D3D12_RESOURCE_STATE_PRESENT,

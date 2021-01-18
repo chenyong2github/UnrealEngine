@@ -42,11 +42,18 @@ struct FD3D12ResourceInitConfig
 **/
 struct FD3D12VRAMCopyOperation
 {
+	enum ECopyType
+	{
+		BufferRegion,
+		Resource,
+	};
+
 	FD3D12Resource* SourceResource;
 	uint32 SourceOffset;
 	FD3D12Resource* DestResource;
 	uint32 DestOffset;
 	uint32 Size;
+	ECopyType CopyType;
 };
 
 // Heap and offset combined to specific location of a resource
@@ -118,6 +125,9 @@ public:
 	void AllocDefaultResource(D3D12_HEAP_TYPE InHeapType, const D3D12_RESOURCE_DESC& InDesc, EBufferUsageFlags InBufferUsage, ED3D12ResourceStateMode InResourceStateMode,
 		D3D12_RESOURCE_STATES InCreateState, uint32 InAlignment, const TCHAR* InName, FD3D12ResourceLocation& ResourceLocation);
 	void Deallocate(FD3D12ResourceLocation& ResourceLocation);
+
+	void AllocResource(D3D12_HEAP_TYPE InHeapType, const D3D12_RESOURCE_DESC& InDesc, uint64 InSize, uint32 InAllocationAlignment, ED3D12ResourceStateMode InResourceStateMode,
+		D3D12_RESOURCE_STATES InCreateState, const D3D12_CLEAR_VALUE* InClearValue, const TCHAR* InName, FD3D12ResourceLocation& ResourceLocation);
 
 	void CleanUpAllocations(uint64 InFrameLag);
 	void FlushPendingCopyOps(FD3D12CommandContext& InCommandContext);

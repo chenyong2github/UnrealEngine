@@ -27,6 +27,11 @@ FD3D12MemoryPool::~FD3D12MemoryPool()
 
 void FD3D12MemoryPool::Init()
 {
+	if (PoolSize == 0)
+	{
+		return;
+	}
+
 	FD3D12Device* Device = GetParentDevice();
 	FD3D12Adapter* Adapter = Device->GetParentAdapter();
 
@@ -195,16 +200,6 @@ bool FD3D12PoolAllocator::SupportsAllocation(D3D12_HEAP_TYPE InHeapType, D3D12_R
 void FD3D12PoolAllocator::AllocDefaultResource(D3D12_HEAP_TYPE InHeapType, const D3D12_RESOURCE_DESC& InDesc, EBufferUsageFlags InBufferUsage, ED3D12ResourceStateMode InResourceStateMode,
 	D3D12_RESOURCE_STATES InCreateState, uint32 InAllocationAlignment, const TCHAR* InName, FD3D12ResourceLocation& ResourceLocation)
 {
-	FD3D12Device* Device = GetParentDevice();
-	FD3D12Adapter* Adapter = Device->GetParentAdapter();
-
-	// If the resource location owns a block, this will deallocate it.
-	ResourceLocation.Clear();
-	if (InDesc.Width == 0)
-	{
-		return;
-	}
-
 #if DO_CHECK
 	// Validate the create state
 	if (InHeapType == D3D12_HEAP_TYPE_READBACK)
@@ -225,7 +220,24 @@ void FD3D12PoolAllocator::AllocDefaultResource(D3D12_HEAP_TYPE InHeapType, const
 #endif // D3D12_RHI_RAYTRACING
 #endif  // DO_CHECK
 
-	const bool PoolResource = InDesc.Width <= MaxAllocationSize;
+	AllocResource(InHeapType, InDesc, InDesc.Width, InAllocationAlignment, InResourceStateMode, InCreateState, nullptr, InName, ResourceLocation);
+}
+
+
+void FD3D12PoolAllocator::AllocResource(D3D12_HEAP_TYPE InHeapType, const D3D12_RESOURCE_DESC& InDesc, uint64 InSize, uint32 InAllocationAlignment, ED3D12ResourceStateMode InResourceStateMode,
+	D3D12_RESOURCE_STATES InCreateState, const D3D12_CLEAR_VALUE* InClearValue, const TCHAR* InName, FD3D12ResourceLocation& ResourceLocation)
+{
+	// If the resource location owns a block, this will deallocate it.
+	ResourceLocation.Clear();
+	if (InSize == 0)
+	{
+		return;
+	}
+
+	FD3D12Device* Device = GetParentDevice();
+	FD3D12Adapter* Adapter = Device->GetParentAdapter();
+
+	const bool PoolResource = InSize <= MaxAllocationSize;
 	if (PoolResource)
 	{
 		const bool bPlacedResource = (AllocationStrategy == EResourceAllocationStrategy::kPlacedResource);
@@ -234,7 +246,7 @@ void FD3D12PoolAllocator::AllocDefaultResource(D3D12_HEAP_TYPE InHeapType, const
 		if (bPlacedResource)
 		{
 			// Writeable resources get separate ID3D12Resource* with their own resource state by using placed resources. Just make sure it's UAV, other flags are free to differ.
-			check((InDesc.Flags & InitConfig.ResourceFlags & D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS) != 0 || InHeapType == D3D12_HEAP_TYPE_READBACK);
+			check(InDesc.Dimension != D3D12_RESOURCE_DIMENSION_BUFFER || (InDesc.Flags & InitConfig.ResourceFlags & D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS) != 0 || InHeapType == D3D12_HEAP_TYPE_READBACK);
 		}
 		else
 		{
@@ -244,12 +256,12 @@ void FD3D12PoolAllocator::AllocDefaultResource(D3D12_HEAP_TYPE InHeapType, const
 
 		// Try to allocate in one of the pools
 		FRHIPoolAllocationData& AllocationData = ResourceLocation.GetPoolAllocatorPrivateData().PoolData;
-		if (TryAllocateInternal(InDesc.Width, InAllocationAlignment, AllocationData))
+		if (TryAllocateInternal(InSize, InAllocationAlignment, AllocationData))
 		{
 			// Setup the resource location
 			ResourceLocation.SetType(FD3D12ResourceLocation::ResourceLocationType::eSubAllocation);
 			ResourceLocation.SetPoolAllocator(this);
-			ResourceLocation.SetSize(InDesc.Width);
+			ResourceLocation.SetSize(InSize);
 
 			AllocationData.SetOwner(&ResourceLocation);
 
@@ -273,7 +285,7 @@ void FD3D12PoolAllocator::AllocDefaultResource(D3D12_HEAP_TYPE InHeapType, const
 				FD3D12HeapAndOffset HeapAndOffset = GetBackingHeapAndAllocationOffsetInBytes(ResourceLocation);
 
 				FD3D12Resource* NewResource = nullptr;
-				VERIFYD3D12RESULT(Adapter->CreatePlacedResource(InDesc, HeapAndOffset.Heap, HeapAndOffset.Offset, InCreateState, ED3D12ResourceStateMode::MultiState, D3D12_RESOURCE_STATE_TBD, nullptr, &NewResource, InName));
+				VERIFYD3D12RESULT(Adapter->CreatePlacedResource(InDesc, HeapAndOffset.Heap, HeapAndOffset.Offset, InCreateState, InResourceStateMode, D3D12_RESOURCE_STATE_TBD, InClearValue, &NewResource, InName));
 
 				ResourceLocation.SetResource(NewResource);
 			}
@@ -288,8 +300,12 @@ void FD3D12PoolAllocator::AllocDefaultResource(D3D12_HEAP_TYPE InHeapType, const
 
 	// Allocate Standalone - move to owner of resource because this allocator should only manage pooled allocations (needed for now to do the same as FD3D12DefaultBufferPool)
 	FD3D12Resource* NewResource = nullptr;
-	VERIFYD3D12RESULT(Adapter->CreateBuffer(InHeapType, GetGPUMask(), GetVisibilityMask(), InCreateState, InResourceStateMode, InDesc.Width, &NewResource, InName, InDesc.Flags));
-	ResourceLocation.AsStandAlone(NewResource, InDesc.Width);
+	const D3D12_HEAP_PROPERTIES HeapProps = CD3DX12_HEAP_PROPERTIES(InHeapType, GetGPUMask().GetNative(), GetVisibilityMask().GetNative());
+	D3D12_RESOURCE_DESC Desc = InDesc;
+	Desc.Alignment = 0;
+	VERIFYD3D12RESULT(Adapter->CreateCommittedResource(Desc, GetGPUMask(), HeapProps, InCreateState, InClearValue, &NewResource, InName, false));
+	
+	ResourceLocation.AsStandAlone(NewResource, InSize);
 }
 
 
@@ -397,7 +413,10 @@ bool FD3D12PoolAllocator::HandleDefragRequest(FRHIPoolAllocationData* InSourceBl
 	CopyOp.DestResource		= Owner->GetResource();
 	CopyOp.DestOffset		= Owner->GetOffsetFromBaseOfResource();
 	CopyOp.Size				= InSourceBlock->GetSize();
+	CopyOp.CopyType			= AllocationStrategy == EResourceAllocationStrategy::kManualSubAllocation ? FD3D12VRAMCopyOperation::ECopyType::BufferRegion : FD3D12VRAMCopyOperation::ECopyType::Resource;
 	PendingCopyOps.Add(CopyOp);
+
+	// TODO: Using aliasing buffer on whole heap for copies to reduce flushes and resource transitions
 
 	return true;
 }
@@ -522,14 +541,26 @@ void FD3D12PoolAllocator::FlushPendingCopyOps(FD3D12CommandContext& InCommandCon
 
 	FD3D12CommandListHandle& CommandListHandle = InCommandContext.CommandListHandle;
 
+	FD3D12Adapter* Adapter = GetParentDevice()->GetParentAdapter();
+	FD3D12Fence& FrameFence = Adapter->GetFrameFence();
+
 	for (FD3D12VRAMCopyOperation& CopyOperation : PendingCopyOps)
-	{
+	{		
+		bool bRTAccelerationStructure = false;
 		if (CopyOperation.SourceResource->RequiresResourceStateTracking())
 		{
 			check(CopyOperation.DestResource->RequiresResourceStateTracking());
 			FD3D12DynamicRHI::TransitionResource(CommandListHandle, CopyOperation.SourceResource, D3D12_RESOURCE_STATE_TBD, D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, FD3D12DynamicRHI::ETransitionMode::Apply);
 			FD3D12DynamicRHI::TransitionResource(CommandListHandle, CopyOperation.DestResource, D3D12_RESOURCE_STATE_TBD, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, FD3D12DynamicRHI::ETransitionMode::Apply);
 		}
+#if D3D12_RHI_RAYTRACING
+		else if (CopyOperation.SourceResource->GetDefaultResourceState() == D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE)
+		{
+			// can't make state changes to RT resources
+			bRTAccelerationStructure = true;
+			check(CopyOperation.DestResource->GetDefaultResourceState() == D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE);
+		}
+#endif // D3D12_RHI_RAYTRACING
 		else
 		{
 			check(!CopyOperation.DestResource->RequiresResourceStateTracking());
@@ -537,15 +568,41 @@ void FD3D12PoolAllocator::FlushPendingCopyOps(FD3D12CommandContext& InCommandCon
 			CommandListHandle.AddTransitionBarrier(CopyOperation.DestResource, CopyOperation.DestResource->GetDefaultResourceState(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
 		}
 
+		// Enable to log all defrag copy ops
+		//UE_LOG(LogD3D12RHI, Log, TEXT("Running defrag copy op for: %s at Frame: %d (Old: %#016llx New: %#016llx)"), *CopyOperation.SourceResource->GetName().ToString(), FrameFence.GetCurrentFence(), CopyOperation.SourceResource, CopyOperation.DestResource);
+
 		InCommandContext.numCopies++;
 		CommandListHandle.FlushResourceBarriers();
-		CommandListHandle->CopyBufferRegion(CopyOperation.DestResource->GetResource(), CopyOperation.DestOffset,
-			CopyOperation.SourceResource->GetResource(), CopyOperation.SourceOffset, CopyOperation.Size);
-		
+
+#if D3D12_RHI_RAYTRACING
+		if (bRTAccelerationStructure)
+		{
+			CommandListHandle.GraphicsCommandList5()->CopyRaytracingAccelerationStructure(CopyOperation.DestResource->GetResource()->GetGPUVirtualAddress(),
+				CopyOperation.SourceResource->GetResource()->GetGPUVirtualAddress(), D3D12_RAYTRACING_ACCELERATION_STRUCTURE_COPY_MODE_CLONE);
+		}
+		else
+#endif // D3D12_RHI_RAYTRACING
+		{
+			switch (CopyOperation.CopyType)
+			{
+			case FD3D12VRAMCopyOperation::BufferRegion:
+			{
+				CommandListHandle->CopyBufferRegion(CopyOperation.DestResource->GetResource(), CopyOperation.DestOffset,
+					CopyOperation.SourceResource->GetResource(), CopyOperation.SourceOffset, CopyOperation.Size);
+				break;
+			}
+			case FD3D12VRAMCopyOperation::Resource:
+			{
+				CommandListHandle->CopyResource(CopyOperation.DestResource->GetResource(), CopyOperation.SourceResource->GetResource());
+				break;
+			}
+			}
+		}
+
 		CommandListHandle.UpdateResidency(CopyOperation.SourceResource);
 		CommandListHandle.UpdateResidency(CopyOperation.DestResource);
 
-		if (!CopyOperation.SourceResource->RequiresResourceStateTracking())
+		if (!bRTAccelerationStructure && !CopyOperation.SourceResource->RequiresResourceStateTracking())
 		{
 			CommandListHandle.AddTransitionBarrier(CopyOperation.SourceResource, D3D12_RESOURCE_STATE_COPY_SOURCE, CopyOperation.SourceResource->GetDefaultResourceState(), D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
 			CommandListHandle.AddTransitionBarrier(CopyOperation.DestResource, D3D12_RESOURCE_STATE_COPY_DEST, CopyOperation.DestResource->GetDefaultResourceState(), D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
