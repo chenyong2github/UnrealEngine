@@ -4845,6 +4845,7 @@ void ALandscapeProxy::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 		PropertyName == FName(TEXT("CastShadow")) ||
 		PropertyName == FName(TEXT("bCastDynamicShadow")) ||
 		PropertyName == FName(TEXT("bCastStaticShadow")) ||
+		PropertyName == FName(TEXT("bCastContactShadow")) ||
 		PropertyName == FName(TEXT("bCastFarShadow")) ||
 		PropertyName == FName(TEXT("bCastHiddenShadow")) ||
 		PropertyName == FName(TEXT("bCastShadowAsTwoSided")) ||

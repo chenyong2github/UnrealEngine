@@ -723,6 +723,7 @@ void ULandscapeComponent::UpdatedSharedPropertiesFromActor()
 	CastShadow = LandscapeProxy->CastShadow;
 	bCastDynamicShadow = LandscapeProxy->bCastDynamicShadow;
 	bCastStaticShadow = LandscapeProxy->bCastStaticShadow;
+	bCastContactShadow = LandscapeProxy->bCastContactShadow;
 	bCastFarShadow = LandscapeProxy->bCastFarShadow;
 	bCastHiddenShadow = LandscapeProxy->bCastHiddenShadow;
 	bCastShadowAsTwoSided = LandscapeProxy->bCastShadowAsTwoSided;
@@ -1069,6 +1070,7 @@ ALandscapeProxy::ALandscapeProxy(const FObjectInitializer& ObjectInitializer)
 	CastShadow = true;
 	bCastDynamicShadow = true;
 	bCastStaticShadow = true;
+	bCastContactShadow = true;
 	bCastFarShadow = true;
 	bCastHiddenShadow = false;
 	bCastShadowAsTwoSided = false;
@@ -2571,6 +2573,7 @@ void ALandscapeProxy::GetSharedProperties(ALandscapeProxy* Landscape)
 		CastShadow = Landscape->CastShadow;
 		bCastDynamicShadow = Landscape->bCastDynamicShadow;
 		bCastStaticShadow = Landscape->bCastStaticShadow;
+		bCastContactShadow = Landscape->bCastContactShadow;
 		bCastFarShadow = Landscape->bCastFarShadow;
 		bCastHiddenShadow = Landscape->bCastHiddenShadow;
 		bCastShadowAsTwoSided = Landscape->bCastShadowAsTwoSided;
