@@ -1590,7 +1590,7 @@ inline bool IsDeprecatedShaderPlatform(const FStaticShaderPlatform ShaderPlatfor
 	return ShaderPlatform == SP_OPENGL_SM5_REMOVED || ShaderPlatform == SP_PCD3D_SM4_REMOVED || ShaderPlatform == SP_OPENGL_ES2_IOS_REMOVED ||
 		ShaderPlatform == SP_PCD3D_ES2_REMOVED || ShaderPlatform == SP_METAL_MACES2_REMOVED || ShaderPlatform == SP_OPENGL_PCES2_REMOVED ||
 		ShaderPlatform == SP_OPENGL_ES2_ANDROID_REMOVED || ShaderPlatform == SP_OPENGL_ES2_WEBGL_REMOVED ||
-		ShaderPlatform == SP_VULKAN_SM4_REMOVED || ShaderPlatform == SP_OPENGL_SM4_REMOVED;
+		ShaderPlatform == SP_VULKAN_SM4_REMOVED || ShaderPlatform == SP_OPENGL_SM4_REMOVED || ShaderPlatform == SP_OPENGL_ES31_EXT_REMOVED;
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
