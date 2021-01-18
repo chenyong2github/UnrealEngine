@@ -7,6 +7,8 @@
 #include "Algo/ForEach.h"
 #include "Application/SlateApplicationBase.h"
 #include "DragAndDrop/DecoratedDragDropOp.h"
+#include "Editor/EditorPerformanceSettings.h"
+#include "EditorFontGlyphs.h"
 #include "Engine/Engine.h"
 #include "Editor.h"
 #include "Engine/Selection.h"
@@ -897,6 +899,13 @@ void SRemoteControlPanel::Construct(const FArguments& InArgs, URemoteControlPres
 			// Top tool bar
 			SNew(SHorizontalBox)
 			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			[
+				CreateCPUThrottleButton()
+			]
+
+			+ SHorizontalBox::Slot()
 			.Padding(FMargin(5.0f, 0.0f))
 			.VAlign(VAlign_Center)
 			.AutoWidth()
@@ -1063,6 +1072,35 @@ void SRemoteControlPanel::ToggleProperty(const TSharedPtr<IPropertyHandle>& Prop
 FRemoteControlPresetLayout& SRemoteControlPanel::GetLayout()
 {
 	return Preset->Layout;
+}
+
+FReply SRemoteControlPanel::OnClickDisableUseLessCPU() const
+{
+	UEditorPerformanceSettings* Settings = GetMutableDefault<UEditorPerformanceSettings>();
+	Settings->bThrottleCPUWhenNotForeground = false;
+	Settings->PostEditChange();
+	Settings->SaveConfig();
+	return FReply::Handled();
+}
+
+TSharedRef<SWidget> SRemoteControlPanel::CreateCPUThrottleButton() const
+{
+	FProperty* PerformanceThrottlingProperty = FindFieldChecked<FProperty>(UEditorPerformanceSettings::StaticClass(), GET_MEMBER_NAME_CHECKED(UEditorPerformanceSettings, bThrottleCPUWhenNotForeground));
+	FFormatNamedArguments Arguments;
+	Arguments.Add(TEXT("PropertyName"), PerformanceThrottlingProperty->GetDisplayNameText());
+	FText PerformanceWarningText = FText::Format(LOCTEXT("RemoteControlPerformanceWarning", "Warning: The editor setting '{PropertyName}' is currently enabled\nThis will stop editor windows from updating in realtime while the editor is not in focus"), Arguments);
+
+	return SNew(SButton)
+		.ButtonStyle(FEditorStyle::Get(), "FlatButton")
+		.Visibility_Lambda([]() {return GetDefault<UEditorPerformanceSettings>()->bThrottleCPUWhenNotForeground ? EVisibility::Visible : EVisibility::Collapsed; })
+		.OnClicked_Raw(this, &SRemoteControlPanel::OnClickDisableUseLessCPU)
+		[
+			SNew(STextBlock)
+			.ToolTipText(MoveTemp(PerformanceWarningText))
+			.TextStyle(FRemoteControlPanelStyle::Get(), "RemoteControlPanel.Button.TextStyle")
+			.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
+			.Text(FEditorFontGlyphs::Exclamation_Triangle)
+		];
 }
 
 void SRemoteControlPanel::RegisterEvents()
@@ -2226,7 +2264,7 @@ TSharedPtr<SRCPanelExposedField> SRemoteControlTarget::AddExposedFunction(const 
 		[
 			SNew(SButton)
 			.VAlign(VAlign_Center)
-			.OnClicked_Raw(this, &SRemoteControlTarget::OnClickFunctionButton, RCFunction)
+			.OnClicked_Raw(this, &SRemoteControlTarget::OnClickFunctionButton, RCFunction.Id)
 			[
 				SNew(STextBlock)
 				.Text(LOCTEXT("CallFunctionLabel", "Call Function"))
@@ -2273,24 +2311,27 @@ FRemoteControlTarget& SRemoteControlTarget::GetUnderlyingTarget()
 	return Panel->GetPreset()->GetRemoteControlTargets().FindChecked(TargetAlias);
 }
 
-FReply SRemoteControlTarget::OnClickFunctionButton(FRemoteControlFunction FunctionField)
+FReply SRemoteControlTarget::OnClickFunctionButton(FGuid FunctionId)
 {
 	FScopedTransaction FunctionTransaction(LOCTEXT("CallExposedFunction", "Called a function through preset."));
 	FEditorScriptExecutionGuard ScriptGuard;
 
 	if (URemoteControlPreset* Preset = GetPreset())
 	{
-		if (TOptional<FExposedFunction> Function = Preset->ResolveExposedFunction(FunctionField.Label))
+		if (TOptional<FRemoteControlField> Field = Preset->GetField(FunctionId))
 		{
-			for (UObject* Object : Function->OwnerObjects)
+			if (TOptional<FExposedFunction> Function = Preset->ResolveExposedFunction(Field->Label))
 			{
-				if (FunctionField.FunctionArguments)
+				for (UObject* Object : Function->OwnerObjects)
 				{
-					Object->ProcessEvent(FunctionField.Function, FunctionField.FunctionArguments->GetStructMemory());
-				}
-				else
-				{
-					ensureAlwaysMsgf(false, TEXT("Verify what causes this"));
+					if (Function->DefaultParameters)
+					{
+						Object->ProcessEvent(Function->Function, Function->DefaultParameters->GetStructMemory());
+					}
+					else
+					{
+						ensureAlwaysMsgf(false, TEXT("Verify what causes this"));
+					}
 				}
 			}
 		}

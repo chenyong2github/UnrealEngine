@@ -331,7 +331,7 @@ public:
 
 private:
 	/** Handle clicking on an exposed function's button. */
-	FReply OnClickFunctionButton(FRemoteControlFunction FunctionField);
+	FReply OnClickFunctionButton(FGuid FunctionId);
 
 	/** Handle getting the visibility of certain widgets according to the panel's mode. */
 	EVisibility GetVisibilityAccordingToEditMode() const;
@@ -530,6 +530,12 @@ private:
 
 	//~ PIE Start/Stop handler.
 	void OnPieEvent(bool);
+
+	/** Handles disbabling CPU throttling. */
+	FReply OnClickDisableUseLessCPU() const;
+
+	/** Creates a widget that warns the user when CPU throttling is enabled.  */
+	TSharedRef<SWidget> CreateCPUThrottleButton() const;
 
 	void OnGroupAdded(const FRemoteControlPresetGroup& Group);
 	void OnGroupDeleted(FRemoteControlPresetGroup DeletedGroup);
