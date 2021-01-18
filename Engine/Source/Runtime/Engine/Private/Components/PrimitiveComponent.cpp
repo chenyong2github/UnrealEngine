@@ -331,7 +331,6 @@ UPrimitiveComponent::UPrimitiveComponent(const FObjectInitializer& ObjectInitial
 	bCastVolumetricTranslucentShadow = false;
 	bCastContactShadow = true;
 	IndirectLightingCacheQuality = ILCQ_Point;
-	bEditingLevelInstanceState = false;
 	bSelectable = true;
 	bFillCollisionUnderneathForNavmesh = false;
 	AlwaysLoadOnClient = true;
@@ -1453,6 +1452,18 @@ bool UPrimitiveComponent::ShouldRenderSelected() const
 	return false;
 }
 
+bool UPrimitiveComponent::GetLevelInstanceEditingState() const
+{
+#if WITH_EDITOR
+	if (const AActor* Owner = GetOwner())
+	{
+		return Owner->IsInEditingLevelInstance();
+	}
+#endif
+
+	return false;
+}
+
 void UPrimitiveComponent::SetCastShadow(bool NewCastShadow)
 {
 	if(NewCastShadow != CastShadow)
@@ -1548,10 +1559,9 @@ void UPrimitiveComponent::PushSelectionToProxy()
 void UPrimitiveComponent::PushLevelInstanceEditingStateToProxy(bool bInEditingState)
 {
 	//although this should only be called for attached components, some billboard components can get in without valid proxies
-	bEditingLevelInstanceState = bInEditingState;
 	if (SceneProxy)
 	{
-		SceneProxy->SetLevelInstanceEditingState_GameThread(bEditingLevelInstanceState);
+		SceneProxy->SetLevelInstanceEditingState_GameThread(bInEditingState);
 	}
 }
 

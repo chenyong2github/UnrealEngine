@@ -116,7 +116,7 @@ FPrimitiveSceneProxy::FPrimitiveSceneProxy(const UPrimitiveComponent* InComponen
 ,	bOwnerNoSee(InComponent->bOwnerNoSee)
 ,	bParentSelected(InComponent->ShouldRenderSelected())
 ,	bIndividuallySelected(InComponent->IsComponentIndividuallySelected())
-,	bLevelInstanceEditingState(InComponent->bEditingLevelInstanceState)
+,	bLevelInstanceEditingState(InComponent->GetLevelInstanceEditingState())
 ,	bHovered(false)
 ,	bUseViewOwnerDepthPriorityGroup(InComponent->bUseViewOwnerDepthPriorityGroup)
 ,	bHasMotionBlurVelocityMeshes(InComponent->bHasMotionBlurVelocityMeshes)

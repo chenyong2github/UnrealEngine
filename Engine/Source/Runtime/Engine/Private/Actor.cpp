@@ -143,7 +143,7 @@ void AActor::InitializeDefaults()
 	bAllowReceiveTickEventOnDedicatedServer = true;
 	bRelevantForNetworkReplays = true;
 	bRelevantForLevelBounds = true;
-	
+
 	// Overlap collision settings
 	bGenerateOverlapEventsDuringLevelStreaming = false;
 	UpdateOverlapsMethodDuringLevelStreaming = EActorUpdateOverlapsMethod::UseConfigDefault;
@@ -151,6 +151,7 @@ void AActor::InitializeDefaults()
 	
 	bHasDeferredComponentRegistration = false;
 #if WITH_EDITORONLY_DATA
+	bIsInEditingLevelInstance = false;
 	PivotOffset = FVector::ZeroVector;
 #endif
 	SpawnCollisionHandlingMethod = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
@@ -4667,16 +4668,23 @@ void AActor::PushSelectionToProxies()
 	}
 }
 
+#if WITH_EDITOR
 void AActor::PushLevelInstanceEditingStateToProxies(bool bInEditingState)
 {
 	TInlineComponentArray<UPrimitiveComponent*> PrimComponents;
 	GetComponents(PrimComponents);
 
+
+	bIsInEditingLevelInstance = bInEditingState;
+
+	// We call the virtual method here to allow subclasses to extend the logic for determining level instance state.
+	const bool bPushEditingLevelInstanceState = IsInEditingLevelInstance();
+
 	for (const auto& PrimComponent : PrimComponents)
 	{
 		if (PrimComponent->IsRegistered())
 		{
-			PrimComponent->PushLevelInstanceEditingStateToProxy(bInEditingState);
+			PrimComponent->PushLevelInstanceEditingStateToProxy(bPushEditingLevelInstanceState);
 		}
 	}
 
@@ -4688,6 +4696,7 @@ void AActor::PushLevelInstanceEditingStateToProxies(bool bInEditingState)
 
 	ForEachAttachedActors(PushAllChildrenToProxies);
 }
+#endif
 
 bool AActor::IsChildActor() const
 {

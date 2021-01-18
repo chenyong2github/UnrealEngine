@@ -217,6 +217,13 @@ private:
 	UPROPERTY()
 	uint8 bForceNetAddressable:1;
 
+#if WITH_EDITORONLY_DATA
+	/**
+	 * Whether this actor belongs to a level instance which is currently being edited.
+	 */
+	UPROPERTY(Transient)
+	uint8 bIsInEditingLevelInstance:1;
+#endif
 public:
 
 	/** If true, this actor is no longer replicated to new clients, and is "torn off" (becomes a ROLE_Authority) on clients to which it was being replicated. */
@@ -224,6 +231,14 @@ public:
 	{
 		return bTearOff;
 	}
+
+#if WITH_EDITOR
+	/** If true, the actor belongs to a level instance which is currently being edited. */
+	virtual bool IsInEditingLevelInstance() const
+	{
+		return bIsInEditingLevelInstance;
+	}
+#endif
 
 	/** Networking - Server - TearOff this actor to stop replication to clients. Will set bTearOff to true. */
 	UFUNCTION(BlueprintCallable, Category=Replication)
@@ -2519,8 +2534,10 @@ public:
 	/** Push Selection to actor */
 	virtual void PushSelectionToProxies();
 
+#if WITH_EDITOR
 	/** Push Foundation Editing state to primitive scene proxy */
 	virtual void PushLevelInstanceEditingStateToProxies(bool bInEditingState);
+#endif
 
 	/** 
 	 * Returns a list of all actors spawned by our Child Actor Components, including children of children. 
