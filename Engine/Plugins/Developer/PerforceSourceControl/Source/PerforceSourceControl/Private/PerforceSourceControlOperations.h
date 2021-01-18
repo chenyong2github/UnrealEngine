@@ -47,7 +47,7 @@ public:
 	TMap<FString, EPerforceState::Type> OutResults;
 
 	/** Changelist we submitted */
-	int32 OutChangelistNumber;
+	FPerforceSourceControlChangelist OutChangelist;
 };
 
 class FPerforceMarkForAddWorker : public IPerforceSourceControlWorker
@@ -152,7 +152,7 @@ public:
 public:
 	/** Temporary states for results */
 	TArray<FPerforceSourceControlChangelistState> OutChangelistsStates;
-	TArray<TArray<FPerforceSourceControlState>> OutCLFilesStates;
+	TArray<TMap<FString, EPerforceState::Type>> OutCLFilesStateMap;
 	TArray<TArray<FPerforceSourceControlState>> OutCLShelvedFilesStates;
 };
 
@@ -246,6 +246,9 @@ public:
 protected:
 	/** Map of filenames to perforce state */
 	TMap<FString, EPerforceState::Type> OutResults;
+
+	/** Changelist to be udpated */
+	FPerforceSourceControlChangelist ChangelistToUpdate;
 };
 
 class FPerforceReopenWorker : public IPerforceSourceControlWorker
