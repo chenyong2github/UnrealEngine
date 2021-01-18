@@ -1301,6 +1301,8 @@ public:
 
 #endif // RHI_RAYTRACING
 
+	uint32 InstancedStereoWidth = 0;
+
 	/** 
 	 * Initialization constructor. Passes all parameters to FSceneView constructor
 	 */
