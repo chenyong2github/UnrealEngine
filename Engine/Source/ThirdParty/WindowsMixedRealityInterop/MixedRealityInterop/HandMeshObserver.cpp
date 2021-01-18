@@ -17,11 +17,28 @@ namespace WindowsMixedReality
 	std::function<void(MeshUpdate*)> HandMeshUpdateObserver::s_OnAllocateBuffers;
 	std::function<void()> HandMeshUpdateObserver::s_OnFinishMeshUpdates;
 
+	HandMeshUpdateObserver::HandMeshUpdateObserver()
+	{
+		CoCreateGuid(&m_guid);
+	}
+
 	void HandMeshUpdateObserver::InitAsync(SpatialInteractionSource source)
 	{
-#if PLATFORM_HOLOLENS
+		if (!IsInitialized())
+		{
+			return;
+		}
+
+		std::lock_guard<std::recursive_mutex> lock(mutex);
+		if (!source)
+		{
+			m_isReady = false;
+			m_HandMeshObserver = nullptr;
+			m_sourceId = 0;
+			return;
+		}
+
 		m_sourceId = source.Id();
-		CoCreateGuid(&m_guid);
 		switch (source.Handedness())
 		{
 		case SpatialInteractionSourceHandedness::Left:
@@ -33,40 +50,54 @@ namespace WindowsMixedReality
 		default:
 			break;
 		}
+		m_isReady = false;
+		m_HandMeshObserver = nullptr;
 
-		source.TryCreateHandMeshObserverAsync().Completed([this](auto &&result, auto && status)
-			{
-				if (status == winrt::Windows::Foundation::AsyncStatus::Completed)
+		try
+		{
+			source.TryCreateHandMeshObserverAsync().Completed([this](auto&& result, auto&& status)
 				{
-					m_HandMeshObserver = result.GetResults();
-					if (!m_HandMeshObserver)
+					if (status == winrt::Windows::Foundation::AsyncStatus::Completed)
 					{
-						return;
-					}
-					//allocate buffers and load indices
-					std::vector<uint16_t> RawIndicesVect;
-					RawIndicesVect.resize(m_HandMeshObserver.TriangleIndexCount());
-					m_HandMeshObserver.GetTriangleIndices(RawIndicesVect);
+						std::lock_guard<std::recursive_mutex> lock(mutex);
+						m_HandMeshObserver = result.GetResults();
+						if (!m_HandMeshObserver)
+						{
+							m_sourceId = 0;
+							return;
+						}
+						//allocate buffers and load indices
+						std::vector<uint16_t> RawIndicesVect;
+						RawIndicesVect.resize(m_HandMeshObserver.TriangleIndexCount());
+						m_HandMeshObserver.GetTriangleIndices(RawIndicesVect);
 
-					auto RawIndices = RawIndicesVect.data();
-					int TriangleCount = (int)RawIndicesVect.size() / 3;
-					m_indices.resize(RawIndicesVect.size());
-					auto DestIndices = m_indices.data();
-					// Reverse triangle order
-					for (int Index = 0; Index < TriangleCount; Index++)
-					{
-						DestIndices[0] = RawIndices[2];
-						DestIndices[1] = RawIndices[1];
-						DestIndices[2] = RawIndices[0];
-						DestIndices += 3;
-						RawIndices += 3;
-					}
+						auto RawIndices = RawIndicesVect.data();
+						int TriangleCount = (int)RawIndicesVect.size() / 3;
+						m_indices.resize(RawIndicesVect.size());
+						auto DestIndices = m_indices.data();
+						// Reverse triangle order
+						for (int Index = 0; Index < TriangleCount; Index++)
+						{
+							DestIndices[0] = RawIndices[2];
+							DestIndices[1] = RawIndices[1];
+							DestIndices[2] = RawIndices[0];
+							DestIndices += 3;
+							RawIndices += 3;
+						}
 
-					m_vertices.resize(m_HandMeshObserver.VertexCount());
-					m_isReady = true;
-				}
-			});
-#endif
+						m_vertices.resize(m_HandMeshObserver.VertexCount());
+						m_isReady = true;
+					}
+				});
+		}
+		catch (std::exception const& ex)
+		{
+			UNREFERENCED_PARAMETER(ex);
+		}
+		catch (winrt::hresult_error const& ex)
+		{
+			UNREFERENCED_PARAMETER(ex);
+		}
 	}
 
 	void CopyTransform(MeshUpdate& DestMesh, HandMeshVertexState VertexState, SpatialCoordinateSystem coordinateSystem)
@@ -130,11 +161,17 @@ namespace WindowsMixedReality
 
 	void HandMeshUpdateObserver::Update(HandPose pose, SpatialCoordinateSystem coordinateSystem)
 	{
+		if (!IsInitialized())
+		{
+			return;
+		}
+
 		if (!IsReady())
 		{
 			return;
 		}
 
+		std::lock_guard<std::recursive_mutex> lock(mutex);
 		auto VertexState = m_HandMeshObserver.GetVertexStateForPose(pose);
 
 		s_OnStartMeshUpdates();

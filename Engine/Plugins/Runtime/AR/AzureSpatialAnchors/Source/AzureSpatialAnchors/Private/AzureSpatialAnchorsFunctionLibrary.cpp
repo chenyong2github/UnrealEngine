@@ -332,7 +332,7 @@ namespace AzureSpatialAnchorsLibrary
 	{
 		FString CloudAnchorIdentifier;
 		FString LocalAnchorId;
-		IAzureSpatialAnchors::WatcherID WatcherID;
+		IAzureSpatialAnchors::WatcherID WatcherID = IAzureSpatialAnchors::WatcherID_Invalid;
 		IAzureSpatialAnchors::CloudAnchorID CloudAnchorID = IAzureSpatialAnchors::CloudAnchorID_Invalid;
 		UAzureCloudSpatialAnchor* CloudAnchor = nullptr;
 	};
@@ -367,6 +367,7 @@ public:
 	{
 		if (!bStarted)
 		{
+
 			IAzureSpatialAnchors* IASA = GetIASAOrFailAndFinish(Response);
 			if (IASA == nullptr)
 			{
@@ -694,8 +695,7 @@ public:
 				if (OutARPin == nullptr)
 				{
 					OutResult = EAzureSpatialAnchorsResult::FailSeeErrorString;
-					OutErrorString = TEXT("LoadCloudAnchorByID failed to create ARPin after loading anchor.  Bug.");
-					check(false);
+					OutErrorString = TEXT("LoadCloudAnchorByID failed to create ARPin after loading anchor.  This can happen if blueprint, or something else, is listening for AnchorLocated events and creating pins for the CloudAnchors that are being loaded here.");
 				}
 			}
 
