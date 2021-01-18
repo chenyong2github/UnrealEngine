@@ -18,8 +18,8 @@
 #include "DatasmithUtils.h"
 #include "ObjectTemplates/DatasmithObjectTemplate.h"
 #include "ObjectTemplates/DatasmithStaticMeshTemplate.h"
-#include "UI/DatasmithUIManager.h"
 #include "UI/DatasmithConsumerDetails.h"
+#include "UI/DatasmithStyle.h"
 
 #include "AssetToolsModule.h"
 #include "ContentBrowserDelegates.h"
@@ -65,7 +65,8 @@ public:
 		// Disable any UI feature if running in command mode
 		if (UToolMenus::IsToolMenuUIEnabled())
 		{
-			FDatasmithUIManager::Initialize();
+			FDatasmithStyle::Initialize();
+			FDatasmithStyle::SetIcon(TEXT("Import"), TEXT("DatasmithImporter/Content/Icons/DatasmithImporterIcon40"));
 
 			SetupMenuEntry();
 			SetupContentBrowserContextMenuExtender();
@@ -103,7 +104,7 @@ public:
 			RemoveLevelEditorContextMenuExtender();
 			RemoveContentBrowserContextMenuExtender();
 
-			FDatasmithUIManager::Shutdown();
+			FDatasmithStyle::Shutdown();
 
 			// Register the details customizer
 			FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked< FPropertyEditorModule >( TEXT("PropertyEditor") );
@@ -167,13 +168,18 @@ void FDatasmithImporterModule::SetupMenuEntry()
 {
 	if (!IsRunningCommandlet())
 	{
-		FDatasmithUIManager::Get().AddMenuEntry(
+		UToolMenu* ContentMenu = UToolMenus::Get()->ExtendMenu("LevelEditor.LevelEditorToolBar.ContentQuickMenu");
+		check(ContentMenu);
+
+		FToolMenuSection& Section = ContentMenu->FindOrAddSection("ImportAssets");
+		Section.InitSection("ImportAssets", LOCTEXT("ImportAssets_Label", "Import Assets"), FToolMenuInsert());
+
+		Section.AddMenuEntry(
 			TEXT("Import"),
-			LOCTEXT("DatasmithImport", "Datasmith"),
-			LOCTEXT("DatasmithImportTooltip", "Import Unreal Datasmith file"),
-			TEXT("DatasmithImporter/Content/Icons/DatasmithImporterIcon40"),
-			FExecuteAction::CreateRaw(this, &FDatasmithImporterModule::OnClickedMenuEntry),
-			UDatasmithImportFactory::StaticClass()
+			LOCTEXT("DatasmithImport", "Datasmith..."), // label
+			LOCTEXT("DatasmithImportTooltip", "Import Unreal Datasmith file"), // description
+			FSlateIcon(FDatasmithStyle::GetStyleSetName(), TEXT("Datasmith.Import")),
+			FUIAction(FExecuteAction::CreateRaw(this, &FDatasmithImporterModule::OnClickedMenuEntry)/*, FCanExecuteAction()*/)
 		);
 	}
 }

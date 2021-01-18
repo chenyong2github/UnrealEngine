@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DatasmithImporterHelper.h"
-#include "UI/DatasmithUIManager.h"
 #include "Utility/DatasmithImporterUtils.h"
 
 #include "AssetRegistryModule.h"
@@ -127,7 +126,7 @@ namespace DatasmithImporterHelperInternal
 
 			ImportAssets(InFilenames, Path, Factory);
 		}
-		
+
 		if(GUnrealEd != nullptr)
 		{
 			// We just finished a potentially long operation and we don't want auto save triggered as soon as we finish the import
@@ -181,8 +180,6 @@ void FDatasmithImporterHelper::ImportInternal(UFactory* FactoryCDO)
 
 	TStrongObjectPtr<UFactory> Factory(NewObject< UFactory >( (UObject*)GetTransientPackage(), FactoryCDO->GetClass() ) );
 	Factory->ConfigureProperties();
-
-	FDatasmithUIManager::Get().SetLastFactoryUsed(Factory->GetClass());
 
 	TArray<FString> OpenedFiles;
 	FString DefaultLocation(FEditorDirectories::Get().GetLastDirectory(ELastDirectory::GENERIC_IMPORT));
