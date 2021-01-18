@@ -132,7 +132,7 @@ void GetNumPrimitives(const TArray<TWeakObjectPtr<UPhysicsAsset>>& PhysicsAssets
 		TWeakObjectPtr<UPhysicsAsset> PhysicsAsset = PhysicsAssets[ComponentIndex];
 		if (PhysicsAsset.IsValid() && PhysicsAsset.Get() != nullptr)
 		{
-			USkeletalMesh* SkelMesh = PhysicsAsset->GetPreviewMesh();
+			USkeletalMesh* SkelMesh = (SkeletalMeshs[ComponentIndex].Get() && SkeletalMeshs[ComponentIndex]->SkeletalMesh) ? SkeletalMeshs[ComponentIndex]->SkeletalMesh : PhysicsAsset->GetPreviewMesh();
 			if (!SkelMesh)
 			{
 				continue;
@@ -214,7 +214,7 @@ void CreateInternalArrays(const TArray<TWeakObjectPtr<UPhysicsAsset>>& PhysicsAs
 				TWeakObjectPtr<UPhysicsAsset> PhysicsAsset = PhysicsAssets[ComponentIndex];
 				if (PhysicsAsset.IsValid() && PhysicsAsset.Get() != nullptr)
 				{
-					USkeletalMesh* SkelMesh = PhysicsAsset->GetPreviewMesh();
+					USkeletalMesh* SkelMesh = (SkeletalMeshs[ComponentIndex].Get() && SkeletalMeshs[ComponentIndex]->SkeletalMesh) ? SkeletalMeshs[ComponentIndex]->SkeletalMesh : PhysicsAsset->GetPreviewMesh();
 					if (!SkelMesh)
 					{
 						continue;
@@ -324,7 +324,7 @@ void UpdateInternalArrays(const TArray<TWeakObjectPtr<UPhysicsAsset>>& PhysicsAs
 			TWeakObjectPtr<UPhysicsAsset> PhysicsAsset = PhysicsAssets[ComponentIndex];
 			if (PhysicsAsset.IsValid() && PhysicsAsset.Get() != nullptr)
 			{
-				USkeletalMesh* SkelMesh = PhysicsAsset->GetPreviewMesh();
+				USkeletalMesh* SkelMesh = (SkeletalMeshs[ComponentIndex].Get() && SkeletalMeshs[ComponentIndex]->SkeletalMesh) ? SkeletalMeshs[ComponentIndex]->SkeletalMesh : PhysicsAsset->GetPreviewMesh();
 				if (!SkelMesh)
 				{
 					continue;
