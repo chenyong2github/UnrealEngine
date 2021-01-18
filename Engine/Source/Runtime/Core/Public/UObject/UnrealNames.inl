@@ -44,7 +44,6 @@ REGISTER_NAME(33,CoreUObject)
 
 // More class properties
 REGISTER_NAME(34,EnumProperty)
-REGISTER_NAME(35,ObjectPtrProperty)
 
 
 // Special types.

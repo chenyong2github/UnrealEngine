@@ -20,16 +20,11 @@ FString FObjectPtrProperty::GetCPPMacroType(FString& ExtendedTypeText) const
 	return TEXT("OBJECTPTR");
 }
 
-FName FObjectPtrProperty::GetID() const
-{
-	return NAME_ObjectPtrProperty;
-}
-
 void FObjectPtrProperty::SerializeItem(FStructuredArchive::FSlot Slot, void* Value, void const* Defaults) const
 {
 	FArchive& UnderlyingArchive = Slot.GetUnderlyingArchive();
 
-	FObjectPtr* ObjectPtr = GetPropertyValuePtr(Value);
+	FObjectPtr* ObjectPtr = (FObjectPtr*)GetPropertyValuePtr(Value);
 
 	Slot << *ObjectPtr;
 }
@@ -41,7 +36,7 @@ EConvertFromTypeResult FObjectPtrProperty::ConvertFromType(const FPropertyTag& T
 	{
 		uint8* DestAddress = ContainerPtrToValuePtr<uint8>(Data, Tag.ArrayIndex);
 		FArchive& UnderlyingArchive = Slot.GetUnderlyingArchive();
-		FObjectPtr* ObjectPtr = GetPropertyValuePtr(DestAddress);
+		FObjectPtr* ObjectPtr = (FObjectPtr*)GetPropertyValuePtr(DestAddress);
 		Slot << *ObjectPtr;
 
 		return UnderlyingArchive.IsCriticalError() ? EConvertFromTypeResult::CannotConvert : EConvertFromTypeResult::Converted;
@@ -100,7 +95,7 @@ bool FObjectPtrProperty::Identical(const void* A, const void* B, uint32 PortFlag
 
 UObject* FObjectPtrProperty::GetObjectPropertyValue(const void* PropertyValueAddress) const
 {
-	return GetPropertyValue(PropertyValueAddress).Get();
+	return ((FObjectPtr&)GetPropertyValue(PropertyValueAddress)).Get();
 }
 
 void FObjectPtrProperty::SetObjectPropertyValue(void* PropertyValueAddress, UObject* Value) const
@@ -115,6 +110,6 @@ bool FObjectPtrProperty::AllowCrossLevel() const
 
 uint32 FObjectPtrProperty::GetValueTypeHashInternal(const void* Src) const
 {
-	return GetTypeHash(GetPropertyValue(Src));
+	return GetTypeHash((FObjectPtr&)GetPropertyValue(Src));
 }
 

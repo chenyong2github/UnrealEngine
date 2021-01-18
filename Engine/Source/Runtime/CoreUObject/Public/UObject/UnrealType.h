@@ -2286,15 +2286,15 @@ public:
 //
 // Describes a reference variable to another object which may be nil.
 //
-class COREUOBJECT_API FObjectPtrProperty : public TFObjectPropertyBase<FObjectPtr>
+class COREUOBJECT_API FObjectPtrProperty : public FObjectProperty
 {
-	DECLARE_FIELD(FObjectPtrProperty, TFObjectPropertyBase<FObjectPtr>, CASTCLASS_FObjectPtrProperty)
+	DECLARE_FIELD(FObjectPtrProperty, FObjectProperty, CASTCLASS_FObjectPtrProperty)
 
 	using Super::Super;
 
 #if WITH_EDITORONLY_DATA
 	explicit FObjectPtrProperty(UField* InField)
-		: TFObjectPropertyBase(InField)
+		: FObjectProperty(InField)
 	{
 	}
 #endif // WITH_EDITORONLY_DATA
@@ -2305,7 +2305,6 @@ class COREUOBJECT_API FObjectPtrProperty : public TFObjectPropertyBase<FObjectPt
 	// End of UHT interface
 
 	// FProperty interface
-	virtual FName GetID() const override;
 	virtual bool SameType(const FProperty* Other) const override;
 	virtual bool Identical(const void* A, const void* B, uint32 PortFlags) const override;
 	virtual void SerializeItem(FStructuredArchive::FSlot Slot, void* Value, void const* Defaults) const override;
