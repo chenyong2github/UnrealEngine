@@ -342,6 +342,7 @@ PACKAGE_SCOPE:
 private:
 	void AddPlayer(int32 LocalUserNum);
 	void RemovePlayer(int32 LocalUserNum);
+	TSharedPtr<FUniqueNetIdEOSPlus> AddRemotePlayer(TSharedPtr<const FUniqueNetId> BaseNetId, TSharedPtr<const FUniqueNetId> EOSNetId);
 	TSharedRef<FOnlineFriendPlus> AddFriend(TSharedRef<FOnlineFriend> Friend);
 	TSharedRef<FOnlineFriendPlus> GetFriend(TSharedRef<FOnlineFriend> Friend);
 	TSharedRef<FOnlineRecentPlayer> AddRecentPlayer(TSharedRef<FOnlineRecentPlayer> Player);

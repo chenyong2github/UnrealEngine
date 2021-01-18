@@ -5,6 +5,9 @@
 #include "OnlineSubsystemEOSPlus.h"
 #include "EOSSettings.h"
 
+// temp
+#define EOS_ID_BYTE_SIZE 32
+
 inline FString BuildEOSPlusStringId(TSharedPtr<const FUniqueNetId> InBaseUniqueNetId, TSharedPtr<const FUniqueNetId> InEOSUniqueNetId)
 {
 	FString StrId = InBaseUniqueNetId.IsValid() ? InBaseUniqueNetId->ToString() : TEXT("");
@@ -19,18 +22,20 @@ FUniqueNetIdEOSPlus::FUniqueNetIdEOSPlus(TSharedPtr<const FUniqueNetId> InBaseUn
 	, EOSUniqueNetId(InEOSUniqueNetId)
 {
 	int32 TotalBytes = GetSize();
-	int32 Offset = 0;
 	RawBytes.Empty(TotalBytes);
-	if (BaseUniqueNetId.IsValid())
-	{
-		int32 BaseSize = BaseUniqueNetId->GetSize();
-		FMemory::Memcpy(RawBytes.GetData(), BaseUniqueNetId->GetBytes(), BaseSize);
-		Offset = BaseSize;
-	}
+	RawBytes.AddZeroed(TotalBytes);
+
 	if (EOSUniqueNetId.IsValid())
 	{
 		int32 EOSSize = EOSUniqueNetId->GetSize();
-		FMemory::Memcpy(RawBytes.GetData() + Offset, EOSUniqueNetId->GetBytes(), EOSSize);
+		FMemory::Memcpy(RawBytes.GetData(), EOSUniqueNetId->GetBytes(), EOSSize);
+	}
+
+	if (BaseUniqueNetId.IsValid())
+	{
+		int32 BaseSize = BaseUniqueNetId->GetSize();
+		// Always copy above the EOS ID
+		FMemory::Memcpy(RawBytes.GetData() + EOS_ID_BYTE_SIZE, BaseUniqueNetId->GetBytes(), BaseSize);
 	}
 }
 
@@ -41,14 +46,11 @@ const uint8* FUniqueNetIdEOSPlus::GetBytes() const
 
 int32 FUniqueNetIdEOSPlus::GetSize() const
 {
-	int32 Size = 0;
+	// Always account for EOS ID
+	int32 Size = EOS_ID_BYTE_SIZE;
 	if (BaseUniqueNetId.IsValid())
 	{
 		Size += BaseUniqueNetId->GetSize();
-	}
-	if (EOSUniqueNetId.IsValid())
-	{
-		Size += EOSUniqueNetId->GetSize();
 	}
 	return Size;
 }
@@ -282,6 +284,19 @@ void FOnlineUserEOSPlus::AddPlayer(int32 LocalUserNum)
 	NetIdPlusToUserAccountMap.Add(PlusNetId->ToString(), PlusAccount);
 }
 
+TSharedPtr<FUniqueNetIdEOSPlus> FOnlineUserEOSPlus::AddRemotePlayer(TSharedPtr<const FUniqueNetId> BaseNetId, TSharedPtr<const FUniqueNetId> EOSNetId)
+{
+	TSharedPtr<FUniqueNetIdEOSPlus> PlusNetId = MakeShared<FUniqueNetIdEOSPlus>(BaseNetId, EOSNetId);
+
+	BaseNetIdToNetIdPlus.Add(BaseNetId->ToString(), PlusNetId);
+	EOSNetIdToNetIdPlus.Add(EOSNetId->ToString(), PlusNetId);
+	NetIdPlusToBaseNetId.Add(PlusNetId->ToString(), BaseNetId);
+	NetIdPlusToEOSNetId.Add(PlusNetId->ToString(), EOSNetId);
+	NetIdPlusToNetIdPlus.Add(PlusNetId->ToString(), PlusNetId);
+
+	return PlusNetId;
+}
+
 void FOnlineUserEOSPlus::RemovePlayer(int32 LocalUserNum)
 {
 	if (!LocalUserNumToNetIdPlus.Contains(LocalUserNum))
@@ -351,12 +366,41 @@ TSharedPtr<const FUniqueNetId> FOnlineUserEOSPlus::GetUniquePlayerId(int32 Local
 
 TSharedPtr<const FUniqueNetId> FOnlineUserEOSPlus::CreateUniquePlayerId(uint8* Bytes, int32 Size)
 {
-	return BaseIdentityInterface->CreateUniquePlayerId(Bytes, Size);
+	if (Size < 32)
+	{
+		UE_LOG_ONLINE(Error, TEXT("Invalid size (%d) passed to FOnlineUserEOSPlus::CreateUniquePlayerId()"), Size);
+		return nullptr;
+	}
+	// We know that the last 32 bytes are the EOS ids, so the rest is the platform id
+	int32 PlatformIdSize = Size - 32;
+	if (PlatformIdSize < 0)
+	{
+		UE_LOG_ONLINE(Error, TEXT("Invalid size (%d) passed to FOnlineUserEOSPlus::CreateUniquePlayerId()"), Size);
+		return nullptr;
+	}
+
+	// First 32 bytes are always the EOS/EAS ids so we can have the pure EOS OSS handle them too
+	TSharedPtr<const FUniqueNetId> EOSNetId = EOSIdentityInterface->CreateUniquePlayerId(Bytes, 32);
+//@todo joeg handle the case of differing platforms
+	TSharedPtr<const FUniqueNetId> BaseNetId = BaseIdentityInterface->CreateUniquePlayerId(Bytes + 32, PlatformIdSize);
+	
+	return AddRemotePlayer(BaseNetId, EOSNetId);
 }
 
 TSharedPtr<const FUniqueNetId> FOnlineUserEOSPlus::CreateUniquePlayerId(const FString& Str)
 {
-	return BaseIdentityInterface->CreateUniquePlayerId(Str);
+	// Split <id>_+_<id2> into two strings
+	int32 FoundAt = Str.Find(TEXT("_+_"));
+	if (FoundAt == -1)
+	{
+		UE_LOG_ONLINE(Error, TEXT("Couldn't parse string (%s) passed to FOnlineUserEOSPlus::CreateUniquePlayerId()"), *Str);
+		return nullptr;
+	}
+
+	TSharedPtr<const FUniqueNetId> BaseNetId = BaseIdentityInterface->CreateUniquePlayerId(Str.Left(FoundAt));
+	TSharedPtr<const FUniqueNetId> EOSNetId = EOSIdentityInterface->CreateUniquePlayerId(Str.Right(Str.Len() - FoundAt - 3));
+
+	return AddRemotePlayer(BaseNetId, EOSNetId);
 }
 
 ELoginStatus::Type FOnlineUserEOSPlus::GetLoginStatus(int32 LocalUserNum) const

@@ -1009,10 +1009,11 @@ void FUserManagerEOS::RemoveLocalUser(int32 LocalUserNum)
 
 TSharedPtr<const FUniqueNetId> FUserManagerEOS::CreateUniquePlayerId(uint8* Bytes, int32 Size)
 {
-	if (Bytes != nullptr && Size > 0)
+	if (Bytes != nullptr && Size >= 32)
 	{
-		FString StrId(Size, (TCHAR*)Bytes);
-		return MakeShareable(new FUniqueNetIdEOS(StrId));
+		// In the case of crossplay the size might be larger, but we only know how to parse the 32
+// @todo joeg crossplay
+		return MakeShareable(new FUniqueNetIdEOS(Bytes, 32));
 	}
 	return nullptr;
 }
