@@ -48,6 +48,7 @@
 #include "Serialization/LargeMemoryReader.h"
 #include "Misc/StringBuilder.h"
 #include "Async/Future.h"
+#include "Algo/MaxElement.h"
 
 //PRAGMA_DISABLE_OPTIMIZATION
 
@@ -3950,6 +3951,29 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 				CreateIoChunkId(ContainerTarget->Header.ContainerId.Value(), 0, EIoChunkType::ContainerHeader),
 				FIoBuffer(FIoBuffer::Wrap, Ar.GetData(), Ar.TotalSize()), WriteOptions);
 		}
+
+		// Check if we need to dump the final order of the packages. Useful, to debug packing.
+		if (FParse::Param(FCommandLine::Get(), TEXT("writefinalorder")))
+		{
+			FString FinalContainerOrderFile = FPaths::GetPath(ContainerTarget->OutputPath) + FPaths::GetBaseFilename(ContainerTarget->OutputPath) + TEXT("-order.txt");
+			TUniquePtr<FArchive> IoOrderListArchive(IFileManager::Get().CreateFileWriter(*FinalContainerOrderFile));
+			if (IoOrderListArchive)
+			{
+				IoOrderListArchive->SetIsTextFormat(true);
+
+				for (const FContainerTargetFile& TargetFile : ContainerTarget->TargetFiles)
+				{
+					if (TargetFile.Package)
+					{
+						FString Line = FString::Printf(TEXT("%s"), *TargetFile.Package->FileName);
+						IoOrderListArchive->Logf(TEXT("%s"), *Line);
+					}
+				}
+
+				IoOrderListArchive->Close();
+			}
+		}
+
 	}
 
 	uint64 InitialLoadSize = 0;
@@ -5462,7 +5486,7 @@ static bool ParsePakResponseFile(const TCHAR* FilePath, TArray<FContainerSourceF
 	return true;
 }
 
-static bool ParsePakOrderFile(const TCHAR* FilePath, TMap<FName, uint64>& OutMap)
+static bool ParsePakOrderFile(const TCHAR* FilePath, TMap<FName, uint64>& OutMap, bool bMerge)
 {
 	TArray<FString> OrderFileContents;
 	if (!FFileHelper::LoadFileToStringArray(OrderFileContents, FilePath))
@@ -5472,6 +5496,16 @@ static bool ParsePakOrderFile(const TCHAR* FilePath, TMap<FName, uint64>& OutMap
 	}
 
 	uint64 LineNumber = 1;
+
+	if (bMerge)
+	{
+		const auto* maxValue = Algo::MaxElementBy(OutMap, [](const auto& data) { return data.Value; });
+		if(maxValue != nullptr)
+		{ 
+			LineNumber += maxValue->Value;
+		}
+	}
+
 	for (const FString& OrderLine : OrderFileContents)
 	{
 		const TCHAR* OrderLinePtr = *OrderLine;
@@ -5649,21 +5683,36 @@ int32 CreateIoStoreContainerFiles(const TCHAR* CmdLine)
 		KeyChainUtilities::LoadKeyChainFromFile(PatchReferenceCryptoKeysFilename, Arguments.PatchKeyChain);
 	}
 
-	FString GameOrderFilePath;
-	if (FParse::Value(FCommandLine::Get(), TEXT("GameOrder="), GameOrderFilePath))
+	FString GameOrderFileStr;
+	if (FParse::Value(FCommandLine::Get(), TEXT("GameOrder="), GameOrderFileStr, false))
 	{
-		if (!ParsePakOrderFile(*GameOrderFilePath, Arguments.GameOrderMap))
+		TArray<FString> GameOrderFilePaths;
+		GameOrderFileStr.ParseIntoArray(GameOrderFilePaths, TEXT(","), true);
+		bool bMerge = false;
+		for (FString& PrimaryOrderFile : GameOrderFilePaths)
 		{
-			return -1;
+			if (!ParsePakOrderFile(*PrimaryOrderFile, Arguments.GameOrderMap, bMerge))
+			{
+				return -1;
+			}
+			bMerge = true;
 		}
 	}
 
-	FString CookerOrderFilePath;
-	if (FParse::Value(FCommandLine::Get(), TEXT("CookerOrder="), CookerOrderFilePath))
+	FString CookerOrderFileStr;
+	if (FParse::Value(FCommandLine::Get(), TEXT("CookerOrder="), CookerOrderFileStr, false))
 	{
-		if (!ParsePakOrderFile(*CookerOrderFilePath, Arguments.CookerOrderMap))
+		TArray<FString> CookerOrderFilePaths;
+		CookerOrderFileStr.ParseIntoArray(CookerOrderFilePaths, TEXT(","), true);
+		bool bMerge = false;
+		for (FString& SecondOrderFile : CookerOrderFilePaths)
 		{
-			return -1;
+			// Pass the GameOpenOrder as excusion map, since new entries from the CookerOpenOrder could potentially resolve to packages already in the GameOpenOrder.
+			if (!ParsePakOrderFile(*SecondOrderFile, Arguments.CookerOrderMap, bMerge))
+			{
+				return -1;
+			}
+			bMerge = true;
 		}
 	}
 
