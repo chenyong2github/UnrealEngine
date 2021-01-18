@@ -224,7 +224,7 @@ namespace LowLevelTasks
 				continue;
 			}
 
-			TrySleeping(WorkerEvent, OutOfWork, WaitCount, Drowsing, bPermitBackgroundWork);
+			TrySleeping(WorkerEvent, OutOfWork, Drowsing, bPermitBackgroundWork);
 		}
 
 		while (WakeUpWorker(bPermitBackgroundWork)) {}
