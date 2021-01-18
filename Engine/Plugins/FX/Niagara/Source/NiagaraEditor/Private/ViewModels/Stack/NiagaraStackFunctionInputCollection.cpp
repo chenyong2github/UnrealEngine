@@ -16,6 +16,7 @@
 #include "EdGraph/EdGraphPin.h"
 #include "ScopedTransaction.h"
 #include "NiagaraNodeOutput.h"
+#include "ViewModels/NiagaraSystemViewModel.h"
 #include "Containers/ContainerAllocationPolicies.h"
 
 #define LOCTEXT_NAMESPACE "UNiagaraStackFunctionInputCollection"
@@ -150,10 +151,17 @@ void UNiagaraStackFunctionInputCollection::RefreshChildrenInternal(const TArray<
 {
 	TSet<const UEdGraphPin*> HiddenPins;
 	TArray<const UEdGraphPin*> InputPins;
-	FCompileConstantResolver ConstantResolver = GetEmitterViewModel().IsValid() 
-		? FCompileConstantResolver(GetEmitterViewModel()->GetEmitter(), FNiagaraStackGraphUtilities::GetOutputNodeUsage(*InputFunctionCallNode)) 
-		: FCompileConstantResolver();
-	FNiagaraStackGraphUtilities::GetStackFunctionInputPins(*InputFunctionCallNode, InputPins, HiddenPins, ConstantResolver, FNiagaraStackGraphUtilities::ENiagaraGetStackFunctionInputPinsOptions::ModuleInputsOnly);
+	FCompileConstantResolver ConstantResolver;
+	if (GetEmitterViewModel().IsValid())
+	{
+		ConstantResolver = FCompileConstantResolver(GetEmitterViewModel()->GetEmitter(), FNiagaraStackGraphUtilities::GetOutputNodeUsage(*InputFunctionCallNode));
+	}
+	else
+	{
+		// if we don't have an emitter model, we must be in a system context
+		ConstantResolver = FCompileConstantResolver(&GetSystemViewModel()->GetSystem(), FNiagaraStackGraphUtilities::GetOutputNodeUsage(*InputFunctionCallNode));
+	}
+	GetStackFunctionInputPins(*InputFunctionCallNode, InputPins, HiddenPins, ConstantResolver, FNiagaraStackGraphUtilities::ENiagaraGetStackFunctionInputPinsOptions::ModuleInputsOnly);
 
 	const UEdGraphSchema_Niagara* NiagaraSchema = GetDefault<UEdGraphSchema_Niagara>();
 

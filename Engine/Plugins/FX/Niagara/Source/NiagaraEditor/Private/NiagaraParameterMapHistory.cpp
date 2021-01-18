@@ -1569,11 +1569,13 @@ void FNiagaraParameterMapHistoryBuilder::BuildCurrentAliases()
 
 bool FCompileConstantResolver::ResolveConstant(FNiagaraVariable& OutConstant) const
 {
+	// handle translator case
 	if (Translator)
 	{
 		return Translator->GetLiteralConstantVariable(OutConstant);
 	}
 
+	// handle emitter case
 	if (Emitter && OutConstant == FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("Emitter.Localspace")))
 	{
 		OutConstant.SetValue(Emitter->bLocalSpace ? FNiagaraBool(true) : FNiagaraBool(false));
@@ -1599,6 +1601,32 @@ bool FCompileConstantResolver::ResolveConstant(FNiagaraVariable& OutConstant) co
 		return true;
 	}
 	if (Emitter && OutConstant == FNiagaraVariable(FNiagaraTypeDefinition::GetScriptContextEnum(), TEXT("Script.Context")))
+	{
+		FNiagaraInt32 EnumValue;
+		EnumValue.Value = (uint8)FNiagaraUtilities::ConvertScriptUsageToStaticSwitchContext(Usage);
+		OutConstant.SetValue(EnumValue);
+		return true;
+	}
+
+	// handle system case
+	if (System && OutConstant == FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("Emitter.Localspace")))
+	{
+		OutConstant.SetValue(FNiagaraBool(false));
+		return true;
+	}
+	if (System && OutConstant == FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("Emitter.Determinism")))
+	{
+		OutConstant.SetValue(FNiagaraBool(true));
+		return true;
+	}
+	if (System && OutConstant == FNiagaraVariable(FNiagaraTypeDefinition::GetScriptUsageEnum(), TEXT("Script.Usage")))
+	{
+		FNiagaraInt32 EnumValue;
+		EnumValue.Value = (uint8)FNiagaraUtilities::ConvertScriptUsageToStaticSwitchUsage(Usage);
+		OutConstant.SetValue(EnumValue);
+		return true;
+	}
+	if (System && OutConstant == FNiagaraVariable(FNiagaraTypeDefinition::GetScriptContextEnum(), TEXT("Script.Context")))
 	{
 		FNiagaraInt32 EnumValue;
 		EnumValue.Value = (uint8)FNiagaraUtilities::ConvertScriptUsageToStaticSwitchContext(Usage);
