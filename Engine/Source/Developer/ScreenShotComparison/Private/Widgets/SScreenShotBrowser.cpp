@@ -28,9 +28,20 @@
 void SScreenShotBrowser::Construct( const FArguments& InArgs,  IScreenShotManagerRef InScreenShotManager  )
 {
 	ScreenShotManager = InScreenShotManager;
-	ComparisonRoot = FPaths::ConvertRelativePathToFull(FPaths::AutomationReportsDir());
+
+	// Default path. This can be set by the UI or will be updated when a new report is generated.
+	FString ReportPath = FPaths::AutomationReportsDir();
+
+	// Ensure the report path exists since we will register for change notifications
+	if (!IFileManager::Get().DirectoryExists(*ReportPath))
+	{
+		IFileManager::Get().MakeDirectory(*ReportPath, true);
+	}
+
+	ComparisonRoot = FPaths::ConvertRelativePathToFull(ReportPath);
 	bReportsChanged = true;
-	bDisplayingSuccess = false;
+	// Show all things by default so it's not confusing if a user sees an empty list after a test
+	bDisplayingSuccess = true;
 	bDisplayingError = true;
 	bDisplayingNew = true;
 	ReportFilterString = FString();
