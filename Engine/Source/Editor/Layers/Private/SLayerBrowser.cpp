@@ -3,6 +3,7 @@
 #include "SLayerBrowser.h"
 #include "Modules/ModuleManager.h"
 #include "Framework/Application/SlateApplication.h"
+#include "WorldPartition/WorldPartitionSubsystem.h"
 #include "Editor.h"
 #include "SLayerStats.h"
 #include "SceneOutlinerModule.h"
@@ -171,6 +172,7 @@ void SLayerBrowser::Construct(const FArguments& InArgs)
 	ChildSlot
 		[
 			SAssignNew(ContentAreaBox, SVerticalBox)
+			.IsEnabled_Lambda([]() { return GWorld ? !UWorld::HasSubsystem<UWorldPartitionSubsystem>(GWorld) : false; })
 		];
 
 	SetupLayersMode();
