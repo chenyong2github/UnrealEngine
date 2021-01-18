@@ -6,43 +6,68 @@
 
 #include "D3D11RHIPrivate.h"
 
-FIndexBufferRHIRef FD3D11DynamicRHI::RHICreateIndexBuffer(uint32 Stride, uint32 Size, uint32 InUsage, ERHIAccess InResourceState, FRHIResourceCreateInfo& CreateInfo)
-{
-	InUsage |= BUF_IndexBuffer;
+TAutoConsoleVariable<int32> GCVarUseSharedKeyedMutex(
+	TEXT("r.D3D11.UseSharedKeyMutex"),
+	0,
+	TEXT("If 1, BUF_Shared vertex / index buffer and TexCreate_Shared texture will be created\n")
+	TEXT("with the D3D11_RESOURCE_MISC_SHARED_KEYEDMUTEX flag instead of D3D11_RESOURCE_MISC_SHARED (default).\n"),
+	ECVF_Default);
 
+FBufferRHIRef FD3D11DynamicRHI::RHICreateBuffer(uint32 Size, EBufferUsageFlags Usage, uint32 Stride, ERHIAccess ResourceState, FRHIResourceCreateInfo& CreateInfo)
+{
 	if (CreateInfo.bWithoutNativeResource)
 	{
 		return new FD3D11Buffer();
 	}
 
-	// Explicitly check that the size is nonzero before allowing CreateIndexBuffer to opaquely fail.
+	// Explicitly check that the size is nonzero before allowing CreateBuffer to opaquely fail.
 	check(Size > 0);
 
-	// Describe the index buffer.
-	D3D11_BUFFER_DESC Desc;
-	ZeroMemory( &Desc, sizeof( D3D11_BUFFER_DESC ) );
-	Desc.ByteWidth = Size;
-	Desc.Usage = (InUsage & BUF_AnyDynamic) ? D3D11_USAGE_DYNAMIC : D3D11_USAGE_DEFAULT;
-	Desc.BindFlags = D3D11_BIND_INDEX_BUFFER;
-	Desc.CPUAccessFlags = (InUsage & BUF_AnyDynamic) ? D3D11_CPU_ACCESS_WRITE : 0;
-	Desc.MiscFlags = 0;
+	// Describe the buffer.
+	D3D11_BUFFER_DESC Desc = { Size };
 
-	if (InUsage & BUF_UnorderedAccess)
+	if (Usage & BUF_AnyDynamic)
 	{
-		Desc.BindFlags |= D3D11_BIND_UNORDERED_ACCESS;
+		Desc.Usage = D3D11_USAGE_DYNAMIC;
+		Desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
 	}
 
-	if(InUsage & BUF_DrawIndirect)
+	if (Usage & BUF_VertexBuffer)
 	{
-		Desc.MiscFlags |= D3D11_RESOURCE_MISC_DRAWINDIRECT_ARGS;
+		Desc.BindFlags |= D3D11_BIND_VERTEX_BUFFER;
 	}
 
-	if (InUsage & BUF_ShaderResource)
+	if (Usage & BUF_IndexBuffer)
+	{
+		Desc.BindFlags |= D3D11_BIND_INDEX_BUFFER;
+	}
+
+	if (Usage & BUF_ByteAddressBuffer)
+	{
+		Desc.MiscFlags |= D3D11_RESOURCE_MISC_BUFFER_ALLOW_RAW_VIEWS;
+	}
+	else if (Usage & BUF_StructuredBuffer)
+	{
+		Desc.StructureByteStride = Stride;
+		Desc.MiscFlags |= D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
+	}
+
+	if (Usage & BUF_ShaderResource)
 	{
 		Desc.BindFlags |= D3D11_BIND_SHADER_RESOURCE;
 	}
 
-	if (InUsage & BUF_Shared)
+	if (Usage & BUF_UnorderedAccess)
+	{
+		Desc.BindFlags |= D3D11_BIND_UNORDERED_ACCESS;
+	}
+
+	if (Usage & BUF_DrawIndirect)
+	{
+		Desc.MiscFlags |= D3D11_RESOURCE_MISC_DRAWINDIRECT_ARGS;
+	}
+
+	if (Usage & BUF_Shared)
 	{
 		if (GCVarUseSharedKeyedMutex->GetInt() != 0)
 		{
@@ -51,6 +76,14 @@ FIndexBufferRHIRef FD3D11DynamicRHI::RHICreateIndexBuffer(uint32 Stride, uint32 
 		else
 		{
 			Desc.MiscFlags |= D3D11_RESOURCE_MISC_SHARED;
+		}
+	}
+
+	if (FPlatformMemory::SupportsFastVRAMMemory())
+	{
+		if (Usage & BUF_FastVRAM)
+		{
+			FFastVRAMAllocator::GetFastVRAMAllocator()->AllocUAVBuffer(Desc);
 		}
 	}
 
@@ -66,29 +99,28 @@ FIndexBufferRHIRef FD3D11DynamicRHI::RHICreateIndexBuffer(uint32 Stride, uint32 
 		pInitData = &InitData;
 	}
 
-	TRefCountPtr<ID3D11Buffer> IndexBufferResource;
-	VERIFYD3D11RESULT_EX(Direct3DDevice->CreateBuffer(&Desc,pInitData,IndexBufferResource.GetInitReference()), Direct3DDevice);
+	TRefCountPtr<ID3D11Buffer> BufferResource;
+	VERIFYD3D11RESULT_EX(Direct3DDevice->CreateBuffer(&Desc, pInitData, BufferResource.GetInitReference()), Direct3DDevice);
 
-	UpdateBufferStats(IndexBufferResource, true);
+	UpdateBufferStats(BufferResource, true);
 
-	if(CreateInfo.ResourceArray)
+	if (CreateInfo.DebugName)
+	{
+		BufferResource->SetPrivateData(WKPDID_D3DDebugObjectName, FCString::Strlen(CreateInfo.DebugName) + 1, TCHAR_TO_ANSI(CreateInfo.DebugName));
+	}
+
+	if (CreateInfo.ResourceArray)
 	{
 		// Discard the resource array's contents.
 		CreateInfo.ResourceArray->Discard();
 	}
 
-	return new FD3D11Buffer(IndexBufferResource, Size, InUsage, Stride);
+	return new FD3D11Buffer(BufferResource, Size, Usage, Stride);
 }
 
-FIndexBufferRHIRef FD3D11DynamicRHI::CreateIndexBuffer_RenderThread(
-	class FRHICommandListImmediate& RHICmdList,
-	uint32 Stride,
-	uint32 Size,
-	uint32 InUsage,
-	ERHIAccess InResourceState,
-	FRHIResourceCreateInfo& CreateInfo)
+FBufferRHIRef FD3D11DynamicRHI::CreateBuffer_RenderThread(class FRHICommandListImmediate& RHICmdList, uint32 Size, EBufferUsageFlags Usage, uint32 Stride, ERHIAccess ResourceState, FRHIResourceCreateInfo& CreateInfo)
 {
-	return RHICreateIndexBuffer(Stride, Size, InUsage, InResourceState, CreateInfo);
+	return RHICreateBuffer(Size, Usage, Stride, ResourceState, CreateInfo);
 }
 
 void* FD3D11DynamicRHI::LockBuffer_BottomOfPipe(FRHICommandListImmediate& RHICmdList, FRHIBuffer* BufferRHI, uint32 Offset, uint32 Size, EResourceLockMode LockMode)

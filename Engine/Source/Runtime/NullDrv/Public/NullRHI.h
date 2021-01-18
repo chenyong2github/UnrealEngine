@@ -124,36 +124,18 @@ public:
 
 	}
 
-	virtual FIndexBufferRHIRef RHICreateIndexBuffer(uint32 Stride, uint32 Size, uint32 InUsage, ERHIAccess InResourceState , FRHIResourceCreateInfo& CreateInfo) final override
+	virtual FBufferRHIRef RHICreateBuffer(uint32 Size, EBufferUsageFlags Usage, uint32 Stride, ERHIAccess ResourceState , FRHIResourceCreateInfo& CreateInfo) final override
 	{ 
 		if(CreateInfo.ResourceArray) 
 		{ 
 			CreateInfo.ResourceArray->Discard(); 
 		} 
-		return new FRHIIndexBuffer(Size, InUsage, Stride); 
-	}
-
-	virtual FVertexBufferRHIRef RHICreateVertexBuffer(uint32 Size, uint32 InUsage, ERHIAccess InResourceState, FRHIResourceCreateInfo& CreateInfo) final override
-	{ 
-		if(CreateInfo.ResourceArray) 
-		{ 
-			CreateInfo.ResourceArray->Discard(); 
-		} 
-		return new FRHIVertexBuffer(Size, InUsage, 0); 
+		return new FRHIBuffer(Size, Usage, Stride);
 	}
 
 	virtual void RHICopyBuffer(FRHIBuffer* SourceBuffer, FRHIBuffer* DestBuffer) final override
 	{
 
-	}
-
-	virtual FStructuredBufferRHIRef RHICreateStructuredBuffer(uint32 Stride, uint32 Size, uint32 InUsage, ERHIAccess InResourceState, FRHIResourceCreateInfo& CreateInfo) final override
-	{ 
-		if(CreateInfo.ResourceArray) 
-		{ 
-			CreateInfo.ResourceArray->Discard(); 
-		} 
-		return new FRHIStructuredBuffer(Stride,Size,InUsage); 
 	}
 
 	virtual void* LockBuffer_BottomOfPipe(FRHICommandListImmediate& RHICmdList, FRHIBuffer* Buffer, uint32 Offset, uint32 SizeRHI, EResourceLockMode LockMode) final override

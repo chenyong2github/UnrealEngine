@@ -1101,7 +1101,7 @@ class FVulkanResourceMultiBuffer : public FRHIBuffer, public FVulkanEvictable, p
 	virtual void Move(FVulkanDevice& Device, VulkanRHI::FVulkanAllocation& NewAllocation);
 
 public:
-	FVulkanResourceMultiBuffer(FVulkanDevice* InDevice, VkBufferUsageFlags InBufferUsageFlags, uint32 InSize, uint32 InUEUsage, uint32 InStride, FRHIResourceCreateInfo& CreateInfo, class FRHICommandListImmediate* InRHICmdList = nullptr);
+	FVulkanResourceMultiBuffer(FVulkanDevice* InDevice, uint32 InSize, uint32 InUEUsage, uint32 InStride, FRHIResourceCreateInfo& CreateInfo, class FRHICommandListImmediate* InRHICmdList = nullptr);
 	virtual ~FVulkanResourceMultiBuffer();
 
 	inline const VulkanRHI::FVulkanAllocation& GetCurrentAllocation() const
@@ -1271,16 +1271,13 @@ public:
 	void UpdateView();
 
 protected:
-	// the potential resources to refer to with the UAV object
-	TRefCountPtr<FVulkanResourceMultiBuffer> SourceStructuredBuffer;
 	// The texture that this UAV come from
 	TRefCountPtr<FRHITexture> SourceTexture;
 	FVulkanTextureView TextureView;
 	uint32 MipLevel;
 
-	// The vertex buffer this UAV comes from (can be null)
-	TRefCountPtr<FVulkanResourceMultiBuffer> SourceVertexBuffer;
-	TRefCountPtr<FVulkanResourceMultiBuffer> SourceIndexBuffer;
+	// The buffer this UAV comes from (can be null)
+	TRefCountPtr<FVulkanResourceMultiBuffer> SourceBuffer;
 	TRefCountPtr<FVulkanBufferView> BufferView;
 	EPixelFormat BufferViewFormat;
 

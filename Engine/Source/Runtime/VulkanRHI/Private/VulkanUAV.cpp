@@ -201,10 +201,10 @@ void FVulkanShaderResourceView::UpdateView()
 		}
 	}
 }
-FVulkanUnorderedAccessView::FVulkanUnorderedAccessView(FVulkanDevice* Device, FVulkanResourceMultiBuffer* StructuredBuffer, bool bUseUAVCounter, bool bAppendBuffer)
+FVulkanUnorderedAccessView::FVulkanUnorderedAccessView(FVulkanDevice* Device, FVulkanResourceMultiBuffer* Buffer, bool bUseUAVCounter, bool bAppendBuffer)
 	: VulkanRHI::FVulkanViewBase(Device)
-	, SourceStructuredBuffer(StructuredBuffer)
 	, MipLevel(0)
+	, SourceBuffer(Buffer)
 	, BufferViewFormat(PF_Unknown)
 	, VolatileLockCounter(MAX_uint32)
 {
@@ -228,14 +228,7 @@ FVulkanUnorderedAccessView::FVulkanUnorderedAccessView(FVulkanDevice* Device, FV
 	, BufferViewFormat(Format)
 	, VolatileLockCounter(MAX_uint32)
 {
-	if (Buffer->GetUEUsage() & BUF_IndexBuffer)
-	{
-		SourceIndexBuffer = Buffer;
-	}
-	else if (Buffer->GetUEUsage() & BUF_VertexBuffer)
-	{
-		SourceVertexBuffer = Buffer;
-	}
+	SourceBuffer = Buffer;
 }
 
 void FVulkanUnorderedAccessView::Invalidate()
@@ -254,7 +247,7 @@ FVulkanUnorderedAccessView::~FVulkanUnorderedAccessView()
 
 	TextureView.Destroy(*Device);
 	BufferView = nullptr;
-	SourceVertexBuffer = nullptr;
+	SourceBuffer = nullptr;
 	SourceTexture = nullptr;
 	Device = nullptr;
 }
@@ -266,44 +259,23 @@ void FVulkanUnorderedAccessView::UpdateView()
 #endif
 
 	// update the buffer view for dynamic VB backed buffers (or if it was never set)
-	if (SourceVertexBuffer != nullptr)
+	if (SourceBuffer != nullptr)
 	{
-		if (SourceVertexBuffer->IsVolatile() && VolatileLockCounter != SourceVertexBuffer->GetVolatileLockCounter())
+		if (BufferViewFormat != PF_Unknown)
 		{
-			BufferView = nullptr;
-			VolatileLockCounter = SourceVertexBuffer->GetVolatileLockCounter();
-		}
+			if (SourceBuffer->IsVolatile() && VolatileLockCounter != SourceBuffer->GetVolatileLockCounter())
+			{
+				BufferView = nullptr;
+				VolatileLockCounter = SourceBuffer->GetVolatileLockCounter();
+			}
 
-		if (BufferView == nullptr || SourceVertexBuffer->IsDynamic())
-		{
-			// thanks to ref counting, overwriting the buffer will toss the old view
-			BufferView = new FVulkanBufferView(Device);
-			BufferView->Create(SourceVertexBuffer.GetReference(), BufferViewFormat, SourceVertexBuffer->GetOffset(), SourceVertexBuffer->GetSize());
+			if (BufferView == nullptr || SourceBuffer->IsDynamic())
+			{
+				// thanks to ref counting, overwriting the buffer will toss the old view
+				BufferView = new FVulkanBufferView(Device);
+				BufferView->Create(SourceBuffer.GetReference(), BufferViewFormat, SourceBuffer->GetOffset(), SourceBuffer->GetSize());
+			}
 		}
-	}
-	else if (SourceIndexBuffer != nullptr)
-	{
-		if (SourceIndexBuffer->IsVolatile() && VolatileLockCounter != SourceIndexBuffer->GetVolatileLockCounter())
-		{
-			BufferView = nullptr;
-			VolatileLockCounter = SourceIndexBuffer->GetVolatileLockCounter();
-		}
-
-		if (BufferView == nullptr || SourceIndexBuffer->IsDynamic())
-		{
-			// thanks to ref counting, overwriting the buffer will toss the old view
-			BufferView = new FVulkanBufferView(Device);
-			BufferView->Create(SourceIndexBuffer.GetReference(), BufferViewFormat, SourceIndexBuffer->GetOffset(), SourceIndexBuffer->GetSize());
-		}
-	}
-	else if (SourceStructuredBuffer)
-	{
-		// Nothing...
-		//if (SourceStructuredBuffer->IsVolatile() && VolatileLockCounter != SourceStructuredBuffer->GetVolatileLockCounter())
-		//{
-		//	BufferView = nullptr;
-		//	VolatileLockCounter = SourceStructuredBuffer->GetVolatileLockCounter();
-		//}
 	}
 	else if (TextureView.View == VK_NULL_HANDLE)
 	{
@@ -369,17 +341,18 @@ FShaderResourceViewRHIRef FVulkanDynamicRHI::RHICreateShaderResourceView(FRHIBuf
 
 FShaderResourceViewRHIRef FVulkanDynamicRHI::RHICreateShaderResourceView(const FShaderResourceViewInitializer& Initializer)
 {
+	const FShaderResourceViewInitializer::FBufferShaderResourceViewInitializer Desc = Initializer.AsBufferSRV();
+	FVulkanResourceMultiBuffer* Buffer = ResourceCast(Desc.Buffer);
+
 	switch (Initializer.GetType())
 	{
 		case FShaderResourceViewInitializer::EType::VertexBufferSRV:
 		{
-			const FShaderResourceViewInitializer::FVertexBufferShaderResourceViewInitializer Desc = Initializer.AsVertexBufferSRV();
 			if (Desc.Buffer)
 			{
 				const uint32 Stride = GPixelFormats[Desc.Format].BlockBytes;
-				FVulkanResourceMultiBuffer* VertexBuffer = ResourceCast(Desc.Buffer);
-				uint32 Size = FMath::Min(VertexBuffer->GetSize() - Desc.StartOffsetBytes, Desc.NumElements * Stride);
-				return new FVulkanShaderResourceView(Device, Desc.Buffer, VertexBuffer, Size, (EPixelFormat)Desc.Format, Desc.StartOffsetBytes);
+				uint32 Size = FMath::Min(Buffer->GetSize() - Desc.StartOffsetBytes, Desc.NumElements * Stride);
+				return new FVulkanShaderResourceView(Device, Desc.Buffer, Buffer, Size, (EPixelFormat)Desc.Format, Desc.StartOffsetBytes);
 			}
 			else
 			{
@@ -388,21 +361,17 @@ FShaderResourceViewRHIRef FVulkanDynamicRHI::RHICreateShaderResourceView(const F
 		}
 		case FShaderResourceViewInitializer::EType::StructuredBufferSRV:
 		{
-			const FShaderResourceViewInitializer::FStructuredBufferShaderResourceViewInitializer Desc = Initializer.AsStructuredBufferSRV();
 			check(Desc.Buffer);
-			FVulkanResourceMultiBuffer* StructuredBuffer = ResourceCast(Desc.Buffer);
-			return new FVulkanShaderResourceView(Device, StructuredBuffer, Desc.StartOffsetBytes);
+			return new FVulkanShaderResourceView(Device, Buffer, Desc.StartOffsetBytes);
 		}			
 		case FShaderResourceViewInitializer::EType::IndexBufferSRV:
 		{
-			const FShaderResourceViewInitializer::FIndexBufferShaderResourceViewInitializer Desc = Initializer.AsIndexBufferSRV();
 			check(Desc.Buffer);
-			FVulkanResourceMultiBuffer* IndexBuffer = ResourceCast(Desc.Buffer);
 			const uint32 Stride = Desc.Buffer->GetStride();
 			check(Stride == 2 || Stride == 4);
 			EPixelFormat Format = (Stride == 4) ? PF_R32_UINT : PF_R16_UINT;
-			uint32 Size = FMath::Min(IndexBuffer->GetSize() - Desc.StartOffsetBytes, Desc.NumElements * Stride);
-			return new FVulkanShaderResourceView(Device, Desc.Buffer, IndexBuffer, Size, Format, Desc.StartOffsetBytes);
+			uint32 Size = FMath::Min(Buffer->GetSize() - Desc.StartOffsetBytes, Desc.NumElements * Stride);
+			return new FVulkanShaderResourceView(Device, Desc.Buffer, Buffer, Size, Format, Desc.StartOffsetBytes);
 		}
 	}
 	checkNoEntry();
@@ -474,7 +443,7 @@ void FVulkanCommandListContext::ClearUAV(TRHICommandList_RecursiveHazardous<FVul
 	if (!bFloat)
 	{
 		EPixelFormat Format;
-		if (UnorderedAccessView->SourceVertexBuffer)
+		if (UnorderedAccessView->SourceBuffer)
 		{
 			Format = UnorderedAccessView->BufferViewFormat;
 		}
@@ -504,10 +473,18 @@ void FVulkanCommandListContext::ClearUAV(TRHICommandList_RecursiveHazardous<FVul
 		ValueType = EClearReplacementValueType::Float;
 	}
 
-	if (UnorderedAccessView->SourceVertexBuffer)
+	if (UnorderedAccessView->SourceBuffer)
 	{
-		uint32 NumElements = UnorderedAccessView->SourceVertexBuffer->GetSize() / GPixelFormats[UnorderedAccessView->BufferViewFormat].BlockBytes;
-		ClearUAVShader_T<EClearReplacementResourceType::Buffer, 4, false>(RHICmdList, UnorderedAccessView, NumElements, 1, 1, ClearValue, ValueType);
+		if (UnorderedAccessView->BufferViewFormat == PF_Unknown)
+		{
+			uint32 NumUints = UnorderedAccessView->SourceBuffer->GetSize() / 4;
+			ClearUAVShader_T<EClearReplacementResourceType::StructuredBuffer, 4, false>(RHICmdList, UnorderedAccessView, NumUints, 1, 1, ClearValue, ValueType);
+		}
+		else
+		{
+			uint32 NumElements = UnorderedAccessView->SourceBuffer->GetSize() / GPixelFormats[UnorderedAccessView->BufferViewFormat].BlockBytes;
+			ClearUAVShader_T<EClearReplacementResourceType::Buffer, 4, false>(RHICmdList, UnorderedAccessView, NumElements, 1, 1, ClearValue, ValueType);
+		}
 	}
 	else if (UnorderedAccessView->SourceTexture)
 	{
@@ -533,12 +510,6 @@ void FVulkanCommandListContext::ClearUAV(TRHICommandList_RecursiveHazardous<FVul
 		{
 			ensure(0);
 		}
-	}
-	else if (UnorderedAccessView->SourceStructuredBuffer)
-	{
-		ensure(UnorderedAccessView->BufferViewFormat == PF_Unknown);
-		uint32 NumUints = UnorderedAccessView->SourceStructuredBuffer->GetSize() / 4;
-		ClearUAVShader_T<EClearReplacementResourceType::StructuredBuffer, 4, false>(RHICmdList, UnorderedAccessView, NumUints, 1, 1, ClearValue, ValueType);
 	}
 	else
 	{

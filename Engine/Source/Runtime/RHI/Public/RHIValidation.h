@@ -357,23 +357,15 @@ public:
 		UniformBufferRHI->UpdateAllocation(RenderThreadFrameID);
 	}
 
-	// FlushType: Wait RHI Thread
-	virtual FIndexBufferRHIRef RHICreateIndexBuffer(uint32 Stride, uint32 Size, uint32 InUsage, ERHIAccess InResourceState, FRHIResourceCreateInfo& CreateInfo) override final
-	{
-		FIndexBufferRHIRef IndexBuffer = RHI->RHICreateIndexBuffer(Stride, Size, InUsage, InResourceState, CreateInfo);
-		IndexBuffer->InitBarrierTracking(InResourceState, CreateInfo.DebugName);
-		return IndexBuffer;
-	}
-
 	/**
 	* @param ResourceArray - An optional pointer to a resource array containing the resource's data.
 	*/
 	// FlushType: Wait RHI Thread
-	virtual FVertexBufferRHIRef RHICreateVertexBuffer(uint32 Size, uint32 InUsage, ERHIAccess InResourceState, FRHIResourceCreateInfo& CreateInfo) override final
+	virtual FBufferRHIRef RHICreateBuffer(uint32 Size, EBufferUsageFlags Usage, uint32 Stride, ERHIAccess ResourceState, FRHIResourceCreateInfo& CreateInfo) override final
 	{
-		FVertexBufferRHIRef VertexBuffer = RHI->RHICreateVertexBuffer(Size, InUsage, InResourceState, CreateInfo);
-		VertexBuffer->InitBarrierTracking(InResourceState, CreateInfo.DebugName);
-		return VertexBuffer;
+		FBufferRHIRef Buffer = RHI->RHICreateBuffer(Size, Usage, Stride, ResourceState, CreateInfo);
+		Buffer->InitBarrierTracking(ResourceState, CreateInfo.DebugName);
+		return Buffer;
 	}
 
 	/** Copies the contents of one vertex buffer to another vertex buffer.  They must have identical sizes. */
@@ -381,17 +373,6 @@ public:
 	virtual void RHICopyBuffer(FRHIBuffer* SourceBuffer, FRHIBuffer* DestBuffer) override final
 	{
 		RHI->RHICopyBuffer(SourceBuffer, DestBuffer);
-	}
-
-	/**
-	* @param ResourceArray - An optional pointer to a resource array containing the resource's data.
-	*/
-	// FlushType: Wait RHI Thread
-	virtual FStructuredBufferRHIRef RHICreateStructuredBuffer(uint32 Stride, uint32 Size, uint32 InUsage, ERHIAccess InResourceState, FRHIResourceCreateInfo& CreateInfo) override final
-	{
-		FStructuredBufferRHIRef StructuredBuffer = RHI->RHICreateStructuredBuffer(Stride, Size, InUsage, InResourceState, CreateInfo);
-		StructuredBuffer->InitBarrierTracking(InResourceState, CreateInfo.DebugName);
-		return StructuredBuffer;
 	}
 
 	// FlushType: Flush RHI Thread
@@ -1338,33 +1319,11 @@ public:
 		return RHI->RHIGetMinimumAlignmentForBufferBackedSRV(Format);
 	}
 
-	///////// Pass through functions that allow RHIs to optimize certain calls.
-	virtual FVertexBufferRHIRef CreateAndLockVertexBuffer_RenderThread(class FRHICommandListImmediate& RHICmdList, uint32 Size, uint32 InUsage, ERHIAccess InResourceState, FRHIResourceCreateInfo& CreateInfo, void*& OutDataBuffer) override final
+	virtual FBufferRHIRef CreateBuffer_RenderThread(class FRHICommandListImmediate& RHICmdList, uint32 Size, EBufferUsageFlags Usage, uint32 Stride, ERHIAccess ResourceState, FRHIResourceCreateInfo& CreateInfo) override final
 	{
-		FVertexBufferRHIRef VertexBuffer = RHI->CreateAndLockVertexBuffer_RenderThread(RHICmdList, Size, InUsage, InResourceState, CreateInfo, OutDataBuffer);
-		VertexBuffer->InitBarrierTracking(InResourceState, CreateInfo.DebugName);
-		return VertexBuffer;
-	}
-
-	virtual FIndexBufferRHIRef CreateAndLockIndexBuffer_RenderThread(class FRHICommandListImmediate& RHICmdList, uint32 Stride, uint32 Size, uint32 InUsage, ERHIAccess InResourceState, FRHIResourceCreateInfo& CreateInfo, void*& OutDataBuffer) override final
-	{
-		FIndexBufferRHIRef IndexBuffer = RHI->CreateAndLockIndexBuffer_RenderThread(RHICmdList, Stride, Size, InUsage, InResourceState, CreateInfo, OutDataBuffer);
-		IndexBuffer->InitBarrierTracking(InResourceState, CreateInfo.DebugName);
-		return IndexBuffer;
-	}
-
-	virtual FVertexBufferRHIRef CreateVertexBuffer_RenderThread(class FRHICommandListImmediate& RHICmdList, uint32 Size, uint32 InUsage, ERHIAccess InResourceState, FRHIResourceCreateInfo& CreateInfo) override final
-	{
-		FVertexBufferRHIRef VertexBuffer = RHI->CreateVertexBuffer_RenderThread(RHICmdList, Size, InUsage, InResourceState, CreateInfo);
-		VertexBuffer->InitBarrierTracking(InResourceState, CreateInfo.DebugName);
-		return VertexBuffer;
-	}
-
-	virtual FStructuredBufferRHIRef CreateStructuredBuffer_RenderThread(class FRHICommandListImmediate& RHICmdList, uint32 Stride, uint32 Size, uint32 InUsage, ERHIAccess InResourceState, FRHIResourceCreateInfo& CreateInfo) override final
-	{
-		FStructuredBufferRHIRef StructuredBuffer = RHI->CreateStructuredBuffer_RenderThread(RHICmdList, Stride, Size, InUsage, InResourceState, CreateInfo);
-		StructuredBuffer->InitBarrierTracking(InResourceState, CreateInfo.DebugName);
-		return StructuredBuffer;
+		FBufferRHIRef Buffer = RHI->CreateBuffer_RenderThread(RHICmdList, Size, Usage, Stride, ResourceState, CreateInfo);
+		Buffer->InitBarrierTracking(ResourceState, CreateInfo.DebugName);
+		return Buffer;
 	}
 
 	virtual FShaderResourceViewRHIRef CreateShaderResourceView_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIVertexBuffer* VertexBuffer, uint32 Stride, uint8 Format) override final
@@ -1407,13 +1366,6 @@ public:
 	virtual ETextureReallocationStatus CancelAsyncReallocateTexture2D_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITexture2D* Texture2D, bool bBlockUntilCompleted) override final
 	{
 		return RHI->CancelAsyncReallocateTexture2D_RenderThread(RHICmdList, Texture2D, bBlockUntilCompleted);
-	}
-
-	virtual FIndexBufferRHIRef CreateIndexBuffer_RenderThread(class FRHICommandListImmediate& RHICmdList, uint32 Stride, uint32 Size, uint32 InUsage, ERHIAccess InResourceState, FRHIResourceCreateInfo& CreateInfo) override final
-	{
-		FIndexBufferRHIRef IndexBuffer = RHI->CreateIndexBuffer_RenderThread(RHICmdList, Stride, Size, InUsage, InResourceState, CreateInfo);
-		IndexBuffer->InitBarrierTracking(InResourceState, CreateInfo.DebugName);
-		return IndexBuffer;
 	}
 
 	virtual void* LockBuffer_BottomOfPipe(class FRHICommandListImmediate& RHICmdList, FRHIBuffer* Buffer, uint32 Offset, uint32 SizeRHI, EResourceLockMode LockMode) override final

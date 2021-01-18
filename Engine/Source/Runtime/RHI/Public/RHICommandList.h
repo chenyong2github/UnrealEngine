@@ -4080,8 +4080,9 @@ public:
 
 	FORCEINLINE FIndexBufferRHIRef CreateAndLockIndexBuffer(uint32 Stride, uint32 Size, uint32 InUsage, FRHIResourceCreateInfo& CreateInfo, void*& OutDataBuffer)
 	{
-		ERHIAccess ResourceState = RHIGetDefaultResourceState((EBufferUsageFlags) InUsage | BUF_IndexBuffer, true);
-		return CreateAndLockIndexBuffer(Stride, Size, (EBufferUsageFlags) InUsage, ResourceState, CreateInfo, OutDataBuffer);
+		EBufferUsageFlags Usage = (EBufferUsageFlags) InUsage | BUF_IndexBuffer;
+		ERHIAccess ResourceState = RHIGetDefaultResourceState(Usage, true);
+		return CreateAndLockIndexBuffer(Stride, Size, Usage, ResourceState, CreateInfo, OutDataBuffer);
 	}
 	
 	UE_DEPRECATED(5.0, "Buffer locks have been unified. Use LockBuffer() instead.")
@@ -4113,8 +4114,9 @@ public:
 
 	FORCEINLINE FVertexBufferRHIRef CreateAndLockVertexBuffer(uint32 Size, uint32 InUsage, FRHIResourceCreateInfo& CreateInfo, void*& OutDataBuffer)
 	{
-		ERHIAccess ResourceState = RHIGetDefaultResourceState((EBufferUsageFlags) InUsage | BUF_VertexBuffer, true);
-		return CreateAndLockVertexBuffer(Size, (EBufferUsageFlags) InUsage, ResourceState, CreateInfo, OutDataBuffer);
+		EBufferUsageFlags Usage = (EBufferUsageFlags) InUsage | BUF_VertexBuffer;
+		ERHIAccess ResourceState = RHIGetDefaultResourceState(Usage, true);
+		return CreateAndLockVertexBuffer(Size, Usage, ResourceState, CreateInfo, OutDataBuffer);
 	}
 
 	UE_DEPRECATED(5.0, "Buffer locks have been unified. Use LockBuffer() instead.")
@@ -5100,26 +5102,28 @@ FORCEINLINE FIndexBufferRHIRef RHICreateAndLockIndexBuffer(uint32 Stride, uint32
 
 FORCEINLINE FIndexBufferRHIRef RHICreateIndexBuffer(uint32 Stride, uint32 Size, uint32 InUsage, ERHIAccess InResourceState, FRHIResourceCreateInfo& CreateInfo)
 {
-	return GDynamicRHI->CreateIndexBuffer_RenderThread(FRHICommandListExecutor::GetImmediateCommandList(), Stride, Size, InUsage, InResourceState, CreateInfo);
+	return GDynamicRHI->CreateBuffer_RenderThread(FRHICommandListExecutor::GetImmediateCommandList(), Size, (EBufferUsageFlags) InUsage | BUF_IndexBuffer, Stride, InResourceState, CreateInfo);
 }
 
 FORCEINLINE FIndexBufferRHIRef RHIAsyncCreateIndexBuffer(uint32 Stride, uint32 Size, uint32 InUsage, ERHIAccess InResourceState, FRHIResourceCreateInfo& CreateInfo)
 {
-	return GDynamicRHI->RHICreateIndexBuffer(Stride, Size, InUsage, InResourceState, CreateInfo);
+	return GDynamicRHI->RHICreateBuffer(Size, (EBufferUsageFlags)InUsage, Stride, InResourceState, CreateInfo);
 }
 
 FORCEINLINE FIndexBufferRHIRef RHICreateIndexBuffer(uint32 Stride, uint32 Size, uint32 InUsage, FRHIResourceCreateInfo& CreateInfo)
 {
 	bool bHasInitialData = CreateInfo.BulkData != nullptr;
-	ERHIAccess ResourceState = RHIGetDefaultResourceState((EBufferUsageFlags)InUsage | BUF_IndexBuffer, bHasInitialData);
-	return RHICreateIndexBuffer(Stride, Size, InUsage, ResourceState, CreateInfo);
+	EBufferUsageFlags Usage = (EBufferUsageFlags) InUsage | BUF_IndexBuffer;
+	ERHIAccess ResourceState = RHIGetDefaultResourceState(Usage, bHasInitialData);
+	return RHICreateIndexBuffer(Stride, Size, Usage, ResourceState, CreateInfo);
 }
 
 FORCEINLINE FIndexBufferRHIRef RHIAsyncCreateIndexBuffer(uint32 Stride, uint32 Size, uint32 InUsage, FRHIResourceCreateInfo& CreateInfo)
 {
 	bool bHasInitialData = CreateInfo.BulkData != nullptr;
-	ERHIAccess ResourceState = RHIGetDefaultResourceState((EBufferUsageFlags)InUsage | BUF_IndexBuffer, bHasInitialData);
-	return RHIAsyncCreateIndexBuffer(Stride, Size, InUsage, ResourceState, CreateInfo);
+	EBufferUsageFlags Usage = (EBufferUsageFlags) InUsage | BUF_IndexBuffer;
+	ERHIAccess ResourceState = RHIGetDefaultResourceState(Usage, bHasInitialData);
+	return RHIAsyncCreateIndexBuffer(Stride, Size, Usage, ResourceState, CreateInfo);
 }
 
 UE_DEPRECATED(5.0, "Buffer locks have been unified. Use RHILockBuffer() instead.")
@@ -5141,26 +5145,28 @@ FORCEINLINE FVertexBufferRHIRef RHICreateAndLockVertexBuffer(uint32 Size, uint32
 
 FORCEINLINE FVertexBufferRHIRef RHICreateVertexBuffer(uint32 Size, uint32 InUsage, ERHIAccess InResourceState, FRHIResourceCreateInfo& CreateInfo)
 {
-	return GDynamicRHI->CreateVertexBuffer_RenderThread(FRHICommandListExecutor::GetImmediateCommandList(), Size, InUsage, InResourceState, CreateInfo);
+	return GDynamicRHI->CreateBuffer_RenderThread(FRHICommandListExecutor::GetImmediateCommandList(), Size, (EBufferUsageFlags) InUsage | BUF_VertexBuffer, 0, InResourceState, CreateInfo);
 }
 
 FORCEINLINE FVertexBufferRHIRef RHIAsyncCreateVertexBuffer(uint32 Size, uint32 InUsage, ERHIAccess InResourceState, FRHIResourceCreateInfo& CreateInfo)
 {
-	return GDynamicRHI->RHICreateVertexBuffer(Size, InUsage, InResourceState, CreateInfo);
+	return GDynamicRHI->RHICreateBuffer(Size, (EBufferUsageFlags)InUsage, 0, InResourceState, CreateInfo);
 }
 
 FORCEINLINE FVertexBufferRHIRef RHICreateVertexBuffer(uint32 Size, uint32 InUsage, FRHIResourceCreateInfo& CreateInfo)
 {
 	bool bHasInitialData = CreateInfo.BulkData != nullptr;
-	ERHIAccess ResourceState = RHIGetDefaultResourceState((EBufferUsageFlags)InUsage | BUF_VertexBuffer, bHasInitialData);
-	return RHICreateVertexBuffer(Size, InUsage, ResourceState, CreateInfo);
+	EBufferUsageFlags Usage = (EBufferUsageFlags) InUsage | BUF_VertexBuffer;
+	ERHIAccess ResourceState = RHIGetDefaultResourceState(Usage, bHasInitialData);
+	return RHICreateVertexBuffer(Size, Usage, ResourceState, CreateInfo);
 }
 
 FORCEINLINE FVertexBufferRHIRef RHIAsyncCreateVertexBuffer(uint32 Size, uint32 InUsage, FRHIResourceCreateInfo& CreateInfo)
 {
 	bool bHasInitialData = CreateInfo.BulkData != nullptr;
-	ERHIAccess ResourceState = RHIGetDefaultResourceState((EBufferUsageFlags)InUsage | BUF_VertexBuffer, bHasInitialData);
-	return RHIAsyncCreateVertexBuffer(Size, InUsage, ResourceState, CreateInfo);
+	EBufferUsageFlags Usage = (EBufferUsageFlags) InUsage | BUF_VertexBuffer;
+	ERHIAccess ResourceState = RHIGetDefaultResourceState(Usage, bHasInitialData);
+	return RHIAsyncCreateVertexBuffer(Size, Usage, ResourceState, CreateInfo);
 }
 
 UE_DEPRECATED(5.0, "Buffer locks have been unified. Use RHILockBuffer() instead.")
@@ -5177,14 +5183,15 @@ FORCEINLINE void RHIUnlockVertexBuffer(FRHIVertexBuffer* VertexBuffer)
 
 FORCEINLINE FStructuredBufferRHIRef RHICreateStructuredBuffer(uint32 Stride, uint32 Size, uint32 InUsage, ERHIAccess InResourceState, FRHIResourceCreateInfo& CreateInfo)
 {
-	return GDynamicRHI->CreateStructuredBuffer_RenderThread(FRHICommandListExecutor::GetImmediateCommandList(), Stride, Size, InUsage, InResourceState, CreateInfo);
+	return GDynamicRHI->CreateBuffer_RenderThread(FRHICommandListExecutor::GetImmediateCommandList(), Size, (EBufferUsageFlags) InUsage | BUF_StructuredBuffer, Stride, InResourceState, CreateInfo);
 }
 
 FORCEINLINE FStructuredBufferRHIRef RHICreateStructuredBuffer(uint32 Stride, uint32 Size, uint32 InUsage, FRHIResourceCreateInfo& CreateInfo)
 {
 	bool bHasInitialData = CreateInfo.BulkData != nullptr;
-	ERHIAccess ResourceState = RHIGetDefaultResourceState((EBufferUsageFlags)InUsage | BUF_StructuredBuffer, bHasInitialData);
-	return RHICreateStructuredBuffer(Stride, Size, InUsage, ResourceState, CreateInfo);
+	EBufferUsageFlags Usage = (EBufferUsageFlags) InUsage | BUF_StructuredBuffer;
+	ERHIAccess ResourceState = RHIGetDefaultResourceState(Usage, bHasInitialData);
+	return RHICreateStructuredBuffer(Stride, Size, Usage, ResourceState, CreateInfo);
 }
 
 UE_DEPRECATED(5.0, "Buffer locks have been unified. Use RHILockBuffer() instead.")

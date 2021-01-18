@@ -367,6 +367,64 @@ void FD3D12Buffer::ReleaseUnderlyingResource()
 	}
 }
 
+D3D12_RESOURCE_DESC CreateBufferResourceDesc(uint32 Size, uint32 Usage)
+{
+	D3D12_RESOURCE_DESC Desc = CD3DX12_RESOURCE_DESC::Buffer(Size);
+
+	if (Usage & BUF_UnorderedAccess)
+	{
+		Desc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+
+		static bool bRequiresRawView = (GMaxRHIFeatureLevel < ERHIFeatureLevel::SM5);
+		if (bRequiresRawView)
+		{
+			// Force the buffer to be a raw, byte address buffer
+			Usage |= BUF_ByteAddressBuffer;
+		}
+	}
+
+	if ((Usage & BUF_ShaderResource) == 0)
+	{
+		Desc.Flags |= D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE;
+	}
+
+	if (Usage & BUF_DrawIndirect)
+	{
+		Desc.Flags |= D3D12RHI_RESOURCE_FLAG_ALLOW_INDIRECT_BUFFER;
+	}
+
+	return Desc;
+}
+
+FBufferRHIRef FD3D12DynamicRHI::RHICreateBuffer(uint32 Size, EBufferUsageFlags Usage, uint32 Stride, ERHIAccess InResourceState, FRHIResourceCreateInfo& CreateInfo)
+{
+	if (CreateInfo.bWithoutNativeResource)
+	{
+		return GetAdapter().CreateLinkedObject<FD3D12Buffer>(CreateInfo.GPUMask, [](FD3D12Device* Device)
+			{
+				return new FD3D12Buffer();
+			});
+	}
+
+	const D3D12_RESOURCE_DESC Desc = CreateBufferResourceDesc(Size, Usage);
+	// Structured buffers, non-ByteAddress buffers, need to be aligned to their stride to ensure that they can be addressed correctly with element based offsets.
+	const uint32 Alignment = (Stride > 0) && (((Usage & BUF_StructuredBuffer) != 0) || ((Usage & (BUF_ByteAddressBuffer | BUF_DrawIndirect)) == 0))? Stride : 4;
+
+	FD3D12Buffer* Buffer = GetAdapter().CreateRHIBuffer(nullptr, Desc, Alignment, Stride, Size, Usage, ED3D12ResourceStateMode::Default, InResourceState, CreateInfo);
+	if (Buffer->ResourceLocation.IsTransient())
+	{
+		// TODO: this should ideally be set in platform-independent code, since this tracking is for the high level
+		Buffer->SetCommitted(false);
+	}
+
+	return Buffer;
+}
+
+FBufferRHIRef FD3D12DynamicRHI::CreateBuffer_RenderThread(class FRHICommandListImmediate& RHICmdList, uint32 Size, EBufferUsageFlags Usage, uint32 Stride, ERHIAccess ResourceState, FRHIResourceCreateInfo& CreateInfo)
+{
+	return RHICreateBuffer(Size, Usage, Stride, ResourceState, CreateInfo);
+}
+
 void* FD3D12DynamicRHI::LockBuffer(FRHICommandListImmediate* RHICmdList, FD3D12Buffer* Buffer, uint32 BufferSize, uint32 BufferUsage, uint32 Offset, uint32 Size, EResourceLockMode LockMode)
 {
 	SCOPE_CYCLE_COUNTER(STAT_D3D12LockBufferTime);

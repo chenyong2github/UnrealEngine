@@ -176,7 +176,7 @@ void BeginFrame_VertexBufferCleanup()
 	FrameBytes = 0;
 }
 
-FVertexBufferRHIRef FOpenGLDynamicRHI::RHICreateVertexBuffer(uint32 Size, uint32 InUsage, ERHIAccess InResourceState, FRHIResourceCreateInfo& CreateInfo)
+FBufferRHIRef FOpenGLDynamicRHI::RHICreateBuffer(uint32 Size, EBufferUsageFlags Usage, uint32 Stride, ERHIAccess InResourceState, FRHIResourceCreateInfo& CreateInfo)
 {
 	if (CreateInfo.bWithoutNativeResource)
 	{
@@ -192,14 +192,14 @@ FVertexBufferRHIRef FOpenGLDynamicRHI::RHICreateVertexBuffer(uint32 Size, uint32
 		Data = CreateInfo.ResourceArray->GetResourceData();
 	}
 
-	TRefCountPtr<FOpenGLBuffer> VertexBuffer = new FOpenGLBuffer(GL_ARRAY_BUFFER, 0, Size, InUsage | BUF_VertexBuffer, Data);
+	TRefCountPtr<FOpenGLBuffer> Buffer = new FOpenGLBuffer((Usage & BUF_IndexBuffer)? GL_ARRAY_BUFFER : GL_ELEMENT_ARRAY_BUFFER, Stride, Size, Usage, Data);
 	
 	if (CreateInfo.ResourceArray)
 	{
 		CreateInfo.ResourceArray->Discard();
 	}
 	
-	return VertexBuffer.GetReference();
+	return Buffer.GetReference();
 }
 
 void* FOpenGLDynamicRHI::LockBuffer_BottomOfPipe(FRHICommandListImmediate& RHICmdList, FRHIBuffer* BufferRHI, uint32 Offset, uint32 Size, EResourceLockMode LockMode)

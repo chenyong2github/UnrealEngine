@@ -595,20 +595,11 @@ void FVulkanDynamicRHI::RHICreateTransition(FRHITransition* Transition, ERHIPipe
 				Texture = FVulkanTextureBase::Cast(UAV->SourceTexture);
 				UnderlyingType = FRHITransitionInfo::EType::Texture;
 			}
-			else if (UAV->SourceIndexBuffer)
+			else if (UAV->SourceBuffer)
 			{
-				Buffer = UAV->SourceIndexBuffer;
+				Buffer = UAV->SourceBuffer;
 				UnderlyingType = FRHITransitionInfo::EType::Buffer;
-			}
-			else if (UAV->SourceVertexBuffer)
-			{
-				Buffer = UAV->SourceVertexBuffer;
-				UnderlyingType = FRHITransitionInfo::EType::Buffer;
-			}
-			else if (UAV->SourceStructuredBuffer)
-			{
-				Buffer = UAV->SourceStructuredBuffer;
-				UnderlyingType = FRHITransitionInfo::EType::Buffer;
+				UsageFlags = Buffer->GetBufferUsageFlags();
 			}
 			else
 			{

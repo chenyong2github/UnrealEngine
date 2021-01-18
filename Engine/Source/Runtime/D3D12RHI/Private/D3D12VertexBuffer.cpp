@@ -6,82 +6,6 @@
 
 #include "D3D12RHIPrivate.h"
 
-D3D12_RESOURCE_DESC CreateVertexBufferResourceDesc(uint32 Size, uint32 InUsage)
-{
-	// Describe the vertex buffer.
-	D3D12_RESOURCE_DESC Desc = CD3DX12_RESOURCE_DESC::Buffer(Size);
-
-	if (InUsage & BUF_UnorderedAccess)
-	{
-		Desc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
-
-		static bool bRequiresRawView = (GMaxRHIFeatureLevel < ERHIFeatureLevel::SM5);
-		if (bRequiresRawView)
-		{
-			// Force the buffer to be a raw, byte address buffer
-			InUsage |= BUF_ByteAddressBuffer;
-		}
-	}
-
-	if ((InUsage & BUF_ShaderResource) == 0)
-	{
-		Desc.Flags |= D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE;
-	}
-
-	if (InUsage & BUF_DrawIndirect)
-	{
-		Desc.Flags |= D3D12RHI_RESOURCE_FLAG_ALLOW_INDIRECT_BUFFER;
-	}
-
-	return Desc;
-}
-
-FVertexBufferRHIRef FD3D12DynamicRHI::RHICreateVertexBuffer(uint32 Size, uint32 InUsage, ERHIAccess InResourceState, FRHIResourceCreateInfo& CreateInfo)
-{
-	if (CreateInfo.bWithoutNativeResource)
-	{
-		return GetAdapter().CreateLinkedObject<FD3D12Buffer>(CreateInfo.GPUMask, [](FD3D12Device* Device)
-			{
-				return new FD3D12Buffer();
-			});
-	}
-
-	const D3D12_RESOURCE_DESC Desc = CreateVertexBufferResourceDesc(Size, InUsage);
-	const uint32 Alignment = 4;
-
-	FD3D12Buffer* Buffer = GetAdapter().CreateRHIBuffer(nullptr, Desc, Alignment, 0, Size, InUsage | BUF_VertexBuffer, ED3D12ResourceStateMode::Default, InResourceState, CreateInfo);
-	if (Buffer->ResourceLocation.IsTransient() )
-	{
-		// TODO: this should ideally be set in platform-independent code, since this tracking is for the high level
-		Buffer->SetCommitted(false);
-	}
-
-	return Buffer;
-}
-
-FVertexBufferRHIRef FD3D12DynamicRHI::CreateVertexBuffer_RenderThread(FRHICommandListImmediate& RHICmdList, uint32 Size, uint32 InUsage, ERHIAccess InResourceState, FRHIResourceCreateInfo& CreateInfo)
-{	
-	if (CreateInfo.bWithoutNativeResource)
-	{
-		return GetAdapter().CreateLinkedObject<FD3D12Buffer>(CreateInfo.GPUMask, [](FD3D12Device* Device)
-			{
-				return new FD3D12Buffer();
-			});
-	}
-
-	const D3D12_RESOURCE_DESC Desc = CreateVertexBufferResourceDesc(Size, InUsage);
-	const uint32 Alignment = 4;
-
-	FD3D12Buffer* Buffer = GetAdapter().CreateRHIBuffer(&RHICmdList, Desc, Alignment, 0, Size, InUsage | BUF_VertexBuffer, ED3D12ResourceStateMode::Default, InResourceState, CreateInfo);
-	if (Buffer->ResourceLocation.IsTransient())
-	{
-		// TODO: this should ideally be set in platform-independent code, since this tracking is for the high level
-		Buffer->SetCommitted(false);
-	}
-
-	return Buffer;
-}
-
 void FD3D12DynamicRHI::RHICopyBuffer(FRHIBuffer* SourceBufferRHI, FRHIBuffer* DestBufferRHI)
 {
 	FD3D12Buffer* SrcBuffer = FD3D12DynamicRHI::ResourceCast(SourceBufferRHI);
@@ -291,19 +215,3 @@ void FD3D12CommandContext::RHICopyBufferRegions(const TArrayView<const FCopyBuff
 	TransitionResources(CommandListHandle, DstBuffers, EBatchCopyState::FinalizeDest);
 }
 #endif // D3D12_RHI_RAYTRACING
-
-FVertexBufferRHIRef FD3D12DynamicRHI::CreateAndLockVertexBuffer_RenderThread(FRHICommandListImmediate& RHICmdList, uint32 Size, uint32 InUsage, ERHIAccess InResourceState, FRHIResourceCreateInfo& CreateInfo, void*& OutDataBuffer)
-{
-	const D3D12_RESOURCE_DESC Desc = CreateVertexBufferResourceDesc(Size, InUsage);
-	const uint32 Alignment = 4;
-
-	FD3D12Buffer* Buffer = GetAdapter().CreateRHIBuffer(nullptr, Desc, Alignment, 0, Size, InUsage | BUF_VertexBuffer, ED3D12ResourceStateMode::Default, InResourceState, CreateInfo);
-	if (Buffer->ResourceLocation.IsTransient())
-	{
-		// TODO: this should ideally be set in platform-independent code, since this tracking is for the high level
-		Buffer->SetCommitted(false);
-	}
-	OutDataBuffer = LockBuffer(&RHICmdList, Buffer, Buffer->GetSize(), Buffer->GetUsage(), 0, Size, RLM_WriteOnly);
-
-	return Buffer;
-}
