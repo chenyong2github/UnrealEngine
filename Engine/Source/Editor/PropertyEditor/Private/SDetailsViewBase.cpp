@@ -527,8 +527,8 @@ void SDetailsViewBase::RequestItemExpanded(TSharedRef<FDetailTreeNode> TreeNode,
 	// Don't change expansion state if its already in that state
 	if (DetailTree->IsItemExpanded(TreeNode) != bExpand)
 	{
-		FilteredNodesRequestingExpansionState.Add(TreeNode, bExpand);
-	}
+	FilteredNodesRequestingExpansionState.Add(TreeNode, bExpand);
+}
 }
 
 void SDetailsViewBase::RefreshTree()
@@ -839,14 +839,18 @@ void SDetailsViewBase::Tick( const FGeometry& AllottedGeometry, const double InC
 		}
 	}
 
-	if (DeferredActions.Num() > 0)
+	if (bHadDeferredActions)
 	{
-		// Execute any deferred actions
-		for (const FSimpleDelegate& DeferredAction : DeferredActions)
+		TArray<FSimpleDelegate> DeferredActionsCopy;
+		
+		do
 		{
-			DeferredAction.ExecuteIfBound();
-		}
-		DeferredActions.Empty();
+			DeferredActionsCopy = MoveTemp(DeferredActions);
+			DeferredActions.Reset();
+
+			// Execute any deferred actions
+			for (const FSimpleDelegate& DeferredAction : DeferredActionsCopy)
+		} while (!DeferredActions.IsEmpty());
 	}
 
 	if (bHadDeferredActions)
@@ -965,7 +969,7 @@ void SDetailsViewBase::Tick( const FGeometry& AllottedGeometry, const double InC
 	if (FilteredNodesRequestingExpansionState.Num() > 0)
 	{
 		// change expansion state on the nodes that request it
-		for (TMap<TWeakPtr<FDetailTreeNode>, bool >::TConstIterator It(FilteredNodesRequestingExpansionState); It; ++It)
+		for (TMap<TWeakPtr<FDetailTreeNode>, bool>::TConstIterator It(FilteredNodesRequestingExpansionState); It; ++It)
 		{
 			TWeakPtr<FDetailTreeNode> DetailTreeNode = It.Key();
 			if (DetailTreeNode.IsValid())
