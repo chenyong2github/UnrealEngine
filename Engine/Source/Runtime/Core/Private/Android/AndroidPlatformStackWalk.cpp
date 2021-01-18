@@ -146,6 +146,11 @@ extern int32 unwind_backtrace_signal(void* sigcontext, uint64* Backtrace, int32 
 
 uint32 FAndroidPlatformStackWalk::CaptureStackBackTrace(uint64* BackTrace, uint32 MaxDepth, void* Context)
 {
+#ifdef RUNNING_WITH_ASAN
+	//Stack walk sometimes might touch executable memory and ASan will terminate the app on that.
+	return 0;
+#endif
+
 #if PLATFORM_ANDROID_ARM64
 	if (FAndroidMisc::GetTargetSDKVersion() >= 29 && FAndroidMisc::GetAndroidMajorVersion() == 10)
 	{
@@ -159,8 +164,8 @@ uint32 FAndroidPlatformStackWalk::CaptureStackBackTrace(uint64* BackTrace, uint3
 		}
 		return 0;
 	}
-
 #endif
+
 	// Make sure we have place to store the information
 	if (BackTrace == NULL || MaxDepth == 0)
 	{
