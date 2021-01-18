@@ -1503,6 +1503,19 @@ void FUsdLevelSequenceHelperImpl::UpdateLayerTimeInfoFromLayer( FLayerTimeInfo& 
 	LayerTimeInfo.StartTimeCode      = Layer.HasStartTimeCode() ? Layer.GetStartTimeCode() : TOptional<double>();
 	LayerTimeInfo.EndTimeCode        = Layer.HasEndTimeCode() ? Layer.GetEndTimeCode() : TOptional<double>();
 
+	if ( LayerTimeInfo.EndTimeCode.IsSet() && LayerTimeInfo.EndTimeCode.IsSet() && LayerTimeInfo.EndTimeCode.GetValue() < LayerTimeInfo.StartTimeCode.GetValue() )
+	{
+		UE_LOG( LogUsd, Warning, TEXT( "Sublayer '%s' has end time code (%f) before start time code (%f)! These values will be automatically swapped" ),
+			*Layer.GetIdentifier(),
+			LayerTimeInfo.EndTimeCode.GetValue(),
+			LayerTimeInfo.StartTimeCode.GetValue()
+		);
+
+		TOptional<double> Temp = LayerTimeInfo.StartTimeCode;
+		LayerTimeInfo.StartTimeCode = LayerTimeInfo.EndTimeCode;
+		LayerTimeInfo.EndTimeCode = Temp;
+	}
+
 	const TArray< FString >& SubLayerPaths = Layer.GetSubLayerPaths();
 	LayerTimeInfo.SubLayersOffsets.Empty( SubLayerPaths.Num() );
 
