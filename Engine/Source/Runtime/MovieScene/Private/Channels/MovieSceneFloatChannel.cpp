@@ -1041,6 +1041,7 @@ FKeyHandle AddKeyToChannel(FMovieSceneFloatChannel* Channel, FFrameNumber InFram
 	{
 		FMovieSceneFloatValue& Value = ChannelData.GetValues()[ExistingIndex]; //-V758
 		Value.Value = InValue;
+		Channel->AutoSetTangents();
 	}
 	else switch (Interpolation)
 	{
