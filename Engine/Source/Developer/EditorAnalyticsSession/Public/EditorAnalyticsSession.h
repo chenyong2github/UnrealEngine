@@ -31,8 +31,8 @@ struct EDITORANALYTICSSESSION_API FEditorAnalyticsSession
 	FString ProjectDescription;
 	FString ProjectVersion;
 	FString EngineVersion;
-	uint32 PlatformProcessID;
-	uint32 MonitorProcessID; // Set to the CrashReportClientEditor PID when out-of-process reporting is used.
+	uint32 PlatformProcessID = 0;
+	uint32 MonitorProcessID = 0; // Set to the CrashReportClientEditor PID when out-of-process reporting is used.
 	TOptional<int32> ExitCode; // Set by CrashReportClientEditor after the Editor process exit when out-of-process reporting is used and reading the exit code is supported.
 	TOptional<int32> MonitorExceptCode; // Set in CrashReportClientEditor process when an exception or an error is caught.
 	TOptional<int32> MonitorExitCode; // Set in the Editor process when the Editor detects that CrashReportClientEditor process unexpectedly died.
@@ -49,7 +49,7 @@ struct EDITORANALYTICSSESSION_API FEditorAnalyticsSession
 	volatile int32 TotalEditorInactivitySeconds = 0; // Account for user input and Editor process CPU usage. Add up gaps where the CPU was not used intensively and the user did not interact.
 	FString CurrentUserActivity;
 	TArray<FString> Plugins;
-	float AverageFPS;
+	float AverageFPS = 0.0f;
 
 	uint64 SessionTickCount = 0; // Number of times the analytic session was ticked. Zero is the interesting value. If the Editor is hang during boot, some users may be prompt to kill it.
 	uint64 EngineTickCount = 0;  // Number or times the engine was ticked.
@@ -57,16 +57,16 @@ struct EDITORANALYTICSSESSION_API FEditorAnalyticsSession
 
 	FString DesktopGPUAdapter;
 	FString RenderingGPUAdapter;
-	uint32 GPUVendorID;
-	uint32 GPUDeviceID;
-	uint32 GRHIDeviceRevision;
+	uint32 GPUVendorID = 0;
+	uint32 GPUDeviceID = 0;
+	uint32 GRHIDeviceRevision = 0;
 	FString GRHIAdapterInternalDriverVersion;
 	FString GRHIAdapterUserDriverVersion;
 	FString GRHIName;
 
-	uint64 TotalPhysicalRAM;
-	int32 CPUPhysicalCores;
-	int32 CPULogicalCores;
+	uint64 TotalPhysicalRAM = 0;
+	int32 CPUPhysicalCores = 0;
+	int32 CPULogicalCores = 0;
 	FString CPUVendor;
 	FString CPUBrand;
 
@@ -196,6 +196,19 @@ struct EDITORANALYTICSSESSION_API FEditorAnalyticsSession
 	 *       the Editor exit code.
 	 */
 	bool SaveMonitorExceptCode(int32 ExceptCode);
+
+	/**
+	 * Create a very minimal session for an Editor crash that occurred before the analytic session was created. The
+	 * session lifecyle is the same as a normal session, but it cannot be sent 'as-it' to the backend because it is
+	 * incomplete. Instead, the session information is pulled and piggybacked with another valid session. Usually, a
+	 * minimal session will be created by CrashReportClient (in monitor mode) if the Editor crashed and the corresponding
+	 * analytic session couldn't be found.
+	 * @note The purpose of this functionality is to allow counting very early crashes that aren't reported to analytics otherwise.
+	 */
+	static void CreateMinimalCrashSession(const TOptional<int32>& ExitCode);
+	
+	/** Returns true if the session is minimal, i.e. created with CreateMinimalCrashSession(). */
+	bool IsMinimalCrashSession() const;
 
 private:
 	/** Returns true if the local storage is locked by the specified thread. */

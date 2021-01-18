@@ -29,6 +29,17 @@ namespace EditorSessionSenderDefs
 	static const FString AbnormalSessionToken(TEXT("AbnormalShutdown"));
 }
 
+/** Contains the analytics session and some extra data to report. */
+struct FEditorAnalyticReportData
+{
+	/** The analytic session to report. */
+	FEditorAnalyticsSession Session;
+
+	/** Number of Editor instances (same engine version than Session) that crashed prior the analytic was running and wasn't accounted for yet. */
+	uint32 DelayedCrashCount = 0;
+};
+
+
 FEditorSessionSummarySender::FEditorSessionSummarySender(IAnalyticsProviderET& InAnalyticsProvider, const FString& InSenderName, const uint32 InCurrentSessionProcessId)
 	: HeartbeatTimeElapsed(0.0f)
 	, AnalyticsProvider(InAnalyticsProvider)
@@ -68,7 +79,7 @@ void FEditorSessionSummarySender::SendStoredSessions(const bool bForceSendOwnedS
 	// Load the list of sessions to process. Expect contention on the analytic session lock between the Editor and CrashReportClientEditor (on windows) or between Editor instances (on mac/linux)
 	//   - Try every 'n' seconds if bForceSendCurrentSession is true.
 	//   - Don't block and don't loop if bForceSendCurrentSession is false.
-	TArray<FEditorAnalyticsSession> SessionsToReport;
+	TArray<FEditorAnalyticReportData> SessionsToReport;
 	FTimespan Timemout(bForceSendOwnedSession ? FTimespan::FromSeconds(5) : FTimespan::Zero());
 	bool bSessionsLoaded = false;
 	do
@@ -77,6 +88,7 @@ void FEditorSessionSummarySender::SendStoredSessions(const bool bForceSendOwnedS
 		{
 			// Get list of sessions in storage
 			TArray<FEditorAnalyticsSession> ExistingSessions;
+			TArray<FEditorAnalyticsSession> MinimalCrashSessions;
 			FEditorAnalyticsSession::LoadAllStoredSessions(ExistingSessions);
 
 			TArray<FEditorAnalyticsSession> SessionsToDelete;
@@ -88,7 +100,7 @@ void FEditorSessionSummarySender::SendStoredSessions(const bool bForceSendOwnedS
 			auto IsOrphan = [](const FEditorAnalyticsSession& InSession) { return !FPlatformProcess::IsApplicationRunning(InSession.PlatformProcessID) && (InSession.MonitorProcessID == 0 || !FPlatformProcess::IsApplicationRunning(InSession.MonitorProcessID)); };
 
 			// Check each stored session to see if they should be sent or not
-			for (FEditorAnalyticsSession& Session : ExistingSessions)
+			for (const FEditorAnalyticsSession& Session : ExistingSessions)
 			{
 				if (HasOwnershipOf(Session)) // This process was configured to send this session.
 				{
@@ -105,9 +117,29 @@ void FEditorSessionSummarySender::SendStoredSessions(const bool bForceSendOwnedS
 				const FTimespan SessionAge = FDateTime::UtcNow() - Session.Timestamp;
 				if (SessionAge < EditorSessionSenderDefs::SessionExpiration)
 				{
-					SessionsToReport.Add(Session);
+					if (Session.IsMinimalCrashSession())
+					{
+						MinimalCrashSessions.Add(Session);
+						continue; // Don't schedule this minimal session for reporting/deletiong yet, it's data must be piggybacked off a full and compatible session to be reported/deleted.
+					}
+
+					SessionsToReport.Add(FEditorAnalyticReportData{Session,0});
 				}
 				SessionsToDelete.Add(Session);
+			}
+
+			// Try to piggyback the minimal crash session information off a valid session. Minimal sessions are incomplete and will be rejected/ignored by the backend or may disrupt various analysis.
+			for (FEditorAnalyticsSession& MinimalCrashSession : MinimalCrashSessions)
+			{
+				// Piggyback information of the minimal crash session off a session that has the same engine version. (Stats are aggregated by engine version)
+				if (FEditorAnalyticReportData* ReportData = SessionsToReport.FindByPredicate([&MinimalCrashSession](const FEditorAnalyticReportData& Candidate) { return Candidate.Session.EngineVersion == MinimalCrashSession.EngineVersion; }))
+				{
+					// Account for the crashes that occurred before the analytic was initialized.
+					ReportData->DelayedCrashCount += 1;
+
+					// The minimal crash session was accounted for, schedule it for deletion.
+					SessionsToDelete.Add(MoveTemp(MinimalCrashSession));
+				}
 			}
 
 			// NOTE: The sessions are deleted before sending (while holding the lock) to prevent another process from finding and sending the same orphan sessions twice.
@@ -136,14 +168,15 @@ void FEditorSessionSummarySender::SendStoredSessions(const bool bForceSendOwnedS
 	} while (bForceSendOwnedSession && !bSessionsLoaded); // Retry until session are loaded if the sender is forced to send the current session.
 
 	// Send the sessions (without holding the lock).
-	for (const FEditorAnalyticsSession& Session : SessionsToReport)
+	for (const FEditorAnalyticReportData& ReportData : SessionsToReport)
 	{
-		SendSessionSummaryEvent(Session);
+		SendSessionSummaryEvent(ReportData);
 	}
 }
 
-void FEditorSessionSummarySender::SendSessionSummaryEvent(const FEditorAnalyticsSession& Session) const
+void FEditorSessionSummarySender::SendSessionSummaryEvent(const FEditorAnalyticReportData& ReportData) const
 {
+	const FEditorAnalyticsSession& Session = ReportData.Session;
 	FGuid SessionId;
 	FString SessionIdString = Session.SessionId;
 	if (FGuid::Parse(SessionIdString, SessionId))
@@ -222,6 +255,7 @@ void FEditorSessionSummarySender::SendSessionSummaryEvent(const FEditorAnalytics
 	AnalyticsAttributes.Emplace(TEXT("IsCrcMissing"), Session.bIsCrcExeMissing);
 	AnalyticsAttributes.Emplace(TEXT("SentFrom"), Sender);
 	AnalyticsAttributes.Emplace(TEXT("MonitorPid"), Session.MonitorProcessID); // For out-of-process monitoring, if this is 0, this will mean CRC failed to launch or crashed very early.
+	AnalyticsAttributes.Emplace(TEXT("DelayedCrashCount"), ReportData.DelayedCrashCount); // Piggybacked information from 'minimal crash sessions', previous Editor instances crashes recorded before analytics was initialized.
 
 	bool bShouldAttachMonitorLog = (ShutdownTypeString != EditorSessionSenderDefs::ShutdownSessionToken && ShutdownTypeString != EditorSessionSenderDefs::TerminatedSessionToken);
 

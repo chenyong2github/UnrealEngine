@@ -89,6 +89,9 @@ static void* MonitorReadPipe = nullptr;
 /** If in monitor mode, pipe to write data to game. */
 static void* MonitorWritePipe = nullptr;
 
+/** If in monitor mode, set to true when the monitored app crashes. */
+static bool bMonitoredAppCrashed = false;
+
 /** Result of submission of report */
 enum SubmitCrashReportResult {
 	Failed,				// Failed to send report
@@ -633,14 +636,42 @@ bool IsCrashReportAvailable(uint32 WatchedProcess, FSharedCrashContext& CrashCon
 			// Record the history of events sent by the Editor to help diagnose abnormal terminations.
 			switch (CrashContext.CrashType)
 			{
-				case ECrashContextType::Assert:           FDiagnosticLogger::Get().LogEvent(TEXT("Pipe/Assert"));          break;
-				case ECrashContextType::Ensure:           FDiagnosticLogger::Get().LogEvent(TEXT("Pipe/Ensure"));          break;
-				case ECrashContextType::Crash:            FDiagnosticLogger::Get().LogEvent(TEXT("Pipe/Crash"));           break;
-				case ECrashContextType::GPUCrash:         FDiagnosticLogger::Get().LogEvent(TEXT("Pipe/GPUCrash"));        break;
-				case ECrashContextType::Hang:             FDiagnosticLogger::Get().LogEvent(TEXT("Pipe/Hang"));            break;
-				case ECrashContextType::OutOfMemory:      FDiagnosticLogger::Get().LogEvent(TEXT("Pipe/OOM"));             break;
-				case ECrashContextType::AbnormalShutdown: FDiagnosticLogger::Get().LogEvent(TEXT("Pipe/AbnormalShutdown"));break;
-				default:                                  FDiagnosticLogger::Get().LogEvent(TEXT("Pipe/Unknown"));         break;
+				case ECrashContextType::Assert:
+					FDiagnosticLogger::Get().LogEvent(TEXT("Pipe/Assert"));
+					bMonitoredAppCrashed = true;
+					break;
+
+				case ECrashContextType::Ensure:
+					FDiagnosticLogger::Get().LogEvent(TEXT("Pipe/Ensure"));
+					break;
+
+				case ECrashContextType::Crash:
+					FDiagnosticLogger::Get().LogEvent(TEXT("Pipe/Crash"));
+					bMonitoredAppCrashed = true;
+					break;
+
+				case ECrashContextType::GPUCrash:
+					FDiagnosticLogger::Get().LogEvent(TEXT("Pipe/GPUCrash"));
+					bMonitoredAppCrashed = true;
+					break;
+
+				case ECrashContextType::Hang:
+					FDiagnosticLogger::Get().LogEvent(TEXT("Pipe/Hang"));
+					break;
+
+				case ECrashContextType::OutOfMemory:
+					FDiagnosticLogger::Get().LogEvent(TEXT("Pipe/OOM"));
+					bMonitoredAppCrashed = true;
+					break;
+
+				case ECrashContextType::AbnormalShutdown:
+					FDiagnosticLogger::Get().LogEvent(TEXT("Pipe/AbnormalShutdown"));
+					bMonitoredAppCrashed = true;
+					break;
+
+				default:
+					FDiagnosticLogger::Get().LogEvent(TEXT("Pipe/Unknown"));
+					break;
 			}
 		}
 
@@ -1074,6 +1105,11 @@ void RunCrashReportClient(const TCHAR* CommandLine)
 					else
 					{
 						FDiagnosticLogger::Get().LogEvent(TEXT("MTBF/NoSessionFound"));
+						if (bMonitoredAppCrashed)
+						{
+							// No session found. Record this crash to piggyback off a valid session later. (Purpose: Account for early Editor crash happening before Analytics was initialized)
+							FEditorAnalyticsSession::CreateMinimalCrashSession(MonitoredProcessExitCode);
+						}
 					}
 					FEditorAnalyticsSession::Unlock();
 					break;

@@ -5,6 +5,7 @@
 #include "Internationalization/Regex.h"
 #include "HAL/PlatformProcess.h"
 #include "HAL/FileManager.h"
+#include "Misc/EngineVersion.h"
 #include "Misc/Paths.h"
 
 IMPLEMENT_MODULE(FEditorAnalyticsSessionModule, EditorAnalyticsSession);
@@ -480,18 +481,9 @@ FEditorAnalyticsSession::FEditorAnalyticsSession()
 	UserId = EditorAnalyticsDefs::UnknownUserIdString;
 
 	ProjectName = EditorAnalyticsDefs::UnknownProjectValueString;
-	PlatformProcessID = 0;
-	MonitorProcessID = 0;
 	StartupTimestamp = FDateTime::MinValue();
 	Timestamp = FDateTime::MinValue();
 	CurrentUserActivity = EditorAnalyticsDefs::DefaultUserActivity;
-	AverageFPS = 0;
-	GPUVendorID = 0;
-	GPUDeviceID = 0;
-	GRHIDeviceRevision = 0;
-	TotalPhysicalRAM = 0;
-	CPUPhysicalCores = 0;
-	CPULogicalCores = 0;
 
 	bIs64BitOS = false;
 	bCrashed = false;
@@ -911,4 +903,33 @@ bool FEditorAnalyticsSession::SaveMonitorExceptCode(int32 InExceptCode)
 
 	const FString StorageLocation = EditorAnalyticsUtils::GetSessionStorageLocation(SessionId);
 	return FPlatformMisc::SetStoredValue(EditorAnalyticsDefs::StoreId, StorageLocation, EditorAnalyticsDefs::MonitorExceptCodeStoreKey, FString::FromInt(InExceptCode));
+}
+
+void FEditorAnalyticsSession::CreateMinimalCrashSession(const TOptional<int32>& ExitCode)
+{
+	if (!ensure(IsLockedBy(FPlatformTLS::GetCurrentThreadId()))) // Caller needs to own the session lock.
+	{
+		return;
+	}
+
+	FEditorAnalyticsSession MinimalSession;
+	MinimalSession.SessionId = FGuid::NewGuid().ToString(EGuidFormats::DigitsWithHyphens); // To have a unique session id used as key in the storage.
+	MinimalSession.bCrashed = true;
+	MinimalSession.ExitCode = ExitCode;
+	MinimalSession.StartupTimestamp = FDateTime::UtcNow();
+	MinimalSession.Timestamp = MinimalSession.StartupTimestamp; // To enable session 'expiration'.
+	MinimalSession.EngineVersion = FEngineVersion::Current().ToString(EVersionComponent::Changelist); // To account the crash for the corresponding engine version.
+
+	MinimalSession.Save();
+
+	// Update the session list.
+	TArray<FString> StoredSessions;
+	GetStoredSessionIDs(StoredSessions);
+	StoredSessions.Add(MinimalSession.SessionId);
+	SaveStoredSessionIDs(StoredSessions);
+}
+
+bool FEditorAnalyticsSession::IsMinimalCrashSession() const
+{
+	return AppId == EditorAnalyticsDefs::UnknownAppIdString && ProjectID.IsEmpty() && Plugins.Num() == 0; // Check fields values that are not expected when the session is fully initialized.
 }

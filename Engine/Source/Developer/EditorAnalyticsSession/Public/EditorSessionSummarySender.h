@@ -11,6 +11,7 @@
 
 struct FEditorAnalyticsSession;
 class IAnalyticsProviderET;
+struct FEditorAnalyticReportData;
 
 /**
   * Sender of SessionSummary events from all editor sessions in-between runs.
@@ -30,7 +31,7 @@ public:
 private:
 	/** Send any stored Sessions. */
 	void SendStoredSessions(const bool bForceSendCurrentSession = false) const;
-	void SendSessionSummaryEvent(const FEditorAnalyticsSession& Session) const;
+	void SendSessionSummaryEvent(const FEditorAnalyticReportData& ReportData) const;
 
 private:
 	float HeartbeatTimeElapsed;
