@@ -59,7 +59,7 @@ private:
 	TWeakPtr< IDetailLayoutBuilder > DetailBuilderWeakPtr;
 
 	FReply OnShowSolverClassPicker();
-	FReply OnShowConstraintClassPicker();
+	FReply OnShowBoneSettingsClassPicker();
 
 	typedef TSharedPtr<FGoalNameListItem> FGoalNameListItemPtr;
 

@@ -204,7 +204,7 @@ UFullBodyIKSolver::UFullBodyIKSolver()
 {
 }
 
-void UFullBodyIKSolver::InitInternal(const FIKRigTransforms& InGlobalTransform)
+void UFullBodyIKSolver::Init(const FIKRigTransforms& InGlobalTransform)
 {
 
 	LinkData.Reset();
@@ -228,8 +228,9 @@ bool UFullBodyIKSolver::IsSolverActive() const
 	return false;
 }
 
-void UFullBodyIKSolver::SolveInternal(
-	FIKRigTransforms& InOutGlobalTransform, 
+void UFullBodyIKSolver::Solve(
+	FIKRigTransforms& InOutGlobalTransform,
+	const FIKRigGoalContainer& Goals,
 	FControlRigDrawInterface* InOutDrawInterface)
 {
 	if (LinkDataToHierarchyIndices.Num() > 0)
@@ -289,10 +290,10 @@ void UFullBodyIKSolver::SolveInternal(
 					const FFBIKRigEffector& CurEffector = Effectors[EffectorIndex];
 					const FVector CurrentLinkLocation = LinkData[EffectorLinkIndex].GetTransform().GetLocation();
 					const FQuat CurrentLinkRotation = LinkData[EffectorLinkIndex].GetTransform().GetRotation();
-					FIKRigTarget RigTarget;
-					ensure(GetEffectorTarget(CurEffector.Target, RigTarget));
-					EffectorTarget->Position = RigTarget.PositionTarget.Position; // FMath::Lerp(CurrentLinkLocation, EffectorLocation, RigTarget.PositionTarget.);
-					EffectorTarget->Rotation = RigTarget.RotationTarget.Rotation.Quaternion(); // FMath::Lerp(CurrentLinkRotation, EffectorRotation, CurEffector.RotationAlpha);
+					FIKRigGoal Goal;
+					ensure(GetGoalForEffector(CurEffector.Target, Goals, Goal));
+					EffectorTarget->Position = Goal.Position; // FMath::Lerp(CurrentLinkLocation, EffectorLocation, RigTarget.PositionTarget.);
+					EffectorTarget->Rotation = Goal.Rotation.Quaternion(); // FMath::Lerp(CurrentLinkRotation, EffectorRotation, CurEffector.RotationAlpha);
 					EffectorTarget->InitialPositionDistance = (EffectorTarget->Position - CurrentLinkLocation).Size();
 					EffectorTarget->InitialRotationDistance = (FBIKUtil::GetScaledRotationAxis(EffectorTarget->Rotation) - FBIKUtil::GetScaledRotationAxis(CurrentLinkRotation)).Size();
 
@@ -573,11 +574,11 @@ void UFullBodyIKSolver::UpdateEffectors()
 
 	// we have more nodes than goals
 	// which means we have something deleted
-	if (Effectors.Num() < EffectorToGoal.Num())
+	if (Effectors.Num() < EffectorToGoalName.Num())
 	{
 		TArray<FIKRigEffector> GoalEffectors;
 		// we have to remove things that don't belong
-		for (auto Iter = EffectorToGoal.CreateIterator(); Iter; ++Iter)
+		for (auto Iter = EffectorToGoalName.CreateIterator(); Iter; ++Iter)
 		{
 			GoalEffectors.Add(Iter.Key());
 		}
@@ -597,7 +598,7 @@ void UFullBodyIKSolver::UpdateEffectors()
 		for (TConstSetBitIterator<> Iter(RemoveFlags); Iter; ++Iter)
 		{
 			// remove things that don't belong
-			EffectorToGoal.Remove(GoalEffectors[Iter.GetIndex()]);
+			EffectorToGoalName.Remove(GoalEffectors[Iter.GetIndex()]);
 		}
 	}
 

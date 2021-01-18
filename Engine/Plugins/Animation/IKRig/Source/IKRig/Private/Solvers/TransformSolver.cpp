@@ -11,7 +11,7 @@ UTransformSolver::UTransformSolver()
 {
 }
 
-void UTransformSolver::InitInternal(const FIKRigTransforms& InGlobalTransform)
+void UTransformSolver::Init(const FIKRigTransforms& InGlobalTransform)
 {
 	
 }
@@ -21,15 +21,18 @@ bool UTransformSolver::IsSolverActive() const
 	return Super::IsSolverActive() && (bEnablePosition || bEnableRotation);
 }
 
-void UTransformSolver::SolveInternal(FIKRigTransforms& InOutGlobalTransform, FControlRigDrawInterface* InOutDrawInterface)
+void UTransformSolver::Solve(
+	FIKRigTransforms& InOutGlobalTransform,
+	const FIKRigGoalContainer& Goals,
+	FControlRigDrawInterface* InOutDrawInterface)
 {
-	FIKRigTarget Target;
-	if (!GetEffectorTarget(TransformTarget, Target))
+	FIKRigGoal Goal;
+	if (!GetGoalForEffector(Effector, Goals, Goal))
 	{
 		return;
 	}
 	
-	int32 Index = InOutGlobalTransform.Hierarchy->GetIndex(TransformTarget.Bone);
+	int32 Index = InOutGlobalTransform.Hierarchy->GetIndex(Effector.Bone);
 	if (Index == INDEX_NONE)
 	{
 		return;
@@ -39,11 +42,11 @@ void UTransformSolver::SolveInternal(FIKRigTransforms& InOutGlobalTransform, FCo
 
 	if (bEnablePosition)
 	{
-		CurrentTransform.SetLocation(Target.PositionTarget.Position);
+		CurrentTransform.SetLocation(Goal.Position);
 	}
 	if (bEnableRotation)
 	{
-		CurrentTransform.SetRotation(Target.RotationTarget.Rotation.Quaternion());
+		CurrentTransform.SetRotation(Goal.Rotation.Quaternion());
 	}
 
 	InOutGlobalTransform.SetGlobalTransform(Index, CurrentTransform, true);
@@ -62,12 +65,12 @@ void UTransformSolver::UpdateEffectors()
 	// not found, we add new
 	if (bActiveTask)
 	{
-		EnsureToAddEffector(TransformTarget, *TransformTargetName);
+		EnsureToAddEffector(Effector, *TransformTargetName);
 	}
 	// if the opposite, we have to remove
 	else if (!bActiveTask)
 	{
-		EnsureToRemoveEffector(TransformTarget);
+		EnsureToRemoveEffector(Effector);
 	}
 
 	// trigger a delegate for goal has been updated?

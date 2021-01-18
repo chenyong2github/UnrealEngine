@@ -20,7 +20,7 @@ void UIKRigDefinition::UpdateGoal()
 	{
 		if (Solver)
 		{
-			Solver->CollectGoals(ListOfGoals);
+			Solver->AppendGoalNamesToArray(ListOfGoals);
 		}
 	}
 
@@ -30,7 +30,7 @@ void UIKRigDefinition::UpdateGoal()
 	TArray<FName> GoalsToRemove;
 
 	// first we go through IKGoals and see if we should remove unused ones
-	for (auto Iter = IKGoals.CreateConstIterator(); Iter; ++Iter)
+	for (auto Iter = Goals.CreateConstIterator(); Iter; ++Iter)
 	{
 		// if it's not used any more
 		if (!ListOfGoals.Contains(Iter->Key))
@@ -41,18 +41,18 @@ void UIKRigDefinition::UpdateGoal()
 
 	for (const FName& Goal : GoalsToRemove)
 	{
-		IKGoals.Remove(Goal);
+		Goals.Remove(Goal);
 	}
 
 	// now add new ones if it doesn't exist
 	for (int32 Index=0; Index<ListOfGoals.Num(); ++Index)
 	{
 		const FName& Goal = ListOfGoals[Index];
-		if (!IKGoals.Contains(Goal))
+		if (!Goals.Contains(Goal))
 		{
 			// if we don't have it, add to new one
 			FIKRigGoal NewGoal(Goal);
-			IKGoals.Add(Goal, NewGoal);
+			Goals.Add(Goal, NewGoal);
 		}
 	}
 
@@ -359,7 +359,7 @@ void UIKRigDefinition::EnsureCreateUniqueGoalName(FName& InOutGoal) const
 	FString GoalNameString = InOutGoal.ToString();
 
 	// while contains
-	while(IKGoals.Find(FName(*GoalNameString)))
+	while(Goals.Find(FName(*GoalNameString)))
 	{
 		GoalNameString = FString::Format(TEXT("{0}_{1}"), {InOutGoal.ToString(), Index++});
 	}

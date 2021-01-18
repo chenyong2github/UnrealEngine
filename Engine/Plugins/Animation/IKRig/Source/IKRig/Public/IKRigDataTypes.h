@@ -1,10 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-/**
- * Contains IKRig Definition 
- *
- *  https://docs.google.com/document/d/1yd8GCfT2aufxSdb5jAzlNTr1SptxEFpS9pWdQY-8LIk/edit#
- */
 
 #pragma once
 
@@ -16,48 +11,6 @@
 
 struct FIKRigHierarchy;
 
-USTRUCT()
-struct IKRIG_API FIKRigPosition
-{
-	GENERATED_BODY()
-
-	FIKRigPosition()
-		: Position(ForceInitToZero)
-	{
-
-	}
-	UPROPERTY(EditAnywhere, Category = FIKRigPosition)
-	FVector Position;
-};
-
-USTRUCT()
-struct IKRIG_API FIKRigRotation
-{
-	GENERATED_BODY()
-
-	FIKRigRotation()
-		: Rotation(ForceInitToZero)
-	{
-
-	}
-
-	UPROPERTY(EditAnywhere, Category = FIKRigRotation)
-	FRotator Rotation;
-};
-
-// list of targets for goal
-// this contains default value for the target
-USTRUCT()
-struct IKRIG_API FIKRigTarget
-{
-	GENERATED_BODY()
-
-	UPROPERTY(EditAnywhere, Category = FIKRigTarget)
-	FIKRigPosition PositionTarget;
-
-	UPROPERTY(EditAnywhere, Category = FIKRigTarget)
-	FIKRigRotation RotationTarget;
-};
 
 USTRUCT()
 struct IKRIG_API FIKRigGoal
@@ -65,29 +18,26 @@ struct IKRIG_API FIKRigGoal
 	GENERATED_BODY()
 
 	FIKRigGoal()
+		: Position(ForceInitToZero),
+		Rotation(ForceInitToZero)
 	{
 		Name = NAME_None;
 	}
 	FIKRigGoal(const FName& GoalName)
+		: Position(ForceInitToZero),
+		Rotation(ForceInitToZero)
 	{
 		Name = GoalName;
 	}
 
-	UPROPERTY(VisibleAnywhere, Category=FIKRigGoal)
+	UPROPERTY(VisibleAnywhere, Category = FIKRigGoal)
 	FName Name;
 
 	UPROPERTY(EditAnywhere, Category = FIKRigGoal)
-	FIKRigTarget Target;
+	FVector Position;
 
-	void SetPositionTarget(const FVector& InPosition)
-	{
-		Target.PositionTarget.Position = InPosition;
-	}
-
-	void SetRotationTarget(const FRotator& InRotation)
-	{
-		Target.RotationTarget.Rotation = InRotation;
-	}
+	UPROPERTY(EditAnywhere, Category = FIKRigGoal)
+	FRotator Rotation;
 };
 
 USTRUCT()
@@ -117,20 +67,64 @@ struct IKRIG_API FIKRigEffector
 	}
 };
 
+USTRUCT()
+struct IKRIG_API FIKRigGoalContainer
+{
+	GENERATED_BODY()
+
+private:
+
+	TMap<FName, FIKRigGoal> Goals;
+
+public:
+
+	void SetAllGoals(const TMap<FName, FIKRigGoal> &InGoals)
+	{
+		Goals = InGoals;
+	}
+
+	void SetGoalTransform(
+		const FName& GoalName,
+		const FVector& InPosition,
+		const FRotator& InRotation)
+	{
+		if (FIKRigGoal* Goal = Goals.Find(GoalName))
+		{
+			Goal->Position = InPosition;
+			Goal->Rotation = InRotation;
+		}
+	}
+
+	bool GetGoalByName(const FName& InGoalName, FIKRigGoal& OutGoal) const
+	{
+		const FIKRigGoal* Goal = Goals.Find(InGoalName);
+		if (Goal)
+		{
+			OutGoal = *Goal;
+			return true;
+		}
+
+		return false;
+	}
+
+	void GetNames(TArray<FName>& OutNames) const
+	{
+		Goals.GenerateKeyArray(OutNames);
+	}
+};
+
 template <typename ValueType>
 struct TIKRigEffectorMapKeyFuncs : public TDefaultMapKeyFuncs<const FIKRigEffector, ValueType, false>
 {
-	static FORCEINLINE FIKRigEffector					GetSetKey(TPair<FIKRigEffector, ValueType> const& Element) { return Element.Key; }
-	static FORCEINLINE uint32							GetKeyHash(FIKRigEffector const& Key) { return GetTypeHash(Key.Guid); }
-	static FORCEINLINE bool								Matches(FIKRigEffector const& A, FIKRigEffector const& B) { return (A.Guid == B.Guid); }
+	static FORCEINLINE FIKRigEffector	GetSetKey(TPair<FIKRigEffector, ValueType> const& Element) { return Element.Key; }
+	static FORCEINLINE uint32			GetKeyHash(FIKRigEffector const& Key) { return GetTypeHash(Key.Guid); }
+	static FORCEINLINE bool				Matches(FIKRigEffector const& A, FIKRigEffector const& B) { return (A.Guid == B.Guid); }
 };
 
 template <typename ValueType>
 using TIKRigEffectorMap = TMap<FIKRigEffector, ValueType, FDefaultSetAllocator, TIKRigEffectorMapKeyFuncs<ValueType>>;
 
-// allows transform to be modified 
-// use this class to modify transform
-// @todo: ref pose getter 
+
 struct IKRIG_API FIKRigTransforms
 {
 	FIKRigTransforms()
@@ -142,8 +136,8 @@ struct IKRIG_API FIKRigTransforms
 
 	void SetGlobalTransform(int32 Index, const FTransform& InTransform, bool bPropagate);
 	void SetLocalTransform(int32 Index, const FTransform& InTransform, bool bUpdate);
-	// this is mutating, but const_cast 
-	const FTransform& GetLocalTransform(int32 Index) const;
+	
+	const FTransform& GetLocalTransform(int32 Index) const; // this is mutating, but const_cast 
 	const FTransform& GetGlobalTransform(int32 Index) const;
 
 	void SetAllGlobalTransforms(const TArray<FTransform>& InTransforms);
@@ -159,7 +153,8 @@ private:
 	void EnsureLocalTransformsExist();
 	void RecalculateLocalTransform();
 	void UpdateLocalTransform(int32 Index);
-	/* this function propagates to children and updates LocalTransforms*/
+
+	/** this function propagates to children and updates LocalTransforms */
 	void SetGlobalTransform_Internal(int32 Index, const FTransform& InTransform);
 	void SetGlobalTransform_Recursive(int32 Index, const FTransform& InTransform);
 

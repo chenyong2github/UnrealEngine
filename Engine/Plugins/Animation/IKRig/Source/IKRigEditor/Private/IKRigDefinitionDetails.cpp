@@ -10,7 +10,7 @@
 #include "IKRigDefinition.h"
 #include "IKRigController.h"
 #include "IKRigSolver.h"
-#include "IKRigConstraint.h"
+#include "IKRigBoneSetting.h"
 
 #include "ScopedTransaction.h"
 #include "PropertyCustomizationHelpers.h"
@@ -74,7 +74,7 @@ void FIKRigDefinitionDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuild
 	/////////////////////////////////////////////////////////////////////////////////
 	// skeleton set up
 	/////////////////////////////////////////////////////////////////////////////////
-	IDetailCategoryBuilder& HierarchyCategory = DetailBuilder.EditCategory("Hierarchy");
+	IDetailCategoryBuilder& HierarchyCategory = DetailBuilder.EditCategory("Skeleton");
  
 	SelectedAsset = IKRigDefinition->SourceAsset.Get();
 
@@ -83,7 +83,7 @@ void FIKRigDefinitionDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuild
 	[
 		SNew(STextBlock)
 		.Font(IDetailLayoutBuilder::GetDetailFont())
-		.Text(LOCTEXT("SelectSourceSkeleton", "Souce Skeleton"))
+		.Text(LOCTEXT("SelectSourceSkeleton", "Source Skeleton"))
 	]
 	.ValueContent()
 	[
@@ -118,7 +118,7 @@ void FIKRigDefinitionDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuild
 				.ContentPadding(3)
 				.IsEnabled(this, &FIKRigDefinitionDetails::CanImport)
 				.OnClicked(this, &FIKRigDefinitionDetails::OnImportHierarchy)
-				.ToolTipText(LOCTEXT("OnImportHierarchyTooltip", "Change Skeleton Data with Selected Asset. This replaces existing skeleton."))
+				.ToolTipText(LOCTEXT("OnImportHierarchyTooltip", "Set skeleton to selected asset. This replaces existing skeleton."))
 				[
 					SNew(STextBlock)
 					.Font(IDetailLayoutBuilder::GetDetailFont())
@@ -128,7 +128,7 @@ void FIKRigDefinitionDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuild
 		]
 	];
 
- 	IDetailCategoryBuilder& SolverCategory = DetailBuilder.EditCategory("Solver");
+ 	IDetailCategoryBuilder& SolverCategory = DetailBuilder.EditCategory("Solvers");
 
 	SolverCategory.AddCustomRow(FText::FromString("AddSolver"))
 	.NameContent()
@@ -148,8 +148,8 @@ void FIKRigDefinitionDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuild
 		]
 	];
 
-	IDetailCategoryBuilder& ConstraintCategory = DetailBuilder.EditCategory("Constraint");
-	ConstraintCategory.AddCustomRow(FText::FromString("AddConstraint"))
+	IDetailCategoryBuilder& BoneSettingCategory = DetailBuilder.EditCategory("BoneSettings");
+	BoneSettingCategory.AddCustomRow(FText::FromString("AddBoneSetting"))
 	.NameContent()
 	[
 		SNullWidget::NullWidget
@@ -158,16 +158,16 @@ void FIKRigDefinitionDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuild
 	[
 		SNew(SButton)
 		.ContentPadding(3)
-		.OnClicked(this, &FIKRigDefinitionDetails::OnShowConstraintClassPicker)
-		.ToolTipText(LOCTEXT("OnShowConstraintListTooltip", "Select Constraint to Add"))
+		.OnClicked(this, &FIKRigDefinitionDetails::OnShowBoneSettingsClassPicker)
+		.ToolTipText(LOCTEXT("OnShowBoneSettingListTooltip", "Select Bone Setting to Add"))
 		[
 			SNew(STextBlock)
 			.Font(IDetailLayoutBuilder::GetDetailFont())
-			.Text(LOCTEXT("ShowConstraintList", "Add Constraint"))
+			.Text(LOCTEXT("ShowBoneSettingList", "Add Bone Setting"))
 		]
 	];
 
-	GoalPropertyHandle = DetailBuilder.GetProperty(TEXT("IKGoals"));
+	GoalPropertyHandle = DetailBuilder.GetProperty(TEXT("Goals"));
 
 	TArray<FName> GoalNames;
 	IKRigController->QueryGoals(GoalNames);
@@ -262,12 +262,12 @@ FReply FIKRigDefinitionDetails::OnShowSolverClassPicker()
 	return FReply::Handled();
 }
 
-FReply FIKRigDefinitionDetails::OnShowConstraintClassPicker()
+FReply FIKRigDefinitionDetails::OnShowBoneSettingsClassPicker()
 {
-	UClass* ChosenClass = SelectClass(UIKRigConstraint::StaticClass(), LOCTEXT("SelectConstraintClass", "Select Constraint Class"));
+	UClass* ChosenClass = SelectClass(UIKRigBoneSetting::StaticClass(), LOCTEXT("SelectBoneSettingClass", "Select Bone Setting Class"));
 	if (ChosenClass)
 	{
-		IKRigController->AddConstraint(ChosenClass);
+		IKRigController->AddBoneSetting(ChosenClass);
 	}
 
 	return FReply::Handled();

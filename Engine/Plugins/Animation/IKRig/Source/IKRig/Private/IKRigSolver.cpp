@@ -5,76 +5,48 @@
 #include "IKRigDataTypes.h"
 #include "IKRigDefinition.h"
 
-// input hierarchy and ref pose? 
-void UIKRigSolver::Init(const FIKRigTransforms& TransformModifier, FIKRigTransformGetter InRefPoseGetter, FIKRigGoalGetter InGoalGetter)
-{
-	//SolverDefinition = InSolverDefinition;
 
-	RefPoseGetter = InRefPoseGetter;
-	ensure(RefPoseGetter.IsBound());
-
-	GoalGetter = InGoalGetter;
-	ensure(GoalGetter.IsBound());
-
-	InitInternal(TransformModifier);
-}
-
-bool UIKRigSolver::IsSolverActive() const 
-{
-	//return (SolverDefinition && bEnabled);
-	return bEnabled;
-}
-
-// input : goal getter or goals
-// output : modified pose - GlobalTransforms
-void UIKRigSolver::Solve(FIKRigTransforms& InOutGlobalTransform, FControlRigDrawInterface* InOutDrawInterface)
+void UIKRigSolver::SolveInternal(
+	FIKRigTransforms& InOutGlobalTransform,
+	const FIKRigGoalContainer& Goals,
+	FControlRigDrawInterface* InOutDrawInterface)
 {
 	if (IsSolverActive())
 	{
-		SolveInternal(InOutGlobalTransform, InOutDrawInterface);
+		Solve(InOutGlobalTransform, Goals, InOutDrawInterface);
 	}
 }
 
-bool UIKRigSolver::GetEffectorTarget(const FIKRigEffector& InEffector, FIKRigTarget& OutTarget) const
+bool UIKRigSolver::IsSolverActive() const
 {
-	//if (SolverDefinition && GoalGetter.IsBound())
-	if (GoalGetter.IsBound())
-	{	
-		const FName* GoalName = GetEffectorToGoal().Find(InEffector);
-		if (GoalName)
-		{
-			return GoalGetter.Execute(*GoalName, OutTarget);
-		}
-	}
-
-	return false;
+	return bEnabled;
 }
 
-const TArray<FTransform>& UIKRigSolver::GetRefPoseTransforms() const
+bool UIKRigSolver::GetGoalForEffector(
+	const FIKRigEffector& InEffector,
+	const FIKRigGoalContainer& Goals,
+	FIKRigGoal& OutGoal) const
 {
-	if (RefPoseGetter.IsBound())
+	const FName* GoalName = EffectorToGoalName.Find(InEffector);
+	if (!GoalName)
 	{
-		return RefPoseGetter.Execute();
+		return false;
 	}
 
-	static TArray<FTransform> Dummy;
-	return Dummy;
+	return Goals.GetGoalByName(*GoalName, OutGoal);
 }
 
-void UIKRigSolver::CollectGoals(TArray<FName>& OutGoals)
+void UIKRigSolver::AppendGoalNamesToArray(TArray<FName>& OutGoals)
 {
 	TArray<FName> LocalGoals;
-	// this just accumulate on the current array
-	// if you want to clear, clear before coming here
-	EffectorToGoal.GenerateValueArray(LocalGoals);
-
+	EffectorToGoalName.GenerateValueArray(LocalGoals);
 	OutGoals += LocalGoals;
 }
 
 #if WITH_EDITOR
 void UIKRigSolver::RenameGoal(const FName& OldName, const FName& NewName)
 {
-	for (auto Iter = EffectorToGoal.CreateIterator(); Iter; ++Iter)
+	for (auto Iter = EffectorToGoalName.CreateIterator(); Iter; ++Iter)
 	{
 		if (Iter.Value() == OldName)
 		{
@@ -113,16 +85,16 @@ void UIKRigSolver::OnGoalHasBeenUpdated()
 
 void UIKRigSolver::EnsureToAddEffector(const FIKRigEffector& InEffector, const FString& InPrefix)
 {
-	FName* GoalName = EffectorToGoal.Find(InEffector);
+	FName* GoalName = EffectorToGoalName.Find(InEffector);
 	if (!GoalName)
 	{
-		EffectorToGoal.Add(InEffector) = CreateUniqueGoalName(*InPrefix);
+		EffectorToGoalName.Add(InEffector) = CreateUniqueGoalName(*InPrefix);
 	}
 }
 
 void UIKRigSolver::EnsureToRemoveEffector(const FIKRigEffector& InEffector)
 {
-	EffectorToGoal.Remove(InEffector);
+	EffectorToGoalName.Remove(InEffector);
 }
 
 #endif // WITH_EDITOR
@@ -141,5 +113,5 @@ void UIKRigSolver::Serialize(FArchive& Ar)
 	Super::Serialize(Ar);
 
 	// serialize these manually because that's the custom types
-	Ar << EffectorToGoal;
+	Ar << EffectorToGoalName;
 }

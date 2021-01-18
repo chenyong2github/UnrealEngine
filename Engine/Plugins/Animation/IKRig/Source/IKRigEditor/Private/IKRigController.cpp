@@ -5,7 +5,7 @@
 #include "AnimationRuntime.h"
 #include "IKRigSolver.h"
 #include "ScopedTransaction.h"
-#include "IKRigConstraint.h"
+#include "IKRigBoneSetting.h"
 
 #define LOCTEXT_NAMESPACE	"IKRigController"
 
@@ -276,7 +276,7 @@ FName UIKRigController::GetGoalName(UIKRigSolver* InSolver, const FIKRigEffector
 {
 	if (InSolver)
 	{
-		FName* GoalName = InSolver->EffectorToGoal.Find(InEffector);
+		FName* GoalName = InSolver->EffectorToGoalName.Find(InEffector);
 		if (GoalName)
 		{
 			return *GoalName;
@@ -293,7 +293,7 @@ void UIKRigController::SetGoalName(UIKRigSolver* InSolver, const FIKRigEffector&
 		FScopedTransaction Transaction(LOCTEXT("SetGoalName_Label", "Set Goal Name"));
 		InSolver->Modify();
 
-		FName* GoalName = InSolver->EffectorToGoal.Find(InEffector);
+		FName* GoalName = InSolver->EffectorToGoalName.Find(InEffector);
 		if (GoalName)
 		{
 			*GoalName = NewGoalName;
@@ -303,17 +303,17 @@ void UIKRigController::SetGoalName(UIKRigSolver* InSolver, const FIKRigEffector&
 	}
 }
 
-UIKRigConstraint* UIKRigController::AddConstraint(TSubclassOf<UIKRigConstraint> NewConstraintType)
+UIKRigBoneSetting* UIKRigController::AddBoneSetting(TSubclassOf<UIKRigBoneSetting> NewSettingType)
 {
 	
-	FScopedTransaction Transaction(LOCTEXT("AddConstraint_Label", "Add Constraint"));
+	FScopedTransaction Transaction(LOCTEXT("AddSetting_Label", "Add Bone Setting"));
 	IKRigDefinition->Modify();
 
-	UIKRigConstraint* NewRigConstraint = NewObject<UIKRigConstraint>(IKRigDefinition, NewConstraintType);
-	if (NewRigConstraint)
+	UIKRigBoneSetting* NewBoneSetting = NewObject<UIKRigBoneSetting>(IKRigDefinition, NewSettingType);
+	if (NewBoneSetting)
 	{
-		IKRigDefinition->Constraints.Add(NewRigConstraint);
-		return NewRigConstraint;
+		IKRigDefinition->BoneSettings.Add(NewBoneSetting);
+		return NewBoneSetting;
 	}
 	
 	return nullptr;	
@@ -353,7 +353,7 @@ FIKRigGoal* UIKRigController::GetGoal(const FName& InGoalName)
 {
 	if (IKRigDefinition)
 	{
-		return IKRigDefinition->IKGoals.Find(InGoalName);
+		return IKRigDefinition->Goals.Find(InGoalName);
 	}
 
 	return nullptr;
@@ -363,7 +363,7 @@ const FIKRigGoal* UIKRigController::GetGoal(const FName& InGoalName) const
 {
 	if (IKRigDefinition)
 	{
-		return IKRigDefinition->IKGoals.Find(InGoalName);
+		return IKRigDefinition->Goals.Find(InGoalName);
 	}
 
 	return nullptr;

@@ -22,12 +22,15 @@ public:
 	bool bEnableRotation = true;
 
 	UPROPERTY(EditAnywhere, Category = "Solver")
-	FIKRigEffector TransformTarget;
+	FIKRigEffector Effector;
 
 protected:
 	
-	virtual void InitInternal(const FIKRigTransforms& InGlobalTransform) override;
-	virtual void SolveInternal(FIKRigTransforms& InOutGlobalTransform, FControlRigDrawInterface* InOutDrawInterface) override;
+	virtual void Init(const FIKRigTransforms& InGlobalTransform) override;
+	virtual void Solve(
+		FIKRigTransforms& InOutGlobalTransform, 
+		const FIKRigGoalContainer& Goals,
+		FControlRigDrawInterface* InOutDrawInterface) override;
 	virtual bool IsSolverActive() const override;
 
 private:

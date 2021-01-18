@@ -1,31 +1,28 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-/**
- * Contains IKRig Constraint Solver Definition 
- *
- */
-
 #pragma once
 
 #include "IKRigSolver.h"
 #include "ConstraintSolver.generated.h"
 
-class UIKRigConstraint;
+class UIKRigBoneSettings;
 
 
-// run time processor 
 UCLASS(config = Engine, hidecategories = UObject)
 class IKRIG_API UIKRigConstraintSolver : public UIKRigSolver
 {
 	GENERATED_BODY()
 
-	DECLARE_DELEGATE_TwoParams(FIKRigQueryConstraint, const FName& InConstraintName, UIKRigConstraint& OutConstraint);
+	//DECLARE_DELEGATE_TwoParams(FIKRigQueryConstraint, const FName& InConstraintName, UIKRigConstraint& OutConstraint);
 
 
 public: 
-	// during we don't mutate bone transform, but you can read it
-	virtual void InitInternal(const FIKRigTransforms& InGlobalTransform) override;
-	virtual void SolveInternal(FIKRigTransforms& InOutGlobalTransform, FControlRigDrawInterface* InOutDrawInterface) override;
+
+	virtual void Init(const FIKRigTransforms& InGlobalTransform) override;
+	virtual void Solve(
+		FIKRigTransforms& InOutGlobalTransform,
+		const FIKRigGoalContainer& Goals,
+		FControlRigDrawInterface* InOutDrawInterface) override;
 
 	// this can be utilized for just subset of constraints
 	//void SolverConstraints(const TArray<FName>& ConstraintsList, FIKRigTransformModifier& InOutGlobalTransform, FControlRigDrawInterface* InOutDrawInterface);

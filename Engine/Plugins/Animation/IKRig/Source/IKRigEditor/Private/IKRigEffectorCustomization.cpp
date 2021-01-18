@@ -80,11 +80,18 @@ void FIKRigEffectorCustomization::CustomizeHeader(TSharedRef<IPropertyHandle> St
 				.ContentPadding(0)
 				.Content()
 				[
+					/* KIARAN - Refactor this to non-editable field that does not delete goals when modified
+					SNew(STextBlock)
+					.Text(this, &FIKRigEffectorCustomization::GetEffectorGoalComboBoxContent)
+					*/
+					
 					SNew(SEditableTextBox)
 					.Text(this, &FIKRigEffectorCustomization::GetEffectorGoalComboBoxContent)
 					.Font(IDetailLayoutBuilder::GetDetailFont())
 					.OnTextCommitted(this, &FIKRigEffectorCustomization::OnEffectorGoalChanged)
 					.ToolTipText(this, &FIKRigEffectorCustomization::GetEffectorGoalComboBoxToolTip)
+					
+
 				]
 			];
 

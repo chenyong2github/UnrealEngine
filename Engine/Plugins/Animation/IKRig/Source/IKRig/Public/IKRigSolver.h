@@ -20,70 +20,65 @@ class IKRIG_API UIKRigSolver : public UObject
 {
 	GENERATED_BODY()
 
-public: 
-	/** Required delegates to run this solver */
-	DECLARE_DELEGATE_RetVal(const TArray<FTransform>&, FIKRigTransformGetter);
-	DECLARE_DELEGATE_RetVal_TwoParams(bool, FIKRigGoalGetter, const FName& /*InGoalName*/, FIKRigTarget& /*OutTarget*/);
+public:
 
-	// input hierarchy and ref pose? 
-	void Init(const FIKRigTransforms& TransformModifier, FIKRigTransformGetter InRefPoseGetter, FIKRigGoalGetter InGoalGetter/*, FSolveConstraint& InConstraintHandler*/);
-
-	// input : goal getter or goals
-	// output : modified pose - GlobalTransforms
-	// or use SolverInternal function
-	void Solve(FIKRigTransforms& InOutGlobalTransform, FControlRigDrawInterface* InOutDrawInterface);
-
-	const TIKRigEffectorMap<FName>& GetEffectorToGoal() const
-	{
-		return EffectorToGoal;
-	}
-
-	void CollectGoals(TArray<FName>& OutGoals);
+	/** wraps Solver::Solve() */
+	void SolveInternal(
+		FIKRigTransforms& InOutGlobalTransform, 
+		const FIKRigGoalContainer& Goals,
+		FControlRigDrawInterface* InOutDrawInterface);
+	void AppendGoalNamesToArray(TArray<FName>& OutGoals);
 
 protected:
 
-	virtual void InitInternal(const FIKRigTransforms& InGlobalTransform) {};
-	virtual void SolveInternal(FIKRigTransforms& InOutGlobalTransform, FControlRigDrawInterface* InOutDrawInterface) {};
+	/** override Init(), Solve() and IsSolverActive() in subclasses */
+	virtual void Init(const FIKRigTransforms& InGlobalTransform) {};
+	virtual void Solve(
+		FIKRigTransforms& InOutGlobalTransform,
+		const FIKRigGoalContainer& Goals,
+		FControlRigDrawInterface* InOutDrawInterface) {};
 	virtual bool IsSolverActive() const;
 
-	bool GetEffectorTarget(const FIKRigEffector& InEffector, FIKRigTarget& OutTarget) const;
-	const TArray<FTransform>& GetRefPoseTransforms() const;
+	bool GetGoalForEffector(
+		const FIKRigEffector& InEffector, 
+		const FIKRigGoalContainer &Goals, 
+		FIKRigGoal& OutGoal) const;
 
 	UPROPERTY(EditAnywhere, Category = "Definition")
 	bool bEnabled = true;
 
 	// effector name to goals name map
-	TIKRigEffectorMap<FName> EffectorToGoal;
+	TIKRigEffectorMap<FName> EffectorToGoalName;
 
 private:
 
-	// delegate
-	FIKRigTransformGetter RefPoseGetter;
-	FIKRigGoalGetter GoalGetter;
-
-	/// BEGIN UObject
+	// BEGIN UObject
 	virtual void PostLoad() override;
 	virtual void Serialize(FArchive& Ar) override;
-	/// END UObject
+	// END UObject
 
 	friend class UIKRigController;
+	friend class UIKRigProcessor;
 
 #if WITH_EDITOR
+
 private:
+
 	void RenameGoal(const FName& OldName, const FName& NewName);
-	// get unique name delegate by IKRigDefinition
 	void EnsureUniqueGoalName(FName& InOutGoalName) const;
 
 	DECLARE_MULTICAST_DELEGATE(FGoalNeedsUpdate);
 	FGoalNeedsUpdate GoalNeedsUpdateDelegate;
 
 protected:
+
 	FName CreateUniqueGoalName(const TCHAR* Suffix) const;
 	void OnGoalHasBeenUpdated();
 	void EnsureToAddEffector(const FIKRigEffector& InEffector, const FString& InPrefix);
 	void EnsureToRemoveEffector(const FIKRigEffector& InEffector);
 
 	virtual void UpdateEffectors() {};
+
 #endif // WITH_EDITOR
 };
 

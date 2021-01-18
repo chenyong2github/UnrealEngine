@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Solvers/ConstraintSolver.h"
-#include "IKRigConstraint.h"
+#include "IKRigBoneSetting.h"
 
 /*
 // register/unregister query function
@@ -16,7 +16,7 @@ void UIKRigConstraintSolver::UnregisterQueryConstraintHandler()
 }
 */
 
-void UIKRigConstraintSolver::InitInternal(const FIKRigTransforms& InGlobalTransform)
+void UIKRigConstraintSolver::Init(const FIKRigTransforms& InGlobalTransform)
 {
 	/*
 	if (ConstraintDefinition)
@@ -41,7 +41,10 @@ void UIKRigConstraintSolver::InitInternal(const FIKRigTransforms& InGlobalTransf
 	}*/
 }
 
-void UIKRigConstraintSolver::SolveInternal(FIKRigTransforms& InOutGlobalTransform, FControlRigDrawInterface* InOutDrawInterface)
+void UIKRigConstraintSolver::Solve(
+	FIKRigTransforms& InOutGlobalTransform,
+	const FIKRigGoalContainer& Goals,
+	FControlRigDrawInterface* InOutDrawInterface)
 {
 	/*
 	FIKRigConstraintProfile* Current = ConstraintProfiles.Find(ActiveProfile);

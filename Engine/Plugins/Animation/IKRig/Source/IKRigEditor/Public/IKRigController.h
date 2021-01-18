@@ -15,7 +15,7 @@
 // DELEGATE for goals
 
 class UIKRigSolverDefinition;
-class UIKRigConstraint;
+class UIKRigBoneSetting;
 struct FIKRigHierarchy;
 struct FReferenceSkeleton;
 struct FIKRigConstraintProfile;
@@ -59,8 +59,8 @@ public:
 	UIKRigSolver* GetSolver(int32 Index) const;
 	int32 GetNumSolvers() const;
 
-	// constraints
-	UIKRigConstraint* AddConstraint(TSubclassOf<UIKRigConstraint> NewConstraintType);
+	// per-bone settings and constraints
+	UIKRigBoneSetting* AddBoneSetting(TSubclassOf<UIKRigBoneSetting> NewBoneSettingType);
 
 	// goal operators
 	void QueryGoals(TArray<FName>& OutGoals) const;

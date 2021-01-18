@@ -26,65 +26,66 @@ void FAnimNode_IKRig::Evaluate_AnyThread(FPoseContext& Output)
 	}
 	else
 	{
-		// apply refpose
 		SourcePose.ResetToRefPose();
 	}
 
-	if (RigProcessor)
-	{
-		FIKRigTransforms& TransformModifier = RigProcessor->GetIKRigTransformModifier();
-
-		if (bStartFromRefPose)
-		{
-			RigProcessor->ResetToRefPose();
-		}
-		
-		FCompactPose& OutPose = SourcePose.Pose;
-
-		for (FCompactPoseBoneIndex CPIndex : OutPose.ForEachBoneIndex())
-		{
-			int32* Index = CompactPoseToRigIndices.Find(CPIndex);
-			if (Index)
-			{
-				// Todo: this is again slow. 
-				// the tricky part is that if we go start from child to parent
-				// we may still missing joints that don't exists
-				// so this is slow and for safety but needs revisit
-				TransformModifier.SetLocalTransform(*Index, OutPose[CPIndex], true);
-			}
-		}
-
-		for (int32 GoalIndex = 0; GoalIndex < GoalNames.Num(); ++GoalIndex)
-		{
-			if (ensure(GoalTransforms.IsValidIndex(GoalIndex)))
-			{
-				RigProcessor->SetGoalPosition( GoalNames[GoalIndex], GoalTransforms[GoalIndex].GetLocation());
-				RigProcessor->SetGoalRotation(GoalNames[GoalIndex], GoalTransforms[GoalIndex].GetRotation().Rotator());
-			}
-		}
-
-		// fill up current pose
-		RigProcessor->Solve();
-
-		// now we copy back to output pose
-		for (FCompactPoseBoneIndex CPIndex : OutPose.ForEachBoneIndex())
-		{
-			int32* Index = CompactPoseToRigIndices.Find(CPIndex);
-			if (Index)
-			{
-				Output.Pose[CPIndex] = TransformModifier.GetLocalTransform(*Index);
-			}
-		}
-
-		Output.Pose.NormalizeRotations();
-
-		// draw the interface
-		QueueDrawInterface(Output.AnimInstanceProxy, Output.AnimInstanceProxy->GetComponentTransform());
-	}
-	else
+	if (!RigProcessor)
 	{
 		Output = SourcePose;
+		return;
 	}
+
+	if (bStartFromRefPose)
+	{
+		RigProcessor->ResetToRefPose();
+	}
+		
+	FCompactPose& OutPose = SourcePose.Pose;
+	FIKRigTransforms& Transforms = RigProcessor->GetTransforms();
+
+	// copy input pose
+	for (FCompactPoseBoneIndex CPIndex : OutPose.ForEachBoneIndex())
+	{
+		int32* Index = CompactPoseToRigIndices.Find(CPIndex);
+		if (Index)
+		{
+			// Todo: this is again slow. 
+			// the tricky part is that if we go start from child to parent
+			// we may still missing joints that don't exists
+			// so this is slow and for safety but needs revisit
+			Transforms.SetLocalTransform(*Index, OutPose[CPIndex], true);
+		}
+	}
+
+	// update goal transforms before solve
+	for (int32 GoalIndex = 0; GoalIndex < GoalNames.Num(); ++GoalIndex)
+	{
+		if (ensure(GoalTransforms.IsValidIndex(GoalIndex)))
+		{
+			RigProcessor->Goals.SetGoalTransform(
+				GoalNames[GoalIndex], 
+				GoalTransforms[GoalIndex].GetLocation(),
+				GoalTransforms[GoalIndex].GetRotation().Rotator());
+		}
+	}
+
+	// run stack of solvers, generate new pose
+	RigProcessor->Solve();
+
+	// copy output pose
+	for (FCompactPoseBoneIndex CPIndex : OutPose.ForEachBoneIndex())
+	{
+		int32* Index = CompactPoseToRigIndices.Find(CPIndex);
+		if (Index)
+		{
+			Output.Pose[CPIndex] = Transforms.GetLocalTransform(*Index);
+		}
+	}
+
+	Output.Pose.NormalizeRotations();
+
+	// draw the interface
+	QueueDrawInterface(Output.AnimInstanceProxy, Output.AnimInstanceProxy->GetComponentTransform());
 }
 
 void FAnimNode_IKRig::GatherDebugData(FNodeDebugData& DebugData)
@@ -103,9 +104,9 @@ void FAnimNode_IKRig::Initialize_AnyThread(const FAnimationInitializeContext& Co
 
 	if (RigProcessor)
 	{
-		RigProcessor->SetIKRigDefinition(RigDefinitionAsset, true);
+		RigProcessor->Initialize(RigDefinitionAsset);
 		GoalNames.Reset();
-		RigProcessor->GetGoals(GoalNames);
+		RigProcessor->Goals.GetNames(GoalNames);
 	}
 }
 
@@ -142,7 +143,7 @@ FName FAnimNode_IKRig::GetGoalName(int32 Index) const
 	{
 		// TODO: fix  this vs RigProcessor goals. I think RigProcessor
 		// only issue with RigProcessor is you don't know until it compiles
-		TArray<FName> Names = RigDefinitionAsset->GetGoalsNames();
+		TArray<FName> Names = RigDefinitionAsset->GetGoalNames();
 		if (Names.IsValidIndex(Index))
 		{
 			return Names[Index];

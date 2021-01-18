@@ -1,12 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-/**
- * Contains IKRigConstraint Runtime Implementation
- *
- */
+#include "IKRigBoneSetting.h"
 
-#include "IKRigConstraint.h"
-
+/*
 void UIKRigConstraint::Setup(const FIKRigTransforms& InOutTransformModifier)
 {
 	SetupInternal(InOutTransformModifier);
@@ -21,4 +17,4 @@ void UIKRigConstraint::SetAndApplyConstraint(FIKRigTransforms& InOutTransformMod
 	}
 
 	Apply(InOutTransformModifier, nullptr);
-}
+}*/
