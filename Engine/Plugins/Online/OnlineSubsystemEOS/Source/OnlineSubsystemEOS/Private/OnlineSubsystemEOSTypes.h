@@ -562,7 +562,7 @@ PACKAGE_SCOPE:
 	/** The ip & port that the host is listening on (valid for LAN/GameServer) */
 	TSharedPtr<class FInternetAddr> HostAddr;
 	/** Unique Id for this session */
-	FUniqueNetIdEOS SessionId;
+	FUniqueNetIdString SessionId;
 	/** EOS session handle. Note: this needs to be released by the SDK */
 	EOS_HSessionDetails SessionHandle;
 	/** Whether we should delete this handle or not */
