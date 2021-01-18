@@ -4282,7 +4282,7 @@ UObject* UTextureFactory::FactoryCreateBinary
 				{
 					const int32 UDIMIndex = ParseUDIMName(FPaths::GetBaseFilename(UDIMFile), UdimRegexPattern, PreUDIMName, PostUDIMName);
 					const FString UDIMName = PreUDIMName + PostUDIMName;
-					if (!UDIMIndexToFile.Contains(UDIMIndex) && UDIMName == BaseUDIMName)
+					if (!UDIMIndexToFile.Contains(UDIMIndex) && UDIMName == BaseUDIMName && UDIMIndex != INDEX_NONE)
 					{
 						UDIMIndexToFile.Add(UDIMIndex, Path / UDIMFile);
 					}
@@ -4292,7 +4292,8 @@ UObject* UTextureFactory::FactoryCreateBinary
 			{
 				// Found multiple UDIM pages, so import as UDIM texture
 				// Exclude UDIM number from the name of the UE4 texture asset we create
-				TextureName = *BaseUDIMName;
+				const FString ShortPackageName = ObjectTools::SanitizeInvalidChars(BaseUDIMName, INVALID_LONGPACKAGE_CHARACTERS);
+				TextureName = *ShortPackageName;
 
 				// Don't try to rename the package if its the transient package
 				if ( InParent != GetTransientPackage() )
@@ -4305,8 +4306,6 @@ UObject* UTextureFactory::FactoryCreateBinary
 
 					const int32 PackageUDIMIndex = ParseUDIMName(PackageName, UdimRegexPattern, PreUDIMName, PostUDIMName);
 					const FString PackageUDIMName = PreUDIMName + PostUDIMName;
-
-					const FString ShortPackageName = ObjectTools::SanitizeInvalidChars(BaseUDIMName, INVALID_LONGPACKAGE_CHARACTERS);
 
 					if (PackageUDIMIndex == -1)
 					{
