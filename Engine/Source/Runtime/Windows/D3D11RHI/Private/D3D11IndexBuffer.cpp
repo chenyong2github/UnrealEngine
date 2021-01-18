@@ -67,6 +67,11 @@ FIndexBufferRHIRef FD3D11DynamicRHI::RHICreateIndexBuffer(uint32 Stride,uint32 S
 	TRefCountPtr<ID3D11Buffer> IndexBufferResource;
 	VERIFYD3D11RESULT_EX(Direct3DDevice->CreateBuffer(&Desc,pInitData,IndexBufferResource.GetInitReference()), Direct3DDevice);
 
+	if (CreateInfo.DebugName)
+	{
+		IndexBufferResource->SetPrivateData(WKPDID_D3DDebugObjectName, FCString::Strlen(CreateInfo.DebugName) + 1, TCHAR_TO_ANSI(CreateInfo.DebugName));
+	}
+
 	UpdateBufferStats(IndexBufferResource, true);
 
 	if(CreateInfo.ResourceArray)
