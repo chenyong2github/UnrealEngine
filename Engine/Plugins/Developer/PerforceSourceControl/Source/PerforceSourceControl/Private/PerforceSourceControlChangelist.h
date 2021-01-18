@@ -8,6 +8,8 @@
 class FPerforceSourceControlChangelist : public ISourceControlChangelist
 {
 public:
+	FPerforceSourceControlChangelist();
+
 	FPerforceSourceControlChangelist(int32 InChangelistNumber) 
 		: ChangelistNumber(InChangelistNumber)
 	{

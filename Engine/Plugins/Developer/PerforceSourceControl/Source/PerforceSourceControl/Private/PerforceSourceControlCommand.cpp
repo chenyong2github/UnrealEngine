@@ -3,6 +3,7 @@
 #include "PerforceSourceControlCommand.h"
 #include "Modules/ModuleManager.h"
 #include "PerforceSourceControlModule.h"
+#include "PerforceSourceControlChangelist.h"
 
 FPerforceSourceControlCommand::FPerforceSourceControlCommand(const TSharedRef<class ISourceControlOperation, ESPMode::ThreadSafe>& InOperation, const TSharedRef<class IPerforceSourceControlWorker, ESPMode::ThreadSafe>& InWorker, const FSourceControlOperationComplete& InOperationCompleteDelegate )
 	: Operation(InOperation)
@@ -16,6 +17,7 @@ FPerforceSourceControlCommand::FPerforceSourceControlCommand(const TSharedRef<cl
 	, bConnectionDropped(false)
 	, bAutoDelete(true)
 	, Concurrency(EConcurrency::Synchronous)
+	, Changelist(FPerforceSourceControlChangelist::DefaultChangelist.ChangelistNumber)
 {
 	// grab the providers settings here, so we don't access them once the worker thread is launched
 	check(IsInGameThread());

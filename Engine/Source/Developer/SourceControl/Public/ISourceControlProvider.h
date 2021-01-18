@@ -195,12 +195,18 @@ public:
 	/**
 	 * Attempt to execute an operation on the passed-in files (if any are required).
 	 * @param	InOperation						The operation to perform.
+	 * @param	InChangelist                    The changelist to operate on, can be null.
 	 * @param	InFiles							The files to operate on.
 	 * @param	InConcurrency					How to execute the operation, blocking or asynchronously on another thread.
 	 * @param	InOperationCompleteDelegate		Delegate to call when the operation is completed. This is called back internal to this call when executed on the main thread, or from Tick() when queued for asynchronous execution. If the provider is not enabled or if the command is not suported the delegate is immediately called with ECommandResult::Failed.
 	 * @return the result of the operation.
 	 */
-	virtual ECommandResult::Type Execute( const FSourceControlOperationRef& InOperation, const TArray<FString>& InFiles, EConcurrency::Type InConcurrency = EConcurrency::Synchronous, const FSourceControlOperationComplete& InOperationCompleteDelegate = FSourceControlOperationComplete() ) = 0;
+	virtual ECommandResult::Type Execute( const FSourceControlOperationRef& InOperation, FSourceControlChangelistPtr InChangelist, const TArray<FString>& InFiles, EConcurrency::Type InConcurrency = EConcurrency::Synchronous, const FSourceControlOperationComplete& InOperationCompleteDelegate = FSourceControlOperationComplete() ) = 0;
+
+	/**
+	 * Helper overload for operation execution, see Execute().
+	 */
+	SOURCECONTROL_API virtual ECommandResult::Type Execute(const FSourceControlOperationRef& InOperation, const TArray<FString>& InFiles, EConcurrency::Type InConcurrency = EConcurrency::Synchronous, const FSourceControlOperationComplete& InOperationCompleteDelegate = FSourceControlOperationComplete());
 
 	/**
 	 * Helper overload for operation execution, see Execute().
@@ -221,6 +227,11 @@ public:
 	 * Helper overload for operation execution, see Execute().
 	 */
 	SOURCECONTROL_API virtual ECommandResult::Type Execute( const FSourceControlOperationRef& InOperation, const TArray<UPackage*>& InPackages, const EConcurrency::Type InConcurrency = EConcurrency::Synchronous, const FSourceControlOperationComplete& InOperationCompleteDelegate = FSourceControlOperationComplete() );
+
+	/**
+	 * Helper overload for operation execution, see Execute().
+	*/
+	SOURCECONTROL_API virtual ECommandResult::Type Execute( const FSourceControlOperationRef& InOperation, FSourceControlChangelistPtr InChangelist, const EConcurrency::Type InConcurrency = EConcurrency::Synchronous, const FSourceControlOperationComplete& InOperationCompleteDelegate = FSourceControlOperationComplete());
 
 	/**
 	 * Check to see if we can cancel an operation.

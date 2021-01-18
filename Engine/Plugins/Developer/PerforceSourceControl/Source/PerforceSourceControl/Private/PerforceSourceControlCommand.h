@@ -99,6 +99,9 @@ public:
 	/** Files to perform this operation on */
 	TArray< FString > Files;
 
+	/** Changelist to perform this operation on */
+	int32 Changelist;
+
 	/** Potential error, warning and info message storage */
 	FSourceControlResultInfo ResultInfo;
 

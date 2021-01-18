@@ -22,5 +22,15 @@ public class SourceControlWindows : ModuleRules
                 "UnrealEd"			// We need this dependency here because we use PackageTools.
 			}
 		);
+
+		if(Target.bBuildEditor == true)
+		{
+			PrivateDependencyModuleNames.AddRange(
+				new string[]
+				{
+					"ToolMenus"
+				}
+			);
+		}
 	}
 }

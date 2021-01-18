@@ -66,10 +66,11 @@ class FP4CreateChangelistClientUser : public FP4ClientUser
 public:
 
 	// Constructor
-	FP4CreateChangelistClientUser(FP4RecordSet& InRecords, bool bInIsUnicodeServer, TArray<FText>& InOutErrorMessages, const FText& InDescription, ClientApi &InP4Client)
+	FP4CreateChangelistClientUser(FP4RecordSet& InRecords, bool bInIsUnicodeServer, TArray<FText>& InOutErrorMessages, const FText& InDescription, const TArray<FString>& InFiles, ClientApi &InP4Client)
 		:	FP4ClientUser(InRecords, bInIsUnicodeServer, InOutErrorMessages)
 		,	Description(InDescription)
 		,	ChangelistNumber(0)
+		,	Files(InFiles)
 		,	P4Client(InP4Client)
 	{
 	}
@@ -109,7 +110,103 @@ public:
 			}
 		}
 		OutputDesc += TEXT("\n");
-		OutputDesc += TEXT("Files:\n\n");
+		OutputDesc += TEXT("Files:\n");
+		for (const FString& FileName : Files)
+		{
+			OutputDesc += TEXT("\t");
+			OutputDesc += FileName;
+			OutputDesc += TEXT("\n");
+		}
+		OutputDesc += TEXT("\n");
+
+		OutBuffer->Append(FROM_TCHAR(*OutputDesc, bIsUnicodeServer));
+#endif
+	}
+
+	FText Description;
+	int32 ChangelistNumber;
+	TArray<FString> Files;
+	ClientApi& P4Client;
+};
+
+/** A class used instead of FP4ClientUser for handling changelist edit command */
+class FP4EditChangelistClientUser : public FP4ClientUser
+{
+public:
+	// Constructor
+	FP4EditChangelistClientUser(FP4RecordSet& OutRecords, bool bInIsUnicodeServer, TArray<FText>& InOutErrorMessages, const FText& InDescription, int32 InChangelistNumber, const FP4RecordSet& InRecords, ClientApi& InP4Client)
+		: FP4ClientUser(OutRecords, bInIsUnicodeServer, InOutErrorMessages)
+		, Description(InDescription)
+		, ChangelistNumber(InChangelistNumber)
+		, P4Client(InP4Client)
+		, PreviousRecords(InRecords)
+	{
+	}
+
+	// Called by P4API when the changelist is updated.
+	void OutputInfo(ANSICHAR Level, const ANSICHAR* Data)
+	{
+		const int32 ChangeTextLen = FCString::Strlen(TEXT("Change "));
+		if (FString(TO_TCHAR(Data, bIsUnicodeServer)).StartsWith(TEXT("Change ")))
+		{
+			ChangelistNumber = FCString::Atoi(TO_TCHAR(Data + ChangeTextLen, bIsUnicodeServer));
+		}
+	}
+
+	// Called by P4API on "change -i" command. OutBuffer is filled with changelist specification text
+	void InputData(StrBuf* OutBuffer, Error* OutError)
+	{
+#if USE_P4_API
+		FString OutputDesc;
+		const FP4Record& Record = PreviousRecords[0];
+
+		for (const auto& Field : Record)
+		{
+			// Skip some fields that aren<t required (as evidenced by the CreateChangelist before
+			if (Field.Key == TEXT("Date") ||
+				Field.Key == TEXT("Type") ||
+				Field.Key == TEXT("specFormatted") ||
+				Field.Key == TEXT("func"))
+			{
+				continue;
+			}
+
+			if (Field.Key == TEXT("Description"))
+			{
+				// Description case: we will replace the current description by the new one provided
+				OutputDesc += TEXT("Description:\n");
+				{
+					TArray<FString> DescLines;
+					Description.ToString().ParseIntoArray(DescLines, TEXT("\n"), false);
+					for (const FString& DescLine : DescLines)
+					{
+						OutputDesc += TEXT("\t");
+						OutputDesc += DescLine;
+						OutputDesc += TEXT("\n");
+					}
+				}
+				OutputDesc += TEXT("\n");
+			}
+			else if (Field.Key.Contains(TEXT("Files")))
+			{
+				if (Field.Key == TEXT("Files0"))
+				{
+					OutputDesc += TEXT("Files:\n");
+				}
+
+				OutputDesc += TEXT("\t");
+				OutputDesc += Field.Value;
+				OutputDesc += TEXT("\n");
+			}
+			else
+			{
+				// General case: just put back what is already present in the record
+				OutputDesc += Field.Key;
+				OutputDesc += TEXT(":\t");
+				OutputDesc += Field.Value;
+				OutputDesc += TEXT("\n\n");
+			}
+		}
 
 		OutBuffer->Append(FROM_TCHAR(*OutputDesc, bIsUnicodeServer));
 #endif
@@ -118,6 +215,7 @@ public:
 	FText Description;
 	int32 ChangelistNumber;
 	ClientApi& P4Client;
+	FP4RecordSet PreviousRecords;
 };
 
 /** Custom ClientUser class for handling login commands */
@@ -659,7 +757,7 @@ bool FPerforceConnection::RunCommand(const FString& InCommand, const TArray<FStr
 	return OutRecordSet.Num() > 0;
 }
 
-int32 FPerforceConnection::CreatePendingChangelist(const FText &Description, FOnIsCancelled InIsCancelled, TArray<FText>& OutErrorMessages)
+int32 FPerforceConnection::CreatePendingChangelist(const FText &Description, const TArray<FString>& Files, FOnIsCancelled InIsCancelled, TArray<FText>& OutErrorMessages)
 {
 #if USE_P4_API
 	TArray<FString> Params;
@@ -671,12 +769,57 @@ int32 FPerforceConnection::CreatePendingChangelist(const FText &Description, FOn
 	FP4KeepAlive KeepAlive(InIsCancelled);
 	P4Client.SetBreak(&KeepAlive);
 
-	FP4CreateChangelistClientUser User(Records, bIsUnicode, OutErrorMessages, Description, P4Client);
+	FP4CreateChangelistClientUser User(Records, bIsUnicode, OutErrorMessages, Description, Files, P4Client);
 	P4Client.Run("change", &User);
 
 	P4Client.SetBreak(NULL);
 
 	return User.ChangelistNumber;
+#else
+	return 0;
+#endif
+}
+
+int32 FPerforceConnection::EditPendingChangelist(const FText& NewDescription, int32 ChangelistNumber, FOnIsCancelled InIsCancelled, TArray<FText>& OutErrorMessages)
+{
+#if USE_P4_API
+	FP4RecordSet PreviousRecords;
+
+	// Get changelist current specification
+	{
+		TArray<FString> Params;
+		bool bConnectionDropped = false;
+		const bool bStandardDebugOutput = false;
+		const bool bAllowRetry = true;
+
+		Params.Add(TEXT("-o"));
+		// TODO : make this work also for default changelist, but should really be a Create
+		Params.Add(FString::Printf(TEXT("%d"), ChangelistNumber));
+
+		if (!RunCommand(TEXT("change"), Params, PreviousRecords, OutErrorMessages, InIsCancelled, bConnectionDropped, bStandardDebugOutput, bAllowRetry))
+		{
+			return 0;
+		}
+	}
+
+	// Update description with the new description
+	{
+		TArray<FString> Params;
+		FP4RecordSet Records;
+
+		const char* ArgV[] = { "-i" };
+		P4Client.SetArgv(1, const_cast<char* const*>(ArgV));
+
+		FP4KeepAlive KeepAlive(InIsCancelled);
+		P4Client.SetBreak(&KeepAlive);
+
+		FP4EditChangelistClientUser User(Records, bIsUnicode, OutErrorMessages, NewDescription, ChangelistNumber, PreviousRecords, P4Client);
+		P4Client.Run("change", &User);
+
+		P4Client.SetBreak(NULL);
+
+		return User.ChangelistNumber;
+	}
 #else
 	return 0;
 #endif

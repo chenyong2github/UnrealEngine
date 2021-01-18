@@ -421,4 +421,100 @@ private:
 	TArray<FSourceControlChangelistRef> ChangelistsToUpdate;
 };
 
+/**
+* Operation used to create a new changelist
+*/
+class FNewChangelist : public FSourceControlOperationBase
+{
+public:
+	virtual FName GetName() const override
+	{
+		return "NewChangelist";
+	}
+
+	virtual FText GetInProgressString() const override
+	{
+		return LOCTEXT("SourceControl_NewChangelist", "Creating new changelist from Source Control...");
+	}
+
+	void SetDescription(const FText& InDescription)
+	{
+		Description = InDescription;
+	}
+
+	const FText& GetDescription() const
+	{
+		return Description;
+	}
+
+protected:
+	/** Description of the changelist */
+	FText Description;
+};
+
+/**
+ * Operation used to delete an empty changelist
+ */
+class FDeleteChangelist : public FSourceControlOperationBase
+{
+public:
+	virtual FName GetName() const override
+	{
+		return "DeleteChangelist";
+	}
+
+	virtual FText GetInProgressString() const override
+	{
+		return LOCTEXT("SourceControl_DeleteChangelist", "Deleting a changelist from Source Control...");
+	}
+};
+
+/**
+ * Operation to change the description of a changelist
+ */
+class FEditChangelist : public FSourceControlOperationBase
+{
+public:
+	virtual FName GetName() const override
+	{
+		return "EditChangelist";
+	}
+
+	virtual FText GetInProgressString() const override
+	{
+		return LOCTEXT("SourceControl_EditChangelist", "Editing a changelist from Source Control...");
+	}
+
+	void SetDescription(const FText& InDescription)
+	{
+		Description = InDescription;
+	}
+
+	const FText& GetDescription() const
+	{
+		return Description;
+	}
+
+protected:
+	/** Description of the changelist */
+	FText Description;
+};
+
+/**
+ * Operation to revert unchanged file(s) or all unchanged files in a changelist
+ */
+class FRevertUnchanged : public FSourceControlOperationBase
+{
+public:
+	virtual FName GetName() const override
+	{
+		return "RevertUnchanged";
+	}
+
+	virtual FText GetInProgressString() const override
+	{
+		return LOCTEXT("SourceControl_RevertUnchanged", "Reverting unchanged files from Source Control...");
+	}
+};
+
 #undef LOCTEXT_NAMESPACE

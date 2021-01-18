@@ -54,9 +54,14 @@ FSourceControlChangelistStatePtr ISourceControlProvider::GetState(const FSourceC
 	return nullptr;
 }
 
+ECommandResult::Type ISourceControlProvider::Execute(const FSourceControlOperationRef& InOperation, const TArray<FString>& InFiles, EConcurrency::Type InConcurrency, const FSourceControlOperationComplete& InOperationCompleteDelegate)
+{
+	return Execute(InOperation, nullptr, InFiles, InConcurrency, InOperationCompleteDelegate);
+}
+
 ECommandResult::Type ISourceControlProvider::Execute(const FSourceControlOperationRef& InOperation, const EConcurrency::Type InConcurrency, const FSourceControlOperationComplete& InOperationCompleteDelegate)
 {
-	return Execute(InOperation, TArray<FString>(), InConcurrency, InOperationCompleteDelegate);
+	return Execute(InOperation, nullptr, TArray<FString>(), InConcurrency, InOperationCompleteDelegate);
 }
 
 ECommandResult::Type ISourceControlProvider::Execute(const FSourceControlOperationRef& InOperation, const UPackage* InPackage, const EConcurrency::Type InConcurrency, const FSourceControlOperationComplete& InOperationCompleteDelegate)
@@ -74,7 +79,12 @@ ECommandResult::Type ISourceControlProvider::Execute(const FSourceControlOperati
 ECommandResult::Type ISourceControlProvider::Execute(const FSourceControlOperationRef& InOperation, const TArray<UPackage*>& InPackages, const EConcurrency::Type InConcurrency, const FSourceControlOperationComplete& InOperationCompleteDelegate)
 {
 	TArray<FString> FileArray = SourceControlHelpers::PackageFilenames(InPackages);
-	return Execute(InOperation, FileArray, InConcurrency, InOperationCompleteDelegate);
+	return Execute(InOperation, nullptr, FileArray, InConcurrency, InOperationCompleteDelegate);
+}
+
+ECommandResult::Type ISourceControlProvider::Execute(const FSourceControlOperationRef& InOperation, FSourceControlChangelistPtr InChangelist, const EConcurrency::Type InConcurrency, const FSourceControlOperationComplete& InOperationCompleteDelegate)
+{
+	return Execute(InOperation, InChangelist, TArray<FString>(), InConcurrency, InOperationCompleteDelegate);
 }
 
 TSharedPtr<class ISourceControlLabel> ISourceControlProvider::GetLabel(const FString& InLabelName) const

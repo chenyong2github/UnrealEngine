@@ -12,8 +12,9 @@
 #include "ISourceControlProvider.h"
 #include "ISourceControlModule.h"
 #include "SourceControlOperations.h"
+#include "ToolMenus.h"
 #include "Widgets/Images/SLayeredImage.h"
-
+#include "SSourceControlDescription.h"
 
 #define LOCTEXT_NAMESPACE "SourceControlChangelist"
 
@@ -201,6 +202,241 @@ void SChangelistTree::Private_SetItemSelection(FChangelistTreeItemPtr TheItem, b
 	}
 }
 
+FSourceControlChangelistStatePtr SSourceControlChangelistsWidget::GetCurrentChangelistState()
+{
+	if (!TreeView)
+	{
+		return nullptr;
+	}
+
+	TArray<FChangelistTreeItemPtr> SelectedItems = TreeView->GetSelectedItems();
+
+	if (SelectedItems.Num() != 1 || SelectedItems[0]->GetTreeItemType() != IChangelistTreeItem::Changelist)
+	{
+		return nullptr;
+	}
+	else
+	{
+		return StaticCastSharedPtr<FChangelistTreeItem>(SelectedItems[0])->ChangelistState;
+	}
+}
+
+FSourceControlChangelistPtr SSourceControlChangelistsWidget::GetCurrentChangelist()
+{
+	FSourceControlChangelistStatePtr ChangelistState = GetCurrentChangelistState();
+	return ChangelistState ? (FSourceControlChangelistPtr)(ChangelistState->GetChangelist()) : nullptr;
+}
+
+FSourceControlChangelistStatePtr SSourceControlChangelistsWidget::GetChangelistStateFromFileSelection()
+{
+	if (!TreeView)
+	{
+		return nullptr;
+	}
+
+	TArray<FChangelistTreeItemPtr> SelectedItems = TreeView->GetSelectedItems();
+
+	if (SelectedItems.Num() == 0 || SelectedItems[0]->GetTreeItemType() != IChangelistTreeItem::File)
+	{
+		return nullptr;
+	}
+	else
+	{
+		return StaticCastSharedPtr<FChangelistTreeItem>(SelectedItems[0]->GetParent())->ChangelistState;
+	}
+}
+
+FSourceControlChangelistPtr SSourceControlChangelistsWidget::GetChangelistFromFileSelection()
+{
+	FSourceControlChangelistStatePtr ChangelistState = GetChangelistStateFromFileSelection();
+	return ChangelistState ? (FSourceControlChangelistPtr)(ChangelistState->GetChangelist()) : nullptr;
+}
+
+TArray<FString> SSourceControlChangelistsWidget::GetSelectedFiles()
+{
+	TArray<FChangelistTreeItemPtr> SelectedItems = TreeView->GetSelectedItems();
+
+	if (SelectedItems.Num() == 0 || SelectedItems[0]->GetTreeItemType() != IChangelistTreeItem::File)
+	{
+		return TArray<FString>();
+	}
+	else
+	{
+		TArray<FString> Files;
+		for (FChangelistTreeItemPtr Item : SelectedItems)
+		{
+			Files.Add(StaticCastSharedPtr<FFileTreeItem>(Item)->FileState->GetFilename());
+		}
+
+		return Files;
+	}
+}
+
+void SSourceControlChangelistsWidget::OnNewChangelist()
+{
+	FText ChangelistDescription;
+	bool bOk = GetChangelistDescription(
+		nullptr,
+		LOCTEXT("SourceControl.Changelist.New.Title", "New Changelist..."),
+		LOCTEXT("SourceControl.Changelist.New.Label", "Enter a description for the changelist:"),
+		ChangelistDescription);
+
+	if (!bOk)
+	{
+		return;
+	}
+
+	ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
+	auto NewChangelistOperation = ISourceControlOperation::Create<FNewChangelist>();
+	NewChangelistOperation->SetDescription(ChangelistDescription);
+
+	SourceControlProvider.Execute(NewChangelistOperation);
+	Refresh();
+}
+
+void SSourceControlChangelistsWidget::OnDeleteChangelist()
+{
+	if (GetCurrentChangelist() == nullptr)
+	{
+		return;
+	}
+
+	ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
+	SourceControlProvider.Execute(ISourceControlOperation::Create<FDeleteChangelist>(), GetCurrentChangelist());
+	Refresh();
+}
+
+bool SSourceControlChangelistsWidget::CanDeleteChangelist()
+{
+	FSourceControlChangelistStatePtr Changelist = GetCurrentChangelistState();
+	return Changelist != nullptr && Changelist->GetFilesStates().Num() == 0 && Changelist->GetShelvedFilesStates().Num() == 0;
+}
+
+void SSourceControlChangelistsWidget::OnEditChangelist()
+{
+	FSourceControlChangelistStatePtr ChangelistState = GetCurrentChangelistState();
+
+	if(ChangelistState == nullptr)
+	{
+		return;
+	}
+
+	FText NewChangelistDescription = ChangelistState->GetDescriptionText();
+
+	bool bOk = GetChangelistDescription(
+		nullptr,
+		LOCTEXT("SourceControl.Changelist.New.Title", "Edit Changelist..."),
+		LOCTEXT("SourceControl.Changelist.New.Label", "Enter a new description for the changelist:"),
+		NewChangelistDescription);
+
+	if (!bOk)
+	{
+		return;
+	}
+
+	auto EditChangelistOperation = ISourceControlOperation::Create<FEditChangelist>();
+	EditChangelistOperation->SetDescription(NewChangelistDescription);
+
+	ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
+	SourceControlProvider.Execute(EditChangelistOperation, ChangelistState->GetChangelist());
+
+	Refresh();
+}
+
+void SSourceControlChangelistsWidget::OnRevertUnchanged()
+{
+	ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
+
+	auto RevertUnchangedOperation = ISourceControlOperation::Create<FRevertUnchanged>();
+
+	if(GetCurrentChangelist() != nullptr)
+	{
+		// Operation on full changelist
+		SourceControlProvider.Execute(RevertUnchangedOperation, GetCurrentChangelist());
+	}
+	else
+	{
+		// Operation on files in a changelist
+		SourceControlProvider.Execute(RevertUnchangedOperation, GetChangelistFromFileSelection(), GetSelectedFiles());
+	}
+
+	Refresh();
+}
+
+void SSourceControlChangelistsWidget::OnSubmitChangelist()
+{
+	FSourceControlChangelistPtr Changelist = GetCurrentChangelist();
+	
+	if (!Changelist)
+	{
+		return;
+	}
+
+	ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
+	auto SubmitChangelistOperation = ISourceControlOperation::Create<FCheckIn>();
+
+	SourceControlProvider.Execute(SubmitChangelistOperation, Changelist);
+	Refresh();	
+}
+
+bool SSourceControlChangelistsWidget::CanSubmitChangelist()
+{
+	FSourceControlChangelistStatePtr Changelist = GetCurrentChangelistState();
+	return Changelist != nullptr && Changelist->GetFilesStates().Num() >= 0 && Changelist->GetShelvedFilesStates().Num() == 0;
+}
+
+TSharedPtr<SWidget> SSourceControlChangelistsWidget::OnOpenContextMenu()
+{
+	UToolMenus* ToolMenus = UToolMenus::Get();
+	static const FName MenuName = "SourceControl.ChangelistContextMenu";
+	if (!ToolMenus->IsMenuRegistered(MenuName))
+	{
+		ToolMenus->RegisterMenu(MenuName);
+	}
+
+	// Build up the menu for a selection
+	FToolMenuContext Context;
+	UToolMenu* Menu = ToolMenus->GenerateMenu(MenuName, Context);
+		
+	bool bHasSelectedChangelist = (GetCurrentChangelist() != nullptr);
+	bool bHasEmptySelection = (GetCurrentChangelist() == nullptr && GetSelectedFiles().Num() == 0);
+
+	FToolMenuSection& Section = Menu->AddSection("Source Control");
+	
+	// This should appear only if we have no selection
+	if (bHasEmptySelection)
+	{
+		Section.AddMenuEntry("NewChangelist", LOCTEXT("SourceControl_NewChangelist", "New Changelist"), LOCTEXT("SourceControl_NewChangelist_Tooltip", "Creates an empty changelist"), FSlateIcon(),
+			FUIAction(FExecuteAction::CreateSP(this, &SSourceControlChangelistsWidget::OnNewChangelist)));
+	}
+
+	// This should appear only on change lists
+	if (bHasSelectedChangelist)
+	{
+		Section.AddMenuEntry("EditChangelist", LOCTEXT("SourceControl_EditChangelist", "Edit Changelist"), LOCTEXT("SourceControl_Edit_Changelist_Tooltip", "Edit a changelist description"), FSlateIcon(),
+			FUIAction(FExecuteAction::CreateSP(this, &SSourceControlChangelistsWidget::OnEditChangelist)));
+
+		Section.AddMenuEntry("DeleteChangelist", LOCTEXT("SourceControl_DeleteChangelist", "Delete Empty Changelist"), LOCTEXT("SourceControl_Delete_Changelist_Tooltip", "Deletes an empty changelist"), FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateSP(this, &SSourceControlChangelistsWidget::OnDeleteChangelist),
+				FCanExecuteAction::CreateSP(this, &SSourceControlChangelistsWidget::CanDeleteChangelist)));
+
+		Section.AddMenuEntry("SubmitChangelist", LOCTEXT("SourceControl_SubmitChangelist", "Submit Changelist"), LOCTEXT("SourceControl_SubmitChangeslit_Tooltip", "Submits a changelist"), FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateSP(this, &SSourceControlChangelistsWidget::OnSubmitChangelist),
+				FCanExecuteAction::CreateSP(this, &SSourceControlChangelistsWidget::CanSubmitChangelist)));
+	}
+
+	// This can appear on both files & changelist
+	if (!bHasEmptySelection)
+	{
+		Section.AddMenuEntry("RevertUnchanged", LOCTEXT("SourceControl_RevertUnchanged", "Revert Unchanged"), LOCTEXT("SourceControl_Revert_Unchanged_Tooltip", "Reverts unchanged files & changelists"), FSlateIcon(),
+			FUIAction(FExecuteAction::CreateSP(this, &SSourceControlChangelistsWidget::OnRevertUnchanged)));
+	}
+
+	return ToolMenus->GenerateWidget(Menu);
+}
+
 TSharedRef<SChangelistTree> SSourceControlChangelistsWidget::CreateTreeviewWidget()
 {
 	return SAssignNew(TreeView, SChangelistTree)
@@ -209,6 +445,7 @@ TSharedRef<SChangelistTree> SSourceControlChangelistsWidget::CreateTreeviewWidge
 		.OnGenerateRow(this, &SSourceControlChangelistsWidget::OnGenerateRow)
 		.OnGetChildren(this, &SSourceControlChangelistsWidget::OnGetChildren)
 		.SelectionMode(ESelectionMode::Multi)
+		.OnContextMenuOpening(this, &SSourceControlChangelistsWidget::OnOpenContextMenu)
 		.HeaderRow
 		(
 			SNew(SHeaderRow)

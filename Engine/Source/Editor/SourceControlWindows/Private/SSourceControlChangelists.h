@@ -96,6 +96,25 @@ private:
 	void Refresh();
 	void ClearChangelistsTree();
 
+	TSharedPtr<SWidget> OnOpenContextMenu();
+
+	/** Returns the currently selected changelist state ptr or null in invalid cases */
+	FSourceControlChangelistStatePtr GetCurrentChangelistState();
+	FSourceControlChangelistPtr GetCurrentChangelist();
+	FSourceControlChangelistStatePtr GetChangelistStateFromFileSelection();
+	FSourceControlChangelistPtr GetChangelistFromFileSelection();
+
+	/** Returns list of currently selected files */
+	TArray<FString> GetSelectedFiles();
+
+	void OnNewChangelist();
+	void OnDeleteChangelist();
+	bool CanDeleteChangelist();
+	void OnEditChangelist();
+	void OnRevertUnchanged();
+	void OnSubmitChangelist();
+	bool CanSubmitChangelist();
+
 	void OnSourceControlStateChanged();
 	void OnSourceControlProviderChanged(ISourceControlProvider& OldProvider, ISourceControlProvider& NewProvider);
 	void OnChangelistsStatusUpdated(const FSourceControlOperationRef& InOperation, ECommandResult::Type InType);

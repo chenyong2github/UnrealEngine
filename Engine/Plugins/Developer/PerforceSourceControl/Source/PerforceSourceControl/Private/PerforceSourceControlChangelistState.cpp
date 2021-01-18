@@ -50,4 +50,10 @@ const TArray<FSourceControlStateRef>& FPerforceSourceControlChangelistState::Get
 	return ShelvedFiles;
 }
 
+FSourceControlChangelistRef FPerforceSourceControlChangelistState::GetChangelist() const
+{
+	FPerforceSourceControlChangelistRef ChangelistCopy = MakeShareable( new FPerforceSourceControlChangelist(Changelist));
+	return StaticCastSharedRef<ISourceControlChangelist>(ChangelistCopy);
+}
+
 #undef LOCTEXT_NAMESPACE

@@ -245,6 +245,11 @@ const TArray<FSourceControlStateRef>& FConcertSourceControlChangelistStateProxy:
 	return ActualState.IsValid() ? ActualState->GetShelvedFilesStates() : DummyResult;
 }
 
+FSourceControlChangelistRef FConcertSourceControlChangelistStateProxy::GetChangelist() const
+{
+	static const FSourceControlChangelistRef DummyResult;
+	return ActualState.IsValid() ? ActualState->GetChangelist() : DummyResult;
+}
 
 FConcertSourceControlProxy::FConcertSourceControlProxy()
 	: bHandlingProviderChanges(false)
@@ -427,17 +432,17 @@ void FConcertSourceControlProxy::UnregisterSourceControlStateChanged_Handle(FDel
 	}
 }
 
-ECommandResult::Type FConcertSourceControlProxy::Execute(const TSharedRef<ISourceControlOperation, ESPMode::ThreadSafe>& InOperation, const TArray<FString>& InFiles, EConcurrency::Type InConcurrency, const FSourceControlOperationComplete& InOperationCompleteDelegate)
+ECommandResult::Type FConcertSourceControlProxy::Execute(const FSourceControlOperationRef& InOperation, FSourceControlChangelistPtr InChangelist, const TArray<FString>& InFiles, EConcurrency::Type InConcurrency, const FSourceControlOperationComplete& InOperationCompleteDelegate)
 {
 	if (ActualProvider)
 	{
-		return ActualProvider->Execute(InOperation, InFiles, InConcurrency, InOperationCompleteDelegate);
+		return ActualProvider->Execute(InOperation, InChangelist, InFiles, InConcurrency, InOperationCompleteDelegate);
 	}
 
 	return ECommandResult::Failed;
 }
 
-bool FConcertSourceControlProxy::CanCancelOperation(const TSharedRef<ISourceControlOperation, ESPMode::ThreadSafe>& InOperation) const
+bool FConcertSourceControlProxy::CanCancelOperation(const FSourceControlOperationRef& InOperation) const
 {
 	if (ActualProvider)
 	{
@@ -447,7 +452,7 @@ bool FConcertSourceControlProxy::CanCancelOperation(const TSharedRef<ISourceCont
 	return false;
 }
 
-void FConcertSourceControlProxy::CancelOperation(const TSharedRef<ISourceControlOperation, ESPMode::ThreadSafe>& InOperation)
+void FConcertSourceControlProxy::CancelOperation(const FSourceControlOperationRef& InOperation)
 {
 	if (ActualProvider)
 	{

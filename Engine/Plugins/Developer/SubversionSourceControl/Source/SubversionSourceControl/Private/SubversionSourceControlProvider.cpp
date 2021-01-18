@@ -147,7 +147,7 @@ void FSubversionSourceControlProvider::UnregisterSourceControlStateChanged_Handl
 	OnSourceControlStateChanged.Remove( Handle );
 }
 
-ECommandResult::Type FSubversionSourceControlProvider::Execute( const TSharedRef<ISourceControlOperation, ESPMode::ThreadSafe>& InOperation, const TArray<FString>& InFiles, EConcurrency::Type InConcurrency, const FSourceControlOperationComplete& InOperationCompleteDelegate )
+ECommandResult::Type FSubversionSourceControlProvider::Execute( const FSourceControlOperationRef& InOperation, FSourceControlChangelistPtr InChangelist, const TArray<FString>& InFiles, EConcurrency::Type InConcurrency, const FSourceControlOperationComplete& InOperationCompleteDelegate )
 {
 	if(!IsEnabled())
 	{
@@ -199,12 +199,12 @@ ECommandResult::Type FSubversionSourceControlProvider::Execute( const TSharedRef
 	}
 }
 
-bool FSubversionSourceControlProvider::CanCancelOperation( const TSharedRef<ISourceControlOperation, ESPMode::ThreadSafe>& InOperation ) const
+bool FSubversionSourceControlProvider::CanCancelOperation( const FSourceControlOperationRef& InOperation ) const
 {
 	return false;
 }
 
-void FSubversionSourceControlProvider::CancelOperation( const TSharedRef<ISourceControlOperation, ESPMode::ThreadSafe>& InOperation )
+void FSubversionSourceControlProvider::CancelOperation( const FSourceControlOperationRef& InOperation )
 {
 }
 

@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 
 #include "ISourceControlState.h"
+#include "ISourceControlChangelist.h"
 
 typedef TSharedRef<class ISourceControlChangelistState, ESPMode::ThreadSafe> FSourceControlChangelistStateRef;
 typedef TSharedPtr<class ISourceControlChangelistState, ESPMode::ThreadSafe> FSourceControlChangelistStatePtr;
@@ -60,5 +61,9 @@ public:
 
 	virtual const TArray<FSourceControlStateRef>& GetShelvedFilesStates() const = 0;
 
-
+	/**
+	 * Returns the object on which this state was constructed
+	 * @returns the changelist associated to this state
+	 */
+	virtual FSourceControlChangelistRef GetChangelist() const = 0;
 };

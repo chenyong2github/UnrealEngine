@@ -53,7 +53,7 @@ void SPerforceSourceControlSettings::Construct(const FArguments& InArgs)
 		.AutoHeight()
 		[
 			SNew( SBorder )
-			.BorderImage( FEditorStyle::GetBrush("DetailsView.CategoryMiddle") )
+			.BorderImage( FEditorStyle::GetBrush("DetailsView.CategoryBottom") )
 			.Padding( FMargin( 0.0f, 3.0f, 0.0f, 0.0f ) )
 			[
 				SNew(SHorizontalBox)
@@ -161,7 +161,7 @@ void SPerforceSourceControlSettings::Construct(const FArguments& InArgs)
 		.AutoHeight()
 		[
 			SNew( SBorder )
-			.BorderImage( FEditorStyle::GetBrush("DetailsView.CategoryMiddle") )
+			.BorderImage( FEditorStyle::GetBrush("DetailsView.CategoryBottom") )
 			.Padding( FMargin( 0.0f, 3.0f, 0.0f, 0.0f ) )
 			.Visibility(this, &SPerforceSourceControlSettings::GetAdvancedSettingsVisibility)
 			[
@@ -173,7 +173,7 @@ void SPerforceSourceControlSettings::Construct(const FArguments& InArgs)
 		.AutoHeight()
 		[
 			SNew( SBorder )
-			.BorderImage( FEditorStyle::GetBrush("DetailsView.CategoryMiddle") )
+			.BorderImage( FEditorStyle::GetBrush("DetailsView.CategoryBottom") )
 			.Padding( FMargin( 0.0f, 0.0f, 0.0f, 0.0f ) )
 			.Visibility(this, &SPerforceSourceControlSettings::GetAdvancedSettingsVisibility)
 			[

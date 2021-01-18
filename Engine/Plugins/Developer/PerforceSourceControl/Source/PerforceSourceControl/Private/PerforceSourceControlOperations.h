@@ -191,3 +191,59 @@ public:
 	virtual bool Execute(class FPerforceSourceControlCommand& InCommand) override;
 	virtual bool UpdateStates() const override;
 };
+
+class FPerforceNewChangelistWorker : public IPerforceSourceControlWorker
+{
+public:
+	FPerforceNewChangelistWorker();
+	virtual ~FPerforceNewChangelistWorker() {}
+	// IPerforceSourceControlWorker interface
+	virtual FName GetName() const override;
+	virtual bool Execute(class FPerforceSourceControlCommand& InCommand) override;
+	virtual bool UpdateStates() const override;
+
+public:
+	/** New changelist information */
+	FPerforceSourceControlChangelist NewChangelist;
+	FPerforceSourceControlChangelistState NewChangelistState;
+};
+
+class FPerforceDeleteChangelistWorker : public IPerforceSourceControlWorker
+{
+public:
+	virtual ~FPerforceDeleteChangelistWorker() {}
+	// IPerforceSourceControlWorker interface
+	virtual FName GetName() const override;
+	virtual bool Execute(class FPerforceSourceControlCommand& InCommand) override;
+	virtual bool UpdateStates() const override;
+
+public:
+	FPerforceSourceControlChangelist DeletedChangelist;
+};
+
+class FPerforceEditChangelistWorker : public IPerforceSourceControlWorker
+{
+public:
+	virtual ~FPerforceEditChangelistWorker() {}
+	// IPerforceSourceControlWorker interface
+	virtual FName GetName() const override;
+	virtual bool Execute(class FPerforceSourceControlCommand& InCommand) override;
+	virtual bool UpdateStates() const override;
+
+public:
+	FPerforceSourceControlChangelist EditedChangelist;
+	FText EditedDescription;
+};
+
+class FPerforceRevertUnchangedWorker : public IPerforceSourceControlWorker
+{
+public:
+	virtual ~FPerforceRevertUnchangedWorker() {}
+	// IPerforceSourceControlWorker interface
+	virtual FName GetName() const override;
+	virtual bool Execute(class FPerforceSourceControlCommand& InCommand) override;
+	virtual bool UpdateStates() const override;
+protected:
+	/** Map of filenames to perforce state */
+	TMap<FString, EPerforceState::Type> OutResults;
+};

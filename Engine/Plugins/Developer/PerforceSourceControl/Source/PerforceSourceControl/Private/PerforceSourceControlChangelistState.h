@@ -52,6 +52,8 @@ public:
 
 	virtual const TArray<FSourceControlStateRef>& GetShelvedFilesStates() const override;
 
+	virtual FSourceControlChangelistRef GetChangelist() const override;
+
 public:
 	FPerforceSourceControlChangelist Changelist;
 

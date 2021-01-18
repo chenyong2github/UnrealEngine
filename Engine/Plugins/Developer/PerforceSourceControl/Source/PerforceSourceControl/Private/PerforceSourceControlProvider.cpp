@@ -300,6 +300,11 @@ bool FPerforceSourceControlProvider::RemoveFileFromCache(const FString& Filename
 	return StateCache.Remove(Filename) > 0;
 }
 
+bool FPerforceSourceControlProvider::RemoveChangelistFromCache(const FPerforceSourceControlChangelist& Changelist)
+{
+	return ChangelistsStateCache.Remove(Changelist) > 0;
+}
+
 TArray<FSourceControlStateRef> FPerforceSourceControlProvider::GetCachedStateByPredicate(TFunctionRef<bool(const FSourceControlStateRef&)> Predicate) const
 {
 	TArray<FSourceControlStateRef> Result;
@@ -324,7 +329,7 @@ void FPerforceSourceControlProvider::UnregisterSourceControlStateChanged_Handle(
 	OnSourceControlStateChanged.Remove( Handle );
 }
 
-ECommandResult::Type FPerforceSourceControlProvider::Execute( const TSharedRef<ISourceControlOperation, ESPMode::ThreadSafe>& InOperation, const TArray<FString>& InFiles, EConcurrency::Type InConcurrency, const FSourceControlOperationComplete& InOperationCompleteDelegate )
+ECommandResult::Type FPerforceSourceControlProvider::Execute( const FSourceControlOperationRef& InOperation, FSourceControlChangelistPtr InBaseChangelist, const TArray<FString>& InFiles, EConcurrency::Type InConcurrency, const FSourceControlOperationComplete& InOperationCompleteDelegate )
 {
 	if(!IsEnabled())
 	{
@@ -332,6 +337,8 @@ ECommandResult::Type FPerforceSourceControlProvider::Execute( const TSharedRef<I
 		InOperationCompleteDelegate.ExecuteIfBound(InOperation, ECommandResult::Failed);
 		return ECommandResult::Failed;
 	}
+
+	TSharedPtr<FPerforceSourceControlChangelist, ESPMode::ThreadSafe> InChangelist = StaticCastSharedPtr<FPerforceSourceControlChangelist>(InBaseChangelist);
 
 	TArray<FString> AbsoluteFiles = SourceControlHelpers::AbsoluteFilenames(InFiles);
 
@@ -352,6 +359,8 @@ ECommandResult::Type FPerforceSourceControlProvider::Execute( const TSharedRef<I
 		return ECommandResult::Failed;
 	}
 
+	int32 ChangelistNumber = (InChangelist ? InChangelist->ChangelistNumber : FPerforceSourceControlChangelist::DefaultChangelist.ChangelistNumber);
+
 	// fire off operation
 	if(InConcurrency == EConcurrency::Synchronous)
 	{
@@ -361,6 +370,7 @@ ECommandResult::Type FPerforceSourceControlProvider::Execute( const TSharedRef<I
 		Command->StatusBranchNames = StatusBranchNames;
 		Command->ContentRoot = ContentRoot;
 		Command->OperationCompleteDelegate = InOperationCompleteDelegate;
+		Command->Changelist = ChangelistNumber;
 		return ExecuteSynchronousCommand(*Command, InOperation->GetInProgressString(), true);
 	}
 	else
@@ -371,11 +381,12 @@ ECommandResult::Type FPerforceSourceControlProvider::Execute( const TSharedRef<I
 		Command->StatusBranchNames = StatusBranchNames;
 		Command->ContentRoot = ContentRoot;
 		Command->OperationCompleteDelegate = InOperationCompleteDelegate;
+		Command->Changelist = ChangelistNumber;
 		return IssueCommand(*Command, false);
 	}
 }
 
-bool FPerforceSourceControlProvider::CanCancelOperation( const TSharedRef<ISourceControlOperation, ESPMode::ThreadSafe>& InOperation ) const
+bool FPerforceSourceControlProvider::CanCancelOperation( const FSourceControlOperationRef& InOperation ) const
 {
 	for (int32 CommandIndex = 0; CommandIndex < CommandQueue.Num(); ++CommandIndex)
 	{
@@ -391,7 +402,7 @@ bool FPerforceSourceControlProvider::CanCancelOperation( const TSharedRef<ISourc
 	return false;
 }
 
-void FPerforceSourceControlProvider::CancelOperation( const TSharedRef<ISourceControlOperation, ESPMode::ThreadSafe>& InOperation )
+void FPerforceSourceControlProvider::CancelOperation( const FSourceControlOperationRef& InOperation )
 {
 	for (int32 CommandIndex = 0; CommandIndex < CommandQueue.Num(); ++CommandIndex)
 	{
