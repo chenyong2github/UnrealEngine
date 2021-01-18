@@ -218,13 +218,17 @@ void NiagaraEmitterInstanceBatcher::InstanceDeallocated_RenderThread(const FNiag
 	{
 		GpuComputeDebug->OnSystemDeallocated(InstanceID);
 	}
-
+#endif
+#if !UE_BUILD_SHIPPING
 	GpuDebugReadbackInfos.RemoveAll(
 		[&](const FDebugReadbackInfo& Info)
 		{
-			// In the unlikely event we have on in the queue make sure it's marked as complete with no data in it
-			Info.DebugInfo->Frame.CopyFromGPUReadback(nullptr, nullptr, nullptr, 0, 0, 0, 0, 0);
-			Info.DebugInfo->bWritten = true;
+			// In the unlikely event we have one in the queue make sure it's marked as complete with no data in it
+			if ( Info.InstanceID == InstanceID )
+			{
+				Info.DebugInfo->Frame.CopyFromGPUReadback(nullptr, nullptr, nullptr, 0, 0, 0, 0, 0);
+				Info.DebugInfo->bWritten = true;
+			}
 			return Info.InstanceID == InstanceID;
 		}
 	);
@@ -1492,7 +1496,7 @@ void NiagaraEmitterInstanceBatcher::PostRenderOpaque(FRHICommandListImmediate& R
 
 void NiagaraEmitterInstanceBatcher::ProcessDebugReadbacks(FRHICommandListImmediate& RHICmdList, bool bWaitCompletion)
 {
-#if WITH_EDITOR
+#if !UE_BUILD_SHIPPING
 	// Execute any pending readbacks as the ticks have now all been processed
 	for (const FDebugReadbackInfo& DebugReadback : GpuDebugReadbackInfos)
 	{
@@ -1977,7 +1981,7 @@ FGPUSortManager* NiagaraEmitterInstanceBatcher::GetGPUSortManager() const
 	return GPUSortManager;
 }
 
-#if WITH_EDITORONLY_DATA
+#if !UE_BUILD_SHIPPING
 void NiagaraEmitterInstanceBatcher::AddDebugReadback(FNiagaraSystemInstanceID InstanceID, TSharedPtr<struct FNiagaraScriptDebuggerInfo, ESPMode::ThreadSafe> DebugInfo, FNiagaraComputeExecutionContext* Context)
 {
 	FDebugReadbackInfo& ReadbackInfo = GpuDebugReadbackInfos.AddDefaulted_GetRef();
@@ -1986,7 +1990,6 @@ void NiagaraEmitterInstanceBatcher::AddDebugReadback(FNiagaraSystemInstanceID In
 	ReadbackInfo.Context = Context;
 }
 #endif
-
 
 NiagaraEmitterInstanceBatcher::DummyUAV::~DummyUAV()
 {

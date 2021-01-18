@@ -122,35 +122,48 @@ static FAutoConsoleVariableRef CVarWorldLoopTime(
 	ECVF_Default
 );
 
-FAutoConsoleCommandWithWorldAndArgs GCmdNiagaraPlaybackPause(
-	TEXT("fx.Niagara.Debug.Pause"),
-	TEXT("Pause or unpause Niagara effects, 0 = Play, 1 = Pause"),
+FAutoConsoleCommandWithWorldAndArgs GCmdNiagaraPlaybackMode(
+	TEXT("fx.Niagara.Debug.PlaybackMode"),
+	TEXT("Set playback mode\n")
+	TEXT("0 - Play\n")
+	TEXT("1 - Paused\n")
+	TEXT("2 - Step\n"),
 	FConsoleCommandWithWorldAndArgsDelegate::CreateLambda(
 		[](const TArray<FString>& Args, UWorld* World)
 		{
-			if ( Args.Num() != 1 )
-			{
-				return;
-			}
-
 			if ( FNiagaraWorldManager* WorldManager = FNiagaraWorldManager::Get(World) )
 			{
-				const bool bPaused = FCString::Atoi(*Args[0]) != 0;
-				WorldManager->SetDebugPlayback(bPaused ? ENiagaraDebugPlayback::Paused : ENiagaraDebugPlayback::Play);
+				if (Args.Num() != 1)
+				{
+					UE_LOG(LogNiagara, Log, TEXT("fx.Niagara.Debug.PlaybackMode %d"), (int32)WorldManager->GetDebugPlaybackMode());
+				}
+				else
+				{
+					const ENiagaraDebugPlaybackMode PlaybackMode = FMath::Clamp((ENiagaraDebugPlaybackMode)FCString::Atoi(*Args[0]), ENiagaraDebugPlaybackMode::Play, ENiagaraDebugPlaybackMode::Step);
+					WorldManager->SetDebugPlaybackMode(PlaybackMode);
+				}
 			}
 		}
 	)
 );
 
-FAutoConsoleCommandWithWorld GCmdNiagaraPlaybackStep(
-	TEXT("fx.Niagara.Debug.Step"),
-	TEXT("Step a single frame of simulation and pause afterwards"),
-	FConsoleCommandWithWorldDelegate::CreateLambda(
-		[](UWorld* World)
+FAutoConsoleCommandWithWorldAndArgs GCmdNiagaraPlaybackRate(
+	TEXT("fx.Niagara.Debug.PlaybackRate"),
+	TEXT("Set playback rate\n"),
+	FConsoleCommandWithWorldAndArgsDelegate::CreateLambda(
+		[](const TArray<FString>& Args, UWorld* World)
 		{
 			if ( FNiagaraWorldManager* WorldManager = FNiagaraWorldManager::Get(World) )
 			{
-				WorldManager->SetDebugPlayback(ENiagaraDebugPlayback::Step);
+				if (Args.Num() != 1)
+				{
+					UE_LOG(LogNiagara, Log, TEXT("fx.Niagara.Debug.PlaybackRate %5.2f"), (int32)WorldManager->GetDebugPlaybackRate());
+				}
+				else
+				{
+					const float PlaybackRate = FCString::Atof(*Args[0]);
+					WorldManager->SetDebugPlaybackRate(PlaybackRate);
+				}
 			}
 		}
 	)
@@ -627,6 +640,8 @@ void FNiagaraWorldManager::PostActorTick(float DeltaSeconds)
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraOverview_GT);
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_NiagaraPostActorTick_GT);
 
+	DeltaSeconds *= DebugPlaybackRate;
+
 	if (GNiagaraUsePostActorMark)
 	{
 		// Update any systems with post actor work
@@ -734,10 +749,10 @@ void FNiagaraWorldManager::PostActorTick(float DeltaSeconds)
 		NiagaraDebugHud->GatherSystemInfo();
 	}
 
-	if ( DebugPlayback == ENiagaraDebugPlayback::Step )
+	if ( DebugPlaybackMode == ENiagaraDebugPlaybackMode::Step )
 	{
-		RequestedDebugPlayback = ENiagaraDebugPlayback::Paused;
-		DebugPlayback = ENiagaraDebugPlayback::Paused;
+		RequestedDebugPlaybackMode = ENiagaraDebugPlaybackMode::Paused;
+		DebugPlaybackMode = ENiagaraDebugPlaybackMode::Paused;
 	}
 }
 
@@ -759,11 +774,13 @@ void FNiagaraWorldManager::Tick(ETickingGroup TickGroup, float DeltaSeconds, ELe
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraWorldManTick);
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraOverview_GT);
 
+	DeltaSeconds *= DebugPlaybackRate;
+
 	// We do book keeping in the first tick group
 	if ( TickGroup == NiagaraFirstTickGroup )
 	{		
 		// Update playback mode
-		DebugPlayback = RequestedDebugPlayback;
+		DebugPlaybackMode = RequestedDebugPlaybackMode;
 
 		// Utility loop feature to trigger all systems to loop on a timer.
 		if (GWorldLoopTime > 0.0f)
@@ -805,7 +822,7 @@ void FNiagaraWorldManager::Tick(ETickingGroup TickGroup, float DeltaSeconds, ELe
 #endif
 
 		// If we are in paused don't do anything
-		if (DebugPlayback == ENiagaraDebugPlayback::Paused)
+		if (DebugPlaybackMode == ENiagaraDebugPlaybackMode::Paused)
 		{
 			return;
 		}
@@ -843,7 +860,7 @@ void FNiagaraWorldManager::Tick(ETickingGroup TickGroup, float DeltaSeconds, ELe
 	}
 
 	// If we are in paused don't do anything
-	if ( DebugPlayback == ENiagaraDebugPlayback::Paused )
+	if ( DebugPlaybackMode == ENiagaraDebugPlaybackMode::Paused )
 	{
 		return;
 	}
@@ -1171,6 +1188,29 @@ void FNiagaraWorldManager::DistanceCull(UNiagaraEffectType* EffectType, const FN
 #endif
 		}
 	}
+}
+
+bool FNiagaraWorldManager::GetScalabilityState(UNiagaraComponent* Component, FNiagaraScalabilityState& OutState) const
+{
+	if ( Component )
+	{
+		const int32 ScalabilityHandle = Component->GetScalabilityManagerHandle();
+		if (ScalabilityHandle != INDEX_NONE)
+		{
+			if (UNiagaraSystem* System = Component->GetAsset())
+			{
+				if (UNiagaraEffectType* EffectType = System->GetEffectType())
+				{
+					if (const FNiagaraScalabilityManager* ScalabilityManager = ScalabilityManagers.Find(EffectType))
+					{
+						OutState = ScalabilityManager->State[ScalabilityHandle];
+						return true;
+					}
+				}
+			}
+		}
+	}
+	return false;
 }
 
 void FNiagaraWorldManager::PrimePoolForAllWorlds(UNiagaraSystem* System)

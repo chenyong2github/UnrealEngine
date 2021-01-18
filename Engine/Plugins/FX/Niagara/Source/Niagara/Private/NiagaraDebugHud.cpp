@@ -2,6 +2,8 @@
 
 #include "NiagaraDebugHud.h"
 #include "NiagaraComponent.h"
+#include "NiagaraEmitterInstanceBatcher.h"
+#include "NiagaraScript.h"
 #include "NiagaraSystem.h"
 #include "NiagaraWorldManager.h"
 #include "NiagaraDataSetDebugAccessor.h"
@@ -13,16 +15,34 @@
 
 namespace NiagaraDebugLocal
 {
+	enum class EEngineVariables : uint8
+	{
+		LODDistance,
+		LODFraction,
+		Num
+	};
+
+	static FString GEngineVariableStrings[(int)EEngineVariables::Num] =
+	{
+		TEXT("Engine.LODDistance"),
+		TEXT("Engine.LODFraction"),
+	};
+
 	struct FCachedVariables
 	{
 		bool bIsCached = false;
+
+		bool bShowEngineVariable[(int)EEngineVariables::Num] = {};				// Engine variables that are not contained within the store
+
 		TArray<FNiagaraDataSetDebugAccessor> SystemVariables;					// System & Emitter variables since both are inside the same DataBuffer
 		TArray<FNiagaraVariableBase> UserVariables;								// Exposed user parameters which will pull from the component
+
 		TArray<TArray<FNiagaraDataSetDebugAccessor>> ParticleVariables;			// Per Emitter Particle variables
 		TArray<FNiagaraDataSetAccessor<FVector>> ParticlePositionAccessors;		// Only valid if we have particle attributes
 	};
 
 	static bool GEnabled = false;
+	static bool GGpuReadbackEnabled = false;
 	static FVector2D GDisplayLocation = FVector2D(30.0f, 150.0f);
 	static ENiagaraDebugHudSystemVerbosity GSystemVerbosity = ENiagaraDebugHudSystemVerbosity::Minimal;
 	static bool GSystemShowBounds = false;
@@ -48,6 +68,10 @@ namespace NiagaraDebugLocal
 						if (Arg.RemoveFromStart(TEXT("Enabled=")))
 						{
 							GEnabled = FCString::Atoi(*Arg) != 0;
+						}
+						else if (Arg.RemoveFromStart(TEXT("GpuReadback=")))
+						{
+							GGpuReadbackEnabled = FCString::Atoi(*Arg) != 0;
 						}
 						else if (Arg.RemoveFromStart(TEXT("DisplayLocation=")))
 						{
@@ -123,6 +147,29 @@ namespace NiagaraDebugLocal
 		)
 	);
 
+
+	template<typename TVariableList, typename TPredicate>
+	void FindVariablesByWildcard(const TVariableList& Variables, const TArray<FString>& Wildcards, TPredicate Predicate)
+	{
+		if (Wildcards.Num() == 0)
+		{
+			return;
+		}
+
+		for (const auto& Variable : Variables)
+		{
+			const FString VariableName = Variable.GetName().ToString();
+			for ( const FString& Wildcard : Wildcards )
+			{
+				if ((Wildcard.Len() > 0) && VariableName.MatchesWildcard(Wildcard) )
+				{
+					Predicate(Variable);
+					break;
+				}
+			}
+		}
+	}
+
 	const FCachedVariables& GetCachedVariables(UNiagaraSystem* NiagaraSystem)
 	{
 		FCachedVariables& CachedVariables = GCachedSystemVariables.FindOrAdd(NiagaraSystem);
@@ -132,55 +179,27 @@ namespace NiagaraDebugLocal
 			if (GSystemVariables.Num() > 0)
 			{
 				const FNiagaraDataSetCompiledData& SystemCompiledData = NiagaraSystem->GetSystemCompiledData().DataSetCompiledData;
-				//const FNiagaraUserRedirectionParameterStore& ExposedParameters = NiagaraSystem->GetExposedParameters();
-				//TArrayView<const FNiagaraVariableWithOffset> DestParameters = OverrideParameters.ReadParameterVariables();
-				TArrayView<const FNiagaraVariableWithOffset> UserParameters = NiagaraSystem->GetExposedParameters().ReadParameterVariables();
-				for (const FString& VarToFind : GSystemVariables)
+				FindVariablesByWildcard(
+					SystemCompiledData.Variables,
+					GSystemVariables,
+					[&](const FNiagaraVariable& Variable) { CachedVariables.SystemVariables.AddDefaulted_GetRef().Init(SystemCompiledData, Variable.GetName()); }
+				);
+
+				FindVariablesByWildcard(
+					NiagaraSystem->GetExposedParameters().ReadParameterVariables(),
+					GSystemVariables,
+					[&](const FNiagaraVariableWithOffset& Variable) { CachedVariables.UserVariables.Add(Variable); }
+				);
+
+				for (int32 iVariable=0; iVariable < (int32)EEngineVariables::Num; ++iVariable)
 				{
-					// Match any or exact match?
-					if ( VarToFind[0] == TEXT('*') )
+					for ( const FString& Wildcard : GSystemVariables )
 					{
-						FString VarToFindMatch = VarToFind.RightChop(1);
-						for (const FNiagaraVariable& SystemVariable : SystemCompiledData.Variables)
+						if ( GEngineVariableStrings[iVariable].MatchesWildcard(Wildcard) )
 						{
-							if (VarToFindMatch.IsEmpty() || SystemVariable.GetName().ToString().Contains(VarToFindMatch))
-							{
-								CachedVariables.SystemVariables.AddDefaulted_GetRef().Init(SystemCompiledData, SystemVariable.GetName());
-							}
+							CachedVariables.bShowEngineVariable[iVariable] = true;
+							break;
 						}
-
-						UserParameters.FindByPredicate(
-							[&](const FNiagaraVariableWithOffset& UserParam)
-							{
-								if (VarToFindMatch.IsEmpty() || UserParam.GetName().ToString().Contains(VarToFindMatch))
-								{
-									CachedVariables.UserVariables.Add(UserParam);
-									return true;
-								}
-								return false;
-							}
-						);
-					}
-					else
-					{
-						FName VarToFindName(VarToFind);
-						FNiagaraDataSetDebugAccessor DebugAccessor;
-						if (DebugAccessor.Init(SystemCompiledData, VarToFindName) )
-						{
-							CachedVariables.SystemVariables.Add(DebugAccessor);
-						}
-
-						UserParameters.FindByPredicate(
-							[&](const FNiagaraVariableWithOffset& UserParam)
-							{
-								if ( UserParam.GetName() == VarToFindName )
-								{
-									CachedVariables.UserVariables.Add(UserParam);
-									return true;
-								}
-								return false;
-							}
-						);
 					}
 				}
 			}
@@ -193,35 +212,12 @@ namespace NiagaraDebugLocal
 				for (int32 i=0; i < AllEmittersCompiledData.Num(); ++i)
 				{
 					const FNiagaraDataSetCompiledData& EmitterCompiledData = AllEmittersCompiledData[i]->DataSetCompiledData;
-					if ( EmitterCompiledData.SimTarget == ENiagaraSimTarget::GPUComputeSim )
-					{
-						//-TODO: Support GPU via a readback or using the GPU to write the data via a batched element
-						continue;
-					}
 
-					for (FString VarToFind : GParticleVariables)
-					{
-						// Match any or exact match?
-						if (VarToFind[0] == TEXT('*'))
-						{
-							FString VarToFindMatch = VarToFind.RightChop(1);
-							for (const FNiagaraVariable& ParticleVariable : EmitterCompiledData.Variables)
-							{
-								if (VarToFindMatch.IsEmpty() || ParticleVariable.GetName().ToString().Contains(VarToFindMatch))
-								{
-									CachedVariables.ParticleVariables[i].AddDefaulted_GetRef().Init(EmitterCompiledData, ParticleVariable.GetName());
-								}
-							}
-						}
-						else
-						{
-							FNiagaraDataSetDebugAccessor DebugAccessor;
-							if (DebugAccessor.Init(EmitterCompiledData, FName(VarToFind)))
-							{
-								CachedVariables.ParticleVariables[i].Add(DebugAccessor);
-							}
-						}
-					}
+					FindVariablesByWildcard(
+						EmitterCompiledData.Variables,
+						GParticleVariables,
+						[&](const FNiagaraVariable& Variable) { CachedVariables.ParticleVariables[i].AddDefaulted_GetRef().Init(EmitterCompiledData, Variable.GetName()); }
+					);
 
 					if ( CachedVariables.ParticleVariables[i].Num() > 0)
 					{
@@ -409,12 +405,12 @@ void FNiagaraDebugHud::GatherSystemInfo()
 		if (SystemDebugInfo.SystemName.IsEmpty())
 		{
 			SystemDebugInfo.SystemName = GetNameSafe(NiagaraComponent->GetAsset());
-			SystemDebugInfo.bShowInWorld = !GSystemFilter.IsEmpty() && SystemDebugInfo.SystemName.Contains(GSystemFilter);
+			SystemDebugInfo.bShowInWorld = !GSystemFilter.IsEmpty() && SystemDebugInfo.SystemName.MatchesWildcard(GSystemFilter);
 		}
 
 		if (SystemDebugInfo.bShowInWorld && (bIsActive || !GSystemShowActiveOnlyInWorld))
 		{
-			if ( GComponentFilter.IsEmpty() || NiagaraComponent->GetName().Contains(GComponentFilter) )
+			if ( GComponentFilter.IsEmpty() || NiagaraComponent->GetName().MatchesWildcard(GComponentFilter) )
 			{
 				InWorldComponents.Add(NiagaraComponent);
 			}
@@ -460,11 +456,71 @@ void FNiagaraDebugHud::GatherSystemInfo()
 	}
 }
 
-void FNiagaraDebugHud::DebugDrawNiagara(UCanvas* InCanvas, APlayerController* PC)
+FNiagaraDataSet* FNiagaraDebugHud::GetParticleDataSet(FNiagaraSystemInstance* SystemInstance, FNiagaraEmitterInstance* EmitterInstance, int32 iEmitter)
 {
 	using namespace NiagaraDebugLocal;
 
-	if (!GEnabled || !InCanvas || !InCanvas->Canvas)
+	// For GPU context we need to readback and cache the data
+	if (EmitterInstance->GetGPUContext())
+	{
+#if !UE_BUILD_SHIPPING
+		if (!GGpuReadbackEnabled)
+		{
+			return nullptr;
+		}
+
+		FNiagaraComputeExecutionContext* GPUExecContext = EmitterInstance->GetGPUContext();
+		FGpuEmitterCache* GpuCachedData = GpuEmitterData.Find(SystemInstance->GetId());
+		if ( GpuCachedData == nullptr )
+		{
+			const int32 NumEmitters = SystemInstance->GetEmitters().Num();
+			GpuCachedData = &GpuEmitterData.Emplace(SystemInstance->GetId());
+			GpuCachedData->CurrentEmitterData.AddDefaulted(NumEmitters);
+			GpuCachedData->PendingEmitterData.AddDefaulted(NumEmitters);
+		}
+		GpuCachedData->LastAccessedCycles = FPlatformTime::Cycles64();
+
+		// Pending readback complete?
+		if (GpuCachedData->PendingEmitterData[iEmitter] && GpuCachedData->PendingEmitterData[iEmitter]->bWritten)
+		{
+			GpuCachedData->CurrentEmitterData[iEmitter] = GpuCachedData->PendingEmitterData[iEmitter];
+			GpuCachedData->PendingEmitterData[iEmitter] = nullptr;
+		}
+
+		// Enqueue a readback?
+		if ( GpuCachedData->PendingEmitterData[iEmitter] == nullptr )
+		{
+			const TArray<TSharedRef<const FNiagaraEmitterCompiledData>>& AllEmittersCompiledData = SystemInstance->GetSystem()->GetEmitterCompiledData();
+
+			GpuCachedData->PendingEmitterData[iEmitter] = MakeShared<FNiagaraScriptDebuggerInfo, ESPMode::ThreadSafe>();
+			GpuCachedData->PendingEmitterData[iEmitter]->Parameters = GPUExecContext->CombinedParamStore;
+			GpuCachedData->PendingEmitterData[iEmitter]->Frame.Init(&AllEmittersCompiledData[iEmitter]->DataSetCompiledData);
+
+			ENQUEUE_RENDER_COMMAND(NiagaraReadbackGpuSim)(
+				[RT_Batcher=SystemInstance->GetBatcher(), RT_InstanceID=SystemInstance->GetId(), RT_DebugInfo=GpuCachedData->PendingEmitterData[iEmitter], RT_Context=GPUExecContext](FRHICommandListImmediate& RHICmdList)
+				{
+					RT_Batcher->AddDebugReadback(RT_InstanceID, RT_DebugInfo, RT_Context);
+				}
+			);
+		}
+
+		// Pull current data if we have one
+		if ( GpuCachedData->CurrentEmitterData[iEmitter] )
+		{
+			return &GpuCachedData->CurrentEmitterData[iEmitter]->Frame;
+		}
+#endif
+		return nullptr;
+	}
+
+	return &EmitterInstance->GetData();
+}
+
+void FNiagaraDebugHud::DebugDrawNiagara(UCanvas* Canvas, APlayerController* PC)
+{
+	using namespace NiagaraDebugLocal;
+
+	if (!GEnabled || !Canvas || !Canvas->Canvas)
 	{
 		return;
 	}
@@ -475,10 +531,38 @@ void FNiagaraDebugHud::DebugDrawNiagara(UCanvas* InCanvas, APlayerController* PC
 		return;
 	}
 
-	FCanvas* DrawCanvas = InCanvas->Canvas;
+	if ( (World->GetNetMode() != ENetMode::NM_Standalone) && World->IsServer() )
+	{
+		return;
+	}
 
-	UFont* Font = GEngine->GetSmallFont();
-	UFont* WorldFont = GEngine->GetTinyFont();
+	// Draw in world components
+	DrawComponents(World, Canvas, GEngine->GetTinyFont());
+
+	// Draw overview
+	DrawOverview(Canvas->Canvas, GEngine->GetSmallFont());
+
+	// Scrub any gpu cached emitters we haven't used in a while
+	{
+		static double ScrubDurationSeconds = 1.0;
+		const uint64 ScrubDurationCycles = uint64(ScrubDurationSeconds / FPlatformTime::GetSecondsPerCycle64());
+		const uint64 ScrubCycles = FPlatformTime::Cycles64() - ScrubDurationCycles;
+
+		for ( auto it=GpuEmitterData.CreateIterator(); it; ++it )
+		{
+			const FGpuEmitterCache& CachedData = it.Value();
+			if ( CachedData.LastAccessedCycles < ScrubCycles )
+			{
+				it.RemoveCurrent();
+			}
+		}
+	}
+}
+
+void FNiagaraDebugHud::DrawOverview(FCanvas* DrawCanvas, UFont* Font)
+{
+	using namespace NiagaraDebugLocal;
+
 	const float fAdvanceHeight = Font->GetMaxCharHeight() + 1.0f;
 
 	const FLinearColor HeadingColor = FLinearColor::Green;
@@ -561,11 +645,26 @@ void FNiagaraDebugHud::DebugDrawNiagara(UCanvas* InCanvas, APlayerController* PC
 			TextLocation.Y += fAdvanceHeight;
 		}
 	}
+}
+
+void FNiagaraDebugHud::DrawComponents(UWorld* World, UCanvas* Canvas, UFont* Font)
+{
+	using namespace NiagaraDebugLocal;
+
+	const FLinearColor BackgroundColor = FLinearColor(0.0f, 0.0f, 0.0f, 0.5f);
+
+	FCanvas* DrawCanvas = Canvas->Canvas;
+
+	FNiagaraWorldManager* WorldManager = FNiagaraWorldManager::Get(World);
+	if (!ensure(WorldManager))
+	{
+		return;
+	}
 
 	// Draw in world components
 	UEnum* ExecutionStateEnum = StaticEnum<ENiagaraExecutionState>();
 	UEnum* PoolingMethodEnum = StaticEnum<ENCPoolMethod>();
-	for ( TWeakObjectPtr<UNiagaraComponent> WeakComponent : InWorldComponents )
+	for (TWeakObjectPtr<UNiagaraComponent> WeakComponent : InWorldComponents)
 	{
 		UNiagaraComponent* NiagaraComponent = WeakComponent.Get();
 		if (NiagaraComponent == nullptr)
@@ -575,7 +674,7 @@ void FNiagaraDebugHud::DebugDrawNiagara(UCanvas* InCanvas, APlayerController* PC
 
 		UNiagaraSystem* NiagaraSystem = NiagaraComponent->GetAsset();
 		FNiagaraSystemInstance* SystemInstance = NiagaraComponent->GetSystemInstance();
-		if ( (NiagaraSystem == nullptr) || (SystemInstance == nullptr) )
+		if ((NiagaraSystem == nullptr) || (SystemInstance == nullptr))
 		{
 			continue;
 		}
@@ -613,22 +712,32 @@ void FNiagaraDebugHud::DebugDrawNiagara(UCanvas* InCanvas, APlayerController* PC
 					continue;
 				}
 
-				auto EmitterInstance = SystemInstance->GetEmitters()[iEmitter];
-				FNiagaraDataSet& ParticleDataSet = EmitterInstance->GetData();
-				FNiagaraDataBuffer* DataBuffer = ParticleDataSet.GetCurrentData();
+				FNiagaraEmitterInstance* EmitterInstance = &SystemInstance->GetEmitters()[iEmitter].Get();
+				FNiagaraDataSet* ParticleDataSet = GetParticleDataSet(SystemInstance, EmitterInstance, iEmitter);
+				if (ParticleDataSet == nullptr)
+				{
+					continue;
+				}
+
+				FNiagaraDataBuffer* DataBuffer = ParticleDataSet->GetCurrentData();
 				if (!DataBuffer || !DataBuffer->GetNumInstances())
 				{
 					continue;
 				}
 
-				auto PositionReader = CachedVariables.ParticlePositionAccessors[iEmitter].GetReader(ParticleDataSet);
+				// No positions accessor, we can't show this in world
+				auto PositionReader = CachedVariables.ParticlePositionAccessors[iEmitter].GetReader(*ParticleDataSet);
+				if (!PositionReader.IsValid())
+				{
+					continue;
+				}
 
 				//StringBuilder.Appendf(TEXT("Emitter (%s)\n"), *EmitterInstance->GetCachedEmitter()->GetUniqueEmitterName());
 				const uint32 NumParticles = FMath::Min(GMaxParticlesToDisplay, DataBuffer->GetNumInstances());
-				for (uint32 iInstance=0; iInstance < NumParticles; ++iInstance)
+				for (uint32 iInstance = 0; iInstance < NumParticles; ++iInstance)
 				{
 					const FVector ParticleWorldPosition = PositionReader.Get(iInstance);
-					const FVector ParticleScreenLocation = InCanvas->Project(ParticleWorldPosition);
+					const FVector ParticleScreenLocation = Canvas->Project(ParticleWorldPosition);
 					if (!FMath::IsNearlyZero(ParticleScreenLocation.Z))
 					{
 						TStringBuilder<1024> StringBuilder;
@@ -642,19 +751,19 @@ void FNiagaraDebugHud::DebugDrawNiagara(UCanvas* InCanvas, APlayerController* PC
 						}
 
 						const TCHAR* FinalString = StringBuilder.ToString();
-						const FVector2D StringSize = GetStringSize(WorldFont, FinalString);
+						const FVector2D StringSize = GetStringSize(Font, FinalString);
 						DrawCanvas->DrawTile(ParticleScreenLocation.X - 1.0f, ParticleScreenLocation.Y - 1.0f, StringSize.X + 2.0f, StringSize.Y + 2.0f, 0.0f, 0.0f, 0.0f, 0.0f, BackgroundColor);
-						DrawCanvas->DrawShadowedString(ParticleScreenLocation.X, ParticleScreenLocation.Y, FinalString, WorldFont, FLinearColor::White);
+						DrawCanvas->DrawShadowedString(ParticleScreenLocation.X, ParticleScreenLocation.Y, FinalString, Font, FLinearColor::White);
 					}
 				}
 			}
 		}
 
-		const FVector ScreenLocation = InCanvas->Project(ComponentLocation);
+		const FVector ScreenLocation = Canvas->Project(ComponentLocation);
 		if (!FMath::IsNearlyZero(ScreenLocation.Z))
 		{
 			// Show locator
-			DrawSystemLocation(InCanvas, bIsActive, ScreenLocation, ComponentRotation);
+			DrawSystemLocation(Canvas, bIsActive, ScreenLocation, ComponentRotation);
 
 			// Show system text
 			if ((GSystemVerbosity > ENiagaraDebugHudSystemVerbosity::None) && (GSystemVerbosity <= ENiagaraDebugHudSystemVerbosity::Verbose))
@@ -665,13 +774,13 @@ void FNiagaraDebugHud::DebugDrawNiagara(UCanvas* InCanvas, APlayerController* PC
 				if (GSystemVerbosity == ENiagaraDebugHudSystemVerbosity::Verbose)
 				{
 					StringBuilder.Appendf(TEXT("System ActualState %s - RequestedState %s\n"), *ExecutionStateEnum->GetNameStringByIndex((int32)SystemInstance->GetActualExecutionState()), *ExecutionStateEnum->GetNameStringByIndex((int32)SystemInstance->GetRequestedExecutionState()));
-					if (NiagaraComponent->IsRegisteredWithScalabilityManager())
-					{
-						StringBuilder.Append(TEXT("Has Scalability\n"));
-					}
 					if (NiagaraComponent->PoolingMethod != ENCPoolMethod::None)
 					{
 						StringBuilder.Appendf(TEXT("Pooled - %s\n"), *PoolingMethodEnum->GetNameStringByIndex((int32)NiagaraComponent->PoolingMethod));
+					}
+					if (bIsActive && NiagaraComponent->IsRegisteredWithScalabilityManager())
+					{
+						StringBuilder.Appendf(TEXT("Scalability - %s\n"), *GetNameSafe(NiagaraSystem->GetEffectType()));
 					}
 				}
 
@@ -695,13 +804,20 @@ void FNiagaraDebugHud::DebugDrawNiagara(UCanvas* InCanvas, APlayerController* PC
 						}
 						ActiveParticles += EmitterInstance->GetNumParticles();
 
-						if ( GSystemVerbosity == ENiagaraDebugHudSystemVerbosity::Verbose )
+						if (GSystemVerbosity == ENiagaraDebugHudSystemVerbosity::Verbose)
 						{
-							StringBuilder.Appendf(TEXT("Emitters %s - State %s - Particles %d\n"), *NiagaraEmitter->GetUniqueEmitterName(), *ExecutionStateEnum->GetNameStringByIndex((int32)EmitterInstance->GetExecutionState()), EmitterInstance->GetNumParticles());
+							if ( EmitterInstance->GetGPUContext() )
+							{
+								StringBuilder.Appendf(TEXT("Emitter(GPU) %s - State %s - Particles %d\n"), *NiagaraEmitter->GetUniqueEmitterName(), *ExecutionStateEnum->GetNameStringByIndex((int32)EmitterInstance->GetExecutionState()), EmitterInstance->GetNumParticles());
+							}
+							else
+							{
+								StringBuilder.Appendf(TEXT("Emitter %s - State %s - Particles %d\n"), *NiagaraEmitter->GetUniqueEmitterName(), *ExecutionStateEnum->GetNameStringByIndex((int32)EmitterInstance->GetExecutionState()), EmitterInstance->GetNumParticles());
+							}
 						}
 					}
 
-					if ( GSystemVerbosity == ENiagaraDebugHudSystemVerbosity::Basic )
+					if (GSystemVerbosity == ENiagaraDebugHudSystemVerbosity::Basic)
 					{
 						StringBuilder.Appendf(TEXT("Emitters - %d / %d\n"), ActiveEmitters, TotalEmitters);
 						StringBuilder.Appendf(TEXT("Particles - %d\n"), ActiveParticles);
@@ -711,6 +827,18 @@ void FNiagaraDebugHud::DebugDrawNiagara(UCanvas* InCanvas, APlayerController* PC
 					if (bSystemSimulationValid)
 					{
 						const FCachedVariables& CachedVariables = GetCachedVariables(NiagaraSystem);
+
+						// Engine Variables
+						if (CachedVariables.bShowEngineVariable[(int)EEngineVariables::LODDistance])
+						{
+							StringBuilder.Appendf(TEXT("%s = %.2f\n"), *GEngineVariableStrings[(int)EEngineVariables::LODDistance], SystemInstance->GetLODDistance());
+						}
+						if (CachedVariables.bShowEngineVariable[(int)EEngineVariables::LODFraction])
+						{
+							StringBuilder.Appendf(TEXT("%s = %.2f\n"), *GEngineVariableStrings[(int)EEngineVariables::LODFraction], SystemInstance->GetLODDistance() / SystemInstance->GetMaxLODDistance());
+						}
+
+						// System variables
 						if (CachedVariables.SystemVariables.Num() > 0)
 						{
 							FNiagaraDataBuffer* DataBuffer = SystemSimulation->MainDataSet.GetCurrentData();
@@ -725,6 +853,7 @@ void FNiagaraDebugHud::DebugDrawNiagara(UCanvas* InCanvas, APlayerController* PC
 							}
 						}
 
+						// User variables
 						if (CachedVariables.UserVariables.Num() > 0)
 						{
 							if (FNiagaraUserRedirectionParameterStore* ParameterStore = SystemInstance->GetOverrideParameters())
@@ -747,7 +876,7 @@ void FNiagaraDebugHud::DebugDrawNiagara(UCanvas* InCanvas, APlayerController* PC
 						}
 
 						// Append particle data if we don't show them in world
-						if (GShowParticlesInWorld == false )
+						if (GShowParticlesInWorld == false)
 						{
 							for (int32 iEmitter = 0; iEmitter < CachedVariables.ParticleVariables.Num(); ++iEmitter)
 							{
@@ -756,8 +885,14 @@ void FNiagaraDebugHud::DebugDrawNiagara(UCanvas* InCanvas, APlayerController* PC
 									continue;
 								}
 
-								auto EmitterInstance = SystemInstance->GetEmitters()[iEmitter];
-								FNiagaraDataBuffer* DataBuffer = EmitterInstance->GetData().GetCurrentData();
+								FNiagaraEmitterInstance* EmitterInstance = &SystemInstance->GetEmitters()[iEmitter].Get();
+								FNiagaraDataSet* ParticleDataSet = GetParticleDataSet(SystemInstance, EmitterInstance, iEmitter);
+								if (ParticleDataSet == nullptr)
+								{
+									continue;
+								}
+
+								FNiagaraDataBuffer* DataBuffer = ParticleDataSet->GetCurrentData();
 								if (!DataBuffer || !DataBuffer->GetNumInstances())
 								{
 									continue;
@@ -788,14 +923,45 @@ void FNiagaraDebugHud::DebugDrawNiagara(UCanvas* InCanvas, APlayerController* PC
 				}
 				else
 				{
-					//-TODO: Put a reason why here
-					StringBuilder.Appendf(TEXT("Deactivated by Scalability\n"));
+					//-TODO: Put a reason why here (either grab from manager or push from manager)
+					//FNiagaraScalabilityState* ScalabilityState = SystemInstance->GetWorldManager()->GetScalabilityState(NiagaraComponent);
+					if (GSystemVerbosity >= ENiagaraDebugHudSystemVerbosity::Basic)
+					{
+						StringBuilder.Appendf(TEXT("Deactivated by Scalability - %s "), *GetNameSafe(NiagaraSystem->GetEffectType()));
+						if (GSystemVerbosity >= ENiagaraDebugHudSystemVerbosity::Verbose)
+						{
+							FNiagaraScalabilityState ScalabilityState;
+							if (WorldManager->GetScalabilityState(NiagaraComponent, ScalabilityState))
+							{
+								StringBuilder.Appendf(TEXT("- Significance(%.2f)"), ScalabilityState.Significance);
+#if DEBUG_SCALABILITY_STATE
+								if (ScalabilityState.bCulledByDistance)
+								{
+									StringBuilder.Append(TEXT(" DistanceCulled"));
+								}
+								if (ScalabilityState.bCulledByInstanceCount)
+								{
+									StringBuilder.Append(TEXT(" InstanceCulled"));
+								}
+								if (ScalabilityState.bCulledByVisibility)
+								{
+									StringBuilder.Append(TEXT(" VisibilityCulled"));
+								}
+#endif
+								StringBuilder.Append(TEXT("\n"));
+							}
+							else
+							{
+								StringBuilder.Appendf(TEXT("- Scalability State Unknown\n"));
+							}
+						}
+					}
 				}
 
 				const TCHAR* FinalString = StringBuilder.ToString();
-				const FVector2D StringSize = GetStringSize(WorldFont, FinalString);
+				const FVector2D StringSize = GetStringSize(Font, FinalString);
 				DrawCanvas->DrawTile(ScreenLocation.X - 1.0f, ScreenLocation.Y - 1.0f, StringSize.X + 2.0f, StringSize.Y + 2.0f, 0.0f, 0.0f, 0.0f, 0.0f, BackgroundColor);
-				DrawCanvas->DrawShadowedString(ScreenLocation.X, ScreenLocation.Y, FinalString, WorldFont, FLinearColor::White);
+				DrawCanvas->DrawShadowedString(ScreenLocation.X, ScreenLocation.Y, FinalString, Font, FLinearColor::White);
 			}
 		}
 	}

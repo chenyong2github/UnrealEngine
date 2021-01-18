@@ -348,6 +348,7 @@ public:
 
 	/** Calculates the distance to use for distance based LODing / culling. */
 	float GetLODDistance();
+	float GetMaxLODDistance() const { return MaxLODDistance ;}
 
 	void OnSimulationDestroyed();
 
