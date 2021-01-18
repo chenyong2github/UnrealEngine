@@ -52,6 +52,10 @@ PROTECTED int
 unw_is_signal_frame (unw_cursor_t *cursor)
 {
 #ifdef __linux__
+  // ANDROID: prevent deref of IP and triggering xom signal.
+  if (unw_is_signal_frame_test_disabled())
+    return 0;
+
   struct cursor *c = (struct cursor *) cursor;
   unw_word_t w0, ip;
   unw_addr_space_t as;

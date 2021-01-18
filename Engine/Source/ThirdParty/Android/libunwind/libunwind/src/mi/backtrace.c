@@ -79,3 +79,15 @@ extern int backtrace (void **buffer, int size)
   WEAK ALIAS(unw_backtrace);
 
 #endif /* !UNW_REMOTE_ONLY */
+
+HIDDEN int disable_signal_frame_test = 0;
+
+void unw_disable_signal_frame_test(int in_disable_signal_frame_test)
+{
+	disable_signal_frame_test = in_disable_signal_frame_test;
+}
+
+int unw_is_signal_frame_test_disabled(void)
+{
+	return disable_signal_frame_test;
+}

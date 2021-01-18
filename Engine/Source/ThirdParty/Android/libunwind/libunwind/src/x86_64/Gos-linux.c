@@ -81,7 +81,11 @@ tdep_reuse_frame (struct dwarf_cursor *dw, struct dwarf_reg_state *rs)
 PROTECTED int
 unw_is_signal_frame (unw_cursor_t *cursor)
 {
-  struct cursor *c = (struct cursor *) cursor;
+  // ANDROID: prevent deref of IP and triggering xom signal.
+  if (unw_is_signal_frame_test_disabled())
+    return 0;
+
+struct cursor *c = (struct cursor *) cursor;
   return c->sigcontext_format != X86_64_SCF_NONE;
 }
 
