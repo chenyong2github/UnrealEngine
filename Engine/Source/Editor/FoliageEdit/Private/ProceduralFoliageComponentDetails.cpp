@@ -11,10 +11,8 @@
 #include "InstancedFoliage.h"
 #include "ProceduralFoliageSpawner.h"
 #include "ProceduralFoliageComponent.h"
-#include "FoliageEdMode.h"
+#include "ProceduralFoliageEditorLibrary.h"
 #include "ScopedTransaction.h"
-#include "Framework/Notifications/NotificationManager.h"
-#include "Widgets/Notifications/SNotificationList.h"
 
 #define LOCTEXT_NAMESPACE "ProceduralFoliageComponentDetails"
 
@@ -72,41 +70,18 @@ void FProceduralFoliageComponentDetails::CustomizeDetails(IDetailLayoutBuilder& 
 
 FReply FProceduralFoliageComponentDetails::OnResimulateClicked()
 {
+	TArray<UProceduralFoliageComponent*> SelectedFoliageComponents;
+	SelectedFoliageComponents.Reserve(SelectedComponents.Num());
 	for (TWeakObjectPtr<UProceduralFoliageComponent>& Component : SelectedComponents)
 	{
-		if (Component.IsValid() && Component->FoliageSpawner)
+		if (Component.IsValid())
 		{
-			FScopedTransaction Transaction(LOCTEXT("Resimulate_Transaction", "Procedural Foliage Simulation"));
-			TArray <FDesiredFoliageInstance> DesiredFoliageInstances;
-			if (Component->GenerateProceduralContent(DesiredFoliageInstances))
-			{
-				if (DesiredFoliageInstances.Num() > 0)
-				{
-					Component->RemoveProceduralContent(false);
-
-					FFoliagePaintingGeometryFilter OverrideGeometryFilter;
-					OverrideGeometryFilter.bAllowLandscape = Component->bAllowLandscape;
-					OverrideGeometryFilter.bAllowStaticMesh = Component->bAllowStaticMesh;
-					OverrideGeometryFilter.bAllowBSP = Component->bAllowBSP;
-					OverrideGeometryFilter.bAllowFoliage = Component->bAllowFoliage;
-					OverrideGeometryFilter.bAllowTranslucent = Component->bAllowTranslucent;
-
-					FEdModeFoliage::AddInstances(Component->GetWorld(), DesiredFoliageInstances, OverrideGeometryFilter, true);					
-				}
-
-				// If no instances were spawned, inform the user
-				if (!Component->HasSpawnedAnyInstances())
-				{
-					FNotificationInfo Info(LOCTEXT("NothingSpawned_Notification", "Unable to spawn instances. Ensure a large enough surface exists within the volume."));
-					Info.bUseLargeFont = false;
-					Info.bFireAndForget = true;
-					Info.bUseThrobber = false;
-					Info.bUseSuccessFailIcons = true;
-					FSlateNotificationManager::Get().AddNotification(Info);
-				}
-			}
+			SelectedFoliageComponents.Add(Component.Get());
 		}
 	}
+	FScopedTransaction Transaction(LOCTEXT("Resimulate_Transaction", "Procedural Foliage Simulation"));
+	UProceduralFoliageEditorLibrary::ResimulateProceduralFoliageComponents(SelectedFoliageComponents);
+
 	return FReply::Handled();
 }
 
