@@ -390,7 +390,10 @@ void FPhysInterface_Chaos::UpdateLinearDrive_AssumesLocked(const FPhysicsConstra
 				Constraint->SetLinearPositionDriveXEnabled(InDriveParams.XDrive.bEnablePositionDrive);
 				Constraint->SetLinearPositionDriveYEnabled(InDriveParams.YDrive.bEnablePositionDrive);
 				Constraint->SetLinearPositionDriveZEnabled(InDriveParams.ZDrive.bEnablePositionDrive);
-				Constraint->SetLinearDrivePositionTarget(InDriveParams.PositionTarget);
+				if (FMath::IsNearlyEqual(Constraint->GetLinearPlasticityLimit(), FLT_MAX))
+				{
+					Constraint->SetLinearDrivePositionTarget(InDriveParams.PositionTarget);
+				}
 			}
 
 			bool bVelocityDriveEnabled = InDriveParams.IsVelocityDriveEnabled();

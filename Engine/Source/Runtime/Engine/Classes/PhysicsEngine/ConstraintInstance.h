@@ -46,6 +46,10 @@ struct ENGINE_API FConstraintProfileProperties
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = Linear, meta = (editcondition = "bLinearBreakable", ClampMin = "0.0"))
 	float LinearBreakThreshold;
 
+	/** Percent threshold from target position needed to reset the spring rest length.*/
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = Linear, meta = (editcondition = "bLinearPlasticity", ClampMin = "0.0"))
+	float LinearPlasticityThreshold;
+
 	/** Torque needed to break the joint. */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = Angular, meta = (editcondition = "bAngularBreakable", ClampMin = "0.0"))
 	float AngularBreakThreshold;
@@ -53,7 +57,6 @@ struct ENGINE_API FConstraintProfileProperties
 	/** Degree threshold from target angle needed to reset the target angle.*/
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = Angular, meta = (editcondition = "bAngularPlasticity", ClampMin = "0.0"))
 	float AngularPlasticityThreshold;
-
 
 	UPROPERTY(EditAnywhere, Category = Linear)
 	FLinearConstraint LinearLimit;
@@ -113,6 +116,10 @@ struct ENGINE_API FConstraintProfileProperties
 	/** Whether it is possible to break the joint with linear force. */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = Linear)
 	uint8 bLinearBreakable : 1;
+
+	/** Whether it is possible to reset spr4ing rest length from the linear deformation. */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = Linear)
+	uint8 bLinearPlasticity : 1;
 
 	FConstraintProfileProperties();
 
@@ -471,6 +478,17 @@ public:
 		ProfileInstance.bLinearBreakable = bInLinearBreakable;
 		ProfileInstance.LinearBreakThreshold = InLinearBreakThreshold;
 		UpdateBreakable();
+	}
+
+	/** Sets the Linear Plasticity properties
+	*	@param bInLinearPlasticity 	Whether it is possible to reset the target angles
+	*	@param InLinearPlasticityThreshold	Delta from target needed to reset the target joint
+	*/
+	void SetLinearPlasticity(bool bInLinearPlasticity, float InLinearPlasticityThreshold)
+	{
+		ProfileInstance.bLinearPlasticity = bInLinearPlasticity;
+		ProfileInstance.LinearPlasticityThreshold = InLinearPlasticityThreshold;
+		UpdatePlasticity();
 	}
 
 	/** Sets the Angular Breakable properties
