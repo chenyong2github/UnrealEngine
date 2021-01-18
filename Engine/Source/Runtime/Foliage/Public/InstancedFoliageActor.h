@@ -232,6 +232,12 @@ public:
 	void RepairDuplicateIFA(AInstancedFoliageActor* InDuplicateIFA);
 
 	void RemoveBaseComponentOnFoliageTypeInstances(UFoliageType* FoliageType);
+
+	UFUNCTION(BlueprintCallable, Category="Foliage", meta = (WorldContext = "WorldContextObject"))
+	static void AddInstances(UObject* WorldContextObject, UFoliageType* InFoliageType, TArray<FTransform> InTransforms);
+
+	UFUNCTION(BlueprintCallable, Category="Foliage", meta = (WorldContext = "WorldContextObject"))
+	static void RemoveAllInstances(UObject* WorldContextObject, UFoliageType* InFoliageType);
 #endif	//WITH_EDITOR
 
 private:
