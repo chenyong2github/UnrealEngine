@@ -321,7 +321,9 @@ namespace AlembicHairTranslatorUtils
 
 			Alembic::Abc::PropertyType PropType = PropertyHeader.getPropertyType();
 
-			if (PropType != Alembic::Abc::kCompoundProperty)
+			// Only process ArrayProperty as ITypedGeomParam are not compatible with ScalarProperty
+			// ScalarProperty should only be used for groom-scope properties
+			if (PropType == Alembic::Abc::kArrayProperty)
 			{
 				Alembic::Abc::DataType DataType = PropertyHeader.getDataType();
 				uint8 Extent = DataType.getExtent();

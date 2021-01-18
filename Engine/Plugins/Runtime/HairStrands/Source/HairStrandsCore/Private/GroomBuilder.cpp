@@ -1750,6 +1750,12 @@ void FGroomBuilder::Decimate(
 				VertexDecimationPercentage,
 				OutPointIndices);
 		}
+		else
+		{
+			// Just pass the start and end point of the curve, no decimation needed
+			OutPointIndices.Add(0);
+			OutPointIndices.Add(1);
+		}
 
 		const uint32 OutPointCount = OutPointIndices.Num();
 
