@@ -33,13 +33,29 @@ enum class EGenerateStaticMeshLODBakeResolution
 };
 
 UENUM()
-enum class EGenerateStaticMeshSimpleCollisionGeometryType : uint8
+enum class EGenerateStaticMeshLODSimpleCollisionGeometryType : uint8
 {
+	// NOTE: This must be kept in sync with ESimpleCollisionGeometryType in GenerateSimpleCollisionNode.h
+
 	AlignedBoxes,
 	OrientedBoxes,
 	MinimalSpheres,
 	Capsules,
-	ConvexHulls
+	ConvexHulls,
+	SweptHulls,
+	MinVolume
+};
+
+UENUM()
+enum class EGenerateStaticMeshLODProjectedHullAxisMode : uint8
+{
+	// NOTE: This must be kept in sync with FMeshSimpleShapeApproximation::EProjectedHullAxisMode in MeshSimpleShapeApproximation.h
+
+	X = 0,
+	Y = 1,
+	Z = 2,
+	SmallestBoxDimension = 3,
+	SmallestVolume = 4
 };
 
 
@@ -91,18 +107,31 @@ struct FGenerateStaticMeshLODProcessSettings
 	// Convex Hull Settings
 
 	UPROPERTY(EditAnywhere, Category = Collision, meta = (DisplayName = "Collision Type"))
-	EGenerateStaticMeshSimpleCollisionGeometryType CollisionType = EGenerateStaticMeshSimpleCollisionGeometryType::ConvexHulls;
+	EGenerateStaticMeshLODSimpleCollisionGeometryType CollisionType = EGenerateStaticMeshLODSimpleCollisionGeometryType::ConvexHulls;
 
 	UPROPERTY(EditAnywhere, Category = Collision, meta = (DisplayName = "Convex Tri Count", 
-														  EditCondition = "CollisionType == EGenerateStaticMeshSimpleCollisionGeometryType::ConvexHulls"))
+														  EditCondition = "CollisionType == EGenerateStaticMeshLODSimpleCollisionGeometryType::ConvexHulls"))
 	int ConvexTriangleCount = 50;
 
-	UPROPERTY(EditAnywhere, Category = Collision, meta = (EditCondition = "CollisionType == EGenerateStaticMeshSimpleCollisionGeometryType::ConvexHulls"))
+	UPROPERTY(EditAnywhere, Category = Collision, meta = (EditCondition = "CollisionType == EGenerateStaticMeshLODSimpleCollisionGeometryType::ConvexHulls"))
 	bool bPrefilterVertices = false;
 
 	/** Grid resolution (along the maximum-length axis) */
-	UPROPERTY(EditAnywhere, Category = Collision, meta = (EditCondition = "CollisionType == EGenerateStaticMeshSimpleCollisionGeometryType::ConvexHulls && bPrefilterVertices", UIMin = 1, UIMax = 30))
+	UPROPERTY(EditAnywhere, Category = Collision, meta = (EditCondition = "CollisionType == EGenerateStaticMeshLODSimpleCollisionGeometryType::ConvexHulls && bPrefilterVertices", UIMin = 1, UIMax = 30))
 	int PrefilterGridResolution = 10;
+
+
+	// Swept Convex Hull Settings
+
+	UPROPERTY(EditAnywhere, Category = Collision, meta = (EditCondition = "CollisionType == EGenerateStaticMeshLODSimpleCollisionGeometryType::SweptHulls"))
+	bool bSimplifyPolygons = true;
+
+	UPROPERTY(EditAnywhere, Category = Collision, meta = (UIMin = "0", UIMax = "10", ClampMin = "0", ClampMax = "100000",
+														  EditCondition = "CollisionType == EGenerateStaticMeshLODSimpleCollisionGeometryType::SweptHulls"))
+	float HullTolerance = 0.1;
+
+	UPROPERTY(EditAnywhere, Category = Collision, meta = (EditCondition = "CollisionType == EGenerateStaticMeshLODSimpleCollisionGeometryType::SweptHulls"))
+	EGenerateStaticMeshLODProjectedHullAxisMode SweepAxis = EGenerateStaticMeshLODProjectedHullAxisMode::SmallestVolume;
 
 };
 

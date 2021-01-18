@@ -213,10 +213,17 @@ bool UGenerateStaticMeshLODProcess::InitializeGenerator()
 	CurrentSettings.BakeResolution = (EGenerateStaticMeshLODBakeResolution)Generator->GetCurrentBakeCacheSettings().Dimensions.GetWidth();
 	CurrentSettings.BakeThickness = Generator->GetCurrentBakeCacheSettings().Thickness;
 
-	CurrentSettings.CollisionType = static_cast<EGenerateStaticMeshSimpleCollisionGeometryType>(Generator->GetCurrentGenerateSimpleCollisionSettings().Type);
-	CurrentSettings.ConvexTriangleCount = Generator->GetCurrentGenerateSimpleCollisionSettings().ConvexHullSettings.SimplifyToTriangleCount;
-	CurrentSettings.bPrefilterVertices = Generator->GetCurrentGenerateSimpleCollisionSettings().ConvexHullSettings.bPrefilterVertices;
-	CurrentSettings.PrefilterGridResolution = Generator->GetCurrentGenerateSimpleCollisionSettings().ConvexHullSettings.PrefilterGridResolution;
+	
+	const UE::GeometryFlow::FGenerateSimpleCollisionSettings& SimpleCollisionSettings = Generator->GetCurrentGenerateSimpleCollisionSettings();
+	CurrentSettings.CollisionType = static_cast<EGenerateStaticMeshLODSimpleCollisionGeometryType>(SimpleCollisionSettings.Type);
+	CurrentSettings.ConvexTriangleCount = SimpleCollisionSettings.ConvexHullSettings.SimplifyToTriangleCount;
+	CurrentSettings.bPrefilterVertices = SimpleCollisionSettings.ConvexHullSettings.bPrefilterVertices;
+	CurrentSettings.PrefilterGridResolution = SimpleCollisionSettings.ConvexHullSettings.PrefilterGridResolution;
+	CurrentSettings.bSimplifyPolygons = SimpleCollisionSettings.SweptHullSettings.bSimplifyPolygons;
+	CurrentSettings.HullTolerance = SimpleCollisionSettings.SweptHullSettings.HullTolerance;
+
+	FMeshSimpleShapeApproximation::EProjectedHullAxisMode RHSMode = SimpleCollisionSettings.SweptHullSettings.SweepAxis;
+	CurrentSettings.SweepAxis = static_cast<EGenerateStaticMeshLODProjectedHullAxisMode>(RHSMode);
 
 
 	return true;
@@ -273,6 +280,9 @@ void UGenerateStaticMeshLODProcess::UpdateSettings(const FGenerateStaticMeshLODP
 	if (NewSettings.ConvexTriangleCount != CurrentSettings.ConvexTriangleCount ||
 		NewSettings.bPrefilterVertices != CurrentSettings.bPrefilterVertices ||
 		NewSettings.PrefilterGridResolution != CurrentSettings.PrefilterGridResolution ||
+		NewSettings.bSimplifyPolygons != CurrentSettings.bSimplifyPolygons ||
+		NewSettings.HullTolerance != CurrentSettings.HullTolerance ||
+		NewSettings.SweepAxis != CurrentSettings.SweepAxis ||
 		NewSettings.CollisionType != CurrentSettings.CollisionType)
 	{
 		UE::GeometryFlow::FGenerateSimpleCollisionSettings NewGenCollisionSettings = Generator->GetCurrentGenerateSimpleCollisionSettings();
@@ -280,6 +290,9 @@ void UGenerateStaticMeshLODProcess::UpdateSettings(const FGenerateStaticMeshLODP
 		NewGenCollisionSettings.ConvexHullSettings.SimplifyToTriangleCount = NewSettings.ConvexTriangleCount;
 		NewGenCollisionSettings.ConvexHullSettings.bPrefilterVertices = NewSettings.bPrefilterVertices;
 		NewGenCollisionSettings.ConvexHullSettings.PrefilterGridResolution = NewSettings.PrefilterGridResolution;
+		NewGenCollisionSettings.SweptHullSettings.bSimplifyPolygons = NewSettings.bSimplifyPolygons;
+		NewGenCollisionSettings.SweptHullSettings.HullTolerance = NewSettings.HullTolerance;
+		NewGenCollisionSettings.SweptHullSettings.SweepAxis = static_cast<FMeshSimpleShapeApproximation::EProjectedHullAxisMode>(NewSettings.SweepAxis);
 		Generator->UpdateGenerateSimpleCollisionSettings(NewGenCollisionSettings);
 	}
 

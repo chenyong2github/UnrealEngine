@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PhysicsNodes/GenerateSimpleCollisionNode.h"
-#include "ShapeApproximation/MeshSimpleShapeApproximation.h"
 #include "Operations/MeshConvexHull.h"
 #include "MeshIndexUtil.h"
 #include "Async/ParallelFor.h"
@@ -179,6 +178,15 @@ void FGenerateSimpleCollisionNode::Evaluate(
 					break;
 				case ESimpleCollisionGeometryType::ConvexHulls:
 					GenerateSimpleCollisionNodeHelpers::GenerateConvexHulls(Mesh, IndexData, Settings, CollisionGeometry);
+					break;
+				case ESimpleCollisionGeometryType::SweptHulls:
+					ShapeApproximator.bDetectConvexes = true;					
+					ShapeApproximator.bSimplifyHulls = Settings.SweptHullSettings.bSimplifyPolygons;
+					ShapeApproximator.HullSimplifyTolerance = Settings.SweptHullSettings.HullTolerance;
+					ShapeApproximator.Generate_ProjectedHulls(CollisionGeometry.Geometry, Settings.SweptHullSettings.SweepAxis);
+					break;
+				case ESimpleCollisionGeometryType::MinVolume:
+					ShapeApproximator.Generate_MinVolume(CollisionGeometry.Geometry);
 					break;
 				}
 

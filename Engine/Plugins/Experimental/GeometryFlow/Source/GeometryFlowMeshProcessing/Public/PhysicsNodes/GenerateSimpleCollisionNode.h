@@ -4,6 +4,7 @@
 
 #include "GeometryFlowCoreNodes.h"
 #include "GeometryFlowNodeUtil.h"
+#include "ShapeApproximation/MeshSimpleShapeApproximation.h"
 #include "MeshProcessingNodes/MeshProcessingDataTypes.h"
 #include "DataTypes/DynamicMeshData.h"
 #include "DataTypes/CollisionGeometryData.h"
@@ -17,11 +18,15 @@ namespace GeometryFlow
 
 enum class ESimpleCollisionGeometryType : uint8
 {
+	// NOTE: This must be kept in sync with EGenerateStaticMeshLODSimpleCollisionGeometryType in GenerateStaticMeshLODProcess.h
+
 	AlignedBoxes,
 	OrientedBoxes,
 	MinimalSpheres,
 	Capsules,
-	ConvexHulls
+	ConvexHulls,
+	SweptHulls,
+	MinVolume
 };
 
 
@@ -38,6 +43,12 @@ struct GEOMETRYFLOWMESHPROCESSING_API FGenerateSimpleCollisionSettings
 		int PrefilterGridResolution = 10;
 	} ConvexHullSettings;
 
+	struct FGenerateSweptHullSettings
+	{
+		bool bSimplifyPolygons = true;
+		FMeshSimpleShapeApproximation::EProjectedHullAxisMode SweepAxis = FMeshSimpleShapeApproximation::EProjectedHullAxisMode::SmallestVolume;
+		float HullTolerance = 0.1;
+	} SweptHullSettings;
 };
 
 GEOMETRYFLOW_DECLARE_SETTINGS_TYPES(FGenerateSimpleCollisionSettings, GenerateSimpleCollision);
