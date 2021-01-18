@@ -10,7 +10,7 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using UE4Game;
 
-namespace Gauntlet.UnrealTest
+namespace UE
 {
 	/// <summary>
 	/// Test that waits for the client and server to get to the front-end then quits
@@ -143,6 +143,7 @@ namespace Gauntlet.UnrealTest
 				return;
 			}
 
+			// find a logfile or something that indicates the process ran successsfully
 			bool MissingFiles = false;
 
 			foreach(var RoleArtifact in Artifacts)
@@ -176,6 +177,23 @@ namespace Gauntlet.UnrealTest
 			}
 
 			Log.Info("Found valid artifacts for test");
+		}
+	}
+}
+
+// Provided for backwards compatibility with scripts
+namespace Gauntlet.UnrealTest
+{
+	class BootTest : UE.BootTest
+	{
+		/// <summary>
+		/// Default constructor
+		/// </summary>
+		/// <param name="InContext"></param>
+		public BootTest(Gauntlet.UnrealTestContext InContext)
+			: base(InContext)
+		{
+			Log.Warning("Gauntlet.UnrealTest.BootTest is deprecated and will be removed in 4.27. Use UE.BootTest. All arguments are the same");
 		}
 	}
 }
