@@ -12,6 +12,13 @@ class FDisplayClusterRenderSyncPolicyNvidiaDX12
 	: public FDisplayClusterRenderSyncPolicyNvidiaBase
 {
 public:
-	FDisplayClusterRenderSyncPolicyNvidiaDX12(const TMap<FString, FString>& Parameters);
-	virtual ~FDisplayClusterRenderSyncPolicyNvidiaDX12();
+	FDisplayClusterRenderSyncPolicyNvidiaDX12(const TMap<FString, FString>& Parameters)
+		: FDisplayClusterRenderSyncPolicyNvidiaBase(Parameters)
+	{ }
+
+	virtual ~FDisplayClusterRenderSyncPolicyNvidiaDX12()
+	{ }
+
+protected:
+	virtual void WaitForFrameCompletion() override;
 };
