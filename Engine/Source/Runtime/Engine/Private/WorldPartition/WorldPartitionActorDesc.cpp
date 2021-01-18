@@ -91,7 +91,7 @@ void FWorldPartitionActorDesc::Init(UWorldPartition* InWorldPartition, const FWo
 	Class = DescData.NativeClass->GetFName();
 
 	// Serialize actor metadata
-	FMemoryReader MetadataAr(DescData.SerializedData);
+	FMemoryReader MetadataAr(DescData.SerializedData, true);
 
 	// Serialize metadata custom versions
 	FCustomVersionContainer CustomVersions;
@@ -117,7 +117,7 @@ void FWorldPartitionActorDesc::SerializeTo(TArray<uint8>& OutData)
 {
 	// Serialize to archive and gather custom versions
 	TArray<uint8> PayloadData;
-	FMemoryWriter PayloadAr(PayloadData);
+	FMemoryWriter PayloadAr(PayloadData, true);
 	Serialize(PayloadAr);
 
 	// Serialize custom versions
@@ -170,6 +170,8 @@ FString FWorldPartitionActorDesc::ToString() const
 
 void FWorldPartitionActorDesc::Serialize(FArchive& Ar)
 {
+	check(Ar.IsPersistent());
+
 	Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
 
 	Ar << Class << Guid << BoundsLocation << BoundsExtent << GridPlacement << RuntimeGrid << bActorIsEditorOnly << bLevelBoundsRelevant;
@@ -182,7 +184,7 @@ void FWorldPartitionActorDesc::Serialize(FArchive& Ar)
 
 	Ar << References;
 
-	if (!Ar.IsPersistent())
+	if (Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::WorldPartitionActorDescSerializeArchivePersistent)
 	{
 		Ar << ActorPackage << ActorPath;
 	}

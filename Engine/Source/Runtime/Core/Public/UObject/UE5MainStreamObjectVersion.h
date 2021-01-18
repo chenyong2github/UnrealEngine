@@ -79,6 +79,9 @@ struct CORE_API FUE5MainStreamObjectVersion
 		// Serialize ActorLabel in WorldPartitionActorDesc
 		WorldPartitionActorDescSerializeActorLabel,
 
+		// Fix WorldPartitionActorDesc serialization archive not persistent
+		WorldPartitionActorDescSerializeArchivePersistent,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1
