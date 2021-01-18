@@ -1034,18 +1034,18 @@ struct FSamplerStateInitializerRHI
 	,	SamplerComparisonFunction(InSamplerComparisonFunction)
 	{
 	}
-	TEnumAsByte<ESamplerFilter> Filter;
-	TEnumAsByte<ESamplerAddressMode> AddressU;
-	TEnumAsByte<ESamplerAddressMode> AddressV;
-	TEnumAsByte<ESamplerAddressMode> AddressW;
-	float MipBias;
+	TEnumAsByte<ESamplerFilter> Filter = SF_Point;
+	TEnumAsByte<ESamplerAddressMode> AddressU = AM_Wrap;
+	TEnumAsByte<ESamplerAddressMode> AddressV = AM_Wrap;
+	TEnumAsByte<ESamplerAddressMode> AddressW = AM_Wrap;
+	float MipBias = 0.0f;
 	/** Smallest mip map level that will be used, where 0 is the highest resolution mip level. */
-	float MinMipLevel;
+	float MinMipLevel = 0.0f;
 	/** Largest mip map level that will be used, where 0 is the highest resolution mip level. */
-	float MaxMipLevel;
-	int32 MaxAnisotropy;
-	uint32 BorderColor;
-	TEnumAsByte<ESamplerCompareFunction> SamplerComparisonFunction;
+	float MaxMipLevel = FLT_MAX;
+	int32 MaxAnisotropy = 0;
+	uint32 BorderColor = 0;
+	TEnumAsByte<ESamplerCompareFunction> SamplerComparisonFunction = SCF_Never;
 
 
 	RHI_API friend uint32 GetTypeHash(const FSamplerStateInitializerRHI& Initializer);
