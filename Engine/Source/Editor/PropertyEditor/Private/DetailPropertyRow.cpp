@@ -675,7 +675,8 @@ void FDetailPropertyRow::MakeNameOrKeyWidget( FDetailWidgetRow& Row, const TShar
 		IsEnabledAttrib.Bind( this, &FDetailPropertyRow::GetEnabledState );
 	}
 
-	TSharedRef<SHorizontalBox> NameHorizontalBox = SNew(SHorizontalBox);
+	TSharedRef<SHorizontalBox> NameHorizontalBox = SNew(SHorizontalBox)
+		.Clipping(EWidgetClipping::OnDemand);
 	
 	TSharedPtr<SWidget> NameWidget;
 
