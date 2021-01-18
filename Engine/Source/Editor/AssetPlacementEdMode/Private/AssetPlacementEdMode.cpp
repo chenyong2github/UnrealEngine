@@ -48,7 +48,10 @@ void UAssetPlacementEdMode::Enter()
 	const FAssetPlacementEdModeCommands& PlacementModeCommands = FAssetPlacementEdModeCommands::Get();
 	RegisterTool(PlacementModeCommands.Select, UPlacementModeSelectTool::ToolName, NewObject<UPlacementModeSelectToolBuilder>(this));
 	RegisterTool(PlacementModeCommands.LassoSelect, UPlacementModeLassoSelectTool::ToolName, NewObject<UPlacementModeLassoSelectToolBuilder>(this));
-	RegisterTool(PlacementModeCommands.Place, UPlacementModePlacementTool::ToolName, NewObject<UPlacementModePlacementToolBuilder>(this));
+
+	UPlacementModePlacementToolBuilder* PlaceTool = NewObject<UPlacementModePlacementToolBuilder>(this);
+	PlaceTool->PlacementSettings = Cast<UAssetPlacementSettings>(SettingsObject);
+	RegisterTool(PlacementModeCommands.Place, UPlacementModePlacementTool::ToolName, PlaceTool);
 
 	UPlacementModePlaceSingleToolBuilder* SinglePlaceTool = NewObject<UPlacementModePlaceSingleToolBuilder>(this);
 	SinglePlaceTool->PlacementSettings = Cast<UAssetPlacementSettings>(SettingsObject);

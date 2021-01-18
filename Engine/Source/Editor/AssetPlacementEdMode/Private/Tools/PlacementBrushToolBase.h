@@ -38,6 +38,8 @@ public:
 
 protected:
 	virtual double EstimateMaximumTargetDimension() override;
+	bool FindHitResultWithStartAndEndTraceVectors(FHitResult& OutHit, const FVector& TraceStart, const FVector& TraceEnd, float TraceRadius = 0.0f);
+	FTransform GetFinalTransformFromHitLocationAndNormal(const FVector& InLocation, const FVector& InNormal);
 
 	TWeakObjectPtr<UAssetPlacementSettings> PlacementSettings;
 };

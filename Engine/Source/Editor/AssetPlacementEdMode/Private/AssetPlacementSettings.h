@@ -45,6 +45,15 @@ public:
 	UPROPERTY(config, EditAnywhere, Category = "Filters")
 	bool bTranslucent = false;
 
+	UPROPERTY(config, EditAnywhere, Category = "Placement")
+	bool bAllowRandomRotation = true;
+
+	UPROPERTY(config, EditAnywhere, Category = "Placement")
+	bool bAllowAlignToNormal = true;
+
+	UPROPERTY(config, EditAnywhere, Category = "Placement")
+	bool bAllowRandomScale = true;
+
 	// todo: asset data does not serialize out correctly
 	// maybe save soft object pointers, and convert in the UI to asset data?
 	//UPROPERTY(config)

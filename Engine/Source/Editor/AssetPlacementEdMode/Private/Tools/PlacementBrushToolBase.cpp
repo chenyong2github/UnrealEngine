@@ -29,9 +29,20 @@ UInteractiveTool* UPlacementToolBuilderBase::BuildTool(const FToolBuilderState& 
 
 bool UPlacementBrushToolBase::HitTest(const FRay& Ray, FHitResult& OutHit)
 {
-	UWorld* EditingWorld = GetToolManager()->GetWorld();
 	const FVector TraceStart(Ray.Origin);
 	const FVector TraceEnd(Ray.Origin + Ray.Direction * HALF_WORLD_MAX);
+
+	return FindHitResultWithStartAndEndTraceVectors(OutHit, TraceStart, TraceEnd);
+}
+
+double UPlacementBrushToolBase::EstimateMaximumTargetDimension()
+{
+	return 1000.0;
+}
+
+bool UPlacementBrushToolBase::FindHitResultWithStartAndEndTraceVectors(FHitResult& OutHit, const FVector& TraceStart, const FVector& TraceEnd, float TraceRadius)
+{
+	UWorld* EditingWorld = GetToolManager()->GetWorld();
 	constexpr TCHAR NAME_PlacementBrushTool[] = TEXT("PlacementBrushTool");
 
 	auto FilterFunc = [this](const UPrimitiveComponent* InComponent) {
@@ -60,10 +71,66 @@ bool UPlacementBrushToolBase::HitTest(const FRay& Ray, FHitResult& OutHit)
 
 		return false; };
 
-	return AInstancedFoliageActor::FoliageTrace(EditingWorld, OutHit, FDesiredFoliageInstance(TraceStart, TraceEnd), NAME_PlacementBrushTool, false, FilterFunc);
+	return AInstancedFoliageActor::FoliageTrace(EditingWorld, OutHit, FDesiredFoliageInstance(TraceStart, TraceEnd, TraceRadius), NAME_PlacementBrushTool, false, FilterFunc);
 }
 
-double UPlacementBrushToolBase::EstimateMaximumTargetDimension()
+FTransform UPlacementBrushToolBase::GetFinalTransformFromHitLocationAndNormal(const FVector& InLocation, const FVector& InNormal)
 {
-	return 1000.0;
+	FTransform FinalizedTransform(InLocation);
+
+	if (!PlacementSettings.IsValid())
+	{
+		return FinalizedTransform;
+	}
+
+	// For now, just apply a random yaw to any placed object, until we have per object settings for random pitch and yaw angles.
+	if (PlacementSettings->bAllowRandomRotation)
+	{
+		FRotator UpdatedRotation = FinalizedTransform.Rotator();
+
+		// UpdatedRotation = FRotator(FMath::FRand() * ItemToPlace->RandomPitchAngle, 0.f, 0.f);
+
+		// if (ItemToPlace.bUseRandomYaw)
+		UpdatedRotation.Yaw = FMath::FRand() * 360.f;
+
+		FinalizedTransform.SetRotation(UpdatedRotation.Quaternion());
+	}
+
+	// Align to normal
+	if (PlacementSettings->bAllowAlignToNormal)
+	{
+		FRotator AlignRotation = InNormal.Rotation();
+		// Static meshes are authored along the vertical axis rather than the X axis, so we add 90 degrees to the static mesh's Pitch.
+		AlignRotation.Pitch -= 90.f;
+		// Clamp its value inside +/- one rotation
+		AlignRotation.Pitch = FRotator::NormalizeAxis(AlignRotation.Pitch);
+
+		// limit the maximum pitch angle if it's > 0.
+		// For now, just set the align max angle to a constant value, until it can be pulled from per object settings
+		constexpr float AlignMaxAngle = 0.0f;
+		if (AlignMaxAngle > 0.f)
+		{
+			int32 MaxPitch = AlignMaxAngle;
+			if (AlignRotation.Pitch > MaxPitch)
+			{
+				AlignRotation.Pitch = MaxPitch;
+			}
+			else if (AlignRotation.Pitch < -MaxPitch)
+			{
+				AlignRotation.Pitch = -MaxPitch;
+			}
+		}
+
+		FinalizedTransform.SetRotation(FQuat(AlignRotation) * FinalizedTransform.GetRotation());
+	}
+
+	if (PlacementSettings->bAllowRandomScale)
+	{
+		// Until we have per object settings, just use a uniform scale, clamped from half to double size
+		FFloatInterval ScaleRange(0.5f, 2.0f);
+		FVector NewScale(ScaleRange.Interpolate(FMath::FRand()));
+		FinalizedTransform.SetScale3D(NewScale);
+	}
+
+	return FinalizedTransform;
 }

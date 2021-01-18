@@ -28,7 +28,7 @@ void UPlacementModePlaceSingleTool::OnEndDrag(const FRay& Ray)
 			FAssetPlacementInfo PlacementInfo;
 			PlacementInfo.AssetToPlace = ItemToPlace.AssetData;
 			PlacementInfo.FactoryOverride = ItemToPlace.FactoryOverride;
-			PlacementInfo.FinalizedTransform = FTransform(LastBrushStamp.HitResult.ImpactPoint);
+			PlacementInfo.FinalizedTransform = GetFinalTransformFromHitLocationAndNormal(LastBrushStamp.HitResult.ImpactPoint, LastBrushStamp.HitResult.ImpactNormal);
 			PlacementInfo.PreferredLevel = GEditor->GetEditorWorldContext().World()->GetCurrentLevel();
 
 			FPlacementOptions PlacementOptions;
