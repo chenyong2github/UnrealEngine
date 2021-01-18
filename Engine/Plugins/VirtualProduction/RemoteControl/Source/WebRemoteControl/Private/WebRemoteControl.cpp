@@ -53,9 +53,9 @@
 #include "Misc/App.h"
 #include "UObject/UnrealType.h"
 #include "UObject/UObjectHash.h"
+#include "Templates/UnrealTemplate.h"
 
 #define LOCTEXT_NAMESPACE "WebRemoteControl"
-
 
 // Boot the server on startup flag
 static TAutoConsoleVariable<int32> CVarWebControlStartOnBoot(TEXT("WebControl.EnableServerOnStartup"), 0, TEXT("Enable the Web Control servers (web and websocket) on startup."));
@@ -74,7 +74,7 @@ void FWebRemoteControlModule::StartupModule()
 	HttpServerPort = GetDefault<UWebRemoteControlSettings>()->RemoteControlHttpServerPort;
 	WebSocketServerPort = GetDefault<UWebRemoteControlSettings>()->RemoteControlWebSocketServerPort;
 
-	WebSocketHandler = MakeUnique<FWebSocketMessageHandler>(&WebSocketServer);
+	WebSocketHandler = MakeUnique<FWebSocketMessageHandler>(&WebSocketServer, ActingClientId);
 
 	RegisterConsoleCommands();
 	RegisterRoutes();
@@ -1039,6 +1039,8 @@ bool FWebRemoteControlModule::HandleSearchObjectRoute(const FHttpServerRequest& 
 
 void FWebRemoteControlModule::HandleWebSocketHttpMessage(const FRemoteControlWebSocketMessage& WebSocketMessage)
 {
+	TGuardValue<FGuid> ScopeGuard(ActingClientId, WebSocketMessage.ClientId);
+
 	TArray<uint8> UTF8Response;
 
 	//Early failure is http server not started
