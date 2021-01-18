@@ -43,6 +43,10 @@ public:
 	UPROPERTY(Config, EditAnywhere, Category = "Debug System")
 	bool bSystemShowBounds = false;
 
+	/** When disabled in world rendering will show systems deactivated by scalability. */
+	UPROPERTY(Config, EditAnywhere, Category = "Debug System")
+	bool bSystemShowActiveOnlyInWorld = true;
+
 	/** Should we display the system variables. */
 	UPROPERTY(Config, EditAnywhere, Category = "Debug System")
 	bool bShowSystemVariables = true;

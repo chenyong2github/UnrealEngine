@@ -452,7 +452,12 @@ void SNiagaraDebugger::ExecConsoleCommand(const TCHAR* Cmd, bool bRequiresWorld)
 		{
 			for (TObjectIterator<UWorld> WorldIt; WorldIt; ++WorldIt)
 			{
-				if (WorldIt->IsGameWorld())
+				UWorld* World = *WorldIt;
+				if ( (World != nullptr) &&
+					 (World->WorldType == EWorldType::PIE) &&
+					 (World->PersistentLevel != nullptr) &&
+					 (World->PersistentLevel->OwningWorld == World) &&
+					 ((World->GetNetMode() == ENetMode::NM_Client) || (World->GetNetMode() == ENetMode::NM_Standalone)) )
 				{
 					GEngine->Exec(*WorldIt, Cmd);
 				}
@@ -467,7 +472,7 @@ void SNiagaraDebugger::ExecConsoleCommand(const TCHAR* Cmd, bool bRequiresWorld)
 
 void SNiagaraDebugger::ExecHUDConsoleCommand()
 {
-	//TEXT("fx.Niagara.DebugHud Enabled=%d DisplayLocation=%f,%f SystemVerbosity=%d SystemShowBounds=%d SystemFilter=%s ComponentFilter=%s SystemVariables=%s ParticleVariables=%s MaxParticlesToDisplay=%d ShowParticlesInWorld=%d"),
+	//TEXT("fx.Niagara.DebugHud Enabled=%d DisplayLocation=%d,%d SystemVerbosity=%d SystemShowBounds=%d SystemFilter=%s ComponentFilter=%s SystemVariables=%s ParticleVariables=%s MaxParticlesToDisplay=%d ShowParticlesInWorld=%d"),
 	const auto BuildVariableString =
 		[](const TArray<FString> Args) -> FString
 		{
@@ -490,9 +495,10 @@ void SNiagaraDebugger::ExecHUDConsoleCommand()
 	if ( const UNiagaraDebugHUDSettings* Settings = GetDefault<UNiagaraDebugHUDSettings>() )
 	{
 		ExecConsoleCommand(*FString::Printf(TEXT("fx.Niagara.Debug.Hud Enabled=%d"), Settings->bEnabled ? 1 : 0), false);
-		ExecConsoleCommand(*FString::Printf(TEXT("fx.Niagara.Debug.Hud DisplayLocation=%f,%f"), Settings->HUDLocation.X, Settings->HUDLocation.Y), false);
+		ExecConsoleCommand(*FString::Printf(TEXT("fx.Niagara.Debug.Hud DisplayLocation=%d,%d"), Settings->HUDLocation.X, Settings->HUDLocation.Y), false);
 		ExecConsoleCommand(*FString::Printf(TEXT("fx.Niagara.Debug.Hud SystemVerbosity=%d"), (int32)Settings->SystemVerbosity), false);
 		ExecConsoleCommand(*FString::Printf(TEXT("fx.Niagara.Debug.Hud SystemShowBounds=%d "), Settings->bSystemShowBounds ? 1 : 0), false);
+		ExecConsoleCommand(*FString::Printf(TEXT("fx.Niagara.Debug.Hud SystemShowActiveOnlyInWorld=%d"), Settings->bSystemShowActiveOnlyInWorld ? 1 : 0), false);
 		ExecConsoleCommand(*FString::Printf(TEXT("fx.Niagara.Debug.Hud SystemFilter=%s"), *Settings->SystemFilter), false);
 		ExecConsoleCommand(*FString::Printf(TEXT("fx.Niagara.Debug.Hud ComponentFilter=%s"), *Settings->ComponentFilter), false);
 		ExecConsoleCommand(*FString::Printf(TEXT("fx.Niagara.Debug.Hud SystemVariables=%s"), Settings->bShowSystemVariables ? *BuildVariableString(Settings->SystemVariables) : TEXT("")), false);
