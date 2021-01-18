@@ -30,7 +30,6 @@ public:
 		LiveProcess* liveProcess;
 		void* originalModuleBase;
 		std::wstring modulePath;
-		VirtualMemoryRange* virtualMemoryRange;
 	};
 
 	struct ErrorType

@@ -596,9 +596,7 @@ std::vector<Thread::Id> Process::EnumerateThreads(Id processId)
 		else if (status < 0)
 		{
 			// something went wrong
-			// BEGIN EPIC MOD - PVS is having problems dealing with + here. 
-			LC_ERROR_USER("Cannot enumerate threads in process (PID: %d)", static_cast<DWORD>(processId));
-			// END EPIC MOD
+			LC_ERROR_USER("Cannot enumerate threads in process (PID: %d)", +processId);
 			::free(processSnapshot);
 
 			return threadIds;

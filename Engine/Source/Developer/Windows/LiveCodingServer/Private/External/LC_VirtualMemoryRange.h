@@ -14,10 +14,11 @@
 class VirtualMemoryRange
 {
 public:
-	VirtualMemoryRange(Process::Handle processHandle, const void* addressStart, const void* addressEnd, size_t alignment);
+	explicit VirtualMemoryRange(Process::Handle processHandle);
+	~VirtualMemoryRange(void);
 
-	void ReservePages(void);
-	void FreeReservedPages(void);
+	void ReservePages(const void* addressStart, const void* addressEnd, size_t alignment);
+	void FreePages(const void* addressStart, const void* addressEnd);
 
 private:
 	struct PageData
@@ -26,9 +27,6 @@ private:
 	};
 
 	Process::Handle m_processHandle;
-	const void* m_addressStart;
-	const void* m_addressEnd;
-	size_t m_alignment;
-
 	types::vector<PageData> m_pageData;
+	CriticalSection m_cs;
 };

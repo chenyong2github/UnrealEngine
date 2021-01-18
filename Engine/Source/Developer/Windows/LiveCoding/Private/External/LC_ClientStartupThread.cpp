@@ -114,7 +114,10 @@ ClientStartupThread::~ClientStartupThread(void)
 	::CloseHandle(m_job);
 
 	// clean up interprocess objects
-	Process::DestroyNamedSharedMemory(m_sharedMemory);
+	if (m_sharedMemory)
+	{
+		Process::DestroyNamedSharedMemory(m_sharedMemory);
+	}
 }
 
 

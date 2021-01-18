@@ -10,28 +10,43 @@
 #include <cinttypes>
 // END EPIC MOD
 
-VirtualMemoryRange::VirtualMemoryRange(Process::Handle processHandle, const void* addressStart, const void* addressEnd, size_t alignment)
+VirtualMemoryRange::VirtualMemoryRange(Process::Handle processHandle)
 	: m_processHandle(processHandle)
-	, m_addressStart(addressStart)
-	, m_addressEnd(addressEnd)
-	, m_alignment(alignment)
+	, m_pageData()
+	, m_cs()
 {
-	m_pageData.reserve(32u);
+	m_pageData.reserve(256u);
 }
 
 
-void VirtualMemoryRange::ReservePages(void)
+VirtualMemoryRange::~VirtualMemoryRange(void)
 {
-// BEGIN EPIC MOD
-// If we have two modules in the same process, then they might overlap in the 2GB range. Thus when we try to update one module
-// the other module might prevent us from finding address space.  Disable this feature for now.
-#if 0
+	for (const auto& it : m_pageData)
+	{
+		const bool success = ::VirtualFreeEx(+m_processHandle, it.address, 0u, MEM_RELEASE);
+		if (!success)
+		{
+			LC_WARNING_DEV("Cannot free virtual memory region at 0x%p", it.address);
+		}
+	}
+
+	m_pageData.clear();
+}
+
+
+void VirtualMemoryRange::ReservePages(const void* addressStart, const void* addressEnd, size_t alignment)
+{
+	CriticalSection::ScopedLock lock(&m_cs);
+
+	LC_LOG_DEV("Reserving pages in the range 0x%p to 0x%p", addressStart, addressEnd);
+	LC_LOG_INDENT_DEV;
+
 	// reserve all free pages in the virtual memory range.
 	// pages must be aligned to the given alignment.
-	for (const void* address = m_addressStart; address < m_addressEnd; /* nothing */)
+	for (const void* address = addressStart; address < addressEnd; /* nothing */)
 	{
 		// align address to be scanned
-		address = pointer::AlignTop<const void*>(address, m_alignment);
+		address = pointer::AlignTop<const void*>(address, alignment);
 
 		::MEMORY_BASIC_INFORMATION memoryInfo = {};
 		const size_t bytesReturned = ::VirtualQueryEx(+m_processHandle, address, &memoryInfo, sizeof(::MEMORY_BASIC_INFORMATION));
@@ -41,7 +56,7 @@ void VirtualMemoryRange::ReservePages(void)
 		{
 			// work out the maximum size of the page allocation.
 			// we should not allocate past the end of the range.
-			const size_t bytesLeft = pointer::Displacement<size_t>(memoryInfo.BaseAddress, m_addressEnd);
+			const size_t bytesLeft = pointer::Displacement<size_t>(memoryInfo.BaseAddress, addressEnd);
 			const size_t size = std::min<size_t>(memoryInfo.RegionSize, bytesLeft);
 
 			// try to reserve this page.
@@ -49,7 +64,7 @@ void VirtualMemoryRange::ReservePages(void)
 			void* baseAddress = ::VirtualAllocEx(+m_processHandle, memoryInfo.BaseAddress, size, MEM_RESERVE, PAGE_NOACCESS);
 			if (baseAddress)
 			{
-				LC_LOG_DEV("Found virtual memory region at 0x%p with size 0x%" PRIX64, baseAddress, size);
+				LC_LOG_DEV("Reserving virtual memory region at 0x%p with size 0x%" PRIX64, baseAddress, size);
 				m_pageData.emplace_back(PageData { baseAddress });
 			}
 		}
@@ -57,21 +72,36 @@ void VirtualMemoryRange::ReservePages(void)
 		// keep on searching
 		address = pointer::Offset<const void*>(memoryInfo.BaseAddress, memoryInfo.RegionSize);
 	}
-#endif
-// END EPIC MOD
 }
 
 
-void VirtualMemoryRange::FreeReservedPages(void)
+void VirtualMemoryRange::FreePages(const void* addressStart, const void* addressEnd)
 {
-	for (const auto& it : m_pageData)
+	CriticalSection::ScopedLock lock(&m_cs);
+
+	LC_LOG_DEV("Freeing pages in the range 0x%p to 0x%p", addressStart, addressEnd);
+	LC_LOG_INDENT_DEV;
+
+	for (auto it = m_pageData.begin(); it != m_pageData.end(); /* nothing */)
 	{
-		const bool success = ::VirtualFreeEx(+m_processHandle, it.address, 0u, MEM_RELEASE);
-		if (!success)
+		const PageData& data = *it;
+		if ((data.address >= addressStart) && (data.address < addressEnd))
 		{
-			LC_WARNING_USER("Cannot free virtual memory region at 0x%p", it.address);
+			const bool success = ::VirtualFreeEx(+m_processHandle, data.address, 0u, MEM_RELEASE);
+			if (success)
+			{
+				LC_LOG_DEV("Freeing virtual memory region at 0x%p", data.address);
+			}
+			else
+			{
+				LC_WARNING_DEV("Cannot free virtual memory region at 0x%p", data.address);
+			}
+
+			it = m_pageData.erase(it);
+		}
+		else
+		{
+			++it;
 		}
 	}
-
-	m_pageData.clear();
 }

@@ -15,6 +15,42 @@
 // END EPIC MOD
 
 
+#if LC_64_BIT
+namespace
+{
+	static const void* GetLowerBoundIn4GBRange(const void* moduleBase)
+	{
+		// nothing can be loaded at address 0x0, 64 KB seems like a realistic minimum
+		const uint64_t LOWEST_ADDRESS = 64u * 1024u;
+		const uint64_t base = pointer::AsInteger<uint64_t>(moduleBase);
+
+		// make sure we don't underflow
+		if (base >= 0x80000000ull + LOWEST_ADDRESS)
+		{
+			return pointer::FromInteger<const void*>(base - 0x80000000ull);
+		}
+
+		// operation would underflow
+		return pointer::FromInteger<const void*>(LOWEST_ADDRESS);
+	}
+
+	static const void* GetUpperBoundIn4GBRange(const void* moduleBase)
+	{
+		const uint64_t base = pointer::AsInteger<uint64_t>(moduleBase);
+
+		// make sure we don't overflow
+		if (base <= 0xFFFFFFFF7FFFFFFFull)
+		{
+			return pointer::FromInteger<const void*>(base + 0x80000000ull);
+		}
+
+		// operation would overflow
+		return pointer::FromInteger<const void*>(0xFFFFFFFFFFFFFFFFull);
+	}
+}
+#endif
+
+
 LiveProcess::LiveProcess(Process::Handle processHandle, Process::Id processId, Thread::Id commandThreadId, const void* jumpToSelf, const DuplexPipe* pipe,
 	const wchar_t* imagePath, const wchar_t* commandLine, const wchar_t* workingDirectory, const void* environment, size_t environmentSize)
 	: m_processHandle(processHandle)
@@ -38,6 +74,7 @@ LiveProcess::LiveProcess(Process::Handle processHandle, Process::Id processId, T
 // END EPIC MOD
 	, m_codeCave(nullptr)
 	, m_restartState(RestartState::DEFAULT)
+	, m_virtualMemoryRange(processHandle)
 {
 	m_imagesTriedToLoad.reserve(256u);
 }
@@ -277,6 +314,29 @@ bool LiveProcess::WasSuccessfulRestart(void) const
 	return (m_restartState == RestartState::SUCCESSFUL_RESTART);
 }
 
+
+void LiveProcess::ReserveVirtualMemoryPages(void* moduleBase)
+{
+#if LC_64_BIT
+	const void* lowerBound = GetLowerBoundIn4GBRange(moduleBase);
+	const void* upperBound = GetUpperBoundIn4GBRange(moduleBase);
+	m_virtualMemoryRange.ReservePages(lowerBound, upperBound, 64u * 1024u);
+#else
+	LC_UNUSED(moduleBase);
+#endif
+}
+
+
+void LiveProcess::FreeVirtualMemoryPages(void* moduleBase)
+{
+#if LC_64_BIT
+	const void* lowerBound = GetLowerBoundIn4GBRange(moduleBase);
+	const void* upperBound = GetUpperBoundIn4GBRange(moduleBase);
+	m_virtualMemoryRange.FreePages(lowerBound, upperBound);
+#else
+	LC_UNUSED(moduleBase);
+#endif
+}
 
 // BEGIN EPIC MOD - Allow lazy-loading modules
 void LiveProcess::AddLazyLoadedModule(const std::wstring moduleName, Windows::HMODULE moduleBase)

@@ -6,6 +6,7 @@
 #include "LC_ThreadTypes.h"
 #include "LC_Executable.h"
 #include "LC_MemoryBlock.h"
+#include "LC_VirtualMemoryRange.h"
 // BEGIN EPIC MOD
 #include "LC_Types.h"
 #include "VisualStudioDTE.h"
@@ -46,6 +47,10 @@ public:
 	void Restart(void* restartJob);
 	// END EPIC MOD
 	bool WasSuccessfulRestart(void) const;
+
+
+	void ReserveVirtualMemoryPages(void* moduleBase);
+	void FreeVirtualMemoryPages(void* moduleBase);
 
 
 	inline Process::Handle GetProcessHandle(void) const
@@ -152,6 +157,8 @@ private:
 	};
 
 	RestartState::Enum m_restartState;
+
+	VirtualMemoryRange m_virtualMemoryRange;
 
 	LC_DISABLE_COPY(LiveProcess);
 	LC_DISABLE_MOVE(LiveProcess);

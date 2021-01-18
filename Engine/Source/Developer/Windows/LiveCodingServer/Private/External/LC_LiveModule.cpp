@@ -85,7 +85,6 @@ namespace
 	}
 #endif
 
-
 	// common linker options:
 	//	*) create x86/x64 code
 	//	*) don't echo command-line options
@@ -1248,16 +1247,9 @@ void LiveModule::RegisterProcess(LiveProcess* liveProcess, void* moduleBase, con
 {
 	m_moduleCache->RegisterProcess(m_mainModuleToken, liveProcess, moduleBase);
 
-#if LC_64_BIT
-	const void* lowerBound = GetLowerBoundIn4GBRange(moduleBase);
-	const void* upperBound = GetUpperBoundIn4GBRange(moduleBase);
-	VirtualMemoryRange* virtualMemoryRange = new VirtualMemoryRange(liveProcess->GetProcessHandle(), lowerBound, upperBound, 64u * 1024u);
-	virtualMemoryRange->ReservePages();
-#else
-	VirtualMemoryRange* virtualMemoryRange = new VirtualMemoryRange(liveProcess->GetProcessHandle(), moduleBase, moduleBase, 64u * 1024u);
-#endif
+	liveProcess->ReserveVirtualMemoryPages(moduleBase);
 
-	PerProcessData perProcessData = { liveProcess, moduleBase, modulePath, virtualMemoryRange };
+	PerProcessData perProcessData = { liveProcess, moduleBase, modulePath };
 	m_perProcessData.emplace_back(perProcessData);
 }
 
@@ -1274,8 +1266,7 @@ void LiveModule::UnregisterProcess(LiveProcess* liveProcess)
 		const PerProcessData& data = *it;
 		if (data.liveProcess == liveProcess)
 		{
-			data.virtualMemoryRange->FreeReservedPages();
-			delete data.virtualMemoryRange;
+			liveProcess->FreeVirtualMemoryPages(data.originalModuleBase);
 
 			m_perProcessData.erase(it);
 			break;
@@ -3241,7 +3232,7 @@ LiveModule::ErrorType::Enum LiveModule::Update(FileAttributeCache* fileCache, Di
 			Process::Suspend(data.liveProcess->GetProcessHandle());
 
 			// free our page reservations in the +-2GB range of the main module
-			data.virtualMemoryRange->FreeReservedPages();
+			data.liveProcess->FreeVirtualMemoryPages(data.originalModuleBase);
 
 			const executable::PreferredBase preferredImageBase = FindPreferredImageBase(patchImageSize, data.liveProcess->GetProcessId(), data.liveProcess->GetProcessHandle(), data.originalModuleBase);
 
@@ -3292,7 +3283,7 @@ LiveModule::ErrorType::Enum LiveModule::Update(FileAttributeCache* fileCache, Di
 	for (size_t i = 0u; i < processCount; ++i)
 	{
 		const PerProcessData& data = processData[i];
-		data.virtualMemoryRange->ReservePages();
+		data.liveProcess->ReserveVirtualMemoryPages(data.originalModuleBase);
 	}
 #endif
 
