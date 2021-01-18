@@ -61,6 +61,7 @@ TOptional<FInstallBundleCacheBundleInfo> FInstallBundleCache::GetBundleInfo(EIns
 			OutInfo.BundleName = BundleName;
 			OutInfo.FullInstallSize = SourceInfo->FullInstallSize;
 			OutInfo.CurrentInstallSize = SourceInfo->CurrentInstallSize;
+			OutInfo.TimeStamp = SourceInfo->TimeStamp;
 		}
 	}
 
@@ -145,6 +146,8 @@ FInstallBundleCacheReserveResult FInstallBundleCache::Reserve(FName BundleName)
 
 	Result.Result = EInstallBundleCacheReserveResult::Fail_NeedsEvict;
 
+	// TODO: Bundles that have BundleSize > 0 or are PendingEvict should be 
+	// sorted to the beginning.  We should be able to stop iterating sooner in that case.
 	CacheInfo.ValueSort([](const FBundleCacheInfo& A, const FBundleCacheInfo& B)
 	{
 		if (A.bHintReqeusted == B.bHintReqeusted)
@@ -317,6 +320,7 @@ FInstallBundleCacheStats FInstallBundleCache::GetStats(bool bDumpToLog /*= false
 			UE_LOG(LogInstallBundleManager, Verbose, TEXT("*\t\tfull size: %" UINT64_FMT), Info.FullInstallSize);
 			UE_LOG(LogInstallBundleManager, Verbose, TEXT("*\t\tcurrent size: %" UINT64_FMT), Info.CurrentInstallSize);
 			UE_LOG(LogInstallBundleManager, Verbose, TEXT("*\t\treserved: %s"), (Info.State == ECacheState::Reserved) ? TEXT("true") : TEXT("false"));
+			UE_LOG(LogInstallBundleManager, Verbose, TEXT("*\t\ttimestamp: %s"), *Info.TimeStamp.ToString());
 		}
 	}
 
