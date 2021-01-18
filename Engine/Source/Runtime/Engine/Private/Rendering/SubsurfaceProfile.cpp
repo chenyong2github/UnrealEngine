@@ -190,7 +190,7 @@ void SetupSurfaceAlbedoAndDiffuseMeanFreePath(FLinearColor& SurfaceAlbedo, FLine
 	//This is an optimization to shift finding the max correspondence workload
 	//to CPU.
 	const float MaxDmfpComp = FMath::Max3(Dmfp.R, Dmfp.G, Dmfp.B);
-	const uint32 IndexOfMaxDmfp = (Dmfp.R == MaxDmfpComp) ? 0 : ((Dmfp.B == MaxDmfpComp) ? 1 : 2);
+	const uint32 IndexOfMaxDmfp = (Dmfp.R == MaxDmfpComp) ? 0 : ((Dmfp.G == MaxDmfpComp) ? 1 : 2);
 
 	SurfaceAlbedo.A = SurfaceAlbedo.Component(IndexOfMaxDmfp);
 	Dmfp.A = MaxDmfpComp;
