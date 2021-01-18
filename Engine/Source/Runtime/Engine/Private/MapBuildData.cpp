@@ -215,7 +215,10 @@ void ULevel::HandleLegacyMapBuildData()
 			}
 		}
 
-		Registry->HandleLegacyEncodedCubemapData();
+		if (Registry)
+		{
+			Registry->HandleLegacyEncodedCubemapData();
+		}
 	}
 }
 
