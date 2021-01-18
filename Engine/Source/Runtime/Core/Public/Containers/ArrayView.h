@@ -253,6 +253,20 @@ public:
 	}
 
 	/**
+	 * Checks if a slice range [Index, Index+InNum) is in array range.
+	 * Length is 0 is allowed on empty arrays; Index must be 0 in that case.
+	 *
+	 * @param Index Starting index of the slice.
+	 * @param InNum Length of the slice.
+	 */
+	FORCEINLINE void SliceRangeCheck(SizeType Index, SizeType InNum) const
+	{
+		checkf(Index >= 0, TEXT("Invalid index (%d)"), Index);
+		checkf(InNum >= 0, TEXT("Invalid count (%d)"), InNum);
+		checkf(Index + InNum <= ArrayNum, TEXT("Range (index: %d, count: %d) lies outside the view of %d elements"), Index, InNum, ArrayNum);
+	}
+
+	/**
 	 * Tests if index is valid, i.e. than or equal to zero, and less than the number of elements in the array.
 	 *
 	 * @param Index Index to test.
@@ -319,9 +333,7 @@ public:
 	 */
 	FORCEINLINE TArrayView Slice(SizeType Index, SizeType InNum) const
 	{
-		check(InNum > 0);
-		check(IsValidIndex(Index));
-		check(IsValidIndex(Index + InNum - 1));
+		SliceRangeCheck(Index, InNum);
 		return TArrayView(DataPtr + Index, InNum);
 	}
 
