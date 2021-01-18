@@ -337,7 +337,7 @@ void NiagaraDebugShaders::VisualizeTexture(
 	FIntPoint DisplaySize(TextureSize.X, TextureSize.Y);
 	if (DisplayHeight > 0)
 	{
-		DisplaySize.Y = FMath::Min(TextureSize.Y, DisplayHeight);
+		DisplaySize.Y = DisplayHeight;
 		DisplaySize.X = int32(float(TextureSize.X) * (float(DisplaySize.Y) / float(TextureSize.Y)));
 	}
 
