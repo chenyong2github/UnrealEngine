@@ -5,6 +5,7 @@
 #include "GameFeaturesSubsystemSettings.h"
 #include "DataRegistryId.h"
 #include "DataRegistrySubsystem.h"
+#include "Engine/Engine.h"
 
 #define LOCTEXT_NAMESPACE "GameFeatures"
 

@@ -7,6 +7,7 @@
 #include "GameFeatureAction_DataRegistrySource.generated.h"
 
 class UDataTable;
+class UCurveTable;
 
 USTRUCT()
 struct FDataRegistrySourceToAdd
