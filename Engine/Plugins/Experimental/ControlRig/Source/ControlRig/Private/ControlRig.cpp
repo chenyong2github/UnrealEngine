@@ -378,6 +378,7 @@ void UControlRig::InstantiateVMFromCDO()
 void UControlRig::Execute(const EControlRigState InState, const FName& InEventName)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_ControlRig_Execute);
 
 	if (VM)
 	{
