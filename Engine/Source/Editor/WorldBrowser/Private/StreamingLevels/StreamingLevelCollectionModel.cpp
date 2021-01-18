@@ -418,11 +418,6 @@ void FStreamingLevelCollectionModel::UnregisterDetailsCustomization(FPropertyEdi
 	InDetailsView->UnregisterInstancedCustomPropertyLayout(ULevelStreaming::StaticClass());
 }
 
-bool FStreamingLevelCollectionModel::IsPartitionWorld() const
-{
-	return CurrentWorld.IsValid() ? !!CurrentWorld->GetWorldPartition() : false;
-}
-
 const FLevelModelList& FStreamingLevelCollectionModel::GetInvalidSelectedLevels() const 
 { 
 	return InvalidSelectedLevels;

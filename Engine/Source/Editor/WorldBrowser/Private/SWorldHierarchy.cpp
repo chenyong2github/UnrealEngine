@@ -7,6 +7,7 @@
 #include "Textures/SlateIcon.h"
 #include "Framework/Commands/UIAction.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "WorldPartition/WorldPartitionSubsystem.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Text/STextBlock.h"
@@ -59,116 +60,120 @@ void SWorldHierarchy::OnBrowseWorld(UWorld* InWorld)
 	// Bind to a new world
 	if (InWorld)
 	{
-		FWorldBrowserModule& WorldBrowserModule = FModuleManager::GetModuleChecked<FWorldBrowserModule>("WorldBrowser");
-		WorldModel = WorldBrowserModule.SharedWorldModel(InWorld);
+		if (!UWorld::HasSubsystem<UWorldPartitionSubsystem>(InWorld))
+		{
 
-		ChildSlot
-		[
-			SNew(SVerticalBox)
+			FWorldBrowserModule& WorldBrowserModule = FModuleManager::GetModuleChecked<FWorldBrowserModule>("WorldBrowser");
+			WorldModel = WorldBrowserModule.SharedWorldModel(InWorld);
 
-			// Toolbar
-			+SVerticalBox::Slot()
-			.AutoHeight()
+			ChildSlot
 			[
-				SNew(SBorder)
-				.BorderImage(FEditorStyle::GetBrush(TEXT("ToolPanel.GroupBorder")))
-				[
-					SNew(SHorizontalBox)
-					
-					// Toolbar
-					+SHorizontalBox::Slot()
-					.AutoWidth()
-					.VAlign(VAlign_Center)
-					.HAlign(HAlign_Left)
-					[
-						// Levels menu
-						SNew( SComboButton )
-						.ComboButtonStyle(FEditorStyle::Get(), "ToolbarComboButton")
-						.ForegroundColor(FLinearColor::White)
-						.ContentPadding(0)
-						.OnGetMenuContent(this, &SWorldHierarchy::GetFileButtonContent)
-						//.ToolTipText(this, &SWorldHierarchy::GetNewAssetToolTipText)
-						//.IsEnabled(this, &SWorldHierarchy::IsAssetPathSelected )
-						.ButtonContent()
-						[
-							SNew(SHorizontalBox)
+				SNew(SVerticalBox)
 
-							// Icon
-							+ SHorizontalBox::Slot()
-							.AutoWidth()
+				// Toolbar
+				+SVerticalBox::Slot()
+				.AutoHeight()
+				[
+					SNew(SBorder)
+					.BorderImage(FEditorStyle::GetBrush(TEXT("ToolPanel.GroupBorder")))
+					[
+						SNew(SHorizontalBox)
+					
+						// Toolbar
+						+SHorizontalBox::Slot()
+						.AutoWidth()
+						.VAlign(VAlign_Center)
+						.HAlign(HAlign_Left)
+						[
+							// Levels menu
+							SNew( SComboButton )
+							.ComboButtonStyle(FEditorStyle::Get(), "ToolbarComboButton")
+							.ForegroundColor(FLinearColor::White)
+							.ContentPadding(0)
+							.OnGetMenuContent(this, &SWorldHierarchy::GetFileButtonContent)
+							//.ToolTipText(this, &SWorldHierarchy::GetNewAssetToolTipText)
+							//.IsEnabled(this, &SWorldHierarchy::IsAssetPathSelected )
+							.ButtonContent()
+							[
+								SNew(SHorizontalBox)
+
+								// Icon
+								+ SHorizontalBox::Slot()
+								.AutoWidth()
+								.VAlign(VAlign_Center)
+								[
+									SNew(SImage)
+									.Image(this, &SWorldHierarchy::GetLevelsMenuBrush)
+								]
+
+								// Text
+								+ SHorizontalBox::Slot()
+								.AutoWidth()
+								.VAlign(VAlign_Center)
+								.Padding(0,0,2,0)
+								[
+									SNew(STextBlock)
+									.TextStyle(FEditorStyle::Get(), "ContentBrowser.TopBar.Font")
+									.Text(LOCTEXT("LevelsButton", "Levels"))
+								]
+							]
+						]
+
+						// Button to summon level details tab
+						+SHorizontalBox::Slot()
+						.AutoWidth()
+						.VAlign(VAlign_Center)
+						.HAlign(HAlign_Left)
+						[
+							SNew(SButton)
+							.ButtonStyle(FEditorStyle::Get(), "ToggleButton")
+							.OnClicked(this, &SWorldHierarchy::OnSummonDetails)
+							.ToolTipText(LOCTEXT("SummonDetailsToolTipText", "Summons level details"))
+							.HAlign(HAlign_Center)
 							.VAlign(VAlign_Center)
+							.Content()
 							[
 								SNew(SImage)
-								.Image(this, &SWorldHierarchy::GetLevelsMenuBrush)
+								.Image(this, &SWorldHierarchy::GetSummonDetailsBrush)
 							]
+						]
 
-							// Text
-							+ SHorizontalBox::Slot()
-							.AutoWidth()
+						// Button to summon world composition tab
+						+SHorizontalBox::Slot()
+						.AutoWidth()
+						.VAlign(VAlign_Center)
+						.HAlign(HAlign_Left)
+						[
+							SNew(SButton)
+							.Visibility(this, &SWorldHierarchy::GetCompositionButtonVisibility)
+							.ButtonStyle(FEditorStyle::Get(), "ToggleButton")
+							.OnClicked(this, &SWorldHierarchy::OnSummonComposition)
+							.ToolTipText(LOCTEXT("SummonCompositionToolTipText", "Summons world composition"))
+							.HAlign(HAlign_Center)
 							.VAlign(VAlign_Center)
-							.Padding(0,0,2,0)
+							.Content()
 							[
-								SNew(STextBlock)
-								.TextStyle(FEditorStyle::Get(), "ContentBrowser.TopBar.Font")
-								.Text(LOCTEXT("LevelsButton", "Levels"))
+								SNew(SImage)
+								.Image(this, &SWorldHierarchy::GetSummonCompositionBrush)
 							]
 						]
 					]
-
-					// Button to summon level details tab
-					+SHorizontalBox::Slot()
-					.AutoWidth()
-					.VAlign(VAlign_Center)
-					.HAlign(HAlign_Left)
-					[
-						SNew(SButton)
-						.ButtonStyle(FEditorStyle::Get(), "ToggleButton")
-						.OnClicked(this, &SWorldHierarchy::OnSummonDetails)
-						.ToolTipText(LOCTEXT("SummonDetailsToolTipText", "Summons level details"))
-						.HAlign(HAlign_Center)
-						.VAlign(VAlign_Center)
-						.Content()
-						[
-							SNew(SImage)
-							.Image(this, &SWorldHierarchy::GetSummonDetailsBrush)
-						]
-					]
-
-					// Button to summon world composition tab
-					+SHorizontalBox::Slot()
-					.AutoWidth()
-					.VAlign(VAlign_Center)
-					.HAlign(HAlign_Left)
-					[
-						SNew(SButton)
-						.Visibility(this, &SWorldHierarchy::GetCompositionButtonVisibility)
-						.ButtonStyle(FEditorStyle::Get(), "ToggleButton")
-						.OnClicked(this, &SWorldHierarchy::OnSummonComposition)
-						.ToolTipText(LOCTEXT("SummonCompositionToolTipText", "Summons world composition"))
-						.HAlign(HAlign_Center)
-						.VAlign(VAlign_Center)
-						.Content()
-						[
-							SNew(SImage)
-							.Image(this, &SWorldHierarchy::GetSummonCompositionBrush)
-						]
-					]
 				]
-			]
 			
-			// Hierarchy
-			+SVerticalBox::Slot()
-			.FillHeight(1.f)
-			.Padding(0,4,0,0)
-			[
-				SNew(SBorder)
-				.BorderImage(FEditorStyle::GetBrush(TEXT("ToolPanel.GroupBorder")))
+				// Hierarchy
+				+SVerticalBox::Slot()
+				.FillHeight(1.f)
+				.Padding(0,4,0,0)
 				[
-					SNew(SWorldHierarchyImpl)
-						.InWorldModel(WorldModel)
+					SNew(SBorder)
+					.BorderImage(FEditorStyle::GetBrush(TEXT("ToolPanel.GroupBorder")))
+					[
+						SNew(SWorldHierarchyImpl)
+							.InWorldModel(WorldModel)
+					]
 				]
-			]
-		];
+			];
+		}
 	}
 }
 

@@ -177,9 +177,6 @@ public:
 	/** @return	Whether this level collection model is a tile world */
 	virtual bool IsTileWorld() const { return false; };
 
-	/** @return	Whether this level collection model is a partition world */
-	virtual bool IsPartitionWorld() const { return false; };
-
 	/** Returns true if this collection model will support folders */
 	virtual bool HasFolderSupport() const { return false; }
 
