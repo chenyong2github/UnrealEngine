@@ -773,12 +773,15 @@ namespace Gauntlet
 		{
 			SessionInstance = null;
 
+			// The number of retries when launching session to avoid an endless loop if package can't be installed, network timeouts, etc
+			int SessionRetries = 2;
+
 			// tries to find devices and launch our session. Will loop until we succeed, we run out of devices/retries, or
 			// something fatal occurs..
 			while (SessionInstance == null && Globals.CancelSignalled == false)
 			{
-				int Retries = 5;
-				int RetryWait = 120;
+				int ReservationRetries = 5;
+				int ReservationRetryWait = 120;
 
 				IEnumerable<UnrealSessionRole> RolesNeedingDevices = SessionRoles.Where(R => R.IsNullRole() == false);
 
@@ -795,12 +798,12 @@ namespace Gauntlet
 					// if we failed to get enough devices, show a message and wait
 					if (ReservedDevices.Count() != SessionRoles.Count())
 					{
-						if (Retries == 0)
+						if (ReservationRetries == 0)
 						{
 							throw new AutomationException("Unable to acquire all devices for test.");
 						}
-						Log.Info("\nUnable to find enough device(s). Waiting {0} secs (retries left={1})\n", RetryWait, --Retries);
-						Thread.Sleep(RetryWait * 1000);
+						Log.Info("\nUnable to find enough device(s). Waiting {0} secs (retries left={1})\n", ReservationRetryWait, --ReservationRetries);
+						Thread.Sleep(ReservationRetryWait * 1000);
 					}
 				}
 
@@ -921,6 +924,13 @@ namespace Gauntlet
 				{
 					// release all devices
 					ReleaseDevices();
+
+					if (SessionRetries == 0)
+					{
+						throw new AutomationException("Unable to install application for session.");
+					}
+
+					Log.Info("\nUnable to install application for session (retries left={0})\n", --SessionRetries);
 				}
 				
 
@@ -970,6 +980,13 @@ namespace Gauntlet
 
 							// release all devices
 							ReleaseDevices();
+
+							if (SessionRetries == 0)
+							{
+								throw new AutomationException("Unable to start application for session, see warnings for details.");
+							}
+
+							Log.Info("\nUnable to start application for session (retries left={0})\n", --SessionRetries);
 
 							break; // do not continue loop
 						}
