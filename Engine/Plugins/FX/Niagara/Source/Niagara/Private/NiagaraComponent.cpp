@@ -3253,6 +3253,11 @@ void UNiagaraComponent::SetAsset(UNiagaraSystem* InAsset)
 
 	UnregisterWithScalabilityManager();
 
+	const bool bWasActive = SystemInstance && SystemInstance->GetRequestedExecutionState() == ENiagaraExecutionState::Active;
+
+	DestroyInstance();
+
+	// Set new asset, update parameters and reactivate it it was already active
 	Asset = InAsset;
 
 #if WITH_EDITOR
@@ -3263,14 +3268,12 @@ void UNiagaraComponent::SetAsset(UNiagaraSystem* InAsset)
 			FNiagaraParameterStore::FOnChanged::FDelegate::CreateUObject(this, &UNiagaraComponent::AssetExposedParametersChanged));
 	}
 #else
-	CopyParametersFromAsset();
-	OverrideParameters.Rebind();
+	if (Asset != nullptr)
+	{
+		CopyParametersFromAsset();
+		OverrideParameters.Rebind();
+	}
 #endif
-
-	bool bWasActive = SystemInstance && SystemInstance->GetRequestedExecutionState() == ENiagaraExecutionState::Active;
-
-	//Force a reinit.
-	DestroyInstance();
 
 	if (Asset && IsRegistered())
 	{
