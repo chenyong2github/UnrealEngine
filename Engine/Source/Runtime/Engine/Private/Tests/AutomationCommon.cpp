@@ -338,12 +338,17 @@ bool FWaitForSpecifiedMapToLoadCommand::Update()
 {
 	UWorld* TestWorld = AutomationCommon::GetAnyGameWorld();
 
-	if ( TestWorld && TestWorld->GetName() == MapName && TestWorld->AreActorsInitialized() )
+	if ( TestWorld && TestWorld->AreActorsInitialized() )
 	{
 		AGameStateBase* GameState = TestWorld->GetGameState();
-		if (GameState && GameState->HasMatchStarted() )
+		if (GameState && GameState->HasMatchStarted())
 		{
-			return true;
+			FString ShortMapName = FPackageName::GetShortName(MapName);
+			// Handle both ways the user may have specified this
+			if (TestWorld->GetName() == ShortMapName)
+			{
+				return true;
+			}
 		}
 	}
 
