@@ -69,7 +69,7 @@ void FPropertyValueImpl::EnumerateObjectsToModify( FPropertyNode* InPropertyNode
 			else
 			{
 				const UObject* Obj = ComplexNode->GetInstanceAsUObject(Index).Get();
-				ObjectOrStruct = Obj;
+				ObjectOrStruct = (uint8*)Obj;
 				BaseAddress = InPropertyNode->GetValueBaseAddressFromObject(Obj);
 			}
 
