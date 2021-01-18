@@ -4665,7 +4665,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 		{
 			// if the save was successful, update the internal package filename path if we aren't currently cooking
 #if WITH_EDITOR
-			if (TargetPlatform == nullptr && !TargetPackagePath.IsMountedPath())
+			if (TargetPlatform == nullptr && TargetPackagePath.IsMountedPath())
 			{
 				InOuter->SetLoadedPath(TargetPackagePath);
 			}

@@ -86,6 +86,8 @@ public:
 				}, false/*bIncludeNestedObjects*/);
 		}
 
+		TargetPackagePath = FPackagePath::FromLocalPath(InFilename);
+
 		// if we aren't cooking and top level flags aren't empty, add RF_HasExternalPackage to them to catch external packages data
 		if (SaveArgs.TopLevelFlags != RF_NoFlags && !IsCooking())
 		{
@@ -143,6 +145,11 @@ public:
 	const TCHAR* GetFilename() const
 	{
 		return Filename;
+	}
+
+	const FPackagePath& GetTargetPackagePath() const
+	{
+		return TargetPackagePath;
 	}
 
 	EObjectMark GetExcludedObjectMarks() const
@@ -548,6 +555,7 @@ private:
 	// Args
 	UPackage* Package;
 	UObject* Asset;
+	FPackagePath TargetPackagePath;
 	const TCHAR* Filename;
 	FSavePackageArgs SaveArgs;
 
