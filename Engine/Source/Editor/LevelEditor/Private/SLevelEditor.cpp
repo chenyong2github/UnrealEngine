@@ -984,7 +984,7 @@ bool SLevelEditor::CanSpawnWorldBrowser(const FSpawnTabArgs& Args) const
 	return !UWorld::HasSubsystem<UWorldPartitionSubsystem>(GetWorld());
 }
 
-bool SLevelEditor::SLevelEditor::CanSpawnWorldPartitionBrowser(const FSpawnTabArgs& Args) const
+bool SLevelEditor::CanSpawnWorldPartitionBrowser(const FSpawnTabArgs& Args) const
 {
 	return UWorld::HasSubsystem<UWorldPartitionSubsystem>(GetWorld());
 }
