@@ -7,6 +7,7 @@
 #include "BlueprintActionDatabase.h"
 #include "BlueprintFunctionNodeSpawner.h"
 #include "HAL/IConsoleManager.h"
+#include "BlueprintEditorSettings.h"
 
 /** 
 * Contains behavior needed to handle type promotion in blueprints. 
@@ -184,10 +185,12 @@ private:
 
 namespace TypePromoDebug
 {
-	/** Checks if the CVar for type promotion is true or false (BP.TypePromo.IsEnabled) */
+	/** 
+	* Checks if the type promotion editor pref is true or false
+	* (The bEnableTypePromotion BP editor setting)
+	*/
 	static bool IsTypePromoEnabled()
 	{
-		static IConsoleVariable* TypePromoCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("BP.TypePromo.IsEnabled"));
-		return TypePromoCVar ? TypePromoCVar->GetBool() : false;
+		return GetDefault<UBlueprintEditorSettings>()->bEnableTypePromotion;
 	}
 }

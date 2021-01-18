@@ -95,6 +95,10 @@ public:
 	UPROPERTY(config, EditAnywhere, Category = Workflow)
 	bool bDoubleClickNavigatesToParent;
 
+	/** Allows for pin types to be promoted to others, i.e. float to double */
+	UPROPERTY(config, EditAnywhere, Category = Workflow)
+	bool bEnableTypePromotion;
+
 // Experimental
 public:
 	// The list of namespaces to always expose in any Blueprint (local per-user)

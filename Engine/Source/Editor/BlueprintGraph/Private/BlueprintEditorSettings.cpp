@@ -8,6 +8,7 @@
 #include "FindInBlueprintManager.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "Editor.h"
+#include "BlueprintTypePromotion.h"
 
 UBlueprintEditorSettings::UBlueprintEditorSettings(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -30,6 +31,7 @@ UBlueprintEditorSettings::UBlueprintEditorSettings(const FObjectInitializer& Obj
 	, bHostFindInBlueprintsInGlobalTab(true)
 	, bNavigateToNativeFunctionsFromCallNodes(true)
 	, bDoubleClickNavigatesToParent(false)
+	, bEnableTypePromotion(true)
 	// Experimental
 	, bFavorPureCastNodes(false)
 	// Compiler Settings
@@ -94,6 +96,14 @@ void UBlueprintEditorSettings::PostEditChangeProperty(FPropertyChangedEvent& Pro
 	
 	if (PropertyName == GET_MEMBER_NAME_CHECKED(UBlueprintEditorSettings, bExposeDeprecatedFunctions))
 	{
+		bShouldRebuildRegistry = true;
+	}
+
+	// Refresh type promotion when the preference gets changed so that we can correctly rebuild the action database
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(UBlueprintEditorSettings, bEnableTypePromotion))
+	{
+		FTypePromotion::ClearNodeSpawners();
+
 		bShouldRebuildRegistry = true;
 	}
 

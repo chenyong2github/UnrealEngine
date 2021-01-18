@@ -26,26 +26,6 @@ namespace OperatorNames
 	static const FName Equal		= TEXT("EqualEqual");
 }
 
-namespace TypePromoDebug
-{
-	static bool bIsTypePromoEnabled = false;
-	static FAutoConsoleVariableRef CVarIsTypePromoEnabled(
-		TEXT("BP.TypePromo.IsEnabled"), bIsTypePromoEnabled,
-		TEXT("If true then type promotion inside of blueprints will be enabled"),
-		FConsoleVariableDelegate::CreateLambda([](IConsoleVariable* InVariable)
-		{
-			// Clear the node spawner so that we create the new BP actions correctly
-			FTypePromotion::ClearNodeSpawners();
-
-			// Refresh all the actions so that the context menu goes back to the normal options
-			if (FBlueprintActionDatabase* Actions = FBlueprintActionDatabase::TryGet())
-			{
-				Actions->RefreshAll();
-			}
-		}),
-		ECVF_Default);
-}
-
 FTypePromotion& FTypePromotion::Get()
 {
 	if (Instance == nullptr)
