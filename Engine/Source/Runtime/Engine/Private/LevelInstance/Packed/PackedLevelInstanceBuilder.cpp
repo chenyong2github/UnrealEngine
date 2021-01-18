@@ -23,6 +23,7 @@
 #include "Components/SceneComponent.h"
 #include "GameFramework/WorldSettings.h"
 #include "Engine/LevelBounds.h"
+#include "Engine/LevelStreaming.h"
 #include "Engine/Brush.h"
 #include "FileHelpers.h"
 #include "Editor.h"
@@ -135,7 +136,12 @@ void FPackedLevelInstanceBuilder::PackActor(APackedLevelInstance* InPackedLevelI
 	check(LevelInstanceSubystem);
 	
 	ULevel* SourceLevel = LevelInstanceSubystem->GetLevelInstanceLevel(InLevelInstanceToPack);
-		
+	ULevelStreaming* SourceLevelStreaming = ULevelStreaming::FindStreamingLevel(SourceLevel);
+	AWorldSettings* WorldSettings = SourceLevel->GetWorldSettings();
+	
+	Context.SetLevelTransform(SourceLevelStreaming->LevelTransform);
+	Context.SetPivotOffset(WorldSettings->LevelInstancePivotOffset);
+	
 	if (AActor* DefaultBrush = SourceLevel->GetDefaultBrush())
 	{
 		Context.DiscardActor(DefaultBrush);

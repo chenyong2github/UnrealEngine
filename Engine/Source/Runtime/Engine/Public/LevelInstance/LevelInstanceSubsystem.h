@@ -15,14 +15,6 @@ class ULevelStreamingLevelInstanceEditor;
 class UWorldPartitionSubsystem;
 class UBlueprint;
 
-UENUM()
-enum class ELevelInstanceCreationType : uint8
-{
-	LevelInstance,
-	PackedLevelInstance,
-	PackedLevelInstanceBlueprint
-};
-
 /**
  * ULevelInstanceSubsystem
  */
@@ -81,7 +73,7 @@ public:
 
 	bool SetCurrent(ALevelInstance* LevelInstanceActor) const;
 	bool IsCurrent(const ALevelInstance* LevelInstanceActor) const;
-	ALevelInstance* CreateLevelInstanceFrom(const TArray<AActor*>& ActorsToMove, ELevelInstanceCreationType CreationType = ELevelInstanceCreationType::LevelInstance, UWorld* TemplateWorld = nullptr);
+	ALevelInstance* CreateLevelInstanceFrom(const TArray<AActor*>& ActorsToMove, ELevelInstanceCreationType CreationType, ELevelInstancePivotType PivotType, AActor* PivotActor = nullptr, UWorld* TemplateWorld = nullptr);
 	bool MoveActorsToLevel(const TArray<AActor*>& ActorsToRemove, ULevel* DestinationLevel) const;
 	bool MoveActorsTo(ALevelInstance* LevelInstanceActor, const TArray<AActor*>& ActorsToMove);
 	bool BreakLevelInstance(ALevelInstance* LevelInstanceActor, uint32 Levels = 1);

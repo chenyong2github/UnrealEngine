@@ -5,8 +5,10 @@
 #if WITH_EDITOR
 #include "LevelInstance/LevelInstanceActor.h"
 #include "LevelInstance/LevelInstanceSubsystem.h"
+#include "LevelInstance/LevelInstanceEditorPivotActor.h"
 #include "EditorLevelUtils.h"
 #include "Editor.h"
+#include "Engine/LevelBounds.h"
 #endif
 
 #if WITH_EDITOR
@@ -51,6 +53,9 @@ ULevelStreamingLevelInstanceEditor* ULevelStreamingLevelInstanceEditor::Load(ALe
 
 	GEngine->BlockTillLevelStreamingCompleted(LevelInstanceActor->GetWorld());
 	
+	// Create special actor that will handle changing the pivot of this level
+	ALevelInstancePivot::Create(LevelInstanceActor, LevelStreaming);
+
 	return LevelStreaming;
 }
 
@@ -67,6 +72,26 @@ void ULevelStreamingLevelInstanceEditor::OnLevelActorAdded(AActor* InActor)
 	{
 		InActor->PushLevelInstanceEditingStateToProxies(true);
 	}
+}
+
+void ULevelStreamingLevelInstanceEditor::SetLoadedLevel(ULevel* Level)
+{
+	Super::SetLoadedLevel(Level);
+
+	if (ULevel* NewLoadedLevel = GetLoadedLevel())
+	{
+		check(!NewLoadedLevel->bAlreadyMovedActors);
+		if (AWorldSettings* WorldSettings = NewLoadedLevel->GetWorldSettings())
+		{
+			LevelTransform.AddToTranslation(WorldSettings->LevelInstancePivotOffset);
+		}
+	}
+}
+
+FBox ULevelStreamingLevelInstanceEditor::GetBounds() const
+{
+	check(GetLoadedLevel());
+	return ALevelBounds::CalculateLevelBounds(GetLoadedLevel());
 }
 
 #endif

@@ -93,6 +93,7 @@ void APackedLevelInstance::OnCommitChild()
 
 void APackedLevelInstance::OnEdit()
 {
+	Super::OnEdit();
 	check(!bEditing);
 	
 	bEditing = true;
@@ -101,6 +102,7 @@ void APackedLevelInstance::OnEdit()
 
 void APackedLevelInstance::OnCommit()
 {
+	Super::OnCommit();
 	check(bEditing);
 	bEditing = false;
 	MarkComponentsRenderStateDirty();

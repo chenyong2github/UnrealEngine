@@ -205,6 +205,16 @@ AActor* ALevelInstance::FindEditorInstanceActor() const
 	return FoundActor;
 }
 
+void ALevelInstance::OnEdit()
+{
+	bLockLocation = true;
+}
+
+void ALevelInstance::OnCommit()
+{
+	bLockLocation = false;
+}
+
 ALevelInstance::FOnLevelInstanceActorPostLoad ALevelInstance::OnLevelInstanceActorPostLoad;
 
 void ALevelInstance::PostLoad()

@@ -79,9 +79,9 @@ public:
 
 	virtual void OnWorldAssetChanged() { UpdateLevelInstance(); }
 	virtual void OnWorldAssetSaved() {}
-	virtual void OnEdit() {}
+	virtual void OnEdit();
 	virtual void OnEditChild() {}
-	virtual void OnCommit() {}
+	virtual void OnCommit();
 	virtual void OnCommitChild() {}
 		
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnLevelInstanceActorPostLoad, ALevelInstance*);

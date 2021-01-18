@@ -19,6 +19,7 @@ public:
 #if WITH_EDITOR
 	virtual bool ShowInLevelCollection() const override { return false; }
 	ALevelInstance* GetLevelInstanceActor() const;
+	FBox GetBounds() const;
 
 protected:
 	void OnLevelActorAdded(AActor* InActor);
@@ -27,6 +28,8 @@ protected:
 
 	static ULevelStreamingLevelInstanceEditor* Load(ALevelInstance* LevelInstanceActor);
 	static void Unload(ULevelStreamingLevelInstanceEditor* LevelStreaming);
+
+	virtual void SetLoadedLevel(ULevel* Level) override;
 private:
 	FLevelInstanceID LevelInstanceID;
 #endif

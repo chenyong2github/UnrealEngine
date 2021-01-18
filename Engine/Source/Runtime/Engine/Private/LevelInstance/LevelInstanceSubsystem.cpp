@@ -446,6 +446,11 @@ bool ULevelInstanceSubsystem::GetLevelInstanceBounds(const ALevelInstance* Level
 		OutBounds = LevelInstance.LevelStreaming->GetBounds();
 		return true;
 	}
+	else if (const FLevelInstanceEdit* LevelInstanceEdit = GetLevelInstanceEdit(LevelInstanceActor))
+	{
+		OutBounds = LevelInstanceEdit->LevelStreaming->GetBounds();
+		return true;
+	}
 	else if(LevelInstanceActor->IsLevelInstancePathValid())
 	{
 		if (ULevel::GetLevelBoundsFromPackage(FName(*LevelInstanceActor->GetWorldAssetPackage()), OutBounds))
@@ -633,7 +638,7 @@ bool ULevelInstanceSubsystem::MoveActorsTo(ALevelInstance* LevelInstanceActor, c
 	return MoveActorsToLevel(ActorsToMove, LevelInstanceLevel);
 }
 
-ALevelInstance* ULevelInstanceSubsystem::CreateLevelInstanceFrom(const TArray<AActor*>& ActorsToMove, ELevelInstanceCreationType CreationType, UWorld* TemplateWorld)
+ALevelInstance* ULevelInstanceSubsystem::CreateLevelInstanceFrom(const TArray<AActor*>& ActorsToMove, ELevelInstanceCreationType CreationType, ELevelInstancePivotType PivotType, AActor* PivotActor, UWorld* TemplateWorld)
 {
 	ULevel* CurrentLevel = GetWorld()->GetCurrentLevel();
 		
@@ -658,9 +663,21 @@ ALevelInstance* ULevelInstanceSubsystem::CreateLevelInstanceFrom(const TArray<AA
 		}
 	}
 
-	FVector LevelInstanceLocation = ActorLocationBox.GetCenter();
-	LevelInstanceLocation.Z = ActorLocationBox.Min.Z;
-
+	FVector LevelInstanceLocation;
+	if (PivotType == ELevelInstancePivotType::Actor)
+	{
+		check(PivotActor);
+		LevelInstanceLocation = PivotActor->GetActorLocation();
+	}
+	else
+	{
+		LevelInstanceLocation = ActorLocationBox.GetCenter();
+		if (PivotType == ELevelInstancePivotType::CenterMinZ)
+		{
+			LevelInstanceLocation.Z = ActorLocationBox.Min.Z;
+		}
+	}
+		
 	ULevelStreamingLevelInstanceEditor* LevelStreaming = StaticCast<ULevelStreamingLevelInstanceEditor*>(EditorLevelUtils::CreateNewStreamingLevelForWorld(*GetWorld(), ULevelStreamingLevelInstanceEditor::StaticClass(), TEXT(""), false, TemplateWorld));
 	if (!LevelStreaming)
 	{
@@ -730,7 +747,7 @@ ALevelInstance* ULevelInstanceSubsystem::CreateLevelInstanceFrom(const TArray<AA
 	check(NewLevelInstanceActor);
 	NewLevelInstanceActor->SetWorldAsset(WorldPtr);
 	NewLevelInstanceActor->SetActorLocation(LevelInstanceLocation);
-
+	
 	// Actors were moved and kept their World positions so when saving we want their positions to actually be relative to the FounationActor/LevelTransform
 	// so we set the LevelTransform and we mark the level as having moved its actors. 
 	// On Level save FLevelUtils::RemoveEditorTransform will fixup actor transforms to make them relative to the LevelTransform.

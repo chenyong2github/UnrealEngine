@@ -484,6 +484,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = WorldPartition, AdvancedDisplay, meta = (editcondition = "bEnableWorldPartition"))
 	TSubclassOf<UWorldPartitionStreamingPolicy> WorldPartitionStreamingPolicyClass;
 
+	/** Additional transform applied when applying LevelStreaming Transform to LevelInstance */
+	UPROPERTY()
+	FVector LevelInstancePivotOffset;
+
 	/**
 	 * Enables client-side streaming volumes instead of server-side.
 	 * Expected usage scenario: server has all streaming levels always loaded, clients independently stream levels in/out based on streaming volumes.

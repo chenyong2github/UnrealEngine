@@ -27,6 +27,8 @@ protected:
 	static ULevelStreamingLevelInstance* LoadInstance(ALevelInstance* LevelInstanceActor);
 	static void UnloadInstance(ULevelStreamingLevelInstance* LevelStreaming);
 
+	virtual void SetLoadedLevel(ULevel* Level) override;
+
 	friend class ULevelInstanceSubsystem;
 
 private:

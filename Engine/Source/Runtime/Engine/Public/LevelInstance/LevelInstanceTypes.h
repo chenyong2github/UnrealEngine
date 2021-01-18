@@ -7,3 +7,19 @@
 using FLevelInstanceID = uint32;
 
 static constexpr FLevelInstanceID InvalidLevelInstanceID = 0;
+
+UENUM()
+enum class ELevelInstanceCreationType : uint8
+{
+	LevelInstance,
+	PackedLevelInstance,
+	PackedLevelInstanceBlueprint
+};
+
+UENUM()
+enum class ELevelInstancePivotType : uint8
+{
+	CenterMinZ,
+	Center,
+	Actor
+};

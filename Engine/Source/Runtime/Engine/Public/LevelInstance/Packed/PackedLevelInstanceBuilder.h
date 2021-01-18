@@ -70,7 +70,8 @@ private:
 class FPackedLevelInstanceBuilderContext
 {
 public:
-	FPackedLevelInstanceBuilderContext(const FPackedLevelInstanceBuilder& InBuilder, APackedLevelInstance* InPackedLevelInstance) : Packers(InBuilder.Packers), ClassDiscards(InBuilder.ClassDiscards), PackedLevelInstance(InPackedLevelInstance) {}
+	FPackedLevelInstanceBuilderContext(const FPackedLevelInstanceBuilder& InBuilder, APackedLevelInstance* InPackedLevelInstance) 
+		: Packers(InBuilder.Packers), ClassDiscards(InBuilder.ClassDiscards), PackedLevelInstance(InPackedLevelInstance), LevelTransform(FVector::ZeroVector), PivotOffset(FVector::ZeroVector) {}
 
 	/* Interface for ILevelInstancePacker's to use */
 	void ClusterLevelActor(AActor* InLevelActor);
@@ -79,6 +80,11 @@ public:
 	void Report(FMessageLog& LevelInstanceLog) const;
 
 	const TMap<FLevelInstancePackerClusterID, TArray<UActorComponent*>>& GetClusters() const { return Clusters; }
+
+	void SetLevelTransform(const FTransform& InLevelTransform) { LevelTransform = InLevelTransform; }
+	void SetPivotOffset(const FVector& InPivotOffset) { PivotOffset = InPivotOffset; }
+	const FTransform& GetLevelTransform() const { return LevelTransform; }
+	const FVector GetPivotOffset() const { return PivotOffset; }
 
 private:
 	const TMap<FLevelInstancePackerID, TUniquePtr<ILevelInstancePacker>>& Packers;
@@ -90,6 +96,9 @@ private:
 
 	TMap<AActor*, TSet<UActorComponent*>> PerActorClusteredComponents;
 	TSet<AActor*> ActorDiscards;
+
+	FTransform LevelTransform;
+	FVector PivotOffset;
 };
 
 #endif

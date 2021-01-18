@@ -126,6 +126,8 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	// Default to UWorldPartitionLevelStreamingPolicy
 	WorldPartitionStreamingPolicyClass = UWorldPartitionLevelStreamingPolicy::StaticClass();
+
+	LevelInstancePivotOffset = FVector::ZeroVector;
 }
 
 void AWorldSettings::PostInitProperties()

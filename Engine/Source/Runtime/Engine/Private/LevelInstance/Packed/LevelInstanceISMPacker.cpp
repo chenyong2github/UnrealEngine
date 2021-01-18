@@ -39,7 +39,10 @@ void FLevelInstanceISMPacker::PackActors(FPackedLevelInstanceBuilderContext& InC
 	check(InClusterID.GetPackerID() == GetID());
 	UInstancedStaticMeshComponent* PackComponent = InPackingActor->AddPackedComponent<UInstancedStaticMeshComponent>();
 	
-	PackComponent->SetComponentToWorld(InPackingActor->GetActorTransform());
+	FTransform ActorTransform = InPackingActor->GetActorTransform();
+	FTransform CurrentPivotOffsetInverse = ActorTransform.GetRelativeTransform(InContext.GetLevelTransform());
+
+	PackComponent->SetComponentToWorld(ActorTransform);
 	PackComponent->AttachToComponent(InPackingActor->GetRootComponent(), FAttachmentTransformRules::KeepWorldTransform);
 	
 	FLevelInstanceISMPackerCluster* ISMCluster = (FLevelInstanceISMPackerCluster*)InClusterID.GetData();
@@ -63,7 +66,7 @@ void FLevelInstanceISMPacker::PackActors(FPackedLevelInstanceBuilderContext& InC
 			{
 				FTransform InstanceTransform;
 
-				if (ensure(ISMComponent->GetInstanceTransform(InstanceIndex, InstanceTransform, true)))
+				if (ensure(ISMComponent->GetInstanceTransform(InstanceIndex, InstanceTransform, /*bWorldSpace=*/ true)))
 				{
 					PackComponent->AddInstanceWorldSpace(InstanceTransform);
 				}
@@ -75,6 +78,10 @@ void FLevelInstanceISMPacker::PackActors(FPackedLevelInstanceBuilderContext& InC
 			PackComponent->AddInstanceWorldSpace(StaticMeshComponent->GetComponentTransform());
 		}
 	}
+
+	FTransform NewWorldTransform = ActorTransform * CurrentPivotOffsetInverse * FTransform(InContext.GetPivotOffset());
+
+	PackComponent->SetWorldTransform(NewWorldTransform);
 	PackComponent->RegisterComponent();
 }
 

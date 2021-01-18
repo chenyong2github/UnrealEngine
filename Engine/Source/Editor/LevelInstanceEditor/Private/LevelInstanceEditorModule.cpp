@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "LevelInstanceEditorModule.h"
 #include "LevelInstanceActorDetails.h"
+#include "LevelInstancePivotDetails.h"
 #include "LevelInstance/LevelInstanceSubsystem.h"
 #include "LevelInstance/LevelInstanceActor.h"
 #include "LevelInstance/Packed/PackedLevelInstanceBuilder.h"
@@ -30,6 +31,8 @@
 #include "Misc/ScopeExit.h"
 #include "Widgets/Input/SNumericEntryBox.h"
 #include "Widgets/Input/SButton.h"
+#include "Widgets/SWindow.h"
+#include "SNewLevelInstanceDialog.h"
 #include "MessageLogModule.h"
 
 IMPLEMENT_MODULE( FLevelInstanceEditorModule, LevelInstanceEditor );
@@ -298,7 +301,7 @@ namespace LevelInstanceMenuUtils
 		}
 	}
 
-	void CreateLevelInstanceFromSelection(ULevelInstanceSubsystem* LevelInstanceSubsystem, ELevelInstanceCreationType CreationType)
+	void CreateLevelInstanceFromSelection(ULevelInstanceSubsystem* LevelInstanceSubsystem)
 	{
 		TArray<AActor*> ActorsToMove;
 		ActorsToMove.Reserve(GEditor->GetSelectedActorCount());
@@ -311,54 +314,69 @@ namespace LevelInstanceMenuUtils
 		}
 
 		IMainFrameModule& MainFrameModule = FModuleManager::GetModuleChecked<IMainFrameModule>("MainFrame");
-		FNewLevelDialogModule& NewLevelDialogModule = FModuleManager::LoadModuleChecked<FNewLevelDialogModule>("NewLevelDialog");
-		FString TemplateMapPackage;
-		if (!GetMutableDefault<ULevelInstanceEditorSettings>()->TemplateMapInfos.Num() || NewLevelDialogModule.CreateAndShowTemplateDialog(MainFrameModule.GetParentWindow(), LOCTEXT("LevelInstanceTemplateDialog", "Choose Level Instance Template..."), GetMutableDefault<ULevelInstanceEditorSettings>()->TemplateMapInfos, TemplateMapPackage))
-		{
-			UPackage* TemplatePackage = !TemplateMapPackage.IsEmpty() ? LoadPackage(nullptr, *TemplateMapPackage, LOAD_None) : nullptr;
-			UWorld* TemplateWorld = TemplatePackage ? UWorld::FindWorldInPackage(TemplatePackage) : nullptr;
 
-			if (!LevelInstanceSubsystem->CreateLevelInstanceFrom(ActorsToMove, CreationType, TemplateWorld))
-			{
-				FText Title = LOCTEXT("CreateFromSelectionFailTitle", "Create from selection failed");
-				FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("CreateFromSelectionFailMsg", "Failed to create LevelInstance from selection. Check log for details."), &Title);
-			}
-		}
-	}
+		TSharedPtr<SWindow> NewLevelInstanceWindow =
+			SNew(SWindow)
+			.Title(LOCTEXT("NewLevelInstanceWindowTitle", "New Level Instance"))
+			.ClientSize(SNewLevelInstanceDialog::DEFAULT_WINDOW_SIZE)
+			.SizingRule(ESizingRule::UserSized)
+			.SupportsMinimize(false)
+			.SupportsMaximize(false)
+			.SizingRule(ESizingRule::FixedSize);
 
-	void CreateLevelInstanceFromSelectionSubMenu(UToolMenu* ToolMenu, ULevelInstanceSubsystem* LevelInstanceSubsystem)
-	{
-		FToolMenuSection* Section = &ToolMenu->AddSection(FName("LevelInstanceCreateFromSelectionSub"));
-		UEnum* CreationTypeEnum = StaticEnum<ELevelInstanceCreationType>();
-		check(CreationTypeEnum);
-		for (int32 i = 0; i < CreationTypeEnum->NumEnums()-1; ++i)
+		TSharedRef<SNewLevelInstanceDialog> NewLevelInstanceDialog =
+			SNew(SNewLevelInstanceDialog)
+			.ParentWindow(NewLevelInstanceWindow)
+			.PivotActors(ActorsToMove);
+
+		NewLevelInstanceWindow->SetContent(NewLevelInstanceDialog);
+
+		FSlateApplication::Get().AddModalWindow(NewLevelInstanceWindow.ToSharedRef(), MainFrameModule.GetParentWindow());
+
+
+		if (NewLevelInstanceDialog->ClickedOk())
 		{
-			if (!CreationTypeEnum->HasMetaData(TEXT("Hidden"), i))
+			ELevelInstanceCreationType CreationType = NewLevelInstanceDialog->GetCreationType();
+			ELevelInstancePivotType PivotType = NewLevelInstanceDialog->GetPivotType();
+			AActor* PivotActor = NewLevelInstanceDialog->GetPivotActor();
+
+			FNewLevelDialogModule& NewLevelDialogModule = FModuleManager::LoadModuleChecked<FNewLevelDialogModule>("NewLevelDialog");
+			FString TemplateMapPackage;
+			if (!GetMutableDefault<ULevelInstanceEditorSettings>()->TemplateMapInfos.Num() || NewLevelDialogModule.CreateAndShowTemplateDialog(MainFrameModule.GetParentWindow(), LOCTEXT("LevelInstanceTemplateDialog", "Choose Level Instance Template..."), GetMutableDefault<ULevelInstanceEditorSettings>()->TemplateMapInfos, TemplateMapPackage))
 			{
-				ELevelInstanceCreationType CreationType = (ELevelInstanceCreationType)CreationTypeEnum->GetValueByIndex(i);
-				FToolUIAction CreateFromSelectionAction;
-				CreateFromSelectionAction.ExecuteAction.BindLambda([LevelInstanceSubsystem, CreationType](const FToolMenuContext&)
+				UPackage* TemplatePackage = !TemplateMapPackage.IsEmpty() ? LoadPackage(nullptr, *TemplateMapPackage, LOAD_None) : nullptr;
+				UWorld* TemplateWorld = TemplatePackage ? UWorld::FindWorldInPackage(TemplatePackage) : nullptr;
+
+				if (!LevelInstanceSubsystem->CreateLevelInstanceFrom(ActorsToMove, CreationType, PivotType, PivotActor, TemplateWorld))
 				{
-					CreateLevelInstanceFromSelection(LevelInstanceSubsystem, CreationType);
-				});
-
-				Section->AddMenuEntry(NAME_None, CreationTypeEnum->GetDisplayNameTextByIndex(i), TAttribute<FText>(), FSlateIcon(), CreateFromSelectionAction);
+					FText Title = LOCTEXT("CreateFromSelectionFailTitle", "Create from selection failed");
+					FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("CreateFromSelectionFailMsg", "Failed to create LevelInstance from selection. Check log for details."), &Title);
+				}
 			}
 		}
 	}
-
+	
 	void CreateCreateMenu(UToolMenu* Menu)
 	{
 		if (ULevelInstanceSubsystem* LevelInstanceSubsystem = GEditor->GetEditorWorldContext().World()->GetSubsystem<ULevelInstanceSubsystem>())
 		{
 			FToolMenuSection& Section = CreateLevelInstanceSection(Menu);
-			
-			Section.AddSubMenu(
+			FToolUIAction UIAction;
+			UIAction.ExecuteAction.BindLambda([LevelInstanceSubsystem](const FToolMenuContext& MenuContext)
+			{
+				CreateLevelInstanceFromSelection(LevelInstanceSubsystem);
+			});
+			UIAction.CanExecuteAction.BindLambda([](const FToolMenuContext& MenuContext)
+			{
+				return GEditor->GetSelectedActorCount() > 0;
+			});
+
+			Section.AddMenuEntry(
 				"CreateLevelInstanceFromSelection",
-				LOCTEXT("CreateLevelInstanceFromSelection", "Create from selection"),
+				LOCTEXT("CreateLevelInstanceFromSelection", "Create from selection..."),
 				TAttribute<FText>(),
-				FNewToolMenuDelegate::CreateStatic(&CreateLevelInstanceFromSelectionSubMenu, LevelInstanceSubsystem)
-			);
+				TAttribute<FSlateIcon>(),
+				UIAction);
 		}
 	}
 
@@ -642,6 +660,7 @@ void FLevelInstanceEditorModule::StartupModule()
 
 	FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
 	PropertyModule.RegisterCustomClassLayout("LevelInstance", FOnGetDetailCustomizationInstance::CreateStatic(&FLevelInstanceActorDetails::MakeInstance));
+	PropertyModule.RegisterCustomClassLayout("LevelInstancePivot", FOnGetDetailCustomizationInstance::CreateStatic(&FLevelInstancePivotDetails::MakeInstance));
 	PropertyModule.NotifyCustomizationModuleChanged();
 
 	// GEditor needs to be set before this module is loaded
