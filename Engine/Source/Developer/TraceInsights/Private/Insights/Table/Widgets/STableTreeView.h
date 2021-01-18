@@ -127,6 +127,8 @@ public:
 
 protected:
 	void ConstructWidget(TSharedPtr<FTable> InTablePtr);
+	virtual TSharedPtr<SWidget> ConstructFooter();
+
 	void UpdateTree();
 
 	/** Called when the analysis session has changed. */

@@ -105,150 +105,164 @@ void STableTreeView::ConstructWidget(TSharedPtr<FTable> InTablePtr)
 	SAssignNew(ExternalScrollbar, SScrollBar)
 	.AlwaysShowScrollbar(true);
 
-	ChildSlot
+	auto WidgetContent = 
+	SNew(SVerticalBox)
+
+	+ SVerticalBox::Slot()
+	.VAlign(VAlign_Center)
+	.AutoHeight()
 	[
-		SNew(SVerticalBox)
-
-		+ SVerticalBox::Slot()
-		.VAlign(VAlign_Center)
-		.AutoHeight()
+		SNew(SBorder)
+		.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+		.Padding(2.0f)
 		[
-			SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+			SNew(SVerticalBox)
+
+			// Search box
+			+ SVerticalBox::Slot()
+			.VAlign(VAlign_Center)
 			.Padding(2.0f)
+			.AutoHeight()
 			[
-				SNew(SVerticalBox)
+				SNew(SHorizontalBox)
 
-				// Search box
-				+ SVerticalBox::Slot()
+				+ SHorizontalBox::Slot()
+				.FillWidth(1.0)
 				.VAlign(VAlign_Center)
-				.Padding(2.0f)
-				.AutoHeight()
 				[
-					SNew(SHorizontalBox)
-
-					+ SHorizontalBox::Slot()
-					.FillWidth(1.0)
-					.VAlign(VAlign_Center)
-					[
-						SAssignNew(SearchBox, SSearchBox)
-						.HintText(LOCTEXT("SearchBoxHint", "Search"))
-						.OnTextChanged(this, &STableTreeView::SearchBox_OnTextChanged)
-						.IsEnabled(this, &STableTreeView::SearchBox_IsEnabled)
-						.ToolTipText(LOCTEXT("FilterSearchHint", "Type here to search the tree hierarchy by item or group name"))
-					]
-
-					+ SHorizontalBox::Slot()
-						.AutoWidth()
-						.VAlign(VAlign_Center)
-						[
-							SNew(SButton)
-							.Text(LOCTEXT("AdvancedFilters", "Advanced Filters"))
-							.ToolTipText(LOCTEXT("AdvancedFilters", "Opens the filter configurator window."))
-							.OnClicked(this, &STableTreeView::OnAdvancedFiltersClicked)
-						]
+					SAssignNew(SearchBox, SSearchBox)
+					.HintText(LOCTEXT("SearchBoxHint", "Search"))
+					.OnTextChanged(this, &STableTreeView::SearchBox_OnTextChanged)
+					.IsEnabled(this, &STableTreeView::SearchBox_IsEnabled)
+					.ToolTipText(LOCTEXT("FilterSearchHint", "Type here to search the tree hierarchy by item or group name"))
 				]
 
-				// Group by
-				+ SVerticalBox::Slot()
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
 				.VAlign(VAlign_Center)
-				.Padding(2.0f)
-				.AutoHeight()
 				[
-					SNew(SHorizontalBox)
+					SNew(SButton)
+					.Text(LOCTEXT("AdvancedFilters", "Advanced Filters"))
+					.ToolTipText(LOCTEXT("AdvancedFilters", "Opens the filter configurator window."))
+					.OnClicked(this, &STableTreeView::OnAdvancedFiltersClicked)
+				]
+			]
 
-					+ SHorizontalBox::Slot()
-					.AutoWidth()
-					.VAlign(VAlign_Center)
-					[
-						SNew(STextBlock)
-						.Text(LOCTEXT("GroupByText", "Hierarchy:"))
-						.Margin(FMargin(0.0f, 0.0f, 4.0f, 0.0f))
-					]
+			// Group by
+			+ SVerticalBox::Slot()
+			.VAlign(VAlign_Center)
+			.Padding(2.0f)
+			.AutoHeight()
+			[
+				SNew(SHorizontalBox)
 
-					+ SHorizontalBox::Slot()
-					.FillWidth(1.0f)
-					.VAlign(VAlign_Center)
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.VAlign(VAlign_Center)
+				[
+					SNew(STextBlock)
+					.Text(LOCTEXT("GroupByText", "Hierarchy:"))
+					.Margin(FMargin(0.0f, 0.0f, 4.0f, 0.0f))
+				]
+
+				+ SHorizontalBox::Slot()
+				.FillWidth(1.0f)
+				.VAlign(VAlign_Center)
+				[
+					SAssignNew(GroupingBreadcrumbTrail, SBreadcrumbTrail<TSharedPtr<FTreeNodeGrouping>>)
+					.ButtonContentPadding(FMargin(1.0f, 1.0f))
+					//.DelimiterImage(FEditorStyle::GetBrush("SlateFileDialogs.PathDelimiter"))
+					//.TextStyle(FEditorStyle::Get(), "Tutorials.Browser.PathText")
+					//.ShowLeadingDelimiter(true)
+					//.PersistentBreadcrumbs(true)
+					.InvertTextColorOnHover(true)
+					.OnCrumbClicked(this, &STableTreeView::OnGroupingCrumbClicked)
+					.GetCrumbMenuContent(this, &STableTreeView::GetGroupingCrumbMenuContent)
+				]
+			]
+		]
+	]
+
+	// Tree view
+	+ SVerticalBox::Slot()
+	.FillHeight(1.0f)
+	.Padding(0.0f, 6.0f, 0.0f, 0.0f)
+	[
+		SNew(SHorizontalBox)
+
+		+ SHorizontalBox::Slot()
+		.FillWidth(1.0f)
+		.Padding(0.0f)
+		[
+			SNew(SScrollBox)
+			.Orientation(Orient_Horizontal)
+
+			+ SScrollBox::Slot()
+			[
+				SNew(SOverlay)
+
+				+ SOverlay::Slot()
+				.HAlign(HAlign_Fill)
+				.VAlign(VAlign_Fill)
+				[
+					SNew(SBorder)
+					.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+					.Padding(0.0f)
 					[
-						SAssignNew(GroupingBreadcrumbTrail, SBreadcrumbTrail<TSharedPtr<FTreeNodeGrouping>>)
-						.ButtonContentPadding(FMargin(1.0f, 1.0f))
-						//.DelimiterImage(FEditorStyle::GetBrush("SlateFileDialogs.PathDelimiter"))
-						//.TextStyle(FEditorStyle::Get(), "Tutorials.Browser.PathText")
-						//.ShowLeadingDelimiter(true)
-						//.PersistentBreadcrumbs(true)
-						.InvertTextColorOnHover(true)
-						.OnCrumbClicked(this, &STableTreeView::OnGroupingCrumbClicked)
-						.GetCrumbMenuContent(this, &STableTreeView::GetGroupingCrumbMenuContent)
+						SAssignNew(TreeView, STreeView<FTableTreeNodePtr>)
+						.ExternalScrollbar(ExternalScrollbar)
+						.SelectionMode(ESelectionMode::Multi)
+						.TreeItemsSource(&FilteredGroupNodes)
+						.OnGetChildren(this, &STableTreeView::TreeView_OnGetChildren)
+						.OnGenerateRow(this, &STableTreeView::TreeView_OnGenerateRow)
+						.OnSelectionChanged(this, &STableTreeView::TreeView_OnSelectionChanged)
+						.OnMouseButtonDoubleClick(this, &STableTreeView::TreeView_OnMouseButtonDoubleClick)
+						.OnContextMenuOpening(FOnContextMenuOpening::CreateSP(this, &STableTreeView::TreeView_GetMenuContent))
+						.ItemHeight(12.0f)
+						.HeaderRow
+						(
+							SAssignNew(TreeViewHeaderRow, SHeaderRow)
+							.Visibility(EVisibility::Visible)
+						)
 					]
+				]
+
+				+ SOverlay::Slot()
+				.HAlign(HAlign_Right)
+				.VAlign(VAlign_Bottom)
+				.Padding(16.0f)
+				[
+					SAssignNew(AsyncOperationStatus, Insights::SAsyncOperationStatus, SharedThis(this))
 				]
 			]
 		]
 
-		// Tree view
-		+ SVerticalBox::Slot()
-		.FillHeight(1.0f)
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		.Padding(0.0f)
+		[
+			SNew(SBox)
+			.WidthOverride(FOptionalSize(13.0f))
+			[
+				ExternalScrollbar.ToSharedRef()
+			]
+		]
+	];
+
+	TSharedPtr<SWidget> Footer = ConstructFooter();
+	if (Footer.IsValid())
+	{
+		WidgetContent->AddSlot()
+		.AutoHeight()
 		.Padding(0.0f, 6.0f, 0.0f, 0.0f)
 		[
-			SNew(SHorizontalBox)
+			Footer.ToSharedRef()
+		];
+	}
 
-			+ SHorizontalBox::Slot()
-			.FillWidth(1.0f)
-			.Padding(0.0f)
-			[
-				SNew(SScrollBox)
-				.Orientation(Orient_Horizontal)
-
-				+ SScrollBox::Slot()
-				[
-					SNew(SOverlay)
-
-					+ SOverlay::Slot()
-					.HAlign(HAlign_Fill)
-					.VAlign(VAlign_Fill)
-					[
-						SNew(SBorder)
-						.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
-						.Padding(0.0f)
-						[
-							SAssignNew(TreeView, STreeView<FTableTreeNodePtr>)
-							.ExternalScrollbar(ExternalScrollbar)
-							.SelectionMode(ESelectionMode::Multi)
-							.TreeItemsSource(&FilteredGroupNodes)
-							.OnGetChildren(this, &STableTreeView::TreeView_OnGetChildren)
-							.OnGenerateRow(this, &STableTreeView::TreeView_OnGenerateRow)
-							.OnSelectionChanged(this, &STableTreeView::TreeView_OnSelectionChanged)
-							.OnMouseButtonDoubleClick(this, &STableTreeView::TreeView_OnMouseButtonDoubleClick)
-							.OnContextMenuOpening(FOnContextMenuOpening::CreateSP(this, &STableTreeView::TreeView_GetMenuContent))
-							.ItemHeight(12.0f)
-							.HeaderRow
-							(
-								SAssignNew(TreeViewHeaderRow, SHeaderRow)
-								.Visibility(EVisibility::Visible)
-							)
-						]
-					]
-
-					+ SOverlay::Slot()
-					.HAlign(HAlign_Right)
-					.VAlign(VAlign_Bottom)
-					.Padding(16.0f)
-					[
-						SAssignNew(AsyncOperationStatus, Insights::SAsyncOperationStatus, SharedThis(this))
-					]
-				]
-			]
-
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.Padding(0.0f)
-			[
-				SNew(SBox)
-				.WidthOverride(FOptionalSize(13.0f))
-				[
-					ExternalScrollbar.ToSharedRef()
-				]
-			]
-		]
+	ChildSlot
+	[
+		WidgetContent
 	];
 
 	// Create the search filters: text based, type based etc.
@@ -2375,6 +2389,13 @@ void STableTreeView::OnAdvancedFiltersChangesCommited()
 	{
 		CancelCurrentAsyncOp();
 	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+TSharedPtr<SWidget> STableTreeView::ConstructFooter()
+{
+	return nullptr;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

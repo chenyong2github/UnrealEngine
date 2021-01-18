@@ -91,7 +91,7 @@ public:
 		ResolveQueue.Enqueue(QueuedAddress{Address, Symbol});
 	}
 
-	void GetStats(IModuleProvider::FStats* OutStats)
+	void GetStats(IModuleProvider::FStats* OutStats) const
 	{
 		OutStats->ModulesDiscovered = ModulesDiscovered.load();
 		OutStats->ModulesFailed = ModulesFailed.load();

@@ -5,6 +5,7 @@
 #include "TraceServices/AnalysisService.h"
 #include "TraceServices/Model/AllocationsProvider.h"
 #include "TraceServices/Model/Callstack.h"
+#include "TraceServices/Model/Modules.h"
 
 // Insights
 #include "Insights/MemoryProfiler/MemoryProfilerManager.h"
@@ -381,6 +382,34 @@ FText SMemAllocTableTreeView::GetCurrentOperationName() const
 	}
 
 	return STableTreeView::GetCurrentOperationName();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+TSharedPtr<SWidget> SMemAllocTableTreeView::ConstructFooter()
+{
+	return
+		SNew(SHorizontalBox)
+
+		+ SHorizontalBox::Slot()
+		.HAlign(HAlign_Right)
+		.Padding(2.0f)
+		[
+			SNew(STextBlock)
+			.Text(this, &SMemAllocTableTreeView::GetSymbolResolutionStatus)
+		];
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FText SMemAllocTableTreeView::GetSymbolResolutionStatus() const
+{
+	auto ModuleProvider = Session->ReadProvider<IModuleProvider>(FName("ModuleProvider"));
+
+	IModuleProvider::FStats Stats;
+	ModuleProvider->GetStats(&Stats);
+
+	return FText::Format(LOCTEXT("SymbolsResolved", "{0} / {1} symbols resolved. {2} failed."), Stats.SymbolsResolved, Stats.SymbolsDiscovered, Stats.SymbolsFailed);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

@@ -45,7 +45,7 @@ public:
 
 	//Query interface
 	const FResolvedSymbol*		GetSymbol(uint64 Address) override;
-	void						GetStats(FStats* OutStats) override;
+	void						GetStats(FStats* OutStats) const override;
 	
 	
 	//Analysis interface
@@ -113,7 +113,7 @@ const FResolvedSymbol* TModuleProvider<SymbolProvider>::GetSymbol(uint64 Address
 
 /////////////////////////////////////////////////////////////////////
 template<typename SymbolResolver>
-void TModuleProvider<SymbolResolver>::GetStats(FStats* OutStats)
+void TModuleProvider<SymbolResolver>::GetStats(FStats* OutStats) const
 {
 	Resolver.GetStats(OutStats);
 }

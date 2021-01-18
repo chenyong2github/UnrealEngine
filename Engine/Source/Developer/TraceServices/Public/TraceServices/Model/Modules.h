@@ -49,7 +49,7 @@ public:
 	virtual const FResolvedSymbol* GetSymbol(uint64 Address) = 0;
 
 	/** Gets statistics from provider */
-	virtual void GetStats(FStats* OutStats) = 0;
+	virtual void GetStats(FStats* OutStats) const = 0;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
