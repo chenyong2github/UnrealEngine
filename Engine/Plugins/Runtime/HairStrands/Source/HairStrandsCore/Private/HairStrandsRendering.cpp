@@ -1537,6 +1537,8 @@ void ComputeHairStrandsInterpolation(
 				ScaleAndClipDesc.HairRadiusTipScale = 1;
 				ScaleAndClipDesc.HairLengthClip = 1;
 
+				const bool bHasSkinning = Instance->BindingType == EHairBindingType::Skinning;
+
 				FRDGHairStrandsCullingData CullingData;
 				AddHairStrandsInterpolationPass(
 					GraphBuilder,
@@ -1554,10 +1556,10 @@ void ComputeHairStrandsInterpolation(
 					Instance->Guides.RestResource->PositionOffset,
 					RegisterAsSRV(GraphBuilder, LOD.Guides.DeformedResource->GetPositionOffsetBuffer(FHairStrandsDeformedResource::Current)),
 					RegisterAsSRV(GraphBuilder, Instance->Guides.DeformedResource->GetPositionOffsetBuffer(FHairStrandsDeformedResource::Current)),
-					LOD.Guides.RestRootResource,
-					Instance->Guides.RestRootResource,
-					LOD.Guides.DeformedRootResource,
-					Instance->Guides.DeformedRootResource,
+					bHasSkinning ? LOD.Guides.RestRootResource : nullptr ,
+					bHasSkinning ? Instance->Guides.RestRootResource : nullptr,
+					bHasSkinning ? LOD.Guides.DeformedRootResource : nullptr,
+					bHasSkinning ? Instance->Guides.DeformedRootResource : nullptr,
 					RegisterAsSRV(GraphBuilder, LOD.Guides.RestResource->RestPositionBuffer),
 					RegisterAsSRV(GraphBuilder, LOD.Guides.RestResource->AttributeBuffer),
 					RegisterAsSRV(GraphBuilder, LOD.Guides.InterpolationResource->Interpolation0Buffer),
@@ -1569,7 +1571,7 @@ void ComputeHairStrandsInterpolation(
 					nullptr,
 					nullptr,
 					nullptr,
-					RegisterAsSRV(GraphBuilder, LOD.Guides.InterpolationResource->SimRootPointIndexBuffer));
+					RegisterAsSRV(GraphBuilder, LOD.Guides.InterpolationResource->SimRootPointIndexBuffer)); // <- this should be optional
 
 				AddHairCardsDeformationPass(
 					GraphBuilder,
@@ -1662,7 +1664,10 @@ void ComputeHairStrandsInterpolation(
 	}
 
 	Instance->HairGroupPublicData->VFInput.GeometryType = InstanceGeometryType;
-	Instance->HairGroupPublicData->VFInput.LocalToWorldTransform = Instance->LocalToWorld;
+	if (Instance->BindingType == EHairBindingType::Rigid)
+		Instance->HairGroupPublicData->VFInput.LocalToWorldTransform = Instance->LocalToWorld;
+	else
+		Instance->HairGroupPublicData->VFInput.LocalToWorldTransform = Instance->Debug.SkeletalLocalToWorld;
 	Instance->HairGroupPublicData->bSupportVoxelization = Instance->Strands.Modifier.bSupportVoxelization && Instance->bCastShadow;
 }
 

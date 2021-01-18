@@ -210,7 +210,9 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 
 float3 CPUPositionOffset;
 uint bUseCPUOffset;
+#if PERMUTATION_SOURCE_TYPE == 1
 Buffer<float4> RootTrianglePosition0Buffer;
+#endif
 RWBuffer<float4> OutOffsetBuffer;
 
 [numthreads(1, 1, 1)]
@@ -220,10 +222,13 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 		return;
 
 	float3 RefPosition = CPUPositionOffset;
+	#if PERMUTATION_SOURCE_TYPE == 1
 	if (bUseCPUOffset == 0)
 	{
 		RefPosition = RootTrianglePosition0Buffer[0];
 	}
+	#endif
+
 	OutOffsetBuffer[0] = float4(RefPosition, 1);
 }
 

@@ -91,6 +91,8 @@ namespace GroomDebug
 	};
 }
 
+bool IsHairStrandsSkinCacheEnable();
+
 static void GetGroomInterpolationData(
 	FRDGBuilder& GraphBuilder,
 	const TArray<FHairGroupInstance*> Instances,
@@ -105,15 +107,18 @@ static void GetGroomInterpolationData(
 			continue;
 
 		FCachedGeometry CachedGeometry;
-		if (SkinCache)
+		if (Instance->Debug.SkeletalComponent)
 		{
-			CachedGeometry = SkinCache->GetCachedGeometry(Instance->Debug.SkeletalComponent->ComponentId.PrimIDValue);
-		}
-		else if (Instance->Debug.SkeletalComponent)
-		{
-			const ERHIFeatureLevel::Type FeatureLevel = GMaxRHIFeatureLevel;
-			FGlobalShaderMap* ShaderMap = GetGlobalShaderMap(FeatureLevel);
-			BuildCacheGeometry(GraphBuilder, ShaderMap, Instance->Debug.SkeletalComponent, CachedGeometry);
+			if (SkinCache)
+			{
+				CachedGeometry = SkinCache->GetCachedGeometry(Instance->Debug.SkeletalComponent->ComponentId.PrimIDValue);
+			}
+			
+			if (IsHairStrandsSkinCacheEnable() && CachedGeometry.Sections.Num() == 0)
+			{
+				FGlobalShaderMap* ShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
+				BuildCacheGeometry(GraphBuilder, ShaderMap, Instance->Debug.SkeletalComponent, CachedGeometry);
+			}
 		}
 		if (CachedGeometry.Sections.Num() == 0)
 			continue;
@@ -776,6 +781,29 @@ BEGIN_SHADER_PARAMETER_STRUCT(FHairDebugCanvasParameter, )
 	RENDER_TARGET_BINDING_SLOTS()
 END_SHADER_PARAMETER_STRUCT()
 
+static const TCHAR* ToString(EHairGeometryType In)
+{
+	switch (In)
+	{
+	case EHairGeometryType::NoneGeometry:	return TEXT("None");
+	case EHairGeometryType::Strands:		return TEXT("Strands");
+	case EHairGeometryType::Cards:			return TEXT("Cards");
+	case EHairGeometryType::Meshes:			return TEXT("Meshes");
+	}
+	return TEXT("None");
+}
+
+static const TCHAR* ToString(EHairBindingType In)
+{
+	switch (In)
+	{
+	case EHairBindingType::NoneBinding: return TEXT("None");
+	case EHairBindingType::Rigid:		return TEXT("Rigid");
+	case EHairBindingType::Skinning:	return TEXT("Skinning");
+	}
+	return TEXT("None");
+}
+
 void RunHairStrandsDebug(
 	FRDGBuilder& GraphBuilder,
 	FGlobalShaderMap* ShaderMap,
@@ -817,6 +845,8 @@ void RunHairStrandsDebug(
 			const FLinearColor DebugColor(1, 1, 0);
 			const FLinearColor DebugGroupColor(0.5f, 0, 0);
 			FString Line;
+			// Active groom
+			// Name | Group x / x | LOD x / x | GeometryType | BindingType | Sim | RBF | VertexCount
 
 			Line = FString::Printf(TEXT("----------------------------------------------------------------"));
 			Canvas.DrawShadowedString(X, Y += YStep, *Line, GetStatsFont(), DebugColor);
@@ -830,33 +860,22 @@ void RunHairStrandsDebug(
 				const bool bHasSkinInterpolation = Instance->Strands.RestRootResource != nullptr;
 				const bool bHasBindingAsset = bHasSkinInterpolation && !Instance->Strands.bOwnRootResourceAllocation;
 
-				Line = FString::Printf(TEXT(" * Id:%d | WorldType:%s | Group:%d/%d | Asset : %s | Skeletal : %s "),
-					Instance->Debug.ComponentId,
-					ToString(Instance->WorldType),
+				if (!bIsActive)
+					continue;
+
+				Line = FString::Printf(TEXT(" * Group:%d/%d | LOD:%1.1f/%d | GeometryType:%s | BindingType:%s | Sim:%d | RBF:%d | VertexCount:%d | Name: %s"),
 					Instance->Debug.GroupIndex,
 					Instance->Debug.GroupCount,
-					*Instance->Debug.GroomAssetName,
-					*Instance->Debug.SkeletalComponentName);
-				Canvas.DrawShadowedString(X, Y += YStep, *Line, GetStatsFont(), bIsActive ? DebugColor : InactiveColor);
-				if (Instance->Strands.IsValid())
-				{
-					Line = FString::Printf(TEXT("        |> CurveCount : %d | VertexCount : %d | MaxRadius : %f | MaxLength : %f | Skinned: %s | Binding: %s | Simulation: %s| LOD count : %d"),
-						Instance->Strands.Data->GetNumCurves(),
-						Instance->Strands.Data->GetNumPoints(),
-						Instance->HairGroupPublicData->VFInput.Strands.HairRadius,
-						Instance->HairGroupPublicData->VFInput.Strands.HairLength,
-						bHasSkinInterpolation ? TEXT("True") : TEXT("False"),
-						bHasBindingAsset ? TEXT("True") : TEXT("False"),
-						Instance->Guides.bIsSimulationEnable ? TEXT("True") : TEXT("False"),
-						Instance->Strands.ClusterCullingResource->Data.ClusterLODInfos.Num());
-				}
-				else
-				{
-					Line = FString::Printf(TEXT("        |> HasStrands : %s | HasCards : %s | HasMeshes : %s"),
-						Instance->Strands.IsValid() ? TEXT("True") : TEXT("False"),
-						Instance->Cards.IsValid() ? TEXT("True") : TEXT("False"),
-						Instance->Meshes.IsValid() ? TEXT("True") : TEXT("False"));
-				}
+
+					Instance->HairGroupPublicData->LODIndex,
+					Instance->HairGroupPublicData->GetLODScreenSizes().Num(),
+
+					ToString(Instance->GeometryType),
+					ToString(Instance->BindingType),
+					0, // TODO: Instance->bHasSimulation,
+					0, // TODO: Instance->bHasRBF,
+					Instance->HairGroupPublicData->VertexCount,
+					*Instance->Debug.GroomAssetName);
 				Canvas.DrawShadowedString(X, Y += YStep, *Line, GetStatsFont(), bIsActive ? DebugGroupColor : InactiveColor);
 			}
 
@@ -902,7 +921,7 @@ void RunHairStrandsDebug(
 				TArray<int32> HairLODIndices;
 				for (FHairGroupInstance* Instance : Instances)
 				{
-					if (!Instance->HairGroupPublicData || Instance->Guides.RestRootResource == nullptr || Instance->Guides.DeformedRootResource == nullptr)
+					if (Instance->WorldType != WorldType || !Instance->HairGroupPublicData || Instance->Guides.RestRootResource == nullptr || Instance->Guides.DeformedRootResource == nullptr)
 						continue;
 
 					const int32 MeshLODIndex = Instance->Debug.MeshLODIndex;

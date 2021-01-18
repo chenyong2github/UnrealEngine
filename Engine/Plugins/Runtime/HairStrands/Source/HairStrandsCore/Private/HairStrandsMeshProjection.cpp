@@ -1763,6 +1763,9 @@ private:
 	DECLARE_GLOBAL_SHADER(FHairUpdatePositionOffsetCS);
 	SHADER_USE_PARAMETER_STRUCT(FHairUpdatePositionOffsetCS, FGlobalShader);
 
+	class FSourceType : SHADER_PERMUTATION_INT("PERMUTATION_SOURCE_TYPE", 2);
+	using FPermutationDomain = TShaderPermutationDomain<FSourceType>;
+
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(FVector, CPUPositionOffset)
 		SHADER_PARAMETER(uint32, bUseCPUOffset)
@@ -1806,11 +1809,13 @@ void AddHairStrandUpdatePositionOffsetPass(
 	const uint32 OffsetIndex = DeformedResources->GetIndex(FHairStrandsDeformedResource::Current);
 	FHairUpdatePositionOffsetCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FHairUpdatePositionOffsetCS::FParameters>();
 	PassParameters->CPUPositionOffset = DeformedResources->PositionOffset[OffsetIndex];
-	PassParameters->bUseCPUOffset = (DeformedRootResources == nullptr || GHairStrandsUseGPUPositionOffset>0) ? 0 : 1;
+	PassParameters->bUseCPUOffset = (DeformedRootResources == nullptr || GHairStrandsUseGPUPositionOffset>0) ? 1 : 0;
 	PassParameters->RootTrianglePosition0Buffer = RootTrianglePositionBuffer.SRV;
 	PassParameters->OutOffsetBuffer = OutPositionOffsetBuffer.UAV;
 
-	TShaderMapRef<FHairUpdatePositionOffsetCS> ComputeShader(ShaderMap);
+	FHairUpdatePositionOffsetCS::FPermutationDomain PermutationVector;
+	PermutationVector.Set<FHairUpdatePositionOffsetCS::FSourceType>(PassParameters->bUseCPUOffset ? 0 : 1);
+	TShaderMapRef<FHairUpdatePositionOffsetCS> ComputeShader(ShaderMap, PermutationVector);
 	FComputeShaderUtils::AddPass(
 		GraphBuilder,
 		RDG_EVENT_NAME("HairStrandsUpdatePositionOffset"),

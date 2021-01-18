@@ -128,6 +128,13 @@ enum EHairGeometryType
 	NoneGeometry
 };
 
+enum EHairBindingType
+{
+	NoneBinding,
+	Rigid,
+	Skinning
+};
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Public group data 
 class RENDERER_API FHairGroupPublicData : public FRenderResource
@@ -169,6 +176,12 @@ public:
 
 	void SetLODVisibilities(const TArray<bool>& InLODVisibility) { LODVisibilities = InLODVisibility; }
 	const TArray<bool>& GetLODVisibilities() const { return LODVisibilities; }
+
+	EHairBindingType GetBindingType(int32 InLODIndex) 
+	{ 
+		if (InLODIndex < 0 && InLODIndex >= BindingTypes.Num()) return EHairBindingType::NoneBinding;
+		return BindingTypes[InLODIndex];
+	}	
 
 	void SetLODScreenSizes(const TArray<float>& ScreenSizes) { LODScreenSizes = ScreenSizes; }
 	const TArray<float>& GetLODScreenSizes() const { return LODScreenSizes;  }
@@ -220,6 +233,7 @@ public:
 
 		bool bHasLODSwitch = false;
 		EHairGeometryType GeometryType = EHairGeometryType::NoneGeometry;
+		EHairBindingType BindingType = EHairBindingType::NoneBinding;
 		FTransform LocalToWorldTransform;
 	};
 	FVertexFactoryInput VFInput;
@@ -251,6 +265,8 @@ public:
 	TArray<bool> LODVisibilities;
 	TArray<float> LODScreenSizes;
 	TArray<EHairGeometryType> LODGeometryTypes;
+
+	TArray<EHairBindingType> BindingTypes;
 
 	// Data change every frame by the groom proxy based on views data
 	float LODIndex = 0;			// Current LOD used for all views

@@ -40,6 +40,15 @@ enum class EGroomGeometryType : uint8
 	Meshes
 };
 
+UENUM(BlueprintType)
+enum class EGroomBindingType : uint8
+{
+	NoneBinding	UMETA(Hidden),
+	Rigid		UMETA(DisplayName = "Rigid",    ToolTip = "When attached to a skeltal mesh, the hair follow the provided attachement name"),
+	Skinning	UMETA(DisplayName = "Skinning", ToolTip = "When attached to a skeltal mesh, the hair follow the skin surface"),
+};
+
+
 USTRUCT(BlueprintType)
 struct HAIRSTRANDSCORE_API FHairLODSettings
 {
@@ -72,6 +81,9 @@ struct HAIRSTRANDSCORE_API FHairLODSettings
 
 	UPROPERTY(EditAnywhere, Category = "DecimationSettings", meta = (ToolTip = "If enable this LOD version will use cards representation"))
 	EGroomGeometryType GeometryType = EGroomGeometryType::Strands;
+
+	UPROPERTY(EditAnywhere, Category = "DecimationSettings", meta = (ToolTip = "If enable this LOD version will use the provided attachment points"))
+	EGroomBindingType BindingType = EGroomBindingType::NoneBinding;
 
 	bool operator==(const FHairLODSettings& A) const;
 };

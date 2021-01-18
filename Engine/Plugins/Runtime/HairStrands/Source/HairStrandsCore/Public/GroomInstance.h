@@ -171,6 +171,7 @@ struct HAIRSTRANDSCORE_API FHairGroupInstance
 		USkeletalMeshComponent*	SkeletalComponent = nullptr;
 		FString					SkeletalComponentName;
 		FTransform				SkeletalLocalToWorld = FTransform::Identity;
+		FTransform				SkeletalPreviousLocalToWorld = FTransform::Identity;
 		bool					bDrawCardsGuides = false;
 
 		// Transfer
@@ -186,6 +187,7 @@ struct HAIRSTRANDSCORE_API FHairGroupInstance
 	EWorldType::Type		WorldType;
 	FHairGroupPublicData*	HairGroupPublicData = nullptr;
 	EHairGeometryType		GeometryType = EHairGeometryType::NoneGeometry;
+	EHairBindingType		BindingType = EHairBindingType::NoneBinding;
 	const FBoxSphereBounds*	ProxyBounds = nullptr;
 	const FBoxSphereBounds* ProxyLocalBounds = nullptr;
 	bool					bUseCPULODSelection = true;
