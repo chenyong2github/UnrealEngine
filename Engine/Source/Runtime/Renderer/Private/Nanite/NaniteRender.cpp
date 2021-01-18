@@ -2054,7 +2054,11 @@ void FNaniteMaterialTables::Finish(FRHICommandListImmediate& RHICmdList)
 }
 
 static_assert( 1 + NUM_CULLING_FLAG_BITS + MAX_VIEWS_PER_CULL_RASTERIZE_PASS_BITS + MAX_INSTANCES_BITS + MAX_GPU_PAGES_BITS + MAX_CLUSTERS_PER_PAGE_BITS <= 64, "FVisibleCluster fields don't fit in 64bits" );
-static_assert( 1 + NUM_CULLING_FLAG_BITS + MAX_INSTANCES_BITS + MAX_NODES_PER_PRIMITIVE_BITS + MAX_VIEWS_PER_CULL_RASTERIZE_PASS_BITS <= 64, "FVisibleNode fields don't fit in 64bits" );
+
+static_assert( 1 + NUM_CULLING_FLAG_BITS + MAX_INSTANCES_BITS <= 32,							"FCandidateNode.x fields don't fit in 32bits" );
+static_assert( 1 + MAX_NODES_PER_PRIMITIVE_BITS + MAX_VIEWS_PER_CULL_RASTERIZE_PASS_BITS <= 32, "FCandidateNode.y fields don't fit in 32bits" );
+static_assert( 1 + MAX_BVH_NODES_PER_GROUP <= 32,												"FCandidateNode.z fields don't fit in 32bits" );
+
 
 namespace Nanite
 {

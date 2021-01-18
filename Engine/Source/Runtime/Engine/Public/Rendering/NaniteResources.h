@@ -61,6 +61,8 @@
 #define MAX_BVH_NODE_FANOUT_BITS				3														// must match define in Culling.ush
 #define MAX_BVH_NODE_FANOUT						(1 << MAX_BVH_NODE_FANOUT_BITS)							// must match define in Culling.ush
 
+#define MAX_BVH_NODES_PER_GROUP					(PERSISTENT_CLUSTER_CULLING_GROUP_SIZE / MAX_BVH_NODE_FANOUT)
+
 #define NUM_CULLING_FLAG_BITS					3														// must match define in NaniteDataDecode.ush
 
 #define NUM_PACKED_CLUSTER_FLOAT4S				8														// must match define in NaniteDataDecode.ush

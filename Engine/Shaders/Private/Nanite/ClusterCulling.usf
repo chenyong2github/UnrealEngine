@@ -35,8 +35,19 @@ RWStructuredBuffer<uint> OutDynamicCasterFlags;
 #define CLUSTER_PER_PAGE 0
 #endif
 
-
-#define MAX_BVH_NODES_PER_GROUP		(PERSISTENT_CLUSTER_CULLING_GROUP_SIZE / MAX_BVH_NODE_FANOUT)
+#if CULLING_PASS == CULLING_PASS_OCCLUSION_POST
+static const bool bIsPostPass = true;
+static const uint PersistentStateIndex = 1;
+groupshared uint3 GroupNodeData[MAX_BVH_NODES_PER_GROUP];
+uint4 GetGroupNodeData(uint NodeIndex)				{ return uint4(GroupNodeData[NodeIndex], 0); }
+void SetGroupNodeData(uint NodeIndex, uint4 Data)	{ GroupNodeData[NodeIndex] = Data.xyz; }
+#else
+static const bool bIsPostPass = false;
+static const uint PersistentStateIndex = 0;
+groupshared uint2 GroupNodeData[MAX_BVH_NODES_PER_GROUP];
+uint4 GetGroupNodeData(uint NodeIndex)				{ return uint4(GroupNodeData[NodeIndex], 0, 0); }
+void SetGroupNodeData(uint NodeIndex, uint4 Data)	{ GroupNodeData[NodeIndex] = Data.xy; }
+#endif
 
 ByteAddressBuffer			HierarchyBuffer;
 Buffer< uint >				OffsetClustersArgsSWHW;
@@ -57,7 +68,6 @@ groupshared uint			GroupOccludedBitmask[MAX_BVH_NODES_PER_GROUP];
 groupshared uint2			GroupCandidateData[PERSISTENT_CLUSTER_CULLING_GROUP_SIZE];
 
 groupshared int				GroupNodeCount;
-
 groupshared uint			GroupNodeBatchStartIndex;
 groupshared uint			GroupNodeMask;
 
@@ -72,14 +82,6 @@ RWStructuredBuffer<FStats>	OutStatsBuffer;
 float						DisocclusionLodScaleFactor;	// TODO: HACK: Force LOD down first frame an instance is visible to mitigate disocclusion spikes.
 uint						LargePageRectThreshold;
 
-
-#if CULLING_PASS == CULLING_PASS_OCCLUSION_POST
-static const bool bIsPostPass = true;
-static const uint PersistentStateIndex = 1;
-#else
-static const bool bIsPostPass = false;
-static const uint PersistentStateIndex = 0;
-#endif
 
 // Get the area of an "inclusive" rect (which means that the max is inside the rect), also guards against negative area (where min > max)
 uint GetInclusiveRectArea(uint4 Rect)
@@ -561,17 +563,13 @@ void ClusterCull(FVisibleCluster VisibleCluster, uint InstanceId)
 	}
 }
 
-void NodeCull(uint BatchStart, uint BatchSize, uint GroupIndex)
+void NodeCull(uint BatchSize, uint GroupIndex)
 {
 	const uint LocalNodeIndex = (GroupIndex >> MAX_BVH_NODE_FANOUT_BITS);
 	const uint ChildIndex = GroupIndex & MAX_BVH_NODE_FANOUT_MASK;
-	const uint NodeIndex = BatchStart + LocalNodeIndex;
+	const uint FetchIndex = min(LocalNodeIndex, BatchSize - 1);
 
-#if CULLING_PASS == CULLING_PASS_OCCLUSION_POST
-	uint4 NodeData = uint4(InOutCandidateNodesAndClusters.Load3(GetCandidateNodesOffset() + NodeIndex * 12), 0);
-#else
-	uint4 NodeData = uint4(InOutCandidateNodesAndClusters.Load2(GetCandidateNodesOffset() + NodeIndex * 8), 0, 0);
-#endif
+	uint4 NodeData = GetGroupNodeData(FetchIndex);
 	
 	FCandidateNode CandidateNode = UnpackCandidateNode(NodeData, bIsPostPass);
 	uint CandidateNodesOffset = 0;
@@ -710,9 +708,10 @@ void NodeCull(uint BatchStart, uint BatchSize, uint GroupIndex)
 	if (GroupIndex == 0)
 	{
 		InterlockedAdd(MainAndPostPassPersistentStates[PersistentStateIndex].NodeWriteOffset, GroupNumCandidateNodes, GroupCandidateNodesOffset);
+		InterlockedAdd(MainAndPostPassPersistentStates[PersistentStateIndex].NodeCount, (int)GroupNumCandidateNodes);	// NodeCount needs to be conservative, so child count is added before the actual children.
 	}
 
-	GroupMemoryBarrierWithGroupSync();
+	AllMemoryBarrierWithGroupSync();
 
 	// GPU might not be filled, so latency is important here. Kick new jobs as soon as possible.
 	bool bOutputChild = bVisible && bLoaded && !bWasOccluded;
@@ -775,15 +774,11 @@ void NodeCull(uint BatchStart, uint BatchSize, uint GroupIndex)
 		}
 	}
 
-	if (GroupIndex < BatchSize)
-	{
-		ClearCandidateNodeCoherent(InOutCandidateNodesAndClusters, BatchStart + GroupIndex, bIsPostPass);			// Clear processed element so we leave the buffer cleared for next pass.
-	}
-
 	DeviceMemoryBarrierWithGroupSync();
 	if (GroupIndex == 0)
 	{
-		InterlockedAdd(MainAndPostPassPersistentStates[PersistentStateIndex].NodeCount, (int)GroupNumCandidateNodes - (int)BatchSize);
+		// Done writing clusters/nodes for current pass. Subtract us from NodeCount.
+		InterlockedAdd(MainAndPostPassPersistentStates[PersistentStateIndex].NodeCount, -(int)BatchSize);
 	}
 
 	if( bVisible && !bWasOccluded && HierarchyNodeSlice.bLeaf )
@@ -890,7 +885,6 @@ void ProcessClusterBatch(uint BatchStartIndex, uint BatchSize, uint GroupIndex)
 // Workers always favor node processing to make progress on the critical path, but when no nodes are available
 // they process clusters while waiting, instead of going idle.
 
-
 [numthreads( PERSISTENT_CLUSTER_CULLING_GROUP_SIZE, 1, 1 )]
 void PersistentClusterCull(uint GroupIndex : SV_GroupIndex)  
 {
@@ -901,6 +895,7 @@ void PersistentClusterCull(uint GroupIndex : SV_GroupIndex)
 	
 	while(true)
 	{
+		GroupMemoryBarrierWithGroupSync();	// Make sure we are done reading from group shared
 		if (GroupIndex == 0)
 		{
 			GroupNumCandidateNodes	= 0;
@@ -945,7 +940,12 @@ void PersistentClusterCull(uint GroupIndex : SV_GroupIndex)
 			bool bNodeReady = (NodeBatchReadyOffset + GroupIndex < MAX_BVH_NODES_PER_GROUP);
 			if (bNodeReady)
 			{
-				bNodeReady = InOutCandidateNodesAndClusters.Load(GetCandidateNodesOffset() + NodeIndex * GetCandidateNodeSize(bIsPostPass)) != 0xFFFFFFFFu;
+				uint4 NodeData = LoadCandidateNodeDataCoherent(InOutCandidateNodesAndClusters, NodeIndex, bIsPostPass);
+				bNodeReady = IsNodeDataReady(NodeData, bIsPostPass);
+				if(bNodeReady)
+				{
+					SetGroupNodeData(GroupIndex, NodeData);
+				}
 			}
 
 			if (bNodeReady)
@@ -958,17 +958,17 @@ void PersistentClusterCull(uint GroupIndex : SV_GroupIndex)
 			// Process nodes if at least the first one is ready.
 			if (NodeReadyMask & 1u)
 			{
-				uint NodeBatchStart = NodeBatchStartIndex + NodeBatchReadyOffset;
-				uint NodeBatchSize = firstbitlow(~NodeReadyMask);
+				uint BatchSize = firstbitlow(~NodeReadyMask);
+				NodeCull(BatchSize, GroupIndex);
+				if (GroupIndex < BatchSize)
+				{
+					ClearCandidateNodeCoherent(InOutCandidateNodesAndClusters, NodeIndex, bIsPostPass);			// Clear processed element so we leave the buffer cleared for next pass.
+				}
 
-				NodeCull(NodeBatchStart, NodeBatchSize, GroupIndex);
-
-				NodeBatchReadyOffset += NodeBatchSize;
+				NodeBatchReadyOffset += BatchSize;
 				continue;
 			}
 		}
-
-		GroupMemoryBarrierWithGroupSync();
 
 		// No nodes were ready. Process clusters instead.
 
@@ -980,7 +980,6 @@ void PersistentClusterCull(uint GroupIndex : SV_GroupIndex)
 				InterlockedAdd(MainAndPostPassPersistentStates[PersistentStateIndex].ClusterBatchReadOffset, 1, GroupClusterBatchStartIndex);
 			}
 			GroupMemoryBarrierWithGroupSync();
-
 			ClusterBatchStartIndex = GroupClusterBatchStartIndex;
 		}
 
