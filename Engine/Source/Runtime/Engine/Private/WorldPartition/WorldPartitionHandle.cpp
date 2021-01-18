@@ -24,7 +24,7 @@ bool FWorldPartitionHandleUtils::IsActorDescLoaded(FWorldPartitionActorDesc* Act
 	}
 #endif
 
-	return !!ActorDesc->GetActor();
+	return ActorDesc->IsLoaded();
 }
 
 void FWorldPartitionHandleImpl::IncRefCount(FWorldPartitionActorDesc* ActorDesc)
@@ -43,7 +43,6 @@ void FWorldPartitionReferenceImpl::IncRefCount(FWorldPartitionActorDesc* ActorDe
 	{
 		AActor* Actor = ActorDesc->Load();
 		check(Actor || GIsAutomationTesting);
-		check(!IsEngineExitRequested());
 
 		if (Actor)
 		{
@@ -56,14 +55,12 @@ void FWorldPartitionReferenceImpl::DecRefCount(FWorldPartitionActorDesc* ActorDe
 {
 	if (!ActorDesc->DecHardRefCount())
 	{
-		if (!IsEngineExitRequested())
+		// The only case where an actor can be unloaded while still holding a reference 
+		// is when it was manually deleted in the editor.
+		if (ActorDesc->IsLoaded())
 		{
-			// We can still hold a reference to an actor that was manually deleted in the editor
-			if (AActor* Actor = ActorDesc->GetActor())
-			{
-				ActorDesc->UnregisterActor();
-				ActorDesc->Unload();
-			}
+			ActorDesc->UnregisterActor();
+			ActorDesc->Unload();
 		}
 	}
 }

@@ -2087,7 +2087,7 @@ public:
 
 	/** Returns this actor's current label.  Actor labels are only available in development builds. */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Actor Editing", meta = (KeyWords = "Display Name"))
-	const FString& GetActorLabel() const;
+	const FString& GetActorLabel(bool bCreateIfNone = true) const;
 
 	/**
 	 * Assigns a new label to this actor.  Actor labels are only available in development builds.

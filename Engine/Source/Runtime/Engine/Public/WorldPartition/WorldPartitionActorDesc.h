@@ -58,6 +58,7 @@ public:
 	inline const TArray<FName>& GetDataLayers() const { return DataLayers; }
 	inline FName GetActorPackage() const { return ActorPackage; }
 	inline FName GetActorPath() const { return ActorPath; }
+	inline FName GetActorLabel() const { return ActorLabel; }
 	FBox GetBounds() const;
 
 protected:
@@ -101,6 +102,7 @@ public:
 
 	FString ToString() const;
 
+	bool IsLoaded() const;
 	AActor* GetActor() const;
 	AActor* Load() const;
 	virtual void Unload();
@@ -135,6 +137,7 @@ protected:
 	FName							Class;
 	FName							ActorPackage;
 	FName							ActorPath;
+	FName							ActorLabel;
 	FVector							BoundsLocation;
 	FVector							BoundsExtent;
 	EActorGridPlacement				GridPlacement;

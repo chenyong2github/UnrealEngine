@@ -407,23 +407,19 @@ uint32 SWorldPartitionEditorGrid2D::PaintActors(const FGeometry& AllottedGeometr
 				{
 					ActorColor = FLinearColor::Yellow;
 
-					FString ActorPath = ActorDesc->GetActorPath().ToString();
-
-					int32 LastDotPos = ActorPath.Find(TEXT("."), ESearchCase::CaseSensitive, ESearchDir::FromEnd);
-					if (LastDotPos != INDEX_NONE)
+					FName ActorLabel = ActorDesc->GetActorLabel();
+					if (!ActorLabel.IsNone())
 					{
-						ActorPath = ActorPath.Mid(LastDotPos + 1);
+						FSlateDrawElement::MakeText(
+							OutDrawElements,
+							++LayerId,
+							ActorGeometry,
+							ActorLabel.ToString(),
+							SmallLayoutFont,
+							ESlateDrawEffect::None,
+							ActorColor
+						);
 					}
-
-					FSlateDrawElement::MakeText(
-						OutDrawElements,
-						++LayerId,
-						ActorGeometry,
-						ActorPath,
-						SmallLayoutFont, 
-						ESlateDrawEffect::None,
-						ActorColor
-					);
 				}
 				else if ((SelectBox.GetVolume() > 0) && SelectBox.Intersect(ActorDesc->GetBounds()))
 				{

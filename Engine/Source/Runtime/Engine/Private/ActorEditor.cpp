@@ -911,7 +911,7 @@ TUniquePtr<class FWorldPartitionActorDesc> AActor::CreateClassActorDesc(const TS
 	return CastChecked<AActor>(ActorClass->GetDefaultObject())->CreateClassActorDesc();
 }
 
-const FString& AActor::GetActorLabel() const
+const FString& AActor::GetActorLabel(bool bCreateIfNone) const
 {
 	// If the label string is empty then we'll use the default actor label (usually the actor's class name.)
 	// We actually cache the default name into our ActorLabel property.  This will be saved out with the
@@ -923,7 +923,7 @@ const FString& AActor::GetActorLabel() const
 	//
 	// Remember, ActorLabel is currently an editor-only property.
 
-	if( ActorLabel.IsEmpty() )
+	if( ActorLabel.IsEmpty() && bCreateIfNone )
 	{
 		// Get the class
 		UClass* ActorClass = GetClass();

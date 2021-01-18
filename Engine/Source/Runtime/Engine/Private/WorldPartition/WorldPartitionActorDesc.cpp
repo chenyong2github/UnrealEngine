@@ -77,6 +77,8 @@ void FWorldPartitionActorDesc::Init(const AActor* InActor)
 		}
 	}
 
+	ActorLabel = *InActor->GetActorLabel(false);
+
 	WorldPartition = InActor->GetLevel()->GetWorldPartition();
 	check(WorldPartition);
 }
@@ -107,6 +109,8 @@ void FWorldPartitionActorDesc::Init(UWorldPartition* InWorldPartition, const FWo
 	}
 
 	WorldPartition = InWorldPartition;
+
+	ActorPtr = FindObject<AActor>(nullptr, *ActorPath.ToString());
 }
 
 void FWorldPartitionActorDesc::SerializeTo(TArray<uint8>& OutData)
@@ -187,6 +191,11 @@ void FWorldPartitionActorDesc::Serialize(FArchive& Ar)
 	{
 		Ar << DataLayers;
 	}
+
+	if (Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) >= FUE5MainStreamObjectVersion::WorldPartitionActorDescSerializeActorLabel)
+	{
+		Ar << ActorLabel;
+	}
 }
 
 FBox FWorldPartitionActorDesc::GetBounds() const
@@ -194,36 +203,34 @@ FBox FWorldPartitionActorDesc::GetBounds() const
 	return FBox(BoundsLocation - BoundsExtent, BoundsLocation + BoundsExtent);
 }
 
+bool FWorldPartitionActorDesc::IsLoaded() const
+{
+	return ActorPtr.IsValid();
+}
+
 AActor* FWorldPartitionActorDesc::GetActor() const
 {
-	AActor* Actor = ActorPtr.Get();
-
-	if (Actor)
-	{
-		return Actor;
-	}
-
-	if (!IsGarbageCollecting())
-	{
-		Actor = FindObject<AActor>(nullptr, *ActorPath.ToString());
-	}
-
-	if (Actor)
-	{
-		ActorPtr = Actor;
-	}
-
-	return Actor;
+	return ActorPtr.Get();
 }
 
 AActor* FWorldPartitionActorDesc::Load() const
 {
-	AActor* Actor = GetActor();
+	if (ActorPtr.IsExplicitlyNull())
+	{
+		// First, try to find the existing actor which could have been loaded by another actor (through standard serialization)
+		ActorPtr = FindObject<AActor>(nullptr, *ActorPath.ToString());
+	}
 
-	if (!Actor)
+	// The, if the actor isn't loaded, load it
+	if (ActorPtr.IsExplicitlyNull())
 	{
 		check(WorldPartition || GIsAutomationTesting);
-		const FLinkerInstancingContext* InstancingContext = WorldPartition ? &WorldPartition->InstancingContext : nullptr;
+
+		const FLinkerInstancingContext* InstancingContext = nullptr;
+		if (WorldPartition && WorldPartition->InstancingContext.IsInstanced())
+		{
+			InstancingContext = &WorldPartition->InstancingContext;
+		}
 
 		UPackage* Package = nullptr;
 
@@ -239,12 +246,12 @@ AActor* FWorldPartitionActorDesc::Load() const
 
 		if (Package)
 		{
-			Actor = GetActor();
-			check(Actor);
+			ActorPtr = FindObject<AActor>(nullptr, *ActorPath.ToString());
+			check(ActorPtr.IsValid());
 		}
 	}
 
-	return Actor;
+	return ActorPtr.Get();
 }
 
 void FWorldPartitionActorDesc::Unload()

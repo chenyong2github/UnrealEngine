@@ -76,6 +76,9 @@ struct CORE_API FUE5MainStreamObjectVersion
 		// Introducing UAnimDataModel sub-object for UAnimSequenceBase containing all animation source data
 		IntroducingAnimationDataModel,
 
+		// Serialize ActorLabel in WorldPartitionActorDesc
+		WorldPartitionActorDescSerializeActorLabel,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1
