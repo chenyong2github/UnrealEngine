@@ -51,7 +51,7 @@ namespace LowLevelTasks
 		CORE_API void StopWorkers();
 
 		//try to launch the task, the return value will specify if the task was in the ready state and has been launced
-		inline bool TryLaunch(FTask& Task, EQueuePreference QueuePreference = EQueuePreference::DefaultPreference);
+		inline bool TryLaunch(FTask& Task, EQueuePreference QueuePreference = EQueuePreference::DefaultPreference, bool bWakeUpWorker = true);
 		
 		//try to cancel the task and launching it if the task was in ready state
 		//you still need to wait for task completion before recycling the handle
@@ -99,7 +99,7 @@ namespace LowLevelTasks
 	private: 
 		TUniquePtr<FThread> CreateWorker(FLocalQueueType* ExternalWorkerLocalQueue = nullptr, EThreadPriority Priority = EThreadPriority::TPri_Normal, bool bPermitBackgroundWork = false, bool bIsForkable = false);
 		void WorkerMain(struct FSleepEvent* WorkerEvent, FLocalQueueType* ExternalWorkerLocalQueue, uint32 WaitCycles, bool bPermitBackgroundWork);
-		CORE_API void LaunchInternal(FTask& Task, EQueuePreference QueuePreference);
+		CORE_API void LaunchInternal(FTask& Task, EQueuePreference QueuePreference, bool bWakeUpWorker);
 		CORE_API void BusyWaitInternal(const FConditional& Conditional);
 		FORCENOINLINE void TrySleeping(FSleepEvent* WorkerEvent, FQueueRegistry::FOutOfWork& OutOfWork, uint32& WaitCount, bool& Drowsing, bool bBackgroundWorker);
 		inline bool WakeUpWorker(bool bBackgroundWorker);
@@ -117,9 +117,9 @@ namespace LowLevelTasks
 		std::atomic_uint			NextWorkerId { 0 };
 	};
 
-	FORCEINLINE_DEBUGGABLE bool TryLaunch(FTask& Task, EQueuePreference QueuePreference = EQueuePreference::DefaultPreference)
+	FORCEINLINE_DEBUGGABLE bool TryLaunch(FTask& Task, EQueuePreference QueuePreference = EQueuePreference::DefaultPreference, bool bWakeUpWorker = true)
 	{
-		return FScheduler::Get().TryLaunch(Task, QueuePreference);
+		return FScheduler::Get().TryLaunch(Task, QueuePreference, bWakeUpWorker);
 	}
 
 	FORCEINLINE_DEBUGGABLE bool TryCancelAndLaunchContinuation(FTask& Task, EQueuePreference QueuePreference = EQueuePreference::DefaultPreference)
@@ -147,11 +147,11 @@ namespace LowLevelTasks
    /******************
 	* IMPLEMENTATION *
 	******************/
-	inline bool FScheduler::TryLaunch(FTask& Task, EQueuePreference QueuePreference)
+	inline bool FScheduler::TryLaunch(FTask& Task, EQueuePreference QueuePreference, bool bWakeUpWorker)
 	{
 		if(Task.TryPrepareLaunch())
 		{
-			FScheduler::Get().LaunchInternal(Task, QueuePreference);
+			FScheduler::Get().LaunchInternal(Task, QueuePreference, bWakeUpWorker);
 			return true;
 		}
 		return false;
@@ -233,9 +233,9 @@ namespace LowLevelTasks
 		else if(WorkerEvent->SleepState.compare_exchange_strong(DrowsingState2, ESleepState::Sleeping, std::memory_order_relaxed))
 		{
 			verifySlow(!OutOfWork.Stop());
-			WaitCount = 0;
 			Drowsing = false;
 			WorkerEvent->SleepEvent->Wait(); // State two: ((Running -> Drowsing) -> Sleeping)
+			verifySlow(OutOfWork.Start());
 		}
 		else if(WorkerEvent->SleepState.compare_exchange_strong(RunningState, ESleepState::Drowsing, std::memory_order_relaxed))
 		{

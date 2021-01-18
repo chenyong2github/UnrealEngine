@@ -110,7 +110,7 @@ namespace LowLevelTasks
 		}
 	}
 
-	void FScheduler::LaunchInternal(FTask& Task, EQueuePreference QueuePreference)
+	void FScheduler::LaunchInternal(FTask& Task, EQueuePreference QueuePreference, bool bWakeUpWorker)
 	{
 		if (ActiveWorkers.load(std::memory_order_relaxed))
 		{			
@@ -121,11 +121,13 @@ namespace LowLevelTasks
 				QueuePreference = EQueuePreference::GlobalQueuePreference;
 			}
 
+			bWakeUpWorker |= LocalQueue == nullptr;
+
 			if (LocalQueue && QueuePreference != EQueuePreference::GlobalQueuePreference)
 			{
 				if (LocalQueue->Enqueue(&Task, uint32(Task.GetPriority())))
 				{
-					if (!WakeUpWorker(bIsBackgroundTask) && !bIsBackgroundTask)
+					if(bWakeUpWorker && !WakeUpWorker(bIsBackgroundTask) && !bIsBackgroundTask)
 					{
 						WakeUpWorker(true);
 					}
@@ -135,7 +137,7 @@ namespace LowLevelTasks
 			{
 				if (QueueRegistry.Enqueue(&Task, uint32(Task.GetPriority())))
 				{
-					if (!WakeUpWorker(bIsBackgroundTask) && !bIsBackgroundTask)
+					if (bWakeUpWorker && !WakeUpWorker(bIsBackgroundTask) && !bIsBackgroundTask)
 					{
 						WakeUpWorker(true);
 					}

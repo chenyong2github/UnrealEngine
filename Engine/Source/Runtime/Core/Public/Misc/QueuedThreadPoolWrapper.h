@@ -287,11 +287,12 @@ public:
 			bIsPaused = false;
 		}
 
-		ScheduleTasks();
+		bool bWakeUpWorker = true;
+		ScheduleTasks(bWakeUpWorker);
 	}
 
 private:
-	void ScheduleTasks()
+	void ScheduleTasks(bool &bWakeUpWorker)
 	{
 		while (!bIsPaused && TaskCount < MaxConcurrency)
 		{
@@ -299,7 +300,8 @@ private:
 			if (QueuedWork)
 			{
 				TaskCount++;
-				verifySlow(LowLevelTasks::TryLaunch(QueuedWork->Task, LowLevelTasks::EQueuePreference::LocalQueuePreference));
+				verifySlow(LowLevelTasks::TryLaunch(QueuedWork->Task, bWakeUpWorker ? LowLevelTasks::EQueuePreference::GlobalQueuePreference : LowLevelTasks::EQueuePreference::LocalQueuePreference, bWakeUpWorker));
+				bWakeUpWorker = true;
 			}
 			else
 			{
@@ -325,12 +327,13 @@ private:
 		[this, InternalData = InQueuedWork->InternalData]()
 		{
 			--TaskCount;
-			LowLevelTasks::EQueuePreference QueuePreference = LowLevelTasks::EQueuePreference::LocalQueuePreference;
-			ScheduleTasks();
+			bool bWakeUpWorker = false;
+			ScheduleTasks(bWakeUpWorker);
 		});
 
 		Enqueue(Priority, QueuedWorkInternalData);
-		ScheduleTasks();	
+		bool bWakeUpWorker = true;
+		ScheduleTasks(bWakeUpWorker);	
 	}
 
 	bool RetractQueuedWork(IQueuedWork* InQueuedWork) override

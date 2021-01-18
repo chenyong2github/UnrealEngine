@@ -32,8 +32,9 @@ protected:
 		uint32 Idx = (Head + 1) % NumItems;
 		uintptr_t Slot = ItemSlots[Idx].Value.load(std::memory_order_relaxed);
 
-		if (Slot == uintptr_t(ESlotState::Free) && ItemSlots[Idx].Value.compare_exchange_strong(Slot, Item, std::memory_order_relaxed))
+		if (Slot == uintptr_t(ESlotState::Free))
 		{
+			ItemSlots[Idx].Value.store(Item, std::memory_order_relaxed);
 			Head++;
 			checkSlow(Head % NumItems == Idx);
 			return true;		
@@ -84,35 +85,6 @@ protected:
 			}
 		} while(true);
 	}
-
-	/* Untested
-	//add an item at the tail position (this can be done from any thread including the one that accesses the head)
-	inline bool PutTail(uintptr_t Item)
-	{
-		do
-		{
-			uint32 IdxVer = Tail.load(std::memory_order_relaxed);
-			uint32 Idx = (IdxVer - 1) % NumItems;
-			uintptr_t Slot = ItemSlots[Idx].Value.load(std::memory_order_relaxed);
-
-			if (Slot > uintptr_t(ESlotState::Taken))
-			{
-				return false;
-			}
-			else if (Slot == uintptr_t(ESlotState::Free) && ItemSlots[Idx].Value.compare_exchange_weak(Slot, uintptr_t(ESlotState::Taken), std::memory_order_relaxed))
-			{
-				if(IdxVer == Tail.load(std::memory_order_relaxed))
-				{
-					uint32 Prev = Tail.fetch_sub(1, std::memory_order_relaxed);
-					checkSlow((Prev - 1) % NumItems == Idx);
-					ItemSlots[Idx].Value.store(Item, std::memory_order_relaxed);
-					return true;
-				}
-				ItemSlots[Idx].Value.store(uintptr_t(ESlotState::Free), std::memory_order_relaxed);
-			}
-		} while(true);
-	}
-	*/
 
 private:
 	struct FAlignedElement
@@ -309,14 +281,12 @@ public:
 			if (!LocalQueues[PriorityIndex].Put(Item))
 			{
 				Registry->OverflowQueues[PriorityIndex].enqueue(Item);
-				return Registry->AnyWorkerLookingForWork(bBackgroundTask);
 			}
-			return (LocalTasksSinceLastDequeue++ != 0) && Registry->AnyWorkerLookingForWork(bBackgroundTask);
+			return Registry->AnyWorkerLookingForWork(bBackgroundTask);
 		}
 
 		inline FTask* DequeueLocal(bool GetBackGroundTasks)
 		{
-			LocalTasksSinceLastDequeue = 0;
 			int32 MaxPriority = GetBackGroundTasks ? int32(ETaskPriority::Count) : int32(ETaskPriority::BackgroundNormal);
 			for (int32 PriorityIndex = 0; PriorityIndex < MaxPriority; PriorityIndex++)
 			{
@@ -373,7 +343,6 @@ public:
 		FRandomStream			Random;
 		uint32					CachedRandomIndex = InvalidIndex;
 		uint32					CachedPriorityIndex = 0;
-		uint32					LocalTasksSinceLastDequeue = 0;
 	};
 
 	TLocalQueueRegistry()

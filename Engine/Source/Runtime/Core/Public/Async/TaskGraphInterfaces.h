@@ -288,7 +288,7 @@ class FTaskGraphInterface
 	 *	@param	ThreadToExecuteOn; Either a named thread for a threadlocked task or ENamedThreads::AnyThread for a task that is to run on a worker thread
 	 *	@param	CurrentThreadIfKnown; This should be the current thread if it is known, or otherwise use ENamedThreads::AnyThread and the current thread will be determined.
 	**/
-	virtual void QueueTask(class FBaseGraphTask* Task, ENamedThreads::Type ThreadToExecuteOn, ENamedThreads::Type CurrentThreadIfKnown = ENamedThreads::AnyThread) = 0;
+	virtual void QueueTask(class FBaseGraphTask* Task, bool bWakeUpWorker, ENamedThreads::Type ThreadToExecuteOn, ENamedThreads::Type CurrentThreadIfKnown = ENamedThreads::AnyThread) = 0;
 
 public:
 
@@ -478,7 +478,8 @@ protected:
 		int32 NumToSub = NumAlreadyFinishedPrequistes + (bUnlock ? 1 : 0); // the +1 is for the "lock" we set up in the constructor
 		if (NumberOfPrerequistitesOutstanding.Subtract(NumToSub) == NumToSub) 
 		{
-			QueueTask(CurrentThread);
+			bool bWakeUpWorker = true;
+			QueueTask(CurrentThread, bWakeUpWorker);	
 		}
 	}
 	/** destructor, just checks the life stage **/
@@ -499,11 +500,12 @@ protected:
 	 *	An indication that a prerequisite has been completed. Reduces the number of prerequisites by one and if no prerequisites are outstanding, it queues the task for execution.
 	 *	@param CurrentThread; provides the index of the thread we are running on. This is handy for submitting new taks. Can be ENamedThreads::AnyThread if the current thread is unknown.
 	 **/
-	void ConditionalQueueTask(ENamedThreads::Type CurrentThread)
+	void ConditionalQueueTask(ENamedThreads::Type CurrentThread, bool& bWakeUpWorker)
 	{
 		if (NumberOfPrerequistitesOutstanding.Decrement()==0)
 		{
-			QueueTask(CurrentThread);
+			QueueTask(CurrentThread, bWakeUpWorker);
+			bWakeUpWorker = true;
 		}
 	}
 
@@ -552,10 +554,10 @@ private:
 	 *	Queues the task for execution.
 	 *	@param CurrentThread; provides the index of the thread we are running on. This is handy for submitting new taks. Can be ENamedThreads::AnyThread if the current thread is unknown.
 	 **/
-	void QueueTask(ENamedThreads::Type CurrentThreadIfKnown)
+	void QueueTask(ENamedThreads::Type CurrentThreadIfKnown, bool bWakeUpWorker)
 	{
 		checkThreadGraph(LifeStage.Increment() == int32(LS_Queued));
-		FTaskGraphInterface::Get().QueueTask(this, ThreadToExecuteOn, CurrentThreadIfKnown);
+		FTaskGraphInterface::Get().QueueTask(this, bWakeUpWorker, ThreadToExecuteOn, CurrentThreadIfKnown);
 	}
 
 	/**	Thread to execute on, can be ENamedThreads::AnyThread to execute on any unnamed thread **/
@@ -869,7 +871,8 @@ public:
 
 	void Unlock(ENamedThreads::Type CurrentThreadIfKnown = ENamedThreads::AnyThread)
 	{
-		ConditionalQueueTask(CurrentThreadIfKnown);
+		bool bWakeUpWorker = true;
+		ConditionalQueueTask(CurrentThreadIfKnown, bWakeUpWorker);
 	}
 
 	FGraphEventRef GetCompletionEvent()
