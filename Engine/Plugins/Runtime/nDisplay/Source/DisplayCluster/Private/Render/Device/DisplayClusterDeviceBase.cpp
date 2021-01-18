@@ -575,8 +575,13 @@ FMatrix FDisplayClusterDeviceBase::GetStereoProjectionMatrix(const enum EStereos
 	return PrjMatrix;
 }
 
+DECLARE_GPU_STAT_NAMED(nDisplay_Device_RenderTexture, TEXT("nDisplay RenderDevice::RenderTexture"));
+
 void FDisplayClusterDeviceBase::RenderTexture_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture2D* BackBuffer, FRHITexture2D* SrcTexture, FVector2D WindowSize) const
 {
+	SCOPED_GPU_STAT(RHICmdList, nDisplay_Device_RenderTexture);
+	SCOPED_DRAW_EVENT(RHICmdList, nDisplay_Device_RenderTexture);
+
 	// Get registered PP operations map
 	const TMap<FString, IDisplayClusterRenderManager::FDisplayClusterPPInfo> PPOperationsMap = GDisplayCluster->GetRenderMgr()->GetRegisteredPostprocessOperations();
 
@@ -604,15 +609,22 @@ void FDisplayClusterDeviceBase::RenderTexture_RenderThread(FRHICommandListImmedi
 	// Perform warp&blend
 	if (bWarpBlendEnabled)
 	{
+		// Initializing the projection policy logic for the current frame before applying warp blending
+		TRACE_CPUPROFILER_EVENT_SCOPE(nDisplay BeginWarpBlend_RenderThread);
+
 		// Iterate over viewports
-		for (int i = 0; i < RenderViewports.Num(); ++i)
+		for (int32 ViewportIdx = 0; ViewportIdx < RenderViewports.Num(); ++ViewportIdx)
 		{
 			// Iterate over views for the current viewport
-			if (RenderViewports[i].GetProjectionPolicy()->IsWarpBlendSupported())
+			if (RenderViewports[ViewportIdx].GetProjectionPolicy()->IsWarpBlendSupported())
 			{
-				for (uint32 j = 0; j < ViewsAmountPerViewport; ++j)
+				for (uint32 ViewIdx = 0; ViewIdx < ViewsAmountPerViewport; ++ViewIdx)
 				{
-					RenderViewports[i].GetProjectionPolicy()->ApplyWarpBlend_RenderThread(j, RHICmdList, SrcTexture, RenderViewports[i].GetContext(j).RenderTargetRect);
+					RenderViewports[ViewportIdx].GetProjectionPolicy()->ApplyWarpBlend_RenderThread(
+						ViewIdx,
+						RHICmdList,
+						SrcTexture,
+						RenderViewports[ViewportIdx].GetContext(ViewIdx).RenderTargetRect);
 				}
 			}
 		}

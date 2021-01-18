@@ -24,12 +24,6 @@
 
 #define ShaderFileName "/Plugin/nDisplay/Private/MPCDIOverlayShaders.usf"
 
-namespace PicpMpcdiStrings
-{
-	static constexpr auto RenderPassName = TEXT("DisplayClusterPicpWarpBlend");
-	static constexpr auto RenderPassHint = TEXT("DisplayCluster Picp Warp&Blend");
-};
-
 enum class EVarPicpMPCDIShaderType : uint8
 {
 	Default = 0,
@@ -783,7 +777,8 @@ public:
 };
 
 
-DECLARE_GPU_STAT_NAMED(DisplayClusterPicpMPCDIWarpBlend, PicpMpcdiStrings::RenderPassHint);
+
+DECLARE_GPU_STAT_NAMED(nDisplay_Picp_WarpBlend, TEXT("nDisplay Picp::Warp&Blend"));
 
 bool FPicpMPCDIShader::ApplyWarpBlend(FRHICommandListImmediate& RHICmdList, IMPCDI::FTextureWarpData& InTextureWarpData, IMPCDI::FShaderInputData& InShaderInputData, FMPCDIData* InMPCDIData, FPicpProjectionOverlayViewportData* InViewportOverlayData)
 {
@@ -796,13 +791,13 @@ bool FPicpMPCDIShader::ApplyWarpBlend(FRHICommandListImmediate& RHICmdList, IMPC
 		return false;
 	}
 
-	SCOPED_GPU_STAT(RHICmdList, DisplayClusterPicpMPCDIWarpBlend);
-	SCOPED_DRAW_EVENTF(RHICmdList, DisplayClusterPicpMPCDIWarpBlend, PicpMpcdiStrings::RenderPassName);
+	SCOPED_GPU_STAT(RHICmdList, nDisplay_Picp_WarpBlend);
+	SCOPED_DRAW_EVENT(RHICmdList, nDisplay_Picp_WarpBlend);
 
 	// Do single warp render pass
 	bool bIsRenderSuccess = false;
 	FRHIRenderPassInfo RPInfo(InTextureWarpData.DstTexture, ERenderTargetActions::Load_Store);
-	RHICmdList.BeginRenderPass(RPInfo, PicpMpcdiStrings::RenderPassName);
+	RHICmdList.BeginRenderPass(RPInfo, TEXT("nDisplay_PicpWarpBlend"));
 	bIsRenderSuccess = PicpPassRenderer.Render(RHICmdList);
 	RHICmdList.EndRenderPass();
 
