@@ -131,19 +131,19 @@ struct STEAMVRINPUTDEVICE_API FSteamVRFingerCurls
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SteamVR Input")
-	float	Thumb;
+	float	Thumb = 0.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SteamVR Input")
-	float	Index;
+	float	Index = 0.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SteamVR Input")
-	float	Middle;
+	float	Middle = 0.0f;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SteamVR Input")
-	float	Ring;
+	float	Ring = 0.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SteamVR Input")
-	float	Pinky;
+	float	Pinky = 0.0f;
 };
 
 /** SteamVR finger splays */
@@ -153,16 +153,16 @@ struct STEAMVRINPUTDEVICE_API FSteamVRFingerSplays
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SteamVR Input")
-	float	Thumb_Index;
+	float	Thumb_Index = 0.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SteamVR Input")
-	float	Index_Middle;
+	float	Index_Middle = 0.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SteamVR Input")
-	float	Middle_Ring;
+	float	Middle_Ring = 0.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SteamVR Input")
-	float	Ring_Pinky;
+	float	Ring_Pinky = 0.0f;
 };
 
 /** SteamVR actions as defined by the developer */

@@ -160,23 +160,23 @@ struct FGuardianTestResult
 
 	/** Is there a triggering interaction between the device/point and specified boundary? */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Boundary Test Result")
-	bool IsTriggering;
+	bool IsTriggering = false;
 
 	/** Device type triggering boundary (ETrackedDeviceType::None if BoundaryTestResult corresponds to a point rather than a device) */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Boundary Test Result")
-	ETrackedDeviceType DeviceType;
+	ETrackedDeviceType DeviceType = ETrackedDeviceType::None;
 
 	/** Distance of device/point to surface of boundary specified by BoundaryType */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Boundary Test Result")
-	float ClosestDistance;
+	float ClosestDistance = 0.0f;
 
 	/** Closest point on surface corresponding to specified boundary */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Boundary Test Result")
-	FVector ClosestPoint;
+	FVector ClosestPoint = FVector(0.0f);
 
 	/** Normal of closest point */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Boundary Test Result")
-	FVector ClosestPointNormal;
+	FVector ClosestPointNormal = FVector(0.0f, 0.0f, 1.0f);
 };
 
 UCLASS()

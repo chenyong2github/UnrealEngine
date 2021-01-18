@@ -36,7 +36,7 @@ struct FGoogleARCoreServicesConfig
 
 	/** Whether enabling ARPin hosting/resolving in GoogleARCoreServices. */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "GoogleARCoreServices|Configuration")
-	EARPinCloudMode ARPinCloudMode;
+	EARPinCloudMode ARPinCloudMode = EARPinCloudMode::Disabled;
 };
 
 /**
