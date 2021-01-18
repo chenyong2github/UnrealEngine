@@ -118,6 +118,7 @@ private:
 	friend class UControlRigSelectNodeSpawner;
 	friend class UControlRigPrototypeNodeSpawner;
 	friend class UControlRigEnumNodeSpawner;
+	friend class UControlRigFunctionRefNodeSpawner;
 #endif
 	friend class UControlRigGraphNode;
 	friend class FControlRigEditor;
