@@ -779,6 +779,18 @@ void UGroomAsset::BeginDestroy()
 }
 
 #if WITH_EDITOR
+
+static bool IsCardsTextureResources(const FName PropertyName)
+{
+	return
+		PropertyName == GET_MEMBER_NAME_CHECKED(FHairGroupCardsTextures, DepthTexture)
+		|| PropertyName == GET_MEMBER_NAME_CHECKED(FHairGroupCardsTextures, CoverageTexture)
+		|| PropertyName == GET_MEMBER_NAME_CHECKED(FHairGroupCardsTextures, TangentTexture)
+		|| PropertyName == GET_MEMBER_NAME_CHECKED(FHairGroupCardsTextures, AttributeTexture)
+		|| PropertyName == GET_MEMBER_NAME_CHECKED(FHairGroupCardsTextures, AuxilaryDataTexture);
+}
+static void InitCardsTextureResources(UGroomAsset* GroomAsset);
+
 static bool IsCardsProceduralAttributes(const FName PropertyName)
 {	
 	return
@@ -835,9 +847,7 @@ void UGroomAsset::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedE
 		HairGroupsCards.Last().SourceType = HasImportedStrandsData() ? EHairCardsSourceType::Procedural : EHairCardsSourceType::Imported;
 	}
 
-#if WITH_EDITOR
 	SavePendingProceduralAssets();
-#endif
 
 	// By pass update for all procedural cards parameters, as we don't want them to invalidate the cards data. 
 	// Cards should be refresh only under user action
@@ -846,6 +856,15 @@ void UGroomAsset::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedE
 	{
 		FGroomComponentRecreateRenderStateContext Context(this);
 		UpdateResource();
+	}
+
+	// Special path for reloading the cards texture if needed as texture are not part of the cards DDC key, so the build is not retrigger 
+	// when a user change the cards texture asset from the texture panel
+	const bool bCardsResourcesUpdate = IsCardsTextureResources(PropertyName);
+	if (bCardsResourcesUpdate)
+	{
+		FGroomComponentRecreateRenderStateContext Context(this);
+		InitCardsTextureResources(this);
 	}
 
 	const bool bCardMaterialChanged = PropertyName == GET_MEMBER_NAME_CHECKED(FHairGroupsCardsSourceDescription, Material);
@@ -2132,6 +2151,47 @@ void UGroomAsset::InitStrandsResources()
 			check(GroupData.Guides.IsValid());
 			GroupData.Strands.InterpolationResource = new FHairStrandsInterpolationResource(GroupData.Strands.InterpolationData.RenderData, GroupData.Guides.Data);
 			BeginInitResource(GroupData.Strands.InterpolationResource);
+		}
+	}
+}
+
+static void InitCardsTextureResources(UGroomAsset* GroomAsset)
+{
+	if (!GroomAsset || !IsHairStrandsEnabled(EHairStrandsShaderType::Cards) || GroomAsset->HairGroupsCards.Num() == 0)
+	{
+		return;
+	}
+
+	for (uint32 GroupIndex = 0, GroupCount = GroomAsset->GetNumHairGroups(); GroupIndex < GroupCount; ++GroupIndex)
+	{
+		FHairGroupData& GroupData = GroomAsset->HairGroupsData[GroupIndex];
+
+		const uint32 LODCount = GroomAsset->HairGroupsLOD[GroupIndex].LODs.Num();
+		GroupData.Cards.LODs.SetNum(LODCount);
+
+		for (uint32 LODIt = 0; LODIt < LODCount; ++LODIt)
+		{
+			FHairGroupData::FCards::FLOD& LOD = GroupData.Cards.LODs[LODIt];
+
+			int32 SourceIt = 0;
+			const FHairGroupsCardsSourceDescription* Desc = GetSourceDescription(GroomAsset->HairGroupsCards, GroupIndex, LODIt, SourceIt);
+			if (!Desc)
+			{
+				continue;
+			}
+
+			if (LOD.HasValidData())
+			{
+				if (Desc)
+				{
+					InitAtlasTexture(LOD.RestResource, Desc->Textures.DepthTexture, EHairAtlasTextureType::Depth);
+					InitAtlasTexture(LOD.RestResource, Desc->Textures.TangentTexture, EHairAtlasTextureType::Tangent);
+					InitAtlasTexture(LOD.RestResource, Desc->Textures.AttributeTexture, EHairAtlasTextureType::Attribute);
+					InitAtlasTexture(LOD.RestResource, Desc->Textures.CoverageTexture, EHairAtlasTextureType::Coverage);
+					InitAtlasTexture(LOD.RestResource, Desc->Textures.AuxilaryDataTexture, EHairAtlasTextureType::AuxilaryData);
+					LOD.RestResource->bInvertUV = Desc->SourceType == EHairCardsSourceType::Procedural; // Should fix procedural texture so that this does not happen
+				}
+			}
 		}
 	}
 }
