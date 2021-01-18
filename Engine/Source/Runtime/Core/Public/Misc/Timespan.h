@@ -75,8 +75,10 @@ struct FTimespan
 {
 public:
 
-	/** Default constructor (no initialization). */
-	FTimespan() { }
+	/** Default constructor (zero initialization). */
+	FTimespan()
+		: Ticks(0)
+	{ }
 
 	/**
 	 * Create and initialize a new time interval with the specified number of ticks.

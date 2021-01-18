@@ -74,8 +74,10 @@ struct FDateTime
 {
 public:
 
-	/** Default constructor (no initialization). */
-	FDateTime() { }
+	/** Default constructor (zero initialization). */
+	FDateTime()
+		: Ticks(0)
+	{ }
 
 	/**
 	 * Creates and initializes a new instance with the specified number of ticks.
