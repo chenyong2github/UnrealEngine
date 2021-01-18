@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "ISourceControlProvider.h"
 #include "PerforceConnectionInfo.h"
+#include "PerforceSourceControlChangelist.h"
 #include "Misc/IQueuedWork.h"
 
 DECLARE_DELEGATE_RetVal(bool, FOnIsCancelled);
@@ -100,7 +101,7 @@ public:
 	TArray< FString > Files;
 
 	/** Changelist to perform this operation on */
-	int32 Changelist;
+	FPerforceSourceControlChangelist Changelist;
 
 	/** Potential error, warning and info message storage */
 	FSourceControlResultInfo ResultInfo;

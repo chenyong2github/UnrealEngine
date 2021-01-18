@@ -359,7 +359,7 @@ ECommandResult::Type FPerforceSourceControlProvider::Execute( const FSourceContr
 		return ECommandResult::Failed;
 	}
 
-	int32 ChangelistNumber = (InChangelist ? InChangelist->ChangelistNumber : FPerforceSourceControlChangelist::DefaultChangelist.ChangelistNumber);
+	FPerforceSourceControlChangelist Changelist = InChangelist ? InChangelist.ToSharedRef().Get() : FPerforceSourceControlChangelist::DefaultChangelist;
 
 	// fire off operation
 	if(InConcurrency == EConcurrency::Synchronous)
@@ -370,7 +370,7 @@ ECommandResult::Type FPerforceSourceControlProvider::Execute( const FSourceContr
 		Command->StatusBranchNames = StatusBranchNames;
 		Command->ContentRoot = ContentRoot;
 		Command->OperationCompleteDelegate = InOperationCompleteDelegate;
-		Command->Changelist = ChangelistNumber;
+		Command->Changelist = Changelist;
 		return ExecuteSynchronousCommand(*Command, InOperation->GetInProgressString(), true);
 	}
 	else
@@ -381,7 +381,7 @@ ECommandResult::Type FPerforceSourceControlProvider::Execute( const FSourceContr
 		Command->StatusBranchNames = StatusBranchNames;
 		Command->ContentRoot = ContentRoot;
 		Command->OperationCompleteDelegate = InOperationCompleteDelegate;
-		Command->Changelist = ChangelistNumber;
+		Command->Changelist = Changelist;
 		return IssueCommand(*Command, false);
 	}
 }

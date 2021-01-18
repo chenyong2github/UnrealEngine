@@ -10,7 +10,7 @@ class FPerforceSourceControlChangelist : public ISourceControlChangelist
 public:
 	FPerforceSourceControlChangelist();
 
-	FPerforceSourceControlChangelist(int32 InChangelistNumber) 
+	explicit FPerforceSourceControlChangelist(int32 InChangelistNumber)
 		: ChangelistNumber(InChangelistNumber)
 	{
 	}
@@ -23,6 +23,16 @@ public:
 	bool operator==(const FPerforceSourceControlChangelist& InOther) const
 	{
 		return ChangelistNumber == InOther.ChangelistNumber;
+	}
+
+	bool operator!=(const FPerforceSourceControlChangelist& InOther) const
+	{
+		return ChangelistNumber != InOther.ChangelistNumber;
+	}
+
+	bool IsDefault() const
+	{
+		return *this == DefaultChangelist;
 	}
 
 	friend FORCEINLINE uint32 GetTypeHash(const FPerforceSourceControlChangelist& PerforceChangelist)

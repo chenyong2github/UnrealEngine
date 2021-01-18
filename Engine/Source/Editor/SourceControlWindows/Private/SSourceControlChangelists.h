@@ -92,6 +92,8 @@ private:
 	TSharedRef<ITableRow> OnGenerateRow(FChangelistTreeItemPtr InTreeItem, const TSharedRef<STableViewBase>& OwnerTable);
 	void OnGetChildren(FChangelistTreeItemPtr InParent, TArray<FChangelistTreeItemPtr>& OutChildren);
 
+	FReply OnFilesDragged(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent);
+
 	void RequestRefresh();
 	void Refresh();
 	void ClearChangelistsTree();

@@ -517,4 +517,23 @@ public:
 	}
 };
 
+/**
+ * Operation used to move files between changelists
+ */
+class FMoveToChangelist : public FSourceControlOperationBase
+{
+public:
+	// ISourceControlOperation interface
+	virtual FName GetName() const override
+	{
+		return "MoveToChangelist";
+	}
+
+	virtual FText GetInProgressString() const override
+	{
+		return LOCTEXT("SourceControl_MoveToChangelist", "Moving files to target changelist...");
+	}
+};
+
+
 #undef LOCTEXT_NAMESPACE

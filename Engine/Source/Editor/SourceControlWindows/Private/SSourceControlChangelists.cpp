@@ -4,6 +4,8 @@
 
 #include "EditorStyleSet.h"
 
+#include "Algo/Transform.h"
+
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Layout/SScrollBorder.h"
@@ -17,6 +19,55 @@
 #include "SSourceControlDescription.h"
 
 #define LOCTEXT_NAMESPACE "SourceControlChangelist"
+
+//////////////////////////////
+
+static TSharedRef<SWidget> GetSCCFileWidget(FSourceControlStateRef InFileState)
+{
+	const FSlateBrush* IconBrush = FEditorStyle::GetBrush("ContentBrowser.ColumnViewAssetIcon");
+
+	// Make icon overlays (eg, SCC and dirty status) a reasonable size in relation to the icon size (note: it is assumed this icon is square)
+	const float ICON_SCALING_FACTOR = 0.7f;
+	const float IconOverlaySize = IconBrush->ImageSize.X * ICON_SCALING_FACTOR;
+
+	return SNew(SOverlay)
+
+		// The actual icon
+		+ SOverlay::Slot()
+		[
+			SNew(SImage)
+			.Image(IconBrush)
+		]
+
+	// Source control state
+	+ SOverlay::Slot()
+		.HAlign(HAlign_Left)
+		.VAlign(VAlign_Top)
+		[
+			SNew(SBox)
+			.WidthOverride(IconOverlaySize)
+			.HeightOverride(IconOverlaySize)
+			[
+				SNew(SLayeredImage, InFileState->GetIcon())
+			]
+		];
+}
+
+struct FSCCFileDragDropOp : public FDragDropOperation
+{
+	DRAG_DROP_OPERATOR_TYPE(FSCCFileDragDropOp, FDragDropOperation);
+
+	using FDragDropOperation::Construct;
+
+	virtual TSharedPtr<SWidget> GetDefaultDecorator() const override
+	{
+		return GetSCCFileWidget(Files[0]);
+	}
+
+	TArray<FSourceControlStateRef> Files;
+};
+
+//////////////////////////////
 
 struct FChangelistTreeItem : public IChangelistTreeItem
 {
@@ -544,6 +595,27 @@ public:
 		return FText::FromString(DescriptionString);
 	}
 
+protected:
+	//~ Begin STableRow Interface.
+	virtual FReply OnDrop(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent) override
+	{
+		TSharedPtr<FSCCFileDragDropOp> Operation = InDragDropEvent.GetOperationAs<FSCCFileDragDropOp>();
+		if (Operation.IsValid())
+		{
+			FSourceControlChangelistPtr Changelist = TreeItem->ChangelistState->GetChangelist();
+			check(Changelist.IsValid());
+
+			TArray<FString> Files;
+			Algo::Transform(Operation->Files, Files, [](const FSourceControlStateRef& State) { return State->GetFilename(); });
+
+			ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
+			SourceControlProvider.Execute(ISourceControlOperation::Create<FMoveToChangelist>(), Changelist, Files);
+		}
+
+		return FReply::Handled();
+	}
+	//~ End STableRow Interface.
+
 private:
 	/** The info about the widget that we are visualizing. */
 	FChangelistTreeItem* TreeItem;
@@ -556,6 +628,7 @@ public:
 		: _TreeItemToVisualize()
 	{}
 	SLATE_ARGUMENT(FChangelistTreeItemPtr, TreeItemToVisualize)
+	SLATE_EVENT(FOnDragDetected, OnDragDetected)
 	SLATE_END_ARGS()
 
 public:
@@ -568,42 +641,16 @@ public:
 	{
 		TreeItem = static_cast<FFileTreeItem*>(InArgs._TreeItemToVisualize.Get());
 
-		const FSlateBrush* IconBrush = FEditorStyle::GetBrush("ContentBrowser.ColumnViewAssetIcon");
-
-		// Make icon overlays (eg, SCC and dirty status) a reasonable size in relation to the icon size (note: it is assumed this icon is square)
-		const float ICON_SCALING_FACTOR = 0.7f;
-		const float IconOverlaySize = IconBrush->ImageSize.X * ICON_SCALING_FACTOR;
-
 		ChildSlot
 		[
 			SNew(SHorizontalBox)
 
 			// Icon
-			+SHorizontalBox::Slot()
+			+ SHorizontalBox::Slot()
 				.AutoWidth()
 				.Padding(40, 0, 4, 0)
 				[
-					SNew(SOverlay)
-				
-					// The actual icon
-					+SOverlay::Slot()
-					[
-						SNew(SImage)
-						.Image( IconBrush )
-					]
-
-					// Source control state
-					+SOverlay::Slot()
-					.HAlign(HAlign_Left)
-					.VAlign(VAlign_Top)
-					[
-						SNew(SBox)
-						.WidthOverride(IconOverlaySize)
-						.HeightOverride(IconOverlaySize)
-						[
-							SNew(SLayeredImage, TreeItem->FileState->GetIcon())
-						]
-					]
+					GetSCCFileWidget(TreeItem->FileState)
 				]
 
 			+ SHorizontalBox::Slot()
@@ -615,8 +662,11 @@ public:
 				]
 		];
 
+		auto Args = STableRow::FArguments()
+			.OnDragDetected(InArgs._OnDragDetected);
+
 		STableRow<FChangelistTreeItemPtr>::ConstructInternal(
-			STableRow::FArguments()
+			Args
 			.ShowSelection(true),
 			InOwner
 		);
@@ -626,6 +676,21 @@ public:
 	{
 		return TreeItem->GetDisplayText();
 	}
+
+protected:
+	//~ Begin STableRow Interface.
+	virtual void OnDragEnter(FGeometry const& InGeometry, FDragDropEvent const& InDragDropEvent) override
+	{
+		TSharedPtr<FDragDropOperation> DragOperation = InDragDropEvent.GetOperation();
+		DragOperation->SetCursorOverride(EMouseCursor::SlashedCircle);
+	}
+
+	virtual void OnDragLeave(FDragDropEvent const& InDragDropEvent) override
+	{
+		TSharedPtr<FDragDropOperation> DragOperation = InDragDropEvent.GetOperation();
+		DragOperation->SetCursorOverride(EMouseCursor::None);
+	}
+	//~ End STableRow Interface.
 
 private:
 	/** The info about the widget that we are visualizing. */
@@ -642,13 +707,29 @@ TSharedRef<ITableRow> SSourceControlChangelistsWidget::OnGenerateRow(FChangelist
 
 	case IChangelistTreeItem::File:
 		return SNew(SFileTableRow, OwnerTable)
-			.TreeItemToVisualize(InTreeItem);
+			.TreeItemToVisualize(InTreeItem)
+			.OnDragDetected(this, &SSourceControlChangelistsWidget::OnFilesDragged);
 
 	default:
 		check(false);
 	};
 
 	return SNew(STableRow<TSharedPtr<FString>>, OwnerTable);
+}
+
+FReply SSourceControlChangelistsWidget::OnFilesDragged(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
+{
+	if (InMouseEvent.IsMouseButtonDown(EKeys::LeftMouseButton) && !TreeView->GetSelectedItems().IsEmpty())
+	{
+		TSharedRef<FSCCFileDragDropOp> Operation = MakeShareable(new FSCCFileDragDropOp());
+
+		Algo::Transform(TreeView->GetSelectedItems(), Operation->Files, [](FChangelistTreeItemPtr InTreeItem) { check(InTreeItem->GetTreeItemType() == IChangelistTreeItem::File); return static_cast<FFileTreeItem*>(InTreeItem.Get())->FileState; });
+		Operation->Construct();
+
+		return FReply::Handled().BeginDragDrop(Operation);
+	}
+
+	return FReply::Unhandled();
 }
 
 void SSourceControlChangelistsWidget::OnGetChildren(FChangelistTreeItemPtr InParent, TArray<FChangelistTreeItemPtr>& OutChildren)

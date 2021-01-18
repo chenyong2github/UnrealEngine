@@ -338,6 +338,53 @@ static FText ParseSubmitResults(const FP4RecordSet& InRecords)
 	return LOCTEXT("SubmitMessageUnknown", "Submitted changelist");
 }
 
+static bool RunReopenCommand(FPerforceSourceControlCommand& InCommand, const TArray<FString>& InFiles, const FPerforceSourceControlChangelist& InChangelist, TArray<FString>* OutReopenedFiles = nullptr)
+{
+	bool bCommandSuccessful = true;
+
+	FScopedPerforceConnection ScopedConnection(InCommand);
+	if (!InCommand.IsCanceled() && ScopedConnection.IsValid())
+	{
+		FPerforceConnection& Connection = ScopedConnection.GetConnection();
+
+		// Batch reopen into multiple commands, to avoid command line limits
+		const int32 BatchedCount = 100;
+
+		if (OutReopenedFiles != nullptr)
+		{
+			OutReopenedFiles->Reserve(InFiles.Num());
+		}
+
+		for (int32 StartingIndex = 0; StartingIndex < InFiles.Num() && bCommandSuccessful; StartingIndex += BatchedCount)
+		{
+			FP4RecordSet Records;
+			TArray<FString> ReopenParams;
+
+			//Add changelist information to params
+			ReopenParams.Add(TEXT("-c"));
+			ReopenParams.Add(InChangelist.ToString());
+
+			int32 NextIndex = FMath::Min(StartingIndex + BatchedCount, InFiles.Num());
+
+			for (int32 FileIndex = StartingIndex; FileIndex < NextIndex; FileIndex++)
+			{
+				ReopenParams.Add(InFiles[FileIndex]);
+			}
+
+			bCommandSuccessful = Connection.RunCommand(TEXT("reopen"), ReopenParams, Records, InCommand.ResultInfo.ErrorMessages, FOnIsCancelled::CreateRaw(&InCommand, &FPerforceSourceControlCommand::IsCanceled), InCommand.bConnectionDropped);
+			if (bCommandSuccessful && OutReopenedFiles != nullptr)
+			{
+				for (int32 FileIndex = StartingIndex; FileIndex < NextIndex; FileIndex++)
+				{
+					OutReopenedFiles->Add(InFiles[FileIndex]);
+				}
+			}
+		}
+	}
+
+	return bCommandSuccessful;
+}
+
 bool FPerforceCheckInWorker::Execute(FPerforceSourceControlCommand& InCommand)
 {
 	FScopedPerforceConnection ScopedConnection(InCommand);
@@ -348,45 +395,18 @@ bool FPerforceCheckInWorker::Execute(FPerforceSourceControlCommand& InCommand)
 		check(InCommand.Operation->GetName() == GetName());
 		TSharedRef<FCheckIn, ESPMode::ThreadSafe> Operation = StaticCastSharedRef<FCheckIn>(InCommand.Operation);
 
-		const bool bCheckInFromDefaultChangelist = (InCommand.Changelist == FPerforceSourceControlChangelist::DefaultChangelist.ChangelistNumber);
-		const int32 BatchedCount = 100;
-		int32 ChangeList = InCommand.Changelist;
+		FPerforceSourceControlChangelist ChangeList(InCommand.Changelist);
 		TArray<FString> ReopenedFiles;
 
 		InCommand.bCommandSuccessful = true;
 
-		if (bCheckInFromDefaultChangelist)
+		if (InCommand.Changelist.IsDefault())
 		{
-			ChangeList = Connection.CreatePendingChangelist(Operation->GetDescription(), TArray<FString>(), FOnIsCancelled::CreateRaw(&InCommand, &FPerforceSourceControlCommand::IsCanceled), InCommand.ResultInfo.ErrorMessages);
-			if (ChangeList > 0)
+			int32 NewChangeList = Connection.CreatePendingChangelist(Operation->GetDescription(), TArray<FString>(), FOnIsCancelled::CreateRaw(&InCommand, &FPerforceSourceControlCommand::IsCanceled), InCommand.ResultInfo.ErrorMessages);
+			if (NewChangeList > 0)
 			{
-				// Batch reopen into multiple commands, to avoid command line limits
-				ReopenedFiles.Reserve(InCommand.Files.Num());
-				for (int32 StartingIndex = 0; StartingIndex < InCommand.Files.Num() && InCommand.bCommandSuccessful; StartingIndex += BatchedCount)
-				{
-					FP4RecordSet Records;
-					TArray< FString > ReopenParams;
-
-					//Add changelist information to params
-					ReopenParams.Insert(TEXT("-c"), 0);
-					ReopenParams.Insert(FString::Printf(TEXT("%d"), ChangeList), 1);
-					int32 NextIndex = FMath::Min(StartingIndex + BatchedCount, InCommand.Files.Num());
-
-					int32 FileParamsStartIdx = ReopenParams.Num();
-					for (int32 FileIndex = StartingIndex; FileIndex < NextIndex; FileIndex++)
-					{
-						ReopenParams.Add(InCommand.Files[FileIndex]);
-					}
-
-					InCommand.bCommandSuccessful = Connection.RunCommand(TEXT("reopen"), ReopenParams, Records, InCommand.ResultInfo.ErrorMessages, FOnIsCancelled::CreateRaw(&InCommand, &FPerforceSourceControlCommand::IsCanceled), InCommand.bConnectionDropped);
-					if (InCommand.bCommandSuccessful)
-					{
-						for (int32 ParamIdx = FileParamsStartIdx; ParamIdx < ReopenParams.Num(); ++ParamIdx)
-						{
-							ReopenedFiles.Add(ReopenParams[ParamIdx]);
-						}
-					}
-				}
+				ChangeList = FPerforceSourceControlChangelist(NewChangeList);
+				InCommand.bCommandSuccessful = RunReopenCommand(InCommand, InCommand.Files, ChangeList, &ReopenedFiles);
 			}
 			else
 			{
@@ -400,8 +420,8 @@ bool FPerforceCheckInWorker::Execute(FPerforceSourceControlCommand& InCommand)
 			TArray<FString> SubmitParams;
 			FP4RecordSet Records;
 
-			SubmitParams.Insert(TEXT("-c"), 0);
-			SubmitParams.Insert(FString::Printf(TEXT("%d"), ChangeList), 1);
+			SubmitParams.Add(TEXT("-c"));
+			SubmitParams.Add(ChangeList.ToString());
 
 			InCommand.bCommandSuccessful = Connection.RunCommand(TEXT("submit"), SubmitParams, Records, InCommand.ResultInfo.ErrorMessages, FOnIsCancelled::CreateRaw(&InCommand, &FPerforceSourceControlCommand::IsCanceled), InCommand.bConnectionDropped);
 
@@ -428,7 +448,7 @@ bool FPerforceCheckInWorker::Execute(FPerforceSourceControlCommand& InCommand)
 
 				StaticCastSharedRef<FCheckIn>(InCommand.Operation)->SetSuccessMessage(ParseSubmitResults(Records));
 
-				for (auto Iter(InCommand.Files.CreateIterator()); Iter; Iter++)
+				for(auto Iter(InCommand.Files.CreateIterator()); Iter; Iter++)
 				{
 					OutResults.Add(*Iter, EPerforceState::ReadOnly);
 				}
@@ -436,30 +456,12 @@ bool FPerforceCheckInWorker::Execute(FPerforceSourceControlCommand& InCommand)
 		}
 
 		// If the submit failed, clean up the changelist created above
-		if (!InCommand.bCommandSuccessful && bCheckInFromDefaultChangelist)
+		if (!InCommand.bCommandSuccessful && InCommand.Changelist.IsDefault())
 		{
 			// Reopen the assets to the default changelist to remove them from the changelist we created above
 			if (ReopenedFiles.Num() > 0)
 			{
-				bool bReopenSuccessful = true;
-				for (int32 StartingIndex = 0; StartingIndex < ReopenedFiles.Num() && bReopenSuccessful; StartingIndex += BatchedCount)
-				{
-					FP4RecordSet Records;
-					TArray< FString > ReopenParams;
-
-					//Add changelist information to params
-					ReopenParams.Insert(TEXT("-c"), 0);
-					ReopenParams.Insert(TEXT("default"), 1);
-					int32 NextIndex = FMath::Min(StartingIndex + BatchedCount, ReopenedFiles.Num());
-
-					int32 FileParamsStartIdx = ReopenParams.Num();
-					for (int32 FileIndex = StartingIndex; FileIndex < NextIndex; FileIndex++)
-					{
-						ReopenParams.Add(ReopenedFiles[FileIndex]);
-					}
-
-					bReopenSuccessful = Connection.RunCommand(TEXT("reopen"), ReopenParams, Records, InCommand.ResultInfo.ErrorMessages, FOnIsCancelled::CreateRaw(&InCommand, &FPerforceSourceControlCommand::IsCanceled), InCommand.bConnectionDropped);
-				}
+				InCommand.bCommandSuccessful = RunReopenCommand(InCommand, ReopenedFiles, InCommand.Changelist);
 			}
 
 			// Delete the changelist we created above
@@ -467,7 +469,7 @@ bool FPerforceCheckInWorker::Execute(FPerforceSourceControlCommand& InCommand)
 				FP4RecordSet Records;
 				TArray<FString> ChangeParams;
 				ChangeParams.Add(TEXT("-d"));
-				ChangeParams.Add(FString::Printf(TEXT("%d"), ChangeList));
+				ChangeParams.Add(ChangeList.ToString());
 				Connection.RunCommand(TEXT("change"), ChangeParams, Records, InCommand.ResultInfo.ErrorMessages, FOnIsCancelled::CreateRaw(&InCommand, &FPerforceSourceControlCommand::IsCanceled), InCommand.bConnectionDropped);
 			}
 		}
@@ -1780,7 +1782,7 @@ FName FPerforceDeleteChangelistWorker::GetName() const
 bool FPerforceDeleteChangelistWorker::Execute(class FPerforceSourceControlCommand& InCommand)
 {
 	// Can't delete the default changelist
-	if (InCommand.Changelist == FPerforceSourceControlChangelist::DefaultChangelist.ChangelistNumber)
+	if (InCommand.Changelist.IsDefault())
 	{
 		InCommand.bCommandSuccessful = false;
 		return false;
@@ -1796,7 +1798,7 @@ bool FPerforceDeleteChangelistWorker::Execute(class FPerforceSourceControlComman
 		FP4RecordSet Records;
 		TArray<FString> Params;
 		Params.Add(TEXT("-d"));
-		Params.Add(FString::Printf(TEXT("%d"), InCommand.Changelist));
+		Params.Add(InCommand.Changelist.ToString());
 		// Command will fail if changelist is not empty
 		Connection.RunCommand(TEXT("change"), Params, Records, InCommand.ResultInfo.ErrorMessages, FOnIsCancelled::CreateRaw(&InCommand, &FPerforceSourceControlCommand::IsCanceled), InCommand.bConnectionDropped);
 		// The normal parsing of the records here will show that it failed, but there's no record on a deleted changelist
@@ -1805,7 +1807,7 @@ bool FPerforceDeleteChangelistWorker::Execute(class FPerforceSourceControlComman
 		// Keep track of changelist to update the cache
 		if (InCommand.bCommandSuccessful)
 		{
-			DeletedChangelist.ChangelistNumber = InCommand.Changelist;
+			DeletedChangelist = InCommand.Changelist;
 		}
 	}
 
@@ -1815,7 +1817,7 @@ bool FPerforceDeleteChangelistWorker::Execute(class FPerforceSourceControlComman
 bool FPerforceDeleteChangelistWorker::UpdateStates() const
 {
 	FPerforceSourceControlModule& PerforceSourceControl = FPerforceSourceControlModule::Get();
-	if (DeletedChangelist.ChangelistNumber != FPerforceSourceControlChangelist::DefaultChangelist.ChangelistNumber)
+	if (!DeletedChangelist.IsDefault())
 	{
 		return PerforceSourceControl.GetProvider().RemoveChangelistFromCache(DeletedChangelist);
 	}
@@ -1840,13 +1842,13 @@ bool FPerforceEditChangelistWorker::Execute(class FPerforceSourceControlCommand&
 		check(InCommand.Operation->GetName() == GetName());
 		TSharedRef<FEditChangelist, ESPMode::ThreadSafe> Operation = StaticCastSharedRef<FEditChangelist>(InCommand.Operation);
 
-		int32 Changelist = Connection.EditPendingChangelist(Operation->GetDescription(), InCommand.Changelist, FOnIsCancelled::CreateRaw(&InCommand, &FPerforceSourceControlCommand::IsCanceled), InCommand.ResultInfo.ErrorMessages);
+		int32 ChangelistNumber = Connection.EditPendingChangelist(Operation->GetDescription(), InCommand.Changelist.ChangelistNumber, FOnIsCancelled::CreateRaw(&InCommand, &FPerforceSourceControlCommand::IsCanceled), InCommand.ResultInfo.ErrorMessages);
 
-		InCommand.bCommandSuccessful = (Changelist == InCommand.Changelist);
+		InCommand.bCommandSuccessful = (ChangelistNumber == InCommand.Changelist.ChangelistNumber);
 
 		if (InCommand.bCommandSuccessful)
 		{
-			EditedChangelist.ChangelistNumber = InCommand.Changelist;
+			EditedChangelist = InCommand.Changelist;
 			EditedDescription = Operation->GetDescription();
 		}
 	}
@@ -1879,15 +1881,7 @@ bool FPerforceRevertUnchangedWorker::Execute(class FPerforceSourceControlCommand
 
 		Parameters.Add(TEXT("-a")); // revert unchanged only
 		Parameters.Add(TEXT("-c"));
-
-		if (InCommand.Changelist != FPerforceSourceControlChangelist::DefaultChangelist.ChangelistNumber)
-		{
-			Parameters.Add(FString::Printf(TEXT("%d"), InCommand.Changelist));
-		}
-		else
-		{
-			Parameters.Add(TEXT("default"));
-		}
+		Parameters.Add(InCommand.Changelist.ToString());
 
 		if (InCommand.Files.Num() > 0)
 		{
@@ -1908,6 +1902,28 @@ bool FPerforceRevertUnchangedWorker::Execute(class FPerforceSourceControlCommand
 bool FPerforceRevertUnchangedWorker::UpdateStates() const
 {
 	return UpdateCachedStates(OutResults);
+}
+
+FName FPerforceReopenWorker::GetName() const
+{
+	return "Reopen";
+}
+	
+bool FPerforceReopenWorker::Execute(FPerforceSourceControlCommand& InCommand)
+{
+	FScopedPerforceConnection ScopedConnection(InCommand);
+	if (!InCommand.IsCanceled() && ScopedConnection.IsValid())
+	{
+		InCommand.bCommandSuccessful = RunReopenCommand(InCommand, InCommand.Files, InCommand.Changelist);
+	}
+
+	return InCommand.bCommandSuccessful;
+}
+
+bool FPerforceReopenWorker::UpdateStates() const
+{
+	// TODO : update changelists states (source & destination CLs)
+	return true;
 }
 
 #undef LOCTEXT_NAMESPACE

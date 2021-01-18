@@ -247,3 +247,14 @@ protected:
 	/** Map of filenames to perforce state */
 	TMap<FString, EPerforceState::Type> OutResults;
 };
+
+class FPerforceReopenWorker : public IPerforceSourceControlWorker
+{
+public:
+	virtual ~FPerforceReopenWorker() {}
+	// IPerforceSourceControlWorker interface
+	virtual FName GetName() const override;
+	virtual bool Execute(class FPerforceSourceControlCommand& InCommand) override;
+	virtual bool UpdateStates() const override;
+};
+
