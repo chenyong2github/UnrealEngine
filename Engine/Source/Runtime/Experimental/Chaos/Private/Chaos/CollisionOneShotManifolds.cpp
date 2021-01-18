@@ -501,14 +501,15 @@ namespace Chaos
 			}
 
 			// Now clip against all planes that belong to the reference plane's, edges
-			// Note winding order matters here!
+			// Note winding order matters here, and we have to handle negative scales
+			const float RefWindingOrder = RefConvex.GetWindingOrder();
 			TArrayView<const int32> RefConvexFaceVertices = RefConvex.GetPlaneVertices(RefPlaneIndex);
 			int32 ClippingPlaneCount = RefConvexFaceVertices.Num();
 			FVec3 PrevPoint = RefConvex.GetVertex(RefConvexFaceVertices[ClippingPlaneCount - 1]);
 			for (int32 ClippingPlaneIndex = 0; ClippingPlaneIndex < ClippingPlaneCount; ++ClippingPlaneIndex)
 			{
 				FVec3 CurrentPoint = RefConvex.GetVertex(RefConvexFaceVertices[ClippingPlaneIndex]);
-				FVec3 ClippingPlaneNormal = -FVec3::CrossProduct(RefPlaneNormal, CurrentPoint - PrevPoint);
+				FVec3 ClippingPlaneNormal = RefWindingOrder * FVec3::CrossProduct(RefPlaneNormal, PrevPoint - CurrentPoint);
 				ClippingPlaneNormal.SafeNormalize();
 				ContactPointCount = ClipVerticesAgainstPlane(VertexBuffer1, VertexBuffer2, ContactPointCount, MaxContactPointCount, ClippingPlaneNormal, FVec3::DotProduct(CurrentPoint, ClippingPlaneNormal));
 				Swap(VertexBuffer1, VertexBuffer2); // VertexBuffer1 will now point to the latest

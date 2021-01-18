@@ -114,6 +114,12 @@ public:
 		return MObject->SupportCore(Direction, InMargin + GetMargin());
 	}
 
+	// Returns a winding order multiplier used in the manifold clipping and required when we have negative scales
+	FORCEINLINE float GetWindingOrder() const
+	{
+		return 1.0f;
+	}
+
 	virtual const TAABB<T, d> BoundingBox() const override 
 	{ 
 		return MObject->BoundingBox();
@@ -633,6 +639,13 @@ public:
 	FORCEINLINE_DEBUGGABLE TVector<T, d> SupportCore(const TVector<T, d>& Direction, float InMargin) const
 	{
 		return MObject->SupportCoreScaled(Direction, InMargin + OuterMargin, MScale);
+	}
+
+	// Returns a winding order multiplier used in the manifold clipping and required when we have negative scales
+	FORCEINLINE float GetWindingOrder() const
+	{
+		const FVec3 SignVector = MScale.GetSignVector();
+		return SignVector.X * SignVector.Y * SignVector.Z;
 	}
 
 	const TVector<T, d>& GetScale() const { return MScale; }
