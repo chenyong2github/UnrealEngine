@@ -307,6 +307,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=InstanceSettings, meta=(EditCondition="CastShadow"))
 	uint32 bCastStaticShadow:1;
 
+	/** Whether the object should cast contact shadows. This flag is only used if CastShadow is true. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=InstanceSettings, meta=(EditCondition = "CastShadow"))
+	uint8 bCastContactShadow : 1;
+
 	/** Whether this foliage should cast dynamic shadows as if it were a two sided material. */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category=InstanceSettings, meta=(EditCondition="bCastDynamicShadow"))
 	uint32 bCastShadowAsTwoSided:1;

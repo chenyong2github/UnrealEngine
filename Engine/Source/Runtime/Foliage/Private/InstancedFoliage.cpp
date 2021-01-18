@@ -478,6 +478,7 @@ UFoliageType::UFoliageType(const FObjectInitializer& ObjectInitializer)
 	CastShadow = true;
 	bCastDynamicShadow = true;
 	bCastStaticShadow = true;
+	bCastContactShadow = true;
 	bAffectDynamicIndirectLighting = false;
 	// Most of the high instance count foliage like grass causes performance problems with distance field lighting
 	bAffectDistanceFieldLighting = false;
@@ -1418,6 +1419,12 @@ void FFoliageStaticMesh::UpdateComponentSettings(const UFoliageType_InstancedSta
 		if (Component->bCastStaticShadow != FoliageType->bCastStaticShadow)
 		{
 			Component->bCastStaticShadow = FoliageType->bCastStaticShadow;
+			bNeedsMarkRenderStateDirty = true;
+			bNeedsInvalidateLightingCache = true;
+		}
+		if (Component->bCastContactShadow != FoliageType->bCastContactShadow)
+		{
+			Component->bCastContactShadow = FoliageType->bCastContactShadow;
 			bNeedsMarkRenderStateDirty = true;
 			bNeedsInvalidateLightingCache = true;
 		}
