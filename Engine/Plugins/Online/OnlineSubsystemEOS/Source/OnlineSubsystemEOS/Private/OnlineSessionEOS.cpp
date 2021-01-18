@@ -2275,7 +2275,7 @@ TSharedPtr<const FUniqueNetId> FOnlineSessionEOS::CreateSessionIdFromString(cons
 	TSharedPtr<const FUniqueNetId> SessionId;
 	if (!SessionIdStr.IsEmpty())
 	{
-		SessionId = MakeShared<FUniqueNetIdEOS>(SessionIdStr);
+		SessionId = MakeShared<FUniqueNetIdString>(SessionIdStr);
 	}
 	return SessionId;
 }
