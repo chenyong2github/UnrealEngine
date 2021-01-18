@@ -4248,7 +4248,7 @@ void AInstancedFoliageActor::RemoveBaseComponentOnFoliageTypeInstances(UFoliageT
 	}
 }
 
-void AInstancedFoliageActor::AddInstances(UObject* WorldContextObject, UFoliageType* InFoliageType, TArray<FTransform> InTransforms)
+void AInstancedFoliageActor::AddInstances(UObject* WorldContextObject, UFoliageType* InFoliageType, const TArray<FTransform>& InTransforms)
 {
 	UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
 	if (World)

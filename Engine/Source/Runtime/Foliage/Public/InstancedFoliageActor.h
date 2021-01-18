@@ -234,7 +234,7 @@ public:
 	void RemoveBaseComponentOnFoliageTypeInstances(UFoliageType* FoliageType);
 
 	UFUNCTION(BlueprintCallable, Category="Foliage", meta = (WorldContext = "WorldContextObject"))
-	static void AddInstances(UObject* WorldContextObject, UFoliageType* InFoliageType, TArray<FTransform> InTransforms);
+	static void AddInstances(UObject* WorldContextObject, UFoliageType* InFoliageType, const TArray<FTransform>& InTransforms);
 
 	UFUNCTION(BlueprintCallable, Category="Foliage", meta = (WorldContext = "WorldContextObject"))
 	static void RemoveAllInstances(UObject* WorldContextObject, UFoliageType* InFoliageType);
