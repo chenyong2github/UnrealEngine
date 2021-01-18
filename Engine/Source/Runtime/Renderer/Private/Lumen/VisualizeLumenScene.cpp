@@ -15,6 +15,7 @@
 #include "LumenRadianceCache.h"
 #include "DynamicMeshBuilder.h"
 #include "ShaderPrintParameters.h"
+#include "LumenScreenProbeGather.h"
 
 int32 GVisualizeLumenSceneGridPixelSize = 32;
 FAutoConsoleVariableRef CVarVisualizeLumenSceneGridPixelSize(
@@ -193,7 +194,7 @@ class FVisualizeLumenSceneCS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenCardTracingParameters, TracingParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenMeshSDFGridParameters, MeshSDFGridParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FVisualizeLumenSceneParameters, VisualizeParameters)
-		SHADER_PARAMETER_STRUCT_INCLUDE(LumenRadianceCache::FRadianceCacheParameters, RadianceCacheParameters)
+		SHADER_PARAMETER_STRUCT_INCLUDE(LumenRadianceCache::FRadianceCacheInterpolationParameters, RadianceCacheParameters)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTexturesStruct)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, RWSceneColor)
 	END_SHADER_PARAMETER_STRUCT()
@@ -300,6 +301,18 @@ public:
 
 IMPLEMENT_GLOBAL_SHADER(FVisualizeLumenVoxelsCS, "/Engine/Private/Lumen/VisualizeLumenScene.usf", "VisualizeLumenVoxelsCS", SF_Compute);
 
+LumenRadianceCache::FRadianceCacheInputs GetFinalGatherRadianceCacheInputsForVisualize()
+{
+	if (GLumenIrradianceFieldGather)
+	{
+		return LumenIrradianceFieldGather::SetupRadianceCacheInputs();
+	}
+	else
+	{
+		return LumenScreenProbeGatherRadianceCache::SetupRadianceCacheInputs();
+	}
+}
+
 void FDeferredShadingSceneRenderer::RenderLumenSceneVisualization(FRDGBuilder& GraphBuilder, const FMinimalSceneTextures& SceneTextures)
 {
 	const FViewInfo& View = Views[0];
@@ -369,6 +382,9 @@ void FDeferredShadingSceneRenderer::RenderLumenSceneVisualization(FRDGBuilder& G
 					MeshSDFGridParameters);
 			}
 			
+			const FRadianceCacheState& RadianceCacheState = Views[0].ViewState->RadianceCacheState;
+			const LumenRadianceCache::FRadianceCacheInputs RadianceCacheInputs = GetFinalGatherRadianceCacheInputsForVisualize();
+
 			if (Lumen::ShouldVisualizeHardwareRayTracing())
 			{
 				FLumenIndirectTracingParameters IndirectTracingParameters;
@@ -376,8 +392,8 @@ void FDeferredShadingSceneRenderer::RenderLumenSceneVisualization(FRDGBuilder& G
 				IndirectTracingParameters.MinTraceDistance = VisualizeParameters.MinTraceDistance;
 				IndirectTracingParameters.MaxTraceDistance = VisualizeParameters.MaxTraceDistance;
 				IndirectTracingParameters.MaxCardTraceDistance = VisualizeParameters.MaxCardTraceDistance;
-				LumenRadianceCache::FRadianceCacheParameters RadianceCacheParameters;
-				LumenRadianceCache::GetParameters(View, GraphBuilder, RadianceCacheParameters);
+				LumenRadianceCache::FRadianceCacheInterpolationParameters RadianceCacheParameters;
+				LumenRadianceCache::GetInterpolationParameters(View, GraphBuilder, RadianceCacheState, RadianceCacheInputs, RadianceCacheParameters);
 				
 				VisualizeHardwareRayTracing(
 					GraphBuilder,
@@ -398,12 +414,12 @@ void FDeferredShadingSceneRenderer::RenderLumenSceneVisualization(FRDGBuilder& G
 				PassParameters->SceneTexturesStruct = SceneTextures.UniformBuffer;
 				PassParameters->MeshSDFGridParameters = MeshSDFGridParameters;
 				PassParameters->VisualizeParameters = VisualizeParameters;
-				LumenRadianceCache::GetParameters(View, GraphBuilder, PassParameters->RadianceCacheParameters);
+				LumenRadianceCache::GetInterpolationParameters(View, GraphBuilder, RadianceCacheState, RadianceCacheInputs, PassParameters->RadianceCacheParameters);
 				GetLumenCardTracingParameters(View, TracingInputs, PassParameters->TracingParameters);
 
 				FVisualizeLumenSceneCS::FPermutationDomain PermutationVector;
 				PermutationVector.Set<FVisualizeLumenSceneCS::FTraceCards>(GVisualizeLumenSceneTraceCards != 0);
-				PermutationVector.Set<FVisualizeLumenSceneCS::FRadianceCache>(GVisualizeLumenSceneTraceRadianceCache != 0 && LumenRadianceCache::IsEnabled(View));
+				PermutationVector.Set<FVisualizeLumenSceneCS::FRadianceCache>(GVisualizeLumenSceneTraceRadianceCache != 0 && LumenScreenProbeGather::UseRadianceCache(View));
 				PermutationVector = FVisualizeLumenSceneCS::RemapPermutation(PermutationVector);
 
 				auto ComputeShader = View.ShaderMap->GetShader<FVisualizeLumenSceneCS>(PermutationVector);

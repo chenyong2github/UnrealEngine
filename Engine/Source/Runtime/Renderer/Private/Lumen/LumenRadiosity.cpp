@@ -13,6 +13,7 @@
 #include "PixelShaderUtils.h"
 #include "ReflectionEnvironment.h"
 #include "DistanceFieldAmbientOcclusion.h"
+#include "LumenRadianceCache.h"
 
 int32 GLumenRadiosity = 1;
 FAutoConsoleVariableRef CVarLumenRadiosity(
@@ -102,14 +103,6 @@ FAutoConsoleVariableRef CVarLumenSceneCardRadiosityUpdateFrequencyScale(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
-int32 GLumenRadiosityProbes = 0;
-FAutoConsoleVariableRef CVarLumenRadiosityProbes(
-	TEXT("r.Lumen.Radiosity.Probes"),
-	GLumenRadiosityProbes,
-	TEXT(""),
-	ECVF_RenderThreadSafe
-	);
-
 float GLumenRadiosityProbeRadiusScale = 1.5f;
 FAutoConsoleVariableRef CVarLumenRadiosityProbeRadiusScale(
 	TEXT("r.Lumen.Radiosity.ProbeRadiusScale"),
@@ -133,6 +126,117 @@ FAutoConsoleVariableRef CVarLumenRadiosityTraceBlocksAllocationDivisor(
 	TEXT(""),
 	ECVF_Scalability | ECVF_RenderThreadSafe
 	);
+
+int32 GLumenRadiosityUseIrradianceCache = 0;
+FAutoConsoleVariableRef CVarLumenRadiosityUseIrradianceCache(
+	TEXT("r.Lumen.Radiosity.IrradianceCache"),
+	GLumenRadiosityUseIrradianceCache,
+	TEXT("Whether to use the Irradiance Cache for Radiosity"),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
+
+int32 GLumenRadiosityIrradianceCacheNumClipmaps = 3;
+FAutoConsoleVariableRef CVarLumenRadiosityIrradianceCacheNumClipmaps(
+	TEXT("r.Lumen.Radiosity.IrradianceCache.NumClipmaps"),
+	GLumenRadiosityIrradianceCacheNumClipmaps,
+	TEXT("Number of radiance cache clipmaps."),
+	ECVF_RenderThreadSafe
+);
+
+float GLumenRadiosityIrradianceCacheClipmapWorldExtent = 2500.0f;
+FAutoConsoleVariableRef CVarLumenRadiosityIrradianceCacheClipmapWorldExtent(
+	TEXT("r.Lumen.Radiosity.IrradianceCache.ClipmapWorldExtent"),
+	GLumenRadiosityIrradianceCacheClipmapWorldExtent,
+	TEXT("World space extent of the first clipmap"),
+	ECVF_RenderThreadSafe
+);
+
+float GLumenRadiosityIrradianceCacheClipmapDistributionBase = 2.0f;
+FAutoConsoleVariableRef CVarLumenRadiosityIrradianceCacheClipmapDistributionBase(
+	TEXT("r.Lumen.Radiosity.IrradianceCache.ClipmapDistributionBase"),
+	GLumenRadiosityIrradianceCacheClipmapDistributionBase,
+	TEXT("Base of the Pow() that controls the size of each successive clipmap relative to the first."),
+	ECVF_RenderThreadSafe
+);
+
+int32 GLumenRadiosityIrradianceCacheNumProbeTracesBudget = 200;
+FAutoConsoleVariableRef CVarLumenRadiosityIrradianceCacheNumProbeTracesBudget(
+	TEXT("r.Lumen.Radiosity.IrradianceCache.NumProbeTracesBudget"),
+	GLumenRadiosityIrradianceCacheNumProbeTracesBudget,
+	TEXT(""),
+	ECVF_RenderThreadSafe
+);
+
+int32 GLumenRadiosityIrradianceCacheGridResolution = 32;
+FAutoConsoleVariableRef CVarLumenRadiosityIrradianceCacheResolution(
+	TEXT("r.Lumen.Radiosity.IrradianceCache.GridResolution"),
+	GLumenRadiosityIrradianceCacheGridResolution,
+	TEXT("Resolution of the probe placement grid within each clipmap"),
+	ECVF_RenderThreadSafe
+);
+
+int32 GLumenRadiosityIrradianceCacheProbeResolution = 16;
+FAutoConsoleVariableRef CVarLumenRadiosityIrradianceCacheProbeResolution(
+	TEXT("r.Lumen.Radiosity.IrradianceCache.ProbeResolution"),
+	GLumenRadiosityIrradianceCacheProbeResolution,
+	TEXT("Resolution of the probe's 2d radiance layout.  The number of rays traced for the probe will be ProbeResolution ^ 2"),
+	ECVF_RenderThreadSafe
+);
+
+int32 GLumenRadiosityIrradianceCacheProbeIrradianceResolution = 6;
+FAutoConsoleVariableRef CVarLumenRadiosityIrradianceCacheProbeIrradianceResolution(
+	TEXT("r.Lumen.Radiosity.IrradianceCache.IrradianceProbeResolution"),
+	GLumenRadiosityIrradianceCacheProbeIrradianceResolution,
+	TEXT("Resolution of the probe's 2d irradiance layout."),
+	ECVF_RenderThreadSafe
+);
+
+int32 GLumenRadiosityIrradianceCacheProbeOcclusionResolution = 16;
+FAutoConsoleVariableRef CVarLumenRadiosityIrradianceCacheProbeOcclusionResolution(
+	TEXT("r.Lumen.Radiosity.IrradianceCache.OcclusionProbeResolution"),
+	GLumenRadiosityIrradianceCacheProbeOcclusionResolution,
+	TEXT("Resolution of the probe's 2d occlusion layout."),
+	ECVF_RenderThreadSafe
+);
+
+int32 GLumenRadiosityIrradianceCacheProbeAtlasResolutionInProbes = 128;
+FAutoConsoleVariableRef CVarLumenRadiosityIrradianceCacheProbeAtlasResolutionInProbes(
+	TEXT("r.Lumen.Radiosity.IrradianceCache.ProbeAtlasResolutionInProbes"),
+	GLumenRadiosityIrradianceCacheProbeAtlasResolutionInProbes,
+	TEXT("Number of probes along one dimension of the probe atlas cache texture.  This controls the memory usage of the cache.  Overflow currently results in incorrect rendering."),
+	ECVF_RenderThreadSafe
+);
+
+float GLumenRadiosityIrradianceCacheProbeOcclusionNormalBias = 20;
+FAutoConsoleVariableRef CVarLumenRadiosityIrradianceCacheProbeOcclusionNormalBias(
+	TEXT("r.Lumen.Radiosity.IrradianceCache.ProbeOcclusionNormalBias"),
+	GLumenRadiosityIrradianceCacheProbeOcclusionNormalBias,
+	TEXT("Bias along the normal to reduce self-occlusion artifacts from Probe Occlusion"),
+	ECVF_RenderThreadSafe
+);
+
+namespace LumenRadiosity
+{
+	LumenRadianceCache::FRadianceCacheInputs SetupRadianceCacheInputs()
+	{
+		LumenRadianceCache::FRadianceCacheInputs Parameters;
+		Parameters.ReprojectionRadiusScale = 1.5f;
+		Parameters.ClipmapWorldExtent = GLumenRadiosityIrradianceCacheClipmapWorldExtent;
+		Parameters.ClipmapDistributionBase = GLumenRadiosityIrradianceCacheClipmapDistributionBase;
+		Parameters.RadianceProbeClipmapResolution = FMath::Clamp(GLumenRadiosityIrradianceCacheGridResolution, 1, 256);
+		Parameters.ProbeAtlasResolutionInProbes = FIntPoint(GLumenRadiosityIrradianceCacheProbeAtlasResolutionInProbes, GLumenRadiosityIrradianceCacheProbeAtlasResolutionInProbes);
+		Parameters.NumRadianceProbeClipmaps = FMath::Clamp(GLumenRadiosityIrradianceCacheNumClipmaps, 1, LumenRadianceCache::MaxClipmaps);
+		Parameters.RadianceProbeResolution = GLumenRadiosityIrradianceCacheProbeResolution;
+		Parameters.FinalProbeResolution = GLumenRadiosityIrradianceCacheProbeResolution + 2;
+		Parameters.FinalRadianceAtlasMaxMip = 0;
+		Parameters.CalculateIrradiance = 1;
+		Parameters.IrradianceProbeResolution = GLumenRadiosityIrradianceCacheProbeIrradianceResolution;
+		Parameters.OcclusionProbeResolution = GLumenRadiosityIrradianceCacheProbeOcclusionResolution;
+		Parameters.NumProbeTracesBudget = GLumenRadiosityIrradianceCacheNumProbeTracesBudget;
+		return Parameters;
+	}
+}
+
 
 // Must match LumenRadiosity.usf
 static constexpr int32 RadiosityProbeResolution = 8;
@@ -165,9 +269,9 @@ class FPlaceProbeIndirectArgsCS : public FGlobalShader
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWIndirectArgs)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, QuadAllocator)
-	END_SHADER_PARAMETER_STRUCT()
+		END_SHADER_PARAMETER_STRUCT()
 
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+		static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
 		return DoesPlatformSupportLumenGI(Parameters.Platform);
 	}
@@ -181,271 +285,6 @@ class FPlaceProbeIndirectArgsCS : public FGlobalShader
 
 IMPLEMENT_GLOBAL_SHADER(FPlaceProbeIndirectArgsCS, "/Engine/Private/Lumen/LumenRadiosity.usf", "PlaceProbeIndirectArgsCS", SF_Compute);
 
-class FPlaceProbesForRadiosityCS : public FGlobalShader
-{
-	DECLARE_GLOBAL_SHADER(FPlaceProbesForRadiosityCS)
-	SHADER_USE_PARAMETER_STRUCT(FPlaceProbesForRadiosityCS, FGlobalShader);
-
-	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, RWRadiosityProbeData)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, QuadAllocator)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, QuadData)
-		SHADER_PARAMETER_SRV(StructuredBuffer<float4>, CardBuffer)
-		SHADER_PARAMETER_RDG_BUFFER(Buffer<uint>, IndirectArgs)
-		SHADER_PARAMETER(float, RadiosityProbeRadiusScale)
-	END_SHADER_PARAMETER_STRUCT()
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return DoesPlatformSupportLumenGI(Parameters.Platform);
-	}
-
-	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE"), GPlaceRadiosityProbeGroupSize);
-	}
-};
-
-IMPLEMENT_GLOBAL_SHADER(FPlaceProbesForRadiosityCS, "/Engine/Private/Lumen/LumenRadiosity.usf", "PlaceProbesForRadiosityCS", SF_Compute);
-
-class FRadiosityProbeIndirectArgsCS : public FGlobalShader
-{
-	DECLARE_GLOBAL_SHADER(FRadiosityProbeIndirectArgsCS)
-	SHADER_USE_PARAMETER_STRUCT(FRadiosityProbeIndirectArgsCS, FGlobalShader);
-
-	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWIndirectArgs)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, ProbeAllocator)
-		SHADER_PARAMETER(FIntPoint, ProbeAtlasSizeInProbes)
-	END_SHADER_PARAMETER_STRUCT()
-
-	static uint32 GetGroupSize()
-	{
-		return 8;
-	}
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return DoesPlatformSupportLumenGI(Parameters.Platform);
-	}
-
-	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE"), GetGroupSize());
-	}
-};
-
-IMPLEMENT_GLOBAL_SHADER(FRadiosityProbeIndirectArgsCS, "/Engine/Private/Lumen/LumenRadiosity.usf", "RadiosityProbeIndirectArgsCS", SF_Compute);
-
-class FTraceProbeCS : public FGlobalShader
-{
-	DECLARE_GLOBAL_SHADER(FTraceProbeCS)
-	SHADER_USE_PARAMETER_STRUCT(FTraceProbeCS, FGlobalShader);
-
-	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenCardTracingParameters, TracingParameters)
-		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenIndirectTracingParameters, IndirectTracingParameters)
-		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, RWProbeLighting)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, ProbeAllocator)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<float4>, ProbeData)
-		SHADER_PARAMETER(FIntPoint, ProbeAtlasSizeInProbes)
-		SHADER_PARAMETER_RDG_BUFFER(Buffer<uint>, IndirectArgs)
-	END_SHADER_PARAMETER_STRUCT()
-
-	static uint32 GetGroupSize()
-	{
-		return 8;
-	}
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return DoesPlatformSupportLumenGI(Parameters.Platform);
-	}
-
-	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE"), GetGroupSize());
-	}
-};
-
-IMPLEMENT_GLOBAL_SHADER(FTraceProbeCS, "/Engine/Private/Lumen/LumenRadiosity.usf", "TraceProbeCS", SF_Compute);
-
-class FComposeRadiosityProbesCS : public FGlobalShader
-{
-	DECLARE_GLOBAL_SHADER(FComposeRadiosityProbesCS)
-	SHADER_USE_PARAMETER_STRUCT(FComposeRadiosityProbesCS, FGlobalShader);
-
-	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, RWComposedProbeLighting)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ProbeLighting)
-		SHADER_PARAMETER(FIntPoint, ComposedProbeLightingAtlasSize)
-		SHADER_PARAMETER_RDG_BUFFER(Buffer<uint>, IndirectArgs)
-	END_SHADER_PARAMETER_STRUCT()
-
-public:
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return DoesPlatformSupportLumenGI(Parameters.Platform);
-	}
-
-	static uint32 GetGroupSize()
-	{
-		return 8;
-	}
-
-	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE"), GetGroupSize());
-	}
-};
-
-IMPLEMENT_GLOBAL_SHADER(FComposeRadiosityProbesCS, "/Engine/Private/Lumen/LumenRadiosity.usf", "ComposeRadiosityProbesCS", SF_Compute);
-
-BEGIN_SHADER_PARAMETER_STRUCT(FProbeAtlasLighting, )
-	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<float4>, ProbeData)
-	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float4>, ProbeLighting)
-	SHADER_PARAMETER(FIntPoint, ProbeAtlasSizeInProbes)
-	SHADER_PARAMETER(FVector2D, InvProbeAtlasResolution)
-END_SHADER_PARAMETER_STRUCT()
-
-void RenderRadiosityProbes(
-	FRDGBuilder& GraphBuilder, 
-	const FViewInfo& View,
-	const FLumenSceneData& LumenSceneData,
-	const FLumenCardTracingInputs& TracingInputs, 
-	const FLumenCardScatterParameters& CardScatterParameters,
-	FGlobalShaderMap* GlobalShaderMap,
-	FProbeAtlasLighting& ProbeParameters)
-{
-	FRDGBufferRef PlaceProbeIndirectArgsBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDispatchIndirectParameters>(1), TEXT("PlaceProbeIndirectArgsBuffer"));
-	{
-		FRDGBufferUAVRef PlaceProbeIndirectArgsBufferUAV = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(PlaceProbeIndirectArgsBuffer));
-
-		FPlaceProbeIndirectArgsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FPlaceProbeIndirectArgsCS::FParameters>();
-		PassParameters->RWIndirectArgs = PlaceProbeIndirectArgsBufferUAV;
-		PassParameters->QuadAllocator = CardScatterParameters.QuadAllocator;
-
-		auto ComputeShader = GlobalShaderMap->GetShader< FPlaceProbeIndirectArgsCS >(0);
-
-		const FIntVector GroupSize(1, 1, 1);
-
-		FComputeShaderUtils::AddPass(
-			GraphBuilder,
-			RDG_EVENT_NAME("PlaceProbeIndirectArgsCS"),
-			ComputeShader,
-			PassParameters,
-			GroupSize);
-	}
-
-	const int32 StableNumVisibleCards = FMath::DivideAndRoundUp(LumenSceneData.VisibleCardsIndices.Num(), 1024) * 1024;
-	const FIntPoint ProbeAtlasSizeInProbes = FIntPoint(FMath::Min(StableNumVisibleCards, 256), FMath::DivideAndRoundUp(StableNumVisibleCards, 256));
-	FRDGBufferRef RadiosityProbeDataBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(FVector4), StableNumVisibleCards), TEXT("RadiosityProbeData"));
-
-	{
-		FRDGBufferUAVRef RadiosityProbeDataBufferUAV = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(RadiosityProbeDataBuffer, PF_A32B32G32R32F));
-
-		FPlaceProbesForRadiosityCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FPlaceProbesForRadiosityCS::FParameters>();
-		PassParameters->RWRadiosityProbeData = RadiosityProbeDataBufferUAV;
-		PassParameters->QuadAllocator = CardScatterParameters.QuadAllocator;
-		PassParameters->QuadData = CardScatterParameters.QuadData;
-		PassParameters->CardBuffer = LumenSceneData.CardBuffer.SRV;
-		PassParameters->IndirectArgs = PlaceProbeIndirectArgsBuffer;
-		PassParameters->RadiosityProbeRadiusScale = FMath::Clamp(GLumenRadiosityProbeRadiusScale, 1.0f, 10.0f);
-
-		auto ComputeShader = GlobalShaderMap->GetShader< FPlaceProbesForRadiosityCS >(0);
-
-		FComputeShaderUtils::AddPass(
-			GraphBuilder,
-			RDG_EVENT_NAME("PlaceProbesForRadiosityCS"),
-			ComputeShader,
-			PassParameters,
-			PlaceProbeIndirectArgsBuffer,
-			0);
-	}
-
-	FRDGBufferRef RadiosityProbeIndirectArgsBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDispatchIndirectParameters>(2), TEXT("RadiosityProbeIndirectArgsBuffer"));
-
-	{
-		FRDGBufferUAVRef RadiosityProbeIndirectArgsBufferUAV = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(RadiosityProbeIndirectArgsBuffer));
-
-		FRadiosityProbeIndirectArgsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FRadiosityProbeIndirectArgsCS::FParameters>();
-		PassParameters->RWIndirectArgs = RadiosityProbeIndirectArgsBufferUAV;
-		PassParameters->ProbeAllocator = CardScatterParameters.QuadAllocator;
-		PassParameters->ProbeAtlasSizeInProbes = ProbeAtlasSizeInProbes;
-
-		auto ComputeShader = GlobalShaderMap->GetShader<FRadiosityProbeIndirectArgsCS>();
-
-		const FIntVector GroupSize(1, 1, 1);
-
-		FComputeShaderUtils::AddPass(
-			GraphBuilder,
-			RDG_EVENT_NAME("RadiosityProbeIndirectArgsCS"),
-			ComputeShader,
-			PassParameters,
-			GroupSize);
-	}
-
-	const FIntPoint ProbeAtlasSize = FIntPoint(
-		ProbeAtlasSizeInProbes.X * RadiosityProbeResolution,
-		ProbeAtlasSizeInProbes.Y * RadiosityProbeResolution);
-
-	FRDGTextureRef RadiosityProbeLightingAtlas = GraphBuilder.CreateTexture(FRDGTextureDesc::Create2D(ProbeAtlasSize, PF_FloatR11G11B10, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV), TEXT("RadiosityProbeLightingAtlas"));
-
-	{
-		FTraceProbeCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FTraceProbeCS::FParameters>();
-		PassParameters->RWProbeLighting = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(RadiosityProbeLightingAtlas));
-		PassParameters->ProbeData = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(RadiosityProbeDataBuffer, PF_A32B32G32R32F));
-		PassParameters->ProbeAllocator = CardScatterParameters.QuadAllocator;
-		PassParameters->ProbeAtlasSizeInProbes = ProbeAtlasSizeInProbes;
-		GetLumenCardTracingParameters(View, TracingInputs, PassParameters->TracingParameters);
-		SetupLumenDiffuseTracingParametersForProbe(PassParameters->IndirectTracingParameters, GetRadiosityConeHalfAngle());
-		PassParameters->IndirectArgs = RadiosityProbeIndirectArgsBuffer;
-
-		auto ComputeShader = GlobalShaderMap->GetShader<FTraceProbeCS>();
-
-		FComputeShaderUtils::AddPass(
-			GraphBuilder,
-			RDG_EVENT_NAME("TraceProbeCS"),
-			ComputeShader,
-			PassParameters,
-			RadiosityProbeIndirectArgsBuffer,
-			0);
-	}
-
-	const FIntPoint ComposedProbeAtlasSize = FIntPoint(
-		ProbeAtlasSizeInProbes.X * RadiosityComposedProbeResolution,
-		ProbeAtlasSizeInProbes.Y * RadiosityComposedProbeResolution);
-
-	FRDGTextureRef RadiosityComposedProbeLightingAtlas = GraphBuilder.CreateTexture(FRDGTextureDesc::Create2D(ComposedProbeAtlasSize, PF_FloatR11G11B10, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV), TEXT("RadiosityComposedProbeLightingAtlas"));
-
-	{
-		FComposeRadiosityProbesCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FComposeRadiosityProbesCS::FParameters>();
-		PassParameters->RWComposedProbeLighting = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(RadiosityComposedProbeLightingAtlas));
-		PassParameters->ProbeLighting = RadiosityProbeLightingAtlas;
-		PassParameters->ComposedProbeLightingAtlasSize = ComposedProbeAtlasSize;
-		PassParameters->IndirectArgs = RadiosityProbeIndirectArgsBuffer;
-
-		auto ComputeShader = GlobalShaderMap->GetShader<FComposeRadiosityProbesCS>();
-
-		FComputeShaderUtils::AddPass(
-			GraphBuilder,
-			RDG_EVENT_NAME("ComposeProbesCS"),
-			ComputeShader,
-			PassParameters,
-			RadiosityProbeIndirectArgsBuffer,
-			3 * 4);
-	}
-
-	ProbeParameters.ProbeLighting = RadiosityComposedProbeLightingAtlas;
-	ProbeParameters.ProbeData = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(RadiosityProbeDataBuffer, PF_A32B32G32R32F));
-	ProbeParameters.ProbeAtlasSizeInProbes = ProbeAtlasSizeInProbes;
-	ProbeParameters.InvProbeAtlasResolution = FVector2D(1.0f, 1.0f) / FVector2D(ComposedProbeAtlasSize);
-}
 
 uint32 GSetupCardTraceBlocksGroupSize = 64;
 
@@ -491,6 +330,9 @@ class FTraceBlocksIndirectArgsCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, CardTraceBlockAllocator)
 	END_SHADER_PARAMETER_STRUCT()
 
+	class FIrradianceCache : SHADER_PERMUTATION_BOOL("IRRADIANCE_CACHE");
+	using FPermutationDomain = TShaderPermutationDomain<FIrradianceCache>;
+
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
 		return DoesPlatformSupportLumenGI(Parameters.Platform);
@@ -505,12 +347,46 @@ class FTraceBlocksIndirectArgsCS : public FGlobalShader
 
 IMPLEMENT_GLOBAL_SHADER(FTraceBlocksIndirectArgsCS, "/Engine/Private/Lumen/LumenRadiosity.usf", "TraceBlocksIndirectArgsCS", SF_Compute);
 
+
+class FMarkRadianceProbesUsedByRadiosityCS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FMarkRadianceProbesUsedByRadiosityCS)
+	SHADER_USE_PARAMETER_STRUCT(FMarkRadianceProbesUsedByRadiosityCS, FGlobalShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture3D<uint>, RWRadianceProbeIndirectionTexture)
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+		SHADER_PARAMETER_STRUCT_INCLUDE(LumenRadianceCache::FRadianceCacheInterpolationParameters, RadianceCacheParameters)
+		SHADER_PARAMETER_TEXTURE(Texture2D, DepthBufferAtlas)
+		SHADER_PARAMETER_TEXTURE(Texture2D, CurrentOpacityAtlas)
+		SHADER_PARAMETER_SRV(StructuredBuffer<float4>, CardBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, CardTraceBlockAllocator)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint4>, CardTraceBlockData)
+		SHADER_PARAMETER(FIntPoint, RadiosityAtlasSize)
+		SHADER_PARAMETER_RDG_BUFFER(Buffer<uint>, IndirectArgs)
+	END_SHADER_PARAMETER_STRUCT()
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return DoesPlatformSupportLumenGI(Parameters.Platform);
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE"), GRadiosityTraceBlocksGroupSize);
+		OutEnvironment.CompilerFlags.Add(CFLAG_Wave32);
+	}
+};
+
+IMPLEMENT_GLOBAL_SHADER(FMarkRadianceProbesUsedByRadiosityCS, "/Engine/Private/Lumen/LumenRadiosity.usf", "MarkRadianceProbesUsedByRadiosityCS", SF_Compute);
+
+
 const static uint32 MaxRadiosityConeDirections = 32;
 
 BEGIN_SHADER_PARAMETER_STRUCT(FRadiosityTraceFromTexelParameters, )
 	SHADER_PARAMETER_STRUCT_INCLUDE(FLumenCardTracingParameters, TracingParameters)
 	SHADER_PARAMETER_STRUCT_INCLUDE(FLumenIndirectTracingParameters, IndirectTracingParameters)
-	SHADER_PARAMETER_STRUCT_INCLUDE(FProbeAtlasLighting, ProbeParameters)
 	SHADER_PARAMETER_TEXTURE(Texture2D, NormalAtlas)
 	SHADER_PARAMETER_TEXTURE(Texture2D, DepthBufferAtlas)
 	SHADER_PARAMETER_TEXTURE(Texture2D, CurrentOpacityAtlas)
@@ -525,7 +401,6 @@ void SetupTraceFromTexelParameters(
 	const FViewInfo& View, 
 	const FLumenCardTracingInputs& TracingInputs, 
 	const FLumenSceneData& LumenSceneData, 
-	const FProbeAtlasLighting& ProbeParameters,
 	FRadiosityTraceFromTexelParameters& TraceFromTexelParameters)
 {
 	GetLumenCardTracingParameters(View, TracingInputs, TraceFromTexelParameters.TracingParameters);
@@ -560,7 +435,6 @@ void SetupTraceFromTexelParameters(
 	}
 
 	TraceFromTexelParameters.RadiosityAtlasSize = FIntPoint::DivideAndRoundDown(LumenSceneData.MaxAtlasSize, GLumenRadiosityDownsampleFactor);
-	TraceFromTexelParameters.ProbeParameters = ProbeParameters;
 }
 
 class FLumenCardRadiosityTraceBlocksCS : public FGlobalShader
@@ -570,16 +444,18 @@ class FLumenCardRadiosityTraceBlocksCS : public FGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(FRadiosityTraceFromTexelParameters, TraceFromTexelParameters)
+		SHADER_PARAMETER_STRUCT_INCLUDE(LumenRadianceCache::FRadianceCacheInterpolationParameters, RadianceCacheParameters)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, RWRadiosityAtlas)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, CardTraceBlockAllocator)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint4>, CardTraceBlockData)
+		SHADER_PARAMETER(float, ProbeOcclusionNormalBias)
 		SHADER_PARAMETER_RDG_BUFFER(Buffer<uint>, IndirectArgs)
 	END_SHADER_PARAMETER_STRUCT()
 
 	class FDynamicSkyLight : SHADER_PERMUTATION_BOOL("ENABLE_DYNAMIC_SKY_LIGHT");
-	class FProbes : SHADER_PERMUTATION_BOOL("RADIOSITY_PROBES");
+	class FIrradianceCache : SHADER_PERMUTATION_BOOL("IRRADIANCE_CACHE");
 
-	using FPermutationDomain = TShaderPermutationDomain<FDynamicSkyLight, FProbes>;
+	using FPermutationDomain = TShaderPermutationDomain<FDynamicSkyLight, FIrradianceCache>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -596,17 +472,47 @@ class FLumenCardRadiosityTraceBlocksCS : public FGlobalShader
 
 IMPLEMENT_GLOBAL_SHADER(FLumenCardRadiosityTraceBlocksCS, "/Engine/Private/Lumen/LumenRadiosity.usf", "LumenCardRadiosityTraceBlocksCS", SF_Compute);
 
+class FRadiosityMarkUsedProbesData
+{
+public:
+	FMarkRadianceProbesUsedByRadiosityCS::FParameters Parameters;
+};
+
+void RadianceCacheMarkUsedProbes(
+	FRDGBuilder& GraphBuilder,
+	const FViewInfo& View,
+	const LumenRadianceCache::FRadianceCacheInterpolationParameters& RadianceCacheParameters,
+	FRDGTextureUAVRef RadianceProbeIndirectionTextureUAV,
+	const void* MarkUsedProbesData)
+{
+	FMarkRadianceProbesUsedByRadiosityCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FMarkRadianceProbesUsedByRadiosityCS::FParameters>();
+	*PassParameters = ((const FRadiosityMarkUsedProbesData*)MarkUsedProbesData)->Parameters;
+	PassParameters->RadianceCacheParameters = RadianceCacheParameters;
+	PassParameters->RWRadianceProbeIndirectionTexture = RadianceProbeIndirectionTextureUAV;
+	auto ComputeShader = View.ShaderMap->GetShader< FMarkRadianceProbesUsedByRadiosityCS >(0);
+
+	FComputeShaderUtils::AddPass(
+		GraphBuilder,
+		RDG_EVENT_NAME("MarkRadianceProbesUsedByRadiosity"),
+		ComputeShader,
+		PassParameters,
+		PassParameters->IndirectArgs,
+		0);
+};
+
 void RenderRadiosityComputeScatter(
 	FRDGBuilder& GraphBuilder,
+	const FScene* Scene,
 	const FViewInfo& View,
 	bool bRenderSkylight, 
 	const FLumenSceneData& LumenSceneData,
 	FRDGTextureRef RadiosityAtlas,
 	const FLumenCardTracingInputs& TracingInputs,
 	const FLumenCardScatterParameters& CardScatterParameters,
-	const FProbeAtlasLighting& ProbeParameters,
 	FGlobalShaderMap* GlobalShaderMap)
 {
+	const bool bUseIrradianceCache = GLumenRadiosityUseIrradianceCache != 0;
+
 	FRDGBufferRef SetupCardTraceBlocksIndirectArgsBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDispatchIndirectParameters>(1), TEXT("SetupCardTraceBlocksIndirectArgsBuffer"));
 	{
 		FRDGBufferUAVRef SetupCardTraceBlocksIndirectArgsBufferUAV = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(SetupCardTraceBlocksIndirectArgsBuffer));
@@ -670,7 +576,9 @@ void RenderRadiosityComputeScatter(
 		PassParameters->RWIndirectArgs = TraceBlocksIndirectArgsBufferUAV;
 		PassParameters->CardTraceBlockAllocator = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(CardTraceBlockAllocator, PF_R32_UINT));
 
-		auto ComputeShader = GlobalShaderMap->GetShader< FTraceBlocksIndirectArgsCS >(0);
+		FTraceBlocksIndirectArgsCS::FPermutationDomain PermutationVector;
+		PermutationVector.Set<FTraceBlocksIndirectArgsCS::FIrradianceCache>(bUseIrradianceCache);
+		auto ComputeShader = GlobalShaderMap->GetShader< FTraceBlocksIndirectArgsCS >(PermutationVector);
 
 		const FIntVector GroupSize(1, 1, 1);
 
@@ -682,18 +590,50 @@ void RenderRadiosityComputeScatter(
 			GroupSize);
 	}
 
+	LumenRadianceCache::FRadianceCacheInterpolationParameters RadianceCacheParameters;
+
+	if (bUseIrradianceCache)
+	{
+		const LumenRadianceCache::FRadianceCacheInputs RadianceCacheInputs = LumenRadiosity::SetupRadianceCacheInputs();
+
+		FRadiosityMarkUsedProbesData MarkUsedProbesData;
+		MarkUsedProbesData.Parameters.View = View.ViewUniformBuffer;
+		MarkUsedProbesData.Parameters.DepthBufferAtlas = LumenSceneData.DepthBufferAtlas->GetRenderTargetItem().ShaderResourceTexture;
+		MarkUsedProbesData.Parameters.CurrentOpacityAtlas = LumenSceneData.OpacityAtlas->GetRenderTargetItem().ShaderResourceTexture;
+		MarkUsedProbesData.Parameters.CardTraceBlockAllocator = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(CardTraceBlockAllocator, PF_R32_UINT));
+		MarkUsedProbesData.Parameters.CardTraceBlockData = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(CardTraceBlockData, PF_R32G32B32A32_UINT));
+		MarkUsedProbesData.Parameters.CardBuffer = LumenSceneData.CardBuffer.SRV;
+		MarkUsedProbesData.Parameters.RadiosityAtlasSize = FIntPoint::DivideAndRoundDown(LumenSceneData.MaxAtlasSize, GLumenRadiosityDownsampleFactor);
+		MarkUsedProbesData.Parameters.IndirectArgs = TraceBlocksIndirectArgsBuffer;
+
+		RenderRadianceCache(
+			GraphBuilder, 
+			TracingInputs, 
+			RadianceCacheInputs, 
+			Scene,
+			View, 
+			nullptr, 
+			nullptr, 
+			FMarkUsedRadianceCacheProbes::CreateStatic(&RadianceCacheMarkUsedProbes), 
+			&MarkUsedProbesData, 
+			View.ViewState->RadiosityRadianceCacheState, 
+			RadianceCacheParameters);
+	}
+
 	{
 		FLumenCardRadiosityTraceBlocksCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FLumenCardRadiosityTraceBlocksCS::FParameters>();
 		PassParameters->RWRadiosityAtlas = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(RadiosityAtlas));
+		PassParameters->RadianceCacheParameters = RadianceCacheParameters;
 		PassParameters->CardTraceBlockAllocator = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(CardTraceBlockAllocator, PF_R32_UINT));
 		PassParameters->CardTraceBlockData = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(CardTraceBlockData, PF_R32G32B32A32_UINT));
+		PassParameters->ProbeOcclusionNormalBias = GLumenRadiosityIrradianceCacheProbeOcclusionNormalBias;
 		PassParameters->IndirectArgs = TraceBlocksIndirectArgsBuffer;
 
-		SetupTraceFromTexelParameters(View, TracingInputs, LumenSceneData, ProbeParameters, PassParameters->TraceFromTexelParameters);
+		SetupTraceFromTexelParameters(View, TracingInputs, LumenSceneData, PassParameters->TraceFromTexelParameters);
 
 		FLumenCardRadiosityTraceBlocksCS::FPermutationDomain PermutationVector;
 		PermutationVector.Set<FLumenCardRadiosityTraceBlocksCS::FDynamicSkyLight>(bRenderSkylight);
-		PermutationVector.Set<FLumenCardRadiosityTraceBlocksCS::FProbes>(GLumenRadiosityProbes != 0);
+		PermutationVector.Set<FLumenCardRadiosityTraceBlocksCS::FIrradianceCache>(bUseIrradianceCache);
 		auto ComputeShader = GlobalShaderMap->GetShader< FLumenCardRadiosityTraceBlocksCS >(PermutationVector);
 
 		FComputeShaderUtils::AddPass(
@@ -716,9 +656,8 @@ class FLumenCardRadiosityPS : public FGlobalShader
 	END_SHADER_PARAMETER_STRUCT()
 
 	class FDynamicSkyLight : SHADER_PERMUTATION_BOOL("ENABLE_DYNAMIC_SKY_LIGHT");
-	class FProbes : SHADER_PERMUTATION_BOOL("RADIOSITY_PROBES");
 
-	using FPermutationDomain = TShaderPermutationDomain<FDynamicSkyLight, FProbes>;
+	using FPermutationDomain = TShaderPermutationDomain<FDynamicSkyLight>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -775,20 +714,6 @@ void FDeferredShadingSceneRenderer::RenderRadiosityForLumenScene(
 			GLumenSceneCardRadiosityUpdateFrequencyScale,
 			0);
 
-		FProbeAtlasLighting ProbeParameters;
-
-		if (GLumenRadiosityProbes)
-		{
-			RenderRadiosityProbes(
-				GraphBuilder,
-				MainView,
-				LumenSceneData,
-				TracingInputs,
-				VisibleCardScatterContext.Parameters,
-				GlobalShaderMap,
-				ProbeParameters);
-		}
-
 		VisibleCardScatterContext.BuildScatterIndirectArgs(
 			GraphBuilder,
 			MainView);
@@ -806,13 +731,13 @@ void FDeferredShadingSceneRenderer::RenderRadiosityForLumenScene(
 		{
 			RenderRadiosityComputeScatter(
 				GraphBuilder,
+				Scene,
 				Views[0],
 				bRenderSkylight,
 				LumenSceneData,
 				RadiosityAtlas,
 				TracingInputs,
 				VisibleCardScatterContext.Parameters,
-				ProbeParameters,
 				GlobalShaderMap);
 		}
 		else
@@ -826,11 +751,10 @@ void FDeferredShadingSceneRenderer::RenderRadiosityForLumenScene(
 			PassParameters->VS.ScatterInstanceIndex = 0;
 			PassParameters->VS.CardUVSamplingOffset = FVector2D::ZeroVector;
 
-			SetupTraceFromTexelParameters(Views[0], TracingInputs, LumenSceneData, ProbeParameters, PassParameters->PS.TraceFromTexelParameters);
+			SetupTraceFromTexelParameters(Views[0], TracingInputs, LumenSceneData, PassParameters->PS.TraceFromTexelParameters);
 
 			FLumenCardRadiosityPS::FPermutationDomain PermutationVector;
 			PermutationVector.Set<FLumenCardRadiosityPS::FDynamicSkyLight>(bRenderSkylight);
-			PermutationVector.Set<FLumenCardRadiosityPS::FProbes>(GLumenRadiosityProbes != 0);
 			auto PixelShader = GlobalShaderMap->GetShader<FLumenCardRadiosityPS>(PermutationVector);
 
 			FScene* LocalScene = Scene;

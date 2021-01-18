@@ -33,7 +33,8 @@ class FRaytracingLightDataPacked;
 class FLumenCardScatterContext;
 namespace LumenRadianceCache
 {
-	class FRadianceCacheParameters;
+	class FRadianceCacheInputs;
+	class FRadianceCacheInterpolationParameters;
 }
 
 struct FSceneWithoutWaterTextures;
@@ -486,6 +487,11 @@ private:
 		bool& bLumenUseDenoiserComposite,
 		class FLumenMeshSDFGridParameters& MeshSDFGridParameters);
 
+	FSSDSignalTextures RenderLumenIrradianceFieldGather(
+		FRDGBuilder& GraphBuilder,
+		const FSceneTextures& SceneTextures,
+		const FViewInfo& View);
+
 	void RenderScreenProbeGatherVisualizeTraces(
 		FRDGBuilder& GraphBuilder,
 		const FViewInfo& View,
@@ -501,9 +507,7 @@ private:
 		const FViewInfo& View,
 		const LumenProbeHierarchy::FHierarchyParameters& HierarchyParameters,
 		const LumenProbeHierarchy::FIndirectLightingAtlasParameters& IndirectLightingAtlasParameters,
-		const LumenProbeHierarchy::FEmitProbeParameters& EmitProbeParameters,
-		const LumenRadianceCache::FRadianceCacheParameters& RadianceCacheParameters,
-		bool bUseRadianceCache);
+		const LumenProbeHierarchy::FEmitProbeParameters& EmitProbeParameters);
 
 	void RenderLumenProbeOcclusion(
 		FRDGBuilder& GraphBuilder,
@@ -521,17 +525,7 @@ private:
 	void RenderLumenSceneVisualization(FRDGBuilder& GraphBuilder, const FMinimalSceneTextures& SceneTextures);
 	void RenderLumenRadianceCacheVisualization(FRDGBuilder& GraphBuilder, const FMinimalSceneTextures& SceneTextures);
 	void LumenScenePDIVisualization();
-
-	void RenderRadianceCache(
-		FRDGBuilder& GraphBuilder,
-		const FMinimalSceneTextures& SceneTextures,
-		const FLumenCardTracingInputs& TracingInputs, 
-		const FViewInfo& View, 
-		const class LumenProbeHierarchy::FHierarchyParameters* ProbeHierarchyParameters,
-		const class FScreenProbeParameters* ScreenProbeParameters,
-		FRDGBufferSRVRef BRDFProbabilityDensityFunctionSH,
-		LumenRadianceCache::FRadianceCacheParameters& RadianceCacheParameters);
-
+	 
 	/** Whether tiled deferred is supported and can be used at all. */
 	bool CanUseTiledDeferred() const;
 

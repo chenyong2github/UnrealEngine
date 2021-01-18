@@ -13,11 +13,8 @@
 #include "LumenCardCommon.ush"
 #include "LumenTracingCommon.ush"
 #include "LumenRadianceCacheCommon.ush"
-#include "ProbeHierarchy/LumenProbeTracing.ush"
 #include "LumenScreenProbeCommon.ush"
 #include "LumenScreenProbeImportanceSamplingShared.ush"
-
-RWTexture3D<uint> RWRadianceProbeIndirectionTexture;
 
 [numthreads(THREADGROUP_SIZE, THREADGROUP_SIZE, THREADGROUP_SIZE)]
 void ClearProbeIndirectionCS(
@@ -31,6 +28,7 @@ void ClearProbeIndirectionCS(
 RWBuffer<int> RWProbeFreeListAllocator;
 RWBuffer<uint> RWProbeFreeList;
 RWBuffer<uint> RWProbeLastUsedFrame;
+RWStructuredBuffer<float4> RWProbeWorldOffset;
 uint MaxNumProbes;
 
 [numthreads(THREADGROUP_SIZE, 1, 1)]
@@ -50,118 +48,21 @@ void ClearProbeFreeListCS(
 	{
 		RWProbeFreeList[ThreadIndex] = 0;
 		RWProbeLastUsedFrame[ThreadIndex] = 0;
+		RWProbeWorldOffset[ThreadIndex] = 0;
 	}
 }
 
-uint2 DownsampledViewSize;
-float DownsampleFactor; 
-uint VisualizeLumenScene;
-
-#define USED_PROBE_INDEX 0xFFFFFFFE
-
-void MarkPositionUsedInIndirectionTexture(float3 WorldPosition, uint ClipmapIndex)
-{
-#if RADIANCE_CACHE_USE_INTERPOLATION
-	int3 BottomCornerProbeCoord = WorldPosition * WorldPositionToRadianceProbeCoordScale[ClipmapIndex] + WorldPositionToRadianceProbeCoordBias[ClipmapIndex] - .5f;
-	int3 IndirectionTextureCoord = BottomCornerProbeCoord + int3(ClipmapIndex * RadianceProbeClipmapResolution, 0, 0);
-
-	RWRadianceProbeIndirectionTexture[IndirectionTextureCoord] = USED_PROBE_INDEX;
-	RWRadianceProbeIndirectionTexture[IndirectionTextureCoord + int3(0, 0, 1)] = USED_PROBE_INDEX;
-	RWRadianceProbeIndirectionTexture[IndirectionTextureCoord + int3(0, 1, 0)] = USED_PROBE_INDEX;
-	RWRadianceProbeIndirectionTexture[IndirectionTextureCoord + int3(0, 1, 1)] = USED_PROBE_INDEX;
-	RWRadianceProbeIndirectionTexture[IndirectionTextureCoord + int3(1, 0, 0)] = USED_PROBE_INDEX;
-	RWRadianceProbeIndirectionTexture[IndirectionTextureCoord + int3(1, 0, 1)] = USED_PROBE_INDEX;
-	RWRadianceProbeIndirectionTexture[IndirectionTextureCoord + int3(1, 1, 0)] = USED_PROBE_INDEX;
-	RWRadianceProbeIndirectionTexture[IndirectionTextureCoord + int3(1, 1, 1)] = USED_PROBE_INDEX;
-#else
-	int3 ProbeCoord = WorldPosition * WorldPositionToRadianceProbeCoordScale[ClipmapIndex] + WorldPositionToRadianceProbeCoordBias[ClipmapIndex];
-	int3 IndirectionTextureCoord = ProbeCoord + int3(ClipmapIndex * RadianceProbeClipmapResolution, 0, 0);
-	RWRadianceProbeIndirectionTexture[IndirectionTextureCoord] = USED_PROBE_INDEX;
-#endif
-}
-
-RWBuffer<uint> DispatchParametersOutput;
-
-[numthreads(PROBE_HIERARCHY_MAX_HIERARCHY_DEPTH, 1, 1)]
-void SetupMarkRadianceProbesUsedByProbeHierarchyCS(uint GroupThreadIndex : SV_GroupIndex)
-{
-	if (GroupThreadIndex < PROBE_HIERARCHY_MAX_HIERARCHY_DEPTH)
-	{
-		uint HierarchyLevelId = GroupThreadIndex;
-		FHierarchyLevelParameters HierarchyLevel = GetProbeHierarchyLevelParameters(HierarchyLevelId);
-
-		DispatchParametersOutput[3 * HierarchyLevel.Id + 0] = 1;
-		DispatchParametersOutput[3 * HierarchyLevel.Id + 1] = (HierarchyLevel.ProbeCount + (PROBE_TRACING_LANE_COUNT - 1)) / PROBE_TRACING_LANE_COUNT;
-		DispatchParametersOutput[3 * HierarchyLevel.Id + 2] = 1;
-	}
-}
-
-[numthreads(PROBE_TRACING_LANE_COUNT, 1, 1)]
-void MarkRadianceProbesUsedByProbeHierarchyCS(
-	uint3 GroupId : SV_GroupID,
-	uint GroupThreadIndex : SV_GroupIndex)
-{
-	if (VisualizeLumenScene > 0 && all(GroupId == 0) && GroupThreadIndex == 0)
-	{
-		// For visualize mode, generate probes around the camera position
-		uint ClipmapIndex = GetRadianceProbeClipmap(View.WorldCameraOrigin);
-		MarkPositionUsedInIndirectionTexture(View.WorldCameraOrigin, ClipmapIndex);
-	}
-
-	FHierarchyLevelParameters HierarchyLevel = GetPassProbeHierarchyLevelParameters();
-	uint ProbeIndex = HierarchyLevel.ProbeArrayOffset + GroupId.y * PROBE_TRACING_LANE_COUNT + GroupThreadIndex;
-
-	if (ProbeIndex < HierarchyLevel.ProbeArrayOffset + HierarchyLevel.ProbeCount)
-	{
-		float3 WorldPosition = ReadProbeInfo(ProbeIndex).TranslatedWorldPosition - View.PreViewTranslation;
-
-		uint ClipmapIndex = GetRadianceProbeClipmap(WorldPosition);
-
-		if (ClipmapIndex < NumRadianceProbeClipmaps)
-		{
-			MarkPositionUsedInIndirectionTexture(WorldPosition, ClipmapIndex);
-		}
-	}
-} 
-
-[numthreads(PROBE_THREADGROUP_SIZE_2D, PROBE_THREADGROUP_SIZE_2D, 1)]
-void MarkRadianceProbesUsedByScreenProbesCS(
+[numthreads(1, 1, 1)]
+void MarkRadianceProbesUsedByVisualizeCS(
 	uint3 GroupId : SV_GroupID,
 	uint3 DispatchThreadId : SV_DispatchThreadID,
 	uint3 GroupThreadId : SV_GroupThreadID)
 {
 	uint2 ScreenProbeAtlasCoord = DispatchThreadId.xy;
 	
-	if (VisualizeLumenScene > 0 && all(DispatchThreadId.xy == 0))
-	{
-		// For visualize mode, generate probes around the camera position
-		uint ClipmapIndex = GetRadianceProbeClipmap(View.WorldCameraOrigin);
-		MarkPositionUsedInIndirectionTexture(View.WorldCameraOrigin, ClipmapIndex);
-	}
-
-	uint ScreenProbeIndex = ScreenProbeAtlasCoord.y * ScreenProbeAtlasViewSize.x + ScreenProbeAtlasCoord.x;
-	uint2 ScreenProbeScreenCoord;
-	uint ScreenProbeSubsampleIndex;
-	GetScreenProbeScreenCoord(ScreenProbeIndex, ScreenProbeScreenCoord, ScreenProbeSubsampleIndex);
-
-	if (ScreenProbeIndex < GetNumScreenProbes())
-	{
-		float2 ScreenUV = GetScreenUVFromScreenProbeCoord(ScreenProbeScreenCoord, ScreenProbeSubsampleIndex);
-		float SceneDepth = DownsampledDepth.Load(int3(ScreenProbeAtlasCoord, 0)).x;
-		float3 WorldPosition = GetWorldPositionFromScreenUV(ScreenUV, SceneDepth);
-
-		if (SceneDepth > 0 && SceneDepth < 1000000.0f)
-		{
-			uint ClipmapIndex = GetRadianceProbeClipmap(WorldPosition);
-
-			if (ClipmapIndex < NumRadianceProbeClipmaps)
-			{
-				//@todo - cull by screen size
-				//@todo - cull probes too small for voxel tracing and too large for max trace distance
-				MarkPositionUsedInIndirectionTexture(WorldPosition, ClipmapIndex);
-			}
-		}
-	}
+	// For visualize mode, generate probes around the camera position
+	uint ClipmapIndex = GetRadianceProbeClipmap(View.WorldCameraOrigin);
+	MarkPositionUsedInIndirectionTexture(View.WorldCameraOrigin, ClipmapIndex);
 }
 
 Texture3D<uint> LastFrameRadianceProbeIndirectionTexture;
@@ -345,6 +246,8 @@ RWBuffer<uint> RWClearProbePDFsIndirectArgs;
 RWBuffer<uint> RWGenerateProbeTraceTilesIndirectArgs;
 RWBuffer<uint> RWProbeTraceTileAllocator;
 RWBuffer<uint> RWFilterProbesIndirectArgs;
+RWBuffer<uint> RWCalculateProbeIrradianceIndirectArgs;
+RWBuffer<uint> RWPrepareProbeOcclusionIndirectArgs;
 RWBuffer<uint> RWFixupProbeBordersIndirectArgs;
 Buffer<uint> ProbeTraceAllocator;
 uint ClearProbePDFGroupSize;
@@ -370,6 +273,15 @@ void SetupProbeIndirectArgsCS()
 	RWFilterProbesIndirectArgs[1] = (RadianceProbeResolution + FilterProbesGroupSizeXY - 1) / FilterProbesGroupSizeXY;
 	RWFilterProbesIndirectArgs[2] = NumProbesToTrace;
 
+	RWCalculateProbeIrradianceIndirectArgs[0] = 1;
+	RWCalculateProbeIrradianceIndirectArgs[1] = 1;
+	RWCalculateProbeIrradianceIndirectArgs[2] = NumProbesToTrace;
+
+	uint FinalOcclusionProbeResolution = OcclusionProbeResolution + 2 * (1 << FinalRadianceAtlasMaxMip);
+	RWPrepareProbeOcclusionIndirectArgs[0] = (FinalOcclusionProbeResolution + TraceFromProbesGroupSizeXY - 1) / TraceFromProbesGroupSizeXY;
+	RWPrepareProbeOcclusionIndirectArgs[1] = (FinalOcclusionProbeResolution + TraceFromProbesGroupSizeXY - 1) / TraceFromProbesGroupSizeXY;
+	RWPrepareProbeOcclusionIndirectArgs[2] = NumProbesToTrace;
+
 	RWFixupProbeBordersIndirectArgs[0] = (FinalProbeResolution + TraceFromProbesGroupSizeXY - 1) / TraceFromProbesGroupSizeXY;
 	RWFixupProbeBordersIndirectArgs[1] = (FinalProbeResolution + TraceFromProbesGroupSizeXY - 1) / TraceFromProbesGroupSizeXY;
 	RWFixupProbeBordersIndirectArgs[2] = NumProbesToTrace;
@@ -377,7 +289,7 @@ void SetupProbeIndirectArgsCS()
 
 Buffer<float4> ProbeTraceData;
 
-void GetProbeTraceData(uint ProbeTraceIndex, out float3 ProbeWorldCenter, out uint ClipmapIndex, out uint ProbeIndex)
+void GetProbeTraceDataNoOffset(uint ProbeTraceIndex, out float3 ProbeWorldCenter, out uint ClipmapIndex, out uint ProbeIndex)
 {
 	ProbeWorldCenter = ProbeTraceData[ProbeTraceIndex].xyz;
 	uint PackedW = asuint(ProbeTraceData[ProbeTraceIndex].w);
@@ -385,13 +297,97 @@ void GetProbeTraceData(uint ProbeTraceIndex, out float3 ProbeWorldCenter, out ui
 	ProbeIndex = PackedW & 0xFFFFFF;
 }
 
+void GetProbeTraceData(uint ProbeTraceIndex, out float3 ProbeWorldCenter, out uint ClipmapIndex, out uint ProbeIndex)
+{
+	float3 ProbeWorldCenterNoOffset;
+	GetProbeTraceDataNoOffset(ProbeTraceIndex, ProbeWorldCenterNoOffset, ClipmapIndex, ProbeIndex);
+	ProbeWorldCenter = ProbeWorldCenterNoOffset + ProbeWorldOffset[ProbeIndex].xyz;
+}
+
 uint GetProbeIndexFromProbeTraceData(uint ProbeTraceIndex)
 {
 	float3 ProbeWorldCenter;
 	uint ClipmapIndex;
 	uint ProbeIndex;
-	GetProbeTraceData(ProbeTraceIndex, ProbeWorldCenter, ClipmapIndex, ProbeIndex);
+	GetProbeTraceDataNoOffset(ProbeTraceIndex, ProbeWorldCenter, ClipmapIndex, ProbeIndex);
 	return ProbeIndex;
+}
+
+groupshared float4 SharedBestOffset[THREADGROUP_SIZE];
+groupshared float4 SharedBestOffset2[THREADGROUP_SIZE];
+
+[numthreads(THREADGROUP_SIZE, 1, 1)]
+void ComputeProbeWorldOffsetsCS(
+	uint3 GroupId : SV_GroupID,
+	uint GroupThreadId : SV_GroupThreadID)
+{
+	uint ProbeTraceIndex = GroupId.z;
+	float3 ProbeWorldCenter;
+	uint ClipmapIndex;
+	uint ProbeIndex;
+	GetProbeTraceDataNoOffset(ProbeTraceIndex, ProbeWorldCenter, ClipmapIndex, ProbeIndex);
+
+	float DistanceToSurface = GetDistanceToNearestSurfaceGlobal(ProbeWorldCenter);
+	float TooCloseThreshold = .05f * RadianceProbeCoordToWorldPositionScale[ClipmapIndex];
+
+	if (DistanceToSurface < TooCloseThreshold)
+	{
+		float MaxVoxelOffset = .25f;
+
+		uint X = GroupThreadId % 4;
+		uint Y = (GroupThreadId % 16) / 4;
+		uint Z = GroupThreadId / 16;
+		{
+			float3 Offset = (float3(X, Y, Z) * 2.0f / 3.0f - 1.0f) * MaxVoxelOffset * RadianceProbeCoordToWorldPositionScale[ClipmapIndex];
+			float SampleDistanceToSurface = GetDistanceToNearestSurfaceGlobal(ProbeWorldCenter + Offset);
+			SharedBestOffset[GroupThreadId] = float4(Offset, SampleDistanceToSurface);
+		}
+
+		GroupMemoryBarrierWithGroupSync();
+
+		if (GroupThreadId < 8)
+		{
+			float4 BestOffset = SharedBestOffset[GroupThreadId * 8];
+
+			for (uint i = 1; i < 8; i++)
+			{
+				if (SharedBestOffset[GroupThreadId * 8 + i].w > BestOffset.w)
+				{
+					BestOffset = SharedBestOffset[GroupThreadId * 8 + i];
+				}
+			}
+		
+			SharedBestOffset2[GroupThreadId] = BestOffset;
+		}
+
+		GroupMemoryBarrierWithGroupSync();
+
+		if (GroupThreadId == 0)
+		{
+			float4 BestOffset = SharedBestOffset2[0];
+
+			for (uint i = 1; i < 8; i++)
+			{
+				if (SharedBestOffset2[i].w > BestOffset.w)
+				{
+					BestOffset = SharedBestOffset2[i];
+				}
+			}
+
+			if (BestOffset.w >= TooCloseThreshold)
+			{
+				RWProbeWorldOffset[ProbeIndex] = float4(BestOffset.xyz, 1);
+			}
+			else
+			{
+				RWProbeWorldOffset[ProbeIndex] = 0;
+			}
+		}
+	}
+	else
+	{
+		RWProbeWorldOffset[ProbeIndex] = 0;
+	}
 }
 
 RWBuffer<int> RWRadianceProbeSH_PDF;
@@ -590,27 +586,49 @@ void GenerateProbeTraceTilesCS(
 	uint3 GroupId : SV_GroupID,
 	uint2 GroupThreadId : SV_GroupThreadID)
 {
-#define DEBUG_UNIFORM_TRACES 0
-#if DEBUG_UNIFORM_TRACES
+	uint ProbeTraceIndex = GroupId.z;
+	float3 ProbeWorldCenter;
+	uint Unused;
+	uint ProbeIndex;
+	GetProbeTraceData(ProbeTraceIndex, ProbeWorldCenter, Unused, ProbeIndex);
 
-	uint DebugLevel = 1;
-	uint TraceTileResolution = (RadianceProbeResolution / THREADGROUP_SIZE / 2) << DebugLevel;
-	uint NumCompletedTraceTiles = TraceTileResolution * TraceTileResolution;
+	float DistanceFromCameraSq = dot(View.WorldCameraOrigin - ProbeWorldCenter, View.WorldCameraOrigin - ProbeWorldCenter);
+
+
+#define DEBUG_UNIFORM_TRACES 0
+#if FORCE_UNIFORM_TRACES || DEBUG_UNIFORM_TRACES
+
+	uint UniformLevel = 1;
+
+#if FORCE_UNIFORM_TRACES
+	if (DistanceFromCameraSq >= DownsampleDistanceFromCameraSq)
+	{
+		UniformLevel = 0;
+	}
+#endif
+	
+	uint TraceTileResolution = (RadianceProbeResolution / THREADGROUP_SIZE / 2) << UniformLevel;
+
+	if (TraceTileResolution == 0)
+	{
+		TraceTileResolution = 1;
+		UniformLevel = 1;
+	}
+
+	uint NumTraceTiles = TraceTileResolution * TraceTileResolution;
 	uint ThreadIndex = GroupThreadId.y * THREADGROUP_SIZE + GroupThreadId.x;
 
 	if (ThreadIndex == 0)
 	{
-		InterlockedAdd(RWProbeTraceTileAllocator[0], NumCompletedTraceTiles, GlobalTraceOffset);
+		InterlockedAdd(RWProbeTraceTileAllocator[0], NumTraceTiles, GlobalTraceOffset);
 	}
 
 	GroupMemoryBarrierWithGroupSync();
 
-	uint ProbeTraceIndex = GroupId.z;
-
-	for (uint TraceTileIndex = ThreadIndex; TraceTileIndex < NumCompletedTraceTiles; TraceTileIndex += THREADGROUP_SIZE * THREADGROUP_SIZE)
+	for (uint TraceTileIndex = ThreadIndex; TraceTileIndex < NumTraceTiles; TraceTileIndex += THREADGROUP_SIZE * THREADGROUP_SIZE)
 	{
 		uint2 TraceTileCoord = uint2(TraceTileIndex % TraceTileResolution, TraceTileIndex / TraceTileResolution);
-		RWProbeTraceTileData[GlobalTraceOffset + TraceTileIndex] = PackTraceTileInfo(TraceTileCoord, DebugLevel, ProbeTraceIndex);
+		RWProbeTraceTileData[GlobalTraceOffset + TraceTileIndex] = PackTraceTileInfo(TraceTileCoord, UniformLevel, ProbeTraceIndex);
 	}
 
 #else
@@ -628,25 +646,13 @@ void GenerateProbeTraceTilesCS(
 
 	GroupMemoryBarrierWithGroupSync();
 
-	uint ProbeTraceIndex = GroupId.z;
-	float3 ProbeWorldCenter;
-	uint Unused;
-	uint ProbeIndex;
-	GetProbeTraceData(ProbeTraceIndex, ProbeWorldCenter, Unused, ProbeIndex);
-
-	uint NumLevels;
+	uint NumLevels = 1;
 
 	// Calculate subdivision level for the probe
 	// Level 0 is half of RadianceProbeResolution
+	if ((ProbeTraceIndex < NumProbeTracesBudget || ProbeTraceIndex >= NumNewProbes[0]) && DistanceFromCameraSq < DownsampleDistanceFromCameraSq)
 	{
-		NumLevels = 1;
-
-		float DistanceFromCameraSq = dot(View.WorldCameraOrigin - ProbeWorldCenter, View.WorldCameraOrigin - ProbeWorldCenter);
-
-		if ((ProbeTraceIndex < NumProbeTracesBudget || ProbeTraceIndex >= NumNewProbes[0]) && DistanceFromCameraSq < DownsampleDistanceFromCameraSq)
-		{
-			NumLevels = DistanceFromCameraSq < SupersampleDistanceFromCameraSq ? 3 : 2;
-		}
+		NumLevels = DistanceFromCameraSq < SupersampleDistanceFromCameraSq ? 3 : 2;
 	}
 
 	FThreeBandSHVector BRDF = GetBRDF_PDF(ProbeIndex);
@@ -867,7 +873,7 @@ void TraceFromProbesCS(
 			}
 
 			#if RADIANCE_CACHE_STORE_DEPTHS
-				float HitDistance = SharedTraceHitDistance[GroupThreadId.y][GroupThreadId.x];
+				float HitDistance = min(SharedTraceHitDistance[GroupThreadId.y][GroupThreadId.x], MaxHalfFloat);
 
 				for (uint Y = 0; Y < UpsampleFactor; Y++)
 				{
@@ -998,15 +1004,16 @@ void FilterProbeRadianceWithGatherCS(
 				float2 ProbeUV = (ProbeTexelCoord + ProbeTexelCenter) / (float)RadianceProbeResolution;
 				float3 WorldConeDirection = OctahedralMapToDirection(ProbeUV);
 
-				float3 NeighborWorldPosition = NeighborCoord * RadianceProbeCoordToWorldPositionScale[ClipmapIndex] + RadianceProbeCoordToWorldPositionBias[ClipmapIndex];
+				float3 NeighborWorldPosition = GetProbeWorldPosition(NeighborCoord, ClipmapIndex, NeighborProbeIndex);
 				float3 NeighborHitPosition = NeighborWorldPosition + WorldConeDirection * NeighborRadianceDepth;
 				float3 ToNeighborHit = NeighborHitPosition - ProbeWorldCenter;
 				uint2 ProbeTexelCoordForNeighborHit = DirectionToOctahedralMap(ToNeighborHit) * RadianceProbeResolution;
 				float ProbeDepthForNeighborHit = DepthProbeAtlasTexture[ProbeTexelCoordForNeighborHit + ProbeAtlasBaseCoord];
+				float VoxelRadius = sqrt(3.0f) / WorldPositionToRadianceProbeCoordScale[ClipmapIndex];
 
 				float DistanceWeight = 1.0f;
 
-				if (ProbeDepthForNeighborHit < 1.0f * (RadianceProbeCoordToWorldPositionScale[ClipmapIndex] + GetRadianceProbeTMin(ClipmapIndex)))
+				if (ProbeDepthForNeighborHit < 1.0f * (RadianceProbeCoordToWorldPositionScale[ClipmapIndex] + VoxelRadius))
 				{
 					//@todo - need to trace through neighbor probe depths to see if the ray is occluded near the origin to stop leaking
 					DistanceWeight = 0;
@@ -1091,14 +1098,16 @@ void FilterProbeRadianceWithGatherCS(
 				{
 					uint2 NeighborProbeAtlasBaseCoord = RadianceProbeResolution * uint2(NeighborProbeIndex % ProbeAtlasResolutionInProbes.x, NeighborProbeIndex / ProbeAtlasResolutionInProbes.x);
 					float NeighborRadianceDepth = DepthProbeAtlasTexture[ProbeTexelCoord + NeighborProbeAtlasBaseCoord];
-					float3 NeighborWorldPosition = NeighborCoord * RadianceProbeCoordToWorldPositionScale[ClipmapIndex] + RadianceProbeCoordToWorldPositionBias[ClipmapIndex];
+					float3 NeighborWorldPosition = GetProbeWorldPosition(NeighborCoord, ClipmapIndex, NeighborProbeIndex);
 
 					float OcclusionWeight = 1.0f;
 
 					{
 						// Test a nearby position along the neighbor ray's path, if occluded then discard the neighbor radiance to reduce leaking
 						// We can't test occlusion of the neighbor probe, because it is closer than GetRadianceProbeTMin
-						float3 NeighborOcclusionTestPosition = NeighborWorldPosition + 2 * GetRadianceProbeTMin(ClipmapIndex) * WorldConeDirection;
+						float VoxelRadius = sqrt(3.0f) / WorldPositionToRadianceProbeCoordScale[ClipmapIndex];
+						float OcclusionDistance = max(GetRadianceProbeTMin(ClipmapIndex), VoxelRadius);
+						float3 NeighborOcclusionTestPosition = NeighborWorldPosition + 2 * OcclusionDistance * WorldConeDirection;
 						float3 ToNeighborOcclusionPosition = NeighborOcclusionTestPosition - ProbeWorldCenter;
 						uint2 ProbeTexelCoordForNeighborOcclusionPosition = DirectionToOctahedralMap(ToNeighborOcclusionPosition) * RadianceProbeResolution;
 						float ProbeDepthForNeighborOcclusionPosition = DepthProbeAtlasTexture[ProbeTexelCoordForNeighborOcclusionPosition + ProbeAtlasBaseCoord];
@@ -1132,6 +1141,150 @@ void FilterProbeRadianceWithGatherCS(
 #endif
 }
 
+RWTexture2D<float3> RWFinalIrradianceAtlas;
+
+#define DOWNSAMPLED_RADIANCE_SIZE 8
+groupshared float3 SharedDownsampledProbeRadiance[DOWNSAMPLED_RADIANCE_SIZE][DOWNSAMPLED_RADIANCE_SIZE];
+
+[numthreads(THREADGROUP_SIZE, THREADGROUP_SIZE, 1)]
+void CalculateProbeIrradianceCS(
+	uint3 GroupId : SV_GroupID,
+	uint3 DispatchThreadId : SV_DispatchThreadID,
+	uint3 GroupThreadId : SV_GroupThreadID)
+{
+	uint ProbeTraceIndex = GroupId.z;
+
+	float3 ProbeWorldCenter;
+	uint Unused;
+	uint ProbeIndex;
+	GetProbeTraceData(ProbeTraceIndex, ProbeWorldCenter, Unused, ProbeIndex);
+
+	uint DownsampleFactor = RadianceProbeResolution / DOWNSAMPLED_RADIANCE_SIZE;
+	uint2 AtlasBaseCoord = RadianceProbeResolution * uint2(ProbeIndex % ProbeAtlasResolutionInProbes.x, ProbeIndex / ProbeAtlasResolutionInProbes.x);
+
+#define DOWNSAMPLE_TO_SHARED_MEMORY 1
+#if DOWNSAMPLE_TO_SHARED_MEMORY
+	for (uint DestY = GroupThreadId.y; DestY < DOWNSAMPLED_RADIANCE_SIZE; DestY += THREADGROUP_SIZE)
+	{
+		for (uint DestX = GroupThreadId.x; DestX < DOWNSAMPLED_RADIANCE_SIZE; DestX += THREADGROUP_SIZE)
+		{
+			float3 Radiance = 0;
+			float TotalWeight = 0;
+
+			for (uint YOffset = 0; YOffset < DownsampleFactor; YOffset++)
+			{
+				for (uint XOffset = 0; XOffset < DownsampleFactor; XOffset++)
+				{
+					uint2 SourceTexelCoord = uint2(DestX * DownsampleFactor + XOffset, DestY * DownsampleFactor + YOffset);
+					float2 ProbeUV = (SourceTexelCoord + float2(.5f, .5f)) / (float)RadianceProbeResolution;
+					float SolidAngle = OctahedralSolidAngleLUT(ProbeUV, RadianceProbeResolution);
+					Radiance += RadianceProbeAtlasTexture.Load(uint3(AtlasBaseCoord + SourceTexelCoord, 0)).xyz * SolidAngle;
+					TotalWeight += SolidAngle;
+				}
+			}
+
+			SharedDownsampledProbeRadiance[DestY][DestX] = Radiance / TotalWeight;
+		}
+	}
+
+	GroupMemoryBarrierWithGroupSync();
+#endif
+
+	uint IrradianceBorderSize = 1;
+	uint OutputIrradianceProbeResolution = IrradianceProbeResolution + 2 * IrradianceBorderSize;
+
+	for (uint DestY = GroupThreadId.y; DestY < OutputIrradianceProbeResolution; DestY += THREADGROUP_SIZE)
+	{
+		for (uint DestX = GroupThreadId.x; DestX < OutputIrradianceProbeResolution; DestX += THREADGROUP_SIZE)
+		{
+			uint2 IrradianceProbeTexelCoord = OctahedralMapWrapBorder(uint2(DestX, DestY), OutputIrradianceProbeResolution, IrradianceBorderSize);
+			float2 IrradianceProbeUV = (IrradianceProbeTexelCoord + float2(0.5f, 0.5f)) / (float)IrradianceProbeResolution;
+			float3 IrradianceDirection = OctahedralMapToDirection(IrradianceProbeUV);
+			float3 Irradiance = 0;
+			float TotalWeight = 0;
+
+			uint SourceProbeResolution = DOWNSAMPLE_TO_SHARED_MEMORY ? DOWNSAMPLED_RADIANCE_SIZE : RadianceProbeResolution;
+
+			for (uint Y = 0; Y < SourceProbeResolution; Y++)
+			{
+				for (uint X = 0; X < SourceProbeResolution; X++)
+				{
+					float2 RadianceProbeUV = (float2(X, Y) + float2(0.5, 0.5)) / (float)SourceProbeResolution;
+					float3 RadianceDirection = OctahedralMapToDirection(RadianceProbeUV);
+
+					float NdotL = dot(IrradianceDirection, RadianceDirection);
+
+					if (NdotL > 0)
+					{
+						float SolidAngle = OctahedralSolidAngleLUT(RadianceProbeUV, SourceProbeResolution);
+						float SampleWeight = NdotL * SolidAngle;
+						#if DOWNSAMPLE_TO_SHARED_MEMORY
+							float3 Radiance = SharedDownsampledProbeRadiance[Y][X];
+						#else
+							float3 Radiance = RadianceProbeAtlasTexture.Load(uint3(AtlasBaseCoord + uint2(X, Y), 0)).xyz;
+						#endif
+						
+						Irradiance += Radiance * SampleWeight;
+						TotalWeight += SampleWeight;
+					}
+				}
+			}
+
+			Irradiance *= 1.0f / TotalWeight;
+
+			uint2 IrradianceAtlasCoord = uint2(DestX, DestY) + OutputIrradianceProbeResolution * uint2(ProbeIndex % ProbeAtlasResolutionInProbes.x, ProbeIndex / ProbeAtlasResolutionInProbes.x);
+
+			RWFinalIrradianceAtlas[IrradianceAtlasCoord] = Irradiance;
+		}
+	}
+}
+
+RWTexture2D<float2> RWRadianceCacheProbeOcclusionAtlas;
+
+[numthreads(THREADGROUP_SIZE, THREADGROUP_SIZE, 1)]
+void PrepareProbeOcclusionCS(
+	uint3 GroupId : SV_GroupID,
+	uint3 DispatchThreadId : SV_DispatchThreadID,
+	uint3 GroupThreadId : SV_GroupThreadID)
+{
+	uint ProbeTraceIndex = DispatchThreadId.z;
+	uint ProbeIndex = GetProbeIndexFromProbeTraceData(ProbeTraceIndex);
+
+	uint2 FinalDepthTexelCoord = DispatchThreadId.xy;
+	uint FinalOcclusionProbeResolution = OcclusionProbeResolution + 2 * (1 << FinalRadianceAtlasMaxMip);
+
+	if (all(FinalDepthTexelCoord < FinalOcclusionProbeResolution))
+	{
+		uint2 ProbeDepthTexelCoord = OctahedralMapWrapBorder(FinalDepthTexelCoord, FinalOcclusionProbeResolution, 1 << FinalRadianceAtlasMaxMip);
+		uint2 AtlasBaseCoord = uint2(ProbeIndex % ProbeAtlasResolutionInProbes.x, ProbeIndex / ProbeAtlasResolutionInProbes.x);;
+		uint DownsampleFactor = RadianceProbeResolution / OcclusionProbeResolution;
+		uint DepthKernel = DownsampleFactor * 1;
+
+		float AccumulatedDepth = 0;
+		float AccumulatedDepthSq = 0;
+
+		for (uint YOffset = 0; YOffset < DepthKernel; YOffset++)
+		{
+			for (uint XOffset = 0; XOffset < DepthKernel; XOffset++)
+			{
+				uint2 SourceTexelCoord = uint2(ProbeDepthTexelCoord.x * DepthKernel + XOffset, ProbeDepthTexelCoord.y * DepthKernel + YOffset) % RadianceProbeResolution;
+				uint2 AtlasCoord = SourceTexelCoord + RadianceProbeResolution * AtlasBaseCoord;
+
+				float Depth = DepthProbeAtlasTexture.Load(uint3(AtlasCoord, 0));
+				AccumulatedDepth += Depth;
+				AccumulatedDepthSq += Depth * Depth;
+			}
+		}
+
+		float Normalization = 1.0f / max(DepthKernel * DepthKernel, 1);
+		AccumulatedDepth *= Normalization;
+		AccumulatedDepthSq *= Normalization;
+
+		uint2 FinalAtlasCoord = FinalDepthTexelCoord + FinalOcclusionProbeResolution * AtlasBaseCoord;
+		RWRadianceCacheProbeOcclusionAtlas[FinalAtlasCoord] = float2(AccumulatedDepth, AccumulatedDepthSq);
+	}
+}
+
 RWTexture2D<float3> RWFinalRadianceAtlas;
 
 [numthreads(THREADGROUP_SIZE, THREADGROUP_SIZE, 1)]
@@ -1147,7 +1300,7 @@ void CopyProbesAndFixupBordersCS(
 
 	if (all(FinalProbeTexelCoord < FinalProbeResolution))
 	{
-		uint2 ProbeTexelCoord = OctahedralMapWrapBorder(FinalProbeTexelCoord, FinalProbeResolution, 1 << (uint)FinalRadianceAtlasMaxMip);
+		uint2 ProbeTexelCoord = OctahedralMapWrapBorder(FinalProbeTexelCoord, FinalProbeResolution, 1 << FinalRadianceAtlasMaxMip);
 		uint2 AtlasCoord = ProbeTexelCoord + RadianceProbeResolution * uint2(ProbeIndex % ProbeAtlasResolutionInProbes.x, ProbeIndex / ProbeAtlasResolutionInProbes.x);
 
 		float3 Lighting = RadianceProbeAtlasTexture.Load(uint3(AtlasCoord, 0)).xyz;
@@ -1180,7 +1333,6 @@ void GenerateMipLevelCS(
 		uint2 ProbeCoord = uint2(ProbeIndex % ProbeAtlasResolutionInProbes.x, ProbeIndex / ProbeAtlasResolutionInProbes.x);
 		uint2 ParentProbeTexelCoordBase = FinalProbeTexelCoord * 2;
 		uint2 ParentFinalAtlasCoord = ParentProbeTexelCoordBase + ParentMipSize * ProbeCoord;
-		//@todo - gather area around texel, not aligned to power of 2
 
 		float InvParentMipSize = 1.0f / ParentMipSize;
 		float2 ProbeUV00 = (ParentProbeTexelCoordBase + float2(0, 0) + float2(.5f, .5f)) * InvParentMipSize;

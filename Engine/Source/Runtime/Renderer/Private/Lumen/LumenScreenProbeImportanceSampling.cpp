@@ -109,7 +109,7 @@ class FScreenProbeComputeLightingProbabilityDensityFunctionCS : public FGlobalSh
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float>, RWLightingProbabilityDensityFunction)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FScreenProbeParameters, ScreenProbeParameters)
-		SHADER_PARAMETER_STRUCT_INCLUDE(LumenRadianceCache::FRadianceCacheParameters, RadianceCacheParameters)
+		SHADER_PARAMETER_STRUCT_INCLUDE(LumenRadianceCache::FRadianceCacheInterpolationParameters, RadianceCacheParameters)
 		SHADER_PARAMETER(FVector4, ImportanceSamplingHistoryScreenPositionScaleBias)
 		SHADER_PARAMETER(FVector4, ImportanceSamplingHistoryUVMinMax)
 		SHADER_PARAMETER(float, ImportanceSamplingHistoryDistanceThreshold)
@@ -278,7 +278,7 @@ void GenerateImportanceSamplingRays(
 	FRDGBuilder& GraphBuilder, 
 	const FViewInfo& View,
 	const FSceneTextures& SceneTextures,
-	const LumenRadianceCache::FRadianceCacheParameters& RadianceCacheParameters,
+	const LumenRadianceCache::FRadianceCacheInterpolationParameters& RadianceCacheParameters,
 	FRDGTextureRef BRDFProbabilityDensityFunction,
 	FRDGBufferSRVRef BRDFProbabilityDensityFunctionSH,
 	FScreenProbeParameters& ScreenProbeParameters)

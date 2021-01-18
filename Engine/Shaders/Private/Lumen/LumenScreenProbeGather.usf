@@ -12,6 +12,7 @@
 #include "../SphericalGaussian.ush"
 #include "../FastMath.ush"
 #include "../ClearCoatCommon.ush"
+#include "LumenRadianceCacheCommon.ush"
 
 #ifndef THREADGROUP_SIZE
 #define THREADGROUP_SIZE 1
@@ -248,6 +249,38 @@ void SetupAdaptiveProbeIndirectArgsCS(
 	WriteArgs2D(2, AtlasSizeInProbes * ScreenProbeTracingOctahedronResolution);
 	WriteArgs2D(3, AtlasSizeInProbes * ScreenProbeGatherOctahedronResolution);
 	WriteArgs2D(4, AtlasSizeInProbes * ScreenProbeGatherOctahedronResolutionWithBorder);
+}
+
+[numthreads(PROBE_THREADGROUP_SIZE_2D, PROBE_THREADGROUP_SIZE_2D, 1)]
+void MarkRadianceProbesUsedByScreenProbesCS(
+	uint3 GroupId : SV_GroupID,
+	uint3 DispatchThreadId : SV_DispatchThreadID,
+	uint3 GroupThreadId : SV_GroupThreadID)
+{
+	uint2 ScreenProbeAtlasCoord = DispatchThreadId.xy;
+	uint ScreenProbeIndex = ScreenProbeAtlasCoord.y * ScreenProbeAtlasViewSize.x + ScreenProbeAtlasCoord.x;
+	uint2 ScreenProbeScreenCoord;
+	uint ScreenProbeSubsampleIndex;
+	GetScreenProbeScreenCoord(ScreenProbeIndex, ScreenProbeScreenCoord, ScreenProbeSubsampleIndex);
+
+	if (ScreenProbeIndex < GetNumScreenProbes())
+	{
+		float2 ScreenUV = GetScreenUVFromScreenProbeCoord(ScreenProbeScreenCoord, ScreenProbeSubsampleIndex);
+		float SceneDepth = DownsampledDepth.Load(int3(ScreenProbeAtlasCoord, 0)).x;
+		float3 WorldPosition = GetWorldPositionFromScreenUV(ScreenUV, SceneDepth);
+
+		if (SceneDepth > 0 && SceneDepth < 1000000.0f)
+		{
+			uint ClipmapIndex = GetRadianceProbeClipmap(WorldPosition);
+
+			if (ClipmapIndex < NumRadianceProbeClipmaps)
+			{
+				//@todo - cull by screen size
+				//@todo - cull probes too small for voxel tracing and too large for max trace distance
+				MarkPositionUsedInIndirectionTexture(WorldPosition, ClipmapIndex);
+			}
+		}
+	}
 }
 
 Texture2D<uint> ScreenTileAdaptiveProbeHeader;
@@ -708,7 +741,7 @@ void ScreenProbeIndirectCS(
 
 			float MinRoughnessForProbeImportanceSampling = MaxRoughnessToTrace - RoughnessFadeLength;
 
-			if (DiffuseLerp < 1.0f && GBufferData.Roughness >= MinRoughnessForProbeImportanceSampling)
+			if (DiffuseLerp < 1.0f && GBufferData.Roughness >= MinRoughnessForProbeImportanceSampling || GBufferData.ShadingModelID == SHADINGMODELID_CLEAR_COAT)
 			{
 				GBufferData.WorldNormal = GetClearCoatBottomNormal(GBufferData, GBufferData.WorldNormal);
 

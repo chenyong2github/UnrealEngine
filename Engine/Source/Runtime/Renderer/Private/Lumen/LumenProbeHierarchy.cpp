@@ -8,7 +8,6 @@
 #include "DeferredShadingRenderer.h"
 #include "RendererModule.h" 
 #include "Lumen/LumenSceneUtils.h"
-#include "Lumen/LumenRadianceCache.h"
 #include "Math/Halton.h"
 
 
@@ -93,11 +92,6 @@ static TAutoConsoleVariable<int32> CVarDebugAntiTileAliasingY(
 static TAutoConsoleVariable<int32> CVarEnableBentNormal(
 	TEXT("r.Lumen.ProbeHierarchy.EnableBentNormal"), 1,
 	TEXT("Whether to occlude GI by material's bent normal."),
-	ECVF_RenderThreadSafe);
-
-static TAutoConsoleVariable<int32> CVarProbeFallbackToRadianceCache(
-	TEXT("r.Lumen.ProbeHierarchy.FallbackToRadianceCache"), 0,
-	TEXT("Whether to do use the world space Radiance Cache for distant rays, instead of extra Probe Hierarchy depth levels."),
 	ECVF_RenderThreadSafe);
 
 BEGIN_SHADER_PARAMETER_STRUCT(FCommonProbeDenoiserParameters, )
@@ -623,11 +617,6 @@ float ComputeHierarchyLevelConeAngle(const FHierarchyLevelParameters& LevelParam
 	return  (ConeAngleToHalfConeAngle * EquatorLength) / (FaceCountOnEquator * RaysPerFaceBorder * FMath::Sqrt(static_cast<float>(kMaxParentProbeCount)));
 }
 
-bool UseRadianceCache(const FViewInfo& View)
-{
-	return CVarProbeFallbackToRadianceCache.GetValueOnRenderThread() != 0 && LumenRadianceCache::IsEnabled(View);
-}
-
 FRDGTextureRef ComposeFinalProbeAtlas(
 	FRDGBuilder& GraphBuilder,
 	FGlobalShaderMap* GlobalShaderMap,
@@ -797,7 +786,7 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenProbeHierarchy(
 
 	const FIntPoint SceneBufferExtent = SceneTextures.Config.Extent;
 
-	const int32 MaxHierarchDepth = UseRadianceCache(View) ? 2 : kProbeMaxHierarchyDepth;
+	const int32 MaxHierarchDepth = kProbeMaxHierarchyDepth;
 	const int32 HierarchyDepth = FMath::Clamp(CVarHierarchyDepth.GetValueOnRenderThread(), 1, MaxHierarchDepth);
 
 	auto ComputeEmitTileSize = [&](int32 HierarchyLevelId)
@@ -1326,14 +1315,6 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenProbeHierarchy(
 		}
 	}
 
-	LumenRadianceCache::FRadianceCacheParameters RadianceCacheParameters;
-
-	if (UseRadianceCache(View))
-	{
-		FLumenCardTracingInputs TracingInputs(GraphBuilder, Scene, View);
-		RenderRadianceCache(GraphBuilder, SceneTextures, TracingInputs, View, &ProbeHierachyParameters, nullptr, nullptr, RadianceCacheParameters);
-	}
-
 	// Full probe occlusion tracing.
 	FRDGTextureRef ResolvedProbeIndexes = nullptr;
 
@@ -1797,9 +1778,7 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenProbeHierarchy(
 			GraphBuilder, View,
 			ProbeHierachyParameters,
 			IndirectLightingAtlasParameters,
-			EmitProbeParameters,
-			RadianceCacheParameters,
-			UseRadianceCache(View));
+			EmitProbeParameters);
 	}
 	else if (ViewPipelineState.DiffuseIndirectMethod == EDiffuseIndirectMethod::Disabled && ViewPipelineState.bEnableSSGI)
 	{

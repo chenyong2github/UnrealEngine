@@ -40,11 +40,6 @@ BEGIN_SHADER_PARAMETER_STRUCT(FScreenProbeImportanceSamplingParameters, )
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, StructuredImportanceSampledRayInfosForTracing)
 END_SHADER_PARAMETER_STRUCT()
 
-BEGIN_SHADER_PARAMETER_STRUCT(FOctahedralSolidAngleParameters, )
-	SHADER_PARAMETER(float, OctahedralSolidAngleTextureResolutionSq)
-	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float>, OctahedralSolidAngleTexture)
-END_SHADER_PARAMETER_STRUCT()
-
 BEGIN_SHADER_PARAMETER_STRUCT(FScreenProbeParameters, )
 	SHADER_PARAMETER(uint32, ScreenProbeTracingOctahedronResolution)
 	SHADER_PARAMETER(uint32, ScreenProbeGatherOctahedronResolution)
@@ -110,7 +105,7 @@ extern void GenerateImportanceSamplingRays(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
 	const FSceneTextures& SceneTextures,
-	const LumenRadianceCache::FRadianceCacheParameters& RadianceCacheParameters,
+	const LumenRadianceCache::FRadianceCacheInterpolationParameters& RadianceCacheParameters,
 	FRDGTextureRef BRDFProbabilityDensityFunction,
 	FRDGBufferSRVRef BRDFProbabilityDensityFunctionSH,
 	FScreenProbeParameters& ScreenProbeParameters);
@@ -125,7 +120,7 @@ extern void TraceScreenProbes(
 	const ScreenSpaceRayTracing::FPrevSceneColorMip& PrevSceneColor,
 	FRDGTextureRef LightingChannelsTexture,
 	const FLumenCardTracingInputs& TracingInputs,
-	const LumenRadianceCache::FRadianceCacheParameters& RadianceCacheParameters,
+	const LumenRadianceCache::FRadianceCacheInterpolationParameters& RadianceCacheParameters,
 	FScreenProbeParameters& ScreenProbeParameters,
 	FLumenMeshSDFGridParameters& MeshSDFGridParameters);
 
@@ -138,7 +133,7 @@ void RenderHardwareRayTracingScreenProbe(
 	const FLumenCardTracingInputs& TracingInputs,
 	const FLumenMeshSDFGridParameters& MeshSDFGridParameters,
 	FLumenIndirectTracingParameters& DiffuseTracingParameters,
-	const LumenRadianceCache::FRadianceCacheParameters& RadianceCacheParameters,
+	const LumenRadianceCache::FRadianceCacheInterpolationParameters& RadianceCacheParameters,
 	const FCompactedTraceParameters& CompactedTraceParameters);
 
 extern void FilterScreenProbes(
@@ -160,3 +155,8 @@ extern FScreenSpaceBentNormalParameters ComputeScreenSpaceBentNormal(
 	const FMinimalSceneTextures& SceneTextures,
 	FRDGTextureRef LightingChannelsTexture,
 	const FScreenProbeParameters& ScreenProbeParameters);
+
+namespace LumenScreenProbeGatherRadianceCache
+{
+	LumenRadianceCache::FRadianceCacheInputs SetupRadianceCacheInputs();
+}

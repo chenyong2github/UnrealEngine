@@ -179,15 +179,8 @@ void VoxelTraceProbeCS(
 		float3 SamplePosition = ProbeTracingCtx.ProbeInfo.TranslatedWorldPosition - View.PreViewTranslation;
 		float3 WorldConeDirection = ProbeTracingCtx.WorldDirection;
 
-		float RadianceProbeOcclusionDistance = MaxTraceDistance;
-		bool bCoveredByRadianceCache = false;
-
-		#if RADIANCE_CACHE
-			RadianceProbeOcclusionDistance = GetRadianceProbeOcclusionDistanceWithInterpolation(SamplePosition, WorldConeDirection, bCoveredByRadianceCache);
-		#endif
-
 		float FinalMinTraceDistance = max(MinTraceDistance, ProbeTMin);
-		float FinalMaxTraceDistance = min(min(MaxTraceDistance, ProbeTMax), RadianceProbeOcclusionDistance);
+		float FinalMaxTraceDistance = min(MaxTraceDistance, ProbeTMax);
 		float EffectiveStepFactor = StepFactor;// *= lerp(.8f, 1.2f, Noise);
 
 		//float FinalMinSampleRadius = max(MinSampleRadius, tan(ProbeConeHalfAngle) * FinalMinTraceDistance);
@@ -211,16 +204,6 @@ void VoxelTraceProbeCS(
 
 		ConeTraceLumenSceneVoxels(TraceInput, TraceResult);
 
-#if RADIANCE_CACHE
-		if (bCoveredByRadianceCache)
-		{
-			SampleRadianceCacheAndApply(SamplePosition, WorldConeDirection, TanDiffuseConeHalfAngle, float3(0, 0, 0), TraceResult.Lighting, TraceResult.Transparency);
-			
-			Lighting = TraceResult.Lighting;
-			bHit = true;
-		}
-		else
-#endif
 		{
 #if PROBE_HIERARCHY_TRACE_DISTANT_SCENE
 			if (TraceResult.Transparency > .01f)

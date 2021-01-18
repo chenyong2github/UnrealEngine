@@ -166,7 +166,7 @@ void VisualizeHardwareRayTracing(
 	const FLumenCardTracingInputs& TracingInputs,
 	const FLumenMeshSDFGridParameters& MeshSDFGridParameters,
 	FLumenIndirectTracingParameters& IndirectTracingParameters,
-	const LumenRadianceCache::FRadianceCacheParameters& RadianceCacheParameters,
+	const LumenRadianceCache::FRadianceCacheInterpolationParameters& RadianceCacheParameters,
 	FRDGTextureRef SceneColor
 )
 #if RHI_RAYTRACING

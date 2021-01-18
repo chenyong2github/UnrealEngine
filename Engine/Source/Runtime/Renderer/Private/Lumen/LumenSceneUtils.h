@@ -415,6 +415,11 @@ BEGIN_SHADER_PARAMETER_STRUCT(FLumenDiffuseTracingParameters, )
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, DownsampledNormal)	
 END_SHADER_PARAMETER_STRUCT()
 
+BEGIN_SHADER_PARAMETER_STRUCT(FOctahedralSolidAngleParameters, )
+	SHADER_PARAMETER(float, OctahedralSolidAngleTextureResolutionSq)
+	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float>, OctahedralSolidAngleTexture)
+END_SHADER_PARAMETER_STRUCT()
+
 void VisualizeHardwareRayTracing(
 	FRDGBuilder& GraphBuilder,
 	const FScene* Scene,
@@ -423,7 +428,7 @@ void VisualizeHardwareRayTracing(
 	const FLumenCardTracingInputs& TracingInputs,
 	const FLumenMeshSDFGridParameters& MeshSDFGridParameters,
 	FLumenIndirectTracingParameters& IndirectTracingParameters,
-	const LumenRadianceCache::FRadianceCacheParameters& RadianceCacheParameters,
+	const LumenRadianceCache::FRadianceCacheInterpolationParameters& RadianceCacheParameters,
 	FRDGTextureRef SceneColor);
 
 extern void CullMeshSDFObjectsToViewGrid(
@@ -466,3 +471,21 @@ extern int32 GetNumLumenVoxelClipmaps();
 extern void UpdateDistantScene(FScene* Scene, FViewInfo& View);
 extern FIntPoint GetRadiosityAtlasSize(FIntPoint MaxAtlasSize);
 extern float ComputeMaxCardUpdateDistanceFromCamera();
+
+extern FRDGTextureRef InitializeOctahedralSolidAngleTexture(
+	FRDGBuilder& GraphBuilder, 
+	FGlobalShaderMap* ShaderMap,
+	int32 OctahedralSolidAngleTextureSize,
+	TRefCountPtr<IPooledRenderTarget>& OctahedralSolidAngleTextureRT);
+
+extern int32 GLumenIrradianceFieldGather;
+
+namespace LumenIrradianceFieldGather
+{
+	LumenRadianceCache::FRadianceCacheInputs SetupRadianceCacheInputs();
+}
+
+namespace LumenRadiosity
+{
+	LumenRadianceCache::FRadianceCacheInputs SetupRadianceCacheInputs();
+}

@@ -24,7 +24,7 @@ void VisualizeRadianceCacheVS(
 	out float4 OutPosition : SV_POSITION
 )
 {
-	float VisualizeRadius = GetRadianceProbeTMin(ProbeClipmapIndex) * VisualizeProbeRadiusScale;
+	float VisualizeRadius = VisualizeProbeRadiusScale / WorldPositionToRadianceProbeCoordScale[ProbeClipmapIndex];
 
 	float3 LocalPosition;
 	LocalPosition.x = VertexId & 0x1 ? 1.0f : -1.0f;
@@ -37,7 +37,9 @@ void VisualizeRadianceCacheVS(
 	ProbeCoord.y = (InstanceId / RadianceProbeClipmapResolution) % RadianceProbeClipmapResolution;
 	ProbeCoord.z = InstanceId / (RadianceProbeClipmapResolution * RadianceProbeClipmapResolution);
 
-	float3 ProbeWorldCenter = ProbeCoord * ProbeCoordToWorldCenterScale + ProbeCoordToWorldCenterBias;
+	uint ProbeIndex = GetProbeIndexFromIndirectionTexture(ProbeCoord, ProbeClipmapIndex);
+
+	float3 ProbeWorldCenter = ProbeCoord * ProbeCoordToWorldCenterScale + ProbeCoordToWorldCenterBias + ProbeWorldOffset[ProbeIndex].xyz;
 
 	Output.CellSphere.xyz = ProbeWorldCenter;
 	Output.CellSphere.w = VisualizeRadius;
@@ -45,7 +47,6 @@ void VisualizeRadianceCacheVS(
 	Output.ProbeCoord = ProbeCoord;
 	OutPosition = mul(float4(Output.PositionWS, 1.0f), View.WorldToClip);
 
-	uint ProbeIndex = GetProbeIndexFromIndirectionTexture(ProbeCoord, ProbeClipmapIndex);
 	if (ProbeIndex == INVALID_PROBE_INDEX)
 	{
 		OutPosition = 0;
@@ -68,16 +69,38 @@ void VisualizeRadianceCachePS(
 
 	uint ProbeIndex = GetProbeIndexFromIndirectionTexture(Input.ProbeCoord, ProbeClipmapIndex);
 	
-#define DEBUG_VISUALIZE_BRDF_PDF 0
-#if DEBUG_VISUALIZE_BRDF_PDF
-	float2 ProbeUV = DirectionToOctahedralMap(SphereNormal);
-	uint2 ProbeAtlasCoord = 8 * uint2(ProbeIndex % ProbeAtlasResolutionInProbes.x, ProbeIndex / ProbeAtlasResolutionInProbes.x);
-	float2 ProbeTexelCoord = ProbeUV * 8;
-	float2 ProbeAtlasUV = (ProbeAtlasCoord + ProbeTexelCoord) / (8.0f * ProbeAtlasResolutionInProbes);
-	float3 Lighting = DebugBRDFProbabilityDensityFunction.SampleLevel(GlobalBilinearClampedSampler, ProbeAtlasUV, 0);
-#else
-	float3 Lighting = SampleRadianceCacheProbe(ProbeIndex, SphereNormal, 0);
-#endif
+	#if VISUALIZE_IRRADIANCE
+
+		float Albedo = .3f;
+		float3 Lighting = SampleIrradianceCacheProbe(ProbeIndex, SphereNormal) * Albedo;
+
+		#define DEBUG_VISUALIZE_PROBES_WITH_OFFSETS 0
+		#if DEBUG_VISUALIZE_PROBES_WITH_OFFSETS
+			if (ProbeWorldOffset[ProbeIndex].w > 0)
+			{
+				Lighting.g += .1f;
+			}
+		#endif
+
+		#define DEBUG_VISUALIZE_PROBE_OCCLUSION 0
+		#if DEBUG_VISUALIZE_PROBE_OCCLUSION
+			Lighting = float3(SampleProbeOcclusion(ProbeIndex, SphereNormal).xxx / 1000.0f);
+		#endif
+
+	#else
+
+		float3 Lighting = SampleRadianceCacheProbe(ProbeIndex, SphereNormal, 0);
+
+		#define DEBUG_VISUALIZE_BRDF_PDF 0
+		#if DEBUG_VISUALIZE_BRDF_PDF
+			float2 ProbeUV = DirectionToOctahedralMap(SphereNormal);
+			uint2 ProbeAtlasCoord = 8 * uint2(ProbeIndex % ProbeAtlasResolutionInProbes.x, ProbeIndex / ProbeAtlasResolutionInProbes.x);
+			float2 ProbeTexelCoord = ProbeUV * 8;
+			float2 ProbeAtlasUV = (ProbeAtlasCoord + ProbeTexelCoord) / (8.0f * ProbeAtlasResolutionInProbes);
+			Lighting = DebugBRDFProbabilityDensityFunction.SampleLevel(GlobalBilinearClampedSampler, ProbeAtlasUV, 0);
+		#endif
+
+	#endif
 
 	if (ProbeIndex == INVALID_PROBE_INDEX)
 	{

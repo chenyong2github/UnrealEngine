@@ -8,11 +8,20 @@
 #include "ScenePrivate.h"
 #include "LumenRadianceCache.h"
 #include "DeferredShadingRenderer.h"
+#include "LumenScreenProbeGather.h"
 
 int32 GLumenRadianceCacheVisualize = 0;
 FAutoConsoleVariableRef CVarLumenRadianceCacheVisualize(
 	TEXT("r.Lumen.RadianceCache.Visualize"),
 	GLumenRadianceCacheVisualize,
+	TEXT(""),
+	ECVF_RenderThreadSafe
+);
+
+int32 GLumenVisualizeRadiosityIrradianceCache = 0;
+FAutoConsoleVariableRef CVarLumenRadianceCacheVisualizeRadiosity(
+	TEXT("r.Lumen.Radiosity.IrradianceCache.Visualize"),
+	GLumenVisualizeRadiosityIrradianceCache,
 	TEXT(""),
 	ECVF_RenderThreadSafe
 );
@@ -42,7 +51,7 @@ FAutoConsoleVariableRef CVarLumenRadianceCacheVisualizeProbeRadius(
 );
 
 BEGIN_SHADER_PARAMETER_STRUCT(FVisualizeRadianceCacheCommonParameters, )
-	SHADER_PARAMETER_STRUCT_INCLUDE(LumenRadianceCache::FRadianceCacheParameters, RadianceCacheParameters)
+	SHADER_PARAMETER_STRUCT_INCLUDE(LumenRadianceCache::FRadianceCacheInterpolationParameters, RadianceCacheParameters)
 	SHADER_PARAMETER(FVector, ProbeCoordToWorldCenterBias)
 	SHADER_PARAMETER(float, ProbeCoordToWorldCenterScale)
 	SHADER_PARAMETER(float, VisualizeProbeRadiusScale)
@@ -80,6 +89,10 @@ class FVisualizeRadianceCachePS : public FGlobalShader
 	END_SHADER_PARAMETER_STRUCT()
 
 public:
+
+	class FVisualizeIrradiance : SHADER_PERMUTATION_BOOL("VISUALIZE_IRRADIANCE");
+	using FPermutationDomain = TShaderPermutationDomain<FVisualizeIrradiance>;
+	
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
 		return DoesPlatformSupportLumenGI(Parameters.Platform);
@@ -94,22 +107,43 @@ BEGIN_SHADER_PARAMETER_STRUCT(FVisualizeRadianceCacheParameters, )
 	RENDER_TARGET_BINDING_SLOTS()
 END_SHADER_PARAMETER_STRUCT()
 
+LumenRadianceCache::FRadianceCacheInputs GetFinalGatherRadianceCacheInputs()
+{
+	if (GLumenVisualizeRadiosityIrradianceCache)
+	{
+		return LumenRadiosity::SetupRadianceCacheInputs();
+	}
+	else
+	{
+		if (GLumenIrradianceFieldGather)
+		{
+			return LumenIrradianceFieldGather::SetupRadianceCacheInputs();
+		}
+		else
+		{
+			return LumenScreenProbeGatherRadianceCache::SetupRadianceCacheInputs();
+		}
+	}
+}
+
 void FDeferredShadingSceneRenderer::RenderLumenRadianceCacheVisualization(FRDGBuilder& GraphBuilder, const FMinimalSceneTextures& SceneTextures)
 {
 	if (GAllowLumenScene
 		&& DoesPlatformSupportLumenGI(ShaderPlatform)
 		&& Views.Num() == 1
 		&& Views[0].ViewState
-		&& LumenRadianceCache::IsEnabled(Views[0])
+		&& LumenScreenProbeGather::UseRadianceCache(Views[0])
 		&& GLumenRadianceCacheVisualize != 0)
 	{
 		RDG_EVENT_SCOPE(GraphBuilder, "VisualizeLumenRadianceCache");
 
 		const FViewInfo& View = Views[0];
-		const FRadianceCacheState& RadianceCacheState = Views[0].ViewState->RadianceCacheState;
+		const FRadianceCacheState& RadianceCacheState = GLumenVisualizeRadiosityIrradianceCache ? Views[0].ViewState->RadiosityRadianceCacheState : Views[0].ViewState->RadianceCacheState;
 
 		FRDGTextureRef SceneColor = SceneTextures.Color.Resolve;
 		FRDGTextureRef SceneDepth = SceneTextures.Depth.Resolve;
+
+		const LumenRadianceCache::FRadianceCacheInputs RadianceCacheInputs = GetFinalGatherRadianceCacheInputs();
 
 		const int32 VisualizationClipmapIndex = FMath::Clamp(GLumenRadianceCacheVisualizeClipmapIndex, -1, RadianceCacheState.Clipmaps.Num() - 1);
 		for (int32 ClipmapIndex = 0; ClipmapIndex < RadianceCacheState.Clipmaps.Num(); ++ClipmapIndex)
@@ -122,7 +156,7 @@ void FDeferredShadingSceneRenderer::RenderLumenRadianceCacheVisualization(FRDGBu
 			const FRadianceCacheClipmap& Clipmap = RadianceCacheState.Clipmaps[ClipmapIndex];
 
 			FVisualizeRadianceCacheCommonParameters VisualizeCommonParameters;
-			LumenRadianceCache::GetParameters(View, GraphBuilder, VisualizeCommonParameters.RadianceCacheParameters);
+			LumenRadianceCache::GetInterpolationParameters(View, GraphBuilder, RadianceCacheState, RadianceCacheInputs, VisualizeCommonParameters.RadianceCacheParameters);
 			VisualizeCommonParameters.VisualizeProbeRadiusScale = GLumenRadianceCacheVisualizeRadiusScale;
 			VisualizeCommonParameters.ProbeClipmapIndex = ClipmapIndex;
 			VisualizeCommonParameters.ProbeCoordToWorldCenterBias = Clipmap.ProbeCoordToWorldCenterBias;
@@ -142,16 +176,20 @@ void FDeferredShadingSceneRenderer::RenderLumenRadianceCacheVisualization(FRDGBu
 				FExclusiveDepthStencil::DepthWrite_StencilWrite);
 			PassParameters->RenderTargets[0] = FRenderTargetBinding(SceneColor, ERenderTargetLoadAction::ELoad);
 
-			const int32 NumInstancesPerClipmap = LumenRadianceCache::GetClipmapGridResolution() * LumenRadianceCache::GetClipmapGridResolution() * LumenRadianceCache::GetClipmapGridResolution();
+			const int32 NumInstancesPerClipmap = RadianceCacheInputs.RadianceProbeClipmapResolution * RadianceCacheInputs.RadianceProbeClipmapResolution * RadianceCacheInputs.RadianceProbeClipmapResolution;
+			const bool bCalculateIrradiance = RadianceCacheInputs.CalculateIrradiance != 0;
 
 			GraphBuilder.AddPass(
 				RDG_EVENT_NAME("Visualize Radiance Cache Clipmap:%d", ClipmapIndex),
 				PassParameters,
 				ERDGPassFlags::Raster,
-				[PassParameters, &View, NumInstancesPerClipmap](FRHICommandList& RHICmdList)
+				[PassParameters, &View, NumInstancesPerClipmap, bCalculateIrradiance](FRHICommandList& RHICmdList)
 				{
 					TShaderMapRef<FVisualizeRadianceCacheVS> VertexShader(View.ShaderMap);
-					TShaderMapRef<FVisualizeRadianceCachePS> PixelShader(View.ShaderMap);
+
+					FVisualizeRadianceCachePS::FPermutationDomain PermutationVector;
+					PermutationVector.Set<FVisualizeRadianceCachePS::FVisualizeIrradiance>(bCalculateIrradiance);
+					auto PixelShader = View.ShaderMap->GetShader<FVisualizeRadianceCachePS>(PermutationVector);
 
 					RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0.0f, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1.0f);
 

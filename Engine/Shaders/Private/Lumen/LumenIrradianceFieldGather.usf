@@ -1,0 +1,127 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "../Common.ush"
+#include "../DeferredShadingCommon.ush"
+#include "../BRDF.ush"
+#include "../SceneTextureParameters.ush"
+#include "LumenRadianceCacheCommon.ush"
+#include "../ClearCoatCommon.ush"
+#include "../ReflectionEnvironmentShared.ush"
+
+float3 GetWorldPositionFromScreenUV(float2 ScreenUV, float SceneDepth)
+{
+	float2 ScreenPosition = (ScreenUV - View.ScreenPositionScaleBias.wz) / View.ScreenPositionScaleBias.xy;
+	float3 WorldPosition = mul(float4(ScreenPosition * SceneDepth, SceneDepth, 1), View.ScreenToWorld).xyz;
+	return WorldPosition;
+}
+
+#ifndef THREADGROUP_SIZE
+#define THREADGROUP_SIZE 1
+#endif
+
+/*
+
+Texture2D<float> FurthestHZBTexture;
+Texture2D<float> ClosestHZBTexture;
+uint HZBMipLevel;
+
+[numthreads(THREADGROUP_SIZE, THREADGROUP_SIZE, 1)]
+void MarkRadianceProbesUsedByHZBCS(
+	uint3 GroupId : SV_GroupID,
+	uint3 DispatchThreadId : SV_DispatchThreadID,
+	uint3 GroupThreadId : SV_GroupThreadID)
+{
+	// Construct 8 corners of HZB tile in world space
+	// Compute indirection coord range
+	// if no gap, mark used
+	//		otherwise queue for full res
+
+	float2 HZBScreenUV = (DispatchThreadId.xy + .5f) * View.ViewSizeAndInvSize.zw * ViewportUVToHZBBufferUV;
+	float MinDepth = ConvertFromDeviceZ(ClosestHZBTexture.SampleLevel(GlobalPointClampedSampler, HZBScreenUV, HZBMipLevel).x);
+	float MaxDepth = ConvertFromDeviceZ(FurthestHZBTexture.SampleLevel(GlobalPointClampedSampler, HZBScreenUV, HZBMipLevel).x);
+
+	float3 WorldPosition000 = GetWorldPositionFromScreenUV(ScreenUV, SceneDepth);
+}
+*/
+
+[numthreads(THREADGROUP_SIZE, THREADGROUP_SIZE, 1)]
+void MarkRadianceProbesUsedByGBufferCS(
+	uint3 GroupId : SV_GroupID,
+	uint3 DispatchThreadId : SV_DispatchThreadID,
+	uint3 GroupThreadId : SV_GroupThreadID)
+{
+	float2 ScreenUV = (DispatchThreadId.xy + 0.5) * View.BufferSizeAndInvSize.zw;
+	float SceneDepth = CalcSceneDepth(ScreenUV);
+	float3 WorldPosition = GetWorldPositionFromScreenUV(ScreenUV, SceneDepth);
+
+	uint ClipmapIndex = GetRadianceProbeClipmap(WorldPosition);
+
+	if (ClipmapIndex < NumRadianceProbeClipmaps)
+	{
+		MarkPositionUsedInIndirectionTexture(WorldPosition, ClipmapIndex);
+	}
+}
+
+RWTexture2D<float4> RWDiffuseIndirect;
+RWTexture2D<float3> RWRoughSpecularIndirect;
+float MaxRoughnessToTrace;
+float RoughnessFadeLength;
+float ProbeOcclusionViewBias;
+float ProbeOcclusionNormalBias;
+
+[numthreads(THREADGROUP_SIZE, THREADGROUP_SIZE, 1)]
+void IrradianceFieldGatherCS(
+	uint2 DispatchThreadId : SV_DispatchThreadID)
+{
+	float2 ScreenUV = (DispatchThreadId + 0.5) * View.BufferSizeAndInvSize.zw;
+	float SceneDepth = CalcSceneDepth(ScreenUV);
+
+	{
+		FScreenSpaceData ScreenSpaceData = GetScreenSpaceData(ScreenUV);
+		FGBufferData GBufferData = ScreenSpaceData.GBuffer;
+		
+		if (GBufferData.ShadingModelID != SHADINGMODELID_UNLIT)
+		{
+			float3 WorldPosition = GetWorldPositionFromScreenUV(ScreenUV, SceneDepth);
+			float3 V = normalize(View.WorldCameraOrigin - WorldPosition);
+			uint ClipmapIndex = GetRadianceProbeClipmap(WorldPosition);
+
+			float3 DiffuseLighting = 0;
+
+			if (ClipmapIndex < NumRadianceProbeClipmaps)
+			{
+				float3 BiasOffset = GBufferData.WorldNormal * ProbeOcclusionNormalBias + V * ProbeOcclusionViewBias;
+				DiffuseLighting = SampleIrradianceCacheInterpolated(WorldPosition, GBufferData.WorldNormal, BiasOffset, ClipmapIndex);
+			}
+			else
+			{
+				DiffuseLighting = GetSkySHDiffuse(GBufferData.WorldNormal) * View.SkyLightColor.rgb;
+			}
+
+			// FDiffuseIndirectCompositePS applies DiffuseColor
+			RWDiffuseIndirect[DispatchThreadId.xy] = float4(DiffuseLighting * View.PreExposure, 0.0f);
+
+			float3 SpecularLighting = 0;
+
+#define COMPUTE_ROUGH_SPECULAR 1
+#if COMPUTE_ROUGH_SPECULAR
+
+			float MinRoughnessForRoughSpecular = MaxRoughnessToTrace - RoughnessFadeLength;
+
+			if (GBufferData.Roughness >= MinRoughnessForRoughSpecular || GBufferData.ShadingModelID == SHADINGMODELID_CLEAR_COAT)
+			{
+				//GBufferData.WorldNormal = GetClearCoatBottomNormal(GBufferData, GBufferData.WorldNormal);
+				//float ReflectionVector = reflect(-V, GBufferData.WorldNormal);
+				//SpecularLighting = SampleIrradianceCacheInterpolated(WorldPosition, ReflectionVector, V, ClipmapIndex);
+				SpecularLighting = DiffuseLighting;
+			}
+#endif
+			RWRoughSpecularIndirect[DispatchThreadId.xy] = SpecularLighting * View.PreExposure;
+		}
+		else
+		{
+			RWDiffuseIndirect[DispatchThreadId.xy] = 0;
+			RWRoughSpecularIndirect[DispatchThreadId.xy] = 0;
+		}
+	}
+}

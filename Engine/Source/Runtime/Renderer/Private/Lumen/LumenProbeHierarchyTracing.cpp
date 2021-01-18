@@ -105,7 +105,6 @@ class FLumenVoxelTraceProbeCS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenIndirectTracingParameters, IndirectTracingParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(LumenProbeHierarchy::FHierarchyParameters, HierarchyParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(LumenProbeHierarchy::FHierarchyLevelParameters, LevelParameters)
-		SHADER_PARAMETER_STRUCT_INCLUDE(LumenRadianceCache::FRadianceCacheParameters, RadianceCacheParameters)
 		SHADER_PARAMETER_RDG_BUFFER(Buffer<uint>, DispatchParameters)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, ProbeAtlasColorOutput)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<uint>, ProbeAtlasSampleMaskOutput)
@@ -114,10 +113,9 @@ class FLumenVoxelTraceProbeCS : public FGlobalShader
 	class FDynamicSkyLight : SHADER_PERMUTATION_BOOL("ENABLE_DYNAMIC_SKY_LIGHT");
 	class FTraceDistantScene : SHADER_PERMUTATION_BOOL("PROBE_HIERARCHY_TRACE_DISTANT_SCENE");
 	class FTraceCards : SHADER_PERMUTATION_BOOL("DIFFUSE_TRACE_CARDS");
-	class FRadianceCache : SHADER_PERMUTATION_BOOL("RADIANCE_CACHE");
 
 	using FPermutationDomain = TShaderPermutationDomain<
-		FDynamicSkyLight, FTraceDistantScene, FTraceCards, FRadianceCache,
+		FDynamicSkyLight, FTraceDistantScene, FTraceCards,
 		LumenProbeHierarchy::FProbeTracingPermutationDim>;
 
 	static FPermutationDomain RemapPermutation(FPermutationDomain PermutationVector)
@@ -242,9 +240,7 @@ void FDeferredShadingSceneRenderer::RenderLumenProbe(
 	const FViewInfo& View,
 	const LumenProbeHierarchy::FHierarchyParameters& HierarchyParameters,
 	const LumenProbeHierarchy::FIndirectLightingAtlasParameters& IndirectLightingAtlasParameters,
-	const LumenProbeHierarchy::FEmitProbeParameters& EmitProbeParameters,
-	const LumenRadianceCache::FRadianceCacheParameters& RadianceCacheParameters,
-	bool bUseRadianceCache)
+	const LumenProbeHierarchy::FEmitProbeParameters& EmitProbeParameters)
 {
 	LLM_SCOPE_BYTAG(Lumen);
 
@@ -334,7 +330,6 @@ void FDeferredShadingSceneRenderer::RenderLumenProbe(
 		{
 			FLumenVoxelTraceProbeCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FLumenVoxelTraceProbeCS::FParameters>();
 			GetLumenCardTracingParameters(View, TracingInputs, PassParameters->TracingParameters);
-			PassParameters->RadianceCacheParameters = RadianceCacheParameters;
 			PassParameters->HierarchyParameters = HierarchyParameters;
 			PassParameters->LevelParameters = LumenProbeHierarchy::GetLevelParameters(HierarchyParameters, HierarchyLevelId);
 			SetupLumenDiffuseTracingParametersForProbe(PassParameters->IndirectTracingParameters, LumenProbeHierarchy::ComputeHierarchyLevelConeAngle(PassParameters->LevelParameters));
@@ -344,12 +339,10 @@ void FDeferredShadingSceneRenderer::RenderLumenProbe(
 			PassParameters->ProbeAtlasSampleMaskOutput = ProbeAtlasSampleMaskOutput;
 
 			const bool bLastLevel = (HierarchyLevelId + 1) == HierarchyParameters.HierarchyDepth;
-			const bool bRadianceCache = bUseRadianceCache && bLastLevel;
 
 			FLumenVoxelTraceProbeCS::FPermutationDomain PermutationVector;
 			PermutationVector.Set<FLumenVoxelTraceProbeCS::FDynamicSkyLight>(ShouldRenderDynamicSkyLight(Scene, ViewFamily) && bLastLevel);
 			PermutationVector.Set<FLumenVoxelTraceProbeCS::FTraceCards>(bTraceCards);
-			PermutationVector.Set<FLumenVoxelTraceProbeCS::FRadianceCache>(bRadianceCache);
 			PermutationVector.Set<FLumenVoxelTraceProbeCS::FTraceDistantScene >(Scene->LumenSceneData->DistantCardIndices.Num() > 0);
 			PermutationVector.Set<LumenProbeHierarchy::FProbeTracingPermutationDim>(
 				LumenProbeHierarchy::GetProbeTracingPermutation(PassParameters->LevelParameters));

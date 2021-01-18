@@ -4,6 +4,8 @@
 	LumenOctahedralProbe.ush
 =============================================================================*/
 
+#pragma once
+
 // Based on [Engelhardt et al. 2008, "Octahedron Environment Maps"]
 
 float2 DirectionToOctahedralMap(float3 V)

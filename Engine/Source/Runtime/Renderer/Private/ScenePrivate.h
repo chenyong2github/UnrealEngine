@@ -506,6 +506,8 @@ public:
 	TRefCountPtr<IPooledRenderTarget> RadianceProbeAtlasTexture;
 	/** Texture containing radiance cache probes, ready for sampling with bilinear border. */
 	TRefCountPtr<IPooledRenderTarget> FinalRadianceAtlas;
+	TRefCountPtr<IPooledRenderTarget> FinalIrradianceAtlas;
+	TRefCountPtr<IPooledRenderTarget> ProbeOcclusionAtlas;
 
 	TRefCountPtr<IPooledRenderTarget> DepthProbeAtlasTexture;
 
@@ -513,18 +515,23 @@ public:
 	TRefCountPtr<FRDGPooledBuffer> ProbeFreeListAllocator;
 	TRefCountPtr<FRDGPooledBuffer> ProbeFreeList;
 	TRefCountPtr<FRDGPooledBuffer> ProbeLastUsedFrame;
+	TRefCountPtr<FRDGPooledBuffer> ProbeWorldOffset;
 	TRefCountPtr<IPooledRenderTarget> DebugBRDFProbabilityDensityFunction;
+	TRefCountPtr<IPooledRenderTarget> OctahedralSolidAngleTextureRT;
 
 	void ReleaseTextures()
 	{
 		RadianceProbeIndirectionTexture.SafeRelease();
 		RadianceProbeAtlasTexture.SafeRelease();
 		FinalRadianceAtlas.SafeRelease();
+		FinalIrradianceAtlas.SafeRelease();
+		ProbeOcclusionAtlas.SafeRelease();
 		DepthProbeAtlasTexture.SafeRelease();
 		ProbeAllocator.SafeRelease();
 		ProbeFreeListAllocator.SafeRelease();
 		ProbeFreeList.SafeRelease();
 		ProbeLastUsedFrame.SafeRelease();
+		ProbeWorldOffset.SafeRelease();
 	}
 };
 
@@ -1080,6 +1087,7 @@ public:
 	TRefCountPtr<IPooledRenderTarget> GlobalDistanceFieldMipTexture;
 	
 	FRadianceCacheState RadianceCacheState;
+	FRadianceCacheState RadiosityRadianceCacheState;
 
 	FVertexBufferRHIRef IndirectShadowCapsuleShapesVertexBuffer;
 	FShaderResourceViewRHIRef IndirectShadowCapsuleShapesSRV;

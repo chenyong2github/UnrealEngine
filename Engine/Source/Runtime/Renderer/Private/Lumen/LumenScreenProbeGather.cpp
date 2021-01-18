@@ -193,6 +193,14 @@ FAutoConsoleVariableRef CVarLumenScreenProbeUseJitter(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
+int32 GLumenRadianceCache = 1;
+FAutoConsoleVariableRef CVarRadianceCache(
+	TEXT("r.Lumen.ScreenProbeGather.RadianceCache"),
+	GLumenRadianceCache,
+	TEXT("Whether to enable the Persistent world space Radiance Cache"),
+	ECVF_RenderThreadSafe
+	);
+
 namespace LumenScreenProbeGather 
 {
 	int32 GetTracingOctahedronResolution()
@@ -236,7 +244,7 @@ namespace LumenScreenProbeGather
 
 	bool UseRadianceCache(const FViewInfo& View)
 	{
-		return GLumenScreenProbeGatherReferenceMode ? false : LumenRadianceCache::IsEnabled(View);
+		return GLumenScreenProbeGatherReferenceMode ? false : GLumenRadianceCache != 0;
 	}
 
 	int32 GetDiffuseIntegralMethod()
@@ -244,6 +252,140 @@ namespace LumenScreenProbeGather
 		return GLumenScreenProbeGatherReferenceMode ? 2 : GLumenScreenProbeDiffuseIntegralMethod;
 	}
 }
+
+int32 GRadianceCacheNumClipmaps = 4;
+FAutoConsoleVariableRef CVarRadianceCacheNumClipmaps(
+	TEXT("r.Lumen.ScreenProbeGather.RadianceCache.NumClipmaps"),
+	GRadianceCacheNumClipmaps,
+	TEXT("Number of radiance cache clipmaps."),
+	ECVF_RenderThreadSafe
+);
+
+float GLumenRadianceCacheClipmapWorldExtent = 5000.0f;
+FAutoConsoleVariableRef CVarLumenRadianceCacheClipmapWorldExtent(
+	TEXT("r.Lumen.ScreenProbeGather.RadianceCache.ClipmapWorldExtent"),
+	GLumenRadianceCacheClipmapWorldExtent,
+	TEXT("World space extent of the first clipmap"),
+	ECVF_RenderThreadSafe
+);
+
+float GLumenRadianceCacheClipmapDistributionBase = 2.0f;
+FAutoConsoleVariableRef CVarLumenRadianceCacheClipmapDistributionBase(
+	TEXT("r.Lumen.ScreenProbeGather.RadianceCache.ClipmapDistributionBase"),
+	GLumenRadianceCacheClipmapDistributionBase,
+	TEXT("Base of the Pow() that controls the size of each successive clipmap relative to the first."),
+	ECVF_RenderThreadSafe
+);
+
+int32 GRadianceCacheNumProbeTracesBudget = 200;
+FAutoConsoleVariableRef CVarRadianceCacheNumProbeTracesBudget(
+	TEXT("r.Lumen.ScreenProbeGather.RadianceCache.NumProbeTracesBudget"),
+	GRadianceCacheNumProbeTracesBudget,
+	TEXT(""),
+	ECVF_RenderThreadSafe
+);
+
+int32 GRadianceCacheGridResolution = 64;
+FAutoConsoleVariableRef CVarRadianceCacheResolution(
+	TEXT("r.Lumen.ScreenProbeGather.RadianceCache.GridResolution"),
+	GRadianceCacheGridResolution,
+	TEXT("Resolution of the probe placement grid within each clipmap"),
+	ECVF_RenderThreadSafe
+);
+
+int32 GRadianceCacheProbeResolution = 32;
+FAutoConsoleVariableRef CVarRadianceCacheProbeResolution(
+	TEXT("r.Lumen.ScreenProbeGather.RadianceCache.ProbeResolution"),
+	GRadianceCacheProbeResolution,
+	TEXT("Resolution of the probe's 2d radiance layout.  The number of rays traced for the probe will be ProbeResolution ^ 2"),
+	ECVF_RenderThreadSafe
+);
+
+int32 GRadianceCacheNumMipmaps = 1;
+FAutoConsoleVariableRef CVarRadianceCacheNumMipmaps(
+	TEXT("r.Lumen.ScreenProbeGather.RadianceCache.NumMipmaps"),
+	GRadianceCacheNumMipmaps,
+	TEXT("Number of radiance cache mipmaps."),
+	ECVF_RenderThreadSafe
+);
+
+int32 GRadianceCacheProbeAtlasResolutionInProbes = 128;
+FAutoConsoleVariableRef CVarRadianceCacheProbeAtlasResolutionInProbes(
+	TEXT("r.Lumen.ScreenProbeGather.RadianceCache.ProbeAtlasResolutionInProbes"),
+	GRadianceCacheProbeAtlasResolutionInProbes,
+	TEXT("Number of probes along one dimension of the probe atlas cache texture.  This controls the memory usage of the cache.  Overflow currently results in incorrect rendering."),
+	ECVF_RenderThreadSafe
+);
+
+float GRadianceCacheReprojectionRadiusScale = 1.5f;
+FAutoConsoleVariableRef CVarRadianceCacheProbeReprojectionRadiusScale(
+	TEXT("r.Lumen.ScreenProbeGather.RadianceCache.ReprojectionRadiusScale"),
+	GRadianceCacheReprojectionRadiusScale,
+	TEXT(""),
+	ECVF_RenderThreadSafe
+);
+
+namespace LumenScreenProbeGatherRadianceCache
+{
+	int32 GetNumClipmaps()
+	{
+		return FMath::Clamp(GRadianceCacheNumClipmaps, 1, LumenRadianceCache::MaxClipmaps);
+	}
+
+	int32 GetClipmapGridResolution()
+	{
+		const int32 GridResolution = GRadianceCacheGridResolution / (GLumenFastCameraMode ? 2 : 1);
+		return FMath::Clamp(GridResolution, 1, 256);
+	}
+
+	int32 GetProbeResolution()
+	{
+		return GRadianceCacheProbeResolution / (GLumenFastCameraMode ? 2 : 1);
+	}
+
+	int32 GetFinalProbeResolution()
+	{
+		return GetProbeResolution() + 2 * (1 << (GRadianceCacheNumMipmaps - 1));
+	}
+
+	FIntVector GetProbeIndirectionTextureSize()
+	{
+		return FIntVector(GetClipmapGridResolution() * GRadianceCacheNumClipmaps, GetClipmapGridResolution(), GetClipmapGridResolution());
+	}
+
+	FIntPoint GetProbeAtlasTextureSize()
+	{
+		return FIntPoint(GRadianceCacheProbeAtlasResolutionInProbes * GetProbeResolution());
+	}
+
+	FIntPoint GetFinalRadianceAtlasTextureSize()
+	{
+		return FIntPoint(GRadianceCacheProbeAtlasResolutionInProbes * GetFinalProbeResolution(), GRadianceCacheProbeAtlasResolutionInProbes * GetFinalProbeResolution());
+	}
+
+	int32 GetMaxNumProbes()
+	{
+		return GRadianceCacheProbeAtlasResolutionInProbes * GRadianceCacheProbeAtlasResolutionInProbes;
+	}
+
+	LumenRadianceCache::FRadianceCacheInputs SetupRadianceCacheInputs()
+	{
+		LumenRadianceCache::FRadianceCacheInputs Parameters;
+		Parameters.ReprojectionRadiusScale = GRadianceCacheReprojectionRadiusScale;
+		Parameters.ClipmapWorldExtent = GLumenRadianceCacheClipmapWorldExtent;
+		Parameters.ClipmapDistributionBase = GLumenRadianceCacheClipmapDistributionBase;
+		Parameters.RadianceProbeClipmapResolution = GetClipmapGridResolution();
+		Parameters.ProbeAtlasResolutionInProbes = FIntPoint(GRadianceCacheProbeAtlasResolutionInProbes, GRadianceCacheProbeAtlasResolutionInProbes);
+		Parameters.NumRadianceProbeClipmaps = GetNumClipmaps();
+		Parameters.RadianceProbeResolution = GetProbeResolution();
+		Parameters.FinalProbeResolution = GetFinalProbeResolution();
+		Parameters.FinalRadianceAtlasMaxMip = GRadianceCacheNumMipmaps - 1;
+		Parameters.CalculateIrradiance = 0;
+		Parameters.IrradianceProbeResolution = 0;
+		Parameters.NumProbeTracesBudget = GRadianceCacheNumProbeTracesBudget;
+		return Parameters;
+	}
+};
 
 class FOctahedralSolidAngleCS : public FGlobalShader
 {
@@ -277,21 +419,23 @@ IMPLEMENT_GLOBAL_SHADER(FOctahedralSolidAngleCS, "/Engine/Private/Lumen/LumenScr
 FRDGTextureRef InitializeOctahedralSolidAngleTexture(
 	FRDGBuilder& GraphBuilder, 
 	FGlobalShaderMap* ShaderMap,
-	FScreenProbeGatherTemporalState& ScreenProbeGatherState)
+	int32 OctahedralSolidAngleTextureSize,
+	TRefCountPtr<IPooledRenderTarget>& OctahedralSolidAngleTextureRT)
 {
-	if (ScreenProbeGatherState.OctahedralSolidAngleTextureRT)
+	if (OctahedralSolidAngleTextureRT.IsValid()
+		&& OctahedralSolidAngleTextureRT->GetDesc().Extent == OctahedralSolidAngleTextureSize)
 	{
-		return GraphBuilder.RegisterExternalTexture(ScreenProbeGatherState.OctahedralSolidAngleTextureRT, TEXT("OctahedralSolidAngleTexture"));
+		return GraphBuilder.RegisterExternalTexture(OctahedralSolidAngleTextureRT, TEXT("OctahedralSolidAngleTexture"));
 	}
 	else
 	{
-		FRDGTextureDesc OctahedralSolidAngleTextureDesc(FRDGTextureDesc::Create2D(GLumenOctahedralSolidAngleTextureSize, PF_R16F, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV));
+		FRDGTextureDesc OctahedralSolidAngleTextureDesc(FRDGTextureDesc::Create2D(OctahedralSolidAngleTextureSize, PF_R16F, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV));
 		FRDGTextureRef OctahedralSolidAngleTexture = GraphBuilder.CreateTexture(OctahedralSolidAngleTextureDesc, TEXT("OctahedralSolidAngleTexture"));
 	
 		{
 			FOctahedralSolidAngleCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FOctahedralSolidAngleCS::FParameters>();
 			PassParameters->RWOctahedralSolidAngleTexture = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(OctahedralSolidAngleTexture));
-			PassParameters->OctahedralSolidAngleTextureSize = GLumenOctahedralSolidAngleTextureSize;
+			PassParameters->OctahedralSolidAngleTextureSize = OctahedralSolidAngleTextureSize;
 
 			auto ComputeShader = ShaderMap->GetShader<FOctahedralSolidAngleCS>(0);
 
@@ -300,10 +444,10 @@ FRDGTextureRef InitializeOctahedralSolidAngleTexture(
 				RDG_EVENT_NAME("OctahedralSolidAngleCS"),
 				ComputeShader,
 				PassParameters,
-				FComputeShaderUtils::GetGroupCount(FIntPoint(GLumenOctahedralSolidAngleTextureSize, GLumenOctahedralSolidAngleTextureSize), FOctahedralSolidAngleCS::GetGroupSize()));
+				FComputeShaderUtils::GetGroupCount(FIntPoint(OctahedralSolidAngleTextureSize, OctahedralSolidAngleTextureSize), FOctahedralSolidAngleCS::GetGroupSize()));
 		}
 
-		ConvertToExternalTexture(GraphBuilder, OctahedralSolidAngleTexture, ScreenProbeGatherState.OctahedralSolidAngleTextureRT);
+		ConvertToExternalTexture(GraphBuilder, OctahedralSolidAngleTexture, OctahedralSolidAngleTextureRT);
 		return OctahedralSolidAngleTexture;
 	}
 }
@@ -430,6 +574,42 @@ class FSetupAdaptiveProbeIndirectArgsCS : public FGlobalShader
 };
 
 IMPLEMENT_GLOBAL_SHADER(FSetupAdaptiveProbeIndirectArgsCS, "/Engine/Private/Lumen/LumenScreenProbeGather.usf", "SetupAdaptiveProbeIndirectArgsCS", SF_Compute);
+
+
+class FMarkRadianceProbesUsedByScreenProbesCS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FMarkRadianceProbesUsedByScreenProbesCS)
+	SHADER_USE_PARAMETER_STRUCT(FMarkRadianceProbesUsedByScreenProbesCS, FGlobalShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture3D<uint>, RWRadianceProbeIndirectionTexture)
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTexturesStruct)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FScreenProbeParameters, ScreenProbeParameters)
+		SHADER_PARAMETER(uint32, VisualizeLumenScene)
+		SHADER_PARAMETER_STRUCT_INCLUDE(LumenRadianceCache::FRadianceCacheInterpolationParameters, RadianceCacheParameters)
+		END_SHADER_PARAMETER_STRUCT()
+
+public:
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return DoesPlatformSupportLumenGI(Parameters.Platform);
+	}
+
+	static uint32 GetGroupSize()
+	{
+		return 8;
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE"), GetGroupSize());
+	}
+};
+
+IMPLEMENT_GLOBAL_SHADER(FMarkRadianceProbesUsedByScreenProbesCS, "/Engine/Private/Lumen/LumenScreenProbeGather.usf", "MarkRadianceProbesUsedByScreenProbesCS", SF_Compute);
 
 
 class FScreenProbeIndirectCS : public FGlobalShader
@@ -729,6 +909,35 @@ void UpdateHistoryScreenProbeGather(
 	}
 }
 
+class FScreenGatherMarkUsedProbesData
+{
+public:
+	FMarkRadianceProbesUsedByScreenProbesCS::FParameters Parameters;
+};
+
+void ScreenGatherMarkUsedProbes(
+	FRDGBuilder& GraphBuilder,
+	const FViewInfo& View,
+	const LumenRadianceCache::FRadianceCacheInterpolationParameters& RadianceCacheParameters,
+	FRDGTextureUAVRef RadianceProbeIndirectionTextureUAV,
+	const void* MarkUsedProbesData)
+{
+	FMarkRadianceProbesUsedByScreenProbesCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FMarkRadianceProbesUsedByScreenProbesCS::FParameters>();
+	*PassParameters = ((const FScreenGatherMarkUsedProbesData*)MarkUsedProbesData)->Parameters;
+	PassParameters->RadianceCacheParameters = RadianceCacheParameters;
+	PassParameters->RWRadianceProbeIndirectionTexture = RadianceProbeIndirectionTextureUAV;
+
+	auto ComputeShader = View.ShaderMap->GetShader<FMarkRadianceProbesUsedByScreenProbesCS>(0);
+
+	FComputeShaderUtils::AddPass(
+		GraphBuilder,
+		RDG_EVENT_NAME("MarkRadianceProbesUsedByScreenProbes %ux%u", PassParameters->ScreenProbeParameters.ScreenProbeAtlasViewSize.X, PassParameters->ScreenProbeParameters.ScreenProbeAtlasViewSize.Y),
+		ComputeShader,
+		PassParameters,
+		PassParameters->ScreenProbeParameters.ProbeIndirectArgs,
+		(uint32)EScreenProbeIndirectArgs::ThreadPerProbe * sizeof(FRHIDispatchIndirectParameters));
+}
+
 DECLARE_GPU_STAT(LumenScreenProbeGather);
 
 FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
@@ -743,6 +952,13 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 	FLumenMeshSDFGridParameters& MeshSDFGridParameters)
 {
 	LLM_SCOPE_BYTAG(Lumen);
+
+	if (GLumenIrradianceFieldGather != 0)
+	{
+		bLumenUseDenoiserComposite = false;
+		return RenderLumenIrradianceFieldGather(GraphBuilder, SceneTextures, View);
+	}
+
 	RDG_EVENT_SCOPE(GraphBuilder, "LumenScreenProbeGather");
 	RDG_GPU_STAT_SCOPE(GraphBuilder, LumenScreenProbeGather);
 
@@ -804,7 +1020,7 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 	ScreenProbeParameters.BlueNoise = CreateUniformBufferImmediate(BlueNoise, EUniformBufferUsage::UniformBuffer_SingleDraw);
 
 	ScreenProbeParameters.OctahedralSolidAngleParameters.OctahedralSolidAngleTextureResolutionSq = GLumenOctahedralSolidAngleTextureSize * GLumenOctahedralSolidAngleTextureSize;
-	ScreenProbeParameters.OctahedralSolidAngleParameters.OctahedralSolidAngleTexture = InitializeOctahedralSolidAngleTexture(GraphBuilder, View.ShaderMap, View.ViewState->Lumen.ScreenProbeGatherState);
+	ScreenProbeParameters.OctahedralSolidAngleParameters.OctahedralSolidAngleTexture = InitializeOctahedralSolidAngleTexture(GraphBuilder, View.ShaderMap, GLumenOctahedralSolidAngleTextureSize, View.ViewState->Lumen.ScreenProbeGatherState.OctahedralSolidAngleTextureRT);
 
 	{
 		FScreenProbeDownsampleDepthUniformCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FScreenProbeDownsampleDepthUniformCS::FParameters>();
@@ -915,8 +1131,31 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 	FRDGBufferSRVRef BRDFProbabilityDensityFunctionSH = nullptr;
 	GenerateBRDF_PDF(GraphBuilder, View, SceneTextures, BRDFProbabilityDensityFunction, BRDFProbabilityDensityFunctionSH, ScreenProbeParameters);
 
-	LumenRadianceCache::FRadianceCacheParameters RadianceCacheParameters;
-	RenderRadianceCache(GraphBuilder, SceneTextures, TracingInputs, View, nullptr, &ScreenProbeParameters, BRDFProbabilityDensityFunctionSH, RadianceCacheParameters);
+	const LumenRadianceCache::FRadianceCacheInputs RadianceCacheInputs = LumenScreenProbeGatherRadianceCache::SetupRadianceCacheInputs();
+	LumenRadianceCache::FRadianceCacheInterpolationParameters RadianceCacheParameters;
+
+	if (LumenScreenProbeGather::UseRadianceCache(View))
+	{
+		FScreenGatherMarkUsedProbesData MarkUsedProbesData;
+		MarkUsedProbesData.Parameters.View = View.ViewUniformBuffer;
+		MarkUsedProbesData.Parameters.SceneTexturesStruct = SceneTextures.UniformBuffer;
+		MarkUsedProbesData.Parameters.ScreenProbeParameters = ScreenProbeParameters;
+		MarkUsedProbesData.Parameters.VisualizeLumenScene = View.Family->EngineShowFlags.VisualizeLumenScene != 0 ? 1 : 0;
+		MarkUsedProbesData.Parameters.RadianceCacheParameters = RadianceCacheParameters;
+
+		RenderRadianceCache(
+			GraphBuilder, 
+			TracingInputs, 
+			RadianceCacheInputs, 
+			Scene,
+			View, 
+			&ScreenProbeParameters, 
+			BRDFProbabilityDensityFunctionSH, 
+			FMarkUsedRadianceCacheProbes::CreateStatic(&ScreenGatherMarkUsedProbes), 
+			&MarkUsedProbesData, 
+			View.ViewState->RadianceCacheState, 
+			RadianceCacheParameters);
+	}
 
 	if (LumenScreenProbeGather::UseImportanceSampling())
 	{
