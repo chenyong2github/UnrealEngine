@@ -29,7 +29,17 @@ public:
 	 *
 	 */
 	virtual bool IsWorldPartitionEnabled() override;
-	
+
+	/**
+	 *
+	 */
+	virtual bool IsConversionPromptEnabled() const override;
+
+	/**
+	 *
+	 */
+	virtual void SetConversionPromptEnabled(bool bEnabled) override;
+
 	/**
 	 * 
 	 */

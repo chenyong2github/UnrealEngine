@@ -131,6 +131,16 @@ bool FWorldPartitionEditorModule::IsWorldPartitionEnabled()
 	return GetDefault<UWorldPartitionEditorSettings>()->bEnableWorldPartition;
 }
 
+bool FWorldPartitionEditorModule::IsConversionPromptEnabled() const
+{
+	return GetDefault<UWorldPartitionEditorSettings>()->bEnableConversionPrompt;
+}
+
+void FWorldPartitionEditorModule::SetConversionPromptEnabled(bool bEnabled)
+{
+	GetMutableDefault<UWorldPartitionEditorSettings>()->bEnableConversionPrompt = bEnabled;
+}
+
 bool FWorldPartitionEditorModule::ConvertMap(const FString& InLongPackageName)
 {
 	if (!GetDefault<UWorldPartitionEditorSettings>()->bEnableConversionPrompt || ULevel::GetIsLevelPartitionedFromPackage(FName(*InLongPackageName)))

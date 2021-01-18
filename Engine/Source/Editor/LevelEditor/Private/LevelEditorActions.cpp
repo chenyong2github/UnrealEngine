@@ -40,6 +40,7 @@
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionEditorHash.h"
 #include "WorldPartition/WorldPartitionRuntimeHash.h"
+#include "WorldPartition/IWorldPartitionEditorModule.h"
 #include "Editor/WorldBrowser/Public/WorldBrowserModule.h"
 
 #include "Elements/Framework/TypedElementSelectionSet.h"
@@ -100,6 +101,7 @@
 #include "ISettingsModule.h"
 #include "PlatformInfo.h"
 #include "Misc/CoreMisc.h"
+#include "Misc/ScopeExit.h"
 
 #if WITH_LIVE_CODING
 #include "ILiveCodingModule.h"
@@ -288,6 +290,14 @@ void FLevelEditorActionCallbacks::NewLevel()
 
 					if (bCanConvert)
 					{
+						IWorldPartitionEditorModule& WorldPartitionEditorModule = FModuleManager::LoadModuleChecked<IWorldPartitionEditorModule>("WorldPartitionEditor");
+						bool bPreviousConversionPromptEnabled = WorldPartitionEditorModule.IsConversionPromptEnabled();
+						WorldPartitionEditorModule.SetConversionPromptEnabled(false);
+						ON_SCOPE_EXIT
+						{
+							WorldPartitionEditorModule.SetConversionPromptEnabled(bPreviousConversionPromptEnabled);
+						};
+
 						FEditorFileUtils::LoadMap(SavedFilename);
 
 						// Update the world pointer as we reloaded the map
