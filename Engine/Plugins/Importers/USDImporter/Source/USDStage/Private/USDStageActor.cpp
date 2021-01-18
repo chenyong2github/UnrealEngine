@@ -511,6 +511,10 @@ USDSTAGE_API void AUsdStageActor::Reset()
 	FUsdStageActorImpl::DeselectActorsAndComponents( this );
 	FUsdStageActorImpl::CloseEditorsForAssets( AssetCache->GetCachedAssets() );
 
+	// Stop listening because we'll discard LevelSequence assets, which may trigger transactions
+	// and could lead to stage changes
+	StopMonitoringLevelSequence();
+
 	ObjectsToWatch.Reset();
 	AssetCache->Reset();
 	BlendShapesByPath.Reset();
@@ -524,6 +528,7 @@ USDSTAGE_API void AUsdStageActor::Reset()
 		LevelSequence = nullptr;
 	}
 	Time = 0.f;
+	LevelSequenceHelper.Clear();
 
 	RootUsdTwin->Clear();
 	RootUsdTwin->PrimPath = TEXT("/");

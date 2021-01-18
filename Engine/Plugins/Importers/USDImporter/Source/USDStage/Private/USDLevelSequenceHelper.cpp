@@ -1573,7 +1573,7 @@ FUsdLevelSequenceHelper::FUsdLevelSequenceHelper(TWeakObjectPtr<AUsdStageActor> 
 
 FUsdLevelSequenceHelper::FUsdLevelSequenceHelper()
 {
-	UsdSequencerImpl = MakeUnique<FUsdLevelSequenceHelperImpl>();
+	UsdSequencerImpl = nullptr;
 }
 
 FUsdLevelSequenceHelper::~FUsdLevelSequenceHelper() = default;
@@ -1595,13 +1595,27 @@ FUsdLevelSequenceHelper& FUsdLevelSequenceHelper::operator=(FUsdLevelSequenceHel
 
 ULevelSequence* FUsdLevelSequenceHelper::Init(const UE::FUsdStage& UsdStage)
 {
-	if (UsdSequencerImpl.IsValid())
+	if ( !UsdSequencerImpl.IsValid() )
+	{
+		UsdSequencerImpl = MakeUnique<FUsdLevelSequenceHelperImpl>();
+	}
+
+	if ( UsdSequencerImpl.IsValid() )
 	{
 		return UsdSequencerImpl->Init(UsdStage);
 	}
 	else
 	{
 		return nullptr;
+	}
+}
+
+void FUsdLevelSequenceHelper::Clear()
+{
+	if ( UsdSequencerImpl.IsValid() )
+	{
+		UsdSequencerImpl->Clear();
+		UsdSequencerImpl = nullptr;
 	}
 }
 

@@ -632,17 +632,18 @@ namespace UsdStageImporterImpl
 			FString AssetTypeFolder;
 			if ( ImportContext.ImportOptions->bPrimPathFolderStructure )
 			{
-				UUsdAssetImportData* ImportData = UsdUtils::GetAssetImportData( Asset );
-
-				// For skeletal stuff, the primpaths point to the SkelRoot, so it is useful to place the assets in there,
-				// as we'll always have at least the skeletal mesh and the skeleton
-				if ( Asset->IsA( USkeletalMesh::StaticClass() ) || Asset->IsA( USkeleton::StaticClass() ) || Asset->IsA( UAnimSequence::StaticClass() ) )
+				if ( UUsdAssetImportData* ImportData = UsdUtils::GetAssetImportData( Asset ) )
 				{
-					AssetTypeFolder = ImportData->PrimPath;
-				}
-				else
-				{
-					AssetTypeFolder = FPaths::GetPath( ImportData->PrimPath );
+					// For skeletal stuff, the primpaths point to the SkelRoot, so it is useful to place the assets in there,
+					// as we'll always have at least the skeletal mesh and the skeleton
+					if ( Asset->IsA( USkeletalMesh::StaticClass() ) || Asset->IsA( USkeleton::StaticClass() ) || Asset->IsA( UAnimSequence::StaticClass() ) )
+					{
+						AssetTypeFolder = ImportData->PrimPath;
+					}
+					else
+					{
+						AssetTypeFolder = FPaths::GetPath( ImportData->PrimPath );
+					}
 				}
 			}
 			else

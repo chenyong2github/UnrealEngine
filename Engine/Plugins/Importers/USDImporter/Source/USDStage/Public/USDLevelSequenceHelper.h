@@ -36,6 +36,9 @@ public:
 	/** Creates the main level sequence and subsequences from the usd stage layers */
 	ULevelSequence* Init(const UE::FUsdStage& UsdStage);
 
+	/** Resets the helper, abandoning all managed LevelSequences */
+	void Clear();
+
 	UE_DEPRECATED(4.27, "This function is deprecated, use Init instead.")
 	void InitLevelSequence(const UE::FUsdStage& UsdStage);
 
