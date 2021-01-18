@@ -9,6 +9,7 @@
 #include "OnlineStatsEOSPlus.h"
 #include "OnlineAchievementsEOSPlus.h"
 #include "OnlineUserEOSPlus.h"
+#include "OnlineSessionEOSPlus.h"
 
 
 /**
@@ -74,6 +75,7 @@ PACKAGE_SCOPE:
 	FOnlineStatsEOSPlusPtr StatsInterfacePtr;
 	FOnlineAchievementsEOSPlusPtr AchievementsInterfacePtr;
 	FOnlineUserEOSPlusPtr UserInterfacePtr;
+	FOnlineSessionEOSPlusPtr SessionInterfacePtr;
 };
 
 typedef TSharedPtr<FOnlineSubsystemEOSPlus, ESPMode::ThreadSafe> FOnlineSubsystemEOSPlusPtr;

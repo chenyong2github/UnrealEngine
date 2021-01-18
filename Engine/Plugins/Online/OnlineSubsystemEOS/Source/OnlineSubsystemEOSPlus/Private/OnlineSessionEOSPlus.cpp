@@ -285,6 +285,18 @@ void FOnlineSessionEOSPlus::OnFindFriendSessionComplete(int32 LocalPlayerNum, bo
 	TriggerOnFindFriendSessionCompleteDelegates(LocalPlayerNum, bWasSuccessful, Results);
 }
 
+FNamedOnlineSession* FOnlineSessionEOSPlus::AddNamedSession(FName SessionName, const FOnlineSessionSettings& SessionSettings)
+{
+	FScopeLock ScopeLock(&SessionLock);
+	return new(Sessions) FNamedOnlineSession(SessionName, SessionSettings);
+}
+
+FNamedOnlineSession* FOnlineSessionEOSPlus::AddNamedSession(FName SessionName, const FOnlineSession& Session)
+{
+	FScopeLock ScopeLock(&SessionLock);
+	return new(Sessions) FNamedOnlineSession(SessionName, Session);
+}
+
 bool FOnlineSessionEOSPlus::CreateSession(int32 HostingPlayerNum, FName SessionName, const FOnlineSessionSettings& NewSessionSettings)
 {
 	// If EOS is enabled, create there and mirror on platform and include EOS session info
@@ -337,17 +349,17 @@ bool FOnlineSessionEOSPlus::CreateSession(const FUniqueNetId& HostingPlayerId, F
 						if (Settings != nullptr)
 						{
 							// Mirror in the base interface
-							BaseSessionInterface->CreateSession(*Id, SessionName, *Settings);
+							BaseSessionInterface->CreateSession(*Id->GetBaseNetId(), SessionName, *Settings);
 							return;
 						}
 						bWasSuccessful = false;
 					}
 					OnCreateSessionComplete(SessionName, bWasSuccessful);
 				}));
-		return EOSSessionInterface->CreateSession(*Id, SessionName, NewSessionSettings);
+		return EOSSessionInterface->CreateSession(*Id->GetEOSNetId(), SessionName, NewSessionSettings);
 	}
 	// Otherwise create the platform version
-	return EOSSessionInterface->CreateSession(*Id, SessionName, NewSessionSettings);;
+	return EOSSessionInterface->CreateSession(*Id->GetBaseNetId(), SessionName, NewSessionSettings);;
 }
 
 bool FOnlineSessionEOSPlus::StartSession(FName SessionName)
