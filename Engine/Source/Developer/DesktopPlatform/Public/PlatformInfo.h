@@ -113,7 +113,6 @@ namespace PlatformInfo
 		FText MenuTooltip;
 		FText IconText;
 		FName DeviceProfileName;
-		FText FriendlyName;
 	};
 
 	/** Information about a given platform */
