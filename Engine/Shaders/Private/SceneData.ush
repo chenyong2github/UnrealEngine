@@ -56,7 +56,7 @@ float4 LoadInstanceDataElement(uint Index)
 }
 
 // Fetch from scene primitive buffer
-FInstanceSceneData GetInstanceData(uint InstanceId, uint SOAStride) 
+FInstanceSceneData GetInstanceData(uint InstanceId, uint SOAStride)
 {
 	FInstanceSceneData InstanceData = (FInstanceSceneData)0;
 

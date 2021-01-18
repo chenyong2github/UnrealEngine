@@ -880,13 +880,14 @@ BEGIN_SHADER_PARAMETER_STRUCT(FTranslucentBasePassParameters, )
 	SHADER_PARAMETER_STRUCT_INCLUDE(FViewShaderParameters, View)
 	SHADER_PARAMETER_STRUCT_REF(FReflectionCaptureShaderData, ReflectionCapture)
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FTranslucentBasePassUniformParameters, BasePass)
+	SHADER_PARAMETER_STRUCT_INCLUDE(FInstanceCullingDrawParams, InstanceCullingDrawParams)
 	RENDER_TARGET_BINDING_SLOTS()
 END_SHADER_PARAMETER_STRUCT()
 
 static void RenderTranslucencyViewInner(
 	FRDGBuilder& GraphBuilder,
 	const FSceneRenderer& SceneRenderer,
-	const FViewInfo& View,
+	FViewInfo& View,
 	FScreenPassTextureViewport Viewport,
 	float ViewportScale,
 	FRDGTextureMSAA SceneColorTexture,
@@ -908,7 +909,7 @@ static void RenderTranslucencyViewInner(
 	PassParameters->RenderTargets.ResolveRect = FResolveRect(Viewport.Rect);
 
 	const EMeshPass::Type MeshPass = TranslucencyPassToMeshPass(TranslucencyPass);
-	// GPUCULL_TODO: View.ParallelMeshDrawCommandPasses[MeshPass].BuildRenderingCommands(GraphBuilder, SceneRenderer.Scene->GPUScene, PassParameters->InstanceCullingDrawParams);
+	View.ParallelMeshDrawCommandPasses[MeshPass].BuildRenderingCommands(GraphBuilder, SceneRenderer.Scene->GPUScene, PassParameters->InstanceCullingDrawParams);
 
 	if (bRenderInParallel)
 	{
@@ -926,9 +927,7 @@ static void RenderTranslucencyViewInner(
 			[&SceneRenderer, &View, PassParameters, ViewportScale, Viewport, TranslucencyPass](FRHICommandListImmediate& RHICmdList)
 		{
 			FRDGParallelCommandListSet ParallelCommandListSet(RHICmdList, GET_STATID(STAT_CLP_Translucency), SceneRenderer, View, FParallelCommandListBindings(PassParameters), ViewportScale);
-			FInstanceCullingDrawParams CullingParams; // GPUCULL_TODO
-			RenderViewTranslucencyInner(RHICmdList, SceneRenderer, View, Viewport, ViewportScale, TranslucencyPass, &ParallelCommandListSet, CullingParams); // GPUCULL_TODO
-			//RenderViewTranslucencyInner(RHICmdList, SceneRenderer, View, Viewport, ViewportScale, TranslucencyPass, &ParallelCommandListSet, PassParameters->InstanceCullingDrawParams); // GPUCULL_TODO
+			RenderViewTranslucencyInner(RHICmdList, SceneRenderer, View, Viewport, ViewportScale, TranslucencyPass, &ParallelCommandListSet, PassParameters->InstanceCullingDrawParams);
 		});
 
 		if (bResolveColorTexture)
@@ -946,9 +945,7 @@ static void RenderTranslucencyViewInner(
 			ERDGPassFlags::Raster,
 			[&SceneRenderer, &View, ViewportScale, Viewport, TranslucencyPass, PassParameters](FRHICommandListImmediate& RHICmdList)
 		{
-			FInstanceCullingDrawParams CullingParams; // GPUCULL_TODO
-			RenderViewTranslucencyInner(RHICmdList, SceneRenderer, View, Viewport, ViewportScale, TranslucencyPass, nullptr, CullingParams); // GPUCULL_TODO
-			//RenderViewTranslucencyInner(RHICmdList, SceneRenderer, View, Viewport, ViewportScale, TranslucencyPass, nullptr, PassParameters->InstanceCullingDrawParams); // GPUCULL_TODO
+			RenderViewTranslucencyInner(RHICmdList, SceneRenderer, View, Viewport, ViewportScale, TranslucencyPass, nullptr, PassParameters->InstanceCullingDrawParams);
 		});
 	}
 }

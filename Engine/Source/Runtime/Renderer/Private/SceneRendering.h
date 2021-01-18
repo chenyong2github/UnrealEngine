@@ -1386,6 +1386,11 @@ public:
 	FRayTracingLightData							RayTracingLightData;
 #endif // RHI_RAYTRACING
 
+	/**
+	 * Id of the view in the GPU instance culling manager. Used to fetch the culled draw commands.
+	 */
+	int32 GPUSceneViewId;
+
 #if WITH_EDITOR
 	TArray<uint32> EditorVisualizeLevelInstanceIds;
 	FDynamicReadBuffer EditorVisualizeLevelInstanceBuffer;

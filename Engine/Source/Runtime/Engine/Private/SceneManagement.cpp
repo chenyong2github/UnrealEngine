@@ -817,6 +817,10 @@ FViewUniformShaderParameters::FViewUniformShaderParameters()
 	EditorVisualizeLevelInstanceIds = GIdentityPrimitiveBuffer.EditorVisualizeLevelInstanceDataBufferSRV;
 	EditorSelectedHitProxyIds = GIdentityPrimitiveBuffer.EditorSelectedDataBufferSRV;
 //#endif
+
+	// Automatically bind these for everyone to use!
+	InstanceIdsBuffer = GInstanceCullingManagerResources.GetInstancesIdBufferSrv();
+	PageInfoBuffer = GInstanceCullingManagerResources.GetPageInfoBufferSrv();
 }
 
 FInstancedViewUniformShaderParameters::FInstancedViewUniformShaderParameters()

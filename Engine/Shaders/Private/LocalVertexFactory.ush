@@ -261,7 +261,7 @@ struct FPositionAndNormalOnlyVertexFactoryInput
 	float4	Position	: ATTRIBUTE0;
 	float4	Normal		: ATTRIBUTE2;
 
-#if USE_INSTANCING && !MANUAL_VERTEX_FETCH
+#if (USE_INSTANCING || USE_INSTANCE_CULLING) && !MANUAL_VERTEX_FETCH
 	float4 InstanceOrigin : ATTRIBUTE8;  // per-instance random in w 
 	half4 InstanceTransform1 : ATTRIBUTE9;  // hitproxy.r + 256 * selected in .w
 	half4 InstanceTransform2 : ATTRIBUTE10; // hitproxy.g in .w
@@ -303,23 +303,26 @@ struct FVertexFactoryIntermediates
 #endif
 
 #if USE_INSTANCING
-		float4 InstanceOrigin;
-		float4 InstanceTransform1;
-		float4 InstanceTransform2;
-		float4 InstanceTransform3;
+	float IsInstanceSelected;
 
-		#if USE_INSTANCING_BONEMAP
-			float4 InstancePrevOrigin;
-			float4 InstancePrevTransform1;
-			float4 InstancePrevTransform2;
-			float4 InstancePrevTransform3;
-		#endif
+	float4 InstanceOrigin;
+	float4 InstanceTransform1;
+	float4 InstanceTransform2;
+	float4 InstanceTransform3;
 
-		float4 InstanceLightmapAndShadowMapUVBias;
+	#if USE_INSTANCING_BONEMAP
+		float4 InstancePrevOrigin;
+		float4 InstancePrevTransform1;
+		float4 InstancePrevTransform2;
+		float4 InstancePrevTransform3;
+	#endif
+
+	float4 InstanceLightmapAndShadowMapUVBias;
 
 	// x = per-instance random, y = per-instance fade out amount, z = hide/show flag, w dither fade cutoff
 	float4 PerInstanceParams;
-#endif	// USE_INSTANCING
+#endif
+
 	uint PrimitiveId;
 
 	float3 PreSkinPosition;

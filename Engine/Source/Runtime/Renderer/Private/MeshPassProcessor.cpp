@@ -1295,7 +1295,7 @@ void DrawDynamicMeshPassPrivate(
 
 		FRHIVertexBuffer* PrimitiveIdVertexBuffer = nullptr;
 
-		ApplyViewOverridesToMeshDrawCommands(View, VisibleMeshDrawCommands, DynamicMeshDrawCommandStorage, GraphicsMinimalPipelineStateSet, InNeedsShaderInitialisation);
+		ApplyViewOverridesToMeshDrawCommands(View, VisibleMeshDrawCommands, DynamicMeshDrawCommandStorage, GraphicsMinimalPipelineStateSet, InNeedsShaderInitialization);
 		
 		// GPUCULL_TODO: determine if unsupportable OR just not supporting scene primitives (as this requires a multi-pass approach)
 

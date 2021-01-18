@@ -925,6 +925,8 @@ void FViewInfo::Init()
 	NumVisibleDynamicEditorPrimitives = 0;
 
 	StrataSceneData = nullptr;
+	
+	GPUSceneViewId = INDEX_NONE;
 }
 
 FViewInfo::~FViewInfo()
@@ -1787,6 +1789,8 @@ void FViewInfo::SetupUniformBufferParameters(
 	}
 
 	ViewUniformShaderParameters.VTFeedbackBuffer = GVirtualTextureFeedbackBuffer.GetUAV();
+
+	ViewUniformShaderParameters.GPUSceneViewId = GPUSceneViewId;
 
 #if WITH_EDITOR
 	if (EditorVisualizeLevelInstanceBuffer.SRV)

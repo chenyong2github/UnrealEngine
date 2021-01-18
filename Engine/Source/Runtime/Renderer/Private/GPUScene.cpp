@@ -1111,13 +1111,10 @@ void FGPUScene::UploadDynamicPrimitiveShaderDataForViewInternal(FRHICommandListI
 	// Update view uniform buffer
 	View.CachedViewUniformShaderParameters->InstanceSceneData = InstanceDataBuffer.SRV;
 	View.CachedViewUniformShaderParameters->LightmapSceneData = LightmapDataBuffer.SRV;
-#if defined(GPUCULL_TODO)
 	View.CachedViewUniformShaderParameters->InstanceDataSOAStride = InstanceDataSOAStride;
-#endif //defined(GPUCULL_TODO)
 
 	View.ViewUniformBuffer.UpdateUniformBufferImmediate(*View.CachedViewUniformShaderParameters);
 }
-
 
 void AddPrimitiveToUpdateGPU(FScene& Scene, int32 PrimitiveId)
 {
