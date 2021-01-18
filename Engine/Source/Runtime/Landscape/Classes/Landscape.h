@@ -15,7 +15,9 @@ class ILandscapeEdModeInterface;
 class SNotificationItem;
 class UStreamableRenderAsset;
 class FMaterialResource;
+struct FLandscapeEditLayerReadbackResult;
 struct FNotificationInfo;
+struct FTextureToComponentHelper;
 
 namespace ELandscapeToolTargetType
 {
@@ -250,7 +252,6 @@ public:
 	LANDSCAPE_API void CopyOldDataToDefaultLayer();
 	LANDSCAPE_API void CopyOldDataToDefaultLayer(ALandscapeProxy* Proxy);
 	LANDSCAPE_API void AddLayersToProxy(ALandscapeProxy* InProxy);
-	LANDSCAPE_API TMap<UTexture2D*, TArray<ULandscapeComponent*>> GenerateComponentsPerHeightmaps() const;
 	LANDSCAPE_API FIntPoint ComputeComponentCounts() const;
 	LANDSCAPE_API bool IsLayerNameUnique(const FName& InName) const;
 	LANDSCAPE_API void SetLayerName(int32 InLayerIndex, const FName& InName);
@@ -316,18 +317,24 @@ private:
 	void CreateLayersRenderingResource();
 	void GetLandscapeComponentNeighborsToRender(ULandscapeComponent* LandscapeComponent, TSet<ULandscapeComponent*>& NeighborComponents) const;
 	void GetLandscapeComponentWeightmapsToRender(ULandscapeComponent* LandscapeComponent, TSet<ULandscapeComponent*>& WeightmapComponents) const;
-	void UpdateLayersContent(bool bInWaitForStreaming = false, bool bInSkipMonitorLandscapeEdModeChanges = false);
+	void UpdateLayersContent(bool bInWaitForStreaming = false, bool bInSkipMonitorLandscapeEdModeChanges = false, bool bIntermediateRender = false, bool bFlushRender = false);
 	void MonitorShaderCompilation();
 	void MonitorLandscapeEdModeChanges();
-	int32 RegenerateLayersHeightmaps(const TArray<ULandscapeComponent*>& InLandscapeComponents, const TArray<ULandscapeComponent*>& InLandscapeComponentsToResolve, bool bInWaitForStreaming);
-	int32 RegenerateLayersWeightmaps(const TArray<ULandscapeComponent*>& InLandscapeComponents, const TArray<ULandscapeComponent*>& InLandscapeComponentsToResolve, bool bInWaitForStreaming);
-	bool UpdateCollisionAndClients(const TArray<ULandscapeComponent*>& InLandscapeComponents, const int32 InContentUpdateModes);
-	void ResolveLayersHeightmapTexture(const TArray<ULandscapeComponent*>& InLandscapeComponents);
-	void ResolveLayersWeightmapTexture(const TArray<ULandscapeComponent*>& InLandscapeComponents);
+	int32 RegenerateLayersHeightmaps(FTextureToComponentHelper const& MapHelper, const TArray<ULandscapeComponent*>& InLandscapeComponents, const TArray<ULandscapeComponent*>& InLandscapeComponentsToResolve);
+	int32 RegenerateLayersWeightmaps(FTextureToComponentHelper const& MapHelper, const TArray<ULandscapeComponent*>& InLandscapeComponents, const TArray<ULandscapeComponent*>& InLandscapeComponentsToResolve);
+	void ResolveLayersHeightmapTexture(FTextureToComponentHelper const& MapHelper, TSet<UTexture2D*> const& HeightmapsToResolve, bool bIntermediateRender, bool bFlushRender, TMap<ULandscapeComponent*, FLandscapeEditLayerReadbackResult>& InOutComponents);
+	void ResolveLayersWeightmapTexture(FTextureToComponentHelper const& MapHelper, TSet<UTexture2D*> const& WeightmapsToResolve, bool bIntermediateRender, bool bFlushRender, TMap<ULandscapeComponent*, FLandscapeEditLayerReadbackResult>& InOutComponents);
 
-	using FDirtyDelegate = TFunctionRef<void(UTexture2D*, FColor*, FColor*)>;
-	bool ResolveLayersTexture(class FLandscapeLayersTexture2DCPUReadBackResource* InCPUReadBackTexture, UTexture2D* InOutputTexture, FDirtyDelegate DirtyDelegate);
-		
+	using FDirtyDelegate = TFunctionRef<void(UTexture2D const*, FColor const*, FColor const*)>;
+	bool ResolveLayersTexture(FTextureToComponentHelper const& MapHelper, FLandscapeEditLayerReadback* InCPUReadBack, UTexture2D* InOutputTexture, bool bIntermediateRender,	bool bFlushRender,
+		TMap<ULandscapeComponent*, FLandscapeEditLayerReadbackResult>& InOutComponents,	FDirtyDelegate DirtyDelegate);
+
+	static bool IsUpdateFlagEnabledForModes(ELandscapeComponentUpdateFlag InFlag, uint32 InUpdateModes);
+	void UpdateForChangedHeightmaps(ULandscapeComponent* Component, int32 UpdateModes);
+	void UpdateForChangedWeightmaps(ULandscapeComponent* Component, int32 UpdateModes);
+	int32 UpdateCollisionAndClients(TMap<ULandscapeComponent*, FLandscapeEditLayerReadbackResult> const& Components);
+	int32 UpdateAfterReadbackResolves(TMap<ULandscapeComponent*, FLandscapeEditLayerReadbackResult> const& Components);
+
 	bool AreLayersResourcesReady(bool bInWaitForStreaming) const;
 	bool PrepareLayersBrushResources(bool bInWaitForStreaming, bool bHeightmap) const;
 	bool PrepareLayersHeightmapTextureResources(bool bInWaitForStreaming) const;
@@ -338,7 +345,7 @@ private:
 	void PrepareComponentDataToExtractMaterialLayersCS(const TArray<ULandscapeComponent*>& InLandscapeComponents, const FLandscapeLayer& InLayer, int32 InCurrentWeightmapToProcessIndex, const FIntPoint& InLandscapeBase, class FLandscapeTexture2DResource* InOutTextureData,
 														  TArray<struct FLandscapeLayerWeightmapExtractMaterialLayersComponentData>& OutComponentData, TMap<ULandscapeLayerInfoObject*, int32>& OutLayerInfoObjects);
 	void PrepareComponentDataToPackMaterialLayersCS(int32 InCurrentWeightmapToProcessIndex, const FIntPoint& InLandscapeBase, const TArray<ULandscapeComponent*>& InAllLandscapeComponents, TArray<UTexture2D*>& InOutProcessedWeightmaps,
-													TArray<class FLandscapeLayersTexture2DCPUReadBackResource*>& OutProcessedCPUReadBackTexture, TArray<struct FLandscapeLayerWeightmapPackMaterialLayersComponentData>& OutComponentData);
+													TArray<FLandscapeEditLayerReadback*>& OutProcessedCPUReadBacks, TArray<struct FLandscapeLayerWeightmapPackMaterialLayersComponentData>& OutComponentData);
 	void ReallocateLayersWeightmaps(const TArray<ULandscapeComponent*>& InLandscapeComponents, const TArray<ULandscapeLayerInfoObject*>& InBrushRequiredAllocations);
 	void InitializeLayersWeightmapResources();
 	bool GenerateZeroAllocationPerComponents(const TArray<ALandscapeProxy*>& InAllLandscape, const TMap<ULandscapeLayerInfoObject*, bool>& InWeightmapLayersBlendSubstractive);
@@ -372,8 +379,10 @@ private:
 	void PrintLayersDebugHeightData(const FString& InContext, const TArray<FColor>& InHeightmapData, const FIntPoint& InDataSize, uint8 InMipRender, bool InOutputNormals = false) const;
 	void PrintLayersDebugWeightData(const FString& InContext, const TArray<FColor>& InWeightmapData, const FIntPoint& InDataSize, uint8 InMipRender) const;
 
-	void UpdateWeightDirtyData(ULandscapeComponent* InLandscapeComponent, UTexture2D* Heightmap, FColor* InOldData, const FColor* InNewData, uint8 Channel);
-	void UpdateHeightDirtyData(ULandscapeComponent* InLandscapeComponent, UTexture2D* Heightmap, FColor* InOldData, const FColor* InNewData);
+	void UpdateWeightDirtyData(ULandscapeComponent* InLandscapeComponent, UTexture2D const* InWeightmap, FColor const* InOldData, FColor const* InNewData, uint8 InChannel);
+	void OnDirtyWeightmap(FTextureToComponentHelper const& MapHelper, UTexture2D const* InWeightmap, FColor const* InOldData, FColor const* InNewData);
+	void UpdateHeightDirtyData(ULandscapeComponent* InLandscapeComponent, UTexture2D const* InHeightmap, FColor const* InOldData, FColor const* InNewData);
+	void OnDirtyHeightmap(FTextureToComponentHelper const& MapHelper, UTexture2D const* InWeightmap, FColor const* InOldData, FColor const* InNewData);
 
 	bool IsStreamableAssetFullyStreamedIn(UStreamableRenderAsset* InStreamableAsset, bool bInWaitForStreaming) const;
 	bool IsMaterialResourceCompiled(FMaterialResource* InMaterialResource, bool bInWaitForCompilation) const;
@@ -435,9 +444,6 @@ private:
 	};
 
 	FLandscapeEdModeInfo LandscapeEdModeInfo;
-
-	/** Some tools need to do an intermediate render with hidden layers. Do not dirty the landscape for those renders. */
-	bool bIntermediateRender;
 
 	UPROPERTY(Transient)
 	bool bLandscapeLayersAreInitialized;
