@@ -866,3 +866,7 @@ extern TAtomic<uint64> GVulkanBufferViewHandleIdCounter;
 extern TAtomic<uint64> GVulkanImageViewHandleIdCounter;
 extern TAtomic<uint64> GVulkanSamplerHandleIdCounter;
 extern TAtomic<uint64> GVulkanDSetLayoutHandleIdCounter;
+
+#if NV_AFTERMATH
+extern bool GNVAftermathModuleLoaded;
+#endif
