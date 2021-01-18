@@ -36,6 +36,10 @@ static int32 GHairMaxSimulatedLOD = -1;
 static FAutoConsoleVariableRef CVarHairMaxSimulatedLOD(TEXT("r.HairStrands.MaxSimulatedLOD"), GHairMaxSimulatedLOD, TEXT("Maximum hair LOD to be simulated"));
 bool IsHairLODSimulationEnabled(const int32 LODIndex) { return (LODIndex >= 0 && (GHairMaxSimulatedLOD < 0 || (GHairMaxSimulatedLOD >= 0 && LODIndex <= GHairMaxSimulatedLOD))); }
 
+static int32 GHairEnableAdaptiveSubsteps = 0;  
+static FAutoConsoleVariableRef CVarHairEnableAdaptiveSubsteps(TEXT("r.HairStrands.EnableAdaptiveSubsteps"), GHairEnableAdaptiveSubsteps, TEXT("Enable adaptive solver substeps"));
+bool IsHairAdaptiveSubstepsEnabled() { return (GHairEnableAdaptiveSubsteps == 1); }
+
 #define LOCTEXT_NAMESPACE "GroomComponent"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1033,13 +1037,27 @@ void EnableHairSimulation(UGroomComponent* GroomComponent, const bool bEnableSim
 			}
 		}
 	}
-	if (NeedSpringsSolver && (GroomComponent->AngularSpringsSystem == nullptr))
+	if (IsHairAdaptiveSubstepsEnabled())
 	{
-		GroomComponent->AngularSpringsSystem = LoadObject<UNiagaraSystem>(nullptr, TEXT("/HairStrands/Emitters/SimpleSpringsSystem.SimpleSpringsSystem"));
+		if (NeedSpringsSolver)
+		{
+			GroomComponent->AngularSpringsSystem = LoadObject<UNiagaraSystem>(nullptr, TEXT("/HairStrands/Emitters/SimpleSpringsSystem.SimpleSpringsSystem"));
+		}
+		if (NeedRodsSolver)
+		{
+			GroomComponent->CosseratRodsSystem = LoadObject<UNiagaraSystem>(nullptr, TEXT("/HairStrands/Emitters/SimpleRodsSystem.SimpleRodsSystem"));
+		}
 	}
-	if (NeedRodsSolver && (GroomComponent->CosseratRodsSystem == nullptr))
+	else
 	{
-		GroomComponent->CosseratRodsSystem = LoadObject<UNiagaraSystem>(nullptr, TEXT("/HairStrands/Emitters/SimpleRodsSystem.SimpleRodsSystem"));
+		if (NeedSpringsSolver)
+		{
+			GroomComponent->AngularSpringsSystem = LoadObject<UNiagaraSystem>(nullptr, TEXT("/HairStrands/Emitters/StableSpringsSystem.StableSpringsSystem"));
+		}
+		if (NeedRodsSolver)
+		{
+			GroomComponent->CosseratRodsSystem = LoadObject<UNiagaraSystem>(nullptr, TEXT("/HairStrands/Emitters/StableRodsSystem.StableRodsSystem"));
+		}
 	}
 	GroomComponent->NiagaraComponents.SetNumZeroed(NumComponents);
 	for (int32 i = 0; i < NumComponents; ++i)
