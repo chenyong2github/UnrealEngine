@@ -9,7 +9,7 @@
 
 FAnimNode_PoseDriver::FAnimNode_PoseDriver()
 	: DriveSource(EPoseDriverSource::Rotation)
-	, DriveOutput(EPoseDriverOutput::DrivePoses)
+	, DriveOutput(EPoseDriverOutput::DrivePoses)	
 	, bOnlyDriveSelectedBones(false)
 	, LODThreshold(INDEX_NONE)
 {
@@ -52,7 +52,7 @@ void FAnimNode_PoseDriver::RebuildPoseList(const FBoneContainer& InBoneContainer
 				PoseTarget.DrivenUID = INDEX_NONE;
 			}
 
-			const int32 PoseIndex = InPoseAsset->GetPoseIndexByName(PoseTarget.DrivenName);
+			const int32 PoseIndex = InPoseAsset->GetPoseIndexByName(PoseTarget.DrivenName); 
 			if (PoseIndex != INDEX_NONE)
 			{
 				TArray<uint16> const& LUTIndex = InBoneContainer.GetUIDToArrayLookupTable();
@@ -225,11 +225,15 @@ void FAnimNode_PoseDriver::Evaluate_AnyThread(FPoseContext& Output)
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Evaluate_AnyThread)
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_PoseDriver_Eval);
 
+	if (!IsLODEnabled(Output.AnimInstanceProxy))
+	{
+		SourcePose.Evaluate(Output);
+		return;
+	}
+
 	FPoseContext SourceData(Output);
 	SourcePose.Evaluate(SourceData);
 
-	if (IsLODEnabled(Output.AnimInstanceProxy))
-	{
 		// Udpate DrivenIDs if needed
 		if (bCachedDrivenIDsAreDirty)
 		{
@@ -300,13 +304,13 @@ void FAnimNode_PoseDriver::Evaluate_AnyThread(FPoseContext& Output)
 
 		OutputWeights.Reset();
 
-#if WITH_EDITORONLY_DATA
+	#if WITH_EDITORONLY_DATA
 		if (SoloTargetIndex != INDEX_NONE && SoloTargetIndex < PoseTargets.Num())
 		{
 			OutputWeights.Add(FRBFOutputWeight(SoloTargetIndex, 1.0f));
 		}
 		else
-#endif
+	#endif
 		{
 			// Get target array as RBF types
 			GetRBFTargets(RBFTargets);
@@ -327,9 +331,9 @@ void FAnimNode_PoseDriver::Evaluate_AnyThread(FPoseContext& Output)
 		if (OutputWeights.Num() > 0)
 		{
 			// If we want to drive poses, and PoseAsset is assigned and compatible
-			if (DriveOutput == EPoseDriverOutput::DrivePoses &&
-				CurrentPoseAsset.IsValid() &&
-				Output.AnimInstanceProxy->IsSkeletonCompatible(CurrentPoseAsset->GetSkeleton()))
+			if (DriveOutput == EPoseDriverOutput::DrivePoses && 
+				CurrentPoseAsset.IsValid() && 
+				Output.AnimInstanceProxy->IsSkeletonCompatible(CurrentPoseAsset->GetSkeleton()) )
 			{
 				FPoseContext CurrentPose(Output);
 
@@ -376,27 +380,27 @@ void FAnimNode_PoseDriver::Evaluate_AnyThread(FPoseContext& Output)
 						}
 
 						Output = SourceData;
-
-						FAnimationPoseData BaseAnimationPoseData(Output);
-						const FAnimationPoseData AdditiveAnimationPoseData(CurrentPose);
-						FAnimationRuntime::AccumulateAdditivePose(BaseAnimationPoseData, AdditiveAnimationPoseData, 1.f, EAdditiveAnimationType::AAT_LocalSpaceBase);
+    
+					    FAnimationPoseData BaseAnimationPoseData(Output);
+					    const FAnimationPoseData AdditiveAnimationPoseData(CurrentPose);
+					    FAnimationRuntime::AccumulateAdditivePose(BaseAnimationPoseData, AdditiveAnimationPoseData, 1.f, EAdditiveAnimationType::AAT_LocalSpaceBase);
 					}
 					else
 					{
-						FAnimationPoseData BlendedAnimationPoseData(Output);
-						const FAnimationPoseData SourceAnimationPoseData(SourceData);
-						FAnimationRuntime::BlendTwoPosesTogetherPerBone(SourceAnimationPoseData, CurrentAnimationPoseData, BoneBlendWeights, BlendedAnimationPoseData);
+					    FAnimationPoseData BlendedAnimationPoseData(Output);
+					    const FAnimationPoseData SourceAnimationPoseData(SourceData);
+					    FAnimationRuntime::BlendTwoPosesTogetherPerBone(SourceAnimationPoseData, CurrentAnimationPoseData, BoneBlendWeights, BlendedAnimationPoseData);
 					}
 
 					bHaveValidPose = true;
 				}
 			}
 			// Drive curves (morphs, materials etc)
-			else if (DriveOutput == EPoseDriverOutput::DriveCurves)
+			else if(DriveOutput == EPoseDriverOutput::DriveCurves)
 			{
 				// Start by copying input
 				Output = SourceData;
-
+			
 				// Then set curves based on target weights
 				for (const FRBFOutputWeight& Weight : OutputWeights)
 				{
@@ -417,7 +421,7 @@ void FAnimNode_PoseDriver::Evaluate_AnyThread(FPoseContext& Output)
 			Output = SourceData;
 		}
 
-#if WITH_EDITORONLY_DATA
+	#if WITH_EDITORONLY_DATA
 		else if (!bSoloDrivenOnly && SoloTargetIndex != INDEX_NONE && SoloTargetIndex < PoseTargets.Num())
 		{
 			SourceBoneTMs.Reset();
@@ -431,10 +435,10 @@ void FAnimNode_PoseDriver::Evaluate_AnyThread(FPoseContext& Output)
 				if (PoseTarget.BoneTransforms.IsValidIndex(SourceIdx) && SourceCompactIndex.GetInt() != INDEX_NONE)
 				{
 					FTransform& TargetTransform = Output.Pose[SourceCompactIndex];
-					const FPoseDriverTransform& SourceTransform = PoseTarget.BoneTransforms[SourceIdx];
+					const FPoseDriverTransform &SourceTransform = PoseTarget.BoneTransforms[SourceIdx];
 
 					if (DriveSource == EPoseDriverSource::Translation)
-					{
+					{ 
 						TargetTransform.SetTranslation(SourceTransform.TargetTranslation);
 					}
 					else
@@ -445,10 +449,5 @@ void FAnimNode_PoseDriver::Evaluate_AnyThread(FPoseContext& Output)
 				}
 			}
 		}
-#endif
+	#endif
 	}
-	else
-	{
-		Output = SourceData;
-	}
-}
