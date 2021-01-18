@@ -416,15 +416,18 @@ bool FDisplayClusterProjectionVIOSOPolicy::FViewData::RenderVIOSO_RenderThread(F
 	{
 		if (bRequireInitialize)
 		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(nDisplay Vioso::Initialize);
 			InitializeVIOSO(RenderTargetTexture, InConfigData);
 		}
 
-		switch (RenderDevice)
+		if (IsValid())
 		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(nDisplay Vioso::Render);
+
+			switch (RenderDevice)
+			{
 #ifdef VIOSO_USE_GRAPHICS_API_D3D11
-		case ERenderDevice::D3D11:
-		{
-			if (IsValid())
+			case ERenderDevice::D3D11:
 			{
 				FD3D11ContextHelper D3D11ContextHelper;
 				ID3D11Texture2D* SourceTexture = static_cast<ID3D11Texture2D*>(ShaderResourceTexture->GetTexture2D()->GetNativeResource());
@@ -432,43 +435,43 @@ bool FDisplayClusterProjectionVIOSOPolicy::FViewData::RenderVIOSO_RenderThread(F
 				{
 					return true;
 				}
+				break;
 			}
-			break;
-		}
 #endif //VIOSO_USE_GRAPHICS_API_D3D11
 
 #ifdef VIOSO_USE_GRAPHICS_API_D3D12
-		case ERenderDevice::D3D12:
-		{
-			FD3D12Texture2D* SrcTexture2D = FD3D12DynamicRHI::ResourceCast(ShaderResourceTexture);
-			FD3D12Texture2D* DestTexture2D = FD3D12DynamicRHI::ResourceCast(RenderTargetTexture);
-
-			FD3D12RenderTargetView* RTV = DestTexture2D->GetRenderTargetView(0, 0);
-			CD3DX12_CPU_DESCRIPTOR_HANDLE RTVHandle = RTV->GetView();
-
-			FD3D12Device* Device = DestTexture2D->GetParentDevice();
-			FD3D12CommandListHandle& hCommandList = Device->GetDefaultCommandContext().CommandListHandle;
-
-			VWB_D3D12_RENDERINPUT RenderInput = {};
-			RenderInput.textureResource = (ID3D12Resource*)SrcTexture2D->GetNativeResource();;
-			RenderInput.renderTarget = (ID3D12Resource*)DestTexture2D->GetNativeResource();;
-			RenderInput.rtvHandlePtr = RTVHandle.ptr;
-
-			//experimental: add resource barrier
-			hCommandList.AddPendingResourceBarrier(DestTexture2D->GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
-
-			if (Warper.Render(&RenderInput, VWB_STATEMASK_DEFAULT_D3D12))
+			case ERenderDevice::D3D12:
 			{
+				FD3D12Texture2D* SrcTexture2D = FD3D12DynamicRHI::ResourceCast(ShaderResourceTexture);
+				FD3D12Texture2D* DestTexture2D = FD3D12DynamicRHI::ResourceCast(RenderTargetTexture);
+
+				FD3D12RenderTargetView* RTV = DestTexture2D->GetRenderTargetView(0, 0);
+				CD3DX12_CPU_DESCRIPTOR_HANDLE RTVHandle = RTV->GetView();
+
+				FD3D12Device* Device = DestTexture2D->GetParentDevice();
+				FD3D12CommandListHandle& hCommandList = Device->GetDefaultCommandContext().CommandListHandle;
+
+				VWB_D3D12_RENDERINPUT RenderInput = {};
+				RenderInput.textureResource = (ID3D12Resource*)SrcTexture2D->GetNativeResource();;
+				RenderInput.renderTarget = (ID3D12Resource*)DestTexture2D->GetNativeResource();;
+				RenderInput.rtvHandlePtr = RTVHandle.ptr;
+
 				//experimental: add resource barrier
-				hCommandList.AddPendingResourceBarrier(DestTexture2D->GetResource(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
-				return true;
+				hCommandList.AddPendingResourceBarrier(DestTexture2D->GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
+
+				if (Warper.Render(&RenderInput, VWB_STATEMASK_DEFAULT_D3D12))
+				{
+					//experimental: add resource barrier
+					hCommandList.AddPendingResourceBarrier(DestTexture2D->GetResource(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
+					return true;
+				}
+				break;
 			}
-			break;
-		}
 #endif // VIOSO_USE_GRAPHICS_API_D3D12
 
-		default:
-			break;
+			default:
+				break;
+			}
 		}
 	}
 

@@ -38,6 +38,9 @@ FTextureResource* FPicpBlurPostProcess::SrcTexture = nullptr;
 FTextureRenderTargetResource* FPicpBlurPostProcess::DstTexture = nullptr;
 FTextureRenderTargetResource* FPicpBlurPostProcess::ResultTexture = nullptr;
 
+DECLARE_GPU_STAT_NAMED(nDisplay_Picp_PostProcess_Compose, TEXT("nDisplay Picp_PostProcess::Compose"));
+DECLARE_GPU_STAT_NAMED(nDisplay_Picp_PostProcess_Blur,    TEXT("nDisplay Picp_PostProcess::Blur"));
+
 void FPicpBlurPostProcess::ApplyCompose_RenderThread(
 	FRHICommandListImmediate& RHICmdList, 
 	FRHITexture* OverlayTexture,
@@ -49,6 +52,10 @@ void FPicpBlurPostProcess::ApplyCompose_RenderThread(
 
 	if (nullptr != OverlayTexture && OverlayTexture->IsValid())
 	{
+
+		SCOPED_GPU_STAT(RHICmdList, nDisplay_Picp_PostProcess_Compose);
+		SCOPED_DRAW_EVENT(RHICmdList, nDisplay_Picp_PostProcess_Compose);
+
 		// Apply Overlay if input defined
 		FRHIRenderPassInfo RPInfo(DstRenderTarget, ERenderTargetActions::Load_Store);
 		RHICmdList.BeginRenderPass(RPInfo, TEXT("nDisplayPicpPostProcessCompose"));
@@ -74,12 +81,12 @@ void FPicpBlurPostProcess::ApplyCompose_RenderThread(
 			FPixelShaderUtils::DrawFullscreenQuad(RHICmdList, 1);
 		}
 		RHICmdList.EndRenderPass();
-	}
 
-	if (CopyTexture && CopyTexture->IsValid())
-	{
-		// Copy RTT to Copy texture
-		RHICmdList.CopyToResolveTarget(DstRenderTarget, CopyTexture, FResolveParams());
+		if (CopyTexture && CopyTexture->IsValid())
+		{
+			// Copy RTT to Copy texture
+			RHICmdList.CopyToResolveTarget(DstRenderTarget, CopyTexture, FResolveParams());
+		}
 	}
 }
 
@@ -115,7 +122,7 @@ static void PicpBlurPostProcess_RenderThread(
 
 		// Blur X
 		FRHIRenderPassInfo RPInfo1(TempTexture, ERenderTargetActions::DontLoad_Store);
-		RHICmdList.BeginRenderPass(RPInfo1, TEXT("nDisplayPicpPostProcessBlurPassX"));
+		RHICmdList.BeginRenderPass(RPInfo1, TEXT("nDisplay_PicpPostProcessBlurPassX"));
 		{
 			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
 			PixelShader->SetParameters(RHICmdList, InOutTexture, FVector2D(KernelScale / TargetSizeXY.X, 0.0f), KernelRadius);
@@ -125,7 +132,7 @@ static void PicpBlurPostProcess_RenderThread(
 
 		// Blur Y
 		FRHIRenderPassInfo RPInfo2(InOutTexture, ERenderTargetActions::DontLoad_Store);
-		RHICmdList.BeginRenderPass(RPInfo2, TEXT("nDisplayPicpPostProcessBlurPassY"));
+		RHICmdList.BeginRenderPass(RPInfo2, TEXT("nDisplay_PicpPostProcessBlurPassY"));
 		{
 			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
 			PixelShader->SetParameters(RHICmdList, TempTexture, FVector2D(0.0f, KernelScale / TargetSizeXY.Y), KernelRadius);
@@ -137,6 +144,9 @@ static void PicpBlurPostProcess_RenderThread(
 
 void FPicpBlurPostProcess::ApplyBlur_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture2D* InOutRT, FRHITexture2D* TempRT, int KernelRadius, float KernelScale, EPicpBlurPostProcessShaderType BlurType)
 {
+	SCOPED_GPU_STAT(RHICmdList, nDisplay_Picp_PostProcess_Blur);
+	SCOPED_DRAW_EVENT(RHICmdList, nDisplay_Picp_PostProcess_Blur);
+
 	switch (BlurType)
 	{
 	case EPicpBlurPostProcessShaderType::Gaussian:

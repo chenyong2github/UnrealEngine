@@ -16,6 +16,8 @@ bool FViosoWarper::Initialize(void* pDxDevice, const FViosoPolicyConfiguration& 
 {
 	if (pDxDevice && FLibVIOSO::Initialize())
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(nDisplay FViosoWarper::Initialize);
+
 		if (InConfigData.INIFile.IsEmpty())
 		{
 			// Create without INI file
