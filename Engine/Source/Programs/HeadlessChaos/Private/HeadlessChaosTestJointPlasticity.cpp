@@ -167,7 +167,7 @@ namespace ChaosTest {
 		FReal DeltaPosPost = (Test.SOAs.GetDynamicParticles().X(0)).Size();
 
 		// Nothing should have reset
-		EXPECT_TRUE(FMath::IsNearlyEqual(DeltaPosPost, DeltaPos, 2.f));
+		EXPECT_TRUE(FMath::IsNearlyEqual(DeltaPosPost, DeltaPos, 5.f));
 
 	}
 
