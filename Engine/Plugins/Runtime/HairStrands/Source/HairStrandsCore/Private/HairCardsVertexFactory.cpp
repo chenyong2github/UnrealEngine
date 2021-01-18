@@ -321,4 +321,4 @@ void FHairCardsVertexFactory::ReleaseRHI()
 	FVertexFactory::ReleaseRHI();
 }
 
-IMPLEMENT_VERTEX_FACTORY_TYPE_EX(FHairCardsVertexFactory,"/Engine/Private/HairStrands/HairCardsVertexFactory.ush",true,false,true,true,true,true,VF_CARDS_SUPPORT_GPU_SCENE,false);
+IMPLEMENT_VERTEX_FACTORY_TYPE_EX(FHairCardsVertexFactory,"/Engine/Private/HairStrands/HairCardsVertexFactory.ush",true,false,true,true,false,true,VF_CARDS_SUPPORT_GPU_SCENE,false);

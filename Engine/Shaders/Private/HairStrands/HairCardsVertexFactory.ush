@@ -33,8 +33,6 @@
 /**
  * Per-vertex inputs from bound vertex buffers
  */
-#define FPositionOnlyVertexFactoryInput FVertexFactoryInput
-#define FPositionAndNormalOnlyVertexFactoryInput FVertexFactoryInput
 
 struct FVertexFactoryInput
 {
@@ -341,7 +339,7 @@ FVertexFactoryInterpolantsVSToPS VertexFactoryGetInterpolantsVSToPS(FVertexFacto
 }
 
 /** for depth-only pass (Not used by the actual hair shaders)*/
-float4 VertexFactoryGetWorldPosition(FPositionOnlyVertexFactoryInput Input)
+float4 VertexFactoryGetWorldPosition(FVertexFactoryInput Input)
 {
 	return 0;
 }
@@ -375,7 +373,7 @@ uint VertexFactoryGetPrimitiveId(FVertexFactoryInterpolantsVSToPS Interpolants)
 	return GetPrimitiveId(Interpolants);
 }
 
-float3 VertexFactoryGetWorldNormal(FPositionAndNormalOnlyVertexFactoryInput Input)
+float3 VertexFactoryGetWorldNormal(FVertexFactoryInput Input)
 {
 	return float3(0, 0, 1); 
 }
