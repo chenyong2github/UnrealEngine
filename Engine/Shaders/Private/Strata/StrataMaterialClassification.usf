@@ -59,12 +59,12 @@ void ComputePostProcessBSDFData(
 		if (BSDF_GETHASSCATTERING(BSDF) && BSDFCoverageAvg > 0 && !SSS.bHasSubsurface)
 		{
 			SSS.bHasSubsurface = true;
-			SSS.bHasProfile	= BSDF_GETHASSSSPROFILE(BSDF);
-			SSS.Profile		= SLAB_SSSPROFILEID(BSDF);
-			SSS.RadiusScale	= SLAB_SSSPROFILERADIUS(BSDF);
-			SSS.BaseColor	= SLAB_BASECOLOR(BSDF);
-			SSS.DMFPAlbedo	= SLAB_SSSDMFPALBEDO(BSDF);
-			SSS.DMFPRadius	= SLAB_SSSDMFPRADIUS(BSDF);
+			SSS.bHasProfile			= BSDF_GETHASSSSPROFILE(BSDF);
+			SSS.ProfilePackedId		= SLAB_SSSPROFILEID(BSDF);
+			SSS.ProfileRadiusScale	= SLAB_SSSPROFILERADIUSSCALE(BSDF);
+			SSS.BaseColor			= SLAB_BASECOLOR(BSDF);
+			SSS.DMFPAlbedo			= SLAB_SSSDMFPALBEDO(BSDF);
+			SSS.DMFPRadius			= SLAB_SSSDMFPRADIUS(BSDF);
 		}
 		break;
 	}

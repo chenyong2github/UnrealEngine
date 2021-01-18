@@ -119,7 +119,7 @@ struct FStrataBSDF
 #define SLAB_ROUGHNESSY(X)				X.VGPRs[1].z
 // Either with SSS profile
 #define SLAB_SSSPROFILEID(X)			X.VGPRs[2].x
-#define SLAB_SSSPROFILERADIUS(X)		X.VGPRs[2].y
+#define SLAB_SSSPROFILERADIUSSCALE(X)	X.VGPRs[2].y
 // Or explicit DMFP
 #define SLAB_SSSDMFPALBEDO(X)			X.VGPRs[2].xyz
 #define SLAB_SSSDMFPRADIUS(X)			X.VGPRs[2].w
@@ -207,10 +207,11 @@ struct FStrataSubsurfaceData
 {
 	bool   bHasSubsurface;
 	bool   bHasProfile;
-	float  RadiusScale;
 
 	float3 BaseColor;
-	float  Profile;		// Integer ID packed in 8bits as float
+
+	float  ProfilePackedId;		// Integer ID packed in 8bits as float
+	float  ProfileRadiusScale;
 
 	float3 DMFPAlbedo;
 	float  DMFPRadius;
@@ -305,7 +306,7 @@ FStrataData GetInitialisedStrataData()
 
 FStrataData GetStrataSlabBSDF(
 	float3 BaseColor, float Specular, float Metallic, float2 Roughness,
-	float SSSProfileID, float3 SSSDMFPAlbedo, float SSSDMFPRadius,
+	float SSSProfileID, float3 SSSDMFPAlbedo, float SSSDMFPRadius, float SSSRadiusScale,
 	uint SharedNormalIndex, inout uint SharedNormalTypes)
 {
 	FStrataData StrataData = GetInitialisedStrataData();
@@ -337,12 +338,12 @@ FStrataData GetStrataSlabBSDF(
 	if (bHasSSSProfile)
 	{
 		SLAB_SSSPROFILEID	(StrataData.Layers[0].BSDFs[0])		= SSSProfileID;
-		SLAB_SSSPROFILERADIUS(StrataData.Layers[0].BSDFs[0])	= 1.0; // STRATA_TODO add a scale to control the radius per pixel
+		SLAB_SSSPROFILERADIUSSCALE(StrataData.Layers[0].BSDFs[0])= saturate(SSSRadiusScale);
 	}
 	else
 	{
 		SLAB_SSSDMFPALBEDO	(StrataData.Layers[0].BSDFs[0])		= saturate(SSSDMFPAlbedo);
-		SLAB_SSSDMFPRADIUS	(StrataData.Layers[0].BSDFs[0])		= clamp(SSSDMFPRadius, 0.f, SSS_PROFILE_PERPIXEL_MAXRADIUS);
+		SLAB_SSSDMFPRADIUS	(StrataData.Layers[0].BSDFs[0])		= clamp(SSSDMFPRadius * saturate(SSSRadiusScale), 0.f, SSS_PROFILE_PERPIXEL_MAXRADIUS);
 	}
 
 	StrataData.Layers[0].BSDFs[0].Weight						= 1.0f;
@@ -626,7 +627,7 @@ void SanitizeStrataSlab(inout FStrataBSDF BSDF)
 	SLAB_METALLIC(BSDF) = saturate(SLAB_METALLIC(BSDF));
 	SLAB_ROUGHNESSX(BSDF) = saturate(SLAB_ROUGHNESSX(BSDF));
 	SLAB_ROUGHNESSY(BSDF) = saturate(SLAB_ROUGHNESSY(BSDF));
-	SLAB_SSSPROFILERADIUS(BSDF) = max(0.0f, SLAB_SSSPROFILERADIUS(BSDF));
+	SLAB_SSSPROFILERADIUSSCALE(BSDF) = saturate(SLAB_SSSPROFILERADIUSSCALE(BSDF));
 	SLAB_SSSDMFPALBEDO(BSDF) = saturate(SLAB_SSSDMFPALBEDO(BSDF));
 	SLAB_SSSDMFPRADIUS(BSDF) = clamp(SLAB_SSSDMFPRADIUS(BSDF), 0.0f, SSS_PROFILE_PERPIXEL_MAXRADIUS);
 }
@@ -1085,12 +1086,12 @@ void PackStrataOut(
 				if (BSDF_GETHASSCATTERING(BSDF) && BSDFCoverageAvg > 0 && !SSS.bHasSubsurface)
 				{
 					SSS.bHasSubsurface = true;
-					SSS.bHasProfile	= BSDF_GETHASSSSPROFILE(BSDF);
-					SSS.Profile		= SLAB_SSSPROFILEID(BSDF);
-					SSS.RadiusScale	= SLAB_SSSPROFILERADIUS(BSDF);
-					SSS.BaseColor	= SLAB_BASECOLOR(BSDF);
-					SSS.DMFPAlbedo	= SLAB_SSSDMFPALBEDO(BSDF);
-					SSS.DMFPRadius	= SLAB_SSSDMFPRADIUS(BSDF);
+					SSS.bHasProfile			= BSDF_GETHASSSSPROFILE(BSDF);
+					SSS.ProfilePackedId		= SLAB_SSSPROFILEID(BSDF);
+					SSS.ProfileRadiusScale	= SLAB_SSSPROFILERADIUSSCALE(BSDF);
+					SSS.BaseColor			= SLAB_BASECOLOR(BSDF);
+					SSS.DMFPAlbedo			= SLAB_SSSDMFPALBEDO(BSDF);
+					SSS.DMFPRadius			= SLAB_SSSDMFPRADIUS(BSDF);
 				}
 
 				LayerCoverage	+= BSDFCoverage;
@@ -1192,8 +1193,8 @@ void PackStrataOut(
 		if (SSS.bHasProfile)
 		{
 			GBuffer.BaseColor      = SSS.BaseColor;
-			GBuffer.CustomData.rgb = EncodeSubsurfaceProfile(SSS.Profile);
-			GBuffer.CustomData.a   = 1.0f; // STRATA_TODO add a radius scale
+			GBuffer.CustomData.rgb = EncodeSubsurfaceProfile(SSS.ProfilePackedId);
+			GBuffer.CustomData.a   = SSS.ProfileRadiusScale;
 		}
 		else
 		{
@@ -1260,7 +1261,7 @@ void PackStrataOut(
 				{
 					if (BSDF_GETHASSSSPROFILE(BSDF))
 					{
-						STRATA_STORE_UINT1(PackRGBA8(float4(SLAB_SSSPROFILEID(BSDF), SLAB_SSSPROFILERADIUS(BSDF), 0, 0)));
+						STRATA_STORE_UINT1(PackRGBA8(float4(SLAB_SSSPROFILEID(BSDF), SLAB_SSSPROFILERADIUSSCALE(BSDF), 0, 0)));
 					}
 					else
 					{
@@ -1372,7 +1373,7 @@ FStrataBSDF UnpackStrataBSDFIn(ByteAddressBuffer StrataBuffer, inout uint ByteOf
 			{
 				float4 Data = UnpackRGBA8(StrataLoadUint1(StrataBuffer, ByteOffset));
 				SLAB_SSSPROFILEID(OutBSDF) = Data.r;
-				SLAB_SSSPROFILERADIUS(OutBSDF) = Data.g;
+				SLAB_SSSPROFILERADIUSSCALE(OutBSDF) = Data.g;
 			}
 			else
 			{

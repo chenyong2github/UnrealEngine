@@ -19690,6 +19690,7 @@ int32 UMaterialExpressionStrataSlabBSDF::Compile(class FMaterialCompiler* Compil
 		SSSProfileCodeChunk != INDEX_NONE ? SSSProfileCodeChunk : Compiler->Constant(0.0f),	
 		CompileWithDefaultFloat3(Compiler, DiffuseMeanFreePathAlbedo, 0.0f, 0.0f, 0.0f),
 		CompileWithDefaultFloat1(Compiler, DiffuseMeanFreePathRadius, 0.0f),
+		CompileWithDefaultFloat1(Compiler, SSSRadiusScale, 1.0f),
 		NormalCodeChunk,
 		TangentCodeChunk,
 		SharedNormalIndex);
@@ -19739,6 +19740,9 @@ uint32 UMaterialExpressionStrataSlabBSDF::GetInputType(int32 InputIndex)
 	case 8:
 		return MCT_Float1; // DMFP Radius
 		break;
+	case 9:
+		return MCT_Float1; // SSS Radius Scale
+		break;
 	}
 
 	check(false);
@@ -19782,6 +19786,10 @@ FName UMaterialExpressionStrataSlabBSDF::GetInputName(int32 InputIndex) const
 	else if (InputIndex == 8)
 	{
 		return TEXT("DMFP Radius");
+	}
+	else if (InputIndex == 9)
+	{
+		return TEXT("SSS Radius Scale");
 	}
 	return TEXT("Unknown");
 }

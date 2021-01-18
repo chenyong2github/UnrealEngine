@@ -36,7 +36,7 @@ class UMaterialExpressionStrataBSDF : public UMaterialExpression
 }*/
 
 UCLASS(MinimalAPI, collapsecategories, hidecategories = Object)
-class UMaterialExpressionStrataSlabBSDF : public UMaterialExpression // STRATA_TODO the single diffuse model to keep when we remove al lthe tests
+class UMaterialExpressionStrataSlabBSDF : public UMaterialExpression
 {
 	GENERATED_UCLASS_BODY()
 
@@ -85,16 +85,22 @@ class UMaterialExpressionStrataSlabBSDF : public UMaterialExpression // STRATA_T
 	FExpressionInput Tangent;
 
 	/**
-	 * Mean free path albedo. Only used when no sub-surface profile is provided. (type = float3, unit = unitless)
+	 * Mean free path albedo. Only used when there is no sub-surface profile provided. (type = float3, unit = unitless)
 	 */
 	UPROPERTY(meta = (DisplayName = "DMFP Albedo"))
 	FExpressionInput DiffuseMeanFreePathAlbedo;
 
 	/**
-	 * Mean free path radius. Only used when no sub-surface profile is provided. (type = float, unit = cm)
+	 * Mean free path radius. Only used when there is no sub-surface profile provided. (type = float, unit = cm)
 	 */
 	UPROPERTY(meta = (DisplayName = "DMFP Radius"))
 	FExpressionInput DiffuseMeanFreePathRadius;
+
+	/**
+	 * Scale the mean free path radius. Always used, when a subsurface profile is provided or not. (type = float, unitless, defaults to 1)
+	 */
+	UPROPERTY(meta = (DisplayName = "SSS Radius Scale"))
+	FExpressionInput SSSRadiusScale;
 
 	/** SubsurfaceProfile, for Screen Space Subsurface Scattering. The profile needs to be set up on both the Strata diffuse node, and the material node at the moment. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Material, meta = (DisplayName = "Subsurface Profile"))
