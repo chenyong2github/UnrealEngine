@@ -337,7 +337,7 @@ void FVulkanDevice::CreateDevice()
 	}
 
 	#if NV_AFTERMATH
-	if (GGPUCrashDebuggingEnabled && GNVAftermathModuleLoaded)
+	if (GGPUCrashDebuggingEnabled && GVulkanNVAftermathModuleLoaded)
 	{
 		GFSDK_Aftermath_Result Result = GFSDK_Aftermath_EnableGpuCrashDumps(GFSDK_Aftermath_Version_API, 
 			GFSDK_Aftermath_GpuCrashDumpWatchedApiFlags_Vulkan,

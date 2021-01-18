@@ -27,7 +27,7 @@ static_assert(sizeof(VkStructureType) == sizeof(int32), "ZeroVulkanStruct() assu
 extern RHI_API bool GUseTexture3DBulkDataRHI;
 
 #if NV_AFTERMATH
-bool GNVAftermathModuleLoaded = false;
+bool GVulkanNVAftermathModuleLoaded = false;
 #endif
 
 TAtomic<uint64> GVulkanBufferHandleIdCounter{ 0 };

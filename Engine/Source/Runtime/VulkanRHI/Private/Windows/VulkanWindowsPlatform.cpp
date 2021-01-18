@@ -26,7 +26,7 @@ ENUM_VK_ENTRYPOINTS_ALL(DEFINE_VK_ENTRYPOINTS)
 bool FVulkanWindowsPlatform::LoadVulkanLibrary()
 {
 #if NV_AFTERMATH
-	GNVAftermathModuleLoaded = false;
+	GVulkanNVAftermathModuleLoaded = false;
 	const bool bAllowVendorDevice = !FParse::Param(FCommandLine::Get(), TEXT("novendordevice"));
 	if (bAllowVendorDevice)
 	{
@@ -39,7 +39,7 @@ bool FVulkanWindowsPlatform::LoadVulkanLibrary()
 		else
 		{
 			UE_LOG(LogVulkanRHI, Log, TEXT("Loaded GFSDK_Aftermath_Lib.x64.dll"));
-			GNVAftermathModuleLoaded = true;
+			GVulkanNVAftermathModuleLoaded = true;
 		}
 	}
 #endif
