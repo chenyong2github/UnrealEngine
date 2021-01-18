@@ -184,7 +184,7 @@ void HIDInputInterface::FHIDDeviceInfo::SetupMappings()
 		RightAnalogYMapping = kHIDUsage_GD_Rz;
 		RightTriggerAnalogMapping = kHIDUsage_GD_Ry;
 	}
-	else if (VendorID == 0x45e && (ProductID == 0x2d1 || ProductID == 0x2ea || ProductID == 0x2fd))
+	else if (VendorID == 0x45e && (ProductID == 0x2d1 || ProductID == 0x2ea))
 	{
 		// Xbox One Controller
 		ButtonsMapping[1]	= 0;	// A
@@ -208,6 +208,30 @@ void HIDInputInterface::FHIDDeviceInfo::SetupMappings()
 		RightAnalogXMapping = kHIDUsage_GD_Rx;
 		RightAnalogYMapping = kHIDUsage_GD_Ry;
 		RightTriggerAnalogMapping = kHIDUsage_GD_Rz;
+	}
+	else if (VendorID == 0x45e && ProductID == 0x2fd)
+	{
+		// IOHIDDeviceGetProperty(DeviceRef, CFSTR(kIOHIDTransportKey));
+		// Should return bluetooth for this.  It could be that any Xbox One pad on bluetooth
+		// should in here as they will different to the 3rd party driver that is assumed above
+		
+		//ButtonsMapping[Element.Usage] = FGamepadKeyNames index from order specified in HIDInputInterface constructor
+		ButtonsMapping[1]	= 0;	// A
+		ButtonsMapping[2]	= 1;	// B
+		ButtonsMapping[4]	= 2;	// X
+		ButtonsMapping[5]	= 3;	// Y
+		ButtonsMapping[7]	= 4;	// Left Shoulder
+		ButtonsMapping[8]	= 5;	// Right Shoulder
+		ButtonsMapping[12]	= 6;	// Menu
+		ButtonsMapping[14] =  8; 	// Left Thumb stick
+		ButtonsMapping[15] =  9; 	// Right Thumb stick
+		
+		LeftAnalogXMapping = kHIDUsage_GD_X;
+		LeftAnalogYMapping = kHIDUsage_GD_Y;
+		LeftTriggerAnalogMapping = 0xc5;
+		RightAnalogXMapping = kHIDUsage_GD_Z;
+		RightAnalogYMapping = kHIDUsage_GD_Rz;
+		RightTriggerAnalogMapping = 0xc4;
 	}
 	else if (VendorID == 0x57e && ProductID == 0x2009)
 	{
@@ -406,8 +430,8 @@ void HIDInputInterface::OnNewHIDController(IOReturn Result, IOHIDDeviceRef Devic
 				Element.MinValue = IOHIDElementGetLogicalMin(Element.ElementRef);
 				Element.MaxValue = IOHIDElementGetLogicalMax(Element.ElementRef);
 
-				if ((Element.Type == kIOHIDElementTypeInput_Button && Element.UsagePage == kHIDPage_Button && Element.Usage < MAX_NUM_CONTROLLER_BUTTONS)
-					|| ((Element.Type == kIOHIDElementTypeInput_Misc || Element.Type == kIOHIDElementTypeInput_Axis) && Element.UsagePage == kHIDPage_GenericDesktop))
+				if ((Element.Type == kIOHIDElementTypeInput_Button && Element.UsagePage == kHIDPage_Button && Element.Usage < MAX_NUM_CONTROLLER_BUTTONS) ||
+					((Element.Type == kIOHIDElementTypeInput_Misc || Element.Type == kIOHIDElementTypeInput_Axis) && (Element.UsagePage == kHIDPage_GenericDesktop || Element.UsagePage == kHIDPage_Simulation)))
 				{
 					DeviceInfo.Elements.Add(Element);
 				}
@@ -507,7 +531,8 @@ void HIDInputInterface::SendControllerEvents()
 						}
 						else if (Element.Usage == kHIDUsage_GD_Hatswitch)
 						{
-							switch (NewValue)
+							// Need to account for Min and Max Value, this assumes 0-7, macOS reports 1-8 for bluetooth xbox one controller
+							switch (NewValue - Element.MinValue)
 							{
 								case 0: CurrentButtonStates[12] = true;									break; // Up
 								case 1: CurrentButtonStates[12] = true;	CurrentButtonStates[15] = true;	break; // Up + right
