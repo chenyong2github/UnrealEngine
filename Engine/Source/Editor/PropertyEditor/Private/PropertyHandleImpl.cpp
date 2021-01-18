@@ -59,9 +59,21 @@ void FPropertyValueImpl::EnumerateObjectsToModify( FPropertyNode* InPropertyNode
 		const int32 NumInstances = ComplexNode->GetInstancesNum();
 		for (int32 Index = 0; Index < NumInstances; ++Index)
 		{
-			uint8* ObjectOrStruct = ComplexNode->GetMemoryOfInstance(Index);
-			uint8* Addr = InPropertyNode->GetValueBaseAddress(ObjectOrStruct, false);
-			if (!InObjectsToModifyCallback(FObjectBaseAddress(ObjectOrStruct, Addr, bIsStruct), Index, NumInstances))
+			uint8* ObjectOrStruct = nullptr;
+			uint8* BaseAddress = nullptr;
+			if (bIsStruct)
+			{
+				ObjectOrStruct = ComplexNode->GetMemoryOfInstance(Index);
+				BaseAddress = InPropertyNode->GetValueBaseAddress(ObjectOrStruct, false);
+			}
+			else
+			{
+				const UObject* Obj = ComplexNode->GetInstanceAsUObject(Index).Get();
+				ObjectOrStruct = Obj;
+				BaseAddress = InPropertyNode->GetValueBaseAddressFromObject(Obj);
+			}
+
+			if (!InObjectsToModifyCallback(FObjectBaseAddress(ObjectOrStruct, BaseAddress, bIsStruct), Index, NumInstances))
 			{
 				break;
 			}
