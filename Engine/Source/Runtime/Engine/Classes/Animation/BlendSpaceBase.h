@@ -58,11 +58,17 @@ struct FBlendParameter
 	UPROPERTY(EditAnywhere, DisplayName = "Number of Grid Divisions", Category=BlendParameter, meta=(UIMin="1", ClampMin="1"))
 	int32 GridNum;
 
+	/** Max value for this parameter. */
+	UPROPERTY(EditAnywhere, DisplayName = "Wrap Input", Category = BlendParameter, meta=(ToolTip=
+		"If false then input parameters are clamped to the min/max values on this axis. If true then the input can go outside the min/max range and the blend space is treated as being cyclic on this axis."))
+	bool WrapInput;
+
 	FBlendParameter()
 		: DisplayName(TEXT("None"))
 		, Min(0.f)
 		, Max(100.f)
 		, GridNum(4) // TODO when changing GridNum's default value, it breaks all grid samples ATM - provide way to rebuild grid samples during loading
+		, WrapInput(false)
 	{
 	}
 
@@ -295,7 +301,10 @@ class UBlendSpaceBase : public UAnimationAsset, public IInterpolationIndexProvid
 
 	/** Initialize BlendSpace for runtime. It needs certain data to be reinitialized per instsance **/
 	ENGINE_API void InitializeFilter(FBlendFilter* Filter) const;
-	
+
+	/** Returns the blend input after clamping and/or wrapping */
+	ENGINE_API FVector GetClampedAndWrappedBlendInput(const FVector& BlendInput) const;
+
 #if WITH_EDITOR	
 	/** Validates sample data for blendspaces using the given animation sequence */
 	ENGINE_API static void UpdateBlendSpacesUsingAnimSequence(UAnimSequenceBase* Sequence);
@@ -385,8 +394,8 @@ protected:
 	/** Utility function to calculate animation length from sample data list **/
 	float GetAnimationLengthFromSampleData(const TArray<FBlendSampleData> & SampleDataList) const;
 
-	/** Clamp blend input to valid point **/
-	FVector ClampBlendInput(const FVector& BlendInput) const;
+	/** Returns the blend input clamped to the valid range, unless that axis has been set to wrap in which case no clamping is done **/
+	FVector GetClampedBlendInput(const FVector& BlendInput) const;
 	
 	/** Translates BlendInput to grid space */
 	FVector GetNormalizedBlendInput(const FVector& BlendInput) const;

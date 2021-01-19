@@ -1098,7 +1098,7 @@ const FVector2D SBlendSpaceGridWidget::SampleValueToGridPosition(const FVector& 
 	return SamplePosition2D;	
 }
 
-const FVector SBlendSpaceGridWidget::GridPositionToSampleValue(const FVector2D& GridPosition) const
+const FVector SBlendSpaceGridWidget::GridPositionToSampleValue(const FVector2D& GridPosition, bool bClamp) const
 {
 	FVector2D LocalGridPosition = GridPosition;
 	// Move to center of grid and convert to 0 - 1 form
@@ -1108,13 +1108,17 @@ const FVector SBlendSpaceGridWidget::GridPositionToSampleValue(const FVector2D& 
 	LocalGridPosition *= 0.5f;
 
 	// Calculate the sample value by mapping it to the blend parameter range
-	const FVector SampleValue
+	FVector SampleValue
 	(		
-		FMath::Clamp((LocalGridPosition.X * SampleValueRange.X) + SampleValueMin.X, SampleValueMin.X, SampleValueMax.X),
-		FMath::Clamp(((GridType == EGridType::TwoAxis) ? SampleValueMax.Y - (LocalGridPosition.Y * SampleValueRange.Y) : 0.0f),
-			SampleValueMin.Y, SampleValueMax.Y),
+		(LocalGridPosition.X * SampleValueRange.X) + SampleValueMin.X,
+		(GridType == EGridType::TwoAxis) ? SampleValueMax.Y - (LocalGridPosition.Y * SampleValueRange.Y) : 0.0f,
 		0.f	
 	);
+	if (bClamp)
+	{
+		SampleValue.X = FMath::Clamp(SampleValue.X, SampleValueMin.X, SampleValueMax.X);
+		SampleValue.Y = FMath::Clamp(SampleValue.Y, SampleValueMin.Y, SampleValueMax.Y);
+	}
 	return SampleValue;
 }
 
@@ -1123,13 +1127,13 @@ const FSlateRect SBlendSpaceGridWidget::GetGridRectangleFromGeometry(const FGeom
 	FSlateRect WindowRect = FSlateRect(0, 0, MyGeometry.GetLocalSize().X, MyGeometry.GetLocalSize().Y);
 	if (!bStretchToFit)
 	{
-		UpdateGridRationMargin(WindowRect.GetSize());
+		UpdateGridRatioMargin(WindowRect.GetSize());
 	}
 
 	return WindowRect.InsetBy(GridMargin + GridRatioMargin);
 }
 
-bool SBlendSpaceGridWidget::IsSampleValueWithinMouseRange(const FVector& SampleValue)
+bool SBlendSpaceGridWidget::IsSampleValueWithinMouseRange(const FVector& SampleValue) const
 {
 	const FVector2D GridPosition = SampleValueToGridPosition(SampleValue);
 	const float MouseDistance = FVector2D::Distance(LocalMousePosition, GridPosition);	
@@ -1140,7 +1144,7 @@ void SBlendSpaceGridWidget::StartPreviewing()
 {
 	bSamplePreviewing = true;
 	LastPreviewingMousePosition = LocalMousePosition;
-	LastPreviewingSampleValue = bReadOnly ? Position.Get() : GridPositionToSampleValue(LastPreviewingMousePosition);
+	LastPreviewingSampleValue = bReadOnly ? Position.Get() : GridPositionToSampleValue(LastPreviewingMousePosition, false);
 	bPreviewPositionSet = true;	
 	bPreviewToolTipHidden = true;
 }
@@ -1494,7 +1498,7 @@ FReply SBlendSpaceGridWidget::ToggleShowAnimationNames()
 	return FReply::Handled();
 }
 
-void SBlendSpaceGridWidget::UpdateGridRationMargin(const FVector2D& GeometrySize)
+void SBlendSpaceGridWidget::UpdateGridRatioMargin(const FVector2D& GeometrySize)
 {
 	if (GridType == EGridType::TwoAxis)
 	{
@@ -1681,7 +1685,7 @@ void SBlendSpaceGridWidget::Tick(const FGeometry& AllottedGeometry, const double
 					const FVector2D GridPosition(FMath::Clamp(LocalMousePosition.X, CachedGridRectangle.Left, CachedGridRectangle.Right),
 													FMath::Clamp(LocalMousePosition.Y, CachedGridRectangle.Top, CachedGridRectangle.Bottom));
  
-					SampleValue = GridPositionToSampleValue(GridPosition);
+					SampleValue = GridPositionToSampleValue(GridPosition, true);
 					bSnap = false;
 				}
 				else
@@ -1739,9 +1743,11 @@ void SBlendSpaceGridWidget::Tick(const FGeometry& AllottedGeometry, const double
 		if (bSamplePreviewing)
 		{
 			// Ensure the preview mouse position is clamped to the grid
-			LastPreviewingMousePosition.X = FMath::Clamp(LocalMousePosition.X, CachedGridRectangle.Left, CachedGridRectangle.Right);
-			LastPreviewingMousePosition.Y = FMath::Clamp(LocalMousePosition.Y, CachedGridRectangle.Top, CachedGridRectangle.Bottom);
-			LastPreviewingSampleValue = bReadOnly ? Position.Get() : GridPositionToSampleValue(LastPreviewingMousePosition);
+			LastPreviewingMousePosition.X = LocalMousePosition.X; //FMath::Clamp(LocalMousePosition.X, CachedGridRectangle.Left, CachedGridRectangle.Right);
+			LastPreviewingMousePosition.Y = LocalMousePosition.Y; //FMath::Clamp(LocalMousePosition.Y, CachedGridRectangle.Top, CachedGridRectangle.Bottom);
+			LastPreviewingSampleValue = bReadOnly ? Position.Get() : GridPositionToSampleValue(LastPreviewingMousePosition, false);
+
+			LastPreviewingSampleValue = BlendSpace->GetClampedAndWrappedBlendInput(LastPreviewingSampleValue);
 						
 			// Retrieve and cache weighted samples
 			PreviewedSamples.Empty(4);

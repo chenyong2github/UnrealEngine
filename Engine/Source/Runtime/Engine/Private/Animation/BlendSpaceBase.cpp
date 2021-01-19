@@ -153,13 +153,14 @@ void UBlendSpaceBase::TickAssetPlayer(FAnimTickRecord& Instance, struct FAnimNot
 				}
 			}
 
-			// now find if clamped input is different
-			// if different, then apply scale to fit in
-			FVector ClampedInput = ClampBlendInput(BlendInput);
+			// Now find if clamped input is different. If different, then apply scale to fit in. This allows
+			// "extrapolation" of the blend space outside of the range by time scaling the animation, which is
+			// appropriate when the specified axis is speed (for example).
+			FVector ClampedInput = GetClampedBlendInput(BlendInput);
 			if ( !ClampedInput.Equals(BlendInput) ) 
 			{
 				// apply speed change if you want, 
-				if (AxisToScale == BSA_X)
+				if (AxisToScale == BSA_X && !BlendParameters[0].WrapInput)
 				{
 					if (ClampedInput.X != 0.f)
 					{
@@ -168,7 +169,7 @@ void UBlendSpaceBase::TickAssetPlayer(FAnimTickRecord& Instance, struct FAnimNot
 				}
 				else if (AxisToScale == BSA_Y)
 				{
-					if (ClampedInput.Y != 0.f)
+					if (ClampedInput.Y != 0.f && !BlendParameters[1].WrapInput)
 					{
 						FilterMultiplier *= BlendInput.Y / ClampedInput.Y;
 					}
@@ -1143,30 +1144,44 @@ float UBlendSpaceBase::GetAnimationLengthFromSampleData(const TArray<FBlendSampl
 	return BlendAnimLength;
 }
 
-FVector UBlendSpaceBase::ClampBlendInput(const FVector& BlendInput)  const
+FVector UBlendSpaceBase::GetClampedBlendInput(const FVector& BlendInput)  const
 {
-	FVector ClampedBlendInput;
+	FVector AdjustedInput = BlendInput;
+	for (int iAxis = 0; iAxis != 3; ++iAxis)
+	{
+		if (!BlendParameters[iAxis].WrapInput)
+		{
+			AdjustedInput[iAxis] = FMath::Clamp(AdjustedInput[iAxis], BlendParameters[iAxis].Min, BlendParameters[iAxis].Max);
+		}
+	}
+	return AdjustedInput;
+}
 
-	ClampedBlendInput.X = FMath::Clamp<float>(BlendInput.X, BlendParameters[0].Min, BlendParameters[0].Max);
-	ClampedBlendInput.Y = FMath::Clamp<float>(BlendInput.Y, BlendParameters[1].Min, BlendParameters[1].Max);
-	ClampedBlendInput.Z = FMath::Clamp<float>(BlendInput.Z, BlendParameters[2].Min, BlendParameters[2].Max);
-	return ClampedBlendInput;
+FVector UBlendSpaceBase::GetClampedAndWrappedBlendInput(const FVector& BlendInput) const
+{
+	FVector AdjustedInput = BlendInput;
+	for (int iAxis = 0; iAxis != 3; ++iAxis)
+	{
+		if (BlendParameters[iAxis].WrapInput)
+		{
+			AdjustedInput[iAxis] = FMath::Wrap(AdjustedInput[iAxis], BlendParameters[iAxis].Min, BlendParameters[iAxis].Max);
+		}
+		else
+		{
+			AdjustedInput[iAxis] = FMath::Clamp(AdjustedInput[iAxis], BlendParameters[iAxis].Min, BlendParameters[iAxis].Max);
+		}
+	}
+	return AdjustedInput;
 }
 
 FVector UBlendSpaceBase::GetNormalizedBlendInput(const FVector& BlendInput) const
 {
+	FVector AdjustedInput = GetClampedAndWrappedBlendInput(BlendInput);
+
 	const FVector MinBlendInput = FVector(BlendParameters[0].Min, BlendParameters[1].Min, BlendParameters[2].Min);
-	const FVector MaxBlendInput = FVector(BlendParameters[0].Max, BlendParameters[1].Max, BlendParameters[2].Max);
 	const FVector GridSize = FVector(BlendParameters[0].GetGridSize(), BlendParameters[1].GetGridSize(), BlendParameters[2].GetGridSize());
 
-	FVector NormalizedBlendInput;
-	NormalizedBlendInput.X = FMath::Clamp<float>(BlendInput.X, MinBlendInput.X, MaxBlendInput.X);
-	NormalizedBlendInput.Y = FMath::Clamp<float>(BlendInput.Y, MinBlendInput.Y, MaxBlendInput.Y);
-	NormalizedBlendInput.Z = FMath::Clamp<float>(BlendInput.Z, MinBlendInput.Z, MaxBlendInput.Z);
-
-	NormalizedBlendInput -= MinBlendInput; 
-	NormalizedBlendInput /= GridSize;
-
+	FVector NormalizedBlendInput = (AdjustedInput - MinBlendInput) / GridSize;
 	return NormalizedBlendInput;
 }
 

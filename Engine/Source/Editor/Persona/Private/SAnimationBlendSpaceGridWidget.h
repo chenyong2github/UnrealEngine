@@ -147,8 +147,8 @@ protected:
 	FReply ToggleFittingType();
 	/** Returns whether or not the fitting button should be visible */
 	EVisibility GetFittingButtonVisibility() const;
-	/** Calcaultes a margin offset according to whether or not we should take into account the largest axis when creating the grid area*/
-	void UpdateGridRationMargin(const FVector2D& GeometrySize);
+	/** Calculates a margin offset according to whether or not we should take into account the largest axis when creating the grid area*/
+	void UpdateGridRatioMargin(const FVector2D& GeometrySize);
 	FText GetFittingTypeButtonToolTipText() const;
 	/** Toggles the animation labels being shown */
 	FReply ToggleShowAnimationNames();
@@ -163,12 +163,12 @@ protected:
 	int32 FindClosestGridPointIndex(const FVector2D& InPosition) const;
 	/** Converts the given sample value to a screen space position */
 	const FVector2D SampleValueToGridPosition(const FVector& SampleValue) const;
-	/** Converst a screen space (grid) position to a valid sample value */
-	const FVector GridPositionToSampleValue(const FVector2D& GridPosition) const;
-	/** Returns the (calculated) grid rectangle given the supplied geometry */
+	/** Converst a screen space (grid) position to a sample value, with optional clamping */
+	const FVector GridPositionToSampleValue(const FVector2D& GridPosition, bool bClamp) const;
+	/** Returns the (calculated) grid rectangle given the supplied geometry, and calls UpdateGridRatioMargin */
 	const FSlateRect GetGridRectangleFromGeometry(const FGeometry& MyGeometry);
 	/** Checks whether or not the blendspace sample value is within the range of the mouse position */
-	bool IsSampleValueWithinMouseRange(const FVector& SampleValue);
+	bool IsSampleValueWithinMouseRange(const FVector& SampleValue) const;
 
 	/** Sets the tooltip instance on the underlying widget instance */
 	void ShowToolTip();
