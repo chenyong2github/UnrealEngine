@@ -161,9 +161,9 @@ UControlRigBlueprint* FControlRigBlueprintActions::CreateControlRigFromSkeletalM
 	}
 	else
 	{
-		RefSkeleton = Skeleton->GetReferenceSkeleton();
+		RefSkeleton = &Skeleton->GetReferenceSkeleton();
 	}
-	
+
 	FString PackagePath = InSelectedObject->GetPathName();
 	FString ControlRigName = FString::Printf(TEXT("%s_CtrlRig"), *InSelectedObject->GetName());
 
