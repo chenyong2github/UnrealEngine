@@ -6,7 +6,6 @@
 #include "Chaos/ParticleHandle.h"
 #include "Chaos/PBDRigidsEvolutionFwd.h"
 
-template <typename T>
 class FSingleParticlePhysicsProxy;
 
 namespace Chaos
@@ -16,7 +15,7 @@ namespace Chaos
 	 */
 	struct CHAOS_API FPBDRigidDirtyParticlesBufferOut
 	{
-		TArray<FSingleParticlePhysicsProxy<TPBDRigidParticle<float,3> >*> DirtyGameThreadParticles;
+		TArray<FSingleParticlePhysicsProxy*> DirtyGameThreadParticles;
 		// Some particle types (clustered) only exist on the game thread, but we
 		// still need to pull data over via their proxies.
 		TSet<IPhysicsProxyBase*> PhysicsParticleProxies;

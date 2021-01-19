@@ -1031,7 +1031,7 @@ namespace ChaosTest {
 			TArray<TGeometryParticle<FReal, 3>*> Particles = { Particle };
 			Scene.AddActorsToScene_AssumesLocked(Particles);
 			Simulated->SetX(FVec3(0, 0, 3));
-			auto Proxy = static_cast<FRigidParticlePhysicsProxy*>(Simulated->GetProxy());
+			auto Proxy = static_cast<FSingleParticlePhysicsProxy*>(Simulated->GetProxy());
 
 			Scene.GetSolver()->EnqueueCommandImmediate([Proxy]()
 			{
@@ -1166,7 +1166,7 @@ namespace ChaosTest {
 		
 		struct FDummyInput : FSimCallbackInput
 		{
-			FRigidParticlePhysicsProxy* Proxy;
+			FSingleParticlePhysicsProxy* Proxy;
 			void Reset() {}
 		};
 
@@ -1180,7 +1180,7 @@ namespace ChaosTest {
 
 		auto Callback = Scene.GetSolver()->CreateAndRegisterSimCallbackObject_External<FCallback>();
 
-		Callback->GetProducerInputData_External()->Proxy = static_cast<FRigidParticlePhysicsProxy*>(Simulated->GetProxy());
+		Callback->GetProducerInputData_External()->Proxy = static_cast<FSingleParticlePhysicsProxy*>(Simulated->GetProxy());
 		Scene.GetSolver()->UnregisterObject(Particle);
 
 		FVec3 Grav(0, 0, -1);

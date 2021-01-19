@@ -53,7 +53,7 @@ struct FAsyncPhysicsDesiredState
 	FTransform WorldTM;
 	FVector LinearVelocity;
 	FVector AngularVelocity;
-	FRigidParticlePhysicsProxy* Proxy;
+	FSingleParticlePhysicsProxy* Proxy;
 	bool bShouldSleep;
 };
 #endif

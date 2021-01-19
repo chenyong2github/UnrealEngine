@@ -38,7 +38,7 @@ namespace Chaos
 			const int32 SolverTimestamp = Results.Next ? Results.Next->SolverTimestamp : INDEX_NONE;
 			for(const FChaosRigidInterpolationData& RigidInterp : Results.RigidInterpolations)
 			{
-				if(auto Proxy = static_cast<FRigidParticlePhysicsProxy*>(RigidInterp.Prev.GetProxy(SolverTimestamp)))
+				if(FSingleParticlePhysicsProxy* Proxy = RigidInterp.Prev.GetProxy(SolverTimestamp))
 				{
 					if (Proxy->PullFromPhysicsState(RigidInterp.Prev, SolverTimestamp, &RigidInterp.Next, &Results.Alpha))
 					{

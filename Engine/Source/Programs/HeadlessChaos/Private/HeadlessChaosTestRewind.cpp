@@ -822,8 +822,8 @@ namespace ChaosTest {
 				X[Step] = Particle->X();
 				TickSolverHelper(Solver);
 
-				auto PTParticle = static_cast<FSingleParticlePhysicsProxy<TPBDRigidParticle<FReal,3>>*>(Particle->GetProxy())->GetHandle();
-				auto PTKinematic = static_cast<FSingleParticlePhysicsProxy<TKinematicGeometryParticle<FReal,3>>*>(Kinematic->GetProxy())->GetHandle();
+				auto PTParticle = static_cast<FSingleParticlePhysicsProxy*>(Particle->GetProxy())->GetHandle()->CastToRigidParticle();
+				auto PTKinematic = static_cast<FSingleParticlePhysicsProxy*>(Kinematic->GetProxy())->GetHandle()->CastToKinematicParticle();
 
 				//see that particle has desynced
 				if(Step < LastStep)
@@ -1798,8 +1798,8 @@ namespace ChaosTest {
 			//remove from collision, should wakeup entire island and force a soft desync
 			Kinematic->SetX(FVec3(0,0,-10000));
 
-			auto PTDynamic = static_cast<FSingleParticlePhysicsProxy<TPBDRigidParticle<FReal,3>>*>(Dynamic->GetProxy())->GetHandle();
-			auto PTKinematic = static_cast<FSingleParticlePhysicsProxy<TKinematicGeometryParticle<FReal,3>>*>(Kinematic->GetProxy())->GetHandle();
+			auto PTDynamic = static_cast<FSingleParticlePhysicsProxy*>(Dynamic->GetProxy())->GetHandle()->CastToRigidParticle();
+			auto PTKinematic = static_cast<FSingleParticlePhysicsProxy*>(Kinematic->GetProxy())->GetHandle()->CastToKinematicParticle();
 
 			for(int Step = RewindStep; Step <= LastStep; ++Step)
 			{
@@ -1891,8 +1891,8 @@ namespace ChaosTest {
 
 		//mark kinematic as desynced (this should give us identical results which will trigger all particles in island to be soft desync)
 		
-		auto PTDynamic = static_cast<FSingleParticlePhysicsProxy<TPBDRigidParticle<FReal,3>>*>(Dynamic->GetProxy())->GetHandle();
-		auto PTKinematic = static_cast<FSingleParticlePhysicsProxy<TKinematicGeometryParticle<FReal,3>>*>(Kinematic->GetProxy())->GetHandle();
+		auto PTDynamic = static_cast<FSingleParticlePhysicsProxy*>(Dynamic->GetProxy())->GetHandle()->CastToRigidParticle();
+		auto PTKinematic = static_cast<FSingleParticlePhysicsProxy*>(Kinematic->GetProxy())->GetHandle()->CastToKinematicParticle();
 		PTKinematic->SetSyncState(ESyncState::HardDesync);
 		bool bEverSoft = false;
 
@@ -1988,8 +1988,8 @@ namespace ChaosTest {
 		//move kinematic very close but do not alter dynamic
 		//should be soft desync while in island and then get back to in sync
 
-		auto PTDynamic = static_cast<FSingleParticlePhysicsProxy<TPBDRigidParticle<FReal,3>>*>(Dynamic->GetProxy())->GetHandle();
-		auto PTKinematic = static_cast<FSingleParticlePhysicsProxy<TKinematicGeometryParticle<FReal,3>>*>(Kinematic->GetProxy())->GetHandle();
+		auto PTDynamic = static_cast<FSingleParticlePhysicsProxy*>(Dynamic->GetProxy())->GetHandle()->CastToRigidParticle();
+		auto PTKinematic = static_cast<FSingleParticlePhysicsProxy*>(Kinematic->GetProxy())->GetHandle()->CastToKinematicParticle();
 		Kinematic->SetX(FVec3(1000-110,0,0));
 
 		bool bEverSoft = false;

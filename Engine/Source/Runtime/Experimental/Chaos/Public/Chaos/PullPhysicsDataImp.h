@@ -42,7 +42,7 @@ private:
 };
 
 //Simple struct for when the simulation dirties a particle. Copies all properties regardless of which changed since they tend to change together
-struct FDirtyRigidParticleData : public TBasePullData<FRigidParticlePhysicsProxy>
+struct FDirtyRigidParticleData : public TBasePullData<FSingleParticlePhysicsProxy>
 {
 	FVec3 X;
 	FQuat R;

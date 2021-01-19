@@ -818,15 +818,6 @@ void FChaosEngineInterface::SetGravityEnabled_AssumesLocked(const FPhysicsActorH
 	if(Chaos::TPBDRigidParticle<float,3 >* RigidParticle = InActorReference->CastToRigidParticle())
 	{
 		RigidParticle->SetGravityEnabled(bEnabled);
-#if 0
-		FPhysicsCommand::ExecuteWrite(InActorReference,[&](const FPhysicsActorHandle& Actor)
-		{
-			// todo : This is currently synced in FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::PushToPhysicsState. 
-			//        Ideally this would execute a write command to the gravity forces on the physics thread. However,
-			//        the Actor.Handle() does not have access to the Evolution, so the PerParticleGravityForces are not accessible. 
-			//        This will need to be fixed. 
-		});
-#endif
 	}
 }
 
@@ -1131,17 +1122,9 @@ GetParticleFromProxy(IPhysicsProxyBase* ProxyBase)
 {
 	if (ProxyBase)
 	{
-		if (ProxyBase->GetType() == EPhysicsProxyType::SingleGeometryParticleType)
+		if (ProxyBase->GetType() == EPhysicsProxyType::SingleParticleProxy)
 		{
-			return ((FSingleParticlePhysicsProxy<Chaos::TGeometryParticle<Chaos::FReal, 3>>*)ProxyBase)->GetParticle();
-		}
-		else if (ProxyBase->GetType() == EPhysicsProxyType::SingleRigidParticleType)
-		{
-			return ((FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<Chaos::FReal, 3>>*)ProxyBase)->GetParticle();
-		}
-		else if (ProxyBase->GetType() == EPhysicsProxyType::SingleKinematicParticleType)
-		{
-			return ((FSingleParticlePhysicsProxy<Chaos::TKinematicGeometryParticle<Chaos::FReal, 3>>*)ProxyBase)->GetParticle();
+			return ((FSingleParticlePhysicsProxy*)ProxyBase)->GetParticle();
 		}
 	}
 	return nullptr;
