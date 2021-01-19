@@ -46,7 +46,12 @@ namespace UnrealBuildTool.Rules
                 PrivateDependencyModuleNames.Add("UnrealEd");
             }
 
-            if (Target.Platform == UnrealTargetPlatform.Win32 || Target.Platform == UnrealTargetPlatform.Win64)
+			if (Target.Platform == UnrealTargetPlatform.Win64 || Target.IsInPlatformGroup(UnrealPlatformGroup.Linux))
+			{
+				AddEngineThirdPartyPrivateStaticDependencies(Target, "NVAftermath");
+			}
+
+			if (Target.Platform == UnrealTargetPlatform.Win32 || Target.Platform == UnrealTargetPlatform.Win64)
             {
 				PrivateDependencyModuleNames.AddRange(
 					new string[]
@@ -73,7 +78,6 @@ namespace UnrealBuildTool.Rules
                 AddEngineThirdPartyPrivateStaticDependencies(Target, "Vulkan");
                 PrivateDependencyModuleNames.Add("VulkanRHI");
 
-				AddEngineThirdPartyPrivateStaticDependencies(Target, "NVAftermath");
 			}
 			else if (Target.Platform == UnrealTargetPlatform.Mac)
             {
