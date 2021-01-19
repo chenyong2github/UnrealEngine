@@ -58,17 +58,16 @@ struct FBlendParameter
 	UPROPERTY(EditAnywhere, DisplayName = "Number of Grid Divisions", Category=BlendParameter, meta=(UIMin="1", ClampMin="1"))
 	int32 GridNum;
 
-	/** Max value for this parameter. */
-	UPROPERTY(EditAnywhere, DisplayName = "Wrap Input", Category = BlendParameter, meta=(ToolTip=
-		"If false then input parameters are clamped to the min/max values on this axis. If true then the input can go outside the min/max range and the blend space is treated as being cyclic on this axis."))
-	bool WrapInput;
+	/** If false then input parameters are clamped to the min/max values on this axis. If true then the input can go outside the min/max range and the blend space is treated as being cyclic on this axis. */
+	UPROPERTY(EditAnywhere, DisplayName = "Wrap Input", Category = BlendParameter)
+	bool bWrapInput;
 
 	FBlendParameter()
 		: DisplayName(TEXT("None"))
 		, Min(0.f)
 		, Max(100.f)
 		, GridNum(4) // TODO when changing GridNum's default value, it breaks all grid samples ATM - provide way to rebuild grid samples during loading
-		, WrapInput(false)
+		, bWrapInput(false)
 	{
 	}
 

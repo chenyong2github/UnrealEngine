@@ -160,7 +160,7 @@ void UBlendSpaceBase::TickAssetPlayer(FAnimTickRecord& Instance, struct FAnimNot
 			if ( !ClampedInput.Equals(BlendInput) ) 
 			{
 				// apply speed change if you want, 
-				if (AxisToScale == BSA_X && !BlendParameters[0].WrapInput)
+				if (AxisToScale == BSA_X && !BlendParameters[0].bWrapInput)
 				{
 					if (ClampedInput.X != 0.f)
 					{
@@ -169,7 +169,7 @@ void UBlendSpaceBase::TickAssetPlayer(FAnimTickRecord& Instance, struct FAnimNot
 				}
 				else if (AxisToScale == BSA_Y)
 				{
-					if (ClampedInput.Y != 0.f && !BlendParameters[1].WrapInput)
+					if (ClampedInput.Y != 0.f && !BlendParameters[1].bWrapInput)
 					{
 						FilterMultiplier *= BlendInput.Y / ClampedInput.Y;
 					}
@@ -1149,7 +1149,7 @@ FVector UBlendSpaceBase::GetClampedBlendInput(const FVector& BlendInput)  const
 	FVector AdjustedInput = BlendInput;
 	for (int iAxis = 0; iAxis != 3; ++iAxis)
 	{
-		if (!BlendParameters[iAxis].WrapInput)
+		if (!BlendParameters[iAxis].bWrapInput)
 		{
 			AdjustedInput[iAxis] = FMath::Clamp(AdjustedInput[iAxis], BlendParameters[iAxis].Min, BlendParameters[iAxis].Max);
 		}
@@ -1162,7 +1162,7 @@ FVector UBlendSpaceBase::GetClampedAndWrappedBlendInput(const FVector& BlendInpu
 	FVector AdjustedInput = BlendInput;
 	for (int iAxis = 0; iAxis != 3; ++iAxis)
 	{
-		if (BlendParameters[iAxis].WrapInput)
+		if (BlendParameters[iAxis].bWrapInput)
 		{
 			AdjustedInput[iAxis] = FMath::Wrap(AdjustedInput[iAxis], BlendParameters[iAxis].Min, BlendParameters[iAxis].Max);
 		}
