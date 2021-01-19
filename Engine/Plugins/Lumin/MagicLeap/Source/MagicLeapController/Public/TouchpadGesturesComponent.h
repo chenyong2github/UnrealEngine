@@ -47,7 +47,7 @@ struct MAGICLEAPCONTROLLER_API FMagicLeapTouchpadGesture
 public:
 	/** Hand on which the gesture was performed. */
 	UPROPERTY(BlueprintReadOnly, Category = "TouchpadGesture|MagicLeap", meta = (DeprecatedProperty, DeprecationMessage = "Hand is deprecated. Please use MotionSource instead."))
-	EControllerHand Hand;
+	EControllerHand Hand = EControllerHand::Left;
 
 	/** Motion source on which the gesture was performed. */
 	UPROPERTY(BlueprintReadOnly, Category = "TouchpadGesture|MagicLeap", meta = (DeprecatedProperty, DeprecationMessage = "Use Touchpad Gesture Events instead."))
@@ -55,18 +55,18 @@ public:
 
 	/** Type of gesture. */
 	UPROPERTY(BlueprintReadOnly, Category = "TouchpadGesture|MagicLeap", meta = (DeprecatedProperty, DeprecationMessage = "Use Touchpad Gesture Events instead."))
-	EMagicLeapTouchpadGestureType Type;
+	EMagicLeapTouchpadGestureType Type = EMagicLeapTouchpadGestureType::None;
 
 	/** Direction of gesture */
 	UPROPERTY(BlueprintReadOnly, Category = "TouchpadGesture|MagicLeap", meta = (DeprecatedProperty, DeprecationMessage = "Use Touchpad Gesture Events instead."))
-	EMagicLeapTouchpadGestureDirection Direction;
+	EMagicLeapTouchpadGestureDirection Direction = EMagicLeapTouchpadGestureDirection::None;
 
 	/** 
 	  Gesture position (x,y) and force (z).
 	  Position is in the [-1.0,1.0] range and force is in the [0.0,1.0] range.
 	*/
 	UPROPERTY(BlueprintReadOnly, Category = "TouchpadGesture|MagicLeap", meta = (DeprecatedProperty, DeprecationMessage = "Use Touchpad Gesture Events instead."))
-	FVector PositionAndForce;
+	FVector PositionAndForce = FVector(0.0f);
 
 	/**
 	  Speed of gesture. Note that this takes on different meanings depending
@@ -78,7 +78,7 @@ public:
         will be in touchpad distance per second.
 	 */
 	UPROPERTY(BlueprintReadOnly, Category = "TouchpadGesture|MagicLeap", meta = (DeprecatedProperty, DeprecationMessage = "Use Touchpad Gesture Events instead."))
-	float Speed;
+	float Speed = 0.0f;
 
 	/**
 	  For radial gestures, this is the absolute value of the angle. For scroll
@@ -87,7 +87,7 @@ public:
       this distance has a range of [0.0,2.0].
 	 */
 	UPROPERTY(BlueprintReadOnly, Category = "TouchpadGesture|MagicLeap", meta = (DeprecatedProperty, DeprecationMessage = "Use Touchpad Gesture Events instead."))
-	float Distance;
+	float Distance = 0.0f;
 
 	/**
 	  Distance between the two fingers performing the gestures in touchpad
@@ -95,7 +95,7 @@ public:
       this distance has a range of [0.0,2.0].
 	 */
 	UPROPERTY(BlueprintReadOnly, Category = "TouchpadGesture|MagicLeap", meta = (DeprecatedProperty, DeprecationMessage = "Use Touchpad Gesture Events instead."))
-	float FingerGap;
+	float FingerGap = 0.0f;
 
 	/**
 	  For radial gestures, this is the radius of the gesture. The touchpad
@@ -103,11 +103,11 @@ public:
       of [0.0,2.0].
 	 */
 	UPROPERTY(BlueprintReadOnly, Category = "TouchpadGesture|MagicLeap", meta = (DeprecatedProperty, DeprecationMessage = "Use Touchpad Gesture Events instead."))
-	float Radius;
+	float Radius = 0.0f;
 
 	/** Angle from the center of the touchpad to the finger. */
 	UPROPERTY(BlueprintReadOnly, Category = "TouchpadGesture|MagicLeap", meta = (DeprecatedProperty, DeprecationMessage = "Use Touchpad Gesture Events instead."))
-	float Angle;
+	float Angle = 0.0f;
 };
 
 class MAGICLEAPCONTROLLER_API IMagicLeapTouchpadGestures

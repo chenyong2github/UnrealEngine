@@ -15,7 +15,7 @@ struct MAGICLEAP_API FMagicLeapRaycastQueryParams
 public:
 	/** Where the ray is cast from. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Raycast|MagicLeap")
-	FVector Position;
+	FVector Position = FVector(0.0f);
 
 	/** Direction of the ray to fire. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Raycast|MagicLeap")
@@ -35,16 +35,16 @@ public:
 
 	/** The angular width, in degrees, over which the horizonal rays are evenly distributed to create a raycast area. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Raycast|MagicLeap")
-	float HorizontalFovDegrees;
+	float HorizontalFovDegrees = 0.0f;
 
 	/** If true, a ray will terminate when encountering an unobserved area and return a surface or
 	  the ray will continue until it ends or hits an observed surface. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Raycast|MagicLeap")
-	bool CollideWithUnobserved;
+	bool CollideWithUnobserved = false;
 
 	/** User data for this request. The same data will be included in the result for query identification. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Raycast|MagicLeap")
-	int32 UserData;
+	int32 UserData = 0;
 };
 
 /** The states of a raycast result. */
@@ -71,17 +71,17 @@ public:
 	/** The raycast result. If this field is either RequestFailed or NoCollision,
 	  most of the fields in this structure are invalid. */
 	UPROPERTY(BlueprintReadOnly, Category = "Raycast|MagicLeap")
-	EMagicLeapRaycastResultState HitState;
+	EMagicLeapRaycastResultState HitState = EMagicLeapRaycastResultState::RequestFailed;
 
 	/** Where in the world the collision happened. This field is only valid if the state
 	  is either HitUnobserved or HitObserved. */
 	UPROPERTY(BlueprintReadOnly, Category = "Raycast|MagicLeap")
-	FVector HitPoint;
+	FVector HitPoint = FVector(0.0f);
 
 	/** Normal to the surface where the ray collided. This field is only valid if the state
 	  is either HitUnobserved or HitObserved */
 	UPROPERTY(BlueprintReadOnly, Category = "Raycast|MagicLeap")
-	FVector Normal;
+	FVector Normal = FVector(0.0f, 0.0f, 1.0f);
 
 	/** Confidence of the raycast result.
 
@@ -91,11 +91,11 @@ public:
 	  would be very low. This field is only valid if the state is either HitUnobserved or HitObserved.
 	*/
 	UPROPERTY(BlueprintReadOnly, Category = "Raycast|MagicLeap")
-	float Confidence;
+	float Confidence = 0.0f;
 
 	/** The data set in the RaycastQueryParams. This can be used for query identification. */
 	UPROPERTY(BlueprintReadOnly, Category = "Raycast|MagicLeap")
-	int32 UserData;
+	int32 UserData = 0;
 };
 
 /** Creates raycast requests and delegates their result. */

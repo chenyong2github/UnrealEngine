@@ -77,7 +77,7 @@ public:
 	UCapsuleComponent* Capsule { nullptr };
 
 	UPROPERTY(BlueprintReadOnly, Category = "OculusLibrary|HandTracking")
-	EBone BoneId;
+	EBone BoneId = EBone::Wrist_Root;
 };
 
 UCLASS()

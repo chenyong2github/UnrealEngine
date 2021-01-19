@@ -34,7 +34,7 @@ public:
 	TArray<float> AmbientIntensityNits;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Light Estimation|MagicLeap")
-	FTimespan Timestamp;
+	FTimespan Timestamp = FTimespan::Zero();
 };
 
 /**
@@ -49,11 +49,11 @@ struct MAGICLEAPLIGHTESTIMATION_API FMagicLeapLightEstimationColorTemperatureSta
 
 public:
 	UPROPERTY(BlueprintReadOnly, Category = "Light Estimation|MagicLeap")
-	float ColorTemperatureKelvin;
+	float ColorTemperatureKelvin = 0.0f;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Light Estimation|MagicLeap")
-	FLinearColor AmbientColor;
+	FLinearColor AmbientColor = FLinearColor::Black;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Light Estimation|MagicLeap")
-	FTimespan Timestamp;
+	FTimespan Timestamp = FTimespan::Zero();
 };
