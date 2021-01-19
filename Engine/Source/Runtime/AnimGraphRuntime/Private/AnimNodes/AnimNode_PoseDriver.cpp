@@ -225,11 +225,15 @@ void FAnimNode_PoseDriver::Evaluate_AnyThread(FPoseContext& Output)
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Evaluate_AnyThread)
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_PoseDriver_Eval);
 
+	if (!IsLODEnabled(Output.AnimInstanceProxy))
+	{
+		SourcePose.Evaluate(Output);
+		return;
+	}
+
 	FPoseContext SourceData(Output);
 	SourcePose.Evaluate(SourceData);
 
-	if (IsLODEnabled(Output.AnimInstanceProxy))
-	{
 		// Udpate DrivenIDs if needed
 		if (bCachedDrivenIDsAreDirty)
 		{
@@ -447,8 +451,3 @@ void FAnimNode_PoseDriver::Evaluate_AnyThread(FPoseContext& Output)
 		}
 	#endif
 	}
-	else 
-	{
-		Output = SourceData;
-	}
-}
