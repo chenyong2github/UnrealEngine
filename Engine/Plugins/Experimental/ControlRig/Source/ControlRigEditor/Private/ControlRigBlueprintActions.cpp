@@ -152,7 +152,7 @@ UControlRigBlueprint* FControlRigBlueprintActions::CreateControlRigFromSkeletalM
 	if(SkeletalMesh)
 	{
 		Skeleton = SkeletalMesh->GetSkeleton();
-		RefSkeleton = &SkeletalMesh->RefSkeleton;
+		RefSkeleton = &SkeletalMesh->GetRefSkeleton();
 	}
 	else if (Skeleton == nullptr)
 	{
