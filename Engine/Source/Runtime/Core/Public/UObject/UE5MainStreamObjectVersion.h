@@ -82,6 +82,9 @@ struct CORE_API FUE5MainStreamObjectVersion
 		// Fix WorldPartitionActorDesc serialization archive not persistent
 		WorldPartitionActorDescSerializeArchivePersistent,
 
+		// Fix potentially duplicated actors when using ForceExternalActorLevelReference
+		FixForceExternalActorLevelReferenceDuplicates,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1
