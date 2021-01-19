@@ -93,7 +93,7 @@ extern int32 RecursionCounter;
 //
 // Optimized virtual memory allocator.
 //
-class CORE_API FMallocBinned2 final : public FMalloc
+class CORE_API FMallocBinned2 : public FMalloc
 {
 	struct Private;
 
