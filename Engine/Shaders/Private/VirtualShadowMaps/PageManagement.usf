@@ -44,7 +44,7 @@ void CreatePageMapping( uint ShadowMapID, uint MipLevel, uint2 PageAddress, uint
 		InterlockedAdd(OutStatsBuffer[0], 1);
 #endif // VSM_GENERATE_STATS
 
-		if (pPageIndex >= MaxPhysicalPages)
+		if (pPageIndex >= VirtualShadowMap.MaxPhysicalPages)
 		{
 			// We end up here if we're out of physical pages, this means some parts get no physical backing provided.
 			// Post this error condition back to the host somehow!
@@ -57,8 +57,8 @@ void CreatePageMapping( uint ShadowMapID, uint MipLevel, uint2 PageAddress, uint
 
 		// Wrap linear page index into physical 2D space
 		uint2 pPage;
-		pPage.x = pPageIndex  & PhysicalPageRowMask;
-		pPage.y = pPageIndex >> PhysicalPageRowShift;
+		pPage.x = pPageIndex  & VirtualShadowMap.PhysicalPageRowMask;
+		pPage.y = pPageIndex >> VirtualShadowMap.PhysicalPageRowShift;
 
 		OutPageTable[ PageOffset ] = pPage;
 
@@ -164,33 +164,6 @@ void CreatePageMapping( uint ShadowMapID, uint MipLevel, uint2 PageAddress, uint
 	}
 }
 
-uint VirtualShadowMapId;
-uint TargetMipLevel;
-
-/**
- * Kernel to generate identity mapping that maps virtual pixel addresses back to themselves.
- * Run with a Dispatch size of {Level0DimPagesXY / IDENTITY_MAPPING_CS_GROUP_XY, Level0DimPagesXY / IDENTITY_MAPPING_CS_GROUP_XY, MaxMipLevels}
- */
-[numthreads(VSM_DEFAULT_CS_GROUP_XY, VSM_DEFAULT_CS_GROUP_XY, 1)]
-void GenerateIdentityMapping(uint3 PageAddressXY_LevelZ : SV_DispatchThreadID)
-{
-	uint Level = PageAddressXY_LevelZ.z;
-	uint2 PageAddress = PageAddressXY_LevelZ.xy;
-	if (all(PageAddress < CalcLevelDimsPages(Level)))
-	{
-		uint PageTableEntryIndex = CalcPageOffset(VirtualShadowMapId, Level, PageAddress);
-		if (TargetMipLevel == INDEX_NONE || TargetMipLevel == Level)
-		{
-			OutPageTable[PageTableEntryIndex] = PageAddress;
-			OutPageRequestFlags[PageTableEntryIndex] = 1;
-		}
-		else
-		{
-			OutPageTable[PageTableEntryIndex] = uint2(VSM_INVALID_PHYSICAL_PAGE_ADDRESS, VSM_INVALID_PHYSICAL_PAGE_ADDRESS);
-			OutPageRequestFlags[PageTableEntryIndex] = 0;
-		}
-	}
-}
 
 Texture2D<UlongType> VisBuffer64;
 StructuredBuffer<FVirtualShadowMapProjectionShaderData> ShadowMapProjectionData;
@@ -433,7 +406,7 @@ RWStructuredBuffer<uint4> PageRectBoundsOut;
 [numthreads(VSM_DEFAULT_CS_GROUP_X, 1, 1)]
 void InitPageRectBounds(uint3 Index : SV_DispatchThreadID)
 {
-	if (Index.x < VSM_MAX_MIP_LEVELS * NumShadowMaps)
+	if (Index.x < VSM_MAX_MIP_LEVELS * VirtualShadowMap.NumShadowMaps)
 	{
 		PageRectBoundsOut[Index.x] = uint4(VSM_LEVEL0_DIM_PAGES_XY, VSM_LEVEL0_DIM_PAGES_XY, 0, 0);
 	}
@@ -446,7 +419,7 @@ void InitPageRectBounds(uint3 Index : SV_DispatchThreadID)
 void GenerateHierarchicalPageFlags(uint2 ThreadId : SV_DispatchThreadID, uint2 GroupId : SV_GroupID)
 {
 	// early out any overflowing threads.
-	if (ThreadId.x >= PageTableSize)
+	if (ThreadId.x >= VirtualShadowMap.PageTableSize)
 	{
 		return;
 	}
@@ -454,7 +427,7 @@ void GenerateHierarchicalPageFlags(uint2 ThreadId : SV_DispatchThreadID, uint2 G
 	uint PageTableEntryIndex = ThreadId.x;
 	// Use the group ID to ensure the compiler knows it is scalar / uniform
 	uint ShadowMapID = GroupId.y;
-	uint GlobalPageTableEntryIndex = ShadowMapID * PageTableSize + PageTableEntryIndex;
+	uint GlobalPageTableEntryIndex = ShadowMapID * VirtualShadowMap.PageTableSize + PageTableEntryIndex;
 	// If the flag is set, let's get on with it
 
 	uint Flag = PageFlags[GlobalPageTableEntryIndex];
@@ -496,7 +469,7 @@ void GenerateHierarchicalPageFlags(uint2 ThreadId : SV_DispatchThreadID, uint2 G
 			HLevelSizePages >>= 1U;
 			PX >>= 1U;
 			PY >>= 1U;
-			uint HPageFlagOffset = ShadowMapID * HPageTableSize 
+			uint HPageFlagOffset = ShadowMapID * VirtualShadowMap.HPageTableSize
 				+ CalcHPageFlagLevelOffsets(MipLevel)
 				+ CalcLevelOffsets(HMipLevel + MipLevel) 
 				- CalcLevelOffsets(MipLevel + 1U) 
@@ -534,7 +507,7 @@ void CreatePageMappings(uint2 ThreadId : SV_DispatchThreadID, uint2 GroupId : SV
 #if VSM_GENERATE_STATS
 	if (all(ThreadId == 0))
 	{
-		OutStatsBuffer[3] = NumShadowMaps;
+		OutStatsBuffer[3] = VirtualShadowMap.NumShadowMaps;
 	}
 #endif // VSM_GENERATE_STATS
 
@@ -673,8 +646,8 @@ void ClearPhysicalPages( uint3 TileThreadID : SV_GroupThreadID, uint3 TileIndex 
 	}
 #endif // HAS_CACHE_DATA
 
-	const uint PageX = PageIndex & PhysicalPageRowMask;
-	const uint PageY = PageIndex >> PhysicalPageRowShift;
+	const uint PageX = PageIndex & VirtualShadowMap.PhysicalPageRowMask;
+	const uint PageY = PageIndex >> VirtualShadowMap.PhysicalPageRowShift;
 	const uint2 TileOffset = (uint2(PageX, PageY) << uint2(VSM_LOG2_PAGE_SIZE, VSM_LOG2_PAGE_SIZE)) + (uint2(LocalTileX, LocalTileY) << uint2(LOG2_TILE_SIZE, LOG2_TILE_SIZE));
 
 	// Update physical page meta data
@@ -699,18 +672,18 @@ StructuredBuffer<uint> VirtualShadowMapFlags;
 /**
  * Processes all page tables organized as a linear block, page table entries for mip levels are in a consecutive range,
  * so it makes no difference to this process which shadow map or level is being handled.
- * Run with Dispatch size: {NumVirtualShadowMaps * PageTableSize / VSM_DEFAULT_CS_GROUP_X, 1, 1}
+ * Run with Dispatch size: {NumVirtualShadowMaps * VirtualShadowMap.PageTableSize / VSM_DEFAULT_CS_GROUP_X, 1, 1}
  */
 [numthreads(VSM_DEFAULT_CS_GROUP_X, 1, 1)]
 void MarkRenderedPhysicalPages(uint3 PageTableEntryIndex : SV_DispatchThreadID)
 {
 	// Because of launch size rounding we might get here.
-	if (PageTableEntryIndex.x >= NumShadowMaps * PageTableSize)
+	if (PageTableEntryIndex.x >= VirtualShadowMap.NumShadowMaps * VirtualShadowMap.PageTableSize)
 	{
 		return;
 	}
 
-	uint ShadowMapID = PageTableEntryIndex.x / PageTableSize;
+	uint ShadowMapID = PageTableEntryIndex.x / VirtualShadowMap.PageTableSize;
 
 	// This is estupido, should at least use array of IDs to skip all unused ones...
 	if (VirtualShadowMapFlags[ShadowMapID] == 0)
@@ -743,7 +716,7 @@ void InitPhysicalPageMetaData(uint3 Index : SV_DispatchThreadID)
 	MetaData.Age = 0;
 
 	// Because of launch size rounding we might get here.
-	if (Index.x < MaxPhysicalPages)
+	if (Index.x < VirtualShadowMap.MaxPhysicalPages)
 	{
 		PhysicalPageMetaDataOut[Index.x] = MetaData;
 	}

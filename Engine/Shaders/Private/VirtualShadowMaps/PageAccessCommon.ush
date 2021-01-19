@@ -60,19 +60,6 @@ StructuredBuffer<uint> PrevDynamicCasterPageFlags;
 
 
 
-// Set by common parameters
-uint HPageFlagLevelOffsets[VSM_MAX_MIP_LEVELS];
-
-// Size, in entries, of one page table (could be a constant?) Also probably better to stride this over Mip levels such that offsets are more POT(?)
-uint PageTableSize;
-uint HPageTableSize;
-
-uint NumShadowMaps;
-uint MaxPhysicalPages;
-uint PhysicalPageRowMask;
-uint PhysicalPageRowShift;
-
-
 //Buffer containing VSM_ALLOCATED_FLAG for each page that is allocated and optionally | VSM_INVALID_FLAG if it needs to be rendered (not cached)
 StructuredBuffer<uint> PageFlags;
 StructuredBuffer<uint> HPageFlags;
@@ -123,7 +110,7 @@ uint CalcLevelOffsets(uint Level)
 
 uint CalcHPageFlagLevelOffsets(uint Level)
 {
-	return HPageFlagLevelOffsets[Level];
+	return VirtualShadowMap.HPageFlagLevelOffsets[Level];
 }
 
 /**
@@ -131,8 +118,7 @@ uint CalcHPageFlagLevelOffsets(uint Level)
  */
 uint CalcPageTableLevelOffset(uint ShadowMapID, uint Level)
 {
-	// return ShadowMapID * PageTableSize + LevelOffsets[Level];
-	return ShadowMapID * PageTableSize + CalcLevelOffsets(Level);
+	return ShadowMapID * VSM_PAGE_TABLE_SIZE + CalcLevelOffsets(Level);
 }
 
 /**
@@ -152,7 +138,7 @@ uint CalcPageOffset(uint ShadowMapID, uint Level, uint2 PageAddress)
 // Linearlize a physical page address to a linear offset
 uint PhysPageAddressToIndex(uint2 PhysicalPageAddress)
 {
-	return (PhysicalPageAddress.y << PhysicalPageRowShift) + PhysicalPageAddress.x;
+	return (PhysicalPageAddress.y << VirtualShadowMap.PhysicalPageRowShift) + PhysicalPageAddress.x;
 }
 
 bool VirtualToPhysicalTexel(uint ShadowMapID, uint Level, uint2 VirtualTexelAddress, inout uint2 PhysicalTexelAddress)
@@ -218,7 +204,7 @@ bool OverlapsAnyValidPage( uint ShadowMapID, uint MipLevel, int2 ViewPortRectMin
 		// Root level size in pages
 		uint HLevelSizePages = VSM_LEVEL0_DIM_PAGES_XY >> (MipLevel + HMipLevel);
 		
-		int HPageLevelOffset = ShadowMapID * HPageTableSize + CalcHPageFlagLevelOffsets(MipLevel)
+		int HPageLevelOffset = ShadowMapID * VirtualShadowMap.HPageTableSize + CalcHPageFlagLevelOffsets(MipLevel)
 			+ CalcLevelOffsets( HMipLevel + MipLevel)
 			- CalcLevelOffsets( MipLevel + 1U );
 

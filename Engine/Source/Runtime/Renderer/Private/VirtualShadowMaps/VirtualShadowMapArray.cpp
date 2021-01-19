@@ -11,7 +11,9 @@
 #include "VirtualShadowMapCacheManager.h"
 #include "VirtualShadowMapClipmap.h"
 
+IMPLEMENT_STATIC_UNIFORM_BUFFER_SLOT(VirtualShadowMapUbSlot);
 
+IMPLEMENT_STATIC_UNIFORM_BUFFER_STRUCT(FVirtualShadowMapCommonParameters, "VirtualShadowMap", VirtualShadowMapUbSlot);
 
 struct FShadowMapCacheData
 {
@@ -181,6 +183,7 @@ void FVirtualShadowMapArray::SetShaderDefines(FShaderCompilerEnvironment& OutEnv
 	OutEnvironment.SetDefine(TEXT("VSM_VIRTUAL_MAX_RESOLUTION_XY"), FVirtualShadowMap::VirtualMaxResolutionXY);
 	OutEnvironment.SetDefine(TEXT("VSM_INVALID_PHYSICAL_PAGE_ADDRESS"), FVirtualShadowMap::InvalidPhysicalPageAddress);
 	OutEnvironment.SetDefine(TEXT("VSM_RASTER_WINDOW_PAGES"), FVirtualShadowMap::RasterWindowPages);
+	OutEnvironment.SetDefine(TEXT("VSM_PAGE_TABLE_SIZE"), FVirtualShadowMap::PageTableSize);
 	OutEnvironment.SetDefine(TEXT("VSM_CACHE_ALIGNMENT_LEVEL"), FVirtualShadowMapArrayCacheManager::AlignmentLevel);
 	OutEnvironment.SetDefine(TEXT("INDEX_NONE"), INDEX_NONE);
 }
@@ -237,7 +240,7 @@ class FGeneratePageFlagsFromPixelsCS : public FVirtualPageManagementShader
 	using FPermutationDomain = TShaderPermutationDomain<FNaniteDepthBufferDim>;
 	
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_STRUCT_INCLUDE(FVirtualShadowMapCommonParameters, CommonParameters)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FVirtualShadowMapCommonParameters, VirtualSmCommon)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTexturesStruct)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_STRUCT_REF(FForwardLightData, ForwardLightData)
@@ -260,7 +263,7 @@ class FGenerateHierarchicalPageFlagsCS : public FVirtualPageManagementShader
 	SHADER_USE_PARAMETER_STRUCT(FGenerateHierarchicalPageFlagsCS, FVirtualPageManagementShader)
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_STRUCT_INCLUDE(FVirtualShadowMapCommonParameters, CommonParameters)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FVirtualShadowMapCommonParameters, VirtualSmCommon)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, OutHPageFlags)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< uint >, PageFlags)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<FIntVector4>, PageRectBoundsOut)
@@ -275,7 +278,7 @@ class FInitPhysicalPageMetaData : public FVirtualPageManagementShader
 	SHADER_USE_PARAMETER_STRUCT(FInitPhysicalPageMetaData, FVirtualPageManagementShader )
 
 	BEGIN_SHADER_PARAMETER_STRUCT( FParameters, )
-		SHADER_PARAMETER_STRUCT_INCLUDE(FVirtualShadowMapCommonParameters, CommonParameters)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FVirtualShadowMapCommonParameters, VirtualSmCommon)
 		SHADER_PARAMETER_RDG_BUFFER_UAV( RWStructuredBuffer< FPhysicalPageMetaData >, PhysicalPageMetaDataOut)
 	END_SHADER_PARAMETER_STRUCT()
 };
@@ -292,7 +295,7 @@ class FCreatePageMappingsCS : public FVirtualPageManagementShader
 	using FPermutationDomain = TShaderPermutationDomain<FHasCacheDataDim, FGenerateStatsDim>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_STRUCT_INCLUDE( FVirtualShadowMapCommonParameters,			CommonParameters )
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FVirtualShadowMapCommonParameters, VirtualSmCommon)
 		SHADER_PARAMETER_RDG_BUFFER_SRV( StructuredBuffer< uint >,					PageRequestFlags )
 		SHADER_PARAMETER_RDG_BUFFER_UAV( RWStructuredBuffer< uint >,				CoverageSummaryInOut )
 		SHADER_PARAMETER_RDG_BUFFER_UAV( RWStructuredBuffer< uint >,				AllocatedPagesOffset )
@@ -327,7 +330,7 @@ class FClearPhysicalPagesCS : public FVirtualPageManagementShader
 	using FPermutationDomain = TShaderPermutationDomain<FHasCacheDataDim>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_STRUCT_INCLUDE( FVirtualShadowMapCommonParameters, CommonParameters )
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FVirtualShadowMapCommonParameters, VirtualSmCommon)
 
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<uint>, PhysicalPagesTexture)
 		SHADER_PARAMETER_RDG_BUFFER(Buffer<uint>, IndirectArgs)
@@ -370,7 +373,7 @@ void FVirtualShadowMapArray::ClearPhysicalMemory(FRDGBuilder& GraphBuilder, FRDG
 
 		{
 			FClearPhysicalPagesCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FClearPhysicalPagesCS::FParameters>();
-			PassParameters->CommonParameters = CommonParameters;
+			PassParameters->VirtualSmCommon = GetCommonUniformBuffer(GraphBuilder);
 			PassParameters->PhysicalPagesTexture = GraphBuilder.CreateUAV(PhysicalTexture);
 			PassParameters->IndirectArgs = IndirectArgsBuffer;
 			bool bCacheDataAvailable = VirtualShadowMapArrayCacheManager && VirtualShadowMapArrayCacheManager->PrevPhysicalPageMetaData;
@@ -404,7 +407,7 @@ class FMarkRenderedPhysicalPagesCS : public FVirtualPageManagementShader
 	SHADER_USE_PARAMETER_STRUCT(FMarkRenderedPhysicalPagesCS, FVirtualPageManagementShader)
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_STRUCT_INCLUDE(FVirtualShadowMapCommonParameters, CommonParameters)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FVirtualShadowMapCommonParameters, VirtualSmCommon)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< uint >, VirtualShadowMapFlags)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< uint2 >, PageTable)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer< FPhysicalPageMetaData >, InOutPhysicalPageMetaData)
@@ -431,7 +434,7 @@ void FVirtualShadowMapArray::MarkPhysicalPagesRendered(FRDGBuilder& GraphBuilder
 
 
 		FMarkRenderedPhysicalPagesCS::FParameters* PassParameters = GraphBuilder.AllocParameters< FMarkRenderedPhysicalPagesCS::FParameters >();
-		PassParameters->CommonParameters = CommonParameters;
+		PassParameters->VirtualSmCommon = GetCommonUniformBuffer(GraphBuilder);
 		PassParameters->VirtualShadowMapFlags = GraphBuilder.CreateSRV(VirtualShadowMapFlagsRDG);
 		PassParameters->PageTable = GraphBuilder.CreateSRV(PageTableRDG);
 		PassParameters->InOutPhysicalPageMetaData = GraphBuilder.CreateUAV(PhysicalPageMetaDataRDG);
@@ -471,30 +474,11 @@ class FInitPageRectBoundsCS : public FVirtualPageManagementShader
 	SHADER_USE_PARAMETER_STRUCT(FInitPageRectBoundsCS, FVirtualPageManagementShader)
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_STRUCT_INCLUDE(FVirtualShadowMapCommonParameters, CommonParameters)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FVirtualShadowMapCommonParameters, VirtualSmCommon)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<FIntVector4>, PageRectBoundsOut)
 	END_SHADER_PARAMETER_STRUCT()
 };
 IMPLEMENT_GLOBAL_SHADER(FInitPageRectBoundsCS, "/Engine/Private/VirtualShadowMaps/PageManagement.usf", "InitPageRectBounds", SF_Compute);
-
-
-static void AddInitPageRectsPass(FRDGBuilder& GraphBuilder, const FVirtualShadowMapCommonParameters &CommonParameters, FRDGBufferRef &PageRectBoundsRDG)
-{
-	FInitPageRectBoundsCS::FParameters* PassParameters = GraphBuilder.AllocParameters< FInitPageRectBoundsCS::FParameters >();
-	PassParameters->CommonParameters = CommonParameters;
-	PassParameters->PageRectBoundsOut = GraphBuilder.CreateUAV(PageRectBoundsRDG);
-
-	const uint32 NumPageRects = CommonParameters.NumShadowMaps * FVirtualShadowMap::MaxMipLevels;
-	auto ComputeShader = GetGlobalShaderMap(GMaxRHIFeatureLevel)->GetShader<FInitPageRectBoundsCS>();
-
-	FComputeShaderUtils::AddPass(
-		GraphBuilder,
-		RDG_EVENT_NAME("InitPageRectBounds"),
-		ComputeShader,
-		PassParameters,
-		FIntVector(FMath::DivideAndRoundUp(NumPageRects, FInitPageRectBoundsCS::DefaultCSGroupX), 1, 1)
-	);
-}
 
 
 void FVirtualShadowMapArray::BuildPageAllocations(
@@ -541,7 +525,21 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 
 		const uint32 NumPageRects = CommonParameters.NumShadowMaps * FVirtualShadowMap::MaxMipLevels;
 		PageRectBoundsRDG = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(FIntVector4), NumPageRects), TEXT("PageRectBounds"));
-		AddInitPageRectsPass(GraphBuilder, CommonParameters, PageRectBoundsRDG);
+		{
+			FInitPageRectBoundsCS::FParameters* PassParameters = GraphBuilder.AllocParameters< FInitPageRectBoundsCS::FParameters >();
+			PassParameters->VirtualSmCommon = GetCommonUniformBuffer(GraphBuilder);
+			PassParameters->PageRectBoundsOut = GraphBuilder.CreateUAV(PageRectBoundsRDG);
+
+			auto ComputeShader = GetGlobalShaderMap(GMaxRHIFeatureLevel)->GetShader<FInitPageRectBoundsCS>();
+
+			FComputeShaderUtils::AddPass(
+				GraphBuilder,
+				RDG_EVENT_NAME("InitPageRectBounds"),
+				ComputeShader,
+				PassParameters,
+				FIntVector(FMath::DivideAndRoundUp(NumPageRects, FInitPageRectBoundsCS::DefaultCSGroupX), 1, 1)
+			);
+		}
 
 		// Store shadow map projection data for each virtual shadow map
 		TArray<FVirtualShadowMapProjectionShaderData, SceneRenderingAllocator> ShadowMapProjectionData;
@@ -670,7 +668,7 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 				PermutationVector.Set<FGeneratePageFlagsFromPixelsCS::FNaniteDepthBufferDim>(NaniteRasterResult.VisBuffer64 != nullptr && !bPostBasePass);			
 
 				FGeneratePageFlagsFromPixelsCS::FParameters* PassParameters = GraphBuilder.AllocParameters< FGeneratePageFlagsFromPixelsCS::FParameters >();
-				PassParameters->CommonParameters = CommonParameters;
+				PassParameters->VirtualSmCommon = GetCommonUniformBuffer(GraphBuilder);
 
 				PassParameters->SceneTexturesStruct = SceneTextures.UniformBuffer;
 				PassParameters->bPostBasePass = bPostBasePass;
@@ -720,7 +718,7 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 		{
 			FInitPhysicalPageMetaData::FParameters* PassParameters = GraphBuilder.AllocParameters< FInitPhysicalPageMetaData::FParameters >();
 			PassParameters->PhysicalPageMetaDataOut = GraphBuilder.CreateUAV(PhysicalPageMetaDataRDG);
-			PassParameters->CommonParameters = CommonParameters;
+			PassParameters->VirtualSmCommon = GetCommonUniformBuffer(GraphBuilder);
 
 			auto ComputeShader = Views[0].ShaderMap->GetShader< FInitPhysicalPageMetaData >();
 			FComputeShaderUtils::AddPass(
@@ -741,7 +739,7 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 			
 			// Run a pass to create page mappings
 			FCreatePageMappingsCS::FParameters* PassParameters = GraphBuilder.AllocParameters< FCreatePageMappingsCS::FParameters >();
-			PassParameters->CommonParameters = CommonParameters;
+			PassParameters->VirtualSmCommon = GetCommonUniformBuffer(GraphBuilder);
 
 			PassParameters->PageRequestFlags		= GraphBuilder.CreateSRV(PageRequestFlagsRDG );
 			PassParameters->CoverageSummaryInOut	= GraphBuilder.CreateUAV( CoverageSummary );
@@ -776,7 +774,7 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 		{
 			// Run pass building hierarchical page flags to make culling acceptable performance.
 			FGenerateHierarchicalPageFlagsCS::FParameters* PassParameters = GraphBuilder.AllocParameters< FGenerateHierarchicalPageFlagsCS::FParameters >();
-			PassParameters->CommonParameters = CommonParameters;
+			PassParameters->VirtualSmCommon = GetCommonUniformBuffer(GraphBuilder);
 			PassParameters->OutHPageFlags = GraphBuilder.CreateUAV(HPageFlagsRDG);
 			PassParameters->PageFlags = GraphBuilder.CreateSRV(PageFlagsRDG);
 			PassParameters->PageRectBoundsOut = GraphBuilder.CreateUAV(PageRectBoundsRDG);
@@ -795,7 +793,7 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 
 void FVirtualShadowMapArray::SetProjectionParameters(FRDGBuilder& GraphBuilder, FVirtualShadowMapSamplingParameters& OutParameters) const
 {
-	OutParameters.CommonParameters = CommonParameters;
+	OutParameters.VirtualSmCommon = GetCommonUniformBuffer(GraphBuilder);
 	OutParameters.PageTable = GraphBuilder.CreateSRV(PageTableRDG);
 	OutParameters.PhysicalPagePool = PhysicalPagePoolRDG;
 	OutParameters.VirtualShadowMapProjectionData = GraphBuilder.CreateSRV(ShadowMapProjectionDataRDG);
@@ -810,7 +808,7 @@ class FDebugVisualizeVirtualSmCS : public FVirtualPageManagementShader
 	using FPermutationDomain = TShaderPermutationDomain<FHasCacheDataDim>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_STRUCT_INCLUDE(FVirtualShadowMapCommonParameters, CommonParameters)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FVirtualShadowMapCommonParameters, VirtualSmCommon)
 		SHADER_PARAMETER(uint32, DebugTargetWidth)
 		SHADER_PARAMETER(uint32, DebugTargetHeight)
 		SHADER_PARAMETER(uint32, BorderWidth)
@@ -863,7 +861,7 @@ void FVirtualShadowMapArray::RenderDebugInfo(FRDGBuilder& GraphBuilder, FVirtual
 			TEXT("VirtSmDebug"));
 
 		FDebugVisualizeVirtualSmCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FDebugVisualizeVirtualSmCS::FParameters>();
-		PassParameters->CommonParameters = CommonParameters;
+		PassParameters->VirtualSmCommon = GetCommonUniformBuffer(GraphBuilder);
 
 		PassParameters->PageFlags			= GraphBuilder.CreateSRV( PageFlagsRDG );
 		PassParameters->HPageFlags			= GraphBuilder.CreateSRV( HPageFlagsRDG );
@@ -910,7 +908,7 @@ class FVirtualSmPrintStatsCS : public FVirtualPageManagementShader
 	SHADER_USE_PARAMETER_STRUCT(FVirtualSmPrintStatsCS, FVirtualPageManagementShader)
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_STRUCT_INCLUDE(FVirtualShadowMapCommonParameters, CommonParameters)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FVirtualShadowMapCommonParameters, VirtualSmCommon)
 		SHADER_PARAMETER_STRUCT_INCLUDE( ShaderPrint::FShaderParameters, ShaderPrintStruct )
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< uint >, InStatsBuffer)
 	END_SHADER_PARAMETER_STRUCT()
@@ -930,7 +928,7 @@ void FVirtualShadowMapArray::PrintStats(FRDGBuilder& GraphBuilder, const FViewIn
 
 			ShaderPrint::SetParameters(GraphBuilder, View, PassParameters->ShaderPrintStruct);
 			PassParameters->InStatsBuffer = GraphBuilder.CreateSRV(StatsBufferRDG);
-			PassParameters->CommonParameters = CommonParameters;
+			PassParameters->VirtualSmCommon = GetCommonUniformBuffer(GraphBuilder);
 
 			auto ComputeShader = View.ShaderMap->GetShader<FVirtualSmPrintStatsCS>();
 

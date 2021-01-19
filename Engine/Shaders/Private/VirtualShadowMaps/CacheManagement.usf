@@ -43,7 +43,7 @@ void VirtualSmInvalidateInstancePagesCS(
 	{
 		FInstanceSceneData InstanceData = GetInstanceData(InstanceId, InstanceDataSOAStride);
 
-		for (uint ShadowMapDataIndex = 0; ShadowMapDataIndex < NumShadowMaps; ++ShadowMapDataIndex)
+		for (uint ShadowMapDataIndex = 0; ShadowMapDataIndex < VirtualShadowMap.NumShadowMaps; ++ShadowMapDataIndex)
 		{
 			// 1. Load cached projection data
 			FVirtualShadowMapProjectionShaderData ProjectionData = ShadowMapProjectionData[ShadowMapDataIndex];

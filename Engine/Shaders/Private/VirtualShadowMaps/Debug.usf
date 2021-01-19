@@ -114,7 +114,7 @@ void DebugVisualizeVirtualSmCS(uint2 OutputPixel : SV_DispatchThreadID)
 
 	uint2 PageAddress = uint2(InputPixel.x - Offset, InputPixel.y % (CalcLevelDimsPages(0) + BorderWidth));
 
-	if (all(PageAddress - BorderWidth < CalcLevelDimsPages(MipLevel)) && VirtualShadowMapId < NumShadowMaps)
+	if (all(PageAddress - BorderWidth < CalcLevelDimsPages(MipLevel)) && VirtualShadowMapId < VirtualShadowMap.NumShadowMaps)
 	{
 		PageAddress -= BorderWidth;
 		if (DebugMethod >= 1 && DebugMethod <= 2)
