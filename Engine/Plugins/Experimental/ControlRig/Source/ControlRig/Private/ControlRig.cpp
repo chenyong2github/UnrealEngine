@@ -2060,6 +2060,26 @@ FRigVMExternalVariable UControlRig::GetExternalVariableFromDescription(const FBP
 
 #endif // WITH_EDITOR
 
+void UControlRig::SetBoneInitialTransformsFromSkeletalMesh(USkeletalMesh* InSkeletalMesh)
+{
+	check(InSkeletalMesh);
+	SetBoneInitialTransformsFromRefSkeleton(InSkeletalMesh->RefSkeleton);
+}
+
+void UControlRig::SetBoneInitialTransformsFromRefSkeleton(const FReferenceSkeleton& InReferenceSkeleton)
+{
+	for (const FRigBone& Bone : GetBoneHierarchy())
+	{
+		int32 BoneIndex = InReferenceSkeleton.FindBoneIndex(Bone.Name);
+		if (BoneIndex != INDEX_NONE)
+		{
+			FTransform LocalInitialTransform = InReferenceSkeleton.GetRefBonePose()[BoneIndex];
+			GetBoneHierarchy().SetInitialLocalTransform(Bone.Index, LocalInitialTransform);
+		}
+	}
+	bResetInitialTransformsBeforeSetup = false;
+}
+
 #undef LOCTEXT_NAMESPACE
 
 
