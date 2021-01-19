@@ -61,7 +61,7 @@ class UMaterialExpressionStrataSlabBSDF : public UMaterialExpression
 	// STRATA_TODO: edge or F82 EdgeColor?
 
 	/**
-	 * Controls how rough the Material is. Roughness of 0 (smooth) is a mirror reflection and 1 (rough) is completely matte or diffuse. When using anisotropy, it is the roughness used along the Tangent axis. (type = float, unit = unitless, defaults to 0)
+	 * Controls how rough the Material is. Roughness of 0 (smooth) is a mirror reflection and 1 (rough) is completely matte or diffuse. When using anisotropy, it is the roughness used along the Tangent axis. (type = float, unit = unitless, defaults to 0.5)
 	 */
 	UPROPERTY()
 	FExpressionInput RoughnessX;
@@ -204,7 +204,7 @@ class UMaterialExpressionStrataUnlitBSDF : public UMaterialExpression
 	* Emissive (type = float3, unit = Luminance, default = 0)
 	*/
 	UPROPERTY()
-	FExpressionInput Emissive;
+	FExpressionInput EmissiveColor;
 
 	/**
 	 * The amount of transmitted light from the back side of the surface to the front side of the surface ()

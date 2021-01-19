@@ -19104,7 +19104,8 @@ int32 UMaterialExpressionSingleLayerWaterMaterialOutput::Compile(class FMaterial
 {
 	int32 CodeInput = INDEX_NONE;
 
-	if (!ScatteringCoefficients.IsConnected() && !AbsorptionCoefficients.IsConnected() && !PhaseG.IsConnected())
+	if (!ScatteringCoefficients.IsConnected() && !AbsorptionCoefficients.IsConnected() && !PhaseG.IsConnected()
+		&& CONVERT_MATERIAL_TO_STRATA_ON_LOAD == 0)
 	{
 		Compiler->Error(TEXT("No inputs to Single Layer Water Material."));
 	}
@@ -19669,7 +19670,7 @@ int32 UMaterialExpressionStrataSlabBSDF::Compile(class FMaterialCompiler* Compil
 	int32 TangentCodeChunk = CompileWithDefaultTangentWS(Compiler, Tangent, &bDefaultTangentIsUsed);
 	uint8 SharedNormalIndex = bDefaultTangentIsUsed ? StrataCompilationInfoCreateSharedNormal(Compiler, NormalCodeChunk) : StrataCompilationInfoCreateSharedNormal(Compiler, NormalCodeChunk, TangentCodeChunk);
 
-	int32 RoughnessXCodeChunk = CompileWithDefaultFloat1(Compiler, RoughnessX, 0.0f);
+	int32 RoughnessXCodeChunk = CompileWithDefaultFloat1(Compiler, RoughnessX, 0.5f);
 	// If not plugged in, RoughnessYCodeChunk is set to RoughnessXCodeChunk to get an isotropic behavior
 	int32 RoughnessYCodeChunk = CompileWithDefaultCodeChunk(Compiler, RoughnessY, RoughnessXCodeChunk);
 
@@ -19982,7 +19983,7 @@ UMaterialExpressionStrataUnlitBSDF::UMaterialExpressionStrataUnlitBSDF(const FOb
 int32 UMaterialExpressionStrataUnlitBSDF::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
 {
 	int32 OutputCodeChunk = Compiler->StrataUnlitBSDF(
-		CompileWithDefaultFloat3(Compiler, Emissive, 0.0f, 0.0f, 0.0f),
+		CompileWithDefaultFloat3(Compiler, EmissiveColor, 0.0f, 0.0f, 0.0f),
 		CompileWithDefaultFloat3(Compiler, TransmittanceColor, 1.0f, 1.0f, 1.0f));
 
 	uint8 FakeSharedNormalIndex = 0;

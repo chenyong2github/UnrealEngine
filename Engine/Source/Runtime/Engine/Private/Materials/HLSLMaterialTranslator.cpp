@@ -914,7 +914,9 @@ bool FHLSLMaterialTranslator::Translate()
 			{
 				Errorf(TEXT("SingleLayerWater materials cannot be combined with other shading models.")); // Simply untested for now
 			}
-			if (Material->GetMaterialInterface() && !Material->GetMaterialInterface()->GetMaterial()->HasAnyExpressionsInMaterialAndFunctionsOfType<UMaterialExpressionSingleLayerWaterMaterialOutput>())
+			if (Material->GetMaterialInterface() && !Material->GetMaterialInterface()->GetMaterial()->HasAnyExpressionsInMaterialAndFunctionsOfType<UMaterialExpressionSingleLayerWaterMaterialOutput>()
+				&& CONVERT_MATERIAL_TO_STRATA_ON_LOAD == 0
+				)
 			{
 				Errorf(TEXT("SingleLayerWater materials requires the use of SingleLayerWaterMaterial output node."));
 			}

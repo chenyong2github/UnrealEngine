@@ -1198,6 +1198,7 @@ private:
 
 	void BackwardsCompatibilityInputConversion();
 	void BackwardsCompatibilityVirtualTextureOutputConversion();
+	void ConvertMaterialToStrataMaterial();
 
 	/** Handles setting up an annotation for this object if a flag has changed value */
 	void MarkUsageFlagDirty(EMaterialUsage Usage, bool CurrentValue, bool NewValue);
