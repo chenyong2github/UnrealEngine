@@ -287,6 +287,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
 	TArray<URigVMNode*> ExpandLibraryNode(const FName& InNodeName, bool bSetupUndoRedo = true);
 
+	// Turns a collapse node into a function node
+	UFUNCTION(BlueprintCallable, Category = RigVMController)
+	FName PromoteCollapseNodeToFunctionReferenceNode(const FName& InNodeName, bool bSetupUndoRedo = true);
+
+	// Turns a collapse node into a function node
+	UFUNCTION(BlueprintCallable, Category = RigVMController)
+	FName PromoteFunctionReferenceNodeToCollapseNode(const FName& InNodeName, bool bSetupUndoRedo = true);
+
 #endif
 
 	// Removes a node from the graph
@@ -578,6 +586,9 @@ private:
 	static void ForEveryPinRecursively(URigVMNode* InNode, TFunction<void(URigVMPin*)> OnEachPinFunction);
 	URigVMCollapseNode* CollapseNodes(const TArray<URigVMNode*>& InNodes, const FString& InCollapseNodeName, bool bSetupUndoRedo);
 	TArray<URigVMNode*> ExpandLibraryNode(URigVMLibraryNode* InNode, bool bSetupUndoRedo);
+	URigVMFunctionReferenceNode* PromoteCollapseNodeToFunctionReferenceNode(URigVMCollapseNode* InCollapseNode, bool bSetupUndoRedo);
+	URigVMCollapseNode* PromoteFunctionReferenceNodeToCollapseNode(URigVMFunctionReferenceNode* InFunctionRefNode, bool bSetupUndoRedo);
+
 	void RefreshFunctionPins(URigVMNode* InNode, bool bNotify = true);
 
 	struct FPinState
