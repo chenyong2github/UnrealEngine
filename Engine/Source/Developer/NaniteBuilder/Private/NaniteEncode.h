@@ -6,6 +6,7 @@
 
 #define USE_CONSTRAINED_CLUSTERS		1	// must match define in NaniteDataDecode.ush
 											// Enable to constrain clusters to no more than 256 vertices and no index references outside of trailing window of CONSTRAINED_CLUSTER_CACHE_SIZE vertices.
+#define USE_UNCOMPRESSED_VERTEX_DATA	0	// must match define in NaniteDataDecode.ush
 
 struct FBounds;
 namespace Nanite

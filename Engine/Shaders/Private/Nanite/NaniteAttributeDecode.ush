@@ -231,6 +231,13 @@ FNaniteAttributeData GetAttributeData(
 	const uint MaxAttributeBits = CalculateMaxAttributeBits(NumTexCoordInterpolators);
 
 	// Unpack normal
+#if USE_UNCOMPRESSED_VERTEX_DATA
+	uint3 ReadOffset = AttributeDataOffset + TriIndices * Cluster.BitsPerAttribute / 8;
+	float3 TangentZ0 = asfloat(ClusterPageData.Load3(ReadOffset.x));
+	float3 TangentZ1 = asfloat(ClusterPageData.Load3(ReadOffset.y));
+	float3 TangentZ2 = asfloat(ClusterPageData.Load3(ReadOffset.z));
+	ReadOffset += 12;
+#else
 	FBitStreamReaderState AttributeStream0 = BitStreamReader_Create_Aligned(ClusterPageData, AttributeDataOffset, TriIndices.x * Cluster.BitsPerAttribute, MaxAttributeBits);
 	FBitStreamReaderState AttributeStream1 = BitStreamReader_Create_Aligned(ClusterPageData, AttributeDataOffset, TriIndices.y * Cluster.BitsPerAttribute, MaxAttributeBits);
 	FBitStreamReaderState AttributeStream2 = BitStreamReader_Create_Aligned(ClusterPageData, AttributeDataOffset, TriIndices.z * Cluster.BitsPerAttribute, MaxAttributeBits);
@@ -242,19 +249,27 @@ FNaniteAttributeData GetAttributeData(
 	float3 TangentZ0 = UnpackNormal(NormalBits0, NORMAL_QUANTIZATION_BITS);
 	float3 TangentZ1 = UnpackNormal(NormalBits1, NORMAL_QUANTIZATION_BITS);
 	float3 TangentZ2 = UnpackNormal(NormalBits2, NORMAL_QUANTIZATION_BITS);
+#endif
 	float3 TangentZ = normalize(Barycentrics.UVW.x * TangentZ0 + Barycentrics.UVW.y * TangentZ1 + Barycentrics.UVW.z * TangentZ2);
 
 	// Decode vertex color
 	// This needs to happen even if INTERPOLATE_VERTEX_COLOR is not defined as the data might be there regardless of what the shader needs.
 	// When INTERPOLATE_VERTEX_COLOR is not defined, the results are not used and the code mostly disappears.
+	AttributeData.UnMirrored = 1.0f;
+
+#if USE_UNCOMPRESSED_VERTEX_DATA
+	uint4 Color0 = UnpackToUint4(ClusterPageData.Load(ReadOffset.x), 8);
+	uint4 Color1 = UnpackToUint4(ClusterPageData.Load(ReadOffset.y), 8);
+	uint4 Color2 = UnpackToUint4(ClusterPageData.Load(ReadOffset.z), 8);
+	ReadOffset += 4;
+	AttributeData.VertexColor = (Barycentrics.UVW.x * float4(Color0) + Barycentrics.UVW.y * float4(Color1) + Barycentrics.UVW.z * float4(Color2)) * (1.0f / 255.0f);
+#else
 	uint4 NumComponentBits = UnpackToUint4(Cluster.ColorBits, 4);
 	uint4 ColorDelta0 = BitStreamReader_Read4(AttributeStream0, NumComponentBits, MAX_COLOR_QUANTIZATION_BITS);
 	uint4 ColorDelta1 = BitStreamReader_Read4(AttributeStream1, NumComponentBits, MAX_COLOR_QUANTIZATION_BITS);
 	uint4 ColorDelta2 = BitStreamReader_Read4(AttributeStream2, NumComponentBits, MAX_COLOR_QUANTIZATION_BITS);
 
-	AttributeData.UnMirrored = 1.0f;
 	AttributeData.VertexColor = float4(1.0f, 1.0f, 1.0f, 1.0f);
-
 	if (Cluster.ColorMode != VERTEX_COLOR_MODE_WHITE)
 	{
 		float4 ColorMin = float4(UnpackByte0(Cluster.ColorMin), UnpackByte1(Cluster.ColorMin), UnpackByte2(Cluster.ColorMin), UnpackByte3(Cluster.ColorMin));
@@ -267,6 +282,7 @@ FNaniteAttributeData GetAttributeData(
 			AttributeData.VertexColor = ColorMin * (1.0f / 255.0f);
 		}
 	}
+#endif
 
 	if (NumTexCoordInterpolators > 0)
 	{
@@ -276,6 +292,12 @@ FNaniteAttributeData GetAttributeData(
 			// Protect against case where Nanite max UV count is lower than what the material may define.
 			if (TexCoordIndex < MAX_NANITE_UVS)
 			{
+#if USE_UNCOMPRESSED_VERTEX_DATA
+				float2 TexCoord0 = asfloat(ClusterPageData.Load2(ReadOffset.x));
+				float2 TexCoord1 = asfloat(ClusterPageData.Load2(ReadOffset.y));
+				float2 TexCoord2 = asfloat(ClusterPageData.Load2(ReadOffset.z));
+				ReadOffset += 8;
+#else
 				uint2 UVPrec = uint2(BitFieldExtractU32(Cluster.UV_Prec, 4, TexCoordIndex * 8), BitFieldExtractU32(Cluster.UV_Prec, 4, TexCoordIndex * 8 + 4));
 
 				uint2 Bits0_UV = BitStreamReader_Read2(AttributeStream0, UVPrec, MAX_TEXCOORD_QUANTIZATION_BITS);
@@ -286,6 +308,7 @@ FNaniteAttributeData GetAttributeData(
 				float2 TexCoord0 = UnpackTexCoord(Bits0_UV, UVRange);
 				float2 TexCoord1 = UnpackTexCoord(Bits1_UV, UVRange);
 				float2 TexCoord2 = UnpackTexCoord(Bits2_UV, UVRange);
+#endif
 
 				float2 TexCoord10 = TexCoord1 - TexCoord0;
 				float2 TexCoord20 = TexCoord2 - TexCoord0;

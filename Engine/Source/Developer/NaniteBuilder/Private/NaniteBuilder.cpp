@@ -66,7 +66,9 @@ const FString& FBuilderModule::GetVersionString() const
 
 	if (VersionString.IsEmpty())
 	{
-		VersionString = FString::Printf(TEXT("%s%s"), NANITE_DERIVEDDATA_VER, USE_CONSTRAINED_CLUSTERS ? TEXT("_CONSTRAINED") : TEXT(""));
+		VersionString = FString::Printf(TEXT("%s%s%s"), NANITE_DERIVEDDATA_VER,
+										USE_CONSTRAINED_CLUSTERS ? TEXT("_CONSTRAINED") : TEXT(""),
+										USE_UNCOMPRESSED_VERTEX_DATA ? TEXT("_UNCOMPRESSED") : TEXT(""));
 	}
 
 	return VersionString;

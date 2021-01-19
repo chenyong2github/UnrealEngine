@@ -587,7 +587,6 @@ static void PackCluster(Nanite::FPackedCluster& OutCluster, const Nanite::FClust
 	OutCluster.Flags					= NANITE_CLUSTER_FLAG_LEAF;
 	
 	// 6
-	check(EncodingInfo.BitsPerAttribute < 1024);
 	check(NumTexCoords <= MAX_NANITE_UVS);
 	static_assert(MAX_NANITE_UVS <= 4, "UV_Prev encoding only supports up to 4 channels");
 
@@ -893,15 +892,35 @@ static void CalculateEncodingInfo(FEncodingInfo& Info, const Nanite::FCluster& C
 	const uint32 NumClusterVerts = Cluster.NumVerts;
 	const uint32 NumClusterTris = Cluster.NumTris;
 
+	FMemory::Memzero(Info);
+
 	// Write triangles indices. Indices are stored in a dense packed bitstream using ceil(log2(NumClusterVerices)) bits per index. The shaders implement unaligned bitstream reads to support this.
 	const uint32 BitsPerIndex = NumClusterVerts > 1 ? (FGenericPlatformMath::FloorLog2(NumClusterVerts - 1) + 1) : 0;
-	
-	FMemory::Memzero(Info);
+	const uint32 BitsPerTriangle = BitsPerIndex + 2 * 5;	// Base index + two 5-bit offsets
 	Info.BitsPerIndex = BitsPerIndex;
+
+	FPageSections& GpuSizes = Info.GpuSizes;
+	GpuSizes.Cluster = sizeof(FPackedCluster);
+	GpuSizes.MaterialTable = CalcMaterialTableSize(Cluster) * sizeof(uint32);
+	GpuSizes.DecodeInfo = NumTexCoords * sizeof(FUVRange);
+	GpuSizes.Index = (NumClusterTris * BitsPerTriangle + 31) / 32 * 4;
+
+#if USE_UNCOMPRESSED_VERTEX_DATA
+	const uint32 AttribBytesPerVertex = (3 * sizeof(float) + sizeof(uint32) + NumTexCoords * 2 * sizeof(float));
+
+	Info.BitsPerAttribute = AttribBytesPerVertex * 8;
+	Info.ColorMin = FIntVector4(0, 0, 0, 0);
+	Info.ColorBits = FIntVector4(8, 8, 8, 8);
+	Info.ColorMode = VERTEX_COLOR_MODE_VARIABLE;
+	Info.UVPrec = 0;
+
+	GpuSizes.Position = NumClusterVerts * 3 * sizeof(float);
+	GpuSizes.Attribute = NumClusterVerts * AttribBytesPerVertex;
+#else
 	Info.BitsPerAttribute = 2 * NORMAL_QUANTIZATION_BITS;
 
 	check(NumClusterVerts > 0);
-	bool bIsLeaf = (Cluster.GeneratingGroupIndex == INVALID_GROUP_INDEX);
+	const bool bIsLeaf = (Cluster.GeneratingGroupIndex == INVALID_GROUP_INDEX);
 
 	// Vertex colors
 	Info.ColorMode = VERTEX_COLOR_MODE_WHITE;
@@ -1053,15 +1072,9 @@ static void CalculateEncodingInfo(FEncodingInfo& Info, const Nanite::FCluster& C
 		Info.BitsPerAttribute += TexCoordBitsU + TexCoordBitsV;
 	}
 
-	const uint32 BitsPerTriangle = BitsPerIndex + 2 * 5;	// Base index + two 5-bit offsets
-
-	FPageSections& GpuSizes	= Info.GpuSizes;
-	GpuSizes.Cluster		= sizeof(FPackedCluster);
-	GpuSizes.MaterialTable	= CalcMaterialTableSize(Cluster) * sizeof(uint32);
-	GpuSizes.DecodeInfo		= NumTexCoords * sizeof(FUVRange);
-	GpuSizes.Index			= (NumClusterTris * BitsPerTriangle + 31) / 32 * 4;
-	GpuSizes.Position		= (NumClusterVerts * 3 * POSITION_QUANTIZATION_BITS + 31) / 32 * 4;
-	GpuSizes.Attribute		= (NumClusterVerts * Info.BitsPerAttribute + 31) / 32 * 4;
+	GpuSizes.Position = (NumClusterVerts * 3 * POSITION_QUANTIZATION_BITS + 31) / 32 * 4;
+	GpuSizes.Attribute = (NumClusterVerts * Info.BitsPerAttribute + 31) / 32 * 4;
+#endif
 }
 
 static void CalculateEncodingInfos(TArray<FEncodingInfo>& EncodingInfos, const TArray<Nanite::FCluster>& Clusters, bool bHasColors, uint32 NumTexCoords)
@@ -1086,9 +1099,14 @@ static void EncodeGeometryData(	const uint32 LocalClusterIndex, const FCluster& 
 	const FUIntVector QuantizedPosStart = Cluster.QuantizedPosStart;
 	const uint32 ClusterShift = Cluster.QuantizedPosShift;
 
+	VertexRefBitmask.AddZeroed(MAX_CLUSTER_VERTICES / 32);
+#if USE_UNCOMPRESSED_VERTEX_DATA
+	// Disable vertex references in uncompressed mode
+	NumCodedVertices = NumClusterVerts;
+#else
+	// Find vertices from same page we can reference instead of storing duplicates
 	NumCodedVertices = 0;
 	TArray<uint32> UniqueToVertexIndex;
-	VertexRefBitmask.AddZeroed(MAX_CLUSTER_VERTICES / 32);
 	for (uint32 VertexIndex = 0; VertexIndex < NumClusterVerts; VertexIndex++)
 	{
 		FVariableVertex Vertex;
@@ -1115,9 +1133,7 @@ static void EncodeGeometryData(	const uint32 LocalClusterIndex, const FCluster& 
 			NumCodedVertices++;
 		}
 	}
-
-	FBitWriter BitWriter_Position(PositionData);
-	FBitWriter BitWriter_Attribute(AttributeData);
+#endif
 
 	const uint32 BitsPerIndex = EncodingInfo.BitsPerIndex;
 	
@@ -1140,7 +1156,42 @@ static void EncodeGeometryData(	const uint32 LocalClusterIndex, const FCluster& 
 
 	check(NumClusterVerts > 0);
 
-	bool bIsLeaf = (Cluster.GeneratingGroupIndex == INVALID_GROUP_INDEX);
+	FBitWriter BitWriter_Position(PositionData);
+	FBitWriter BitWriter_Attribute(AttributeData);
+
+#if USE_UNCOMPRESSED_VERTEX_DATA
+	for (uint32 VertexIndex = 0; VertexIndex < NumClusterVerts; VertexIndex++)
+	{
+		const FVector& Position = Cluster.GetPosition(VertexIndex);
+		BitWriter_Position.PutBits(*(uint32*)&Position.X, 32);
+		BitWriter_Position.PutBits(*(uint32*)&Position.Y, 32);
+		BitWriter_Position.PutBits(*(uint32*)&Position.Z, 32);
+	}
+	BitWriter_Position.Flush(sizeof(uint32));
+
+	for (uint32 VertexIndex = 0; VertexIndex < NumClusterVerts; VertexIndex++)
+	{
+		// Normal
+		const FVector& Normal = Cluster.GetNormal(VertexIndex);
+		BitWriter_Attribute.PutBits(*(uint32*)&Normal.X, 32);
+		BitWriter_Attribute.PutBits(*(uint32*)&Normal.Y, 32);
+		BitWriter_Attribute.PutBits(*(uint32*)&Normal.Z, 32);
+		
+		// Color
+		uint32 ColorDW = Cluster.bHasColors ? Cluster.GetColor(VertexIndex).ToFColor(false).DWColor() : 0xFFFFFFFFu;
+		BitWriter_Attribute.PutBits(ColorDW, 32);
+
+		// UVs
+		const FVector2D* UVs = Cluster.GetUVs(VertexIndex);
+		for (uint32 TexCoordIndex = 0; TexCoordIndex < NumTexCoords; TexCoordIndex++)
+		{
+			const FVector2D& UV = UVs[TexCoordIndex];
+			BitWriter_Attribute.PutBits(*(uint32*)&UV.X, 32);
+			BitWriter_Attribute.PutBits(*(uint32*)&UV.Y, 32);
+		}
+	}
+	BitWriter_Attribute.Flush(sizeof(uint32));
+#else
 
 	// Generate quantized texture coordinates
 	TArray<uint32> PackedUVs;
@@ -1229,6 +1280,7 @@ static void EncodeGeometryData(	const uint32 LocalClusterIndex, const FCluster& 
 		}
 		BitWriter_Attribute.Flush(sizeof(uint32));
 	}
+#endif
 }
 
 // Generate a permutation of cluster groups that is sorted first by mip level and then by Morton order x, y and z.
@@ -1803,7 +1855,11 @@ static void WritePages(	FResources& Resources,
 			for (uint32 i = 0; i < Page.NumClusters; i++)
 			{
 				ClusterDiskHeaders[i].PositionDataOffset = PagePointer.Offset();
+#if USE_UNCOMPRESSED_VERTEX_DATA
+				PagePointer.Advance<uint32>(CodedVerticesPerCluster[i] * 3);
+#else
 				PagePointer.Advance<uint32>(CodedVerticesPerCluster[i]);
+#endif
 			}
 			FMemory::Memcpy(PositionData, CombinedPositionData.GetData(), CombinedPositionData.Num() * CombinedPositionData.GetTypeSize());
 		}
