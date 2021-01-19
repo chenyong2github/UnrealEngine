@@ -63,6 +63,9 @@ namespace UsdUtils
 
 	/** Finds the layer offset that converts the Attribute local times to stage times */
 	USDUTILITIES_API UE::FSdfLayerOffset GetLayerToStageOffset( const pxr::UsdAttribute& Attribute );
+
+	/** Makes sure that the layer start and end timecodes include StartTimeCode and EndTimeCode */
+	USDUTILITIES_API void AddTimeCodeRangeToLayer( const pxr::SdfLayerRefPtr& Layer, double StartTimeCode, double EndTimeCode );
 }
 
 #endif // #if USE_USD_SDK

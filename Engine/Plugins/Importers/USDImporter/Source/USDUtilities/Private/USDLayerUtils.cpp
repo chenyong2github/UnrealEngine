@@ -285,6 +285,27 @@ UE::FSdfLayerOffset UsdUtils::GetLayerToStageOffset( const pxr::UsdAttribute& At
 	return UE::FSdfLayerOffset( LocalOffset.GetOffset(), LocalOffset.GetScale() );
 }
 
+void UsdUtils::AddTimeCodeRangeToLayer( const pxr::SdfLayerRefPtr& Layer, double StartTimeCode, double EndTimeCode )
+{
+	FScopedUsdAllocs UsdAllocs;
+
+	if ( !Layer )
+	{
+		FUsdLogManager::LogMessage( EMessageSeverity::Warning, LOCTEXT( "AddTimeCode_InvalidLayer", "Trying to set timecodes on an invalid layer." ) );
+		return;
+	}
+
+	if ( StartTimeCode < Layer->GetStartTimeCode() )
+	{
+		Layer->SetStartTimeCode( StartTimeCode );
+	}
+
+	if ( EndTimeCode > Layer->GetEndTimeCode() )
+	{
+		Layer->SetEndTimeCode( StartTimeCode );
+	}
+}
+
 #undef LOCTEXT_NAMESPACE
 
 #endif // #if USE_USD_SDK

@@ -353,6 +353,11 @@ AUsdStageActor::AUsdStageActor()
 
 void AUsdStageActor::OnPrimsChanged( const TMap< FString, bool >& PrimsChangedList )
 {
+	if ( !GetUsdStage() )
+	{
+		return;
+	}
+
 	// Sort paths by length so that we parse the root paths first
 	TMap< FString, bool > SortedPrimsChangedList = PrimsChangedList;
 	SortedPrimsChangedList.KeySort( []( const FString& A, const FString& B ) -> bool { return A.Len() < B.Len(); } );

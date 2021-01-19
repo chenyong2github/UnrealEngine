@@ -213,6 +213,7 @@ void FUsdLogManager::EnableMessageLog()
 	if ( ++MessageLogRefCount == 1 )
 	{
 		MessageLog.Emplace();
+		UsdUtils::StartMonitoringErrors();
 	}
 
 	check( MessageLogRefCount < MAX_int32 );
@@ -224,6 +225,7 @@ void FUsdLogManager::DisableMessageLog()
 
 	if ( --MessageLogRefCount == 0 )
 	{
+		UsdUtils::ShowErrorsAndStopMonitoring();
 		MessageLog.Reset();
 	}
 }

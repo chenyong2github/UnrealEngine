@@ -141,5 +141,8 @@ namespace UsdUtils
 	USDUTILITIES_API double GetDefaultTimeCode();
 
 	USDUTILITIES_API UUsdAssetImportData* GetAssetImportData( UObject* Asset );
+
+	/** Adds a reference on Prim to the layer at AbsoluteFilePath */
+	USDUTILITIES_API void AddReference( UE::FUsdPrim& Prim, const TCHAR* AbsoluteFilePath );
 }
 

@@ -103,10 +103,16 @@ namespace UsdUtils
 #if USE_USD_SDK
 	/** Allows creation of a skinning query from the underlying skinned mesh and skeleton. Adapted from the USD SDK implementation */
 	USDUTILITIES_API pxr::UsdSkelSkinningQuery CreateSkinningQuery( const pxr::UsdGeomMesh& SkinnedMesh, const pxr::UsdSkelSkeletonQuery& SkeletonQuery );
+
+	/**
+	 * Sets prim AnimationSource as the animation source for prim Prim.
+	 * Applies the SkelBindingAPI to Prim. See pxr::SkelBindingAPI::GetAnimationSourceRel.
+	 */
+	USDUTILITIES_API void BindAnimationSource( pxr::UsdPrim& Prim, const pxr::UsdPrim& AnimationSource );
 #endif // USE_USD_SDK
 }
 
-#if USE_USD_SDK
+#if USE_USD_SDK && WITH_EDITOR
 namespace UsdToUnreal
 {
 	/**
@@ -183,6 +189,15 @@ namespace UnrealToUsd
 	 * @return Whether the conversion was successful or not.
 	 */
 	USDUTILITIES_API bool ConvertSkeletalMesh( const USkeletalMesh* SkeletalMesh, pxr::UsdPrim& SkelRootPrim, const pxr::UsdTimeCode TimeCode = pxr::UsdTimeCode::Default() );
+
+	/**
+	 * Converts an AnimSequence to a UsdSkelAnimation. Includes bone transforms and blend shape weights.
+	 * Keys will be baked at the stage TimeCodesPerSecond resolution.
+	 * @param AnimSequence - The AnimSequence to convert
+	 * @param SkelAnimPrim - Expected to be of type UsdkSkelAnimation
+	 * @return Whether the conversion was successful or not.
+	 */
+	USDUTILITIES_API bool ConvertAnimSequence( UAnimSequence* AnimSequence, pxr::UsdPrim& SkelAnimPrim );
 }
 
-#endif // #if USE_USD_SDK
+#endif // #if USE_USD_SDK && WITH_EDITOR

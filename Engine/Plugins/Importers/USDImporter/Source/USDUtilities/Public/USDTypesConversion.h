@@ -14,6 +14,7 @@
 
 PXR_NAMESPACE_OPEN_SCOPE
 	class GfMatrix4d;
+	class GfQuatf;
 	class GfVec2f;
 	class GfVec3f;
 	class GfVec4f;
@@ -82,9 +83,15 @@ namespace UnrealToUsd
 
 	USDUTILITIES_API pxr::GfMatrix4d ConvertMatrix( const FMatrix& Matrix );
 
+	USDUTILITIES_API pxr::GfQuatf ConvertQuat( const FQuat& InValue );
+
 	USDUTILITIES_API pxr::GfMatrix4d ConvertTransform( const FUsdStageInfo& StageInfo, const FTransform& Transform );
 
 	USDUTILITIES_API float ConvertDistance( const FUsdStageInfo& StageInfo, const float& InValue );
 }
 
+namespace UsdUtils
+{
+	FTransform ConvertAxes( const bool bZUp, const FTransform Transform );
+}
 #endif // #if USE_USD_SDK
