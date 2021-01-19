@@ -52,14 +52,6 @@ public:
 	URigVMPin* GetPin() const;
 };
 
-
-/**
- * The Visual Debugging Info is used for visually displaying
- * Data flowing through a pin. Typically this is attached to an input
- * pin causes the pin to inject a node on the link driving it
- */
-
-
 /**
  * The Pin represents a single connector / pin on a node in the RigVM model.
  * Pins can be connected based on rules. Pins also provide access to a 'PinPath',
@@ -78,8 +70,29 @@ class RIGVMDEVELOPER_API URigVMPin : public UObject
 
 public:
 
+	// A struct to store a pin override value
+	struct FPinOverrideValue 
+	{
+		FPinOverrideValue()
+			: DefaultValue()
+			, BoundVariablePath()
+		{}
+
+		FPinOverrideValue(URigVMPin* InPin)
+			: DefaultValue(InPin->GetDefaultValue())
+			, BoundVariablePath(InPin->GetBoundVariablePath())
+		{
+		}
+
+		FString DefaultValue;
+		FString BoundVariablePath;
+	};
+
 	// A map used to override pin default values
-	typedef TMap<FRigVMASTProxy, FString> FDefaultValueOverride;
+	typedef TMap<FRigVMASTProxy, FPinOverrideValue> FPinOverrideMap;
+	typedef TPair<FRigVMASTProxy, const FPinOverrideMap&> FPinOverride;
+	static const URigVMPin::FPinOverrideMap EmptyPinOverrideMap;
+	static const FPinOverride EmptyPinOverride;
 
 	// Splits a PinPath at the start, so for example "Node.Color.R" becomes "Node" and "Color.R"
 	static bool SplitPinPathAtStart(const FString& InPinPath, FString& LeftMost, FString& Right);
@@ -189,7 +202,7 @@ public:
 	FString GetDefaultValue() const;
 
 	// Returns the default value with an additional override ma
-	FString GetDefaultValue(const FDefaultValueOverride& InDefaultValueOverride, const FRigVMASTProxy& InProxy) const;
+	FString GetDefaultValue(const FPinOverride& InOverride) const;
 
 	// Returns true if the default value provided is valid
 	bool IsValidDefaultValue(const FString& InDefaultValue) const;
@@ -300,13 +313,22 @@ public:
 	const TArray<URigVMInjectionInfo*> GetInjectedNodes() const { return InjectionInfos; }
 
 	// Returns the variable bound to this pin (or NAME_None)
-	const FString& GetBoundVariablePath() const { return BoundVariablePath; }
+	const FString& GetBoundVariablePath() const;
+
+	// Returns the variable bound to this pin (or NAME_None)
+	const FString& GetBoundVariablePath(const FPinOverride& InOverride) const;
 
 	// Returns the variable bound to this pin (or NAME_None)
 	FString GetBoundVariableName() const;
 
+	// Returns the variable bound to this pin (or NAME_None)
+	FString GetBoundVariableName(const FPinOverride& InOverride) const;
+
 	// Returns true if this pin is bound to a variable
-	bool IsBoundToVariable() const { return !BoundVariablePath.IsEmpty(); }
+	bool IsBoundToVariable() const;
+
+	// Returns true if this pin is bound to a variable
+	bool IsBoundToVariable(const FPinOverride& InOverride) const;
 
 	// Returns true if the pin can be bound to a given variable
 	bool CanBeBoundToVariable(const FRigVMExternalVariable& InExternalVariable, const FRigVMRegisterOffset& InOffset = FRigVMRegisterOffset()) const;

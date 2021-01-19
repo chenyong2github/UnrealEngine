@@ -559,7 +559,8 @@ bool FRigVMNodeExprAST::IsConstant() const
 		TArray<URigVMPin*> AllPins = CurrentNode->GetAllPinsRecursively();
 		for (URigVMPin* Pin : AllPins)
 		{
-			if (Pin->IsBoundToVariable())
+			URigVMPin::FPinOverride PinOverride(GetProxy(), GetParser()->GetPinOverrides());
+			if (Pin->IsBoundToVariable(PinOverride))
 			{
 				return false;
 			}
@@ -642,7 +643,7 @@ ERigVMPinDirection FRigVMVarExprAST::GetPinDirection() const
 
 FString FRigVMVarExprAST::GetDefaultValue() const
 {
-	return GetPin()->GetDefaultValue(GetParser()->GetPinDefaultOverrides(), GetProxy());
+	return GetPin()->GetDefaultValue(URigVMPin::FPinOverride(GetProxy(), GetParser()->GetPinOverrides()));
 }
 
 bool FRigVMVarExprAST::IsExecuteContext() const
@@ -1121,6 +1122,7 @@ FRigVMExprAST* FRigVMParserAST::TraversePin(const FRigVMASTProxy& InPinProxy, FR
 	ensure(!SubjectToExpression.Contains(InPinProxy));
 
 	URigVMPin* Pin = InPinProxy.GetSubjectChecked<URigVMPin>();
+	URigVMPin::FPinOverride PinOverride(InPinProxy, PinOverrides);
 
 	TArray<FRigVMPinProxyPair> Links = GetSourceLinks(InPinProxy, true);
 	
@@ -1135,21 +1137,22 @@ FRigVMExprAST* FRigVMParserAST::TraversePin(const FRigVMASTProxy& InPinProxy, FR
 
 	struct Local
 	{
-		static void LookForPinsBoundToVariables(URigVMPin* InPin, TArray<URigVMPin*>& SubPinsBoundToVariables)
+		static void LookForPinsBoundToVariables(const FRigVMASTProxy& InPinProxy, URigVMPin* InPin, TArray<URigVMPin*>& SubPinsBoundToVariables, const URigVMPin::FPinOverrideMap& InPinOverrides)
 		{
 			for (URigVMPin* SubPin : InPin->GetSubPins())
 			{
-				if (SubPin->IsBoundToVariable())
+				URigVMPin::FPinOverride PinOverride(InPinProxy, InPinOverrides);
+				if (SubPin->IsBoundToVariable(PinOverride))
 				{
 					SubPinsBoundToVariables.Add(SubPin);
 				}
-				LookForPinsBoundToVariables(SubPin, SubPinsBoundToVariables);
+				LookForPinsBoundToVariables(InPinProxy, SubPin, SubPinsBoundToVariables, InPinOverrides);
 			}
 		}
 	};
 
 	TArray<URigVMPin*> SubPinsBoundToVariables;
-	Local::LookForPinsBoundToVariables(Pin, SubPinsBoundToVariables);
+	Local::LookForPinsBoundToVariables(InPinProxy, Pin, SubPinsBoundToVariables, PinOverrides);
 
 	FRigVMExprAST* PinExpr = nullptr;
 
@@ -1184,7 +1187,7 @@ FRigVMExprAST* FRigVMParserAST::TraversePin(const FRigVMASTProxy& InPinProxy, FR
 			PinCopyExpr->AddParent(PinExpr);
 			PinLiteralExpr->AddParent(PinCopyExpr);
 		}
-		else if (Pin->IsBoundToVariable())
+		else if (Pin->IsBoundToVariable(PinOverride))
 		{
 			PinExpr = MakeExpr<FRigVMExternalVarExprAST>(InPinProxy);
 		}
@@ -1898,7 +1901,9 @@ bool FRigVMParserAST::FoldConstantValuesToLiterals(URigVMGraph* InGraph, URigVMC
 		const TArray<FRigVMASTProxy>& TargetPins = GetTargetPins(PinToComputeProxy);
 		for (const FRigVMASTProxy& TargetPinProxy : TargetPins)
 		{
-			PinDefaultValueOverrides.FindOrAdd(TargetPinProxy) = DefaultValue;
+			URigVMPin::FPinOverrideValue OverrideValue;
+			OverrideValue.DefaultValue = DefaultValue;
+			PinOverrides.FindOrAdd(TargetPinProxy) = OverrideValue;
 		}
 	}
 
@@ -2540,7 +2545,7 @@ void FRigVMParserAST::Inline(URigVMGraph* InGraph, const TArray<FRigVMASTProxy>&
 {
 	struct LocalPinTraversalInfo
 	{
-		URigVMPin::FDefaultValueOverride* PinDefaultValueOverrides;
+		URigVMPin::FPinOverrideMap* PinOverrides;
 		TMap<FRigVMASTProxy, FRigVMASTProxy> SourcePins;
 		TMap<FRigVMASTProxy, TArray<FRigVMASTProxy>>* TargetLinks;
 		TMap<FRigVMASTProxy, TArray<FRigVMASTProxy>>* SourceLinks;
@@ -2754,7 +2759,7 @@ void FRigVMParserAST::Inline(URigVMGraph* InGraph, const TArray<FRigVMASTProxy>&
 					SourceNode->IsA<URigVMLibraryNode>() ||
 					SourceNode->IsA<URigVMFunctionReturnNode>())
 				{
-					OutTraversalInfo.PinDefaultValueOverrides->FindOrAdd(InPinProxy) = SourcePin->GetDefaultValue();
+					OutTraversalInfo.PinOverrides->FindOrAdd(InPinProxy) = URigVMPin::FPinOverrideValue(SourcePin);
 				}
 				else
 				{
@@ -2818,7 +2823,7 @@ void FRigVMParserAST::Inline(URigVMGraph* InGraph, const TArray<FRigVMASTProxy>&
 	// c) flatten links from an entry node / to a return node
 	//    also traverse links along reroutes and flatten them
 	LocalPinTraversalInfo TraversalInfo;
-	TraversalInfo.PinDefaultValueOverrides = &PinDefaultValueOverrides;
+	TraversalInfo.PinOverrides = &PinOverrides;
 	TraversalInfo.TargetLinks = &TargetLinks;
 	TraversalInfo.SourceLinks = &SourceLinks;
 

@@ -1207,7 +1207,7 @@ public:
 	const FRigVMBlockExprAST* GetObsoleteBlock(bool bCreateIfMissing = true) const;
 
 	// returns the AST's override table for pin defaults
-	const URigVMPin::FDefaultValueOverride& GetPinDefaultOverrides() const { return PinDefaultValueOverrides; }
+	const URigVMPin::FPinOverrideMap& GetPinOverrides() const { return PinOverrides; }
 
 private:
 
@@ -1359,7 +1359,7 @@ private:
 	TMap<FRigVMASTProxy, TArray<FRigVMASTProxy>> TargetLinks;
 	TMap<FRigVMASTProxy, TArray<FRigVMASTProxy>> SourceLinks;
 	static const TArray<FRigVMASTProxy> EmptyProxyArray;
-	URigVMPin::FDefaultValueOverride PinDefaultValueOverrides;
+	URigVMPin::FPinOverrideMap PinOverrides;
 
 	enum ETraverseRelationShip
 	{

@@ -472,7 +472,10 @@ void FControlRigArgumentDefaultNode::GenerateChildContent(IDetailChildrenBuilder
 
 void FControlRigArgumentDefaultNode::OnGraphChanged(const FEdGraphEditAction& InAction)
 {
-	OnRebuildChildren.ExecuteIfBound();
+	if (GraphPtr.IsValid() && ControlRigBlueprintPtr.IsValid())
+	{
+		OnRebuildChildren.ExecuteIfBound();
+	}
 }
 
 void FControlRigArgumentDefaultNode::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URigVMGraph* InGraph, UObject* InSubject)

@@ -42,6 +42,9 @@ URigVMPin* URigVMInjectionInfo::GetPin() const
 	return CastChecked<URigVMPin>(GetOuter());
 }
 
+const URigVMPin::FPinOverrideMap URigVMPin::EmptyPinOverrideMap;
+const URigVMPin::FPinOverride URigVMPin::EmptyPinOverride = URigVMPin::FPinOverride(FRigVMASTProxy(), EmptyPinOverrideMap);
+
 bool URigVMPin::SplitPinPathAtStart(const FString& InPinPath, FString& LeftMost, FString& Right)
 {
 	return InPinPath.Split(TEXT("."), &LeftMost, &Right, ESearchCase::IgnoreCase, ESearchDir::FromStart);
@@ -366,14 +369,14 @@ bool URigVMPin::IsExecuteContext() const
 
 FString URigVMPin::GetDefaultValue() const
 {
-	return GetDefaultValue(FDefaultValueOverride(), FRigVMASTProxy());
+	return GetDefaultValue(EmptyPinOverride);
 }
 
-FString URigVMPin::GetDefaultValue(const FDefaultValueOverride& InDefaultValueOverride, const FRigVMASTProxy& InProxy) const
+FString URigVMPin::GetDefaultValue(const URigVMPin::FPinOverride& InOverride) const
 {
-	if (const FString* Override = InDefaultValueOverride.Find(InProxy.GetSibling((URigVMPin*)this)))
+	if (FPinOverrideValue const* OverrideValuePtr = InOverride.Value.Find(InOverride.Key.GetSibling((URigVMPin*)this)))
 	{
-		return *Override;
+		return OverrideValuePtr->DefaultValue;
 	}
 
 	if (IsArray())
@@ -383,7 +386,7 @@ FString URigVMPin::GetDefaultValue(const FDefaultValueOverride& InDefaultValueOv
 			TArray<FString> ElementDefaultValues;
 			for (URigVMPin* SubPin : SubPins)
 			{
-				FString ElementDefaultValue = SubPin->GetDefaultValue(InDefaultValueOverride, InProxy);
+				FString ElementDefaultValue = SubPin->GetDefaultValue(InOverride);
 				if (SubPin->IsStringType())
 				{
 					ElementDefaultValue = TEXT("\"") + ElementDefaultValue + TEXT("\"");
@@ -410,7 +413,7 @@ FString URigVMPin::GetDefaultValue(const FDefaultValueOverride& InDefaultValueOv
 			TArray<FString> MemberDefaultValues;
 			for (URigVMPin* SubPin : SubPins)
 			{
-				FString MemberDefaultValue = SubPin->GetDefaultValue(InDefaultValueOverride, InProxy);
+				FString MemberDefaultValue = SubPin->GetDefaultValue(InOverride);
 				if (SubPin->IsStringType())
 				{
 					MemberDefaultValue = TEXT("\"") + MemberDefaultValue + TEXT("\"");
@@ -566,11 +569,46 @@ UObject* URigVMPin::FindObjectFromCPPTypeObjectPath(const FString& InObjectPath)
 	return FindObject<UObject>(ANY_PACKAGE, *InObjectPath);
 }
 
+// Returns the variable bound to this pin (or NAME_None)
+const FString& URigVMPin::GetBoundVariablePath() const
+{
+	return GetBoundVariablePath(EmptyPinOverride);
+}
+
+// Returns the variable bound to this pin (or NAME_None)
+const FString& URigVMPin::GetBoundVariablePath(const URigVMPin::FPinOverride& InOverride) const
+{
+	if (FPinOverrideValue const* OverrideValuePtr = InOverride.Value.Find(InOverride.Key.GetSibling((URigVMPin*)this)))
+	{
+		return OverrideValuePtr->BoundVariablePath;
+	}
+	return BoundVariablePath;
+}
+
+// Returns the variable bound to this pin (or NAME_None)
 FString URigVMPin::GetBoundVariableName() const
 {
-	FString VariableName = BoundVariablePath;
+	return GetBoundVariableName(EmptyPinOverride);
+}
+
+// Returns the variable bound to this pin (or NAME_None)
+FString URigVMPin::GetBoundVariableName(const URigVMPin::FPinOverride& InOverride) const
+{
+	FString VariableName = GetBoundVariablePath(InOverride);
 	BoundVariablePath.Split(TEXT("."), &VariableName, nullptr);
 	return VariableName;
+}
+
+// Returns true if this pin is bound to a variable
+bool URigVMPin::IsBoundToVariable() const
+{
+	return IsBoundToVariable(EmptyPinOverride);
+}
+
+// Returns true if this pin is bound to a variable
+bool URigVMPin::IsBoundToVariable(const URigVMPin::FPinOverride& InOverride) const
+{
+	return !GetBoundVariablePath(InOverride).IsEmpty();
 }
 
 bool URigVMPin::CanBeBoundToVariable(const FRigVMExternalVariable& InExternalVariable, const FRigVMRegisterOffset& InOffset) const

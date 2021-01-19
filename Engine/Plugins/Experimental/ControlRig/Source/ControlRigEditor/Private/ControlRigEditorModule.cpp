@@ -1234,7 +1234,8 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 						}
 					}
 
-					if(Cast<URigVMUnitNode>(ModelPin->GetNode()))
+					if(Cast<URigVMUnitNode>(ModelPin->GetNode()) != nullptr || 
+						Cast<URigVMLibraryNode>(ModelPin->GetNode()) != nullptr)
 					{
 						if (ModelPin->GetDirection() == ERigVMPinDirection::Input && 
 							!ModelPin->IsExecuteContext() &&
@@ -1282,7 +1283,9 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 						));
 					}
 
-					if (ModelPin->GetRootPin() == ModelPin && Cast<URigVMUnitNode>(ModelPin->GetNode()) != nullptr)
+					if (ModelPin->GetRootPin() == ModelPin && (
+						Cast<URigVMUnitNode>(ModelPin->GetNode()) != nullptr ||
+						Cast<URigVMLibraryNode>(ModelPin->GetNode()) != nullptr))
 					{
 						if (ModelPin->HasInjectedNodes())
 						{
@@ -1753,10 +1756,22 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 							LOCTEXT("PromoteToFunction_Tooltip", "Turns the Collapse Node into a Function"),
 							FSlateIcon(),
 							FUIAction(FExecuteAction::CreateLambda([Controller, CollapseNode]() {
-								// Controller->PromoteCollapseNodeToFunction(CollapseNode->GetFName());
-								// todo
+								Controller->PromoteCollapseNodeToFunctionReferenceNode(CollapseNode->GetFName());
 							})
 						));
+					}
+
+					if (URigVMFunctionReferenceNode* FunctionRefNode = Cast<URigVMFunctionReferenceNode>(RigNode->GetModelNode()))
+					{
+						OrganizationSection.AddMenuEntry(
+							"Promote To Collapse Node",
+							LOCTEXT("PromoteToCollapseNode", "Promote To Collapse Node"),
+							LOCTEXT("PromoteToCollapseNode_Tooltip", "Turns the Function Ref Node into a Collapse Node"),
+							FSlateIcon(),
+							FUIAction(FExecuteAction::CreateLambda([Controller, FunctionRefNode]() {
+								Controller->PromoteFunctionReferenceNodeToCollapseNode(FunctionRefNode->GetFName());
+								})
+							));
 					}
 
 					if (URigVMLibraryNode* LibraryNode = Cast<URigVMLibraryNode>(RigNode->GetModelNode()))
@@ -1767,7 +1782,18 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 							LOCTEXT("ExpandNode_Tooltip", "Expands the contents of the node into this graph"),
 							FSlateIcon(),
 							FUIAction(FExecuteAction::CreateLambda([Controller, LibraryNode]() {
-								Controller->ExpandLibraryNode(LibraryNode->GetFName());
+								Controller->OpenUndoBracket(TEXT("Expand node"));
+								TArray<URigVMNode*> ExpandedNodes = Controller->ExpandLibraryNode(LibraryNode->GetFName());
+								if (ExpandedNodes.Num() > 0)
+								{
+									TArray<FName> ExpandedNodeNames;
+									for (URigVMNode* ExpandedNode : ExpandedNodes)
+									{
+										ExpandedNodeNames.Add(ExpandedNode->GetFName());
+									}
+									Controller->SetNodeSelection(ExpandedNodeNames);
+								}
+								Controller->CloseUndoBracket();
 							})
 						));
 					}

@@ -743,7 +743,7 @@ void URigVMCompiler::TraverseAssign(const FRigVMAssignExprAST* InExpr, FRigVMCom
 		{
 			struct Local
 			{
-				static void SetupRegisterOffset(URigVM* VM, URigVMPin* Pin, FRigVMOperand& Operand, bool bSource)
+				static void SetupRegisterOffset(URigVM* VM, URigVMPin* Pin, FRigVMOperand& Operand, const FRigVMVarExprAST* VarExpr, bool bSource)
 				{
 					URigVMPin* RootPin = Pin->GetRootPin();
 					if (Pin == RootPin)
@@ -751,7 +751,8 @@ void URigVMCompiler::TraverseAssign(const FRigVMAssignExprAST* InExpr, FRigVMCom
 						return;
 					}
 
-					if (bSource && Pin->IsBoundToVariable())
+					URigVMPin::FPinOverride PinOverride(VarExpr->GetProxy(), VarExpr->GetParser()->GetPinOverrides());
+					if (bSource && Pin->IsBoundToVariable(PinOverride))
 					{
 						return;
 					}
@@ -798,8 +799,8 @@ void URigVMCompiler::TraverseAssign(const FRigVMAssignExprAST* InExpr, FRigVMCom
 				}
 			};
 
-			Local::SetupRegisterOffset(WorkData.VM, InExpr->GetSourcePin(), Source, true);
-			Local::SetupRegisterOffset(WorkData.VM, InExpr->GetTargetPin(), Target, false);
+			Local::SetupRegisterOffset(WorkData.VM, InExpr->GetSourcePin(), Source, SourceExpr, true);
+			Local::SetupRegisterOffset(WorkData.VM, InExpr->GetTargetPin(), Target, TargetExpr, false);
 		}
 
 		WorkData.VM->GetByteCode().AddCopyOp(Source, Target);
@@ -1143,7 +1144,8 @@ FString URigVMCompiler::GetPinHash(URigVMPin* InPin, const FRigVMVarExprAST* InV
 	{
 		if (InVarExpr->IsA(FRigVMExprAST::ExternalVar) && !bIsDebugValue)
 		{
-			FString VariablePath = InPin->GetBoundVariablePath();
+			URigVMPin::FPinOverride PinOverride(InVarExpr->GetProxy(), InVarExpr->GetParser()->GetPinOverrides());
+			FString VariablePath = InPin->GetBoundVariablePath(PinOverride);
 			return FString::Printf(TEXT("%sVariable::%s%s"), *Prefix, *VariablePath, *Suffix);
 		}
 
@@ -1313,7 +1315,9 @@ FRigVMOperand URigVMCompiler::FindOrAddRegister(const FRigVMVarExprAST* InVarExp
 		}
 	}
 
-	const URigVMPin::FDefaultValueOverride& DefaultValueOverride = InVarExpr->GetParser()->GetPinDefaultOverrides();
+	const URigVMPin::FPinOverrideMap& PinOverrides = InVarExpr->GetParser()->GetPinOverrides();
+	URigVMPin::FPinOverride PinOverride(InVarExpr->GetProxy(), PinOverrides);
+
 	URigVMPin* Pin = InVarExpr->GetPin();
 	FString BaseCPPType = Pin->IsArray() ? Pin->GetArrayElementCppType() : Pin->GetCPPType();
 	FString Hash = GetPinHash(Pin, InVarExpr, bIsDebugValue);
@@ -1337,9 +1341,9 @@ FRigVMOperand URigVMCompiler::FindOrAddRegister(const FRigVMVarExprAST* InVarExp
 	// check if this is a variable with a segment path
 	if (!Operand.IsValid())
 	{
-		if (Pin->IsBoundToVariable() && !bIsDebugValue)
+		if (Pin->IsBoundToVariable(PinOverride) && !bIsDebugValue)
 		{
-			FString VariablePath = Pin->GetBoundVariablePath();
+			FString VariablePath = Pin->GetBoundVariablePath(PinOverride);
 			FString VariableName = VariablePath, SegmentPath;
 			VariablePath.Split(TEXT("."), &VariableName, &SegmentPath);
 
@@ -1374,14 +1378,14 @@ FRigVMOperand URigVMCompiler::FindOrAddRegister(const FRigVMVarExprAST* InVarExp
 
 				int32 DesiredArraySize = VMStruct->GetArraySize(Pin->GetFName(), WorkData.RigVMUserData);
 
-				DefaultValues = URigVMPin::SplitDefaultValue(Pin->GetDefaultValue(DefaultValueOverride, InVarExpr->GetProxy()));
+				DefaultValues = URigVMPin::SplitDefaultValue(Pin->GetDefaultValue(PinOverride));
 
 				if (DefaultValues.Num() != DesiredArraySize)
 				{
 					FString DefaultValue;
 					if (Pin->GetArraySize() > 0)
 					{
-						DefaultValue = Pin->GetSubPins()[0]->GetDefaultValue(DefaultValueOverride, InVarExpr->GetProxy());
+						DefaultValue = Pin->GetSubPins()[0]->GetDefaultValue(PinOverride);
 					}
 
 					DefaultValues.Reset();
@@ -1393,7 +1397,7 @@ FRigVMOperand URigVMCompiler::FindOrAddRegister(const FRigVMVarExprAST* InVarExp
 			}
 			else
 			{
-				DefaultValues = URigVMPin::SplitDefaultValue(Pin->GetDefaultValue(DefaultValueOverride, InVarExpr->GetProxy()));
+				DefaultValues = URigVMPin::SplitDefaultValue(Pin->GetDefaultValue(PinOverride));
 			}
 
 			while (DefaultValues.Num() < Pin->GetSubPins().Num())
@@ -1403,7 +1407,7 @@ FRigVMOperand URigVMCompiler::FindOrAddRegister(const FRigVMVarExprAST* InVarExp
 		}
 		else if (URigVMEnumNode* EnumNode = Cast<URigVMEnumNode>(Pin->GetNode()))
 		{
-			FString EnumValueStr = EnumNode->GetDefaultValue(DefaultValueOverride, InVarExpr->GetProxy());
+			FString EnumValueStr = EnumNode->GetDefaultValue(PinOverride);
 			if (UEnum* Enum = EnumNode->GetEnum())
 			{
 				DefaultValues.Add(FString::FromInt((int32)Enum->GetValueByNameString(EnumValueStr)));
@@ -1415,7 +1419,7 @@ FRigVMOperand URigVMCompiler::FindOrAddRegister(const FRigVMVarExprAST* InVarExp
 		}
 		else
 		{
-			DefaultValues.Add(Pin->GetDefaultValue(DefaultValueOverride, InVarExpr->GetProxy()));
+			DefaultValues.Add(Pin->GetDefaultValue(PinOverride));
 		}
 
 		UScriptStruct* ScriptStruct = Pin->GetScriptStruct();
