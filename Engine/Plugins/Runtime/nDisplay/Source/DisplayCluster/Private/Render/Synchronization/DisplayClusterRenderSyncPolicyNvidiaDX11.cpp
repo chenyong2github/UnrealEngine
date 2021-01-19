@@ -19,8 +19,8 @@ void FDisplayClusterRenderSyncPolicyNvidiaDX11::WaitForFrameCompletion()
 		if (D3D11Viewport)
 		{
 #if !WITH_EDITOR
-			Viewport->IssueFrameEvent();
-			Viewport->WaitForFrameEventCompletion();
+			D3D11Viewport->IssueFrameEvent();
+			D3D11Viewport->WaitForFrameEventCompletion();
 #endif
 		}
 	}
