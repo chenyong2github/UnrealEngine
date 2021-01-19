@@ -16,7 +16,9 @@
 
 
 #if LC_64_BIT
-namespace
+// EPIC BEGIN MOD
+namespace liveProcess // Duplicate definitions 
+// EPIC END MOD
 {
 	static const void* GetLowerBoundIn4GBRange(const void* moduleBase)
 	{
@@ -318,8 +320,10 @@ bool LiveProcess::WasSuccessfulRestart(void) const
 void LiveProcess::ReserveVirtualMemoryPages(void* moduleBase)
 {
 #if LC_64_BIT
-	const void* lowerBound = GetLowerBoundIn4GBRange(moduleBase);
-	const void* upperBound = GetUpperBoundIn4GBRange(moduleBase);
+	// BEGIN EPIC MOD
+	const void* lowerBound = liveProcess::GetLowerBoundIn4GBRange(moduleBase);
+	const void* upperBound = liveProcess::GetUpperBoundIn4GBRange(moduleBase);
+	// END EPIC MOD
 	m_virtualMemoryRange.ReservePages(lowerBound, upperBound, 64u * 1024u);
 #else
 	LC_UNUSED(moduleBase);
@@ -330,8 +334,10 @@ void LiveProcess::ReserveVirtualMemoryPages(void* moduleBase)
 void LiveProcess::FreeVirtualMemoryPages(void* moduleBase)
 {
 #if LC_64_BIT
-	const void* lowerBound = GetLowerBoundIn4GBRange(moduleBase);
-	const void* upperBound = GetUpperBoundIn4GBRange(moduleBase);
+	// BEGIN EPIC MOD
+	const void* lowerBound = liveProcess::GetLowerBoundIn4GBRange(moduleBase);
+	const void* upperBound = liveProcess::GetUpperBoundIn4GBRange(moduleBase);
+	// END EPIC MOD
 	m_virtualMemoryRange.FreePages(lowerBound, upperBound);
 #else
 	LC_UNUSED(moduleBase);

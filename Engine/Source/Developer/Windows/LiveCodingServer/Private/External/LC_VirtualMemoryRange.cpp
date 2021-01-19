@@ -50,6 +50,10 @@ void VirtualMemoryRange::ReservePages(const void* addressStart, const void* addr
 
 		::MEMORY_BASIC_INFORMATION memoryInfo = {};
 		const size_t bytesReturned = ::VirtualQueryEx(+m_processHandle, address, &memoryInfo, sizeof(::MEMORY_BASIC_INFORMATION));
+		// BEGIN EPIC MOD
+		if (bytesReturned == 0)
+			break;
+		// END EPIC MOD
 
 		// we are only interested in free pages
 		if ((bytesReturned > 0u) && (memoryInfo.State == MEM_FREE))

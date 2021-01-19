@@ -7,6 +7,7 @@
 // END EPIC MOD
 #include "LC_ProcessTypes.h"
 // BEGIN EPIC MOD
+#include "LC_CriticalSection.h"
 #include "LC_Types.h"
 // END EPIC MOD
 
