@@ -8,12 +8,12 @@
 #include "PhysicsSolver.h"
 #include "ChaosStats.h"
 
-void ResetIndicesArray(TArray<int32> & IndicesArray, int32 Size)
+void ResetIndicesArray(TArray<int32>& IndicesArray, int32 Size)
 {
-	if(IndicesArray.Num() != Size)
+	if (IndicesArray.Num() != Size)
 	{
 		IndicesArray.SetNum(Size);
-		for(int32 i = 0; i < IndicesArray.Num(); ++i)
+		for (int32 i = 0; i < IndicesArray.Num(); ++i)
 		{
 			IndicesArray[i] = i;
 		}
@@ -52,13 +52,13 @@ void FPerSolverFieldSystem::FieldParameterUpdateInternal(
 		TArray<FVector> SamplePoints;
 		TArray<ContextIndex> SampleIndices;
 		TArray<ContextIndex>& IndicesArray = SampleIndices; // Do away with!
-		EFieldResolutionType PrevResolutionType = EFieldResolutionType::Field_Resolution_Max; 
+		EFieldResolutionType PrevResolutionType = EFieldResolutionType::Field_Resolution_Max;
 		EFieldFilterType PrevFilterType = EFieldFilterType::Field_Filter_Max;
 		for (int32 CommandIndex = 0; CommandIndex < NumCommands; CommandIndex++)
 		{
 			const FFieldSystemCommand& Command = Commands[CommandIndex];
 			const float TimeSeconds = InSolver->GetSolverTime() - Command.TimeCreation;
-			
+
 			const EFieldResolutionType ResolutionType =
 				Command.HasMetaData(FFieldSystemMetaData::EMetaType::ECommandData_ProcessingResolution) ?
 				Command.GetMetaDataAs<FFieldSystemMetaDataProcessingResolution>(
@@ -81,7 +81,7 @@ void FPerSolverFieldSystem::FieldParameterUpdateInternal(
 				{
 					FPerSolverFieldSystem::GetParticleHandles(Handles, CurrentSolver, ResolutionType);
 				}
-				
+
 				PrevResolutionType = ResolutionType;
 				PrevFilterType = FilterType;
 
@@ -105,12 +105,18 @@ void FPerSolverFieldSystem::FieldParameterUpdateInternal(
 					TimeSeconds
 				};
 
-				if (Command.TargetAttribute == GetFieldPhysicsName(EFieldPhysicsType::Field_DynamicState))
+				const EFieldOutputType FieldOutput = GetFieldTargetOutput(GetFieldPhysicsType(Command.TargetAttribute));
+				if (((FieldOutput == EFieldOutputType::Field_Output_Integer) && (Command.RootNode->Type() != FFieldNodeBase::EFieldType::EField_Int32)) ||
+					((FieldOutput == EFieldOutputType::Field_Output_Vector) && (Command.RootNode->Type() != FFieldNodeBase::EFieldType::EField_FVector)) ||
+					((FieldOutput == EFieldOutputType::Field_Output_Scalar) && (Command.RootNode->Type() != FFieldNodeBase::EFieldType::EField_Float)))
+				{
+					UE_LOG(LogChaos, Error, TEXT("Field based evaluation of the simulation %s parameter expects %s field inputs."),
+						*Command.TargetAttribute.ToString(), *GetFieldOutputName(FieldOutput).ToString());
+					CommandsToRemove.Add(CommandIndex);
+				}
+				else if (Command.TargetAttribute == GetFieldPhysicsName(EFieldPhysicsType::Field_DynamicState))
 				{
 					SCOPE_CYCLE_COUNTER(STAT_ParamUpdateField_DynamicState);
-
-					if (ensureMsgf(Command.RootNode->Type() == FFieldNode<int32>::StaticType(),
-						TEXT("Field based evaluation of the simulations 'DynamicState' parameter expects integer field inputs.")))
 					{
 						// Sample the dynamic state array in the field
 
@@ -256,9 +262,6 @@ void FPerSolverFieldSystem::FieldParameterUpdateInternal(
 				else if (Command.TargetAttribute == GetFieldPhysicsName(EFieldPhysicsType::Field_ActivateDisabled))
 				{
 					SCOPE_CYCLE_COUNTER(STAT_ParamUpdateField_ActivateDisabled);
-
-					if (ensureMsgf(Command.RootNode->Type() == FFieldNode<int32>::StaticType(),
-						TEXT("Field based evaluation of the simulations 'ActivateDisabled' parameter expects integer field inputs.")))
 					{
 						TArray<int32> LocalResults;
 						LocalResults.Init(false, Handles.Num());
@@ -303,8 +306,6 @@ void FPerSolverFieldSystem::FieldParameterUpdateInternal(
 				{
 					SCOPE_CYCLE_COUNTER(STAT_ParamUpdateField_ExternalClusterStrain);
 
-					if (ensureMsgf(Command.RootNode->Type() == FFieldNode<float>::StaticType(),
-						TEXT("Field based evaluation of the simulations 'ExternalClusterStrain' parameter expects float field inputs.")))
 					{
 						// TODO: Chaos, Ryan
 						// As we're allocating a buffer the size of all particles every iteration, 
@@ -333,7 +334,6 @@ void FPerSolverFieldSystem::FieldParameterUpdateInternal(
 							{
 								Map.Add(Handles[Index.Sample], ResultsView[Index.Result]);
 							}
-
 						}
 
 						// Capture the results from the breaking model to post-process
@@ -365,8 +365,6 @@ void FPerSolverFieldSystem::FieldParameterUpdateInternal(
 				{
 					SCOPE_CYCLE_COUNTER(STAT_ParamUpdateField_Kill);
 
-					if (ensureMsgf(Command.RootNode->Type() == FFieldNode<float>::StaticType(),
-						TEXT("Field based evaluation of the simulations 'Kill' parameter expects float field inputs.")))
 					{
 						TArray<float> LocalResults;
 						LocalResults.AddZeroed(Handles.Num());
@@ -389,8 +387,6 @@ void FPerSolverFieldSystem::FieldParameterUpdateInternal(
 				{
 					SCOPE_CYCLE_COUNTER(STAT_ParamUpdateField_LinearVelocity);
 
-					if (ensureMsgf(Command.RootNode->Type() == FFieldNode<FVector>::StaticType(),
-						TEXT("Field based evaluation of the simulations 'LinearVelocity' parameter expects FVector field inputs.")))
 					{
 						TArray<FVector> LocalResults;
 						LocalResults.AddUninitialized(Handles.Num());
@@ -413,8 +409,6 @@ void FPerSolverFieldSystem::FieldParameterUpdateInternal(
 				{
 					SCOPE_CYCLE_COUNTER(STAT_ParamUpdateField_AngularVelocity);
 
-					if (ensureMsgf(Command.RootNode->Type() == FFieldNode<FVector>::StaticType(),
-						TEXT("Field based evaluation of the simulations 'AngularVelocity' parameter expects FVector field inputs.")))
 					{
 						TArray<FVector> LocalResults;
 						LocalResults.AddUninitialized(Handles.Num());
@@ -437,8 +431,6 @@ void FPerSolverFieldSystem::FieldParameterUpdateInternal(
 				{
 					SCOPE_CYCLE_COUNTER(STAT_ParamUpdateField_SleepingThreshold);
 
-					if (ensureMsgf(Command.RootNode->Type() == FFieldNode<float>::StaticType(),
-						TEXT("Field based evaluation of the simulations 'SleepingThreshold' parameter expects scale field inputs.")))
 					{
 						TArray<float> LocalResults;
 						LocalResults.AddZeroed(Handles.Num());
@@ -482,8 +474,6 @@ void FPerSolverFieldSystem::FieldParameterUpdateInternal(
 				{
 					SCOPE_CYCLE_COUNTER(STAT_ParamUpdateField_DisableThreshold);
 
-					if (ensureMsgf(Command.RootNode->Type() == FFieldNode<float>::StaticType(),
-						TEXT("Field based evaluation of the simulations 'DisableThreshold' parameter expects scale field inputs.")))
 					{
 						TArray<float> LocalResults;
 						LocalResults.AddUninitialized(Handles.Num());
@@ -526,8 +516,7 @@ void FPerSolverFieldSystem::FieldParameterUpdateInternal(
 				else if (Command.TargetAttribute == GetFieldPhysicsName(EFieldPhysicsType::Field_InternalClusterStrain))
 				{
 					SCOPE_CYCLE_COUNTER(STAT_ParamUpdateField_InternalClusterStrain);
-					if (ensureMsgf(Command.RootNode->Type() == FFieldNode<float>::StaticType(),
-						TEXT("Field based evaluation of the simulations 'InternalClusterStrain' parameter expects scalar field inputs.")))
+
 					{
 						TArray<float> LocalResults;
 						LocalResults.AddZeroed(Handles.Num());
@@ -548,8 +537,8 @@ void FPerSolverFieldSystem::FieldParameterUpdateInternal(
 				}
 				else if (Command.TargetAttribute == GetFieldPhysicsName(EFieldPhysicsType::Field_CollisionGroup))
 				{
-					if (ensureMsgf(Command.RootNode->Type() == FFieldNode<int32>::StaticType(),
-						TEXT("Field based evaluation of the simulations 'CollisionGroup' parameter expects int field inputs.")))
+					SCOPE_CYCLE_COUNTER(STAT_ParamUpdateField_CollisionGroup);
+
 					{
 						TArray<int32> LocalResults;
 						LocalResults.AddZeroed(Handles.Num());
@@ -572,8 +561,6 @@ void FPerSolverFieldSystem::FieldParameterUpdateInternal(
 				{
 					SCOPE_CYCLE_COUNTER(STAT_ParamUpdateField_PositionStatic);
 
-					if (ensureMsgf(Command.RootNode->Type() == FFieldNode<int32>::StaticType(),
-						TEXT("Field based evaluation of the simulations 'PositionStatic' parameter expects integer field inputs.")))
 					{
 						TArray<int32> LocalResults;
 						LocalResults.AddZeroed(Handles.Num());
@@ -608,8 +595,6 @@ void FPerSolverFieldSystem::FieldParameterUpdateInternal(
 				{
 					SCOPE_CYCLE_COUNTER(STAT_ParamUpdateField_PositionTarget);
 
-					if (ensureMsgf(Command.RootNode->Type() == FFieldNode<FVector>::StaticType(),
-						TEXT("Field based evaluation of the simulations 'PositionTarget' parameter expects vector field inputs.")))
 					{
 						TArray<FVector> LocalResults;
 						LocalResults.Init(FVector(FLT_MAX), Handles.Num());
@@ -644,8 +629,6 @@ void FPerSolverFieldSystem::FieldParameterUpdateInternal(
 				{
 					SCOPE_CYCLE_COUNTER(STAT_ParamUpdateField_PositionAnimated);
 
-					if (ensureMsgf(Command.RootNode->Type() == FFieldNode<int32>::StaticType(),
-						TEXT("Field based evaluation of the simulations 'PositionAnimated' parameter expects integer field inputs.")))
 					{
 						TArray<int32> LocalResults;
 						LocalResults.Init(false, Handles.Num());
@@ -682,8 +665,6 @@ void FPerSolverFieldSystem::FieldParameterUpdateInternal(
 				{
 					SCOPE_CYCLE_COUNTER(STAT_ParamUpdateField_DynamicConstraint);
 
-					if (ensureMsgf(Command.RootNode->Type() == FFieldNode<float>::StaticType(),
-						TEXT("Field based evaluation of the simulations 'DynamicConstraint' parameter expects scalar field inputs.")))
 					{
 #if TODO_REIMPLEMENT_DYNAMIC_CONSTRAINT_ACCESSORS
 						Chaos::TPBDRigidDynamicSpringConstraints<float, 3>& DynamicConstraints = FPhysicsSolver::FAccessor(CurrentSolver).DynamicConstraints();
@@ -748,17 +729,17 @@ void FPerSolverFieldSystem::FieldParameterUpdateInternal(
 
 template <typename Traits>
 void FPerSolverFieldSystem::FieldParameterUpdateCallback(
-	Chaos::TPBDRigidsSolver<Traits>* InSolver, 
-	Chaos::TPBDRigidParticles<float, 3>& Particles, 
-	Chaos::TArrayCollectionArray<float>& Strains, 
-	Chaos::TPBDPositionConstraints<float, 3>& PositionTarget, 
-	TMap<int32, int32>& PositionTargetedParticles) 
+	Chaos::TPBDRigidsSolver<Traits>* InSolver,
+	Chaos::TPBDRigidParticles<float, 3>& Particles,
+	Chaos::TArrayCollectionArray<float>& Strains,
+	Chaos::TPBDPositionConstraints<float, 3>& PositionTarget,
+	TMap<int32, int32>& PositionTargetedParticles)
 	//const TArray<FKinematicProxy>& AnimatedPosition)
 {
 	FieldParameterUpdateInternal(InSolver, Particles, Strains, PositionTarget, PositionTargetedParticles, TransientCommands, true);
 	FieldParameterUpdateInternal(InSolver, Particles, Strains, PositionTarget, PositionTargetedParticles, PersistentCommands, false);
 }
-	
+
 template <typename Traits>
 void FPerSolverFieldSystem::FieldForcesUpdateInternal(
 	Chaos::TPBDRigidsSolver<Traits>* InSolver,
@@ -921,10 +902,10 @@ void FPerSolverFieldSystem::FieldForcesUpdateInternal(
 
 template <typename Traits>
 void FPerSolverFieldSystem::FieldForcesUpdateCallback(
-	Chaos::TPBDRigidsSolver<Traits>* InSolver, 
-	Chaos::TPBDRigidParticles<float, 3>& Particles, 
-	Chaos::TArrayCollectionArray<FVector> & Force, 
-	Chaos::TArrayCollectionArray<FVector> & Torque)
+	Chaos::TPBDRigidsSolver<Traits>* InSolver,
+	Chaos::TPBDRigidParticles<float, 3>& Particles,
+	Chaos::TArrayCollectionArray<FVector>& Force,
+	Chaos::TArrayCollectionArray<FVector>& Torque)
 {
 	FieldForcesUpdateInternal(InSolver, Particles, Force, Torque, TransientCommands, true);
 	FieldForcesUpdateInternal(InSolver, Particles, Force, Torque, PersistentCommands, false);
@@ -1000,7 +981,7 @@ template <typename Traits>
 void FPerSolverFieldSystem::GetParticleHandles(
 	TArray<Chaos::TGeometryParticleHandle<float, 3>*>& Handles,
 	const Chaos::TPBDRigidsSolver<Traits>* RigidSolver,
-	const EFieldResolutionType ResolutionType, 
+	const EFieldResolutionType ResolutionType,
 	const bool bForce)
 {
 	Handles.SetNum(0, false);
@@ -1031,7 +1012,7 @@ void FPerSolverFieldSystem::GetParticleHandles(
 				Chaos::TPBDRigidParticleHandle<float, 3>* RigidHandle = (*It).Handle()->CastToRigidParticle();
 				if (ClusterMap.Contains(RigidHandle))
 				{
-					for (Chaos::TPBDRigidParticleHandle<float, 3>* Child : ClusterMap[RigidHandle])
+					for (Chaos::TPBDRigidParticleHandle<float, 3> * Child : ClusterMap[RigidHandle])
 					{
 						Handles.Add(Child);
 					}
@@ -1045,7 +1026,7 @@ void FPerSolverFieldSystem::GetParticleHandles(
 		const auto& ClusterMap = Clustering.GetChildrenMap();
 		Handles.Reserve(Clustering.GetTopLevelClusterParents().Num());
 
-		for (Chaos::TPBDRigidClusteredParticleHandle<float, 3>* TopLevelParent : Clustering.GetTopLevelClusterParents())
+		for (Chaos::TPBDRigidClusteredParticleHandle<float, 3> * TopLevelParent : Clustering.GetTopLevelClusterParents())
 		{
 			Handles.Add(TopLevelParent);
 		}

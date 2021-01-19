@@ -79,6 +79,7 @@ DEFINE_STAT(STAT_ParamUpdateField_AngularVelocity);
 DEFINE_STAT(STAT_ParamUpdateField_SleepingThreshold);
 DEFINE_STAT(STAT_ParamUpdateField_DisableThreshold);
 DEFINE_STAT(STAT_ParamUpdateField_InternalClusterStrain);
+DEFINE_STAT(STAT_ParamUpdateField_CollisionGroup);
 DEFINE_STAT(STAT_ParamUpdateField_PositionStatic);
 DEFINE_STAT(STAT_ParamUpdateField_PositionTarget);
 DEFINE_STAT(STAT_ParamUpdateField_PositionAnimated);
