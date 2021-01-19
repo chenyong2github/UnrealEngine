@@ -589,10 +589,11 @@ int32 FShaderCompileXGEThreadRunnable_XmlInterface::CompilingLoop()
 		int32 NumNewJobs = Manager->CompileQueue.Num();
 		if (NumNewJobs > 0)
 		{
-			int32 DestJobIndex = JobQueue.AddUninitialized(NumNewJobs);
+			int32 DestJobIndex = 0;
+			JobQueue.Reserve(NumNewJobs);
 			for (int32 SrcJobIndex = 0; SrcJobIndex < NumNewJobs; SrcJobIndex++, DestJobIndex++)
 			{
-				JobQueue[DestJobIndex] = Manager->CompileQueue[SrcJobIndex];
+				JobQueue.EmplaceAt(DestJobIndex, Manager->CompileQueue[SrcJobIndex]);
 			}
 
 			Manager->CompileQueue.RemoveAt(0, NumNewJobs);
