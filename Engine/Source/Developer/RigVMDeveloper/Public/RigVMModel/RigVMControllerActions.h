@@ -1234,13 +1234,13 @@ struct FRigVMPushGraphAction : public FRigVMBaseAction
 public:
 
 	FRigVMPushGraphAction() {}
-	FRigVMPushGraphAction(const FString& InGraphName);
+	FRigVMPushGraphAction(UObject* InGraph);
 	virtual ~FRigVMPushGraphAction() {};
 	virtual bool Undo(URigVMController* InController) override;
 	virtual bool Redo(URigVMController* InController) override;
 
 	UPROPERTY()
-	FString GraphName;
+	FSoftObjectPath GraphPath;
 };
 
 /**
@@ -1254,13 +1254,13 @@ struct FRigVMPopGraphAction : public FRigVMBaseAction
 public:
 
 	FRigVMPopGraphAction() {}
-	FRigVMPopGraphAction(const FString& InGraphName);
+	FRigVMPopGraphAction(UObject* InGraph);
 	virtual ~FRigVMPopGraphAction() {};
 	virtual bool Undo(URigVMController* InController) override;
 	virtual bool Redo(URigVMController* InController) override;
 
 	UPROPERTY()
-	FString GraphName;
+	FSoftObjectPath GraphPath;
 };
 
 

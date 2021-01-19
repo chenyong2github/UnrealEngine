@@ -2625,7 +2625,6 @@ void FControlRigEditor::UpdateControlRig()
 			GetBlueprintObj()->SetObjectBeingDebugged(ControlRig);
 
 			// initialize is moved post reinstance
-			FInputBlendPose Filter;
 			AnimInstance->ResetControlRigTracks();
 			AnimInstance->AddControlRigTrack(0, ControlRig);
 			AnimInstance->UpdateControlRigTrack(0, 1.0f, FControlRigIOSettings::MakeEnabled(), bExecutionControlRig);
@@ -2641,6 +2640,15 @@ void FControlRigEditor::UpdateControlRig()
 			Blueprint->SetFlags(RF_Transient);
 			Blueprint->RecompileVM();
 			Blueprint->ClearFlags(RF_Transient);
+
+			if (Blueprint->bErrorsDuringCompilation)
+			{
+				AnimInstance->ResetControlRigTracks();
+				AnimInstance->RecalcRequiredBones();
+				GetBlueprintObj()->SetObjectBeingDebugged(nullptr);
+				ControlRig = nullptr;
+				return;
+			}
 
 			ControlRig->OnInitialized_AnyThread().AddSP(this, &FControlRigEditor::HandleControlRigExecutedEvent);
 			ControlRig->OnExecuted_AnyThread().AddSP(this, &FControlRigEditor::HandleControlRigExecutedEvent);
@@ -4163,9 +4171,12 @@ void FControlRigEditor::OnNodeDoubleClicked(UControlRigBlueprint* InBlueprint, U
 
 	if (URigVMLibraryNode* LibraryNode = Cast<URigVMLibraryNode>(InNode))
 	{
-		if (UEdGraph* EdGraph = InBlueprint->GetEdGraph(LibraryNode->GetContainedGraph()))
+		if(URigVMGraph* ContainedGraph = LibraryNode->GetContainedGraph())
 		{
-			OpenGraphAndBringToFront(EdGraph, true);
+			if (UEdGraph* EdGraph = InBlueprint->GetEdGraph(ContainedGraph))
+			{
+				OpenGraphAndBringToFront(EdGraph, true);
+			}
 		}
 	}
 }

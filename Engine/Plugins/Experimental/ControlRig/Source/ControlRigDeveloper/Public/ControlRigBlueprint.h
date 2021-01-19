@@ -380,8 +380,10 @@ private:
 
 	void CreateEdGraphForCollapseNodeIfNeeded(URigVMCollapseNode* InNode, bool bForce = false);
 	bool RemoveEdGraphForCollapseNode(URigVMCollapseNode* InNode, bool bNotify = false);
+	void HandleReportFromCompiler(EMessageSeverity::Type InSeverity, UObject* InSubject, const FString& InMessage);
 
 	bool bDirtyDuringLoad;
+	bool bErrorsDuringCompilation;
 
 	friend class FControlRigBlueprintCompilerContext;
 	friend class SRigHierarchy;

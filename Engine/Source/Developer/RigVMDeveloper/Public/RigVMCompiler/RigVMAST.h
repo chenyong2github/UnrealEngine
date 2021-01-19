@@ -10,6 +10,8 @@
 #include "RigVMASTProxy.h"
 #include "RigVMAST.generated.h"
 
+DECLARE_DELEGATE_ThreeParams(FRigVMReportDelegate, EMessageSeverity::Type, UObject*, const FString&);
+
 class FRigVMParserAST;
 class FRigVMBlockExprAST;
 class FRigVMEntryExprAST;
@@ -1114,6 +1116,8 @@ struct RIGVMDEVELOPER_API FRigVMParserASTSettings
 	UPROPERTY()
 	TArray<URigVMLink*> LinksToSkip;
 
+	FRigVMReportDelegate ReportDelegate;
+
 	// static method to provide fast AST parse settings
 	static FRigVMParserASTSettings Fast()
 	{
@@ -1133,6 +1137,14 @@ struct RIGVMDEVELOPER_API FRigVMParserASTSettings
 		Settings.bFoldLiterals = true;
 		Settings.bFoldConstantBranches = true;
 		return Settings;
+	}
+
+	void Report(EMessageSeverity::Type InSeverity, UObject* InSubject, const FString& InMessage) const;
+
+	template <typename FmtType, typename... Types>
+	void Reportf(EMessageSeverity::Type InSeverity, UObject* InSubject, const FmtType& Fmt, Types... Args) const
+	{
+		Report(InSeverity, InSubject, FString::Printf(Fmt, Args...));
 	}
 };
 
@@ -1372,6 +1384,8 @@ private:
 	const FRigVMExprAST* LastCycleCheckExpr;
 	TArray<ETraverseRelationShip> CycleCheckFlags;
 	TArray<URigVMLink*> LinksToSkip;
+
+	FRigVMParserASTSettings Settings;
 
 	friend class FRigVMExprAST;
 	friend class URigVMCompiler;

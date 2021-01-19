@@ -13,6 +13,7 @@
 #include "RigVMCore/RigVM.h"
 #include "RigVMCore/RigVMStruct.h"
 #include "RigVMCompiler/RigVMAST.h"
+#include "Logging/TokenizedMessage.h"
 
 #include "RigVMCompiler.generated.h"
 
@@ -62,6 +63,17 @@ public:
 		Settings.EnablePinWatches = false;
 		Settings.ASTSettings = FRigVMParserASTSettings::Optimized();
 		return Settings;
+	}
+
+	void Report(EMessageSeverity::Type InSeverity, UObject* InSubject, const FString& InMessage) const
+	{
+		ASTSettings.Report(InSeverity, InSubject, InMessage);
+	}
+
+	template <typename FmtType, typename... Types>
+	void Reportf(EMessageSeverity::Type InSeverity, UObject* InSubject, const FmtType& Fmt, Types... Args) const
+	{
+		Report(InSeverity, InSubject, FString::Printf(Fmt, Args...));
 	}
 };
 

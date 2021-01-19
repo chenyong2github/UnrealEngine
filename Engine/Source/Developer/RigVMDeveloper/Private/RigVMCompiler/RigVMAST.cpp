@@ -820,12 +820,36 @@ const FRigVMVarExprAST* FRigVMCallExternExprAST::FindVarWithPinName(const FName&
 	return nullptr;
 }
 
+void FRigVMParserASTSettings::Report(EMessageSeverity::Type InSeverity, UObject* InSubject, const FString& InMessage) const
+{
+	if (ReportDelegate.IsBound())
+	{
+		ReportDelegate.Execute(InSeverity, InSubject, InMessage);
+	}
+	else
+	{
+		if (InSeverity == EMessageSeverity::Error)
+		{
+			FScriptExceptionHandler::Get().HandleException(ELogVerbosity::Error, *InMessage, *FString());
+		}
+		else if (InSeverity == EMessageSeverity::Warning)
+		{
+			FScriptExceptionHandler::Get().HandleException(ELogVerbosity::Warning, *InMessage, *FString());
+		}
+		else
+		{
+			UE_LOG(LogRigVMDeveloper, Display, TEXT("%s"), *InMessage);
+		}
+	}
+}
+
 const TArray<FRigVMASTProxy> FRigVMParserAST::EmptyProxyArray;
 
 FRigVMParserAST::FRigVMParserAST(URigVMGraph* InGraph, URigVMController* InController, const FRigVMParserASTSettings& InSettings, const TArray<FRigVMExternalVariable>& InExternalVariables, const TArray<FRigVMUserDataArray>& InRigVMUserData)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
+	Settings = InSettings;
 	ObsoleteBlock = nullptr;
 	LastCycleCheckExpr = nullptr;
 	LinksToSkip = InSettings.LinksToSkip;
@@ -2550,6 +2574,7 @@ void FRigVMParserAST::Inline(URigVMGraph* InGraph, const TArray<FRigVMASTProxy>&
 		TMap<FRigVMASTProxy, TArray<FRigVMASTProxy>>* TargetLinks;
 		TMap<FRigVMASTProxy, TArray<FRigVMASTProxy>>* SourceLinks;
 		TArray<FRigVMASTProxy> LibraryNodeCallstack;
+		FRigVMParserASTSettings* Settings;
 
 		static bool ShouldRecursePin(const FRigVMASTProxy& InPinProxy)
 		{
@@ -2790,6 +2815,30 @@ void FRigVMParserAST::Inline(URigVMGraph* InGraph, const TArray<FRigVMASTProxy>&
 
 			if (URigVMLibraryNode* LibraryNode = InNodeProxy.GetSubject<URigVMLibraryNode>())
 			{
+				if (LibraryNode->GetContainedGraph() == nullptr)
+				{
+					if (URigVMFunctionReferenceNode* FunctionRef = Cast<URigVMFunctionReferenceNode>(LibraryNode))
+					{
+						FString FunctionPath = FunctionRef->ReferencedNodePtr.ToString();
+
+						OutTraversalInfo.Settings->Reportf(
+							EMessageSeverity::Error, 
+							LibraryNode, 
+							TEXT("Function Reference '%s' references a missing function (%s)."), 
+							*LibraryNode->GetName(),
+							*FunctionPath);
+					}
+					else
+					{
+						OutTraversalInfo.Settings->Reportf(
+							EMessageSeverity::Error,
+							LibraryNode,
+							TEXT("Library Node '%s' doesn't contain a subgraph."),
+							*LibraryNode->GetName());
+					}
+					return;
+				}
+
 				OutTraversalInfo.LibraryNodeCallstack.Push(InNodeProxy);
 				TArray<URigVMNode*> ContainedNodes = LibraryNode->GetContainedNodes();
 				for (URigVMNode* ContainedNode : ContainedNodes)
@@ -2826,6 +2875,7 @@ void FRigVMParserAST::Inline(URigVMGraph* InGraph, const TArray<FRigVMASTProxy>&
 	TraversalInfo.PinOverrides = &PinOverrides;
 	TraversalInfo.TargetLinks = &TargetLinks;
 	TraversalInfo.SourceLinks = &SourceLinks;
+	TraversalInfo.Settings = &Settings;
 
 	for (const FRigVMASTProxy& NodeProxy : NodeProxies)
 	{

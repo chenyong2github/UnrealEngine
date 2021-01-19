@@ -1719,18 +1719,19 @@ FRigVMOperand URigVMCompiler::FindOrAddRegister(const FRigVMVarExprAST* InVarExp
 
 void URigVMCompiler::ReportInfo(const FString& InMessage)
 {
-	if (!Settings.SurpressInfoMessages)
+	if (Settings.SurpressInfoMessages)
 	{
-		UE_LOG(LogRigVMDeveloper, Display, TEXT("%s"), *InMessage);
+		return;
 	}
+	Settings.Report(EMessageSeverity::Info, nullptr, InMessage);
 }
 
 void URigVMCompiler::ReportWarning(const FString& InMessage)
 {
-	FScriptExceptionHandler::Get().HandleException(ELogVerbosity::Warning, *InMessage, *FString());
+	Settings.Report(EMessageSeverity::Warning, nullptr, InMessage);
 }
 
 void URigVMCompiler::ReportError(const FString& InMessage)
 {
-	FScriptExceptionHandler::Get().HandleException(ELogVerbosity::Error, *InMessage, *FString());
+	Settings.Report(EMessageSeverity::Error, nullptr, InMessage);
 }

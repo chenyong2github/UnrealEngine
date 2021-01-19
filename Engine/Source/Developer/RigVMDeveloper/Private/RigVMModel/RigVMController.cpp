@@ -92,7 +92,7 @@ void URigVMController::PushGraph(URigVMGraph* InGraph, bool bSetupUndoRedo)
 
 	if (bSetupUndoRedo)
 	{
-		ActionStack->AddAction(FRigVMPushGraphAction(InGraph->GetGraphName()));
+		ActionStack->AddAction(FRigVMPushGraphAction(InGraph));
 	}
 }
 
@@ -104,7 +104,7 @@ URigVMGraph* URigVMController::PopGraph(bool bSetupUndoRedo)
 
 	if (bSetupUndoRedo)
 	{
-		ActionStack->AddAction(FRigVMPopGraphAction(LastGraph->GetGraphName()));
+		ActionStack->AddAction(FRigVMPopGraphAction(LastGraph));
 	}
 
 	return LastGraph;
@@ -1731,12 +1731,6 @@ TArray<FName> URigVMController::ImportNodesFromText(const FString& InText, bool 
 	URigVMGraph* Graph = GetGraph();
 	check(Graph);
 
-	// can't import nodes to a function library
-	if (Graph->IsA<URigVMFunctionLibrary>())
-	{
-		return NodeNames;
-	}
-
 	FRigVMControllerObjectFactory Factory(this);
 	Factory.ProcessBuffer(Graph, RF_Transactional, InText);
 
@@ -3122,10 +3116,15 @@ bool URigVMController::RemoveNode(URigVMNode* InNode, bool bSetupUndoRedo, bool 
 			BreakAllLinksRecursive(Pin, false, false, bSetupUndoRedo);
 		}
 
+		if (bSetupUndoRedo)
+		{
+			ActionStack->AddAction(FRigVMRemoveNodeAction(InNode, this));
+		}
+
 		if (URigVMCollapseNode* CollapseNode = Cast<URigVMCollapseNode>(InNode))
 		{
 			URigVMGraph* SubGraph = CollapseNode->GetContainedGraph();
-			FRigVMControllerGraphGuard GraphGuard(this, SubGraph, bSetupUndoRedo);
+			FRigVMControllerGraphGuard GraphGuard(this, SubGraph, false);
 
 			TArray<URigVMNode*> ContainedNodes = SubGraph->GetNodes();
 			for (URigVMNode* ContainedNode : ContainedNodes)
@@ -3135,14 +3134,9 @@ bool URigVMController::RemoveNode(URigVMNode* InNode, bool bSetupUndoRedo, bool 
 				{
 					continue;
 				}
-				RemoveNode(ContainedNode, bSetupUndoRedo, bRecursive);
+				RemoveNode(ContainedNode, false, true);
 			}
 		}
-	}
-
-	if (bSetupUndoRedo)
-	{
-		ActionStack->AddAction(FRigVMRemoveNodeAction(InNode, this));
 	}
 
 	Graph->Nodes.Remove(InNode);
@@ -3190,10 +3184,15 @@ bool URigVMController::RemoveNode(URigVMNode* InNode, bool bSetupUndoRedo, bool 
 				{
 					if (FunctionReferencePtr.IsValid())
 					{
-						FunctionReferencePtr->ReferencedNodePtr.Reset();
+						{
+							TGuardValue<TSoftObjectPtr<URigVMLibraryNode>> ClearReferencedNodePtr(
+								FunctionReferencePtr->ReferencedNodePtr,
+								TSoftObjectPtr<URigVMLibraryNode>());
 
-						FRigVMControllerGraphGuard GraphGuard(this, FunctionReferencePtr->GetGraph(), false);
-						RepopulatePinsOnNode(FunctionReferencePtr.Get(), false, true);
+							FRigVMControllerGraphGuard GraphGuard(this, FunctionReferencePtr->GetGraph(), false);
+							RepopulatePinsOnNode(FunctionReferencePtr.Get(), false, true);
+						}
+						FunctionReferencePtr->ReferencedNodePtr.ResetWeakPtr();
 					}
 				}
 			}

@@ -40,5 +40,6 @@ private:
 	mutable TSoftObjectPtr<URigVMLibraryNode> ReferencedNodePtr;
 
 	friend class URigVMController;
+	friend class FRigVMParserAST;
 };
 

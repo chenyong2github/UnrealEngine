@@ -31,6 +31,8 @@
 #include "UnrealEdGlobals.h"
 #include "Editor/UnrealEdEngine.h"
 #include "CookOnTheSide/CookOnTheFlyServer.h"
+#include "Widgets/Notifications/SNotificationList.h"
+#include "Framework/Notifications/NotificationManager.h"
 #endif//WITH_EDITOR
 
 #define LOCTEXT_NAMESPACE "ControlRigBlueprint"
@@ -67,9 +69,12 @@ UControlRigBlueprint::UControlRigBlueprint(const FObjectInitializer& ObjectIniti
 	Validator = ObjectInitializer.CreateDefaultSubobject<UControlRigValidator>(this, TEXT("ControlRigValidator"));
 
 	bDirtyDuringLoad = false;
+	bErrorsDuringCompilation = false;
 
 	SupportedEventNames.Reset();
 	bExposesAnimatableControls = false;
+
+	VMCompileSettings.ASTSettings.ReportDelegate.BindUObject(this, &UControlRigBlueprint::HandleReportFromCompiler);
 }
 
 void UControlRigBlueprint::InitializeModelIfRequired(bool bRecompileVM)
@@ -276,6 +281,8 @@ void UControlRigBlueprint::PostLoad()
 
 void UControlRigBlueprint::RecompileVM()
 {
+	bErrorsDuringCompilation = false;
+
 	UControlRigBlueprintGeneratedClass* RigClass = GetControlRigBlueprintGeneratedClass();
 	UControlRig* CDO = Cast<UControlRig>(RigClass->GetDefaultObject(true /* create if needed */));
 	if (CDO->VM != nullptr)
@@ -313,6 +320,11 @@ void UControlRigBlueprint::RecompileVM()
 		URigVMCompiler* Compiler = URigVMCompiler::StaticClass()->GetDefaultObject<URigVMCompiler>();
 		Compiler->Settings = VMCompileSettings;
 		Compiler->Compile(Model, GetController(), CDO->VM, CDO->GetExternalVariablesImpl(false), UserData, &PinToOperandMap);
+
+		if (bErrorsDuringCompilation)
+		{
+			return;
+		}
 
 		CDO->Execute(EControlRigState::Init, FRigUnit_BeginExecution::EventName); // need to clarify if we actually need this
 		Statistics = CDO->VM->GetStatistics();
@@ -369,6 +381,53 @@ void UControlRigBlueprint::DecrementVMRecompileBracket()
 	else if (VMRecompilationBracket > 0)
 	{
 		VMRecompilationBracket--;
+	}
+}
+
+void UControlRigBlueprint::HandleReportFromCompiler(EMessageSeverity::Type InSeverity, UObject* InSubject, const FString& InMessage)
+{
+	if (InSeverity == EMessageSeverity::Error)
+	{
+		Status = BS_Error;
+		MarkPackageDirty();
+
+#if WITH_EDITOR
+		FNotificationInfo Info(FText::FromString(InMessage));
+		Info.Image = FCoreStyle::Get().GetBrush(TEXT("MessageLog.Error"));
+		Info.bFireAndForget = true;
+		Info.FadeOutDuration = 10.0f;
+		Info.ExpireDuration = 0.0f;
+		TSharedPtr<SNotificationItem> NotificationPtr = FSlateNotificationManager::Get().AddNotification(Info);
+		NotificationPtr->SetCompletionState(SNotificationItem::CS_Success);
+#endif
+
+		FScriptExceptionHandler::Get().HandleException(ELogVerbosity::Error, *InMessage, *FString());
+		bErrorsDuringCompilation = true;
+	}
+	else if (InSeverity == EMessageSeverity::Warning)
+	{
+		FScriptExceptionHandler::Get().HandleException(ELogVerbosity::Warning, *InMessage, *FString());
+	}
+	else
+	{
+		UE_LOG(LogControlRigDeveloper, Display, TEXT("%s"), *InMessage);
+	}
+
+	if (URigVMNode* Node = Cast<URigVMNode>(InSubject))
+	{
+		if (URigVMGraph* Graph = Node->GetGraph())
+		{
+			if (UControlRigGraph* EdGraph = Cast<UControlRigGraph>(GetEdGraph(Graph)))
+			{
+				if (UControlRigGraphNode* EdGraphNode = Cast<UControlRigGraphNode>(EdGraph->FindNodeForModelNodeName(Node->GetFName())))
+				{
+					EdGraphNode->ErrorType = (int32)InSeverity;
+					EdGraphNode->ErrorMsg = InMessage;
+					EdGraphNode->bHasCompilerMessage = EdGraphNode->ErrorType <= int32(EMessageSeverity::Info);
+
+				}
+			}
+		}
 	}
 }
 

@@ -1433,9 +1433,9 @@ bool FRigVMRenameNodeAction::Redo(URigVMController* InController)
 	return FRigVMBaseAction::Redo(InController);
 }
 
-FRigVMPushGraphAction::FRigVMPushGraphAction(const FString& InGraphName)
-	: GraphName(InGraphName)
+FRigVMPushGraphAction::FRigVMPushGraphAction(UObject* InGraph)
 {
+	GraphPath = TSoftObjectPtr<URigVMGraph>(Cast<URigVMGraph>(InGraph)).GetUniqueID();
 }
 
 bool FRigVMPushGraphAction::Undo(URigVMController* InController)
@@ -1449,25 +1449,18 @@ bool FRigVMPushGraphAction::Undo(URigVMController* InController)
 
 bool FRigVMPushGraphAction::Redo(URigVMController* InController)
 {
-	if (GraphName.IsEmpty())
+	TSoftObjectPtr<URigVMGraph> GraphPtr(GraphPath);
+	if(URigVMGraph* Graph = GraphPtr.Get())
 	{
-		InController->PushGraph(InController->GetTopLevelGraph(), false);
+		InController->PushGraph(Graph, false);
 		return FRigVMBaseAction::Redo(InController);
-	}
-	else if (URigVMNode* Node = InController->GetGraph()->FindNode(GraphName))
-	{
-		if (URigVMCollapseNode* CollapseNode = Cast<URigVMCollapseNode>(Node))
-		{
-			InController->PushGraph(CollapseNode->GetContainedGraph(), false);
-			return FRigVMBaseAction::Redo(InController);
-		}
 	}
 	return false;
 }
 
-FRigVMPopGraphAction::FRigVMPopGraphAction(const FString& InGraphName)
-	: GraphName(InGraphName)
+FRigVMPopGraphAction::FRigVMPopGraphAction(UObject* InGraph)
 {
+	GraphPath = TSoftObjectPtr<URigVMGraph>(Cast<URigVMGraph>(InGraph)).GetUniqueID();
 }
 
 bool FRigVMPopGraphAction::Undo(URigVMController* InController)
@@ -1477,18 +1470,11 @@ bool FRigVMPopGraphAction::Undo(URigVMController* InController)
 		return false;
 	}
 
-	if (GraphName.IsEmpty())
+	TSoftObjectPtr<URigVMGraph> GraphPtr(GraphPath);
+	if (URigVMGraph* Graph = GraphPtr.Get())
 	{
-		InController->PushGraph(InController->GetTopLevelGraph(), false);
+		InController->PushGraph(Graph, false);
 		return true;
-	}
-	else if (URigVMNode* Node = InController->GetGraph()->FindNode(GraphName))
-	{
-		if (URigVMCollapseNode* CollapseNode = Cast<URigVMCollapseNode>(Node))
-		{
-			InController->PushGraph(CollapseNode->GetContainedGraph(), false);
-			return true;
-		}
 	}
 	return false;
 }
