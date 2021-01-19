@@ -1556,6 +1556,7 @@ public:
 	~FUsdLevelSequenceHelperImpl() {}
 
 	ULevelSequence* Init(const UE::FUsdStage& InUsdStage) { return nullptr; }
+	void Clear() {};
 
 	void CreateLocalLayersSequences() {}
 
