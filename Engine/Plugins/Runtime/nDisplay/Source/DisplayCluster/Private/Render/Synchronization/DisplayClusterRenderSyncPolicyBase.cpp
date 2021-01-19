@@ -9,16 +9,6 @@
 #include "Misc/DisplayClusterLog.h"
 
 
-FDisplayClusterRenderSyncPolicyBase::FDisplayClusterRenderSyncPolicyBase(const TMap<FString, FString>& InParameters)
-	: Parameters(InParameters)
-{
-}
-
-FDisplayClusterRenderSyncPolicyBase::~FDisplayClusterRenderSyncPolicyBase()
-{
-}
-
-
 void FDisplayClusterRenderSyncPolicyBase::SyncBarrierRenderThread()
 {
 	if (GDisplayCluster->GetOperationMode() == EDisplayClusterOperationMode::Disabled)
