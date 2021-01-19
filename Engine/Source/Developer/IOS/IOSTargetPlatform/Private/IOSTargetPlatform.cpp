@@ -141,14 +141,32 @@ bool FIOSTargetPlatform::IsSdkInstalled(bool bProjectHasCode, FString& OutTutori
 	// Add future version checks here
 
 	// Check for iTunes 12
-	if(!biOSSDKInstalled
-		&& RegOpenKeyEx(HKEY_LOCAL_MACHINE, TEXT("SOFTWARE\\Wow6432Node\\Apple Inc.\\Apple Mobile Device Support\\Shared"), 0, KEY_READ, &hKey) == ERROR_SUCCESS
-		&& RegQueryValueEx(hKey, TEXT("MobileDeviceDLL"), 0, NULL, (BYTE*)dllPath, &pathSize) == ERROR_SUCCESS
-		&&  IFileManager::Get().FileSize(*FString(dllPath)) != INDEX_NONE)
+	if (!biOSSDKInstalled && RegOpenKeyEx(HKEY_LOCAL_MACHINE, TEXT("SOFTWARE\\Wow6432Node\\Apple Inc.\\Apple Mobile Device Support\\Shared"), 0, KEY_READ, &hKey) == ERROR_SUCCESS)
+	{
+		if (RegQueryValueEx(hKey, TEXT("MobileDeviceDLL"), 0, NULL, (BYTE*)dllPath, &pathSize) == ERROR_SUCCESS
+			&& IFileManager::Get().FileSize(*FString(dllPath)) != INDEX_NONE)
 		{
-		biOSSDKInstalled = true;
+			biOSSDKInstalled = true;
+		}
+		else
+		{
+			// iTunes >= 12.7 doesn't have a key specifying the 32-bit DLL but it does have a ASMapiInterfaceDLL key and MobileDevice.dll is in usually in the same directory
+			if (RegQueryValueEx(hKey, TEXT("ASMapiInterfaceDLL"), 0, NULL, (BYTE*)dllPath, &pathSize) == ERROR_SUCCESS)
+			{
+				FString MobileDeviceDLLPath = FString(dllPath);
+				int32 Index = MobileDeviceDLLPath.Find(TEXT("\\"), ESearchCase::CaseSensitive, ESearchDir::FromEnd);
+				if(Index != INDEX_NONE)
+				{
+					MobileDeviceDLLPath = MobileDeviceDLLPath.Left(Index+1) + TEXT("MobileDevice.dll");
+					if (IFileManager::Get().FileSize(*MobileDeviceDLLPath) != INDEX_NONE)
+					{
+						biOSSDKInstalled = true;
+					}
+				}
+			}
+		}
 	}
-	
+
 	// Check for iTunes 12, Windows Store version
 	if (!biOSSDKInstalled)
 	{
