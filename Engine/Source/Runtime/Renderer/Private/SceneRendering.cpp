@@ -1105,6 +1105,8 @@ FIntPoint FViewInfo::GetSecondaryViewRectSize() const
 		FMath::CeilToInt(UnscaledViewRect.Height() * Family->SecondaryViewFraction));
 }
 
+void UpdateHairLUT(const FViewInfo& View);
+
 /** Creates the view's uniform buffers given a set of view transforms. */
 void FViewInfo::SetupUniformBufferParameters(
 	FSceneRenderTargets& SceneContext,
@@ -1749,6 +1751,7 @@ void FViewInfo::SetupUniformBufferParameters(
 
 	// Hair global resources 
 	SetUpViewHairRenderInfo(*this, ViewUniformShaderParameters.HairRenderInfo, ViewUniformShaderParameters.HairRenderInfoBits, ViewUniformShaderParameters.HairComponents);
+	UpdateHairLUT(*this);
 	ViewUniformShaderParameters.HairScatteringLUTTexture = nullptr;
 	if (GSystemTextures.HairLUT0.IsValid() && GSystemTextures.HairLUT0->GetRenderTargetItem().ShaderResourceTexture)
 	{
