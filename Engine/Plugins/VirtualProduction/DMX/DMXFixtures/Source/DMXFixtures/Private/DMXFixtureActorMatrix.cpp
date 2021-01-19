@@ -9,26 +9,29 @@
 
 DECLARE_CYCLE_STAT(TEXT("Fixture Actor Matrix Push Fixture Matrix Cell Data"), STAT_FixtureActorMatrixPushFixtureMatrixCellData, STATGROUP_DMX);
 
-void UpdateMatrixTexture(uint8* MatrixData, UTexture2D* DynamicTexture, int32 MipIndex, uint32 NumRegions, FUpdateTextureRegion2D Region, uint32 SrcPitch, uint32 SrcBpp)
+namespace
 {
-	if (DynamicTexture->Resource)
+	void UpdateMatrixTexture(uint8* MatrixData, UTexture2D* DynamicTexture, int32 MipIndex, uint32 NumRegions, FUpdateTextureRegion2D Region, uint32 SrcPitch, uint32 SrcBpp)
 	{
-		ENQUEUE_RENDER_COMMAND(UpdateTextureRegionsData)(
-			[=](FRHICommandListImmediate& RHICmdList)
-			{
-				FTexture2DResource* Resource = (FTexture2DResource*)DynamicTexture->Resource;
-				RHIUpdateTexture2D(
-					Resource->GetTexture2DRHI(),
-					MipIndex,
-					Region,
-					SrcPitch,
-					MatrixData
-					+ Region.SrcY * SrcPitch
-					+ Region.SrcX * SrcBpp
-				);
+		if (DynamicTexture->Resource)
+		{
+			ENQUEUE_RENDER_COMMAND(UpdateTextureRegionsData)(
+				[=](FRHICommandListImmediate& RHICmdList)
+				{
+					FTexture2DResource* Resource = (FTexture2DResource*)DynamicTexture->Resource;
+					RHIUpdateTexture2D(
+						Resource->GetTexture2DRHI(),
+						MipIndex,
+						Region,
+						SrcPitch,
+						MatrixData
+						+ Region.SrcY * SrcPitch
+						+ Region.SrcX * SrcBpp
+					);
 
-			});
+				});
 
+		}
 	}
 }
 
@@ -171,6 +174,7 @@ void ADMXFixtureActorMatrix::InitializeMatrixFixture()
 	}
 
 	SetDefaultMatrixFixtureState();
+	UpdateDynamicTexture();
 
 	HasBeenInitialized = true;
 }
