@@ -60,7 +60,7 @@ namespace Metasound
 			// Adds an output node handle with the given class info
 			static Frontend::FNodeHandle AddOutputNodeHandle(UObject& InMetasound, const FString& InName, const FName InTypeName, const FText& InToolTip);
 
-			static void DeleteNode(UEdGraphNode& InNode, Frontend::FNodeHandle InNodeHandle, bool bInRecordTransaction = true);
+			static void DeleteNode(UMetasoundEditorGraphNode& InNode, bool bInRecordTransaction = true);
 
 			static void RebuildGraph(UObject& InMetasound);
 
