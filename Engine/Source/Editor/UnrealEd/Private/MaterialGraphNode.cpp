@@ -38,6 +38,7 @@
 #include "Materials/MaterialExpressionNamedReroute.h"
 #include "Materials/MaterialExpressionReroute.h"
 #include "Materials/MaterialExpressionCurveAtlasRowParameter.h"
+#include "Materials/MaterialExpressionStrata.h"
 #include "MaterialEditorUtilities.h"
 #include "MaterialEditorActions.h"
 #include "GraphEditorActions.h"
@@ -314,6 +315,10 @@ FLinearColor UMaterialGraphNode::GetNodeTitleColor() const
 		{
 			return FColor( 0, 128, 128 );
 		}
+	}
+	else if (const UMaterialExpressionStrataBSDF* StrataBSDF = Cast<UMaterialExpressionStrataBSDF>(MaterialExpression))
+	{
+		return FColor(181, 29, 230);
 	}
 
 	// Assume that most material expressions act like pure functions and don't affect anything else

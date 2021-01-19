@@ -24,19 +24,14 @@ extern int32 CompileStrataBlendFunction(FMaterialCompiler* Compiler, const int32
 // BSDF nodes
 
 // This would be needed to for a common node interface and weight input and normal too?
-/*UCLASS(MinimalAPI, collapsecategories, hidecategories = Object)
+UCLASS(MinimalAPI, collapsecategories, hidecategories = Object, Abstract)
 class UMaterialExpressionStrataBSDF : public UMaterialExpression
 {
 	GENERATED_UCLASS_BODY()
-
-	UPROPERTY()
-	FExpressionInput Weight;
-
-	// Normal?
-}*/
+};
 
 UCLASS(MinimalAPI, collapsecategories, hidecategories = Object)
-class UMaterialExpressionStrataSlabBSDF : public UMaterialExpression
+class UMaterialExpressionStrataSlabBSDF : public UMaterialExpressionStrataBSDF
 {
 	GENERATED_UCLASS_BODY()
 
@@ -120,7 +115,7 @@ class UMaterialExpressionStrataSlabBSDF : public UMaterialExpression
 };
 
 UCLASS(MinimalAPI, collapsecategories, hidecategories = Object)
-class UMaterialExpressionStrataSheenBSDF : public UMaterialExpression
+class UMaterialExpressionStrataSheenBSDF : public UMaterialExpressionStrataBSDF
 {
 	GENERATED_UCLASS_BODY()
 
@@ -155,7 +150,7 @@ class UMaterialExpressionStrataSheenBSDF : public UMaterialExpression
 };
 
 UCLASS(MinimalAPI, collapsecategories, hidecategories = Object)
-class UMaterialExpressionStrataVolumetricFogCloudBSDF : public UMaterialExpression
+class UMaterialExpressionStrataVolumetricFogCloudBSDF : public UMaterialExpressionStrataBSDF
 {
 	GENERATED_UCLASS_BODY()
 
@@ -196,7 +191,7 @@ class UMaterialExpressionStrataVolumetricFogCloudBSDF : public UMaterialExpressi
 };
 
 UCLASS(MinimalAPI, collapsecategories, hidecategories = Object)
-class UMaterialExpressionStrataUnlitBSDF : public UMaterialExpression
+class UMaterialExpressionStrataUnlitBSDF : public UMaterialExpressionStrataBSDF
 {
 	GENERATED_UCLASS_BODY()
 
@@ -225,7 +220,7 @@ class UMaterialExpressionStrataUnlitBSDF : public UMaterialExpression
 };
 
 UCLASS(MinimalAPI, collapsecategories, hidecategories = Object)
-class UMaterialExpressionStrataHairBSDF : public UMaterialExpression
+class UMaterialExpressionStrataHairBSDF : public UMaterialExpressionStrataBSDF
 {
 	GENERATED_UCLASS_BODY()
 		
@@ -284,7 +279,7 @@ class UMaterialExpressionStrataHairBSDF : public UMaterialExpression
 };
 
 UCLASS(MinimalAPI, collapsecategories, hidecategories = Object)
-class UMaterialExpressionStrataSingleLayerWaterBSDF : public UMaterialExpression
+class UMaterialExpressionStrataSingleLayerWaterBSDF : public UMaterialExpressionStrataBSDF
 {
 	GENERATED_UCLASS_BODY()
 
@@ -372,7 +367,7 @@ class UMaterialExpressionStrataSingleLayerWaterBSDF : public UMaterialExpression
 // Operator nodes
 
 UCLASS(MinimalAPI, collapsecategories, hidecategories = Object)
-class UMaterialExpressionStrataHorizontalMixing : public UMaterialExpression
+class UMaterialExpressionStrataHorizontalMixing : public UMaterialExpressionStrataBSDF
 {
 	GENERATED_UCLASS_BODY()
 		
@@ -407,7 +402,7 @@ class UMaterialExpressionStrataHorizontalMixing : public UMaterialExpression
 };
 
 UCLASS(MinimalAPI, collapsecategories, hidecategories = Object)
-class UMaterialExpressionStrataVerticalLayering : public UMaterialExpression
+class UMaterialExpressionStrataVerticalLayering : public UMaterialExpressionStrataBSDF
 {
 	GENERATED_UCLASS_BODY()
 
@@ -436,7 +431,7 @@ class UMaterialExpressionStrataVerticalLayering : public UMaterialExpression
 };
 
 UCLASS(MinimalAPI, collapsecategories, hidecategories = Object)
-class UMaterialExpressionStrataAdd : public UMaterialExpression
+class UMaterialExpressionStrataAdd : public UMaterialExpressionStrataBSDF
 {
 	GENERATED_UCLASS_BODY()
 
@@ -464,8 +459,8 @@ class UMaterialExpressionStrataAdd : public UMaterialExpression
 	//~ End UMaterialExpression Interface
 };
 
-UCLASS(MinimalAPI, DisplayName = "Strata Multiply Weight", collapsecategories, hidecategories = Object)
-class UMaterialExpressionStrataMultiply : public UMaterialExpression
+UCLASS(MinimalAPI, collapsecategories, hidecategories = Object)
+class UMaterialExpressionStrataMultiply : public UMaterialExpressionStrataBSDF
 {
 	GENERATED_UCLASS_BODY()
 
