@@ -134,8 +134,6 @@ FString FMaterialStatsUtils::ShaderPlatformTypeName(const EShaderPlatform Platfo
 	{
 		case SP_PCD3D_SM5:
 			return FString("PCD3D_SM5");
-		case SP_PS4:
-			return FString("PS4");
 		case SP_XBOXONE_D3D12:
 			return FString("XBOXONE_D3D12");
 		case SP_METAL:

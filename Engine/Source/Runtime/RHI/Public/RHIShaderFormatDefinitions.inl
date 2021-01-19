@@ -14,8 +14,6 @@ static FName NAME_PCD3D_ES3_1(TEXT("PCD3D_ES31"));
 static FName NAME_GLSL_150_ES31(TEXT("GLSL_150_ES31"));
 static FName NAME_GLSL_ES3_1_ANDROID(TEXT("GLSL_ES3_1_ANDROID"));
 
-static FName NAME_SF_PS4(TEXT("SF_PS4"));
-
 static FName NAME_SF_XBOXONE_D3D12(TEXT("SF_XBOXONE_D3D12"));
 
 static FName NAME_GLSL_SWITCH(TEXT("GLSL_SWITCH"));
@@ -57,9 +55,6 @@ static FName ShaderPlatformToShaderFormatName(EShaderPlatform Platform)
 		return NAME_GLSL_150_ES31;
 	case SP_OPENGL_ES3_1_ANDROID:
 		return NAME_GLSL_ES3_1_ANDROID;
-
-	case SP_PS4:
-		return NAME_SF_PS4;
 
 	case SP_XBOXONE_D3D12:
 		return NAME_SF_XBOXONE_D3D12;
@@ -137,8 +132,6 @@ static EShaderPlatform ShaderFormatNameToShaderPlatform(FName ShaderFormat)
 
 	if (ShaderFormat == NAME_GLSL_150_ES31)				return SP_OPENGL_PCES3_1;
 	if (ShaderFormat == NAME_GLSL_ES3_1_ANDROID)		return SP_OPENGL_ES3_1_ANDROID;
-
-	if (ShaderFormat == NAME_SF_PS4)					return SP_PS4;
 
 	if (ShaderFormat == NAME_SF_XBOXONE_D3D12)			return SP_XBOXONE_D3D12;
 
