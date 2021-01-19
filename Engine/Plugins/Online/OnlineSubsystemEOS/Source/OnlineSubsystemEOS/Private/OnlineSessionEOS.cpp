@@ -295,8 +295,25 @@ void FOnlineSessionEOS::Init(const char* InBucketId)
 	SessionInviteAcceptedCallback = CallbackObj;
 	CallbackObj->CallbackLambda = [this](const EOS_Sessions_SessionInviteAcceptedCallbackInfo* Data)
 	{
-		UE_LOG_ONLINE_SESSION(Log, TEXT("Invite accepted"));
-// @todo joeg - finish when SDK 1.6 comes out
+		FUniqueNetIdEOSPtr NetId = EOSSubsystem->UserManager->GetLocalUniqueNetIdEOS(Data->LocalUserId);
+		if (!NetId.IsValid())
+		{
+			UE_LOG_ONLINE_SESSION(Warning, TEXT("Cannot accept invite due to unknown user (%s)"), *MakeStringFromProductUserId(Data->LocalUserId));
+			return;
+		}
+		int32 LocalUserNum = EOSSubsystem->UserManager->GetLocalUserNumFromUniqueNetId(*NetId);
+
+		EOS_Sessions_CopySessionHandleByInviteIdOptions Options = { };
+		Options.ApiVersion = EOS_SESSIONS_COPYSESSIONHANDLEBYINVITEID_API_LATEST;
+		Options.InviteId = Data->InviteId;
+		EOS_HSessionDetails SessionDetails = nullptr;
+		EOS_EResult Result = EOS_Sessions_CopySessionHandleByInviteId(EOSSubsystem->SessionsHandle, &Options, &SessionDetails);
+		if (Result == EOS_EResult::EOS_Success)
+		{
+			LastInviteSearch = MakeShared<FOnlineSessionSearch>();
+			AddSearchResult(SessionDetails, LastInviteSearch.ToSharedRef());
+			TriggerOnSessionUserInviteAcceptedDelegates(true, LocalUserNum, NetId, LastInviteSearch->SearchResults[0]);
+		}
 	};
 	EOS_Sessions_AddNotifySessionInviteAcceptedOptions Options = { };
 	Options.ApiVersion = EOS_SESSIONS_ADDNOTIFYSESSIONINVITEACCEPTED_API_LATEST;
