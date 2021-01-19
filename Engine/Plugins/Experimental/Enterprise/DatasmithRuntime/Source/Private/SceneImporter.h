@@ -242,10 +242,13 @@ namespace DatasmithRuntime
 	struct FAssetData : public FBaseData
 	{
 		/** Build settings requirements defined by materials, used by static meshes */
-		int32 Requirements;
+		int32 Requirements = 0;
 
 		/** Hash of associated element used to prevent the duplication of assets */
-		DirectLink::FElementHash Hash;
+		DirectLink::FElementHash Hash = 0;
+
+		/** Hash of potential resource of associated element used to prevent recreation of assets */
+		DirectLink::FElementHash ResourceHash = 0;
 
 		FAssetData(FSceneGraphId InElementId, EDataType InType = EDataType::None)
 			: FBaseData(InElementId, InType)
