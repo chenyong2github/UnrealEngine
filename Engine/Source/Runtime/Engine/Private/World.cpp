@@ -3826,6 +3826,8 @@ void UWorld::UpdateStreamingLevelPriority(ULevelStreaming* StreamingLevel)
 
 void UWorld::FlushLevelStreaming(EFlushLevelStreamingType FlushType)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UWorld::FlushLevelStreaming);
+
 	if (FlushType == FlushLevelStreamingType
 		|| FlushLevelStreamingType == EFlushLevelStreamingType::Full
 		|| FlushType == EFlushLevelStreamingType::None)

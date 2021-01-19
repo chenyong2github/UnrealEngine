@@ -2053,6 +2053,8 @@ void SaveWorldLevelInfo(UPackage* InOuter, FLinkerSave* Linker, FStructuredArchi
 
 void UPackage::WaitForAsyncFileWrites()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UPackage::WaitForAsyncFileWrites);
+
 	while (OutstandingAsyncWrites.GetValue())
 	{
 		FPlatformProcess::Sleep(0.0f);
