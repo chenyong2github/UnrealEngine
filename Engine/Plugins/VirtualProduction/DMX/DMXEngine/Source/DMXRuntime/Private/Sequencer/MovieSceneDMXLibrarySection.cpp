@@ -438,16 +438,26 @@ void UMovieSceneDMXLibrarySection::UpdateChannelProxy(bool bResetDefaultChannelV
 			// This will give users the impression that the Patch isn't added, but it is,
 			// which prevents the user from adding it again. So, to mitigate that, we remove
 			// the Patch from the track section.
-			UE_LOG(MovieSceneDMXLibrarySectionLog, Warning, TEXT("%S: Removing empty Patch %s"), __FUNCTION__, *Patch->GetDisplayName());
+			UE_LOG(MovieSceneDMXLibrarySectionLog, Warning, TEXT("%S: Ignoring patch without functions %s"), __FUNCTION__, *Patch->GetDisplayName());
 			InvalidPatchChannelIndices.Add(PatchChannelIndex);
 			continue;
 		}
 
-		// const TArray<FDMXFixtureFunction>& Functions = Patch->ParentFixtureTypeTemplate->Modes[PatchChannel.ActiveMode].Functions;
 		UDMXEntityFixtureType* FixtureType = Patch->ParentFixtureTypeTemplate;
-		check(FixtureType);
+		if (!FixtureType)
+		{
+			UE_LOG(MovieSceneDMXLibrarySectionLog, Warning, TEXT("%s: Ignoring patch  %s without valid parent fixture type"), __FUNCTION__, *Patch->GetDisplayName());
+			continue;
+		}
 
-		const TArray<FDMXFixtureFunction>& Functions = FixtureType->Modes[PatchChannel.ActiveMode].Functions;
+		if (!FixtureType->Modes.IsValidIndex(PatchChannel.ActiveMode))
+		{
+			UE_LOG(MovieSceneDMXLibrarySectionLog, Warning, TEXT("%s: Recorded active mode no longer valid. Ignoring Patch %s."), __FUNCTION__, *Patch->GetDisplayName());
+			continue;
+		}
+
+		const FDMXFixtureMode& Mode = FixtureType->Modes[PatchChannel.ActiveMode];
+		const TArray<FDMXFixtureFunction>& Functions = Mode.Functions;
 		TArray<FDMXFixtureFunctionChannel>& FunctionChannels = PatchChannel.FunctionChannels;
 
 		// Add a channel proxy entry for each Function channel
