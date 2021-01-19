@@ -14,6 +14,4 @@ class IDisplayClusterConfiguratorOutputMappingItem
 {
 public:
 	virtual const FString& GetNodeName() const = 0;
-
-	virtual TSharedPtr<IDisplayClusterConfiguratorOutputMappingSlot> GetSlot() const = 0;
 };

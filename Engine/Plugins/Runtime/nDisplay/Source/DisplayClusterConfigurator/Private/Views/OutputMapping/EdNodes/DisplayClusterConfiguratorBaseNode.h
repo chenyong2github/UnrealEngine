@@ -18,9 +18,15 @@ class UDisplayClusterConfiguratorBaseNode
 	GENERATED_BODY()
 
 public:
-	void Initialize(UObject* InObject, const FString& InNodeName, const TSharedRef<IDisplayClusterConfiguratorOutputMappingSlot> InSlot, const TSharedRef<FDisplayClusterConfiguratorToolkit>& InToolkit);
+	void Initialize(const FString& InNodeName, UObject* InObject, const TSharedRef<FDisplayClusterConfiguratorToolkit>& InToolkit);
 
-	void Initialize(UObject* InObject, const FString& InNodeName, const TSharedRef<FDisplayClusterConfiguratorToolkit>& InToolkit);
+	//~ Begin UObject Interface
+	virtual void PostEditUndo() override;
+	//~ End UObject Interface
+
+	//~ Begin UEdGraphNode Interface
+	virtual void ResizeNode(const FVector2D& NewSize) override;
+	//~ End UEdGraphNode Interface
 
 	//~ Begin IDisplayClusterConfiguratorItem Interface
 	virtual void OnSelection() override;
@@ -30,18 +36,32 @@ public:
 
 	//~ Begin IDisplayClusterConfiguratorOutputMappingItem Interface
 	virtual const FString& GetNodeName() const override;
-	virtual TSharedPtr<IDisplayClusterConfiguratorOutputMappingSlot> GetSlot() const override;
 	//~ End IDisplayClusterConfiguratorOutputMappingItem Interface
 
-	virtual void SetSlot(TSharedRef<IDisplayClusterConfiguratorOutputMappingSlot> InSlot);
+	FBox2D GetNodeBounds() const;
+	FVector2D GetNodePosition() const;
+	FVector2D GetNodeSize() const;
+
+	virtual void UpdateObject() {}
+
+	virtual void OnNodeAligned(const FVector2D& PositionChange, bool bUpdateChildren = false);
+
+	bool WillOverlap(UDisplayClusterConfiguratorBaseNode* InNode, const FVector2D& InDesiredOffset = FVector2D::ZeroVector, const FVector2D& InDesiredSizeChange = FVector2D::ZeroVector) const;
+	FVector2D FindNonOverlappingOffset(UDisplayClusterConfiguratorBaseNode* InNode, const FVector2D& InDesiredOffset) const;
+	FVector2D FindNonOverlappingSize(UDisplayClusterConfiguratorBaseNode* InNode, const FVector2D& InDesiredSize, const bool bFixedApsectRatio) const;
+
+protected:
+	template<class TObjectType>
+	TObjectType* GetObjectChecked() const
+	{
+		TObjectType* CastedObject = Cast<TObjectType>(ObjectToEdit.Get());
+		check(CastedObject);
+		return CastedObject;
+	}
 
 protected:
 	TWeakObjectPtr<UObject> ObjectToEdit;
-
-	FString NodeName;
-
-	TWeakPtr<IDisplayClusterConfiguratorOutputMappingSlot> SlotPtr;
-
 	TWeakPtr<FDisplayClusterConfiguratorToolkit> ToolkitPtr;
 
+	FString NodeName;
 };

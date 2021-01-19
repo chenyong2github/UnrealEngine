@@ -2,9 +2,23 @@
 
 #include "Views/OutputMapping/EdNodes/DisplayClusterConfiguratorCanvasNode.h"
 
+#include "Views/OutputMapping/EdNodes/DisplayClusterConfiguratorWindowNode.h"
+#include "Views/OutputMapping/GraphNodes/SDisplayClusterConfiguratorCanvasNode.h"
+
 #include "DisplayClusterConfigurationTypes.h"
 
-UDisplayClusterConfigurationCluster* UDisplayClusterConfiguratorCanvasNode::GetCfgCluster()
+TSharedPtr<SGraphNode> UDisplayClusterConfiguratorCanvasNode::CreateVisualWidget()
 {
-	return Cast<UDisplayClusterConfigurationCluster>(ObjectToEdit.Get());
+	return SNew(SDisplayClusterConfiguratorCanvasNode, this, ToolkitPtr.Pin().ToSharedRef());;
+}
+
+void UDisplayClusterConfiguratorCanvasNode::AddWindowNode(UDisplayClusterConfiguratorWindowNode* WindowNode)
+{
+	WindowNode->SetParentCanvas(this);
+	ChildWindows.Add(WindowNode);
+}
+
+const TArray<UDisplayClusterConfiguratorWindowNode*>& UDisplayClusterConfiguratorCanvasNode::GetChildWindows() const
+{
+	return ChildWindows;
 }

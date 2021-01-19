@@ -34,6 +34,7 @@ private:
 	TWeakPtr<SDisplayClusterConfiguratorBaseNode> BaseNodePtr;
 
 	bool bResizing;
+	float CurrentAspectRatio;
 
 	TAttribute<bool> IsFixedAspectRatio;
 };

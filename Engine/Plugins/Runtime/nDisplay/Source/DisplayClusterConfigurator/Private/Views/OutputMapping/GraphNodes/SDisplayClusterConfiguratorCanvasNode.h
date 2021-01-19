@@ -25,22 +25,29 @@ public:
 
 	//~ SGraphNode interface
 	virtual void UpdateGraphNode() override;
-	virtual void SetOwner(const TSharedRef<SGraphPanel>& OwnerPanel) override;
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
+	virtual void MoveTo(const FVector2D& NewPosition, FNodeSet& NodeFilter) override;
+	virtual FVector2D ComputeDesiredSize(float) const override;
+	virtual FVector2D GetPosition() const override;
+	virtual TArray<FOverlayWidgetInfo> GetOverlayWidgets(bool bSelected, const FVector2D& WidgetSize) const override;
 	//~ End SGraphNode interface
 
 	//~ Begin SDisplayClusterConfiguratorBaseNode interface
 	virtual UObject* GetEditingObject() const override;
 	virtual void OnSelectedItemSet(const TSharedRef<IDisplayClusterConfiguratorTreeItem>& InTreeItem) override;
+	virtual int32 GetNodeLayerIndex() const override { return DefaultZOrder; }
 	//~ End of SDisplayClusterConfiguratorBaseNode interface
 
-public:
-	const TArray<TSharedPtr<IDisplayClusterConfiguratorOutputMappingSlot>>& GetAllSlots() const;
+private:
+	const FSlateBrush* GetSelectedBrush() const;
+	FMargin GetBackgroundPosition() const;
+	FText GetCanvasSizeText() const;
 
 private:
-	TWeakObjectPtr<UDisplayClusterConfiguratorCanvasNode> CanvasNodePtr;
+	TSharedPtr<SWidget> CanvasSizeTextWidget;
 
-	TWeakObjectPtr<UDisplayClusterConfigurationCluster> CfgClusterPtr;
+	float CanvasScaleFactor;
 
-	TSharedPtr<FDisplayClusterConfiguratorOutputMappingBuilder> OutputMappingBuilder;
+private:
+	static int32 const DefaultZOrder;
 };
