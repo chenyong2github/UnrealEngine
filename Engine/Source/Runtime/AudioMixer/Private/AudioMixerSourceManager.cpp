@@ -1667,6 +1667,7 @@ namespace Audio
 						SourceInfo.bIsPaused = false;
 						SourceInfo.bIsActive = false;
 						SourceInfo.bIsStopping = false;
+						SourceInfo.bIsLastBuffer = true;
 						break;
 					}
 				}
