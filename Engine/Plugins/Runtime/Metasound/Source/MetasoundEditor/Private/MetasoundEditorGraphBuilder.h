@@ -22,14 +22,10 @@ namespace Metasound
 		class FGraphBuilder
 		{
 		public:
-			static const FName PinAudioFormat;
-			static const FName PinAudioNumeric;
 			static const FName PinPrimitiveBoolean;
 			static const FName PinPrimitiveFloat;
-			static const FName PinPrimitiveInt32;
-			static const FName PinPrimitiveInt64;
+			static const FName PinPrimitiveInteger;
 			static const FName PinPrimitiveString;
-			static const FName PinPrimitiveTrigger;
 			static const FName PinPrimitiveUObject;
 			static const FName PinPrimitiveUObjectArray;
 
@@ -60,7 +56,7 @@ namespace Metasound
 			// Adds an output node handle with the given class info
 			static Frontend::FNodeHandle AddOutputNodeHandle(UObject& InMetasound, const FString& InName, const FName InTypeName, const FText& InToolTip);
 
-			static void DeleteNode(UMetasoundEditorGraphNode& InNode, bool bInRecordTransaction = true);
+			static void DeleteNode(UEdGraphNode& InNode, Frontend::FNodeHandle InNodeHandle, bool bInRecordTransaction = true);
 
 			static void RebuildGraph(UObject& InMetasound);
 
