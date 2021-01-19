@@ -9,6 +9,7 @@
 #include "EdGraph/EdGraphPin.h"
 #include "AssetData.h"
 #include "UObject/ObjectKey.h"
+#include "Input/Reply.h"
 #include "EdGraphSchema.generated.h"
 
 class FSlateRect;
