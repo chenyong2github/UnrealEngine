@@ -15,7 +15,7 @@
 
 namespace {
 
-	void SubdivideMesh(FDynamicMesh3& Mesh)
+	void SubdivideMesh(FDynamicMesh3& Mesh, FProgressCancel* ProgressCancel)
 	{
 		TArray<int> EdgesToProcess;
 		for (int tid : Mesh.EdgeIndicesItr())
@@ -23,6 +23,8 @@ namespace {
 			EdgesToProcess.Add(tid);
 		}
 		int MaxTriangleID = Mesh.MaxTriangleID();
+
+		if (ProgressCancel && ProgressCancel->Cancelled()) return;
 
 		TArray<int> TriSplitEdges;
 		TriSplitEdges.Init(-1, Mesh.MaxTriangleID());
@@ -47,6 +49,8 @@ namespace {
 					}
 				}
 			}
+
+			if (ProgressCancel && ProgressCancel->Cancelled()) return;
 		}
 
 		for (int eid : TriSplitEdges)
@@ -55,6 +59,8 @@ namespace {
 			{
 				FDynamicMesh3::FEdgeFlipInfo FlipInfo;
 				Mesh.FlipEdge(eid, FlipInfo);
+
+				if (ProgressCancel && ProgressCancel->Cancelled()) return;
 			}
 		}
 	}
@@ -111,13 +117,13 @@ namespace {
 		void Constant(const FDynamicMesh3& Mesh,
 			const TArray<FVector3d>& Positions, 
 			const FMeshNormals& Normals, 
-			TFunctionRef<float(const FVector3d&, const FVector3d&)> IntensityFunc,
+			TFunctionRef<float(int32, const FVector3d&, const FVector3d&)> IntensityFunc,
 			TArray<FVector3d>& DisplacedPositions)
 		{
 			ParallelDisplace(Mesh, Positions, Normals, DisplacedPositions,
 				[&](int32 vid, const FVector3d& Position, const FVector3d& Normal)
 			{
-				double Intensity = IntensityFunc(Position, Normal);
+				double Intensity = IntensityFunc(vid, Position, Normal);
 				return Position + (Intensity * Normal);
 			});
 		}
@@ -126,7 +132,7 @@ namespace {
 		void RandomNoise(const FDynamicMesh3& Mesh,
 			const TArray<FVector3d>& Positions, 
 			const FMeshNormals& Normals,
-			TFunctionRef<float(const FVector3d&, const FVector3d&)> IntensityFunc,
+			TFunctionRef<float(int32, const FVector3d&, const FVector3d&)> IntensityFunc,
 			int RandomSeed, 
 			TArray<FVector3d>& DisplacedPositions)
 		{
@@ -134,7 +140,7 @@ namespace {
 			for (int vid : Mesh.VertexIndicesItr())
 			{
 				double RandVal = 2.0 * (FMath::SRand() - 0.5);
-				double Intensity = IntensityFunc(Positions[vid], Normals[vid]);
+				double Intensity = IntensityFunc(vid, Positions[vid], Normals[vid]);
 				DisplacedPositions[vid] = Positions[vid] + (Normals[vid] * RandVal * Intensity);
 			}
 		}
@@ -142,7 +148,7 @@ namespace {
 		void PerlinNoise(const FDynamicMesh3& Mesh,
 			const TArray<FVector3d>& Positions,
 			const FMeshNormals& Normals,
-			TFunctionRef<float(const FVector3d&, const FVector3d&)> IntensityFunc,
+			TFunctionRef<float(int32, const FVector3d&, const FVector3d&)> IntensityFunc,
 			const TArray<FPerlinLayerProperties>& PerlinLayerProperties,
 			int RandomSeed,
 			TArray<FVector3d>& DisplacedPositions)
@@ -160,7 +166,7 @@ namespace {
 				{
 					TotalNoiseValue += PerlinLayerProperties[Layer].Intensity * FMath::PerlinNoise3D(PerlinLayerProperties[Layer].Frequency * EvalLocation);
 				}
-				double Intensity = IntensityFunc(Position, Normal);
+				double Intensity = IntensityFunc(vid, Position, Normal);
 				return Position + (TotalNoiseValue * Intensity * Normal);
 			});
 		}
@@ -168,7 +174,7 @@ namespace {
 		void Map(const FDynamicMesh3& Mesh,
 			const TArray<FVector3d>& Positions, 
 			const FMeshNormals& Normals,
-			TFunctionRef<float(const FVector3d&, const FVector3d&)> IntensityFunc,
+			TFunctionRef<float(int32, const FVector3d&, const FVector3d&)> IntensityFunc,
 			const FSampledScalarField2f& DisplaceField,
 			TArray<FVector3d>& DisplacedPositions)
 		{
@@ -182,7 +188,7 @@ namespace {
 					int vid = Tri[j];
 					FVector2f UV = UVOverlay->GetElement(UVTri[j]);
 					double Offset = DisplaceField.BilinearSampleClamped(UV);
-					double Intensity = IntensityFunc(Positions[vid], Normals[vid]);
+					double Intensity = IntensityFunc(vid, Positions[vid], Normals[vid]);
 					DisplacedPositions[vid] = Positions[vid] + (Offset * Intensity * Normals[vid]);
 				}
 			}
@@ -191,7 +197,7 @@ namespace {
 		void Sine(const FDynamicMesh3& Mesh,
 			const TArray<FVector3d>& Positions,
 			const FMeshNormals& Normals,
-			TFunctionRef<float(const FVector3d&, const FVector3d&)> IntensityFunc,
+			TFunctionRef<float(int32, const FVector3d&, const FVector3d&)> IntensityFunc,
 			double Frequency,
 			double PhaseShift,
 			const FVector3d& Direction,
@@ -204,7 +210,7 @@ namespace {
 			{
 				FVector3d RotatedPosition = RotateToDirection * Position;
 				double DistXY = FMath::Sqrt(RotatedPosition.X * RotatedPosition.X + RotatedPosition.Y * RotatedPosition.Y);
-				double Intensity = IntensityFunc(Position, Normal);
+				double Intensity = IntensityFunc(vid, Position, Normal);
 				FVector3d Offset = Intensity * FMath::Sin(Frequency * DistXY + PhaseShift) * Direction;
 				return Position + Offset;
 
@@ -272,16 +278,36 @@ namespace {
 	class FSubdivideMeshOp : public FDynamicMeshOperator
 	{
 	public:
-		FSubdivideMeshOp(const FDynamicMesh3& SourceMesh, int SubdivisionsCountIn);
+		FSubdivideMeshOp(const FDynamicMesh3& SourceMesh, int SubdivisionsCountIn, TSharedPtr<FIndexedWeightMap> WeightMap);
 		void CalculateResult(FProgressCancel* Progress) final;
 	private:
 		int SubdivisionsCount;
 	};
 
-	FSubdivideMeshOp::FSubdivideMeshOp(const FDynamicMesh3& SourceMesh, int SubdivisionsCountIn)
+	FSubdivideMeshOp::FSubdivideMeshOp(const FDynamicMesh3& SourceMesh, int SubdivisionsCountIn, TSharedPtr<FIndexedWeightMap> WeightMap)
 		: SubdivisionsCount(SubdivisionsCountIn)
 	{
 		ResultMesh->Copy(SourceMesh);
+
+		// If we have a WeightMap, initialize VertexUV.X with weightmap value. Note that we are going to process .Y anyway,
+		// we could (for exmaple) speculatively compute another weightmap, or store previous weightmap values there, to support
+		// fast switching between two...
+		ResultMesh->EnableVertexUVs(FVector2f::Zero());
+		if (WeightMap != nullptr)
+		{
+			for (int32 vid : ResultMesh->VertexIndicesItr())
+			{
+				ResultMesh->SetVertexUV(vid, FVector2f(WeightMap->GetValue(vid), 0));
+			}
+		}
+		else
+		{
+			for (int32 vid : ResultMesh->VertexIndicesItr())
+			{
+				ResultMesh->SetVertexUV(vid, FVector2f::One());
+			}
+		}
+
 	}
 
 	void FSubdivideMeshOp::CalculateResult(FProgressCancel* ProgressCancel)
@@ -289,8 +315,8 @@ namespace {
 		// calculate subdivisions (todo: move to elsewhere)
 		for (int ri = 0; ri < SubdivisionsCount; ri++)
 		{
-			if (ProgressCancel->Cancelled()) return;
-			SubdivideMesh(*ResultMesh);
+			if (ProgressCancel && ProgressCancel->Cancelled()) return;
+			SubdivideMesh(*ResultMesh, ProgressCancel);
 		}
 	}
 
@@ -298,20 +324,24 @@ namespace {
 	{
 	public:
 		FSubdivideMeshOpFactory(FDynamicMesh3& SourceMeshIn,
-			int SubdivisionsCountIn)
-			: SourceMesh(SourceMeshIn), SubdivisionsCount(SubdivisionsCountIn)
+			int SubdivisionsCountIn,
+			TSharedPtr<FIndexedWeightMap> WeightMapIn)
+			: SourceMesh(SourceMeshIn), SubdivisionsCount(SubdivisionsCountIn), WeightMap(WeightMapIn)
 		{
 		}
 		void SetSubdivisionsCount(int SubdivisionsCountIn);
 		int  GetSubdivisionsCount();
 
+		void SetWeightMap(TSharedPtr<FIndexedWeightMap> WeightMapIn);
+
 		TUniquePtr<FDynamicMeshOperator> MakeNewOperator() final
 		{
-			return MakeUnique<FSubdivideMeshOp>(SourceMesh, SubdivisionsCount);
+			return MakeUnique<FSubdivideMeshOp>(SourceMesh, SubdivisionsCount, WeightMap);
 		}
 	private:
 		const FDynamicMesh3& SourceMesh;
 		int SubdivisionsCount;
+		TSharedPtr<FIndexedWeightMap> WeightMap;
 	};
 
 	void FSubdivideMeshOpFactory::SetSubdivisionsCount(int SubdivisionsCountIn)
@@ -324,6 +354,10 @@ namespace {
 		return SubdivisionsCount;
 	}
 
+	void FSubdivideMeshOpFactory::SetWeightMap(TSharedPtr<FIndexedWeightMap> WeightMapIn)
+	{
+		WeightMap = WeightMapIn;
+	}
 
 	// A collection of parameters to avoid having excess function parameters
 	struct DisplaceMeshParameters
@@ -397,15 +431,25 @@ namespace {
 			Parameters.FilterWidth };
 		double Intensity = Parameters.DisplaceIntensity;
 
-		TUniqueFunction<float(const FVector3d&)> WeightMapQueryFunc = [&](const FVector3d&) { return 1.0f; };
+		TUniqueFunction<float(int32 vid, const FVector3d&)> WeightMapQueryFunc = [&](int32, const FVector3d&) { return 1.0f; };
 		if (Parameters.WeightMap.IsValid())
 		{
-			WeightMapQueryFunc = [&](const FVector3d& Pos) { return Parameters.WeightMapQueryFunc(Pos, *Parameters.WeightMap); };
+			if (SourceMesh->IsCompactV() && SourceMesh->VertexCount() == Parameters.WeightMap->Values.Num())
+			{
+				WeightMapQueryFunc = [&](int32 vid, const FVector3d& Pos) { return Parameters.WeightMap->GetValue(vid); };
+			}
+			else
+			{
+				// disable input query function as it uses expensive AABBTree lookup
+				//WeightMapQueryFunc = [&](int32 vid, const FVector3d& Pos) { return Parameters.WeightMapQueryFunc(Pos, *Parameters.WeightMap); };
+				WeightMapQueryFunc = [&](int32 vid, const FVector3d& Pos) { return SourceMesh->GetVertexUV(vid).X; };
+			}
 		}
-		auto IntensityFunc = [&](const FVector3d& Position, const FVector3d& Normal) 
+		auto IntensityFunc = [&](int32 vid, const FVector3d& Position, const FVector3d& Normal)
 		{
-			return Intensity * DirectionalFilter.FilterValue(Normal) * WeightMapQueryFunc(Position);
+			return Intensity * DirectionalFilter.FilterValue(Normal) * WeightMapQueryFunc(vid, Position);
 		};
+
 
 
 		// compute Displaced positions in PositionBuffer
@@ -714,8 +758,6 @@ void UDisplaceMeshTool::Setup()
 	OriginalMesh.Copy(*DynamicMeshComponent->GetMesh());
 	OriginalMeshSpatial.SetMesh(&OriginalMesh, true);
 
-	Subdivider = MakeUnique<FSubdivideMeshOpFactory>(OriginalMesh, CommonProperties->Subdivisions);
-	
 	DisplaceMeshParameters Parameters;
 	Parameters.DisplaceIntensity = CommonProperties->DisplaceIntensity;
 	Parameters.RandomSeed = CommonProperties->RandomSeed;
@@ -763,6 +805,8 @@ void UDisplaceMeshTool::Setup()
 									} );
 
 	ValidateSubdivisions();
+	Subdivider = MakeUnique<FSubdivideMeshOpFactory>(OriginalMesh, CommonProperties->Subdivisions, ActiveWeightMap);
+
 	StartComputation();
 
 	GetToolManager()->DisplayMessage(
@@ -807,15 +851,20 @@ void UDisplaceMeshTool::ValidateSubdivisions()
 		return;
 	}
 
+	bool bIsInitialized = (Subdivider != nullptr);
+
 	constexpr int MaxTriangles = 3000000;
 	double NumTriangles = OriginalMesh.MaxTriangleID();
 	int MaxSubdivisions = (int)floor(log2(MaxTriangles / NumTriangles) / 2.0);
 	if (CommonProperties->Subdivisions > MaxSubdivisions)
 	{
-		FText WarningText = FText::Format(LOCTEXT("SubdivisionsTooHigh", "Desired number of Subdivisions ({0}) exceeds maximum number of {1}"), 
-			FText::AsNumber(CommonProperties->Subdivisions), 
-			FText::AsNumber(MaxSubdivisions));
-		GetToolManager()->DisplayMessage(WarningText, EToolMessageLevel::UserWarning);
+		if (bIsInitialized)		// only show warning after initial tool startup
+		{
+			FText WarningText = FText::Format(LOCTEXT("SubdivisionsTooHigh", "Desired number of Subdivisions ({0}) exceeds maximum number ({1}) for a mesh of this number of triangles."),
+				FText::AsNumber(CommonProperties->Subdivisions),
+				FText::AsNumber(MaxSubdivisions));
+			GetToolManager()->DisplayMessage(WarningText, EToolMessageLevel::UserWarning);
+		}
 		CommonProperties->Subdivisions = MaxSubdivisions;
 	}
 	else
@@ -884,7 +933,9 @@ void UDisplaceMeshTool::OnPropertyModified(UObject* PropertySet, FProperty* Prop
 				 || PropName == GET_MEMBER_NAME_CHECKED(UDisplaceMeshCommonProperties, bInvertWeightMap))
 		{
 			UpdateActiveWeightMap();
+			SubdividerDownCast->SetWeightMap(ActiveWeightMap);
 			DisplacerDownCast->SetWeightMap(ActiveWeightMap);
+			bNeedsSubdivided = true;
 		}
 		else if (PropName == GET_MEMBER_NAME_CHECKED(UDisplaceMeshDirectionalFilterProperties, bEnableFilter))
 		{
@@ -976,13 +1027,20 @@ void UDisplaceMeshTool::AdvanceComputation()
 
 void UDisplaceMeshTool::UpdateActiveWeightMap()
 {
-	TSharedPtr<FIndexedWeightMap> NewWeightMap = MakeShared<FIndexedWeightMap>();
-	UE::WeightMaps::GetVertexWeightMap(ComponentTarget->GetMesh(), CommonProperties->WeightMap, *NewWeightMap, 1.0f);
-	if (CommonProperties->bInvertWeightMap)
+	if (CommonProperties->WeightMap == FName(TEXT("None")))
 	{
-		NewWeightMap->InvertWeightMap();
+		ActiveWeightMap = nullptr;
 	}
-	ActiveWeightMap = NewWeightMap;
+	else
+	{
+		TSharedPtr<FIndexedWeightMap> NewWeightMap = MakeShared<FIndexedWeightMap>();
+		UE::WeightMaps::GetVertexWeightMap(ComponentTarget->GetMesh(), CommonProperties->WeightMap, *NewWeightMap, 1.0f);
+		if (CommonProperties->bInvertWeightMap)
+		{
+			NewWeightMap->InvertWeightMap();
+		}
+		ActiveWeightMap = NewWeightMap;
+	}
 }
 
 
