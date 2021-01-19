@@ -118,6 +118,8 @@ protected:
 
 	/** Pointer back to the mode tools that we are registered with */
 	FEditorModeTools* Owner;
+
+	TScriptInterface<ILegacyEdModeWidgetInterface> ParentModeInterface;
 };
 
 // This class is to aid transitioning from native FEdModes to UEdModes, in the case that the FEdMode used property widgets and/or transform widgets

@@ -481,6 +481,11 @@ EAxisList::Type FLegacyEdModeWidgetHelper::GetCurrentWidgetAxis() const
 
 bool FLegacyEdModeWidgetHelper::UsesPropertyWidgets() const
 {
+	if (ParentModeInterface)
+	{
+		return ParentModeInterface->UsesPropertyWidgets();
+	}
+
 	return false;
 }
 
@@ -764,6 +769,7 @@ void UBaseLegacyWidgetEdMode::Initialize()
 {
 	WidgetHelper = MakeShared<FLegacyEdModeWidgetHelper>();
 	WidgetHelper->Owner = this->Owner;
+	WidgetHelper->ParentModeInterface = this;
 
 	UEdMode::Initialize();
 }
@@ -859,7 +865,7 @@ EAxisList::Type UBaseLegacyWidgetEdMode::GetCurrentWidgetAxis() const
 
 bool UBaseLegacyWidgetEdMode::UsesPropertyWidgets() const
 {
-	return WidgetHelper->UsesPropertyWidgets();
+	return false;
 }
 
 bool UBaseLegacyWidgetEdMode::GetCustomDrawingCoordinateSystem(FMatrix& InMatrix, void* InData)
