@@ -1287,10 +1287,12 @@ namespace UnrealBuildTool
 		void CopyVulkanValidationLayers(string UE4BuildPath, string UE4Arch, string NDKArch, string Configuration)
 		{
 			bool bSupportsVulkan = false;
+			bool bSupportsVulkanSM5 = false;
 			ConfigHierarchy Ini = GetConfigCacheIni(ConfigHierarchyType.Engine);
 			Ini.GetBool("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "bSupportsVulkan", out bSupportsVulkan);
+			Ini.GetBool("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "bSupportsVulkanSM5", out bSupportsVulkanSM5);
 
-			bool bCopyVulkanLayers = bSupportsVulkan && (Configuration == "Debug" || Configuration == "Development");
+			bool bCopyVulkanLayers = (bSupportsVulkan || bSupportsVulkanSM5) && (Configuration == "Debug" || Configuration == "Development");
 			if (bCopyVulkanLayers)
 			{
 				string VulkanLayersDir = Environment.ExpandEnvironmentVariables("%NDKROOT%/sources/third_party/vulkan/src/build-android/jniLibs/") + NDKArch;
