@@ -3199,6 +3199,7 @@ void FSceneRenderer::SetupMeshPass(FViewInfo& View, FExclusiveDepthStencil::Type
 					case EMeshPass::HitProxy:
 					case EMeshPass::HitProxyOpaqueOnly:
 					case EMeshPass::EditorSelection:
+					case EMeshPass::EditorLevelInstance:
 #endif
 						break;
 					default:

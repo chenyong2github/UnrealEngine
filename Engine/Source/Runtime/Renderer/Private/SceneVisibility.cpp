@@ -2882,6 +2882,9 @@ void ComputeDynamicMeshRelevance(EShadingPath ShadingPath, bool bAddLightmapDens
 	{
 		PassMask.Set(EMeshPass::EditorSelection);
 		View.NumVisibleDynamicMeshElements[EMeshPass::EditorSelection] += NumElements;
+
+		PassMask.Set(EMeshPass::EditorLevelInstance);
+		View.NumVisibleDynamicMeshElements[EMeshPass::EditorLevelInstance] += NumElements;
 	}
 
 	// Hair strands are not rendered into the base pass (bRenderInMainPass=0) and so this 

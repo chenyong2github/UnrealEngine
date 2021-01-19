@@ -5630,6 +5630,8 @@ FPrimitiveViewRelevance FSkeletalMeshSceneProxy::GetViewRelevance(const FSceneVi
 	if (Result.bStaticRelevance)
 	{
 		Result.bEditorStaticSelectionRelevance = (IsSelected() || IsHovered());
+
+		Result.bEditorVisualizeLevelInstanceRelevance = IsEditingLevelInstanceChild();
 	}
 #endif
 
