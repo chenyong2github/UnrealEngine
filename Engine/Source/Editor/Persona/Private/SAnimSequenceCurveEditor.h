@@ -44,6 +44,7 @@ public:
 	FAnimationCurveIdentifier CurveId;
 	UE::Anim::FAnimDataModelNotifyCollector NotifyCollector;
 	FRichCurve CachedCurve;
+	bool bCurveRemoved;
 };
 
 class SAnimSequenceCurveEditor : public IAnimSequenceCurveEditor, public FEditorUndoClient

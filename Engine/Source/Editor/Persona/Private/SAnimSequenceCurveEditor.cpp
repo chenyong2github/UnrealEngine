@@ -27,6 +27,7 @@ FRichCurveEditorModelNamed::FRichCurveEditorModelNamed(const FSmartName& InName,
 , Type(InType)
 , TreeId(InTreeId)
 , CurveId(FAnimationCurveIdentifier(Name, Type))
+, bCurveRemoved(false)
 {
 	CurveModifiedDelegate.AddRaw(this, &FRichCurveEditorModelNamed::CurveHasChanged);
 
@@ -92,12 +93,20 @@ void FRichCurveEditorModelNamed::OnModelHasChanged(const EAnimDataModelNotifyTyp
 		case EAnimDataModelNotifyType::CurveFlagsChanged:
 		case EAnimDataModelNotifyType::CurveScaled:
 		{
-			if (NotifyCollector.IsNotWithinBracket())
+			const FCurvePayload& TypedPayload = Payload.GetPayload<FCurvePayload>();
+			if (TypedPayload.Identifier.InternalName == Name)
 			{
-				const FCurvePayload& TypedPayload = Payload.GetPayload<FCurvePayload>();
-				if (TypedPayload.Identifier.InternalName == Name)
+				if (NotifyCollector.IsNotWithinBracket())
 				{
 					UpdateCachedCurve();
+				}
+				else
+				{
+					// Curve was re-added after removal in same bracket
+					if (bCurveRemoved && NotifyType == EAnimDataModelNotifyType::CurveAdded)
+					{
+						bCurveRemoved = false;
+					}
 				}
 			}
 
@@ -107,6 +116,11 @@ void FRichCurveEditorModelNamed::OnModelHasChanged(const EAnimDataModelNotifyTyp
 		case EAnimDataModelNotifyType::CurveRemoved:
 		{
 			// Curve was removed
+			const FCurveRemovedPayload& TypedPayload = Payload.GetPayload<FCurveRemovedPayload>();
+			if (TypedPayload.Identifier.InternalName == Name)
+			{
+				bCurveRemoved = true;
+			}
 			break;
 		}
 
@@ -131,7 +145,7 @@ void FRichCurveEditorModelNamed::OnModelHasChanged(const EAnimDataModelNotifyTyp
 		{
 			if (NotifyCollector.IsNotWithinBracket())
 			{
-				if (NotifyCollector.Contains({ EAnimDataModelNotifyType::CurveAdded, EAnimDataModelNotifyType::CurveChanged, EAnimDataModelNotifyType::CurveFlagsChanged, EAnimDataModelNotifyType::CurveScaled, EAnimDataModelNotifyType::CurveRenamed }))
+				if (!bCurveRemoved && NotifyCollector.Contains({ EAnimDataModelNotifyType::CurveAdded, EAnimDataModelNotifyType::CurveChanged, EAnimDataModelNotifyType::CurveFlagsChanged, EAnimDataModelNotifyType::CurveScaled, EAnimDataModelNotifyType::CurveRenamed }))
 				{
 					UpdateCachedCurve();
 				}
