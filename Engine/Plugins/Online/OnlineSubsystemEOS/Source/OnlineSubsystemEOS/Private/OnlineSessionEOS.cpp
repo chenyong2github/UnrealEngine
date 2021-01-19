@@ -532,9 +532,7 @@ void FOnlineSessionEOS::SetAttributes(EOS_HSessionModification SessionModHandle,
 			continue;
 		}
 
-		FString SettingName(TEXT("FOSS=") + KeyName.ToString());
-		FAttributeOptions Attribute(TCHAR_TO_UTF8(*SettingName), Setting.Data);
-
+		FAttributeOptions Attribute(TCHAR_TO_UTF8(*KeyName.ToString()), Setting.Data);
 		AddAttribute(SessionModHandle, &Attribute);
 	}
 }
