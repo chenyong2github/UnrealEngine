@@ -38,6 +38,7 @@ namespace UnrealBuildTool.Rules
 					"WebBrowser",
 					"Networking",
 					"Sockets",
+					"ToolMenus",
 					});
 
 			PrivateIncludePaths.AddRange(
