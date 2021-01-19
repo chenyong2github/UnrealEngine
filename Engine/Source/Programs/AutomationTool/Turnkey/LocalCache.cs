@@ -204,7 +204,7 @@ namespace Turnkey
 		{
 			TurnkeyUtils.Log("Loading cache bin {0}", TagCacheFile);
 			TagToDownloadCache = DeserializeObject(TagCacheFile);
-			TurnkeyUtils.Log("Loadied: {0}", TagToDownloadCache);
+			TurnkeyUtils.Log("Loaded: {0}", TagToDownloadCache);
 
 			if (TagToDownloadCache == null)
 			{
