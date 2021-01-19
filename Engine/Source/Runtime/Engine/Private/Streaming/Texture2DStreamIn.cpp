@@ -106,7 +106,7 @@ void FTexture2DStreamIn::DoCopySharedMips(const FContext& Context)
 // Async create the texture to the requested size.
 void FTexture2DStreamIn::DoAsyncCreateWithNewMips(const FContext& Context)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE( "FTexture2DStreamIn::DoAsyncCreateWithNewMips" );
+	TRACE_CPUPROFILER_EVENT_SCOPE(FTexture2DStreamIn::DoAsyncCreateWithNewMips);
 	check(Context.CurrentThread == TT_Async);
 
 	if (!IsCancelled() && Context.Resource)

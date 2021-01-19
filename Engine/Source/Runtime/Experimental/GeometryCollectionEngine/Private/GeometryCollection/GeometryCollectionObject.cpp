@@ -549,7 +549,7 @@ TUniquePtr<FGeometryCollectionNaniteData> UGeometryCollection::CreateNaniteData(
 {
 	TUniquePtr<FGeometryCollectionNaniteData> NaniteData;
 
-	TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(TEXT("UGeometryCollection::CreateNaniteData"));
+	TRACE_CPUPROFILER_EVENT_SCOPE(UGeometryCollection::CreateNaniteData);
 
 	Nanite::IBuilderModule& NaniteBuilderModule = Nanite::IBuilderModule::Get();
 

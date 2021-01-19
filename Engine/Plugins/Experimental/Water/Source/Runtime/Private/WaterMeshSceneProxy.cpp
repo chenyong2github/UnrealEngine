@@ -348,7 +348,7 @@ void FWaterMeshSceneProxy::GetDynamicMeshElements(const TArray<const FSceneView*
 						Mesh.Elements.SetNumZeroed(1);
 
 						{
-							TRACE_CPUPROFILER_EVENT_SCOPE("Setup batch element");
+							TRACE_CPUPROFILER_EVENT_SCOPE_STR("Setup batch element");
 
 							// Set up one mesh batch element
 							FMeshBatchElement& BatchElement = Mesh.Elements[0];
@@ -375,7 +375,7 @@ void FWaterMeshSceneProxy::GetDynamicMeshElements(const TArray<const FSceneView*
 							INC_DWORD_STAT(STAT_WaterDrawCalls);
 							INC_DWORD_STAT_BY(STAT_WaterTilesDrawn, InstanceCount);
 
-							TRACE_CPUPROFILER_EVENT_SCOPE("Collector.AddMesh");
+							TRACE_CPUPROFILER_EVENT_SCOPE(Collector.AddMesh);
 
 							Collector.AddMesh(ViewIndex, Mesh);
 						}

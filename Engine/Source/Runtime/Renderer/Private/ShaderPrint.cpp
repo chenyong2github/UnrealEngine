@@ -269,7 +269,7 @@ namespace ShaderPrint
 
 	void BeginView(FRDGBuilder& GraphBuilder, FViewInfo& View)
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE( "ShaderPrint::BeginView" );
+		TRACE_CPUPROFILER_EVENT_SCOPE(ShaderPrint::BeginView);
 		if (!IsSupported(View))
 		{
 			return;

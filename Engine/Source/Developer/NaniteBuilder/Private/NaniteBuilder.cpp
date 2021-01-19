@@ -336,7 +336,7 @@ static void ClusterTriangles(
 	FGraphPartitioner Partitioner( NumTriangles );
 
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(TEXT("Nanite::Build::PartitionGraph"));
+		TRACE_CPUPROFILER_EVENT_SCOPE(Nanite::Build::PartitionGraph);
 
 		auto GetCenter = [ &Verts, &Indexes ]( uint32 TriIndex )
 		{
@@ -385,7 +385,7 @@ static void ClusterTriangles(
 
 	const bool bSingleThreaded = Partitioner.Ranges.Num() > 32;
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(TEXT("Nanite::Build::BuildClusters"));
+		TRACE_CPUPROFILER_EVENT_SCOPE(Nanite::Build::BuildClusters);
 		ParallelFor( Partitioner.Ranges.Num(),
 			[&]( int32 Index )
 			{
@@ -417,7 +417,7 @@ static bool BuildNaniteData(
 	const FMeshNaniteSettings& Settings
 )
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(TEXT("Nanite::BuildData"));
+	TRACE_CPUPROFILER_EVENT_SCOPE(Nanite::BuildData);
 
 	if (NumTexCoords > MAX_NANITE_UVS) NumTexCoords = MAX_NANITE_UVS;
 
@@ -478,7 +478,7 @@ static bool BuildNaniteData(
 	FBounds MeshBounds;
 	TArray<FClusterGroup> Groups;
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(TEXT("Nanite::Build::DAG.Reduce"));
+		TRACE_CPUPROFILER_EVENT_SCOPE(Nanite::Build::DAG.Reduce);
 		
 		uint32 ClusterStart = 0;
 		for (uint32 MeshIndex = 0; MeshIndex < NumMeshes; MeshIndex++)
@@ -573,7 +573,7 @@ bool FBuilderModule::Build(
 	uint32 NumTexCoords,
 	const FMeshNaniteSettings& Settings)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(TEXT("Nanite::Build"));
+	TRACE_CPUPROFILER_EVENT_SCOPE(Nanite::Build);
 
 	check(Settings.PercentTriangles == 1.0f); // No coarse representation used by this path
 	TArray<FStaticMeshSection, TInlineAllocator<1>> IgnoredCoarseSections;
@@ -597,7 +597,7 @@ bool FBuilderModule::Build(
 	uint32 NumTexCoords,
 	const FMeshNaniteSettings& Settings)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(TEXT("Nanite::Build"));
+	TRACE_CPUPROFILER_EVENT_SCOPE(Nanite::Build);
 
 	// TODO: Properly error out if # of unique materials is > 64 (error message to editor log)
 	check(Sections.Num() > 0 && Sections.Num() <= 64);
@@ -605,7 +605,7 @@ bool FBuilderModule::Build(
 	// Build associated array of triangle index and material index.
 	TArray<int32> MaterialIndices;
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(TEXT("Nanite::BuildSections"));
+		TRACE_CPUPROFILER_EVENT_SCOPE(Nanite::BuildSections);
 		MaterialIndices.Reserve(TriangleIndices.Num() / 3);
 		for (int32 SectionIndex = 0; SectionIndex < Sections.Num(); SectionIndex++)
 		{

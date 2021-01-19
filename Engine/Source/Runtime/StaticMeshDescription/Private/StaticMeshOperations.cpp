@@ -242,7 +242,7 @@ static TTuple<FVector, FVector, FVector> GetTriangleTangentsAndNormals(float Com
 
 void FStaticMeshOperations::ComputeTriangleTangentsAndNormals(FMeshDescription& MeshDescription, float ComparisonThreshold)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(TEXT("FStaticMeshOperations::ComputeTriangleTangentsAndNormals_Selection"));
+	TRACE_CPUPROFILER_EVENT_SCOPE(FStaticMeshOperations::ComputeTriangleTangentsAndNormals_Selection);
 
 	FStaticMeshAttributes Attributes(MeshDescription);
 	Attributes.RegisterTriangleNormalAndTangentAttributes();

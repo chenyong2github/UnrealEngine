@@ -325,7 +325,7 @@ bool FStaticMeshBuilder::Build(FStaticMeshRenderData& StaticMeshRenderData, USta
 
 		if (StaticMesh->NaniteSettings.bEnabled && LodIndex == 0)
 		{
-			TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(TEXT("FStaticMeshBuilder::Build::Nanite"));
+			TRACE_CPUPROFILER_EVENT_SCOPE(FStaticMeshBuilder::Build::Nanite);
 
 			WedgeMap.Empty();	// Make sure to not keep the large WedgeMap from the input mesh around.
 								// No need to calculate a new one for the coarse mesh, because Nanite meshes don't need it yet.
@@ -337,7 +337,7 @@ bool FStaticMeshBuilder::Build(FStaticMeshRenderData& StaticMeshRenderData, USta
 		}
 
 		{
-			TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(TEXT("FStaticMeshBuilder::Build::BufferInit"));
+			TRACE_CPUPROFILER_EVENT_SCOPE(FStaticMeshBuilder::Build::BufferInit);
 			StaticMeshLOD.VertexBuffers.StaticMeshVertexBuffer.SetUseHighPrecisionTangentBasis(LODBuildSettings.bUseHighPrecisionTangentBasis);
 			StaticMeshLOD.VertexBuffers.StaticMeshVertexBuffer.SetUseFullPrecisionUVs(LODBuildSettings.bUseFullPrecisionUVs);
 			StaticMeshLOD.VertexBuffers.StaticMeshVertexBuffer.Init(StaticMeshBuildVertices, NumTextureCoord);
@@ -378,7 +378,7 @@ bool FStaticMeshBuilder::BuildMeshVertexPositions(
 	TArray<uint32>& BuiltIndices,
 	TArray<FVector>& BuiltVertices)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(TEXT("FStaticMeshBuilder::BuildMeshVertexPositions"));
+	TRACE_CPUPROFILER_EVENT_SCOPE(FStaticMeshBuilder::BuildMeshVertexPositions);
 
 	if (!StaticMesh->IsMeshDescriptionValid(0))
 	{

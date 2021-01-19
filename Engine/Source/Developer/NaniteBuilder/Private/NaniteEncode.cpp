@@ -3922,35 +3922,35 @@ void Encode(
 	bool bHasColors )
 {
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(TEXT("Nanite::Build::RemoveDegenerateTriangles"));	// TODO: is this still necessary?
+		TRACE_CPUPROFILER_EVENT_SCOPE(Nanite::Build::RemoveDegenerateTriangles);	// TODO: is this still necessary?
 		RemoveDegenerateTriangles( Clusters );
 	}
 
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE_TEXT( TEXT("Nanite::Build::BuildMaterialRanges") );
+		TRACE_CPUPROFILER_EVENT_SCOPE(Nanite::Build::BuildMaterialRanges);
 		BuildMaterialRanges( Clusters );
 	}
 
 #if USE_CONSTRAINED_CLUSTERS
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE_TEXT( TEXT( "Nanite::Build::ConstrainClusters" ) );
+		TRACE_CPUPROFILER_EVENT_SCOPE(Nanite::Build::ConstrainClusters);
 		ConstrainClusters( Groups, Clusters );
 	}
 #if DO_CHECK
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE_TEXT( TEXT( "Nanite::Build::VerifyClusterConstraints" ) );
+		TRACE_CPUPROFILER_EVENT_SCOPE(Nanite::Build::VerifyClusterConstraints);
 		VerifyClusterContraints( Clusters );
 	}
 #endif
 #endif
 
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(TEXT("Nanite::Build::CalculateQuantizedPositions"));	
+		TRACE_CPUPROFILER_EVENT_SCOPE(Nanite::Build::CalculateQuantizedPositions);
 		CalculateQuantizedPositions( Clusters, MeshBounds );	// Needs to happen after clusters have been constrained and split.
 	}
 
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(TEXT("Nanite::Build::PrintMaterialRangeStats"));
+		TRACE_CPUPROFILER_EVENT_SCOPE(Nanite::Build::PrintMaterialRangeStats);
 		PrintMaterialRangeStats( Clusters );
 	}
 
@@ -3959,22 +3959,22 @@ void Encode(
 	TArray<FEncodingInfo> EncodingInfos;
 
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(TEXT("Nanite::Build::CalculateEncodingInfos"));
+		TRACE_CPUPROFILER_EVENT_SCOPE(Nanite::Build::CalculateEncodingInfos);
 		CalculateEncodingInfos(EncodingInfos, Clusters, bHasColors, NumTexCoords);
 	}
 
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(TEXT("Nanite::Build::AssignClustersToPages"));
+		TRACE_CPUPROFILER_EVENT_SCOPE(Nanite::Build::AssignClustersToPages);
 		AssignClustersToPages(Groups, Clusters, EncodingInfos, Pages, GroupParts);
 	}
 
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE_TEXT( TEXT( "Nanite::Build::BuildHierarchyNodes" ) );
+		TRACE_CPUPROFILER_EVENT_SCOPE(Nanite::Build::BuildHierarchyNodes);
 		BuildHierarchies(Resources, Groups, GroupParts, NumMeshes);
 	}
 
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(TEXT("Nanite::Build::WritePages"));
+		TRACE_CPUPROFILER_EVENT_SCOPE(Nanite::Build::WritePages);
 		WritePages(Resources, Pages, Groups, GroupParts, Clusters, EncodingInfos, NumTexCoords);
 	}
 }
