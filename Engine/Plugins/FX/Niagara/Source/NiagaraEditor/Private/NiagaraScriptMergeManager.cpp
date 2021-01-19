@@ -2325,32 +2325,43 @@ FNiagaraScriptMergeManager::FApplyDiffResults FNiagaraScriptMergeManager::AddMod
 FNiagaraScriptMergeManager::FApplyDiffResults FNiagaraScriptMergeManager::RemoveInputOverride(UNiagaraScript& OwningScript, TSharedRef<FNiagaraStackFunctionInputOverrideMergeAdapter> OverrideToRemove) const
 {
 	FApplyDiffResults Results;
+	Results.bSucceeded = true;
+	Results.bModifiedGraph = false;
+
+	// If there is a dynamic input we need to call remove recursively to make sure that all rapid iteration parameters are removed.
+	if (OverrideToRemove->GetDynamicValueFunction().IsValid())
+	{
+		for (TSharedRef<FNiagaraStackFunctionInputOverrideMergeAdapter> DynamicValueInputOverrideToRemove : OverrideToRemove->GetDynamicValueFunction()->GetInputOverrides())
+		{
+			FApplyDiffResults DynamicValueInputResults = RemoveInputOverride(OwningScript, DynamicValueInputOverrideToRemove);
+			Results.bSucceeded &= DynamicValueInputResults.bSucceeded;
+			Results.bModifiedGraph |= DynamicValueInputResults.bModifiedGraph;
+			Results.ErrorMessages.Append(DynamicValueInputResults.ErrorMessages);
+		}
+	}
+
 	if (OverrideToRemove->GetOverridePin() != nullptr && OverrideToRemove->GetOverrideNode() != nullptr)
 	{
 		FNiagaraStackGraphUtilities::RemoveNodesForStackFunctionInputOverridePin(*OverrideToRemove->GetOverridePin());
 		OverrideToRemove->GetOverrideNode()->RemovePin(OverrideToRemove->GetOverridePin());
-		Results.bSucceeded = true;
 		Results.bModifiedGraph = true;
 	}
 	else if (OverrideToRemove->GetLocalValueRapidIterationParameter().IsSet())
 	{
 		OwningScript.Modify();
 		OwningScript.RapidIterationParameters.RemoveParameter(OverrideToRemove->GetLocalValueRapidIterationParameter().GetValue());
-		Results.bSucceeded = true;
-		Results.bModifiedGraph = false;
 	}
 	else if (OverrideToRemove->GetStaticSwitchValue().IsSet())
 	{
 		// TODO: Static switches are always treated as overrides right now so removing them is a no-op.  This code should updated
 		// so that removing a static switch override sets the value back to the module default.
-		Results.bSucceeded = true;
 	}
 	else
 	{
 		Results.bSucceeded = false;
-		Results.bModifiedGraph = false;
 		Results.ErrorMessages.Add(LOCTEXT("RemoveInputOverrideFailed", "Failed to remove input override because it was invalid."));
 	}
+
 	return Results;
 }
 
