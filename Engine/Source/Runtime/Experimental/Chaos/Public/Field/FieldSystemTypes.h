@@ -53,7 +53,7 @@ UENUM(BlueprintType)
 enum EFieldCullingOperationType
 {
 	Field_Culling_Inside  UMETA(DisplayName = "Inside", ToolTip = "Evaluate the input field if the result of the culling field is equal to 0"),
-	Field_Culling_Outside UMETA(DisplayName = "Outside", ToolTip = "Evaluate the input field if the result of the culling field is diferent from 0"),
+	Field_Culling_Outside UMETA(DisplayName = "Outside", ToolTip = "Evaluate the input field if the result of the culling field is different from 0"),
 	//~~~
 	//256th entry
 	Field_Culling_Operation_Max                 UMETA(Hidden)
@@ -273,6 +273,21 @@ EFieldOutputType CHAOS_API GetFieldTargetOutput(const EFieldPhysicsType FieldTar
 
 	int32 TargetIndex = INDEX_NONE;
 	return GetFieldTargetIndex(VectorTypes, ScalarTypes, IntegerTypes, FieldTarget, TargetIndex);
+}
+
+inline
+FName CHAOS_API GetFieldOutputName(const EFieldOutputType Type)
+{
+	switch (Type)
+	{
+	case EFieldOutputType::Field_Output_Vector:
+		return "Vector";
+	case EFieldOutputType::Field_Output_Scalar:
+		return "Scalar";
+	case EFieldOutputType::Field_Output_Integer:
+		return "Integer";
+	}
+	return "None";
 }
 
 inline 

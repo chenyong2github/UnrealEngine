@@ -497,9 +497,11 @@ public:
 	UPROPERTY()
 	FGeomComponentCacheParameters CacheParameters;
 
+	/** Set the dynamic state to kinematic within a radial distance from the field position */
 	UFUNCTION(BlueprintCallable, Category = "Field")
 	void ApplyKinematicField(float Radius, FVector Position);
 
+	/** Apply a generic physics field directly onto the geometry collection */
 	UFUNCTION(BlueprintCallable, Category = "Field")
 	void ApplyPhysicsField(bool Enabled, EGeometryCollectionPhysicsTypeEnum Target, UFieldSystemMetaData* MetaData, UFieldNodeBase* Field);
 
