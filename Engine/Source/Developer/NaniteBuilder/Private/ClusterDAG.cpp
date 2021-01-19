@@ -5,6 +5,7 @@
 #include "Async/ParallelFor.h"
 #include "GraphPartitioner.h"
 #include "MeshSimplify.h"
+#include "Containers/BinaryHeap.h"
 
 namespace Nanite
 {
@@ -14,7 +15,7 @@ static const uint32 MaxGroupSize = 32;
 
 static void DAGReduce( TArray< FClusterGroup >& Groups, TArray< FCluster >& Clusters, TAtomic< uint32 >& NumClusters, TArrayView< uint32 > Children, int32 GroupIndex, uint32 MeshIndex );
 
-void DAGReduce(TArray< FClusterGroup >& Groups, TArray< FCluster >& Clusters, uint32 ClusterRangeStart, uint32 ClusterRangeNum, uint32 MeshIndex, FBounds& MeshBounds, TArray< int32 >* MipEnds)
+void BuildDAG( TArray< FClusterGroup >& Groups, TArray< FCluster >& Clusters, uint32 ClusterRangeStart, uint32 ClusterRangeNum, uint32 MeshIndex, FBounds& MeshBounds )
 {
 	uint32 LevelOffset	= ClusterRangeStart;
 	
@@ -25,11 +26,6 @@ void DAGReduce(TArray< FClusterGroup >& Groups, TArray< FCluster >& Clusters, ui
 
 	while( true )
 	{
-		if( MipEnds )
-		{
-			MipEnds->Add( Clusters.Num() );
-		}
-		
 		TArrayView< FCluster > LevelClusters( &Clusters[LevelOffset], bFirstLevel ? ClusterRangeNum : (Clusters.Num() - LevelOffset) );
 		bFirstLevel = false;
 		
@@ -286,7 +282,7 @@ static void DAGReduce( TArray< FClusterGroup >& Groups, TArray< FCluster >& Clus
 	check( GroupIndex >= 0 );
 
 	// Merge
-	TArray< FCluster*, TInlineAllocator<16> > MergeList;
+	TArray< const FCluster*, TInlineAllocator<16> > MergeList;
 	for( int32 Child : Children )
 	{
 		MergeList.Add( &Clusters[ Child ] );
@@ -382,8 +378,70 @@ static void DAGReduce( TArray< FClusterGroup >& Groups, TArray< FCluster >& Clus
 	Groups[ GroupIndex ].LODBounds			= ParentLODBounds;
 	Groups[ GroupIndex ].MinLODError		= ChildMinLODError;
 	Groups[ GroupIndex ].MaxParentLODError	= ParentMaxLODError;
-	Groups[ GroupIndex ].MipLevel			= Merged.MipLevel;
+	Groups[ GroupIndex ].MipLevel			= Merged.MipLevel - 1;
 	Groups[ GroupIndex ].MeshIndex			= MeshIndex;
+}
+
+FCluster FindDAGCut(
+	const TArray< FClusterGroup >& Groups,
+	const TArray< FCluster >& Clusters,
+	uint32 TargetNumTris )
+{
+	const FClusterGroup&	RootGroup = Groups.Last();
+	const FCluster&			RootCluster = Clusters[ RootGroup.Children[0] ];
+
+	float MinError = RootCluster.LODError;
+
+	FBinaryHeap< float > Heap;
+	Heap.Add( -RootCluster.LODError, RootGroup.Children[0] );
+
+	while( true )
+	{
+		// Grab highest error cluster to replace to reduce cut error
+		const FCluster& Cluster = Clusters[ Heap.Top() ];
+
+		if( Cluster.MipLevel == 0 )
+			break;
+
+		// Could have other targets besides NumTris in the future.
+		bool bHitTarget = Heap.Num() * FCluster::ClusterSize > TargetNumTris;
+		if( bHitTarget && Cluster.LODError < MinError )
+			break;
+		
+		Heap.Pop();
+
+		check( Cluster.LODError <= MinError );
+		MinError = Cluster.LODError;
+
+		for( uint32 Child : Groups[ Cluster.GeneratingGroupIndex ].Children )
+		{
+			if( !Heap.IsPresent( Child ) )
+			{
+				const FCluster& ChildCluster = Clusters[ Child ];
+
+				check( ChildCluster.MipLevel + 1 == Cluster.MipLevel );
+				check( ChildCluster.LODError <= MinError );
+				Heap.Add( -ChildCluster.LODError, Child );
+			}
+		}
+	}
+
+	// Merge
+	TArray< const FCluster*, TInlineAllocator<16> > MergeList;
+	MergeList.AddUninitialized( Heap.Num() );
+	for( uint32 i = 0; i < Heap.Num(); i++ )
+	{
+		MergeList[i] = &Clusters[ Heap.Peek(i) ];
+	}
+
+	// Force a deterministic order
+	MergeList.Sort(
+		[]( const FCluster& A, const FCluster& B )
+		{
+			return A.GUID < B.GUID;
+		} );
+
+	return FCluster( MergeList );
 }
 
 

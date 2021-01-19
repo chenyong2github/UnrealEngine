@@ -16,11 +16,15 @@
 #include "NaniteEncode.h"
 #include "ImposterAtlas.h"
 
+#if WITH_MIKKTSPACE
+#include "mikktspace.h"
+#endif
+
 // If static mesh derived data needs to be rebuilt (new format, serialization
 // differences, etc.) replace the version GUID below with a new one.
 // In case of merge conflicts with DDC versions, you MUST generate a new GUID
 // and set this new GUID as the version.
-#define NANITE_DERIVEDDATA_VER TEXT("AE428F85-6C98-4FC8-A710-B2F4F5BC9CD0")
+#define NANITE_DERIVEDDATA_VER TEXT("C60728A2-EA9C-4CB0-8FFA-29CE9EDF2971")
 
 namespace Nanite
 {
@@ -83,30 +87,96 @@ IMPLEMENT_MODULE( Nanite::FBuilderModule, NaniteBuilder );
 namespace Nanite
 {
 
-static uint32 BuildCoarseRepresentation(
-	const TArrayView< FCluster >& Clusters,
-	TArray< FStaticMeshSection, TInlineAllocator<1> >& Sections,
-	TArray<uint32>& Indices,
-	TArray<FStaticMeshBuildVertex>& Vertices,
-	uint32& NumTexCoords)
+struct FMeshData
 {
-	// Merge
-	TArray< FCluster*, TInlineAllocator<16> > MergeList;
-	MergeList.AddUninitialized( Clusters.Num() );
-	for( int32 i = 0; i < Clusters.Num(); i++ )
-	{
-		MergeList[i] = &Clusters[i];
-	}
+	TArray< FStaticMeshBuildVertex >&	Verts;
+	TArray< uint32 >&					Indexes;
+};
 
-	// Force a deterministic order
-	MergeList.Sort(
-		[]( const FCluster& A, const FCluster& B )
-		{
-			return A.GUID < B.GUID;
-		} );
+static int MikkGetNumFaces( const SMikkTSpaceContext* Context )
+{
+	FMeshData *UserData = (FMeshData*)Context->m_pUserData;
+	return UserData->Indexes.Num() / 3;
+}
 
-	// Merge all the selected coarse clusters into a single coarse representation of the mesh.
-	FCluster CoarseRepresentation( MergeList );
+static int MikkGetNumVertsOfFace( const SMikkTSpaceContext* Context, const int FaceIdx )
+{
+	return 3;
+}
+
+static void MikkGetPosition( const SMikkTSpaceContext* Context, float Position[3], const int FaceIdx, const int VertIdx )
+{
+	FMeshData *UserData = (FMeshData*)Context->m_pUserData;
+	for( int32 i = 0; i < 3; i++ )
+		Position[i] = UserData->Verts[ UserData->Indexes[ FaceIdx * 3 + VertIdx ] ].Position[i];
+}
+
+static void MikkGetNormal( const SMikkTSpaceContext* Context, float Normal[3], const int FaceIdx, const int VertIdx )
+{
+	FMeshData *UserData = (FMeshData*)Context->m_pUserData;
+	for( int32 i = 0; i < 3; i++ )
+		Normal[i] = UserData->Verts[ UserData->Indexes[ FaceIdx * 3 + VertIdx ] ].TangentZ[i];
+}
+
+static void MikkSetTSpaceBasic( const SMikkTSpaceContext* Context, const float Tangent[3], const float BitangentSign, const int FaceIdx, const int VertIdx )
+{
+	FMeshData *UserData = (FMeshData*)Context->m_pUserData;
+	for( int32 i = 0; i < 3; i++ )
+		UserData->Verts[ UserData->Indexes[ FaceIdx * 3 + VertIdx ] ].TangentX[i] = Tangent[i];
+
+	FVector Bitangent = BitangentSign * FVector::CrossProduct(
+		UserData->Verts[ UserData->Indexes[ FaceIdx * 3 + VertIdx ] ].TangentZ,
+		UserData->Verts[ UserData->Indexes[ FaceIdx * 3 + VertIdx ] ].TangentX );
+
+	for( int32 i = 0; i < 3; i++ )
+		UserData->Verts[ UserData->Indexes[ FaceIdx * 3 + VertIdx ] ].TangentY[i] = -Bitangent[i];
+}
+
+static void MikkGetTexCoord( const SMikkTSpaceContext* Context, float UV[2], const int FaceIdx, const int VertIdx )
+{
+	FMeshData *UserData = (FMeshData*)Context->m_pUserData;
+	for( int32 i = 0; i < 2; i++ )
+		UV[i] = UserData->Verts[ UserData->Indexes[ FaceIdx * 3 + VertIdx ] ].UVs[0][i];
+}
+
+void CalcTangents(
+	TArray< FStaticMeshBuildVertex >& Verts,
+	TArray< uint32 >& Indexes )
+{
+#if WITH_MIKKTSPACE
+	FMeshData MeshData = { Verts, Indexes };
+
+	SMikkTSpaceInterface MikkTInterface;
+	MikkTInterface.m_getNormal				= MikkGetNormal;
+	MikkTInterface.m_getNumFaces			= MikkGetNumFaces;
+	MikkTInterface.m_getNumVerticesOfFace	= MikkGetNumVertsOfFace;
+	MikkTInterface.m_getPosition			= MikkGetPosition;
+	MikkTInterface.m_getTexCoord			= MikkGetTexCoord;
+	MikkTInterface.m_setTSpaceBasic			= MikkSetTSpaceBasic;
+	MikkTInterface.m_setTSpace				= nullptr;
+
+	SMikkTSpaceContext MikkTContext;
+	MikkTContext.m_pInterface				= &MikkTInterface;
+	MikkTContext.m_pUserData				= (void*)(&MeshData);
+	MikkTContext.m_bIgnoreDegenerates		= true;
+	genTangSpaceDefault( &MikkTContext );
+#else
+	ensureMsgf(false, TEXT("MikkTSpace tangent generation is not supported on this platform."));
+#endif //WITH_MIKKTSPACE
+}
+
+static void BuildCoarseRepresentation(
+	const TArray< FClusterGroup >& Groups,
+	const TArray< FCluster >& Clusters,
+	TArray< FStaticMeshBuildVertex >& Verts,
+	TArray< uint32 >& Indexes,
+	TArray< FStaticMeshSection, TInlineAllocator<1> >& Sections,
+	uint32& NumTexCoords,
+	uint32 TargetNumTris )
+{
+	FCluster CoarseRepresentation = FindDAGCut( Groups, Clusters, TargetNumTris + 4096 );
+
+	CoarseRepresentation.Simplify( TargetNumTris );
 
 	TArray< FStaticMeshSection, TInlineAllocator<1> > OldSections = Sections;
 
@@ -114,13 +184,13 @@ static uint32 BuildCoarseRepresentation(
 	NumTexCoords = CoarseRepresentation.NumTexCoords;
 
 	// Rebuild vertex data
-	Vertices.Empty( CoarseRepresentation.NumVerts );
+	Verts.Empty( CoarseRepresentation.NumVerts );
 	for( uint32 i = 0, Num = CoarseRepresentation.NumVerts; i < Num; i++ )
 	{
 		FStaticMeshBuildVertex Vertex = {};
 		Vertex.Position = CoarseRepresentation.GetPosition(i);
-		Vertex.TangentX = FVector::ZeroVector; // TODO: Should probably have correct TSB for non-Nanite rendering fallback
-		Vertex.TangentY = FVector::ZeroVector; // TODO: Should probably have correct TSB for non-Nanite rendering fallback
+		Vertex.TangentX = FVector::ZeroVector;
+		Vertex.TangentY = FVector::ZeroVector;
 		Vertex.TangentZ = CoarseRepresentation.GetNormal(i);
 
 		const FVector2D* UVs = CoarseRepresentation.GetUVs(i);
@@ -134,7 +204,7 @@ static uint32 BuildCoarseRepresentation(
 			Vertex.Color = CoarseRepresentation.GetColor(i).ToFColor(false /* sRGB */);
 		}
 
-		Vertices.Add(Vertex);
+		Verts.Add(Vertex);
 	}
 
 	TArray<FMaterialTriangle, TInlineAllocator<128>> CoarseMaterialTris;
@@ -188,15 +258,15 @@ static uint32 BuildCoarseRepresentation(
 	}
 
 	// Rebuild index data.
-	Indices.Reset();
+	Indexes.Reset();
 	for (const FMaterialTriangle& Triangle : CoarseMaterialTris)
 	{
-		Indices.Add(Triangle.Index0);
-		Indices.Add(Triangle.Index1);
-		Indices.Add(Triangle.Index2);
+		Indexes.Add(Triangle.Index0);
+		Indexes.Add(Triangle.Index1);
+		Indexes.Add(Triangle.Index2);
 	}
 
-	return CoarseMaterialTris.Num();
+	CalcTangents( Verts, Indexes );
 }
 
 static void ClusterTriangles(
@@ -457,7 +527,7 @@ static bool BuildNaniteData(
 	}
 	
 	const int32 OldTriangleCount = Indexes.Num() / 3;
-	const int32 MinTriCount = 8000; // Temporary fix: make sure that resulting mesh is detailed enough for SDF and bounds computation
+	const int32 MinTriCount = 2000;
 	// Replace original static mesh data with coarse representation.
 	const bool bUseCoarseRepresentation = Settings.PercentTriangles < 1.0f && OldTriangleCount > MinTriCount;
 
@@ -474,7 +544,6 @@ static bool BuildNaniteData(
 
 	uint32 Time0 = FPlatformTime::Cycles();
 
-	TArray<int32> MipEnds;
 	FBounds MeshBounds;
 	TArray<FClusterGroup> Groups;
 	{
@@ -484,7 +553,7 @@ static bool BuildNaniteData(
 		for (uint32 MeshIndex = 0; MeshIndex < NumMeshes; MeshIndex++)
 		{
 			uint32 NumClusters = ClusterCountPerMesh[MeshIndex];
-			DAGReduce(Groups, Clusters, ClusterStart, NumClusters, MeshIndex, MeshBounds, bUseCoarseRepresentation ? &MipEnds : nullptr);
+			BuildDAG( Groups, Clusters, ClusterStart, NumClusters, MeshIndex, MeshBounds );
 			ClusterStart += NumClusters;
 		}
 	}
@@ -497,30 +566,7 @@ static bool BuildNaniteData(
 		const uint32 CoarseStartTime = FPlatformTime::Cycles();
 		int32 CoarseTriCount = FMath::Max(MinTriCount, int32((float(OldTriangleCount) * Settings.PercentTriangles)));
 
-		bool bCoarseCreated = false;
-
-		int32 Offset = 0;
-		for( int32 NextOffset : MipEnds )
-		{
-			int32 Num = NextOffset - Offset;
-
-			const int32 IterationTriCount = Num * FCluster::ClusterSize;
-			if (IterationTriCount <= CoarseTriCount || Num < 2)
-			{
-				UE_LOG(LogStaticMesh, Log, TEXT("Creating coarse representation of %d triangles, percentage %.1f%%"), IterationTriCount, Settings.PercentTriangles * 100.0f);
-
-				TArrayView< FCluster > LevelClusters( &Clusters[ Offset ], Num );
-
-				CoarseTriCount = BuildCoarseRepresentation(LevelClusters, Sections, Indexes, Verts, NumTexCoords);
-				bCoarseCreated = true;
-				break;
-			}
-
-			Offset = NextOffset;
-		}
-
-		// There should always be a coarse representation created at this point.
-		check(bCoarseCreated);
+		BuildCoarseRepresentation( Groups, Clusters, Verts, Indexes, Sections, NumTexCoords, CoarseTriCount );
 
 		const uint32 CoarseEndTime = FPlatformTime::Cycles();
 		UE_LOG(LogStaticMesh, Log, TEXT("Coarse [%.2fs], original tris: %d, coarse tris: %d"), FPlatformTime::ToMilliseconds(CoarseEndTime - CoarseStartTime) / 1000.0f, OldTriangleCount, CoarseTriCount);

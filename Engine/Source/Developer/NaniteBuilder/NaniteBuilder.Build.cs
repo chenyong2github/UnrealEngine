@@ -22,8 +22,8 @@ namespace UnrealBuildTool.Rules
 			);
 
 			PrivateIncludePathModuleNames.Add("MeshUtilitiesCommon");
-			//AddEngineThirdPartyPrivateStaticDependencies(Target, "QuadricMeshReduction");
 			AddEngineThirdPartyPrivateStaticDependencies(Target, "metis");
+			AddEngineThirdPartyPrivateStaticDependencies(Target, "MikkTSpace");
 		}
 	}
 }

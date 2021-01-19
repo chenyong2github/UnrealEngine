@@ -31,6 +31,11 @@ struct FClusterGroup
 };
 
 // Performs DAG reduction and appends the resulting clusters and groups
-void DAGReduce(TArray< FClusterGroup >& Groups, TArray< FCluster >& Cluster, uint32 ClusterBaseStart, uint32 ClusterBaseNum, uint32 MeshIndex, FBounds& MeshBounds, TArray<int32>* OutMipEnds);
+void BuildDAG( TArray< FClusterGroup >& Groups, TArray< FCluster >& Cluster, uint32 ClusterBaseStart, uint32 ClusterBaseNum, uint32 MeshIndex, FBounds& MeshBounds );
+
+FCluster FindDAGCut(
+	const TArray< FClusterGroup >& Groups,
+	const TArray< FCluster >& Clusters,
+	uint32 TargetNumTris );
 
 } // namespace Nanite

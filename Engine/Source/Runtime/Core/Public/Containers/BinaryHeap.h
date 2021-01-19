@@ -16,7 +16,7 @@ template< typename KeyType, typename IndexType = uint32 >
 class FBinaryHeap
 {
 public:
-	static_assert(!TIsSigned<IndexType>::Value, "FBinaryHeap only supports signed index types");
+	static_assert(!TIsSigned<IndexType>::Value, "FBinaryHeap only supports unsigned index types");
 
 				FBinaryHeap();
 				FBinaryHeap( uint32 InHeapSize, uint32 InIndexSize );

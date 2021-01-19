@@ -180,7 +180,7 @@ FCluster::FCluster( FCluster& SrcCluster, uint32 TriBegin, uint32 TriEnd, const 
 }
 
 // Merge
-FCluster::FCluster( const TArray< FCluster*, TInlineAllocator<16> >& MergeList )
+FCluster::FCluster( const TArray< const FCluster*, TInlineAllocator<16> >& MergeList )
 {
 	NumTexCoords = MergeList[0]->NumTexCoords;
 	bHasColors = MergeList[0]->bHasColors;
@@ -243,6 +243,37 @@ float FCluster::Simplify( uint32 TargetNumTris )
 	{
 		return 0.0f;
 	}
+	
+	float TriangleSize = FMath::Sqrt( SurfaceArea * 3.0f / Indexes.Num() );
+	
+	FFloat32 CurrentSize( FMath::Max( TriangleSize, THRESH_POINTS_ARE_SAME ) );
+	FFloat32 DesiredSize( 0.25f );
+	FFloat32 FloatScale( 1.0f );
+
+	// Lossless scaling by only changing the float exponent.
+	int32 Exponent = FMath::Clamp( (int)DesiredSize.Components.Exponent - (int)CurrentSize.Components.Exponent, -126, 127 );
+	FloatScale.Components.Exponent = Exponent + 127;	//ExpBias
+	// Scale ~= DesiredSize / CurrentSize
+	float PositionScale = FloatScale.FloatValue;
+	
+	// Normalize UVWeights using min/max UV range.
+	float MinUV[ MAX_STATIC_TEXCOORDS ] = { +FLT_MAX, +FLT_MAX };
+	float MaxUV[ MAX_STATIC_TEXCOORDS ] = { -FLT_MAX, -FLT_MAX };
+
+	for( uint32 i = 0; i < NumVerts; i++ )
+	{
+		GetPosition(i) *= PositionScale;
+
+		for( uint32 UVIndex = 0; UVIndex < NumTexCoords; UVIndex++ )
+		{
+			float U = GetUVs(i)[ UVIndex ].X;
+			float V = GetUVs(i)[ UVIndex ].Y;
+			if (!FMath::IsFinite(U)) U = 0.0f;
+			if (!FMath::IsFinite(V)) V = 0.0f;
+			MinUV[ UVIndex ] = FMath::Min3( MinUV[ UVIndex ], U, V );
+			MaxUV[ UVIndex ] = FMath::Max3( MaxUV[ UVIndex ], U, V );
+		}
+	}
 
 	uint32 NumAttributes = GetVertSize() - 3;
 	float* AttributeWeights = (float*)FMemory_Alloca( NumAttributes * sizeof( float ) );
@@ -266,25 +297,9 @@ float FCluster::Simplify( uint32 TargetNumTris )
 
 	for( uint32 UVIndex = 0; UVIndex < NumTexCoords; UVIndex++ )
 	{
-		UVWeights[ 2 * UVIndex + 0 ] = 1.0f / ( 1024.0f * NumTexCoords );
-		UVWeights[ 2 * UVIndex + 1 ] = 1.0f / ( 1024.0f * NumTexCoords );
-	}
-
-	float TriangleSize = FMath::Sqrt( SurfaceArea * 3.0f / Indexes.Num() );
-	
-	FFloat32 CurrentSize( FMath::Max( TriangleSize, THRESH_POINTS_ARE_SAME ) );
-	FFloat32 DesiredSize( 0.25f );
-	FFloat32 FloatScale( 1.0f );
-
-	// Lossless scaling by only changing the float exponent.
-	int32 Exponent = FMath::Clamp( (int)DesiredSize.Components.Exponent - (int)CurrentSize.Components.Exponent, -126, 127 );
-	FloatScale.Components.Exponent = Exponent + 127;	//ExpBias
-	// Scale ~= DesiredSize / CurrentSize
-	float Scale = FloatScale.FloatValue;
-
-	for( uint32 i = 0; i < NumVerts; i++ )
-	{
-		GetPosition(i) *= Scale;
+		float Range = FMath::Max( 1.0f, MaxUV[ UVIndex ] - MinUV[ UVIndex ] );
+		UVWeights[ 2 * UVIndex + 0 ] = 1.0f / ( 1024.0f * NumTexCoords * Range );
+		UVWeights[ 2 * UVIndex + 1 ] = 1.0f / ( 1024.0f * NumTexCoords * Range );
 	}
 
 	FMeshSimplifier Simplifier( Verts.GetData(), NumVerts, Indexes.GetData(), Indexes.Num(), MaterialIndexes.GetData(), NumAttributes );
@@ -309,7 +324,7 @@ float FCluster::Simplify( uint32 TargetNumTris )
 
 	NumVerts = Simplifier.GetRemainingNumVerts();
 
-	float InvScale = 1.0f / Scale;
+	float InvScale = 1.0f / PositionScale;
 	for( uint32 i = 0; i < NumVerts; i++ )
 	{
 		GetPosition(i) *= InvScale;

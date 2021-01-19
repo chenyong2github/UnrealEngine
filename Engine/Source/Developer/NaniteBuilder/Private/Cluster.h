@@ -41,7 +41,7 @@ public:
 		uint32 TriBegin, uint32 TriEnd, const TArray< uint32 >& TriIndexes, uint32 NumTexCoords, bool bHasColors );
 
 	FCluster( FCluster& SrcCluster, uint32 TriBegin, uint32 TriEnd, const TArray< uint32 >& TriIndexes );
-	FCluster( const TArray< FCluster*, TInlineAllocator<16> >& MergeList );
+	FCluster( const TArray< const FCluster*, TInlineAllocator<16> >& MergeList );
 
 	float	Simplify( uint32 NumTris );
 	void	Split( FGraphPartitioner& Partitioner ) const;
