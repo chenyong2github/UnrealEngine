@@ -18,6 +18,9 @@ public:
 	/** Should normals of MeshDescription be updated, if available and relevant */
 	bool bUpdateNormals = true;
 
+	/** Should Tangents and BiTangentSign of MeshDescription be updated, if available and relevant */
+	bool bUpdateTangents = false;
+
 	/** Should UVs of MeshDescription be updated, if available and relevant */
 	bool bUpdateUVs = false;
 };

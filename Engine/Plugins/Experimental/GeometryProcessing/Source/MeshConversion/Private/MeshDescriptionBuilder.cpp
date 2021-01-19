@@ -33,6 +33,8 @@ void FMeshDescriptionBuilder::SetMeshDescription(FMeshDescription* Description)
 	this->VertexPositions = Attributes.GetVertexPositions();
 	this->InstanceUVs = Attributes.GetVertexInstanceUVs();
 	this->InstanceNormals = Attributes.GetVertexInstanceNormals();
+	this->InstanceTangents = Attributes.GetVertexInstanceTangents();
+	this->InstanceBiTangentSign = Attributes.GetVertexInstanceBinormalSigns();
 	this->InstanceColors = Attributes.GetVertexInstanceColors();
 }
 
@@ -158,6 +160,24 @@ void FMeshDescriptionBuilder::SetInstanceNormal(const FVertexInstanceID& Instanc
 	{
 		InstanceNormals.Set(InstanceID, Normal);
 	}
+}
+
+void FMeshDescriptionBuilder::SetInstanceTangentSpace(const FVertexInstanceID& InstanceID, const FVector& Normal, const FVector& Tangent, float Sign)
+{
+	// set the normal
+	SetInstanceNormal(InstanceID, Normal);
+
+	if (InstanceTangents.IsValid())
+	{
+		FVector4 TangentExtended;  
+		TangentExtended.X = Tangent.X; 
+		TangentExtended.Y = Tangent.Y; 
+		TangentExtended.Z = Tangent.Z; 
+		TangentExtended.W =  Sign;
+		InstanceTangents.Set(InstanceID, TangentExtended);
+	}
+
+
 }
 
 

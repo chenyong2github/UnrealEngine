@@ -304,7 +304,10 @@ void UEditNormalsTool::GenerateAsset(const TArray<FDynamicMeshOpResult>& Results
 			else
 			{
 				// otherwise just copy attributes
-				Converter.UpdateAttributes(Results[ComponentIdx].Mesh.Get(), *CommitParams.MeshDescription, true, false);
+				const bool bUpdateNormals = true;
+				const bool bCopyOverlayTangents = false;
+				const bool bCopyOverlayUVs = false;
+				Converter.UpdateAttributes(Results[ComponentIdx].Mesh.Get(), *CommitParams.MeshDescription, bUpdateNormals, bCopyOverlayTangents, bCopyOverlayUVs);
 			}
 		});
 	}

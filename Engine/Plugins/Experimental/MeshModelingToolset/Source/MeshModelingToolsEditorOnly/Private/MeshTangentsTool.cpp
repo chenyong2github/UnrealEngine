@@ -135,7 +135,12 @@ void UMeshTangentsTool::Shutdown(EToolShutdownType ShutdownType)
 		ComponentTarget->CommitMesh([&](const FPrimitiveComponentTarget::FCommitParams& CommitParams)
 		{
 			FDynamicMeshToMeshDescription Converter;
-			Converter.UpdateAttributes(InputMesh.Get(), *CommitParams.MeshDescription, true, false);
+			{
+				const bool bCopyNormals = true; 
+				const bool bCopyOverlayTangents = false;
+				const bool bCopyOverlayUVs = false;
+				Converter.UpdateAttributes(InputMesh.Get(), *CommitParams.MeshDescription, bCopyNormals, bCopyOverlayTangents, bCopyOverlayUVs);
+			}
 			Converter.UpdateTangents(InputMesh.Get(), *CommitParams.MeshDescription, Tangents.Get());
 		});
 

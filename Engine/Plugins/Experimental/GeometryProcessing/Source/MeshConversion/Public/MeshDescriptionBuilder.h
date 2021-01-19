@@ -63,6 +63,9 @@ public:
 	/** Set the Normal of a vertex instance*/
 	void SetInstanceNormal(const FVertexInstanceID& InstanceID, const FVector& Normal);
 
+	/** Set the full tangent space of a vertex instance, this is stored as a vec3 normal and a vec4 tangent */
+	void SetInstanceTangentSpace(const FVertexInstanceID& InstanceID, const FVector& Normal, const FVector& Tangent, float Sign);
+
 	/** Set the Color of a vertex instance*/
 	void SetInstanceColor(const FVertexInstanceID& InstanceID, const FVector4& Color);
 
@@ -120,6 +123,8 @@ protected:
 	TVertexAttributesRef<FVector> VertexPositions;
 	TVertexInstanceAttributesRef<FVector2D> InstanceUVs;
 	TVertexInstanceAttributesRef<FVector> InstanceNormals;
+	TVertexInstanceAttributesRef<FVector> InstanceTangents;
+	TVertexInstanceAttributesRef<float> InstanceBiTangentSign;
 	TVertexInstanceAttributesRef<FVector4> InstanceColors;
 
 	TArray<TUVAttributesRef<FVector2D>> UVCoordinateLayers; 
