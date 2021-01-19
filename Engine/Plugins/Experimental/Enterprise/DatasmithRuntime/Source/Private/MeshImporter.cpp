@@ -69,11 +69,25 @@ namespace DatasmithRuntime
 
 		UStaticMesh* StaticMesh = MeshData.GetObject<UStaticMesh>();
 
+		// Check if geometry has not changed
+		if (StaticMesh)
+		{
+			// Force recreation of the static mesh if the mesh's file has changed
+			DirectLink::FElementHash NewResourceHash = GetTypeHash(MeshElement->GetFileHash());
+			if (MeshData.ResourceHash != NewResourceHash)
+			{
+				FAssetRegistry::UnregisterAssetData(StaticMesh, SceneKey, MeshData.ElementId);
+				StaticMesh = nullptr;
+				MeshData.Object.Reset();
+			}
+		}
+
 		bool bUsingStaticMeshFromCache = false;
 
 		if (StaticMesh == nullptr)
 		{
 			MeshData.Hash = GetTypeHash(MeshElement->CalculateElementHash(true));
+			MeshData.ResourceHash = GetTypeHash(MeshElement->GetFileHash());
 
 			if (UObject* AssetPtr = FAssetRegistry::FindObjectFromHash(MeshData.Hash))
 			{
