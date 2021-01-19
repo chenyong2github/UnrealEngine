@@ -12,6 +12,7 @@ public:
 
 	explicit FPerforceSourceControlChangelist(int32 InChangelistNumber)
 		: ChangelistNumber(InChangelistNumber)
+		, bInitialized(true)
 	{
 	}
 
@@ -32,7 +33,18 @@ public:
 
 	bool IsDefault() const
 	{
-		return *this == DefaultChangelist;
+		return ChangelistNumber == DefaultChangelist.ChangelistNumber;
+	}
+
+	bool IsInitialized() const
+	{
+		return bInitialized;
+	}
+
+	void Reset()
+	{
+		ChangelistNumber = DefaultChangelist.ChangelistNumber;
+		bInitialized = false;
 	}
 
 	friend FORCEINLINE uint32 GetTypeHash(const FPerforceSourceControlChangelist& PerforceChangelist)
@@ -48,6 +60,7 @@ public:
 public:
 	static const FPerforceSourceControlChangelist DefaultChangelist;
 	int32 ChangelistNumber;
+	bool bInitialized;
 };
 
 typedef TSharedRef<class FPerforceSourceControlChangelist, ESPMode::ThreadSafe> FPerforceSourceControlChangelistRef;

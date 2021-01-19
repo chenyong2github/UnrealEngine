@@ -583,19 +583,55 @@ bool FPerforceRevertWorker::Execute(FPerforceSourceControlCommand& InCommand)
 		FPerforceConnection& Connection = ScopedConnection.GetConnection();
 		TArray<FString> Parameters;
 
-		AppendChangelistParameter(Parameters);
-		Parameters.Append(InCommand.Files);
+		if (InCommand.Changelist.IsInitialized())
+		{
+			Parameters.Add(TEXT("-c"));
+			Parameters.Add(InCommand.Changelist.ToString());
+		}
+		else
+		{
+			AppendChangelistParameter(Parameters);
+		}
+
+		if (InCommand.Files.Num() != 0)
+		{
+			Parameters.Append(InCommand.Files);
+		}
+		else if(InCommand.Changelist.IsInitialized()) // Note: safety net here, as we probably never want to revert everything
+		{
+			Parameters.Add(TEXT("//..."));
+		}
 
 		FP4RecordSet Records;
 		InCommand.bCommandSuccessful = Connection.RunCommand(TEXT("revert"), Parameters, Records, InCommand.ResultInfo.ErrorMessages, FOnIsCancelled::CreateRaw(&InCommand, &FPerforceSourceControlCommand::IsCanceled), InCommand.bConnectionDropped);
 		ParseRecordSetForState(Records, OutResults);
+		ChangelistToUpdate = InCommand.Changelist;
 	}
 	return InCommand.bCommandSuccessful;
 }
 
+bool RemoveFilesFromChangelist(const TMap<FString, EPerforceState::Type>& Results, TSharedRef<FPerforceSourceControlChangelistState, ESPMode::ThreadSafe>& ChangelistState)
+{
+	return ChangelistState->Files.RemoveAll([&Results](FSourceControlStateRef& State) -> bool
+		{
+			return Algo::AnyOf(Results, [&State](auto& Result) {
+				return State->GetFilename() == Result.Key;
+				});
+		}) > 0;
+}
+
+bool RemoveFilesFromChangelist(const TMap<FString, EPerforceState::Type>& Results, const FPerforceSourceControlChangelist& Changelist)
+{
+	FPerforceSourceControlModule& PerforceSourceControl = FPerforceSourceControlModule::Get();
+	TSharedRef<FPerforceSourceControlChangelistState, ESPMode::ThreadSafe> ChangelistState = PerforceSourceControl.GetProvider().GetStateInternal(Changelist);
+	return RemoveFilesFromChangelist(Results, ChangelistState);
+}
+
 bool FPerforceRevertWorker::UpdateStates() const
 {
-	return UpdateCachedStates(OutResults);
+	bool bUpdatedCachedStates = UpdateCachedStates(OutResults);
+	bool bUpdatedChangelists = ChangelistToUpdate.IsInitialized() && RemoveFilesFromChangelist(OutResults, ChangelistToUpdate);
+	return bUpdatedCachedStates || bUpdatedChangelists;
 }
 
 FName FPerforceSyncWorker::GetName() const
@@ -1367,7 +1403,8 @@ bool FPerforceUpdateStatusWorker::Execute(FPerforceSourceControlCommand& InComma
 			TArray<FString> Parameters = InCommand.Files;
 			Parameters.Add(FileQuery);
 			FP4RecordSet Records;
-			InCommand.bCommandSuccessful &= Connection.RunCommand(TEXT("opened"), Parameters, Records, InCommand.ResultInfo.ErrorMessages, FOnIsCancelled::CreateRaw(&InCommand, &FPerforceSourceControlCommand::IsCanceled), InCommand.bConnectionDropped);
+			Connection.RunCommand(TEXT("opened"), Parameters, Records, InCommand.ResultInfo.ErrorMessages, FOnIsCancelled::CreateRaw(&InCommand, &FPerforceSourceControlCommand::IsCanceled), InCommand.bConnectionDropped);
+			InCommand.bCommandSuccessful &= (InCommand.ResultInfo.ErrorMessages.Num() == 0);
 			ParseOpenedResults(Records, ANSI_TO_TCHAR(Connection.P4Client.GetClient().Text()), Connection.ClientRoot, OutStateMap);
 			RemoveRedundantErrors(InCommand, TEXT(" - no such file(s)."));
 			RemoveRedundantErrors(InCommand, TEXT("' is not under client's root '"));
@@ -1533,7 +1570,8 @@ bool FPerforceGetPendingChangelistsWorker::Execute(FPerforceSourceControlCommand
 				FP4RecordSet Records;
 				TMap<FString, EPerforceState::Type>& OutStateMap = OutCLFilesStateMap.Emplace_GetRef();
 
-				InCommand.bCommandSuccessful &= Connection.RunCommand(TEXT("opened"), Parameters, Records, InCommand.ResultInfo.ErrorMessages, FOnIsCancelled::CreateRaw(&InCommand, &FPerforceSourceControlCommand::IsCanceled), InCommand.bConnectionDropped);
+				Connection.RunCommand(TEXT("opened"), Parameters, Records, InCommand.ResultInfo.ErrorMessages, FOnIsCancelled::CreateRaw(&InCommand, &FPerforceSourceControlCommand::IsCanceled), InCommand.bConnectionDropped);
+				InCommand.bCommandSuccessful &= (InCommand.ResultInfo.ErrorMessages.Num() == 0);
 				ParseOpenedResults(Records, ANSI_TO_TCHAR(Connection.P4Client.GetClient().Text()), Connection.ClientRoot, OutStateMap);
 			}
 		}
@@ -1908,21 +1946,7 @@ bool FPerforceRevertUnchangedWorker::Execute(class FPerforceSourceControlCommand
 bool FPerforceRevertUnchangedWorker::UpdateStates() const
 {
 	bool bUpdatedStates = UpdateCachedStates(OutResults);
-	bool bUpdatedChangelistState = false;
-
-	if (OutResults.Num() > 0)
-	{
-		FPerforceSourceControlModule& PerforceSourceControl = FPerforceSourceControlModule::Get();
-		TSharedRef<FPerforceSourceControlChangelistState, ESPMode::ThreadSafe> ChangelistState = PerforceSourceControl.GetProvider().GetStateInternal(ChangelistToUpdate);
-
-		bUpdatedChangelistState = ChangelistState->Files.RemoveAll([this](FSourceControlStateRef& State) -> bool
-			{
-				return Algo::AnyOf(OutResults, [&State](auto& OutResult) {
-					return State->GetFilename() == OutResult.Key;
-					});
-			}) > 0;
-	}
-
+	bool bUpdatedChangelistState = ChangelistToUpdate.IsInitialized() && RemoveFilesFromChangelist(OutResults, ChangelistToUpdate);
 	return bUpdatedStates || bUpdatedChangelistState;
 }
 

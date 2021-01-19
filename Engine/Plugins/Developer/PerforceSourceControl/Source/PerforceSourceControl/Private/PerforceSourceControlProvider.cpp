@@ -359,7 +359,7 @@ ECommandResult::Type FPerforceSourceControlProvider::Execute( const FSourceContr
 		return ECommandResult::Failed;
 	}
 
-	FPerforceSourceControlChangelist Changelist = InChangelist ? InChangelist.ToSharedRef().Get() : FPerforceSourceControlChangelist::DefaultChangelist;
+	FPerforceSourceControlChangelist Changelist = InChangelist ? InChangelist.ToSharedRef().Get() : FPerforceSourceControlChangelist();
 
 	// fire off operation
 	if(InConcurrency == EConcurrency::Synchronous)

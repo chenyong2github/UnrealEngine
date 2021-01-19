@@ -1641,3 +1641,25 @@ void FSourceControlWindows::DisplayRevisionHistory( const TArray<FString>& InPac
 		}
 	}
 }
+
+void FSourceControlWindows::DiffAgainstWorkspace(const FString& InFileName)
+{
+	FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>(TEXT("AssetTools"));
+
+	UObject* SelectedAsset = nullptr;
+	FString AssetPackageName;
+
+	if (FPackageName::TryConvertFilenameToLongPackageName(InFileName, AssetPackageName))
+	{
+		UPackage* AssetPackage = LoadPackage(nullptr, *AssetPackageName, LOAD_ForDiff | LOAD_DisableCompileOnLoad);
+
+		// grab the asset from the package - we assume asset name matches file name
+		FString AssetName = FPaths::GetBaseFilename(InFileName);
+		SelectedAsset = FindObject<UObject>(AssetPackage, *AssetName);
+	}
+
+	if (SelectedAsset)
+	{
+		AssetToolsModule.Get().DiffAgainstDepot(SelectedAsset, AssetPackageName, SelectedAsset->GetName());
+	}
+}

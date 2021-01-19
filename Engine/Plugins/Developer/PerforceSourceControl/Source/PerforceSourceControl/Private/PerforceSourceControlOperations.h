@@ -90,6 +90,9 @@ public:
 public:
 	/** Map of filenames to perforce state */
 	TMap<FString, EPerforceState::Type> OutResults;
+
+	/** Changelist to be udpated */
+	FPerforceSourceControlChangelist ChangelistToUpdate;
 };
 
 class FPerforceSyncWorker : public IPerforceSourceControlWorker

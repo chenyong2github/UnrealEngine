@@ -17,7 +17,6 @@ FPerforceSourceControlCommand::FPerforceSourceControlCommand(const TSharedRef<cl
 	, bConnectionDropped(false)
 	, bAutoDelete(true)
 	, Concurrency(EConcurrency::Synchronous)
-	, Changelist(FPerforceSourceControlChangelist::DefaultChangelist)
 {
 	// grab the providers settings here, so we don't access them once the worker thread is launched
 	check(IsInGameThread());

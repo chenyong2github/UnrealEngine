@@ -94,6 +94,13 @@ public:
 	 */
 	static bool PromptForRevert(const TArray<FString>& InPackageNames );
 
+	/**
+	 * Displays file diff against workspace version
+	 * 
+	 * @param InFileName Name of the file to diff
+	 */
+	static void DiffAgainstWorkspace(const FString& InFileName);
+
 protected:
 	/** Callback for ChoosePackagesToCheckIn(), continues to bring up UI once source control operations are complete */
 	static void ChoosePackagesToCheckInCallback(const FSourceControlOperationRef& InOperation, ECommandResult::Type InResult, FSourceControlWindowsOnCheckInComplete OnCompleteDelegate);

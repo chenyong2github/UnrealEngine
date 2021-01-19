@@ -7,5 +7,6 @@ const FPerforceSourceControlChangelist FPerforceSourceControlChangelist::Default
 
 FPerforceSourceControlChangelist::FPerforceSourceControlChangelist()
 	: ChangelistNumber(DEFAULT_CHANGELIST_NUMBER)
+	, bInitialized(false)
 {
 }

@@ -17,6 +17,11 @@
 #include "ToolMenus.h"
 #include "Widgets/Images/SLayeredImage.h"
 #include "SSourceControlDescription.h"
+#include "SourceControlWindows.h"
+#include "AssetToolsModule.h"
+#include "ContentBrowserModule.h"
+#include "IContentBrowserSingleton.h"
+
 
 #define LOCTEXT_NAMESPACE "SourceControlChangelist"
 
@@ -414,6 +419,26 @@ void SSourceControlChangelistsWidget::OnRevertUnchanged()
 	Refresh();
 }
 
+void SSourceControlChangelistsWidget::OnRevert()
+{
+	ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
+
+	auto RevertOperation = ISourceControlOperation::Create<FRevert>();
+
+	if (GetCurrentChangelist() != nullptr)
+	{
+		// Operation on full changelist
+		SourceControlProvider.Execute(RevertOperation, GetCurrentChangelist());
+	}
+	else
+	{
+		// Operation on files in a changelist
+		SourceControlProvider.Execute(RevertOperation, GetChangelistFromFileSelection(), GetSelectedFiles());
+	}
+
+	Refresh();
+}
+
 void SSourceControlChangelistsWidget::OnSubmitChangelist()
 {
 	FSourceControlChangelistPtr Changelist = GetCurrentChangelist();
@@ -436,6 +461,69 @@ bool SSourceControlChangelistsWidget::CanSubmitChangelist()
 	return Changelist != nullptr && Changelist->GetFilesStates().Num() >= 0 && Changelist->GetShelvedFilesStates().Num() == 0;
 }
 
+void SSourceControlChangelistsWidget::OnLocateFile()
+{ 
+	FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>(TEXT("AssetTools"));
+
+	TArray<UObject*> AssetsToSync;
+
+	TArray<FString> SelectedFiles = GetSelectedFiles();
+	AssetsToSync.Reserve(SelectedFiles.Num());
+
+	for (const FString& SelectedFile : SelectedFiles)
+	{
+		FString AssetPackageName;
+
+		if (FPackageName::TryConvertFilenameToLongPackageName(SelectedFile, AssetPackageName))
+		{
+			UPackage* AssetPackage = LoadPackage(nullptr, *AssetPackageName, LOAD_ForDiff | LOAD_DisableCompileOnLoad);
+
+			// grab the asset from the package - we assume asset name matches file name
+			FString AssetName = FPaths::GetBaseFilename(SelectedFile);
+			UObject* SelectedAsset = FindObject<UObject>(AssetPackage, *AssetName);
+
+			if (SelectedAsset)
+			{
+				AssetsToSync.Add(SelectedAsset);
+			}
+		}
+	}
+
+	if (AssetsToSync.Num() > 0)
+	{
+		FContentBrowserModule& ContentBrowserModule = FModuleManager::Get().LoadModuleChecked<FContentBrowserModule>("ContentBrowser");
+		ContentBrowserModule.Get().SyncBrowserToAssets(AssetsToSync, true);
+	}
+}
+
+bool SSourceControlChangelistsWidget::CanLocateFile()
+{
+	return GetSelectedFiles().Num() > 0;
+}
+
+void SSourceControlChangelistsWidget::OnShowHistory()
+{
+	TArray<FString> SelectedFiles = GetSelectedFiles();
+	if (SelectedFiles.Num() > 0)
+	{
+		FSourceControlWindows::DisplayRevisionHistory(SelectedFiles);
+	}
+}
+
+void SSourceControlChangelistsWidget::OnDiffAgainstDepot()
+{
+	TArray<FString> SelectedFiles = GetSelectedFiles();
+	if (SelectedFiles.Num() > 0)
+	{
+		FSourceControlWindows::DiffAgainstWorkspace(SelectedFiles[0]);
+	} 
+}
+
+bool SSourceControlChangelistsWidget::CanDiffAgainstDepot()
+{
+	return GetSelectedFiles().Num() == 1;
+}
+
 TSharedPtr<SWidget> SSourceControlChangelistsWidget::OnOpenContextMenu()
 {
 	UToolMenus* ToolMenus = UToolMenus::Get();
@@ -454,24 +542,9 @@ TSharedPtr<SWidget> SSourceControlChangelistsWidget::OnOpenContextMenu()
 
 	FToolMenuSection& Section = Menu->AddSection("Source Control");
 	
-	// This should appear only if we have no selection
-	if (bHasEmptySelection)
-	{
-		Section.AddMenuEntry("NewChangelist", LOCTEXT("SourceControl_NewChangelist", "New Changelist"), LOCTEXT("SourceControl_NewChangelist_Tooltip", "Creates an empty changelist"), FSlateIcon(),
-			FUIAction(FExecuteAction::CreateSP(this, &SSourceControlChangelistsWidget::OnNewChangelist)));
-	}
-
 	// This should appear only on change lists
 	if (bHasSelectedChangelist)
 	{
-		Section.AddMenuEntry("EditChangelist", LOCTEXT("SourceControl_EditChangelist", "Edit Changelist"), LOCTEXT("SourceControl_Edit_Changelist_Tooltip", "Edit a changelist description"), FSlateIcon(),
-			FUIAction(FExecuteAction::CreateSP(this, &SSourceControlChangelistsWidget::OnEditChangelist)));
-
-		Section.AddMenuEntry("DeleteChangelist", LOCTEXT("SourceControl_DeleteChangelist", "Delete Empty Changelist"), LOCTEXT("SourceControl_Delete_Changelist_Tooltip", "Deletes an empty changelist"), FSlateIcon(),
-			FUIAction(
-				FExecuteAction::CreateSP(this, &SSourceControlChangelistsWidget::OnDeleteChangelist),
-				FCanExecuteAction::CreateSP(this, &SSourceControlChangelistsWidget::CanDeleteChangelist)));
-
 		Section.AddMenuEntry("SubmitChangelist", LOCTEXT("SourceControl_SubmitChangelist", "Submit Changelist"), LOCTEXT("SourceControl_SubmitChangeslit_Tooltip", "Submits a changelist"), FSlateIcon(),
 			FUIAction(
 				FExecuteAction::CreateSP(this, &SSourceControlChangelistsWidget::OnSubmitChangelist),
@@ -483,6 +556,52 @@ TSharedPtr<SWidget> SSourceControlChangelistsWidget::OnOpenContextMenu()
 	{
 		Section.AddMenuEntry("RevertUnchanged", LOCTEXT("SourceControl_RevertUnchanged", "Revert Unchanged"), LOCTEXT("SourceControl_Revert_Unchanged_Tooltip", "Reverts unchanged files & changelists"), FSlateIcon(),
 			FUIAction(FExecuteAction::CreateSP(this, &SSourceControlChangelistsWidget::OnRevertUnchanged)));
+
+		Section.AddMenuEntry("Revert", LOCTEXT("SourceControl_Revert", "Revert Files"), LOCTEXT("SourceControl_Revert_Tooltip", "Reverts all files in the changelist or from the selection"), FSlateIcon(),
+			FUIAction(FExecuteAction::CreateSP(this, &SSourceControlChangelistsWidget::OnRevert)));
+	}
+
+	if (bHasEmptySelection || bHasSelectedChangelist)
+	{
+		Section.AddSeparator("Changelists");
+	}
+
+	// This should appear only if we have no selection
+	if (bHasEmptySelection)
+	{
+		Section.AddMenuEntry("NewChangelist", LOCTEXT("SourceControl_NewChangelist", "New Changelist"), LOCTEXT("SourceControl_NewChangelist_Tooltip", "Creates an empty changelist"), FSlateIcon(),
+			FUIAction(FExecuteAction::CreateSP(this, &SSourceControlChangelistsWidget::OnNewChangelist)));
+	}
+
+	if (bHasSelectedChangelist)
+	{
+		Section.AddMenuEntry("EditChangelist", LOCTEXT("SourceControl_EditChangelist", "Edit Changelist"), LOCTEXT("SourceControl_Edit_Changelist_Tooltip", "Edit a changelist description"), FSlateIcon(),
+			FUIAction(FExecuteAction::CreateSP(this, &SSourceControlChangelistsWidget::OnEditChangelist)));
+
+		Section.AddMenuEntry("DeleteChangelist", LOCTEXT("SourceControl_DeleteChangelist", "Delete Empty Changelist"), LOCTEXT("SourceControl_Delete_Changelist_Tooltip", "Deletes an empty changelist"), FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateSP(this, &SSourceControlChangelistsWidget::OnDeleteChangelist),
+				FCanExecuteAction::CreateSP(this, &SSourceControlChangelistsWidget::CanDeleteChangelist)));
+	}
+
+	// Files-only operations
+	if (!bHasEmptySelection && !bHasSelectedChangelist)
+	{
+		Section.AddSeparator("Files");
+
+		Section.AddMenuEntry("Locate File", LOCTEXT("SourceControl_LocateFile", "Locate File"), LOCTEXT("SourceControl_LocateFile_Tooltip", "Locate File in Project..."), FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateSP(this, &SSourceControlChangelistsWidget::OnLocateFile),
+				FCanExecuteAction::CreateSP(this, &SSourceControlChangelistsWidget::CanLocateFile)));
+
+		Section.AddMenuEntry("Show History", LOCTEXT("SourceControl_ShowHistory", "Show History"), LOCTEXT("SourceControl_ShowHistory_ToolTip", "Show File History From Selection..."), FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateSP(this, &SSourceControlChangelistsWidget::OnShowHistory)));
+
+		Section.AddMenuEntry("Diff Against Local Version", LOCTEXT("SourceControl_DiffAgainstDepot", "Diff Against Depot"), LOCTEXT("SourceControl_DiffAgainstLocal_Tooltip", "Diff local file against depot revision."), FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateSP(this, &SSourceControlChangelistsWidget::OnDiffAgainstDepot),
+				FCanExecuteAction::CreateSP(this, &SSourceControlChangelistsWidget::CanDiffAgainstDepot)));
 	}
 
 	return ToolMenus->GenerateWidget(Menu);

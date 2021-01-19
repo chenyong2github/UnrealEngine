@@ -109,13 +109,24 @@ private:
 	/** Returns list of currently selected files */
 	TArray<FString> GetSelectedFiles();
 
+	/** Changelist operations */
 	void OnNewChangelist();
 	void OnDeleteChangelist();
 	bool CanDeleteChangelist();
 	void OnEditChangelist();
-	void OnRevertUnchanged();
 	void OnSubmitChangelist();
 	bool CanSubmitChangelist();
+
+	/** Changelist & File operations */
+	void OnRevertUnchanged();
+	void OnRevert();
+
+	/** Files operations */
+	void OnLocateFile();
+	bool CanLocateFile();
+	void OnShowHistory();
+	void OnDiffAgainstDepot();
+	bool CanDiffAgainstDepot();
 
 	void OnSourceControlStateChanged();
 	void OnSourceControlProviderChanged(ISourceControlProvider& OldProvider, ISourceControlProvider& NewProvider);
