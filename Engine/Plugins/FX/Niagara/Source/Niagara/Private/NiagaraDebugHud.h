@@ -53,15 +53,14 @@ public:
 private:
 	class FNiagaraDataSet* GetParticleDataSet(class FNiagaraSystemInstance* SystemInstance, class FNiagaraEmitterInstance* EmitterInstance, int32 iEmitter);
 
-	void DebugDrawNiagara(class UCanvas* Canvas, class APlayerController* PC);
+	static void DebugDrawCallback(class UCanvas* Canvas, class APlayerController* PC);
 
+	void Draw(class FNiagaraWorldManager* WorldManager, class UCanvas* Canvas, class APlayerController* PC);
 	void DrawOverview(class FCanvas* DrawCanvas, class UFont* Font);
-	void DrawComponents(class UWorld* World, class UCanvas* Canvas, class UFont* Font);
+	void DrawComponents(class FNiagaraWorldManager* WorldManager, class UCanvas* Canvas, class UFont* Font);
 
 private:
 	TWeakObjectPtr<class UWorld>	WeakWorld;
-
-	FDelegateHandle					DebugDrawHandle;
 
 	int32							GlobalTotalSystems = 0;
 	int32							GlobalTotalScalability = 0;

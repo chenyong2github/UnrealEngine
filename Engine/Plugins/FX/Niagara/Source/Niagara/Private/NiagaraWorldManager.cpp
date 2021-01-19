@@ -282,10 +282,7 @@ void FNiagaraWorldManager::Init(UWorld* InWorld)
 	//PrimePoolForAllSystems();
 
 #if !UE_BUILD_SHIPPING
-	if ( World->IsGameWorld() )
-	{
-		NiagaraDebugHud.Reset(new FNiagaraDebugHud(World));
-	}
+	NiagaraDebugHud.Reset(new FNiagaraDebugHud(World));
 #endif
 }
 
