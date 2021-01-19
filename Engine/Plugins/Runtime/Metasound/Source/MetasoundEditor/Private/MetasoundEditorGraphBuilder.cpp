@@ -25,12 +25,16 @@ namespace Metasound
 {
 	namespace Editor
 	{
-		const FName FGraphBuilder::PinPrimitiveBoolean = TEXT("Boolean");
-		const FName FGraphBuilder::PinPrimitiveFloat = TEXT("Float");
-		const FName FGraphBuilder::PinPrimitiveInteger = TEXT("Int");
-		const FName FGraphBuilder::PinPrimitiveString = TEXT("String");
-		const FName FGraphBuilder::PinPrimitiveUObject = TEXT("UObject");
-		const FName FGraphBuilder::PinPrimitiveUObjectArray = TEXT("UObjectArray");
+		const FName FGraphBuilder::PinAudioFormat = "Format";
+		const FName FGraphBuilder::PinAudioNumeric = "Numeric";
+		const FName FGraphBuilder::PinPrimitiveBoolean = "Boolean";
+		const FName FGraphBuilder::PinPrimitiveFloat = "Float";
+		const FName FGraphBuilder::PinPrimitiveInt32 = "Int32";
+		const FName FGraphBuilder::PinPrimitiveInt64 = "Int64";
+		const FName FGraphBuilder::PinPrimitiveString = "String";
+		const FName FGraphBuilder::PinPrimitiveTrigger = "Trigger";
+		const FName FGraphBuilder::PinPrimitiveUObject = "UObject";
+		const FName FGraphBuilder::PinPrimitiveUObjectArray = "UObjectArray";
 
 		UEdGraphNode* FGraphBuilder::AddNode(UObject& InMetasound, const FVector2D& Location, Frontend::FNodeHandle& InNodeHandle, bool bInSelectNewNode)
 		{
@@ -262,7 +266,7 @@ namespace Metasound
 			return NodeHandle;
 		}
 
-		void FGraphBuilder::DeleteNode(UMetasoundEditorGraphNode& InNode, bool bInRecordTransaction)
+		void FGraphBuilder::DeleteNode(UEdGraphNode& InNode, Frontend::FNodeHandle InNodeHandle, bool bInRecordTransaction)
 		{
 			const FScopedTransaction Transaction(LOCTEXT("DeleteMetasoundGraphNode", "Delete Metasound Node"), bInRecordTransaction);
 
@@ -273,15 +277,16 @@ namespace Metasound
 				Graph->MarkPackageDirty();
 			}
 
-			const Frontend::FNodeHandle& NodeHandle = InNode.GetNodeHandle();
-
-			FMetasoundAssetBase* MetasoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(Graph->GetMetasound());
-			check(MetasoundAsset);
-
-			Frontend::FGraphHandle GraphHandle = MetasoundAsset->GetRootGraphHandle();
-			if (GraphHandle->IsValid() && NodeHandle->IsValid())
+			if (InNodeHandle->IsValid())
 			{
-				GraphHandle->RemoveNode(*NodeHandle);
+				FMetasoundAssetBase* MetasoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(Graph->GetMetasound());
+				check(MetasoundAsset);
+
+				Frontend::FGraphHandle GraphHandle = MetasoundAsset->GetRootGraphHandle();
+				if (GraphHandle->IsValid())
+				{
+					GraphHandle->RemoveNode(*InNodeHandle);
+				}
 			}
 
 			InNode.PostEditChange();

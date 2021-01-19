@@ -699,50 +699,58 @@ namespace Metasound
 				Frontend::FConstDocumentHandle DocumentHandle = MetasoundAsset->GetDocumentHandle();
 				for (FGraphPanelSelectionSet::TConstIterator NodeIt(SelectedNodes); NodeIt; ++NodeIt)
 				{
-					UMetasoundEditorGraphNode* Node = CastChecked<UMetasoundEditorGraphNode>(*NodeIt);
-					Frontend::FNodeHandle NodeHandle = Node->GetNodeHandle();
+					Frontend::FNodeHandle NodeHandle = Frontend::INodeController::GetInvalidHandle();
 
-					if (NodeHandle->GetClassType() == EMetasoundFrontendClassType::Input)
+					if (UMetasoundEditorGraphNode* Node = Cast<UMetasoundEditorGraphNode>(*NodeIt))
 					{
-						auto IsRequiredInput = [&](const Frontend::FConstInputHandle& InputHandle) 
-						{ 
-							return DocumentHandle->IsRequiredInput(InputHandle->GetName()); 
-						};
-						TArray<Frontend::FConstInputHandle> NodeInputs = NodeHandle->GetConstInputs();
+						NodeHandle = Node->GetNodeHandle();
 
-						if (Frontend::FConstInputHandle* InputHandle = NodeInputs.FindByPredicate(IsRequiredInput))
+						if (NodeHandle->GetClassType() == EMetasoundFrontendClassType::Input)
 						{
-							FNotificationInfo Info(FText::Format(LOCTEXT("Metasounds_CannotDeleteRequiredInput",
-								"'Required Input '{0}' cannot be deleted."), (*InputHandle)->GetDisplayName()));
-							Info.bFireAndForget = true;
-							Info.ExpireDuration = 2.0f;
-							Info.bUseThrobber = true;
-							FSlateNotificationManager::Get().AddNotification(Info);
-							continue;
+							auto IsRequiredInput = [&](const Frontend::FConstInputHandle& InputHandle) 
+							{ 
+								return DocumentHandle->IsRequiredInput(InputHandle->GetName()); 
+							};
+							TArray<Frontend::FConstInputHandle> NodeInputs = NodeHandle->GetConstInputs();
+
+							if (Frontend::FConstInputHandle* InputHandle = NodeInputs.FindByPredicate(IsRequiredInput))
+							{
+								FNotificationInfo Info(FText::Format(LOCTEXT("Metasounds_CannotDeleteRequiredInput",
+									"'Required Input '{0}' cannot be deleted."), (*InputHandle)->GetDisplayName()));
+								Info.bFireAndForget = true;
+								Info.ExpireDuration = 2.0f;
+								Info.bUseThrobber = true;
+								FSlateNotificationManager::Get().AddNotification(Info);
+								continue;
+							}
+						}
+
+						if (NodeHandle->GetClassType() == EMetasoundFrontendClassType::Output)
+						{
+							auto IsRequiredOutput = [&](const Frontend::FConstOutputHandle& OutputHandle) 
+							{ 
+								return DocumentHandle->IsRequiredOutput(OutputHandle->GetName()); 
+							};
+							TArray<Frontend::FConstOutputHandle> NodeOutputs = NodeHandle->GetConstOutputs();
+
+							if (Frontend::FConstOutputHandle* OutputHandle = NodeOutputs.FindByPredicate(IsRequiredOutput))
+							{
+								FNotificationInfo Info(FText::Format(LOCTEXT("Metasounds_CannotDeleteRequiredOutput",
+									"'Required Output '{0}' cannot be deleted."), (*OutputHandle)->GetDisplayName()));
+								Info.bFireAndForget = true;
+								Info.ExpireDuration = 2.0f;
+								Info.bUseThrobber = true;
+								FSlateNotificationManager::Get().AddNotification(Info);
+								continue;
+							}
 						}
 					}
 
-					if (NodeHandle->GetClassType() == EMetasoundFrontendClassType::Output)
+					// Some nodes may not be metasound nodes (ex. comments and perhaps aliases eventually), but can be safely deleted.
+					if (UEdGraphNode* Node = Cast<UEdGraphNode>(*NodeIt))
 					{
-						auto IsRequiredOutput = [&](const Frontend::FConstOutputHandle& OutputHandle) 
-						{ 
-							return DocumentHandle->IsRequiredOutput(OutputHandle->GetName()); 
-						};
-						TArray<Frontend::FConstOutputHandle> NodeOutputs = NodeHandle->GetConstOutputs();
-
-						if (Frontend::FConstOutputHandle* OutputHandle = NodeOutputs.FindByPredicate(IsRequiredOutput))
-						{
-							FNotificationInfo Info(FText::Format(LOCTEXT("Metasounds_CannotDeleteRequiredOutput",
-								"'Required Output '{0}' cannot be deleted."), (*OutputHandle)->GetDisplayName()));
-							Info.bFireAndForget = true;
-							Info.ExpireDuration = 2.0f;
-							Info.bUseThrobber = true;
-							FSlateNotificationManager::Get().AddNotification(Info);
-							continue;
-						}
+						FGraphBuilder::DeleteNode(*Node, NodeHandle, true /* bInRecordTransaction */);
 					}
-
-					FGraphBuilder::DeleteNode(*Node, false /* bInRecordTransaction */);
 				}
 			}
 		}
