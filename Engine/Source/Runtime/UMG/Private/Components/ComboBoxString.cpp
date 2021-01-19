@@ -33,9 +33,6 @@ UComboBoxString::UComboBoxString(const FObjectInitializer& ObjectInitializer)
 
 		// Unlink UMG default colors from the editor settings colors.
 		DefaultComboBoxRowStyle->UnlinkColors();
-		// TODO: 4.26 HACK - FTableRowStyle::UnlinkColors misses these entries, so we have to do them here
-		DefaultComboBoxRowStyle->ActiveHighlightedBrush.UnlinkColors();
-		DefaultComboBoxRowStyle->InactiveHighlightedBrush.UnlinkColors();
 	}
 
 	WidgetStyle = *DefaultComboBoxStyle;
@@ -43,9 +40,6 @@ UComboBoxString::UComboBoxString(const FObjectInitializer& ObjectInitializer)
 
 	ItemStyle = *DefaultComboBoxRowStyle;
 	ItemStyle.UnlinkColors();
-	// TODO: 4.26 HACK - FTableRowStyle::UnlinkColors misses these entries, so we have to do them here
-	ItemStyle.ActiveHighlightedBrush.UnlinkColors();
-	ItemStyle.InactiveHighlightedBrush.UnlinkColors();
 
 	ForegroundColor = FLinearColor::Black;
 	bIsFocusable = true;
