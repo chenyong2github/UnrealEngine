@@ -452,7 +452,7 @@ namespace Audio
 		{
 			// Remove this bus from the registry of bus instances
 			TSharedPtr<FMixerAudioBus> AudioBusPtr = AudioBuses.FindRef(SourceInfo.AudioBusId);
-			if (ensure(AudioBusPtr.IsValid()))
+			if (AudioBusPtr.IsValid())
 			{
 				// If this audio bus was automatically created via source bus playback, this this audio bus can be removed
 				if (AudioBusPtr->RemoveInstanceId(SourceId))
@@ -471,7 +471,7 @@ namespace Audio
 			{
 				// we should have a bus registration entry still since the send hasn't been cleaned up yet
 				TSharedPtr<FMixerAudioBus> AudioBusPtr = AudioBuses.FindRef(AudioBusId);
-				if (ensure(AudioBusPtr.IsValid()))
+				if (AudioBusPtr.IsValid())
 				{
 					if (AudioBusPtr->RemoveSend((EBusSendType)AudioBusSendType, SourceId))
 					{
@@ -1773,7 +1773,7 @@ namespace Audio
 			{
 				// Get the source's rendered and mixed audio bus data
 				const TSharedPtr<FMixerAudioBus> AudioBusPtr = AudioBuses.FindRef(SourceInfo.AudioBusId);
-				if (ensure(AudioBusPtr.IsValid()))
+				if (AudioBusPtr.IsValid())
 				{
 					int32 NumFramesPlayed = NumOutputFrames;
 					if (SourceInfo.SourceBusDurationFrames != INDEX_NONE)
