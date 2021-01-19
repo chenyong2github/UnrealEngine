@@ -220,4 +220,7 @@ namespace ChaosTest {
 		InitEvolutionSettings(*Solver->GetEvolution());
 	}
 
+
+	extern TImplicitObjectScaled<FImplicitConvex3> CreateScaledConvexBox(const FVec3& BoxSize, const FVec3 BoxScale, const FReal Margin);
+
 }
