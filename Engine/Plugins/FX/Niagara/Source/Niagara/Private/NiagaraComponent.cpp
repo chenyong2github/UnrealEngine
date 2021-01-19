@@ -345,7 +345,7 @@ FPrimitiveViewRelevance FNiagaraSceneProxy::GetViewRelevance(const FSceneView* V
 	Relevance.bDynamicRelevance = true;
 
 	Relevance.bRenderCustomDepth = ShouldRenderCustomDepth();
-	Relevance.bDrawRelevance = IsShown(View) && View->Family->EngineShowFlags.Particles;
+	Relevance.bDrawRelevance = IsShown(View) && View->Family->EngineShowFlags.Particles && View->Family->EngineShowFlags.Niagara;
 	Relevance.bShadowRelevance = IsShadowCast(View);
 	Relevance.bRenderInMainPass = ShouldRenderInMainPass();
 	Relevance.bUsesLightingChannels = GetLightingChannelMask() != GetDefaultLightingChannelMask();
@@ -450,7 +450,7 @@ void FNiagaraSceneProxy::GetDynamicMeshElements(const TArray<const FSceneView*>&
 		}
 	}
 
-	if (ViewFamily.EngineShowFlags.Particles)
+	if (ViewFamily.EngineShowFlags.Particles && ViewFamily.EngineShowFlags.Niagara)
 	{
 		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 		{
