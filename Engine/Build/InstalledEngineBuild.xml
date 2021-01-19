@@ -71,9 +71,7 @@
 	<!-- Generate full debug info for binary editor and packaged application builds -->
 	<Option Name="WithFullDebugInfo" Restrict="true|false" DefaultValue="false" Description="Generate full debug info for binary editor and packaged application builds"/>
 
-	<!-- Whether to use VS2019 -->
-	<Option Name="VS2019" Restrict="true|false" DefaultValue="false" Description="Use Visual Studio 2019 to build Windows targets. By default, Visual Studio 2017 is used for maximum compatibility"/>
-	
+
 	<!-- The local output directory -->
 	<Property Name="LocalInstalledDir" Value="$(RootDir)/LocalBuilds/Engine/Windows"/>
 	<Property Name="LocalInstalledDirMac" Value="$(RootDir)/LocalBuilds/Engine/Mac"/>
@@ -101,10 +99,6 @@
 	<!-- Compile flags for Windows Game binaries -->
 	<Property Name="TargetDebugInfoArg" Value="-nodebuginfo"/>
 	<Property Name="TargetDebugInfoArg" Value="" If="$(WithFullDebugInfo)"/>
-
-	<!-- Compile flags for Windows targets -->
-	<Property Name="VSCompilerArg" Value="-2017"/>
-	<Property Name="VSCompilerArg" Value="-2019" If="$(VS2019)"/>
 
 	<!-- Names of the client and server targets to build -->
 	<Property Name="OptionalClientTarget" Value=""/>
@@ -256,8 +250,8 @@
 		<Node Name="Compile UnrealGame Win64" Requires="Compile UnrealHeaderTool Win64" Produces="#UnrealGame Win64;#UnrealGame Win64 Unstripped;#UnrealGame Win64 Stripped;#UnrealGame Win64 Unsigned;#UnrealGame Win64 Signed">
 			<ForEach Name="Target" Values="UnrealGame;$(OptionalClientTarget);$(OptionalServerTarget)">
 				<ForEach Name="Configuration" Values="$(GameConfigurations)">
-					<Compile Target="$(Target)" Platform="Win64" Configuration="$(Configuration)" Tag="#UnrealGame Win64" Arguments="-precompile -allmodules -nolink $(VSCompilerArg) $(TargetDebugInfoArg)"/>
-					<Compile Target="$(Target)" Platform="Win64" Configuration="$(Configuration)" Tag="#UnrealGame Win64" Arguments="-precompile $(VSCompilerArg) $(TargetDebugInfoArg)" Clean="false"/>
+					<Compile Target="$(Target)" Platform="Win64" Configuration="$(Configuration)" Tag="#UnrealGame Win64" Arguments="-precompile -allmodules -nolink $(TargetDebugInfoArg)"/>
+					<Compile Target="$(Target)" Platform="Win64" Configuration="$(Configuration)" Tag="#UnrealGame Win64" Arguments="-precompile $(TargetDebugInfoArg)" Clean="false"/>
 				</ForEach>
 			</ForEach>
 

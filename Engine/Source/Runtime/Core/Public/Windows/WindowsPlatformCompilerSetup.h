@@ -14,12 +14,9 @@
 #endif
 
 //
-// We require at least Visual Studio 2015 Update 3 to compile
+// We require at least Visual Studio 2019 to compile
 //
-static_assert(_MSC_VER != 1900 || _MSC_FULL_VER >= 190024210, "Visual Studio 2015 Update 3 is required to compile on Windows (http://go.microsoft.com/fwlink/?LinkId=691129)");
-static_assert(_MSC_VER >= 1900, "Visual Studio 2015 or later is required to compile on Windows");
-static_assert(_MSC_VER < 1910 || _MSC_VER >= 1913, "Visual Studio 2017 version 15.6 is required to compile on Windows. Please install updates through the Visual Studio installer.");
-static_assert(_MSC_VER != 1914 && _MSC_VER != 1915, "Visual Studio 2017 versions 15.7 and 15.8 are known to have code generation bugs that affect UE4. Please update to version 15.9.");
+static_assert(_MSC_VER >= 1920, "Visual Studio 2019 is required to build Unreal Engine.");
 
 //
 // Manually enable all warnings as errors, except ones that are explicitly skipped.

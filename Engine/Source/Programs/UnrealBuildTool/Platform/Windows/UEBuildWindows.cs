@@ -811,9 +811,9 @@ namespace UnrealBuildTool
 			// Set the compiler version if necessary
 			if (Target.WindowsPlatform.Compiler == WindowsCompiler.Default)
 			{
-				if (Target.WindowsPlatform.StaticAnalyzer == WindowsStaticAnalyzer.PVSStudio && HasCompiler(WindowsCompiler.VisualStudio2017))
+				if (Target.WindowsPlatform.StaticAnalyzer == WindowsStaticAnalyzer.PVSStudio && HasCompiler(WindowsCompiler.VisualStudio2019))
 				{
-					Target.WindowsPlatform.Compiler = WindowsCompiler.VisualStudio2017;
+					Target.WindowsPlatform.Compiler = WindowsCompiler.VisualStudio2019;
 				}
 				else
 				{
@@ -907,10 +907,6 @@ namespace UnrealBuildTool
 					{
 						return WindowsCompiler.VisualStudio2019;
 					}
-					else if (Format == ProjectFileFormat.VisualStudio2017)
-					{
-						return WindowsCompiler.VisualStudio2017;
-					}
 				} 
 			}
 
@@ -923,10 +919,6 @@ namespace UnrealBuildTool
 				{
 					return WindowsCompiler.VisualStudio2019;
 				}
-				else if (ProjectFormat == VCProjectFileFormat.VisualStudio2017)
-				{
-					return WindowsCompiler.VisualStudio2017;
-				}
 			}
 
 			// Check the editor settings too
@@ -937,20 +929,12 @@ namespace UnrealBuildTool
 			    {
 				    return WindowsCompiler.VisualStudio2019;
 			    }
-				else if(PreferredAccessor == ProjectFileFormat.VisualStudio2017)
-			    {
-				    return WindowsCompiler.VisualStudio2017;
-			    }
 			}
 
 			// Second, default based on what's installed, test for 2015 first
 			if (HasCompiler(WindowsCompiler.VisualStudio2019))
 			{
 				return WindowsCompiler.VisualStudio2019;
-			}
-			if (HasCompiler(WindowsCompiler.VisualStudio2017))
-			{
-				return WindowsCompiler.VisualStudio2017;
 			}
 
 			// If we do have a Visual Studio installation, but we're missing just the C++ parts, warn about that.
@@ -959,13 +943,9 @@ namespace UnrealBuildTool
 			{
 				Log.TraceWarning("Visual Studio 2019 is installed, but is missing the C++ toolchain. Please verify that the \"VC++ 2019 toolset\" component is selected in the Visual Studio 2019 installation options.");
 			}
-			else if (TryGetVSInstallDir(WindowsCompiler.VisualStudio2017, out VSInstallDir))
-			{
-				Log.TraceWarning("Visual Studio 2017 is installed, but is missing the C++ toolchain. Please verify that the \"VC++ 2017 toolset\" component is selected in the Visual Studio 2017 installation options.");
-			}
 			else
 			{
-				Log.TraceWarning("No Visual C++ installation was found. Please download and install Visual Studio 2017 with C++ components.");
+				Log.TraceWarning("No Visual C++ installation was found. Please download and install Visual Studio 2019 with C++ components.");
 			}
 
 			// Finally, default to VS2019 anyway
