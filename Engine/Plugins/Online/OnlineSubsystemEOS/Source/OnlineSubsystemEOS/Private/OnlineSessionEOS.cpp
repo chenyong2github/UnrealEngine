@@ -1170,10 +1170,8 @@ void FOnlineSessionEOS::CopySearchResult(EOS_HSessionDetails SessionHandle, EOS_
 		case EOS_EOnlineSessionPermissionLevel::EOS_OSPF_InviteOnly:
 		{
 			OutSession.SessionSettings.bAllowInvites = true;
-			OutSession.SessionSettings.bUsesPresence = 0;
-			OutSession.SessionSettings.bAllowJoinViaPresence = 0;
-			OutSession.SessionSettings.NumPrivateConnections = SessionInfo->Settings->NumPublicConnections;
-			OutSession.NumOpenPrivateConnections = SessionInfo->NumOpenPublicConnections;
+			OutSession.SessionSettings.bUsesPresence = false;
+			OutSession.SessionSettings.bAllowJoinViaPresence = false;
 			break;
 		}
 		case EOS_EOnlineSessionPermissionLevel::EOS_OSPF_JoinViaPresence:
@@ -1181,8 +1179,6 @@ void FOnlineSessionEOS::CopySearchResult(EOS_HSessionDetails SessionHandle, EOS_
 			OutSession.SessionSettings.bAllowInvites = true;
 			OutSession.SessionSettings.bUsesPresence = true;
 			OutSession.SessionSettings.bAllowJoinViaPresence = true;
-			OutSession.SessionSettings.NumPrivateConnections = SessionInfo->Settings->NumPublicConnections;
-			OutSession.NumOpenPrivateConnections = SessionInfo->NumOpenPublicConnections;
 			break;
 		}
 		case EOS_EOnlineSessionPermissionLevel::EOS_OSPF_PublicAdvertised:
@@ -1190,11 +1186,11 @@ void FOnlineSessionEOS::CopySearchResult(EOS_HSessionDetails SessionHandle, EOS_
 			OutSession.SessionSettings.bAllowInvites = true;
 			OutSession.SessionSettings.bUsesPresence = true;
 			OutSession.SessionSettings.bAllowJoinViaPresence = true;
-			OutSession.SessionSettings.NumPublicConnections = SessionInfo->Settings->NumPublicConnections;
-			OutSession.NumOpenPublicConnections = SessionInfo->NumOpenPublicConnections;
 			break;
 		}
 	}
+	OutSession.SessionSettings.NumPrivateConnections = SessionInfo->Settings->NumPublicConnections;
+	OutSession.NumOpenPrivateConnections = SessionInfo->NumOpenPublicConnections;
 
 	CopyAttributes(SessionHandle, OutSession);
 }
