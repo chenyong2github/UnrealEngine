@@ -151,6 +151,16 @@ void ULevelEditorSubsystem::EditorSetGameView(bool bGameView)
 	}
 }
 
+void ULevelEditorSubsystem::EditorRequestEndPlay()
+{
+	GUnrealEd->RequestEndPlayMap();
+}
+
+bool ULevelEditorSubsystem::IsInPlayInEditor() const
+{
+	return GUnrealEd->IsPlayingSessionInEditor();
+}
+
 /**
  *
  * Editor Scripting | Level
