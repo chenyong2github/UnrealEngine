@@ -648,13 +648,6 @@ void FMobileSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 	AddPass(GraphBuilder, PollOcclusionQueriesAndDispatchToRHIThreadPass);
 
-	// Default view list
-	TArray<const FViewInfo*> ViewList;
-	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++) 
-	{
-		ViewList.Add(&Views[ViewIndex]);
-	}
-
 	// Custom depth
 	// bShouldRenderCustomDepth has been initialized in InitViews on mobile platform
 	if (bShouldRenderCustomDepth)
@@ -669,11 +662,11 @@ void FMobileSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 	if (bDeferredShading)
 	{
-		RenderDeferred(GraphBuilder, ViewList, SortedLightSet, ViewFamilyTexture, SceneTextures);
+		RenderDeferred(GraphBuilder, Views, SortedLightSet, ViewFamilyTexture, SceneTextures);
 	}
 	else
 	{
-		RenderForward(GraphBuilder, ViewList, ViewFamilyTexture, SceneTextures);
+		RenderForward(GraphBuilder, Views, ViewFamilyTexture, SceneTextures);
 	}
 
 	SceneTextures.MobileSetupMode = EMobileSceneTextureSetupMode::All;
@@ -767,9 +760,9 @@ BEGIN_SHADER_PARAMETER_STRUCT(FMobilePostBasePassViewExtensionParameters, )
 	RENDER_TARGET_BINDING_SLOTS()
 END_SHADER_PARAMETER_STRUCT()
 
-void FMobileSceneRenderer::RenderForward(FRDGBuilder& GraphBuilder, const TArrayView<const FViewInfo*> ViewList, FRDGTextureRef ViewFamilyTexture, const FSceneTextures& SceneTextures)
+void FMobileSceneRenderer::RenderForward(FRDGBuilder& GraphBuilder, const TArrayView<const FViewInfo> ViewList, FRDGTextureRef ViewFamilyTexture, const FSceneTextures& SceneTextures)
 {
-	const FViewInfo& View = *ViewList[0];
+	const FViewInfo& View = ViewList[0];
 
 	FRDGTextureRef SceneColor = nullptr;
 	FRDGTextureRef SceneColorResolve = nullptr;
@@ -1015,7 +1008,7 @@ void FMobileSceneRenderer::RenderForward(FRDGBuilder& GraphBuilder, const TArray
 	QueueSceneTextureExtractions(GraphBuilder, SceneTextures);
 }
 
-void FMobileSceneRenderer::RenderDeferred(FRDGBuilder& GraphBuilder, const TArrayView<const FViewInfo*> ViewList, const FSortedLightSetSceneInfo& SortedLightSet, FRDGTextureRef ViewFamilyTexture, const FSceneTextures& SceneTextures)
+void FMobileSceneRenderer::RenderDeferred(FRDGBuilder& GraphBuilder, const TArrayView<const FViewInfo> ViewList, const FSortedLightSetSceneInfo& SortedLightSet, FRDGTextureRef ViewFamilyTexture, const FSceneTextures& SceneTextures)
 {
 	FRDGTextureRef ColorTargets[5] = {
 		SceneTextures.Color.Target,
@@ -1197,7 +1190,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FMobileDebugViewPassParameters, )
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FDebugViewModePassUniformParameters, DebugViewMode)
 END_SHADER_PARAMETER_STRUCT()
 
-void FMobileSceneRenderer::RenderMobileDebugView(FRDGBuilder& GraphBuilder, const TArrayView<const FViewInfo*> PassViews, FRDGTextureRef QuadOverdrawTexture)
+void FMobileSceneRenderer::RenderMobileDebugView(FRDGBuilder& GraphBuilder, const TArrayView<const FViewInfo> PassViews, FRDGTextureRef QuadOverdrawTexture)
 {
 #if WITH_DEBUG_VIEW_MODES
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(RenderDebugView);
@@ -1207,7 +1200,7 @@ void FMobileSceneRenderer::RenderMobileDebugView(FRDGBuilder& GraphBuilder, cons
 	for (int32 ViewIndex = 0; ViewIndex < PassViews.Num(); ViewIndex++)
 	{
 		RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, Views.Num() > 1, "View%d", ViewIndex);
-		const FViewInfo& View = *PassViews[ViewIndex];
+		const FViewInfo& View = PassViews[ViewIndex];
 		if (!View.ShouldRenderView())
 		{
 			continue;

@@ -20,5 +20,5 @@ void MobileDeferredShadingPass(
 	FRenderTargetBindingSlots& BasePassRenderTargets,
 	TRDGUniformBufferRef<FMobileSceneTextureUniformParameters> MobileSceneTextures,
 	const FScene& Scene, 
-	const TArrayView<const FViewInfo*> PassViews, 
+	const TArrayView<const FViewInfo> PassViews, 
 	const FSortedLightSetSceneInfo &SortedLightSet);

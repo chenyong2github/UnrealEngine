@@ -302,7 +302,7 @@ void SetupMobileSkyReflectionUniformParameters(FSkyLightSceneProxy* SkyLight, FM
 void FMobileSceneRenderer::RenderMobileBasePass(
 	FRDGBuilder& GraphBuilder,
 	FRenderTargetBindingSlots& BasePassRenderTargets,
-	const TArrayView<const FViewInfo*> PassViews,
+	const TArrayView<const FViewInfo> PassViews,
 	FRDGTextureRef ScreenSpaceAO)
 {
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(RenderBasePass);
@@ -313,7 +313,7 @@ void FMobileSceneRenderer::RenderMobileBasePass(
 	for (int32 ViewIndex = 0; ViewIndex < PassViews.Num(); ViewIndex++)
 	{
 		RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, Views.Num() > 1, "View%d", ViewIndex);
-		const FViewInfo& View = *PassViews[ViewIndex];
+		const FViewInfo& View = PassViews[ViewIndex];
 		if (!View.ShouldRenderView())
 		{
 			continue;

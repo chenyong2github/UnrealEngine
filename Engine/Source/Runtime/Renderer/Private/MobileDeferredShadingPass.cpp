@@ -470,13 +470,13 @@ static void SetupSimpleLightPSO(
 static void RenderSimpleLights(
 	FRHICommandListImmediate& RHICmdList, 
 	const FScene& Scene, 
-	const TArrayView<const FViewInfo*> PassViews, 
+	const TArrayView<const FViewInfo> PassViews, 
 	const FSortedLightSetSceneInfo &SortedLightSet, 
 	const FCachedLightMaterial& DefaultMaterial)
 {
 	const FSimpleLightArray& SimpleLights = SortedLightSet.SimpleLights;
 	const int32 NumViews = PassViews.Num();
-	const FViewInfo& View0 = *PassViews[0];
+	const FViewInfo& View0 = PassViews[0];
 
 	TShaderMapRef<TDeferredLightVS<true>> VertexShader(View0.ShaderMap);
 	TShaderRef<FMobileRadialLightFunctionPS> PixelShaders[2];
@@ -520,7 +520,7 @@ static void RenderSimpleLights(
 		const FSimpleLightEntry& SimpleLight = SimpleLights.InstanceData[LightIndex];
 		for (int32 ViewIndex = 0; ViewIndex < NumViews; ViewIndex++)
 		{
-			const FViewInfo& View = *PassViews[ViewIndex];
+			const FViewInfo& View = PassViews[ViewIndex];
 			const FSimpleLightPerViewEntry& SimpleLightPerViewData = SimpleLights.GetViewDependentData(LightIndex, ViewIndex, NumViews);
 			const FSphere LightBounds(SimpleLightPerViewData.Position, SimpleLight.Radius);
 			
@@ -572,7 +572,7 @@ void MobileDeferredShadingPass(
 	FRenderTargetBindingSlots& BasePassRenderTargets,
 	TRDGUniformBufferRef<FMobileSceneTextureUniformParameters> MobileSceneTextures,
 	const FScene& Scene, 
-	const TArrayView<const FViewInfo*> PassViews, 
+	const TArrayView<const FViewInfo> PassViews, 
 	const FSortedLightSetSceneInfo &SortedLightSet)
 {
 	auto* PassParameters = GraphBuilder.AllocParameters<FMobileDeferredPassParameters>();
@@ -581,10 +581,9 @@ void MobileDeferredShadingPass(
 
 	GraphBuilder.AddPass(
 		RDG_EVENT_NAME("MobileDeferredShadingPass"), PassParameters, ERDGPassFlags::Raster | ERDGPassFlags::SkipRenderPass,
-		[&Scene, &PassViews, &SortedLightSet](FRHICommandListImmediate& RHICmdList)
+		[&Scene, PassViews, &SortedLightSet](FRHICommandListImmediate& RHICmdList)
 	{
-
-		const FViewInfo& View0 = *PassViews[0];
+		const FViewInfo& View0 = PassViews[0];
 		RHICmdList.SetViewport(View0.ViewRect.Min.X, View0.ViewRect.Min.Y, 0.0f, View0.ViewRect.Max.X, View0.ViewRect.Max.Y, 1.0f);
 
 		// Default material for light rendering
