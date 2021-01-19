@@ -6,8 +6,56 @@ using System.Collections.Generic;
 using System.Linq;
 using EpicGame;
 
-namespace Gauntlet.UnrealTest
+namespace UE
 {
+	/// <summary>
+	/// Tests that ensures are emitted and parsed correctly
+	/// </summary>
+	public class TestEnsuresAreCaught : ErrorTestBase
+	{
+		public TestEnsuresAreCaught(UnrealTestContext InContext)
+			: base(InContext)
+		{
+			ErrorType = ErrorTypes.Ensure;
+		}
+	}
+
+	/// <summary>
+	/// Tests that checks are emitted and parsed correctly
+	/// </summary>
+	public class TestChecksAreCaught : ErrorTestBase
+	{
+		public TestChecksAreCaught(UnrealTestContext InContext)
+			: base(InContext)
+		{
+			ErrorType = ErrorTypes.Check;
+		}
+	}
+
+	/// <summary>
+	/// Tests that fatal logging is emitted and parsed correctly
+	/// </summary>
+	public class TestFatalErrorsAreCaught : ErrorTestBase
+	{
+		public TestFatalErrorsAreCaught(UnrealTestContext InContext)
+			: base(InContext)
+		{
+			ErrorType = ErrorTypes.Fatal;
+		}
+	}
+
+	/// <summary>
+	/// Tests that exceptions are emitted and parsed correctly
+	/// </summary>
+	public class TestCrashesAreCaught : ErrorTestBase
+	{
+		public TestCrashesAreCaught(UnrealTestContext InContext)
+			: base(InContext)
+		{
+			ErrorType = ErrorTypes.GPF;
+		}
+	}
+
 	/// <summary>
 	/// Base class for error tests. Contains all the logic but the smaller classes should be used.
 	/// E.g. -test=ErrorTestEnsure -server
@@ -32,6 +80,7 @@ namespace Gauntlet.UnrealTest
 			ErrorType = ErrorTypes.Check;
 			ErrorDelay = 5;
 			Server = false;
+			LogWarningsAndErrorsAfterSummary = false;
 		}
 
 		public override UE4Game.UE4TestConfig GetConfiguration()
@@ -169,54 +218,6 @@ namespace Gauntlet.UnrealTest
 			}
 			
 			return base.GetExitCodeAndReason(InArtifacts, out ExitReason);
-		}
-	}
-
-	/// <summary>
-	/// Tests that ensures are emitted and parsed correctly
-	/// </summary>
-	public class ErrorTestEnsure : ErrorTestBase
-	{
-		public ErrorTestEnsure(UnrealTestContext InContext)
-			: base(InContext)
-		{
-			ErrorType = ErrorTypes.Ensure; 
-		}
-	}
-
-	/// <summary>
-	/// Tests that checks are emitted and parsed correctly
-	/// </summary>
-	public class ErrorTestCheck : ErrorTestBase
-	{
-		public ErrorTestCheck(UnrealTestContext InContext)
-			: base(InContext)
-		{
-			ErrorType = ErrorTypes.Check;
-		}
-	}
-
-	/// <summary>
-	/// Tests that fatal logging is emitted and parsed correctly
-	/// </summary>
-	public class ErrorTestFatal : ErrorTestBase
-	{
-		public ErrorTestFatal(UnrealTestContext InContext)
-			: base(InContext)
-		{
-			ErrorType = ErrorTypes.Fatal;
-		}
-	}
-
-	/// <summary>
-	/// Tests that exceptions are emitted and parsed correctly
-	/// </summary>
-	public class ErrorTestGPF : ErrorTestBase
-	{
-		public ErrorTestGPF(UnrealTestContext InContext)
-			: base(InContext)
-		{
-			ErrorType = ErrorTypes.GPF;
 		}
 	}
 }
