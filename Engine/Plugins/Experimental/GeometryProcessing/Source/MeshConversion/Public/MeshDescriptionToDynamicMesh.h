@@ -62,8 +62,10 @@ public:
 
 	/**
 	 * Default conversion of MeshDescription to DynamicMesh
+	 * @param bCopyTangents  - if bDisableAttributes is false, this requests the tangent plane vectors (tangent and bitangent) 
+	 *                          be stored as overlays in the MeshOut DynamicAttributeSet, provided they exist on the MeshIn
 	 */
-	void Convert(const FMeshDescription* MeshIn, FDynamicMesh3& MeshOut);
+	void Convert(const FMeshDescription* MeshIn, FDynamicMesh3& MeshOut, bool bCopyTangents = false);
 
 	/**
 	 * Copy tangents from MeshDescription to a FMeshTangents instance.
