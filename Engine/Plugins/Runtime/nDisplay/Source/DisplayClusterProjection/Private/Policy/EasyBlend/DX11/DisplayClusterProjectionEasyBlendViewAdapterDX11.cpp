@@ -58,31 +58,35 @@ bool FDisplayClusterProjectionEasyBlendViewAdapterDX11::Initialize(const FString
 		return false;
 	}
 
-	// Initialize EasyBlend data for each view
-	const char* const FileName = TCHAR_TO_ANSI(*File);
-	for (auto& It : Views)
 	{
-		// Initialize the mesh data
-		{
-			FScopeLock lock(&DllAccessCS);
+		TRACE_CPUPROFILER_EVENT_SCOPE(nDisplay EasyBlend::Initialize);
 
-			check(DisplayClusterProjectionEasyBlendLibraryDX11::EasyBlendInitializeFunc);
-			const EasyBlendSDKDXError Result = DisplayClusterProjectionEasyBlendLibraryDX11::EasyBlendInitializeFunc(FileName, It.EasyBlendMeshData.Get());
-			if (!EasyBlendSDKDX_SUCCEEDED(Result))
+		// Initialize EasyBlend data for each view
+		const char* const FileName = TCHAR_TO_ANSI(*File);
+		for (auto& It : Views)
+		{
+			// Initialize the mesh data
 			{
-				UE_LOG(LogDisplayClusterProjectionEasyBlend, Error, TEXT("Couldn't initialize EasyBlend internals"));
+				FScopeLock lock(&DllAccessCS);
+
+				check(DisplayClusterProjectionEasyBlendLibraryDX11::EasyBlendInitializeFunc);
+				const EasyBlendSDKDXError Result = DisplayClusterProjectionEasyBlendLibraryDX11::EasyBlendInitializeFunc(FileName, It.EasyBlendMeshData.Get());
+				if (!EasyBlendSDKDX_SUCCEEDED(Result))
+				{
+					UE_LOG(LogDisplayClusterProjectionEasyBlend, Error, TEXT("Couldn't initialize EasyBlend internals"));
+					return false;
+				}
+			}
+
+			// EasyBlendMeshData has been initialized
+			It.bIsMeshInitialized = true;
+
+			// Only perspective projection is supported so far
+			if (It.EasyBlendMeshData->Projection != EasyBlendSDKDX_PROJECTION_Perspective)
+			{
+				UE_LOG(LogDisplayClusterProjectionEasyBlend, Error, TEXT("EasyBlend mesh data has projection value %d. Only perspective projection is allowed at this version."), EasyBlendSDKDX_PROJECTION_Perspective);
 				return false;
 			}
-		}
-
-		// EasyBlendMeshData has been initialized
-		It.bIsMeshInitialized = true;
-
-		// Only perspective projection is supported so far
-		if (It.EasyBlendMeshData->Projection != EasyBlendSDKDX_PROJECTION_Perspective)
-		{
-			UE_LOG(LogDisplayClusterProjectionEasyBlend, Error, TEXT("EasyBlend mesh data has projection value %d. Only perspective projection is allowed at this version."), EasyBlendSDKDX_PROJECTION_Perspective);
-			return false;
 		}
 	}
 
@@ -161,6 +165,8 @@ bool FDisplayClusterProjectionEasyBlendViewAdapterDX11::ApplyWarpBlend_RenderThr
 	{
 		return false;
 	}
+
+	TRACE_CPUPROFILER_EVENT_SCOPE(nDisplay EasyBlend::Render);
 
 	// Copy the requested region to a temporary texture
 	LoadViewportTexture_RenderThread(ViewIdx, RHICmdList, SrcTexture, ViewportRect);

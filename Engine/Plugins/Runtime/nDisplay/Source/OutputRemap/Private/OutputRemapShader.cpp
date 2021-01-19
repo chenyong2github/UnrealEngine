@@ -99,7 +99,8 @@ private:
 IMPLEMENT_SHADER_TYPE(, FOutputRemapVS, OutputRemapShaderFileName, TEXT("OutputRemap_VS"), SF_Vertex);
 IMPLEMENT_SHADER_TYPE(, FOutputRemapPS, OutputRemapShaderFileName, TEXT("OutputRemap_PS"), SF_Pixel);
 
-DECLARE_GPU_STAT_NAMED(DisplayClusterOutputRemap, TEXT("DisplayCluster PP OutputRemap"));
+
+DECLARE_GPU_STAT_NAMED(nDisplay_PostProcess_OutputRemap, TEXT("nDisplay PostProcess::OutputRemap"));
 
 bool FOutputRemapShader::ApplyOutputRemap_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture2D* ShaderResourceTexture, FRHITexture2D* TargetableTexture, FOutputRemapMesh* MeshData)
 {
@@ -131,16 +132,16 @@ bool FOutputRemapShader::ApplyOutputRemap_RenderThread(FRHICommandListImmediate&
 			return false;
 	};
 
+	SCOPED_GPU_STAT(RHICmdList, nDisplay_PostProcess_OutputRemap);
+	SCOPED_DRAW_EVENT(RHICmdList, nDisplay_PostProcess_OutputRemap);
+
 	RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThreadFlushResources);
 
 	FIntRect DstRect(FIntPoint(0, 0), TargetableTexture->GetSizeXY());
 
-	SCOPED_GPU_STAT(RHICmdList, DisplayClusterOutputRemap);
-	SCOPED_DRAW_EVENTF(RHICmdList, DisplayClusterOutputRemap, TEXT("DisplayClusterOutputRemap"));
-
 	// Single render pass remap
 	FRHIRenderPassInfo RPInfo(TargetableTexture, ERenderTargetActions::Clear_Store);
-	RHICmdList.BeginRenderPass(RPInfo, TEXT("DisplayClusterOutputRemap"));
+	RHICmdList.BeginRenderPass(RPInfo, TEXT("nDisplay_OutputRemap"));
 	{
 		// Set the graphic pipeline state.
 		FGraphicsPipelineStateInitializer GraphicsPSOInit;

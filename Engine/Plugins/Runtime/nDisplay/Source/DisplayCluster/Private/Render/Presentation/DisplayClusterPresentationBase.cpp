@@ -39,18 +39,18 @@ void FDisplayClusterPresentationBase::OnBackBufferResize()
 
 bool FDisplayClusterPresentationBase::Present(int32& InOutSyncInterval)
 {
-	// Update sync value with nDisplay value
-	InOutSyncInterval = GetSwapInt();
+	TRACE_CPUPROFILER_EVENT_SCOPE(nDisplay RenderDevice::PresentationBase);
+
+	bool bNeedPresent = true;
 
 	// Get sync policy instance
 	if (SyncPolicy.IsValid())
 	{
+		// Update sync value with nDisplay value
+		InOutSyncInterval = GetSwapInt();
 		// False results means we don't need to present current frame, the sync object already presented it
-		if (!SyncPolicy->SynchronizeClusterRendering(InOutSyncInterval))
-		{
-			return false;
-		}
+		bNeedPresent = SyncPolicy->SynchronizeClusterRendering(InOutSyncInterval);
 	}
 
-	return true;
+	return bNeedPresent;
 }
