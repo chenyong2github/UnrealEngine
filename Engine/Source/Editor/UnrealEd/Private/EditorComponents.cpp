@@ -79,20 +79,41 @@ FGridWidget.
 ------------------------------------------------------------------------------*/
 
 FGridWidget::FGridWidget()
+	: GPUBasedGridMaterial(FSoftObjectPath(TEXT("/Engine/EditorMaterials/LevelGridMaterial.LevelGridMaterial")))
+	, TextureBasedLevelGridMaterial(FSoftObjectPath(TEXT("/Engine/EditorMaterials/LevelGridMaterial2.LevelGridMaterial2")))
+	, LevelGridMaterialInst(nullptr)
 {
-	LevelGridMaterial = (UMaterial*)StaticLoadObject( UMaterial::StaticClass(),NULL,TEXT("/Engine/EditorMaterials/LevelGridMaterial.LevelGridMaterial"),NULL,LOAD_None,NULL );
-	LevelGridMaterialInst = UMaterialInstanceDynamic::Create(LevelGridMaterial, NULL);
-
-	LevelGridMaterial2 = (UMaterial*)StaticLoadObject( UMaterial::StaticClass(),NULL,TEXT("/Engine/EditorMaterials/LevelGridMaterial2.LevelGridMaterial2"),NULL,LOAD_None,NULL );
-	LevelGridMaterialInst2 = UMaterialInstanceDynamic::Create(LevelGridMaterial2, NULL);
 }
 
 void FGridWidget::AddReferencedObjects( FReferenceCollector& Collector )
 {
-	Collector.AddReferencedObject( LevelGridMaterial );
 	Collector.AddReferencedObject( LevelGridMaterialInst );
-	Collector.AddReferencedObject( LevelGridMaterial2 );
-	Collector.AddReferencedObject( LevelGridMaterialInst2 );
+}
+
+UMaterial* FGridWidget::GetActiveLevelGridMaterial()
+{
+	bool bUseTextureSolution = CVarEditorNewLevelGrid.GetValueOnGameThread() > 1;
+
+	if (bUseTextureSolution)
+	{
+		return TextureBasedLevelGridMaterial.LoadSynchronous();
+	}
+	
+	return GPUBasedGridMaterial.LoadSynchronous();
+}
+
+UMaterialInstanceDynamic* FGridWidget::GetActiveLevelGridMID()
+{
+	bool bUseTextureSolution = CVarEditorNewLevelGrid.GetValueOnGameThread() > 1;
+
+	UMaterial* BaseGridMat = GetActiveLevelGridMaterial();
+
+	if (!LevelGridMaterialInst || LevelGridMaterialInst->Parent != BaseGridMat)
+	{
+		LevelGridMaterialInst = UMaterialInstanceDynamic::Create(BaseGridMat, nullptr);
+	}
+
+	return LevelGridMaterialInst;
 }
 
 static void GetAxisColors(FLinearColor Out[3], bool b3D)
@@ -120,9 +141,7 @@ static void GetAxisColors(FLinearColor Out[3], bool b3D)
 
 void FGridWidget::DrawNewGrid(const FSceneView* View, FPrimitiveDrawInterface* PDI)
 {
-	bool bUseTextureSolution = CVarEditorNewLevelGrid.GetValueOnGameThread() > 1;
-	UMaterial* GridMaterial = bUseTextureSolution ? LevelGridMaterial2 : LevelGridMaterial;
-	UMaterialInstanceDynamic* MaterialInst = bUseTextureSolution ? LevelGridMaterialInst2 : LevelGridMaterialInst;
+	UMaterial* GridMaterial = GetActiveLevelGridMaterial();
 
 	if (GridMaterial->IsCompilingOrHadCompileError(View->GetFeatureLevel()))
 	{
@@ -130,6 +149,8 @@ void FGridWidget::DrawNewGrid(const FSceneView* View, FPrimitiveDrawInterface* P
 		// Here we rather want to hide it.
 		return;
 	}
+
+	UMaterialInstanceDynamic* MaterialInst = GetActiveLevelGridMID();
 
 	if(!MaterialInst)
 	{

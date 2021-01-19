@@ -34,12 +34,15 @@ public:
 	}
 
 private:
+	UMaterial* GetActiveLevelGridMaterial();
+	UMaterialInstanceDynamic* GetActiveLevelGridMID();
+private:
 	// ALU based
-	UMaterial* LevelGridMaterial;
-	UMaterialInstanceDynamic* LevelGridMaterialInst;
+	TSoftObjectPtr<UMaterial> GPUBasedGridMaterial;
 	// texture based
-	UMaterial* LevelGridMaterial2;
-	UMaterialInstanceDynamic* LevelGridMaterialInst2;
+	TSoftObjectPtr<UMaterial> TextureBasedLevelGridMaterial;
+
+	UMaterialInstanceDynamic* LevelGridMaterialInst;
 };
 
 /**
