@@ -7,6 +7,7 @@
 #include "IMotionController.h"
 #include "RHI.h"
 #include "RHIResources.h"
+#include "InputCoreTypes.h"
 #include "HeadMountedDisplayTypes.generated.h"
 
 struct FFilterVertex;
