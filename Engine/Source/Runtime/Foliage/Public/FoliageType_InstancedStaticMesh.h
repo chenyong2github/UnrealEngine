@@ -14,10 +14,10 @@ class UFoliageType_InstancedStaticMesh : public UFoliageType
 {
 	GENERATED_UCLASS_BODY()
 
-	UPROPERTY(EditAnywhere, Category=Mesh, meta=(DisplayThumbnail="true"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Mesh, meta=(DisplayThumbnail="true"))
 	UStaticMesh* Mesh;
 
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = Mesh, Meta = (ToolTip = "Material overrides for foliage instances."))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = Mesh, Meta = (ToolTip = "Material overrides for foliage instances."))
 	TArray<class UMaterialInterface*> OverrideMaterials;
 		
 	/** The component class to use for foliage instances. 

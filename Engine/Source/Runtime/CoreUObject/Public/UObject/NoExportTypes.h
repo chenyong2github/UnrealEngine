@@ -1380,15 +1380,15 @@ struct FFrameNumberRange
  * An interval of floats, defined by inclusive min and max values
  * @note This is a mirror of TInterval<float>, defined in Interval.h
  */
-USTRUCT(noexport)
+USTRUCT(noexport, BlueprintType)
 struct FFloatInterval
 {
 	/** Values must be >= Min */
-	UPROPERTY(EditAnywhere, Category=Interval)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Interval)
 	float Min;
 
 	/** Values must be <= Max */
-	UPROPERTY(EditAnywhere, Category=Interval)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Interval)
 	float Max;
 };
 
