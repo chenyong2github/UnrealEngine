@@ -735,8 +735,15 @@ void AftermathShaderDebugInfoCallback(const void* pShaderDebugInfo, const uint32
 {
 }
 
-void AftermathCrashDumpDescriptionCallback(PFN_GFSDK_Aftermath_AddGpuCrashDumpDescription addDescription, void* pUserData)
+void AftermathCrashDumpDescriptionCallback(PFN_GFSDK_Aftermath_AddGpuCrashDumpDescription AddDescription, void* pUserData)
 {
+	// Add some basic description about the crash. This is called after the GPU crash happens, but before
+	// the actual GPU crash dump callback. The provided data is included in the crash dump and can be
+	// retrieved using GFSDK_Aftermath_GpuCrashDump_GetDescription().
+	FTCHARToUTF8 ProjectNameConverter(FApp::GetProjectName());
+	AddDescription(GFSDK_Aftermath_GpuCrashDumpDescriptionKey_ApplicationName, ProjectNameConverter.Get());
+	AddDescription(GFSDK_Aftermath_GpuCrashDumpDescriptionKey_ApplicationVersion, "v1.0");
+	AddDescription(GFSDK_Aftermath_GpuCrashDumpDescriptionKey_UserDefined, "Vulkan GPU crash");
 }
 #endif
 
