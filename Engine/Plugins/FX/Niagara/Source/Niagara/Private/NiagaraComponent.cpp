@@ -1066,8 +1066,6 @@ void UNiagaraComponent::ActivateInternal(bool bReset /* = false */, bool bIsScal
 		return;
 	}
 
-	Super::Activate(bReset);
-
 	// Early out if we're not forcing a reset, and both the component and system instance are already active.
 	if (bReset == false &&
 		IsActive() &&
@@ -1077,6 +1075,8 @@ void UNiagaraComponent::ActivateInternal(bool bReset /* = false */, bool bIsScal
 	{
 		return;
 	}
+
+	Super::Activate(bReset);
 
 	//UE_LOG(LogNiagara, Log, TEXT("Activate: %p - %s - %s"), this, *Asset->GetName(), bIsScalabilityCull ? TEXT("Scalability") : TEXT(""));
 	
