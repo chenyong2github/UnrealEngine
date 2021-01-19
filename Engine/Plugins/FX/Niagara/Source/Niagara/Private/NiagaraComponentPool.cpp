@@ -138,7 +138,7 @@ UNiagaraComponent* FNCPool::Acquire(UWorld* World, UNiagaraSystem* Template, ENC
 
 	RetElem.Component->PoolingMethod = PoolingMethod;
 
-#if ENABLE_NC_POOL_DEBUGGING
+#if 1//ENABLE_NC_POOL_DEBUGGING
 	if (PoolingMethod == ENCPoolMethod::AutoRelease)
 	{
 		InUseComponents_Auto.Add(RetElem.Component);
@@ -158,7 +158,7 @@ void FNCPool::Reclaim(UNiagaraComponent* Component, const float CurrentTimeSecon
 	check(Component);
 	check(Component->GetAsset());
 
-#if ENABLE_NC_POOL_DEBUGGING
+#if 1//ENABLE_NC_POOL_DEBUGGING
 	int32 InUseIdx = INDEX_NONE;
 	if (Component->PoolingMethod == ENCPoolMethod::AutoRelease)
 	{
@@ -267,7 +267,7 @@ void FNCPool::KillUnusedComponents(float KillTime, UNiagaraSystem* Template)
 	}
 	FreeElements.Shrink();
 
-#if ENABLE_NC_POOL_DEBUGGING
+#if 1//ENABLE_NC_POOL_DEBUGGING
 	//Clean up any in use components that have been cleared out from under the pool. This could happen in someone manually destroys a component for example.
 	i = 0;
 	while (i < InUseComponents_Manual.Num())
