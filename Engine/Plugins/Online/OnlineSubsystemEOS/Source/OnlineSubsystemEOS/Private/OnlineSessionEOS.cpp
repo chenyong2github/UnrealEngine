@@ -1247,38 +1247,33 @@ void FOnlineSessionEOS::CopyAttributes(EOS_HSessionDetails SessionHandle, FOnlin
 				OutSession.OwningUserId = MakeShareable(new FUniqueNetIdEOS(ANSI_TO_TCHAR(Attribute->Data->Value.AsUtf8)));
 			}
 			// Handle FOnlineSessionSetting settings
-			else if (Key.StartsWith(TEXT("FOSS=")))
+			else
 			{
-				FString KeyName;
-				FParse::Value(*Key, TEXT("FOSS="), KeyName);
-				if (KeyName.Len() > 0)
+				FOnlineSessionSetting Setting;
+				switch (Attribute->Data->ValueType)
 				{
-					FOnlineSessionSetting Setting;
-					switch (Attribute->Data->ValueType)
+					case EOS_ESessionAttributeType::EOS_SAT_Boolean:
 					{
-						case EOS_ESessionAttributeType::EOS_SAT_Boolean:
-						{
-							Setting.Data.SetValue(Attribute->Data->Value.AsBool == EOS_TRUE);
-							break;
-						}
-						case EOS_ESessionAttributeType::EOS_SAT_Int64:
-						{
-							Setting.Data.SetValue(Attribute->Data->Value.AsInt64);
-							break;
-						}
-						case EOS_ESessionAttributeType::EOS_SAT_Double:
-						{
-							Setting.Data.SetValue(Attribute->Data->Value.AsDouble);
-							break;
-						}
-						case EOS_ESessionAttributeType::EOS_SAT_String:
-						{
-							Setting.Data.SetValue(ANSI_TO_TCHAR(Attribute->Data->Value.AsUtf8));
-							break;
-						}
+						Setting.Data.SetValue(Attribute->Data->Value.AsBool == EOS_TRUE);
+						break;
 					}
-					OutSession.SessionSettings.Settings.Add(FName(KeyName), Setting);
+					case EOS_ESessionAttributeType::EOS_SAT_Int64:
+					{
+						Setting.Data.SetValue(Attribute->Data->Value.AsInt64);
+						break;
+					}
+					case EOS_ESessionAttributeType::EOS_SAT_Double:
+					{
+						Setting.Data.SetValue(Attribute->Data->Value.AsDouble);
+						break;
+					}
+					case EOS_ESessionAttributeType::EOS_SAT_String:
+					{
+						Setting.Data.SetValue(ANSI_TO_TCHAR(Attribute->Data->Value.AsUtf8));
+						break;
+					}
 				}
+				OutSession.SessionSettings.Settings.Add(FName(Key), Setting);
 			}
 		}
 
