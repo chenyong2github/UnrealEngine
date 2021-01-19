@@ -141,9 +141,9 @@ void FWorldPartitionEditorModule::SetConversionPromptEnabled(bool bEnabled)
 	GetMutableDefault<UWorldPartitionEditorSettings>()->bEnableConversionPrompt = bEnabled;
 }
 
-float FWorldPartitionEditorModule::GetMinimumWorldSize() const
+float FWorldPartitionEditorModule::GetAutoCellLoadingMaxWorldSize() const
 {
-	return GetDefault<UWorldPartitionEditorSettings>()->MinimumWorldSize;
+	return GetDefault<UWorldPartitionEditorSettings>()->AutoCellLoadingMaxWorldSize;
 }
 
 bool FWorldPartitionEditorModule::ConvertMap(const FString& InLongPackageName)
@@ -203,7 +203,7 @@ bool FWorldPartitionEditorModule::ConvertMap(const FString& InLongPackageName)
 
 			// Try to provide complete Path, if we can't try with project name
 			FString ProjectPath = FPaths::IsProjectFilePathSet() ? FPaths::GetProjectFilePath() : FApp::GetProjectName();
-			
+
 			uint32 ProcessID;
 			FString Arguments = FString::Printf(TEXT("\"%s\" %s"), *ProjectPath, *DefaultConvertOptions->ToCommandletArgs());
 			ProcessHandle = FPlatformProcess::CreateProc(*CurrentExecutableName, *Arguments, true, false, false, &ProcessID, 0, nullptr, nullptr);

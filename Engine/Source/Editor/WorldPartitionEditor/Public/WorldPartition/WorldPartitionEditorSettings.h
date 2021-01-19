@@ -28,6 +28,6 @@ public:
 	UPROPERTY(config, EditAnywhere, Category = MapConversion, meta = (ToolTip = "Commandlet class to use for World Parition conversion"))
 	TSubclassOf<UWorldPartitionConvertCommandlet> CommandletClass;
 
-	UPROPERTY(config, EditAnywhere, Category = WorldPartition, meta = (ToolTip = "This option is used to automatically load all cells when the world is smaller than this value"))
-	float MinimumWorldSize = 100000.0f;
+	UPROPERTY(config, EditAnywhere, Category = WorldPartition, meta = (ToolTip = "Automatically load all cells when the world is smaller than this value"))
+	float AutoCellLoadingMaxWorldSize = 100000.0f;
 };

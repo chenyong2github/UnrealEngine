@@ -262,15 +262,16 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 			// Load the always loaded cell, don't call LoadCells to avoid creating a transaction
 			UpdateLoadingEditorCell(EditorHash->GetAlwaysLoadedCell(), true);
 
-			// If the world is smaller than the project setting's minimum world size, load all cells
+			// Autoload all cells if the world is smaller than the project setting's value
 			IWorldPartitionEditorModule& WorldPartitionEditorModule = FModuleManager::LoadModuleChecked<IWorldPartitionEditorModule>("WorldPartitionEditor");
-			const float MinimumWorldSize = WorldPartitionEditorModule.GetMinimumWorldSize();
-			const bool bWorldIsSmallerThanMinimumWorldSize = GetWorldBounds().GetVolume() <= (MinimumWorldSize * MinimumWorldSize * MinimumWorldSize);
+			const float AutoCellLoadingMaxWorldSize = WorldPartitionEditorModule.GetAutoCellLoadingMaxWorldSize();
+			FVector WorldSize = GetWorldBounds().GetSize();
+			const bool bItsASmallWorld = WorldSize.X <= AutoCellLoadingMaxWorldSize && WorldSize.Y <= AutoCellLoadingMaxWorldSize && WorldSize.Z <= AutoCellLoadingMaxWorldSize;
 			
 			// When loading a subworld, load all actors
 			const bool bWorldIsSubPartition = !IsMainWorldPartition();
 
-			if (bWorldIsSubPartition || bWorldIsSmallerThanMinimumWorldSize)
+			if (bWorldIsSubPartition || bItsASmallWorld)
 			{
 				EditorHash->ForEachCell([this](UWorldPartitionEditorCell* Cell)
 				{

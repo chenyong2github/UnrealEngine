@@ -43,7 +43,7 @@ public:
 	/**
 	 *
 	 */
-	virtual float GetMinimumWorldSize() const override;
+	virtual float GetAutoCellLoadingMaxWorldSize() const override;
 
 	/**
 	 * 
