@@ -127,6 +127,10 @@ public:
 	/** This curve is queried in the range [0,1] to adjust contrast of the displacement map. */
 	UPROPERTY(VisibleAnywhere, Category = Options, meta = (EditCondition = "bApplyAdjustmentCurve", EditConditionHides))
 	UCurveFloat* AdjustmentCurve = nullptr;
+
+	/** Recalculate normals from displaced mesh. Disable this if you are applying Displacements that are paired with an existing Normal Map in your Material. */
+	UPROPERTY(EditAnywhere, Category = Options)
+	bool bRecalcNormals = true;
 };
 
 
