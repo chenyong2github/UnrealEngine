@@ -798,6 +798,12 @@ const TArray<FNiagaraEmitterHandle>& UNiagaraSystem::GetEmitterHandles()const
 
 bool UNiagaraSystem::IsReadyToRunInternal() const
 {
+	//TODO: Ideally we'd never even load Niagara assets on the server but this is a larger issue. Tracked in FORT-342580
+	if (!FApp::CanEverRender())
+	{
+		return false;
+	}
+
 	if (!SystemSpawnScript || !SystemUpdateScript)
 	{
 		if (FPlatformProperties::RequiresCookedData())
