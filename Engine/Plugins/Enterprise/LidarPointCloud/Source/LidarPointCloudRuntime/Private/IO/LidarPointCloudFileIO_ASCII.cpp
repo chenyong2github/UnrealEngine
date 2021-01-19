@@ -56,19 +56,21 @@ bool ULidarPointCloudFileIO_ASCII::HandleImport(const FString& Filename, TShared
 	if (Reader)
 	{
 		TArray<int32> SelectedColumns = Settings->SelectedColumns;
+		const FVector2D IntensityRange = Settings->ReadFileMinMaxColumns({ SelectedColumns[6] }, true);
 		FVector2D RGBRange = Settings->RGBRange;
-
-		// Flags which columns should have data assigned and used
-		TArray<bool> IsColumnPopulated;
-		IsColumnPopulated.AddZeroed(SelectedColumns.Num());
 
 		// If the range has not been set, set it now
 		if (FMath::IsNearlyZero(RGBRange.X) && FMath::IsNearlyZero(RGBRange.Y))
 		{
-			RGBRange = Settings->ReadFileMinMaxColumns({ SelectedColumns[3], SelectedColumns[4], SelectedColumns[5], SelectedColumns[6] }, true);
+			RGBRange = Settings->ReadFileMinMaxColumns({ SelectedColumns[3], SelectedColumns[4], SelectedColumns[5] }, true);
 		}
 
-		float RGBMulti = 1 / (RGBRange.Y - RGBRange.X);
+		const float RGBMulti = 1 / (RGBRange.Y - RGBRange.X);
+		const float IntensityMulti = 1 / (IntensityRange.Y - IntensityRange.X);
+
+		// Flags which columns should have data assigned and used
+		TArray<bool> IsColumnPopulated;
+		IsColumnPopulated.AddZeroed(SelectedColumns.Num());
 
 		OutImportResults.SetPointCount(Settings->EstimatedPointCount);
 		OutImportResults.ClassificationsImported.Empty();
@@ -228,7 +230,7 @@ bool ULidarPointCloudFileIO_ASCII::HandleImport(const FString& Filename, TShared
 						float R = IsColumnPopulated[3] ? FMath::Clamp((float(TempDoubles[3]) - RGBRange.X) * RGBMulti, 0.0f, 1.0f) : 1;
 						float G = IsColumnPopulated[4] ? FMath::Clamp((float(TempDoubles[4]) - RGBRange.X) * RGBMulti, 0.0f, 1.0f) : 1;
 						float B = IsColumnPopulated[5] ? FMath::Clamp((float(TempDoubles[5]) - RGBRange.X) * RGBMulti, 0.0f, 1.0f) : 1;
-						float A = IsColumnPopulated[6] ? FMath::Clamp((float(TempDoubles[6]) - RGBRange.X) * RGBMulti, 0.0f, 1.0f) : 1;
+						float A = IsColumnPopulated[6] ? FMath::Clamp((float(TempDoubles[6]) - IntensityRange.X) * IntensityMulti, 0.0f, 1.0f) : 1;
 
 						OutImportResults.AddPoint(X, Y, Z, R, G, B, A);
 					}
@@ -764,7 +766,7 @@ TSharedPtr<SWidget> FLidarPointCloudImportSettings_ASCII::GetWidget()
 				.ToolTipText(LOCTEXT("GetMinMaxScan_ToolTip", "This will scan through the file to determine the min and max values."))
 				.OnClicked_Lambda([this]()
 				{
-					RGBRange = ReadFileMinMaxColumns({ SelectedColumns[3], SelectedColumns[4], SelectedColumns[5], SelectedColumns[6] }, false);
+					RGBRange = ReadFileMinMaxColumns({ SelectedColumns[3], SelectedColumns[4], SelectedColumns[5] }, false);
 					RGBRangeMin->SetValue(RGBRange.X);
 					RGBRangeMax->SetValue(RGBRange.Y);
 					return FReply::Handled();
@@ -780,7 +782,7 @@ TSharedPtr<SWidget> FLidarPointCloudImportSettings_ASCII::GetWidget()
 				.ToolTipText(LOCTEXT("GetMinMaxMatch_ToolTip", "This will scan through the file to determine the min and max values. Best matching range will be chosen."))
 				.OnClicked_Lambda([this]()
 				{
-					RGBRange = ReadFileMinMaxColumns({ SelectedColumns[3], SelectedColumns[4], SelectedColumns[5], SelectedColumns[6] }, true);
+					RGBRange = ReadFileMinMaxColumns({ SelectedColumns[3], SelectedColumns[4], SelectedColumns[5] }, true);
 					RGBRangeMin->SetValue(RGBRange.X);
 					RGBRangeMax->SetValue(RGBRange.Y);
 					return FReply::Handled();
