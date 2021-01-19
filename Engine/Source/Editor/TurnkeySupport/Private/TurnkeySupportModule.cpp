@@ -18,6 +18,7 @@
 #include "Async/Async.h"
 #include "Misc/FileHelper.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Delegates/Delegate.h"
 #include "Interfaces/TargetDeviceId.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"
@@ -816,13 +817,31 @@ static void MakeTurnkeyPlatformMenu(FMenuBuilder& MenuBuilder, FName IniPlatform
 		FString PlatformString = IniPlatformName.ToString();
 		UProjectPackagingSettings* PackagingSettings = FTurnkeySupportCallbacks::GetPackagingSettingsForPlatform(IniPlatformName);
 
-		for (FProjectBuildSettings Build : PackagingSettings->ExtraProjectBuilds)
+		for (FProjectBuildSettings Build : PackagingSettings->EngineCustomBuilds)
 		{
 			if (Build.SpecificPlatforms.Num() == 0 || Build.SpecificPlatforms.Contains(PlatformString))
 			{
 				MenuBuilder.AddMenuEntry(
 					FText::FromString(Build.Name),
-					LOCTEXT("TurnkeyTooltip_CustomBuild", "Execute a custom build (this comes from Packaging Settings)"),
+					// @todo turnkey: add the build string to the tooltip
+					LOCTEXT("TurnkeyTooltip_EngineCustomBuild", "Execute a custom build"),
+					FSlateIcon(),
+					FUIAction(
+						FExecuteAction::CreateStatic(&FTurnkeySupportCallbacks::ExecuteCustomBuild, IniPlatformName, Build),
+						FCanExecuteAction::CreateStatic(&FTurnkeySupportCallbacks::CanExecuteCustomBuild, IniPlatformName, Build)
+					)
+				);
+			}
+		}
+
+		for (FProjectBuildSettings Build : PackagingSettings->ProjectCustomBuilds)
+		{
+			if (Build.SpecificPlatforms.Num() == 0 || Build.SpecificPlatforms.Contains(PlatformString))
+			{
+				MenuBuilder.AddMenuEntry(
+					FText::FromString(Build.Name),
+					// @todo turnkey: add the build string to the tooltip
+					LOCTEXT("TurnkeyTooltip_ProjectCustomBuild", "Execute a custom build (this comes from Packaging Settings)"),
 					FSlateIcon(),
 					FUIAction(
 						FExecuteAction::CreateStatic(&FTurnkeySupportCallbacks::ExecuteCustomBuild, IniPlatformName, Build),
@@ -1423,19 +1442,25 @@ static void PrepForTurnkeyReport(FString& Command, FString& BaseCommandline, FSt
 	// make sure intermediate directory exists
 	IFileManager::Get().MakeDirectory(*FPaths::ProjectIntermediateDir());
 
-	Command = TEXT("{EngineDir}Build/BatchFiles/RunuAT");
-	//	Command = TEXT("{EngineDir}/Binaries/DotNET/AutomationTool.exe");
 
-	BaseCommandline.Empty();
+#if PLATFORM_WINDOWS
+	Command = TEXT("cmd.exe");
+	BaseCommandline = TEXT("/c RunUAT.bat");
+#elif PLATFORM_MAC
+	Command = TEXT("/bin/sh");
+	BaseCommandline = TEXT("RunUAT.sh");
+#elif PLATFORM_LINUX
+	Command = TEXT("/bin/bash");
+	BaseCommandline = TEXT("-c RunUAT.sh");
+#endif
+
 	const FString ProjectPath = GetProjectPathForTurnkey();
 	if (!ProjectPath.IsEmpty())
 	{
-		BaseCommandline.Appendf(TEXT("-ScriptsForProject=\"%s\" "), *ProjectPath);
+		BaseCommandline.Appendf(TEXT(" -ScriptsForProject=\"%s\" "), *ProjectPath);
 	}
-	BaseCommandline.Appendf(TEXT("Turnkey -utf8output -WaitForUATMutex -command=VerifySdk -ReportFilename=\"%s\" -log=\"%s\""), *ReportFilename, *LogFilename);
 
-	// convert into appropriate calls for the current platform
-	FPlatformProcess::ModifyCreateProcParams(Command, BaseCommandline, FGenericPlatformProcess::ECreateProcHelperFlags::AppendPlatformScriptExtension | FGenericPlatformProcess::ECreateProcHelperFlags::RunThroughShell);
+	BaseCommandline = BaseCommandline.Appendf(TEXT("-ScriptsForProject=\"%s\" Turnkey -utf8output -WaitForUATMutex -command=VerifySdk -ReportFilename=\"%s\" -log=\"%s\""), *ProjectPath, *ReportFilename, *LogFilename);
 }
 
 bool GetSdkInfoFromTurnkey(FString Line, FName& PlatformName, FString& DeviceId, FTurnkeySdkInfo& SdkInfo)
@@ -1494,24 +1519,86 @@ bool GetSdkInfoFromTurnkey(FString Line, FName& PlatformName, FString& DeviceId,
 	return true;
 }
 
-// FDataDrivenPlatformInfo& DeviceIdToInfo(FString DeviceId, FString* OutDeviceName)
-// {
-// 	TArray<FString> PlatformAndDevice;
-// 	DeviceId.ParseIntoArray(PlatformAndDevice, TEXT("@"), true);
-// 
-// 	if (OutDeviceName)
-// 	{
-// 		*OutDeviceName = PlatformAndDevice[1];
-// 	}
-// 
-// 	FString DDPIPlatformName = ConvertToDDPIPlatform(PlatformAndDevice[0]);
-// 
-// 	checkf(DataDrivenPlatforms.Contains(*DDPIPlatformName), TEXT("DataDrivenPlatforms map did not contain the DDPI Platform %s"), *DDPIPlatformName);
-// 
-// 	// have to convert back to Windows from Win64
-// 	return DataDrivenPlatforms[*DDPIPlatformName];
-// 
-// }
+DECLARE_DELEGATE_ThreeParams(FOnSerializedProcessComplete, int32 /*ExitCode*/, bool /*bLaunchFailed*/, bool /*bWasCanceled*/);
+
+class FSerializedUATProcess
+{
+public:
+	FSerializedUATProcess(const FString& URL, const FString& Params, bool bDeleteOnCompletion, FOnSerializedProcessComplete CompletionDelegate)
+		: Process(nullptr)
+	{
+		Async(EAsyncExecution::Thread, [this, URL, Params, bDeleteOnCompletion, CompletionDelegate]()
+			{
+				// don't let this do anything if another process is running
+				Serializer.Lock();
+
+				FString FinalParams = Params;
+				if (bHasSucceededOnce)
+				{
+					FinalParams += TEXT(" -nocompile");
+				}
+
+				Process = new FMonitoredProcess(URL, FinalParams, true, false);
+				Process->OnCompleted().BindLambda([this, bDeleteOnCompletion, CompletionDelegate](int32 ExitCode)
+					{
+						if (ExitCode == 0 || ExitCode == 10)
+						{
+							bHasSucceededOnce = true;
+						}
+						CompletionDelegate.Execute(ExitCode, false, false);
+
+						// let another one in
+						Serializer.Unlock();
+
+						if (bDeleteOnCompletion)
+						{
+							delete this;
+						}
+					});
+				Process->OnCanceled().BindLambda([this, bDeleteOnCompletion, CompletionDelegate]()
+					{
+						CompletionDelegate.Execute(-1, false, true);
+
+						// let another one in
+						Serializer.Unlock();
+
+						if (bDeleteOnCompletion)
+						{
+							delete this;
+						}
+					});
+				
+				UE_LOG(LogTurnkeySupport, Log, TEXT("Running Serialized UAT: '%s %s'"), *URL, *FinalParams);
+
+				if (Process->Launch() == false)
+				{
+					CompletionDelegate.Execute(-1, true, false);
+
+					// let another one in
+					Serializer.Unlock();
+
+					if (bDeleteOnCompletion)
+					{
+						delete this;
+					}
+				}
+			});
+	}
+
+	~FSerializedUATProcess()
+	{
+		delete Process;
+	}
+
+private:
+
+	static bool bHasSucceededOnce;
+	static FCriticalSection Serializer;
+
+	FMonitoredProcess* Process;
+};
+bool FSerializedUATProcess::bHasSucceededOnce = false;
+FCriticalSection FSerializedUATProcess::Serializer;
 
 
 void FTurnkeySupportModule::UpdateSdkInfo()
@@ -1552,10 +1639,11 @@ void FTurnkeySupportModule::UpdateSdkInfo()
 		ClearDeviceStatus();
 	}
 
-	FMonitoredProcess* TurnkeyProcess = new FMonitoredProcess(Command, Commandline, true, false);
-	TurnkeyProcess->OnCompleted().BindLambda([this, ReportFilename, TurnkeyProcess](int32 ExitCode)
+	FSerializedUATProcess* TurnkeyProcess = new FSerializedUATProcess(Command, Commandline, true, FOnSerializedProcessComplete::CreateLambda([this, ReportFilename](int32 ExitCode, bool bLaunchFailed, bool bWasCanceled)
 	{
-		AsyncTask(ENamedThreads::GameThread, [this, ReportFilename, TurnkeyProcess, ExitCode]()
+		UE_LOG(LogTurnkeySupport, Log, TEXT("Completed SDK detection: Code = %d, bLaunchFailed = %d, bWasCanceled = %d"), ExitCode, bLaunchFailed, bWasCanceled);
+
+		AsyncTask(ENamedThreads::GameThread, [this, ReportFilename, ExitCode]()
 		{
 			FScopeLock Lock(&GTurnkeySection);
 
@@ -1636,13 +1724,10 @@ void FTurnkeySupportModule::UpdateSdkInfo()
 			}
 
 			// cleanup
-			delete TurnkeyProcess;
+//			delete TurnkeyProcess;
 			IFileManager::Get().Delete(*ReportFilename);
 		});
-	});
-
-	// run it
-	TurnkeyProcess->Launch();
+	}));
 }
 
 void FTurnkeySupportModule::UpdateSdkInfoForDevices(TArray<FString> PlatformDeviceIds)
@@ -1668,10 +1753,11 @@ void FTurnkeySupportModule::UpdateSdkInfoForDevices(TArray<FString> PlatformDevi
 		}
 	}
 
-	FMonitoredProcess* TurnkeyProcess = new FMonitoredProcess(Command, Commandline, true, false);
-	TurnkeyProcess->OnCompleted().BindLambda([this, ReportFilename, TurnkeyProcess, PlatformDeviceIds](int32 ExitCode)
+	FSerializedUATProcess* TurnkeyProcess = new FSerializedUATProcess(Command, Commandline, true, FOnSerializedProcessComplete::CreateLambda([this, ReportFilename, PlatformDeviceIds](int32 ExitCode, bool bLaunchFailed, bool bWasCanceled)
 	{
-		AsyncTask(ENamedThreads::GameThread, [this, ReportFilename, TurnkeyProcess, PlatformDeviceIds, ExitCode]()
+		UE_LOG(LogTurnkeySupport, Log, TEXT("Completed device detection: Code = %d, bLaunchFailed = %d, bWasCanceled = %d"), ExitCode, bLaunchFailed, bWasCanceled);
+
+		AsyncTask(ENamedThreads::GameThread, [this, ReportFilename, PlatformDeviceIds, ExitCode]()
 		{
 			FScopeLock Lock(&GTurnkeySection);
 
@@ -1724,13 +1810,10 @@ void FTurnkeySupportModule::UpdateSdkInfoForDevices(TArray<FString> PlatformDevi
 			}
 
 			// cleanup
-			delete TurnkeyProcess;
+//			delete TurnkeyProcess;
 			IFileManager::Get().Delete(*ReportFilename);
 		});
-	});
-
-	// run it
-	TurnkeyProcess->Launch();
+	}));
 }
 
 /**

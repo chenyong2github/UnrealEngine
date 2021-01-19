@@ -271,16 +271,16 @@ public:
 	FDirectoryPath HttpChunkInstallDataDirectory;
 
 	/**
-	 * A comma separated list of formats to use for .pak file compression. If more than one is specified, the list is in order of priority, with fallbacks to other formats
+	 * A comma separated list of formats to use for .pak file and IoStore compression. If more than one is specified, the list is in order of priority, with fallbacks to other formats
 	 * in case of errors or unavailability of the format (plugin not enabled, etc).
 	 */
-	UPROPERTY(config, EditAnywhere, Category = Packaging, meta = (DisplayName = "Pak File Compression Format(s)"))
+	UPROPERTY(config, EditAnywhere, Category = Packaging, meta = (DisplayName = "Pak File / IoStore Compression Format(s)"))
 	FString PakFileCompressionFormats;
 
 	/**
-	 * A generic setting for allowing a project to control compression settings during .pak file compression. For instance, if using the Oodle plugin, you could use -oodlemethod=Selkie -oodlelevel=Optimal1
+	 * A generic setting for allowing a project to control compression settings during .pak file and IOStore compression. For instance, if using the Oodle plugin, you could use -oodlemethod=Selkie -oodlelevel=Optimal1
 	 */
-	UPROPERTY(config, EditAnywhere, Category = Packaging, meta = (DisplayName = "Pak File Compression Commandline Options"))
+	UPROPERTY(config, EditAnywhere, Category = Packaging, meta = (DisplayName = "Pak File / IoStore Compression Commandline Options"))
 	FString PakFileAdditionalCompressionOptions;
 
 	/** 
@@ -502,7 +502,13 @@ public:
 	 * A list of custom builds that will show up in the Platforms menu to allow customized builds that make sense for your project. Will show up near Package Project in the Platforms menu.
 	 */
 	UPROPERTY(config, EditAnywhere, Category=Packaging, meta=(DisplayName = "Additional builds for this project."))
-	TArray<FProjectBuildSettings> ExtraProjectBuilds;
+	TArray<FProjectBuildSettings> ProjectCustomBuilds;
+
+	/**
+	 * A list of custom builds, specified in engine ini files, and not editable in editor, that will show up in the Platforms menu to allow customized builds for all projects
+	 */
+	UPROPERTY(config)
+	TArray<FProjectBuildSettings> EngineCustomBuilds;
 
 
 	/**

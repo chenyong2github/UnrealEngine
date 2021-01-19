@@ -31,7 +31,7 @@ namespace Turnkey.Commands
 
 			// attempt to match it!
 			Match Result = Regex.Match(Input, PrimaryRegex);
-			if (!Result.Success)
+			if (!Result.Success && AltRegex != null)
 			{
 				Result = Regex.Match(Input, AltRegex);
 			}
@@ -64,8 +64,20 @@ namespace Turnkey.Commands
 			{
 				ConfigHierarchy GameConfig = ConfigCache.ReadHierarchy(ConfigHierarchyType.Game, ProjectFile.Directory, Platform);
 
-				List<string> Builds;
-				GameConfig.GetArray("/Script/UnrealEd.ProjectPackagingSettings", "ExtraProjectBuilds", out Builds);
+				List<string> EngineBuilds;
+				List<string> ProjectBuilds;
+				GameConfig.GetArray("/Script/UnrealEd.ProjectPackagingSettings", "EngineCustomBuilds", out EngineBuilds);
+				GameConfig.GetArray("/Script/UnrealEd.ProjectPackagingSettings", "ProjectCustomBuilds", out ProjectBuilds);
+
+				List<string> Builds = new List<string>();
+				if (EngineBuilds != null)
+				{
+					Builds.AddRange(EngineBuilds);
+				}
+				if (ProjectBuilds != null)
+				{
+					Builds.AddRange(ProjectBuilds);
+				}
 
 				Dictionary<string, string> BuildCommands = new Dictionary<string, string>(StringComparer.InvariantCultureIgnoreCase);
 				if (Builds != null)
@@ -73,7 +85,7 @@ namespace Turnkey.Commands
 					foreach (string Build in Builds)
 					{
 						string Name = GetStructEntry(Build, "Name", false);
-						string SpecificPlatforms = GetStructEntry(Build, "Platforms", true);
+						string SpecificPlatforms = GetStructEntry(Build, "SpecificPlatforms", true);
 						string Params = GetStructEntry(Build, "BuildCookRunParams", false);
 
 						// make sure required entries are there
