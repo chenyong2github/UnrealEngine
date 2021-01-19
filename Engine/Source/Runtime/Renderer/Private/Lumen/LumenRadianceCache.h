@@ -72,7 +72,7 @@ extern void RenderRadianceCache(
 	FRDGBuilder& GraphBuilder, 
 	const FLumenCardTracingInputs& TracingInputs, 
 	const LumenRadianceCache::FRadianceCacheInputs& RadianceCacheInputs,
-	const FScene* Scene,
+	const class FScene* Scene,
 	const FViewInfo& View, 
 	const FScreenProbeParameters* ScreenProbeParameters,
 	FRDGBufferSRVRef BRDFProbabilityDensityFunctionSH,
