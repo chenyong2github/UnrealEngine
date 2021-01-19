@@ -535,6 +535,7 @@ void ULevel::Serialize( FArchive& Ar )
 		Ar << Dummy3;
 	}
 
+#if WITH_EDITOR
 	if ( IsUsingExternalActors() && Ar.IsLoading() && Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::FixForceExternalActorLevelReferenceDuplicates )
 	{
 		TSet<AActor*> DupActors;
@@ -552,6 +553,7 @@ void ULevel::Serialize( FArchive& Ar )
 			}
 		}
 	}
+#endif
 
 	// Mark archive and package as containing a map if we're serializing to disk.
 	if( !HasAnyFlags( RF_ClassDefaultObject ) && Ar.IsPersistent() )
