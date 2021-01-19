@@ -366,31 +366,52 @@ void UDMXPixelMappingFixtureGroupItemComponent::SendDMX()
 
 			if (LocalSurfaceBuffer.Num() == 1)
 			{
+				// Find the byte offset of the attribute type, to bitshift to the correct word size
+				const uint8 ByteOffset = [this, FixturePatch]() {
+					if (UDMXEntityFixtureType* FixtureType = FixturePatch->ParentFixtureTypeTemplate)
+					{
+						if (FixturePatch->CanReadActiveMode())
+						{
+							const FDMXFixtureMode& Mode = FixtureType->Modes[FixturePatch->ActiveMode];
+
+							const FDMXFixtureFunction* FunctionPtr = Mode.Functions.FindByPredicate([this](const FDMXFixtureFunction& Function) {
+								return Function.Attribute.Name == MonochromeIntensity.Name;
+								});
+							if (FunctionPtr)
+							{
+								return FixtureType->NumChannelsToOccupy(FunctionPtr->DataType) - 1;
+							}
+						}
+					}
+
+					return 0;
+				}();
+
 				const FColor& Color = LocalSurfaceBuffer[0];
 
 				if (ColorMode == EDMXColorMode::CM_RGB)
 				{
 					if (AttributeRExpose)
 					{
-						AttributeMap.Add(AttributeR, Color.R);
+						AttributeMap.Add(AttributeR, int32(Color.R) << (ByteOffset * 8));
 					}
 
 					if (AttributeGExpose)
 					{
-						AttributeMap.Add(AttributeG, Color.G);
+						AttributeMap.Add(AttributeG, int32(Color.G) << (ByteOffset * 8));
 					}
 
 					if (AttributeBExpose)
 					{
-						AttributeMap.Add(AttributeB, Color.B);
+						AttributeMap.Add(AttributeB, int32(Color.B) << (ByteOffset * 8));
 					}
 				}
 				else if (ColorMode == EDMXColorMode::CM_Monochrome)
 				{
 					if (bMonochromeExpose)
-					{
+					{					
 						// https://www.w3.org/TR/AERT/#color-contrast
-						uint8 Intensity = (0.299 * Color.R + 0.587 * Color.G + 0.114 * Color.B);
+						int32 Intensity = int32(0.299 * Color.R + 0.587 * Color.G + 0.114 * Color.B) << (ByteOffset * 8);
 						AttributeMap.Add(MonochromeIntensity, Intensity);
 					}
 				}
