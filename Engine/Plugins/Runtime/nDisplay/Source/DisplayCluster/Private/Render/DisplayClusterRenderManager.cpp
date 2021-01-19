@@ -151,6 +151,46 @@ void FDisplayClusterRenderManager::EndScene()
 	}
 }
 
+#if PLATFORM_WINDOWS
+static bool SimulateMouseClick(HWND WindowHandle)
+{
+	RECT WindowRect; // Window rect in screen coordinates
+
+	if (!GetWindowRect(WindowHandle, &WindowRect))
+	{
+		return false;
+	}
+
+	const double ScreenWidth = double(::GetSystemMetrics(SM_CXSCREEN));
+	const double ScreenHeight = double(::GetSystemMetrics(SM_CYSCREEN));
+
+	check(ScreenWidth > 0.5);
+	check(ScreenHeight > 0.5);
+
+	INPUT Inputs[3] = {{ 0 }};
+
+	// Expected coordinates are normalized to screen dimensions of 65535x65535
+
+	const double Left   = double(WindowRect.left);
+	const double Right  = double(WindowRect.right);
+	const double Top    = double(WindowRect.top);
+	const double Bottom = double(WindowRect.bottom);
+
+	Inputs[0].type = INPUT_MOUSE;
+	Inputs[0].mi.dx = LONG((Left + (Right  - Left)/2.0) * (65535.0 / ScreenWidth));
+	Inputs[0].mi.dy = LONG((Top  + (Bottom -  Top)/2.0) * (65535.0 / ScreenHeight));
+	Inputs[0].mi.dwFlags = MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_MOVE;
+
+	Inputs[1].type = INPUT_MOUSE;
+	Inputs[1].mi.dwFlags = MOUSEEVENTF_LEFTDOWN;
+
+	Inputs[2].type = INPUT_MOUSE;
+	Inputs[2].mi.dwFlags = MOUSEEVENTF_LEFTUP;
+
+	return !!::SendInput(3, Inputs, sizeof(INPUT));
+}
+#endif //PLATFORM_WINDOWS
+
 void FDisplayClusterRenderManager::PreTick(float DeltaSeconds)
 {
 	if(!bWasWindowFocused)
@@ -161,14 +201,18 @@ void FDisplayClusterRenderManager::PreTick(float DeltaSeconds)
 			{
 				if (TSharedPtr<const FGenericWindow> NativeWindow = Window->GetNativeWindow())
 				{
-					if (void* WindowHandle = NativeWindow->GetOSWindowHandle())
+					if (const void* WindowHandle = NativeWindow->GetOSWindowHandle())
 					{
 #if PLATFORM_WINDOWS
-						HWND GameHWND = (HWND)WindowHandle;
+						const HWND GameHWND = (HWND)WindowHandle;
 
+						::SetWindowPos(GameHWND, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
 						::SetForegroundWindow(GameHWND);
 						::SetCapture(GameHWND);
 						::SetFocus(GameHWND);
+						::SetActiveWindow(GameHWND);
+
+						SimulateMouseClick(GameHWND);
 #endif
 						FSlateApplication::Get().SetAllUserFocusToGameViewport();
 
