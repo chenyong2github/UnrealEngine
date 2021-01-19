@@ -275,7 +275,12 @@ void URevolveBoundaryTool::Shutdown(EToolShutdownType ShutdownType)
 
 void URevolveBoundaryTool::GenerateAsset(const FDynamicMeshOpResult& Result)
 {
-	GetToolManager()->BeginUndoTransaction(LOCTEXT("RevolveBoundaryToolTransactionName", "Revolve Boundary Tool"));
+	if (Result.Mesh->TriangleCount() <= 0)
+	{
+		return;
+	}
+
+	GetToolManager()->BeginUndoTransaction(LOCTEXT("RevolveBoundaryToolTransactionName", "Revolve Tool"));
 
 	AActor* NewActor = AssetGenerationUtil::GenerateStaticMeshActor(
 		AssetAPI, TargetWorld, Result.Mesh.Get(), Result.Transform, TEXT("RevolveBoundaryResult"), MaterialProperties->Material.Get());

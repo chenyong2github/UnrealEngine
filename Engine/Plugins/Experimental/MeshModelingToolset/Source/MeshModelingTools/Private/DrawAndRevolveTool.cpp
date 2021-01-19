@@ -218,8 +218,12 @@ void UDrawAndRevolveTool::Shutdown(EToolShutdownType ShutdownType)
 
 void UDrawAndRevolveTool::GenerateAsset(const FDynamicMeshOpResult& Result)
 {
-	GetToolManager()->BeginUndoTransaction(LOCTEXT("RevolveToolTransactionName", "Revolve Tool"));
+	if (Result.Mesh->TriangleCount() <= 0)
+	{
+		return;
+	}
 
+	GetToolManager()->BeginUndoTransaction(LOCTEXT("RevolveToolTransactionName", "Revolve Tool"));
 
 	AActor* NewActor = AssetGenerationUtil::GenerateStaticMeshActor(
 		AssetAPI, TargetWorld, Result.Mesh.Get(), Result.Transform, TEXT("RevolveResult"), MaterialProperties->Material.Get());

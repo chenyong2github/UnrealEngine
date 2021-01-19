@@ -86,12 +86,12 @@ public:
 
 	/** Revolution extent. Clamped to a max of 360 when not offsetting along axis.*/
 	UPROPERTY(EditAnywhere, Category = RevolveSettings, meta = (UIMin = "0", UIMax = "360", ClampMin = "0", ClampMax = "360", 
-		EditCondition = "DownAxisOffsetPerDegree == 0", EditConditionHides, DisplayName = "Revolution Degrees"))
+		EditCondition = "AlongAxisOffsetPerDegree == 0", EditConditionHides, DisplayName = "Revolution Degrees"))
 	double ClampedRevolutionDegrees = 360;
 
 	/** Revolution extent. */
 	UPROPERTY(EditAnywhere, Category = RevolveSettings, meta = (UIMin = "0", UIMax = "3600", ClampMin = "0", ClampMax = "360000",
-		EditCondition = "DownAxisOffsetPerDegree != 0", EditConditionHides))
+		EditCondition = "AlongAxisOffsetPerDegree != 0", EditConditionHides))
 	double RevolutionDegrees = 360;
 
 	/** When true, the number of steps can be specified explicitly. When false, the number of steps is adjusted automatically. */
@@ -104,13 +104,13 @@ public:
 	int NumExplicitSteps = 24;
 
 	/** The revolution is split into a number of steps such that each step moves the revolution no more than this number of degrees.  */
-	UPROPERTY(EditAnywhere, Category = RevolveSettings, meta = (UIMin = "1", ClampMin = "1", UIMax = "100", ClampMax = "5000",
+	UPROPERTY(EditAnywhere, Category = RevolveSettings, meta = (UIMin = "1", ClampMin = "1", UIMax = "120", ClampMax = "180",
 		EditCondition = "!bExplicitSteps", EditConditionHides))
 	double MaxDegreesPerStep = 15;
 
-	/** How far to move each step down the axis (per degree). Used to create spirals. */
+	/** How far to move each step along the axis (per degree). Used to create spirals. */
 	UPROPERTY(EditAnywhere, Category = RevolveSettings, meta = (UIMin = "-1", UIMax = "1", ClampMin = "-100000", ClampMax = "100000"))
-	double DownAxisOffsetPerDegree = 0;
+	double AlongAxisOffsetPerDegree = 0;
 
 	/** The angle by which to shift the profile curve around the axis before beginning the revolve */
 	UPROPERTY(EditAnywhere, Category = RevolveSettings, meta = (UIMin = "-360", UIMax = "360", ClampMin = "-36000", ClampMax = "36000"), AdvancedDisplay)
@@ -149,13 +149,13 @@ public:
 	/** Determines how caps are created if the revolution is partial. Not relevant if the
 	  revolution is full and welded. */
 	UPROPERTY(EditAnywhere, Category = RevolveSettings, AdvancedDisplay, meta = (
-		EditCondition = "DownAxisOffsetPerDegree != 0 || RevolutionDegrees != 360", EditConditionHides))
+		EditCondition = "AlongAxisOffsetPerDegree != 0 || RevolutionDegrees != 360", EditConditionHides))
 	ERevolvePropertiesCapFillMode CapFillMode = ERevolvePropertiesCapFillMode::Delaunay;
 
 	/** If true, the ends of a fully revolved profile are welded together, rather than duplicating
 	  vertices at the seam. Not relevant if the revolution is not full. */
 	UPROPERTY(EditAnywhere, Category = RevolveSettings, AdvancedDisplay, meta = (
-		EditCondition = "DownAxisOffsetPerDegree == 0 && RevolutionDegrees == 360", EditConditionHides))
+		EditCondition = "AlongAxisOffsetPerDegree == 0 && RevolutionDegrees == 360", EditConditionHides))
 	bool bWeldFullRevolution = true;
 
 	/** If true, vertices sufficiently close to the axis will not be replicated, instead reusing

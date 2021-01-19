@@ -60,7 +60,7 @@ public:
 		UIMin = -180, UIMax = 180, ClampMin = -180000, ClampMax = 18000))
 	FRotator DrawPlaneOrientation = FRotator(90, 0, 0);
 
-	/** Enables/disables snapping while editing the profile curve. */
+	/** Enables/disables snapping while editing the profile curve. Also toggled with Shift. */
 	UPROPERTY(EditAnywhere, Category = ProfileCurve)
 	bool bEnableSnapping = true;
 
