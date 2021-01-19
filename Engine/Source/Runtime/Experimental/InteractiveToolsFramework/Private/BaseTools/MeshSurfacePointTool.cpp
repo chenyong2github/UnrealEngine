@@ -167,6 +167,7 @@ void UMeshSurfacePointTool::OnTerminateDragSequence()
 
 FInputRayHit UMeshSurfacePointTool::BeginHoverSequenceHitTest(const FInputDeviceRay& PressPos)
 {
+	LastWorldRay = PressPos.WorldRay;
 	FHitResult OutHit;
 	if (HitTest(PressPos.WorldRay, OutHit))
 	{
