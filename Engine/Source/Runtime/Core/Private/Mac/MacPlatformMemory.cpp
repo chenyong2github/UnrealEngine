@@ -18,6 +18,8 @@
 #include <sys/param.h>
 #include <sys/mount.h>
 
+#include <mach/vm_page_size.h>
+
 #if WITH_MALLOC_STOMP
 extern "C"
 {
@@ -195,10 +197,6 @@ const FPlatformMemoryConstants& FMacPlatformMemory::GetConstants()
 	{
 		// Gather platform memory constants.
 
-		// Get page size.
-		vm_size_t PageSize;
-		host_page_size(mach_host_self(), &PageSize);
-
 		// Get swap file info
 		xsw_usage SwapUsage;
 		SIZE_T Size = sizeof(SwapUsage);
@@ -212,9 +210,9 @@ const FPlatformMemoryConstants& FMacPlatformMemory::GetConstants()
 		
 		MemoryConstants.TotalPhysical = AvailablePhysical;
 		MemoryConstants.TotalVirtual = AvailablePhysical + SwapUsage.xsu_total;
-		MemoryConstants.PageSize = (uint32)PageSize;
-		MemoryConstants.OsAllocationGranularity = (uint32)PageSize;
-		MemoryConstants.BinnedPageSize = FMath::Max((SIZE_T)65536, (SIZE_T)PageSize);
+		MemoryConstants.PageSize = (uint32)vm_page_size;
+		MemoryConstants.OsAllocationGranularity = (uint32)vm_page_size;
+		MemoryConstants.BinnedPageSize = FMath::Max((SIZE_T)65536, (SIZE_T)vm_page_size);
 
 		MemoryConstants.TotalPhysicalGB = (MemoryConstants.TotalPhysical + 1024 * 1024 * 1024 - 1) / 1024 / 1024 / 1024;
 		MemoryConstants.AddressLimit = FPlatformMath::RoundUpToPowerOfTwo64(MemoryConstants.TotalPhysical);
