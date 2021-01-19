@@ -116,7 +116,7 @@ void UBTTask_PlayAnimation::CleanUp(UBehaviorTreeComponent& OwnerComp)
 
 FName UBTTask_PlayAnimation::GetNodeIconName() const
 {
-	return FName("BTEditor.Graph.BTNode.Task.PlaySound.Icon");
+	return FName("BTEditor.Graph.BTNode.Task.PlayAnimation.Icon");
 }
 
 #endif	// WITH_EDITOR
