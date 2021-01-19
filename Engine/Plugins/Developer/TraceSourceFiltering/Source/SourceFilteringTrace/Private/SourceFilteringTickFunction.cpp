@@ -25,3 +25,8 @@ void FSourceFilteringTickFunction::ExecuteTick(float DeltaTime, ELevelTick TickT
 		}
 	}
 }
+
+FString FSourceFilteringTickFunction::DiagnosticMessage()
+{
+	return TEXT("FSourceFilteringTickFunction");
+}
