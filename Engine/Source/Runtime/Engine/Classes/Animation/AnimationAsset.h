@@ -290,9 +290,9 @@ struct FAnimTickRecord
 	class UAnimationAsset* SourceAsset = nullptr;
 
 	float* TimeAccumulator = nullptr;
-	float PlayRateMultiplier = 0.0f;
+	float PlayRateMultiplier = 1.0f;
 	float EffectiveBlendWeight = 0.0f;
-	float RootMotionWeightModifier = 0.0f;
+	float RootMotionWeightModifier = 1.0f;
 
 	bool bLooping = false;
 
