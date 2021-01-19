@@ -7677,34 +7677,6 @@ int32 FHLSLMaterialTranslator::StrataMultiply(int32 A, int32 Weight)
 	);
 }
 
-int32 FHLSLMaterialTranslator::StrataArtisticIOR(int32 Reflectivity, int32 EdgeColor, int32 OutputIndex)
-{
-	if (Reflectivity == INDEX_NONE || EdgeColor == INDEX_NONE)
-	{
-		return INDEX_NONE;
-	}
-	return AddCodeChunk(
-		MCT_Float3, 
-		OutputIndex == 0 ? TEXT("ComputeComplexIORFromF0AndEdgeTint_IOR(%s, %s)") : TEXT("ComputeComplexIORFromF0AndEdgeTint_Extinction(%s, %s)"),
-		*GetParameterCode(Reflectivity),
-		*GetParameterCode(EdgeColor)
-	);
-}
-
-int32 FHLSLMaterialTranslator::StrataPhysicalIOR(int32 IOR, int32 Extinction, int32 OutputIndex)
-{
-	if (IOR == INDEX_NONE || Extinction == INDEX_NONE)
-	{
-		return INDEX_NONE;
-	}
-	return AddCodeChunk(
-		MCT_Float3,
-		OutputIndex == 0 ? TEXT("ComputeF0AndEdgeTintFromComplexIOR_Reflectivity(%s, %s)") : TEXT("ComputeF0AndEdgeTintFromComplexIOR_EdgeTint(%s, %s)"),
-		*GetParameterCode(IOR),
-		*GetParameterCode(Extinction)
-	);
-}
-
 int32 FHLSLMaterialTranslator::StrataAnisotropyToRoughness(int32 Roughness, int32 Anisotropy, int32 OutputIndex)
 {
 	if (Roughness == INDEX_NONE)

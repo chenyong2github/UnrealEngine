@@ -494,61 +494,6 @@ class UMaterialExpressionStrataMultiply : public UMaterialExpressionStrataBSDF
 // Utilities
 
 UCLASS(MinimalAPI, collapsecategories, hidecategories = Object)
-class UMaterialExpressionStrataArtisticIOR : public UMaterialExpression
-{
-	GENERATED_UCLASS_BODY()
-
-	/**
-	 * Reflectivity when view direction is perpendicular to the surface, also known as F0 (type = float3, unit = unitless)
-	 */
-	UPROPERTY()
-	FExpressionInput Reflectivity;
-
-	/**
-	 * Reflectivity when the view direction is tangent to the surface (type = float3, unit = unitless)
-	 */
-	UPROPERTY()
-	FExpressionInput EdgeColor;
-
-	//~ Begin UMaterialExpression Interface
-#if WITH_EDITOR
-	virtual int32 Compile(class FMaterialCompiler* Compiler, int32 OutputIndex) override;
-	virtual void GetCaption(TArray<FString>& OutCaptions) const override;
-	virtual uint32 GetOutputType(int32 OutputIndex) override;
-	virtual uint32 GetInputType(int32 InputIndex) override;
-#endif
-	//~ End UMaterialExpression Interface
-};
-
-UCLASS(MinimalAPI, collapsecategories, hidecategories = Object)
-class UMaterialExpressionStrataPhysicalIOR : public UMaterialExpression
-{
-	GENERATED_UCLASS_BODY()
-
-	/**
-	* The index of refraction of the surface (type = float, unit = unitless)
-	*/
-	UPROPERTY()
-	FExpressionInput IOR;
-
-	/**
-	 * The rate at which light is absorbed or scattered by the medium. Mean Free Path = 1 / Extinction. (type = float3, unit = 1/m)
-	 */
-	UPROPERTY()
-	FExpressionInput Extinction;
-
-	//~ Begin UMaterialExpression Interface
-#if WITH_EDITOR
-	virtual int32 Compile(class FMaterialCompiler* Compiler, int32 OutputIndex) override;
-	virtual void GetCaption(TArray<FString>& OutCaptions) const override;
-	virtual uint32 GetOutputType(int32 OutputIndex) override;
-	virtual uint32 GetInputType(int32 InputIndex) override;
-#endif
-	//~ End UMaterialExpression Interface
-};
-
-
-UCLASS(MinimalAPI, collapsecategories, hidecategories = Object)
 class UMaterialExpressionStrataAnisotropyToRoughness : public UMaterialExpression
 {
 	GENERATED_UCLASS_BODY()
