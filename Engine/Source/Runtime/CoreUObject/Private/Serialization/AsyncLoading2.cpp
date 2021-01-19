@@ -844,7 +844,6 @@ public:
 		TUniquePtr<FNameMap> ContainerNameMap;
 		TArray<uint8> StoreEntries; //FPackageStoreEntry[PackageCount];
 		uint32 PackageCount;
-		int32 Order = 0;
 		bool bValid = false;
 	};
 
@@ -916,15 +915,15 @@ public:
 		}
 	}
 
-	void LoadContainers(TArrayView<const FIoDispatcherMountedContainer> Containers)
+	void LoadContainers(TArrayView<const FIoContainerId> Containers)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(LoadContainers);
 
 		int32 ContainersToLoad = 0;
 
-		for (const FIoDispatcherMountedContainer& Container : Containers)
+		for (const FIoContainerId& ContainerId : Containers)
 		{
-			if (Container.ContainerId.IsValid())
+			if (ContainerId.IsValid())
 			{
 				++ContainersToLoad;
 			}
@@ -940,9 +939,8 @@ public:
 		FEvent* Event = FPlatformProcess::GetSynchEventFromPool();
 		FIoBatch IoBatch = IoDispatcher.NewBatch();
 
-		for (const FIoDispatcherMountedContainer& Container : Containers)
+		for (const FIoContainerId& ContainerId : Containers)
 		{
-			const FIoContainerId& ContainerId = Container.ContainerId;
 			if (!ContainerId.IsValid())
 			{
 				continue;
@@ -954,19 +952,9 @@ public:
 				LoadedContainerPtr.Reset(new FLoadedContainer);
 			}
 			FLoadedContainer& LoadedContainer = *LoadedContainerPtr;
-			if (LoadedContainer.bValid && LoadedContainer.Order >= Container.Environment.GetOrder())
-			{
-				UE_LOG(LogStreaming, Log, TEXT("Skipping loading mounted container ID '0x%llX', already loaded with higher order"), ContainerId.Value());
-				if (--Remaining == 0)
-				{
-					Event->Trigger();
-				}
-				continue;
-			}
 
 			UE_LOG(LogStreaming, Log, TEXT("Loading mounted container ID '0x%llX'"), ContainerId.Value());
 			LoadedContainer.bValid = true;
-			LoadedContainer.Order = Container.Environment.GetOrder();
 
 			FIoChunkId HeaderChunkId = CreateIoChunkId(ContainerId.Value(), 0, EIoChunkType::ContainerHeader);
 			IoBatch.ReadWithCallback(HeaderChunkId, FIoReadOptions(), IoDispatcherPriority_High, [this, &Remaining, Event, &LoadedContainer, ContainerId](TIoStatusOr<FIoBuffer> Result)
@@ -1082,10 +1070,10 @@ public:
 		ApplyRedirects(RedirectsPackageMap);
 	}
 
-	void OnContainerMounted(const FIoDispatcherMountedContainer& Container)
+	void OnContainerMounted(const FIoContainerId& ContainerId)
 	{
 		LLM_SCOPE(ELLMTag::AsyncLoading);
-		LoadContainers(MakeArrayView(&Container, 1));
+		LoadContainers(MakeArrayView(&ContainerId, 1));
 	}
 
 	void ApplyRedirects(const TMap<FPackageId, FPackageId>& Redirects)
@@ -4820,7 +4808,7 @@ void FAsyncLoadingThread2::LazyInitializeFromLoadPackage()
 		GlobalPackageStore.SetupInitialLoadData();
 	}
 	GlobalPackageStore.SetupCulture();
-	GlobalPackageStore.LoadContainers(IoDispatcher.GetMountedContainers());
+	GlobalPackageStore.LoadContainers(IoDispatcher.GetMountedContainers().Array());
 	IoDispatcher.OnContainerMounted().AddRaw(&GlobalPackageStore, &FPackageStore::OnContainerMounted);
 }
 

@@ -14,6 +14,18 @@
 #include "Misc/AES.h"
 #include "GenericPlatform/GenericPlatformFile.h"
 
+#ifndef PLATFORM_IMPLEMENTS_IO
+#define PLATFORM_IMPLEMENTS_IO 0
+#endif
+
+#if PLATFORM_IMPLEMENTS_IO
+#include COMPILED_PLATFORM_HEADER(PlatformIoDispatcher.h)
+#else
+#include "GenericPlatform/GenericPlatformIoDispatcher.h"
+typedef FGenericFileIoStoreEventQueue FFileIoStoreEventQueue;
+typedef FGenericFileIoStoreImpl FFileIoStoreImpl;
+#endif
+
 class IMappedFileHandle;
 
 struct FFileIoStoreCompressionContext
@@ -27,7 +39,7 @@ class FFileIoStoreReader
 {
 public:
 	FFileIoStoreReader(FFileIoStoreImpl& InPlatformImpl);
-	FIoStatus Initialize(const FIoStoreEnvironment& Environment);
+	FIoStatus Initialize(const TCHAR* ContainerPath, int32 Order);
 	void SetIndex(uint32 InIndex)
 	{
 		Index = InIndex;
@@ -84,23 +96,23 @@ private:
 	TMap<FFileIoStoreBlockKey, FFileIoStoreReadRequest*> RawBlocksMap;
 };
 
-class FFileIoStore
+class FFileIoStore final
 	: public FRunnable
+	, public IIoDispatcherFileBackend
 {
 public:
-	FFileIoStore(FIoDispatcherEventQueue& InEventQueue, FIoSignatureErrorEvent& InSignatureErrorEvent, bool bInIsMultithreaded);
+	FFileIoStore();
 	~FFileIoStore();
-	void Initialize();
-	TIoStatusOr<FIoContainerId> Mount(const FIoStoreEnvironment& Environment, const FGuid& EncryptionKeyGuid, const FAES::FAESKey& EncryptionKey);
-	EIoStoreResolveResult Resolve(FIoRequestImpl* Request);
-	void CancelIoRequest(FIoRequestImpl* Request);
-	void UpdatePriorityForIoRequest(FIoRequestImpl* Request);
-	bool DoesChunkExist(const FIoChunkId& ChunkId) const;
+	void Initialize(TSharedRef<const FIoDispatcherBackendContext> Context) override;
+	TIoStatusOr<FIoContainerId> Mount(const TCHAR* ContainerPath, int32 Order, const FGuid& EncryptionKeyGuid, const FAES::FAESKey& EncryptionKey);
+	bool Resolve(FIoRequestImpl* Request) override;
+	void CancelIoRequest(FIoRequestImpl* Request) override;
+	void UpdatePriorityForIoRequest(FIoRequestImpl* Request) override;
+	bool DoesChunkExist(const FIoChunkId& ChunkId) const override;
 	TIoStatusOr<uint64> GetSizeForChunk(const FIoChunkId& ChunkId) const;
-	FIoRequestImpl* GetCompletedRequests();
-	TIoStatusOr<FIoMappedRegion> OpenMapped(const FIoChunkId& ChunkId, const FIoReadOptions& Options);
-	
-	static bool IsValidEnvironment(const FIoStoreEnvironment& Environment);
+	FIoRequestImpl* GetCompletedRequests() override;
+	TIoStatusOr<FIoMappedRegion> OpenMapped(const FIoChunkId& ChunkId, const FIoReadOptions& Options) override;
+	void AppendMountedContainers(TSet<FIoContainerId>& OutContainers) override;
 
 	virtual bool Init() override;
 	virtual uint32 Run() override;
@@ -150,8 +162,8 @@ private:
 	void UpdateAsyncIOMinimumPriority();
 
 	uint64 ReadBufferSize = 0;
-	FIoDispatcherEventQueue& EventQueue;
-	FIoSignatureErrorEvent& SignatureErrorEvent;
+	TSharedPtr<const FIoDispatcherBackendContext> BackendContext;
+	FFileIoStoreEventQueue EventQueue;
 	FFileIoStoreBlockCache BlockCache;
 	FFileIoStoreBufferAllocator BufferAllocator;
 	FFileIoStoreRequestAllocator RequestAllocator;

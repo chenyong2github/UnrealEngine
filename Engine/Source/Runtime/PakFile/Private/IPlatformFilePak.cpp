@@ -34,7 +34,7 @@
 #include "Misc/Fnv.h"
 #include "ProfilingDebugging/ScopedTimers.h"
 #include "Async/MappedFileHandle.h"
-#include "IO/IoDispatcher.h"
+#include "IO/IoDispatcherBackend.h"
 
 #include "ProfilingDebugging/LoadTimeTracker.h"
 
@@ -268,17 +268,18 @@ void FPakPlatformFile::GetFilenamesFromIostoreByBlockIndex(const FString& InCont
 {
 	if (FIoDispatcher::IsInitialized())
 	{
-		FIoDispatcher& IoDispatcher = FIoDispatcher::Get();
-
-		for (const FIoDispatcherMountedContainer& Container : IoDispatcher.GetMountedContainers())
+		FPakPlatformFile* PakPlatformFile = static_cast<FPakPlatformFile*>(FPlatformFileManager::Get().FindPlatformFile(FPakPlatformFile::GetTypeName()));
+		if (!PakPlatformFile)
 		{
-			if (FPaths::GetBaseFilename(Container.Environment.GetPath()) == InContainerName)
+			return;
+		}
+		FScopeLock ScopedLock(&PakPlatformFile->PakListCritical);
+		for (const FPakListEntry& PakListEntry : PakPlatformFile->PakFiles)
+		{
+			if (FPaths::GetBaseFilename(PakListEntry.PakFile->PakFilename) == InContainerName)
 			{
-				FIoStoreEnvironment IoEnvironment;
-				IoEnvironment.InitializeFileEnvironment(FPaths::ChangeExtension(Container.Environment.GetPath(), TEXT("")));
 				TUniquePtr<FIoStoreReader> IoStoreReader(new FIoStoreReader());
-
-				FIoStatus Status = IoStoreReader->Initialize(IoEnvironment, GetRegisteredEncryptionKeys().GetKeys());
+				FIoStatus Status = IoStoreReader->Initialize(*FPaths::ChangeExtension(PakListEntry.PakFile->PakFilename, TEXT("")), GetRegisteredEncryptionKeys().GetKeys());
 				if (Status.IsOk())
 				{
 					IoStoreReader->GetFilenamesByBlockIndex(InBlockIndex, OutFileList);
@@ -309,17 +310,18 @@ void FPakPlatformFile::GetFilenamesFromIostoreContainer(const FString& InContain
 {
 	if (FIoDispatcher::IsInitialized())
 	{
-		FIoDispatcher& IoDispatcher = FIoDispatcher::Get();
-
-		for (const FIoDispatcherMountedContainer& Container : IoDispatcher.GetMountedContainers())
+		FPakPlatformFile* PakPlatformFile = static_cast<FPakPlatformFile*>(FPlatformFileManager::Get().FindPlatformFile(FPakPlatformFile::GetTypeName()));
+		if (!PakPlatformFile)
 		{
-			if (FPaths::GetBaseFilename(Container.Environment.GetPath()) == InContainerName)
+			return;
+		}
+		FScopeLock ScopedLock(&PakPlatformFile->PakListCritical);
+		for (const FPakListEntry& PakListEntry : PakPlatformFile->PakFiles)
+		{
+			if (FPaths::GetBaseFilename(PakListEntry.PakFile->PakFilename) == InContainerName)
 			{
-				FIoStoreEnvironment IoEnvironment;
-				IoEnvironment.InitializeFileEnvironment(FPaths::ChangeExtension(Container.Environment.GetPath(), TEXT("")));
 				TUniquePtr<FIoStoreReader> IoStoreReader(new FIoStoreReader());
-
-				FIoStatus Status = IoStoreReader->Initialize(IoEnvironment, GetRegisteredEncryptionKeys().GetKeys());
+				FIoStatus Status = IoStoreReader->Initialize(*FPaths::ChangeExtension(PakListEntry.PakFile->PakFilename, TEXT("")), GetRegisteredEncryptionKeys().GetKeys());
 				if (Status.IsOk())
 				{
 					IoStoreReader->GetFilenames(OutFileList);
@@ -6957,22 +6959,20 @@ bool FPakPlatformFile::Initialize(IPlatformFile* Inner, const TCHAR* CmdLine)
 	FParse::Value(FCommandLine::Get(), TEXT("StartupPaksWildcard="), StartupPaksWildcard);
 #endif
 
-	FIoStoreEnvironment IoStoreGlobalEnvironment;
-	IoStoreGlobalEnvironment.InitializeFileEnvironment(FString::Printf(TEXT("%sPaks/global"), *FPaths::ProjectContentDir()));
-	if (FIoDispatcher::IsValidEnvironment(IoStoreGlobalEnvironment))
+	FString GlobalUTocPath = FString::Printf(TEXT("%sPaks/global.utoc"), *FPaths::ProjectContentDir());
+	if (FPlatformFileManager::Get().GetPlatformFile().FileExists(*GlobalUTocPath))
 	{
 		FIoStatus IoDispatcherInitStatus = FIoDispatcher::Initialize();
 		if (IoDispatcherInitStatus.IsOk())
 		{
 			FIoDispatcher& IoDispatcher = FIoDispatcher::Get();
-			FIoStatus IoDispatcherMountStatus = IoDispatcher.Mount(IoStoreGlobalEnvironment, FGuid(), FAES::FAESKey());
+			IoDispatcherFileBackend = CreateIoDispatcherFileBackend();
+			IoDispatcher.Mount(IoDispatcherFileBackend.ToSharedRef());
+			TIoStatusOr<FIoContainerId> IoDispatcherMountStatus = IoDispatcherFileBackend->Mount(*FPaths::ChangeExtension(GlobalUTocPath, TEXT("")), 0, FGuid(), FAES::FAESKey());
 			if (IoDispatcherMountStatus.IsOk())
 			{
 				UE_LOG(LogPakFile, Display, TEXT("Initialized I/O dispatcher"));
-
-				FIoSignatureErrorEvent& SignatureErrorEvent = IoDispatcher.GetSignatureErrorEvent();
-				FScopeLock _(&SignatureErrorEvent.CriticalSection);
-				SignatureErrorEvent.SignatureErrorDelegate.AddLambda([](const FIoSignatureError& Error)
+				IoDispatcher.OnSignatureError().AddLambda([](const FIoSignatureError& Error)
 				{
 					FPakChunkSignatureCheckFailedData FailedData(Error.ContainerName, TPakChunkHash(), TPakChunkHash(), Error.BlockIndex);
 #if !PAKHASH_USE_CRC
@@ -6984,7 +6984,7 @@ bool FPakPlatformFile::Initialize(IPlatformFile* Inner, const TCHAR* CmdLine)
 			}
 			else
 			{
-				UE_LOG(LogPakFile, Error, TEXT("Failed to mount I/O dispatcher global environment: '%s'"), *IoDispatcherMountStatus.ToString());
+				UE_LOG(LogPakFile, Error, TEXT("Failed to mount I/O dispatcher container: '%s'"), *IoDispatcherMountStatus.Status().ToString());
 			}
 		}
 		else
@@ -7215,11 +7215,8 @@ bool FPakPlatformFile::Mount(const TCHAR* InPakFilename, uint32 PakOrder, const 
 			UE_LOG(LogPakFile, Warning, TEXT("Failed to mount pak \"%s\", pak is invalid."), InPakFilename);
 		}
 
-		if (FIoDispatcher::IsInitialized())
+		if (IoDispatcherFileBackend.IsValid())
 		{
-			FIoStoreEnvironment IoStoreEnvironment;
-			IoStoreEnvironment.InitializeFileEnvironment(FPaths::ChangeExtension(InPakFilename, FString()), PakOrder);
-
 			FGuid EncryptionKeyGuid = Pak->GetInfo().EncryptionKeyGuid;
 			FAES::FAESKey EncryptionKey;
 
@@ -7231,15 +7228,16 @@ bool FPakPlatformFile::Mount(const TCHAR* InPakFilename, uint32 PakOrder, const 
 				}
 			}
 
-			FIoStatus IoStatus = FIoDispatcher::Get().Mount(IoStoreEnvironment, EncryptionKeyGuid, EncryptionKey);
+			FString ContainerPath = FPaths::ChangeExtension(InPakFilename, FString());
+			TIoStatusOr<FIoContainerId> IoStatus = IoDispatcherFileBackend->Mount(*ContainerPath, PakOrder, EncryptionKeyGuid, EncryptionKey);
 			if (IoStatus.IsOk())
 			{
-				UE_LOG(LogPakFile, Display, TEXT("Mounted IoStore environment \"%s\""), *IoStoreEnvironment.GetPath());
+				UE_LOG(LogPakFile, Display, TEXT("Mounted IoStore container \"%s\""), *ContainerPath);
 			}
 			else
 			{
 				bIoStoreSuccess = false;
-				UE_LOG(LogPakFile, Warning, TEXT("Failed to mount IoStore environment \"%s\" [%s]"), *IoStoreEnvironment.GetPath(), *IoStatus.ToString());
+				UE_LOG(LogPakFile, Warning, TEXT("Failed to mount IoStore container \"%s\" [%s]"), *ContainerPath, *IoStatus.Status().ToString());
 			}
 		}
 

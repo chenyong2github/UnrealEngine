@@ -32,6 +32,7 @@ class FIoStoreReaderImpl;
 class IMappedFileHandle;
 class IMappedFileRegion;
 class FIoDirectoryIndexReaderImpl;
+struct IIoDispatcherBackend;
 
 CORE_API DECLARE_LOG_CATEGORY_EXTERN(LogIoDispatcher, Log, All);
 
@@ -406,26 +407,6 @@ TIoStatusOr<T>& TIoStatusOr<T>::operator=(const TIoStatusOr<U>& Other)
 
 	return *this;
 }
-
-//////////////////////////////////////////////////////////////////////////
-
-/** Helper used to manage creation of I/O store file handles etc
-  */
-class FIoStoreEnvironment
-{
-public:
-	CORE_API FIoStoreEnvironment();
-	CORE_API ~FIoStoreEnvironment();
-
-	CORE_API void InitializeFileEnvironment(FStringView InPath, int32 InOrder = 0);
-
-	CORE_API const FString& GetPath() const { return Path; }
-	CORE_API int32 GetOrder() const { return Order; }
-
-private:
-	FString			Path;
-	int32			Order = 0;
-};
 
 /** Reference to buffer data used by I/O dispatcher APIs
   */
@@ -850,12 +831,6 @@ struct FIoMappedRegion
 	IMappedFileRegion* MappedFileRegion = nullptr;
 };
 
-struct FIoDispatcherMountedContainer
-{
-	FIoStoreEnvironment Environment;
-	FIoContainerId ContainerId;
-};
-
 struct FIoSignatureError
 {
 	FString ContainerName;
@@ -866,48 +841,36 @@ struct FIoSignatureError
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FIoSignatureErrorDelegate, const FIoSignatureError&);
 
-struct FIoSignatureErrorEvent
-{
-	FCriticalSection CriticalSection;
-	FIoSignatureErrorDelegate SignatureErrorDelegate;
-};
+DECLARE_MULTICAST_DELEGATE_OneParam(FIoContainerMountedDelegate, const FIoContainerId&);
 
 /** I/O dispatcher
   */
-class FIoDispatcher
+class FIoDispatcher final
 {
 public:
-	DECLARE_EVENT_OneParam(FIoDispatcher, FIoContainerMountedEvent, const FIoDispatcherMountedContainer&);
-
 	CORE_API						FIoDispatcher();
-	CORE_API virtual				~FIoDispatcher();
+	CORE_API						~FIoDispatcher();
 
-	CORE_API FIoStatus				Mount(const FIoStoreEnvironment& Environment, const FGuid& EncryptionKeyGuid, const FAES::FAESKey& EncryptionKey);
+	CORE_API void					Mount(TSharedRef<IIoDispatcherBackend> Backend);
 
 	CORE_API FIoBatch				NewBatch();
-
-	UE_DEPRECATED(4.26, "Remove this call")
-	CORE_API void					FreeBatch(FIoBatch& Batch)
-	{
-	}
 
 	CORE_API TIoStatusOr<FIoMappedRegion> OpenMapped(const FIoChunkId& ChunkId, const FIoReadOptions& Options);
 
 	// Polling methods
 	CORE_API bool					DoesChunkExist(const FIoChunkId& ChunkId) const;
 	CORE_API TIoStatusOr<uint64>	GetSizeForChunk(const FIoChunkId& ChunkId) const;
-	CORE_API TArray<FIoDispatcherMountedContainer> GetMountedContainers() const;
+	CORE_API TSet<FIoContainerId>	GetMountedContainers() const;
 	CORE_API int64					GetTotalLoaded() const;
 
 
 	// Events
-	CORE_API FIoContainerMountedEvent& OnContainerMounted();
-	CORE_API FIoSignatureErrorEvent& GetSignatureErrorEvent();
+	CORE_API FIoContainerMountedDelegate& OnContainerMounted();
+	CORE_API FIoSignatureErrorDelegate& OnSignatureError();
 
 	FIoDispatcher(const FIoDispatcher&) = default;
 	FIoDispatcher& operator=(const FIoDispatcher&) = delete;
 
-	static CORE_API bool IsValidEnvironment(const FIoStoreEnvironment& Environment);
 	static CORE_API bool IsInitialized();
 	static CORE_API FIoStatus Initialize();
 	static CORE_API void InitializePostSettings();
@@ -1120,7 +1083,7 @@ public:
 class FIoStoreWriter
 {
 public:
-	CORE_API 			FIoStoreWriter(FIoStoreEnvironment& InEnvironment);
+	CORE_API 			FIoStoreWriter(const TCHAR* ContainerPath);
 	CORE_API virtual	~FIoStoreWriter();
 
 	FIoStoreWriter(const FIoStoreWriter&) = delete;
@@ -1154,7 +1117,7 @@ public:
 	CORE_API FIoStoreReader();
 	CORE_API ~FIoStoreReader();
 
-	UE_NODISCARD CORE_API FIoStatus Initialize(const FIoStoreEnvironment& InEnvironment, const TMap<FGuid, FAES::FAESKey>& InDecryptionKeys);
+	UE_NODISCARD CORE_API FIoStatus Initialize(const TCHAR* ContainerPath, const TMap<FGuid, FAES::FAESKey>& InDecryptionKeys);
 	CORE_API FIoContainerId GetContainerId() const;
 	CORE_API EIoContainerFlags GetContainerFlags() const;
 	CORE_API FGuid GetEncryptionKeyGuid() const;

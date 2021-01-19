@@ -134,22 +134,6 @@ static FIoStatus ValidateContainerSignature(
 	return FIoStatus::Ok;
 }
 
-FIoStoreEnvironment::FIoStoreEnvironment()
-{
-}
-
-FIoStoreEnvironment::~FIoStoreEnvironment()
-{
-}
-
-void FIoStoreEnvironment::InitializeFileEnvironment(FStringView InPath, int32 InOrder)
-{
-	Path = InPath;
-	Order = InOrder;
-}
-
-//////////////////////////////////////////////////////////////////////////
-
 struct FChunkBlock
 {
 	uint64 Offset = 0;
@@ -550,8 +534,8 @@ private:
 class FIoStoreWriterImpl
 {
 public:
-	FIoStoreWriterImpl(FIoStoreEnvironment& InEnvironment)
-		: Environment(InEnvironment)
+	FIoStoreWriterImpl(const TCHAR* InContainerPath)
+		: ContainerPath(InContainerPath)
 	{
 	}
 
@@ -560,7 +544,7 @@ public:
 		WriterContext = &InContext;
 		ContainerSettings = InContainerSettings;
 
-		TocFilePath = Environment.GetPath() + TEXT(".utoc");
+		TocFilePath = ContainerPath + TEXT(".utoc");
 		
 		IPlatformFile& Ipf = IPlatformFile::GetPlatformPhysical();
 		Ipf.CreateDirectoryTree(*FPaths::GetPath(TocFilePath));
@@ -578,7 +562,7 @@ public:
 
 	FIoStatus EnableCsvOutput()
 	{
-		FString CsvFilePath = Environment.GetPath() + TEXT(".csv");
+		FString CsvFilePath = ContainerPath + TEXT(".csv");
 		CsvArchive.Reset(IFileManager::Get().CreateFileWriter(*CsvFilePath));
 		if (!CsvArchive)
 		{
@@ -1071,7 +1055,7 @@ private:
 	FIoStatus CreatePartitionContainerFile(FPartition& Partition)
 	{
 		check(!Partition.ContainerFileHandle);
-		FString ContainerFilePath = Environment.GetPath();
+		FString ContainerFilePath = ContainerPath;
 		if (Partition.Index > 0)
 		{
 			ContainerFilePath += FString::Printf(TEXT("_s%d"), Partition.Index);
@@ -1244,7 +1228,7 @@ private:
 		}
 	}
 
-	FIoStoreEnvironment&		Environment;
+	const FString				ContainerPath;
 	FIoStoreWriterContextImpl*	WriterContext = nullptr;
 	FIoContainerSettings		ContainerSettings;
 	FString						TocFilePath;
@@ -1263,8 +1247,8 @@ private:
 	bool						IsMetadataDirty = true;
 };
 
-FIoStoreWriter::FIoStoreWriter(FIoStoreEnvironment& InEnvironment)
-:	Impl(new FIoStoreWriterImpl(InEnvironment))
+FIoStoreWriter::FIoStoreWriter(const TCHAR* ContainerPath)
+:	Impl(new FIoStoreWriterImpl(ContainerPath))
 {
 }
 
@@ -1336,10 +1320,10 @@ public:
 
 	}
 
-	UE_NODISCARD FIoStatus Initialize(const FIoStoreEnvironment& InEnvironment, const TMap<FGuid, FAES::FAESKey>& InDecryptionKeys)
+	UE_NODISCARD FIoStatus Initialize(const TCHAR* InContainerPath, const TMap<FGuid, FAES::FAESKey>& InDecryptionKeys)
 	{
 		TStringBuilder<256> TocFilePath;
-		TocFilePath.Append(InEnvironment.GetPath());
+		TocFilePath.Append(InContainerPath);
 		TocFilePath.Append(TEXT(".utoc"));
 
 		FIoStoreTocResource& TocResource = Toc.GetTocResource();
@@ -1356,7 +1340,7 @@ public:
 		for (uint32 PartitionIndex = 0; PartitionIndex < TocResource.Header.PartitionCount; ++PartitionIndex)
 		{
 			TStringBuilder<256> ContainerFilePath;
-			ContainerFilePath.Append(InEnvironment.GetPath());
+			ContainerFilePath.Append(InContainerPath);
 			if (PartitionIndex > 0)
 			{
 				ContainerFilePath.Append(FString::Printf(TEXT("_s%d"), PartitionIndex));
@@ -1454,6 +1438,14 @@ public:
 			return FIoStatus(EIoErrorCode::NotFound, TEXT("Unknown chunk ID"));
 		}
 
+		uint64 RequestedOffset = Options.GetOffset();
+		uint64 ResolvedOffset = OffsetAndLength->GetOffset() + RequestedOffset;
+		uint64 ResolvedSize = 0;
+		if (RequestedOffset <= OffsetAndLength->GetLength())
+		{
+			ResolvedSize = FMath::Min(Options.GetSize(), OffsetAndLength->GetLength() - RequestedOffset);
+		}
+
 		if (!ThreadBuffers)
 		{
 			ThreadBuffers = new FThreadBuffers();
@@ -1464,13 +1456,13 @@ public:
 
 		const FIoStoreTocResource& TocResource = Toc.GetTocResource();
 		const uint64 CompressionBlockSize = TocResource.Header.CompressionBlockSize;
-		FIoBuffer IoBuffer = FIoBuffer(OffsetAndLength->GetLength());
-		int32 FirstBlockIndex = int32(OffsetAndLength->GetOffset() / CompressionBlockSize);
-		int32 LastBlockIndex = int32((Align(OffsetAndLength->GetOffset() + OffsetAndLength->GetLength(), CompressionBlockSize) - 1) / CompressionBlockSize);
-		uint64 OffsetInBlock = OffsetAndLength->GetOffset() % CompressionBlockSize;
+		FIoBuffer IoBuffer = FIoBuffer(ResolvedSize);
+		int32 FirstBlockIndex = int32(ResolvedOffset / CompressionBlockSize);
+		int32 LastBlockIndex = int32((Align(ResolvedOffset + ResolvedSize, CompressionBlockSize) - 1) / CompressionBlockSize);
+		uint64 OffsetInBlock = ResolvedOffset % CompressionBlockSize;
 		uint8* Dst = IoBuffer.Data();
 		uint8* Src = nullptr;
-		uint64 RemainingSize = OffsetAndLength->GetLength();
+		uint64 RemainingSize = ResolvedSize;
 		for (int32 BlockIndex = FirstBlockIndex; BlockIndex <= LastBlockIndex; ++BlockIndex)
 		{
 			const FIoStoreTocCompressedBlockEntry& CompressionBlock = TocResource.CompressionBlocks[BlockIndex];
@@ -1601,9 +1593,9 @@ FIoStoreReader::~FIoStoreReader()
 	delete Impl;
 }
 
-FIoStatus FIoStoreReader::Initialize(const FIoStoreEnvironment& InEnvironment, const TMap<FGuid, FAES::FAESKey>& InDecryptionKeys)
+FIoStatus FIoStoreReader::Initialize(const TCHAR* InContainerPath, const TMap<FGuid, FAES::FAESKey>& InDecryptionKeys)
 {
-	return Impl->Initialize(InEnvironment, InDecryptionKeys);
+	return Impl->Initialize(InContainerPath, InDecryptionKeys);
 }
 
 FIoContainerId FIoStoreReader::GetContainerId() const

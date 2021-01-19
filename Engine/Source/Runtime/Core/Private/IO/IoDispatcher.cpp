@@ -3,7 +3,6 @@
 #include "IO/IoDispatcher.h"
 #include "IO/IoDispatcherPrivate.h"
 #include "IO/IoStore.h"
-#include "IO/IoDispatcherFileBackend.h"
 #include "Misc/ScopeRWLock.h"
 #include "Misc/CoreDelegates.h"
 #include "Math/RandomStream.h"
@@ -17,6 +16,7 @@
 #include "Async/MappedFileHandle.h"
 #include "ProfilingDebugging/CountersTrace.h"
 #include "ProfilingDebugging/CsvProfiler.h"
+#include "IO/IoDispatcherBackend.h"
 
 DEFINE_LOG_CATEGORY(LogIoDispatcher);
 
@@ -139,9 +139,11 @@ class FIoDispatcherImpl
 {
 public:
 	FIoDispatcherImpl(bool bInIsMultithreaded)
-		: bIsMultithreaded(bInIsMultithreaded)
-		, FileIoStore(EventQueue, SignatureErrorEvent, bIsMultithreaded)
+		: BackendContext(MakeShared<FIoDispatcherBackendContext>())
 	{
+		DispatcherEvent = FPlatformProcess::GetSynchEventFromPool(false);
+		BackendContext->WakeUpDispatcherThreadDelegate.BindRaw(this, &FIoDispatcherImpl::WakeUpDispatcherThread);
+		BackendContext->bIsMultiThreaded = bInIsMultithreaded;
 		FCoreDelegates::GetMemoryTrimDelegate().AddLambda([this]()
 		{
 			RequestAllocator.Trim();
@@ -152,6 +154,7 @@ public:
 	~FIoDispatcherImpl()
 	{
 		delete Thread;
+		FPlatformProcess::ReturnSynchEventToPool(DispatcherEvent);
 	}
 
 	FIoStatus Initialize()
@@ -161,7 +164,11 @@ public:
 
 	bool InitializePostSettings()
 	{
-		FileIoStore.Initialize();
+		check(!Thread);
+		for (const TSharedRef<IIoDispatcherBackend>& Backend : Backends)
+		{
+			Backend->Initialize(BackendContext);
+		}
 		Thread = FRunnableThread::Create(this, TEXT("IoDispatcher"), 0, TPri_AboveNormal, FPlatformAffinity::GetIoDispatcherThreadMask());
 		return true;
 	}
@@ -192,9 +199,9 @@ public:
 
 	void WakeUpDispatcherThread()
 	{
-		if (bIsMultithreaded)
+		if (BackendContext->bIsMultiThreaded)
 		{
-			EventQueue.DispatcherNotify();
+			DispatcherEvent->Trigger();
 		}
 		else
 		{
@@ -230,7 +237,15 @@ public:
 	{
 		if (ChunkId.IsValid())
 		{
-			return FileIoStore.OpenMapped(ChunkId, Options);
+			for (const TSharedRef<IIoDispatcherBackend>& Backend : Backends)
+			{
+				TIoStatusOr<FIoMappedRegion> Result = Backend->OpenMapped(ChunkId, Options);
+				if (Result.IsOk())
+				{
+					return Result;
+				}
+			}
+			return FIoStatus(EIoErrorCode::NotFound);
 		}
 		else
 		{
@@ -238,30 +253,25 @@ public:
 		}
 	}
 
-	FIoStatus Mount(const FIoStoreEnvironment& Environment, const FGuid& EncryptionKeyGuid, const FAES::FAESKey& EncryptionKey)
+	void Mount(TSharedRef<IIoDispatcherBackend> Backend)
 	{
-		TIoStatusOr<FIoContainerId> ContainerId = FileIoStore.Mount(Environment, EncryptionKeyGuid, EncryptionKey);
-
-		if (ContainerId.IsOk())
+		Backends.Add(Backend);
+		if (Thread)
 		{
-			FIoDispatcherMountedContainer MountedContainer;
-			MountedContainer.ContainerId = ContainerId.ValueOrDie();
-			MountedContainer.Environment = Environment;
-			if (ContainerMountedEvent.IsBound())
-			{
-				ContainerMountedEvent.Broadcast(MountedContainer);
-			}
-			FScopeLock Lock(&MountedContainersCritical);
-			MountedContainers.Add(MoveTemp(MountedContainer));
-			return FIoStatus::Ok;
+			Backend->Initialize(BackendContext);
 		}
-
-		return ContainerId.Status();
 	}
 
 	bool DoesChunkExist(const FIoChunkId& ChunkId) const
 	{
-		return FileIoStore.DoesChunkExist(ChunkId);
+		for (const TSharedRef<IIoDispatcherBackend>& Backend : Backends)
+		{
+			if (Backend->DoesChunkExist(ChunkId))
+			{
+				return true;
+			}
+		}
+		return false;
 	}
 
 	TIoStatusOr<uint64> GetSizeForChunk(const FIoChunkId& ChunkId) const
@@ -269,7 +279,15 @@ public:
 		// Only attempt to find the size if the FIoChunkId is valid
 		if (ChunkId.IsValid())
 		{
-			return FileIoStore.GetSizeForChunk(ChunkId);
+			for (const TSharedRef<IIoDispatcherBackend>& Backend : Backends)
+			{
+				TIoStatusOr<uint64> Result = Backend->GetSizeForChunk(ChunkId);
+				if (Result.IsOk())
+				{
+					return Result;
+				}
+			}
+			return FIoStatus(EIoErrorCode::NotFound);
 		}
 		else
 		{
@@ -277,20 +295,24 @@ public:
 		}	
 	}
 
-	TArray<FIoDispatcherMountedContainer> GetMountedContainers() const
+	TSet<FIoContainerId> GetMountedContainers() const
 	{
-		FScopeLock Lock(&MountedContainersCritical);
-		return MountedContainers;
+		TSet<FIoContainerId> Result;
+		for (const TSharedRef<IIoDispatcherBackend>& Backend : Backends)
+		{
+			Backend->AppendMountedContainers(Result);
+		}
+		return Result;
 	}
 
-	FIoDispatcher::FIoContainerMountedEvent& OnContainerMounted()
+	FIoContainerMountedDelegate& OnContainerMounted()
 	{
-		return ContainerMountedEvent;
+		return BackendContext->ContainerMountedDelegate;
 	}
 
-	FIoSignatureErrorEvent& GetSignatureErrorEvent()
+	FIoSignatureErrorDelegate& OnSignatureError()
 	{
-		return SignatureErrorEvent;
+		return BackendContext->SignatureErrorDelegate;
 	}
 
 	void IssueBatchInternal(FIoBatch& Batch, FIoBatchImpl* BatchImpl)
@@ -371,27 +393,30 @@ private:
 	{
 		//TRACE_CPUPROFILER_EVENT_SCOPE(ProcessCompletedRequests);
 
-		FIoRequestImpl* CompletedRequestsHead = FileIoStore.GetCompletedRequests();
-		while (CompletedRequestsHead)
+		for (const TSharedRef<IIoDispatcherBackend>& Backend : Backends)
 		{
-			FIoRequestImpl* NextRequest = CompletedRequestsHead->NextRequest;
-			if (CompletedRequestsHead->bCancelled)
+			FIoRequestImpl* CompletedRequestsHead = Backend->GetCompletedRequests();
+			while (CompletedRequestsHead)
 			{
-				CompleteRequest(CompletedRequestsHead, EIoErrorCode::Cancelled);
+				FIoRequestImpl* NextRequest = CompletedRequestsHead->NextRequest;
+				if (CompletedRequestsHead->bCancelled)
+				{
+					CompleteRequest(CompletedRequestsHead, EIoErrorCode::Cancelled);
+				}
+				else if (CompletedRequestsHead->bFailed)
+				{
+					CompleteRequest(CompletedRequestsHead, EIoErrorCode::ReadError);
+				}
+				else
+				{
+					FPlatformAtomics::InterlockedAdd(&TotalLoaded, CompletedRequestsHead->IoBuffer.DataSize());
+					CompleteRequest(CompletedRequestsHead, EIoErrorCode::Ok);
+				}
+				CompletedRequestsHead->ReleaseRef();
+				CompletedRequestsHead = NextRequest;
+				--PendingIoRequestsCount;
+				TRACE_COUNTER_SET(PendingIoRequests, PendingIoRequestsCount);
 			}
-			else if (CompletedRequestsHead->bFailed)
-			{
-				CompleteRequest(CompletedRequestsHead, EIoErrorCode::ReadError);
-			}
-			else
-			{
-				FPlatformAtomics::InterlockedAdd(&TotalLoaded, CompletedRequestsHead->IoBuffer.DataSize());
-				CompleteRequest(CompletedRequestsHead, EIoErrorCode::Ok);
-			}
-			CompletedRequestsHead->ReleaseRef();
-			CompletedRequestsHead = NextRequest;
-			--PendingIoRequestsCount;
-			TRACE_COUNTER_SET(PendingIoRequests, PendingIoRequestsCount);
 		}
 	}
 
@@ -484,18 +509,18 @@ private:
 				if (!RequestToCancel->bCancelled)
 				{
 					RequestToCancel->bCancelled = true;
-					if (RequestToCancel->bSubmitted)
+					if (RequestToCancel->Backend)
 					{
-						FileIoStore.CancelIoRequest(RequestToCancel);
+						RequestToCancel->Backend->CancelIoRequest(RequestToCancel);
 					}
 				}
 				RequestToCancel->ReleaseRef();
 			}
 			for (FIoRequestImpl* RequestToRePrioritize : LocalRequestsToReprioritize)
 			{
-				if (RequestToRePrioritize->bSubmitted)
+				if (RequestToRePrioritize->Backend)
 				{
-					FileIoStore.UpdatePriorityForIoRequest(RequestToRePrioritize);
+					RequestToRePrioritize->Backend->UpdatePriorityForIoRequest(RequestToRePrioritize);
 				}
 				RequestToRePrioritize->ReleaseRef();
 			}
@@ -507,6 +532,7 @@ private:
 			FIoRequestImpl* Request = RequestsToSubmitHead;
 			RequestsToSubmitHead = RequestsToSubmitHead->NextRequest;
 			Request->NextRequest = nullptr;
+
 			if (!RequestsToSubmitHead)
 			{
 				RequestsToSubmitTail = nullptr;
@@ -523,9 +549,17 @@ private:
 			if (Request->ChunkId.IsValid())
 			{
 				TRACE_CPUPROFILER_EVENT_SCOPE(ResolveRequest);
-				EIoStoreResolveResult Result = FileIoStore.Resolve(Request);
-				Request->bSubmitted = true;
-				if (Result != IoStoreResolveResult_OK)
+				bool bResolved = false;
+				for (const TSharedRef<IIoDispatcherBackend>& Backend : Backends)
+				{
+					if (Backend->Resolve(Request))
+					{
+						bResolved = true;
+						Request->Backend = &Backend.Get();
+						break;
+					}
+				}
+				if (!bResolved)
 				{
 					CompleteRequest(Request, EIoErrorCode::NotFound);
 					Request->ReleaseRef();
@@ -559,11 +593,11 @@ private:
 			if (PendingIoRequestsCount)
 			{
 				TRACE_CPUPROFILER_EVENT_SCOPE(IoDispatcherWaitForIo);
-				EventQueue.DispatcherWaitForIo();
+				DispatcherEvent->Wait();
 			}
 			else
 			{
-				EventQueue.DispatcherWait();
+				DispatcherEvent->Wait();
 			}
 			ProcessIncomingRequests();
 			ProcessCompletedRequests();
@@ -574,20 +608,18 @@ private:
 	virtual void Stop()
 	{
 		bStopRequested = true;
-		EventQueue.DispatcherNotify();
+		DispatcherEvent->Trigger();
 	}
 
 	using FRequestAllocator = TBlockAllocator<FIoRequestImpl, 4096>;
 	using FBatchAllocator = TBlockAllocator<FIoBatchImpl, 4096>;
 
-	bool bIsMultithreaded;
-	FIoDispatcherEventQueue EventQueue;
-
-	FIoSignatureErrorEvent SignatureErrorEvent;
-	FFileIoStore FileIoStore;
+	TSharedRef<FIoDispatcherBackendContext> BackendContext;
+	TArray<TSharedRef<IIoDispatcherBackend>> Backends;
 	FRequestAllocator RequestAllocator;
 	FBatchAllocator BatchAllocator;
 	FRunnableThread* Thread = nullptr;
+	FEvent* DispatcherEvent = nullptr;
 	FCriticalSection WaitingLock;
 	FIoRequestImpl* WaitingRequestsHead = nullptr;
 	FIoRequestImpl* WaitingRequestsTail = nullptr;
@@ -595,9 +627,6 @@ private:
 	TArray<FIoRequestImpl*> RequestsToCancel;
 	TArray<FIoRequestImpl*> RequestsToReprioritize;
 	TAtomic<bool> bStopRequested { false };
-	mutable FCriticalSection MountedContainersCritical;
-	TArray<FIoDispatcherMountedContainer> MountedContainers;
-	FIoDispatcher::FIoContainerMountedEvent ContainerMountedEvent;
 	uint64 PendingIoRequestsCount = 0;
 	int64 TotalLoaded = 0;
 };
@@ -612,10 +641,10 @@ FIoDispatcher::~FIoDispatcher()
 	delete Impl;
 }
 
-FIoStatus FIoDispatcher::Mount(const FIoStoreEnvironment& Environment, const FGuid& EncryptionKeyGuid, const FAES::FAESKey& EncryptionKey)
+void
+FIoDispatcher::Mount(TSharedRef<IIoDispatcherBackend> Backend)
 {
-	LLM_SCOPE(ELLMTag::FileSystem);
-	return Impl->Mount(Environment, EncryptionKeyGuid, EncryptionKey);
+	Impl->Mount(Backend);
 }
 
 FIoBatch
@@ -643,7 +672,7 @@ FIoDispatcher::GetSizeForChunk(const FIoChunkId& ChunkId) const
 	return Impl->GetSizeForChunk(ChunkId);
 }
 
-TArray<FIoDispatcherMountedContainer>
+TSet<FIoContainerId>
 FIoDispatcher::GetMountedContainers() const
 {
 	return Impl->GetMountedContainers();
@@ -655,28 +684,22 @@ FIoDispatcher::GetTotalLoaded() const
 	return Impl->GetTotalLoaded();
 }
 
-FIoDispatcher::FIoContainerMountedEvent&
+FIoContainerMountedDelegate&
 FIoDispatcher::OnContainerMounted()
 {
 	return Impl->OnContainerMounted();
 }
 
-FIoSignatureErrorEvent&
-FIoDispatcher::GetSignatureErrorEvent()
+FIoSignatureErrorDelegate&
+FIoDispatcher::OnSignatureError()
 {
-	return Impl->GetSignatureErrorEvent();
+	return Impl->OnSignatureError();
 }
 
 bool
 FIoDispatcher::IsInitialized()
 {
 	return GIoDispatcher.IsValid();
-}
-
-bool
-FIoDispatcher::IsValidEnvironment(const FIoStoreEnvironment& Environment)
-{
-	return FFileIoStore::IsValidEnvironment(Environment);
 }
 
 FIoStatus

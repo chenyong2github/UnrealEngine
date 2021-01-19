@@ -553,7 +553,6 @@ struct FContainerTargetSpec
 	FString OutputPath;
 	FIoStoreWriter* IoStoreWriter;
 	TArray<FContainerTargetFile> TargetFiles;
-	TUniquePtr<FIoStoreEnvironment> IoStoreEnv;
 	TArray<TUniquePtr<FIoStoreReader>> PatchSourceReaders;
 	FNameMapBuilder LocalNameMapBuilder;
 	FNameMapBuilder* NameMapBuilder = &LocalNameMapBuilder;
@@ -2989,8 +2988,6 @@ static void ProcessLocalizedPackages(
 
 TUniquePtr<FIoStoreReader> CreateIoStoreReader(const TCHAR* Path, const FKeyChain& KeyChain)
 {
-	FIoStoreEnvironment IoEnvironment;
-	IoEnvironment.InitializeFileEnvironment(FPaths::ChangeExtension(Path, TEXT("")));
 	TUniquePtr<FIoStoreReader> IoStoreReader(new FIoStoreReader());
 
 	TMap<FGuid, FAES::FAESKey> DecryptionKeys;
@@ -2998,7 +2995,7 @@ TUniquePtr<FIoStoreReader> CreateIoStoreReader(const TCHAR* Path, const FKeyChai
 	{
 		DecryptionKeys.Add(KV.Key, KV.Value.Key);
 	}
-	FIoStatus Status = IoStoreReader->Initialize(IoEnvironment, DecryptionKeys);
+	FIoStatus Status = IoStoreReader->Initialize(*FPaths::ChangeExtension(Path, TEXT("")), DecryptionKeys);
 	if (Status.IsOk())
 	{
 		return IoStoreReader;
@@ -3745,14 +3742,12 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 
 	TUniquePtr<FIoStoreWriterContext> IoStoreWriterContext(new FIoStoreWriterContext());
 	TArray<FIoStoreWriter*> IoStoreWriters;
-	FIoStoreEnvironment GlobalIoStoreEnv;
 	FIoStoreWriter* GlobalIoStoreWriter = nullptr;
 	{
 		IOSTORE_CPU_SCOPE(InitializeIoStoreWriters);
 		if (!Arguments.IsDLC())
 		{
-			GlobalIoStoreEnv.InitializeFileEnvironment(*Arguments.GlobalContainerPath);
-			GlobalIoStoreWriter = new FIoStoreWriter(GlobalIoStoreEnv);
+			GlobalIoStoreWriter = new FIoStoreWriter(*Arguments.GlobalContainerPath);
 			IoStoreWriters.Add(GlobalIoStoreWriter);
 		}
 		for (FContainerTargetSpec* ContainerTarget : ContainerTargets)
@@ -3760,9 +3755,7 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 			check(ContainerTarget->Header.ContainerId.IsValid());
 			if (!ContainerTarget->OutputPath.IsEmpty())
 			{
-				ContainerTarget->IoStoreEnv.Reset(new FIoStoreEnvironment());
-				ContainerTarget->IoStoreEnv->InitializeFileEnvironment(ContainerTarget->OutputPath);
-				ContainerTarget->IoStoreWriter = new FIoStoreWriter(*ContainerTarget->IoStoreEnv);
+				ContainerTarget->IoStoreWriter = new FIoStoreWriter(*ContainerTarget->OutputPath);
 				IoStoreWriters.Add(ContainerTarget->IoStoreWriter);
 			}
 		}
@@ -4101,9 +4094,7 @@ int32 CreateContentPatch(const FIoStoreArguments& Arguments, const FIoStoreWrite
 			return -1;
 		}
 
-		FIoStoreEnvironment IoStoreEnv;
-		FIoStoreWriter IoStoreWriter(IoStoreEnv);
-		IoStoreEnv.InitializeFileEnvironment(*Container.OutputPath);
+		FIoStoreWriter IoStoreWriter(*Container.OutputPath);
 		
 		EIoContainerFlags TargetContainerFlags = TargetReader->GetContainerFlags();
 

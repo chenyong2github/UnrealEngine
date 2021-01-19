@@ -294,12 +294,12 @@ FFileIoStoreReader::FFileIoStoreReader(FFileIoStoreImpl& InPlatformImpl)
 {
 }
 
-FIoStatus FFileIoStoreReader::Initialize(const FIoStoreEnvironment& Environment)
+FIoStatus FFileIoStoreReader::Initialize(const TCHAR* InContainerPath, int32 InOrder)
 {
 	IPlatformFile& Ipf = FPlatformFileManager::Get().GetPlatformFile();
 
 	TStringBuilder<256> TocFilePath;
-	TocFilePath.Append(Environment.GetPath());
+	TocFilePath.Append(InContainerPath);
 	TocFilePath.Append(TEXT(".utoc"));
 	ContainerFile.FilePath = TocFilePath;
 
@@ -319,7 +319,7 @@ FIoStatus FFileIoStoreReader::Initialize(const FIoStoreEnvironment& Environment)
 	{
 		FFileIoStoreContainerFilePartition& Partition = ContainerFile.Partitions[PartitionIndex];
 		TStringBuilder<256> ContainerFilePath;
-		ContainerFilePath.Append(Environment.GetPath());
+		ContainerFilePath.Append(InContainerPath);
 		if (PartitionIndex > 0)
 		{
 			ContainerFilePath.Appendf(TEXT("_s%d"), PartitionIndex);
@@ -349,7 +349,7 @@ FIoStatus FFileIoStoreReader::Initialize(const FIoStoreEnvironment& Environment)
 	ContainerFile.BlockSignatureHashes	= MoveTemp(TocResource.ChunkBlockSignatures);
 
 	ContainerId = TocResource.Header.ContainerId;
-	Order = Environment.GetOrder();
+	Order = InOrder;
 	return FIoStatus::Ok;
 }
 
@@ -608,12 +608,9 @@ void FFileIoStoreRequestTracker::ReleaseIoRequestReferences(FFileIoStoreResolved
 	ResolvedRequest.ReadRequestsTail = nullptr;
 }
 
-FFileIoStore::FFileIoStore(FIoDispatcherEventQueue& InEventQueue, FIoSignatureErrorEvent& InSignatureErrorEvent, bool bInIsMultithreaded)
-	: EventQueue(InEventQueue)
-	, SignatureErrorEvent(InSignatureErrorEvent)
-	, RequestTracker(RequestAllocator, RequestQueue)
-	, PlatformImpl(InEventQueue, BufferAllocator, BlockCache)
-	, bIsMultithreaded(bInIsMultithreaded)
+FFileIoStore::FFileIoStore()
+	: RequestTracker(RequestAllocator, RequestQueue)
+	, PlatformImpl(EventQueue, BufferAllocator, BlockCache)
 {
 }
 
@@ -622,8 +619,12 @@ FFileIoStore::~FFileIoStore()
 	delete Thread;
 }
 
-void FFileIoStore::Initialize()
+void FFileIoStore::Initialize(TSharedRef<const FIoDispatcherBackendContext> InContext)
 {
+	check(!Thread);
+	BackendContext = InContext;
+	bIsMultithreaded = InContext->bIsMultiThreaded;
+
 	ReadBufferSize = (GIoDispatcherBufferSizeKB > 0 ? uint64(GIoDispatcherBufferSizeKB) << 10 : 256 << 10);
 
 	uint64 BufferMemorySize = uint64(GIoDispatcherBufferMemoryMB) << 20ull;
@@ -633,6 +634,8 @@ void FFileIoStore::Initialize()
 
 	uint64 CacheMemorySize = uint64(GIoDispatcherCacheSizeMB) << 20ull;
 	BlockCache.Initialize(CacheMemorySize, BufferSize);
+
+	PlatformImpl.Initialize(&BackendContext->WakeUpDispatcherThreadDelegate);
 
 	uint64 DecompressionContextCount = uint64(GIoDispatcherDecompressionWorkerCount > 0 ? GIoDispatcherDecompressionWorkerCount : 4);
 	for (uint64 ContextIndex = 0; ContextIndex < DecompressionContextCount; ++ContextIndex)
@@ -645,10 +648,10 @@ void FFileIoStore::Initialize()
 	Thread = FRunnableThread::Create(this, TEXT("IoService"), 0, TPri_AboveNormal);
 }
 
-TIoStatusOr<FIoContainerId> FFileIoStore::Mount(const FIoStoreEnvironment& Environment, const FGuid& EncryptionKeyGuid, const FAES::FAESKey& EncryptionKey)
+TIoStatusOr<FIoContainerId> FFileIoStore::Mount(const TCHAR* ContainerPath, int32 Order, const FGuid& EncryptionKeyGuid, const FAES::FAESKey& EncryptionKey)
 {
 	TUniquePtr<FFileIoStoreReader> Reader(new FFileIoStoreReader(PlatformImpl));
-	FIoStatus IoStatus = Reader->Initialize(Environment);
+	FIoStatus IoStatus = Reader->Initialize(ContainerPath, Order);
 	if (!IoStatus.IsOk())
 	{
 		return IoStatus;
@@ -663,7 +666,7 @@ TIoStatusOr<FIoContainerId> FFileIoStore::Mount(const FIoStoreEnvironment& Envir
 		else
 		{
 			return FIoStatus(EIoErrorCode::InvalidEncryptionKey, *FString::Printf(TEXT("Invalid encryption key '%s' (container '%s', encryption key '%s')"),
-				*EncryptionKeyGuid.ToString(), *FPaths::GetBaseFilename(Environment.GetPath()), *Reader->GetEncryptionKeyGuid().ToString()));
+				*EncryptionKeyGuid.ToString(), *FPaths::GetBaseFilename(ContainerPath), *Reader->GetEncryptionKeyGuid().ToString()));
 		}
 	}
 
@@ -683,12 +686,16 @@ TIoStatusOr<FIoContainerId> FFileIoStore::Mount(const FIoStoreEnvironment& Envir
 		FFileIoStoreReader* RawReader = Reader.Release();
 		UnorderedIoStoreReaders.Add(RawReader);		
 		OrderedIoStoreReaders.Insert(RawReader, InsertionIndex);
-		UE_LOG(LogIoDispatcher, Display, TEXT("Mounting container '%s' in location slot %d"), *FPaths::GetBaseFilename(Environment.GetPath()), InsertionIndex);
+		UE_LOG(LogIoDispatcher, Display, TEXT("Mounting container '%s' in location slot %d"), ContainerPath, InsertionIndex);
+	}
+	if (BackendContext && BackendContext->ContainerMountedDelegate.IsBound())
+	{
+		BackendContext->ContainerMountedDelegate.Broadcast(ContainerId);
 	}
 	return ContainerId;
 }
 
-EIoStoreResolveResult FFileIoStore::Resolve(FIoRequestImpl* Request)
+bool FFileIoStore::Resolve(FIoRequestImpl* Request)
 {
 	FReadScopeLock _(IoStoreReadersLock);
 	for (FFileIoStoreReader* Reader : OrderedIoStoreReaders)
@@ -742,11 +749,11 @@ EIoStoreResolveResult FFileIoStore::Resolve(FIoRequestImpl* Request)
 				CompleteDispatcherRequest(ResolvedRequest);
 			}
 
-			return IoStoreResolveResult_OK;
+			return true;
 		}
 	}
 
-	return IoStoreResolveResult_NotFound;
+	return false;
 }
 
 void FFileIoStore::CancelIoRequest(FIoRequestImpl* Request)
@@ -792,14 +799,6 @@ TIoStatusOr<uint64> FFileIoStore::GetSizeForChunk(const FIoChunkId& ChunkId) con
 		}
 	}
 	return FIoStatus(EIoErrorCode::NotFound);
-}
-
-bool FFileIoStore::IsValidEnvironment(const FIoStoreEnvironment& Environment)
-{
-	TStringBuilder<256> TocFilePath;
-	TocFilePath.Append(Environment.GetPath());
-	TocFilePath.Append(TEXT(".utoc"));
-	return FPlatformFileManager::Get().GetPlatformFile().FileExists(*TocFilePath);
 }
 
 FAutoConsoleTaskPriority CPrio_IoDispatcherTaskPriority(
@@ -855,10 +854,10 @@ void FFileIoStore::ScatterBlock(FFileIoStoreCompressedBlock* CompressedBlock, bo
 
 			UE_LOG(LogIoDispatcher, Warning, TEXT("Signature error detected in container '%s' at block index '%d'"), *Error.ContainerName, Error.BlockIndex);
 
-			FScopeLock _(&SignatureErrorEvent.CriticalSection);
-			if (SignatureErrorEvent.SignatureErrorDelegate.IsBound())
+			check(BackendContext);
+			if (BackendContext->SignatureErrorDelegate.IsBound())
 			{
-				SignatureErrorEvent.SignatureErrorDelegate.Broadcast(Error);
+				BackendContext->SignatureErrorDelegate.Broadcast(Error);
 			}
 		}
 	}
@@ -903,7 +902,7 @@ void FFileIoStore::ScatterBlock(FFileIoStoreCompressedBlock* CompressedBlock, bo
 		CompressedBlock->Next = FirstDecompressedBlock;
 		FirstDecompressedBlock = CompressedBlock;
 
-		EventQueue.DispatcherNotify();
+		BackendContext->WakeUpDispatcherThreadDelegate.Execute();
 	}
 }
 
@@ -1135,6 +1134,15 @@ FIoRequestImpl* FFileIoStore::GetCompletedRequests()
 	return Result;
 }
 
+void FFileIoStore::AppendMountedContainers(TSet<FIoContainerId>& OutContainers)
+{
+	FReadScopeLock _(IoStoreReadersLock);
+	for (FFileIoStoreReader* Reader : UnorderedIoStoreReaders)
+	{
+		OutContainers.Add(Reader->GetContainerId());
+	}
+}
+
 TIoStatusOr<FIoMappedRegion> FFileIoStore::OpenMapped(const FIoChunkId& ChunkId, const FIoReadOptions& Options)
 {
 	if (!FPlatformProperties::SupportsMemoryMappedFiles())
@@ -1353,4 +1361,9 @@ uint32 FFileIoStore::Run()
 		}
 	}
 	return 0;
+}
+
+TSharedRef<IIoDispatcherFileBackend> CreateIoDispatcherFileBackend()
+{
+	return MakeShared<FFileIoStore>();
 }

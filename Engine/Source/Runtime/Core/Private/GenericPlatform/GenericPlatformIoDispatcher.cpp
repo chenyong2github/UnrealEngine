@@ -17,39 +17,27 @@ TRACE_DECLARE_INT_COUNTER(IoDispatcherForwardSeeks, TEXT("IoDispatcher/ForwardSe
 TRACE_DECLARE_INT_COUNTER(IoDispatcherBackwardSeeks, TEXT("IoDispatcher/BackwardSeeks"));
 TRACE_DECLARE_MEMORY_COUNTER(IoDispatcherTotalSeekDistance, TEXT("IoDispatcher/TotalSeekDistance"));
 
-FGenericIoDispatcherEventQueue::FGenericIoDispatcherEventQueue()
-	: DispatcherEvent(FPlatformProcess::GetSynchEventFromPool())
-	, ServiceEvent(FPlatformProcess::GetSynchEventFromPool())
+FGenericFileIoStoreEventQueue::FGenericFileIoStoreEventQueue()
+	: ServiceEvent(FPlatformProcess::GetSynchEventFromPool())
 {
 }
 
-FGenericIoDispatcherEventQueue::~FGenericIoDispatcherEventQueue()
+FGenericFileIoStoreEventQueue::~FGenericFileIoStoreEventQueue()
 {
 	FPlatformProcess::ReturnSynchEventToPool(ServiceEvent);
-	FPlatformProcess::ReturnSynchEventToPool(DispatcherEvent);
 }
 
-void FGenericIoDispatcherEventQueue::DispatcherNotify()
-{
-	DispatcherEvent->Trigger();
-}
-
-void FGenericIoDispatcherEventQueue::DispatcherWait()
-{
-	DispatcherEvent->Wait();
-}
-
-void FGenericIoDispatcherEventQueue::ServiceNotify()
+void FGenericFileIoStoreEventQueue::ServiceNotify()
 {
 	ServiceEvent->Trigger();
 }
 
-void FGenericIoDispatcherEventQueue::ServiceWait()
+void FGenericFileIoStoreEventQueue::ServiceWait()
 {
 	ServiceEvent->Wait();
 }
 
-FGenericFileIoStoreImpl::FGenericFileIoStoreImpl(FGenericIoDispatcherEventQueue& InEventQueue, FFileIoStoreBufferAllocator& InBufferAllocator, FFileIoStoreBlockCache& InBlockCache)
+FGenericFileIoStoreImpl::FGenericFileIoStoreImpl(FGenericFileIoStoreEventQueue& InEventQueue, FFileIoStoreBufferAllocator& InBufferAllocator, FFileIoStoreBlockCache& InBlockCache)
 	: EventQueue(InEventQueue)
 	, BufferAllocator(InBufferAllocator)
 	, BlockCache(InBlockCache)
@@ -92,7 +80,7 @@ bool FGenericFileIoStoreImpl::StartRequests(FFileIoStoreRequestQueue& RequestQue
 			FScopeLock _(&CompletedRequestsCritical);
 			CompletedRequests.Add(NextRequest);
 		}
-		EventQueue.DispatcherNotify();
+		WakeUpDispatcherThreadDelegate->Execute();
 		return true;
 	}
 
@@ -157,7 +145,7 @@ bool FGenericFileIoStoreImpl::StartRequests(FFileIoStoreRequestQueue& RequestQue
 		FScopeLock _(&CompletedRequestsCritical);
 		CompletedRequests.Add(NextRequest);
 	}
-	EventQueue.DispatcherNotify();
+	WakeUpDispatcherThreadDelegate->Execute();
 	return true;
 }
 

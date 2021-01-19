@@ -10,30 +10,27 @@
 #include "IO/IoDispatcher.h"
 #include "IO/IoDispatcherFileBackendTypes.h"
 
-class FGenericIoDispatcherEventQueue
+class FGenericFileIoStoreEventQueue
 {
 public:
-	FGenericIoDispatcherEventQueue();
-	~FGenericIoDispatcherEventQueue();
-	void DispatcherNotify();
-	void DispatcherWait();
-	void DispatcherWaitForIo()
-	{
-		DispatcherWait();
-	}
+	FGenericFileIoStoreEventQueue();
+	~FGenericFileIoStoreEventQueue();
 	void ServiceNotify();
 	void ServiceWait();
 
 private:
-	FEvent* DispatcherEvent = nullptr;
 	FEvent* ServiceEvent = nullptr;
 };
 
 class FGenericFileIoStoreImpl
 {
 public:
-	FGenericFileIoStoreImpl(FGenericIoDispatcherEventQueue& InEventQueue, FFileIoStoreBufferAllocator& InBufferAllocator, FFileIoStoreBlockCache& InBlockCache);
+	FGenericFileIoStoreImpl(FGenericFileIoStoreEventQueue& InEventQueue, FFileIoStoreBufferAllocator& InBufferAllocator, FFileIoStoreBlockCache& InBlockCache);
 	~FGenericFileIoStoreImpl();
+	void Initialize(const FWakeUpIoDispatcherThreadDelegate* InWakeUpDispatcherThreadDelegate)
+	{
+		WakeUpDispatcherThreadDelegate = InWakeUpDispatcherThreadDelegate;
+	}
 	bool OpenContainer(const TCHAR* ContainerFilePath, uint64& ContainerFileHandle, uint64& ContainerFileSize);
 	bool CreateCustomRequests(FFileIoStoreRequestAllocator& RequestAllocator, FFileIoStoreResolvedRequest& ResolvedRequest, FFileIoStoreReadRequestList& OutRequests)
 	{
@@ -43,7 +40,8 @@ public:
 	void GetCompletedRequests(FFileIoStoreReadRequestList& OutRequests);
 
 private:
-	FGenericIoDispatcherEventQueue& EventQueue;
+	const FWakeUpIoDispatcherThreadDelegate* WakeUpDispatcherThreadDelegate = nullptr;
+	FGenericFileIoStoreEventQueue& EventQueue;
 	FFileIoStoreBufferAllocator& BufferAllocator;
 	FFileIoStoreBlockCache& BlockCache;
 
