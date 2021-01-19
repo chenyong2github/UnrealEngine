@@ -1773,6 +1773,17 @@ TArray<FName> URigVMController::ImportNodesFromText(const FString& InText, bool 
 			}
 		}
 
+		if (URigVMFunctionReferenceNode* FunctionRefNode = Cast<URigVMFunctionReferenceNode>(CreatedNode))
+		{
+			if (URigVMFunctionLibrary* FunctionLibrary = FunctionRefNode->GetLibrary())
+			{
+				if (URigVMLibraryNode* FunctionDefinition = FunctionRefNode->GetReferencedNode())
+				{
+					FunctionLibrary->FunctionReferences.FindOrAdd(FunctionDefinition).FunctionReferences.Add(FunctionRefNode);
+				}
+			}
+		}
+
 		Notify(ERigVMGraphNotifType::NodeAdded, CreatedNode);
 
 		NodeNames.Add(CreatedNode->GetFName());
@@ -2623,12 +2634,8 @@ TArray<URigVMNode*> URigVMController::ExpandLibraryNode(URigVMLibraryNode* InNod
 				const TArray<FString>& LibraryPinLinks = *LibraryPinLinksPtr;
 				ensure(LibraryPinLinks.Num() == 1);
 
-				FString TargetPinNodeName, TargetPinPathRemaining;
-				URigVMPin::SplitPinPathAtStart(LibraryPinLinks[0], TargetPinNodeName, TargetPinPathRemaining);
-
 				SourcePinPath = LibraryPinPath;
-				TargetPinNodeName = NodeNameMap.FindChecked(*TargetPinNodeName).ToString();
-				TargetPinPath = URigVMPin::JoinPinPath(TargetPinNodeName, TargetPinPathRemaining);
+				TargetPinPath = LibraryPinLinks[0];
 			}
 		}
 
@@ -8039,6 +8046,7 @@ void URigVMController::RefreshFunctionReferences(URigVMLibraryNode* InFunctionDe
 					TArray<URigVMLink*> Links = FunctionReferencePtr->GetLinks();
 					DetachLinksFromPinObjects(&Links, true);
 					RepopulatePinsOnNode(FunctionReferencePtr.Get(), false, true);
+					TGuardValue<bool> ReportGuard(bReportWarningsAndErrors, false);
 					ReattachLinksToPinObjects(false, &Links, true);
 				}
 			}
