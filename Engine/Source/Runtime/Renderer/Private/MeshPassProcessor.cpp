@@ -779,7 +779,9 @@ void FMeshDrawCommand::SetDrawParametersAndFinalize(
 	const FMeshBatchElement& BatchElement = MeshBatch.Elements[BatchElementIndex];
 
 	check(!BatchElement.IndexBuffer || (BatchElement.IndexBuffer && BatchElement.IndexBuffer->IsInitialized() && BatchElement.IndexBuffer->IndexBufferRHI));
+#if !defined(GPUCULL_TODO)
 	checkSlow(!BatchElement.bIsInstanceRuns);
+#endif // defined(GPUCULL_TODO)
 	IndexBuffer = BatchElement.IndexBuffer ? BatchElement.IndexBuffer->IndexBufferRHI.GetReference() : nullptr;
 	FirstIndex = BatchElement.FirstIndex;
 	NumPrimitives = BatchElement.NumPrimitives;
@@ -1035,6 +1037,10 @@ void FMeshDrawCommand::SubmitDrawBegin(
 	FMeshDrawCommandStateCache& RESTRICT StateCache)
 {
 	checkSlow(MeshDrawCommand.CachedPipelineId.IsValid());
+#if defined(GPUCULL_TODO)
+	// Want to be sure that we supply GPU-scene instance data if required.
+	checkSlow(MeshDrawCommand.PrimitiveIdStreamIndex == -1 || ScenePrimitiveIdsBuffer != nullptr);
+#endif // defined(GPUCULL_TODO)
 
 #if WANTS_DRAW_MESH_EVENTS
 	FDrawEvent MeshEvent;
@@ -1103,11 +1109,15 @@ void FMeshDrawCommand::SubmitDrawBegin(
 	MeshDrawCommand.ShaderBindings.SetOnCommandList(RHICmdList, MeshPipelineState.BoundShaderState.AsBoundShaderState(), StateCache.ShaderBindings);
 }
 
-void FMeshDrawCommand::SubmitDrawEnd(const FMeshDrawCommand& MeshDrawCommand, uint32 InstanceFactor, FRHICommandList& RHICmdList)
+void FMeshDrawCommand::SubmitDrawEnd(const FMeshDrawCommand& MeshDrawCommand, uint32 InstanceFactor, FRHICommandList& RHICmdList,
+	FRHIVertexBuffer* IndirectArgsOverrideBuffer,
+	uint32 IndirectArgsOverrideByteOffset)
 {
+	const bool bDoOverrideArgs = IndirectArgsOverrideBuffer != nullptr && MeshDrawCommand.PrimitiveIdStreamIndex >= 0;
+
 	if (MeshDrawCommand.IndexBuffer)
 	{
-		if (MeshDrawCommand.NumPrimitives > 0)
+		if (MeshDrawCommand.NumPrimitives > 0 && !bDoOverrideArgs)
 		{
 			RHICmdList.DrawIndexedPrimitive(
 				MeshDrawCommand.IndexBuffer,
@@ -1123,14 +1133,14 @@ void FMeshDrawCommand::SubmitDrawEnd(const FMeshDrawCommand& MeshDrawCommand, ui
 		{
 			RHICmdList.DrawIndexedPrimitiveIndirect(
 				MeshDrawCommand.IndexBuffer,
-				MeshDrawCommand.IndirectArgs.Buffer,
-				MeshDrawCommand.IndirectArgs.Offset
+				bDoOverrideArgs ? IndirectArgsOverrideBuffer : MeshDrawCommand.IndirectArgs.Buffer,
+				bDoOverrideArgs ? IndirectArgsOverrideByteOffset : MeshDrawCommand.IndirectArgs.Offset
 			);
 		}
 	}
 	else
 	{
-		if (MeshDrawCommand.NumPrimitives > 0)
+		if (MeshDrawCommand.NumPrimitives > 0 && !bDoOverrideArgs)
 		{
 			RHICmdList.DrawPrimitive(
 				MeshDrawCommand.VertexParams.BaseVertexIndex + MeshDrawCommand.FirstIndex,
@@ -1140,8 +1150,8 @@ void FMeshDrawCommand::SubmitDrawEnd(const FMeshDrawCommand& MeshDrawCommand, ui
 		else
 		{
 			RHICmdList.DrawPrimitiveIndirect(
-				MeshDrawCommand.IndirectArgs.Buffer,
-				MeshDrawCommand.IndirectArgs.Offset
+				bDoOverrideArgs ? IndirectArgsOverrideBuffer : MeshDrawCommand.IndirectArgs.Buffer,
+				bDoOverrideArgs ? IndirectArgsOverrideByteOffset : MeshDrawCommand.IndirectArgs.Offset
 			);
 		}
 	}
@@ -1154,10 +1164,12 @@ void FMeshDrawCommand::SubmitDraw(
 	int32 PrimitiveIdOffset,
 	uint32 InstanceFactor,
 	FRHICommandList& RHICmdList,
-	FMeshDrawCommandStateCache& RESTRICT StateCache)
+	FMeshDrawCommandStateCache& RESTRICT StateCache,
+	FRHIVertexBuffer* IndirectArgsOverrideBuffer,
+	uint32 IndirectArgsOverrideByteOffset)
 {
 	SubmitDrawBegin(MeshDrawCommand, GraphicsMinimalPipelineStateSet, ScenePrimitiveIdsBuffer, PrimitiveIdOffset, InstanceFactor, RHICmdList, StateCache);
-	SubmitDrawEnd(MeshDrawCommand, InstanceFactor, RHICmdList);
+	SubmitDrawEnd(MeshDrawCommand, InstanceFactor, RHICmdList, IndirectArgsOverrideBuffer, IndirectArgsOverrideByteOffset);
 }
 
 #if MESH_DRAW_COMMAND_DEBUG_DATA
@@ -1245,7 +1257,13 @@ void ApplyViewOverridesToMeshDrawCommands(const FSceneView& View, FMeshCommandOn
 				VisibleMeshDrawCommand.StateBucketId,
 				VisibleMeshDrawCommand.MeshFillMode,
 				VisibleMeshDrawCommand.MeshCullMode,
+#if defined(GPUCULL_TODO)
+				VisibleMeshDrawCommand.SortKey,
+				VisibleMeshDrawCommand.RunArray,
+				VisibleMeshDrawCommand.NumRuns);
+#else //!defined(GPUCULL_TODO)
 				VisibleMeshDrawCommand.SortKey);
+#endif // defined(GPUCULL_TODO)
 
 			ViewOverriddenMeshCommands.Add(NewVisibleMeshDrawCommand);
 		}
@@ -1277,35 +1295,6 @@ void DrawDynamicMeshPassPrivate(
 	}
 }
 
-void DrawDynamicMeshPassPrivate(
-	const FSceneView& View,
-	const FScene &Scene,
-	FRHICommandListImmediate& RHICmdList,
-	FMeshCommandOneFrameArray& VisibleMeshDrawCommands,
-	FDynamicMeshDrawCommandStorage& DynamicMeshDrawCommandStorage,
-	FGraphicsMinimalPipelineStateSet& GraphicsMinimalPipelineStateSet,
-	bool& InNeedsShaderInitialization)
-{
-#if defined(GPUCULL_TODO)
-	check(View.bIsViewInfo);
-
-	if (VisibleMeshDrawCommands.Num() > 0)
-	{
-		const bool bDynamicInstancing = IsDynamicInstancingEnabled(View.GetFeatureLevel());
-
-		FRHIVertexBuffer* PrimitiveIdVertexBuffer = nullptr;
-
-		ApplyViewOverridesToMeshDrawCommands(View, VisibleMeshDrawCommands, DynamicMeshDrawCommandStorage, GraphicsMinimalPipelineStateSet, InNeedsShaderInitialization);
-		
-		// GPUCULL_TODO: determine if unsupportable OR just not supporting scene primitives (as this requires a multi-pass approach)
-
-		//SortAndSubmitDynamicMeshPassDrawCommands(View, Scene, VisibleMeshDrawCommands, DynamicMeshDrawCommandStorage, GraphicsMinimalPipelineStateSet, RHICmdList);
-
-		//SortAndMergeDynamicPassMeshDrawCommands(View.GetFeatureLevel(), VisibleMeshDrawCommands, DynamicMeshDrawCommandStorage, PrimitiveIdVertexBuffer, InstanceFactor);
-		//SubmitMeshDrawCommandsRange(VisibleMeshDrawCommands, GraphicsMinimalPipelineStateSet, PrimitiveIdVertexBuffer, 0, bDynamicInstancing, 0, VisibleMeshDrawCommands.Num(), InstanceFactor, RHICmdList);
-	}
-#endif
-}
 
 FMeshDrawCommandSortKey CalculateMeshStaticSortKey(const FMeshMaterialShader* VertexShader, const FMeshMaterialShader* PixelShader)
 {

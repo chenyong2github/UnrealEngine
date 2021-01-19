@@ -1105,6 +1105,7 @@ public:
 	static void SubmitDrawBegin(
 		const FMeshDrawCommand& RESTRICT MeshDrawCommand,
 		const FGraphicsMinimalPipelineStateSet& GraphicsMinimalPipelineStateSet,
+		// GPUCULL_TODO: Rename, and probably wrap in struct that links to GPU-Scene, maybe generalize (probably not)?
 		FRHIVertexBuffer* ScenePrimitiveIdsBuffer,
 		int32 PrimitiveIdOffset,
 		uint32 InstanceFactor,
@@ -1112,17 +1113,23 @@ public:
 		FMeshDrawCommandStateCache& RESTRICT StateCache);
 
 	/** Submits just the draw primitive portion of the draw command. */
-	static void SubmitDrawEnd(const FMeshDrawCommand& MeshDrawCommand, uint32 InstanceFactor, FRHICommandList& RHICmdList);
+	static void SubmitDrawEnd(const FMeshDrawCommand& MeshDrawCommand, uint32 InstanceFactor, FRHICommandList& RHICmdList,
+		// GPUCULL_TODO: Rename, and probably wrap in struct that links to GPU-Scene, maybe generalize (probably not)?
+		FRHIVertexBuffer* IndirectArgsOverrideBuffer = nullptr,
+		uint32 IndirectArgsOverrideByteOffset = 0U);
 
 	/** Submits commands to the RHI Commandlist to draw the MeshDrawCommand. */
 	static void SubmitDraw(
 		const FMeshDrawCommand& RESTRICT MeshDrawCommand,
 		const FGraphicsMinimalPipelineStateSet& GraphicsMinimalPipelineStateSet,
+		// GPUCULL_TODO: Rename, and probably wrap in struct that links to GPU-Scene, maybe generalize (probably not)?
 		FRHIVertexBuffer* ScenePrimitiveIdsBuffer,
 		int32 PrimitiveIdOffset,
 		uint32 InstanceFactor,
 		FRHICommandList& CommandList,
-		class FMeshDrawCommandStateCache& RESTRICT StateCache);
+		class FMeshDrawCommandStateCache& RESTRICT StateCache,
+		FRHIVertexBuffer* IndirectArgsOverrideBuffer = nullptr,
+		uint32 IndirectArgsOverrideByteOffset = 0U);
 
 	FORCENOINLINE friend uint32 GetTypeHash( const FMeshDrawCommand& Other )
 	{
@@ -1246,7 +1253,13 @@ public:
 		int32 InStateBucketId,
 		ERasterizerFillMode InMeshFillMode,
 		ERasterizerCullMode InMeshCullMode,
+#if defined(GPUCULL_TODO)
+		FMeshDrawCommandSortKey InSortKey,
+		const uint32* InRunArray = nullptr,
+		int32 InNumRuns = 0)
+#else //!defined(GPUCULL_TODO)
 		FMeshDrawCommandSortKey InSortKey)
+#endif // defined(GPUCULL_TODO)
 	{
 		MeshDrawCommand = InMeshDrawCommand;
 		DrawPrimitiveId = InDrawPrimitiveId;
@@ -1256,6 +1269,10 @@ public:
 		MeshFillMode = InMeshFillMode;
 		MeshCullMode = InMeshCullMode;
 		SortKey = InSortKey;
+#if defined(GPUCULL_TODO)
+		RunArray = InRunArray;
+		NumRuns = InNumRuns;
+#endif // defined(GPUCULL_TODO)
 	}
 
 	// Mesh Draw Command stored separately to avoid fetching its data during sorting
@@ -1278,6 +1295,11 @@ public:
 	// Any commands with the same StateBucketId can be merged into one draw call with instancing.
 	// A value of -1 means the draw is not in any state bucket and should be sorted by other factors instead.
 	int32 StateBucketId;
+#if defined(GPUCULL_TODO)
+	// Used for passing sub-selection of instances through to the culling
+	const uint32* RunArray;
+	int32 NumRuns;
+#endif // defined(GPUCULL_TODO)
 
 	// Needed for view overrides
 	ERasterizerFillMode MeshFillMode : ERasterizerFillMode_NumBits + 1;
@@ -1357,7 +1379,15 @@ public:
 		FVisibleMeshDrawCommand NewVisibleMeshDrawCommand;
 		//@todo MeshCommandPipeline - assign usable state ID for dynamic path draws
 		// Currently dynamic path draws will not get dynamic instancing, but they will be roughly sorted by state
+#if defined(GPUCULL_TODO)
+		const FMeshBatchElement& MeshBatchElement = MeshBatch.Elements[BatchElementIndex];
+		NewVisibleMeshDrawCommand.Setup(&MeshDrawCommand, DrawPrimitiveId, ScenePrimitiveId, -1, MeshFillMode, MeshCullMode, SortKey, 
+			MeshBatchElement.bIsInstanceRuns ? MeshBatchElement.InstanceRuns : nullptr,
+			MeshBatchElement.bIsInstanceRuns ? MeshBatchElement.NumInstances : 0
+			);
+#else //!defined(GPUCULL_TODO)
 		NewVisibleMeshDrawCommand.Setup(&MeshDrawCommand, DrawPrimitiveId, ScenePrimitiveId, -1, MeshFillMode, MeshCullMode, SortKey);
+#endif // defined(GPUCULL_TODO)
 		DrawList.Add(NewVisibleMeshDrawCommand);
 	}
 
@@ -1816,15 +1846,6 @@ RENDERER_API extern void DrawDynamicMeshPassPrivate(
 	FGraphicsMinimalPipelineStateSet& GraphicsMinimalPipelineStateSet,
 	bool& InNeedsShaderInitialisation,
 	uint32 InstanceFactor);
-
-RENDERER_API extern void DrawDynamicMeshPassPrivate(
-	const FSceneView& View,
-	const FScene& Scene,
-	FRHICommandListImmediate& RHICmdList,
-	FMeshCommandOneFrameArray& VisibleMeshDrawCommands,
-	FDynamicMeshDrawCommandStorage& DynamicMeshDrawCommandStorage,
-	FGraphicsMinimalPipelineStateSet& GraphicsMinimalPipelineStateSet,
-	bool& InNeedsShaderInitialization);
 
 RENDERER_API extern FMeshDrawCommandSortKey CalculateMeshStaticSortKey(const FMeshMaterialShader* VertexShader, const FMeshMaterialShader* PixelShader);
 

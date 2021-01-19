@@ -2013,13 +2013,62 @@ void FProjectedShadowInfo::SetupMeshDrawCommandsForShadowDepth(FSceneRenderer& R
 		ShadowDepthPass.SetDumpInstancingStats(TEXT("ShadowDepth ") + PassNameForStats);
 	}
 	
+
+	if (GetShadowDepthType().bOnePassPointLightShadow)
+	{
+		ViewIds.AddDefaulted(6);
+		for (int32 CubemapFaceIndex = 0; CubemapFaceIndex < 6; CubemapFaceIndex++)
+		{
+			// We always render to a whole face at once
+			const FIntRect ShadowViewRect = FIntRect(X, Y, ResolutionX, ResolutionY);
+			// Setup packed view
+			TArray<Nanite::FPackedView, SceneRenderingAllocator> PackedViews;
+			{
+				FViewMatrices::FMinimalInitializer MatricesInitializer;
+				MatricesInitializer.ViewOrigin = -PreShadowTranslation;
+				MatricesInitializer.ViewRotationMatrix = OnePassShadowViewMatrices[CubemapFaceIndex];
+				MatricesInitializer.ProjectionMatrix = OnePassShadowFaceProjectionMatrix;
+				MatricesInitializer.ConstrainedViewRect = ShadowViewRect;
+
+				Nanite::FPackedViewParams Params;
+				Params.ViewMatrices = FViewMatrices(MatricesInitializer);
+				// TODO: Real prev frame matrices
+				Params.PrevViewMatrices = Params.ViewMatrices;	
+				Params.ViewRect = ShadowViewRect;
+				Params.RasterContextSize = FIntPoint(ResolutionX, ResolutionY);
+				ViewIds[CubemapFaceIndex] = InstanceCullingManager.RegisterView(Params);
+			}
+		}
+	}
+	else
+	{
+		Nanite::FPackedViewParams Params;
+		Params.ViewMatrices = ShadowDepthView->ViewMatrices;
+		// TODO: Real prev frame matrices
+		Params.PrevViewMatrices = Params.ViewMatrices;
+		Params.ViewRect = GetInnerViewRect();
+		Params.RasterContextSize = FIntPoint(ResolutionX, ResolutionY);
+		ViewIds.Add(InstanceCullingManager.RegisterView(Params));
+	}
+	// GPUCULL_TODO: Pass along any custom culling planes or whatever here (e.g., cacade bounds):
+	// GPUCULL_TODO: Add debug tags to context and views (so compute passes can be understood)
+
+	FInstanceCullingContext* InstanceCullingContext = InstanceCullingManager.CreateContext(ViewIds.GetData(), ViewIds.Num());
+
 	extern int32 GShadowUseGS;
+#if defined(GPUCULL_TODO)
+	// GPUCULL_TODO: Needed to support legacy, non-GPU-Scene culled, primitives, this is merely used to allocate enough space for CPU-side replication.
+	const bool bUseGeometryShader = GShadowUseGS && RHISupportsGeometryShaders(Renderer.Scene->GetShaderPlatform());
+	// Note: Iteracts with FShadowDepthPassMeshProcessor::Process and must be an overestimate of the actual replication done there.
+	const uint32 InstanceFactor = !GetShadowDepthType().bOnePassPointLightShadow || bUseGeometryShader ? 1 : 6;
+#else //!defined(GPUCULL_TODO)
 	const uint32 InstanceFactor = !GetShadowDepthType().bOnePassPointLightShadow || (GShadowUseGS && RHISupportsGeometryShaders(Renderer.Scene->GetShaderPlatform())) ? 1 : 6;
+#endif // defined(GPUCULL_TODO)
 
 	ShadowDepthPass.DispatchPassSetup(
 		Renderer.Scene,
 		*ShadowDepthView,
-		nullptr, // GPUCULL_TODO: Culling context
+		InstanceCullingContext,
 		&InstanceCullingManager,
 		EMeshPass::Num,
 		FExclusiveDepthStencil::DepthNop_StencilNop,

@@ -892,6 +892,39 @@ public:
 		, CaptureTag(0)
 #endif
 	{
+#if defined(GPUCULL_TODO)
+		if (InstancedRenderData.PerInstanceRenderData.IsValid() && InstancedRenderData.PerInstanceRenderData->InstanceBuffer_GameThread.IsValid())
+		{
+			const FStaticMeshInstanceData& StaticMeshInstanceData = *InstancedRenderData.PerInstanceRenderData->InstanceBuffer_GameThread;
+			
+			Instances.SetNum(StaticMeshInstanceData.GetNumInstances());
+			if (Instances.Num() == 0 && ClusterTree.Num() != 0)
+			{
+				UE_LOG(LogTemp, Display, TEXT("Instances.Num() == 0 && ClusterTree.Num() != 0"));
+			}
+
+			for (int32 InstanceIndex = 0; InstanceIndex < Instances.Num(); ++InstanceIndex)
+			{
+				FMatrix InstanceTransform;
+				StaticMeshInstanceData.GetInstanceTransform(InstanceIndex, InstanceTransform);
+				InstanceTransform.M[3][3] = 1.0f;
+
+				FPrimitiveInstance& Instance = Instances[InstanceIndex];
+				Instance.PrimitiveId = ~uint32(0);
+				Instance.InstanceToLocal = InstanceTransform;
+				Instance.LocalToInstance = InstanceTransform.Inverse();
+				// Filled in during GPU-Scene update...
+				Instance.LocalToWorld.SetIdentity();
+				Instance.RenderBounds = InComponent->GetStaticMesh()->GetBounds();
+				Instance.LocalBounds = Instance.RenderBounds.TransformBy(Instance.InstanceToLocal);
+			}
+		}
+		else
+		{
+			ensure(ClusterTree.Num() == 0);
+		}
+#endif // defined(GPUCULL_TODO)
+
 		SetupOcclusion(InComponent);
 	}
 
@@ -1337,6 +1370,77 @@ void FHierarchicalStaticMeshSceneProxy::FillDynamicMeshElements(FMeshElementColl
 					continue;
 				}
 
+
+#if defined(GPUCULL_TODO)
+				FMeshBatch& MeshBatch = Collector.AllocateMesh();
+				INC_DWORD_STAT(STAT_FoliageMeshBatches);
+
+				if (!FStaticMeshSceneProxy::GetMeshElement(LODIndex, 0, SectionIndex, GetDepthPriorityGroup(ElementParams.View), ElementParams.BatchRenderSelection[SelectionGroupIndex], true, MeshBatch))
+				{
+					continue;
+				}
+
+				checkSlow(MeshBatch.GetNumPrimitives() > 0);
+				MeshBatch.bCanApplyViewModeOverrides = true;
+				MeshBatch.bUseSelectionOutline = ElementParams.BatchRenderSelection[SelectionGroupIndex];
+				MeshBatch.bUseWireframeSelectionColoring = ElementParams.BatchRenderSelection[SelectionGroupIndex];
+				MeshBatch.bUseAsOccluder = ShouldUseAsOccluder();
+				MeshBatch.VertexFactory = &InstancedRenderData.VertexFactories[LODIndex];
+
+				FMeshBatchElement& MeshBatchElement = MeshBatch.Elements[0];
+				MeshBatchElement.UserData = ElementParams.PassUserData[SelectionGroupIndex];
+				MeshBatchElement.bUserDataIsColorVertexBuffer = false;
+				MeshBatchElement.MaxScreenSize = 1.0;
+				MeshBatchElement.MinScreenSize = 0.0;
+				MeshBatchElement.InstancedLODIndex = LODIndex;
+				MeshBatchElement.InstancedLODRange = bDitherLODEnabled ? 1 : 0;
+				MeshBatchElement.PrimitiveUniformBuffer = GetUniformBuffer();
+
+				int32 TotalInstances = bDitherLODEnabled ? Params.TotalMultipleLODInstances[LODIndex] : Params.TotalSingleLODInstances[LODIndex];
+				{
+					const int64 Tris = int64(TotalInstances) * int64(MeshBatchElement.NumPrimitives);
+					TotalTriangles += Tris;
+#if STATS
+					if (GFrameNumberRenderThread_CaptureFoliageRuns == GFrameNumberRenderThread)
+					{
+						if (ElementParams.FinalCullDistance > 9.9E8)
+						{
+							UE_LOG(LogStaticMesh, Display, TEXT("lod:%1d/%1d   sel:%1d   section:%1d/%1d   runs:%4d   inst:%8d   tris:%9lld   cast shadow:%1d   cull:-NONE!!-   shadow:%1d     %s %s"),
+								LODIndex, InstancedRenderData.VertexFactories.Num(), SelectionGroupIndex, SectionIndex, LODModel.Sections.Num(), RunArray.Num() / 2,
+								TotalInstances, Tris, (int)MeshBatch.CastShadow, ElementParams.ShadowFrustum,
+								*StaticMesh->GetPathName(),
+								*MeshBatch.MaterialRenderProxy->GetMaterial(ElementParams.FeatureLevel)->GetFriendlyName());
+						}
+						else
+						{
+							UE_LOG(LogStaticMesh, Display, TEXT("lod:%1d/%1d   sel:%1d   section:%1d/%1d   runs:%4d   inst:%8d   tris:%9lld   cast shadow:%1d   cull:%8.0f   shadow:%1d     %s %s"),
+								LODIndex, InstancedRenderData.VertexFactories.Num(), SelectionGroupIndex, SectionIndex, LODModel.Sections.Num(), RunArray.Num() / 2,
+								TotalInstances, Tris, (int)MeshBatch.CastShadow, ElementParams.FinalCullDistance, ElementParams.ShadowFrustum,
+								*StaticMesh->GetPathName(),
+								*MeshBatch.MaterialRenderProxy->GetMaterial(ElementParams.FeatureLevel)->GetFriendlyName());
+						}
+					}
+#endif // STATS
+				}
+
+				//MeshBatchElement.NumInstances = TotalInstances;
+				// The index was used as an offset, but the dynamic buffer thing uses a resource view to make this not needed (using PrimitiveInstanceDataOffset as a temp. debug help)
+				MeshBatchElement.UserIndex = 0;
+
+				// Note: this call overrides the UserIndex to mean the command index, which is used to fetch the offset to the instance array
+				//Collector.AllocateInstancedBatchArguments(ElementParams.ViewIndex, MeshBatch, PrimitiveInstanceDataOffset, PrimitiveInstanceDataCount, RunArray);
+				
+				// We use this existing hook to send info about the runs over to the visiblemeshbatch
+				MeshBatchElement.NumInstances = RunArray.Num() / 2;
+				MeshBatchElement.InstanceRuns = &RunArray[0];
+				MeshBatchElement.bIsInstanceRuns = true;
+
+				if (TotalTriangles < (int64)CVarMaxTrianglesToRender.GetValueOnRenderThread())
+				{
+					Collector.AddMesh(ElementParams.ViewIndex, MeshBatch);
+				}
+
+#else // !defined(GPUCULL_TODO)
 				int32 NumBatches = 1;
 				int32 CurrentRun = 0;
 				int32 CurrentInstance = 0;
@@ -1452,6 +1556,7 @@ void FHierarchicalStaticMeshSceneProxy::FillDynamicMeshElements(FMeshElementColl
 						Collector.AddMesh(ElementParams.ViewIndex, MeshElement);
 					}
 				}
+#endif // defined(GPUCULL_TODO)
 			}
 		}
 	}
@@ -1837,20 +1942,20 @@ void FHierarchicalStaticMeshSceneProxy::GetDynamicMeshElements(const TArray<cons
 							{
 								if (MinLOD < NumLODs)
 								{
-									InstanceParams.AddRun(MinLOD, MinLOD, FirstIndexInRun + FirstUnbuiltIndex, (Index - 1) + FirstUnbuiltIndex);
+									InstanceParams.AddRun(MinLOD, MinLOD, FirstIndexInRun + FirstUnbuiltIndex, (Index - 1) + FirstUnbuiltIndex - 1);
 								}
 								MinLOD = TempMinLOD;
 								FirstIndexInRun = Index;
 							}
 						}
-						InstanceParams.AddRun(MinLOD, MinLOD, FirstIndexInRun + FirstUnbuiltIndex, FirstIndexInRun + FirstUnbuiltIndex + UnbuiltInstanceCount);
+						InstanceParams.AddRun(MinLOD, MinLOD, FirstIndexInRun + FirstUnbuiltIndex, FirstUnbuiltIndex + UnbuiltInstanceCount - 1);
 					}
 				}
 				else
 				{
 					// more than 1000, render them all at lowest LOD (until we have an updated tree)
 					const int8 LowestLOD = (RenderData->LODResources.Num() - 1);
-					InstanceParams.AddRun(LowestLOD, LowestLOD, FirstUnbuiltIndex, FirstUnbuiltIndex + UnbuiltInstanceCount);
+					InstanceParams.AddRun(LowestLOD, LowestLOD, FirstUnbuiltIndex, FirstUnbuiltIndex + UnbuiltInstanceCount - 1);
 				}
 				FillDynamicMeshElements(Collector, ElementParams, InstanceParams);
 			}
@@ -2290,7 +2395,6 @@ bool UHierarchicalInstancedStaticMeshComponent::SetCustomDataValue(int32 Instanc
 	}
 
 	int32 RenderIndex = InstanceReorderTable.IsValidIndex(InstanceIndex) ? InstanceReorderTable[InstanceIndex] : InstanceIndex;
-	const float OldCustomDataValue = PerInstanceSMCustomData[InstanceIndex*NumCustomDataFloats+CustomDataIndex];
 
 	// if we are only updating rotation/scale we update the instance directly in the cluster tree
 	const bool bIsOmittedInstance = (RenderIndex == INDEX_NONE);

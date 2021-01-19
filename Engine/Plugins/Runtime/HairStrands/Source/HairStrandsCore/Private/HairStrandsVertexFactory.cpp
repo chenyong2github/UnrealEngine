@@ -231,7 +231,7 @@ void FHairStrandsVertexFactory::InitRHI()
 	if (GetType()->SupportsPrimitiveIdStream() && bCanUseGPUScene)
 	{
 		// When the VF is used for rendering in normal mesh passes, this vertex buffer and offset will be overridden
-		Elements.Add(AccessStreamComponent(FVertexStreamComponent(&GPrimitiveIdDummy, 0, 0, sizeof(uint32), VET_UInt, EVertexStreamUsage::Instancing), 13));
+		Elements.Add(AccessStreamComponent(FVertexStreamComponent(&GPrimitiveIdDummy, 0, 0, PrimitiveIdStreamStride, VET_UInt, EVertexStreamUsage::Instancing), 13));
 		SetPrimitiveIdStreamIndex(EVertexInputStreamType::Default, Elements.Last().StreamIndex);
 		bNeedsDeclaration = true;
 	}

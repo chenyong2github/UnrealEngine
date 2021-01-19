@@ -201,6 +201,9 @@ class FShadowDepthShaderElementData : public FMeshMaterialShaderElementData
 {
 public:
 	int32 LayerId;
+#if defined(GPUCULL_TODO)
+	int32 bUseGpuSceneInstancing;
+#endif // defined(GPUCULL_TODO)
 };
 
 /**
@@ -229,6 +232,9 @@ public:
 		FMeshMaterialShader::GetShaderBindings(Scene, FeatureLevel, PrimitiveSceneProxy, MaterialRenderProxy, Material, DrawRenderState, ShaderElementData, ShaderBindings);
 
 		ShaderBindings.Add(LayerId, ShaderElementData.LayerId);
+#if defined(GPUCULL_TODO)
+		ShaderBindings.Add(bUseGpuSceneInstancing, ShaderElementData.bUseGpuSceneInstancing);
+#endif // defined(GPUCULL_TODO)
 	}
 
 	FShadowDepthVS() = default;
@@ -236,10 +242,16 @@ public:
 		FMeshMaterialShader(Initializer)
 	{
 		LayerId.Bind(Initializer.ParameterMap, TEXT("LayerId"));
+#if defined(GPUCULL_TODO)
+		bUseGpuSceneInstancing.Bind(Initializer.ParameterMap, TEXT("bUseGpuSceneInstancing"));
+#endif // defined(GPUCULL_TODO)
 	}
 
 private:
 	LAYOUT_FIELD(FShaderParameter, LayerId);
+#if defined(GPUCULL_TODO)
+	LAYOUT_FIELD(FShaderParameter, bUseGpuSceneInstancing);
+#endif // defined(GPUCULL_TODO)
 };
 
 enum EShadowDepthVertexShaderMode
@@ -396,6 +408,22 @@ class FOnePassPointShadowDepthGS : public FMeshMaterialShader
 	DECLARE_SHADER_TYPE(FOnePassPointShadowDepthGS, MeshMaterial);
 public:
 
+#if defined(GPUCULL_TODO)
+	void GetShaderBindings(
+		const FScene* Scene,
+		ERHIFeatureLevel::Type FeatureLevel,
+		const FPrimitiveSceneProxy* PrimitiveSceneProxy,
+		const FMaterialRenderProxy& MaterialRenderProxy,
+		const FMaterial& Material,
+		const FMeshPassProcessorRenderState& DrawRenderState,
+		const FShadowDepthShaderElementData& ShaderElementData,
+		FMeshDrawSingleShaderBindings& ShaderBindings) const
+	{
+		FMeshMaterialShader::GetShaderBindings(Scene, FeatureLevel, PrimitiveSceneProxy, MaterialRenderProxy, Material, DrawRenderState, ShaderElementData, ShaderBindings);
+		ShaderBindings.Add(bUseGpuSceneInstancing, ShaderElementData.bUseGpuSceneInstancing);
+	}
+#endif // defined(GPUCULL_TODO)
+
 	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 	{
 		return RHISupportsGeometryShaders(Parameters.Platform) && TShadowDepthVS<VertexShadowDepth_OnePassPointLight, false, true>::ShouldCompilePermutation(Parameters);
@@ -422,9 +450,15 @@ public:
 		{
 			PassUniformBuffer.Bind(Initializer.ParameterMap, FMobileShadowDepthPassUniformParameters::StaticStructMetadata.GetShaderVariableName());
 		}
+#if defined(GPUCULL_TODO)
+		bUseGpuSceneInstancing.Bind(Initializer.ParameterMap, TEXT("bUseGpuSceneInstancing"));
+#endif // defined(GPUCULL_TODO)
 	}
 
 	FOnePassPointShadowDepthGS() {}
+#if defined(GPUCULL_TODO)
+	LAYOUT_FIELD(FShaderParameter, bUseGpuSceneInstancing);
+#endif // defined(GPUCULL_TODO)
 };
 
 IMPLEMENT_SHADER_TYPE(, FOnePassPointShadowDepthGS, TEXT("/Engine/Private/ShadowDepthVertexShader.usf"), TEXT("MainOnePassPointLightGS"), SF_Geometry);
@@ -2211,10 +2245,22 @@ bool FShadowDepthPassMeshProcessor::Process(
 
 	const FMeshDrawCommandSortKey SortKey = CalculateMeshStaticSortKey(ShadowDepthPassShaders.VertexShader, ShadowDepthPassShaders.PixelShader);
 
+#if defined(GPUCULL_TODO)
+	const bool bUseGeometryShader = GShadowUseGS && RHISupportsGeometryShaders(GShaderPlatformForFeatureLevel[FeatureLevel]);
+
+	const bool bUseGpuSceneInstancing = UseGPUScene(GShaderPlatformForFeatureLevel[FeatureLevel], FeatureLevel) 
+		&& VertexFactory->GetPrimitiveIdStreamIndex(bUsePositionOnlyVS ? EVertexInputStreamType::PositionAndNormalOnly : EVertexInputStreamType::Default) != INDEX_NONE;
+
+	const uint32 InstanceFactor = bUseGpuSceneInstancing || !ShadowDepthType.bOnePassPointLightShadow || bUseGeometryShader ? 1 : 6;
+#else //!defined(GPUCULL_TODO)
 	const uint32 InstanceFactor = !ShadowDepthType.bOnePassPointLightShadow || (GShadowUseGS && RHISupportsGeometryShaders(GShaderPlatformForFeatureLevel[FeatureLevel])) ? 1 : 6;
+#endif // defined(GPUCULL_TODO)
 	for (uint32 i = 0; i < InstanceFactor; i++)
 	{
 		ShaderElementData.LayerId = i;
+#if defined(GPUCULL_TODO)
+		ShaderElementData.bUseGpuSceneInstancing = bUseGpuSceneInstancing;
+#endif // defined(GPUCULL_TODO)
 
 		BuildMeshDrawCommands(
 			MeshBatch,

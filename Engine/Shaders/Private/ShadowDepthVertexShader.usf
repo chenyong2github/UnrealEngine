@@ -85,6 +85,10 @@ void SetShadowDepthOutputs(
 uint LayerId;
 #endif
 
+#if defined(GPUCULL_TODO)
+uint bUseGpuSceneInstancing;
+#endif // defined(GPUCULL_TODO)
+
 struct FShadowDepthGSToPS
 {
 #if INTERPOLATE_VF_ATTRIBUTES
@@ -110,13 +114,22 @@ bool IsTriangleInFrustum(float4 ClipSpacePositions[3])
 	return !( any(FrustumTests != 0) || any(FrustumTestsZ != 0) );
 }
 
-/** Allocate space for cloning to all 6 faces which is the worst case. */
+/** Allocate space for cloning to all 6 faces which is the worst case (no GPU-scene active). */
+/** GPU-Scene case: Instancing takes care of the clone, we just route to a layer. */
 [maxvertexcount(18)]
 void MainOnePassPointLightGS(triangle FShadowDepthVSToGS Input[3], inout TriangleStream<FShadowDepthGSToPS> OutStream)
 {
+#if defined(GPUCULL_TODO)
+	uint CubeFaceStartIndex = bUseGpuSceneInstancing ? Input[0].ViewIndex : 0;
+	uint CubeFaceEndIndex = bUseGpuSceneInstancing ? Input[0].ViewIndex + 1: 6;
+
+	// Clone the triangle to each face
+	for (int CubeFaceIndex = CubeFaceStartIndex; CubeFaceIndex < CubeFaceEndIndex; CubeFaceIndex++)
+#else //!defined(GPUCULL_TODO)
 	UNROLL
 	// Clone the triangle to each face
 	for (int CubeFaceIndex = 0; CubeFaceIndex < 6; CubeFaceIndex++)
+#endif // defined(GPUCULL_TODO)
 	{
 		float4 ClipSpacePositions[3];
 		UNROLL
@@ -300,13 +313,21 @@ void Main(
 	OutParameters.FactoryInterpolants = VertexFactoryGetInterpolantsVSToDS(Input, VFIntermediates, VertexParameters);
 
 	#if ONEPASS_POINTLIGHT_SHADOW && USING_VERTEX_SHADER_LAYER && VERTEXSHADER
+#if defined(GPUCULL_TODO)
+		OutParameters.LayerIndex = bUseGpuSceneInstancing ? VertexFactoryGetViewIndex(VFIntermediates) : LayerId;
+#else //!defined(GPUCULL_TODO)
 		OutParameters.LayerIndex = LayerId;
+#endif // defined(GPUCULL_TODO)
+
 	#endif
 
 #elif ONEPASS_POINTLIGHT_SHADOW
 
 	OutPosition = OutParameters.GSPosition = WorldPos;
 	OutParameters.WorldNormal = WorldNormal;
+#if defined(GPUCULL_TODO)
+	OutParameters.ViewIndex = VertexFactoryGetViewIndex(VFIntermediates);
+#endif // defined(GPUCULL_TODO)
 
 	#if INTERPOLATE_VF_ATTRIBUTES
 		// Masked materials need texture coords to clip
@@ -318,7 +339,11 @@ void Main(
 	#endif
 
 	#if FEATURE_LEVEL >= FEATURE_LEVEL_SM4 && USING_VERTEX_SHADER_LAYER && VERTEXSHADER
+#if defined(GPUCULL_TODO)
+		LayerIndex = bUseGpuSceneInstancing ? VertexFactoryGetViewIndex(VFIntermediates) : LayerId;
+#else //!defined(GPUCULL_TODO)
 		LayerIndex = LayerId;
+#endif // defined(GPUCULL_TODO)
 		OutPosition = mul(WorldPos, PassStruct.ShadowViewProjectionMatrices[LayerIndex]);
 		#if INTERPOLATE_VF_ATTRIBUTES
 			OutParameters.GSPosition = OutPosition;
@@ -427,8 +452,16 @@ void PositionOnlyMain(
 #if ONEPASS_POINTLIGHT_SHADOW
 	OutPosition = OutParameters.GSPosition = WorldPos;
 	OutParameters.WorldNormal = WorldNormal;
+#if defined(GPUCULL_TODO)
+	OutParameters.ViewIndex = VertexFactoryGetViewIndex(Input);
+#endif // defined(GPUCULL_TODO)
+
 	#if USING_ONEPASS_POINT_VERTEX_LAYER
+#if defined(GPUCULL_TODO)
+		LayerIndex = bUseGpuSceneInstancing ? VertexFactoryGetViewIndex(Input) : LayerId;
+#else //!defined(GPUCULL_TODO)
 		LayerIndex = LayerId;
+#endif // defined(GPUCULL_TODO)
 		OutPosition = mul(WorldPos, PassStruct.ShadowViewProjectionMatrices[LayerIndex]);
 		#if INTERPOLATE_VF_ATTRIBUTES
 			OutParameters.GSPosition = OutPosition;

@@ -2,6 +2,15 @@
 
 #include "Common.ush"
 
+#if defined(GPUCULL_TODO)
+float3 TransformLocalToWorld(float3 LocalPosition, float4x4 LocalToWorld)
+{
+	//expand the matrix multiply to avoid a code-gen bug on PS4.
+	//invariant code!
+	return INVARIANT((LocalToWorld[0].xyz * LocalPosition.xxx + LocalToWorld[1].xyz * LocalPosition.yyy + LocalToWorld[2].xyz * LocalPosition.zzz) + LocalToWorld[3].xyz);
+}
+#endif // defined(GPUCULL_TODO)
+
 float3 TransformLocalToWorld(float3 LocalPosition, uint PrimitiveId)
 {
 	//expand the matrix multiply to avoid a code-gen bug on PS4.
@@ -23,6 +32,31 @@ float4 TransformLocalToTranslatedWorld(float3 LocalPosition, uint PrimitiveId)
 	float3 RotatedPosition = LocalToWorld[0].xyz * LocalPosition.xxx + LocalToWorld[1].xyz * LocalPosition.yyy + LocalToWorld[2].xyz * LocalPosition.zzz;
 	return float4(RotatedPosition + (LocalToWorld[3].xyz + ResolvedView.PreViewTranslation.xyz),1);
 }
+
+#if defined(GPUCULL_TODO)
+#if INSTANCE_SCENE_DATA_SUPPORTED
+
+float4 TransformLocalToTranslatedWorld(float3 LocalPosition, FInstanceSceneData InstanceSceneData)
+{
+	float4x4 LocalToWorld = InstanceSceneData.LocalToWorld;
+	float3 RotatedPosition = LocalToWorld[0].xyz * LocalPosition.xxx + LocalToWorld[1].xyz * LocalPosition.yyy + LocalToWorld[2].xyz * LocalPosition.zzz;
+	return float4(RotatedPosition + (LocalToWorld[3].xyz + ResolvedView.PreViewTranslation.xyz), 1);
+}
+
+float3 RotateLocalToWorld(float3 LocalDirection, FInstanceSceneData InstanceSceneData)
+{
+	const float4x4 LocalToWorld = InstanceSceneData.LocalToWorld;
+	const float3 InvScale = InstanceSceneData.InvNonUniformScaleAndDeterminantSign.xyz;
+	return
+		InvScale.x * LocalToWorld[0].xyz * LocalDirection.xxx +
+		InvScale.y * LocalToWorld[1].xyz * LocalDirection.yyy +
+		InvScale.z * LocalToWorld[2].xyz * LocalDirection.zzz;
+}
+
+#endif // INSTANCE_SCENE_DATA_SUPPORTED
+#endif // defined(GPUCULL_TODO)
+
+#if (!defined(GPUCULL_TODO) || !VF_USE_PRIMITIVE_SCENE_DATA)
 
 float4 TransformLocalToTranslatedWorld(float3 LocalPosition)
 {
@@ -60,6 +94,8 @@ float3 RotateWorldToLocal(float3 WorldDirection)
 	InvRot = transpose(InvRot);
 	return mul(WorldDirection, InvRot);
 }
+
+#endif // (!defined(GPUCULL_TODO) || !VF_USE_PRIMITIVE_SCENE_DATA)
 
 // Octahedron Normal Vectors
 // [Cigolle 2014, "A Survey of Efficient Representations for Independent Unit Vectors"]

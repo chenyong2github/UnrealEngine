@@ -740,6 +740,12 @@ protected:
 
 	int8 PrimitiveIdStreamIndex[static_cast<int>(EVertexInputStreamType::Count)];
 
+#if defined(GPUCULL_TODO)
+	static constexpr int32 PrimitiveIdStreamStride = 0;
+#else // !defined(GPUCULL_TODO)
+	static constexpr int32 PrimitiveIdStreamStride = sizeof(uint32);
+#endif // defined(GPUCULL_TODO)
+
 private:
 
 	/** The position only vertex stream used to render the factory during depth only passes. */

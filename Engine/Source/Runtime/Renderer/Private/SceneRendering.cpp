@@ -1751,10 +1751,12 @@ void FViewInfo::SetupUniformBufferParameters(
 		if (InstanceSceneDataOverrideSRV)
 		{
 			ViewUniformShaderParameters.InstanceSceneData = InstanceSceneDataOverrideSRV;
+			ViewUniformShaderParameters.InstanceDataSOAStride = 0;
 		}
 		else if (Scene && Scene->GPUScene.InstanceDataBuffer.SRV)
 		{
 			ViewUniformShaderParameters.InstanceSceneData = Scene->GPUScene.InstanceDataBuffer.SRV;
+			ViewUniformShaderParameters.InstanceDataSOAStride = Scene->GPUScene.InstanceDataSOAStride;
 		}
 
 		if (LightmapSceneDataOverrideSRV)
@@ -3214,7 +3216,17 @@ void FSceneRenderer::SetupMeshPass(FViewInfo& View, FExclusiveDepthStencil::Type
 				Pass.SetDumpInstancingStats(GetMeshPassName(PassType));
 			}
 
-			FInstanceCullingContext* InstanceCullingContext = nullptr; // GPUCULL_TODO: InstanceCullingManager.CreateContext(ViewIds, NumViews);
+			// Only apply instancing for ISR to main view passes
+			const bool bIsMainViewPass = PassType != EMeshPass::Num && (FPassProcessorManager::GetPassFlags(Scene->GetShadingPath(), PassType) & EMeshPassFlags::MainView) != EMeshPassFlags::None;
+			int32 NumViews = bIsMainViewPass && View.IsInstancedStereoPass() ? 2 : 1;
+			int32 ViewIds[2] =
+			{
+				View.GPUSceneViewId,
+				// GPUCULL_TODO: This is a total hack! Fix fix fix (somehow retrieve the other view or pass in)
+				View.GPUSceneViewId + 1,
+			};
+
+			FInstanceCullingContext* InstanceCullingContext = InstanceCullingManager.CreateContext(ViewIds, NumViews);
 
 			Pass.DispatchPassSetup(
 				Scene,

@@ -53,7 +53,14 @@ FVertexFactoryInterpolantsVSToPS GetInterpolants(uint PrimitiveId, uint HairPrim
 	FMaterialVertexParameters Empty = (FMaterialVertexParameters)0;
 
 	FVertexFactoryInput Input;
+#if defined(GPUCULL_TODO)
+	// GPUCULL_TODO: this should be switched over to use instance ID.
+	//Input.PrimitiveId = PrimitiveId;
+	Input.InstanceIdOffset = 0;
+	Input.DrawInstanceId = 0;
+#else //!defined(GPUCULL_TODO)
 	Input.PrimitiveId = PrimitiveId;
+#endif // defined(GPUCULL_TODO)
 	Input.VertexId = HairPrimitiveId * 6; // 6: the vertex factory expect triangles list index. A quad is made of two triangles with indices: 0,1,2,3,4,5.
 
 	FVertexFactoryIntermediates	Intermediates = GetVertexFactoryIntermediates(Input);

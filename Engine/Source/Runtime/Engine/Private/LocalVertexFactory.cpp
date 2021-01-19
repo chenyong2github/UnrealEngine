@@ -292,7 +292,7 @@ void FLocalVertexFactory::InitRHI()
 			if (GetType()->SupportsPrimitiveIdStream() && bCanUseGPUScene)
 			{
 				// When the VF is used for rendering in normal mesh passes, this vertex buffer and offset will be overridden
-				StreamElements.Add(AccessStreamComponent(FVertexStreamComponent(&GPrimitiveIdDummy, 0, 0, sizeof(uint32), VET_UInt, EVertexStreamUsage::Instancing), 1, InputStreamType));
+				StreamElements.Add(AccessStreamComponent(FVertexStreamComponent(&GPrimitiveIdDummy, 0, 0, PrimitiveIdStreamStride, VET_UInt, EVertexStreamUsage::Instancing), 1, InputStreamType));
 				PrimitiveIdStreamIndex[TypeIndex] = StreamElements.Last().StreamIndex;
 			}
 
@@ -315,7 +315,7 @@ void FLocalVertexFactory::InitRHI()
 		if (GetType()->SupportsPrimitiveIdStream() && bCanUseGPUScene)
 		{
 			// When the VF is used for rendering in normal mesh passes, this vertex buffer and offset will be overridden
-			Elements.Add(AccessStreamComponent(FVertexStreamComponent(&GPrimitiveIdDummy, 0, 0, sizeof(uint32), VET_UInt, EVertexStreamUsage::Instancing), 13));
+			Elements.Add(AccessStreamComponent(FVertexStreamComponent(&GPrimitiveIdDummy, 0, 0, PrimitiveIdStreamStride, VET_UInt, EVertexStreamUsage::Instancing), 13));
 			PrimitiveIdStreamIndex[Index] = Elements.Last().StreamIndex;
 		}
 	}
