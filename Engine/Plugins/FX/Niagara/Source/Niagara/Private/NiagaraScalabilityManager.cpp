@@ -317,7 +317,7 @@ bool FNiagaraScalabilityManager::ApplyScalabilityState(int32 ComponentIndex, ENi
 	bool bContinueIteration = true;
 	if (UNiagaraComponent* Component = ManagedComponents[ComponentIndex])
 	{
-		CompState.bPreviousCulled = CompState.bCulled;
+		CompState.Apply();
 		if (CompState.bCulled)
 		{
 			switch (CullReaction)
