@@ -854,8 +854,8 @@ bool FSplineComponentVisualizer::VisProxyHandleClick(FEditorViewportClient* InVi
 
 				HSplineSegmentProxy* SegmentProxy = (HSplineSegmentProxy*)VisProxy;
 
-
-				ChangeSelectionState(SegmentProxy->SegmentIndex, InViewportClient->IsCtrlPressed());
+				// Ignore Ctrl key, segments should only be selected one at time
+				ChangeSelectionState(SegmentProxy->SegmentIndex, false);
 				SelectionState->SetSelectedSegmentIndex(SegmentProxy->SegmentIndex);
 				SelectionState->ClearSelectedTangentHandle();
 
