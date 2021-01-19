@@ -662,6 +662,8 @@ void UTexture2D::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
 
 void UTexture2D::UpdateResource()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UTexture2D::UpdateResource);
+
 	WaitForPendingInitOrStreaming();
 
 #if WITH_EDITOR

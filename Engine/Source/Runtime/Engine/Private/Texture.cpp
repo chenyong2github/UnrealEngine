@@ -262,6 +262,7 @@ bool UTexture::CanEditChange(const FProperty* InProperty) const
 
 void UTexture::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UTexture::PostEditChangeProperty);
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
 	SetLightingGuid();
@@ -901,7 +902,7 @@ FStreamableRenderResourceState UTexture::GetResourcePostInitState(FTexturePlatfo
 		// Ensure NumMipsInTail is within valid range to safeguard on the above expressions. 
 		const int32 NumMipsInTail = FMath::Clamp<int32>(PlatformData->GetNumMipsInTail(), 1, NumMips);
 
-		// Bias is not allowed to shrink the mip count bellow NumMipsInTail.
+		// Bias is not allowed to shrink the mip count below NumMipsInTail.
 		NumRequestedMips = FMath::Max<int32>(NumMips - ResourceLODBias, NumMipsInTail);
 
 		// If trying to load optional mips, check if the first resource mip is available.

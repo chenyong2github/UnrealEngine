@@ -243,6 +243,8 @@ bool UStreamableRenderAsset::IsFullyStreamedIn()
 
 void UStreamableRenderAsset::WaitForPendingInitOrStreaming(bool bWaitForLODTransition, bool bSendCompletionEvents)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UStreamableRenderAsset::WaitForPendingInitOrStreaming);
+
 	while (HasPendingInitOrStreaming(bWaitForLODTransition))
 	{
 		ensure(!IsAssetStreamingSuspended());
@@ -251,8 +253,13 @@ void UStreamableRenderAsset::WaitForPendingInitOrStreaming(bool bWaitForLODTrans
 		TickStreaming(bSendCompletionEvents);
 		// Make sure any render commands are executed, in particular things like InitRHI, or asset updates on the render thread.
 		FlushRenderingCommands();
-		// Give some time increment so that LOD transition can complete, and also for the gamethread to give room for streaming async tasks.
-		FPlatformProcess::Sleep(RENDER_ASSET_STREAMING_SLEEP_DT);
+
+		// Most of the time, sleeping is not required, so avoid loosing a whole quantum (10ms on W10Pro) unless stricly necessary.
+		if (HasPendingInitOrStreaming(bWaitForLODTransition))
+		{
+			// Give some time increment so that LOD transition can complete, and also for the gamethread to give room for streaming async tasks.
+			FPlatformProcess::Sleep(RENDER_ASSET_STREAMING_SLEEP_DT);
+		}
 	}
 }
 
