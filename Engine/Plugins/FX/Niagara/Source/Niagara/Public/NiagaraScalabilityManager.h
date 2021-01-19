@@ -107,11 +107,15 @@ struct FNiagaraScalabilityState
 	}
 
 	bool IsDirty() const { return bCulled != bPreviousCulled; }
+	void Apply() { bPreviousCulled = bCulled; }
 
 	float Significance;
 	uint8 bCulled : 1;
+
+private:
 	uint8 bPreviousCulled : 1;
 
+public:
 #if DEBUG_SCALABILITY_STATE
 	uint8 bCulledByDistance : 1;
 	uint8 bCulledByInstanceCount : 1;
