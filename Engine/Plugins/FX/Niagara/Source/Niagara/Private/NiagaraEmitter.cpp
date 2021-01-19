@@ -1942,8 +1942,14 @@ void UNiagaraEmitter::RemoveParent()
 void UNiagaraEmitter::SetParent(UNiagaraEmitter& InParent)
 {
 	Parent = &InParent;
-	ParentAtLastMerge = Cast<UNiagaraEmitter>(StaticDuplicateObject(&InParent, this));
+	ParentAtLastMerge = InParent.DuplicateWithoutMerging(this);
 	ParentAtLastMerge->ClearFlags(RF_Standalone | RF_Public);
+
+	// Since this API is only valid for the "Create duplicate parent" operation we move the emitters scratch pad script to the parent array since that's where they're defined now.
+	ParentScratchPadScripts.Append(ScratchPadScripts);
+	ScratchPadScripts.Empty();
+	UpdateChangeId(TEXT("Parent Set"));
+
 	GraphSource->MarkNotSynchronized(TEXT("Emitter parent changed"));
 }
 
