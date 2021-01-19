@@ -227,7 +227,7 @@ static bool AddPass_RenderVirtualShadowMapProjection(
 		// Use temporal denoising with SMRT
 		return PassParameters->SMRTRayCount > 0;
 	}
-	else if (LightProxy->GetLightType() == LightType_Spot)
+	else
 	{
 		PassParameters->SMRTRayCount = 0; //CVarSMRTRayCountSpot.GetValueOnRenderThread();
 		PassParameters->SMRTSamplesPerRay = 0; //CVarSMRTSamplesPerRaySpot.GetValueOnRenderThread();
@@ -249,10 +249,6 @@ static bool AddPass_RenderVirtualShadowMapProjection(
 
 		// Use temporal denoising with SMRT
 		return PassParameters->SMRTRayCount > 0;
-	}
-	else
-	{
-		check(false);	// Unsupported light type for VSM projection
 	}
 
 	return false;
@@ -331,7 +327,7 @@ void RenderVirtualShadowMapProjectionForDenoising(
 		GraphBuilder,
 		View,
 		VirtualShadowMapArray,
-		ShadowInfo->VirtualShadowMap->ID,
+		ShadowInfo->VirtualShadowMaps[0]->ID,
 		ScissorRect,
 		EVirtualShadowMapProjectionOutputType::Denoiser,
 		RenderTargetBinding,
@@ -376,7 +372,7 @@ void RenderVirtualShadowMapProjection(
 		GraphBuilder,
 		View,
 		VirtualShadowMapArray,
-		ShadowInfo->VirtualShadowMap->ID,
+		ShadowInfo->VirtualShadowMaps[0]->ID,
 		ScissorRect,
 		EVirtualShadowMapProjectionOutputType::ScreenShadowMask,
 		RenderTargetBinding,

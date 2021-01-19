@@ -94,37 +94,6 @@ FMatrix CalcTranslatedWorldToShadowUVNormalMatrix(
 	return CalcTranslatedWorldToShadowUVMatrix(TranslatedWorldToShadowView, ViewToClip).GetTransposed().Inverse();
 }
 
-FVirtualShadowMapProjectionShaderData GetVirtualShadowMapProjectionShaderData(const FProjectedShadowInfo* ShadowInfo)
-{
-	check(ShadowInfo->HasVirtualShadowMap());
-	check(ShadowInfo->CascadeSettings.ShadowSplitIndex == INDEX_NONE);		// We use clipmaps for virtual shadow maps, not cascades
-
-	// NOTE: Virtual shadow maps are never atlased, but verify our assumptions
-	{
-		const FVector4 ClipToShadowUV = ShadowInfo->GetClipToShadowBufferUvScaleBias();
-		check(ShadowInfo->BorderSize == 0);
-		check(ShadowInfo->X == 0);
-		check(ShadowInfo->Y == 0);
-		const FIntRect ShadowViewRect = ShadowInfo->GetInnerViewRect();
-		check(ShadowViewRect.Min.X == 0);
-		check(ShadowViewRect.Min.Y == 0);
-		check(ShadowViewRect.Max.X == FVirtualShadowMap::VirtualMaxResolutionXY);
-		check(ShadowViewRect.Max.Y == FVirtualShadowMap::VirtualMaxResolutionXY);
-	}
-
-	FMatrix ViewToClip = ShadowInfo->ViewToClipInner;
-	
-	FVirtualShadowMapProjectionShaderData Data;
-	Data.ShadowViewToClipMatrix = ViewToClip;
-	Data.TranslatedWorldToShadowUVMatrix = CalcTranslatedWorldToShadowUVMatrix(ShadowInfo->TranslatedWorldToView, ViewToClip);
-	Data.TranslatedWorldToShadowUVNormalMatrix = CalcTranslatedWorldToShadowUVNormalMatrix(ShadowInfo->TranslatedWorldToView, ViewToClip);
-	Data.ShadowPreViewTranslation = FVector(ShadowInfo->PreShadowTranslation);
-	Data.VirtualShadowMapId = ShadowInfo->VirtualShadowMap->ID;
-	Data.LightType = ShadowInfo->GetLightSceneInfo().Proxy->GetLightType();
-
-	return Data;
-}
-
 FVirtualShadowMapArray::FVirtualShadowMapArray()
 {
 	CommonParameters.PageTableSize = FVirtualShadowMap::PageTableSize;		// TODO: Define
@@ -486,7 +455,7 @@ FORCEINLINE FProjectedShadowInfo* GetVirtualShadowMapInfo(const FVisibleLightInf
 {
 	for (FProjectedShadowInfo *ProjectedShadowInfo : LightInfo.AllProjectedShadows)
 	{
-		if (ProjectedShadowInfo->VirtualShadowMap)
+		if (ProjectedShadowInfo->HasVirtualShadowMap())
 		{
 			return ProjectedShadowInfo;
 		}
@@ -589,7 +558,11 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 				{
 					int32 ID = Clipmap->GetVirtualShadowMap(ClipmapLevel)->ID;
 					ShadowMapProjectionData[ID] = Clipmap->GetProjectionShaderData(ClipmapLevel);
-					DirectionalLightSmInds.Add(ID);
+
+					if( ClipmapLevel == 0 )
+					{
+						DirectionalLightSmInds.Add(ID);
+					}
 				}
 			}
 
@@ -597,12 +570,51 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 			{
 				if (ProjectedShadowInfo->HasVirtualShadowMap())
 				{
-					int32 ID = ProjectedShadowInfo->VirtualShadowMap->ID;
-					ShadowMapProjectionData[ID] = GetVirtualShadowMapProjectionShaderData(ProjectedShadowInfo);
+					check(ProjectedShadowInfo->HasVirtualShadowMap());
+					check(ProjectedShadowInfo->CascadeSettings.ShadowSplitIndex == INDEX_NONE);		// We use clipmaps for virtual shadow maps, not cascades
 
-					if (ProjectedShadowInfo->bDirectionalLight)
+					// NOTE: Virtual shadow maps are never atlased, but verify our assumptions
 					{
-						DirectionalLightSmInds.Add(ID);
+						const FVector4 ClipToShadowUV = ProjectedShadowInfo->GetClipToShadowBufferUvScaleBias();
+						check(ProjectedShadowInfo->BorderSize == 0);
+						check(ProjectedShadowInfo->X == 0);
+						check(ProjectedShadowInfo->Y == 0);
+						const FIntRect ShadowViewRect = ProjectedShadowInfo->GetInnerViewRect();
+						check(ShadowViewRect.Min.X == 0);
+						check(ShadowViewRect.Min.Y == 0);
+						check(ShadowViewRect.Max.X == FVirtualShadowMap::VirtualMaxResolutionXY);
+						check(ShadowViewRect.Max.Y == FVirtualShadowMap::VirtualMaxResolutionXY);
+					}
+
+					if (ProjectedShadowInfo->bOnePassPointLightShadow)
+					{
+						for (int32 CubeFace = 0; CubeFace < 6; CubeFace++)
+						{
+							FMatrix ViewToClip = ProjectedShadowInfo->OnePassShadowFaceProjectionMatrix;
+							FMatrix TranslatedWorldToView = ProjectedShadowInfo->OnePassShadowViewMatrices[ CubeFace ] * FScaleMatrix(FVector(1, -1, 1));	// TODO add cull direction to FPackedView instead of this scale nonsense.
+	
+							FVirtualShadowMapProjectionShaderData& Data = ShadowMapProjectionData[ ProjectedShadowInfo->VirtualShadowMaps[ CubeFace ]->ID ];
+							Data.ShadowViewToClipMatrix = ViewToClip;
+							Data.TranslatedWorldToShadowUVMatrix = CalcTranslatedWorldToShadowUVMatrix(TranslatedWorldToView, ViewToClip);
+							Data.TranslatedWorldToShadowUVNormalMatrix = CalcTranslatedWorldToShadowUVNormalMatrix(TranslatedWorldToView, ViewToClip);
+							Data.ShadowPreViewTranslation = FVector(ProjectedShadowInfo->PreShadowTranslation);
+							Data.VirtualShadowMapId = ProjectedShadowInfo->VirtualShadowMaps[ CubeFace ]->ID;
+							Data.LightType = ProjectedShadowInfo->GetLightSceneInfo().Proxy->GetLightType();
+						}
+					}
+					else
+					{
+						FMatrix ViewToClip = ProjectedShadowInfo->ViewToClipInner;
+	
+						FVirtualShadowMapProjectionShaderData& Data = ShadowMapProjectionData[ ProjectedShadowInfo->VirtualShadowMaps[0]->ID ];
+						Data.ShadowViewToClipMatrix = ViewToClip;
+						Data.TranslatedWorldToShadowUVMatrix = CalcTranslatedWorldToShadowUVMatrix(ProjectedShadowInfo->TranslatedWorldToView, ViewToClip);
+						Data.TranslatedWorldToShadowUVNormalMatrix = CalcTranslatedWorldToShadowUVNormalMatrix(ProjectedShadowInfo->TranslatedWorldToView, ViewToClip);
+						Data.ShadowPreViewTranslation = FVector(ProjectedShadowInfo->PreShadowTranslation);
+						Data.VirtualShadowMapId = ProjectedShadowInfo->VirtualShadowMaps[0]->ID;
+						Data.LightType = ProjectedShadowInfo->GetLightSceneInfo().Proxy->GetLightType();
+
+						ensure(!ProjectedShadowInfo->bDirectionalLight);
 					}
 				}
 			}
@@ -639,9 +651,9 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 					// Get hold of info about this light to figure out if there is a virtual SM
 					if (FProjectedShadowInfo *ShadowInfo = GetVirtualShadowMapInfo(VisibleLightInfo))
 					{
-						ensure(ShadowInfo->VirtualShadowMap);
-						ensure(ShadowInfo->VirtualShadowMap->ID != INDEX_NONE);
-						VirtualShadowMapIdRemap[DirectionalLightSmInds.Num() + L] = ShadowInfo->VirtualShadowMap->ID;
+						ensure(ShadowInfo->VirtualShadowMaps.Num());
+						ensure(ShadowInfo->VirtualShadowMaps[0]->ID != INDEX_NONE);
+						VirtualShadowMapIdRemap[DirectionalLightSmInds.Num() + L] = ShadowInfo->VirtualShadowMaps[0]->ID;
 					}
 				}
 			}

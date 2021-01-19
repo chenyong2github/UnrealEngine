@@ -373,7 +373,7 @@ public:
 	FProjectedShadowInfo *CompleteShadowMapCopySource;
 
 	/** */
-	FVirtualShadowMap *VirtualShadowMap;
+	TArray< FVirtualShadowMap*, TInlineAllocator<6> > VirtualShadowMaps;
 
 	/** View projection matrices for each cubemap face, used by one pass point light shadows. */
 	TArray<FMatrix> OnePassShadowViewProjectionMatrices;
@@ -429,8 +429,7 @@ public:
 		uint32 InResolutionY,
 		uint32 InSnapResolutionX,
 		uint32 InSnapResolutionY,
-		uint32 InBorderSize,
-		TSharedPtr<FVirtualShadowMapCacheEntry> VirtualSmCacheEntry = TSharedPtr<FVirtualShadowMapCacheEntry>()
+		uint32 InBorderSize
 		);
 
 	float GetShaderDepthBias() const { return ShaderDepthBias; }
@@ -647,7 +646,7 @@ public:
 		return FShadowDepthType(bDirectionalLight, bOnePassPointLightShadow);
 	}
 
-	bool HasVirtualShadowMap() const { return VirtualShadowMap != nullptr; }
+	bool HasVirtualShadowMap() const { return VirtualShadowMaps.Num() > 0; }
 
 	FParallelMeshDrawCommandPass& GetShadowDepthPass() { return ShadowDepthPass; }
 

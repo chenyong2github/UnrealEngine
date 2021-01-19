@@ -645,7 +645,6 @@ FProjectedShadowInfo::FProjectedShadowInfo()
 	, bIncludeInScreenSpaceShadowMask(true)
 	, bCompleteShadowMap(false)
 	, CompleteShadowMapCopySource(nullptr)
-	, VirtualShadowMap(nullptr)
 	, PerObjectShadowFadeStart(WORLD_MAX)
 	, InvPerObjectShadowFadeLength(0.0f)
 	, LightSceneInfo(0)
@@ -815,8 +814,7 @@ void FProjectedShadowInfo::SetupWholeSceneProjection(
 	uint32 InResolutionY,
 	uint32 InSnapResolutionX,
 	uint32 InSnapResolutionY,
-	uint32 InBorderSize,
-	TSharedPtr<FVirtualShadowMapCacheEntry> VirtualSmCacheEntry)
+	uint32 InBorderSize)
 {	
 	LightSceneInfo = InLightSceneInfo;
 	LightSceneInfoCompact = InLightSceneInfo;
@@ -912,13 +910,6 @@ void FProjectedShadowInfo::SetupWholeSceneProjection(
 	TranslatedWorldToClipInnerMatrix = TranslatedWorldToView * ViewToClipInner;
 	TranslatedWorldToClipOuterMatrix = TranslatedWorldToView * ViewToClipOuter;
 	
-	if ( VirtualSmCacheEntry != nullptr )
-	{
-		check(DependentView == nullptr);		// Directional lights use clipmaps instead
-		check(BorderSize == 0);
-		VirtualSmCacheEntry->Update(VirtualShadowMap->ID, Initializer);
-	}
-	
 	// Nothing to do with subject depth. Just a scale factor to map z to 0-1.
 	float MaxSubjectDepth = bDirectionalLight ? 1.0f : MinSubjectZ;
 
@@ -933,6 +924,55 @@ void FProjectedShadowInfo::SetupWholeSceneProjection(
 	InvReceiverInnerMatrix = ReceiverInnerMatrix.InverseFast();
 
 	UpdateShaderDepthBias();
+
+	if (Initializer.bOnePassPointLightShadow)
+	{
+		const static FVector CubeDirections[6] =
+		{
+			FVector(-1, 0, 0),
+			FVector(1, 0, 0),
+			FVector(0, -1, 0),
+			FVector(0, 1, 0),
+			FVector(0, 0, -1),
+			FVector(0, 0, 1)
+		};
+
+		const static FVector UpVectors[6] =
+		{
+			FVector(0, 1, 0),
+			FVector(0, 1, 0),
+			FVector(0, 0, -1),
+			FVector(0, 0, 1),
+			FVector(0, 1, 0),
+			FVector(0, 1, 0)
+		};
+
+		const FLightSceneProxy& LightProxy = *(GetLightSceneInfo().Proxy);
+
+		OnePassShadowFaceProjectionMatrix = FReversedZPerspectiveMatrix(PI / 4.0f, 1, 1, 1, LightProxy.GetRadius());
+
+		// Light projection and bounding volume is set up relative to the light position
+		// the view pre-translation (relative to light) is added later, when rendering & sampling.
+		const FVector LightPosition = Initializer.WorldToLight.GetOrigin();
+
+		OnePassShadowViewMatrices.Empty(6);
+		OnePassShadowViewProjectionMatrices.Empty(6);
+		const FMatrix ScaleMatrix = FScaleMatrix(FVector(1, -1, 1));
+
+		// fill in the caster frustum with the far plane from every face
+		CasterOuterFrustum.Planes.Empty();
+		for (int32 FaceIndex = 0; FaceIndex < 6; FaceIndex++)
+		{
+			// Create a view projection matrix for each cube face
+			const FMatrix WorldToLightMatrix = FLookFromMatrix(LightPosition, CubeDirections[FaceIndex], UpVectors[FaceIndex]) * ScaleMatrix;
+			OnePassShadowViewMatrices.Add(WorldToLightMatrix);
+			const FMatrix ShadowViewProjectionMatrix = WorldToLightMatrix * OnePassShadowFaceProjectionMatrix;
+			OnePassShadowViewProjectionMatrices.Add(ShadowViewProjectionMatrix);
+			// Add plane representing cube face to bounding volume
+			CasterOuterFrustum.Planes.Add(FPlane(CubeDirections[FaceIndex], LightProxy.GetRadius()));
+		}
+		CasterOuterFrustum.Init();
+	}
 }
 
 void FProjectedShadowInfo::AddCachedMeshDrawCommandsForPass(
@@ -3280,9 +3320,7 @@ void FSceneRenderer::CreateWholeSceneProjectedShadow(
 					SizeX = SizeY = GetCubeShadowDepthZResolution(FeatureLevel, GetCubeShadowDepthZIndex(FeatureLevel, MaxDesiredResolution));
 				}
 
-				const bool bNeedsVirtualShadowMap = VirtualShadowMapArray.IsEnabled()
-					&& (LightSceneInfo->Proxy->GetLightType() == LightType_Spot)
-					&& !ProjectedShadowInitializer.bRayTracedDistanceField;
+				const bool bNeedsVirtualShadowMap = VirtualShadowMapArray.IsEnabled() && !ProjectedShadowInitializer.bRayTracedDistanceField;
 
 				int32 NumShadowMaps = 1;
 				EShadowDepthCacheMode CacheMode[2] = { SDCM_Uncached, SDCM_Uncached };
@@ -3356,41 +3394,47 @@ void FSceneRenderer::CreateWholeSceneProjectedShadow(
 
 				if (bNeedsVirtualShadowMap)
 				{
+					// Create the projected shadow info.
+					FProjectedShadowInfo* ProjectedShadowInfo = new(FMemStack::Get(), 1, 16) FProjectedShadowInfo;
+					// Add to remember-to-call-dtor list
+					VisibleLightInfo.MemStackProjectedShadows.Add(ProjectedShadowInfo);
+
+					// Rescale size to fit whole virtual SM but keeping aspect ratio
+					int32 VirtualSizeX = SizeX >= SizeY ? FVirtualShadowMap::VirtualMaxResolutionXY : (FVirtualShadowMap::VirtualMaxResolutionXY * SizeX) / SizeY;
+					int32 VirtualSizeY = SizeY >= SizeX ? FVirtualShadowMap::VirtualMaxResolutionXY : (FVirtualShadowMap::VirtualMaxResolutionXY * SizeY) / SizeX;
+						
+					// Set up projection as per normal
+					ProjectedShadowInfo->SetupWholeSceneProjection(
+						LightSceneInfo,
+						NULL,
+						ProjectedShadowInitializer,
+						VirtualSizeX,
+						VirtualSizeY,
+						VirtualSizeX,
+						VirtualSizeY,
+						0 // no border
+					);
+					
+					int32 NumMaps = ProjectedShadowInitializer.bOnePassPointLightShadow ? 6 : 1;
+					for( int32 i = 0; i < NumMaps; i++ )
 					{
-						// Create the projected shadow info.
-						FProjectedShadowInfo* ProjectedShadowInfo = new(FMemStack::Get(), 1, 16) FProjectedShadowInfo;
-						// Add to remember-to-call-dtor list
-						VisibleLightInfo.MemStackProjectedShadows.Add(ProjectedShadowInfo);
-
-						ProjectedShadowInfo->VirtualShadowMap = VirtualShadowMapArray.Allocate();
-
-						// Rescale size to fit whole virtual SM but keeping aspect ratio
-						int32 VirtualSizeX = SizeX >= SizeY ? FVirtualShadowMap::VirtualMaxResolutionXY : (FVirtualShadowMap::VirtualMaxResolutionXY * SizeX) / SizeY;
-						int32 VirtualSizeY = SizeY >= SizeX ? FVirtualShadowMap::VirtualMaxResolutionXY : (FVirtualShadowMap::VirtualMaxResolutionXY * SizeY) / SizeX;
+						FVirtualShadowMap* VirtualShadowMap = VirtualShadowMapArray.Allocate();
+						ProjectedShadowInfo->VirtualShadowMaps.Add( VirtualShadowMap );
 
 						TSharedPtr<FVirtualShadowMapCacheEntry> VirtualSmCacheEntry;
 						if (Scene->VirtualShadowMapArrayCacheManager)
 						{
-							VirtualSmCacheEntry = Scene->VirtualShadowMapArrayCacheManager->FindCreateCacheEntry(LightSceneInfo->Id, 0);
+							VirtualSmCacheEntry = Scene->VirtualShadowMapArrayCacheManager->FindCreateCacheEntry(LightSceneInfo->Id, i);
 							// Note: the caching for spot lights only handles static lights and does not need the border, this also means pages can cache at all levels.
+							if( VirtualSmCacheEntry != nullptr )
+							{
+								VirtualSmCacheEntry->Update(VirtualShadowMap->ID, ProjectedShadowInitializer);
+								VirtualShadowMap->VirtualShadowMapCacheEntry = VirtualSmCacheEntry;
+							}
 						}
-						ProjectedShadowInfo->VirtualShadowMap->VirtualShadowMapCacheEntry = VirtualSmCacheEntry;
-
-						// Set up projection as per normal
-						ProjectedShadowInfo->SetupWholeSceneProjection(
-							LightSceneInfo,
-							NULL,
-							ProjectedShadowInitializer,
-							VirtualSizeX,
-							VirtualSizeY,
-							VirtualSizeX,
-							VirtualSizeY,
-							0, // no border
-							VirtualSmCacheEntry
-						);
-
-						VisibleLightInfo.AllProjectedShadows.Add(ProjectedShadowInfo);
 					}
+
+					VisibleLightInfo.AllProjectedShadows.Add(ProjectedShadowInfo);
 				}
 				
 				for (int32 CacheModeIndex = 0; CacheModeIndex < NumShadowMaps; CacheModeIndex++)
@@ -3414,55 +3458,6 @@ void FSceneRenderer::CreateWholeSceneProjectedShadow(
 
 					VisibleLightInfo.MemStackProjectedShadows.Add(ProjectedShadowInfo);
 
-					if (ProjectedShadowInitializer.bOnePassPointLightShadow)
-					{
-						const static FVector CubeDirections[6] =
-						{
-							FVector(-1, 0, 0),
-							FVector(1, 0, 0),
-							FVector(0, -1, 0),
-							FVector(0, 1, 0),
-							FVector(0, 0, -1),
-							FVector(0, 0, 1)
-						};
-
-						const static FVector UpVectors[6] =
-						{
-							FVector(0, 1, 0),
-							FVector(0, 1, 0),
-							FVector(0, 0, -1),
-							FVector(0, 0, 1),
-							FVector(0, 1, 0),
-							FVector(0, 1, 0)
-						};
-
-						const FLightSceneProxy& LightProxy = *(ProjectedShadowInfo->GetLightSceneInfo().Proxy);
-
-						ProjectedShadowInfo->OnePassShadowFaceProjectionMatrix = FReversedZPerspectiveMatrix(PI / 4.0f, 1, 1, 1, LightProxy.GetRadius());
-
-						// Light projection and bounding volume is set up relative to the light position
-						// the view pre-translation (relative to light) is added later, when rendering & sampling.
-						const FVector LightPosition = ProjectedShadowInitializer.WorldToLight.GetOrigin();
-
-						ProjectedShadowInfo->OnePassShadowViewMatrices.Empty(6);
-						ProjectedShadowInfo->OnePassShadowViewProjectionMatrices.Empty(6);
-						const FMatrix ScaleMatrix = FScaleMatrix(FVector(1, -1, 1));
-
-						// fill in the caster frustum with the far plane from every face
-						ProjectedShadowInfo->CasterOuterFrustum.Planes.Empty();
-						for (int32 FaceIndex = 0; FaceIndex < 6; FaceIndex++)
-						{
-							// Create a view projection matrix for each cube face
-							const FMatrix WorldToLightMatrix = FLookFromMatrix(LightPosition, CubeDirections[FaceIndex], UpVectors[FaceIndex]) * ScaleMatrix;
-							ProjectedShadowInfo->OnePassShadowViewMatrices.Add(WorldToLightMatrix);
-							const FMatrix ShadowViewProjectionMatrix = WorldToLightMatrix * ProjectedShadowInfo->OnePassShadowFaceProjectionMatrix;
-							ProjectedShadowInfo->OnePassShadowViewProjectionMatrices.Add(ShadowViewProjectionMatrix);
-							// Add plane representing cube face to bounding volume
-							ProjectedShadowInfo->CasterOuterFrustum.Planes.Add(FPlane(CubeDirections[FaceIndex], LightProxy.GetRadius()));
-						}
-						ProjectedShadowInfo->CasterOuterFrustum.Init();
-					}
-
 					// If we have a virtual shadow map, disable nanite rendering into the regular shadow map or else we'd get double-shadowing
 					if (bNeedsVirtualShadowMap)
 					{
@@ -3470,7 +3465,7 @@ void FSceneRenderer::CreateWholeSceneProjectedShadow(
 
 						// If this is not a static shadow cache, also set up "complete" shadow map (one with lower resolution and containing both nanite and non-nanite)
 						const int32 CompleteShadowMapSize = CVarCompleteShadowMapResolution.GetValueOnRenderThread() - ShadowBorder * 2;
-						if (CacheMode[CacheModeIndex] != SDCM_StaticPrimitivesOnly && CompleteShadowMapSize > 0)
+						if (CacheMode[CacheModeIndex] != SDCM_StaticPrimitivesOnly && CompleteShadowMapSize > 0 && !ProjectedShadowInitializer.bOnePassPointLightShadow)
 						{
 							// Create the projected shadow info.
 							FProjectedShadowInfo* CompleteProjectedShadowInfo = new(FMemStack::Get(), 1, 16) FProjectedShadowInfo;

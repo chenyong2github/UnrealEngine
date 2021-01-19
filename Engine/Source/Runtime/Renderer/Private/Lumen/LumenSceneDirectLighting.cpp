@@ -461,7 +461,7 @@ void RenderDirectLightIntoLumenCards(
 		}
 		else if (ShadowSetup.VirtualShadowMap)
 		{
-			VirtualShadowMapId = ShadowSetup.VirtualShadowMap->VirtualShadowMap->ID;
+			VirtualShadowMapId = ShadowSetup.VirtualShadowMap->VirtualShadowMaps[0]->ID;
 		}
 	}
 

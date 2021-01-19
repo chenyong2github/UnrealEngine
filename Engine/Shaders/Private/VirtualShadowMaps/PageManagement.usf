@@ -370,27 +370,21 @@ void GeneratePageFlagsFromPixels(uint3 GroupId : SV_GroupID, uint GroupIndex : S
 	}
 	
 	// Directional lights
-	if (NumDirectionalLightSmInds > 0)
+	for (uint Index = 0; Index < NumDirectionalLightSmInds; ++Index)
 	{
 		// Mark one page per directional light. Lights can have varying numbers of clipmap levels allocated which
 		// will all be contiguous in the array, so we hop between them using the counts.
-		uint ProjectionIndex = 0;
-		while (ProjectionIndex < NumDirectionalLightSmInds)
+		int ClipmapStartId = VirtualShadowMapIdRemap[Index];
+		FVirtualShadowMapProjectionShaderData BaseProjectionData = ShadowMapProjectionData[ClipmapStartId];
+
+		// Possibly use a single shadow projection data for the whole clipmap with just scales/biases for
+		// each level (to handle snapping). For now we maintain one per level.
+		//int ClipmapLevel = CalcClipmapLevel(length(Pixel.WorldPosition - ProjectionData.ClipmapWorldOrigin), ClipmapResolutionLodBias);
+		const int ClipmapLevel = CalcClipmapLevel(BaseProjectionData, Pixel.WorldPosition);
+		int ClipmapIndex = max(0, ClipmapLevel - BaseProjectionData.ClipmapLevel);
+		if (ClipmapIndex < BaseProjectionData.ClipmapLevelCount)
 		{
-			int ClipmapStartId = VirtualShadowMapIdRemap[ProjectionIndex];
-			FVirtualShadowMapProjectionShaderData BaseProjectionData = ShadowMapProjectionData[ClipmapStartId];
-
-			// Possibly use a single shadow projection data for the whole clipmap with just scales/biases for
-			// each level (to handle snapping). For now we maintain one per level.
-			//int ClipmapLevel = CalcClipmapLevel(length(Pixel.WorldPosition - ProjectionData.ClipmapWorldOrigin), ClipmapResolutionLodBias);
-			const int ClipmapLevel = CalcClipmapLevel(BaseProjectionData, Pixel.WorldPosition);
-			int ClipmapIndex = max(0, ClipmapLevel - BaseProjectionData.ClipmapLevel);
-			if (ClipmapIndex < BaseProjectionData.ClipmapLevelCount)
-			{
-				MarkPage(ClipmapStartId + ClipmapIndex, 0, Pixel, PageDilationOffset);
-			}
-
-			ProjectionIndex += max(1, BaseProjectionData.ClipmapLevelCount);		// Max just to ensure termination even with bad data
+			MarkPage(ClipmapStartId + ClipmapIndex, 0, Pixel, PageDilationOffset);
 		}
 	}
 
@@ -418,6 +412,12 @@ void GeneratePageFlagsFromPixels(uint3 GroupId : SV_GroupID, uint GroupIndex : S
 			int VirtualShadowMapId = VirtualShadowMapIdRemap[NumDirectionalLightSmInds + LightGridLightIndex];
 			if (VirtualShadowMapId != INDEX_NONE)
 			{
+				bool bSpotLight = LightData.SpotAnglesAndSourceRadiusPacked.x > -2.0f;
+				if( !bSpotLight )
+				{
+					VirtualShadowMapId += GetCubeFace( ToLight );
+				}
+
 				uint MipLevel = GetMipLevel(VirtualShadowMapId, Pixel);
 				MarkPage(VirtualShadowMapId, MipLevel, Pixel, PageDilationOffset);
 			}

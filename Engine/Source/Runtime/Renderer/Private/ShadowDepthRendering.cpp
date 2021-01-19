@@ -1820,38 +1820,57 @@ void FSceneRenderer::RenderShadowDepthMaps(FRDGBuilder& GraphBuilder, FInstanceC
 				{
 					if (ProjectedShadowInfo->ShouldClampToNearPlane() == bShouldClampToNearPlane && ProjectedShadowInfo->HasVirtualShadowMap())
 					{
-						Nanite::FPackedViewParams Params;
-						Params.ViewMatrices = ProjectedShadowInfo->ShadowDepthView->ViewMatrices;
-						Params.ViewRect = ProjectedShadowInfo->GetOuterViewRect();
-						Params.RasterContextSize = VirtualShadowMapArray.GetPhysicalPoolSize();
-						Params.LODScaleFactor = ComputeNaniteShadowsLODScaleFactor();
-						Params.TargetLayerIndex = ProjectedShadowInfo->VirtualShadowMap->ID;
-						Params.PrevTargetLayerIndex = INDEX_NONE;
-						Params.TargetMipLevel = 0;
-						Params.TargetMipCount = FVirtualShadowMap::MaxMipLevels;
+						Nanite::FPackedViewParams BaseParams;
+						BaseParams.ViewRect = ProjectedShadowInfo->GetOuterViewRect();
+						BaseParams.HZBTestViewRect = BaseParams.ViewRect;
+						BaseParams.RasterContextSize = VirtualShadowMapArray.GetPhysicalPoolSize();
+						BaseParams.LODScaleFactor = ComputeNaniteShadowsLODScaleFactor();
+						BaseParams.PrevTargetLayerIndex = INDEX_NONE;
+						BaseParams.TargetMipLevel = 0;
+						BaseParams.TargetMipCount = FVirtualShadowMap::MaxMipLevels;
 
-						int32 HZBKey = ProjectedShadowInfo->GetLightSceneInfo().Id;
-						HZBKey += FMath::Max(0, ProjectedShadowInfo->CascadeSettings.ShadowSplitIndex) << 28;
-						FVirtualShadowMapHZBMetadata& PrevHZB = CacheManager->HZBMetadata.FindOrAdd(HZBKey);
-						if( PrevHZB.FrameNumber == CachedFrameNumber )
+						int32 NumMaps = ProjectedShadowInfo->bOnePassPointLightShadow ? 6 : 1;
+						for( int32 i = 0; i < NumMaps; i++ )
 						{
-							Params.PrevTargetLayerIndex = PrevHZB.TargetLayerIndex;
-							Params.PrevViewMatrices = PrevHZB.ViewMatrices;
-							Params.Flags = VIEW_FLAG_HZBTEST;
-						}
-						else
-						{
-							Params.PrevTargetLayerIndex = INDEX_NONE;
-							Params.PrevViewMatrices = Params.ViewMatrices;
-						}
+							Nanite::FPackedViewParams Params = BaseParams;
+							Params.TargetLayerIndex = ProjectedShadowInfo->VirtualShadowMaps[i]->ID;
+
+							if( ProjectedShadowInfo->bOnePassPointLightShadow )
+							{
+								FViewMatrices::FMinimalInitializer MatricesInitializer;
+								MatricesInitializer.ViewOrigin = -ProjectedShadowInfo->PreShadowTranslation;
+								MatricesInitializer.ViewRotationMatrix = ProjectedShadowInfo->OnePassShadowViewMatrices[i] * FScaleMatrix(FVector(1, -1, 1));	// TODO add cull direction to FPackedView instead of this scale nonsense.
+								MatricesInitializer.ProjectionMatrix = ProjectedShadowInfo->OnePassShadowFaceProjectionMatrix;
+								MatricesInitializer.ConstrainedViewRect = BaseParams.ViewRect;
+								Params.ViewMatrices = FViewMatrices(MatricesInitializer);
+							}
+							else
+							{
+								Params.ViewMatrices = ProjectedShadowInfo->ShadowDepthView->ViewMatrices;
+							}
+
+							int32 HZBKey = ProjectedShadowInfo->GetLightSceneInfo().Id + (i << 24);
+							FVirtualShadowMapHZBMetadata& PrevHZB = CacheManager->HZBMetadata.FindOrAdd(HZBKey);
+							if( PrevHZB.FrameNumber == CachedFrameNumber )
+							{
+								Params.PrevTargetLayerIndex = PrevHZB.TargetLayerIndex;
+								Params.PrevViewMatrices = PrevHZB.ViewMatrices;
+								Params.Flags = VIEW_FLAG_HZBTEST;
+							}
+							else
+							{
+								Params.PrevTargetLayerIndex = INDEX_NONE;
+								Params.PrevViewMatrices = Params.ViewMatrices;
+							}
 						
-						PrevHZB.TargetLayerIndex = Params.TargetLayerIndex;
-						PrevHZB.FrameNumber = CurrentFrameNumber;
-						PrevHZB.ViewMatrices = Params.ViewMatrices;
+							PrevHZB.TargetLayerIndex = Params.TargetLayerIndex;
+							PrevHZB.FrameNumber = CurrentFrameNumber;
+							PrevHZB.ViewMatrices = Params.ViewMatrices;
 
-						Nanite::FPackedView View = Nanite::CreatePackedView(Params);
-						VirtualShadowViews.Add(View);
-						VirtualShadowMapFlags[ProjectedShadowInfo->VirtualShadowMap->ID] = 1;
+							Nanite::FPackedView View = Nanite::CreatePackedView(Params);
+							VirtualShadowViews.Add(View);
+							VirtualShadowMapFlags[ProjectedShadowInfo->VirtualShadowMaps[i]->ID] = 1;
+						}
 					}
 				}
 
