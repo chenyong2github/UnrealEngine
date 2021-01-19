@@ -300,6 +300,8 @@ public:
 	FLidarPointCloudNormal(const FVector& Normal) { SetFromVector(Normal); }
 	FLidarPointCloudNormal(const float& X, const float& Y, const float& Z) { SetFromFloats(X, Y, Z); }
 
+	bool operator==(const FLidarPointCloudNormal& Other) const { return X == Other.X && Y == Other.Y && Z == Other.Z; }
+
 	FORCEINLINE bool IsValid() const { return X != 127 || Y != 127 || Z != 127; }
 
 	FORCEINLINE void SetFromVector(const FVector& Normal)
@@ -385,6 +387,12 @@ public:
 	{
 		Color = FLinearColor(R, G, B, A).ToFColor(false);
 	}
+	FLidarPointCloudPoint(const float& X, const float& Y, const float& Z, const float& R, const float& G, const float& B, const float& A, const float& NX, const float& NY, const float& NZ)
+		: FLidarPointCloudPoint(X, Y, Z)
+	{
+		Color = FLinearColor(R, G, B, A).ToFColor(false);
+		Normal.SetFromFloats(NX, NY, NZ);
+	}
 	FLidarPointCloudPoint(const FVector& Location) : FLidarPointCloudPoint(Location.X, Location.Y, Location.Z) {}
 	FLidarPointCloudPoint(const FVector& Location, const float& R, const float& G, const float& B, const float& A = 1.0f)
 		: FLidarPointCloudPoint(Location)
@@ -409,9 +417,18 @@ public:
 		this->bVisible = bVisible;
 		this->ClassificationID = ClassificationID;
 	}
-	FLidarPointCloudPoint(const FLidarPointCloudPoint& Other)
-		: FLidarPointCloudPoint(Other.Location, Other.Color, Other.bVisible, Other.ClassificationID)
+	FLidarPointCloudPoint(const FVector& Location, const FColor& Color, const bool& bVisible, const uint8& ClassificationID, const FLidarPointCloudNormal& Normal)
+		: FLidarPointCloudPoint(Location)
 	{
+		this->Color = Color;
+		this->bVisible = bVisible;
+		this->ClassificationID = ClassificationID;
+		this->Normal = Normal;
+	}
+	FLidarPointCloudPoint(const FLidarPointCloudPoint& Other)
+		: FLidarPointCloudPoint()
+	{
+		CopyFrom(Other);
 	}
 	FLidarPointCloudPoint(const FLidarPointCloudPoint_Legacy& Other)
 		: FLidarPointCloudPoint(Other.Location, Other.Color, Other.bVisible, Other.ClassificationID)
@@ -422,6 +439,7 @@ public:
 	{
 		Location = Other.Location;
 		Color = Other.Color;
+		Normal = Other.Normal;
 		bVisible = Other.bVisible;
 		ClassificationID = Other.ClassificationID;
 	}
@@ -431,7 +449,7 @@ public:
 		return FLidarPointCloudPoint(Transform.TransformPosition(Location), Color, bVisible, ClassificationID);
 	}
 
-	bool operator==(const FLidarPointCloudPoint& P) const { return Location == P.Location && Color == P.Color && bVisible == P.bVisible && ClassificationID == P.ClassificationID; }
+	bool operator==(const FLidarPointCloudPoint& P) const { return Location == P.Location && Color == P.Color && bVisible == P.bVisible && ClassificationID == P.ClassificationID && Normal == P.Normal; }
 
 	friend class FLidarPointCloudOctree;
 #if WITH_EDITOR

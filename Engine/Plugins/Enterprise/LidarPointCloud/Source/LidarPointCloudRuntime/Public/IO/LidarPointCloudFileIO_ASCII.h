@@ -55,6 +55,18 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Import Settings")
 	int32 Intensity;
 
+	/** Index of a column containing Normal X data. Set to -1 if not available */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Import Settings")
+	int32 NormalX;
+
+	/** Index of a column containing Normal Y data. Set to -1 if not available */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Import Settings")
+	int32 NormalY;
+
+	/** Index of a column containing Normal Z data. Set to -1 if not available */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Import Settings")
+	int32 NormalZ;
+
 public:
 	FLidarPointCloudImportSettings_ASCII_Columns()
 	{
@@ -65,6 +77,9 @@ public:
 		Green = 4;
 		Blue = 5;
 		Intensity = 6;
+		NormalX = -1;
+		NormalY = -1;
+		NormalZ = -1;
 	}
 };
 

@@ -51,8 +51,6 @@ void SLidarPointCloudOptionWindow::Construct(const FArguments& InArgs)
 	this->ChildSlot
 	[
 		SNew(SBox)
-		.MaxDesiredHeight(InArgs._MaxWindowHeight)
-		.MaxDesiredWidth(InArgs._MaxWindowWidth)
 		[
 			SNew(SVerticalBox)
 			+SVerticalBox::Slot()
@@ -87,8 +85,6 @@ void SLidarPointCloudOptionWindow::Construct(const FArguments& InArgs)
 			.Padding(2)
 			[
 				SAssignNew(InspectorBox, SBox)
-				.MaxDesiredHeight(750.0f)
-				.WidthOverride(425.0f)
 			]
 			+ SVerticalBox::Slot()
 			.AutoHeight()
@@ -172,25 +168,10 @@ bool FLidarPointCloudImportUI::ShowImportDialog(TSharedPtr<FLidarPointCloudImpor
 		ParentWindow = MainFrame.GetParentWindow();
 	}
 
-	const float ImportWindowWidth = 500.0f;
-	const float ImportWindowHeight = 450.0f;
-	FVector2D ImportWindowSize = FVector2D(ImportWindowWidth, ImportWindowHeight); // Max window size it can get based on current slate
-
-	FSlateRect WorkAreaRect = FSlateApplicationBase::Get().GetPreferredWorkArea();
-	FVector2D DisplayTopLeft(WorkAreaRect.Left, WorkAreaRect.Top);
-	FVector2D DisplaySize(WorkAreaRect.Right - WorkAreaRect.Left, WorkAreaRect.Bottom - WorkAreaRect.Top);
-
-	float ScaleFactor = FPlatformApplicationMisc::GetDPIScaleFactorAtPoint(DisplayTopLeft.X, DisplayTopLeft.Y);
-	ImportWindowSize *= ScaleFactor;
-
-	FVector2D WindowPosition = (DisplayTopLeft + (DisplaySize - ImportWindowSize) / 2.0f) / ScaleFactor;
-
 	TSharedRef<SWindow> Window = SNew(SWindow)
 		.Title(NSLOCTEXT("UnrealEd", "LidarPointCloudImportOpionsTitle", "LiDAR Point Cloud Import Options"))
 		.SizingRule(ESizingRule::Autosized)
-		.AutoCenter(EAutoCenter::None)
-		.ClientSize(ImportWindowSize)
-		.ScreenPosition(WindowPosition);
+		.AutoCenter(EAutoCenter::PreferredWorkArea);
 	
 	TSharedPtr<SLidarPointCloudOptionWindow> PointCloudOptionWindow;
 	Window->SetContent
@@ -200,11 +181,8 @@ bool FLidarPointCloudImportUI::ShowImportDialog(TSharedPtr<FLidarPointCloudImpor
 		.WidgetWindow(Window)
 		.FullPath(FText::FromString(ImportSettings->GetFilename().Len() > 58 ? ("..." + ImportSettings->GetFilename().Right(55)) : ImportSettings->GetFilename()))
 		.IsReimport(bIsReimport)
-		.MaxWindowHeight(ImportWindowHeight)
-		.MaxWindowWidth(ImportWindowWidth)
 	);
 
-	// @todo: we can make this slow as showing progress bar later
 	FSlateApplication::Get().AddModalWindow(Window, ParentWindow, false);
 
 	ImportSettings->bImportAll = PointCloudOptionWindow->ShouldImportAll();

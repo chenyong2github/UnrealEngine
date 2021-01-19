@@ -38,7 +38,18 @@ TSharedPtr<FLidarPointCloudImportSettings_ASCII> MakeImportSettings(const FStrin
 {
 	TSharedPtr<FLidarPointCloudImportSettings_ASCII> ImportSettings = MakeShared<FLidarPointCloudImportSettings_ASCII>(Filename);
 	ImportSettings->RGBRange = RGBRange;
-	ImportSettings->SelectedColumns = { FMath::Max(-1, Columns.LocationX), FMath::Max(-1, Columns.LocationY), FMath::Max(-1, Columns.LocationZ), FMath::Max(-1, Columns.Red), FMath::Max(-1, Columns.Green), FMath::Max(-1, Columns.Blue), FMath::Max(-1, Columns.Intensity) };
+	ImportSettings->SelectedColumns = {
+		FMath::Max(-1, Columns.LocationX),
+		FMath::Max(-1, Columns.LocationY),
+		FMath::Max(-1, Columns.LocationZ),
+		FMath::Max(-1, Columns.Red),
+		FMath::Max(-1, Columns.Green),
+		FMath::Max(-1, Columns.Blue),
+		FMath::Max(-1, Columns.Intensity),
+		FMath::Max(-1, Columns.NormalX),
+		FMath::Max(-1, Columns.NormalY),
+		FMath::Max(-1, Columns.NormalZ)};
+
 	return ImportSettings;
 }
 
@@ -224,15 +235,23 @@ bool ULidarPointCloudFileIO_ASCII::HandleImport(const FString& Filename, TShared
 						// Shift to protect from precision loss
 						Location -= OutImportResults.OriginalCoordinates;
 
-						float X = IsColumnPopulated[0] ? Location.X : 0;
-						float Y = IsColumnPopulated[1] ? Location.Y : 0;
-						float Z = IsColumnPopulated[2] ? Location.Z : 0;
-						float R = IsColumnPopulated[3] ? FMath::Clamp((float(TempDoubles[3]) - RGBRange.X) * RGBMulti, 0.0f, 1.0f) : 1;
-						float G = IsColumnPopulated[4] ? FMath::Clamp((float(TempDoubles[4]) - RGBRange.X) * RGBMulti, 0.0f, 1.0f) : 1;
-						float B = IsColumnPopulated[5] ? FMath::Clamp((float(TempDoubles[5]) - RGBRange.X) * RGBMulti, 0.0f, 1.0f) : 1;
-						float A = IsColumnPopulated[6] ? FMath::Clamp((float(TempDoubles[6]) - IntensityRange.X) * IntensityMulti, 0.0f, 1.0f) : 1;
+						const float X = IsColumnPopulated[0] ? Location.X : 0;
+						const float Y = IsColumnPopulated[1] ? Location.Y : 0;
+						const float Z = IsColumnPopulated[2] ? Location.Z : 0;
+						const float R = IsColumnPopulated[3] ? FMath::Clamp((float(TempDoubles[3]) - RGBRange.X) * RGBMulti, 0.0f, 1.0f) : 1;
+						const float G = IsColumnPopulated[4] ? FMath::Clamp((float(TempDoubles[4]) - RGBRange.X) * RGBMulti, 0.0f, 1.0f) : 1;
+						const float B = IsColumnPopulated[5] ? FMath::Clamp((float(TempDoubles[5]) - RGBRange.X) * RGBMulti, 0.0f, 1.0f) : 1;
+						const float A = IsColumnPopulated[6] ? FMath::Clamp((float(TempDoubles[6]) - IntensityRange.X) * IntensityMulti, 0.0f, 1.0f) : 1;
 
-						OutImportResults.AddPoint(X, Y, Z, R, G, B, A);
+						// If normals are assigned, use the appropriate constructor
+						if (IsColumnPopulated[7] && IsColumnPopulated[8] && IsColumnPopulated[9])
+						{
+							OutImportResults.AddPoint(X, Y, Z, R, G, B, A, TempDoubles[7], TempDoubles[8], TempDoubles[9]);
+						}
+						else
+						{
+							OutImportResults.AddPoint(X, Y, Z, R, G, B, A);
+						}
 					}
 
 					CurrentColumnIndex = 0;
@@ -297,8 +316,8 @@ FLidarPointCloudImportSettings_ASCII::FLidarPointCloudImportSettings_ASCII(const
 	, EstimatedPointCount(0)
 	, RGBRange(FVector2D::ZeroVector)
 {
-	// Initialize all 7 columns as -1 (none)
-	for (int32 i = 0; i < 7; i++)
+	// Initialize all 10 columns as -1 (none)
+	for (int32 i = 0; i < 10; i++)
 	{
 		SelectedColumns.Add(-1);
 	}
@@ -663,7 +682,6 @@ FVector2D FLidarPointCloudImportSettings_ASCII::ReadFileMinMaxColumns(TArray<int
 
 #define ADD_DROPDOWN(Index, Label) 	+ SHorizontalBox::Slot()	\
 									.Padding(2)	\
-									.FillWidth(0.3f)	\
 									[	\
 										SNew(SComboBox<TSharedPtr<FString>>)	\
 										.OptionsSource(&Options)	\
@@ -718,6 +736,9 @@ TSharedPtr<SWidget> FLidarPointCloudImportSettings_ASCII::GetWidget()
 			ADD_DROPDOWN(4, "Green")
 			ADD_DROPDOWN(5, "Blue")
 			ADD_DROPDOWN(6, "Intensity")
+			ADD_DROPDOWN(7, "Norm X")
+			ADD_DROPDOWN(8, "Norm Y")
+			ADD_DROPDOWN(9, "Norm Z")
 		]
 		+ SVerticalBox::Slot()
 		.AutoHeight()
@@ -797,7 +818,7 @@ TSharedPtr<SWidget> FLidarPointCloudImportSettings_ASCII::GetWidget()
 TSharedRef<SWidget> FLidarPointCloudImportSettings_ASCII::HandleGenerateWidget(FString Item) const
 {
 	TSharedPtr<STextBlock> NewItem = SNew(STextBlock).Text(FText::FromString(Item)).Font(IDetailLayoutBuilder::GetDetailFont());
-	NewItem->SetMargin(FMargin(2));
+	NewItem->SetMargin(FMargin(2, 2, 5, 2));
 	return NewItem.ToSharedRef();
 }
 
