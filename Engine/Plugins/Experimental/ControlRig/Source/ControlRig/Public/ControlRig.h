@@ -367,6 +367,12 @@ public:
 	FControlRigExecuteEvent& OnExecuted_AnyThread() { return ExecutedEvent; }
 	FRigEventDelegate& OnRigEvent_AnyThread() { return RigEventDelegate; }
 
+	// Setup the initial transforms / ref pose of the bones based on a skeletal mesh
+	void SetBoneInitialTransformsFromSkeletalMesh(USkeletalMesh* InSkeletalMesh);
+
+	// Setup the initial transforms / ref pose of the bones based on a reference skeleton
+	void SetBoneInitialTransformsFromRefSkeleton(const FReferenceSkeleton& InReferenceSkeleton);
+
 private:
 
 	UPROPERTY()
