@@ -320,6 +320,7 @@ class FAsyncPurge : public FRunnable
 			}
 			else
 			{
+				FPlatformMisc::MemoryBarrier();
 				++NumObjectsToDestroyOnGameThread;
 			}
 			++ProcessedObjectsCount;
