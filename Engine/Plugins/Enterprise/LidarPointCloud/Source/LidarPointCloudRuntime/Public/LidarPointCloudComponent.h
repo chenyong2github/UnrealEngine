@@ -66,6 +66,14 @@ public:
 	float MinScreenSize;
 
 	/**
+	 * If enabled, points outside of the visible frustum will not be rendered.
+	 * While most project should leave this enabled, disabling it may help
+	 * with the data streaming lag when shooting cinematics.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = "Performance", meta = (ClampMin = "0"))
+	bool bUseFrustumCulling;
+
+	/**
 	 * Use to tweak the size of the points.
 	 * Set to 0 to switch to 1 pixel points.
 	 */

@@ -20,6 +20,7 @@
 ULidarPointCloudComponent::ULidarPointCloudComponent()
 	: CustomMaterial(nullptr)
 	, MinScreenSize(0.05f)
+	, bUseFrustumCulling(true)
 	, PointSize(1.0f)
 	, bUseScreenSizeScaling(false)
 	, ColorSource(ELidarPointCloudColorationMode::Data)
