@@ -466,6 +466,4 @@ public:
 	/** Finds the Bone Path from the given Bone to the Root Bone */
 	UFUNCTION(BlueprintPure, Category = "AnimationBlueprintLibrary|Helpers")
 	static void FindBonePathToRoot(const UAnimSequence* AnimationSequence, FName BoneName, TArray<FName>& BonePath);
-
-	static const FName SmartContainerNames[(int32)ESmartNameContainerType::SNCT_MAX];
 };
