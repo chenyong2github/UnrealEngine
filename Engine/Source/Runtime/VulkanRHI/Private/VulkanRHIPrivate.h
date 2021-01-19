@@ -868,5 +868,5 @@ extern TAtomic<uint64> GVulkanSamplerHandleIdCounter;
 extern TAtomic<uint64> GVulkanDSetLayoutHandleIdCounter;
 
 #if NV_AFTERMATH
-extern bool GNVAftermathModuleLoaded;
+extern bool GVulkanNVAftermathModuleLoaded;
 #endif
