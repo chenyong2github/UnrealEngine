@@ -46,29 +46,20 @@ void UGameFeatureAction_DataRegistrySource::OnGameFeatureActivating()
 			const bool bShouldAdd = (bIsServer && RegistrySource.bServerSource) || (bIsClient && RegistrySource.bClientSource);
 			if(bShouldAdd)
 			{
+				TMap<FDataRegistryType, TArray<FSoftObjectPath>> AssetMap;
+				TArray<FSoftObjectPath>& AssetList = AssetMap.Add(RegistrySource.RegistryToAddTo);
+
 				if (!RegistrySource.DataTableToAdd.IsNull())
 				{
-					FAssetData DataTableToRegister;
-					if (!UAssetManager::Get().GetAssetDataForPath(RegistrySource.DataTableToAdd.ToSoftObjectPath(), DataTableToRegister))
-					{
-						// Use in memory one
-						DataTableToRegister = FAssetData(DataTableToRegister.GetAsset());
-					}
-
-					DataRegistrySubsystem->RegisterSpecificAsset(RegistrySource.RegistryToAddTo, DataTableToRegister, RegistrySource.AssetPriority);
+					AssetList.Add(RegistrySource.DataTableToAdd.ToSoftObjectPath());
 				}
 
 				if (!RegistrySource.CurveTableToAdd.IsNull())
 				{
-					FAssetData CurveTableDataToRegister;
-					if (!UAssetManager::Get().GetAssetDataForPath(RegistrySource.CurveTableToAdd.ToSoftObjectPath(), CurveTableDataToRegister))
-					{
-						// Use in memory one
-						CurveTableDataToRegister = FAssetData(CurveTableDataToRegister.GetAsset());
-					}
-
-					DataRegistrySubsystem->RegisterSpecificAsset(RegistrySource.RegistryToAddTo, CurveTableDataToRegister, RegistrySource.AssetPriority);
+					AssetList.Add(RegistrySource.CurveTableToAdd.ToSoftObjectPath());
 				}
+
+				DataRegistrySubsystem->PreregisterSpecificAssets(AssetMap, RegistrySource.AssetPriority);
 			}
 		}
 	}
