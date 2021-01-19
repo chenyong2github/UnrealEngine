@@ -1,12 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SNiagaraDebugger.h"
+#include "NiagaraWorldManager.h"
 
 #include "Modules/ModuleManager.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/SOverlay.h"
 #include "Widgets/Input/SButton.h"
+#include "Widgets/Input/SNumericDropDown.h"
 #include "Widgets/Layout/SScrollBox.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Interfaces/ITargetPlatform.h"
@@ -55,6 +57,13 @@ void SNiagaraDebugger::Construct(const FArguments& InArgs)
 	InitDeviceList();
 
 	FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
+
+	TArray<SNumericDropDown<float>::FNamedValue> PlaybackRateValues;
+	PlaybackRateValues.Add(SNumericDropDown<float>::FNamedValue(1.000f, LOCTEXT("PlaybackRate_Full", "1 x"), LOCTEXT("PlaybackRateDesc_Full", "Set playback rate to normal")));
+	PlaybackRateValues.Add(SNumericDropDown<float>::FNamedValue(0.500f, LOCTEXT("PlaybackRate_Half", "1/2 x"), LOCTEXT("PlaybackRateDesc_Half", "Set playback rate to half rate")));
+	PlaybackRateValues.Add(SNumericDropDown<float>::FNamedValue(0.250f, LOCTEXT("PlaybackRate_Quarter", "1/4 x"), LOCTEXT("PlaybackRateDesc_Quarter", "Set playback rate to quarter rate")));
+	PlaybackRateValues.Add(SNumericDropDown<float>::FNamedValue(0.125f, LOCTEXT("PlaybackRate_Eighth", "1/8 x"), LOCTEXT("PlaybackRateDesc_Eighth", "Set playback rate to eighth rate")));
+	PlaybackRateValues.Add(SNumericDropDown<float>::FNamedValue(0.062f, LOCTEXT("PlaybackRate_Sixteenth", "1/16 x"), LOCTEXT("PlaybackRateDesc_Sixteenth", "Set playback rate to sixteenth rate")));
 
 	FDetailsViewArgs DetailsArgs;
 	DetailsArgs.bHideSelectionTip = true;
@@ -124,7 +133,7 @@ void SNiagaraDebugger::Construct(const FArguments& InArgs)
 					.OnClicked(FOnClicked::CreateLambda(
 						[&]() -> FReply
 						{
-							ExecConsoleCommand(TEXT("fx.Niagara.Debug.Pause 0"), true);
+							ExecConsoleCommand(*FString::Printf(TEXT("fx.Niagara.Debug.PlaybackMode %d"), ENiagaraDebugPlaybackMode::Play), true);
 							return FReply::Handled();
 						})
 					)
@@ -139,7 +148,7 @@ void SNiagaraDebugger::Construct(const FArguments& InArgs)
 					.OnClicked(FOnClicked::CreateLambda(
 						[&]() -> FReply
 						{
-							ExecConsoleCommand(TEXT("fx.Niagara.Debug.Pause 1"), true);
+							ExecConsoleCommand(*FString::Printf(TEXT("fx.Niagara.Debug.PlaybackMode %d"), ENiagaraDebugPlaybackMode::Paused), true);
 							return FReply::Handled();
 						})
 					)
@@ -154,12 +163,23 @@ void SNiagaraDebugger::Construct(const FArguments& InArgs)
 					.OnClicked(FOnClicked::CreateLambda(
 						[&]() -> FReply
 						{
-							ExecConsoleCommand(TEXT("fx.Niagara.Debug.Step"), true);
+							ExecConsoleCommand(*FString::Printf(TEXT("fx.Niagara.Debug.PlaybackMode %d"), ENiagaraDebugPlaybackMode::Step), true);
 							return FReply::Handled();
 						})
 					)
 					.Text(FText::FromString(TEXT("Step")))
 					.ToolTipText(FText::FromString(TEXT("Step a single frame and pause all simulations")))
+				]
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.Padding(4.0f, 0.0f, 0.0f, 0.0f)
+				[
+					SNew(SNumericDropDown<float>)
+					.DropDownValues(PlaybackRateValues)
+					.LabelText(LOCTEXT("PlaybackRate", "Playback Rate"))
+					.Value(this, &SNiagaraDebugger::GetPlaybackRate)
+					.OnValueChanged(this, &SNiagaraDebugger::SetPlaybackRate)
+					//SNew(SNumericEntryBox<float>)
 				]
 				+ SHorizontalBox::Slot()
 				.AutoWidth()
@@ -170,6 +190,7 @@ void SNiagaraDebugger::Construct(const FArguments& InArgs)
 						[&]() -> FReply
 						{
 							ExecHUDConsoleCommand();
+							SetPlaybackRate(PlaybackRate);
 							return FReply::Handled();
 						})
 					)
@@ -472,20 +493,19 @@ void SNiagaraDebugger::ExecConsoleCommand(const TCHAR* Cmd, bool bRequiresWorld)
 
 void SNiagaraDebugger::ExecHUDConsoleCommand()
 {
-	//TEXT("fx.Niagara.DebugHud Enabled=%d DisplayLocation=%d,%d SystemVerbosity=%d SystemShowBounds=%d SystemFilter=%s ComponentFilter=%s SystemVariables=%s ParticleVariables=%s MaxParticlesToDisplay=%d ShowParticlesInWorld=%d"),
 	const auto BuildVariableString =
-		[](const TArray<FString> Args) -> FString
+		[](const TArray<FNiagaraDebugHUDVariable>& Variables) -> FString
 		{
 			FString Output;
-			for (const FString& Arg : Args)
+			for (const FNiagaraDebugHUDVariable& Variable : Variables)
 			{
-				if (Arg.Len() > 0)
+				if (Variable.bEnabled && Variable.Name.Len() > 0)
 				{
 					if (Output.Len() > 0)
 					{
 						Output.Append(TEXT(","));
 					}
-					Output.Append(Arg);
+					Output.Append(Variable.Name);
 				}
 			}
 			return Output;
@@ -495,6 +515,7 @@ void SNiagaraDebugger::ExecHUDConsoleCommand()
 	if ( const UNiagaraDebugHUDSettings* Settings = GetDefault<UNiagaraDebugHUDSettings>() )
 	{
 		ExecConsoleCommand(*FString::Printf(TEXT("fx.Niagara.Debug.Hud Enabled=%d"), Settings->bEnabled ? 1 : 0), false);
+		ExecConsoleCommand(*FString::Printf(TEXT("fx.Niagara.Debug.Hud GpuReadback=%d"), Settings->bEnableGpuReadback ? 1 : 0), false);
 		ExecConsoleCommand(*FString::Printf(TEXT("fx.Niagara.Debug.Hud DisplayLocation=%d,%d"), Settings->HUDLocation.X, Settings->HUDLocation.Y), false);
 		ExecConsoleCommand(*FString::Printf(TEXT("fx.Niagara.Debug.Hud SystemVerbosity=%d"), (int32)Settings->SystemVerbosity), false);
 		ExecConsoleCommand(*FString::Printf(TEXT("fx.Niagara.Debug.Hud SystemShowBounds=%d "), Settings->bSystemShowBounds ? 1 : 0), false);
@@ -506,6 +527,17 @@ void SNiagaraDebugger::ExecHUDConsoleCommand()
 		ExecConsoleCommand(*FString::Printf(TEXT("fx.Niagara.Debug.Hud MaxParticlesToDisplay=%d"), Settings->MaxParticlesToDisplay), false);
 		ExecConsoleCommand(*FString::Printf(TEXT("fx.Niagara.Debug.Hud ShowParticlesInWorld=%d"), Settings->bShowParticlesInWorld ? 1 : 0), false);
 	}
+}
+
+float SNiagaraDebugger::GetPlaybackRate() const
+{
+	return PlaybackRate;
+}
+
+void SNiagaraDebugger::SetPlaybackRate(float Rate)
+{
+	PlaybackRate = Rate;
+	ExecConsoleCommand(*FString::Printf(TEXT("fx.Niagara.Debug.PlaybackRate %.3f"), PlaybackRate), true);
 }
 
 #undef LOCTEXT_NAMESPACE

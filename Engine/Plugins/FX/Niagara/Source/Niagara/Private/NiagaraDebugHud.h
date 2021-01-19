@@ -25,6 +25,8 @@ enum class ENiagaraDebugHudSystemVerbosity
 
 class FNiagaraDebugHud
 {
+	typedef TSharedPtr<struct FNiagaraScriptDebuggerInfo, ESPMode::ThreadSafe> FGpuDataSetPtr;
+
 	struct FSystemDebugInfo
 	{
 		FString		SystemName;
@@ -35,6 +37,13 @@ class FNiagaraDebugHud
 		int32		TotalParticles = 0;
 	};
 
+	struct FGpuEmitterCache
+	{
+		uint64					LastAccessedCycles;
+		TArray<FGpuDataSetPtr>	CurrentEmitterData;
+		TArray<FGpuDataSetPtr>	PendingEmitterData;
+	};
+
 public:
 	FNiagaraDebugHud(class UWorld* World);
 	~FNiagaraDebugHud();
@@ -42,7 +51,12 @@ public:
 	void GatherSystemInfo();
 
 private:
+	class FNiagaraDataSet* GetParticleDataSet(class FNiagaraSystemInstance* SystemInstance, class FNiagaraEmitterInstance* EmitterInstance, int32 iEmitter);
+
 	void DebugDrawNiagara(class UCanvas* Canvas, class APlayerController* PC);
+
+	void DrawOverview(class FCanvas* DrawCanvas, class UFont* Font);
+	void DrawComponents(class UWorld* World, class UCanvas* Canvas, class UFont* Font);
 
 private:
 	TWeakObjectPtr<class UWorld>	WeakWorld;
@@ -56,4 +70,6 @@ private:
 	TMap<FName, FSystemDebugInfo>	PerSystemDebugInfo;
 
 	TArray<TWeakObjectPtr<class UNiagaraComponent>>	InWorldComponents;
+
+	TMap<FNiagaraSystemInstanceID, FGpuEmitterCache> GpuEmitterData;
 };
