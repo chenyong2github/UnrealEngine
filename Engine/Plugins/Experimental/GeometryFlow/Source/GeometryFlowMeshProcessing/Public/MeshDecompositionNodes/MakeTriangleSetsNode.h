@@ -81,36 +81,35 @@ public:
 class FMakeTriangleSetsFromGroupsNode : public FMakeTriangleSetsFromMeshNode
 {
 public:
+	static const FString InParamGroupLayer() { return TEXT("GroupLayerName"); }
 	static const FString InParamIgnoreGroups() { return TEXT("IgnoreGroups"); }
-
 
 public:
 	FMakeTriangleSetsFromGroupsNode() : FMakeTriangleSetsFromMeshNode()
 	{
+		AddInput(InParamGroupLayer(), MakeUnique<TBasicNodeInput<FName, (int)EDataTypes::Name>>());
 		AddInput(InParamIgnoreGroups(), MakeBasicInput<FIndexSets>());
 	}
 
 	virtual void CheckAdditionalInputs(const FNamedDataMap& DatasIn, bool& bRecomputeRequired, bool& bAllInputsValid) override
 	{
+		FindAndUpdateInputForEvaluate(InParamGroupLayer(), DatasIn, bRecomputeRequired, bAllInputsValid);
 		FindAndUpdateInputForEvaluate(InParamIgnoreGroups(), DatasIn, bRecomputeRequired, bAllInputsValid);
 	}
 
+protected:
 
-public:
-	
-	virtual void ComputeIndexSets(const FNamedDataMap& DatasIn, const FDynamicMesh3& Mesh, FIndexSets& SetsOut) override
+	void ComputeIndexSetsForGroups(const FDynamicMesh3& Mesh,
+								   const TSet<int32>& IgnoreGroups,
+								   TFunction<int32(int)> TriangleGroupFn,
+								   FIndexSets& SetsOut)
 	{
-		TSafeSharedPtr<IData> IgnoreGroupsArg = DatasIn.FindData(InParamIgnoreGroups());
-		const FIndexSets& IgnoreGroupsSets = IgnoreGroupsArg->GetDataConstRef<FIndexSets>(FIndexSets::DataTypeIdentifier);
-		TSet<int32> IgnoreGroups;
-		IgnoreGroupsSets.GetAllValues(IgnoreGroups);
-
 		TMap<int32, int32> GroupsMap;
 		TArray<int32> GroupCounts;
 		int32 NumGroups = 0;
 		for (int32 tid : Mesh.TriangleIndicesItr())
 		{
-			int32 GroupID = Mesh.GetTriangleGroup(tid);
+			int32 GroupID = TriangleGroupFn(tid);
 			if (IgnoreGroups.Contains(GroupID))
 			{
 				continue;
@@ -137,7 +136,7 @@ public:
 
 		for (int32 tid : Mesh.TriangleIndicesItr())
 		{
-			int32 GroupID = Mesh.GetTriangleGroup(tid);
+			int32 GroupID = TriangleGroupFn(tid);
 			if (IgnoreGroups.Contains(GroupID))
 			{
 				continue;
@@ -146,6 +145,36 @@ public:
 			int32* FoundIndex = GroupsMap.Find(GroupID);
 			SetsOut.IndexSets[*FoundIndex].Add(tid);
 		}
+	}
+
+public:
+
+	virtual void ComputeIndexSets(const FNamedDataMap& DatasIn, const FDynamicMesh3& Mesh, FIndexSets& SetsOut) override
+	{
+		TSafeSharedPtr<IData> IgnoreGroupsArg = DatasIn.FindData(InParamIgnoreGroups());
+		const FIndexSets& IgnoreGroupsSets = IgnoreGroupsArg->GetDataConstRef<FIndexSets>(FIndexSets::DataTypeIdentifier);
+		TSet<int32> IgnoreGroups;
+		IgnoreGroupsSets.GetAllValues(IgnoreGroups);
+
+		TSafeSharedPtr<IData> GroupLayerArg = DatasIn.FindData(InParamGroupLayer());
+		FName GroupName = GroupLayerArg->GetDataConstRef<FName>((int)EDataTypes::Name);
+
+		if (Mesh.HasTriangleGroups() && (GroupName == "Default"))
+		{
+			ComputeIndexSetsForGroups(Mesh, IgnoreGroups, [&Mesh](int TriangleID) { return Mesh.GetTriangleGroup(TriangleID); }, SetsOut);
+		}
+		else if (Mesh.HasAttributes())
+		{
+			for (int32 PolygroupLayerIndex = 0; PolygroupLayerIndex < Mesh.Attributes()->NumPolygroupLayers(); ++PolygroupLayerIndex)
+			{
+				const FDynamicMeshPolygroupAttribute* PolygroupLayer = Mesh.Attributes()->GetPolygroupLayer(PolygroupLayerIndex);
+				if (PolygroupLayer->GetName() == GroupName)
+				{
+					ComputeIndexSetsForGroups(Mesh, IgnoreGroups, [&PolygroupLayer](int TriangleID) { return PolygroupLayer->GetValue(TriangleID); }, SetsOut);
+				}
+			}		
+		}
+
 	}
 
 };

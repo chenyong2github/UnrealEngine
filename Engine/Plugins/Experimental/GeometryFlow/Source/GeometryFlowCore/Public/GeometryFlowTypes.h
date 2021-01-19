@@ -56,6 +56,8 @@ enum class EDataTypes
 	Vector3f = 20,
 	Vector3d = 21,
 
+	Name = 30,
+
 	BaseMeshProcessingTypes = 1000,
 	BaseMeshProcessingTypesEditor = 2000,
 
