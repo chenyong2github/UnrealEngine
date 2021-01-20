@@ -9,7 +9,7 @@
 // Whether to fetch primitive values (eg LocalToWorld) by dynamically indexing a scene-wide buffer, or to reference a single Primitive uniform buffer
 #define VF_USE_PRIMITIVE_SCENE_DATA ((FEATURE_LEVEL >= FEATURE_LEVEL_SM5 || FEATURE_LEVEL == FEATURE_LEVEL_ES3_1) && VF_SUPPORTS_PRIMITIVE_SCENE_DATA)
 
-#define INSTANCE_SCENE_DATA_SUPPORTED (VF_USE_PRIMITIVE_SCENE_DATA && (FEATURE_LEVEL >= FEATURE_LEVEL_SM5 || FEATURE_LEVEL == FEATURE_LEVEL_ES3_1))
+#define INSTANCE_SCENE_DATA_SUPPORTED (FEATURE_LEVEL >= FEATURE_LEVEL_SM5 || FEATURE_LEVEL == FEATURE_LEVEL_ES3_1)
 
 // Unpacked AoS layout - see FInstanceSceneShaderData::Setup() for SoA packed layout.
 #if INSTANCE_SCENE_DATA_SUPPORTED
@@ -96,7 +96,7 @@ FInstanceSceneData GetInstanceData(uint InstanceId, uint SOAStride)
 	InstanceData.WorldToLocal[3].xyz					= mul(float4(-InstanceData.LocalToWorld[3].xyz, 0.0f), InstanceData.WorldToLocal).xyz;
 
 	// TODO: Do something cleaner to indicate instanced LM/SM UV bias vs. uniform
-	InstanceData.UseInstanceData						= (InstanceData.LightMapAndShadowMapUVBias != float4(-11.0f, -22.0f, -33.0f, -44.0f));
+	InstanceData.UseInstanceData						= any(InstanceData.LightMapAndShadowMapUVBias != float4(-11.0f, -22.0f, -33.0f, -44.0f));
 
 	return InstanceData;
 }
@@ -267,7 +267,10 @@ FPrimitiveSceneData GetPrimitiveData(uint PrimitiveId)
 #define GetPrimitiveData(x) Primitive
 
 // Route to Instance uniform buffer
-#define GetInstanceData(x,y) PrimitiveInstance
+#if !INSTANCE_SCENE_DATA_SUPPORTED
+	// GPUCULL_TODO: Figure out if this one does anything?
+	#define GetInstanceData(x,y) PrimitiveInstance
+#endif // !INSTANCE_SCENE_DATA_SUPPORTED
 
 #endif // VF_USE_PRIMITIVE_SCENE_DATA
 

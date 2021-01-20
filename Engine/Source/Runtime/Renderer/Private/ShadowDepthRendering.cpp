@@ -161,6 +161,13 @@ void SetupShadowDepthPassUniformBuffer(
 			ShadowDepthPassParameters.ShadowViewMatrices[FaceIndex] = Translation * ShadowInfo->OnePassShadowViewMatrices[FaceIndex];
 		}
 	}
+#if ENABLE_NON_NANITE_VSM
+	ShadowDepthPassParameters.bRenderToVirtualShadowMap = false;
+	ShadowDepthPassParameters.bInstancePerPage = false;
+	ShadowDepthPassParameters.VirtualSmPageTable = GraphBuilder.CreateSRV(CreateStructuredBuffer(GraphBuilder, TEXT("Dummy-VirtualSmPageTable"), TArray<uint32>()));
+	ShadowDepthPassParameters.PackedNaniteViews = GraphBuilder.CreateSRV(CreateStructuredBuffer(GraphBuilder, TEXT("Dummy-PackedNaniteViews"), TArray<Nanite::FPackedView>()));
+	ShadowDepthPassParameters.PageRectBounds = GraphBuilder.CreateSRV(CreateStructuredBuffer(GraphBuilder, TEXT("Dummy-PageRectBounds"), TArray<FIntVector4>()));
+#endif // ENABLE_NON_NANITE_VSM
 }
 
 void SetupShadowDepthPassUniformBuffer(
@@ -316,7 +323,10 @@ public:
 		OutEnvironment.SetDefine(TEXT("USING_VERTEX_SHADER_LAYER"), (uint32)(ShaderMode == VertexShadowDepth_VSLayer));
 		OutEnvironment.SetDefine(TEXT("POSITION_ONLY"), (uint32)bUsePositionOnlyStream);
 		OutEnvironment.SetDefine(TEXT("IS_FOR_GEOMETRY_SHADER"), (uint32)bIsForGeometryShader);
-
+		OutEnvironment.SetDefine(TEXT("ENABLE_NON_NANITE_VSM"), (uint32)ENABLE_NON_NANITE_VSM);
+#if ENABLE_NON_NANITE_VSM
+		FVirtualShadowMapArray::SetShaderDefines(OutEnvironment);
+#endif // ENABLE_NON_NANITE_VSM
 		if (bIsForGeometryShader)
 		{
 			OutEnvironment.CompilerFlags.Add(CFLAG_VertexToGeometryShader);
@@ -815,12 +825,22 @@ void FProjectedShadowInfo::SetStateForView(FRHICommandList& RHICmdList) const
 	);
 }
 
-void SetStateForShadowDepth(bool bOnePassPointLightShadow, FMeshPassProcessorRenderState& DrawRenderState)
+void SetStateForShadowDepth(bool bOnePassPointLightShadow, bool bDirectionalLight, FMeshPassProcessorRenderState& DrawRenderState)
 {
 	// Disable color writes
 	DrawRenderState.SetBlendState(TStaticBlendState<CW_NONE>::GetRHI());
 
+#if ENABLE_NON_NANITE_VSM
+
+	// GPUCULL_TODO: Unhack me please
+	static const auto EnableVirtualSMCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Shadow.v.Enable"));
+
+	const bool bNeedsVirtualShadowMap = EnableVirtualSMCVar->GetValueOnRenderThread() != 0 && bDirectionalLight;
+
+	if (bOnePassPointLightShadow || bNeedsVirtualShadowMap)
+#else //!ENABLE_NON_NANITE_VSM
 	if (bOnePassPointLightShadow)
+#endif // ENABLE_NON_NANITE_VSM
 	{
 		// Point lights use reverse Z depth maps
 		DrawRenderState.SetDepthStencilState(TStaticDepthStencilState<true, CF_DepthNearOrEqual>::GetRHI());
@@ -1093,6 +1113,9 @@ BEGIN_SHADER_PARAMETER_STRUCT(FShadowDepthPassParameters, )
 	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FMobileShadowDepthPassUniformParameters, MobilePassUniformBuffer)
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FShadowDepthPassUniformParameters, DeferredPassUniformBuffer)
+#if ENABLE_NON_NANITE_VSM
+	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FVirtualShadowMapCommonParameters, VirtualSmCommon)
+#endif // ENABLE_NON_NANITE_VSM
 	SHADER_PARAMETER_STRUCT_INCLUDE(FInstanceCullingDrawParams, InstanceCullingDrawParams)
 	RENDER_TARGET_BINDING_SLOTS()
 END_SHADER_PARAMETER_STRUCT()
@@ -1135,9 +1158,13 @@ void FProjectedShadowInfo::RenderDepth(
 	{
 		// Copy in depths of static primitives before we render movable primitives.
 		FMeshPassProcessorRenderState DrawRenderState;
-		SetStateForShadowDepth(bOnePassPointLightShadow, DrawRenderState);
+		SetStateForShadowDepth(bOnePassPointLightShadow, bDirectionalLight, DrawRenderState);
 		CopyCachedShadowMap(GraphBuilder, *ShadowDepthView, SceneRenderer, PassParameters->RenderTargets, DrawRenderState);
 	}
+#if ENABLE_NON_NANITE_VSM
+	FVirtualShadowMapCommonParameters DummyVsmParameters = FVirtualShadowMapCommonParameters();
+	PassParameters->VirtualSmCommon = GraphBuilder.CreateUniformBuffer(&DummyVsmParameters);
+#endif // ENABLE_NON_NANITE_VSM
 
 	switch (FSceneInterface::GetShadingPath(FeatureLevel))
 	{
@@ -1755,6 +1782,14 @@ void FSceneRenderer::RenderShadowDepthMaps(FRDGBuilder& GraphBuilder, FInstanceC
 	const bool bNaniteEnabled = UseNanite(ShaderPlatform) && ViewFamily.EngineShowFlags.NaniteMeshes;
 	const bool bUseHZB = (CVarNaniteShadowsUseHZB.GetValueOnRenderThread() != 0);
 
+#if ENABLE_NON_NANITE_VSM
+
+	if (SortedShadowsForShadowDepthPass.VirtualShadowClipmapsHw.Num() != 0)
+	{
+		VirtualShadowMapArray.RenderVirtualShadowMapsHw(GraphBuilder, SortedShadowsForShadowDepthPass.VirtualShadowClipmapsHw, *Scene);
+	}
+#endif // ENABLE_NON_NANITE_VSM
+
 	if (bNaniteEnabled && (bHasVSMShadows || bHasVSMClipMaps))
 	{
 		if (bUseHZB)
@@ -2355,7 +2390,7 @@ FShadowDepthPassMeshProcessor::FShadowDepthPassMeshProcessor(
 	: FMeshPassProcessor(Scene, Scene->GetFeatureLevel(), InViewIfDynamicMeshCommand, InDrawListContext)
 	, ShadowDepthType(InShadowDepthType)
 {
-	SetStateForShadowDepth(ShadowDepthType.bOnePassPointLightShadow, PassDrawRenderState);
+	SetStateForShadowDepth(ShadowDepthType.bOnePassPointLightShadow, ShadowDepthType.bDirectionalLight, PassDrawRenderState);
 }
 
 FShadowDepthType CSMShadowDepthType(true, false);

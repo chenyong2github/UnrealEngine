@@ -275,6 +275,16 @@ static TAutoConsoleVariable<int32> CVarAlwaysAllocateMaxResolutionAtlases(
 );
 
 
+#if ENABLE_NON_NANITE_VSM
+
+static TAutoConsoleVariable<int32> CVarVsmUseFarShadowRules(
+	TEXT("r.Shadow.v.UseFarShadowCulling"),
+	1,
+	TEXT("Switch between implementing the far shadow culling logic for VSMs."),
+	ECVF_RenderThreadSafe
+);
+
+#endif // ENABLE_NON_NANITE_VSM
 
 CSV_DECLARE_CATEGORY_EXTERN(LightCount);
 
@@ -974,6 +984,44 @@ void FProjectedShadowInfo::SetupWholeSceneProjection(
 		CasterOuterFrustum.Init();
 	}
 }
+
+
+#if ENABLE_NON_NANITE_VSM
+
+void FProjectedShadowInfo::SetupClipmapProjection(FLightSceneInfo* InLightSceneInfo, FViewInfo* InDependentView, const TSharedPtr<FVirtualShadowMapClipmap>& InVirtualShadowMapClipmap, float InMaxNonFarCascadeDistance)
+{
+	VirtualShadowMapClipmap = InVirtualShadowMapClipmap;
+	LightSceneInfo = InLightSceneInfo;
+	LightSceneInfoCompact = InLightSceneInfo;
+	DependentView = InDependentView;
+	ResolutionX = FVirtualShadowMap::VirtualMaxResolutionXY;
+	ResolutionY = FVirtualShadowMap::VirtualMaxResolutionXY;
+	bDirectionalLight = true;
+	bWholeSceneShadow = true;
+	BorderSize = 0;
+	bIncludeInScreenSpaceShadowMask = false;
+	MaxNonFarCascadeDistance = InMaxNonFarCascadeDistance;
+
+
+	FVirtualShadowMapProjectionShaderData Data = VirtualShadowMapClipmap->GetProjectionShaderData(VirtualShadowMapClipmap->GetLevelCount() - 1);
+	PreShadowTranslation = Data.ShadowPreViewTranslation;
+	const FMatrix CasterMatrix = Data.TranslatedWorldToShadowViewMatrix * Data.ShadowViewToClipMatrix;
+	GetViewFrustumBounds(CasterOuterFrustum, CasterMatrix, true);
+	ReceiverInnerFrustum = CasterOuterFrustum;
+
+	// Magically get the accurate shadow bounds set up - ka-ching!
+	ShadowBounds = InLightSceneInfo->Proxy->GetShadowSplitBoundsDepthRange(*DependentView, DependentView->ViewMatrices.GetViewOrigin(), 10.0f, VirtualShadowMapClipmap->GetMaxRadius(), &CascadeSettings);
+	// Um... it's checked in IsWholeSceneDirectionalShadow()
+	CascadeSettings.ShadowSplitIndex = 1000;
+
+	ViewToClipInner = Data.ShadowViewToClipMatrix;
+	ViewToClipOuter = Data.ShadowViewToClipMatrix;
+	TranslatedWorldToView = Data.TranslatedWorldToShadowViewMatrix;
+	TranslatedWorldToClipInnerMatrix = TranslatedWorldToView * ViewToClipInner;
+	TranslatedWorldToClipOuterMatrix = TranslatedWorldToView * ViewToClipOuter;
+}
+
+#endif // ENABLE_NON_NANITE_VSM
 
 void FProjectedShadowInfo::AddCachedMeshDrawCommandsForPass(
 	int32 PrimitiveIndex,
@@ -1682,6 +1730,22 @@ bool FProjectedShadowInfo::TestPrimitiveFarCascadeConditions(bool bPrimitiveCast
 		return bPrimitiveCastsFarShadow;
 	}
 
+#if ENABLE_NON_NANITE_VSM
+
+	const bool bWholeSceneDirectionalShadow = IsWholeSceneDirectionalShadow();
+
+	if (bWholeSceneDirectionalShadow && MaxNonFarCascadeDistance > 0.0f)
+	{
+		check(DependentView);
+
+		FVector ViewOrigin = DependentView->ShadowViewMatrices.GetViewOrigin();
+		float ViewDistance = (Bounds.Origin - ViewOrigin) | DependentView->GetViewDirection();
+		if (ViewDistance - Bounds.SphereRadius > MaxNonFarCascadeDistance)
+		{
+			return bPrimitiveCastsFarShadow;
+		}
+	}
+#endif // ENABLE_NON_NANITE_VSM
 	return true;
 }
 
@@ -2040,6 +2104,21 @@ void FProjectedShadowInfo::SetupMeshDrawCommandsForShadowDepth(FSceneRenderer& R
 			}
 		}
 	}
+
+#if ENABLE_NON_NANITE_VSM
+	else if (VirtualShadowMapClipmap.IsValid())
+	{
+		// TODO: Register view per clip level such that they are culled early (?)
+		Nanite::FPackedViewParams Params;
+		// Note: To ensure conservative culling, we get the coarsest clip-level view since it covers the finer ones.
+		Params.ViewMatrices = VirtualShadowMapClipmap->GetViewMatrices(VirtualShadowMapClipmap->GetLevelCount() - 1);
+		// TODO: Real prev frame matrices
+		Params.PrevViewMatrices = Params.ViewMatrices;
+		Params.ViewRect = GetInnerViewRect();
+		Params.RasterContextSize = FIntPoint(ResolutionX, ResolutionY);
+		ViewIds.Add(InstanceCullingManager.RegisterView(Params));
+	}
+#endif // ENABLE_NON_NANITE_VSM
 	else
 	{
 		Nanite::FPackedViewParams Params;
@@ -2204,7 +2283,7 @@ void FProjectedShadowInfo::SetupMeshDrawCommandsForProjectionStenciling(FSceneRe
 }
 
 void FProjectedShadowInfo::GatherDynamicMeshElements(FSceneRenderer& Renderer, FVisibleLightInfo& VisibleLightInfo, TArray<const FSceneView*>& ReusedViewsArray,
-	FGlobalDynamicIndexBuffer& DynamicIndexBuffer, FGlobalDynamicVertexBuffer& DynamicVertexBuffer, FGlobalDynamicReadBuffer& DynamicReadBuffer, FInstanceCullingManager& InstanceCullingManager)
+	FGlobalDynamicIndexBuffer& DynamicIndexBuffer, FGlobalDynamicVertexBuffer& DynamicVertexBuffer, FGlobalDynamicReadBuffer& DynamicReadBuffer, FInstanceCullingManager &InstanceCullingManager)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_Shadow_GatherDynamicMeshElements);
 
@@ -2526,7 +2605,11 @@ void FSceneRenderer::SetupInteractionShadows(
 	if (!bShadowHandledByParent)
 	{
 		const bool bCreateTranslucentObjectShadow = GUseTranslucencyShadowDepths && Interaction->HasTranslucentObjectShadow();
+#if ENABLE_NON_NANITE_VSM
+		const bool bCreateInsetObjectShadow = !UseVirtualShadowMaps(ShaderPlatform, FeatureLevel) &&  Interaction->HasInsetObjectShadow();
+#else //!ENABLE_NON_NANITE_VSM
 		const bool bCreateInsetObjectShadow = Interaction->HasInsetObjectShadow();
+#endif // ENABLE_NON_NANITE_VSM
 		const bool bCreateObjectShadowForStationaryLight = ShouldCreateObjectShadowForStationaryLight(Interaction->GetLight(), PrimitiveSceneInfo->Proxy, Interaction->IsShadowMapped());
 
 		if (Interaction->HasShadow() 
@@ -3834,6 +3917,15 @@ void FSceneRenderer::GatherShadowDynamicMeshElements(FGlobalDynamicIndexBuffer& 
 			ProjectedShadowInfo->GatherDynamicMeshElements(*this, VisibleLightInfo, ReusedViewsArray, DynamicIndexBuffer, DynamicVertexBuffer, DynamicReadBuffer, InstanceCullingManager);
 		}
 	}
+#if ENABLE_NON_NANITE_VSM
+
+	// GPUCULL_TODO: Replace with new shadow culling processor thingo
+	for (FProjectedShadowInfo* ProjectedShadowInfo : SortedShadowsForShadowDepthPass.VirtualShadowClipmapsHw)
+	{
+		FVisibleLightInfo& VisibleLightInfo = VisibleLightInfos[ProjectedShadowInfo->GetLightSceneInfo().Id];
+		ProjectedShadowInfo->GatherDynamicMeshElements(*this, VisibleLightInfo, ReusedViewsArray, DynamicIndexBuffer, DynamicVertexBuffer, DynamicReadBuffer, InstanceCullingManager);
+	}
+#endif // defined(ENABLE_NON_NANITE_VSM)
 }
 
 typedef TArray<FAddSubjectPrimitiveOp> FShadowSubjectPrimitives;
@@ -3949,6 +4041,13 @@ struct FGatherShadowPrimitivesPacket
 
 	bool DoesPrimitiveCastInsetShadow(const FPrimitiveSceneInfo* PrimitiveSceneInfo, const FPrimitiveSceneProxy* PrimitiveProxy) const
 	{
+#if ENABLE_NON_NANITE_VSM
+		if (UseVirtualShadowMaps(GShaderPlatformForFeatureLevel[FeatureLevel], FeatureLevel))
+		{
+			return false;
+		}
+#endif // ENABLE_NON_NANITE_VSM
+
 		// If light attachment root is valid, we're in a group and need to get the flag from the root.
 		if (PrimitiveSceneInfo->LightingAttachmentRoot.IsValid())
 		{
@@ -4295,6 +4394,9 @@ void FSceneRenderer::AddViewDependentWholeSceneShadowsForView(
 			static_assert(INDEX_NONE == -1, "INDEX_NONE != -1!");
 
 			float MaxShadowCascadeDistance = 0.0f;
+#if ENABLE_NON_NANITE_VSM
+			float MaxNonFarCascadeDistance = 0.0f;
+#endif // ENABLE_NON_NANITE_VSM
 
 			// todo: this code can be simplified by computing all the distances in one place - avoiding some redundant work and complexity
 			for (int32 Index = 0; Index < ProjectionCount; Index++)
@@ -4312,7 +4414,12 @@ void FSceneRenderer::AddViewDependentWholeSceneShadowsForView(
 				if (LightSceneInfo.Proxy->GetViewDependentWholeSceneProjectedShadowInitializer(View, LocalIndex, LightSceneInfo.IsPrecomputedLightingValid(), ProjectedShadowInitializer))
 				{
 					MaxShadowCascadeDistance = FMath::Max(MaxShadowCascadeDistance, ProjectedShadowInitializer.CascadeSettings.SplitFar);
-
+#if ENABLE_NON_NANITE_VSM
+					if (!ProjectedShadowInitializer.CascadeSettings.bFarShadowCascade)
+					{
+						MaxNonFarCascadeDistance = FMath::Max(MaxNonFarCascadeDistance, ProjectedShadowInitializer.CascadeSettings.SplitFar);
+					}
+#endif // ENABLE_NON_NANITE_VSM
 					uint32 ShadowBorder = NeedsUnatlasedCSMDepthsWorkaround( FeatureLevel ) ? 0 : SHADOW_BORDER;
 					
 					const int32 MaxCSMResolution = GetCachedScalabilityCVars().MaxCSMShadowResolution;
@@ -4335,9 +4442,15 @@ void FSceneRenderer::AddViewDependentWholeSceneShadowsForView(
 					FIntPoint CompleteShadowBufferResolution(ShadowBufferResolution.X / CompleteResolutionFactor,
 														     ShadowBufferResolution.Y / CompleteResolutionFactor);
 
+					FProjectedShadowInfo* RegularCascadePSInfo = nullptr;
+
+#if ENABLE_NON_NANITE_VSM
+					if (!bNeedsVirtualShadowMap)
+#endif // ENABLE_NON_NANITE_VSM
+					{
 					// Create the projected shadow info.
-					FProjectedShadowInfo* ProjectedShadowInfo = new(FMemStack::Get(), 1, 16) FProjectedShadowInfo;
-					ProjectedShadowInfo->SetupWholeSceneProjection(
+						RegularCascadePSInfo = new(FMemStack::Get(), 1, 16) FProjectedShadowInfo;
+						RegularCascadePSInfo->SetupWholeSceneProjection(
 						&LightSceneInfo,
 						&View,
 						ProjectedShadowInitializer,
@@ -4348,18 +4461,27 @@ void FSceneRenderer::AddViewDependentWholeSceneShadowsForView(
 						CompleteShadowBufferResolution.Y,
 						ShadowBorder
 					);
-					ProjectedShadowInfo->FadeAlphas = FadeAlphas;
-					ProjectedShadowInfo->ProjectionIndex = Index;
+						RegularCascadePSInfo->FadeAlphas = FadeAlphas;
+						RegularCascadePSInfo->ProjectionIndex = Index;
 
-					VisibleLightInfo.MemStackProjectedShadows.Add(ProjectedShadowInfo);
-					VisibleLightInfo.AllProjectedShadows.Add(ProjectedShadowInfo);
-					ShadowInfos.Add(ProjectedShadowInfo);
-
+						VisibleLightInfo.MemStackProjectedShadows.Add(RegularCascadePSInfo);
+						VisibleLightInfo.AllProjectedShadows.Add(RegularCascadePSInfo);
+						ShadowInfos.Add(RegularCascadePSInfo);
+					}
+#if ENABLE_NON_NANITE_VSM
+					// GPUCULL_TODO: THis logic is not fully functional!
+					// If we have a virtual shadow map, 
+					if (false)//bNeedsVirtualShadowMap)
+					{
+#else //!ENABLE_NON_NANITE_VSM
 					if (bNeedsVirtualShadowMap)
 					{
-						// If we have a virtual shadow map, disable nanite rendering into the regular shadow map or else we'd get double-shadowing
-						ProjectedShadowInfo->bNaniteGeometry = false;
-						
+#endif // ENABLE_NON_NANITE_VSM
+						if (RegularCascadePSInfo != nullptr)
+						{
+							// ...disable nanite rendering into the regular shadow map or else we'd get double-shadowing
+							RegularCascadePSInfo->bNaniteGeometry = false;
+						}
 						if (bNeedsCompleteShadowMap)
 						{
 							// Create the projected shadow info.
@@ -4379,7 +4501,7 @@ void FSceneRenderer::AddViewDependentWholeSceneShadowsForView(
 
 							CompleteProjectedShadowInfo->bCompleteShadowMap = true;
 							CompleteProjectedShadowInfo->bIncludeInScreenSpaceShadowMask = false;
-							CompleteProjectedShadowInfo->CompleteShadowMapCopySource = ProjectedShadowInfo;
+							CompleteProjectedShadowInfo->CompleteShadowMapCopySource = RegularCascadePSInfo;
 
 							VisibleLightInfo.AllProjectedShadows.Add(CompleteProjectedShadowInfo);
 							VisibleLightInfo.CompleteProjectedShadows.Add(CompleteProjectedShadowInfo);
@@ -4388,9 +4510,9 @@ void FSceneRenderer::AddViewDependentWholeSceneShadowsForView(
 					}
 
 					// Ray traced shadows use the GPU managed distance field object buffers, no CPU culling needed
-					if (!ProjectedShadowInfo->bRayTracedDistanceField)
+					if (RegularCascadePSInfo != nullptr && !RegularCascadePSInfo->bRayTracedDistanceField)
 					{
-						ShadowInfosThatNeedCulling.Add(ProjectedShadowInfo);
+						ShadowInfosThatNeedCulling.Add(RegularCascadePSInfo);
 					}
 				}
 			}
@@ -4412,6 +4534,16 @@ void FSceneRenderer::AddViewDependentWholeSceneShadowsForView(
 				// TODO: Not clear we need both of these in this path, but keep it consistent for now
 				VisibleLightInfo.VirtualShadowMapClipmaps.Add(VirtualShadowMapClipmap);
 				SortedShadowsForShadowDepthPass.VirtualShadowMapClipmaps.Add(VirtualShadowMapClipmap);
+
+#if ENABLE_NON_NANITE_VSM
+				// Create the projected shadow info to make sure that culling happens.
+				FProjectedShadowInfo* ProjectedShadowInfo = new(FMemStack::Get(), 1, 16) FProjectedShadowInfo;
+				// Add to remember-to-call-dtor list
+				VisibleLightInfo.MemStackProjectedShadows.Add(ProjectedShadowInfo);
+				ProjectedShadowInfo->SetupClipmapProjection(&LightSceneInfo, &View, VirtualShadowMapClipmap, CVarVsmUseFarShadowRules.GetValueOnRenderThread() != 0 ? MaxNonFarCascadeDistance : -1.0f);
+				VisibleLightInfo.AllProjectedShadows.Add(ProjectedShadowInfo);
+				ShadowInfosThatNeedCulling.Add(ProjectedShadowInfo);
+#endif // ENABLE_NON_NANITE_VSM
 			}
 		}
 	}
@@ -4530,6 +4662,14 @@ void FSceneRenderer::AllocateShadowDepthTargets(FRHICommandListImmediate& RHICmd
 
 				if (bNeedsShadowmapSetup)
 				{
+#if ENABLE_NON_NANITE_VSM
+					if (ProjectedShadowInfo->VirtualShadowMapClipmap.IsValid())
+					{
+						ProjectedShadowInfo->SetupShadowDepthView(RHICmdList, this);
+						SortedShadowsForShadowDepthPass.VirtualShadowClipmapsHw.Add(ProjectedShadowInfo);
+					}
+					else 
+#endif // ENABLE_NON_NANITE_VSM
 					if (ProjectedShadowInfo->HasVirtualShadowMap())
 					{
 						ProjectedShadowInfo->SetupShadowDepthView(RHICmdList, this);

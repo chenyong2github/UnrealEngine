@@ -1813,7 +1813,7 @@ void FDeferredShadingSceneRenderer::RenderShadowProjections(
 		check(Views.Num() == 1);					// TODO: Test multiview
 		
 
-		if (VirtualShadowMapArray.IsAllocated())
+		if (VirtualShadowMapArray.HasAnyShadowData())
 		{
 			RDG_EVENT_SCOPE(GraphBuilder, "Virtual Shadow Maps" );
 

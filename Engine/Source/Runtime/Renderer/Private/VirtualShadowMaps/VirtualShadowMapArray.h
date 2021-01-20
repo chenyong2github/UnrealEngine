@@ -4,7 +4,9 @@
 =============================================================================*/
 #pragma once
 
+#include "VirtualShadowMapConfig.h"
 #include "../Nanite/NaniteRender.h"
+#include "../MeshDrawCommands.h"
 #include "SceneTypes.h"
 
 struct FMinimalSceneTextures;
@@ -44,9 +46,19 @@ public:
 	static constexpr uint32 PageSize = 128U;
 	static constexpr uint32 Level0DimPagesXY = 128U;
 
+	// 512x32 = 16k
+	//static constexpr uint32 PageSize = 512U;
+	//static constexpr uint32 Level0DimPagesXY = 32U;
+
+
 	// With 128x128 pages, a 8k x 4k texture holds 2048 physical pages
 	static constexpr uint32 PhysicalPagePoolTexureSizeX = 8192U;
+#if ENABLE_NON_NANITE_VSM
+	// GPUCULL_TODO: Think we must have square RT for address translation to work, the way it is implemented now (badly)
+	static constexpr uint32 PhysicalPagePoolTexureSizeY = 8192U;
+#else //!ENABLE_NON_NANITE_VSM
 	static constexpr uint32 PhysicalPagePoolTexureSizeY = 4096U;
+#endif // ENABLE_NON_NANITE_VSM
 
 	static constexpr uint32 PageSizeMask = PageSize - 1U;
 	static constexpr uint32 Log2PageSize = ILog2Const(PageSize);
@@ -79,6 +91,11 @@ public:
 // as well as cached shadow maps
 struct FVirtualShadowMapProjectionShaderData
 {
+	/**
+	 * Transform from shadow-pre-translated world space to shadow view space, example use: (WorldSpacePos + ShadowPreViewTranslation) * TranslatedWorldToShadowViewMatrix
+	 * TODO: Why don't we call it a rotation and store in a 3x3? Does it ever have translation in?
+	 */
+	FMatrix TranslatedWorldToShadowViewMatrix;
 	FMatrix ShadowViewToClipMatrix;
 	FMatrix TranslatedWorldToShadowUVMatrix;
 	FMatrix TranslatedWorldToShadowUVNormalMatrix;
@@ -113,6 +130,8 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FVirtualShadowMapCommonParameters, )
 	// use to map linear index to x,y page coord
 	SHADER_PARAMETER(uint32, PhysicalPageRowMask)
 	SHADER_PARAMETER(uint32, PhysicalPageRowShift)
+	SHADER_PARAMETER(FVector4, RecPhysicalPoolSize)
+	SHADER_PARAMETER(FIntPoint, PhysicalPoolSizePages)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 BEGIN_SHADER_PARAMETER_STRUCT(FVirtualShadowMapSamplingParameters, )
@@ -120,7 +139,22 @@ BEGIN_SHADER_PARAMETER_STRUCT(FVirtualShadowMapSamplingParameters, )
 	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint2>, PageTable)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, PhysicalPagePool)
 	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< FVirtualShadowMapProjectionShaderData >, VirtualShadowMapProjectionData)
+#if ENABLE_NON_NANITE_VSM
+	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float>, PhysicalPagePoolHw)
+#endif // ENABLE_NON_NANITE_VSM
 END_SHADER_PARAMETER_STRUCT()
+
+/**
+ * Use after page allocation but before rendering phase to access page table & related data structures, but not the physical backing.
+ */
+BEGIN_SHADER_PARAMETER_STRUCT(FVirtualShadowMapPageTableParameters, )
+	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FVirtualShadowMapCommonParameters, VirtualSmCommon)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint2>, PageTable)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< uint >, PageFlags)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< uint >, HPageFlags)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< uint4 >, PageRectBounds)
+END_SHADER_PARAMETER_STRUCT()
+
 
 class FVirtualShadowMapArray
 {
@@ -175,6 +209,13 @@ public:
 		return PhysicalPagePoolRDG != nullptr && PageTableRDG != nullptr;
 	}
 
+#if ENABLE_NON_NANITE_VSM
+	/**
+	 * Draw old-school hardware based shadow map tiles into virtual SM.
+	 */
+	void RenderVirtualShadowMapsHw(FRDGBuilder& GraphBuilder, const TArray<FProjectedShadowInfo*, SceneRenderingAllocator>& VirtualSmMeshCommandPasses, FScene& Scene);
+#endif // ENABLE_NON_NANITE_VSM
+
 	// Draw debug info into render target 'VirtSmDebug' of screen-size, the mode is controlled by 'r.Shadow.v.DebugVisualize' (defaults to not doing aught). 
 	void RenderDebugInfo(FRDGBuilder& GraphBuilder, FVirtualShadowMapArrayCacheManager *VirtualShadowMapArrayCacheManager);
 	// 
@@ -188,13 +229,21 @@ public:
 		return GraphBuilder.CreateUniformBuffer(&CommonParameters);
 	}
 
+#if ENABLE_NON_NANITE_VSM
+	bool HasAnyShadowData() const { return PhysicalPagePoolRDG != nullptr || PhysicalPagePoolHw != nullptr;  }
+#else //!ENABLE_NON_NANITE_VSM
+	bool HasAnyShadowData() const { return PhysicalPagePoolRDG != nullptr;  }
+#endif // ENABLE_NON_NANITE_VSM
+
+	void GetPageTableParameters(FRDGBuilder& GraphBuilder, FVirtualShadowMapPageTableParameters& OutParameters);
+
 	TArray<FVirtualShadowMap*, SceneRenderingAllocator> ShadowMaps;
 
 	// Large physical texture of depth format, say 4096^2 or whatever we think is enough texels to go around
 	FRDGTextureRef PhysicalPagePoolRDG = nullptr;
 	// Buffer that serves as the page table for all virtual shadow maps
 	FRDGBufferRef PageTableRDG = nullptr;
-
+		
 	// Buffer that stores flags (uints) marking each page that needs to be rendered and cache status, for all virtual shadow maps.
 	// Flag values defined in PageAccessCommon.ush: VSM_ALLOCATED_FLAG | VSM_INVALID_FLAG
 	FRDGBufferRef PageFlagsRDG = nullptr;
@@ -218,11 +267,13 @@ public:
 
 	// Buffer that stores flags marking each page that received dynamic geo.
 	FRDGBufferRef DynamicCasterPageFlagsRDG = nullptr;
-
+	
 	// uint4 buffer with one rect for each mip level in all SMs, calculated to bound committed pages
 	// Used to clip the rect size of clusters during culling.
 	FRDGBufferRef PageRectBoundsRDG = nullptr;
-
+#if ENABLE_NON_NANITE_VSM
+	FRDGBufferRef AllocatedPageRectBoundsRDG = nullptr;
+#endif // ENABLE_NON_NANITE_VSM
 	FRDGBufferRef ShadowMapProjectionDataRDG = nullptr;
 
 	TRefCountPtr<IPooledRenderTarget>	HZBPhysical;
@@ -235,4 +286,9 @@ public:
 	//FRDGBufferRef RDG = nullptr;
 	TRefCountPtr<IPooledRenderTarget>	DebugVisualizationProjectionOutput;
 	//FRDGBufferRef RDG = nullptr;
+#if ENABLE_NON_NANITE_VSM
+	// page pool for HW rasterized shadow data. 
+	// Mirrors the regular one, but uses a shadow depth target format
+	FRDGTextureRef PhysicalPagePoolHw = nullptr;
+#endif // ENABLE_NON_NANITE_VSM
 };

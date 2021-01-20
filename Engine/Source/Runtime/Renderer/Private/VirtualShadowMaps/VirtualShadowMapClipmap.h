@@ -6,6 +6,7 @@ VirtualShadowMapClipmap.h
 
 #pragma once
 
+#include "VirtualShadowMapConfig.h"
 #include "CoreMinimal.h"
 #include "VirtualShadowMapProjection.h"
 
@@ -56,6 +57,7 @@ public:
 		return WorldOrigin;
 	}
 
+	float GetMaxRadius() const { return MaxRadius; }
 
 private:
 	const FLightSceneInfo& LightSceneInfo;
@@ -71,6 +73,7 @@ private:
 
 	int32 FirstLevel;
 	float ResolutionLodBias;
+	float MaxRadius;
 
 	struct FLevelData
 	{
