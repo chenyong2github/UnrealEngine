@@ -1942,6 +1942,12 @@ URigVMCollapseNode* URigVMController::CollapseNodes(const TArray<URigVMNode*>& I
 			continue;
 		}
 
+		if (Node->IsA<URigVMFunctionEntryNode>() ||
+			Node->IsA<URigVMFunctionReturnNode>())
+		{
+			continue;
+		}
+
 		Nodes.Add(Node);
 	}
 
