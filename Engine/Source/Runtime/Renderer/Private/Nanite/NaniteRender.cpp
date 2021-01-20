@@ -3719,6 +3719,10 @@ void EmitCubemapShadow(
 	);
 }
 
+BEGIN_SHADER_PARAMETER_STRUCT(FDummyDepthDecompressParameters, )
+	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float>, SceneDepth)
+END_SHADER_PARAMETER_STRUCT()
+
 void EmitDepthTargets(
 	FRDGBuilder& GraphBuilder,
 	const FScene& Scene,
@@ -3771,6 +3775,19 @@ void EmitDepthTargets(
 	if (UseComputeDepthExport())
 	{
 		// Emit depth, stencil, and velocity mask
+
+		{
+			// HACK: Dummy pass to force depth decompression. Depth export shader needs to be refactored to handle already-compressed surfaces.
+			FDummyDepthDecompressParameters* DummyParams = GraphBuilder.AllocParameters<FDummyDepthDecompressParameters>();
+			DummyParams->SceneDepth = SceneDepth;
+
+			GraphBuilder.AddPass(
+				RDG_EVENT_NAME("DummyDepthDecompress"),
+				DummyParams,
+				ERDGPassFlags::Copy | ERDGPassFlags::NeverCull,
+				[](FRHICommandList&) {}
+			);
+		}
 
 		// TODO: Don't currently support offset views.
 		checkf(View.ViewRect.Min.X == 0 && View.ViewRect.Min.Y == 0, TEXT("Viewport offset support is not implemented."));
