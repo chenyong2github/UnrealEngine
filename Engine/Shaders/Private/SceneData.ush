@@ -304,11 +304,26 @@ FSceneDataIntermediates GetSceneDataIntermediates(uint InstanceIdOffset, uint Dr
 	FSceneDataIntermediates Intermediates = (FSceneDataIntermediates)0;
 #if VF_USE_PRIMITIVE_SCENE_DATA
 	Intermediates.InstanceIdLoadIndex = InstanceIdOffset + DrawInstanceId;
-	// TODO: move InstanceIdsBuffer out of view and into some global Scene structure?
-	Intermediates.InstanceId = View.InstanceIdsBuffer[InstanceIdOffset + DrawInstanceId] & ((1U << 28U) - 1);
-	// We store the view index (which can be used for instanced stereo or other multi-view in the top four bits of the instance ID)
-	// Note: this is an index of views for this render pass, not the view ID in the culling manager.
-	Intermediates.ViewIndex = View.InstanceIdsBuffer[InstanceIdOffset + DrawInstanceId] >> 28U;
+	// GPUCULL_TODO: workaround for the fact that DrawDynamicMeshPassPrivate et al. don't work with GPU-Scene instancing
+	//				 instead they mark the top bit in the primitive ID and disable auto instancing such that there is an 1:1:1
+	//               drawcmd:primitive:instance. Then we can just look up the primitive and fetch the instance data index.
+	// We mark the PrimitiveID with the top bit in dynamic draw passes
+	if (InstanceIdOffset >= (1U << 31U))
+	{
+		// mask off the top bit
+		uint PrimitiveID = InstanceIdOffset & ((1U << 31U) - 1U);
+		Intermediates.InstanceId = GetPrimitiveData(PrimitiveID).InstanceDataOffset;
+		Intermediates.ViewIndex = 0;
+	}
+	else
+	{
+		// TODO: move InstanceIdsBuffer out of view and into some global Scene structure?
+		Intermediates.InstanceId = View.InstanceIdsBuffer[InstanceIdOffset + DrawInstanceId] & ((1U << 28U) - 1);
+		// We store the view index (which can be used for instanced stereo or other multi-view in the top four bits of the instance ID)
+		// Note: this is an index of views for this render pass, not the view ID in the culling manager.
+		Intermediates.ViewIndex = View.InstanceIdsBuffer[InstanceIdOffset + DrawInstanceId] >> 28U;
+	}
+
 	Intermediates.InstanceData = GetInstanceData(Intermediates.InstanceId, View.InstanceDataSOAStride);
 	Intermediates.PrimitiveId = Intermediates.InstanceData.PrimitiveId;
 	Intermediates.Primitive = GetPrimitiveData(Intermediates.PrimitiveId);

@@ -499,7 +499,12 @@ void BuildMeshDrawCommandPrimitiveIdBuffer(
 			for (uint32 InstanceFactorIndex = 0; InstanceFactorIndex < InstanceFactor; InstanceFactorIndex++, PrimitiveIdIndex++)
 			{
 				checkSlow(PrimitiveIdIndex < MaxPrimitiveId);
+			#if defined(GPUCULL_TODO)
+				// Append flag to mark this as a non-instance data index (which is then treated as a primitive ID in the SceneData.ush loading
+				PrimitiveIds[PrimitiveIdIndex] = VisibleMeshDrawCommand.DrawPrimitiveId | (1U << 31U);
+			#else
 				PrimitiveIds[PrimitiveIdIndex] = VisibleMeshDrawCommand.DrawPrimitiveId;
+			#endif
 			}
 		}
 	}
@@ -1068,7 +1073,14 @@ void SortAndMergeDynamicPassMeshDrawCommands(
 
 		if (bUseGPUScene)
 		{
+		#if defined(GPUCULL_TODO)
+			// GPUCULL_TODO: workaround for the fact that DrawDynamicMeshPassPrivate et al. don't work with GPU-Scene instancing
+			//               we don't support dynamic instancing for this path since we require one primitive per draw command
+			//               This is because the stride on the instance data buffer is set to 0 so only the first will ever be fetched.
+			const bool bDynamicInstancing = false;
+		#else
 			const bool bDynamicInstancing = IsDynamicInstancingEnabled(FeatureLevel);
+		#endif
 			if (bDynamicInstancing)
 			{
 				NewPassVisibleMeshDrawCommands.Empty(NumDrawCommands);
