@@ -447,7 +447,10 @@ void UMovieSceneCompiledDataManager::LoadCompiledData(UMovieSceneSequence* Seque
 
 void UMovieSceneCompiledDataManager::Reset(UMovieSceneSequence* Sequence)
 {
-	FMovieSceneCompiledDataID DataID = GetDataID(Sequence);
+	// Care is taken here not to use GetDataID which _creates_ a new data ID if
+	// one is not available. This ensures that calling Reset() does not create
+	// new data for sequences that have not yet been encountered
+	FMovieSceneCompiledDataID DataID = SequenceToDataIDs.FindRef(Sequence);
 	if (DataID.IsValid())
 	{
 		DestroyTemplate(DataID);
