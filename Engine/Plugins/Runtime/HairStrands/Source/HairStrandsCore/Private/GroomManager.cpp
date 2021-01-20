@@ -25,8 +25,16 @@ static FAutoConsoleVariableRef CVarHairStrands_UseCards(TEXT("r.HairStrands.UseC
 static int32 GHairStrands_SwapBufferEndOfFrame = 1;
 static FAutoConsoleVariableRef CVarGHairStrands_SwapBufferEndOfFrame(TEXT("r.HairStrands.SwapEndOfFrame"), GHairStrands_SwapBufferEndOfFrame, TEXT("Swap rendering buffer at the end of frame. This is an experimental toggle. Default:1"));
 
+static int32 GHairStrands_ManualSkinCache = 1;
+static FAutoConsoleVariableRef CVarGHairStrands_ManualSkinCache(TEXT("r.HairStrands.ManualSkinCache"), GHairStrands_ManualSkinCache, TEXT("If skin cache is not enabled, and grooms use skinning method, this enable a simple skin cache mechanisme for groom. Default:enable"));
+
 static int32 GHairStrands_InterpolationFrustumCullingEnable = 1;
 static FAutoConsoleVariableRef CVarHairStrands_InterpolationFrustumCullingEnable(TEXT("r.HairStrands.Interoplation.FrustumCulling"), GHairStrands_InterpolationFrustumCullingEnable, TEXT("Swap rendering buffer at the end of frame. This is an experimental toggle. Default:1"));
+
+bool IsHairStrandsSkinCacheEnable()
+{
+	return GHairStrands_ManualSkinCache > 0;
+}
 
 DEFINE_LOG_CATEGORY_STATIC(LogGroomManager, Log, All);
 
@@ -156,7 +164,7 @@ static void RunInternalHairStrandsInterpolation(
 				CachedGeometry = SkinCache->GetCachedGeometry(Instance->Debug.SkeletalComponent->ComponentId.PrimIDValue);
 			}
 
-			if (CachedGeometry.Sections.Num() == 0)
+			if (IsHairStrandsSkinCacheEnable() && CachedGeometry.Sections.Num() == 0)
 			{
 				//#hair_todo: Need to have a (frame) cache to insure that we don't recompute the same projection several time
 				// Actual populate the cache with only the needed part basd on the groom projection data. At the moment it recompute everything ...
