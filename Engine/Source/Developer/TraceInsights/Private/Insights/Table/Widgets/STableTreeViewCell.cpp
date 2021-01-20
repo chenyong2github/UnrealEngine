@@ -138,8 +138,8 @@ TSharedRef<SWidget> STableTreeViewCell::GenerateWidgetForTableColumn(const FArgu
 
 	return
 		SNew(SHorizontalBox)
+		.ToolTip(GetTooltip())
 
-		// Value
 		+ SHorizontalBox::Slot()
 		.FillWidth(1.0f)
 		.VAlign(VAlign_Center)
@@ -147,11 +147,17 @@ TSharedRef<SWidget> STableTreeViewCell::GenerateWidgetForTableColumn(const FArgu
 		.Padding(FMargin(2.0f, 0.0f))
 		[
 			TextBox
-		]
-	;
+		];
 }
 
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+TSharedPtr<IToolTip> STableTreeViewCell::GetTooltip() const
+{
+	return ColumnPtr->GetValueFormatter()->GetCustomTooltip(*ColumnPtr, *TableTreeNodePtr);
+}
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 

@@ -25,6 +25,7 @@ public:
 	uint64 GetSize() const { return Size; }
 	const TCHAR* GetTag() const { return Tag; }
 	const TraceServices::FCallstack* GetCallstack() const { return Callstack; }
+	FText GetFullCallstack() const;
 
 private:
 	double StartTime;

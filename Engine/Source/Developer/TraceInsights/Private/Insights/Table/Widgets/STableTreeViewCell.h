@@ -10,6 +10,7 @@
 #include "Insights/Table/ViewModels/TableTreeNode.h"
 
 class ITableRow;
+class IToolTip;
 
 namespace Insights
 {
@@ -137,6 +138,8 @@ protected:
 				FLinearColor(0.0f, 0.0f, 0.0f, 0.5f);
 		return ShadowColor;
 	}
+
+	TSharedPtr<IToolTip> GetTooltip() const;
 
 protected:
 	/** A shared pointer to the table view model. */
