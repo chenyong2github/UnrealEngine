@@ -31,7 +31,7 @@
 namespace
 {
 	/** Helper function to get the correct word size of an attribute in 4.26.1 */
-	uint8 GetNumChannelsOfAttribute(UDMXEntityFixturePatch* FixturePatch, const FName& AttributeName)
+	uint8 MatrixCellGetNumChannelsOfAttribute(UDMXEntityFixturePatch* FixturePatch, const FName& AttributeName)
 	{
 		if (UDMXEntityFixtureType* FixtureType = FixturePatch->ParentFixtureTypeTemplate)
 		{
@@ -266,7 +266,7 @@ void UDMXPixelMappingMatrixCellComponent::SendDMX()
 						{
 							if (MatrixComponent->AttributeRExpose)
 							{
-								const uint8 ByteOffset = GetNumChannelsOfAttribute(FixturePatch, MatrixComponent->AttributeR.Name) - 1;
+								const uint8 ByteOffset = MatrixCellGetNumChannelsOfAttribute(FixturePatch, MatrixComponent->AttributeR.Name) - 1;
 								const int32 ColorRValue = int32(Color.R) << (ByteOffset * 8);
 
 								DMXSubsystem->SetMatrixCellValue(FixturePatch, CellCoordinate, MatrixComponent->AttributeR, ColorRValue);
@@ -274,7 +274,7 @@ void UDMXPixelMappingMatrixCellComponent::SendDMX()
 
 							if (MatrixComponent->AttributeGExpose)
 							{
-								const uint8 ByteOffset = GetNumChannelsOfAttribute(FixturePatch, MatrixComponent->AttributeG.Name) - 1;
+								const uint8 ByteOffset = MatrixCellGetNumChannelsOfAttribute(FixturePatch, MatrixComponent->AttributeG.Name) - 1;
 								const int32 ColorGValue = int32(Color.G) << (ByteOffset * 8);
 
 								DMXSubsystem->SetMatrixCellValue(FixturePatch, CellCoordinate, MatrixComponent->AttributeG, ColorGValue);
@@ -282,7 +282,7 @@ void UDMXPixelMappingMatrixCellComponent::SendDMX()
 
 							if (MatrixComponent->AttributeBExpose)
 							{
-								const uint8 ByteOffset = GetNumChannelsOfAttribute(FixturePatch, MatrixComponent->AttributeB.Name) - 1;
+								const uint8 ByteOffset = MatrixCellGetNumChannelsOfAttribute(FixturePatch, MatrixComponent->AttributeB.Name) - 1;
 								const int32 ColorBValue = int32(Color.B) << (ByteOffset * 8);
 
 								DMXSubsystem->SetMatrixCellValue(FixturePatch, CellCoordinate, MatrixComponent->AttributeB, ColorBValue);
@@ -292,7 +292,7 @@ void UDMXPixelMappingMatrixCellComponent::SendDMX()
 						{
 							if (MatrixComponent->bMonochromeExpose)
 							{
-								const uint8 ByteOffset = GetNumChannelsOfAttribute(FixturePatch, MatrixComponent->MonochromeIntensity.Name) - 1;
+								const uint8 ByteOffset = MatrixCellGetNumChannelsOfAttribute(FixturePatch, MatrixComponent->MonochromeIntensity.Name) - 1;
 
 								// https://www.w3.org/TR/AERT/#color-contrast
 								int32 Intensity = int32(0.299 * Color.R + 0.587 * Color.G + 0.114 * Color.B) << (ByteOffset * 8);
