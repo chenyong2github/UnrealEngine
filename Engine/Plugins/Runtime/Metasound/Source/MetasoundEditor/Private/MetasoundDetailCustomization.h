@@ -5,6 +5,7 @@
 #include "UObject/NameTypes.h"
 
 // Forward Declarations
+class FPropertyRestriction;
 class IDetailLayoutBuilder;
 
 namespace Metasound

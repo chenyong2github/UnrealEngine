@@ -81,7 +81,15 @@ namespace Metasound
 				InNodeMetadata.Description,
 				InNodeMetadata.PromptIfMissing,
 				InNodeMetadata.Author,
-				InNodeMetadata.Keywords	
+				InNodeMetadata.Keywords,
+				InNodeMetadata.CategoryHierarchy,
+				FMetasoundFrontendClassDisplayInfo
+				{
+					InNodeMetadata.ImageName,
+					InNodeMetadata.bShowName,
+					InNodeMetadata.bShowInputNames,
+					InNodeMetadata.bShowOutputNames
+				},
 			};
 
 			int32 RunningPointID = 0;
@@ -240,6 +248,6 @@ REGISTER_METASOUND_DATATYPE(double, "Primitive:Double", ::Metasound::ELiteralTyp
 REGISTER_METASOUND_DATATYPE(FString, "Primitive:String", ::Metasound::ELiteralType::String)
 
 REGISTER_METASOUND_DATATYPE(Metasound::FAudioBuffer, "Audio:Buffer")
-REGISTER_METASOUND_DATATYPE(Metasound::FSendAddress, "Send:Address")
+REGISTER_METASOUND_DATATYPE(Metasound::FSendAddress, "Transmission:Address")
 
 IMPLEMENT_MODULE(FMetasoundFrontendModule, MetasoundFrontend);

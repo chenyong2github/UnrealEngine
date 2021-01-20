@@ -37,7 +37,7 @@ namespace Metasound
 
 		public:
 			using FQuantizationType = QuantizationType;
-			using FTimeTYpe = TimeType;
+			using FTimeType = TimeType;
 
 			/** Default constructor */
 			TTime()

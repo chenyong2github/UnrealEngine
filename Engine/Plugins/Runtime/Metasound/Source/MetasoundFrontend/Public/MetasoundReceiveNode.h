@@ -59,7 +59,7 @@ namespace Metasound
 				Info.Author = PluginAuthor;
 				Info.PromptIfMissing = PluginNodeMissingPrompt;
 				Info.DefaultInterface = DeclareVertexInterface();
-				Info.CategoryHierarchy = {LOCTEXT("Metasound_ReceiveNodeCategory", "Receive"), FText::AsCultureInvariant(GetMetasoundDataTypeString<TDataType>())};
+				Info.CategoryHierarchy = { LOCTEXT("Metasound_TransmissionNodeCategory", "Transmission") };
 				Info.Keywords = {TEXT("receive"), GetMetasoundDataTypeName<TDataType>()};
 
 				return Info;

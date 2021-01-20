@@ -52,11 +52,16 @@ public:
 	virtual void PostDuplicate(bool bDuplicateForPIE) override;
 	// End of UObject interface
 
+	virtual bool CanAddInputPin() const
+	{
+		return false;
+	}
+
 	UObject& GetMetasoundChecked();
 	const UObject& GetMetasoundChecked() const;
 
-	Metasound::Frontend::FGraphHandle GetRootGraphHandle();
-	Metasound::Frontend::FNodeHandle GetNodeHandle();
+	Metasound::Frontend::FGraphHandle GetRootGraphHandle() const;
+	Metasound::Frontend::FNodeHandle GetNodeHandle() const;
 
 	void SetNodeID(uint32 InNodeID);
 	uint32 GetNodeID() const;

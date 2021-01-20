@@ -7,17 +7,20 @@
 #include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
+#include "Framework/Notifications/NotificationManager.h"
 #include "IDetailGroup.h"
 #include "MetasoundAssetBase.h"
 #include "MetasoundFrontend.h"
 #include "MetasoundUObjectRegistry.h"
 #include "PropertyEditorDelegates.h"
 #include "PropertyHandle.h"
+#include "PropertyRestriction.h"
 #include "SlateCore/Public/Styling/SlateColor.h"
 #include "Templates/Casts.h"
 #include "Templates/SharedPointer.h"
 #include "UObject/WeakObjectPtr.h"
 #include "UObject/WeakObjectPtrTemplates.h"
+#include "Widgets/Notifications/SNotificationList.h"
 #include "Widgets/Text/STextBlock.h"
 
 
@@ -37,10 +40,12 @@ namespace Metasound
 			return FName(InBasePath.ToString() + TEXT(".") + InPropertyName.ToString());
 		}
 
-		template <typename T, typename MetadataType>
-		void BuildIOFixedArray(IDetailLayoutBuilder& InDetailLayout, FName CategoryName, FName InPropertyName, const TSet<FString>& RequiredValues, bool bIsInput)
+		template <typename T>
+		void BuildIOFixedArray(IDetailLayoutBuilder& InDetailLayout, FName InCategoryName, FName InPropertyName, const TSet<FString>& InRequiredValues)
 		{
-			IDetailCategoryBuilder& CategoryBuilder = InDetailLayout.EditCategory(CategoryName);
+			const bool bIsInput = InCategoryName == "Inputs";
+
+			IDetailCategoryBuilder& CategoryBuilder = InDetailLayout.EditCategory(InCategoryName);
 			TSharedPtr<IPropertyHandle> ParentProperty = InDetailLayout.GetProperty(InPropertyName);
 			TSharedPtr<IPropertyHandleArray> ArrayHandle = ParentProperty->AsArray();
 
@@ -51,9 +56,9 @@ namespace Metasound
 				TSharedRef<IPropertyHandle> ArrayItemHandle = ArrayHandle->GetElement(i);
 
 				const FName TypeNamePropertyName = GET_MEMBER_NAME_CHECKED(T, TypeName);
-				const FName NamePropertyName = GET_MEMBER_NAME_CHECKED(T, TypeName);
-				const FName ToolTipPropertyName = GET_MEMBER_NAME_CHECKED(MetadataType, Description);
-				const FName DisplayNamePropertyName = GET_MEMBER_NAME_CHECKED(MetadataType, DisplayName);
+				const FName NamePropertyName = GET_MEMBER_NAME_CHECKED(T, Name);
+				const FName ToolTipPropertyName = GET_MEMBER_NAME_CHECKED(FMetasoundFrontendVertexMetadata, Description);
+				const FName DisplayNamePropertyName = GET_MEMBER_NAME_CHECKED(FMetasoundFrontendVertexMetadata, DisplayName);
 
 				TSharedPtr<IPropertyHandle> TypeProperty = ArrayItemHandle->GetChildHandle(TypeNamePropertyName);
 				TSharedPtr<IPropertyHandle> NameProperty = ArrayItemHandle->GetChildHandle(NamePropertyName);
@@ -63,9 +68,53 @@ namespace Metasound
 
 				FString Name;
 				const bool bNameFound = NameProperty->GetValue(Name) == FPropertyAccess::Success;
-				const bool bIsRequired = bNameFound && RequiredValues.Contains(Name);
+				const bool bIsRequired = bNameFound && InRequiredValues.Contains(Name);
 
-				CategoryBuilder.AddCustomRow(ParentProperty->GetPropertyDisplayName()).NameContent()
+				FText DisplayName;
+				DisplayNameProperty->GetValue(DisplayName);
+				DisplayNameProperty->SetInstanceMetaData("LastValidName", DisplayName.ToString());
+
+				FSimpleDelegate NameChangeDelegate = FSimpleDelegate::CreateLambda([ChangedIndex = i, DisplayNameProperty, ArrayHandle, DisplayNamePropertyName]
+				{
+					FText MatchDisplayName;
+					if (DisplayNameProperty->GetValue(MatchDisplayName) != FPropertyAccess::Success)
+					{
+						return;
+					}
+
+					if (const FString* LastValidName = DisplayNameProperty->GetInstanceMetaData("LastValidName"))
+					{
+						uint32 NumElements = 0;
+						ArrayHandle->GetNumElements(NumElements);
+						for (int32 Elem = 0; Elem < static_cast<int32>(NumElements); ++Elem)
+						{
+							TSharedRef<IPropertyHandle> ElemHandle = ArrayHandle->GetElement(Elem);
+							TSharedPtr<IPropertyHandle> ElemNameProperty = ElemHandle->GetChildHandle(DisplayNamePropertyName, true /* bRecurse */);
+							FText ElemDisplayName;
+							if (ElemNameProperty->GetValue(ElemDisplayName) == FPropertyAccess::Success)
+							{
+								if (Elem != ChangedIndex && !ElemDisplayName.CompareTo(MatchDisplayName))
+								{
+									DisplayNameProperty->SetValue(FText::FromString(*LastValidName));
+									FNotificationInfo Info(LOCTEXT("MetasoundEditor_InvalidRename", "Rename failed: Input/output with name already exists."));
+									Info.bFireAndForget = true;
+									Info.ExpireDuration = 2.0f;
+									Info.bUseThrobber = true;
+									FSlateNotificationManager::Get().AddNotification(Info);
+									return;
+								}
+							}
+						}
+					}
+
+					DisplayNameProperty->SetInstanceMetaData("LastValidName", MatchDisplayName.ToString());
+				});
+
+				DisplayNameProperty->SetOnPropertyValueChanged(NameChangeDelegate);
+
+				CategoryBuilder.AddCustomRow(ParentProperty->GetPropertyDisplayName())
+				.EditCondition(!bIsRequired, nullptr)
+				.NameContent()
 				[
 					SNew(STextBlock)
 					.Font(IDetailLayoutBuilder::GetDetailFontBold())
@@ -83,11 +132,11 @@ namespace Metasound
 
 						if (bIsRequired)
 						{
-							return FText::Format(LOCTEXT("Metasound_FixedIOArrayRequiredEntry_Format", "{0}. {1} ({2}, Required)"), FText::AsNumber(i + 1), DisplayName, FText::FromString(TypeNameString));
+							return FText::Format(LOCTEXT("MetasoundEditor_FixedIOArrayRequiredEntry_Format", "{0}. {1} ({2}, Required)"), FText::AsNumber(i + 1), DisplayName, FText::FromString(TypeNameString));
 						}
 						else
 						{
-							return FText::Format(LOCTEXT("Metasound_FixedIOArray_Format", "{0}. {1} ({2})"), FText::AsNumber(i + 1), DisplayName, FText::FromString(TypeNameString));
+							return FText::Format(LOCTEXT("MetasoundEditor_FixedIOArray_Format", "{0}. {1} ({2})"), FText::AsNumber(i + 1), DisplayName, FText::FromString(TypeNameString));
 						}
 					}))
 					.ToolTipText(TAttribute<FText>::Create([ToolTipProperty]()
@@ -202,8 +251,8 @@ namespace Metasound
 			const FName InputsPropertyPath = BuildChildPath(InterfacePropertyPath, GET_MEMBER_NAME_CHECKED(FMetasoundFrontendClassInterface, Inputs));
 			const FName OutputsPropertyPath = BuildChildPath(InterfacePropertyPath, GET_MEMBER_NAME_CHECKED(FMetasoundFrontendClassInterface, Outputs));
 
-			BuildIOFixedArray<FMetasoundFrontendClassInput, FMetasoundFrontendVertexMetadata>(DetailLayout, "Inputs", InputsPropertyPath, RequiredInputs, true /* bIsInput */);
-			BuildIOFixedArray<FMetasoundFrontendClassOutput, FMetasoundFrontendVertexMetadata>(DetailLayout, "Outputs", OutputsPropertyPath, RequiredOutputs, false /* bIsInput */);
+			BuildIOFixedArray<FMetasoundFrontendClassInput>(DetailLayout, "Inputs", InputsPropertyPath, RequiredInputs);
+			BuildIOFixedArray<FMetasoundFrontendClassOutput>(DetailLayout, "Outputs", OutputsPropertyPath, RequiredOutputs);
 
 			// Hack to hide parent structs for nested metadata properties
 			DetailLayout.HideCategory("CustomView");
@@ -213,6 +262,7 @@ namespace Metasound
 			DetailLayout.HideCategory("Attenuation");
 			DetailLayout.HideCategory("Curves");
 			DetailLayout.HideCategory("Debug");
+			DetailLayout.HideCategory("Developer");
 			DetailLayout.HideCategory("Effects");
 			DetailLayout.HideCategory("File Path");
 			DetailLayout.HideCategory("Format");

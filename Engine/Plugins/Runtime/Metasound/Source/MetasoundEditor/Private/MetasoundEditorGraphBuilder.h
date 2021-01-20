@@ -22,10 +22,15 @@ namespace Metasound
 		class FGraphBuilder
 		{
 		public:
+			// Custom pin-related styles (ex. wire color, pin heads, etc.)
+			static const FName PinAudioFormat;				// Audio formats (ex. Buffers, Mono, Stereo)
+			static const FName PinAudioNumeric;				// Audio numeric types (ex. Frequency, Time)
 			static const FName PinPrimitiveBoolean;
 			static const FName PinPrimitiveFloat;
-			static const FName PinPrimitiveInteger;
+			static const FName PinPrimitiveInt32;
+			static const FName PinPrimitiveInt64;
 			static const FName PinPrimitiveString;
+			static const FName PinPrimitiveTrigger;
 			static const FName PinPrimitiveUObject;
 			static const FName PinPrimitiveUObjectArray;
 

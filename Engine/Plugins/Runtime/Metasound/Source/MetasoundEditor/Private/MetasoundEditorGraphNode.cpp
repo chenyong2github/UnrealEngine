@@ -50,13 +50,19 @@ void UMetasoundEditorGraphNode::PostLoad()
 
 void UMetasoundEditorGraphNode::CreateInputPin()
 {
+	// TODO: Implement for nodes supporting variadic inputs
+	if (ensure(false))
+	{
+		return;
+	}
+
 	FString PinName; // get from UMetasound
 	UEdGraphPin* NewPin = CreatePin(EGPD_Input, TEXT("MetasoundEditorGraphNode"), *PinName);
 	if (NewPin->PinName.IsNone())
 	{
-		// Makes sure pin has a name for lookup purposes but user will never see it
-		NewPin->PinName = CreateUniquePinName(TEXT("Input"));
-		NewPin->PinFriendlyName = FText::FromString(TEXT(" "));
+		// Pin must have a name for lookup purposes but is not user-facing
+// 		NewPin->PinName = 
+// 		NewPin->PinFriendlyName =
 	}
 }
 
@@ -86,15 +92,16 @@ const UObject& UMetasoundEditorGraphNode::GetMetasoundChecked() const
 	return EdGraph->GetMetasoundChecked();
 }
 
-Metasound::Frontend::FGraphHandle UMetasoundEditorGraphNode::GetRootGraphHandle()
+Metasound::Frontend::FGraphHandle UMetasoundEditorGraphNode::GetRootGraphHandle() const
 {
-	FMetasoundAssetBase* MetasoundAsset = Metasound::IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(&GetMetasoundChecked());
+	const FMetasoundAssetBase* ConstMetasoundAsset = Metasound::IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(&GetMetasoundChecked());
+	FMetasoundAssetBase* MetasoundAsset = const_cast<FMetasoundAssetBase*>(ConstMetasoundAsset);
 	check(MetasoundAsset);
 
 	return MetasoundAsset->GetRootGraphHandle();
 }
 
-Metasound::Frontend::FNodeHandle UMetasoundEditorGraphNode::GetNodeHandle()
+Metasound::Frontend::FNodeHandle UMetasoundEditorGraphNode::GetNodeHandle() const
 {
 	return GetRootGraphHandle()->GetNodeWithID(NodeID);
 }
@@ -179,8 +186,7 @@ bool UMetasoundEditorGraphNode::CanUserDeleteNode() const
 	Metasound::Frontend::FDocumentHandle DocumentHandle = MetasoundAsset->GetDocumentHandle();
 	Metasound::Frontend::FNodeHandle NodeHandle = DocumentHandle->GetRootGraph()->GetNodeWithID(NodeID);
 
-	const FString& NodeName = NodeHandle->GetNodeName();
-
+	const FString& NodeName = GetNodeHandle()->GetNodeName();
 	if (DocumentHandle->IsRequiredInput(NodeName))
 	{
 		return false;
@@ -213,15 +219,7 @@ FText UMetasoundEditorGraphNode::GetNodeTitle(ENodeTitleType::Type TitleType) co
 {
 	using namespace Metasound::Frontend;
 
-	const FMetasoundAssetBase* ConstMetasoundAsset = Metasound::IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(&GetMetasoundChecked());
-
-	// TODO: create FConstGraphHandle so that this const cast is unnecessary.
-	FMetasoundAssetBase* MetasoundAsset = const_cast<FMetasoundAssetBase*>(ConstMetasoundAsset);
-	check(MetasoundAsset);
-
-	FGraphHandle GraphHandle = MetasoundAsset->GetRootGraphHandle();
-	FConstNodeHandle NodeHandle = GraphHandle->GetNodeWithID(NodeID);
-
+	FConstNodeHandle NodeHandle = GetNodeHandle();
 	switch (NodeHandle->GetClassType())
 	{
 		case EMetasoundFrontendClassType::Input:
@@ -325,17 +323,7 @@ void UMetasoundEditorGraphNode::GetNodeContextMenuActions(UToolMenu* Menu, UGrap
 
 FText UMetasoundEditorGraphNode::GetTooltipText() const
 {
-	using namespace Metasound::Frontend;
-
-	using namespace Metasound::Frontend;
-
-	const FMetasoundAssetBase* ConstMetasoundAsset = Metasound::IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(&GetMetasoundChecked());
-
-	// TODO: create FConstGraphHandle so that this const cast is unnecessary.
-	FMetasoundAssetBase* MetasoundAsset = const_cast<FMetasoundAssetBase*>(ConstMetasoundAsset);
-	check(MetasoundAsset);
-	
-	return MetasoundAsset->GetRootGraphHandle()->GetNodeWithID(NodeID)->GetClassDescription();
+	return GetRootGraphHandle()->GetNodeWithID(NodeID)->GetClassDescription();
 }
 
 FString UMetasoundEditorGraphNode::GetDocumentationExcerptName() const

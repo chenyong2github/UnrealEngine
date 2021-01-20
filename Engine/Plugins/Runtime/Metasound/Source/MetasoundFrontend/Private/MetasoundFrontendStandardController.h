@@ -295,6 +295,7 @@ namespace Metasound
 			int32 GetClassID() const override;
 			FMetasoundFrontendVersionNumber GetClassVersionNumber() const override;
 			const FText& GetClassDescription() const override;
+			FMetasoundFrontendClassDisplayInfo GetClassDisplayInfo() const override;
 
 			const FString& GetNodeName() const override;
 			EMetasoundFrontendClassType GetClassType() const override;

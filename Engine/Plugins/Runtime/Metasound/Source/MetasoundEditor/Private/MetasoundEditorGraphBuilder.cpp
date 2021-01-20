@@ -25,12 +25,16 @@ namespace Metasound
 {
 	namespace Editor
 	{
-		const FName FGraphBuilder::PinPrimitiveBoolean = TEXT("Boolean");
-		const FName FGraphBuilder::PinPrimitiveFloat = TEXT("Float");
-		const FName FGraphBuilder::PinPrimitiveInteger = TEXT("Int");
-		const FName FGraphBuilder::PinPrimitiveString = TEXT("String");
-		const FName FGraphBuilder::PinPrimitiveUObject = TEXT("UObject");
-		const FName FGraphBuilder::PinPrimitiveUObjectArray = TEXT("UObjectArray");
+		const FName FGraphBuilder::PinAudioFormat = "Format";
+		const FName FGraphBuilder::PinAudioNumeric = "Numeric";
+		const FName FGraphBuilder::PinPrimitiveBoolean = "Boolean";
+		const FName FGraphBuilder::PinPrimitiveFloat = "Float";
+		const FName FGraphBuilder::PinPrimitiveInt32 = "Int32";
+		const FName FGraphBuilder::PinPrimitiveInt64 = "Int64";
+		const FName FGraphBuilder::PinPrimitiveString = "String";
+		const FName FGraphBuilder::PinPrimitiveTrigger = "Trigger";
+		const FName FGraphBuilder::PinPrimitiveUObject = "UObject";
+		const FName FGraphBuilder::PinPrimitiveUObjectArray = "UObjectArray";
 
 		UEdGraphNode* FGraphBuilder::AddNode(UObject& InMetasound, const FVector2D& Location, Frontend::FNodeHandle& InNodeHandle, bool bInSelectNewNode)
 		{

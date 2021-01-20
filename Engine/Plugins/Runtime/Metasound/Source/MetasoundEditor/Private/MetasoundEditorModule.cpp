@@ -16,6 +16,7 @@
 #include "MetasoundDetailCustomization.h"
 #include "MetasoundLiteralDescriptionDetailCustomization.h"
 #include "MetasoundEditorGraphBuilder.h"
+#include "MetasoundEditorGraphNodeFactory.h"
 #include "MetasoundEditorGraphSchema.h"
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
@@ -54,7 +55,7 @@ namespace Metasound
 			{
 				SetParentStyleName(FEditorStyle::GetStyleSetName());
 
-				SetContentRoot(FPaths::EngineContentDir() / TEXT("Editor/Slate"));
+				SetContentRoot(FPaths::EnginePluginsDir() / TEXT("Runtime/Metasound/Content/Editor/Slate"));
 				SetCoreContentRoot(FPaths::EngineContentDir() / TEXT("Slate"));
 
 				static const FVector2D Icon20x20(20.0f, 20.0f);
@@ -62,20 +63,37 @@ namespace Metasound
 
 				// Metasound Editor
 				{
-					Set("MetasoundEditor.Play", new FSlateImageBrush(RootToContentDir(TEXT("Icons/icon_SCueEd_PlayCue_40x.png")), Icon40x40));
-					Set("MetasoundEditor.Play.Small", new FSlateImageBrush(RootToContentDir(TEXT("Icons/icon_SCueEd_PlayCue_40x.png")), Icon20x20));
-					Set("MetasoundEditor.Stop", new FSlateImageBrush(RootToContentDir(TEXT("Icons/icon_SCueEd_Stop_40x.png")), Icon40x40));
-					Set("MetasoundEditor.Stop.Small", new FSlateImageBrush(RootToContentDir(TEXT("Icons/icon_SCueEd_Stop_40x.png")), Icon20x20));
-					Set("MetasoundEditor.Import", new FSlateImageBrush(RootToContentDir(TEXT("/Old/Kismet2/compile_40px.png")), Icon40x40));
-					Set("MetasoundEditor.Import.Small", new FSlateImageBrush(RootToContentDir(TEXT("/Old/Kismet2/compile_40px.png")), Icon20x20));
-					Set("MetasoundEditor.Export", new FSlateImageBrush(RootToContentDir(TEXT("/Old/Kismet2/compile_40px.png")), Icon40x40));
-					Set("MetasoundEditor.Export.Small", new FSlateImageBrush(RootToContentDir(TEXT("/Old/Kismet2/compile_40px.png")), Icon20x20));
-					Set("MetasoundEditor.ExportError", new FSlateImageBrush(RootToContentDir(TEXT("/Old/Kismet2/CompileStatus_Fail.png")), Icon40x40));
-					Set("MetasoundEditor.ExportError.Small", new FSlateImageBrush(RootToContentDir(TEXT("/Old/Kismet2/CompileStatus_Broken_Small.png")), Icon20x20));
+					// Actions
+					Set("MetasoundEditor.Play", new FSlateImageBrush(RootToContentDir(TEXT("Icons/play_40x.png")), Icon40x40));
+					Set("MetasoundEditor.Play.Small", new FSlateImageBrush(RootToContentDir(TEXT("Icons/play_40x.png")), Icon20x20));
+					Set("MetasoundEditor.Stop", new FSlateImageBrush(RootToContentDir(TEXT("Icons/stop_40x.png")), Icon40x40));
+					Set("MetasoundEditor.Stop.Small", new FSlateImageBrush(RootToContentDir(TEXT("Icons/stop_40x.png")), Icon20x20));
+					Set("MetasoundEditor.Import", new FSlateImageBrush(RootToContentDir(TEXT("/Icons/build_40x.png")), Icon40x40));
+					Set("MetasoundEditor.Import.Small", new FSlateImageBrush(RootToContentDir(TEXT("/Icons/build_40x.png")), Icon20x20));
+					Set("MetasoundEditor.Export", new FSlateImageBrush(RootToContentDir(TEXT("/Icons/build_40x.png")), Icon40x40));
+					Set("MetasoundEditor.Export.Small", new FSlateImageBrush(RootToContentDir(TEXT("/Icons/build_40x.png")), Icon20x20));
+					Set("MetasoundEditor.ExportError", new FSlateImageBrush(RootToContentDir(TEXT("/Icons/build_error_40x.png")), Icon40x40));
+					Set("MetasoundEditor.ExportError.Small", new FSlateImageBrush(RootToContentDir(TEXT("/Icons/build_error_40x.png")), Icon20x20));
+
+					// Graph Editor
+					Set("MetasoundEditor.Graph.Node.Body.Input", new FSlateImageBrush(RootToContentDir(TEXT("/Graph/node_input_body_64x.png")), FVector2D(114.0f, 64.0f)));
+					Set("MetasoundEditor.Graph.Node.Body.Default", new FSlateImageBrush(RootToContentDir(TEXT("/Graph/node_default_body_64x.png")), FVector2D(64.0f, 64.0f)));
+					Set("MetasoundEditor.Graph.Node.Math.Add", new FSlateImageBrush(RootToContentDir(TEXT("/Graph/node_math_add_40x.png")), Icon40x40));
+					Set("MetasoundEditor.Graph.Node.Math.Divide", new FSlateImageBrush(RootToContentDir(TEXT("/Graph/node_math_divide_40x.png")), Icon40x40));
+					Set("MetasoundEditor.Graph.Node.Math.Multiply", new FSlateImageBrush(RootToContentDir(TEXT("/Graph/node_math_multiply_40x.png")), FVector2D(32.0f, 32.0f)));
+					Set("MetasoundEditor.Graph.Node.Math.RandRange", new FSlateImageBrush(RootToContentDir(TEXT("/Graph/node_math_random_40x.png")), FVector2D(26.0f, 40.0f)));
+					Set("MetasoundEditor.Graph.Node.Math.Subtract", new FSlateImageBrush(RootToContentDir(TEXT("/Graph/node_math_subtract_40x.png")), Icon40x40));
+
+					// Misc
+					Set("MetasoundEditor.Speaker", new FSlateImageBrush(RootToContentDir(TEXT("/Icons/speaker_144x.png")), FVector2D(144.0f, 144.0f)));
 				}
 
 				FSlateStyleRegistry::RegisterSlateStyle(*this);
 			}
+		};
+
+		class FMetasoundGraphPanelPinFactory : public FGraphPanelPinFactory
+		{
 		};
 
 		class FModule : public IMetasoundEditorModule
@@ -106,53 +124,94 @@ namespace Metasound
 					FDataTypeRegistryInfo RegistryInfo;
 					Frontend::GetTraitsForDataType(DataTypeName, RegistryInfo);
 
-					FName PinType = NAME_None;
-					switch (RegistryInfo.PreferredLiteralType)
+					FName PinType = DataTypeName;
+
+					// Special Flowers
+
+					// Execution path triggers are specialized
+					if (DataTypeName == "Primitive:Trigger")
 					{
-						case ELiteralType::Boolean:
-						{
-							PinType = FGraphBuilder::PinPrimitiveBoolean;
-						}
-						break;
+						PinType = FGraphBuilder::PinPrimitiveTrigger;
+					}
 
-						case ELiteralType::Float:
-						{
-							PinType = FGraphBuilder::PinPrimitiveFloat;
-						}
-						break;
+					// GraphEditor by default designates specialized connection
+					// specification for Int64, so use it
+					else if (DataTypeName == "Primitive:Int64")
+					{
+						PinType = FGraphBuilder::PinPrimitiveInt64;
+					}
 
-						case ELiteralType::Integer:
-						{
-							PinType = FGraphBuilder::PinPrimitiveInteger;
-						}
-						break;
+					// Differentiate stronger numeric types associated with audio
+					else if (DataTypeName == "Primitive:Frequency"
+						|| DataTypeName == "Primitive:Time"
+						|| DataTypeName == "Primitive:Time:HighResolution"
+						|| DataTypeName == "Primitive:Time:SampleResolution"
+						)
+					{
+						PinType = FGraphBuilder::PinAudioNumeric;
+					}
 
-						case ELiteralType::String:
-						{
-							PinType = FGraphBuilder::PinPrimitiveString;
-						}
-						break;
+					// Audio types are ubiquitous, so specialize
+					else if (DataTypeName == "Audio:Buffer"
+						|| DataTypeName == "Audio:Unformatted"
+						|| DataTypeName == "Audio:Mono"
+						|| DataTypeName == "Audio:Stereo"
+						|| DataTypeName == "Audio:Multichannel"
+						)
+					{
+						PinType = FGraphBuilder::PinAudioFormat;
+					}
 
-						case ELiteralType::UObjectProxy:
+					// Primitives
+					else
+					{
+						switch (RegistryInfo.PreferredLiteralType)
 						{
-							PinType = FGraphBuilder::PinPrimitiveUObject;
-						}
-						break;
+							case ELiteralType::Boolean:
+							{
+								PinType = FGraphBuilder::PinPrimitiveBoolean;
+							}
+							break;
 
-						case ELiteralType::UObjectProxyArray:
-						{
-							PinType = FGraphBuilder::PinPrimitiveUObjectArray;
-						}
-						break;
+							case ELiteralType::Float:
+							{
+								PinType = FGraphBuilder::PinPrimitiveFloat;
+							}
+							break;
 
-						// Register atypical primitives
-						default:
-						case ELiteralType::None:
-						case ELiteralType::Invalid:
-						{
-							static_assert(static_cast<int32>(ELiteralType::Invalid) == 7, "Possible missing binding of pin category to primitive type");
+							case ELiteralType::Integer:
+							{
+								PinType = FGraphBuilder::PinPrimitiveInt32;
+							}
+							break;
+
+							case ELiteralType::String:
+							{
+								PinType = FGraphBuilder::PinPrimitiveString;
+							}
+							break;
+
+							case ELiteralType::UObjectProxy:
+							{
+								PinType = FGraphBuilder::PinPrimitiveUObject;
+							}
+							break;
+
+							case ELiteralType::UObjectProxyArray:
+							{
+								PinType = FGraphBuilder::PinPrimitiveUObjectArray;
+							}
+							break;
+
+							// Register atypical primitives
+							default:
+							case ELiteralType::None:
+							case ELiteralType::Invalid:
+							{
+								static_assert(static_cast<int32>(ELiteralType::Invalid) == 7, "Possible missing binding of pin category to primitive type");
+							}
+							break;
 						}
-						break;
 					}
 
 					DataTypeInfo.Add(DataTypeName, FEditorDataType(PinType, RegistryInfo));
@@ -186,6 +245,12 @@ namespace Metasound
 
 				GraphConnectionFactory = MakeShared<FGraphConnectionDrawingPolicyFactory>();
 				FEdGraphUtilities::RegisterVisualPinConnectionFactory(GraphConnectionFactory);
+
+				GraphNodeFactory = MakeShared<FMetasoundGraphNodeFactory>();
+				FEdGraphUtilities::RegisterVisualNodeFactory(GraphNodeFactory);
+
+				GraphPanelPinFactory = MakeShared<FMetasoundGraphPanelPinFactory>();
+				FEdGraphUtilities::RegisterVisualPinFactory(GraphPanelPinFactory);
 			}
 
 			virtual void ShutdownModule() override
@@ -204,6 +269,18 @@ namespace Metasound
 					FEdGraphUtilities::UnregisterVisualPinConnectionFactory(GraphConnectionFactory);
 				}
 
+				if (GraphNodeFactory.IsValid())
+				{
+					FEdGraphUtilities::UnregisterVisualNodeFactory(GraphNodeFactory);
+					GraphNodeFactory.Reset();
+				}
+
+				if (GraphPanelPinFactory.IsValid())
+				{
+					FEdGraphUtilities::UnregisterVisualPinFactory(GraphPanelPinFactory);
+					GraphPanelPinFactory.Reset();
+				}
+
 				AssetActions.Reset();
 				DataTypeInfo.Reset();
 			}
@@ -211,7 +288,9 @@ namespace Metasound
 			TArray<TSharedPtr<FAssetTypeActions_Base>> AssetActions;
 			TMap<FName, FEditorDataType> DataTypeInfo;
 
+			TSharedPtr<FMetasoundGraphNodeFactory> GraphNodeFactory;
 			TSharedPtr<FGraphPanelPinConnectionFactory> GraphConnectionFactory;
+			TSharedPtr<FMetasoundGraphPanelPinFactory> GraphPanelPinFactory;
 			TSharedPtr<FSlateStyleSet> StyleSet;
 		};
 	} // namespace Editor

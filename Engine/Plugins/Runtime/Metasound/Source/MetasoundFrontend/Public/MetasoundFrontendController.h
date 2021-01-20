@@ -275,6 +275,7 @@ namespace Metasound
 			virtual const FString& GetClassName() const = 0;
 			virtual FMetasoundFrontendVersionNumber GetClassVersionNumber() const = 0;
 			virtual const FText& GetClassDescription() const = 0;
+			virtual FMetasoundFrontendClassDisplayInfo GetClassDisplayInfo() const = 0;
 
 			/** If the node is also a graph, this returns a graph handle.
 			 * If the node is not also a graph, it will return an invalid handle.

@@ -61,7 +61,7 @@ namespace Metasound
 				Info.PromptIfMissing = PluginNodeMissingPrompt;
 				Info.DefaultInterface = DeclareVertexInterface();
 
-				Info.CategoryHierarchy = {LOCTEXT("Metasound_ConvertNodeCategory", "Convert"), FText::AsCultureInvariant(GetMetasoundDataTypeString<FromDataType>())};
+				Info.CategoryHierarchy = { LOCTEXT("Metasound_ConvertNodeCategory", "Conversions") };
 				Info.Keywords = {TEXT("convert"), GetMetasoundDataTypeName<FromDataType>(), GetMetasoundDataTypeName<ToDataType>()};
 
 				return Info;

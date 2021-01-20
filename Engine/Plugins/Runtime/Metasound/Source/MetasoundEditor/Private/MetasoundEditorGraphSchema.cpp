@@ -50,6 +50,11 @@ namespace Metasound
 			const UGraphEditorSettings* Settings = GetDefault<UGraphEditorSettings>();
 			check(Settings);
 
+			if (PinType.PinCategory == FGraphBuilder::PinPrimitiveTrigger)
+			{
+				return Settings->ExecutionPinTypeColor;
+			}
+
 			if (PinType.PinCategory == FGraphBuilder::PinPrimitiveBoolean)
 			{
 				return Settings->BooleanPinTypeColor;
@@ -60,14 +65,34 @@ namespace Metasound
 				return Settings->FloatPinTypeColor;
 			}
 
-			if (PinType.PinCategory == FGraphBuilder::PinPrimitiveInteger)
+			if (PinType.PinCategory == FGraphBuilder::PinPrimitiveInt32)
 			{
 				return Settings->IntPinTypeColor;
+			}
+
+			if (PinType.PinCategory == FGraphBuilder::PinPrimitiveInt64)
+			{
+				return Settings->Int64PinTypeColor;
 			}
 
 			if (PinType.PinCategory == FGraphBuilder::PinPrimitiveString)
 			{
 				return Settings->StringPinTypeColor;
+			}
+
+			if (PinType.PinCategory == FGraphBuilder::PinPrimitiveUObject)
+			{
+				return Settings->ClassPinTypeColor;
+			}
+
+			if (PinType.PinCategory == FGraphBuilder::PinAudioNumeric)
+			{
+				return Settings->SoftObjectPinTypeColor;
+			}
+
+			if (PinType.PinCategory == FGraphBuilder::PinAudioFormat)
+			{
+				return Settings->SoftClassPinTypeColor;
 			}
 
 			return Settings->StructPinTypeColor;
@@ -131,7 +156,18 @@ namespace Metasound
 
 			if (!bExecuted)
 			{
-				OutParams.WireThickness = InactiveWireThickness;
+				if (InputPin->PinType.PinCategory == FGraphBuilder::PinPrimitiveTrigger)
+				{
+					OutParams.WireThickness = Settings->DefaultExecutionWireThickness;
+				}
+				else if (InputPin->PinType.PinCategory == FGraphBuilder::PinAudioFormat)
+				{
+					OutParams.bDrawBubbles = true;
+				}
+				else
+				{
+					OutParams.WireThickness = InactiveWireThickness;
+				}
 			}
 		}
 	} // namespace Editor
@@ -571,16 +607,17 @@ void UMetasoundEditorGraphSchema::GetAllMetasoundActions(FGraphActionMenuBuilder
 	using namespace Metasound::Editor;
 	using namespace Metasound::Frontend;
 
-	const FText InputMenuName = LOCTEXT("MetasoundAddInputMenu", "Add Input");
-	const FText OutputMenuName = LOCTEXT("MetasoundAddOutputMenu", "Add Output");
+	const FText InputMenuName = LOCTEXT("MetasoundActionsInputsMenu", "Inputs");
+	const FText OutputMenuName = LOCTEXT("MetasoundActionsOutputsMenu", "Outputs");
+
+	const FText MenuJoinFormat = LOCTEXT("MetasoundActionsFormatSubCategory", "{0}|{1}");
 
 	IMetasoundEditorModule& EditorModule = FModuleManager::GetModuleChecked<IMetasoundEditorModule>("MetasoundEditor");
-	EditorModule.IterateDataTypes([InputMenuName, OutputMenuName, InMenuBuilder = &ActionMenuBuilder](const FEditorDataType& DataType)
+	EditorModule.IterateDataTypes([MenuJoinFormat, InputMenuName, OutputMenuName, InMenuBuilder = &ActionMenuBuilder](const FEditorDataType& DataType)
 	{
 		const FName DataTypeName = DataType.RegistryInfo.DataTypeName;
-		const FText DataTypeDisplayName = FText::FromString(FGraphBuilder::GetDataTypeDisplayName(DataTypeName));
+		const FText DataTypeDisplayName = FText::FromString(FGraphBuilder::GetDataTypeDisplayName(DataTypeName).Replace(TEXT("Primitive:"), TEXT("")));
 		const FText DataTypeTextName = FText::FromName(DataTypeName);
-		const FText MenuJoinFormat = LOCTEXT("MetasoundFormatNodeSubCategory", "{0}|{1}");
 
 		const TArray<FString> Categories = FGraphBuilder::GetDataTypeNameCategories(DataTypeName);
 		const FText CategoriesText = FText::FromString(FString::Join(Categories, TEXT("|")));
@@ -607,7 +644,9 @@ void UMetasoundEditorGraphSchema::GetAllMetasoundActions(FGraphActionMenuBuilder
 		InMenuBuilder->AddAction(AddOutputNodeAction);
 	});
 
-	const FText NodeMenuName = LOCTEXT("MetasoundNodesMenu", "Add Node");
+	const FText NodeMenuName = LOCTEXT("MetasoundAddFunctionsMenu", "Functions");
+	const FText ConvertMenuName = LOCTEXT("MetasoundConverionsMenu", "Conversions");
+
 	const TArray<FNodeClassInfo> ClassInfos = GetAllAvailableNodeClasses();
 	for (const FNodeClassInfo& ClassInfo : ClassInfos)
 	{
@@ -617,10 +656,23 @@ void UMetasoundEditorGraphSchema::GetAllMetasoundActions(FGraphActionMenuBuilder
 			? Metadata.Description
 			: FText::Format(LOCTEXT("MetasoundTooltipAuthorFormat", "{0}\nAuthor: {1}"), Metadata.Description, Metadata.Author);
 
+		const FString DisplayName = ClassInfo.NodeName.Replace(TEXT("Primitive:"), TEXT(""));
+
+		const FText* MenuName = &NodeMenuName;
+		FText CategoriesText = FText::GetEmpty();
+		if (!Metadata.CategoryHierarchy.IsEmpty() && !Metadata.CategoryHierarchy[0].CompareTo(ConvertMenuName))
+		{
+			MenuName = &ConvertMenuName;
+		}
+		else
+		{
+			CategoriesText = FText::Join(LOCTEXT("MetasoundActionsCategoryDelim", "|"), Metadata.CategoryHierarchy);
+		}
+
 		TSharedPtr<FMetasoundGraphSchemaAction_NewNode> NewNodeAction = MakeShared<FMetasoundGraphSchemaAction_NewNode>
 		(
-			NodeMenuName,
-			FText::FromString(ClassInfo.NodeName),
+			FText::Format(MenuJoinFormat, *MenuName, CategoriesText),
+			FText::FromString(DisplayName),
 			Tooltip,
 			0
 		);

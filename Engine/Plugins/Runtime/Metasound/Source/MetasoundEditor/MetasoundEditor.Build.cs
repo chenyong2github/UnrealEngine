@@ -17,6 +17,7 @@ namespace UnrealBuildTool.Rules
 				{
 					"AudioExtensions",
 					"AudioMixer",
+					"KismetWidgets",
 					"MetasoundEngine",
 					"MetasoundFrontend",
 					"MetasoundGraphCore",

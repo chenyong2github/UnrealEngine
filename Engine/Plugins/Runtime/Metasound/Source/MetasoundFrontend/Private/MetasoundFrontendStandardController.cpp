@@ -915,6 +915,16 @@ namespace Metasound
 			return FMetasoundFrontendVersionNumber();
 		}
 
+		FMetasoundFrontendClassDisplayInfo FBaseNodeController::GetClassDisplayInfo() const
+		{
+			if (ClassPtr.IsValid())
+			{
+				return ClassPtr->Metadata.DisplayInfo;
+			}
+
+			return FMetasoundFrontendClassDisplayInfo();
+		}
+
 		const FText& FBaseNodeController::GetClassDescription() const
 		{
 			if (ClassPtr.IsValid())

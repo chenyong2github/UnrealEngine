@@ -70,6 +70,14 @@ namespace Metasound
 		/** Hierarchy of categories for displaying node. */
 		TArray<FText> CategoryHierarchy;
 
+		FName ImageName;
+
+		bool bShowName = true;
+
+		bool bShowInputNames = true;
+
+		bool bShowOutputNames = true;
+
 		/** List of keywords for contextual node searching. */
 		TArray<FName> Keywords;
 

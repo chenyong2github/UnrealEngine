@@ -257,7 +257,6 @@ struct FMetasoundFrontendStyleEdge
 	EMetasoundFrontendStyleEdgeDisplay Display;
 };
 
-
 // Styling for a class of edges dependent upon edge data type.
 USTRUCT()
 struct FMetasoundFrontendStyleEdgeClass
@@ -394,6 +393,25 @@ struct METASOUNDFRONTEND_API FMetasoundFrontendClassVertex : public FMetasoundFr
 	FMetasoundFrontendVertexBehavior Behavior;
 
 	static bool IsFunctionalEquivalent(const FMetasoundFrontendClassVertex& InLHS, const FMetasoundFrontendClassVertex& InRHS);
+};
+
+// Information regarding how to display a node class
+USTRUCT()
+struct METASOUNDFRONTEND_API FMetasoundFrontendClassDisplayInfo
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	FName ImageName;
+
+	UPROPERTY()
+	bool bShowName = true;
+
+	UPROPERTY()
+	bool bShowInputName = true;
+
+	UPROPERTY()
+	bool bShowOutputName = true;
 };
 
 // Contains info for input vertex of a Metasound class.
@@ -562,6 +580,12 @@ struct FMetasoundFrontendClassMetadata
 
 	UPROPERTY()
 	TArray<FName> Keywords;
+
+	UPROPERTY()
+	TArray<FText> CategoryHierarchy;
+
+	UPROPERTY()
+	FMetasoundFrontendClassDisplayInfo DisplayInfo;
 };
 
 UENUM()

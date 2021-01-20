@@ -26,8 +26,9 @@
 		: public ::Metasound::TMathOpNode<F##OpName##DataTypeName##Node, ::Metasound::TMathOp##OpName<DataClass>, DataClass> \
 	{ \
 	public: \
-		static FName GetClassName() { return #OpName #DataTypeName; } \
+		static FName GetClassName() { return #OpName " " #DataTypeName; } \
 		static FText GetDescription() { return Description; } \
+		static FName GetImageName() { return "MetasoundEditor.Graph.Node.Math." #OpName; } \
 		F##OpName##DataTypeName##Node(const FNodeInitData& InInitData) : TMathOpNode(InInitData) { } \
 	};
 
@@ -74,10 +75,10 @@ namespace Metasound
 					Info.Author = PluginAuthor;
 					Info.PromptIfMissing = PluginNodeMissingPrompt;
 					Info.DefaultInterface = DeclareVertexInterface();
-					//Info.ImageName = TEXT("MetasoundEditor.Speaker");
-					//Info.bShowName = false;
-					//Info.bShowInputNames = false;
-					//Info.bShowOutputNames = false;
+					Info.ImageName = TDerivedClass::GetImageName();
+					Info.bShowName = false;
+					Info.bShowInputNames = false;
+					Info.bShowOutputNames = false;
 					Info.CategoryHierarchy = { LOCTEXT("Metasound_MathCategory", "Math") };
 
 					return Info;
