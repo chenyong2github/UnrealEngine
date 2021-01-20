@@ -3,8 +3,8 @@
 
 UControlRigPoseMirrorSettings::UControlRigPoseMirrorSettings()
 {
-	RightSide = TEXT("Right");
-	LeftSide = TEXT("Left");
+	RightSide = TEXT("_r_");
+	LeftSide = TEXT("_l_");
 	MirrorAxis = EAxis::X;
 	AxisToFlip = EAxis::Z;
 }
