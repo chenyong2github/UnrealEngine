@@ -27,9 +27,9 @@ private:
 
 public:
 	//--------------------------------------------------------------------------
-	FInstancedPropertyPath(FProperty* RootProperty)
+	FInstancedPropertyPath(FProperty* RootProperty, int32 ArrayIndex = INDEX_NONE)
 	{
-		PropertyChain.Add(FPropertyLink(RootProperty));
+		Push(RootProperty, ArrayIndex);
 	}
 
 	//--------------------------------------------------------------------------
@@ -104,8 +104,12 @@ public:
 		const UClass* ContainerClass = Container->GetClass();
 		for (FProperty* Prop = ContainerClass->RefLink; Prop; Prop = Prop->NextRef)
 		{
-			FInstancedPropertyPath RootPropertyPath(Prop);
-			GetInstancedSubObjects_Inner(RootPropertyPath, reinterpret_cast<const uint8*>(Container), [&OutObjects](const FInstancedSubObjRef& Ref){ OutObjects.Add(Ref); });
+			for (int32 ArrayIdx = 0; ArrayIdx < Prop->ArrayDim; ++ArrayIdx)
+			{
+				FInstancedPropertyPath RootPropertyPath(Prop, ArrayIdx);
+				const uint8* ValuePtr = Prop->ContainerPtrToValuePtr<uint8>(Container, ArrayIdx);
+				GetInstancedSubObjects_Inner(RootPropertyPath, ValuePtr, [&OutObjects](const FInstancedSubObjRef& Ref) { OutObjects.Add(Ref); });
+			}
 		}
 	}
 
