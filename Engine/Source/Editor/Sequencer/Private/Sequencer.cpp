@@ -12128,6 +12128,41 @@ void FSequencer::TrimSection(bool bTrimLeft)
 }
 
 
+void FSequencer::TrimOrExtendSection(bool bTrimOrExtendLeft)
+{
+	FScopedTransaction TrimOrExtendSectionTransaction( NSLOCTEXT("Sequencer", "TrimOrExtendSection_Transaction", "Trim or Extend Section") );
+
+	if (Selection.GetSelectedTracks().Num() > 0)
+	{
+		for (UMovieSceneTrack* Track : Selection.GetSelectedTracks())
+		{
+			MovieSceneToolHelpers::TrimOrExtendSection(Track, GetLocalTime(), bTrimOrExtendLeft, Settings->GetDeleteKeysWhenTrimming());
+		}
+	}
+	else
+	{
+		UMovieSceneSequence* FocusedMovieSceneSequence = GetFocusedMovieSceneSequence();
+		UMovieScene* MovieScene = FocusedMovieSceneSequence ? FocusedMovieSceneSequence->GetMovieScene() : nullptr;
+		if (MovieScene)
+		{
+			for (UMovieSceneTrack* Track : MovieScene->GetMasterTracks())
+			{
+				MovieSceneToolHelpers::TrimOrExtendSection(Track, GetLocalTime(), bTrimOrExtendLeft, Settings->GetDeleteKeysWhenTrimming());
+			}
+			for (const FMovieSceneBinding& Binding : MovieScene->GetBindings())
+			{
+				for (UMovieSceneTrack* Track : Binding.GetTracks())
+				{
+					MovieSceneToolHelpers::TrimOrExtendSection(Track, GetLocalTime(), bTrimOrExtendLeft, Settings->GetDeleteKeysWhenTrimming());
+				}
+			}
+		}
+	}
+
+	NotifyMovieSceneDataChanged( EMovieSceneDataChangeType::TrackValueChanged );
+}
+
+
 void FSequencer::SplitSection()
 {
 	FScopedTransaction SplitSectionTransaction( NSLOCTEXT("Sequencer", "SplitSection_Transaction", "Split Section") );
@@ -12222,6 +12257,14 @@ void FSequencer::BindCommands()
 	SequencerCommandBindings->MapAction(
 		Commands.TrimSectionRight,
 		FExecuteAction::CreateSP( this, &FSequencer::TrimSection, false ) );
+
+	SequencerCommandBindings->MapAction(
+		Commands.TrimOrExtendSectionLeft,
+		FExecuteAction::CreateSP( this, &FSequencer::TrimOrExtendSection, true ) );
+
+	SequencerCommandBindings->MapAction(
+		Commands.TrimOrExtendSectionRight,
+		FExecuteAction::CreateSP( this, &FSequencer::TrimOrExtendSection, false ) );
 
 	SequencerCommandBindings->MapAction(
 		Commands.SplitSection,

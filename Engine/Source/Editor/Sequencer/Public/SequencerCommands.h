@@ -187,6 +187,12 @@ public:
 	/** Trim section to the right, keeping the left portion */
 	TSharedPtr< FUICommandInfo > TrimSectionRight;
 
+	/** Trim or extend closest sections to the left for the selected tracks (or all tracks if none selected) to the current time */
+	TSharedPtr< FUICommandInfo > TrimOrExtendSectionLeft;
+
+	/** Trim or extend closest sections to the right for the selected tracks (or all tracks if none selected) to the current time */
+	TSharedPtr< FUICommandInfo > TrimOrExtendSectionRight;
+
 	/** Translate the selected keys and section to the left */
 	TSharedPtr< FUICommandInfo > TranslateLeft;
 

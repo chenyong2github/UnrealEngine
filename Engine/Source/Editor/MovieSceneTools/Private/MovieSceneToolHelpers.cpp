@@ -128,6 +128,83 @@ void MovieSceneToolHelpers::TrimSection(const TSet<TWeakObjectPtr<UMovieSceneSec
 }
 
 
+void MovieSceneToolHelpers::TrimOrExtendSection(UMovieSceneTrack* Track, FQualifiedFrameTime Time, bool bTrimOrExtendLeft, bool bDeleteKeys)
+{
+	for (int32 RowIndex = 0; RowIndex <= Track->GetMaxRowIndex(); ++RowIndex)
+	{
+		// First, trim all intersecting sections
+		bool bAnyIntersects = false;
+		for (UMovieSceneSection* Section : Track->GetAllSections())
+		{
+			if (Section->GetRowIndex() == RowIndex && Section->HasStartFrame() && Section->HasEndFrame() && Section->GetRange().Contains(Time.Time.GetFrame()))
+			{
+				Section->TrimSection(Time, bTrimOrExtendLeft, bDeleteKeys);
+				bAnyIntersects = true;
+			}
+		}
+
+		// If there aren't any intersects, extend the closest start/end
+		if (!bAnyIntersects)
+		{
+			UMovieSceneSection* ClosestSection = nullptr;
+			TOptional<FFrameNumber> MinDiff;
+
+			for (UMovieSceneSection* Section : Track->GetAllSections())
+			{
+				if (Section->GetRowIndex() == RowIndex)
+				{
+					if (bTrimOrExtendLeft)
+					{
+						if (Section->HasStartFrame())
+						{
+							FFrameNumber StartFrame = Section->GetInclusiveStartFrame();
+							if (StartFrame > Time.Time.GetFrame())
+							{
+								FFrameNumber Diff = StartFrame - Time.Time.GetFrame();
+								if (!MinDiff.IsSet() || Diff < MinDiff.GetValue())
+								{
+									ClosestSection = Section;
+									MinDiff = Diff;
+								}
+							}
+						}
+					}
+					else
+					{
+						if (Section->HasEndFrame())
+						{
+							FFrameNumber EndFrame = Section->GetExclusiveEndFrame();
+							if (EndFrame < Time.Time.GetFrame())
+							{
+								FFrameNumber Diff = Time.Time.GetFrame() - EndFrame;
+								if (!MinDiff.IsSet() || Diff < MinDiff.GetValue())
+								{
+									ClosestSection = Section;
+									MinDiff = Diff;
+								}
+							}
+						}
+					}
+				}
+			}
+
+			if (ClosestSection)
+			{
+				ClosestSection->Modify();
+				if (bTrimOrExtendLeft)
+				{
+					ClosestSection->SetStartFrame(Time.Time.GetFrame());
+				}
+				else
+				{
+					ClosestSection->SetEndFrame(Time.Time.GetFrame());
+				}
+			}
+		}
+	}
+}
+
+
 void MovieSceneToolHelpers::SplitSection(const TSet<TWeakObjectPtr<UMovieSceneSection>>& Sections, FQualifiedFrameTime Time, bool bDeleteKeys)
 {
 	for (auto Section : Sections)

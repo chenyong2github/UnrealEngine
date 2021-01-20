@@ -1021,6 +1021,9 @@ protected:
 	/** Trim a section to the left or right */
 	void TrimSection(bool bTrimLeft);
 
+	/** Trim or extend section to the current time */
+	void TrimOrExtendSection(bool bTrimOrExtendLeft);
+
 	/** Split a section */
 	void SplitSection();
 

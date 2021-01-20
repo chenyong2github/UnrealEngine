@@ -71,6 +71,8 @@ void FSequencerCommands::RegisterCommands()
 
 	UI_COMMAND( TrimSectionLeft, "Trim Section Left", "Trim section at current time to the left (keeps the right)", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Control, EKeys::Comma) );
 	UI_COMMAND( TrimSectionRight, "Trim Section Right", "Trim section at current time to the right (keeps the left)", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Control, EKeys::Period) );
+	UI_COMMAND( TrimOrExtendSectionLeft, "Trim or Extend Section Left", "Trim or extend closest sections to the left for the selected tracks (or all tracks if none selected) to the current time", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Alt, EKeys::LeftBracket) );
+	UI_COMMAND( TrimOrExtendSectionRight, "Trim or Extend Section Right", "Trim or extend closest sections to the right for the selected tracks (or all tracks if none selected) to the current time", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Alt, EKeys::RightBracket) );
 	UI_COMMAND( SplitSection, "Split Section", "Split section at current time", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Control, EKeys::Slash) );
 
 	UI_COMMAND( TranslateLeft, "Translate Left", "Translate selected keys and sections to the left", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Control, EKeys::Left) );
