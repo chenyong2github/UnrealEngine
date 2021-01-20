@@ -839,18 +839,22 @@ void SDetailsViewBase::Tick( const FGeometry& AllottedGeometry, const double InC
 		}
 	}
 
-	if (DeferredActions.Num() > 0)
-	{
-		// Execute any deferred actions
-		for (const FSimpleDelegate& DeferredAction : DeferredActions)
-		{
-			DeferredAction.ExecuteIfBound();
-		}
-		DeferredActions.Empty();
-	}
-
 	if (bHadDeferredActions)
 	{
+		TArray<FSimpleDelegate> DeferredActionsCopy;
+
+		do
+		{
+			DeferredActionsCopy = MoveTemp(DeferredActions);
+			DeferredActions.Reset();
+
+			// Execute any deferred actions
+			for (const FSimpleDelegate& DeferredAction : DeferredActionsCopy)
+			{
+				DeferredAction.ExecuteIfBound();
+			}
+		} while (DeferredActions.Num() > 0);
+
 		for (TSharedPtr<FComplexPropertyNode>& RootPropertyNode : RootPropertyNodes)
 		{
 			check(RootPropertyNode.IsValid());
