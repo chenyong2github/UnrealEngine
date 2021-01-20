@@ -901,7 +901,7 @@ void FFractureEditorModeToolkit::GetFractureContexts(TArray<FFractureContext>& F
 				SelectedBones.Reserve(SelectedBonesOriginal.Num());
 				for (int32 BoneIndex : SelectedBonesOriginal)
 				{
-					if (Children[BoneIndex].Num() == 0)
+					if (BoneIndex < Children.Num() && Children[BoneIndex].Num() == 0)
 					{
 						SelectedBones.Add(BoneIndex);
 					}

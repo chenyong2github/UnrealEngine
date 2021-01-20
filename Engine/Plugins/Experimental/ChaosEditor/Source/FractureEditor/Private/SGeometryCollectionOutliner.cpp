@@ -248,6 +248,10 @@ FGeometryCollectionTreeItemPtr FGeometryCollectionTreeItemComponent::GetItemFrom
 
 void FGeometryCollectionTreeItemComponent::GetChildrenForBone(FGeometryCollectionTreeItemBone& BoneItem, FGeometryCollectionTreeItemList& OutChildren) const
 {
+	if (!Component.IsValid())
+	{
+		return;
+	}
 	if(const UGeometryCollection* RestCollection = Component->GetRestCollection())
 	{
 		if (FGeometryCollection* Collection = RestCollection->GetGeometryCollection().Get())
@@ -272,6 +276,10 @@ void FGeometryCollectionTreeItemComponent::GetChildrenForBone(FGeometryCollectio
 
 FText FGeometryCollectionTreeItemComponent::GetDisplayNameForBone(const FGuid& Guid) const
 {
+	if (!Component.IsValid())
+	{
+		return LOCTEXT("BoneNotFound", "Bone Not Found, Invalid Geometry Collection");
+	}
 	if (const UGeometryCollection* RestCollection = Component->GetRestCollection())
 	{
 		if (FGeometryCollection* Collection = RestCollection->GetGeometryCollection().Get())
@@ -306,7 +314,7 @@ void FGeometryCollectionTreeItemComponent::ExpandAll(TSharedPtr<STreeView<FGeome
 
 void FGeometryCollectionTreeItemComponent::RegenerateChildren()
 {
-	if(Component->GetRestCollection())
+	if(Component.IsValid() && Component->GetRestCollection())
 	{
 		//@todo Fracture:  This is potentially very expensive to refresh with giant trees
 		FGeometryCollection* Collection = Component->GetRestCollection()->GetGeometryCollection().Get();
