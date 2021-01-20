@@ -16,6 +16,7 @@
 #include "DynamicMeshBuilder.h"
 #include "ShaderPrintParameters.h"
 #include "LumenScreenProbeGather.h"
+#include "DistanceFieldAtlas.h"
 
 int32 GVisualizeLumenSceneGridPixelSize = 32;
 FAutoConsoleVariableRef CVarVisualizeLumenSceneGridPixelSize(
@@ -553,6 +554,8 @@ void FDeferredShadingSceneRenderer::LumenScenePDIVisualization()
 		UE_LOG(LogRenderer, Log, TEXT("  Texels left to capture: %.3fM"), LumenSceneData.NumTexelsLeftToCapture / (1024.0f * 1024.0f));
 		UE_LOG(LogRenderer, Log, TEXT("  Cards allocated memory: %.3fMb"), LumenSceneData.Cards.GetAllocatedSize() / (1024.0f * 1024.0f));
 		UE_LOG(LogRenderer, Log, TEXT("  MeshCards allocated memory: %.3fMb"), LumenSceneData.MeshCards.GetAllocatedSize() / (1024.0f * 1024.0f));
+
+		GDistanceFieldVolumeTextureAtlas.ListMeshDistanceFields();
 
 		GLumenSceneDumpStats = 0;
 	}
