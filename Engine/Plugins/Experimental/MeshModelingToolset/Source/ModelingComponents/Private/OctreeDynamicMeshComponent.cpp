@@ -432,9 +432,11 @@ void UOctreeDynamicMeshComponent::ApplyChange(const FMeshReplacementChange* Chan
 	Mesh->Copy(*Change->GetMesh(bRevert));
 	Octree = MakeUnique<FDynamicMeshOctree3>();
 	Octree->Initialize(GetMesh());
+	
 	OctreeCut = MakeUnique<FDynamicMeshOctree3::FTreeCutSet>();
 
-	//NotifyMeshUpdated();
+	// need to force proxy recreation because we changed the Octree pointer...
+	MarkRenderStateDirty();
 
 	OnMeshChanged.Broadcast();
 }

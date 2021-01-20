@@ -57,9 +57,12 @@ public:
 	 */
 	void InsertTriangle(int32 TriangleID)
 	{
-		FAxisAlignedBox3d Bounds = Mesh->GetTriBounds(TriangleID);
-		ModifiedBounds.Contain(Bounds);
-		InsertObject(TriangleID, Bounds);
+		if (Mesh->IsTriangle(TriangleID))
+		{
+			FAxisAlignedBox3d Bounds = Mesh->GetTriBounds(TriangleID);
+			ModifiedBounds.Contain(Bounds);
+			InsertObject(TriangleID, Bounds);
+		}
 	}
 
 	/**
@@ -70,9 +73,12 @@ public:
 		int N = Triangles.Num();
 		for (int i = 0; i < N; ++i)
 		{
-			FAxisAlignedBox3d Bounds = Mesh->GetTriBounds(Triangles[i]);
-			ModifiedBounds.Contain(Bounds);
-			InsertObject(Triangles[i], Bounds);
+			if (Mesh->IsTriangle(Triangles[i]))
+			{
+				FAxisAlignedBox3d Bounds = Mesh->GetTriBounds(Triangles[i]);
+				ModifiedBounds.Contain(Bounds);
+				InsertObject(Triangles[i], Bounds);
+			}
 		}
 	}
 
@@ -83,9 +89,12 @@ public:
 	{
 		for (int TriangleID : Triangles)
 		{
-			FAxisAlignedBox3d Bounds = Mesh->GetTriBounds(TriangleID);
-			ModifiedBounds.Contain(Bounds);
-			InsertObject(TriangleID, Bounds);
+			if (Mesh->IsTriangle(TriangleID))
+			{
+				FAxisAlignedBox3d Bounds = Mesh->GetTriBounds(TriangleID);
+				ModifiedBounds.Contain(Bounds);
+				InsertObject(TriangleID, Bounds);
+			}
 		}
 	}
 
@@ -95,9 +104,12 @@ public:
 	 */
 	bool RemoveTriangle(int32 TriangleID)
 	{
-		FAxisAlignedBox3d Bounds = Mesh->GetTriBounds(TriangleID);
-		ModifiedBounds.Contain(Bounds);
-		return RemoveObject(TriangleID);
+		if (Mesh->IsTriangle(TriangleID))
+		{
+			FAxisAlignedBox3d Bounds = Mesh->GetTriBounds(TriangleID);
+			ModifiedBounds.Contain(Bounds);
+		}
+		return RemoveObject(TriangleID);		// will ignore if we do not contain this triangle
 	}
 
 	/**
@@ -108,9 +120,12 @@ public:
 		int N = Triangles.Num();
 		for ( int i = 0; i < N; ++i )
 		{
-			FAxisAlignedBox3d Bounds = Mesh->GetTriBounds(Triangles[i]);
-			ModifiedBounds.Contain(Bounds);
-			RemoveObject(Triangles[i]);
+			if (Mesh->IsTriangle(Triangles[i]))
+			{
+				FAxisAlignedBox3d Bounds = Mesh->GetTriBounds(Triangles[i]);
+				ModifiedBounds.Contain(Bounds);
+			}
+			RemoveObject(Triangles[i]);		// will ignore if we do not contain this triangle
 		}
 	}
 
@@ -121,9 +136,12 @@ public:
 	{
 		for (int TriangleID : Triangles)
 		{
-			FAxisAlignedBox3d Bounds = Mesh->GetTriBounds(TriangleID);
-			ModifiedBounds.Contain(Bounds);
-			RemoveObject(TriangleID);
+			if (Mesh->IsTriangle(TriangleID))
+			{
+				FAxisAlignedBox3d Bounds = Mesh->GetTriBounds(TriangleID);
+				ModifiedBounds.Contain(Bounds);
+			}
+			RemoveObject(TriangleID);		// will ignore if we do not contain this triangle
 		}
 	}
 
@@ -135,9 +153,16 @@ public:
 	{
 		for (int TriangleID : Triangles)
 		{
-			FAxisAlignedBox3d Bounds = Mesh->GetTriBounds(TriangleID);
-			ModifiedBounds.Contain(Bounds);
-			ReinsertObject(TriangleID, Bounds);
+			if (Mesh->IsTriangle(TriangleID))
+			{
+				FAxisAlignedBox3d Bounds = Mesh->GetTriBounds(TriangleID);
+				ModifiedBounds.Contain(Bounds);
+				ReinsertObject(TriangleID, Bounds);
+			}
+			else
+			{
+				RemoveObject(TriangleID);		// can only remove, will ignore if we do not contain this triangle
+			}
 		}
 	}
 
@@ -147,8 +172,11 @@ public:
 	 */
 	void NotifyPendingModification(int TriangleID)
 	{
-		FAxisAlignedBox3d Bounds = Mesh->GetTriBounds(TriangleID);
-		ModifiedBounds.Contain(Bounds);
+		if (Mesh->IsTriangle(TriangleID))
+		{
+			FAxisAlignedBox3d Bounds = Mesh->GetTriBounds(TriangleID);
+			ModifiedBounds.Contain(Bounds);
+		}
 	}
 
 	/**
@@ -158,8 +186,11 @@ public:
 	{
 		for (int TriangleID : Triangles)
 		{
-			FAxisAlignedBox3d Bounds = Mesh->GetTriBounds(TriangleID);
-			ModifiedBounds.Contain(Bounds);
+			if (Mesh->IsTriangle(TriangleID))
+			{
+				FAxisAlignedBox3d Bounds = Mesh->GetTriBounds(TriangleID);
+				ModifiedBounds.Contain(Bounds);
+			}
 		}
 	}
 

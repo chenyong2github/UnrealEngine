@@ -215,6 +215,20 @@ public:
 	}
 
 
+
+	/**
+	 * Extract final triangle ROI. After calling this function, the ROI will be cleared, and must be re-initialized.
+	 * This can be used to avoid having to copy the TSet.
+	 * @return set of triangles that contains edge ROI (note: may also contain additional triangles)
+	 */
+	TSet<int>&& ExtractFinalTriangleROI()
+	{
+		return MoveTemp(TriangleROI);
+		EdgeROI.Reset();
+		VertexROI.Reset();
+	}
+
+
 	//
 	// specialization of Remesher functionality
 	// 

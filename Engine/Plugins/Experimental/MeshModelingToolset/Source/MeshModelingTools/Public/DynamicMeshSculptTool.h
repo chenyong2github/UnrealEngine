@@ -19,6 +19,7 @@
 #include "Properties/RemeshProperties.h"
 #include "TransformTypes.h"
 #include "Sculpting/MeshSculptToolBase.h"
+#include "Async/Async.h"
 #include "DynamicMeshSculptTool.generated.h"
 
 class UTransformGizmo;
@@ -163,6 +164,21 @@ public:
 };
 
 
+UCLASS()
+class MESHMODELINGTOOLS_API UDynamicSculptToolActions : public UInteractiveToolPropertySet
+{
+	GENERATED_BODY()
+public:
+	TWeakObjectPtr<UDynamicMeshSculptTool> ParentTool;
+
+	void Initialize(UDynamicMeshSculptTool* ParentToolIn) { ParentTool = ParentToolIn; }
+
+	UFUNCTION(CallInEditor, Category = MeshEdits)
+	void DiscardAttributes();
+};
+
+
+
 
 UCLASS()
 class MESHMODELINGTOOLS_API UBrushRemeshProperties : public URemeshProperties
@@ -248,6 +264,7 @@ public:
 	virtual void SetEnableRemeshing(bool bEnable) { bEnableRemeshing = bEnable; }
 	virtual bool GetEnableRemeshing() const { return bEnableRemeshing; }
 
+	virtual void DiscardAttributes();
 
 	virtual void OnPropertyModified(UObject* PropertySet, FProperty* Property) override;
 
@@ -275,6 +292,9 @@ public:
 
 	UPROPERTY()
 	UMeshEditingViewProperties* ViewProperties;
+
+	UPROPERTY()
+	UDynamicSculptToolActions* SculptToolActions;
 
 public:
 	virtual void IncreaseBrushRadiusAction();
@@ -359,7 +379,9 @@ private:
 
 	bool bRemeshPending;
 	bool bNormalUpdatePending;
+	
 	bool bTargetDirty;
+	TFuture<void> PendingTargetUpdate;
 
 	bool bSmoothing;
 	bool bInvert;
@@ -417,12 +439,14 @@ private:
 	TArray<int> TrianglesBuffer;
 	TArray<int> NormalsBuffer;
 	TArray<bool> NormalsVertexFlags;
-	void RecalculateNormals_PerVertex();
-	void RecalculateNormals_Overlay();
+	void RecalculateNormals_PerVertex(const TSet<int32>& Triangles);
+	void RecalculateNormals_Overlay(const TSet<int32>& Triangles);
 
 	bool bHaveMeshBoundaries;
 	bool bHaveUVSeams;
 	bool bHaveNormalSeams;
+	TSet<int32> RemeshRemovedTriangles;
+	TSet<int32> RemeshFinalTriangleROI;
 	void PrecomputeRemeshInfo();
 	void RemeshROIPass();
 
