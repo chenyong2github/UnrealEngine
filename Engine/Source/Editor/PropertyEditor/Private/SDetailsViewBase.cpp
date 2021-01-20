@@ -527,8 +527,8 @@ void SDetailsViewBase::RequestItemExpanded(TSharedRef<FDetailTreeNode> TreeNode,
 	// Don't change expansion state if its already in that state
 	if (DetailTree->IsItemExpanded(TreeNode) != bExpand)
 	{
-	FilteredNodesRequestingExpansionState.Add(TreeNode, bExpand);
-}
+		FilteredNodesRequestingExpansionState.Add(TreeNode, bExpand);
+	}
 }
 
 void SDetailsViewBase::RefreshTree()
@@ -854,10 +854,7 @@ void SDetailsViewBase::Tick( const FGeometry& AllottedGeometry, const double InC
 				DeferredAction.ExecuteIfBound();
 			}
 		} while (DeferredActions.Num() > 0);
-	}
 
-	if (bHadDeferredActions)
-	{
 		for (TSharedPtr<FComplexPropertyNode>& RootPropertyNode : RootPropertyNodes)
 		{
 			check(RootPropertyNode.IsValid());
