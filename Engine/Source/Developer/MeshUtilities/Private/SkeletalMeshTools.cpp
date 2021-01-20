@@ -7,6 +7,13 @@
 #include "RawIndexBuffer.h"
 #include "Rendering/SkeletalMeshModel.h"
 
+int32 GUseSkeletalMeshExperimentalChunking = 0;
+static FAutoConsoleVariableRef CVarUseSkeletalMeshExperimentalChunking(
+	TEXT("SkeletalMesh.UseExperimentalChunking"),
+	GUseSkeletalMeshExperimentalChunking,
+	TEXT("Whether skeletal mesh will use a experimental chunking algorithm when building LODModel.")
+);
+
 namespace SkeletalMeshTools
 {
 	bool AreSkelMeshVerticesEqual( const FSoftSkinBuildVertex& V1, const FSoftSkinBuildVertex& V2, const FOverlappingThresholds& OverlappingThresholds)
@@ -271,7 +278,7 @@ namespace SkeletalMeshTools
 		//Fill FaceIndexToPatchIndex so every triangle knows its unique island patch index.
 		//Each island patch have is fill with connected vertexinstance where position, NTBs. UVs and colors are nearly equal.
 		//@Param bConnectByEdge: If true we need at least 2 vertex index (one edge) to connect 2 triangles. If false we just need one vertex index (bowtie)
-		void FillPolygonPatch(const TArray<uint32>& Indices, const TArray<FSoftSkinBuildVertex>& Vertices, const TMap<uint32, TArray<FBoneIndexType>>& AlternateBoneIDs, TArray<FPatchAndBoneInfluence>& PatchData, TArray<TArray<uint32>>& PatchIndexToIndices, const int32 MaxBonesPerChunk, const bool bConnectByEdge)
+		void FillPolygonPatch(const TArray<uint32>& Indices, const TArray<FSoftSkinBuildVertex>& Vertices, const TMap<uint32, TArray<FBoneIndexType>>& AlternateBoneIDs, TArray<FPatchAndBoneInfluence>& PatchData, TArray<TArray<uint32>>& PatchIndexToIndices, TMap<int32, TArray<FBoneIndexType>>& BonesPerFace, const int32 MaxBonesPerChunk, const bool bConnectByEdge)
 		{
 			const int32 NumIndice = Indices.Num();
 			const int32 NumFace = NumIndice / 3;
@@ -280,15 +287,36 @@ namespace SkeletalMeshTools
 			//Store a map containing connected faces for each vertex index
 			TMap<int32, TArray<int32>> VertexIndexToAdjacentFaces;
 			VertexIndexToAdjacentFaces.Reserve(Vertices.Num());
+			//Store a map to retrieve bones use per face
+			BonesPerFace.Reserve(NumFace);
 			for (int32 FaceIndex = 0; FaceIndex < NumFace; ++FaceIndex)
 			{
 				const int32 IndiceOffset = FaceIndex * 3;
+				TArray<FBoneIndexType>& FaceInfluenceBones = BonesPerFace.FindOrAdd(FaceIndex);
 				for (int32 Corner = 0; Corner < 3; Corner++)
 				{
-					checkSlow(Indices.IsValidIndex(IndiceOffset + Corner));
-					int32 VertexIndex = Indices[IndiceOffset + Corner];
+					const int32 IndiceIndex = IndiceOffset + Corner;
+					checkSlow(Indices.IsValidIndex(IndiceIndex));
+					int32 VertexIndex = Indices[IndiceIndex];
 					TArray<int32>& AdjacentFaces = VertexIndexToAdjacentFaces.FindOrAdd(VertexIndex);
 					AdjacentFaces.AddUnique(FaceIndex);
+					const FSoftSkinBuildVertex& SoftSkinVertex = Vertices[VertexIndex];
+					for (int32 BoneIndex = 0; BoneIndex < MAX_TOTAL_INFLUENCES; ++BoneIndex)
+					{
+						if (SoftSkinVertex.InfluenceWeights[BoneIndex] > 0)
+						{
+							FaceInfluenceBones.AddUnique(SoftSkinVertex.InfluenceBones[BoneIndex]);
+						}
+					}
+					//Add the alternate bones
+					const TArray<FBoneIndexType>* AlternateBones = AlternateBoneIDs.Find(SoftSkinVertex.PointWedgeIdx);
+					if (AlternateBones)
+					{
+						for (int32 InfluenceIndex = 0; InfluenceIndex < AlternateBones->Num(); InfluenceIndex++)
+						{
+							FaceInfluenceBones.AddUnique((*AlternateBones)[InfluenceIndex]);
+						}
+					}
 				}
 			}
 
@@ -318,39 +346,20 @@ namespace SkeletalMeshTools
 				while (TriangleQueue.Num() > 0)
 				{
 					int32 CurrentTriangleIndex = TriangleQueue.Pop(false);
+					TArray<FBoneIndexType> BonesToAdd = BonesPerFace[CurrentTriangleIndex];
+					for (const FBoneIndexType BoneIndex : BonesToAdd)
+					{
+						if (!PatchData.IsValidIndex(PatchIndex))
+						{
+							PatchData.AddDefaulted(PatchData.Num() - PatchIndex + 1);
+						}
+						PatchData[PatchIndex].UniqueBones.AddUnique(BoneIndex);
+					}
 					int32 IndiceOffset = CurrentTriangleIndex * 3;
 					for (int32 Corner = 0; Corner < 3; Corner++)
 					{
 						const int32 IndiceIndex = IndiceOffset + Corner;
 						AllocatedPatchIndexToIndices.Add(IndiceIndex);
-						checkSlow(Indices.IsValidIndex(IndiceIndex));
-						const int32 VertexIndex = Indices[IndiceIndex];
-						checkSlow(Vertices.IsValidIndex(VertexIndex));
-						for(int32 InfluenceIndex = 0; InfluenceIndex < MAX_TOTAL_INFLUENCES; ++InfluenceIndex)
-						{
-							if (Vertices[VertexIndex].InfluenceWeights[InfluenceIndex] == 0)
-							{
-								break;
-							}
-							if (!PatchData.IsValidIndex(PatchIndex))
-							{
-								PatchData.AddDefaulted(PatchData.Num() - PatchIndex + 1);
-							}
-							PatchData[PatchIndex].UniqueBones.AddUnique(Vertices[VertexIndex].InfluenceBones[InfluenceIndex]);
-						}
-						//Add the alternate bones
-						const TArray<FBoneIndexType>* AlternateBones = AlternateBoneIDs.Find(Vertices[VertexIndex].PointWedgeIdx);
-						if (AlternateBones)
-						{
-							for (int32 InfluenceIndex = 0; InfluenceIndex < AlternateBones->Num(); InfluenceIndex++)
-							{
-								if (!PatchData.IsValidIndex(PatchIndex))
-								{
-									PatchData.AddDefaulted(PatchData.Num() - PatchIndex + 1);
-								}
-								PatchData[PatchIndex].UniqueBones.AddUnique((*AlternateBones)[InfluenceIndex]);
-							}
-						}
 					}
 					//The patch should exist at this time
 					checkSlow(PatchData.IsValidIndex(PatchIndex));
@@ -419,6 +428,9 @@ namespace SkeletalMeshTools
 	void ChunkSkinnedVertices(TArray<FSkinnedMeshChunk*>& Chunks, TMap<uint32, TArray<FBoneIndexType>>& AlternateBoneIDs, int32 MaxBonesPerChunk)
 	{
 #if WITH_EDITORONLY_DATA
+		//Get the cvar that drive if we use the experimental chunking
+		bool bUseExperimentalChunking = GUseSkeletalMeshExperimentalChunking != 0;
+
 		// Copy over the old chunks (this is just copying pointers).
 		TArray<FSkinnedMeshChunk*> SrcChunks;
 		Exchange(Chunks,SrcChunks);
@@ -435,6 +447,7 @@ namespace SkeletalMeshTools
 
 		TMap<int32, TArray<PolygonShellsHelper::FPatchAndBoneInfluence>> PatchDataPerSrcChunk;
 		TMap<int32, TArray<TArray<uint32>>> PatchIndexToIndicesPerSrcChunk;
+		TMap<int32, TMap<int32, TArray<FBoneIndexType>>> PatchIndexToBonesPerFace;
 		
 		//Find the shells inside chunks
 		for (int32 ChunkIndex = 0; ChunkIndex < SrcChunks.Num(); ++ChunkIndex)
@@ -444,9 +457,10 @@ namespace SkeletalMeshTools
 			TArray<FSoftSkinBuildVertex>& Vertices = ChunkToShell->Vertices;
 			TArray<PolygonShellsHelper::FPatchAndBoneInfluence>& PatchData = PatchDataPerSrcChunk.Add(ChunkIndex);
 			TArray<TArray<uint32>>& PatchIndexToIndices = PatchIndexToIndicesPerSrcChunk.Add(ChunkIndex);
+			TMap<int32, TArray<FBoneIndexType>>& BonesPerFace = PatchIndexToBonesPerFace.Add(ChunkIndex);
 			//We need edge connection (2 similar vertex )
 			const bool bConnectByEdge = true;
-			PolygonShellsHelper::FillPolygonPatch(Indices, Vertices, AlternateBoneIDs, PatchData, PatchIndexToIndices, MaxBonesPerChunk, bConnectByEdge);
+			PolygonShellsHelper::FillPolygonPatch(Indices, Vertices, AlternateBoneIDs, PatchData, PatchIndexToIndices, BonesPerFace, MaxBonesPerChunk, bConnectByEdge);
 		}
 
 		for (int32 SrcChunkIndex = 0; SrcChunkIndex < SrcChunks.Num(); ++SrcChunkIndex)
@@ -468,7 +482,6 @@ namespace SkeletalMeshTools
 
 		// Now split chunks to respect the desired bone limit.
 		TIndirectArray<TArray<int32> > IndexMaps;
-		TArray<FBoneIndexType, TInlineAllocator<MAX_TOTAL_INFLUENCES*3> > UniqueBones;
 		for (int32 SrcChunkIndex = 0; SrcChunkIndex < SrcChunks.Num(); ++SrcChunkIndex)
 		{
 			FSkinnedMeshChunk* SrcChunk = SrcChunks[SrcChunkIndex];
@@ -479,6 +492,7 @@ namespace SkeletalMeshTools
 			SrcChunkRemapIndicesIndex.Reserve(SrcChunk->Indices.Num());
 			TArray<PolygonShellsHelper::FPatchAndBoneInfluence>& PatchData = PatchDataPerSrcChunk[SrcChunkIndex];
 			const TArray<TArray<uint32>>& PatchIndexToIndices = PatchIndexToIndicesPerSrcChunk[SrcChunkIndex];
+			const TMap<int32, TArray<FBoneIndexType>>& BonesPerFace = PatchIndexToBonesPerFace[SrcChunkIndex];
 
 			for (int32 PatchIndex = 0; PatchIndex < PatchData.Num(); ++PatchIndex)
 			{
@@ -490,15 +504,16 @@ namespace SkeletalMeshTools
 				PolygonShellsHelper::RecursiveFillRemapIndices(PatchData, PatchIndex, PatchIndexToIndices, SrcChunkRemapIndicesIndex);
 
 				//Force adding a chunk since we want to control where we cut the model
-				int32 CurrentChunkIndex = FirstChunkIndex;
+				int32 LastCreatedChunkIndex = FirstChunkIndex;
+				const int32 PatchInitialChunkIndex = Chunks.Num();
 
-				auto CreateChunk = [&SrcChunk, &FirstChunkIndex, &CurrentChunkIndex, &Chunks, &IndexMaps](FSkinnedMeshChunk** DestinationChunk)
+				auto CreateChunk = [&SrcChunk, &FirstChunkIndex, &LastCreatedChunkIndex, &Chunks, &IndexMaps](FSkinnedMeshChunk** DestinationChunk)
 				{
 					(*DestinationChunk) = new FSkinnedMeshChunk();
-					CurrentChunkIndex = Chunks.Add(*DestinationChunk);
+					LastCreatedChunkIndex = Chunks.Add(*DestinationChunk);
 					(*DestinationChunk)->MaterialIndex = SrcChunk->MaterialIndex;
 					(*DestinationChunk)->OriginalSectionIndex = SrcChunk->OriginalSectionIndex;
-					(*DestinationChunk)->ParentChunkSectionIndex = CurrentChunkIndex == FirstChunkIndex ? INDEX_NONE : FirstChunkIndex;
+					(*DestinationChunk)->ParentChunkSectionIndex = LastCreatedChunkIndex == FirstChunkIndex ? INDEX_NONE : FirstChunkIndex;
 					TArray<int32>& IndexMap = *new TArray<int32>();
 					IndexMaps.Add(&IndexMap);
 					IndexMap.AddUninitialized(SrcChunk->Vertices.Num());
@@ -517,44 +532,37 @@ namespace SkeletalMeshTools
 					//We remap the iteration order to avoid cutting polygon shell
 					int32 IndiceIndex = SrcChunkRemapIndicesIndex[i];
 					// Find all bones needed by this triangle.
-					UniqueBones.Reset();
-					for (int32 Corner = 0; Corner < 3; Corner++)
-					{
-						uint32 VertexIndex = SrcChunk->Indices[IndiceIndex + Corner];
-						FSoftSkinBuildVertex& V = SrcChunk->Vertices[VertexIndex];
-						for (int32 InfluenceIndex = 0; InfluenceIndex < MAX_TOTAL_INFLUENCES; InfluenceIndex++)
-						{
-							if (V.InfluenceWeights[InfluenceIndex] > 0)
-							{
-								UniqueBones.AddUnique(V.InfluenceBones[InfluenceIndex]);
-							}
-						}
-						//Add the alternate bones
-						TArray<FBoneIndexType>* AlternateBones = AlternateBoneIDs.Find(V.PointWedgeIdx);
-						if (AlternateBones)
-						{
-							for (int32 InfluenceIndex = 0; InfluenceIndex < AlternateBones->Num(); InfluenceIndex++)
-							{
-								UniqueBones.AddUnique((*AlternateBones)[InfluenceIndex]);
-							}
-						}
-					}
+					const int32 FaceIndex = (IndiceIndex / 3);
+					const TArray<FBoneIndexType>& UniqueBones = BonesPerFace.FindChecked(FaceIndex);
 
 					// Now find a chunk for them.
 					FSkinnedMeshChunk* DestChunk = NULL;
-					int32 DestChunkIndex = CurrentChunkIndex;
-					for (; DestChunkIndex < Chunks.Num(); ++DestChunkIndex)
+					int32 DestChunkIndex = bUseExperimentalChunking ? PatchInitialChunkIndex : LastCreatedChunkIndex;
+					int32 SmallestNumBoneToAdd = MAX_int32;
+					for (int32 ChunkIndex = DestChunkIndex; ChunkIndex < Chunks.Num(); ++ChunkIndex)
 					{
-						TArray<FBoneIndexType>& BoneMap = Chunks[DestChunkIndex]->BoneMap;
+						const TArray<FBoneIndexType>& BoneMap = Chunks[ChunkIndex]->BoneMap;
 						int32 NumUniqueBones = 0;
 						for (int32 j = 0; j < UniqueBones.Num(); ++j)
 						{
 							NumUniqueBones += (BoneMap.Contains(UniqueBones[j]) ? 0 : 1);
+							if (NumUniqueBones == SmallestNumBoneToAdd)
+							{
+								//Another previous chunk use less or equal unique bone, avoid searching more
+								break;
+							}
 						}
-						if (NumUniqueBones + BoneMap.Num() <= MaxBonesPerChunk)
+						if (NumUniqueBones + BoneMap.Num() <= MaxBonesPerChunk && NumUniqueBones < SmallestNumBoneToAdd)
 						{
-							DestChunk = Chunks[DestChunkIndex];
-							break;
+							//Add the vertex to the chunk that can contain it with the less addition.
+							SmallestNumBoneToAdd = NumUniqueBones;
+							DestChunkIndex = ChunkIndex;
+							DestChunk = Chunks[ChunkIndex];
+							if (SmallestNumBoneToAdd == 0)
+							{
+								//This is the best candidate
+								break;
+							}
 						}
 					}
 
@@ -562,6 +570,9 @@ namespace SkeletalMeshTools
 					if (DestChunk == NULL)
 					{
 						CreateChunk(&DestChunk);
+						//Set back the DestChunkIndex. CreateChunk set the LastCreatedChunkIndex, so we need to update DestChunkIndex to pick
+						//The right IndexMaps that match the new chunk.
+						DestChunkIndex = LastCreatedChunkIndex;
 					}
 					TArray<int32>& IndexMap = IndexMaps[DestChunkIndex];
 
@@ -585,7 +596,7 @@ namespace SkeletalMeshTools
 								if (V.InfluenceWeights[InfluenceIndex] > 0)
 								{
 									int32 MappedIndex = DestChunk->BoneMap.Find(V.InfluenceBones[InfluenceIndex]);
-									check(DestChunk->BoneMap.IsValidIndex(MappedIndex));
+									checkSlow(DestChunk->BoneMap.IsValidIndex(MappedIndex));
 									V.InfluenceBones[InfluenceIndex] = MappedIndex;
 								}
 							}
