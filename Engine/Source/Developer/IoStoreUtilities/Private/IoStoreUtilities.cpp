@@ -28,6 +28,7 @@
 #include "Serialization/MemoryReader.h"
 #include "Serialization/AsyncLoading2.h"
 #include "Serialization/ArrayReader.h"
+#include "Serialization/PackageStore.h"
 #include "UObject/Class.h"
 #include "UObject/NameBatchSerialization.h"
 #include "UObject/PackageFileSummary.h"

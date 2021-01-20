@@ -10,6 +10,7 @@
 #include "UObject/ObjectResource.h"
 #include "UObject/PackageId.h"
 #include "Serialization/Archive.h"
+#include "Serialization/MappedName.h"
 #include "IO/IoContainerId.h"
 
 class FArchive;
@@ -19,93 +20,6 @@ class IEDLBootNotificationManager;
 
 using FSourceToLocalizedPackageIdMap = TArray<TPair<FPackageId, FPackageId>>;
 using FCulturePackageMap = TMap<FString, FSourceToLocalizedPackageIdMap>;
-
-class FMappedName
-{
-	static constexpr uint32 InvalidIndex = ~uint32(0);
-	static constexpr uint32 IndexBits = 30u;
-	static constexpr uint32 IndexMask = (1u << IndexBits) - 1u;
-	static constexpr uint32 TypeMask = ~IndexMask;
-	static constexpr uint32 TypeShift = IndexBits;
-
-public:
-	enum class EType
-	{
-		Package,
-		Container,
-		Global
-	};
-
-	inline FMappedName() = default;
-
-	static inline FMappedName Create(const uint32 InIndex, const uint32 InNumber, EType InType)
-	{
-		check(InIndex <= MAX_int32);
-		return FMappedName((uint32(InType) << TypeShift) | InIndex, InNumber);
-	}
-
-	static inline FMappedName FromMinimalName(const FMinimalName& MinimalName)
-	{
-		return *reinterpret_cast<const FMappedName*>(&MinimalName);
-	}
-
-	static inline bool IsResolvedToMinimalName(const FMinimalName& MinimalName)
-	{
-		// Not completely safe, relies on that no FName will have its Index and Number equal to Max_uint32
-		const FMappedName MappedName = FromMinimalName(MinimalName);
-		return MappedName.IsValid();
-	}
-
-	static inline FName SafeMinimalNameToName(const FMinimalName& MinimalName)
-	{
-		return IsResolvedToMinimalName(MinimalName) ? MinimalNameToName(MinimalName) : NAME_None;
-	}
-
-	inline FMinimalName ToUnresolvedMinimalName() const
-	{
-		return *reinterpret_cast<const FMinimalName*>(this);
-	}
-
-	inline bool IsValid() const
-	{
-		return Index != InvalidIndex && Number != InvalidIndex;
-	}
-
-	inline EType GetType() const
-	{
-		return static_cast<EType>(uint32((Index & TypeMask) >> TypeShift));
-	}
-
-	inline bool IsGlobal() const
-	{
-		return ((Index & TypeMask) >> TypeShift) != 0;
-	}
-
-	inline uint32 GetIndex() const
-	{
-		return Index & IndexMask;
-	}
-
-	inline uint32 GetNumber() const
-	{
-		return Number;
-	}
-
-	inline bool operator!=(FMappedName Other) const
-	{
-		return Index != Other.Index || Number != Other.Number;
-	}
-
-	COREUOBJECT_API friend FArchive& operator<<(FArchive& Ar, FMappedName& MappedName);
-
-private:
-	inline FMappedName(const uint32 InIndex, const uint32 InNumber)
-		: Index(InIndex)
-		, Number(InNumber) { }
-
-	uint32 Index = InvalidIndex;
-	uint32 Number = InvalidIndex;
-};
 
 struct FContainerHeader
 {
@@ -267,38 +181,6 @@ struct FExportBundleEntry
 	uint32 CommandType;
 
 	COREUOBJECT_API friend FArchive& operator<<(FArchive& Ar, FExportBundleEntry& ExportBundleEntry);
-};
-
-template<typename T>
-class TPackageStoreEntryCArrayView
-{
-	const uint32 ArrayNum = 0;
-	const uint32 OffsetToDataFromThis = 0;
-
-public:
-	inline uint32 Num() const						{ return ArrayNum; }
-
-	inline const T* Data() const					{ return (T*)((char*)this + OffsetToDataFromThis); }
-	inline T* Data()								{ return (T*)((char*)this + OffsetToDataFromThis); }
-
-	inline const T* begin() const					{ return Data(); }
-	inline T* begin()								{ return Data(); }
-
-	inline const T* end() const						{ return Data() + ArrayNum; }
-	inline T* end()									{ return Data() + ArrayNum; }
-
-	inline const T& operator[](uint32 Index) const	{ return Data()[Index]; }
-	inline T& operator[](uint32 Index)				{ return Data()[Index]; }
-};
-
-struct FPackageStoreEntry
-{
-	uint64 ExportBundlesSize;
-	int32 ExportCount;
-	int32 ExportBundleCount;
-	uint32 LoadOrder;
-	uint32 Pad;
-	TPackageStoreEntryCArrayView<FPackageId> ImportedPackages;
 };
 
 /**
