@@ -17,15 +17,15 @@ struct FNiagaraVariableLayoutInfo
 
 	/** Start index for the float components in the main buffer. */
 	UPROPERTY()
-	uint32 FloatComponentStart;
+	uint32 FloatComponentStart = 0;
 
 	/** Start index for the int32 components in the main buffer. */
 	UPROPERTY()
-	uint32 Int32ComponentStart;
+	uint32 Int32ComponentStart = 0;
 
 	/** Start index for the half components in the main buffer. */
 	UPROPERTY()
-	uint32 HalfComponentStart;
+	uint32 HalfComponentStart = 0;
 
 	uint32 GetNumFloatComponents()const { return LayoutInfo.FloatComponentByteOffsets.Num(); }
 	uint32 GetNumInt32Components()const { return LayoutInfo.Int32ComponentByteOffsets.Num(); }

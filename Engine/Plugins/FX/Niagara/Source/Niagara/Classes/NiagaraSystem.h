@@ -71,10 +71,10 @@ struct FNiagaraParameterDataSetBinding
 	GENERATED_USTRUCT_BODY()
 
 	UPROPERTY()
-	int32 ParameterOffset;
+	int32 ParameterOffset = 0;
 
 	UPROPERTY()
-	int32 DataSetComponentOffset;
+	int32 DataSetComponentOffset = 0;
 };
 
 USTRUCT()

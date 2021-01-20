@@ -6,3 +6,10 @@ UNiagaraScriptBase::UNiagaraScriptBase(const FObjectInitializer& ObjectInitializ
 	: Super(ObjectInitializer)
 {
 }
+
+FSimulationStageMetaData::FSimulationStageMetaData()
+	: bSpawnOnly(0)
+	, bWritesParticles(0)
+	, bPartialParticleUpdate(0)
+{
+}
