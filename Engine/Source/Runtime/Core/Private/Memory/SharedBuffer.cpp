@@ -116,6 +116,19 @@ FUniqueBuffer FUniqueBuffer::MakeView(void* Data, uint64 Size)
 	return FUniqueBuffer(new BufferOwnerPrivate::FBufferOwnerView(Data, Size));
 }
 
+FUniqueBuffer FUniqueBuffer::MakeUnique(FSharedBuffer Buffer)
+{
+	OwnerPtrType ExistingOwner = ToPrivateOwnerPtr(MoveTemp(Buffer));
+	if (!ExistingOwner || (ExistingOwner->IsOwned() && ExistingOwner->GetTotalRefCount() == 1))
+	{
+		return FUniqueBuffer(MoveTemp(ExistingOwner));
+	}
+	else
+	{
+		return Clone(ExistingOwner->GetData(), ExistingOwner->GetSize());
+	}
+}
+
 FUniqueBuffer::FUniqueBuffer(FBufferOwner* InOwner)
 	: Owner(InOwner)
 {

@@ -126,6 +126,15 @@ static_assert(std::is_same<uint32, decltype(GetTypeHash(DeclVal<const FWeakShare
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FUniqueBufferTest, "System.Core.Memory.UniqueBuffer", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::SmokeFilter)
 bool FUniqueBufferTest::RunTest(const FString& Parameters)
 {
+	// Test Null
+	{
+		FUniqueBuffer Buffer;
+		TestFalse(TEXT("FUniqueBuffer().IsOwned()"), Buffer.IsOwned());
+		TestEqual(TEXT("FUniqueBuffer().GetSize()"), Buffer.GetSize(), uint64(0));
+		TestEqual(TEXT("FUniqueBuffer().GetView().GetSize()"), Buffer.GetView().GetSize(), uint64(0));
+		TestEqual(TEXT("FUniqueBuffer().GetView().GetData()"), Buffer.GetView().GetData(), Buffer.GetData());
+	}
+
 	// Test Alloc
 	{
 		constexpr uint64 Size = 64;
@@ -174,6 +183,45 @@ bool FUniqueBufferTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("FUniqueBuffer::TakeOwnership() Deleted"), bDeleted);
 	}
 
+	// Test MakeUnique
+	{
+		FUniqueBuffer Buffer = FUniqueBuffer::MakeUnique(FSharedBuffer());
+		TestFalse(TEXT("FUniqueBuffer::MakeUnique(Null).IsOwned()"), Buffer.IsOwned());
+		TestEqual(TEXT("FUniqueBuffer::MakeUnique(Null).GetSize()"), Buffer.GetSize(), uint64(0));
+	}
+	{
+		FSharedBuffer Shared = FSharedBuffer::Clone(MakeMemoryView<uint8>({1, 2, 3, 4}));
+		FUniqueBuffer Buffer = FUniqueBuffer::MakeUnique(Shared);
+		TestTrue(TEXT("FUniqueBuffer::MakeUnique(Shared).IsOwned()"), Buffer.IsOwned());
+		TestEqual(TEXT("FUniqueBuffer::MakeUnique(Shared).GetSize()"), Buffer.GetSize(), Shared.GetSize());
+		TestNotEqual(TEXT("FUniqueBuffer::MakeUnique(Shared).GetData()"), const_cast<const void*>(Buffer.GetData()), Shared.GetData());
+		TestTrue(TEXT("FUniqueBuffer::MakeUnique(Shared)->Equal"), Buffer.GetView().EqualBytes(Shared.GetView()));
+	}
+	{
+		bool bDeleted = false;
+		constexpr uint64 Size = 64;
+		void* Data = new uint8[Size];
+		FUniqueBuffer Buffer = FUniqueBuffer::MakeUnique(FSharedBuffer::TakeOwnership(Data, Size,
+			[&bDeleted](void* InData, uint64 InSize)
+		{
+			bDeleted = true;
+			delete[] static_cast<uint8*>(InData);
+		}));
+		TestTrue(TEXT("FUniqueBuffer::MakeUnique(Owned).IsOwned()"), Buffer.IsOwned());
+		TestEqual(TEXT("FUniqueBuffer::MakeUnique(Owned).GetSize()"), Buffer.GetSize(), Size);
+		TestEqual(TEXT("FUniqueBuffer::MakeUnique(Owned).GetData()"), Buffer.GetData(), Data);
+		Buffer.Reset();
+		TestTrue(TEXT("FUniqueBuffer::MakeUnique(Owned) Deleted"), bDeleted);
+	}
+	{
+		constexpr uint64 Size = 64;
+		uint8 Data[Size]{};
+		FUniqueBuffer Buffer = FUniqueBuffer::MakeUnique(FSharedBuffer::MakeView(MakeMemoryView(Data)));
+		TestTrue(TEXT("FUniqueBuffer::MakeUnique(View).IsOwned()"), Buffer.IsOwned());
+		TestEqual(TEXT("FUniqueBuffer::MakeUnique(View).GetSize()"), Buffer.GetSize(), Size);
+		TestNotEqual(TEXT("FUniqueBuffer::MakeUnique(View).GetData()"), Buffer.GetData(), static_cast<void*>(Data));
+	}
+
 	// Test MakeOwned
 	{
 		constexpr uint64 Size = 64;
@@ -193,9 +241,18 @@ bool FUniqueBufferTest::RunTest(const FString& Parameters)
 	return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSharedBuffer2Test, "System.Core.Memory.SharedBuffer2", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::SmokeFilter)
-bool FSharedBuffer2Test::RunTest(const FString& Parameters)
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSharedBufferTest, "System.Core.Memory.SharedBuffer", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::SmokeFilter)
+bool FSharedBufferTest::RunTest(const FString& Parameters)
 {
+	// Test Null
+	{
+		FSharedBuffer Buffer;
+		TestFalse(TEXT("FSharedBuffer().IsOwned()"), Buffer.IsOwned());
+		TestEqual(TEXT("FSharedBuffer().GetSize()"), Buffer.GetSize(), uint64(0));
+		TestEqual(TEXT("FSharedBuffer().GetView().GetSize()"), Buffer.GetView().GetSize(), uint64(0));
+		TestEqual(TEXT("FSharedBuffer().GetView().GetData()"), Buffer.GetView().GetData(), Buffer.GetData());
+	}
+
 	// Test Clone
 	{
 		constexpr uint64 Size = 64;

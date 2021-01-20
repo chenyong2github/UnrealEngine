@@ -81,7 +81,7 @@ protected:
 	inline bool IsMaterialized() const;
 	inline void SetIsMaterialized();
 
-	inline bool IsReferenced() const;
+	inline uint32 GetTotalRefCount() const;
 
 private:
 	static uint32 GetSharedRefCount(uint64 RefCountsAndFlags) { return uint32(RefCountsAndFlags >> 0) & 0x7fffffff; }
@@ -116,7 +116,7 @@ namespace BufferOwnerPrivate
 
 struct FSharedOps final
 {
-	static inline bool HasRef(FBufferOwner& Owner) { return Owner.IsReferenced(); }
+	static inline bool HasRef(FBufferOwner& Owner) { return Owner.GetTotalRefCount() > 0; }
 	static inline bool TryAddRef(FBufferOwner& Owner) { return Owner.TryAddSharedReference(); }
 	static inline void AddRef(FBufferOwner& Owner) { Owner.AddSharedReference(); }
 	static inline void Release(FBufferOwner* Owner) { if (Owner) { Owner->ReleaseSharedReference(); } }
@@ -124,7 +124,7 @@ struct FSharedOps final
 
 struct FWeakOps final
 {
-	static inline bool HasRef(FBufferOwner& Owner) { return Owner.IsReferenced(); }
+	static inline bool HasRef(FBufferOwner& Owner) { return Owner.GetTotalRefCount() > 0; }
 	static inline bool TryAddRef(FBufferOwner& Owner) { AddRef(Owner); return true; }
 	static inline void AddRef(FBufferOwner& Owner) { Owner.AddWeakReference(); }
 	static inline void Release(FBufferOwner* Owner) { if (Owner) { Owner->ReleaseWeakReference(); } }
@@ -226,6 +226,14 @@ public:
 		decltype(Invoke(std::declval<DeleteFunctionType>(), std::declval<void*>(), std::declval<uint64>()))* = nullptr>
 	static inline FUniqueBuffer TakeOwnership(void* Data, uint64 Size, DeleteFunctionType&& DeleteFunction);
 
+	/**
+	 * Make a unique buffer from a shared buffer.
+	 *
+	 * Steals the buffer owner from the shared buffer if this is the last reference to it, otherwise
+	 * clones the shared buffer to guarantee unique ownership. An non-owned buffer is always cloned.
+	 */
+	CORE_API static FUniqueBuffer MakeUnique(FSharedBuffer Buffer);
+
 	/** Construct a null unique buffer. */
 	FUniqueBuffer() = default;
 
@@ -277,6 +285,8 @@ private:
 
 	inline friend const OwnerPtrType& ToPrivateOwnerPtr(const FUniqueBuffer& Buffer) { return Buffer.Owner; }
 	inline friend OwnerPtrType ToPrivateOwnerPtr(FUniqueBuffer&& Buffer) { return MoveTemp(Buffer.Owner); }
+
+	inline explicit FUniqueBuffer(OwnerPtrType&& InOwner) : Owner(MoveTemp(InOwner)) {}
 
 	OwnerPtrType Owner;
 };
@@ -379,6 +389,7 @@ private:
 	using OwnerPtrType = BufferOwnerPrivate::TBufferOwnerPtr<BufferOwnerPrivate::FSharedOps>;
 
 	inline friend const OwnerPtrType& ToPrivateOwnerPtr(const FSharedBuffer& Buffer) { return Buffer.Owner; }
+	inline friend OwnerPtrType ToPrivateOwnerPtr(FSharedBuffer&& Buffer) { return MoveTemp(Buffer.Owner); }
 
 	OwnerPtrType Owner;
 };
@@ -525,7 +536,7 @@ inline FBufferOwner::FBufferOwner(void* InData, uint64 InSize)
 
 inline FBufferOwner::~FBufferOwner()
 {
-	checkSlow(!IsReferenced());
+	checkSlow(GetTotalRefCount() == 0);
 }
 
 inline void FBufferOwner::MaterializeBuffer()
@@ -580,10 +591,13 @@ inline void FBufferOwner::SetIsMaterialized()
 	ReferenceCountsAndFlags.fetch_or(SetFlags(EBufferOwnerFlags::Materialized));
 }
 
-inline bool FBufferOwner::IsReferenced() const
+inline uint32 FBufferOwner::GetTotalRefCount() const
 {
 	const uint64 Value = ReferenceCountsAndFlags.load(std::memory_order_relaxed);
-	return GetSharedRefCount(Value) || GetWeakRefCount(Value);
+	const uint32 SharedRefCount = GetSharedRefCount(Value);
+	// A non-zero SharedRefCount adds 1 to WeakRefCount to keep the owner alive.
+	// Subtract that extra reference when it is present to return an accurate count.
+	return GetWeakRefCount(Value) + SharedRefCount - !!SharedRefCount;
 }
 
 inline void FBufferOwner::AddSharedReference()
