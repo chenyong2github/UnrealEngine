@@ -2458,14 +2458,20 @@ void FSequencer::NotifyMovieSceneDataChanged( EMovieSceneDataChangeType DataChan
 	OnMovieSceneDataChangedDelegate.Broadcast(DataChangeType);
 }
 
+static bool bRefreshTreeGuard = false;
 void FSequencer::RefreshTree()
 {
-	SequencerWidget->UpdateLayoutTree();
-	bNeedTreeRefresh = false;
-	OnTreeViewChangedDelegate.Broadcast();
+	if (bRefreshTreeGuard == false)
+	{
+		TGuardValue<bool> Guard(bRefreshTreeGuard, true);
 
-	// Force a broadcast of selection changed after the tree view has been updated, in the event that selection was suppressed while the tree was refreshing
-	Selection.Tick();
+		SequencerWidget->UpdateLayoutTree();
+		bNeedTreeRefresh = false;
+		OnTreeViewChangedDelegate.Broadcast();
+
+		// Force a broadcast of selection changed after the tree view has been updated, in the event that selection was suppressed while the tree was refreshing
+		Selection.Tick();
+	}
 }
 
 FAnimatedRange FSequencer::GetViewRange() const
