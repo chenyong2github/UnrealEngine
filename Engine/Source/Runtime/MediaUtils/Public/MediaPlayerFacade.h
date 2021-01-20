@@ -553,8 +553,19 @@ public:
 	 *
 	 * @param Time The time to block on, or FTimespan::MinValue to disable.
 	 * @see TickFetch
+	 * @note Deprecated: Use SetBlockOnTimeRange instead
 	 */
 	void SetBlockOnTime(const FTimespan& Time);
+
+	/**
+	 * Set the time range on which to block.
+	 *
+	 * If set, this player will block in TickFetch until the video sample
+	 * for the specified time are actually available.
+	 *
+	 * @param TimeRange The time range to block on, use empty range to disable
+	 */
+	void SetBlockOnTimeRange(const TRange<FTimespan>& TimeRange);
 
 	/**
 	 * Set sample caching options.
@@ -754,21 +765,22 @@ protected:
 protected:
 	bool HaveAudioPlayback() const;
 	bool HaveVideoPlayback() const;
+	float GetUnpausedRate() const;
 
 	/** Fetch audio samples from the player and forward them to the registered sinks. */
 	void ProcessAudioSamples(IMediaSamples& Samples, TRange<FTimespan> TimeRange);
 
-	/** Fetch audio samples from the player and forward them to the registered sinks. */
-	void ProcessCaptionSamples(IMediaSamples& Samples, TRange<FTimespan> TimeRange);
-
 	/** Fetch metadata samples from the player and forward them to the registered sinks. */
 	void ProcessMetadataSamples(IMediaSamples& Samples, TRange<FTimespan> TimeRange);
 
+	/** Fetch audio samples from the player and forward them to the registered sinks. */
+	void ProcessCaptionSamplesV1(IMediaSamples& Samples, TRange<FTimespan> TimeRange);
+
 	/** Fetch subtitle samples from the player and forward them to the registered sinks. */
-	void ProcessSubtitleSamples(IMediaSamples& Samples, TRange<FTimespan> TimeRange);
+	void ProcessSubtitleSamplesV1(IMediaSamples& Samples, TRange<FTimespan> TimeRange);
 
 	/** Fetch video samples from the player and forward them to the registered sinks. */
-	void ProcessVideoSamples(IMediaSamples& Samples, TRange<FTimespan> TimeRange);
+	void ProcessVideoSamplesV1(IMediaSamples& Samples, TRange<FTimespan> TimeRange);
 
 protected:
 
@@ -787,11 +799,13 @@ private:
 	bool NotifyLifetimeManagerDelegate_PlayerDestroyed();
 	bool NotifyLifetimeManagerDelegate_PlayerResourcesReleased(uint32 ResourceFlags);
 
-	void ProcessVideoSamples(IMediaSamples& Samples, const TRange<FMediaTimeStamp> & TimeRange);
+	bool ProcessVideoSamples(IMediaSamples& Samples, const TRange<FMediaTimeStamp>& TimeRange);
 	void ProcessCaptionSamples(IMediaSamples& Samples, TRange<FMediaTimeStamp> TimeRange);
 	void ProcessSubtitleSamples(IMediaSamples& Samples, TRange<FMediaTimeStamp> TimeRange);
 
-	bool GetCurrentPlaybackTimeRange(TRange<FMediaTimeStamp> & TimeRange, float Rate, FTimespan DeltaTime, bool bDoNotUseFrameStartReference) const;
+	void PreSampleProcessingTimeHandling();
+	bool GetCurrentPlaybackTimeRange(TRange<FMediaTimeStamp>& TimeRange, float Rate, FTimespan DeltaTime, bool bDoNotUseFrameStartReference) const;
+	void PostSampleProcessingTimeHandling(FTimespan DeltaTime);
 
 	void DestroyPlayer();
 
@@ -815,8 +829,17 @@ private:
 
 private:
 
-	/** The time to block on sample fetching. */
-	FTimespan BlockOnTime;
+	/** The time range to block on sample fetching. */
+	TRange<FMediaTimeStamp> BlockOnRange;
+
+	/** Last user provided BlockOnRange value */
+	TRange<FTimespan> LastBlockOnRange;
+
+	/** Flag to indicate block on range feature as disabled for the current playback session due to previous timeout */
+	bool BlockOnRangeDisabled;
+
+	/** Sequence index used during blocked playback processing */
+	int64 OnBlockSeqIndex;
 
 	/** Media sample cache. */
 	FMediaSampleCache* Cache;
@@ -829,6 +852,9 @@ private:
 
 	/** The last used non-zero play rate (zero if playback never started). */
 	float LastRate;
+
+	/** The last rate set with the facade (unfiltered by player). */
+	float CurrentRate;
 
 	/** Flag indicating that we have an active audio setup */
 	bool bHaveActiveAudio;
@@ -867,16 +893,19 @@ private:
 	/** Time of last audio sample decoded. */
 	FMediaTimeStampSample LastAudioSampleProcessedTime;
 
-	/** Time of last video sample decoded. */
-	FMediaTimeStampSample LastVideoSampleProcessedTime;
+	/** Time/Range of last video sample decoded. */
+	TRange<FMediaTimeStamp> LastVideoSampleProcessedTimeRange;
 
 	/** Timestamp for audio considered "current" for this frame (use ONLY for return to outside code) */
 	FMediaTimeStamp CurrentFrameAudioTimeStamp;
 
+	/** Timestamp for video considered "current" for this frame (stays valid even after a flush, until new data comes in) */
+	FMediaTimeStamp CurrentFrameVideoTimeStamp;
+
 	/** Estimation for next frame's video timestamp (used when no audio present or active in stream) */
 	FMediaTimeStampSample NextEstVideoTimeAtFrameStart;
 
-	/** Set if sinks are to be flushed at the request of the player. **/
+	/** Set if sinks are to be flushed at the request of the player. */
 	TAtomic<bool>	bIsSinkFlushPending;
 
 	/** Latch for error state of the most recently used player to be queried after it may have been closed. **/

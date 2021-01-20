@@ -639,6 +639,13 @@ void UMediaPlayer::SetBlockOnTime(const FTimespan& Time)
 }
 
 
+void UMediaPlayer::SetBlockOnTimeRange(const TRange<FTimespan>& TimeRange)
+{
+	UE_LOG(LogMediaAssets, VeryVerbose, TEXT("%s.SetBlockOnRange %s"), *GetFName().ToString(), *TimeRange.GetLowerBoundValue().ToString(TEXT("%h:%m:%s.%t")));
+	return PlayerFacade->SetBlockOnTimeRange(TimeRange);
+}
+
+
 void UMediaPlayer::SetDesiredPlayerName(FName PlayerName)
 {
 	UE_LOG(LogMediaAssets, Verbose, TEXT("%s.SetDesiredPlayerName %s"), *GetFName().ToString(), *PlayerName.ToString());
