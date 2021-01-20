@@ -252,7 +252,7 @@ void FAllocationsQuery::QueryLiveAllocs(TArray<const FAllocationItem*>& OutAlloc
 		for (const auto& KV : LiveAllocs)
 		{
 			const FAllocationItem& Alloc = KV.Value;
-			if (Alloc.StartTime <= TimeA && Alloc.EndTime >= TimeA && Alloc.EndTime >= TimeB)
+			if (Alloc.StartTime <= TimeA && Alloc.EndTime >= TimeA && Alloc.EndTime <= TimeB)
 			{
 				OutAllocs.Add(&Alloc);
 			}

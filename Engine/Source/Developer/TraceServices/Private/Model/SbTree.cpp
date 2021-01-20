@@ -136,7 +136,7 @@ void FSbTreeCell::Query(TArray<const FAllocationItem*>& OutAllocs, const IAlloca
 		const double TimeB = Params.TimeB;
 		for (const FAllocationItem& Alloc : Allocs)
 		{
-			if (Alloc.StartTime <= TimeA && Alloc.EndTime >= TimeA && Alloc.EndTime >= TimeB)
+			if (Alloc.StartTime <= TimeA && Alloc.EndTime >= TimeA && Alloc.EndTime <= TimeB)
 			{
 				OutAllocs.Add(&Alloc);
 			}
