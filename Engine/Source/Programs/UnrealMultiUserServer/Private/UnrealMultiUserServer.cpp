@@ -2,8 +2,10 @@
 
 #include "ConcertSettings.h"
 #include "ConcertSyncServerLoop.h"
-
+#include "Logging/LogMacros.h"
 #include "RequiredProgramMainCPPInclude.h"
+
+DEFINE_LOG_CATEGORY_STATIC(LogMultiUserServer, Log, All)
 
 IMPLEMENT_APPLICATION(UnrealMultiUserServer, "UnrealMultiUserServer");
 
@@ -69,14 +71,13 @@ public:
 	TCHAR** ArgV;
 };
 
+#import <Foundation/NSAppleEventDescriptor.h>
+#import <Carbon/Carbon.h>
 #include "Mac/CocoaThread.h"
 
 static CommandLineArguments GSavedCommandLine;
 
-@interface UE4AppDelegate : NSObject <NSApplicationDelegate, NSFileManagerDelegate>
-{
-}
-
+@interface UE4AppDelegate : NSObject <NSApplicationDelegate>
 @end
 
 @implementation UE4AppDelegate
@@ -87,21 +88,46 @@ static CommandLineArguments GSavedCommandLine;
 	[NSApp terminate:self];
 }
 
-- (void) runGameThread:(id)Arg
+- (void)runGameThread:(id)Arg
 {
 	FPlatformMisc::SetGracefulTerminationHandler();
 	FPlatformMisc::SetCrashHandler(nullptr);
-
 	RunUnrealMultiUserServer(GSavedCommandLine.ArgC, GSavedCommandLine.ArgV);
-
-	[NSApp terminate: self];
 }
 
-- (NSApplicationTerminateReply)applicationShouldTerminate:(NSApplication *)Sender;
+- (BOOL)applicationShouldTerminateAfterLastWindowClosed:(NSApplication *)Sender
+{
+	return true;
+}
+
+- (NSApplicationTerminateReply)applicationShouldTerminate:(NSApplication *)Sender
 {
 	if(!IsEngineExitRequested() || ([NSThread gameThread] && [NSThread gameThread] != [NSThread mainThread]))
 	{
-		RequestEngineExit(TEXT("UnrealMultiUserServer Requesting Exist"));
+		FString Reason;
+		NSAppleEventDescriptor* AppleEventDesc = [[NSAppleEventManager sharedAppleEventManager] currentAppleEvent];
+		NSAppleEventDescriptor* WhyDesc = [AppleEventDesc attributeDescriptorForKeyword:kEventParamReason];
+		OSType Why = [WhyDesc typeCodeValue];
+		if (Why == kAEShutDown)
+		{
+			Reason = TEXT("System Shutting Down");
+		}
+		else if (Why == kAERestart)
+		{
+			Reason = TEXT("System Restarting");
+		}
+		else if (Why == kAEReallyLogOut)
+		{
+			Reason = TEXT("User Logging Out");
+		}
+		else
+		{
+			Reason = TEXT("User Quitting (CMD-Q/Quit Menu)");
+		}
+
+		UE_LOG(LogMultiUserServer, Warning, TEXT("*** INTERRUPTED *** : %s"), *Reason);
+		RequestEngineExit(*FString::Printf(TEXT("UnrealMultiUserServer Requesting Exit: %s"), *Reason));
+		
 		return NSTerminateLater;
 	}
 	else
@@ -131,6 +157,8 @@ static CommandLineArguments GSavedCommandLine;
 	RunGameThread(self, @selector(runGameThread:));
 }
 
+@end
+
 int main(int argc, char *argv[])
 {
 	// Record the command line.
@@ -144,7 +172,6 @@ int main(int argc, char *argv[])
 	return 0;
 }
 
-@end
 
 #else // Windows/Linux
 
