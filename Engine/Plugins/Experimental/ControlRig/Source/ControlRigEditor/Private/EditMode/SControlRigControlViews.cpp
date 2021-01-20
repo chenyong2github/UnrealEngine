@@ -523,7 +523,7 @@ FReply SControlRigPoseView::OnSelectControls()
 {
 	if (GetControlRig() && PoseAsset.IsValid())
 	{
-		PoseAsset->SelectControls(GetControlRig());
+		PoseAsset->SelectControls(GetControlRig(), bIsMirror);
 	}
 	return FReply::Handled();
 }
@@ -542,6 +542,8 @@ void SControlRigPoseView::OnPoseBlendChanged(float ChangedVal)
 		}
 
 		PoseAsset->BlendWithInitialPoses(TempPose, ControlRig, false, bIsMirror, PoseBlendValue);
+		PoseAsset->BlendWithInitialPoses(TempPose, ControlRig, false, bIsMirror, PoseBlendValue);
+
 	}
 }
 void SControlRigPoseView::OnBeginSliderMovement()
@@ -569,6 +571,7 @@ void SControlRigPoseView::OnPoseBlendCommited(float ChangedVal, ETextCommit::Typ
 	{
 		FScopedTransaction ScopedTransaction(LOCTEXT("PastePoseTransaction", "Paste Pose"));
 		PoseBlendValue = ChangedVal;
+		PoseAsset->BlendWithInitialPoses(TempPose, ControlRig, bIsKey, bIsMirror, PoseBlendValue);
 		PoseAsset->BlendWithInitialPoses(TempPose, ControlRig, bIsKey, bIsMirror, PoseBlendValue);
 		bIsBlending = false;
 		PoseBlendValue = 0.0f;

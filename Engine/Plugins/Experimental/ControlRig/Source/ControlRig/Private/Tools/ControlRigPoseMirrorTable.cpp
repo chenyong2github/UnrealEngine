@@ -41,7 +41,6 @@ FRigControlCopy* FControlRigPoseMirrorTable::GetControl(FControlRigControlPose& 
 	{
 		if (const FName* MatchedName = MatchedControls.Find(Name))
 		{
-
 			int32* Index = Pose.CopyOfControlsNameToIndex.Find(*MatchedName);
 			if (Index != nullptr && (*Index) >= 0 && (*Index) < Pose.CopyOfControls.Num())
 			{
@@ -72,8 +71,8 @@ bool FControlRigPoseMirrorTable::IsMatched(const FName& Name) const
 }
 
 //Now returns mirrored global and local unmirrored
-void FControlRigPoseMirrorTable::GetMirrorTransform(const FRigControlCopy& ControlCopy, bool bIsMatched, FVector& OutGlobalTranslation,
-	FQuat& OutGlobalRotation, FQuat& OutLocalRotation) const
+void FControlRigPoseMirrorTable::GetMirrorTransform(const FRigControlCopy& ControlCopy, bool bDoLocal, bool bIsMatched, FVector& OutGlobalTranslation,
+	FQuat& OutGlobalRotation, FVector& OutLocalTranslation, FQuat& OutLocalRotation) const
 {
 	const UControlRigPoseMirrorSettings* Settings = GetDefault<UControlRigPoseMirrorSettings>();
 	FTransform GlobalTransform = ControlCopy.GlobalTransform;
@@ -81,19 +80,20 @@ void FControlRigPoseMirrorTable::GetMirrorTransform(const FRigControlCopy& Contr
 
 	FTransform LocalTransform = ControlCopy.LocalTransform;
 	OutLocalRotation = LocalTransform.GetRotation();
+	OutLocalTranslation = LocalTransform.GetTranslation();
 	OutGlobalTranslation = GlobalTransform.GetTranslation();
 	OutGlobalRotation = GlobalTransform.GetRotation();
-	
-	if (Settings &&  (bIsMatched || (OutGlobalRotation.IsIdentity() == false && OutLocalRotation.IsIdentity() == false)))
+	if (Settings)
 	{
-		FRigMirrorSettings MirrorSettings;
-
-		MirrorSettings.MirrorAxis = Settings->MirrorAxis;
-		MirrorSettings.AxisToFlip = Settings->AxisToFlip;
-
-		FTransform NewTransform = MirrorSettings.MirrorTransform(GlobalTransform);
-		OutGlobalTranslation = NewTransform.GetTranslation();
-		OutGlobalRotation = NewTransform.GetRotation();
-		return;
+		if (bIsMatched  && (OutGlobalRotation.IsIdentity() == false && OutLocalRotation.IsIdentity() == false))
+		{
+			FRigMirrorSettings MirrorSettings;
+			MirrorSettings.MirrorAxis = Settings->MirrorAxis;
+			MirrorSettings.AxisToFlip = Settings->AxisToFlip;
+			FTransform NewTransform = MirrorSettings.MirrorTransform(GlobalTransform);
+			OutGlobalTranslation = NewTransform.GetTranslation();
+			OutGlobalRotation = NewTransform.GetRotation();
+			return;
+		}
 	}
 }

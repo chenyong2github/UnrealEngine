@@ -98,7 +98,7 @@ struct CONTROLRIG_API FControlRigControlPose
 
 	void SavePose(UControlRig* ControlRig, bool bUseAll);
 	void PastePose(UControlRig* ControlRig, bool bDoKey, bool bDoMirror);
-	void SetControlMirrorTransform(UControlRig* ControlRig, const FName& Name, bool bIsMatched, const FVector& GlobalTranslation, const FQuat& GlobalRotation, const FQuat& LocalRotation, bool bNotify, const  FRigControlModifiedContext& Context);
+	void SetControlMirrorTransform(bool bDoLocalSpace, UControlRig* ControlRig, const FName& Name, bool bIsMatched, const FVector& GlobalTranslation, const FQuat& GlobalRotation,const FVector& LocalTranslation, const FQuat& LocalRotation, bool bNotify, const  FRigControlModifiedContext& Context);
 	void PastePoseInternal(UControlRig* ControlRig, bool bDoKey, bool bDoMirror, const TArray<FRigControlCopy>& ControlsToPaste);
 	void BlendWithInitialPoses(FControlRigControlPose& InitialPose, UControlRig* ControlRig, bool bDoKey, bool bDoMirror, float BlendValue);
 
@@ -138,7 +138,7 @@ public:
 	void PastePose(UControlRig* InControlRig, bool bDoKey = false, bool bDoMirror = false);
 	
 	UFUNCTION(BlueprintCallable, Category = "Pose")
-	void SelectControls(UControlRig* InControlRig);
+	void SelectControls(UControlRig* InControlRig, bool bDoMirror = false);
 
 	TArray<FRigControlCopy> GetCurrentPose(UControlRig* InControlRig);
 
