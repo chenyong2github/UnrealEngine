@@ -137,13 +137,18 @@ FMeshConstraintsUtil::ConstrainAllBoundariesAndSeams(FMeshConstraints& Constrain
 					};
 
 					bool bHasSeamEnd = false;
-					for (int i = 0; i < Attributes->NumUVLayers(); ++i)
+					for (int32 i = 0; !bHasSeamEnd && (i < Attributes->NumUVLayers()); ++i)
 					{
 						bool bIsEnd = IsSeamWithEnd(*Attributes->GetUVLayer(i));
 
 						bHasSeamEnd = bHasSeamEnd || bIsEnd;
 					}
-					bHasSeamEnd = bHasSeamEnd || IsSeamWithEnd(*Attributes->PrimaryNormals());
+					for (int32 i = 0; !bHasSeamEnd && (i < Attributes->NumNormalLayers()); ++i)
+					{
+						bool bIsEnd = IsSeamWithEnd(*Attributes->GetNormalLayer(i));
+
+						bHasSeamEnd = bHasSeamEnd || bIsEnd;
+					}
 
 					if (bHasSeamEnd)
 					{
