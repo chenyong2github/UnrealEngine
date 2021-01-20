@@ -53,6 +53,8 @@ class Error;
 
 #if WITH_EDITORONLY_DATA
 
+class FHLSLMaterialTranslator;
+
 enum EMaterialExpressionVisitResult
 {
 	MVR_CONTINUE,
@@ -66,6 +68,22 @@ public:
 	virtual EMaterialExpressionVisitResult Visit(UMaterialExpression* InExpression) = 0;
 };
 
+/**
+* For a node, the known information of the partial derivatives.
+* MEADS_NotAware - This node is made by a function that has no knowledge of analytic partial derivatives.
+* MEADS_Zero - This node is aware of partial derivatives, and knows that it's value is zero, as is the case for uniform parameters.
+* MEADS_Valid - This node is aware of partial derivatives, and knows that it has a calculated value.
+* MEADS_NotValid - This node is aware of partial derivatives, and knows that one of its source inputs is not partial derivative aware, and therefore its value is not to be used.
+**/
+enum EMaterialExpressionAnalyticDerivativeStatus
+{
+	MEADS_NotAware,
+	MEADS_Zero,
+	MEADS_Valid,
+	MEADS_NotValid,
+	MEADS_MAX,
+};
+
 struct FShaderCodeChunk
 {
 	/**
@@ -77,8 +95,13 @@ struct FShaderCodeChunk
 	 * Definition string of the code chunk. 
 	 * If !bInline && !UniformExpression || UniformExpression->IsConstant(), this is the definition of a local variable named by SymbolName.
 	 * Otherwise if bInline || (UniformExpression && UniformExpression->IsConstant()), this is a code expression that needs to be inlined.
+	 * This string uses hardware finite differences.
 	 */
-	FString Definition;
+	FString DefinitionFinite;
+	/** 
+	* Definition string of the code chunk, but with analytic partial derivatives.
+	*/
+	FString DefinitionAnalytic;
 	/** 
 	 * Name of the local variable used to reference this code chunk. 
 	 * If bInline || UniformExpression, there will be no symbol name and Definition should be used directly instead.
@@ -89,24 +112,44 @@ struct FShaderCodeChunk
 	EMaterialValueType Type;
 	/** Whether the code chunk should be inlined or not.  If true, SymbolName is empty and Definition contains the code to inline. */
 	bool bInline;
+	/** The status of partial derivatives at this expression. **/
+	EMaterialExpressionAnalyticDerivativeStatus DerivativeStatus;
+
+	FString& AtDefinition(ECompiledPartialDerivativeVariation Variation)
+	{
+		checkf(Variation == CompiledPDV_FiniteDifferences || Variation == CompiledPDV_Analytic, TEXT("Invalid partial derivative variation: %d"), Variation);
+		return Variation == CompiledPDV_FiniteDifferences ? DefinitionFinite : DefinitionAnalytic;
+	}
+
+	const FString& AtDefinition(ECompiledPartialDerivativeVariation Variation) const
+	{
+		checkf(Variation == CompiledPDV_FiniteDifferences || Variation == CompiledPDV_Analytic, TEXT("Invalid partial derivative variation: %d"), Variation);
+		return Variation == CompiledPDV_FiniteDifferences ? DefinitionFinite : DefinitionAnalytic;
+	}
 
 	/** Ctor for creating a new code chunk with no associated uniform expression. */
-	FShaderCodeChunk(uint64 InHash, const TCHAR* InDefinition,const FString& InSymbolName,EMaterialValueType InType,bool bInInline):
+	FShaderCodeChunk(uint64 InHash, const TCHAR* InDefinitionFinite,const TCHAR* InDefinitionAnalytic,const FString& InSymbolName,EMaterialValueType InType,bool bInInline,
+					 EMaterialExpressionAnalyticDerivativeStatus InDerivativeStatus = MEADS_NotAware):
 		Hash(InHash),
-		Definition(InDefinition),
+		DefinitionFinite(InDefinitionFinite),
+		DefinitionAnalytic(InDefinitionAnalytic),
 		SymbolName(InSymbolName),
 		UniformExpression(NULL),
 		Type(InType),
-		bInline(bInInline)
+		bInline(bInInline),
+		DerivativeStatus(InDerivativeStatus)
 	{}
 
 	/** Ctor for creating a new code chunk with a uniform expression. */
-	FShaderCodeChunk(uint64 InHash, FMaterialUniformExpression* InUniformExpression,const TCHAR* InDefinition,EMaterialValueType InType):
+	FShaderCodeChunk(uint64 InHash, FMaterialUniformExpression* InUniformExpression,const TCHAR* InDefinitionFinite,const TCHAR* InDefinitionAnalytic,EMaterialValueType InType,
+					 EMaterialExpressionAnalyticDerivativeStatus InDerivativeStatus = MEADS_NotAware):
 		Hash(InHash),
-		Definition(InDefinition),
+		DefinitionFinite(InDefinitionFinite),
+		DefinitionAnalytic(InDefinitionAnalytic),
 		UniformExpression(InUniformExpression),
 		Type(InType),
-		bInline(false)
+		bInline(false),
+		DerivativeStatus(InDerivativeStatus)
 	{}
 };
 
@@ -139,9 +182,75 @@ struct FMaterialCustomExpressionEntry
 	TArray<int32> OutputCodeIndex;
 };
 
+struct FMaterialDerivativeAutogen
+{
+	// functions with one parameter
+	enum EFunc1
+	{
+		EF1_Sin,
+		EF1_Cos,
+		EF1_Num
+	};
+
+	enum EFunc2
+	{
+		EF2_Add,
+		EF2_Sub,
+		EF2_Mul,
+		EF2_Div,
+		EF2_Num
+	};
+
+	FMaterialDerivativeAutogen();
+
+	void Reset();
+
+	int32 GenerateExpressionFunc2(FHLSLMaterialTranslator& Translator, EFunc2 Op, int32 LhsCode, int32 RhsCode);
+	FString GenerateUsedFunctions(FHLSLMaterialTranslator& Translator);
+
+	FString CoerceValueRaw(const FString& Token, int32 SrcType, EMaterialExpressionAnalyticDerivativeStatus SrcStatus, int32 DstType);
+	FString CoerceValueDeriv(const FString& Token, int32 SrcType, EMaterialExpressionAnalyticDerivativeStatus SrcStatus, int32 DstType);
+
+	FString MakeDerivConstructor(const FString& Value, const FString& Ddx, const FString& Ddy, int32 DstType);
+
+	FString MakeDerivConstructorFromFinite(const FString& Value, int32 DstType);
+
+	// this could be packed easily into a bitmask, but keeping it as bools for clarity, and it's pipeline so the cost is irrelevant
+	bool bFunc2OpIsEnabled[EF2_Num][4];
+
+	// For example, used when we cast from a float4 to FloatDeriv4
+	bool bCastDerivFromRawIsEnabled[4];
+
+	// Used when we explicitly create a derivative with values. I.e. MakeFloatDeriv2(float2 Value, float2 Ddx, float2 Ddy)
+	bool bFullConstructorEnabled[4];
+
+	// Used when we explicitly create a derivative from ddx/ddy. I.e. MakeFloatDeriv2(float2 Value) // derivs from ddx(Value) and ddy(Value)
+	bool bCompactConstructorEnabled[4];
+
+	// For example, used when we cast from a FloatDeriv to FloatDeriv4. Note that bCastDerivFromDerivIsEnabled[0] will always be false,
+	// as we don't needto cast from a FloatDeriv to FloatDeriv, but leaving it to avoid have +1/-1s everywhere.
+	bool bCastDerivFromDerivIsEnabled[4];
+
+};
+
+struct FMaterialDerivativeVariation
+{
+	/** Code chunk definitions corresponding to each of the material inputs, only initialized after Translate has been called. */
+	FString TranslatedCodeChunkDefinitions[CompiledMP_MAX];
+
+	/** Code chunks corresponding to each of the material inputs, only initialized after Translate has been called. */
+	FString TranslatedCodeChunks[CompiledMP_MAX];
+
+	/** Any custom output function implementations */
+	TArray<FString> CustomOutputImplementations;
+
+};
+
 class FHLSLMaterialTranslator : public FMaterialCompiler
 {
 protected:
+	/** Data that is different for the finite and anlytical partial derivative options. **/
+	FMaterialDerivativeVariation DerivativeVariations[CompiledPDV_MAX];
 
 	/** The shader frequency of the current material property being compiled. */
 	EShaderFrequency ShaderFrequency;
@@ -159,6 +268,9 @@ protected:
 	// List of Shared pixel properties. Used to share generated code
 	bool SharedPixelProperties[CompiledMP_MAX];
 
+	/** Stores the resource declarations */
+	FString ResourcesString;
+
 	/* Stack that tracks compiler state specific to the function currently being compiled. */
 	TArray<FMaterialFunctionCompileState*> FunctionStacks[SF_NumFrequencies];
 
@@ -174,17 +286,8 @@ protected:
 	/** Feature level being compiled for. */
 	ERHIFeatureLevel::Type FeatureLevel;
 
-	/** Code chunk definitions corresponding to each of the material inputs, only initialized after Translate has been called. */
-	FString TranslatedCodeChunkDefinitions[CompiledMP_MAX];
-
-	/** Code chunks corresponding to each of the material inputs, only initialized after Translate has been called. */
-	FString TranslatedCodeChunks[CompiledMP_MAX];
-
 	/** Line number of the #line in MaterialTemplate.usf */
 	int32 MaterialTemplateLineNumber;
-
-	/** Stores the resource declarations */
-	FString ResourcesString;
 
 	/** Contents of the MaterialTemplate.usf file */
 	FString MaterialTemplate;
@@ -211,9 +314,6 @@ protected:
 	//TMap<UMaterialExpressionCustom*, int32> CachedCustomExpressions;
 	TArray<FMaterialCustomExpressionEntry> CustomExpressions;
 
-	/** Any custom output function implementations */
-	TArray<FString> CustomOutputImplementations;
-
 	/** Custom vertex interpolators */
 	TArray<UMaterialExpressionVertexInterpolator*> CustomVertexInterpolators;
 	/** Index to assign to next vertex interpolator. */
@@ -228,6 +328,9 @@ protected:
 	/** Used by interpolator pre-translation to hold potential errors until actually confirmed. */
 	TArray<FString>* CompileErrorsSink;
 	TArray<UMaterialExpression*>* CompileErrorExpressionsSink;
+
+	/** Keeps track of which variations of analytic derivative functions are used, and generates the code during translation. **/
+	FMaterialDerivativeAutogen DerivativeAutogen;
 
 	/** Whether the translation succeeded. */
 	uint32 bSuccess : 1;
@@ -368,9 +471,11 @@ public:
 	// Assign custom interpolators to slots, packing them as much as possible in unused slots.
 	TBitArray<> GetVertexInterpolatorsOffsets(FString& VertexInterpolatorsOffsetsDefinitionCode) const;
 
-	void GetSharedInputsMaterialCode(FString& PixelMembersDeclaration, FString& NormalAssignment, FString& PixelMembersInitializationEpilog);
+	void GetSharedInputsMaterialCode(FString& PixelMembersDeclaration, FString& NormalAssignment, FString& PixelMembersInitializationEpilog, ECompiledPartialDerivativeVariation DerivativeVariation);
 
 	FString GetMaterialShaderCode();
+
+	const FShaderCodeChunk& AtParameterCodeChunk(int32 Index) const;
 
 protected:
 
@@ -378,26 +483,37 @@ protected:
 
 	// only used by GetMaterialShaderCode()
 	// @param Index ECompiledMaterialProperty or EMaterialProperty
-	FString GenerateFunctionCode(uint32 Index) const;
+	FString GenerateFunctionCode(uint32 Index, ECompiledPartialDerivativeVariation Variation) const;
 
-	// GetParameterCode
+	// GetParameterCode, with DERIV_BASE_VALUE if necessary
 	virtual FString GetParameterCode(int32 Index, const TCHAR* Default = 0);
+
+	// GetParameterCode, no DERIV_BASE_VALUE
+	virtual FString GetParameterCodeRaw(int32 Index, const TCHAR* Default = 0);
+
+public:
+	// Must always be valid
+	virtual FString GetParameterCodeDeriv(int32 Index, ECompiledPartialDerivativeVariation Variation);
+protected:
 
 	uint64 GetParameterHash(int32 Index);
 
 	/** Creates a string of all definitions needed for the given material input. */
-	FString GetDefinitions(TArray<FShaderCodeChunk>& CodeChunks, int32 StartChunk, int32 EndChunk) const;
+	FString GetDefinitions(TArray<FShaderCodeChunk>& CodeChunks, int32 StartChunk, int32 EndChunk, ECompiledPartialDerivativeVariation Variation) const;
 
 	// GetFixedParameterCode
-	void GetFixedParameterCode(int32 StartChunk, int32 EndChunk, int32 ResultIndex, TArray<FShaderCodeChunk>& CodeChunks, FString& OutDefinitions, FString& OutValue);
+	void GetFixedParameterCode(int32 StartChunk, int32 EndChunk, int32 ResultIndex, TArray<FShaderCodeChunk>& CodeChunks, FString& OutDefinitions, FString& OutValue, ECompiledPartialDerivativeVariation Variation);
 
-	void GetFixedParameterCode(int32 ResultIndex, TArray<FShaderCodeChunk>& CodeChunks, FString& OutDefinitions, FString& OutValue);
+	void GetFixedParameterCode(int32 ResultIndex, TArray<FShaderCodeChunk>& CodeChunks, FString& OutDefinitions, FString& OutValue, ECompiledPartialDerivativeVariation Variation);
 
 	/** Used to get a user friendly type from EMaterialValueType */
 	const TCHAR* DescribeType(EMaterialValueType Type) const;
 
 	/** Used to get an HLSL type from EMaterialValueType */
 	const TCHAR* HLSLTypeString(EMaterialValueType Type) const;
+
+	/** Used to get an HLSL type from EMaterialValueType */
+	const TCHAR* HLSLTypeStringDeriv(EMaterialValueType Type, EMaterialExpressionAnalyticDerivativeStatus DerivativeStatus) const;
 
 	int32 NonPixelShaderExpressionError();
 
@@ -413,6 +529,12 @@ protected:
 
 	/** Adds an already formatted inline or referenced code chunk */
 	int32 AddCodeChunkInner(uint64 Hash, const TCHAR* FormattedCode, EMaterialValueType Type, bool bInlined);
+
+public:
+	/** Adds an already formatted inline or referenced code chunk, and notes the derivative status. */
+	int32 AddCodeChunkInnerDeriv(uint64 Hash, const TCHAR* FormattedCodeFinite, const TCHAR* FormattedCodeAnalytic, EMaterialValueType Type, bool bInlined, EMaterialExpressionAnalyticDerivativeStatus DerivativeStatus);
+
+protected:
 
 	/** 
 	 * Constructs the formatted code chunk and creates a new local variable definition from it. 

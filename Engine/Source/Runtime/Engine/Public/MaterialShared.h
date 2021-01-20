@@ -1365,6 +1365,18 @@ enum ECompiledMaterialProperty
 	CompiledMP_MAX
 };
 
+/** 
+* Enum that contains entries for the ways that material properties can be compiled with partial derivative calculations.
+* Standard material shaders using the automatic hardware FiniteDifferences, Nanite uses Analytic, and we will likely
+* need to add a separate one for raytracing at a later date.
+*/
+enum ECompiledPartialDerivativeVariation
+{
+	CompiledPDV_FiniteDifferences,
+	CompiledPDV_Analytic,
+	CompiledPDV_MAX
+};
+
 /**
  * Uniquely identifies a material expression output. 
  * Used by the material compiler to keep track of which output it is compiling.
