@@ -53,6 +53,9 @@ public:
 	{
 	}
 
+	/** Reset this to a null attachment. */
+	inline void Reset() { *this = FCbAttachment(); }
+
 	/** Whether the attachment has a value. */
 	inline explicit operator bool() const { return !IsNull(); }
 
@@ -201,6 +204,9 @@ public:
 	{
 		SetObject(MoveTemp(InObject), InObjectHash, InResolver);
 	}
+
+	/** Reset this to a null package. */
+	inline void Reset() { *this = FCbPackage(); }
 
 	/** Whether the package has a non-empty object or attachments. */
 	inline explicit operator bool() const { return !IsNull(); }

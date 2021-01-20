@@ -302,6 +302,9 @@ public:
 	constexpr inline FieldType& operator*() { return *this; }
 	constexpr inline FieldType* operator->() { return this; }
 
+	/** Reset this to an empty field range. */
+	inline void Reset() { *this = TCbFieldIterator(); }
+
 	/** Returns the size of the fields in the range in bytes. */
 	CORE_API uint64 GetRangeSize() const;
 
@@ -952,6 +955,9 @@ public:
 		: TCbBufferRef(Value, MoveTemp(OuterRef.Buffer))
 	{
 	}
+
+	/** Reset this to a default value and null buffer. */
+	inline void Reset() { *this = TCbBufferRef(); }
 
 	/** Whether this reference has ownership of the memory in its buffer. */
 	inline bool IsOwned() const { return Buffer.IsOwned(); }

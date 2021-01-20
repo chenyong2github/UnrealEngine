@@ -30,7 +30,7 @@ FCbAttachment::FCbAttachment(FCbFieldRefIterator InValue, const FBlake3Hash* con
 		}
 		else
 		{
-			checkfSlow(Hash == FBlake3Hash(), TEXT("A null or empty field range must use a hash of zero."));
+			checkfSlow(Hash.IsZero(), TEXT("A null or empty field range must use a hash of zero."));
 		}
 	}
 	else if (CompactBinary)
@@ -52,7 +52,7 @@ FCbAttachment::FCbAttachment(FSharedBuffer InBuffer, const FBlake3Hash* const In
 		}
 		else
 		{
-			checkfSlow(Hash == FBlake3Hash(), TEXT("A null or empty buffer must use a hash of zero."));
+			checkfSlow(Hash.IsZero(), TEXT("A null or empty buffer must use a hash of zero."));
 		}
 	}
 	else if (Buffer.GetSize())
@@ -106,9 +106,9 @@ void FCbAttachment::Load(FCbFieldRefIterator& Fields)
 	else
 	{
 		++Fields;
-		Buffer = FSharedBuffer();
-		CompactBinary = FCbFieldIterator();
-		Hash = FBlake3Hash();
+		Buffer.Reset();
+		CompactBinary.Reset();
+		Hash.Reset();
 	}
 }
 
@@ -139,9 +139,9 @@ void FCbAttachment::Load(FArchive& Ar, FCbBufferAllocator Allocator)
 	}
 	else
 	{
-		Buffer = FSharedBuffer();
-		CompactBinary = FCbFieldIterator();
-		Hash = FBlake3Hash();
+		Buffer.Reset();
+		CompactBinary.Reset();
+		Hash.Reset();
 	}
 }
 
@@ -201,8 +201,8 @@ void FCbPackage::SetObject(FCbObjectRef InObject, const FBlake3Hash* InObjectHas
 	}
 	else
 	{
-		Object = FCbObjectRef();
-		ObjectHash = FBlake3Hash();
+		Object.Reset();
+		ObjectHash.Reset();
 	}
 }
 
@@ -303,7 +303,7 @@ void FCbPackage::Load(FCbFieldRefIterator& Fields)
 			}
 			else
 			{
-				Object = FCbObjectRef();
+				Object.Reset();
 			}
 		}
 	}
@@ -358,7 +358,7 @@ void FCbPackage::Load(FArchive& Ar, FCbBufferAllocator Allocator)
 			}
 			else
 			{
-				Object = FCbObjectRef();
+				Object.Reset();
 			}
 		}
 	}
