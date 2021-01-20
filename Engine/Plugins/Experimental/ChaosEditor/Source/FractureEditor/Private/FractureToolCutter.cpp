@@ -124,7 +124,7 @@ bool UFractureToolCutterBase::IsLeafBoneSelected()
 
 					for (int32 BoneIndex : SelectedBones)
 					{
-						if (Children[BoneIndex].Num() == 0)
+						if (BoneIndex < Children.Num() && Children[BoneIndex].Num() == 0)
 						{
 							return true;
 						}
@@ -147,7 +147,7 @@ TArray<int32> UFractureToolCutterBase::FilterBones(const TArray<int32>& Selected
 	SelectedBones.Reserve(SelectedBonesOriginal.Num());
 	for (int32 BoneIndex : SelectedBonesOriginal)
 	{
-		if (Children[BoneIndex].Num() == 0 && RandomStream.FRand() < CutterSettings->ChanceToFracture)
+		if (BoneIndex < Children.Num() && Children[BoneIndex].Num() == 0 && RandomStream.FRand() < CutterSettings->ChanceToFracture)
 		{
 			SelectedBones.Add(BoneIndex);
 		}
