@@ -44,6 +44,7 @@ struct FSwitchboardStateRunningProcess
 	uint32 Pid;
 };
 
+// This is an initial snapshot, sent upon connecting.
 USTRUCT()
 struct FSwitchboardStatePacket : public FSwitchboardPacket
 {
@@ -55,7 +56,7 @@ struct FSwitchboardStatePacket : public FSwitchboardPacket
 		bAck = true;
 
 		const uint32 Major = 1;
-		const uint32 Minor = 2;
+		const uint32 Minor = 3;
 		const uint32 Patch = 0;
 
 		Version = (Major << 16) | (Minor << 8) | (Patch);
@@ -66,6 +67,15 @@ struct FSwitchboardStatePacket : public FSwitchboardPacket
 
 	UPROPERTY()
 	uint32 Version;
+
+	UPROPERTY()
+	FString OsVersionLabel;
+
+	UPROPERTY()
+	FString OsVersionLabelSub;
+
+	UPROPERTY()
+	FString OsVersionNumber;
 };
 
 USTRUCT()
