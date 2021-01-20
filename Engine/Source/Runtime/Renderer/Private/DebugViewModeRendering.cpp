@@ -237,6 +237,11 @@ void FDebugViewModeMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT MeshBa
 	}
 
 	const UMaterialInterface* ResolvedMaterial = MeshBatch.MaterialRenderProxy->GetMaterialInterface();
+	if (!ResolvedMaterial)
+	{
+		return;
+	}
+
 	if (!DebugViewModeInterface->bNeedsMaterialProperties && FDebugViewModeInterface::AllowFallbackToDefaultMaterial(BatchMaterial))
 	{
 		ResolvedMaterial = UMaterial::GetDefaultMaterial(MD_Surface);

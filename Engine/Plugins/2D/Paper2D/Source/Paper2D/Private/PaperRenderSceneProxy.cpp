@@ -59,6 +59,11 @@ public:
 	{
 	}
 
+	virtual UMaterialInterface* GetMaterialInterface() const override
+	{ 
+		return Parent ? Parent->GetMaterialInterface() : nullptr; 
+	}
+
 	void CheckValidity(FMaterialRenderProxy* InCurrentParent)
 	{
 		if (InCurrentParent != Parent)
