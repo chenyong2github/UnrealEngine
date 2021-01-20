@@ -15,6 +15,7 @@ void FGeometryCollectionClusteringUtility::ClusterBonesUnderNewNode(FGeometryCol
 	TManagedArray<FString>& BoneNames = GeometryCollection->BoneName;
 	TManagedArray<int32>& Parents = GeometryCollection->Parent;
 	TManagedArray<TSet<int32>>& Children = GeometryCollection->Children;
+	TManagedArray<int32>& SimType = GeometryCollection->SimulationType;
 
 	// insert a new node between the selected bones and their shared parent
 	int NewBoneIndex = GeometryCollection->AddElements(1, FGeometryCollection::TransformGroup);
@@ -25,6 +26,7 @@ void FGeometryCollectionClusteringUtility::ClusterBonesUnderNewNode(FGeometryCol
 	BoneNames[NewBoneIndex] = BoneNames[SourceBoneIndex];
 	Parents[NewBoneIndex] = OriginalParentIndex;
 	Children[NewBoneIndex] = TSet<int32>(SelectedBones);
+	SimType[NewBoneIndex] = FGeometryCollection::ESimulationTypes::FST_Clustered;
 
 	Transforms[NewBoneIndex] = FTransform::Identity;
 
@@ -843,6 +845,33 @@ int32 FGeometryCollectionClusteringUtility::FindLowestCommonAncestor(FGeometryCo
 
 	// No common ancestor
 	return INDEX_NONE;
+}
+
+void FGeometryCollectionClusteringUtility::RemoveDanglingClusters(FGeometryCollection* GeometryCollection)
+{
+	check(GeometryCollection);
+
+	const TManagedArray<TSet<int32>>& Children = GeometryCollection->Children;
+	const TManagedArray<FTransform>& Transforms = GeometryCollection->Transform;
+	const TManagedArray<int32>& SimulationType = GeometryCollection->SimulationType;
+
+	const int32 TransformCount = Transforms.Num();
+	TArray<int32> DeletionList;
+	for (int32 Idx = 0; Idx < TransformCount; ++Idx)
+	{
+		if(GeometryCollection->IsClustered(Idx))
+		{
+			if (Children[Idx].Num() == 0)
+			{
+				DeletionList.Add(Idx);
+			}
+		}
+	}
+
+	if (DeletionList.Num())
+	{
+		GeometryCollection->RemoveElements(FGeometryCollection::TransformGroup, DeletionList);
+	}
 }
 
 

@@ -53,6 +53,10 @@ void UFractureToolFlattenAll::Execute(TWeakPtr<FFractureEditorModeToolkit> InToo
 				TArray<int32> LeafBones;
 				FGeometryCollectionClusteringUtility::GetLeafBones(Context.GetGeometryCollection().Get(), ClusterIndex, LeafBones);
 				FGeometryCollectionClusteringUtility::ClusterBonesUnderExistingNode(Context.GetGeometryCollection().Get(), ClusterIndex, LeafBones);
+
+				// Cleanup: Remove any clusters remaining in the flattened branch.
+				FGeometryCollectionClusteringUtility::RemoveDanglingClusters(Context.GetGeometryCollection().Get());
+
 				CurrentLevelView = Levels[ClusterIndex] + 1;
 			}
 
@@ -107,21 +111,24 @@ void UFractureToolCluster::Execute(TWeakPtr<FFractureEditorModeToolkit> InToolki
 			Context.RemoveRootNodes();
 			Context.Sanitize();
 
-			// Cluster selected bones beneath common parent
-			int32 LowestCommonAncestor = FGeometryCollectionClusteringUtility::FindLowestCommonAncestor(Context.GetGeometryCollection().Get(), Context.GetSelection());
-
-			if (LowestCommonAncestor != INDEX_NONE)
+			if (Context.GetSelection().Num() > 1)
 			{
-				// ClusterBonesUnderNewNode expects a sibling of the new cluster so we require a child node of the common ancestor.
-				const TManagedArray<TSet<int32>>& Children = Context.GetGeometryCollection()->GetAttribute<TSet<int32>>("Children", FGeometryCollection::TransformGroup);
-				TArray<int32> Siblings = Children[LowestCommonAncestor].Array();
-				if (Siblings.Num() > 0)
+				// Cluster selected bones beneath common parent
+				int32 LowestCommonAncestor = FGeometryCollectionClusteringUtility::FindLowestCommonAncestor(Context.GetGeometryCollection().Get(), Context.GetSelection());
+
+				if (LowestCommonAncestor != INDEX_NONE)
 				{
-					FGeometryCollectionClusteringUtility::ClusterBonesUnderNewNode(Context.GetGeometryCollection().Get(), Siblings[0], Context.GetSelection(), false);
+					// ClusterBonesUnderNewNode expects a sibling of the new cluster so we require a child node of the common ancestor.
+					const TManagedArray<TSet<int32>>& Children = Context.GetGeometryCollection()->GetAttribute<TSet<int32>>("Children", FGeometryCollection::TransformGroup);
+					TArray<int32> Siblings = Children[LowestCommonAncestor].Array();
+					if (Siblings.Num() > 0)
+					{
+						FGeometryCollectionClusteringUtility::ClusterBonesUnderNewNode(Context.GetGeometryCollection().Get(), Siblings[0], Context.GetSelection(), true);
+					}
 				}
+
+				Refresh(Context, Toolkit);
 			}
-			
-			Refresh(Context, Toolkit);
 		}
 
 		if (CurrentLevelView != Toolkit->GetLevelViewValue())

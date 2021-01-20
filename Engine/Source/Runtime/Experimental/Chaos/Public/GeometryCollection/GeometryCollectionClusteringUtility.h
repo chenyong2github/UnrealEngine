@@ -112,6 +112,9 @@ public:
 	/** Find the lowest common ancestor index of currently selected nodes. Returns INDEX_NODE if there is no common ancestor. */
 	static int32 FindLowestCommonAncestor(FGeometryCollection* GeometryCollection, const TArray<int32>& SelectedBones);
 
+	/** Delete any cluster nodes discovered to have no children */
+	static void RemoveDanglingClusters(FGeometryCollection* GeometryCollection);
+
 	static void ValidateResults(FGeometryCollection* GeometryCollection);
 private:
 	static int32 PickBestNodeToMergeTo(const FGeometryCollection* GeometryCollection, const TArray<int32>& SourceElements);
