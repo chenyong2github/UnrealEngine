@@ -229,6 +229,12 @@ void GatherSpecularIBL(FMaterialPixelParameters MaterialParameters
 	half3 ProjectedCaptureVector = MaterialParameters.ReflectionVector;
 
 #if HQ_REFLECTIONS
+
+	if (ReflectionPositionsAndRadii[ReflectionIndex].w == 0.0f)
+	{
+		return;
+	}
+	
 	half DistanceAlpha = 0.0;
 
 	half3 CaptureVector = MaterialParameters.AbsoluteWorldPosition - ReflectionPositionsAndRadii[ReflectionIndex].xyz;
