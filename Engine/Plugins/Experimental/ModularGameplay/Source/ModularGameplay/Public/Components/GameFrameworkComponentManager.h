@@ -181,7 +181,7 @@ private:
 	TMap<FComponentRequestReceiverClassPath, TSet<UClass*>> ReceiverClassToComponentClassMap;
 
 	/** A map actor classes to instances of that class that have been registered with AddReceiver */
-	TMap<FObjectKey, TArray<TWeakObjectPtr<AActor>>> ReceiverClassToReceiverInstancesMap;
+	TMap<FObjectKey, TSet<FObjectKey>> ReceiverClassToReceiverInstancesMap;
 
 	friend struct FComponentRequestHandle;
 };
