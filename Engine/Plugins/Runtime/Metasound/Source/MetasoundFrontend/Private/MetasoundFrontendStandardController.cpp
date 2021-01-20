@@ -80,7 +80,7 @@ namespace Metasound
 			// specific queries. 
 			struct FGetSubgraphFromDocumentByID
 			{
-				FGetSubgraphFromDocumentByID(int32 InID)
+				FGetSubgraphFromDocumentByID(FGuid InID)
 				: ID(InID)
 				{
 				}
@@ -96,7 +96,7 @@ namespace Metasound
 				}
 
 			private:
-				int32 ID;
+				FGuid ID;
 			};
 
 			struct FGetClassInputFromClassWithName
@@ -179,7 +179,7 @@ namespace Metasound
 				};
 			}
 
-			auto FGetNodeInputFromNodeWithPoint(int32 InPointID)
+			auto FGetNodeInputFromNodeWithPoint(FGuid InPointID)
 			{
 				return [=](FMetasoundFrontendNode& InNode) -> FMetasoundFrontendVertex*
 				{
@@ -188,7 +188,7 @@ namespace Metasound
 				};
 			}
 
-			auto FGetConstNodeInputFromNodeWithPoint(int32 InPointID)
+			auto FGetConstNodeInputFromNodeWithPoint(FGuid InPointID)
 			{
 				return [=](const FMetasoundFrontendNode& InNode) -> const FMetasoundFrontendVertex*
 				{
@@ -197,7 +197,7 @@ namespace Metasound
 				};
 			}
 
-			auto FGetNodeOutputFromNodeWithPoint(int32 InPointID)
+			auto FGetNodeOutputFromNodeWithPoint(FGuid InPointID)
 			{
 				return [=](FMetasoundFrontendNode& InNode) -> FMetasoundFrontendVertex*
 				{
@@ -206,7 +206,7 @@ namespace Metasound
 				};
 			}
 
-			auto FGetConstNodeOutputFromNodeWithPoint(int32 InPointID)
+			auto FGetConstNodeOutputFromNodeWithPoint(FGuid InPointID)
 			{
 				return [=](const FMetasoundFrontendNode& InNode) -> const FMetasoundFrontendVertex*
 				{
@@ -215,7 +215,7 @@ namespace Metasound
 				};
 			}
 
-			auto FGetConstClassFromDocumentDependenciesWithID(int32 InClassID)
+			auto FGetConstClassFromDocumentDependenciesWithID(FGuid InClassID)
 			{
 				return [=](const FMetasoundFrontendDocument& InDocument) -> const FMetasoundFrontendClass*
 				{
@@ -224,7 +224,7 @@ namespace Metasound
 				};
 			}
 
-			auto FGetConstGraphClassFromDocumentWithID(int32 InClassID)
+			auto FGetConstGraphClassFromDocumentWithID(FGuid InClassID)
 			{
 				return [=](const FMetasoundFrontendDocument& InDocument) -> const FMetasoundFrontendGraphClass*
 				{
@@ -269,7 +269,7 @@ namespace Metasound
 				};
 			}
 
-			auto FGetNodeFromGraphClassByNodeID(int32 InNodeID)
+			auto FGetNodeFromGraphClassByNodeID(FGuid InNodeID)
 			{
 				return [=](FMetasoundFrontendGraphClass& InGraphClass) -> FMetasoundFrontendNode*
 				{
@@ -287,7 +287,7 @@ namespace Metasound
 				return [](FMetasoundFrontendGraphClass& InGraphClass) -> FMetasoundFrontendGraph* { return &InGraphClass.Graph; };
 			}
 
-			auto FGetConstNodeFromGraphClassByNodeID(int32 InNodeID)
+			auto FGetConstNodeFromGraphClassByNodeID(FGuid InNodeID)
 			{
 				return [=](const FMetasoundFrontendGraphClass& InGraphClass) -> const FMetasoundFrontendNode*
 				{
@@ -296,7 +296,7 @@ namespace Metasound
 				};
 			}
 
-			auto FGetConstClassInputFromGraphClassWithNodeID(int32 InNodeID)
+			auto FGetConstClassInputFromGraphClassWithNodeID(FGuid InNodeID)
 			{
 				return [=](const FMetasoundFrontendGraphClass& InGraphClass) -> const FMetasoundFrontendClassInput*
 				{
@@ -304,7 +304,7 @@ namespace Metasound
 				};
 			}
 
-			auto FGetClassInputFromGraphClassWithNodeID(int32 InNodeID)
+			auto FGetClassInputFromGraphClassWithNodeID(FGuid InNodeID)
 			{
 				return [=](FMetasoundFrontendGraphClass& InGraphClass) -> FMetasoundFrontendClassInput*
 				{
@@ -312,7 +312,7 @@ namespace Metasound
 				};
 			}
 
-			auto FGetConstClassOutputFromGraphClassWithNodeID(int32 InNodeID)
+			auto FGetConstClassOutputFromGraphClassWithNodeID(FGuid InNodeID)
 			{
 				return [=](const FMetasoundFrontendGraphClass& InGraphClass) -> const FMetasoundFrontendClassOutput*
 				{
@@ -320,7 +320,7 @@ namespace Metasound
 				};
 			}
 
-			auto FGetClassOutputFromGraphClassWithNodeID(int32 InNodeID)
+			auto FGetClassOutputFromGraphClassWithNodeID(FGuid InNodeID)
 			{
 				return [=](FMetasoundFrontendGraphClass& InGraphClass) -> FMetasoundFrontendClassOutput*
 				{
@@ -329,57 +329,16 @@ namespace Metasound
 			}
 
 
-			/*
-			struct FGetNodeInputFromNodeWithName
-			{
-				FGetNodeInputFromNodeWithName(const FString& InName)
-				: Name(InName)
-				{
-				}
+		}
 
-				FMetasoundFrontendVertex* operator () (FMetasoundFrontendNode& InNode)
-				{
-					auto IsVertexWithName = [&](const FMetasoundFrontendVertex& Vertex) { return Vertex.Name == Name; };
-					return InNode.Interface.Inputs.FindByPredicate(IsVertexWithName);
-				}
+		FDocumentAccess IDocumentAccessor::GetSharedAccess(IDocumentAccessor& InDocumentAccessor)
+		{
+			return InDocumentAccessor.ShareAccess();
+		}
 
-				const FMetasoundFrontendVertex* operator() (const FMetasoundFrontendNode& InNode)
-				{
-					auto IsVertexWithName = [&](const FMetasoundFrontendVertex& Vertex) { return Vertex.Name == Name; };
-					return InNode.Interface.Inputs.FindByPredicate(IsVertexWithName);
-				}
-			};
-			*/
-
-			int32 GetNewID(const TSet<int32> InExistingIDs)
-			{
-				// Assumption here is that we will never need more than ten thousand nodes,
-				// and four digits are easy enough to read/remember when looking at metasound graph documents.
-				int32 IDMax = 9999;
-
-				int32 NewID = Metasound::FrontendInvalidID;
-
-				while (InExistingIDs.Num() > (IDMax / 10))
-				{
-					IDMax *= 10;
-					IDMax += 9;
-
-					if (!ensure((IDMax > 0)))
-					{
-						// IDMax has rolled over to negative values. now is a good
-						// time to consider a new ID type.
-						return Metasound::FrontendInvalidID;
-					}
-				}
-
-				do 
-				{
-					NewID = FMath::RandRange(1, IDMax);
-				}
-				while (InExistingIDs.Contains(NewID));
-
-				return NewID;
-			}
+		FConstDocumentAccess IDocumentAccessor::GetSharedAccess(const IDocumentAccessor& InDocumentAccessor)
+		{
+			return InDocumentAccessor.ShareAccess();
 		}
 
 		//
@@ -397,7 +356,7 @@ namespace Metasound
 			return OwningNode->IsValid() && NodeVertexPtr.IsValid();
 		}
 
-		int32 FBaseOutputController::GetID() const
+		FGuid FBaseOutputController::GetID() const
 		{
 			return ID;
 		}
@@ -420,7 +379,7 @@ namespace Metasound
 			return FrontendControllerIntrinsics::GetInvalidValueConstRef<FString>();
 		}
 
-		int32 FBaseOutputController::GetOwningNodeID() const
+		FGuid FBaseOutputController::GetOwningNodeID() const
 		{
 			return OwningNode->GetID();
 		}
@@ -453,6 +412,24 @@ namespace Metasound
 		bool FBaseOutputController::Disconnect(IInputController& InController)
 		{
 			return InController.Disconnect(*this);
+		}
+
+		FDocumentAccess FBaseOutputController::ShareAccess() 
+		{
+			FDocumentAccess Access;
+
+			Access.ConstVertex = NodeVertexPtr;
+
+			return Access;
+		}
+
+		FConstDocumentAccess FBaseOutputController::ShareAccess() const
+		{
+			FConstDocumentAccess Access;
+
+			Access.ConstVertex = NodeVertexPtr;
+
+			return Access;
 		}
 
 		//
@@ -489,6 +466,24 @@ namespace Metasound
 			return FrontendControllerIntrinsics::GetInvalidValueConstRef<FText>();
 		}
 
+		FDocumentAccess FNodeOutputController::ShareAccess() 
+		{
+			FDocumentAccess Access = FBaseOutputController::ShareAccess();
+
+			Access.ConstClassOutput = ClassOutputPtr;
+
+			return Access;
+		}
+
+		FConstDocumentAccess FNodeOutputController::ShareAccess() const
+		{
+			FConstDocumentAccess Access = FBaseOutputController::ShareAccess();
+
+			Access.ConstClassOutput = ClassOutputPtr;
+
+			return Access;
+		}
+
 		//
 		// FInputNodeOutputController
 		// 
@@ -523,6 +518,24 @@ namespace Metasound
 			return FrontendControllerIntrinsics::GetInvalidValueConstRef<FText>();
 		}
 
+		FDocumentAccess FInputNodeOutputController::ShareAccess() 
+		{
+			FDocumentAccess Access = FBaseOutputController::ShareAccess();
+
+			Access.ConstClassInput = OwningGraphClassInputPtr;
+
+			return Access;
+		}
+
+		FConstDocumentAccess FInputNodeOutputController::ShareAccess() const
+		{
+			FConstDocumentAccess Access = FBaseOutputController::ShareAccess();
+
+			Access.ConstClassInput = OwningGraphClassInputPtr;
+
+			return Access;
+		}
+
 		//
 		// FBaseInputController
 		// 
@@ -539,7 +552,7 @@ namespace Metasound
 			return OwningNode->IsValid() && NodeVertexPtr.IsValid() &&  GraphPtr.IsValid();
 		}
 
-		int32 FBaseInputController::GetID() const
+		FGuid FBaseInputController::GetID() const
 		{
 			return ID;
 		}
@@ -569,7 +582,7 @@ namespace Metasound
 			return (nullptr != FindEdge());
 		}
 
-		int32 FBaseInputController::GetOwningNodeID() const
+		FGuid FBaseInputController::GetOwningNodeID() const
 		{
 			return OwningNode->GetID();
 		}
@@ -708,10 +721,10 @@ namespace Metasound
 		{
 			if (GraphPtr.IsValid())
 			{
-				int32 FromNodeID = InController.GetOwningNodeID();
-				int32 FromPointID = InController.GetID();
-				int32 ToNodeID = GetOwningNodeID();
-				int32 ToPointID = GetID();
+				FGuid FromNodeID = InController.GetOwningNodeID();
+				FGuid FromPointID = InController.GetID();
+				FGuid ToNodeID = GetOwningNodeID();
+				FGuid ToPointID = GetID();
 
 				auto IsMatchingEdge = [&](const FMetasoundFrontendEdge& Edge)
 				{
@@ -729,8 +742,8 @@ namespace Metasound
 		{
 			if (GraphPtr.IsValid())
 			{
-				const int32 NodeID = GetOwningNodeID();
-				const int32 PointID = GetID();
+				const FGuid NodeID = GetOwningNodeID();
+				FGuid PointID = GetID();
 
 				auto EdgeHasMatchingDestination = [&](const FMetasoundFrontendEdge& Edge)
 				{
@@ -749,8 +762,8 @@ namespace Metasound
 		{
 			if (GraphPtr.IsValid())
 			{
-				const int32 NodeID = GetOwningNodeID();
-				const int32 PointID = GetID();
+				const FGuid NodeID = GetOwningNodeID();
+				FGuid PointID = GetID();
 
 				auto EdgeHasMatchingDestination = [&](const FMetasoundFrontendEdge& Edge)
 				{
@@ -767,8 +780,8 @@ namespace Metasound
 		{
 			if (GraphPtr.IsValid())
 			{
-				const int32 NodeID = GetOwningNodeID();
-				const int32 PointID = GetID();
+				const FGuid NodeID = GetOwningNodeID();
+				FGuid PointID = GetID();
 
 				auto EdgeHasMatchingDestination = [&](const FMetasoundFrontendEdge& Edge)
 				{
@@ -779,6 +792,27 @@ namespace Metasound
 			}
 
 			return nullptr;
+		}
+
+		FDocumentAccess FBaseInputController::ShareAccess() 
+		{
+			FDocumentAccess Access;
+
+			Access.ConstVertex = NodeVertexPtr;
+			Access.Graph = GraphPtr;
+			Access.ConstGraph = GraphPtr;
+
+			return Access;
+		}
+
+		FConstDocumentAccess FBaseInputController::ShareAccess() const
+		{
+			FConstDocumentAccess Access;
+
+			Access.ConstVertex = NodeVertexPtr;
+			Access.ConstGraph = GraphPtr;
+
+			return Access;
 		}
 
 		//
@@ -815,6 +849,24 @@ namespace Metasound
 			return FrontendControllerIntrinsics::GetInvalidValueConstRef<FText>();
 		}
 
+		FDocumentAccess FNodeInputController::ShareAccess() 
+		{
+			FDocumentAccess Access = FBaseInputController::ShareAccess();
+
+			Access.ConstClassInput = OwningGraphClassInputPtr;
+
+			return Access;
+		}
+
+		FConstDocumentAccess FNodeInputController::ShareAccess() const
+		{
+			FConstDocumentAccess Access = FBaseInputController::ShareAccess();
+
+			Access.ConstClassInput = OwningGraphClassInputPtr;
+
+			return Access;
+		}
+
 		//
 		// FOutputNodeInputController
 		//
@@ -849,6 +901,24 @@ namespace Metasound
 			return FrontendControllerIntrinsics::GetInvalidValueConstRef<FText>();
 		}
 
+		FDocumentAccess FOutputNodeInputController::ShareAccess() 
+		{
+			FDocumentAccess Access = FBaseInputController::ShareAccess();
+
+			Access.ConstClassOutput = OwningGraphClassOutputPtr;
+
+			return Access;
+		}
+
+		FConstDocumentAccess FOutputNodeInputController::ShareAccess() const
+		{
+			FConstDocumentAccess Access = FBaseInputController::ShareAccess();
+
+			Access.ConstClassOutput = OwningGraphClassOutputPtr;
+
+			return Access;
+		}
+
 
 		//
 		// FBaseNodeController
@@ -862,7 +932,7 @@ namespace Metasound
 			{
 				if (NodePtr->ClassID != ClassPtr->ID)
 				{
-					UE_LOG(LogMetasound, Warning, TEXT("Changing node's class id from [ClassID:%d] to [ClassID:%d]"), NodePtr->ClassID, ClassPtr->ID);
+					UE_LOG(LogMetasound, Warning, TEXT("Changing node's class id from [ClassID:%s] to [ClassID:%s]"), *NodePtr->ClassID.ToString(), *ClassPtr->ID.ToString());
 					NodePtr->ClassID = ClassPtr->ID;
 				}
 			}
@@ -873,7 +943,7 @@ namespace Metasound
 			return OwningGraph->IsValid() && NodePtr.IsValid() && ClassPtr.IsValid();
 		}
 
-		int32 FBaseNodeController::GetOwningGraphClassID() const
+		FGuid FBaseNodeController::GetOwningGraphClassID() const
 		{
 			return OwningGraph->GetClassID();
 		}
@@ -888,7 +958,7 @@ namespace Metasound
 			return OwningGraph;
 		}
 
-		int32 FBaseNodeController::GetID() const
+		FGuid FBaseNodeController::GetID() const
 		{
 			if (NodePtr.IsValid())
 			{
@@ -897,7 +967,7 @@ namespace Metasound
 			return Metasound::FrontendInvalidID;
 		}
 
-		int32 FBaseNodeController::GetClassID() const
+		FGuid FBaseNodeController::GetClassID() const
 		{
 			if (ClassPtr.IsValid())
 			{
@@ -975,7 +1045,7 @@ namespace Metasound
 			return FInvalidInputController::GetInvalid();
 		}
 
-		bool FBaseNodeController::RemoveInput(int32 InPointID)
+		bool FBaseNodeController::RemoveInput(FGuid InPointID)
 		{
 			checkNoEntry();
 			// TODO: not yet supported
@@ -995,7 +1065,7 @@ namespace Metasound
 			return FInvalidInputController::GetInvalid();
 		}
 
-		bool FBaseNodeController::RemoveOutput(int32 InPointID)
+		bool FBaseNodeController::RemoveOutput(FGuid InPointID)
 		{
 			checkNoEntry();
 			// TODO: not yet supported
@@ -1157,7 +1227,7 @@ namespace Metasound
 			return Outputs;
 		}
 
-		FInputHandle FBaseNodeController::GetInputWithID(int32 InPointID)
+		FInputHandle FBaseNodeController::GetInputWithID(FGuid InPointID)
 		{
 			FInputControllerParams Params;
 
@@ -1170,7 +1240,7 @@ namespace Metasound
 			return FInvalidInputController::GetInvalid();
 		}
 
-		FConstInputHandle FBaseNodeController::GetInputWithID(int32 InPointID) const
+		FConstInputHandle FBaseNodeController::GetInputWithID(FGuid InPointID) const
 		{
 			FInputControllerParams Params;
 
@@ -1184,7 +1254,7 @@ namespace Metasound
 			return FInvalidInputController::GetInvalid();
 		}
 
-		FOutputHandle FBaseNodeController::GetOutputWithID(int32 InPointID)
+		FOutputHandle FBaseNodeController::GetOutputWithID(FGuid InPointID)
 		{
 			FOutputControllerParams Params;
 
@@ -1197,7 +1267,7 @@ namespace Metasound
 			return FInvalidOutputController::GetInvalid();
 		}
 
-		FConstOutputHandle FBaseNodeController::GetOutputWithID(int32 InPointID) const
+		FConstOutputHandle FBaseNodeController::GetOutputWithID(FGuid InPointID) const
 		{
 			FOutputControllerParams Params;
 
@@ -1227,47 +1297,12 @@ namespace Metasound
 
 					FConstClassInputAccessPtr ClassInputPtr = ClassPtr.GetMemberAccessPtr<const FMetasoundFrontendClassInput>(FGetClassInputFromClassWithName(NodeInputVertex.Name));
 
-					for (int32 PointID : NodeInputVertex.PointIDs)
+					for (const FGuid& PointID : NodeInputVertex.PointIDs)
 					{
 						Inputs.Add({PointID, NodeVertexPtr, ClassInputPtr});
 					}
 				}
 			}
-			/*
-
-
-
-
-
-
-			if (ClassPtr.IsValid() && NodePtr.IsValid())
-			{
-				for (const FMetasoundFrontendVertex& NodeInputVertex : NodePtr->Interface.Inputs)
-				{
-
-					FConstVertexAccessPtr NodeVertexPtr = FrontendControllerIntrinsics::MakeAutoAccessPtr(NodeInputVertex);
-
-
-					if (const FMetasoundFrontendClassInput* ClassInputVertex = FindClassInputWithName(NodeInputVertex.Name))
-					{
-
-
-FGetClassInputFromClassWithName
-
-						FConstClassInputAccessPtr ClassInputPtr = FrontendControllerIntrinsics::MakeAutoAccessPtr(*ClassInputVertex);
-
-						for (int32 PointID : NodeInputVertex.PointIDs)
-						{
-							Inputs.Add({PointID, NodeVertexPtr, ClassInputPtr});
-						}
-					}
-					else
-					{
-						UE_LOG(LogMetasound, Error, TEXT("Node vertex [NodeID:%d, InputName:%s] does not exist in class [ClassID:%d]"), NodePtr->ID, *NodeInputVertex.Name, ClassPtr->ID);
-					}
-				}
-			}
-			*/
 
 			return Inputs;
 		}
@@ -1285,36 +1320,11 @@ FGetClassInputFromClassWithName
 				FConstVertexAccessPtr NodeVertexPtr = NodePtr.GetMemberAccessPtr<const FMetasoundFrontendVertex>(FGetConstNodeOutputFromNodeWithName(VertexName));
 				FConstClassOutputAccessPtr ClassOutputPtr = ClassPtr.GetMemberAccessPtr<const FMetasoundFrontendClassOutput>(FGetClassOutputFromClassWithName(VertexName));
 
-				for (int32 PointID : NodeOutputVertex.PointIDs)
+				for (const FGuid& PointID : NodeOutputVertex.PointIDs)
 				{
 					Outputs.Add({PointID, NodeVertexPtr, ClassOutputPtr});
 				}
 			}
-
-
-			/*
-			if (ClassPtr.IsValid() && NodePtr.IsValid())
-			{
-				for (const FMetasoundFrontendVertex& NodeOutputVertex : NodePtr->Interface.Outputs)
-				{
-					FConstVertexAccessPtr NodeVertexPtr = FrontendControllerIntrinsics::MakeAutoAccessPtr(NodeOutputVertex);
-
-					if (const FMetasoundFrontendClassOutput* ClassOutputVertex = FindClassOutputWithName(NodeOutputVertex.Name))
-					{
-						FConstClassOutputAccessPtr ClassOutputPtr = FrontendControllerIntrinsics::MakeAutoAccessPtr(*ClassOutputVertex);
-
-						for (int32 PointID : NodeOutputVertex.PointIDs)
-						{
-							Outputs.Add({PointID, NodeVertexPtr, ClassOutputPtr});
-						}
-					}
-					else
-					{
-						UE_LOG(LogMetasound, Error, TEXT("Node vertex [NodeID:%d, OutputName:%s] does not exist in class [ClassID:%d]"), NodePtr->ID, *NodeOutputVertex.Name, ClassPtr->ID);
-					}
-				}
-			}
-			*/
 
 			return Outputs;
 		}
@@ -1331,36 +1341,11 @@ FGetClassInputFromClassWithName
 			{
 				FConstClassInputAccessPtr ClassInputPtr = ClassPtr.GetMemberAccessPtr<const FMetasoundFrontendClassInput>(FGetClassInputFromClassWithName(InName));
 
-				for (int32 PointID : Vertex->PointIDs)
+				for (const FGuid& PointID : Vertex->PointIDs)
 				{
 					Inputs.Add({PointID, NodeVertexPtr, ClassInputPtr});
 				}
 			}
-
-
-			/*
-			if (ClassPtr.IsValid() && NodePtr.IsValid())
-			{
-				if (const FMetasoundFrontendVertex* NodeInputVertex = FindNodeInputWithName(InName))
-				{
-					FConstVertexAccessPtr NodeVertexPtr = FrontendControllerIntrinsics::MakeAutoAccessPtr(*NodeInputVertex);
-
-					if (const FMetasoundFrontendClassInput* ClassInputVertex = FindClassInputWithName(InName))
-					{
-						FConstClassInputAccessPtr ClassInputPtr = FrontendControllerIntrinsics::MakeAutoAccessPtr(*ClassInputVertex);
-
-						for (int32 PointID : NodeInputVertex->PointIDs)
-						{
-							Inputs.Add({PointID, NodeVertexPtr, ClassInputPtr});
-						}
-					}
-					else
-					{
-						UE_LOG(LogMetasound, Error, TEXT("Node vertex [NodeID:%d, InputName:%s] does not exist in class [ClassID:%d]"), NodePtr->ID, *NodeInputVertex->Name, ClassPtr->ID);
-					}
-				}
-			}
-			*/
 
 			return Inputs;
 		}
@@ -1377,39 +1362,16 @@ FGetClassInputFromClassWithName
 			{
 				FConstClassOutputAccessPtr ClassOutputPtr = ClassPtr.GetMemberAccessPtr<const FMetasoundFrontendClassOutput>(FGetClassOutputFromClassWithName(InName));
 
-				for (int32 PointID : Vertex->PointIDs)
+				for (const FGuid& PointID : Vertex->PointIDs)
 				{
 					Outputs.Add({PointID, NodeVertexPtr, ClassOutputPtr});
 				}
 			}
-			/*
-			if (ClassPtr.IsValid() && NodePtr.IsValid())
-			{
-				if (const FMetasoundFrontendVertex* NodeOutputVertex = FindNodeOutputWithName(InName))
-				{
-					FConstVertexAccessPtr NodeVertexPtr = FrontendControllerIntrinsics::MakeAutoAccessPtr(*NodeOutputVertex);
-
-					if (const FMetasoundFrontendClassOutput* ClassOutputVertex = FindClassOutputWithName(InName))
-					{
-						FConstClassOutputAccessPtr ClassOutputPtr = FrontendControllerIntrinsics::MakeAutoAccessPtr(*ClassOutputVertex);
-
-						for (int32 PointID : NodeOutputVertex->PointIDs)
-						{
-							Outputs.Add({PointID, NodeVertexPtr, ClassOutputPtr});
-						}
-					}
-					else
-					{
-						UE_LOG(LogMetasound, Error, TEXT("Node vertex [NodeID:%d, OutputName:%s] does not exist in class [ClassID:%d]"), NodePtr->ID, *NodeOutputVertex->Name, ClassPtr->ID);
-					}
-				}
-			}
-			*/
 
 			return Outputs;
 		}
 
-		bool FBaseNodeController::FindInputControllerParamsWithID(int32 InPointID, FInputControllerParams& OutParams) const
+		bool FBaseNodeController::FindInputControllerParamsWithID(FGuid InPointID, FInputControllerParams& OutParams) const
 		{
 			using namespace FrontendControllerIntrinsics;
 
@@ -1422,34 +1384,11 @@ FGetClassInputFromClassWithName
 				OutParams = FInputControllerParams{InPointID, NodeVertexPtr, ClassInputPtr};
 				return true;
 			}
-			/*
-			if (ClassPtr.IsValid() && NodePtr.IsValid())
-			{
-				for (const FMetasoundFrontendVertex& NodeInputVertex : NodePtr->Interface.Inputs)
-				{
-					if (NodeInputVertex.PointIDs.Contains(InPointID))
-					{
-						if (const FMetasoundFrontendClassInput* ClassInputVertex = FindClassInputWithName(NodeInputVertex.Name))
-						{
-							FConstVertexAccessPtr NodeVertexPtr = FrontendControllerIntrinsics::MakeAutoAccessPtr(NodeInputVertex);
-							FConstClassInputAccessPtr ClassInputPtr = FrontendControllerIntrinsics::MakeAutoAccessPtr(*ClassInputVertex);
-
-							OutParams = FInputControllerParams{InPointID, NodeVertexPtr, ClassInputPtr};
-							return true;
-						}
-						else
-						{
-							UE_LOG(LogMetasound, Error, TEXT("Node vertex [NodeID:%d, InputName:%s] does not exist in class [ClassID:%d]"), NodePtr->ID, *NodeInputVertex.Name, ClassPtr->ID);
-						}
-					}
-				}
-			}
-			*/
 
 			return false;
 		}
 
-		bool FBaseNodeController::FindOutputControllerParamsWithID(int32 InPointID, FOutputControllerParams& OutParams) const
+		bool FBaseNodeController::FindOutputControllerParamsWithID(FGuid InPointID, FOutputControllerParams& OutParams) const
 		{
 			using namespace FrontendControllerIntrinsics;
 
@@ -1462,29 +1401,6 @@ FGetClassInputFromClassWithName
 				OutParams = FOutputControllerParams{InPointID, NodeVertexPtr, ClassOutputPtr};
 				return true;
 			}
-			/*
-			if (ClassPtr.IsValid() && NodePtr.IsValid())
-			{
-				for (const FMetasoundFrontendVertex& NodeOutputVertex : NodePtr->Interface.Outputs)
-				{
-					if (NodeOutputVertex.PointIDs.Contains(InPointID))
-					{
-						if (const FMetasoundFrontendClassOutput* ClassOutputVertex = FindClassOutputWithName(NodeOutputVertex.Name))
-						{
-							FConstVertexAccessPtr NodeVertexPtr = FrontendControllerIntrinsics::MakeAutoAccessPtr(NodeOutputVertex);
-							FConstClassOutputAccessPtr ClassOutputPtr = FrontendControllerIntrinsics::MakeAutoAccessPtr(*ClassOutputVertex);
-
-							OutParams = FOutputControllerParams{InPointID, NodeVertexPtr, ClassOutputPtr};
-							return true;
-						}
-						else
-						{
-							UE_LOG(LogMetasound, Error, TEXT("Node vertex [NodeID:%d, OutputName:%s] does not exist in class [ClassID:%d]"), NodePtr->ID, *NodeOutputVertex.Name, ClassPtr->ID);
-						}
-					}
-				}
-			}
-			*/
 
 			return false;
 		}
@@ -1562,6 +1478,27 @@ FGetClassInputFromClassWithName
 			return FInvalidGraphController::GetInvalid();
 		}
 
+		FDocumentAccess FBaseNodeController::ShareAccess() 
+		{
+			FDocumentAccess Access;
+
+			Access.Node = NodePtr;
+			Access.ConstNode = NodePtr;
+			Access.ConstClass = ClassPtr;
+
+			return Access;
+		}
+
+		FConstDocumentAccess FBaseNodeController::ShareAccess() const
+		{
+			FConstDocumentAccess Access;
+
+			Access.ConstNode = NodePtr;
+			Access.ConstClass = ClassPtr;
+
+			return Access;
+		}
+
 		// 
 		// FNodeController
 		//
@@ -1582,7 +1519,7 @@ FGetClassInputFromClassWithName
 				}
 				else
 				{
-					UE_LOG(LogMetasound, Warning, TEXT("Frontend Node [NodeId:%d, ClassID: %d] is not of expected class class [ClassId:%d]"), InParams.NodePtr->ID, InParams.NodePtr->ClassID, InParams.ClassPtr->ID);
+					UE_LOG(LogMetasound, Warning, TEXT("Frontend Node [NodeID:%s, ClassID:%s] is not of expected class class [ClassID:%s]"), *InParams.NodePtr->ID.ToString(), *InParams.NodePtr->ClassID.ToString(), *InParams.ClassPtr->ID.ToString());
 				}
 			}
 			return FInvalidNodeController::GetInvalid();
@@ -1599,7 +1536,7 @@ FGetClassInputFromClassWithName
 				}
 				else
 				{
-					UE_LOG(LogMetasound, Warning, TEXT("Frontend Node [NodeId:%d, ClassID:%d] is not of expected class class [ClassId:%d]"), InParams.NodePtr->ID, InParams.NodePtr->ClassID, InParams.ClassPtr->ID);
+					UE_LOG(LogMetasound, Warning, TEXT("Frontend Node [NodeID:%s, ClassID:%s] is not of expected class class [ClassID:%s]"), *InParams.NodePtr->ID.ToString(), *InParams.NodePtr->ClassID.ToString(), *InParams.ClassPtr->ID.ToString());
 				}
 			}
 			return FInvalidNodeController::GetInvalid();
@@ -1610,14 +1547,33 @@ FGetClassInputFromClassWithName
 			return FBaseNodeController::IsValid() && GraphPtr.IsValid();
 		}
 
-		FInputHandle FNodeController::CreateInputController(int32 InPointID, FConstVertexAccessPtr InNodeVertexPtr, FConstClassInputAccessPtr InClassInputPtr, FNodeHandle InOwningNode) const
+		FInputHandle FNodeController::CreateInputController(FGuid InPointID, FConstVertexAccessPtr InNodeVertexPtr, FConstClassInputAccessPtr InClassInputPtr, FNodeHandle InOwningNode) const
 		{
 			return MakeShared<FNodeInputController>(FNodeInputController::FInitParams{InPointID, InNodeVertexPtr, InClassInputPtr, GraphPtr, InOwningNode});
 		}
 
-		FOutputHandle FNodeController::CreateOutputController(int32 InPointID, FConstVertexAccessPtr InNodeVertexPtr, FConstClassOutputAccessPtr InClassOutputPtr, FNodeHandle InOwningNode) const
+		FOutputHandle FNodeController::CreateOutputController(FGuid InPointID, FConstVertexAccessPtr InNodeVertexPtr, FConstClassOutputAccessPtr InClassOutputPtr, FNodeHandle InOwningNode) const
 		{
 			return MakeShared<FNodeOutputController>(FNodeOutputController::FInitParams{InPointID, InNodeVertexPtr, InClassOutputPtr, InOwningNode});
+		}
+
+		FDocumentAccess FNodeController::ShareAccess() 
+		{
+			FDocumentAccess Access = FBaseNodeController::ShareAccess();
+
+			Access.Graph = GraphPtr;
+			Access.ConstGraph = GraphPtr;
+
+			return Access;
+		}
+
+		FConstDocumentAccess FNodeController::ShareAccess() const
+		{
+			FConstDocumentAccess Access = FBaseNodeController::ShareAccess();
+
+			Access.ConstGraph = GraphPtr;
+
+			return Access;
 		}
 
 		//
@@ -1642,12 +1598,12 @@ FGetClassInputFromClassWithName
 					}
 					else
 					{
-						UE_LOG(LogMetasound, Warning, TEXT("Frontend Node [NodeId:%d, ClassID: %d] is not of expected class class [ClassId:%d]"), InParams.NodePtr->ID, InParams.NodePtr->ClassID, InParams.ClassPtr->ID);
+						UE_LOG(LogMetasound, Warning, TEXT("Frontend Node [NodeID:%s, ClassID:%s] is not of expected class class [ClassID:%s]"), *InParams.NodePtr->ID.ToString(), *InParams.NodePtr->ClassID.ToString(), *InParams.ClassPtr->ID.ToString());
 					}
 				}
 				else
 				{
-					UE_LOG(LogMetasound, Warning, TEXT("Frontend Class of incorrect class type [ClassID:%d] while creating output node.. Must be EMetasoundFrontendClassType::Output."), InParams.ClassPtr->ID);
+					UE_LOG(LogMetasound, Warning, TEXT("Frontend Class of incorrect class type [ClassID:%s] while creating output node.. Must be EMetasoundFrontendClassType::Output."), *InParams.ClassPtr->ID.ToString());
 				}
 			}
 
@@ -1666,12 +1622,12 @@ FGetClassInputFromClassWithName
 					}
 					else
 					{
-						UE_LOG(LogMetasound, Warning, TEXT("Frontend Node [NodeId:%d, ClassID: %d] is not of expected class class [ClassId:%d]"), InParams.NodePtr->ID, InParams.NodePtr->ClassID, InParams.ClassPtr->ID);
+						UE_LOG(LogMetasound, Warning, TEXT("Frontend Node [NodeID:%s, ClassID:%s] is not of expected class class [ClassID:%s]"), *InParams.NodePtr->ID.ToString(), *InParams.NodePtr->ClassID.ToString(), *InParams.ClassPtr->ID.ToString());
 					}
 				}
 				else
 				{
-					UE_LOG(LogMetasound, Warning, TEXT("Frontend Class of incorrect class type [ClassID:%d] while creating output node. Must be EMetasoundFrontendClassType::Output."), InParams.ClassPtr->ID);
+					UE_LOG(LogMetasound, Warning, TEXT("Frontend Class of incorrect class type [ClassID:%s] while creating output node. Must be EMetasoundFrontendClassType::Output."), *InParams.ClassPtr->ID.ToString());
 				}
 			}
 
@@ -1684,14 +1640,35 @@ FGetClassInputFromClassWithName
 			return OwningGraph->IsValid() && OwningGraphClassOutputPtr.IsValid() && GraphPtr.IsValid();
 		}
 
-		FInputHandle FOutputNodeController::CreateInputController(int32 InPointID, FConstVertexAccessPtr InNodeVertexPtr, FConstClassInputAccessPtr InClassInputPtr, FNodeHandle InOwningNode) const
+		FInputHandle FOutputNodeController::CreateInputController(FGuid InPointID, FConstVertexAccessPtr InNodeVertexPtr, FConstClassInputAccessPtr InClassInputPtr, FNodeHandle InOwningNode) const
 		{
 			return MakeShared<FOutputNodeInputController>(FOutputNodeInputController::FInitParams{InPointID, InNodeVertexPtr, OwningGraphClassOutputPtr, GraphPtr, InOwningNode});
 		}
 
-		FOutputHandle FOutputNodeController::CreateOutputController(int32 InPointID, FConstVertexAccessPtr InNodeVertexPtr, FConstClassOutputAccessPtr InClassOutputPtr, FNodeHandle InOwningNode) const
+		FOutputHandle FOutputNodeController::CreateOutputController(FGuid InPointID, FConstVertexAccessPtr InNodeVertexPtr, FConstClassOutputAccessPtr InClassOutputPtr, FNodeHandle InOwningNode) const
 		{
 			return FInvalidOutputController::GetInvalid();
+		}
+
+		FDocumentAccess FOutputNodeController::ShareAccess() 
+		{
+			FDocumentAccess Access = FBaseNodeController::ShareAccess();
+
+			Access.Graph = GraphPtr;
+			Access.ConstGraph = GraphPtr;
+			Access.ConstClassOutput = OwningGraphClassOutputPtr;
+
+			return Access;
+		}
+
+		FConstDocumentAccess FOutputNodeController::ShareAccess() const
+		{
+			FConstDocumentAccess Access = FBaseNodeController::ShareAccess();
+
+			Access.ConstGraph = GraphPtr;
+			Access.ConstClassOutput = OwningGraphClassOutputPtr;
+
+			return Access;
 		}
 
 		//
@@ -1716,12 +1693,12 @@ FGetClassInputFromClassWithName
 					}
 					else
 					{
-						UE_LOG(LogMetasound, Warning, TEXT("Frontend Node [NodeId:%d, ClassID: %d] is not of expected class class [ClassId:%d]"), InParams.NodePtr->ID, InParams.NodePtr->ClassID, InParams.ClassPtr->ID);
+						UE_LOG(LogMetasound, Warning, TEXT("Frontend Node [NodeID:%s, ClassID:%s] is not of expected class class [ClassID:%s]"), *InParams.NodePtr->ID.ToString(), *InParams.NodePtr->ClassID.ToString(), *InParams.ClassPtr->ID.ToString());
 					}
 				}
 				else
 				{
-					UE_LOG(LogMetasound, Warning, TEXT("Frontend Class of incorrect class type [ClassID:%d] while creating input node. Must be EMetasoundFrontendClassType::Input."), InParams.ClassPtr->ID);
+					UE_LOG(LogMetasound, Warning, TEXT("Frontend Class of incorrect class type [ClassID:%s] while creating input node. Must be EMetasoundFrontendClassType::Input."), *InParams.ClassPtr->ID.ToString());
 				}
 			}
 
@@ -1740,12 +1717,12 @@ FGetClassInputFromClassWithName
 					}
 					else
 					{
-						UE_LOG(LogMetasound, Warning, TEXT("Frontend Node [NodeId:%d, ClassID: %d] is not of expected class class [ClassId:%d]"), InParams.NodePtr->ID, InParams.NodePtr->ClassID, InParams.ClassPtr->ID);
+						UE_LOG(LogMetasound, Warning, TEXT("Frontend Node [NodeID:%s, ClassID:%s] is not of expected class class [ClassID:%s]"), *InParams.NodePtr->ID.ToString(), *InParams.NodePtr->ClassID.ToString(), *InParams.ClassPtr->ID.ToString());
 					}
 				}
 				else
 				{
-					UE_LOG(LogMetasound, Warning, TEXT("Frontend Class of incorrect class type [ClassID:%d] while creating input node. Must be EMetasoundFrontendClassType::Input."), InParams.ClassPtr->ID);
+					UE_LOG(LogMetasound, Warning, TEXT("Frontend Class of incorrect class type [ClassID:%s] while creating input node. Must be EMetasoundFrontendClassType::Input."), *InParams.ClassPtr->ID.ToString());
 				}
 			}
 
@@ -1758,14 +1735,35 @@ FGetClassInputFromClassWithName
 			return OwningGraph->IsValid() && OwningGraphClassInputPtr.IsValid() && GraphPtr.IsValid();
 		}
 
-		FInputHandle FInputNodeController::CreateInputController(int32 InPointID, FConstVertexAccessPtr InNodeVertexPtr, FConstClassInputAccessPtr InClassInputPtr, FNodeHandle InOwningNode) const
+		FInputHandle FInputNodeController::CreateInputController(FGuid InPointID, FConstVertexAccessPtr InNodeVertexPtr, FConstClassInputAccessPtr InClassInputPtr, FNodeHandle InOwningNode) const
 		{
 			return FInvalidInputController::GetInvalid();
 		}
 
-		FOutputHandle FInputNodeController::CreateOutputController(int32 InPointID, FConstVertexAccessPtr InNodeVertexPtr, FConstClassOutputAccessPtr InClassOutputPtr, FNodeHandle InOwningNode) const
+		FOutputHandle FInputNodeController::CreateOutputController(FGuid InPointID, FConstVertexAccessPtr InNodeVertexPtr, FConstClassOutputAccessPtr InClassOutputPtr, FNodeHandle InOwningNode) const
 		{
 			return MakeShared<FInputNodeOutputController>(FInputNodeOutputController::FInitParams{InPointID, InNodeVertexPtr, OwningGraphClassInputPtr, InOwningNode});
+		}
+
+		FDocumentAccess FInputNodeController::ShareAccess() 
+		{
+			FDocumentAccess Access = FBaseNodeController::ShareAccess();
+
+			Access.Graph = GraphPtr;
+			Access.ConstGraph = GraphPtr;
+			Access.ConstClassInput = OwningGraphClassInputPtr;
+
+			return Access;
+		}
+
+		FConstDocumentAccess FInputNodeController::ShareAccess() const
+		{
+			FConstDocumentAccess Access = FBaseNodeController::ShareAccess();
+
+			Access.ConstGraph = GraphPtr;
+			Access.ConstClassInput = OwningGraphClassInputPtr;
+
+			return Access;
 		}
 
 
@@ -1788,7 +1786,7 @@ FGetClassInputFromClassWithName
 				}
 				else
 				{
-					UE_LOG(LogMetasound, Warning, TEXT("Failed to make graph controller [ClassId:%d]. Class must be EMeatsoundFrontendClassType::Graph."), InParams.GraphClassPtr->ID)
+					UE_LOG(LogMetasound, Warning, TEXT("Failed to make graph controller [ClassID:%s]. Class must be EMeatsoundFrontendClassType::Graph."), *InParams.GraphClassPtr->ID.ToString())
 				}
 			}
 			return FInvalidGraphController::GetInvalid();
@@ -1804,7 +1802,7 @@ FGetClassInputFromClassWithName
 				}
 				else
 				{
-					UE_LOG(LogMetasound, Warning, TEXT("Failed to make graph controller [ClassId:%d]. Class must be EMeatsoundFrontendClassType::Graph."), InParams.GraphClassPtr->ID)
+					UE_LOG(LogMetasound, Warning, TEXT("Failed to make graph controller [ClassID:%s]. Class must be EMeatsoundFrontendClassType::Graph."), *InParams.GraphClassPtr->ID.ToString())
 				}
 			}
 			return FInvalidGraphController::GetInvalid();
@@ -1815,7 +1813,7 @@ FGetClassInputFromClassWithName
 			return GraphClassPtr.IsValid() && OwningDocument->IsValid();
 		}
 
-		int32 FGraphController::GetClassID() const
+		FGuid FGraphController::GetClassID() const
 		{
 			if (GraphClassPtr.IsValid())
 			{
@@ -1825,26 +1823,9 @@ FGetClassInputFromClassWithName
 			return Metasound::FrontendInvalidID;
 		}
 
-		int32 FGraphController::GetNewPointID() const
+		FGuid FGraphController::GetNewPointID() const
 		{
-			if (const FMetasoundFrontendGraphClass* ThisClass = GraphClassPtr.Get())
-			{
-				TSet<int32> UsedIDs;
-
-				for (const FMetasoundFrontendClassInput& Input : ThisClass->Interface.Inputs)
-				{
-					UsedIDs.Append(Input.PointIDs);
-				}
-
-				for (const FMetasoundFrontendClassOutput& Output : ThisClass->Interface.Outputs)
-				{
-					UsedIDs.Append(Output.PointIDs);
-				}
-
-				return FrontendControllerIntrinsics::GetNewID(UsedIDs);
-			}
-
-			return Metasound::FrontendInvalidID;
+			return FGuid::NewGuid();
 		}
 
 		TArray<FString> FGraphController::GetInputVertexNames() const 
@@ -1877,27 +1858,6 @@ FGetClassInputFromClassWithName
 			return Names;
 		}
 
-		/*
-		const FMetasoundFrontendClassInput* FGraphController::FindClassInputWithName(const FString& InName) const
-		{
-			if (GraphClassPtr.IsValid())
-			{
-				auto IsInputWithName = [&](const FMetasoundFrontendClassInput& Input) { return Input.Name == InName; };
-				return GraphClassPtr->Interface.Inputs.FindByPredicate(IsInputWithName);
-			}
-			return nullptr;
-		}
-
-		const FMetasoundFrontendClassOutput* FGraphController::FindClassOutputWithName(const FString& InName) const
-		{
-			if (GraphClassPtr.IsValid())
-			{
-				auto IsOutputWithName = [&](const FMetasoundFrontendClassOutput& Output) { return Output.Name == InName; };
-				return GraphClassPtr->Interface.Outputs.FindByPredicate(IsOutputWithName);
-			}
-			return nullptr;
-		}
-		*/
 		FConstClassInputAccessPtr FGraphController::FindClassInputWithName(const FString& InName) const
 		{
 			using namespace FrontendControllerIntrinsics;
@@ -1910,22 +1870,22 @@ FGetClassInputFromClassWithName
 			return GraphClassPtr.GetMemberAccessPtr<FMetasoundFrontendClassOutput>(FGetClassOutputFromClassWithName(InName));
 		}
 
-		TArray<int32> FGraphController::GetDefaultIDsForInputVertex(const FString& InInputName) const
+		TArray<FGuid> FGraphController::GetDefaultIDsForInputVertex(const FString& InInputName) const
 		{
 			if (const FMetasoundFrontendClassInput* Input = FindClassInputWithName(InInputName).Get())
 			{
 				return Input->PointIDs;
 			}
-			return TArray<int32>();
+			return TArray<FGuid>();
 		}
 
-		TArray<int32> FGraphController::GetDefaultIDsForOutputVertex(const FString& InOutputName) const
+		TArray<FGuid> FGraphController::GetDefaultIDsForOutputVertex(const FString& InOutputName) const
 		{
 			if (const FMetasoundFrontendClassOutput* Output = FindClassOutputWithName(InOutputName).Get())
 			{
 				return Output->PointIDs;
 			}
-			return TArray<int32>();
+			return TArray<FGuid>();
 		}
 
 		TArray<FNodeHandle> FGraphController::GetNodes()
@@ -1938,7 +1898,7 @@ FGetClassInputFromClassWithName
 			return GetNodeHandles(GetNodesAndClasses());
 		}
 
-		FConstNodeHandle FGraphController::GetNodeWithID(int32 InNodeID) const
+		FConstNodeHandle FGraphController::GetNodeWithID(FGuid InNodeID) const
 		{
 			auto IsNodeWithSameID = [&](const FMetasoundFrontendClass& NodeClas, const FMetasoundFrontendNode& Node) 
 			{ 
@@ -1947,7 +1907,7 @@ FGetClassInputFromClassWithName
 			return GetNodeByPredicate(IsNodeWithSameID);
 		}
 
-		FNodeHandle FGraphController::GetNodeWithID(int32 InNodeID)
+		FNodeHandle FGraphController::GetNodeWithID(FGuid InNodeID)
 		{
 			auto IsNodeWithSameID = [&](const FMetasoundFrontendClass& NodeClas, const FMetasoundFrontendNode& Node) 
 			{ 
@@ -2107,7 +2067,7 @@ FGetClassInputFromClassWithName
 				}
 				else
 				{
-					UE_LOG(LogMetasound, Display, TEXT("Failed to add input. Input with same name \"%s\" exists in class [ClassID:%d]"), *InClassInput.Name, GraphClassPtr->ID);
+					UE_LOG(LogMetasound, Display, TEXT("Failed to add input. Input with same name \"%s\" exists in class [ClassID:%s]"), *InClassInput.Name, *GraphClassPtr->ID.ToString());
 				}
 			}
 			return FInvalidNodeController::GetInvalid();
@@ -2143,7 +2103,6 @@ FGetClassInputFromClassWithName
 					FMetasoundFrontendClassMetadata ClassMetadata;
 					if (FMetasoundFrontendRegistryContainer::GetOutputNodeClassMetadataForDataType(InClassOutput.TypeName, ClassMetadata))
 					{
-						//if (const FMetasoundFrontendClass* OutputClass = OwningDocument->FindOrAddClass(ClassMetadata))
 						if (FConstClassAccessPtr OutputClass = OwningDocument->FindOrAddClass(ClassMetadata))
 						{
 							FMetasoundFrontendNode& Node = GraphClass->Graph.Nodes.Emplace_GetRef(*OutputClass);
@@ -2185,7 +2144,7 @@ FGetClassInputFromClassWithName
 				}
 				else
 				{
-					UE_LOG(LogMetasound, Display, TEXT("Failed to add output. Output with same name \"%s\" exists in class [ClassID:%d]"), *InClassOutput.Name, GraphClassPtr->ID);
+					UE_LOG(LogMetasound, Display, TEXT("Failed to add output. Output with same name \"%s\" exists in class [ClassID:%s]"), *InClassOutput.Name, *GraphClassPtr->ID.ToString());
 				}
 			}
 
@@ -2234,32 +2193,32 @@ FGetClassInputFromClassWithName
 
 		// These can be used to set the default value for a given input on this graph.
 		// @returns false if the input name couldn't be found, or if the literal type was incompatible with the Data Type of this input.
-		bool FGraphController::SetDefaultInputToLiteral(const FString& InInputName, int32 InPointID, bool bInValue)
+		bool FGraphController::SetDefaultInputToLiteral(const FString& InInputName, FGuid InPointID, bool bInValue)
 		{
 			return SetDefaultInputToLiteralInternal(InInputName, InPointID, bInValue);
 		}
 
-		bool FGraphController::SetDefaultInputToLiteral(const FString& InInputName, int32 InPointID, int32 InValue)
+		bool FGraphController::SetDefaultInputToLiteral(const FString& InInputName, FGuid InPointID, int32 InValue)
 		{
 			return SetDefaultInputToLiteralInternal(InInputName, InPointID, InValue);
 		}
 
-		bool FGraphController::SetDefaultInputToLiteral(const FString& InInputName, int32 InPointID, float InValue)
+		bool FGraphController::SetDefaultInputToLiteral(const FString& InInputName, FGuid InPointID, float InValue)
 		{
 			return SetDefaultInputToLiteralInternal(InInputName, InPointID, InValue);
 		}
 
-		bool FGraphController::SetDefaultInputToLiteral(const FString& InInputName, int32 InPointID, const FString& InValue)
+		bool FGraphController::SetDefaultInputToLiteral(const FString& InInputName, FGuid InPointID, const FString& InValue)
 		{
 			return SetDefaultInputToLiteralInternal(InInputName, InPointID, InValue);
 		}
 
-		bool FGraphController::SetDefaultInputToLiteral(const FString& InInputName, int32 InPointID, UObject* InValue)
+		bool FGraphController::SetDefaultInputToLiteral(const FString& InInputName, FGuid InPointID, UObject* InValue)
 		{
 			return SetDefaultInputToLiteralInternal(InInputName, InPointID, InValue);
 		}
 
-		bool FGraphController::SetDefaultInputToLiteral(const FString& InInputName, int32 InPointID, const TArray<UObject*>& InValue)
+		bool FGraphController::SetDefaultInputToLiteral(const FString& InInputName, FGuid InPointID, const TArray<UObject*>& InValue)
 		{
 			return SetDefaultInputToLiteralInternal(InInputName, InPointID, InValue);
 		}
@@ -2299,7 +2258,7 @@ FGetClassInputFromClassWithName
 
 		// This can be used to clear the current literal for a given input.
 		// @returns false if the input name couldn't be found.
-		bool FGraphController::ClearLiteralForInput(const FString& InInputName, int32 InPointID)
+		bool FGraphController::ClearLiteralForInput(const FString& InInputName, FGuid InPointID)
 		{
 			if (FMetasoundFrontendClassInput* Desc = FindInputDescriptionWithName(InInputName))
 			{
@@ -2322,7 +2281,6 @@ FGetClassInputFromClassWithName
 		{
 			if (IsValid())
 			{
-				//if (const FMetasoundFrontendClass* DependencyDescription = OwningDocument->FindOrAddClass(InNodeClass))
 				if (FConstClassAccessPtr DependencyDescription = OwningDocument->FindOrAddClass(InNodeClass))
 				{
 					return AddNode(DependencyDescription);
@@ -2347,7 +2305,7 @@ FGetClassInputFromClassWithName
 		// On success, invalidates the received node handle.
 		bool FGraphController::RemoveNode(INodeController& InNode)
 		{
-			int32 NodeID = InNode.GetID();
+			FGuid NodeID = InNode.GetID();
 			const EMetasoundFrontendClassType NodeType = InNode.GetClassType();
 
 			auto IsNodeWithSameID = [&](const FMetasoundFrontendNode& InDesc) { return InDesc.ID == NodeID; };
@@ -2465,28 +2423,9 @@ FGetClassInputFromClassWithName
 
 					FNodeAccessPtr NodePtr = GraphClassPtr.GetMemberAccessPtr<FMetasoundFrontendNode>(FGetNodeFromGraphClassByNodeID(Node.ID));
 
-					//FGraphAccessPtr GraphPtr = GraphClassPtr.GetMemberAccessPtr<FMetasoundFrontendGraph>(FGetGraphFromGraphClass());
-
-					//return FNodeController::CreateNodeHandle(FNodeController::FInitParams{NodePtr, InExistingDependency, GraphPtr, this->AsShared()});
 					return GetNodeHandle(FGraphController::FNodeAndClass{NodePtr, InExistingDependency});
 				}
 			}
-			/*
-			if (GraphClassPtr.IsValid())
-			{
-				FMetasoundFrontendNode& NewNodeDescription = GraphClassPtr->Graph.Nodes.AddDefaulted_GetRef();
-
-				NewNodeDescription.Name = InExistingDependency.Metadata.Name.Name;
-				NewNodeDescription.ID = NewNodeID();
-				NewNodeDescription.ClassID = InExistingDependency.ID;
-
-				FNodeAccessPtr NodePtr = FrontendControllerIntrinsics::MakeAutoAccessPtr(NewNodeDescription);
-				FConstClassAccessPtr ClassPtr = FrontendControllerIntrinsics::MakeAutoAccessPtr(InExistingDependency);
-				FGraphAccessPtr GraphPtr = FrontendControllerIntrinsics::MakeAutoAccessPtr(GraphClassPtr->Graph);
-
-				return FNodeController::CreateNodeHandle(FNodeController::FInitParams{NodePtr, ClassPtr, GraphPtr, this->AsShared()});
-			}
-			*/
 
 			return FInvalidNodeController::GetInvalid();
 		}
@@ -2543,21 +2482,9 @@ FGetClassInputFromClassWithName
 			return false;
 		}
 
-		int32 FGraphController::NewNodeID() const
+		FGuid FGraphController::NewNodeID() const
 		{
-			if (GraphClassPtr.IsValid())
-			{
-				TSet<int32> UsedIDs;
-
-				for (const FMetasoundFrontendNode& Node : GraphClassPtr->Graph.Nodes)
-				{
-					UsedIDs.Add(Node.ID);
-				}
-
-				return FrontendControllerIntrinsics::GetNewID(UsedIDs);
-			}
-
-			return Metasound::FrontendInvalidID;
+			return FGuid::NewGuid();
 		}
 
 		bool FGraphController::ContainsNodesAndClassesByPredicate(TFunctionRef<bool (const FMetasoundFrontendClass&, const FMetasoundFrontendNode&)> InPredicate) const
@@ -2576,7 +2503,7 @@ FGetClassInputFromClassWithName
 					}
 					else
 					{
-						UE_LOG(LogMetasound, Warning, TEXT("Failed to find class for node [NodeID:%d, ClassID:%d]"), Node.ID, Node.ClassID);
+						UE_LOG(LogMetasound, Warning, TEXT("Failed to find class for node [NodeID:%s, ClassID:%s]"), *Node.ID.ToString(), *Node.ClassID.ToString());
 					}
 				}
 			}
@@ -2594,15 +2521,15 @@ FGetClassInputFromClassWithName
 				for (FMetasoundFrontendNode& Node : GraphClassPtr->Graph.Nodes)
 				{
 					FNodeAccessPtr NodePtr = GraphClassPtr.GetMemberAccessPtr<FMetasoundFrontendNode>(FGetNodeFromGraphClassByNodeID(Node.ID));
-					//const FMetasoundFrontendClass* NodeClass = OwningDocument->FindClassWithID(Node.ClassID);
 					FConstClassAccessPtr NodeClassPtr = OwningDocument->FindClassWithID(Node.ClassID);
+
 					if (NodeClassPtr && NodePtr)
 					{
 						NodesAndClasses.Add(FGraphController::FNodeAndClass{ NodePtr, NodeClassPtr });
 					}
 					else
 					{
-						UE_LOG(LogMetasound, Warning, TEXT("Failed to find class for node [NodeID:%d, ClassID:%d]"), Node.ID, Node.ClassID);
+						UE_LOG(LogMetasound, Warning, TEXT("Failed to find class for node [NodeID:%s, ClassID:%s]"), *Node.ID.ToString(), *Node.ClassID.ToString());
 					}
 				}
 			}
@@ -2620,28 +2547,15 @@ FGetClassInputFromClassWithName
 				for (const FMetasoundFrontendNode& Node : GraphClassPtr->Graph.Nodes)
 				{
 					FConstNodeAccessPtr NodePtr = GraphClassPtr.GetMemberAccessPtr<const FMetasoundFrontendNode>(FGetConstNodeFromGraphClassByNodeID(Node.ID));
-					//const FMetasoundFrontendClass* NodeClass = OwningDocument->FindClassWithID(Node.ClassID);
 					FConstClassAccessPtr NodeClassPtr = OwningDocument->FindClassWithID(Node.ClassID);
+
 					if (NodeClassPtr && NodePtr)
 					{
 						NodesAndClasses.Add(FGraphController::FConstNodeAndClass{ NodePtr, NodeClassPtr });
 					}
-					/*
-					const FMetasoundFrontendClass* NodeClass = OwningDocument->FindClassWithID(Node.ClassID);
-					if (nullptr != NodeClass)
-					{
-						NodesAndClasses.Emplace(
-							FGraphController::FConstNodeAndClass
-							{
-								FrontendControllerIntrinsics::MakeAutoAccessPtr(Node),
-								FrontendControllerIntrinsics::MakeAutoAccessPtr(*NodeClass)
-							}
-						);
-					}
-					*/
 					else
 					{
-						UE_LOG(LogMetasound, Warning, TEXT("Failed to find class for node [NodeID:%d, ClassID:%d]"), Node.ID, Node.ClassID);
+						UE_LOG(LogMetasound, Warning, TEXT("Failed to find class for node [NodeID:%s, ClassID:%s]"), *Node.ID.ToString(), *Node.ClassID.ToString());
 					}
 				}
 			}
@@ -2670,7 +2584,7 @@ FGetClassInputFromClassWithName
 					}
 					else
 					{
-						UE_LOG(LogMetasound, Warning, TEXT("Failed to find class for node [NodeID:%d, ClassID:%d]"), Node.ID, Node.ClassID);
+						UE_LOG(LogMetasound, Warning, TEXT("Failed to find class for node [NodeID:%s, ClassID:%s]"), *Node.ID.ToString(), *Node.ClassID.ToString());
 					}
 				}
 			}
@@ -2699,7 +2613,7 @@ FGetClassInputFromClassWithName
 					}
 					else
 					{
-						UE_LOG(LogMetasound, Warning, TEXT("Failed to find class for node [NodeID:%d, ClassID:%d]"), Node.ID, Node.ClassID);
+						UE_LOG(LogMetasound, Warning, TEXT("Failed to find class for node [NodeID:%s, ClassID:%s]"), *Node.ID.ToString(), *Node.ClassID.ToString());
 					}
 				}
 			}
@@ -2795,7 +2709,6 @@ FGetClassInputFromClassWithName
 			{
 				FGraphHandle OwningGraph = this->AsShared();
 				FGraphAccessPtr GraphPtr = GraphClassPtr.GetMemberAccessPtr<FMetasoundFrontendGraph>(FGetGraphFromGraphClass());
-				//FGraphAccessPtr GraphPtr = FrontendControllerIntrinsics::MakeAutoAccessPtr(GraphClassPtr->Graph);
 
 				switch (InNodeAndClass.Class->Metadata.Type)
 				{
@@ -2858,8 +2771,8 @@ FGetClassInputFromClassWithName
 			if (InNodeAndClass.IsValid() && GraphClassPtr.IsValid())
 			{
 				FConstGraphHandle OwningGraph = this->AsShared();
-				//FConstGraphAccessPtr GraphPtr = FrontendControllerIntrinsics::MakeAutoAccessPtr(GraphClassPtr->Graph);
 				FConstGraphAccessPtr GraphPtr = GraphClassPtr.GetMemberAccessPtr<const FMetasoundFrontendGraph>(FGetConstGraphFromGraphClass());
+
 				switch (InNodeAndClass.Class->Metadata.Type)
 				{
 					case EMetasoundFrontendClassType::Input:
@@ -2951,83 +2864,52 @@ FGetClassInputFromClassWithName
 			return nullptr;
 		}
 
-		FClassInputAccessPtr FGraphController::FindInputDescriptionWithNodeID(int32 InNodeID)
+		FClassInputAccessPtr FGraphController::FindInputDescriptionWithNodeID(FGuid InNodeID)
 		{
 			using namespace FrontendControllerIntrinsics;
 
 			return GraphClassPtr.GetMemberAccessPtr<FMetasoundFrontendClassInput>(FGetClassInputFromGraphClassWithNodeID(InNodeID));
-			/*
-			if (GraphClassPtr.IsValid())
-			{
-				return GraphClassPtr->Interface.Inputs.FindByPredicate([&](const FMetasoundFrontendClassInput& Desc) { return Desc.NodeID == InNodeID; });
-			}
-			return nullptr;
-			*/
 		}
 
-		FConstClassInputAccessPtr FGraphController::FindInputDescriptionWithNodeID(int32 InNodeID) const
+		FConstClassInputAccessPtr FGraphController::FindInputDescriptionWithNodeID(FGuid InNodeID) const
 		{
 			using namespace FrontendControllerIntrinsics;
 
 			return GraphClassPtr.GetMemberAccessPtr<const FMetasoundFrontendClassInput>(FGetConstClassInputFromGraphClassWithNodeID(InNodeID));
-			/*
-			if (GraphClassPtr.IsValid())
-			{
-				return GraphClassPtr->Interface.Inputs.FindByPredicate([&](const FMetasoundFrontendClassInput& Desc) { return Desc.NodeID == InNodeID; });
-			}
-			return nullptr;
-			*/
 		}
 
-		FClassOutputAccessPtr FGraphController::FindOutputDescriptionWithNodeID(int32 InNodeID)
+		FClassOutputAccessPtr FGraphController::FindOutputDescriptionWithNodeID(FGuid InNodeID)
 		{
 			using namespace FrontendControllerIntrinsics;
 
 			return GraphClassPtr.GetMemberAccessPtr<FMetasoundFrontendClassOutput>(FGetClassOutputFromGraphClassWithNodeID(InNodeID));
-			/*
-			if (GraphClassPtr.IsValid())
-			{
-				return GraphClassPtr->Interface.Outputs.FindByPredicate([&](const FMetasoundFrontendClassOutput& Desc) { return Desc.NodeID == InNodeID; });
-			}
-			return nullptr;
-			*/
 		}
 
-		FConstClassOutputAccessPtr FGraphController::FindOutputDescriptionWithNodeID(int32 InNodeID) const
+		FConstClassOutputAccessPtr FGraphController::FindOutputDescriptionWithNodeID(FGuid InNodeID) const
 		{
 			using namespace FrontendControllerIntrinsics;
 
 			return GraphClassPtr.GetMemberAccessPtr<const FMetasoundFrontendClassOutput>(FGetConstClassOutputFromGraphClassWithNodeID(InNodeID));
-			/*
-			if (GraphClassPtr.IsValid())
-			{
-				return GraphClassPtr->Interface.Outputs.FindByPredicate([&](const FMetasoundFrontendClassOutput& Desc) { return Desc.NodeID == InNodeID; });
-			}
-			return nullptr;
-			*/
 		}
 
-		/*
-		FMetasoundFrontendNode* FGraphController::FindNodeByID(int32 InNodeID)
+		FDocumentAccess FGraphController::ShareAccess() 
 		{
-			if (GraphClassPtr.IsValid())
-			{
-				auto IsNodeWithID = [&](const FMetasoundFrontendNode& InNode) { return InNode.ID == InNodeID; };
-				return GraphClassPtr->Graph.Nodes.FindByPredicate(IsNodeWithID);
-			}
-			return nullptr;
+			FDocumentAccess Access;
+
+			Access.GraphClass = GraphClassPtr;
+			Access.ConstGraphClass = GraphClassPtr;
+
+			return Access;
 		}
 
-		const FMetasoundFrontendNode* FGraphController::FindNodeByID(int32 InNodeID) const
+		FConstDocumentAccess FGraphController::ShareAccess() const
 		{
-			if (GraphClassPtr.IsValid())
-			{
-				auto IsNodeWithID = [&](const FMetasoundFrontendNode& InNode) { return InNode.ID == InNodeID; };
-				return GraphClassPtr->Graph.Nodes.FindByPredicate(IsNodeWithID);
-			}
-			return nullptr;
+			FConstDocumentAccess Access;
+
+			Access.ConstGraphClass = GraphClassPtr;
+
+			return Access;
 		}
-		*/
 
 		//
 		// FDocumentController
@@ -3109,36 +2991,19 @@ FGetClassInputFromClassWithName
 			return Classes;
 		}
 
-		FConstClassAccessPtr FDocumentController::FindDependencyWithID(int32 InClassID) const 
+		FConstClassAccessPtr FDocumentController::FindDependencyWithID(FGuid InClassID) const 
 		{
 			using namespace FrontendControllerIntrinsics;
 			return DocumentPtr.GetMemberAccessPtr<const FMetasoundFrontendClass>(FGetConstClassFromDocumentDependenciesWithID(InClassID));
-
-			/*
-			if (DocumentPtr.IsValid())
-			{
-				auto IsMatchingID = [&](const FMetasoundFrontendClass& InClass) { return InClass.ID == InClassID; };
-				return DocumentPtr->Dependencies.FindByPredicate(IsMatchingID);
-			}
-			return nullptr;
-			*/
 		}
 
-		FConstGraphClassAccessPtr FDocumentController::FindSubgraphWithID(int32 InClassID) const
+		FConstGraphClassAccessPtr FDocumentController::FindSubgraphWithID(FGuid InClassID) const
 		{
 			using namespace FrontendControllerIntrinsics;
 			return DocumentPtr.GetMemberAccessPtr<const FMetasoundFrontendGraphClass>(FGetConstGraphClassFromDocumentWithID(InClassID));
-			/*
-			if (DocumentPtr.IsValid())
-			{
-				auto IsMatchingID = [&](const FMetasoundFrontendGraphClass& InClass) { return InClass.ID == InClassID; };
-				return DocumentPtr->Subgraphs.FindByPredicate(IsMatchingID);
-			}
-			return nullptr;
-			*/
 		}
 
-		FConstClassAccessPtr FDocumentController::FindClassWithID(int32 InClassID) const
+		FConstClassAccessPtr FDocumentController::FindClassWithID(FGuid InClassID) const
 		{
 			FConstClassAccessPtr MetasoundClass = FindDependencyWithID(InClassID);
 
@@ -3155,26 +3020,6 @@ FGetClassInputFromClassWithName
 			using namespace FrontendControllerIntrinsics;
 
 			return DocumentPtr.GetMemberAccessPtr<const FMetasoundFrontendClass>(FGetConstClassFromDocumentWithClassInfo(InNodeClass));
-			/*
-			if (DocumentPtr.IsValid())
-			{
-				auto IsMatchingClass = [&](const FMetasoundFrontendClass& Desc)
-				{
-					return IsMatchingMetasoundClass(InNodeClass, Desc.Metadata);
-				};
-
-				FConstClassAccessPtr MetasoundClass = DocumentPtr->Dependencies.FindByPredicate(IsMatchingClass);
-
-				if (nullptr == MetasoundClass)
-				{
-					MetasoundClass = DocumentPtr->Subgraphs.FindByPredicate(IsMatchingClass);
-				}
-
-				return MetasoundClass;
-			}
-
-			return nullptr;
-			*/
 		}
 
 		FConstClassAccessPtr FDocumentController::FindOrAddClass(const FNodeClassInfo& InNodeClass)
@@ -3204,23 +3049,6 @@ FGetClassInputFromClassWithName
 			using namespace FrontendControllerIntrinsics;
 
 			return DocumentPtr.GetMemberAccessPtr<const FMetasoundFrontendClass>(FGetConstClassFromDocumentWithMetadata(InMetadata));
-			/*
-			if (DocumentPtr.IsValid())
-			{
-				auto IsMatchingClass = [&](const FMetasoundFrontendClass& Desc)
-				{
-					return IsMatchingMetasoundClass(InMetadata, Desc.Metadata);
-				};
-
-				FConstClassAccessPtr MetasoundClass = DocumentPtr->Dependencies.FindByPredicate(IsMatchingClass);
-
-				if (nullptr == MetasoundClass)
-				{
-					MetasoundClass = DocumentPtr->Subgraphs.FindByPredicate(IsMatchingClass);
-				}
-			}
-			return nullptr;
-			*/
 		}
 
 		FConstClassAccessPtr FDocumentController::FindOrAddClass(const FMetasoundFrontendClassMetadata& InMetadata)
@@ -3262,143 +3090,6 @@ FGetClassInputFromClassWithName
 			return ClassPtr;
 		}
 
-		/*
-		const FMetasoundFrontendClass* FDocumentController::FindDependencyWithID(int32 InClassID) const 
-		{
-			if (DocumentPtr.IsValid())
-			{
-				auto IsMatchingID = [&](const FMetasoundFrontendClass& InClass) { return InClass.ID == InClassID; };
-				return DocumentPtr->Dependencies.FindByPredicate(IsMatchingID);
-			}
-			return nullptr;
-		}
-
-		const FMetasoundFrontendGraphClass* FDocumentController::FindSubgraphWithID(int32 InClassID) const
-		{
-			if (DocumentPtr.IsValid())
-			{
-				auto IsMatchingID = [&](const FMetasoundFrontendGraphClass& InClass) { return InClass.ID == InClassID; };
-				return DocumentPtr->Subgraphs.FindByPredicate(IsMatchingID);
-			}
-			return nullptr;
-		}
-
-		const FMetasoundFrontendClass* FDocumentController::FindClassWithID(int32 InClassID) const
-		{
-			const FMetasoundFrontendClass* MetasoundClass = FindDependencyWithID(InClassID);
-
-			if (nullptr == MetasoundClass)
-			{
-				MetasoundClass = FindSubgraphWithID(InClassID);
-			}
-
-			return MetasoundClass;
-		}
-
-		const FMetasoundFrontendClass* FDocumentController::FindClass(const FNodeClassInfo& InNodeClass) const
-		{
-			if (DocumentPtr.IsValid())
-			{
-				auto IsMatchingClass = [&](const FMetasoundFrontendClass& Desc)
-				{
-					return IsMatchingMetasoundClass(InNodeClass, Desc.Metadata);
-				};
-
-				const FMetasoundFrontendClass* MetasoundClass = DocumentPtr->Dependencies.FindByPredicate(IsMatchingClass);
-
-				if (nullptr == MetasoundClass)
-				{
-					MetasoundClass = DocumentPtr->Subgraphs.FindByPredicate(IsMatchingClass);
-				}
-
-				return MetasoundClass;
-			}
-
-			return nullptr;
-		}
-
-		const FMetasoundFrontendClass* FDocumentController::FindOrAddClass(const FNodeClassInfo& InNodeClass)
-		{
-			if (DocumentPtr.IsValid())
-			{
-
-				if (const FMetasoundFrontendClass* MetasoundClass = FindClass(InNodeClass))
-				{
-					return MetasoundClass;
-				}
-
-				// FNodeClassInfo does not contain enough info add a subgraph.
-				check(EMetasoundFrontendClassType::Graph != InNodeClass.NodeType);
-
-				FMetasoundFrontendClass NewClass = GenerateClassDescription(InNodeClass);
-				NewClass.ID = NewClassID();
-
-				return &(DocumentPtr->Dependencies.Add_GetRef(NewClass));
-			}
-
-			return nullptr;
-		}
-
-		const FMetasoundFrontendClass* FDocumentController::FindClass(const FMetasoundFrontendClassMetadata& InMetadata) const
-		{
-			if (DocumentPtr.IsValid())
-			{
-				auto IsMatchingClass = [&](const FMetasoundFrontendClass& Desc)
-				{
-					return IsMatchingMetasoundClass(InMetadata, Desc.Metadata);
-				};
-
-				const FMetasoundFrontendClass* MetasoundClass = DocumentPtr->Dependencies.FindByPredicate(IsMatchingClass);
-
-				if (nullptr == MetasoundClass)
-				{
-					MetasoundClass = DocumentPtr->Subgraphs.FindByPredicate(IsMatchingClass);
-				}
-			}
-			return nullptr;
-		}
-
-		const FMetasoundFrontendClass* FDocumentController::FindOrAddClass(const FMetasoundFrontendClassMetadata& InMetadata)
-		{
-			if (DocumentPtr.IsValid())
-			{
-				if (const FMetasoundFrontendClass* MetasoundClass = FindClass(InMetadata))
-				{
-					return MetasoundClass;
-				}
-
-				if ((EMetasoundFrontendClassType::External == InMetadata.Type) || (EMetasoundFrontendClassType::Input == InMetadata.Type) || (EMetasoundFrontendClassType::Output == InMetadata.Type))
-				{
-					FMetasoundFrontendClass NewClass;
-					if (FMetasoundFrontendRegistryContainer::GetFrontendClassFromRegistered(InMetadata, NewClass))
-					{
-						NewClass.ID = NewClassID();
-						return &(DocumentPtr->Dependencies.Add_GetRef(NewClass));
-					}
-					else
-					{
-						UE_LOG(LogMetasound, Error, TEXT("Cannot add external dependency. No Metasound class found with matching metadata Name: \"%s\", Version %d.%d. Suggested solution \"%s\" by %s."), *InMetadata.Name.GetFullName(), InMetadata.Version.Major, InMetadata.Version.Minor, *InMetadata.PromptIfMissing.ToString(), *InMetadata.Author.ToString());
-					}
-				} 
-				else if (EMetasoundFrontendClassType::Graph == InMetadata.Type)
-				{
-					FMetasoundFrontendGraphClass NewClass;
-					NewClass.ID = NewClassID();
-					NewClass.Metadata = InMetadata;
-
-					return &(DocumentPtr->Subgraphs.Add_GetRef(NewClass));
-				}
-				else
-				{
-					UE_LOG(LogMetasound, Error, TEXT("Unsupported metasound class type for node: \"%s\", Version %d.%d."), *InMetadata.Name.GetFullName(), InMetadata.Version.Major, InMetadata.Version.Minor);
-					checkNoEntry();
-				}
-			}
-
-			return nullptr;
-		}
-		*/
-
 		void FDocumentController::RemoveUnreferencedDependencies()
 		{
 			if (DocumentPtr.IsValid())
@@ -3409,7 +3100,7 @@ FGetClassInputFromClassWithName
 				// no unreferenced dependencies left. 
 				do
 				{
-					TSet<int32> ReferencedDependencyIDs;
+					TSet<FGuid> ReferencedDependencyIDs;
 					auto AddNodeClassIDToSet = [&](const FMetasoundFrontendNode& Node)
 					{
 						ReferencedDependencyIDs.Add(Node.ClassID);
@@ -3440,7 +3131,6 @@ FGetClassInputFromClassWithName
 		{
 			if (DocumentPtr.IsValid())
 			{
-				//FGraphClassAccessPtr GraphClass = FrontendControllerIntrinsics::MakeAutoAccessPtr(DocumentPtr->RootGraph);
 				FGraphClassAccessPtr GraphClass = DocumentPtr.GetMemberAccessPtr<FMetasoundFrontendGraphClass>([](FMetasoundFrontendDocument& Doc) { return &Doc.RootGraph; });
 				return FGraphController::CreateGraphHandle(FGraphController::FInitParams{GraphClass, this->AsShared()});
 			}
@@ -3452,7 +3142,6 @@ FGetClassInputFromClassWithName
 		{
 			if (DocumentPtr.IsValid())
 			{
-				//FGraphClassAccessPtr GraphClass = FrontendControllerIntrinsics::MakeAutoAccessPtr(DocumentPtr->RootGraph);
 				FConstGraphClassAccessPtr GraphClass = DocumentPtr.GetMemberAccessPtr<const FMetasoundFrontendGraphClass>([](const FMetasoundFrontendDocument& Doc) { return &Doc.RootGraph; });
 				return FGraphController::CreateConstGraphHandle(FGraphController::FInitParams
 					{
@@ -3471,10 +3160,6 @@ FGetClassInputFromClassWithName
 			{
 				for (FMetasoundFrontendGraphClass& GraphClass : DocumentPtr->Subgraphs)
 				{
-					/*
-					FGraphClassAccessPtr GraphClassPtr = FrontendControllerIntrinsics::MakeAutoAccessPtr(GraphClass);
-					FGraphController::CreateGraphHandle(FGraphController::FInitParams{GraphClassPtr, this->AsShared()}));
-					*/
 					Subgraphs.Add(GetSubgraphWithClassID(GraphClass.ID));
 				}
 			}
@@ -3490,16 +3175,6 @@ FGetClassInputFromClassWithName
 			{
 				for (const FMetasoundFrontendGraphClass& GraphClass : DocumentPtr->Subgraphs)
 				{
-					/*
-					FConstGraphClassAccessPtr GraphClassPtr = FrontendControllerIntrinsics::MakeAutoAccessPtr(GraphClass);
-					Subgraphs.Add(FGraphController::CreateConstGraphHandle(
-						FGraphController::FInitParams
-						{
-							ConstCastAccessPtr<FMetasoundFrontendGraphClass>(GraphClassPtr), 
-							ConstCastSharedRef<IDocumentController>(this->AsShared())
-						}
-					));
-					*/
 					Subgraphs.Add(GetSubgraphWithClassID(GraphClass.ID));
 				}
 			}
@@ -3507,60 +3182,17 @@ FGetClassInputFromClassWithName
 			return Subgraphs;
 		}
 
-		FGraphHandle FDocumentController::GetSubgraphWithClassID(int32 InClassID)
+		FGraphHandle FDocumentController::GetSubgraphWithClassID(FGuid InClassID)
 		{
 			FGraphClassAccessPtr GraphClassPtr = DocumentPtr.GetMemberAccessPtr<FMetasoundFrontendGraphClass>(FrontendControllerIntrinsics::FGetSubgraphFromDocumentByID(InClassID));
 			return FGraphController::CreateGraphHandle(FGraphController::FInitParams{GraphClassPtr, this->AsShared()});
-			/*
-			if (DocumentPtr.IsValid())
-			{
-
-
-					[InClassID](FMetasoundFrontendDocument& Doc)
-					{
-						return Doc.Subgraphs.FindByPredicate(
-							[&](const FMetasoundFrontendGraphClass& InGraphClass) 
-							{ 
-								return InGraphClass.ID == InClassID; 
-							}
-						);
-					}
-				);
-				*/
-
-				/*
-
-
-				auto IsMatchingID = [&](const FMetasoundFrontendGraphClass& InGraphClass) { return InGraphClass.ID == InClassID; };
-				if (FMetasoundFrontendGraphClass* GraphClass = DocumentPtr->Subgraphs.FindByPredicate(IsMatchingID))
-				{
-					//FGraphClassAccessPtr GraphClassPtr = FrontendControllerIntrinsics::MakeAutoAccessPtr(*GraphClass);
-					return FGraphController::CreateGraphHandle(FGraphController::FInitParams{GraphClassPtr, this->AsShared()});
-				}
-			}
-			return FInvalidGraphController::GetInvalid();
-				*/
 		}
 
-		FConstGraphHandle FDocumentController::GetSubgraphWithClassID(int32 InClassID) const
+		FConstGraphHandle FDocumentController::GetSubgraphWithClassID(FGuid InClassID) const
 		{
 			FConstGraphClassAccessPtr GraphClassPtr = DocumentPtr.GetMemberAccessPtr<const FMetasoundFrontendGraphClass>(FrontendControllerIntrinsics::FGetSubgraphFromDocumentByID(InClassID));
 
 			return FGraphController::CreateConstGraphHandle(FGraphController::FInitParams{ConstCastAccessPtr<FMetasoundFrontendGraphClass>(GraphClassPtr), ConstCastSharedRef<IDocumentController>(this->AsShared())});
-
-			/*
-			if (DocumentPtr.IsValid())
-			{
-				auto IsMatchingID = [&](const FMetasoundFrontendGraphClass& InGraphClass) { return InGraphClass.ID == InClassID; };
-
-				if (const FMetasoundFrontendGraphClass* GraphClass = DocumentPtr->Subgraphs.FindByPredicate(IsMatchingID))
-				{
-					FConstGraphClassAccessPtr GraphClassPtr = FrontendControllerIntrinsics::MakeAutoAccessPtr(*GraphClass);
-					return FGraphController::CreateConstGraphHandle(FGraphController::FInitParams{ConstCastAccessPtr<FMetasoundFrontendGraphClass>(GraphClassPtr), ConstCastSharedRef<IDocumentController>(this->AsShared())});
-				}
-			}
-			return FInvalidGraphController::GetInvalid();
-			*/
 		}
 
 		bool FDocumentController::ExportToJSONAsset(const FString& InAbsolutePath) const
@@ -3629,24 +3261,28 @@ FGetClassInputFromClassWithName
 			return false;
 		}
 
-		int32 FDocumentController::NewClassID() const 
+		FDocumentAccess FDocumentController::ShareAccess() 
 		{
-			if (DocumentPtr.IsValid())
-			{
-				TSet<int32> UsedIDs;
-				for (const FMetasoundFrontendClass& InDesc : DocumentPtr->Dependencies)
-				{
-					UsedIDs.Add(InDesc.ID);
-				}
-				for (const FMetasoundFrontendClass& InDesc : DocumentPtr->Subgraphs)
-				{
-					UsedIDs.Add(InDesc.ID);
-				}
+			FDocumentAccess Access;
 
-				return FrontendControllerIntrinsics::GetNewID(UsedIDs);
-			}
+			Access.Document = DocumentPtr;
+			Access.ConstDocument = DocumentPtr;
 
-			return Metasound::FrontendInvalidID;
+			return Access;
+		}
+
+		FConstDocumentAccess FDocumentController::ShareAccess() const 
+		{
+			FConstDocumentAccess Access;
+
+			Access.ConstDocument = DocumentPtr;
+
+			return Access;
+		}
+
+		FGuid FDocumentController::NewClassID() const 
+		{
+			return FGuid::NewGuid();
 		}
 	}
 }

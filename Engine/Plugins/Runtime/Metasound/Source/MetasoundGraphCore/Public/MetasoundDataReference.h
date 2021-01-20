@@ -145,9 +145,7 @@ namespace Metasound
 		static const void* const TypeId = GetMetasoundDataTypeId<DataType>();
 
 		bool bEqualTypeName = InReference.GetDataTypeName() == TypeName;
-		// TODO: need to move data type ID definition to traits implementation.
-		//bool bEqualTypeId = InReference.GetDataTypeId() == TypeId;
-		bool bEqualTypeId = true;
+		bool bEqualTypeId = InReference.GetDataTypeId() == TypeId;
 
 		return (bEqualTypeName && bEqualTypeId);
 	}
@@ -360,7 +358,6 @@ namespace Metasound
 			TDataReadReference<DataType>& operator=(const TDataWriteReference<DataType>& Other)
 			{
 				TDataReference<DataType>::ObjectReference = Other.ObjectReference;
-				//ObjectReference = Other.ObjectReference;
 				return *this;
 			}
 
@@ -374,14 +371,12 @@ namespace Metasound
 			FORCEINLINE const DataType& operator*() const
 			{
 				return *TDataReference<DataType>::ObjectReference;
-				//return *ObjectReference;
 			}
 
 			/** Const access to the underlying parameter object. */
 			FORCEINLINE const DataType* operator->() const
 			{
 				return TDataReference<DataType>::ObjectReference.operator->();
-				//return ObjectReference.operator->();
 			}
 
 			/** Create a clone of this parameter reference. */

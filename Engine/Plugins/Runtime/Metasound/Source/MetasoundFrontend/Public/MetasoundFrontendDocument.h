@@ -5,12 +5,13 @@
 #include "CoreMinimal.h"
 #include "Internationalization/Text.h"
 #include "MetasoundAccessPtr.h"
+#include "Misc/Guid.h"
 
 #include "MetasoundFrontendDocument.generated.h"
 
 namespace Metasound
 {
-	static constexpr int32 FrontendInvalidID = INDEX_NONE;
+	static const FGuid FrontendInvalidID;
 }
 
 // Forward declare
@@ -134,7 +135,7 @@ struct METASOUNDFRONTEND_API FMetasoundFrontendVertex
 
 	// IDs of connection points supported by the vertex.
 	UPROPERTY()	
-	TArray<int32> PointIDs;
+	TArray<FGuid> PointIDs;
 
 	// Returns true if vertexes have equal name, type and number of IDs. 
 	static bool IsFunctionalEquivalent(const FMetasoundFrontendVertex& InLHS, const FMetasoundFrontendVertex& InRHS);
@@ -148,7 +149,7 @@ struct FMetasoundFrontendVertexLiteral
 
 	// ID of vertex.
 	UPROPERTY(EditAnywhere, Category = Parameters)
-	int32 PointID = Metasound::FrontendInvalidID;
+	FGuid PointID = Metasound::FrontendInvalidID;
 
 	// Value to use when constructing input. 
 	UPROPERTY(EditAnywhere, Category = Parameters)
@@ -193,11 +194,11 @@ struct METASOUNDFRONTEND_API FMetasoundFrontendNode
 
 	// Unique ID of this node.
 	UPROPERTY()
-	int32 ID = Metasound::FrontendInvalidID;
+	FGuid ID = Metasound::FrontendInvalidID;
 
 	// ID of FMetasoundFrontendClass corresponding to this node.
 	UPROPERTY()
-	int32 ClassID = Metasound::FrontendInvalidID;
+	FGuid ClassID = Metasound::FrontendInvalidID;
 
 	// Name of node instance. 
 	UPROPERTY()
@@ -223,19 +224,19 @@ struct FMetasoundFrontendEdge
 
 	// ID of source node.
 	UPROPERTY()
-	int32 FromNodeID = Metasound::FrontendInvalidID;
+	FGuid FromNodeID = Metasound::FrontendInvalidID;
 
 	// ID of source point on source node.
 	UPROPERTY()
-	int32 FromPointID = Metasound::FrontendInvalidID;
+	FGuid FromPointID = Metasound::FrontendInvalidID;
 
 	// ID of destination node.
 	UPROPERTY()
-	int32 ToNodeID = Metasound::FrontendInvalidID;
+	FGuid ToNodeID = Metasound::FrontendInvalidID;
 
 	// ID of destination point on destination node.
 	UPROPERTY()
-	int32 ToPointID = Metasound::FrontendInvalidID;
+	FGuid ToPointID = Metasound::FrontendInvalidID;
 };
 
 // Display style for an edge.
@@ -382,7 +383,7 @@ struct METASOUNDFRONTEND_API FMetasoundFrontendClassVertex : public FMetasoundFr
 	virtual ~FMetasoundFrontendClassVertex() = default;
 
 	UPROPERTY()
-	int32 NodeID = Metasound::FrontendInvalidID;
+	FGuid NodeID = Metasound::FrontendInvalidID;
 
 	// Metadata associated with input.
 	UPROPERTY(EditAnywhere, Category = CustomView)
@@ -630,7 +631,7 @@ struct METASOUNDFRONTEND_API FMetasoundFrontendClass
 	virtual ~FMetasoundFrontendClass() = default;
 
 	UPROPERTY()
-	int32 ID = Metasound::FrontendInvalidID;
+	FGuid ID = Metasound::FrontendInvalidID;
 
 	UPROPERTY(EditAnywhere, Category = CustomView)
 	FMetasoundFrontendClassMetadata Metadata;

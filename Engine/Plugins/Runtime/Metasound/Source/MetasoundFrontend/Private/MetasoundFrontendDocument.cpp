@@ -120,7 +120,7 @@ FMetasoundFrontendClassInput::FMetasoundFrontendClassInput(const FMetasoundFront
 {
 	EMetasoundFrontendLiteralType DefaultType = Metasound::Frontend::GetMetasoundLiteralType(FMetasoundFrontendRegistryContainer::Get()->GetDesiredLiteralTypeForDataType(InOther.TypeName));
 
-	for (int32 PointID : PointIDs)
+	for (const FGuid& PointID : PointIDs)
 	{
 		FMetasoundFrontendVertexLiteral Default;
 		Default.PointID = PointID;
@@ -136,7 +136,7 @@ FMetasoundFrontendGraphClass::FMetasoundFrontendGraphClass()
 
 FMetasoundFrontendDocument::FMetasoundFrontendDocument()
 {
-	RootGraph.ID = 0;
+	RootGraph.ID = FGuid::NewGuid();
 	RootGraph.Metadata.Type = EMetasoundFrontendClassType::Graph;
 }
 

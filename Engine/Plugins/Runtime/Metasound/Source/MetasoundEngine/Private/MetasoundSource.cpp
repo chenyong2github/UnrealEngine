@@ -228,7 +228,7 @@ const FMetasoundFrontendArchetype& UMetasoundSource::GetBaseArchetype()
 		OnPlayTrigger.Metadata.DisplayName = FText::FromString(OnPlayTrigger.Name);
 		OnPlayTrigger.TypeName = Metasound::Frontend::GetDataTypeName<Metasound::FBop>();
 		OnPlayTrigger.Metadata.Description = LOCTEXT("OnPlayTriggerToolTip", "Trigger executed when this source is played.");
-		OnPlayTrigger.PointIDs.Add(2);
+		OnPlayTrigger.PointIDs.Add(FGuid::NewGuid());
 
 		Archetype.Interface.Inputs.Add(OnPlayTrigger);
 
@@ -237,7 +237,7 @@ const FMetasoundFrontendArchetype& UMetasoundSource::GetBaseArchetype()
 		OnFinished.Metadata.DisplayName = FText::FromString(OnFinished.Name);
 		OnFinished.TypeName = Metasound::Frontend::GetDataTypeName<Metasound::FBop>();
 		OnFinished.Metadata.Description = LOCTEXT("OnFinishedToolTip", "Bop executed to initiate stopping the source.");
-		OnFinished.PointIDs.Add(3);
+		OnFinished.PointIDs.Add(FGuid::NewGuid());
 
 		Archetype.Interface.Outputs.Add(OnFinished);
 
@@ -268,7 +268,7 @@ const FMetasoundFrontendArchetype& UMetasoundSource::GetMonoSourceArchetype()
 		GeneratedAudio.TypeName = Metasound::Frontend::GetDataTypeName<Metasound::FMonoAudioFormat>();
 		GeneratedAudio.Metadata.DisplayName = LOCTEXT("GeneratedMono", "Mono");
 		GeneratedAudio.Metadata.Description = LOCTEXT("GeneratedAudioToolTip", "The resulting output audio from this source.");
-		GeneratedAudio.PointIDs.Add(4);
+		GeneratedAudio.PointIDs.Add(FGuid::NewGuid());
 
 		Archetype.Interface.Outputs.Add(GeneratedAudio);
 
@@ -292,7 +292,7 @@ const FMetasoundFrontendArchetype& UMetasoundSource::GetStereoSourceArchetype()
 		GeneratedAudio.TypeName = Metasound::Frontend::GetDataTypeName<Metasound::FStereoAudioFormat>();
 		GeneratedAudio.Metadata.DisplayName = LOCTEXT("GeneratedStereo", "Stereo");
 		GeneratedAudio.Metadata.Description = LOCTEXT("GeneratedAudioToolTip", "The resulting output audio from this source.");
-		GeneratedAudio.PointIDs.Add(5);
+		GeneratedAudio.PointIDs.Add(FGuid::NewGuid());
 
 		Archetype.Interface.Outputs.Add(GeneratedAudio);
 

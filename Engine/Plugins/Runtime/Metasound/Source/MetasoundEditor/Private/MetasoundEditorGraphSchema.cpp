@@ -533,7 +533,7 @@ void UMetasoundEditorGraphSchema::BreakNodeLinks(UEdGraphNode& TargetNode) const
 	Super::BreakNodeLinks(TargetNode);
 
 	FNodeHandle NodeHandle = CastChecked<UMetasoundEditorGraphNode>(&TargetNode)->GetNodeHandle();
-	const uint32 NodeID = NodeHandle->GetID();
+	const FGuid NodeID = NodeHandle->GetID();
 
 	FGraphHandle GraphHandle = CastChecked<UMetasoundEditorGraphNode>(&TargetNode)->GetRootGraphHandle();
 	TArray<FNodeHandle> AllNodes = GraphHandle->GetNodes();

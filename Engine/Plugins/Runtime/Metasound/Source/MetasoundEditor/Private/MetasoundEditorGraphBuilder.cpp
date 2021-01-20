@@ -155,7 +155,7 @@ namespace Metasound
 			Description.Name = InName;
 			Description.TypeName = InTypeName;
 			Description.Metadata.Description = InToolTip;
-			int32 PointID = GraphHandle->GetNewPointID();
+			FGuid PointID = GraphHandle->GetNewPointID();
 
 			Description.PointIDs.Add(PointID);
 			FMetasoundFrontendVertexLiteral DefaultValue;
@@ -316,7 +316,7 @@ namespace Metasound
 				UEdGraphNode* GraphNode = nullptr;
 			};
 
-			TMap<uint32, FNodePair> NewIdNodeMap;
+			TMap<FGuid, FNodePair> NewIdNodeMap;
 			TArray<FNodeHandle> NodeHandles = GraphHandle->GetNodes();
 			for (FNodeHandle& NodeHandle : NodeHandles)
 			{
@@ -341,7 +341,7 @@ namespace Metasound
 				NewIdNodeMap.Add(NodeHandle->GetID(), FNodePair { NodeHandle, NewNode });
 			}
 
-			for (const TPair<uint32, FNodePair>& IdNodePair : NewIdNodeMap)
+			for (const TPair<FGuid, FNodePair>& IdNodePair : NewIdNodeMap)
 			{
 				UEdGraphNode* GraphNode = IdNodePair.Value.GraphNode;
 				check(GraphNode);
@@ -528,7 +528,7 @@ namespace Metasound
 				UMetasoundEditorGraphNode* EditorNode = nullptr;
 				FNodeHandle Node = INodeController::GetInvalidHandle();;
 			};
-			TMap<int32, FNodePair> PairedNodes;
+			TMap<FGuid, FNodePair> PairedNodes;
 
 			// Reverse iterate so paired nodes can safely be removed from the array.
 			for (int32 i = Nodes.Num() - 1; i >= 0; i--)
@@ -573,7 +573,7 @@ namespace Metasound
 			}
 
 			// Synchronize pins on node pairs.
-			for (const TPair<int32, FNodePair>& IdNodePair : PairedNodes)
+			for (const TPair<FGuid, FNodePair>& IdNodePair : PairedNodes)
 			{
 				UMetasoundEditorGraphNode* EditorNode = IdNodePair.Value.EditorNode;
 				bIsEditorGraphDirty |= SynchronizeNodePins(*IdNodePair.Value.EditorNode, IdNodePair.Value.Node);
@@ -682,7 +682,7 @@ namespace Metasound
 			TArray<UMetasoundEditorGraphNode*> EditorNodes;
 
 			// Cache map of editor nodes indexed by node id.
-			TMap<int32, UMetasoundEditorGraphNode*> EditorNodesByID;
+			TMap<FGuid, UMetasoundEditorGraphNode*> EditorNodesByID;
 			for (UEdGraphNode* EdGraphNode : EditorGraph->Nodes)
 			{
 				UMetasoundEditorGraphNode* MetasoundEditorNode = Cast<UMetasoundEditorGraphNode>(EdGraphNode);

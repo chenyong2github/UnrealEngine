@@ -43,13 +43,13 @@ namespace Metasound
 			}
 
 			bool IsValid() const override { return false; }
-			int32 GetID() const override { return Metasound::FrontendInvalidID; }
+			FGuid GetID() const override { return Metasound::FrontendInvalidID; }
 			const FName& GetDataType() const override { return MetasoundFrontendInvalidControllerPrivate::GetInvalid<FName>(); }  
 			const FString& GetName() const override { return MetasoundFrontendInvalidControllerPrivate::GetInvalid<FString>(); }
 			const FText& GetDisplayName() const override { return FText::GetEmpty(); }
 			const FText& GetTooltip() const override { return FText::GetEmpty(); }
 
-			int32 GetOwningNodeID() const override { return Metasound::FrontendInvalidID; }
+			FGuid GetOwningNodeID() const override { return Metasound::FrontendInvalidID; }
 			TSharedRef<INodeController> GetOwningNode() override;
 			TSharedRef<const INodeController> GetOwningNode() const override;
 
@@ -58,6 +58,10 @@ namespace Metasound
 			bool Connect(IInputController& InController) override { return false; }
 			bool ConnectWithConverterNode(IInputController& InController, const FConverterNodeInfo& InNodeClassName) override { return false; }
 			bool Disconnect(IInputController& InController) override { return false; }
+
+		protected:
+			FDocumentAccess ShareAccess() override { return FDocumentAccess(); }
+			FConstDocumentAccess ShareAccess() const override { return FConstDocumentAccess(); }
 
 		};
 
@@ -78,14 +82,14 @@ namespace Metasound
 			}
 
 			bool IsValid() const override { return false; }
-			int32 GetID() const override { return Metasound::FrontendInvalidID; }
+			FGuid GetID() const override { return Metasound::FrontendInvalidID; }
 			bool IsConnected() const override { return false; }
 			const FName& GetDataType() const override { return MetasoundFrontendInvalidControllerPrivate::GetInvalid<FName>(); }  
 			const FString& GetName() const override { return MetasoundFrontendInvalidControllerPrivate::GetInvalid<FString>(); }
 			const FText& GetDisplayName() const override { return FText::GetEmpty(); }
 			const FText& GetTooltip() const override { return FText::GetEmpty(); }
 
-			int32 GetOwningNodeID() const override { return Metasound::FrontendInvalidID; }
+			FGuid GetOwningNodeID() const override { return Metasound::FrontendInvalidID; }
 			TSharedRef<INodeController> GetOwningNode() override;
 			TSharedRef<const INodeController> GetOwningNode() const override;
 
@@ -97,6 +101,9 @@ namespace Metasound
 			virtual bool ConnectWithConverterNode(IOutputController& InController, const FConverterNodeInfo& InNodeClassName) override { return false; }
 			virtual bool Disconnect(IOutputController& InController) override { return false; }
 			virtual bool Disconnect() override { return false; }
+		protected:
+			FDocumentAccess ShareAccess() override { return FDocumentAccess(); }
+			FConstDocumentAccess ShareAccess() const override { return FConstDocumentAccess(); }
 		};
 
 		/** FInvalidNodeController is a controller which is always invalid. 
@@ -127,18 +134,18 @@ namespace Metasound
 			TArray<FConstInputHandle> GetInputsWithVertexName(const FString& InName) const override { return TArray<FConstInputHandle>(); }
 			TArray<FOutputHandle> GetOutputsWithVertexName(const FString& InName) override { return TArray<FOutputHandle>(); }
 			TArray<FConstOutputHandle> GetOutputsWithVertexName(const FString& InName) const override { return TArray<FConstOutputHandle>(); }
-			TSharedRef<IInputController> GetInputWithID(int32 InPointID) override { return FInvalidInputController::GetInvalid(); }
-			TSharedRef<IOutputController> GetOutputWithID(int32 InPointID) override { return FInvalidOutputController::GetInvalid(); }
-			TSharedRef<const IInputController> GetInputWithID(int32 InPointID) const override { return FInvalidInputController::GetInvalid(); }
-			TSharedRef<const IOutputController> GetOutputWithID(int32 InPointID) const override { return FInvalidOutputController::GetInvalid(); }
+			TSharedRef<IInputController> GetInputWithID(FGuid InPointID) override { return FInvalidInputController::GetInvalid(); }
+			TSharedRef<IOutputController> GetOutputWithID(FGuid InPointID) override { return FInvalidOutputController::GetInvalid(); }
+			TSharedRef<const IInputController> GetInputWithID(FGuid InPointID) const override { return FInvalidInputController::GetInvalid(); }
+			TSharedRef<const IOutputController> GetOutputWithID(FGuid InPointID) const override { return FInvalidOutputController::GetInvalid(); }
 
 			bool CanAddInput(const FString& InVertexName) const override { return false; }
 			FInputHandle AddInput(const FString& InVertexName, const FMetasoundFrontendLiteral* InDefault) override { return FInvalidInputController::GetInvalid(); }
-			bool RemoveInput(int32 InPointID) override { return false; }
+			bool RemoveInput(FGuid InPointID) override { return false; }
 
 			bool CanAddOutput(const FString& InVertexName) const override { return false; }
 			FInputHandle AddOutput(const FString& InVertexName, const FMetasoundFrontendLiteral* InDefault) override { return FInvalidInputController::GetInvalid(); }
-			bool RemoveOutput(int32 InPointID) override { return false; }
+			bool RemoveOutput(FGuid InPointID) override { return false; }
 
 			EMetasoundFrontendClassType GetClassType() const override { return EMetasoundFrontendClassType::Invalid; }
 			const FString& GetClassName() const override { return MetasoundFrontendInvalidControllerPrivate::GetInvalid<FString>(); }
@@ -149,14 +156,17 @@ namespace Metasound
 			TSharedRef<IGraphController> AsGraph() override;
 			TSharedRef<const IGraphController> AsGraph() const override;
 
-			int32 GetID() const override { return Metasound::FrontendInvalidID; }
-			int32 GetClassID() const override { return Metasound::FrontendInvalidID; }
+			FGuid GetID() const override { return Metasound::FrontendInvalidID; }
+			FGuid GetClassID() const override { return Metasound::FrontendInvalidID; }
 
-			int32 GetOwningGraphClassID() const override { return Metasound::FrontendInvalidID; }
+			FGuid GetOwningGraphClassID() const override { return Metasound::FrontendInvalidID; }
 			TSharedRef<IGraphController> GetOwningGraph() override;
 			TSharedRef<const IGraphController> GetOwningGraph() const override;
 
 			const FString& GetNodeName() const override { return MetasoundFrontendInvalidControllerPrivate::GetInvalid<FString>(); }
+		protected:
+			FDocumentAccess ShareAccess() override { return FDocumentAccess(); }
+			FConstDocumentAccess ShareAccess() const override { return FConstDocumentAccess(); }
 		};
 
 		/** FInvalidGraphController is a controller which is always invalid. 
@@ -177,16 +187,16 @@ namespace Metasound
 
 			bool IsValid() const override { return false; }
 
-			int32 GetNewPointID() const override { return Metasound::FrontendInvalidID; }
+			FGuid GetNewPointID() const override { return Metasound::FrontendInvalidID; }
 			TArray<FString> GetInputVertexNames() const override { return TArray<FString>(); }
 			TArray<FString> GetOutputVertexNames() const override { return TArray<FString>(); }
 
 			TArray<TSharedRef<INodeController>> GetNodes() override { return TArray<TSharedRef<INodeController>>(); }
 			TArray<TSharedRef<const INodeController>> GetConstNodes() const override { return TArray<TSharedRef<const INodeController>>(); }
 
-			int32 GetClassID() const override { return Metasound::FrontendInvalidID; }
-			TSharedRef<const INodeController> GetNodeWithID(int32 InNodeID) const override { return FInvalidNodeController::GetInvalid(); }
-			TSharedRef<INodeController> GetNodeWithID(int32 InNodeID) override { return FInvalidNodeController::GetInvalid(); }
+			FGuid GetClassID() const override { return Metasound::FrontendInvalidID; }
+			TSharedRef<const INodeController> GetNodeWithID(FGuid InNodeID) const override { return FInvalidNodeController::GetInvalid(); }
+			TSharedRef<INodeController> GetNodeWithID(FGuid InNodeID) override { return FInvalidNodeController::GetInvalid(); }
 
 			TArray<TSharedRef<INodeController>> GetOutputNodes() override { return TArray<TSharedRef<INodeController>>(); }
 			TArray<TSharedRef<INodeController>> GetInputNodes() override { return TArray<TSharedRef<INodeController>>(); }
@@ -220,17 +230,17 @@ namespace Metasound
 			// For inputs whose preferred literal type is UObject or UObjectArray, this can be used to determine the UObject corresponding to that input's datatype.
 			UClass* GetSupportedClassForInputVertex(const FString& InInputName) override { return nullptr; }
 
-			TArray<int32> GetDefaultIDsForInputVertex(const FString& InInputName) const { return TArray<int32>(); }
-			TArray<int32> GetDefaultIDsForOutputVertex(const FString& InInputName) const { return TArray<int32>(); }
+			TArray<FGuid> GetDefaultIDsForInputVertex(const FString& InInputName) const { return TArray<FGuid>(); }
+			TArray<FGuid> GetDefaultIDsForOutputVertex(const FString& InInputName) const { return TArray<FGuid>(); }
 
 			// These can be used to set the default value for a given input on this graph.
 			// @returns false if the input name couldn't be found, or if the literal type was incompatible with the Data Type of this input.
-			bool SetDefaultInputToLiteral(const FString& InInputName, int32 InPointID, bool bInValue) override { return false; }
-			bool SetDefaultInputToLiteral(const FString& InInputName, int32 InPointID, int32 InValue) override { return false; }
-			bool SetDefaultInputToLiteral(const FString& InInputName, int32 InPointID, float InValue) override { return false; }
-			bool SetDefaultInputToLiteral(const FString& InInputName, int32 InPointID, const FString& InValue) override { return false; }
-			bool SetDefaultInputToLiteral(const FString& InInputName, int32 InPointID, UObject* InValue) override { return false; }
-			bool SetDefaultInputToLiteral(const FString& InInputName, int32 InPointID, const TArray<UObject*>& InValue) override { return false; }
+			bool SetDefaultInputToLiteral(const FString& InInputName, FGuid InPointID, bool bInValue) override { return false; }
+			bool SetDefaultInputToLiteral(const FString& InInputName, FGuid InPointID, int32 InValue) override { return false; }
+			bool SetDefaultInputToLiteral(const FString& InInputName, FGuid InPointID, float InValue) override { return false; }
+			bool SetDefaultInputToLiteral(const FString& InInputName, FGuid InPointID, const FString& InValue) override { return false; }
+			bool SetDefaultInputToLiteral(const FString& InInputName, FGuid InPointID, UObject* InValue) override { return false; }
+			bool SetDefaultInputToLiteral(const FString& InInputName, FGuid InPointID, const TArray<UObject*>& InValue) override { return false; }
 
 
 			// Set the display name for the input with the given name
@@ -241,7 +251,7 @@ namespace Metasound
 
 			// This can be used to clear the current literal for a given input.
 			// @returns false if the input name couldn't be found.
-			bool ClearLiteralForInput(const FString& InInputName, int32 InPointID) override { return false; }
+			bool ClearLiteralForInput(const FString& InInputName, FGuid InPointID) override { return false; }
 
 			TSharedRef<INodeController> AddNode(const FNodeClassInfo& InNodeClass) override { return FInvalidNodeController::GetInvalid(); }
 			TSharedRef<INodeController> AddNode(const FNodeRegistryKey& InNodeClass) override { return FInvalidNodeController::GetInvalid(); }
@@ -270,6 +280,9 @@ namespace Metasound
 
 			TSharedRef<IDocumentController> GetOwningDocument() override;
 			TSharedRef<const IDocumentController> GetOwningDocument() const override;
+		protected:
+			FDocumentAccess ShareAccess() override { return FDocumentAccess(); }
+			FConstDocumentAccess ShareAccess() const override { return FConstDocumentAccess(); }
 		};
 
 		/** FInvalidDocumentController is a controller which is always invalid. 
@@ -299,9 +312,9 @@ namespace Metasound
 				TArray<FMetasoundFrontendGraphClass> GetSubgraphs() const override { return TArray<FMetasoundFrontendGraphClass>(); }
 				TArray<FMetasoundFrontendClass> GetClasses() const override { return TArray<FMetasoundFrontendClass>(); }
 
-				FConstClassAccessPtr FindDependencyWithID(int32 InClassID) const override { return FConstClassAccessPtr(); }
-				FConstGraphClassAccessPtr FindSubgraphWithID(int32 InClassID) const override { return FConstGraphClassAccessPtr(); }
-				FConstClassAccessPtr FindClassWithID(int32 InClassID) const override { return FConstClassAccessPtr(); }
+				FConstClassAccessPtr FindDependencyWithID(FGuid InClassID) const override { return FConstClassAccessPtr(); }
+				FConstGraphClassAccessPtr FindSubgraphWithID(FGuid InClassID) const override { return FConstGraphClassAccessPtr(); }
+				FConstClassAccessPtr FindClassWithID(FGuid InClassID) const override { return FConstClassAccessPtr(); }
 
 				FConstClassAccessPtr FindClass(const FNodeClassInfo& InNodeClass) const override { return FConstClassAccessPtr(); }
 				FConstClassAccessPtr FindOrAddClass(const FNodeClassInfo& InNodeClass) override { return FConstClassAccessPtr(); }
@@ -313,14 +326,19 @@ namespace Metasound
 
 				TArray<FConstGraphHandle> GetSubgraphHandles() const override { return TArray<FConstGraphHandle>(); }
 
-				FGraphHandle GetSubgraphWithClassID(int32 InClassID) { return FInvalidGraphController::GetInvalid(); }
+				FGraphHandle GetSubgraphWithClassID(FGuid InClassID) { return FInvalidGraphController::GetInvalid(); }
 
-				FConstGraphHandle GetSubgraphWithClassID(int32 InClassID) const { return FInvalidGraphController::GetInvalid(); }
+				FConstGraphHandle GetSubgraphWithClassID(FGuid InClassID) const { return FInvalidGraphController::GetInvalid(); }
 
 				TSharedRef<IGraphController> GetRootGraph() override;
 				TSharedRef<const IGraphController> GetRootGraph() const override;
 				bool ExportToJSONAsset(const FString& InAbsolutePath) const override { return false; }
 				FString ExportToJSON() const override { return FString(); }
+
+			protected:
+
+				FDocumentAccess ShareAccess() override { return FDocumentAccess(); }
+				FConstDocumentAccess ShareAccess() const override { return FConstDocumentAccess(); }
 		};
 	}
 }

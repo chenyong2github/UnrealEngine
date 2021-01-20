@@ -205,12 +205,12 @@ FString UMetasoundEditorGraphNode::GetDocumentationLink() const
 	return TEXT("Shared/GraphNodes/Metasound");
 }
 
-void UMetasoundEditorGraphNode::SetNodeID(uint32 InNodeID)
+void UMetasoundEditorGraphNode::SetNodeID(FGuid InNodeID)
 {
 	NodeID = InNodeID;
 }
 
-uint32 UMetasoundEditorGraphNode::GetNodeID() const
+FGuid UMetasoundEditorGraphNode::GetNodeID() const
 {
 	return NodeID;
 }

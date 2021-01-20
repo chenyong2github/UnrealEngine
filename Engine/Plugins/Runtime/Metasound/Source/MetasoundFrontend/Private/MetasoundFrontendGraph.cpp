@@ -18,7 +18,7 @@ namespace Metasound
 	{
 	}
 
-	void FFrontendGraph::AddInputNode(int32 InDependencyId, int32 InIndex, const FVertexKey& InVertexKey, TUniquePtr<INode> InNode)
+	void FFrontendGraph::AddInputNode(FGuid InDependencyId, int32 InIndex, const FVertexKey& InVertexKey, TUniquePtr<INode> InNode)
 	{
 		if (InNode.IsValid())
 		{
@@ -32,7 +32,7 @@ namespace Metasound
 		}
 	}
 
-	void FFrontendGraph::AddOutputNode(int32 InNodeID, int32 InIndex, const FVertexKey& InVertexKey, TUniquePtr<INode> InNode)
+	void FFrontendGraph::AddOutputNode(FGuid InNodeID, int32 InIndex, const FVertexKey& InVertexKey, TUniquePtr<INode> InNode)
 	{
 		if (InNode.IsValid())
 		{
@@ -47,7 +47,7 @@ namespace Metasound
 	}
 
 	/** Store a node on this graph. */
-	void FFrontendGraph::AddNode(int32 InNodeID, TUniquePtr<INode> InNode)
+	void FFrontendGraph::AddNode(FGuid InNodeID, TUniquePtr<INode> InNode)
 	{
 		if (InNode.IsValid())
 		{
@@ -59,7 +59,7 @@ namespace Metasound
 		}
 	}
 
-	const INode* FFrontendGraph::FindNode(int32 InNodeID) const
+	const INode* FFrontendGraph::FindNode(FGuid InNodeID) const
 	{
 		INode* const* NodePtr = NodeMap.Find(InNodeID);
 
@@ -171,13 +171,13 @@ namespace Metasound
 				}
 				else
 				{
-					UE_LOG(LogMetasound, Error, TEXT("Cannot create input node [NodeID:%d]. [Vertex:%s] cannot be constructed with the provided literal type."), InNode.ID, *InputVertex.Name);
+					UE_LOG(LogMetasound, Error, TEXT("Cannot create input node [NodeID:%s]. [Vertex:%s] cannot be constructed with the provided literal type."), *InNode.ID.ToString(), *InputVertex.Name);
 				}
 			}
 		}
 		else
 		{
-			UE_LOG(LogMetasound, Error, TEXT("Cannot create input node [NodeID:%d]. No default literal set for input node."), InNode.ID);
+			UE_LOG(LogMetasound, Error, TEXT("Cannot create input node [NodeID:%s]. No default literal set for input node."), *InNode.ID.ToString());
 		}
 
 		return TUniquePtr<INode>(nullptr);
@@ -213,7 +213,7 @@ namespace Metasound
 
 		InitData.InstanceName.Append(InNode.Name);
 		InitData.InstanceName.AppendChar('_');
-		InitData.InstanceName.AppendInt(InNode.ID);
+		InitData.InstanceName.Append(InNode.ID.ToString());
 
 		// Copy over our initialization params.
 		/*
@@ -283,6 +283,57 @@ namespace Metasound
 		return nullptr;
 	}
 
+		/*
+	const FMetasoundFrontendVertexLiteral* FFrontendGraphBuilder::FindInputLiteralForInput(FGuid InPointID, const FMetasoundFrontendNode& InNode, const FMetasoundFrontendClass& InNodeClass) const
+	{
+		// TODO: Need utility for matching class input to node input. Will need to be cognisant of input type [Point, Array, ....]
+
+		// Default value priority is:
+		// 1. A value set directly on the node
+		// 3. A default value on the node class.
+
+		const FMetasoundFrontendVertexLiteral* VertexLiteral = nullptr;
+
+		// Check for default value directly on node.
+		if (ensure(InNode.Interface.Inputs.Num() == 1))
+		{
+			const FMetasoundFrontendVertex& InputVertex = InNode.Interface.Inputs[0];
+
+			// Currently only support one point on input vertex.
+			if (ensure(InputVertex.PointIDs.Num() == 1))
+			{
+				VertexLiteral = InNode.InputLiterals.FindByPredicate(
+					[&](const FMetasoundFrontendVertexLiteral& InVertexLiteral)
+					{
+						return InVertexLiteral.PointID == InputVertex.PointIDs[0];
+					}
+				);
+			}
+		}
+
+		// Check for default value on input node class
+		if (nullptr == VertexLiteral && ensure(InNodeClass.Interface.Inputs.Num() == 1))
+		{
+			const FMetasoundFrontendClassInput& InputNodeClassInput = InNodeClass.Interface.Inputs[0];
+
+			if (ensure(InputNodeClassInput.PointIDs.Num() == 1))
+			{
+				int32 PointID = InputNodeClassInput.PointIDs[0];
+
+				VertexLiteral = InputNodeClassInput.Defaults.FindByPredicate(
+					[&](const FMetasoundFrontendVertexLiteral& InVertexLiteral)
+					{
+						return InVertexLiteral.PointID == PointID;
+					}
+				);
+			}
+		}
+
+		return VertexLiteral;
+		return nullptr;
+	}
+		*/
+
 	const FMetasoundFrontendVertexLiteral* FFrontendGraphBuilder::FindInputLiteralForInputNode(const FMetasoundFrontendNode& InInputNode, const FMetasoundFrontendClass& InInputNodeClass, const FMetasoundFrontendClassInput& InOwningGraphClassInput) const
 	{
 		// Default value priority is:
@@ -314,7 +365,7 @@ namespace Metasound
 		{
 			if (ensure(InOwningGraphClassInput.PointIDs.Num() == 1))
 			{
-				int32 PointID = InOwningGraphClassInput.PointIDs[0];
+				const FGuid& PointID = InOwningGraphClassInput.PointIDs[0];
 
 				VertexLiteral = InOwningGraphClassInput.Defaults.FindByPredicate(
 					[&](const FMetasoundFrontendVertexLiteral& InVertexLiteral)
@@ -332,7 +383,7 @@ namespace Metasound
 
 			if (ensure(InputNodeClassInput.PointIDs.Num() == 1))
 			{
-				int32 PointID = InputNodeClassInput.PointIDs[0];
+				const FGuid& PointID = InputNodeClassInput.PointIDs[0];
 
 				VertexLiteral = InputNodeClassInput.Defaults.FindByPredicate(
 					[&](const FMetasoundFrontendVertexLiteral& InVertexLiteral)
@@ -347,7 +398,7 @@ namespace Metasound
 	}
 
 	// TODO: add errors here. Most will be a "PromptIfMissing"...
-	void FFrontendGraphBuilder::AddNodesToGraph(const FMetasoundFrontendGraphClass& InGraphClass, const TMap<int32, const FMetasoundFrontendClass*>& InClasses, FFrontendGraph& OutGraph) const
+	void FFrontendGraphBuilder::AddNodesToGraph(const FMetasoundFrontendGraphClass& InGraphClass, const TMap<FGuid, const FMetasoundFrontendClass*>& InClasses, FFrontendGraph& OutGraph) const
 	{
 		for (const FMetasoundFrontendNode& Node : InGraphClass.Graph.Nodes)
 		{
@@ -369,7 +420,7 @@ namespace Metasound
 							}
 							else
 							{
-								UE_LOG(LogMetasound, Error, TEXT("Failed to match input node [NodeID:%d, NodeName:%s] to owning graph [ClassID:%d] output."), Node.ID, *Node.Name, InGraphClass.ID);
+								UE_LOG(LogMetasound, Error, TEXT("Failed to match input node [NodeID:%s, NodeName:%s] to owning graph [ClassID:%s] output."), *Node.ID.ToString(), *Node.Name, *InGraphClass.ID.ToString());
 							}
 						}
 
@@ -386,7 +437,7 @@ namespace Metasound
 							}
 							else
 							{
-								UE_LOG(LogMetasound, Error, TEXT("Failed to match output node [NodeID:%d, NodeName:%s] to owning graph [ClassID:%d] output."), Node.ID, *Node.Name, InGraphClass.ID);
+								UE_LOG(LogMetasound, Error, TEXT("Failed to match output node [NodeID:%s, NodeName:%s] to owning graph [ClassID:%s] output."), *Node.ID.ToString(), *Node.Name, *InGraphClass.ID.ToString());
 							}
 						}
 
@@ -410,7 +461,7 @@ namespace Metasound
 		};
 
 		// TODO: add support for array vertices.
-		typedef TTuple<int32, int32> FNodeIDPointID;
+		typedef TTuple<FGuid, FGuid> FNodeIDPointID;
 
 		TMap<FNodeIDPointID, FCoreNodeAndFrontendVertex> NodeSourcesByID;
 		TMap<FNodeIDPointID, FCoreNodeAndFrontendVertex> NodeDestinationsByID;
@@ -421,13 +472,13 @@ namespace Metasound
 			const INode* CoreNode = OutGraph.FindNode(Node.ID);
 			if (nullptr == CoreNode)
 			{
-				UE_LOG(LogMetasound, Display, TEXT("Could not find referenced node [ID:%d]"), Node.ID);
+				UE_LOG(LogMetasound, Display, TEXT("Could not find referenced node [NodeID:%s]"), *Node.ID.ToString());
 				continue;
 			}
 
 			for (const FMetasoundFrontendVertex& Vertex : Node.Interface.Inputs)
 			{
-				for (int32 PointID : Vertex.PointIDs)
+				for (const FGuid& PointID : Vertex.PointIDs)
 				{
 					NodeDestinationsByID.Add(FNodeIDPointID(Node.ID, PointID), FCoreNodeAndFrontendVertex({CoreNode, &Vertex}));
 				}
@@ -435,7 +486,7 @@ namespace Metasound
 
 			for (const FMetasoundFrontendVertex& Vertex : Node.Interface.Outputs)
 			{
-				for (int32 PointID : Vertex.PointIDs)
+				for (const FGuid& PointID : Vertex.PointIDs)
 				{
 					NodeSourcesByID.Add(FNodeIDPointID(Node.ID, PointID), FCoreNodeAndFrontendVertex({CoreNode, &Vertex}));
 				}
@@ -451,14 +502,14 @@ namespace Metasound
 			if (nullptr == DestinationNodeAndVertex)
 			{
 				// TODO: bubble up error
-				UE_LOG(LogMetasound, Error, TEXT("Failed to add edge. Could not find destination [NodeID:%d, PointID:%d]"), Edge.ToNodeID, Edge.ToPointID);
+				UE_LOG(LogMetasound, Error, TEXT("Failed to add edge. Could not find destination [NodeID:%s, PointID:%s]"), *Edge.ToNodeID.ToString(), *Edge.ToPointID.ToString());
 				continue;
 			}
 
 			if (nullptr == DestinationNodeAndVertex->Node)
 			{
 				// TODO: bubble up error
-				UE_LOG(LogMetasound, Warning, TEXT("Skipping edge. Null destination node [ID:%d]"), Edge.ToNodeID);
+				UE_LOG(LogMetasound, Warning, TEXT("Skipping edge. Null destination node [NodeID:%s]"), *Edge.ToNodeID.ToString());
 				continue;
 			}
 
@@ -467,14 +518,14 @@ namespace Metasound
 
 			if (nullptr == SourceNodeAndVertex)
 			{
-				UE_LOG(LogMetasound, Error, TEXT("Failed to add edge. Could not find source [NodeID:%d, PointID:%d]"), Edge.FromNodeID, Edge.FromPointID);
+				UE_LOG(LogMetasound, Error, TEXT("Failed to add edge. Could not find source [NodeID:%s, PointID:%s]"), *Edge.FromNodeID.ToString(), *Edge.FromPointID.ToString());
 				continue;
 			}
 
 			if (nullptr == SourceNodeAndVertex->Node)
 			{
 				// TODO: bubble up error
-				UE_LOG(LogMetasound, Warning, TEXT("Skipping edge. Null source node [ID:%d]"), Edge.FromNodeID);
+				UE_LOG(LogMetasound, Warning, TEXT("Skipping edge. Null source node [NodeID:%s]"), *Edge.FromNodeID.ToString());
 				continue;
 			}
 
@@ -488,7 +539,7 @@ namespace Metasound
 
 			if (!bSuccess)
 			{
-				UE_LOG(LogMetasound, Error, TEXT("Failed to connect edge from [NodeID:%d, PointID:%d] to [NodeID:%d, PointID:%d]"), Edge.FromNodeID, Edge.FromPointID, Edge.ToNodeID, Edge.ToPointID);
+				UE_LOG(LogMetasound, Error, TEXT("Failed to connect edge from [NodeID:%s, PointID:%s] to [NodeID:%s, PointID:%s]"), *Edge.FromNodeID.ToString(), *Edge.FromPointID.ToString(), *Edge.ToNodeID.ToString(), *Edge.ToPointID.ToString());
 			}
 		}
 	}
@@ -522,7 +573,7 @@ namespace Metasound
 		}
 
 		// All the dependencies are met 
-		TSet<int32> AvailableDependencies;
+		TSet<FGuid> AvailableDependencies;
 		Algo::Transform(InDependencies, AvailableDependencies, [](const FMetasoundFrontendClass& InDesc) { return InDesc.ID; });
 
 		auto IsDependencyMet = [&](const FMetasoundFrontendNode& InNode) 
@@ -546,7 +597,7 @@ namespace Metasound
 		}
 
 
-		TMap<int32, const FMetasoundFrontendClass*> ClassMap;
+		TMap<FGuid, const FMetasoundFrontendClass*> ClassMap;
 
 		for (const FMetasoundFrontendClass& ExtClass : InDependencies)
 		{

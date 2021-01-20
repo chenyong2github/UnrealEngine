@@ -92,8 +92,6 @@ namespace Metasound
 				},
 			};
 
-			int32 RunningPointID = 0;
-
 			// External metasounds aren't dependent on any other nodes by definition, so all we need to do
 			// is populate the Input and Output sets.
 			for (auto& InputTuple : InNodeMetadata.DefaultInterface.GetInputInterface())
@@ -103,7 +101,7 @@ namespace Metasound
 
 				ClassInput.Name = InputTuple.Value.GetVertexName();
 				ClassInput.TypeName = InputTuple.Value.GetDataTypeName();
-				ClassInput.PointIDs.Add(RunningPointID++);
+				ClassInput.PointIDs.Add(FGuid::NewGuid());
 				ClassInput.Metadata.DisplayName = FText::FromString(InputTuple.Value.GetVertexName());
 				ClassInput.Metadata.Description = InputTuple.Value.GetDescription();
 
@@ -117,7 +115,7 @@ namespace Metasound
 
 				ClassOutput.Name = OutputTuple.Value.GetVertexName();
 				ClassOutput.TypeName = OutputTuple.Value.GetDataTypeName();
-				ClassOutput.PointIDs.Add(RunningPointID++);
+				ClassOutput.PointIDs.Add(FGuid::NewGuid());
 				ClassOutput.Metadata.DisplayName = FText::FromString(OutputTuple.Value.GetVertexName());
 				ClassOutput.Metadata.Description = OutputTuple.Value.GetDescription();
 

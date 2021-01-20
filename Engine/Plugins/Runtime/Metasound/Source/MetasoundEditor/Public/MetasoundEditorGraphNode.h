@@ -8,6 +8,7 @@
 #include "MetasoundFrontend.h"
 #include "MetasoundFrontendController.h"
 #include "MetasoundFrontendRegistries.h"
+#include "Misc/Guid.h"
 
 #include "MetasoundEditorGraphNode.generated.h"
 
@@ -63,10 +64,10 @@ public:
 	Metasound::Frontend::FGraphHandle GetRootGraphHandle() const;
 	Metasound::Frontend::FNodeHandle GetNodeHandle() const;
 
-	void SetNodeID(uint32 InNodeID);
-	uint32 GetNodeID() const;
+	void SetNodeID(FGuid InNodeID);
+	FGuid GetNodeID() const;
 
 protected:
 	UPROPERTY()
-	uint32 NodeID = INDEX_NONE;
+	FGuid NodeID;
 };

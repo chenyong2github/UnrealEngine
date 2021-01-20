@@ -71,9 +71,88 @@ namespace Metasound
 		using FConstGraphClassAccessPtr = TAccessPtr<const FMetasoundFrontendGraphClass>;
 		using FDocumentAccessPtr = TAccessPtr<FMetasoundFrontendDocument>;
 		using FConstDocumentAccessPtr = TAccessPtr<const FMetasoundFrontendDocument>;
+
+		// Container holding various access pointers to the FMetasoundFrontendDocument
+		struct FConstDocumentAccess
+		{
+			FConstVertexAccessPtr ConstVertex;
+
+			FConstClassInputAccessPtr ConstClassInput;
+
+			FConstClassOutputAccessPtr ConstClassOutput;
+		
+			FConstNodeAccessPtr ConstNode;
+
+			FConstClassAccessPtr ConstClass;
+
+			FConstGraphClassAccessPtr ConstGraphClass;
+
+			FConstGraphAccessPtr ConstGraph;
+
+			FConstDocumentAccessPtr ConstDocument;
+		};
+
+		// Container holding various access pointers to the FMetasoundFrontendDocument
+		struct FDocumentAccess : public FConstDocumentAccess
+		{
+			FVertexAccessPtr Vertex; 
+
+			FClassInputAccessPtr ClassInput;
+
+			FClassOutputAccessPtr ClassOutput;
+		
+			FNodeAccessPtr Node;
+
+			FClassAccessPtr Class;
+
+			FGraphClassAccessPtr GraphClass;
+
+			FGraphAccessPtr Graph;
+
+			FDocumentAccessPtr Document;
+		};
+
+
+		/** IDocumentAccessor describes an interface for various I*Controllers to interact with
+		 * each other without exposing that interface publicly or requiring friendship 
+		 * between various controller implementation classes. 
+		 */
+		class METASOUNDFRONTEND_API IDocumentAccessor
+		{
+			protected:
+				/** Share access to FMetasoundFrontendDocument objects. 
+				 *
+				 * Derived classes must implement this method. In the implementation,
+				 * derived classes should set the various TAccessPtrs on FDocumentAccess 
+				 * to the TAccessPtrs held internal in the derived class.
+				 *
+				 * Sharing access simplifies operations involving multiple frontend controllers
+				 * by providing direct access to the FMetasoundFrontendDocument objects to be
+				 * edited. 
+				 */
+				virtual FDocumentAccess ShareAccess() = 0;
+
+				/** Share access to FMetasoundFrontendDocument objects. 
+				 *
+				 * Derived classes must implement this method. In the implementation,
+				 * derived classes should set the various TAccessPtrs on FDocumentAccess 
+				 * to the TAccessPtrs held internal in the derived class.
+				 *
+				 * Sharing access simplifies operations involving multiple frontend controllers
+				 * by providing direct access to the FMetasoundFrontendDocument objects to be
+				 * edited. 
+				 */
+				virtual FConstDocumentAccess ShareAccess() const = 0;
+
+				/** Returns the shared access from an IDocumentAccessor. */
+				static FDocumentAccess GetSharedAccess(IDocumentAccessor& InDocumentAccessor);
+
+				/** Returns the shared access from an IDocumentAccessor. */
+				static FConstDocumentAccess GetSharedAccess(const IDocumentAccessor& InDocumentAccessor);
+		};
 		
 		/* An IOutputController provides methods for querying and manipulating a metasound output vertex. */
-		class METASOUNDFRONTEND_API IOutputController : public TSharedFromThis<IOutputController>
+		class METASOUNDFRONTEND_API IOutputController : public TSharedFromThis<IOutputController>, public IDocumentAccessor
 		{
 		public:
 			static FOutputHandle GetInvalidHandle();
@@ -84,7 +163,7 @@ namespace Metasound
 			/** Returns true if the controller is in a valid state. */
 			virtual bool IsValid() const = 0;
 
-			virtual int32 GetID() const = 0;
+			virtual FGuid GetID() const = 0;
 			
 			/** Returns the data type name associated with this output. */
 			virtual const FName& GetDataType() const = 0;
@@ -99,7 +178,7 @@ namespace Metasound
 			virtual const FText& GetTooltip() const = 0;
 
 			/** Returns the ID of the node which owns this output. */
-			virtual int32 GetOwningNodeID() const = 0;
+			virtual FGuid GetOwningNodeID() const = 0;
 			
 			/** Returns a FNodeHandle to the node which owns this output. */
 			virtual FNodeHandle GetOwningNode() = 0;
@@ -135,7 +214,7 @@ namespace Metasound
 		};
 
 		/* An IInputController provides methods for querying and manipulating a metasound input vertex. */
-		class METASOUNDFRONTEND_API IInputController : public TSharedFromThis<IInputController>
+		class METASOUNDFRONTEND_API IInputController : public TSharedFromThis<IInputController>, public IDocumentAccessor
 		{
 		public:
 			static FInputHandle GetInvalidHandle();
@@ -146,7 +225,7 @@ namespace Metasound
 			/** Returns true if the controller is in a valid state. */
 			virtual bool IsValid() const = 0;
 
-			virtual int32 GetID() const = 0;
+			virtual FGuid GetID() const = 0;
 
 			/** Return true if the input is connect to an output. */
 			virtual bool IsConnected() const = 0;
@@ -164,7 +243,7 @@ namespace Metasound
 			virtual const FText& GetTooltip() const = 0;
 
 			/** Returns the ID of the node which owns this output. */
-			virtual int32 GetOwningNodeID() const = 0;
+			virtual FGuid GetOwningNodeID() const = 0;
 			
 			/** Returns a FNodeHandle to the node which owns this output. */
 			virtual FNodeHandle GetOwningNode() = 0;
@@ -202,10 +281,18 @@ namespace Metasound
 			 * @return True on success, false on failure. 
 			 */
 			virtual bool Disconnect() = 0;
+
+			/*
+			virtual bool IsLiteralSet() const = 0;
+			virtual FMetasoundFrontendLiteral GetLiteral() const = 0;
+			virtual bool SetLiteral(const FMetasoundFrontendLiteral& InLiteral) = 0;
+			*/
+
+
 		};
 
 		/* An INodeController provides methods for querying and manipulating a Metasound node. */
-		class METASOUNDFRONTEND_API INodeController : public TSharedFromThis<INodeController>
+		class METASOUNDFRONTEND_API INodeController : public TSharedFromThis<INodeController>, public IDocumentAccessor
 		{
 
 		public:
@@ -239,34 +326,34 @@ namespace Metasound
 			 *
 			 * If the input does not exist, an invalid handle is returned. 
 			 */
-			virtual FInputHandle GetInputWithID(int32 InPointID) = 0;
+			virtual FInputHandle GetInputWithID(FGuid InPointID) = 0;
 
 			/** Returns an input with the given name. 
 			 *
 			 * If the input does not exist, an invalid handle is returned. 
 			 */
-			virtual FConstInputHandle GetInputWithID(int32 InPointID) const = 0;
+			virtual FConstInputHandle GetInputWithID(FGuid InPointID) const = 0;
 
 			/** Returns an output with the given name. 
 			 *
 			 * If the output does not exist, an invalid handle is returned. 
 			 */
-			virtual FOutputHandle GetOutputWithID(int32 InPointID) = 0;
+			virtual FOutputHandle GetOutputWithID(FGuid InPointID) = 0;
 
 			/** Returns an output with the given name. 
 			 *
 			 * If the output does not exist, an invalid handle is returned. 
 			 */
-			virtual FConstOutputHandle GetOutputWithID(int32 InPointID) const = 0;
+			virtual FConstOutputHandle GetOutputWithID(FGuid InPointID) const = 0;
 
 			virtual bool CanAddInput(const FString& InVertexName) const = 0;
 			virtual FInputHandle AddInput(const FString& InVertexName, const FMetasoundFrontendLiteral* InDefault) = 0;
-			virtual bool RemoveInput(int32 InPointID) = 0;
+			virtual bool RemoveInput(FGuid InPointID) = 0;
 
 			// TODO: PointID -> PinID? PointID? SlotID? RefID? 
 			virtual bool CanAddOutput(const FString& InVertexName) const = 0;
 			virtual FInputHandle AddOutput(const FString& InVertexName, const FMetasoundFrontendLiteral* InDefault) = 0;
-			virtual bool RemoveOutput(int32 InPointID) = 0;
+			virtual bool RemoveOutput(FGuid InPointID) = 0;
 
 			/** Returns the class type for this node. */
 			virtual EMetasoundFrontendClassType GetClassType() const = 0;
@@ -291,13 +378,13 @@ namespace Metasound
 			virtual const FString& GetNodeName() const = 0;
 
 			/** Returns the ID associated with this node. */
-			virtual int32 GetID() const = 0;
+			virtual FGuid GetID() const = 0;
 
 			/** Returns the ID associated with the node class. */
-			virtual int32 GetClassID() const = 0;
+			virtual FGuid GetClassID() const = 0;
 
 			/** Returns the class ID of the metasound class which owns this node. */
-			virtual int32 GetOwningGraphClassID() const = 0;
+			virtual FGuid GetOwningGraphClassID() const = 0;
 
 			/** Returns the graph which owns this node. */
 			virtual FGraphHandle GetOwningGraph() = 0;
@@ -307,7 +394,7 @@ namespace Metasound
 		};
 
 		/* An IGraphController provides methods for querying and manipulating a Metasound graph. */
-		class METASOUNDFRONTEND_API IGraphController : public TSharedFromThis<IGraphController>
+		class METASOUNDFRONTEND_API IGraphController : public TSharedFromThis<IGraphController>, public IDocumentAccessor
 		{
 			public:
 			static FGraphHandle GetInvalidHandle();
@@ -318,7 +405,7 @@ namespace Metasound
 			/** Returns true if the controller is in a valid state. */
 			virtual bool IsValid() const = 0;
 
-			virtual int32 GetNewPointID() const = 0;
+			virtual FGuid GetNewPointID() const = 0;
 
 			virtual TArray<FString> GetInputVertexNames() const = 0;
 			virtual TArray<FString> GetOutputVertexNames() const = 0;
@@ -327,13 +414,13 @@ namespace Metasound
 			virtual TArray<FNodeHandle> GetNodes() = 0;
 
 			/** Returns a node by NodeID. If the node does not exist, an invalid handle is returned. */
-			virtual FConstNodeHandle GetNodeWithID(int32 InNodeID) const = 0;
+			virtual FConstNodeHandle GetNodeWithID(FGuid InNodeID) const = 0;
 
 			/** Returns all nodes in the graph. */
 			virtual TArray<FConstNodeHandle> GetConstNodes() const = 0;
 
 			/** Returns a node by NodeID. If the node does not exist, an invalid handle is returned. */
-			virtual FNodeHandle GetNodeWithID(int32 InNodeID) = 0;
+			virtual FNodeHandle GetNodeWithID(FGuid InNodeID) = 0;
 
 			/** Returns all output nodes in the graph. */
 			virtual TArray<FNodeHandle> GetOutputNodes() = 0;
@@ -435,8 +522,8 @@ namespace Metasound
 			 */
 			virtual UClass* GetSupportedClassForInputVertex(const FString& InInputName) = 0;
 
-			virtual TArray<int32> GetDefaultIDsForInputVertex(const FString& InInputName) const = 0;
-			virtual TArray<int32> GetDefaultIDsForOutputVertex(const FString& InOutputName) const = 0;
+			virtual TArray<FGuid> GetDefaultIDsForInputVertex(const FString& InInputName) const = 0;
+			virtual TArray<FGuid> GetDefaultIDsForOutputVertex(const FString& InOutputName) const = 0;
 
 			/** Set the default value for the graph input.
 			 *
@@ -445,7 +532,7 @@ namespace Metasound
 			 *
 			 * @return True on success. False if the input does not exist or if the literal type was incompatible with the input.
 			 */
-			virtual bool SetDefaultInputToLiteral(const FString& InInputName, int32 InPointID, bool InValue) = 0;
+			virtual bool SetDefaultInputToLiteral(const FString& InInputName, FGuid InPointID, bool InValue) = 0;
 
 			/** Set the default value for the graph input.
 			 *
@@ -454,7 +541,7 @@ namespace Metasound
 			 *
 			 * @return True on success. False if the input does not exist or if the literal type was incompatible with the input.
 			 */
-			virtual bool SetDefaultInputToLiteral(const FString& InInputName, int32 InPointID, int32 InValue) = 0;
+			virtual bool SetDefaultInputToLiteral(const FString& InInputName, FGuid InPointID, int32 InValue) = 0;
 
 			/** Set the default value for the graph input.
 			 *
@@ -463,7 +550,7 @@ namespace Metasound
 			 *
 			 * @return True on success. False if the input does not exist or if the literal type was incompatible with the input.
 			 */
-			virtual bool SetDefaultInputToLiteral(const FString& InInputName, int32 InPointID, float InValue) = 0;
+			virtual bool SetDefaultInputToLiteral(const FString& InInputName, FGuid InPointID, float InValue) = 0;
 
 			/** Set the default value for the graph input.
 			 *
@@ -472,7 +559,7 @@ namespace Metasound
 			 *
 			 * @return True on success. False if the input does not exist or if the literal type was incompatible with the input.
 			 */
-			virtual bool SetDefaultInputToLiteral(const FString& InInputName, int32 InPointID, const FString& InValue) = 0;
+			virtual bool SetDefaultInputToLiteral(const FString& InInputName, FGuid InPointID, const FString& InValue) = 0;
 
 			/** Set the default value for the graph input.
 			 *
@@ -481,7 +568,7 @@ namespace Metasound
 			 *
 			 * @return True on success. False if the input does not exist or if the literal type was incompatible with the input.
 			 */
-			virtual bool SetDefaultInputToLiteral(const FString& InInputName, int32 InPointID, UObject* InValue) = 0;
+			virtual bool SetDefaultInputToLiteral(const FString& InInputName, FGuid InPointID, UObject* InValue) = 0;
 
 			/** Set the default value for the graph input.
 			 *
@@ -490,7 +577,7 @@ namespace Metasound
 			 *
 			 * @return True on success. False if the input does not exist or if the literal type was incompatible with the input.
 			 */
-			virtual bool SetDefaultInputToLiteral(const FString& InInputName, int32 InPointID, const TArray<UObject*>& InValue) = 0;
+			virtual bool SetDefaultInputToLiteral(const FString& InInputName, FGuid InPointID, const TArray<UObject*>& InValue) = 0;
 
 
 			/** Set the display name for the input with the given name. */
@@ -503,7 +590,7 @@ namespace Metasound
 			 *
 			 * @return True on success, false on failure.
 			 */
-			virtual bool ClearLiteralForInput(const FString& InInputName, int32 InPointID) = 0;
+			virtual bool ClearLiteralForInput(const FString& InInputName, FGuid InPointID) = 0;
 
 			/** Add a new node to this graph.
 			 *
@@ -528,7 +615,7 @@ namespace Metasound
 			virtual bool RemoveNode(INodeController& InNode) = 0;
 
 			/** Returns the ClassID associated with this graph. */
-			virtual int32 GetClassID() const = 0;
+			virtual FGuid GetClassID() const = 0;
 
 			/** Return the metadata for the current graph. */
 			virtual const FMetasoundFrontendClassMetadata& GetGraphMetadata() const = 0;
@@ -574,7 +661,7 @@ namespace Metasound
 		};
 
 		/* An IDocumentController provides methods for querying and manipulating a Metasound document. */
-		class METASOUNDFRONTEND_API IDocumentController : public TSharedFromThis<IDocumentController>
+		class METASOUNDFRONTEND_API IDocumentController : public TSharedFromThis<IDocumentController>, public IDocumentAccessor
 		{
 		public:
 			static FDocumentHandle GetInvalidHandle();
@@ -611,9 +698,9 @@ namespace Metasound
 			virtual TArray<FMetasoundFrontendGraphClass> GetSubgraphs() const = 0;
 			virtual TArray<FMetasoundFrontendClass> GetClasses() const = 0;
 
-			virtual FConstClassAccessPtr FindDependencyWithID(int32 InClassID) const = 0;
-			virtual FConstGraphClassAccessPtr FindSubgraphWithID(int32 InClassID) const = 0;
-			virtual FConstClassAccessPtr FindClassWithID(int32 InClassID) const = 0;
+			virtual FConstClassAccessPtr FindDependencyWithID(FGuid InClassID) const = 0;
+			virtual FConstGraphClassAccessPtr FindSubgraphWithID(FGuid InClassID) const = 0;
+			virtual FConstClassAccessPtr FindClassWithID(FGuid InClassID) const = 0;
 
 
 			/** Returns an existing Metasound class description corresponding to 
@@ -658,10 +745,10 @@ namespace Metasound
 			virtual TArray<FConstGraphHandle> GetSubgraphHandles() const = 0;
 
 			/** Returns a graphs in the document with the given class ID.*/
-			virtual FGraphHandle GetSubgraphWithClassID(int32 InClassID) = 0;
+			virtual FGraphHandle GetSubgraphWithClassID(FGuid InClassID) = 0;
 
 			/** Returns a graphs in the document with the given class ID.*/
-			virtual FConstGraphHandle GetSubgraphWithClassID(int32 InClassID) const = 0;
+			virtual FConstGraphHandle GetSubgraphWithClassID(FGuid InClassID) const = 0;
 
 			/** Returns the root graph of this document. */
 			virtual FGraphHandle GetRootGraph() = 0;

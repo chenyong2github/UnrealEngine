@@ -33,7 +33,7 @@ namespace Metasound
 			 * @param InVertexKey - The key for the graph input vertex.
 			 * @param InNode - A unique pointer to an input node. 
 			 */
-			void AddInputNode(int32 InNodeID, int32 InIndex, const FVertexKey& InVertexKey, TUniquePtr<INode> InNode);
+			void AddInputNode(FGuid InNodeID, int32 InIndex, const FVertexKey& InVertexKey, TUniquePtr<INode> InNode);
 
 			/** Add an output node to this graph.
 			 *
@@ -42,14 +42,14 @@ namespace Metasound
 			 * @param InVertexKey - The key for the graph output vertex.
 			 * @param InNode - A unique pointer to an output node. 
 			 */
-			void AddOutputNode(int32 InNodeID, int32 InIndex, const FVertexKey& InVertexKey, TUniquePtr<INode> InNode);
+			void AddOutputNode(FGuid InNodeID, int32 InIndex, const FVertexKey& InVertexKey, TUniquePtr<INode> InNode);
 
 			/** Store a node on this graph. 
 			 *
 			 * @param InNodeID - The NodeID related to the parent FMetasoundFrontendClass.
 			 * @param InNode - A unique pointer to a node. 
 			 */
-			void AddNode(int32 InNodeID, TUniquePtr<INode> InNode);
+			void AddNode(FGuid InNodeID, TUniquePtr<INode> InNode);
 
 			/** Retrieve node by dependency ID.
 			 *
@@ -57,7 +57,7 @@ namespace Metasound
 			 *
 			 * @return Pointer to the Node if it is stored on this graph. nullptr otherwise. 
 			 */
-			const INode* FindNode(int32 InNodeID) const;
+			const INode* FindNode(FGuid InNodeID) const;
 
 			/** Retrieve node by input index.
 			 *
@@ -86,7 +86,7 @@ namespace Metasound
 			TMap<int32, INode*> InputNodes;
 			TMap<int32, INode*> OutputNodes;
 
-			TMap<int32, INode*> NodeMap;
+			TMap<FGuid, INode*> NodeMap;
 			TSet<const INode*> StoredNodes;
 			TArray<TUniquePtr<INode>> Storage;
 	};
@@ -122,6 +122,7 @@ namespace Metasound
 		const FMetasoundFrontendClassOutput* FindClassOutputForOutputNode(const FMetasoundFrontendGraphClass& InOwningGraph, const FMetasoundFrontendNode& InOutputNode, int32& OutClassOutputIndex) const;
 
 		const FMetasoundFrontendVertexLiteral* FindInputLiteralForInputNode(const FMetasoundFrontendNode& InInputNode, const FMetasoundFrontendClass& InInputNodeClass, const FMetasoundFrontendClassInput& InOwningGraphClassInput) const;
+		//const FMetasoundFrontendVertexLiteral* FindInputLiteralForInput(FGuid InPointID, const FMetasoundFrontendNode& InNode, const FMetasoundFrontendClass& InNodeClass) const;
 
 		TUniquePtr<INode> CreateInputNode(const FMetasoundFrontendNode& InNode, const FMetasoundFrontendClass& InClass, const FMetasoundFrontendClassInput& InOwningGraphClassInput) const;
 
@@ -130,7 +131,7 @@ namespace Metasound
 		TUniquePtr<INode> CreateExternalNode(const FMetasoundFrontendNode& InNode, const FMetasoundFrontendClass& InClass) const;
 
 		// TODO: add errors here. Most will be a "PromptIfMissing"...
-		void AddNodesToGraph(const FMetasoundFrontendGraphClass& InGraphClass, const TMap<int32, const FMetasoundFrontendClass*>& InClasses, FFrontendGraph& OutGraph) const;
+		void AddNodesToGraph(const FMetasoundFrontendGraphClass& InGraphClass, const TMap<FGuid, const FMetasoundFrontendClass*>& InClasses, FFrontendGraph& OutGraph) const;
 
 		void AddEdgesToGraph(const FMetasoundFrontendGraph& InGraphDescription, FFrontendGraph& OutGraph) const;
 	};
