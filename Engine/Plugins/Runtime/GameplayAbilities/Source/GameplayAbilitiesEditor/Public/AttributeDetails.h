@@ -10,6 +10,7 @@
 #include "IDetailCustomization.h"
 #include "ScalableFloat.h"
 #include "IPropertyTypeCustomization.h"
+#include "PropertyEditorModule.h"
 
 class IDetailLayoutBuilder;
 class IPropertyHandle;
