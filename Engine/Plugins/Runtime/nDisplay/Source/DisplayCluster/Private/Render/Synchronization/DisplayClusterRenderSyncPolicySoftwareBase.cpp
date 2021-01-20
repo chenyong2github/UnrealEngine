@@ -361,6 +361,11 @@ void FDisplayClusterRenderSyncPolicySoftwareBase::Step_FinalizeFrameSynchronizat
 	}
 }
 
+void FDisplayClusterRenderSyncPolicySoftwareBase::DoSleep(float Seconds)
+{
+	FPlatformProcess::Sleep(Seconds);
+}
+
 double FDisplayClusterRenderSyncPolicySoftwareBase::GetVBlankTimestamp() const
 {
 	// Get timestamp right after the VBlank
