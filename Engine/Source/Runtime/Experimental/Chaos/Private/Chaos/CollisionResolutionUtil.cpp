@@ -16,6 +16,8 @@
 #include "PBDCollisionConstraints.ispc.generated.h"
 #endif
 
+//PRAGMA_DISABLE_OPTIMIZATION
+
 namespace Chaos
 {
 	namespace Collisions

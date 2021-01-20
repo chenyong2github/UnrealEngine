@@ -684,6 +684,43 @@ namespace ChaosTest {
 	}
 	template void ImplicitScaled<float>();
 
+	// Check that PhiWithNormal works properly on Scaled Convex.
+	// There was a bug where scaled convexed would bias face selection based on the 
+	// scale, so a unit box scaled by 5 in the X would report the +X face as the 
+	// contact face for the position (0.4, 0.0, 4.8) even though the +Z face is closer.
+	TEST(ImplicitTests, TestImplicitScaledConvex)
+	{
+		const FVec3 Size = FVec3(500, 500, 100);
+		const FVec3 Scale = FVec3(5, 5, 1);
+		const FVec3 ScaledSize = Scale * Size;
+		TImplicitObjectScaled<FImplicitConvex3> ScaledConvex = CreateScaledConvexBox(Size, Scale, 10);
+
+		{
+			// Near point just inside the top face, near the forward edge
+			const FVec3 NearTopRight = FVec3(0.5f * ScaledSize.X, 0.0f, 0.5f * ScaledSize.Z) - FVec3(10, 0, 1);
+			FVec3 Normal;
+			FReal Phi = ScaledConvex.PhiWithNormal(NearTopRight, Normal);
+			EXPECT_NEAR(Normal.Z, 1.0f, 1.e-4f);
+			EXPECT_NEAR(Phi, -1.0f, 1.e-4f);
+		}
+		{
+			// Near point just inside the top face, near the forward edge
+			const FVec3 NearTopRight = FVec3(0.5f * ScaledSize.X, 0.0f, 0.5f * ScaledSize.Z) - FVec3(3, 0, 1);
+			FVec3 Normal;
+			FReal Phi = ScaledConvex.PhiWithNormal(NearTopRight, Normal);
+			EXPECT_NEAR(Normal.Z, 1.0f, 1.e-4f);
+			EXPECT_NEAR(Phi, -1.0f, 1.e-4f);
+		}
+		{
+			// Near point just inside the top face, near the forward edge
+			const FVec3 NearTopRight = FVec3(0.5f * ScaledSize.X, 0.0f, 0.5f * ScaledSize.Z) - FVec3(1, 0, 0.1);
+			FVec3 Normal;
+			FReal Phi = ScaledConvex.PhiWithNormal(NearTopRight, Normal);
+			EXPECT_NEAR(Normal.Z, 1.0f, 1.e-4f);
+			EXPECT_NEAR(Phi, -0.1f, 1.e-4f);
+		}
+	}
+
 
 	template <class T>
 	void ImplicitTransformed()
