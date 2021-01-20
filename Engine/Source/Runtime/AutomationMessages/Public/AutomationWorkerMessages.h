@@ -324,22 +324,22 @@ public:
 	TArray<FAutomationExecutionEntry> Entries;
 
 	UPROPERTY(EditAnywhere, Category="Message")
-	int32 WarningTotal;
+	int32 WarningTotal = 0;
 
 	UPROPERTY(EditAnywhere, Category="Message")
-	int32 ErrorTotal;
-
-	/** */
-	UPROPERTY(EditAnywhere, Category="Message")
-	float Duration;
+	int32 ErrorTotal = 0;
 
 	/** */
 	UPROPERTY(EditAnywhere, Category="Message")
-	uint32 ExecutionCount;
+	float Duration = 0;
 
 	/** */
 	UPROPERTY(EditAnywhere, Category="Message")
-	bool Success;
+	uint32 ExecutionCount = 0;
+
+	/** */
+	UPROPERTY(EditAnywhere, Category="Message")
+	bool Success = false;
 };
 
 
@@ -776,7 +776,7 @@ struct FAutomationWorkerTestDataResponse
 	FString JsonData;
 
 	UPROPERTY(EditAnywhere, Category="Message")
-	bool bIsNew;
+	bool bIsNew = false;
 };
 
 /**
@@ -814,7 +814,7 @@ struct FAutomationWorkerPerformanceDataResponse
 
 	/**  */
 	UPROPERTY(EditAnywhere, Category="Message")
-	bool bSuccess;
+	bool bSuccess = false;
 
 	/**  */
 	UPROPERTY(EditAnywhere, Category="Message")
