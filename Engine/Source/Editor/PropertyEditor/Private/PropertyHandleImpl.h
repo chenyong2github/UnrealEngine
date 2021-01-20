@@ -56,6 +56,11 @@ public:
 	 * @param InNode - node to start adding array offsets for.  This function will move upward until it gets to an object node
 	 */
 	static void GenerateArrayIndexMapToObjectNode( TMap<FString,int32>& OutArrayIndexMap, FPropertyNode* PropertyNode );
+
+	/**
+	 * Recurse through a property node hierarchy to update all instanced properties that should use deep copy
+	 */
+	static void RebuildInstancedProperties( const TSharedPtr<IPropertyHandle>& Handle, FPropertyNode* PropertyNode );
 	
 	/**
 	 * Gets the value as a string formatted for multiple values in an array                 
