@@ -7,6 +7,7 @@
 #include "EntitySystem/MovieSceneEntityManager.h"
 #include "EntitySystem/BuiltInComponentTypes.h"
 #include "EntitySystem/MovieSceneSequenceInstance.h"
+#include "EntitySystem/MovieSceneEntitySystemLinker.h"
 #include "Systems/MovieSceneEventSystems.h"
 #include "MovieSceneTracksComponentTypes.h"
 

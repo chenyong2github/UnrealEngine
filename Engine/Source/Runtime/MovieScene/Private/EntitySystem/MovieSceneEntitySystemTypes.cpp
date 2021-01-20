@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "EntitySystem/MovieSceneEntitySystemTypes.h"
+#include "EntitySystem/MovieSceneEntityManager.h"
+#include "EntitySystem/MovieSceneComponentAccessors.h"
 
 namespace UE
 {
@@ -100,6 +102,42 @@ bool FEntityComponentFilter::IsValid() const
 	}
 
 	return false;
+}
+
+FEntityAllocationWriteContext::FEntityAllocationWriteContext(const FEntityManager& EntityManager)
+	: SystemSerial(EntityManager.GetSystemSerial())
+{}
+
+FComponentReader FEntityAllocation::ReadComponentsErased(FComponentTypeID ComponentType) const
+{
+	const FComponentHeader& Header = GetComponentHeaderChecked(ComponentType);
+	return FComponentReader(&Header);
+}
+
+FComponentWriter FEntityAllocation::WriteComponentsErased(FComponentTypeID ComponentType, FEntityAllocationWriteContext InWriteContext) const
+{
+	const FComponentHeader& Header = GetComponentHeaderChecked(ComponentType);
+	return FComponentWriter(&Header, InWriteContext);
+}
+
+FOptionalComponentReader FEntityAllocation::TryReadComponentsErased(FComponentTypeID ComponentType) const
+{
+	if (const FComponentHeader* Header = FindComponentHeader(ComponentType))
+	{
+		return FOptionalComponentReader(Header);
+	}
+
+	return FOptionalComponentReader();
+}
+
+FOptionalComponentWriter FEntityAllocation::TryWriteComponentsErased(FComponentTypeID ComponentType, FEntityAllocationWriteContext InWriteContext) const
+{
+	if (const FComponentHeader* Header = FindComponentHeader(ComponentType))
+	{
+		return FOptionalComponentWriter(Header, InWriteContext);
+	}
+
+	return FOptionalComponentWriter();
 }
 
 } // namespace MovieScene

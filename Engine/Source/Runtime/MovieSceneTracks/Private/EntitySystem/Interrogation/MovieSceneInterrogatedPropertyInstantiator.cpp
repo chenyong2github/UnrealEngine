@@ -124,7 +124,7 @@ UClass* UMovieSceneInterrogatedPropertyInstantiatorSystem::ResolveBlenderClass(T
 
 	for (FMovieSceneEntityID Input : Inputs)
 	{
-		TComponentPtr<const TSubclassOf<UMovieSceneBlenderSystem>> BlenderTypeComponent = Linker->EntityManager.ReadComponent(Input, BuiltInComponents->BlenderType);
+		TOptionalComponentReader<TSubclassOf<UMovieSceneBlenderSystem>> BlenderTypeComponent = Linker->EntityManager.ReadComponent(Input, BuiltInComponents->BlenderType);
 		if (BlenderTypeComponent)
 		{
 			BlenderClass = BlenderTypeComponent->Get();
@@ -269,12 +269,12 @@ void UMovieSceneInterrogatedPropertyInstantiatorSystem::OnRun(FSystemTaskPrerequ
 	{
 		TArrayView<const FPropertyDefinition> AllProperties = BuiltInComponents->PropertyRegistry.GetProperties();
 
-		auto LinkCallback =  [this, AllProperties](const FEntityAllocation* Allocation, TRead<FInterrogationKey> InterrogationChannelAccessor)
+		auto LinkCallback =  [this, AllProperties](const FEntityAllocation* Allocation, TRead<FInterrogationKey> InterrogationChannels)
 		{
 			const int32 PropertyDefinitionIndex = Algo::IndexOfByPredicate(AllProperties, [=](const FPropertyDefinition& InDefinition){ return Allocation->HasComponent(InDefinition.PropertyType); });
 			if (PropertyDefinitionIndex != INDEX_NONE)
 			{
-				this->PropertyTracker.VisitLinkedAllocation(Allocation, InterrogationChannelAccessor);
+				this->PropertyTracker.VisitLinkedAllocation(Allocation, InterrogationChannels);
 			}
 		};
 		auto UnlinkCallback = [this, AllProperties](const FEntityAllocation* Allocation)

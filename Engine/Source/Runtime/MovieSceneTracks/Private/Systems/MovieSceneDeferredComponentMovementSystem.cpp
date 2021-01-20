@@ -3,6 +3,7 @@
 #include "Systems/MovieSceneDeferredComponentMovementSystem.h"
 #include "EntitySystem/MovieSceneEntitySystemTask.h"
 #include "EntitySystem/MovieSceneEntitySystemRunner.h"
+#include "EntitySystem/MovieSceneEntitySystemLinker.h"
 #include "MovieSceneTracksComponentTypes.h"
 
 #include "GameFramework/Actor.h"

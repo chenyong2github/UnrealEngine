@@ -55,8 +55,8 @@ struct TSetPartialPropertyValues
 {
 	using IntermediateType = typename ProjectionType::IntermediateType;
 
-	using FThreeWayAccessor  = TReadOneOf< FCustomPropertyIndex, uint16, TSharedPtr<FTrackInstancePropertyBindings> >;
-	using FTwoWayAccessor    = TReadOneOf< uint16, TSharedPtr<FTrackInstancePropertyBindings> >;
+	using FThreeWayAccessor  = TMultiReadOptional<FCustomPropertyIndex, uint16, TSharedPtr<FTrackInstancePropertyBindings>>;
+	using FTwoWayAccessor    = TMultiReadOptional<uint16, TSharedPtr<FTrackInstancePropertyBindings>>;
 
 	explicit TSetPartialPropertyValues(ICustomPropertyRegistration* InCustomProperties, const ProjectionType& InProjections)
 		: CustomProperties(InCustomProperties)

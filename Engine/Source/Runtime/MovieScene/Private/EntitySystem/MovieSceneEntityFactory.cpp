@@ -6,6 +6,7 @@
 #include "EntitySystem/MovieSceneEntityManager.h"
 #include "EntitySystem/BuiltInComponentTypes.h"
 #include "EntitySystem/MovieSceneEntitySystemTask.h"
+#include "EntitySystem/MovieSceneEntityFactoryTemplates.h"
 
 namespace UE
 {
@@ -94,8 +95,10 @@ void FObjectFactoryBatch::InitializeAllocation(UMovieSceneEntitySystemLinker* Li
 
 	TArrayView<const FMovieSceneEntityID> ParentIDs = ParentAllocation->GetEntityIDs();
 
+	FEntityAllocationWriteContext WriteContext = FEntityAllocationWriteContext::NewAllocation();
+
 	int32 Index = GetCurrentIndex();
-	for (TEntityPtr<const FMovieSceneEntityID, const FMovieSceneEntityID, UObject*> Tuple : FEntityTaskBuilder().ReadEntityIDs().Read(ParentEntity).Write(BoundObject).IterateRange(InChildEntityRange))
+	for (TEntityPtr<const FMovieSceneEntityID, const FMovieSceneEntityID, UObject*> Tuple : FEntityTaskBuilder().ReadEntityIDs().Read(ParentEntity).Write(BoundObject).IterateRange(InChildEntityRange, WriteContext))
 	{
 		FMovieSceneEntityID Parent = Tuple.Get<1>();
 		FMovieSceneEntityID Child = Tuple.Get<0>();
@@ -125,15 +128,12 @@ FBoundObjectTask::FBoundObjectTask(UMovieSceneEntitySystemLinker* InLinker)
 	: Linker(InLinker)
 {}
 
-void FBoundObjectTask::ForEachAllocation(const FEntityAllocation* Allocation, FReadEntityIDs EntityIDAccessor, TRead<FInstanceHandle> InstanceAccessor, TRead<FGuid> ObjectBindingAccessor)
+void FBoundObjectTask::ForEachAllocation(const FEntityAllocation* Allocation, FReadEntityIDs EntityIDs, TRead<FInstanceHandle> Instances, TRead<FGuid> ObjectBindings)
 {
 	FObjectFactoryBatch& Batch = AddBatch(Allocation);
 	Batch.StaleEntitiesToPreserve = &StaleEntitiesToPreserve;
 
 	const int32 Num = Allocation->Num();
-	const FMovieSceneEntityID* EntityIDs      = Allocation->GetRawEntityIDs();
-	const FInstanceHandle*     Instances      = InstanceAccessor.Resolve(Allocation);
-	const FGuid*               ObjectBindings = ObjectBindingAccessor.Resolve(Allocation);
 
 	FInstanceRegistry* InstanceRegistry = Linker->GetInstanceRegistry();
 
@@ -152,7 +152,7 @@ void FBoundObjectTask::ForEachAllocation(const FEntityAllocation* Allocation, FR
 		for (int32 ChildIndex = StartNum; ChildIndex < EntitiesToDiscard.Num(); ++ChildIndex)
 		{
 			FMovieSceneEntityID ChildID = EntitiesToDiscard[ChildIndex];
-			TComponentPtr<UObject* const> ObjectPtr = Linker->EntityManager.ReadComponent(ChildID,  BoundObjectComponent);
+			TOptionalComponentReader<UObject*> ObjectPtr = Linker->EntityManager.ReadComponent(ChildID,  BoundObjectComponent);
 			if (ObjectPtr)
 			{
 				StaleEntitiesToPreserve.Add(MakeTuple(*ObjectPtr, ParentID), ChildID);

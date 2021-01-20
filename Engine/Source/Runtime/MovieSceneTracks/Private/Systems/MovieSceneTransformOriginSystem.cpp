@@ -23,21 +23,10 @@ struct FAssignTransformOriginLocation
 {
 	const TSparseArray<FTransform>* TransformOriginsByInstanceID;
 
-	void ForEachAllocation(const FEntityAllocation* Allocation, TRead<FInstanceHandle> InstanceAccessor, TRead<UObject*> BoundObjectAccessor,
-		TWriteOptional<float> LocationXAccessor, TWriteOptional<float> LocationYAccessor, TWriteOptional<float> LocationZAccessor,
-		TWriteOptional<FSourceFloatChannelFlags> FlagsXAccessor, TWriteOptional<FSourceFloatChannelFlags> FlagsYAccessor, TWriteOptional<FSourceFloatChannelFlags> FlagsZAccessor)
+	void ForEachAllocation(const FEntityAllocation* Allocation, TRead<FInstanceHandle> Instances, TRead<UObject*> BoundObjects,
+		TWriteOptional<float> LocationX, TWriteOptional<float> LocationY, TWriteOptional<float> LocationZ,
+		TWriteOptional<FSourceFloatChannelFlags> FlagsX, TWriteOptional<FSourceFloatChannelFlags> FlagsY, TWriteOptional<FSourceFloatChannelFlags> FlagsZ)
 	{
-		const FInstanceHandle* Instances = InstanceAccessor.Resolve(Allocation);
-		const UObject* const * BoundObjects = BoundObjectAccessor.Resolve(Allocation);
-
-		float* LocationX = LocationXAccessor.Resolve(Allocation);
-		float* LocationY = LocationYAccessor.Resolve(Allocation);
-		float* LocationZ = LocationZAccessor.Resolve(Allocation);
-
-		FSourceFloatChannelFlags* FlagsX = FlagsXAccessor.Resolve(Allocation);
-		FSourceFloatChannelFlags* FlagsY = FlagsYAccessor.Resolve(Allocation);
-		FSourceFloatChannelFlags* FlagsZ = FlagsZAccessor.Resolve(Allocation);
-
 		TransformLocation(Instances, BoundObjects, LocationX, LocationY, LocationZ, FlagsX, FlagsY, FlagsZ, Allocation->Num());
 	}
 
@@ -83,21 +72,10 @@ struct FAssignTransformOriginRotation
 {
 	const TSparseArray<FTransform>* TransformOriginsByInstanceID;
 
-	void ForEachAllocation(const FEntityAllocation* Allocation, TRead<FInstanceHandle> InstanceAccessor, TRead<UObject*> BoundObjectAccessor,
-		TWriteOptional<float> RotationXAccessor, TWriteOptional<float> RotationYAccessor, TWriteOptional<float> RotationZAccessor,
-		TWriteOptional<FSourceFloatChannelFlags> FlagsXAccessor, TWriteOptional<FSourceFloatChannelFlags> FlagsYAccessor, TWriteOptional<FSourceFloatChannelFlags> FlagsZAccessor)
+	void ForEachAllocation(const FEntityAllocation* Allocation, TRead<FInstanceHandle> Instances, TRead<UObject*> BoundObjects,
+		TWriteOptional<float> RotationX, TWriteOptional<float> RotationY, TWriteOptional<float> RotationZ,
+		TWriteOptional<FSourceFloatChannelFlags> FlagsX, TWriteOptional<FSourceFloatChannelFlags> FlagsY, TWriteOptional<FSourceFloatChannelFlags> FlagsZ)
 	{
-		const FInstanceHandle* Instances = InstanceAccessor.Resolve(Allocation);
-		const UObject* const * BoundObjects = BoundObjectAccessor.Resolve(Allocation);
-
-		float* RotationX = RotationXAccessor.Resolve(Allocation);
-		float* RotationY = RotationYAccessor.Resolve(Allocation);
-		float* RotationZ = RotationZAccessor.Resolve(Allocation);
-
-		FSourceFloatChannelFlags* FlagsX = FlagsXAccessor.Resolve(Allocation);
-		FSourceFloatChannelFlags* FlagsY = FlagsYAccessor.Resolve(Allocation);
-		FSourceFloatChannelFlags* FlagsZ = FlagsZAccessor.Resolve(Allocation);
-
 		TransformRotation(Instances, BoundObjects, RotationX, RotationY, RotationZ, FlagsX, FlagsY, FlagsZ, Allocation->Num());
 	}
 

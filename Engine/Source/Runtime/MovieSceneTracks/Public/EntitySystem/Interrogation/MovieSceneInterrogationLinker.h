@@ -4,6 +4,7 @@
 
 #include "CoreTypes.h"
 #include "UObject/GCObject.h"
+#include "Containers/SortedMap.h"
 #include "EntitySystem/MovieSceneEntitySystemTypes.h"
 #include "MovieSceneTracksComponentTypes.h"
 #include "Evaluation/MovieSceneEvaluationField.h"

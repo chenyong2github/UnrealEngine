@@ -12,17 +12,17 @@ namespace MovieScene
 
 #if UE_MOVIESCENE_ENTITY_DEBUG
 
-void AccessorToString(const FRead* In, FEntityManager* EntityManager, FString& OutString)
+void AccessorToString(const FReadAccess* In, FEntityManager* EntityManager, FString& OutString)
 {
 	const FComponentTypeInfo& ComponentTypeInfo = EntityManager->GetComponents()->GetComponentTypeChecked(In->ComponentType);
 	OutString += FString::Printf(TEXT("\n\tRead: %s %s"), *ComponentTypeInfo.DebugInfo->DebugName, ComponentTypeInfo.DebugInfo->DebugTypeName);
 }
-void AccessorToString(const FWrite* In, FEntityManager* EntityManager, FString& OutString)
+void AccessorToString(const FWriteAccess* In, FEntityManager* EntityManager, FString& OutString)
 {
 	const FComponentTypeInfo& ComponentTypeInfo = EntityManager->GetComponents()->GetComponentTypeChecked(In->ComponentType);
 	OutString += FString::Printf(TEXT("\n\tWrite: %s %s"), *ComponentTypeInfo.DebugInfo->DebugName, ComponentTypeInfo.DebugInfo->DebugTypeName);
 }
-void AccessorToString(const FReadOptional* In, FEntityManager* EntityManager, FString& OutString)
+void AccessorToString(const FOptionalReadAccess* In, FEntityManager* EntityManager, FString& OutString)
 {
 	if (In->ComponentType)
 	{
@@ -30,7 +30,7 @@ void AccessorToString(const FReadOptional* In, FEntityManager* EntityManager, FS
 		OutString += FString::Printf(TEXT("\n\tRead (Optional): %s %s"), *ComponentTypeInfo.DebugInfo->DebugName, ComponentTypeInfo.DebugInfo->DebugTypeName);
 	}
 }
-void AccessorToString(const FWriteOptional* In, FEntityManager* EntityManager, FString& OutString)
+void AccessorToString(const FOptionalWriteAccess* In, FEntityManager* EntityManager, FString& OutString)
 {
 	if (In->ComponentType)
 	{
@@ -38,11 +38,11 @@ void AccessorToString(const FWriteOptional* In, FEntityManager* EntityManager, F
 		OutString += FString::Printf(TEXT("\n\tWrite (Optional): %s %s"), *ComponentTypeInfo.DebugInfo->DebugName, ComponentTypeInfo.DebugInfo->DebugTypeName);
 	}
 }
-void AccessorToString(const FReadEntityIDs*, FEntityManager* EntityManager, FString& OutString)
+void AccessorToString(const FEntityIDAccess*, FEntityManager* EntityManager, FString& OutString)
 {
 	OutString += TEXT("\n\tRead: Entity IDs");
 }
-void OneOfAccessorToString(const FReadOptional* In, FEntityManager* EntityManager, FString& OutString)
+void OneOfAccessorToString(const FOptionalReadAccess* In, FEntityManager* EntityManager, FString& OutString)
 {
 	if (In->ComponentType)
 	{

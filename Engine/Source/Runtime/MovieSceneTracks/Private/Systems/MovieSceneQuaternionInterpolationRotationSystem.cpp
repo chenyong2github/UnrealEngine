@@ -4,6 +4,8 @@
 #include "Channels/MovieSceneFloatChannel.h"
 #include "EntitySystem/BuiltInComponentTypes.h"
 #include "EntitySystem/MovieSceneEvalTimeSystem.h"
+#include "EntitySystem/MovieSceneEntitySystemLinker.h"
+#include "EntitySystem/MovieSceneEntitySystemTask.h"
 #include "MovieSceneTracksComponentTypes.h"
 
 DECLARE_CYCLE_STAT(TEXT("MovieScene: Quat-interp-rot channel system"), MovieSceneEval_QuatInterpRotChannelSystem, STATGROUP_MovieSceneECS);
@@ -36,32 +38,31 @@ struct FEvaluateQuaternionInterpolationRotationChannels
 				FrameRange.SetUpperBoundValue(Times[Index2]);
 			}
 		}
-	};
+	}
 
 	void ForEachAllocation(
 			const FEntityAllocation* Allocation,
-			TRead<FFrameTime> FrameTimeAccessor, 
-			TReadOneOrMoreOf<FSourceFloatChannel, FSourceFloatChannel, FSourceFloatChannel> RotChannelAccessors,
-			TWriteOptional<float> OutResultXAccessor, TWriteOptional<float> OutResultYAccessor, TWriteOptional<float> OutResultZAccessor)
+			TRead<FFrameTime> FrameTimes, 
+			TMultiReadOptional<FSourceFloatChannel, FSourceFloatChannel, FSourceFloatChannel> RotChannelAccessors,
+			float* OutResultXs, float* OutResultYs, float* OutResultZs)
 	{
-		TArrayView<const FFrameTime> FrameTimes = FrameTimeAccessor.ResolveAsArray(Allocation);
+		const FSourceFloatChannel* RotationXs = RotChannelAccessors.Get<0>();
+		const FSourceFloatChannel* RotationYs = RotChannelAccessors.Get<1>();
+		const FSourceFloatChannel* RotationZs = RotChannelAccessors.Get<2>();
 
-		TArrayView<const FSourceFloatChannel> RotationXs, RotationYs, RotationZs;
-		RotChannelAccessors.ResolveAsArrays(Allocation, &RotationXs, &RotationYs, &RotationZs);
-
-		TArrayView<float> OutResultXs = OutResultXAccessor.ResolveAsArray(Allocation);
-		TArrayView<float> OutResultYs = OutResultYAccessor.ResolveAsArray(Allocation);
-		TArrayView<float> OutResultZs = OutResultZAccessor.ResolveAsArray(Allocation);
-
-		check(OutResultXs.Num() == RotationXs.Num() && OutResultYs.Num() == RotationYs.Num() && OutResultZs.Num() == RotationZs.Num());
+		check(
+			(OutResultXs != nullptr) == (RotationXs != nullptr) &&
+			(OutResultYs != nullptr) == (RotationYs != nullptr) &&
+			(OutResultZs != nullptr) == (RotationZs != nullptr) );
 		
 		const int32 AllocationSize = Allocation->Num();
 		for (int32 Index = 0; Index < AllocationSize; ++Index)
 		{
 			const FFrameTime FrameTime = FrameTimes[Index];
-			const FSourceFloatChannel* RotationX = RotationXs.Num() > 0 ? &RotationXs[Index] : nullptr;
-			const FSourceFloatChannel* RotationY = RotationYs.Num() > 0 ? &RotationYs[Index] : nullptr;
-			const FSourceFloatChannel* RotationZ = RotationZs.Num() > 0 ? &RotationZs[Index] : nullptr;
+
+			const FSourceFloatChannel* RotationX = RotationXs ? &RotationXs[Index] : nullptr;
+			const FSourceFloatChannel* RotationY = RotationYs ? &RotationYs[Index] : nullptr;
+			const FSourceFloatChannel* RotationZ = RotationZs ? &RotationZs[Index] : nullptr;
 
 			// Find the closest keyframes before/after the current time on the 3 rotation channels.
 			TRange<FFrameNumber> FrameRange(TNumericLimits<FFrameNumber>::Min(), TNumericLimits<FFrameNumber>::Max());

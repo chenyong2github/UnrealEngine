@@ -4,6 +4,8 @@
 #include "TemplateSequence.h"
 #include "Systems/TemplateSequenceSystem.h"
 #include "Evaluation/MovieSceneRootOverridePath.h"
+#include "EntitySystem/MovieSceneSequenceInstance.h"
+#include "EntitySystem/MovieSceneEntitySystemLinker.h"
 
 UTemplateSequenceSection::UTemplateSequenceSection(const FObjectInitializer& ObjInitializer)
 	: Super(ObjInitializer)

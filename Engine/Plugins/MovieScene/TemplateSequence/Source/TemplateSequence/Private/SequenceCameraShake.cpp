@@ -13,6 +13,9 @@
 #include "GameFramework/WorldSettings.h"
 #include "MovieSceneFwd.h"
 #include "MovieSceneTimeHelpers.h"
+#include "EntitySystem/MovieSceneEntitySystemTask.h"
+#include "EntitySystem/MovieScenePropertySystemTypes.inl"
+#include "EntitySystem/MovieSceneEntitySystemLinker.h"
 #include "MovieSceneTracksComponentTypes.h"
 
 #if !IS_MONOLITHIC

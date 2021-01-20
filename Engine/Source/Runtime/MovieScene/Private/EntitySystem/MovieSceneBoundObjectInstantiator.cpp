@@ -5,10 +5,10 @@
 #include "EntitySystem/MovieSceneEntitySystemTask.h"
 #include "EntitySystem/MovieSceneEntityManager.h"
 #include "EntitySystem/BuiltInComponentTypes.h"
-#include "EntitySystem/MovieSceneEntityFactory.h"
 #include "EntitySystem/MovieSceneInstanceRegistry.h"
 #include "EntitySystem/MovieSceneComponentRegistry.h"
 #include "EntitySystem/MovieSceneEntitySystemLinker.h"
+#include "EntitySystem/MovieSceneEntityFactoryTemplates.h"
 
 #include "IMovieScenePlayer.h"
 

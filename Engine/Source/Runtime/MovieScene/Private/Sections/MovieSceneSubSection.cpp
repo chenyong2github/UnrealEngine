@@ -11,6 +11,9 @@
 #include "Misc/FrameRate.h"
 #include "Logging/MessageLog.h"
 #include "Evaluation/MovieSceneRootOverridePath.h"
+#include "EntitySystem/MovieSceneEntitySystemLinker.h"
+#include "EntitySystem/MovieSceneInstanceRegistry.h"
+#include "EntitySystem/IMovieSceneEntityProvider.h"
 
 TWeakObjectPtr<UMovieSceneSubSection> UMovieSceneSubSection::TheRecordingSection;
 

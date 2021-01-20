@@ -3,6 +3,7 @@
 #pragma once
 
 #include "EntitySystem/MovieScenePartialProperties.h"
+#include "EntitySystem/MovieSceneOperationalTypeConversions.h"
 #include "MovieSceneCommonHelpers.h"
 
 namespace UE
@@ -79,8 +80,6 @@ TSetPartialPropertyValues<PropertyType, ProjectionType>::TSetPartialPropertyValu
 template<typename PropertyType, typename ProjectionType>
 void TSetPartialPropertyValues<PropertyType, ProjectionType>::ForEachAllocation(const FEntityAllocation* Allocation, TRead<UObject*> BoundObjectComponents, FThreeWayAccessor PropertyBindingComponents)
 {
-	using FPropertyTuple = TTuple< const FCustomPropertyIndex*, const uint16*, const TSharedPtr<FTrackInstancePropertyBindings>* >;
-
 	// ----------------------------------------------------------------------------------------------------------------------------
 	// For partially animated composites, we first retrieve the current properties for the allocation, then go through and patch in
 	// All the animated values, then apply the properties to objects
@@ -88,20 +87,17 @@ void TSetPartialPropertyValues<PropertyType, ProjectionType>::ForEachAllocation(
 	const int32 Num = Allocation->Num();
 	IntermediateValues.SetNumUninitialized(Num);
 
-	UObject* const* RawObjectPtr = BoundObjectComponents.Resolve(Allocation);
-	FPropertyTuple  Properties   = PropertyBindingComponents.Resolve(Allocation);
-
-	if (const FCustomPropertyIndex* Custom = Properties.template Get<0>())
+	if (const FCustomPropertyIndex* Custom = PropertyBindingComponents.template Get<0>())
 	{
-		ForEachCustom(Allocation, MakeArrayView(RawObjectPtr, Num), MakeArrayView(Custom, Num));
+		ForEachCustom(Allocation, BoundObjectComponents.AsArray(Num), MakeArrayView(Custom, Num));
 	}
-	else if (const uint16* Fast = Properties.template Get<1>())
+	else if (const uint16* Fast = PropertyBindingComponents.template Get<1>())
 	{
-		ForEachFast(Allocation, MakeArrayView(RawObjectPtr, Num), MakeArrayView(Fast, Num));
+		ForEachFast(Allocation, BoundObjectComponents.AsArray(Num), MakeArrayView(Fast, Num));
 	}
-	else if (const TSharedPtr<FTrackInstancePropertyBindings>* Slow = Properties.template Get<2>())
+	else if (const TSharedPtr<FTrackInstancePropertyBindings>* Slow = PropertyBindingComponents.template Get<2>())
 	{
-		ForEachSlow(Allocation, MakeArrayView(RawObjectPtr, Num), MakeArrayView(Slow, Num));
+		ForEachSlow(Allocation, BoundObjectComponents.AsArray(Num), MakeArrayView(Slow, Num));
 	}
 }
 
@@ -109,8 +105,6 @@ void TSetPartialPropertyValues<PropertyType, ProjectionType>::ForEachAllocation(
 template<typename PropertyType, typename ProjectionType>
 void TSetPartialPropertyValues<PropertyType, ProjectionType>::ForEachAllocation(const FEntityAllocation* Allocation, TRead<UObject*> BoundObjectComponents, FTwoWayAccessor PropertyBindingComponents)
 {
-	using FPropertyTuple = TTuple< const uint16*, const TSharedPtr<FTrackInstancePropertyBindings>* >;
-
 	// ----------------------------------------------------------------------------------------------------------------------------
 	// For partially animated composites, we first retrieve the current properties for the allocation, then go through and patch in
 	// All the animated values, then apply the properties to objects
@@ -118,16 +112,13 @@ void TSetPartialPropertyValues<PropertyType, ProjectionType>::ForEachAllocation(
 	const int32 Num = Allocation->Num();
 	IntermediateValues.SetNumUninitialized(Num);
 
-	UObject* const* RawObjectPtr = BoundObjectComponents.Resolve(Allocation);
-	FPropertyTuple  Properties   = PropertyBindingComponents.Resolve(Allocation);
-
-	if (const uint16* Fast = Properties.template Get<0>())
+	if (const uint16* Fast = PropertyBindingComponents.template Get<0>())
 	{
-		ForEachFast(Allocation, MakeArrayView(RawObjectPtr, Num), MakeArrayView(Fast, Num));
+		ForEachFast(Allocation, BoundObjectComponents.AsArray(Num), MakeArrayView(Fast, Num));
 	}
-	else if (const TSharedPtr<FTrackInstancePropertyBindings>* Slow = Properties.template Get<1>())
+	else if (const TSharedPtr<FTrackInstancePropertyBindings>* Slow = PropertyBindingComponents.template Get<1>())
 	{
-		ForEachSlow(Allocation, MakeArrayView(RawObjectPtr, Num), MakeArrayView(Slow, Num));
+		ForEachSlow(Allocation, BoundObjectComponents.AsArray(Num), MakeArrayView(Slow, Num));
 	}
 }
 
