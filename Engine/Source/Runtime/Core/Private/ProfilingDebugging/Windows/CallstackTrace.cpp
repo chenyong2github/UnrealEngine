@@ -17,7 +17,7 @@
 #	include <winnt.h>
 #	include <winternl.h>
 #include "Windows/HideWindowsPlatformTypes.h"
-#include "Misc\CoreDelegates.h"
+#include "Misc/CoreDelegates.h"
 #include "Trace/Trace.inl"
 #include "AtomicQueue/AtomicQueue.h"
 #include "HAL/Runnable.h"
