@@ -36,7 +36,7 @@ public:
 	 * @param InTime The sample time (in the player's local clock).
 	 * @param InDuration The duration for which the sample is valid.
 	 */
-	bool Initialize(FImgMediaFrame& InFrame, const FIntPoint& InOutputDim, FTimespan InTime, FTimespan InDuration)
+	bool Initialize(FImgMediaFrame& InFrame, const FIntPoint& InOutputDim, FMediaTimeStamp InTime, FTimespan InDuration)
 	{
 		Duration = InDuration;
 		Frame = InFrame;
@@ -94,7 +94,7 @@ public:
 
 	virtual FMediaTimeStamp GetTime() const override
 	{
-		return FMediaTimeStamp(Time);
+		return Time;
 	}
 
 	virtual bool IsCacheable() const override
@@ -119,5 +119,5 @@ private:
 	FIntPoint OutputDim;
 
 	/** Play time for which the sample was generated. */
-	FTimespan Time;
+	FMediaTimeStamp Time;
 };

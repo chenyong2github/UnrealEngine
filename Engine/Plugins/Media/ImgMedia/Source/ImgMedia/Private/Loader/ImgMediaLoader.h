@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Containers/LruCache.h"
 #include "Containers/Queue.h"
+#include "IMediaSamples.h"
 #include "Misc/FrameRate.h"
 #include "Templates/SharedPointer.h"
 
@@ -12,6 +13,7 @@ class FImgMediaGlobalCache;
 class FImgMediaLoaderWork;
 class FImgMediaScheduler;
 class FImgMediaTextureSample;
+class FMediaTimeStamp;
 class IImageWrapperModule;
 class IImgMediaReader;
 class IQueuedWork;
@@ -83,6 +85,29 @@ public:
 	{
 		return Info;
 	}
+
+	/**
+	 * Tries to get the best sample for a given time range.
+	 *
+	 * @param TimeRange is the range to check for.
+	 * @param OutSample will be filled in with the sample if found.
+	 * @param bIsLoopingEnabled True if we can loop.
+	 * @param PlayRate How fast we are playing.
+	 * @param Facade does use blocking playback to fetch samples
+	 * @return True if successful.
+	 */
+	IMediaSamples::EFetchBestSampleResult FetchBestVideoSampleForTimeRange(const TRange<FMediaTimeStamp>& TimeRange, TSharedPtr<IMediaTextureSample, ESPMode::ThreadSafe>& OutSample, bool bIsLoopingEnabled, float PlayRate, bool bPlaybackIsBlocking);
+
+	/**
+	 * Checks to see if a sample is available at the specificed time.
+	 *
+	 * @param TimeStamp Will be filled in with the time stamp of the sample if a sample is found.
+	 * @param bIsLoopingEnabled True if we can loop.
+	 * @param PlayRate How fast we are playing.
+	 * @param CurrentTime Time to get a sample for.
+	 * @return True if a sample is available.
+	 */
+	bool PeekVideoSampleTime(FMediaTimeStamp& TimeStamp, bool bIsLoopingEnabled, float PlayRate, const FTimespan& CurrentTime);
 
 	/**
 	 * Get the time ranges of frames that are pending to be loaded.
@@ -193,6 +218,11 @@ public:
 	 * @return bool if the frame will be loaded, false otherwise.
 	 */
 	bool RequestFrame(FTimespan Time, float PlayRate, bool Loop);
+	
+	/**
+	 * Reset "queued fetch" related state used to emulate player output queue behavior
+	 */
+	void ResetFetchLogic();
 
 protected:
 
@@ -239,6 +269,33 @@ protected:
 	 * @param Loop Whether the cache should loop around.
 	 */
 	void Update(int32 PlayHeadFrame, float PlayRate, bool Loop);
+
+	/***
+	 * Modulos the time so that it is between 0 and SequenceDuration.
+	 * Handles negative numbers appropriately.
+	 */
+	FTimespan ModuloTime(FTimespan Time);
+
+	/**
+	 * Gets the amount of overlap (in seconds) between a frame and a time range.
+	 * A negative or zero  value indicates the frame does not overlap the range.
+	 *
+	 * @param FrameIndex Index of frame to check.
+	 * @param StartTime Start of the range.
+	 * @param EndTime End of the range.
+	 * @param Amount of overlap.
+	 */
+	float GetFrameOverlap(uint32 FrameIndex, FTimespan StartTime, FTimespan EndTime) const;
+
+	/**
+	 * Find maximum overlapping frame index for given range
+	 */
+	float FindMaxOverlapInRange(int32 StartIndex, int32 EndIndex, FTimespan StartTime, FTimespan EndTime, int32& MaxIdx) const;
+
+	/**
+	 * Get frame data for given index. If not available attempt to find earlier frame up to given index
+	 */
+	const TSharedPtr<FImgMediaFrame, ESPMode::ThreadSafe>* GetFrameForBestIndex(int32 & MaxIdx, int32 LastIndex);
 
 private:
 
@@ -303,4 +360,13 @@ private:
 
 	/** True if we are using the global cache, false to use the local cache. */
 	bool UseGlobalCache;
+
+private:
+	/** State related to "queue style" frame access functions */
+	struct
+	{
+		int32 LastFrameIndex;
+		uint64 CurrentSequenceIndex;
+	} QueuedSampleFetch;
+
 };

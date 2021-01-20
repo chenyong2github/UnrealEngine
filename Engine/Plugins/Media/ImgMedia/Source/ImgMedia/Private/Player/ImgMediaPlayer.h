@@ -60,7 +60,10 @@ public:
 	virtual bool Open(const FString& Url, const IMediaOptions* Options) override;
 	virtual bool Open(const TSharedRef<FArchive, ESPMode::ThreadSafe>& Archive, const FString& OriginalUrl, const IMediaOptions* Options) override;
 	virtual void TickInput(FTimespan DeltaTime, FTimespan Timecode) override;
+	virtual bool FlushOnSeekStarted() const;
+	virtual bool FlushOnSeekCompleted() const;
 	virtual void ProcessVideoSamples() override;
+	virtual bool GetPlayerFeatureFlag(EFeatureFlag flag) const override;
 
 protected:
 
@@ -92,6 +95,7 @@ protected:
 	virtual bool Seek(const FTimespan& Time) override;
 	virtual bool SetLooping(bool Looping) override;
 	virtual bool SetRate(float Rate) override;
+	virtual void SetBlockingPlaybackHint(bool bFacadeWillUseBlockingPlayback) override;
 
 protected:
 
@@ -99,6 +103,8 @@ protected:
 
 	virtual bool FetchVideo(TRange<FTimespan> TimeRange, TSharedPtr<IMediaTextureSample, ESPMode::ThreadSafe>& OutSample) override;
 	virtual void FlushSamples() override;
+
+	virtual EFetchBestSampleResult FetchBestVideoSampleForTimeRange(const TRange<FMediaTimeStamp> & TimeRange, TSharedPtr<IMediaTextureSample, ESPMode::ThreadSafe>& OutSample, bool bReverse) override;
 	virtual bool PeekVideoSampleTime(FMediaTimeStamp & TimeStamp) override;
 
 protected:
@@ -163,4 +169,7 @@ private:
 
 	/** True if we have run RequestFrame already for this frame. */
 	bool RequestFrameHasRun;
+
+	/** True if facade has signaled it uses blocking playback, false if not */
+	bool PlaybackIsBlocking;
 };
