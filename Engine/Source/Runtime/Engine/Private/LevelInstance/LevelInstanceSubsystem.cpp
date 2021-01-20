@@ -638,7 +638,7 @@ bool ULevelInstanceSubsystem::MoveActorsTo(ALevelInstance* LevelInstanceActor, c
 	return MoveActorsToLevel(ActorsToMove, LevelInstanceLevel);
 }
 
-ALevelInstance* ULevelInstanceSubsystem::CreateLevelInstanceFrom(const TArray<AActor*>& ActorsToMove, ELevelInstanceCreationType CreationType, ELevelInstancePivotType PivotType, AActor* PivotActor, UWorld* TemplateWorld)
+ALevelInstance* ULevelInstanceSubsystem::CreateLevelInstanceFrom(const TArray<AActor*>& ActorsToMove, const FNewLevelInstanceParams& CreationParams)
 {
 	ULevel* CurrentLevel = GetWorld()->GetCurrentLevel();
 		
@@ -664,21 +664,21 @@ ALevelInstance* ULevelInstanceSubsystem::CreateLevelInstanceFrom(const TArray<AA
 	}
 
 	FVector LevelInstanceLocation;
-	if (PivotType == ELevelInstancePivotType::Actor)
+	if (CreationParams.PivotType == ELevelInstancePivotType::Actor)
 	{
-		check(PivotActor);
-		LevelInstanceLocation = PivotActor->GetActorLocation();
+		check(CreationParams.PivotActor);
+		LevelInstanceLocation = CreationParams.PivotActor->GetActorLocation();
 	}
 	else
 	{
 		LevelInstanceLocation = ActorLocationBox.GetCenter();
-		if (PivotType == ELevelInstancePivotType::CenterMinZ)
+		if (CreationParams.PivotType == ELevelInstancePivotType::CenterMinZ)
 		{
 			LevelInstanceLocation.Z = ActorLocationBox.Min.Z;
 		}
 	}
 		
-	ULevelStreamingLevelInstanceEditor* LevelStreaming = StaticCast<ULevelStreamingLevelInstanceEditor*>(EditorLevelUtils::CreateNewStreamingLevelForWorld(*GetWorld(), ULevelStreamingLevelInstanceEditor::StaticClass(), TEXT(""), false, TemplateWorld));
+	ULevelStreamingLevelInstanceEditor* LevelStreaming = StaticCast<ULevelStreamingLevelInstanceEditor*>(EditorLevelUtils::CreateNewStreamingLevelForWorld(*GetWorld(), ULevelStreamingLevelInstanceEditor::StaticClass(), TEXT(""), false, CreationParams.TemplateWorld));
 	if (!LevelStreaming)
 	{
 		UE_LOG(LogLevelInstance, Warning, TEXT("Failed to create new Level Instance level"));
@@ -699,6 +699,13 @@ ALevelInstance* ULevelInstanceSubsystem::CreateLevelInstanceFrom(const TArray<AA
 		return nullptr;
 	}
 	
+	// Convert to OFPA
+	if (CreationParams.bExternalActors)
+	{
+		LoadedLevel->ConvertAllActorsToPackaging(true);
+		LoadedLevel->bUseExternalActors = true;
+	}
+
 	// Take all actors out of any folders they may have been in since we don't support folders inside of level instances
 	for (AActor* Actor : LoadedLevel->Actors)
 	{
@@ -713,15 +720,15 @@ ALevelInstance* ULevelInstanceSubsystem::CreateLevelInstanceFrom(const TArray<AA
 	ALevelInstance* NewLevelInstanceActor = nullptr;
 	TSoftObjectPtr<UWorld> WorldPtr(LoadedLevel->GetTypedOuter<UWorld>());
 	
-	if (CreationType == ELevelInstanceCreationType::LevelInstance)
+	if (CreationParams.Type == ELevelInstanceCreationType::LevelInstance)
 	{
 		NewLevelInstanceActor = GetWorld()->SpawnActor<ALevelInstance>(ALevelInstance::StaticClass(), SpawnParams);
 	}
-	else if (CreationType == ELevelInstanceCreationType::PackedLevelInstance)
+	else if (CreationParams.Type == ELevelInstanceCreationType::PackedLevelInstance)
 	{
 		NewLevelInstanceActor = GetWorld()->SpawnActor<APackedLevelInstance>(APackedLevelInstance::StaticClass(), SpawnParams);
 	}
-	else if (CreationType == ELevelInstanceCreationType::PackedLevelInstanceBlueprint)
+	else if (CreationParams.Type == ELevelInstanceCreationType::PackedLevelInstanceBlueprint)
 	{
 		int32 LastSlashIndex = 0;
 		FString LongPackageName = WorldPtr.GetLongPackageName();

@@ -1,20 +1,56 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "SNewLevelInstanceDialog.h"
-#include "SEnumCombo.h"
+#include "IStructureDetailsView.h"
+#include "IDetailPropertyRow.h"
+#include "DetailCategoryBuilder.h"
+#include "DetailWidgetRow.h"
 #include "Widgets/Layout/SSpacer.h"
+#include "Widgets/Input/SComboBox.h"
+#include "Widgets/Input/SButton.h"
+#include "PropertyEditorDelegates.h"
 #include "LevelInstance/LevelInstanceSubsystem.h"
+#include "Modules/ModuleManager.h"
+#include "GameFramework/Actor.h"
 
 #define LOCTEXT_NAMESPACE "LevelInstanceEditor"
 
-const FVector2D SNewLevelInstanceDialog::DEFAULT_WINDOW_SIZE = FVector2D(400, 150);
+const FVector2D SNewLevelInstanceDialog::DEFAULT_WINDOW_SIZE = FVector2D(400, 250);
 
 void SNewLevelInstanceDialog::Construct(const FArguments& InArgs)
 {
-	SelectedCreationType = ELevelInstanceCreationType::LevelInstance;
-	SelectedPivotType = ELevelInstancePivotType::CenterMinZ;
 	ParentWindowPtr = InArgs._ParentWindow.Get();
-	PivotActors = InArgs._PivotActors.Get();
 	bClickedOk = false;
+		
+	FPropertyEditorModule& PropertyEditorModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
+
+	TSharedPtr<IStructureDetailsView> StructureDetailsView;
+
+	FDetailsViewArgs DetailsViewArgs;
+	{
+		DetailsViewArgs.bAllowSearch = false;
+		DetailsViewArgs.bHideSelectionTip = true;
+		DetailsViewArgs.bLockable = false;
+		DetailsViewArgs.bSearchInitialKeyFocus = true;
+		DetailsViewArgs.bUpdatesFromSelection = false;
+		DetailsViewArgs.NotifyHook = nullptr;
+		DetailsViewArgs.bShowOptions = true;
+		DetailsViewArgs.bShowModifiedPropertiesOption = false;
+		DetailsViewArgs.bShowScrollBar = false;
+	}
+
+	FStructureDetailsViewArgs StructureViewArgs;
+	{
+		StructureViewArgs.bShowObjects = true;
+		StructureViewArgs.bShowAssets = true;
+		StructureViewArgs.bShowClasses = true;
+		StructureViewArgs.bShowInterfaces = true;
+	}
+
+	StructureDetailsView = PropertyEditorModule.CreateStructureDetailView(DetailsViewArgs, StructureViewArgs, nullptr);
+	StructureDetailsView->GetDetailsView()->SetGenericLayoutDetailsDelegate(FOnGetDetailCustomizationInstance::CreateStatic(&FNewLevelInstanceParamsDetails::MakeInstance, InArgs._PivotActors.Get()));
+
+	FStructOnScope* Struct = new FStructOnScope(FNewLevelInstanceParams::StaticStruct(), (uint8*)&CreationParams);
+	StructureDetailsView->SetStructureData(MakeShareable(Struct));
 
 	this->ChildSlot
 	[
@@ -23,76 +59,9 @@ void SNewLevelInstanceDialog::Construct(const FArguments& InArgs)
 		[
 			SNew(SVerticalBox)
 			+ SVerticalBox::Slot()
-			.AutoHeight()
+			.MaxHeight(250.0f)
 			[
-				SNew(SHorizontalBox)
-				+ SHorizontalBox::Slot()
-				.AutoWidth()
-				.Padding(2.f)
-				.VAlign(VAlign_Center)
-				[
-					SNew(STextBlock)
-					.Text(LOCTEXT("LevelInstanceCreationTypeTextBlock", "Type"))
-				]
-				+ SHorizontalBox::Slot()
-				.FillWidth(1.f)
-				.Padding(2.f)
-				[
-					SNew(SEnumComboBox, StaticEnum<ELevelInstanceCreationType>())
-					.ContentPadding(FCoreStyle::Get().GetMargin("StandardDialog.ContentPadding"))
-					.CurrentValue(this, &SNewLevelInstanceDialog::GetSelectedCreationType)
-					.OnEnumSelectionChanged(this, &SNewLevelInstanceDialog::OnSelectedCreationTypeChanged)
-				]
-			]
-			+ SVerticalBox::Slot()
-			.AutoHeight()
-			[
-				SNew(SHorizontalBox)
-				+ SHorizontalBox::Slot()
-				.AutoWidth()
-				.Padding(2.f)
-				.VAlign(VAlign_Center)
-				[
-					SNew(STextBlock)
-					.Text(LOCTEXT("LevelInstancePivotTypeTextBlock", "Pivot"))
-				]
-				+ SHorizontalBox::Slot()
-				.FillWidth(1.f)
-				.Padding(2.f)
-				[
-					SNew(SEnumComboBox, StaticEnum<ELevelInstancePivotType>())
-					.ContentPadding(FCoreStyle::Get().GetMargin("StandardDialog.ContentPadding"))
-					.CurrentValue(this, &SNewLevelInstanceDialog::GetSelectedPivotType)
-					.OnEnumSelectionChanged(this, &SNewLevelInstanceDialog::OnSelectedPivotTypeChanged)
-				]
-			]
-			+ SVerticalBox::Slot()
-			.AutoHeight()
-			[
-				SNew(SHorizontalBox)
-				.IsEnabled(this, &SNewLevelInstanceDialog::IsPivotActorSelectionEnabled)
-				+ SHorizontalBox::Slot()
-				.AutoWidth()
-				.Padding(2.f)
-				.VAlign(VAlign_Center)
-				[
-					SNew(STextBlock)
-					.Text(LOCTEXT("LevelInstancePivotActorTextBlock", "Actor"))
-				]
-				+ SHorizontalBox::Slot()
-				.FillWidth(1.f)
-				.Padding(2.f)
-				[
-					SNew(SComboBox<AActor*>)
-					.ContentPadding(FCoreStyle::Get().GetMargin("StandardDialog.ContentPadding"))
-					.OptionsSource(&PivotActors)
-					.OnGenerateWidget(this, &SNewLevelInstanceDialog::OnGeneratePivotActorWidget)
-					.OnSelectionChanged(this, &SNewLevelInstanceDialog::OnSelectedPivotActorChanged)
-					[
-						SNew(STextBlock)
-						.Text(this, &SNewLevelInstanceDialog::GetSelectedPivotActorText)
-					]
-				]
+				StructureDetailsView->GetWidget()->AsShared()
 			]
 			+ SVerticalBox::Slot()
 			.AutoHeight()
@@ -131,7 +100,7 @@ void SNewLevelInstanceDialog::Construct(const FArguments& InArgs)
 
 bool SNewLevelInstanceDialog::IsOkEnabled() const
 {
-	if (SelectedPivotType == ELevelInstancePivotType::Actor && !SelectedPivotActor)
+	if (CreationParams.PivotType == ELevelInstancePivotType::Actor && !CreationParams.PivotActor)
 	{
 		return false;
 	}
@@ -153,45 +122,85 @@ FReply SNewLevelInstanceDialog::OnCancelClicked()
 	return FReply::Handled();
 }
 
-int32 SNewLevelInstanceDialog::GetSelectedCreationType() const
-{
-	return (int32)SelectedCreationType;
-}
-
-void SNewLevelInstanceDialog::OnSelectedCreationTypeChanged(int32 NewValue, ESelectInfo::Type SelectionType)
-{
-	SelectedCreationType = (ELevelInstanceCreationType)NewValue;
-}
-
-int32 SNewLevelInstanceDialog::GetSelectedPivotType() const
-{
-	return (int32)SelectedPivotType;
-}
-
-void SNewLevelInstanceDialog::OnSelectedPivotTypeChanged(int32 NewValue, ESelectInfo::Type SelectionType)
-{
-	SelectedPivotType = (ELevelInstancePivotType)NewValue;
-}
-
-TSharedRef<SWidget> SNewLevelInstanceDialog::OnGeneratePivotActorWidget(AActor* Actor) const
+TSharedRef<SWidget> FNewLevelInstanceParamsDetails::OnGeneratePivotActorWidget(AActor* Actor) const
 {
 	// If a row wasn't generated just create the default one, a simple text block of the item's name.
-	return SNew(STextBlock).Text(Actor ? FText::FromString(Actor->GetActorLabel()) : LOCTEXT("null", "null"));
+	return SNew(STextBlock).Text(Actor ? FText::FromString(Actor->GetActorLabel()) : LOCTEXT("null", "null")).Font(IDetailLayoutBuilder::GetDetailFont());
 }
 
-FText SNewLevelInstanceDialog::GetSelectedPivotActorText() const
+FText FNewLevelInstanceParamsDetails::GetSelectedPivotActorText() const
 {
-	return SelectedPivotActor ? FText::FromString(SelectedPivotActor->GetActorLabel()) : LOCTEXT("none", "None");
+	return CreationParams->PivotActor ? FText::FromString(CreationParams->PivotActor->GetActorLabel()) : LOCTEXT("none", "None");
 }
 
-void SNewLevelInstanceDialog::OnSelectedPivotActorChanged(AActor* NewValue, ESelectInfo::Type SelectionType)
+void FNewLevelInstanceParamsDetails::OnSelectedPivotActorChanged(AActor* NewValue, ESelectInfo::Type SelectionType)
 {
-	SelectedPivotActor = NewValue;
+	CreationParams->PivotActor = NewValue;
 }
 
-bool SNewLevelInstanceDialog::IsPivotActorSelectionEnabled() const
+bool FNewLevelInstanceParamsDetails::IsPivotActorSelectionEnabled() const
 {
-	return SelectedPivotType == ELevelInstancePivotType::Actor;
+	return CreationParams->PivotType == ELevelInstancePivotType::Actor;
+}
+
+void FNewLevelInstanceParamsDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
+{
+	// Make sure we actually get a valid struct before continuing
+	TArray<TSharedPtr<FStructOnScope>> Structs;
+	DetailBuilder.GetStructsBeingCustomized(Structs);
+
+	if (Structs.Num() == 0)
+	{
+		// Nothing being customized
+		return;
+	}
+
+	const UStruct* Struct = Structs[0]->GetStruct();
+	if (!Struct || Struct != FNewLevelInstanceParams::StaticStruct())
+	{
+		// Invalid struct
+		return;
+	}
+
+	// Get ptr to our actual type
+	CreationParams = (FNewLevelInstanceParams*)Structs[0]->GetStructMemory();
+
+	TSharedPtr<IPropertyHandle> PivotTypeProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(FNewLevelInstanceParams, PivotType), (UClass*)FNewLevelInstanceParams::StaticStruct());
+	TSharedPtr<IPropertyHandle> PivotActorProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(FNewLevelInstanceParams, PivotActor), (UClass*)FNewLevelInstanceParams::StaticStruct());
+
+
+	IDetailCategoryBuilder& PivotCategoryBuilder = DetailBuilder.EditCategory("Pivot", FText::GetEmpty(), ECategoryPriority::Uncommon);
+	PivotCategoryBuilder.AddProperty(PivotTypeProperty);
+	IDetailPropertyRow& PivotActorPropertyRow = PivotCategoryBuilder.AddProperty(PivotActorProperty);
+	
+	TSharedPtr<SWidget> NameWidget;
+	TSharedPtr<SWidget> ValueWidget;
+	FDetailWidgetRow Row;
+	PivotActorPropertyRow.GetDefaultWidgets(NameWidget, ValueWidget, Row);
+
+	const bool bShowChildren = true;
+	PivotActorPropertyRow.CustomWidget(bShowChildren)
+		.NameContent()
+		.MinDesiredWidth(Row.NameWidget.MinWidth)
+		.MaxDesiredWidth(Row.NameWidget.MaxWidth)
+		[
+			NameWidget.ToSharedRef()
+		]
+		.ValueContent()
+		.MinDesiredWidth(Row.ValueWidget.MinWidth)
+		.MaxDesiredWidth(Row.ValueWidget.MaxWidth)
+		[
+			SNew(SComboBox<AActor*>)
+			.OptionsSource(&PivotActors)
+			.OnGenerateWidget(this, &FNewLevelInstanceParamsDetails::OnGeneratePivotActorWidget)
+			.OnSelectionChanged(this, &FNewLevelInstanceParamsDetails::OnSelectedPivotActorChanged)
+			.IsEnabled(this, &FNewLevelInstanceParamsDetails::IsPivotActorSelectionEnabled)
+			[
+				SNew(STextBlock)
+				.Text(this, &FNewLevelInstanceParamsDetails::GetSelectedPivotActorText)
+				.Font(DetailBuilder.GetDetailFont())
+			]
+		];
 }
 
 #undef LOCTEXT_NAMESPACE

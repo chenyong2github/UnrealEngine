@@ -336,18 +336,17 @@ namespace LevelInstanceMenuUtils
 
 		if (NewLevelInstanceDialog->ClickedOk())
 		{
-			ELevelInstanceCreationType CreationType = NewLevelInstanceDialog->GetCreationType();
-			ELevelInstancePivotType PivotType = NewLevelInstanceDialog->GetPivotType();
-			AActor* PivotActor = NewLevelInstanceDialog->GetPivotActor();
+			FNewLevelInstanceParams CreationParams(NewLevelInstanceDialog->GetCreationParams());
 
 			FNewLevelDialogModule& NewLevelDialogModule = FModuleManager::LoadModuleChecked<FNewLevelDialogModule>("NewLevelDialog");
 			FString TemplateMapPackage;
 			if (!GetMutableDefault<ULevelInstanceEditorSettings>()->TemplateMapInfos.Num() || NewLevelDialogModule.CreateAndShowTemplateDialog(MainFrameModule.GetParentWindow(), LOCTEXT("LevelInstanceTemplateDialog", "Choose Level Instance Template..."), GetMutableDefault<ULevelInstanceEditorSettings>()->TemplateMapInfos, TemplateMapPackage))
 			{
 				UPackage* TemplatePackage = !TemplateMapPackage.IsEmpty() ? LoadPackage(nullptr, *TemplateMapPackage, LOAD_None) : nullptr;
-				UWorld* TemplateWorld = TemplatePackage ? UWorld::FindWorldInPackage(TemplatePackage) : nullptr;
+				
+				CreationParams.TemplateWorld = TemplatePackage ? UWorld::FindWorldInPackage(TemplatePackage) : nullptr;
 
-				if (!LevelInstanceSubsystem->CreateLevelInstanceFrom(ActorsToMove, CreationType, PivotType, PivotActor, TemplateWorld))
+				if (!LevelInstanceSubsystem->CreateLevelInstanceFrom(ActorsToMove, CreationParams))
 				{
 					FText Title = LOCTEXT("CreateFromSelectionFailTitle", "Create from selection failed");
 					FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("CreateFromSelectionFailMsg", "Failed to create LevelInstance from selection. Check log for details."), &Title);
