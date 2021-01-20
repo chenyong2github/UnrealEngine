@@ -392,10 +392,12 @@ public:
 		HighQualityTexture(NULL),
 		SkyOcclusionTexture(NULL),
 		AOMaterialMaskTexture(NULL),
-		VirtualTexture(NULL),
 #endif
 #if ALLOW_LQ_LIGHTMAPS
 		LowQualityTexture(NULL),
+#endif
+#if ALLOW_HQ_LIGHTMAPS || ALLOW_LQ_LIGHTMAPS
+		VirtualTexture(NULL),
 #endif
 		Type(LMIT_None)
 	{}
@@ -438,7 +440,7 @@ public:
 	const ULightMapVirtualTexture2D* GetVirtualTexture() const
 	{
 		check(Type == LMIT_Texture);
-#if ALLOW_HQ_LIGHTMAPS
+#if ALLOW_HQ_LIGHTMAPS || ALLOW_LQ_LIGHTMAPS
 		return VirtualTexture;
 #else
 		return NULL;
@@ -546,7 +548,6 @@ private:
 	const class ULightMapTexture2D* HighQualityTexture;
 	const ULightMapTexture2D* SkyOcclusionTexture;
 	const ULightMapTexture2D* AOMaterialMaskTexture;
-	const ULightMapVirtualTexture2D* VirtualTexture;
 #endif
 
 #if ALLOW_LQ_LIGHTMAPS
@@ -558,6 +559,10 @@ private:
 #if ALLOW_LQ_LIGHTMAPS && ALLOW_HQ_LIGHTMAPS
 	bool bAllowHighQualityLightMaps;
 	uint32 NumLightmapCoefficients;
+#endif
+
+#if ALLOW_HQ_LIGHTMAPS || ALLOW_LQ_LIGHTMAPS
+	const ULightMapVirtualTexture2D* VirtualTexture;
 #endif
 
 	ELightMapInteractionType Type;
@@ -721,14 +726,15 @@ public:
 		LightMapTextures[1] = nullptr;
 		SkyOcclusionTexture = nullptr;
 		AOMaterialMaskTexture = nullptr;
-		LightMapVirtualTexture = nullptr;
+		LightMapVirtualTextures[0] = nullptr;
+		LightMapVirtualTextures[1] = nullptr;
 		ShadowMapTexture = nullptr;
 	}
 
 	const UTexture2D* LightMapTextures[2];
 	const UTexture2D* SkyOcclusionTexture;
 	const UTexture2D* AOMaterialMaskTexture;
-	const ULightMapVirtualTexture2D* LightMapVirtualTexture;
+	const ULightMapVirtualTexture2D* LightMapVirtualTextures[2];
 	const UTexture2D* ShadowMapTexture;
 
 	friend uint32 GetTypeHash(const FLightmapClusterResourceInput& Cluster)
@@ -737,8 +743,9 @@ public:
 		return
 			PointerHash(Cluster.LightMapTextures[0],
 			PointerHash(Cluster.LightMapTextures[1],
-			PointerHash(Cluster.LightMapVirtualTexture,
-			PointerHash(Cluster.ShadowMapTexture))));
+			PointerHash(Cluster.LightMapVirtualTextures[0],
+			PointerHash(Cluster.LightMapVirtualTextures[1],
+			PointerHash(Cluster.ShadowMapTexture)))));
 	}
 
 	bool operator==(const FLightmapClusterResourceInput& Rhs) const
@@ -747,7 +754,8 @@ public:
 			&& LightMapTextures[1] == Rhs.LightMapTextures[1]
 			&& SkyOcclusionTexture == Rhs.SkyOcclusionTexture
 			&& AOMaterialMaskTexture == Rhs.AOMaterialMaskTexture
-			&& LightMapVirtualTexture == Rhs.LightMapVirtualTexture
+			&& LightMapVirtualTextures[0] == Rhs.LightMapVirtualTextures[0]
+			&& LightMapVirtualTextures[1] == Rhs.LightMapVirtualTextures[1]
 			&& ShadowMapTexture == Rhs.ShadowMapTexture;
 	}
 };

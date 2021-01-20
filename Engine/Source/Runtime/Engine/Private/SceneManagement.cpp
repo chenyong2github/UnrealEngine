@@ -388,7 +388,6 @@ FLightMapInteraction FLightMapInteraction::InitVirtualTexture(
 {
 	FLightMapInteraction Result;
 	Result.Type = LMIT_Texture;
-	check(bAllowHighQualityLightMaps == true);
 
 #if ALLOW_LQ_LIGHTMAPS && ALLOW_HQ_LIGHTMAPS
 	// however, if simple and directional are allowed, then we must use the value passed in,
@@ -421,6 +420,7 @@ FLightMapInteraction FLightMapInteraction::InitVirtualTexture(
 	if (GIsEditor || !bAllowHighQualityLightMaps)
 	{
 #if ALLOW_LQ_LIGHTMAPS
+		Result.VirtualTexture = VirtualTexture;
 		for (uint32 CoefficientIndex = 0; CoefficientIndex < NUM_LQ_LIGHTMAP_COEF; CoefficientIndex++)
 		{
 			Result.LowQualityCoefficientScales[CoefficientIndex] = InCoefficientScales[LQ_LIGHTMAP_COEF_INDEX + CoefficientIndex];
@@ -860,7 +860,7 @@ void GetLightmapClusterResourceParameters(
 	const bool bAllowHighQualityLightMaps = AllowHighQualityLightmaps(FeatureLevel);
 
 	static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.VirtualTexturedLightmaps"));
-	const bool bUseVirtualTextures = bAllowHighQualityLightMaps && (CVar->GetValueOnRenderThread() != 0) && UseVirtualTexturing(FeatureLevel);
+	const bool bUseVirtualTextures = (CVar->GetValueOnRenderThread() != 0) && UseVirtualTexturing(FeatureLevel);
 
 	Parameters.LightMapTexture = GBlackTexture->TextureRHI;
 	Parameters.SkyOcclusionTexture = GWhiteTexture->TextureRHI;
@@ -881,12 +881,12 @@ void GetLightmapClusterResourceParameters(
 	if (bUseVirtualTextures)
 	{
 		// this is sometimes called with NULL input to initialize default buffer
-		const ULightMapVirtualTexture2D* VirtualTexture = Input.LightMapVirtualTexture;
+		const ULightMapVirtualTexture2D* VirtualTexture = Input.LightMapVirtualTextures[bAllowHighQualityLightMaps ? 0 : 1];
 		if (VirtualTexture && AllocatedVT)
 		{
 			// Bind VT here
-			Parameters.VTLightMapTexture = AllocatedVT->GetPhysicalTextureSRV((uint32)ELightMapVirtualTextureType::HqLayer0, false);
-			Parameters.VTLightMapTexture_1 = AllocatedVT->GetPhysicalTextureSRV((uint32)ELightMapVirtualTextureType::HqLayer1, false);
+			Parameters.VTLightMapTexture = AllocatedVT->GetPhysicalTextureSRV((uint32)ELightMapVirtualTextureType::LightmapLayer0, false);
+			Parameters.VTLightMapTexture_1 = AllocatedVT->GetPhysicalTextureSRV((uint32)ELightMapVirtualTextureType::LightmapLayer1, false);
 
 			if (VirtualTexture->HasLayerForType(ELightMapVirtualTextureType::SkyOcclusion))
 			{
