@@ -157,6 +157,12 @@ public:
 	/** Select all keys and sections that fall into the selection range*/
 	TSharedPtr< FUICommandInfo > SelectAllInSelectionRange;
 
+	/** Select all keys and sections forward from the current time */
+	TSharedPtr< FUICommandInfo > SelectForward;
+
+	/** Select all keys and sections backward from the current time */
+	TSharedPtr< FUICommandInfo > SelectBackward;
+
 	/** Add selected actors to sequencer */
 	TSharedPtr< FUICommandInfo > AddActorsToSequencer;
 

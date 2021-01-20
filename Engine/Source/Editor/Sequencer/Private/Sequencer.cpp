@@ -2660,6 +2660,45 @@ void FSequencer::SelectInSelectionRange(bool bSelectKeys, bool bSelectSections)
 	}
 }
 
+void FSequencer::SelectForward()
+{
+	FFrameRate TickResolution = GetFocusedTickResolution();
+	FFrameNumber CurrentFrame = GetLocalTime().ConvertTo(TickResolution).CeilToFrame();
+	TRange<FFrameNumber> SelectionRange(CurrentFrame, TNumericLimits<FFrameNumber>::Max());
+
+	TSet<TSharedRef<FSequencerDisplayNode> > DisplayNodes = Selection.GetSelectedOutlinerNodes();
+	if (DisplayNodes.Num() == 0)
+	{
+		DisplayNodes.Append(NodeTree->GetAllNodes());
+	}
+
+	Selection.Empty();
+	for (TSharedRef<FSequencerDisplayNode>& DisplayNode : DisplayNodes)
+	{
+		SelectInSelectionRange(DisplayNode, SelectionRange, true, true);
+	}		
+}
+
+
+void FSequencer::SelectBackward()
+{
+	FFrameRate TickResolution = GetFocusedTickResolution();
+	FFrameNumber CurrentFrame = GetLocalTime().ConvertTo(TickResolution).CeilToFrame();
+	TRange<FFrameNumber> SelectionRange(TNumericLimits<FFrameNumber>::Min(), CurrentFrame);
+
+	TSet<TSharedRef<FSequencerDisplayNode> > DisplayNodes = Selection.GetSelectedOutlinerNodes();
+	if (DisplayNodes.Num() == 0)
+	{
+		DisplayNodes.Append(NodeTree->GetAllNodes());
+	}
+
+	Selection.Empty();
+	for (TSharedRef<FSequencerDisplayNode>& DisplayNode : DisplayNodes)
+	{
+		SelectInSelectionRange(DisplayNode, SelectionRange, true, true);
+	}		
+}
+
 
 TRange<FFrameNumber> FSequencer::GetPlaybackRange() const
 {
@@ -12916,6 +12955,14 @@ void FSequencer::BindCommands()
 		Commands.SelectAllInSelectionRange,
 		FExecuteAction::CreateSP(this, &FSequencer::SelectInSelectionRange, true, true),
 		FCanExecuteAction::CreateLambda(IsSelectionRangeNonEmpty));
+
+	SequencerCommandBindings->MapAction(
+		Commands.SelectForward,
+		FExecuteAction::CreateSP(this, &FSequencer::SelectForward));
+
+	SequencerCommandBindings->MapAction(
+		Commands.SelectBackward,
+		FExecuteAction::CreateSP(this, &FSequencer::SelectBackward));
 
 	SequencerCommandBindings->MapAction(
 		Commands.StepToNextShot,
