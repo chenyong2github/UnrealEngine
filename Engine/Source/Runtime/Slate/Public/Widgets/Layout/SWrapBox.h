@@ -61,6 +61,7 @@ public:
 			, SlotFillLineWhenWidthLessThan()
 			, SlotFillLineWhenSizeLessThan()
 			, bSlotFillEmptySpace(false)
+			, bSlotForceNewLine(false)
 		{
 		}
 
@@ -87,11 +88,18 @@ public:
 			return *(static_cast<FSlot*>(this));
 		}
 
+		FSlot& ForceNewLine(bool bInForceNewLine)
+		{
+			bSlotForceNewLine = bInForceNewLine;
+			return *(static_cast<FSlot*>(this));
+		}
+
 		UE_DEPRECATED(4.26, "Deprecated, please use SlotFillLineWhenSizeLessThan instead")
 		TOptional<float> SlotFillLineWhenWidthLessThan;
 
 		TOptional<float> SlotFillLineWhenSizeLessThan;
 		bool bSlotFillEmptySpace;
+		bool bSlotForceNewLine;
 	};
 
 

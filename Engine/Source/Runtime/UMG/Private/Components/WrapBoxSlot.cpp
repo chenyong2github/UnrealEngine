@@ -15,6 +15,7 @@ UWrapBoxSlot::UWrapBoxSlot(const FObjectInitializer& ObjectInitializer)
 
 	bFillEmptySpace = false;
 	FillSpanWhenLessThan = 0;
+	bForceNewLine = false;
 }
 
 void UWrapBoxSlot::ReleaseSlateResources(bool bReleaseChildren)
@@ -32,6 +33,7 @@ void UWrapBoxSlot::BuildSlot(TSharedRef<SWrapBox> WrapBox)
 		.VAlign(VerticalAlignment)
 		.FillEmptySpace(bFillEmptySpace)
 		.FillLineWhenSizeLessThan(FillSpanWhenLessThan == 0 ? TOptional<float>() : TOptional<float>(FillSpanWhenLessThan))
+		.ForceNewLine(false)
 		[
 			Content == NULL ? SNullWidget::NullWidget : Content->TakeWidget()
 		];
@@ -82,6 +84,15 @@ void UWrapBoxSlot::SetVerticalAlignment(EVerticalAlignment InVerticalAlignment)
 	}
 }
 
+void UWrapBoxSlot::SetNewLine(bool InForceNewLine)
+{
+	bForceNewLine = InForceNewLine;
+	if (Slot)
+	{
+		Slot->bSlotForceNewLine = InForceNewLine;
+	}
+}
+
 void UWrapBoxSlot::SynchronizeProperties()
 {
 	SetPadding(Padding);
@@ -89,4 +100,5 @@ void UWrapBoxSlot::SynchronizeProperties()
 	SetFillSpanWhenLessThan(FillSpanWhenLessThan);
 	SetHorizontalAlignment(HorizontalAlignment);
 	SetVerticalAlignment(VerticalAlignment);
+	SetNewLine(bForceNewLine);
 }

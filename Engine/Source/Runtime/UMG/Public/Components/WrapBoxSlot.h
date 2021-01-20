@@ -42,6 +42,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Layout|Wrap Box Slot")
 	TEnumAsByte<EVerticalAlignment> VerticalAlignment;
 
+	/** Should this slot start on a new line? */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Layout|Wrap Box Slot")
+	bool bForceNewLine;
+
 public:
 
 	UFUNCTION(BlueprintCallable, Category="Layout|Wrap Box Slot")
@@ -58,6 +62,9 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category="Layout|Wrap Box Slot")
 	void SetVerticalAlignment(EVerticalAlignment InVerticalAlignment);
+
+	UFUNCTION(BlueprintCallable, Category="Layout|Wrap Box Slot")
+	void SetNewLine(bool InForceNewLine);
 
 public:
 
