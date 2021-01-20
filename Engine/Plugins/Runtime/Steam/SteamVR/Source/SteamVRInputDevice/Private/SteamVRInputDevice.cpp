@@ -2713,10 +2713,48 @@ void FSteamVRInputDevice::GenerateActionBindings(TArray<FInputMapping>& InInputM
 					CacheMode = FName(TEXT("dpad"));
 				}
 
+				// Override Index Trackpad and Grip Clicks - OpenXR parallels for ease of title migration to OpenXR
+				if (CurrentInputKeyName.Contains(TEXT("ValveIndex"), ESearchCase::IgnoreCase, ESearchDir::FromStart)
+					&& CurrentInputKeyName.Contains(TEXT("Force"), ESearchCase::IgnoreCase, ESearchDir::FromEnd)
+					&& (CurrentInputKeyName.Contains(TEXT("Trackpad"), ESearchCase::IgnoreCase, ESearchDir::FromStart) || CurrentInputKeyName.Contains(TEXT("Grip"), ESearchCase::IgnoreCase, ESearchDir::FromStart))
+					)
+				{
+					CacheMode = FName(TEXT("button"));
+					CacheType = FString(TEXT("click"));
+				}
+				else if (CurrentInputKeyName.Contains(TEXT("ValveIndex"), ESearchCase::IgnoreCase, ESearchDir::FromStart)
+					&& CurrentInputKeyName.Contains(TEXT("Axis"), ESearchCase::IgnoreCase, ESearchDir::FromEnd)
+					&& CurrentInputKeyName.Contains(TEXT("Grip"), ESearchCase::IgnoreCase, ESearchDir::FromStart)
+					)
+				{
+					InputState.bIsTrigger = false;
+					InputState.bIsCapSense = true;
+					CacheMode = FName(TEXT("button"));
+					CacheType = FString(TEXT("touch"));
+				}
+
 				// Create Action Source
 				FActionSource ActionSource = FActionSource(CacheMode, CachePath);
 				TSharedRef<FJsonObject> ActionSourceJsonObject = MakeShareable(new FJsonObject());
 				ActionSourceJsonObject->SetStringField(TEXT("mode"), ActionSource.Mode.ToString());
+
+				// Set force_input parameter when dealing with Index Grip Force as a Digital input
+				if (CurrentInputKeyName.Contains(TEXT("ValveIndex"), ESearchCase::IgnoreCase, ESearchDir::FromStart)
+					&& CurrentInputKeyName.Contains(TEXT("Force"), ESearchCase::IgnoreCase, ESearchDir::FromEnd)
+					&& CurrentInputKeyName.Contains(TEXT("Grip"), ESearchCase::IgnoreCase, ESearchDir::FromStart)
+					)
+				{
+					// Create force_input parameter
+					TSharedRef<FJsonObject> ParamJsonObject = MakeShareable(new FJsonObject());
+					ParamJsonObject->SetStringField(TEXT("force_input"), TEXT("force"));
+
+					// Create Parameter
+					TSharedPtr<FJsonObject> ParametersJsonObject = MakeShareable(new FJsonObject());
+
+					// Add to action source json
+					ActionSourceJsonObject->SetObjectField(TEXT("parameters"), ParamJsonObject);
+				}
+
 
 				// Set Action Path
 				if (!ActionSource.Path.IsEmpty())
@@ -2820,6 +2858,7 @@ void FSteamVRInputDevice::GenerateActionBindings(TArray<FInputMapping>& InInputM
 					CacheMode = FName(TEXT("button"));
 					CacheType = FString(TEXT("click"));
 				}
+
 
 				if (!CacheType.IsEmpty())
 				{
