@@ -91,6 +91,8 @@ namespace GroomDebug
 	};
 }
 
+bool IsHairStrandsSkinCacheEnable();
+
 static void GetGroomInterpolationData(
 	FRDGBuilder& GraphBuilder,
 	const TArray<FHairGroupInstance*> Instances,
@@ -112,7 +114,7 @@ static void GetGroomInterpolationData(
 				CachedGeometry = SkinCache->GetCachedGeometry(Instance->Debug.SkeletalComponent->ComponentId.PrimIDValue);
 			}
 			
-			if (CachedGeometry.Sections.Num() == 0)
+			if (IsHairStrandsSkinCacheEnable() && CachedGeometry.Sections.Num() == 0)
 			{
 				FGlobalShaderMap* ShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
 				BuildCacheGeometry(GraphBuilder, ShaderMap, Instance->Debug.SkeletalComponent, CachedGeometry);
