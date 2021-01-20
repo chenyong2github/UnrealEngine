@@ -4453,6 +4453,7 @@ void FSceneRenderer::PostVisibilityFrameSetup(FILCUpdatePrimTaskData& OutILCTask
 }
 
 uint32 GetShadowQuality();
+void UpdateHairResources(FRDGBuilder& GraphBuilder, const FViewInfo& View);
 
 /** 
 * Performs once per frame setup prior to visibility determination.
@@ -4579,6 +4580,7 @@ bool FDeferredShadingSceneRenderer::InitViews(FRDGBuilder& GraphBuilder, const F
 			}
 
 			// Initialize the view's RHI resources.
+			UpdateHairResources(GraphBuilder, View);
 			View.InitRHIResources();
 		}
 
