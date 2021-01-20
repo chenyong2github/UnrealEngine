@@ -1530,6 +1530,8 @@ bool FPerforceGetPendingChangelistsWorker::Execute(FPerforceSourceControlCommand
 
 		TSharedRef<FUpdatePendingChangelistsStatus, ESPMode::ThreadSafe> Operation = StaticCastSharedRef<FUpdatePendingChangelistsStatus>(InCommand.Operation);
 
+		InCommand.bCommandSuccessful = true;
+
 		if (Operation->ShouldUpdateAllChangelists())
 		{
 			// First, insert the default changelist which always exists
@@ -1544,7 +1546,8 @@ bool FPerforceGetPendingChangelistsWorker::Execute(FPerforceSourceControlCommand
 			Parameters.Add(InCommand.ConnectionInfo.Workspace);			// <workspace>
 
 			FP4RecordSet Records;
-			InCommand.bCommandSuccessful = Connection.RunCommand(TEXT("changes"), Parameters, Records, InCommand.ResultInfo.ErrorMessages, FOnIsCancelled::CreateRaw(&InCommand, &FPerforceSourceControlCommand::IsCanceled), InCommand.bConnectionDropped);
+			Connection.RunCommand(TEXT("changes"), Parameters, Records, InCommand.ResultInfo.ErrorMessages, FOnIsCancelled::CreateRaw(&InCommand, &FPerforceSourceControlCommand::IsCanceled), InCommand.bConnectionDropped);
+			InCommand.bCommandSuccessful &= (InCommand.ResultInfo.ErrorMessages.Num() == 0);
 
 			ParseChangelistsResults(Records, OutChangelistsStates);
 		}
