@@ -77,8 +77,7 @@ namespace Audio
 		bool CancelCommandOnClock(FName InOwningClockName, TSharedPtr<IQuartzQuantizedCommand> InCommandPtr);
 
 		// get access to the owning FMixerDevice
-		FMixerDevice* GetMixerDevice() const { return MixerDevice; }
-
+		FMixerDevice* GetMixerDevice() const;
 
 	private:
 		// updates all active clocks

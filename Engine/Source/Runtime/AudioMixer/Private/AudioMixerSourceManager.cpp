@@ -1127,6 +1127,7 @@ namespace Audio
 
 		if (SourceInfo.bIsPausedForQuantization)
 		{
+			UE_LOG(LogAudioMixer, Display, TEXT("StopInternal() cancelling command [%s]"), *SourceInfo.QuantizedCommandHandle.CommandPtr->GetCommandName().ToString());
 			SourceInfo.QuantizedCommandHandle.Cancel();
 			SourceInfo.bIsPausedForQuantization = false;
 		}
@@ -2585,10 +2586,7 @@ namespace Audio
 	void FMixerSourceManager::PauseSoundForQuantizationCommand(const int32 SourceId)
 	{
 		AUDIO_MIXER_CHECK(SourceId < NumTotalSources);
-		if (!GameThreadInfo.bIsBusy[SourceId])
-		{
-			return;
-		}
+		AUDIO_MIXER_CHECK_AUDIO_PLAT_THREAD(MixerDevice);
 
 		FSourceInfo& SourceInfo = SourceInfos[SourceId];
 
@@ -2599,11 +2597,7 @@ namespace Audio
 	void FMixerSourceManager::SetSubBufferDelayForSound(const int32 SourceId, const int32 FramesToDelay)
 	{
 		AUDIO_MIXER_CHECK(SourceId < NumTotalSources);
-		checkSlow(MixerDevice->IsAudioRenderingThread());
-		if (!GameThreadInfo.bIsBusy[SourceId])
-		{
-			return;
-		}
+		AUDIO_MIXER_CHECK_AUDIO_PLAT_THREAD(MixerDevice);
 
 		FSourceInfo& SourceInfo = SourceInfos[SourceId];
 
@@ -2613,11 +2607,7 @@ namespace Audio
 	void FMixerSourceManager::UnPauseSoundForQuantizationCommand(const int32 SourceId)
 	{
 		AUDIO_MIXER_CHECK(SourceId < NumTotalSources);
-		checkSlow(MixerDevice->IsAudioRenderingThread());
-		if (!GameThreadInfo.bIsBusy[SourceId])
-		{
-			return;
-		}
+		AUDIO_MIXER_CHECK_AUDIO_PLAT_THREAD(MixerDevice);
 
 		FSourceInfo& SourceInfo = SourceInfos[SourceId];
 
