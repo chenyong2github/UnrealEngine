@@ -175,7 +175,7 @@ struct FVertexThroughputDeclaration : public FRenderResource
 TGlobalResource<FVertexThroughputDeclaration> GVertexThroughputDeclaration;
 
 template <uint32 VsMethod, uint32 PsMethod>
-void RunBenchmarkShader(FRHICommandList& RHICmdList, FRHIVertexBuffer* VertexThroughputBuffer, const FSceneView& View, TRefCountPtr<IPooledRenderTarget>& Src, float WorkScale)
+void RunBenchmarkShader(FRHICommandList& RHICmdList, FRHIBuffer* VertexThroughputBuffer, const FSceneView& View, TRefCountPtr<IPooledRenderTarget>& Src, float WorkScale)
 {
 	auto ShaderMap = GetGlobalShaderMap(View.GetFeatureLevel());
 
@@ -252,7 +252,7 @@ void RunBenchmarkShader(FRHICommandList& RHICmdList, FRHIVertexBuffer* VertexThr
 	}
 }
 
-void RunBenchmarkShader(FRHICommandListImmediate& RHICmdList, FRHIVertexBuffer* VertexThroughputBuffer, const FSceneView& View, uint32 MethodId, TRefCountPtr<IPooledRenderTarget>& Src, float WorkScale)
+void RunBenchmarkShader(FRHICommandListImmediate& RHICmdList, FRHIBuffer* VertexThroughputBuffer, const FSceneView& View, uint32 MethodId, TRefCountPtr<IPooledRenderTarget>& Src, float WorkScale)
 {
 	SCOPED_DRAW_EVENTF(RHICmdList, Benchmark, TEXT("Benchmark Method:%d"), MethodId);
 

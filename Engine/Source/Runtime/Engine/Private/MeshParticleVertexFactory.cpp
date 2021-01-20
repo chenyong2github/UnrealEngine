@@ -68,7 +68,7 @@ public:
 		return TEXT("FDummyPrevTransformBuffer");
 	}
 
-	inline FRHIVertexBuffer* GetVB() const
+	inline FRHIBuffer* GetVB() const
 	{
 		return VB;
 	}

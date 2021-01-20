@@ -952,7 +952,7 @@ public:
 	 */
 	FMeshDrawShaderBindings ShaderBindings;
 	FVertexInputStreamArray VertexStreams;
-	FRHIIndexBuffer* IndexBuffer;
+	FRHIBuffer* IndexBuffer;
 
 	/**
 	 * PSO
@@ -976,7 +976,7 @@ public:
 		
 		struct  
 		{
-			FRHIVertexBuffer* Buffer;
+			FRHIBuffer* Buffer;
 			uint32 Offset;
 		} IndirectArgs;
 	};
@@ -1106,7 +1106,7 @@ public:
 		const FMeshDrawCommand& RESTRICT MeshDrawCommand,
 		const FGraphicsMinimalPipelineStateSet& GraphicsMinimalPipelineStateSet,
 		// GPUCULL_TODO: Rename, and probably wrap in struct that links to GPU-Scene, maybe generalize (probably not)?
-		FRHIVertexBuffer* ScenePrimitiveIdsBuffer,
+		FRHIBuffer* ScenePrimitiveIdsBuffer,
 		int32 PrimitiveIdOffset,
 		uint32 InstanceFactor,
 		FRHICommandList& RHICmdList,
@@ -1115,7 +1115,7 @@ public:
 	/** Submits just the draw primitive portion of the draw command. */
 	static void SubmitDrawEnd(const FMeshDrawCommand& MeshDrawCommand, uint32 InstanceFactor, FRHICommandList& RHICmdList,
 		// GPUCULL_TODO: Rename, and probably wrap in struct that links to GPU-Scene, maybe generalize (probably not)?
-		FRHIVertexBuffer* IndirectArgsOverrideBuffer = nullptr,
+		FRHIBuffer* IndirectArgsOverrideBuffer = nullptr,
 		uint32 IndirectArgsOverrideByteOffset = 0U);
 
 	/** Submits commands to the RHI Commandlist to draw the MeshDrawCommand. */
@@ -1123,12 +1123,12 @@ public:
 		const FMeshDrawCommand& RESTRICT MeshDrawCommand,
 		const FGraphicsMinimalPipelineStateSet& GraphicsMinimalPipelineStateSet,
 		// GPUCULL_TODO: Rename, and probably wrap in struct that links to GPU-Scene, maybe generalize (probably not)?
-		FRHIVertexBuffer* ScenePrimitiveIdsBuffer,
+		FRHIBuffer* ScenePrimitiveIdsBuffer,
 		int32 PrimitiveIdOffset,
 		uint32 InstanceFactor,
 		FRHICommandList& CommandList,
 		class FMeshDrawCommandStateCache& RESTRICT StateCache,
-		FRHIVertexBuffer* IndirectArgsOverrideBuffer = nullptr,
+		FRHIBuffer* IndirectArgsOverrideBuffer = nullptr,
 		uint32 IndirectArgsOverrideByteOffset = 0U);
 
 	FORCENOINLINE friend uint32 GetTypeHash( const FMeshDrawCommand& Other )
@@ -1814,7 +1814,7 @@ private:
 extern void SubmitMeshDrawCommands(
 	const FMeshCommandOneFrameArray& VisibleMeshDrawCommands,
 	const FGraphicsMinimalPipelineStateSet& GraphicsMinimalPipelineStateSet, 
-	FRHIVertexBuffer* PrimitiveIdsBuffer,
+	FRHIBuffer* PrimitiveIdsBuffer,
 	int32 BasePrimitiveIdsOffset,
 	bool bDynamicInstancing,
 	uint32 InstanceFactor,
@@ -1823,7 +1823,7 @@ extern void SubmitMeshDrawCommands(
 extern void SubmitMeshDrawCommandsRange(
 	const FMeshCommandOneFrameArray& VisibleMeshDrawCommands,
 	const FGraphicsMinimalPipelineStateSet& GraphicsMinimalPipelineStateSet,
-	FRHIVertexBuffer* PrimitiveIdsBuffer,
+	FRHIBuffer* PrimitiveIdsBuffer,
 	int32 BasePrimitiveIdsOffset,
 	bool bDynamicInstancing,
 	int32 StartIndex,

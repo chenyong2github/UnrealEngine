@@ -44,7 +44,7 @@ public:
 	 * @param SourceBuffer The buffer holding the source data.
 	 * @param NumBytes The number of bytes to copy. If 0, this will copy the entire buffer.
 	 */
-	virtual void EnqueueCopy(FRHICommandList& RHICmdList, FRHIVertexBuffer* SourceBuffer, uint32 NumBytes = 0)
+	virtual void EnqueueCopy(FRHICommandList& RHICmdList, FRHIBuffer* SourceBuffer, uint32 NumBytes = 0)
 	{
 		unimplemented();
 	}
@@ -81,7 +81,7 @@ public:
 
 	FRHIGPUBufferReadback(FName RequestName);
 	 
-	void EnqueueCopy(FRHICommandList& RHICmdList, FRHIVertexBuffer* SourceBuffer, uint32 NumBytes = 0) override;
+	void EnqueueCopy(FRHICommandList& RHICmdList, FRHIBuffer* SourceBuffer, uint32 NumBytes = 0) override;
 	void* Lock(uint32 NumBytes) override;
 	void Unlock() override;
 

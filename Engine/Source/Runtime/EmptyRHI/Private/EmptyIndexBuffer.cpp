@@ -9,7 +9,7 @@
 
 /** Constructor */
 FEmptyIndexBuffer::FEmptyIndexBuffer(uint32 InStride, uint32 InSize, uint32 InUsage)
-	: FRHIIndexBuffer(InStride, InSize, InUsage)
+	: FRHIBuffer(InStride, InSize, InUsage)
 {
 }
 
@@ -52,21 +52,21 @@ FIndexBufferRHIRef FEmptyDynamicRHI::RHICreateIndexBuffer(uint32 Stride, uint32 
 	return IndexBuffer;
 }
 
-void* FEmptyDynamicRHI::LockIndexBuffer_BottomOfPipe(FRHICommandListImmediate& RHICmdList, FRHIIndexBuffer* IndexBufferRHI, uint32 Offset, uint32 Size, EResourceLockMode LockMode)
+void* FEmptyDynamicRHI::LockIndexBuffer_BottomOfPipe(FRHICommandListImmediate& RHICmdList, FRHIBuffer* IndexBufferRHI, uint32 Offset, uint32 Size, EResourceLockMode LockMode)
 {
 	FEmptyIndexBuffer* IndexBuffer = ResourceCast(IndexBufferRHI);
 
 	return (uint8*)IndexBuffer->Lock(LockMode, Size) + Offset;
 }
 
-void FEmptyDynamicRHI::UnlockIndexBuffer_BottomOfPipe(FRHICommandListImmediate& RHICmdList, FRHIIndexBuffer* IndexBufferRHI)
+void FEmptyDynamicRHI::UnlockIndexBuffer_BottomOfPipe(FRHICommandListImmediate& RHICmdList, FRHIBuffer* IndexBufferRHI)
 {
 	FEmptyIndexBuffer* IndexBuffer = ResourceCast(IndexBufferRHI);
 
 	IndexBuffer->Unlock();
 }
 
-void FEmptyDynamicRHI::RHITransferIndexBufferUnderlyingResource(FRHIIndexBuffer* DestIndexBuffer, FRHIIndexBuffer* SrcIndexBuffer)
+void FEmptyDynamicRHI::RHITransferIndexBufferUnderlyingResource(FRHIBuffer* DestIndexBuffer, FRHIBuffer* SrcIndexBuffer)
 {
 
 }

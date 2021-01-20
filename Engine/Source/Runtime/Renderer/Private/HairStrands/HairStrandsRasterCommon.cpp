@@ -426,7 +426,7 @@ void AddHairStrandsRasterPass(
 
 		if (VisibleMeshDrawCommands.Num() > 0)
 		{
-			FRHIVertexBuffer* PrimitiveIdVertexBuffer = nullptr;
+			FRHIBuffer* PrimitiveIdVertexBuffer = nullptr;
 			SortAndMergeDynamicPassMeshDrawCommands(ViewInfo->GetFeatureLevel(), VisibleMeshDrawCommands, DynamicMeshDrawCommandStorage, PrimitiveIdVertexBuffer, 1);
 			SubmitMeshDrawCommands(VisibleMeshDrawCommands, GraphicsMinimalPipelineStateSet, PrimitiveIdVertexBuffer, 0, false, 1, RHICmdList);
 		}

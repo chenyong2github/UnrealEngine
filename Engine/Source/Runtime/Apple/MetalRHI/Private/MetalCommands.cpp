@@ -110,7 +110,7 @@ static FORCEINLINE EMetalShaderStages GetShaderStage(FRHIGraphicsShader* ShaderR
 	return Stage;
 }
 
-void FMetalRHICommandContext::RHISetStreamSource(uint32 StreamIndex, FRHIVertexBuffer* VertexBufferRHI,uint32 Offset)
+void FMetalRHICommandContext::RHISetStreamSource(uint32 StreamIndex, FRHIBuffer* VertexBufferRHI,uint32 Offset)
 {
 	@autoreleasepool {
 		FMetalVertexBuffer* VertexBuffer = ResourceCast(VertexBufferRHI);
@@ -162,7 +162,7 @@ void FMetalRHICommandContext::RHIDispatchComputeShader(uint32 ThreadGroupCountX,
 	}
 }
 
-void FMetalRHICommandContext::RHIDispatchIndirectComputeShader(FRHIVertexBuffer* ArgumentBufferRHI, uint32 ArgumentOffset)
+void FMetalRHICommandContext::RHIDispatchIndirectComputeShader(FRHIBuffer* ArgumentBufferRHI, uint32 ArgumentOffset)
 {
 	@autoreleasepool {
 	if (GetMetalDeviceContext().SupportsFeature(EMetalFeaturesIndirectBuffer))
@@ -516,7 +516,7 @@ void FMetalRHICommandContext::RHIDrawPrimitive(uint32 BaseVertexIndex, uint32 Nu
 	}
 }
 
-void FMetalRHICommandContext::RHIDrawPrimitiveIndirect(FRHIVertexBuffer* VertexBufferRHI, uint32 ArgumentOffset)
+void FMetalRHICommandContext::RHIDrawPrimitiveIndirect(FRHIBuffer* ArgumentBufferRHI, uint32 ArgumentOffset)
 {
 	@autoreleasepool {
 #if PLATFORM_IOS
@@ -527,14 +527,14 @@ void FMetalRHICommandContext::RHIDrawPrimitiveIndirect(FRHIVertexBuffer* VertexB
 	
 	
 	RHI_DRAW_CALL_STATS(PrimitiveType,1);
-	FMetalVertexBuffer* VertexBuffer = ResourceCast(VertexBufferRHI);
+	FMetalResourceMultiBuffer* ArgumentBuffer = ResourceCast(ArgumentBufferRHI);
 	
-	Context->DrawPrimitiveIndirect(PrimitiveType, VertexBuffer, ArgumentOffset);
+	Context->DrawPrimitiveIndirect(PrimitiveType, ArgumentBuffer, ArgumentOffset);
 #endif
 	}
 }
 
-void FMetalRHICommandContext::RHIDrawIndexedPrimitive(FRHIIndexBuffer* IndexBufferRHI, int32 BaseVertexIndex, uint32 FirstInstance,
+void FMetalRHICommandContext::RHIDrawIndexedPrimitive(FRHIBuffer* IndexBufferRHI, int32 BaseVertexIndex, uint32 FirstInstance,
 	uint32 NumVertices, uint32 StartIndex, uint32 NumPrimitives, uint32 NumInstances)
 {
 	@autoreleasepool {
@@ -547,12 +547,12 @@ void FMetalRHICommandContext::RHIDrawIndexedPrimitive(FRHIIndexBuffer* IndexBuff
 		
 	RHI_DRAW_CALL_STATS(PrimitiveType,FMath::Max(NumInstances,1u)*NumPrimitives);
 
-	FMetalIndexBuffer* IndexBuffer = ResourceCast(IndexBufferRHI);
+	FMetalResourceMultiBuffer* IndexBuffer = ResourceCast(IndexBufferRHI);
 	Context->DrawIndexedPrimitive(IndexBuffer->GetCurrentBuffer(), IndexBuffer->GetStride(), IndexBuffer->IndexType, PrimitiveType, BaseVertexIndex, FirstInstance, NumVertices, StartIndex, NumPrimitives, NumInstances);
 	}
 }
 
-void FMetalRHICommandContext::RHIDrawIndexedIndirect(FRHIIndexBuffer* IndexBufferRHI, FRHIStructuredBuffer* VertexBufferRHI, int32 DrawArgumentsIndex, uint32 NumInstances)
+void FMetalRHICommandContext::RHIDrawIndexedIndirect(FRHIBuffer* IndexBufferRHI, FRHIBuffer* ArgumentsBufferRHI, int32 DrawArgumentsIndex, uint32 NumInstances)
 {
 	@autoreleasepool {
 	if (GetMetalDeviceContext().SupportsFeature(EMetalFeaturesIndirectBuffer))
@@ -565,10 +565,10 @@ void FMetalRHICommandContext::RHIDrawIndexedIndirect(FRHIIndexBuffer* IndexBuffe
 		
 
 		RHI_DRAW_CALL_STATS(PrimitiveType,1);
-		FMetalIndexBuffer* IndexBuffer = ResourceCast(IndexBufferRHI);
-		FMetalStructuredBuffer* VertexBuffer = ResourceCast(VertexBufferRHI);
+		FMetalResourceMultiBuffer* IndexBuffer = ResourceCast(IndexBufferRHI);
+		FMetalResourceMultiBuffer* ArgumentsBuffer = ResourceCast(ArgumentsBufferRHI);
 		
-		Context->DrawIndexedIndirect(IndexBuffer, PrimitiveType, VertexBuffer, DrawArgumentsIndex, NumInstances);
+		Context->DrawIndexedIndirect(IndexBuffer, PrimitiveType, ArgumentsBuffer, DrawArgumentsIndex, NumInstances);
 	}
 	else
 	{
@@ -577,7 +577,7 @@ void FMetalRHICommandContext::RHIDrawIndexedIndirect(FRHIIndexBuffer* IndexBuffe
 	}
 }
 
-void FMetalRHICommandContext::RHIDrawIndexedPrimitiveIndirect(FRHIIndexBuffer* IndexBufferRHI, FRHIVertexBuffer* VertexBufferRHI,uint32 ArgumentOffset)
+void FMetalRHICommandContext::RHIDrawIndexedPrimitiveIndirect(FRHIBuffer* IndexBufferRHI, FRHIBuffer* ArgumentBufferRHI, uint32 ArgumentOffset)
 {
 	@autoreleasepool {
 	if (GetMetalDeviceContext().SupportsFeature(EMetalFeaturesIndirectBuffer))
@@ -588,10 +588,10 @@ void FMetalRHICommandContext::RHIDrawIndexedPrimitiveIndirect(FRHIIndexBuffer* I
 		
 
 		RHI_DRAW_CALL_STATS(PrimitiveType,1);
-		FMetalIndexBuffer* IndexBuffer = ResourceCast(IndexBufferRHI);
-		FMetalVertexBuffer* VertexBuffer = ResourceCast(VertexBufferRHI);
+		FMetalResourceMultiBuffer* IndexBuffer = ResourceCast(IndexBufferRHI);
+		FMetalResourceMultiBuffer* ArgumentsBuffer = ResourceCast(ArgumentBufferRHI);
 		
-		Context->DrawIndexedPrimitiveIndirect(PrimitiveType, IndexBuffer, VertexBuffer, ArgumentOffset);
+		Context->DrawIndexedPrimitiveIndirect(PrimitiveType, IndexBuffer, ArgumentsBuffer, ArgumentOffset);
 	}
 	else
 	{

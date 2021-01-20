@@ -260,10 +260,10 @@ public:
 	{
 		return this->RHICreateTexture3D(SizeX, SizeY, SizeZ, Format, NumMips, Flags, InResourceState, CreateInfo);
 	}
-	virtual FUnorderedAccessViewRHIRef RHICreateUnorderedAccessView_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIStructuredBuffer* StructuredBuffer, bool bUseUAVCounter, bool bAppendBuffer) final override
+	virtual FUnorderedAccessViewRHIRef RHICreateUnorderedAccessView_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIBuffer* Buffer, bool bUseUAVCounter, bool bAppendBuffer) final override
 	{
 		// this-> is required to avoid calling the global version of this function
-		return this->RHICreateUnorderedAccessView(StructuredBuffer, bUseUAVCounter, bAppendBuffer);
+		return this->RHICreateUnorderedAccessView(Buffer, bUseUAVCounter, bAppendBuffer);
 	}
 
 	virtual FUnorderedAccessViewRHIRef RHICreateUnorderedAccessView_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITexture* Texture, uint32 MipLevel) final override
@@ -272,15 +272,15 @@ public:
 		return this->RHICreateUnorderedAccessView(Texture, MipLevel);
 	}
 
-	virtual FUnorderedAccessViewRHIRef RHICreateUnorderedAccessView_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIVertexBuffer* VertexBuffer, uint8 Format) final override
+	virtual FUnorderedAccessViewRHIRef RHICreateUnorderedAccessView_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIBuffer* Buffer, uint8 Format) final override
 	{
 		// this-> is required to avoid calling the global version of this function
-		return this->RHICreateUnorderedAccessView(VertexBuffer, Format);
+		return this->RHICreateUnorderedAccessView(Buffer, Format);
 	}
 
-	virtual FShaderResourceViewRHIRef CreateShaderResourceView_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIVertexBuffer* VertexBuffer, uint32 Stride, uint8 Format) final override
+	virtual FShaderResourceViewRHIRef CreateShaderResourceView_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIBuffer* Buffer, uint32 Stride, uint8 Format) final override
 	{
-		return this->RHICreateShaderResourceView(VertexBuffer, Stride, Format);
+		return this->RHICreateShaderResourceView(Buffer, Stride, Format);
 	}
 
 	virtual FShaderResourceViewRHIRef CreateShaderResourceView_RenderThread(class FRHICommandListImmediate& RHICmdList, const FShaderResourceViewInitializer& Initializer) final override
@@ -294,13 +294,13 @@ public:
 		return this->RHICreateShaderResourceView(Texture, CreateInfo);
 	}
 
-	virtual FShaderResourceViewRHIRef RHICreateShaderResourceView_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIVertexBuffer* VertexBuffer, uint32 Stride, uint8 Format) final override
+	virtual FShaderResourceViewRHIRef RHICreateShaderResourceView_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIBuffer* Buffer, uint32 Stride, uint8 Format) final override
 	{
 		// this-> is required to avoid calling the global version of this function
-		return this->RHICreateShaderResourceView(VertexBuffer, Stride, Format);
+		return this->RHICreateShaderResourceView(Buffer, Stride, Format);
 	}
 
-	virtual FShaderResourceViewRHIRef RHICreateShaderResourceView_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIStructuredBuffer* StructuredBuffer) final override
+	virtual FShaderResourceViewRHIRef RHICreateShaderResourceView_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIBuffer* StructuredBuffer) final override
 	{
 		// this-> is required to avoid calling the global version of this function
 		return this->RHICreateShaderResourceView(StructuredBuffer);
@@ -323,10 +323,8 @@ public:
 
 	//virtual void RHIAcquireTransientResource_RenderThread(FRHITexture* Texture) { }
 	//virtual void RHIDiscardTransientResource_RenderThread(FRHITexture* Texture) { }
-	//virtual void RHIAcquireTransientResource_RenderThread(FRHIVertexBuffer* Buffer) { }
-	//virtual void RHIDiscardTransientResource_RenderThread(FRHIVertexBuffer* Buffer) { }
-	//virtual void RHIAcquireTransientResource_RenderThread(FRHIStructuredBuffer*FRHIStructuredBuffer* Buffer) { }
-	//virtual void RHIDiscardTransientResource_RenderThread(FRHIStructuredBuffer* Buffer) { }
+	//virtual void RHIAcquireTransientResource_RenderThread(FRHIBuffer* Buffer) { }
+	//virtual void RHIDiscardTransientResource_RenderThread(FRHIBuffer* Buffer) { }
 
 	// FVulkanDynamicRHI interface
 	virtual FTexture2DRHIRef RHICreateTexture2DFromResource(EPixelFormat Format, uint32 SizeX, uint32 SizeY, uint32 NumMips, uint32 NumSamples, VkImage Resource, ETextureCreateFlags Flags);

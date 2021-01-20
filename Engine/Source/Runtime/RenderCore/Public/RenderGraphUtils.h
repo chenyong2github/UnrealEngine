@@ -332,7 +332,7 @@ struct RENDERCORE_API FComputeShaderUtils
 		FRHIComputeCommandList& RHICmdList,
 		const TShaderRef<TShaderClass>& ComputeShader,
 		const typename TShaderClass::FParameters& Parameters,
-		FRHIVertexBuffer* IndirectArgsBuffer,
+		FRHIBuffer* IndirectArgsBuffer,
 		uint32 IndirectArgOffset)
 	{
 		ValidateIndirectArgsBuffer(IndirectArgsBuffer->GetSize(), IndirectArgOffset);

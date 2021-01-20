@@ -98,7 +98,7 @@ public:
 	FIndexBufferRHIRef CreateRHIBuffer_Async();
 
 	template <uint32 MaxNumUpdates>
-	void InitRHIForStreaming(FRHIIndexBuffer* IntermediateBuffer, TRHIResourceUpdateBatcher<MaxNumUpdates>& Batcher)
+	void InitRHIForStreaming(FRHIBuffer* IntermediateBuffer, TRHIResourceUpdateBatcher<MaxNumUpdates>& Batcher)
 	{
 		check(!((uint32)!!IntermediateBuffer ^ (uint32)!!IndexBuffer));
 		if (IntermediateBuffer)

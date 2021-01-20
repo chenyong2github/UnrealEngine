@@ -1051,7 +1051,7 @@ void SortAndMergeDynamicPassMeshDrawCommands(
 	ERHIFeatureLevel::Type FeatureLevel,
 	FMeshCommandOneFrameArray& VisibleMeshDrawCommands,
 	FDynamicMeshDrawCommandStorage& MeshDrawCommandStorage,
-	FRHIVertexBuffer*& OutPrimitiveIdVertexBuffer,
+	FRHIBuffer*& OutPrimitiveIdVertexBuffer,
 	uint32 InstanceFactor)
 {
 	const bool bUseGPUScene = UseGPUScene(GMaxRHIShaderPlatform, FeatureLevel);
@@ -1343,8 +1343,8 @@ void SubmitGPUInstancedMeshDrawCommandsRange(
 	const FGraphicsMinimalPipelineStateSet& GraphicsMinimalPipelineStateSet,
 	int32 StartIndex,
 	int32 NumMeshDrawCommands,
-	FRHIVertexBuffer* InstanceIdsOffsetBuffer, // Bound to a vertex stream to fetch a start offset for all instances, need to be 0-stepping
-	FRHIVertexBuffer* IndirectArgsBuffer, // Overrides the args for the draw call
+	FRHIBuffer* InstanceIdsOffsetBuffer, // Bound to a vertex stream to fetch a start offset for all instances, need to be 0-stepping
+	FRHIBuffer* IndirectArgsBuffer, // Overrides the args for the draw call
 	FRHICommandList& RHICmdList)
 {
 #if defined(GPUCULL_TODO)
@@ -1369,10 +1369,10 @@ class FDrawVisibleMeshCommandsAnyThreadTask : public FRenderTask
 	const FMeshCommandOneFrameArray& VisibleMeshDrawCommands;
 	const FGraphicsMinimalPipelineStateSet& GraphicsMinimalPipelineStateSet;
 #if defined(GPUCULL_TODO)
-	FRHIVertexBuffer* InstanceIdOffsetBuffer;
-	FRHIVertexBuffer* DrawIndirectArgsBuffer;
+	FRHIBuffer* InstanceIdOffsetBuffer;
+	FRHIBuffer* DrawIndirectArgsBuffer;
 #else //!defined(GPUCULL_TODO)
-	FRHIVertexBuffer* PrimitiveIdsBuffer;
+	FRHIBuffer* PrimitiveIdsBuffer;
 	int32 BasePrimitiveIdsOffset;
 	bool bDynamicInstancing;
 	uint32 InstanceFactor;
@@ -1387,10 +1387,10 @@ public:
 		const FMeshCommandOneFrameArray& InVisibleMeshDrawCommands,
 		const FGraphicsMinimalPipelineStateSet& InGraphicsMinimalPipelineStateSet,
 #if defined(GPUCULL_TODO)
-		FRHIVertexBuffer* InInstanceIdOffsetBuffer,
-		FRHIVertexBuffer* InDrawIndirectArgsBuffer,
+		FRHIBuffer* InInstanceIdOffsetBuffer,
+		FRHIBuffer* InDrawIndirectArgsBuffer,
 #else //!defined(GPUCULL_TODO)
-		FRHIVertexBuffer* InPrimitiveIdsBuffer,
+		FRHIBuffer* InPrimitiveIdsBuffer,
 		int32 InBasePrimitiveIdsOffset,
 		bool bInDynamicInstancing,
 		uint32 InInstanceFactor,
@@ -1492,8 +1492,8 @@ void FParallelMeshDrawCommandPass::DispatchDraw(FParallelCommandListSet* Paralle
 	}
 
 #if defined(GPUCULL_TODO)
-	FRHIVertexBuffer* DrawIndirectArgsBuffer = nullptr;
-	FRHIVertexBuffer* InstanceIdOffsetBuffer = nullptr;
+	FRHIBuffer* DrawIndirectArgsBuffer = nullptr;
+	FRHIBuffer* InstanceIdOffsetBuffer = nullptr;
 	if (InstanceCullingDrawParams != nullptr 
 		&& InstanceCullingDrawParams->DrawIndirectArgsBuffer != nullptr 
 		&& InstanceCullingDrawParams->InstanceIdOffsetBuffer != nullptr)
@@ -1503,7 +1503,7 @@ void FParallelMeshDrawCommandPass::DispatchDraw(FParallelCommandListSet* Paralle
 	}
 #endif // defined(GPUCULL_TODO)
 
-	FRHIVertexBuffer* PrimitiveIdsBuffer = PrimitiveIdVertexBufferPoolEntry.BufferRHI;
+	FRHIBuffer* PrimitiveIdsBuffer = PrimitiveIdVertexBufferPoolEntry.BufferRHI;
 	const int32 BasePrimitiveIdsOffset = 0;
 
 	if (ParallelCommandListSet)

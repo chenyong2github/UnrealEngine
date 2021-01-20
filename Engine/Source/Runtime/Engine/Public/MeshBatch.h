@@ -69,7 +69,7 @@ struct FMeshBatchElement
 	// Meaning depends on the vertex factory, e.g. FGPUSkinPassthroughVertexFactory: element index in FGPUSkinCache::CachedElements
 	void* VertexFactoryUserData;
 
-	FRHIVertexBuffer* IndirectArgsBuffer;
+	FRHIBuffer* IndirectArgsBuffer;
 	uint32 IndirectArgsOffset;
 
 	/** Assigned by renderer */

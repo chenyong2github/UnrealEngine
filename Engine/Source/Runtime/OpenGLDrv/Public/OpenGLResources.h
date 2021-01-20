@@ -2012,7 +2012,7 @@ public:
 
 	FOpenGLVertexBufferUnorderedAccessView();
 
-	FOpenGLVertexBufferUnorderedAccessView(	FOpenGLDynamicRHI* InOpenGLRHI, FRHIVertexBuffer* InVertexBuffer, uint8 Format);
+	FOpenGLVertexBufferUnorderedAccessView(	FOpenGLDynamicRHI* InOpenGLRHI, FRHIBuffer* InVertexBuffer, uint8 Format);
 
 	virtual ~FOpenGLVertexBufferUnorderedAccessView();
 
@@ -2028,7 +2028,7 @@ class FOpenGLStructuredBufferUnorderedAccessView : public FOpenGLUnorderedAccess
 public:
 	FOpenGLStructuredBufferUnorderedAccessView();
 
-	FOpenGLStructuredBufferUnorderedAccessView(	FOpenGLDynamicRHI* InOpenGLRHI, FRHIStructuredBuffer* InBuffer, uint8 Format);
+	FOpenGLStructuredBufferUnorderedAccessView(	FOpenGLDynamicRHI* InOpenGLRHI, FRHIBuffer* InBuffer, uint8 Format);
 
 	virtual ~FOpenGLStructuredBufferUnorderedAccessView();
 
@@ -2071,7 +2071,7 @@ public:
 	,	OwnsResource(true)
 	{}
 
-	FOpenGLShaderResourceView(FOpenGLDynamicRHI* InOpenGLRHI, GLuint InResource, GLenum InTarget, FRHIIndexBuffer* InIndexBuffer)
+	FOpenGLShaderResourceView(FOpenGLDynamicRHI* InOpenGLRHI, GLuint InResource, GLenum InTarget, FRHIBuffer* InIndexBuffer)
 		: Resource(InResource)
 		, Target(InTarget)
 		, LimitMip(-1)
@@ -2088,7 +2088,7 @@ public:
 		}
 	}
 
-	FOpenGLShaderResourceView( FOpenGLDynamicRHI* InOpenGLRHI, GLuint InResource, GLenum InTarget, FRHIVertexBuffer* InVertexBuffer, uint8 InFormat )
+	FOpenGLShaderResourceView( FOpenGLDynamicRHI* InOpenGLRHI, GLuint InResource, GLenum InTarget, FRHIBuffer* InVertexBuffer, uint8 InFormat )
 	:	Resource(InResource)
 	,	Target(InTarget)
 	,	LimitMip(-1)

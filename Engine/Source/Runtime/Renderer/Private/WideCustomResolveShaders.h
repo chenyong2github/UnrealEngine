@@ -83,4 +83,4 @@ extern void ResolveFilterWide(
 	const FIntPoint& SrcOrigin,
 	int32 NumSamples,
 	int32 WideFilterWidth,
-	FRHIVertexBuffer* DummyVB);
+	FRHIBuffer* DummyVB);

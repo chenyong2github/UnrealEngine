@@ -120,7 +120,7 @@ bool FPFMExporterShader::ApplyPFMExporter_RenderThread(
 		}
 		RHIUnlockBuffer(VertexBufferRHI);
 	}
-	FRHIIndexBuffer* IndexBufferRHI = IndexBuffer.IndexBufferRHI;
+	FRHIBuffer* IndexBufferRHI = IndexBuffer.IndexBufferRHI;
 
 	// Build transform matrix for mesh:
 	static float Scale = 1.0f; // Default export scale is unreal, cm

@@ -48,7 +48,7 @@ static void ResolveColorWideInternal2(
 	const FTextureRHIRef& SrcTexture,
 	FRHIShaderResourceView* FmaskSRV,
 	const FIntPoint& SrcOrigin,
-	FRHIVertexBuffer* DummyVB)
+	FRHIBuffer* DummyVB)
 {
 	auto ShaderMap = GetGlobalShaderMap(CurrentFeatureLevel);
 
@@ -77,7 +77,7 @@ static void ResolveColorWideInternal(
 	FRHIShaderResourceView* FmaskSRV,
 	const FIntPoint& SrcOrigin, 
 	int32 WideFilterWidth,
-	FRHIVertexBuffer* DummyVB)
+	FRHIBuffer* DummyVB)
 {
 	switch (WideFilterWidth)
 	{
@@ -97,7 +97,7 @@ void ResolveFilterWide(
 	const FIntPoint& SrcOrigin, 
 	int32 NumSamples,
 	int32 WideFilterWidth,
-	FRHIVertexBuffer* DummyVB)
+	FRHIBuffer* DummyVB)
 {	
 	if (FmaskSRV)
 	{

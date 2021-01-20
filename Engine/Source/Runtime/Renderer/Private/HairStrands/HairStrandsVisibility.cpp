@@ -737,7 +737,7 @@ static void AddHairMaterialGBufferPass(
 
 				if (VisibleMeshDrawCommands.Num() > 0)
 				{
-					FRHIVertexBuffer* PrimitiveIdVertexBuffer = nullptr;
+					FRHIBuffer* PrimitiveIdVertexBuffer = nullptr;
 					SortAndMergeDynamicPassMeshDrawCommands(ViewInfo->GetFeatureLevel(), VisibleMeshDrawCommands, DynamicMeshDrawCommandStorage, PrimitiveIdVertexBuffer, 1);
 					SubmitMeshDrawCommands(VisibleMeshDrawCommands, PipelineStateSet, PrimitiveIdVertexBuffer, 0, false, 1, RHICmdList);
 				}
@@ -1180,7 +1180,7 @@ static FMaterialPassOutput AddHairMaterialPass(
 
 			if (VisibleMeshDrawCommands.Num() > 0)
 			{
-				FRHIVertexBuffer* PrimitiveIdVertexBuffer = nullptr;
+				FRHIBuffer* PrimitiveIdVertexBuffer = nullptr;
 				SortAndMergeDynamicPassMeshDrawCommands(ViewInfo->GetFeatureLevel(), VisibleMeshDrawCommands, DynamicMeshDrawCommandStorage, PrimitiveIdVertexBuffer, 1);
 				SubmitMeshDrawCommands(VisibleMeshDrawCommands, PipelineStateSet, PrimitiveIdVertexBuffer, 0, false, 1, RHICmdList);
 			}
@@ -2465,7 +2465,7 @@ static void AddHairVisibilityCommonPass(
 
 			if (VisibleMeshDrawCommands.Num() > 0)
 			{
-				FRHIVertexBuffer* PrimitiveIdVertexBuffer = nullptr;
+				FRHIBuffer* PrimitiveIdVertexBuffer = nullptr;
 				SortAndMergeDynamicPassMeshDrawCommands(ViewInfo->GetFeatureLevel(), VisibleMeshDrawCommands, DynamicMeshDrawCommandStorage, PrimitiveIdVertexBuffer, 1);
 				SubmitMeshDrawCommands(VisibleMeshDrawCommands, PipelineStateSet, PrimitiveIdVertexBuffer, 0, false, 1, RHICmdList);
 			}

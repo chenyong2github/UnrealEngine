@@ -240,12 +240,12 @@ FRHICOMMAND_MACRO(FRHICommandUpdateGeometryCacheBuffer)
 {
 	FGraphEventRef BufferGenerationCompleteFence;
 
-	FRHIVertexBuffer* VertexBuffer;
+	FRHIBuffer* VertexBuffer;
 	//void *VertexData;
 	//uint32 VertexSize;
 	TArray<uint8> VertexData;
 
-	FRHIIndexBuffer* IndexBuffer;
+	FRHIBuffer* IndexBuffer;
 	//void *IndexData;
 	//uint32 IndexSize;
 	TArray<uint8> IndexData;
@@ -254,10 +254,10 @@ FRHICOMMAND_MACRO(FRHICommandUpdateGeometryCacheBuffer)
 	
 	FORCEINLINE_DEBUGGABLE FRHICommandUpdateGeometryCacheBuffer(
 		FGraphEventRef& InBufferGenerationCompleteFence,
-		FRHIVertexBuffer* InVertexBuffer,
+		FRHIBuffer* InVertexBuffer,
 		void *InVertexData,
 		uint32 InVertexSize,
-		FRHIIndexBuffer* InIndexBuffer,
+		FRHIBuffer* InIndexBuffer,
 		void *InIndexData,
 		uint32 InIndexSize)
 	:

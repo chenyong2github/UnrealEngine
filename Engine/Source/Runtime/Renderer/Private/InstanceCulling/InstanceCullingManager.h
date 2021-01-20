@@ -38,8 +38,8 @@ struct FInstanceCullingResult
 	FRDGBufferRef DrawIndirectArgsBuffer = nullptr;
 	FRDGBufferRef InstanceIdOffsetBuffer = nullptr;
 
-	//FRHIVertexBuffer* GetDrawIndirectArgsBufferRHI() const { return DrawIndirectArgsBuffer.IsValid() ? DrawIndirectArgsBuffer->GetVertexBufferRHI() : nullptr; }
-	//FRHIVertexBuffer* GetInstanceIdOffsetBufferRHI() const { return InstanceIdOffsetBuffer.IsValid() ? InstanceIdOffsetBuffer->GetVertexBufferRHI() : nullptr; }
+	//FRHIBuffer* GetDrawIndirectArgsBufferRHI() const { return DrawIndirectArgsBuffer.IsValid() ? DrawIndirectArgsBuffer->GetVertexBufferRHI() : nullptr; }
+	//FRHIBuffer* GetInstanceIdOffsetBufferRHI() const { return InstanceIdOffsetBuffer.IsValid() ? InstanceIdOffsetBuffer->GetVertexBufferRHI() : nullptr; }
 	void GetDrawParameters(FInstanceCullingDrawParams &OutParams) const
 	{
 		// GPUCULL_TODO: Maybe get dummy buffers?

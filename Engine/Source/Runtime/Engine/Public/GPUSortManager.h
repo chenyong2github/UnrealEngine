@@ -62,7 +62,7 @@ public:
 	FGPUSortBuffers GetSortBuffers();
 
 	/** Retrieve the sorted vertex buffer that results will always be located at. */
-	FRHIVertexBuffer* GetSortedVertexBufferRHI(int32 BufferIndex)
+	FRHIBuffer* GetSortedVertexBufferRHI(int32 BufferIndex)
 	{
 		check((BufferIndex & 0xFFFFFFFE) == 0);
 		return VertexBuffers[BufferIndex];

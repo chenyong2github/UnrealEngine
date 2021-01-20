@@ -63,7 +63,7 @@ private:
 		FStagingBuffer();
 		~FStagingBuffer();
 
-		TRefCountPtr<FRHIStructuredBuffer> RHIBuffer;
+		TRefCountPtr<FRHIBuffer> RHIBuffer;
 		void* Memory = nullptr;
 		uint32 Size = 0u;
 		uint32 CurrentOffset = 0u;

@@ -46,7 +46,7 @@ void FSlateUpdatableInstanceBuffer::FRenderProxy::Update(FRHICommandListImmediat
 	InstanceBufferResource.PreFillBuffer(Data.Num(), false);
 
 	// Enqueue the lock/unlock to the RHI thread
-	FRHIVertexBuffer* VertexBuffer = InstanceBufferResource.VertexBufferRHI;
+	FRHIBuffer* VertexBuffer = InstanceBufferResource.VertexBufferRHI;
 	RHICmdList.EnqueueLambda([VertexBuffer, LocalData = MoveTemp(Data)](FRHICommandListImmediate& InRHICmdList)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_SlateUpdateInstanceBuffer_RHIT);

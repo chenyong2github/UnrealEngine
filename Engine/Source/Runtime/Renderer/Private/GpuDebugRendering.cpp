@@ -287,7 +287,7 @@ namespace ShaderDrawDebug
 			FRDGBufferRef DataBuffer, 
 			FRDGBufferRef IndirectBuffer, 
 			FShaderResourceViewRHIRef LockedDataBuffer,
-			FRHIVertexBuffer* LockedIndirectBuffer)
+			FRHIBuffer* LockedIndirectBuffer)
 		{
 			FShaderDrawDebugVS::FPermutationDomain PermutationVector;
 			PermutationVector.Set<FShaderDrawDebugVS::FInputType>(bUseRdgInput ? 0 : 1);
@@ -347,7 +347,7 @@ namespace ShaderDrawDebug
 				if (bUseRdgInput)
 				{
 					// Marks the indirect draw parameter as used by the pass, given it's not used directly by any of the shaders.
-					FRHIVertexBuffer* IndirectBufferRHI = PassParameters->ShaderDrawVSParameters.IndirectBuffer->GetIndirectRHICallBuffer();
+					FRHIBuffer* IndirectBufferRHI = PassParameters->ShaderDrawVSParameters.IndirectBuffer->GetIndirectRHICallBuffer();
 					check(IndirectBufferRHI != nullptr);
 					RHICmdListImmediate.DrawPrimitiveIndirect(IndirectBufferRHI, 0);
 				}
@@ -367,7 +367,7 @@ namespace ShaderDrawDebug
 		if (LockedData.bIsLocked)
 		{
 			FShaderResourceViewRHIRef LockedDataBuffer = LockedData.Buffer.SRV;
-			FRHIVertexBuffer* LockedIndirectBuffer = LockedData.IndirectBuffer.Buffer;
+			FRHIBuffer* LockedIndirectBuffer = LockedData.IndirectBuffer.Buffer;
 			RunPass(false, nullptr, nullptr, LockedDataBuffer, LockedIndirectBuffer);
 		}
 

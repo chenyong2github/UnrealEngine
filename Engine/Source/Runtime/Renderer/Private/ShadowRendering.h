@@ -221,7 +221,7 @@ class FShadowMeshDrawCommandPass
 {
 public:
 	FMeshCommandOneFrameArray VisibleMeshDrawCommands;
-	FRHIVertexBuffer* PrimitiveIdVertexBuffer;
+	FRHIBuffer* PrimitiveIdVertexBuffer;
 };
 
 /**

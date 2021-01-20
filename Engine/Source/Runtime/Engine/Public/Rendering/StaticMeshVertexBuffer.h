@@ -400,8 +400,8 @@ public:
 	/** Similar to Init/ReleaseRHI but only update existing SRV so references to the SRV stays valid */
 	template <uint32 MaxNumUpdates>
 	void InitRHIForStreaming(
-		FRHIVertexBuffer* IntermediateTangentsBuffer,
-		FRHIVertexBuffer* IntermediateTexCoordBuffer,
+		FRHIBuffer* IntermediateTangentsBuffer,
+		FRHIBuffer* IntermediateTexCoordBuffer,
 		TRHIResourceUpdateBatcher<MaxNumUpdates>& Batcher)
 	{
 		check(TangentsVertexBuffer.VertexBufferRHI && TexCoordVertexBuffer.VertexBufferRHI);

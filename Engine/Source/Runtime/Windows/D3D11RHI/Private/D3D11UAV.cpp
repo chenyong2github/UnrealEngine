@@ -141,24 +141,19 @@ FUnorderedAccessViewRHIRef FD3D11DynamicRHI::RHICreateUnorderedAccessView(FRHIBu
 	return new FD3D11UnorderedAccessView(UnorderedAccessView, Buffer);
 }
 
-FUnorderedAccessViewRHIRef FD3D11DynamicRHI::RHICreateUnorderedAccessView_RenderThread(
-	class FRHICommandListImmediate& RHICmdList,
-	FRHIBuffer* Buffer,
-	uint8 Format)
+FUnorderedAccessViewRHIRef FD3D11DynamicRHI::RHICreateUnorderedAccessView_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIBuffer* Buffer, uint8 Format)
 {
 	return RHICreateUnorderedAccessView(Buffer, Format);
 }
 
-FShaderResourceViewRHIRef FD3D11DynamicRHI::RHICreateShaderResourceView_RenderThread(
-	class FRHICommandListImmediate& RHICmdList,
-	FRHIStructuredBuffer* StructuredBuffer)
+FShaderResourceViewRHIRef FD3D11DynamicRHI::RHICreateShaderResourceView_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIBuffer* Buffer)
 {
-	return RHICreateShaderResourceView(StructuredBuffer);
+	return RHICreateShaderResourceView(Buffer);
 }
 
-FShaderResourceViewRHIRef FD3D11DynamicRHI::RHICreateShaderResourceView(FRHIStructuredBuffer* StructuredBufferRHI)
+FShaderResourceViewRHIRef FD3D11DynamicRHI::RHICreateShaderResourceView(FRHIBuffer* BufferRHI)
 {
-	return FD3D11DynamicRHI::RHICreateShaderResourceView(FShaderResourceViewInitializer(StructuredBufferRHI));
+	return FD3D11DynamicRHI::RHICreateShaderResourceView(FShaderResourceViewInitializer(BufferRHI));
 }
 
 uint64 FD3D11DynamicRHI::RHIGetMinimumAlignmentForBufferBackedSRV(EPixelFormat Format)
@@ -299,25 +294,17 @@ FShaderResourceViewRHIRef FD3D11DynamicRHI::RHICreateShaderResourceView(const FS
 	return nullptr;
 }
 
-FShaderResourceViewRHIRef FD3D11DynamicRHI::CreateShaderResourceView_RenderThread(
-	class FRHICommandListImmediate& RHICmdList,
-	FRHIVertexBuffer* VertexBuffer,
-	uint32 Stride,
-	uint8 Format)
+FShaderResourceViewRHIRef FD3D11DynamicRHI::CreateShaderResourceView_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIBuffer* Buffer, uint32 Stride, uint8 Format)
 {
-	return RHICreateShaderResourceView(VertexBuffer, Stride, Format);
+	return RHICreateShaderResourceView(Buffer, Stride, Format);
 }
 
-FShaderResourceViewRHIRef FD3D11DynamicRHI::RHICreateShaderResourceView_RenderThread(
-	class FRHICommandListImmediate& RHICmdList,
-	const FShaderResourceViewInitializer& Initializer)
+FShaderResourceViewRHIRef FD3D11DynamicRHI::RHICreateShaderResourceView_RenderThread(class FRHICommandListImmediate& RHICmdList, const FShaderResourceViewInitializer& Initializer)
 {
 	return RHICreateShaderResourceView(Initializer);
 }
 
-FShaderResourceViewRHIRef FD3D11DynamicRHI::CreateShaderResourceView_RenderThread(
-	class FRHICommandListImmediate& RHICmdList,
-	const FShaderResourceViewInitializer& Initializer)
+FShaderResourceViewRHIRef FD3D11DynamicRHI::CreateShaderResourceView_RenderThread(class FRHICommandListImmediate& RHICmdList, const FShaderResourceViewInitializer& Initializer)
 {
 	return RHICreateShaderResourceView(Initializer);
 }
@@ -364,9 +351,7 @@ void FD3D11DynamicRHI::RHIUpdateShaderResourceView(FRHIShaderResourceView* SRV, 
 	}
 }
 
-FShaderResourceViewRHIRef FD3D11DynamicRHI::CreateShaderResourceView_RenderThread(
-	class FRHICommandListImmediate& RHICmdList,
-	FRHIIndexBuffer* Buffer)
+FShaderResourceViewRHIRef FD3D11DynamicRHI::CreateShaderResourceView_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIBuffer* Buffer)
 {
 	return RHICreateShaderResourceView(Buffer);
 }

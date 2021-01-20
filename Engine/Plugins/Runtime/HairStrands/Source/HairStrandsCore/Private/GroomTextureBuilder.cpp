@@ -602,7 +602,7 @@ static void InternalGenerateHairStrandsTextures(
 	const uint32 UVsChannelIndex,
 	const uint32 UVsChannelCount,
 
-	FRHIIndexBuffer* InMeshIndexBuffer,
+	FRHIBuffer* InMeshIndexBuffer,
 	FRHIShaderResourceView* InMeshVertexBuffer,
 	FRHIShaderResourceView* InMeshUVsBuffer,
 	FRHIShaderResourceView* InMeshNormalsBuffer,

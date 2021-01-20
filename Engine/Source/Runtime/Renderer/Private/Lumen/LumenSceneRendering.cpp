@@ -1977,7 +1977,7 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder)
 		if (CardsToRender.Num() > 0)
 		{
 			// Prepare primitive Id VB for rendering mesh draw commands.
-			FRHIVertexBuffer* PrimitiveIdVertexBuffer = nullptr;
+			FRHIBuffer* PrimitiveIdVertexBuffer = nullptr;
 			if (LumenCardRenderer.MeshDrawPrimitiveIds.Num() > 0)
 			{
 				const uint32 PrimitiveIdBufferDataSize = LumenCardRenderer.MeshDrawPrimitiveIds.Num() * sizeof(int32);
