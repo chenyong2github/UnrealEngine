@@ -169,11 +169,11 @@ XrSwapchain CreateSwapchain(XrSession InSession, uint32 PlatformFormat, uint32 S
 	{
 		Usage |= XR_SWAPCHAIN_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
 	}
-	if (Flags & TexCreate_ShaderResource)
+	if (TargetableTextureFlags & TexCreate_ShaderResource)
 	{
 		Usage |= XR_SWAPCHAIN_USAGE_SAMPLED_BIT;
 	}
-	if (Flags & TexCreate_UAV)
+	if (TargetableTextureFlags & TexCreate_UAV)
 	{
 		Usage |= XR_SWAPCHAIN_USAGE_UNORDERED_ACCESS_BIT;
 	}
