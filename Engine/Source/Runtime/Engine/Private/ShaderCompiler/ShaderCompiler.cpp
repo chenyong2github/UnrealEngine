@@ -2503,12 +2503,13 @@ bool FShaderCompilingManager::ShouldRecompileToDumpShaderDebugInfo(const FShader
 
 void FShaderCompilingManager::ReleaseJob(FShaderCommonCompileJobPtr& Job)
 {
-	AllJobs.RemoveJob(Job);
+	ReleaseJob(Job.GetReference());
 	Job.SafeRelease();
 }
 
 void FShaderCompilingManager::ReleaseJob(FShaderCommonCompileJob* Job)
 {
+	Job->bReleased = true;
 	AllJobs.RemoveJob(Job);
 }
 
@@ -3047,7 +3048,8 @@ void FShaderCompilingManager::ProcessCompiledShaderMaps(
 		}
 		else
 		{
-			// ShaderMap was removed from compiling list, discard results
+			// ShaderMap was removed from compiling list or is being used by another type of shader map which is maintaining a reference
+			// to the results, either way the job can be released
 			{
 				FScopeLock Lock(&CompileQueueSection);
 				for (auto& Job : CompileResults.FinishedJobs)
