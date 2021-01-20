@@ -490,3 +490,24 @@ FRigUnit_MathIntersectPlane_Execute()
 	Result = FMath::RayPlaneIntersection(Start, Direction, Plane);
 	Distance = (Start - Result).Size();
 }
+
+FRigUnit_MathDistanceToPlane_Execute()
+{
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
+
+	FVector UnitVectorNormal = PlaneNormal.GetSafeNormal();
+
+	if (!UnitVectorNormal.IsZero())
+	{ 
+		FPlane Plane(PlanePoint, UnitVectorNormal);
+
+		ClosestPointOnPlane = FVector::PointPlaneProject(Point, Plane);
+		SignedDistance = FVector::PointPlaneDist(Point, PlanePoint, UnitVectorNormal);
+	}
+	else
+	{
+		ClosestPointOnPlane = FVector::ZeroVector;
+		SignedDistance = 0;
+	}
+}
+

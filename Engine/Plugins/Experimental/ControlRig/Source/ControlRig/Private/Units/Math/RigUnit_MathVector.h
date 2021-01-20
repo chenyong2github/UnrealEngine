@@ -977,3 +977,37 @@ struct CONTROLRIG_API FRigUnit_MathIntersectPlane : public FRigUnit_MathVectorBa
 	UPROPERTY(meta = (Output))
 	float Distance;
 };
+
+/**
+ * Find the point on the plane that is closest to the given point and the distance between them.
+ */
+USTRUCT(meta = (DisplayName = "Distance To Plane", Keywords = "Distance,Plane,Closest,Project"))
+struct CONTROLRIG_API FRigUnit_MathDistanceToPlane : public FRigUnit_MathVectorBase
+{
+	GENERATED_BODY()
+
+	FRigUnit_MathDistanceToPlane()
+	{
+		Point = PlanePoint = ClosestPointOnPlane = FVector::ZeroVector;
+		PlaneNormal = FVector(0.f, 0.f, 1.f);
+		SignedDistance = 0.f;
+	}
+
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
+
+	UPROPERTY(meta = (Input))
+	FVector Point;
+
+	UPROPERTY(meta = (Input))
+	FVector PlanePoint;
+
+	UPROPERTY(meta = (Input))
+	FVector PlaneNormal;
+
+	UPROPERTY(meta = (Output))
+	FVector ClosestPointOnPlane;
+
+	UPROPERTY(meta = (Output))
+	float SignedDistance;
+};

@@ -395,4 +395,22 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_MathVectorOrthogonal)
 	return true;
 }
 
+IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_MathDistanceToPlane)
+{
+	Unit.Point = FVector(5, -6, 3);
+	Unit.PlanePoint = FVector(4, 5, 0);
+	Unit.PlaneNormal = FVector(3, -2, 1);
+	InitAndExecute();
+	AddErrorIfFalse(FRigUnit_MathVectorTest_Utils::IsNearlyEqual(Unit.ClosestPointOnPlane, FVector(-1,-2,1), KINDA_SMALL_NUMBER), TEXT("unexpected result"));
+	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.SignedDistance, 7.48331477f, KINDA_SMALL_NUMBER), TEXT("unexpected result"));
+	
+	Unit.Point = FVector(5, -6, 3);
+	Unit.PlanePoint = FVector(2, 2, 2);
+	Unit.PlaneNormal = FVector(0,0,0);
+	InitAndExecute();
+	AddErrorIfFalse(Unit.ClosestPointOnPlane.IsZero(), TEXT("unexpected result"));
+	AddErrorIfFalse(Unit.SignedDistance == 0, TEXT("unexpected result"));
+	return true;
+}
+
 #endif
