@@ -131,6 +131,11 @@ struct FComponentMask
 
 	void Remove(FComponentTypeID InComponentType);
 
+	/**
+	 * Find the first component type ID in this mask, or Invalid if the mask is empty.
+	 */
+	FComponentTypeID First() const;
+
 	FORCEINLINE void  Reset()
 	{
 		Bits.Reset();
@@ -446,6 +451,16 @@ inline void FComponentMask::Remove(FComponentTypeID InComponentType)
 	{
 		Bits[InComponentType.BitIndex()] = false;
 	}
+}
+
+inline FComponentTypeID FComponentMask::First() const
+{
+	const int32 FirstBit = Bits.Find(true);
+	if (FirstBit != INDEX_NONE)
+	{
+		return FComponentTypeID::FromBitIndex(FirstBit);
+	}
+	return FComponentTypeID::Invalid();
 }
 
 template<typename T>
