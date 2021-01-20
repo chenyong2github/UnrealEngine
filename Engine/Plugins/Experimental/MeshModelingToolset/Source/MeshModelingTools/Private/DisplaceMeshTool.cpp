@@ -826,6 +826,7 @@ void UDisplaceMeshTool::Setup()
 	Parameters.DisplaceIntensity = CommonProperties->DisplaceIntensity;
 	Parameters.RandomSeed = CommonProperties->RandomSeed;
 	Parameters.DisplacementMap = TextureMapProperties->DisplacementMap;
+	Parameters.bRecalculateNormals = TextureMapProperties->bRecalcNormals;
 	Parameters.SineWaveFrequency = SineWaveProperties->SineWaveFrequency;
 	Parameters.SineWavePhaseShift = SineWaveProperties->SineWavePhaseShift;
 	Parameters.SineWaveDirection = SineWaveProperties->SineWaveDirection.GetSafeNormal();
