@@ -66,9 +66,11 @@ public:
 protected:
 	void HandleDataTransferred(int32 BytesSent, int32 BytesReceived);
 	void HandleHeaderReceived(const FString& HeaderKey, const FString& HeaderValue);
-	void HandleRequestComplete(EHttpRequestStatus::Type CompletionStatus);
+	void HandleRequestComplete(EHttpRequestStatus::Type CompletionStatusUpdate);
 
 	void UpdateResponseBody(bool bForceResponseExist = false);
+
+	void FinishRequestOnGameThread();
 
 private:
 	struct FWinHttpHttpRequestData
@@ -99,6 +101,9 @@ private:
 
 	/** Current status of request being processed */
 	EHttpRequestStatus::Type State = EHttpRequestStatus::NotStarted;
+
+	/** Final status of request after being processed. Will be copied to current state in FinishRequest */
+	EHttpRequestStatus::Type CompletionStatus = EHttpRequestStatus::NotStarted;
 
 	/** */
 	TSharedPtr<FWinHttpConnectionHttp, ESPMode::ThreadSafe> Connection;
