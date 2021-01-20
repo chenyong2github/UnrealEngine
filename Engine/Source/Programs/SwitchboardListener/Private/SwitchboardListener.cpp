@@ -2,6 +2,7 @@
 
 #include "SwitchboardListener.h"
 
+#include "CpuUtilizationMonitor.h"
 #include "SwitchboardListenerApp.h"
 #include "SwitchboardMessageFuture.h"
 #include "SwitchboardPacket.h"
@@ -121,6 +122,7 @@ struct FRunningProcess
 FSwitchboardListener::FSwitchboardListener(const FIPv4Endpoint& InEndpoint)
 	: Endpoint(MakeUnique<FIPv4Endpoint>(InEndpoint))
 	, SocketListener(nullptr)
+	, CpuMonitor(MakeUnique<FCpuUtilizationMonitor>())
 {
 #if PLATFORM_WINDOWS
 	// initialize NvAPI
@@ -167,6 +169,9 @@ bool FSwitchboardListener::Tick()
 			// Send current state upon connection
 			{
 				FSwitchboardStatePacket StatePacket;
+
+				FPlatformMisc::GetOSVersions(StatePacket.OsVersionLabel, StatePacket.OsVersionLabelSub);
+				StatePacket.OsVersionNumber = FPlatformMisc::GetOSVersion();
 
 				for (const auto& RunningProcess : RunningProcesses)
 				{
@@ -336,6 +341,39 @@ bool FSwitchboardListener::RunScheduledTask(const FSwitchboardTask& InTask)
 	return false;
 }
 
+#if PLATFORM_WINDOWS
+static bool SimulateMouseClick(HWND WindowHandle)
+{
+	RECT WindowRect; // Window rect in screen coordinates
+
+	if (!GetWindowRect(WindowHandle, &WindowRect))
+	{
+		return false;
+	}
+
+	const double ScreenWidthM1 = double(::GetSystemMetrics(SM_CXSCREEN) - 1);
+	const double ScreenHeightM1 = double(::GetSystemMetrics(SM_CYSCREEN) - 1);
+
+	check(ScreenWidthM1 > 0.5);
+	check(ScreenHeightM1 > 0.5);
+
+	INPUT Inputs[3] = { 0 };
+
+	Inputs[0].type = INPUT_MOUSE;
+	Inputs[0].mi.dx = LONG((double(WindowRect.left) + 0.25) * (65535.0 / ScreenWidthM1));
+	Inputs[0].mi.dy = LONG((double(WindowRect.right) + 0.25) * (65535.0 / ScreenHeightM1));
+	Inputs[0].mi.dwFlags = MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_MOVE;
+
+	Inputs[1].type = INPUT_MOUSE;
+	Inputs[1].mi.dwFlags = MOUSEEVENTF_LEFTDOWN;
+
+	Inputs[2].type = INPUT_MOUSE;
+	Inputs[2].mi.dwFlags = MOUSEEVENTF_LEFTUP;
+
+	return !!::SendInput(3, Inputs, sizeof(INPUT));
+}
+#endif //PLATFORM_WINDOWS
+
 static bool SetFocusWindowByPID(uint32 ProcessId)
 {
 #if PLATFORM_WINDOWS
@@ -351,7 +389,11 @@ static bool SetFocusWindowByPID(uint32 ProcessId)
 		{
 			if (PID == ProcessId)
 			{
-				bResult = SetForegroundWindow(WindowHandle);
+				bResult = SetWindowPos(WindowHandle, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
+				bResult &= SetForegroundWindow(WindowHandle);
+				bResult &= !!SetFocus(WindowHandle);
+				bResult &= !!SetActiveWindow(WindowHandle);
+				bResult &= !!SimulateMouseClick(WindowHandle);
 				return bResult;
 			}
 		}
@@ -1414,6 +1456,100 @@ static void FillOutDisableFullscreenOptimizationForProcess(FSyncStatus& SyncStat
 }
 #endif // PLATFORM_WINDOWS
 
+#if PLATFORM_WINDOWS
+static void FillOutGpuUtilization(FSyncStatus& SyncStatus)
+{
+	// TODO: Can we somehow use the GPU engine "engtype_3D" perf counters for this instead?
+
+	FScopeLock LockNvapi(&SwitchboardListenerMutexNvapi);
+
+	TArray<NvPhysicalGpuHandle> PhysicalGpuHandles;
+	PhysicalGpuHandles.SetNumUninitialized(NVAPI_MAX_PHYSICAL_GPUS);
+	NvU32 PhysicalGpuCount;
+	NvAPI_Status NvResult = NvAPI_EnumPhysicalGPUs(PhysicalGpuHandles.GetData(), &PhysicalGpuCount);
+	if (NvResult != NVAPI_OK)
+	{
+		UE_LOG(LogSwitchboard, Warning, TEXT("NvAPI_EnumPhysicalGPUs failed. Error code: %d"), NvResult);
+		return;
+	}
+
+	PhysicalGpuHandles.SetNum(PhysicalGpuCount);
+
+	// Sort first by bus, then by bus slot, ascending. Consistent with task manager and others.
+	Algo::Sort(PhysicalGpuHandles, [](const NvPhysicalGpuHandle& Lhs, const NvPhysicalGpuHandle& Rhs) -> bool {
+		NvU32 LhsBusId, RhsBusId, LhsSlotId, RhsSlotId;
+		const NvAPI_Status LhsBusResult = NvAPI_GPU_GetBusId(Lhs, &LhsBusId);
+		const NvAPI_Status RhsBusResult = NvAPI_GPU_GetBusId(Rhs, &RhsBusId);
+		const NvAPI_Status LhsSlotResult = NvAPI_GPU_GetBusSlotId(Lhs, &LhsSlotId);
+		const NvAPI_Status RhsSlotResult = NvAPI_GPU_GetBusSlotId(Rhs, &RhsSlotId);
+
+		if (LhsBusResult != NVAPI_OK || RhsBusResult != NVAPI_OK)
+		{
+			UE_LOG(LogSwitchboard, Warning, TEXT("NvAPI_GPU_GetBusId failed. Error codes: %d, %d"), LhsBusResult, RhsBusResult);
+			return false;
+		}
+
+		if (LhsSlotResult != NVAPI_OK || RhsSlotResult != NVAPI_OK)
+		{
+			UE_LOG(LogSwitchboard, Warning, TEXT("NvAPI_GPU_GetBusSlotId failed. Error codes: %d, %d"), LhsSlotResult, RhsSlotResult);
+			return false;
+		}
+
+		if (LhsBusId != RhsBusId)
+		{
+			return LhsBusId < RhsBusId;
+		}
+
+		return LhsSlotId < RhsSlotId;
+	});
+
+	SyncStatus.GpuUtilization.SetNumUninitialized(PhysicalGpuCount);
+	SyncStatus.GpuCoreClocksKhz.SetNumUninitialized(PhysicalGpuCount);
+
+	for (NvU32 PhysicalGpuIdx = 0; PhysicalGpuIdx < PhysicalGpuCount; ++PhysicalGpuIdx)
+	{
+		SyncStatus.GpuUtilization[PhysicalGpuIdx] = -1;
+		SyncStatus.GpuCoreClocksKhz[PhysicalGpuIdx] = -1;
+
+		const NvPhysicalGpuHandle& PhysicalGpu = PhysicalGpuHandles[PhysicalGpuIdx];
+
+		NV_GPU_DYNAMIC_PSTATES_INFO_EX PstatesInfo;
+		PstatesInfo.version = NV_GPU_DYNAMIC_PSTATES_INFO_EX_VER;
+		NvResult = NvAPI_GPU_GetDynamicPstatesInfoEx(PhysicalGpu, &PstatesInfo);
+		if (NvResult == NVAPI_OK)
+		{
+			// FIXME: NV_GPU_UTILIZATION_DOMAIN_ID enum is missing in our nvapi.h, but documented elsewhere.
+			//const int8 UtilizationDomain = NVAPI_GPU_UTILIZATION_DOMAIN_GPU;
+			const int8 UtilizationDomain = 0;
+			if (PstatesInfo.utilization[UtilizationDomain].bIsPresent)
+			{
+				SyncStatus.GpuUtilization[PhysicalGpuIdx] = PstatesInfo.utilization[UtilizationDomain].percentage;
+			}
+		}
+		else
+		{
+			UE_LOG(LogSwitchboard, Warning, TEXT("NvAPI_GPU_GetDynamicPstatesInfoEx failed. Error code: %d"), NvResult);
+		}
+
+		NV_GPU_CLOCK_FREQUENCIES ClockFreqs;
+		ClockFreqs.version = NV_GPU_CLOCK_FREQUENCIES_VER;
+		ClockFreqs.ClockType = NV_GPU_CLOCK_FREQUENCIES_CURRENT_FREQ;
+		NvResult = NvAPI_GPU_GetAllClockFrequencies(PhysicalGpu, &ClockFreqs);
+		if (NvResult == NVAPI_OK)
+		{
+			if (ClockFreqs.domain[NVAPI_GPU_PUBLIC_CLOCK_GRAPHICS].bIsPresent)
+			{
+				SyncStatus.GpuCoreClocksKhz[PhysicalGpuIdx] = ClockFreqs.domain[NVAPI_GPU_PUBLIC_CLOCK_GRAPHICS].frequency;
+			}
+		}
+		else
+		{
+			UE_LOG(LogSwitchboard, Warning, TEXT("NvAPI_GPU_GetAllClockFrequencies failed. Error code: %d"), NvResult);
+		}
+	}
+}
+#endif
+
 bool FSwitchboardListener::EquivalentTaskFutureExists(uint32 TaskEquivalenceHash) const
 {
 	return !!MessagesFutures.FindByPredicate([=](const FSwitchboardMessageFuture& MessageFuture)
@@ -1473,6 +1609,8 @@ bool FSwitchboardListener::GetSyncStatus(const FSwitchboardGetSyncStatusTask& In
 		FillOutSyncTopologies(SyncStatus.Get());
 		FillOutMosaicTopologies(SyncStatus.Get());
 		SyncStatus->PidInFocus = FindPidInFocus();
+		CpuMonitor->GetPerCoreUtilization(SyncStatus->CpuUtilization);
+		FillOutGpuUtilization(SyncStatus.Get());
 		return CreateSyncStatusMessage(SyncStatus.Get());
 	});
 
