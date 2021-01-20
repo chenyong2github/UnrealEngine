@@ -19,6 +19,11 @@ static FAutoConsoleVariableRef CVarHairLUTRoughnessCount(TEXT("r.HairStrands.Hai
 static FAutoConsoleVariableRef CVarHairLUTAbsorptionCount(TEXT("r.HairStrands.HairLUT.AbsorptionCount"), GHairLUTAbsorptionCount, TEXT("Change the number of slices of the hair LUT for the absorption axis"));
 static FAutoConsoleVariableRef CVarHairLUTSampleCount(TEXT("r.HairStrands.HairLUT.SampleCountScale"), GHairLUTSampleCountScale, TEXT("Change the number of sample used for computing the hair LUT. This is a multiplier, default is 1."));
 
+static bool IsHairMobilePlatform(EShaderPlatform Platform)
+{
+	return IsMobilePlatform(Platform) || Platform == SP_PCD3D_ES3_1;
+}
+
 /////////////////////////////////////////////////////////////////////////////////////////
 
 class FHairLUTCS : public FGlobalShader
@@ -39,7 +44,7 @@ class FHairLUTCS : public FGlobalShader
 	END_SHADER_PARAMETER_STRUCT()
 
 public:
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsHairStrandsSupported(EHairStrandsShaderType::Cards, Parameters.Platform); }
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return !IsHairMobilePlatform(Parameters.Platform) && IsHairStrandsSupported(EHairStrandsShaderType::Cards, Parameters.Platform); }
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
@@ -260,7 +265,7 @@ class FHairCoverageLUTCS : public FGlobalShader
 	END_SHADER_PARAMETER_STRUCT()
 
 public:
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsHairStrandsSupported(EHairStrandsShaderType::Cards, Parameters.Platform); }
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return !IsHairMobilePlatform(Parameters.Platform) && IsHairStrandsSupported(EHairStrandsShaderType::Cards, Parameters.Platform); }
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
@@ -359,8 +364,7 @@ void UpdateHairLUT(const FViewInfo& View)
 
 	// Lazy LUT generation
 	const EShaderPlatform Platform = View.GetShaderPlatform();
-	const bool bIsMobile = IsMobilePlatform(Platform) || Platform == SP_PCD3D_ES3_1;
-	const bool bNeedGenerate = (!bIsMobile && IsHairStrandsSupported(EHairStrandsShaderType::Cards, Platform)) &&
+	const bool bNeedGenerate = (!IsHairMobilePlatform(Platform) && IsHairStrandsSupported(EHairStrandsShaderType::Cards, Platform)) &&
 		(GSystemTextures.HairLUT0.GetReference() == nullptr || 
 		 GSystemTextures.HairLUT1.GetReference() == nullptr || 
 		 GSystemTextures.HairLUT2.GetReference() == nullptr ||
