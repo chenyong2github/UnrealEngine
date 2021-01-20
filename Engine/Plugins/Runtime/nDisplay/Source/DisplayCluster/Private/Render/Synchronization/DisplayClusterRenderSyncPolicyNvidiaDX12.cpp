@@ -13,6 +13,9 @@
 #include "D3D12Viewport.h"
 #undef GetRenderTargetFormat
 
+void D3D12RHI_API Temporary_WaitForFrameEventCompletion(FD3D12Viewport& D3D12Viewport);
+void D3D12RHI_API Temporary_IssueFrameEvent(FD3D12Viewport& D3D12Viewport);
+
 
 void FDisplayClusterRenderSyncPolicyNvidiaDX12::WaitForFrameCompletion()
 {
@@ -21,10 +24,8 @@ void FDisplayClusterRenderSyncPolicyNvidiaDX12::WaitForFrameCompletion()
 		FD3D12Viewport* const D3D12Viewport = static_cast<FD3D12Viewport*>(GEngine->GameViewport->Viewport->GetViewportRHI().GetReference());
 		if (D3D12Viewport)
 		{
-#if !WITH_EDITOR
-			D3D12Viewport->IssueFrameEvent();
-			D3D12Viewport->WaitForFrameEventCompletion();
-#endif
+			Temporary_IssueFrameEvent(*D3D12Viewport);
+			Temporary_WaitForFrameEventCompletion(*D3D12Viewport);
 		}
 	}
 }
