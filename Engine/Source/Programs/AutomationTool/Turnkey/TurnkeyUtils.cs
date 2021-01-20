@@ -34,8 +34,8 @@ namespace Turnkey
 			IEnumerable<string> AutoSDKPlatforms = UEBuildPlatformSDK.AllSDKs.Select(x => x.GetAutoSDKPlatformName()).Distinct();
 			SetVariable("AutoSDKPlatforms", string.Join(",", AutoSDKPlatforms));
 
-// 			TurnkeyUtils.Log("AllPlatforms = {0}", GetVariableValue("AllPlatforms"));
-// 			TurnkeyUtils.Log("AutoSDKPlatforms = {0}", GetVariableValue("AutoSDKPlatforms"));
+			// 			TurnkeyUtils.Log("AllPlatforms = {0}", GetVariableValue("AllPlatforms"));
+			// 			TurnkeyUtils.Log("AutoSDKPlatforms = {0}", GetVariableValue("AutoSDKPlatforms"));
 
 			SetVariable("HOST_PLATFORM_NAME", HostPlatform.Current.HostEditorPlatform.ToString());
 		}
@@ -70,7 +70,7 @@ namespace Turnkey
 			return TurnkeyVariables.ContainsKey(Key);
 		}
 
-		public static string ExpandVariables(string Str, bool bUseOnlyTurnkeyVariables=false)
+		public static string ExpandVariables(string Str, bool bUseOnlyTurnkeyVariables = false)
 		{
 			// don't crash on null
 			if (Str == null)
@@ -95,7 +95,7 @@ namespace Turnkey
 		public static string ParseParamValue(string Param, string Default, string[] ExtraOptions)
 		{
 			// our internal extraoptions still have - in front, but CommandUtilHelper won't have the dashes
-			string Value = CommandUtils.ParseParamValue(ExtraOptions, "-" + Param, Default); 
+			string Value = CommandUtils.ParseParamValue(ExtraOptions, "-" + Param, Default);
 			if (Value == null)
 			{
 				Value = CommandUtilHelper.ParseParamValue(Param, Default);
@@ -104,19 +104,23 @@ namespace Turnkey
 			return Value == null ? Default : Value;
 		}
 
+		private static List<UnrealTargetPlatform> GetAllValidPlatforms(List<UnrealTargetPlatform> SourcePlatforms=null)
+		{
+			if (SourcePlatforms == null)
+			{
+				SourcePlatforms = UnrealTargetPlatform.GetValidPlatforms().ToList();
+			}
+
+			return SourcePlatforms.Where(x => x != UnrealTargetPlatform.Win32 && x != UnrealTargetPlatform.XboxOne && UEBuildPlatformSDK.GetSDKForPlatform(x.ToString()) != null).ToList();
+		}
+
 		public static List<UnrealTargetPlatform> GetPlatformsFromCommandLineOrUser(string[] CommandOptions, List<UnrealTargetPlatform> PossiblePlatforms)
 		{
 			string PlatformString = TurnkeyUtils.ParseParamValue("Platform", null, CommandOptions);
 			bool bUnattended = TurnkeyUtils.ParseParam("Unattended", CommandOptions);
 
-			// use default set of platforms if none specified
-			if (PossiblePlatforms == null)
-			{
-				PossiblePlatforms = UnrealTargetPlatform.GetValidPlatforms().ToList();
-			}
-
-			// Remove known bad platforms and platforms that don't have a UEPlatformSDK
-			PossiblePlatforms = PossiblePlatforms.Where(x => x != UnrealTargetPlatform.Win32 && x != UnrealTargetPlatform.XboxOne && UEBuildPlatformSDK.GetSDKForPlatform(x.ToString()) != null).ToList();
+			// Remove known bad platforms
+			PossiblePlatforms = GetAllValidPlatforms(PossiblePlatforms);
 
 			// sort by name
 			PossiblePlatforms.Sort((x, y) => string.Compare(x.ToString(), y.ToString()));
@@ -376,44 +380,235 @@ namespace Turnkey
 			return ProjectUtils.FindProjectFileFromName(Project);
 		}
 
-		public static DeviceInfo GetDeviceFromCommandLineOrUser(string[] CommandOptions, UnrealTargetPlatform Platform)
+		private static DeviceInfo GetDeviceByPlatformAndName(UnrealTargetPlatform Platform, string DeviceName)
 		{
-			string DeviceName = TurnkeyUtils.ParseParamValue("Device", null, CommandOptions);
-
-			AutomationTool.Platform AutomationPlatform = AutomationTool.Platform.Platforms[new TargetPlatformDescriptor(Platform)];
-			
-			if (DeviceName == null)
+			DeviceInfo[] Devices = AutomationTool.Platform.GetPlatform(Platform).GetDevices();
+			if (Devices == null)
 			{
-				List<string> Options = new List<string>();
-				// @todo turnkey: filter devices that have valid flash versions
-				//				DeviceInfo[] PossibleDevices = Array.FindAll(AutomationPlatform.GetDevices(), x => TurnkeyUtils.IsValueValid(x.SoftwareVersion, AutomationPlatform.GetAllowedSoftwareVersions(), AutomationPlatforms[Platform]));
-				DeviceInfo[] PossibleDevices = AutomationPlatform.GetDevices();
-				if (PossibleDevices == null)
+				return null;
+			}
+			return Array.Find(Devices, x => string.Compare(x.Name, DeviceName, true) == 0);
+		}
+		public static Dictionary<UnrealTargetPlatform, List<DeviceInfo>> GetDevicesFromCommandLineOrUser(string[] CommandOptions, UnrealTargetPlatform Platform)
+		{
+			return GetDevicesFromCommandLineOrUser(CommandOptions, new List<UnrealTargetPlatform>() { Platform });
+		}
+		//public static DeviceInfo GetDeviceFromCommandLineOrUser(string[] CommandOptions, UnrealTargetPlatform Platform)
+		//{
+		//	Dictionary<UnrealTargetPlatform, List<DeviceInfo>> PlatformsAndDevices = GetDevicesFromCommandLineOrUser(CommandOptions, Platform);
+		//}
+
+		public static Dictionary<UnrealTargetPlatform, List<DeviceInfo>> GetDevicesFromCommandLineOrUser(string[] CommandOptions, List<UnrealTargetPlatform> PossiblePlatforms)
+		{
+			Dictionary<UnrealTargetPlatform, List<DeviceInfo>> PlatformsAndDevices = null;
+
+			// look at any devices on the commandline, and see if they have platforms or not
+			string DeviceList = TurnkeyUtils.ParseParamValue("Device", null, CommandOptions);
+			List<string> SplitDeviceList = null;
+			if (DeviceList != null && DeviceList.ToLower() != "all")
+			{
+				SplitDeviceList = DeviceList.Split("+".ToCharArray()).ToList();
+
+				// look if they have platform@ tags
+				bool bAnyHavePlatform = SplitDeviceList.Any(x => x.Contains("@"));
+				if (bAnyHavePlatform)
+				{
+					if (!SplitDeviceList.All(x => x.Contains("@")))
+					{
+						throw new AutomationException("If any device in -device has a platform indicator ('Platform@Device'), they must all have a platform indicator");
+					}
+
+					// now split it up for devices for each platform
+					foreach (string DeviceToken in SplitDeviceList)
+					{
+						string[] Tokens = DeviceToken.Split("@".ToCharArray(), StringSplitOptions.RemoveEmptyEntries);
+						if (Tokens.Length != 2)
+						{
+							throw new AutomationException("{0} did not have the Platform@Device format", DeviceToken);
+						}
+						UnrealTargetPlatform Platform;
+						if (!UnrealTargetPlatform.TryParse(Tokens[0], out Platform))
+						{
+							TurnkeyUtils.Log("Platform indicator {0} is an invalid platform, skipping", Tokens[0]);
+							continue;
+						}
+
+						string DeviceName = Tokens[1];
+
+						// track it
+						if (PlatformsAndDevices == null)
+						{
+							PlatformsAndDevices = new Dictionary<UnrealTargetPlatform, List<DeviceInfo>>();
+						}
+						if (!PlatformsAndDevices.ContainsKey(Platform))
+						{
+							PlatformsAndDevices[Platform] = new List<DeviceInfo>();
+						}
+						
+						if (DeviceName.ToLower() == "all")
+						{
+							PlatformsAndDevices[Platform].AddRange(AutomationTool.Platform.GetPlatform(Platform).GetDevices());
+						}
+						else
+						{
+							DeviceInfo Device = GetDeviceByPlatformAndName(Platform, DeviceName);
+							if (Device != null)
+							{
+								PlatformsAndDevices[Platform].Add(Device);
+							}
+						}
+					}
+					SplitDeviceList = null;
+				}
+			}
+
+			// if we didn't get some platforms already from -device list, then get or ask the user for platforms
+			if (PlatformsAndDevices == null)
+			{
+				PlatformsAndDevices = new Dictionary<UnrealTargetPlatform, List<DeviceInfo>>();
+				List<UnrealTargetPlatform> ChosenPlatforms;
+
+				// use all platforms (with -device=all), or ask user if needed (GetPlatformsFromCommandLineOrUser would look at -platform=all, not -device=all)
+				// if -platform was specified, use the function to get just the specified ones
+				if (DeviceList != null && DeviceList.ToLower() == "all" && TurnkeyUtils.ParseParamValue("Platform", null, CommandOptions) == null)
+				{
+					ChosenPlatforms = GetAllValidPlatforms(PossiblePlatforms);
+				}
+				else
+				{
+					ChosenPlatforms = TurnkeyUtils.GetPlatformsFromCommandLineOrUser(CommandOptions, PossiblePlatforms);
+				}
+
+				if (ChosenPlatforms == null)
 				{
 					return null;
 				}
 
-				foreach (DeviceInfo Device in PossibleDevices)
+				// set up PlatformsAndDevices for all platforms
+				ChosenPlatforms.ForEach(x => PlatformsAndDevices.Add(x, new List<DeviceInfo>()));
+
+				if (ChosenPlatforms.Count > 1 && SplitDeviceList != null && !(SplitDeviceList.Count == 1 && SplitDeviceList[0].ToLower() == "all"))
 				{
-					Options.Add(string.Format("[{0} {1}] {2}", Platform, Device.Type, Device.Name));
+					throw new AutomationException("When using -Device without platform specifiers ('Platform@Device'), a single platform must be specified (unless -Device=All is used)");
 				}
 
-				// get the choice
-				int Choice = TurnkeyUtils.ReadInputInt("Select the number of a device to flash:", Options, true);
+				// get all the devices for the platforms
+				if (!string.IsNullOrEmpty(DeviceList) && DeviceList.ToLower() == "all")
+				{
+					foreach (UnrealTargetPlatform Platform in ChosenPlatforms)
+					{
+						DeviceInfo[] Devices = AutomationTool.Platform.GetPlatform(Platform).GetDevices();
+						if (Devices != null)
+						{
+							PlatformsAndDevices[Platform].AddRange(Devices);
+						}
+					}
+				}
+				// now if the list of devices was given, then attempt to find them in the platform
+				else if (SplitDeviceList != null && SplitDeviceList.Count > 0)
+				{
+					foreach (UnrealTargetPlatform Platform in ChosenPlatforms)
+					{
+						foreach (string DeviceName in SplitDeviceList)
+						{
+							DeviceInfo Device = GetDeviceByPlatformAndName(Platform, DeviceName);
+							if (Device != null)
+							{
+								PlatformsAndDevices[Platform].Add(Device);
+							}
+						}
+					}
+				}
+				// otherwise ask user for device
+				else
+				{
+					List<string> Options = new List<string>();
+					List<DeviceInfo> PossibleDevices = new List<DeviceInfo>();
+					List<UnrealTargetPlatform> PossibleDevicePlatforms = new List<UnrealTargetPlatform>();
 
+					foreach (UnrealTargetPlatform Platform in ChosenPlatforms)
+					{
+						Platform AutomationPlatform = AutomationTool.Platform.GetPlatform(Platform);
+						DeviceInfo[] Devices = AutomationPlatform.GetDevices();
+						if (Devices != null)
+						{
+							foreach (DeviceInfo Device in Devices)
+							{
+								PossibleDevices.Add(Device);
+								PossibleDevicePlatforms.Add(Platform);
+
+								Options.Add(string.Format("[{0} {1}] {2}", Platform, Device.Type, Device.Name));
+							}
+						}
+					}
+
+					if (PossibleDevices.Count == 0)
+					{
+						Log("Unable to find any devices for platform(s): {0}", string.Join(", ", ChosenPlatforms));
+						return null;
+					}
+
+					// get the choice
+					int Choice = TurnkeyUtils.ReadInputInt("Select a device:", Options, true);
+
+					if (Choice == 0)
+					{
+						return null;
+					}
+
+					// finally, add it to the proper list
+					PlatformsAndDevices[PossibleDevicePlatforms[Choice - 1]].Add(PossibleDevices[Choice - 1]);
+				}
+			}
+
+			// if we ended up with some platforms, but no devices, just return null
+			foreach (var Pair in PlatformsAndDevices)
+			{
+				if (Pair.Value != null && Pair.Value.Count > 0)
+				{
+					return PlatformsAndDevices;
+				}
+			}
+			return null;
+		}
+
+		public static string GetGenericOption(string[] CommandOptions, List<string> Options, string CommandLineOption)
+		{
+			return GetGenericOption(CommandOptions, Options, CommandLineOption, out _);
+		}
+
+		public static string GetGenericOption(string[] CommandOptions, List<string> Options, string CommandLineOption, out bool bWasOnCommandLine)
+		{
+			string ChosenValue = TurnkeyUtils.ParseParamValue(CommandLineOption, null, CommandOptions);
+
+			if (ChosenValue != null)
+			{
+				bWasOnCommandLine = true;
+			}
+			else
+			{
+				bWasOnCommandLine = false;
+
+				// default to previous selection if any
+				string CachedOptionName = "User_LastSelectedGeneric_" + CommandLineOption;
+				string LastSelectedOption = TurnkeySettings.GetUserSettingIfSet(CachedOptionName, "");
+				int Default = Options.FindIndex(x => x.Equals(LastSelectedOption, StringComparison.OrdinalIgnoreCase));
+
+				int Choice = ReadInputInt($"Choose the {CommandLineOption}:", Options, true, Default == -1 ? -1 : Default + 1);
 				if (Choice == 0)
 				{
 					return null;
 				}
 
-				// get the name of the device chosen
-				DeviceName = PossibleDevices[Choice - 1].Name;
+				ChosenValue = Options[Choice - 1];
+
+				// remember for next time
+				TurnkeySettings.SetUserSetting(CachedOptionName, ChosenValue);
 			}
 
-			// get device info of the chosen or supplied device
-			DeviceInfo InstallDevice = Array.Find(AutomationPlatform.GetDevices(), x => string.Compare(x.Name, DeviceName, true) == 0);
-			return InstallDevice;
+			return ChosenValue;
 		}
+
 #endregion
 
 #region Env vars

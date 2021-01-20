@@ -16,10 +16,9 @@ namespace Turnkey.Commands
 			TurnkeyUtils.Log("Available Installers:");
 
 			string TypeString = TurnkeyUtils.ParseParamValue("Type", null, CommandOptions);
-			string PlatformString = TurnkeyUtils.ParseParamValue("Platform", null, CommandOptions);
 
+			List<UnrealTargetPlatform> Platforms = TurnkeyUtils.GetPlatformsFromCommandLineOrUser(CommandOptions, null);
 
-			UnrealTargetPlatform? OptionalPlatform = null;
 			FileSource.SourceType? OptionalType = null;
 
 			if (TypeString != null)
@@ -31,16 +30,15 @@ namespace Turnkey.Commands
 				}
 			}
 
-			if (PlatformString != null)
+			List<FileSource> Sdks;
+			if (Platforms == null)
 			{
-				UnrealTargetPlatform Platform;
-				if (UnrealTargetPlatform.TryParse(PlatformString, out Platform))
-				{
-					OptionalPlatform = Platform;
-				}
+				Sdks = TurnkeyManifest.FilterDiscoveredFileSources(null, OptionalType);
 			}
-
-			List<FileSource> Sdks = TurnkeyManifest.FilterDiscoveredFileSources(OptionalPlatform, OptionalType);
+			else
+			{
+				Sdks = Platforms.SelectMany(x => TurnkeyManifest.FilterDiscoveredFileSources(x, OptionalType)).ToList();
+			}
 
 			foreach (FileSource Sdk in Sdks)
 			{

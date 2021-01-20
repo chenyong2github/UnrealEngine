@@ -34,6 +34,12 @@ namespace AutomationTool
 		// is the device able to be connected to (this is more about able to flash SDK or run, not about matching SDK version)
 		// if false, any of the above fields are suspect, especually SoftwareVersion
 		public bool bCanConnect = true;
+
+		public virtual void Connect() { }
+		public virtual void Disconnect() { }
+		public virtual void PowerOn() { }
+		public virtual void PowerOff() { }
+		public virtual void Reboot() { }
 	}
 
 	/// <summary>

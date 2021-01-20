@@ -21,73 +21,29 @@ namespace Turnkey.Commands
 			bool bForceDeviceInstall = TurnkeyUtils.ParseParam("ForceDeviceInstall", CommandOptions);
 			bool bUpdateIfNeeded = bForceSdkInstall || bForceDeviceInstall || TurnkeyUtils.ParseParam("UpdateIfNeeded", CommandOptions);
 
-			// track each platform to check, and 
-			Dictionary<UnrealTargetPlatform, List<string>> PlatformsAndDevices = null;
-
-			// look at any devices on the commandline, and see if they have platforms or not
-			string DeviceList = TurnkeyUtils.ParseParamValue("Device", null, CommandOptions);
-			List<string> SplitDeviceList = null;
-			if (DeviceList != null)
+			// track each platform to check, and if -device was specified, get the devices
+			string DeviceString = TurnkeyUtils.ParseParamValue("Device", null, CommandOptions);
+			Dictionary<UnrealTargetPlatform, List<DeviceInfo>> PlatformsAndDevices = null;
+			if (string.IsNullOrEmpty(DeviceString))
 			{
-				SplitDeviceList = DeviceList.Split("+".ToCharArray()).ToList();
-
-				// look if they have platform@ tags
-				bool bAnyHavePlatform = SplitDeviceList.Any(x => x.Contains("@"));
-				if (bAnyHavePlatform)
+				List<UnrealTargetPlatform> Platforms = TurnkeyUtils.GetPlatformsFromCommandLineOrUser(CommandOptions, null);
+				if (Platforms != null)
 				{
-					if (!SplitDeviceList.All(x => x.Contains("@")))
+					PlatformsAndDevices = new Dictionary<UnrealTargetPlatform, List<DeviceInfo>>();
+					foreach (UnrealTargetPlatform Platform in Platforms)
 					{
-						throw new AutomationException("If any device in -device has a platform indicator ('Platform@Device'), they must all have a platform indicator");
+						PlatformsAndDevices[Platform] = new List<DeviceInfo>();
 					}
-
-					// now split it up for devices for each platform
-					foreach (string DeviceToken in SplitDeviceList)
-					{
-						string[] Tokens = DeviceToken.Split("@".ToCharArray(), StringSplitOptions.RemoveEmptyEntries);
-						if (Tokens.Length != 2)
-						{
-							throw new AutomationException("{0} did not have the Platform@Device format", DeviceToken);
-						}
-						UnrealTargetPlatform Platform;
-						if (!UnrealTargetPlatform.TryParse(Tokens[0], out Platform))
-						{
-							TurnkeyUtils.Log("Platform indicator {0} is an invalid platform, skipping", Tokens[0]);
-							continue;
-						}
-
-						string DeviceName = Tokens[1];
-
-						// track it
-						if (PlatformsAndDevices == null)
-						{
-							PlatformsAndDevices = new Dictionary<UnrealTargetPlatform, List<string>>();
-						}
-						if (!PlatformsAndDevices.ContainsKey(Platform))
-						{
-							PlatformsAndDevices[Platform] = new List<string>();
-						}
-						PlatformsAndDevices[Platform].Add(DeviceName);
-					}
-					SplitDeviceList = null;
 				}
 			}
+			else
+			{
+				PlatformsAndDevices = TurnkeyUtils.GetDevicesFromCommandLineOrUser(CommandOptions, null);
+			}
 
-			// if we didn't get some platforms already from -device list, then get or ask the user for platforms
 			if (PlatformsAndDevices == null)
 			{
-				PlatformsAndDevices = new Dictionary<UnrealTargetPlatform, List<string>>();
-				List<UnrealTargetPlatform> ChosenPlatforms = TurnkeyUtils.GetPlatformsFromCommandLineOrUser(CommandOptions, UnrealTargetPlatform.GetValidPlatforms().ToList());
-				ChosenPlatforms.ForEach(x => PlatformsAndDevices.Add(x, null));
-
-				if (ChosenPlatforms.Count > 1 && SplitDeviceList != null && !(SplitDeviceList.Count == 1 && SplitDeviceList[0].CompareTo("All") == 0))
-				{
-					throw new AutomationException("When passing -Device to VerifySdk without platform specifiers ('Platform:Device'), a single platform must be specified (unless -Device=All is used)");
-				}
-			}
-
-			if (PlatformsAndDevices.Count == 0)
-			{
-				TurnkeyUtils.Log("Platform(s) needed for VerifySdk command. Ending command.");
+				TurnkeyUtils.Log("Platform(s) and/or device(s) needed for VerifySdk command. Check parameters or selections.");
 				return;
 			}
 
@@ -212,78 +168,58 @@ namespace Turnkey.Commands
 					// @todo turnkey: validate!
 				}
 
-				// use the per-platform device list, unless it's not specifed, then use the global device list (which is set when not using platform specifiers)
-				List<string> DeviceNames = Pair.Value != null ? Pair.Value : SplitDeviceList;
-				if (DeviceNames != null && DeviceNames.Count > 0)
+				// now check software verison of each device
+				foreach (DeviceInfo Device in Pair.Value)
 				{
-					DeviceInfo[] Devices = AutomationPlatform.GetDevices();
-					if (Devices == null)
+					bool bArePrerequisitesValid = AutomationPlatform.UpdateDevicePrerequisites(Device, TurnkeyUtils.CommandUtilHelper, Retriever, !bUpdateIfNeeded);
+					bool bIsSoftwareValid = PlatformSDK.IsSoftwareVersionValid(Device.SoftwareVersion);
+
+					SdkUtils.LocalAvailability DeviceState = SdkUtils.LocalAvailability.None;
+					if (!bArePrerequisitesValid)
 					{
-						TurnkeyUtils.Log("Platform {0} didn't have any devices, ignoring any devices specified", Platform);
-						continue;
+						StatusString = "Invalid";
+						DeviceState |= SdkUtils.LocalAvailability.Device_InvalidPrerequisites;
+					}
+					else if (bIsSoftwareValid)
+					{
+						StatusString = "Valid";
+						DeviceState |= SdkUtils.LocalAvailability.Device_InstallSoftwareValid;
+					}
+					else
+					{
+						StatusString = "Invalid";
+						DeviceState |= SdkUtils.LocalAvailability.Device_InstallSoftwareInvalid;
 					}
 
-					TurnkeyUtils.Log("Installed Device validity:");
-
-					// a single device named all means all devices
-					if (!(DeviceNames.Count == 1 && DeviceNames[0].ToLower() == "all"))
+					if (Device.bCanConnect== false)
 					{
-						Devices = Devices.Where(x => DeviceNames.Contains(x.Name, StringComparer.OrdinalIgnoreCase)).ToArray();
+						DeviceState |= SdkUtils.LocalAvailability.Device_CannotConnect;
 					}
 
-					// now check software verison of each device
-					foreach (DeviceInfo Device in Devices)
+					TurnkeyUtils.Report("{0}@{1}: (Status={2}, Installed={3}, MinAllowed={4}, MaxAllowed={5}, Flags=\"{6}\")", Platform, Device.Name, StatusString, Device.SoftwareVersion, 
+						MinSoftwareAllowedVersion, MaxSoftwareAllowedVersion, DeviceState.ToString());
+
+					if (bForceDeviceInstall || !bIsSoftwareValid)
 					{
-						bool bArePrerequisitesValid = AutomationPlatform.UpdateDevicePrerequisites(Device, TurnkeyUtils.CommandUtilHelper, Retriever, !bUpdateIfNeeded);
-						bool bIsSoftwareValid = PlatformSDK.IsSoftwareVersionValid(Device.SoftwareVersion);
-
-						SdkUtils.LocalAvailability DeviceState = SdkUtils.LocalAvailability.None;
-						if (!bArePrerequisitesValid)
+						if (bUpdateIfNeeded)
 						{
-							StatusString = "Invalid";
-							DeviceState |= SdkUtils.LocalAvailability.Device_InvalidPrerequisites;
-						}
-						else if (bIsSoftwareValid)
-						{
-							StatusString = "Valid";
-							DeviceState |= SdkUtils.LocalAvailability.Device_InstallSoftwareValid;
-						}
-						else
-						{
-							StatusString = "Invalid";
-							DeviceState |= SdkUtils.LocalAvailability.Device_InstallSoftwareInvalid;
-						}
-
-						if (Device.bCanConnect== false)
-						{
-							DeviceState |= SdkUtils.LocalAvailability.Device_CannotConnect;
-						}
-
-						TurnkeyUtils.Report("{0}@{1}: (Status={2}, Installed={3}, MinAllowed={4}, MaxAllowed={5}, Flags=\"{6}\")", Platform, Device.Name, StatusString, Device.SoftwareVersion, 
-							MinSoftwareAllowedVersion, MaxSoftwareAllowedVersion, DeviceState.ToString());
-
-						if (bForceDeviceInstall || !bIsSoftwareValid)
-						{
-							if (bUpdateIfNeeded)
+							if (Device.bCanConnect)
 							{
-								if (Device.bCanConnect)
-								{
-									FileSource MatchingInstallableSdk = FileSource.FindMatchingSdk(AutomationPlatform, new FileSource.SourceType[] { FileSource.SourceType.Flash }, bSelectBest: bUnattended, DeviceType: Device.Type);
+								FileSource MatchingInstallableSdk = FileSource.FindMatchingSdk(AutomationPlatform, new FileSource.SourceType[] { FileSource.SourceType.Flash }, bSelectBest: bUnattended, DeviceType: Device.Type);
 
-									if (MatchingInstallableSdk == null)
-									{
-										TurnkeyUtils.Log("ERROR: {0}: Unable top find any Sdks that could be installed on {1}", Platform, Device.Name);
-										TurnkeyUtils.ExitCode = AutomationTool.ExitCode.Error_SDKNotFound;
-									}
-									else
-									{
-										MatchingInstallableSdk.DownloadOrInstall(Platform, Device, bUnattended);
-									}
+								if (MatchingInstallableSdk == null)
+								{
+									TurnkeyUtils.Log("ERROR: {0}: Unable top find any Sdks that could be installed on {1}", Platform, Device.Name);
+									TurnkeyUtils.ExitCode = AutomationTool.ExitCode.Error_SDKNotFound;
 								}
 								else
 								{
-									TurnkeyUtils.Log("Skipping device {0} because it cannot connect.", Device.Name);
+									MatchingInstallableSdk.DownloadOrInstall(Platform, Device, bUnattended);
 								}
+							}
+							else
+							{
+								TurnkeyUtils.Log("Skipping device {0} because it cannot connect.", Device.Name);
 							}
 						}
 					}

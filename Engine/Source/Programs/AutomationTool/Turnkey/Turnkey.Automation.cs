@@ -34,29 +34,37 @@ namespace Turnkey
 			return Turnkey.Execute(IOProvider, this);
 		}
 
-
+		static bool bHasBeenInitialized = false;
 		public static AutomationTool.ExitCode Execute(IOProvider IOProvider, BuildCommand CommandUtilHelper)
 		{
-			SetupVisuals();
-
-			// cache some settings for other classes
-			TurnkeyUtils.SetVariable("EngineDir", EngineDirectory.FullName);
-			TurnkeyUtils.SetVariable("Project", CommandUtilHelper.ParseParamValue("Project="));
-			
-			TurnkeyUtils.Initialize(IOProvider, CommandUtilHelper);
-			TurnkeySettings.Initialize();
-
-			//			Microsoft.Win32.SystemEvents.UserPreferenceChanged += new Microsoft.Win32.UserPreferenceChangedEventHandler((sender, args) => TurnkeyUtils.Log("Got a change! {0}", args.Category));
-
-			Console.CancelKeyPress += delegate
+			if (!bHasBeenInitialized)
 			{
-				TurnkeyUtils.CleanupPaths();
+				SetupVisuals();
 
-				TurnkeyUtils.Log("");
-				TurnkeyUtils.Log("If you installed an SDK, you should NOT \"Terminate batch job\"!");
-				TurnkeyUtils.Log("");
-				TurnkeyUtils.ExitCode = ExitCode.Success;
-			};
+				// cache some settings for other classes
+				TurnkeyUtils.SetVariable("EngineDir", EngineDirectory.FullName);
+				TurnkeyUtils.SetVariable("Project", CommandUtilHelper.ParseParamValue("Project="));
+
+				TurnkeySettings.Initialize();
+
+				//			Microsoft.Win32.SystemEvents.UserPreferenceChanged += new Microsoft.Win32.UserPreferenceChangedEventHandler((sender, args) => TurnkeyUtils.Log("Got a change! {0}", args.Category));
+
+				Console.CancelKeyPress += delegate
+				{
+					TurnkeyUtils.CleanupPaths();
+
+					TurnkeyUtils.Log("");
+					TurnkeyUtils.Log("If you installed an SDK, you should NOT \"Terminate batch job\"!");
+					TurnkeyUtils.Log("");
+					TurnkeyUtils.ExitCode = ExitCode.Success;
+				};
+
+				bHasBeenInitialized = true;
+			}
+
+			// IOProvider could change between multiple executions
+			TurnkeyUtils.Initialize(IOProvider, CommandUtilHelper);
+
 
 			try
 			{

@@ -107,30 +107,38 @@ namespace Turnkey.Commands
 			Config.Build = Build;
 			Config.ProjectName = Project;
 
-			DeviceInfo TurnkeyDevice = TurnkeyUtils.GetDeviceFromCommandLineOrUser(CommandOptions, Platform);
+			Dictionary<UnrealTargetPlatform, List<DeviceInfo>> TurnkeyDevices = TurnkeyUtils.GetDevicesFromCommandLineOrUser(CommandOptions, Platform);
+			List<ITargetDevice> GauntletDevices = new List<ITargetDevice>();
 
-			ITargetDevice GauntletDevice;
-			if (TurnkeyDevice == null)
+			if (TurnkeyDevices == null)
 			{
+				// @todo turnkey: probably don't want this, just cancel?
 				IEnumerable<IDefaultDeviceSource> DeviceSources = Gauntlet.Utils.InterfaceHelpers.FindImplementations<IDefaultDeviceSource>();
-				GauntletDevice = DeviceSources.Where(S => S.CanSupportPlatform(Platform)).SelectMany(S => S.GetDefaultDevices()).FirstOrDefault();
+				GauntletDevices.AddRange(DeviceSources.Where(S => S.CanSupportPlatform(Platform)).SelectMany(S => S.GetDefaultDevices()));
 			}
 			else
 			{
 				IDeviceFactory Factory = Gauntlet.Utils.InterfaceHelpers.FindImplementations<IDeviceFactory>()
 					.Where(F => F.CanSupportPlatform(Platform))
 					.FirstOrDefault();
-				GauntletDevice = Factory.CreateDevice(TurnkeyDevice.Name, null);
+
+				GauntletDevices.AddRange(TurnkeyDevices[Platform].Select(x => Factory.CreateDevice(x.Name, null)));
 			}
 
-			if (GauntletDevice == null)
+			if (GauntletDevices.Count == 0 || GauntletDevices[0] == null)
 			{
 				TurnkeyUtils.Log("Could not find a device to install on!");
 				return;
 			}
 
-			IAppInstall Install = GauntletDevice.InstallApplication(Config);
-			GauntletDevice.Run(Install);
+			foreach (ITargetDevice GauntletDevice in GauntletDevices)
+			{
+				if (GauntletDevice != null)
+				{
+					IAppInstall Install = GauntletDevice.InstallApplication(Config);
+					GauntletDevice.Run(Install);
+				}
+			}
 		}
 	}
 }
