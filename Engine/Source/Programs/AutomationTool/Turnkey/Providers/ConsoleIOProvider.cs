@@ -21,6 +21,13 @@ namespace Turnkey
 			}
 		}
 
+		public override void PauseForUser(string Message, bool bAppendNewLine)
+		{
+			Log(Message, bAppendNewLine);
+			Log("Press Enter to continue", bAppendNewLine);
+			Console.ReadLine();
+		}
+
 		public override string ReadInput(string Prompt, string Default, bool bAppendNewLine)
 		{
 			Log(Prompt, bAppendNewLine);

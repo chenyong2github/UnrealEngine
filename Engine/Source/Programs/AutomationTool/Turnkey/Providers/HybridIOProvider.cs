@@ -166,6 +166,11 @@ namespace Turnkey
 #pragma warning restore
 		}
 
+		public override void PauseForUser(string Message, bool bAppendNewLine)
+		{
+			ShowDialog(Message, "", false);
+		}
+
 		public override string ReadInput(string Prompt, string Default, bool bAppendNewLine)
 		{
 			return ShowDialog(Prompt, Default, false);

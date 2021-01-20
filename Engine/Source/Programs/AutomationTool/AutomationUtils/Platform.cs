@@ -17,6 +17,7 @@ namespace AutomationTool
 		string RetrieveFileSource(object HintObject);
 		string GetVariable(string VariableName);
 		bool RunExternalCommand(string Command, string Params, string Preamble = "", string SuccessPostamble = "", string FailurePostamble = "");
+		void PauseForUser(string Message); 
 	}
 
 	//public interface InputOutput

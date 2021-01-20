@@ -314,5 +314,10 @@ namespace Turnkey
 		{
 			return TurnkeyUtils.GetVariableValue(VariableName);
 		}
+
+		public void PauseForUser(string Message)
+		{
+			TurnkeyUtils.PauseForUser(Message);
+		}
 	}
 }

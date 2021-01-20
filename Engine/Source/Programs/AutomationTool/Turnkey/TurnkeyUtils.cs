@@ -779,6 +779,11 @@ namespace Turnkey
 			IOProvider.Report(string.Format(Message, Params), bAppendNewLine: true);
 		}
 
+		public static void PauseForUser(string Message, params object[] Params)
+		{
+			IOProvider.PauseForUser(string.Format(Message, Params), bAppendNewLine: true);
+		}
+
 		public static string ReadInput(string Prompt, string Default = "")
 		{
 			return IOProvider.ReadInput(Prompt, Default, bAppendNewLine: true);

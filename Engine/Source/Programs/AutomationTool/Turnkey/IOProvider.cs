@@ -17,6 +17,8 @@ namespace Turnkey
 			Log(Message, bAppendNewLine);
 		}
 
+		public abstract void PauseForUser(string Message, bool bAppendNewLine);
+
 		public abstract string ReadInput(string Prompt, string DefaultValue, bool bAppendNewLine);
 		
 		public abstract int ReadInputInt(string Prompt, List<string> Options, bool bIsCancellable, int DefaultValue, bool bAppendNewLine);
