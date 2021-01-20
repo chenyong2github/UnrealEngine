@@ -62,7 +62,8 @@ public:
 	FMeshRenderBufferSet(ERHIFeatureLevel::Type FeatureLevelType)
 		: VertexFactory(FeatureLevelType, "FMeshRenderBufferSet")
 	{
-
+		StaticMeshVertexBuffer.SetUseFullPrecisionUVs(true);
+		StaticMeshVertexBuffer.SetUseHighPrecisionTangentBasis(true);
 	}
 
 
