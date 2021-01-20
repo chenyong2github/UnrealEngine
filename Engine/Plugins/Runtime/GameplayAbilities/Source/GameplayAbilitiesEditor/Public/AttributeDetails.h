@@ -13,6 +13,7 @@
 
 class IDetailLayoutBuilder;
 class IPropertyHandle;
+class IPropertyUtilities;
 class SComboButton;
 class SSearchBox;
 
@@ -103,8 +104,9 @@ protected:
 
 	// Curve source accessors
 	void OnCurveSourceChanged();
-	class UCurveTable* GetCurveTable() const;
-	FDataRegistryType GetRegistryType() const;
+	void RefreshSourceData();
+	class UCurveTable* GetCurveTable(FPropertyAccess::Result* OutResult = nullptr) const;
+	FDataRegistryType GetRegistryType(FPropertyAccess::Result* OutResult = nullptr) const;
 
 	// Row/item name widget
 	TSharedRef<SWidget> CreateRowNameWidget();
@@ -120,12 +122,11 @@ protected:
 	FText GetRowValuePreviewText() const;
 
 	// Row accessors and callbacks
-	FName GetRowName() const;
-	const FRealCurve* GetRealCurve() const;
-	FDataRegistryId GetRegistryId() const;
+	FName GetRowName(FPropertyAccess::Result* OutResult = nullptr) const;
+	const FRealCurve* GetRealCurve(FPropertyAccess::Result* OutResult = nullptr) const;
+	FDataRegistryId GetRegistryId(FPropertyAccess::Result* OutResult = nullptr) const;
 	void SetRegistryId(FDataRegistryId NewId);
 	void GetCustomRowNames(TArray<FName>& OutRows) const;
-
 
 	TSharedPtr<IPropertyHandle> ValueProperty;
 	TSharedPtr<IPropertyHandle> CurveTableHandleProperty;
@@ -133,6 +134,9 @@ protected:
 	TSharedPtr<IPropertyHandle> RowNameProperty;
 	TSharedPtr<IPropertyHandle> RegistryTypeProperty;
 
+	TWeakPtr<IPropertyUtilities> PropertyUtilities;
+
 	float PreviewLevel;
 	float MaxPreviewLevel;
+	bool bSourceRefreshQueued;
 };
