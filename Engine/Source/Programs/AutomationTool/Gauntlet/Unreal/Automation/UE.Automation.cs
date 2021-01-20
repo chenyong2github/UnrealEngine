@@ -1,4 +1,6 @@
-﻿using AutomationTool;
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
+
+using AutomationTool;
 using Gauntlet;
 using System;
 using System.Collections.Generic;
