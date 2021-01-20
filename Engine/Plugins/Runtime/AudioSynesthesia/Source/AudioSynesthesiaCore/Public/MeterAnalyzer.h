@@ -17,12 +17,6 @@ namespace Audio
 		// Envelope follower release time in milliseconds
 		int32 MeterReleaseTime = 300;
 		
-		// Peak detector attack time in milliseconds
-		int32 PeakAttackTime = 300;
-
-		// Peak detector release time in milliseconds
-		int32 PeakReleaseTime = 300;
-
 		// Peak detector hold time in milliseconds
 		int32 PeakHoldTime = 100;
 
@@ -60,7 +54,6 @@ namespace Audio
 	protected:
 		// Envelope follower per channel
 		TArray<TUniquePtr<FEnvelopeFollower>> MeterEnvelopeFollowers;
-		TArray<TUniquePtr<FEnvelopeFollower>> PeakEnvelopeFollowers;
 
 		// Per-channel clipping data
 		struct FClippingData

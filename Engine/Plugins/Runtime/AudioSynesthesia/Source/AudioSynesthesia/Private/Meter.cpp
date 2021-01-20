@@ -5,6 +5,7 @@
 #include "InterpolateSorted.h"
 #include "AudioSynesthesiaLog.h"
 #include "DSP/EnvelopeFollower.h"
+#include "DSP/Dsp.h"
 
 TUniquePtr<Audio::IAnalyzerSettings> UMeterSettings::GetSettings(const int32 InSampleRate, const int32 InNumChannels) const
 {
@@ -30,8 +31,6 @@ TUniquePtr<Audio::IAnalyzerSettings> UMeterSettings::GetSettings(const int32 InS
 
 	Settings->MeterAttackTime = MeterAttackTime;
 	Settings->MeterReleaseTime = MeterReleaseTime;
-	Settings->PeakAttackTime = PeakAttackTime;
-	Settings->PeakReleaseTime = PeakReleaseTime;
 	Settings->PeakHoldTime = PeakHoldTime;
 	Settings->ClippingThreshold = ClippingThreshold;
 
@@ -75,9 +74,9 @@ static TArray<FMeterResults> ConvertToBlueprintResults(UMeterSettings* Settings,
 	{
 		FMeterResults NewResults;
 
-		NewResults.MeterValue = MeterEntry.MeterValue;
-		NewResults.PeakValue = MeterEntry.PeakValue;
-		NewResults.ClippingValue = MeterEntry.ClippingValue;
+		NewResults.MeterValue = Audio::ConvertToDecibels(MeterEntry.MeterValue);
+		NewResults.PeakValue = Audio::ConvertToDecibels(MeterEntry.PeakValue);
+		NewResults.ClippingValue = Audio::ConvertToDecibels(MeterEntry.ClippingValue);
 		NewResults.NumSamplesClipping = MeterEntry.NumSamplesClipping;
 		NewResults.TimeSeconds = MeterEntry.Timestamp;
 

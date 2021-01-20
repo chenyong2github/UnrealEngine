@@ -24,7 +24,6 @@ namespace Audio
 		for (int32 ChannelIndex = 0; ChannelIndex < NumChannels; ++ChannelIndex)
 		{
 			MeterEnvelopeFollowers.Add(MakeUnique<FEnvelopeFollower>(InSampleRate, (float)InSettings.MeterAttackTime, (float)InSettings.MeterReleaseTime, InSettings.MeterPeakMode, true));
-			PeakEnvelopeFollowers.Add(MakeUnique<FEnvelopeFollower>(InSampleRate, (float)InSettings.PeakAttackTime, (float)InSettings.PeakReleaseTime, InSettings.MeterPeakMode, true));
 		}
 	}
 
@@ -49,10 +48,7 @@ namespace Audio
 				}
 
 				TUniquePtr<FEnvelopeFollower>& MeterEnvelopeFollower = MeterEnvelopeFollowers[ChannelIndex];
-				MeterEnvelopeFollower->ProcessAudio(Sample);
-
-				TUniquePtr<FEnvelopeFollower>& PeakEnvelopeFollower = PeakEnvelopeFollowers[ChannelIndex];
-				float NewPeakEnvValue = PeakEnvelopeFollower->ProcessAudio(Sample);
+				float NewPeakEnvValue = MeterEnvelopeFollower->ProcessAudio(Sample);
 
 				FPeakEnvelopeData& PeakEnvData = PeakEnvDataPerChannel[ChannelIndex];
 				FPeakData& PeakData = PeakDataPerChannel[ChannelIndex];

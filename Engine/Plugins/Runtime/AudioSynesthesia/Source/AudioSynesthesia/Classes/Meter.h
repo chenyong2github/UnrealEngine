@@ -42,14 +42,6 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = AudioAnalyzer, meta = (ClampMin = "0"))
 	int32 MeterReleaseTime = 300;
 
-	/** Peak attack time, in milliseconds */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = AudioAnalyzer, meta = (ClampMin = "0"))
-	int32 PeakAttackTime = 300;
-
-	/** Peak release time, in milliseconds */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = AudioAnalyzer, meta = (ClampMin = "0"))
-	int32 PeakReleaseTime = 300;
-
 	/** Peak hold time, in milliseconds */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = AudioAnalyzer, meta = (ClampMin = "0"))
 	int32 PeakHoldTime = 100;

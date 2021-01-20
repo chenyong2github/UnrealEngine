@@ -12,6 +12,7 @@ public class AudioWidgets : ModuleRules
 		new string[]
 			{
 				"Core",
+				"UMG"
 			}
 		);
 
@@ -22,7 +23,9 @@ public class AudioWidgets : ModuleRules
 				"Engine",
 				"Slate",
 				"SlateCore",
-				"AdvancedWidgets"
+				"InputCore",
+				"AdvancedWidgets",
+				"SignalProcessing"
 			}
 		);
 	}
