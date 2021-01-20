@@ -348,6 +348,7 @@ public:
 
 	virtual void RHIResummarizeHTile(FRHITexture2D* DepthTexture) override final
 	{
+		Tracker->Assert(DepthTexture->GetWholeResourceIdentity(), ERHIAccess::DSVWrite);
 		RHIContext->RHIResummarizeHTile(DepthTexture);
 	}
 
