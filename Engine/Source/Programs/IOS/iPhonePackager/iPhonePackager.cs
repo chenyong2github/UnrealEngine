@@ -869,7 +869,14 @@ namespace iPhonePackager
                                 dllPath = Registry.GetValue("HKEY_LOCAL_MACHINE\\SOFTWARE\\Wow6432Node\\Apple Inc.\\Apple Mobile Device Support\\Shared", "MobileDeviceDLL", null) as string;
                                 if (String.IsNullOrEmpty(dllPath) || !File.Exists(dllPath))
                                 {
-                                    dllPath = FindWindowsStoreITunesDLL();
+									// iTunes >= 12.7 doesn't have a key specifying the 32-bit DLL but it does have a ASMapiInterfaceDLL key and MobileDevice.dll is in usually in the same directory
+									dllPath = Registry.GetValue("HKEY_LOCAL_MACHINE\\SOFTWARE\\Wow6432Node\\Apple Inc.\\Apple Mobile Device Support\\Shared", "ASMapiInterfaceDLL", null) as string;
+									dllPath = String.IsNullOrEmpty(dllPath) ? null : dllPath.Substring(0, dllPath.LastIndexOf('\\') + 1) + "MobileDevice.dll";
+
+									if (String.IsNullOrEmpty(dllPath) || !File.Exists(dllPath))
+									{
+										dllPath = FindWindowsStoreITunesDLL();
+									}
                                 }
                             }
                         }

@@ -58,8 +58,14 @@ namespace UnrealBuildTool
 					DllPath = Registry.GetValue("HKEY_LOCAL_MACHINE\\SOFTWARE\\Wow6432Node\\Apple Inc.\\Apple Mobile Device Support\\Shared", "MobileDeviceDLL", null) as string;
 					if (string.IsNullOrEmpty(DllPath) || !File.Exists(DllPath))
 					{
-						DllPath = FindWindowsStoreITunesDLL();
+						// iTunes >= 12.7 doesn't have a key specifying the 32-bit DLL but it does have a ASMapiInterfaceDLL key and MobileDevice.dll is in usually in the same directory
+						DllPath = Registry.GetValue("HKEY_LOCAL_MACHINE\\SOFTWARE\\Wow6432Node\\Apple Inc.\\Apple Mobile Device Support\\Shared", "ASMapiInterfaceDLL", null) as string;
+						DllPath = String.IsNullOrEmpty(DllPath) ? null : DllPath.Substring(0, DllPath.LastIndexOf('\\') + 1) + "MobileDevice.dll";
 
+						if (string.IsNullOrEmpty(DllPath) || !File.Exists(DllPath))
+						{
+							DllPath = FindWindowsStoreITunesDLL();
+						}
 					}
 				}
 
