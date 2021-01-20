@@ -148,7 +148,8 @@ class FVisualizeMaterialPS : public FGlobalShader
 	DECLARE_GLOBAL_SHADER(FVisualizeMaterialPS);
 	SHADER_USE_PARAMETER_STRUCT(FVisualizeMaterialPS, FGlobalShader);
 
-	using FPermutationDomain = TShaderPermutationDomain<>;
+	class FBSDFPass : SHADER_PERMUTATION_INT("PERMUTATION_BSDF_PASS", 4);
+	using FPermutationDomain = TShaderPermutationDomain<FBSDFPass>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
@@ -193,9 +194,6 @@ void AddVisualizeMaterialPasses(FRDGBuilder& GraphBuilder, const TArray<FViewInf
 	{
 		const FViewInfo& View = Views[i];
 
-		FVisualizeMaterialPS::FPermutationDomain PermutationVector;
-		TShaderMapRef<FVisualizeMaterialPS> PixelShader(View.ShaderMap, PermutationVector);
-
 		if (View.Family->EngineShowFlags.VisualizeStrataMaterial)
 		{
 			FVisualizeMaterialPS::FParameters* PassParameters = GraphBuilder.AllocParameters<FVisualizeMaterialPS::FParameters>();
@@ -210,8 +208,15 @@ void AddVisualizeMaterialPasses(FRDGBuilder& GraphBuilder, const TArray<FViewInf
 				ShaderDrawDebug::SetParameters(GraphBuilder, View.ShaderDrawData, PassParameters->ShaderDrawParameters);
 			}
 
-			FPixelShaderUtils::AddFullscreenPass<FVisualizeMaterialPS>(GraphBuilder, View.ShaderMap, RDG_EVENT_NAME("StrataVisualizeMaterial"),
-				PixelShader, PassParameters, View.ViewRect, PreMultipliedColorTransmittanceBlend);
+			for (uint32 j = 0; j < 4; ++j)
+			{
+				FVisualizeMaterialPS::FPermutationDomain PermutationVector;
+				PermutationVector.Set<typename FVisualizeMaterialPS::FBSDFPass>(j);
+				TShaderMapRef<FVisualizeMaterialPS> PixelShader(View.ShaderMap, PermutationVector);
+
+				FPixelShaderUtils::AddFullscreenPass<FVisualizeMaterialPS>(GraphBuilder, View.ShaderMap, RDG_EVENT_NAME("StrataVisualizeMaterial"),
+					PixelShader, PassParameters, View.ViewRect, PreMultipliedColorTransmittanceBlend);
+			}
 		}
 	}
 }
