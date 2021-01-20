@@ -13,7 +13,7 @@ class FOpenXRSwapchain : public FXRSwapChain
 {
 public:
 	FOpenXRSwapchain(TArray<FTextureRHIRef>&& InRHITextureSwapChain, const FTextureRHIRef & InRHITexture, XrSwapchain InHandle);
-	virtual ~FOpenXRSwapchain() {}
+	virtual ~FOpenXRSwapchain();
 
 	virtual void IncrementSwapChainIndex_RHIThread(int64 Timeout) override final;
 	virtual void ReleaseCurrentImage_RHIThread() override final;

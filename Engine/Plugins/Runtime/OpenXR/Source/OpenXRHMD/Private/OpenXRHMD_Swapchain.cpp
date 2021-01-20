@@ -3,6 +3,7 @@
 #include "OpenXRHMD_Swapchain.h"
 #include "OpenXRCore.h"
 #include "OpenXRPlatformRHI.h"
+#include "XRThreadUtils.h"
 
 FOpenXRSwapchain::FOpenXRSwapchain(TArray<FTextureRHIRef>&& InRHITextureSwapChain, const FTextureRHIRef & InRHITexture, XrSwapchain InHandle) :
 	FXRSwapChain(MoveTemp(InRHITextureSwapChain), InRHITexture),
@@ -11,6 +12,26 @@ FOpenXRSwapchain::FOpenXRSwapchain(TArray<FTextureRHIRef>&& InRHITextureSwapChai
 	
 {
 	IncrementSwapChainIndex_RHIThread((int64)XR_NO_DURATION);
+}
+
+FOpenXRSwapchain::~FOpenXRSwapchain() {
+	if (IsInGameThread())
+	{
+		ExecuteOnRenderThread([this]()
+		{
+			ExecuteOnRHIThread([this]()
+			{
+				ReleaseResources_RHIThread();
+			});
+		});
+	}
+	else
+	{
+		ExecuteOnRHIThread([this]()
+		{
+			ReleaseResources_RHIThread();
+		});
+	}
 }
 
 void FOpenXRSwapchain::IncrementSwapChainIndex_RHIThread(int64 Timeout)
