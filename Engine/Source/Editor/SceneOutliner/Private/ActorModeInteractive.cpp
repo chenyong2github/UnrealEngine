@@ -51,8 +51,8 @@ void FActorModeInteractive::OnLevelSelectionChanged(UObject* Obj)
 	{
 		SceneOutliner->FullRefresh();
 	}
-	// If the SceneOutliner has user focus, we should not change the scrolling to override the user input.
-	else if (!SceneOutliner->HasAnyUserFocusOrFocusedDescendants())
+	// If the SceneOutliner's reentrant flag is set, the selection change has already been handled in the outliner class
+	else if (!SceneOutliner->GetIsReentrant())
 	{
 		SceneOutliner->ClearSelection();
 		SceneOutliner->RefreshSelection();

@@ -412,6 +412,10 @@ public:
 
 	/** Called when a payload is dragged over an item */
 	FReply OnDragOverItem(const FDragDropEvent& Event, const ISceneOutlinerTreeItem& Item) const;
+
+	/** Used to test if Outliner related selection changes have already been handled */
+	bool GetIsReentrant() const { return bIsReentrant; }
+
 private:
 	/** Methods that implement structural modification logic for the tree */
 
