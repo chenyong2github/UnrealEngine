@@ -9,165 +9,7 @@
 #include "StaticMeshResources.h"
 #include "MeshCardRepresentation.h"
 #include "DistanceFieldAtlas.h"
-
-#if USE_EMBREE
-
-#include <embree2/rtcore.h>
-#include <embree2/rtcore_ray.h>
-
-typedef TArray<uint32> FInputPrimitiveIds;
-
-bool SetupEmbreeScene(
-	FString MeshName,
-	int32 PrimitiveRangeStart, 
-	int32 PrimitiveRangeEnd, 
-	const FInputPrimitiveIds& InputPrimitiveIds,
-	const FSourceMeshDataForDerivedDataTask& SourceMeshData,
-	const FStaticMeshLODResources& LODModel,
-	RTCDevice EmbreeDevice,
-	RTCScene& EmbreeScene)
-{
-	const int32 NumVertices = SourceMeshData.IsValid() ? SourceMeshData.GetNumVertices() : LODModel.VertexBuffers.PositionVertexBuffer.GetNumVertices();
-
-	EmbreeScene = rtcDeviceNewScene(EmbreeDevice, RTC_SCENE_STATIC, RTC_INTERSECT1);
-			
-	RTCError ReturnErrorNewScene = rtcDeviceGetError(EmbreeDevice);
-	if (ReturnErrorNewScene != RTC_NO_ERROR)
-	{
-		UE_LOG(LogMeshUtilities, Warning, TEXT("GenerateCardRepresentationData failed for %s. Embree rtcDeviceNewScene failed. Code: %d"), *MeshName, (int32)ReturnErrorNewScene);
-		rtcDeleteDevice(EmbreeDevice);
-		return false;
-	}
-
-	const int32 NumTriangles = PrimitiveRangeEnd - PrimitiveRangeStart;
-
-	TArray<int32> FilteredTriangles;
-	FilteredTriangles.Empty(NumTriangles);
-
-	if (SourceMeshData.IsValid())
-	{
-		for (int32 TriangleIndex = 0; TriangleIndex < NumTriangles; ++TriangleIndex)
-		{
-			const uint32 I0 = SourceMeshData.TriangleIndices[TriangleIndex * 3 + 0];
-			const uint32 I1 = SourceMeshData.TriangleIndices[TriangleIndex * 3 + 1];
-			const uint32 I2 = SourceMeshData.TriangleIndices[TriangleIndex * 3 + 2];
-
-			const FVector V0 = SourceMeshData.VertexPositions[I0];
-			const FVector V1 = SourceMeshData.VertexPositions[I1];
-			const FVector V2 = SourceMeshData.VertexPositions[I2];
-
-			const FVector TriangleNormal = ((V1 - V2) ^ (V0 - V2));
-			const bool bDegenerateTriangle = TriangleNormal.SizeSquared() < SMALL_NUMBER;
-			if (!bDegenerateTriangle)
-			{
-				FilteredTriangles.Add(TriangleIndex);
-			}
-		}
-	}
-	else
-	{
-		for (int32 TriangleIndex = 0; TriangleIndex < NumTriangles; ++TriangleIndex)
-		{
-			const FIndexArrayView Indices = LODModel.IndexBuffer.GetArrayView();
-			const uint32 I0 = Indices[TriangleIndex * 3 + 0];
-			const uint32 I1 = Indices[TriangleIndex * 3 + 1];
-			const uint32 I2 = Indices[TriangleIndex * 3 + 2];
-
-			const FVector V0 = LODModel.VertexBuffers.PositionVertexBuffer.VertexPosition(I0);
-			const FVector V1 = LODModel.VertexBuffers.PositionVertexBuffer.VertexPosition(I1);
-			const FVector V2 = LODModel.VertexBuffers.PositionVertexBuffer.VertexPosition(I2);
-
-			const FVector TriangleNormal = ((V1 - V2) ^ (V0 - V2));
-			const bool bDegenerateTriangle = TriangleNormal.SizeSquared() < SMALL_NUMBER;
-			if (!bDegenerateTriangle)
-			{
-				FilteredTriangles.Add(TriangleIndex);
-			}
-		}
-	}
-
-
-	FVector4* EmbreeVertices = nullptr;
-	int32* EmbreeIndices = nullptr;
-
-	uint32 GeomID = rtcNewTriangleMesh(EmbreeScene, RTC_GEOMETRY_STATIC, FilteredTriangles.Num(), NumVertices);
-
-	EmbreeVertices = (FVector4*)rtcMapBuffer(EmbreeScene, GeomID, RTC_VERTEX_BUFFER);
-	EmbreeIndices = (int32*)rtcMapBuffer(EmbreeScene, GeomID, RTC_INDEX_BUFFER);
-
-	for (int32 FilteredTriangleIndex = 0; FilteredTriangleIndex < FilteredTriangles.Num(); FilteredTriangleIndex++)
-	{
-		const int32 TriangleIndex = FilteredTriangles[FilteredTriangleIndex];
-
-		int32 I0, I1, I2;
-		FVector V0, V1, V2;
-
-		if (SourceMeshData.IsValid())
-		{
-			I0 = SourceMeshData.TriangleIndices[TriangleIndex * 3 + 0];
-			I1 = SourceMeshData.TriangleIndices[TriangleIndex * 3 + 1];
-			I2 = SourceMeshData.TriangleIndices[TriangleIndex * 3 + 2];
-
-			V0 = SourceMeshData.VertexPositions[I0];
-			V1 = SourceMeshData.VertexPositions[I1];
-			V2 = SourceMeshData.VertexPositions[I2];
-		}
-		else
-		{
-			const FIndexArrayView Indices = LODModel.IndexBuffer.GetArrayView();
-			I0 = Indices[TriangleIndex * 3 + 0];
-			I1 = Indices[TriangleIndex * 3 + 1];
-			I2 = Indices[TriangleIndex * 3 + 2];
-
-			V0 = LODModel.VertexBuffers.PositionVertexBuffer.VertexPosition(I0);
-			V1 = LODModel.VertexBuffers.PositionVertexBuffer.VertexPosition(I1);
-			V2 = LODModel.VertexBuffers.PositionVertexBuffer.VertexPosition(I2);
-		}
-
-		EmbreeIndices[FilteredTriangleIndex * 3 + 0] = I0;
-		EmbreeIndices[FilteredTriangleIndex * 3 + 1] = I1;
-		EmbreeIndices[FilteredTriangleIndex * 3 + 2] = I2;
-
-		EmbreeVertices[I0] = FVector4(V0, 0);
-		EmbreeVertices[I1] = FVector4(V1, 0);
-		EmbreeVertices[I2] = FVector4(V2, 0);
-	}
-
-	rtcUnmapBuffer(EmbreeScene, GeomID, RTC_VERTEX_BUFFER);
-	rtcUnmapBuffer(EmbreeScene, GeomID, RTC_INDEX_BUFFER);
-
-	RTCError ReturnError = rtcDeviceGetError(EmbreeDevice);
-	if (ReturnError != RTC_NO_ERROR)
-	{
-		UE_LOG(LogMeshUtilities, Warning, TEXT("GenerateCardRepresentationData failed for %s. Embree rtcUnmapBuffer failed. Code: %d"), *MeshName, (int32)ReturnError);
-		rtcDeleteScene(EmbreeScene);
-		return false;
-	}
-
-	rtcCommit(EmbreeScene);
-	RTCError ReturnError2 = rtcDeviceGetError(EmbreeDevice);
-	if (ReturnError2 != RTC_NO_ERROR)
-	{
-		UE_LOG(LogMeshUtilities, Warning, TEXT("GenerateCardRepresentationData failed for %s. Embree rtcCommit failed. Code: %d"), *MeshName, (int32)ReturnError2);
-		rtcDeleteScene(EmbreeScene);
-		return false;
-	}
-
-	return true;
-}
-
-struct FCardBuildEmbreeRay : public RTCRay
-{
-	FCardBuildEmbreeRay()
-	{
-		u = v = 0;
-		time = 0;
-		mask = 0xFFFFFFFF;
-		geomID = -1;
-		instID = -1;
-		primID = -1;
-	}
-};
+#include "MeshRepresentationCommon.h"
 
 class FGenerateCardMeshContext
 {
@@ -185,76 +27,6 @@ public:
 	{}
 };
 
-class FDistanceFieldSamplingData
-{
-public:
-	bool bEightBitFixedPoint;
-	const TArray<uint8>* SourceDataPtr;
-	FVector2D DistanceMinMax;
-	FBox LocalBoundingBox;
-	float SDFScale;
-	FIntVector Size;
-};
-
-float SampleDistanceField(const FVector& SamplePosition, FDistanceFieldSamplingData DistanceField)
-{
-	FVector VolumeUV = (SamplePosition - DistanceField.LocalBoundingBox.Min) / (DistanceField.LocalBoundingBox.Max - DistanceField.LocalBoundingBox.Min);
-	FVector TexelPosition = VolumeUV * FVector(DistanceField.Size);
-	TexelPosition.X = FMath::Clamp<float>(TexelPosition.X, 0.0f, DistanceField.Size.X - 1);
-	TexelPosition.Y = FMath::Clamp<float>(TexelPosition.Y, 0.0f, DistanceField.Size.Y - 1);
-	TexelPosition.Z = FMath::Clamp<float>(TexelPosition.Z, 0.0f, DistanceField.Size.Z - 1);
-
-	FIntVector MinAddress(TexelPosition);
-	FVector Fractional = TexelPosition - FVector(MinAddress);
-
-	float Result = 0;
-	float TotalWeight = 0;
-
-	for (int32 Z = 0; Z < 2; Z++)
-	{
-		for (int32 Y = 0; Y < 2; Y++)
-		{
-			for (int32 X = 0; X < 2; X++)
-			{
-				FVector BilinearWeights(X == 0 ? 1 - Fractional.X : Fractional.X, Y == 0 ? 1 - Fractional.Y : Fractional.Y, Z == 0 ? 1 - Fractional.Z : Fractional.Z);
-				const float BilinearWeight = BilinearWeights.X * BilinearWeights.Y * BilinearWeights.Z;
-
-				if (BilinearWeight > 0.0f)
-				{
-					FIntVector TexelAddress(X + MinAddress.X, Y + MinAddress.Y, Z + MinAddress.Z);
-
-					TexelAddress.X = FMath::Min(TexelAddress.X, DistanceField.Size.X - 1);
-					TexelAddress.Y = FMath::Min(TexelAddress.Y, DistanceField.Size.Y - 1);
-					TexelAddress.Z = FMath::Min(TexelAddress.Z, DistanceField.Size.Z - 1);
-
-					const int32 TexelOffset = (TexelAddress.Z * DistanceField.Size.Y + TexelAddress.Y) * DistanceField.Size.X + TexelAddress.X;
-					float SDFValue;
-
-					if (DistanceField.bEightBitFixedPoint)
-					{
-						const uint8* SDFData = (const uint8*)DistanceField.SourceDataPtr->GetData();
-						const uint8 CurrentTexelValue = SDFData[TexelOffset];
-						SDFValue = CurrentTexelValue * (DistanceField.DistanceMinMax.Y - DistanceField.DistanceMinMax.X) + DistanceField.DistanceMinMax.X;
-					}
-					else
-					{
-						const FFloat16* SDFData = (const FFloat16*)DistanceField.SourceDataPtr->GetData();
-						const FFloat16 CurrentTexelValue = SDFData[TexelOffset];
-						SDFValue = CurrentTexelValue.GetFloat() * DistanceField.SDFScale;
-					}
-
-					TotalWeight += BilinearWeight;
-					Result += SDFValue * BilinearWeight;
-				}
-			}	
-		}
-	}
-
-	return Result;
-}
-
-#endif
-
 FVector TransformFaceExtent(FVector Extent, int32 Orientation)
 {
 	if (Orientation / 2 == 2)
@@ -271,308 +43,433 @@ FVector TransformFaceExtent(FVector Extent, int32 Orientation)
 	}
 }
 
-class FLayerIndexCell
+class FPlacedCard
 {
 public:
-	int32 LayerIndex;
-	int32 NumHits;
-};
+	int32 SliceMin;
+	int32 SliceMax;
 
-class FLayers
-{
-public:
-	TArray<FBox> Bounds;
-	TArray<FLayerIndexCell> IndexVolume;
-	TArray<int32> LayerIndexToFaceIndex;
+	float NearPlane;
+	float FarPlane;
+	FBox Bounds;
+	int32 NumHits;
 };
 
 #if USE_EMBREE
 
-void BuildCubeMapTree(const FBox& CardBounds, const FGenerateCardMeshContext& Context, FCardRepresentationData& OutData)
+bool IsSurfacePointInsideMesh(const RTCScene& FullMeshEmbreeScene, FVector SurfacePoint, FVector SurfaceNormal, const TArray<FVector4>& RayDirectionsOverHemisphere)
 {
-	static const auto CVarLumenCubeMapTreeBuildMinSurface = IConsoleManager::Get().FindTConsoleVariableDataFloat(TEXT("r.LumenCubeMapTreeBuild.MinSurface"));
-	const float MinSurfaceThreshold = CVarLumenCubeMapTreeBuildMinSurface->GetValueOnAnyThread();
+	uint32 NumHits = 0;
+	uint32 NumBackFaceHits = 0;
+
+	const FMatrix SurfaceBasis = MeshRepresentation::GetTangentBasisFrisvad(SurfaceNormal);
+
+	for (int32 SampleIndex = 0; SampleIndex < RayDirectionsOverHemisphere.Num(); ++SampleIndex)
+	{
+		FVector RayDirection = SurfaceBasis.TransformVector(RayDirectionsOverHemisphere[SampleIndex]);
+
+		FEmbreeRay EmbreeRay;
+		EmbreeRay.org[0] = SurfacePoint.X;
+		EmbreeRay.org[1] = SurfacePoint.Y;
+		EmbreeRay.org[2] = SurfacePoint.Z;
+		EmbreeRay.dir[0] = RayDirection.X;
+		EmbreeRay.dir[1] = RayDirection.Y;
+		EmbreeRay.dir[2] = RayDirection.Z;
+		EmbreeRay.tnear = 0.1f;
+		EmbreeRay.tfar = FLT_MAX;
+
+		rtcIntersect(FullMeshEmbreeScene, EmbreeRay);
+
+		if (EmbreeRay.geomID != -1 && EmbreeRay.primID != -1)
+		{
+			++NumHits;
+
+			if (FVector::DotProduct(RayDirection, EmbreeRay.GetHitNormal()) > 0.0f && !EmbreeRay.IsHitTwoSided())
+			{
+				++NumBackFaceHits;
+			}
+		}
+	}
+
+	if (NumHits > 0 && NumBackFaceHits > RayDirectionsOverHemisphere.Num() * 0.4f)
+	{
+		return true;
+	}
+
+	return false;
+}
+
+struct FSurfacePoint
+{
+	float MinT;
+	float HitT;
+};
+
+int32 UpdatePlacedCards(TArray<FPlacedCard, TInlineAllocator<16>>& PlacedCards,
+	FVector RayOriginFrame,
+	FVector RayDirection,
+	FVector HeighfieldStepX,
+	FVector HeighfieldStepY,
+	FIntPoint HeighfieldSize, 
+	int32 MeshSliceNum,
+	float MaxRayT,
+	int32 MinCardHits,
+	FVector VoxelExtent,
+	const TArray<TArray<FSurfacePoint, TInlineAllocator<16>>>& HeightfieldLayers)
+{
+	for (int32 PlacedCardIndex = 0; PlacedCardIndex < PlacedCards.Num(); ++PlacedCardIndex)
+	{
+		FPlacedCard& PlacedCard = PlacedCards[PlacedCardIndex];
+		PlacedCard.NearPlane = PlacedCard.SliceMin / float(MeshSliceNum) * MaxRayT;
+		PlacedCard.FarPlane = (PlacedCard.SliceMax / float(MeshSliceNum)) * MaxRayT;
+		PlacedCard.Bounds.Init();
+		PlacedCard.NumHits = 0;
+	}
+
+	for (int32 HeighfieldY = 0; HeighfieldY < HeighfieldSize.Y; ++HeighfieldY)
+	{
+		for (int32 HeighfieldX = 0; HeighfieldX < HeighfieldSize.X; ++HeighfieldX)
+		{
+			const int32 HeightfieldLinearIndex = HeighfieldX + HeighfieldY * HeighfieldSize.X;
+
+			FVector RayOrigin = RayOriginFrame;
+			RayOrigin += (HeighfieldX + 0.5f) * HeighfieldStepX;
+			RayOrigin += (HeighfieldY + 0.5f) * HeighfieldStepY;
+
+			int32 LayerIndex = 0;
+			int32 PlacedCardIndex = 0;
+
+			while (LayerIndex < HeightfieldLayers[HeightfieldLinearIndex].Num() && PlacedCardIndex < PlacedCards.Num())
+			{
+				const FSurfacePoint& SurfacePoint = HeightfieldLayers[HeightfieldLinearIndex][LayerIndex];
+				FPlacedCard& PlacedCard = PlacedCards[PlacedCardIndex];
+
+				if (SurfacePoint.HitT >= PlacedCard.NearPlane && SurfacePoint.HitT <= PlacedCard.FarPlane
+					&& SurfacePoint.MinT <= PlacedCard.NearPlane)
+				{
+					PlacedCard.NumHits += 1;
+					PlacedCard.Bounds += RayOrigin + SurfacePoint.HitT * RayDirection - VoxelExtent;
+					PlacedCard.Bounds += RayOrigin + SurfacePoint.HitT * RayDirection + VoxelExtent;
+
+					++PlacedCardIndex;
+					++LayerIndex;
+				}
+				else
+				{
+					if (SurfacePoint.HitT >= PlacedCard.FarPlane)
+					{
+						++PlacedCardIndex;
+					}
+					else
+					{
+						++LayerIndex;
+					}
+				}
+			}
+		}
+	}
+
+	int32 NumMeshHits = 0;
+	for (int32 PlacedCardIndex = 0; PlacedCardIndex < PlacedCards.Num(); ++PlacedCardIndex)
+	{
+		const FPlacedCard& PlacedCard = PlacedCards[PlacedCardIndex];
+		if (PlacedCard.NumHits >= MinCardHits)
+		{
+			NumMeshHits += PlacedCard.NumHits;
+		}
+	}
+	return NumMeshHits;
+}
+
+void SerializePlacedCards(TArray<FPlacedCard, TInlineAllocator<16>>& PlacedCards, 
+	int32 LODLevel,
+	int32 Orientation,
+	int32 MinCardHits,
+	FCardRepresentationData& OutData)
+{
+	for (int32 PlacedCardIndex = 0; PlacedCardIndex < PlacedCards.Num(); ++PlacedCardIndex)
+	{
+		const FPlacedCard& PlacedCard = PlacedCards[PlacedCardIndex];
+		if (PlacedCard.NumHits >= MinCardHits)
+		{
+			FLumenCardBuildData CardBuildData;
+			CardBuildData.Center = PlacedCard.Bounds.GetCenter();
+			CardBuildData.Extent = PlacedCard.Bounds.GetExtent();
+			CardBuildData.Extent = TransformFaceExtent(CardBuildData.Extent, Orientation);
+			CardBuildData.Orientation = Orientation;
+			CardBuildData.LODLevel = LODLevel;
+
+			OutData.MeshCardsBuildData.CardBuildData.Add(CardBuildData);
+		}
+	}
+}
+
+void BuildMeshCards(const FBox& CardBounds, const FGenerateCardMeshContext& Context, FCardRepresentationData& OutData)
+{
+	static const auto CVarMeshCardRepresentationMinSurface = IConsoleManager::Get().FindTConsoleVariableDataFloat(TEXT("r.MeshCardRepresentation.MinSurface"));
+	const float MinSurfaceThreshold = CVarMeshCardRepresentationMinSurface->GetValueOnAnyThread();
 
 	const float MaxExtent = CardBounds.GetExtent().GetMax();
 	// Ensure bounds don't have zero extent (was possible for planes)
-	const FBox CubeMapTreeBounds = CardBounds.ExpandBy(FVector::Max(CardBounds.GetExtent() * 0.05f, .001f * FVector(MaxExtent, MaxExtent, MaxExtent)));
+	const FBox MeshCardsBounds = CardBounds.ExpandBy(FVector::Max(CardBounds.GetExtent() * 0.05f, .001f * FVector(MaxExtent, MaxExtent, MaxExtent)));
 
-	FIntVector LUTVolumeResolution(1, 1, 1);
+	OutData.MeshCardsBuildData.Bounds = MeshCardsBounds;
+	OutData.MeshCardsBuildData.MaxLODLevel = 1;
+	OutData.MeshCardsBuildData.CardBuildData.Reset();
 
-	OutData.CubeMapTreeBuildData.LUTVolumeBounds = CubeMapTreeBounds;
-	OutData.CubeMapTreeBuildData.LUTVolumeResolution = LUTVolumeResolution;
-	OutData.CubeMapTreeBuildData.CubeMapBuiltData.Reset();
-	OutData.CubeMapTreeBuildData.FaceBuiltData.Reset();
+	const float SamplesPerWorldUnit = 1.0f / 10.0f;
+	const int32 MinSamplesPerAxis = 4;
+	const int32 MaxSamplesPerAxis = 64;
+	FIntVector VolumeSizeInVoxels;
+	VolumeSizeInVoxels.X = FMath::Clamp<int32>(MeshCardsBounds.GetSize().X * SamplesPerWorldUnit, MinSamplesPerAxis, MaxSamplesPerAxis);
+	VolumeSizeInVoxels.Y = FMath::Clamp<int32>(MeshCardsBounds.GetSize().Y * SamplesPerWorldUnit, MinSamplesPerAxis, MaxSamplesPerAxis);
+	VolumeSizeInVoxels.Z = FMath::Clamp<int32>(MeshCardsBounds.GetSize().Z * SamplesPerWorldUnit, MinSamplesPerAxis, MaxSamplesPerAxis);
 
-	const int32 RaysPerCell = 64;
+	const FVector VoxelExtent = MeshCardsBounds.GetSize() / FVector(VolumeSizeInVoxels);
 
-	FLayers LayersPerDirection[6];
-
-	TArray<int32> NumHitVolume;
-	NumHitVolume.SetNumUninitialized(LUTVolumeResolution.X * LUTVolumeResolution.Y * LUTVolumeResolution.Z);
-
+	// Generate random ray directions over a hemisphere
+	TArray<FVector4> RayDirectionsOverHemisphere;
+	{
+		FRandomStream RandomStream(0);
+		MeshUtilities::GenerateStratifiedUniformHemisphereSamples(64, RandomStream, RayDirectionsOverHemisphere);
+	}
+		
 	for (int32 Orientation = 0; Orientation < 6; ++Orientation)
 	{
-		FLayers& Layers = LayersPerDirection[Orientation];
-
 		FIntPoint HeighfieldSize(0, 0);
-		int32 NumLayers = 0;
 		FVector RayDirection(0.0f, 0.0f, 0.0f);
-		FVector RayOriginFrame = CubeMapTreeBounds.Min;
+		FVector RayOriginFrame = MeshCardsBounds.Min;
 		FVector HeighfieldStepX(0.0f, 0.0f, 0.0f);
 		FVector HeighfieldStepY(0.0f, 0.0f, 0.0f);
+		float MaxRayT = 0.0f;
+		int32 MeshSliceNum = 0;
+
+		switch (Orientation / 2)
+		{
+			case 0:
+				MaxRayT = MeshCardsBounds.GetSize().X + 0.1f;
+				MeshSliceNum = VolumeSizeInVoxels.X;
+				HeighfieldSize.X = VolumeSizeInVoxels.Y;
+				HeighfieldSize.Y = VolumeSizeInVoxels.Z;
+				break;
+
+			case 1:
+				MaxRayT = MeshCardsBounds.GetSize().Y + 0.1f;
+				MeshSliceNum = VolumeSizeInVoxels.Y;
+				HeighfieldSize.X = VolumeSizeInVoxels.X;
+				HeighfieldSize.Y = VolumeSizeInVoxels.Z;
+				break;
+
+			case 2:
+				MaxRayT = MeshCardsBounds.GetSize().Z + 0.1f;
+				MeshSliceNum = VolumeSizeInVoxels.Z;
+				HeighfieldSize.X = VolumeSizeInVoxels.X;
+				HeighfieldSize.Y = VolumeSizeInVoxels.Y;
+				break;
+		}
 
 		switch (Orientation)
 		{
 			case 0: 
 				RayDirection.X = +1.0f; 
-				NumLayers = LUTVolumeResolution.X;
-				HeighfieldSize = FIntPoint(LUTVolumeResolution.Y, LUTVolumeResolution.Z) * RaysPerCell;
-				HeighfieldStepX = FVector(0.0f, CubeMapTreeBounds.GetSize().Y / HeighfieldSize.X, 0.0f);
-				HeighfieldStepY = FVector(0.0f, 0.0f, CubeMapTreeBounds.GetSize().Z / HeighfieldSize.Y);
+				HeighfieldStepX = FVector(0.0f, MeshCardsBounds.GetSize().Y / HeighfieldSize.X, 0.0f);
+				HeighfieldStepY = FVector(0.0f, 0.0f, MeshCardsBounds.GetSize().Z / HeighfieldSize.Y);
 				break;
 
 			case 1: 
 				RayDirection.X = -1.0f; 
-				NumLayers = LUTVolumeResolution.X;
-				RayOriginFrame.X = CubeMapTreeBounds.Max.X;
-				HeighfieldSize = FIntPoint(LUTVolumeResolution.Y, LUTVolumeResolution.Z) * RaysPerCell;
-				HeighfieldStepX = FVector(0.0f, CubeMapTreeBounds.GetSize().Y / HeighfieldSize.X, 0.0f);
-				HeighfieldStepY = FVector(0.0f, 0.0f, CubeMapTreeBounds.GetSize().Z / HeighfieldSize.Y);
+				RayOriginFrame.X = MeshCardsBounds.Max.X;
+				HeighfieldStepX = FVector(0.0f, MeshCardsBounds.GetSize().Y / HeighfieldSize.X, 0.0f);
+				HeighfieldStepY = FVector(0.0f, 0.0f, MeshCardsBounds.GetSize().Z / HeighfieldSize.Y);
 				break;
 
 			case 2: 
 				RayDirection.Y = +1.0f; 
-				NumLayers = LUTVolumeResolution.Y;
-				HeighfieldSize = FIntPoint(LUTVolumeResolution.X, LUTVolumeResolution.Z) * RaysPerCell;
-				HeighfieldStepX = FVector(CubeMapTreeBounds.GetSize().X / HeighfieldSize.X, 0.0f, 0.0f);
-				HeighfieldStepY = FVector(0.0f, 0.0f, CubeMapTreeBounds.GetSize().Z / HeighfieldSize.Y);
+				HeighfieldStepX = FVector(MeshCardsBounds.GetSize().X / HeighfieldSize.X, 0.0f, 0.0f);
+				HeighfieldStepY = FVector(0.0f, 0.0f, MeshCardsBounds.GetSize().Z / HeighfieldSize.Y);
 				break;
 
 			case 3: 
 				RayDirection.Y = -1.0f; 
-				NumLayers = LUTVolumeResolution.Y;
-				RayOriginFrame.Y = CubeMapTreeBounds.Max.Y;
-				HeighfieldSize = FIntPoint(LUTVolumeResolution.X, LUTVolumeResolution.Z) * RaysPerCell;
-				HeighfieldStepX = FVector(CubeMapTreeBounds.GetSize().X / HeighfieldSize.X, 0.0f, 0.0f);
-				HeighfieldStepY = FVector(0.0f, 0.0f, CubeMapTreeBounds.GetSize().Z / HeighfieldSize.Y);
+				RayOriginFrame.Y = MeshCardsBounds.Max.Y;
+				HeighfieldStepX = FVector(MeshCardsBounds.GetSize().X / HeighfieldSize.X, 0.0f, 0.0f);
+				HeighfieldStepY = FVector(0.0f, 0.0f, MeshCardsBounds.GetSize().Z / HeighfieldSize.Y);
 				break;
 
 			case 4: 
 				RayDirection.Z = +1.0f; 
-				NumLayers = LUTVolumeResolution.Z;
-				HeighfieldSize = FIntPoint(LUTVolumeResolution.X, LUTVolumeResolution.Y) * RaysPerCell;
-				HeighfieldStepX = FVector(CubeMapTreeBounds.GetSize().X / HeighfieldSize.X, 0.0f, 0.0f);
-				HeighfieldStepY = FVector(0.0f, CubeMapTreeBounds.GetSize().Y / HeighfieldSize.Y, 0.0f);
+				HeighfieldStepX = FVector(MeshCardsBounds.GetSize().X / HeighfieldSize.X, 0.0f, 0.0f);
+				HeighfieldStepY = FVector(0.0f, MeshCardsBounds.GetSize().Y / HeighfieldSize.Y, 0.0f);
 				break;
 
 			case 5: 
 				RayDirection.Z = -1.0f; 
-				NumLayers = LUTVolumeResolution.Z;
-				RayOriginFrame.Z = CubeMapTreeBounds.Max.Z;
-				HeighfieldSize = FIntPoint(LUTVolumeResolution.X, LUTVolumeResolution.Y) * RaysPerCell;
-				HeighfieldStepX = FVector(CubeMapTreeBounds.GetSize().X / HeighfieldSize.X, 0.0f, 0.0f);
-				HeighfieldStepY = FVector(0.0f, CubeMapTreeBounds.GetSize().Y / HeighfieldSize.Y, 0.0f);
+				RayOriginFrame.Z = MeshCardsBounds.Max.Z;
+				HeighfieldStepX = FVector(MeshCardsBounds.GetSize().X / HeighfieldSize.X, 0.0f, 0.0f);
+				HeighfieldStepY = FVector(0.0f, MeshCardsBounds.GetSize().Y / HeighfieldSize.Y, 0.0f);
 				break;
 
 			default: 
 				check(false);
 		};
 
-		Layers.IndexVolume.SetNumUninitialized(LUTVolumeResolution.X * LUTVolumeResolution.Y * LUTVolumeResolution.Z);
+		TArray<TArray<FSurfacePoint, TInlineAllocator<16>>> HeightfieldLayers;
+		HeightfieldLayers.SetNum(HeighfieldSize.X * HeighfieldSize.Y);
 
-		for (int32 CoordZ = 0; CoordZ < LUTVolumeResolution.Z; ++CoordZ)
+		// Fill surface points
 		{
-			for (int32 CoordY = 0; CoordY < LUTVolumeResolution.Y; ++CoordY)
-			{
-				for (int32 CoordX = 0; CoordX < LUTVolumeResolution.X; ++CoordX)
-				{
-					const int32 CoordIndex = CoordX + CoordY * LUTVolumeResolution.X + CoordZ * LUTVolumeResolution.X * LUTVolumeResolution.Y;
+			TRACE_CPUPROFILER_EVENT_SCOPE(FillSurfacePoints);
 
-					Layers.IndexVolume[CoordIndex].LayerIndex = -1;
-					Layers.IndexVolume[CoordIndex].NumHits = 0;
+			TArray<float> Heightfield;
+			Heightfield.SetNum(HeighfieldSize.X * HeighfieldSize.Y);
+			for (int32 HeighfieldY = 0; HeighfieldY < HeighfieldSize.Y; ++HeighfieldY)
+			{
+				for (int32 HeighfieldX = 0; HeighfieldX < HeighfieldSize.X; ++HeighfieldX)
+				{
+					Heightfield[HeighfieldX + HeighfieldY * HeighfieldSize.X] = -1.0f;
 				}
 			}
-		}
-
-		const FVector CellSize = CubeMapTreeBounds.GetSize() / FVector(LUTVolumeResolution);
-
-		for (int32 LayerIndex = 0; LayerIndex < NumLayers; ++LayerIndex)
-		{
-			for (int32 CellIndex = 0; CellIndex < LUTVolumeResolution.X * LUTVolumeResolution.Y * LUTVolumeResolution.Z; ++CellIndex)
-			{
-				NumHitVolume[CellIndex] = 0;
-			}
-
-			const FVector LayerOffset = (RayDirection * LayerIndex * CubeMapTreeBounds.GetSize()) / FVector(LUTVolumeResolution);
 
 			for (int32 HeighfieldY = 0; HeighfieldY < HeighfieldSize.Y; ++HeighfieldY)
 			{
 				for (int32 HeighfieldX = 0; HeighfieldX < HeighfieldSize.X; ++HeighfieldX)
 				{
-					FVector RayStart = RayOriginFrame + LayerOffset;
-					RayStart += (HeighfieldX + 0.5f) * HeighfieldStepX;
-					RayStart += (HeighfieldY + 0.5f) * HeighfieldStepY;
+					FVector RayOrigin = RayOriginFrame;
+					RayOrigin += (HeighfieldX + 0.5f) * HeighfieldStepX;
+					RayOrigin += (HeighfieldY + 0.5f) * HeighfieldStepY;
 
-					FCardBuildEmbreeRay EmbreeRay;
-					EmbreeRay.org[0] = RayStart.X;
-					EmbreeRay.org[1] = RayStart.Y;
-					EmbreeRay.org[2] = RayStart.Z;
-					EmbreeRay.dir[0] = RayDirection.X;
-					EmbreeRay.dir[1] = RayDirection.Y;
-					EmbreeRay.dir[2] = RayDirection.Z;
-					EmbreeRay.tnear = 0.0f;
-					EmbreeRay.tfar = 1e9f;
+					float StepTMin = 0.0f;
 
-					rtcIntersect(Context.FullMeshEmbreeScene, EmbreeRay);
-
-					if (EmbreeRay.geomID != -1 && EmbreeRay.primID != -1)
+					for (int32 StepIndex = 0; StepIndex < 64; ++StepIndex)
 					{
-						const FVector HitNormal = FVector(EmbreeRay.Ng[0], EmbreeRay.Ng[1], EmbreeRay.Ng[2]).GetSafeNormal();
+						FEmbreeRay EmbreeRay;
+						EmbreeRay.org[0] = RayOrigin.X;
+						EmbreeRay.org[1] = RayOrigin.Y;
+						EmbreeRay.org[2] = RayOrigin.Z;
+						EmbreeRay.dir[0] = RayDirection.X;
+						EmbreeRay.dir[1] = RayDirection.Y;
+						EmbreeRay.dir[2] = RayDirection.Z;
+						EmbreeRay.tnear = StepTMin;
+						EmbreeRay.tfar = FLT_MAX;
+						rtcIntersect(Context.FullMeshEmbreeScene, EmbreeRay);
 
-						if (FVector::DotProduct(RayDirection, HitNormal) < 0)
+						if (EmbreeRay.geomID != -1 && EmbreeRay.primID != -1)
 						{
-							const FVector RayHit = RayStart + EmbreeRay.tfar * RayDirection;
+							const FVector SurfacePoint = RayOrigin + RayDirection * EmbreeRay.tfar;
+							const FVector SurfaceNormal = EmbreeRay.GetHitNormal();
 
-							const int32 CellX = FMath::Clamp<int32>((RayHit.X - CubeMapTreeBounds.Min.X) / CellSize.X, 0, LUTVolumeResolution.X - 1);
-							const int32 CellY = FMath::Clamp<int32>((RayHit.Y - CubeMapTreeBounds.Min.Y) / CellSize.Y, 0, LUTVolumeResolution.Y - 1);
-							const int32 CellZ = FMath::Clamp<int32>((RayHit.Z - CubeMapTreeBounds.Min.Z) / CellSize.Z, 0, LUTVolumeResolution.Z - 1);
-							++NumHitVolume[CellX + CellY * LUTVolumeResolution.X + CellZ * LUTVolumeResolution.X * LUTVolumeResolution.Y];
-						}
-					}
-				}
-			}
+							const float NdotD = FVector::DotProduct(RayDirection, SurfaceNormal);
+							const bool bPassCullTest = EmbreeRay.IsHitTwoSided() || NdotD <= 0.0f;
+							const bool bPassProjectionAngleTest = FMath::Abs(NdotD) >= FMath::Cos(75.0f * (PI / 180.0f));
 
-			int32 LayerAddedHits = 0;
+							const float MinDistanceBetweenPoints = (MaxRayT / MeshSliceNum);
+							const bool bPassDistanceToAnotherSurfaceTest = EmbreeRay.tnear <= 0.0f || (EmbreeRay.tfar - EmbreeRay.tnear > MinDistanceBetweenPoints);
 
-			for (int32 CellZ = 0; CellZ < LUTVolumeResolution.Z; ++CellZ)
-			{
-				for (int32 CellY = 0; CellY < LUTVolumeResolution.Y; ++CellY)
-				{
-					for (int32 CellX = 0; CellX < LUTVolumeResolution.X; ++CellX)
-					{
-						const int32 CellIndex = CellX + CellY * LUTVolumeResolution.X + CellZ * LUTVolumeResolution.X * LUTVolumeResolution.Y;
-						if (NumHitVolume[CellIndex] > Layers.IndexVolume[CellIndex].NumHits)
-						{
-							LayerAddedHits += NumHitVolume[CellIndex] - Layers.IndexVolume[CellIndex].NumHits;
-						}
-					}
-				}
-			}
-
-			// Add a new layer only if it adds a considerable amount of new surface.
-			if (LayerAddedHits / float(HeighfieldSize.X * HeighfieldSize.Y) > MinSurfaceThreshold)
-			{
-				for (int32 CellZ = 0; CellZ < LUTVolumeResolution.Z; ++CellZ)
-				{
-					for (int32 CellY = 0; CellY < LUTVolumeResolution.Y; ++CellY)
-					{
-						for (int32 CellX = 0; CellX < LUTVolumeResolution.X; ++CellX)
-						{
-							const int32 CellIndex = CellX + CellY * LUTVolumeResolution.X + CellZ * LUTVolumeResolution.X * LUTVolumeResolution.Y;
-							if (NumHitVolume[CellIndex] > Layers.IndexVolume[CellIndex].NumHits)
+							if (bPassCullTest && bPassProjectionAngleTest && bPassDistanceToAnotherSurfaceTest)
 							{
-								Layers.IndexVolume[CellIndex].NumHits = NumHitVolume[CellIndex];
-								Layers.IndexVolume[CellIndex].LayerIndex = LayerIndex;
+								const bool bIsInsideMesh = IsSurfacePointInsideMesh(Context.FullMeshEmbreeScene, SurfacePoint, SurfaceNormal, RayDirectionsOverHemisphere);
+								if (!bIsInsideMesh)
+								{
+									HeightfieldLayers[HeighfieldX + HeighfieldY * HeighfieldSize.X].Add(
+										{ EmbreeRay.tnear, EmbreeRay.tfar }
+									);
+								}
 							}
+
+							StepTMin = EmbreeRay.tfar + 0.01f;
+						}
+						else
+						{
+							break;
 						}
 					}
 				}
 			}
 		}
 
-		Layers.Bounds.SetNumUninitialized(NumLayers);
-		Layers.LayerIndexToFaceIndex.SetNumUninitialized(NumLayers);
-		for (int32 LayerIndex = 0; LayerIndex < Layers.Bounds.Num(); ++LayerIndex)
+
+		const int32 MinCardHits = FMath::Floor(HeighfieldSize.X * HeighfieldSize.Y * MinSurfaceThreshold);
+
+
+		TArray<FPlacedCard, TInlineAllocator<16>> PlacedCards;
+		int32 PlacedCardsHits = 0;
+
+		// Place a default card
 		{
-			Layers.Bounds[LayerIndex].Init();
-			Layers.LayerIndexToFaceIndex[LayerIndex] = -1;
+			FPlacedCard PlacedCard;
+			PlacedCard.SliceMin = 0;
+			PlacedCard.SliceMax = MeshSliceNum;
+			PlacedCards.Add(PlacedCard);
+
+			PlacedCardsHits = UpdatePlacedCards(PlacedCards,
+				RayOriginFrame,
+				RayDirection,
+				HeighfieldStepX,
+				HeighfieldStepY,
+				HeighfieldSize,
+				MeshSliceNum,
+				MaxRayT,
+				MinCardHits,
+				VoxelExtent,
+				HeightfieldLayers);
+
+			if (PlacedCardsHits < MinCardHits)
+			{
+				PlacedCards.Reset();
+			}
 		}
 
-		for (int32 CellZ = 0; CellZ < LUTVolumeResolution.Z; ++CellZ)
+		SerializePlacedCards(PlacedCards, /*LOD level*/ 0, Orientation, MinCardHits, OutData);
+
+		// Try to place more cards by splitting existing ones
+		for (uint32 CardPlacementIteration = 0; CardPlacementIteration < 4; ++CardPlacementIteration)
 		{
-			for (int32 CellY = 0; CellY < LUTVolumeResolution.Y; ++CellY)
+			TArray<FPlacedCard, TInlineAllocator<16>> BestPlacedCards;
+			int32 BestPlacedCardHits = PlacedCardsHits;
+
+			for (int32 PlacedCardIndex = 0; PlacedCardIndex < PlacedCards.Num(); ++PlacedCardIndex)
 			{
-				for (int32 CellX = 0; CellX < LUTVolumeResolution.X; ++CellX)
+				const FPlacedCard& PlacedCard = PlacedCards[PlacedCardIndex];
+				for (int32 SliceIndex = PlacedCard.SliceMin + 2; SliceIndex < PlacedCard.SliceMax; ++SliceIndex)
 				{
-					const int32 CellIndex = CellX + CellY * LUTVolumeResolution.X + CellZ * LUTVolumeResolution.X * LUTVolumeResolution.Y;
+					TArray<FPlacedCard, TInlineAllocator<16>> TempPlacedCards(PlacedCards);
 
-					const int32 LayerIndex = Layers.IndexVolume[CellIndex].LayerIndex;
+					FPlacedCard NewPlacedCard;
+					NewPlacedCard.SliceMin = SliceIndex;
+					NewPlacedCard.SliceMax = PlacedCard.SliceMax;
 
-					if (LayerIndex != -1)
+					TempPlacedCards[PlacedCardIndex].SliceMax = SliceIndex - 1;
+					TempPlacedCards.Insert(NewPlacedCard, PlacedCardIndex + 1);
+
+					const int32 NumHits = UpdatePlacedCards(
+						TempPlacedCards,
+						RayOriginFrame,
+						RayDirection,
+						HeighfieldStepX,
+						HeighfieldStepY,
+						HeighfieldSize,
+						MeshSliceNum,
+						MaxRayT,
+						MinCardHits,
+						VoxelExtent,
+						HeightfieldLayers);
+
+					if (NumHits > BestPlacedCardHits)
 					{
-						const FVector CellMin = CubeMapTreeBounds.Min + CellSize * FVector(CellX, CellY, CellZ);
-
-						Layers.Bounds[LayerIndex] += CellMin;
-						Layers.Bounds[LayerIndex] += CellMin + CellSize;
+						BestPlacedCards = TempPlacedCards;
+						BestPlacedCardHits = NumHits;
 					}
 				}
 			}
-		}
-	}
 
-	OutData.CubeMapTreeBuildData.LookupVolumeData.SetNumZeroed(LUTVolumeResolution.X * LUTVolumeResolution.Y * LUTVolumeResolution.Z);
-	
-	// Allocate cube map tree faces.
-	for (int32 Orientation = 0; Orientation < 6; ++Orientation)
-	{
-		FLayers& Layers = LayersPerDirection[Orientation];
-
-		for (int32 LayerIndex = 0; LayerIndex < Layers.Bounds.Num(); ++LayerIndex)
-		{
-			if (Layers.Bounds[LayerIndex].IsValid)
+			if (BestPlacedCardHits >= PlacedCardsHits + MinCardHits)
 			{
-				const int32 FaceIndex = OutData.CubeMapTreeBuildData.FaceBuiltData.Num();
-				Layers.LayerIndexToFaceIndex[LayerIndex] = FaceIndex;
-
-				FLumenCubeMapFaceBuildData CubeMapFaceBuildData;
-
-				CubeMapFaceBuildData.Center = Layers.Bounds[LayerIndex].GetCenter();
-				CubeMapFaceBuildData.Extent = Layers.Bounds[LayerIndex].GetExtent();
-				CubeMapFaceBuildData.Extent = TransformFaceExtent(CubeMapFaceBuildData.Extent, Orientation);
-				CubeMapFaceBuildData.Orientation = Orientation;
-
-				OutData.CubeMapTreeBuildData.FaceBuiltData.Add(CubeMapFaceBuildData);
+				PlacedCards = BestPlacedCards;
+				PlacedCardsHits = BestPlacedCardHits;
 			}
 		}
-	}
 
-	// Allocate cube maps.
-	for (int32 CellZ = 0; CellZ < LUTVolumeResolution.Z; ++CellZ)
-	{
-		for (int32 CellY = 0; CellY < LUTVolumeResolution.Y; ++CellY)
-		{
-			for (int32 CellX = 0; CellX < LUTVolumeResolution.X; ++CellX)
-			{
-				const int32 CellIndex = CellX + CellY * LUTVolumeResolution.X + CellZ * LUTVolumeResolution.X * LUTVolumeResolution.Y;
-
-				FLumenCubeMapBuildData CubeMap;
-
-				for (int32 Orientation = 0; Orientation < 6; ++Orientation)
-				{
-					FLayers& Layers = LayersPerDirection[Orientation];
-
-					const int32 LayerIndex = Layers.IndexVolume[CellIndex].LayerIndex;
-
-					CubeMap.FaceIndices[Orientation] = -1;
-
-					if (LayerIndex != -1)
-					{
-						CubeMap.FaceIndices[Orientation] = Layers.LayerIndexToFaceIndex[LayerIndex];
-					}
-				}
-
-				int32 CubeMapIndex = OutData.CubeMapTreeBuildData.CubeMapBuiltData.Find(CubeMap);
-
-				if (CubeMapIndex == -1)
-				{
-					CubeMapIndex = OutData.CubeMapTreeBuildData.CubeMapBuiltData.Num();
-					OutData.CubeMapTreeBuildData.CubeMapBuiltData.Add(CubeMap);
-				}
-
-				OutData.CubeMapTreeBuildData.LookupVolumeData[CellIndex] = CubeMapIndex;
-			}
-		}
+		SerializePlacedCards(PlacedCards, /*LOD level*/ 1, Orientation, MinCardHits, OutData);
 	}
 }
 
@@ -583,48 +480,38 @@ bool FMeshUtilities::GenerateCardRepresentationData(
 	const FSourceMeshDataForDerivedDataTask& SourceMeshData,
 	const FStaticMeshLODResources& LODModel,
 	class FQueuedThreadPool& ThreadPool,
+	const TArray<FSignedDistanceFieldBuildMaterialData>& MaterialBlendModes,
 	const FBoxSphereBounds& Bounds,
 	const FDistanceFieldVolumeData* DistanceFieldVolumeData,
+	bool bGenerateAsIfTwoSided,
 	FCardRepresentationData& OutData)
 {
 #if USE_EMBREE
 	TRACE_CPUPROFILER_EVENT_SCOPE(FMeshUtilities::GenerateCardRepresentationData);
+	const double StartTime = FPlatformTime::Seconds();
 
-	RTCDevice EmbreeDevice = rtcNewDevice(nullptr);
+	FEmbreeScene EmbreeScene;
+	MeshRepresentation::SetupEmbreeScene(MeshName,
+		SourceMeshData,
+		LODModel,
+		MaterialBlendModes,
+		bGenerateAsIfTwoSided,
+		EmbreeScene);
 
-	RTCError ReturnErrorNewDevice = rtcDeviceGetError(EmbreeDevice);
-	if (ReturnErrorNewDevice != RTC_NO_ERROR)
-	{
-		UE_LOG(LogMeshUtilities, Warning, TEXT("GenerateCardRepresentationData failed for %s. Embree rtcNewDevice failed. Code: %d"), *MeshName, (int32)ReturnErrorNewDevice);
-		return false;
-	}
-
-	const int32 NumIndices = SourceMeshData.IsValid() ? SourceMeshData.GetNumIndices() : LODModel.IndexBuffer.GetNumIndices();
-	const int32 NumTriangles = NumIndices / 3;
-
-	FInputPrimitiveIds InputPrimitiveIds;
-	InputPrimitiveIds.Reserve(NumTriangles);
-
-	for (int32 TriangleIndex = 0; TriangleIndex < NumTriangles; ++TriangleIndex)
-	{
-		InputPrimitiveIds.Add(TriangleIndex);
-	}
-
-	RTCScene EmbreeScene = nullptr;
-
-	const bool bEmbreeSetup = SetupEmbreeScene(MeshName, 0, NumTriangles, InputPrimitiveIds, SourceMeshData, LODModel, EmbreeDevice, EmbreeScene);
-
-	if (!bEmbreeSetup)
+	if (!EmbreeScene.EmbreeScene)
 	{
 		return false;
 	}
 
-	FGenerateCardMeshContext Context(MeshName, EmbreeScene, EmbreeDevice, OutData);
+	FGenerateCardMeshContext Context(MeshName, EmbreeScene.EmbreeScene, EmbreeScene.EmbreeDevice, OutData);
 
-	BuildCubeMapTree(Bounds.GetBox(), Context, OutData);
+	BuildMeshCards(Bounds.GetBox(), Context, OutData);
 
-	rtcDeleteScene(EmbreeScene);
-	rtcDeleteDevice(EmbreeDevice);
+	MeshRepresentation::DeleteEmbreeScene(EmbreeScene);
+
+	UE_LOG(LogMeshUtilities, Log, TEXT("Finished mesh card build in %.1fs %s"),
+		(float)(FPlatformTime::Seconds() - StartTime),
+		*MeshName);
 
 	return true;
 #else

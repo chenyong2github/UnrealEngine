@@ -603,9 +603,6 @@ void TraceScreenProbes(
 			IndirectTracingParameters,
 			/* out */ MeshSDFGridParameters);
 
-		extern int32 GLumenDiffuseCubeMapTree;
-		ensureMsgf(GLumenDiffuseCubeMapTree != 0, TEXT("Only CubeMapTree currently supported"));
-
 		if (Lumen::UseHardwareRayTracedScreenProbeGather())
 		{
 			FCompactedTraceParameters CompactedTraceParameters = CompactTraces(

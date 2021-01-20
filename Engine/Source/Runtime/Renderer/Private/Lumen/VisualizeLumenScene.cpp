@@ -11,7 +11,7 @@
 #include "ShaderParameterStruct.h"
 #include "ReflectionEnvironment.h"
 #include "LumenSceneUtils.h"
-#include "LumenCubeMapTree.h"
+#include "LumenMeshCards.h"
 #include "LumenRadianceCache.h"
 #include "DynamicMeshBuilder.h"
 #include "ShaderPrintParameters.h"
@@ -518,33 +518,33 @@ void FDeferredShadingSceneRenderer::LumenScenePDIVisualization()
 			}
 		}
 
-		int32 NumCubeMapTrees = 0;
-		int32 NumCubeMapTreeInstances = 0;
-		int32 NumCubeMapTreeInstancesMerged = 0;
-		for (const FLumenCubeMapTree& CubeMapTree : LumenSceneData.CubeMapTrees)
+		int32 NumMeshCards = 0;
+		int32 NumMeshCardsInstances = 0;
+		int32 NumMeshCardsInstancesMerged = 0;
+		for (const FLumenMeshCards& MeshCards : LumenSceneData.MeshCards)
 		{
-			++NumCubeMapTrees;
-			if (CubeMapTree.InstanceIndexOrMergedFlag > 0)
+			++NumMeshCards;
+			if (MeshCards.InstanceIndexOrMergedFlag > 0)
 			{
-				++NumCubeMapTreeInstances;
+				++NumMeshCardsInstances;
 			}
 
-			if (CubeMapTree.InstanceIndexOrMergedFlag == -1)
+			if (MeshCards.InstanceIndexOrMergedFlag == -1)
 			{
-				const TArray<FPrimitiveInstance>* PrimitiveInstances = CubeMapTree.PrimitiveSceneInfo->Proxy->GetPrimitiveInstances();
+				const TArray<FPrimitiveInstance>* PrimitiveInstances = MeshCards.PrimitiveSceneInfo->Proxy->GetPrimitiveInstances();
 				if (PrimitiveInstances)
 				{
 					const int32 NumInstances = PrimitiveInstances->Num();
-					NumCubeMapTreeInstancesMerged += NumInstances;
+					NumMeshCardsInstancesMerged += NumInstances;
 				}
 			}
 		}
 
 		UE_LOG(LogRenderer, Log, TEXT("LumenScene Stats"));
 		UE_LOG(LogRenderer, Log, TEXT("  Mesh SDF Objects: %d"), DistanceFieldSceneData.NumObjectsInBuffer);
-		UE_LOG(LogRenderer, Log, TEXT("  Cube map trees: %d"), NumCubeMapTrees);
-		UE_LOG(LogRenderer, Log, TEXT("  Cube map tree instances: %d"), NumCubeMapTreeInstances);
-		UE_LOG(LogRenderer, Log, TEXT("  Cube map tree instances merged: %d"), NumCubeMapTreeInstancesMerged);
+		UE_LOG(LogRenderer, Log, TEXT("  Mesh cards: %d"), NumMeshCards);
+		UE_LOG(LogRenderer, Log, TEXT("  Mesh cards instances: %d"), NumMeshCardsInstances);
+		UE_LOG(LogRenderer, Log, TEXT("  Mesh cards instances merged: %d"), NumMeshCardsInstancesMerged);
 		UE_LOG(LogRenderer, Log, TEXT("  Cards: %d"), NumCards);
 		UE_LOG(LogRenderer, Log, TEXT("  Visible cards: %d"), NumVisibleCards);
 		UE_LOG(LogRenderer, Log, TEXT("  Visible cards texels: %.3fM"), NumVisibleTexels / (1024.0f * 1024.0f));
@@ -552,8 +552,7 @@ void FDeferredShadingSceneRenderer::LumenScenePDIVisualization()
 		UE_LOG(LogRenderer, Log, TEXT("  Cards left to reallocate: %d"), LumenSceneData.NumCardsLeftToReallocate);
 		UE_LOG(LogRenderer, Log, TEXT("  Texels left to capture: %.3fM"), LumenSceneData.NumTexelsLeftToCapture / (1024.0f * 1024.0f));
 		UE_LOG(LogRenderer, Log, TEXT("  Cards allocated memory: %.3fMb"), LumenSceneData.Cards.GetAllocatedSize() / (1024.0f * 1024.0f));
-		UE_LOG(LogRenderer, Log, TEXT("  CubeMaps allocated memory: %.3fMb"), LumenSceneData.CubeMaps.GetAllocatedSize() / (1024.0f * 1024.0f));
-		UE_LOG(LogRenderer, Log, TEXT("  CubeMapTrees allocated memory: %.3fMb"), LumenSceneData.CubeMapTrees.GetAllocatedSize() / (1024.0f * 1024.0f));
+		UE_LOG(LogRenderer, Log, TEXT("  MeshCards allocated memory: %.3fMb"), LumenSceneData.MeshCards.GetAllocatedSize() / (1024.0f * 1024.0f));
 
 		GLumenSceneDumpStats = 0;
 	}
@@ -569,7 +568,7 @@ void FDeferredShadingSceneRenderer::LumenScenePDIVisualization()
 		{
 			bool bVisible = Card.bVisible;
 
-			if (GVisualizeLumenCardPlacementIndex >= 0 && Card.FaceIndexInCubeMapTree != GVisualizeLumenCardPlacementIndex)
+			if (GVisualizeLumenCardPlacementIndex >= 0 && Card.IndexInMeshCards != GVisualizeLumenCardPlacementIndex)
 			{
 				bVisible = false;
 			}
@@ -619,6 +618,40 @@ void FDeferredShadingSceneRenderer::LumenScenePDIVisualization()
 				MeshBuilder.Draw(&ViewPDI, CardToWorld, MaterialRenderProxy, DepthPriority, 0.0f);
 			}
 		}
+
+#if 0
+		// Debug mesh card generation visualization
+		for (const FLumenMeshCards& MeshCards : LumenSceneData.MeshCards)
+		{
+			if (MeshCards.PrimitiveSceneInfo && MeshCards.PrimitiveSceneInfo->Proxy)
+			{
+				const FCardRepresentationData* CardRepresentationData = MeshCards.PrimitiveSceneInfo->Proxy->GetMeshCardRepresentation();
+				if (CardRepresentationData)
+				{
+					for (int32 PointIndex = 0; PointIndex < CardRepresentationData->MeshCardsBuildData.DebugPoints.Num(); ++PointIndex)
+					{
+						FLumenCardBuildDebugPoint DebugPoint = CardRepresentationData->MeshCardsBuildData.DebugPoints[PointIndex];
+						if (DebugPoint.Orientation == GVisualizeLumenCardPlacementOrientation)
+						{
+							FVector PointPosition = MeshCards.PrimitiveSceneInfo->Proxy->GetLocalToWorld().TransformPosition(DebugPoint.Origin);
+							ViewPDI.DrawPoint(PointPosition, DebugPoint.bValid ? FLinearColor::Green : FLinearColor::Red, 6.0f, 0);
+						}
+					}
+
+					for (int32 LineIndex = 0; LineIndex < CardRepresentationData->MeshCardsBuildData.DebugLines.Num(); ++LineIndex)
+					{
+						FLumenCardBuildDebugLine DebugLine = CardRepresentationData->MeshCardsBuildData.DebugLines[LineIndex];
+						if (DebugLine.Orientation == GVisualizeLumenCardPlacementOrientation)
+						{
+							FVector Origin = MeshCards.PrimitiveSceneInfo->Proxy->GetLocalToWorld().TransformPosition(DebugLine.Origin);
+							FVector EndPoint = MeshCards.PrimitiveSceneInfo->Proxy->GetLocalToWorld().TransformPosition(DebugLine.EndPoint);
+							ViewPDI.DrawLine(Origin, EndPoint, FLinearColor::Yellow, 0, 0.2f, 0.0f, false);
+						}
+					}
+				}
+			}
+		}
+#endif
 	}
 
 	static bool bVisualizeLumenSceneViewOrigin = false;

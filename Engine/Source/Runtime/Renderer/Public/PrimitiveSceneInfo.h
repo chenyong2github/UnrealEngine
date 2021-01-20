@@ -303,8 +303,8 @@ public:
 	/** Mapping from instance index in this primitive to index in the global distance field object buffers. */
 	TArray<int32, TInlineAllocator<1>> DistanceFieldInstanceIndices;
 
-	/** Mapping from instance index in this primitive to index in the global LumenCubeMapTree array. */
-	TArray<int32, TInlineAllocator<1>> LumenCubeMapTreeInstanceIndices;
+	/** Mapping from instance index in this primitive to index in the global LumenMeshCards array. */
+	TArray<int32, TInlineAllocator<1>> LumenMeshCardsInstanceIndices;
 
 	/** Whether the primitive is newly registered or moved and CachedReflectionCaptureProxy needs to be updated on the next render. */
 	uint32 bNeedsCachedReflectionCaptureUpdate : 1;

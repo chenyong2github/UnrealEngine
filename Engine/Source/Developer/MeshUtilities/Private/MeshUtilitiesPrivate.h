@@ -112,9 +112,11 @@ private:
 		const FSourceMeshDataForDerivedDataTask& SourceMeshData,
 		const FStaticMeshLODResources& LODModel,
 		class FQueuedThreadPool& ThreadPool,
+		const TArray<FSignedDistanceFieldBuildMaterialData>& MaterialBlendModes,
 		const FBoxSphereBounds& Bounds,
 		const FDistanceFieldVolumeData* DistanceFieldVolumeData,
-		class FCardRepresentationData& OutData )override;
+		bool bGenerateAsIfTwoSided,
+		class FCardRepresentationData& OutData) override;
 
 	virtual void RecomputeTangentsAndNormalsForRawMesh(bool bRecomputeTangents, bool bRecomputeNormals, const FMeshBuildSettings& InBuildSettings, FRawMesh &OutRawMesh) const override;
 	virtual void RecomputeTangentsAndNormalsForRawMesh(bool bRecomputeTangents, bool bRecomputeNormals, const FMeshBuildSettings& InBuildSettings, const FOverlappingCorners& InOverlappingCorners, FRawMesh &OutRawMesh) const override;
@@ -225,3 +227,9 @@ protected:
 };
 
 DECLARE_LOG_CATEGORY_EXTERN(LogMeshUtilities, Verbose, All);
+
+namespace MeshUtilities
+{
+	/** Generates unit length, stratified and uniformly distributed direction samples in a hemisphere. */
+	void GenerateStratifiedUniformHemisphereSamples(int32 NumSamples, FRandomStream& RandomStream, TArray<FVector4>& Samples);
+};

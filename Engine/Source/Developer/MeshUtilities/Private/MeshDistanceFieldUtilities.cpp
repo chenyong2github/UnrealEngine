@@ -8,128 +8,10 @@
 #include "RawMesh.h"
 #include "StaticMeshResources.h"
 #include "DistanceFieldAtlas.h"
+#include "MeshRepresentationCommon.h"
 
 //@todo - implement required vector intrinsics for other implementations
 #if PLATFORM_ENABLE_VECTORINTRINSICS
-#include "kDOP.h"
-#endif
-
-#if USE_EMBREE
-#include <embree2/rtcore.h>
-#include <embree2/rtcore_ray.h>
-#else
-typedef void* RTCDevice;
-typedef void* RTCScene;
-#endif
-
-//@todo - implement required vector intrinsics for other implementations
-#if PLATFORM_ENABLE_VECTORINTRINSICS
-
-class FMeshBuildDataProvider
-{
-public:
-
-	/** Initialization constructor. */
-	FMeshBuildDataProvider(
-		const TkDOPTree<const FMeshBuildDataProvider, uint32>& InkDopTree) :
-		kDopTree(InkDopTree)
-	{}
-
-	// kDOP data provider interface.
-
-	FORCEINLINE const TkDOPTree<const FMeshBuildDataProvider, uint32>& GetkDOPTree(void) const
-	{
-		return kDopTree;
-	}
-
-	FORCEINLINE const FMatrix& GetLocalToWorld(void) const
-	{
-		return FMatrix::Identity;
-	}
-
-	FORCEINLINE const FMatrix& GetWorldToLocal(void) const
-	{
-		return FMatrix::Identity;
-	}
-
-	FORCEINLINE FMatrix GetLocalToWorldTransposeAdjoint(void) const
-	{
-		return FMatrix::Identity;
-	}
-
-	FORCEINLINE float GetDeterminant(void) const
-	{
-		return 1.0f;
-	}
-
-private:
-
-	const TkDOPTree<const FMeshBuildDataProvider, uint32>& kDopTree;
-};
-
-/** Generates unit length, stratified and uniformly distributed direction samples in a hemisphere. */
-void GenerateStratifiedUniformHemisphereSamples(int32 NumThetaSteps, int32 NumPhiSteps, FRandomStream& RandomStream, TArray<FVector4>& Samples)
-{
-	Samples.Empty(NumThetaSteps * NumPhiSteps);
-	for (int32 ThetaIndex = 0; ThetaIndex < NumThetaSteps; ThetaIndex++)
-	{
-		for (int32 PhiIndex = 0; PhiIndex < NumPhiSteps; PhiIndex++)
-		{
-			const float U1 = RandomStream.GetFraction();
-			const float U2 = RandomStream.GetFraction();
-
-			const float Fraction1 = (ThetaIndex + U1) / (float)NumThetaSteps;
-			const float Fraction2 = (PhiIndex + U2) / (float)NumPhiSteps;
-
-			const float R = FMath::Sqrt(1.0f - Fraction1 * Fraction1);
-
-			const float Phi = 2.0f * (float)PI * Fraction2;
-			// Convert to Cartesian
-			Samples.Add(FVector4(FMath::Cos(Phi) * R, FMath::Sin(Phi) * R, Fraction1));
-		}
-	}
-}
-
-struct FEmbreeTriangleDesc
-{
-	int16 ElementIndex;
-};
-
-// Mapping between Embree Geometry Id and engine Mesh/LOD Id
-struct FEmbreeGeometry
-{
-	TArray<FEmbreeTriangleDesc> TriangleDescs; // The material ID of each triangle.
-};
-
-#if USE_EMBREE
-
-struct FEmbreeRay : public RTCRay
-{
-	FEmbreeRay() :
-		ElementIndex(-1)
-	{
-		u = v = 0;
-		time = 0;
-		mask = 0xFFFFFFFF;
-		geomID = -1;
-		instID = -1;
-		primID = -1;
-	}
-
-	// Additional Outputs.
-	int32 ElementIndex; // Material Index
-};
-
-void EmbreeFilterFunc(void* UserPtr, RTCRay& InRay)
-{
-	FEmbreeGeometry* EmbreeGeometry = (FEmbreeGeometry*)UserPtr;
-	FEmbreeRay& EmbreeRay = (FEmbreeRay&)InRay;
-	FEmbreeTriangleDesc Desc = EmbreeGeometry->TriangleDescs[InRay.primID];
-
-	EmbreeRay.ElementIndex = Desc.ElementIndex;
-}
-
-#endif
 
 class FMeshDistanceFieldAsyncTask : public FNonAbandonableTask
 {
@@ -233,11 +115,9 @@ void FMeshDistanceFieldAsyncTask::DoWork()
 						{
 							Hit++;
 
-							const FVector HitNormal = FVector(EmbreeRay.Ng[0], EmbreeRay.Ng[1], EmbreeRay.Ng[2]).GetSafeNormal();
+							const FVector HitNormal = EmbreeRay.GetHitNormal();
 
-							if (FVector::DotProduct(UnitRayDirection, HitNormal) > 0
-								// MaterialIndex on the build triangles was set to 1 if two-sided, or 0 if one-sided
-								&& EmbreeRay.ElementIndex == 0)
+							if (FVector::DotProduct(UnitRayDirection, HitNormal) > 0 && !EmbreeRay.IsHitTwoSided())
 							{
 								HitBack++;
 							}
@@ -336,251 +216,21 @@ void FMeshUtilities::GenerateSignedDistanceFieldVolumeData(
 	{
 		const double StartTime = FPlatformTime::Seconds();
 
-		const int32 NumIndices = SourceMeshData.IsValid() ? SourceMeshData.GetNumIndices() : LODModel.IndexBuffer.GetNumIndices();
-		const int32 NumTriangles = NumIndices / 3;
-		const int32 NumVertices = SourceMeshData.IsValid() ? SourceMeshData.GetNumVertices() : LODModel.VertexBuffers.PositionVertexBuffer.GetNumVertices();
-
-		TArray<FkDOPBuildCollisionTriangle<uint32> > BuildTriangles;
-
-		RTCDevice EmbreeDevice = NULL;
-		RTCScene EmbreeScene = NULL;
-		bool bUseEmbree = false;
-		
-#if USE_EMBREE
-
-		static const auto CVarEmbree = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.DistanceFieldBuild.UseEmbree"));
-		bUseEmbree = CVarEmbree->GetValueOnAnyThread() != 0;
-
-		if (bUseEmbree)
-		{
-			EmbreeDevice = rtcNewDevice(NULL);
-			
-			RTCError ReturnErrorNewDevice = rtcDeviceGetError(EmbreeDevice);
-			if (ReturnErrorNewDevice != RTC_NO_ERROR)
-			{
-				UE_LOG(LogMeshUtilities, Warning, TEXT("GenerateSignedDistanceFieldVolumeData failed for %s. Embree rtcNewDevice failed. Code: %d"), *MeshName, (int32)ReturnErrorNewDevice);
-				return;
-			}
-
-			EmbreeScene = rtcDeviceNewScene(EmbreeDevice, RTC_SCENE_STATIC, RTC_INTERSECT1);
-			
-			RTCError ReturnErrorNewScene = rtcDeviceGetError(EmbreeDevice);
-			if (ReturnErrorNewScene != RTC_NO_ERROR)
-			{
-				UE_LOG(LogMeshUtilities, Warning, TEXT("GenerateSignedDistanceFieldVolumeData failed for %s. Embree rtcDeviceNewScene failed. Code: %d"), *MeshName, (int32)ReturnErrorNewScene);
-				rtcDeleteDevice(EmbreeDevice);
-				return;
-			}
-		}
-#endif
-
-		TArray<int32> FilteredTriangles;
-		FilteredTriangles.Empty(NumTriangles);
-
-		if (SourceMeshData.IsValid())
-		{
-			for (int32 TriangleIndex = 0; TriangleIndex < NumTriangles; ++TriangleIndex)
-			{
-				const uint32 I0 = SourceMeshData.TriangleIndices[TriangleIndex * 3 + 0];
-				const uint32 I1 = SourceMeshData.TriangleIndices[TriangleIndex * 3 + 1];
-				const uint32 I2 = SourceMeshData.TriangleIndices[TriangleIndex * 3 + 2];
-
-				const FVector V0 = SourceMeshData.VertexPositions[I0];
-				const FVector V1 = SourceMeshData.VertexPositions[I1];
-				const FVector V2 = SourceMeshData.VertexPositions[I2];
-
-				const FVector TriangleNormal = ((V1 - V2) ^ (V0 - V2));
-				const bool bDegenerateTriangle = TriangleNormal.SizeSquared() < SMALL_NUMBER;
-				if (!bDegenerateTriangle)
-				{
-					FilteredTriangles.Add(TriangleIndex);
-				}
-			}
-		}
-		else
-		{
-			for (int32 TriangleIndex = 0; TriangleIndex < NumTriangles; ++TriangleIndex)
-			{
-				const FIndexArrayView Indices = LODModel.IndexBuffer.GetArrayView();
-				const uint32 I0 = Indices[TriangleIndex * 3 + 0];
-				const uint32 I1 = Indices[TriangleIndex * 3 + 1];
-				const uint32 I2 = Indices[TriangleIndex * 3 + 2];
-
-				const FVector V0 = LODModel.VertexBuffers.PositionVertexBuffer.VertexPosition(I0);
-				const FVector V1 = LODModel.VertexBuffers.PositionVertexBuffer.VertexPosition(I1);
-				const FVector V2 = LODModel.VertexBuffers.PositionVertexBuffer.VertexPosition(I2);
-
-				const FVector TriangleNormal = ((V1 - V2) ^ (V0 - V2));
-				const bool bDegenerateTriangle = TriangleNormal.SizeSquared() < SMALL_NUMBER;
-				if (!bDegenerateTriangle)
-				{
-					bool bTriangleIsOpaqueOrMasked = false;
-
-					for (int32 SectionIndex = 0; SectionIndex < LODModel.Sections.Num(); SectionIndex++)
-					{
-						const FStaticMeshSection& Section = LODModel.Sections[SectionIndex];
-
-						if ((uint32)(TriangleIndex * 3) >= Section.FirstIndex && (uint32)(TriangleIndex * 3) < Section.FirstIndex + Section.NumTriangles * 3)
-						{
-							if (MaterialBlendModes.IsValidIndex(Section.MaterialIndex))
-							{
-								bTriangleIsOpaqueOrMasked = !IsTranslucentBlendMode(MaterialBlendModes[Section.MaterialIndex].BlendMode);
-							}
-
-							break;
-						}
-					}
-
-					if (bTriangleIsOpaqueOrMasked)
-					{
-						FilteredTriangles.Add(TriangleIndex);
-					}
-				}
-			}
-		}
-
-		FVector4* EmbreeVertices = NULL;
-		int32* EmbreeIndices = NULL;
-		uint32 GeomID = 0;
-		FEmbreeGeometry Geometry;
-
-#if USE_EMBREE
-
-		if (bUseEmbree)
-		{
-			GeomID = rtcNewTriangleMesh(EmbreeScene, RTC_GEOMETRY_STATIC, FilteredTriangles.Num(), NumVertices);
-
-			rtcSetIntersectionFilterFunction(EmbreeScene, GeomID, EmbreeFilterFunc);
-			rtcSetOcclusionFilterFunction(EmbreeScene, GeomID, EmbreeFilterFunc);
-			rtcSetUserData(EmbreeScene, GeomID, &Geometry);
-
-			EmbreeVertices = (FVector4*)rtcMapBuffer(EmbreeScene, GeomID, RTC_VERTEX_BUFFER);
-			EmbreeIndices = (int32*)rtcMapBuffer(EmbreeScene, GeomID, RTC_INDEX_BUFFER);
-
-			Geometry.TriangleDescs.Empty(FilteredTriangles.Num());
-		}
-#endif
-
-		for (int32 FilteredTriangleIndex = 0; FilteredTriangleIndex < FilteredTriangles.Num(); FilteredTriangleIndex++)
-		{
-			int32 I0, I1, I2;
-			FVector V0, V1, V2;
-
-			const int32 TriangleIndex = FilteredTriangles[FilteredTriangleIndex];
-			if (SourceMeshData.IsValid())
-			{
-				I0 = SourceMeshData.TriangleIndices[TriangleIndex * 3 + 0];
-				I1 = SourceMeshData.TriangleIndices[TriangleIndex * 3 + 1];
-				I2 = SourceMeshData.TriangleIndices[TriangleIndex * 3 + 2];
-
-				V0 = SourceMeshData.VertexPositions[I0];
-				V1 = SourceMeshData.VertexPositions[I1];
-				V2 = SourceMeshData.VertexPositions[I2];
-			}
-			else
-			{
-				const FIndexArrayView Indices = LODModel.IndexBuffer.GetArrayView();
-				I0 = Indices[TriangleIndex * 3 + 0];
-				I1 = Indices[TriangleIndex * 3 + 1];
-				I2 = Indices[TriangleIndex * 3 + 2];
-
-				V0 = LODModel.VertexBuffers.PositionVertexBuffer.VertexPosition(I0);
-				V1 = LODModel.VertexBuffers.PositionVertexBuffer.VertexPosition(I1);
-				V2 = LODModel.VertexBuffers.PositionVertexBuffer.VertexPosition(I2);
-			}
-
-			bool bTriangleIsTwoSided = false;
-
-			for (int32 SectionIndex = 0; SectionIndex < LODModel.Sections.Num(); SectionIndex++)
-			{
-				const FStaticMeshSection& Section = LODModel.Sections[SectionIndex];
-
-				if ((uint32)(TriangleIndex * 3) >= Section.FirstIndex && (uint32)(TriangleIndex * 3) < Section.FirstIndex + Section.NumTriangles * 3)
-				{
-					if (MaterialBlendModes.IsValidIndex(Section.MaterialIndex))
-					{
-						bTriangleIsTwoSided = MaterialBlendModes[Section.MaterialIndex].bTwoSided;
-					}
-
-					break;
-				}
-			}
-
-			if (bUseEmbree)
-			{
-				EmbreeIndices[FilteredTriangleIndex * 3 + 0] = I0;
-				EmbreeIndices[FilteredTriangleIndex * 3 + 1] = I1;
-				EmbreeIndices[FilteredTriangleIndex * 3 + 2] = I2;
-
-				EmbreeVertices[I0] = FVector4(V0, 0);
-				EmbreeVertices[I1] = FVector4(V1, 0);
-				EmbreeVertices[I2] = FVector4(V2, 0);
-
-				FEmbreeTriangleDesc Desc;
-				// Store bGenerateAsIfTwoSided in material index
-				Desc.ElementIndex = bGenerateAsIfTwoSided || bTriangleIsTwoSided ? 1 : 0;
-				Geometry.TriangleDescs.Add(Desc);
-			}
-			else
-			{
-				BuildTriangles.Add(FkDOPBuildCollisionTriangle<uint32>(
-					// Store bGenerateAsIfTwoSided in material index
-					bGenerateAsIfTwoSided || bTriangleIsTwoSided ? 1 : 0,
-					V0,
-					V1,
-					V2));
-			}
-		}
-
-#if USE_EMBREE
-
-		if (bUseEmbree)
-		{
-			rtcUnmapBuffer(EmbreeScene, GeomID, RTC_VERTEX_BUFFER);
-			rtcUnmapBuffer(EmbreeScene, GeomID, RTC_INDEX_BUFFER);
-
-			RTCError ReturnError = rtcDeviceGetError(EmbreeDevice);
-			if (ReturnError != RTC_NO_ERROR)
-			{
-				UE_LOG(LogMeshUtilities, Warning, TEXT("GenerateSignedDistanceFieldVolumeData failed for %s. Embree rtcUnmapBuffer failed. Code: %d"), *MeshName, (int32)ReturnError);
-				rtcDeleteScene(EmbreeScene);
-				rtcDeleteDevice(EmbreeDevice);
-				return;
-			}
-		}
-#endif
-
-		TkDOPTree<const FMeshBuildDataProvider, uint32> kDopTree;
-
-#if USE_EMBREE
-
-		if (bUseEmbree)
-		{
-			rtcCommit(EmbreeScene);
-			RTCError ReturnError = rtcDeviceGetError(EmbreeDevice);
-			if (ReturnError != RTC_NO_ERROR)
-			{
-				UE_LOG(LogMeshUtilities, Warning, TEXT("GenerateSignedDistanceFieldVolumeData failed for %s. Embree rtcCommit failed. Code: %d"), *MeshName, (int32)ReturnError);
-				rtcDeleteScene(EmbreeScene);
-				rtcDeleteDevice(EmbreeDevice);
-				return;
-			}
-		}
-		else
-#endif
-		{
-			kDopTree.Build(BuildTriangles);
-		}
+		FEmbreeScene EmbreeScene;
+		MeshRepresentation::SetupEmbreeScene(MeshName,
+			SourceMeshData,
+			LODModel,
+			MaterialBlendModes,
+			bGenerateAsIfTwoSided,
+			EmbreeScene);
 
 		//@todo - project setting
 		const int32 NumVoxelDistanceSamples = 1200;
 		TArray<FVector4> SampleDirections;
-		const int32 NumThetaSteps = FMath::TruncToInt(FMath::Sqrt(NumVoxelDistanceSamples / (2.0f * (float)PI)));
-		const int32 NumPhiSteps = FMath::TruncToInt(NumThetaSteps * (float)PI);
 		FRandomStream RandomStream(0);
-		GenerateStratifiedUniformHemisphereSamples(NumThetaSteps, NumPhiSteps, RandomStream, SampleDirections);
+		MeshUtilities::GenerateStratifiedUniformHemisphereSamples(NumVoxelDistanceSamples, RandomStream, SampleDirections);
 		TArray<FVector4> OtherHemisphereSamples;
-		GenerateStratifiedUniformHemisphereSamples(NumThetaSteps, NumPhiSteps, RandomStream, OtherHemisphereSamples);
+		MeshUtilities::GenerateStratifiedUniformHemisphereSamples(NumVoxelDistanceSamples, RandomStream, OtherHemisphereSamples);
 
 		for (int32 i = 0; i < OtherHemisphereSamples.Num(); i++)
 		{
@@ -634,9 +284,9 @@ void FMeshUtilities::GenerateSignedDistanceFieldVolumeData(
 			for (int32 ZIndex = 0; ZIndex < VolumeDimensions.Z; ZIndex++)
 			{
 				FAsyncTask<FMeshDistanceFieldAsyncTask>* Task = new FAsyncTask<class FMeshDistanceFieldAsyncTask>(
-					&kDopTree,
-					bUseEmbree,
-					EmbreeScene,
+					&EmbreeScene.kDopTree,
+					EmbreeScene.bUseEmbree,
+					EmbreeScene.EmbreeScene,
 					&SampleDirections,
 					DistanceFieldVolumeBounds,
 					VolumeDimensions,
@@ -790,19 +440,13 @@ void FMeshUtilities::GenerateSignedDistanceFieldVolumeData(
 				VolumeDimensions.X,
 				VolumeDimensions.Y,
 				VolumeDimensions.Z,
-				NumIndices / 3,
+				EmbreeScene.NumIndices / 3,
 				MinVolumeDistance,
 				MaxVolumeDistance,
 				*MeshName);
 		}
 
-#if USE_EMBREE
-		if (bUseEmbree)
-		{
-			rtcDeleteScene(EmbreeScene);
-			rtcDeleteDevice(EmbreeDevice);
-		}
-#endif
+		MeshRepresentation::DeleteEmbreeScene(EmbreeScene);
 	}
 }
 

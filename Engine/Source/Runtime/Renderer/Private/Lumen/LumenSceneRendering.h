@@ -77,7 +77,7 @@ FMeshPassProcessor* CreateLumenCardNaniteMeshProcessor(
 	FMeshPassDrawListContext* InDrawListContext);
 
 extern void SetupLumenCardSceneParameters(FScene* Scene, FLumenCardScene& OutParameters);
-extern void UpdateLumenCubeMapTrees(const FDistanceFieldSceneData& DistanceFieldSceneData, FLumenSceneData& LumenSceneData, FRHICommandListImmediate& RHICmdList, int32 NumScenePrimitives);
+extern void UpdateLumenMeshCards(const FDistanceFieldSceneData& DistanceFieldSceneData, FLumenSceneData& LumenSceneData, FRHICommandListImmediate& RHICmdList, int32 NumScenePrimitives);
 
 BEGIN_SHADER_PARAMETER_STRUCT(FLumenReflectionCompositeParameters, )
 	SHADER_PARAMETER(float, MaxRoughnessToTrace)

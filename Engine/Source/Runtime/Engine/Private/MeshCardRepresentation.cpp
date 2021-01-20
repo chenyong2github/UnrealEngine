@@ -49,10 +49,10 @@ static TAutoConsoleVariable<int32> CVarCardRepresentation(
 	TEXT(""),
 	ECVF_ReadOnly);
 
-static TAutoConsoleVariable<float> CVarLumenCubeMapTreeBuildMinSurface(
-	TEXT("r.LumenCubeMapTreeBuild.MinSurface"),
-	0.1f,
-	TEXT("Min surface treshold to spawn a new card, [0;1] range."),
+static TAutoConsoleVariable<float> CVarCardRepresentationMinSurface(
+	TEXT("r.MeshCardRepresentation.MinSurface"),
+	0.2f,
+	TEXT("Min percentage of surface treshold to spawn a new card, [0;1] range."),
 	ECVF_ReadOnly);
 
 FCardRepresentationAsyncQueue* GCardRepresentationAsyncQueue = NULL;
@@ -60,11 +60,11 @@ FCardRepresentationAsyncQueue* GCardRepresentationAsyncQueue = NULL;
 #if WITH_EDITOR
 
 // DDC key for card representation data, must be changed when modifying the generation code or data format
-#define CARDREPRESENTATION_DERIVEDDATA_VER TEXT("378A453D4B7A4B163E62A302B1EE8BD8")
+#define CARDREPRESENTATION_DERIVEDDATA_VER TEXT("C1F7A92371F1A62CB3A14C27C7B4014A")
 
 FString BuildCardRepresentationDerivedDataKey(const FString& InMeshKey)
 {
-	const float MinSurfaceThreshold = CVarLumenCubeMapTreeBuildMinSurface.GetValueOnAnyThread();
+	const float MinSurfaceThreshold = CVarCardRepresentationMinSurface.GetValueOnAnyThread();
 
 	return FDerivedDataCacheInterface::BuildCacheKey(
 		TEXT("CARD"),
@@ -90,14 +90,15 @@ void BeginCacheMeshCardRepresentation(const ITargetPlatform* TargetPlatform, USt
 				RenderData.LODResources[0].CardRepresentationData = new FCardRepresentationData();
 			}
 
+			const FMeshBuildSettings& BuildSettings = StaticMeshAsset->GetSourceModel(0).BuildSettings;
 			UStaticMesh* MeshToGenerateFrom = StaticMeshAsset;
 
-			RenderData.LODResources[0].CardRepresentationData->CacheDerivedData(Key, TargetPlatform, StaticMeshAsset, MeshToGenerateFrom, OptionalSourceMeshData);
+			RenderData.LODResources[0].CardRepresentationData->CacheDerivedData(Key, TargetPlatform, StaticMeshAsset, MeshToGenerateFrom, BuildSettings.bGenerateDistanceFieldAsIfTwoSided, OptionalSourceMeshData);
 		}
 	}
 }
 
-void FCardRepresentationData::CacheDerivedData(const FString& InDDCKey, const ITargetPlatform* TargetPlatform, UStaticMesh* Mesh, UStaticMesh* GenerateSource, FSourceMeshDataForDerivedDataTask* OptionalSourceMeshData)
+void FCardRepresentationData::CacheDerivedData(const FString& InDDCKey, const ITargetPlatform* TargetPlatform, UStaticMesh* Mesh, UStaticMesh* GenerateSource, bool bGenerateDistanceFieldAsIfTwoSided, FSourceMeshDataForDerivedDataTask* OptionalSourceMeshData)
 {
 	TArray<uint8> DerivedData;
 
@@ -118,6 +119,23 @@ void FCardRepresentationData::CacheDerivedData(const FString& InDDCKey, const IT
 		NewTask->StaticMesh = Mesh;
 		NewTask->GenerateSource = GenerateSource;
 		NewTask->GeneratedCardRepresentation = new FCardRepresentationData();
+		NewTask->bGenerateDistanceFieldAsIfTwoSided = bGenerateDistanceFieldAsIfTwoSided;
+
+		for (int32 MaterialIndex = 0; MaterialIndex < Mesh->GetStaticMaterials().Num(); MaterialIndex++)
+		{
+			FSignedDistanceFieldBuildMaterialData MaterialData;
+			// Default material blend mode
+			MaterialData.BlendMode = BLEND_Opaque;
+			MaterialData.bTwoSided = false;
+
+			if (Mesh->GetStaticMaterials()[MaterialIndex].MaterialInterface)
+			{
+				MaterialData.BlendMode = Mesh->GetStaticMaterials()[MaterialIndex].MaterialInterface->GetBlendMode();
+				MaterialData.bTwoSided = Mesh->GetStaticMaterials()[MaterialIndex].MaterialInterface->IsTwoSided();
+			}
+
+			NewTask->MaterialBlendModes.Add(MaterialData);
+		}
 
 		// Nanite overrides source static mesh with a coarse representation. Need to load original data before we build the mesh SDF.
 		if (OptionalSourceMeshData)
@@ -146,12 +164,6 @@ static FAutoConsoleVariableRef CVarCardRepresentationAsyncBuildQueue(
 	TEXT("."),
 	ECVF_Default | ECVF_ReadOnly
 	);
-
-FAsyncCardRepresentationTask::FAsyncCardRepresentationTask()
-	: StaticMesh(nullptr)
-	, GenerateSource(nullptr)
-{
-}
 
 FCardRepresentationAsyncQueue::FCardRepresentationAsyncQueue() 
 {
@@ -438,8 +450,10 @@ void FCardRepresentationAsyncQueue::Build(FAsyncCardRepresentationTask* Task, FQ
 			Task->SourceMeshData,
 			LODModel,
 			BuildThreadPool,
+			Task->MaterialBlendModes,
 			Task->GenerateSource->GetRenderData()->Bounds,
 			Task->GenerateSource->GetRenderData()->LODResources[0].DistanceFieldData,
+			Task->bGenerateDistanceFieldAsIfTwoSided,
 			*Task->GeneratedCardRepresentation);
 	}
 

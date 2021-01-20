@@ -22,7 +22,6 @@ Texture2D IndirectIrradianceAtlas;
 
 Texture2D OpacityAtlas;
 Texture2D DilatedDepthAtlas;
-Texture3D<uint> CubeMapTreeLUTAtlas;
 
 #ifndef VISIBILITY_ONLY_TRACE
 	#define VISIBILITY_ONLY_TRACE 0
@@ -731,7 +730,7 @@ FTraceMeshSDFDerivedData CalculateMeshSDFDerivedData(
 	return TraceSDFData;
 }
 
-void SampleLumenCubeMapFace(
+void SampleLumenCard(
 	float3 SamplePosition,
 	float SampleRadius,
 	bool bAccurateHit,
@@ -815,30 +814,48 @@ void SampleLumenCubeMapFace(
 	}
 }
 
-float4 SampleLumenCubeMapTreeWithWeight(uint DFObjectIndex, float3 SamplePosition, float3 SampleNormal, float SampleRadius, bool bAccurateHit, float CardInterpolateDepthVisibilityRadius, uint AtlasId)
+uint FindBestMeshCardIndex(FLumenMeshCardsData MeshCardsData, float3 SamplePosition, uint Orientation)
 {
-	uint CubeMapTreeId = LumenCardScene.DFObjectToCubeMapTreeIndexBuffer.Load(4 * DFObjectIndex);
+	for (uint IndexInMeshCards = 0; IndexInMeshCards < MeshCardsData.NumCards[Orientation]; ++IndexInMeshCards)
+	{
+		uint CardIndex = MeshCardsData.CardOffset[Orientation] + IndexInMeshCards;
+		if (CardIndex < LumenCardScene.NumCards)
+		{
+			FLumenCardData LumenCardData = GetLumenCardData(CardIndex);
+			if (LumenCardData.bVisible)
+			{
+				float3 LocalSamplePosition = mul(SamplePosition - LumenCardData.Origin, LumenCardData.WorldToLocalRotation);
+				if (all(abs(LocalSamplePosition.xyz) < LumenCardData.LocalExtent.xyz))
+				{
+					return CardIndex;
+				}
+			}
+		}
+	}
 
-	FLumenCubeMapTreeData CubeMapTreeData = GetLumenCubeMapTreeData(CubeMapTreeId);
+	return LUMEN_INVALID_CARD_INDEX;
+}
 
-	float3 LUTAtlasCoord = mul(float4(SamplePosition, 1.0f), CubeMapTreeData.WorldToLUTAtlasCoord).xyz;
-	LUTAtlasCoord = clamp(LUTAtlasCoord, CubeMapTreeData.MinCoordInLUTAtlas, CubeMapTreeData.MaxCoordInLUTAtlas);
-	uint CubeMapId = CubeMapTreeData.FirstCubeMapIndex + CubeMapTreeLUTAtlas.Load(int4(LUTAtlasCoord, 0)).x;
+float4 SampleLumenMeshCardsWithWeight(uint DFObjectIndex, float3 SamplePosition, float3 SampleNormal, float SampleRadius, bool bAccurateHit, float CardInterpolateDepthVisibilityRadius, uint AtlasId)
+{
+	uint MeshCardId = LumenCardScene.DFObjectToMeshCardsIndexBuffer.Load(4 * DFObjectIndex);
 
-	FLumenCubeMapData CubeMap = GetLumenCubeMapData(CubeMapId);
+	FLumenMeshCardsData MeshCardsData = GetLumenMeshCardsData(MeshCardId);
 
-	float3 LocalSpaceHitNormal = normalize(mul(float4(SampleNormal, 0.0f), CubeMapTreeData.WorldToLocal).xyz);
-
-	uint CardIndexX = (LocalSpaceHitNormal.x > 0.0f ? CubeMap.FaceCardIndices[1] : CubeMap.FaceCardIndices[0]);
-	uint CardIndexY = (LocalSpaceHitNormal.y > 0.0f ? CubeMap.FaceCardIndices[3] : CubeMap.FaceCardIndices[2]);
-	uint CardIndexZ = (LocalSpaceHitNormal.z > 0.0f ? CubeMap.FaceCardIndices[5] : CubeMap.FaceCardIndices[4]);
-
+	float3 LocalSpaceHitNormal = normalize(mul(float4(SampleNormal, 0.0f), MeshCardsData.WorldToLocal).xyz);
 	float3 AxisWeights = LocalSpaceHitNormal * LocalSpaceHitNormal;
+	const uint CardOrientationX = (LocalSpaceHitNormal.x < 0.0f ? 0 : 1);
+	const uint CardOrientationY = (LocalSpaceHitNormal.y < 0.0f ? 2 : 3);
+	const uint CardOrientationZ = (LocalSpaceHitNormal.z < 0.0f ? 4 : 5);
+
+	uint CardIndexX = FindBestMeshCardIndex(MeshCardsData, SamplePosition, CardOrientationX);
+	uint CardIndexY = FindBestMeshCardIndex(MeshCardsData, SamplePosition, CardOrientationY);
+	uint CardIndexZ = FindBestMeshCardIndex(MeshCardsData, SamplePosition, CardOrientationZ);
 
 	float3 Lighting = 0;
 	float TotalWeight = 0;
 
-	SampleLumenCubeMapFace(
+	SampleLumenCard(
 		SamplePosition,
 		SampleRadius,
 		bAccurateHit,
@@ -849,7 +866,7 @@ float4 SampleLumenCubeMapTreeWithWeight(uint DFObjectIndex, float3 SamplePositio
 		Lighting,
 		TotalWeight);
 
-	SampleLumenCubeMapFace(
+	SampleLumenCard(
 		SamplePosition,
 		SampleRadius,
 		bAccurateHit,
@@ -860,7 +877,7 @@ float4 SampleLumenCubeMapTreeWithWeight(uint DFObjectIndex, float3 SamplePositio
 		Lighting,
 		TotalWeight);
 
-	SampleLumenCubeMapFace(
+	SampleLumenCard(
 		SamplePosition,
 		SampleRadius,
 		bAccurateHit,
@@ -878,7 +895,7 @@ float4 SampleLumenCubeMapTreeWithWeight(uint DFObjectIndex, float3 SamplePositio
 
 		float DistantCardWeight = saturate(dot(SampleNormal, LumenCardScene.DistantSceneDirection));
 
-		SampleLumenCubeMapFace(
+		SampleLumenCard(
 			SamplePosition,
 			SampleRadius,
 			true,
@@ -894,9 +911,9 @@ float4 SampleLumenCubeMapTreeWithWeight(uint DFObjectIndex, float3 SamplePositio
 	return float4(Lighting, TotalWeight);
 }
 
-float3 SampleLumenCubeMapTree(uint DFObjectIndex, float3 SamplePosition, float3 SampleNormal, float SampleRadius, bool bAccurateHit, float CardInterpolateDepthVisibilityRadius, uint AtlasId)
+float3 SampleLumenMeshCards(uint DFObjectIndex, float3 SamplePosition, float3 SampleNormal, float SampleRadius, bool bAccurateHit, float CardInterpolateDepthVisibilityRadius, uint AtlasId)
 {
-	float4 LightingAndWeight = SampleLumenCubeMapTreeWithWeight(DFObjectIndex, SamplePosition, SampleNormal, SampleRadius, bAccurateHit, CardInterpolateDepthVisibilityRadius, AtlasId);
+	float4 LightingAndWeight = SampleLumenMeshCardsWithWeight(DFObjectIndex, SamplePosition, SampleNormal, SampleRadius, bAccurateHit, CardInterpolateDepthVisibilityRadius, AtlasId);
 
 	if (LightingAndWeight.w > 0)
 	{
@@ -948,7 +965,7 @@ void ConeTraceMeshSDFsAndInterpolateFromCards(
 		//OutResult.Lighting = frac(InterpolatePosition / 1000);
 	
 		uint AtlasId = FINAL_LIGHTING_ATLAS_ID;
-		OutResult.Lighting = SampleLumenCubeMapTree(TraceMeshSDFResult.HitObject, InterpolatePosition, TraceSDFData.HitNormal, InterpolateRadius, TraceSDFData.bAccurateHit, TraceInput.CardInterpolateDepthVisibilityRadius, AtlasId);
+		OutResult.Lighting = SampleLumenMeshCards(TraceMeshSDFResult.HitObject, InterpolatePosition, TraceSDFData.HitNormal, InterpolateRadius, TraceSDFData.bAccurateHit, TraceInput.CardInterpolateDepthVisibilityRadius, AtlasId);
 		OutResult.Transparency = 0;
 	}
 

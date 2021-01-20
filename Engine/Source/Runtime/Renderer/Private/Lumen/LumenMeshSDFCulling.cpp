@@ -12,7 +12,7 @@
 #include "LumenSceneUtils.h"
 #include "PixelShaderUtils.h"
 #include "DistanceFieldLightingShared.h"
-#include "LumenCubeMapTree.h"
+#include "LumenMeshCards.h"
 
 int32 GMeshSDFAverageCulledCount = 512;
 FAutoConsoleVariableRef CVarMeshSDFAverageCulledCount(
@@ -343,8 +343,6 @@ void CullMeshSDFObjectsForView(
 
 	int32 MaxSDFMeshObjects = FMath::RoundUpToPowerOfTwo(DistanceFieldSceneData.NumObjectsInBuffer);
 	MaxSDFMeshObjects = FMath::DivideAndRoundUp(MaxSDFMeshObjects, 128) * 128;
-	int32 MaxCubeMapTrees = FMath::RoundUpToPowerOfTwo(LumenSceneData.CubeMapTrees.Num());
-	MaxCubeMapTrees = FMath::DivideAndRoundUp(MaxCubeMapTrees, 128) * 128;
 
 	Context.ObjectIndirectArguments = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDrawIndexedIndirectParameters>(1), TEXT("CulledObjectIndirectArguments"));
 

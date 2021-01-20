@@ -11,7 +11,7 @@
 #include "ShaderParameterStruct.h"
 #include "LumenSceneUtils.h"
 #include "SceneTextureParameters.h"
-#include "LumenCubeMapTree.h"
+#include "LumenMeshCards.h"
 #include "LumenRadianceCache.h"
 
 int32 GLumenSceneCardLightingForceFullUpdate = 0;
@@ -180,7 +180,6 @@ void GetLumenCardTracingParameters(const FViewInfo& View, const FLumenCardTracin
 	TracingParameters.DilatedDepthAtlas = TracingInputs.DilatedDepthAtlas;
 
 	TracingParameters.VoxelLighting = TracingInputs.VoxelLighting;
-	TracingParameters.CubeMapTreeLUTAtlas = GLumenCubeMapTreeLUTAtlas.GetTexture();
 	
 	GetLumenVoxelTracingParameters(TracingInputs, TracingParameters, bShaderWillTraceCardsOnly);
 

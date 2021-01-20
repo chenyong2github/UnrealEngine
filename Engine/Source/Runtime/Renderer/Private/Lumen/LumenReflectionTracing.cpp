@@ -414,9 +414,6 @@ void TraceReflections(
 				/* out */ MeshSDFGridParameters);
 		}
 
-		extern int32 GLumenDiffuseCubeMapTree;
-		ensureMsgf(GLumenDiffuseCubeMapTree != 0, TEXT("Only CubeMapTree currently supported"));
-
 		if (MeshSDFGridParameters.TracingParameters.NumSceneObjects > 0)
 		{
 			if (Lumen::UseHardwareRayTracedReflections())

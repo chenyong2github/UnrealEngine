@@ -172,7 +172,7 @@ float3 CalculateSurfaceCacheLighting(
 	// Mode and AtlasId enums are coupled
 	uint AtlasId = GetAtlasId(LightingMode);
 
-	float3 ResidualLighting = SampleLumenCubeMapTree(
+	float3 ResidualLighting = SampleLumenMeshCards(
 		DFObjectIndex,
 		RayHitWorldPosition,
 		RayHitWorldNormal,

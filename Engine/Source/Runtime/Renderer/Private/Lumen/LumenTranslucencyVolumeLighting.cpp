@@ -13,7 +13,7 @@
 #include "VolumeLighting.h"
 #include "LumenSceneUtils.h"
 #include "DistanceFieldLightingShared.h"
-#include "LumenCubeMapTree.h"
+#include "LumenMeshCards.h"
 #include "Math/Halton.h"
 #include "DistanceFieldAmbientOcclusion.h"
 

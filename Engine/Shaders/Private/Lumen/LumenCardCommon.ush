@@ -171,67 +171,53 @@ struct FCardVSToPS
 	nointerpolation uint QuadIndex : QUAD_ID;
 };
 
-// Stride of cube map tree data, must match C++
-#define LUMEN_CUBE_MAP_TREE_DATA_STRIDE 8
+// Stride of mesh cards data, must match C++
+#define LUMEN_MESH_CARDS_DATA_STRIDE 4
+#define LUMEN_INVALID_CARD_INDEX 0xFFFFFFFF
 
-struct FLumenCubeMapTreeData
+struct FLumenMeshCardsData
 {
 	float4x4 WorldToLocal;
-	float4x4 WorldToLUTAtlasCoord;
-	uint3 MinCoordInLUTAtlas;
-	uint3 MaxCoordInLUTAtlas;
-	uint FirstCubeMapIndex;
+
+	// Per orientation
+	uint NumCards[6];
+	uint CardOffset[6];
 };
 
-// Note: layout must match FLumenCubeMapTreeData in C++
-FLumenCubeMapTreeData GetLumenCubeMapTreeData(uint CubeMapTreeId)
+void UnpackCardNumAndOffset(inout uint NumCards, inout uint CardOffset, uint BaseCardOffset, uint PackedData, uint PackedDataOffset)
 {
-	uint BaseOffset = CubeMapTreeId * LUMEN_CUBE_MAP_TREE_DATA_STRIDE;
+	NumCards = (PackedData >> (PackedDataOffset + 0)) & 0xFF;
+	CardOffset = (PackedData >> (PackedDataOffset + 8)) & 0xFF;
 
-	FLumenCubeMapTreeData CubeMapTree;
-
-	float4 M0 = LumenCardScene.CubeMapTreeData[BaseOffset + 0];
-	float4 M1 = LumenCardScene.CubeMapTreeData[BaseOffset + 1];
-	float4 M2 = LumenCardScene.CubeMapTreeData[BaseOffset + 2];
-
-	CubeMapTree.WorldToLocal = transpose(float4x4(M0, M1, M2, float4(0.0f, 0.0f, 0.0f, 1.0f)));
-
-	M0 = LumenCardScene.CubeMapTreeData[BaseOffset + 3];
-	M1 = LumenCardScene.CubeMapTreeData[BaseOffset + 4];
-	M2 = LumenCardScene.CubeMapTreeData[BaseOffset + 5];
-
-	CubeMapTree.WorldToLUTAtlasCoord = transpose(float4x4(M0, M1, M2, float4(0.0f, 0.0f, 0.0f, 1.0f)));
-
-	CubeMapTree.MinCoordInLUTAtlas = asuint(LumenCardScene.CubeMapTreeData[BaseOffset + 6].xyz);
-	CubeMapTree.FirstCubeMapIndex = asuint(LumenCardScene.CubeMapTreeData[BaseOffset + 6].w);
-	CubeMapTree.MaxCoordInLUTAtlas = asuint(LumenCardScene.CubeMapTreeData[BaseOffset + 7].xyz);
-
-	return CubeMapTree;
+	CardOffset += BaseCardOffset;
 }
 
-// Stride of tile tree cube map data, must match C++
-#define LUMEN_CUBE_MAP_DATA_STRIDE 2
-
-struct FLumenCubeMapData
+// Note: layout must match FLumenMeshCardsData in C++
+FLumenMeshCardsData GetLumenMeshCardsData(uint MeshCardsId)
 {
-	// -X, +X, -Y, +Y, -Z, +Z
-	uint FaceCardIndices[6];
-};
+	uint BaseOffset = MeshCardsId * LUMEN_MESH_CARDS_DATA_STRIDE;
 
-// Fetch from scene cube map buffer
-// Note: layout must match FLumenCubeMapData in C++
-FLumenCubeMapData GetLumenCubeMapData(uint CubeMapTreeId)
-{
-	uint BaseOffset = CubeMapTreeId * LUMEN_CUBE_MAP_DATA_STRIDE;
+	FLumenMeshCardsData MeshCardsData;
 
-	FLumenCubeMapData CubeMapData;
+	float4 M0 = LumenCardScene.MeshCardsData[BaseOffset + 0];
+	float4 M1 = LumenCardScene.MeshCardsData[BaseOffset + 1];
+	float4 M2 = LumenCardScene.MeshCardsData[BaseOffset + 2];
+	MeshCardsData.WorldToLocal = transpose(float4x4(M0, M1, M2, float4(0.0f, 0.0f, 0.0f, 1.0f)));
 
-	CubeMapData.FaceCardIndices[0] = asuint(LumenCardScene.CubeMapData[BaseOffset + 0].x);
-	CubeMapData.FaceCardIndices[1] = asuint(LumenCardScene.CubeMapData[BaseOffset + 0].y);
-	CubeMapData.FaceCardIndices[2] = asuint(LumenCardScene.CubeMapData[BaseOffset + 0].z);
-	CubeMapData.FaceCardIndices[3] = asuint(LumenCardScene.CubeMapData[BaseOffset + 0].w);
-	CubeMapData.FaceCardIndices[4] = asuint(LumenCardScene.CubeMapData[BaseOffset + 1].x);
-	CubeMapData.FaceCardIndices[5] = asuint(LumenCardScene.CubeMapData[BaseOffset + 1].y);
+	uint4 PackedData;
+	PackedData.x = asuint(LumenCardScene.MeshCardsData[BaseOffset + 3].x);
+	PackedData.y = asuint(LumenCardScene.MeshCardsData[BaseOffset + 3].y);
+	PackedData.z = asuint(LumenCardScene.MeshCardsData[BaseOffset + 3].z);
+	PackedData.w = asuint(LumenCardScene.MeshCardsData[BaseOffset + 3].w);
 
-	return CubeMapData;
+	uint BaseCardOffset = PackedData.w;
+
+	UnpackCardNumAndOffset(MeshCardsData.NumCards[0], MeshCardsData.CardOffset[0], BaseCardOffset, PackedData.x, 0);
+	UnpackCardNumAndOffset(MeshCardsData.NumCards[1], MeshCardsData.CardOffset[1], BaseCardOffset, PackedData.x, 16);
+	UnpackCardNumAndOffset(MeshCardsData.NumCards[2], MeshCardsData.CardOffset[2], BaseCardOffset, PackedData.y, 0);
+	UnpackCardNumAndOffset(MeshCardsData.NumCards[3], MeshCardsData.CardOffset[3], BaseCardOffset, PackedData.y, 16);
+	UnpackCardNumAndOffset(MeshCardsData.NumCards[4], MeshCardsData.CardOffset[4], BaseCardOffset, PackedData.z, 0);
+	UnpackCardNumAndOffset(MeshCardsData.NumCards[5], MeshCardsData.CardOffset[5], BaseCardOffset, PackedData.z, 16);
+
+	return MeshCardsData;
 }

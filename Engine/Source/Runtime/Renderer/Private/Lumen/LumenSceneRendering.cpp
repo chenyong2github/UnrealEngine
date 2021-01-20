@@ -17,7 +17,7 @@
 #include "Nanite/NaniteRender.h"
 #include "PixelShaderUtils.h"
 #include "Lumen.h"
-#include "LumenCubeMapTree.h"
+#include "LumenMeshCards.h"
 #include "LumenSceneUtils.h"
 #include "DistanceFieldAmbientOcclusion.h"
 #include "HAL/LowLevelMemStats.h"
@@ -134,18 +134,18 @@ FAutoConsoleVariableRef CVarLumenSceneUploadCardBufferEveryFrame(
 	ECVF_RenderThreadSafe
 	);
 
-int32 GLumenSceneUploadCubeMapTreeBufferEveryFrame = 0;
-FAutoConsoleVariableRef CVarLumenSceneUploadCubeMapTreeBufferEveryFrame(
-	TEXT("r.LumenScene.UploadCubeMapTreeBufferEveryFrame"),
-	GLumenSceneUploadCubeMapTreeBufferEveryFrame,
+int32 GLumenSceneUploadMeshCardsBufferEveryFrame = 0;
+FAutoConsoleVariableRef CVarLumenSceneUploadMeshCardsBufferEveryFrame(
+	TEXT("r.LumenScene.UploadMeshCardsBufferEveryFrame"),
+	GLumenSceneUploadMeshCardsBufferEveryFrame,
 	TEXT(""),
 	ECVF_RenderThreadSafe
 );
 
-int32 GLumenSceneUploadDFObjectToCubeMapTreeIndexBufferEveryFrame = 0;
-FAutoConsoleVariableRef CVarLumenSceneUploadDFObjectToCubeMapTreeIndexBufferEveryFrame(
-	TEXT("r.LumenScene.UploadDFObjectToCubeMapTreeIndexBufferEveryFrame"),
-	GLumenSceneUploadDFObjectToCubeMapTreeIndexBufferEveryFrame,
+int32 GLumenSceneUploadDFObjectToMeshCardsIndexBufferEveryFrame = 0;
+FAutoConsoleVariableRef CVarLumenSceneUploadDFObjectToMeshCardsIndexBufferEveryFrame(
+	TEXT("r.LumenScene.UploadDFObjectToMeshCardsIndexBufferEveryFrame"),
+	GLumenSceneUploadDFObjectToMeshCardsIndexBufferEveryFrame,
 	TEXT(""),
 	ECVF_RenderThreadSafe
 );
@@ -178,7 +178,7 @@ int32 GLumenCoarseCardCulling = 1;
 FAutoConsoleVariableRef CVarLumenCoarseCardCulling(
 	TEXT("r.LumenScene.CoarseCardCulling"),
 	GLumenCoarseCardCulling,
-	TEXT("Allow coarse card culling based on estimated projected size and distance to the entire CubeMapTree (enabled by default)."),
+	TEXT("Allow coarse card culling based on estimated projected size and distance to the entire MeshCards (enabled by default)."),
 	ECVF_RenderThreadSafe
 );
 
@@ -539,7 +539,7 @@ FCardSourceData::FCardSourceData()
 	LocalToWorldRotationX = FVector::ZeroVector;
 	LocalToWorldRotationY = FVector::ZeroVector;
 	LocalToWorldRotationZ = FVector::ZeroVector;
-	FaceIndexInCubeMapTree = -1;
+	IndexInMeshCards = -1;
 	IndexInVisibleCardIndexBuffer = -1;
 	PrimitiveSceneInfo = nullptr;
 	AtlasAllocation = FIntRect(0, 0, 0, 0);
@@ -551,7 +551,7 @@ FCardSourceData::~FCardSourceData()
 	check(!bAllocated); 
 }
 
-const static FVector LumenCubeMapFaceRotationFrame[6][3] =
+const static FVector LumenMeshCardRotationFrame[6][3] =
 {
 	// X-
 	{
@@ -596,27 +596,28 @@ const static FVector LumenCubeMapFaceRotationFrame[6][3] =
 	}
 };
 
-void FCardSourceData::Initialize(FPrimitiveSceneInfo* InPrimitiveSceneInfo, int32 InInstanceIndexOrMergedFlag, float InResolutionScale, const FMatrix& LocalToWorld, const class FLumenCubeMapFaceBuildData& FaceBuiltData, int32 InFaceIndexInCubeMapTree)
+void FCardSourceData::Initialize(FPrimitiveSceneInfo* InPrimitiveSceneInfo, int32 InInstanceIndexOrMergedFlag, float InResolutionScale, const FMatrix& LocalToWorld, const FLumenCardBuildData& CardBuildData, int32 InIndexInMeshCards, int32 InMeshCardsIndex)
 {
-	FaceIndexInCubeMapTree = InFaceIndexInCubeMapTree;
+	IndexInMeshCards = InIndexInMeshCards;
+	MeshCardsIndex = InMeshCardsIndex;
 	PrimitiveSceneInfo = InPrimitiveSceneInfo;
 	InstanceIndexOrMergedFlag = InInstanceIndexOrMergedFlag;
 	ResolutionScale = InResolutionScale;
 	bMovable = PrimitiveSceneInfo->Proxy->IsMovable();
 
-	SetTransform(LocalToWorld, FaceBuiltData);
+	SetTransform(LocalToWorld, CardBuildData);
 }
 
-void FCardSourceData::SetTransform(const FMatrix& LocalToWorld, const class FLumenCubeMapFaceBuildData& FaceBuiltData)
+void FCardSourceData::SetTransform(const FMatrix& LocalToWorld, const FLumenCardBuildData& CardBuildData)
 {
-	checkSlow(FaceBuiltData.Orientation < 6);
+	checkSlow(CardBuildData.Orientation < 6);
 
-	Orientation = FaceBuiltData.Orientation;
-	const FVector& CardToLocalRotationX = LumenCubeMapFaceRotationFrame[FaceBuiltData.Orientation][0];
-	const FVector& CardToLocalRotationY = LumenCubeMapFaceRotationFrame[FaceBuiltData.Orientation][1];
-	const FVector& CardToLocalRotationZ = LumenCubeMapFaceRotationFrame[FaceBuiltData.Orientation][2];
+	Orientation = CardBuildData.Orientation;
+	const FVector& CardToLocalRotationX = LumenMeshCardRotationFrame[CardBuildData.Orientation][0];
+	const FVector& CardToLocalRotationY = LumenMeshCardRotationFrame[CardBuildData.Orientation][1];
+	const FVector& CardToLocalRotationZ = LumenMeshCardRotationFrame[CardBuildData.Orientation][2];
 
-	SetTransform(LocalToWorld, FaceBuiltData.Center, CardToLocalRotationX, CardToLocalRotationY, CardToLocalRotationZ, FaceBuiltData.Extent);
+	SetTransform(LocalToWorld, CardBuildData.Center, CardToLocalRotationX, CardToLocalRotationY, CardToLocalRotationZ, CardBuildData.Extent);
 }
 
 void FCardSourceData::SetTransform(
@@ -687,11 +688,6 @@ FLumenSceneData::~FLumenSceneData()
 {
 	LLM_SCOPE_BYTAG(Lumen);
 
-	for (FLumenCubeMapTree& CubeMapTree : CubeMapTrees)
-	{
-		GLumenCubeMapTreeLUTAtlas.RemoveAllocation(CubeMapTree);
-	}
-
 	for (FCardSourceData& Card : Cards)
 	{
 		Card.IndexInVisibleCardIndexBuffer = -1;
@@ -699,7 +695,7 @@ FLumenSceneData::~FLumenSceneData()
 	}
 
 	Cards.Reset();
-	CubeMaps.Reset();
+	MeshCards.Reset();
 }
 
 bool TrackPrimitiveForLumenScene(const FPrimitiveSceneProxy* Proxy)
@@ -768,7 +764,7 @@ void FLumenSceneData::RemovePrimitive(FPrimitiveSceneInfo* InPrimitive)
 		PendingUpdateOperations.Remove(InPrimitive);
 		PendingRemoveOperations.Add(FLumenPrimitiveRemoveInfo(InPrimitive));
 
-		InPrimitive->LumenCubeMapTreeInstanceIndices.Empty();
+		InPrimitive->LumenMeshCardsInstanceIndices.Empty();
 	}
 }
 
@@ -1153,9 +1149,9 @@ void FDeferredShadingSceneRenderer::UpdateLumenCardAtlasAllocation(FRDGBuilder& 
 		}
 		else
 		{
-			if (CardRenderData.CardData.bVisible && CardRenderData.CardData.CubeMapTreeIndex >= 0)
+			if (CardRenderData.CardData.bVisible && CardRenderData.CardData.MeshCardsIndex >= 0)
 			{
-				LumenSceneData.CubeMapTreeBounds[CardRenderData.CardData.CubeMapTreeIndex].DecrementVisible();
+				LumenSceneData.MeshCardsBounds[CardRenderData.CardData.MeshCardsIndex].DecrementVisible();
 			}
 
 			CardRenderData.CardData.bVisible = false;
@@ -1199,95 +1195,85 @@ struct FCardToAllocate
 	uint8 CardPriority;
 };
 
-constexpr int32 CUBEMAPS_PER_PACKET = 546; // Up to 2040 cards per packet, chosen such that CARDS_PER_PACKET * (sizeof(FCardToAllocate) + sizeof(int32)) <= 64KB
+constexpr int32 MESHCARDS_PER_PACKET = 512;
 constexpr int32 MAX_CARD_PRIORITY = 255;
 
 struct FLumenCardUpdatePacket
 {
 public:
-
-	static constexpr int32 CARDS_PER_PACKET = FLumenCubeMapTreeBounds::MaxCards * CUBEMAPS_PER_PACKET;
-
 	FLumenCardUpdatePacket(
-		const TSparseSpanArray<FLumenCubeMapTreeBounds>& InCubeMapTreeBounds,
+		const TSparseSpanArray<FLumenMeshCardsBounds>& InMeshCardsBounds,
 		const TSparseSpanArray<FCardSourceData>& InCards,
 		FVector InViewOrigin,
 		float InMaxDistanceFromCamera,
-		int32 InFirstCubeMapIndex)
+		int32 InFirstMeshCardsIndex)
 		: NumCardsToReallocate(0)
 		, NumTexelsToAllocate(0)
-		, CubeMapTreeBounds(InCubeMapTreeBounds)
+		, MeshCardsBounds(InMeshCardsBounds)
 		, Cards(InCards)
 		, ViewOrigin(InViewOrigin)
-		, FirstCubeMapIndex(InFirstCubeMapIndex)
+		, FirstMeshCardsIndex(InFirstMeshCardsIndex)
 		, MaxDistanceFromCamera(InMaxDistanceFromCamera)
 		, TexelDensityScale(GetCardCameraDistanceTexelDensityScale())
 		, MaxTexelDensity(GLumenSceneCardMaxTexelDensity)
 	{
 		bAllowCoarseCulling = GLumenCoarseCardCulling != 0
 			&& GLumenSceneCardFixedDebugTexelDensity <= 0; // FixedDebugTexelDensity support is not implemented for coarse culling
-
-		CardsToAllocate.Reserve(CARDS_PER_PACKET);
-		CardsToRemove.Reserve(CARDS_PER_PACKET);
-
-		static constexpr uint32 BytesPerPacket = CARDS_PER_PACKET * (sizeof(FCardToAllocate) + sizeof(int32));
-		static_assert(BytesPerPacket >= 65000 && BytesPerPacket <= 65536,
-			"Must keep dynamic memory allocation per packet as close as possible to 64KB to avoid wasting SceneRenderingAllocator space while minimizing number of allocations");
 	}
 
 	// Output
-	TArray<FCardToAllocate, SceneRenderingAllocator> CardsToAllocate;
-	TArray<int32, SceneRenderingAllocator> CardsToRemove;
+	TArray<FCardToAllocate> CardsToAllocate;
+	TArray<int32> CardsToRemove;
 	int32 NumCardsToReallocate;
 	int32 NumTexelsToAllocate;
 
 	// Stats
-	int32 NumSlowCubeMaps = 0;
-	int32 NumSkippedCubeMaps = 0;
-	int32 NumSmallCubeMaps = 0;
+	int32 NumSlowMeshCards = 0;
+	int32 NumSkippedMeshCards = 0;
+	int32 NumSmallMeshCards = 0;
 
 	void AnyThreadTask()
 	{
-		const int32 LastCubeMapIndex = FMath::Min(FirstCubeMapIndex + CUBEMAPS_PER_PACKET, CubeMapTreeBounds.Num());
+		const int32 LastMeshCardsIndex = FMath::Min(FirstMeshCardsIndex + MESHCARDS_PER_PACKET, MeshCardsBounds.Num());
 		const float MaxDistanceSquared = MaxDistanceFromCamera * MaxDistanceFromCamera;
 
-		for (int32 CubeMapIndex = FirstCubeMapIndex; CubeMapIndex < LastCubeMapIndex; ++CubeMapIndex)
+		for (int32 MeshCardsIndex = FirstMeshCardsIndex; MeshCardsIndex < LastMeshCardsIndex; ++MeshCardsIndex)
 		{
-			if (!CubeMapTreeBounds.IsAllocated(CubeMapIndex))
+			if (!MeshCardsBounds.IsAllocated(MeshCardsIndex))
 			{
 				continue;
 			}
 
-			const FLumenCubeMapTreeBounds& CubeMap = CubeMapTreeBounds[CubeMapIndex];
+			const FLumenMeshCardsBounds& MeshCards = MeshCardsBounds[MeshCardsIndex];
 
-			const float DistanceSquared = bAllowCoarseCulling ? CubeMap.ComputeSquaredDistanceFromBoxToPoint(ViewOrigin) : 0.0f;
+			const float DistanceSquared = bAllowCoarseCulling ? MeshCards.ComputeSquaredDistanceFromBoxToPoint(ViewOrigin) : 0.0f;
 
-			if (CubeMap.HasVisibleCards() || DistanceSquared <= MaxDistanceSquared)
+			if (MeshCards.HasVisibleCards() || DistanceSquared <= MaxDistanceSquared)
 			{
 				if (bAllowCoarseCulling)
 				{
-					const FVector CubeMapExtent = CubeMap.GetWorldBoundsExtent();
-					const float ExtentMax = CubeMapExtent.GetMax();
+					const FVector MeshCardsExtent = MeshCards.GetWorldBoundsExtent();
+					const float ExtentMax = MeshCardsExtent.GetMax();
 					const float ViewerDistance = FMath::Max(FMath::Sqrt(DistanceSquared), 1.0f);
 					const float ProjectedSize = FMath::Min(
-						TexelDensityScale * ExtentMax * CubeMap.GetResolutionScale() / ViewerDistance,
+						TexelDensityScale * ExtentMax * MeshCards.GetResolutionScale() / ViewerDistance,
 						MaxTexelDensity * ExtentMax);
 
 					const int32 SnappedSize = FMath::RoundUpToPowerOfTwo(FMath::TruncToInt(ProjectedSize));
 
-					if (SnappedSize < 2 && !CubeMap.HasVisibleCards())
+					if (SnappedSize < 2 && !MeshCards.HasVisibleCards())
 					{
-						NumSmallCubeMaps++;
+						NumSmallMeshCards++;
 						continue;
 					}
 				}
 
-				NumSlowCubeMaps++;
-				ProcessCards(CubeMap.GetFirstCardIndex(), CubeMap.GetLastCardIndex());
+				NumSlowMeshCards++;
+				ProcessCards(MeshCards.GetFirstCardIndex(), MeshCards.GetLastCardIndex());
 			}
 			else
 			{
-				NumSkippedCubeMaps++;
+				NumSkippedMeshCards++;
 			}
 		}
 	}
@@ -1363,10 +1349,10 @@ private:
 		}
 	}
 
-	const TSparseSpanArray<FLumenCubeMapTreeBounds>& CubeMapTreeBounds;
+	const TSparseSpanArray<FLumenMeshCardsBounds>& MeshCardsBounds;
 	const TSparseSpanArray<FCardSourceData>& Cards;
 	FVector ViewOrigin;
-	int32 FirstCubeMapIndex;
+	int32 FirstMeshCardsIndex;
 	float MaxDistanceFromCamera;
 	float TexelDensityScale;
 	float MaxTexelDensity;
@@ -1468,17 +1454,17 @@ void FDeferredShadingSceneRenderer::BeginUpdateLumenSceneTasks(FRDGBuilder& Grap
 
 				const float MaxCardUpdateDistanceFromCamera = ComputeMaxCardUpdateDistanceFromCamera();
 
-				const int32 NumPackets = FMath::DivideAndRoundUp(LumenSceneData.CubeMapTreeBounds.Num(), CUBEMAPS_PER_PACKET);
+				const int32 NumPackets = FMath::DivideAndRoundUp(LumenSceneData.MeshCardsBounds.Num(), MESHCARDS_PER_PACKET);
 
 				Packets.Reserve(NumPackets);
 				for (int32 PacketIndex = 0; PacketIndex < NumPackets; ++PacketIndex)
 				{
 					Packets.Emplace(
-						LumenSceneData.CubeMapTreeBounds,
+						LumenSceneData.MeshCardsBounds,
 						LumenSceneData.Cards,
 						LumenSceneCameraOrigin,
 						MaxCardUpdateDistanceFromCamera,
-						PacketIndex * CUBEMAPS_PER_PACKET);
+						PacketIndex * MESHCARDS_PER_PACKET);
 				}
 			}
 
@@ -1584,9 +1570,9 @@ void FDeferredShadingSceneRenderer::BeginUpdateLumenSceneTasks(FRDGBuilder& Grap
 
 						CardData.RemoveFromAtlas(LumenSceneData);
 
-						if (CardData.bVisible && CardData.CubeMapTreeIndex >= 0)
+						if (CardData.bVisible && CardData.MeshCardsIndex >= 0)
 						{
-							LumenSceneData.CubeMapTreeBounds[CardData.CubeMapTreeIndex].DecrementVisible();
+							LumenSceneData.MeshCardsBounds[CardData.MeshCardsIndex].DecrementVisible();
 						}
 
 						CardData.bVisible = false;
@@ -1608,9 +1594,9 @@ void FDeferredShadingSceneRenderer::BeginUpdateLumenSceneTasks(FRDGBuilder& Grap
 
 				LumenSceneData.AddCardToVisibleCardList(CardIndex);
 				
-				if (!CardData.bVisible && CardData.CubeMapTreeIndex >= 0)
+				if (!CardData.bVisible && CardData.MeshCardsIndex >= 0)
 				{
-					LumenSceneData.CubeMapTreeBounds[CardData.CubeMapTreeIndex].IncrementVisible();
+					LumenSceneData.MeshCardsBounds[CardData.MeshCardsIndex].IncrementVisible();
 				}
 
 				CardData.bVisible = true;
@@ -1800,9 +1786,8 @@ void SetupLumenCardSceneParameters(FScene* Scene, FLumenCardScene& OutParameters
 		OutParameters.DepthBufferAtlas = GSystemTextures.DepthDummy->GetRenderTargetItem().ShaderResourceTexture;
 	}
 	
-	OutParameters.CubeMapData = LumenSceneData.CubeMapBuffer.SRV;
-	OutParameters.CubeMapTreeData = LumenSceneData.CubeMapTreeBuffer.SRV;
-	OutParameters.DFObjectToCubeMapTreeIndexBuffer = LumenSceneData.DFObjectToCubeMapTreeIndexBuffer.SRV;
+	OutParameters.MeshCardsData = LumenSceneData.MeshCardsBuffer.SRV;
+	OutParameters.DFObjectToMeshCardsIndexBuffer = LumenSceneData.DFObjectToMeshCardsIndexBuffer.SRV;
 	OutParameters.PrimitiveToDFObjectIndexBuffer = LumenSceneData.PrimitiveToDFObjectIndexBuffer.SRV;
 }
 
@@ -1862,7 +1847,7 @@ void UpdateCardSceneBuffer(FRHICommandListImmediate& RHICmdList, const FSceneVie
 		RHICmdList.Transition(FRHITransitionInfo(LumenSceneData.CardBuffer.UAV, ERHIAccess::UAVCompute, ERHIAccess::SRVMask));
 	}
 
-	UpdateLumenCubeMapTrees(Scene->DistanceFieldSceneData, LumenSceneData, RHICmdList, Scene->Primitives.Num());
+	UpdateLumenMeshCards(Scene->DistanceFieldSceneData, LumenSceneData, RHICmdList, Scene->Primitives.Num());
 
 	{
 		FLumenCardScene LumenCardSceneParameters;
@@ -2374,8 +2359,6 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder)
 
 	FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
 	LumenSceneData.CardIndicesToUpdateInBuffer.Reset();
-	LumenSceneData.CubeMapTreeIndicesToUpdateInBuffer.Reset();
-	LumenSceneData.CubeMapTreeIndicesToAllocate.Reset();
-	LumenSceneData.CubeMapIndicesToUpdateInBuffer.Reset();
+	LumenSceneData.MeshCardsIndicesToUpdateInBuffer.Reset();
 	LumenSceneData.DFObjectIndicesToUpdateInBuffer.Reset();
 }

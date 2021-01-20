@@ -505,7 +505,7 @@ void VisBufferShadingCS(
 				InterpolateRadius = 0.0f;
 
 				uint AtlasId = FINAL_LIGHTING_ATLAS_ID;
-				float4 LightingAndWeight = SampleLumenCubeMapTreeWithWeight(TraceMeshSDFResult.HitObject, InterpolatePosition, -RayDirection, InterpolateRadius, TraceSDFData.bAccurateHit, CardInterpolateDepthVisibilityRadius, AtlasId);
+				float4 LightingAndWeight = SampleLumenMeshCardsWithWeight(TraceMeshSDFResult.HitObject, InterpolatePosition, -RayDirection, InterpolateRadius, TraceSDFData.bAccurateHit, CardInterpolateDepthVisibilityRadius, AtlasId);
 
 				uint3 WriteCoord = uint3(VoxelCoord.x, ClipmapIndex * ClipmapGridResolution.y + VoxelCoord.y, DirectionIndex * ClipmapGridResolution.z + VoxelCoord.z);
 				RWVoxelLighting[WriteCoord] = LightingAndWeight;

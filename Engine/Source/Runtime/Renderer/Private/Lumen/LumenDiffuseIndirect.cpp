@@ -41,14 +41,6 @@ FAutoConsoleVariableRef GVarLumenDiffuseMaxCardTraceDistance(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
-int32 GLumenDiffuseCubeMapTree = 1;
-FAutoConsoleVariableRef GVarLumenDiffuseCubeMapTree(
-	TEXT("r.Lumen.DiffuseIndirect.CubeMapTree"),
-	GLumenDiffuseCubeMapTree,
-	TEXT("Whether to use cube map trees to apply texture on mesh SDF hit points."),
-	ECVF_Scalability | ECVF_RenderThreadSafe
-);
-
 float GDiffuseTraceStepFactor = 1;
 FAutoConsoleVariableRef CVarDiffuseTraceStepFactor(
 	TEXT("r.Lumen.DiffuseIndirect.TraceStepFactor"),

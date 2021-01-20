@@ -18,39 +18,9 @@
 #include "Async/AsyncWork.h"
 
 template <class T> class TLockFreePointerListLIFO;
+class FSignedDistanceFieldBuildMaterialData;
 
-class FLumenCubeMapBuildData
-{
-public:
-	// -X, +X, -Y, +Y, -Z, +Z
-	int32 FaceIndices[6];
-
-	bool operator==(const FLumenCubeMapBuildData& B) const
-	{
-		for (int32 Index = 0; Index < UE_ARRAY_COUNT(FaceIndices); ++Index)
-		{
-			if (FaceIndices[Index] != B.FaceIndices[Index])
-			{
-				return false;
-			}
-		}
-
-		return true;
-	}
-
-	friend FArchive& operator<<(FArchive& Ar, FLumenCubeMapBuildData& Data)
-	{
-		// Note: this is derived data, no need for versioning (bump the DDC guid)
-		for (int32 Index = 0; Index < UE_ARRAY_COUNT(FaceIndices); ++Index)
-		{
-			Ar << Data.FaceIndices[Index];
-		}
-
-		return Ar;
-	}
-};
-
-class FLumenCubeMapFaceBuildData
+class FLumenCardBuildData
 {
 public:
 	FVector Center;
@@ -58,35 +28,52 @@ public:
 
 	// -X, +X, -Y, +Y, -Z, +Z
 	int32 Orientation;
+	int32 LODLevel;
 
-	friend FArchive& operator<<(FArchive& Ar, FLumenCubeMapFaceBuildData& Data)
+	friend FArchive& operator<<(FArchive& Ar, FLumenCardBuildData& Data)
 	{
 		// Note: this is derived data, no need for versioning (bump the DDC guid)
 		Ar << Data.Center;
 		Ar << Data.Extent;
 		Ar << Data.Orientation;
+		Ar << Data.LODLevel;
 		return Ar;
 	}
 };
 
-class FCubeMapTreeBuildData
+class FLumenCardBuildDebugPoint
 {
 public:
-	FBox LUTVolumeBounds;
-	FIntVector LUTVolumeResolution;
+	FVector Origin;
+	int32 Orientation;
+	bool bValid;
+};
 
-	TArray<FLumenCubeMapBuildData> CubeMapBuiltData;
-	TArray<FLumenCubeMapFaceBuildData> FaceBuiltData;
-	TArray<uint8> LookupVolumeData;
+class FLumenCardBuildDebugLine
+{
+public:
+	FVector Origin;
+	FVector EndPoint;
+	int32 Orientation;
+};
 
-	friend FArchive& operator<<(FArchive& Ar, FCubeMapTreeBuildData& Data)
+class FMeshCardsBuildData
+{
+public:
+	FBox Bounds;
+	int32 MaxLODLevel;
+	TArray<FLumenCardBuildData> CardBuildData;
+
+	// Temporary debug visualization data
+	TArray<FLumenCardBuildDebugPoint> DebugPoints;
+	TArray<FLumenCardBuildDebugLine> DebugLines;
+
+	friend FArchive& operator<<(FArchive& Ar, FMeshCardsBuildData& Data)
 	{
 		// Note: this is derived data, no need for versioning (bump the DDC guid)
-		Ar << Data.LUTVolumeBounds;
-		Ar << Data.LUTVolumeResolution;
-		Ar << Data.CubeMapBuiltData;
-		Ar << Data.FaceBuiltData;
-		Ar << Data.LookupVolumeData;
+		Ar << Data.Bounds;
+		Ar << Data.MaxLODLevel;
+		Ar << Data.CardBuildData;
 		return Ar;
 	}
 };
@@ -118,7 +105,7 @@ class FCardRepresentationData : public FDeferredCleanupInterface
 {
 public:
 
-	FCubeMapTreeBuildData CubeMapTreeBuildData;
+	FMeshCardsBuildData MeshCardsBuildData;
 
 	FCardRepresentationDataId CardRepresentationDataId;
 
@@ -144,14 +131,14 @@ public:
 
 #if WITH_EDITORONLY_DATA
 
-	void CacheDerivedData(const FString& InDDCKey, const ITargetPlatform* TargetPlatform, UStaticMesh* Mesh, UStaticMesh* GenerateSource, FSourceMeshDataForDerivedDataTask* OptionalSourceMeshData);
+	void CacheDerivedData(const FString& InDDCKey, const ITargetPlatform* TargetPlatform, UStaticMesh* Mesh, UStaticMesh* GenerateSource, bool bGenerateDistanceFieldAsIfTwoSided, FSourceMeshDataForDerivedDataTask* OptionalSourceMeshData);
 
 #endif
 
 	friend FArchive& operator<<(FArchive& Ar,FCardRepresentationData& Data)
 	{
 		// Note: this is derived data, no need for versioning (bump the DDC guid)
-		Ar << Data.CubeMapTreeBuildData;
+		Ar << Data.MeshCardsBuildData;
 		return Ar;
 	}
 };
@@ -180,13 +167,16 @@ private:
 class FAsyncCardRepresentationTask
 {
 public:
-	FAsyncCardRepresentationTask();
-
 	bool bSuccess = false;
 
+#if WITH_EDITOR
+	TArray<FSignedDistanceFieldBuildMaterialData> MaterialBlendModes;
+#endif
+
 	FSourceMeshDataForDerivedDataTask SourceMeshData;
-	UStaticMesh* StaticMesh;
-	UStaticMesh* GenerateSource;
+	bool bGenerateDistanceFieldAsIfTwoSided = false;
+	UStaticMesh* StaticMesh = nullptr;
+	UStaticMesh* GenerateSource = nullptr;
 	FString DDCKey;
 	FCardRepresentationData* GeneratedCardRepresentation;
 	TUniquePtr<FAsyncTask<FAsyncCardRepresentationTaskWorker>> AsyncTask = nullptr;

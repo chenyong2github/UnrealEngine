@@ -17,9 +17,9 @@
 #include "UniformBuffer.h"
 #include "LumenSparseSpanArray.h"
 
-class FLumenCubeMapTreeBounds;
-class FLumenCubeMapTree;
-class FLumenCubeMap;
+class FLumenMeshCards;
+class FLumenMeshCardsBounds;
+class FLumenCardBuildData;
 
 class FLumenCardPassUniformParameters;
 
@@ -35,9 +35,8 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FLumenCardScene, )
 	SHADER_PARAMETER(FVector, DistantSceneDirection)
 	SHADER_PARAMETER_ARRAY(uint32, DistantCardIndices,[MaxDistantCards])
 	SHADER_PARAMETER_SRV(StructuredBuffer<float4>, CardData)
-	SHADER_PARAMETER_SRV(StructuredBuffer<float4>, CubeMapData)
-	SHADER_PARAMETER_SRV(StructuredBuffer<float4>, CubeMapTreeData)
-	SHADER_PARAMETER_SRV(ByteAddressBuffer, DFObjectToCubeMapTreeIndexBuffer)
+	SHADER_PARAMETER_SRV(StructuredBuffer<float4>, MeshCardsData)
+	SHADER_PARAMETER_SRV(ByteAddressBuffer, DFObjectToMeshCardsIndexBuffer)
 	SHADER_PARAMETER_SRV(ByteAddressBuffer, PrimitiveToDFObjectIndexBuffer)
 	SHADER_PARAMETER_TEXTURE(Texture2D, AlbedoAtlas)
 	SHADER_PARAMETER_TEXTURE(Texture2D, NormalAtlas)
@@ -74,15 +73,15 @@ public:
 
 	int32 Orientation = -1;
 	int32 IndexInVisibleCardIndexBuffer = -1;
-	int32 FaceIndexInCubeMapTree = -1;
-	int32 CubeMapTreeIndex = -1;
+	int32 IndexInMeshCards = -1;
+	int32 MeshCardsIndex = -1;
 	FPrimitiveSceneInfo* PrimitiveSceneInfo = nullptr;
 	int32 InstanceIndexOrMergedFlag = 0;
 	float ResolutionScale = 1.0f;
 
-	void Initialize(FPrimitiveSceneInfo* InPrimitiveSceneInfo, int32 InInstanceIndexOrMergedFlag, float InResolutionScale, const FMatrix& LocalToWorld, const class FLumenCubeMapFaceBuildData& FaceBuiltData, int32 InFaceIndexInCubeMapTree);
+	void Initialize(FPrimitiveSceneInfo* InPrimitiveSceneInfo, int32 InInstanceIndexOrMergedFlag, float InResolutionScale, const FMatrix& LocalToWorld, const FLumenCardBuildData& CardBuildData, int32 InIndexInMeshCards, int32 InMeshCardsIndex);
 
-	void SetTransform(const FMatrix& LocalToWorld, const class FLumenCubeMapFaceBuildData& FaceBuiltData);
+	void SetTransform(const FMatrix& LocalToWorld, const class FLumenCardBuildData& CardBuildData);
 
 	void SetTransform(
 		const FMatrix& LocalToWorld,
@@ -116,7 +115,7 @@ class FLumenPrimitiveRemoveInfo
 public:
 	FLumenPrimitiveRemoveInfo(const FPrimitiveSceneInfo* InPrimitive)
 		: Primitive(InPrimitive)
-		, CubeMapTreeInstanceIndices(InPrimitive->LumenCubeMapTreeInstanceIndices)
+		, MeshCardsInstanceIndices(InPrimitive->LumenMeshCardsInstanceIndices)
 	{}
 
 	/** 
@@ -126,7 +125,7 @@ public:
 	const FPrimitiveSceneInfo* Primitive;
 
 	// Need to copy by value as this is a deferred remove and Primitive may be already destroyed
-	TArray<int32, TInlineAllocator<1>> CubeMapTreeInstanceIndices;
+	TArray<int32, TInlineAllocator<1>> MeshCardsInstanceIndices;
 };
 
 struct FLumenPrimitiveAddInfo
@@ -187,8 +186,7 @@ public:
 	int32 Generation;
 
 	FScatterUploadBuffer UploadBuffer;
-	FScatterUploadBuffer UploadCubeMapTreeBuffer;
-	FScatterUploadBuffer UploadCubeMapBuffer;
+	FScatterUploadBuffer UploadMeshCardsBuffer;
 	FScatterUploadBuffer ByteBufferUploadBuffer;
 	FScatterUploadBuffer UploadPrimitiveBuffer;
 
@@ -198,19 +196,15 @@ public:
 
 	TArray<FBox> PrimitiveModifiedBounds;
 
-	// Cube map trees
+	// Mesh Cards
 	TArray<int32> DFObjectIndicesToUpdateInBuffer;
-	TArray<int32> CubeMapTreeIndicesToUpdateInBuffer;
-	TArray<int32> CubeMapTreeIndicesToAllocate;
-	TArray<int32> CubeMapIndicesToUpdateInBuffer;
-	TSparseSpanArray<FLumenCubeMapTree> CubeMapTrees;
-	TSparseSpanArray<FLumenCubeMapTreeBounds> CubeMapTreeBounds; // Parallel array of CubeMapTree culling data for better cache line utilization
-	TSparseSpanArray<FLumenCubeMap> CubeMaps;
+	TArray<int32> MeshCardsIndicesToUpdateInBuffer;
+	TSparseSpanArray<FLumenMeshCards> MeshCards;
+	TSparseSpanArray<FLumenMeshCardsBounds> MeshCardsBounds; // Parallel array of MeshCards culling data for better cache line utilization
 	TSparseSpanArray<FCardSourceData> Cards;
 	TArray<int32, TInlineAllocator<8>> DistantCardIndices;
-	FRWBufferStructured CubeMapTreeBuffer;
-	FRWBufferStructured CubeMapBuffer;
-	FRWByteAddressBuffer DFObjectToCubeMapTreeIndexBuffer;
+	FRWBufferStructured MeshCardsBuffer;
+	FRWByteAddressBuffer DFObjectToMeshCardsIndexBuffer;
 	FRWByteAddressBuffer PrimitiveToDFObjectIndexBuffer;
 
 	TArray<int32> VisibleCardsIndices;
