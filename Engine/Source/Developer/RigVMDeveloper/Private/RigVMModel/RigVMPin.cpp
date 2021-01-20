@@ -460,12 +460,15 @@ bool URigVMPin::IsValidDefaultValue(const FString& InDefaultValue) const
 			FRigVMPinDefaultValueImportErrorContext ErrorPipe;
 			TArray<uint8> TempStructBuffer;
 			TempStructBuffer.AddUninitialized(ScriptStruct->GetStructureSize());
+			ScriptStruct->InitializeDefaultValue(TempStructBuffer.GetData());
 
 			{
 				// force logging to the error pipe for error detection
 				LOG_SCOPE_VERBOSITY_OVERRIDE(LogExec, ELogVerbosity::Verbose); 
 				ScriptStruct->ImportText(*Value, TempStructBuffer.GetData(), nullptr, PPF_None, &ErrorPipe, ScriptStruct->GetName()); 
 			}
+
+			ScriptStruct->DestroyStruct(TempStructBuffer.GetData());
 
 			if (ErrorPipe.NumErrors > 0)
 			{
