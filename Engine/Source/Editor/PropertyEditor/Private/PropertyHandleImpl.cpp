@@ -353,7 +353,7 @@ FPropertyAccess::Result FPropertyValueImpl::ImportText( const TArray<FObjectBase
 
 			UObject* CurObject = Cur.GetUObject();
 
-			const FString NewValue = InValues[ObjectIndex];
+			const FString& NewValue = InValues[ObjectIndex];
 
 			// Cache the value of the property before modifying it.
 			FString PreviousValue;
