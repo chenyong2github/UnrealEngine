@@ -2708,7 +2708,27 @@ void FShaderCompilingManager::ProcessCompiledShaderMaps(
 			{
 				UE_LOG(LogShaderCompilers, Error, TEXT("Materials: nullptr"));
 			}
-			UE_LOG(LogShaderCompilers, Fatal, TEXT("Missing ShaderMap/Material for CompileID %d"), ProcessIt.Key());
+			
+			//UE_LOG(LogShaderCompilers, Fatal, TEXT("Missing ShaderMap/Material for CompileID %d"), ProcessIt.Key());		
+			if (ShaderMap)
+			{
+				// don't include the compile id so the reports can be grouped
+				ensureMsgf(false, TEXT("ShaderCompiler: missing Materials for a compileid."));
+			}
+			else if (Materials)
+			{
+				// don't include the compile id so the reports can be grouped
+				ensureMsgf(false, TEXT("ShaderCompiler: missing Shadermap for a compileid."));
+			}
+			else
+			{
+				// don't include the compile id so the reports can be grouped
+				ensureMsgf(false, TEXT("ShaderCompiler: missing both Shadermap and Materials for a compileid."));
+			}
+
+			CompileResults.FinishedJobs.Empty();
+			ProcessIt.RemoveCurrent();
+			continue;
 		}
 	}
 
