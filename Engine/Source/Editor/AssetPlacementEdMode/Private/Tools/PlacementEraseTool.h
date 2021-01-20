@@ -8,13 +8,12 @@
 #include "PlacementEraseTool.generated.h"
 
 UCLASS(Transient, MinimalAPI)
-class UPlacementModeEraseToolBuilder : public UInteractiveToolBuilder
+class UPlacementModeEraseToolBuilder : public UPlacementToolBuilderBase
 {
 	GENERATED_BODY()
 
-public:
-	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
-	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override;
+protected:
+	virtual UPlacementBrushToolBase* FactoryToolInstance(UObject* Outer) const override;
 };
 
 UCLASS(MinimalAPI)
@@ -23,4 +22,10 @@ class UPlacementModeEraseTool : public UPlacementBrushToolBase
 	GENERATED_BODY()
 public:
 	constexpr static TCHAR ToolName[] = TEXT("EraseTool");
+
+	virtual void OnBeginDrag(const FRay& Ray) override;
+	virtual void OnEndDrag(const FRay& Ray) override;
+
+protected:
+	virtual void OnTick(float DeltaTime) override;
 };

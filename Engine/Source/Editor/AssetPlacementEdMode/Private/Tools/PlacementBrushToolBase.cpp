@@ -13,6 +13,10 @@
 #include "LandscapeHeightfieldCollisionComponent.h"
 #include "FoliageInstancedStaticMeshComponent.h"
 #include "AssetPlacementSettings.h"
+#include "Elements/Framework/EngineElementsLibrary.h"
+#include "AssetPlacementEdMode.h"
+#include "ActorPartition/ActorPartitionSubsystem.h"
+#include "Editor.h"
 
 bool UPlacementToolBuilderBase::CanBuildTool(const FToolBuilderState& SceneState) const
 {
@@ -33,6 +37,11 @@ bool UPlacementBrushToolBase::HitTest(const FRay& Ray, FHitResult& OutHit)
 	const FVector TraceEnd(Ray.Origin + Ray.Direction * HALF_WORLD_MAX);
 
 	return FindHitResultWithStartAndEndTraceVectors(OutHit, TraceStart, TraceEnd);
+}
+
+bool UPlacementBrushToolBase::AreAllTargetsValid() const
+{
+	return Target ? Target->IsValid() : true;
 }
 
 double UPlacementBrushToolBase::EstimateMaximumTargetDimension()
@@ -133,4 +142,77 @@ FTransform UPlacementBrushToolBase::GetFinalTransformFromHitLocationAndNormal(co
 	}
 
 	return FinalizedTransform;
+}
+
+TArray<FTypedElementHandle> UPlacementBrushToolBase::GetElementsInBrushRadius() const
+{
+	TArray<FTypedElementHandle> ElementHandles;
+	FCollisionQueryParams QueryParams(TEXT("PlacementBrushTool"), SCENE_QUERY_STAT_ONLY(IFA_FoliageTrace), true);
+	QueryParams.bReturnFaceIndex = false;
+	TArray<FHitResult> Hits;
+	FCollisionShape BrushSphere;
+	BrushSphere.SetSphere(LastBrushStamp.Radius);
+
+	const FVector TraceStart(LastWorldRay.Origin);
+	const FVector TraceEnd(LastWorldRay.Origin + LastWorldRay.Direction * HALF_WORLD_MAX);
+
+	GetToolManager()->GetWorld()->SweepMultiByObjectType(Hits, TraceStart, TraceEnd, FQuat::Identity,
+		FCollisionObjectQueryParams(FCollisionObjectQueryParams::InitType::AllObjects), BrushSphere, QueryParams);
+
+	for (const FHitResult& Hit : Hits)
+	{
+		const UPrimitiveComponent* HitComponent = Hit.GetComponent();
+		check(HitComponent);
+
+		// In the editor traces can hit "No Collision" type actors, so ugh. (ignore these)
+		if (!HitComponent->IsQueryCollisionEnabled() || HitComponent->GetCollisionResponseToChannel(ECC_WorldStatic) != ECR_Block)
+		{
+			continue;
+		}
+
+		// Don't place foliage on invisible walls / triggers / volumes
+		if (HitComponent->IsA<UBrushComponent>())
+		{
+			continue;
+		}
+
+		const FActorInstanceHandle& HitObjectHandle = Hit.HitObjectHandle;
+		const AActor* HitActor = Hit.HitObjectHandle.FetchActor();
+		if (HitActor)
+		{
+			FTypedElementHandle ActorHandle = UEngineElementsLibrary::AcquireEditorActorElementHandle(HitActor);
+			if (UAssetPlacementEdMode::DoesPaletteSupportElement(ActorHandle, PlacementSettings->PaletteItems))
+			{
+				ElementHandles.Emplace(ActorHandle);
+			}
+		}
+	}
+
+	// Handle the IFA for the brush stroke level
+	if (UActorPartitionSubsystem* PartitionSubsystem = UWorld::GetSubsystem<UActorPartitionSubsystem>(GEditor->GetEditorWorldContext().World()))
+	{
+		constexpr bool bCreatePartitionActorIfMissing = false;
+		FActorPartitionGetParams PartitionActorFindParams(AInstancedFoliageActor::StaticClass(), bCreatePartitionActorIfMissing, GEditor->GetEditorWorldContext().World()->GetCurrentLevel(), LastBrushStamp.WorldPosition);
+		if (AInstancedFoliageActor* FoliageActor = Cast<AInstancedFoliageActor>(PartitionSubsystem->GetActor(PartitionActorFindParams)))
+		{
+			for (auto& FoliageInfo : FoliageActor->FoliageInfos)
+			{
+				FTypedElementHandle SourceObjectHandle = UEngineElementsLibrary::AcquireEditorObjectElementHandle(FoliageInfo.Key->GetSource());
+				if (UAssetPlacementEdMode::DoesPaletteSupportElement(SourceObjectHandle, PlacementSettings->PaletteItems))
+				{
+					TArray<int32> Instances;
+					FSphere SphereToCheck(LastBrushStamp.WorldPosition, LastBrushStamp.Radius);
+					FoliageInfo.Value->GetInstancesInsideSphere(SphereToCheck, Instances);
+					if (Instances.Num())
+					{
+						// For now, return the whole foliage actor, and allow the calling code to drill down, since we do not have element handles at the instance level just yet
+						ElementHandles.Emplace(UEngineElementsLibrary::AcquireEditorActorElementHandle(FoliageActor));
+						break;
+					}
+				}
+			}
+		}
+	}
+
+	return ElementHandles;
 }

@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Tools/LegacyEdModeWidgetHelpers.h"
 #include "Elements/Framework/TypedElementHandle.h"
+#include "AssetPlacementSettings.h"
 
 #include "AssetPlacementEdMode.generated.h"
 
@@ -35,6 +36,8 @@ public:
 	virtual bool ShouldDrawWidget() const override;
 	// End of UBaseLegacyWidgetEdMode interface
 	//////////////////
+
+	static bool DoesPaletteSupportElement(const FTypedElementHandle& InElementToCheck, const TArray<FPaletteItem>& InPaletteToCheck);
 
 protected:
 	enum class EPaletteFilter

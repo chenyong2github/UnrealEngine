@@ -5,10 +5,9 @@
 #include "AssetPlacementSettings.h"
 #include "Subsystems/PlacementSubsystem.h"
 #include "Math/UnrealMathUtility.h"
-#include "BaseGizmos/BrushStampIndicator.h"
 #include "Editor.h"
 #include "InstancedFoliage.h"
-#include "ScopedTransaction.h"
+#include "InteractiveToolManager.h"
 
 constexpr TCHAR UPlacementModePlacementTool::ToolName[];
 
@@ -21,12 +20,12 @@ void UPlacementModePlacementTool::OnBeginDrag(const FRay& Ray)
 {
 	Super::OnBeginDrag(Ray);
 
-	TransactionScope = MakeUnique<FScopedTransaction>(NSLOCTEXT("PlacementMode", "PaintAssets", "Paint Asset Stroke"));
+	GetToolManager()->BeginUndoTransaction(NSLOCTEXT("AssetPlacementEdMode", "PaintAssets", "Paint Assets"));
 }
 
 void UPlacementModePlacementTool::OnEndDrag(const FRay& Ray)
 {
-	TransactionScope.Reset();
+	GetToolManager()->EndUndoTransaction();
 
 	Super::OnEndDrag(Ray);
 }

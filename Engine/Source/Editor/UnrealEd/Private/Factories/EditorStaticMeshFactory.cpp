@@ -4,6 +4,7 @@
 
 #include "Elements/Actor/ActorElementData.h"
 #include "Elements/Component/ComponentElementData.h"
+#include "Elements/Object/ObjectElementData.h"
 #include "Elements/Framework/EngineElementsLibrary.h"
 
 #include "ActorPartition/ActorPartitionSubsystem.h"
@@ -89,13 +90,22 @@ FAssetData UEditorStaticMeshFactory::GetAssetDataFromElementHandle(const FTypedE
 		}
 	}
 
+	FAssetData FoundAssetData;
 	if (ISMComponent)
 	{
-		FAssetData ISMStaticMeshAssetData = FAssetData(ISMComponent->GetStaticMesh());
-		if (CanPlaceElementsFromAssetData(ISMStaticMeshAssetData))
+		FoundAssetData = FAssetData(ISMComponent->GetStaticMesh());
+	}
+	else if (const FObjectElementData* ObjectData = InHandle.GetData<FObjectElementData>())
+	{
+		if (ObjectData && ObjectData->Object)
 		{
-			return ISMStaticMeshAssetData;
+			FoundAssetData = FAssetData(ObjectData->Object);
 		}
+	}
+
+	if (CanPlaceElementsFromAssetData(FoundAssetData))
+	{
+		return FoundAssetData;
 	}
 
 	// Todo: deal with instanced handles
