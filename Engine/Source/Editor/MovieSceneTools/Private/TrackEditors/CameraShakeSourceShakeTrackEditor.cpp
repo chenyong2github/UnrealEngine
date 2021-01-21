@@ -47,13 +47,38 @@ public:
 		{
 			FCameraShakeDuration ShakeDuration;
 			const bool bHasDuration = UCameraShakeBase::GetCameraShakeDuration(ShakeClass, ShakeDuration);
-			if (bHasDuration && ShakeDuration.IsFixed())
+			if (bHasDuration)
 			{
-				return FText::FromString(ShakeClassPtr->GetName());
+				if (ShakeDuration.IsFixed())
+				{
+					if (ShakeDuration.Get() > SMALL_NUMBER)
+					{
+						return FText::FromString(ShakeClassPtr->GetName());
+					}
+					else
+					{
+						return FText::Format(LOCTEXT("ShakeHasNoDurationWarning", "{0} (warning: shake has no duration)"), FText::FromString(ShakeClassPtr->GetName()));
+					}
+				}
+				else if (ShakeDuration.IsCustom())
+				{
+					if (ShakeDuration.Get() > SMALL_NUMBER)
+					{
+						return FText::FromString(ShakeClassPtr->GetName());
+					}
+					else
+					{
+						return FText::Format(LOCTEXT("ShakeHasCustomDurationWarning", "{0} (warning: shake has undefined custom duration)"), FText::FromString(ShakeClassPtr->GetName()));
+					}
+				}
+				else if (ShakeDuration.IsInfinite())
+				{
+					return FText::FromString(ShakeClassPtr->GetName());
+				}
 			}
 			else
 			{
-				return FText::Format(LOCTEXT("ShakeHasNoDurationWarning", "{0} (warning: shake has no duration)"), FText::FromString(ShakeClassPtr->GetName()));
+				return FText::Format(LOCTEXT("ShakeIsInvalidWarning", "{0} (warning: shake is invalid)"), FText::FromString(ShakeClassPtr->GetName()));
 			}
 		}
 		return LOCTEXT("NoCameraShake", "No Camera Shake");
@@ -108,12 +133,12 @@ public:
 			FCameraShakeDuration ShakeDuration;
 			UCameraShakeBase::GetCameraShakeDuration(CameraShakeClass, ShakeDuration);
 
-			const float ShakeEndInPixels = (ShakeDuration.IsFixed()) ? 
+			const float ShakeEndInPixels = (ShakeDuration.IsFixed() || ShakeDuration.IsCustomWithHint()) ? 
 				TimeConverter.SecondsToPixel(FMath::Min(SectionStartTime + ShakeDuration.Get(), SectionEndTime)) :
 				SectionEndTimeInPixels;
-			const bool bSectionContainsEntireShake = (ShakeDuration.IsFixed() && SectionDuration > ShakeDuration.Get());
+			const bool bSectionContainsEntireShake = ((ShakeDuration.IsFixed() || ShakeDuration.IsCustomWithHint()) && SectionDuration > ShakeDuration.Get());
 
-			if (ShakeDuration.IsFixed())
+			if (ShakeDuration.IsFixed() || ShakeDuration.IsCustomWithHint())
 			{
 				if (bSectionContainsEntireShake && SectionRange.HasLowerBound())
 				{
