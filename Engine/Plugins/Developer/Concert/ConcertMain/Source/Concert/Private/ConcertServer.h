@@ -54,8 +54,9 @@ private:
 	FString GetSessionSavedDir(const FGuid& SessionId) const;
 	FString GetSessionWorkingDir(const FGuid& SessionId) const;
 
-	EConcertSessionRepositoryMountResponseCode MountSessionRepository(FConcertServerSessionRepository& Repository, bool bCreateIfNotExist, bool bCleanWorkingDir, bool bCleanExpiredSessions, bool bSearchByPaths);
+	EConcertSessionRepositoryMountResponseCode MountSessionRepository(FConcertServerSessionRepository Repository, bool bCreateIfNotExist, bool bCleanWorkingDir, bool bCleanExpiredSessions, bool bSearchByPaths, bool bAsDefault);
 	bool UnmountSessionRepository(const FGuid& RepositoryId, bool bDropped);
+	bool MountDefaultSessionRepository(const UConcertServerConfig* ServerConfig);
 
 	/**  */
 	void HandleDiscoverServersEvent(const FConcertMessageContext& Context);
@@ -149,8 +150,11 @@ private:
 	/** All session repositories used by this server. */
 	TArray<FConcertServerSessionRepository> MountedSessionRepositories;
 
-	/** The server default repository created from the server settings. */
+	/** The default directory(ies) scanned to reload existing sessions or used to store newly created ones. */
 	TOptional<FConcertServerSessionRepository> DefaultSessionRepository;
+
+	/** The status of the default session repository (essentially to know why it not mounted). */
+	FText DefaultSessionRepositoryStatus;
 
 	/** The session filter to apply when auto-archiving sessions */
 	FConcertSessionFilter AutoArchiveSessionFilter;
