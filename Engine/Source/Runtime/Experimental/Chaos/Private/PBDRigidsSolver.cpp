@@ -474,11 +474,8 @@ namespace Chaos
 		Chaos::FIgnoreCollisionManager& CollisionManager = GetEvolution()->GetBroadPhase().GetIgnoreCollisionManager();
 		{
 			int32 ExternalTimestamp = GetMarshallingManager().GetExternalTimestamp_External();
-			Chaos::FIgnoreCollisionManager::FDeactivationArray& PendingMap = CollisionManager.GetPendingDeactivationsForGameThread(ExternalTimestamp);
-			if (!PendingMap.Contains(GTParticle->UniqueIdx()))
-			{
-				PendingMap.Add(GTParticle->UniqueIdx());
-			}
+			Chaos::FIgnoreCollisionManager::FDeactivationSet& PendingMap = CollisionManager.GetPendingDeactivationsForGameThread(ExternalTimestamp);
+			PendingMap.Add(GTParticle->UniqueIdx());
 		}
 
 		// Enqueue a command to remove the particle and delete the proxy

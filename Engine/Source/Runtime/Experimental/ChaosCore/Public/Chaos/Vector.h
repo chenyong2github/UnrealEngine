@@ -41,7 +41,6 @@ namespace Chaos
 				V[i] = Element;
 			}
 		}
-		~TVector() {}
 
 		TVector(std::initializer_list<T> InElements)
 		{
@@ -388,7 +387,6 @@ namespace Chaos
 			Stream.read(reinterpret_cast<char*>(&Y), sizeof(Y));
 			Stream.read(reinterpret_cast<char*>(&Z), sizeof(Z));
 		}
-		~TVector() {}
 		void Write(std::ostream& Stream) const
 		{
 			Stream.write(reinterpret_cast<const char*>(&X), sizeof(X));
@@ -588,7 +586,6 @@ namespace Chaos
 			X = ((float)InVector[0]);
 			Y = ((float)InVector[1]);
 		}
-		~TVector() {}
 		void Write(std::ostream& Stream) const
 		{
 			Stream.write(reinterpret_cast<const char*>(&X), sizeof(X));
@@ -681,7 +678,6 @@ namespace Chaos
 			Stream.read(reinterpret_cast<char*>(&Y), sizeof(T));
 			Stream.read(reinterpret_cast<char*>(&Z), sizeof(T));
 		}
-		FORCEINLINE ~TVector() {}
 		FORCEINLINE void Write(std::ostream& Stream) const
 		{
 			Stream.write(reinterpret_cast<const char*>(&X), sizeof(T));
@@ -839,8 +835,6 @@ namespace Chaos
 			Stream.read(reinterpret_cast<char*>(&X), sizeof(int32));
 			Stream.read(reinterpret_cast<char*>(&Y), sizeof(int32));
 		}
-		FORCEINLINE ~TVector()
-		{}
 
 		FORCEINLINE int32 Num() const { return 2; }
 

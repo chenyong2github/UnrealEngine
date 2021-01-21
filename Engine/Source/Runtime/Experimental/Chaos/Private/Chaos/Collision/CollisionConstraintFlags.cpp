@@ -74,10 +74,7 @@ namespace Chaos
 
 			for (auto& Item : StorageData->PendingDeactivations)
 			{
-				if (!PendingDeactivations.Contains(Item))
-				{
-					PendingDeactivations.Add(Item);
-				}
+				PendingDeactivations.Add(Item);
 			}
 
 			StorageDataQueue.Pop();
@@ -96,12 +93,10 @@ namespace Chaos
 			TArray<FHandleID> DeletionList;
 			for (auto& Elem : PendingActivations)
 			{
-				int32 DeactiveIndex = PendingDeactivations.Find(Elem.Key);
-				if (DeactiveIndex != INDEX_NONE)
+				if (PendingDeactivations.Remove(Elem.Key))
 				{
 					DeletionList.Add(Elem.Key);
 					PreculledParticles.Add(Elem.Key);
-					PendingDeactivations.RemoveAtSwap(DeactiveIndex, 1);
 				}
 			}
 			for (FHandleID Del : DeletionList)
@@ -145,9 +140,9 @@ namespace Chaos
 		// remove relationships that exist and have been initialized. 
 		if (PendingDeactivations.Num())
 		{
-			for (auto Index = PendingDeactivations.Num() - 1; Index >= 0; Index--)
+			for (auto& Idx : PendingDeactivations)
 			{
-				IgnoreCollisionsList.Remove(PendingDeactivations[Index]);
+				IgnoreCollisionsList.Remove(Idx);
 			}
 			PendingDeactivations.Empty();
 		}

@@ -329,11 +329,8 @@ void FChaosEngineInterface::RemoveDisabledCollisionsFor_AssumesLocked(TArray< FP
 			Chaos::FIgnoreCollisionManager& CollisionManager = Solver->GetEvolution()->GetBroadPhase().GetIgnoreCollisionManager();
 			int32 ExternalTimestamp = Solver->GetMarshallingManager().GetExternalTimestamp_External();
 
-			Chaos::FIgnoreCollisionManager::FDeactivationArray& DeactivationMap = CollisionManager.GetPendingDeactivationsForGameThread(ExternalTimestamp);
-			if (!DeactivationMap.Contains(ActorReference->UniqueIdx()))
-			{
-				DeactivationMap.Add(ActorReference->UniqueIdx());
-			}
+			Chaos::FIgnoreCollisionManager::FDeactivationSet& DeactivationMap = CollisionManager.GetPendingDeactivationsForGameThread(ExternalTimestamp);
+			DeactivationMap.Add(ActorReference->UniqueIdx());
 		}
 	}
 }
