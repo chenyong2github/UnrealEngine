@@ -1627,9 +1627,23 @@ void FAndroidInputInterface::DeferMessage(const FDeferredAndroidMessage& Deferre
 void FAndroidInputInterface::QueueMotionData(const FVector& Tilt, const FVector& RotationRate, const FVector& Gravity, const FVector& Acceleration)
 {
 	FScopeLock Lock(&TouchInputCriticalSection);
+	EDeviceScreenOrientation ScreenOrientation = FPlatformMisc::GetDeviceOrientation();
+	FVector TempRotationRate = RotationRate;
+
+	switch (ScreenOrientation)
+	{
+		// the x tilt is inverted in LandscapeLeft.
+	case EDeviceScreenOrientation::LandscapeLeft:
+		TempRotationRate.X *= -1.0f;
+		break;
+		// the y tilt is inverted in LandscapeRight.
+	case EDeviceScreenOrientation::LandscapeRight:
+		TempRotationRate.Y *= -1.0f;
+		break;
+	}
 
 	FAndroidInputInterface::MotionDataStack.Push(
-		MotionData { Tilt, RotationRate, Gravity, Acceleration });
+		MotionData { Tilt, TempRotationRate, Gravity, Acceleration });
 }
 
 #endif
