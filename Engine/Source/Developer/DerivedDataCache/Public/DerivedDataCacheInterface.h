@@ -10,6 +10,8 @@
 
 class FDerivedDataCacheUsageStats;
 
+namespace UE { namespace DerivedData { class ICache; } }
+
 /** 
  * Interface for the derived data cache
  * This API is fully threadsafe (with the possible exception of the system interface: NotfiyBootComplete, etc).
@@ -20,6 +22,9 @@ public:
 	virtual ~FDerivedDataCacheInterface()
 	{
 	}
+
+	/** Returns the interface to the cache. */
+	virtual UE::DerivedData::ICache& GetCache() = 0;
 
 	//--------------------
 	// High Level Interface

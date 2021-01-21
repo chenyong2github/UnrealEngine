@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#include "DerivedDataCache.h"
+#include "DerivedDataCacheInterface.h"
 
 #include "CoreMinimal.h"
 #include "Misc/CommandLine.h"
@@ -13,11 +15,20 @@
 #include "Serialization/MemoryWriter.h"
 #include "Modules/ModuleManager.h"
 
-#include "DerivedDataCacheInterface.h"
 #include "DerivedDataBackendInterface.h"
 #include "DerivedDataPluginInterface.h"
 #include "DDCCleanup.h"
 #include "ProfilingDebugging/CookStats.h"
+
+#include "Algo/AllOf.h"
+#include "Algo/Transform.h"
+#include "DerivedDataBackendInterface.h"
+#include "Misc/CoreMisc.h"
+#include "Misc/ScopeExit.h"
+#include "Misc/StringBuilder.h"
+#include "Serialization/CompactBinary.h"
+#include "Serialization/CompactBinaryValidation.h"
+#include "Serialization/CompactBinaryWriter.h"
 
 #include <atomic>
 
@@ -129,6 +140,16 @@ namespace DerivedDataCacheCookStats
 	FCookStatsManager::FAutoRegisterCallback RegisterCookStats(AddCookStats);
 }
 #endif
+
+namespace UE
+{
+namespace DerivedData
+{
+
+ICache* CreateCache();
+
+} // DerivedData
+} // UE
 
 /** Whether we want to verify the DDC (pass in -VerifyDDC on the command line)*/
 bool GVerifyDDC = false;
@@ -317,6 +338,7 @@ public:
 	/** Constructor, called once to cereate a singleton **/
 	FDerivedDataCache()
 		: CurrentHandle(19248) // we will skip some potential handles to catch errors
+		, Cache(UE::DerivedData::CreateCache())
 	{
 		FDerivedDataBackend::Get(); // we need to make sure this starts before we all us to start
 
@@ -335,6 +357,11 @@ public:
 			delete It.Value();
 		}
 		PendingTasks.Empty();
+	}
+
+	virtual UE::DerivedData::ICache& GetCache()
+	{
+		return *Cache;
 	}
 
 	virtual bool GetSynchronous(FDerivedDataPluginInterface* DataDeriver, TArray<uint8>& OutData, bool* bDataWasBuilt = nullptr) override
@@ -595,6 +622,8 @@ private:
 
 	/** Cache notification delegate */
 	FOnDDCNotification DDCNotificationEvent;
+
+	TUniquePtr<UE::DerivedData::ICache> Cache;
 };
 
 /**
@@ -621,3 +650,533 @@ public:
 };
 
 IMPLEMENT_MODULE( FDerivedDataCacheModule, DerivedDataCache);
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+namespace UE
+{
+namespace DerivedData
+{
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+class FCache final : public ICache
+{
+public:
+	virtual ~FCache() = default;
+
+	virtual FCacheRequest Get(
+		TConstArrayView<FCacheKey> Keys,
+		FStringView Context,
+		ECachePolicy Policy,
+		ECachePriority Priority,
+		FOnCacheGetComplete&& Callback) final;
+
+	virtual FCacheRequest Put(
+		TConstArrayView<FCacheRecord> Records,
+		FStringView Context,
+		ECachePolicy Policy,
+		ECachePriority Priority,
+		FOnCachePutComplete&& Callback) final;
+
+	virtual FCacheRequest GetAttachments(
+		TConstArrayView<FCacheAttachmentKey> Keys,
+		FStringView Context,
+		ECachePolicy Policy,
+		ECachePriority Priority,
+		FOnCacheGetAttachmentComplete&& Callback) final;
+
+	virtual void CancelAll() final;
+
+private:
+	void Get(
+		const FCacheKey& Key,
+		FStringView Context,
+		ECachePolicy Policy,
+		ECachePriority Priority,
+		FOnCacheGetComplete& Callback);
+
+	void Put(
+		const FCacheRecord& Record,
+		FStringView Context,
+		ECachePolicy Policy,
+		ECachePriority Priority,
+		FOnCachePutComplete& Callback);
+
+	void GetAttachment(
+		const FCacheAttachmentKey& Key,
+		FStringView Context,
+		ECachePolicy Policy,
+		ECachePriority Priority,
+		FOnCacheGetAttachmentComplete& Callback);
+
+	template <int32 BufferSize>
+	class TToString
+	{
+	public:
+		template <typename T>
+		explicit TToString(const T& Input)
+		{
+			Buffer << Input;
+		}
+
+		inline const TCHAR* operator*() const { return Buffer.ToString(); }
+		inline const TCHAR* ToString() const { return Buffer.ToString(); }
+		inline operator const TCHAR*() const { return Buffer.ToString(); }
+
+	private:
+		TStringBuilder<BufferSize> Buffer;
+	};
+
+	static FString MakeRecordKey(const FCacheKey& Key)
+	{
+		check(Key);
+		TStringBuilder<96> Out;
+		Out << Key.GetBucket() << TEXT("_") << Key.GetHash();
+		return FDerivedDataCacheInterface::SanitizeCacheKey(Out.ToString());
+	}
+
+	static FString MakeContentKey(const FCacheAttachmentKey& AttachmentKey)
+	{
+		check(AttachmentKey);
+		TStringBuilder<128> Out;
+		Out << AttachmentKey.GetKey().GetBucket() << TEXT("_BLAKE3_") << AttachmentKey.GetHash();
+		return FDerivedDataCacheInterface::SanitizeCacheKey(Out.ToString());
+	}
+};
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FCache::Get(
+	const FCacheKey& Key,
+	FStringView Context,
+	ECachePolicy Policy,
+	ECachePriority Priority,
+	FOnCacheGetComplete& Callback)
+{
+	FCacheGetCompleteParams Params;
+	Params.Record.SetKey(Key);
+
+	ON_SCOPE_EXIT
+	{
+		if (Callback)
+		{
+			Callback(MoveTemp(Params));
+		}
+	};
+
+	// Skip the request if querying the cache is disabled.
+	if (!EnumHasAnyFlags(Policy, ECachePolicy::Query))
+	{
+		UE_LOG(LogDerivedDataCache, VeryVerbose, TEXT("Cache: Get skipped for %s from '%.*s'"),
+			*TToString<96>(Key), Context.Len(), Context.GetData());
+		return;
+	}
+
+	// Request the metadata and references from storage.
+	TArray<uint8> Data;
+	if (!GetDerivedDataCacheRef().GetSynchronous(*MakeRecordKey(Key), Data, Context))
+	{
+		UE_LOG(LogDerivedDataCache, Verbose, TEXT("Cache: Get cache miss for %s from '%.*s'"),
+			*TToString<96>(Key), Context.Len(), Context.GetData());
+		return;
+	}
+
+	// Validate that Data can be read as compact binary without crashing.
+	if (ValidateCompactBinaryRange(MakeMemoryView(Data), ECbValidateMode::Default) != ECbValidateError::None)
+	{
+		UE_LOG(LogDerivedDataCache, Verbose, TEXT("Cache: Get cache miss with corrupted record for %s from '%.*s'"),
+			*TToString<96>(Key), Context.Len(), Context.GetData());
+		return;
+	}
+
+	// Read the record from its compact binary fields.
+	FCbObject RecordObject(Data.GetData());
+	FCbField MetaField = RecordObject["Meta"_ASV];
+	FCbField ValueField = RecordObject["Value"_ASV];
+	FCbField AttachmentsField = RecordObject["Attachments"_ASV];
+	FCbArray AttachmentsArray = AttachmentsField.AsArray();
+
+	// Validate that the record was serialized in the expected format.
+	if ((MetaField && !MetaField.IsObject()) ||
+		(ValueField && !ValueField.IsAnyReference()) ||
+		(AttachmentsField && !AttachmentsField.IsArray()) ||
+		!Algo::AllOf(AttachmentsArray, &FCbField::IsAnyReference))
+	{
+		UE_LOG(LogDerivedDataCache, Verbose, TEXT("Cache: Get cache miss with invalid format for %s from '%.*s'"),
+			*TToString<96>(Key), Context.Len(), Context.GetData());
+		return;
+	}
+
+	// Check for existence of the value and attachments if they are being skipped.
+	{
+		TArray<FBlake3Hash, TInlineAllocator<1>> KeysToCheck;
+		if (EnumHasAnyFlags(Policy, ECachePolicy::SkipValue) && ValueField.IsAnyReference())
+		{
+			KeysToCheck.Add(ValueField.AsAnyReference());
+			if (KeysToCheck.Last().IsZero())
+			{
+				KeysToCheck.Pop();
+			}
+		}
+		if (EnumHasAnyFlags(Policy, ECachePolicy::SkipAttachments))
+		{
+			KeysToCheck.Reserve(KeysToCheck.Num() + AttachmentsArray.Num());
+			for (FCbField AttachmentField : AttachmentsArray)
+			{
+				KeysToCheck.Add(AttachmentField.AsAnyReference());
+			}
+		}
+		if (KeysToCheck.Num())
+		{
+			TArray<FString, TInlineAllocator<1>> ContentKeysToCheck;
+			ContentKeysToCheck.Reserve(KeysToCheck.Num());
+			Algo::Transform(KeysToCheck, ContentKeysToCheck,
+				[&Key](const FBlake3Hash& Hash) -> FString { return MakeContentKey(FCacheAttachmentKey(Key, Hash)); });
+			if (!GetDerivedDataCacheRef().AllCachedDataProbablyExists(ContentKeysToCheck))
+			{
+				UE_LOG(LogDerivedDataCache, Verbose, TEXT("Cache: Get cache miss with missing content for %s from '%.*s'"),
+					*TToString<96>(Key), Context.Len(), Context.GetData());
+				return;
+			}
+		}
+	}
+
+	// Read the value and attachments if they have been requested.
+	const auto GetContent = [&Key, Context](FCbField ReferenceField) -> FCbAttachment
+	{
+		TArray<uint8> ContentData;
+		const FBlake3Hash Hash = ReferenceField.AsAnyReference();
+		check(!ReferenceField.HasError());
+		const FCacheAttachmentKey ContentKey(Key, Hash);
+		if (GetDerivedDataCacheRef().GetSynchronous(*MakeContentKey(ContentKey), ContentData, Context))
+		{
+			if (FBlake3::HashBuffer(MakeMemoryView(ContentData)) == Hash)
+			{
+				FSharedBuffer ContentBuffer = FSharedBuffer::Clone(MakeMemoryView(ContentData));
+				if (ReferenceField.IsReference())
+				{
+					return FCbAttachment(FCbFieldRefIterator::MakeRange(MoveTemp(ContentBuffer)), Hash);
+				}
+				else
+				{
+					return FCbAttachment(MoveTemp(ContentBuffer), Hash);
+				}
+			}
+			else
+			{
+				UE_LOG(LogDerivedDataCache, Verbose, TEXT("Cache: Get cache miss with corrupted content for %s from '%.*s'"),
+					*TToString<160>(ContentKey), Context.Len(), Context.GetData());
+			}
+		}
+		else
+		{
+			UE_LOG(LogDerivedDataCache, Verbose, TEXT("Cache: Get cache miss with missing content for %s from '%.*s'"),
+				*TToString<160>(ContentKey), Context.Len(), Context.GetData());
+		}
+		return FCbAttachment();
+	};
+
+	FCbAttachment Value;
+	if (!EnumHasAnyFlags(Policy, ECachePolicy::SkipValue) && ValueField.IsAnyReference() && !(Value = GetContent(ValueField)))
+	{
+		return;
+	}
+
+	TArray<FCbAttachment> Attachments;
+	if (!EnumHasAnyFlags(Policy, ECachePolicy::SkipAttachments) && AttachmentsField.IsArray())
+	{
+		Attachments.Reserve(AttachmentsArray.Num());
+		for (FCbField AttachmentField : AttachmentsArray)
+		{
+			Attachments.Add(GetContent(AttachmentField));
+			if (!Attachments.Last())
+			{
+				return;
+			}
+		}
+	}
+
+	// Package
+	if (AttachmentsField.IsArray() && !EnumHasAllFlags(Policy, ECachePolicy::SkipValue | ECachePolicy::SkipAttachments))
+	{
+		FCbPackage Package;
+		if (Value && Value.IsCompactBinary())
+		{
+			Package.SetObject(Value.AsCompactBinary().AsObjectRef(), Value.GetHash());
+		}
+		for (FCbAttachment Attachment : Attachments)
+		{
+			Package.AddAttachment(MoveTemp(Attachment));
+		}
+		Params.Record.SetPackage(MoveTemp(Package));
+	}
+	else if (Value)
+	{
+		// Object
+		if (Value.IsCompactBinary())
+		{
+			Params.Record.SetObject(Value.AsCompactBinary().AsObjectRef());
+		}
+		// Binary
+		else
+		{
+			Params.Record.SetBinary(Value.AsBinary());
+		}
+	}
+
+	// Meta
+	if (!EnumHasAnyFlags(Policy, ECachePolicy::SkipMeta) && MetaField.IsObject())
+	{
+		Params.Record.SetMeta(FCbObjectRef::Clone(MetaField.AsObject()));
+	}
+
+	UE_LOG(LogDerivedDataCache, Verbose, TEXT("Cache: Get cache hit for %s from '%.*s'"),
+		*TToString<96>(Key), Context.Len(), Context.GetData());
+	Params.Status = ECacheStatus::Cached;
+}
+
+FCacheRequest FCache::Get(
+	TConstArrayView<FCacheKey> Keys,
+	FStringView Context,
+	ECachePolicy Policy,
+	ECachePriority Priority,
+	FOnCacheGetComplete&& Callback)
+{
+	for (const FCacheKey& Key : Keys)
+	{
+		Get(Key, Context, Policy, Priority, Callback);
+	}
+	return FCacheRequest();
+}
+
+void FCache::Put(
+	const FCacheRecord& Record,
+	FStringView Context,
+	ECachePolicy Policy,
+	ECachePriority Priority,
+	FOnCachePutComplete& Callback)
+{
+	FCachePutCompleteParams Params;
+	Params.Key = Record.GetKey();
+
+	ON_SCOPE_EXIT
+	{
+		if (Callback)
+		{
+			Callback(MoveTemp(Params));
+		}
+	};
+
+	if (!EnumHasAnyFlags(Policy, ECachePolicy::Store))
+	{
+		UE_LOG(LogDerivedDataCache, VeryVerbose, TEXT("Cache: Put skipped for %s from '%.*s'"),
+			*TToString<96>(Params.Key), Context.Len(), Context.GetData());
+		Params.Status = ECacheStatus::NotCached;
+		return;
+	}
+
+	FCbAttachment Value;
+	TConstArrayView<FCbAttachment> Attachments;
+
+	switch (Record.GetType())
+	{
+	case ECacheRecordType::None:
+		break;
+	case ECacheRecordType::Binary:
+		Value = FCbAttachment(Record.AsBinary());
+		break;
+	case ECacheRecordType::Object:
+		Value = FCbAttachment(FCbFieldRefIterator::MakeSingle(Record.AsObject().AsFieldRef()));
+		break;
+	case ECacheRecordType::Package:
+		{
+			const FCbPackage& Package = Record.AsPackage();
+			Value = FCbAttachment(FCbFieldRefIterator::MakeSingle(Package.GetObject().AsFieldRef()));
+			Attachments = Package.GetAttachments();
+		}
+		break;
+	default:
+		checkNoEntry();
+		break;
+	}
+
+	const auto PutContent = [&Key = Params.Key, Context](const FSharedBuffer& Buffer, const FBlake3Hash& Hash)
+	{
+		check(Buffer.GetSize() <= MAX_int32);
+		TConstArrayView<uint8> BufferView = MakeArrayView(
+			static_cast<const uint8*>(Buffer.GetData()),
+			static_cast<int32>(Buffer.GetSize()));
+		GetDerivedDataCacheRef().Put(*MakeContentKey(FCacheAttachmentKey(Key, Hash)), BufferView, Context);
+	};
+
+	if (Value)
+	{
+		PutContent(Value.AsBinary(), Value.GetHash());
+	}
+	for (const FCbAttachment& Attachment : Attachments)
+	{
+		PutContent(Attachment.AsBinary(), Attachment.GetHash());
+	}
+
+	FCbWriter Writer;
+	Writer.BeginObject();
+	{
+		if (Value.IsCompactBinary())
+		{
+			Writer.Name("Value"_ASV).Reference(Value.GetHash());
+		}
+		else if (Value.IsBinary())
+		{
+			Writer.Name("Value"_ASV).BinaryReference(Value.GetHash());
+		}
+
+		if (Record.GetType() == ECacheRecordType::Package)
+		{
+			Writer.Name("Attachments"_ASV);
+			Writer.BeginArray();
+			for (const FCbAttachment& Attachment : Attachments)
+			{
+				if (Attachment.IsCompactBinary())
+				{
+					Writer.Reference(Attachment.GetHash());
+				}
+				else
+				{
+					Writer.BinaryReference(Attachment.GetHash());
+				}
+			}
+			Writer.EndArray();
+		}
+
+		const FCbObjectRef& Meta = Record.GetMeta();
+		if (Meta.CreateIterator())
+		{
+			Writer.Name("Meta"_ASV).Object(Meta);
+		}
+	}
+	Writer.EndObject();
+
+	TArray<uint8> Data;
+	const uint64 SaveSize = Writer.GetSaveSize();
+	check(SaveSize <= MAX_int32);
+	Data.SetNumUninitialized(static_cast<int32>(SaveSize));
+	Writer.Save(MakeMemoryView(Data));
+
+	const bool bPutEvenIfExists = EnumHasAnyFlags(Policy, ECachePolicy::Overwrite);
+	GetDerivedDataCacheRef().Put(*MakeRecordKey(Params.Key), Data, Context, bPutEvenIfExists);
+
+	UE_LOG(LogDerivedDataCache, VeryVerbose, TEXT("Cache: Put for %s from '%.*s'"),
+		*TToString<96>(Params.Key), Context.Len(), Context.GetData());
+	Params.Status = ECacheStatus::Cached;
+}
+
+FCacheRequest FCache::Put(
+	TConstArrayView<FCacheRecord> Records,
+	FStringView Context,
+	ECachePolicy Policy,
+	ECachePriority Priority,
+	FOnCachePutComplete&& Callback)
+{
+	for (const FCacheRecord& Record : Records)
+	{
+		Put(Record, Context, Policy, Priority, Callback);
+	}
+	return FCacheRequest();
+}
+
+void FCache::GetAttachment(
+	const FCacheAttachmentKey& Key,
+	FStringView Context,
+	ECachePolicy Policy,
+	ECachePriority Priority,
+	FOnCacheGetAttachmentComplete& Callback)
+{
+	FCacheGetAttachmentCompleteParams Params;
+	Params.Key = Key;
+
+	ON_SCOPE_EXIT
+	{
+		if (Callback)
+		{
+			Callback(MoveTemp(Params));
+		}
+	};
+
+	// Skip the request if querying the cache is disabled.
+	if (!EnumHasAnyFlags(Policy, ECachePolicy::Query))
+	{
+		UE_LOG(LogDerivedDataCache, VeryVerbose, TEXT("Cache: GetAttachment skipped on content for %s from '%.*s'"),
+			*TToString<160>(Key), Context.Len(), Context.GetData());
+		return;
+	}
+
+	// Check for existence of the attachment if it is being skipped.
+	if (EnumHasAnyFlags(Policy, ECachePolicy::SkipAttachments))
+	{
+		if (GetDerivedDataCacheRef().CachedDataProbablyExists(*MakeContentKey(Key)))
+		{
+			UE_LOG(LogDerivedDataCache, Verbose, TEXT("Cache: GetAttachment (exists) cache hit on content for %s from '%.*s'"),
+				*TToString<160>(Key), Context.Len(), Context.GetData());
+			Params.Status = ECacheStatus::Cached;
+		}
+		else
+		{
+			UE_LOG(LogDerivedDataCache, Verbose, TEXT("Cache: GetAttachment (exists) cache miss on content for %s from '%.*s'"),
+				*TToString<160>(Key), Context.Len(), Context.GetData());
+		}
+		return;
+	}
+
+	// Request the attachment from storage.
+	TArray<uint8> Data;
+	if (!GetDerivedDataCacheRef().GetSynchronous(*MakeContentKey(Key), Data, Context))
+	{
+		UE_LOG(LogDerivedDataCache, Verbose, TEXT("Cache: GetAttachment cache miss on content for %s from '%.*s'"),
+			*TToString<160>(Key), Context.Len(), Context.GetData());
+		return;
+	}
+
+	if (FBlake3::HashBuffer(MakeMemoryView(Data)) != Key.GetHash())
+	{
+		UE_LOG(LogDerivedDataCache, Verbose, TEXT("Cache: GetAttachment cache miss with corrupted content for %s from '%.*s'"),
+			*TToString<160>(Key), Context.Len(), Context.GetData());
+		return;
+	}
+
+	Params.Value = FSharedBuffer::Clone(MakeMemoryView(Data));
+
+	UE_LOG(LogDerivedDataCache, Verbose, TEXT("Cache: GetAttachment cache hit on content for %s from '%.*s'"),
+		*TToString<160>(Key), Context.Len(), Context.GetData());
+	Params.Status = ECacheStatus::Cached;
+}
+
+FCacheRequest FCache::GetAttachments(
+	TConstArrayView<FCacheAttachmentKey> Keys,
+	FStringView Context,
+	ECachePolicy Policy,
+	ECachePriority Priority,
+	FOnCacheGetAttachmentComplete&& Callback)
+{
+	for (const FCacheAttachmentKey& Key : Keys)
+	{
+		GetAttachment(Key, Context, Policy, Priority, Callback);
+	}
+	return FCacheRequest();
+}
+
+void FCache::CancelAll()
+{
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+ICache* CreateCache()
+{
+	return new FCache();
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+} // DerivedData
+} // UE
