@@ -837,38 +837,38 @@ TSharedRef<SDockTab> SWidgetReflector::SpawnWidgetHierarchyTab(const FSpawnTabAr
 						+SHeaderRow::Column(SReflectorTreeWidgetItem::NAME_Visibility)
 						.DefaultLabel(LOCTEXT("Visibility", "Visibility"))
 						.DefaultTooltip(LOCTEXT("VisibilityTooltip", "Visibility"))
-						.ManualWidth(125.0f)
+						.FillSized(125.0f)
 						
 						+ SHeaderRow::Column(SReflectorTreeWidgetItem::NAME_Enabled)
 						.DefaultLabel(LOCTEXT("Enabled", "Enabled"))
 						.DefaultTooltip(LOCTEXT("EnabledToolTip", "Enabled"))
-						.ManualWidth(60.0f)
+						.FillSized(60.0f)
 
 						+ SHeaderRow::Column(SReflectorTreeWidgetItem::NAME_Focusable)
 						.DefaultLabel(LOCTEXT("Focus", "Focus"))
 						.DefaultTooltip(LOCTEXT("FocusableTooltip", "Focusability (Note that for hit-test directional navigation to work it must be Focusable and \"Visible\"!)"))
-						.ManualWidth(60.0f)
+						.FillSized(60.0f)
 
 						+ SHeaderRow::Column(SReflectorTreeWidgetItem::NAME_HasActiveTimer)
 						.DefaultLabel(LOCTEXT("HasActiveTimer", "Timer"))
 						.DefaultTooltip(LOCTEXT("HasActiveTimerTooltip", "Has Active Timer"))
-						.ManualWidth(60.0f)
+						.FillSized(60.0f)
 
 						+SHeaderRow::Column(SReflectorTreeWidgetItem::NAME_Clipping)
 						.DefaultLabel(LOCTEXT("Clipping", "Clipping" ))
-						.ManualWidth(100.0f)
+						.FillSized(100.0f)
 
 						+ SHeaderRow::Column(SReflectorTreeWidgetItem::NAME_ActualSize)
 						.DefaultLabel(LOCTEXT("ActualSize", "Size"))
-						.ManualWidth(100.0f)
+						.FillSized(100.0f)
 
 						+SHeaderRow::Column(SReflectorTreeWidgetItem::NAME_WidgetInfo)
 						.DefaultLabel(LOCTEXT("Source", "Source" ))
-						.ManualWidth(200.f)
+						.FillSized(200.f)
 
 						+SHeaderRow::Column(SReflectorTreeWidgetItem::NAME_Address)
 						.DefaultLabel( LOCTEXT("Address", "Address") )
-						.ManualWidth(170.0f)
+						.FillSized(170.0f)
 					)
 				]
 			]

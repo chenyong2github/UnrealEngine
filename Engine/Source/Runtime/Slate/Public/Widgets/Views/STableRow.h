@@ -1388,6 +1388,7 @@ protected:
 				break;
 
 				case EColumnSizeMode::Manual:
+				case EColumnSizeMode::FillSized:
 				{
 					auto GetColumnWidthAsOptionalSize = [&Column]() -> FOptionalSize
 					{
@@ -1414,6 +1415,7 @@ protected:
 				break;
 
 				default:
+					ensure(false);
 					break;
 				}
 

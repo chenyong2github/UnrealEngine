@@ -59,6 +59,9 @@ namespace EColumnSizeMode
 
 		/** Column is set to a width which can be user-sized */
 		Manual = 2,
+
+		/** Column stretches as Fill but is initialized with a width */
+		FillSized = 3,
 	};
 };
 
@@ -118,9 +121,15 @@ public:
 			SLATE_ARGUMENT( FName, ColumnId )
 			SLATE_ATTRIBUTE( FText, DefaultLabel )
 			SLATE_ATTRIBUTE( FText, DefaultTooltip )
+
+			/** Set the Column Size Mode to Fill. It's a fraction between 0 and 1 */
 			SLATE_ATTRIBUTE( float, FillWidth )
+			/** Set the Column Size Mode to Fixed. */
 			SLATE_ARGUMENT( TOptional< float >, FixedWidth )
+			/** Set the Column Size Mode to Manual. */
 			SLATE_ATTRIBUTE( float, ManualWidth )
+			/** Set the Column Size Mode to Fill Sized. */
+			SLATE_ARGUMENT(TOptional< float >, FillSized)
 			SLATE_EVENT( FOnWidthChanged, OnWidthChanged )
 
 			SLATE_DEFAULT_SLOT( FArguments, HeaderContent )
@@ -174,6 +183,11 @@ public:
 			{
 				Width = InArgs._ManualWidth;
 				SizeRule = EColumnSizeMode::Manual;
+			}
+			else if ( InArgs._FillSized.IsSet() )
+			{
+				Width = InArgs._FillSized.GetValue();
+				SizeRule = EColumnSizeMode::FillSized;
 			}
 			else
 			{
