@@ -5200,6 +5200,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		new DeviceInfoData(0x0738, 0x5266, "Mad Catz C.T.R.L.R"),
 		new DeviceInfoData(0x045e, 0x028e, "Xbox Wired Controller"),
 		new DeviceInfoData(0x045e, 0x02e0, "Xbox Wireless Controller"),
+		new DeviceInfoData(0x045e, 0x0b05, "Xbox Elite Wireless Controller"),
 		new DeviceInfoData(0x0111, 0x1419, "SteelSeries Stratus XL"), 
 		new DeviceInfoData(0x054c, 0x05c4, "PS4 Wireless Controller"),
 		new DeviceInfoData(0x054c, 0x09cc, "PS4 Wireless Controller (v2)"),

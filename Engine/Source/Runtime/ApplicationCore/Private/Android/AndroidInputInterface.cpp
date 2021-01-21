@@ -915,7 +915,8 @@ void FAndroidInputInterface::SendControllerEvents()
 							CurrentDevice.bSupportsHat = true;
 							CurrentDevice.bTriggersUseThresholdForClick = true;
 						}
-						else if (CurrentDevice.DeviceInfo.Name.StartsWith(TEXT("Xbox Wireless Controller")))
+						else if (CurrentDevice.DeviceInfo.Name.StartsWith(TEXT("Xbox Wireless Controller"))
+									|| CurrentDevice.DeviceInfo.Name.StartsWith(TEXT("Xbox Elite Wireless Controller")))
 						{
 							CurrentDevice.ControllerClass = ControllerClassType::XBoxWireless;
 							CurrentDevice.bSupportsHat = true;
@@ -1562,6 +1563,21 @@ void FAndroidInputInterface::JoystickButtonEvent(int32 deviceId, int32 buttonId,
 			}
 			break;
 	}
+}
+
+
+int32 FAndroidInputInterface::GetAlternateKeyEventForMouse(int32 deviceID, int32 buttonID)
+{
+	FScopeLock Lock(&TouchInputCriticalSection);
+	const int32 ControllerIndex = FindExistingDevice(deviceID);
+	if(ControllerIndex != -1
+		&& buttonID == 0
+		&& DeviceMapping[ControllerIndex].DeviceState == Valid
+		&& DeviceMapping[ControllerIndex].ControllerClass == PlaystationWireless)
+	{
+		return 3002;
+	}
+	return 0;
 }
 
 void FAndroidInputInterface::MouseMoveEvent(int32 deviceId, float absoluteX, float absoluteY, float deltaX, float deltaY)
