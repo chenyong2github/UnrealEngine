@@ -95,9 +95,7 @@ static FAutoConsoleVariableRef CVarD3D12D3D12VRAMTexturePoolDefragMaxCopySizePer
 	TEXT("Max amount of data to copy during defragmentation in a single frame (default 32MB)"),
 	ECVF_ReadOnly);
 
-// NOTE: buffer pool defrag is disabled by default because FD3D12RayTracingGeometry is currently not notified
-//       yet of defragged index and vertex buffers used by the the BVH data. Without RT it works fine.
-static int32 GD3D12VRAMBufferPoolDefrag = 0;
+static int32 GD3D12VRAMBufferPoolDefrag = 1;
 static FAutoConsoleVariableRef CVarD3D12D3D12VRAMBufferPoolDefrag(
 	TEXT("d3d12.VRAMBufferPoolDefrag"),
 	GD3D12VRAMBufferPoolDefrag,
@@ -1266,7 +1264,18 @@ FD3D12BufferPool* FD3D12DefaultBufferAllocator::CreateBufferPool(D3D12_HEAP_TYPE
 	uint64 PoolAlignment = (AllocationStrategy == EResourceAllocationStrategy::kPlacedResource) ? MIN_PLACED_RESOURCE_SIZE : 256;
 	uint64 MaxAllocationSize = InHeapType == D3D12_HEAP_TYPE_READBACK ? READBACK_BUFFER_POOL_MAX_ALLOC_SIZE : GD3D12PoolAllocatorBufferVRAMMaxAllocationSize;
 
-	FD3D12BufferPool* NewPool = new FD3D12PoolAllocator(Device, GetVisibilityMask(), InitConfig, Name, AllocationStrategy, PoolSize, PoolAlignment, MaxAllocationSize);
+	// Disable defrag if not Default memory
+	bool bDefragEnabled = (InitConfig.HeapType == D3D12_HEAP_TYPE_DEFAULT);
+
+#if D3D12_RHI_RAYTRACING
+	// disable defrag on the RT Acceleration pool - get GPU crashes after moving the data
+	if (InitConfig.InitialResourceState == D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE)
+	{
+		bDefragEnabled = false;
+	}
+#endif // D3D12_RHI_RAYTRACING
+
+	FD3D12BufferPool* NewPool = new FD3D12PoolAllocator(Device, GetVisibilityMask(), InitConfig, Name, AllocationStrategy, PoolSize, PoolAlignment, MaxAllocationSize, bDefragEnabled);
 
 #else // USE_POOL_ALLOCATOR
 
@@ -1480,7 +1489,8 @@ FD3D12TextureAllocatorPool::FD3D12TextureAllocatorPool(FD3D12Device* Device, FRH
 		const FString Name(L"D3D12 ReadOnly4K Texture Pool Allocator");
 		uint64 PoolSize = 4 * 1024 * 1024;
 		uint64 MaxAllocationSize = PoolSize;
-		FD3D12PoolAllocator* ReadOnly4KPool = new FD3D12PoolAllocator(Device, GetVisibilityMask(), InitConfig, Name, AllocationStrategy, PoolSize, D3D12_SMALL_RESOURCE_PLACEMENT_ALIGNMENT, MaxAllocationSize);
+		bool bDefragEnabled = false; // Disable defrag on 4K pool because it shouldn't really fragment - all allocations are 4K or multiple of 4K and pretty small
+		FD3D12PoolAllocator* ReadOnly4KPool = new FD3D12PoolAllocator(Device, GetVisibilityMask(), InitConfig, Name, AllocationStrategy, PoolSize, D3D12_SMALL_RESOURCE_PLACEMENT_ALIGNMENT, MaxAllocationSize, bDefragEnabled);
 		ReadOnly4KPool->Initialize();
 
 		PoolAllocators[(int)EPoolType::ReadOnly4K] = ReadOnly4KPool;
@@ -1493,7 +1503,8 @@ FD3D12TextureAllocatorPool::FD3D12TextureAllocatorPool(FD3D12Device* Device, FRH
 		const FString Name(L"D3D12 ReadOnly Texture Pool Allocator");
 		uint64 PoolSize = GD3D12PoolAllocatorReadOnlyTextureVRAMPoolSize;
 		uint64 MaxAllocationSize = GD3D12PoolAllocatorReadOnlyTextureVRAMMaxAllocationSize;
-		FD3D12PoolAllocator* ReadOnlyPool = new FD3D12PoolAllocator(Device, GetVisibilityMask(), InitConfig, Name, AllocationStrategy, PoolSize, D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT, MaxAllocationSize);
+		bool bDefragEnabled = true;
+		FD3D12PoolAllocator* ReadOnlyPool = new FD3D12PoolAllocator(Device, GetVisibilityMask(), InitConfig, Name, AllocationStrategy, PoolSize, D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT, MaxAllocationSize, bDefragEnabled);
 		ReadOnlyPool->Initialize();
 
 		PoolAllocators[(int)EPoolType::ReadOnly] = ReadOnlyPool;
@@ -1506,7 +1517,8 @@ FD3D12TextureAllocatorPool::FD3D12TextureAllocatorPool(FD3D12Device* Device, FRH
 		const FString Name(L"D3D12 RT Texture Pool Allocator");
 		uint64 PoolSize = GD3D12PoolAllocatorRTUAVTextureVRAMPoolSize;
 		uint64 MaxAllocationSize = GD3D12PoolAllocatorRTUAVTextureVRAMMaxAllocationSize;
-		FD3D12PoolAllocator* RTPool = new FD3D12PoolAllocator(Device, GetVisibilityMask(), InitConfig, Name, AllocationStrategy, PoolSize, D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT, MaxAllocationSize);
+		bool bDefragEnabled = true;
+		FD3D12PoolAllocator* RTPool = new FD3D12PoolAllocator(Device, GetVisibilityMask(), InitConfig, Name, AllocationStrategy, PoolSize, D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT, MaxAllocationSize, bDefragEnabled);
 		RTPool->Initialize();
 
 		PoolAllocators[(int)EPoolType::RenderTarget] = RTPool;
@@ -1519,7 +1531,8 @@ FD3D12TextureAllocatorPool::FD3D12TextureAllocatorPool(FD3D12Device* Device, FRH
 		const FString Name(L"D3D12 UAV Texture Pool Allocator");
 		uint64 PoolSize = GD3D12PoolAllocatorRTUAVTextureVRAMPoolSize;
 		uint64 MaxAllocationSize = GD3D12PoolAllocatorRTUAVTextureVRAMMaxAllocationSize;
-		FD3D12PoolAllocator* UAVPool = new FD3D12PoolAllocator(Device, GetVisibilityMask(), InitConfig, Name, AllocationStrategy, PoolSize, D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT, MaxAllocationSize);
+		bool bDefragEnabled = true;
+		FD3D12PoolAllocator* UAVPool = new FD3D12PoolAllocator(Device, GetVisibilityMask(), InitConfig, Name, AllocationStrategy, PoolSize, D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT, MaxAllocationSize, bDefragEnabled);
 		UAVPool->Initialize();
 
 		PoolAllocators[(int)EPoolType::UAV] = UAVPool;
@@ -1570,8 +1583,7 @@ void FD3D12TextureAllocatorPool::BeginFrame()
 	{
 		uint32 MaxCopySize = GD3D12VRAMTexturePoolDefragMaxCopySizePerFrame;
 		uint32 CopySize = 0;
-		// Don't defrag the 4K pool - not worth it because it shouldn't really fragment
-		for (uint32 PoolIndex = 1; PoolIndex < (uint32)EPoolType::Count; ++PoolIndex)
+		for (uint32 PoolIndex = 0; PoolIndex < (uint32)EPoolType::Count; ++PoolIndex)
 		{
 			PoolAllocators[PoolIndex]->Defrag(MaxCopySize, CopySize);
 		}

@@ -187,7 +187,7 @@ class RHICORE_API FRHIPoolAllocator
 public:
 
 	// Constructor
-	FRHIPoolAllocator(uint64 InPoolSize, uint32 InPoolAlignment, uint32 InMaxAllocationSize);
+	FRHIPoolAllocator(uint64 InPoolSize, uint32 InPoolAlignment, uint32 InMaxAllocationSize, bool InDefragEnabled);
 	virtual ~FRHIPoolAllocator();
 
 	// Setup/Shutdown
@@ -217,6 +217,7 @@ protected:
 	const uint64 PoolSize;
 	const uint32 PoolAlignment;
 	const uint64 MaxAllocationSize;
+	const bool bDefragEnabled;
 
 	// Critical section to lock access to the pools
 	FCriticalSection CS;

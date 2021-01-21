@@ -505,10 +505,11 @@ void FRHIMemoryPool::Validate()
 //	Pool Allocator
 //-----------------------------------------------------------------------------
 
-FRHIPoolAllocator::FRHIPoolAllocator(uint64 InPoolSize, uint32 InPoolAlignment, uint32 InMaxAllocationSize)	: 
-	PoolSize(InPoolSize), 
-	PoolAlignment(InPoolAlignment), 
+FRHIPoolAllocator::FRHIPoolAllocator(uint64 InPoolSize, uint32 InPoolAlignment, uint32 InMaxAllocationSize, bool InDefragEnabled) :
+	PoolSize(InPoolSize),
+	PoolAlignment(InPoolAlignment),
 	MaxAllocationSize(InMaxAllocationSize),
+	bDefragEnabled(InDefragEnabled),
 	TotalAllocatedBlocks(0)
 {}
 
@@ -588,6 +589,12 @@ void FRHIPoolAllocator::DeallocateInternal(FRHIPoolAllocationData& AllocationDat
 
 void FRHIPoolAllocator::Defrag(uint32 InMaxCopySize, uint32& CurrentCopySize)
 {
+	// Don't do anything when defrag is disabled for this allocator
+	if (!bDefragEnabled)
+	{
+		return;
+	}
+
 	FScopeLock Lock(&CS);
 
 	TArray<FRHIMemoryPool*> SortedPools;
@@ -646,7 +653,7 @@ void FRHIPoolAllocator::UpdateMemoryStats(uint32& IOMemoryAllocated, uint32& IOM
 		if (Pool)
 		{
 			IOMemoryAllocated += Pool->GetPoolSize();
-			IOMemoryUsed += Pool->GetUsedSize();
+			IOMemoryUsed += Pool->GetUsedSize() - Pool->GetAlignmentWaste();
 			IOMemoryFree += Pool->GetFreeSize();
 			IOAlignmentWaste += Pool->GetAlignmentWaste();
 			IOAllocatedPageCount++;
