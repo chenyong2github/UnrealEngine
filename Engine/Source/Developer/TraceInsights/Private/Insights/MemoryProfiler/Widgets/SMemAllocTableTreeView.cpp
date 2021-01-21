@@ -9,6 +9,7 @@
 
 // Insights
 #include "Insights/MemoryProfiler/MemoryProfilerManager.h"
+#include "Insights/MemoryProfiler/ViewModels/CallstackGrouping.h"
 #include "Insights/MemoryProfiler/ViewModels/MemAllocNode.h"
 #include "Insights/MemoryProfiler/ViewModels/MemAllocTable.h"
 #include "Insights/MemoryProfiler/ViewModels/MemorySharedState.h"
@@ -410,6 +411,16 @@ FText SMemAllocTableTreeView::GetSymbolResolutionStatus() const
 	ModuleProvider->GetStats(&Stats);
 
 	return FText::Format(LOCTEXT("SymbolsResolved", "{0} / {1} symbols resolved. {2} failed."), Stats.SymbolsResolved, Stats.SymbolsDiscovered, Stats.SymbolsFailed);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SMemAllocTableTreeView::InternalCreateGroupings()
+{
+	STableTreeView::InternalCreateGroupings();
+
+	AvailableGroupings.Add(MakeShared<FCallstackGrouping>(false));
+	AvailableGroupings.Add(MakeShared<FCallstackGrouping>(true));
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

@@ -139,6 +139,7 @@ void STableTreeView::ConstructWidget(TSharedPtr<FTable> InTablePtr)
 
 				+ SHorizontalBox::Slot()
 				.AutoWidth()
+				.Padding(4.0f, 0.0f, 0.0f, 0.0f)
 				.VAlign(VAlign_Center)
 				[
 					SNew(SButton)
@@ -194,11 +195,11 @@ void STableTreeView::ConstructWidget(TSharedPtr<FTable> InTablePtr)
 		.FillWidth(1.0f)
 		.Padding(0.0f)
 		[
-			SNew(SScrollBox)
-			.Orientation(Orient_Horizontal)
+			//SNew(SScrollBox)
+			//.Orientation(Orient_Horizontal)
 
-			+ SScrollBox::Slot()
-			[
+			//+ SScrollBox::Slot()
+			//[
 				SNew(SOverlay)
 
 				+ SOverlay::Slot()
@@ -210,7 +211,7 @@ void STableTreeView::ConstructWidget(TSharedPtr<FTable> InTablePtr)
 					.Padding(0.0f)
 					[
 						SAssignNew(TreeView, STreeView<FTableTreeNodePtr>)
-						.ExternalScrollbar(ExternalScrollbar)
+						//.ExternalScrollbar(ExternalScrollbar)
 						.SelectionMode(ESelectionMode::Multi)
 						.TreeItemsSource(&FilteredGroupNodes)
 						.OnGetChildren(this, &STableTreeView::TreeView_OnGetChildren)
@@ -234,7 +235,7 @@ void STableTreeView::ConstructWidget(TSharedPtr<FTable> InTablePtr)
 				[
 					SAssignNew(AsyncOperationStatus, Insights::SAsyncOperationStatus, SharedThis(this))
 				]
-			]
+			//]
 		]
 
 		+ SHorizontalBox::Slot()
@@ -1100,6 +1101,20 @@ void STableTreeView::CreateGroupings()
 	AvailableGroupings.Reset();
 	CurrentGroupings.Reset();
 
+	InternalCreateGroupings();
+
+	if (CurrentGroupings.IsEmpty() && AvailableGroupings.Num() > 0)
+	{
+		CurrentGroupings.Add(AvailableGroupings[0]);
+	}
+
+	RebuildGroupingCrumbs();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STableTreeView::InternalCreateGroupings()
+{
 	AvailableGroupings.Add(MakeShared<FTreeNodeGroupingFlat>());
 	//AvailableGroupings.Add(MakeShared<FTreeNodeGroupingByNameFirstLetter>());
 	//AvailableGroupings.Add(MakeShared<FTreeNodeGroupingByType>());
@@ -1108,7 +1123,7 @@ void STableTreeView::CreateGroupings()
 	{
 		if (!ColumnRef->IsHierarchy())
 		{
-			switch(ColumnRef->GetDataType())
+			switch (ColumnRef->GetDataType())
 			{
 				case ETableCellDataType::Bool:
 					AvailableGroupings.Add(MakeShared<FTreeNodeGroupingByUniqueValueBool>(ColumnRef));
@@ -1135,10 +1150,6 @@ void STableTreeView::CreateGroupings()
 			}
 		}
 	}
-
-	CurrentGroupings.Add(AvailableGroupings[0]);
-
-	RebuildGroupingCrumbs();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1160,12 +1171,15 @@ void STableTreeView::PreChangeGroupings()
 
 void STableTreeView::PostChangeGroupings()
 {
+	constexpr bool bAdjustHierarchyColumnWidth = false;
+	constexpr bool bAdjustHierarchyColumnName = false;
+
 	constexpr float HierarchyMinWidth = 60.0f;
 	constexpr float HierarchyIndentation = 10.0f;
 	constexpr float DefaultHierarchyColumnWidth = 90.0f;
 
 	float HierarchyColumnWidth = DefaultHierarchyColumnWidth;
-	//FString GroupingStr;
+	FString GroupingStr;
 
 	int32 GroupingDepth = 0;
 	for (TSharedPtr<FTreeNodeGrouping>& GroupingPtr : CurrentGroupings)
@@ -1174,19 +1188,22 @@ void STableTreeView::PostChangeGroupings()
 
 		if (ColumnId != NAME_None)
 		{
-			// Compute width for Hierarchy column based on column used in grouping and its indentation.
-			const int32 NumColumns = TreeViewHeaderRow->GetColumns().Num();
-			for (int32 ColumnIndex = 0; ColumnIndex < NumColumns; ++ColumnIndex)
+			if (bAdjustHierarchyColumnWidth)
 			{
-				const SHeaderRow::FColumn& CurrentColumn = TreeViewHeaderRow->GetColumns()[ColumnIndex];
-				if (CurrentColumn.ColumnId == ColumnId)
+				// Compute width for Hierarchy column based on column used in grouping and its indentation.
+				const int32 NumColumns = TreeViewHeaderRow->GetColumns().Num();
+				for (int32 ColumnIndex = 0; ColumnIndex < NumColumns; ++ColumnIndex)
 				{
-					const float Width = HierarchyMinWidth + GroupingDepth * HierarchyIndentation + CurrentColumn.GetWidth();
-					if (Width > HierarchyColumnWidth)
+					const SHeaderRow::FColumn& CurrentColumn = TreeViewHeaderRow->GetColumns()[ColumnIndex];
+					if (CurrentColumn.ColumnId == ColumnId)
 					{
-						HierarchyColumnWidth = Width;
+						const float Width = HierarchyMinWidth + GroupingDepth * HierarchyIndentation + CurrentColumn.GetWidth();
+						if (Width > HierarchyColumnWidth)
+						{
+							HierarchyColumnWidth = Width;
+						}
+						break;
 					}
-					break;
 				}
 			}
 
@@ -1194,12 +1211,15 @@ void STableTreeView::PostChangeGroupings()
 			HideColumn(ColumnId);
 		}
 
-		// Compute name of the Hierarchy column.
-		//if (!GroupingStr.IsEmpty())
-		//{
-		//	GroupingStr.Append(TEXT(" / "));
-		//}
-		//GroupingStr.Append(GroupingPtr->GetShortName().ToString());
+		if (bAdjustHierarchyColumnName)
+		{
+			// Compute name of the Hierarchy column.
+			if (!GroupingStr.IsEmpty())
+			{
+				GroupingStr.Append(TEXT(" / "));
+			}
+			GroupingStr.Append(GroupingPtr->GetShortName().ToString());
+		}
 
 		++GroupingDepth;
 	}
@@ -1208,22 +1228,29 @@ void STableTreeView::PostChangeGroupings()
 
 	if (TreeViewHeaderRow->GetColumns().Num() > 0)
 	{
-		// Set width for the Hierarchy column.
-		SHeaderRow::FColumn& HierarchyColumn = const_cast<SHeaderRow::FColumn&>(TreeViewHeaderRow->GetColumns()[0]);
-		HierarchyColumn.SetWidth(HierarchyColumnWidth);
+		if (bAdjustHierarchyColumnWidth)
+		{
+			// Set width for the Hierarchy column.
+			SHeaderRow::FColumn& HierarchyColumn = const_cast<SHeaderRow::FColumn&>(TreeViewHeaderRow->GetColumns()[0]);
+			HierarchyColumn.SetWidth(HierarchyColumnWidth);
+		}
 
-		// Set name for the Hierarchy column.
-		//FTableColumn& HierarchyTableColumn = *Table->FindColumnChecked(HierarchyColumn.ColumnId);
-		//if (!GroupingStr.IsEmpty())
-		//{
-		//	const FText HierarchyColumnName = FText::Format(LOCTEXT("HierarchyShortNameFmt", "Hierarchy ({0})"), FText::FromString(GroupingStr));
-		//	HierarchyTableColumn.SetShortName(HierarchyColumnName);
-		//}
-		//else
-		//{
-		//	const FText HierarchyColumnName(LOCTEXT("HierarchyShortName", "Hierarchy"));
-		//	HierarchyTableColumn.SetShortName(HierarchyColumnName);
-		//}
+		if (bAdjustHierarchyColumnName)
+		{
+			// Set name for the Hierarchy column.
+			SHeaderRow::FColumn& HierarchyColumn = const_cast<SHeaderRow::FColumn&>(TreeViewHeaderRow->GetColumns()[0]);
+			FTableColumn& HierarchyTableColumn = *Table->FindColumnChecked(HierarchyColumn.ColumnId);
+			if (!GroupingStr.IsEmpty())
+			{
+				const FText HierarchyColumnName = FText::Format(LOCTEXT("HierarchyShortNameFmt", "Hierarchy ({0})"), FText::FromString(GroupingStr));
+				HierarchyTableColumn.SetShortName(HierarchyColumnName);
+			}
+			else
+			{
+				const FText HierarchyColumnName(LOCTEXT("HierarchyShortName", "Hierarchy"));
+				HierarchyTableColumn.SetShortName(HierarchyColumnName);
+			}
+		}
 	}
 
 	//////////////////////////////////////////////////
@@ -1861,8 +1888,9 @@ void STableTreeView::ShowColumn(const FName ColumnId)
 		.VAlignCell(VAlign_Fill)
 		.SortMode(this, &STableTreeView::GetSortModeForColumn, Column.GetId())
 		.OnSort(this, &STableTreeView::OnSortModeChanged)
-		.ManualWidth(Column.GetInitialWidth())
-		.FixedWidth(Column.IsFixedWidth() ? Column.GetInitialWidth() : TOptional<float>())
+		//.ManualWidth(Column.GetInitialWidth())
+		.FillWidth(Column.GetInitialWidth())
+		//.FixedWidth(Column.IsFixedWidth() ? Column.GetInitialWidth() : TOptional<float>())
 		.HeaderContent()
 		[
 			SNew(SBox)

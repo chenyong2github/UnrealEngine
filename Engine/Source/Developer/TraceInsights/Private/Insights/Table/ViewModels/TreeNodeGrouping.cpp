@@ -30,11 +30,15 @@ void FTreeNodeGrouping::GroupNodes(const TArray<FTableTreeNodePtr>& Nodes, FTabl
 
 	for (FTableTreeNodePtr NodePtr : Nodes)
 	{
-		ensure(!NodePtr->IsGroup());
-
 		if (bCancelGrouping)
 		{
 			return;
+		}
+
+		if (NodePtr->IsGroup())
+		{
+			ParentGroup.AddChildAndSetGroupPtr(NodePtr);
+			continue;
 		}
 
 		FTableTreeNodePtr GroupPtr = nullptr;
@@ -73,13 +77,6 @@ FTreeNodeGroupingFlat::FTreeNodeGroupingFlat()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FTreeNodeGroupInfo FTreeNodeGroupingFlat::GetGroupForNode(const FBaseTreeNodePtr InNode) const
-{
-	return { FName(TEXT("All")), true };
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
 void FTreeNodeGroupingFlat::GroupNodes(const TArray<FTableTreeNodePtr>& Nodes, FTableTreeNode& ParentGroup, TWeakPtr<FTable> InParentTable, std::atomic<bool>& bCancelGrouping) const
 {
 	ParentGroup.ClearChildren(1);
@@ -109,7 +106,7 @@ FTreeNodeGroupingByUniqueValue::FTreeNodeGroupingByUniqueValue(TSharedRef<FTable
 		InColumnRef->GetTitleName(),
 		FText::Format(LOCTEXT("Grouping_ByUniqueValue_TitleNameFmt", "Unique Values - {0}"), InColumnRef->GetTitleName()),
 		LOCTEXT("Grouping_ByUniqueValue_Desc", "Creates a group for each unique value."),
-		TEXT("Profiler.FiltersAndPresets.Group1NameIcon"), //TODO: "Icons.Grouping.ByName"
+		TEXT("Profiler.FiltersAndPresets.GroupNameIcon"), //TODO: "Icons.Grouping.ByUniqueValue"
 		nullptr)
 	, ColumnRef(InColumnRef)
 {
@@ -142,7 +139,7 @@ FTreeNodeGroupingByNameFirstLetter::FTreeNodeGroupingByNameFirstLetter()
 		LOCTEXT("Grouping_ByName_ShortName", "Name"),
 		LOCTEXT("Grouping_ByName_TitleName", "Name (First Letter)"),
 		LOCTEXT("Grouping_ByName_Desc", "Creates a group for each first letter of node names."),
-		TEXT("Profiler.FiltersAndPresets.Group1NameIcon"), //TODO: "Icons.Grouping.ByName"
+		TEXT("Profiler.FiltersAndPresets.GroupNameIcon"), //TODO: "Icons.Grouping.ByName"
 		nullptr)
 {
 }

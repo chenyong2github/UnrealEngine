@@ -73,7 +73,6 @@ public:
 	int32 GetTabIndex() const { return TabIndex; }
 	void SetTabIndex(int32 InTabIndex) { TabIndex = InTabIndex; }
 
-
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 	// IAsyncOperationStatusProvider implementation
 
@@ -82,6 +81,9 @@ public:
 	virtual FText GetCurrentOperationName() const override;
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
+
+protected:
+	virtual void InternalCreateGroupings() override;
 
 private:
 	void OnQueryInvalidated();

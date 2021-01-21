@@ -60,19 +60,22 @@ void FMemAllocTable::AddDefaultColumns()
 		ColumnRef->SetTitleName(LOCTEXT("AllocationColumnTitle", "Allocation Hierarchy"));
 		ColumnRef->SetDescription(LOCTEXT("AllocationColumnDesc", "Hierarchy of the allocation's tree"));
 	}
+
+	int32 ColumnIndex = 0;
+
 	//////////////////////////////////////////////////
-	// Start Time
+	// Start Time Column
 	{
 		TSharedRef<FTableColumn> ColumnRef = MakeShared<FTableColumn>(TEXT("AllocStartTime"));
 		FTableColumn& Column = *ColumnRef;
 
-		Column.SetIndex(0);
+		Column.SetIndex(ColumnIndex++);
 
 		Column.SetShortName(LOCTEXT("StartTimeColumnName", "Start Time"));
 		Column.SetTitleName(LOCTEXT("StartTimeColumnTitle", "Start Time"));
 		Column.SetDescription(LOCTEXT("StartTimeColumnDesc", "The time when the allocation was allocated."));
 
-		Column.SetFlags(ETableColumnFlags::ShouldBeVisible | ETableColumnFlags::CanBeHidden | ETableColumnFlags::CanBeFiltered);
+		Column.SetFlags(ETableColumnFlags::CanBeHidden | ETableColumnFlags::CanBeFiltered);
 
 		Column.SetHorizontalAlignment(HAlign_Left);
 		Column.SetInitialWidth(100.0f);
@@ -119,18 +122,18 @@ void FMemAllocTable::AddDefaultColumns()
 		AddColumn(ColumnRef);
 	}
 	//////////////////////////////////////////////////
-	// End Time
+	// End Time Column
 	{
 		TSharedRef<FTableColumn> ColumnRef = MakeShared<FTableColumn>(TEXT("AllocEndTime"));
 		FTableColumn& Column = *ColumnRef;
 
-		Column.SetIndex(1);
+		Column.SetIndex(ColumnIndex++);
 
 		Column.SetShortName(LOCTEXT("EndTimeColumnName", "End Time"));
 		Column.SetTitleName(LOCTEXT("EndTimeColumnTitle", "End Time"));
 		Column.SetDescription(LOCTEXT("EndTimeColumnDesc", "The time when the allocation was freed."));
 
-		Column.SetFlags(ETableColumnFlags::ShouldBeVisible | ETableColumnFlags::CanBeHidden | ETableColumnFlags::CanBeFiltered);
+		Column.SetFlags(ETableColumnFlags::CanBeHidden | ETableColumnFlags::CanBeFiltered);
 
 		Column.SetHorizontalAlignment(HAlign_Left);
 		Column.SetInitialWidth(100.0f);
@@ -177,18 +180,18 @@ void FMemAllocTable::AddDefaultColumns()
 		AddColumn(ColumnRef);
 	}
 	//////////////////////////////////////////////////
-	// Duration
+	// Duration Column
 	{
 		TSharedRef<FTableColumn> ColumnRef = MakeShared<FTableColumn>(TEXT("AllocDuration"));
 		FTableColumn& Column = *ColumnRef;
 
-		Column.SetIndex(2);
+		Column.SetIndex(ColumnIndex++);
 
 		Column.SetShortName(LOCTEXT("DurationColumnName", "Duration"));
 		Column.SetTitleName(LOCTEXT("DurationColumnTitle", "Duration"));
 		Column.SetDescription(LOCTEXT("DurationColumnDesc", "The duration of the allocation's life."));
 
-		Column.SetFlags(ETableColumnFlags::ShouldBeVisible | ETableColumnFlags::CanBeHidden | ETableColumnFlags::CanBeFiltered);
+		Column.SetFlags(ETableColumnFlags::CanBeHidden | ETableColumnFlags::CanBeFiltered);
 
 		Column.SetHorizontalAlignment(HAlign_Left);
 		Column.SetInitialWidth(100.0f);
@@ -238,13 +241,13 @@ void FMemAllocTable::AddDefaultColumns()
 		TSharedRef<FTableColumn> ColumnRef = MakeShared<FTableColumn>(TEXT("AllocAddress"));
 		FTableColumn& Column = *ColumnRef;
 
-		Column.SetIndex(3);
+		Column.SetIndex(ColumnIndex++);
 
 		Column.SetShortName(LOCTEXT("AddressColumnName", "Address"));
 		Column.SetTitleName(LOCTEXT("AddressColumnTitle", "Address"));
 		Column.SetDescription(LOCTEXT("AddressColumnDesc", "Address of allocation"));
 
-		Column.SetFlags(ETableColumnFlags::ShouldBeVisible | ETableColumnFlags::CanBeHidden | ETableColumnFlags::CanBeFiltered);
+		Column.SetFlags(ETableColumnFlags::CanBeHidden | ETableColumnFlags::CanBeFiltered);
 
 		Column.SetHorizontalAlignment(HAlign_Left);
 		Column.SetInitialWidth(120.0f);
@@ -289,12 +292,70 @@ void FMemAllocTable::AddDefaultColumns()
 		AddColumn(ColumnRef);
 	}
 	//////////////////////////////////////////////////
+	// Alloc Count Column
+	{
+		TSharedRef<FTableColumn> ColumnRef = MakeShared<FTableColumn>(TEXT("AllocCount"));
+		FTableColumn& Column = *ColumnRef;
+
+		Column.SetIndex(ColumnIndex++);
+
+		Column.SetShortName(LOCTEXT("CountColumnName", "Count"));
+		Column.SetTitleName(LOCTEXT("CountColumnTitle", "Allocation Count"));
+		Column.SetDescription(LOCTEXT("CountColumnDesc", "Number of allocations"));
+
+		Column.SetFlags(ETableColumnFlags::ShouldBeVisible | ETableColumnFlags::CanBeHidden | ETableColumnFlags::CanBeFiltered);
+
+		Column.SetHorizontalAlignment(HAlign_Right);
+		Column.SetInitialWidth(100.0f);
+
+		Column.SetDataType(ETableCellDataType::Int64);
+
+		class FMemAllocCountValueGetter : public FTableCellValueGetter
+		{
+		public:
+			virtual const TOptional<FTableCellValue> GetValue(const FTableColumn& Column, const FBaseTreeNode& Node) const override
+			{
+				if (Node.IsGroup())
+				{
+					const FTableTreeNode& NodePtr = static_cast<const FTableTreeNode&>(Node);
+					if (NodePtr.HasAggregatedValue(Column.GetId()))
+					{
+						return NodePtr.GetAggregatedValue(Column.GetId());
+					}
+				}
+				else //if (Node->Is<FMemAllocNode>())
+				{
+					const FMemAllocNode& MemAllocNode = static_cast<const FMemAllocNode&>(Node);
+					const FMemoryAlloc* Alloc = MemAllocNode.GetMemAlloc();
+					if (Alloc)
+					{
+						return FTableCellValue(static_cast<int64>(1));
+					}
+				}
+
+				return TOptional<FTableCellValue>();
+			}
+		};
+		TSharedRef<ITableCellValueGetter> Getter = MakeShared<FMemAllocCountValueGetter>();
+		Column.SetValueGetter(Getter);
+
+		TSharedRef<ITableCellValueFormatter> Formatter = MakeShared<FInt64ValueFormatterAsNumber>();
+		Column.SetValueFormatter(Formatter);
+
+		TSharedRef<ITableCellValueSorter> Sorter = MakeShared<FSorterByInt64Value>(ColumnRef);
+		Column.SetValueSorter(Sorter);
+
+		Column.SetAggregation(ETableColumnAggregation::Sum);
+
+		AddColumn(ColumnRef);
+	}
+	//////////////////////////////////////////////////
 	// Size Column
 	{
 		TSharedRef<FTableColumn> ColumnRef = MakeShared<FTableColumn>(TEXT("AllocSize"));
 		FTableColumn& Column = *ColumnRef;
 
-		Column.SetIndex(4);
+		Column.SetIndex(ColumnIndex++);
 
 		Column.SetShortName(LOCTEXT("SizeColumnName", "Size"));
 		Column.SetTitleName(LOCTEXT("SizeColumnTitle", "Size"));
@@ -352,7 +413,7 @@ void FMemAllocTable::AddDefaultColumns()
 		TSharedRef<FTableColumn> ColumnRef = MakeShared<FTableColumn>(TEXT("AllocLlmTag"));
 		FTableColumn& Column = *ColumnRef;
 
-		Column.SetIndex(5);
+		Column.SetIndex(ColumnIndex++);
 
 		Column.SetShortName(LOCTEXT("LlmTagColumnName", "LLM Tag"));
 		Column.SetTitleName(LOCTEXT("LlmTagColumnTitle", "LLM Tag"));
@@ -403,16 +464,16 @@ void FMemAllocTable::AddDefaultColumns()
 		AddColumn(ColumnRef);
 	}
 	//////////////////////////////////////////////////
-	// Backtrace Column
+	// Function Column
 	{
-		TSharedRef<FTableColumn> ColumnRef = MakeShared<FTableColumn>(TEXT("AllocBacktrace"));
+		TSharedRef<FTableColumn> ColumnRef = MakeShared<FTableColumn>(TEXT("AllocFunction"));
 		FTableColumn& Column = *ColumnRef;
 
-		Column.SetIndex(6);
+		Column.SetIndex(ColumnIndex++);
 
-		Column.SetShortName(LOCTEXT("BacktraceColumnName", "Backtrace"));
-		Column.SetTitleName(LOCTEXT("BacktraceColumnTitle", "Backtrace"));
-		Column.SetDescription(LOCTEXT("BacktraceColumnDesc", "Backtrace of allocation"));
+		Column.SetShortName(LOCTEXT("FunctionColumnName", "Function"));
+		Column.SetTitleName(LOCTEXT("FunctionColumnTitle", "Function"));
+		Column.SetDescription(LOCTEXT("FunctionColumnDesc", "Resolved top function from the callstack of allocation"));
 
 		Column.SetFlags(ETableColumnFlags::ShouldBeVisible | ETableColumnFlags::CanBeHidden | ETableColumnFlags::CanBeFiltered);
 
@@ -423,7 +484,7 @@ void FMemAllocTable::AddDefaultColumns()
 
 		Column.SetIsDynamic(true);
 
-		class FBacktraceValueGetter : public FTableCellValueGetter
+		class FFunctionValueGetter : public FTableCellValueGetter
 		{
 		public:
 			virtual const TOptional<FTableCellValue> GetValue(const FTableColumn& Column, const FBaseTreeNode& Node) const override
@@ -480,10 +541,10 @@ void FMemAllocTable::AddDefaultColumns()
 				return TOptional<FTableCellValue>();
 			}
 		};
-		TSharedRef<ITableCellValueGetter> Getter = MakeShared<FBacktraceValueGetter>();
+		TSharedRef<ITableCellValueGetter> Getter = MakeShared<FFunctionValueGetter>();
 		Column.SetValueGetter(Getter);
 
-		class BackTraceValueFormatter : public FCStringValueFormatterAsText
+		class FunctionValueFormatter : public FCStringValueFormatterAsText
 		{
 		public:
 			virtual TSharedPtr<IToolTip> GetCustomTooltip(const FTableColumn& Column, const FBaseTreeNode& Node) const override
@@ -493,7 +554,6 @@ void FMemAllocTable::AddDefaultColumns()
 				return SNew(SToolTip)
 						[
 							SNew(SVerticalBox)
-
 							+ SVerticalBox::Slot()
 							.AutoHeight()
 							.Padding(2.0f)
@@ -505,7 +565,7 @@ void FMemAllocTable::AddDefaultColumns()
 			}
 		};
 
-		TSharedRef<ITableCellValueFormatter> Formatter = MakeShared<BackTraceValueFormatter>();
+		TSharedRef<ITableCellValueFormatter> Formatter = MakeShared<FunctionValueFormatter>();
 		Column.SetValueFormatter(Formatter);
 
 		TSharedRef<ITableCellValueSorter> Sorter = MakeShared<FSorterByCStringValue>(ColumnRef);

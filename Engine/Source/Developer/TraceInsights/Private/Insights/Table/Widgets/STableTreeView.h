@@ -206,6 +206,7 @@ protected:
 	// Grouping
 
 	void CreateGroupings();
+	virtual void InternalCreateGroupings();
 
 	void CreateGroups(const TArray<TSharedPtr<FTreeNodeGrouping>>& Groupings);
 	void GroupNodesRec(const TArray<FTableTreeNodePtr>& Nodes, FTableTreeNode& ParentGroup, int32 GroupingDepth, const TArray<TSharedPtr<FTreeNodeGrouping>>& Groupings);

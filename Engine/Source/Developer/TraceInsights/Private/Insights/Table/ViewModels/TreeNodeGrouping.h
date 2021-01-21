@@ -78,7 +78,6 @@ public:
 	FTreeNodeGroupingFlat();
 	virtual ~FTreeNodeGroupingFlat() {}
 
-	virtual FTreeNodeGroupInfo GetGroupForNode(const FBaseTreeNodePtr InNode) const override;
 	virtual void GroupNodes(const TArray<FTableTreeNodePtr>& Nodes, FTableTreeNode& ParentGroup, TWeakPtr<FTable> InParentTable, std::atomic<bool>& bCancelGrouping) const override;
 };
 
@@ -126,11 +125,15 @@ void TTreeNodeGroupingByUniqueValue<Type>::GroupNodes(const TArray<FTableTreeNod
 
 	for (FTableTreeNodePtr NodePtr : Nodes)
 	{
-		ensure(!NodePtr->IsGroup());
-
 		if (bCancelGrouping)
 		{
 			return;
+		}
+
+		if (NodePtr->IsGroup())
+		{
+			ParentGroup.AddChildAndSetGroupPtr(NodePtr);
+			continue;
 		}
 
 		FTableTreeNodePtr GroupPtr = nullptr;
