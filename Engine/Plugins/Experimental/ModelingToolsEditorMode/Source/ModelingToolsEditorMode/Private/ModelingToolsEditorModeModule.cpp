@@ -11,6 +11,10 @@
 #include "ISettingsSection.h"
 #include "Misc/CoreDelegates.h"
 
+#include "Modules/ModuleManager.h"
+#include "PropertyEditorModule.h"
+#include "DetailsCustomizations/ModelingToolPropertyCustomizations.h"
+
 #define LOCTEXT_NAMESPACE "FModelingToolsEditorModeModule"
 
 void FModelingToolsEditorModeModule::StartupModule()
@@ -56,6 +60,9 @@ void FModelingToolsEditorModeModule::OnPostEngineInit()
 		);
 	}
 
+	// Register details view customizations
+	FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
+	PropertyModule.RegisterCustomPropertyTypeLayout("ModelingToolsAxisFilter", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FModelingToolsAxisFilterCustomization::MakeInstance));
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -7,7 +7,9 @@
 #include "MeshNormals.h"
 #include "MeshWeights.h"
 #include "Async/ParallelFor.h"
+#include "PropertySets/AxisFilterPropertyType.h"
 #include "MeshMoveBrushOps.generated.h"
+
 
 
 UCLASS()
@@ -30,6 +32,10 @@ public:
 	virtual float GetStrength() override { return Strength; }
 	virtual float GetFalloff() override { return Falloff; }
 	virtual float GetDepth() override { return Depth; }
+
+	/** Axis filters restrict mesh movement to World X/Y/Z axes */
+	UPROPERTY(EditAnywhere, Category = MoveBrush, AdvancedDisplay)
+	FModelingToolsAxisFilter AxisFilters;
 };
 
 
@@ -43,6 +49,20 @@ public:
 
 		double UsePower = Stamp.Power;
 		FVector3d MoveVec = Stamp.LocalFrame.Origin - Stamp.PrevLocalFrame.Origin;
+		
+		UMoveBrushOpProps* Props = GetPropertySetAs<UMoveBrushOpProps>();
+
+		// if we have axis constraints we want to apply them in world space, and then remap
+		// that world vector to local space
+		if (Props->AxisFilters.AnyAxisFiltered())
+		{
+			FVector3d WorldMoveVec = Stamp.WorldFrame.Origin - Stamp.PrevWorldFrame.Origin;
+			WorldMoveVec = MoveVec.Length() * WorldMoveVec.Normalized();		// apply local space scaling
+			WorldMoveVec.X = (Props->AxisFilters.bAxisX) ? WorldMoveVec.X : 0;
+			WorldMoveVec.Y = (Props->AxisFilters.bAxisY) ? WorldMoveVec.Y : 0;
+			WorldMoveVec.Z = (Props->AxisFilters.bAxisZ) ? WorldMoveVec.Z : 0;
+			MoveVec = Stamp.LocalFrame.FromFrameVector(Stamp.WorldFrame.ToFrameVector(WorldMoveVec));
+		}
 
 		ParallelFor(Vertices.Num(), [&](int32 k)
 		{
