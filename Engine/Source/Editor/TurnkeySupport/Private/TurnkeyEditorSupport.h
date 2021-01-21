@@ -12,7 +12,7 @@ public:
 	static FString GetUATOptions();
 
 	static void PrepareToLaunchRunningMap(const FString& DeviceId, const FString& DeviceName);
-	static void LaunchRunningMap(const FString& DeviceId, const FString& DeviceName, bool bUseTurnkey);
+	static void LaunchRunningMap(const FString& DeviceId, const FString& DeviceName, const FString& ProjectPath, bool bUseTurnkey);
 	static void AddEditorOptions(struct FToolMenuSection& MenuBuilder);
 
 	static bool DoesProjectHaveCode();

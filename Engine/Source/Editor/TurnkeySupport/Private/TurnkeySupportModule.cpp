@@ -1071,7 +1071,7 @@ bool CanLaunchOnDevice(const FString& DeviceName)
 
 static void LaunchOnDevice(const FString& DeviceId, const FString& DeviceName, bool bUseTurnkey)
 {
-	FTurnkeyEditorSupport::LaunchRunningMap(DeviceId, DeviceName, bUseTurnkey);
+	FTurnkeyEditorSupport::LaunchRunningMap(DeviceId, DeviceName, GetProjectPathForTurnkey(), bUseTurnkey);
 }
 
 static void PrepareLaunchOn(FString DeviceId, FString DeviceName)
