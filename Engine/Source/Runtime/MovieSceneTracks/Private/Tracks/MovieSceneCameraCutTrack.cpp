@@ -141,11 +141,11 @@ void UMovieSceneCameraCutTrack::RemoveSection(UMovieSceneSection& Section)
 
 	if (bCanBlend)
 	{
-		MovieSceneHelpers::FixupConsecutiveSections(Sections, Section, true);
+		MovieSceneHelpers::FixupConsecutiveBlendingSections(Sections, Section, true);
 	}
 	else
 	{
-		MovieSceneHelpers::FixupConsecutiveBlendingSections(Sections, Section, true);
+		MovieSceneHelpers::FixupConsecutiveSections(Sections, Section, true);
 	}
 
 	// @todo Sequencer: The movie scene owned by the section is now abandoned.  Should we offer to delete it?  
@@ -156,11 +156,11 @@ void UMovieSceneCameraCutTrack::RemoveSectionAt(int32 SectionIndex)
 	UMovieSceneSection* SectionToDelete = Sections[SectionIndex];
 	if (bCanBlend)
 	{
-		MovieSceneHelpers::FixupConsecutiveSections(Sections, *SectionToDelete, true);
+		MovieSceneHelpers::FixupConsecutiveBlendingSections(Sections, *SectionToDelete, true);
 	}
 	else
 	{
-		MovieSceneHelpers::FixupConsecutiveBlendingSections(Sections, *SectionToDelete, true);
+		MovieSceneHelpers::FixupConsecutiveSections(Sections, *SectionToDelete, true);
 	}
 
 	Sections.RemoveAt(SectionIndex);
