@@ -34,7 +34,8 @@ public:
 		TSharedPtr<SWidget> ContentWidget;
 		if( bIsTopNode )
 		{
-			ContentWidget = SNew(SSpacer);
+			ContentWidget = SNew(SImage)
+				.Image(FEditorStyle::GetBrush("DetailsView.AdvancedDropdownBorder.Open"));
 		}
 		else if( InArgs._ShouldShowAdvancedButton )
 		{
@@ -70,16 +71,29 @@ public:
 		{
 			ContentWidget = SNew(SSpacer);
 		}
-		
+
+		TWeakPtr<STableViewBase> OwnerTableViewWeak = InOwnerTableView;
+		auto GetGridLinePadding = [this, bIsTopNode, OwnerTableViewWeak]()
+		{
+			FMargin Margin = GetRowScrollBarPadding(OwnerTableViewWeak);
+			if (bIsTopNode)
+			{
+				Margin.Bottom = 0;
+			}
+			return Margin;
+		};
+
+		FMargin BorderPadding = bIsTopNode ? FMargin(0, 0, 0, 2) : FMargin(0, 3, 0, 2);
+
 		ChildSlot
 		[
-			SNew( SBorder )
+			SNew(SBorder)
 			.BorderImage(FAppStyle::Get().GetBrush( "DetailsView.GridLine"))
-			.Padding( FMargin(0, 0, SDetailTableRowBase::ScrollbarPaddingSize, 0) )
+			.Padding_Lambda(GetGridLinePadding)
 			[
-				SNew( SBorder )
-				.BorderImage( FEditorStyle::GetBrush("DetailsView.AdvancedDropdownBorder") )
-				.Padding( FMargin( 0.0f, 3.0f, 0.0f, 2.0f ) )
+				SNew(SBorder)
+				.BorderImage(FEditorStyle::GetBrush("DetailsView.AdvancedDropdownBorder"))
+				.Padding(BorderPadding)
 				[
 					ContentWidget.ToSharedRef()
 				]

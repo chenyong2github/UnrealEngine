@@ -837,6 +837,11 @@ void STableViewBase::SetScrollbarVisibility(const EVisibility InVisibility)
 	}
 }
 
+EVisibility STableViewBase::GetScrollbarVisibility() const
+{
+	return ScrollBar ? ScrollBar->ShouldBeVisible() : EVisibility::Collapsed;
+}
+
 void STableViewBase::SetFixedLineScrollOffset(TOptional<double> InFixedLineScrollOffset)
 {
 	if (FixedLineScrollOffset != InFixedLineScrollOffset)

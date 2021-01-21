@@ -153,6 +153,8 @@ public:
 	/** Add the scroll offset of this view (in items) */
 	void AddScrollOffset(const float InScrollOffsetDelta, bool RefreshList = false);
 
+	EVisibility GetScrollbarVisibility() const;
+
 	void SetScrollbarVisibility(const EVisibility InVisibility);
 
 	/** Sets the fixed offset in items to always apply to the top/left (depending on orientation) of the list. */

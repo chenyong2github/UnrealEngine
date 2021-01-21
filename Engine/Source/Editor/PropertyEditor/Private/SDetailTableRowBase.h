@@ -61,6 +61,7 @@ public:
 	}
 
 	int32 GetIndentLevelForBackgroundColor() const;
+	FMargin GetRowScrollBarPadding(TWeakPtr<STableViewBase> OwnerTableView) const;
 
 protected:
 	/**
@@ -94,6 +95,5 @@ private:
 		}
 	}
 protected:
-	static float ScrollbarPaddingSize;
 	TWeakPtr<FDetailTreeNode> OwnerTreeNode;
 };

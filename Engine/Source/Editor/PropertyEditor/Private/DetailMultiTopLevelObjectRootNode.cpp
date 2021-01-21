@@ -12,8 +12,6 @@ void SDetailMultiTopLevelObjectTableRow::Construct( const FArguments& InArgs, TS
 	OwnerTreeNode = InOwnerTreeNode;
 	ExpansionArrowUsage = InArgs._ExpansionArrowUsage;
 
-
-
 	STableRow< TSharedPtr< FDetailTreeNode > >::ConstructInternal(
 		STableRow::FArguments()
 			.Style(FEditorStyle::Get(), "DetailsView.TreeView.TableRow")
@@ -23,14 +21,16 @@ void SDetailMultiTopLevelObjectTableRow::Construct( const FArguments& InArgs, TS
 }
 
 
-void SDetailMultiTopLevelObjectTableRow::SetContent(TSharedRef<SWidget> InContent)
+void SDetailMultiTopLevelObjectTableRow::SetContent(TSharedRef<SWidget> InContent, TSharedRef<STableViewBase> OwnerTableView)
 {
 	if (ExpansionArrowUsage == EExpansionArrowUsage::Default)
 	{
+		TWeakPtr<STableViewBase> OwnerTableViewWeak = OwnerTableView;
+
 		ChildSlot
 		[
 			SNew(SBox)
-			.Padding(FMargin(0.0f, 0.0f, SDetailTableRowBase::ScrollbarPaddingSize, 0.0f))
+			.Padding(this, &SDetailTableRowBase::GetRowScrollBarPadding, OwnerTableViewWeak)
 			[
 				SNew(SHorizontalBox)
 				+ SHorizontalBox::Slot()
@@ -56,7 +56,6 @@ void SDetailMultiTopLevelObjectTableRow::SetContent(TSharedRef<SWidget> InConten
 			InContent
 		];
 	}
-	
 }
 
 const FSlateBrush* SDetailMultiTopLevelObjectTableRow::GetBackgroundImage() const
@@ -162,7 +161,7 @@ TSharedRef< ITableRow > FDetailMultiTopLevelObjectRootNode::GenerateWidgetForTab
 	FDetailWidgetRow Row;
 	GenerateWidget_Internal(Row, TableRowWidget);
 
-	TableRowWidget->SetContent(Row.NameWidget.Widget);
+	TableRowWidget->SetContent(Row.NameWidget.Widget, OwnerTable);
 
 	return TableRowWidget;
 }

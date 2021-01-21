@@ -532,11 +532,13 @@ void SDetailSingleItemRow::Construct( const FArguments& InArgs, FDetailLayoutCus
 		Widget = SNew(SSpacer);
 	}
 
+	TWeakPtr<STableViewBase> OwnerTableViewWeak = InOwnerTableView;
+	
 	this->ChildSlot
 	[
 		SNew( SBorder )
 		.BorderImage(FAppStyle::Get().GetBrush( "DetailsView.GridLine"))
-		.Padding( FMargin(0, 0, SDetailTableRowBase::ScrollbarPaddingSize, 1) )
+		.Padding(this, &SDetailTableRowBase::GetRowScrollBarPadding, OwnerTableViewWeak)
 		[
 			SNew( SBorder )
 			.BorderImage(FAppStyle::Get().GetBrush("DetailsView.CategoryMiddle"))
@@ -878,19 +880,19 @@ void SDetailSingleItemRow::OnFavoriteMenuToggle()
 	int32 ScrollingOffsetRemove = -ExpandSize;
 	if (HasFavoritesCategory)
 	{
-		// Adding the advance button in a category add 1 item
-		ScrollingOffsetAdd += (IsAdvancedProperty && NumAdvancedProperties == 0) ? 1 : 0;
+	// Adding the advance button in a category add 1 item
+	ScrollingOffsetAdd += (IsAdvancedProperty && NumAdvancedProperties == 0) ? 1 : 0;
 
-		if (IsAdvancedProperty && NumAdvancedProperties == 1)
-		{
-			// Removing the advance button count as 1 item
-			ScrollingOffsetRemove -= 1;
-		}
-		if (NumAdvancedProperties + SimplePropertiesNum == 1)
-		{
-			// Removing a full category count as 2 items
-			ScrollingOffsetRemove -= 2;
-		}
+	if (IsAdvancedProperty && NumAdvancedProperties == 1)
+	{
+		// Removing the advance button count as 1 item
+		ScrollingOffsetRemove -= 1;
+	}
+	if (NumAdvancedProperties + SimplePropertiesNum == 1)
+	{
+		// Removing a full category count as 2 items
+		ScrollingOffsetRemove -= 2;
+	}
 	}
 	else
 	{
