@@ -29,17 +29,23 @@ uint InstanceDataSOAStride;
 [numthreads(CS_1D_GROUP_SIZE_X, 1, 1)]
 void VirtualSmInvalidateInstancePagesCS(
 	uint DispatchIndex : SV_DispatchThreadID,
-	uint GroupIndex : SV_GroupIndex)
+	uint GroupId : SV_GroupID,
+	uint GroupThreadIndex : SV_GroupIndex)
 {
 	bool bIsVisible = false;
 	bool bWasOccluded = false;
-
+#if PROCESS_LARGE_INSTANCE_COUNT_RANGES
+	// Large instance count ranges use one group per range instead, and use a group-stride loop
+	FInstanceDataRange InstanceDataRange = InstanceRanges[GroupId];
+	for (int InstanceId = InstanceDataRange.InstanceDataOffset + GroupThreadIndex; InstanceId < InstanceDataRange.NumInstanceDataEntries + InstanceDataRange.InstanceDataOffset; InstanceId += CS_1D_GROUP_SIZE_X)
+#else // PROCESS_LARGE_INSTANCE_COUNT_RANGES
 	if (DispatchIndex >= NumRemovedItems)
 	{
 		return;
 	}
 	FInstanceDataRange InstanceDataRange = InstanceRanges[DispatchIndex];
 	for (int InstanceId = InstanceDataRange.InstanceDataOffset; InstanceId < InstanceDataRange.NumInstanceDataEntries + InstanceDataRange.InstanceDataOffset; ++InstanceId)
+#endif // PROCESS_LARGE_INSTANCE_COUNT_RANGES
 	{
 		FInstanceSceneData InstanceData = GetInstanceData(InstanceId, InstanceDataSOAStride);
 

@@ -163,5 +163,5 @@ protected:
 		int32 NumInstanceDataEntries;
 	};
 
-	void ProcessInstanceRangeInvalidation(FRDGBuilder& GraphBuilder, const TArray<FInstanceDataRange>& InstanceRanges, const FGPUScene& GPUScene);
+	void ProcessInstanceRangeInvalidation(FRDGBuilder& GraphBuilder, const TArray<FInstanceDataRange>& InstanceRangesLarge, const TArray<FInstanceDataRange>& InstanceRangesSmall, const FGPUScene& GPUScene);
 };
