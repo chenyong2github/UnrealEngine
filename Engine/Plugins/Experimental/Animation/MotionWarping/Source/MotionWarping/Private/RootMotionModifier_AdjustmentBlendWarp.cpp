@@ -57,7 +57,7 @@ void FRootMotionModifier_AdjustmentBlendWarp::OnSyncPointChanged(UMotionWarpingC
 	const USkeletalMeshComponent* SkelMeshComp = CharacterOwner->GetMesh();
 
 	ActualStartTime = PreviousPosition;
-	CachedRootMotion = UMotionWarpingUtilities::ExtractRootMotionFromAnimation(Animation.Get(), StartTime, EndTime);
+	CachedRootMotion = UMotionWarpingUtilities::ExtractRootMotionFromAnimation(Animation.Get(), ActualStartTime, EndTime);
 	CachedMeshRelativeTransform = SkelMeshComp->GetRelativeTransform();
 	CachedMeshTransform = SkelMeshComp->GetComponentTransform();
 
