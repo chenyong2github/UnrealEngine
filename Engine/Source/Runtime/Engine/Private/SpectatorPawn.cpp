@@ -45,3 +45,38 @@ void ASpectatorPawn::PossessedBy(class AController* NewController)
 	}
 }
 
+void ASpectatorPawn::TurnAtRate(float Rate)
+{
+	// Replays that use small or zero time dilation to pause will block gamepads from steering the spectator pawn
+	AWorldSettings* const WorldSettings = GetWorldSettings();
+	if (WorldSettings)
+	{
+ 		float TimeDilation = WorldSettings->GetEffectiveTimeDilation();
+		if (TimeDilation <= KINDA_SMALL_NUMBER)
+		{
+			const float DeltaTime = FApp::GetDeltaTime();
+			AddControllerYawInput(Rate * BaseTurnRate * DeltaTime * CustomTimeDilation);
+			return;
+		}
+	}
+
+	Super::TurnAtRate(Rate);
+}
+
+void ASpectatorPawn::LookUpAtRate(float Rate)
+{
+	// Replays that use small or zero time dilation to pause will block gamepads from steering the spectator pawn
+	AWorldSettings* const WorldSettings = GetWorldSettings();
+	if (WorldSettings)
+	{
+		float TimeDilation = WorldSettings->GetEffectiveTimeDilation();
+		if (TimeDilation <= KINDA_SMALL_NUMBER)
+		{
+			const float DeltaTime = FApp::GetDeltaTime();
+			AddControllerPitchInput(Rate * BaseLookUpRate * DeltaTime * CustomTimeDilation);
+			return;
+		}
+	}
+
+	Super::LookUpAtRate(Rate);
+}
