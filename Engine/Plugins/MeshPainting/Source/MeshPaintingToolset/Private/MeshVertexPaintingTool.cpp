@@ -29,7 +29,6 @@ bool UMeshColorPaintingToolBuilder::CanBuildTool(const FToolBuilderState& SceneS
 UInteractiveTool* UMeshColorPaintingToolBuilder::BuildTool(const FToolBuilderState& SceneState) const
 {
 	UMeshColorPaintingTool* NewTool = NewObject<UMeshColorPaintingTool>(SceneState.ToolManager);
-	NewTool->SetMeshToolData(SharedMeshToolData);
 	return NewTool;
 }
 
@@ -41,7 +40,6 @@ bool UMeshWeightPaintingToolBuilder::CanBuildTool(const FToolBuilderState& Scene
 UInteractiveTool* UMeshWeightPaintingToolBuilder::BuildTool(const FToolBuilderState& SceneState) const
 {
 	UMeshWeightPaintingTool* NewTool = NewObject<UMeshWeightPaintingTool>(SceneState.ToolManager);
-	NewTool->SetMeshToolData(SharedMeshToolData);
 	return NewTool;
 }
 
@@ -69,11 +67,6 @@ bool UMeshVertexPaintingTool::IsMeshAdapterSupported(TSharedPtr<IMeshPaintCompon
 	return MeshAdapter.IsValid() ? MeshAdapter->SupportsVertexPaint() : false;
 }
 
-void UMeshVertexPaintingTool::SetMeshToolData(TWeakObjectPtr<UMeshToolManager> InMeshToolData)
-{
-	SharedMeshToolData = InMeshToolData;
-}
-
 void UMeshVertexPaintingTool::Setup()
 {
 	Super::Setup();
@@ -92,7 +85,6 @@ void UMeshVertexPaintingTool::Setup()
 	// Set up selection mechanic to find and select edges
 	SelectionMechanic = NewObject<UMeshPaintSelectionMechanic>(this);
 	SelectionMechanic->Setup(this);
-	SelectionMechanic->SetMeshToolData(SharedMeshToolData);
 }
 
 
@@ -100,9 +92,10 @@ void UMeshVertexPaintingTool::Shutdown(EToolShutdownType ShutdownType)
 {
 	FinishPainting();
 	BrushProperties->SaveProperties(this);
-	if (SharedMeshToolData.IsValid())
+	UMeshPaintingSubsystem* MeshPaintingSubsystem = GEngine->GetEngineSubsystem<UMeshPaintingSubsystem>();
+	if (MeshPaintingSubsystem)
 	{
-		SharedMeshToolData->Refresh();
+		MeshPaintingSubsystem->Refresh();
 	}
 	Super::Shutdown(ShutdownType);
 }
@@ -112,7 +105,8 @@ void UMeshVertexPaintingTool::Render(IToolsContextRenderAPI* RenderAPI)
 	Super::Render(RenderAPI);
 	FToolDataVisualizer Draw;
 	Draw.BeginFrame(RenderAPI);
-	if (SharedMeshToolData.IsValid() && LastBestHitResult.Component != nullptr && SharedMeshToolData->GetPaintableMeshComponents().Num() > 0)
+	UMeshPaintingSubsystem* MeshPaintingSubsystem = GEngine->GetEngineSubsystem<UMeshPaintingSubsystem>();
+	if (MeshPaintingSubsystem && LastBestHitResult.Component != nullptr && MeshPaintingSubsystem->GetPaintableMeshComponents().Num() > 0)
 	{
 		BrushStampIndicator->bDrawIndicatorLines = true;
 		static float WidgetLineThickness = 1.0f;
@@ -127,9 +121,9 @@ void UMeshVertexPaintingTool::Render(IToolsContextRenderAPI* RenderAPI)
 		const FVector NormalLineEnd(LastBestHitResult.Location + LastBestHitResult.Normal * NormalLineSize);
 		Draw.DrawLine(FVector(LastBestHitResult.Location), NormalLineEnd, NormalLineColor, WidgetLineThickness);
 
-		for (UMeshComponent* CurrentComponent : SharedMeshToolData->GetPaintableMeshComponents())
+		for (UMeshComponent* CurrentComponent : MeshPaintingSubsystem->GetPaintableMeshComponents())
 		{
-			TSharedPtr<IMeshPaintComponentAdapter> MeshAdapter = SharedMeshToolData->GetAdapterForComponent(Cast<UMeshComponent>(CurrentComponent));
+			TSharedPtr<IMeshPaintComponentAdapter> MeshAdapter = MeshPaintingSubsystem->GetAdapterForComponent(Cast<UMeshComponent>(CurrentComponent));
 
 			if (MeshAdapter->IsValid() && MeshAdapter->SupportsVertexPaint())
 			{
@@ -169,9 +163,9 @@ void UMeshVertexPaintingTool::Render(IToolsContextRenderAPI* RenderAPI)
 
 void UMeshVertexPaintingTool::OnTick(float DeltaTime)
 {
-	if (SharedMeshToolData.IsValid())
+	if (UMeshPaintingSubsystem* MeshPaintingSubsystem = GEngine->GetEngineSubsystem<UMeshPaintingSubsystem>())
 	{
-		if (SharedMeshToolData->bNeedsRecache)
+		if (MeshPaintingSubsystem->bNeedsRecache)
 		{
 			CacheSelectionData();
 			bDoRestoreRenTargets = true;
@@ -202,12 +196,12 @@ double UMeshVertexPaintingTool::EstimateMaximumTargetDimension()
 {
 	bool bFoundComponentToUse = false;
 	FBoxSphereBounds Bounds = FBoxSphereBounds(0.0);
-	if (SharedMeshToolData.IsValid())
+	if (UMeshPaintingSubsystem* MeshPaintingSubsystem = GEngine->GetEngineSubsystem<UMeshPaintingSubsystem>())
 	{
 		bool bFirstItem = true;
 
 		FBoxSphereBounds Extents;
-		for (UMeshComponent* SelectedComponent : SharedMeshToolData->GetSelectedMeshComponents())
+		for (UMeshComponent* SelectedComponent : MeshPaintingSubsystem->GetSelectedMeshComponents())
 		{
 			if (bFirstItem)
 			{
@@ -265,7 +259,7 @@ bool UMeshVertexPaintingTool::PaintInternal(const TArrayView<TPair<FVector, FVec
 	PaintRayResults.AddDefaulted(Rays.Num());
 	LastBestHitResult.Reset();
 	TMap<UMeshComponent*, TArray<int32>> HoveredComponents;
-
+	UMeshPaintingSubsystem* MeshPaintingSubsystem = GEngine->GetEngineSubsystem<UMeshPaintingSubsystem>();
 	const float BrushRadius = BrushProperties->BrushRadius;
 	const bool bIsPainting = PaintAction == EMeshPaintModeAction::Paint;
 	const float InStrengthScale = PaintStrength;
@@ -281,9 +275,9 @@ bool UMeshVertexPaintingTool::PaintInternal(const TArrayView<TPair<FVector, FVec
 		const FVector TraceStart(RayOrigin);
 		const FVector TraceEnd(RayOrigin + RayDirection * HALF_WORLD_MAX);
 
-		for (UMeshComponent* MeshComponent : SharedMeshToolData->GetPaintableMeshComponents())
+		for (UMeshComponent* MeshComponent : MeshPaintingSubsystem->GetPaintableMeshComponents())
 		{
-			TSharedPtr<IMeshPaintComponentAdapter> MeshAdapter = SharedMeshToolData->GetAdapterForComponent(MeshComponent);
+			TSharedPtr<IMeshPaintComponentAdapter> MeshAdapter = MeshPaintingSubsystem->GetAdapterForComponent(MeshComponent);
 
 			// Ray trace
 			FHitResult TraceHitResult(1.0f);
@@ -305,11 +299,11 @@ bool UMeshVertexPaintingTool::PaintInternal(const TArrayView<TPair<FVector, FVec
 			FBox BrushBounds = FBox::BuildAABB(BestTraceResult.Location, FVector(BrushRadius * 1.25f, BrushRadius * 1.25f, BrushRadius * 1.25f));
 
 			// Vertex paint mode, so we want all valid components overlapping the brush hit location
-			for (auto TestComponent : SharedMeshToolData->GetPaintableMeshComponents())
+			for (auto TestComponent : MeshPaintingSubsystem->GetPaintableMeshComponents())
 			{
 				const FBox ComponentBounds = TestComponent->Bounds.GetBox();
 
-				if (SharedMeshToolData->GetComponentToAdapterMap().Contains(TestComponent) && ComponentBounds.Intersect(BrushBounds))
+				if (MeshPaintingSubsystem->GetComponentToAdapterMap().Contains(TestComponent->GetFName()) && ComponentBounds.Intersect(BrushBounds))
 				{
 					// OK, this mesh potentially overlaps the brush!
 					HoveredComponents.FindOrAdd(TestComponent).Add(i);
@@ -371,7 +365,7 @@ bool UMeshVertexPaintingTool::PaintInternal(const TArrayView<TPair<FVector, FVec
 			UMeshComponent* HoveredComponent = Entry.Key;
 			TArray<int32>& PaintRayResultIds = Entry.Value;
 
-			IMeshPaintComponentAdapter* MeshAdapter = SharedMeshToolData->GetAdapterForComponent(HoveredComponent).Get();
+			IMeshPaintComponentAdapter* MeshAdapter = MeshPaintingSubsystem->GetAdapterForComponent(HoveredComponent).Get();
 			if (!ensure(MeshAdapter))
 			{
 				continue;
@@ -394,7 +388,7 @@ bool UMeshVertexPaintingTool::PaintInternal(const TArrayView<TPair<FVector, FVec
 				{
 					InfluencedVertices.Reset();
 					Args.HitResult = PaintRayResults[PaintRayResultId].BestTraceResult;
-					bPaintApplied |= GEngine->GetEngineSubsystem<UMeshPaintingSubsystem>()->GetPerVertexPaintInfluencedVertices(Args, InfluencedVertices);
+					bPaintApplied |= MeshPaintingSubsystem->GetPerVertexPaintInfluencedVertices(Args, InfluencedVertices);
 
 					if (InfluencedVertices.Num() == 0)
 					{
@@ -522,9 +516,10 @@ void UMeshVertexPaintingTool::OnEndDrag(const FRay& Ray)
 bool UMeshVertexPaintingTool::HitTest(const FRay& Ray, FHitResult& OutHit)
 {
 	bool bUsed = false;
-	if (SharedMeshToolData.IsValid())
+	UMeshPaintingSubsystem* MeshPaintingSubsystem = GEngine->GetEngineSubsystem<UMeshPaintingSubsystem>();
+	if (MeshPaintingSubsystem)
 	{
-		SharedMeshToolData->FindHitResult(Ray, OutHit);
+		MeshPaintingSubsystem->FindHitResult(Ray, OutHit);
 		LastBestHitResult = OutHit;
 		bUsed = OutHit.bBlockingHit;
 	}
@@ -577,9 +572,9 @@ void UMeshColorPaintingTool::Shutdown(EToolShutdownType ShutdownType)
 void UMeshColorPaintingTool::CacheSelectionData()
 {
 	Super::CacheSelectionData();
-	if (SharedMeshToolData.IsValid())
+	if (UMeshPaintingSubsystem* MeshPaintingSubsystem = GEngine->GetEngineSubsystem<UMeshPaintingSubsystem>())
 	{
-		SharedMeshToolData->ClearPaintableMeshComponents();
+		MeshPaintingSubsystem->ClearPaintableMeshComponents();
 		// Update(cached) Paint LOD level if necessary
 		ColorProperties->LODIndex = FMath::Min<int32>(ColorProperties->LODIndex, GetMaxLODIndexToPaint());
 		CachedLODIndex = ColorProperties->LODIndex;
@@ -589,7 +584,7 @@ void UMeshColorPaintingTool::CacheSelectionData()
 		//Determine UV channel to use while painting textures
 		const int32 UVChannel = 0;
 
-		SharedMeshToolData->CacheSelectionData(PaintLODIndex, UVChannel);
+		MeshPaintingSubsystem->CacheSelectionData(PaintLODIndex, UVChannel);
 	}
 }
 
@@ -606,15 +601,14 @@ int32 UMeshColorPaintingTool::GetMaxLODIndexToPaint() const
 {
 	//The maximum LOD we can paint is decide by the lowest number of LOD in the selection
 	int32 LODMin = TNumericLimits<int32>::Max();
-
-	if (SharedMeshToolData.IsValid())
+	if (UMeshPaintingSubsystem* MeshPaintingSubsystem = GEngine->GetEngineSubsystem<UMeshPaintingSubsystem>())
 	{
-		TArray<UMeshComponent*> SelectedComponents = SharedMeshToolData->GetSelectedMeshComponents();
+		TArray<UMeshComponent*> SelectedComponents = MeshPaintingSubsystem->GetSelectedMeshComponents();
 
 		for (UMeshComponent* MeshComponent : SelectedComponents)
 		{
 			int32 NumMeshLODs = 0;
-			if (GEngine->GetEngineSubsystem<UMeshPaintingSubsystem>()->TryGetNumberOfLODs(MeshComponent, NumMeshLODs))
+			if (MeshPaintingSubsystem->TryGetNumberOfLODs(MeshComponent, NumMeshLODs))
 			{
 				ensure(NumMeshLODs > 0);
 				LODMin = FMath::Min(LODMin, NumMeshLODs - 1);
@@ -645,9 +639,9 @@ void UMeshColorPaintingTool::LODPaintStateChanged(const bool bLODPaintingEnabled
 
 	ApplyForcedLODIndex(bLODPaintingEnabled ? CachedLODIndex : -1);
 
-	if (SharedMeshToolData.IsValid())
+	if (UMeshPaintingSubsystem* MeshPaintingSubsystem = GEngine->GetEngineSubsystem<UMeshPaintingSubsystem>())
 	{
-		TArray<UMeshComponent*> PaintableComponents = SharedMeshToolData->GetPaintableMeshComponents();
+		TArray<UMeshComponent*> PaintableComponents = MeshPaintingSubsystem->GetPaintableMeshComponents();
 
 		TUniquePtr< FComponentReregisterContext > ComponentReregisterContext;
 		//Make sure all static mesh render is dirty since we change the force LOD
@@ -659,21 +653,21 @@ void UMeshColorPaintingTool::LODPaintStateChanged(const bool bLODPaintingEnabled
 			}
 		}
 
-		SharedMeshToolData->Refresh();
+		MeshPaintingSubsystem->Refresh();
 	}
 }
 
 void UMeshColorPaintingTool::ApplyForcedLODIndex(int32 ForcedLODIndex)
 {
-	if (SharedMeshToolData.IsValid())
+	if (UMeshPaintingSubsystem* MeshPaintingSubsystem = GEngine->GetEngineSubsystem<UMeshPaintingSubsystem>())
 	{
-		TArray<UMeshComponent*> PaintableComponents = SharedMeshToolData->GetPaintableMeshComponents();
+		TArray<UMeshComponent*> PaintableComponents = MeshPaintingSubsystem->GetPaintableMeshComponents();
 
 		for (UMeshComponent* SelectedComponent : PaintableComponents)
 		{
 			if (SelectedComponent)
 			{
-				GEngine->GetEngineSubsystem<UMeshPaintingSubsystem>()->ForceRenderMeshLOD(SelectedComponent, ForcedLODIndex);
+				MeshPaintingSubsystem->ForceRenderMeshLOD(SelectedComponent, ForcedLODIndex);
 			}
 		}
 	}
@@ -690,9 +684,9 @@ void UMeshColorPaintingTool::PaintLODChanged()
 
 		TUniquePtr< FComponentReregisterContext > ComponentReregisterContext;
 		//Make sure all static mesh render is dirty since we change the force LOD
-		if (SharedMeshToolData.IsValid())
+		if (UMeshPaintingSubsystem* MeshPaintingSubsystem = GEngine->GetEngineSubsystem<UMeshPaintingSubsystem>())
 		{
-			TArray<UMeshComponent*> PaintableComponents = SharedMeshToolData->GetPaintableMeshComponents();
+			TArray<UMeshComponent*> PaintableComponents = MeshPaintingSubsystem->GetPaintableMeshComponents();
 
 			for (UMeshComponent* SelectedComponent : PaintableComponents)
 			{
@@ -702,7 +696,7 @@ void UMeshColorPaintingTool::PaintLODChanged()
 				}
 			}
 
-			SharedMeshToolData->Refresh();
+			MeshPaintingSubsystem->Refresh();
 		}
 	}
 }
@@ -746,14 +740,14 @@ void UMeshWeightPaintingTool::Setup()
 void UMeshWeightPaintingTool::CacheSelectionData()
 {
 	Super::CacheSelectionData();
-	if (SharedMeshToolData.IsValid())
+	if (UMeshPaintingSubsystem* MeshPaintingSubsystem = GEngine->GetEngineSubsystem<UMeshPaintingSubsystem>())
 	{
-		SharedMeshToolData->ClearPaintableMeshComponents();
+		MeshPaintingSubsystem->ClearPaintableMeshComponents();
 		//Determine LOD level to use for painting(can only paint on LODs in vertex mode)
 		const int32 PaintLODIndex = 0;
 		//Determine UV channel to use while painting textures
 		const int32 UVChannel = 0;
-		SharedMeshToolData->CacheSelectionData(PaintLODIndex, UVChannel);
+		MeshPaintingSubsystem->CacheSelectionData(PaintLODIndex, UVChannel);
 	}
 }
 

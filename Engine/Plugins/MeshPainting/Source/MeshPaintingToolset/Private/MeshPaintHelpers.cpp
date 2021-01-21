@@ -27,6 +27,13 @@
 
 extern void PropagateVertexPaintToSkeletalMesh(USkeletalMesh* SkeletalMesh, int32 LODIndex);
 
+UMeshPaintingSubsystem::UMeshPaintingSubsystem()
+	:	bNeedsRecache(true),
+		bSelectionHasMaterialValidForTexturePaint(false)
+{
+
+}
+
 bool UMeshPaintingSubsystem::HasPaintableMesh(UActorComponent* Component)
 {
 	return Cast<UMeshComponent>(Component) != nullptr;
@@ -1126,6 +1133,7 @@ FColor UMeshPaintingSubsystem::PickVertexColorFromTextureData(const uint8* MipDa
 	return VertexColor;
 }
 
+
 bool UMeshPaintingSubsystem::GetPerVertexPaintInfluencedVertices(FPerVertexPaintActionArgs& InArgs, TSet<int32>& InfluencedVertices)
 {
 	// Retrieve components world matrix
@@ -1388,69 +1396,63 @@ void UMeshPaintingSubsystem::ApplyVertexColorsToAllLODs(IMeshPaintComponentAdapt
 		}
 	}
 }
-
-UMeshToolManager::UMeshToolManager()
-	:Super()
-{
-	bNeedsRecache = true;
-}
-
-TMap<UMeshComponent*, TSharedPtr<IMeshPaintComponentAdapter>> UMeshToolManager::GetComponentToAdapterMap() const
+TMap<FName, TSharedPtr<IMeshPaintComponentAdapter>> UMeshPaintingSubsystem::GetComponentToAdapterMap() const
 {
 	return ComponentToAdapterMap;
 }
 
-TSharedPtr<IMeshPaintComponentAdapter> UMeshToolManager::GetAdapterForComponent(const UMeshComponent* InComponent)
+TSharedPtr<IMeshPaintComponentAdapter> UMeshPaintingSubsystem::GetAdapterForComponent(const UMeshComponent* InComponent)
 {
-	TSharedPtr<IMeshPaintComponentAdapter>* MeshAdapterPtr = ComponentToAdapterMap.Find(InComponent);
+	FName ComponentName = InComponent->GetFName();
+	TSharedPtr<IMeshPaintComponentAdapter>* MeshAdapterPtr = ComponentToAdapterMap.Find(ComponentName);
 	return MeshAdapterPtr ? *MeshAdapterPtr : TSharedPtr<IMeshPaintComponentAdapter>();
 }
 
-void UMeshToolManager::AddToComponentToAdapterMap(UMeshComponent* InComponent, TSharedPtr<IMeshPaintComponentAdapter> InAdapter)
+void UMeshPaintingSubsystem::AddToComponentToAdapterMap(UMeshComponent* InComponent, TSharedPtr<IMeshPaintComponentAdapter> InAdapter)
 {
-	ComponentToAdapterMap.Add(InComponent, InAdapter);
+	ComponentToAdapterMap.Add(InComponent->GetFName(), InAdapter);
 }
 
-TArray<UMeshComponent*> UMeshToolManager::GetSelectedMeshComponents() const
+TArray<UMeshComponent*> UMeshPaintingSubsystem::GetSelectedMeshComponents() const
 {
 	return SelectedMeshComponents;
 }
 
-void UMeshToolManager::ClearSelectedMeshComponents()
+void UMeshPaintingSubsystem::ClearSelectedMeshComponents()
 {
 	SelectedMeshComponents.Empty();
 }
 
 
-void UMeshToolManager::AddSelectedMeshComponents(const TArray<UMeshComponent*>& InComponents)
+void UMeshPaintingSubsystem::AddSelectedMeshComponents(const TArray<UMeshComponent*>& InComponents)
 {
 	SelectedMeshComponents.Append(InComponents);
 }
 
 
-TArray<UMeshComponent*> UMeshToolManager::GetPaintableMeshComponents() const
+TArray<UMeshComponent*> UMeshPaintingSubsystem::GetPaintableMeshComponents() const
 {
 	return PaintableComponents;
 }
 
-void UMeshToolManager::AddPaintableMeshComponent(UMeshComponent* InComponent)
+void UMeshPaintingSubsystem::AddPaintableMeshComponent(UMeshComponent* InComponent)
 {
 	PaintableComponents.Add(InComponent);
 }
 
-void UMeshToolManager::ClearPaintableMeshComponents()
+void UMeshPaintingSubsystem::ClearPaintableMeshComponents()
 {
 	PaintableComponents.Empty();
 }
 
-void UMeshToolManager::ResetState()
+void UMeshPaintingSubsystem::ResetState()
 {
 	PaintableComponents.Empty();
 	ComponentToAdapterMap.Empty();
 	SelectedMeshComponents.Empty();
 }
 
-void UMeshToolManager::Refresh()
+void UMeshPaintingSubsystem::Refresh()
 {
 	// Ensure that we call OnRemoved while adapter/components are still valid
 	PaintableComponents.Empty();
@@ -1459,7 +1461,7 @@ void UMeshToolManager::Refresh()
 	bNeedsRecache = true;
 }
 
-void UMeshToolManager::CleanUp()
+void UMeshPaintingSubsystem::CleanUp()
 {
 	for (auto MeshAdapterPair : ComponentToAdapterMap)
 	{
@@ -1469,7 +1471,7 @@ void UMeshToolManager::CleanUp()
 	FMeshPaintComponentAdapterFactory::CleanupGlobals();
 }
 
-bool UMeshToolManager::FindHitResult(const FRay Ray, FHitResult& BestTraceResult)
+bool UMeshPaintingSubsystem::FindHitResult(const FRay Ray, FHitResult& BestTraceResult)
 {
 	const FVector& Origin = Ray.Origin;
 	const FVector& Direction = Ray.Direction;
@@ -1499,7 +1501,7 @@ bool UMeshToolManager::FindHitResult(const FRay Ray, FHitResult& BestTraceResult
 	return true;
 }
 
-bool UMeshToolManager::SelectionContainsValidAdapters() const
+bool UMeshPaintingSubsystem::SelectionContainsValidAdapters() const
 {
 	for (auto& MeshAdapterPair : ComponentToAdapterMap)
 	{
@@ -1512,17 +1514,17 @@ bool UMeshToolManager::SelectionContainsValidAdapters() const
 	return false;
 }
 
-TArray<FPerComponentVertexColorData> UMeshToolManager::GetCopiedColorsByComponent() const
+TArray<FPerComponentVertexColorData> UMeshPaintingSubsystem::GetCopiedColorsByComponent() const
 {
 	return CopiedColorsByComponent;
 }
 
-void UMeshToolManager::SetCopiedColorsByComponent(TArray<FPerComponentVertexColorData>& InCopiedColors)
+void UMeshPaintingSubsystem::SetCopiedColorsByComponent(TArray<FPerComponentVertexColorData>& InCopiedColors)
 {
 	CopiedColorsByComponent = InCopiedColors;
 }
 
-void UMeshToolManager::CacheSelectionData(const int32 PaintLODIndex, const int32 UVChannel)
+void UMeshPaintingSubsystem::CacheSelectionData(const int32 PaintLODIndex, const int32 UVChannel)
 {
 	bSelectionContainsPerLODColors = false;
 	for (UMeshComponent* MeshComponent : SelectedMeshComponents)
@@ -1542,7 +1544,7 @@ void UMeshToolManager::CacheSelectionData(const int32 PaintLODIndex, const int32
 	bNeedsRecache = false;
 }
 
-int32 UMeshToolManager::GetMaxUVIndexToPaint() const
+int32 UMeshPaintingSubsystem::GetMaxUVIndexToPaint() const
 {
 	if (PaintableComponents.Num() == 1 && PaintableComponents[0])
 	{

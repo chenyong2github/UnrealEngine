@@ -136,8 +136,6 @@ public:
 	bool ShouldFilterTextureAsset(const FAssetData& AssetData) const;
 	void PaintTextureChanged(const FAssetData& AssetData);
 
-	void SetMeshToolData(TWeakObjectPtr<UMeshToolManager> InToolData);
-
 protected:
 	virtual void SetAdditionalPaintParameters(FMeshPaintParameters& InPaintParameters) {};
 	virtual void FinishPainting();
@@ -170,8 +168,6 @@ private:
 
 	UPROPERTY(Transient)
 	TArray<const UTexture*> Textures;
-
-	TWeakObjectPtr<UMeshToolManager> SharedMeshToolData;
 
 	/** Flag for whether or not we are currently painting */
 	bool bArePainting;

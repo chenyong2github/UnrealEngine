@@ -63,8 +63,6 @@ class MESHPAINTINGTOOLSET_API UMeshColorPaintingToolBuilder : public UInteractiv
 public:
 	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
 	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override;
-	
-	TWeakObjectPtr<UMeshToolManager> SharedMeshToolData;
 };
 
 UCLASS()
@@ -75,8 +73,6 @@ class MESHPAINTINGTOOLSET_API UMeshWeightPaintingToolBuilder : public UInteracti
 public:
 	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
 	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override;
-
-	TWeakObjectPtr<UMeshToolManager> SharedMeshToolData;
 };
 
 
@@ -204,8 +200,6 @@ public:
 		return true;
 	}
 
-	void SetMeshToolData(TWeakObjectPtr<UMeshToolManager> InMeshToolData);
-
 protected:
 	virtual void SetAdditionalPaintParameters(FMeshPaintParameters& InPaintParameters) {};
 	virtual void FinishPainting();
@@ -230,8 +224,6 @@ protected:
 
 	UPROPERTY(Transient)
 	UMeshPaintSelectionMechanic* SelectionMechanic;
-
-	TWeakObjectPtr<UMeshToolManager> SharedMeshToolData;
 
 private:
 	bool PaintInternal(const TArrayView<TPair<FVector, FVector>>& Rays, EMeshPaintModeAction PaintAction, float PaintStrength);

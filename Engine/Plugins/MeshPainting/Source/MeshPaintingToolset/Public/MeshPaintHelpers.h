@@ -128,6 +128,8 @@ class MESHPAINTINGTOOLSET_API UMeshPaintingSubsystem : public UEngineSubsystem
 
 	GENERATED_BODY()
 public:
+	UMeshPaintingSubsystem();
+
 	bool HasPaintableMesh(UActorComponent* Component);
 	/** Removes vertex colors associated with the object */
 	void RemoveInstanceVertexColors(UObject* Obj);
@@ -228,35 +230,19 @@ public:
 
 	/** Helper function to retrieve vertex color from a UTexture given a UVCoordinate */
 	FColor PickVertexColorFromTextureData(const uint8* MipData, const FVector2D& UVCoordinate, const UTexture2D* Texture, const FColor ColorMask);	
-};
 
-template<typename T>
-void UMeshPaintingSubsystem::ApplyBrushToVertex(const FVector& VertexPosition, const FMatrix& InverseBrushMatrix, const float BrushRadius, const float BrushFalloffAmount, const float BrushStrength, const T& PaintValue, T& InOutValue)
-{
-	const FVector BrushSpacePosition = InverseBrushMatrix.TransformPosition(VertexPosition);
-	const FVector2D BrushSpacePosition2D(BrushSpacePosition.X, BrushSpacePosition.Y);
-		
-	float InfluencedValue = 0.0f;
-	if (IsPointInfluencedByBrush(BrushSpacePosition2D, BrushRadius * BrushRadius, InfluencedValue))
+	void SetSelectionHasMaterialValidForTexturePaint(const bool InValidity)
 	{
-		float InnerBrushRadius = BrushFalloffAmount * BrushRadius;
-		float PaintStrength = GEngine->GetEngineSubsystem<UMeshPaintingSubsystem>()->ComputePaintMultiplier(BrushSpacePosition2D.SizeSquared(), BrushStrength, InnerBrushRadius, BrushRadius - InnerBrushRadius, 1.0f, 1.0f, 1.0f);
+		bSelectionHasMaterialValidForTexturePaint = InValidity;
+	}
 
-		const T OldValue = InOutValue;
-		InOutValue = FMath::LerpStable(OldValue, PaintValue, PaintStrength);
-	}	
-};
-
-UCLASS()
-class MESHPAINTINGTOOLSET_API UMeshToolManager : public UObject
-{
-	GENERATED_BODY()
-
-public:
-	UMeshToolManager();
+	bool SelectionHasMaterialValidForTexturePaint()
+	{
+		return bSelectionHasMaterialValidForTexturePaint;
+	}
 
 	/** Map of geometry adapters for each selected mesh component */
-	TMap<UMeshComponent*, TSharedPtr<IMeshPaintComponentAdapter>> GetComponentToAdapterMap() const;
+	TMap<FName, TSharedPtr<IMeshPaintComponentAdapter>> GetComponentToAdapterMap() const;
 	TSharedPtr<IMeshPaintComponentAdapter> GetAdapterForComponent(const UMeshComponent* InComponent);
 	void AddToComponentToAdapterMap(UMeshComponent* InComponent, TSharedPtr<IMeshPaintComponentAdapter> InAdapter);
 
@@ -280,17 +266,36 @@ public:
 public:
 	bool bNeedsRecache;
 
+protected:
+	bool bSelectionHasMaterialValidForTexturePaint;
 
 private:
 	void CleanUp();
 
 private:
 	/** Map of geometry adapters for each selected mesh component */
-	TMap<UMeshComponent*, TSharedPtr<IMeshPaintComponentAdapter>> ComponentToAdapterMap;
+	TMap<FName, TSharedPtr<IMeshPaintComponentAdapter>> ComponentToAdapterMap;
 	TArray<UMeshComponent*> SelectedMeshComponents;
 	/** Mesh components within the current selection which are eligible for painting */
 	TArray<UMeshComponent*> PaintableComponents;
 	/** Contains copied vertex color data */
 	TArray<FPerComponentVertexColorData> CopiedColorsByComponent;
 	bool bSelectionContainsPerLODColors;
+};
+
+template<typename T>
+void UMeshPaintingSubsystem::ApplyBrushToVertex(const FVector& VertexPosition, const FMatrix& InverseBrushMatrix, const float BrushRadius, const float BrushFalloffAmount, const float BrushStrength, const T& PaintValue, T& InOutValue)
+{
+	const FVector BrushSpacePosition = InverseBrushMatrix.TransformPosition(VertexPosition);
+	const FVector2D BrushSpacePosition2D(BrushSpacePosition.X, BrushSpacePosition.Y);
+		
+	float InfluencedValue = 0.0f;
+	if (IsPointInfluencedByBrush(BrushSpacePosition2D, BrushRadius * BrushRadius, InfluencedValue))
+	{
+		float InnerBrushRadius = BrushFalloffAmount * BrushRadius;
+		float PaintStrength = GEngine->GetEngineSubsystem<UMeshPaintingSubsystem>()->ComputePaintMultiplier(BrushSpacePosition2D.SizeSquared(), BrushStrength, InnerBrushRadius, BrushRadius - InnerBrushRadius, 1.0f, 1.0f, 1.0f);
+
+		const T OldValue = InOutValue;
+		InOutValue = FMath::LerpStable(OldValue, PaintValue, PaintStrength);
+	}	
 };

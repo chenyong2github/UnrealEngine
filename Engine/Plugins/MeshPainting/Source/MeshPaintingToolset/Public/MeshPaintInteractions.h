@@ -39,7 +39,6 @@ public:
 	{
 		bAddToSelectionSet = bInNewSelectionType;
 	}
-	void SetMeshToolData(TWeakObjectPtr<UMeshToolManager> InMeshToolData);
 protected:
 	bool FindClickedComponentsAndCacheAdapters(const FInputDeviceRay& ClickPos);
 
@@ -48,7 +47,5 @@ protected:
 	TArray<UMeshComponent*> CachedClickedComponents;
 	UPROPERTY(Transient)
 	TArray<AActor*> CachedClickedActors;
-
-	TWeakObjectPtr<UMeshToolManager> SharedMeshToolData;
 	bool bAddToSelectionSet;
 };

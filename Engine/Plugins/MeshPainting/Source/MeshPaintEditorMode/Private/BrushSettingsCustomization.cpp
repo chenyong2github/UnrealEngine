@@ -435,7 +435,7 @@ void FTexturePaintingSettingsCustomization::CustomizeDetails(IDetailLayoutBuilde
 			.AllowSpin(true)
 			.Value_Lambda([]() -> int32 { return UMeshPaintMode::GetTextureToolProperties() ? UMeshPaintMode::GetTextureToolProperties()->UVChannel : 0; })
 			.MinValue(0)
-			.MaxValue_Lambda([]() -> int32 { return UMeshPaintMode::GetMeshPaintMode()->GetMeshToolData()->GetMaxUVIndexToPaint(); })
+			.MaxValue_Lambda([]() -> int32 { return GEngine->GetEngineSubsystem<UMeshPaintingSubsystem>()->GetMaxUVIndexToPaint(); })
 			.OnValueChanged(SNumericEntryBox<int32>::FOnValueChanged::CreateLambda([=](int32 Value) { 
 				if (UMeshPaintMode::GetTextureToolProperties())
 				{

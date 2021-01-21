@@ -63,8 +63,6 @@ public:
 		return CachedVertexDataSize;
 	}
 
-	TWeakObjectPtr<UMeshToolManager> GetMeshToolData() const;
-
 protected:
 
 	/** Binds UI commands to actions for the mesh paint mode */
@@ -78,6 +76,11 @@ protected:
 	virtual void UpdateOnPaletteChange(FName NewPalette);
 	// end UEdMode Interface
 	void UpdateSelectedMeshes();
+
+	void CheckSelectionForTexturePaintCompat(const TArray<UMeshComponent*>& CurrentMeshComponents);
+	
+
+	void UpdateOnMaterialChange(bool bInvalidateHitProxies);
 	void OnResetViewMode();
 	void FillWithVertexColor();
 	void PropagateVertexColorsToAsset();
@@ -108,8 +111,6 @@ protected:
 	UPROPERTY(Transient)
 	UMeshPaintModeSettings* ModeSettings;
 
-	UPROPERTY(Transient)
-	UMeshToolManager* SharedMeshToolData;
 
 	// End vertex paint state
 	FGetSelectedMeshComponents MeshComponentDelegate;
