@@ -842,7 +842,6 @@ void UAnimSequenceBase::EvaluateCurveData(FBlendedCurve& OutCurve, float Current
 {
 	CSV_SCOPED_TIMING_STAT(Animation, EvaluateCurveData);
 
-	REFACTOR_V2_WARNING("V2 Curve evaluation goes through original curve data structure. This contains copied data from the model. Goal is to have compressed curve data within AnimSequenceBase so that model would be editor / raw data. And compressed data is used at runtime.");
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	RawCurveData.EvaluateCurveData(OutCurve, CurrentTime);
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
@@ -854,13 +853,11 @@ float UAnimSequenceBase::EvaluateCurveData(SmartName::UID_Type CurveUID, float C
 	const FFloatCurve* Curve = (const FFloatCurve*)RawCurveData.GetCurveData(CurveUID, ERawCurveTrackTypes::RCT_Float);
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
-	REFACTOR_V2_WARNING("V2 Curve evaluation goes through original curve data structure. This contains copied data from the model. Goal is to have compressed curve data within AnimSequenceBase so that model would be editor / raw data. And compressed data is used at runtime.");
 	return Curve != nullptr ? Curve->Evaluate(CurrentTime) : 0.0f;
 }
 
 const FRawCurveTracks& UAnimSequenceBase::GetCurveData() const
 {
-	REFACTOR_V2_WARNING("V2 Curve evaluation goes through original curve data structure. This contains copied data from the model. Goal is to have compressed curve data within AnimSequenceBase so that model would be editor / raw data. And compressed data is used at runtime.");
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	return RawCurveData;
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS

@@ -191,7 +191,6 @@ void FAnimTimelineTrack_FloatCurve::RemoveCurve()
 			UAnimDataController* Controller = AnimSequenceBase->GetController();
 			Controller->RemoveCurve(CurveId);
 
-			REFACTOR_V2_WARNING("V2 what is the reasoning behind this call?");
 			AnimSequenceBase->PostEditChange();
 		}
 	}

@@ -582,7 +582,6 @@ void SAnimMontagePanel::PostRedo( bool bSuccess )
 void SAnimMontagePanel::PostRedoUndo()
 {
 	// when undo or redo happens, we still have to recalculate length, so we can't rely on sequence length changes or not
-	REFACTOR_V2_WARNING("V2 is this still necessary or is this handled through notify callbacks by now?");
 	if (Montage->GetPlayLength())
 	{
 		Montage->SetCompositeLength(MINIMUM_ANIMATION_LENGTH);

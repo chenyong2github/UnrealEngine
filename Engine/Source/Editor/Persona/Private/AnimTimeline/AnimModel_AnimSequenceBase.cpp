@@ -425,7 +425,6 @@ void FAnimModel_AnimSequenceBase::RemoveSelectedCurves()
 
 	if(bDeletedCurve)
 	{
-		REFACTOR_V2_WARNING("V2 why is post edit change needed here?");
 		AnimSequenceBase->PostEditChange();
 
 		if (GetPreviewScene()->GetPreviewMeshComponent()->PreviewInstance != nullptr)

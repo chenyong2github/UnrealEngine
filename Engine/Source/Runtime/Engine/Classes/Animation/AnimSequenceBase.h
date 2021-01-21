@@ -31,12 +31,6 @@ class UAnimDataModel;
 class UAnimDataController;
 enum class EAnimDataModelNotifyType : uint8;
 
-#if 0
-#define REFACTOR_V2_WARNING(text) EMIT_CUSTOM_WARNING(text)
-#else
-#define REFACTOR_V2_WARNING(text)
-#endif
-
 UCLASS(abstract, BlueprintType)
 class ENGINE_API UAnimSequenceBase : public UAnimationAsset
 {

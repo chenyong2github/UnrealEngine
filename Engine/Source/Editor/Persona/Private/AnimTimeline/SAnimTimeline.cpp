@@ -780,7 +780,6 @@ void SAnimTimeline::OnColumnFillCoefficientChanged(float FillCoefficient, int32 
 
 void SAnimTimeline::HandleKeyComplete()
 {
-	REFACTOR_V2_WARNING("V2 remove this function and verify that behaviour remained the same");
 	Model.Pin()->RefreshTracks();
 }
 

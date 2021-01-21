@@ -1076,7 +1076,6 @@ void UAnimSequence::PostEditChangeProperty(FPropertyChangedEvent& PropertyChange
 		ResampleAnimationTrackData();
 	}
 
-	REFACTOR_V2_WARNING("V2 we should not rely on PostEditChange to check for compressed data");
 	const bool bNeedPostProcess = !IsCompressedDataValid() || bAdditiveSettingsChanged || bCompressionAffectingSettingsChanged || bShouldResample;
 
 	// @Todo fix me: This is temporary fix to make sure they always have compressed data
