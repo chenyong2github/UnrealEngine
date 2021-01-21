@@ -1063,8 +1063,7 @@ void FCache::Put(
 	Data.SetNumUninitialized(static_cast<int32>(SaveSize));
 	Writer.Save(MakeMemoryView(Data));
 
-	const bool bPutEvenIfExists = EnumHasAnyFlags(Policy, ECachePolicy::Overwrite);
-	GetDerivedDataCacheRef().Put(*MakeRecordKey(Params.Key), Data, Context, bPutEvenIfExists);
+	GetDerivedDataCacheRef().Put(*MakeRecordKey(Params.Key), Data, Context);
 
 	UE_LOG(LogDerivedDataCache, VeryVerbose, TEXT("Cache: Put for %s from '%.*s'"),
 		*TToString<96>(Params.Key), Context.Len(), Context.GetData());

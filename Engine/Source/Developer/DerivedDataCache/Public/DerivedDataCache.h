@@ -45,9 +45,6 @@ enum class ECachePolicy : uint8
 	/** Skip fetching any data for get requests, which will only check for existence. */
 	SkipAll         = SkipMeta | SkipValue | SkipAttachments,
 
-	/** Allow a put request to overwrite existing cache records. */
-	Overwrite       = 1 << 7,
-
 	/** Allow requests to query and store records in local caches. */
 	Local           = QueryLocal | StoreLocal,
 	/** Allow requests to query and store records in remote caches. */
