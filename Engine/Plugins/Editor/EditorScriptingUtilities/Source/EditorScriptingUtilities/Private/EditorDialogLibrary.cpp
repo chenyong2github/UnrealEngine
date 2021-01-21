@@ -73,9 +73,9 @@ public:
 					.AutoWidth()
 					[
 						SNew(SButton)
-						.ButtonStyle(FEditorStyle::Get(), "FlatButton.Success")
-						.ForegroundColor(FLinearColor::White)
-						.ContentPadding(FMargin(6, 2))
+						.ContentPadding(FCoreStyle::Get().GetMargin("StandardDialog.ContentPadding"))
+						.Text(LOCTEXT("OKButton", "OK"))
+						.HAlign(HAlign_Center)
 						.OnClicked_Lambda([this, InParentWindow, InArgs]()
 						{
 							if(InParentWindow.IsValid())
@@ -85,20 +85,15 @@ public:
 							bOKPressed = true;
 							return FReply::Handled(); 
 						})
-						[
-							SNew(STextBlock)
-							.TextStyle(FEditorStyle::Get(), "ContentBrowser.TopBar.Font")
-							.Text(LOCTEXT("OKButtonText", "OK"))
-						]
 					]
 					+SHorizontalBox::Slot()
 					.Padding(2.0f)
 					.AutoWidth()
 					[
 						SNew(SButton)
-						.ButtonStyle(FEditorStyle::Get(), "FlatButton")
-						.ForegroundColor(FLinearColor::White)
-						.ContentPadding(FMargin(6, 2))
+						.ContentPadding(FCoreStyle::Get().GetMargin("StandardDialog.ContentPadding"))
+						.Text(LOCTEXT("CancelButton", "Cancel"))
+						.HAlign(HAlign_Center)
 						.OnClicked_Lambda([InParentWindow]()
 						{ 
 							if(InParentWindow.IsValid())
@@ -107,11 +102,6 @@ public:
 							}
 							return FReply::Handled(); 
 						})
-						[
-							SNew(STextBlock)
-							.TextStyle(FEditorStyle::Get(), "ContentBrowser.TopBar.Font")
-							.Text(LOCTEXT("CancelButtonText", "Cancel"))
-						]
 					]
 				]
 			]
