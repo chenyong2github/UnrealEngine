@@ -75,7 +75,7 @@ namespace EpicGames.Perforce
 		/// <summary>
 		/// Computed view for the stream
 		/// </summary>
-		[PerforceTag("View")]
+		[PerforceTag("View", Optional = true)]
 		public List<string> View = new List<string>();
 
 		/// <summary>

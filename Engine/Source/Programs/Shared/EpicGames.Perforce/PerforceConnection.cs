@@ -959,7 +959,7 @@ namespace EpicGames.Perforce
 			{
 				Arguments.Append(" -v");
 			}
-			Arguments.Append(StreamName);
+			Arguments.AppendFormat(" {0}", StreamName);
 
 			return SingleResponseCommandAsync<StreamRecord>(Arguments.ToString(), null, CancellationToken);
 		}
