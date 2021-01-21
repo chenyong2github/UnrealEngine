@@ -12,6 +12,7 @@ namespace LowLevelTasks
 
 	thread_local FScheduler::FLocalQueueType* FScheduler::LocalQueue = nullptr;
 	thread_local FTask* FScheduler::ActiveTask = nullptr;
+	thread_local bool FScheduler::bIsBackgroundWorker = false;
 
 	FScheduler FScheduler::Singleton;
 
@@ -115,7 +116,6 @@ namespace LowLevelTasks
 		if (ActiveWorkers.load(std::memory_order_relaxed))
 		{			
 			const bool bIsBackgroundTask = Task.IsBackgroundTask();
-			const bool bIsBackgroundWorker = ActiveTask && ActiveTask->IsBackgroundTask();
 			if (bIsBackgroundTask && !bIsBackgroundWorker)
 			{
 				QueuePreference = EQueuePreference::GlobalQueuePreference;
@@ -177,6 +177,7 @@ namespace LowLevelTasks
 	void FScheduler::WorkerMain(FSleepEvent* WorkerEvent, FLocalQueueType* ExternalWorkerLocalQueue, uint32 WaitCycles, bool bPermitBackgroundWork)
 	{
 		FMemory::SetupTLSCachesOnCurrentThread();
+		bIsBackgroundWorker = bPermitBackgroundWork;
 
 		checkSlow(LocalQueue == nullptr);
 		if(ExternalWorkerLocalQueue)
@@ -232,6 +233,7 @@ namespace LowLevelTasks
 		FLocalQueueType::DeleteLocalQueue(WorkerLocalQueue, bPermitBackgroundWork, ExternalWorkerLocalQueue != nullptr);
 		LocalQueue = nullptr;
 
+		bIsBackgroundWorker = false;
 		FMemory::ClearAndDisableTLSCachesOnCurrentThread();
 	}
 
@@ -280,6 +282,10 @@ namespace LowLevelTasks
 				FPlatformProcess::Yield();
 				FPlatformProcess::Yield();
 				WaitCount++;
+			}
+			else if (!bPermitBackgroundWork && bIsBackgroundWorker)
+			{
+				bPermitBackgroundWork = true;
 			}
 			else
 			{

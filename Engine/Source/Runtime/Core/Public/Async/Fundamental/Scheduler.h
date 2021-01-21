@@ -29,6 +29,7 @@ namespace LowLevelTasks
 
 		static thread_local FLocalQueueType* LocalQueue;
 		static thread_local FTask* ActiveTask;
+		static thread_local bool bIsBackgroundWorker;
 		static CORE_API FScheduler Singleton;
 
 		// using 16 bytes here because it fits the vtable and one additional pointer
