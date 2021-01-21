@@ -1336,23 +1336,22 @@ public:
 	}
 	bool IterateDirectoryCommon(const TCHAR* Directory, const TFunctionRef<bool(const WIN32_FIND_DATAW&)>& Visitor)
 	{
-		bool Result = false;
+		bool bResult = true;
 		WIN32_FIND_DATAW Data;
 		FString SearchWildcard = FString(Directory) / TEXT("*.*");
 		HANDLE Handle = FindFirstFileW(*(WindowsNormalizedFilename(*SearchWildcard)), &Data);
 		if (Handle != INVALID_HANDLE_VALUE)
 		{
-			Result = true;
 			do
 			{
 				if (FCString::Strcmp(Data.cFileName, TEXT(".")) && FCString::Strcmp(Data.cFileName, TEXT("..")))
 				{
-					Result = Visitor(Data);
+					bResult = Visitor(Data);
 				}
-			} while (Result && FindNextFileW(Handle, &Data));
+			} while (bResult && FindNextFileW(Handle, &Data));
 			FindClose(Handle);
 		}
-		return Result;
+		return bResult;
 	}
 };
 
