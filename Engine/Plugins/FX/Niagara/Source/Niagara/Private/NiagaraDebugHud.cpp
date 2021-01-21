@@ -560,7 +560,7 @@ void FNiagaraDebugHud::Draw(FNiagaraWorldManager* WorldManager, UCanvas* Canvas,
 	DrawComponents(WorldManager, Canvas, GEngine->GetTinyFont());
 
 	// Draw overview
-	DrawOverview(Canvas->Canvas, GEngine->GetSmallFont());
+	DrawOverview(WorldManager, Canvas->Canvas, GEngine->GetSmallFont());
 
 	// Scrub any gpu cached emitters we haven't used in a while
 	{
@@ -579,7 +579,7 @@ void FNiagaraDebugHud::Draw(FNiagaraWorldManager* WorldManager, UCanvas* Canvas,
 	}
 }
 
-void FNiagaraDebugHud::DrawOverview(FCanvas* DrawCanvas, UFont* Font)
+void FNiagaraDebugHud::DrawOverview(class FNiagaraWorldManager* WorldManager, FCanvas* DrawCanvas, UFont* Font)
 {
 	using namespace NiagaraDebugLocal;
 
@@ -598,19 +598,46 @@ void FNiagaraDebugHud::DrawOverview(FCanvas* DrawCanvas, UFont* Font)
 		static const float ColumnOffset[] = { 0, 150, 300, 450 };
 		static const float GuessWidth = 600.0f;
 
-		const int32 NumLines = 2 + (GSystemFilter.IsEmpty() ? 0 : 1) + (GComponentFilter.IsEmpty() ? 0 : 1);
+		TStringBuilder<1024> DetailsString;
+		{
+			const TCHAR* Separator = TEXT("    ");
+			if (WorldManager->GetDebugPlaybackMode() != ENiagaraDebugPlaybackMode::Play)
+			{
+				DetailsString.Append(TEXT("PlaybackMode: "));
+				switch (WorldManager->GetDebugPlaybackMode())
+				{
+					case ENiagaraDebugPlaybackMode::Loop:	DetailsString.Append(TEXT("Looping")); break;
+					case ENiagaraDebugPlaybackMode::Paused:	DetailsString.Append(TEXT("Paused")); break;
+					case ENiagaraDebugPlaybackMode::Step:	DetailsString.Append(TEXT("Step")); break;
+					default:								DetailsString.Append(TEXT("Unknown")); break;
+				}
+				DetailsString.Append(Separator);
+			}
+			if ( !FMath::IsNearlyEqual(WorldManager->GetDebugPlaybackRate(), 1.0f) )
+			{
+				DetailsString.Appendf(TEXT("PlaybackRate: %.4f"), WorldManager->GetDebugPlaybackRate());
+				DetailsString.Append(Separator);
+			}
+			if (!GSystemFilter.IsEmpty())
+			{
+				DetailsString.Appendf(TEXT("SystemFilter: %s"), *GSystemFilter);
+				DetailsString.Append(Separator);
+			}
+			if (!GComponentFilter.IsEmpty())
+			{
+				DetailsString.Appendf(TEXT("ComponentFilter: %s"), *GComponentFilter);
+				DetailsString.Append(Separator);
+			}
+		}
+
+		const int32 NumLines = 2 + (DetailsString.Len() > 0 ? 1 : 0);
 		DrawCanvas->DrawTile(TextLocation.X - 1.0f, TextLocation.Y - 1.0f, GuessWidth + 1.0f, 2.0f + (float(NumLines) * fAdvanceHeight), 0.0f, 0.0f, 0.0f, 0.0f, BackgroundColor);
 
 		DrawCanvas->DrawShadowedString(TextLocation.X, TextLocation.Y, TEXT("Niagara DebugHud"), Font, HeadingColor);
 		TextLocation.Y += fAdvanceHeight;
-		if (!GSystemFilter.IsEmpty())
+		if ( DetailsString.Len() > 0 )
 		{
-			DrawCanvas->DrawShadowedString(TextLocation.X, TextLocation.Y, *FString::Printf(TEXT("SystemFilter: %s"), *GSystemFilter), Font, HeadingColor);
-			TextLocation.Y += fAdvanceHeight;
-		}
-		if (!GComponentFilter.IsEmpty())
-		{
-			DrawCanvas->DrawShadowedString(TextLocation.X, TextLocation.Y, *FString::Printf(TEXT("ComponentFilter: %s"), *GComponentFilter), Font, HeadingColor);
+			DrawCanvas->DrawShadowedString(TextLocation.X, TextLocation.Y, DetailsString.ToString(), Font, HeadingColor);
 			TextLocation.Y += fAdvanceHeight;
 		}
 

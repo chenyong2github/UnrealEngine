@@ -116,7 +116,7 @@ static FAutoConsoleVariableRef CVarEnableNiagaraInstanceCountCulling(
 
 float GWorldLoopTime = 0.0f;
 static FAutoConsoleVariableRef CVarWorldLoopTime(
-	TEXT("fx.GlobalLoopTime"),
+	TEXT("fx.Niagara.Debug.GlobalLoopTime"),
 	GWorldLoopTime,
 	TEXT("If > 0 all Niagara FX will reset every N seconds. \n"),
 	ECVF_Default

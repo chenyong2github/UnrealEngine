@@ -56,7 +56,7 @@ private:
 	static void DebugDrawCallback(class UCanvas* Canvas, class APlayerController* PC);
 
 	void Draw(class FNiagaraWorldManager* WorldManager, class UCanvas* Canvas, class APlayerController* PC);
-	void DrawOverview(class FCanvas* DrawCanvas, class UFont* Font);
+	void DrawOverview(class FNiagaraWorldManager* WorldManager, class FCanvas* DrawCanvas, class UFont* Font);
 	void DrawComponents(class FNiagaraWorldManager* WorldManager, class UCanvas* Canvas, class UFont* Font);
 
 private:

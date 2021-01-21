@@ -9,7 +9,9 @@
 #include "Widgets/SOverlay.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SNumericDropDown.h"
+#include "Widgets/Input/SNumericEntryBox.h"
 #include "Widgets/Layout/SScrollBox.h"
+#include "Widgets/Text/STextBlock.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"
@@ -172,6 +174,21 @@ void SNiagaraDebugger::Construct(const FArguments& InArgs)
 				]
 				+ SHorizontalBox::Slot()
 				.AutoWidth()
+				[
+					SNew(SButton)
+					.VAlign(VAlign_Center)
+					.OnClicked(FOnClicked::CreateLambda(
+						[&]() -> FReply
+						{
+							ExecConsoleCommand(*FString::Printf(TEXT("fx.Niagara.Debug.PlaybackMode %d"), ENiagaraDebugPlaybackMode::Loop), true);
+							return FReply::Handled();
+						})
+					)
+					.Text(FText::FromString(TEXT("Loop")))
+					.ToolTipText(FText::FromString(TEXT("All effects will loop rather than deactivate")))
+				]
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
 				.Padding(4.0f, 0.0f, 0.0f, 0.0f)
 				[
 					SNew(SNumericDropDown<float>)
@@ -179,7 +196,30 @@ void SNiagaraDebugger::Construct(const FArguments& InArgs)
 					.LabelText(LOCTEXT("PlaybackRate", "Playback Rate"))
 					.Value(this, &SNiagaraDebugger::GetPlaybackRate)
 					.OnValueChanged(this, &SNiagaraDebugger::SetPlaybackRate)
-					//SNew(SNumericEntryBox<float>)
+				]
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.Padding(4.0f, 0.0f, 0.0f, 0.0f)
+				[
+					SNew(SHorizontalBox)
+					+SHorizontalBox::Slot()
+					.AutoWidth()
+					.VAlign(VAlign_Center)
+					[
+						SNew(STextBlock)
+						.Text(LOCTEXT("GlobalLoopTime", "Global Loop Time"))
+					]
+					+SHorizontalBox::Slot()
+					.Padding(4.0f, 0.0f, 4.0f, 0.0f)
+					.AutoWidth()
+					[
+						SNew(SNumericEntryBox<float>)
+						.Value(this, &SNiagaraDebugger::GetGlobalLoopTime)
+						.AllowSpin(false)
+						.MinValue(0.0f)
+						.MaxValue(TOptional<float>())
+						.OnValueChanged(this, &SNiagaraDebugger::SetGlobalLoopTime)
+					]
 				]
 				+ SHorizontalBox::Slot()
 				.AutoWidth()
@@ -191,6 +231,7 @@ void SNiagaraDebugger::Construct(const FArguments& InArgs)
 						{
 							ExecHUDConsoleCommand();
 							SetPlaybackRate(PlaybackRate);
+							SetGlobalLoopTime(GlobalLoopTime);
 							return FReply::Handled();
 						})
 					)
@@ -475,7 +516,6 @@ void SNiagaraDebugger::ExecConsoleCommand(const TCHAR* Cmd, bool bRequiresWorld)
 			{
 				UWorld* World = *WorldIt;
 				if ( (World != nullptr) &&
-					 (World->WorldType == EWorldType::PIE) &&
 					 (World->PersistentLevel != nullptr) &&
 					 (World->PersistentLevel->OwningWorld == World) &&
 					 ((World->GetNetMode() == ENetMode::NM_Client) || (World->GetNetMode() == ENetMode::NM_Standalone)) )
@@ -520,8 +560,8 @@ void SNiagaraDebugger::ExecHUDConsoleCommand()
 		ExecConsoleCommand(*FString::Printf(TEXT("fx.Niagara.Debug.Hud SystemVerbosity=%d"), (int32)Settings->SystemVerbosity), false);
 		ExecConsoleCommand(*FString::Printf(TEXT("fx.Niagara.Debug.Hud SystemShowBounds=%d "), Settings->bSystemShowBounds ? 1 : 0), false);
 		ExecConsoleCommand(*FString::Printf(TEXT("fx.Niagara.Debug.Hud SystemShowActiveOnlyInWorld=%d"), Settings->bSystemShowActiveOnlyInWorld ? 1 : 0), false);
-		ExecConsoleCommand(*FString::Printf(TEXT("fx.Niagara.Debug.Hud SystemFilter=%s"), *Settings->SystemFilter), false);
-		ExecConsoleCommand(*FString::Printf(TEXT("fx.Niagara.Debug.Hud ComponentFilter=%s"), *Settings->ComponentFilter), false);
+		ExecConsoleCommand(*FString::Printf(TEXT("fx.Niagara.Debug.Hud SystemFilter=%s"), Settings->bSystemFilterEnabled ? *Settings->SystemFilter : TEXT("")), false);
+		ExecConsoleCommand(*FString::Printf(TEXT("fx.Niagara.Debug.Hud ComponentFilter=%s"), Settings->bComponentFilterEnabled ? *Settings->ComponentFilter : TEXT("")), false);
 		ExecConsoleCommand(*FString::Printf(TEXT("fx.Niagara.Debug.Hud SystemVariables=%s"), Settings->bShowSystemVariables ? *BuildVariableString(Settings->SystemVariables) : TEXT("")), false);
 		ExecConsoleCommand(*FString::Printf(TEXT("fx.Niagara.Debug.Hud ParticleVariables=%s"), Settings->bShowParticleVariables ? *BuildVariableString(Settings->ParticlesVariables) : TEXT("")), false);
 		ExecConsoleCommand(*FString::Printf(TEXT("fx.Niagara.Debug.Hud MaxParticlesToDisplay=%d"), Settings->MaxParticlesToDisplay), false);
@@ -538,6 +578,17 @@ void SNiagaraDebugger::SetPlaybackRate(float Rate)
 {
 	PlaybackRate = Rate;
 	ExecConsoleCommand(*FString::Printf(TEXT("fx.Niagara.Debug.PlaybackRate %.3f"), PlaybackRate), true);
+}
+
+TOptional<float> SNiagaraDebugger::GetGlobalLoopTime() const
+{
+	return GlobalLoopTime;
+}
+
+void SNiagaraDebugger::SetGlobalLoopTime(float Time)
+{
+	GlobalLoopTime = Time;
+	ExecConsoleCommand(*FString::Printf(TEXT("fx.Niagara.Debug.GlobalLoopTime %.3f"), GlobalLoopTime), true);
 }
 
 #undef LOCTEXT_NAMESPACE
