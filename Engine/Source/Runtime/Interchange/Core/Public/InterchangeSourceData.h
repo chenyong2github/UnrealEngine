@@ -30,9 +30,8 @@ public:
 	}
 
 	UInterchangeSourceData(FString InFilename)
-	: Filename(InFilename)
 	{
-		FileContentHashCache.Reset();
+		SetFilename(InFilename);
 	}
 	
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Import Manager")
@@ -54,7 +53,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Import Manager")
 	FORCEINLINE bool SetFilename(const FString& InFilename)
 	{
-		Filename = InFilename;
+		Filename = FPaths::ConvertRelativePathToFull(InFilename);
 		//Reset the cache
 		FileContentHashCache.Reset();
 		return true;
