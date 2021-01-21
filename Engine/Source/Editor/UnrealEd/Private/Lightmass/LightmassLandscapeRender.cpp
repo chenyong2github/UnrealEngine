@@ -13,7 +13,7 @@
 #include "SceneView.h"
 #include "PrimitiveUniformShaderParameters.h"
 #include "LocalVertexFactory.h"
-#include "CanvasTypes.h"
+#include "CanvasRender.h"
 #include "MeshBatch.h"
 
 #include "LandscapeProxy.h"
@@ -121,28 +121,21 @@ void RenderLandscapeMaterialForLightmass(const FLandscapeStaticLightingMesh* Lan
 			
 			if (OneFrameResource.IsValidForRendering())
 			{
-				// Set the RHI render target.
-				RHICmdList.Transition(FRHITransitionInfo(RenderTarget->GetRenderTargetTexture(), ERHIAccess::Unknown, ERHIAccess::RTV));
+				const FIntRect RTViewRect = FIntRect(0, 0, RenderTarget->GetRenderTargetTexture()->GetSizeX(), RenderTarget->GetRenderTargetTexture()->GetSizeY());
 
-				FRHIRenderPassInfo RPInfo(RenderTarget->GetRenderTargetTexture(), ERenderTargetActions::Load_Store);
-				RHICmdList.BeginRenderPass(RPInfo, TEXT("CanvasFlushSetup"));
-				{
-					const FIntRect RTViewRect = FIntRect(0, 0, RenderTarget->GetRenderTargetTexture()->GetSizeX(), RenderTarget->GetRenderTargetTexture()->GetSizeY());
+				FRDGBuilder GraphBuilder(RHICmdList, RDG_EVENT_NAME("LightmassLandscapeMaterial"));
+				FSceneView View(ViewInitOptions);
 
-					// set viewport to RT size
-					RHICmdList.SetViewport(RTViewRect.Min.X, RTViewRect.Min.Y, 0.0f, RTViewRect.Max.X, RTViewRect.Max.Y, 1.0f);
+				FMeshPassProcessorRenderState DrawRenderState;
 
-					FSceneView View(ViewInitOptions);
+				// disable depth test & writes
+				DrawRenderState.SetDepthStencilState(TStaticDepthStencilState<false, CF_Always>::GetRHI());
 
-					FMeshPassProcessorRenderState DrawRenderState;
+				//SCOPED_DRAW_EVENT(RHICmdList, RenderLandscapeMaterialToTexture);
+				FCanvasRenderContext RenderContext(GraphBuilder, RenderTarget->GetRenderTargetTexture(GraphBuilder), RTViewRect, FIntRect(0, 0, 0, 0));
+				GetRendererModule().DrawTileMesh(RenderContext, DrawRenderState, View, Mesh, false, FHitProxyId());
 
-					// disable depth test & writes
-					DrawRenderState.SetDepthStencilState(TStaticDepthStencilState<false, CF_Always>::GetRHI());
-
-					//SCOPED_DRAW_EVENT(RHICmdList, RenderLandscapeMaterialToTexture);
-					GetRendererModule().DrawTileMesh(RHICmdList, DrawRenderState, View, Mesh, false, FHitProxyId());
-				}
-				RHICmdList.EndRenderPass();
+				GraphBuilder.Execute();
 			}
 		});
 	FlushRenderingCommands();

@@ -17,6 +17,9 @@ struct FRDGSystemTextures
 	/** Returns the instance for the builder. Must be called after Create. */
 	RENDERER_API static const FRDGSystemTextures& Get(FRDGBuilder& GraphBuilder);
 
+	/** Returns whether the system textures have been created. */
+	RENDERER_API static bool IsValid(FRDGBuilder& GraphBuilder);
+
 	FRDGTextureRef White{};
 	FRDGTextureRef Black{};
 	FRDGTextureRef BlackAlphaOne{};

@@ -68,29 +68,6 @@ const TCHAR* ToString(EWorldType::Type Type)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-namespace GroomDebug
-{
-	// Internal helper class for FCanvas to be able to get screen size
-	class FRenderTargetTemp : public FRenderTarget
-	{
-		const FTexture2DRHIRef Texture;
-		const FIntPoint SizeXY;
-
-	public:
-		FRenderTargetTemp(const FIntRect& ViewRect, const FTexture2DRHIRef InTexture) 
-		: Texture(InTexture)
-		, SizeXY(ViewRect.Size())
-		{}
-
-		virtual FIntPoint GetSizeXY() const override { return SizeXY; }
-
-		virtual const FTexture2DRHIRef& GetRenderTargetTexture() const override
-		{
-			return Texture;
-		}
-	};
-}
-
 bool IsHairStrandsSkinCacheEnable();
 
 static void GetGroomInterpolationData(
@@ -824,21 +801,13 @@ void RunHairStrandsDebug(
 		PassParameters->View = View.ViewUniformBuffer;
 		PassParameters->RenderTargets[0] = FRenderTargetBinding(SceneColorTexture, ERenderTargetLoadAction::ELoad, 0);
 
-		const FSceneView* LocalView = &View;
-		GraphBuilder.AddPass(
-			RDG_EVENT_NAME("HairStrandsMeshProjectionMeshDebug"),
-			PassParameters,
-			ERDGPassFlags::Raster,
-			[LocalView, Viewport, WorldType, Instances, SceneColorTexture](FRHICommandListImmediate& RHICmdList)
+		const FSceneViewFamily& ViewFamily = *View.Family;
+		FCanvas& Canvas = *FCanvas::Create(GraphBuilder, SceneColorTexture, nullptr, ViewFamily.CurrentRealTime, ViewFamily.CurrentWorldTime, ViewFamily.DeltaWorldTime, View.FeatureLevel);
+		Canvas.SetRenderTargetRect(Viewport);
+
 		{
 			const float YStep = 14;
 			float ClusterY = 68;
-
-			// Component part of the clusters
-			GroomDebug::FRenderTargetTemp TempRenderTarget(Viewport, FTexture2DRHIRef(SceneColorTexture->GetRHI()->GetTexture2D()));
-			FCanvas Canvas(&TempRenderTarget, nullptr, LocalView->Family->CurrentRealTime, LocalView->Family->CurrentWorldTime, LocalView->Family->DeltaWorldTime, LocalView->FeatureLevel);
-			Canvas.SetRenderTargetRect(Viewport);
-
 			float X = 20;
 			float Y = ClusterY;
 			const FLinearColor InactiveColor(0.5, 0.5, 0.5);
@@ -880,11 +849,10 @@ void RunHairStrandsDebug(
 			}
 
 			const bool bFlush = false;
-			const bool bInsideRenderPass = true;
-			Canvas.Flush_RenderThread(RHICmdList, bFlush, bInsideRenderPass);
+			Canvas.Flush_RenderThread(GraphBuilder, bFlush);
 
 			ClusterY = Y;
-		});
+		}
 	}
 
 	if (HairDebugMode == EHairDebugMode::MeshProjection)

@@ -87,7 +87,7 @@ void FDebugCanvasDrawer::HandleReleaseFontResources(const class FSlateFontCache&
 		ENQUEUE_RENDER_COMMAND(FlushFontResourcesCommand)(
 			[this](FRHICommandListImmediate& RHICmdList)
 		{
-			RenderThreadCanvas->Flush_RenderThread(RHICmdList, true, false);
+			RenderThreadCanvas->Flush_RenderThread(RHICmdList, true);
 		});
 
 		FlushRenderingCommands();

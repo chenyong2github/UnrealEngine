@@ -7,6 +7,7 @@
 #include "StaticMeshAttributes.h"
 #include "DynamicMeshBuilder.h"
 #include "MeshPassProcessor.h"
+#include "CanvasRender.h"
 
 #define SHOW_WIREFRAME_MESH 0
 
@@ -25,7 +26,7 @@ FMeshMaterialRenderItem::FMeshMaterialRenderItem(
 	LCI = new FMeshRenderInfo(InMeshSettings->LightMap, nullptr, nullptr, InMeshSettings->LightmapResourceCluster);
 }
 
-bool FMeshMaterialRenderItem::Render_RenderThread(FRHICommandListImmediate& RHICmdList, FMeshPassProcessorRenderState& DrawRenderState, const FCanvas* Canvas)
+bool FMeshMaterialRenderItem::Render_RenderThread(FCanvasRenderContext& RenderContext, FMeshPassProcessorRenderState& DrawRenderState, const FCanvas* Canvas)
 {
 	checkSlow(ViewFamily && MeshSettings && MaterialRenderProxy);
 	// current render target set for the canvas
@@ -57,20 +58,20 @@ bool FMeshMaterialRenderItem::Render_RenderThread(FRHICommandListImmediate& RHIC
 		LocalDrawRenderState.SetBlendState(TStaticBlendState<CW_RGBA>::GetRHI());
 		LocalDrawRenderState.SetDepthStencilState(TStaticDepthStencilState<false, CF_Always>::GetRHI());
 
-		QueueMaterial(RHICmdList, LocalDrawRenderState, &View);
+		QueueMaterial(RenderContext, LocalDrawRenderState, &View);
 	}
 
 	return true;
 }
 
-bool FMeshMaterialRenderItem::Render_GameThread(const FCanvas* Canvas, FRenderThreadScope& RenderScope)
+bool FMeshMaterialRenderItem::Render_GameThread(const FCanvas* Canvas, FCanvasRenderThreadScope& RenderScope)
 {
 	RenderScope.EnqueueRenderCommand(
-		[this, Canvas](FRHICommandListImmediate& RHICmdList)
+		[this, Canvas](FCanvasRenderContext& RenderContext)
 		{
 			// Render_RenderThread uses its own render state
 			FMeshPassProcessorRenderState DummyRenderState;
-			Render_RenderThread(RHICmdList, DummyRenderState, Canvas);
+			Render_RenderThread(RenderContext, DummyRenderState, Canvas);
 		}
 	);
 
@@ -106,7 +107,7 @@ FMeshMaterialRenderItem::~FMeshMaterialRenderItem()
 	);
 }
 
-void FMeshMaterialRenderItem::QueueMaterial(FRHICommandListImmediate& RHICmdList, FMeshPassProcessorRenderState& DrawRenderState, const FSceneView* View)
+void FMeshMaterialRenderItem::QueueMaterial(FCanvasRenderContext& RenderContext, FMeshPassProcessorRenderState& DrawRenderState, const FSceneView* View)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FMeshMaterialRenderItem::QueueMaterial)
 
@@ -143,7 +144,7 @@ void FMeshMaterialRenderItem::QueueMaterial(FRHICommandListImmediate& RHICmdList
 	}
 
 	// Bake the material out to a tile
-	GetRendererModule().DrawTileMesh(RHICmdList, DrawRenderState, *View, MeshElement, false /*bIsHitTesting*/, FHitProxyId());
+	GetRendererModule().DrawTileMesh(RenderContext, DrawRenderState, *View, MeshElement, false /*bIsHitTesting*/, FHitProxyId());
 }
 
 void FMeshMaterialRenderItem::PopulateWithQuadData()

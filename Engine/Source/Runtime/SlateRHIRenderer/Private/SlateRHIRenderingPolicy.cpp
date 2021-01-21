@@ -721,6 +721,7 @@ void FSlateRHIRenderingPolicy::DrawElements(
 				RPInfo.DepthStencilRenderTarget.Action = EDepthStencilTargetActions::DontLoad_DontStore;
 				RPInfo.DepthStencilRenderTarget.ExclusiveDepthStencil = FExclusiveDepthStencil::DepthNop_StencilNop;
 			}
+			TransitionRenderPassTargets(RHICmdList, RPInfo);
 			RHICmdList.BeginRenderPass(RPInfo, TEXT("RestartingSlateDrawElements"));
 
 			// Something may have messed with the viewport size so set it back to the full target.

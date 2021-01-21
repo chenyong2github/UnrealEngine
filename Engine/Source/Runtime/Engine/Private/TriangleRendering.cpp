@@ -12,7 +12,7 @@
 #include "PackedNormal.h"
 #include "LocalVertexFactory.h"
 #include "SceneView.h"
-#include "CanvasTypes.h"
+#include "CanvasRender.h"
 #include "MeshBatch.h"
 #include "RendererInterface.h"
 #include "SceneUtils.h"
@@ -130,7 +130,7 @@ void FCanvasTriangleRendererItem::FRenderData::ReleaseTriangleMesh()
 }
 
 void FCanvasTriangleRendererItem::FRenderData::RenderTriangles(
-	FRHICommandListImmediate& RHICmdList,
+	FCanvasRenderContext& RenderContext,
 	FMeshPassProcessorRenderState& DrawRenderState,
 	const FSceneView& View,
 	bool bIsHitTesting,
@@ -142,7 +142,7 @@ void FCanvasTriangleRendererItem::FRenderData::RenderTriangles(
 
 	InitTriangleMesh(View, bNeedsToSwitchVerticalAxis);
 
-	SCOPED_DRAW_EVENTF(RHICmdList, CanvasDrawTriangles, *MaterialRenderProxy->GetIncompleteMaterialWithFallback(GMaxRHIFeatureLevel).GetFriendlyName());
+	RDG_EVENT_SCOPE(RenderContext.GraphBuilder, "%s", *MaterialRenderProxy->GetIncompleteMaterialWithFallback(GMaxRHIFeatureLevel).GetFriendlyName());
 
 	for (int32 TriIdx = 0; TriIdx < Triangles.Num(); TriIdx++)
 	{
@@ -153,13 +153,16 @@ void FCanvasTriangleRendererItem::FRenderData::RenderTriangles(
 		MeshBatch.MaterialRenderProxy = MaterialRenderProxy;
 		MeshBatch.Elements[0].FirstIndex = 3 * TriIdx;
 
-		GetRendererModule().DrawTileMesh(RHICmdList, DrawRenderState, View, MeshBatch, bIsHitTesting, Tri.HitProxyId);
+		GetRendererModule().DrawTileMesh(RenderContext, DrawRenderState, View, MeshBatch, bIsHitTesting, Tri.HitProxyId);
 	}
 
-	ReleaseTriangleMesh();
+	AddPass(RenderContext.GraphBuilder, [this](FRHICommandList&)
+	{
+		ReleaseTriangleMesh();
+	});
 }
 
-bool FCanvasTriangleRendererItem::Render_RenderThread(FRHICommandListImmediate& RHICmdList, FMeshPassProcessorRenderState& DrawRenderState, const FCanvas* Canvas)
+bool FCanvasTriangleRendererItem::Render_RenderThread(FCanvasRenderContext& RenderContext, FMeshPassProcessorRenderState& DrawRenderState, const FCanvas* Canvas)
 {
 	float CurrentRealTime = 0.f;
 	float CurrentWorldTime = 0.f;
@@ -176,7 +179,7 @@ bool FCanvasTriangleRendererItem::Render_RenderThread(FRHICommandListImmediate& 
 
 	const FRenderTarget* CanvasRenderTarget = Canvas->GetRenderTarget();
 
-	TUniquePtr<const FSceneViewFamily> ViewFamily = MakeUnique<const FSceneViewFamily>(FSceneViewFamily::ConstructionValues(
+	const FSceneViewFamily& ViewFamily = *RenderContext.Alloc<const FSceneViewFamily>(FSceneViewFamily::ConstructionValues(
 		CanvasRenderTarget,
 		nullptr,
 		FEngineShowFlags(ESFIM_Game))
@@ -187,7 +190,7 @@ bool FCanvasTriangleRendererItem::Render_RenderThread(FRHICommandListImmediate& 
 
 	// make a temporary view
 	FSceneViewInitOptions ViewInitOptions;
-	ViewInitOptions.ViewFamily = ViewFamily.Get();
+	ViewInitOptions.ViewFamily = &ViewFamily;
 	ViewInitOptions.SetViewRectangle(ViewRect);
 	ViewInitOptions.ViewOrigin = FVector::ZeroVector;
 	ViewInitOptions.ViewRotationMatrix = FMatrix::Identity;
@@ -195,21 +198,22 @@ bool FCanvasTriangleRendererItem::Render_RenderThread(FRHICommandListImmediate& 
 	ViewInitOptions.BackgroundColor = FLinearColor::Black;
 	ViewInitOptions.OverlayColor = FLinearColor::White;
 
-	TUniquePtr<const FSceneView> View = MakeUnique<const FSceneView>(ViewInitOptions);
+	const FSceneView& View = *RenderContext.Alloc<const FSceneView>(ViewInitOptions);
 
 	const bool bNeedsToSwitchVerticalAxis = RHINeedsToSwitchVerticalAxis(Canvas->GetShaderPlatform()) && Canvas->GetAllowSwitchVerticalAxis();
 
-	Data->RenderTriangles(RHICmdList, DrawRenderState, *View, Canvas->IsHitTesting(), bNeedsToSwitchVerticalAxis);
+	Data->RenderTriangles(RenderContext, DrawRenderState, View, Canvas->IsHitTesting(), bNeedsToSwitchVerticalAxis);
 
 	if (Canvas->GetAllowedModes() & FCanvas::Allow_DeleteOnRender)
 	{
+		RenderContext.DeferredRelease(MoveTemp(Data));
 		Data = nullptr;
 	}
 
 	return true;
 }
 
-bool FCanvasTriangleRendererItem::Render_GameThread(const FCanvas* Canvas, FRenderThreadScope& RenderScope)
+bool FCanvasTriangleRendererItem::Render_GameThread(const FCanvas* Canvas, FCanvasRenderThreadScope& RenderScope)
 {
 	float CurrentRealTime = 0.f;
 	float CurrentWorldTime = 0.f;
@@ -252,17 +256,18 @@ bool FCanvasTriangleRendererItem::Render_GameThread(const FCanvas* Canvas, FRend
 	const bool bDeleteOnRender = Canvas->GetAllowedModes() & FCanvas::Allow_DeleteOnRender;
 
 	RenderScope.EnqueueRenderCommand(
-		[LocalData = Data, View, bIsHitTesting, bNeedsToSwitchVerticalAxis](FRHICommandListImmediate& RHICmdList)
+		[LocalData = Data, View, bIsHitTesting, bNeedsToSwitchVerticalAxis](FCanvasRenderContext& RenderContext) mutable
 	{
 		FMeshPassProcessorRenderState DrawRenderState;
 
 		// disable depth test & writes
 		DrawRenderState.SetDepthStencilState(TStaticDepthStencilState<false, CF_Always>::GetRHI());
 
-		LocalData->RenderTriangles(RHICmdList, DrawRenderState, *View, bIsHitTesting, bNeedsToSwitchVerticalAxis);
+		LocalData->RenderTriangles(RenderContext, DrawRenderState, *View, bIsHitTesting, bNeedsToSwitchVerticalAxis);
 
-		delete View->Family;
-		delete View;
+		RenderContext.DeferredRelease(MoveTemp(LocalData));
+		RenderContext.DeferredDelete(View->Family);
+		RenderContext.DeferredDelete(View);
 	});
 
 	if (Canvas->GetAllowedModes() & FCanvas::Allow_DeleteOnRender)

@@ -22,7 +22,7 @@
 #include "SceneView.h"
 #include "MeshBatch.h"
 #include "CanvasItem.h"
-#include "CanvasTypes.h"
+#include "CanvasRender.h"
 #include "LocalVertexFactory.h"
 #include "Rendering/SkeletalMeshLODRenderData.h"
 #include "MeshPassProcessor.h"
@@ -468,7 +468,7 @@ public:
 		return 2;
 	}
 
-	static void RenderMaterial(FRHICommandListImmediate& RHICmdList, FMeshPassProcessorRenderState& DrawRenderState, const class FSceneView& View, FRenderData& Data)
+	static void RenderMaterial(FCanvasRenderContext& RenderContext, FMeshPassProcessorRenderState& DrawRenderState, const class FSceneView& View, FRenderData& Data)
 	{
 		// Check if material is TwoSided - single-sided materials should be rendered with normal and reverse
 		// triangle corner orders, to avoid problems with inside-out meshes or mesh parts. Note:
@@ -506,8 +506,8 @@ public:
 		DynamicMeshBuilder.AddVertices(Verts);
 		DynamicMeshBuilder.AddTriangles(Indices);
 
-		FMeshBatch MeshElement;
-		FMeshBuilderOneFrameResources OneFrameResource;
+		FMeshBatch& MeshElement = *RenderContext.Alloc<FMeshBatch>();
+		FMeshBuilderOneFrameResources& OneFrameResource = *RenderContext.Alloc<FMeshBuilderOneFrameResources>();
 		DynamicMeshBuilder.GetMeshElement(FMatrix::Identity, Data.MaterialRenderProxy, SDPG_Foreground, true, false, 0, OneFrameResource, MeshElement);
 
 		check(OneFrameResource.IsValidForRendering());
@@ -520,10 +520,10 @@ public:
 		MeshElement.bWireframe = true;
 #endif
 
-		GetRendererModule().DrawTileMesh(RHICmdList, DrawRenderState, View, MeshElement, false /*bIsHitTesting*/, FHitProxyId());
+		GetRendererModule().DrawTileMesh(RenderContext, DrawRenderState, View, MeshElement, false /*bIsHitTesting*/, FHitProxyId());
 	}
 
-	virtual bool Render_RenderThread(FRHICommandListImmediate& RHICmdList, FMeshPassProcessorRenderState& DrawRenderState, const FCanvas* Canvas)
+	virtual bool Render_RenderThread(FCanvasRenderContext& RenderContext, FMeshPassProcessorRenderState& DrawRenderState, const FCanvas* Canvas)
 	{
 		checkSlow(Data);
 		// current render target set for the canvas
@@ -545,21 +545,19 @@ public:
 
 		FSceneView* View = new FSceneView(ViewInitOptions);
 
-		RenderMaterial(RHICmdList, DrawRenderState, *View, *Data);
+		RenderMaterial(RenderContext, DrawRenderState, *View, *Data);
 
-		delete View;
+		RenderContext.DeferredDelete(View);
+
 		if (Canvas->GetAllowedModes() & FCanvas::Allow_DeleteOnRender)
 		{
-			delete Data;
-		}
-		if (Canvas->GetAllowedModes() & FCanvas::Allow_DeleteOnRender)
-		{
-			Data = NULL;
+			RenderContext.DeferredDelete(Data);
+			Data = nullptr;
 		}
 		return true;
 	}
 
-	virtual bool Render_GameThread(const FCanvas* Canvas, FRenderThreadScope& RenderScope)
+	virtual bool Render_GameThread(const FCanvas* Canvas, FCanvasRenderThreadScope& RenderScope)
 	{
 		checkSlow(Data);
 		// current render target set for the canvas
@@ -595,24 +593,24 @@ public:
 
 		FDrawMaterialParameters Parameters = DrawMaterialParameters;
 		RenderScope.EnqueueRenderCommand(
-			[Parameters](FRHICommandListImmediate& RHICmdList)
+			[Parameters](FCanvasRenderContext& RenderContext)
 		{
 			FMeshPassProcessorRenderState DrawRenderState;
 
 			// disable depth test & writes
 			DrawRenderState.SetDepthStencilState(TStaticDepthStencilState<false, CF_Always>::GetRHI());
 
-			RenderMaterial(RHICmdList, DrawRenderState, *Parameters.View, *Parameters.RenderData);
+			RenderMaterial(RenderContext, DrawRenderState, *Parameters.View, *Parameters.RenderData);
 
-			delete Parameters.View;
+			RenderContext.DeferredDelete(Parameters.View);
 			if (Parameters.AllowedCanvasModes & FCanvas::Allow_DeleteOnRender)
 			{
-				delete Parameters.RenderData;
+				RenderContext.DeferredDelete(Parameters.RenderData);
 			}
 		});
 		if (Canvas->GetAllowedModes() & FCanvas::Allow_DeleteOnRender)
 		{
-			Data = NULL;
+			Data = nullptr;
 		}
 		return true;
 	}

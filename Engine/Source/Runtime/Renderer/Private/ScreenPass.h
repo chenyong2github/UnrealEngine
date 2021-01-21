@@ -537,28 +537,6 @@ void RENDERER_API AddDrawTexturePass(
 	FScreenPassTexture Input,
 	FScreenPassRenderTarget Output);
 
-/** Helper function render a canvas to an output texture. Must be called within a render pass with Output as the render target. */
-template <typename TFunction>
-void DrawCanvasPass(
-	FRHICommandListImmediate& RHICmdList,
-	const FViewInfo& View,
-	FScreenPassTexture Output,
-	TFunction&& Function)
-{
-	check(Output.IsValid());
-
-	const FSceneViewFamily& ViewFamily = *View.Family;
-	FRenderTargetTemp TempRenderTarget(static_cast<FRHITexture2D*>(Output.Texture->GetRHI()), Output.ViewRect.Size());
-	FCanvas Canvas(&TempRenderTarget, nullptr, ViewFamily.CurrentRealTime, ViewFamily.CurrentWorldTime, ViewFamily.DeltaWorldTime, View.GetFeatureLevel());
-	Canvas.SetRenderTargetRect(Output.ViewRect);
-
-	Function(Canvas);
-
-	const bool bFlush = false;
-	const bool bInsideRenderPass = true;
-	Canvas.Flush_RenderThread(RHICmdList, bFlush, bInsideRenderPass);
-}
-
 template <typename TFunction>
 FORCEINLINE void AddRenderTargetPass(
 	FRDGBuilder& GraphBuilder,
@@ -579,10 +557,16 @@ FORCEINLINE void AddDrawCanvasPass(
 	FScreenPassRenderTarget Output,
 	TFunction Function)
 {
-	AddRenderTargetPass(GraphBuilder, MoveTemp(PassName), Output, [Output, &View, Function](FRHICommandListImmediate& RHICmdList)
-	{
-		DrawCanvasPass(RHICmdList, View, Output, Function);
-	});
+	check(Output.IsValid());
+
+	const FSceneViewFamily& ViewFamily = *View.Family;
+	FCanvas& Canvas = *FCanvas::Create(GraphBuilder, Output.Texture, nullptr, ViewFamily.CurrentRealTime, ViewFamily.CurrentWorldTime, ViewFamily.DeltaWorldTime, View.GetFeatureLevel());
+	Canvas.SetRenderTargetRect(Output.ViewRect);
+
+	Function(Canvas);
+
+	const bool bFlush = false;
+	Canvas.Flush_RenderThread(GraphBuilder, bFlush);
 }
 
 enum class EDownsampleDepthFilter

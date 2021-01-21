@@ -28,6 +28,7 @@
 #include "Templates/UniquePtr.h"
 #include "Elements/Framework/TypedElementList.h"
 #include "EngineUtils.h"
+#include "RenderGraphUtils.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogClient, Log, All);
 
@@ -270,6 +271,11 @@ float FRenderTarget::GetDisplayGamma() const
 const FTexture2DRHIRef& FRenderTarget::GetRenderTargetTexture() const
 {
 	return RenderTargetTextureRHI;
+}
+
+FRDGTextureRef FRenderTarget::GetRenderTargetTexture(FRDGBuilder& GraphBuilder) const
+{
+	return RegisterExternalTexture(GraphBuilder, RenderTargetTextureRHI, TEXT("RenderTarget"));
 }
 
 FUnorderedAccessViewRHIRef FRenderTarget::GetRenderTargetUAV() const

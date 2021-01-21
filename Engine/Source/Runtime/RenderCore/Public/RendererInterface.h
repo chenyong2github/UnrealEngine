@@ -19,6 +19,7 @@
 #include "RenderGraphDefinitions.h"
 
 class FCanvas;
+class FCanvasRenderContext;
 class FMaterial;
 class FSceneInterface;
 class FSceneView;
@@ -737,7 +738,7 @@ public:
 	virtual void InitializeSystemTextures(FRHICommandListImmediate& RHICmdList) = 0;
 
 	/** Draws a tile mesh element with the specified view. */
-	virtual void DrawTileMesh(FRHICommandListImmediate& RHICmdList, struct FMeshPassProcessorRenderState& DrawRenderState, const FSceneView& View, FMeshBatch& Mesh, bool bIsHitTesting, const class FHitProxyId& HitProxyId, bool bUse128bitRT = false) = 0;
+	virtual void DrawTileMesh(FCanvasRenderContext& RenderContext, struct FMeshPassProcessorRenderState& DrawRenderState, const FSceneView& View, FMeshBatch& Mesh, bool bIsHitTesting, const class FHitProxyId& HitProxyId, bool bUse128bitRT = false) = 0;
 
 	virtual const TSet<FSceneInterface*>& GetAllocatedScenes() = 0;
 

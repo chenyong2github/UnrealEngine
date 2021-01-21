@@ -15,6 +15,8 @@
 #include "StaticMeshResources.h"
 #include "CanvasTypes.generated.h"
 
+class FCanvasRenderContext;
+class FCanvasRenderThreadScope;
 class FCanvasItem;
 class FMaterialRenderProxy;
 class IBreakIterator;
@@ -226,6 +228,8 @@ public:
 		CDM_ImmediateDrawing
 	};
 
+	ENGINE_API static FCanvas* Create(FRDGBuilder& GraphBuilder, FRDGTextureRef InRenderTarget, FHitProxyConsumer* InHitProxyConsumer, float InRealTime, float InWorldTime, float InWorldDeltaTime, ERHIFeatureLevel::Type InFeatureLevel, float InDPIScale = 1.0f);
+
 	/**
 	* Constructor.
 	*/
@@ -273,7 +277,8 @@ public:
 	* @param bInsideRenderPass - Set to true if flushing inside a render pass (e.g. Render Graph pass).
 	*	This will skip creating a render pass internally, and assert if the command list is not in a render pass.
 	*/
-	ENGINE_API void Flush_RenderThread(FRHICommandListImmediate& RHICmdList, bool bForce = false, bool bInsideRenderPass = false);
+	ENGINE_API void Flush_RenderThread(FRHICommandListImmediate& RHICmdList, bool bForce = false);
+	ENGINE_API void Flush_RenderThread(FRDGBuilder& GraphBuilder, bool bForce = false);
 
 	/**
 	* Sends a message to the rendering thread to draw the batched elements.
@@ -591,6 +596,7 @@ public:
 	TSharedPtr<FCanvasWordWrapper> WordWrapper;
 
 private:
+
 	/** Stack of SortKeys. All rendering is done using the top most sort key */
 	TArray<int32> DepthSortKeyStack;	
 	/** Stack of matrices. Bottom most entry is the canvas projection */
@@ -774,9 +780,8 @@ public:
 	*/
 	ENGINE_API FCanvasSortElement& GetSortElement(int32 DepthSortKey);
 
+	friend class FCanvasRenderContext;
 };
-
-
 
 /**
 * Base interface for canvas items which can be batched for rendering
@@ -790,11 +795,11 @@ public:
 	/**
 	* Renders the canvas item
 	*
+	* @param RenderContext - the canvas render context to submit render passes to.
 	* @param Canvas - canvas currently being rendered
-	* @param RHICmdList - command list to use
 	* @return true if anything rendered
 	*/
-	virtual bool Render_RenderThread(FRHICommandListImmediate& RHICmdList, FMeshPassProcessorRenderState& DrawRenderState, const FCanvas* Canvas) = 0;
+	virtual bool Render_RenderThread(FCanvasRenderContext& RenderContext, FMeshPassProcessorRenderState& DrawRenderState, const FCanvas* Canvas) = 0;
 	
 	/**
 	* Renders the canvas item
@@ -802,7 +807,7 @@ public:
 	* @param Canvas - canvas currently being rendered
 	* @return true if anything rendered
 	*/
-	virtual bool Render_GameThread(const FCanvas* Canvas, FRenderThreadScope& RenderScope) = 0;
+	virtual bool Render_GameThread(const FCanvas* Canvas, FCanvasRenderThreadScope& RenderScope) = 0;
 	
 	/**
 	* FCanvasBatchedElementRenderItem instance accessor
@@ -873,7 +878,7 @@ public:
 	* @param RHICmdList - command list to use
 	* @return true if anything rendered
 	*/
-	virtual bool Render_RenderThread(FRHICommandListImmediate& RHICmdList, FMeshPassProcessorRenderState& DrawRenderState, const FCanvas* Canvas) override;
+	virtual bool Render_RenderThread(FCanvasRenderContext& RenderContext, FMeshPassProcessorRenderState& DrawRenderState, const FCanvas* Canvas) override;
 	
 	/**
 	* Renders the canvas item.
@@ -882,7 +887,7 @@ public:
 	* @param Canvas - canvas currently being rendered
 	* @return true if anything rendered
 	*/
-	virtual bool Render_GameThread(const FCanvas* Canvas, FRenderThreadScope& RenderScope) override;
+	virtual bool Render_GameThread(const FCanvas* Canvas, FCanvasRenderThreadScope& RenderScope) override;
 
 	/**
 	* Determine if this is a matching set by comparing texture,blendmode,elementype,transform. All must match
@@ -996,7 +1001,7 @@ public:
 	* @param RHICmdList - command list to use
 	* @return true if anything rendered
 	*/
-	virtual bool Render_RenderThread(FRHICommandListImmediate& RHICmdList, FMeshPassProcessorRenderState& DrawRenderState, const FCanvas* Canvas) override;
+	virtual bool Render_RenderThread(FCanvasRenderContext& RenderContext, FMeshPassProcessorRenderState& DrawRenderState, const FCanvas* Canvas) override;
 
 	/**
 	* Renders the canvas item.
@@ -1005,7 +1010,7 @@ public:
 	* @param Canvas - canvas currently being rendered
 	* @return true if anything rendered
 	*/
-	virtual bool Render_GameThread(const FCanvas* Canvas, FRenderThreadScope& RenderScope) override;
+	virtual bool Render_GameThread(const FCanvas* Canvas, FCanvasRenderThreadScope& RenderScope) override;
 
 	/**
 	* Determine if this is a matching set by comparing material,transform. All must match
@@ -1071,7 +1076,7 @@ private:
 			const FCanvas::FTransformEntry& InTransform);
 
 		void RenderTiles(
-			FRHICommandListImmediate& RHICmdList,
+			FCanvasRenderContext& RenderContext,
 			FMeshPassProcessorRenderState& DrawRenderState,
 			const FSceneView& View,
 			bool bIsHitTesting,
@@ -1153,7 +1158,7 @@ public:
 	* @param RHICmdList - command list to use
 	* @return true if anything rendered
 	*/
-	virtual bool Render_RenderThread(FRHICommandListImmediate& RHICmdList, FMeshPassProcessorRenderState& DrawRenderState, const FCanvas* Canvas) override;
+	virtual bool Render_RenderThread(FCanvasRenderContext& RenderContext, FMeshPassProcessorRenderState& DrawRenderState, const FCanvas* Canvas) override;
 
 	/**
 	* Renders the canvas item.
@@ -1162,7 +1167,7 @@ public:
 	* @param Canvas - canvas currently being rendered
 	* @return true if anything rendered
 	*/
-	virtual bool Render_GameThread(const FCanvas* Canvas, FRenderThreadScope& RenderScope) override;
+	virtual bool Render_GameThread(const FCanvas* Canvas, FCanvasRenderThreadScope& RenderScope) override;
 
 	/**
 	* Determine if this is a matching set by comparing material,transform. All must match
@@ -1259,7 +1264,7 @@ private:
 		}
 
 		void RenderTriangles(
-			FRHICommandListImmediate& RHICmdList,
+			FCanvasRenderContext& RenderContext,
 			FMeshPassProcessorRenderState& DrawRenderState,
 			const FSceneView& View,
 			bool bIsHitTesting,

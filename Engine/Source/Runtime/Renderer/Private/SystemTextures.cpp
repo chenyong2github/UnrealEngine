@@ -46,6 +46,11 @@ const FRDGSystemTextures& FRDGSystemTextures::Get(FRDGBuilder& GraphBuilder)
 	return *SystemTextures;
 }
 
+bool FRDGSystemTextures::IsValid(FRDGBuilder& GraphBuilder)
+{
+	return GraphBuilder.Blackboard.Get<FRDGSystemTextures>() != nullptr;
+}
+
 /** The global render targets used for scene rendering. */
 TGlobalResource<FSystemTextures> GSystemTextures;
 

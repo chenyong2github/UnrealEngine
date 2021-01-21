@@ -12,7 +12,7 @@
 #include "PackedNormal.h"
 #include "LocalVertexFactory.h"
 #include "SceneView.h"
-#include "CanvasTypes.h"
+#include "CanvasRender.h"
 #include "MeshBatch.h"
 #include "RendererInterface.h"
 #include "SceneUtils.h"
@@ -163,7 +163,7 @@ void FCanvasTileRendererItem::FRenderData::ReleaseTileMesh()
 }
 
 void FCanvasTileRendererItem::FRenderData::RenderTiles(
-	FRHICommandListImmediate& RHICmdList,
+	FCanvasRenderContext& RenderContext,
 	FMeshPassProcessorRenderState& DrawRenderState,
 	const FSceneView& View,
 	bool bIsHitTesting,
@@ -172,8 +172,8 @@ void FCanvasTileRendererItem::FRenderData::RenderTiles(
 {
 	check(IsInRenderingThread());
 
-	SCOPED_GPU_STAT(RHICmdList, CanvasDrawTile);
-	SCOPED_DRAW_EVENTF(RHICmdList, CanvasDrawTile, *MaterialRenderProxy->GetIncompleteMaterialWithFallback(GMaxRHIFeatureLevel).GetFriendlyName());
+	RDG_GPU_STAT_SCOPE(RenderContext.GraphBuilder, CanvasDrawTile);
+	RDG_EVENT_SCOPE(RenderContext.GraphBuilder, "%s", *MaterialRenderProxy->GetIncompleteMaterialWithFallback(GMaxRHIFeatureLevel).GetFriendlyName());
 	TRACE_CPUPROFILER_EVENT_SCOPE(CanvasDrawTile);
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_CanvasDrawTile)
 
@@ -189,13 +189,16 @@ void FCanvasTileRendererItem::FRenderData::RenderTiles(
 		Mesh.MaterialRenderProxy = MaterialRenderProxy;
 		Mesh.Elements[0].FirstIndex = CanvasTileIndexCount * TileIdx;
 
-		RendererModule.DrawTileMesh(RHICmdList, DrawRenderState, View, Mesh, bIsHitTesting, Tile.HitProxyId, bUse128bitRT);
+		RendererModule.DrawTileMesh(RenderContext, DrawRenderState, View, Mesh, bIsHitTesting, Tile.HitProxyId, bUse128bitRT);
 	}
 
-	ReleaseTileMesh();
+	AddPass(RenderContext.GraphBuilder, [this](FRHICommandList&)
+	{
+		ReleaseTileMesh();
+	});
 }
 
-bool FCanvasTileRendererItem::Render_RenderThread(FRHICommandListImmediate& RHICmdList, FMeshPassProcessorRenderState& DrawRenderState, const FCanvas* Canvas)
+bool FCanvasTileRendererItem::Render_RenderThread(FCanvasRenderContext& RenderContext, FMeshPassProcessorRenderState& DrawRenderState, const FCanvas* Canvas)
 {
 	float CurrentRealTime = 0.f;
 	float CurrentWorldTime = 0.f;
@@ -212,7 +215,7 @@ bool FCanvasTileRendererItem::Render_RenderThread(FRHICommandListImmediate& RHIC
 
 	const FRenderTarget* CanvasRenderTarget = Canvas->GetRenderTarget();
 
-	TUniquePtr<const FSceneViewFamily> ViewFamily = MakeUnique<const FSceneViewFamily>(FSceneViewFamily::ConstructionValues(
+	const FSceneViewFamily& ViewFamily = *RenderContext.Alloc<FSceneViewFamily>(FSceneViewFamily::ConstructionValues(
 		CanvasRenderTarget,
 		nullptr,
 		FEngineShowFlags(ESFIM_Game))
@@ -223,7 +226,7 @@ bool FCanvasTileRendererItem::Render_RenderThread(FRHICommandListImmediate& RHIC
 
 	// make a temporary view
 	FSceneViewInitOptions ViewInitOptions;
-	ViewInitOptions.ViewFamily = ViewFamily.Get();
+	ViewInitOptions.ViewFamily = &ViewFamily;
 	ViewInitOptions.SetViewRectangle(ViewRect);
 	ViewInitOptions.ViewOrigin = FVector::ZeroVector;
 	ViewInitOptions.ViewRotationMatrix = FMatrix::Identity;
@@ -231,21 +234,22 @@ bool FCanvasTileRendererItem::Render_RenderThread(FRHICommandListImmediate& RHIC
 	ViewInitOptions.BackgroundColor = FLinearColor::Black;
 	ViewInitOptions.OverlayColor = FLinearColor::White;
 
-	TUniquePtr<const FSceneView> View = MakeUnique<const FSceneView>(ViewInitOptions);
+	const FSceneView& View = *RenderContext.Alloc<const FSceneView>(ViewInitOptions);
 
 	const bool bNeedsToSwitchVerticalAxis = RHINeedsToSwitchVerticalAxis(Canvas->GetShaderPlatform()) && Canvas->GetAllowSwitchVerticalAxis(); 
 
-	Data->RenderTiles(RHICmdList, DrawRenderState, *View, Canvas->IsHitTesting(), bNeedsToSwitchVerticalAxis);
+	Data->RenderTiles(RenderContext, DrawRenderState, View, Canvas->IsHitTesting(), bNeedsToSwitchVerticalAxis);
 
 	if (Canvas->GetAllowedModes() & FCanvas::Allow_DeleteOnRender)
 	{
+		RenderContext.DeferredRelease(MoveTemp(Data));
 		Data = nullptr;
 	}
 
 	return true;
 }
 
-bool FCanvasTileRendererItem::Render_GameThread(const FCanvas* Canvas, FRenderThreadScope& RenderScope)
+bool FCanvasTileRendererItem::Render_GameThread(const FCanvas* Canvas, FCanvasRenderThreadScope& RenderScope)
 {
 	float CurrentRealTime = 0.f;
 	float CurrentWorldTime = 0.f;
@@ -298,17 +302,18 @@ bool FCanvasTileRendererItem::Render_GameThread(const FCanvas* Canvas, FRenderTh
 
 		RenderScope.EnqueueRenderCommand(
 			[LocalData = Data, View, bIsHitTesting, bNeedsToSwitchVerticalAxis, bRequiresExplicit128bitRT]
-		(FRHICommandListImmediate& RHICmdList)
+			(FCanvasRenderContext& RenderContext) mutable
 		{
 			FMeshPassProcessorRenderState DrawRenderState;
 
 			// disable depth test & writes
 			DrawRenderState.SetDepthStencilState(TStaticDepthStencilState<false, CF_Always>::GetRHI());
 
-			LocalData->RenderTiles(RHICmdList, DrawRenderState, *View, bIsHitTesting, bNeedsToSwitchVerticalAxis, bRequiresExplicit128bitRT);
+			LocalData->RenderTiles(RenderContext, DrawRenderState, *View, bIsHitTesting, bNeedsToSwitchVerticalAxis, bRequiresExplicit128bitRT);
 
-			delete View->Family;
-			delete View;
+			RenderContext.DeferredRelease(MoveTemp(LocalData));
+			RenderContext.DeferredDelete(View->Family);
+			RenderContext.DeferredDelete(View);
 		});
 
 		if (bDeleteOnRender)

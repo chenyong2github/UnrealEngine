@@ -15,6 +15,7 @@
 #include "RHI.h"
 #include "RenderResource.h"
 #include "HitProxies.h"
+#include "RenderGraphDefinitions.h"
 
 class FCanvas;
 class FViewport;
@@ -38,6 +39,11 @@ public:
 	*/
 	ENGINE_API virtual const FTexture2DRHIRef& GetRenderTargetTexture() const;
 	ENGINE_API virtual FUnorderedAccessViewRHIRef GetRenderTargetUAV() const;
+
+	/**
+	 * Returns a valid RDG texture for this render target.
+	 */
+	ENGINE_API virtual FRDGTextureRef GetRenderTargetTexture(FRDGBuilder& GraphBuilder) const;
 
 	// Properties.
 	virtual FIntPoint GetSizeXY() const = 0;
