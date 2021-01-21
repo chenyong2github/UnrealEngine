@@ -5,9 +5,13 @@
 #include "CoreTypes.h"
 #include "UObject/GCObject.h"
 #include "Containers/SortedMap.h"
-#include "EntitySystem/MovieSceneEntitySystemTypes.h"
 #include "MovieSceneTracksComponentTypes.h"
 #include "Evaluation/MovieSceneEvaluationField.h"
+
+#include "EntitySystem/MovieSceneEntitySystemTypes.h"
+#include "EntitySystem/MovieSceneEntitySystemLinkerExtension.h"
+
+#include "EntitySystem/Interrogation/MovieSceneInterrogationExtension.h"
 
 struct FGuid;
 struct FMovieSceneBinding;
@@ -21,6 +25,7 @@ namespace UE
 namespace MovieScene
 {
 
+struct FInitialValueCache;
 struct FSystemInterrogatorEntityTracker;
 
 struct FInterrogationParams
@@ -34,18 +39,6 @@ struct FInterrogationParams
 		: Time(InTime)
 	{}
 };
-
-
-
-struct FInterrogationChannelInfo
-{
-	/** The object that relates to the channel */
-	TWeakObjectPtr<UObject> WeakObject;
-
-	/** The channel's hierarchical 'parent' - generally only used for transforms */
-	FInterrogationChannel ParentChannel;
-};
-
 
 /**
  * A class specialized for interrogating Sequencer entity data without applying any state to objects.
@@ -72,7 +65,7 @@ struct FInterrogationChannelInfo
  *        MySystem->Interrogate(FInterogationKey::Default(), OutData);
  *    }
  */
-class MOVIESCENETRACKS_API FSystemInterrogator : FGCObject
+class MOVIESCENETRACKS_API FSystemInterrogator : FGCObject, IInterrogationExtension
 {
 public:
 	FSystemInterrogator();
@@ -84,13 +77,13 @@ public:
 	 * @param ParentChannel     The channel that should be considered this channel's parent, or FInterrogationChannel::Invalid if there is none
 	 * @return A new interrogation channel
 	 */
-	FInterrogationChannel AllocateChannel(FInterrogationChannel ParentChannel);
+	FInterrogationChannel AllocateChannel(FInterrogationChannel ParentChannel, const FMovieScenePropertyBinding& PropertyBinding);
 
 
 	/**
 	 * Allocate a new interrogation channel that relates to a specific object
 	 */
-	FInterrogationChannel AllocateChannel(UObject* Object, FInterrogationChannel ParentChannel);
+	FInterrogationChannel AllocateChannel(UObject* Object, FInterrogationChannel ParentChannel, const FMovieScenePropertyBinding& PropertyBinding);
 
 
 	/**
@@ -290,12 +283,9 @@ public:
 
 public:
 
-	/**
-	 * Find the object that is allocated within a given channel
-	 */
-	UObject* FindObjectFromChannel(FInterrogationChannel Channel) const
+	const FSparseInterrogationChannelInfo& GetSparseChannelInfo() const override
 	{
-		return SparseChannelInfo.FindRef(Channel).WeakObject.Get();
+		return SparseChannelInfo;
 	}
 
 private:
@@ -335,7 +325,7 @@ protected:
 	TMap<UObject*, FInterrogationChannel> ObjectToChannel;
 
 	/** Array of information pertaining to a given channel */
-	TSortedMap<FInterrogationChannel, FInterrogationChannelInfo> SparseChannelInfo;
+	FSparseInterrogationChannelInfo SparseChannelInfo;
 
 	/** BitArray containing set bits for any channel that has data associated with it. The number of bits (0 or 1) in this array defines how many channels are allocated */
 	TBitArray<> ImportedChannelBits;
@@ -348,6 +338,8 @@ protected:
 
 	/** The linker we own */
 	UMovieSceneEntitySystemLinker* Linker;
+
+	TSharedPtr<FInitialValueCache> InitialValueCache;
 };
 
 

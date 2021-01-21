@@ -146,7 +146,6 @@ private:
 
 	void AssignPreAnimatedValues(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents);
 	void RestorePreAnimatedValues(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents);
-	void AssignInitialValues(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents);
 
 	void CleanTaggedGarbage(UMovieSceneEntitySystemLinker*);
 
@@ -170,7 +169,6 @@ private:
 	TBitArray<> SaveGlobalStateTasks;
 	TBitArray<> CachePreAnimatedStateTasks;
 	TBitArray<> RestorePreAnimatedStateTasks;
-	TBitArray<> InitialValueStateTasks;
 
 	UE::MovieScene::FBuiltInComponentTypes* BuiltInComponents;
 	 
