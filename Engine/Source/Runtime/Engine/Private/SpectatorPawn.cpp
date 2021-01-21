@@ -4,6 +4,7 @@
 #include "GameFramework/SpectatorPawn.h"
 #include "Components/SphereComponent.h"
 #include "GameFramework/SpectatorPawnMovement.h"
+#include "GameFramework/WorldSettings.h"
 
 ASpectatorPawn::ASpectatorPawn(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer
