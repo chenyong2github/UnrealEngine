@@ -1343,6 +1343,7 @@ enum class EGpuVendorId
 	Arm			= 0x13B5, 
 	Qualcomm	= 0x5143,
 	Intel		= 0x8086,
+	Mesa		= 0x10005,
 };
 
 /** An enumeration of the different RHI reference types. */
@@ -1931,6 +1932,7 @@ inline EGpuVendorId RHIConvertToGpuVendorId(uint32 VendorId)
 		return EGpuVendorId::NotQueried;
 
 	case EGpuVendorId::Amd:
+	case EGpuVendorId::Mesa:
 	case EGpuVendorId::ImgTec:
 	case EGpuVendorId::Nvidia:
 	case EGpuVendorId::Arm:
