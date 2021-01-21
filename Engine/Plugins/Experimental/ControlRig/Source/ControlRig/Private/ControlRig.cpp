@@ -2064,7 +2064,7 @@ FRigVMExternalVariable UControlRig::GetExternalVariableFromDescription(const FBP
 void UControlRig::SetBoneInitialTransformsFromSkeletalMesh(USkeletalMesh* InSkeletalMesh)
 {
 	check(InSkeletalMesh);
-	SetBoneInitialTransformsFromRefSkeleton(InSkeletalMesh->RefSkeleton);
+	SetBoneInitialTransformsFromRefSkeleton(InSkeletalMesh->GetRefSkeleton());
 }
 
 void UControlRig::SetBoneInitialTransformsFromRefSkeleton(const FReferenceSkeleton& InReferenceSkeleton)
