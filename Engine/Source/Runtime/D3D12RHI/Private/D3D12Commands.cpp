@@ -52,6 +52,10 @@ bool GIsDoingQuery = false;
 #define VALIDATE_BOUND_SHADER(s)
 #endif
 
+#if !defined(D3D12_PLATFORM_SUPPORTS_RESOLVE_SHADERS)
+	#define D3D12_PLATFORM_SUPPORTS_RESOLVE_SHADERS 1
+#endif
+
 void FD3D12DynamicRHI::SetupRecursiveResources()
 {
 	auto ShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
@@ -67,7 +71,7 @@ void FD3D12DynamicRHI::SetupRecursiveResources()
 	}
 
 	// TODO: Waiting to integrate MSAA fix for ResolveShader.h
-	if (!(PLATFORM_WINDOWS || PLATFORM_HOLOLENS))
+	if (!D3D12_PLATFORM_SUPPORTS_RESOLVE_SHADERS)
 		return;
 
 	TShaderMapRef<FResolveVS> ResolveVertexShader(ShaderMap);
