@@ -140,7 +140,7 @@ void UGameFrameworkComponentManager::RemoveReceiverInternal(AActor* Receiver)
 	checkSlow(Receiver);
 	
 #if WITH_EDITOR
-	ensureMsgf(AllReceivers.Remove(Receiver) > 0, TEXT("Called RemoveReceiver without first calling AddReceiver. Actor:%s"), *GetPathNameSafe(this));
+	ensureMsgf(AllReceivers.Remove(Receiver) > 0, TEXT("Called RemoveReceiver without first calling AddReceiver. Actor:%s"), *GetPathNameSafe(Receiver));
 #endif
 	
 	TInlineComponentArray<UActorComponent*> ComponentsToDestroy;
