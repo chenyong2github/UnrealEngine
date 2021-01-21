@@ -921,7 +921,7 @@ void RunHairStrandsDebug(
 				TArray<int32> HairLODIndices;
 				for (FHairGroupInstance* Instance : Instances)
 				{
-					if (Instance->WorldType != WorldType || !Instance->HairGroupPublicData || Instance->Guides.RestRootResource == nullptr || Instance->Guides.DeformedRootResource == nullptr)
+					if (Instance->WorldType != WorldType || !Instance->HairGroupPublicData || Instance->Guides.RestRootResource == nullptr || Instance->Guides.DeformedRootResource == nullptr || Instance->BindingType != EHairBindingType::Skinning)
 						continue;
 
 					const int32 MeshLODIndex = Instance->Debug.MeshLODIndex;

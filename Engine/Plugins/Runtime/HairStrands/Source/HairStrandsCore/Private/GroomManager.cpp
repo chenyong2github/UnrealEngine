@@ -159,9 +159,10 @@ void RunHairStrandsInterpolation(
 			if (EHairStrandsInterpolationType::RenderStrands == Type)
 			{
 				const EHairGeometryType InstanceGeometryType = Instance->GeometryType;
+				const EHairBindingType InstanceBindingType = Instance->BindingType;
 				if (InstanceGeometryType == EHairGeometryType::Strands)
 				{
-					if (Instance->Strands.HasValidRootData() && Instance->Strands.DeformedRootResource->IsValid(MeshLODIndex))
+					if (Instance->Strands.HasValidRootData() && Instance->Strands.DeformedRootResource->IsValid(MeshLODIndex) && InstanceBindingType == EHairBindingType::Skinning)
 					{
 						AddHairStrandUpdateMeshTrianglesPass(
 							GraphBuilder, 
@@ -195,7 +196,7 @@ void RunHairStrandsInterpolation(
 					if (Instance->Cards.IsValid(HairLODIndex))
 					{
 						FHairGroupInstance::FCards::FLOD& CardsInstance = Instance->Cards.LODs[HairLODIndex];
-						if (CardsInstance.Guides.IsValid() && Instance->Guides.HasValidRootData() && CardsInstance.Guides.DeformedRootResource->IsValid(MeshLODIndex) && NeedsUpdateCardsMeshTriangles())
+						if (CardsInstance.Guides.IsValid() && Instance->Guides.HasValidRootData() && CardsInstance.Guides.DeformedRootResource->IsValid(MeshLODIndex) && NeedsUpdateCardsMeshTriangles() && InstanceBindingType == EHairBindingType::Skinning)
 						{
 							AddHairStrandUpdateMeshTrianglesPass(
 								GraphBuilder,
@@ -231,7 +232,7 @@ void RunHairStrandsInterpolation(
 			}
 			else if (EHairStrandsInterpolationType::SimulationStrands == Type)
 			{
-				if (Instance->Guides.IsValid() && Instance->Guides.HasValidRootData() && Instance->Guides.DeformedRootResource->IsValid(MeshLODIndex))
+				if (Instance->Guides.IsValid() && Instance->Guides.HasValidRootData() && Instance->Guides.DeformedRootResource->IsValid(MeshLODIndex) )
 				{
 					AddHairStrandUpdateMeshTrianglesPass(
 						GraphBuilder,

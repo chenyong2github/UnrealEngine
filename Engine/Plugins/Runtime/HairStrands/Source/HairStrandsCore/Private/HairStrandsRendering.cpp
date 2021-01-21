@@ -850,6 +850,7 @@ static void AddHairCardsDeformationPass(
 
 	const bool bIsVertexToCurveBuffersValid = RestRootResources && RestRootResources->VertexToCurveIndexBuffer.Buffer != nullptr;
 	const bool bSupportDynamicMesh =
+		Instance->BindingType == EHairBindingType::Skinning &&
 		bIsVertexToCurveBuffersValid &&
 		RestRootResources &&
 		RestRootResources->RootData.RootCount > 0 &&
