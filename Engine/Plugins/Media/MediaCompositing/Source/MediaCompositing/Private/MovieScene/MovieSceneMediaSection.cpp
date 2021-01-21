@@ -11,6 +11,7 @@
 
 UMovieSceneMediaSection::UMovieSceneMediaSection(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
+	, bLooping(true)
 {
 #if WITH_EDITORONLY_DATA
 	ThumbnailReferenceOffset = 0.f;
