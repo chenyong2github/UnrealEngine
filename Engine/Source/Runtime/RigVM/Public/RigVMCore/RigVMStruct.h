@@ -10,7 +10,7 @@
 
 // delegates used for variable introspection / creation
 DECLARE_DELEGATE_RetVal(TArray<FRigVMExternalVariable>, FRigVMGetExternalVariablesDelegate)
-DECLARE_DELEGATE_RetVal_OneParam(FName, FRigVMCreateExternalVariableDelegate, FRigVMExternalVariable)
+DECLARE_DELEGATE_RetVal_TwoParams(FName, FRigVMCreateExternalVariableDelegate, FRigVMExternalVariable, FString)
 DECLARE_DELEGATE_RetVal_TwoParams(bool, FRigVMBindPinToExternalVariableDelegate, FString, FString)
 
 /** Context as of why the node was created */
@@ -63,7 +63,7 @@ public:
 	TArray<FRigVMExternalVariable> GetExternalVariables() const;
 
 	/** Creates a new variable within the host of this VM */
-	FName AddExternalVariable(const FRigVMExternalVariable& InVariableToCreate);
+	FName AddExternalVariable(const FRigVMExternalVariable& InVariableToCreate, FString InDefaultValue = FString());
 
 	/** Binds a pin to an external variable on the created node */
 	bool BindPinToExternalVariable(FString InPinPath, FString InVariablePath);

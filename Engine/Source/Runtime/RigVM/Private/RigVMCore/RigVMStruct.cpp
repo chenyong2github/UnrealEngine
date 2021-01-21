@@ -25,11 +25,11 @@ TArray<FRigVMExternalVariable> FRigVMUnitNodeCreatedContext::GetExternalVariable
 	return ExternalVariables;
 }
 
-FName FRigVMUnitNodeCreatedContext::AddExternalVariable(const FRigVMExternalVariable& InVariableToCreate)
+FName FRigVMUnitNodeCreatedContext::AddExternalVariable(const FRigVMExternalVariable& InVariableToCreate, FString InDefaultValue)
 {
 	if (CreateExternalVariableDelegate.IsBound())
 	{
-		return CreateExternalVariableDelegate.Execute(InVariableToCreate);
+		return CreateExternalVariableDelegate.Execute(InVariableToCreate, InDefaultValue);
 	}
 	return NAME_None;
 }

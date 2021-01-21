@@ -191,7 +191,7 @@ public:
 
 #if WITH_EDITOR
 	UFUNCTION(BlueprintCallable, Category = "Variables")
-	FName AddMemberVariable(const FName& InName, const FString& InCPPType, bool bIsPublic = false, bool bIsReadOnly = false);
+	FName AddMemberVariable(const FName& InName, const FString& InCPPType, bool bIsPublic = false, bool bIsReadOnly = false, FString InDefaultValue = TEXT(""));
 #endif
 
 #if WITH_EDITORONLY_DATA
@@ -308,8 +308,8 @@ private:
 	void CreateMemberVariablesOnLoad();
 #if WITH_EDITOR
 	static FName FindCRMemberVariableUniqueName(TSharedPtr<FKismetNameValidator> InNameValidator, const FString& InBaseName);
-	static int32 AddCRMemberVariable(UControlRigBlueprint* InBlueprint, const FName& InVarName, FEdGraphPinType InVarType, bool bIsPublic, bool bIsReadOnly);
-	FName AddCRMemberVariableFromExternal(FRigVMExternalVariable InVariableToCreate);
+	static int32 AddCRMemberVariable(UControlRigBlueprint* InBlueprint, const FName& InVarName, FEdGraphPinType InVarType, bool bIsPublic, bool bIsReadOnly, FString InDefaultValue);
+	FName AddCRMemberVariableFromExternal(FRigVMExternalVariable InVariableToCreate, FString InDefaultValue = FString());
 #endif
 	void PatchVariableNodesOnLoad();
 

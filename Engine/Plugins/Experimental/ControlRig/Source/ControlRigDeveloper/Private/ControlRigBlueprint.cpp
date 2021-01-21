@@ -617,11 +617,11 @@ URigVMController* UControlRigBlueprint::GetOrCreateController(URigVMGraph* InGra
 	// c) create external variable (mapped to the passed in tfunction)
 	// the last one is defined within the blueprint since the controller
 	// doesn't own the variables and can't create one itself.
-	Controller->SetupDefaultUnitNodeDelegates(TDelegate<FName(FRigVMExternalVariable)>::CreateLambda(
-		[WeakThis](FRigVMExternalVariable InVariableToCreate) -> FName {
+	Controller->SetupDefaultUnitNodeDelegates(TDelegate<FName(FRigVMExternalVariable, FString)>::CreateLambda(
+		[WeakThis](FRigVMExternalVariable InVariableToCreate, FString InDefaultValue) -> FName {
 			if (WeakThis.IsValid())
 			{
-				return WeakThis->AddCRMemberVariableFromExternal(InVariableToCreate);
+				return WeakThis->AddCRMemberVariableFromExternal(InVariableToCreate, InDefaultValue);
 			}
 			return NAME_None;
 		}
@@ -880,7 +880,7 @@ UControlRigHierarchyModifier* UControlRigBlueprint::GetHierarchyModifier()
 
 #if WITH_EDITOR
 
-FName UControlRigBlueprint::AddMemberVariable(const FName& InName, const FString& InCPPType, bool bIsPublic, bool bIsReadOnly)
+FName UControlRigBlueprint::AddMemberVariable(const FName& InName, const FString& InCPPType, bool bIsPublic, bool bIsReadOnly, FString InDefaultValue)
 {
 	FRigVMExternalVariable Variable;
 	Variable.Name = InName;
@@ -938,7 +938,7 @@ FName UControlRigBlueprint::AddMemberVariable(const FName& InName, const FString
 		Variable.Size = Enum->GetResourceSizeBytes(EResourceSizeMode::EstimatedTotal);
 	}
 
-	FName Result = AddCRMemberVariableFromExternal(Variable);
+	FName Result = AddCRMemberVariableFromExternal(Variable, InDefaultValue);
 	if (!Result.IsNone())
 	{
 		FBPCompileRequest Request(this, EBlueprintCompileOptions::None, nullptr);
@@ -1844,7 +1844,7 @@ void UControlRigBlueprint::CreateMemberVariablesOnLoad()
 				}
 
 				FName VarName = FindCRMemberVariableUniqueName(NameValidator, Description.Name.ToString());
-				int32 VariableIndex = AddCRMemberVariable(this, VarName, PinType, false, false);
+				int32 VariableIndex = AddCRMemberVariable(this, VarName, PinType, false, false, FString());
 				if (VariableIndex != INDEX_NONE)
 				{
 					AddedMemberVariableMap.Add(Description.Name, VariableIndex);
@@ -1875,7 +1875,7 @@ void UControlRigBlueprint::CreateMemberVariablesOnLoad()
 				}
 
 				FName VarName = FindCRMemberVariableUniqueName(NameValidator, Description.Name.ToString());
-				int32 VariableIndex = AddCRMemberVariable(this, VarName, PinType, true, !Description.bIsInput);
+				int32 VariableIndex = AddCRMemberVariable(this, VarName, PinType, true, !Description.bIsInput, FString());
 				if (VariableIndex != INDEX_NONE)
 				{
 					AddedMemberVariableMap.Add(Description.Name, VariableIndex);
@@ -1919,7 +1919,7 @@ FName UControlRigBlueprint::FindCRMemberVariableUniqueName(TSharedPtr<FKismetNam
 	return *KismetName;
 }
 
-int32 UControlRigBlueprint::AddCRMemberVariable(UControlRigBlueprint* InBlueprint, const FName& InVarName, FEdGraphPinType InVarType, bool bIsPublic, bool bIsReadOnly)
+int32 UControlRigBlueprint::AddCRMemberVariable(UControlRigBlueprint* InBlueprint, const FName& InVarName, FEdGraphPinType InVarType, bool bIsPublic, bool bIsReadOnly, FString InDefaultValue)
 {
 	FBPVariableDescription NewVar;
 
@@ -1952,10 +1952,12 @@ int32 UControlRigBlueprint::AddCRMemberVariable(UControlRigBlueprint* InBlueprin
 	// Text variables, etc. should default to multiline
 	NewVar.SetMetaData(TEXT("MultiLine"), TEXT("true"));
 
+	NewVar.DefaultValue = InDefaultValue;
+
 	return InBlueprint->NewVariables.Add(NewVar);
 }
 
-FName UControlRigBlueprint::AddCRMemberVariableFromExternal(FRigVMExternalVariable InVariableToCreate)
+FName UControlRigBlueprint::AddCRMemberVariableFromExternal(FRigVMExternalVariable InVariableToCreate, FString InDefaultValue)
 {
 	FEdGraphPinType PinType = UControlRig::GetPinTypeFromExternalVariable(InVariableToCreate);
 	if (!PinType.PinCategory.IsValid())
@@ -1967,7 +1969,7 @@ FName UControlRigBlueprint::AddCRMemberVariableFromExternal(FRigVMExternalVariab
 
 	TSharedPtr<FKismetNameValidator> NameValidator = MakeShareable(new FKismetNameValidator(this, NAME_None, nullptr));
 	FName VarName = FindCRMemberVariableUniqueName(NameValidator, InVariableToCreate.Name.ToString());
-	int32 VariableIndex = AddCRMemberVariable(this, VarName, PinType, InVariableToCreate.bIsPublic, InVariableToCreate.bIsReadOnly);
+	int32 VariableIndex = AddCRMemberVariable(this, VarName, PinType, InVariableToCreate.bIsPublic, InVariableToCreate.bIsReadOnly, InDefaultValue);
 	if (VariableIndex != INDEX_NONE)
 	{
 		FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(this);

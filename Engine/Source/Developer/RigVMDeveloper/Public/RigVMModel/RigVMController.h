@@ -543,7 +543,7 @@ public:
 
 	// Wires the unit node delegates to the default controller delegates.
 	// this is used only within the Control Rig Editor currently.
-	void SetupDefaultUnitNodeDelegates(TDelegate<FName(FRigVMExternalVariable)> InCreateExternalVariableDelegate);
+	void SetupDefaultUnitNodeDelegates(TDelegate<FName(FRigVMExternalVariable, FString)> InCreateExternalVariableDelegate);
 	void ResetUnitNodeDelegates();
 
 	// A flag that can be used to turn off pin default value validation if necessary
