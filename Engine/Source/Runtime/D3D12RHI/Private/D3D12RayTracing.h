@@ -19,16 +19,23 @@ struct FHitGroupSystemParameters
 	FHitGroupSystemRootConstants RootConstants;
 };
 
-class FD3D12RayTracingGeometry : public FRHIRayTracingGeometry
+class FD3D12RayTracingGeometry : public FRHIRayTracingGeometry, public FD3D12ShaderResourceRenameListener
 {
 public:
 
 	FD3D12RayTracingGeometry(const FRayTracingGeometryInitializer& Initializer);
 	~FD3D12RayTracingGeometry();
 
+	void SetupHitGroupSystemParameters(uint32 InGPUIndex);
 	void TransitionBuffers(FD3D12CommandContext& CommandContext);
 	void BuildAccelerationStructure(FD3D12CommandContext& CommandContext, EAccelerationStructureBuildMode BuildMode);
 	void CompactAccelerationStructure(FD3D12CommandContext& CommandContext, uint32 InGPUIndex, uint64 InSizeAfterCompaction);
+	
+	// Implement FD3D12ShaderResourceRenameListener interface
+	virtual void ResourceRenamed(FD3D12BaseShaderResource* InRenamedResource, FD3D12ResourceLocation* InNewResourceLocation) override;
+
+	void RegisterAsRenameListener(uint32 InGPUIndex);
+	void UnregisterAsRenameListener(uint32 InGPUIndex);
 
 	bool bIsAccelerationStructureDirty[MAX_NUM_GPUS] = {};
 	void SetDirty(FRHIGPUMask GPUMask, bool bState)
@@ -58,6 +65,7 @@ public:
 	TRefCountPtr<FD3D12Buffer> AccelerationStructureBuffers[MAX_NUM_GPUS];
 	TRefCountPtr<FD3D12Buffer> ScratchBuffers[MAX_NUM_GPUS];
 
+	bool bRegisteredAsRenameListener[MAX_NUM_GPUS];
 	bool bHasPendingCompactionRequests[MAX_NUM_GPUS];
 
 	// Hit shader parameters per geometry segment
