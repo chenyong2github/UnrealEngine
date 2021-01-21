@@ -4,12 +4,7 @@
 #include "AnimationRuntime.h"
 #include "Animation/AnimInstanceProxy.h"
 
-
-/////////////////////////////////////////////////////
-// FFortAnimNode_OrientationWarping
-
 DECLARE_CYCLE_STAT(TEXT("OrientationWarping Eval"), STAT_OrientationWarping_Eval, STATGROUP_Anim);
-
 
 FAnimNode_OrientationWarping::FAnimNode_OrientationWarping()
 	: LocomotionAngle(0.f)

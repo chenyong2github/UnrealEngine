@@ -10,10 +10,10 @@
 #include "DrawDebugHelpers.h"
 
 #if ENABLE_ANIM_DEBUG
-TAutoConsoleVariable<int32> CVarFortAnimNodeSlopeWarpingDebug(TEXT("a.AnimNode.SlopeWarping.Debug"), 0, TEXT("Turn on debug for AnimNode_SlopeWarping"));
+TAutoConsoleVariable<int32> CVarAnimNodeSlopeWarpingDebug(TEXT("a.AnimNode.SlopeWarping.Debug"), 0, TEXT("Turn on debug for AnimNode_SlopeWarping"));
 #endif
 
-TAutoConsoleVariable<int32> CVarFortSlopeWarpingEnable(TEXT("a.AnimNode.SlopeWarping.Enable"), 1, TEXT("Toggle Slope Warping"));
+TAutoConsoleVariable<int32> CVarSlopeWarpingEnable(TEXT("a.AnimNode.SlopeWarping.Enable"), 1, TEXT("Toggle Slope Warping"));
 
 DECLARE_CYCLE_STAT(TEXT("Slope Warping Eval"), STAT_SlopeWarping_Eval, STATGROUP_Anim);
 
@@ -281,12 +281,12 @@ void FAnimNode_SlopeWarping::EvaluateSkeletalControl_AnyThread(FComponentSpacePo
 	const FBoneContainer& RequiredBones = Output.Pose.GetPose().GetBoneContainer();
 
 #if ENABLE_ANIM_DEBUG
-	bShowDebug = (CVarFortAnimNodeSlopeWarpingDebug.GetValueOnAnyThread() == 1);
+	bShowDebug = (CVarAnimNodeSlopeWarpingDebug.GetValueOnAnyThread() == 1);
 #endif
 
 	const FCompactPoseBoneIndex IKFootRootBoneIndex = IKFootRootBone.GetCompactPoseIndex(RequiredBones);
 	FTransform IKFootRootTransform = Output.Pose.GetComponentSpaceTransform(IKFootRootBoneIndex);
-	if (!ensureMsgf(IKFootRootTransform.ContainsNaN() == false, TEXT("FFortAnimNode_SlopeWarping, Incoming IKFootRootTransform contains NaN (%s)"), *IKFootRootTransform.ToString()))
+	if (!ensureMsgf(IKFootRootTransform.ContainsNaN() == false, TEXT("FAnimNode_SlopeWarping, Incoming IKFootRootTransform contains NaN (%s)"), *IKFootRootTransform.ToString()))
 	{
 		IKFootRootTransform = FTransform::Identity;
 	}
@@ -294,7 +294,7 @@ void FAnimNode_SlopeWarping::EvaluateSkeletalControl_AnyThread(FComponentSpacePo
 	const FVector IKFootRootLoc = IKFootRootTransform.GetLocation();
 	const FVector IKFootFloorNormal = IKFootRootTransform.GetUnitAxis(EAxis::Z);
 
-	if (!ensureMsgf(GravityDir.ContainsNaN() == false, TEXT("FFortAnimNode_SlopeWarping, Incoming GravityDir contains NaN (%s)"), *GravityDir.ToCompactString()))
+	if (!ensureMsgf(GravityDir.ContainsNaN() == false, TEXT("FAnimNode_SlopeWarping, Incoming GravityDir contains NaN (%s)"), *GravityDir.ToCompactString()))
 	{
 		GravityDir = -FVector::UpVector;
 	}
@@ -305,7 +305,7 @@ void FAnimNode_SlopeWarping::EvaluateSkeletalControl_AnyThread(FComponentSpacePo
 		for (auto& FootData : FeetData)
 		{
 			FootData.IKFootTransform = Output.Pose.GetComponentSpaceTransform(FootData.IKFootBoneIndex);
-			if (!ensureMsgf(FootData.IKFootTransform.ContainsNaN() == false, TEXT("FFortAnimNode_SlopeWarping, Incoming IKFootTransform contains NaN (%s)"), *FootData.IKFootTransform.ToString()))
+			if (!ensureMsgf(FootData.IKFootTransform.ContainsNaN() == false, TEXT("FAnimNode_SlopeWarping, Incoming IKFootTransform contains NaN (%s)"), *FootData.IKFootTransform.ToString()))
 			{
 				FootData.IKFootTransform = FTransform::Identity;
 			}
@@ -336,12 +336,12 @@ void FAnimNode_SlopeWarping::EvaluateSkeletalControl_AnyThread(FComponentSpacePo
 	FVector FloorNormal, FloorOffset;
 	GetSmoothedFloorInfo(Output.Pose, FloorNormal, FloorOffset);
 
-	if (!ensureMsgf(FloorNormal.ContainsNaN() == false, TEXT("FFortAnimNode_SlopeWarping, Incoming FloorNormal contains NaN (%s)"), *FloorNormal.ToCompactString()))
+	if (!ensureMsgf(FloorNormal.ContainsNaN() == false, TEXT("FAnimNode_SlopeWarping, Incoming FloorNormal contains NaN (%s)"), *FloorNormal.ToCompactString()))
 	{
 		FloorNormal = FVector::UpVector;
 	}
 
-	if (!ensureMsgf(FloorOffset.ContainsNaN() == false, TEXT("FFortAnimNode_SlopeWarping, Incoming FloorOffset contains NaN (%s)"), *FloorOffset.ToCompactString()))
+	if (!ensureMsgf(FloorOffset.ContainsNaN() == false, TEXT("FAnimNode_SlopeWarping, Incoming FloorOffset contains NaN (%s)"), *FloorOffset.ToCompactString()))
 	{
 		FloorOffset = FVector::ZeroVector;
 	}
@@ -365,7 +365,7 @@ void FAnimNode_SlopeWarping::EvaluateSkeletalControl_AnyThread(FComponentSpacePo
 
 	// Find Delta Rotation take takes us from Animated Slope to In-Game Slope
 	FQuat DeltaSlopeRotation = FQuat::FindBetweenNormals(IKFootFloorNormal, FloorNormal);
-	if (!ensureMsgf(DeltaSlopeRotation.ContainsNaN() == false, TEXT("FFortAnimNode_SlopeWarping, Incoming DeltaSlopeRotation contains NaN (%s)"), *DeltaSlopeRotation.ToString()))
+	if (!ensureMsgf(DeltaSlopeRotation.ContainsNaN() == false, TEXT("FAnimNode_SlopeWarping, Incoming DeltaSlopeRotation contains NaN (%s)"), *DeltaSlopeRotation.ToString()))
 	{
 		DeltaSlopeRotation = FQuat::Identity;
 	}
@@ -412,7 +412,7 @@ void FAnimNode_SlopeWarping::EvaluateSkeletalControl_AnyThread(FComponentSpacePo
 	// Pelvis Adjustment
 	const FCompactPoseBoneIndex PelvisBoneIndex = PelvisBone.GetCompactPoseIndex(RequiredBones);
 	FTransform PelvisTransform = Output.Pose.GetComponentSpaceTransform(PelvisBoneIndex);
-	if (!ensureMsgf(PelvisTransform.ContainsNaN() == false, TEXT("FFortAnimNode_SlopeWarping, Incoming PelvisTransform contains NaN (%s)"), *PelvisTransform.ToString()))
+	if (!ensureMsgf(PelvisTransform.ContainsNaN() == false, TEXT("FAnimNode_SlopeWarping, Incoming PelvisTransform contains NaN (%s)"), *PelvisTransform.ToString()))
 	{
 		PelvisTransform = FTransform::Identity;
 	}
@@ -568,7 +568,7 @@ void FAnimNode_SlopeWarping::EvaluateSkeletalControl_AnyThread(FComponentSpacePo
 				AdjustedHipTransform.NormalizeRotation();
 
 				// Add adjusted hip transform
-				if (ensureMsgf(AdjustedHipTransform.ContainsNaN() == false, TEXT("FFortAnimNode_SlopeWarping, Outgoing AdjustedHipTransform contains NaN (%s)"), *AdjustedHipTransform.ToString()))
+				if (ensureMsgf(AdjustedHipTransform.ContainsNaN() == false, TEXT("FAnimNode_SlopeWarping, Outgoing AdjustedHipTransform contains NaN (%s)"), *AdjustedHipTransform.ToString()))
 				{
 					OutBoneTransforms.Add(FBoneTransform(FootData.HipBoneIndex, AdjustedHipTransform));
 				}
@@ -591,7 +591,7 @@ void FAnimNode_SlopeWarping::EvaluateSkeletalControl_AnyThread(FComponentSpacePo
 		// Add adjusted IK Foot Root
 		if (bPoseNeedsToBeRotated)
 		{
-			if (ensureMsgf(IKFootRootTransform.ContainsNaN() == false, TEXT("FFortAnimNode_SlopeWarping, Outgoing IKFootRootTransform contains NaN (%s)"), *IKFootRootTransform.ToString()))
+			if (ensureMsgf(IKFootRootTransform.ContainsNaN() == false, TEXT("FAnimNode_SlopeWarping, Outgoing IKFootRootTransform contains NaN (%s)"), *IKFootRootTransform.ToString()))
 			{
 				OutBoneTransforms.Add(FBoneTransform(IKFootRootBoneIndex, IKFootRootTransform));
 			}
@@ -603,7 +603,7 @@ void FAnimNode_SlopeWarping::EvaluateSkeletalControl_AnyThread(FComponentSpacePo
 			FTransform RootBoneTransform(Output.Pose.GetComponentSpaceTransform(RootBoneIndex));
 			RootBoneTransform.AddToTranslation(FloorOffset);
 
-			if (ensureMsgf(RootBoneTransform.ContainsNaN() == false, TEXT("FFortAnimNode_SlopeWarping, Outgoing RootBoneTransform contains NaN (%s)"), *RootBoneTransform.ToString()))
+			if (ensureMsgf(RootBoneTransform.ContainsNaN() == false, TEXT("FAnimNode_SlopeWarping, Outgoing RootBoneTransform contains NaN (%s)"), *RootBoneTransform.ToString()))
 			{
 				OutBoneTransforms.Add(FBoneTransform(RootBoneIndex, RootBoneTransform));
 			}
@@ -611,7 +611,7 @@ void FAnimNode_SlopeWarping::EvaluateSkeletalControl_AnyThread(FComponentSpacePo
 
 		if (bPoseNeedsToBeRotated || bPelvisInterpolated)
 		{
-			if (ensureMsgf(PelvisTransform.ContainsNaN() == false, TEXT("FFortAnimNode_SlopeWarping, Outgoing PelvisTransform contains NaN (%s)"), *PelvisTransform.ToString()))
+			if (ensureMsgf(PelvisTransform.ContainsNaN() == false, TEXT("FAnimNode_SlopeWarping, Outgoing PelvisTransform contains NaN (%s)"), *PelvisTransform.ToString()))
 			{
 				OutBoneTransforms.Add(FBoneTransform(PelvisBoneIndex, PelvisTransform));
 			}
@@ -629,7 +629,7 @@ void FAnimNode_SlopeWarping::EvaluateSkeletalControl_AnyThread(FComponentSpacePo
 		{
 			for (auto& FootData : FeetData)
 			{
-				if (ensureMsgf(FootData.IKFootTransform.ContainsNaN() == false, TEXT("FFortAnimNode_SlopeWarping, Outgoing FootData.IKFootTransform contains NaN (%s)"), *FootData.IKFootTransform.ToString()))
+				if (ensureMsgf(FootData.IKFootTransform.ContainsNaN() == false, TEXT("FAnimNode_SlopeWarping, Outgoing FootData.IKFootTransform contains NaN (%s)"), *FootData.IKFootTransform.ToString()))
 				{
 					OutBoneTransforms.Add(FBoneTransform(FootData.IKFootBoneIndex, FootData.IKFootTransform));
 				}
@@ -664,7 +664,7 @@ void FAnimNode_SlopeWarping::EvaluateSkeletalControl_AnyThread(FComponentSpacePo
 
 bool FAnimNode_SlopeWarping::IsValidToEvaluate(const USkeleton* Skeleton, const FBoneContainer& RequiredBones)
 {
-	const bool bIsEnabled = (CVarFortSlopeWarpingEnable.GetValueOnAnyThread() == 1);
+	const bool bIsEnabled = (CVarSlopeWarpingEnable.GetValueOnAnyThread() == 1);
 	return MyMovementComponent && bIsEnabled && (IKFootRootBone.GetCompactPoseIndex(RequiredBones) != INDEX_NONE) && (PelvisBone.GetCompactPoseIndex(RequiredBones) != INDEX_NONE) && (FeetData.Num() > 0);
 }
 

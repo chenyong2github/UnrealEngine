@@ -7,10 +7,10 @@
 #include "Animation/InputScaleBias.h"
 
 #if ENABLE_ANIM_DEBUG
-TAutoConsoleVariable<int32> CVarFortAnimNodeStrideWarpingDebug(TEXT("a.AnimNode.StrideWarping.Debug"), 0, TEXT("Turn on debug for AnimNode_StrideWarping"));
+TAutoConsoleVariable<int32> CVarAnimNodeStrideWarpingDebug(TEXT("a.AnimNode.StrideWarping.Debug"), 0, TEXT("Turn on debug for AnimNode_StrideWarping"));
 #endif
 
-TAutoConsoleVariable<int32> CVarFortStrideWarpingEnable(TEXT("a.AnimNode.StrideWarping.Enable"), 1, TEXT("Toggle Stride Warping"));
+TAutoConsoleVariable<int32> CVarStrideWarpingEnable(TEXT("a.AnimNode.StrideWarping.Enable"), 1, TEXT("Toggle Stride Warping"));
 
 DECLARE_CYCLE_STAT(TEXT("StrideWarping Eval"), STAT_StrideWarping_Eval, STATGROUP_Anim);
 
@@ -99,14 +99,15 @@ void FAnimNode_StrideWarping::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 	}
 
 #if ENABLE_ANIM_DEBUG
-	const bool bShowDebug = (CVarFortAnimNodeStrideWarpingDebug.GetValueOnAnyThread() == 1);
+	const bool bShowDebug = (CVarAnimNodeStrideWarpingDebug.GetValueOnAnyThread() == 1);
 	UWorld* DebugWorld = MyAnimInstanceProxy->GetSkelMeshComponent()->GetWorld();
 	if (bShowDebug)
 	{
 		// Draw Floor Normal
-		DrawDebugDirectionalArrow(DebugWorld
-			, MyAnimInstanceProxy->GetComponentTransform().TransformPosition(IKFootRootTransform.GetLocation())
-			, MyAnimInstanceProxy->GetComponentTransform().TransformPosition(IKFootRootTransform.GetLocation() + FloorPlaneNormal * 500.f), 50.f, FColor::Blue);
+		MyAnimInstanceProxy->AnimDrawDebugDirectionalArrow(
+			MyAnimInstanceProxy->GetComponentTransform().TransformPosition(IKFootRootTransform.GetLocation()),
+			MyAnimInstanceProxy->GetComponentTransform().TransformPosition(IKFootRootTransform.GetLocation() + FloorPlaneNormal * 500.f),
+			50.f, FColor::Blue);
 	}
 #endif
 
@@ -118,7 +119,7 @@ void FAnimNode_StrideWarping::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 		if (bShowDebug)
 		{
 			FVector FootWorldLocation = MyAnimInstanceProxy->GetComponentTransform().TransformPosition(FootData.IKBoneTransform.GetLocation());
-			DrawDebugSphere(DebugWorld, FootWorldLocation, 8.f, 16, FColor::Red);
+			MyAnimInstanceProxy->AnimDrawDebugSphere(FootWorldLocation, 8.f, 16, FColor::Red);
 		}
 #endif
 	}
@@ -146,10 +147,10 @@ void FAnimNode_StrideWarping::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 		if (bShowDebug)
 		{
 			FVector FootWorldLocation = MyAnimInstanceProxy->GetComponentTransform().TransformPosition(FootData.IKBoneTransform.GetLocation());
-			DrawDebugSphere(DebugWorld, FootWorldLocation, 8.f, 16, FColor::Green);
+			MyAnimInstanceProxy->AnimDrawDebugSphere(FootWorldLocation, 8.f, 16, FColor::Green);
 
 			FVector ScaleOriginWorldLoc = MyAnimInstanceProxy->GetComponentTransform().TransformPosition(ScaleOrigin);
-			DrawDebugSphere(DebugWorld, ScaleOriginWorldLoc, 8.f, 16, FColor::Yellow);
+			MyAnimInstanceProxy->AnimDrawDebugSphere(ScaleOriginWorldLoc, 8.f, 16, FColor::Yellow);
 		}
 #endif
 	}
@@ -207,14 +208,15 @@ void FAnimNode_StrideWarping::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 		if (bShowDebug)
 		{
 			// Draw Adjustments in Pelvis location
-			DrawDebugSphere(DebugWorld, MyAnimInstanceProxy->GetComponentTransform().TransformPosition(InitialPelvisLocation), 8.f, 16, FColor::Red);
-			DrawDebugSphere(DebugWorld, MyAnimInstanceProxy->GetComponentTransform().TransformPosition(AdjustedPelvisLocation), 8.f, 16, FColor::Green);
-			DrawDebugSphere(DebugWorld, MyAnimInstanceProxy->GetComponentTransform().TransformPosition(SmoothAdjustedPelvisLocation), 8.f, 16, FColor::Blue);
+			MyAnimInstanceProxy->AnimDrawDebugSphere(MyAnimInstanceProxy->GetComponentTransform().TransformPosition(InitialPelvisLocation), 8.f, 16, FColor::Red);
+			MyAnimInstanceProxy->AnimDrawDebugSphere(MyAnimInstanceProxy->GetComponentTransform().TransformPosition(AdjustedPelvisLocation), 8.f, 16, FColor::Green);
+			MyAnimInstanceProxy->AnimDrawDebugSphere(MyAnimInstanceProxy->GetComponentTransform().TransformPosition(SmoothAdjustedPelvisLocation), 8.f, 16, FColor::Blue);
 
 			// Draw Stride Direction
-			DrawDebugDirectionalArrow(DebugWorld
-				, MyAnimInstanceProxy->GetComponentTransform().TransformPosition(InitialPelvisLocation)
-				, MyAnimInstanceProxy->GetComponentTransform().TransformPosition(InitialPelvisLocation + StrideWarpingPlaneNormal * 500.f), 50.f, FColor::Red);
+			MyAnimInstanceProxy->AnimDrawDebugDirectionalArrow(
+				MyAnimInstanceProxy->GetComponentTransform().TransformPosition(InitialPelvisLocation),
+				MyAnimInstanceProxy->GetComponentTransform().TransformPosition(InitialPelvisLocation + StrideWarpingPlaneNormal * 500.f),
+				50.f, FColor::Red);
 		}
 #endif
 
@@ -243,15 +245,15 @@ void FAnimNode_StrideWarping::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 #if ENABLE_ANIM_DEBUG
 			if (bShowDebug)
 			{
-				DrawDebugLine(DebugWorld
-					, MyAnimInstanceProxy->GetComponentTransform().TransformPosition(HipTransform.GetLocation())
-					, MyAnimInstanceProxy->GetComponentTransform().TransformPosition(FKFootTransform.GetLocation())
-					, FColor::Red);
+				MyAnimInstanceProxy->AnimDrawDebugLine(
+					MyAnimInstanceProxy->GetComponentTransform().TransformPosition(HipTransform.GetLocation()),
+					MyAnimInstanceProxy->GetComponentTransform().TransformPosition(FKFootTransform.GetLocation()),
+					FColor::Red);
 
-				DrawDebugLine(DebugWorld
-					, MyAnimInstanceProxy->GetComponentTransform().TransformPosition(AdjustedHipTransform.GetLocation())
-					, MyAnimInstanceProxy->GetComponentTransform().TransformPosition(FootData.IKBoneTransform.GetLocation())
-					, FColor::Green);
+				MyAnimInstanceProxy->AnimDrawDebugLine(
+					MyAnimInstanceProxy->GetComponentTransform().TransformPosition(AdjustedHipTransform.GetLocation()),
+					MyAnimInstanceProxy->GetComponentTransform().TransformPosition(FootData.IKBoneTransform.GetLocation()),
+					FColor::Green);
 			}
 #endif
 
@@ -285,7 +287,7 @@ void FAnimNode_StrideWarping::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 #if ENABLE_ANIM_DEBUG
 		if (bShowDebug)
 		{
-			DrawDebugSphere(DebugWorld, MyAnimInstanceProxy->GetComponentTransform().TransformPosition(FootData.IKBoneTransform.GetLocation()), 8.f, 16, FColor::Blue);
+			MyAnimInstanceProxy->AnimDrawDebugSphere(MyAnimInstanceProxy->GetComponentTransform().TransformPosition(FootData.IKBoneTransform.GetLocation()), 8.f, 16, FColor::Blue);
 		}
 #endif
 		check(!FootData.IKBoneTransform.ContainsNaN());
@@ -301,7 +303,7 @@ void FAnimNode_StrideWarping::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 
 bool FAnimNode_StrideWarping::IsValidToEvaluate(const USkeleton* Skeleton, const FBoneContainer& RequiredBones)
 {
-	const bool bIsEnabled = (CVarFortStrideWarpingEnable.GetValueOnAnyThread() == 1);
+	const bool bIsEnabled = (CVarStrideWarpingEnable.GetValueOnAnyThread() == 1);
 	return bIsEnabled && (FeetData.Num() > 0) 
 		&& (PelvisBone.GetCompactPoseIndex(RequiredBones) != INDEX_NONE) 
 		&& (IKFootRootBone.GetCompactPoseIndex(RequiredBones) != INDEX_NONE) 
