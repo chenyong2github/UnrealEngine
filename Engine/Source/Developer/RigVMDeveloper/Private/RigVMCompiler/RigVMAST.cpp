@@ -2567,6 +2567,8 @@ void FRigVMParserAST::Inline(URigVMGraph* InGraph)
 
 void FRigVMParserAST::Inline(URigVMGraph* InGraph, const TArray<FRigVMASTProxy>& InNodeProxies)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	struct LocalPinTraversalInfo
 	{
 		URigVMPin::FPinOverrideMap* PinOverrides;

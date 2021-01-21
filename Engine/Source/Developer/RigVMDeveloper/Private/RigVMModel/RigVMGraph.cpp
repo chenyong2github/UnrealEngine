@@ -231,6 +231,27 @@ void URigVMGraph::Notify(ERigVMGraphNotifType InNotifType, UObject* InSubject)
 
 TSharedPtr<FRigVMParserAST> URigVMGraph::GetDiagnosticsAST(bool bForceRefresh, TArray<URigVMLink*> InLinksToSkip)
 {
+	// only refresh the diagnostics AST if have a different set of links to skip
+	if (!bForceRefresh && DiagnosticsAST.IsValid())
+	{
+		const TArray<URigVMLink*> PreviousLinksToSkip = DiagnosticsAST->GetSettings().LinksToSkip;
+		if (PreviousLinksToSkip.Num() < InLinksToSkip.Num())
+		{
+			bForceRefresh = true;
+		}
+		else
+		{
+			for (int32 LinkIndex = 0; LinkIndex < InLinksToSkip.Num(); LinkIndex++)
+			{
+				if (PreviousLinksToSkip[LinkIndex] != InLinksToSkip[LinkIndex])
+				{
+					bForceRefresh = true;
+					break;
+				}
+			}
+		}
+	}
+
 	if (DiagnosticsAST == nullptr || bForceRefresh)
 	{
 		FRigVMParserASTSettings Settings = FRigVMParserASTSettings::Fast();
@@ -280,7 +301,8 @@ void URigVMGraph::PrepareCycleChecking(URigVMPin* InPin, bool bAsInput)
 	{
 		LinksToSkip = InPin->GetLinks();
 	}
-	GetDiagnosticsAST(LinksToSkip.Num() > 0, LinksToSkip)->PrepareCycleChecking(InPin);
+
+	GetDiagnosticsAST(false, LinksToSkip)->PrepareCycleChecking(InPin);
 }
 
 bool URigVMGraph::CanLink(URigVMPin* InSourcePin, URigVMPin* InTargetPin, FString* OutFailureReason)

@@ -1221,6 +1221,9 @@ public:
 	// returns the AST's override table for pin defaults
 	const URigVMPin::FPinOverrideMap& GetPinOverrides() const { return PinOverrides; }
 
+	// returns the settings used for this parser
+	const FRigVMParserASTSettings& GetSettings() const { return Settings; }
+
 private:
 
 	// private constructor for a partial build
