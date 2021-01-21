@@ -407,7 +407,7 @@ namespace UnrealBuildTool
 			public string Mode = null;
 
 			/// <summary>
-			/// Initialize the options with the given commnad line arguments
+			/// Initialize the options with the given command line arguments
 			/// </summary>
 			/// <param name="Arguments"></param>
 			public GlobalOptions(CommandLineArguments Arguments)

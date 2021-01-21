@@ -2377,7 +2377,27 @@ void UCookOnTheFlyServer::PumpSaves(UE::Cook::FTickStackData& StackData, uint32 
 					// Update flags used to determine garbage collection.
 					if (Package->ContainsMap())
 					{
+						SucceededSavePackage.Add(true);
 						StackData.ResultFlags |= COSR_CookedMap;
+
+						// Update flags used to determine garbage collection.
+						if (Package->ContainsMap())
+						{
+							Result |= COSR_CookedMap;
+						}
+						else
+						{
+							++CookedPackageCount;
+							Result |= COSR_CookedPackage;
+						}
+
+						// Update asset registry
+						if (CookByTheBookOptions)
+						{
+							FAssetRegistryGenerator* Generator = PlatformManager->GetPlatformData(PlatformsForPackage[iResultIndex])->RegistryGenerator.Get();
+							UpdateAssetRegistryPackageData(Generator, *Package, SavePackageResult);
+
+						}
 					}
 					else
 					{
@@ -2477,11 +2497,15 @@ void UCookOnTheFlyServer::PumpSaves(UE::Cook::FTickStackData& StackData, uint32 
 	}
 }
 
-void UCookOnTheFlyServer::UpdateAssetRegistryPackageData(FAssetRegistryGenerator* Generator, const FName& PackageName, FSavePackageResultStruct& SavePackageResult)
+void UCookOnTheFlyServer::UpdateAssetRegistryPackageData(FAssetRegistryGenerator* Generator, const UPackage& Package, FSavePackageResultStruct& SavePackageResult)
 {
 	if (!Generator)
 		return;
 
+	// Ensure all assets in the package are recorded in the registry
+	Generator->CreateOrFindAssetDatas(Package);
+
+	const FName PackageName = Package.GetFName();
 	FAssetPackageData* AssetPackageData = Generator->GetAssetPackageData(PackageName);
 	AssetPackageData->DiskSize = SavePackageResult.TotalFileSize;
 	// If there is no hash (e.g.: when SavePackageResult == ESavePackageResult::ReplaceCompletely), don't attempt to setup a continuation to update
@@ -7964,7 +7988,7 @@ uint32 UCookOnTheFlyServer::FullLoadAndSave(uint32& CookedPackageCount)
 							{
 								UE::Cook::FPlatformManager::FReadScopeLock PlatformScopeLock(PlatformManager->ReadLockPlatforms());
 								FAssetRegistryGenerator* Generator = PlatformManager->GetPlatformData(Target)->RegistryGenerator.Get();
-								UpdateAssetRegistryPackageData(Generator, Package->GetFName(), SaveResult);
+								UpdateAssetRegistryPackageData(Generator, *Package, SaveResult);
 							}
 
 							FPlatformAtomics::InterlockedIncrement(&ParallelSavedPackages);

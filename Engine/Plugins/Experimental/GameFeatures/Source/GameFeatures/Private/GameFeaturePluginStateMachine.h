@@ -166,6 +166,9 @@ struct FGameFeaturePluginStateMachineProperties
 
 	/** Once installed, this is the filename on disk of the .uplugin file. */
 	FString PluginInstalledFilename;
+	
+	/** Once installed, this is the name of the plugin. */
+	FString PluginName;
 
 	/** Delegate for when a state transition request has completed. */
 	FGameFeatureStateTransitionComplete OnFeatureStateTransitionComplete;
@@ -194,7 +197,8 @@ struct FGameFeaturePluginStateMachineProperties
 		const TDelegate<void()>& RequestUpdateStateMachineDelegate);
 
 	EGameFeaturePluginProtocol GetPluginProtocol() const;
-	FString FileProtocolPrefix() const;
+	static FString FileProtocolPrefix();
+	static FString WebProtocolPrefix();
 };
 
 /** Input and output information for a state's UpdateState */
