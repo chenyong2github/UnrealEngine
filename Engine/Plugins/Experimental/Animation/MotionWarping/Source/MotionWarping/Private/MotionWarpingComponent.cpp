@@ -115,8 +115,8 @@ void UMotionWarpingComponent::AddRootMotionModifier(TSharedPtr<FRootMotionModifi
 	{
 		RootMotionModifiers.Add(Modifier);
 
-		UE_LOG(LogMotionWarping, Verbose, TEXT("UMotionWarpingComponent RootMotionModifier added. NetMode: %d WorldTime: %f Animation: %s [%f %f] [%f %f] Loc: %s Rot: %s"),
-			GetWorld()->GetNetMode(), GetWorld()->GetTimeSeconds(), *GetNameSafe(Modifier->Animation.Get()), Modifier->StartTime, Modifier->EndTime, Modifier->PreviousPosition, Modifier->CurrentPosition,
+		UE_LOG(LogMotionWarping, Verbose, TEXT("MotionWarping: RootMotionModifier added. NetMode: %d WorldTime: %f Char: %s Animation: %s [%f %f] [%f %f] Loc: %s Rot: %s"),
+			GetWorld()->GetNetMode(), GetWorld()->GetTimeSeconds(), *GetNameSafe(GetCharacterOwner()), *GetNameSafe(Modifier->Animation.Get()), Modifier->StartTime, Modifier->EndTime, Modifier->PreviousPosition, Modifier->CurrentPosition,
 			*GetCharacterOwner()->GetActorLocation().ToString(), *GetCharacterOwner()->GetActorRotation().ToCompactString());
 	}
 }
@@ -208,9 +208,19 @@ void UMotionWarpingComponent::Update()
 		}
 
 		// Remove the modifiers that has been marked for removal
-		const int32 TotalRemoved = RootMotionModifiers.RemoveAll([](const TSharedPtr<FRootMotionModifier>& Modifier) { return Modifier->State == ERootMotionModifierState::MarkedForRemoval; });
+		RootMotionModifiers.RemoveAll([this](const TSharedPtr<FRootMotionModifier>& Modifier) 
+		{ 
+			if(Modifier->State == ERootMotionModifierState::MarkedForRemoval)
+			{
+				UE_LOG(LogMotionWarping, Verbose, TEXT("MotionWarping: RootMotionModifier removed. NetMode: %d WorldTime: %f Char: %s Animation: %s [%f %f] [%f %f] Loc: %s Rot: %s"),
+					GetWorld()->GetNetMode(), GetWorld()->GetTimeSeconds(), *GetNameSafe(GetCharacterOwner()), *GetNameSafe(Modifier->Animation.Get()), Modifier->StartTime, Modifier->EndTime, Modifier->PreviousPosition, Modifier->CurrentPosition,
+					*GetCharacterOwner()->GetActorLocation().ToString(), *GetCharacterOwner()->GetActorRotation().ToCompactString());
 
-		UE_CLOG(TotalRemoved > 0, LogMotionWarping, Verbose, TEXT("UMotionWarpingComponent::UpdateModifiers Modifiers removed after update: %d"), TotalRemoved);
+				return true;
+			}
+
+			return false; 
+		});
 	}
 }
 

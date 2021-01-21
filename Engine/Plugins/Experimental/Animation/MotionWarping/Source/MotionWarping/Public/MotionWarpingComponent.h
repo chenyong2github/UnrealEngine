@@ -46,6 +46,7 @@ public:
 	static void ExtractComponentSpacePose(const UAnimSequenceBase* Animation, const FBoneContainer& BoneContainer, float Time, bool bExtractRootMotion, FCSPose<FCompactPose>& OutPose);
 
 	/** Extract Root Motion transform from a contiguous position range */
+	UFUNCTION(BlueprintCallable, Category = "Motion Warping")
 	static FTransform ExtractRootMotionFromAnimation(const UAnimSequenceBase* Animation, float StartTime, float EndTime);
 };
 

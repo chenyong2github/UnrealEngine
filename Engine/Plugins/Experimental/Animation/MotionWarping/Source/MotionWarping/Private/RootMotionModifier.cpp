@@ -19,6 +19,9 @@ void FRootMotionModifier::Update(UMotionWarpingComponent& OwnerComp)
 	// Mark for removal if our animation is not relevant anymore
 	if (Montage == nullptr || Montage != Animation)
 	{
+		UE_LOG(LogMotionWarping, Verbose, TEXT("MotionWarping: Marking RootMotionModifier for removal. Reason: Animation is not valid. Char: %s Current Montage: %s. Window: Animation: %s [%f %f] [%f %f]"),
+			*GetNameSafe(OwnerComp.GetCharacterOwner()), *GetNameSafe(Montage), *GetNameSafe(Animation.Get()), StartTime, EndTime, PreviousPosition, CurrentPosition);
+
 		State = ERootMotionModifierState::MarkedForRemoval;
 		return;
 	}
@@ -31,6 +34,9 @@ void FRootMotionModifier::Update(UMotionWarpingComponent& OwnerComp)
 	// Mark for removal if the animation already passed the warping window
 	if (PreviousPosition >= EndTime)
 	{
+		UE_LOG(LogMotionWarping, Verbose, TEXT("MotionWarping: Marking RootMotionModifier for removal. Reason: Window has ended. Char: %s Animation: %s [%f %f] [%f %f]"),
+			*GetNameSafe(OwnerComp.GetCharacterOwner()), *GetNameSafe(Animation.Get()), StartTime, EndTime, PreviousPosition, CurrentPosition);
+
 		State = ERootMotionModifierState::MarkedForRemoval;
 		return;
 	}
@@ -51,21 +57,24 @@ void FRootMotionModifier::Update(UMotionWarpingComponent& OwnerComp)
 
 void FRootMotionModifier_Warp::Update(UMotionWarpingComponent& OwnerComp)
 {
-	// Mark for removal if there is no sync point for us
-	const FMotionWarpingSyncPoint* SyncPointPtr = OwnerComp.FindSyncPoint(SyncPointName);
-	if (SyncPointPtr == nullptr)
-	{
-		UE_LOG(LogMotionWarping, Warning, TEXT("Marking RootMotionModifier for removal. Reason: Can't find SyncPoint (%s)"), *SyncPointName.ToString());
-		State = ERootMotionModifierState::MarkedForRemoval;
-		return;
-	}
-
 	// Update playback times and state
 	FRootMotionModifier::Update(OwnerComp);
 
 	// Cache sync point transform and trigger OnSyncPointChanged if needed
 	if (State == ERootMotionModifierState::Active)
 	{
+		const FMotionWarpingSyncPoint* SyncPointPtr = OwnerComp.FindSyncPoint(SyncPointName);
+
+		// Disable if there is no sync point for us
+		if (SyncPointPtr == nullptr)
+		{
+			UE_LOG(LogMotionWarping, Verbose, TEXT("MotionWarping: Marking RootMotionModifier as Disabled. Reason: Invalid Sync Point (%s). Char: %s Animation: %s [%f %f] [%f %f]"),
+				*SyncPointName.ToString(), *GetNameSafe(OwnerComp.GetCharacterOwner()), *GetNameSafe(Animation.Get()), StartTime, EndTime, PreviousPosition, CurrentPosition);
+
+			State = ERootMotionModifierState::Disabled;
+			return;
+		}
+
 		if (CachedSyncPoint != *SyncPointPtr)
 		{
 			CachedSyncPoint = *SyncPointPtr;
@@ -181,7 +190,7 @@ void FRootMotionModifier_Warp::PrintLog(const UMotionWarpingComponent& OwnerComp
 	const float Speed = WarpedRootMotion.GetTranslation().Size() / DeltaSeconds;
 	const float EndTimeOffset = CurrentPosition - EndTime;
 
-	UE_LOG(LogMotionWarping, Log, TEXT("%s. NetMode: %d Char: %s Anim: %s Window [%f %f][%f %f] DeltaTime: %f WorldTime: %f EndTimeOffset: %f Dist2D: %f FutureDist2D: %f Dot: %f OriginalMotionDelta: %s (%f) FinalMotionDelta: %s (%f) Speed: %f Location: %s FutureLocation: %s Rotation: %s FutureRotation: %s"),
+	UE_LOG(LogMotionWarping, Log, TEXT("MotionWarping: %s. NetMode: %d Char: %s Anim: %s Window [%f %f][%f %f] DeltaTime: %f WorldTime: %f EndTimeOffset: %f Dist2D: %f FutureDist2D: %f Dot: %f OriginalMotionDelta: %s (%f) FinalMotionDelta: %s (%f) Speed: %f Loc: %s FutureLoc: %s Rot: %s FutureRot: %s"),
 		*Name, (int32)CharacterOwner->GetWorld()->GetNetMode(), *GetNameSafe(CharacterOwner), *GetNameSafe(Animation.Get()), StartTime, EndTime, PreviousPosition, CurrentPosition, DeltaSeconds, CharacterOwner->GetWorld()->GetTimeSeconds(), EndTimeOffset, CurrentDist2D, FutureDist2D, Dot,
 		*OriginalRootMotion.GetTranslation().ToString(), OriginalRootMotion.GetTranslation().Size(), *WarpedRootMotion.GetTranslation().ToString(), WarpedRootMotion.GetTranslation().Size(), Speed,
 		*CurrentLocation.ToString(), *FutureLocation.ToString(), *CurrentRotation.ToCompactString(), *FutureRotation.ToCompactString());
