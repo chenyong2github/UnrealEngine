@@ -53,7 +53,6 @@ static TAutoConsoleVariable<int32> CVarSMRTRayCountDirectional(
 	ECVF_RenderThreadSafe
 );
 
-#if 0
 static TAutoConsoleVariable<int32> CVarSMRTRayCountSpot(
 	TEXT( "r.Shadow.v.SMRT.RayCountSpot" ),
 	0,
@@ -67,7 +66,6 @@ static TAutoConsoleVariable<int32> CVarSMRTSamplesPerRaySpot(
 	TEXT( "Shadow map samples per ray for spot lights" ),
 	ECVF_RenderThreadSafe
 );
-#endif
 
 static TAutoConsoleVariable<int32> CVarSMRTSamplesPerRayDirectional(
 	TEXT( "r.Shadow.v.SMRT.SamplesPerRayDirectional" ),
@@ -229,8 +227,8 @@ static bool AddPass_RenderVirtualShadowMapProjection(
 	}
 	else
 	{
-		PassParameters->SMRTRayCount = 0; //CVarSMRTRayCountSpot.GetValueOnRenderThread();
-		PassParameters->SMRTSamplesPerRay = 0; //CVarSMRTSamplesPerRaySpot.GetValueOnRenderThread();
+		PassParameters->SMRTRayCount = CVarSMRTRayCountSpot.GetValueOnRenderThread();
+		PassParameters->SMRTSamplesPerRay = CVarSMRTSamplesPerRaySpot.GetValueOnRenderThread();
 		PassParameters->SMRTRayLengthScale = 0.0f;		// Currently unused in this path
 
 		FVirtualShadowMapProjectionSpotPS::FPermutationDomain PermutationVector;

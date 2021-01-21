@@ -75,10 +75,6 @@ public:
 
 	static constexpr uint32 RasterWindowPages = 4u;
 	
-	// Something large (we're using ints at the moment...)
-	// TODO: Fix this when tweaking data sizes of page table entries to e.g., 2x8 bits
-	static constexpr uint32 InvalidPhysicalPageAddress = 65535U; 
-
 	FVirtualShadowMap(uint32 InID) : ID(InID)
 	{
 	}
@@ -136,7 +132,7 @@ END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 BEGIN_SHADER_PARAMETER_STRUCT(FVirtualShadowMapSamplingParameters, )
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FVirtualShadowMapCommonParameters, VirtualSmCommon)
-	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint2>, PageTable)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, ShadowPageTable)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, PhysicalPagePool)
 	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< FVirtualShadowMapProjectionShaderData >, VirtualShadowMapProjectionData)
 #if ENABLE_NON_NANITE_VSM
@@ -276,6 +272,8 @@ public:
 #endif // ENABLE_NON_NANITE_VSM
 	FRDGBufferRef ShadowMapProjectionDataRDG = nullptr;
 
+	// These are not created or managed by this class - references are copied from the cache manager
+	// when needed as they come from the previous frame.
 	TRefCountPtr<IPooledRenderTarget>	HZBPhysical;
 	//FRDGTextureRef HZBPhysicalRDG = nullptr;
 	TRefCountPtr<FRDGPooledBuffer>		HZBPageTable;

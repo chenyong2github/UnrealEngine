@@ -1,0 +1,264 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+/*=============================================================================
+ProjectionSpot.ush: 
+=============================================================================*/
+#pragma once
+
+#include "../DeferredShadingCommon.ush"
+#include "../SceneTexturesCommon.ush"
+#include "../LightShaderParameters.ush"
+#include "PageAccessCommon.ush"
+#include "ProjectionCommon.ush"
+
+/** Return float multiplier to scale RayStepScreen such that it clip it right at the edge of the screen. */
+float GetStepScreenFactorToClipAtScreenEdge(float2 RayStartScreen, float2 RayStepScreen)
+{
+	// Computes the scale down factor for RayStepScreen required to fit on the X and Y axis in order to clip it in the viewport
+	const float RayStepScreenInvFactor = 0.5 * length(RayStepScreen);
+	const float2 S = 1 - max(abs(RayStepScreen + RayStartScreen * RayStepScreenInvFactor) - RayStepScreenInvFactor, 0.0f) / abs(RayStepScreen);
+
+	// Rescales RayStepScreen accordingly
+	const float RayStepFactor = min(S.x, S.y) / RayStepScreenInvFactor;
+
+	return RayStepFactor;
+}
+
+bool ShadowRayCastSpotlight(
+	int VirtualShadowMapId,
+	float3 RayStart,
+	float3 RayEnd,
+	int NumSteps,
+	float StepOffset,
+	inout float OccluderDistance)
+{
+	FVirtualShadowMapProjectionShaderData BaseProjectionData = GetVirtualShadowMapProjectionData(VirtualShadowMapId);
+
+	// Spot light
+	float4 RayStartUVz = mul(float4(RayStart + BaseProjectionData.ShadowPreViewTranslation, 1), BaseProjectionData.TranslatedWorldToShadowUVMatrix).xyzw;
+	float4 RayEndUVz   = mul(float4(RayEnd   + BaseProjectionData.ShadowPreViewTranslation, 1), BaseProjectionData.TranslatedWorldToShadowUVMatrix).xyzw;
+
+	if (RayEndUVz.w <= 0)
+	{
+		RayEndUVz = lerp(RayStartUVz, RayEndUVz, -RayStartUVz.w / (RayEndUVz.w - RayStartUVz.w));
+	}
+
+	RayStartUVz.xyz = RayStartUVz.xyz / RayStartUVz.w;
+	RayEndUVz.xyz = RayEndUVz.xyz / RayEndUVz.w;
+
+	float3 RayStepUVz = RayEndUVz.xyz - RayStartUVz.xyz;
+
+	/*
+#if 0
+	float ClipToEdgeScale = GetStepScreenFactorToClipAtScreenEdge( RayStartScreen.xy, RayStepScreen.xy );
+	RayStepScreen *= saturate( ClipToEdgeScale );
+#else
+	if( any( abs( RayEndScreen.xy ) > 1 ) )
+	{
+		const float Epsilon = 1e-4;
+		float2 Replacement = RayStepScreen.xy > 0 ? Epsilon : -Epsilon;
+		RayStepScreen.xy = abs( RayStepScreen.xy ) < Epsilon ? Replacement : RayStepScreen.xy;
+
+		float2 InvDir = rcp( RayStepScreen.xy );
+		float2 Center = -RayStartScreen.xy * InvDir;
+		float2 MinIntersection = Center - abs( InvDir );
+		float2 MaxIntersection = Center + abs( InvDir );
+
+		float Time0 = max( MinIntersection.x, MinIntersection.y );
+		float Time1 = min( MaxIntersection.x, MaxIntersection.y );
+		RayStepScreen *= Time1;
+	}
+#endif
+*/
+
+	// Normalize 2D length
+	const float MaxPenumbra = 0.01;
+	RayStepUVz.xyz *= saturate(MaxPenumbra / length(RayStepUVz.xy));
+
+	const float CompareScale = RayStepUVz.z * 2.0 / Pow2(NumSteps);
+	const float CompareBias = -CompareScale * (NumSteps - StepOffset + 1.0f);
+
+	float FirstHitTime = 2;
+	float DepthHistory = -1;
+
+	for (int i = 1; i <= NumSteps; i++)
+	{
+		//SampleTime = Pow2( 1.0 - (float)i / NumSteps ) * RayScale;
+		float SampleTime = Pow2(saturate((-1.0f / NumSteps) * i + 1.0f - (StepOffset - 0.5f) / NumSteps));
+		float3 SampleUVz = RayStartUVz.xyz + RayStepUVz.xyz * SampleTime;
+		FVirtualSmSample SmSample = SampleVirtualSm(VirtualShadowMapId, SampleUVz.xy);
+
+		if (SmSample.bValid)
+		{
+			const float SampleDepth = SmSample.Depth;
+			const float ReferenceDepth = SampleUVz.z;
+			if (DepthHistory < 0)
+			{
+				// First valid sample we've seen. Do a regular depth compare.
+				DepthHistory = SampleDepth;
+				FirstHitTime = SampleDepth > ReferenceDepth ? SampleTime : 2;
+			}
+			else
+			{
+				const float CompareTolerance = abs(CompareScale * i + CompareBias);
+
+				bool bBehind = (SampleDepth - ReferenceDepth) > (2.0f * CompareTolerance);
+				float DepthSample = bBehind ? DepthHistory : SampleDepth;
+				DepthHistory = DepthSample;
+
+				float DepthDiff = ReferenceDepth - DepthSample;
+				bool bHit = abs(DepthDiff + CompareTolerance) < CompareTolerance;
+	#if 0
+				//FirstHitTime = (bHit && FirstHitTime < 0.0) ? SampleTime : FirstHitTime;
+				FirstHitTime = min( FirstHitTime, bHit ? SampleTime : 2 );
+	#else
+				//bool bValidUV = all( abs( SampleUVz.xy - 0.5 ) < 1 );	// Ray clipped to frustum. Shouldn't be possible to be outside.
+				if (bHit)
+				{
+					FirstHitTime = SampleTime;
+				}
+			}
+#endif
+		}
+	}
+
+	// Off screen masking
+	//bool bValidUV = all( abs( RayStartScreen.xy + RayStepScreen.xy * FirstHitTime ) < 1 );
+	//bool bValidHit = bValidUV && FirstHitTime < 2;
+	bool bValidHit = FirstHitTime < 2;
+
+	if (bValidHit)
+	{
+		float RayLength = length(RayEnd - RayStart);
+		OccluderDistance = RayLength * FirstHitTime;
+
+		//float HitDepth = RayStartUVz.z + RayStepUVz.z * FirstHitTime;
+		//OccluderDistance += ComputeOccluderDistancePerspective(
+		//	BaseProjectionData.ShadowViewToClipMatrix,
+		//	HitDepth,
+		//	RayStartUVz.z,
+		//	RayStartView );
+	}
+
+	return bValidHit;
+}
+
+
+float TraceSpotLight(
+	int VirtualShadowMapId,
+	FLightShaderParameters Light,
+	float4 SvPosition,
+	const float SceneDepth,
+	float3 TranslatedWorldPosition,
+	float RayStartOffset,
+	int RayCount,
+	int SamplesPerRay,
+	int DebugOutputType,
+	inout float3 DebugOutput,
+	inout float InOutHitDistance)
+{
+	FGBufferData GBufferData = GetGBufferData(SvPositionToBufferUV(SvPosition));
+	const float3 WorldPosition = TranslatedWorldPosition - View.PreViewTranslation;
+
+	float3 ToLight = Light.Position - WorldPosition;
+	float DistSqr = dot(ToLight, ToLight);
+	float Falloff = rcp(DistSqr + 1);
+
+	float SinAlphaSqr = saturate(Pow2(Light.SourceRadius) * Falloff);
+	float SinAlpha = sqrt(SinAlphaSqr);
+	bool bBackFace = dot(GBufferData.WorldNormal, normalize(ToLight)) < -SinAlpha;
+
+	float RayMissFactor = 0;
+	if (!bBackFace)
+	{
+		uint2 SobolBase = SobolPixel(SvPosition.xy);
+		uint2 SobolFrame = SobolIndex(SobolBase, View.StateFrameIndexMod8, 3);
+
+		float StepOffset = InterleavedGradientNoise(SvPosition.xy, View.StateFrameIndexMod8);
+
+#if 0
+		uint SampleCount = SMRTRayCount;
+
+		float RayMissFactor = 0;
+		for( uint i = 0; i < SampleCount; i++ )
+		{
+			// NOTE: 1-X to avoid 0/0 issues with UniformSampleDiskConcentric
+			float2 E = float2( SobolIndex( SobolFrame, i << 3 ) ) / 0x10000;
+
+			// NOTE: Avoid 0/0 issues with UniformSampleDiskConcentric
+			float2 LightUV = UniformSampleDiskConcentricApprox( E ) * Light.SourceRadius;
+
+			float3 RayEnd =
+				Light.Position +
+				LightUV.x * Light.Tangent +
+				LightUV.y * cross( Light.Direction, Light.Tangent );
+
+			float3 Dir = normalize( RayEnd - WorldPosition );
+			float3 RayStart = WorldPosition + Dir * ContactShadowLengthWorld;
+
+			RayEnd = lerp( RayStart, RayEnd, 0.75 );
+			//RayEnd = RayStart + L * ContactShadowLengthWorld;
+
+			float HitDistance = ContactShadowLengthWorld;
+			bool bHit = ShadowRayCastSpotlight( RayStart, RayEnd, 16, StepOffset, MipLevel, HitDistance );
+
+			//ContactShadow = VirtualShadowMapScreenRayCast( TranslatedWorldPosition, Dir, ContactShadowLengthWorld, 12, StepOffset );
+			//RayMissFactor += bHit ? 0 : ContactShadow;
+
+			RayMissFactor += bHit ? 0 : 1;
+		}
+		RayMissFactor /= SampleCount;
+
+		float ContactShadow = 1.0f;
+		const float ContactShadowLengthWorld = ContactShadowLength * View.ClipToView[1][1] * SceneDepth;
+		if( ContactShadowLengthWorld > 0.0f )
+		{
+			float2 E = float2( SobolIndex( SobolFrame, (View.Random & 7) << 3 ) ) / 0x10000;
+
+			// NOTE: Avoid 0/0 issues with UniformSampleDiskConcentric
+			float2 LightUV = UniformSampleDiskConcentricApprox( E ) * Light.SourceRadius;
+
+			float3 RayEnd =
+				Light.Position +
+				LightUV.x * Light.Tangent +
+				LightUV.y * cross( Light.Direction, Light.Tangent );
+
+			float3 Dir = normalize( RayEnd - WorldPosition );
+
+			ContactShadow = VirtualShadowMapScreenRayCast( TranslatedWorldPosition, Dir, ContactShadowLengthWorld, 12, StepOffset );
+		}
+		RayMissFactor *= ContactShadow;
+
+		OutputSignal = float4( RayMissFactor, SampleCount, 0, RayMissFactor );
+#else
+		// TODO: Loop over number of rays RayCount
+		float2 E = float2(SobolIndex(SobolFrame, (View.Random & 7) << 3)) / 0x10000;
+
+		// NOTE: Avoid 0/0 issues with UniformSampleDiskConcentric
+		// TODO: RandomSequence
+		float2 LightUV = UniformSampleDiskConcentricApprox(E) * Light.SourceRadius;
+
+		float3 RayEnd =
+			Light.Position +
+			LightUV.x * Light.Tangent +
+			LightUV.y * cross(Light.Direction, Light.Tangent);
+
+		float3 Dir = normalize(RayEnd - WorldPosition);
+
+		float3 RayStart = WorldPosition + Dir * RayStartOffset;
+		RayEnd = lerp(RayStart, RayEnd, 0.75);	// TODO!
+
+		bool bHit = ShadowRayCastSpotlight(
+			VirtualShadowMapId,
+			RayStart,
+			RayEnd,
+			SamplesPerRay,
+			StepOffset,
+			InOutHitDistance);
+
+		RayMissFactor += bHit ? 0 : 1;
+#endif
+	}
+
+	return RayMissFactor;
+}

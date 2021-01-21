@@ -462,7 +462,7 @@ BEGIN_SHADER_PARAMETER_STRUCT( FVirtualTargetParameters, )
 
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FVirtualShadowMapCommonParameters, VirtualSmCommon)
 
-	SHADER_PARAMETER_RDG_BUFFER_SRV( StructuredBuffer< uint2 >,	PageTable )
+	SHADER_PARAMETER_RDG_BUFFER_SRV( StructuredBuffer< uint2 >,	ShadowPageTable )
 	SHADER_PARAMETER_RDG_BUFFER_SRV( StructuredBuffer< uint >, PageFlags )
 	SHADER_PARAMETER_RDG_BUFFER_SRV( StructuredBuffer< uint >, HPageFlags )
 	SHADER_PARAMETER_RDG_BUFFER_SRV( StructuredBuffer< uint4 >, PageRectBounds )
@@ -625,7 +625,7 @@ class FInstanceCullVSM_CS : public FNaniteShader
 		SHADER_PARAMETER_RDG_BUFFER( Buffer< uint >, IndirectArgs )
 
 		SHADER_PARAMETER_STRUCT_INCLUDE( FVirtualTargetParameters, VirtualShadowMap )
-		SHADER_PARAMETER_RDG_BUFFER_SRV( StructuredBuffer< uint2 >,	HZBPageTable )
+		SHADER_PARAMETER_RDG_BUFFER_SRV( StructuredBuffer< uint >,	ShadowHZBPageTable )
 	END_SHADER_PARAMETER_STRUCT()
 };
 IMPLEMENT_GLOBAL_SHADER( FInstanceCullVSM_CS, "/Engine/Private/Nanite/InstanceCulling.usf", "InstanceCullVSM", SF_Compute );
@@ -665,7 +665,7 @@ class FPersistentClusterCull_CS : public FNaniteShader
 
 		SHADER_PARAMETER_STRUCT_INCLUDE( FVirtualTargetParameters, VirtualShadowMap )
 		SHADER_PARAMETER_RDG_BUFFER_UAV( RWStructuredBuffer< uint >, OutDynamicCasterFlags)
-		SHADER_PARAMETER_RDG_BUFFER_SRV( StructuredBuffer< uint2 >,	HZBPageTable )
+		SHADER_PARAMETER_RDG_BUFFER_SRV( StructuredBuffer< uint >,	ShadowHZBPageTable )
 
 		SHADER_PARAMETER(uint32,												MaxNodes)
 		SHADER_PARAMETER(uint32, LargePageRectThreshold)
@@ -1250,9 +1250,8 @@ class FEmitShadowMapPS : public FNaniteShader
 	DECLARE_GLOBAL_SHADER(FEmitShadowMapPS);
 	SHADER_USE_PARAMETER_STRUCT(FEmitShadowMapPS, FNaniteShader);
 
-	class FDepthInputTypeDim : SHADER_PERMUTATION_INT("DEPTH_INPUT_TYPE", 2);
 	class FDepthOutputTypeDim : SHADER_PERMUTATION_INT("DEPTH_OUTPUT_TYPE", 3);
-	using FPermutationDomain = TShaderPermutationDomain< FDepthInputTypeDim, FDepthOutputTypeDim >;
+	using FPermutationDomain = TShaderPermutationDomain< FDepthOutputTypeDim >;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -1267,12 +1266,12 @@ class FEmitShadowMapPS : public FNaniteShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FVirtualShadowMapCommonParameters, VirtualSmCommon)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FVirtualShadowMapSamplingParameters, ProjectionParameters)
 		SHADER_PARAMETER( FIntPoint, SourceOffset )
 		SHADER_PARAMETER( float, ViewToClip22 )
 		SHADER_PARAMETER( float, DepthBias )
 		SHADER_PARAMETER( uint32, ShadowMapID )
 
-		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint2>, PageTable)
 		SHADER_PARAMETER_RDG_TEXTURE( Texture2D<uint>,	DepthBuffer )
 		RENDER_TARGET_BINDING_SLOTS()
 	END_SHADER_PARAMETER_STRUCT()
@@ -2428,7 +2427,7 @@ void AddPass_InstanceHierarchyAndClusterCull(
 		PassParameters->CullingParameters = CullingParameters;
 
 		PassParameters->VirtualShadowMap = VirtualTargetParameters;
-		PassParameters->HZBPageTable	= GraphBuilder.CreateSRV( HZBPageTable, PF_R32G32_UINT );
+		PassParameters->ShadowHZBPageTable	= GraphBuilder.CreateSRV( HZBPageTable, PF_R32_UINT );
 		
 		PassParameters->OutMainAndPostPassPersistentStates	= GraphBuilder.CreateUAV( CullingContext.MainAndPostPassPersistentStates );
 
@@ -2586,7 +2585,7 @@ void AddPass_InstanceHierarchyAndClusterCull(
 		{
 			PassParameters->VirtualShadowMap = VirtualTargetParameters;
 			PassParameters->OutDynamicCasterFlags = GraphBuilder.CreateUAV(VirtualShadowMapArray->DynamicCasterPageFlagsRDG, PF_R32_UINT);
-			PassParameters->HZBPageTable	= GraphBuilder.CreateSRV( HZBPageTable, PF_R32G32_UINT );
+			PassParameters->ShadowHZBPageTable	= GraphBuilder.CreateSRV( HZBPageTable, PF_R32_UINT );
 		}
 
 		if (CullingContext.StatsBuffer)
@@ -3059,7 +3058,7 @@ void CullRasterizeInner(
 		VirtualTargetParameters.VirtualSmCommon = VirtualShadowMapArray->GetCommonUniformBuffer(GraphBuilder);
 		VirtualTargetParameters.PageFlags = GraphBuilder.CreateSRV(VirtualShadowMapArray->PageFlagsRDG, PF_R32_UINT);
 		VirtualTargetParameters.HPageFlags = GraphBuilder.CreateSRV(VirtualShadowMapArray->HPageFlagsRDG, PF_R32_UINT);
-		VirtualTargetParameters.PageTable = GraphBuilder.CreateSRV(VirtualShadowMapArray->PageTableRDG);
+		VirtualTargetParameters.ShadowPageTable = GraphBuilder.CreateSRV(VirtualShadowMapArray->PageTableRDG);
 		VirtualTargetParameters.PageRectBounds = GraphBuilder.CreateSRV(VirtualShadowMapArray->PageRectBoundsRDG);
 	}
 	FGPUSceneParameters GPUSceneParameters;
@@ -3579,7 +3578,6 @@ void EmitShadowMap(
 	PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding( DepthBuffer, ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthWrite_StencilNop );
 
 	FEmitShadowMapPS::FPermutationDomain PermutationVector;
-	PermutationVector.Set< FEmitShadowMapPS::FDepthInputTypeDim >( 0 );
 	PermutationVector.Set< FEmitShadowMapPS::FDepthOutputTypeDim >( bOrtho ? 1 : 2 );
 
 	auto PixelShader = ShaderMap->GetShader< FEmitShadowMapPS >( PermutationVector );
@@ -3599,55 +3597,6 @@ void EmitShadowMap(
 		nullptr,
 		TStaticDepthStencilState<true, CF_LessEqual>::GetRHI()
 		);
-}
-
-void EmitFallbackShadowMapFromVSM(
-	FRDGBuilder& GraphBuilder,
-	FVirtualShadowMapArray &VirtualShadowMapArray,
-	uint32 ShadowMapID,
-	const FRDGTextureRef DepthBuffer,
-	const FIntRect& DestRect,
-	const FMatrix& ProjectionMatrix,
-	float DepthBias,
-	bool bOrtho
-)
-{
-	LLM_SCOPE_BYTAG(Nanite);
-
-	check( DestRect.Width() == FVirtualShadowMap::PageSize );
-	check( DestRect.Height() == FVirtualShadowMap::PageSize );
-
-	auto ShaderMap = GetGlobalShaderMap( GMaxRHIFeatureLevel );
-
-	auto* PassParameters = GraphBuilder.AllocParameters< FEmitShadowMapPS::FParameters >();
-
-	PassParameters->VirtualSmCommon = VirtualShadowMapArray.GetCommonUniformBuffer(GraphBuilder);
-	PassParameters->ViewToClip22 = ProjectionMatrix.M[2][2];
-	PassParameters->DepthBias = DepthBias;
-	PassParameters->ShadowMapID = ShadowMapID;
-	PassParameters->SourceOffset = FIntPoint( -DestRect.Min.X, -DestRect.Min.Y );
-
-	PassParameters->PageTable = GraphBuilder.CreateSRV(VirtualShadowMapArray.PageTableRDG);
-	PassParameters->DepthBuffer = VirtualShadowMapArray.PhysicalPagePoolRDG;
-	PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding( DepthBuffer, ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthWrite_StencilNop );
-
-	FEmitShadowMapPS::FPermutationDomain PermutationVector;
-	PermutationVector.Set< FEmitShadowMapPS::FDepthInputTypeDim >( 1 );
-	PermutationVector.Set< FEmitShadowMapPS::FDepthOutputTypeDim >( bOrtho ? 1 : 2 );
-
-	auto PixelShader = ShaderMap->GetShader< FEmitShadowMapPS >( PermutationVector );
-
-	FPixelShaderUtils::AddFullscreenPass(
-		GraphBuilder,
-		ShaderMap,
-		RDG_EVENT_NAME( "Emit Fallback Shadow Map From VSM" ),
-		PixelShader,
-		PassParameters,
-		DestRect,
-		nullptr,
-		nullptr,
-		TStaticDepthStencilState<true, CF_LessEqual>::GetRHI()
-	);
 }
 
 void EmitCubemapShadow(

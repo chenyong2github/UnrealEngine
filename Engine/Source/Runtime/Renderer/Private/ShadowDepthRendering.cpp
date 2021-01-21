@@ -1797,6 +1797,11 @@ void FSceneRenderer::RenderShadowDepthMaps(FRDGBuilder& GraphBuilder, FInstanceC
 			VirtualShadowMapArray.HZBPhysical	= Scene->VirtualShadowMapArrayCacheManager->HZBPhysical;
 			VirtualShadowMapArray.HZBPageTable	= Scene->VirtualShadowMapArrayCacheManager->HZBPageTable;
 		}
+		else
+		{
+			VirtualShadowMapArray.HZBPhysical	= nullptr;
+			VirtualShadowMapArray.HZBPageTable	= nullptr;
+		}
 
 		FVirtualShadowMapArrayCacheManager *CacheManager = Scene->VirtualShadowMapArrayCacheManager;
 		const uint32 CachedFrameNumber = CacheManager->HZBFrameNumber;
@@ -1997,7 +2002,7 @@ void FSceneRenderer::RenderShadowDepthMaps(FRDGBuilder& GraphBuilder, FInstanceC
 			}
 
 
-			if( bUseHZB )
+			if (bUseHZB)
 			{
 				RDG_EVENT_SCOPE(GraphBuilder, "BuildShadowHZB");
 

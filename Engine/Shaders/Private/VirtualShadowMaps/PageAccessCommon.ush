@@ -21,7 +21,6 @@
 #define VSM_PHYSICAL_PAGE_STATE_RENDERED 2
 
 
-
 #if ENABLE_NON_NANITE_VSM
 // GPUCULL_TODO: This is probably ok to just leave on.
 // Marks pages that are not cached (bit 0)
@@ -41,55 +40,15 @@
 #define VSM_INVALID_FLAG (2)
 #endif // ENABLE_NON_NANITE_VSM
 
-struct FPhysicalPageMetaData
-{
-	uint State;
-	// Counter that is incremented each time a page is copied.
-	uint Age;
-};
-
-struct FShadowMapCacheData
-{
-	// XY offset in pages to the location of the previous frame's page table.
-	int2 SmPageOffset;
-	// ID of the corresponding virtual SM in the chached data 
-	int VirtualShadowMapId;
-	// Depth offset to add to SM texels when copying
-	float DepthOffset;
-};
-
-struct FCachedPageInfo
-{
-	uint2 PhysPageAddress;
-	float DepthOffset;
-	float Padding;
-};
-
 // GPUCULL_TODO: These 10 bits don't match Nanite and we may run out what with mip-levels and all!
 #define VSM_PACKED_PAGE_INFO_VIEW_ID_BITS (10U)
 #define VSM_PACKED_PAGE_INFO_SUPER_PAGE_LEVEL_BITS (2U)
 
-struct FPageInfo
-{
-	uint2 VirtualPage;
-	uint ViewId;
-	uint SuperPageLevel;
-};
-
-#if HAS_CACHE_DATA
-StructuredBuffer<FShadowMapCacheData> ShadowMapCacheData;
-StructuredBuffer<uint> PrevPageFlags;
-StructuredBuffer<uint2> PrevPageTable;
-StructuredBuffer<FPhysicalPageMetaData> PrevPhysicalPageMetaData;
-StructuredBuffer<uint> PrevDynamicCasterPageFlags;
-#endif // HAS_CACHE_DATA
-
-
-
 //Buffer containing VSM_ALLOCATED_FLAG for each page that is allocated and optionally | VSM_INVALID_FLAG if it needs to be rendered (not cached)
 StructuredBuffer<uint> PageFlags;
 StructuredBuffer<uint> HPageFlags;
-StructuredBuffer<uint2> PageTable;
+StructuredBuffer<uint> ShadowPageTable;
+StructuredBuffer<uint> ShadowHZBPageTable;
 // Rectangles bounding allocated pages for each mip level
 StructuredBuffer<uint4> PageRectBounds;
 
@@ -167,14 +126,61 @@ uint PhysPageAddressToIndex(uint2 PhysicalPageAddress)
 	return (PhysicalPageAddress.y << VirtualShadowMap.PhysicalPageRowShift) + PhysicalPageAddress.x;
 }
 
+// Current page table format:
+// NOTE: Some redundancy in flags and encoding, but we have spare bits for now
+//   [0:9] PageIndex.x
+//   [10:19] PageIndex.y
+//   [20:23] MipOffset
+//   [24:30] (currently unused)
+//   [31] bAnyMipValid
+struct FShadowPhysicalPage
+{
+	uint2 PageIndex;		// Physical page index X, Y
+	uint MipOffset;			// 0 if page is mapped at this mip; 1 if mapped at next courser level, etc. [0..16)
+	bool bAnyMipValid;		// Valid physical page mapped at some mip level
+	bool bThisMipValid;		// Valid page mapped at this specific mip level (equivalent to bAnyMipValid && MipOffset == 0)
+};
+
+#define VSM_PHYSICAL_PAGE_ANY_MIP_VALID_FLAG 0x8000000
+#define VSM_PHYSICAL_PAGE_INVALID 0x00000000
+
+// TODO: Remove this, but need to update cache metadata
+#define VSM_INVALID_PHYSICAL_PAGE_ADDRESS 65535
+
+uint ShadowEncodePageTable(uint2 PageIndex)
+{
+	return VSM_PHYSICAL_PAGE_ANY_MIP_VALID_FLAG | (PageIndex.y << 10) | (PageIndex.x);
+}
+
+uint ShadowEncodePageTable(uint2 PageIndex, uint MipOffset)
+{
+	return VSM_PHYSICAL_PAGE_ANY_MIP_VALID_FLAG | (MipOffset << 20) | (PageIndex.y << 10) | (PageIndex.x);
+}
+
+FShadowPhysicalPage ShadowDecodePageTable(uint Value)
+{
+	FShadowPhysicalPage Result;
+	Result.PageIndex = uint2(Value & 0x3FF, (Value >> 10) & 0x3FF);
+	Result.MipOffset = (Value >> 20) & 0xF;
+	Result.bAnyMipValid = (Value & VSM_PHYSICAL_PAGE_ANY_MIP_VALID_FLAG) != 0;
+	Result.bThisMipValid = Result.bAnyMipValid && Result.MipOffset == 0;
+	return Result;
+}
+
+FShadowPhysicalPage ShadowGetPhysicalPage(uint PageOffset)
+{
+	return ShadowDecodePageTable(ShadowPageTable[PageOffset]);	
+}
+
 bool VirtualToPhysicalTexel(uint ShadowMapID, uint Level, uint2 VirtualTexelAddress, inout uint2 PhysicalTexelAddress)
 {
 	uint VPageX = VirtualTexelAddress.x >> VSM_LOG2_PAGE_SIZE;
 	uint VPageY = VirtualTexelAddress.y >> VSM_LOG2_PAGE_SIZE;
 
-	uint2 PhysicalPageEntry = PageTable[CalcPageTableLevelOffset(ShadowMapID, Level) + CalcPageOffsetInLevel(Level, uint2(VPageX, VPageY))];
-	PhysicalTexelAddress = PhysicalPageEntry * VSM_PAGE_SIZE + (VirtualTexelAddress & VSM_PAGE_SIZE_MASK);
-	return (PhysicalPageEntry.x != VSM_INVALID_PHYSICAL_PAGE_ADDRESS);
+	// TODO: Clever mip offset stuff
+	FShadowPhysicalPage PhysicalPageEntry = ShadowGetPhysicalPage(CalcPageTableLevelOffset(ShadowMapID, Level) + CalcPageOffsetInLevel(Level, uint2(VPageX, VPageY)));
+	PhysicalTexelAddress = PhysicalPageEntry.PageIndex * VSM_PAGE_SIZE + (VirtualTexelAddress & VSM_PAGE_SIZE_MASK);
+	return (PhysicalPageEntry.bThisMipValid);
 }
 
 // TODO: this surely needs some special handling of cases that contain the near plane etc.
@@ -251,7 +257,7 @@ bool OverlapsAnyValidPage( uint ShadowMapID, uint MipLevel, int2 ViewPortRectMin
 
 static const uint HZB_PAGE_SIZE = VSM_PAGE_SIZE / 2;
 
-StructuredBuffer< uint2 >	HZBPageTable;
+
 
 bool IsVisibleHZB( uint ShadowMapID, uint MipLevel, FScreenRect Rect )
 {
@@ -281,9 +287,9 @@ bool IsVisibleHZB( uint ShadowMapID, uint MipLevel, FScreenRect Rect )
 		{
 			uint2 vPage = uint2(x,y);
 			uint PageOffset = PageTableLevelOffset + CalcPageOffsetInLevel( MipLevel, vPage );
-			uint2 pPage = HZBPageTable[ PageOffset ];
+			FShadowPhysicalPage pPage = ShadowDecodePageTable( ShadowHZBPageTable[ PageOffset ] );
 
-			if( pPage.x == VSM_INVALID_PHYSICAL_PAGE_ADDRESS )
+			if( !pPage.bThisMipValid )
 			{
 				// If this is a new page we can't consider everything occluded the first time.
 				//if( PageFlags[ PageOffset ] != 0 )
@@ -298,7 +304,7 @@ bool IsVisibleHZB( uint ShadowMapID, uint MipLevel, FScreenRect Rect )
 				FScreenRect ClippedRect = Rect;
 				ClippedRect.HZBTexels -= ( vPage << Shift ).xyxy;
 				ClippedRect.HZBTexels = clamp( ClippedRect.HZBTexels, 0, (int)HZB_PAGE_SIZE - 1 );
-				ClippedRect.HZBTexels += ( pPage << Shift ).xyxy;
+				ClippedRect.HZBTexels += ( pPage.PageIndex << Shift ).xyxy;
 
 				if( IsVisibleHZB( ClippedRect, true ) )
 					return true;

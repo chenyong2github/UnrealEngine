@@ -311,7 +311,7 @@ void MicropolyRasterize(
 #if CLUSTER_PER_PAGE
 	// Scalar
 	uint2 vPage = VisibleCluster.vPage;
-	uint2 pPage = PageTable[ CalcPageTableLevelOffset( NaniteView.TargetLayerIndex, NaniteView.TargetMipLevel ) + CalcPageOffsetInLevel( NaniteView.TargetMipLevel, vPage ) ];
+	FShadowPhysicalPage pPage = ShadowGetPhysicalPage( CalcPageTableLevelOffset( NaniteView.TargetLayerIndex, NaniteView.TargetMipLevel ) + CalcPageOffsetInLevel( NaniteView.TargetMipLevel, vPage ) );
 #endif
 
 	float4x4 LocalToSubpixel;
@@ -326,7 +326,7 @@ void MicropolyRasterize(
 		float2 Bias = ( 0.5 * NaniteView.ViewSizeAndInvSize.xy + NaniteView.ViewRect.xy ) * SUBPIXEL_SAMPLES + 0.5f;
 
 #if CLUSTER_PER_PAGE
-		Bias += ( (float2)pPage - (float2)vPage ) * VSM_PAGE_SIZE * SUBPIXEL_SAMPLES;
+		Bias += ( (float2)pPage.PageIndex - (float2)vPage ) * VSM_PAGE_SIZE * SUBPIXEL_SAMPLES;
 #endif
 
 		LocalToSubpixel._m00_m10_m20_m30 = LocalToSubpixel._m00_m10_m20_m30 * Scale.x + LocalToSubpixel._m03_m13_m23_m33 * Bias.x;
@@ -358,7 +358,7 @@ void MicropolyRasterize(
 	int4 ViewRect = NaniteView.ViewRect;
 
 #if CLUSTER_PER_PAGE
-	ViewRect.xy = pPage * VSM_PAGE_SIZE;
+	ViewRect.xy = pPage.PageIndex * VSM_PAGE_SIZE;
 	ViewRect.zw = ViewRect.xy + VSM_PAGE_SIZE;
 #endif
 

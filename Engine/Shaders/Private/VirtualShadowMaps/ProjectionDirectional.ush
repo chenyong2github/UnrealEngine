@@ -56,10 +56,6 @@ bool ShadowRayCastDirectional(
 	const float CompareScale = RayStepShadowTexelsZ.z * 2.0f / Pow2(NumSteps);
 	const float CompareBias = -CompareScale * (NumSteps - StepOffset + 1.0f);
 
-	float FirstHitTime = 2;
-	float DepthHistory = -1;
-	int SampleMissCount = 0;
-
 	// Work out scale/bias to convert to the adjacent UVs from the regular UVs
 	// NOTE: Since depth function is constant, probably worth refactoring the clipmap mappings to be scale/bias in general rather than
 	// a full transform matrix.
@@ -85,6 +81,10 @@ bool ShadowRayCastDirectional(
 		AdjacentToBaseDepthScale = (ProjectionData.ShadowViewToClipMatrix._33 / ProjectionDataAdjacent.ShadowViewToClipMatrix._33);
 		AdjacentToBaseDepthBias = (UVz.z - AdjacentToBaseDepthScale * UVzAdjacent.z);
 	}
+
+	float FirstHitTime = 2;
+	float DepthHistory = -1;
+	int SampleMissCount = 0;
 
 	for (int i = 0; i < NumSteps; i++)
 	{
@@ -113,15 +113,13 @@ bool ShadowRayCastDirectional(
 			{
 				// First valid sample we've seen. Do a regular depth compare.
 				DepthHistory = SampleDepth;
-				FirstHitTime = SampleDepth - ReferenceDepth > 0 ? SampleTime : 2;
+				FirstHitTime = SampleDepth > ReferenceDepth ? SampleTime : 2;
 			}
 			else
 			{
 				const float CompareTolerance = abs(CompareScale * i + CompareBias);
 
-				bool bBehind = (SampleDepth - ReferenceDepth) > (2*CompareTolerance);
-				//bBehind = false;
-
+				bool bBehind = (SampleDepth - ReferenceDepth) > (2.0f * CompareTolerance);
 				float DepthSample = bBehind ? DepthHistory : SampleDepth;
 				DepthHistory = DepthSample;
 

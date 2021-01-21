@@ -593,17 +593,6 @@ void EmitShadowMap(
 	bool bOrtho
 );
 
-void EmitFallbackShadowMapFromVSM(
-	FRDGBuilder& GraphBuilder,
-	FVirtualShadowMapArray &VirtualShadowMapArray,
-	uint32 ShadowMapID,
-	const FRDGTextureRef DepthBuffer,
-	const FIntRect& DestRect,
-	const FMatrix& ProjectionMatrix,
-	float DepthBias,
-	bool bOrtho
-);
-
 void EmitCubemapShadow(
 	FRDGBuilder& GraphBuilder,
 	const FRasterContext& RasterContext,

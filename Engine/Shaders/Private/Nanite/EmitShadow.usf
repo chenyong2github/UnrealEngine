@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "../Common.ush"
-#include "../VirtualShadowMaps/PageAccessCommon.ush"
 
 Texture2D<uint> DepthBuffer;
 
@@ -21,17 +20,7 @@ void EmitShadowMapPS(
 	OutDepth = 0;
 
 	int2 PixelPos = (int2)SvPosition.xy;
-#if DEPTH_INPUT_TYPE == 0
 	uint DepthInt = DepthBuffer[ PixelPos + SourceOffset ];
-#else
-	uint2 VirtualTexelAddress = PixelPos + SourceOffset;
-	uint2 PhysicalTexelAddress = 0;
-	uint DepthInt = 0;
-	if( VirtualToPhysicalTexel( ShadowMapID, VSM_MAX_MIP_LEVELS - 1, VirtualTexelAddress, PhysicalTexelAddress ) )
-	{
-		DepthInt = DepthBuffer[ PhysicalTexelAddress ];
-	}
-#endif
 
 	if( DepthInt != 0 )
 	{

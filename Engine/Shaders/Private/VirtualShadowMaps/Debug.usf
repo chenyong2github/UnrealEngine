@@ -8,6 +8,7 @@
 #include "../SceneTexturesCommon.ush"
 //#include "../Nanite/DebugVisualize.ush"
 #include "PageAccessCommon.ush"
+#include "PageCacheCommon.ush"
 
 uint DebugTargetWidth;
 uint DebugTargetHeight;
@@ -63,11 +64,11 @@ void DebugVisualizeVirtualSmCS(uint2 OutputPixel : SV_DispatchThreadID)
 		{
 			uint2 vAddress = Texel >> Level;
 			uint2 vPage = vAddress >> VSM_LOG2_PAGE_SIZE;
-			uint2 pPage = PageTable[ CalcPageOffset( ShadowMapID, Level, vPage ) ];
+			FShadowPhysicalPage pPage = ShadowGetPhysicalPage( CalcPageOffset( ShadowMapID, Level, vPage ) );
 
-			if( pPage.x != VSM_INVALID_PHYSICAL_PAGE_ADDRESS )
+			if( pPage.bThisMipValid )
 			{
-				uint2 pAddress = pPage * VSM_PAGE_SIZE + ( vAddress & VSM_PAGE_SIZE_MASK );
+				uint2 pAddress = pPage.PageIndex * VSM_PAGE_SIZE + ( vAddress & VSM_PAGE_SIZE_MASK );
 				Depth = asfloat( PhysicalPagePool[ pAddress ] );
 				break;
 			}
@@ -79,13 +80,13 @@ void DebugVisualizeVirtualSmCS(uint2 OutputPixel : SV_DispatchThreadID)
 			uint2 vAddress = Texel >> Level;
 			uint2 vPage = vAddress >> VSM_LOG2_PAGE_SIZE;
 			//uint2 pPage = HZBPageTable[ CalcPageOffset( ShadowMapID, Level, vPage ) ];
-			uint2 pPage = PageTable[ CalcPageOffset( ShadowMapID, Level, vPage ) ];
+			FShadowPhysicalPage pPage = ShadowGetPhysicalPage( CalcPageOffset( ShadowMapID, Level, vPage ) );
 
-			if( pPage.x != VSM_INVALID_PHYSICAL_PAGE_ADDRESS )
+			if( pPage.bThisMipValid )
 			{
 				vAddress >>= 1;
 
-				uint2 pAddress = pPage * HZB_PAGE_SIZE + ( vAddress & (HZB_PAGE_SIZE - 1) );
+				uint2 pAddress = pPage.PageIndex * HZB_PAGE_SIZE + ( vAddress & (HZB_PAGE_SIZE - 1) );
 				HZBDepth = HZBPhysical[ pAddress ];
 				break;
 			}
@@ -175,7 +176,7 @@ void DebugVisualizeVirtualSmCS(uint2 OutputPixel : SV_DispatchThreadID)
 			{
 				uint Offset = CalcPageOffset(VirtualShadowMapId, MipLevel, PageAddress);
 				uint PageFlag = PageFlags[Offset];
-				bool PageValid = PageTable[Offset].x != VSM_INVALID_PHYSICAL_PAGE_ADDRESS;
+				bool PageValid = ShadowGetPhysicalPage(Offset).bThisMipValid;
 				float3 Color = float3(0, !PageValid && PageFlag, 0);
 				DebugOutput[OutputPixel] = float4(Color, 1.0f);
 			}

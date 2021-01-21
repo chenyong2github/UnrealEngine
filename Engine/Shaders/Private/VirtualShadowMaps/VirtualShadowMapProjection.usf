@@ -17,6 +17,7 @@
 #include "PageAccessCommon.ush"
 #include "ProjectionCommon.ush"
 #include "ProjectionDirectional.ush"
+#include "ProjectionSpot.ush"
 
 // See VirtualShadowMapProjection.cpp
 // 0 = Output to denoiser
@@ -203,18 +204,22 @@ void VirtualShadowMapProjectionSpotPS(
 		float3 EstimatedGeoWorldNormal = GetEstimatedGeoWorldNormal(TranslatedWorldPosition, ScreenUV);
 		TranslatedWorldPosition += EstimatedGeoWorldNormal * NormalOffsetWorld;
 
-#if 0
 		if (SMRTRayCount > 0)
 		{
-			OutputSignal = TraceSpotLight(
+			RayMissFactor = TraceSpotLight(
+				VirtualShadowMapId,
 				Light,
 				SvPosition,
 				SceneDepth,
 				TranslatedWorldPosition,
-				DebugOutput);
+				ContactShadowLengthWorld,
+				SMRTRayCount,
+				SMRTSamplesPerRay,
+				DebugOutputType,
+				DebugOutput,
+				HitDistance);
 		}
 		else
-#endif
 		{
 			RayMissFactor = ProjectSingleSample(
 				Light,
