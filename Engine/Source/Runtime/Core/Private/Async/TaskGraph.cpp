@@ -2007,7 +2007,7 @@ private:
 			TGraphTask<FReturnGraphTask>::CreateTask(&Tasks, CurrentThread).ConstructAndDispatchWhenReady(CurrentThread);
 			ProcessThreadUntilRequestReturn(CurrentThread);
 		}
-		else
+		else if (LowLevelTasks::FScheduler::Get().GetActiveTask() != nullptr)
 		{
 			LowLevelTasks::BusyWaitUntil([Index(0), &Tasks]() mutable
 			{
@@ -2021,6 +2021,30 @@ private:
 				}
 				return true;
 			});
+		}
+		else
+		{
+			if (!FTaskGraphInterface::IsMultithread())
+			{
+				bool bAnyPending = false;
+				for (int32 Index = 0; Index < Tasks.Num(); Index++)
+				{
+					FGraphEvent* Task = Tasks[Index].GetReference();
+					if (Task && !Task->IsComplete())
+					{
+						bAnyPending = true;
+						break;
+					}
+				}
+				if (!bAnyPending)
+				{
+					return;
+				}
+				UE_LOG(LogTaskGraph, Fatal, TEXT("Recursive waits are not allowed in single threaded mode."));
+			}
+			// We will just stall this thread on an event while we wait
+			FScopedEvent Event;
+			TriggerEventWhenTasksComplete(Event.Get(), Tasks, CurrentThreadIfKnown);
 		}
 	}
 
