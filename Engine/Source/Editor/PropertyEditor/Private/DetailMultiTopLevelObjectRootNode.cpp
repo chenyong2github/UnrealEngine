@@ -11,6 +11,7 @@ void SDetailMultiTopLevelObjectTableRow::Construct( const FArguments& InArgs, TS
 {
 	OwnerTreeNode = InOwnerTreeNode;
 	ExpansionArrowUsage = InArgs._ExpansionArrowUsage;
+	OwnerTableViewWeak = InOwnerTableView;
 
 	STableRow< TSharedPtr< FDetailTreeNode > >::ConstructInternal(
 		STableRow::FArguments()
@@ -20,13 +21,10 @@ void SDetailMultiTopLevelObjectTableRow::Construct( const FArguments& InArgs, TS
 	);
 }
 
-
-void SDetailMultiTopLevelObjectTableRow::SetContent(TSharedRef<SWidget> InContent, TSharedRef<STableViewBase> OwnerTableView)
+void SDetailMultiTopLevelObjectTableRow::SetContent(TSharedRef<SWidget> InContent)
 {
 	if (ExpansionArrowUsage == EExpansionArrowUsage::Default)
 	{
-		TWeakPtr<STableViewBase> OwnerTableViewWeak = OwnerTableView;
-
 		ChildSlot
 		[
 			SNew(SBox)
@@ -161,7 +159,7 @@ TSharedRef< ITableRow > FDetailMultiTopLevelObjectRootNode::GenerateWidgetForTab
 	FDetailWidgetRow Row;
 	GenerateWidget_Internal(Row, TableRowWidget);
 
-	TableRowWidget->SetContent(Row.NameWidget.Widget, OwnerTable);
+	TableRowWidget->SetContent(Row.NameWidget.Widget);
 
 	return TableRowWidget;
 }

@@ -29,7 +29,7 @@ public:
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs, TSharedRef<FDetailTreeNode> InOwnerTreeNode, const TSharedRef<STableViewBase>& InOwnerTableView);
-	void SetContent(TSharedRef<SWidget> InContent, TSharedRef<STableViewBase> InOwnerTableView);
+	void SetContent(TSharedRef<SWidget> InContent) override;
 
 private:
 	const FSlateBrush* GetBackgroundImage() const;
@@ -39,6 +39,7 @@ private:
 private:
 	EExpansionArrowUsage ExpansionArrowUsage;
 	SHorizontalBox::FSlot* ContentSlot = nullptr;
+	TWeakPtr<STableViewBase> OwnerTableViewWeak;
 };
 
 class FDetailMultiTopLevelObjectRootNode : public FDetailTreeNode, public TSharedFromThis<FDetailMultiTopLevelObjectRootNode>
