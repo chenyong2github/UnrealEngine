@@ -693,6 +693,7 @@ void GenerateEncodedHDRTextureCube(UMapBuildDataRegistry* Registry, FReflectionC
 			TSF_BGRA8,
 			TemporaryEncodedHDRCapturedData.GetData()
 		);
+		TextureCube->Source.UseHashAsGuid();
 		// the loader can suggest a compression setting
 		TextureCube->LODGroup = TEXTUREGROUP_World;
 
