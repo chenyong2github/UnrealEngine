@@ -1517,7 +1517,7 @@ void LexFromString(EShaderPlatform& Value, const TCHAR* String)
 
 	for (uint8 i = 0; i < (uint8)EShaderPlatform::SP_NumPlatforms; ++i)
 	{
-		if (LexToString((EShaderPlatform)i, false).Equals(String))
+		if (LexToString((EShaderPlatform)i, false).Equals(String, ESearchCase::IgnoreCase))
 		{
 			Value = (EShaderPlatform)i;
 			return;
