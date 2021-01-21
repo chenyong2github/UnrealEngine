@@ -89,16 +89,16 @@ void MovieSceneHelpers::SortConsecutiveSections(TArray<UMovieSceneSection*>& Sec
 	);
 }
 
-void MovieSceneHelpers::FixupConsecutiveSections(TArray<UMovieSceneSection*>& Sections, UMovieSceneSection& Section, bool bDelete)
+bool MovieSceneHelpers::FixupConsecutiveSections(TArray<UMovieSceneSection*>& Sections, UMovieSceneSection& Section, bool bDelete, bool bCleanUp)
 {
 	// Find the previous section and extend it to take the place of the section being deleted
 	int32 SectionIndex = INDEX_NONE;
 
-	TRange<FFrameNumber> SectionRange = Section.GetRange();
+	const TRange<FFrameNumber> SectionRange = Section.GetRange();
 
 	if (SectionRange.HasLowerBound() && SectionRange.HasUpperBound() && SectionRange.GetLowerBoundValue() >= SectionRange.GetUpperBoundValue())
 	{
-		return;
+		return false;
 	}
 
 	if (Sections.Find(&Section, SectionIndex))
@@ -107,22 +107,26 @@ void MovieSceneHelpers::FixupConsecutiveSections(TArray<UMovieSceneSection*>& Se
 		if( Sections.IsValidIndex( PrevSectionIndex ) )
 		{
 			// Extend the previous section
+			UMovieSceneSection* PrevSection = Sections[PrevSectionIndex];
+
+			PrevSection->Modify();
+
 			if (bDelete)
 			{
 				TRangeBound<FFrameNumber> NewEndFrame = SectionRange.GetUpperBound();
 
-				if (!Sections[PrevSectionIndex]->HasStartFrame() || NewEndFrame.GetValue() > Sections[PrevSectionIndex]->GetInclusiveStartFrame())
+				if (!PrevSection->HasStartFrame() || NewEndFrame.GetValue() > PrevSection->GetInclusiveStartFrame())
 				{
-					Sections[PrevSectionIndex]->SetEndFrame(NewEndFrame);
+					PrevSection->SetEndFrame(NewEndFrame);
 				}
 			}
 			else
 			{
 				TRangeBound<FFrameNumber> NewEndFrame = TRangeBound<FFrameNumber>::FlipInclusion(SectionRange.GetLowerBound());
 
-				if (!Sections[PrevSectionIndex]->HasStartFrame() || NewEndFrame.GetValue() > Sections[PrevSectionIndex]->GetInclusiveStartFrame())
+				if (!PrevSection->HasStartFrame() || NewEndFrame.GetValue() > PrevSection->GetInclusiveStartFrame())
 				{
-					Sections[PrevSectionIndex]->SetEndFrame(NewEndFrame);
+					PrevSection->SetEndFrame(NewEndFrame);
 				}
 			}
 		}
@@ -133,20 +137,45 @@ void MovieSceneHelpers::FixupConsecutiveSections(TArray<UMovieSceneSection*>& Se
 			if(Sections.IsValidIndex(NextSectionIndex))
 			{
 				// Shift the next CameraCut's start time so that it starts when the new CameraCut ends
+				UMovieSceneSection* NextSection = Sections[NextSectionIndex];
+
+				NextSection->Modify();
+
 				TRangeBound<FFrameNumber> NewStartFrame = TRangeBound<FFrameNumber>::FlipInclusion(SectionRange.GetUpperBound());
 
-				if (!Sections[NextSectionIndex]->HasEndFrame() || NewStartFrame.GetValue() < Sections[NextSectionIndex]->GetExclusiveEndFrame())
+				if (!NextSection->HasEndFrame() || NewStartFrame.GetValue() < NextSection->GetExclusiveEndFrame())
 				{
-					Sections[NextSectionIndex]->SetStartFrame(NewStartFrame);
+					NextSection->SetStartFrame(NewStartFrame);
 				}
 			}
 		}
 	}
 
+	bool bCleanUpDone = false;
+	if (bCleanUp)
+	{
+		const TArray<UMovieSceneSection*> OverlappedSections = Sections.FilterByPredicate([&Section, SectionRange](const UMovieSceneSection* Cur)
+				{
+					if (Cur != &Section)
+					{
+						const TRange<FFrameNumber> CurRange = Cur->GetRange();
+						return SectionRange.Contains(CurRange);
+					}
+					return false;
+				});
+		for (UMovieSceneSection* OverlappedSection : OverlappedSections)
+		{
+			Sections.Remove(OverlappedSection);
+		}
+		bCleanUpDone = (OverlappedSections.Num() > 0);
+	}
+
 	SortConsecutiveSections(Sections);
+
+	return bCleanUpDone;
 }
 
-void MovieSceneHelpers::FixupConsecutiveBlendingSections(TArray<UMovieSceneSection*>& Sections, UMovieSceneSection& Section, bool bDelete)
+bool MovieSceneHelpers::FixupConsecutiveBlendingSections(TArray<UMovieSceneSection*>& Sections, UMovieSceneSection& Section, bool bDelete, bool bCleanUp)
 {
 	int32 SectionIndex = INDEX_NONE;
 
@@ -154,7 +183,7 @@ void MovieSceneHelpers::FixupConsecutiveBlendingSections(TArray<UMovieSceneSecti
 
 	if (SectionRange.HasLowerBound() && SectionRange.HasUpperBound() && SectionRange.GetLowerBoundValue() >= SectionRange.GetUpperBoundValue())
 	{
-		return;
+		return false;
 	}
 
 	if (Sections.Find(&Section, SectionIndex))
@@ -164,34 +193,49 @@ void MovieSceneHelpers::FixupConsecutiveBlendingSections(TArray<UMovieSceneSecti
 		if (Sections.IsValidIndex(PrevSectionIndex))
 		{
 			UMovieSceneSection* PrevSection = Sections[PrevSectionIndex];
-			if (PrevSection->GetRowIndex() == Section.GetRowIndex())
-			{
-				PrevSection->Modify();
 
-				if (bDelete)
+			PrevSection->Modify();
+
+			if (bDelete)
+			{
+				TRangeBound<FFrameNumber> NewEndFrame = SectionRange.GetUpperBound();
+
+				if (!PrevSection->HasStartFrame() || NewEndFrame.GetValue() > PrevSection->GetInclusiveStartFrame())
 				{
-					TRangeBound<FFrameNumber> NewEndFrame = SectionRange.GetUpperBound();
-					
+					// The current section was deleted... extend the previous section to fill the gap.
+					PrevSection->SetEndFrame(NewEndFrame);
+				}
+			}
+			else
+			{
+				const FFrameNumber GapOrOverlap = SectionRange.GetLowerBoundValue() - PrevSection->GetRange().GetUpperBoundValue();
+				if (GapOrOverlap > 0)
+				{
+					// If we made a gap: adjust the previous section's end time so that it ends wherever the current section's ease-in ends.
+					TRangeBound<FFrameNumber> NewEndFrame = TRangeBound<FFrameNumber>::Exclusive(SectionRange.GetLowerBoundValue() + Section.Easing.GetEaseInDuration());
+
 					if (!PrevSection->HasStartFrame() || NewEndFrame.GetValue() > PrevSection->GetInclusiveStartFrame())
 					{
-						// The current section was deleted... extend the previous section to fill the gap.
+						// It's a gap!
 						PrevSection->SetEndFrame(NewEndFrame);
 					}
 				}
 				else
 				{
-					// If we made a gap: adjust the previous section's end time so that it ends wherever the current section's ease-in ends.
-					// If we created an overlap: calls to UMovieSceneTrack::UpdateEasing have already set the easing curves correctly based on overlaps.
-					const FFrameNumber GapOrOverlap = SectionRange.GetLowerBoundValue() - PrevSection->GetRange().GetUpperBoundValue();
-					if (GapOrOverlap > 0)
+					// If we created an overlap: calls to UMovieSceneTrack::UpdateEasing will set the easing curves correctly based on overlaps.
+					// However, we need to fixup some easing where overlaps don't occur, such as the very first ease-in and the very last ease-out.
+					// Don't overlap so far that our ease-out, or the previous section's ease-in, get overlapped. Clamp these easing durations instead.
+					if (Section.HasEndFrame() && PrevSection->HasEndFrame())
 					{
-						TRangeBound<FFrameNumber> NewEndFrame = TRangeBound<FFrameNumber>::Exclusive(SectionRange.GetLowerBoundValue() + Section.Easing.GetEaseInDuration());
-
-						if (!PrevSection->HasStartFrame() || NewEndFrame.GetValue() > PrevSection->GetInclusiveStartFrame())
-						{
-							// It's a gap!
-							PrevSection->SetEndFrame(NewEndFrame);
-						}
+						const FFrameNumber MaxEaseOutDuration = Section.GetExclusiveEndFrame() - PrevSection->GetExclusiveEndFrame();
+						Section.Easing.AutoEaseOutDuration = FMath::Min(FMath::Max(0, MaxEaseOutDuration.Value), Section.Easing.AutoEaseOutDuration);
+						Section.Easing.ManualEaseOutDuration = FMath::Min(FMath::Max(0, MaxEaseOutDuration.Value), Section.Easing.ManualEaseOutDuration);
+					}
+					if (Section.HasStartFrame() && PrevSection->HasStartFrame())
+					{
+						const FFrameNumber MaxPrevSectionEaseInDuration = Section.GetInclusiveStartFrame() - PrevSection->GetInclusiveStartFrame();
+						PrevSection->Easing.AutoEaseInDuration = FMath::Min(FMath::Max(0, MaxPrevSectionEaseInDuration.Value), PrevSection->Easing.AutoEaseInDuration);
+						PrevSection->Easing.ManualEaseInDuration = FMath::Min(FMath::Max(0, MaxPrevSectionEaseInDuration.Value), PrevSection->Easing.ManualEaseInDuration);
 					}
 				}
 			}
@@ -212,22 +256,37 @@ void MovieSceneHelpers::FixupConsecutiveBlendingSections(TArray<UMovieSceneSecti
 			if (Sections.IsValidIndex(NextSectionIndex))
 			{
 				UMovieSceneSection* NextSection = Sections[NextSectionIndex];
-				if (NextSection->GetRowIndex() == Section.GetRowIndex())
+
+				NextSection->Modify();
+
+				const FFrameNumber GapOrOverlap = NextSection->GetRange().GetLowerBoundValue() - SectionRange.GetUpperBoundValue();
+				if (GapOrOverlap > 0)
 				{
-					NextSection->Modify();
-
 					// If we made a gap: adjust the next section's start time so that it lines up with the current section's end.
-					// If we created an overlap: adjust the next section's ease-in so it ends where the current section ends.
-					const FFrameNumber GapOrOverlap = NextSection->GetRange().GetLowerBoundValue() - SectionRange.GetUpperBoundValue();
-					if (GapOrOverlap > 0)
-					{
-						TRangeBound<FFrameNumber> NewStartFrame = TRangeBound<FFrameNumber>::Inclusive(SectionRange.GetUpperBoundValue() - NextSection->Easing.GetEaseInDuration());
+					TRangeBound<FFrameNumber> NewStartFrame = TRangeBound<FFrameNumber>::Inclusive(SectionRange.GetUpperBoundValue() - NextSection->Easing.GetEaseInDuration());
 
-						if (!NextSection->HasEndFrame() || NewStartFrame.GetValue() < NextSection->GetExclusiveEndFrame())
-						{
-							// It's a gap!
-							NextSection->SetStartFrame(NewStartFrame);
-						}
+					if (!NextSection->HasEndFrame() || NewStartFrame.GetValue() < NextSection->GetExclusiveEndFrame())
+					{
+						// It's a gap!
+						NextSection->SetStartFrame(NewStartFrame);
+					}
+				}
+				else
+				{
+					// If we created an overlap: calls to UMovieSceneTrack::UpdateEasing will set the easing curves correctly based on overlaps.
+					// However, we need to fixup some easing where overlaps don't occur, such as the very first ease-in and the very last ease-out.
+					// Don't overlap so far that our ease-in, or the next section's ease-out, get overlapped. Clamp these easing durations instead.
+					if (Section.HasStartFrame() && NextSection->HasStartFrame())
+					{
+						const FFrameNumber MaxEaseInDuration = NextSection->GetInclusiveStartFrame() - Section.GetInclusiveStartFrame();
+						Section.Easing.AutoEaseInDuration = FMath::Min(FMath::Max(0, MaxEaseInDuration.Value), Section.Easing.AutoEaseInDuration);
+						Section.Easing.ManualEaseInDuration = FMath::Min(FMath::Max(0, MaxEaseInDuration.Value), Section.Easing.ManualEaseInDuration);
+					}
+					if (Section.HasEndFrame() && NextSection->HasEndFrame())
+					{
+						const FFrameNumber MaxNextSectionEaseOutDuration = NextSection->GetExclusiveEndFrame() - Section.GetExclusiveEndFrame();
+						NextSection->Easing.AutoEaseOutDuration = FMath::Min(FMath::Max(0, MaxNextSectionEaseOutDuration.Value), NextSection->Easing.AutoEaseOutDuration);
+						NextSection->Easing.ManualEaseOutDuration = FMath::Min(FMath::Max(0, MaxNextSectionEaseOutDuration.Value), NextSection->Easing.ManualEaseOutDuration);
 					}
 				}
 			}
@@ -239,7 +298,28 @@ void MovieSceneHelpers::FixupConsecutiveBlendingSections(TArray<UMovieSceneSecti
 		}
 	}
 
+	bool bCleanUpDone = false;
+	if (bCleanUp)
+	{
+		const TArray<UMovieSceneSection*> OverlappedSections = Sections.FilterByPredicate([&Section, SectionRange](const UMovieSceneSection* Cur)
+				{
+					if (Cur != &Section)
+					{
+						const TRange<FFrameNumber> CurRange = Cur->GetRange();
+						return SectionRange.Contains(CurRange);
+					}
+					return false;
+				});
+		for (UMovieSceneSection* OverlappedSection : OverlappedSections)
+		{
+			Sections.Remove(OverlappedSection);
+		}
+		bCleanUpDone = (OverlappedSections.Num() > 0);
+	}
+
 	SortConsecutiveSections(Sections);
+
+	return bCleanUpDone;
 }
 
 
