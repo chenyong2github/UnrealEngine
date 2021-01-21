@@ -225,8 +225,6 @@ void FObjectPropertyBase::ExportTextItem( FString& ValueStr, const void* Propert
 
 	if (0 != (PortFlags & PPF_ExportCpp))
 	{
-		FString::Printf(TEXT("%s%s*"), PropertyClass->GetPrefixCPP(), *PropertyClass->GetName());
-
 		ValueStr += Temp
 			? FString::Printf(TEXT("LoadObject<%s%s>(nullptr, TEXT(\"%s\"))")
 				, PropertyClass->GetPrefixCPP()

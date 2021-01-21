@@ -997,7 +997,7 @@ bool FPaths::IsDrive(const FString& InPath)
 		if (CheckPath.Len() > 0)
 		{
 			// Replace any remaining '\\' instances with '\'
-			CheckPath.Replace(TEXT("\\\\"), TEXT("\\"), ESearchCase::CaseSensitive);
+			CheckPath.ReplaceInline(TEXT("\\\\"), TEXT("\\"), ESearchCase::CaseSensitive);
 
 			int32 CheckCount = 0;
 			int32 SlashIndex = CheckPath.Find(TEXT("\\"), ESearchCase::CaseSensitive);
