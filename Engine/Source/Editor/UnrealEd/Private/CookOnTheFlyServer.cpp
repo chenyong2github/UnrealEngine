@@ -2377,27 +2377,7 @@ void UCookOnTheFlyServer::PumpSaves(UE::Cook::FTickStackData& StackData, uint32 
 					// Update flags used to determine garbage collection.
 					if (Package->ContainsMap())
 					{
-						SucceededSavePackage.Add(true);
 						StackData.ResultFlags |= COSR_CookedMap;
-
-						// Update flags used to determine garbage collection.
-						if (Package->ContainsMap())
-						{
-							Result |= COSR_CookedMap;
-						}
-						else
-						{
-							++CookedPackageCount;
-							Result |= COSR_CookedPackage;
-						}
-
-						// Update asset registry
-						if (CookByTheBookOptions)
-						{
-							FAssetRegistryGenerator* Generator = PlatformManager->GetPlatformData(PlatformsForPackage[iResultIndex])->RegistryGenerator.Get();
-							UpdateAssetRegistryPackageData(Generator, *Package, SavePackageResult);
-
-						}
 					}
 					else
 					{
@@ -2409,7 +2389,7 @@ void UCookOnTheFlyServer::PumpSaves(UE::Cook::FTickStackData& StackData, uint32 
 					if (CookByTheBookOptions)
 					{
 						FAssetRegistryGenerator* Generator = PlatformManager->GetPlatformData(PlatformsForPackage[iResultIndex])->RegistryGenerator.Get();
-						UpdateAssetRegistryPackageData(Generator, Package->GetFName(), SavePackageResult);
+						UpdateAssetRegistryPackageData(Generator, *Package, SavePackageResult);
 					}
 				}
 				else
