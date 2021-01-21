@@ -1412,6 +1412,8 @@ void ComputeHairStrandsInterpolation(
 		Instance->HairGroupPublicData->VFInput = ComputeHairStrandsVertexInputData(Instance);
 		{
 			{
+				const bool bHasSkinning = Instance->BindingType == EHairBindingType::Skinning;
+
 				AddHairStrandsInterpolationPass(
 					GraphBuilder,
 					ShaderMap,
@@ -1428,10 +1430,10 @@ void ComputeHairStrandsInterpolation(
 					Instance->Guides.RestResource->PositionOffset,
 					RegisterAsSRV(GraphBuilder, Instance->Strands.DeformedResource->GetPositionOffsetBuffer(FHairStrandsDeformedResource::Current)),
 					RegisterAsSRV(GraphBuilder, Instance->Guides.DeformedResource->GetPositionOffsetBuffer(FHairStrandsDeformedResource::Current)),
-					Instance->Strands.RestRootResource,
-					Instance->Guides.RestRootResource,
-					Instance->Strands.DeformedRootResource,
-					Instance->Guides.DeformedRootResource,
+					bHasSkinning ? Instance->Strands.RestRootResource : nullptr,
+					bHasSkinning ? Instance->Guides.RestRootResource : nullptr,
+					bHasSkinning ? Instance->Strands.DeformedRootResource : nullptr,
+					bHasSkinning ? Instance->Guides.DeformedRootResource : nullptr,
 					RegisterAsSRV(GraphBuilder, Instance->Strands.RestResource->RestPositionBuffer),
 					RegisterAsSRV(GraphBuilder, Instance->Strands.RestResource->AttributeBuffer),
 					RegisterAsSRV(GraphBuilder, Instance->Strands.InterpolationResource->Interpolation0Buffer),

@@ -1805,14 +1805,14 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 
 	InitializedResources = GroomAsset;
 
-	// Initialize LOD screen size & visibility
+	// 1. Check if we need any kind of binding data 
 	bool bHasNeedBindingData = false;
 	for (int32 GroupIt = 0, GroupCount = GroomAsset->HairGroupsData.Num(); GroupIt < GroupCount; ++GroupIt)
 	{
 		const FHairGroupsLOD& GroupLOD = GroomAsset->HairGroupsLOD[GroupIt];
 		for (const FHairLODSettings& LODSettings : GroupLOD.LODs)
 		{
-			bHasNeedBindingData = bHasNeedBindingData || LODSettings.BindingType == EGroomBindingType::Skinning;
+			bHasNeedBindingData  = bHasNeedBindingData || LODSettings.BindingType == EGroomBindingType::Skinning;
 		}
 	}
 
@@ -1820,9 +1820,12 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 	const EWorldType::Type WorldType = GetWorldType();
 	const bool bIsStrandsEnabled = IsHairStrandsEnabled(EHairStrandsShaderType::Strands);
 
-	// Insure that the binding asset is compatible, otherwise no binding will be used
+	// 2. Insure that the binding asset is compatible, otherwise no binding
 	USkeletalMeshComponent* SkeletalMeshComponent = GetAttachParent() ? Cast<USkeletalMeshComponent>(GetAttachParent()) : nullptr;
-	SkeletalMeshComponent = ValidateBindingAsset(GroomAsset, BindingAsset, SkeletalMeshComponent, bIsBindingReloading, bValidationEnable, this);
+	if (bHasNeedBindingData && SkeletalMeshComponent)
+	{
+		SkeletalMeshComponent = ValidateBindingAsset(GroomAsset, BindingAsset, SkeletalMeshComponent, bIsBindingReloading, bValidationEnable, this);
+	}
 	UGroomBindingAsset* LocalBindingAsset = bHasNeedBindingData ? BindingAsset : nullptr;
 
 	// Insure the ticking of the Groom component always happens after the skeletalMeshComponent.
@@ -1851,6 +1854,7 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 			HairGroupInstance->Debug.SkeletalComponentName = SkeletalMeshComponent->GetPathName();
 		}
 		HairGroupInstance->GeometryType = EHairGeometryType::NoneGeometry;
+		HairGroupInstance->BindingType = EHairBindingType::NoneBinding;
 
 		FHairGroupData& GroupData = GroomAsset->HairGroupsData[GroupIt];
 		const uint32 SkeletalLODCount = SkeletalMeshComponent ? SkeletalMeshComponent->GetNumLODs() : 0;
@@ -1871,10 +1875,20 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 			const FHairGroupsLOD& GroupLOD = GroomAsset->HairGroupsLOD[GroupIt];
 			for (const FHairLODSettings& LODSettings : GroupLOD.LODs)
 			{
+				EHairBindingType BindingType = ToHairBindingType(LODSettings.BindingType);
+				if (BindingType == EHairBindingType::Skinning && !LocalBindingAsset)
+				{
+					BindingType = EHairBindingType::NoneBinding;
+				}
+				else if (BindingType == EHairBindingType::Rigid && !SkeletalMeshComponent)
+				{
+					BindingType = EHairBindingType::NoneBinding;
+				}
+
 				CPULODScreenSize.Add(LODSettings.ScreenSize);
 				LODVisibility.Add(LODSettings.bVisible);
 				LODGeometryTypes.Add(ConvertToHairGeometryType(LODSettings.GeometryType));
-				HairGroupInstance->HairGroupPublicData->BindingTypes.Add(ToHairBindingType(LODSettings.BindingType));
+				HairGroupInstance->HairGroupPublicData->BindingTypes.Add(BindingType);
 			}
 			HairGroupInstance->HairGroupPublicData->SetLODScreenSizes(CPULODScreenSize);
 			HairGroupInstance->HairGroupPublicData->SetLODVisibilities(LODVisibility);
