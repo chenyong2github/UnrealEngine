@@ -385,7 +385,7 @@ public:
 	virtual T PhiWithNormal(const TVector<T, d>& X, TVector<T, d>& Normal) const override
 	{
 		// @todo(chaos): support scaled PhiWithNormal on all types
-		if (const FImplicitConvex3* Convex = MObject->GetObject<FImplicitConvex3>())
+		if (const FImplicitConvex3* Convex = MObject->template GetObject<FImplicitConvex3>())
 		{
 			return Convex->PhiWithNormalScaled(X, MScale, MInvScale, Normal);
 		}
