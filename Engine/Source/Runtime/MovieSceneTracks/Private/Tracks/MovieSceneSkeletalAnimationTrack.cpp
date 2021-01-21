@@ -224,10 +224,12 @@ bool UMovieSceneSkeletalAnimationTrack::PopulateEvaluationTree(TMovieSceneEvalua
 }
 
 #if WITH_EDITOR
-void UMovieSceneSkeletalAnimationTrack::OnSectionMoved(UMovieSceneSection& Section, const FMovieSceneSectionMovedParams& Params)
+EMovieSceneSectionMovedResult UMovieSceneSkeletalAnimationTrack::OnSectionMoved(UMovieSceneSection& Section, const FMovieSceneSectionMovedParams& Params)
 {
 	SortSections();
 	SetUpRootMotions(true);
+	
+	return EMovieSceneSectionMovedResult::None;
 }
 #endif
 
