@@ -31,7 +31,7 @@ UBlueprintEditorSettings::UBlueprintEditorSettings(const FObjectInitializer& Obj
 	, bHostFindInBlueprintsInGlobalTab(true)
 	, bNavigateToNativeFunctionsFromCallNodes(true)
 	, bDoubleClickNavigatesToParent(false)
-	, bEnableTypePromotion(true)
+	, bEnableTypePromotion(false)
 	// Experimental
 	, bFavorPureCastNodes(false)
 	// Compiler Settings
