@@ -208,12 +208,6 @@ void SAnimCompositePanel::PostUndoRedo()
 		bIsActiveTimerRegistered = true;
 		RegisterActiveTimer(0.f, FWidgetActiveTimerDelegate::CreateSP(this, &SAnimCompositePanel::TriggerRebuildPanel));
 	}
-
-	// when undo or redo happens, we still have to recalculate length, so we can't rely on sequence length changes or not
-	if (Composite->GetPlayLength())
-	{
-		Composite->SetCompositeLength(0.f);
-	}
 }
 
 FLinearColor SAnimCompositePanel::HandleGetNodeColor(const FAnimSegment& InSegment) const

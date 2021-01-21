@@ -581,12 +581,6 @@ void SAnimMontagePanel::PostRedo( bool bSuccess )
 
 void SAnimMontagePanel::PostRedoUndo()
 {
-	// when undo or redo happens, we still have to recalculate length, so we can't rely on sequence length changes or not
-	if (Montage->GetPlayLength())
-	{
-		Montage->SetCompositeLength(MINIMUM_ANIMATION_LENGTH);
-	}
-
 	RebuildMontagePanel(); //Rebuild here, undoing adds can cause slate to crash later on if we don't (using dummy args since they aren't used by the method
 }
 
