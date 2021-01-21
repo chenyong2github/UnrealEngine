@@ -27,6 +27,7 @@ namespace Chaos
 	// these cases. Verbose logging on LogChaos will point out when this path is taken for further scrutiny about
 	// the geometry
 	static constexpr float TriQuadPrismInflation() { return 0.1f; }
+	static constexpr float DefaultHorizonEpsilon() { return 0.1f; }
 
 	class FConvexBuilder
 	{
@@ -36,14 +37,20 @@ namespace Chaos
 		{
 		public:
 			Params()
-				: HorizonEpsilon(0.1f)
+				: HorizonEpsilon(DefaultHorizonEpsilon())
 			{}
 
 			FReal HorizonEpsilon;
 		};
 
-		static FReal SuggestEpsilon(const TParticles<FReal, 3>& InParticles)
+		static CHAOS_API FReal SuggestEpsilon(const TParticles<FReal, 3>& InParticles)
 		{
+			if (ComputeHorizonEpsilonFromMeshExtends == 0)
+			{
+				// legacy path, return the hardcoded default value
+				return DefaultHorizonEpsilon();
+			}
+
 			// Create a scaled epsilon for our input data set. FLT_EPSILON is the distance between 1.0 and the next value
 			// above 1.0 such that 1.0 + FLT_EPSILON != 1.0. Floats aren't equally disanced though so big or small numbers
 			// don't work well with it. Here we take the max absolute of each axis and scale that for a wider margin and
@@ -51,12 +58,12 @@ namespace Chaos
 			TVector<FReal, 3> MaxAxes(TNumericLimits<FReal>::Lowest());
 			const int32 NumParticles = InParticles.Size();
 
-			if(NumParticles <= 1)
+			if (NumParticles <= 1)
 			{
 				return FLT_EPSILON;
 			}
 
-			for(int32 Index = 0; Index < NumParticles; ++Index)
+			for (int32 Index = 0; Index < NumParticles; ++Index)
 			{
 				TVector<FReal, 3> PositionAbs = InParticles.X(Index).GetAbs();
 
@@ -614,10 +621,12 @@ namespace Chaos
 		static CHAOS_API int32 PerformGeometryCheck;
 		static CHAOS_API int32 PerformGeometryReduction;
 		static CHAOS_API int32 ParticlesThreshold;
+		static CHAOS_API int32 ComputeHorizonEpsilonFromMeshExtends;
 #else
 		static int32 PerformGeometryCheck;
 		static int32 PerformGeometryReduction;
 		static int32 ParticlesThreshold;
+		static int32 ComputeHorizonEpsilonFromMeshExtends;
 #endif
 
 	private:
