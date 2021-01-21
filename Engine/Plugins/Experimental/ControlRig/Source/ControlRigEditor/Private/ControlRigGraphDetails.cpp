@@ -103,6 +103,7 @@ void FControlRigArgumentGroupLayout::HandleModifiedEvent(ERigVMGraphNotifType In
 	{
 		case ERigVMGraphNotifType::PinAdded:
 		case ERigVMGraphNotifType::PinRemoved:
+		case ERigVMGraphNotifType::PinIndexChanged:
 		{
 			URigVMPin* Pin = CastChecked<URigVMPin>(InSubject);
 			if (Pin->GetNode() == LibraryNode)
@@ -226,54 +227,38 @@ void FControlRigArgumentLayout::OnRemoveClicked()
 
 FReply FControlRigArgumentLayout::OnArgMoveUp()
 {
-	/* todo
-
-	const int32 ThisParamIndex = TargetNode->UserDefinedPins.Find(ParamItemPtr.Pin());
-	const int32 NewParamIndex = ThisParamIndex - 1;
-	if (ThisParamIndex != INDEX_NONE && NewParamIndex >= 0)
+	if (PinPtr.IsValid() && ControlRigBlueprintPtr.IsValid())
 	{
-		const FScopedTransaction Transaction(LOCTEXT("K2_MovePinUp", "Move Pin Up"));
-		TArray<UK2Node_EditablePinBase*> TargetNodes = GatherAllResultNodes(TargetNode);
-		for (UK2Node_EditablePinBase* Node : TargetNodes)
+		URigVMPin* Pin = PinPtr.Get();
+		UControlRigBlueprint* Blueprint = ControlRigBlueprintPtr.Get();
+		if (URigVMLibraryNode* LibraryNode = Cast<URigVMLibraryNode>(Pin->GetNode()))
 		{
-			Node->Modify();
-			Node->UserDefinedPins.Swap(ThisParamIndex, NewParamIndex);
-
-			TSharedPtr<FBaseBlueprintGraphActionDetails> GraphActionDetails = GraphActionDetailsPtr.Pin();
-			if (GraphActionDetails.IsValid())
+			if (URigVMController* Controller = Blueprint->GetController(LibraryNode->GetContainedGraph()))
 			{
-				GraphActionDetails->OnParamsChanged(Node, true);
+				Controller->SetExposedPinIndex(Pin->GetFName(), Pin->GetPinIndex() - 1);
+				return FReply::Handled();
 			}
 		}
 	}
-
-	*/
-	return FReply::Handled();
+	return FReply::Unhandled();
 }
 
 FReply FControlRigArgumentLayout::OnArgMoveDown()
 {
-	/* todo
-	const int32 ThisParamIndex = TargetNode->UserDefinedPins.Find(ParamItemPtr.Pin());
-	const int32 NewParamIndex = ThisParamIndex + 1;
-	if (ThisParamIndex != INDEX_NONE && NewParamIndex < TargetNode->UserDefinedPins.Num())
+	if (PinPtr.IsValid() && ControlRigBlueprintPtr.IsValid())
 	{
-		const FScopedTransaction Transaction(LOCTEXT("K2_MovePinDown", "Move Pin Down"));
-		TArray<UK2Node_EditablePinBase*> TargetNodes = GatherAllResultNodes(TargetNode);
-		for (UK2Node_EditablePinBase* Node : TargetNodes)
+		URigVMPin* Pin = PinPtr.Get();
+		UControlRigBlueprint* Blueprint = ControlRigBlueprintPtr.Get();
+		if (URigVMLibraryNode* LibraryNode = Cast<URigVMLibraryNode>(Pin->GetNode()))
 		{
-			Node->Modify();
-			Node->UserDefinedPins.Swap(ThisParamIndex, NewParamIndex);
-
-			TSharedPtr<FBaseBlueprintGraphActionDetails> GraphActionDetails = GraphActionDetailsPtr.Pin();
-			if (GraphActionDetails.IsValid())
+			if (URigVMController* Controller = Blueprint->GetController(LibraryNode->GetContainedGraph()))
 			{
-				GraphActionDetails->OnParamsChanged(Node, true);
+				Controller->SetExposedPinIndex(Pin->GetFName(), Pin->GetPinIndex() + 1);
+				return FReply::Handled();
 			}
 		}
 	}
-	*/
-	return FReply::Handled();
+	return FReply::Unhandled();
 }
 
 bool FControlRigArgumentLayout::ShouldPinBeReadOnly(bool bIsEditingPinType/* = false*/) const
@@ -501,6 +486,7 @@ void FControlRigArgumentDefaultNode::HandleModifiedEvent(ERigVMGraphNotifType In
 		case ERigVMGraphNotifType::PinAdded:
 		case ERigVMGraphNotifType::PinRemoved:
 		case ERigVMGraphNotifType::PinTypeChanged:
+		case ERigVMGraphNotifType::PinIndexChanged:
 		case ERigVMGraphNotifType::PinRenamed:
 		{
 			URigVMPin* Pin = CastChecked<URigVMPin>(InSubject);

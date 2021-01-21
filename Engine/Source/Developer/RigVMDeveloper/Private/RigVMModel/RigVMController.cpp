@@ -5699,6 +5699,69 @@ bool URigVMController::ChangeExposedPinType(const FName& InPinName, const FStrin
 	return true;
 }
 
+bool URigVMController::SetExposedPinIndex(const FName& InPinName, int32 InNewIndex, bool bSetupUndoRedo)
+{
+	if (!IsValidGraph())
+	{
+		return false;
+	}
+
+	URigVMGraph* Graph = GetGraph();
+	check(Graph);
+
+	FString PinPath = InPinName.ToString();
+	if (PinPath.Contains(TEXT(".")))
+	{
+		ReportError(TEXT("Cannot change pin index for pins on nodes for now - only within collapse nodes."));
+		return false;
+	}
+
+	URigVMLibraryNode* LibraryNode = Cast<URigVMLibraryNode>(Graph->GetOuter());
+	if (LibraryNode == nullptr)
+	{
+		ReportError(TEXT("Graph is not under a Collapse Node"));
+		return false;
+	}
+
+	URigVMPin* Pin = LibraryNode->FindPin(PinPath);
+	if (Pin == nullptr)
+	{
+		ReportErrorf(TEXT("Cannot find exposed pin '%s'."), *PinPath);
+		return false;
+	}
+
+	if (Pin->GetPinIndex() == InNewIndex)
+	{
+		return false;
+	}
+
+	if (InNewIndex < 0 || InNewIndex >= LibraryNode->GetPins().Num())
+	{
+		ReportErrorf(TEXT("Invalid new pin index '%d'."), InNewIndex);
+		return false;
+	}
+
+	FRigVMSetPinIndexAction PinIndexAction(Pin, InNewIndex);
+	{
+		LibraryNode->Pins.Remove(Pin);
+		LibraryNode->Pins.Insert(Pin, InNewIndex);
+
+		FRigVMControllerGraphGuard GraphGuard(this, LibraryNode->GetGraph(), false);
+		Notify(ERigVMGraphNotifType::PinIndexChanged, Pin);
+	}
+
+	RefreshFunctionPins(LibraryNode->GetEntryNode(), true);
+	RefreshFunctionPins(LibraryNode->GetReturnNode(), true);
+	RefreshFunctionReferences(LibraryNode, false);
+	
+	if (bSetupUndoRedo)
+	{
+		ActionStack->AddAction(PinIndexAction);
+	}
+
+	return true;
+}
+
 URigVMFunctionReferenceNode* URigVMController::AddFunctionReferenceNode(URigVMLibraryNode* InFunctionDefinition, const FVector2D& InNodePosition, const FString& InNodeName, bool bSetupUndoRedo)
 {
 	if (!IsValidGraph())

@@ -499,6 +499,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
 	bool ChangeExposedPinType(const FName& InPinName, const FString& InCPPType, const FName& InCPPTypeObjectPath, bool bSetupUndoRedo = true);
 
+	// Sets the index for an exposed pin. This can be used to move the pin up and down on the node.
+	UFUNCTION(BlueprintCallable, Category = RigVMController)
+	bool SetExposedPinIndex(const FName& InPinName, int32 InNewIndex, bool bSetupUndoRedo = true);
+
 	// Adds a function reference / invocation to the graph
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
 	URigVMFunctionReferenceNode* AddFunctionReferenceNode(URigVMLibraryNode* InFunctionDefinition, const FVector2D& InNodePosition = FVector2D::ZeroVector, const FString& InNodeName = TEXT(""), bool bSetupUndoRedo = true);

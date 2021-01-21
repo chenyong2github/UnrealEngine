@@ -33,6 +33,7 @@ enum class ERigVMGraphNotifType : uint8
 	PinDefaultValueChanged, // A pin's default value has changed (Subject == URigVMPin)
 	PinDirectionChanged, // A pin's direction has changed (Subject == URigVMPin)
 	PinTypeChanged, // A pin's data type has changed (Subject == URigVMPin)
+	PinIndexChanged, // A pin's index has changed (Subject == URigVMPin)
 	LinkAdded, // A link has been added (Subject == URigVMLink)
 	LinkRemoved, // A link has been removed (Subject == URigVMLink)
 	CommentTextChanged, // A comment node's text has changed (Subject == URigVMCommentNode)

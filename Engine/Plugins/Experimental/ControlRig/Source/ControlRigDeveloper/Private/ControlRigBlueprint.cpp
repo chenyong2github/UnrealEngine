@@ -1660,6 +1660,7 @@ void UControlRigBlueprint::HandleModifiedEvent(ERigVMGraphNotifType InNotifType,
 			}
 			case ERigVMGraphNotifType::PinWatchedChanged:
 			case ERigVMGraphNotifType::PinTypeChanged:
+			case ERigVMGraphNotifType::PinIndexChanged:
 			{
 				if (URigVMPin* ModelPin = Cast<URigVMPin>(InSubject))
 				{

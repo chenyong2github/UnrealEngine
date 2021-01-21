@@ -1350,3 +1350,29 @@ public:
 	UPROPERTY()
 	FString NewPinName;
 };
+
+/**
+ * An action to reorder pins on a node
+ */
+USTRUCT()
+struct FRigVMSetPinIndexAction : public FRigVMBaseAction
+{
+	GENERATED_BODY()
+
+public:
+
+	FRigVMSetPinIndexAction();
+	FRigVMSetPinIndexAction(URigVMPin* InPin, int32 InNewIndex);
+	virtual ~FRigVMSetPinIndexAction() {};
+	virtual bool Undo(URigVMController* InController) override;
+	virtual bool Redo(URigVMController* InController) override;
+
+	UPROPERTY()
+	FString PinPath;
+
+	UPROPERTY()
+	int32 OldIndex;
+
+	UPROPERTY()
+	int32 NewIndex;
+};

@@ -1573,3 +1573,35 @@ bool FRigVMRenameExposedPinAction::Redo(URigVMController* InController)
 	}
 	return FRigVMBaseAction::Redo(InController);
 }
+
+FRigVMSetPinIndexAction::FRigVMSetPinIndexAction()
+	: PinPath()
+	, OldIndex(INDEX_NONE)
+	, NewIndex(INDEX_NONE)
+{
+}
+
+FRigVMSetPinIndexAction::FRigVMSetPinIndexAction(URigVMPin* InPin, int32 InNewIndex)
+	: PinPath(InPin->GetPinPath())
+	, OldIndex(InPin->GetPinIndex())
+	, NewIndex(InNewIndex)
+{
+}
+
+bool FRigVMSetPinIndexAction::Undo(URigVMController* InController)
+{
+	if (!FRigVMBaseAction::Undo(InController))
+	{
+		return false;
+	}
+	return InController->SetExposedPinIndex(*PinPath, OldIndex);
+}
+
+bool FRigVMSetPinIndexAction::Redo(URigVMController* InController)
+{
+	if (!InController->SetExposedPinIndex(*PinPath, NewIndex))
+	{
+		return false;
+	}
+	return FRigVMBaseAction::Redo(InController);
+}
