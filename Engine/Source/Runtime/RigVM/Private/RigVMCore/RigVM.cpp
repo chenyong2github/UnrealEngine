@@ -829,39 +829,14 @@ bool URigVM::Initialize(FRigVMMemoryContainerPtrArray Memory, FRigVMFixedArray<v
 
 				FRigVMMemoryHandle& SourceHandle = CachedMemoryHandles[FirstHandleForInstruction[Context.InstructionIndex]];
 				FRigVMMemoryHandle& TargetHandle = CachedMemoryHandles[FirstHandleForInstruction[Context.InstructionIndex] + 1];
-
-				// register offset traversal for plain type is performed here when converting from handle to pointer here
 				void* SourcePtr = SourceHandle;
 				void* TargetPtr = TargetHandle;
 
 				uint64 NumBytes = reinterpret_cast<uint64>(CachedMemoryHandles[FirstHandleForInstruction[Context.InstructionIndex] + 2].GetData());
 				ERigVMRegisterType MemoryType = (ERigVMRegisterType)reinterpret_cast<uint64>(CachedMemoryHandles[FirstHandleForInstruction[Context.InstructionIndex] + 3].GetData());
 
-				// dynamic memory is managed by individual rig units or generated for debug watches, never copy from it
-				ensure(SourceHandle.Type != FRigVMMemoryHandle::Dynamic);
-				ensure(SourceHandle.Type != FRigVMMemoryHandle::NestedDynamic);
-
-				if (SourceHandle.Type == FRigVMMemoryHandle::StaticArray)
-				{
-					// Array is implemented using a single slice
-					FRigVMByteArray* Storage = (FRigVMByteArray*)SourceHandle.Ptr;
-
-					// source ptr now points to the beginning of the slice
-					SourcePtr = Storage->GetData();
-
-					if (SourceHandle.RegisterOffset)
-					{
-						SourcePtr = SourceHandle.RegisterOffset->GetData((uint8*)SourcePtr);
-					}
-				}
-
-				// debug watch an array pin is not supported at the moment
-				ensure(TargetHandle.Type != FRigVMMemoryHandle::NestedDynamic);
-
 				if (TargetHandle.Type == FRigVMMemoryHandle::Dynamic)
 				{
-					ensure(!TargetHandle.RegisterOffset);
-					// Copy op is used when copy to debug watch values, which is implemented as a dynamic register
 					FRigVMByteArray* Storage = (FRigVMByteArray*)TargetHandle.Ptr;
 					if (Context.GetSlice().GetIndex() == 0)
 					{
@@ -870,21 +845,16 @@ bool URigVM::Initialize(FRigVMMemoryContainerPtrArray Memory, FRigVMFixedArray<v
 					int32 ByteIndex = Storage->AddZeroed(NumBytes);
 					TargetPtr = Storage->GetData() + ByteIndex;
 				}
-				else if (TargetHandle.Type == FRigVMMemoryHandle::StaticArray)
+				else if (TargetHandle.Type == FRigVMMemoryHandle::NestedDynamic)
 				{
-					FRigVMByteArray* Storage = (FRigVMByteArray*)TargetHandle.Ptr;
-
-					// static array's space are allocated during AddStaticArray()
-					// todo: allow array-array copy to change the size of target array
-					ensure(Storage->Num() >= NumBytes);
-
-					TargetPtr = Storage->GetData();
-
-					if (TargetHandle.RegisterOffset)
+					FRigVMNestedByteArray* Storage = (FRigVMNestedByteArray*)TargetHandle.Ptr;
+					if (Context.GetSlice().GetIndex() == 0)
 					{
-						// for an example of this use case, see CopyValueToArrayInStructTest unit test
-						TargetPtr = TargetHandle.RegisterOffset->GetData((uint8*)TargetPtr);
+						Storage->Reset();
 					}
+					int32 ArrayIndex = Storage->Add(FRigVMByteArray());
+					(*Storage)[ArrayIndex].AddZeroed(NumBytes);
+					TargetPtr = (*Storage)[ArrayIndex].GetData();
 				}
 
 				switch (MemoryType)
@@ -1124,39 +1094,14 @@ bool URigVM::Execute(FRigVMMemoryContainerPtrArray Memory, FRigVMFixedArray<void
 
 				FRigVMMemoryHandle& SourceHandle = CachedMemoryHandles[FirstHandleForInstruction[Context.InstructionIndex]];
 				FRigVMMemoryHandle& TargetHandle = CachedMemoryHandles[FirstHandleForInstruction[Context.InstructionIndex] + 1];
-
-				// register offset traversal for plain type is performed here when converting from handle to pointer here
 				void* SourcePtr = SourceHandle;
 				void* TargetPtr = TargetHandle;
 
 				uint64 NumBytes = reinterpret_cast<uint64>(CachedMemoryHandles[FirstHandleForInstruction[Context.InstructionIndex] + 2].GetData());
 				ERigVMRegisterType MemoryType = (ERigVMRegisterType)reinterpret_cast<uint64>(CachedMemoryHandles[FirstHandleForInstruction[Context.InstructionIndex] + 3].GetData());
 
-				// dynamic memory is managed by individual rig units or generated for debug watches, never copy from it
-				ensure(SourceHandle.Type != FRigVMMemoryHandle::Dynamic);
-				ensure(SourceHandle.Type != FRigVMMemoryHandle::NestedDynamic);
-
-				if (SourceHandle.Type == FRigVMMemoryHandle::StaticArray)
-				{
-					// Array is implemented using a single slice
-					FRigVMByteArray* Storage = (FRigVMByteArray*)SourceHandle.Ptr;
-
-					// source ptr now points to the beginning of the slice
-					SourcePtr = Storage->GetData();
-
-					if (SourceHandle.RegisterOffset)
-					{
-						SourcePtr = SourceHandle.RegisterOffset->GetData((uint8*)SourcePtr);
-					} 
-				}
-
-				// debug watch an array pin is not supported at the moment
-				ensure(TargetHandle.Type != FRigVMMemoryHandle::NestedDynamic);
-
 				if (TargetHandle.Type == FRigVMMemoryHandle::Dynamic)
-				{ 
-					ensure(!TargetHandle.RegisterOffset);
-					// Copy op is used when copy to debug watch values, which is implemented as a dynamic register
+				{
 					FRigVMByteArray* Storage = (FRigVMByteArray*)TargetHandle.Ptr;
 					if (Context.GetSlice().GetIndex() == 0)
 					{
@@ -1165,21 +1110,16 @@ bool URigVM::Execute(FRigVMMemoryContainerPtrArray Memory, FRigVMFixedArray<void
 					int32 ByteIndex = Storage->AddZeroed(NumBytes);
 					TargetPtr = Storage->GetData() + ByteIndex;
 				}
-				else if (TargetHandle.Type == FRigVMMemoryHandle::StaticArray)
+				else if (TargetHandle.Type == FRigVMMemoryHandle::NestedDynamic)
 				{
-					FRigVMByteArray* Storage = (FRigVMByteArray*)TargetHandle.Ptr;
- 
-					// static array's space are allocated during AddStaticArray()
-					// todo: allow array-array copy to change the size of target array
-					ensure(Storage->Num() >= NumBytes);
-
-					TargetPtr = Storage->GetData(); 
-
-					if (TargetHandle.RegisterOffset)
-					{ 
-						// for an example of this use case, see CopyValueToArrayInStructTest unit test
-						TargetPtr = TargetHandle.RegisterOffset->GetData((uint8*)TargetPtr);
+					FRigVMNestedByteArray* Storage = (FRigVMNestedByteArray*)TargetHandle.Ptr;
+					if (Context.GetSlice().GetIndex() == 0)
+					{
+						Storage->Reset();
 					}
+					int32 ArrayIndex = Storage->Add(FRigVMByteArray());
+					(*Storage)[ArrayIndex].AddZeroed(NumBytes);
+					TargetPtr = (*Storage)[ArrayIndex].GetData();
 				}
 
 				switch (MemoryType)

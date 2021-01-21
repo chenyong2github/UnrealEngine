@@ -11,24 +11,6 @@ typedef TArray<FRigVMByteArray> FRigVMNestedByteArray;
 /**
  * The FRigVMDynamicArray is used as an array wrapping a generic TArray.
  * FRigVMDynamicArray is copied by reference.
- * Note: currently there are two different use cases for FRigVMDynamicArray
- * 
- * 1. Dynamic && NonArray Register : 
- * Example: RigUnit_SetControlTransform.generated.h -> FRigUnit_SetControlRotator -> RigVMExecute() -> CachedIndex_4_Array
- * CachedIndex_4_Array->Num() == SliceCount, both the register and the array are dynamic in a sense that 
- * they can both grow according to number of slices. In this case, the word "Dynamic" has a consistent meaning: multi-slice
- * 
- * 2. Dynamic && Array Register:
- * Example: RigUnit_SetControlTransform.generated.h -> FRigUnit_SetMultiControlRotator -> RigVMExecute() -> CachedControlIndices
- * CachedControlIndices->Num() is not related to SliceCount, its size/content are instead managed by the rig unit's execute function in RigUnit_SetControlTransform.cpp
- *
- * In this use case, though the register is dynamic(meaning multi-slice), the size of this array is not related to slicing, 
- * it is only "dynamic" in a sense that it is resize-able(a different meaning of "dynamic"), which can cause confusion
- *
- * The current code use it in this use case only because it is copied by reference and resize-able.
- * 
- * Ideally, the size of the this data structure should be governed by a single rule, 
- * mark as todo for future work to unify use cases above
  */
 template<class T>
 struct FRigVMDynamicArray
