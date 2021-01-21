@@ -55,7 +55,6 @@ public:
 		{
 			DepthStencilViews[SubResourceIndex] = View;
 			NumDepthStencilViews = FMath::Max(SubResourceIndex + 1, NumDepthStencilViews);
-			AddView(View);
 		}
 		else
 		{
@@ -68,7 +67,6 @@ public:
 		if (SubResourceIndex < (uint32)RenderTargetViews.Num())
 		{
 			RenderTargetViews[SubResourceIndex] = View;
-			AddView(View);
 		}
 		else
 		{
@@ -80,7 +78,6 @@ public:
 	{
 		RenderTargetViews.Empty(1);
 		RenderTargetViews.Add(View);
-		AddView(View);
 	}
 
 	int64 GetMemorySize() const
@@ -106,7 +103,7 @@ public:
 	FD3D12BaseShaderResource* GetBaseShaderResource() const { return BaseShaderResource; }
 	inline const FTextureRHIRef& GetAliasingSourceTexture() const { return AliasingSourceTexture; }
 
-	void SetShaderResourceView(FD3D12ShaderResourceView* InShaderResourceView) { ShaderResourceView = InShaderResourceView; AddView(InShaderResourceView); }
+	void SetShaderResourceView(FD3D12ShaderResourceView* InShaderResourceView) { ShaderResourceView = InShaderResourceView; }
 
 	static inline bool ShouldDeferCmdListOperation(FRHICommandList* RHICmdList)
 	{

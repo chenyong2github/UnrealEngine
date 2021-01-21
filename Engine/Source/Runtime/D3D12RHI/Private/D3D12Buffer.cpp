@@ -323,7 +323,7 @@ FD3D12Buffer* FD3D12Adapter::CreateRHIBuffer(FRHICommandListImmediate* RHICmdLis
 void FD3D12Buffer::Rename(FD3D12ResourceLocation& NewLocation)
 {
 	FD3D12ResourceLocation::TransferOwnership(ResourceLocation, NewLocation);
-	RecreateViews(ResourceLocation);
+	ResourceRenamed(&ResourceLocation);
 }
 
 void FD3D12Buffer::RenameLDAChain(FD3D12ResourceLocation& NewLocation)
@@ -342,7 +342,7 @@ void FD3D12Buffer::RenameLDAChain(FD3D12ResourceLocation& NewLocation)
 		for (auto NextBuffer = ++FLinkedObjectIterator(this); NextBuffer; ++NextBuffer)
 		{
 			FD3D12ResourceLocation::ReferenceNode(NextBuffer->GetParentDevice(), NextBuffer->ResourceLocation, ResourceLocation);
-			NextBuffer->RecreateViews(NextBuffer->ResourceLocation);
+			NextBuffer->ResourceRenamed(&NextBuffer->ResourceLocation);
 		}
 	}
 }
@@ -363,7 +363,7 @@ void FD3D12Buffer::ReleaseUnderlyingResource()
 	{
 		check(!NextBuffer->LockedData.bLocked && NextBuffer->ResourceLocation.IsValid());
 		NextBuffer->ResourceLocation.Clear();
-		NextBuffer->RemoveAllViews();
+		NextBuffer->RemoveAllRenameListeners();
 	}
 }
 

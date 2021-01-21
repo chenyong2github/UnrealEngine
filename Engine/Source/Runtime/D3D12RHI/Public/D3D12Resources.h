@@ -753,75 +753,64 @@ struct FD3D12LockedResource : public FD3D12DeviceChild
 	uint32 bHasNeverBeenLocked : 1;
 };
 
-class FD3D12BaseShaderResourceView
+/** Resource which might needs to be notified about changes on dependent resources (Views, RTGeometryObject, Cached binding tables) */
+class FD3D12ShaderResourceRenameListener
 {
 protected:
-	virtual ~FD3D12BaseShaderResourceView() { check(BaseShaderResource == nullptr); }
-
-	void Remove();
-	virtual void Recreate(FD3D12ResourceLocation& InResourceLocation) = 0;
 
 	friend class FD3D12BaseShaderResource;
-	FD3D12BaseShaderResource* BaseShaderResource = nullptr;
+	virtual void ResourceRenamed(FD3D12BaseShaderResource* InRenamedResource, FD3D12ResourceLocation* InNewResourceLocation) = 0;
 };
 
-/** The base class of resources that may be bound as shader resources. */
+
+/** The base class of resources that may be bound as shader resources (texture or buffer). */
 class FD3D12BaseShaderResource : public FD3D12DeviceChild, public IRefCountedObject
 {
 protected:
-	FCriticalSection ViewsCS;
-	TArray<class FD3D12BaseShaderResourceView*> Views;
+	FCriticalSection RenameListenersCS;
+	TArray<FD3D12ShaderResourceRenameListener*> RenameListeners;
 
 public:
 	FD3D12Resource* GetResource() const { return ResourceLocation.GetResource(); }
 
-	void AddView(FD3D12BaseShaderResourceView* InView)
+	void AddRenameListener(FD3D12ShaderResourceRenameListener* InRenameListener)
 	{
-		FScopeLock Lock(&ViewsCS);
-		check(InView->BaseShaderResource == nullptr);
-		InView->BaseShaderResource = this;
-		Views.Add(InView);
+		FScopeLock Lock(&RenameListenersCS);
+		RenameListeners.Add(InRenameListener);
 	}
 
-	void RemoveView(FD3D12BaseShaderResourceView* InSRV)
+	void RemoveRenameListener(FD3D12ShaderResourceRenameListener* InRenameListener)
 	{
-		FScopeLock Lock(&ViewsCS);
-		check(InSRV->BaseShaderResource == this);
-		InSRV->BaseShaderResource = nullptr;
-		uint32 Removed = Views.Remove(InSRV);
-		check(Removed == 1);
-	}
+		FScopeLock Lock(&RenameListenersCS);
+		uint32 Removed = RenameListeners.Remove(InRenameListener);
 
-	void RemoveAllViews()
-	{
-		FScopeLock Lock(&ViewsCS);
-		for (FD3D12BaseShaderResourceView* View : Views)
-		{
-			if (View != nullptr)
-			{
-				View->BaseShaderResource = nullptr;
-			}
-		}
-		Views.Reset();
+		checkf(Removed == 1, TEXT("Should have exactly one registered listener during remove (same listener shouldn't registered twice and we shouldn't call this if not registered"));
 	}
 
 	void Swap(FD3D12BaseShaderResource& Other)
 	{
+		// assume RHI thread when swapping listeners and resources
+		check(IsInRHIThread());
+
 		::Swap(Parent, Other.Parent);
 		ResourceLocation.Swap(Other.ResourceLocation);
 		::Swap(BufferAlignment, Other.BufferAlignment);
-		::Swap(Views, Other.Views);
+		::Swap(RenameListeners, Other.RenameListeners);
 	}
 
-	void RecreateViews(FD3D12ResourceLocation& InResourceLocation)
+	void RemoveAllRenameListeners()
 	{
-		FScopeLock Lock(&ViewsCS);
-		for (FD3D12BaseShaderResourceView* View : Views)
+		FScopeLock Lock(&RenameListenersCS);
+		ResourceRenamed(nullptr);
+		RenameListeners.Reset();
+	}
+
+	void ResourceRenamed(FD3D12ResourceLocation* InNewResourceLocation)
+	{
+		FScopeLock Lock(&RenameListenersCS);
+		for (FD3D12ShaderResourceRenameListener* RenameListener : RenameListeners)
 		{
-			if (View != nullptr)
-			{
-				View->Recreate(InResourceLocation);
-			}
+			RenameListener->ResourceRenamed(this, InNewResourceLocation);
 		}
 	}
 
@@ -838,21 +827,9 @@ public:
 
 	~FD3D12BaseShaderResource()
 	{
-		for (FD3D12BaseShaderResourceView* View : Views)
-		{
-			check(View->BaseShaderResource == this);
-			View->BaseShaderResource = nullptr;
-		}
+		RemoveAllRenameListeners();
 	}
 };
-
-inline void FD3D12BaseShaderResourceView::Remove()
-{
-	if (BaseShaderResource)
-	{
-		BaseShaderResource->RemoveView(this);
-	}
-}
 
 extern void UpdateBufferStats(FName Name, int64 RequestedSize);
 

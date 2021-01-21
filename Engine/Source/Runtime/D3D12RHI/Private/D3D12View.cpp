@@ -225,8 +225,7 @@ FShaderResourceViewRHIRef FD3D12DynamicRHI::RHICreateShaderResourceView(const FS
 					D3D12_SHADER_RESOURCE_VIEW_DESC SRVDesc = GetVertexBufferSRVDesc(VertexBuffer, CreationStride, Format, StartOffsetBytes, NumElements);
 
 					// Create a Shader Resource View
-					SRV->Initialize(SRVDesc, VertexBuffer->ResourceLocation, CreationStride, StartOffsetBytes);
-					VertexBuffer->AddView(SRV);
+					SRV->Initialize(SRVDesc, VertexBuffer, CreationStride, StartOffsetBytes);
 				}
 			};
 
@@ -309,8 +308,7 @@ FShaderResourceViewRHIRef FD3D12DynamicRHI::RHICreateShaderResourceView(const FS
 					SRVDesc.Buffer.FirstElement = Offset / Stride + StartElement;
 
 					// Create a Shader Resource View
-					SRV->Initialize(SRVDesc, StructuredBuffer->ResourceLocation, Stride, StartOffsetBytes);
-					StructuredBuffer->AddView(SRV);
+					SRV->Initialize(SRVDesc, StructuredBuffer, Stride, StartOffsetBytes);
 				}
 			};
 
@@ -347,11 +345,10 @@ FShaderResourceViewRHIRef FD3D12DynamicRHI::RHICreateShaderResourceView(const FS
 			{
 				check(Buffer);
 
-				FD3D12ResourceLocation& Location = Buffer->ResourceLocation;
 				const uint32 CreationStride = Buffer->GetStride();
 				D3D12_SHADER_RESOURCE_VIEW_DESC SRVDesc = GetIndexBufferSRVDesc(Buffer, Desc.StartOffsetBytes, Desc.NumElements);
 
-				FD3D12ShaderResourceView* ShaderResourceView = new FD3D12ShaderResourceView(Buffer->GetParentDevice(), SRVDesc, Location, CreationStride);
+				FD3D12ShaderResourceView* ShaderResourceView = new FD3D12ShaderResourceView(Buffer->GetParentDevice(), SRVDesc, Buffer, CreationStride);
 				return ShaderResourceView;
 			});
 		}
@@ -377,8 +374,7 @@ void FD3D12DynamicRHI::RHIUpdateShaderResourceView(FRHIShaderResourceView* SRV, 
 			SRVD3D12 = It.GetSecond();
 
 			FD3D12Device* ParentDevice = Buffer->GetParentDevice();
-			SRVD3D12->Initialize(ParentDevice, SRVDesc, Buffer->ResourceLocation, Stride);
-			Buffer->AddView(SRVD3D12);
+			SRVD3D12->Initialize(ParentDevice, SRVDesc, Buffer, Stride);
 		}
 	}
 }
@@ -400,7 +396,7 @@ void FD3D12DynamicRHI::RHIUpdateShaderResourceView(FRHIShaderResourceView* SRV, 
 			SRVD3D12 = It.GetSecond();
 
 			FD3D12Device* ParentDevice = Buffer->GetParentDevice();
-			SRVD3D12->Initialize(ParentDevice, SRVDesc, Buffer->ResourceLocation, Stride);
+			SRVD3D12->Initialize(ParentDevice, SRVDesc, Buffer, Stride);
 		}
 	}
 }

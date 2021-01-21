@@ -888,8 +888,8 @@ bool FD3D12ResourceLocation::OnAllocationMoved(FRHIPoolAllocationData* InNewData
 	GPUVirtualAddress = UnderlyingResource->GetGPUVirtualAddress() + OffsetFromBaseOfResource;
 	ResidencyHandle = UnderlyingResource->GetResidencyHandle();
 
-	// Recreate all the views (SRVs and UAVs)
-	Owner->RecreateViews(*this);
+	// Notify all the dependent resources about the change
+	Owner->ResourceRenamed(this);
 
 	return true;
 }

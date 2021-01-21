@@ -936,7 +936,7 @@ TD3D12Texture2D<BaseResourceType>* FD3D12DynamicRHI::CreateD3D12Texture2D(FRHICo
 						RTVDesc.Texture2DArray.MipSlice = MipIndex;
 						RTVDesc.Texture2DArray.PlaneSlice = GetPlaneSliceFromViewFormat(PlatformResourceFormat, RTVDesc.Format);
 
-						NewTexture->SetRenderTargetViewIndex(new FD3D12RenderTargetView(Device, RTVDesc, Location), RTVIndex++);
+						NewTexture->SetRenderTargetViewIndex(new FD3D12RenderTargetView(Device, RTVDesc, NewTexture), RTVIndex++);
 					}
 				}
 				else
@@ -978,7 +978,7 @@ TD3D12Texture2D<BaseResourceType>* FD3D12DynamicRHI::CreateD3D12Texture2D(FRHICo
 						}
 					}
 
-					NewTexture->SetRenderTargetViewIndex(new FD3D12RenderTargetView(Device, RTVDesc, Location), RTVIndex++);
+					NewTexture->SetRenderTargetViewIndex(new FD3D12RenderTargetView(Device, RTVDesc, NewTexture), RTVIndex++);
 				}
 			}
 		}
@@ -1028,7 +1028,7 @@ TD3D12Texture2D<BaseResourceType>* FD3D12DynamicRHI::CreateD3D12Texture2D(FRHICo
 					DSVDesc.Flags |= (AccessType & FExclusiveDepthStencil::DepthWrite_StencilRead) ? D3D12_DSV_FLAG_READ_ONLY_STENCIL : D3D12_DSV_FLAG_NONE;
 				}
 
-				NewTexture->SetDepthStencilView(new FD3D12DepthStencilView(Device, DSVDesc, Location, HasStencil), AccessType);
+				NewTexture->SetDepthStencilView(new FD3D12DepthStencilView(Device, DSVDesc, NewTexture, HasStencil), AccessType);
 			}
 		}
 
@@ -1088,7 +1088,7 @@ TD3D12Texture2D<BaseResourceType>* FD3D12DynamicRHI::CreateD3D12Texture2D(FRHICo
 				}
 			}
 
-			NewTexture->SetShaderResourceView(new FD3D12ShaderResourceView(Device, SRVDesc, Location));
+			NewTexture->SetShaderResourceView(new FD3D12ShaderResourceView(Device, SRVDesc, NewTexture));
 		}
 
 		return NewTexture;
@@ -1185,7 +1185,7 @@ FD3D12Texture3D* FD3D12DynamicRHI::CreateD3D12Texture3D(FRHICommandListImmediate
 			RTVDesc.Texture3D.FirstWSlice = 0;
 			RTVDesc.Texture3D.WSize = SizeZ;
 
-			Texture3D->SetRenderTargetView(new FD3D12RenderTargetView(Device, RTVDesc, Texture3D->ResourceLocation));
+			Texture3D->SetRenderTargetView(new FD3D12RenderTargetView(Device, RTVDesc, Texture3D));
 		}
 
 		// Create a shader resource view for the texture.
@@ -1196,7 +1196,7 @@ FD3D12Texture3D* FD3D12DynamicRHI::CreateD3D12Texture3D(FRHICommandListImmediate
 		SRVDesc.Texture3D.MipLevels = NumMips;
 		SRVDesc.Texture3D.MostDetailedMip = 0;
 
-		Texture3D->SetShaderResourceView(new FD3D12ShaderResourceView(Device, SRVDesc, Texture3D->ResourceLocation));
+		Texture3D->SetShaderResourceView(new FD3D12ShaderResourceView(Device, SRVDesc, Texture3D));
 
 		return Texture3D;
 	}); 
@@ -1328,7 +1328,7 @@ FTexture2DRHIRef FD3D12DynamicRHI::RHIAsyncCreateTexture2D(uint32 SizeX, uint32 
 		SRVDesc.Texture2D.PlaneSlice = GetPlaneSliceFromViewFormat(PlatformResourceFormat, SRVDesc.Format);
 
 		// Create a wrapper for the SRV and set it on the texture
-		NewTexture->SetShaderResourceView(new FD3D12ShaderResourceView(Device, SRVDesc, NewTexture->ResourceLocation));
+		NewTexture->SetShaderResourceView(new FD3D12ShaderResourceView(Device, SRVDesc, NewTexture));
 
 		return NewTexture;
 	});
@@ -2809,7 +2809,7 @@ TD3D12Texture2D<BaseResourceType>* FD3D12DynamicRHI::CreateTextureFromResource(b
 					RTVDesc.Texture2DArray.MipSlice = MipIndex;
 					RTVDesc.Texture2DArray.PlaneSlice = GetPlaneSliceFromViewFormat(PlatformResourceFormat, RTVDesc.Format);
 
-					Texture2D->SetRenderTargetViewIndex(new FD3D12RenderTargetView(Device, RTVDesc, Location), RTVIndex++);
+					Texture2D->SetRenderTargetViewIndex(new FD3D12RenderTargetView(Device, RTVDesc, Texture2D), RTVIndex++);
 				}
 			}
 			else
@@ -2836,7 +2836,7 @@ TD3D12Texture2D<BaseResourceType>* FD3D12DynamicRHI::CreateTextureFromResource(b
 					RTVDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2DMS;
 				}
 
-				Texture2D->SetRenderTargetViewIndex(new FD3D12RenderTargetView(Device, RTVDesc, Location), RTVIndex++);
+				Texture2D->SetRenderTargetViewIndex(new FD3D12RenderTargetView(Device, RTVDesc, Texture2D), RTVIndex++);
 			}
 		}
 	}
@@ -2873,7 +2873,7 @@ TD3D12Texture2D<BaseResourceType>* FD3D12DynamicRHI::CreateTextureFromResource(b
 				DSVDesc.Flags |= (AccessType & FExclusiveDepthStencil::DepthWrite_StencilRead) ? D3D12_DSV_FLAG_READ_ONLY_STENCIL : D3D12_DSV_FLAG_NONE;
 			}
 
-			Texture2D->SetDepthStencilView(new FD3D12DepthStencilView(Device, DSVDesc, Location, HasStencil), AccessType);
+			Texture2D->SetDepthStencilView(new FD3D12DepthStencilView(Device, DSVDesc, Texture2D, HasStencil), AccessType);
 		}
 	}
 
@@ -2920,7 +2920,7 @@ TD3D12Texture2D<BaseResourceType>* FD3D12DynamicRHI::CreateTextureFromResource(b
 	}
 
 	// Create a wrapper for the SRV and set it on the texture
-	Texture2D->SetShaderResourceView(new FD3D12ShaderResourceView(Device, SRVDesc, Location));
+	Texture2D->SetShaderResourceView(new FD3D12ShaderResourceView(Device, SRVDesc, Texture2D));
 
 	FD3D12TextureStats::D3D12TextureAllocated(*Texture2D);
 

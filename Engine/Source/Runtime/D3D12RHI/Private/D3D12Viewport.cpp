@@ -304,8 +304,8 @@ FD3D12Texture2D* GetSwapChainSurface(FD3D12Device* Parent, EPixelFormat PixelFor
 			RTVDescRight.Texture2DArray.FirstArraySlice = 1;
 			RTVDescRight.Texture2DArray.ArraySize = 1;
 
-			BackBufferRenderTargetView = new FD3D12RenderTargetView(Device, RTVDescLeft, NewTexture->ResourceLocation);
-			BackBufferRenderTargetViewRight = new FD3D12RenderTargetView(Device, RTVDescRight, NewTexture->ResourceLocation);
+			BackBufferRenderTargetView = new FD3D12RenderTargetView(Device, RTVDescLeft, NewTexture);
+			BackBufferRenderTargetViewRight = new FD3D12RenderTargetView(Device, RTVDescRight, NewTexture);
 
 			NewTexture->SetNumRenderTargetViews(2);
 			NewTexture->SetRenderTargetViewIndex(BackBufferRenderTargetView, 0);
@@ -319,7 +319,7 @@ FD3D12Texture2D* GetSwapChainSurface(FD3D12Device* Parent, EPixelFormat PixelFor
 			RTVDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
 			RTVDesc.Texture2D.MipSlice = 0;
 
-			BackBufferRenderTargetView = new FD3D12RenderTargetView(Device, RTVDesc, NewTexture->ResourceLocation);
+			BackBufferRenderTargetView = new FD3D12RenderTargetView(Device, RTVDesc, NewTexture);
 			NewTexture->SetRenderTargetView(BackBufferRenderTargetView);
 		}
 
@@ -331,7 +331,7 @@ FD3D12Texture2D* GetSwapChainSurface(FD3D12Device* Parent, EPixelFormat PixelFor
 		SRVDesc.Texture2D.MostDetailedMip = 0;
 		SRVDesc.Texture2D.MipLevels = 1;
 
-		FD3D12ShaderResourceView* WrappedShaderResourceView = new FD3D12ShaderResourceView(Device, SRVDesc, NewTexture->ResourceLocation);
+		FD3D12ShaderResourceView* WrappedShaderResourceView = new FD3D12ShaderResourceView(Device, SRVDesc, NewTexture);
 		NewTexture->SetShaderResourceView(WrappedShaderResourceView);
 
 		if (Device->GetGPUIndex() == Parent->GetGPUIndex())
