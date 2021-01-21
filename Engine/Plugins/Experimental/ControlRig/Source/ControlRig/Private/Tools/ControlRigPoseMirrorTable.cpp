@@ -85,7 +85,7 @@ void FControlRigPoseMirrorTable::GetMirrorTransform(const FRigControlCopy& Contr
 	OutGlobalRotation = GlobalTransform.GetRotation();
 	if (Settings)
 	{
-		if (bIsMatched  && (OutGlobalRotation.IsIdentity() == false && OutLocalRotation.IsIdentity() == false))
+		if (!bIsMatched  && (OutGlobalRotation.IsIdentity() == false || OutLocalRotation.IsIdentity() == false))
 		{
 			FRigMirrorSettings MirrorSettings;
 			MirrorSettings.MirrorAxis = Settings->MirrorAxis;
