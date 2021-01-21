@@ -751,11 +751,11 @@ struct FControlRigParameterExecutionToken : IMovieSceneExecutionToken
 					}
 				}
 			}
+			// ensure that pre animated state is saved
+			Player.SavePreAnimatedState(*ControlRig, FMovieSceneControlRigParameterTemplate::GetAnimTypeID(), FControlRigParameterPreAnimatedTokenProducer(Operand.SequenceID));
+
 		}
 
-		// ensure that pre animated state is saved
-		Player.SavePreAnimatedState(*ControlRig, FMovieSceneControlRigParameterTemplate::GetAnimTypeID(), FControlRigParameterPreAnimatedTokenProducer(Operand.SequenceID));
-		
 	}
 
 	const UMovieSceneControlRigParameterSection* Section;
