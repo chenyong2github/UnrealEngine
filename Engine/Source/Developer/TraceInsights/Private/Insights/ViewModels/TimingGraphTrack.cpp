@@ -61,7 +61,7 @@ FString FTimingGraphSeries::FormatValue(double Value) const
 		else if (bIsMemory)
 		{
 			const int64 MemValue = static_cast<int64>(Value);
-			if (MemValue >= 0)
+			if (MemValue > 0)
 			{
 				if (MemValue < 1024)
 				{
@@ -73,6 +73,10 @@ FString FTimingGraphSeries::FormatValue(double Value) const
 					FormattingOptions.MaximumFractionalDigits = 2;
 					return FString::Printf(TEXT("%s (%s bytes)"), *FText::AsMemory(MemValue, &FormattingOptions).ToString(), *FText::AsNumber(MemValue).ToString());
 				}
+			}
+			else if (MemValue == 0)
+			{
+				return TEXT("0");
 			}
 			else
 			{
