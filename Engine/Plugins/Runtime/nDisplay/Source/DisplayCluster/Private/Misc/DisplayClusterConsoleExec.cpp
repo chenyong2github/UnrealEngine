@@ -4,7 +4,9 @@
 #include "Misc/DisplayClusterLog.h"
 #include "Cluster/DisplayClusterClusterEvent.h"
 
+#include "Engine/Engine.h"
 #include "Engine/LocalPlayer.h"
+#include "Features/IModularFeatures.h"
 
 
 bool FDisplayClusterConsoleExec::Exec(const FDisplayClusterClusterEventJson& InEvent)
