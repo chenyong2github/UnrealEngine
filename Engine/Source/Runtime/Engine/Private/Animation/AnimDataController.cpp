@@ -140,18 +140,14 @@ void UAnimDataController::SetPlayLength(float Length, bool bShouldTransact /*= t
 {
 	ValidateModel();
 
-	if (!FMath::IsNearlyZero(Length) && Length > 0.f)
-	{
-		if (Length != Model->GetPlayLength())
-		{
-			CONDITIONAL_TRANSACTION(LOCTEXT("SetPlayLength", "Setting Play Length"));
-			SetPlayLength_Internal(Length, 0.f, Model->PlayLength, bShouldTransact);
-		}
-	}
-	else
-	{
-		ReportWarningf(LOCTEXT("InvalidPlayLengthWarning", "Invalid play length value provided: {0} seconds"), FText::AsNumber(Length));
-	}
+	// Calculate whether or new play length is shorter or longer than current, set-up T0; T1 accordingly
+	// Assumption is made that time is always added or removed at/from the end
+	// Added: T0 = current length, T1 = new length
+	// Removed: T0 = current length - removed length, T1 = current length
+	const float Delta = FMath::Abs(Length - Model->PlayLength);
+	const float T0 = Length > Model->PlayLength ? Model->PlayLength : Model->PlayLength - Delta;
+	const float T1 = Length > Model->PlayLength ? Length : Model->PlayLength;
+	ResizePlayLength(Length, T0, T1, bShouldTransact);	
 }
 
 void UAnimDataController::Resize(float Length, float T0, float T1, bool bShouldTransact /*= true*/)
@@ -171,7 +167,7 @@ void UAnimDataController::Resize(float Length, float T0, float T1, bool bShouldT
 				{
 					CONDITIONAL_BRACKET(LOCTEXT("ResizeModel", "Resizing Animation Data"));
 					const bool bInserted = Length > Model->PlayLength;
-					SetPlayLength_Internal(Length, T0, T1, bShouldTransact);
+					ResizePlayLength(Length, T0, T1, bShouldTransact);
 					ResizeCurves(Length, bInserted, T0, T1, bShouldTransact);
 				}
 				else
@@ -1155,21 +1151,54 @@ void UAnimDataController::ValidateModel() const
 	checkf(Model != nullptr, TEXT("Invalid Model"));
 }
 
-void UAnimDataController::SetPlayLength_Internal(float NewLength, float T0, float T1, bool bShouldTransact)
+void UAnimDataController::ResizePlayLength(float Length, float T0, float T1, bool bShouldTransact)
 {
-	FSequenceLengthChangedPayload Payload;
-	Payload.T0 = T0;
-	Payload.T1 = T1;
-	Payload.PreviousLength = Model->PlayLength;
+	const TRange<float> PlayRange(TRange<float>::BoundsType::Inclusive(0.f), TRange<float>::BoundsType::Inclusive(Model->PlayLength));
+	if (!FMath::IsNearlyZero(Length) && Length > 0.f)
+	{
+		if (Length != Model->PlayLength)
+		{
+			// Ensure that T0 is within the curent play range
+			if (PlayRange.Contains(T0))
+			{
+				// Ensure that the start and end length of either removal or insertion are valid
+				if (T0 < T1)
+				{
+					CONDITIONAL_TRANSACTION(LOCTEXT("ResizePlayLength", "Resizing Play Length"));
 
-	CONDITIONAL_ACTION(UE::Anim::FSetSequenceLengthAction, Model);
+					FSequenceLengthChangedPayload Payload;
+					Payload.T0 = T0;
+					Payload.T1 = T1;
+					Payload.PreviousLength = Model->PlayLength;
 
-	Model->PlayLength = NewLength;
+					CONDITIONAL_ACTION(UE::Anim::FResizePlayLengthAction, Model, T0, T1);
 
-	Model->NumberOfFrames = Model->FrameRate.AsFrameTime(Model->PlayLength).RoundToFrame().Value;
-	Model->NumberOfKeys = Model->NumberOfFrames + 1;
+					Model->PlayLength = Length;
+
+					Model->NumberOfFrames = Model->FrameRate.AsFrameTime(Model->PlayLength).RoundToFrame().Value;
+					Model->NumberOfKeys = Model->NumberOfFrames + 1;
 	
-	Model->Notify<FSequenceLengthChangedPayload>(EAnimDataModelNotifyType::SequenceLengthChanged, Payload);
+					Model->Notify<FSequenceLengthChangedPayload>(EAnimDataModelNotifyType::SequenceLengthChanged, Payload);
+				}
+				else
+				{
+					ReportErrorf(LOCTEXT("InvalidEndTimeError", "Invalid T1, smaller that T0 value: T0 {0}, T1 {1}"), FText::AsNumber(T0), FText::AsNumber(T1));
+				}
+			}
+			else
+			{
+				ReportErrorf(LOCTEXT("InvalidStartTimeError", "Invalid T0, not within existing play range: T0 {0}, Play Length {1}"), FText::AsNumber(T0), FText::AsNumber(Model->PlayLength));
+			}
+		}
+		else
+		{
+			ReportWarningf(LOCTEXT("SamePlayLengthWarning", "New play length is same as existing one: {0} seconds"), FText::AsNumber(Length));
+		}
+	}
+	else
+	{
+		ReportErrorf(LOCTEXT("InvalidPlayLengthError", "Invalid play length value provided: {0} seconds"), FText::AsNumber(Length));
+	}
 }
 
 void UAnimDataController::ReportWarning(const FText& InMessage) const
@@ -1442,7 +1471,22 @@ void UAnimDataController::ResizeCurves(float NewLength, bool bInserted, float T0
 
 	for (FTransformCurve& Curve : Model->CurveData.TransformCurves)
 	{
-		Curve.Resize(NewLength, bInserted, T0, T1);
+		FTransformCurve ResizedCurve = Curve;
+		for (int32 SubCurveIndex = 0; SubCurveIndex < 3; ++SubCurveIndex)
+		{
+			const ETransformCurveChannel Channel = (ETransformCurveChannel)SubCurveIndex;
+			FVectorCurve& SubCurve = *ResizedCurve.GetVectorCurveByIndex(SubCurveIndex);
+			for (int32 ChannelIndex = 0; ChannelIndex < 3; ++ChannelIndex)
+			{
+				const EVectorCurveChannel Axis = (EVectorCurveChannel)ChannelIndex;
+				FAnimationCurveIdentifier TargetCurveIdentifier = FAnimationCurveIdentifier(Curve.Name, ERawCurveTrackTypes::RCT_Transform);
+				UAnimationCurveIdentifierExtensions::GetTransformChildCurveIdentifier(TargetCurveIdentifier, Channel, Axis);
+				
+				FRichCurve& ChannelCurve = SubCurve.FloatCurves[ChannelIndex];
+				ChannelCurve.ReadjustTimeRange(0, NewLength, bInserted, T0, T1);
+				SetCurveKeys(TargetCurveIdentifier, ChannelCurve.GetConstRefOfKeys(), bShouldTransact);
+			}
+		}
 	}
 }
 

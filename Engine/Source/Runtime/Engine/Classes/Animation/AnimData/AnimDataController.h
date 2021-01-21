@@ -111,8 +111,21 @@ public:
 	UFUNCTION(BlueprintCallable, Category = AnimationData)
 	void SetPlayLength(float Length, bool bShouldTransact = true);
 
+	/*** Sets the total play-able length in seconds. Broadcasts a EAnimDataModelNotifyType::SequenceLengthChanged notify if successful.
+	* T0 and T1 are expected to represent the window of time that was either added or removed. E.g. for insertion T0 indicates the time
+	* at which additional time starts and T1 were it ends. For removal T0 indicates the time at which time should be started to remove, and T1 indicates the end. Giving a total of T1 - T0 added or removed length.
+	* The number of frames and keys for the provided length is recalculated according to the current value of UAnimDataModel::FrameRate.
+	* @param	Length				Total new play-able length value, has to be positive and non-zero
+	* @param	T0					Point between 0 and Length at which the change in time starts
+	* @param	T1					Point between 0 and Length at which the change in time ends
+	* @param	bShouldTransact		Whether or not any undo-redo changes should be generated
+	*/
+	UFUNCTION(BlueprintCallable, Category = AnimationData)
+	void ResizePlayLength(float NewLength, float T0, float T1, bool bShouldTransact = true);
+
 	/**
-	* Sets the total play-able length in seconds. Broadcasts a EAnimDataModelNotifyType::SequenceLengthChanged notify if successful.
+	* Sets the total play-able length in seconds and resizes curves. Broadcasts EAnimDataModelNotifyType::SequenceLengthChanged
+	* and EAnimDataModelNotifyType::CurveChanged notifies if successful.
 	* T0 and T1 are expected to represent the window of time that was either added or removed. E.g. for insertion T0 indicates the time
 	* at which additional time starts and T1 were it ends. For removal T0 indicates the time at which time should be started to remove, and T1 indicates the end. Giving a total of T1 - T0 added or removed length.
 	* The number of frames and keys for the provided length is recalculated according to the current value of UAnimDataModel::FrameRate.
@@ -436,9 +449,6 @@ private:
 	/** Resizes the curve data stored on the model according to the provided new length and time at which to insert or remove time */
 	void ResizeCurves(float NewLength, bool bInserted, float T0, float T1, bool bShouldTransact = true);
 
-	/** Helper functionality to apply any changes in the model's playlength*/
-	void SetPlayLength_Internal(float NewLength, float T0, float T1, bool bShouldTransact);
-	   	
 	/** Ensures that a valid model is currently targeted */
 	void ValidateModel() const;
 

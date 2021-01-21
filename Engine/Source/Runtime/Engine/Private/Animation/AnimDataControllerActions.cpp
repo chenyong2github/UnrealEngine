@@ -119,21 +119,21 @@ FString FSetTrackKeysAction::ToStringInternal() const
 	return FText::Format(LOCTEXT("SetTrackKeysAction_Description", "Setting keys for animation bone track '{0}'."), FText::FromName(Name)).ToString();
 }
 
-FSetSequenceLengthAction::FSetSequenceLengthAction(const UAnimDataModel* InModel)
+FResizePlayLengthAction::FResizePlayLengthAction(const UAnimDataModel* InModel, float t0, float t1) : T0(t0), T1(t1)
 {
 	Length = InModel->GetPlayLength();
 }
 
-TUniquePtr<FChange> FSetSequenceLengthAction::ExecuteInternal(UAnimDataModel* Model, UAnimDataController* Controller)
+TUniquePtr<FChange> FResizePlayLengthAction::ExecuteInternal(UAnimDataModel* Model, UAnimDataController* Controller)
 {
-	TUniquePtr<FChange> InverseAction = MakeUnique<FSetSequenceLengthAction>(Model);
-	Controller->SetPlayLength(Length, false);
+	TUniquePtr<FChange> InverseAction = MakeUnique<FResizePlayLengthAction>(Model, T0, T1);
+	Controller->ResizePlayLength(Length, T0, T1, false);
 	return InverseAction;
 }
 
-FString FSetSequenceLengthAction::ToStringInternal() const
+FString FResizePlayLengthAction::ToStringInternal() const
 {
-	return FText::Format(LOCTEXT("SetSequenceLengthAction_Description", "Setting play length to {0}."), FText::AsNumber(Length)).ToString();
+	return FText::Format(LOCTEXT("ResizePlayLengthAction_Description", "Resizing play length to {0}."), FText::AsNumber(Length)).ToString();
 }
 
 FSetFrameRateAction::FSetFrameRateAction(const UAnimDataModel* InModel)

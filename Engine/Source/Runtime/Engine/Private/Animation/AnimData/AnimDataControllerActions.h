@@ -112,18 +112,20 @@ protected:
 	FRawAnimSequenceTrack TrackData;
 };
 
-class FSetSequenceLengthAction : public FAnimDataBaseAction
+class FResizePlayLengthAction : public FAnimDataBaseAction
 {
 public:
-	explicit FSetSequenceLengthAction(const UAnimDataModel* InModel);
-	virtual ~FSetSequenceLengthAction() {}
+	explicit FResizePlayLengthAction(const UAnimDataModel* InModel, float t0, float t1);
+	virtual ~FResizePlayLengthAction() {}
 protected:
-	FSetSequenceLengthAction() {}
+	FResizePlayLengthAction() {}
 	virtual TUniquePtr<FChange> ExecuteInternal(UAnimDataModel* Model, UAnimDataController* Controller) override;
 	virtual FString ToStringInternal() const override;
 
 protected:
 	float Length;
+	float T0;
+	float T1;
 };
 
 class FSetFrameRateAction : public FAnimDataBaseAction
