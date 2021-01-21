@@ -91,7 +91,7 @@ void FControlRigControlPose::PastePoseInternal(UControlRig* ControlRig, bool bDo
 				{
 					if (bDoMirror == false)
 					{
-						if (bDoLocal)
+						if (bDoLocal) // -V547  
 						{
 							ControlRig->SetControlLocalTransform(RigControl.Name, CopyRigControl->LocalTransform, true, Context);
 						}
@@ -192,7 +192,7 @@ void FControlRigControlPose::BlendWithInitialPoses(FControlRigControlPose& Initi
 					{
 						if (bDoMirror == false)
 						{
-							if (bDoLocal == true)
+							if (bDoLocal == true)    // -V547  
 							{
 								FTransform Val = CopyRigControl->LocalTransform;
 								FTransform InitialVal = InitialFound->LocalTransform;
