@@ -56,6 +56,7 @@ namespace ENiagaraSpriteVFLayout
 		MaterialParam3,
 		CameraOffset,
 		UVScale,
+		PivotOffset,
 		MaterialRandom,
 		CustomSorting,
 		NormalizedAge,
@@ -131,8 +132,11 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Sprite Rendering")
 	ENiagaraSpriteFacingMode FacingMode;
 
-	/** Determines the location of the pivot point of this particle. It follows Unreal's UV space, which has the upper left of the image at 0,0 and bottom right at 1,1. The middle is at 0.5, 0.5. */
-	UPROPERTY(EditAnywhere, Category = "Sprite Rendering")
+	/**
+	 * Determines the location of the pivot point of this particle. It follows Unreal's UV space, which has the upper left of the image at 0,0 and bottom right at 1,1. The middle is at 0.5, 0.5.
+	 * NOTE: This value is ignored if "Pivot Offset Binding" is bound to a valid attribute
+	 */
+	UPROPERTY(EditAnywhere, Category = "Sprite Rendering", meta = (DisplayName = "Default Pivot in UV Space"))
 	FVector2D PivotInUVSpace;
 
 	/** Determines how we sort the particles prior to rendering.*/
@@ -240,6 +244,10 @@ public:
 	/** Which attribute should we use for UV scale when generating sprites?*/
 	UPROPERTY(EditAnywhere, Category = "Bindings")
 	FNiagaraVariableAttributeBinding UVScaleBinding;
+
+	/** Which attribute should we use for pivot offset? (NOTE: Values are expected to be in UV space). */
+	UPROPERTY(EditAnywhere, Category = "Bindings")
+	FNiagaraVariableAttributeBinding PivotOffsetBinding;
 
 	/** Which attribute should we use for material randoms when generating sprites?*/
 	UPROPERTY(EditAnywhere, Category = "Bindings")
