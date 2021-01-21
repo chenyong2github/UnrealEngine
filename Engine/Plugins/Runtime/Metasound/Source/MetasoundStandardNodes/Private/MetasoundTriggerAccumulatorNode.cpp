@@ -107,8 +107,9 @@ namespace Metasound
 		// We need to advance our own output triggers.
 		CountReached->AdvanceBlock();
 
-		int32 NumResets = ResetTrigger->Num();
-		int32 NumAccumulates = TriggerToAccumulate->Num();
+		// Query the number of triggers in the current block.
+		int32 NumResets = ResetTrigger->NumBoppedInBlock();
+		int32 NumAccumulates = TriggerToAccumulate->NumBoppedInBlock();
 		int32 MaxTriggers = FMath::Max(NumResets, NumAccumulates);
 
 		// Indices into each trigger array

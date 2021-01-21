@@ -83,6 +83,11 @@ namespace Metasound
 		return BoppedFrames.Num();
 	}
 
+	int32 FBop::NumBoppedInBlock() const
+	{
+		return LastBopIndexInBlock;
+	}
+
 	int32 FBop::operator[](int32 InBopIndex) const
 	{
 		return BoppedFrames[InBopIndex];
@@ -106,7 +111,7 @@ namespace Metasound
 	void FBop::Reset()
 	{
 		BoppedFrames.Reset();
-		LastBopIndexInBlock = INDEX_NONE;
+		LastBopIndexInBlock = 0;
 		bHasBop = false;
 	}
 

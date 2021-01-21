@@ -65,6 +65,9 @@ namespace Metasound
 			/** Number of bopped frames. */
 			int32 Num() const;
 
+			/** Returns true if there is a bop in the current block of audio */
+			int32 NumBoppedInBlock() const;
+
 			/** Returns frame index for a given bop index. 
 			 *
 			 * @param InIndex - Index of bop. Must be a value between 0 and Num().
@@ -163,7 +166,7 @@ namespace Metasound
 			bool bHasBop = false;
 			int32 NumFramesPerBlock = 0;
 			float SampleRate;
-			int32 LastBopIndexInBlock = INDEX_NONE;
+			int32 LastBopIndexInBlock = 0;
 	};
 
 	DECLARE_METASOUND_DATA_REFERENCE_TYPES(FBop, METASOUNDSTANDARDNODES_API, FBopTypeInfo, FBopReadRef, FBopWriteRef);
