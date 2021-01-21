@@ -1406,7 +1406,7 @@ void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLighting(
 				{
 					FVolumetricCloudRenderSceneInfo* CloudInfo = Scene->GetVolumetricCloudSceneInfo();
 
-					PassParameters->CloudSkyAOTexture = View.VolumetricCloudSkyAO.IsValid() ? GraphBuilder.RegisterExternalTexture(View.VolumetricCloudSkyAO) : SystemTextures.Black;
+					PassParameters->CloudSkyAOTexture = View.VolumetricCloudSkyAO != nullptr ? View.VolumetricCloudSkyAO : SystemTextures.Black;
 					PassParameters->CloudSkyAOWorldToLightClipMatrix = CloudInfo->GetVolumetricCloudCommonShaderParameters().CloudSkyAOWorldToLightClipMatrix;
 					PassParameters->CloudSkyAOFarDepthKm = CloudInfo->GetVolumetricCloudCommonShaderParameters().CloudSkyAOFarDepthKm;
 					PassParameters->CloudSkyAOEnabled = 1;

@@ -133,7 +133,13 @@ struct FCloudRenderContext
 private:
 };
 
+BEGIN_SHADER_PARAMETER_STRUCT(FVolumetricCloudShadowAOParameters, )
+	RDG_TEXTURE_ACCESS(ShadowMap0, ERHIAccess::SRVGraphics)
+	RDG_TEXTURE_ACCESS(ShadowMap1, ERHIAccess::SRVGraphics)
+	RDG_TEXTURE_ACCESS(SkyAO, ERHIAccess::SRVGraphics)
+END_SHADER_PARAMETER_STRUCT()
 
+FVolumetricCloudShadowAOParameters GetCloudShadowAOParameters(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FVolumetricCloudRenderSceneInfo* CloudInfo);
 
 struct FCloudShadowAOData
 {
@@ -143,6 +149,6 @@ struct FCloudShadowAOData
 	FRDGTextureRef VolumetricCloudSkyAO;
 };
 
-void GetCloudShadowAOData(FVolumetricCloudRenderSceneInfo* CloudInfo, FViewInfo& View, FRDGBuilder& GraphBuilder, FCloudShadowAOData& OutData);
+void GetCloudShadowAOData(const FVolumetricCloudRenderSceneInfo* CloudInfo, const FViewInfo& View, FRDGBuilder& GraphBuilder, FCloudShadowAOData& OutData);
 
 

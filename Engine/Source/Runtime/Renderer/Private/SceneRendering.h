@@ -1304,10 +1304,10 @@ public:
 	TRefCountPtr<IPooledRenderTarget> SkyAtmosphereViewLutTexture;
 	const FAtmosphereUniformShaderParameters* SkyAtmosphereUniformShaderParameters;
 
-	TRefCountPtr<IPooledRenderTarget> VolumetricCloudSkyAO;
+	FRDGTextureRef VolumetricCloudSkyAO = nullptr;
 	TUniformBufferRef<FViewUniformShaderParameters> VolumetricRenderTargetViewUniformBuffer;
 	// The effective cloud shadow target this frame independently of the fact that a view can have a state (primary view) or not (sky light reflection capture)
-	TRefCountPtr<IPooledRenderTarget> VolumetricCloudShadowRenderTarget[NUM_ATMOSPHERE_LIGHTS];
+	FRDGTextureRef VolumetricCloudShadowRenderTarget[NUM_ATMOSPHERE_LIGHTS] = {};
 
 	/** Used when there is no view state, buffers reallocate every frame. */
 	TUniquePtr<FForwardLightingViewResources> ForwardLightingResourcesStorage;

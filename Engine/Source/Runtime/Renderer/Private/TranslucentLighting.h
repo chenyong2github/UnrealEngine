@@ -6,6 +6,7 @@
 #include "RenderGraph.h"
 
 struct FSortedLightSceneInfo;
+struct FCloudShadowAOData;
 
 class FLightSceneInfo;
 class FProjectedShadowInfo;

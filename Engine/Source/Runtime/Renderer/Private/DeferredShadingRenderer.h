@@ -705,6 +705,8 @@ private:
 	/** Used by RenderLights to render a light to the scene color buffer. */
 	void RenderLight(
 		FRHICommandList& RHICmdList,
+		const FViewInfo& View,
+		int32 ViewIndex,
 		const FLightSceneInfo* LightSceneInfo,
 		FRHITexture* ScreenShadowMaskTexture,
 		FRHITexture* LightingChannelTexture,

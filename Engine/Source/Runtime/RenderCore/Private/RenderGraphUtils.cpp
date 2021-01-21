@@ -831,13 +831,11 @@ BEGIN_SHADER_PARAMETER_STRUCT(FTextureAccessDynamicPassParameters, )
 	RDG_TEXTURE_ACCESS_DYNAMIC(Texture)
 END_SHADER_PARAMETER_STRUCT()
 
-void ConvertToUntrackedExternalTexture(
+void ConvertToUntrackedTexture(
 	FRDGBuilder& GraphBuilder,
 	FRDGTextureRef Texture,
-	TRefCountPtr<IPooledRenderTarget>& OutPooledRenderTarget,
 	ERHIAccess AccessFinal)
 {
-	ConvertToExternalTexture(GraphBuilder, Texture, OutPooledRenderTarget);
 	GraphBuilder.SetTextureAccessFinal(Texture, AccessFinal);
 
 	auto* PassParameters = GraphBuilder.AllocParameters<FTextureAccessDynamicPassParameters>();
@@ -857,13 +855,11 @@ BEGIN_SHADER_PARAMETER_STRUCT(FBufferAccessDynamicPassParameters, )
 	RDG_BUFFER_ACCESS_DYNAMIC(Buffer)
 END_SHADER_PARAMETER_STRUCT()
 
-void ConvertToUntrackedExternalBuffer(
+void ConvertToUntrackedBuffer(
 	FRDGBuilder& GraphBuilder,
 	FRDGBufferRef Buffer,
-	TRefCountPtr<FRDGPooledBuffer>& OutPooledBuffer,
 	ERHIAccess AccessFinal)
 {
-	ConvertToExternalBuffer(GraphBuilder, Buffer, OutPooledBuffer);
 	GraphBuilder.SetBufferAccessFinal(Buffer, AccessFinal);
 
 	auto* PassParameters = GraphBuilder.AllocParameters<FBufferAccessDynamicPassParameters>();
