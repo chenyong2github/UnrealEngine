@@ -19,14 +19,17 @@ namespace Metasound
 	{
 		public:
 
-		FOscNode(const FString& InName, float InDefaultFrequency);
+		FOscNode(const FString& InName, float InDefaultFrequency, bool bInDefaultEnablement);
 
 		FOscNode(const FNodeInitData& InInitData);
 
+		
 		float GetDefaultFrequency() const;
+		bool GetDefaultEnablement() const;
 
 		private:
 
-		float DefaultFrequency = 440.f;
+		float DefaultFrequency = 440.f;		
+		bool bDefaultEnablement = true;
 	};
 }
