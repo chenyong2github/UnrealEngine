@@ -15,7 +15,7 @@ IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FVirtualHeightfieldMeshVertexFactoryPar
 namespace
 {
 	template< typename T >
-	FIndexBufferRHIRef CreateIndexBuffer(uint32 NumQuadsPerSide)
+	FBufferRHIRef CreateIndexBuffer(uint32 NumQuadsPerSide)
 	{
 		TResourceArray<T, INDEXBUFFER_ALIGNMENT> Indices;
 

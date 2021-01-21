@@ -120,17 +120,17 @@ public:
 	/** Keep CPU copy of instance data*/
 	bool RequireCPUAccess;
 
-	FVertexBufferRHIRef GetInstanceOriginBuffer()
+	FBufferRHIRef GetInstanceOriginBuffer()
 	{
 		return InstanceOriginBuffer.VertexBufferRHI;
 	}
 
-	FVertexBufferRHIRef GetInstanceTransformBuffer()
+	FBufferRHIRef GetInstanceTransformBuffer()
 	{
 		return InstanceTransformBuffer.VertexBufferRHI;
 	}
 
-	FVertexBufferRHIRef GetInstanceLightmapBuffer()
+	FBufferRHIRef GetInstanceLightmapBuffer()
 	{
 		return InstanceLightmapBuffer.VertexBufferRHI;
 	}
@@ -163,7 +163,7 @@ private:
 	/** Delete existing resources */
 	void CleanUp();
 
-	void CreateVertexBuffer(FResourceArrayInterface* InResourceArray, uint32 InUsage, uint32 InStride, uint8 InFormat, FVertexBufferRHIRef& OutVertexBufferRHI, FShaderResourceViewRHIRef& OutInstanceSRV);
+	void CreateVertexBuffer(FResourceArrayInterface* InResourceArray, uint32 InUsage, uint32 InStride, uint8 InFormat, FBufferRHIRef& OutVertexBufferRHI, FShaderResourceViewRHIRef& OutInstanceSRV);
 	
 	/**  */
 	void UpdateFromCommandBuffer_RenderThread(FInstanceUpdateCmdBuffer& CmdBuffer);

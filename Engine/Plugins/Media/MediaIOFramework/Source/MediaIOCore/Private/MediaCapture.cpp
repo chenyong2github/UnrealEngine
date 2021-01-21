@@ -883,7 +883,7 @@ void UMediaCapture::Capture_RenderThread(FRHICommandListImmediate& RHICmdList,
 				}
 
 				// draw full size quad into render target
-				FVertexBufferRHIRef VertexBuffer = CreateTempMediaVertexBuffer(ULeft, URight, VTop, VBottom);
+				FBufferRHIRef VertexBuffer = CreateTempMediaVertexBuffer(ULeft, URight, VTop, VBottom);
 				RHICmdList.SetStreamSource(0, VertexBuffer, 0);
 
 				// set viewport to RT size

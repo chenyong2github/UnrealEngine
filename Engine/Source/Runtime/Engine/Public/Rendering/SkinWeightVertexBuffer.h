@@ -64,8 +64,8 @@ struct FSkinWeightInfo
 
 struct FSkinWeightRHIInfo
 {
-	FVertexBufferRHIRef DataVertexBufferRHI;
-	FVertexBufferRHIRef LookupVertexBufferRHI;
+	FBufferRHIRef DataVertexBufferRHI;
+	FBufferRHIRef LookupVertexBufferRHI;
 };
 
 /** A lookup vertex buffer storing skin weight stream offset / influence count. Only used for unlimited bone influences. */
@@ -128,8 +128,8 @@ public:
 	{ return bNeedsCPUAccess; }
 
 	/** Create an RHI vertex buffer with CPU data. CPU data may be discarded after creation (see TResourceArray::Discard) */
-	FVertexBufferRHIRef CreateRHIBuffer_RenderThread();
-	FVertexBufferRHIRef CreateRHIBuffer_Async();
+	FBufferRHIRef CreateRHIBuffer_RenderThread();
+	FBufferRHIRef CreateRHIBuffer_Async();
 
 	/** Similar to Init/ReleaseRHI but only update existing SRV so references to the SRV stays valid */
 	template <uint32 MaxNumUpdates>
@@ -170,7 +170,7 @@ private:
 	ENGINE_API void AllocateData();
 
 	template <bool bRenderThread>
-	FVertexBufferRHIRef CreateRHIBuffer_Internal();
+	FBufferRHIRef CreateRHIBuffer_Internal();
 
 	/** true if this vertex buffer will be used with CPU skinning. Resource arrays are set to cpu accessible if this is true */
 	bool bNeedsCPUAccess;
@@ -293,8 +293,8 @@ public:
 	ENGINE_API void CopyDataFromBuffer(const TArrayView<const FSkinWeightInfo>& SkinWeightData);
 
 	/** Create an RHI vertex buffer with CPU data. CPU data may be discarded after creation (see TResourceArray::Discard) */
-	FVertexBufferRHIRef CreateRHIBuffer_RenderThread();
-	FVertexBufferRHIRef CreateRHIBuffer_Async();
+	FBufferRHIRef CreateRHIBuffer_RenderThread();
+	FBufferRHIRef CreateRHIBuffer_Async();
 
 	/** Similar to Init/ReleaseRHI but only update existing SRV so references to the SRV stays valid */
 	template <uint32 MaxNumUpdates>
@@ -368,7 +368,7 @@ private:
 	ENGINE_API void AllocateData();
 
 	template <bool bRenderThread>
-	FVertexBufferRHIRef CreateRHIBuffer_Internal();
+	FBufferRHIRef CreateRHIBuffer_Internal();
 };
 
 /** A container for skin weights data vertex buffer and lookup vertex buffer. */

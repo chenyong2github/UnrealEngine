@@ -42,7 +42,7 @@ public:
 	FNiagaraEmptyBufferSRV(EPixelFormat InPixelFormat, const FString& InDebugName, uint32 InDefaultValue = 0) : PixelFormat(InPixelFormat), DebugName(InDebugName), DefaultValue(InDefaultValue) {}
 	EPixelFormat PixelFormat;
 	FString DebugName;
-	FVertexBufferRHIRef Buffer;
+	FBufferRHIRef Buffer;
 	FShaderResourceViewRHIRef SRV;
 	uint32 DefaultValue = 0;
 

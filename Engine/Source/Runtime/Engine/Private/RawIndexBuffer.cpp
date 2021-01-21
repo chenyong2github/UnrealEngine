@@ -315,7 +315,7 @@ FIndexArrayView FRawStaticIndexBuffer::GetArrayView() const
 }
 
 template <bool bRenderThread>
-FIndexBufferRHIRef FRawStaticIndexBuffer::CreateRHIBuffer_Internal()
+FBufferRHIRef FRawStaticIndexBuffer::CreateRHIBuffer_Internal()
 {
 	const uint32 IndexStride = b32Bit ? sizeof(uint32) : sizeof(uint16);
 	const uint32 SizeInBytes = IndexStorage.Num();
@@ -343,12 +343,12 @@ FIndexBufferRHIRef FRawStaticIndexBuffer::CreateRHIBuffer_Internal()
 	return nullptr;
 }
 
-FIndexBufferRHIRef FRawStaticIndexBuffer::CreateRHIBuffer_RenderThread()
+FBufferRHIRef FRawStaticIndexBuffer::CreateRHIBuffer_RenderThread()
 {
 	return CreateRHIBuffer_Internal<true>();
 }
 
-FIndexBufferRHIRef FRawStaticIndexBuffer::CreateRHIBuffer_Async()
+FBufferRHIRef FRawStaticIndexBuffer::CreateRHIBuffer_Async()
 {
 	return CreateRHIBuffer_Internal<false>();
 }

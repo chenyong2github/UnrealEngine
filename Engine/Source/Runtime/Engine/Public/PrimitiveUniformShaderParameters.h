@@ -333,26 +333,26 @@ public:
 	FInstanceSceneShaderData InstanceSceneData;
 	FLightmapSceneShaderData LightmapSceneData;
 
-	FStructuredBufferRHIRef PrimitiveSceneDataBufferRHI;
+	FBufferRHIRef PrimitiveSceneDataBufferRHI;
 	FShaderResourceViewRHIRef PrimitiveSceneDataBufferSRV;
 
-	FStructuredBufferRHIRef SkyIrradianceEnvironmentMapRHI;
+	FBufferRHIRef SkyIrradianceEnvironmentMapRHI;
 	FShaderResourceViewRHIRef SkyIrradianceEnvironmentMapSRV;
 
-	FStructuredBufferRHIRef InstanceSceneDataBufferRHI;
+	FBufferRHIRef InstanceSceneDataBufferRHI;
 	FShaderResourceViewRHIRef InstanceSceneDataBufferSRV;
 
 	FTexture2DRHIRef PrimitiveSceneDataTextureRHI;
 	FShaderResourceViewRHIRef PrimitiveSceneDataTextureSRV;
 
-	FStructuredBufferRHIRef LightmapSceneDataBufferRHI;
+	FBufferRHIRef LightmapSceneDataBufferRHI;
 	FShaderResourceViewRHIRef LightmapSceneDataBufferSRV;
 
 //#if WITH_EDITOR
-	FVertexBufferRHIRef EditorVisualizeLevelInstanceDataBufferRHI;
+	FBufferRHIRef EditorVisualizeLevelInstanceDataBufferRHI;
 	FShaderResourceViewRHIRef EditorVisualizeLevelInstanceDataBufferSRV;
 
-	FVertexBufferRHIRef EditorSelectedDataBufferRHI;
+	FBufferRHIRef EditorSelectedDataBufferRHI;
 	FShaderResourceViewRHIRef EditorSelectedDataBufferSRV;
 //#endif
 };

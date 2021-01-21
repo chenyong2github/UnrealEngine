@@ -251,8 +251,8 @@ public:
 	int32 GetIndexDataSize() const { return IndexStorage.Num(); }
 
 	/** Create an RHI index buffer with CPU data. CPU data may be discarded after creation (see TResourceArray::Discard) */
-	FIndexBufferRHIRef CreateRHIBuffer_RenderThread();
-	FIndexBufferRHIRef CreateRHIBuffer_Async();
+	FBufferRHIRef CreateRHIBuffer_RenderThread();
+	FBufferRHIRef CreateRHIBuffer_Async();
 
 	/** Copy everything, keeping reference to the same RHI resources. */
 	void CopyRHIForStreaming(const FRawStaticIndexBuffer& Other, bool InAllowCPUAccess);
@@ -300,7 +300,7 @@ public:
 
 private:
 	template <bool bRenderThread>
-	FIndexBufferRHIRef CreateRHIBuffer_Internal();
+	FBufferRHIRef CreateRHIBuffer_Internal();
 
 	/** Storage for indices. */
 	TResourceArray<uint8, INDEXBUFFER_ALIGNMENT> IndexStorage;
@@ -468,8 +468,8 @@ public:
 	}
 
 	/** Create an RHI index buffer with CPU data. CPU data may be discarded after creation (see TResourceArray::Discard) */
-	FIndexBufferRHIRef CreateRHIBuffer_RenderThread() { return CreateRHIBuffer_Internal<true>(); }
-	FIndexBufferRHIRef CreateRHIBuffer_Async() { return CreateRHIBuffer_Internal<false>(); }
+	FBufferRHIRef CreateRHIBuffer_RenderThread() { return CreateRHIBuffer_Internal<true>(); }
+	FBufferRHIRef CreateRHIBuffer_Async() { return CreateRHIBuffer_Internal<false>(); }
 
 	/** Similar to Init/ReleaseRHI but only update existing SRV so references to the SRV stays valid */
 	template <uint32 MaxNumUpdates>
@@ -515,7 +515,7 @@ private:
 	}
 
 	template <bool bRenderThread>
-	FIndexBufferRHIRef CreateRHIBuffer_Internal()
+	FBufferRHIRef CreateRHIBuffer_Internal()
 	{
 		if (CachedNumIndices)
 		{
@@ -529,7 +529,7 @@ private:
 				Flags = (EBufferUsageFlags)(Flags | BUF_ShaderResource);
 			}
 
-			FIndexBufferRHIRef Ret;
+			FBufferRHIRef Ret;
 			const uint32 Size = Indices.Num() * sizeof(INDEX_TYPE);
 			CreateInfo.bWithoutNativeResource = !Size;
 			if (bRenderThread)

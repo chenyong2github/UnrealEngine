@@ -1551,7 +1551,7 @@ public:
 
 	virtual void* Lock(uint32 Offset, uint32 NumBytes) final override;
 	virtual void Unlock() final override;
-	FVertexBufferRHIRef ShadowBuffer;
+	FBufferRHIRef ShadowBuffer;
 	uint32 Offset;
 };
 

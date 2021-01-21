@@ -53,10 +53,10 @@ struct FTextureVertex
 	FVector2D	UV;
 };
 
-inline FVertexBufferRHIRef CreateTempOcculusVertexBuffer()
+inline FBufferRHIRef CreateTempOcculusVertexBuffer()
 {
 	FRHIResourceCreateInfo CreateInfo;
-	FVertexBufferRHIRef VertexBufferRHI = RHICreateVertexBuffer(sizeof(FTextureVertex) * 4, BUF_Volatile, CreateInfo);
+	FBufferRHIRef VertexBufferRHI = RHICreateVertexBuffer(sizeof(FTextureVertex) * 4, BUF_Volatile, CreateInfo);
 	void* VoidPtr = RHILockBuffer(VertexBufferRHI, 0, sizeof(FTextureVertex) * 4, RLM_WriteOnly);
 
 	FTextureVertex* Vertices = (FTextureVertex*)VoidPtr;

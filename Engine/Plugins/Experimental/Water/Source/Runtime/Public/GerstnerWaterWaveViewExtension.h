@@ -29,10 +29,10 @@ public:
 
 	bool bRebuildGPUData = false;
 
-	FStructuredBufferRHIRef DataBuffer;
+	FBufferRHIRef DataBuffer;
 	FShaderResourceViewRHIRef DataSRV;
 
-	FStructuredBufferRHIRef IndirectionBuffer;
+	FBufferRHIRef IndirectionBuffer;
 	FShaderResourceViewRHIRef IndirectionSRV;
 
 };

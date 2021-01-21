@@ -78,8 +78,8 @@ private:
 	void RenderVideoOverlayWithMaterial(FRHICommandListImmediate& RHICmdList, FSceneView& InView, UMaterialInstanceDynamic* OverlayMaterialToUse, bool bRenderingOcclusion);
 
 private:
-	FIndexBufferRHIRef OverlayIndexBufferRHI;
-	FVertexBufferRHIRef OverlayVertexBufferRHI;
+	FBufferRHIRef OverlayIndexBufferRHI;
+	FBufferRHIRef OverlayVertexBufferRHI;
 	
 	UMaterialInstanceDynamic* RegularOverlayMaterial = nullptr;
 	UMaterialInstanceDynamic* DebugOverlayMaterial = nullptr;

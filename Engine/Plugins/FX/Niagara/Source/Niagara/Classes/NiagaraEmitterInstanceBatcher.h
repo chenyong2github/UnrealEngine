@@ -277,7 +277,7 @@ private:
 
 	struct DummyUAV
 	{
-		FVertexBufferRHIRef Buffer;
+		FBufferRHIRef Buffer;
 		FTexture2DRHIRef Texture;
 		FUnorderedAccessViewRHIRef UAV;
 

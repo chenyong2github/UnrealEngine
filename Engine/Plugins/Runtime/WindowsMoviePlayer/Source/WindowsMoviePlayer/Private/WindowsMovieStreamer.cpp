@@ -165,7 +165,7 @@ void FMediaFoundationMovieStreamer::ConvertSample()
 		}
 
 		// draw full size quad into render target
-		FVertexBufferRHIRef VertexBuffer = CreateTempMediaVertexBuffer();
+		FBufferRHIRef VertexBuffer = CreateTempMediaVertexBuffer();
 		CommandList.SetStreamSource(0, VertexBuffer, 0);
 		// set viewport to RT size
 		CommandList.SetViewport(0, 0, 0.0f, OutputDim.X, OutputDim.Y, 1.0f);

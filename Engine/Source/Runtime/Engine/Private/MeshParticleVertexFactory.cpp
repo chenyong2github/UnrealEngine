@@ -79,7 +79,7 @@ public:
 	}
 
 private:
-	FVertexBufferRHIRef VB;
+	FBufferRHIRef VB;
 	FShaderResourceViewRHIRef SRV;
 };
 

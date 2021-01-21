@@ -146,10 +146,10 @@ public:
 	int32 GetVertexBufferSize(uint32 Stride, uint32 NumElements) const;
 	virtual ~FDynamicMeshBufferAllocator();
 
-	virtual FIndexBufferRHIRef AllocIndexBuffer(uint32 NumElements);
-	virtual void ReleaseIndexBuffer(FIndexBufferRHIRef& IndexBufferRHI);
-	virtual FVertexBufferRHIRef AllocVertexBuffer(uint32 Stride, uint32 NumElements);
-	virtual void ReleaseVertexBuffer(FVertexBufferRHIRef& VertexBufferRHI);
+	virtual FBufferRHIRef AllocIndexBuffer(uint32 NumElements);
+	virtual void ReleaseIndexBuffer(FBufferRHIRef& IndexBufferRHI);
+	virtual FBufferRHIRef AllocVertexBuffer(uint32 Stride, uint32 NumElements);
+	virtual void ReleaseVertexBuffer(FBufferRHIRef& VertexBufferRHI);
 };
 
 /**

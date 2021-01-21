@@ -43,7 +43,7 @@ void FGoogleVRHMD::GenerateDistortionCorrectionIndexBuffer()
 
 void FGoogleVRHMD::GenerateDistortionCorrectionVertexBuffer(EStereoscopicPass Eye)
 {
-	FVertexBufferRHIRef& DistortionMeshVertices = (Eye == eSSP_LEFT_EYE) ? DistortionMeshVerticesLeftEye : DistortionMeshVerticesRightEye;
+	FBufferRHIRef& DistortionMeshVertices = (Eye == eSSP_LEFT_EYE) ? DistortionMeshVerticesLeftEye : DistortionMeshVerticesRightEye;
 	FRHIResourceCreateInfo CreateInfo;
 	DistortionMeshVertices = RHICreateVertexBuffer(sizeof(FDistortionVertex) * NumVerts, BUF_Static, CreateInfo);
 	void* VoidPtr = RHILockBuffer(DistortionMeshVertices, 0, sizeof(FDistortionVertex) * NumVerts, RLM_WriteOnly);
@@ -138,7 +138,7 @@ void FGoogleVRHMD::DrawDistortionMesh_RenderThread(struct FHeadMountedDisplayPas
 		};
 
 		FRHIResourceCreateInfo CreateInfo;
-		FVertexBufferRHIRef VertexBufferRHI = RHICreateVertexBuffer(sizeof(FDistortionVertex) * 4, BUF_Volatile, CreateInfo);
+		FBufferRHIRef VertexBufferRHI = RHICreateVertexBuffer(sizeof(FDistortionVertex) * 4, BUF_Volatile, CreateInfo);
 		void* VoidPtr = RHILockBuffer(VertexBufferRHI, 0, sizeof(FDistortionVertex) * 4, RLM_WriteOnly);
 		FPlatformMemory::Memcpy(VoidPtr, Verts, sizeof(FDistortionVertex) * 4);
 		RHIUnlockBuffer(VertexBufferRHI);

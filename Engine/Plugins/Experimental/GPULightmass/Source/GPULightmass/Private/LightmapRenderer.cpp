@@ -159,7 +159,7 @@ struct FGPUTileDescription
 
 struct FGPUBatchedTileRequests
 {
-	FStructuredBufferRHIRef BatchedTilesBuffer;
+	FBufferRHIRef BatchedTilesBuffer;
 	FShaderResourceViewRHIRef BatchedTilesSRV;
 	TResourceArray<FGPUTileDescription> BatchedTilesDesc;
 };
@@ -1199,9 +1199,9 @@ void FLightmapRenderer::Finalize(FRDGBuilder& GraphBuilder)
 			FRDGTextureRef StagingHQLayer1 = GraphBuilder.RegisterExternalTexture(UploadTilePoolGPU->PooledRenderTargets[1], TEXT("StagingHQLayer1"));
 			FRDGTextureRef StagingShadowMask = GraphBuilder.RegisterExternalTexture(UploadTilePoolGPU->PooledRenderTargets[2], TEXT("StagingShadowMask"));
 
-			FStructuredBufferRHIRef SrcTilePositionsBuffer;
+			FBufferRHIRef SrcTilePositionsBuffer;
 			FShaderResourceViewRHIRef SrcTilePositionsSRV;
-			FStructuredBufferRHIRef DstTilePositionsBuffer;
+			FBufferRHIRef DstTilePositionsBuffer;
 			FShaderResourceViewRHIRef DstTilePositionsSRV;
 
 			if (OutputRenderTargets[0] != nullptr)
@@ -1983,19 +1983,19 @@ void FLightmapRenderer::Finalize(FRDGBuilder& GraphBuilder)
 					FRDGTextureRef ShadowMaskSampleCount = GraphBuilder.RegisterExternalTexture(LightmapTilePoolGPU.PooledRenderTargets[3], TEXT("ShadowMaskSampleCount"));
 
 					TResourceArray<int32> LightTypeArray;
-					FVertexBufferRHIRef LightTypeBuffer;
+					FBufferRHIRef LightTypeBuffer;
 					FShaderResourceViewRHIRef LightTypeSRV;
 
 					TResourceArray<int32> ChannelIndexArray;
-					FVertexBufferRHIRef ChannelIndexBuffer;
+					FBufferRHIRef ChannelIndexBuffer;
 					FShaderResourceViewRHIRef ChannelIndexSRV;
 
 					auto& LightSampleIndexArray = *GraphBuilder.AllocObject<TResourceArray<int32>>();
-					FVertexBufferRHIRef LightSampleIndexBuffer;
+					FBufferRHIRef LightSampleIndexBuffer;
 					FShaderResourceViewRHIRef LightSampleIndexSRV;
 
 					TResourceArray<FLightShaderConstants> LightShaderParameterArray;
-					FStructuredBufferRHIRef LightShaderParameterBuffer;
+					FBufferRHIRef LightShaderParameterBuffer;
 					FShaderResourceViewRHIRef LightShaderParameterSRV;
 
 					for (const FLightmapTileRequest& Tile : PendingShadowTileRequests)

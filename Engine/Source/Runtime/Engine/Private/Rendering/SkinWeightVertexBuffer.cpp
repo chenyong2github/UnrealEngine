@@ -151,12 +151,12 @@ void FSkinWeightLookupVertexBuffer::ReleaseRHI()
 	FVertexBuffer::ReleaseRHI();
 }
 
-FVertexBufferRHIRef FSkinWeightLookupVertexBuffer::CreateRHIBuffer_RenderThread()
+FBufferRHIRef FSkinWeightLookupVertexBuffer::CreateRHIBuffer_RenderThread()
 {
 	return CreateRHIBuffer_Internal<true>();
 }
 
-FVertexBufferRHIRef FSkinWeightLookupVertexBuffer::CreateRHIBuffer_Async()
+FBufferRHIRef FSkinWeightLookupVertexBuffer::CreateRHIBuffer_Async()
 {
 	return CreateRHIBuffer_Internal<false>();
 }
@@ -177,7 +177,7 @@ void FSkinWeightLookupVertexBuffer::SetWeightOffsetAndInfluenceCount(uint32 Vert
 }
 
 template <bool bRenderThread>
-FVertexBufferRHIRef FSkinWeightLookupVertexBuffer::CreateRHIBuffer_Internal()
+FBufferRHIRef FSkinWeightLookupVertexBuffer::CreateRHIBuffer_Internal()
 {
 	if (NumVertices)
 	{
@@ -387,7 +387,7 @@ void FSkinWeightDataVertexBuffer::CopyMetaData(const FSkinWeightDataVertexBuffer
 }
 
 template <bool bRenderThread>
-FVertexBufferRHIRef FSkinWeightDataVertexBuffer::CreateRHIBuffer_Internal()
+FBufferRHIRef FSkinWeightDataVertexBuffer::CreateRHIBuffer_Internal()
 {
 	if (NumBones)
 	{
@@ -411,12 +411,12 @@ FVertexBufferRHIRef FSkinWeightDataVertexBuffer::CreateRHIBuffer_Internal()
 	return nullptr;
 }
 
-FVertexBufferRHIRef FSkinWeightDataVertexBuffer::CreateRHIBuffer_RenderThread()
+FBufferRHIRef FSkinWeightDataVertexBuffer::CreateRHIBuffer_RenderThread()
 {
 	return CreateRHIBuffer_Internal<true>();
 }
 
-FVertexBufferRHIRef FSkinWeightDataVertexBuffer::CreateRHIBuffer_Async()
+FBufferRHIRef FSkinWeightDataVertexBuffer::CreateRHIBuffer_Async()
 {
 	return CreateRHIBuffer_Internal<false>();
 }

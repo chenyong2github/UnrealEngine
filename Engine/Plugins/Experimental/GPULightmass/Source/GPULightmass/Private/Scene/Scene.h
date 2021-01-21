@@ -60,10 +60,10 @@ struct FCachedRayTracingSceneData
 	TArray<FVisibleRayTracingMeshCommand> VisibleRayTracingMeshCommands;
 	TChunkedArray<FRayTracingMeshCommand> MeshCommandStorage;
 
-	FStructuredBufferRHIRef PrimitiveSceneDataBufferRHI;
+	FBufferRHIRef PrimitiveSceneDataBufferRHI;
 	FShaderResourceViewRHIRef PrimitiveSceneDataBufferSRV;
 
-	FStructuredBufferRHIRef LightmapSceneDataBufferRHI;
+	FBufferRHIRef LightmapSceneDataBufferRHI;
 	FShaderResourceViewRHIRef LightmapSceneDataBufferSRV;
 
 	TArray<FRayTracingGeometryInstance> RayTracingGeometryInstances;

@@ -64,7 +64,7 @@ protected:
 	void DoFinishUpdate(const FContext& Context);
 	void DoCancel(const FContext& Context);
 
-	FVertexBufferRHIRef IntermediateVertexBuffer;
+	FBufferRHIRef IntermediateVertexBuffer;
 	void* StagingLODDataArray[MAX_MESH_LOD_COUNT];
 	int64 StagingLODDataSizes[MAX_MESH_LOD_COUNT];
 };

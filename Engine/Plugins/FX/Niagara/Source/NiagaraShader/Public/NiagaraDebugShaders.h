@@ -18,7 +18,7 @@ namespace NiagaraDebugShaders
 
 	NIAGARASHADER_API void DrawDebugLines(
 		class FRDGBuilder& GraphBuilder, const class FViewInfo& View, FRDGTextureRef SceneColor, FRDGTextureRef SceneDepth,
-		const FVertexBufferRHIRef& ArgsBuffer, const FShaderResourceViewRHIRef& LineBuffer
+		const FBufferRHIRef& ArgsBuffer, const FShaderResourceViewRHIRef& LineBuffer
 	);
 
 	NIAGARASHADER_API void VisualizeTexture(

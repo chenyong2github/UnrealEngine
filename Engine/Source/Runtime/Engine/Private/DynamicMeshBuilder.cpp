@@ -98,13 +98,13 @@ public:
 	 * @param Args The buffer size in bytes.
 	 * @returns A suitably sized buffer or NULL on failure.
 	 */
-	FIndexBufferRHIRef CreateResource(FGlobalDynamicMeshPoolPolicy::CreationArguments Args)
+	FBufferRHIRef CreateResource(FGlobalDynamicMeshPoolPolicy::CreationArguments Args)
 	{
 		FGlobalDynamicMeshPoolPolicy::CreationArguments BufferSize = GetPoolBucketSize(GetPoolBucketIndex(Args));
 		// The use of BUF_Static is deliberate - on OS X the buffer backing-store orphaning & reallocation will dominate execution time
 		// so to avoid this we don't reuse a buffer for several frames, thereby avoiding the pipeline stall and the reallocation cost.
 		FRHIResourceCreateInfo CreateInfo;
-		FIndexBufferRHIRef VertexBuffer = RHICreateIndexBuffer(sizeof(DynamicMeshIndexType), BufferSize, BUF_Static, CreateInfo);
+		FBufferRHIRef VertexBuffer = RHICreateIndexBuffer(sizeof(DynamicMeshIndexType), BufferSize, BUF_Static, CreateInfo);
 		return VertexBuffer;
 	}
 	
@@ -112,7 +112,7 @@ public:
 	 * @param Resource The buffer to get data for.
 	 * @returns The arguments used to create the buffer.
 	 */
-	FGlobalDynamicMeshPoolPolicy::CreationArguments GetCreationArguments(FIndexBufferRHIRef Resource)
+	FGlobalDynamicMeshPoolPolicy::CreationArguments GetCreationArguments(FBufferRHIRef Resource)
 	{
 		return (Resource->GetSize());
 	}
@@ -120,12 +120,12 @@ public:
 	/** Frees the resource
 	 * @param Resource The buffer to prepare for release from the pool permanently.
 	 */
-	void FreeResource(FIndexBufferRHIRef Resource)
+	void FreeResource(FBufferRHIRef Resource)
 	{
 	}
 };
 
-class FGlobalDynamicMeshIndexPool : public TRenderResourcePool<FIndexBufferRHIRef, FGlobalDynamicMeshIndexPolicy, FGlobalDynamicMeshPoolPolicy::CreationArguments>
+class FGlobalDynamicMeshIndexPool : public TRenderResourcePool<FBufferRHIRef, FGlobalDynamicMeshIndexPolicy, FGlobalDynamicMeshPoolPolicy::CreationArguments>
 {
 public:
 	/** Destructor */
@@ -156,11 +156,11 @@ public:
 	 * @param Args The buffer size in bytes.
 	 * @returns A suitably sized buffer or NULL on failure.
 	 */
-	FVertexBufferRHIRef CreateResource(FGlobalDynamicMeshPoolPolicy::CreationArguments Args)
+	FBufferRHIRef CreateResource(FGlobalDynamicMeshPoolPolicy::CreationArguments Args)
 	{
 		FGlobalDynamicMeshPoolPolicy::CreationArguments BufferSize = GetPoolBucketSize(GetPoolBucketIndex(Args));
 		FRHIResourceCreateInfo CreateInfo;
-		FVertexBufferRHIRef VertexBuffer = RHICreateVertexBuffer(BufferSize, BUF_Volatile | BUF_ShaderResource, CreateInfo);
+		FBufferRHIRef VertexBuffer = RHICreateVertexBuffer(BufferSize, BUF_Volatile | BUF_ShaderResource, CreateInfo);
 		return VertexBuffer;
 	}
 	
@@ -168,7 +168,7 @@ public:
 	 * @param Resource The buffer to get data for.
 	 * @returns The arguments used to create the buffer.
 	 */
-	FGlobalDynamicMeshPoolPolicy::CreationArguments GetCreationArguments(FVertexBufferRHIRef Resource)
+	FGlobalDynamicMeshPoolPolicy::CreationArguments GetCreationArguments(FBufferRHIRef Resource)
 	{
 		return (Resource->GetSize());
 	}
@@ -176,12 +176,12 @@ public:
 	/** Frees the resource
 	 * @param Resource The buffer to prepare for release from the pool permanently.
 	 */
-	void FreeResource(FVertexBufferRHIRef Resource)
+	void FreeResource(FBufferRHIRef Resource)
 	{
 	}
 };
 
-class FGlobalDynamicMeshVertexPool : public TRenderResourcePool<FVertexBufferRHIRef, FGlobalDynamicMeshVertexPolicy, FGlobalDynamicMeshPoolPolicy::CreationArguments>
+class FGlobalDynamicMeshVertexPool : public TRenderResourcePool<FBufferRHIRef, FGlobalDynamicMeshVertexPolicy, FGlobalDynamicMeshPoolPolicy::CreationArguments>
 {
 public:
 	/** Destructor */
@@ -244,7 +244,7 @@ int32 FDynamicMeshBufferAllocator::GetVertexBufferSize(uint32 Stride, uint32 Num
 	return NumElements * Stride;
 }
 
-FIndexBufferRHIRef FDynamicMeshBufferAllocator::AllocIndexBuffer(uint32 NumElements)
+FBufferRHIRef FDynamicMeshBufferAllocator::AllocIndexBuffer(uint32 NumElements)
 {
 	uint32 SizeInBytes = GetIndexBufferSize(NumElements);
 
@@ -252,12 +252,12 @@ FIndexBufferRHIRef FDynamicMeshBufferAllocator::AllocIndexBuffer(uint32 NumEleme
 	return RHICreateIndexBuffer(sizeof(DynamicMeshIndexType), SizeInBytes, BUF_Volatile, CreateInfo);
 }
 
-void FDynamicMeshBufferAllocator::ReleaseIndexBuffer(FIndexBufferRHIRef& IndexBufferRHI)
+void FDynamicMeshBufferAllocator::ReleaseIndexBuffer(FBufferRHIRef& IndexBufferRHI)
 {
 	IndexBufferRHI = nullptr;
 }
 
-FVertexBufferRHIRef FDynamicMeshBufferAllocator::AllocVertexBuffer(uint32 Stride, uint32 NumElements)
+FBufferRHIRef FDynamicMeshBufferAllocator::AllocVertexBuffer(uint32 Stride, uint32 NumElements)
 {
 	uint32 SizeInBytes = GetVertexBufferSize(Stride, NumElements);
 
@@ -265,7 +265,7 @@ FVertexBufferRHIRef FDynamicMeshBufferAllocator::AllocVertexBuffer(uint32 Stride
 	return RHICreateVertexBuffer(SizeInBytes, BUF_Volatile | BUF_ShaderResource, CreateInfo);
 }
 
-void FDynamicMeshBufferAllocator::ReleaseVertexBuffer(FVertexBufferRHIRef& VertexBufferRHI)
+void FDynamicMeshBufferAllocator::ReleaseVertexBuffer(FBufferRHIRef& VertexBufferRHI)
 {
 	VertexBufferRHI = nullptr;
 }
@@ -273,7 +273,7 @@ void FDynamicMeshBufferAllocator::ReleaseVertexBuffer(FVertexBufferRHIRef& Verte
 /** This is our default implementation using GDynamicMeshIndexPool. */
 class FPooledDynamicMeshBufferAllocator : public FDynamicMeshBufferAllocator
 {
-	virtual FIndexBufferRHIRef AllocIndexBuffer(uint32 NumElements) override
+	virtual FBufferRHIRef AllocIndexBuffer(uint32 NumElements) override
 	{
 		uint32 SizeInBytes = NumElements * sizeof(DynamicMeshIndexType);
 		if (SizeInBytes <= FGlobalDynamicMeshIndexPolicy().GetPoolBucketSize(FGlobalDynamicMeshIndexPolicy::NumPoolBuckets - 1))
@@ -284,7 +284,7 @@ class FPooledDynamicMeshBufferAllocator : public FDynamicMeshBufferAllocator
 		return FDynamicMeshBufferAllocator::AllocIndexBuffer(NumElements);
 	}
 
-	virtual void ReleaseIndexBuffer(FIndexBufferRHIRef& IndexBufferRHI)
+	virtual void ReleaseIndexBuffer(FBufferRHIRef& IndexBufferRHI)
 	{
 		if (IsValidRef(IndexBufferRHI))
 		{
@@ -297,7 +297,7 @@ class FPooledDynamicMeshBufferAllocator : public FDynamicMeshBufferAllocator
 		}
 	}
 
-	virtual FVertexBufferRHIRef AllocVertexBuffer(uint32 Stride, uint32 NumElements)
+	virtual FBufferRHIRef AllocVertexBuffer(uint32 Stride, uint32 NumElements)
 	{
 		uint32 SizeInBytes = NumElements * Stride;
 		if (SizeInBytes <= FGlobalDynamicMeshIndexPolicy().GetPoolBucketSize(FGlobalDynamicMeshIndexPolicy::NumPoolBuckets - 1))
@@ -308,7 +308,7 @@ class FPooledDynamicMeshBufferAllocator : public FDynamicMeshBufferAllocator
 		return FDynamicMeshBufferAllocator::AllocVertexBuffer(Stride, NumElements);
 	}
 
-	virtual void ReleaseVertexBuffer(FVertexBufferRHIRef& VertexBufferRHI)
+	virtual void ReleaseVertexBuffer(FBufferRHIRef& VertexBufferRHI)
 	{
 		if (IsValidRef(VertexBufferRHI))
 		{

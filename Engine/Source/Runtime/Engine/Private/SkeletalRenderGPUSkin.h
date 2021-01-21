@@ -267,7 +267,7 @@ private:
 	FSkeletalMeshRenderData* SkelMeshRenderData;
 
 	//temporary buffer used for normalization
-	FVertexBufferRHIRef NormalizationBufferRHI;
+	FBufferRHIRef NormalizationBufferRHI;
 
 	// guaranteed only to be valid if the Normalization Buffer is valid
 	FUnorderedAccessViewRHIRef NormalizationBufferUAV;

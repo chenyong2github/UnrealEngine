@@ -267,7 +267,7 @@ void FStaticMeshVertexBuffer::operator=(const FStaticMeshVertexBuffer &Other)
 }
 
 template <bool bRenderThread>
-FVertexBufferRHIRef FStaticMeshVertexBuffer::CreateTangentsRHIBuffer_Internal()
+FBufferRHIRef FStaticMeshVertexBuffer::CreateTangentsRHIBuffer_Internal()
 {
 	if (GetNumVertices())
 	{
@@ -287,18 +287,18 @@ FVertexBufferRHIRef FStaticMeshVertexBuffer::CreateTangentsRHIBuffer_Internal()
 	return nullptr;
 }
 
-FVertexBufferRHIRef FStaticMeshVertexBuffer::CreateTangentsRHIBuffer_RenderThread()
+FBufferRHIRef FStaticMeshVertexBuffer::CreateTangentsRHIBuffer_RenderThread()
 {
 	return CreateTangentsRHIBuffer_Internal<true>();
 }
 
-FVertexBufferRHIRef FStaticMeshVertexBuffer::CreateTangentsRHIBuffer_Async()
+FBufferRHIRef FStaticMeshVertexBuffer::CreateTangentsRHIBuffer_Async()
 {
 	return CreateTangentsRHIBuffer_Internal<false>();
 }
 
 template <bool bRenderThread>
-FVertexBufferRHIRef FStaticMeshVertexBuffer::CreateTexCoordRHIBuffer_Internal()
+FBufferRHIRef FStaticMeshVertexBuffer::CreateTexCoordRHIBuffer_Internal()
 {
 	if (GetNumTexCoords())
 	{
@@ -318,12 +318,12 @@ FVertexBufferRHIRef FStaticMeshVertexBuffer::CreateTexCoordRHIBuffer_Internal()
 	return nullptr;
 }
 
-FVertexBufferRHIRef FStaticMeshVertexBuffer::CreateTexCoordRHIBuffer_RenderThread()
+FBufferRHIRef FStaticMeshVertexBuffer::CreateTexCoordRHIBuffer_RenderThread()
 {
 	return CreateTexCoordRHIBuffer_Internal<true>();
 }
 
-FVertexBufferRHIRef FStaticMeshVertexBuffer::CreateTexCoordRHIBuffer_Async()
+FBufferRHIRef FStaticMeshVertexBuffer::CreateTexCoordRHIBuffer_Async()
 {
 	return CreateTexCoordRHIBuffer_Internal<false>();
 }

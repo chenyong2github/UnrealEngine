@@ -74,7 +74,7 @@ public:
 	{}
 
 	uint32 GetNumMeshes() { return MeshData.Num(); }
-	FVertexBufferRHIRef GetMeshDataBufferRHI() const { return BufferMeshDataRHI; }
+	FBufferRHIRef GetMeshDataBufferRHI() const { return BufferMeshDataRHI; }
 	FShaderResourceViewRHIRef GetMeshDataBufferSRV() const { return BufferMeshDataSRV; }
 
 	virtual void InitRHI() override final
@@ -115,7 +115,7 @@ public:
 	}
 
 private:
-	FVertexBufferRHIRef BufferMeshDataRHI = nullptr;
+	FBufferRHIRef BufferMeshDataRHI = nullptr;
 	FShaderResourceViewRHIRef BufferMeshDataSRV = nullptr;
 	const FNDIMeshRendererInfo::FMeshDataArray& MeshData; // cached from FNDIMeshRendererInfo, which is guaranteed to live longer than we are
 #if STATS

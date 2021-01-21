@@ -69,8 +69,8 @@ private:
 	void ReloadMesh();
 
 public:
-	FVertexBufferRHIRef VertexBufferRHI;
-	FIndexBufferRHIRef  IndexBufferRHI;
+	FBufferRHIRef VertexBufferRHI;
+	FBufferRHIRef IndexBufferRHI;
 
 	uint32  NumVertices;
 	uint32  NumIndices;

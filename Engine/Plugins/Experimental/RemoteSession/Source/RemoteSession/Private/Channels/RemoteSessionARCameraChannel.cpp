@@ -160,9 +160,9 @@ private:
 	/** Note the session channel is responsible for preventing GC */
 	UMaterialInterface* PPMaterial;
 	/** Index buffer for drawing the quad */
-	FIndexBufferRHIRef IndexBufferRHI;
+	FBufferRHIRef IndexBufferRHI;
 	/** Vertex buffer for drawing the quad */
-	FVertexBufferRHIRef VertexBufferRHI;
+	FBufferRHIRef VertexBufferRHI;
 };
 
 FARCameraSceneViewExtension::FARCameraSceneViewExtension(const FAutoRegister& AutoRegister, FRemoteSessionARCameraChannel& InChannel) :

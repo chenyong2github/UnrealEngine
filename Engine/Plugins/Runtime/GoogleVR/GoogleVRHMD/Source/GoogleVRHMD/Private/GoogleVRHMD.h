@@ -388,9 +388,9 @@ private:
 	FIntPoint GVRRenderTargetSize;
 	IRendererModule* RendererModule;
 
-	FIndexBufferRHIRef DistortionMeshIndices;
-	FVertexBufferRHIRef DistortionMeshVerticesLeftEye;
-	FVertexBufferRHIRef DistortionMeshVerticesRightEye;
+	FBufferRHIRef DistortionMeshIndices;
+	FBufferRHIRef DistortionMeshVerticesLeftEye;
+	FBufferRHIRef DistortionMeshVerticesRightEye;
 
 	// Cached data that should only be updated once per frame
 	mutable uint32		LastUpdatedCacheFrame;

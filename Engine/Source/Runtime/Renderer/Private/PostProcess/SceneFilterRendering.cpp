@@ -204,7 +204,7 @@ void DrawTransformedRectangle(
 	// we don't do the triangle optimization as this case is rare for the DrawTransformedRectangle case
 
 	FRHIResourceCreateInfo CreateInfo;
-	FVertexBufferRHIRef VertexBufferRHI = RHICreateVertexBuffer(sizeof(FFilterVertex) * 4, BUF_Volatile, CreateInfo);
+	FBufferRHIRef VertexBufferRHI = RHICreateVertexBuffer(sizeof(FFilterVertex) * 4, BUF_Volatile, CreateInfo);
 	void* VoidPtr = RHILockBuffer(VertexBufferRHI, 0, sizeof(FFilterVertex) * 4, RLM_WriteOnly);
 
 	FFilterVertex* Vertices = reinterpret_cast<FFilterVertex*>(VoidPtr);

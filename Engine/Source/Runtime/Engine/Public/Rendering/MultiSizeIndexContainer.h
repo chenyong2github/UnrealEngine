@@ -94,8 +94,8 @@ public:
 
 	friend FArchive& operator<<(FArchive& Ar, FMultiSizeIndexContainer& Buffer);
 
-	FIndexBufferRHIRef CreateRHIBuffer_RenderThread();
-	FIndexBufferRHIRef CreateRHIBuffer_Async();
+	FBufferRHIRef CreateRHIBuffer_RenderThread();
+	FBufferRHIRef CreateRHIBuffer_Async();
 
 	template <uint32 MaxNumUpdates>
 	void InitRHIForStreaming(FRHIBuffer* IntermediateBuffer, TRHIResourceUpdateBatcher<MaxNumUpdates>& Batcher)

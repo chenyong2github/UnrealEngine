@@ -74,14 +74,14 @@ public:
 private:
 
 	/** Vertex buffer storage for particle sort keys. */
-	FVertexBufferRHIRef KeyBuffers[2];
+	FBufferRHIRef KeyBuffers[2];
 	/** Shader resource view for particle sort keys. */
 	FShaderResourceViewRHIRef KeyBufferSRVs[2];
 	/** Unordered access view for particle sort keys. */
 	FUnorderedAccessViewRHIRef KeyBufferUAVs[2];
 
 	/** Vertex buffer containing sorted particle vertices. */
-	FVertexBufferRHIRef VertexBuffers[2];
+	FBufferRHIRef VertexBuffers[2];
 	/** Shader resource view for sorting particle vertices. */
 	FShaderResourceViewRHIRef VertexBufferSortSRVs[2];
 	/** Unordered access view for sorting particle vertices. */

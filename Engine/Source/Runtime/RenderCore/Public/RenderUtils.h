@@ -585,10 +585,10 @@ inline bool VelocityEncodeDepth(const FStaticShaderPlatform Platform)
 }
 
 /** Unit cube vertex buffer (VertexDeclarationFVector4) */
-RENDERCORE_API FVertexBufferRHIRef& GetUnitCubeVertexBuffer();
+RENDERCORE_API FBufferRHIRef& GetUnitCubeVertexBuffer();
 
 /** Unit cube index buffer */
-RENDERCORE_API FIndexBufferRHIRef& GetUnitCubeIndexBuffer();
+RENDERCORE_API FBufferRHIRef& GetUnitCubeIndexBuffer();
 
 /**
 * Takes the requested buffer size and quantizes it to an appropriate size for the rest of the

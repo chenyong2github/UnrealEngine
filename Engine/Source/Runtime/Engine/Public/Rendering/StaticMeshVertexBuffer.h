@@ -389,10 +389,10 @@ public:
 	}
 
 	/** Create an RHI vertex buffer with CPU data. CPU data may be discarded after creation (see TResourceArray::Discard) */
-	FVertexBufferRHIRef CreateTangentsRHIBuffer_RenderThread();
-	FVertexBufferRHIRef CreateTangentsRHIBuffer_Async();
-	FVertexBufferRHIRef CreateTexCoordRHIBuffer_RenderThread();
-	FVertexBufferRHIRef CreateTexCoordRHIBuffer_Async();
+	FBufferRHIRef CreateTangentsRHIBuffer_RenderThread();
+	FBufferRHIRef CreateTangentsRHIBuffer_Async();
+	FBufferRHIRef CreateTexCoordRHIBuffer_RenderThread();
+	FBufferRHIRef CreateTexCoordRHIBuffer_Async();
 
 	/** Copy everything, keeping reference to the same RHI resources. */
 	void CopyRHIForStreaming(const FStaticMeshVertexBuffer& Other, bool InAllowCPUAccess);
@@ -540,10 +540,10 @@ private:
 	void ConvertHalfTexcoordsToFloat(const uint8* InData);
 
 	template <bool bRenderThread>
-	FVertexBufferRHIRef CreateTangentsRHIBuffer_Internal();
+	FBufferRHIRef CreateTangentsRHIBuffer_Internal();
 
 	template<bool bRenderThread>
-	FVertexBufferRHIRef CreateTexCoordRHIBuffer_Internal();
+	FBufferRHIRef CreateTexCoordRHIBuffer_Internal();
 
 	void InitTangentAndTexCoordStrides();
 };

@@ -1368,12 +1368,12 @@ public:
 static TGlobalResource<FUnitCubeVertexBuffer> GUnitCubeVertexBuffer;
 static TGlobalResource<FUnitCubeIndexBuffer> GUnitCubeIndexBuffer;
 
-RENDERCORE_API FVertexBufferRHIRef& GetUnitCubeVertexBuffer()
+RENDERCORE_API FBufferRHIRef& GetUnitCubeVertexBuffer()
 {
 	return GUnitCubeVertexBuffer.VertexBufferRHI;
 }
 
-RENDERCORE_API FIndexBufferRHIRef& GetUnitCubeIndexBuffer()
+RENDERCORE_API FBufferRHIRef& GetUnitCubeIndexBuffer()
 {
 	return GUnitCubeIndexBuffer.IndexBufferRHI;
 }

@@ -198,7 +198,7 @@ public:
 	/** The identifier for the primitive in Scene->PrimitiveOctree. */
 	FOctreeElementId2 OctreeId;
 
-	mutable FVertexBufferRHIRef ShadowCapsuleShapesVertexBuffer;
+	mutable FBufferRHIRef ShadowCapsuleShapesVertexBuffer;
 	mutable FShaderResourceViewRHIRef ShadowCapsuleShapesSRV;
 
 	/** Persistent shadow state used for HZB occlusion culling. */

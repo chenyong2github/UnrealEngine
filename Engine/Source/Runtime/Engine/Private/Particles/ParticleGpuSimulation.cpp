@@ -2238,7 +2238,7 @@ static FBox ComputeParticleBounds(
 		// Create a buffer for storing bounds.
 		const int32 BufferSize = GroupCount * 2 * sizeof(FVector4);
 		FRHIResourceCreateInfo CreateInfo;
-		FVertexBufferRHIRef BoundsVertexBufferRHI = RHICreateVertexBuffer(
+		FBufferRHIRef BoundsVertexBufferRHI = RHICreateVertexBuffer(
 			BufferSize,
 			BUF_Static | BUF_UnorderedAccess | BUF_KeepCPUAccessible,
 			CreateInfo);

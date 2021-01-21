@@ -75,7 +75,7 @@ struct FVertexBufferAndSRV
 		VertexBufferSRV.SafeRelease();
 	}
 
-	FVertexBufferRHIRef VertexBufferRHI;
+	FBufferRHIRef VertexBufferRHI;
 	FShaderResourceViewRHIRef VertexBufferSRV;
 };
 

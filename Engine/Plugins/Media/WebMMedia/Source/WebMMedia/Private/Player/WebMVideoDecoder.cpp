@@ -24,7 +24,7 @@ namespace
 	public:
 
 		FVertexDeclarationRHIRef VertexDeclarationRHI;
-		FVertexBufferRHIRef VertexBufferRHI;
+		FBufferRHIRef VertexBufferRHI;
 
 		virtual ~FMoviePlaybackResources() { }
 

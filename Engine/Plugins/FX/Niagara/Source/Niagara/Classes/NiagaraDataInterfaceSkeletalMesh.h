@@ -374,9 +374,9 @@ public:
 	int32 GetFilteredSocketBoneOffset() const { return FilteredSocketBoneOffset; }
 
 protected:
-	FVertexBufferRHIRef BufferTriangleUniformSamplerProbAliasRHI = nullptr;
+	FBufferRHIRef BufferTriangleUniformSamplerProbAliasRHI = nullptr;
 	FShaderResourceViewRHIRef BufferTriangleUniformSamplerProbAliasSRV = nullptr;
-	FVertexBufferRHIRef BufferTriangleMatricesOffsetRHI = nullptr;
+	FBufferRHIRef BufferTriangleMatricesOffsetRHI = nullptr;
 	FShaderResourceViewRHIRef BufferTriangleMatricesOffsetSRV = nullptr;
 
 	bool bSamplingRegionsAllAreaWeighted = false;
@@ -386,18 +386,18 @@ protected:
 	TResourceArray<int32> SampleRegionsTriangleIndicies;
 	TResourceArray<int32> SampleRegionsVertices;
 
-	FVertexBufferRHIRef SampleRegionsProbAliasBuffer;
+	FBufferRHIRef SampleRegionsProbAliasBuffer;
 	FShaderResourceViewRHIRef SampleRegionsProbAliasSRV;
-	FVertexBufferRHIRef SampleRegionsTriangleIndicesBuffer;
+	FBufferRHIRef SampleRegionsTriangleIndicesBuffer;
 	FShaderResourceViewRHIRef SampleRegionsTriangleIndicesSRV;
-	FVertexBufferRHIRef SampleRegionsVerticesBuffer;
+	FBufferRHIRef SampleRegionsVerticesBuffer;
 	FShaderResourceViewRHIRef SampleRegionsVerticesSRV;
 
 	int32 NumFilteredBones = 0;
 	int32 NumUnfilteredBones = 0;
 	int32 ExcludedBoneIndex = INDEX_NONE;
 	TResourceArray<uint16> FilteredAndUnfilteredBonesArray;
-	FVertexBufferRHIRef FilteredAndUnfilteredBonesBuffer;
+	FBufferRHIRef FilteredAndUnfilteredBonesBuffer;
 	FShaderResourceViewRHIRef FilteredAndUnfilteredBonesSRV;
 
 	int32 NumFilteredSockets = 0;
@@ -452,10 +452,10 @@ public:
 	/** Encapsulates a GPU read / CPU write buffer for bone data */
 	struct FSkeletalBuffer
 	{
-		FVertexBufferRHIRef SectionBuffer;
+		FBufferRHIRef SectionBuffer;
 		FShaderResourceViewRHIRef SectionSRV;
 
-		FVertexBufferRHIRef SamplingBuffer;
+		FBufferRHIRef SamplingBuffer;
 		FShaderResourceViewRHIRef SamplingSRV;
 	};
 

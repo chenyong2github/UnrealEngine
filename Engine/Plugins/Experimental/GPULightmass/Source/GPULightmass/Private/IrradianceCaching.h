@@ -32,7 +32,7 @@ struct FIrradianceCache
 
 	const int32 IrradianceCacheMaxSize = 1048576;
 
-	FStructuredBufferRHIRef IrradianceCacheRecords;
+	FBufferRHIRef IrradianceCacheRecords;
 	FUnorderedAccessViewRHIRef IrradianceCacheRecordsUAV;
 
 	TUniformBufferRef<FIrradianceCachingParameters> IrradianceCachingParametersUniformBuffer;

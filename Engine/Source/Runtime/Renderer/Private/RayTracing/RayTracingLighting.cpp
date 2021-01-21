@@ -135,7 +135,7 @@ static void CreateRaytracingLightCullingStructure(
 	FRHIResourceCreateInfo CreateInfo;
 	CreateInfo.ResourceArray = &RankedLights;
 
-	FStructuredBufferRHIRef RayTracingCullLights = RHICreateStructuredBuffer(sizeof(RankedLights[0]),
+	FBufferRHIRef RayTracingCullLights = RHICreateStructuredBuffer(sizeof(RankedLights[0]),
 		RankedLights.GetResourceDataSize(),
 		BUF_Static | BUF_ShaderResource,
 		CreateInfo);

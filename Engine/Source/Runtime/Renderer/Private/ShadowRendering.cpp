@@ -865,7 +865,7 @@ void FProjectedShadowInfo::SetupProjectionStencilMask(
 		float StencilFar = Far.Z / Far.W;
 
 		FRHIResourceCreateInfo CreateInfo;
-		FVertexBufferRHIRef VertexBufferRHI = RHICreateVertexBuffer(sizeof(FVector4) * 12, BUF_Volatile, CreateInfo);
+		FBufferRHIRef VertexBufferRHI = RHICreateVertexBuffer(sizeof(FVector4) * 12, BUF_Volatile, CreateInfo);
 		void* VoidPtr = RHILockBuffer(VertexBufferRHI, 0, sizeof(FVector4) * 12, RLM_WriteOnly);
 
 		// Generate the vertices used
@@ -940,7 +940,7 @@ void FProjectedShadowInfo::SetupProjectionStencilMask(
 		VertexShader->SetParameters(RHICmdList, *View, this);
 
 		FRHIResourceCreateInfo CreateInfo(TEXT("FProjectedShadowInfoStencilFrustum"));
-		FVertexBufferRHIRef VertexBufferRHI = RHICreateVertexBuffer(sizeof(FVector4) * FrustumVertices.Num(), BUF_Volatile, CreateInfo);
+		FBufferRHIRef VertexBufferRHI = RHICreateVertexBuffer(sizeof(FVector4) * FrustumVertices.Num(), BUF_Volatile, CreateInfo);
 		void* VoidPtr = RHILockBuffer(VertexBufferRHI, 0, sizeof(FVector4) * FrustumVertices.Num(), RLM_WriteOnly);
 		FPlatformMemory::Memcpy(VoidPtr, FrustumVertices.GetData(), sizeof(FVector4) * FrustumVertices.Num());
 		RHIUnlockBuffer(VertexBufferRHI);
@@ -1149,7 +1149,7 @@ void FProjectedShadowInfo::RenderProjection(
 		else
 		{
 			FRHIResourceCreateInfo CreateInfo(TEXT("FProjectedShadowInfoFrustum"));
-			FVertexBufferRHIRef VertexBufferRHI = RHICreateVertexBuffer(sizeof(FVector4) * FrustumVertices.Num(), BUF_Volatile, CreateInfo);
+			FBufferRHIRef VertexBufferRHI = RHICreateVertexBuffer(sizeof(FVector4) * FrustumVertices.Num(), BUF_Volatile, CreateInfo);
 			void* VoidPtr = RHILockBuffer(VertexBufferRHI, 0, sizeof(FVector4) * FrustumVertices.Num(), RLM_WriteOnly);
 			FPlatformMemory::Memcpy(VoidPtr, FrustumVertices.GetData(), sizeof(FVector4) * FrustumVertices.Num());
 			RHIUnlockBuffer(VertexBufferRHI);

@@ -54,7 +54,7 @@ public:
 		}
 	}
 
-	FVertexBufferRHIRef GetBuffer(int32 InBufferID) const
+	FBufferRHIRef GetBuffer(int32 InBufferID) const
 	{
 		return Buffer[InBufferID];
 	}
@@ -92,6 +92,6 @@ private:
 		RHIUnlockBuffer(Buffer[InBufferID]);
 	}
 
-	FVertexBufferRHIRef Buffer[NumBuffers];
+	FBufferRHIRef Buffer[NumBuffers];
 	FVector4* BufferMemory[NumBuffers];
 };

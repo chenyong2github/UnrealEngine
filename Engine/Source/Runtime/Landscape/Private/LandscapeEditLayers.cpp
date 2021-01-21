@@ -771,7 +771,7 @@ public:
 private:
 	friend class FLandscapeLayerWeightmapExtractMaterialLayersCS;
 
-	FStructuredBufferRHIRef ComponentsData;
+	FBufferRHIRef ComponentsData;
 	FShaderResourceViewRHIRef ComponentsDataSRV;
 	TArray<FLandscapeLayerWeightmapExtractMaterialLayersComponentData> OriginalComponentsData;
 	int32 ComponentsDataCount;
@@ -945,17 +945,17 @@ public:
 private:
 	friend class FLandscapeLayerWeightmapPackMaterialLayersCS;
 
-	FStructuredBufferRHIRef ComponentsData;
+	FBufferRHIRef ComponentsData;
 	FShaderResourceViewRHIRef ComponentsDataSRV;
 	TArray<FLandscapeLayerWeightmapPackMaterialLayersComponentData> OriginalComponentsData;
 	int32 ComponentsDataCount;
 
 	TArray<float> OriginalWeightmapWeightBlendModeData;
-	FVertexBufferRHIRef WeightmapWeightBlendMode;
+	FBufferRHIRef WeightmapWeightBlendMode;
 	FShaderResourceViewRHIRef WeightmapWeightBlendModeSRV;
 
 	TArray<FVector2D> OriginalTextureOutputOffset;
-	FVertexBufferRHIRef WeightmapTextureOutputOffset;
+	FBufferRHIRef WeightmapTextureOutputOffset;
 	FShaderResourceViewRHIRef WeightmapTextureOutputOffsetSRV;
 };
 

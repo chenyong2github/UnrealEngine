@@ -387,7 +387,7 @@ uint32 FColorVertexBuffer::GetAllocatedSize() const
 }
 
 template <bool bRenderThread>
-FVertexBufferRHIRef FColorVertexBuffer::CreateRHIBuffer_Internal()
+FBufferRHIRef FColorVertexBuffer::CreateRHIBuffer_Internal()
 {
 	if (NumVertices)
 	{
@@ -407,12 +407,12 @@ FVertexBufferRHIRef FColorVertexBuffer::CreateRHIBuffer_Internal()
 	return nullptr;
 }
 
-FVertexBufferRHIRef FColorVertexBuffer::CreateRHIBuffer_RenderThread()
+FBufferRHIRef FColorVertexBuffer::CreateRHIBuffer_RenderThread()
 {
 	return CreateRHIBuffer_Internal<true>();
 }
 
-FVertexBufferRHIRef FColorVertexBuffer::CreateRHIBuffer_Async()
+FBufferRHIRef FColorVertexBuffer::CreateRHIBuffer_Async()
 {
 	return CreateRHIBuffer_Internal<false>();
 }

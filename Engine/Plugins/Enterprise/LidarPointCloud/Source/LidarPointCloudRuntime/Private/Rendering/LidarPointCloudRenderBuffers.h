@@ -47,7 +47,7 @@ public:
 class FLidarPointCloudRenderBuffer : public FLidarPointCloudBuffer, public FRenderResource
 {
 public:
-	FVertexBufferRHIRef Buffer;
+	FBufferRHIRef Buffer;
 	FShaderResourceViewRHIRef SRV;
 
 	int32 PointCount;

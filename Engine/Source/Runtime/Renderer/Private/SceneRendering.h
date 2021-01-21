@@ -1024,14 +1024,14 @@ struct FRayTracingLightData
 	TUniformBufferRef<FRaytracingLightDataPacked>	UniformBuffer;
 
 	/** Structured buffer containing all light data */
-	FStructuredBufferRHIRef							LightBuffer;
+	FBufferRHIRef									LightBuffer;
 	FShaderResourceViewRHIRef						LightBufferSRV;
 
 	/** Buffer of light indices reference by the culling volume */
 	FRWBuffer										LightIndices;
 
 	/** Camera-centered volume used to cull lights to cells */
-	FStructuredBufferRHIRef							LightCullVolume;
+	FBufferRHIRef									LightCullVolume;
 	FShaderResourceViewRHIRef						LightCullVolumeSRV;
 };
 #endif

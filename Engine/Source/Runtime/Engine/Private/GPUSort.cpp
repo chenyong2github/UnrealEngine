@@ -75,7 +75,7 @@ class FSortOffsetBuffers : public FRenderResource
 public:
 
 	/** Vertex buffer storage for the actual offsets. */
-	FVertexBufferRHIRef Buffers[2];
+	FBufferRHIRef Buffers[2];
 	/** Shader resource views for offset buffers. */
 	FShaderResourceViewRHIRef BufferSRVs[2];
 	/** Unordered access views for offset buffers. */
@@ -178,7 +178,7 @@ class FRadixSortParametersBuffer : public FRenderResource
 public:
 
 	/** The vertex buffer used for storage. */
-	FVertexBufferRHIRef SortParametersBufferRHI;
+	FBufferRHIRef SortParametersBufferRHI;
 	/** Shader resource view in to the vertex buffer. */
 	FShaderResourceViewRHIRef SortParametersBufferSRV;
 	
@@ -868,7 +868,7 @@ static bool RunGPUSortTest(FRHICommandListImmediate& RHICmdList, int32 TestSize,
 	TArray<uint32> RefSortedKeys;
 	TArray<uint32> SortedKeys;
 	TArray<uint32> SortedValues;
-	FVertexBufferRHIRef KeysBufferRHI[2], ValuesBufferRHI[2];
+	FBufferRHIRef KeysBufferRHI[2], ValuesBufferRHI[2];
 	FShaderResourceViewRHIRef KeysBufferSRV[2], ValuesBufferSRV[2];
 	FUnorderedAccessViewRHIRef KeysBufferUAV[2], ValuesBufferUAV[2];
 	int32 ResultBufferIndex;

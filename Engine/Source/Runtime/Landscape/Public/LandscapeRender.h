@@ -458,7 +458,7 @@ class FNullLandscapeRenderSystemResources : public FRenderResource
 {
 public:
 
-	FVertexBufferRHIRef SectionLODBuffer;
+	FBufferRHIRef SectionLODBuffer;
 	FShaderResourceViewRHIRef SectionLODSRV;
 	TUniformBufferRef<FLandscapeSectionLODUniformParameters> UniformBuffer;
 
@@ -549,13 +549,13 @@ struct FLandscapeRenderSystem
 	TArray<FLandscapeComponentSceneProxy*> SceneProxies;
 	TArray<uint8> SectionCurrentFirstLODIndices;
 
-	FVertexBufferRHIRef SectionLODBuffer;
+	FBufferRHIRef SectionLODBuffer;
 	FShaderResourceViewRHIRef SectionLODSRV;
-	FVertexBufferRHIRef SectionLODBiasBuffer;
+	FBufferRHIRef SectionLODBiasBuffer;
 	FShaderResourceViewRHIRef SectionLODBiasSRV;
-	FVertexBufferRHIRef SectionTessellationFalloffCBuffer;
+	FBufferRHIRef SectionTessellationFalloffCBuffer;
 	FShaderResourceViewRHIRef SectionTessellationFalloffCSRV;
-	FVertexBufferRHIRef SectionTessellationFalloffKBuffer;
+	FBufferRHIRef SectionTessellationFalloffKBuffer;
 	FShaderResourceViewRHIRef SectionTessellationFalloffKSRV;
 
 	TUniformBufferRef<FLandscapeSectionLODUniformParameters> UniformBuffer;

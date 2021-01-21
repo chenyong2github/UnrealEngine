@@ -60,8 +60,8 @@ namespace FMaterialBakingModuleImpl
 		// memory is first initialized.
 		const uint32 SmallestPooledBufferSize = 256*1024;
 
-		TArray<FIndexBufferRHIRef>  IndexBuffers;
-		TArray<FVertexBufferRHIRef> VertexBuffers;
+		TArray<FBufferRHIRef>  IndexBuffers;
+		TArray<FBufferRHIRef> VertexBuffers;
 
 		template <typename RefType>
 		RefType GetSmallestFit(uint32 SizeInBytes, TArray<RefType>& Array)
@@ -89,12 +89,12 @@ namespace FMaterialBakingModuleImpl
 			return Ref;
 		}
 
-		virtual FIndexBufferRHIRef AllocIndexBuffer(uint32 NumElements) override
+		virtual FBufferRHIRef AllocIndexBuffer(uint32 NumElements) override
 		{
 			uint32 BufferSize = GetIndexBufferSize(NumElements);
 			if (BufferSize > SmallestPooledBufferSize)
 			{
-				FIndexBufferRHIRef Ref = GetSmallestFit(GetIndexBufferSize(NumElements), IndexBuffers);
+				FBufferRHIRef Ref = GetSmallestFit(GetIndexBufferSize(NumElements), IndexBuffers);
 				if (Ref.IsValid())
 				{
 					return Ref;
@@ -104,7 +104,7 @@ namespace FMaterialBakingModuleImpl
 			return FDynamicMeshBufferAllocator::AllocIndexBuffer(NumElements);
 		}
 
-		virtual void ReleaseIndexBuffer(FIndexBufferRHIRef& IndexBufferRHI) override
+		virtual void ReleaseIndexBuffer(FBufferRHIRef& IndexBufferRHI) override
 		{
 			if (IndexBufferRHI->GetSize() > SmallestPooledBufferSize)
 			{
@@ -114,12 +114,12 @@ namespace FMaterialBakingModuleImpl
 			IndexBufferRHI = nullptr;
 		}
 
-		virtual FVertexBufferRHIRef AllocVertexBuffer(uint32 Stride, uint32 NumElements) override
+		virtual FBufferRHIRef AllocVertexBuffer(uint32 Stride, uint32 NumElements) override
 		{
 			uint32 BufferSize = GetVertexBufferSize(Stride, NumElements);
 			if (BufferSize > SmallestPooledBufferSize)
 			{
-				FVertexBufferRHIRef Ref = GetSmallestFit(BufferSize, VertexBuffers);
+				FBufferRHIRef Ref = GetSmallestFit(BufferSize, VertexBuffers);
 				if (Ref.IsValid())
 				{
 					return Ref;
@@ -129,7 +129,7 @@ namespace FMaterialBakingModuleImpl
 			return FDynamicMeshBufferAllocator::AllocVertexBuffer(Stride, NumElements);
 		}
 
-		virtual void ReleaseVertexBuffer(FVertexBufferRHIRef& VertexBufferRHI) override
+		virtual void ReleaseVertexBuffer(FBufferRHIRef& VertexBufferRHI) override
 		{
 			if (VertexBufferRHI->GetSize() > SmallestPooledBufferSize)
 			{

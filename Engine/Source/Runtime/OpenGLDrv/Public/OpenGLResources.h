@@ -2016,7 +2016,7 @@ public:
 
 	virtual ~FOpenGLVertexBufferUnorderedAccessView();
 
-	FVertexBufferRHIRef VertexBufferRHI; // to keep the vertex buffer alive
+	FBufferRHIRef VertexBufferRHI; // to keep the vertex buffer alive
 
 	FOpenGLDynamicRHI* OpenGLRHI;
 
@@ -2032,7 +2032,7 @@ public:
 
 	virtual ~FOpenGLStructuredBufferUnorderedAccessView();
 
-	FStructuredBufferRHIRef StructuredBufferRHI; // to keep the stuctured buffer alive
+	FBufferRHIRef StructuredBufferRHI; // to keep the stuctured buffer alive
 
 	FOpenGLDynamicRHI* OpenGLRHI;
 
@@ -2056,8 +2056,8 @@ public:
 	int32 LimitMip;
 
 	/** Needed on OS X to force a rebind of the texture buffer to the texture name to workaround radr://18379338 */
-	FVertexBufferRHIRef VertexBuffer;
-	FIndexBufferRHIRef IndexBuffer;
+	FBufferRHIRef VertexBuffer;
+	FBufferRHIRef IndexBuffer;
 	uint64 ModificationVersion;
 	uint8 Format;
 

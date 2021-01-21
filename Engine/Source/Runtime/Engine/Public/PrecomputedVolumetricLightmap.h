@@ -199,10 +199,10 @@ public:
 	/**
 	 * Runtime data for sub level streaming
 	 */
-	FVertexBufferRHIRef SubLevelBrickPositionsBuffer;
+	FBufferRHIRef SubLevelBrickPositionsBuffer;
 	FShaderResourceViewRHIRef SubLevelBrickPositionsSRV;
 
-	FVertexBufferRHIRef IndirectionTextureOriginalValuesBuffer;
+	FBufferRHIRef IndirectionTextureOriginalValuesBuffer;
 	FShaderResourceViewRHIRef IndirectionTextureOriginalValuesSRV;
 
 	int32 BrickDataBaseOffsetInAtlas;

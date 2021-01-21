@@ -73,16 +73,16 @@ protected:
 	/** Correspond to the buffers in FStaticMeshLODResources */
 	struct FIntermediateBuffers
 	{
-		FVertexBufferRHIRef TangentsVertexBuffer;
-		FVertexBufferRHIRef TexCoordVertexBuffer;
-		FVertexBufferRHIRef PositionVertexBuffer;
-		FVertexBufferRHIRef ColorVertexBuffer;
-		FIndexBufferRHIRef IndexBuffer;
-		FIndexBufferRHIRef ReversedIndexBuffer;
-		FIndexBufferRHIRef DepthOnlyIndexBuffer;
-		FIndexBufferRHIRef ReversedDepthOnlyIndexBuffer;
-		FIndexBufferRHIRef WireframeIndexBuffer;
-		FIndexBufferRHIRef AdjacencyIndexBuffer;
+		FBufferRHIRef TangentsVertexBuffer;
+		FBufferRHIRef TexCoordVertexBuffer;
+		FBufferRHIRef PositionVertexBuffer;
+		FBufferRHIRef ColorVertexBuffer;
+		FBufferRHIRef IndexBuffer;
+		FBufferRHIRef ReversedIndexBuffer;
+		FBufferRHIRef DepthOnlyIndexBuffer;
+		FBufferRHIRef ReversedDepthOnlyIndexBuffer;
+		FBufferRHIRef WireframeIndexBuffer;
+		FBufferRHIRef AdjacencyIndexBuffer;
 
 		void CreateFromCPUData_RenderThread(FStaticMeshLODResources& LODResource);
 		void CreateFromCPUData_Async(FStaticMeshLODResources& LODResource);

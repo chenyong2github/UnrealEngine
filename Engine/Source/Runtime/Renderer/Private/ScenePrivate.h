@@ -694,7 +694,7 @@ struct FHLODSceneNodeVisibilityState
 
 struct FExposureBufferData
 {
-	FVertexBufferRHIRef Buffer;
+	FBufferRHIRef Buffer;
 	FShaderResourceViewRHIRef SRV;
 	FUnorderedAccessViewRHIRef UAV;
 
@@ -1089,11 +1089,11 @@ public:
 	FRadianceCacheState RadianceCacheState;
 	FRadianceCacheState RadiosityRadianceCacheState;
 
-	FVertexBufferRHIRef IndirectShadowCapsuleShapesVertexBuffer;
+	FBufferRHIRef IndirectShadowCapsuleShapesVertexBuffer;
 	FShaderResourceViewRHIRef IndirectShadowCapsuleShapesSRV;
-	FVertexBufferRHIRef IndirectShadowMeshDistanceFieldCasterIndicesVertexBuffer;
+	FBufferRHIRef IndirectShadowMeshDistanceFieldCasterIndicesVertexBuffer;
 	FShaderResourceViewRHIRef IndirectShadowMeshDistanceFieldCasterIndicesSRV;
-	FVertexBufferRHIRef IndirectShadowLightDirectionVertexBuffer;
+	FBufferRHIRef IndirectShadowLightDirectionVertexBuffer;
 	FShaderResourceViewRHIRef IndirectShadowLightDirectionSRV;
 	FRWBuffer IndirectShadowVolumetricLightmapDerivedLightDirection;
 	FRWBuffer CapsuleTileIntersectionCountsBuffer;

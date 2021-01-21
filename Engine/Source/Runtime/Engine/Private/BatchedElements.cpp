@@ -720,7 +720,7 @@ void FBatchedElements::DrawPointElements(FRHICommandList& RHICmdList, const FMat
 		const int32 NumVertices = NumTris * 3;
 
 		FRHIResourceCreateInfo CreateInfo;
-		FVertexBufferRHIRef VertexBufferRHI = RHICreateVertexBuffer(sizeof(FSimpleElementVertex) * NumVertices, BUF_Volatile, CreateInfo);
+		FBufferRHIRef VertexBufferRHI = RHICreateVertexBuffer(sizeof(FSimpleElementVertex) * NumVertices, BUF_Volatile, CreateInfo);
 		void* VerticesPtr = RHILockBuffer(VertexBufferRHI, 0, sizeof(FSimpleElementVertex) * NumVertices, RLM_WriteOnly);
 
 		FSimpleElementVertex* PointVertices = (FSimpleElementVertex*)VerticesPtr;
@@ -827,7 +827,7 @@ bool FBatchedElements::Draw(FRHICommandList& RHICmdList, const FMeshPassProcesso
 				RHICmdList.SetStencilRef(StencilRef);
 
 				FRHIResourceCreateInfo CreateInfo;
-				FVertexBufferRHIRef VertexBufferRHI = RHICreateVertexBuffer(sizeof(FSimpleElementVertex) * LineVertices.Num(), BUF_Volatile, CreateInfo);
+				FBufferRHIRef VertexBufferRHI = RHICreateVertexBuffer(sizeof(FSimpleElementVertex) * LineVertices.Num(), BUF_Volatile, CreateInfo);
 				void* VoidPtr = RHILockBuffer(VertexBufferRHI, 0, sizeof(FSimpleElementVertex) * LineVertices.Num(), RLM_WriteOnly);
 
 				FMemory::Memcpy(VoidPtr, LineVertices.GetData(), sizeof(FSimpleElementVertex) * LineVertices.Num());
@@ -898,7 +898,7 @@ bool FBatchedElements::Draw(FRHICommandList& RHICmdList, const FMeshPassProcesso
 					RHICmdList.SetStencilRef(StencilRef);
 
 					FRHIResourceCreateInfo CreateInfo;
-					FVertexBufferRHIRef VertexBufferRHI = RHICreateVertexBuffer(sizeof(FSimpleElementVertex) * 8 * 3 * NumLinesThisBatch, BUF_Volatile, CreateInfo);
+					FBufferRHIRef VertexBufferRHI = RHICreateVertexBuffer(sizeof(FSimpleElementVertex) * 8 * 3 * NumLinesThisBatch, BUF_Volatile, CreateInfo);
 					void* ThickVertexData = RHILockBuffer(VertexBufferRHI, 0, sizeof(FSimpleElementVertex) * 8 * 3 * NumLinesThisBatch, RLM_WriteOnly);
 					FSimpleElementVertex* ThickVertices = (FSimpleElementVertex*)ThickVertexData;
 					check(ThickVertices);
@@ -984,7 +984,7 @@ bool FBatchedElements::Draw(FRHICommandList& RHICmdList, const FMeshPassProcesso
 				check(WireTriVerts.Num() == WireTris.Num() * 3);
 
 				FRHIResourceCreateInfo CreateInfo;
-				FVertexBufferRHIRef VertexBufferRHI = RHICreateVertexBuffer(sizeof(FSimpleElementVertex) * WireTriVerts.Num(), BUF_Volatile, CreateInfo);
+				FBufferRHIRef VertexBufferRHI = RHICreateVertexBuffer(sizeof(FSimpleElementVertex) * WireTriVerts.Num(), BUF_Volatile, CreateInfo);
 				void* VoidPtr = RHILockBuffer(VertexBufferRHI, 0, sizeof(FSimpleElementVertex) * WireTriVerts.Num(), RLM_WriteOnly);
 				FMemory::Memcpy(VoidPtr, WireTriVerts.GetData(), sizeof(FSimpleElementVertex) * WireTriVerts.Num());
 				RHIUnlockBuffer(VertexBufferRHI);
@@ -1072,7 +1072,7 @@ bool FBatchedElements::Draw(FRHICommandList& RHICmdList, const FMeshPassProcesso
 			if (ValidSpriteCount > 0)
 			{
 				FRHIResourceCreateInfo CreateInfo;
-				FVertexBufferRHIRef VertexBufferRHI = RHICreateVertexBuffer(sizeof(FSimpleElementVertex) * ValidSpriteCount * 6, BUF_Volatile, CreateInfo);
+				FBufferRHIRef VertexBufferRHI = RHICreateVertexBuffer(sizeof(FSimpleElementVertex) * ValidSpriteCount * 6, BUF_Volatile, CreateInfo);
 				void* VoidPtr = RHILockBuffer(VertexBufferRHI, 0, sizeof(FSimpleElementVertex) * ValidSpriteCount * 6, RLM_WriteOnly);
 				FSimpleElementVertex* SpriteList = reinterpret_cast<FSimpleElementVertex*>(VoidPtr);
 
@@ -1140,7 +1140,7 @@ bool FBatchedElements::Draw(FRHICommandList& RHICmdList, const FMeshPassProcesso
 		if( MeshElements.Num() > 0)
 		{
 			FRHIResourceCreateInfo CreateInfo;
-			FVertexBufferRHIRef VertexBufferRHI = RHICreateVertexBuffer(sizeof(FSimpleElementVertex) * MeshVertices.Num(), BUF_Volatile, CreateInfo);
+			FBufferRHIRef VertexBufferRHI = RHICreateVertexBuffer(sizeof(FSimpleElementVertex) * MeshVertices.Num(), BUF_Volatile, CreateInfo);
 			void* VoidPtr = RHILockBuffer(VertexBufferRHI, 0, sizeof(FSimpleElementVertex) * MeshVertices.Num(), RLM_WriteOnly);
 			FPlatformMemory::Memcpy(VoidPtr, MeshVertices.GetData(), sizeof(FSimpleElementVertex) * MeshVertices.Num());
 			RHIUnlockBuffer(VertexBufferRHI);
@@ -1166,7 +1166,7 @@ bool FBatchedElements::Draw(FRHICommandList& RHICmdList, const FMeshPassProcesso
 					PrepareShaders(RHICmdList, GraphicsPSOInit, FeatureLevel, MeshElement.BlendMode, Transform, bNeedToSwitchVerticalAxis, MeshElement.BatchedElementParameters, MeshElement.Texture, bHitTesting, Gamma, &MeshElement.GlowInfo, &View);
 					RHICmdList.SetStencilRef(StencilRef);
 
-					FIndexBufferRHIRef IndexBufferRHI = RHICreateIndexBuffer(sizeof(uint16), sizeof(uint16) * MeshElement.Indices.Num(), BUF_Volatile, CreateInfo);
+					FBufferRHIRef IndexBufferRHI = RHICreateIndexBuffer(sizeof(uint16), sizeof(uint16) * MeshElement.Indices.Num(), BUF_Volatile, CreateInfo);
 					void* VoidPtr2 = RHILockBuffer(IndexBufferRHI, 0, sizeof(uint16) * MeshElement.Indices.Num(), RLM_WriteOnly);
 					FPlatformMemory::Memcpy(VoidPtr2, MeshElement.Indices.GetData(), sizeof(uint16) * MeshElement.Indices.Num());
 					RHIUnlockBuffer(IndexBufferRHI);

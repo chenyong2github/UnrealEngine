@@ -182,7 +182,7 @@ void FMultiSizeIndexContainer::SerializeMetaData(FArchive& Ar, bool bNeedsCPUAcc
 	IndexBuffer->SerializeMetaData(Ar);
 }
 
-FIndexBufferRHIRef FMultiSizeIndexContainer::CreateRHIBuffer_RenderThread()
+FBufferRHIRef FMultiSizeIndexContainer::CreateRHIBuffer_RenderThread()
 {
 	if (IndexBuffer)
 	{
@@ -198,7 +198,7 @@ FIndexBufferRHIRef FMultiSizeIndexContainer::CreateRHIBuffer_RenderThread()
 	return nullptr;
 }
 
-FIndexBufferRHIRef FMultiSizeIndexContainer::CreateRHIBuffer_Async()
+FBufferRHIRef FMultiSizeIndexContainer::CreateRHIBuffer_Async()
 {
 	if (IndexBuffer)
 	{

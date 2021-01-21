@@ -462,7 +462,7 @@ public:
 	// Volatile must be written every frame before use.  Supports multiple writes per frame on PS4, unlike Dynamic.
 	bool bVolatile;
 
-	FVertexBufferRHIRef Buffer;
+	FBufferRHIRef Buffer;
 	FShaderResourceViewRHIRef BufferSRV;
 
 	FCPUUpdatedBuffer()

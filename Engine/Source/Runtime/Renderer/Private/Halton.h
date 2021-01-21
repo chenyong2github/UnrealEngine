@@ -67,7 +67,7 @@ public:
 		return Iteration;
 	}
 
-	FStructuredBufferRHIRef SequenceIteration;
+	FBufferRHIRef SequenceIteration;
 
 private:
 	void InitializeSequence();
@@ -122,7 +122,7 @@ public:
 		return DimensionCount;
 	}
 
-	FStructuredBufferRHIRef PrimesBuffer;
+	FBufferRHIRef PrimesBuffer;
 
 private:
 	TArray<int> Primes;

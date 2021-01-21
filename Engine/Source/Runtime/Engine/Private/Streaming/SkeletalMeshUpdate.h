@@ -70,14 +70,14 @@ protected:
 	/** Correspond to the buffers in FSkeletalMeshLODRenderData */
 	struct FIntermediateBuffers
 	{
-		FVertexBufferRHIRef TangentsVertexBuffer;
-		FVertexBufferRHIRef TexCoordVertexBuffer;
-		FVertexBufferRHIRef PositionVertexBuffer;
-		FVertexBufferRHIRef ColorVertexBuffer;
+		FBufferRHIRef TangentsVertexBuffer;
+		FBufferRHIRef TexCoordVertexBuffer;
+		FBufferRHIRef PositionVertexBuffer;
+		FBufferRHIRef ColorVertexBuffer;
 		FSkinWeightRHIInfo SkinWeightVertexBuffer;
-		FVertexBufferRHIRef ClothVertexBuffer;
-		FIndexBufferRHIRef IndexBuffer;
-		FIndexBufferRHIRef AdjacencyIndexBuffer;
+		FBufferRHIRef ClothVertexBuffer;
+		FBufferRHIRef IndexBuffer;
+		FBufferRHIRef AdjacencyIndexBuffer;
 		TArray<TPair<FName, FSkinWeightRHIInfo>> AltSkinWeightVertexBuffers;
 
 		void CreateFromCPUData_RenderThread(FSkeletalMeshLODRenderData& LODResource);

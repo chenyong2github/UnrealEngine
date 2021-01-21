@@ -286,7 +286,7 @@ private:
 		uint32 pad1;
 	};
 
-	FVertexBufferRHIRef BufferSectionTriangleRHI = nullptr;
+	FBufferRHIRef BufferSectionTriangleRHI = nullptr;
 	FShaderResourceViewRHIRef BufferSectionTriangleSRV = nullptr;
 
 	FStaticMeshSectionAreaWeightedTriangleSamplerArray* Samplers = nullptr;

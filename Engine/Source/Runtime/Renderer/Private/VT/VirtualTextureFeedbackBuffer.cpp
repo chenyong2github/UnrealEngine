@@ -119,7 +119,7 @@ void FVirtualTextureFeedbackBuffer::ReleaseRHI()
 	UAV = nullptr;
 }
 
-void SubmitVirtualTextureFeedbackBuffer(FRHICommandListImmediate& RHICmdList, FVertexBufferRHIRef const& InBuffer, FVirtualTextureFeedbackBufferDesc const& InDesc)
+void SubmitVirtualTextureFeedbackBuffer(FRHICommandListImmediate& RHICmdList, FBufferRHIRef const& InBuffer, FVirtualTextureFeedbackBufferDesc const& InDesc)
 {
 	GVirtualTextureFeedback.TransferGPUToCPU(RHICmdList, InBuffer, InDesc);
 }

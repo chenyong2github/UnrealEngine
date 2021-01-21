@@ -84,12 +84,12 @@ namespace VirtualHeightfieldMesh
 	struct FDrawInstanceBuffers
 	{
 		/* Culled instance buffer. */
-		FStructuredBufferRHIRef InstanceBuffer;
+		FBufferRHIRef InstanceBuffer;
 		FUnorderedAccessViewRHIRef InstanceBufferUAV;
 		FShaderResourceViewRHIRef InstanceBufferSRV;
 
 		/* IndirectArgs buffer for final DrawInstancedIndirect. */
-		FVertexBufferRHIRef IndirectArgsBuffer;
+		FBufferRHIRef IndirectArgsBuffer;
 		FUnorderedAccessViewRHIRef IndirectArgsBufferUAV;
 	};
 

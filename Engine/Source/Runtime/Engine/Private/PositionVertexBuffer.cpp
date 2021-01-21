@@ -189,7 +189,7 @@ void FPositionVertexBuffer::operator=(const FPositionVertexBuffer &Other)
 }
 
 template <bool bRenderThread>
-FVertexBufferRHIRef FPositionVertexBuffer::CreateRHIBuffer_Internal()
+FBufferRHIRef FPositionVertexBuffer::CreateRHIBuffer_Internal()
 {
 	if (NumVertices)
 	{
@@ -209,12 +209,12 @@ FVertexBufferRHIRef FPositionVertexBuffer::CreateRHIBuffer_Internal()
 	return nullptr;
 }
 
-FVertexBufferRHIRef FPositionVertexBuffer::CreateRHIBuffer_RenderThread()
+FBufferRHIRef FPositionVertexBuffer::CreateRHIBuffer_RenderThread()
 {
 	return CreateRHIBuffer_Internal<true>();
 }
 
-FVertexBufferRHIRef FPositionVertexBuffer::CreateRHIBuffer_Async()
+FBufferRHIRef FPositionVertexBuffer::CreateRHIBuffer_Async()
 {
 	return CreateRHIBuffer_Internal<false>();
 }

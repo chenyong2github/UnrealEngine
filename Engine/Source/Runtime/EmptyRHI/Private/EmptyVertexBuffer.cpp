@@ -22,7 +22,7 @@ void FEmptyVertexBuffer::Unlock()
 	
 }
 
-FVertexBufferRHIRef FEmptyDynamicRHI::RHICreateVertexBuffer(uint32 Size, uint32 InUsage, FRHIResourceCreateInfo& CreateInfo)
+FBufferRHIRef FEmptyDynamicRHI::RHICreateVertexBuffer(uint32 Size, uint32 InUsage, FRHIResourceCreateInfo& CreateInfo)
 {
 	if (CreateInfo.bCreateRHIObjectOnly)
 	{

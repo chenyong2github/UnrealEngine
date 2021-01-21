@@ -24,7 +24,7 @@ struct FPrimitiveIdVertexBufferPoolEntry
 {
 	int32 BufferSize = 0;
 	uint32 LastDiscardId = 0;
-	FVertexBufferRHIRef BufferRHI;
+	FBufferRHIRef BufferRHI;
 };
 
 class FPrimitiveIdVertexBufferPool : public FRenderResource

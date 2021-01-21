@@ -117,7 +117,7 @@ private:
 
 	TArray<FPageTableUpdate> PageTableUpdates[VIRTUALTEXTURE_SPACE_MAXLAYERS];
 
-	FVertexBufferRHIRef UpdateBuffer;
+	FBufferRHIRef UpdateBuffer;
 	FShaderResourceViewRHIRef UpdateBufferSRV;
 
 	uint32 PageTableSize;

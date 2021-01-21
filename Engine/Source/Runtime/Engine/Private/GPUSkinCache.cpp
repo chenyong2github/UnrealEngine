@@ -1486,7 +1486,7 @@ void FGPUSkinCache::ProcessRayTracingGeometryToUpdate(
 		{
 			uint32 MemoryEstimation = 0;
 
-			FIndexBufferRHIRef IndexBufferRHI = LODModel.MultiSizeIndexContainer.GetIndexBuffer()->IndexBufferRHI;
+			FBufferRHIRef IndexBufferRHI = LODModel.MultiSizeIndexContainer.GetIndexBuffer()->IndexBufferRHI;
 			MemoryEstimation += IndexBufferRHI->GetSize();
 			uint32 VertexBufferStride = LODModel.StaticVertexBuffers.PositionVertexBuffer.GetStride();
 			MemoryEstimation += LODModel.StaticVertexBuffers.PositionVertexBuffer.VertexBufferRHI->GetSize();

@@ -498,7 +498,7 @@ public:
 class RENDERCORE_API FVertexBuffer : public FRenderResource
 {
 public:
-	FVertexBufferRHIRef VertexBufferRHI;
+	FBufferRHIRef VertexBufferRHI;
 
 	/** Destructor. */
 	virtual ~FVertexBuffer() {}
@@ -606,7 +606,7 @@ extern RENDERCORE_API TGlobalResource<FNullVertexBuffer> GNullVertexBuffer;
 class FIndexBuffer : public FRenderResource
 {
 public:
-	FIndexBufferRHIRef IndexBufferRHI;
+	FBufferRHIRef IndexBufferRHI;
 
 	/** Destructor. */
 	virtual ~FIndexBuffer() {}

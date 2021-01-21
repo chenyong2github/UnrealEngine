@@ -205,14 +205,14 @@ void FSimpleHMD::DrawDistortionMesh_RenderThread(struct FHeadMountedDisplayPassC
 	};
 
 	FRHIResourceCreateInfo CreateInfo;
-	FVertexBufferRHIRef VertexBufferRHI = RHICreateVertexBuffer(sizeof(FDistortionVertex) * NumVerts, BUF_Volatile, CreateInfo);
+	FBufferRHIRef VertexBufferRHI = RHICreateVertexBuffer(sizeof(FDistortionVertex) * NumVerts, BUF_Volatile, CreateInfo);
 	void* VoidPtr = RHILockBuffer(VertexBufferRHI, 0, sizeof(FDistortionVertex) * NumVerts, RLM_WriteOnly);
 	FPlatformMemory::Memcpy(VoidPtr, View.StereoPass == eSSP_RIGHT_EYE ? RightVerts : LeftVerts, sizeof(FDistortionVertex) * NumVerts);
 	RHIUnlockBuffer(VertexBufferRHI);
 
 	static const uint16 Indices[] = { 0, 1, 2, 0, 2, 3 };
 
-	FIndexBufferRHIRef IndexBufferRHI = RHICreateIndexBuffer(sizeof(uint16), sizeof(uint16) * 6, BUF_Volatile, CreateInfo);
+	FBufferRHIRef IndexBufferRHI = RHICreateIndexBuffer(sizeof(uint16), sizeof(uint16) * 6, BUF_Volatile, CreateInfo);
 	void* VoidPtr2 = RHILockBuffer(IndexBufferRHI, 0, sizeof(uint16) * 6, RLM_WriteOnly);
 	FPlatformMemory::Memcpy(VoidPtr2, Indices, sizeof(uint16) * 6);
 	RHIUnlockBuffer(IndexBufferRHI);

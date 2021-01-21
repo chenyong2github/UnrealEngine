@@ -31,8 +31,8 @@ public:
 
 	void BuildMesh(const FVector2D Positions[], uint32 VertexCount, EHMDMeshType MeshType);
 
-	FVertexBufferRHIRef VertexBufferRHI;
-	FIndexBufferRHIRef IndexBufferRHI;
+	FBufferRHIRef VertexBufferRHI;
+	FBufferRHIRef IndexBufferRHI;
 
 	unsigned  NumVertices;
 	unsigned  NumIndices;

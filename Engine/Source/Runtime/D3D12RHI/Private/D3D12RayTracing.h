@@ -59,8 +59,8 @@ public:
 	TArray<FRayTracingGeometrySegment> Segments; // Defines addressable parts of the mesh that can be used for material assignment (one segment = one SBT record)
 	D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS BuildFlags;
 
-	FIndexBufferRHIRef  RHIIndexBuffer;
-	static FVertexBufferRHIRef NullTransformBuffer; // Null transform for hidden sections
+	FBufferRHIRef  RHIIndexBuffer;
+	static FBufferRHIRef NullTransformBuffer; // Null transform for hidden sections
 
 	TRefCountPtr<FD3D12Buffer> AccelerationStructureBuffers[MAX_NUM_GPUS];
 	TRefCountPtr<FD3D12Buffer> ScratchBuffers[MAX_NUM_GPUS];

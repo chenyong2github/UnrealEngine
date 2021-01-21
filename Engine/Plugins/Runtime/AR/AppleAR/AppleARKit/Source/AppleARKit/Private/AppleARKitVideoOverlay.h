@@ -102,8 +102,8 @@ private:
 	void UpdateDebugOverlay();
 
 	// 0 for landscape, 1 for portrait
-	FVertexBufferRHIRef OverlayVertexBufferRHI;
-	FIndexBufferRHIRef IndexBufferRHI;
+	FBufferRHIRef OverlayVertexBufferRHI;
+	FBufferRHIRef IndexBufferRHI;
 	
 	EARKitOcclusionType OcclusionType = EARKitOcclusionType::None;
 	

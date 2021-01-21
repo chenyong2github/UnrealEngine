@@ -2371,7 +2371,7 @@ FRayTracingSceneRHIRef FD3D12DynamicRHI::RHICreateRayTracingScene(const FRayTrac
 	return new FD3D12RayTracingScene(&Adapter, Initializer);
 }
 
-FVertexBufferRHIRef FD3D12RayTracingGeometry::NullTransformBuffer;
+FBufferRHIRef FD3D12RayTracingGeometry::NullTransformBuffer;
 
 FD3D12RayTracingGeometry::FD3D12RayTracingGeometry(const FRayTracingGeometryInitializer& Initializer)
 {
@@ -2603,7 +2603,7 @@ void FD3D12RayTracingGeometry::TransitionBuffers(FD3D12CommandContext& CommandCo
 
 	for (const FRayTracingGeometrySegment& Segment : Segments)
 	{
-		const FVertexBufferRHIRef& RHIVertexBuffer = Segment.VertexBuffer;
+		const FBufferRHIRef& RHIVertexBuffer = Segment.VertexBuffer;
 		FD3D12Buffer* VertexBuffer = CommandContext.RetrieveObject<FD3D12Buffer>(RHIVertexBuffer.GetReference());
 		if (VertexBuffer->GetResource()->RequiresResourceStateTracking())
 		{
@@ -4044,7 +4044,7 @@ static void DispatchRays(FD3D12CommandContext& CommandContext,
 
 	FD3D12Adapter* Adapter = CommandContext.GetParentDevice()->GetParentAdapter();
 
-	FVertexBufferRHIRef DispatchRaysDescBufferRHI;
+	FBufferRHIRef DispatchRaysDescBufferRHI;
 	FD3D12Buffer* DispatchRaysDescBuffer = nullptr;
 
 	if (ArgumentBuffer)

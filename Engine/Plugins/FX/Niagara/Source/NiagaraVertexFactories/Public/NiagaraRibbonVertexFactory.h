@@ -135,27 +135,27 @@ public:
 	*/
 	void SetDynamicParameterBuffer(const FVertexBuffer* InDynamicParameterBuffer, int32 ParameterIndex, uint32 StreamOffset, uint32 Stride);
 
-	void SetSortedIndices(const FVertexBufferRHIRef& InSortedIndicesBuffer, const FShaderResourceViewRHIRef& InSortedIndicesSRV, uint32 InSortedIndicesOffset)
+	void SetSortedIndices(const FBufferRHIRef& InSortedIndicesBuffer, const FShaderResourceViewRHIRef& InSortedIndicesSRV, uint32 InSortedIndicesOffset)
 	{
 		SortedIndicesBuffer = InSortedIndicesBuffer;
 		SortedIndicesSRV = InSortedIndicesSRV;
 		SortedIndicesOffset = InSortedIndicesOffset;
 	}
 
-	void SetTangentAndDistances(const FVertexBufferRHIRef& InTangentAndDistancesBuffer, const FShaderResourceViewRHIRef& InTangentAndDistancesSRV)
+	void SetTangentAndDistances(const FBufferRHIRef& InTangentAndDistancesBuffer, const FShaderResourceViewRHIRef& InTangentAndDistancesSRV)
 	{
 		TangentAndDistancesBuffer = InTangentAndDistancesBuffer;
 		TangentAndDistancesSRV = InTangentAndDistancesSRV;
 	}
 
 
-	void SetMultiRibbonIndicesSRV(const FVertexBufferRHIRef& InMultiRibbonIndicesBuffer, const FShaderResourceViewRHIRef& InMultiRibbonIndicesSRV)
+	void SetMultiRibbonIndicesSRV(const FBufferRHIRef& InMultiRibbonIndicesBuffer, const FShaderResourceViewRHIRef& InMultiRibbonIndicesSRV)
 	{
 		MultiRibbonIndicesBuffer = InMultiRibbonIndicesBuffer;
 		MultiRibbonIndicesSRV = InMultiRibbonIndicesSRV;
 	}
 
-	void SetPackedPerRibbonDataByIndexSRV(const FVertexBufferRHIRef& InPackedPerRibbonDataByIndexBuffer, const FShaderResourceViewRHIRef& InPackedPerRibbonDataByIndexSRV)
+	void SetPackedPerRibbonDataByIndexSRV(const FBufferRHIRef& InPackedPerRibbonDataByIndexBuffer, const FShaderResourceViewRHIRef& InPackedPerRibbonDataByIndexSRV)
 	{
 		PackedPerRibbonDataByIndexBuffer = InPackedPerRibbonDataByIndexBuffer;
 		PackedPerRibbonDataByIndexSRV = InPackedPerRibbonDataByIndexSRV;
@@ -224,10 +224,10 @@ private:
 
 	const FNiagaraDataSet *DataSet;
 
-	FVertexBufferRHIRef SortedIndicesBuffer;
-	FVertexBufferRHIRef TangentAndDistancesBuffer;
-	FVertexBufferRHIRef MultiRibbonIndicesBuffer;
-	FVertexBufferRHIRef PackedPerRibbonDataByIndexBuffer;
+	FBufferRHIRef SortedIndicesBuffer;
+	FBufferRHIRef TangentAndDistancesBuffer;
+	FBufferRHIRef MultiRibbonIndicesBuffer;
+	FBufferRHIRef PackedPerRibbonDataByIndexBuffer;
 
 	FShaderResourceViewRHIRef SortedIndicesSRV;
 	FShaderResourceViewRHIRef TangentAndDistancesSRV;

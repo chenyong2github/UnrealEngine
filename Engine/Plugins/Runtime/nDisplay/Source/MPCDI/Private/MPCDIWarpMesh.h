@@ -98,8 +98,8 @@ private:
 
 	FTransform MeshToOrigin;
 
-	FVertexBufferRHIRef VertexBufferRHI;
-	FIndexBufferRHIRef  IndexBufferRHI;
+	FBufferRHIRef VertexBufferRHI;
+	FBufferRHIRef IndexBufferRHI;
 
 	uint32 NumTriangles;
 	uint32 NumVertices;

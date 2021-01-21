@@ -57,10 +57,10 @@ public:
 		return NumSplitsPerMorph[Index];
 	}
 
-	FVertexBufferRHIRef VertexIndicesVB;
+	FBufferRHIRef VertexIndicesVB;
 	FShaderResourceViewRHIRef VertexIndicesSRV;
 
-	FVertexBufferRHIRef MorphDeltasVB;
+	FBufferRHIRef MorphDeltasVB;
 	FShaderResourceViewRHIRef MorphDeltasSRV;
 
 	// Changes to this struct must be reflected in MorphTargets.usf

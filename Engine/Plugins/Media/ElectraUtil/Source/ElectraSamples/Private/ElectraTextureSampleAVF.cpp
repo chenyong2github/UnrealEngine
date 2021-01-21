@@ -248,7 +248,7 @@ void FElectraMediaTexConvApple::ConvertTexture(FTexture2DRHIRef & InDstTexture, 
 
 					PixelShader->SetParameters(RHICmdList, YTex, UVTex, *ColorTransform, MediaShaders::YUVOffset8bits, true);
 
-					FVertexBufferRHIRef VertexBuffer = CreateTempMediaVertexBuffer();
+					FBufferRHIRef VertexBuffer = CreateTempMediaVertexBuffer();
 					RHICmdList.SetStreamSource(0, VertexBuffer, 0);
 					RHICmdList.SetViewport(0, 0, 0.0f, YWidth, YHeight, 1.0f);
 

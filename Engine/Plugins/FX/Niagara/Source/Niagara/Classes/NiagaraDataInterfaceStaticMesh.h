@@ -116,7 +116,7 @@ protected:
 
 	TArray<SectionInfo> ValidSections;					// Only the section we want to spawn from
 
-	FVertexBufferRHIRef BufferSectionRHI = nullptr;
+	FBufferRHIRef BufferSectionRHI = nullptr;
 	FShaderResourceViewRHIRef BufferSectionSRV = nullptr;
 
 	FShaderResourceViewRHIRef BufferUniformTriangleSamplingSRV = nullptr;
@@ -130,11 +130,11 @@ protected:
 	FShaderResourceViewRHIRef MeshColorBufferSRV;
 
 	TResourceArray<FVector4> SocketTransformsResourceArray;
-	FVertexBufferRHIRef SocketTransformsBuffer;
+	FBufferRHIRef SocketTransformsBuffer;
 	FShaderResourceViewRHIRef SocketTransformsSRV;
 
 	TResourceArray<uint16> FilteredAndUnfilteredSocketsResourceArray;
-	FVertexBufferRHIRef FilteredAndUnfilteredSocketsBuffer;
+	FBufferRHIRef FilteredAndUnfilteredSocketsBuffer;
 	FShaderResourceViewRHIRef FilteredAndUnfilteredSocketsSRV;
 
 	uint32 NumSockets = 0;

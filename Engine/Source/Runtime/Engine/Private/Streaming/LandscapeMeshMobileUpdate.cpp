@@ -165,7 +165,7 @@ void FLandscapeMeshMobileStreamOut::ShrinkResources(const FContext& Context)
 			FRHIResourceCreateInfo CreateInfo;
 			FRHIBuffer* LandsacpeVBRHI = RenderData->VertexBuffer->VertexBufferRHI;
 			const int32 NewSize = (int32)LandsacpeVBRHI->GetSize() + SizeDelta;
-			FVertexBufferRHIRef IntermediateVertexBuffer = RHICreateVertexBuffer(NewSize, BUF_Static, CreateInfo);
+			FBufferRHIRef IntermediateVertexBuffer = RHICreateVertexBuffer(NewSize, BUF_Static, CreateInfo);
 			FRHICommandListExecutor::GetImmediateCommandList().CopyBufferRegion(IntermediateVertexBuffer, 0, LandsacpeVBRHI, 0, NewSize);
 
 			TRHIResourceUpdateBatcher<1> Batcher;

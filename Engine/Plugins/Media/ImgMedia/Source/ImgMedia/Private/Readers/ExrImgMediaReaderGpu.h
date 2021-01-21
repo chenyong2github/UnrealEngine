@@ -15,7 +15,7 @@ struct FStructuredBufferPoolItem
 	/**
 	* This is the actual buffer reference that we need to keep after it is locked and until it is unlocked.
 	*/
-	FStructuredBufferRHIRef BufferRef;
+	FBufferRHIRef BufferRef;
 
 	/** 
 	* A pointer to mapped GPU memory.

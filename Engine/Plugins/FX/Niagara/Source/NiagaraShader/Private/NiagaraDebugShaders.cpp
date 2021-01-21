@@ -222,7 +222,7 @@ void NiagaraDebugShaders::DrawDebugLines(
 
 void NiagaraDebugShaders::DrawDebugLines(
 	class FRDGBuilder& GraphBuilder, const class FViewInfo& View, FRDGTextureRef SceneColor, FRDGTextureRef SceneDepth,
-	const FVertexBufferRHIRef& ArgsBuffer, const FShaderResourceViewRHIRef& LineBuffer
+	const FBufferRHIRef& ArgsBuffer, const FShaderResourceViewRHIRef& LineBuffer
 )
 {
 	TShaderMapRef<FNiagaraDebugDrawLineVS> VertexShader(View.ShaderMap);

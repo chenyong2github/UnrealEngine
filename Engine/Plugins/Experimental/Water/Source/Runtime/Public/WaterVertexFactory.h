@@ -46,7 +46,7 @@ public:
 
 private:
 	template <typename IndexType>
-	FIndexBufferRHIRef CreateIndexBuffer()
+	FBufferRHIRef CreateIndexBuffer()
 	{
 		TResourceArray<IndexType, INDEXBUFFER_ALIGNMENT> Indices;
 

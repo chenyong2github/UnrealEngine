@@ -190,7 +190,7 @@ struct FTextureRWBuffer3D
 /** Encapsulates a GPU read/write buffer with its UAV and SRV. */
 struct FRWBuffer
 {
-	FVertexBufferRHIRef Buffer;
+	FBufferRHIRef Buffer;
 	FUnorderedAccessViewRHIRef UAV;
 	FShaderResourceViewRHIRef SRV;
 	uint32 NumBytes;
@@ -358,7 +358,7 @@ struct FTextureReadBuffer2D
 /** Encapsulates a GPU read buffer with its SRV. */
 struct FReadBuffer
 {
-	FVertexBufferRHIRef Buffer;
+	FBufferRHIRef Buffer;
 	FShaderResourceViewRHIRef SRV;
 	uint32 NumBytes;
 
@@ -386,7 +386,7 @@ struct FReadBuffer
 /** Encapsulates a GPU read/write structured buffer with its UAV and SRV. */
 struct FRWBufferStructured
 {
-	FStructuredBufferRHIRef Buffer;
+	FBufferRHIRef Buffer;
 	FUnorderedAccessViewRHIRef UAV;
 	FShaderResourceViewRHIRef SRV;
 	uint32 NumBytes;
@@ -439,7 +439,7 @@ struct FRWBufferStructured
 
 struct FByteAddressBuffer
 {
-	FStructuredBufferRHIRef Buffer;
+	FBufferRHIRef Buffer;
 	FShaderResourceViewRHIRef SRV;
 	uint32 NumBytes;
 

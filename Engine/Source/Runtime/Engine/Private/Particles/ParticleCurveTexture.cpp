@@ -229,7 +229,7 @@ static void InjectCurves(
 		//
 		FRHIResourceCreateInfo CreateInfo;
 		void* ScratchData = nullptr;
-		FVertexBufferRHIRef ScratchVertexBufferRHI = RHICreateAndLockVertexBuffer(TotalSamples * sizeof(FColor), BUF_Volatile , CreateInfo, ScratchData);
+		FBufferRHIRef ScratchVertexBufferRHI = RHICreateAndLockVertexBuffer(TotalSamples * sizeof(FColor), BUF_Volatile , CreateInfo, ScratchData);
 		FColor* RESTRICT DestSamples = (FColor*)ScratchData;
 
 		int32 CurrOffset = 0;

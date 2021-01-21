@@ -25,7 +25,7 @@ bool RunRayTracingTestbed_RenderThread(const FString& Parameters)
 		return true;
 	}
 
-	FVertexBufferRHIRef VertexBuffer;
+	FBufferRHIRef VertexBuffer;
 
 	{
 		TResourceArray<FVector> PositionData;
@@ -40,7 +40,7 @@ bool RunRayTracingTestbed_RenderThread(const FString& Parameters)
 		VertexBuffer = RHICreateVertexBuffer(PositionData.GetResourceDataSize(), BUF_Static, CreateInfo);
 	}
 
-	FIndexBufferRHIRef IndexBuffer;
+	FBufferRHIRef IndexBuffer;
 
 	{
 		TResourceArray<uint16> IndexData;
@@ -57,7 +57,7 @@ bool RunRayTracingTestbed_RenderThread(const FString& Parameters)
 
 	static constexpr uint32 NumRays = 4;
 
-	FStructuredBufferRHIRef RayBuffer;
+	FBufferRHIRef RayBuffer;
 	FShaderResourceViewRHIRef RayBufferView;
 
 	{
@@ -75,7 +75,7 @@ bool RunRayTracingTestbed_RenderThread(const FString& Parameters)
 		RayBufferView = RHICreateShaderResourceView(RayBuffer);
 	}
 
-	FVertexBufferRHIRef OcclusionResultBuffer;
+	FBufferRHIRef OcclusionResultBuffer;
 	FUnorderedAccessViewRHIRef OcclusionResultBufferView;
 
 	{
@@ -84,7 +84,7 @@ bool RunRayTracingTestbed_RenderThread(const FString& Parameters)
 		OcclusionResultBufferView = RHICreateUnorderedAccessView(OcclusionResultBuffer, PF_R32_UINT);
 	}
 
-	FVertexBufferRHIRef IntersectionResultBuffer;
+	FBufferRHIRef IntersectionResultBuffer;
 	FUnorderedAccessViewRHIRef IntersectionResultBufferView;
 
 	{

@@ -129,7 +129,7 @@ struct FRayTracingGeometrySegment
 {
 	DECLARE_TYPE_LAYOUT(FRayTracingGeometrySegment, NonVirtual);
 public:
-	LAYOUT_FIELD_INITIALIZED(FVertexBufferRHIRef, VertexBuffer, nullptr);
+	LAYOUT_FIELD_INITIALIZED(FBufferRHIRef, VertexBuffer, nullptr);
 	LAYOUT_FIELD_INITIALIZED(EVertexElementType, VertexBufferElementType, VET_Float3);
 
 	// Offset in bytes from the base address of the vertex buffer.
@@ -159,7 +159,7 @@ struct FRayTracingGeometryInitializer
 {
 	DECLARE_EXPORTED_TYPE_LAYOUT(FRayTracingGeometryInitializer, RHI_API, NonVirtual);
 public:
-	LAYOUT_FIELD_INITIALIZED(FIndexBufferRHIRef, IndexBuffer, nullptr);
+	LAYOUT_FIELD_INITIALIZED(FBufferRHIRef, IndexBuffer, nullptr);
 
 	// Offset in bytes from the base address of the index buffer.
 	LAYOUT_FIELD_INITIALIZED(uint32, IndexBufferOffset, 0);

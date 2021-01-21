@@ -869,7 +869,7 @@ static void InternalBuildStrandsTextures_GPU(
 			FRHIShaderResourceView* PositionBuffer = nullptr;
 			FRHIShaderResourceView* UVsBuffer = nullptr;
 			FRHIShaderResourceView* TangentBuffer = nullptr;
-			FIndexBufferRHIRef IndexBuffer = nullptr;
+			FBufferRHIRef IndexBuffer = nullptr;
 			uint32 TotalVertexCount = 0;
 			uint32 TotalIndexCount = 0;
 			uint32 UVsChannelIndex = InInfo.UVChannelIndex;
