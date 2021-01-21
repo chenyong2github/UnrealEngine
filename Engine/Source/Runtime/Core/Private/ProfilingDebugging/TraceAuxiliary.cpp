@@ -413,7 +413,8 @@ void FTraceAuxiliary::Initialize(const TCHAR* CommandLine)
 	UE::Trace::Initialize(Desc);
 
 	FCoreDelegates::OnEndFrame.AddStatic(UE::Trace::Update);
-	FModuleManager::Get().OnModulesChanged().AddLambda([](FName Name, EModuleChangeReason Reason){
+	FModuleManager::Get().OnModulesChanged().AddLambda([](FName Name, EModuleChangeReason Reason)
+	{
 		if (Reason == EModuleChangeReason::ModuleLoaded)
 		{
 			EnableChannels();
