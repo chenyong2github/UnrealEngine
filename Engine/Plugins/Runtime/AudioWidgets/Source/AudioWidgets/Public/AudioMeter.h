@@ -24,7 +24,7 @@ class SAudioMeter;
  * 
  */
 UCLASS()
-class AUDIOWIDGETS_API UAudioMeter2: public UWidget
+class AUDIOWIDGETS_API UAudioMeter: public UWidget
 {
 	GENERATED_UCLASS_BODY()
 
