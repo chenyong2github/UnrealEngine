@@ -167,9 +167,10 @@ int8 UMovieSceneCinematicShotTrack::GetEvaluationFieldVersion() const
 }
 
 #if WITH_EDITOR
-void UMovieSceneCinematicShotTrack::OnSectionMoved(UMovieSceneSection& Section, const FMovieSceneSectionMovedParams& Params)
+EMovieSceneSectionMovedResult UMovieSceneCinematicShotTrack::OnSectionMoved(UMovieSceneSection& Section, const FMovieSceneSectionMovedParams& Params)
 {
 	//MovieSceneHelpers::FixupConsecutiveSections(Sections, Section, false);
+	return EMovieSceneSectionMovedResult::None;
 }
 #endif
 

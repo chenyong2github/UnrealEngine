@@ -181,16 +181,20 @@ FText UMovieSceneCameraCutTrack::GetDefaultDisplayName() const
 
 
 #if WITH_EDITOR
-void UMovieSceneCameraCutTrack::OnSectionMoved(UMovieSceneSection& Section, const FMovieSceneSectionMovedParams& Params)
+EMovieSceneSectionMovedResult UMovieSceneCameraCutTrack::OnSectionMoved(UMovieSceneSection& Section, const FMovieSceneSectionMovedParams& Params)
 {
+	const bool bCleanUp = (Params.MoveType == EPropertyChangeType::ValueSet);
+	bool bCleanUpDone = false;
 	if (bCanBlend)
 	{
-		MovieSceneHelpers::FixupConsecutiveBlendingSections(Sections, Section, false);
+		bCleanUpDone = MovieSceneHelpers::FixupConsecutiveBlendingSections(Sections, Section, false, bCleanUp);
 	}
 	else
 	{
-		MovieSceneHelpers::FixupConsecutiveSections(Sections, Section, false);
+		bCleanUpDone = MovieSceneHelpers::FixupConsecutiveSections(Sections, Section, false, bCleanUp);
 	}
+
+	return bCleanUpDone ? EMovieSceneSectionMovedResult::SectionsChanged : EMovieSceneSectionMovedResult::None;
 }
 #endif
 
