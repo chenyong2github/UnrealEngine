@@ -2,6 +2,10 @@
 
 #include "PhysicsEngine/Experimental//ChaosCooking.h"
 #include "ChaosDerivedDataUtil.h"
+#include "Chaos/Particles.h"
+#include "Chaos/AABB.h"
+#include "Chaos/Convex.h"
+#include "Chaos/TriangleMeshImplicitObject.h"
 
 #if WITH_CHAOS
 
