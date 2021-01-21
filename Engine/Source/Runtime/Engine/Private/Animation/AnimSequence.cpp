@@ -5535,9 +5535,6 @@ void UAnimSequence::PopulateModel()
 	DeleteDeprecatedRawAnimationData();
 	
 	Controller->CloseBracket();
-
-	ResampleAnimationTrackData();
-	RequestSyncAnimRecompression(false);
 }
 
 void UAnimSequence::OnModelModified(const EAnimDataModelNotifyType& NotifyType, UAnimDataModel* Model, const FAnimDataModelNotifPayload& Payload)
