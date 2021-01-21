@@ -63,7 +63,7 @@ namespace Chaos
 				{
 					FVec3 LocalA,LocalB,LocalNormal;
 					int32 ClosestVertexIndexA, ClosestVertexIndexB;
-					if(GJKPenetration<false, FReal>(AConcrete,B,BToAFullTM,OutMTD->Penetration,LocalA,LocalB,LocalNormal,ClosestVertexIndexA,ClosestVertexIndexB,Thickness,Offset.SizeSquared() < 1e-4 ? FVec3(1,0,0) : Offset))
+					if(GJKPenetration<false, FReal>(AConcrete,B,BToAFullTM,OutMTD->Penetration,LocalA,LocalB,LocalNormal,ClosestVertexIndexA,ClosestVertexIndexB,Thickness,0.0f,Offset.SizeSquared() < 1e-4 ? FVec3(1,0,0) : Offset))
 					{
 						OutMTD->Normal = ATM.TransformVectorNoScale(LocalNormal);
 						return true;

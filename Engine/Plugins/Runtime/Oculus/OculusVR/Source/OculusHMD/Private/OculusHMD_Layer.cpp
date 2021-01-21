@@ -549,7 +549,8 @@ void FLayer::Initialize_RenderThread(const FSettings* Settings, FCustomPresent* 
 			uint32 NumSamplesTileMem = 1;
 			if (OvrpLayerDesc.Shape == ovrpShape_EyeFov)
 			{
-				NumSamplesTileMem = CustomPresent->GetSystemRecommendedMSAALevel();
+				static const auto CVarMobileMSAA = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.MobileMSAA"));
+				NumSamplesTileMem = (CVarMobileMSAA ? CVarMobileMSAA->GetValueOnAnyThread() : 1);
 			}
 
 			ERHIResourceType ResourceType;			
@@ -569,7 +570,7 @@ void FLayer::Initialize_RenderThread(const FSettings* Settings, FCustomPresent* 
 			const bool bNeedsSRGBFlag = bNeedsTexSrgbCreate || CustomPresent->IsSRGB(OvrpLayerDesc.Format);
 
 			ETextureCreateFlags ColorTexCreateFlags = TexCreate_ShaderResource | TexCreate_RenderTargetable | (bNeedsSRGBFlag ? TexCreate_SRGB : TexCreate_None);
-			ETextureCreateFlags DepthTexCreateFlags = TexCreate_ShaderResource | TexCreate_DepthStencilTargetable;
+			ETextureCreateFlags DepthTexCreateFlags = TexCreate_ShaderResource | TexCreate_DepthStencilTargetable | TexCreate_InputAttachmentRead;
 
 			if (Desc.Texture.IsValid())
 			{

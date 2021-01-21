@@ -846,7 +846,6 @@ void FDeferredShadingSceneRenderer::RenderForwardShadowProjections(
 			AddClearRenderTargetPass(GraphBuilder, ForwardScreenSpaceShadowMaskSubPixel.Target);
 		}
 
-		const FHairStrandsVisibilityViews* HairVisibilityViews = bIsHairEnable ? &InHairDatas->HairVisibilityViews : nullptr;
 		const bool bProjectingForForwardShading = true;
 
 		for (TSparseArray<FLightSceneInfoCompact>::TConstIterator LightIt(Scene->Lights); LightIt; ++LightIt)
@@ -869,7 +868,7 @@ void FDeferredShadingSceneRenderer::RenderForwardShadowProjections(
 					ForwardScreenSpaceShadowMask.Target,
 					ForwardScreenSpaceShadowMaskSubPixel.Target,
 					LightSceneInfo,
-					HairVisibilityViews,
+					InHairDatas,
 					bProjectingForForwardShading);
 
 				if (InHairDatas)

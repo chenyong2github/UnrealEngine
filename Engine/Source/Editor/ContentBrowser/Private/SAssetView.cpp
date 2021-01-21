@@ -585,6 +585,8 @@ void SAssetView::NewFolderItemRequested(const FContentBrowserItemTemporaryContex
 	// Defer folder creation until next tick, so we get a chance to refresh the view
 	DeferredItemToCreate = MakeUnique<FCreateDeferredItemData>();
 	DeferredItemToCreate->ItemContext = NewItemContext;
+
+	UE_LOG(LogContentBrowser, Log, TEXT("Deferred new asset folder creation: %s"), *NewItemContext.GetItem().GetItemName().ToString());
 }
 
 void SAssetView::NewFileItemRequested(const FContentBrowserItemDataTemporaryContext& NewItemContext)
@@ -608,6 +610,8 @@ void SAssetView::NewFileItemRequested(const FContentBrowserItemDataTemporaryCont
 	// Defer file creation until next tick, so we get a chance to refresh the view
 	DeferredItemToCreate = MakeUnique<FCreateDeferredItemData>();
 	DeferredItemToCreate->ItemContext.AppendContext(CopyTemp(NewItemContext));
+
+	UE_LOG(LogContentBrowser, Log, TEXT("Deferred new asset file creation: %s"), *NewItemContext.GetItemData().GetItemName().ToString());
 }
 
 void SAssetView::BeginCreateDeferredItem()
@@ -623,6 +627,8 @@ void SAssetView::BeginCreateDeferredItem()
 
 		SetSelection(NewItem);
 		RequestScrollIntoView(NewItem);
+
+		UE_LOG(LogContentBrowser, Log, TEXT("Creating deferred item: %s"), *NewItem->GetItem().GetItemName().ToString());
 	}
 }
 
@@ -646,9 +652,12 @@ FContentBrowserItem SAssetView::EndCreateDeferredItem(const TSharedPtr<FAssetVie
 				FinalizedItem = DeferredItemToCreate->ItemContext.FinalizeItem(InName, &OutErrorText);
 			}
 		}
-
-		DeferredItemToCreate.Reset();
 	}
+
+	// Always reset the deferred item to avoid having it dangle, which can lead to potential crashes.
+	DeferredItemToCreate.Reset();
+
+	UE_LOG(LogContentBrowser, Log, TEXT("End creating deferred item %s"), *InItem->GetItem().GetItemName().ToString());
 
 	return FinalizedItem;
 }
@@ -3560,6 +3569,8 @@ void SAssetView::AssetRenameCommit(const TSharedPtr<FAssetViewItem>& Item, const
 	bool bSuccess = false;
 	FText ErrorMessage;
 	TSharedPtr<FAssetViewItem> UpdatedItem;
+
+	UE_LOG(LogContentBrowser, Log, TEXT("Attempting asset rename: %s -> %s"), *Item->GetItem().GetItemName().ToString(), *NewName);
 
 	if (DeferredItemToCreate.IsValid() && DeferredItemToCreate->bWasAddedToView)
 	{

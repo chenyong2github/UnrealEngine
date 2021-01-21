@@ -82,17 +82,6 @@ FAutoConsoleVariableRef CVarConstraintsDetailedStats(TEXT("p.Chaos.Constraints.D
 int32 AlwaysAddSweptConstraints = 0;
 FAutoConsoleVariableRef CVarAlwaysAddSweptConstraints(TEXT("p.Chaos.Constraints.AlwaysAddSweptConstraints"), AlwaysAddSweptConstraints, TEXT("Since GJKContactPointSwept returns infinity for it's contact data when not hitting anything, some contacts are discarded prematurely. This flag will cause contact points considered for sweeps to never be discarded."));
 
-int32 GJKContactPointSweptPhiCap = 1;
-FAutoConsoleVariableRef CVarGJKContactPointSweptPhiCap(TEXT("p.Chaos.Constraints.GJKContactPointSweptPhiCap"), GJKContactPointSweptPhiCap, TEXT("When GJKContactPointSwept does not touch a surface, rather than returning an invalid contact point with Phi = FLOAT_MAX, we clamp Phi to CullDistance - Epsilon so that the contact doesn't get immediately thrown out. This protects us from the case of throwing out contacts that we are sweeping parallel to and will need during swept iterations in resolution."));
-
-float GJKContactPointSweptPhiCapEpsilon = 1.e-4f;
-FAutoConsoleVariableRef CVarGJKContactPointSweptPhiCapEpsilon(TEXT("p.Chaos.Constraints.GJKContactPointSweptPhiCapEpsilon"), GJKContactPointSweptPhiCapEpsilon, TEXT("The epislon value to use when capping Phi in GJKContactPointSwept."));
-
-// If GJKPenetration returns a phi of abs value < this number, we use PhiWithNormal to resample phi and normal.
-// We have observed bad normals coming from GJKPenetration when barely in contact.
-float Chaos_Collision_PhiResampleThreshold = 0.001f;
-FAutoConsoleVariableRef CVarChaosCollisionPhiResampleThreshold(TEXT("p.Chaos.Collision.PhiResampleThreshold"), Chaos_Collision_PhiResampleThreshold, TEXT(""));
-
 //float Chaos_Collision_ManifoldFaceAngle = 5.0f;
 //float Chaos_Collision_ManifoldFaceEpsilon = FMath::Sin(FMath::DegreesToRadians(Chaos_Collision_ManifoldFaceAngle));
 //FConsoleVariableDelegate Chaos_Collision_ManifoldFaceDelegate = FConsoleVariableDelegate::CreateLambda([](IConsoleVariable* CVar) { Chaos_Collision_ManifoldFaceEpsilon = FMath::Sin(FMath::DegreesToRadians(Chaos_Collision_ManifoldFaceAngle)); });
@@ -242,17 +231,6 @@ namespace Chaos
 			}
 		}
 
-		// @todo(chaos): remove this version (see UpdateGenericConvexConvexConstraint and Swept contacts)
-		void UpdateContactPoint(FCollisionContact& Manifold, const FContactPoint& ContactPoint)
-		{
-			if (ContactPoint.Phi < Manifold.Phi)
-			{
-				Manifold.Location = ContactPoint.Location;
-				Manifold.Normal = ContactPoint.Normal;
-				Manifold.Phi = ContactPoint.Phi;
-			}
-		}
-
 		void UpdateContactPoint(FRigidBodyPointContactConstraint& Constraint, const FContactPoint& ContactPoint, const FReal Dt)
 		{
 			// Ignore points that have not been initialized - if there is no detectable contact 
@@ -277,14 +255,13 @@ namespace Chaos
 			// Slightly increased epsilon to reduce error in normal for almost touching objects.
 			const FReal Epsilon = 3.e-3f;
 
-			const FReal ThicknessA = A.GetMargin() + 0.5f * ShapePadding;
-			const FReal ThicknessB = B.GetMargin() + 0.5f * ShapePadding;
-			if (ensure(GJKPenetrationCore<true>(A, B, BToATM, Penetration, ClosestA, ClosestBInA, Normal, ClosestVertexIndexA, ClosestVertexIndexB, ThicknessA, ThicknessB, InitialDir, Epsilon)))
+			const FReal ThicknessA = 0.5f * ShapePadding;
+			const FReal ThicknessB = 0.5f * ShapePadding;
+			if (GJKPenetration<true>(A, B, BToATM, Penetration, ClosestA, ClosestBInA, Normal, ClosestVertexIndexA, ClosestVertexIndexB, ThicknessA, ThicknessB, InitialDir, Epsilon))
 			{
 				// GJK output is all in the local space of A. We need to transform the B-relative position and the normal in to B-space
-				// The Closest Points are without the margins, as required by the Collision Solver
-				Contact.ShapeMargins[0] = ThicknessA;
-				Contact.ShapeMargins[1] = ThicknessB;
+				Contact.ShapeMargins[0] = 0.0f;
+				Contact.ShapeMargins[1] = 0.0f;
 				Contact.ShapeContactPoints[0] = ClosestA;
 				Contact.ShapeContactPoints[1] = BToATM.InverseTransformPosition(ClosestBInA);
 				Contact.ShapeContactNormal = -BToATM.InverseTransformVector(Normal);
@@ -300,17 +277,7 @@ namespace Chaos
 		FContactPoint GJKContactPoint(const GeometryA& A, const FRigidTransform3& ATM, const GeometryB& B, const FRigidTransform3& BTM, const FVec3& InitialDir, const FReal ShapePadding)
 		{
 			const FRigidTransform3 BToATM = BTM.GetRelativeTransform(ATM);
-			FContactPoint ContactPoint = GJKContactPoint2(A, B, ATM, BToATM, InitialDir, ShapePadding);
-
-			// @todo(chaos): this does not work well - do something better. If GJK returns a normal that is off enough for PhiWithNormal to select the wrong face. we can end up with objects popping through each other.
-			// If GJKPenetration returns a phi of abs value < this number, we use PhiWithNormal to recalculate phi and normal.
-			// We have observed bad normals coming from GJKPenetration when barely in contact. This is caused by the renormalization of small vectors.
-			if (FMath::Abs(ContactPoint.Phi) < Chaos_Collision_PhiResampleThreshold)
-			{
-				//FixGJKPenetrationNormal(ContactPoint, B, BTM);
-			}
-
-			return ContactPoint;
+			return GJKContactPoint2(A, B, ATM, BToATM, InitialDir, ShapePadding);
 		}
 
 		template <typename GeometryA, typename GeometryB>
@@ -322,23 +289,17 @@ namespace Chaos
 
 			FReal OutTime;
 			FVec3 Location, Normal;
-			int32 NumIterations = 0;
-
 			if (GJKRaycast2(B, A, AToBTM, LocalDir, Length, OutTime, Location, Normal, (FReal)0, true))
 			{
+				// GJK output is all in the local space of B. We need to transform the B-relative position and the normal in to B-space
+				Contact.ShapeMargins[0] = 0.0f;
+				Contact.ShapeMargins[1] = 0.0f;
+				Contact.ShapeContactPoints[0] = AToBTM.InverseTransformPosition(Location);
+				Contact.ShapeContactPoints[1] = Location;
+				Contact.ShapeContactNormal = -Normal;
 				Contact.Location = BTM.TransformPosition(Location);
 				Contact.Normal = BTM.TransformVectorNoScale(Normal);
 				ComputeSweptContactPhiAndTOIHelper(Contact.Normal, Dir, Length, OutTime, TOI, Contact.Phi);
-			}
-			else if (GJKContactPointSweptPhiCap)
-			{
-				// NOTE: This is a total hack.
-				// A more correct solution might be to figure out a way to allow positive Phi values
-				// to be produced by GJKRaycast2. At the moment when sweeping parallel to a surface
-				// which should be detected by padding by the CullDistance, this contact is discarded
-				// beacuse GJKRaycast2 will not set Phi and it will stay at FLOAT_MAX, thus preventing
-				// the contact from being added.
-				Contact.Phi = CullDistance - (FReal)GJKContactPointSweptPhiCapEpsilon;
 			}
 
 			return Contact;
@@ -418,6 +379,7 @@ namespace Chaos
 
 			Utilities::CastHelper(A, AStartTransform, [&](const auto& ADowncast, const FRigidTransform3& AFullTM)
 			{
+				// @todo(chaos): handle instances with margin
 				if (B.SweepGeom(ADowncast, AToBTM, LocalDir, Length, OutTime, Location, Normal, FaceIndex, 0.0f, true))
 				{
 					// @todo(chaos): margin
@@ -454,6 +416,7 @@ namespace Chaos
 
 			Utilities::CastHelper(A, AStartTransform, [&](const auto& ADowncast, const FRigidTransform3& AFullTM)
 			{
+				// @todo(chaos): handle Instanced with margin
 				if (B.LowLevelSweepGeom(ADowncast, AToBTM, LocalDir, Length, OutTime, Location, Normal, FaceIndex, 0.0f, true))
 				{
 					Contact.Location = BTransform.TransformPosition(Location);
@@ -515,6 +478,11 @@ namespace Chaos
 		};
 		template<>
 		struct TConvexImplicitTraits<FImplicitConvex3>
+		{
+			static const bool bSupportsOneShotManifold = true;
+		};
+		template<>
+		struct TConvexImplicitTraits<TImplicitObjectInstanced<FImplicitConvex3>>
 		{
 			static const bool bSupportsOneShotManifold = true;
 		};
@@ -587,9 +555,9 @@ namespace Chaos
 		void UpdateGenericConvexConvexConstraintHelper(const FImplicitObject& A, const FRigidTransform3& ATM, const FImplicitObject& B, const FRigidTransform3& BTM, const FReal CullDistance, const FReal Dt, const FReal ShapePadding, FRigidBodyPointContactConstraint& Constraint)
 		{
 			// This expands to a switch of switches that calls the inner function with the appropriate concrete implicit types
-			Utilities::CastHelper(A, ATM, [&](const auto& ADowncast, const FRigidTransform3& AFullTM)
+			Utilities::CastHelperNoUnwrap(A, ATM, [&](const auto& ADowncast, const FRigidTransform3& AFullTM)
 			{
-				Utilities::CastHelper(B, BTM, [&](const auto& BDowncast, const FRigidTransform3& BFullTM)
+				Utilities::CastHelperNoUnwrap(B, BTM, [&](const auto& BDowncast, const FRigidTransform3& BFullTM)
 				{
 					FConvexConvexUpdaterCaller::Update(ADowncast, AFullTM, BDowncast, BFullTM, CullDistance, Dt, ShapePadding, Constraint);
 				});
@@ -599,9 +567,9 @@ namespace Chaos
 		FContactPoint GenericConvexConvexContactPoint(const FImplicitObject& A, const FRigidTransform3& ATM, const FImplicitObject& B, const FRigidTransform3& BTM, const FReal CullDistance, const FReal ShapePadding)
 		{
 			// This expands to a switch of switches that calls the inner function with the appropriate concrete implicit types
-			return Utilities::CastHelper(A, ATM, [&](const auto& ADowncast, const FRigidTransform3& AFullTM)
+			return Utilities::CastHelperNoUnwrap(A, ATM, [&](const auto& ADowncast, const FRigidTransform3& AFullTM)
 			{
-				return Utilities::CastHelper(B, BTM, [&](const auto& BDowncast, const FRigidTransform3& BFullTM)
+				return Utilities::CastHelperNoUnwrap(B, BTM, [&](const auto& BDowncast, const FRigidTransform3& BFullTM)
 				{
 					return GJKContactPoint(ADowncast, AFullTM, BDowncast, BFullTM, FVec3(1, 0, 0), ShapePadding);
 				});
@@ -611,9 +579,9 @@ namespace Chaos
 		FContactPoint GenericConvexConvexContactPointSwept(const FImplicitObject& A, const FRigidTransform3& ATM, const FImplicitObject& B, const FRigidTransform3& BTM, const FVec3& Dir, const FReal Length, const FReal CullDistance, FReal& TOI)
 		{
 			// This expands to a switch of switches that calls the inner function with the appropriate concrete implicit types
-			return Utilities::CastHelper(A, ATM, [&](const auto& ADowncast, const FRigidTransform3& AFullTM)
+			return Utilities::CastHelperNoUnwrap(A, ATM, [&](const auto& ADowncast, const FRigidTransform3& AFullTM)
 			{
-				return Utilities::CastHelper(B, BTM, [&](const auto& BDowncast, const FRigidTransform3& BFullTM)
+				return Utilities::CastHelperNoUnwrap(B, BTM, [&](const auto& BDowncast, const FRigidTransform3& BFullTM)
 				{
 					return GJKContactPointSwept(ADowncast, AFullTM, BDowncast, BFullTM, Dir, Length, CullDistance, TOI);
 				});
@@ -780,8 +748,8 @@ namespace Chaos
 				Contact.Location = AverageLocation / NumConstraints;
 			}
 
-			Contact.ShapeMargins[0] = Box.GetMargin();
-			Contact.ShapeMargins[1] = Plane.GetMargin();
+			Contact.ShapeMargins[0] = 0.0f;
+			Contact.ShapeMargins[1] = 0.0f;
 			Contact.ShapeContactPoints[0] = BoxTransform.InverseTransformPosition(Contact.Location);
 			Contact.ShapeContactPoints[1] = PlaneTransform.InverseTransformPosition(Contact.Location - Contact.Phi * Contact.Normal);
 			Contact.ShapeContactNormal = PlaneTransform.InverseTransformVector(Contact.Normal);
@@ -1384,7 +1352,7 @@ namespace Chaos
 		//	int32 ClosestVertexIndexBox, ClosestVertexIndexCapsule;
 		//	{
 		//		SCOPE_CYCLE_COUNTER_GJK();
-		//		if (!ensure(GJKPenetration<true>(Box, Capsule, CapsuleToBoxTM, Penetration, BoxClosestBoxSpace, CapsuleClosestBoxSpace, NormalBoxSpace, ClosestVertexIndexBox, ClosestVertexIndexCapsule, (FReal)0, InitialDir, (FReal)0)))
+		//		if (!ensure(GJKPenetration<true>(Box, Capsule, CapsuleToBoxTM, Penetration, BoxClosestBoxSpace, CapsuleClosestBoxSpace, NormalBoxSpace, ClosestVertexIndexBox, ClosestVertexIndexCapsule, (FReal)0, (FReal)0, InitialDir)))
 		//		{
 		//			return;
 		//		}
@@ -2590,17 +2558,19 @@ namespace Chaos
 				ConstructConstraints<T_TRAITS>(Particle0, Particle1, Implicit0, Simplicial0, TransformedImplicit1->GetTransformedObject(), Simplicial1, LocalTransform0, TransformedTransform1, CullDistance, Dt, Context, NewConstraints);
 				return;
 			}
-			// Handle Instanced shapes
-			// NOTE: Tri Meshes are handled differently. We should probably do something about this...
+
+			// Strip the Instanced wrapper from most shapes, but not Convex or TriMesh.
+			// Convex collision requires the wrapper because it holds the margin.
+			// @todo(chaos): this collision logic is getting out of hand - can we make a better shape class hierarchy?
 			if (((uint32)Implicit0OuterType & ImplicitObjectType::IsInstanced) || ((uint32)Implicit1OuterType & ImplicitObjectType::IsInstanced))
 			{
-				const FImplicitObject* InnerImplicit0 = Implicit0;
-				const FImplicitObject* InnerImplicit1 = Implicit1;
-				if ((uint32)Implicit0OuterType & ImplicitObjectType::IsInstanced)
+				const FImplicitObject* InnerImplicit0 = nullptr;
+				const FImplicitObject* InnerImplicit1 = nullptr;
+				if (((uint32)Implicit0OuterType & ImplicitObjectType::IsInstanced) && (Implicit0Type != FImplicitConvex3::StaticType()))
 				{
 					InnerImplicit0 = GetInstancedImplicit(Implicit0);
 				}
-				if ((uint32)Implicit1OuterType & ImplicitObjectType::IsInstanced)
+				if (((uint32)Implicit1OuterType & ImplicitObjectType::IsInstanced) && (Implicit1Type != FImplicitConvex3::StaticType()))
 				{
 					InnerImplicit1 = GetInstancedImplicit(Implicit1);
 				}

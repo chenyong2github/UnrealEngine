@@ -29,7 +29,7 @@ void UDataRegistry::BeginDestroy()
 {
 	if (Cache && !IsEngineExitRequested())
 	{
-		Cache->ClearCache();
+		Cache->ClearCache(true);
 
 		// Can't be a fancy template because UObjects want the all members fully defined, and I want it to be raw for access perf
 		delete Cache;
@@ -88,7 +88,7 @@ FText UDataRegistry::GetRegistryDescription() const
 		FormatDescription = LOCTEXT("SimpleFormat", "using names");
 	}
 
-	return FText::Format(LOCTEXT("RegistryDescription_Format", "{0}: {1}, {2}"), FText::AsCultureInvariant(GetName()), FText::AsCultureInvariant(GetRegistryType().ToString()), FormatDescription);
+	return FText::Format(LOCTEXT("RegistryDescription_Format", "{0}: Type {1}, {2}"), FText::AsCultureInvariant(GetName()), FText::AsCultureInvariant(GetRegistryType().ToString()), FormatDescription);
 }
 
 bool UDataRegistry::IsInitialized() const
@@ -174,8 +174,8 @@ void UDataRegistry::ResetRuntimeState()
 		}
 	}
 
+	Cache->ClearCache(true);
 	InvalidateCacheVersion();
-	Cache->ClearCache();
 }
 
 void UDataRegistry::MarkRuntimeDirty()
@@ -206,11 +206,8 @@ bool UDataRegistry::RegisterSpecificAsset(const FAssetData& AssetData, int32 Ass
 
 	if (bMadeChange && IsInitialized())
 	{
-		RefreshRuntimeSources();
-
 		// Don't want to do a full reset, but do clear cache as lookup rules may have changed
-		InvalidateCacheVersion();
-		Cache->ClearCache();
+		RefreshRuntimeSources();
 	}
 	
 	return bMadeChange;
@@ -231,10 +228,8 @@ bool UDataRegistry::UnregisterSpecificAsset(const FSoftObjectPath& AssetPath)
 
 	if (bMadeChange && IsInitialized())
 	{
+		// Don't want to do a full reset, but do clear cache as lookup rules may have changed
 		RefreshRuntimeSources();
-
-		// Don't want to do a full reset, but do clear cache as data may be gone
-		Cache->ClearCache();
 	}
 
 	return bMadeChange;
@@ -255,13 +250,33 @@ int32 UDataRegistry::UnregisterAssetsWithPriority(int32 AssetPriority)
 
 	if (NumberUnregistered > 0 && IsInitialized())
 	{
+		// Don't want to do a full reset, but do clear cache as lookup rules may have changed
 		RefreshRuntimeSources();
-
-		// Don't want to do a full reset, but do clear cache as data may be gone
-		Cache->ClearCache();
 	}
 
 	return NumberUnregistered;
+}
+
+EDataRegistryAvailability UDataRegistry::GetLowestAvailability() const
+{
+	if (RuntimeSources.Num() == 0)
+	{
+		return EDataRegistryAvailability::DoesNotExist;
+	}
+
+	EDataRegistryAvailability LowestAvailability = RuntimeSources[0]->GetSourceAvailability();
+
+	for (int32 i = 1; i < RuntimeSources.Num(); i++)
+	{
+		EDataRegistryAvailability SourceAvailability = RuntimeSources[i]->GetSourceAvailability();
+
+		if ((uint8)SourceAvailability < (uint8)LowestAvailability)
+		{
+			LowestAvailability = SourceAvailability;
+		}
+	}
+
+	return LowestAvailability;
 }
 
 const FDataRegistryCachePolicy& UDataRegistry::GetRuntimeCachePolicy() const
@@ -282,6 +297,7 @@ void UDataRegistry::SetRuntimeCachePolicy(const FDataRegistryCachePolicy& NewPol
 
 void UDataRegistry::ApplyCachePolicy()
 {
+	bool bMadeChange = false;
 	float CurrentTime = GetCurrentTime();
 
 	TArray<TPair<FCachedDataRegistryItem*, float> > SortedItems;
@@ -312,17 +328,22 @@ void UDataRegistry::ApplyCachePolicy()
 		{
 			// Always delete
 			Cache->RemoveCacheEntry(Item->LookupKey);
+			bMadeChange = true;
 			continue;
 		}
 		else if (RuntimeCachePolicy.MaxNumberKept && CurrentCount > RuntimeCachePolicy.MaxNumberKept)
 		{
 			// Delete in priority order
 			Cache->RemoveCacheEntry(Item->LookupKey);
+			bMadeChange = true;
 			continue;
 		}
 	}
 
-	InvalidateCacheVersion();
+	if (bMadeChange)
+	{
+		InvalidateCacheVersion();
+	}
 }
 
 bool UDataRegistry::IsCacheGetResultValid(FDataRegistryCacheGetResult Result) const
@@ -352,30 +373,45 @@ FDataRegistryCacheGetResult UDataRegistry::GetCacheResultVersion() const
 		return FDataRegistryCacheGetResult(EDataRegistryCacheGetStatus::FoundVolatile);
 	}
 
-	int32 CacheVersion = Cache->CurrentCacheVersion;
-	EDataRegistryCacheVersionSource VersionSource = EDataRegistryCacheVersionSource::DataRegistry;
+	int32 CacheVersion;
+	EDataRegistryCacheVersionSource VersionSource;
 
 	if (RuntimeCachePolicy.bUseCurveTableCacheVersion)
 	{
 		CacheVersion = UCurveTable::GetGlobalCachedCurveID();
 		VersionSource = EDataRegistryCacheVersionSource::CurveTable;
 	}
+	else
+	{
+		CacheVersion = Cache->CurrentCacheVersion;
+		VersionSource = EDataRegistryCacheVersionSource::DataRegistry;
+	}
 
 	return FDataRegistryCacheGetResult(EDataRegistryCacheGetStatus::FoundPersistent, VersionSource, CacheVersion);
 }
 
-
 void UDataRegistry::InvalidateCacheVersion()
 {
+	// TODO Do we need to defer calls to avoid multiple callbacks?
+
 	if (RuntimeCachePolicy.bUseCurveTableCacheVersion)
 	{
-		return UCurveTable::InvalidateAllCachedCurves();
+		UCurveTable::InvalidateAllCachedCurves();
+	}
+	else
+	{
+		Cache->CurrentCacheVersion++;
 	}
 
-	Cache->CurrentCacheVersion++;
+	OnCacheVersionInvalidated().Broadcast(this);
 }
 
-bool UDataRegistry::ResolveDataRegistryId(FDataRegistryLookup& OutLookup, const FDataRegistryId& ItemId, const uint8** InMemoryDataPtr) const
+FDataRegistryCacheVersionCallback& UDataRegistry::OnCacheVersionInvalidated()
+{
+	return OnCacheVersionInvalidatedCallback;
+}
+
+bool UDataRegistry::ResolveDataRegistryId(FDataRegistryLookup& OutLookup, const FDataRegistryId& ItemId, const uint8** PrecachedDataPtr) const
 {
 	OutLookup.Reset();
 
@@ -388,7 +424,7 @@ bool UDataRegistry::ResolveDataRegistryId(FDataRegistryLookup& OutLookup, const 
 		}
 		
 		FName ResolvedName = MapIdToResolvedName(ItemId, Source);
-		EDataRegistryAvailability Availability = Source->GetItemAvailability(ResolvedName, InMemoryDataPtr);
+		EDataRegistryAvailability Availability = Source->GetItemAvailability(ResolvedName, PrecachedDataPtr);
 
 		// If we know it doesn't exist, don't add this to the lookup
 		if (Availability != EDataRegistryAvailability::DoesNotExist)
@@ -396,12 +432,12 @@ bool UDataRegistry::ResolveDataRegistryId(FDataRegistryLookup& OutLookup, const 
 			OutLookup.AddEntry(i, ResolvedName);
 		}
 		
-		if (Availability == EDataRegistryAvailability::InMemory)
+		if (Availability == EDataRegistryAvailability::PreCached)
 		{
 			// If the lookup has prior entries, not safe to use the in memory ptr as it may be out of date
-			if (InMemoryDataPtr && OutLookup.GetNum() > 1)
+			if (PrecachedDataPtr && OutLookup.GetNum() > 1)
 			{
-				*InMemoryDataPtr = nullptr;
+				*PrecachedDataPtr = nullptr;
 			}
 
 			// If we found it in memory, we're done
@@ -413,7 +449,7 @@ bool UDataRegistry::ResolveDataRegistryId(FDataRegistryLookup& OutLookup, const 
 	return OutLookup.IsValid();
 }
 
-void UDataRegistry::GetPossibleRegistryIds(TArray<FDataRegistryId>& OutRegistryIds) const
+void UDataRegistry::GetPossibleRegistryIds(TArray<FDataRegistryId>& OutRegistryIds, bool bSortForDisplay) const
 {
 	TSet<FDataRegistryId> IdSet;
 	TArray<FName> NameArray;
@@ -449,11 +485,14 @@ void UDataRegistry::GetPossibleRegistryIds(TArray<FDataRegistryId>& OutRegistryI
 
 		OutRegistryIds = IdSet.Array();
 
-		// By default sort it alphabetically
-		OutRegistryIds.Sort([&](const FDataRegistryId& A, const FDataRegistryId& B)
+		if (bSortForDisplay)
 		{
-			return A.ItemName.LexicalLess(B.ItemName);
-		});
+			// By default sort it alphabetically
+			OutRegistryIds.Sort([&](const FDataRegistryId& A, const FDataRegistryId& B)
+			{
+				return A.ItemName.LexicalLess(B.ItemName);
+			});
+		}
 	}
 }
 
@@ -697,7 +736,7 @@ FDataRegistryCacheGetResult UDataRegistry::GetCachedItemRawFromLookup(const uint
 	if (SourceToCheck)
 	{
 		EDataRegistryAvailability Availability = SourceToCheck->GetItemAvailability(ResolvedName, &OutItemMemory);
-		if (Availability == EDataRegistryAvailability::InMemory)
+		if (Availability == EDataRegistryAvailability::PreCached)
 		{
 			return GetCacheResultVersion();
 		}
@@ -729,11 +768,13 @@ FDataRegistryCacheGetResult UDataRegistry::GetCachedItemRaw(const uint8*& OutIte
 
 FDataRegistryCacheGetResult UDataRegistry::GetCachedCurveRaw(const FRealCurve*& OutCurve, const FDataRegistryId& ItemId) const
 {
+	static UScriptStruct* CurveScriptStruct = FRealCurve::StaticStruct();
+
 	const uint8* TempItemMemory = nullptr;
 	const UScriptStruct* TempItemStuct = nullptr;
 	FDataRegistryCacheGetResult CacheResult = GetCachedItemRaw(TempItemMemory, TempItemStuct, ItemId);
-
-	if (CacheResult && TempItemMemory && TempItemStuct->IsChildOf(FRealCurve::StaticStruct()))
+	
+	if (CacheResult && TempItemMemory && TempItemStuct->IsChildOf(CurveScriptStruct))
 	{
 		OutCurve = (const FRealCurve*)TempItemMemory;
 		return CacheResult;
@@ -754,6 +795,90 @@ UDataRegistrySource* UDataRegistry::LookupSource(FName& OutResolvedName, const F
 		}
 	}
 	return nullptr;
+}
+
+FDataRegistryCacheGetResult UDataRegistry::GetAllCachedItems(TMap<FDataRegistryId, const uint8*>& OutItemMap, const UScriptStruct*& OutItemStruct) const
+{
+	TSet<FDataRegistryId> IdSet;
+	TArray<FName> NameArray;
+
+	OutItemStruct = GetItemStruct();
+
+	// First add all the locally cached items
+	bool bFoundAny = false;
+	for (const TPair<FDataRegistryLookup, TUniquePtr<FCachedDataRegistryItem>>& Pair : Cache->LookupCache)
+	{
+		FCachedDataRegistryItem* Item = Pair.Value.Get();
+
+		if (Item && Item->ItemMemory && Item->AcquireStatus == EDataRegistryAcquireStatus::AcquireFinished)
+		{
+			bFoundAny = true;
+			FName ResolvedName;
+			UDataRegistrySource* Source = LookupSource(ResolvedName, Pair.Key, Item->AcquireLookupIndex);
+
+			if (Source)
+			{
+				// If we found the source, then convert the resolved name back into registry ids
+				IdSet.Reset();
+				AddAllIdsForResolvedName(IdSet, ResolvedName, Source);
+
+				for (const FDataRegistryId& CachedId : IdSet)
+				{
+					// If this isn't already in the map add it, same pointer can be mapped to multiple ids
+					const uint8*& FoundPtr = OutItemMap.FindOrAdd(CachedId);
+
+					if (!FoundPtr)
+					{
+						bFoundAny = true;
+						FoundPtr = Item->ItemMemory;
+					}
+				}
+			}
+		}
+	}
+
+	// Now iterate looking for precached sources, starting from highest priority source
+	// TODO if this is a performance issue could add a new function to source
+	for (const UDataRegistrySource* Source : RuntimeSources)
+	{
+		if (Source)
+		{
+			NameArray.Reset();
+			Source->GetResolvedNames(NameArray);
+
+			for (const FName& ResolvedName : NameArray)
+			{
+				const uint8* OutItemMemory = nullptr;
+				EDataRegistryAvailability Availability = Source->GetItemAvailability(ResolvedName, &OutItemMemory);
+				if (Availability == EDataRegistryAvailability::PreCached)
+				{
+					IdSet.Reset();
+					AddAllIdsForResolvedName(IdSet, ResolvedName, Source);
+
+					for (const FDataRegistryId& CachedId : IdSet)
+					{
+						// If this isn't already in the map add it, same pointer can be mapped to multiple ids
+						const uint8*& FoundPtr = OutItemMap.FindOrAdd(CachedId);
+
+						if (!FoundPtr)
+						{
+							bFoundAny = true;
+							FoundPtr = OutItemMemory;
+						}
+					}
+				}
+			}
+		}
+	}
+
+	if (bFoundAny)
+	{
+		return GetCacheResultVersion();
+	}
+	else
+	{
+		return FDataRegistryCacheGetResult();
+	}
 }
 
 void UDataRegistry::GetChildRuntimeSources(UDataRegistrySource* ParentSource, TArray<UDataRegistrySource*>& ChildSources) const
@@ -814,13 +939,17 @@ void UDataRegistry::RefreshRuntimeSources()
 		}
 	}
 
+	// Need to clear the cache as lookups are now invalid
+	// TODO: Also refresh or cancel in-progress async requests. Possibly only conditionally clear cache
+	Cache->ClearCache(false);
+
 	InvalidateCacheVersion();
 	bNeedsRuntimeRefresh = false;
 }
 
-float UDataRegistry::GetCurrentTime() const
+float UDataRegistry::GetCurrentTime()
 {
-	// TODO: Should it be game or system time?
+	// Use application time so it works in editor and game
 	return (float)(FApp::GetCurrentTime() - GStartTime);
 }
 
@@ -863,10 +992,10 @@ void UDataRegistry::AddAllIdsForResolvedName(TSet<FDataRegistryId>& PossibleIds,
 	PossibleIds.Add(FDataRegistryId(RegistryType, ResolvedName));
 }
 
-const FCachedDataRegistryItem* UDataRegistry::FindCachedData(const FDataRegistryId& ItemId, const uint8** InMemoryDataPtr) const
+const FCachedDataRegistryItem* UDataRegistry::FindCachedData(const FDataRegistryId& ItemId, const uint8** PrecachedDataPtr) const
 {
 	FDataRegistryLookup TempLookup;
-	if (ResolveDataRegistryId(TempLookup, ItemId, InMemoryDataPtr))
+	if (ResolveDataRegistryId(TempLookup, ItemId, PrecachedDataPtr))
 	{
 		return Cache->GetCacheEntry(TempLookup);
 	}
@@ -1019,6 +1148,7 @@ void UDataRegistry::HandleAcquireResult(const FDataRegistrySourceAcquireRequest&
 					FoundCache->ItemSource = Source;
 					FoundCache->AcquireStatus = EDataRegistryAcquireStatus::InitialAcquireFinished;
 
+					// TODO Do we need to defer this for callback safety?
 					InvalidateCacheVersion();
 				}
 				else
@@ -1047,7 +1177,7 @@ void UDataRegistry::HandleAcquireResult(const FDataRegistrySourceAcquireRequest&
 	
 }
 
-class FTimerManager* UDataRegistry::GetTimerManager() const
+class FTimerManager* UDataRegistry::GetTimerManager()
 {
 	UAssetManager* AssetManager = UAssetManager::GetIfValid();
 

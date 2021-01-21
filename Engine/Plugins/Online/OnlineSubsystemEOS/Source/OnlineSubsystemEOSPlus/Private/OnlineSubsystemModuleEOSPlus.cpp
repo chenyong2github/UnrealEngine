@@ -7,6 +7,7 @@
 
 #include "Features/IModularFeature.h"
 #include "Features/IModularFeatures.h"
+#include "Misc/ConfigCacheIni.h"
 
 #define LOCTEXT_NAMESPACE "EOSPlus"
 
@@ -39,6 +40,11 @@ public:
 
 void FOnlineSubsystemEOSPlusModule::StartupModule()
 {
+	// Force loading of the EOS OSS module in case the plugin manager failed to get the dependencies right
+	FModuleManager::LoadModuleChecked<FOnlineSubsystemModule>(TEXT("OnlineSubsystemEOS"));
+	// Make sure the base OSS has a chance to register its OSS factory
+	LoadBaseOSS();
+
 	PlusFactory = new FOnlineFactoryEOSPlus();
 
 	// Create and register our singleton factory with the main online subsystem for easy access
@@ -53,6 +59,25 @@ void FOnlineSubsystemEOSPlusModule::ShutdownModule()
 
 	delete PlusFactory;
 	PlusFactory = nullptr;
+}
+
+void FOnlineSubsystemEOSPlusModule::LoadBaseOSS()
+{
+	FString BaseOSSName;
+	GConfig->GetString(TEXT("[OnlineSubsystemEOSPlus]"), TEXT("BaseOSSName"), BaseOSSName, GEngineIni);
+	if (BaseOSSName.IsEmpty())
+	{
+		// Load the native platform OSS name
+		GConfig->GetString(TEXT("OnlineSubsystem"), TEXT("NativePlatformService"), BaseOSSName, GEngineIni);
+	}
+	if (BaseOSSName.IsEmpty())
+	{
+		UE_LOG_ONLINE(Warning, TEXT("EOSPlus failed to find the native OSS!"));
+		return;
+	}
+	// Load the module for the base OSS
+	FString ModuleName(TEXT("OnlineSubsystem") + BaseOSSName);
+	FModuleManager::LoadModuleChecked<FOnlineSubsystemModule>(*ModuleName);
 }
 
 #undef LOCTEXT_NAMESPACE

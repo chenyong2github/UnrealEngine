@@ -6,15 +6,6 @@
 namespace Chaos
 {
 
-	// Convex margin type. The margin is required for stable GJK/EPA collision detection
-	//	0: no margins
-	//	1: external margin. This is the easiest to implement, but the result is that convex shapes grow in size, so there will be gaps between them. Does not work yet - needs to handle scale
-	//	2: internal margin: This is the nicest solution as it does not affect overall convex size. Does not work yet - needs to handle scale (but this may be impossible)
-	//
-	int32 Chaos_Collision_ConvexMarginType = 0;
-	FAutoConsoleVariableRef  CVarChaos_Collision_ConvexMarginType(TEXT("p.Chaos.Collision.ConvexMarginType"), Chaos_Collision_ConvexMarginType, TEXT("How the handle margins on convex shapes. 0 - No margin; 1 - External margin; 2 - Internal margin (WIP)"));
-
-
 	int32 FConvex::FindMostOpposingFace(const FVec3& Position, const FVec3& UnitDir, int32 HintFaceIndex, FReal SearchDist) const
 	{
 		//NOTE: this approach assumes we never have conincident planes, which at the moment is not true.
@@ -99,7 +90,7 @@ namespace Chaos
 
 	int32 FConvex::GetMostOpposingPlaneWithVertex(int32 VertexIndex, const FVec3& Normal) const
 	{
-		TArrayView<const int32> VertexPlaneIndices = GetVertexPlanes(VertexIndex);
+		const TArrayView<const int32> VertexPlaneIndices = GetVertexPlanes(VertexIndex);
 
 		if ((VertexIndex == INDEX_NONE) || (VertexPlaneIndices.Num() == 0))
 		{
@@ -121,6 +112,36 @@ namespace Chaos
 		}
 		CHAOS_ENSURE(MostOpposingIdx != INDEX_NONE);
 		return MostOpposingIdx;
+	}
+
+	FVec3 FConvex::GetClosestEdgePosition(int32 PlaneIndex, const FVec3& Position) const
+	{
+		FVec3 ClosestEdgePosition = FVec3(0);
+		FReal ClosestDistanceSq = FLT_MAX;
+
+		const TArrayView<const int32> PlaneVertexIndices = GetPlaneVertices(PlaneIndex);
+		if (PlaneVertexIndices.Num() > 0)
+		{
+			FVec3 P0 = GetVertex(PlaneVertexIndices[PlaneVertexIndices.Num() - 1]);
+			for (int32 PlaneVertexIndex = 0; PlaneVertexIndex < PlaneVertexIndices.Num(); ++PlaneVertexIndex)
+			{
+				const int32 VertexIndex = PlaneVertexIndices[PlaneVertexIndex];
+				const FVec3 P1 = GetVertex(VertexIndex);
+				
+				const FVec3 EdgePosition = FMath::ClosestPointOnLine(P0, P1, Position);
+				const FReal EdgeDistanceSq = (EdgePosition - Position).SizeSquared();
+
+				if (EdgeDistanceSq < ClosestDistanceSq)
+				{
+					ClosestDistanceSq = EdgeDistanceSq;
+					ClosestEdgePosition = EdgePosition;
+				}
+
+				P0 = P1;
+			}
+		}
+
+		return ClosestEdgePosition;
 	}
 
 	TArrayView<const int32> FConvex::GetVertexPlanes(int32 VertexIndex) const
@@ -151,45 +172,7 @@ namespace Chaos
 		StructureData.SetPlaneVertices(MoveTemp(PlaneVertexIndices), SurfaceParticles.Size());
 	}
 
-
-	// Reduce the core convex shape by the specified margin. For this we need to:
-	//	- move all planes in my the margin
-	//	- regenerate the set of points from the planes (some points might merge depending on face size and margin size)
-	//	- remove any unused planes (if points were removed, some planes are probably no longer contributing)
-	//
-	// @todo(chaos): optimize memory use
-	// @todo(chaos): optimize point rejection
-	void FConvex::ApplyMargin(FReal InMargin)
-	{
-		if (InMargin <= 0.0f)
-		{ 
-			return;
-		}
-
-		// If margins are disabled, do nothing
-		if (Chaos_Collision_ConvexMarginType == 0)
-		{
-			return;
-		}
-
-		SetMargin(InMargin);
-
-		// If we are using external margin (i.e., the shape effectively grows by the margin size) we just need to adjust the bounds.
-		if (Chaos_Collision_ConvexMarginType == 1)
-		{
-			LocalBoundingBox.Thicken(GetMargin());
-		}
-
-		// If we want a margin without affecting the total size of the shape, we need to recalculate all the planes and points/
-		// @todo(chaos): this is not supported except for experimantation because Convex shapes are cooked and reused, but they can be non-uniformly
-		// scaled on a per-instance basis, so we really need a runtime solution. This is hard...
-		if (Chaos_Collision_ConvexMarginType == 2)
-		{
-			ShrinkCore(GetMargin());
-		}
-	}
-
-	void FConvex::ShrinkCore(const FReal InMargin)
+	void FConvex::MovePlanesAndRebuild(const FReal InDelta)
 	{
 		TArray<FPlane> NewPlanes;
 		TArray<FVec3> NewPoints;
@@ -199,7 +182,7 @@ namespace Chaos
 		// Move all the planes inwards
 		for (int32 PlaneIndex = 0; PlaneIndex < Planes.Num(); ++PlaneIndex)
 		{
-			const FPlane NewPlane = FPlane(Planes[PlaneIndex].X() - InMargin * Planes[PlaneIndex].Normal(), Planes[PlaneIndex].Normal());
+			const FPlane NewPlane = FPlane(Planes[PlaneIndex].X() + InDelta * Planes[PlaneIndex].Normal(), Planes[PlaneIndex].Normal());
 			NewPlanes.Add(NewPlane);
 		}
 

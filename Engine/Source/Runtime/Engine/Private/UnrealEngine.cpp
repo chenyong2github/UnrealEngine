@@ -5206,7 +5206,7 @@ bool UEngine::HandleKismetEventCommand(UWorld* InWorld, const TCHAR* Cmd, FOutpu
 				// Call it on all instances of the class
 				int32 NumInstancesFound = 0;
 				int32 NumInstanceCallsSucceeded = 0;
-				for (FObjectIterator It(ClassToMatch); It; ++It)
+				for (FThreadSafeObjectIterator It(ClassToMatch); It; ++It)
 				{
 					UObject* const Obj = *It;
 					UWorld const* const ObjWorld = Obj->GetWorld();
@@ -6950,7 +6950,7 @@ static int32 FindAmountSavedWithCutoff(UClass* AnalyzedClass, int32 PercentageAl
 
 	// cache instances of the class
 	TArray<UObject*> Instances;
-	for (FObjectIterator It(AnalyzedClass); It; ++It)
+	for (FThreadSafeObjectIterator It(AnalyzedClass); It; ++It)
 	{
 		if (It->IsTemplate(RF_ClassDefaultObject))
 		{
@@ -7398,7 +7398,7 @@ bool UEngine::HandleObjCommand( const TCHAR* Cmd, FOutputDevice& Ar )
 		Ar.Logf( TEXT("Obj MemSub for class '%s'"), *ClassToCheck->GetName() );
 		Ar.Logf( TEXT("") );
 
-		for( FObjectIterator It(ClassToCheck); It; ++It )
+		for( FThreadSafeObjectIterator It(ClassToCheck); It; ++It )
 		{
 			UObject* Obj = *It;
 			if( Obj->IsTemplate( RF_ClassDefaultObject ) )
@@ -7537,7 +7537,7 @@ bool UEngine::HandleObjCommand( const TCHAR* Cmd, FOutputDevice& Ar )
 		FHierarchy Flat(Limit);
 
 		TMap<UObject*, FSubItem> Objects;
-		for( FObjectIterator It; It; ++It )
+		for( FThreadSafeObjectIterator It; It; ++It )
 		{
 			FArchiveCountMem Count( *It );
 			FResourceSizeEx TrueResourceSize = FResourceSizeEx(EResourceSizeMode::Exclusive);
@@ -7572,7 +7572,7 @@ bool UEngine::HandleObjCommand( const TCHAR* Cmd, FOutputDevice& Ar )
 		// "obj list remember" clears that list
 		if (FParse::Command(&Cmd, TEXT("FORGET")))
 		{
-			for (FObjectIterator It; It; ++It)
+			for (FThreadSafeObjectIterator It; It; ++It)
 			{
 				ForgottenObjects.Add(FObjectKey(*It));
 			}
@@ -7648,7 +7648,7 @@ bool UEngine::HandleObjCommand( const TCHAR* Cmd, FOutputDevice& Ar )
 			const bool bOnlyListDefaultObjects = FParse::Param(Cmd, TEXT("DEFAULTSONLY"));
 			const bool bShowDetailedObjectInfo = FParse::Param(Cmd, TEXT("NODETAILEDINFO")) == false && bTrackDetailedObjectInfo;
 
-			for( FObjectIterator It; It; ++It )
+			for( FThreadSafeObjectIterator It; It; ++It )
 			{
 				if (ForgottenObjects.Contains(FObjectKey(*It)))
 				{
@@ -10967,7 +10967,8 @@ FScopedConditionalWorldSwitcher::FScopedConditionalWorldSwitcher(UWorld* InWorld
 
 void FScopedConditionalWorldSwitcher::ConditionalSwitchWorld( FViewportClient* InViewportClient, UWorld* InWorld )
 {
-	if( GIsEditor )
+	// If we don't have a currently active world, we can't safely switch worlds because it won't get restored so do nothing
+	if( GIsEditor && GWorld )
 	{
 		if ( InWorld && InWorld->WorldType == EWorldType::PIE && !GIsPlayInEditorWorld )
 		{
@@ -16448,7 +16449,9 @@ int32 UEngine::RenderStatSlateBatches(UWorld* World, FViewport* Viewport, FCanva
 #if !UE_BUILD_SHIPPING
 bool UEngine::ToggleStatParticlePerf(UWorld* World, FCommonViewportClient* ViewportClient, const TCHAR* Stream)
 {
+#if WITH_PARTICLE_PERF_STATS
 	FParticlePerfStatsManager::TogglePerfStatsRender(World);
+#endif
 	return false;
 }
 

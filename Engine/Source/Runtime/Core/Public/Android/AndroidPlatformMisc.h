@@ -15,7 +15,7 @@ template <typename FuncType>
 class TFunction;
 
 #if PLATFORM_ANDROID_ARM64
-	#define PLATFORM_BREAK()	__asm__(".inst 0xd4200000")
+	#define PLATFORM_BREAK()	raise(SIGTRAP)
 #elif PLATFORM_ANDROID_ARM
 	#define PLATFORM_BREAK()	__asm__("trap")
 #else
@@ -25,6 +25,8 @@ class TFunction;
 #define UE_DEBUG_BREAK_IMPL()	PLATFORM_BREAK()
 
 #define ANDROID_HAS_RTSIGNALS !PLATFORM_LUMIN && PLATFORM_USED_NDK_VERSION_INTEGER >= 21
+
+enum class ECrashContextType;
 
 /**
  * Android implementation of the misc OS functions
@@ -224,7 +226,7 @@ public:
 	typedef TFunction<void()> OnPauseCallBackType;
 	static OnPauseCallBackType GetOnPauseCallback();
 	static void SetOnPauseCallback(OnPauseCallBackType InOnPauseCallback);
-	static void TriggerCrashHandler(enum class ECrashContextType InType, const TCHAR* InErrorMessage, const TCHAR* OverrideCallstack = nullptr);
+	static void TriggerCrashHandler(ECrashContextType InType, const TCHAR* InErrorMessage, const TCHAR* OverrideCallstack = nullptr);
 
 	// To help track down issues with failing crash handler.
 	static FString GetFatalSignalMessage(int Signal, siginfo* Info);

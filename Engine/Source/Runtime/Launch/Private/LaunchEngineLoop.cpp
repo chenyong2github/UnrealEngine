@@ -64,6 +64,12 @@
 
 #if !(IS_PROGRAM || WITH_EDITOR)
 #include "IPlatformFilePak.h"
+#endif
+
+#ifndef USE_IO_DISPATCHER 
+#define USE_IO_DISPATCHER (WITH_IOSTORE_IN_EDITOR || !(IS_PROGRAM || WITH_EDITOR))
+#endif
+#if USE_IO_DISPATCHER
 #include "IO/IoDispatcher.h"
 #endif
 
@@ -2162,7 +2168,9 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 	{
 		SCOPED_BOOT_TIMING("Init FQueuedThreadPool's");
 
-		int StackSize = 128;
+		int32 StackSize = 128 * 1024;
+		GConfig->GetInt(TEXT("Core.System"), TEXT("PoolThreadStackSize"), StackSize, GEngineIni);
+
 		bool bForceEditorStackSize = false;
 #if WITH_EDITOR
 		bForceEditorStackSize = true;
@@ -2170,7 +2178,7 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 
 		if (bHasEditorToken || bForceEditorStackSize)
 		{
-			StackSize = 1000;
+			StackSize = 1024 * 1024;
 		}
 
 #if WITH_EDITOR
@@ -2203,7 +2211,7 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 			}
 		
 			// TaskGraph has it's HP threads slightly below normal, we want to be below the taskgraph HP threads to avoid interfering with the game-thread.
-			verify(GLargeThreadPool->Create(NumThreadsInLargeThreadPool, StackSize * 1024, TPri_BelowNormal, TEXT("LargeThreadPool")));
+			verify(GLargeThreadPool->Create(NumThreadsInLargeThreadPool, StackSize, TPri_BelowNormal, TEXT("LargeThreadPool")));
 
 			// we are only going to give dedicated servers one pool thread
 			if (FPlatformProperties::IsServerOnly())
@@ -2227,7 +2235,7 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 				{
 					NumThreadsInThreadPool = 1;
 				}
-				verify(GThreadPool->Create(NumThreadsInThreadPool, StackSize * 1024, TPri_SlightlyBelowNormal, TEXT("ThreadPool")));
+				verify(GThreadPool->Create(NumThreadsInThreadPool, StackSize, TPri_SlightlyBelowNormal, TEXT("ThreadPool")));
 			}
 			else
 			{
@@ -2247,7 +2255,7 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 					{
 						NumThreadsInThreadPool = 1;
 					}
-					verify(GThreadPool->Create(NumThreadsInThreadPool, StackSize * 1024, TPri_SlightlyBelowNormal, TEXT("ThreadPool")));
+					verify(GThreadPool->Create(NumThreadsInThreadPool, StackSize, TPri_SlightlyBelowNormal, TEXT("ThreadPool")));
 				}
 			}
 		}
@@ -2260,7 +2268,7 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 				NumThreadsInThreadPool = 1;
 			}
 
-			verify(GBackgroundPriorityThreadPool->Create(NumThreadsInThreadPool, StackSize * 1024, TPri_Lowest, TEXT("BackgroundThreadPool")));
+			verify(GBackgroundPriorityThreadPool->Create(NumThreadsInThreadPool, StackSize, TPri_Lowest, TEXT("BackgroundThreadPool")));
 		}
 
 	}
@@ -2422,7 +2430,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		FPlatformMemory::Init();
 	}
 
-#if !(IS_PROGRAM || WITH_EDITOR)
+#if USE_IO_DISPATCHER
 	if (FIoDispatcher::IsInitialized())
 	{
 		SCOPED_BOOT_TIMING("InitIoDispatcher");
@@ -3149,7 +3157,6 @@ int32 FEngineLoop::PreInitPostStartupScreen(const TCHAR* CmdLine)
 
 		SlowTask.EnterProgressFrame(5);
 
-		EndInitGameTextLocalization();
 
 		{
 		    SCOPED_BOOT_TIMING("LoadAssetRegistryModule");
@@ -3170,6 +3177,8 @@ int32 FEngineLoop::PreInitPostStartupScreen(const TCHAR* CmdLine)
 
 		// Make sure all UObject classes are registered and default properties have been initialized
 		ProcessNewlyLoadedUObjects();
+
+		EndInitGameTextLocalization();
 
 		FDelayedAutoRegisterHelper::RunAndClearDelayedAutoRegisterDelegates(EDelayedRegisterRunPhase::ObjectSystemReady);
 
@@ -5985,7 +5994,7 @@ void FEngineLoop::AppPreExit( )
 
 #endif
 
-#if !(IS_PROGRAM || WITH_EDITOR)
+#if USE_IO_DISPATCHER
 	FIoDispatcher::Shutdown();
 #endif
 }

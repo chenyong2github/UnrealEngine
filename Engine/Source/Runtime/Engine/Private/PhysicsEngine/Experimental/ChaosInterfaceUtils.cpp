@@ -227,7 +227,7 @@ namespace ChaosInterface
 				HalfExtents.Y = FMath::Max(HalfExtents.Y, KINDA_SMALL_NUMBER);
 				HalfExtents.Z = FMath::Max(HalfExtents.Z, KINDA_SMALL_NUMBER);
 
-				const float CollisionMargin = FMath::Min(2.0f * HalfExtents.GetAbsMax() * CollisionMarginFraction, CollisionMarginMax);
+				const float CollisionMargin = FMath::Min(2.0f * HalfExtents.GetMin() * CollisionMarginFraction, CollisionMarginMax);
 
 				// TAABB can handle translations internally but if we have a rotation we need to wrap it in a transform
 				TUniquePtr<Chaos::FImplicitObject> Implicit;
@@ -306,7 +306,8 @@ namespace ChaosInterface
 				const FTransform& ConvexTransform = InParams.LocalTransform;
 				if (const auto& ConvexImplicit = CollisionBody.GetChaosConvexMesh())
 				{
-					const float CollisionMargin = FMath::Min(CollisionBody.ElemBox.GetSize().GetMax() * CollisionMarginFraction, CollisionMarginMax);
+					const FVector ScaledSize = (Scale.GetAbs() * CollisionBody.ElemBox.GetSize());	// Note: Scale can be negative
+					const float CollisionMargin = FMath::Min(ScaledSize.GetMin() * CollisionMarginFraction, CollisionMarginMax);
 
 					if (!ConvexTransform.GetTranslation().IsNearlyZero() || !ConvexTransform.GetRotation().IsIdentity())
 					{

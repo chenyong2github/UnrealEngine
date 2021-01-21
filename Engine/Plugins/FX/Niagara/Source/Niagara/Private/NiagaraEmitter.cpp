@@ -946,7 +946,7 @@ bool UNiagaraEmitter::IsReadyToRun() const
 	return true;
 }
 
-void UNiagaraEmitter::GetScripts(TArray<UNiagaraScript*>& OutScripts, bool bCompilableOnly) const
+void UNiagaraEmitter::GetScripts(TArray<UNiagaraScript*>& OutScripts, bool bCompilableOnly, bool bEnabledOnly) const
 {
 	OutScripts.Add(SpawnScriptProps.Script);
 	OutScripts.Add(UpdateScriptProps.Script);
@@ -970,8 +970,10 @@ void UNiagaraEmitter::GetScripts(TArray<UNiagaraScript*>& OutScripts, bool bComp
 	{
 		for (int32 i = 0; i < SimulationStages.Num(); i++)
 		{
-			if (SimulationStages[i] && SimulationStages[i]->Script && SimulationStages[i]->bEnabled)
+			if (SimulationStages[i] && SimulationStages[i]->Script)
 			{
+				if (bEnabledOnly && false == SimulationStages[i]->bEnabled)
+					continue;
 				OutScripts.Add(SimulationStages[i]->Script);
 			}
 		}
@@ -1555,7 +1557,7 @@ void UNiagaraEmitter::SyncEmitterAlias(const FString& InOldName, const FString& 
 	RenameMap.Add(InOldName, InNewName);
 
 	TArray<UNiagaraScript*> Scripts;
-	GetScripts(Scripts, false); // Get all the scripts...
+	GetScripts(Scripts, false, true); // Get all the scripts...
 
 	for (UNiagaraScript* Script : Scripts)
 	{

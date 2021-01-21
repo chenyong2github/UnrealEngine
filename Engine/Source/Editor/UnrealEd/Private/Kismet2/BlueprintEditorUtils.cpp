@@ -1675,44 +1675,81 @@ void FBlueprintEditorUtils::PatchCDOSubobjectsIntoExport(UObject* PreviousCDO, U
 		{
 			static void PatchSubObjects(UObject* OldObj, UObject* NewObj)
 			{
-				TMap<FName, UObject*> SubObjLookupTable;
-				ForEachObjectWithOuter(NewObj, [&SubObjLookupTable](UObject* NewSubObj)
-				{
-					if (NewSubObj != nullptr)
-					{
-						SubObjLookupTable.Add(NewSubObj->GetFName(), NewSubObj);
-					}
-				}, /*bIncludeNestedSubObjects =*/false);
-
 				TArray<UObject*> OldSubObjects;
 				GetObjectsWithOuter(OldObj, OldSubObjects, /*bIncludeNestedSubObjects =*/false);
 
-				for (UObject* OldSubObj : OldSubObjects)
+				// Exit now if we don't have any subobjects to process.
+				if (OldSubObjects.Num() == 0)
 				{
-					if (UObject** NewSubObjPtr = SubObjLookupTable.Find(OldSubObj->GetFName()))
+					return;
+				}
+
+				// Used to keep track of subobjects that are patched through an explicitly instanced reference property.
+				TSet<UObject*> PatchedAsInstancedReferenceSet;
+				PatchedAsInstancedReferenceSet.Reserve(OldSubObjects.Num());
+
+				// If the old object's class has explicitly instanced reference properties, the subobject values they contain will be different on the new object
+				// that's replacing it (because they've been re-instanced), so here we patch up the linker's export table to reference the re-instanced ones instead.
+				const UClass* OldObjClass = OldObj->GetClass();
+				if (OldObjClass && OldObjClass->HasAnyClassFlags(CLASS_HasInstancedReference))
+				{
+					// Get the list of subobjects assigned to an explicitly instanced reference property (including containers) for the old object.
+					TSet<FInstancedSubObjRef> OldInstancedSubObjRefs;
+					FFindInstancedReferenceSubobjectHelper::GetInstancedSubObjects(OldObj, OldInstancedSubObjRefs);
+
+					// Resolve new instances through the new object and patch them into the linker's export table.
+					for (const FInstancedSubObjRef& OldInstancedSubObjRef : OldInstancedSubObjRefs)
 					{
-						UObject* NewSubObj = *NewSubObjPtr;
-						if (NewSubObj->IsDefaultSubobject() && OldSubObj->IsDefaultSubobject())
+						if (UObject* OldSubObj = OldInstancedSubObjRef.SubObjInstance)
 						{
-							FLinkerLoad::PRIVATE_PatchNewObjectIntoExport(OldSubObj, NewSubObj);
-
-							UClass* SubObjClass = OldSubObj->GetClass();
-							if (SubObjClass && SubObjClass->HasAnyClassFlags(CLASS_HasInstancedReference))
+							if (UObject* NewSubObj = OldInstancedSubObjRef.PropertyPath.Resolve(NewObj))
 							{
-								TSet<FInstancedSubObjRef> OldInstancedValues;
-								FFindInstancedReferenceSubobjectHelper::GetInstancedSubObjects(OldSubObj, OldInstancedValues);
+								FLinkerLoad::PRIVATE_PatchNewObjectIntoExport(OldSubObj, NewSubObj);
 
-								for (const FInstancedSubObjRef& OldInstancedObj : OldInstancedValues)
-								{
-									if (UObject* NewInstancedObj = OldInstancedObj.PropertyPath.Resolve(NewSubObj))
-									{
-										FLinkerLoad::PRIVATE_PatchNewObjectIntoExport(OldInstancedObj, NewInstancedObj);
-									}
-								}
+								// Recursively find and patch any instances nested within the current subobject.
+								PatchSubObjects(OldSubObj, NewSubObj);
+
+								// Track the old instanced reference so we don't attempt to patch it again below.
+								PatchedAsInstancedReferenceSet.Add(OldSubObj);
 							}
 						}
+					}
+				}
 
-						PatchSubObjects(OldSubObj, NewSubObj);
+				TMap<FName, UObject*> NewSubObjLookupTable;
+				bool bIsNewSubObjLookupTableInitialized = false;
+
+				// Subobject instances not handled above include those assigned to reference properties for which the object type implicitly defaults
+				// to being instanced (e.g. UActorComponent derivatives) and instances not directly assigned to an instanced object reference property.
+				// Here we iterate over those remaining instances, look for a match in the new object, and patch those along with any nested instances.
+				for (UObject* OldSubObj : OldSubObjects)
+				{
+					if (!PatchedAsInstancedReferenceSet.Contains(OldSubObj))
+					{
+						if (!bIsNewSubObjLookupTableInitialized)
+						{
+							NewSubObjLookupTable.Reserve(OldSubObjects.Num());
+							ForEachObjectWithOuter(NewObj, [&NewSubObjLookupTable](UObject* NewSubObj)
+							{
+								if (NewSubObj != nullptr)
+								{
+									NewSubObjLookupTable.Add(NewSubObj->GetFName(), NewSubObj);
+								}
+							}, /*bIncludeNestedSubObjects =*/false);
+
+							bIsNewSubObjLookupTableInitialized = true;
+						}
+
+						if (UObject** NewSubObjPtr = NewSubObjLookupTable.Find(OldSubObj->GetFName()))
+						{
+							UObject* NewSubObj = *NewSubObjPtr;
+							if (OldSubObj->IsDefaultSubobject() && NewSubObj->IsDefaultSubobject())
+							{
+								FLinkerLoad::PRIVATE_PatchNewObjectIntoExport(OldSubObj, NewSubObj);
+							}
+
+							PatchSubObjects(OldSubObj, NewSubObj);
+						}
 					}
 				}
 			}
@@ -4699,7 +4736,7 @@ void FBlueprintEditorUtils::RemoveMemberVariable(UBlueprint* Blueprint, const FN
 
 void FBlueprintEditorUtils::BulkRemoveMemberVariables(UBlueprint* Blueprint, const TArray<FName>& VarNames)
 {
-	const FScopedTransaction Transaction( LOCTEXT("DeleteUnusedVariables", "Delete Unused Variables") );
+	const FScopedTransaction Transaction( LOCTEXT("BulkRemoveMemberVariables", "Bulk Remove Member Variables") );
 	Blueprint->Modify();
 
 	bool bModified = false;
@@ -4717,6 +4754,39 @@ void FBlueprintEditorUtils::BulkRemoveMemberVariables(UBlueprint* Blueprint, con
 	if (bModified)
 	{
 		FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(Blueprint);
+	}
+}
+
+void FBlueprintEditorUtils::GetUsedAndUnusedVariables(UBlueprint* Blueprint, TArray<FProperty*>& OutUsedVariables, TArray<FProperty*>& OutUnusedVariables)
+{
+	TArray<FName> VariableNames;
+	for (TFieldIterator<FProperty> PropertyIt(Blueprint->SkeletonGeneratedClass, EFieldIteratorFlags::ExcludeSuper); PropertyIt; ++PropertyIt)
+	{
+		FProperty* Property = *PropertyIt;
+		// Don't show delegate properties, there is special handling for these
+		const bool bDelegateProp = Property->IsA(FDelegateProperty::StaticClass()) || Property->IsA(FMulticastDelegateProperty::StaticClass());
+		const bool bShouldShowProp = (!Property->HasAnyPropertyFlags(CPF_Parm) && Property->HasAllPropertyFlags(CPF_BlueprintVisible) && !bDelegateProp);
+
+		if (bShouldShowProp)
+		{
+			FName VarName = Property->GetFName();
+
+			const int32 VarInfoIndex = FBlueprintEditorUtils::FindNewVariableIndex(Blueprint, VarName);
+			const bool bHasVarInfo = (VarInfoIndex != INDEX_NONE);
+
+			const FObjectPropertyBase* ObjectProperty = CastField<const FObjectPropertyBase>(Property);
+			bool bIsTimeline = ObjectProperty &&
+				ObjectProperty->PropertyClass &&
+				ObjectProperty->PropertyClass->IsChildOf(UTimelineComponent::StaticClass());
+			if (!bIsTimeline && bHasVarInfo && !FBlueprintEditorUtils::IsVariableUsed(Blueprint, VarName))
+			{
+				OutUnusedVariables.Add(Property);
+			}
+			else
+			{
+				OutUsedVariables.Add(Property);
+			}
+		}
 	}
 }
 
@@ -5729,57 +5799,22 @@ bool FBlueprintEditorUtils::IsVariableComponent(const FBPVariableDescription& Va
 
 bool FBlueprintEditorUtils::IsVariableUsed(const UBlueprint* InBlueprint, const FName& Name, UEdGraph* LocalGraphScope/* = nullptr*/)
 {
-	TArray<const UBlueprint*> BlueprintsToCheck;
-	BlueprintsToCheck.Add(InBlueprint);
-
-	if (!LocalGraphScope)
-	{
-		FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
-		FARFilter Filter;
-		AssetRegistryModule.Get().GetReferencers(InBlueprint->GetPackage()->GetFName(), Filter.PackageNames, UE::AssetRegistry::EDependencyCategory::Package, UE::AssetRegistry::EDependencyQuery::Hard);
-		if (Filter.PackageNames.Num() > 0)
-		{
-			GWarn->BeginSlowTask(LOCTEXT("LoadingReferencerAssets", "Loading Referencers..."), true);
-
-			Filter.TagsAndValues.Add(TEXT("IsDataOnly"), TOptional<FString>(TEXT("false")));
-			TArray<FAssetData> ReferencersAssetData;
-			AssetRegistryModule.Get().GetAssets(Filter, ReferencersAssetData);
-			for (const FAssetData& ReferencerData : ReferencersAssetData)
-			{
-				UObject* ReferencerAsset = ReferencerData.GetAsset();
-				if (UBlueprint* BlueprintReferencer = Cast<UBlueprint>(ReferencerAsset))
-				{
-					BlueprintsToCheck.Add(BlueprintReferencer);
-				}
-				else if (UWorld* WorldReferencer = Cast<UWorld>(ReferencerAsset))
-				{
-					if (WorldReferencer->PersistentLevel && WorldReferencer->PersistentLevel->OwningWorld)
-					{
-						BlueprintsToCheck.Add(WorldReferencer->PersistentLevel->GetLevelScriptBlueprint());
-					}
-				}
-			}
-
-			GWarn->EndSlowTask();
-		}
-	}
-
-	for (const UBlueprint* Blueprint : BlueprintsToCheck)
+	auto CheckSingleBlueprint = [&Name, LocalGraphScope](const UBlueprint* Blueprint) -> bool
 	{
 		TArray<UEdGraph*> AllGraphs;
 		Blueprint->GetAllGraphs(AllGraphs);
-		for(TArray<UEdGraph*>::TConstIterator it(AllGraphs); it; ++it)
+		for (TArray<UEdGraph*>::TConstIterator it(AllGraphs); it; ++it)
 		{
 			const UEdGraph* CurrentGraph = *it;
 			check(CurrentGraph);
-			if(CurrentGraph == LocalGraphScope || LocalGraphScope == nullptr)
+			if (CurrentGraph == LocalGraphScope || LocalGraphScope == nullptr)
 			{
 				TArray<UK2Node_Variable*> GraphNodes;
 				CurrentGraph->GetNodesOfClass(GraphNodes);
 
-				for (const UK2Node_Variable* CurrentNode : GraphNodes )
+				for (const UK2Node_Variable* CurrentNode : GraphNodes)
 				{
-					if(Name == CurrentNode->GetVarName())
+					if (Name == CurrentNode->GetVarName())
 					{
 						return true;
 					}
@@ -5801,7 +5836,55 @@ bool FBlueprintEditorUtils::IsVariableUsed(const UBlueprint* InBlueprint, const 
 				}
 			}
 		}
+
+		return false;
+	};
+
+	if (CheckSingleBlueprint(InBlueprint))
+	{
+		return true;
 	}
+
+	if (!LocalGraphScope)
+	{
+		FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
+		FARFilter Filter;
+		AssetRegistryModule.Get().GetReferencers(InBlueprint->GetPackage()->GetFName(), Filter.PackageNames, UE::AssetRegistry::EDependencyCategory::Package, UE::AssetRegistry::EDependencyQuery::Hard);
+		if (Filter.PackageNames.Num() > 0)
+		{
+			GWarn->BeginSlowTask(LOCTEXT("LoadingReferencerAssets", "Loading Referencers..."), true);
+
+			Filter.TagsAndValues.Add(TEXT("IsDataOnly"), TOptional<FString>(TEXT("false")));
+			TArray<FAssetData> ReferencersAssetData;
+			AssetRegistryModule.Get().GetAssets(Filter, ReferencersAssetData);
+			for (const FAssetData& ReferencerData : ReferencersAssetData)
+			{
+				UObject* ReferencerAsset = ReferencerData.GetAsset();
+				if (UBlueprint* BlueprintReferencer = Cast<UBlueprint>(ReferencerAsset))
+				{
+					if (CheckSingleBlueprint(BlueprintReferencer))
+					{
+						GWarn->EndSlowTask();
+						return true;
+					}
+				}
+				else if (UWorld* WorldReferencer = Cast<UWorld>(ReferencerAsset))
+				{
+					if (WorldReferencer->PersistentLevel && WorldReferencer->PersistentLevel->OwningWorld)
+					{
+						if (CheckSingleBlueprint(WorldReferencer->PersistentLevel->GetLevelScriptBlueprint()))
+						{
+							GWarn->EndSlowTask();
+							return true;
+						}
+					}
+				}
+			}
+
+			GWarn->EndSlowTask();
+		}
+	}
+
 	return false;
 }
 
@@ -7957,7 +8040,7 @@ void FBlueprintEditorUtils::FixLevelScriptActorBindings(ALevelScriptActor* Level
 void FBlueprintEditorUtils::ListPackageContents(UPackage* Package, FOutputDevice& Ar)
 {
 	Ar.Logf(TEXT("Package %s contains:"), *Package->GetName());
-	for (FObjectIterator ObjIt; ObjIt; ++ObjIt)
+	for (FThreadSafeObjectIterator ObjIt; ObjIt; ++ObjIt)
 	{
 		if (ObjIt->GetOuter() == Package)
 		{
@@ -7982,7 +8065,7 @@ bool FBlueprintEditorUtils::KismetDiagnosticExec(const TCHAR* InStream, FOutputD
 		TSet<UPackage*> BadPackages;
 
 		// Run thru every object in the world
-		for (FObjectIterator ObjectIt; ObjectIt; ++ObjectIt)
+		for (FThreadSafeObjectIterator ObjectIt; ObjectIt; ++ObjectIt)
 		{
 			UObject* TestObj = *ObjectIt;
 
@@ -8086,7 +8169,7 @@ bool FBlueprintEditorUtils::KismetDiagnosticExec(const TCHAR* InStream, FOutputD
 		for (UPackage* BadPackage : BadPackages)
 		{
 			Ar.Logf(TEXT("\nBad package %s contains:"), *BadPackage->GetName());
-			for (FObjectIterator ObjIt; ObjIt; ++ObjIt)
+			for (FThreadSafeObjectIterator ObjIt; ObjIt; ++ObjIt)
 			{
 				if (ObjIt->GetOuter() == BadPackage)
 				{
@@ -8143,7 +8226,7 @@ bool FBlueprintEditorUtils::KismetDiagnosticExec(const TCHAR* InStream, FOutputD
 	else if (FParse::Command(&Str, TEXT("ListRootSetObjects")))
 	{
 		UE_LOG(LogBlueprintDebug, Log, TEXT("--- LISTING ROOTSET OBJ ---"));
-		for( FObjectIterator it; it; ++it )
+		for( FThreadSafeObjectIterator it; it; ++it )
 		{
 			UObject* CurrObj = *it;
 			if( CurrObj->IsRooted() )
@@ -8680,7 +8763,7 @@ bool FBlueprintEditorUtils::PropertyValueFromString_Direct(const FProperty* Prop
 			int32 IntValue = 0;
 			if (const UEnum* Enum = ByteProperty->Enum)
 			{
-				IntValue = Enum->GetValueByName(FName(*StrValue));
+				IntValue = Enum->GetValueByName(FName(*StrValue, FNAME_Find));
 				bParseSucceeded = (INDEX_NONE != IntValue);
 
 				// If the parse did not succeed, clear out the int to keep the enum value valid
@@ -8698,7 +8781,7 @@ bool FBlueprintEditorUtils::PropertyValueFromString_Direct(const FProperty* Prop
 		}
 		else if (const FEnumProperty* EnumProperty = CastField<const FEnumProperty>(Property))
 		{
-			int64 IntValue = EnumProperty->GetEnum()->GetValueByName(FName(*StrValue));
+			int64 IntValue = EnumProperty->GetEnum()->GetValueByName(FName(*StrValue, FNAME_Find));
 			bParseSucceeded = (INDEX_NONE != IntValue);
 
 			// If the parse did not succeed, clear out the int to keep the enum value valid

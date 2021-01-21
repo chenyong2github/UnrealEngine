@@ -147,15 +147,21 @@ UControlRigBlueprint* FControlRigBlueprintActions::CreateControlRigFromSkeletalM
 
 	USkeletalMesh* SkeletalMesh = Cast<USkeletalMesh>(InSelectedObject);
 	USkeleton* Skeleton = Cast<USkeleton>(InSelectedObject);
+	const FReferenceSkeleton* RefSkeleton = nullptr;
 
 	if(SkeletalMesh)
 	{
 		Skeleton = SkeletalMesh->GetSkeleton();
+		RefSkeleton = &SkeletalMesh->GetRefSkeleton();
 	}
 	else if (Skeleton == nullptr)
 	{
 		UE_LOG(LogControlRigEditor, Error, TEXT("CreateControlRigFromSkeletalMeshOrSkeleton: Provided object has to be a SkeletalMesh or Skeleton."));
 		return nullptr;
+	}
+	else
+	{
+		RefSkeleton = &Skeleton->GetReferenceSkeleton();
 	}
 
 	FString PackagePath = InSelectedObject->GetPathName();
@@ -173,10 +179,11 @@ UControlRigBlueprint* FControlRigBlueprintActions::CreateControlRigFromSkeletalM
 		return nullptr;
 	}
 
-	NewControlRigBlueprint->HierarchyContainer.BoneHierarchy.ImportSkeleton(Skeleton->GetReferenceSkeleton(), NAME_None, true, true, false, false);
-	NewControlRigBlueprint->HierarchyContainer.CurveContainer.ImportCurvesFromSkeleton(Skeleton, NAME_None, true, false, false);
+	NewControlRigBlueprint->HierarchyContainer.BoneHierarchy.ImportSkeleton(*RefSkeleton, NAME_None, false, false, false, false);
+	NewControlRigBlueprint->HierarchyContainer.CurveContainer.ImportCurvesFromSkeleton(Skeleton, NAME_None, false, false, false);
 	NewControlRigBlueprint->SourceHierarchyImport = Skeleton;
 	NewControlRigBlueprint->SourceCurveImport = Skeleton;
+	NewControlRigBlueprint->PropagateHierarchyFromBPToInstances(true);
 
 	if(SkeletalMesh)
 	{

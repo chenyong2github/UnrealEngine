@@ -12,9 +12,9 @@ struct DATAREGISTRY_API FDataRegistrySource_DataTableRules
 {
 	GENERATED_BODY()
 
-	/** True if this is a hard ref, false if it's loaded on demand */
+	/** True if the entire table should be loaded into memory when the source is loaded, false if the table is loaded on demand */
 	UPROPERTY(EditAnywhere, Category = DataRegistry)
-	bool bUseHardReference = true;
+	bool bPrecacheTable = true;
 
 	/** Time in seconds to keep cached table alive if hard reference is off. 0 will release immediately, -1 will never release */
 	UPROPERTY(EditAnywhere, Category = DataRegistry)
@@ -73,7 +73,7 @@ protected:
 
 	// Source interface
 	virtual EDataRegistryAvailability GetSourceAvailability() const override;
-	virtual EDataRegistryAvailability GetItemAvailability(const FName& ResolvedName, const uint8** InMemoryDataPtr) const override;
+	virtual EDataRegistryAvailability GetItemAvailability(const FName& ResolvedName, const uint8** PrecachedDataPtr) const override;
 	virtual void GetResolvedNames(TArray<FName>& Names) const override;
 	virtual void ResetRuntimeState() override;
 	virtual bool AcquireItem(FDataRegistrySourceAcquireRequest&& Request) override;

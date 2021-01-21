@@ -95,8 +95,8 @@ namespace Chaos
 		static constexpr int32 DefaultNumCollisionPairIterations = 1;
 		static constexpr int32 DefaultNumPushOutIterations = 1;
 		static constexpr int32 DefaultNumCollisionPushOutPairIterations = 3;
-		static constexpr float DefaultCollisionMarginFraction = 0.01f;
-		static constexpr float DefaultCollisionMarginMax = 2.0f;
+		static constexpr float DefaultCollisionMarginFraction = 0.1f;
+		static constexpr float DefaultCollisionMarginMax = 100.0f;
 		static constexpr float DefaultCollisionCullDistance = 5.0f;
 		static constexpr int32 DefaultNumJointPairIterations = 3;
 		static constexpr int32 DefaultNumJointPushOutPairIterations = 0;

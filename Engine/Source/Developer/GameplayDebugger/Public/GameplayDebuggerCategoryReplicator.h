@@ -57,7 +57,7 @@ struct FGameplayDebuggerDebugActor
 	FName ActorName;
 
 	UPROPERTY()
-	int32 SyncCounter;
+	int32 SyncCounter = 0;
 };
 
 USTRUCT()

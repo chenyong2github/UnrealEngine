@@ -635,12 +635,31 @@ namespace WindowsMixedReality
 
 	void FWindowsMixedRealityHMD::SetTrackingOrigin(EHMDTrackingOrigin::Type NewOrigin)
 	{
-		HMDTrackingOrigin = NewOrigin;
+		if (HMD != nullptr)
+		{
+			if (NewOrigin == EHMDTrackingOrigin::Eye)
+			{
+				HMD->SetTrackingOrigin(HMDTrackingOrigin::Eye);
+			}
+			else
+			{
+				HMD->SetTrackingOrigin(HMDTrackingOrigin::Floor);
+			}
+		}
 	}
 
 	EHMDTrackingOrigin::Type FWindowsMixedRealityHMD::GetTrackingOrigin() const
 	{
-		return HMDTrackingOrigin;
+		if (HMD != nullptr)
+		{
+			HMDTrackingOrigin origin = HMD->GetTrackingOrigin();
+			if (origin == HMDTrackingOrigin::Floor)
+			{
+				return EHMDTrackingOrigin::Floor;
+			}
+		}
+
+		return EHMDTrackingOrigin::Eye;
 	}
 
 	bool FWindowsMixedRealityHMD::EnumerateTrackedDevices(TArray<int32>& OutDevices, EXRTrackedDeviceType Type)
@@ -994,7 +1013,6 @@ namespace WindowsMixedReality
 		DirectX::XMMATRIX rightPose;
 		DirectX::XMMATRIX thirdCameraPoseLeft;
 		DirectX::XMMATRIX thirdCameraPoseRight;
-		WindowsMixedReality::HMDTrackingOrigin trackingOrigin;
 
 		bool GotPose = false;
 		if (IsInRenderingThread())
@@ -1042,14 +1060,10 @@ namespace WindowsMixedReality
 			}
 
 			// Get HMD view and projection
-			GotPose = HMD->GetCurrentPoseRenderThread(leftPose, rightPose, trackingOrigin);
+			GotPose = HMD->GetCurrentPoseRenderThread(leftPose, rightPose);
 
 			if (GotPose)
 			{
-				trackingOrigin == WindowsMixedReality::HMDTrackingOrigin::Eye ?
-					SetTrackingOrigin(EHMDTrackingOrigin::Eye) :
-					SetTrackingOrigin(EHMDTrackingOrigin::Stage);
-
 				// Convert to unreal space
 				FMatrix UPoseL = WMRUtility::ToFMatrix(leftPose);
 				FMatrix UPoseR = WMRUtility::ToFMatrix(rightPose);
@@ -1993,7 +2007,6 @@ namespace WindowsMixedReality
 		, HMD(InHMD)
 		, ScreenScalePercentage(1.0f)
 		, mCustomPresent(nullptr)
-		, HMDTrackingOrigin(EHMDTrackingOrigin::Floor)
 	{
 		static const FName RendererModuleName("Renderer");
 		RendererModule = FModuleManager::GetModulePtr<IRendererModule>(RendererModuleName);
@@ -2411,9 +2424,9 @@ namespace WindowsMixedReality
 		HMD->SubmitHapticValue(hand, FMath::Clamp(value, 0.f, 1.f));
 	}
 
-	bool FWindowsMixedRealityHMD::QueryCoordinateSystem(ABI::Windows::Perception::Spatial::ISpatialCoordinateSystem *& pCoordinateSystem, WindowsMixedReality::HMDTrackingOrigin& trackingOrigin)
+	bool FWindowsMixedRealityHMD::QueryCoordinateSystem(ABI::Windows::Perception::Spatial::ISpatialCoordinateSystem *& pCoordinateSystem)
 	{
-		return HMD->QueryCoordinateSystem(pCoordinateSystem, trackingOrigin);
+		return HMD->QueryCoordinateSystem(pCoordinateSystem);
 	}
 
 	bool FWindowsMixedRealityHMD::IsTrackingAvailable()

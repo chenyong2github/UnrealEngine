@@ -284,6 +284,11 @@ namespace ObjectTools
 				// and if so, offer the user the option to reset the transaction buffer.
 				GEditor->Trans->DisableObjectSerialization();
 				bOutIsReferenced = IsReferenced(InObject, GARBAGE_COLLECTION_KEEPFLAGS, EInternalObjectFlags::GarbageCollectionKeepFlags, true, OutMemoryReferences);
+				if (!bOutIsReferenced)
+				{
+					UE_LOG(LogObjectTools, Warning, TEXT("Detected inconsistencies between reference gathering algorithms. Switching 'Editor.UseLegacyGetReferencersForDeletion' on for the remainder of this editor session."));
+					CVarUseLegacyGetReferencersForDeletion->Set(1);
+				}
 				GEditor->Trans->EnableObjectSerialization();
 			}
 		}
@@ -390,7 +395,7 @@ namespace ObjectTools
 			,	IgnoreClasses( InIgnoreClasses )
 	{
 		// Mark objects.
-		for ( FObjectIterator It ; It ; ++It )
+		for ( FThreadSafeObjectIterator It; It ; ++It )
 		{
 			if ( ShouldSearchForAssets(*It) )
 			{
@@ -894,7 +899,7 @@ namespace ObjectTools
 				}
 			}
 
-			for ( FObjectIterator ObjIter; ObjIter; ++ObjIter )
+			for ( FThreadSafeObjectIterator ObjIter; ObjIter; ++ObjIter )
 			{
 				// Always clear the root set flags
 				UObject* CurrentObject = *ObjIter;
@@ -988,7 +993,7 @@ namespace ObjectTools
 		// Find the referencers of the objects to be replaced
 		FFindReferencersArchive FindRefsArchive( nullptr, OutInfo.ReplaceableObjects );
 
-		for ( FObjectIterator ObjIter; ObjIter; ++ObjIter )
+		for ( FThreadSafeObjectIterator ObjIter; ObjIter; ++ObjIter )
 		{
 			UObject* CurObject = *ObjIter;
 
@@ -1065,9 +1070,19 @@ namespace ObjectTools
 					UBlueprint* BPObjectToUpdate = Cast<UBlueprint>(CurObject);
 					if (BPObjectToUpdate)
 					{
-						FArchiveReplaceObjectRef<UObject> ReplaceAr(BPObjectToUpdate->GeneratedClass->ClassDefaultObject, ReplacementMap, false, true, false);
+						const bool bNullPrivateRefs = false;
+						const bool bIgnoreOuterRef = false;
+						const bool bIgnoreArchetypeRef = false;
+						const bool bDelayStart = false;
+						const bool bIgnoreClassGeneratedByRef = false;
+						FArchiveReplaceObjectRef<UObject> ReplaceAr(BPObjectToUpdate->GeneratedClass->ClassDefaultObject, ReplacementMap, bNullPrivateRefs, bIgnoreOuterRef, bIgnoreArchetypeRef, bDelayStart, bIgnoreClassGeneratedByRef);
 					}
-					FArchiveReplaceObjectRef<UObject> ReplaceAr(CurObject, ReplacementMap, false, true, false);
+					const bool bNullPrivateRefs = false;
+					const bool bIgnoreOuterRef = false;
+					const bool bIgnoreArchetypeRef = false;
+					const bool bDelayStart = false;
+					const bool bIgnoreClassGeneratedByRef = false;
+					FArchiveReplaceObjectRef<UObject> ReplaceAr(CurObject, ReplacementMap, bNullPrivateRefs, bIgnoreOuterRef, bIgnoreArchetypeRef, bDelayStart, bIgnoreClassGeneratedByRef);
 				}
 			}
 		}
@@ -1081,8 +1096,12 @@ namespace ObjectTools
 				GWarn->StatusUpdate( NumObjsReplaced, ReferencingPropertiesMapKeys.Num(), NSLOCTEXT("UnrealEd", "ConsolidateAssetsUpdate_ReplacingReferences", "Replacing Asset References...") );
 
 				UObject* CurReplaceObj = ReferencingPropertiesMapKeys[Index];
-
-				FArchiveReplaceObjectRef<UObject> ReplaceAr( CurReplaceObj, ReplacementMap, false, true, false );
+				const bool bNullPrivateRefs = false;
+				const bool bIgnoreOuterRef = false;
+				const bool bIgnoreArchetypeRef = false;
+				const bool bDelayStart = false;
+				const bool bIgnoreClassGeneratedByRef = false;
+				FArchiveReplaceObjectRef<UObject> ReplaceAr( CurReplaceObj, ReplacementMap, bNullPrivateRefs, bIgnoreOuterRef, bIgnoreArchetypeRef, bDelayStart, bIgnoreClassGeneratedByRef);
 			}
 		}
 		// Now alter the referencing objects the change has completed via PostEditChange,
@@ -2740,7 +2759,7 @@ namespace ObjectTools
 				Algo::Sort(InterestSet, TLess<UObject*>());
 				InterestSetAdditions.Reset();
 
-				for (FObjectIterator It; It; ++It)
+				for (FThreadSafeObjectIterator It; It; ++It)
 				{
 					UObject* Object = *It;
 					if (Algo::BinarySearch(InterestSet, Object, TLess<UObject*>()) != INDEX_NONE)
@@ -4208,7 +4227,7 @@ namespace ObjectTools
 
 		TArray<UObject*> ObjectsInLevels;
 
-		for( FObjectIterator It; It; ++It )
+		for( FThreadSafeObjectIterator It; It; ++It )
 		{
 			UObject* Obj = *It;
 

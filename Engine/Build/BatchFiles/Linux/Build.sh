@@ -9,9 +9,12 @@ cd "`dirname "$0"`/../../../.."
 # Setup Environment and Mono
 source Engine/Build/BatchFiles/Linux/SetupEnvironment.sh -dotnet Engine/Build/BatchFiles/Linux
 
-if ! dotnet build Engine/Source/Programs/UnrealBuildTool/UnrealBuildTool.csproj -c Development -v quiet; then
-  echo "Failed to build to build tool (UnrealBuildTool)"
-  exit 1
+# If this is a source drop of the engine make sure that the UnrealBuildTool is up-to-date
+if [ ! -f Engine/Build/InstalledBuild.txt ]; then
+    if ! dotnet build Engine/Source/Programs/UnrealBuildTool/UnrealBuildTool.csproj -c Development -v quiet; then
+    echo "Failed to build to build tool (UnrealBuildTool)"
+    exit 1
+  fi
 fi
 
 echo Running command : Engine/Binaries/DotNET/UnrealBuildTool/UnrealBuildTool "$@"

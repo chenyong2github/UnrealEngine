@@ -715,19 +715,6 @@ void FRHICommandPopEvent::Execute(FRHICommandListBase& CmdList)
 	INTERNAL_DECORATOR_COMPUTE(RHIPopEvent)();
 }
 
-void FRHICommandPushBreadcrumb::Execute(FRHICommandListBase& CmdList)
-{
-	RHISTAT(PushBreadcrumb);
-	INTERNAL_DECORATOR_COMPUTE(PushBreadcrumbRHIThread)(Breadcrumb);
-}
-
-void FRHICommandPopBreadcrumb::Execute(FRHICommandListBase& CmdList)
-{
-	RHISTAT(PopBreadcrumb);
-	INTERNAL_DECORATOR_COMPUTE(PopBreadcrumbRHIThread)();
-}
-
-
 void FRHICommandInvalidateCachedState::Execute(FRHICommandListBase& CmdList)
 {
 	RHISTAT(RHIInvalidateCachedState);

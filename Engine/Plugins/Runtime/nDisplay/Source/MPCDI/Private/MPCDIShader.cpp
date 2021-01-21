@@ -25,11 +25,6 @@
 
 #define ShaderFileName "/Plugin/nDisplay/Private/MPCDIShaders.usf"
 
-namespace MpcdiStrings
-{
-	static constexpr auto RenderPassName = TEXT("DisplayClusterMPCDIWarpBlend");
-	static constexpr auto RenderPassHint = TEXT("DisplayCluster MPCDI Warp&Blend");
-};
 
 // Select mpcdi stereo mode
 enum class EVarMPCDIShaderType : uint8
@@ -491,7 +486,7 @@ public:
 	}
 };
 
-DECLARE_GPU_STAT_NAMED(DisplayClusterMpcdiWarpBlend, MpcdiStrings::RenderPassHint);
+DECLARE_GPU_STAT_NAMED(nDisplay_Mpcdi_WarpBlend, TEXT("nDisplay Mpcdi::Warp&Blend"));
 
 bool FMPCDIShader::ApplyWarpBlend(FRHICommandListImmediate& RHICmdList, IMPCDI::FTextureWarpData& InTextureWarpData, IMPCDI::FShaderInputData& InShaderInputData, FMPCDIData* InMPCDIData)
 {
@@ -504,12 +499,12 @@ bool FMPCDIShader::ApplyWarpBlend(FRHICommandListImmediate& RHICmdList, IMPCDI::
 		return false;
 	}
 
-	SCOPED_GPU_STAT(RHICmdList, DisplayClusterMpcdiWarpBlend);
-	SCOPED_DRAW_EVENTF(RHICmdList, DisplayClusterMpcdiWarpBlend, MpcdiStrings::RenderPassName);
+	SCOPED_GPU_STAT(RHICmdList, nDisplay_Mpcdi_WarpBlend);
+	SCOPED_DRAW_EVENT(RHICmdList, nDisplay_Mpcdi_WarpBlend);
 
 	// Do single-pass warp&blend render
 	FRHIRenderPassInfo RPInfo(InTextureWarpData.DstTexture, ERenderTargetActions::Load_Store);
-	RHICmdList.BeginRenderPass(RPInfo, MpcdiStrings::RenderPassName);
+	RHICmdList.BeginRenderPass(RPInfo, TEXT("nDisplay_MpcdiWarpBlend"));
 	bool bIsRenderSuccess = MpcdiPassRenderer.Render(RHICmdList);
 	RHICmdList.EndRenderPass();
 

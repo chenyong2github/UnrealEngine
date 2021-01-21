@@ -2358,7 +2358,7 @@ void FStaticMeshEditor::NotifyPostChange( const FPropertyChangedEvent& PropertyC
 		}
 		else if (PropertyChangedEvent.GetPropertyName() == TEXT("CollisionResponses"))
 		{
-			for (FObjectIterator Iter(UStaticMeshComponent::StaticClass()); Iter; ++Iter)
+			for (FThreadSafeObjectIterator Iter(UStaticMeshComponent::StaticClass()); Iter; ++Iter)
 			{
 				UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(*Iter);
 				if (StaticMeshComponent->GetStaticMesh() == StaticMesh)

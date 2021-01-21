@@ -59,7 +59,7 @@ protected:
 
 	// Source interface
 	virtual EDataRegistryAvailability GetSourceAvailability() const override;
-	virtual EDataRegistryAvailability GetItemAvailability(const FName& ResolvedName, const uint8** InMemoryDataPtr) const override;
+	virtual EDataRegistryAvailability GetItemAvailability(const FName& ResolvedName, const uint8** PrecachedDataPtr) const override;
 	virtual void GetResolvedNames(TArray<FName>& Names) const override;
 	virtual void ResetRuntimeState() override;
 	virtual bool AcquireItem(FDataRegistrySourceAcquireRequest&& Request) override;

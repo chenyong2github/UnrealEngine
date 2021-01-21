@@ -5,6 +5,7 @@
 #include "EntitySystem/MovieSceneEntityIDs.h"
 #include "EntitySystem/MovieSceneEntityInstantiatorSystem.h"
 #include "EntitySystem/BuiltInComponentTypes.h"
+#include "EntitySystem/MovieSceneEntitySystemTypes.h"
 #include "EntitySystem/MovieScenePropertyComponentHandler.h"
 #include "EntitySystem/MovieSceneOverlappingEntityTracker.h"
 
@@ -76,6 +77,16 @@ public:
 	void InitializeOutput(UE::MovieScene::FInterrogationKey Key, TArrayView<const FMovieSceneEntityID> Inputs, FPropertyInfo* Output, UE::MovieScene::FEntityOutputAggregate Aggregate);
 	void UpdateOutput(UE::MovieScene::FInterrogationKey Key, TArrayView<const FMovieSceneEntityID> Inputs, FPropertyInfo* Output, UE::MovieScene::FEntityOutputAggregate Aggregate);
 	void DestroyOutput(UE::MovieScene::FInterrogationKey Key, FPropertyInfo* Output, UE::MovieScene::FEntityOutputAggregate Aggregate);
+
+	const FPropertyInfo* FindPropertyInfo(UE::MovieScene::FInterrogationKey Key) const
+	{
+		return PropertyTracker.FindOutput(Key);
+	}
+
+	void FindEntityIDs(UE::MovieScene::FInterrogationKey Key, TArray<FMovieSceneEntityID>& OutEntityIDs) const
+	{
+		PropertyTracker.FindEntityIDs(Key, OutEntityIDs);
+	}
 
 private:
 

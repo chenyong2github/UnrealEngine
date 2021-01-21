@@ -4,8 +4,10 @@
 #include "HAL/IConsoleManager.h"
 #include "Serialization/AsyncLoadingThread.h"
 #include "Serialization/AsyncLoading2.h"
+#include "Serialization/EditorPackageLoader.h"
 #include "UObject/GCObject.h"
 #include "UObject/LinkerLoad.h"
+#include "UObject/PackageId.h"
 #include "Misc/CoreDelegates.h"
 #include "Misc/PackageName.h"
 #include "IO/IoDispatcher.h"
@@ -14,6 +16,13 @@
 volatile int32 GIsLoaderCreated;
 TUniquePtr<IAsyncPackageLoader> GPackageLoader;
 bool GAsyncLoadingAllowed = true;
+
+FThreadSafeCounter IAsyncPackageLoader::NextPackageRequestId;
+
+int32 IAsyncPackageLoader::GetNextRequestId()
+{
+	 return NextPackageRequestId.Increment();
+}
 
 #if !UE_BUILD_SHIPPING
 static void LoadPackageCommand(const TArray<FString>& Args)
@@ -565,7 +574,11 @@ void InitAsyncThread()
 	if (FIoDispatcher::IsInitialized())
 	{
 		GetGEDLBootNotificationManager().Disable();
+#if WITH_IOSTORE_IN_EDITOR
+		GPackageLoader = MakeEditorPackageLoader(FIoDispatcher::Get(), GetGEDLBootNotificationManager());
+#else
 		GPackageLoader.Reset(MakeAsyncPackageLoader2(FIoDispatcher::Get()));
+#endif
 	}
 	else
 #endif
@@ -804,6 +817,19 @@ void NotifyUnreachableObjects(const TArrayView<FUObjectItem*>& UnreachableObject
 	LLM_SCOPE(ELLMTag::AsyncLoading);
 	GetAsyncPackageLoader().NotifyUnreachableObjects(UnreachableObjects);
 }
+
+#if WITH_IOSTORE_IN_EDITOR
+bool DoesPackageExistInIoStore(FName InPackageName)
+{
+	if (FIoDispatcher::IsInitialized())
+	{
+		FIoChunkId PackageChunkId = CreateIoChunkId(FPackageId::FromName(InPackageName).Value(), 0, EIoChunkType::ExportBundleData);
+		return FIoDispatcher::Get().DoesChunkExist(PackageChunkId);
+	}
+
+	return false;
+}
+#endif
 
 double GFlushAsyncLoadingTime = 0.0;
 uint32 GFlushAsyncLoadingCount = 0;

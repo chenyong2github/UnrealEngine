@@ -4,6 +4,7 @@
 
 #include "DataRegistry.h"
 #include "Engine/DataTable.h"
+#include "Containers/SortedMap.h"
 #include "Subsystems/EngineSubsystem.h"
 #include "DataRegistrySubsystem.generated.h"
 
@@ -28,7 +29,7 @@ public:
 	// Blueprint Interface, it is static for ease of use in custom nodes
 
 	/**
-	 * Attempts to get structure data stored in a DataRegistry cache, modifying OutItem if the item is available
+	 * Attempts to get cached structure data stored in a DataRegistry, modifying OutItem if the item is available
 	 * (EXPERIMENTAL) this version has an input param and simple bool return
 	 *
 	 * @param ItemID		Item identifier to lookup in cache
@@ -40,7 +41,7 @@ public:
 	DECLARE_FUNCTION(execGetCachedItemBP);
 
 	/**
-	 * Attempts to get structure data stored in a DataRegistry cache, modifying OutItem if the item is available
+	 * Attempts to get cached structure data stored in a DataRegistry, modifying OutItem if the item is available
 	 * (EXPERIMENTAL) this version has an output param and enum result
 	 *
 	 * @param ItemID		Item identifier to lookup in cache
@@ -181,18 +182,18 @@ public:
 	/** Schedules registration of assets by path, this will happen immediately or will be queued if the data registries don't exist yet */
 	void PreregisterSpecificAssets(const TMap<FDataRegistryType, TArray<FSoftObjectPath>>& AssetMap, int32 AssetPriority = 0);
 
-	/** Returns the raw cached data and struct type. Return value specifies the cache safety for the data */
+	/** Gets the cached or precached data and struct type. The return value specifies the cache safety for the data */
 	FDataRegistryCacheGetResult GetCachedItemRaw(const uint8*& OutItemMemory, const UScriptStruct*& OutItemStruct, const FDataRegistryId& ItemId) const;
 
-	/** Returns the raw cached data and struct type using an async acquire result. Return value specifies the cache safety for the data */
+	/** Gets the cached or precached data and struct type using an async acquire result. The return value specifies the cache safety for the data */
 	FDataRegistryCacheGetResult GetCachedItemRawFromLookup(const uint8*& OutItemMemory, const UScriptStruct*& OutItemStruct, const FDataRegistryId& ItemId, const FDataRegistryLookup& Lookup) const;
 
-	/** Returns an evaluated curve value, as well as the actual curve if it is found. Return value specifies the cache safety for the curve */
+	/** Computes an evaluated curve value, as well as the actual curve if it is found. The return value specifies the cache safety for the curve */
 	FDataRegistryCacheGetResult EvaluateCachedCurve(float& OutValue, const FRealCurve*& OutCurve, FDataRegistryId ItemId, float InputValue, float DefaultValue = 0.0f) const;
 
-	/** Returns a cached item of specified struct type. This will return null if items was not found in local cache */
+	/** Returns a cached item of specified struct type. This will return null if the item is not already in memory */
 	template <class T>
-	T* GetCachedItem(const FDataRegistryId& ItemId) const
+	const T* GetCachedItem(const FDataRegistryId& ItemId) const
 	{
 		const UDataRegistry* FoundRegistry = GetRegistryForType(ItemId.RegistryType);
 		if (FoundRegistry)
@@ -205,8 +206,18 @@ public:
 	/** Start an async load of an item, delegate will be called on success or failure of acquire. Returns false if delegate could not be scheduled */
 	bool AcquireItem(const FDataRegistryId& ItemId, FDataRegistryItemAcquiredCallback DelegateToCall) const;
 
+
+	// Debug commands, bound as cvars or callable manually
+
+	/** Outputs all registered types and some info */
+	static void DumpRegistryTypeSummary();
+
+	/** Dumps out a text representation of every item in the registry */
+	static void DumpCachedItems(const TArray<FString>& Args);
+
 protected:
-	TMap<FName, TWeakObjectPtr<UDataRegistry>> RegistryMap;
+	typedef TPair<FName, UDataRegistry*> FRegistryMapPair;
+	TSortedMap<FName, UDataRegistry*, FDefaultAllocator, FNameFastLess> RegistryMap;
 
 	// Initialization order, need to wait for other early-load systems to initialize
 	virtual void PostEngineInit();
@@ -216,6 +227,8 @@ protected:
 
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 	virtual void Deinitialize() override;
+
+	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
 
 	// Paths that will be scanned for registries
 	TArray<FString> AssetScanPaths;
@@ -235,9 +248,6 @@ protected:
 
 	// True if initialization is ready to start, will be true even if config disabled
 	bool bReadyForInitialization = false;
-
-	// Handle used to keep registries in memory, only set in non-editor builds
-	TSharedPtr<FStreamableHandle> RegistryLoadHandle;
 
 #if WITH_EDITOR
 	virtual void PreBeginPIE(bool bStartSimulate);

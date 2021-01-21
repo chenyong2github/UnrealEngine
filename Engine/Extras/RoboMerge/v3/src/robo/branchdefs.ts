@@ -20,6 +20,7 @@ export interface BotConfig {
 	alias: string // alias if we need to mask name of bot in commands
 	emailDomainWhitelist: string[]
 	badgeUrlOverride: string
+	branchNamesToIgnore: string[]
 
 	macros: { [name: string]: string[] }
 }
@@ -165,6 +166,7 @@ export class BranchDefs {
 			mirrorPath: [],
 			alias: '',
 			emailDomainWhitelist: [],
+			branchNamesToIgnore: [],
 			macros: {},
 			badgeUrlOverride: ''
 		}
@@ -208,11 +210,12 @@ export class BranchDefs {
 			}
 		}
 
-
-
 		if (defaultConfigForWholeBot.defaultIntegrationMethod) {
 			BranchDefs.checkValidIntegrationMethod(outErrors, defaultConfigForWholeBot.defaultIntegrationMethod, 'config')
 		}
+
+		const namesToIgnore = defaultConfigForWholeBot.branchNamesToIgnore.map(s => s.toUpperCase())
+		defaultConfigForWholeBot.branchNamesToIgnore = namesToIgnore
 
 		const names = new Map<string, string>()
 
@@ -243,8 +246,16 @@ export class BranchDefs {
 			}
 		}
 
-		// Check for duplicate aliases
+		// Check for duplicate aliases (and that branches/aliases are not in the ignore list)
 		const addAlias = (upperBranchName: string, upperAlias: string) => {
+			if (namesToIgnore.indexOf(upperBranchName) >= 0) {
+				outErrors.push(upperBranchName + ' branch is in branchNamesToIgnore')
+			}
+
+			if (namesToIgnore.indexOf(upperAlias) >= 0) {
+				outErrors.push(upperAlias + ' alias is in branchNamesToIgnore')
+			}
+
 			if (!upperAlias) {
 				outErrors.push(`Empty alias for '${upperBranchName}'`)
 				return
@@ -343,12 +354,14 @@ export class BranchDefs {
 				if (!names.has(spec.to.toUpperCase())) {
 					outErrors.push(`To-Branch ${spec.to} not found in branchspec ${spec.name}`)
 				}
-			}		
+			}
 		}
 
+		if (outErrors.length > 0) {
+			console.log(outErrors)
+			return {branchGraphDef: null, config: defaultConfigForWholeBot}
+		}
 
-		return {branchGraphDef: outErrors.length === 0 ? branchGraph : null, config: defaultConfigForWholeBot}
-
-		// not currently checking force flow loops
+		return {branchGraphDef: branchGraph, config: defaultConfigForWholeBot}
 	}
 }

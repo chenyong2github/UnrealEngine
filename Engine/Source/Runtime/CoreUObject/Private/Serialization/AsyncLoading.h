@@ -340,6 +340,7 @@ public:
 struct FAsyncPackage : public FGCObject
 {
 	friend struct FScopedAsyncPackageEvent;
+	friend struct FAsyncPackageScope;
 	/**
 	 * Constructor
 	 */
@@ -965,6 +966,9 @@ struct FScopedAsyncPackageEvent
 	FAsyncPackage* Package;
 	/** Outer scope package */
 	FAsyncPackage* PreviousPackage;
+#if WITH_IOSTORE_IN_EDITOR
+	IAsyncPackageLoader* PreviousAsyncPackageLoader;
+#endif
 	
 	FScopedAsyncPackageEvent(FAsyncPackage* InPackage);
 	~FScopedAsyncPackageEvent();

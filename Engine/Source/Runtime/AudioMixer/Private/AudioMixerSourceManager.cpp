@@ -6,6 +6,7 @@
 #include "AudioMixerDevice.h"
 #include "AudioMixerSourceVoice.h"
 #include "AudioMixerSubmix.h"
+#include "AudioThread.h"
 #include "IAudioExtensionPlugin.h"
 #include "AudioMixer.h"
 #include "Sound/SoundModulationDestination.h"
@@ -825,10 +826,9 @@ namespace Audio
 
 				// Add the effect chain instances 
 				SourceInfo.SourceEffects = SourceEffectChain;
-
+				
 				// Add a slot entry for the preset so it can change while running. This will get sent to the running effect instance if the preset changes.
 				SourceInfo.SourceEffectPresets.Add(nullptr);
-
 				// If this is going to be a source bus, add this source id to the list of active bus ids
 				if (InitParams.AudioBusId != INDEX_NONE)
 				{

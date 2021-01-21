@@ -2763,10 +2763,10 @@ void SDesignerView::ProcessDropAndAddWidget(const FGeometry& MyGeometry, const F
 	// In order to prevent the GetWidgetAtCursor code from picking the widgets we're about to move, we need to mark them
 	// as the drop preview widgets before any other code can run.
 	TSharedPtr<FSelectedWidgetDragDropOp> SelectedDragDropOp = DragDropEvent.GetOperationAs<FSelectedWidgetDragDropOp>();
-	if ( SelectedDragDropOp.IsValid() )
+	if (SelectedDragDropOp.IsValid())
 	{
 		DropPreviews.Empty();
-		
+
 		for (const auto& DraggedWidget : SelectedDragDropOp->DraggedWidgets)
 		{
 			FDropPreview DropPreview;
@@ -2785,7 +2785,7 @@ void SDesignerView::ProcessDropAndAddWidget(const FGeometry& MyGeometry, const F
 	UWidgetTree* TargetTree = nullptr;
 
 	FWidgetHitResult HitResult;
-	if ( FindWidgetUnderCursor(MyGeometry, DragDropEvent, UPanelWidget::StaticClass(), HitResult) )
+	if (FindWidgetUnderCursor(MyGeometry, DragDropEvent, UPanelWidget::StaticClass(), HitResult))
 	{
 		Target = bIsPreview ? HitResult.Widget.GetPreview() : HitResult.Widget.GetTemplate();
 		TargetTree = (bIsPreview && Target) ? Cast<UWidgetTree>(Target->GetOuter()) : ToRawPtr(BP->WidgetTree);
@@ -2796,11 +2796,11 @@ void SDesignerView::ProcessDropAndAddWidget(const FGeometry& MyGeometry, const F
 	}
 
 	FGeometry WidgetUnderCursorGeometry = HitResult.WidgetArranged.Geometry;
-	
+
 	FScopedTransaction DragAndDropTransaction(LOCTEXT("Designer_DragAddDrop", "Drag and Drop Widget"));
 	TArray<UWidget*> DragDropPreviewWidgets;
 
-	if ( SelectedDragDropOp.IsValid() && SelectedDragDropOp->Designer == this)
+	if ( SelectedDragDropOp.IsValid() && SelectedDragDropOp->Designer != this)
 	{
 		// Only accept drag drop from the same editor
 		SelectedDragDropOp.Reset();

@@ -483,10 +483,52 @@ struct FNetworkPredictionDriverBase
 	{
 		Out->Interpolate(From, To, PCT);
 	}
-
+	
 	static void InterpolateState(const void* From, const void* To, const float PCT, void* Out)
 	{
 	}
+
+	// -----------------------------------------------------------------------------------------------------------------------------------
+	//	Show/Hide ForInterpolation
+	//
+	//	Interpolated sims are initially hidden until there are two valid states to interpolate between	
+	// -----------------------------------------------------------------------------------------------------------------------------------
+
+	static void SetHiddenForInterpolation(DriverType* Driver, bool bHide)
+	{
+		CallSetHiddenForInterpolation(Driver, bHide);
+	}
+
+	struct CSetHiddenForInterpolationFuncable
+	{
+		template <typename InDriverType>
+		auto Requires(InDriverType* Driver, bool bHidden) -> decltype(Driver->SetHiddenForInterpolation(bHidden));
+	};
+	
+	static constexpr bool HasSetHiddenForInterpolation = TModels<CSetHiddenForInterpolationFuncable, DriverType>::Value;
+
+	template<bool HasFunc=HasSetHiddenForInterpolation>
+	static typename TEnableIf<HasFunc>::Type CallSetHiddenForInterpolation(DriverType* Driver, bool bHide)
+	{
+		npCheckSlow(Driver);
+		Driver->SetHiddenForInterpolation(bHide);
+	}
+
+	template<bool HasFunc=HasSetHiddenForInterpolation>
+	static typename TEnableIf<!HasFunc>::Type CallSetHiddenForInterpolation(DriverType* Driver, bool bHide)
+	{
+		CallSetHiddenForInterpolationFallback(Driver, bHide);
+	}
+
+	static void CallSetHiddenForInterpolationFallback(AActor* Driver, bool bHide)
+	{
+		Driver->SetHidden(bHide);
+	}
+
+	static void CallSetHiddenForInterpolationFallback(UActorComponent* Driver, bool bHide)
+	{
+		Driver->GetOwner()->SetHidden(bHide);
+	}	
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
 	//	Physics

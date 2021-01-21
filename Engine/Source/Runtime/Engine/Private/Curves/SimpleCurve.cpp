@@ -2,10 +2,6 @@
 
 #include "Curves/SimpleCurve.h"
 
-
-DECLARE_CYCLE_STAT(TEXT("SimpleCurve Eval"), STAT_SimpleCurve_Eval, STATGROUP_Engine);
-
-
 /* FSimpleCurveKey interface
  *****************************************************************************/
 
@@ -651,8 +647,6 @@ void FSimpleCurve::RemapTimeValue(float& InTime, float& CycleValueOffset) const
 
 float FSimpleCurve::Eval(float InTime, float InDefaultValue) const
 {
-	SCOPE_CYCLE_COUNTER(STAT_SimpleCurve_Eval);
-
 	// Remap time if extrapolation is present and compute offset value to use if cycling 
 	float CycleValueOffset = 0;
 	RemapTimeValue(InTime, CycleValueOffset);

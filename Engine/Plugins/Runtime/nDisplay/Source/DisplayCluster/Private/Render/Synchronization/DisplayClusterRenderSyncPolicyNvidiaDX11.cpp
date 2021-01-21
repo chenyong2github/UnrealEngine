@@ -2,12 +2,26 @@
 
 #include "Render/Synchronization/DisplayClusterRenderSyncPolicyNvidiaDX11.h"
 
+#include "Engine/Engine.h"
+#include "Engine/GameViewportClient.h"
 
-FDisplayClusterRenderSyncPolicyNvidiaDX11::FDisplayClusterRenderSyncPolicyNvidiaDX11(const TMap<FString, FString>& Parameters)
-	: FDisplayClusterRenderSyncPolicyNvidiaBase(Parameters)
-{
-}
+#include "D3D11RHI/Private/Windows/D3D11RHIBasePrivate.h"
+#include "D3D11State.h"
+#include "D3D11Resources.h"
+#include "D3D11Viewport.h"
 
-FDisplayClusterRenderSyncPolicyNvidiaDX11::~FDisplayClusterRenderSyncPolicyNvidiaDX11()
+
+void FDisplayClusterRenderSyncPolicyNvidiaDX11::WaitForFrameCompletion()
 {
+	if (GEngine && GEngine->GameViewport && GEngine->GameViewport->Viewport)
+	{
+		FD3D11Viewport* const D3D11Viewport = static_cast<FD3D11Viewport*>(GEngine->GameViewport->Viewport->GetViewportRHI().GetReference());
+		if (D3D11Viewport)
+		{
+#if !WITH_EDITOR
+			D3D11Viewport->IssueFrameEvent();
+			D3D11Viewport->WaitForFrameEventCompletion();
+#endif
+		}
+	}
 }

@@ -452,6 +452,9 @@ struct IRenderAssetStreamingManager : public IStreamingManager
 	/** Pool size for streaming. */
 	virtual int64 GetPoolSize() const = 0;
 
+	/** Estimated memory in bytes the streamer would use if there was no limit */
+	virtual int64 GetRequiredPoolSize() const = 0;
+
 	/** Max required textures/meshes ever seen in bytes. */
 	virtual int64 GetMaxEverRequired() const = 0;
 

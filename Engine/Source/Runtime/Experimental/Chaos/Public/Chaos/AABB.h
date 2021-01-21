@@ -381,12 +381,13 @@ namespace Chaos
 			return ChosenPt;
 		}
 
-		FORCEINLINE TVector<T, d> SupportCore(const TVector<T, d>& Direction) const
+		// Support vertex in the specified direction, assuming each face has been moved inwards by InMargin
+		FORCEINLINE TVector<T, d> SupportCore(const TVector<T, d>& Direction, float InMargin) const
 		{
 			TVector<T, d> ChosenPt;
 			for (int Axis = 0; Axis < d; ++Axis)
 			{
-				ChosenPt[Axis] = Direction[Axis] < 0 ? MMin[Axis] : MMax[Axis];
+				ChosenPt[Axis] = Direction[Axis] < 0 ? MMin[Axis] + InMargin : MMax[Axis] - InMargin;
 			}
 
 			return ChosenPt;

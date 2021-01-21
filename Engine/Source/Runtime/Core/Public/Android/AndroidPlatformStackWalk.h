@@ -22,6 +22,9 @@ struct CORE_API FAndroidPlatformStackWalk : public FGenericPlatformStackWalk
 	static uint32 CaptureThreadStackBackTrace(uint64 ThreadId, uint64* BackTrace, uint32 MaxDepth);
 
 	static void HandleBackTraceSignal(siginfo* Info, void* Context);
+
+	// called when android version information is set.
+	static void NotifyPlatformVersionInit();
 };
 
 typedef FAndroidPlatformStackWalk FPlatformStackWalk;

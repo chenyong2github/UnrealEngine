@@ -531,7 +531,6 @@ namespace Chaos
 		}
 	}
 
-
 	void FPBDJointConstraints::FixConstraints(int32 ConstraintIndex)
 	{
 		SetConstraintEnabled(ConstraintIndex, true);

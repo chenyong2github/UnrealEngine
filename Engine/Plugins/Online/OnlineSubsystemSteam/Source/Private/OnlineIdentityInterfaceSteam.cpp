@@ -4,6 +4,7 @@
 #include "OnlineSubsystemSteam.h"
 #include "OnlineSubsystemSteamTypes.h"
 #include "OnlineError.h"
+#include "OnlineEncryptedAppTicketInterfaceSteam.h"
 
 FOnlineIdentitySteam::FOnlineIdentitySteam(FOnlineSubsystemSteam* InSubsystem) :
 	SteamUserPtr(NULL),
@@ -236,4 +237,19 @@ FPlatformUserId FOnlineIdentitySteam::GetPlatformUserIdFromUniqueNetId(const FUn
 FString FOnlineIdentitySteam::GetAuthType() const
 {
 	return TEXT("");
+}
+
+void FOnlineIdentitySteam::GetLinkedAccountAuthToken(int32 LocalUserNum, const FOnGetLinkedAccountAuthTokenCompleteDelegate& Delegate) const
+{
+	SteamSubsystem->GetEncryptedAppTicketInterface()->OnEncryptedAppTicketResultDelegate.AddLambda([this, LocalUserNum, OnComplete = FOnGetLinkedAccountAuthTokenCompleteDelegate(Delegate)](bool bEncryptedDataAvailable, int32 ResultCode)
+	{
+		FExternalAuthToken ExternalToken;
+		if (bEncryptedDataAvailable)
+		{
+			SteamSubsystem->GetEncryptedAppTicketInterface()->GetEncryptedAppTicket(ExternalToken.TokenData);
+		}
+		// Pass the info back to the original caller
+		OnComplete.ExecuteIfBound(LocalUserNum, ExternalToken.HasTokenData(), ExternalToken);
+	});
+	SteamSubsystem->GetEncryptedAppTicketInterface()->RequestEncryptedAppTicket(nullptr, 0);
 }

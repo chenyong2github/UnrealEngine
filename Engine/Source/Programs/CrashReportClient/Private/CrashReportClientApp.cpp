@@ -333,9 +333,19 @@ SubmitCrashReportResult RunWithUI(FPlatformErrorReport ErrorReport)
 	}
 #endif
 
+	//
+	// The Mac implementation of the window class did not implement HACK_ForceToFront().
+	// In order to patch a CRC visiblity issue without breaking binary compatibility on
+	// the Mac, as well as not changing the behavior on other platforms, we explicity
+	// pass in the force flag on that platform only.
+	//
+	// TODO: Implement HACK_ForceToFront() for macOS and remove bForceBringToFront from here.
+	//
+	const bool bForceBringToFront = (false || (PLATFORM_MAC));
+
 	// Bring the window to the foreground as it may be behind the crashed process
 	Window->HACK_ForceToFront();
-	Window->BringToFront();
+	Window->BringToFront(bForceBringToFront);
 
 	// loop until the app is ready to quit
 	while (!(IsEngineExitRequested() || CrashReportClient->IsUploadComplete()))

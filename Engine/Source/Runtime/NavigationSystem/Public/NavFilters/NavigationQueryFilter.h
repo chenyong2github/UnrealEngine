@@ -94,7 +94,7 @@ struct NAVIGATIONSYSTEM_API FNavigationFilterFlags
 	uint32 bNavFlag15 : 1;
 #if CPP
 		};
-		uint16 Packed;
+		uint16 Packed = 0;
 	};
 #endif
 };

@@ -96,14 +96,24 @@ void PacketHandler::Tick(float DeltaTime)
 	}
 }
 
+FPacketHandlerAddComponentByNameDelegate& PacketHandler::GetAddComponentByNameDelegate()
+{
+	static FPacketHandlerAddComponentByNameDelegate AddComponentByNameDelegate;
+	return AddComponentByNameDelegate;
+}
+
+FPacketHandlerAddComponentDelegate& PacketHandler::GetAddComponentDelegate()
+{
+	static FPacketHandlerAddComponentDelegate AddComponentDelegate;
+	return AddComponentDelegate;
+}
+
 void PacketHandler::Initialize(Handler::Mode InMode, uint32 InMaxPacketBits, bool bConnectionlessOnly/*=false*/,
 								TSharedPtr<IAnalyticsProvider> InProvider/*=nullptr*/, FDDoSDetection* InDDoS/*=nullptr*/, FName InDriverProfile/*=NAME_None*/)
 {
 	Mode = InMode;
 	MaxPacketBits = InMaxPacketBits;
 	DDoS = InDDoS;
-
-	// @todo #JohnB: Redo this, so you don't load from the .ini at all, have it hardcoded elsewhere - do not want this in shipping.
 
 	bConnectionlessHandler = bConnectionlessOnly;
 
@@ -120,10 +130,23 @@ void PacketHandler::Initialize(Handler::Mode InMode, uint32 InMaxPacketBits, boo
 			GConfig->GetArray(TEXT("PacketHandlerComponents"), TEXT("Components"), Components, GEngineIni);
 		}
 
+		// Users of this delegate can add components to the list by name and if necessary reorder them
+		GetAddComponentByNameDelegate().ExecuteIfBound(Components);
+
 		for (const FString& CurComponent : Components)
 		{
 			AddHandler(CurComponent, true);
 		}
+
+		// Users of this delegate can supply constructed additional components to be added after the named components
+		TArray<TSharedPtr<HandlerComponent>> AdditionalComponents;
+		GetAddComponentDelegate().ExecuteIfBound(AdditionalComponents);
+
+		for (TSharedPtr<HandlerComponent> AdditionalComponent : AdditionalComponents)
+		{
+			AddHandler(AdditionalComponent, true);
+		}
+
 	}
 
 	// Add encryption component, if configured.

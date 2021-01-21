@@ -59,6 +59,40 @@ public:
 	}
 };
 
+static bool ValidateTexture2DPlatformData(const FTexturePlatformData& TextureData, const UTexture2D& Texture, bool bFromDDC)
+{
+	// Temporarily disable as the size check reports false negatives on some platforms
+#if 0
+	bool bValid = true;
+	for (int32 MipIndex = 0; MipIndex < TextureData.Mips.Num(); ++MipIndex)
+	{
+		const FTexture2DMipMap& MipMap = TextureData.Mips[MipIndex];
+		const int64 BulkDataSize = MipMap.BulkData.GetBulkDataSize();
+		if (BulkDataSize > 0)
+		{
+			const int64 ExpectedMipSize = CalcTextureMipMapSize(TextureData.SizeX, TextureData.SizeY, TextureData.PixelFormat, MipIndex);
+			if (BulkDataSize != ExpectedMipSize)
+			{
+				//UE_LOG(LogTexture,Warning,TEXT("Invalid mip data. Texture will be rebuilt. MipIndex %d [%dx%d], Expected size %lld, BulkData size %lld, PixelFormat %s, LoadedFromDDC %d, Texture %s"), 
+				//	MipIndex, 
+				//	MipMap.SizeX, 
+				//	MipMap.SizeY, 
+				//	ExpectedMipSize, 
+				//	BulkDataSize, 
+				//	GPixelFormats[TextureData.PixelFormat].Name, 
+				//	bFromDDC ? 1 : 0,
+				//	*Texture.GetFullName());
+				
+				bValid = false;
+			}
+		}
+	}
+
+	return bValid;
+#else
+	return true;
+#endif
+}
 
 void FTextureSourceData::Init(UTexture& InTexture, const FTextureBuildSettings* InBuildSettingsPerLayer, bool bAllowAsyncLoading)
 {
@@ -500,7 +534,7 @@ void FTextureCacheDerivedDataWorker::DoWork()
 				bInvalidVirtualTextureCompression = true;
 			}
 		}
-
+		
 		// Reset everything derived data so that we can do a clean load from the source data
 		if (!bSucceeded)
 		{
@@ -510,6 +544,8 @@ void FTextureCacheDerivedDataWorker::DoWork()
 				delete DerivedData->VTData;
 				DerivedData->VTData = nullptr;
 			}
+			
+			bLoadedFromDDC = false;
 		}
 	}
 	

@@ -57,6 +57,9 @@
 #include "HAL/LowLevelMemStats.h"
 #include "Misc/CoreDelegates.h"
 #include "ProfilingDebugging/CsvProfiler.h"
+#if WITH_IOSTORE_IN_EDITOR
+#include "IO/IoDispatcher.h"
+#endif
 #include "ProfilingDebugging/LoadTimeTracker.h"
 #include "Misc/PackageAccessTracking.h"
 #include "Misc/PackageAccessTracking.h"
@@ -431,7 +434,7 @@ void GlobalSetProperty( const TCHAR* Value, UClass* Class, FProperty* Property, 
 	if ( Property != NULL && Class != NULL )
 	{
 		// Apply to existing objects of the class.
-		for( FObjectIterator It; It; ++It )
+		for( FThreadSafeObjectIterator It; It; ++It )
 		{	
 			UObject* Object = *It;
 			if( Object->IsA(Class) && !Object->IsPendingKill() )
@@ -1106,8 +1109,11 @@ UPackage* LoadPackageInternal(UPackage* InOuter, const FPackagePath& PackagePath
 	}
 	checkf(IsInGameThread(), TEXT("Unable to load %s. Objects and Packages can only be loaded from the game thread."), *PackagePath.GetDebugName());
 
-	if (FPlatformProperties::RequiresCookedData() && GEventDrivenLoaderEnabled
-		&& EVENT_DRIVEN_ASYNC_LOAD_ACTIVE_AT_RUNTIME
+	if ((FPlatformProperties::RequiresCookedData() && GEventDrivenLoaderEnabled
+		&& EVENT_DRIVEN_ASYNC_LOAD_ACTIVE_AT_RUNTIME)
+#if WITH_IOSTORE_IN_EDITOR
+		|| FIoDispatcher::IsInitialized()
+#endif
 		)
 	{
 		checkf(!InOuter || !InOuter->GetOuter(), TEXT("Loading into subpackages is not implemented.")); // Subpackages are no longer supported in UE
@@ -1120,6 +1126,11 @@ UPackage* LoadPackageInternal(UPackage* InOuter, const FPackagePath& PackagePath
 
 		UE_TRACK_REFERENCING_PACKAGE_SCOPED(PackageName, PackageAccessTrackingOps::NAME_Load);
 
+#if WITH_IOSTORE_IN_EDITOR
+		// Use the old loader if an uncooked package exists on disk
+		const bool bDoesUncookedPackageExist = FPackageName::DoesPackageExist(PackagePath, nullptr) && !DoesPackageExistInIoStore(PackageName);
+		if (!bDoesUncookedPackageExist)
+#endif
 		{
 			if (FCoreDelegates::OnSyncLoadPackage.IsBound())
 			{
@@ -2502,7 +2513,9 @@ UObject* StaticAllocateObject
 				// Finish destroying the object.
 				Obj->ConditionalFinishDestroy();
 			}
+			GUObjectArray.LockInternalArray();
 			Obj->~UObject();
+			GUObjectArray.UnlockInternalArray();
 			bWasConstructedOnOldObject	= true;
 		}
 		else
@@ -2694,6 +2707,9 @@ FObjectInitializer::~FObjectInitializer()
 		return;
 	}
 #endif // USE_CIRCULAR_DEPENDENCY_LOAD_DEFERRING
+
+	// At this point the object has had its native constructor called so it's safe to be used
+	Obj->ClearInternalFlags(EInternalObjectFlags::PendingConstruction);
 
 	const bool bIsCDO = Obj->HasAnyFlags(RF_ClassDefaultObject);
 	UClass* Class = Obj->GetClass();
@@ -3388,7 +3404,7 @@ void FScopedObjectFlagMarker::SaveObjectFlags()
 {
 	StoredObjectFlags.Empty();
 
-	for (FObjectIterator It; It; ++It)
+	for (FThreadSafeObjectIterator It; It; ++It)
 	{
 		UObject* Obj = *It;
 		StoredObjectFlags.Add(*It, FStoredObjectFlags(Obj->GetFlags(), Obj->GetInternalFlags()));
@@ -3704,7 +3720,7 @@ public:
 		FoundReferencesList = FoundReferences;
 
 		// Iterate over all objects.
-		for( FObjectIterator It; It; ++It )
+		for( FThreadSafeObjectIterator It; It; ++It )
 		{
 			UObject* Object	= *It;
 			checkSlow(Object->IsValidLowLevel());
@@ -3843,7 +3859,7 @@ bool IsReferenced(UObject*& Obj, EObjectFlags KeepFlags, EInternalObjectFlags In
 	bool bTempReferenceList = false;
 
 	// Tag objects.
-	for( FObjectIterator It; It; ++It )
+	for( FThreadSafeObjectIterator It; It; ++It )
 	{
 		UObject* Object = *It;
 		Object->ClearFlags( RF_TagGarbageTemp );

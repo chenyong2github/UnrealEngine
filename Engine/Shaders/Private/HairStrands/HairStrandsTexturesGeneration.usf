@@ -324,12 +324,12 @@ void MainPS(
 	in float3  InTangent	: MESH_TANGENT,
 	in float3  InBitangent	: MESH_BITANGENT,
 	in float3  InNormal		: MESH_NORMAL,
-	out float  OutDepthTest	: SV_Depth,
 	out float  OutDepth		: SV_Target0,
-	out float  OutCoverage	: SV_Target1,
-	out float4 OutTangent	: SV_Target2,
+	out float4 OutTangent	: SV_Target1,
+	out float  OutCoverage	: SV_Target2,
 	out float4 OutAttribute : SV_Target3,
-	out uint   OutTriangleMask : SV_Target4)
+	out uint   OutTriangleMask : SV_Target4,
+	out float  OutDepthTest	: SV_Depth)
 {
 	const float3 T = normalize(InTangent);
 	const float3 B = normalize(InBitangent);
@@ -415,6 +415,7 @@ void MainPS(
 
 		OutCoverage /= bValidCount;
 		OutTangent.xyz = (Tangent_FrameSpace + 1) * 0.5f;
+		OutTangent.w = 1;
 	}
 	else
 	{

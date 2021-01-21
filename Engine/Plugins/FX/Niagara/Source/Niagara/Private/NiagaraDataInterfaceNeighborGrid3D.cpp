@@ -611,9 +611,7 @@ bool UNiagaraDataInterfaceNeighborGrid3D::InitPerInstanceData(void* PerInstanceD
 		RT_Proxy->OutputSimulationStages_DEPRECATED = RT_OutputShaderStages;
 		RT_Proxy->IterationSimulationStages_DEPRECATED = RT_IterationShaderStages;
 
-		TargetData->NeighborhoodCountBuffer.Initialize(sizeof(int32), TargetData->NumCells.X*TargetData->NumCells.Y*TargetData->NumCells.Z, EPixelFormat::PF_R32_SINT, BUF_Static, TEXT("NiagaraNeighborGrid3D::NeighborCount"));
-		TargetData->NeighborhoodBuffer.Initialize(sizeof(int32), TargetData->NumCells.X*TargetData->NumCells.Y*TargetData->NumCells.Z*TargetData->MaxNeighborsPerCell, EPixelFormat::PF_R32_SINT, BUF_Static, TEXT("NiagaraNeighborGrid3D::NeighborsGrid"));
-
+		TargetData->ResizeBuffers();
 	});
 
 	return true;
@@ -673,10 +671,7 @@ bool UNiagaraDataInterfaceNeighborGrid3D::PerInstanceTickPostSimulate(void* PerI
 			TargetData->NumCells = RT_NumCells;
 			TargetData->MaxNeighborsPerCell = RT_MaxNeighborsPerCell;			
 			TargetData->CellSize = RT_CellSize;
-
-			TargetData->NeighborhoodCountBuffer.Initialize(sizeof(int32), TargetData->NumCells.X* TargetData->NumCells.Y* TargetData->NumCells.Z, EPixelFormat::PF_R32_SINT, BUF_Static, TEXT("NiagaraNeighborGrid3D::NeighborCount"));
-			TargetData->NeighborhoodBuffer.Initialize(sizeof(int32), TargetData->NumCells.X* TargetData->NumCells.Y* TargetData->NumCells.Z* TargetData->MaxNeighborsPerCell, EPixelFormat::PF_R32_SINT, BUF_Static, TEXT("NiagaraNeighborGrid3D::NeighborsGrid"));
-
+			TargetData->ResizeBuffers();
 		});
 	}
 

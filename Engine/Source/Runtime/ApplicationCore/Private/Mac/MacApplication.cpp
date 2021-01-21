@@ -5,7 +5,6 @@
 #include "Mac/MacCursor.h"
 #include "Mac/CocoaMenu.h"
 #include "GenericPlatform/GenericApplicationMessageHandler.h"
-#include "HIDInputInterface.h"
 #include "IInputDeviceModule.h"
 #include "IInputDevice.h"
 #include "AnalyticsEventAttribute.h"
@@ -28,6 +27,12 @@
 #include <IOKit/IOKitLib.h>
 #include <IOKit/graphics/IOGraphicsLib.h>
 #include "Misc/CoreDelegates.h"
+
+#if USE_GCCONTROLLER_IMPL
+#include "Apple/AppleControllerInterface.h"
+#else
+#include "HIDInputInterface.h"
+#endif
 
 FMacApplication* MacApplication = nullptr;
 
@@ -58,7 +63,11 @@ FMacApplication::FMacApplication()
 ,	bUsingTrackpad(false)
 ,	LastPressedMouseButton(EMouseButtons::Invalid)
 ,	bIsProcessingDeferredEvents(false)
+#if USE_GCCONTROLLER_IMPL
+, 	HIDInput(FAppleControllerInterface::Create(MessageHandler))
+#else
 ,	HIDInput(HIDInputInterface::Create(MessageHandler))
+#endif
 ,   bHasLoadedInputPlugins(false)
 ,	DraggedWindow(nullptr)
 ,	WindowUnderCursor(nullptr)
@@ -256,6 +265,7 @@ void FMacApplication::PollGameDeviceState(const float TimeDelta)
 	}
 
 	// Poll game device state and send new events
+	HIDInput->Tick( TimeDelta );
 	HIDInput->SendControllerEvents();
 
 	// Poll externally-implemented devices

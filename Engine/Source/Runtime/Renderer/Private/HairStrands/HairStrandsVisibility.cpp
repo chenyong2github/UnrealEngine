@@ -31,7 +31,7 @@ static FAutoConsoleVariableRef CVarHairStrandsMaterialCompactionDepthThreshold(T
 static FAutoConsoleVariableRef CVarHairStrandsMaterialCompactionTangentThreshold(TEXT("r.HairStrands.MaterialCompaction.TangentThreshold"), GHairStrandsMaterialCompactionTangentThreshold, TEXT("Compaciton threshold for tangent value for material compaction (in degrees). Default 10 deg."));
 
 static int32 GHairVisibilityMSAA_MaxSamplePerPixel = 8;
-static float GHairVisibilityMSAA_MeanSamplePerPixel = 0.5f;
+static float GHairVisibilityMSAA_MeanSamplePerPixel = 0.75f;
 static FAutoConsoleVariableRef CVarHairVisibilityMSAA_MaxSamplePerPixel(TEXT("r.HairStrands.Visibility.MSAA.SamplePerPixel"), GHairVisibilityMSAA_MaxSamplePerPixel, TEXT("Hair strands visibility sample count (2, 4, or 8)"), ECVF_Scalability | ECVF_RenderThreadSafe);
 static FAutoConsoleVariableRef CVarHairVisibilityMSAA_MeanSamplePerPixel(TEXT("r.HairStrands.Visibility.MSAA.MeanSamplePerPixel"), GHairVisibilityMSAA_MeanSamplePerPixel, TEXT("Scale the numer of sampler per pixel for limiting memory allocation (0..1, default 0.5f)"));
 
@@ -795,7 +795,7 @@ public:
 #define HAIR_MATERIAL_DEBUG_OUTPUT 0
 static bool IsPlatformRequiringRenderTargetForMaterialPass(EShaderPlatform Platform)
 {
-	return HAIR_MATERIAL_DEBUG_OUTPUT || Platform == SP_VULKAN_SM5 || Platform == SP_PS4; //#hair_todo: change to a proper RHI(Platform) function
+	return HAIR_MATERIAL_DEBUG_OUTPUT || Platform == SP_VULKAN_SM5 || FDataDrivenShaderPlatformInfo::GetRequiresRenderTargetDuringRaster(Platform); //#hair_todo: change to a proper RHI(Platform) function
 }
 
 class FHairMaterialPS : public FMeshMaterialShader
@@ -2767,7 +2767,8 @@ class FHairVisibilityDepthPS : public FGlobalShader
 	DECLARE_GLOBAL_SHADER(FHairVisibilityDepthPS);
 	SHADER_USE_PARAMETER_STRUCT(FHairVisibilityDepthPS, FGlobalShader);
 
-	using FPermutationDomain = TShaderPermutationDomain<>;
+	class FOutputType : SHADER_PERMUTATION_INT("PERMUTATION_OUTPUT_TYPE", 2);
+	using FPermutationDomain = TShaderPermutationDomain<FOutputType>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, CategorisationTexture)
@@ -2775,11 +2776,6 @@ class FHairVisibilityDepthPS : public FGlobalShader
 	END_SHADER_PARAMETER_STRUCT()
 
 public:
-
-	static FPermutationDomain RemapPermutation(FPermutationDomain PermutationVector)
-	{
-		return PermutationVector;
-	}
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -2822,7 +2818,7 @@ static void AddHairVisibilityColorAndDepthPatchPass(
 
 	TShaderMapRef<FPostProcessVS> VertexShader(View.ShaderMap);
 	FHairVisibilityDepthPS::FPermutationDomain PermutationVector;
-	PermutationVector = FHairVisibilityDepthPS::RemapPermutation(PermutationVector);
+	PermutationVector.Set<FHairVisibilityDepthPS::FOutputType>(0);
 	TShaderMapRef<FHairVisibilityDepthPS> PixelShader(View.ShaderMap, PermutationVector);
 	const FGlobalShaderMap* GlobalShaderMap = View.ShaderMap;
 	const FIntRect Viewport = View.ViewRect;
@@ -2863,6 +2859,69 @@ static void AddHairVisibilityColorAndDepthPatchPass(
 				EDRF_UseTriangleOptimization);
 		});
 	}
+}
+
+static void AddHairOnlyDepthPass(
+	FRDGBuilder& GraphBuilder,
+	const FViewInfo& View,
+	const FRDGTextureRef& CategorisationTexture,
+	FRDGTextureRef& OutDepthTexture)
+{
+	if (!OutDepthTexture)
+	{
+		return;
+	}
+
+	FHairVisibilityDepthPS::FParameters* Parameters = GraphBuilder.AllocParameters<FHairVisibilityDepthPS::FParameters>();
+	Parameters->CategorisationTexture = CategorisationTexture;
+	Parameters->RenderTargets.DepthStencil = FDepthStencilBinding(
+		OutDepthTexture,
+		ERenderTargetLoadAction::ELoad,
+		ERenderTargetLoadAction::ELoad,
+		FExclusiveDepthStencil::DepthWrite_StencilNop);
+
+	TShaderMapRef<FPostProcessVS> VertexShader(View.ShaderMap);
+	FHairVisibilityDepthPS::FPermutationDomain PermutationVector;
+	PermutationVector.Set<FHairVisibilityDepthPS::FOutputType>(1);
+	TShaderMapRef<FHairVisibilityDepthPS> PixelShader(View.ShaderMap, PermutationVector);
+	const FGlobalShaderMap* GlobalShaderMap = View.ShaderMap;
+	const FIntRect Viewport = View.ViewRect;
+	const FIntPoint Resolution = OutDepthTexture->Desc.Extent;
+	const FViewInfo* CapturedView = &View;
+
+	ClearUnusedGraphResources(PixelShader, Parameters);
+
+	GraphBuilder.AddPass(
+		RDG_EVENT_NAME("HairStrandsVisibilityHairOnlyDepth"),
+		Parameters,
+		ERDGPassFlags::Raster,
+		[Parameters, VertexShader, PixelShader, Viewport, Resolution, CapturedView](FRHICommandList& RHICmdList)
+		{
+			FGraphicsPipelineStateInitializer GraphicsPSOInit;
+			RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
+			GraphicsPSOInit.BlendState = TStaticBlendState<CW_RGBA, BO_Add, BF_One, BF_Zero, BO_Add, BF_One, BF_Zero>::GetRHI();
+			GraphicsPSOInit.RasterizerState = TStaticRasterizerState<>::GetRHI();
+			GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<true, CF_Always>::GetRHI();
+
+			GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
+			GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
+			GraphicsPSOInit.PrimitiveType = PT_TriangleList;
+			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
+
+			RHICmdList.SetViewport(Viewport.Min.X, Viewport.Min.Y, 0.0f, Viewport.Max.X, Viewport.Max.Y, 1.0f);
+			SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), *Parameters);
+			DrawRectangle(
+				RHICmdList,
+				0, 0,
+				Viewport.Width(), Viewport.Height(),
+				Viewport.Min.X, Viewport.Min.Y,
+				Viewport.Width(), Viewport.Height(),
+				Viewport.Size(),
+				Resolution,
+				VertexShader,
+				EDRF_UseTriangleOptimization);
+		});
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -3213,6 +3272,7 @@ FHairStrandsVisibilityViews RenderHairStrandsVisibilityBuffer(
 			const EHairVisibilityRenderMode RenderMode = GetHairVisibilityRenderMode();
 			check(RenderMode == HairVisibilityRenderMode_MSAA || RenderMode == HairVisibilityRenderMode_PPLL || RenderMode == HairVisibilityRenderMode_ComputeRaster);
 
+			FRDGTextureRef HairOnlyDepthTexture = GraphBuilder.CreateTexture(SceneDepthTexture->Desc, TEXT("HairStrandsHairOnlyDepthTexture"));
 			FRDGTextureRef CategorizationTexture = nullptr;
 			FRDGTextureRef CompactNodeIndex = nullptr;
 			FRDGBufferRef  CompactNodeData = nullptr;
@@ -3300,6 +3360,7 @@ FHairStrandsVisibilityViews RenderHairStrandsVisibilityBuffer(
 						VisibilityData.SampleLightingBuffer = SampleLightingBuffer;
 						VisibilityData.NodeIndex = CompactNodeIndex;
 						VisibilityData.CategorizationTexture = CategorizationTexture;
+						VisibilityData.HairOnlyDepthTexture = HairOnlyDepthTexture;
 						VisibilityData.NodeData = CompactNodeData;
 						VisibilityData.NodeCoord = CompactNodeCoord;
 						VisibilityData.NodeIndirectArg = IndirectArgsBuffer;
@@ -3328,6 +3389,12 @@ FHairStrandsVisibilityViews RenderHairStrandsVisibilityBuffer(
 							SceneColorTexture,
 							SceneDepthTexture);
 					}
+
+					AddHairOnlyDepthPass(
+						GraphBuilder,
+						View,
+						CategorizationTexture,
+						HairOnlyDepthTexture);
 				}
 				else
 				{
@@ -3423,6 +3490,7 @@ FHairStrandsVisibilityViews RenderHairStrandsVisibilityBuffer(
 				VisibilityData.MaxSampleCount = MsaaVisibilityResources.IdTexture->Desc.NumSamples;
 				VisibilityData.IDTexture = MsaaVisibilityResources.IdTexture;
 				VisibilityData.DepthTexture = MsaaVisibilityResources.DepthTexture;
+				VisibilityData.HairOnlyDepthTexture = HairOnlyDepthTexture;
 				if (!bIsVisiblityEnable)
 				{
 					VisibilityData.MaterialTexture = MsaaVisibilityResources.MaterialTexture;
@@ -3513,6 +3581,7 @@ FHairStrandsVisibilityViews RenderHairStrandsVisibilityBuffer(
 					 VisibilityData.SampleLightingBuffer	= SampleLightingBuffer;
 					 VisibilityData.NodeIndex				= CompactNodeIndex;
 					 VisibilityData.CategorizationTexture	= CategorizationTexture;
+					 VisibilityData.HairOnlyDepthTexture	= HairOnlyDepthTexture;
 					 VisibilityData.NodeData				= CompactNodeData;
 					 VisibilityData.NodeCoord				= CompactNodeCoord;
 					 VisibilityData.NodeIndirectArg			= IndirectArgsBuffer;
@@ -3547,6 +3616,12 @@ FHairStrandsVisibilityViews RenderHairStrandsVisibilityBuffer(
 							SceneColorTexture,
 							SceneDepthTexture);
 					}
+
+					AddHairOnlyDepthPass(
+						GraphBuilder,
+						View,
+						CategorizationTexture,
+						HairOnlyDepthTexture);
 				}
 				else
 				{
@@ -3620,6 +3695,7 @@ FHairStrandsVisibilityViews RenderHairStrandsVisibilityBuffer(
 					VisibilityData.MaxSampleCount = GetMaxSamplePerPixel();
 					VisibilityData.NodeIndex = CompactNodeIndex;
 					VisibilityData.CategorizationTexture = CategorizationTexture;
+					VisibilityData.HairOnlyDepthTexture = HairOnlyDepthTexture;
 					VisibilityData.NodeData = CompactNodeData;
 					VisibilityData.NodeCoord = CompactNodeCoord;
 					VisibilityData.NodeIndirectArg = IndirectArgsBuffer;
@@ -3637,6 +3713,12 @@ FHairStrandsVisibilityViews RenderHairStrandsVisibilityBuffer(
 						SceneColorTexture,
 						SceneDepthTexture);
 				}
+
+				AddHairOnlyDepthPass(
+					GraphBuilder,
+					View,
+					CategorizationTexture,
+					HairOnlyDepthTexture);
 
 				// Allocate buffer for storing all the light samples
 				FRDGTextureRef SampleLightingBuffer = AddClearLightSamplePass(GraphBuilder, &View, VisibilityData.MaxNodeCount, NodeCounter);

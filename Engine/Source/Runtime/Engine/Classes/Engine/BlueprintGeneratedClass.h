@@ -508,7 +508,7 @@ struct ENGINE_API FEventGraphFastCallPair
 	UFunction* FunctionToPatch = nullptr;
 
 	UPROPERTY()
-	int32 EventGraphCallOffset;
+	int32 EventGraphCallOffset = 0;
 };
 
 /** A single changed Blueprint component property. */

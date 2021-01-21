@@ -582,7 +582,7 @@ void RefreshCollisionChange(UStaticMesh& StaticMesh)
 
 	StaticMesh.CreateNavCollision(/*bIsUpdate=*/true);
 
-	for (FObjectIterator Iter(UStaticMeshComponent::StaticClass()); Iter; ++Iter)
+	for (FThreadSafeObjectIterator Iter(UStaticMeshComponent::StaticClass()); Iter; ++Iter)
 	{
 		UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(*Iter);
 		if (StaticMeshComponent->GetStaticMesh() == &StaticMesh)
@@ -607,7 +607,7 @@ void RefreshCollisionChanges(const TArray<UStaticMesh*>& StaticMeshes)
 		StaticMesh->CreateNavCollision(/*bIsUpdate=*/true);
 	}
 
-	for (FObjectIterator Iter(UStaticMeshComponent::StaticClass()); Iter; ++Iter)
+	for (FThreadSafeObjectIterator Iter(UStaticMeshComponent::StaticClass()); Iter; ++Iter)
 	{
 		UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(*Iter);
 		if (StaticMeshes.Contains(StaticMeshComponent->GetStaticMesh()))

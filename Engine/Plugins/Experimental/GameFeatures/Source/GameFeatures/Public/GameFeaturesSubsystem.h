@@ -206,7 +206,7 @@ private:
 	bool HandleRequestPluginDependencyStateMachines(const FString& PluginFilename, TArray<UGameFeaturePluginStateMachine*>& OutDependencyMachines);
 
 	/** Handle 'ListGameFeaturePlugins' console command */
-	void ListGameFeaturePlugins(const TArray<FString>& Args);
+	void ListGameFeaturePlugins(const TArray<FString>& Args, UWorld* InWorld, FOutputDevice& Ar);
 
 private:
 	/** The list of all game feature plugin state machine objects */

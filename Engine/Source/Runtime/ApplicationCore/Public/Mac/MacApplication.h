@@ -8,6 +8,8 @@
 #include "Mac/MacTextInputMethodSystem.h"
 #include "GenericPlatform/IInputInterface.h"
 
+#define USE_GCCONTROLLER_IMPL 1
+
 struct FDeferredMacEvent
 {
 	FDeferredMacEvent()
@@ -350,7 +352,11 @@ private:
 	};
 	TArray<FSavedWindowOrderInfo> SavedWindowsOrder;
 
+#if USE_GCCONTROLLER_IMPL
+	TSharedRef<class FAppleControllerInterface> HIDInput;
+#else
 	TSharedRef<class HIDInputInterface> HIDInput;
+#endif
 
 	/** List of input devices implemented in external modules. */
 	TArray<TSharedPtr<class IInputDevice>> ExternalInputDevices;

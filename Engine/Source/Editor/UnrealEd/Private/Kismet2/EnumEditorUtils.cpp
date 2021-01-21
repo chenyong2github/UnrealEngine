@@ -336,7 +336,7 @@ void FEnumEditorUtils::BroadcastChanges(const UUserDefinedEnum* Enum, const TArr
 			}
 		}
 
-		for (FObjectIterator ObjIter; ObjIter; ++ObjIter)
+		for (FThreadSafeObjectIterator ObjIter; ObjIter; ++ObjIter)
 		{
 			for (UClass* Class : ClassesToCheck)
 			{

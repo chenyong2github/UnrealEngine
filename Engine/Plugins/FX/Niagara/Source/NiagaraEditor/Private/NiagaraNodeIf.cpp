@@ -6,8 +6,8 @@
 
 #define LOCTEXT_NAMESPACE "NiagaraNodeIf"
 
-const FString UNiagaraNodeIf::InputAPinSuffix(" A");
-const FString UNiagaraNodeIf::InputBPinSuffix(" B");
+const FString UNiagaraNodeIf::InputTruePinSuffix(" if True");
+const FString UNiagaraNodeIf::InputFalsePinSuffix(" if False");
 const FName UNiagaraNodeIf::ConditionPinName("Condition");
 
 UNiagaraNodeIf::UNiagaraNodeIf(const FObjectInitializer& ObjectInitializer)
@@ -35,9 +35,18 @@ void UNiagaraNodeIf::PostLoad()
 		PathAssociatedPinGuids.SetNum(OutputVars.Num());
 	}
 
-	auto LoadGuid = [&](FGuid& Guid, const FString& Name, const EEdGraphPinDirection Direction)
+	auto LoadGuid = [&](FGuid& Guid, const FString& Name, const EEdGraphPinDirection Direction, const FString* LegacyName = nullptr)
 	{
 		UEdGraphPin* Pin = FindPin(Name, Direction);
+		if ( Pin == nullptr && LegacyName != nullptr )
+		{
+			Pin = FindPin(*LegacyName, Direction);
+			if (Pin)
+			{
+				Pin->PinName = FName(*Name);
+			}
+		}
+
 		if (Pin)
 		{
 			if (!Pin->PersistentGuid.IsValid())
@@ -51,23 +60,26 @@ void UNiagaraNodeIf::PostLoad()
 			UE_LOG(LogNiagaraEditor, Error, TEXT("Unable to find output pin named %s"), *Name);
 		}
 	};
-	
+
 	LoadGuid(ConditionPinGuid, ConditionPinName.ToString(), EGPD_Input);
 	for (int32 i = 0; i < OutputVars.Num(); i++)
 	{
 		const FString VarName = OutputVars[i].GetName().ToString();
 		LoadGuid(PathAssociatedPinGuids[i].OutputPinGuid, VarName, EGPD_Output);
-		const FString InputAName = VarName + InputAPinSuffix;
-		LoadGuid(PathAssociatedPinGuids[i].InputAPinGuid, InputAName, EGPD_Input);
-		const FString InputBName = VarName + InputBPinSuffix;
-		LoadGuid(PathAssociatedPinGuids[i].InputBPinGuid, InputBName, EGPD_Input);
+
+		const FString InputTrueName = VarName + InputTruePinSuffix;
+		const FString LegacyInputTrueName = VarName + TEXT(" A");
+		LoadGuid(PathAssociatedPinGuids[i].InputTruePinGuid, InputTrueName, EGPD_Input, &LegacyInputTrueName);
+
+		const FString InputFalseName = VarName + InputFalsePinSuffix;
+		const FString LegacyInputFalseName = VarName + TEXT(" B");
+		LoadGuid(PathAssociatedPinGuids[i].InputFalsePinGuid, InputFalseName, EGPD_Input, &LegacyInputFalseName);
 	}
 }
 
 bool UNiagaraNodeIf::AllowNiagaraTypeForAddPin(const FNiagaraTypeDefinition& InType)
 {
 	// Explicitly allow Numeric types, and explicitly disallow ParameterMap types
-	
 	return (Super::AllowNiagaraTypeForAddPin(InType) || InType == FNiagaraTypeDefinition::GetGenericNumericDef()) && InType != FNiagaraTypeDefinition::GetParameterMapDef();
 }
 
@@ -83,15 +95,15 @@ void UNiagaraNodeIf::AllocateDefaultPins()
 	for (int32 Index = 0; Index < OutputVars.Num(); Index++)
 	{
 		const FNiagaraVariable& Var = OutputVars[Index];
-		UEdGraphPin* NewPin = CreatePin(EGPD_Input, Schema->TypeDefinitionToPinType(Var.GetType()), *(Var.GetName().ToString() + InputAPinSuffix));
-		NewPin->PersistentGuid = PathAssociatedPinGuids[Index].InputAPinGuid;
+		UEdGraphPin* NewPin = CreatePin(EGPD_Input, Schema->TypeDefinitionToPinType(Var.GetType()), *(Var.GetName().ToString() + InputFalsePinSuffix));
+		NewPin->PersistentGuid = PathAssociatedPinGuids[Index].InputFalsePinGuid;
 	}
 
 	for (int32 Index = 0; Index < OutputVars.Num(); Index++)
 	{
 		const FNiagaraVariable& Var = OutputVars[Index];
-		UEdGraphPin* NewPin = CreatePin(EGPD_Input, Schema->TypeDefinitionToPinType(Var.GetType()), *(Var.GetName().ToString() + InputBPinSuffix));
-		NewPin->PersistentGuid = PathAssociatedPinGuids[Index].InputBPinGuid;
+		UEdGraphPin* NewPin = CreatePin(EGPD_Input, Schema->TypeDefinitionToPinType(Var.GetType()), *(Var.GetName().ToString() + InputTruePinSuffix));
+		NewPin->PersistentGuid = PathAssociatedPinGuids[Index].InputTruePinGuid;
 	}
 
 	for (int32 Index = 0; Index < OutputVars.Num(); Index++)
@@ -111,30 +123,30 @@ void UNiagaraNodeIf::Compile(class FHlslNiagaraTranslator* Translator, TArray<in
 
 	int32 Condition = Translator->CompilePin(GetPinByGuid(ConditionPinGuid));
 
-	TArray<int32> PathA;
-	PathA.Reserve(PathAssociatedPinGuids.Num());
+	TArray<int32> PathTrue;
+	PathTrue.Reserve(PathAssociatedPinGuids.Num());
 	for (const FPinGuidsForPath& PerPathAssociatedPinGuids : PathAssociatedPinGuids)
 	{
-		const UEdGraphPin* InputAPin = GetPinByGuid(PerPathAssociatedPinGuids.InputAPinGuid);
-		if (Schema->PinToTypeDefinition(InputAPin) == FNiagaraTypeDefinition::GetParameterMapDef())
+		const UEdGraphPin* InputTruePin = GetPinByGuid(PerPathAssociatedPinGuids.InputTruePinGuid);
+		if (Schema->PinToTypeDefinition(InputTruePin) == FNiagaraTypeDefinition::GetParameterMapDef())
 		{
-			Translator->Error(LOCTEXT("UnsupportedParamMapInIf", "Parameter maps are not supported in if nodes."), this, InputAPin);
+			Translator->Error(LOCTEXT("UnsupportedParamMapInIf", "Parameter maps are not supported in if nodes."), this, InputTruePin);
 		}
-		PathA.Add(Translator->CompilePin(InputAPin));
+		PathTrue.Add(Translator->CompilePin(InputTruePin));
 	}
-	TArray<int32> PathB;
-	PathB.Reserve(PathAssociatedPinGuids.Num());
+	TArray<int32> PathFalse;
+	PathFalse.Reserve(PathAssociatedPinGuids.Num());
 	for (const FPinGuidsForPath& PerPathAssociatedPinGuids : PathAssociatedPinGuids)
 	{
-		const UEdGraphPin* InputBPin = GetPinByGuid(PerPathAssociatedPinGuids.InputBPinGuid);
-		if (Schema->PinToTypeDefinition(InputBPin) == FNiagaraTypeDefinition::GetParameterMapDef())
+		const UEdGraphPin* InputFalsePin = GetPinByGuid(PerPathAssociatedPinGuids.InputFalsePinGuid);
+		if (Schema->PinToTypeDefinition(InputFalsePin) == FNiagaraTypeDefinition::GetParameterMapDef())
 		{
-			Translator->Error(LOCTEXT("UnsupportedParamMapInIf", "Parameter maps are not supported in if nodes."), this, InputBPin);
+			Translator->Error(LOCTEXT("UnsupportedParamMapInIf", "Parameter maps are not supported in if nodes."), this, InputFalsePin);
 		}
-		PathB.Add(Translator->CompilePin(InputBPin));
+		PathFalse.Add(Translator->CompilePin(InputFalsePin));
 	}
 
-	Translator->If(this, OutputVars, Condition, PathA, PathB, Outputs);
+	Translator->If(this, OutputVars, Condition, PathTrue, PathFalse, Outputs);
 }
 
 ENiagaraNumericOutputTypeSelectionMode UNiagaraNodeIf::GetNumericOutputTypeSelectionMode() const
@@ -176,15 +188,15 @@ FGuid UNiagaraNodeIf::AddOutput(FNiagaraTypeDefinition Type, const FName& Name)
 	NewPinGuidsForPath.OutputPinGuid = Guid;
 
 	const UEdGraphSchema_Niagara* Schema = CastChecked<UEdGraphSchema_Niagara>(GetSchema());
-	FGuid PinAGuid = FGuid::NewGuid();
-	UEdGraphPin* PinA = CreatePin(EGPD_Input, Schema->TypeDefinitionToPinType(Type), *(Name.ToString() + InputAPinSuffix), PathAssociatedPinGuids.Num());
-	PinA->PersistentGuid = PinAGuid;
-	NewPinGuidsForPath.InputAPinGuid = PinAGuid;
+	FGuid PinTrueGuid = FGuid::NewGuid();
+	UEdGraphPin* PinTrue = CreatePin(EGPD_Input, Schema->TypeDefinitionToPinType(Type), *(Name.ToString() + InputTruePinSuffix), PathAssociatedPinGuids.Num());
+	PinTrue->PersistentGuid = PinTrueGuid;
+	NewPinGuidsForPath.InputTruePinGuid = PinTrueGuid;
 
-	FGuid PinBGuid = FGuid::NewGuid();
-	UEdGraphPin* PinB = CreatePin(EGPD_Input, Schema->TypeDefinitionToPinType(Type), *(Name.ToString() + InputBPinSuffix), PathAssociatedPinGuids.Num() * 2);
-	PinB->PersistentGuid = PinBGuid;
-	NewPinGuidsForPath.InputBPinGuid = PinBGuid;
+	FGuid PinFalseGuid = FGuid::NewGuid();
+	UEdGraphPin* PinFalse = CreatePin(EGPD_Input, Schema->TypeDefinitionToPinType(Type), *(Name.ToString() + InputFalsePinSuffix), PathAssociatedPinGuids.Num() * 2);
+	PinFalse->PersistentGuid = PinFalseGuid;
+	NewPinGuidsForPath.InputFalsePinGuid = PinFalseGuid;
 
 	return Guid;
 }
@@ -262,7 +274,7 @@ bool UNiagaraNodeIf::CanRemovePin(const UEdGraphPin* Pin) const
 
 FText UNiagaraNodeIf::GetTooltipText() const
 {
-	return LOCTEXT("IfDesc", "If Condition is true, the output value is A, otherwise output B.");
+	return LOCTEXT("IfDesc", "If Condition is true, the output value will be the True pin, otherwise output will be the False pin.");
 }
 
 FText UNiagaraNodeIf::GetNodeTitle(ENodeTitleType::Type TitleType) const

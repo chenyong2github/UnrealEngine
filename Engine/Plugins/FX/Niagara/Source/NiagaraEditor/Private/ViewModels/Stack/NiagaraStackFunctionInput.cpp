@@ -920,7 +920,7 @@ void UNiagaraStackFunctionInput::RefreshFromMetaData()
 			bShowEditConditionInline = false;
 		}
 
-		if (EditConditionError.IsEmpty() == false)
+		if (EditConditionError.IsEmpty() == false && bIsVisible)
 		{
 			UE_LOG(LogNiagaraEditor, Warning, TEXT("Edit condition failed to bind.  Function: %s Input: %s Message: %s"), 
 				*OwningFunctionCallNode->GetFunctionName(), *InputParameterHandle.GetName().ToString(), *EditConditionError.ToString());
@@ -929,7 +929,7 @@ void UNiagaraStackFunctionInput::RefreshFromMetaData()
 		FText VisibleConditionError;
 		VisibleCondition.Refresh(InputMetaData->VisibleCondition, VisibleConditionError);
 
-		if (VisibleConditionError.IsEmpty() == false)
+		if (VisibleConditionError.IsEmpty() == false && bIsVisible)
 		{
 			UE_LOG(LogNiagaraEditor, Warning, TEXT("Visible condition failed to bind.  Function: %s Input: %s Message: %s"),
 				*OwningFunctionCallNode->GetFunctionName(), *InputParameterHandle.GetName().ToString(), *VisibleConditionError.ToString());
@@ -2345,7 +2345,16 @@ void UNiagaraStackFunctionInput::UpdateValuesFromScriptDefaults(FInputValues& In
 		{
 			// Otherwise we need to check the pin that defined the variable in the graph to determine the default.
 
-			FCompileConstantResolver ConstantResolver = GetEmitterViewModel() ? FCompileConstantResolver(GetEmitterViewModel()->GetEmitter(), FNiagaraStackGraphUtilities::GetOutputNodeUsage(*OwningFunctionCallNode)) : FCompileConstantResolver();
+			FCompileConstantResolver ConstantResolver;
+			if (GetEmitterViewModel())
+			{
+				ConstantResolver = FCompileConstantResolver(GetEmitterViewModel()->GetEmitter(), FNiagaraStackGraphUtilities::GetOutputNodeUsage(*OwningFunctionCallNode));
+			}
+			else
+			{
+				// if we don't have an emitter model, we must be in a system context
+				ConstantResolver = FCompileConstantResolver(&GetSystemViewModel()->GetSystem(), FNiagaraStackGraphUtilities::GetOutputNodeUsage(*OwningFunctionCallNode));
+			}
 			UEdGraphPin* DefaultPin = OwningFunctionCallNode->FindParameterMapDefaultValuePin(InputParameterHandle.GetParameterHandleString(), SourceScript->GetUsage(), ConstantResolver);
 			if (DefaultPin != nullptr)
 			{

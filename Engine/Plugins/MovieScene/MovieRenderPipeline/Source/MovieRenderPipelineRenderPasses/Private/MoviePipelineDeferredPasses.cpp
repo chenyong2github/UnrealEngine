@@ -568,6 +568,7 @@ TFunction<void(TUniquePtr<FImagePixelData>&&)> UMoviePipelineDeferredPassBase::M
 				SampleAccumulator->TaskPrereq = nullptr;
 			}
 		});
+		SampleAccumulator->TaskPrereq = Event;
 
 		this->OutstandingTasks.Add(Event);
 	};
@@ -677,10 +678,12 @@ void UMoviePipelineDeferredPassBase::PostRendererSubmission(const FMoviePipeline
 			MoviePipeline::AccumulateSample_TaskThread(MoveTemp(PixelData), AccumulationArgs);
 			if (bFinalSample)
 			{
+				// Final sample has now been executed, break the pre-req chain and free the accumulator for reuse.
 				SampleAccumulator->bIsActive = false;
 				SampleAccumulator->TaskPrereq = nullptr;
 			}
 		});
+		SampleAccumulator->TaskPrereq = Event;
 
 		this->OutstandingTasks.Add(Event);
 	};
@@ -785,7 +788,15 @@ namespace MoviePipeline
 				TArray64<FLinearColor> FullSizeData;
 				FullSizeData.AddUninitialized(RawSize.X * RawSize.Y);
 
-				if (SamplePixelData->GetType() == EImagePixelType::Float16)
+				if (SamplePixelData->GetType() == EImagePixelType::Float32)
+				{
+					const void* RawDataPtr;
+					int64 RawDataSize;
+					SamplePixelData->GetRawData(RawDataPtr, RawDataSize);
+
+					FMemory::Memcpy(FullSizeData.GetData(), RawDataPtr, RawDataSize);
+				}
+				else if (SamplePixelData->GetType() == EImagePixelType::Float16)
 				{
 					const void* RawDataPtr;
 					int64 RawDataSize;

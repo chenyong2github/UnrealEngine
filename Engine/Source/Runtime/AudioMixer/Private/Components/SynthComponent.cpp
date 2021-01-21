@@ -366,7 +366,7 @@ void USynthComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
-#endif
+#endif //WITH_EDITOR
 
 void USynthComponent::Serialize(FArchive& Ar)
 {

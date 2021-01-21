@@ -16,7 +16,7 @@
 
 bool FScalableFloat::EvaluateCurveAtLevel(float& OutValue, const FRealCurve*& OutCurve, float Level, const FString& ContextString) const
 {
-	if (Curve.RowName != NAME_None)
+	if (!Curve.RowName.IsNone())
 	{
 		// This is a simple mechanism for invalidating our cached curve. If someone calls FScalableFloat::InvalidateAllCachedCurves (static method)
 		// all cached curve tables are invalidated and will be updated the next time they are accessed
@@ -37,13 +37,8 @@ bool FScalableFloat::EvaluateCurveAtLevel(float& OutValue, const FRealCurve*& Ou
 			}
 			else if (RegistryType.IsValid())
 			{
-				// Subsystem is safe to cache after it has finished loading
-				static UDataRegistrySubsystem* SubSystem = nullptr;
-				if (!SubSystem)
-				{
-					SubSystem = UDataRegistrySubsystem::Get();
-				}
-				if (SubSystem)
+				UDataRegistrySubsystem* SubSystem = UDataRegistrySubsystem::Get();
+				if (ensure(SubSystem))
 				{
 					// Always evaluate
 					float OutTempValue = 0.0f;
@@ -91,7 +86,7 @@ float FScalableFloat::GetValueAtLevel(float Level, const FString* ContextString)
 	const FRealCurve* FoundCurve;
 	static const FString DefaultContextString = TEXT("FScalableFloat::GetValueAtLevel");
 
-	EvaluateCurveAtLevel(OutFloat, FoundCurve, Level, ContextString ? *ContextString : *DefaultContextString);
+	EvaluateCurveAtLevel(OutFloat, FoundCurve, Level, ContextString ? *ContextString : DefaultContextString);
 
 	return OutFloat;
 }

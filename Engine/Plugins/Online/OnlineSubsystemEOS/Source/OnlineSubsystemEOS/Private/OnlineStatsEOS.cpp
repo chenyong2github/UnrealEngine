@@ -280,7 +280,7 @@ inline int32 GetVariantValue(const FOnlineStatValue& Data)
 
 typedef TEOSCallback<EOS_Stats_OnIngestStatCompleteCallback, EOS_Stats_IngestStatCompleteCallbackInfo> FWriteStatsCallback;
 
-void FOnlineStatsEOS::WriteStats(EOS_ProductUserId UserId, const FOnlineStatsUserUpdatedStats& PlayerStats)
+void FOnlineStatsEOS::WriteStats(EOS_ProductUserId LocalUserId, EOS_ProductUserId UserId, const FOnlineStatsUserUpdatedStats& PlayerStats)
 {
 	TArray<EOS_Stats_IngestData> EOSData;
 	TArray<FStatNameBuffer> EOSStatNames;
@@ -303,7 +303,8 @@ void FOnlineStatsEOS::WriteStats(EOS_ProductUserId UserId, const FOnlineStatsUse
 
 	EOS_Stats_IngestStatOptions Options = { };
 	Options.ApiVersion = EOS_STATS_INGESTSTAT_API_LATEST;
-	Options.LocalUserId = UserId;
+	Options.LocalUserId = LocalUserId;
+	Options.TargetUserId = UserId;
 	Options.Stats = EOSData.GetData();
 	Options.StatsCount = EOSData.Num();
 
@@ -322,9 +323,8 @@ void FOnlineStatsEOS::WriteStats(EOS_ProductUserId UserId, const FOnlineStatsUse
 void FOnlineStatsEOS::UpdateStats(const TSharedRef<const FUniqueNetId> LocalUserId, const TArray<FOnlineStatsUserUpdatedStats>& UpdatedUserStats, const FOnlineStatsUpdateStatsComplete& Delegate)
 {
 	FUniqueNetIdEOS EOSId(*LocalUserId);
-	// The code may be writing stats from a dedicated server, so rebuild the ID from a string
 	EOS_ProductUserId UserId = EOS_ProductUserId_FromString(TCHAR_TO_UTF8(*EOSId.ProductUserIdStr));
-	if (UserId == NULL)
+	if (UserId == nullptr)
 	{
 		UE_LOG_ONLINE_STATS(Error, TEXT("UpdateStats() failed for unknown player (%s)"), *EOSId.UniqueNetIdStr);
 		Delegate.ExecuteIfBound(FOnlineError(EOnlineErrorResult::InvalidCreds));
@@ -343,7 +343,7 @@ void FOnlineStatsEOS::UpdateStats(const TSharedRef<const FUniqueNetId> LocalUser
 		EOS_ProductUserId StatsUser = EOSSubsystem->UserManager->GetProductUserId(*StatsUpdate.Account);
 		if (StatsUser != nullptr)
 		{
-			WriteStats(StatsUser, StatsUpdate);
+			WriteStats(UserId, StatsUser, StatsUpdate);
 		}
 		else
 		{

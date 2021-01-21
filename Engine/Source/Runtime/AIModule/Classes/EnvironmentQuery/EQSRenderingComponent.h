@@ -69,6 +69,11 @@ public:
 		bDrawOnlyWhenSelected = InSceneProxy->bDrawOnlyWhenSelected;
 	}
 
+	void Reset()
+	{
+		ResetTexts();
+	}
+
 protected:
 	AIMODULE_API virtual void DrawDebugLabels(UCanvas* Canvas, APlayerController*) override;
 

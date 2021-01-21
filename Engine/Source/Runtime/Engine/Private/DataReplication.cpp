@@ -1653,8 +1653,19 @@ bool FObjectReplicator::ReplicateProperties( FOutBunch & Bunch, FReplicationFlag
 	//		and all the work could just be done in a single place.
 
 	// Update change list (this will re-use work done by previous connections)
-	FSendingRepState* SendingRepState = ((Connection->ResendAllDataState == EResendAllDataState::SinceCheckpoint) && CheckpointRepState.IsValid()) ? CheckpointRepState->GetSendingRepState() : RepState->GetSendingRepState();
-	const ERepLayoutResult UpdateResult = FNetSerializeCB::UpdateChangelistMgr(*RepLayout, SendingRepState, *ChangelistMgr, Object, Connection->Driver->ReplicationFrame, RepFlags, OwningChannel->bForceCompareProperties);
+
+	const bool bUseCheckpointRepState = (Connection->ResendAllDataState == EResendAllDataState::SinceCheckpoint);
+
+	if (bUseCheckpointRepState && !CheckpointRepState.IsValid())
+	{
+		TSharedPtr<FRepChangedPropertyTracker> RepChangedPropertyTracker = Connection->Driver->FindOrCreateRepChangedPropertyTracker(GetObject());
+
+		CheckpointRepState = RepLayout->CreateRepState((const uint8*)Object, RepChangedPropertyTracker, ECreateRepStateFlags::SkipCreateReceivingState);
+	}
+
+	FSendingRepState* SendingRepState = (bUseCheckpointRepState && CheckpointRepState.IsValid()) ? CheckpointRepState->GetSendingRepState() : RepState->GetSendingRepState();
+
+	const ERepLayoutResult UpdateResult = FNetSerializeCB::UpdateChangelistMgr(*RepLayout, SendingRepState, *ChangelistMgr, Object, Connection->Driver->ReplicationFrame, RepFlags, OwningChannel->bForceCompareProperties || bUseCheckpointRepState);
 
 	if (UNLIKELY(ERepLayoutResult::FatalError == UpdateResult))
 	{
@@ -1678,17 +1689,11 @@ bool FObjectReplicator::ReplicateProperties( FOutBunch & Bunch, FReplicationFlag
 	if ( Connection->ResendAllDataState != EResendAllDataState::None )
 	{
 		// If we are resending data since open, we don't want to affect the current state of channel/replication, so just send the data, and return
-		const bool WroteImportantData = Writer.GetNumBits() != 0;
+		const bool bWroteImportantData = Writer.GetNumBits() != 0;
 
-		if ( WroteImportantData )
+		if (bWroteImportantData)
 		{
 			OwningChannel->WriteContentBlockPayload( Object, Bunch, bHasRepLayout, Writer );
-
-			if (Connection->ResendAllDataState == EResendAllDataState::SinceCheckpoint)
-			{
-				UpdateCheckpoint();
-			}
-
 			return true;
 		}
 
@@ -2283,28 +2288,6 @@ void FObjectReplicator::WritePropertyHeaderAndPayload(
 	const int32 HeaderBits = static_cast<int64>(OwningChannel->WriteFieldHeaderAndPayload(Bunch, ClassCache, FieldCache, NetFieldExportGroup, Payload)) - Payload.GetNumBits();
 
 	NETWORK_PROFILER(GNetworkProfiler.TrackWritePropertyHeader(Property, HeaderBits, nullptr));
-}
-
-void FObjectReplicator::UpdateCheckpoint()
-{
-	TArray<uint16> CheckpointChangelist;
-
-	if (CheckpointRepState.IsValid())
-	{
-		CheckpointChangelist = MoveTemp(CheckpointRepState->GetSendingRepState()->LifetimeChangelist);
-	}
-	else
-	{
-		CheckpointChangelist = RepState->GetSendingRepState()->LifetimeChangelist;
-	}
-
-	// Update rep state
-	TSharedPtr<FRepChangedPropertyTracker> RepChangedPropertyTracker = Connection->Driver->FindOrCreateRepChangedPropertyTracker( GetObject() );
-
-	CheckpointRepState = RepLayout->CreateRepState((const uint8*)GetObject(), RepChangedPropertyTracker, ECreateRepStateFlags::SkipCreateReceivingState);
-
-	// Keep current set of changed properties
-	CheckpointRepState->GetSendingRepState()->LifetimeChangelist = MoveTemp(CheckpointChangelist);
 }
 
 FScopedActorRoleSwap::FScopedActorRoleSwap(AActor* InActor)

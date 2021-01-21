@@ -141,6 +141,7 @@ namespace Audio
 			AudioPlatformThreadId = FPlatformTLS::GetCurrentThreadId();
 		}
 		int32 CurrentThreadId = FPlatformTLS::GetCurrentThreadId();
+		AUDIO_MIXER_CHECK(CurrentThreadId == AudioPlatformThreadId);
 	}
 
 	bool FMixerDevice::IsAudioRenderingThread() const

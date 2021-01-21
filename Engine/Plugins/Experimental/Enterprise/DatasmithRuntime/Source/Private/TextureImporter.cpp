@@ -72,10 +72,9 @@ namespace DatasmithRuntime
 			}
 
 #ifdef ASSET_DEBUG
-			FString BaseName = FPaths::GetBaseFilename(TextureElement->GetFile());
-			FString TextureName = BaseName + TEXT("_LU_") + FString::FromInt(TextureData.ElementId);
+			FString TextureName = TEXT("T_") + FString(TextureElement->GetName()) + TEXT("_LU_") + FString::FromInt(TextureElement->GetNodeId());
 			TextureName = FDatasmithUtils::SanitizeObjectName(TextureName);
-			UPackage* Package = CreatePackage(*FPaths::Combine( TEXT("/Engine/Transient/LU"), TextureName));
+			UPackage* Package = CreatePackage(*FPaths::Combine( TEXT("/DatasmithContent/Textures"), TextureName));
 			Texture2D->Rename(*TextureName, Package, REN_DontCreateRedirectors | REN_NonTransactional);
 			Texture2D->SetFlags(RF_Public);
 #endif
@@ -125,10 +124,9 @@ namespace DatasmithRuntime
 			}
 
 #ifdef ASSET_DEBUG
-			FString BaseName = FPaths::GetBaseFilename(TextureElement->GetFile());
-			FString TextureName = BaseName + TEXT("_LU_") + FString::FromInt(TextureData.ElementId);
+			FString TextureName = TEXT("T_") + FString(TextureElement->GetName()) + TEXT("_LU_") + FString::FromInt(TextureElement->GetNodeId());
 			TextureName = FDatasmithUtils::SanitizeObjectName(TextureName);
-			UPackage* Package = CreatePackage(*FPaths::Combine( TEXT("/Engine/Transient/LU"), TextureName));
+			UPackage* Package = CreatePackage(*FPaths::Combine( TEXT("/DatasmithContent/Textures"), TextureName));
 			Texture->Rename(*TextureName, Package, REN_DontCreateRedirectors | REN_NonTransactional);
 			Texture->SetFlags(RF_Public);
 #endif
@@ -185,6 +183,8 @@ namespace DatasmithRuntime
 		FAssetData& AssetData = AssetDataList[ElementId];
 		FTextureData& TextureData = TextureDataList[ElementId];
 
+		IDatasmithTextureElement* TextureElement = static_cast<IDatasmithTextureElement*>(Elements[ AssetData.ElementId ].Get());
+
 		// If the load of the image has failed, cleanup the TextureData and return
 		if (TextureData.Width == 0 || TextureData.Height == 0 || TextureData.ImageData == nullptr)
 		{
@@ -197,10 +197,10 @@ namespace DatasmithRuntime
 					});
 			}
 
+			UE_LOG(LogDatasmithRuntime, Warning, TEXT("Failed to create texture %s"), TextureElement->GetName());
+
 			return EActionResult::Failed;
 		}
-
-		IDatasmithTextureElement* TextureElement = static_cast<IDatasmithTextureElement*>(Elements[ AssetData.ElementId ].Get());
 
 		FDataCleanupFunc DataCleanupFunc;
 		DataCleanupFunc = [this, ElementId](uint8* SrcData, const FUpdateTextureRegion2D* Regions) -> void
@@ -245,6 +245,8 @@ namespace DatasmithRuntime
 					AssetData.AddState(EAssetState::Completed);
 					AssetData.Object.Reset();
 				});
+
+			UE_LOG(LogDatasmithRuntime, Warning, TEXT("Failed to create texture %s"), TextureElement->GetName());
 		}
 
 		ActionCounter.Increment();
@@ -292,6 +294,10 @@ namespace DatasmithRuntime
 
 			UE_LOG(LogDatasmithRuntime, Warning, TEXT("Cannot load image file %s for texture %s"), TextureElement->GetFile(), TextureElement->GetLabel());
 		}
+		else
+		{
+			TasksToComplete |= EWorkerTask::TextureAssign;
+		}
 
 		FActionTaskFunction CreateTaskFunc = [this](UObject* Object, const FReferencer& Referencer) -> EActionResult::Type
 		{
@@ -300,10 +306,7 @@ namespace DatasmithRuntime
 
 		AddToQueue(EQueueTask::NonAsyncQueue, { CreateTaskFunc, {EDataType::Texture, ElementId, 0 } });
 
-		if (bSuccessfulLoad)
-		{
-			TasksToComplete |= EWorkerTask::TextureAssign;
-		}
+		ActionCounter.Increment();
 
 		return true;
 	}

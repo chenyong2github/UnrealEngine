@@ -77,7 +77,7 @@ namespace Chaos
 			return C;
 		}
 
-		FORCEINLINE_DEBUGGABLE TVector<T, 3> SupportCore(const TVector<T, 3>& Direction) const
+		FORCEINLINE_DEBUGGABLE TVector<T, 3> SupportCore(const TVector<T, 3>& Direction, float InMargin) const
 		{
 			const float DotA = TVector<T, 3>::DotProduct(A, Direction);
 			const float DotB = TVector<T, 3>::DotProduct(B, Direction);
@@ -93,6 +93,12 @@ namespace Chaos
 			}
 
 			return C;
+		}
+
+		FORCEINLINE TVector<T, 3> SupportCoreScaled(const TVector<T, 3>& Direction, float InMargin, const TVector<T, 3>& Scale) const
+		{
+			// No margin support in triangles (they are zero thickness so cannot have an internal margin)
+			return SupportCore(Direction * Scale, 0.0f) * Scale;
 		}
 
 		FORCEINLINE T GetMargin() const { return 0; }

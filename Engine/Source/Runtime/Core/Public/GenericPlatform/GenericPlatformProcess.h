@@ -229,6 +229,12 @@ struct CORE_API FGenericPlatformProcess
 	 */
 	static void SetThreadName( const TCHAR* ThreadName ) { }
 
+	/** Get the active stack size for the currently running thread **/
+	static uint32 GetStackSize();
+
+	/** Output information about the currently active thread **/
+	static void DumpThreadInfo( const TCHAR* MarkerName ) { }
+
 	/** Allow the platform to do anything it needs for game thread */
 	static void SetupGameThread() { }
 

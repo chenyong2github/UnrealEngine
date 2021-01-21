@@ -95,7 +95,7 @@ struct FHardwareCursorReference
 	 * NOTE: This HotSpot is only used on formats that do not provide their own hotspot, e.g. Tiff, PNG.
 	 */
 	UPROPERTY(EditAnywhere, Category="Hardware Cursor", meta=( ClampMin=0, ClampMax=1 ))
-	FVector2D HotSpot;
+	FVector2D HotSpot = FVector2D::ZeroVector;
 };
 
 /**

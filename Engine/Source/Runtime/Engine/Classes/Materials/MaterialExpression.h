@@ -217,6 +217,10 @@ class ENGINE_API UMaterialExpression : public UObject
 	{
 		return true;
 	}
+	virtual bool HasNonEditorOnlyReferences() const override
+	{
+		return true;
+	}
 	//~ End UObject Interface.
 
 #if WITH_EDITOR

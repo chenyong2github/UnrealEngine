@@ -2198,7 +2198,11 @@ void FStaticMeshOperations::GenerateBoxUV(const FMeshDescription& MeshDescriptio
 			// Apply the gizmo transforms
 			Vertex = Params.Rotation.RotateVector(Vertex);
 			Vertex -= Offset;
-			Vertex /= Size;
+
+			// Normalize coordinates
+			Vertex.X = FMath::IsNearlyZero(Size.X) ? 0.0f : Vertex.X / Size.X;
+			Vertex.Y = FMath::IsNearlyZero(Size.Y) ? 0.0f : Vertex.Y / Size.Y;
+			Vertex.Z = FMath::IsNearlyZero(Size.Z) ? 0.0f : Vertex.Z / Size.Z;
 
 			float UCoord = FVector::DotProduct(Vertex, U) * Params.UVTile.X;
 			float VCoord = FVector::DotProduct(Vertex, V) * Params.UVTile.Y;
@@ -2384,6 +2388,44 @@ void FStaticMeshOperations::FlipPolygons(FMeshDescription& MeshDescription)
 		// Just reverse the sign of the normals/tangents; note that since binormals are the cross product of normal with tangent, they are left untouched
 		VertexNormals[VertexInstanceID] *= -1.0f;
 		VertexTangents[VertexInstanceID] *= -1.0f;
+	}
+}
+
+void FStaticMeshOperations::ApplyTransform(FMeshDescription& MeshDescription, const FTransform& Transform)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(FStaticMeshOperations::ApplyTransform)
+
+	TVertexAttributesRef<FVector> VertexPositions = MeshDescription.VertexAttributes().GetAttributesRef<FVector>(MeshAttribute::Vertex::Position);
+	TVertexInstanceAttributesRef<FVector> VertexInstanceNormals = MeshDescription.VertexInstanceAttributes().GetAttributesRef<FVector>(MeshAttribute::VertexInstance::Normal);
+	TVertexInstanceAttributesRef<FVector> VertexInstanceTangents = MeshDescription.VertexInstanceAttributes().GetAttributesRef<FVector>(MeshAttribute::VertexInstance::Tangent);
+	TVertexInstanceAttributesRef<float> VertexInstanceBinormalSigns = MeshDescription.VertexInstanceAttributes().GetAttributesRef<float>(MeshAttribute::VertexInstance::BinormalSign);
+
+	for (const FVertexID VertexID : MeshDescription.Vertices().GetElementIDs())
+	{
+		VertexPositions[VertexID] = Transform.TransformPosition(VertexPositions[VertexID]);
+	}
+
+	FMatrix Matrix = Transform.ToMatrixWithScale();
+	FMatrix AdjointT = Matrix.TransposeAdjoint();
+	AdjointT.RemoveScaling();
+
+	const bool bIsMirrored = Transform.GetDeterminant() < 0.f;
+	const float MulBy = bIsMirrored ? -1.f : 1.f;
+
+	for (const FVertexInstanceID VertexInstanceID : MeshDescription.VertexInstances().GetElementIDs())
+	{
+		FVector Tangent = VertexInstanceTangents[VertexInstanceID];
+		FVector Normal = VertexInstanceNormals[VertexInstanceID];
+		float BinormalSign = VertexInstanceBinormalSigns[VertexInstanceID];
+
+		VertexInstanceTangents[VertexInstanceID] = AdjointT.TransformVector(Tangent) * MulBy;
+		VertexInstanceBinormalSigns[VertexInstanceID] = BinormalSign * MulBy;
+		VertexInstanceNormals[VertexInstanceID] = AdjointT.TransformVector(Normal) * MulBy;
+	}
+
+	if (bIsMirrored)
+	{
+		MeshDescription.ReverseAllPolygonFacing();
 	}
 }
 

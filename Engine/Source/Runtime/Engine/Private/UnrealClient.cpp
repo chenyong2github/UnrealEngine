@@ -672,8 +672,6 @@ int32 FStatUnitData::DrawStat(FViewport* InViewport, FCanvas* InCanvas, int32 In
 			}
 		}
 
-		ERHIFeatureLevel::Type FeatureLevel = InCanvas->GetFeatureLevel();
-		if (FeatureLevel >= ERHIFeatureLevel::SM5)
 		{
 			float ResolutionFraction = DynamicResolutionStateInfos.ResolutionFractionApproximation;
 			float ScreenPercentage = ResolutionFraction * 100.0f;
@@ -706,32 +704,30 @@ int32 FStatUnitData::DrawStat(FViewport* InViewport, FCanvas* InCanvas, int32 In
 			}
 			InY += RowHeight;
 		}
-		else // Mobile
+
+		// Draw calls
 		{
-			// Draw calls
+			int32 NumDrawCalls = GNumDrawCallsRHI;
+			InCanvas->DrawShadowedString(X1, InY, TEXT("Draws:"), Font, bShowUnitTimeGraph ? FColor(100, 100, 255) : FColor::White);
+			InCanvas->DrawShadowedString(X2, InY, *FString::Printf(TEXT("%d"), NumDrawCalls), Font, StatGreen);
+			InY += RowHeight;
+		}
+			
+		// Primitives
+		{
+			int32 NumPrimitives = GNumPrimitivesDrawnRHI;
+			InCanvas->DrawShadowedString(X1, InY, TEXT("Prims:"), Font, bShowUnitTimeGraph ? FColor(100, 100, 255) : FColor::White);
+			if (NumPrimitives < 10000)
 			{
-				int32 NumDrawCalls = GNumDrawCallsRHI;
-				InCanvas->DrawShadowedString(X1, InY, TEXT("Draws:"), Font, bShowUnitTimeGraph ? FColor(100, 100, 255) : FColor::White);
-				InCanvas->DrawShadowedString(X2, InY, *FString::Printf(TEXT("%d"), NumDrawCalls), Font, StatGreen);
-				InY += RowHeight;
+				InCanvas->DrawShadowedString(X2, InY, *FString::Printf(TEXT("%d"), NumPrimitives), Font, StatGreen);
+			}
+			else
+			{
+				float NumPrimitivesK = NumPrimitives/1000.f;
+				InCanvas->DrawShadowedString(X2, InY, *FString::Printf(TEXT("%.1fK"), NumPrimitivesK), Font, StatGreen);
 			}
 			
-			// Primitives
-			{
-				int32 NumPrimitives = GNumPrimitivesDrawnRHI;
-				InCanvas->DrawShadowedString(X1, InY, TEXT("Prims:"), Font, bShowUnitTimeGraph ? FColor(100, 100, 255) : FColor::White);
-				if (NumPrimitives < 10000)
-				{
-					InCanvas->DrawShadowedString(X2, InY, *FString::Printf(TEXT("%d"), NumPrimitives), Font, StatGreen);
-				}
-				else
-				{
-					float NumPrimitivesK = NumPrimitives/1000.f;
-					InCanvas->DrawShadowedString(X2, InY, *FString::Printf(TEXT("%.1fK"), NumPrimitivesK), Font, StatGreen);
-				}
-				
-				InY += RowHeight;
-			}
+			InY += RowHeight;
 		}
 	}
 

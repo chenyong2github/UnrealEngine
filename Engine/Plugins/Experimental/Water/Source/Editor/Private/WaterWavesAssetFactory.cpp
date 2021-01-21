@@ -21,7 +21,7 @@ UObject* UWaterWavesAssetFactory::FactoryCreateNew(UClass* Class, UObject* InPar
 
 FText UWaterWavesAssetFactory::GetToolTip() const
 {
-	return LOCTEXT("WavesAssetTooltip", "testing");
+	return LOCTEXT("WavesAssetTooltip", "Creates a default water waves asset");
 }
 
 #undef LOCTEXT_NAMESPACE

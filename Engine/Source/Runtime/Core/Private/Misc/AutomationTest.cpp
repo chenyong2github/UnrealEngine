@@ -17,6 +17,66 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogAutomationTest, Warning, All);
 
+/*
+	Determine the level that a log item should be written to the automation log based on the properties of the current test. 
+	only Display/Warning/Error are supported in the automation log so anything with NoLogging/Log will not be shown
+	(Should be moved under a namespace for 4.27).
+*/
+CORE_API ELogVerbosity::Type GetAutomationLogLevel(ELogVerbosity::Type LogVerbosity, FAutomationTestBase* CurrentTest)
+{
+	ELogVerbosity::Type EffectiveVerbosity = LogVerbosity;
+
+	// agrant-todo: these should be controlled by FAutomationTestBase for 4.27 with the same project-level override that
+	// FunctionalTest has. Now that warnings are correctly associated with tests they need to be something all tests
+	// can leverage, not just functional tests
+	static bool bSuppressLogWarnings = false;
+	static bool bSuppressLogErrors = false;
+	static bool bTreatLogWarningsAsTestErrors = false;
+
+	static FAutomationTestBase* LastTest = nullptr;
+
+	if (CurrentTest != LastTest)
+	{
+		// These can be changed in the editor so can't just be cached for the whole session
+		GConfig->GetBool(TEXT("/Script/AutomationController.AutomationControllerSettings"), TEXT("bSuppressLogErrors"), bSuppressLogErrors, GEngineIni);
+		GConfig->GetBool(TEXT("/Script/AutomationController.AutomationControllerSettings"), TEXT("bSuppressLogWarnings"), bSuppressLogWarnings, GEngineIni);
+		GConfig->GetBool(TEXT("/Script/AutomationController.AutomationControllerSettings"), TEXT("bTreatLogWarningsAsTestErrors"), bTreatLogWarningsAsTestErrors, GEngineIni);
+		LastTest = CurrentTest;
+	}
+
+	if (CurrentTest)
+	{
+		if (CurrentTest->SuppressLogs())
+		{
+			EffectiveVerbosity = ELogVerbosity::NoLogging;
+		}
+		else
+		{
+			if (EffectiveVerbosity == ELogVerbosity::Warning)
+			{
+				if (CurrentTest->SuppressLogWarnings() || bSuppressLogWarnings)
+				{
+					EffectiveVerbosity = ELogVerbosity::NoLogging;
+				}
+				else if (CurrentTest->ElevateLogWarningsToErrors() || bTreatLogWarningsAsTestErrors)
+				{
+					EffectiveVerbosity = ELogVerbosity::Error;
+				}
+			}
+
+			if (EffectiveVerbosity == ELogVerbosity::Error)
+			{
+				if (CurrentTest->SuppressLogErrors() ||  bSuppressLogErrors)
+				{
+					EffectiveVerbosity = ELogVerbosity::NoLogging;
+				}
+			}
+		}
+	}
+
+	return EffectiveVerbosity;
+}
+
 void FAutomationTestFramework::FAutomationTestOutputDevice::Serialize( const TCHAR* V, ELogVerbosity::Type Verbosity, const class FName& Category )
 {
 	const int32 STACK_OFFSET = 5;//FMsg::Logf_InternalImpl
@@ -35,35 +95,16 @@ void FAutomationTestFramework::FAutomationTestOutputDevice::Serialize( const TCH
 
 		if (CaptureLog)
 		{
-			bool IsError = false; 
-			bool IsWarning = false;
-
-			if (Verbosity == ELogVerbosity::Warning)
-			{
-				// If this is a warning, it gets suppressed if the test says so
-				IsWarning = CurTest->SuppressLogWarnings() == false;
-
-				// If it wasn't suppressed, it might get elevated to an error.
-				if (IsWarning && CurTest->ElevateLogWarningsToErrors())
-				{
-					IsError = true;
-					IsWarning = false;
-				}
-			}
-			// now check errors, and yes a test can both elevate warnings to errors and suppress them which doesn't
-			// make sense yet makes sense at the same time...
-			if (Verbosity == ELogVerbosity::Error)
-			{
-				IsError = CurTest->SuppressLogErrors() == false;;
-			}
+		
+			ELogVerbosity::Type EffectiveVerbosity = GetAutomationLogLevel(Verbosity, CurTest);
 			
 			// Errors
-			if (IsError)
+			if (EffectiveVerbosity == ELogVerbosity::Error)
 			{
 				CurTest->AddError(FString(V), STACK_OFFSET);
 			}
 			// Warnings
-			else if (IsWarning)
+			else if (EffectiveVerbosity == ELogVerbosity::Warning)
 			{
 				CurTest->AddWarning(FString(V), STACK_OFFSET);
 			}

@@ -302,6 +302,8 @@ bool FMPCDIData::ComputeFrustum(const IMPCDI::FRegionLocator& RegionLocator, IMP
 		return false;
 	}
 
+	TRACE_CPUPROFILER_EVENT_SCOPE(nDisplay Mpcdi::ComputeFrustum);
+
 	const FMPCDIData::FMPCDIBuffer *MPCDIBuffer = Buffers[RegionLocator.BufferIndex];
 	if (MPCDIBuffer)
 	{

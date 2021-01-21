@@ -73,11 +73,11 @@ struct GAMEPLAYABILITIES_API FGameplayTargetDataFilter
 
 	/** Filter based on whether or not this actor is "self." */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, meta = (ExposeOnSpawn = true), Category = Filter)
-	TEnumAsByte<ETargetDataFilterSelf::Type> SelfFilter;
+	TEnumAsByte<ETargetDataFilterSelf::Type> SelfFilter = ETargetDataFilterSelf::TDFS_Any;
 
 	/** Reverses the meaning of the filter, so it will exclude all actors that pass. */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, meta = (ExposeOnSpawn = true), Category = Filter)
-	bool bReverseFilter;
+	bool bReverseFilter = false;
 };
 
 /** Polymorphic handle to filter structure that handles checking if actors should be targeted */

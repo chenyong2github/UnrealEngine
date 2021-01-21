@@ -1246,6 +1246,33 @@ bool UGameEngine::NetworkRemapPath(UNetConnection* Connection, FString& Str, boo
 		return false;
 	}
 
+	// If the driver is using a duplicate level ID, find the level collection using the driver
+	// and see if any of its levels match the prefixed name. If so, remap Str to that level's
+	// prefixed name.
+	if (UNetDriver* Driver = Connection->GetDriver())
+	{
+		if (Driver->GetDuplicateLevelID() != INDEX_NONE)
+		{
+			const FName PrefixedName = *UWorld::ConvertToPIEPackageName(Str, Driver->GetDuplicateLevelID());
+
+			for (const FLevelCollection& Collection : World->GetLevelCollections())
+			{
+				if (Collection.GetNetDriver() == Driver || Collection.GetDemoNetDriver() == Driver)
+				{
+					for (const ULevel* Level : Collection.GetLevels())
+					{
+						const UPackage* const CachedOutermost = Level ? Level->GetOutermost() : nullptr;
+						if (CachedOutermost && CachedOutermost->GetFName() == PrefixedName)
+						{
+							Str = PrefixedName.ToString();
+							return true;
+						}
+					}
+				}
+			}
+		}
+	}
+
 	// Try to find the level script objects and remap them for when demos are being replayed.
 	if (Connection->IsInternalAck() && World->RemapCompiledScriptActor(Str))
 	{

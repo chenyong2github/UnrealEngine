@@ -533,7 +533,7 @@ struct FNetSimCueDispatcher
 	}
 
 	virtual FString GetDebugName() const = 0;
-
+	
 protected:
 
 	bool EnsureValidContext()
@@ -555,6 +555,14 @@ protected:
 
 	FContext Context;
 	int32 RollbackFrame = INDEX_NONE;		// Frame# of last rollback, reset after dispatching
+
+public:
+
+	// Push/pop simulation context.
+	void PushContext(const FContext& InContext) { Context = InContext; }
+	void PopContext() { Context = FContext(); }
+	const FContext& GetContext() const { return Context; }
+
 };
 
 // Templated cue dispatcher that can be specialized per networking model definition. This is what the system actually uses internally, but is not exposed to user code.
@@ -818,10 +826,6 @@ struct TNetSimCueDispatcher : public FNetSimCueDispatcher
 			}
 		}
 	}
-
-	// Push/pop simulation context.
-	void PushContext(const FContext& InContext) { Context = InContext; }
-	void PopContext() { Context = FContext(); }
 
 	// Set which cues we should accept locally (if they get sent to us)
 	void SetReceiveReplicationTarget(ENetSimCueReplicationTarget InReplicationMask)

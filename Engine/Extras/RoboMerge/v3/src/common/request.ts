@@ -73,7 +73,7 @@ export function sendTcp(urlStr: string, data: string, logger: ContextualLogger) 
 
 	const client = new net.Socket;
 	client.connect(parseInt(url.port), url.hostname, () => client.write(data))
-	return new Promise((done, fail) => {
+	return new Promise<void>((done, fail) => {
 
 		client.on('data', (returned: string) => {
 			logger.info('Analytics response: ' + returned)

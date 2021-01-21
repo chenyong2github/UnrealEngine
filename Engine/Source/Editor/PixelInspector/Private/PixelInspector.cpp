@@ -15,6 +15,10 @@
 #include "Engine/TextureRenderTarget2D.h"
 #include "PixelInspectorView.h"
 #include "PixelInspectorStyle.h"
+#include "ScreenPass.h"
+#include "UnrealClient.h"
+#include "PostProcess/PostProcessing.h"
+#include "PostProcess/PostProcessMaterial.h"
 
 #include "EngineGlobals.h"
 #include "EditorViewportClient.h"
@@ -26,20 +30,21 @@
 
 #define PIXEL_INSPECTOR_REQUEST_TIMEOUT 10
 #define MINIMUM_TICK_BETWEEN_CREATE_REQUEST 10
+#define DEFAULT_DISPLAY_GAMMA 2.2f
 #define LOCTEXT_NAMESPACE "PixelInspector"
+
 
 namespace PixelInspector
 {
-	SPixelInspector::SPixelInspector()		
+	SPixelInspector::SPixelInspector()
 	{
 		DisplayResult = nullptr;
 		LastViewportInspectionPosition = FIntPoint(-1, -1);
 		LastViewportId = 0;
 		LastViewportInspectionSize = FIntPoint(1, 1);
-		bIsPixelInspectorEnable = false;
 
-		Buffer_FinalColor_RGB8[0] = nullptr;
-		Buffer_FinalColor_RGB8[1] = nullptr;
+		Buffer_FinalColor_AnyFormat[0] = nullptr;
+		Buffer_FinalColor_AnyFormat[1] = nullptr;
 		Buffer_SceneColor_Float[0] = nullptr;
 		Buffer_SceneColor_Float[1] = nullptr;
 		Buffer_HDR_Float[0] = nullptr;
@@ -67,6 +72,8 @@ namespace PixelInspector
 		OnRedrawViewportHandle = LevelEditor.OnRedrawLevelEditingViewports().AddRaw(this, &SPixelInspector::OnRedrawViewport);
 
 		OnApplicationPreInputKeyDownListenerHandle = FSlateApplication::Get().OnApplicationPreInputKeyDownListener().AddRaw(this, &SPixelInspector::OnApplicationPreInputKeyDownListener);
+		
+		SetPixelInspectorState(false);
 	}
 
 	SPixelInspector::~SPixelInspector()
@@ -79,7 +86,7 @@ namespace PixelInspector
 		if (InKeyEvent.GetKey() == EKeys::Escape && (bIsPixelInspectorEnable))
 		{
 			// disable the pixel inspector
-			bIsPixelInspectorEnable = false;
+			SetPixelInspectorState(false);
 		}
 	}
 	
@@ -87,8 +94,8 @@ namespace PixelInspector
 	{
 		if(bIsPixelInspectorEnable)
 		{
-			bIsPixelInspectorEnable = false;
-		
+			SetPixelInspectorState(false);
+
 			// We need to invalide the draw as the pixel inspector message is left on from the last draw
 			GEditor->RedrawLevelEditingViewports();
 		}
@@ -96,8 +103,8 @@ namespace PixelInspector
 	
 	void SPixelInspector::ReleaseRessource()
 	{
-		bIsPixelInspectorEnable = false;
-		
+		SetPixelInspectorState(false);
+
 		if (DisplayResult != nullptr)
 		{
 			DisplayResult->RemoveFromRoot();
@@ -334,7 +341,7 @@ namespace PixelInspector
 
 	FReply SPixelInspector::HandleTogglePixelInspectorEnableButton()
 	{
-		bIsPixelInspectorEnable = !bIsPixelInspectorEnable;
+		SetPixelInspectorState(!bIsPixelInspectorEnable);
 		if (bIsPixelInspectorEnable)
 		{
 			if (LastViewportInspectionPosition == FIntPoint(-1, -1))
@@ -433,6 +440,28 @@ namespace PixelInspector
 		}
 	}
 
+	void SPixelInspector::SetPixelInspectorState(bool bInIsPixelInspectorEnabled)
+	{
+		bIsPixelInspectorEnable = bInIsPixelInspectorEnabled;
+		if (bIsPixelInspectorEnable)
+		{
+			if (!PixelInspectorSceneViewExtension.IsValid())
+			{
+				// create new scene view extension
+				PixelInspectorSceneViewExtension = FSceneViewExtensions::NewExtension<FPixelInspectorSceneViewExtension>();
+			}
+		}
+		else
+		{
+			if (PixelInspectorSceneViewExtension.IsValid())
+			{
+				// Release scene view extension as we no longer need it.
+				PixelInspectorSceneViewExtension.Reset();
+				PixelInspectorSceneViewExtension = nullptr;
+			}
+		}
+	}
+
 	void SPixelInspector::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
 	{
 		SCompoundWidget::Tick(AllottedGeometry, InCurrentTime, InDeltaTime);
@@ -477,11 +506,11 @@ namespace PixelInspector
 	void SPixelInspector::ReleaseBuffers(int32 BufferIndex)
 	{
 		check(BufferIndex >= 0 && BufferIndex < 2);
-		if (Buffer_FinalColor_RGB8[BufferIndex] != nullptr)
+		if (Buffer_FinalColor_AnyFormat[BufferIndex] != nullptr)
 		{
-			Buffer_FinalColor_RGB8[BufferIndex]->ClearFlags(RF_Standalone);
-			Buffer_FinalColor_RGB8[BufferIndex]->RemoveFromRoot();
-			Buffer_FinalColor_RGB8[BufferIndex] = nullptr;
+			Buffer_FinalColor_AnyFormat[BufferIndex]->ClearFlags(RF_Standalone);
+			Buffer_FinalColor_AnyFormat[BufferIndex]->RemoveFromRoot();
+			Buffer_FinalColor_AnyFormat[BufferIndex] = nullptr;
 		}
 		if (Buffer_SceneColor_Float[BufferIndex] != nullptr)
 		{
@@ -555,14 +584,14 @@ namespace PixelInspector
 		FTextureRenderTargetResource* DepthRenderTargetResource = nullptr;
 		FTextureRenderTargetResource* BufferARenderTargetResource = nullptr;
 		FTextureRenderTargetResource* BufferBCDEFRenderTargetResource = nullptr;
-
-		//Final color is in RGB8 format
-		Buffer_FinalColor_RGB8[LastBufferIndex] = NewObject<UTextureRenderTarget2D>(GetTransientPackage(), TEXT("PixelInspectorBufferFinalColorTarget"), RF_Standalone);
-		Buffer_FinalColor_RGB8[LastBufferIndex]->AddToRoot();
-		Buffer_FinalColor_RGB8[LastBufferIndex]->InitCustomFormat(FinalColorContextGridSize, FinalColorContextGridSize, PF_B8G8R8A8, true);
-		Buffer_FinalColor_RGB8[LastBufferIndex]->ClearColor = FLinearColor::Black;
-		Buffer_FinalColor_RGB8[LastBufferIndex]->UpdateResourceImmediate(true);
-		FinalColorRenderTargetResource = Buffer_FinalColor_RGB8[LastBufferIndex]->GameThread_GetRenderTargetResource();
+		
+		//Final color can be in HDR (FloatRGBA) or RGB8 formats so we should rely on scene view extension to tell us which format is being used.
+		Buffer_FinalColor_AnyFormat[LastBufferIndex] = NewObject<UTextureRenderTarget2D>(GetTransientPackage(), TEXT("PixelInspectorBufferFinalColorTarget"), RF_Standalone);
+		Buffer_FinalColor_AnyFormat[LastBufferIndex]->AddToRoot();
+		Buffer_FinalColor_AnyFormat[LastBufferIndex]->InitCustomFormat(FinalColorContextGridSize, FinalColorContextGridSize, PixelInspectorSceneViewExtension->GetPixelFormat(), true);
+		Buffer_FinalColor_AnyFormat[LastBufferIndex]->ClearColor = FLinearColor::Black;
+		Buffer_FinalColor_AnyFormat[LastBufferIndex]->UpdateResourceImmediate(true);
+		FinalColorRenderTargetResource = Buffer_FinalColor_AnyFormat[LastBufferIndex]->GameThread_GetRenderTargetResource();
 
 		//Scene color is in RGB8 format
 		Buffer_SceneColor_Float[LastBufferIndex] = NewObject<UTextureRenderTarget2D>(GetTransientPackage(), TEXT("PixelInspectorBufferSceneColorTarget"), RF_Standalone);
@@ -680,13 +709,27 @@ namespace PixelInspector
 					PixelResult.PreExposure = Request.PreExposure;
 					PixelResult.OneOverPreExposure = Request.PreExposure > 0.f ? (1.f / Request.PreExposure) : 1.f;;
 
-					TArray<FColor> BufferFinalColorValue;
-					FTextureRenderTargetResource* RTResourceFinalColor = Buffer_FinalColor_RGB8[Request.BufferIndex]->GameThread_GetRenderTargetResource();
-					if (RTResourceFinalColor->ReadPixels(BufferFinalColorValue) == false)
+					FTextureRenderTargetResource* RTResourceFinalColor = Buffer_FinalColor_AnyFormat[Request.BufferIndex]->GameThread_GetRenderTargetResource();
+					const EPixelFormat FinalColorPixelFormat = PixelInspectorSceneViewExtension->GetPixelFormat();
+					if (FinalColorPixelFormat == PF_B8G8R8A8)
 					{
-						BufferFinalColorValue.Empty();
+						TArray<FColor> BufferFinalColorValue;
+						if (RTResourceFinalColor->ReadPixels(BufferFinalColorValue) == false)
+						{
+							BufferFinalColorValue.Empty();
+						}
+						PixelResult.DecodeFinalColor(BufferFinalColorValue);
 					}
-					PixelResult.DecodeFinalColor(BufferFinalColorValue);
+					else if (FinalColorPixelFormat == PF_FloatRGBA || FinalColorPixelFormat == PF_FloatRGB)
+					{
+						TArray<FLinearColor> BufferFinalColorValueLinear;
+						if (RTResourceFinalColor->ReadLinearColorPixels(BufferFinalColorValueLinear) == false)
+						{
+							BufferFinalColorValueLinear.Empty();
+						}
+						PixelResult.DecodeFinalColor(BufferFinalColorValueLinear, PixelInspectorSceneViewExtension->GetGamma(), FinalColorPixelFormat == PF_FloatRGBA);
+					}
+					
 
 					TArray<FLinearColor> BufferSceneColorValue;
 					FTextureRenderTargetResource* RTResourceSceneColor = Buffer_SceneColor_Float[Request.BufferIndex]->GameThread_GetRenderTargetResource();
@@ -814,6 +857,48 @@ namespace PixelInspector
 			AccumulationResult.RemoveAt(0);
 		}
 	}
+
+	FPixelInspectorSceneViewExtension::FPixelInspectorSceneViewExtension(const FAutoRegister& AutoRegister)
+		: FSceneViewExtensionBase(AutoRegister)
+	{
+		FinalColorPixelFormat = PF_B8G8R8A8;
+		// Default dislay gamma is hardcoded in tonemapper and is set to 2.2. 
+		// We initialize this value and then get the actual value from ViewFamily.
+		FinalColorGamma = DEFAULT_DISPLAY_GAMMA;
+	}
+
+	void FPixelInspectorSceneViewExtension::BeginRenderViewFamily(FSceneViewFamily& InViewFamily)
+	{
+		const float DisplayGamma = InViewFamily.RenderTarget->GetDisplayGamma();
+		// We need to apply gamma to the final color if the output is in HDR.
+		FinalColorGamma = (InViewFamily.EngineShowFlags.Tonemapper == 0) ? DEFAULT_DISPLAY_GAMMA : DisplayGamma;
+	}
+
+	void FPixelInspectorSceneViewExtension::SubscribeToPostProcessingPass(EPostProcessingPass PassId, FAfterPassCallbackDelegateArray& InOutPassCallbacks, bool bIsPassEnabled)
+	{
+		if (PassId == EPostProcessingPass::FXAA)
+		{
+			InOutPassCallbacks.Add(FAfterPassCallbackDelegate::CreateRaw(this, &FPixelInspectorSceneViewExtension::PostProcessPassAfterFxaa_RenderThread));
+		}
+	}
+
+	FScreenPassTexture FPixelInspectorSceneViewExtension::PostProcessPassAfterFxaa_RenderThread(FRDGBuilder& GraphBuilder, const FSceneView& View, const FPostProcessMaterialInputs& InOutInputs)
+	{
+		FinalColorPixelFormat = InOutInputs.Textures[(uint32)EPostProcessMaterialInput::SceneColor].Texture->Desc.Format;
+
+		if (InOutInputs.OverrideOutput.IsValid())
+		{
+			return InOutInputs.OverrideOutput;
+		}
+		else
+		{
+			/** We don't want to modify scene texture in any way. We just want it to be passed back onto the next stage. */
+			FScreenPassTexture SceneTexture = const_cast<FScreenPassTexture&>(InOutInputs.Textures[(uint32)EPostProcessMaterialInput::SceneColor]);
+			return SceneTexture;
+		}
+
+	}
+
 };
 
 #undef LOCTEXT_NAMESPACE

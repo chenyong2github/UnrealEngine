@@ -79,7 +79,7 @@ struct FConcertSequencerCloseEvent
 	FString SequenceObjectPath;
 
 	UPROPERTY()
-	bool bMasterClose;
+	bool bMasterClose = false;
 };
 
 /**

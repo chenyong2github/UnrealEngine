@@ -11,27 +11,27 @@
 #include "DataRegistryTypes.generated.h"
 
 
-/** General rule about where data comes from */
+/** General rule about how hard it is to access an item, with later entries being the most available and faster to access */
 UENUM()
 enum class EDataRegistryAvailability : uint8
 {
-	/** Not sure where item is located */
+	/** Item definitely does not exist */
+	DoesNotExist,
+
+	/** Not sure where item is located or if it exists at all */
 	Unknown,
-
-	/** Don't bother caching because the backing source is always in memory and can be requested each time */
-	InMemory,
-
-	/** Comes from a local asset, can be sync loaded as needed */
-	LocalAsset,
-
-	/** From some other asset such as a json file available without internet access */
-	OnDisk,
 
 	/** From a database or website with very high latency */
 	Remote,
 
-	/** Is known to not be available at all */
-	DoesNotExist,
+	/** From some other asset such as a json file available without internet access */
+	OnDisk,
+
+	/** Comes from a local asset, can be sync loaded as needed */
+	LocalAsset,
+
+	/** This item has already been loaded into memory by a different system and is immediately available */
+	PreCached,
 };
 
 
@@ -91,7 +91,7 @@ struct DATAREGISTRY_API FDataRegistryLookup
 
 	/** List of sources and names to look up within that source */
 	// TODO can be more efficient, probably best option is pack it into the num field of the FName, no one really names entries Foo_2147483646
-	TArray<TTuple<uint8, FName>> SourceLookups;
+	TArray<TTuple<uint8, FName>, TInlineAllocator<1>> SourceLookups;
 
 	/** Resets to default */
 	FORCEINLINE void Reset()
@@ -387,7 +387,7 @@ struct DATAREGISTRY_API FDataRegistryAcquireResult
 			return nullptr;
 		}
 
-		if (!ensureMsgf(ItemStruct->IsChildOf(T::StaticStruct()), TEXT("Can't cast data item of type %s to %s! Code should check type before calling GetItem"), ItemStruct->GetName(), T::StaticStruct()->GetName()))
+		if (!ensureMsgf(ItemStruct->IsChildOf(T::StaticStruct()), TEXT("Can't cast data item of type %s to %s! Code should check type before calling GetItem"), *ItemStruct->GetName(), *T::StaticStruct()->GetName()))
 		{
 			return nullptr;
 		}
@@ -505,5 +505,9 @@ DECLARE_DYNAMIC_DELEGATE_ThreeParams(FDataRegistryItemAcquiredBPCallback, FDataR
 
 /** Delegate called in C++ when multiple items are acquired, returns worst error experienced */
 DECLARE_DELEGATE_OneParam(FDataRegistryBatchAcquireCallback, EDataRegistryAcquireStatus);
+
+/** Multicast delegate broadcast called when a data registry's cache version has changed */
+DECLARE_MULTICAST_DELEGATE_OneParam(FDataRegistryCacheVersionCallback, class UDataRegistry*);
+
 
 DECLARE_LOG_CATEGORY_EXTERN(LogDataRegistry, Log, All);

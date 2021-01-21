@@ -308,6 +308,9 @@ void UEQSRenderingComponent::ClearStoredDebugData()
 {
 	DebugDataSolidSpheres.Reset();
 	DebugDataTexts.Reset();
+#if  USE_EQS_DEBUGGER
+	EQSRenderingDebugDrawDelegateHelper.Reset();
+#endif
 	MarkRenderStateDirty();
 }
 

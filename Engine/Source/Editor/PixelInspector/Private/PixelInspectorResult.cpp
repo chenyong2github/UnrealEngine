@@ -28,6 +28,38 @@ namespace PixelInspector
 			FinalColor.Add(LinearColor);
 		}
 	}
+	void PixelInspectorResult::DecodeFinalColor(TArray<FLinearColor>& BufferFinalColorValue, float InGamma, bool bHasAlphaChannel)
+	{
+		FinalColor.Empty();
+		if (BufferFinalColorValue.Num() <= 0)
+		{
+			//Initialize to black
+			for (int i = 0; i < FinalColorContextGridSize * FinalColorContextGridSize; ++i)
+			{
+				FinalColor.Add(FColor::Green);
+			}
+			return;
+		}
+		for (FLinearColor ReadBackColor : BufferFinalColorValue)
+		{
+			//Set the color in linear
+			FLinearColor FinalColorTemp;
+			FinalColorTemp.R = FMath::Pow(ReadBackColor.R, InGamma);
+			FinalColorTemp.G = FMath::Pow(ReadBackColor.G, InGamma);
+			FinalColorTemp.B = FMath::Pow(ReadBackColor.B, InGamma);
+
+			if (bHasAlphaChannel)
+			{
+				// invert alpha
+				FinalColorTemp.A = 1. - FMath::Pow(ReadBackColor.A, InGamma);
+			}
+			else
+			{
+				FinalColorTemp.A = 1.;
+			}
+			FinalColor.Add(FinalColorTemp);		
+		}
+	}
 	void PixelInspectorResult::DecodeSceneColor(TArray<FLinearColor> &BufferSceneColorValue)
 	{
 		if (BufferSceneColorValue.Num() <= 0)

@@ -35,6 +35,9 @@ public:
 	/** Process the outstanding changes that we have cached */
 	void ProcessModifications(const DirectoryWatcher::FTimeLimit& TimeLimit, TArray<UPackage*>& OutPackagesToSave, FReimportFeedbackContext& Context);
 
+	/** Returns the number of source files deleted in outstanding changes. */
+	int32 GetDeletedFilesNum() const { return DeletedFiles.Num(); }
+
 	/** Extract the assets we need to delete from our outstanding changes (happens last) */ 
 	void ExtractAssetsToDelete(TArray<FAssetData>& OutAssetsToDelete);
 

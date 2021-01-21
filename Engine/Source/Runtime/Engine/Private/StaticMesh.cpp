@@ -1280,6 +1280,7 @@ void FStaticMeshLODResources::InitResources(UStaticMesh* Parent)
 
 	if (Parent->bSupportGpuUniformlyDistributedSampling && Parent->bSupportUniformlyDistributedSampling && Parent->bAllowCPUAccess)
 	{
+		AreaWeightedSectionSamplersBuffer.Init(&AreaWeightedSectionSamplers);
 		BeginInitResource(&AreaWeightedSectionSamplersBuffer);
 	}
 
@@ -3554,7 +3555,7 @@ void UStaticMesh::BroadcastNavCollisionChange()
 {
 	if (FNavigationSystem::WantsComponentChangeNotifies())
 	{
-		for (FObjectIterator Iter(UStaticMeshComponent::StaticClass()); Iter; ++Iter)
+		for (FThreadSafeObjectIterator Iter(UStaticMeshComponent::StaticClass()); Iter; ++Iter)
 		{
 			UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(*Iter);
 			UWorld* MyWorld = StaticMeshComponent->GetWorld();
@@ -5556,15 +5557,6 @@ void UStaticMesh::ExecutePostLoadInternal(FStaticMeshPostLoadContext& Context)
 
 	if (GetRenderData())
 	{
-		if (bSupportGpuUniformlyDistributedSampling)
-		{
-			// Initialise pointers to samplers
-			for (FStaticMeshLODResources& LOD : GetRenderData()->LODResources)
-			{
-				LOD.AreaWeightedSectionSamplersBuffer.Init(&LOD.AreaWeightedSectionSamplers);
-			}
-		}
-
 		// check the MinLOD values are all within range
 		bool bFixedMinLOD = false;
 		int32 MinAvailableLOD = FMath::Max<int32>(GetRenderData()->LODResources.Num() - 1, 0);
@@ -6074,7 +6066,7 @@ bool UStaticMesh::BuildFromMeshDescriptions(const TArray<const FMeshDescription*
 
 	if (!bNewMesh)
 	{
-		for (FObjectIterator Iter(UStaticMeshComponent::StaticClass()); Iter; ++Iter)
+		for (FThreadSafeObjectIterator Iter(UStaticMeshComponent::StaticClass()); Iter; ++Iter)
 		{
 			UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(*Iter);
 			if (StaticMeshComponent->GetStaticMesh() == this)
@@ -6388,6 +6380,7 @@ bool UStaticMesh::ContainsPhysicsTriMeshDataCheckComplex(bool bInUseAllTriData, 
 #if WITH_EDITORONLY_DATA
 	if (ComplexCollisionMesh && ComplexCollisionMesh != this && bInCheckComplexCollisionMesh)
 	{
+		ComplexCollisionMesh->ConditionalPostLoad();
 		return ComplexCollisionMesh->ContainsPhysicsTriMeshDataCheckComplex(bInUseAllTriData, false); // One level of recursion
 	}
 #else // #if WITH_EDITORONLY_DATA

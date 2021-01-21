@@ -773,12 +773,15 @@ namespace Gauntlet
 		{
 			SessionInstance = null;
 
+			// The number of retries when launching session to avoid an endless loop if package can't be installed, network timeouts, etc
+			int SessionRetries = 2;
+
 			// tries to find devices and launch our session. Will loop until we succeed, we run out of devices/retries, or
 			// something fatal occurs..
 			while (SessionInstance == null && Globals.CancelSignalled == false)
 			{
-				int Retries = 5;
-				int RetryWait = 120;
+				int ReservationRetries = 5;
+				int ReservationRetryWait = 120;
 
 				IEnumerable<UnrealSessionRole> RolesNeedingDevices = SessionRoles.Where(R => R.IsNullRole() == false);
 
@@ -795,12 +798,12 @@ namespace Gauntlet
 					// if we failed to get enough devices, show a message and wait
 					if (ReservedDevices.Count() != SessionRoles.Count())
 					{
-						if (Retries == 0)
+						if (ReservationRetries == 0)
 						{
 							throw new AutomationException("Unable to acquire all devices for test.");
 						}
-						Log.Info("\nUnable to find enough device(s). Waiting {0} secs (retries left={1})\n", RetryWait, --Retries);
-						Thread.Sleep(RetryWait * 1000);
+						Log.Info("\nUnable to find enough device(s). Waiting {0} secs (retries left={1})\n", ReservationRetryWait, --ReservationRetries);
+						Thread.Sleep(ReservationRetryWait * 1000);
 					}
 				}
 
@@ -874,6 +877,13 @@ namespace Gauntlet
 				{
 					// release all devices
 					ReleaseDevices();
+
+					if (SessionRetries == 0)
+					{
+						throw new AutomationException("Unable to install application for session.");
+					}
+
+					Log.Info("\nUnable to install application for session (retries left={0})\n", --SessionRetries);
 				}
 				
 
@@ -923,6 +933,13 @@ namespace Gauntlet
 
 							// release all devices
 							ReleaseDevices();
+
+							if (SessionRetries == 0)
+							{
+								throw new AutomationException("Unable to start application for session, see warnings for details.");
+							}
+
+							Log.Info("\nUnable to start application for session (retries left={0})\n", --SessionRetries);
 
 							break; // do not continue loop
 						}
@@ -988,7 +1005,7 @@ namespace Gauntlet
 
 			bool IsDevBuild = InContext.TestParams.ParseParam("dev");
 
-			string DestSavedDir = Path.Combine(InDestArtifactPath, "Saved");
+			string DestSavedDir = InDestArtifactPath;
 			string SourceSavedDir = "";
 
 			// save the contents of the saved directory
@@ -1037,14 +1054,37 @@ namespace Gauntlet
 							Log.Info("Saved gif to {0}", GifPath);
 						}
 					}
-
-					Directory.Delete(TempScreenshotPath, true);
 				}
 				catch (Exception Ex)
 				{
 					Log.Info("Failed to downsize and gif-ify images! {0}", Ex);
 				}
 			}
+
+			Dictionary<string, string> LongCrashReporterStringToIndex = new Dictionary<string, string>();
+
+			// Filter that truncates some overly long file paths like CrashReporter files. These are particularly problematic with 
+			// testflights which append a long random name to the destination folder, easily pushing past 260 chars.
+			Func<string, string> TruncateLongPathFilter= (X =>
+			{
+				// /UE4CC-Windows-F0DD9BB04C3C9250FAF39D8AB4A88556/
+				Match M = Regex.Match(X, @"UE4CC-.+-([\dA-Fa-f]+)");
+
+				if (M.Success)
+				{
+					string LongString = M.Groups[1].ToString();
+
+					if (!LongCrashReporterStringToIndex.ContainsKey(LongString))
+					{
+						LongCrashReporterStringToIndex[LongString] = LongCrashReporterStringToIndex.Keys.Count.ToString("D2");
+					}
+
+					string ShortSring = LongCrashReporterStringToIndex[LongString];
+					X = X.Replace(LongString, ShortSring);
+				}				
+
+				return X;
+			});
 
 			// don't archive data in dev mode, because peoples saved data could be huuuuuuuge!
 			if (IsEditor == false)

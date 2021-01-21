@@ -3806,7 +3806,7 @@ private:
 			if (FilterPackageName(InPackage, PackageFilter))
 			{
 				TArray<FString> AllObjects;
-				for (FObjectIterator It; It; ++It)
+				for (FThreadSafeObjectIterator It; It; ++It)
 				{
 					AllObjects.Add(*It->GetFullName());
 				}
@@ -7350,12 +7350,13 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 				}
 			}
 
-			check(bSucceeded);
+			checkf(bSucceeded, TEXT("Failed to load DevelopmentAssetRegistry for platform %s"), *InPlatformName);
 		};
 
 		TArray<FName> OverridePackageList;
 		FString DevelopmentAssetRegistryPlatformOverride;
-		if (FParse::Value(FCommandLine::Get(), TEXT("DevelopmentAssetRegistryPlatformOverride="), DevelopmentAssetRegistryPlatformOverride))
+		const bool bUsingDevRegistryOverride = FParse::Value(FCommandLine::Get(), TEXT("DevelopmentAssetRegistryPlatformOverride="), DevelopmentAssetRegistryPlatformOverride);
+		if (bUsingDevRegistryOverride)
 		{
 			// Read the contents of the asset registry for the overriden platform. We'll use this for all requested platforms so we can just keep one copy of it here
 			ReadDevelopmentAssetRegistry(OverridePackageList, *DevelopmentAssetRegistryPlatformOverride);
@@ -7368,7 +7369,7 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 			FString PlatformNameString = TargetPlatform->PlatformName();
 			FName PlatformName(*PlatformNameString);
 
-			if (OverridePackageList.Num() == 0)
+			if (!bUsingDevRegistryOverride)
 			{
 				ReadDevelopmentAssetRegistry(PackageList, PlatformNameString);
 			}
@@ -7955,38 +7956,50 @@ bool UCookOnTheFlyServer::GetAllPackageFilenamesFromAssetRegistry( const FString
 		check(OutPackageFilenames.Num() == 0);
 		OutPackageFilenames.SetNum(RegistryDataMap.Num());
 
-		TArray<FName> PackageNames;
-		PackageNames.Reserve(RegistryDataMap.Num());
+		TArray<const FAssetData*> Packages;
+		Packages.Reserve(RegistryDataMap.Num());
 
 		for (const TPair<FName, const FAssetData*>& RegistryData : RegistryDataMap)
 		{
-			int32 AddedIndex = PackageNames.Add(RegistryData.Value->PackageName);
-			if (GetPackageNameCache().ContainsPackageName(PackageNames.Last()))
+			int32 AddedIndex = Packages.Add(RegistryData.Value);
+			if (GetPackageNameCache().ContainsPackageName(Packages.Last()->PackageName))
 			{
-				OutPackageFilenames[AddedIndex] = GetPackageNameCache().GetCachedStandardFileName(PackageNames.Last());
+				OutPackageFilenames[AddedIndex] = GetPackageNameCache().GetCachedStandardFileName(Packages.Last()->PackageName);
 			}
 		}
 
 		TArray<TTuple<FName, FString>> PackageToStandardFileNames;
 		PackageToStandardFileNames.SetNum(RegistryDataMap.Num());
 
-		ParallelFor(PackageNames.Num(), [&AssetRegistryPath, &OutPackageFilenames, &PackageToStandardFileNames, &PackageNames, this, bVerifyPackagesExist](int32 AssetIndex)
+		ParallelFor(Packages.Num(), [&AssetRegistryPath, &OutPackageFilenames, &PackageToStandardFileNames, &Packages, this, bVerifyPackagesExist](int32 AssetIndex)
 			{
 				if (!OutPackageFilenames[AssetIndex].IsNone())
 				{
 					return;
 				}
 
-				const FName PackageName = PackageNames[AssetIndex];
+				const FName PackageName = Packages[AssetIndex]->PackageName;
 
 				FString StandardFilename;
-				FName StandardFileFName;
-				if (!GetPackageNameCache().CalculateCacheData(PackageName, StandardFilename, StandardFileFName) && bVerifyPackagesExist)
+				if (!GetPackageNameCache().CalculateCacheData(PackageName, StandardFilename, OutPackageFilenames[AssetIndex]))
 				{
-					UE_LOG(LogCook, Warning, TEXT("Could not resolve package %s from %s"), *PackageName.ToString(), *AssetRegistryPath);
-				}
+					if (bVerifyPackagesExist)
+					{
+						UE_LOG(LogCook, Warning, TEXT("Could not resolve package %s from %s"), *PackageName.ToString(), *AssetRegistryPath);
+					}
+					else
+					{
+						const bool bContainsMap = Packages[AssetIndex]->PackageFlags & PKG_ContainsMap;
+						FString PackageNameStr = PackageName.ToString();
 
-				OutPackageFilenames[AssetIndex] = StandardFileFName;
+						if (FPackageName::TryConvertLongPackageNameToFilename(PackageNameStr, StandardFilename, bContainsMap ? FPackageName::GetMapPackageExtension() : FPackageName::GetAssetPackageExtension()))
+						{
+							StandardFilename = FPaths::ConvertRelativePathToFull(StandardFilename);
+							OutPackageFilenames[AssetIndex] = FName(StandardFilename);
+						}
+					}
+				}
+				
 				PackageToStandardFileNames[AssetIndex] = TTuple<FName, FString>(PackageName, MoveTemp(StandardFilename));
 			});
 

@@ -37,7 +37,7 @@ FRigUnit_SphereTraceWorld_Execute()
 
 	FHitResult HitResult;
 	bHit = Context.World->SweepSingleByChannel(HitResult, Context.ToWorldSpace(Start), Context.ToWorldSpace(End), 
-			FQuat::Identity, ECC_Visibility, CollisionShape, QueryParams, ResponseParams);
+			FQuat::Identity, Channel, CollisionShape, QueryParams, ResponseParams);
 
 	if (bHit)
 	{

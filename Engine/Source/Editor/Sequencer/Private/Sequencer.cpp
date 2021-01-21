@@ -627,6 +627,8 @@ void FSequencer::Close()
 	// Redraw viewports after restoring pre animated state in case viewports are not set to realtime
 	GEditor->RedrawLevelEditingViewports();
 
+	CachedViewState.RestoreViewState();
+
 	OnCloseEventDelegate.Broadcast(AsShared());
 }
 
@@ -5446,10 +5448,6 @@ FGuid FSequencer::MakeNewSpawnable( UObject& Object, UActorFactory* ActorFactory
 		return FGuid();
 	}
 
-	// Override spawn ownership during this process to ensure it never gets destroyed
-	ESpawnOwnership SavedOwnership = Spawnable->GetSpawnOwnership();
-	Spawnable->SetSpawnOwnership(ESpawnOwnership::External);
-
 	// Spawn the object so we can position it correctly, it's going to get spawned anyway since things default to spawned.
 	UObject* SpawnedObject = SpawnRegister->SpawnObject(NewGuid, *MovieScene, ActiveTemplateIDs.Top(), *this);
 
@@ -5458,8 +5456,6 @@ FGuid FSequencer::MakeNewSpawnable( UObject& Object, UActorFactory* ActorFactory
 		FTransformData TransformData;
 		SpawnRegister->SetupDefaultsForSpawnable(SpawnedObject, Spawnable->GetGuid(), TransformData, AsShared(), Settings);
 	}
-
-	Spawnable->SetSpawnOwnership(SavedOwnership);
 
 	return NewGuid;
 }
@@ -6539,7 +6535,17 @@ void FSequencer::SynchronizeExternalSelectionWithSequencerSelection()
 				ObjectBindingNode = StaticCastSharedPtr<FSequencerObjectBindingNode>(CurrentNode);
 				break;
 			}
-			CurrentNode = CurrentNode->GetParent();
+			//HACK for DHI, if we have an active control rig then one is selected so don't find a parent actor or compomonent to select	
+			//but if we do select the actor/compoent directly we still select it.
+			const FName ControlRigEditModeModeName("EditMode.ControlRig");
+			if (GLevelEditorModeTools().GetActiveMode(ControlRigEditModeModeName) == nullptr)
+			{
+				CurrentNode = CurrentNode->GetParent();
+			}
+			else
+			{
+				break;
+			}
 		}
 
 		// If the closest node is an object node, try to get the actor/component nodes from it.
@@ -6561,14 +6567,13 @@ void FSequencer::SynchronizeExternalSelectionWithSequencerSelection()
 				if ( ActorComponent != nullptr )
 				{
 					if (!FLevelUtils::IsLevelLocked(ActorComponent->GetOwner()->GetLevel()))
-					{
+					{	
 						SelectedSequencerComponents.Add(ActorComponent);
-
 						Actor = ActorComponent->GetOwner();
 						if (Actor != nullptr)
 						{
 							SelectedSequencerActors.Add(Actor);
-						}
+						}	
 					}
 				}
 			}
@@ -8589,6 +8594,7 @@ void FSequencer::ImportObjectBindingsFromText(const FString& TextToImport, /*out
 	TempPackage->RemoveFromRoot();
 }
 
+TArray<TSharedPtr<FMovieSceneClipboard>> GClipboardStack;
 
 void FSequencer::CopySelectedObjects(TArray<TSharedPtr<FSequencerObjectBindingNode>>& ObjectNodes, FString& ExportedText)
 {
@@ -8654,7 +8660,13 @@ void FSequencer::CopySelectedObjects(TArray<TSharedPtr<FSequencerObjectBindingNo
 		}
 	}
 
-	ExportObjectBindingsToText(CopyableBindings, /*out*/ ExportedText);
+	if (CopyableBindings.Num() > 0)
+	{
+		ExportObjectBindingsToText(CopyableBindings, /*out*/ ExportedText);
+
+		// Make sure to clear the clipboard for the keys
+		GClipboardStack.Empty();
+	}
 }
 
 
@@ -8705,6 +8717,9 @@ void FSequencer::CopySelectedTracks(TArray<TSharedPtr<FSequencerTrackNode>>& Tra
 	if (CopyableObjects.Num())
 	{
 		ExportObjectsToText(CopyableObjects, /*out*/ ExportedText);
+
+		// Make sure to clear the clipboard for the keys
+		GClipboardStack.Empty();
 	}
 }
 
@@ -11383,8 +11398,6 @@ void FSequencer::StepToPreviousMark()
 }
 
 
-TArray<TSharedPtr<FMovieSceneClipboard>> GClipboardStack;
-
 void FSequencer::CopySelection()
 {
 	if (Selection.GetSelectedKeys().Num() != 0)
@@ -11568,6 +11581,9 @@ void FSequencer::CopySelectedKeys()
 			GClipboardStack.RemoveAt(0, 1);
 		}
 	}
+
+	// Make sure to clear the clipboard for the sections/tracks/bindings
+	FPlatformApplicationMisc::ClipboardCopy(TEXT(""));
 }
 
 void FSequencer::CutSelectedKeys()
@@ -11592,6 +11608,9 @@ void FSequencer::CopySelectedSections()
 	FString ExportedText;
 	FSequencer::ExportObjectsToText(SelectedSections, /*out*/ ExportedText);
 	FPlatformApplicationMisc::ClipboardCopy(*ExportedText);
+
+	// Make sure to clear the clipboard for the keys
+	GClipboardStack.Empty();
 }
 
 void FSequencer::CutSelectedSections()
@@ -11659,7 +11678,6 @@ void FSequencer::CreateCamera()
 	FGuid CameraGuid;
 
 	FMovieSceneSpawnable* Spawnable = nullptr;
-	ESpawnOwnership SavedOwnership = Spawnable ? Spawnable->GetSpawnOwnership() : ESpawnOwnership::InnerSequence;
 
 	if (bCreateAsSpawnable)
 	{
@@ -11670,9 +11688,6 @@ void FSequencer::CreateCamera()
 
 		if (ensure(Spawnable))
 		{
-			// Override spawn ownership during this process to ensure it never gets destroyed
-			SavedOwnership = Spawnable->GetSpawnOwnership();
-			Spawnable->SetSpawnOwnership(ESpawnOwnership::External);
 			Spawnable->SetName(NewName);			
 		}
 
@@ -11708,11 +11723,6 @@ void FSequencer::CreateCamera()
 	OnActorAddedToSequencerEvent.Broadcast(NewCamera, CameraGuid);
 
 	NewCameraAdded(CameraGuid, NewCamera);
-
-	if (bCreateAsSpawnable && ensure(Spawnable))
-	{
-		Spawnable->SetSpawnOwnership(SavedOwnership);
-	}
 
 	NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::MovieSceneStructureItemAdded);
 }

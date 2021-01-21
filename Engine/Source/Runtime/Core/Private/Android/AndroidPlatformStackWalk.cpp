@@ -11,6 +11,7 @@
 #include <dlfcn.h>
 #include <cxxabi.h>
 #include <stdio.h>
+#include <android/log.h>
 #include "Android/AndroidSignals.h"
 
 #define HAS_LIBUNWIND PLATFORM_ANDROID_ARM64 && !PLATFORM_LUMIN
@@ -25,6 +26,20 @@
 #include "HAL/IConsoleManager.h"
 #include "HAL/PlatformProcess.h"
 #include "Misc/ScopeExit.h"
+
+void FAndroidPlatformStackWalk::NotifyPlatformVersionInit()
+{
+#if HAS_LIBUNWIND
+	// Without this stack walk might touch executable memory and ASan will terminate the app on that.
+	// Xom protection presents the same issue and is enabled on android 10 devices when the targetsdk is 29 or higher.
+	// see https://source.android.com/devices/tech/debug/execute-only-memory
+	if (RUNNING_WITH_ASAN || (FAndroidMisc::GetTargetSDKVersion() >= 29 && FAndroidMisc::GetAndroidMajorVersion() == 10))
+	{
+		// prevent libunwind attempting to deref IP during signal frame test. (this will make backtrace called from a signal less useful.)
+		unw_disable_signal_frame_test(1);
+	}
+#endif
+}
 
 void FAndroidPlatformStackWalk::ProgramCounterToSymbolInfo(uint64 ProgramCounter, FProgramCounterSymbolInfo& out_SymbolInfo)
 {
@@ -158,8 +173,8 @@ uint32 FAndroidPlatformStackWalk::CaptureStackBackTrace(uint64* BackTrace, uint3
 		}
 		return 0;
 	}
-
 #endif
+
 	// Make sure we have place to store the information
 	if (BackTrace == NULL || MaxDepth == 0)
 	{

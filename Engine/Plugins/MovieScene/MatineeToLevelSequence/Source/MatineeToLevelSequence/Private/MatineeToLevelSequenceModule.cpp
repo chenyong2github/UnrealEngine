@@ -1,19 +1,30 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MatineeToLevelSequenceModule.h"
+#include "Camera/CameraShakeBase.h"
 #include "CameraAnimToTemplateSequenceConverter.h"
 #include "Dialogs/Dialogs.h"
+#include "EntitySystem/MovieSceneEntityManager.h"
+#include "IAssetTools.h"
 #include "LevelEditor.h"
 #include "Matinee/MatineeActor.h"
 #include "Matinee/MatineeActorCameraAnim.h"
+#include "MatineeCameraShakeToNewCameraShakeConverter.h"
 #include "MatineeConverter.h"
 #include "MatineeToLevelSequenceConverter.h"
 #include "MatineeToLevelSequenceLog.h"
 #include "ToolMenus.h"
+#include "WorkspaceMenuStructure.h"
+#include "WorkspaceMenuStructureModule.h"
+#include "Widgets/Docking/SDockTab.h"
 
 #define LOCTEXT_NAMESPACE "MatineeToLevelSequenceModule"
 
 DEFINE_LOG_CATEGORY(LogMatineeToLevelSequence);
+
+#if !IS_MONOLITHIC
+	UE::MovieScene::FEntityManager*& GEntityManagerForDebugging = UE::MovieScene::GEntityManagerForDebuggingVisualizers;
+#endif
 
 /**
  * Implements the MatineeToLevelSequence module.
@@ -30,13 +41,15 @@ public:
 		{
 			GEditor->OnShouldOpenMatinee().BindRaw(this, &FMatineeToLevelSequenceModule::ShouldOpenMatinee);
 		}
-	
+
 		RegisterMenuExtensions();
 		RegisterAssetTools();
+		RegisterEditorTab();
 	}
 	
 	virtual void ShutdownModule() override
 	{
+		UnregisterEditorTab();
 		UnregisterAssetTools();
 		UnregisterMenuExtensions();
 	}
@@ -80,6 +93,27 @@ protected:
 				);
 	}
 
+	void RegisterEditorTab()
+	{
+		FLevelEditorModule& LevelEditorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>(TEXT("LevelEditor"));
+
+		LevelEditorTabManagerChangedHandle = LevelEditorModule.OnTabManagerChanged().AddLambda([this]()
+			{
+				// Add a new entry in the level editor's "Window" menu, which lets the user open the camera shake preview tool.
+				FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>(TEXT("LevelEditor"));
+				TSharedPtr<FTabManager> LevelEditorTabManager = LevelEditorModule.GetLevelEditorTabManager();
+
+				const IWorkspaceMenuStructure& MenuStructure = WorkspaceMenu::GetMenuStructure();
+				const FSlateIcon Icon(FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.EditMatinee", "LevelEditor.EditMatinee.Small"));
+
+				LevelEditorTabManager->RegisterTabSpawner("MatineeToLevelSequence", FOnSpawnTab::CreateRaw(this, &FMatineeToLevelSequenceModule::CreateCameraShakeConverterTab))
+				.SetDisplayName(LOCTEXT("MatineeCameraShakeConverter", "Matinee Camera Shake Converter"))
+				.SetTooltipText(LOCTEXT("MatineeCameraShakeConverterTooltipText", "Open the legacy camera shake converter tool."))
+				.SetIcon(Icon)
+				.SetGroup(MenuStructure.GetDeveloperToolsMiscCategory());
+			});
+	}
+
 	/** Unregisters menu extensions for the level editor toolbar. */
 	void UnregisterMenuExtensions()
 	{
@@ -97,6 +131,15 @@ protected:
 	void UnregisterAssetTools()
 	{
 		UToolMenus::UnregisterOwner(this);
+	}
+
+	void UnregisterEditorTab()
+	{
+		if (LevelEditorTabManagerChangedHandle.IsValid())
+		{
+			FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>(TEXT("LevelEditor"));
+			LevelEditorModule.OnTabManagerChanged().Remove(LevelEditorTabManagerChangedHandle);
+		}
 	}
 
 	TSharedRef<FExtender> ExtendLevelViewportContextMenu(const TSharedRef<FUICommandList> CommandList, const TArray<AActor*> SelectedActors)
@@ -185,11 +228,20 @@ protected:
 		Converter.ConvertCameraAnim(MenuContext);
 	}
 
+	TSharedRef<SDockTab> CreateCameraShakeConverterTab(const FSpawnTabArgs& Args)
+	{
+		return SNew(SDockTab)
+			.TabRole(ETabRole::PanelTab)
+			[
+				FMatineeCameraShakeToNewCameraShakeConverter::CreateMatineeCameraShakeConverter(&MatineeConverter)
+			];
+	}
 
 private:
 
 	FLevelEditorModule::FLevelViewportMenuExtender_SelectedActors LevelEditorMenuExtenderDelegate;
 
+	FDelegateHandle LevelEditorTabManagerChangedHandle;
 	FDelegateHandle LevelEditorExtenderDelegateHandle;
 
 	FMatineeConverter MatineeConverter;

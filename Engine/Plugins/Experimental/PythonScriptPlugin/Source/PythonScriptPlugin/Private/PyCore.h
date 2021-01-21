@@ -93,7 +93,7 @@ struct TPyObjectIterator
 	PyObject_HEAD
 
 	/** Internal iterator instance (created lazily due to having a custom constructor) */
-	FObjectIterator* Iterator;
+	FPersistentThreadSafeObjectIterator* Iterator;
 
 	/** Optional value used when filtering the iterator */
 	ObjectType* IteratorFilter;
@@ -122,10 +122,10 @@ struct TPyObjectIterator
 	{
 		Deinit(InSelf);
 
-		InSelf->Iterator = new FObjectIterator(InClass);
+		InSelf->Iterator = new FPersistentThreadSafeObjectIterator(InClass);
 		InSelf->IteratorFilter = InIteratorFilter;
 
-		FObjectIterator& Iter = *InSelf->Iterator;
+		FPersistentThreadSafeObjectIterator& Iter = *InSelf->Iterator;
 		while (*Iter && !SelfType::PassesFilter(InSelf))
 		{
 			++Iter;
@@ -170,7 +170,7 @@ struct TPyObjectIterator
 			return nullptr;
 		}
 
-		FObjectIterator& Iter = *InSelf->Iterator;
+		FPersistentThreadSafeObjectIterator& Iter = *InSelf->Iterator;
 		if (*Iter)
 		{
 			PyObject* PyIterObj = SelfType::GetIterValue(InSelf);
@@ -189,7 +189,7 @@ struct TPyObjectIterator
 	/** Convert the current iterator value to a Python object (internal: define this in a derived type to "override" GetIterValue behavior) */
 	static PyObject* GetIterValue(SelfType* InSelf)
 	{
-		FObjectIterator& Iter = *InSelf->Iterator;
+		FPersistentThreadSafeObjectIterator& Iter = *InSelf->Iterator;
 		return PyConversion::Pythonize(*Iter);
 	}
 

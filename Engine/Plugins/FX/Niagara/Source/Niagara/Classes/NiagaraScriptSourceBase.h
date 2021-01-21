@@ -85,6 +85,8 @@ class UNiagaraScriptSourceBase : public UObject
 	TArray<TSharedPtr<EditorExposedVectorConstant> > ExposedVectorConstants;
 	TArray<TSharedPtr<EditorExposedVectorCurveConstant> > ExposedVectorCurveConstants;
 
+	virtual bool IsEditorOnly()const override{ return true; }
+
 	/** Determines if the input change id is equal to the current source graph's change id.*/
 	virtual bool IsSynchronized(const FGuid& InChangeId) { return true; }
 

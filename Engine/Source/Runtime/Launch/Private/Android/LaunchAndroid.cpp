@@ -20,6 +20,7 @@
 #include <dlfcn.h>
 #include "Android/AndroidWindow.h"
 #include "Android/AndroidApplication.h"
+#include "Android/AndroidPlatformStackWalk.h"
 #include "HAL/PlatformApplicationMisc.h"
 #include "IHeadMountedDisplayModule.h"
 #include "ISessionServicesModule.h"
@@ -1562,15 +1563,16 @@ JNI_METHOD void Java_com_epicgames_ue4_GameActivity_nativeInitHMDs(JNIEnv* jenv,
 	GHMDsInitialized = true;
 }
 
-JNI_METHOD void Java_com_epicgames_ue4_GameActivity_nativeSetAndroidVersionInformation(JNIEnv* jenv, jobject thiz, jstring androidVersion, jint targetSDKversion, jstring phoneMake, jstring phoneModel, jstring phoneBuildNumber, jstring osLanguage )
+JNI_METHOD void Java_com_epicgames_ue4_GameActivity_nativeSetAndroidVersionInformation(JNIEnv* jenv, jobject thiz, jstring androidVersion, jint targetSDKversion, jstring phoneMake, jstring phoneModel, jstring phoneBuildNumber, jstring osLanguage)
 {
 	auto UEAndroidVersion = FJavaHelper::FStringFromParam(jenv, androidVersion);
 	auto UEPhoneMake = FJavaHelper::FStringFromParam(jenv, phoneMake);
 	auto UEPhoneModel = FJavaHelper::FStringFromParam(jenv, phoneModel);
 	auto UEPhoneBuildNumber = FJavaHelper::FStringFromParam(jenv, phoneBuildNumber);
 	auto UEOSLanguage = FJavaHelper::FStringFromParam(jenv, osLanguage);
-	
-	FAndroidMisc::SetVersionInfo( UEAndroidVersion, targetSDKversion, UEPhoneMake, UEPhoneModel, UEPhoneBuildNumber, UEOSLanguage );
+
+	FAndroidMisc::SetVersionInfo(UEAndroidVersion, targetSDKversion, UEPhoneMake, UEPhoneModel, UEPhoneBuildNumber, UEOSLanguage);
+	FAndroidPlatformStackWalk::NotifyPlatformVersionInit();
 }
 
 //This function is declared in the Java-defined class, GameActivity.java: "public native void nativeOnInitialDownloadStarted();

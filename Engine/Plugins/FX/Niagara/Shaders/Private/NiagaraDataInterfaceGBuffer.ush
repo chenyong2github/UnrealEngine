@@ -4,7 +4,7 @@
 
 #include "/Engine/Private/DeferredShadingCommon.ush"
 
-#define NDIGBUFFER_ENABLED				1
+#define NDIGBUFFER_ENABLED				(FEATURE_LEVEL >= FEATURE_LEVEL_SM5)
 #define NDIGBUFFER_USE_GBUFFER_VELOCITY	0
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -179,6 +179,9 @@ void DIGBuffer_DecodeSceneColor(in float2 ScreenUV, out bool IsValid, out float4
 #if NDIGBUFFER_ENABLED
 	IsValid = true;
 	OutValue = Texture2DSampleLevel(SceneTexturesStruct_SceneColorTexture, SceneTexturesStruct_SceneColorTextureSampler, ScreenUV, 0);
+	#if USE_PREEXPOSURE
+		OutValue.rgb *= View.OneOverPreExposure.xxx;
+	#endif
 #else
 	IsValid = false;
 	OutValue = 0;

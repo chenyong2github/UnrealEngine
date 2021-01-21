@@ -47,10 +47,42 @@ class NIAGARAANIMNOTIFIES_API UAnimNotifyState_TimedNiagaraEffect : public UAnim
 	// Overridden from UAnimNotifyState to provide custom notify name.
 	FString GetNotifyName_Implementation() const override;
 
+	// Return FXSystemComponent created from SpawnEffect
+	UFUNCTION(BlueprintCallable, Category = "AnimNotify")
+	UFXSystemComponent* GetSpawnedEffect(UMeshComponent* MeshComp);
+
 protected:
 	// Spawns the NiagaraSystemComponent. Called from Notify.
 	virtual UFXSystemComponent* SpawnEffect(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation) const;
 
-private:
 	bool ValidateParameters(USkeletalMeshComponent* MeshComp) const;
+
+	FORCEINLINE FName GetSpawnedComponentTag()const { return GetFName(); }
+};
+
+/**
+Same as Timed Niagara Effect but also provides some more advanced abilities at an additional cost. 
+*/
+UCLASS(Blueprintable, meta = (DisplayName = "Advanced Timed Niagara Effect"))
+class NIAGARAANIMNOTIFIES_API UAnimNotifyState_TimedNiagaraEffectAdvanced : public UAnimNotifyState_TimedNiagaraEffect
+{
+	GENERATED_UCLASS_BODY()
+
+public:
+	virtual void NotifyBegin(class USkeletalMeshComponent* MeshComp, class UAnimSequenceBase* Animation, float TotalDuration) override;
+	virtual void NotifyEnd(class USkeletalMeshComponent* MeshComp, class UAnimSequenceBase* Animation) override;
+	virtual void NotifyTick(USkeletalMeshComponent * MeshComp, UAnimSequenceBase * Animation, float FrameDeltaTime) override;
+
+	// Returns a 0 to 1 value for the progress of this component along the notify.
+	UFUNCTION(BlueprintCallable, Category = "AnimNotify")
+	float GetNotifyProgress(UMeshComponent* MeshComp);
+
+protected:
+
+	struct FInstanceProgressInfo
+	{
+		float Duration = 1.0f;
+		float Elapsed = 0.0f;
+	};
+	TMap<UMeshComponent*, FInstanceProgressInfo> ProgressInfoMap;
 };

@@ -38,7 +38,7 @@ namespace Chaos
 
 	struct FCollisionEventData;
 
-	enum EEventType : int32;
+	enum class EEventType : int32;
 
 	template<typename PayloadType, typename HandlerType>
 	class TRawEventHandler;

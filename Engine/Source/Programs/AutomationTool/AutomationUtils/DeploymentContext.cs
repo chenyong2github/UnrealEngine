@@ -332,6 +332,11 @@ public class DeploymentContext //: ProjectParams
     /// </summary>
     public bool PlatformUsesChunkManifests = false;
 
+	/// <summary>
+	/// Temporary setting to exclude non cooked packages from I/O store container file(s)
+	/// </summary>	
+	public bool OnlyAllowPackagesFromStdCookPathInIoStore = false;
+
 	public DeploymentContext(
 		FileReference RawProjectPathOrName,
 		DirectoryReference InLocalRoot,

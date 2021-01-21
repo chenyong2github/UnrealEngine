@@ -17,6 +17,9 @@ FUObjectThreadContext::FUObjectThreadContext()
 , IsInConstructor(0)
 , ConstructedObject(nullptr)
 , AsyncPackage(nullptr)
+#if WITH_IOSTORE_IN_EDITOR
+, AsyncPackageLoader(nullptr)
+#endif
 , SerializeContext(new FUObjectSerializeContext())
 {}
 

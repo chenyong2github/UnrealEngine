@@ -37,6 +37,28 @@ namespace UnrealBuildTool
 			{ "-lumin", "" }
 		};
 
+		public enum ClangSanitizer
+		{
+			None,
+			Address,
+			HwAddress,
+			UndefinedBehavior,
+			UndefinedBehaviorMinimal,
+			//Thread,
+		};
+
+		public static string GetCompilerOption(ClangSanitizer Sanitizer)
+		{
+			switch (Sanitizer)
+			{
+				case ClangSanitizer.Address: return "address";
+				case ClangSanitizer.HwAddress: return "hwaddress";
+				case ClangSanitizer.UndefinedBehavior:
+				case ClangSanitizer.UndefinedBehaviorMinimal: return "undefined";
+				//case ClangSanitizer.Thread: return "thread";
+				default: return "";
+			}
+		}
 
 		protected FileReference ProjectFile;
 		private bool bUseLdGold;
@@ -396,15 +418,57 @@ namespace UnrealBuildTool
 			return NDKVersionInt;
 		}
 
-		protected virtual bool ValidateNDK(string PlatformsDir, string ApiString)
+		static string CachedPlatformsFilename = "";
+		static bool CachedPlatformsValid = false;
+		static int CachedMinPlatform = -1;
+		static int CachedMaxPlatform = -1;
+
+		private bool ReadMinMaxPlatforms(string PlatformsFilename, out int MinPlatform, out int MaxPlatform)
 		{
-			if (!Directory.Exists(PlatformsDir))
+			if (!CachedPlatformsFilename.Equals(PlatformsFilename))
+			{
+				// reset cache to defaults
+				CachedPlatformsFilename = PlatformsFilename;
+				CachedPlatformsValid = false;
+				CachedMinPlatform = -1;
+				CachedMaxPlatform = -1;
+
+				// try to read it
+				try
+				{
+					JsonObject PlatformsObj = null;
+					if (JsonObject.TryRead(new FileReference(PlatformsFilename), out PlatformsObj))
+					{
+						CachedPlatformsValid = PlatformsObj.TryGetIntegerField("min", out CachedMinPlatform) && PlatformsObj.TryGetIntegerField("max", out CachedMaxPlatform);
+					}
+				}
+				catch (Exception)
+				{
+				}
+			}
+
+			MinPlatform = CachedMinPlatform;
+			MaxPlatform = CachedMaxPlatform;
+			return CachedPlatformsValid;
+		}
+
+		protected virtual bool ValidateNDK(string PlatformsFilename, string ApiString)
+		{
+			int MinPlatform, MaxPlatform;
+			if (!ReadMinMaxPlatforms(PlatformsFilename, out MinPlatform, out MaxPlatform))
 			{
 				return false;
 			}
 
-			string NDKPlatformDir = Path.Combine(PlatformsDir, ApiString);
-			return Directory.Exists(NDKPlatformDir);
+			if (ApiString.Contains("-"))
+			{
+				int Version;
+				if (int.TryParse(ApiString.Substring(ApiString.LastIndexOf('-') + 1), out Version))
+				{
+					return (Version >= MinPlatform && Version <= MaxPlatform);
+				}
+			}
+			return false;
 		}
 
 		public string GetNdkApiLevel()
@@ -423,23 +487,27 @@ namespace UnrealBuildTool
 				NDKLevel = ProjectNDKLevel;
 			}
 
-			string PlatformsDir = Environment.ExpandEnvironmentVariables("%NDKROOT%/platforms");
+			string PlatformsFilename = Environment.ExpandEnvironmentVariables("%NDKROOT%/meta/platforms.json");
+			if (!File.Exists(PlatformsFilename))
+			{
+				throw new BuildException("No NDK platforms found in {0}", PlatformsFilename);
+			}
+
 			if (NDKLevel == "latest")
 			{
-				// get a list of NDK platforms
-				if (!Directory.Exists(PlatformsDir))
+				int MinPlatform, MaxPlatform;
+				if (!ReadMinMaxPlatforms(PlatformsFilename, out MinPlatform, out MaxPlatform))
 				{
-					throw new BuildException("No NDK platforms found in {0}", PlatformsDir);
+					throw new BuildException("No NDK platforms found in {0}", PlatformsFilename);
 				}
 
-				// return the largest of them
-				NDKLevel = GetLargestApiLevel(Directory.GetDirectories(PlatformsDir));
+				NDKLevel = "android-" + MaxPlatform.ToString();
 			}
 
 			// validate the platform NDK is installed
-			if (!ValidateNDK(PlatformsDir, NDKLevel))
+			if (!ValidateNDK(PlatformsFilename, NDKLevel))
 			{
-				throw new BuildException("The NDK API requested '{0}' not installed in {1}", NDKLevel, PlatformsDir);
+				throw new BuildException("The NDK API requested '{0}' not installed in {1}", NDKLevel, PlatformsFilename);
 			}
 
 			return NDKLevel;
@@ -684,6 +752,17 @@ namespace UnrealBuildTool
 				Result += " -march=atom";
 			}
 
+			ClangSanitizer Sanitizer = BuildWithSanitizer(ProjectFile);
+			if (Sanitizer != ClangSanitizer.None)
+			{
+				Result += " -fsanitize=" + GetCompilerOption(Sanitizer);
+
+				if (Sanitizer == ClangSanitizer.Address || Sanitizer == ClangSanitizer.HwAddress)
+				{
+					Result += " -fno-omit-frame-pointer -DRUNNING_WITH_ASAN=1";
+				}
+			}
+
 			return Result;
 		}
 
@@ -835,6 +914,12 @@ namespace UnrealBuildTool
 
 			// verbose output from the linker
 			// Result += " -v";
+
+			ClangSanitizer Sanitizer = BuildWithSanitizer(ProjectFile);
+			if (Sanitizer != ClangSanitizer.None)
+			{
+				Result += " -fsanitize=" + GetCompilerOption(Sanitizer);
+			}
 
 			return Result;
 		}
@@ -2219,6 +2304,23 @@ namespace UnrealBuildTool
 
 			CompileOrLinkAction.CommandPath = BuildHostPlatform.Current.Shell;
 			CompileOrLinkAction.CommandDescription = CommandDescription;
+		}
+
+		public static ClangSanitizer BuildWithSanitizer(FileReference ProjectFile)
+		{
+			ConfigHierarchy Ini = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, DirectoryReference.FromFile(ProjectFile), UnrealTargetPlatform.Android);
+			string Sanitizer;
+			Ini.GetString("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "ClangSanitizer", out Sanitizer);
+
+			switch (Sanitizer.ToLower())
+			{
+				case "address": return ClangSanitizer.Address;
+				case "hwaddress": return ClangSanitizer.HwAddress;
+				case "undefinedbehavior": return ClangSanitizer.UndefinedBehavior;
+				case "undefinedbehaviorminimal": return ClangSanitizer.UndefinedBehaviorMinimal;
+				//case "thread": return ClangSanitizer.Thread;
+				default: return ClangSanitizer.None;
+			}
 		}
 	};
 }

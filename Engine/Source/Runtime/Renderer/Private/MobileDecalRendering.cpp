@@ -39,6 +39,7 @@ FRHIBlendState* MobileForward_GetDecalBlendState(EDecalBlendMode DecalBlendMode)
 		// Modulate
 		return TStaticBlendState<CW_RGB, BO_Add, BF_DestColor, BF_InverseSourceAlpha>::GetRHI();
 	case DBM_Emissive:
+	case DBM_DBuffer_Emissive:
 		// Additive
 		return TStaticBlendState<CW_RGB, BO_Add, BF_SourceAlpha, BF_One>::GetRHI();
 	case DBM_AlphaComposite:

@@ -48,43 +48,78 @@ public:
 
 
 
+enum class EObjectIteratorThreadSafetyOptions : uint8
+{
+	None = 0,
+	ThreadSafe = 1, // Use only with function local iterators. Persistent iterators may prevent (hang) UObject creation on worker threads otherwise.
+	ThreadSafeAdvance = 2 // Can be used for global iterators but locks the global UObjectArray each time the iterator advances to the next object (can be slow but does not result in deadlocks).
+};
+
 /**
  * Class for iterating through all objects, including class default objects.
  * Note that when Playing In Editor, this will find objects in the
  * editor as well as the PIE world, in an indeterminate order.
+ * IteratorThreadSafety	template parameter manages how this class handles thread safety of UObject iteration.
  */
-class FObjectIterator : public FUObjectArray::TIterator
+template <EObjectIteratorThreadSafetyOptions IteratorThreadSafety>
+class TObjectIteratorBase : public FUObjectArray::TIterator
 {
+protected:
+
+	/** Wrapper around FUObjectArray::TIterator::Advance that locks the FUObjectArray mutex before advancing if necessary */
+	FORCEINLINE bool AdvanceIterator()
+	{
+		bool bResult = false;
+		if (IteratorThreadSafety != EObjectIteratorThreadSafetyOptions::ThreadSafeAdvance)
+		{
+			bResult = Advance();
+		}
+		else
+		{
+			GetIteratedArray().LockInternalArray();
+			bResult = Advance();
+			GetIteratedArray().UnlockInternalArray();
+		}
+		return bResult;
+	}
+
 public:
+
 	/**
 	 * Constructor
 	 *
 	 * @param	InClass						return only object of the class or a subclass
 	 * @param	bOnlyGCedObjects			if true, skip all of the permanent objects
 	 * @param	AdditionalExclusionFlags	RF_* flags that should not be included in results
+	 * @param	InInternalExclusionFlags	EInternalObjectFlags flagged objects that should not be included in results
 	 */
-	FObjectIterator(UClass* InClass = UObject::StaticClass(), bool bOnlyGCedObjects = false, EObjectFlags AdditionalExclusionFlags = RF_NoFlags, EInternalObjectFlags InInternalExclusionFlags = EInternalObjectFlags::None) 
+	explicit TObjectIteratorBase(UClass* InClass = UObject::StaticClass(), bool bOnlyGCedObjects = false, EObjectFlags AdditionalExclusionFlags = RF_NoFlags, EInternalObjectFlags InInternalExclusionFlags = EInternalObjectFlags::None)
 		: FUObjectArray::TIterator(GUObjectArray, bOnlyGCedObjects)
 		, Class(InClass)
 		, ExclusionFlags(AdditionalExclusionFlags)
 		, InternalExclusionFlags(InInternalExclusionFlags)
 	{
 		// We don't want to return any objects that are currently being background loaded unless we're using the object iterator during async loading.
-		InternalExclusionFlags |= EInternalObjectFlags::Unreachable;
+		InternalExclusionFlags |= EInternalObjectFlags::Unreachable | EInternalObjectFlags::PendingConstruction;
 		if (!IsInAsyncLoadingThread())
 		{
 			InternalExclusionFlags |= EInternalObjectFlags::AsyncLoading;
 		}
 		check(Class);
 
+		if (IteratorThreadSafety == EObjectIteratorThreadSafetyOptions::ThreadSafe)
+		{
+			GetIteratedArray().LockInternalArray();
+		}
+
 		do
 		{
-			UObject *Object = **this;
+			UObject* Object = **this;
 			if (!(Object->HasAnyFlags(ExclusionFlags) || Object->HasAnyInternalFlags(InternalExclusionFlags) || (Class != UObject::StaticClass() && !Object->IsA(Class))))
 			{
 				break;
 			}
-		} while(Advance());
+		} while (AdvanceIterator());
 	}
 
 	/**
@@ -92,12 +127,42 @@ public:
 	 *
 	 * @param	Begin	The iterator to get the end iterator of.
 	 */
-	FObjectIterator( FUObjectArray::TIterator::EEndTagType, const FObjectIterator& Begin )
-		: FUObjectArray::TIterator( FUObjectArray::TIterator::EndTag, Begin )
-		, Class( Begin.Class )
+	TObjectIteratorBase(FUObjectArray::TIterator::EEndTagType, const TObjectIteratorBase& Begin)
+		: FUObjectArray::TIterator(FUObjectArray::TIterator::EndTag, Begin)
+		, Class(Begin.Class)
 		, ExclusionFlags(Begin.ExclusionFlags)
 		, InternalExclusionFlags(Begin.InternalExclusionFlags)
 	{
+		if (IteratorThreadSafety == EObjectIteratorThreadSafetyOptions::ThreadSafe)
+		{
+			GetIteratedArray().LockInternalArray();
+		}
+	}
+
+	/**
+	 * Copy Constructor
+	 */
+	TObjectIteratorBase(const TObjectIteratorBase& Other)
+		: FUObjectArray::TIterator(Other)
+		, Class(Other.Class)
+		, ExclusionFlags(Other.ExclusionFlags)
+		, InternalExclusionFlags(Other.InternalExclusionFlags)
+	{
+		if (IteratorThreadSafety == EObjectIteratorThreadSafetyOptions::ThreadSafe)
+		{
+			GetIteratedArray().LockInternalArray();
+		}
+	}
+
+	/**
+	 * Destructor
+	 */
+	~TObjectIteratorBase()
+	{
+		if (IteratorThreadSafety == EObjectIteratorThreadSafetyOptions::ThreadSafe)
+		{
+			GetIteratedArray().UnlockInternalArray();
+		}
 	}
 
 	/**
@@ -109,9 +174,9 @@ public:
 		// verify that the async loading exclusion flag still matches (i.e. we didn't start/stop async loading within the scope of the iterator)
 		checkSlow(IsInAsyncLoadingThread() || int32(InternalExclusionFlags & EInternalObjectFlags::AsyncLoading));
 
-		while(Advance())
+		while (AdvanceIterator())
 		{
-			UObject *Object = **this;
+			UObject* Object = **this;
 			if (!(Object->HasAnyFlags(ExclusionFlags) || (Class != UObject::StaticClass() && !Object->IsA(Class)) || Object->HasAnyInternalFlags(InternalExclusionFlags)))
 			{
 				break;
@@ -146,6 +211,37 @@ protected:
 	/** Internal Flags that returned objects must not have */
 	EInternalObjectFlags InternalExclusionFlags;
 };
+
+/**
+ * Class for iterating through all objects, including class default objects.
+ * Note that when Playing In Editor, this will find objects in the
+ * editor as well as the PIE world, in an indeterminate order.
+ * This iterator does not lock the gloabl FUObjectArray when iterating over it which may result in race conditions.
+ */
+typedef TObjectIteratorBase<EObjectIteratorThreadSafetyOptions::None> FUnsafeObjectIterator;
+
+/** Deprecating the old FObjectIterator class which is now synonymous with FUnsafeObjectIterator */
+UE_DEPRECATED(4.27, "FObjectIterator is not thread safe, use FThreadSafeObjectIterator or FPresistentThreadSafeObjectIterator instead.")
+typedef FUnsafeObjectIterator FObjectIterator;
+
+
+/**
+ * Class for iterating through all objects, including class default objects.
+ * Note that when Playing In Editor, this will find objects in the
+ * editor as well as the PIE world, in an indeterminate order.
+ * Locks the global FUObjectArray when iterating over it.
+ * Should only be used with function local iterator instances.
+ */
+typedef TObjectIteratorBase<EObjectIteratorThreadSafetyOptions::ThreadSafe> FThreadSafeObjectIterator;
+
+/**
+ * Class for iterating through all objects, including class default objects.
+ * Note that when Playing In Editor, this will find objects in the
+ * editor as well as the PIE world, in an indeterminate order.
+ * Locks the global FUObjectArray when advancing to the next object.
+ * Should only be used with persistent iterator instances that exist for more than a frame.
+ */
+typedef TObjectIteratorBase<EObjectIteratorThreadSafetyOptions::ThreadSafeAdvance> FPersistentThreadSafeObjectIterator;
 
 /**
  * Class for iterating through all objects which inherit from a
@@ -258,11 +354,18 @@ protected:
 };
 
 /** specialization for T == UObject that does not call IsA() unnecessarily */
-template<> class TObjectIterator<UObject> : public FObjectIterator
+template<> class TObjectIterator<UObject> : public FThreadSafeObjectIterator
 {
 public:
-	explicit TObjectIterator(EObjectFlags AdditionalExclusionFlags = RF_ClassDefaultObject, bool bIncludeDerivedClasses = true, EInternalObjectFlags InternalExclusionFlags = EInternalObjectFlags::None) 
-		: FObjectIterator(UObject::StaticClass(), false, AdditionalExclusionFlags, InternalExclusionFlags)
+
+	/**
+	 * Constructor
+	 *
+	 * @param	AdditionalExclusionFlags	RF_* flags that should not be included in results
+	 * @param	InInternalExclusionFlags	EInternalObjectFlags flagged objects that should not be included in results
+	 */
+	explicit TObjectIterator(EObjectFlags AdditionalExclusionFlags = RF_ClassDefaultObject, bool bIncludeDerivedClasses = true, EInternalObjectFlags InternalExclusionFlags = EInternalObjectFlags::None)
+		: FThreadSafeObjectIterator(UObject::StaticClass(), false, AdditionalExclusionFlags, InternalExclusionFlags)
 	{
 	}
 
@@ -272,7 +375,7 @@ public:
 	 * @param	bOnlyGCedObjects			if true, skip all of the permanent objects
 	 */
 	explicit TObjectIterator(bool bOnlyGCedObjects) :
-		FObjectIterator(UObject::StaticClass(), bOnlyGCedObjects, RF_ClassDefaultObject)
+		FThreadSafeObjectIterator(UObject::StaticClass(), bOnlyGCedObjects, RF_ClassDefaultObject)
 	{
 	}
 
@@ -281,8 +384,8 @@ public:
 	 *
 	 * @param	Begin	The iterator to get the end iterator of.
 	 */
-	TObjectIterator(FObjectIterator::EEndTagType, const TObjectIterator& Begin) :
-		FObjectIterator( FObjectIterator::EndTag, Begin )
+	TObjectIterator(TObjectIteratorBase::EEndTagType, const TObjectIterator& Begin) :
+		FThreadSafeObjectIterator(FUObjectArray::TIterator::EndTag, Begin)
 	{
 	}
 
@@ -293,7 +396,7 @@ public:
 	{
 		// verify that the async loading exclusion flag still matches (i.e. we didn't start/stop async loading within the scope of the iterator)
 		checkSlow(IsInAsyncLoadingThread() || int32(InternalExclusionFlags & EInternalObjectFlags::AsyncLoading));
-		while(Advance())
+		while (AdvanceIterator())
 		{
 			if (!(*this)->HasAnyFlags(ExclusionFlags) && !(*this)->HasAnyInternalFlags(InternalExclusionFlags))
 			{

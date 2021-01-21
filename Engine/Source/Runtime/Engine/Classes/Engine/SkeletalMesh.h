@@ -2056,6 +2056,14 @@ private:
 	 */
 	void PostLoadValidateUserSectionData();
 
+	/*
+	 * This function will ensure we have valid tangent in all LODs. if we found an invalid tangent axis we will try to set it with the cross product of the two other axis.
+	 * If the two other axis are also bad it will simply apply the triangle normals which will faceted the mesh.
+	 * It will validate tangents only for asset that do not have source build data, this mean asset imported before the build refactor done in the UE version 4.24)
+	 * @note - if it found a bad normal it will LOG a warning to let the user know he have to re-import is mesh.
+	 */
+	void PostLoadVerifyAndFixBadTangent();
+
 public:
 	//We want to avoid calling post edit change multiple time during import and build process.
 

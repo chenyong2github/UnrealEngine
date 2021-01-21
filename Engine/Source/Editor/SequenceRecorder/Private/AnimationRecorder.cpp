@@ -23,6 +23,13 @@
 
 #define LOCTEXT_NAMESPACE "FAnimationRecorder"
 
+
+static TAutoConsoleVariable<int32> CVarKeepNotifyAndCurvesOnAnimationRecord(
+	TEXT("a.KeepNotifyAndCurvesOnAnimationRecord"),
+	1,
+	TEXT("If nonzero we keep anim notifies, curves and sycn markers when animation recording, if 0 we discard them before recording."),
+	ECVF_Default);
+
 /////////////////////////////////////////////////////
 
 FAnimationRecorder::FAnimationRecorder()
@@ -327,6 +334,7 @@ UAnimSequence* FAnimationRecorder::StopRecord(bool bShowMessage)
 					ValuesToRecord.SetNum(NumKeys);
 
 					bool bSeenThisCurve = false;
+					int32 WriteIndex = 0;
 					for (int32 KeyIndex = 0; KeyIndex < NumKeys; ++KeyIndex)
 					{
 						const float TimeToRecord = KeyIndex*IntervalTime;
@@ -353,6 +361,8 @@ UAnimSequence* FAnimationRecorder::StopRecord(bool bShowMessage)
 							{
 								TimesToRecord[KeyIndex] = TimeToRecord;
 								ValuesToRecord[KeyIndex] = CurCurveValue;
+
+								++WriteIndex;
 							}
 						}
 					}
@@ -361,7 +371,7 @@ UAnimSequence* FAnimationRecorder::StopRecord(bool bShowMessage)
 					if (FloatCurveData)
 					{
 						TArray<FRichCurveKey> Keys;
-						for (int32 Index = 0; Index < TimesToRecord.Num(); ++Index)
+						for (int32 Index = 0; Index < WriteIndex; ++Index)
 						{
 							FRichCurveKey Key(TimesToRecord[Index], ValuesToRecord[Index]);
 							Key.InterpMode = InterpMode;

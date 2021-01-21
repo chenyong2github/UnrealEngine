@@ -215,16 +215,7 @@ void InternalCreateVertexBufferRDG(FRDGBuilder& GraphBuilder, uint32 ElementSize
 
 	// #hair_todo: Create this with a create+clear pass instead?
 	const FRDGBufferDesc Desc = FRDGBufferDesc::CreateBufferDesc(ElementSizeInBytes, ElementCount);
-	TArray<uint8> InitializeData;
-	InitializeData.Init(0u, DataSizeInBytes);
-	Buffer = CreateVertexBuffer(
-		GraphBuilder,
-		DebugName,
-		Desc,
-		InitializeData.GetData(),
-		DataSizeInBytes,
-		ERDGInitialDataFlags::None);
-
+	Buffer = GraphBuilder.CreateBuffer(Desc, DebugName, ERDGBufferFlags::MultiFrame);
 	if (bClearFloat)
 	{
 		AddClearUAVFloatPass(GraphBuilder, GraphBuilder.CreateUAV(Buffer, Format), 0.f);

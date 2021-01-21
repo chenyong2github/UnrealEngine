@@ -328,6 +328,21 @@ public:
 	virtual USplineMetadata* GetSplinePointsMetadata() { return nullptr; }
 	virtual const USplineMetadata* GetSplinePointsMetadata() const { return nullptr; }
 
+	/** Get the enabled Spline Point types for this spline component. */
+	virtual TArray<ESplinePointType::Type> GetEnabledSplinePointTypes() const;
+
+	/** Controls the visibility of the Spline point location editor in the details panel. */
+	virtual bool AllowsSpinePointLocationEditing() const { return true; }
+	/** Controls the visibility of the Spline point rotation editor in the details panel. */
+	virtual bool AllowsSplinePointRotationEditing() const { return true; }
+	/** Controls the visibility of the Spline point scale editor in the details panel. */
+	virtual bool AllowsSplinePointScaleEditing() const { return true; }
+	/** Controls the visibility of the Spline point arrive tangent editor in the details panel. */
+	virtual bool AllowsSplinePointArriveTangentEditing() const { return true; }
+	/** Controls the visibility of the Spline point leave tangent editor in the details panel. */
+	virtual bool AllowsSplinePointLeaveTangentEditing() const { return true; }
+
+
 	void ApplyComponentInstanceData(struct FSplineInstanceData* ComponentInstanceData, const bool bPostUCS);
 
 	/** Update the spline tangents and SplineReparamTable */

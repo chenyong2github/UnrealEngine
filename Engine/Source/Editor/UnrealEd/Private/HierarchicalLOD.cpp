@@ -17,18 +17,23 @@
 #include "Algo/Transform.h"
 #include "EditorLevelUtils.h"
 #include "Modules/ModuleManager.h"
+#include "HAL/ThreadManager.h"
 
 #if WITH_EDITOR
 #include "Engine/LODActor.h"
+#include "LevelUtils.h"
 #include "ObjectTools.h"
 #include "IHierarchicalLODUtilities.h"
 #include "HierarchicalLODUtilitiesModule.h"
+#include "HierarchicalLODProxyProcessor.h"
 #include "../Classes/Editor/EditorEngine.h"
 #include "Editor.h"
 #include "UnrealEdGlobals.h"
 #include "HLOD/HLODEngineSubsystem.h"
 #include "IMeshMergeUtilities.h"
 #include "MeshMergeModule.h"
+#include "MeshDescription.h"
+#include "StaticMeshOperations.h"
 #endif // WITH_EDITOR
 
 
@@ -771,7 +776,7 @@ void FHierarchicalLODBuilder::BuildMeshesForLODActors(bool bForceAll)
 	bool bVisibleLevelsWarning = false;
 
 	const TArray<ULevel*>& Levels = World->GetLevels();
-	for (const ULevel* LevelIter : Levels)
+	for (ULevel* LevelIter : Levels)
 	{
 		if (!ShouldBuildHLODForLevel(World, LevelIter))
 		{
@@ -823,6 +828,17 @@ void FHierarchicalLODBuilder::BuildMeshesForLODActors(bool bForceAll)
 			// If there are any available process them
 			if (NumLODActors)
 			{
+				const FTransform& HLODBakingTransform = LevelIter->GetWorldSettings()->HLODBakingTransform;
+				bool bUseCustomTransformForHLODBaking = !HLODBakingTransform.Equals(FTransform::Identity);
+
+				// Apply the HLOD transform prior to baking
+				if (bUseCustomTransformForHLODBaking)
+				{
+					FLevelUtils::FApplyLevelTransformParams TransformParams(LevelIter, HLODBakingTransform);
+					TransformParams.bDoPostEditMove = false;
+					FLevelUtils::ApplyLevelTransform(TransformParams);
+				}
+
 				// Only create the outer package if we are going to save something to it (otherwise we end up with an empty HLOD folder)
 				const int32 NumLODLevels = LODLevelActors.Num();
 
@@ -882,6 +898,59 @@ void FHierarchicalLODBuilder::BuildMeshesForLODActors(bool bForceAll)
 
 					if (SlowTask.ShouldCancel())
 						break;
+				}
+
+				// Ensure HLOD proxy generation has completed
+				FHierarchicalLODProxyProcessor* Processor = Module.GetProxyProcessor();
+				while (Processor->IsProxyGenerationRunning())
+				{
+					FTicker::GetCoreTicker().Tick(FApp::GetDeltaTime());
+					FThreadManager::Get().Tick();
+					FTaskGraphInterface::Get().ProcessThreadUntilIdle(ENamedThreads::GameThread);
+					FPlatformProcess::Sleep(0.1f);
+				}
+
+				if (bUseCustomTransformForHLODBaking)
+				{
+					const FTransform TransformInv = HLODBakingTransform.Inverse();
+
+					FLevelUtils::FApplyLevelTransformParams TransformParams(LevelIter, TransformInv);
+					TransformParams.bDoPostEditMove = false;
+
+					// Undo HLOD transform that was performed prior to baking
+					FLevelUtils::ApplyLevelTransform(TransformParams);
+
+					for (int32 LODIndex = 0; LODIndex < NumLODLevels; ++LODIndex)
+					{
+						const FHierarchicalSimplification& LODLevelSettings = BuildLODLevelSettings[LODIndex];
+
+						for (ALODActor* LODActor : LODLevelActors[LODIndex])
+						{
+							UStaticMesh* StaticMesh = LODActor->GetStaticMeshComponent() ? LODActor->GetStaticMeshComponent()->GetStaticMesh() : nullptr;
+							if (StaticMesh == nullptr)
+							{
+								continue;
+							}
+
+							FMeshDescription* SMDesc = StaticMesh->GetMeshDescription(0);
+
+							if (LODLevelSettings.bSimplifyMesh || LODLevelSettings.MergeSetting.bPivotPointAtZero)
+							{
+								LODActor->SetActorTransform(FTransform::Identity);
+								FStaticMeshOperations::ApplyTransform(*SMDesc, TransformInv);
+							}
+							else
+							{
+								FStaticMeshOperations::ApplyTransform(*SMDesc, FTransform(TransformInv.GetRotation()));
+							}
+
+							StaticMesh->CommitMeshDescription(0);
+							StaticMesh->PostEditChange();
+
+							// Update key since positions have changed
+							LODActor->GetProxy()->AddMesh(LODActor, StaticMesh, UHLODProxy::GenerateKeyForActor(LODActor));
+						}
+					}
 				}
 			}
 		}

@@ -1586,7 +1586,7 @@ struct WorldReferenceGenerator : public FFindReferencedAssets
 	void MarkAllObjects()
 	{
 		// Mark all objects so we don't get into an endless recursion
-		for (FObjectIterator It; It; ++It)
+		for (FThreadSafeObjectIterator It; It; ++It)
 		{
 			It->Mark(OBJECTMARK_TagExp);
 		}

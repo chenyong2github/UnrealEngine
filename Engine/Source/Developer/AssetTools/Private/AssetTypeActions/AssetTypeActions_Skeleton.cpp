@@ -976,7 +976,7 @@ void FAssetTypeActions_Skeleton::RetargetSkeleton(TArray<FAssetToRemapSkeleton>&
 	}
 
 	// now update any running instance
-	for (FObjectIterator Iter(USkeletalMeshComponent::StaticClass()); Iter; ++Iter)
+	for (FThreadSafeObjectIterator Iter(USkeletalMeshComponent::StaticClass()); Iter; ++Iter)
 	{
 		USkeletalMeshComponent * MeshComponent = Cast<USkeletalMeshComponent>(*Iter);
 		if (MeshComponent->SkeletalMesh && MeshComponent->SkeletalMesh->GetSkeleton() == OldSkeleton)

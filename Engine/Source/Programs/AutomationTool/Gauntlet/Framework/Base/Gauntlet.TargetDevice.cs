@@ -48,10 +48,11 @@ namespace Gauntlet
 		bool Connect();
 
 		/// <summary>
-		/// Disconnect from the device
+		/// Disconnect the device.
 		/// </summary>
+		/// <param name="Force">If supported force the device into a disconnected state (e.g. kick other users) </param>
 		/// <returns></returns>
-		bool Disconnect();
+		bool Disconnect(bool bForce=false);
 
 		/// <summary>
 		/// Is the device powered on?

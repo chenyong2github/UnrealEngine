@@ -1409,7 +1409,7 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::UpdateFromPackageFileSummary()
 	bool bCustomVersionIsLatest = true;
 	if (!Summary.bUnversioned)
 	{
-		TArray<FCustomVersionDifference> Diffs = FCurrentCustomVersions::Compare(Summary.GetCustomVersionContainer().GetAllVersions());
+		TArray<FCustomVersionDifference> Diffs = FCurrentCustomVersions::Compare(Summary.GetCustomVersionContainer().GetAllVersions(), *GetDebugName());
 		for (FCustomVersionDifference Diff : Diffs)
 		{
 			bCustomVersionIsLatest = false;
@@ -3015,6 +3015,82 @@ FLinkerLoad::EVerifyResult FLinkerLoad::VerifyImport(int32 ImportIndex)
 // Internal Load package call so that we can pass the linker that requested this package as an import dependency
 UPackage* LoadPackageInternal(UPackage* InOuter, const FPackagePath& PackagePath, uint32 LoadFlags, FLinkerLoad* ImportLinker, FArchive* InReaderOverride, const FLinkerInstancingContext* InstancingContext, const FPackagePath* DiffPackagePath);
 
+#if WITH_IOSTORE_IN_EDITOR
+/**
+ * Finds and populates the import table for the specified package import.
+ *
+ * @param InOutImportMap	The import table
+ * @param InPackageImport	The package import index
+ */
+void StaticFindAllImportObjects(TArray<FObjectImport>& InOutImportMap, FPackageIndex InPackageImport)
+{
+	using FPackageIndexArray = TArray<FPackageIndex, TInlineAllocator<64>>;
+
+	UPackage* Package = Cast<UPackage>(InOutImportMap[InPackageImport.ToImport()].XObject);
+	check(Package && Package->HasAnyPackageFlags(PKG_Cooked));
+	UE_LOG(LogLinker, Verbose, TEXT("Finding all imports for cooked package import '%s' ('%d')"), *Package->GetFullName(), InPackageImport.ToImport());
+
+	auto FindInners = [&InOutImportMap](FPackageIndex InOuter, FPackageIndexArray& OutInners) -> void
+	{
+		for (int32 ImportIndex = 0; ImportIndex < InOutImportMap.Num(); ++ImportIndex)
+		{
+			if (InOutImportMap[ImportIndex].OuterIndex == InOuter)
+			{
+				OutInners.Push(FPackageIndex::FromImport(ImportIndex));
+			}
+		}
+	};
+
+	TStringBuilder<256> ImportClassTemp;
+	auto FindClass = [&ImportClassTemp](const FObjectImport& ObjectImport) -> UClass*
+	{
+		ObjectImport.ClassPackage.ToString(ImportClassTemp);
+		if (UObject* ClassPackage = FindObject<UPackage>(nullptr, *ImportClassTemp))
+		{
+			ObjectImport.ClassName.ToString(ImportClassTemp);
+			return FindObject<UClass>(ClassPackage, *ImportClassTemp);
+		}
+		return nullptr;
+	};
+
+	FPackageIndexArray Outers, Inners;
+	Outers.Add(InPackageImport);
+
+	while (Outers.Num() > 0)
+	{
+		FPackageIndex Outer = Outers.Pop();
+		if (UObject* OuterObject = InOutImportMap[Outer.ToImport()].XObject)
+		{
+			Inners.Reset();
+			FindInners(Outer, Inners);
+
+			for (FPackageIndex Inner : Inners)
+			{
+				FObjectImport& ObjectImport = InOutImportMap[Inner.ToImport()];
+				if (!ObjectImport.XObject)
+				{
+					UClass* Class = FindClass(ObjectImport);
+					if (UObject* InnerObject = StaticFindObjectFastInternal(Class, OuterObject, ObjectImport.ObjectName, true))
+					{
+						ObjectImport.XObject = InnerObject;
+						Outers.Add(Inner);
+					}
+					else
+					{
+						UE_LOG(LogLinker, Warning, TEXT("Failed to resolve import '%s' ('%d') in outer '%s' ('%d') in cooked package '%s'"),
+							*ObjectImport.ObjectName.ToString(),
+							Inner.ToImport(),
+							*OuterObject->GetName(),
+							Outer.ToImport(),
+							*Package->GetName());
+					}
+				}
+			}
+		}
+	}
+}
+#endif // WITH_IOSTORE_IN_EDITOR
+
 /**
  * Safely verify that an import in the ImportMap points to a good object. This decides whether or not
  * a failure to load the object redirector in the wrapper is a fatal error or not (return value)
@@ -3027,7 +3103,7 @@ bool FLinkerLoad::VerifyImportInner(const int32 ImportIndex, FString& WarningSuf
 {
 	SCOPED_LOADTIMER(LinkerLoad_VerifyImportInner);
 	// Lambda used to load an import package
-	auto LoadImportPackage = [this](FObjectImport& Import, TOptional<FScopedSlowTask>& SlowTask) -> UPackage*
+	auto LoadImportPackage = [this, ImportIndex](FObjectImport& Import, TOptional<FScopedSlowTask>& SlowTask) -> UPackage*
 	{
 		// Either this import is a UPackage or it has PackageName set.
 		check(Import.ClassName == NAME_Package || Import.HasPackageName());
@@ -3081,6 +3157,16 @@ bool FLinkerLoad::VerifyImportInner(const int32 ImportIndex, FString& WarningSuf
 			Package = LoadPackageInternal(Package, PackagePathToLoad, InternalLoadFlags | LOAD_IsVerifying, this, nullptr /* InReaderOverride */,
 				nullptr /* InstancingContext */, nullptr /* DiffPackagePath */);
 		}
+#if WITH_IOSTORE_IN_EDITOR
+		if (Package && Package->HasAnyPackageFlags(PKG_Cooked))
+		{
+			// Cooked packages loaded with EDL is always fully loaded and has no attached
+			// linkers. Static find all imported objects from this package.
+			check(Package->IsFullyLoaded());
+			Import.XObject = Package;
+			StaticFindAllImportObjects(ImportMap, FPackageIndex::FromImport(ImportIndex));
+		}
+#endif
 
 #if WITH_EDITOR
 		if (SlowTask)
@@ -3118,14 +3204,19 @@ bool FLinkerLoad::VerifyImportInner(const int32 ImportIndex, FString& WarningSuf
 		// Get the linker if the package hasn't been fully loaded already, this can happen in the case of LOAD_DeferDependencyLoads
 		// or when circular dependency happen, get the linker so we are able to create the import properly at a later time.
 		// When loading editor data never consider the package fully loaded and resolve the linker anyway, for cooked data, assign the linker if one is associated witht the package
-		const bool bWasFullyLoaded = Package && Package->IsFullyLoaded() && FPlatformProperties::RequiresCookedData();
-		if (!bWasFullyLoaded)
+#if WITH_IOSTORE_IN_EDITOR
+		if (Package && !Package->HasAnyPackageFlags(PKG_Cooked))
+#endif
 		{
-			Import.SourceLinker = GetPackageLinker(Package, FPackagePath::FromPackageNameChecked(Package->GetName()), InternalLoadFlags, nullptr, nullptr, nullptr, &SerializeContext);
-		}
-		else
-		{
-			Import.SourceLinker = FindExistingLinkerForPackage(Package);
+			const bool bWasFullyLoaded = Package && Package->IsFullyLoaded() && FPlatformProperties::RequiresCookedData();
+			if (!bWasFullyLoaded)
+			{
+				Import.SourceLinker = GetPackageLinker(Package, FPackagePath::FromPackageNameChecked(Package->GetName()), InternalLoadFlags, nullptr, nullptr, nullptr, &SerializeContext);
+			}
+			else
+			{
+				Import.SourceLinker = FindExistingLinkerForPackage(Package);
+			}
 		}
 #if WITH_EDITORONLY_DATA
 		if (Import.SourceLinker && !Package->HasAnyFlags(RF_LoadCompleted))
@@ -5147,7 +5238,7 @@ UObject* FLinkerLoad::CreateImport( int32 Index )
 		if (Import.XObject == nullptr)
 		{
 			const FString OuterName = Import.OuterIndex.IsNull() ? LinkerRoot->GetFullName() : GetFullImpExpName(Import.OuterIndex);
-			UE_LOG(LogLinker, Verbose, TEXT("Failed to resolve import named %s in %s"), *Import.ObjectName.ToString(), *OuterName);
+			UE_LOG(LogLinker, Verbose, TEXT("Failed to resolve import '%d' named '%s' in '%s'"), Index, *Import.ObjectName.ToString(), *OuterName);
 		}
 	}
 	return Import.XObject;

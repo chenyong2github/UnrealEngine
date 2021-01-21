@@ -2418,7 +2418,7 @@ int32 UWrangleContentCommandlet::Main( const FString& Params )
 		}
 
 		// all currently loaded public objects were referenced by script code, so mark it as referenced
-		for(FObjectIterator ObjectIt;ObjectIt;++ObjectIt)
+		for(FThreadSafeObjectIterator ObjectIt;ObjectIt;++ObjectIt)
 		{
 			UObject* Object = *ObjectIt;
 
@@ -2466,7 +2466,7 @@ int32 UWrangleContentCommandlet::Main( const FString& Params )
 				bool bIsScriptPackage = Linker->ContainsCode();
 
 				// collect all public objects loaded
-				for(FObjectIterator ObjectIt; ObjectIt; ++ObjectIt)
+				for(FThreadSafeObjectIterator ObjectIt; ObjectIt; ++ObjectIt)
 				{
 					UObject* Object = *ObjectIt;
 

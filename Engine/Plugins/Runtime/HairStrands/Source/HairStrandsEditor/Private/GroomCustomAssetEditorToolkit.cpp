@@ -399,6 +399,16 @@ void FGroomCustomAssetEditorToolkit::InitCustomAssetEditor(const EToolkitMode::T
 	P8->RemoveMetaData(TEXT("ShowOnlyInnerProperties"));
 	P9->RemoveMetaData(TEXT("ShowOnlyInnerProperties"));
 
+	// Override the display name so that it show correct/readable name when the details view is displayed as grid view
+	P0->SetMetaData(TEXT("DisplayName"), TEXT("Interpolation"));
+	P1->SetMetaData(TEXT("DisplayName"), TEXT("Strands"));
+	P2->SetMetaData(TEXT("DisplayName"), TEXT("Physics"));
+	P3->SetMetaData(TEXT("DisplayName"), TEXT("Cards"));
+	P4->SetMetaData(TEXT("DisplayName"), TEXT("LOD"));
+	P5->SetMetaData(TEXT("DisplayName"), TEXT("Meshes"));
+	P6->SetMetaData(TEXT("DisplayName"), TEXT("Materials"));
+	P7->SetMetaData(TEXT("DisplayName"), TEXT("Info"));
+
 	// Set the asset we are editing in the details view
 	if (DetailView_InterpolationProperties.IsValid())
 	{

@@ -1030,6 +1030,7 @@ public:
 
 	const FPakDirectory* FindPrunedDirectory(const TCHAR* InPath) const
 	{
+		// Caller holds FScopedPakDirectoryIndexAccess
 		FString RelativePathFromMount;
 		if (!NormalizeDirectoryQuery(InPath, RelativePathFromMount))
 		{

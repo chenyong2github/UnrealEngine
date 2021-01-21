@@ -1490,6 +1490,10 @@ namespace ChaosTest {
 	template <typename T>
 	void ImplicitScaled2()
 	{
+		// Note: Margins are internal and should not impact Phi or Support calculations.
+		// Specifically for spheres, which are represented as a core point with margin equal to the
+		// radius, the margin cannot be increased and any margin "added" by a wrapper shape like
+		// ImplicitObjectScaled is ignored.
 		T Thickness = 0.1;
 		TUniquePtr<TSphere<T, 3>> Sphere = MakeUnique<TSphere<T,3>>(TVector<T, 3>(3, 0, 0), 5);
 		TImplicitObjectScaled<TSphere<T, 3>> Unscaled(MakeSerializable(Sphere), TVector<T,3>(1));
@@ -1511,7 +1515,7 @@ namespace ChaosTest {
 
 			TVector<T, 3> UnscaledNormalThickened;
 			const T UnscaledThickenedPhi = UnscaledThickened.PhiWithNormal(NearEdge, UnscaledNormalThickened);
-			EXPECT_FLOAT_EQ(UnscaledThickenedPhi, -0.5 - Thickness);
+			EXPECT_FLOAT_EQ(UnscaledThickenedPhi, -0.5);
 			EXPECT_FLOAT_EQ(UnscaledNormalThickened[0], 1);
 			EXPECT_FLOAT_EQ(UnscaledNormalThickened[1], 0);
 			EXPECT_FLOAT_EQ(UnscaledNormalThickened[2], 0);
@@ -1525,7 +1529,7 @@ namespace ChaosTest {
 
 			TVector<T, 3> ScaledNormalThickened;
 			T ScaledPhiThickened = UniformScaleThickened.PhiWithNormal(NearEdge, ScaledNormalThickened);
-			EXPECT_FLOAT_EQ(ScaledPhiThickened, -(16 + Thickness * 2 - 7.5));
+			EXPECT_FLOAT_EQ(ScaledPhiThickened, -(16 - 7.5));
 			EXPECT_FLOAT_EQ(ScaledNormalThickened[0], 1);
 			EXPECT_FLOAT_EQ(ScaledNormalThickened[1], 0);
 			EXPECT_FLOAT_EQ(ScaledNormalThickened[2], 0);
@@ -1538,7 +1542,7 @@ namespace ChaosTest {
 			EXPECT_FLOAT_EQ(ScaledNormal[2], 1);
 
 			ScaledPhiThickened = UniformScaleThickened.PhiWithNormal(NearTop, ScaledNormalThickened);
-			EXPECT_FLOAT_EQ(ScaledPhiThickened, -(10 + Thickness*2 - 4.5));
+			EXPECT_FLOAT_EQ(ScaledPhiThickened, -(10 - 4.5));
 			EXPECT_FLOAT_EQ(ScaledNormalThickened[0], 0);
 			EXPECT_FLOAT_EQ(ScaledNormalThickened[1], 0);
 			EXPECT_FLOAT_EQ(ScaledNormalThickened[2], 1);
@@ -1550,13 +1554,13 @@ namespace ChaosTest {
 			EXPECT_FLOAT_EQ(ScaledNormal[2], 1);
 
 			ScaledPhiThickened = NonUniformScaleThickened.PhiWithNormal(NearTop, ScaledNormalThickened);
-			EXPECT_FLOAT_EQ(ScaledPhiThickened, -0.5 - Thickness);
+			EXPECT_FLOAT_EQ(ScaledPhiThickened, -0.5);
 			EXPECT_FLOAT_EQ(ScaledNormalThickened[0], 0);
 			EXPECT_FLOAT_EQ(ScaledNormalThickened[1], 0);
 			EXPECT_FLOAT_EQ(ScaledNormalThickened[2], 1);
 
 			ScaledPhiThickened = NonUniformScaleThickened.PhiWithNormal(NearEdge, ScaledNormalThickened);
-			EXPECT_FLOAT_EQ(ScaledPhiThickened, -(16 + Thickness * 2 - 7.5));
+			EXPECT_FLOAT_EQ(ScaledPhiThickened, -(16 - 7.5));
 			EXPECT_FLOAT_EQ(ScaledNormalThickened[0], 1);
 			EXPECT_FLOAT_EQ(ScaledNormalThickened[1], 0);
 			EXPECT_FLOAT_EQ(ScaledNormalThickened[2], 0);
@@ -1572,7 +1576,7 @@ namespace ChaosTest {
 			EXPECT_FLOAT_EQ(SupportPt[2], 0);
 
 			SupportPt = UnscaledThickened.Support(DirX, 1);
-			EXPECT_FLOAT_EQ(SupportPt[0], 9+Thickness);
+			EXPECT_FLOAT_EQ(SupportPt[0], 9);
 			EXPECT_FLOAT_EQ(SupportPt[1], 0);
 			EXPECT_FLOAT_EQ(SupportPt[2], 0);
 
@@ -1582,7 +1586,7 @@ namespace ChaosTest {
 			EXPECT_FLOAT_EQ(SupportPt[2], 0);
 
 			SupportPt = UniformScaleThickened.Support(DirX, 1);
-			EXPECT_FLOAT_EQ(SupportPt[0], 17 + Thickness * 2);
+			EXPECT_FLOAT_EQ(SupportPt[0], 17);
 			EXPECT_FLOAT_EQ(SupportPt[1], 0);
 			EXPECT_FLOAT_EQ(SupportPt[2], 0);
 
@@ -1595,7 +1599,7 @@ namespace ChaosTest {
 			SupportPt = UniformScaleThickened.Support(DirZ, 1);
 			EXPECT_FLOAT_EQ(SupportPt[0], 6);
 			EXPECT_FLOAT_EQ(SupportPt[1], 0);
-			EXPECT_FLOAT_EQ(SupportPt[2], -11 - Thickness * 2);
+			EXPECT_FLOAT_EQ(SupportPt[2], -11);
 
 			SupportPt = NonUniformScale.Support(DirX, 1);
 			EXPECT_FLOAT_EQ(SupportPt[0], 17);
@@ -1603,7 +1607,7 @@ namespace ChaosTest {
 			EXPECT_FLOAT_EQ(SupportPt[2], 0);
 
 			SupportPt = NonUniformScaleThickened.Support(DirX, 1);
-			EXPECT_FLOAT_EQ(SupportPt[0], 17 + Thickness * 2);
+			EXPECT_FLOAT_EQ(SupportPt[0], 17);
 			EXPECT_FLOAT_EQ(SupportPt[1], 0);
 			EXPECT_FLOAT_EQ(SupportPt[2], 0);
 
@@ -1615,7 +1619,7 @@ namespace ChaosTest {
 			SupportPt = NonUniformScaleThickened.Support(DirZ, 1);
 			EXPECT_FLOAT_EQ(SupportPt[0], 6);
 			EXPECT_FLOAT_EQ(SupportPt[1], 0);
-			EXPECT_FLOAT_EQ(SupportPt[2], -6 - Thickness);
+			EXPECT_FLOAT_EQ(SupportPt[2], -6);
 		}
 	}
 	template void ImplicitScaled2<float>();

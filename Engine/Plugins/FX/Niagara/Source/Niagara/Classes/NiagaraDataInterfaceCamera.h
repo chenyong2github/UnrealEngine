@@ -28,9 +28,6 @@ class NIAGARA_API UNiagaraDataInterfaceCamera : public UNiagaraDataInterface
 	GENERATED_UCLASS_BODY()
 
 public:
-
-	DECLARE_NIAGARA_DI_PARAMETER();
-
 	/** This is used to determine which camera position to query for cpu emitters. If no valid index is supplied, the first controller is used as camera reference. */
 	UPROPERTY(EditAnywhere, Category = "Camera")
 	int32 PlayerControllerIndex = 0;
@@ -93,17 +90,4 @@ struct FNiagaraDataIntefaceProxyCameraQuery : public FNiagaraDataInterfaceProxy
 	{
 		return 0;
 	}
-};
-
-struct FNiagaraDataInterfaceParametersCS_CameraQuery : public FNiagaraDataInterfaceParametersCS
-{
-	DECLARE_TYPE_LAYOUT(FNiagaraDataInterfaceParametersCS_CameraQuery, NonVirtual);
-
-	void Bind(const FNiagaraDataInterfaceGPUParamInfo& ParameterInfo, const class FShaderParameterMap& ParameterMap);
-	void Set(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const;
-
-private:
-
-	/** The SceneDepthTexture parameter for depth buffer query. */
-	LAYOUT_FIELD(FShaderUniformBufferParameter, PassUniformBuffer);
 };

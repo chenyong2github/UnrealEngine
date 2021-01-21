@@ -893,18 +893,17 @@ void SNiagaraBaselineViewport::Init(TSharedPtr<SWindow>& InOwnerWindow)
 	OwnerWindow = InOwnerWindow;
 }
 
-void SNiagaraBaselineViewport::AddBaseline(UNiagaraEffectType* EffectType)
+bool SNiagaraBaselineViewport::AddBaseline(UNiagaraEffectType* EffectType)
 {
 	check(EffectType && EffectType->IsPerfBaselineValid() == false);
 		
 	if (UNiagaraBaselineController* Controller = EffectType->GetPerfBaselineController())
 	{
-		if (UNiagaraSystem* System = Controller->System)
+		if (UNiagaraSystem* System = Controller->GetSystem())
 		{
 			if (System->bFixedBounds == false)
 			{
-				UE_LOG(LogNiagaraEditor, Error, TEXT("Niagara System cannot be used as a perf baseline as it does not have fixed bounds. %s"), *System->GetName());
-				return;
+				UE_LOG(LogNiagaraEditor, Warning, TEXT("Niagara System shouldn't be used as a perf baseline as it does not have fixed bounds. %s"), *System->GetName());
 			}
 
 			//Also generate the baseline actor in the preview world.
@@ -912,9 +911,16 @@ void SNiagaraBaselineViewport::AddBaseline(UNiagaraEffectType* EffectType)
 			{
 				BaselineWorld->GetWorldSettings()->SetIsTemporarilyHiddenInEditor(false);
 				EffectType->SpawnBaselineActor(BaselineWorld);
+				return true;
 			}
 		}
+		else
+		{
+			UE_LOG(LogNiagaraEditor, Warning, TEXT("Baseline Niagara System missing!. Effect Type: %s"), *EffectType->GetName());
+			return false;
+		}
 	}
+	return false;
 
 }
 

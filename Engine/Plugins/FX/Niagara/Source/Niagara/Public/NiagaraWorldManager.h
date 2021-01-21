@@ -28,6 +28,13 @@ class UNiagaraParameterCollectionInstance;
 class UNiagaraComponentPool;
 struct FNiagaraScalabilityState;
 
+enum class ENiagaraDebugPlaybackMode : uint8
+{
+	Play = 0,
+	Paused,
+	Step,
+};
+
 class FNiagaraViewDataMgr : public FRenderResource
 {
 public:
@@ -89,8 +96,9 @@ struct TStructOpsTypeTraits<FNiagaraWorldManagerTickFunction> : public TStructOp
 */
 class FNiagaraWorldManager : public FGCObject
 {
+	friend class FNiagaraDebugHud;
+
 public:
-	
 	FNiagaraWorldManager();
 	~FNiagaraWorldManager();
 
@@ -173,6 +181,15 @@ public:
 	static void PrimePoolForAllWorlds(UNiagaraSystem* System);
 	void PrimePoolForAllSystems();
 	void PrimePool(UNiagaraSystem* System);
+
+	void SetDebugPlaybackMode(ENiagaraDebugPlaybackMode Mode) { RequestedDebugPlaybackMode = Mode; }
+	ENiagaraDebugPlaybackMode GetDebugPlaybackMode() const { return DebugPlaybackMode; }
+
+	void SetDebugPlaybackRate(float Rate) { DebugPlaybackRate = FMath::Clamp(Rate, KINDA_SMALL_NUMBER, 10.0f); }
+	float GetDebugPlaybackRate() const { return DebugPlaybackRate; }
+
+	class FNiagaraDebugHud* GetNiagaraDebugHud() { return NiagaraDebugHud.Get(); }
+
 private:
 	// Callback function registered with global world delegates to instantiate world manager when a game world is created
 	static void OnWorldInit(UWorld* World, const UWorld::InitializationValues IVS);
@@ -207,14 +224,16 @@ private:
 	// Gamethread callback to cleanup references to the given batcher before it gets deleted on the renderthread.
 	void OnBatcherDestroyed_Internal(NiagaraEmitterInstanceBatcher* InBatcher);
 
-	FORCEINLINE_DEBUGGABLE bool CanPreCull(UNiagaraEffectType* EffectType);
+	bool CanPreCull(UNiagaraEffectType* EffectType);
 
-	FORCEINLINE_DEBUGGABLE void DistanceCull(UNiagaraEffectType* EffectType, const FNiagaraSystemScalabilitySettings& ScalabilitySettings, FVector Location, FNiagaraScalabilityState& OutState);
-	FORCEINLINE_DEBUGGABLE void DistanceCull(UNiagaraEffectType* EffectType, const FNiagaraSystemScalabilitySettings& ScalabilitySettings, UNiagaraComponent* Component, FNiagaraScalabilityState& OutState);
-	FORCEINLINE_DEBUGGABLE void VisibilityCull(UNiagaraEffectType* EffectType, const FNiagaraSystemScalabilitySettings& ScalabilitySettings, UNiagaraComponent* Component, FNiagaraScalabilityState& OutState);
-	FORCEINLINE_DEBUGGABLE void InstanceCountCull(UNiagaraEffectType* EffectType, UNiagaraSystem* System, const FNiagaraSystemScalabilitySettings& ScalabilitySettings, FNiagaraScalabilityState& OutState);
+	void DistanceCull(UNiagaraEffectType* EffectType, const FNiagaraSystemScalabilitySettings& ScalabilitySettings, FVector Location, FNiagaraScalabilityState& OutState);
+	void DistanceCull(UNiagaraEffectType* EffectType, const FNiagaraSystemScalabilitySettings& ScalabilitySettings, UNiagaraComponent* Component, FNiagaraScalabilityState& OutState);
+	void VisibilityCull(UNiagaraEffectType* EffectType, const FNiagaraSystemScalabilitySettings& ScalabilitySettings, UNiagaraComponent* Component, FNiagaraScalabilityState& OutState);
+	void InstanceCountCull(UNiagaraEffectType* EffectType, UNiagaraSystem* System, const FNiagaraSystemScalabilitySettings& ScalabilitySettings, FNiagaraScalabilityState& OutState);
 
-	
+	// Returns scalability state if one exists, this function is not designed for runtime performance and for debugging only
+	bool GetScalabilityState(UNiagaraComponent* Component, FNiagaraScalabilityState& OutState) const;
+
 	static FDelegateHandle OnWorldInitHandle;
 	static FDelegateHandle OnWorldCleanupHandle;
 	static FDelegateHandle OnPostWorldCleanupHandle;
@@ -261,6 +280,12 @@ private:
 	bool bAppHasFocus;
 
 	float WorldLoopTime = 0.0f;
+	
+	ENiagaraDebugPlaybackMode RequestedDebugPlaybackMode = ENiagaraDebugPlaybackMode::Play;
+	ENiagaraDebugPlaybackMode DebugPlaybackMode = ENiagaraDebugPlaybackMode::Play;
+	float DebugPlaybackRate = 1.0f;
+
+	TUniquePtr<class FNiagaraDebugHud> NiagaraDebugHud;
 };
 
 

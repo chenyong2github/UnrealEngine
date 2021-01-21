@@ -133,7 +133,7 @@ namespace WindowsMixedReality
 	HolographicSpace holographicSpace = nullptr;
 	winrt::Windows::Perception::Spatial::SpatialLocator Locator = nullptr;
 	IDirect3DDevice InteropD3DDevice = nullptr;
-	
+
 	/** Function pointer for tracking state change */
 	void(*OnTrackingChanged)(HMDSpatialLocatability);
 	std::mutex locatorMutex;
@@ -154,6 +154,8 @@ namespace WindowsMixedReality
 	std::mutex poseLock;
 	std::mutex disposeLock_GetProjection;
 	std::mutex disposeLock_Present;
+	HMDTrackingOrigin currentTrackingOrigin = HMDTrackingOrigin::Eye;
+	HMDTrackingOrigin desiredTrackingOrigin = HMDTrackingOrigin::Eye;
 
 	// Event registration tokens declared in cpp since events surface WinRT types.
 	winrt::event_token CameraAddedToken;
@@ -210,7 +212,7 @@ namespace WindowsMixedReality
 	// Remoting
 	void(*m_logCallback)(const wchar_t*) = nullptr;
 	wchar_t m_ip[32] = L"000.000.000.000";
-	
+
 	// Controller pose
 	float3 ControllerPositions[2];
 	quaternion ControllerOrientations[2];
@@ -222,7 +224,6 @@ namespace WindowsMixedReality
 	int HandIDs[2];
 
 	std::map<uint32_t, std::shared_ptr<HandMeshUpdateObserver> > MeshUpdateObserverMap;
-	bool enabledHandMesh = false;
 
 	// Controller state
 	HMDInputPressState CurrentSelectState[2];
@@ -277,7 +278,7 @@ namespace WindowsMixedReality
 	std::mutex speechRecognizerLock;
 	std::map<int, SpeechRecognizer*> speechRecognizerMap;
 	int speechRecognizerIndex = 0;
-	
+
 	std::mutex gestureRecognizerLock;
 	std::map<int, std::shared_ptr<GestureRecognizer> > gestureRecognizerMap;
 	int gestureRecognizerIndex = 0;
@@ -291,11 +292,11 @@ namespace WindowsMixedReality
 
 #if HOLO_STREAMING_RENDERING
 	// Remoting
-    winrt::Microsoft::Holographic::AppRemoting::RemoteContext m_remoteContext = nullptr;
+	winrt::Microsoft::Holographic::AppRemoting::RemoteContext m_remoteContext = nullptr;
 	winrt::Microsoft::Holographic::AppRemoting::IRemoteSpeech remoteSpeech = nullptr;
-    winrt::Microsoft::Holographic::AppRemoting::IRemoteContext::OnConnected_revoker m_onConnectedEventRevoker;
-    winrt::Microsoft::Holographic::AppRemoting::IRemoteContext::OnDisconnected_revoker m_onDisconnectedEventRevoker;
-    winrt::Microsoft::Holographic::AppRemoting::IRemoteSpeech::OnRecognizedSpeech_revoker m_onRecognizedSpeechRevoker;
+	winrt::Microsoft::Holographic::AppRemoting::IRemoteContext::OnConnected_revoker m_onConnectedEventRevoker;
+	winrt::Microsoft::Holographic::AppRemoting::IRemoteContext::OnDisconnected_revoker m_onDisconnectedEventRevoker;
+	winrt::Microsoft::Holographic::AppRemoting::IRemoteSpeech::OnRecognizedSpeech_revoker m_onRecognizedSpeechRevoker;
 	winrt::Microsoft::Holographic::AppRemoting::IRemoteContext::OnListening_revoker m_onListeningEventRevoker;
 
 	std::map<uint32_t, MixedRealityInterop::ConnectionCallback > ConnectionHandlerMap;
@@ -308,7 +309,7 @@ namespace WindowsMixedReality
 #endif // !PLATFORM_HOLOLENS
 
 	// Forward references
-	winrt::Windows::Perception::Spatial::SpatialCoordinateSystem GetReferenceCoordinateSystem(HMDTrackingOrigin& trackingOrigin);
+	winrt::Windows::Perception::Spatial::SpatialCoordinateSystem GetReferenceCoordinateSystem();
 
 	inline DirectX::XMFLOAT3 ToDirectXVec(float3 v)
 	{
@@ -333,7 +334,7 @@ namespace WindowsMixedReality
 		DirectX::XMFLOAT3 position = DirectX::XMFLOAT3(0, 0, 0);
 		DirectX::XMFLOAT4 rotation = DirectX::XMFLOAT4(0, 0, 0, 1);
 		DirectX::XMFLOAT3 scale = DirectX::XMFLOAT3(1, 1, 1);
-		
+
 		HMDLayerType layerType;
 
 		int priority = 0;
@@ -365,13 +366,13 @@ namespace WindowsMixedReality
 		return concurrency::create_task([tempFolderPath]() {
 			auto folder = winrt::Windows::Storage::StorageFolder::GetFolderFromPathAsync(tempFolderPath).get();
 			return folder.as<winrt::Windows::Storage::IStorageFolder>();
-		});
+			});
 #endif
 
 		return concurrency::create_task([]() {
 			auto folder = winrt::Windows::Storage::ApplicationData::Current().LocalCacheFolder();
 			return folder.as<winrt::Windows::Storage::IStorageFolder>();
-		});
+			});
 	}
 
 	concurrency::task<winrt::Windows::Storage::IStorageFile> CreateGrammarFileAsync()
@@ -398,12 +399,12 @@ namespace WindowsMixedReality
 
 		return GetTempFolderAsync().then(
 			[doc](winrt::Windows::Storage::IStorageFolder tempFolder) -> winrt::Windows::Storage::IStorageFile {
-			auto file =
-				tempFolder.CreateFileAsync(L"grammar.xml", winrt::Windows::Storage::CreationCollisionOption::ReplaceExisting).get();
-			doc.SaveToFileAsync(file).get();
+				auto file =
+					tempFolder.CreateFileAsync(L"grammar.xml", winrt::Windows::Storage::CreationCollisionOption::ReplaceExisting).get();
+				doc.SaveToFileAsync(file).get();
 
-			return file;
-		});
+				return file;
+			});
 	}
 #endif
 
@@ -456,7 +457,7 @@ namespace WindowsMixedReality
 		bool CalculatePose(const winrt::Windows::Perception::Spatial::SpatialCoordinateSystem& CoordinateSystem);
 
 		HolographicFrame Frame = nullptr;
-		
+
 		int Count = -1;
 
 	private:
@@ -469,7 +470,7 @@ namespace WindowsMixedReality
 	{
 	public:
 		HolographicCameraResources(
-			const winrt::Windows::Graphics::Holographic::HolographicCamera & InCamera)
+			const winrt::Windows::Graphics::Holographic::HolographicCamera& InCamera)
 			: Camera(InCamera)
 		{
 			bool bIsStereo = InCamera.IsStereo();
@@ -485,7 +486,7 @@ namespace WindowsMixedReality
 
 		winrt::Windows::Graphics::Holographic::HolographicCamera GetCamera() const { return Camera; }
 		winrt::Windows::Foundation::Size GetRenderTargetSize() const { return RenderTargetSize; }
-		const D3D11_VIEWPORT & GetViewport() const { return Viewport; }
+		const D3D11_VIEWPORT& GetViewport() const { return Viewport; }
 		bool IsStereoEnabled() const { return bStereoEnabled; }
 
 	private:
@@ -493,7 +494,7 @@ namespace WindowsMixedReality
 		winrt::Windows::Foundation::Size RenderTargetSize;
 		D3D11_VIEWPORT Viewport;
 		bool bStereoEnabled;
-	
+
 	public:
 		bool CalculatePose(const winrt::Windows::Perception::Spatial::SpatialCoordinateSystem& CoordinateSystem, const HolographicCameraPose& InPose, const HolographicFramePrediction& Prediction, bool displayCamera = true)
 		{
@@ -604,8 +605,7 @@ namespace WindowsMixedReality
 				return;
 			}
 
-			HMDTrackingOrigin trackingOrigin;
-			winrt::Windows::Perception::Spatial::SpatialCoordinateSystem cs = GetReferenceCoordinateSystem(trackingOrigin);
+			winrt::Windows::Perception::Spatial::SpatialCoordinateSystem cs = GetReferenceCoordinateSystem();
 
 			if (cs == nullptr)
 			{
@@ -823,12 +823,13 @@ namespace WindowsMixedReality
 		return winrt::Windows::Foundation::Metadata::ApiInformation::IsApiContractPresent(L"Windows.Foundation.UniversalApiContract", contractNumber);
 	}
 
-	winrt::Windows::Perception::Spatial::SpatialCoordinateSystem GetReferenceCoordinateSystem(HMDTrackingOrigin& trackingOrigin)
+	winrt::Windows::Perception::Spatial::SpatialCoordinateSystem GetReferenceCoordinateSystem()
 	{
 		std::lock_guard<std::mutex> lock(StageLock);
 
 		// Check for new stage if necessary.
-		if (isSpatialStageSupported && !isRemoteHolographicSpace)
+		if (desiredTrackingOrigin == HMDTrackingOrigin::Floor
+			&& isSpatialStageSupported && !isRemoteHolographicSpace)
 		{
 			if (StageReferenceFrame == nullptr)
 			{
@@ -837,15 +838,14 @@ namespace WindowsMixedReality
 
 			if (StageReferenceFrame != nullptr)
 			{
-				trackingOrigin = HMDTrackingOrigin::Floor;
+				currentTrackingOrigin = HMDTrackingOrigin::Floor;
 				return StageReferenceFrame.CoordinateSystem();
 			}
 		}
 
-		if (StageReferenceFrame == nullptr &&
-			StationaryReferenceFrame != nullptr)
+		if (StationaryReferenceFrame != nullptr)
 		{
-			trackingOrigin = HMDTrackingOrigin::Eye;
+			currentTrackingOrigin = HMDTrackingOrigin::Eye;
 			return StationaryReferenceFrame.CoordinateSystem();
 		}
 
@@ -883,7 +883,7 @@ namespace WindowsMixedReality
 #pragma region Event Callbacks
 	void OnLocatabilityChanged(
 		const winrt::Windows::Perception::Spatial::SpatialLocator& Sender,
-		const winrt::Windows::Foundation::IInspectable& )
+		const winrt::Windows::Foundation::IInspectable&)
 	{
 		std::lock_guard guard(locatorMutex);
 		if (OnTrackingChanged != nullptr)
@@ -1188,7 +1188,7 @@ namespace WindowsMixedReality
 		return graphicsAdapterLUID;
 #endif
 	}
-	
+
 	void MixedRealityInterop::SetLogCallback(void(*functionPointer)(const wchar_t*))
 	{
 		m_logCallback = functionPointer;
@@ -1291,11 +1291,11 @@ namespace WindowsMixedReality
 
 		// Register events.
 		LocatabilityChangedToken = Locator.LocatabilityChanged(
-			[=](const winrt::Windows::Perception::Spatial::SpatialLocator & sender, const winrt::Windows::Foundation::IInspectable & args)
-		{
-			OnLocatabilityChanged(sender, args);
-		});
-		
+			[=](const winrt::Windows::Perception::Spatial::SpatialLocator& sender, const winrt::Windows::Foundation::IInspectable& args)
+			{
+				OnLocatabilityChanged(sender, args);
+			});
+
 		// Broadcast initial tracking state after setting LocatabilityChanged.
 		if (OnTrackingChanged != nullptr)
 		{
@@ -1303,29 +1303,29 @@ namespace WindowsMixedReality
 		}
 
 		CameraAddedToken = holographicSpace.CameraAdded(
-			[=](const HolographicSpace & sender, const HolographicSpaceCameraAddedEventArgs & args)
-		{
-			OnCameraAdded(sender, args);
-		});
+			[=](const HolographicSpace& sender, const HolographicSpaceCameraAddedEventArgs& args)
+			{
+				OnCameraAdded(sender, args);
+			});
 
 		//no CameraRemoved event here because it deadlocks computer, we manually detect removed cameras in InitFrame
 
 		// Check for an updated stage:
 		StageChangedEventToken = winrt::Windows::Perception::Spatial::SpatialStageFrameOfReference::CurrentChanged(
-			[=](auto &&, auto &&)
-		{
-			// Reset stage reference frame so we can establish a new one next frame.
-			std::lock_guard<std::mutex> lock(StageLock);
-			StageReferenceFrame = nullptr;
-		});
+			[=](auto&&, auto&&)
+			{
+				// Reset stage reference frame so we can establish a new one next frame.
+				std::lock_guard<std::mutex> lock(StageLock);
+				StageReferenceFrame = nullptr;
+			});
 
 		if (!isRemoteHolographicSpace && isUserPresenceSupported)
 		{
 			UserPresenceChangedToken = holographicSpace.UserPresenceChanged(
-				[=](const HolographicSpace & sender, const winrt::Windows::Foundation::IInspectable & args)
-			{
-				OnUserPresenceChanged(sender, args);
-			});
+				[=](const HolographicSpace& sender, const winrt::Windows::Foundation::IInspectable& args)
+				{
+					OnUserPresenceChanged(sender, args);
+				});
 		}
 
 		bInitialized = true;
@@ -1415,9 +1415,9 @@ namespace WindowsMixedReality
 		StageReferenceFrame = nullptr;
 
 		isRemoteHolographicSpace = false;
-		
+
 		eyeTrackingAllowed = false;
-		
+
 		StopMeshObserver();
 
 		for (auto speechRecognizer : speechRecognizerMap)
@@ -1473,7 +1473,7 @@ namespace WindowsMixedReality
 
 		return HMDSpatialLocatability(Locator.Locatability());
 	}
-		
+
 	void MixedRealityInterop::SetTrackingChangedCallback(void(*CallbackPointer)(WindowsMixedReality::HMDSpatialLocatability))
 	{
 		std::lock_guard guard(locatorMutex);
@@ -1493,7 +1493,7 @@ namespace WindowsMixedReality
 		{
 			StageReferenceFrame = winrt::Windows::Perception::Spatial::SpatialStageFrameOfReference::Current();
 		}
-		
+
 		{
 			std::lock_guard<std::mutex> lock(gestureRecognizerLock);
 			for (auto p : gestureRecognizerMap)
@@ -1800,13 +1800,13 @@ namespace WindowsMixedReality
 
 	bool MixedRealityInterop::UpdateRenderThreadFrame()
 	{
-		if (currentFrame != nullptr 
+		if (currentFrame != nullptr
 			|| holographicSpace == nullptr
 			|| !bInitialized)
 		{
 			return false;
 		}
-		
+
 		HolographicFrame frame = holographicSpace.CreateNextFrame();
 		if (frame == nullptr) { return false; }
 
@@ -1824,8 +1824,7 @@ namespace WindowsMixedReality
 			}
 
 			currentFrame = std::make_unique<TrackingFrame>(frame);
-			HMDTrackingOrigin trackingOrigin;
-			auto CoordinateSystem = GetReferenceCoordinateSystem(trackingOrigin);
+			auto CoordinateSystem = GetReferenceCoordinateSystem();
 			if (CoordinateSystem == nullptr)
 			{
 				currentFrame = nullptr;
@@ -1847,8 +1846,8 @@ namespace WindowsMixedReality
 
 		return true;
 	}
-	
-	bool MixedRealityInterop::GetCurrentPoseRenderThread(DirectX::XMMATRIX& leftView, DirectX::XMMATRIX& rightView, HMDTrackingOrigin& trackingOrigin)
+
+	bool MixedRealityInterop::GetCurrentPoseRenderThread(DirectX::XMMATRIX& leftView, DirectX::XMMATRIX& rightView)
 	{
 		std::lock_guard<std::mutex> lock(poseLock);
 
@@ -1861,7 +1860,7 @@ namespace WindowsMixedReality
 			return false;
 		}
 
-		auto CoordinateSystem = GetReferenceCoordinateSystem(trackingOrigin);
+		auto CoordinateSystem = GetReferenceCoordinateSystem();
 		if (holographicSpace == nullptr || CoordinateSystem == nullptr) { return false; }
 
 		if (currentFrame == nullptr)
@@ -1881,15 +1880,15 @@ namespace WindowsMixedReality
 
 		return true;
 	}
-	
-	bool MixedRealityInterop::QueryCoordinateSystem(ABI::Windows::Perception::Spatial::ISpatialCoordinateSystem *& pCoordinateSystem, HMDTrackingOrigin& trackingOrigin)
+
+	bool MixedRealityInterop::QueryCoordinateSystem(ABI::Windows::Perception::Spatial::ISpatialCoordinateSystem *& pCoordinateSystem)
 	{
 		if (CameraResources == nullptr)
 		{
 			return false;
 		}
 
-		auto CoordinateSystem = GetReferenceCoordinateSystem(trackingOrigin);
+		auto CoordinateSystem = GetReferenceCoordinateSystem();
 		if (holographicSpace == nullptr || CoordinateSystem == nullptr) { return false; }
 
 		winrt::com_ptr<ABI::Windows::Perception::Spatial::ISpatialCoordinateSystem> ptr{ CoordinateSystem.try_as<ABI::Windows::Perception::Spatial::ISpatialCoordinateSystem>() };
@@ -1904,6 +1903,16 @@ namespace WindowsMixedReality
 		return true;
 	}
 
+	void MixedRealityInterop::SetTrackingOrigin(HMDTrackingOrigin trackingOrigin)
+	{
+		desiredTrackingOrigin = trackingOrigin;
+	}
+
+	HMDTrackingOrigin MixedRealityInterop::GetTrackingOrigin()
+	{
+		return currentTrackingOrigin;
+	}
+
 	DirectX::XMFLOAT4X4 MixedRealityInterop::GetProjectionMatrix(HMDEye eye)
 	{
 		std::lock_guard<std::mutex> pLock(poseLock);
@@ -1913,7 +1922,7 @@ namespace WindowsMixedReality
 
 		if (CameraResources == nullptr
 			|| CameraResources->Pose == nullptr
-			|| (eye == HMDEye::ThirdCamera 
+			|| (eye == HMDEye::ThirdCamera
 				&& (PVCameraResources == nullptr || PVCameraResources->Pose == nullptr)))
 		{
 			switch (eye)
@@ -1991,7 +2000,7 @@ namespace WindowsMixedReality
 
 	uint32_t MixedRealityInterop::AddQuadLayer(
 		uint32_t Id,
-		ID3D11Texture2D* quadLayerTexture, 
+		ID3D11Texture2D* quadLayerTexture,
 		float widthM, float heightM,
 		DirectX::XMFLOAT3 position,
 		DirectX::XMFLOAT4 rotation,
@@ -2038,8 +2047,7 @@ namespace WindowsMixedReality
 			float3 pos = float3{ layer.position.x, layer.position.y, layer.position.z };
 			quaternion rot = quaternion{ layer.rotation.x, layer.rotation.y, layer.rotation.z, layer.rotation.w };
 
-			HMDTrackingOrigin trackingOrigin;
-			winrt::Windows::Perception::Spatial::SpatialCoordinateSystem coordinateSystem = GetReferenceCoordinateSystem(trackingOrigin);
+			winrt::Windows::Perception::Spatial::SpatialCoordinateSystem coordinateSystem = GetReferenceCoordinateSystem();
 
 			layer.anchor = winrt::Windows::Perception::Spatial::SpatialAnchor::TryCreateRelativeTo(coordinateSystem, pos, rot);
 		}
@@ -2081,7 +2089,7 @@ namespace WindowsMixedReality
 			quadLayers.erase(it + removeIndex);
 		}
 	}
-	
+
 	bool MixedRealityInterop::CreateRenderingParameters()
 	{
 		std::lock_guard<std::mutex> lock(poseLock);
@@ -2102,7 +2110,7 @@ namespace WindowsMixedReality
 			PVCameraResources->CreateRenderingParameters(currentFrame.get(), pvSucceeded);
 		}
 
-		if(CameraResources == nullptr
+		if (CameraResources == nullptr
 			|| CameraResources->Pose == nullptr)
 		{
 			return succeeded;
@@ -2226,7 +2234,7 @@ namespace WindowsMixedReality
 		{
 			int w, h;
 			GetThirdCameraDimensions(w, h);
-			
+
 			D3D11_TEXTURE2D_DESC desc{};
 			viewportTexture->GetDesc(&desc);
 
@@ -2367,12 +2375,12 @@ namespace WindowsMixedReality
 		if (supportsEyeTracking && !eyeTrackingAllowed)
 		{
 			EyesPose::RequestAccessAsync().Completed([=](auto&& sender, winrt::Windows::Foundation::AsyncStatus const  args)
-			{
-				if (args == winrt::Windows::Foundation::AsyncStatus::Completed)
 				{
-					eyeTrackingAllowed = (sender.GetResults() == winrt::Windows::UI::Input::GazeInputAccessStatus::Allowed);
-				}
-			});
+					if (args == winrt::Windows::Foundation::AsyncStatus::Completed)
+					{
+						eyeTrackingAllowed = (sender.GetResults() == winrt::Windows::UI::Input::GazeInputAccessStatus::Allowed);
+					}
+				});
 		}
 #endif
 	}
@@ -2394,8 +2402,7 @@ namespace WindowsMixedReality
 
 		try
 		{
-			HMDTrackingOrigin trackingOrigin;
-			auto coordinateSystem = GetReferenceCoordinateSystem(trackingOrigin);
+			auto coordinateSystem = GetReferenceCoordinateSystem();
 			if (coordinateSystem == nullptr) { return false; }
 
 			auto currentTimeStamp = PerceptionTimestampHelper::FromHistoricalTargetTime(winrt::clock::now());
@@ -2532,8 +2539,7 @@ namespace WindowsMixedReality
 				continue;
 			}
 
-			HMDTrackingOrigin trackingOrigin;
-			winrt::Windows::Perception::Spatial::SpatialCoordinateSystem coordinateSystem = GetReferenceCoordinateSystem(trackingOrigin);
+			winrt::Windows::Perception::Spatial::SpatialCoordinateSystem coordinateSystem = GetReferenceCoordinateSystem();
 			if (coordinateSystem != nullptr)
 			{
 				SpatialInteractionSourceProperties prop = state.Properties();
@@ -2626,8 +2632,8 @@ namespace WindowsMixedReality
 		radius = JointPoses[(int)hand][(int)joint].Radius;
 
 		// Rotate the bones to the MS API's new frame
- 		rot *= make_quaternion_from_yaw_pitch_roll(0.0f, DirectX::XM_PI, 0.0f);
- 		rot = normalize(rot);
+		rot *= make_quaternion_from_yaw_pitch_roll(0.0f, DirectX::XM_PI, 0.0f);
+		rot = normalize(rot);
 
 		orientation = DirectX::XMFLOAT4(rot.x, rot.y, rot.z, rot.w);
 		position = DirectX::XMFLOAT3(pos.x, pos.y, pos.z);
@@ -2766,8 +2772,7 @@ namespace WindowsMixedReality
 
 	void UpdateTrackedHands(IVectorView<SpatialInteractionSourceState> sourceStates)
 	{
-		HMDTrackingOrigin trackingOrigin;
-		winrt::Windows::Perception::Spatial::SpatialCoordinateSystem coordinateSystem = GetReferenceCoordinateSystem(trackingOrigin);
+		winrt::Windows::Perception::Spatial::SpatialCoordinateSystem coordinateSystem = GetReferenceCoordinateSystem();
 		if (coordinateSystem == nullptr)
 		{
 			Log(L"UpdateTrackedHands - unable to get reference coordinate system - hand skeleton data may be invalid");
@@ -2921,8 +2926,7 @@ namespace WindowsMixedReality
 				continue;
 			}
 
-			HMDTrackingOrigin trackingOrigin;
-			winrt::Windows::Perception::Spatial::SpatialCoordinateSystem coordinateSystem = GetReferenceCoordinateSystem(trackingOrigin);
+			winrt::Windows::Perception::Spatial::SpatialCoordinateSystem coordinateSystem = GetReferenceCoordinateSystem();
 			if (coordinateSystem != nullptr)
 			{
 				SpatialInteractionSourceProperties prop = state.Properties();
@@ -2942,18 +2946,26 @@ namespace WindowsMixedReality
 							HandPose handPose = state.TryGetHandPose();
 							if (handPose != nullptr)
 							{
-								if (enabledHandMesh)
+								if (HandMeshUpdateObserver::IsInitialized())
 								{
-									if (MeshUpdateObserverMap.count(source.Id()) == 0)
+									std::shared_ptr<HandMeshUpdateObserver> Observer;
+
+									if (MeshUpdateObserverMap.count((uint32_t)hand) == 0)
 									{
-										auto Observer = std::make_shared<HandMeshUpdateObserver>();
-										Observer->InitAsync(source);
-										MeshUpdateObserverMap[source.Id()] = Observer;
+										Observer = std::make_shared<HandMeshUpdateObserver>();
+										MeshUpdateObserverMap[(uint32_t)hand] = Observer;
 									}
 									else
 									{
-										MeshUpdateObserverMap[source.Id()]->Update(handPose, coordinateSystem);
+										Observer = MeshUpdateObserverMap[(uint32_t)hand];
 									}
+
+									if (Observer->GetSourceId() != source.Id())
+									{
+										Observer->InitAsync(source);
+									}
+
+									Observer->Update(handPose, coordinateSystem);
 								}
 								JointPoseValid[(int)hand] = handPose.TryGetJoints(coordinateSystem, Joints, JointPoses[(int)hand]);
 							}
@@ -3239,7 +3251,7 @@ namespace WindowsMixedReality
 #if !HOLO_STREAMING_RENDERING
 		speechRecognizerMap[id]->StartSpeechRecognizer();
 #else
-		if (m_remoteContext == nullptr 
+		if (m_remoteContext == nullptr
 			|| remoteSpeech == nullptr)
 		{
 			speechRecognizerMap[id]->StartSpeechRecognizer();
@@ -3247,34 +3259,34 @@ namespace WindowsMixedReality
 		}
 
 		CreateGrammarFileAsync().then([this](winrt::Windows::Storage::IStorageFile grammarFile)
-		{
-			std::vector<winrt::hstring> dictionary;
-			for (auto keywordPair : speechRecognizerMap[id]->KeywordMap())
 			{
-				{ std::wstringstream string; string << L"Adding Keyword " << keywordPair.first.c_str(); Log(string); }
-
-				dictionary.push_back(keywordPair.first);
-			}
-			
-			remoteSpeech.ApplyParameters(L"en-US", grammarFile, dictionary);
-
-			m_onRecognizedSpeechRevoker = remoteSpeech.OnRecognizedSpeech(
-				winrt::auto_revoke, [this](const winrt::Microsoft::Holographic::AppRemoting::RecognizedSpeech& recognizedSpeech)
-			{
-				{ std::wstringstream string; string << L"Evaluating Keyword " << recognizedSpeech.RecognizedText.c_str(); Log(string); }
-
+				std::vector<winrt::hstring> dictionary;
 				for (auto keywordPair : speechRecognizerMap[id]->KeywordMap())
 				{
-					if (recognizedSpeech.RecognizedText == keywordPair.first)
-					{
-						{ std::wstringstream string; string << L"Recognized Keyword " << recognizedSpeech.RecognizedText.c_str(); Log(string); }
+					{ std::wstringstream string; string << L"Adding Keyword " << keywordPair.first.c_str(); Log(string); }
 
-						keywordPair.second();
-						break;
-					}
+					dictionary.push_back(keywordPair.first);
 				}
+
+				remoteSpeech.ApplyParameters(L"en-US", grammarFile, dictionary);
+
+				m_onRecognizedSpeechRevoker = remoteSpeech.OnRecognizedSpeech(
+					winrt::auto_revoke, [this](const winrt::Microsoft::Holographic::AppRemoting::RecognizedSpeech& recognizedSpeech)
+					{
+						{ std::wstringstream string; string << L"Evaluating Keyword " << recognizedSpeech.RecognizedText.c_str(); Log(string); }
+
+						for (auto keywordPair : speechRecognizerMap[id]->KeywordMap())
+						{
+							if (recognizedSpeech.RecognizedText == keywordPair.first)
+							{
+								{ std::wstringstream string; string << L"Recognized Keyword " << recognizedSpeech.RecognizedText.c_str(); Log(string); }
+
+								keywordPair.second();
+								break;
+							}
+						}
+					});
 			});
-		});
 #endif
 	}
 
@@ -3294,7 +3306,7 @@ namespace WindowsMixedReality
 			speechRecognizerMap.erase(it);
 		}
 	}
-	
+
 	bool CreateSpatialAnchorHelper(MixedRealityInterop& inThis)
 	{
 		Log(L"CreateSpatialAnchorHelper");
@@ -3324,7 +3336,7 @@ namespace WindowsMixedReality
 			Log(L"IsSpatialAnchorStoreLoaded: HoloLens application is not yet initialized!  Doing nothing.");
 			return false;
 		}
-		
+
 		if (m_spatialAnchorHelper)
 		{
 			return m_spatialAnchorHelper->IsSpatialAnchorStoreLoaded();
@@ -3335,11 +3347,11 @@ namespace WindowsMixedReality
 		}
 	}
 
-	bool MixedRealityInterop::CreateAnchor(const wchar_t* anchorId, const DirectX::XMFLOAT3 inPosition, DirectX::XMFLOAT4 inRotationQuat, HMDTrackingOrigin trackingOrigin)
+	bool MixedRealityInterop::CreateAnchor(const wchar_t* anchorId, const DirectX::XMFLOAT3 inPosition, DirectX::XMFLOAT4 inRotationQuat)
 	{
 		if (m_spatialAnchorHelper)
 		{
-			return m_spatialAnchorHelper->CreateAnchor(anchorId, inPosition, inRotationQuat, GetReferenceCoordinateSystem(trackingOrigin));
+			return m_spatialAnchorHelper->CreateAnchor(anchorId, inPosition, inRotationQuat, GetReferenceCoordinateSystem());
 		}
 		else
 		{
@@ -3374,11 +3386,11 @@ namespace WindowsMixedReality
 		}
 	}
 
-	bool MixedRealityInterop::GetAnchorPose(const wchar_t* anchorId, DirectX::XMFLOAT3& outScale, DirectX::XMFLOAT4& outRot, DirectX::XMFLOAT3& outTrans, HMDTrackingOrigin trackingOrigin) const
-	{	
+	bool MixedRealityInterop::GetAnchorPose(const wchar_t* anchorId, DirectX::XMFLOAT3& outScale, DirectX::XMFLOAT4& outRot, DirectX::XMFLOAT3& outTrans) const
+	{
 		if (m_spatialAnchorHelper)
 		{
-			return m_spatialAnchorHelper->GetAnchorPose(anchorId, outScale, outRot, outTrans, GetReferenceCoordinateSystem(trackingOrigin));
+			return m_spatialAnchorHelper->GetAnchorPose(anchorId, outScale, outRot, outTrans, GetReferenceCoordinateSystem());
 		}
 		else
 		{
@@ -3394,7 +3406,7 @@ namespace WindowsMixedReality
 			Log(L"SaveAnchor: Anchor Store is not laoded!  Doing nothing.");
 			return false;
 		}
-		
+
 		if (m_spatialAnchorHelper)
 		{
 			return m_spatialAnchorHelper->SaveAnchor(saveId, anchorId);
@@ -3413,7 +3425,7 @@ namespace WindowsMixedReality
 			Log(L"RemoveSavedAnchor: Anchor Store is not laoded!  Doing nothing.");
 			return;
 		}
-		
+
 		if (m_spatialAnchorHelper)
 		{
 			m_spatialAnchorHelper->RemoveSavedAnchor(saveId);
@@ -3431,7 +3443,7 @@ namespace WindowsMixedReality
 			Log(L"LoadAnchors: Anchor Store is not laoded!  Doing nothing.");
 			return false;
 		}
-		
+
 		if (m_spatialAnchorHelper)
 		{
 			return m_spatialAnchorHelper->LoadAnchors(anchorIdWritingFunctionPointer);
@@ -3450,7 +3462,7 @@ namespace WindowsMixedReality
 			Log(L"ClearSavedAnchors: Anchor Store is not laoded!  Doing nothing.");
 			return;
 		}
-		
+
 		if (m_spatialAnchorHelper)
 		{
 			m_spatialAnchorHelper->ClearSavedAnchors();
@@ -3588,7 +3600,7 @@ namespace WindowsMixedReality
 
 		return gestureRecognizerMap[id]->SubscribeNavigation(callback, settings);
 	}
-	
+
 	HMDRemotingConnectionState MixedRealityInterop::GetConnectionState()
 	{
 #if HOLO_STREAMING_RENDERING
@@ -3633,7 +3645,7 @@ namespace WindowsMixedReality
 	}
 #endif
 
-	void MixedRealityInterop::ConnectToRemoteHoloLens(ID3D11Device* device, const wchar_t * ip, int bitrate, int port, bool listen)
+	void MixedRealityInterop::ConnectToRemoteHoloLens(ID3D11Device* device, const wchar_t* ip, int bitrate, int port, bool listen)
 	{
 #if HOLO_STREAMING_RENDERING
 		{ std::wstringstream string; string << L"ConnectToRemoteHoloLens trying to connect to HoloLens2 " << ip; Log(string); }
@@ -3645,7 +3657,7 @@ namespace WindowsMixedReality
 			wcsncpy_s(m_ip, ip, std::size(m_ip));
 
 			// HoloLens 2 Remoting
-			
+
 			// Do not use WMR api's before this call when remoting or you may get access to local machine WMR instead.
 			std::lock_guard<std::mutex> remoteLock(remoteContextLock);
 			if (m_remoteContext == nullptr)
@@ -3660,80 +3672,80 @@ namespace WindowsMixedReality
 					Initialize(device);
 				}
 
-				m_onConnectedEventRevoker = m_remoteContext.OnConnected(winrt::auto_revoke, [this]() 
-				{
-					Log(L"ConnectToRemoteHoloLens: Connect Succeeded.");
+				m_onConnectedEventRevoker = m_remoteContext.OnConnected(winrt::auto_revoke, [this]()
+					{
+						Log(L"ConnectToRemoteHoloLens: Connect Succeeded.");
 
-					SetInteractionManagerForCurrentView();
+						SetInteractionManagerForCurrentView();
 
-					assert(Locator != nullptr); // bug in Hololens platform cannot initialize the spatial anchor store before the Locator is created.
-					CreateSpatialAnchorHelper(*this);
-					
-					RequestUserPermissionForEyeTracking();
-					ReportConnectionStatus(MixedRealityInterop::ConnectionEvent::Connected);
-				});
+						assert(Locator != nullptr); // bug in Hololens platform cannot initialize the spatial anchor store before the Locator is created.
+						CreateSpatialAnchorHelper(*this);
+
+						RequestUserPermissionForEyeTracking();
+						ReportConnectionStatus(MixedRealityInterop::ConnectionEvent::Connected);
+					});
 
 				m_onListeningEventRevoker = m_remoteContext.OnListening(winrt::auto_revoke, [this](uint16_t port)
-				{
-					ReportConnectionStatus(MixedRealityInterop::ConnectionEvent::Listening);
-				});
+					{
+						ReportConnectionStatus(MixedRealityInterop::ConnectionEvent::Listening);
+					});
 
 				//emptry failure reason as we are trying to connect
 				wcsncpy_s(failureString, L"", std::size(failureString));
 
 				m_onDisconnectedEventRevoker =
 					m_remoteContext.OnDisconnected(winrt::auto_revoke, [this](winrt::Microsoft::Holographic::AppRemoting::ConnectionFailureReason failureReason)
-				{
-					const int32 LastEnumValue = static_cast<int32>(winrt::Microsoft::Holographic::AppRemoting::ConnectionFailureReason::PeerDisconnectTimeout);
-					const wchar_t ConnectFailureReasonString[LastEnumValue + 1][32] =
-					{
-						L"None",
-						L"Unknown",
-						L"NoServerCertificate",
-						L"HandshakePortBusy",
-						L"HandshakeUnreachable",
-						L"HandshakeConnectionFailed",
-						L"AuthenticationFailed",
-						L"RemotingVersionMismatch",
-						L"IncompatibleTransportProtocols",
-						L"HandshakeFailed",
-						L"TransportPortBusy",
-						L"TransportUnreachable",
-						L"TransportConnectionFailed",
-						L"ProtocolVersionMismatch",
-						L"ProtocolError",
-						L"VideoCodecNotAvailable",
-						L"Canceled",
-						L"ConnectionLost",
-						L"DeviceLost",
-						L"DisconnectRequest",
-						L"HandshakeNetworkUnreachable",
-						L"HandshakeConnectionRefused",
-						L"VideoFormatNotAvailable",
-						L"PeerDisconnectRequest",
-						L"PeerDisconnectTimeout"
-						// If you add more be sure to update LastEnumValue above!
-					}; 
+						{
+							const int32 LastEnumValue = static_cast<int32>(winrt::Microsoft::Holographic::AppRemoting::ConnectionFailureReason::PeerDisconnectTimeout);
+							const wchar_t ConnectFailureReasonString[LastEnumValue + 1][32] =
+							{
+								L"None",
+								L"Unknown",
+								L"NoServerCertificate",
+								L"HandshakePortBusy",
+								L"HandshakeUnreachable",
+								L"HandshakeConnectionFailed",
+								L"AuthenticationFailed",
+								L"RemotingVersionMismatch",
+								L"IncompatibleTransportProtocols",
+								L"HandshakeFailed",
+								L"TransportPortBusy",
+								L"TransportUnreachable",
+								L"TransportConnectionFailed",
+								L"ProtocolVersionMismatch",
+								L"ProtocolError",
+								L"VideoCodecNotAvailable",
+								L"Canceled",
+								L"ConnectionLost",
+								L"DeviceLost",
+								L"DisconnectRequest",
+								L"HandshakeNetworkUnreachable",
+								L"HandshakeConnectionRefused",
+								L"VideoFormatNotAvailable",
+								L"PeerDisconnectRequest",
+								L"PeerDisconnectTimeout"
+								// If you add more be sure to update LastEnumValue above!
+							};
 					
-					const int32 FailureReason = static_cast<int32>(failureReason);
-					// If we are logging "AReasonWeHaveNoStingFor" the list of strings above likely needs to expand to cover a new error value.
-					const wchar_t* ReasonString = FailureReason <= LastEnumValue ? ConnectFailureReasonString[FailureReason] : L"AReasonWeHaveNoStringFor";
+							const int32 FailureReason = static_cast<int32>(failureReason);
+							// If we are logging "AReasonWeHaveNoStingFor" the list of strings above likely needs to expand to cover a new error value.
+							const wchar_t* ReasonString = FailureReason <= LastEnumValue ? ConnectFailureReasonString[FailureReason] : L"AReasonWeHaveNoStringFor";
 
-					//copy reason for future retrieval
-					wcsncpy_s(failureString, ReasonString, std::size(failureString));
+							//copy reason for future retrieval
+							wcsncpy_s(failureString, ReasonString, std::size(failureString));
 
-					{ std::wstringstream string; string << L"RemotingDisconnectedEvent: Reason: " << FailureReason << " " << ReasonString; Log(string); }
-					if (failureReason == winrt::Microsoft::Holographic::AppRemoting::ConnectionFailureReason::VideoFormatNotAvailable)
-					{
-						{ std::wstringstream string; string << L"RemotingDisconnectedEvent: VideoFormatNotAvailable may result from a conflict with another application that is running on your PC.  The workaround is to close that application."; Log(string); }
-					}
+							{ std::wstringstream string; string << L"RemotingDisconnectedEvent: Reason: " << FailureReason << " " << ReasonString; Log(string); }
+							if (failureReason == winrt::Microsoft::Holographic::AppRemoting::ConnectionFailureReason::VideoFormatNotAvailable)
+							{
+								{ std::wstringstream string; string << L"RemotingDisconnectedEvent: VideoFormatNotAvailable may result from a conflict with another application that is running on your PC.  The workaround is to close that application."; Log(string); }
+							}
 
-					ReportConnectionStatus(MixedRealityInterop::ConnectionEvent::DisconnectedFromPeer);
-				});
+							ReportConnectionStatus(MixedRealityInterop::ConnectionEvent::DisconnectedFromPeer);
+						});
 
 				remoteSpeech = m_remoteContext.GetRemoteSpeech();
 			}
-			
+
 			if (listen)
 			{
 				try
@@ -3792,7 +3804,7 @@ namespace WindowsMixedReality
 		holographicSpace = from_cx<winrt::Windows::Graphics::Holographic::HolographicSpace>(inHolographicSpace);
 	}
 #endif
-	
+
 	void MixedRealityInterop::SetInteractionManagerForCurrentView()
 	{
 #if !PLATFORM_HOLOLENS
@@ -3853,7 +3865,7 @@ namespace WindowsMixedReality
 		//make sure to set to empty
 		wcsncpy_s(failureString, L"", std::size(failureString));
 
-#if HOLO_STREAMING_RENDERING	
+#if HOLO_STREAMING_RENDERING
 		if (m_remoteContext != nullptr)
 		{
 			Log(L"DisconnectFromDevice: Disconnecting from wmr device.");
@@ -4036,7 +4048,7 @@ namespace WindowsMixedReality
 			isThirdCameraActive = false;
 			return false;
 		}
-		
+
 		auto view = HolographicDisplay::GetDefault().TryGetViewConfiguration(HolographicViewConfigurationKind::PhotoVideoCamera);
 		if (!view)
 		{
@@ -4054,7 +4066,7 @@ namespace WindowsMixedReality
 		{
 			return false;
 		}
-		
+
 		auto view = HolographicDisplay::GetDefault().TryGetViewConfiguration(HolographicViewConfigurationKind::PhotoVideoCamera);
 		if (!view)
 		{
@@ -4115,6 +4127,8 @@ namespace WindowsMixedReality
 			RemovedMeshPointer,
 			FinishFunctionPointer
 		);
+
+		HandMeshUpdateObserver::InitStatic(StartFunctionPointer, AllocFunctionPointer, FinishFunctionPointer);
 #endif
 	}
 
@@ -4130,6 +4144,9 @@ namespace WindowsMixedReality
 	{
 #if PLATFORM_HOLOLENS || HOLO_STREAMING_RENDERING
 		MeshUpdateObserver::Release();
+		HandMeshUpdateObserver::InitStatic(nullptr, nullptr, nullptr);
+		MeshUpdateObserverMap.clear();
+
 #endif
 	}
 }
@@ -4181,8 +4198,7 @@ namespace WindowsMixedReality
 #if PLATFORM_HOLOLENS
 		SceneUnderstandingObserver& Instance = SceneUnderstandingObserver::Get();
 
-		WindowsMixedReality::HMDTrackingOrigin origin;
-		winrt::Windows::Perception::Spatial::SpatialCoordinateSystem cs = GetReferenceCoordinateSystem(origin);
+		winrt::Windows::Perception::Spatial::SpatialCoordinateSystem cs = GetReferenceCoordinateSystem();
 		Instance.SetTrackingCoordinateSystem(cs);
 #endif
 	}
@@ -4210,7 +4226,7 @@ namespace WindowsMixedReality
 #endif
 	}
 
-void StopQRCodeObserver()
+	void StopQRCodeObserver()
 	{
 #if PLATFORM_HOLOLENS || HOLO_STREAMING_RENDERING
 		QRCodeUpdateObserver& Instance = QRCodeUpdateObserver::Get();

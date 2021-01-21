@@ -41,7 +41,7 @@ struct FRepRootMotionMontage
 
 	/** Whether this has useful/active data. */
 	UPROPERTY()
-	bool bIsActive;
+	bool bIsActive = false;
 
 	/** AnimMontage providing Root Motion */
 	UPROPERTY()
@@ -49,7 +49,7 @@ struct FRepRootMotionMontage
 
 	/** Track position of Montage */
 	UPROPERTY()
-	float Position;
+	float Position = 0.f;
 
 	/** Location */
 	UPROPERTY()
@@ -57,7 +57,7 @@ struct FRepRootMotionMontage
 
 	/** Rotation */
 	UPROPERTY()
-	FRotator Rotation;
+	FRotator Rotation = FRotator(0.f);
 
 	/** Movement Relative to Base */
 	UPROPERTY()
@@ -69,11 +69,11 @@ struct FRepRootMotionMontage
 
 	/** Additional replicated flag, if MovementBase can't be resolved on the client. So we don't use wrong data. */
 	UPROPERTY()
-	bool bRelativePosition;
+	bool bRelativePosition = false;
 
 	/** Whether rotation is relative or absolute. */
 	UPROPERTY()
-	bool bRelativeRotation;
+	bool bRelativeRotation = false;
 
 	/** State of Root Motion Sources on Authority */
 	UPROPERTY()
@@ -109,7 +109,7 @@ struct FSimulatedRootMotionReplicatedMove
 
 	/** Local time when move was received on client and saved. */
 	UPROPERTY()
-	float Time;
+	float Time = 0.f;
 
 	/** Root Motion information */
 	UPROPERTY()
@@ -168,19 +168,19 @@ struct FBasedMovementInfo
 
 	/** Rotation: relative to MovementBase if HasRelativeRotation() is true, absolute otherwise. */
 	UPROPERTY()
-	FRotator Rotation;
+	FRotator Rotation = FRotator(0.f);
 
 	/** Whether the server says that there is a base. On clients, the component may not have resolved yet. */
 	UPROPERTY()
-	bool bServerHasBaseComponent;
+	bool bServerHasBaseComponent = false;
 
 	/** Whether rotation is relative to the base or absolute. It can only be relative if location is also relative. */
 	UPROPERTY()
-	bool bRelativeRotation;
+	bool bRelativeRotation = false;
 
 	/** Whether there is a velocity on the server. Used for forcing replication when velocity goes to zero. */
 	UPROPERTY()
-	bool bServerHasVelocity;
+	bool bServerHasVelocity = false;
 
 	/** Is location relative? */
 	FORCEINLINE bool HasRelativeLocation() const
@@ -621,10 +621,10 @@ public:
 	/** 
 	 * Make the character jump on the next update.	 
 	 * If you want your character to jump according to the time that the jump key is held,
-	 * then you can set JumpKeyHoldTime to some non-zero value. Make sure in this case to
+	 * then you can set JumpMaxHoldTime to some non-zero value. Make sure in this case to
 	 * call StopJumping() when you want the jump's z-velocity to stop being applied (such 
 	 * as on a button up event), otherwise the character will carry on receiving the 
-	 * velocity until JumpKeyHoldTime is reached.
+	 * velocity until JumpKeyHoldTime reaches JumpMaxHoldTime.
 	 */
 	UFUNCTION(BlueprintCallable, Category=Character)
 	virtual void Jump();

@@ -47,7 +47,7 @@ struct MAGICLEAP_API FPurchaseItemDetails
 	FString Name;
 	/*! This is the type of purchase. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "PurchaseItemDetails|MagicLeap")
-	PurchaseType Type;
+	PurchaseType Type = PurchaseType::Consumable;
 	/*! This is the token to be used when submitting a purchase. */
 	const char *Token;
 };
@@ -72,7 +72,7 @@ struct MAGICLEAP_API FPurchaseConfirmation
 	FString IAPID;
 	/*! This is the type of purchase. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "PurchaseConfirmation|MagicLeap")
-	PurchaseType Type;
+	PurchaseType Type = PurchaseType::Consumable;
 };
 
 /**

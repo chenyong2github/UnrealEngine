@@ -14,6 +14,7 @@ struct FConcertMessageContext;
 UENUM()
 enum class EConcertLogMessageAction : uint8
 {
+	None,
 	Send,
 	Publish,
 	Receive,
@@ -33,22 +34,22 @@ struct FConcertLog
 	GENERATED_BODY()
 
 	UPROPERTY()
-	uint64 Frame;
+	uint64 Frame = 0;
 
 	UPROPERTY()
 	FGuid MessageId;
 
 	UPROPERTY()
-	uint16 MessageOrderIndex;
+	uint16 MessageOrderIndex  = 0;
 
 	UPROPERTY()
-	uint16 ChannelId;
+	uint16 ChannelId = 0;
 
 	UPROPERTY()
-	FDateTime Timestamp;
+	FDateTime Timestamp = {0};
 
 	UPROPERTY()
-	EConcertLogMessageAction MessageAction;
+	EConcertLogMessageAction MessageAction = EConcertLogMessageAction::None;
 
 	UPROPERTY()
 	FName MessageTypeName;
@@ -63,7 +64,7 @@ struct FConcertLog
 	FName CustomPayloadTypename;
 
 	UPROPERTY()
-	int32 CustomPayloadUncompressedByteSize;
+	int32 CustomPayloadUncompressedByteSize = 0;
 
 	UPROPERTY()
 	FString StringPayload;

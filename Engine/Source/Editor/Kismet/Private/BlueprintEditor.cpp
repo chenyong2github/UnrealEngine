@@ -3665,7 +3665,7 @@ void FBlueprintEditor::DeleteUnusedVariables_OnClicked()
 			.AutoHeight()
 			[
 				SNew(STextBlock)
-				.Text(LOCTEXT("VariableDialog_Message", "These variables are not used in the graph.\nThey may be used in other places.\nYou may use 'Find in Blueprint' or the 'Asset Search' to find out if they are referenced elsewhere."))
+				.Text(LOCTEXT("VariableDialog_Message", "These variables are not used in the graph or in other blueprints' graphs.\nThey may be used in other places.\nYou may use 'Find in Blueprint' or the 'Asset Search' to find out if they are referenced elsewhere."))
 				.AutoWrapText(true)
 			]
 			+ SVerticalBox::Slot().FillHeight(0.8)
@@ -3707,7 +3707,8 @@ void FBlueprintEditor::DeleteUnusedVariables_OnClicked()
 
 			if (VariableNames.Num() > 0)
 			{
-				FBlueprintEditorUtils::BulkRemoveMemberVariables(GetBlueprintObj(), VariableNames);
+				VariableProperties.Empty(); // Emptying this array because these properties will be deleted and we don't want to keep raw pointers to deleted objects
+				FBlueprintEditorUtils::BulkRemoveMemberVariables(BlueprintObj, VariableNames);
 				LogSimpleMessage(FText::Format(LOCTEXT("UnusedVariablesDeletedMessage", "The following variable(s) were deleted successfully: {0}."), FText::FromString(PropertyList)));
 			}
 			else
@@ -3716,7 +3717,7 @@ void FBlueprintEditor::DeleteUnusedVariables_OnClicked()
 			}
 		}
 	}
-	else if (bHasAtLeastOneVariableToCheck)
+	else if (VariableProperties.Num() > 0)
 	{
 		LogSimpleMessage(LOCTEXT("AllVariablesInUseMessage", "All variables are currently in use."));
 	}

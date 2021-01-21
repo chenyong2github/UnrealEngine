@@ -236,12 +236,6 @@ bool FApp::IsUnattended() // @todo clang: Workaround for missing symbol export
 }
 #endif
 
-#if PLATFORM_LUMIN
-#define MIN_CORE_COUNT 2
-#else
-#define MIN_CORE_COUNT 4
-#endif
-
 bool FApp::ShouldUseThreadingForPerformance()
 {
 	static bool OnlyOneThread = 
@@ -249,13 +243,12 @@ bool FApp::ShouldUseThreadingForPerformance()
 		FParse::Param(FCommandLine::Get(), TEXT("noperfthreads")) ||
 		IsRunningDedicatedServer() ||
 		!FPlatformProcess::SupportsMultithreading() ||
-		FPlatformMisc::NumberOfCoresIncludingHyperthreads() < MIN_CORE_COUNT;
+		FPlatformMisc::NumberOfCoresIncludingHyperthreads() == 1;
 
 	// Enable at runtime for experimentation by passing "useperfthreads" as a command line arg.
 	static bool bForceUsePerfThreads = FParse::Param(FCommandLine::Get(), TEXT("useperfthreads"));
 	return !OnlyOneThread || bForceUsePerfThreads;
 }
-#undef MIN_CORE_COUNT
 
 FTimecode FApp::GetTimecode()
 {

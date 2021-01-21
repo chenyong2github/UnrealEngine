@@ -4,6 +4,8 @@
 
 #include "CoreMinimal.h"
 #include "Types/SlateEnums.h"
+#include "Framework/Commands/UIAction.h"
+#include "Textures/SlateIcon.h"
 
 class IPropertyHandle;
 class SWidget;
@@ -48,6 +50,43 @@ struct FNodeWidgetLayoutData
 	TOptional<float> MaxWidth;
 };
 
+/* Defines a custom menu action which can be performed on a detail tree node. */
+struct FNodeWidgetActionsCustomMenuData
+{
+	FNodeWidgetActionsCustomMenuData(const FUIAction& InAction, const FText& InName, const FText& InTooltip, const FSlateIcon& InSlateIcon)
+		: Action(InAction)
+		, Name(InName)
+		, Tooltip(InTooltip)
+		, SlateIcon(InSlateIcon)
+	{
+	}
+
+	/* The action to be performed. */
+	const FUIAction Action;
+
+	/* The name to display for the menu item. */
+	const FText Name;
+
+	/* The tooltip to the display for the menu item. */
+	const FText Tooltip;
+
+	/* The icon to display for the menu item. */
+	const FSlateIcon SlateIcon;
+};
+
+/** Defines actions which can be performed on node widgets. */
+struct FNodeWidgetActions
+{
+	/** Action for copying data on this node */
+	FUIAction CopyMenuAction;
+
+	/** Action for pasting data on this node */
+	FUIAction PasteMenuAction;
+
+	/** Custom Actions on this node */
+	TArray<FNodeWidgetActionsCustomMenuData> CustomMenuItems;
+};
+
 /** The widget contents of the node.  Any of these can be null depending on how the row was generated */
 struct FNodeWidgets
 {
@@ -71,6 +110,9 @@ struct FNodeWidgets
 
 	/** Edit condition widget. */
 	TSharedPtr<SWidget> EditConditionWidget;
+
+	/** The actions which can be performed on the node widgets. */
+	FNodeWidgetActions Actions;
 };
 
 class IDetailTreeNode

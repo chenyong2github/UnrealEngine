@@ -55,21 +55,18 @@ public:
 		{
 			FRHIUnorderedAccessView* OutputUAV = nullptr;
 
-			if (Context.IsOutputStage)
+			if (FRHITexture* TextureRHI = ProxyData->TextureReferenceRHI->GetReferencedTexture())
 			{
-				if (FRHITexture* TextureRHI = ProxyData->TextureReferenceRHI->GetReferencedTexture())
+				// Note: Because we control the render target it should not changed underneath us without queueing a request to recreate the UAV.  If that assumption changes we would need to track the UAV.
+				ERHIAccess InitialState = ERHIAccess::SRVMask;
+				if (!ProxyData->UAV.IsValid())
 				{
-					// Note: Because we control the render target it should not changed underneath us without queueing a request to recreate the UAV.  If that assumption changes we would need to track the UAV.
-					ERHIAccess InitialState = ERHIAccess::SRVMask;
-					if (!ProxyData->UAV.IsValid())
-					{
-						ProxyData->UAV = RHICreateUnorderedAccessView(TextureRHI, 0);
-						InitialState = ERHIAccess::Unknown;
-					}
-
-					OutputUAV = ProxyData->UAV;
-					RHICmdList.Transition(FRHITransitionInfo(OutputUAV, InitialState, ERHIAccess::UAVCompute));
+					ProxyData->UAV = RHICreateUnorderedAccessView(TextureRHI, 0);
+					InitialState = ERHIAccess::Unknown;
 				}
+
+				OutputUAV = ProxyData->UAV;
+				RHICmdList.Transition(FRHITransitionInfo(OutputUAV, InitialState, ERHIAccess::UAVCompute));
 			}
 
 			if (OutputUAV == nullptr)
@@ -84,10 +81,10 @@ public:
 	{
 		if (OutputParam.IsBound())
 		{
-			FNiagaraDataInterfaceProxyRenderTargetVolumeProxy* VFDI = static_cast<FNiagaraDataInterfaceProxyRenderTargetVolumeProxy*>(Context.DataInterface);
-			FRenderTargetVolumeRWInstanceData_RenderThread* ProxyData = VFDI->SystemInstancesToProxyData_RT.Find(Context.SystemInstanceID);
 			OutputParam.UnsetUAV(RHICmdList, Context.Shader.GetComputeShader());
-			if (ProxyData && Context.IsOutputStage)
+
+			FNiagaraDataInterfaceProxyRenderTargetVolumeProxy* VFDI = static_cast<FNiagaraDataInterfaceProxyRenderTargetVolumeProxy*>(Context.DataInterface);
+			if (FRenderTargetVolumeRWInstanceData_RenderThread* ProxyData = VFDI->SystemInstancesToProxyData_RT.Find(Context.SystemInstanceID))
 			{
 				if (FRHIUnorderedAccessView* OutputUAV = ProxyData->UAV)
 				{

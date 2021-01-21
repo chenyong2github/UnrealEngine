@@ -7,8 +7,10 @@
 
 #include "Misc/Paths.h"
 #include "Misc/PackageName.h"
+#include "Misc/ConfigCacheIni.h"
 #include "IPlatformFileSandboxWrapper.h"
 #include "Interfaces/ITargetPlatform.h"
+#include "Interfaces/IPluginManager.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogLocalizationChunkDataGenerator, Log, All);
 
@@ -17,6 +19,33 @@ FLocalizationChunkDataGenerator::FLocalizationChunkDataGenerator(const int32 InC
 	, LocalizationTargetsToChunk(MoveTemp(InLocalizationTargetsToChunk))
 	, AllCulturesToCook(MoveTemp(InAllCulturesToCook))
 {
+	// Some plugins may re-map their content onto /Game during cook, so we need to take this into account when chunking the localization data
+	// We cache this information here so that we can use it repeatedly later to re-map the source information of the localized assets
+	{
+		TArray<TSharedRef<IPlugin>> AllPlugins = IPluginManager::Get().GetDiscoveredPlugins();
+		for (TSharedRef<IPlugin> Plugin : AllPlugins)
+		{
+			if (!Plugin->CanContainContent())
+			{
+				continue;
+			}
+
+			const FString PluginConfigFilename = Plugin->GetBaseDir() / TEXT("Config") / FString::Printf(TEXT("Default%s.ini"), *Plugin->GetName());
+
+			// Note: We don't use GConfig directly here, as not all of these plugins may currently be loaded
+			// This means we need to load their config file directly to access this setting...
+			FConfigFile PluginConfig;
+			PluginConfig.Read(PluginConfigFilename);
+
+			bool bShouldRemap = false;
+			PluginConfig.GetBool(TEXT("PluginSettings"), TEXT("RemapPluginContentToGame"), bShouldRemap);
+			
+			if (bShouldRemap)
+			{
+				PluginContentRootsMappedToGameRoot.Add(FString::Printf(TEXT("/%s/"), *Plugin->GetName()));
+			}
+		}
+	}
 }
 
 void FLocalizationChunkDataGenerator::GenerateChunkDataFiles(const int32 InChunkId, const TSet<FName>& InPackagesInChunk, const ITargetPlatform* TargetPlatform, FSandboxPlatformFile* InSandboxFile, TArray<FString>& OutChunkFilenames)
@@ -63,13 +92,25 @@ void FLocalizationChunkDataGenerator::GenerateChunkDataFiles(const int32 InChunk
 		bool bChunkHasText = false;
 		FLocTextHelper ChunkLocTextHelper(ChunkTargetMetadataRoot, FString::Printf(TEXT("%s.manifest"), *ChunkTargetName), FString::Printf(TEXT("%s.archive"), *ChunkTargetName), SourceLocTextHelper->GetNativeCulture(), SourceLocTextHelper->GetForeignCultures(), nullptr);
 		ChunkLocTextHelper.LoadAll(ELocTextHelperLoadFlags::Create); // Create the in-memory manifest and archives
-		SourceLocTextHelper->EnumerateSourceTexts([bIsCatchAllChunk, SourceLocTextHelper, &bChunkHasText, &ChunkLocTextHelper, &InPackagesInChunk, &AvailableCulturesToCook](TSharedRef<FManifestEntry> InManifestEntry)
+		SourceLocTextHelper->EnumerateSourceTexts([this, bIsCatchAllChunk, SourceLocTextHelper, &bChunkHasText, &ChunkLocTextHelper, &InPackagesInChunk, &AvailableCulturesToCook](TSharedRef<FManifestEntry> InManifestEntry)
 		{
 			for (const FManifestContext& ManifestContext : InManifestEntry->Contexts)
 			{
 				bool bIncludeInChunk = bIsCatchAllChunk;
 				{
-					const FString SourcePackageName = FPackageName::ObjectPathToPackageName(ManifestContext.SourceLocation);
+					FString SourcePackageName = FPackageName::ObjectPathToPackageName(ManifestContext.SourceLocation);
+
+					// Some plugins may re-map their content onto /Game during cook, so we need to take this into account when chunking the localization data
+					// Note: We can't use FPackageName::IsValidLongPackageName before doing this mapping, as not all plugins we gathered localization from may be loaded during cook meaning the unmapped path wouldn't be recognized as a valid package root
+					for (const FString& PluginContentRootMappedToGameRoot : PluginContentRootsMappedToGameRoot)
+					{
+						if (SourcePackageName.RemoveFromStart(PluginContentRootMappedToGameRoot))
+						{
+							SourcePackageName.InsertAt(0, TEXT("/Game/"));
+							break;
+						}
+					}
+
 					if (FPackageName::IsValidLongPackageName(SourcePackageName))
 					{
 						bIncludeInChunk = InPackagesInChunk.Contains(*SourcePackageName);

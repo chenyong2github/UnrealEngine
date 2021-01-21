@@ -23,6 +23,22 @@
 #include "HAL/PlatformFileManager.h"
 #include "UObject/UObjectThreadContext.h"
 #include "ProfilingDebugging/LoadTimeTracker.h"
+#if WITH_IOSTORE_IN_EDITOR
+#include "IO/IoDispatcher.h"
+#endif
+
+#if WITH_IOSTORE_IN_EDITOR
+static FIoChunkId CreateBulkDataChunkId(FPackageId PackageId, uint32 BulkDataFlags)
+{ 
+	const EIoChunkType ChunkType = BulkDataFlags & BULKDATA_OptionalPayload
+		? EIoChunkType::OptionalBulkData
+		: BulkDataFlags & BULKDATA_MemoryMappedPayload
+			? EIoChunkType::MemoryMappedBulkData
+			: EIoChunkType::BulkData;
+
+	return CreateIoChunkId(PackageId.Value(), 0, ChunkType);
+}
+#endif // WITH_IOSTORE_IN_EDITOR
 
 /*-----------------------------------------------------------------------------
 	Constructors and operators
@@ -1039,6 +1055,17 @@ void FUntypedBulkData::Serialize( FArchive& Ar, UObject* Owner, int32 Idx, bool 
 			
 			// determine whether the payload is stored inline or at the end of the file
 			const bool bPayloadInline = !(BulkDataFlags&BULKDATA_PayloadAtEndOfFile);
+#if WITH_IOSTORE_IN_EDITOR
+			if (Ar.IsUsingEventDrivenLoader())
+			{
+				check(Owner);
+				check(Owner->GetPackage()->GetPackageId().IsValid());
+				SetBulkDataFlags(BULKDATA_UsesIoDispatcher);
+				PackageId = Owner->GetPackage()->GetPackageId();
+				SerializeFromIoStore(Ar, Owner, Idx, bAttemptFileMapping);
+				return;
+			}
+#endif // WITH_IOSTORE_IN_EDITOR
 
 			// GetLinker
 #if WITH_EDITOR
@@ -1446,6 +1473,30 @@ void FUntypedBulkData::Serialize( FArchive& Ar, UObject* Owner, int32 Idx, bool 
 	}
 }
 
+#if WITH_IOSTORE_IN_EDITOR
+void FUntypedBulkData::SerializeFromIoStore( FArchive& Ar, UObject* Owner, int32 Idx, bool bAttemptFileMapping )
+{
+	BulkData.Reallocate(GetBulkDataSize(), BulkDataAlignment);
+
+	if (IsInlined())
+	{
+		SerializeBulkData(Ar, BulkData.Get());
+	}
+	else
+	{
+		check(!NeedsOffsetFixup());
+
+		TUniquePtr<IBulkDataIORequest> Request = CreateBulkDataIoDispatcherRequest(CreateBulkDataChunkId(PackageId, BulkDataFlags));
+		Request->WaitCompletion();
+
+		FLargeMemoryReader MemoryAr(Request->GetReadResults(), Request->GetSize());
+		MemoryAr.Seek(BulkDataOffsetInFile);
+
+		SerializeBulkData(MemoryAr, BulkData.Get());
+	}
+}
+#endif
+
 /*-----------------------------------------------------------------------------
 	Class specific virtuals.
 -----------------------------------------------------------------------------*/
@@ -1681,6 +1732,13 @@ IBulkDataIORequest* FUntypedBulkData::CreateStreamingRequest(EAsyncIOPriorityAnd
 
 IBulkDataIORequest* FUntypedBulkData::CreateStreamingRequest(int64 OffsetInBulkData, int64 BytesToRead, EAsyncIOPriorityAndFlags Priority, FBulkDataIORequestCallBack* CompleteCallback, uint8* UserSuppliedMemory) const
 {
+#if WITH_IOSTORE_IN_EDITOR
+	if (IsUsingIODispatcher())
+	{
+		TUniquePtr<IBulkDataIORequest> Request = CreateBulkDataIoDispatcherRequest(CreateBulkDataChunkId(PackageId, BulkDataFlags), BulkDataOffsetInFile + OffsetInBulkData, BytesToRead, CompleteCallback, UserSuppliedMemory);
+		return Request.Release();
+	}
+#endif
 	check(PackagePath.IsEmpty() == false);
 
 	// If we are loading from a .uexp file then we need to adjust the segment and offset stored by BulkData in order to use them

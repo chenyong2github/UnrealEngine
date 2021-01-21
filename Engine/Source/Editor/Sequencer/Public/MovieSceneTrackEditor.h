@@ -117,6 +117,8 @@ public:
 
 	struct FFindOrCreateTrackResult
 	{
+		FFindOrCreateTrackResult() : Track(nullptr), bWasCreated(false) {}
+
 		UMovieSceneTrack* Track;
 		bool bWasCreated;
 	};
@@ -126,6 +128,8 @@ public:
 	template<typename TrackClass>
 	struct FFindOrCreateMasterTrackResult
 	{
+		FFindOrCreateMasterTrackResult() : Track(nullptr), bWasCreated(false) {}
+
 		TrackClass* Track;
 		bool bWasCreated;
 	};

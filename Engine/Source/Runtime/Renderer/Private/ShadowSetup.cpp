@@ -1314,6 +1314,56 @@ void FProjectedShadowInfo::AddCachedMeshDrawCommands_AnyThread(
 	}
 }
 
+FLODMask FProjectedShadowInfo::CalcAndUpdateLODToRender(FViewInfo& CurrentView, const FBoxSphereBounds& Bounds, const FPrimitiveSceneInfo* PrimitiveSceneInfo, int32 ForcedLOD) const
+{
+	int32 PrimitiveId = PrimitiveSceneInfo->GetIndex();
+
+	FLODMask ShadowLODToRender = CurrentView.PrimitivesLODMask[PrimitiveId];
+	// calculate it it's not set OR if LOD is overridden
+	if (ForcedLOD > -1 || ShadowLODToRender.ContainsLOD(MAX_int8))
+	{
+		float MeshScreenSizeSquared = 0;
+		const int8 CurFirstLODIdx = PrimitiveSceneInfo->Proxy->GetCurrentFirstLODIdx_RenderThread();
+
+		const float LODScale = CurrentView.LODDistanceFactor * GetCachedScalabilityCVars().StaticMeshLODDistanceScale;
+		ShadowLODToRender = ComputeLODForMeshes(PrimitiveSceneInfo->StaticMeshRelevances, CurrentView, Bounds.Origin, Bounds.SphereRadius, ForcedLOD, MeshScreenSizeSquared, CurFirstLODIdx, LODScale);
+
+		CurrentView.PrimitivesLODMask[PrimitiveId] = ShadowLODToRender;
+	}
+
+	// Use lowest LOD for PreShadow
+	if (bPreShadow && GPreshadowsForceLowestLOD)
+	{
+		int8 LODToRenderScan = -MAX_int8;
+		FLODMask LODToRender;
+
+		for (int32 Index = 0; Index < PrimitiveSceneInfo->StaticMeshRelevances.Num(); Index++)
+		{
+			LODToRenderScan = FMath::Max<int8>(PrimitiveSceneInfo->StaticMeshRelevances[Index].LODIndex, LODToRenderScan);
+		}
+		if (LODToRenderScan != -MAX_int8)
+		{
+			ShadowLODToRender.SetLOD(LODToRenderScan);
+		}
+	}
+
+	if (CascadeSettings.bFarShadowCascade)
+	{
+		extern ENGINE_API int32 GFarShadowStaticMeshLODBias;
+		int8 LODToRenderScan = ShadowLODToRender.DitheredLODIndices[0] + GFarShadowStaticMeshLODBias;
+
+		for (int32 Index = PrimitiveSceneInfo->StaticMeshRelevances.Num() - 1; Index >= 0; Index--)
+		{
+			if (LODToRenderScan == PrimitiveSceneInfo->StaticMeshRelevances[Index].LODIndex)
+			{
+				ShadowLODToRender.SetLOD(LODToRenderScan);
+				break;
+			}
+		}
+	}
+	return ShadowLODToRender;
+}
+
 bool FProjectedShadowInfo::ShouldDrawStaticMeshes(FViewInfo& InCurrentView, FPrimitiveSceneInfo* InPrimitiveSceneInfo)
 {
 	bool WholeSceneDirectionalShadow = IsWholeSceneDirectionalShadow();
@@ -1322,56 +1372,7 @@ bool FProjectedShadowInfo::ShouldDrawStaticMeshes(FViewInfo& InCurrentView, FPri
 
 	{
 		const int32 ForcedLOD = (InCurrentView.Family->EngineShowFlags.LOD) ? (GetCVarForceLODShadow() != -1 ? GetCVarForceLODShadow() : GetCVarForceLOD()) : -1;
-		const FLODMask* VisibilePrimitiveLODMask = nullptr;
-
-		if (InCurrentView.PrimitivesLODMask[PrimitiveId].ContainsLOD(MAX_int8)) // only calculate it if it's not set
-		{
-			FLODMask ViewLODToRender;
-			float MeshScreenSizeSquared = 0;
-			const int8 CurFirstLODIdx = InPrimitiveSceneInfo->Proxy->GetCurrentFirstLODIdx_RenderThread();
-
-			const FBoxSphereBounds& Bounds = InPrimitiveSceneInfo->Proxy->GetBounds();
-			const float LODScale = InCurrentView.LODDistanceFactor * GetCachedScalabilityCVars().StaticMeshLODDistanceScale;
-			ViewLODToRender = ComputeLODForMeshes(InPrimitiveSceneInfo->StaticMeshRelevances, InCurrentView, Bounds.Origin, Bounds.SphereRadius, ForcedLOD, MeshScreenSizeSquared, CurFirstLODIdx, LODScale);
-
-			InCurrentView.PrimitivesLODMask[PrimitiveId] = ViewLODToRender;
-		}
-
-		VisibilePrimitiveLODMask = &InCurrentView.PrimitivesLODMask[PrimitiveId];
-		check(VisibilePrimitiveLODMask != nullptr);
-
-		FLODMask ShadowLODToRender = *VisibilePrimitiveLODMask;
-
-		// Use lowest LOD for PreShadow
-		if (bPreShadow && GPreshadowsForceLowestLOD)
-		{
-			int8 LODToRenderScan = -MAX_int8;
-			FLODMask LODToRender;
-
-			for (int32 Index = 0; Index < InPrimitiveSceneInfo->StaticMeshRelevances.Num(); Index++)
-			{
-				LODToRenderScan = FMath::Max<int8>(InPrimitiveSceneInfo->StaticMeshRelevances[Index].LODIndex, LODToRenderScan);
-			}
-			if (LODToRenderScan != -MAX_int8)
-			{
-				ShadowLODToRender.SetLOD(LODToRenderScan);
-			}
-		}
-
-		if (CascadeSettings.bFarShadowCascade)
-		{
-			extern ENGINE_API int32 GFarShadowStaticMeshLODBias;
-			int8 LODToRenderScan = ShadowLODToRender.DitheredLODIndices[0] + GFarShadowStaticMeshLODBias;
-
-			for (int32 Index = InPrimitiveSceneInfo->StaticMeshRelevances.Num() - 1; Index >= 0; Index--)
-			{
-				if (LODToRenderScan == InPrimitiveSceneInfo->StaticMeshRelevances[Index].LODIndex)
-				{
-					ShadowLODToRender.SetLOD(LODToRenderScan);
-					break;
-				}
-			}
-		}
+		FLODMask ShadowLODToRender = CalcAndUpdateLODToRender(InCurrentView, InPrimitiveSceneInfo->Proxy->GetBounds(), InPrimitiveSceneInfo, ForcedLOD);
 
 		if (WholeSceneDirectionalShadow)
 		{
@@ -1447,56 +1448,8 @@ bool FProjectedShadowInfo::ShouldDrawStaticMeshes_AnyThread(
 
 	{
 		const int32 ForcedLOD = CurrentView.Family->EngineShowFlags.LOD ? (GetCVarForceLODShadow_AnyThread() != -1 ? GetCVarForceLODShadow_AnyThread() : GetCVarForceLOD_AnyThread()) : -1;
-		const FLODMask* VisibilePrimitiveLODMask = nullptr;
 
-		if (CurrentView.PrimitivesLODMask[PrimitiveId].ContainsLOD(MAX_int8)) // only calculate it if it's not set
-		{
-			FLODMask ViewLODToRender;
-			float MeshScreenSizeSquared = 0;
-			const int8 CurFirstLODIdx = Proxy->GetCurrentFirstLODIdx_RenderThread();
-
-			const FBoxSphereBounds& Bounds = PrimitiveSceneInfoCompact.Bounds;
-			const float LODScale = CurrentView.LODDistanceFactor * GetCachedScalabilityCVars().StaticMeshLODDistanceScale;
-			ViewLODToRender = ComputeLODForMeshes(PrimitiveSceneInfo->StaticMeshRelevances, CurrentView, Bounds.Origin, Bounds.SphereRadius, ForcedLOD, MeshScreenSizeSquared, CurFirstLODIdx, LODScale);
-
-			CurrentView.PrimitivesLODMask[PrimitiveId] = ViewLODToRender;
-		}
-
-		VisibilePrimitiveLODMask = &CurrentView.PrimitivesLODMask[PrimitiveId];
-		check(VisibilePrimitiveLODMask != nullptr);
-
-		FLODMask ShadowLODToRender = *VisibilePrimitiveLODMask;
-
-		// Use lowest LOD for PreShadow
-		if (bPreShadow && GPreshadowsForceLowestLOD)
-		{
-			int8 LODToRenderScan = -MAX_int8;
-			FLODMask LODToRender;
-
-			for (int32 Index = 0; Index < PrimitiveSceneInfo->StaticMeshRelevances.Num(); Index++)
-			{
-				LODToRenderScan = FMath::Max<int8>(PrimitiveSceneInfo->StaticMeshRelevances[Index].LODIndex, LODToRenderScan);
-			}
-			if (LODToRenderScan != -MAX_int8)
-			{
-				ShadowLODToRender.SetLOD(LODToRenderScan);
-			}
-		}
-
-		if (CascadeSettings.bFarShadowCascade)
-		{
-			extern ENGINE_API int32 GFarShadowStaticMeshLODBias;
-			int8 LODToRenderScan = ShadowLODToRender.DitheredLODIndices[0] + GFarShadowStaticMeshLODBias;
-
-			for (int32 Index = PrimitiveSceneInfo->StaticMeshRelevances.Num() - 1; Index >= 0; Index--)
-			{
-				if (LODToRenderScan == PrimitiveSceneInfo->StaticMeshRelevances[Index].LODIndex)
-				{
-					ShadowLODToRender.SetLOD(LODToRenderScan);
-					break;
-				}
-			}
-		}
+		FLODMask ShadowLODToRender = CalcAndUpdateLODToRender(CurrentView, PrimitiveSceneInfoCompact.Bounds, PrimitiveSceneInfo, ForcedLOD);
 
 		if (WholeSceneDirectionalShadow)
 		{

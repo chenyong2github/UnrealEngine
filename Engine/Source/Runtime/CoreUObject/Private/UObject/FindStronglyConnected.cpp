@@ -8,7 +8,7 @@
 void FFindStronglyConnected::FindAllCycles()
 {
 	UE_LOG(LogObj, Log, TEXT("Finding Edges"));
-	for( FObjectIterator It; It; ++It )
+	for( FThreadSafeObjectIterator It; It; ++It )
 	{
 		UObject* Object = *It;
 		{

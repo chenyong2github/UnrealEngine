@@ -1641,13 +1641,20 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		// try to get chip info
 		// use getprop ro.hardware as fallback (not useful on Qualcomm, just returns qcom)
 		String roHardware = getProp("ro.hardware");
+		Log.debug("ro.hardware: " + roHardware);
+		if (roHardware.equals("qcom"))
+		{
+			// use ro.hardware.chipname for Qualcomm
+			String roHardwareChipname = getProp("ro.hardware.chipname");
+			Log.debug("ro.hardware.chipname: " + roHardwareChipname);
+			roHardware = roHardwareChipname;
+		}
 		String hardware = roHardware;
 		if (cpuInfo.containsKey("Hardware"))
 		{
 			hardware = cpuInfo.get("Hardware");
 		}
 		Log.debug("Hardware: " + hardware);
-		Log.debug("ro.hardware: " + roHardware);
 
 		// register variables for the program to access
 		Map<String, String> variables = new HashMap<String, String>();

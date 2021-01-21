@@ -251,7 +251,7 @@ namespace ChaosTest
 				//touching so penetration 0, normal is 0,0,1
 				T Penetration;
 				TVec3<T> Dir, WitnessA, WitnessB;
-				EXPECT_EQ(EPA(VertsA, VertsB, ASupportNoX, EmptySupport, Penetration, Dir, WitnessA, WitnessB), EPAResult::BadInitialSimplex);
+				EXPECT_EQ(EPA(VertsA, VertsB, ASupportNoX, EmptySupport, Penetration, Dir, WitnessA, WitnessB), EEPAResult::BadInitialSimplex);
 				EXPECT_EQ(Penetration, 0);
 				//EXPECT_VECTOR_NEAR(Dir, TVec3<T>(0, 0, 1), 1e-7);
 				EXPECT_VECTOR_NEAR(WitnessA, TVec3<T>(0), 1e-7);
@@ -411,7 +411,7 @@ namespace ChaosTest
 
 			T Penetration;
 			TVec3<T> Dir, WitnessA, WitnessB;
-			EXPECT_EQ(EPA(Tetrahedron, Zeros, SupportA, ZeroSupport, Penetration, Dir, WitnessA, WitnessB), EPAResult::Ok);
+			EXPECT_EQ(EPA(Tetrahedron, Zeros, SupportA, ZeroSupport, Penetration, Dir, WitnessA, WitnessB), EEPAResult::Ok);
 			EXPECT_NEAR(Penetration, 0.5, 1e-4);
 			EXPECT_NEAR(Dir[0], -1, 1e-4);
 			EXPECT_NEAR(Dir[1], 0, 1e-4);
@@ -438,7 +438,7 @@ namespace ChaosTest
 
 			T Penetration;
 			TVec3<T> Dir, WitnessA, WitnessB;
-			EXPECT_EQ(EPA(Tetrahedron, Zeros, Support, ZeroSupport, Penetration, Dir, WitnessA, WitnessB), EPAResult::MaxIterations);
+			EXPECT_EQ(EPA(Tetrahedron, Zeros, Support, ZeroSupport, Penetration, Dir, WitnessA, WitnessB), EEPAResult::MaxIterations);
 			EXPECT_GT(Penetration, 9);
 			EXPECT_LE(Penetration, 10);
 			EXPECT_GT(WitnessA.Size(), 9);	//don't know exact point, but should be 9 away from origin
@@ -459,7 +459,7 @@ namespace ChaosTest
 
 			T Penetration;
 			TVec3<T> Dir, WitnessA, WitnessB;
-			EXPECT_EQ(EPA(Tetrahedron, Zeros, Support, ZeroSupport, Penetration, Dir, WitnessA, WitnessB), EPAResult::Ok);
+			EXPECT_EQ(EPA(Tetrahedron, Zeros, Support, ZeroSupport, Penetration, Dir, WitnessA, WitnessB), EEPAResult::Ok);
 			EXPECT_NEAR(Penetration, 3, 1e-1);
 			EXPECT_NEAR(Dir[2], 0, 1e-1);	//don't know direction, but it should be in xy plane
 			EXPECT_NEAR(WitnessA.Size(), 3, 1e-1);	//don't know exact point, but should be 3 away from origin
@@ -479,7 +479,7 @@ namespace ChaosTest
 
 			T Penetration;
 			TVec3<T> Dir, WitnessA, WitnessB;
-			EXPECT_EQ(EPA(Tetrahedron, Zeros, Support, ZeroSupport, Penetration, Dir, WitnessA, WitnessB), EPAResult::Ok);
+			EXPECT_EQ(EPA(Tetrahedron, Zeros, Support, ZeroSupport, Penetration, Dir, WitnessA, WitnessB), EEPAResult::Ok);
 			EXPECT_NEAR(Penetration, 1, 1e-1);
 			EXPECT_NEAR(Dir[0], 0, 1e-1);
 			EXPECT_NEAR(Dir[1], 0, 1e-1);
@@ -518,7 +518,7 @@ namespace ChaosTest
 
 			T Penetration;
 			TVec3<T> Dir, WitnessA, WitnessB;
-			EXPECT_EQ(EPA(Tetrahedron, Zeros, Support, ZeroSupport, Penetration, Dir, WitnessA, WitnessB), EPAResult::Ok);
+			EXPECT_EQ(EPA(Tetrahedron, Zeros, Support, ZeroSupport, Penetration, Dir, WitnessA, WitnessB), EEPAResult::Ok);
 			EXPECT_FLOAT_EQ(Penetration, 1);
 			EXPECT_NEAR(WitnessA.Size(), 1, 1e-1);	//don't know exact point, but should be 1 away from origin
 		}
@@ -549,7 +549,7 @@ namespace ChaosTest
 
 			T Penetration;
 			TVec3<T> Dir, WitnessA, WitnessB;
-			EXPECT_EQ(EPA(Tetrahedron, Zeros, Support, ZeroSupport, Penetration, Dir, WitnessA, WitnessB), EPAResult::Ok);
+			EXPECT_EQ(EPA(Tetrahedron, Zeros, Support, ZeroSupport, Penetration, Dir, WitnessA, WitnessB), EEPAResult::Ok);
 			EXPECT_LT(Penetration, 0); // Negative penetration
 			EXPECT_NEAR(Dir.X, 1.0f, 0.001f);
 		}
@@ -581,7 +581,7 @@ namespace ChaosTest
 
 			T Penetration;
 			TVec3<T> Dir, WitnessA, WitnessB;
-			EXPECT_EQ(EPA(Tetrahedron, Zeros, Support, ZeroSupport, Penetration, Dir, WitnessA, WitnessB), EPAResult::Ok);
+			EXPECT_EQ(EPA(Tetrahedron, Zeros, Support, ZeroSupport, Penetration, Dir, WitnessA, WitnessB), EEPAResult::Ok);
 			EXPECT_LT(Penetration, 0); // Negative penetration
 			EXPECT_NEAR(Dir.X, 1.0f, 0.001f);
 		}
@@ -1055,7 +1055,7 @@ namespace ChaosTest
 			FVec3 ClosestA, ClosestB, Normal;
 			int32 ClosestVertexIndexA, ClosestVertexIndexB;
 
-			auto result = GJKPenetration<true>(BoatConvex, ScaledGroundConvex, BToATM, Penetration, ClosestA, ClosestB, Normal, ClosestVertexIndexA, ClosestVertexIndexB, 0.0f, FVec3(1, 0, 0), 0.0f);
+			auto result = GJKPenetration<true>(BoatConvex, ScaledGroundConvex, BToATM, Penetration, ClosestA, ClosestB, Normal, ClosestVertexIndexA, ClosestVertexIndexB, 0.0f, 0.0f, FVec3(1, 0, 0));
 
 			FVec3 WorldLocation = BoatTransform.TransformPosition(ClosestA);
 			FVec3 WorldNormal = BoatTransform.TransformVectorNoScale(Normal);
@@ -1083,7 +1083,7 @@ namespace ChaosTest
 			FVec3 ClosestA, ClosestB, Normal;
 			int32 ClosestVertexIndexA, ClosestVertexIndexB;
 
-			auto result = GJKPenetration<true, float>(Triangle, BoatConvex, QueryTM, Penetration, ClosestA, ClosestB, Normal, ClosestVertexIndexA, ClosestVertexIndexB, 0.0f);
+			auto result = GJKPenetration<true, float>(Triangle, BoatConvex, QueryTM, Penetration, ClosestA, ClosestB, Normal, ClosestVertexIndexA, ClosestVertexIndexB);
 
 			// Confirm normal is valid and close to expected normal.
 			float dot = FVec3::DotProduct(ExpectedNormal, Normal);
@@ -1118,7 +1118,7 @@ namespace ChaosTest
 		FReal Penetration;
 		FVec3 ClosestA, ClosestB, NormalA;
 		int32 ClosestVertexIndexA, ClosestVertexIndexB;
-		GJKPenetration<true>(A, B, BToATM, Penetration, ClosestA, ClosestB, NormalA, ClosestVertexIndexA, ClosestVertexIndexB, 0.0f, InitialDir, 0.0f);
+		GJKPenetration<true>(A, B, BToATM, Penetration, ClosestA, ClosestB, NormalA, ClosestVertexIndexA, ClosestVertexIndexB, 0.0f, 0.0f, InitialDir);
 
 		FVec3 Location = ATM.TransformPosition(ClosestA);
 		FVec3 Normal = -ATM.TransformVectorNoScale(NormalA);
@@ -1141,7 +1141,7 @@ namespace ChaosTest
 			FReal Penetration;
 			FVec3 ClosestA, ClosestB, NormalA;
 			int32 ClosestVertexIndexA, ClosestVertexIndexB;
-			GJKPenetration<true>(A, B, BToATM, Penetration, ClosestA, ClosestB, NormalA, ClosestVertexIndexA, ClosestVertexIndexB, 0.0f, InitialDir, 0.0f);
+			GJKPenetration<true>(A, B, BToATM, Penetration, ClosestA, ClosestB, NormalA, ClosestVertexIndexA, ClosestVertexIndexB, 0.0f, 0.0f, InitialDir);
 
 			FVec3 Location = ATM.TransformPosition(ClosestA);  // These transforms are not really necessary since they are identity
 			FVec3 Normal = ATM.TransformVectorNoScale(NormalA);
@@ -1165,7 +1165,7 @@ namespace ChaosTest
 			FReal Penetration;
 			FVec3 ClosestA, ClosestB, NormalA;
 			int32 ClosestVertexIndexA, ClosestVertexIndexB;
-			GJKPenetration<true>(A, B, BToATM, Penetration, ClosestA, ClosestB, NormalA, ClosestVertexIndexA, ClosestVertexIndexB, 0.0f, InitialDir, 0.0f);
+			GJKPenetration<true>(A, B, BToATM, Penetration, ClosestA, ClosestB, NormalA, ClosestVertexIndexA, ClosestVertexIndexB, 0.0f, 0.0f, InitialDir);
 
 			FVec3 Location = ATM.TransformPosition(ClosestA);  // These transforms are not really necessary since they are identity
 			FVec3 Normal = ATM.TransformVectorNoScale(NormalA);

@@ -22,13 +22,13 @@ struct FNavCollisionCylinder
 	GENERATED_USTRUCT_BODY()
 
 	UPROPERTY(EditAnywhere, Category=Cylinder)
-	FVector Offset;
+	FVector Offset = FVector::ZeroVector;
 
 	UPROPERTY(EditAnywhere, Category=Cylinder)
-	float Radius;
+	float Radius = 0.f;
 
 	UPROPERTY(EditAnywhere, Category=Cylinder)
-	float Height;
+	float Height = 0.f;
 };
 
 USTRUCT()
@@ -37,10 +37,10 @@ struct FNavCollisionBox
 	GENERATED_USTRUCT_BODY()
 
 	UPROPERTY(EditAnywhere, Category=Box)
-	FVector Offset;
+	FVector Offset = FVector::ZeroVector;
 
 	UPROPERTY(EditAnywhere, Category=Box)
-	FVector Extent;
+	FVector Extent = FVector::ZeroVector;
 };
 
 UCLASS(config=Engine)

@@ -59,7 +59,7 @@ namespace UnrealBuildTool
 		/// <param name="UniquePath">Path to identify a unique mutex</param>
 		public static string GetUniqueMutexForPath(string Name, string UniquePath)
 		{
-			return String.Format("Global\\{0}_{1}", Name, UniquePath.GetHashCode());
+			return String.Format("Global\\{0}_{1}", Name, StringComparer.OrdinalIgnoreCase.GetHashCode(UniquePath));
 		}
 
 		/// <summary>

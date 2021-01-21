@@ -2584,16 +2584,16 @@ FString GetFieldPythonNameImpl(const FFieldVariant& InField, const FName InMetaD
 	if (GetFieldPythonNameFromMetaDataImpl(InField, InMetaDataKey, FieldName))
 	{
 		return FieldName;
-}
+	}
 
 	// Just use the field name if we have no meta-data
 	if (FieldName.IsEmpty())
-{
+	{
 		FieldName = InField.GetName();
 
 		// Strip the "E" prefix from enum names
 		if (InField.IsA<UEnum>() && FieldName.Len() >= 2 && FieldName[0] == TEXT('E') && FChar::IsUpper(FieldName[1]))
-	{
+		{
 			FieldName.RemoveAt(0, 1, /*bAllowShrinking*/false);
 		}
 
@@ -2631,7 +2631,7 @@ TArray<FString> GetDeprecatedFieldPythonNamesImpl(const FFieldVariant& InField, 
 	if (GetDeprecatedFieldPythonNamesFromMetaDataImpl(InField, InMetaDataKey, FieldNames))
 	{
 		return FieldNames;
-}
+	}
 
 	// Just use the redirects if we have no meta-data
 	ECoreRedirectFlags RedirectFlags = ECoreRedirectFlags::None;
@@ -2666,17 +2666,40 @@ TArray<FString> GetDeprecatedFieldPythonNamesImpl(const FFieldVariant& InField, 
 		// Redirects can be used to redirect outers
 		// We want to skip those redirects as we only care about changes within the current scope
 		if (!PreviousName.OuterName.IsNone() && PreviousName.OuterName != CurrentName.OuterName)
-{
+		{
 			continue;
 		}
 
 		// Redirects can often keep the same name when updating the path
 		// We want to skip those redirects as we only care about name changes
 		if (PreviousName.ObjectName == CurrentName.ObjectName)
-	{
+		{
 			continue;
 		}
 		
+		// Class/Struct redirects may be used to point a parent type to a child type (eg, to enforce a specific derived implementation)
+		// We want to skip those redirects as the parent type still exists in this case
+		if (InField.IsA<UClass>() || InField.IsA<UScriptStruct>())
+		{
+			auto DoesRedirectFromParentType = [&InField, &PreviousName]()
+			{
+				UStruct* TargetStruct = InField.Get<UStruct>();
+				for (UStruct* SuperStruct = TargetStruct->GetSuperStruct(); SuperStruct; SuperStruct = SuperStruct->GetSuperStruct())
+				{
+					if (SuperStruct->GetFName() == PreviousName.ObjectName)
+					{
+						return true;
+					}
+				}
+				return false;
+			};
+
+			if (DoesRedirectFromParentType())
+			{
+				continue;
+			}
+		}
+
 		FString FieldName = PreviousName.ObjectName.ToString();
 
 		// Strip the "E" prefix from enum names
@@ -2714,7 +2737,7 @@ TArray<FString> GetDeprecatedStructPythonNames(const UScriptStruct* InStruct)
 FString GetEnumPythonName(const UEnum* InEnum)
 {
 	return GetFieldPythonNameImpl(InEnum, ScriptNameMetaDataKey);
-	}
+}
 
 TArray<FString> GetDeprecatedEnumPythonNames(const UEnum* InEnum)
 {

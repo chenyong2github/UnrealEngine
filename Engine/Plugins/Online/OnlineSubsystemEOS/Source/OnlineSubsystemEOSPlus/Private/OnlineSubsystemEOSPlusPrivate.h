@@ -6,4 +6,4 @@
 #include "OnlineSubsystem.h"
 #include "Modules/ModuleManager.h"
 
-#define EOSPLUS_SUBSYSTEM TEXT("EOS_PLUS")
+#define EOSPLUS_SUBSYSTEM TEXT("EOSPlus")

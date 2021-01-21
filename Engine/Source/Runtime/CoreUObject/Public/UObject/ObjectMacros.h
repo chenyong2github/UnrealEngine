@@ -111,7 +111,7 @@ enum EPackageFlags
 	PKG_EditorOnly					= 0x00000040,	///< This is editor-only package (for example: editor module script package)
 	PKG_Developer					= 0x00000080,	///< Developer module
 	PKG_UncookedOnly				= 0x00000100,	///< Loaded only in uncooked builds (i.e. runtime in editor)
-//	PKG_Unused						= 0x00000200,
+	PKG_Cooked						= 0x00000200,	///< Package is cooked
 //	PKG_Unused						= 0x00000400,
 //	PKG_Unused						= 0x00000800,
 //	PKG_Unused						= 0x00001000,
@@ -543,12 +543,12 @@ enum class EInternalObjectFlags : int32
 	Unreachable = 1 << 28, ///< Object is not reachable on the object graph.
 	PendingKill = 1 << 29, ///< Objects that are pending destruction (invalid for gameplay but valid objects)
 	RootSet = 1 << 30, ///< Object will not be garbage collected, even if unreferenced.
-	//~ UnusedFlag = 1 << 31,
+	PendingConstruction = 1 << 31, ///< Object didn't have its class constructor called yet (only the UObjectBase one to initialize its most basic members)
 
 	GarbageCollectionKeepFlags = Native | Async | AsyncLoading,
 
 	//~ Make sure this is up to date!
-	AllFlags = ReachableInCluster | ClusterRoot | Native | Async | AsyncLoading | Unreachable | PendingKill | RootSet
+	AllFlags = ReachableInCluster | ClusterRoot | Native | Async | AsyncLoading | Unreachable | PendingKill | RootSet | PendingConstruction
 };
 ENUM_CLASS_FLAGS(EInternalObjectFlags);
 

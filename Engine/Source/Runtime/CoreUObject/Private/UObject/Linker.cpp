@@ -645,7 +645,12 @@ FString GetPrestreamPackageLinkerName(const TCHAR* InLongPackageName, bool bSkip
 	{
 		return FString(); // we won't load this anyway, don't prestream
 	}
-	if (!IsConvertedDynamicPackage(PackageFName) && !FPackageName::DoesPackageExist(PackagePath, &PackagePath))
+	bool DoesPackageExist = FPackageName::DoesPackageExist(PackagePath, &PackagePath);
+#if WITH_IOSTORE_IN_EDITOR
+	// Only look for non cooked packages on disk
+	DoesPackageExist &= !DoesPackageExistInIoStore(PackageFName);
+#endif
+	if (!IsConvertedDynamicPackage(PackageFName) && !DoesPackageExist)
 	{
 		return FString();
 	}

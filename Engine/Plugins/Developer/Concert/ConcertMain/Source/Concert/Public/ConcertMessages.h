@@ -28,6 +28,8 @@ enum class EConcertConnectionStatus : uint8
 UENUM()
 enum class EConcertConnectionResult : uint8
 {
+	/** No result yet */
+	None,
 	/** Server has accepted connection */
 	ConnectionAccepted,
 	/** Server has refused the connection session messages beside other connection request are ignored */
@@ -64,6 +66,8 @@ enum class EConcertSessionResponseCode : uint8
 UENUM()
 enum class EConcertSessionRepositoryMountResponseCode : uint8
 {
+	/** No response code yet. */
+	None,
 	/** The repository was mounted on the invoked server. */
 	Mounted,
 	/** The repository is already mounted by another server instance. */
@@ -106,7 +110,7 @@ struct FConcertAdmin_ServerDiscoveredEvent : public FConcertEndpointDiscoveryEve
 
 	/** Contains information on the server settings */
 	UPROPERTY(VisibleAnywhere, Category = "Concert Message")
-	EConcertServerFlags ServerFlags;
+	EConcertServerFlags ServerFlags = EConcertServerFlags::None;
 };
 
 /** Contains information about a session repository. */
@@ -155,7 +159,7 @@ struct FConcertAdmin_MountSessionRepositoryResponse : public FConcertResponseDat
 	GENERATED_BODY()
 
 	UPROPERTY(VisibleAnywhere, Category = "Concert Message")
-	EConcertSessionRepositoryMountResponseCode MountStatus;
+	EConcertSessionRepositoryMountResponseCode MountStatus = EConcertSessionRepositoryMountResponseCode::None;
 };
 
 /** Returns the list of repositories known of the server. */
@@ -504,7 +508,7 @@ struct FConcertSession_JoinSessionResultEvent : public FConcertEndpointDiscovery
 	FGuid SessionServerEndpointId;
 
 	UPROPERTY(VisibleAnywhere, Category="Concert Message")
-	EConcertConnectionResult ConnectionResult;
+	EConcertConnectionResult ConnectionResult = EConcertConnectionResult::None;
 
 	UPROPERTY(VisibleAnywhere, Category="Concert Message")
 	TArray<FConcertSessionClientInfo> SessionClients;

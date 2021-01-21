@@ -956,7 +956,7 @@ void UUnrealEdEngine::GetPackageList( TArray<UPackage*>* InPackages, UClass* InC
 {
 	InPackages->Empty();
 
-	for( FObjectIterator It ; It ; ++It )
+	for( FThreadSafeObjectIterator It; It ; ++It )
 	{
 		if( It->GetOuter() && It->GetOuter() != GetTransientPackage() )
 		{
@@ -1476,6 +1476,12 @@ bool UUnrealEdEngine::HasMountWritePermissionForPackage(const FString& PackageNa
 
 bool UUnrealEdEngine::VerifyMountPointWritePermission(FName MountPoint)
 {
+	// If mount is unknown assume write permissions are fine	
+	if (MountPoint.IsNone())
+	{
+		return true;
+	}
+
 	// Get a unique temp filename under the mount point
 	FString WriteCheckPath = FPackageName::LongPackageNameToFilename(MountPoint.ToString()) + FGuid::NewGuid().ToString();
 

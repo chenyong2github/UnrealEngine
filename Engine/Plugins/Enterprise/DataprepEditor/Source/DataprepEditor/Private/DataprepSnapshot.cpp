@@ -457,7 +457,7 @@ public:
 		: FExportObjectInnerContext(false)
 	{
 		// For each object . . .
-		for ( TObjectIterator<UObject> It ; It ; ++It )
+		for ( TObjectIterator<UObject> It; It ; ++It )
 		{
 			UObject* InnerObj = *It;
 			UObject* OuterObj = InnerObj->GetOuter();

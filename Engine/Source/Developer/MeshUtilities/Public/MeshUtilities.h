@@ -309,6 +309,19 @@ public:
 		) = 0;
 
 	/**
+	 *  Calculate The tangent, bi normal and normal for the triangle define by the tree SoftSkinVertex.
+	 *
+	 *  @note The function will always fill properly the OutTangents array with 3 FVector. If the triangle is degenerated the OutTangent will contain zeroed vectors.
+	 *
+	 *  @param VertexA - First triangle vertex.
+	 *  @param VertexB - Second triangle vertex.
+	 *  @param VertexC - Third triangle vertex.
+	 *  @param OutTangents - The function allocate the TArray with 3 FVector, to represent the triangle tangent, bi normal and normal.
+	 *  @param CompareThreshold - The threshold use to compare a tangent vector with zero.
+	 */
+	virtual void CalculateTriangleTangent(const FSoftSkinVertex& VertexA, const FSoftSkinVertex& VertexB, const FSoftSkinVertex& VertexC, TArray<FVector>& OutTangents, float CompareThreshold) = 0;
+
+	/**
 	 *	Calculate the verts associated weighted to each bone of the skeleton.
 	 *	The vertices returned are in the local space of the bone.
 	 *

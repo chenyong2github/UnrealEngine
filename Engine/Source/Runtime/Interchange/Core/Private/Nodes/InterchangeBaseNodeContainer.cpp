@@ -173,7 +173,7 @@ void UInterchangeBaseNodeContainer::SerializeNodeContainerData(FArchive& Ar)
 	{
 		//Find all the potential node class
 		TMap<FString, UClass*> ClassPerName;
-		for (FObjectIterator It(UClass::StaticClass()); It; ++It)
+		for (FThreadSafeObjectIterator It(UClass::StaticClass()); It; ++It)
 		{
 			UClass* Class = Cast<UClass>(*It);
 			if (Class->IsChildOf(UInterchangeBaseNode::StaticClass()))

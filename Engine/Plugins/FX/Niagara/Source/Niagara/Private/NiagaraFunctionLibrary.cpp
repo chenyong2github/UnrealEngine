@@ -14,8 +14,10 @@
 #include "NiagaraDataInterfaceStaticMesh.h"
 #include "NiagaraStats.h"
 #include "NiagaraDataInterfaceTexture.h"
+#include "NiagaraDataInterface2DArrayTexture.h"
 #include "NiagaraDataInterfaceVolumeTexture.h"
 #include "Engine/VolumeTexture.h"
+#include "Engine/Texture2DArray.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraFunctionLibrary"
 
@@ -480,10 +482,50 @@ void UNiagaraFunctionLibrary::SetTextureObject(UNiagaraComponent* NiagaraSystem,
 		return;
 	}
 
+	// In the editor we must set the parameter before SetParameterOverride as it will duplicate the DataInterface
+	TextureDI->SetTexture(Texture);
 #if WITH_EDITOR
 	NiagaraSystem->SetParameterOverride(Variable, FNiagaraVariant(TextureDI));
 #endif
+}
+
+void UNiagaraFunctionLibrary::SetTexture2DArrayObject(UNiagaraComponent* NiagaraSystem, const FString& OverrideName, UTexture2DArray* Texture)
+{
+	if (!NiagaraSystem)
+	{
+		UE_LOG(LogNiagara, Warning, TEXT("NiagaraSystem in \"SetTexture2DArrayObject\" is NULL, OverrideName \"%s\" and Texture \"%s\", skipping."), *OverrideName, *GetFullNameSafe(Texture));
+		return;
+	}
+
+	if (!Texture)
+	{
+		UE_LOG(LogNiagara, Warning, TEXT("Volume Texture in \"SetTexture2DArrayObject\" is NULL, OverrideName \"%s\" and NiagaraSystem \"%s\", skipping."), *OverrideName, *GetFullNameSafe(NiagaraSystem));
+		return;
+	}
+
+	const FNiagaraParameterStore& OverrideParameters = NiagaraSystem->GetOverrideParameters();
+
+	FNiagaraVariable Variable(FNiagaraTypeDefinition(UNiagaraDataInterface2DArrayTexture::StaticClass()), *OverrideName);
+
+	int32 Index = OverrideParameters.IndexOf(Variable);
+	if (Index == INDEX_NONE)
+	{
+		UE_LOG(LogNiagara, Warning, TEXT("Could not find index of variable \"%s\" in the OverrideParameters map of NiagaraSystem \"%s\"."), *OverrideName, *GetFullNameSafe(NiagaraSystem));
+		return;
+	}
+
+	UNiagaraDataInterface2DArrayTexture* TextureDI = Cast<UNiagaraDataInterface2DArrayTexture>(OverrideParameters.GetDataInterface(Index));
+	if (!TextureDI)
+	{
+		UE_LOG(LogNiagara, Warning, TEXT("Did not find a matching 2D Array Texture Data Interface variable named \"%s\" in the User variables of NiagaraSystem \"%s\" ."), *OverrideName, *GetFullNameSafe(NiagaraSystem));
+		return;
+	}
+
+	// In the editor we must set the parameter before SetParameterOverride as it will duplicate the DataInterface
 	TextureDI->SetTexture(Texture);
+#if WITH_EDITOR
+	NiagaraSystem->SetParameterOverride(Variable, FNiagaraVariant(TextureDI));
+#endif
 }
 
 void UNiagaraFunctionLibrary::SetVolumeTextureObject(UNiagaraComponent* NiagaraSystem, const FString& OverrideName, UVolumeTexture* Texture)
@@ -518,10 +560,11 @@ void UNiagaraFunctionLibrary::SetVolumeTextureObject(UNiagaraComponent* NiagaraS
 		return;
 	}
 
+	// In the editor we must set the parameter before SetParameterOverride as it will duplicate the DataInterface
+	TextureDI->SetTexture(Texture);
 #if WITH_EDITOR
 	NiagaraSystem->SetParameterOverride(Variable, FNiagaraVariant(TextureDI));
 #endif
-	TextureDI->SetTexture(Texture);
 }
 
 UNiagaraDataInterface* UNiagaraFunctionLibrary::GetDataInterface(UClass* DIClass, UNiagaraComponent* NiagaraSystem, FName OverrideName)

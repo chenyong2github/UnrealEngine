@@ -1877,6 +1877,14 @@ private: // below here we assume CachedFilesScopeLock until we get to the next s
 						continue;
 					}
 					int32 CacheIndex = CachedPakData[RealPakIndex].ActualPakFile->GetCacheIndex();
+					if (CacheIndex < 0 || OffsetAndPakIndexOfSavedBlocked.Num() <= CacheIndex)
+					{
+						// It appears that rare crashes in shipped builds can hit this case.
+						// Without the CacheIndex we will no longer be able to trim the cache. This isn't a problem if the PakFile
+						// has actually been deleted, but that doesn't appear to be the case since Handle is still non-null.
+						UE_LOG(LogPakFile, Error, TEXT("TrimCache1: Non-deleted Pak File %s has invalid CacheIndex %d."), *CachedPakData[RealPakIndex].Name.ToString(), CacheIndex);
+						continue;
+					}
 					if (CacheVisitedAlready[CacheIndex] == true)
 						continue;
 					CacheVisitedAlready[CacheIndex] = true;
@@ -1939,6 +1947,14 @@ private: // below here we assume CachedFilesScopeLock until we get to the next s
 						continue;
 					}
 					int32 CacheIndex = CachedPakData[RealPakIndex].ActualPakFile->GetCacheIndex();
+					if (CacheIndex < 0 || OffsetAndPakIndexOfSavedBlocked.Num() <= CacheIndex)
+					{
+						// It appears that rare crashes in shipped builds can hit this case.
+						// Without the CacheIndex we will no longer be able to trim the cache. This isn't a problem if the PakFile
+						// has actually been deleted, but that doesn't appear to be the case since Handle is still non-null.
+						UE_LOG(LogPakFile, Error, TEXT("TrimCache2: Non-deleted Pak File %s has invalid CacheIndex %d."), *CachedPakData[RealPakIndex].Name.ToString(), CacheIndex);
+						continue;
+					}
 
 					int32 NumToRemove = 0;
 
@@ -2007,6 +2023,14 @@ private: // below here we assume CachedFilesScopeLock until we get to the next s
 					continue;
 				}
 				int32 CacheIndex = CachedPakData[RealPakIndex].ActualPakFile->GetCacheIndex();
+				if (CacheIndex < 0 || OffsetAndPakIndexOfSavedBlocked.Num() <= CacheIndex)
+				{
+					// It appears that rare crashes in shipped builds can hit this case.
+					// Without the CacheIndex we will no longer be able to trim the cache. This isn't a problem if the PakFile
+					// has actually been deleted, but that doesn't appear to be the case since Handle is still non-null.
+					UE_LOG(LogPakFile, Error, TEXT("TrimCache3: Non-deleted Pak File %s has invalid CacheIndex %d."), *CachedPakData[RealPakIndex].Name.ToString(), CacheIndex);
+					continue;
+				}
 				int32 NumToKeep = bDiscardAll ? 0 : GPakCache_NumUnreferencedBlocksToCache;
 				int32 NumToRemove = FMath::Max<int32>(0, OffsetAndPakIndexOfSavedBlocked[CacheIndex].Num() - NumToKeep);
 				if (NumToRemove)
@@ -5623,6 +5647,7 @@ void FPakFile::EncodePakEntriesIntoIndex(int32 InNumEntries, const ReadNextEntry
 
 void FPakFile::PruneDirectoryIndex(FDirectoryIndex& InOutDirectoryIndex, FDirectoryIndex* PrunedDirectoryIndex, const FString& MountPoint)
 {
+	// Caller holds WriteLock on DirectoryIndexLock
 	TArray<FString> FileWildCards, DirectoryWildCards, OldWildCards;
 	GConfig->GetArray(TEXT("Pak"), TEXT("DirectoryIndexKeepFiles"), FileWildCards, GEngineIni);
 	GConfig->GetArray(TEXT("Pak"), TEXT("DirectoryIndexKeepEmptyDirectories"), DirectoryWildCards, GEngineIni);
@@ -6234,6 +6259,7 @@ bool FPakFile::NormalizeDirectoryQuery(const TCHAR* InPath, FString& OutRelative
 
 const FPakDirectory* FPakFile::FindPrunedDirectoryInternal(const FString& RelativePathFromMount) const
 {
+	// Caller holds FScopedPakDirectoryIndexAccess
 	const FPakDirectory* PakDirectory = nullptr;
 
 #if ENABLE_PAKFILE_RUNTIME_PRUNING_VALIDATE
@@ -6657,7 +6683,11 @@ FPakFile::EFindResult FPakFile::Find(const FString& FullPath, FPakEntry* OutEntr
 		PathHashLocation = FindLocationFromIndex(FullPath, MountPoint, PathHashIndex, PathHashSeed, Info.Version);
 
 		const FPakEntryLocation* DirectoryLocation = nullptr;
-		DirectoryLocation = FindLocationFromIndex(FullPath, MountPoint, DirectoryIndex);
+
+		{
+			FScopedPakDirectoryIndexAccess ScopeAccess(*this);
+			DirectoryLocation = FindLocationFromIndex(FullPath, MountPoint, DirectoryIndex);
+		}
 
 		if ((PathHashLocation != nullptr) != (DirectoryLocation != nullptr))
 		{
@@ -6682,6 +6712,7 @@ FPakFile::EFindResult FPakFile::Find(const FString& FullPath, FPakEntry* OutEntr
 		else
 		{
 			check(bHasFullDirectoryIndex);
+			FScopedPakDirectoryIndexAccess ScopeAccess(*this);
 			PakEntryLocation = FindLocationFromIndex(FullPath, MountPoint, DirectoryIndex);
 		}
 	}
@@ -7123,10 +7154,13 @@ void FPakPlatformFile::OptimizeMemoryUsageForMountedPaks()
 	for (auto& Pak : Paks)
 	{
 		FPakFile* PakFile = Pak.PakFile;
-		DirectoryHashSize += GetRecursiveAllocatedSize(PakFile->DirectoryIndex);
-#if ENABLE_PAKFILE_RUNTIME_PRUNING 
 		{
-			DirectoryHashSize += GetRecursiveAllocatedSize(PakFile->PrunedDirectoryIndex);
+			FPakFile::FScopedPakDirectoryIndexAccess ScopeAccess(*PakFile);
+			DirectoryHashSize += GetRecursiveAllocatedSize(PakFile->DirectoryIndex);
+#if ENABLE_PAKFILE_RUNTIME_PRUNING 
+			{
+				DirectoryHashSize += GetRecursiveAllocatedSize(PakFile->PrunedDirectoryIndex);
+			}
 		}
 #endif
 		PathHashSize += PakFile->PathHashIndex.GetAllocatedSize();

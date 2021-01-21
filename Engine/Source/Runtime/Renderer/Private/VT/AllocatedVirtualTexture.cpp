@@ -20,6 +20,8 @@ FAllocatedVirtualTexture::FAllocatedVirtualTexture(FVirtualTextureSystem* InSyst
 	, RefCount(1)
 	, FrameAllocated(InFrame)
 	, Space(nullptr)
+	, VirtualPageX(~0u)
+	, VirtualPageY(~0u)
 {
 	check(IsInRenderingThread());
 	FMemory::Memzero(TextureLayers);

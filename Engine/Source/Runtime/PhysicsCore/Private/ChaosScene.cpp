@@ -473,27 +473,9 @@ void FChaosScene::EndFrame()
 		//for now just copy the whole thing, stomping any changes that came from GT
 		CopySolverAccelerationStructure();
 
-		TArray<FPhysicsSolverBase*> ActiveSolvers;
-		ActiveSolvers.Reserve(SolverList.Num());
-
-		// #BG calculate active solver list once as we dispatch our first task
 		for(FPhysicsSolverBase* Solver : SolverList)
 		{
-			Solver->CastHelper([&ActiveSolvers](auto& Concrete)
-			{
-				if(Concrete.HasActiveParticles())
-				{
-					ActiveSolvers.Add(&Concrete);
-				}
-			});
-
-		}
-
-		const int32 NumActiveSolvers = ActiveSolvers.Num();
-
-		for(FPhysicsSolverBase* Solver : ActiveSolvers)
-		{
-			Solver->CastHelper([&ActiveSolvers,this](auto& Concrete)
+			Solver->CastHelper([&SolverList,this](auto& Concrete)
 			{
 				SyncBodies(&Concrete);
 				Concrete.SyncEvents_GameThread();

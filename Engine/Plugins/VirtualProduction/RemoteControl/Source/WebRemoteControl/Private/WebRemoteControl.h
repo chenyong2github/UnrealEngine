@@ -2,17 +2,18 @@
 
 #pragma once
 
+#include "Containers/ContainersFwd.h"
 #include "IWebRemoteControlModule.h"
 #include "IRemoteControlModule.h"
-#include "RemoteControlRequest.h"
 #include "HttpRouteHandle.h"
 #include "HttpServerResponse.h"
 #include "HttpServerRequest.h"
-#include "RemoteControlRoute.h"
+#include "Misc/Guid.h"
 #include "HAL/IConsoleManager.h"
-#include "WebRemoteControlEditorRoutes.h"
+#include "RemoteControlRequest.h"
+#include "RemoteControlRoute.h"
 #include "RemoteControlWebSocketServer.h"
-#include "Containers/ContainersFwd.h"
+#include "WebRemoteControlEditorRoutes.h"
 
 struct FHttpServerRequest;
 class IHttpRouter;
@@ -165,6 +166,9 @@ private:
 
 	/** Router used to dispatch websocket messages. */
 	TSharedPtr<FWebsocketMessageRouter> WebSocketRouter;
+
+	/** Holds the client currently making a request. */
+	FGuid ActingClientId;
 
 	//~ Server started stopped delegates.
 	FOnWebServerStarted OnHttpServerStartedDelegate;

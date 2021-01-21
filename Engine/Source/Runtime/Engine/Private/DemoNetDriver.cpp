@@ -5395,3 +5395,9 @@ void UDemoNetDriver::SetWorld(UWorld* InWorld)
 
 	ReplayHelper.World = InWorld;
 }
+
+bool UDemoNetDriver::ShouldForwardFunction(AActor* Actor, UFunction* Function, void* Parms) const
+{
+	// currently no need to forward replay playback RPCs on to other drivers
+	return false;
+}

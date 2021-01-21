@@ -170,6 +170,20 @@ namespace EAndroidGraphicsDebugger
 	};
 }
 
+UENUM()
+namespace EClangSanitizer
+{
+	enum Type
+	{
+		None = 0 UMETA(DisplayName = "None"),
+		Address = 1 UMETA(DisplayName = "Address Sanitizer"),
+		HwAddress = 2 UMETA(DisplayName = "Hardware Address Sanitizer. For flashed Pixel devices only!"),
+		UndefinedBehavior = 3 UMETA(DisplayName = "Undefined Behavior Sanitizer"),
+		UndefinedBehaviorMinimal = 4 UMETA(DisplayName = "Minimal Undefined Behavior Sanitizer"),
+		//Thread = 5 UMETA(DisplayName = "Thread Sanitizer"),
+	};
+}
+
 
 /**
  * Implements the settings for the Android runtime platform.
@@ -397,6 +411,10 @@ public:
 	// Enable Vulkan SM5 rendering support
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = Build, meta = (DisplayName = "Support Vulkan Desktop [Experimental]"))
 	bool bSupportsVulkanSM5;
+
+	// Select a Clang's sanitizer to build the project with
+	UPROPERTY(GlobalConfig, EditAnywhere, Category = Build)
+	TEnumAsByte<EClangSanitizer::Type> ClangSanitizer;
 
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = Build, meta = (DisplayName = "Support Backbuffer Sampling on OpenGL",
 	ToolTip = "Whether to render to an offscreen surface instead of render to backbuffer directly on android opengl platform. Enable it if you'd like to support UMG background blur on android opengl."))

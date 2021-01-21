@@ -27,12 +27,37 @@ UFXSystemComponent* UAnimNotifyState_TimedNiagaraEffect::SpawnEffect(USkeletalMe
 	return nullptr;
 }
 
+UFXSystemComponent* UAnimNotifyState_TimedNiagaraEffect::GetSpawnedEffect(UMeshComponent* MeshComp)
+{
+	if (MeshComp)
+	{
+		TArray<USceneComponent*> Children;
+		MeshComp->GetChildrenComponents(false, Children);
+
+		if (Children.Num())
+		{
+			for (USceneComponent* Component : Children)
+			{
+				if (Component && Component->ComponentHasTag(GetSpawnedComponentTag()))
+				{
+					if (UFXSystemComponent* FXComponent = CastChecked<UFXSystemComponent>(Component))
+					{
+						return FXComponent;
+					}
+				}
+			}
+		}
+	}
+
+	return nullptr;
+}
+
 void UAnimNotifyState_TimedNiagaraEffect::NotifyBegin(USkeletalMeshComponent * MeshComp, class UAnimSequenceBase * Animation, float TotalDuration)
 {
 	if (UFXSystemComponent* Component = SpawnEffect(MeshComp, Animation))
 	{
 		// tag the component with the AnimNotify that is triggering the animation so that we can properly clean it up
-		Component->ComponentTags.AddUnique(GetFName());
+		Component->ComponentTags.AddUnique(GetSpawnedComponentTag());
 	}
 
 	Super::NotifyBegin(MeshComp, Animation, TotalDuration);
@@ -40,37 +65,20 @@ void UAnimNotifyState_TimedNiagaraEffect::NotifyBegin(USkeletalMeshComponent * M
 
 void UAnimNotifyState_TimedNiagaraEffect::NotifyEnd(USkeletalMeshComponent * MeshComp, class UAnimSequenceBase * Animation)
 {
-	TArray<USceneComponent*> Children;
-	MeshComp->GetChildrenComponents(false, Children);
-
-	if (Children.Num())
+	if (UFXSystemComponent* FXComponent = GetSpawnedEffect(MeshComp))
 	{
-		const FName AnimNotifyTag = GetFName();
+		// untag the component
+		FXComponent->ComponentTags.Remove(GetSpawnedComponentTag());
 
-		for (USceneComponent* Component : Children)
+		// Either destroy the component or deactivate it to have it's active FXSystems finish.
+		// The component will auto destroy once all FXSystem are gone.
+		if (bDestroyAtEnd)
 		{
-			if (Component && Component->ComponentHasTag(AnimNotifyTag))
-			{
-				if (UFXSystemComponent* FXComponent = CastChecked<UFXSystemComponent>(Component))
-				{
-					// untag the component
-					FXComponent->ComponentTags.Remove(AnimNotifyTag);
-
-					// Either destroy the component or deactivate it to have it's active FXSystems finish.
-					// The component will auto destroy once all FXSystem are gone.
-					if (bDestroyAtEnd)
-					{
-						FXComponent->DestroyComponent();
-					}
-					else
-					{
-						FXComponent->Deactivate();
-					}
-
-					// Removed a component, no need to continue
-					break;
-				}
-			}
+			FXComponent->DestroyComponent();
+		}
+		else
+		{
+			FXComponent->Deactivate();
 		}
 	}
 
@@ -101,4 +109,47 @@ FString UAnimNotifyState_TimedNiagaraEffect::GetNotifyName_Implementation() cons
 	}
 
 	return UAnimNotifyState::GetNotifyName_Implementation();
+}
+
+//////////////////////////////////////////////////////////////////////////
+
+UAnimNotifyState_TimedNiagaraEffectAdvanced::UAnimNotifyState_TimedNiagaraEffectAdvanced(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+}
+
+void UAnimNotifyState_TimedNiagaraEffectAdvanced::NotifyBegin(USkeletalMeshComponent* MeshComp, class UAnimSequenceBase* Animation, float TotalDuration)
+{
+	Super::NotifyBegin(MeshComp, Animation, TotalDuration);
+
+	FInstanceProgressInfo& NewInfo = ProgressInfoMap.Add(MeshComp);
+	NewInfo.Duration = TotalDuration;
+	NewInfo.Elapsed = 0.0f;
+}
+
+void UAnimNotifyState_TimedNiagaraEffectAdvanced::NotifyEnd(USkeletalMeshComponent* MeshComp, class UAnimSequenceBase* Animation)
+{
+	Super::NotifyEnd(MeshComp, Animation);
+	ProgressInfoMap.Remove(MeshComp);
+}
+
+void UAnimNotifyState_TimedNiagaraEffectAdvanced::NotifyTick(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, float FrameDeltaTime)
+{
+	Super::NotifyTick(MeshComp, Animation, FrameDeltaTime);
+
+	//Advance the progress.
+	//TODO: There must be some way to avoid this map and lookup. The information about the current elapsed time and a mapping onto the notify range should be available somewhere in the mesh comp and notify.
+	if (FInstanceProgressInfo* ProgressInfo = ProgressInfoMap.Find(MeshComp))
+	{
+		ProgressInfo->Elapsed += FrameDeltaTime;
+	}
+}
+
+float UAnimNotifyState_TimedNiagaraEffectAdvanced::GetNotifyProgress(UMeshComponent* MeshComp)
+{
+	if (FInstanceProgressInfo* ProgressInfo = ProgressInfoMap.Find(MeshComp))
+	{
+		return FMath::Clamp(ProgressInfo->Elapsed / FMath::Max(ProgressInfo->Duration, SMALL_NUMBER), 0.0f, 1.0f);
+	}
+	return 0.0f;
 }

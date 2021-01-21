@@ -46,8 +46,8 @@ void UGameFeaturesSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 
 	IConsoleManager::Get().RegisterConsoleCommand(
 		TEXT("ListGameFeaturePlugins"),
-		TEXT("Prints game features plugins and their current state to log. (options: [-activeonly] [-alphasort]"),
-		FConsoleCommandWithArgsDelegate::CreateUObject(this, &ThisClass::ListGameFeaturePlugins),
+		TEXT("Prints game features plugins and their current state to log. (options: [-activeonly] [-alphasort] [-csv])"),
+		FConsoleCommandWithWorldArgsAndOutputDeviceDelegate::CreateUObject(this, &ThisClass::ListGameFeaturePlugins),
 		ECVF_Default);
 
 	IConsoleManager::Get().RegisterConsoleCommand(
@@ -703,12 +703,17 @@ bool UGameFeaturesSubsystem::HandleRequestPluginDependencyStateMachines(const FS
 	return false;
 }
 
-void UGameFeaturesSubsystem::ListGameFeaturePlugins(const TArray<FString>& Args)
+void UGameFeaturesSubsystem::ListGameFeaturePlugins(const TArray<FString>& Args, UWorld* InWorld, FOutputDevice& Ar)
 {
-	UE_LOG(LogGameFeatures, Display, TEXT("Listing Game Feature Plugins..."));
-
 	const bool bAlphaSort = Args.ContainsByPredicate([](const FString& Arg) { return Arg.Compare(TEXT("-ALPHASORT"), ESearchCase::IgnoreCase) == 0; });
 	const bool bActiveOnly = Args.ContainsByPredicate([](const FString& Arg) { return Arg.Compare(TEXT("-ACTIVEONLY"), ESearchCase::IgnoreCase) == 0; });
+	const bool bCsv = Args.ContainsByPredicate([](const FString& Arg) { return Arg.Compare(TEXT("-CSV"), ESearchCase::IgnoreCase) == 0; });
+
+	Ar.Logf(TEXT("Listing Game Feature Plugins..."));
+	if (bCsv)
+	{
+		Ar.Logf(TEXT(",Plugin,State"));
+	}
 
 	// create a copy for sorting
 	TArray<UGameFeaturePluginStateMachine*> StateMachines;
@@ -732,9 +737,16 @@ void UGameFeaturesSubsystem::ListGameFeaturePlugins(const TArray<FString>& Args)
 			continue;
 		}
 
-		UE_LOG(LogGameFeatures, Display, TEXT("%s (%s)"), *GFSM->GetGameFeatureName(), *EGameFeaturePluginState::ToString(GFSM->GetCurrentState()));
+		if (bCsv)
+		{
+			Ar.Logf(TEXT(",%s,%s"), *GFSM->GetGameFeatureName(), *EGameFeaturePluginState::ToString(GFSM->GetCurrentState()));
+		}
+		else
+		{
+			Ar.Logf(TEXT("%s (%s)"), *GFSM->GetGameFeatureName(), *EGameFeaturePluginState::ToString(GFSM->GetCurrentState()));
+		}
 		++PluginCount;
 	}
 
-	UE_LOG(LogGameFeatures, Display, TEXT("Total Game Feature Plugins: %d"), PluginCount);
+	Ar.Logf(TEXT("Total Game Feature Plugins: %d"), PluginCount);
 }

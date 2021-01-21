@@ -881,6 +881,14 @@ public:
 	static void BulkRemoveMemberVariables(UBlueprint* Blueprint, const TArray<FName>& VarNames);
 
 	/**
+	 * Removes all unused member variables.
+	 *
+	 * @param	OutUsedProperties	The list of used variables in the blueprint
+	 * @param	OutUnusedProperties	The list of unused variables in the blueprint
+	 */
+	static void GetUsedAndUnusedVariables(UBlueprint* Blueprint, TArray<FProperty*>& OutUsedVariables, TArray<FProperty*>& OutUnusedVariables);
+
+	/**
 	 * Finds a member variable Guid using the variable's name
 	 *
 	 * @param InBlueprint		Blueprint to search for the local variable

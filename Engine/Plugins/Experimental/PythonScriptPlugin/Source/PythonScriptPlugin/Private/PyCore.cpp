@@ -165,7 +165,7 @@ bool FPyScopedSlowTask::ValidateInternalState(FPyScopedSlowTask* InSelf)
 template <typename ObjectType, typename SelfType>
 bool PyTypeIterator_PassesFilter(SelfType* InSelf)
 {
-	FObjectIterator& Iter = *InSelf->Iterator;
+	FPersistentThreadSafeObjectIterator& Iter = *InSelf->Iterator;
 	ObjectType* IterObj = CastChecked<ObjectType>(*Iter);
 	return !InSelf->IteratorFilter || IterObj->IsChildOf(InSelf->IteratorFilter);
 }
@@ -205,7 +205,7 @@ UScriptStruct* FPyStructIterator::ExtractFilter(FPyStructIterator* InSelf, PyObj
 
 PyObject* FPyTypeIterator::GetIterValue(FPyTypeIterator* InSelf)
 {
-	FObjectIterator& Iter = *InSelf->Iterator;
+	FPersistentThreadSafeObjectIterator& Iter = *InSelf->Iterator;
 	UStruct* IterObj = CastChecked<UStruct>(*Iter);
 
 	PyTypeObject* IterType = nullptr;
@@ -230,7 +230,7 @@ bool FPyTypeIterator::PassesFilter(FPyTypeIterator* InSelf)
 		return false;
 	}
 
-	FObjectIterator& Iter = *InSelf->Iterator;
+	FPersistentThreadSafeObjectIterator& Iter = *InSelf->Iterator;
 	UStruct* IterObj = CastChecked<UStruct>(*Iter);
 
 	if (const UClass* IterClass = Cast<UClass>(IterObj))

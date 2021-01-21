@@ -836,7 +836,7 @@ void FSkeletalAnimationSection::BuildSectionContextMenu(FMenuBuilder& MenuBuilde
 				FSlateIcon(),
 				FUIAction(
 					FExecuteAction::CreateLambda([=]()->void { 
-						FScopedTransaction MatchTransaction(LOCTEXT("MatchZHeight_Transaction", "Match Include Z Height"));
+						FScopedTransaction MatchTransaction(LOCTEXT("MatchZHeight_Transaction", "Match Z Height"));
 						Section.Modify();
 						Section.ToggleMatchIncludeZHeight(); 
 						Section.MatchSectionByBoneTransform(SkelMeshComp, SequencerPtr->GetLocalTime().Time, SequencerPtr->GetLocalTime().Rate, Section.MatchedBoneName);

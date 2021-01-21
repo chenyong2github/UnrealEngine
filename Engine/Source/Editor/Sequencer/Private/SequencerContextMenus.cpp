@@ -1595,7 +1595,7 @@ void FPasteContextMenu::Setup()
 		{
 			for (const TSharedRef<FSequencerDisplayNode>& Node : Args.DestinationNodes)
 			{
-				if (Node->GetType() != ESequencerNode::KeyArea)
+				if (Node->GetType() != ESequencerNode::KeyArea && Node->GetType() != ESequencerNode::Category)
 				{
 					continue;
 				}
@@ -1633,9 +1633,18 @@ void FPasteContextMenu::Setup()
 				}
 			}
 
-			// If we found exactly one destination, we're done
-			if (PasteDestinations.Num() == 1 && PasteDestinations[0].Reconcilers.Num() == 1)
+			int32 ExactMatchCount = 0;
+			for (int32 PasteDestinationIndex = 0; PasteDestinationIndex < PasteDestinations.Num(); ++PasteDestinationIndex)
 			{
+				if (PasteDestinations[PasteDestinationIndex].Reconcilers.Num() == 1)
+				{
+					++ExactMatchCount;
+				}
+			}
+
+			if (ExactMatchCount > 0 && ExactMatchCount == PasteDestinations.Num())
+			{
+				bPasteFirstOnly = false;
 				return;
 			}
 
@@ -1775,7 +1784,12 @@ void FPasteContextMenu::AddPasteMenuForTrackType(FMenuBuilder& MenuBuilder, int3
 			FText(),
 			FSlateIcon(),
 			FUIAction(
-				FExecuteAction::CreateLambda([=](){ Shared->PasteInto(DestinationIndex, Pair.Key); })
+				FExecuteAction::CreateLambda([=](){ 
+				TSet<FSequencerSelectedKey> NewSelection;
+				Shared->BeginPasteInto();
+				const bool bAnythingPasted = Shared->PasteInto(DestinationIndex, Pair.Key, NewSelection); 
+				Shared->EndPasteInto(bAnythingPasted, NewSelection);
+				})
 			)
 		);
 	}
@@ -1784,27 +1798,71 @@ void FPasteContextMenu::AddPasteMenuForTrackType(FMenuBuilder& MenuBuilder, int3
 
 bool FPasteContextMenu::AutoPaste()
 {
-	if (PasteDestinations.Num() == 1)
+	TSet<FSequencerSelectedKey> NewSelection;
+	BeginPasteInto();
+
+	bool bAnythingPasted = false;
+	for (int32 PasteDestinationIndex = 0; PasteDestinationIndex < PasteDestinations.Num(); ++PasteDestinationIndex)
 	{
-		for (auto& Pair : PasteDestinations[0].Reconcilers)
+		for (auto& Pair : PasteDestinations[PasteDestinationIndex].Reconcilers)
 		{
 			if (Pair.Value.CanAutoPaste())
 			{
-				PasteInto(0, Pair.Key);
-				return true;
+				if (PasteInto(PasteDestinationIndex, Pair.Key, NewSelection))
+				{
+					bAnythingPasted = true;
+
+					if (bPasteFirstOnly)
+					{
+						break;
+					}
+				}
 			}
 		}
 	}
 
-	return false;
+	EndPasteInto(bAnythingPasted, NewSelection);
+
+	return bAnythingPasted;
 }
 
+void FPasteContextMenu::BeginPasteInto()
+{
+	GEditor->BeginTransaction(LOCTEXT("PasteKeysTransaction", "Paste Keys"));
+}
 
-void FPasteContextMenu::PasteInto(int32 DestinationIndex, FName KeyAreaName)
+void FPasteContextMenu::EndPasteInto(bool bAnythingPasted, const TSet<FSequencerSelectedKey>& NewSelection)
+{
+	if (!bAnythingPasted)
+	{
+		GEditor->CancelTransaction(0);
+		return;
+	}
+
+	GEditor->EndTransaction();
+
+	SSequencerSection::ThrobKeySelection();
+
+	FSequencerSelection& Selection = Sequencer->GetSelection();
+	Selection.SuspendBroadcast();
+	Selection.EmptySelectedSections();
+	Selection.EmptySelectedKeys();
+
+	for (const FSequencerSelectedKey& Key : NewSelection)
+	{
+		Selection.AddToSelection(Key);
+	}
+	Selection.ResumeBroadcast();
+	Selection.GetOnKeySelectionChanged().Broadcast();
+	Selection.GetOnSectionSelectionChanged().Broadcast();
+
+	Sequencer->OnClipboardUsed(Args.Clipboard);
+	Sequencer->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::TrackValueChanged);
+}
+
+bool FPasteContextMenu::PasteInto(int32 DestinationIndex, FName KeyAreaName, TSet<FSequencerSelectedKey>& NewSelection)
 {
 	FSequencerClipboardReconciler& Reconciler = PasteDestinations[DestinationIndex].Reconcilers[KeyAreaName];
-
-	TSet<FSequencerSelectedKey> NewSelection;
 
 	FSequencerPasteEnvironment PasteEnvironment;
 	PasteEnvironment.TickResolution = Sequencer->GetFocusedTickResolution();
@@ -1813,32 +1871,7 @@ void FPasteContextMenu::PasteInto(int32 DestinationIndex, FName KeyAreaName)
 		NewSelection.Add(FSequencerSelectedKey(*KeyArea.GetOwningSection(), KeyArea.AsShared(), Handle));
 	};
 
-	FScopedTransaction Transaction(LOCTEXT("PasteKeysTransaction", "Paste Keys"));
-	if (!Reconciler.Paste(PasteEnvironment))
-	{
-		Transaction.Cancel();
-	}
-	else
-	{
-		SSequencerSection::ThrobKeySelection();
-
-		// @todo sequencer: selection in transactions
-		FSequencerSelection& Selection = Sequencer->GetSelection();
-		Selection.SuspendBroadcast();
-		Selection.EmptySelectedSections();
-		Selection.EmptySelectedKeys();
-
-		for (const FSequencerSelectedKey& Key : NewSelection)
-		{
-			Selection.AddToSelection(Key);
-		}
-		Selection.ResumeBroadcast();
-		Selection.GetOnKeySelectionChanged().Broadcast();
-		Selection.GetOnSectionSelectionChanged().Broadcast();
-
-		Sequencer->OnClipboardUsed(Args.Clipboard);
-		Sequencer->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::TrackValueChanged);
-	}
+	return Reconciler.Paste(PasteEnvironment);
 }
 
 

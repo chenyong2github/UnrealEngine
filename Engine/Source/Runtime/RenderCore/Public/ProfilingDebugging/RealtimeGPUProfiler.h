@@ -19,65 +19,11 @@
 // Note:  WITH_PROFILEGPU should be 0 for final builds
 #define WANTS_DRAW_MESH_EVENTS (RHI_COMMAND_LIST_DEBUG_TRACES || (WITH_PROFILEGPU && PLATFORM_SUPPORTS_DRAW_MESH_EVENTS))
 
-#ifndef WANT_BREADCRUMB_EVENTS
-#define WANT_BREADCRUMB_EVENTS 0 // Breadcrumbs are always enabled.
-#endif
-
 class FRealtimeGPUProfiler;
 class FRealtimeGPUProfilerEvent;
 class FRealtimeGPUProfilerFrame;
 class FRenderQueryPool;
 class FScopedGPUStatEvent;
-
-
-struct RENDERCORE_API FBreadcrumbEvent
-{
-	FRHIComputeCommandList* RHICmdList;
-
-	//overload, to isolate TCHAR literals
-	template<typename T, size_t N = 0>
-	FBreadcrumbEvent(FRHIComputeCommandList& InRHICmdList, T t); // not implemented
-
-
-	//Static literals
-	template<size_t N>
-	FORCEINLINE FBreadcrumbEvent(FRHIComputeCommandList& InRHICmdList, TCHAR const (&Name)[N])
-		: RHICmdList(&InRHICmdList)
-	{
-		if (RHICmdList)
-		{
-			RHICmdList->PushBreadcrumb_Static(Name);
-		}
-	}
-
-
-	//Everything else is Dynamic
-	template<>
-	FORCEINLINE FBreadcrumbEvent(FRHIComputeCommandList& InRHICmdList, const TCHAR* String)
-		: RHICmdList(&InRHICmdList)
-	{
-		if(RHICmdList)
-		{
-			RHICmdList->PushBreadcrumb(String);
-		}
-	}
-
-	//Terminate the event based upon scope
-	FORCEINLINE ~FBreadcrumbEvent()
-	{
-		if (RHICmdList)
-		{
-			RHICmdList->PopBreadcrumb();
-		}
-	}
-};
-
-#if WANT_BREADCRUMB_EVENTS
-#define BREADCRUMB_EVENT(RHICmdList, Name) FBreadcrumbEvent PREPROCESSOR_JOIN(BreadcrumbEvent_##Name,__LINE__)(RHICmdList, TEXT(#Name));
-#else
-#define BREADCRUMB_EVENT(RHICmdList, Name) do{}while(0)
-#endif
-
 
 #if WANTS_DRAW_MESH_EVENTS
 
@@ -145,10 +91,10 @@ struct RENDERCORE_API FBreadcrumbEvent
 		void Stop();
 	};
 
-	#define SCOPED_GPU_EVENT(RHICmdList, Name) BREADCRUMB_EVENT(RHICmdList, Name); FDrawEvent PREPROCESSOR_JOIN(Event_##Name,__LINE__); if(GetEmitDrawEvents()) PREPROCESSOR_JOIN(Event_##Name,__LINE__).Start(RHICmdList, FColor(0), TEXT(#Name));
-	#define SCOPED_GPU_EVENT_COLOR(RHICmdList, Color, Name) BREADCRUMB_EVENT(RHICmdList, Name); FDrawEvent PREPROCESSOR_JOIN(Event_##Name,__LINE__); if(GetEmitDrawEvents()) PREPROCESSOR_JOIN(Event_##Name,__LINE__).Start(RHICmdList, Color, TEXT(#Name));
-	#define SCOPED_GPU_EVENTF(RHICmdList, Name, Format, ...) BREADCRUMB_EVENT(RHICmdList, Name); FDrawEvent PREPROCESSOR_JOIN(Event_##Name,__LINE__); if(GetEmitDrawEvents()) PREPROCESSOR_JOIN(Event_##Name,__LINE__).Start(RHICmdList, FColor(0), Format, ##__VA_ARGS__);
-	#define SCOPED_GPU_EVENTF_COLOR(RHICmdList, Color, Name, Format, ...) BREADCRUMB_EVENT(RHICmdList, Name); FDrawEvent PREPROCESSOR_JOIN(Event_##Name,__LINE__); if(GetEmitDrawEvents()) PREPROCESSOR_JOIN(Event_##Name,__LINE__).Start(RHICmdList, Color, Format, ##__VA_ARGS__);
+	#define SCOPED_GPU_EVENT(RHICmdList, Name) FDrawEvent PREPROCESSOR_JOIN(Event_##Name,__LINE__); if(GetEmitDrawEvents()) PREPROCESSOR_JOIN(Event_##Name,__LINE__).Start(RHICmdList, FColor(0), TEXT(#Name));
+	#define SCOPED_GPU_EVENT_COLOR(RHICmdList, Color, Name) FDrawEvent PREPROCESSOR_JOIN(Event_##Name,__LINE__); if(GetEmitDrawEvents()) PREPROCESSOR_JOIN(Event_##Name,__LINE__).Start(RHICmdList, Color, TEXT(#Name));
+	#define SCOPED_GPU_EVENTF(RHICmdList, Name, Format, ...) FDrawEvent PREPROCESSOR_JOIN(Event_##Name,__LINE__); if(GetEmitDrawEvents()) PREPROCESSOR_JOIN(Event_##Name,__LINE__).Start(RHICmdList, FColor(0), Format, ##__VA_ARGS__);
+	#define SCOPED_GPU_EVENTF_COLOR(RHICmdList, Color, Name, Format, ...) FDrawEvent PREPROCESSOR_JOIN(Event_##Name,__LINE__); if(GetEmitDrawEvents()) PREPROCESSOR_JOIN(Event_##Name,__LINE__).Start(RHICmdList, Color, Format, ##__VA_ARGS__);
 	#define SCOPED_CONDITIONAL_GPU_EVENT(RHICmdList, Name, Condition) FDrawEvent PREPROCESSOR_JOIN(Event_##Name,__LINE__); if(GetEmitDrawEvents() && (Condition)) PREPROCESSOR_JOIN(Event_##Name,__LINE__).Start(RHICmdList, FColor(0), TEXT(#Name));
 	#define SCOPED_CONDITIONAL_GPU_EVENT_COLOR(RHICmdList, Name, Color, Condition) FDrawEvent PREPROCESSOR_JOIN(Event_##Name,__LINE__); if(GetEmitDrawEvents() && (Condition)) PREPROCESSOR_JOIN(Event_##Name,__LINE__).Start(RHICmdList, Color, TEXT(#Name));
 	#define SCOPED_CONDITIONAL_GPU_EVENTF(RHICmdList, Name, Condition, Format, ...) FDrawEvent PREPROCESSOR_JOIN(Event_##Name,__LINE__); if(GetEmitDrawEvents() && (Condition)) PREPROCESSOR_JOIN(Event_##Name,__LINE__).Start(RHICmdList, FColor(0), Format, ##__VA_ARGS__);
@@ -158,10 +104,10 @@ struct RENDERCORE_API FBreadcrumbEvent
 	#define STOP_GPU_EVENT(Event) (Event).Stop();
 
 	// Macros to allow for scoping of draw events outside of RHI function implementations
-	#define SCOPED_DRAW_EVENT(RHICmdList, Name) BREADCRUMB_EVENT(RHICmdList, Name); FDrawEvent PREPROCESSOR_JOIN(Event_##Name,__LINE__); if(GetEmitDrawEvents()) PREPROCESSOR_JOIN(Event_##Name,__LINE__).Start(RHICmdList, FColor(0), TEXT(#Name));
-	#define SCOPED_DRAW_EVENT_COLOR(RHICmdList, Color, Name) BREADCRUMB_EVENT(RHICmdList, Name); FDrawEvent PREPROCESSOR_JOIN(Event_##Name,__LINE__); if(GetEmitDrawEvents()) PREPROCESSOR_JOIN(Event_##Name,__LINE__).Start(RHICmdList, Color, TEXT(#Name));
-	#define SCOPED_DRAW_EVENTF(RHICmdList, Name, Format, ...) BREADCRUMB_EVENT(RHICmdList, Name); FDrawEvent PREPROCESSOR_JOIN(Event_##Name,__LINE__); if(GetEmitDrawEvents()) PREPROCESSOR_JOIN(Event_##Name,__LINE__).Start(RHICmdList, FColor(0), Format, ##__VA_ARGS__);
-	#define SCOPED_DRAW_EVENTF_COLOR(RHICmdList, Color, Name, Format, ...) BREADCRUMB_EVENT(RHICmdList, Name); FDrawEvent PREPROCESSOR_JOIN(Event_##Name,__LINE__); if(GetEmitDrawEvents()) PREPROCESSOR_JOIN(Event_##Name,__LINE__).Start(RHICmdList, Color, Format, ##__VA_ARGS__);
+	#define SCOPED_DRAW_EVENT(RHICmdList, Name) FDrawEvent PREPROCESSOR_JOIN(Event_##Name,__LINE__); if(GetEmitDrawEvents()) PREPROCESSOR_JOIN(Event_##Name,__LINE__).Start(RHICmdList, FColor(0), TEXT(#Name));
+	#define SCOPED_DRAW_EVENT_COLOR(RHICmdList, Color, Name) FDrawEvent PREPROCESSOR_JOIN(Event_##Name,__LINE__); if(GetEmitDrawEvents()) PREPROCESSOR_JOIN(Event_##Name,__LINE__).Start(RHICmdList, Color, TEXT(#Name));
+	#define SCOPED_DRAW_EVENTF(RHICmdList, Name, Format, ...) FDrawEvent PREPROCESSOR_JOIN(Event_##Name,__LINE__); if(GetEmitDrawEvents()) PREPROCESSOR_JOIN(Event_##Name,__LINE__).Start(RHICmdList, FColor(0), Format, ##__VA_ARGS__);
+	#define SCOPED_DRAW_EVENTF_COLOR(RHICmdList, Color, Name, Format, ...) FDrawEvent PREPROCESSOR_JOIN(Event_##Name,__LINE__); if(GetEmitDrawEvents()) PREPROCESSOR_JOIN(Event_##Name,__LINE__).Start(RHICmdList, Color, Format, ##__VA_ARGS__);
 	#define SCOPED_CONDITIONAL_DRAW_EVENT(RHICmdList, Name, Condition) FDrawEvent PREPROCESSOR_JOIN(Event_##Name,__LINE__); if(GetEmitDrawEvents() && (Condition)) PREPROCESSOR_JOIN(Event_##Name,__LINE__).Start(RHICmdList, FColor(0), TEXT(#Name));
 	#define SCOPED_CONDITIONAL_DRAW_EVENT_COLOR(RHICmdList, Name, Color, Condition) FDrawEvent PREPROCESSOR_JOIN(Event_##Name,__LINE__); if(GetEmitDrawEvents() && (Condition)) PREPROCESSOR_JOIN(Event_##Name,__LINE__).Start(RHICmdList, Color, TEXT(#Name));
 	#define SCOPED_CONDITIONAL_DRAW_EVENTF(RHICmdList, Name, Condition, Format, ...) FDrawEvent PREPROCESSOR_JOIN(Event_##Name,__LINE__); if(GetEmitDrawEvents() && (Condition)) PREPROCESSOR_JOIN(Event_##Name,__LINE__).Start(RHICmdList, FColor(0), Format, ##__VA_ARGS__);
@@ -169,6 +115,15 @@ struct RENDERCORE_API FBreadcrumbEvent
 	#define BEGIN_DRAW_EVENTF(RHICmdList, Name, Event, Format, ...) if(GetEmitDrawEvents()) (Event).Start(RHICmdList, FColor(0), Format, ##__VA_ARGS__);
 	#define BEGIN_DRAW_EVENTF_COLOR(RHICmdList, Color, Name, Event, Format, ...) if(GetEmitDrawEvents()) (Event).Start(RHICmdList, Color, Format, ##__VA_ARGS__);
 	#define STOP_DRAW_EVENT(Event) (Event).Stop();
+
+	#define SCOPED_COMPUTE_EVENT SCOPED_GPU_EVENT
+	#define SCOPED_COMPUTE_EVENT_COLOR SCOPED_GPU_EVENT_COLOR
+	#define SCOPED_COMPUTE_EVENTF SCOPED_GPU_EVENTF
+	#define SCOPED_COMPUTE_EVENTF_COLOR SCOPED_GPU_EVENTF_COLOR
+	#define SCOPED_CONDITIONAL_COMPUTE_EVENT SCOPED_CONDITIONAL_GPU_EVENT
+	#define SCOPED_CONDITIONAL_COMPUTE_EVENT_COLOR SCOPED_CONDITIONAL_GPU_EVENT_COLOR
+	#define SCOPED_CONDITIONAL_COMPUTE_EVENTF SCOPED_CONDITIONAL_GPU_EVENTF
+	#define SCOPED_CONDITIONAL_COMPUTE_EVENTF_COLOR SCOPED_CONDITIONAL_GPU_EVENTF_COLOR
 
 	// Macros to allow for scoping of draw events within RHI function implementations
 	#define SCOPED_RHI_DRAW_EVENT(RHICmdContext, Name) FDrawEventRHIExecute PREPROCESSOR_JOIN(Event_##Name,__LINE__); if(GetEmitDrawEvents()) PREPROCESSOR_JOIN(Event_##Name,__LINE__).Start(RHICmdContext, FColor(0), TEXT(#Name));
@@ -186,10 +141,10 @@ struct RENDERCORE_API FBreadcrumbEvent
 	{
 	};
 
-	#define SCOPED_GPU_EVENT(RHICmdList, Name) BREADCRUMB_EVENT(RHICmdList, Name);
-	#define SCOPED_GPU_EVENT_COLOR(RHICmdList, Color, Name) BREADCRUMB_EVENT(RHICmdList, Name);
-	#define SCOPED_GPU_EVENTF(RHICmdList, Name, Format, ...) BREADCRUMB_EVENT(RHICmdList, Name);
-	#define SCOPED_GPU_EVENTF_COLOR(RHICmdList, Color, Name, Format, ...) BREADCRUMB_EVENT(RHICmdList, Name); 
+	#define SCOPED_GPU_EVENT(...)
+	#define SCOPED_GPU_EVENT_COLOR(...)
+	#define SCOPED_GPU_EVENTF(...)
+	#define SCOPED_GPU_EVENTF_COLOR(...)
 	#define SCOPED_CONDITIONAL_GPU_EVENT(...)
 	#define SCOPED_CONDITIONAL_GPU_EVENT_COLOR(...)
 	#define SCOPED_CONDITIONAL_GPU_EVENTF(...)
@@ -198,10 +153,10 @@ struct RENDERCORE_API FBreadcrumbEvent
 	#define BEGIN_GPU_EVENTF_COLOR(...)
 	#define STOP_GPU_EVENT(...)
 
-	#define SCOPED_DRAW_EVENT(RHICmdList, Name) BREADCRUMB_EVENT(RHICmdList, Name);
-	#define SCOPED_DRAW_EVENT_COLOR(RHICmdList, Color, Name) BREADCRUMB_EVENT(RHICmdList, Name);
-	#define SCOPED_DRAW_EVENTF(RHICmdList, Name, Format, ...) BREADCRUMB_EVENT(RHICmdList, Name);
-	#define SCOPED_DRAW_EVENTF_COLOR(RHICmdList, Color, Name, Format, ...) BREADCRUMB_EVENT(RHICmdList, Name);
+	#define SCOPED_DRAW_EVENT(...)
+	#define SCOPED_DRAW_EVENT_COLOR(...)
+	#define SCOPED_DRAW_EVENTF(...)
+	#define SCOPED_DRAW_EVENTF_COLOR(...)
 	#define SCOPED_CONDITIONAL_DRAW_EVENT(...)
 	#define SCOPED_CONDITIONAL_DRAW_EVENT_COLOR(...)
 	#define SCOPED_CONDITIONAL_DRAW_EVENTF(...)
@@ -209,6 +164,15 @@ struct RENDERCORE_API FBreadcrumbEvent
 	#define BEGIN_DRAW_EVENTF(...)
 	#define BEGIN_DRAW_EVENTF_COLOR(...)
 	#define STOP_DRAW_EVENT(...)
+
+	#define SCOPED_COMPUTE_EVENT(RHICmdList, Name)
+	#define SCOPED_COMPUTE_EVENT_COLOR(RHICmdList, Name)
+	#define SCOPED_COMPUTE_EVENTF(RHICmdList, Name, Format, ...)
+	#define SCOPED_COMPUTE_EVENTF_COLOR(RHICmdList, Name)
+	#define SCOPED_CONDITIONAL_COMPUTE_EVENT(RHICmdList, Name, Condition)
+	#define SCOPED_CONDITIONAL_COMPUTE_EVENT_COLOR(RHICmdList, Name, Condition)
+	#define SCOPED_CONDITIONAL_COMPUTE_EVENTF(RHICmdList, Name, Condition, Format, ...)
+	#define SCOPED_CONDITIONAL_COMPUTE_EVENTF_COLOR(RHICmdList, Name, Condition)
 
 	#define SCOPED_RHI_DRAW_EVENT(...)
 	#define SCOPED_RHI_DRAW_EVENT_COLOR(...)
@@ -220,17 +184,6 @@ struct RENDERCORE_API FBreadcrumbEvent
 	#define SCOPED_RHI_CONDITIONAL_DRAW_EVENTF_COLOR(...)
 
 #endif
-
-
-#define SCOPED_COMPUTE_EVENT SCOPED_GPU_EVENT
-#define SCOPED_COMPUTE_EVENT_COLOR SCOPED_GPU_EVENT_COLOR
-#define SCOPED_COMPUTE_EVENTF SCOPED_GPU_EVENTF
-#define SCOPED_COMPUTE_EVENTF_COLOR SCOPED_GPU_EVENTF_COLOR
-#define SCOPED_CONDITIONAL_COMPUTE_EVENT SCOPED_CONDITIONAL_GPU_EVENT
-#define SCOPED_CONDITIONAL_COMPUTE_EVENT_COLOR SCOPED_CONDITIONAL_GPU_EVENT_COLOR
-#define SCOPED_CONDITIONAL_COMPUTE_EVENTF SCOPED_CONDITIONAL_GPU_EVENTF
-#define SCOPED_CONDITIONAL_COMPUTE_EVENTF_COLOR SCOPED_CONDITIONAL_GPU_EVENTF_COLOR
-
 
 // GPU stats
 #ifndef HAS_GPU_STATS

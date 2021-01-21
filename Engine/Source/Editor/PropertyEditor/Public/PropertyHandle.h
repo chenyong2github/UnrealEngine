@@ -559,6 +559,13 @@ public:
 	virtual TSharedRef<SWidget> CreateDefaultPropertyButtonWidgets() const = 0;
 
 	/**
+	 * Creates the default copy and paste actions for a single property.  This is useful when creating customizations which use
+	 * custom node builders since they can't implement copy/paste by default because the contents of the rows is not known,
+	 * but frequently you're using the handles on each row to generate this UI.
+	 */
+	virtual void CreateDefaultPropertyCopyPasteActions(FUIAction& OutCopyAction, FUIAction& OutPasteAction) const = 0;
+
+	/**
 	 * Adds a restriction to the possible values for this property.
 	 * @param Restriction	The restriction being added to this property.
 	 */

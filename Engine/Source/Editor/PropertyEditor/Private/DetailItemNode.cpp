@@ -331,6 +331,12 @@ bool FDetailItemNode::GenerateStandaloneWidget(FDetailWidgetRow& OutRow) const
 		OutRow.EditConditionValue = Row.EditConditionValue;
 		OutRow.OnEditConditionValueChanged = Row.OnEditConditionValueChanged;
 
+		OutRow.CopyMenuAction = Row.CopyMenuAction;
+		OutRow.PasteMenuAction = Row.PasteMenuAction;
+		OutRow.CustomMenuItems = Row.CustomMenuItems;
+
+		OutRow.FilterTextString = Row.FilterTextString;
+
 		bResult = true;
 	}
 

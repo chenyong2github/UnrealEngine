@@ -136,9 +136,6 @@ public:
 
 	// Threading API
 
-	/**/
-	void FlipBuffer() { BufferedData->FlipProducer(); }
-
 	template <typename Traits>
 	void PushToPhysicsState(const Chaos::FDirtyPropertiesManager& Manager,int32 DataIdx,const Chaos::FDirtyProxy& Dirty,Chaos::FShapeDirtyData* ShapesData, Chaos::TPBDRigidsEvolutionGBF<Traits>& Evolution);
 
@@ -185,7 +182,6 @@ private:
 
 	PARTICLE_TYPE* Particle;
 	FParticleHandle* Handle;
-	TUniquePtr<Chaos::IBufferResource<FStorageData>> BufferedData;
 	//TUniquePtr<Chaos::IBufferResource<FPropertiesDataHolder>> PropertiesData;
 	//TUniquePtr<Chaos::FDoubleBuffer<FPropertiesDataHolder>> PropertiesData;
 

@@ -967,7 +967,7 @@ namespace UnrealBuildTool
 		/// Forces frame pointers to be retained this is usually required when you want reliable callstacks e.g. mallocframeprofiler
 		/// </summary>
 		[XmlConfigFile(Category = "BuildConfiguration")]
-		public bool bRetainFramePointers = false;
+		public bool bRetainFramePointers = true;
 
 		/// <summary>
 		/// New Monolithic Graphics drivers have optional "fast calls" replacing various D3d functions

@@ -43,10 +43,10 @@ struct FVREDCppVariantCameraOption
 	FString Name;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category=VRED)
-	FVector Location;
+	FVector Location = FVector::ZeroVector;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category=VRED)
-	FRotator Rotation;
+	FRotator Rotation = FRotator::ZeroRotator;
 };
 
 USTRUCT(BlueprintType)
@@ -118,7 +118,7 @@ struct FVREDCppVariantSet
 	TArray<FString> AnimClips;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category=VRED)
-	bool bSequentialAnimation;
+	bool bSequentialAnimation = false;
 };
 
 USTRUCT(BlueprintType)
@@ -166,7 +166,7 @@ struct FVREDCppVariant : public FTableRowBase
 	FString Name;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category=VRED)
-	EVREDCppVariantType Type;
+	EVREDCppVariantType Type = EVREDCppVariantType::Unsupported;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category=VRED)
 	FVREDCppVariantCamera Camera;

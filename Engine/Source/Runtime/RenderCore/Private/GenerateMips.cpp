@@ -187,12 +187,7 @@ void FGenerateMips::Execute(FRDGBuilder& GraphBuilder, FRDGTextureRef Texture, F
 	{
 		if (RHIRequiresComputeGenerateMips())
 		{
-			FSamplerStateInitializerRHI SamplerInit;
-			SamplerInit.Filter   = Params.Filter;
-			SamplerInit.AddressU = Params.AddressU;
-			SamplerInit.AddressV = Params.AddressV;
-			SamplerInit.AddressW = Params.AddressW;
-
+			FSamplerStateInitializerRHI SamplerInit(Params.Filter, Params.AddressU, Params.AddressV, Params.AddressW);
 			Execute(GraphBuilder, Texture, RHICreateSamplerState(SamplerInit), Pass);
 		}
 		else

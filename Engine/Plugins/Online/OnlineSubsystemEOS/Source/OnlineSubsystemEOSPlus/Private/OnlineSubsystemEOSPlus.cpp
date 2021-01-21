@@ -28,13 +28,13 @@ bool FOnlineSubsystemEOSPlus::Init()
 #else
 	BaseOSS = IOnlineSubsystem::GetByPlatform();
 #endif
-	if (BaseOSS != nullptr)
+	if (BaseOSS == nullptr)
 	{
 		UE_LOG_ONLINE(Error, TEXT("FOnlineSubsystemEOSPlus::Init() failed to get the platform OSS"));
 		return false;
 	}
 	EosOSS = IOnlineSubsystem::Get(EOS_SUBSYSTEM);
-	if (EosOSS != nullptr)
+	if (EosOSS == nullptr)
 	{
 		UE_LOG_ONLINE(Error, TEXT("FOnlineSubsystemEOSPlus::Init() failed to get the EOS OSS"));
 		return false;
@@ -43,6 +43,7 @@ bool FOnlineSubsystemEOSPlus::Init()
 	StatsInterfacePtr = MakeShareable(new FOnlineStatsEOSPlus(this));
 	AchievementsInterfacePtr = MakeShareable(new FOnlineAchievementsEOSPlus(this));
 	UserInterfacePtr = MakeShareable(new FOnlineUserEOSPlus(this));
+	SessionInterfacePtr = MakeShareable(new FOnlineSessionEOSPlus(this));
 
 	return true;
 }
@@ -62,6 +63,7 @@ bool FOnlineSubsystemEOSPlus::Shutdown()
 	DESTRUCT_INTERFACE(StatsInterfacePtr);
 	DESTRUCT_INTERFACE(AchievementsInterfacePtr);
 	DESTRUCT_INTERFACE(UserInterfacePtr);
+	DESTRUCT_INTERFACE(SessionInterfacePtr);
 
 #undef DESTRUCT_INTERFACE
 
@@ -70,7 +72,7 @@ bool FOnlineSubsystemEOSPlus::Shutdown()
 
 IOnlineSessionPtr FOnlineSubsystemEOSPlus::GetSessionInterface() const
 {
-	return BaseOSS != nullptr ? BaseOSS->GetSessionInterface() : nullptr;
+	return SessionInterfacePtr;
 }
 
 IOnlineFriendsPtr FOnlineSubsystemEOSPlus::GetFriendsInterface() const
@@ -160,7 +162,7 @@ IOnlineSharingPtr FOnlineSubsystemEOSPlus::GetSharingInterface() const
 
 IOnlineUserPtr FOnlineSubsystemEOSPlus::GetUserInterface() const
 {
-	return UserInterfacePtr;
+	return nullptr;
 }
 
 IOnlineMessagePtr FOnlineSubsystemEOSPlus::GetMessageInterface() const

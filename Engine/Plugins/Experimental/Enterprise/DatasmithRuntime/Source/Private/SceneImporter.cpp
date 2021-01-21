@@ -230,11 +230,18 @@ namespace DatasmithRuntime
 
 		ActionsCount += MaterialElementSet.Num();
 
-		// Add texture creation + texture assignments
+		if (TextureElementSet.Num() > 0)
+		{
+			ImageReaderInitialize();
+
+			TasksToComplete |= EWorkerTask::TextureLoad;
+		}
+
+		// Add image load + texture creation + texture assignments
 		for (FSceneGraphId ElementId : TextureElementSet)
 		{
 			const FAssetData& AssetData = AssetDataList[ElementId];
-			ActionsCount += AssetData.Referencers.Num() + 1;
+			ActionsCount += AssetData.Referencers.Num() + 2;
 		}
 
 		OverallProgress = 0.05f;
@@ -243,13 +250,6 @@ namespace DatasmithRuntime
 		ProgressStep = 1. / MaxActions;
 
 		OnGoingTasks.Reserve(TextureElementSet.Num() + MeshElementSet.Num());
-
-		if (TextureElementSet.Num() > 0)
-		{
-			ImageReaderInitialize();
-
-			TasksToComplete |= EWorkerTask::TextureLoad;
-		}
 	}
 
 	void FSceneImporter::ProcessActorElement(const TSharedPtr< IDatasmithActorElement >& ActorElement, FSceneGraphId ParentId)
@@ -432,14 +432,15 @@ namespace DatasmithRuntime
 				if (!ActionQueues[EQueueTask::MaterialQueue].Dequeue(ActionTask))
 				{
 					TasksToComplete &= ~EWorkerTask::MaterialCreate;
-					UpdateMaterials(MaterialElementSet, AssetDataList);
-
+					if (!EnumHasAnyFlags(TasksToComplete, EWorkerTask::TextureAssign))
+					{
+						UpdateMaterials(MaterialElementSet, AssetDataList);
+					}
 					break;
 				}
 
 				ensure(DirectLink::InvalidId == ActionTask.GetAssetId());
 				ActionTask.Execute(FAssetData::EmptyAsset);
-				ActionCounter.Increment();
 			}
 		}
 
@@ -459,6 +460,10 @@ namespace DatasmithRuntime
 			{
 				if (!ActionQueues[EQueueTask::NonAsyncQueue].Dequeue(ActionTask))
 				{
+					if (EnumHasAnyFlags(TasksToComplete, EWorkerTask::TextureAssign))
+					{
+						UpdateMaterials(MaterialElementSet, AssetDataList);
+					}
 					TasksToComplete &= ~EWorkerTask::NonAsyncTasks;
 					break;
 				}
@@ -466,7 +471,6 @@ namespace DatasmithRuntime
 				if (DirectLink::InvalidId == ActionTask.GetAssetId())
 				{
 					ActionTask.Execute(FAssetData::EmptyAsset);
-					ActionCounter.Increment();
 				}
 				else
 				{
@@ -475,8 +479,6 @@ namespace DatasmithRuntime
 						ActionQueues[EQueueTask::NonAsyncQueue].Enqueue(MoveTemp(ActionTask));
 						continue;
 					}
-
-					ActionCounter.Increment();
 				}
 			}
 		}
@@ -719,6 +721,7 @@ namespace DatasmithRuntime
 
 						AssetElementMapping.Remove(OldKey);
 					}
+
 					FActionTaskFunction TaskFunc;
 
 					if (ElementPtr->IsA(EDatasmithElementType::BaseMaterial))
@@ -731,6 +734,8 @@ namespace DatasmithRuntime
 
 							this->ProcessMaterialData(MaterialData);
 
+							ActionCounter.Increment();
+
 							return EActionResult::Succeeded;
 						};
 					}
@@ -741,6 +746,8 @@ namespace DatasmithRuntime
 							FAssetData& MeshData = this->AssetDataList[ElementId];
 
 							MeshData.SetState(EAssetState::Unknown);
+
+							ActionCounter.Increment();
 
 							this->ProcessMeshData(MeshData);
 
@@ -758,6 +765,8 @@ namespace DatasmithRuntime
 							TextureData.SetState(EAssetState::Unknown);
 
 							this->ProcessTextureData(ElementId);
+
+							ActionCounter.Increment();
 
 							return EActionResult::Succeeded;
 						};

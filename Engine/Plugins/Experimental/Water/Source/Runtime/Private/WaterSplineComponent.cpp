@@ -81,6 +81,17 @@ const USplineMetadata* UWaterSplineComponent::GetSplinePointsMetadata() const
 	return nullptr;
 }
 
+TArray<ESplinePointType::Type> UWaterSplineComponent::GetEnabledSplinePointTypes() const
+{
+	return
+		{
+			ESplinePointType::Linear,
+			ESplinePointType::Curve,
+			ESplinePointType::CurveClamped,
+			ESplinePointType::CurveCustomTangent
+		};
+}
+
 void UWaterSplineComponent::Serialize(FArchive& Ar)
 {
 	Ar.UsingCustomVersion(FFortniteMainBranchObjectVersion::GUID);

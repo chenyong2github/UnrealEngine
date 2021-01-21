@@ -33,8 +33,6 @@ bool CoreTechMeshLoader::LoadFile(const FString& FileName, FMeshDescription& Mes
 	}
 	Result = SetCoreTechTessellationState(ImportParameters);
 
-	bool bNeedSwapOrientation = ImportParameters.StitchingTechnique != EStitchingTechnique::StitchingNone ? MeshParameters.bNeedSwapOrientation : false;
-
 	uint32 BodiesNum;
 	Result = CT_KERNEL_IO::AskNbObjectsType(BodiesNum, CT_BODY_TYPE);
 	if (Result != IO_OK)

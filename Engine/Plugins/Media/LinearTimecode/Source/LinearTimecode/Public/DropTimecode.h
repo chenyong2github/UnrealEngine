@@ -18,15 +18,15 @@ struct LINEARTIMECODE_API FDropTimecode
 	FTimecode Timecode;
 	/** Guess at incoming frame rate */
 	UPROPERTY(BlueprintReadWrite, Category = "Media")
-	int32 FrameRate;
+	int32 FrameRate = 0;
 	/** Sync is in phase with color burst */
 	UPROPERTY(BlueprintReadWrite, Category = "Time")
-	bool bColorFraming;
+	bool bColorFraming = false;
 	/** When timecode is reading forward */
 	UPROPERTY(BlueprintReadWrite, Category = "Time")
-	bool bRunningForward;
+	bool bRunningForward = false;
 	/** Is a new timecode frame */
 	UPROPERTY(BlueprintReadWrite, Category = "Time")
-	bool bNewFrame;
+	bool bNewFrame = false;
 };
 

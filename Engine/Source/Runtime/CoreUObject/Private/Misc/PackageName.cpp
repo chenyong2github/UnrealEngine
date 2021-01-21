@@ -139,7 +139,6 @@ bool FPackageName::TryConvertGameRelativePackagePathToLocalPath(FStringView Rela
 	if (RelativePackagePath.StartsWith(TEXT("/"), ESearchCase::CaseSensitive))
 	{
 		// If this starts with /, this includes a root like /engine
-		// MERGE Note: Remove the change to this function from UE4/Main; UE5 fixes it differently inside of TryConvertLongPackageNameToFilename
 		return FPackageName::TryConvertLongPackageNameToFilename(FString(RelativePackagePath), OutLocalPath);
 	}
 	else
@@ -1334,8 +1333,11 @@ bool FPackageName::DoesPackageExist(const FPackagePath& PackagePath, const FGuid
 			}
 			return true;
 		}
-
-		return false;
+	
+		// Try to find uncooked packages on disk when I/O store is enabled in editor builds
+#if !WITH_IOSTORE_IN_EDITOR
+		return false; 
+#endif
 	}
 
 	// On consoles, we don't support package downloading, so no need to waste any extra cycles/disk io dealing with it

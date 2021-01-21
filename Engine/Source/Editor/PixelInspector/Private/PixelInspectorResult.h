@@ -131,7 +131,9 @@ namespace PixelInspector
 		float IrisMask;
 		float IrisDistance;
 
-		void DecodeFinalColor(TArray<FColor> &BufferFinalColorValue);
+		void DecodeFinalColor(TArray<FColor>& BufferFinalColorValue);
+		/** Decodes final color from HDR input. */
+		void DecodeFinalColor(TArray<FLinearColor> &BufferFinalColorValue, float InGamma, bool bHasAlphaChannel);
 		void DecodeSceneColor(TArray<FLinearColor> &BufferSceneColorValue);
 		void DecodeDepth(TArray<FLinearColor> &BufferDepthValue);
 		void DecodeHDR(TArray<FLinearColor> &BufferHDRValue);

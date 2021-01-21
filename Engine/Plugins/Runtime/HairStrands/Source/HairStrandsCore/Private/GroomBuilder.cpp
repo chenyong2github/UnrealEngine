@@ -1288,10 +1288,13 @@ bool FGroomBuilder::ProcessHairDescription(const FHairDescription& HairDescripti
 	TGroomAttributesConstRef<int> MajorVersion = HairDescription.GroomAttributes().GetAttributesRef<int>(HairAttribute::Groom::MajorVersion);
 	TGroomAttributesConstRef<int> MinorVersion = HairDescription.GroomAttributes().GetAttributesRef<int>(HairAttribute::Groom::MinorVersion);
 
+	// Major/Minor version check is currently disabled as this is not used at the moment and create false positive
+	#if 0
 	if (!MajorVersion.IsValid() || !MinorVersion.IsValid())
 	{
 		UE_LOG(LogGroomBuilder, Warning, TEXT("No version number attributes found. The groom may be missing attributes even if it imports."));
 	}
+	#endif
 
 	FGroomID GroomID(0);
 
@@ -1746,6 +1749,12 @@ void FGroomBuilder::Decimate(
 				InPointCount,
 				VertexDecimationPercentage,
 				OutPointIndices);
+		}
+		else
+		{
+			// Just pass the start and end point of the curve, no decimation needed
+			OutPointIndices.Add(0);
+			OutPointIndices.Add(1);
 		}
 
 		const uint32 OutPointCount = OutPointIndices.Num();

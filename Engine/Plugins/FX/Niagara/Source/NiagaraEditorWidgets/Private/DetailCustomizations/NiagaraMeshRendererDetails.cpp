@@ -21,7 +21,28 @@ public:
 	virtual void GenerateHeaderRowContent(FDetailWidgetRow& NodeRow) override
 	{
 		TSharedPtr<SWidget> NameWidget = ParentProperty->CreatePropertyNameWidget();
-		TSharedPtr<SWidget> ValueWidget = MeshProperty->CreatePropertyValueWidget();		
+		TSharedPtr<SWidget> ValueWidget = MeshProperty->CreatePropertyValueWidget();
+
+		if (bCanResetToDefault)
+		{
+			TSharedPtr<SHorizontalBox> Container;
+			SAssignNew(Container, SHorizontalBox)
+				+ SHorizontalBox::Slot()
+					.AutoWidth()
+					[
+						ValueWidget.ToSharedRef()
+					]
+				+ SHorizontalBox::Slot()
+					[
+						ParentProperty->CreateDefaultPropertyButtonWidgets()
+					];
+
+			ValueWidget = Container;
+		}
+
+		FUIAction CopyAction;
+		FUIAction PasteAction;
+		ParentProperty->CreateDefaultPropertyCopyPasteActions(CopyAction, PasteAction);
 		NodeRow
 			.NameContent()
 			[
@@ -31,7 +52,9 @@ public:
 			.MinDesiredWidth(300.0f)
 			[
 				ValueWidget.ToSharedRef()
-			];
+			]
+			.CopyAction(CopyAction)
+			.PasteAction(PasteAction);
 	}
 
 	virtual void GenerateChildContent(IDetailChildrenBuilder& ChildrenBuilder) override

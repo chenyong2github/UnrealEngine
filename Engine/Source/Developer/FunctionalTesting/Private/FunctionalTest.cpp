@@ -216,7 +216,7 @@ bool AFunctionalTest::RunTest(const TArray<FString>& Params)
 
 	if (FunctionalTest)
 	{
-		FunctionalTest->SetLogErrorAndWarningHandling(bSuppressErrors, bSuppressErrors, bWarningsAreErrors);
+		FunctionalTest->SetLogErrorAndWarningHandling(bSuppressErrors, bSuppressWarnings, bWarningsAreErrors);
 		FunctionalTest->SetFunctionalTestRunning(GetName());
 	}
 
@@ -892,7 +892,12 @@ void AFunctionalTest::AddError(const FString& Message)
 
 void AFunctionalTest::LogStep(ELogVerbosity::Type Verbosity, const FString& Message)
 {
-	FString FullMessage(Message);
+	TStringBuilder<256> FullMessage;
+
+	FullMessage.Append(GetName());
+	FullMessage.Append(TEXT(": "));
+	FullMessage.Append(Message);
+
 	if ( IsInStep() )
 	{
 		FullMessage.Append(TEXT(" in step: "));
@@ -904,20 +909,69 @@ void AFunctionalTest::LogStep(ELogVerbosity::Type Verbosity, const FString& Mess
 		FullMessage.Append(StepName);
 	}
 
-	switch ( Verbosity )
+	const int32 STACK_OFFSET = 2;
+	FFunctionalTestBase* CurrentFunctionalTest = static_cast<FFunctionalTestBase*>(FAutomationTestFramework::Get().GetCurrentTest());
+
+	// Warn if we do not have a current functional test. Such a situation prevents Warning/Error results from being associated with an actual test
+	if (!CurrentFunctionalTest)
 	{
-		case ELogVerbosity::Display:
-		case ELogVerbosity::Log:
+		UE_LOG(LogFunctionalTest, Warning, TEXT("FunctionalTest '%s' ran test '%s' when no functional test was active. This result will not be tracked."), *GetName(), *Message);
+	}
+
+	/* 
+		Note - unlike FAutomationTestOutputDevice::Serialize logging we do not downgrade/suppress logging levels based on the properties of the functional test 
+		actor or the project. While AFunctionalTest uses the verbosity enums these messages are  added directly by the test 
+		// (e.g. via AddWarning, AddError, Assert_Equal) so they are not considered side-effect warnings/errors	that may be optionally ignored.
+	*/
+
+	switch (Verbosity)
+	{
+	case ELogVerbosity::Log:
+		if (CurrentFunctionalTest)
+		{
+			CurrentFunctionalTest->AddInfo(*FullMessage, STACK_OFFSET);
+		}
+		else
+		{
+			UE_VLOG(this, LogFunctionalTest, Log, TEXT("%s"), *FullMessage);
+			UE_LOG(LogFunctionalTest, Log, TEXT("%s"), *FullMessage);
+		}
+		break;
+
+	case ELogVerbosity::Display:
+		if (CurrentFunctionalTest)
+		{
+			CurrentFunctionalTest->AddInfo(*FullMessage, STACK_OFFSET);
+		}
+		else
+		{
 			UE_VLOG(this, LogFunctionalTest, Display, TEXT("%s"), *FullMessage);
 			UE_LOG(LogFunctionalTest, Display, TEXT("%s"), *FullMessage);
+		}
 		break;
-		case ELogVerbosity::Warning:
+
+	case ELogVerbosity::Warning:
+		if (CurrentFunctionalTest)
+		{
+			CurrentFunctionalTest->AddWarning(*FullMessage, STACK_OFFSET);
+		}
+		else
+		{
 			UE_VLOG(this, LogFunctionalTest, Warning, TEXT("%s"), *FullMessage);
 			UE_LOG(LogFunctionalTest, Warning, TEXT("%s"), *FullMessage);
+		}
 		break;
-		case ELogVerbosity::Error:
+
+	case ELogVerbosity::Error:
+		if (CurrentFunctionalTest)
+		{
+			CurrentFunctionalTest->AddError(*FullMessage, STACK_OFFSET);
+		}
+		else
+		{
 			UE_VLOG(this, LogFunctionalTest, Error, TEXT("%s"), *FullMessage);
 			UE_LOG(LogFunctionalTest, Error, TEXT("%s"), *FullMessage);
+		}
 		break;
 	}
 }

@@ -150,6 +150,80 @@ void FMeshUtilities::BuildSkeletalAdjacencyIndexBuffer(
 	BuildOptimizationThirdParty::NvTriStripHelper::BuildSkeletalAdjacencyIndexBuffer(VertexBuffer, TexCoordCount, Indices, OutPnAenIndices);
 }
 
+void CalculateTriangleTangentInternal(const FVector& VertexPosA, const FVector2D& VertexUVA
+									  , const FVector& VertexPosB, const FVector2D& VertexUVB
+									  , const FVector& VertexPosC, const FVector2D& VertexUVC
+									  , TArray<FVector>& OutTangents, float CompareThreshold)
+{
+	//We must always allocate the OutTangents to 3 FVector
+	OutTangents.Reset(3);
+	OutTangents.AddZeroed(3);
+	const FVector Positions[3] = { VertexPosA, VertexPosB, VertexPosC };
+	const FVector Normal = ((Positions[1] - Positions[2]) ^ (Positions[0] - Positions[2])).GetSafeNormal(CompareThreshold);
+	//Avoid doing orthonormal vector from a degenerated triangle.
+	if (!Normal.IsNearlyZero(FLT_MIN))
+	{
+		FMatrix	ParameterToLocal(
+			FPlane(Positions[1].X - Positions[0].X, Positions[1].Y - Positions[0].Y, Positions[1].Z - Positions[0].Z, 0),
+			FPlane(Positions[2].X - Positions[0].X, Positions[2].Y - Positions[0].Y, Positions[2].Z - Positions[0].Z, 0),
+			FPlane(Positions[0].X, Positions[0].Y, Positions[0].Z, 0),
+			FPlane(0, 0, 0, 1)
+		);
+
+		const FVector2D T1 = VertexUVA;
+		const FVector2D T2 = VertexUVB;
+		const FVector2D T3 = VertexUVC;
+
+		FMatrix ParameterToTexture(
+			FPlane(T2.X - T1.X, T2.Y - T1.Y, 0, 0),
+			FPlane(T3.X - T1.X, T3.Y - T1.Y, 0, 0),
+			FPlane(T1.X, T1.Y, 1, 0),
+			FPlane(0, 0, 0, 1)
+		);
+
+		// Use InverseSlow to catch singular matrices.  Inverse can miss this sometimes.
+		const FMatrix TextureToLocal = ParameterToTexture.Inverse() * ParameterToLocal;
+
+		OutTangents[0] = (TextureToLocal.TransformVector(FVector(1, 0, 0)).GetSafeNormal());
+		OutTangents[1] = (TextureToLocal.TransformVector(FVector(0, 1, 0)).GetSafeNormal());
+		OutTangents[2] = (Normal);
+
+		FVector::CreateOrthonormalBasis(
+			OutTangents[0],
+			OutTangents[1],
+			OutTangents[2]
+		);
+
+		if (OutTangents[0].IsNearlyZero() || OutTangents[0].ContainsNaN()
+			|| OutTangents[1].IsNearlyZero() || OutTangents[1].ContainsNaN())
+		{
+			OutTangents[0] = FVector::ZeroVector;
+			OutTangents[1] = FVector::ZeroVector;
+		}
+
+		if (OutTangents[2].IsNearlyZero() || OutTangents[2].ContainsNaN())
+		{
+			OutTangents[2] = FVector::ZeroVector;
+		}
+	}
+	else
+	{
+		//Add zero tangents and normal for this triangle, this is like weighting it to zero when we compute the vertex normal
+		//But we need the triangle to correctly connect other neighbourg triangles
+		OutTangents[0] = (FVector::ZeroVector);
+		OutTangents[1] = (FVector::ZeroVector);
+		OutTangents[2] = (FVector::ZeroVector);
+	}
+}
+
+void FMeshUtilities::CalculateTriangleTangent(const FSoftSkinVertex& VertexA, const FSoftSkinVertex& VertexB, const FSoftSkinVertex& VertexC, TArray<FVector>& OutTangents, float CompareThreshold)
+{
+	CalculateTriangleTangentInternal(VertexA.Position, VertexA.UVs[0]
+									 , VertexB.Position, VertexB.UVs[0]
+									 , VertexC.Position, VertexC.UVs[0]
+									 , OutTangents, CompareThreshold);
+}
+
 void FMeshUtilities::CalcBoneVertInfos(USkeletalMesh* SkeletalMesh, TArray<FBoneVertInfo>& Infos, bool bOnlyDominant)
 {
 	SkeletalMeshTools::CalcBoneVertInfos(SkeletalMesh, Infos, bOnlyDominant);
@@ -1070,72 +1144,23 @@ static void ComputeTriangleTangents(
 
 	//Currently GetSafeNormal do not support 0.0f threshold properly
 	float RealComparisonThreshold = FMath::Max(ComparisonThreshold, FLT_MIN);
-
+	
+	TArray<FVector> TriangleTangents;
 	for (int32 TriangleIndex = 0; TriangleIndex < NumTriangles; TriangleIndex++)
 	{
-		int32 UVIndex = 0;
-
-		FVector P[3];
-		for (int32 i = 0; i < 3; ++i)
+		FVector Positions[3];
+		FVector2D UVs[3];
+		for (int32 Index = 0; Index < 3; ++Index)
 		{
-			P[i] = InVertices[InIndices[TriangleIndex * 3 + i]];
+			Positions[Index] = InVertices[InIndices[TriangleIndex * 3 + Index]];
+			UVs[Index] = InUVs[TriangleIndex * 3 + Index];
 		}
-
-		const FVector Normal = ((P[1] - P[2]) ^ (P[0] - P[2])).GetSafeNormal(RealComparisonThreshold);
-		//Avoid doing orthonormal vector from a degenerated triangle.
-		if (!Normal.IsNearlyZero(FLT_MIN))
-		{
-			FMatrix	ParameterToLocal(
-				FPlane(P[1].X - P[0].X, P[1].Y - P[0].Y, P[1].Z - P[0].Z, 0),
-				FPlane(P[2].X - P[0].X, P[2].Y - P[0].Y, P[2].Z - P[0].Z, 0),
-				FPlane(P[0].X, P[0].Y, P[0].Z, 0),
-				FPlane(0, 0, 0, 1)
-			);
-
-			const FVector2D T1 = InUVs[TriangleIndex * 3 + 0];
-			const FVector2D T2 = InUVs[TriangleIndex * 3 + 1];
-			const FVector2D T3 = InUVs[TriangleIndex * 3 + 2];
-
-			FMatrix ParameterToTexture(
-				FPlane(T2.X - T1.X, T2.Y - T1.Y, 0, 0),
-				FPlane(T3.X - T1.X, T3.Y - T1.Y, 0, 0),
-				FPlane(T1.X, T1.Y, 1, 0),
-				FPlane(0, 0, 0, 1)
-			);
-
-			// Use InverseSlow to catch singular matrices.  Inverse can miss this sometimes.
-			const FMatrix TextureToLocal = ParameterToTexture.Inverse() * ParameterToLocal;
-
-			OutTangentX.Add(TextureToLocal.TransformVector(FVector(1, 0, 0)).GetSafeNormal());
-			OutTangentY.Add(TextureToLocal.TransformVector(FVector(0, 1, 0)).GetSafeNormal());
-			OutTangentZ.Add(Normal);
-
-			FVector::CreateOrthonormalBasis(
-				OutTangentX[TriangleIndex],
-				OutTangentY[TriangleIndex],
-				OutTangentZ[TriangleIndex]
-			);
-
-			if (OutTangentX[TriangleIndex].IsNearlyZero() || OutTangentX[TriangleIndex].ContainsNaN()
-				|| OutTangentY[TriangleIndex].IsNearlyZero() || OutTangentY[TriangleIndex].ContainsNaN())
-			{
-				OutTangentX[TriangleIndex] = FVector::ZeroVector;
-				OutTangentY[TriangleIndex] = FVector::ZeroVector;
-			}
-
-			if (OutTangentZ[TriangleIndex].IsNearlyZero() || OutTangentZ[TriangleIndex].ContainsNaN())
-			{
-				OutTangentZ[TriangleIndex] = FVector::ZeroVector;
-			}
-		}
-		else
-		{
-			//Add zero tangents and normal for this triangle, this is like weighting it to zero when we compute the vertex normal
-			//But we need the triangle to correctly connect other neighbourg triangles
-			OutTangentX.Add(FVector::ZeroVector);
-			OutTangentY.Add(FVector::ZeroVector);
-			OutTangentZ.Add(FVector::ZeroVector);
-		}
+		TriangleTangents.Reset();
+		CalculateTriangleTangentInternal(Positions[0], UVs[0], Positions[1], UVs[1], Positions[2], UVs[2], TriangleTangents, RealComparisonThreshold);
+		check(TriangleTangents.Num() == 3);
+		OutTangentX.Add(TriangleTangents[0]);
+		OutTangentY.Add(TriangleTangents[1]);
+		OutTangentZ.Add(TriangleTangents[2]);
 	}
 
 	check(OutTangentX.Num() == NumTriangles);
@@ -1152,57 +1177,6 @@ static void ComputeTriangleTangents(
 	)
 {
 	ComputeTriangleTangents(RawMesh.VertexPositions, RawMesh.WedgeIndices, RawMesh.WedgeTexCoords[0], OutTangentX, OutTangentY, OutTangentZ, ComparisonThreshold);
-
-	/*int32 NumTriangles = RawMesh.WedgeIndices.Num() / 3;
-	TriangleTangentX.Empty(NumTriangles);
-	TriangleTangentY.Empty(NumTriangles);
-	TriangleTangentZ.Empty(NumTriangles);
-
-	for (int32 TriangleIndex = 0; TriangleIndex < NumTriangles; TriangleIndex++)
-	{
-	int32 UVIndex = 0;
-
-	FVector P[3];
-	for (int32 i = 0; i < 3; ++i)
-	{
-	P[i] = GetPositionForWedge(RawMesh, TriangleIndex * 3 + i);
-	}
-
-	const FVector Normal = ((P[1] - P[2]) ^ (P[0] - P[2])).GetSafeNormal(ComparisonThreshold);
-	FMatrix	ParameterToLocal(
-	FPlane(P[1].X - P[0].X, P[1].Y - P[0].Y, P[1].Z - P[0].Z, 0),
-	FPlane(P[2].X - P[0].X, P[2].Y - P[0].Y, P[2].Z - P[0].Z, 0),
-	FPlane(P[0].X, P[0].Y, P[0].Z, 0),
-	FPlane(0, 0, 0, 1)
-	);
-
-	FVector2D T1 = RawMesh.WedgeTexCoords[UVIndex][TriangleIndex * 3 + 0];
-	FVector2D T2 = RawMesh.WedgeTexCoords[UVIndex][TriangleIndex * 3 + 1];
-	FVector2D T3 = RawMesh.WedgeTexCoords[UVIndex][TriangleIndex * 3 + 2];
-	FMatrix ParameterToTexture(
-	FPlane(T2.X - T1.X, T2.Y - T1.Y, 0, 0),
-	FPlane(T3.X - T1.X, T3.Y - T1.Y, 0, 0),
-	FPlane(T1.X, T1.Y, 1, 0),
-	FPlane(0, 0, 0, 1)
-	);
-
-	// Use InverseSlow to catch singular matrices.  Inverse can miss this sometimes.
-	const FMatrix TextureToLocal = ParameterToTexture.Inverse() * ParameterToLocal;
-
-	TriangleTangentX.Add(TextureToLocal.TransformVector(FVector(1, 0, 0)).GetSafeNormal());
-	TriangleTangentY.Add(TextureToLocal.TransformVector(FVector(0, 1, 0)).GetSafeNormal());
-	TriangleTangentZ.Add(Normal);
-
-	FVector::CreateOrthonormalBasis(
-	TriangleTangentX[TriangleIndex],
-	TriangleTangentY[TriangleIndex],
-	TriangleTangentZ[TriangleIndex]
-	);
-	}
-
-	check(TriangleTangentX.Num() == NumTriangles);
-	check(TriangleTangentY.Num() == NumTriangles);
-	check(TriangleTangentZ.Num() == NumTriangles);*/
 }
 
 /**
@@ -3032,11 +3006,12 @@ void FixupMaterialSlotNames_Implementation(TArray<MaterialSlotType>& MaterialSlo
 			}
 		}
 
-		FString UniqueName = MaterialSlot.ImportedMaterialSlotName.ToString();
+		FString BaseMaterialSlotName = MaterialSlot.ImportedMaterialSlotName.ToString();
+		FString UniqueName = BaseMaterialSlotName;
 		int32 UniqueIndex = 1;
 		while (UniqueMImportedaterialSlotName.Contains(FName(*UniqueName)))
 		{
-			UniqueName = FString::Printf(TEXT("%s_%d"), *UniqueName, UniqueIndex);
+			UniqueName = FString::Printf(TEXT("%s_%d"), *BaseMaterialSlotName, UniqueIndex);
 			UniqueIndex++;
 		}
 		MaterialSlot.ImportedMaterialSlotName = FName(*UniqueName);
@@ -3379,69 +3354,23 @@ public:
 
 		//Currently GetSafeNormal do not support 0.0f threshold properly
 		float RealComparisonThreshold = FMath::Max(ComparisonThreshold, FLT_MIN);
-
+		TArray<FVector> TriangleTangents;
 		for (int32 TriangleIndex = 0; TriangleIndex < NumTriangles; TriangleIndex++)
 		{
 			const int32 UVIndex = 0;
-			FVector P[3];
-
-			for (int32 i = 0; i < 3; ++i)
+			FVector Positions[3];
+			FVector2D UVs[3];
+			for (int32 Index = 0; Index < 3; ++Index)
 			{
-				P[i] = BuildData->GetVertexPosition(TriangleIndex, i);
+				Positions[Index] = BuildData->GetVertexPosition(TriangleIndex, Index);
+				UVs[Index] = BuildData->GetVertexUV(TriangleIndex, Index, UVIndex);
 			}
-
-			//get safe normal should have return a valid normalized vector or a zero vector.
-			const FVector Normal = ((P[1] - P[2]) ^ (P[0] - P[2])).GetSafeNormal(RealComparisonThreshold);
-			//Avoid doing orthonormal vector from a degenerated triangle.
-			if (!Normal.IsNearlyZero(FLT_MIN))
-			{
-				FMatrix	ParameterToLocal(
-					FPlane(P[1].X - P[0].X, P[1].Y - P[0].Y, P[1].Z - P[0].Z, 0),
-					FPlane(P[2].X - P[0].X, P[2].Y - P[0].Y, P[2].Z - P[0].Z, 0),
-					FPlane(P[0].X, P[0].Y, P[0].Z, 0),
-					FPlane(0, 0, 0, 1)
-				);
-
-				FVector2D T1 = BuildData->GetVertexUV(TriangleIndex, 0, UVIndex);
-				FVector2D T2 = BuildData->GetVertexUV(TriangleIndex, 1, UVIndex);
-				FVector2D T3 = BuildData->GetVertexUV(TriangleIndex, 2, UVIndex);
-				FMatrix ParameterToTexture(
-					FPlane(T2.X - T1.X, T2.Y - T1.Y, 0, 0),
-					FPlane(T3.X - T1.X, T3.Y - T1.Y, 0, 0),
-					FPlane(T1.X, T1.Y, 1, 0),
-					FPlane(0, 0, 0, 1)
-				);
-
-				// Use InverseSlow to catch singular matrices.  Inverse can miss this sometimes.
-				const FMatrix TextureToLocal = ParameterToTexture.Inverse() * ParameterToLocal;
-
-				TriangleTangentX.Add(TextureToLocal.TransformVector(FVector(1, 0, 0)).GetSafeNormal());
-				TriangleTangentY.Add(TextureToLocal.TransformVector(FVector(0, 1, 0)).GetSafeNormal());
-				TriangleTangentZ.Add(Normal);
-
-				FVector::CreateOrthonormalBasis(
-					TriangleTangentX[TriangleIndex],
-					TriangleTangentY[TriangleIndex],
-					TriangleTangentZ[TriangleIndex]
-				);
-
-				if (TriangleTangentX[TriangleIndex].IsNearlyZero() || TriangleTangentX[TriangleIndex].ContainsNaN()
-					|| TriangleTangentY[TriangleIndex].IsNearlyZero() || TriangleTangentY[TriangleIndex].ContainsNaN()
-					|| TriangleTangentZ[TriangleIndex].IsNearlyZero() || TriangleTangentZ[TriangleIndex].ContainsNaN())
-				{
-					TriangleTangentX[TriangleIndex] = FVector::ZeroVector;
-					TriangleTangentY[TriangleIndex] = FVector::ZeroVector;
-					TriangleTangentZ[TriangleIndex] = FVector::ZeroVector;
-				}
-			}
-			else
-			{
-				//Add zero tangents and normal for this triangle, this is like weighting it to zero when we compute the vertex normal
-				//But we need the triangle to correctly connect other neighbourg triangles
-				TriangleTangentX.Add(FVector::ZeroVector);
-				TriangleTangentY.Add(FVector::ZeroVector);
-				TriangleTangentZ.Add(FVector::ZeroVector);
-			}
+			
+			CalculateTriangleTangentInternal(Positions[0], UVs[0], Positions[1], UVs[1], Positions[2], UVs[2], TriangleTangents, RealComparisonThreshold);
+			check(TriangleTangents.Num() == 3);
+			TriangleTangentX.Add(TriangleTangents[0]);
+			TriangleTangentY.Add(TriangleTangents[1]);
+			TriangleTangentZ.Add(TriangleTangents[2]);
 		}
 	}
 

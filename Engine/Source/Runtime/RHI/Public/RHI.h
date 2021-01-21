@@ -141,15 +141,13 @@ RHI_API int32 RHIGetPreferredClearUAVRectPSResourceType(const FStaticShaderPlatf
 
 inline bool RHISupportsInstancedStereo(const FStaticShaderPlatform Platform)
 {
-	// Only D3D SM5, PS4 and Metal SM5 supports Instanced Stereo
-	return Platform == EShaderPlatform::SP_PCD3D_SM5 || Platform == EShaderPlatform::SP_PS4 || Platform == EShaderPlatform::SP_METAL_SM5 || Platform == EShaderPlatform::SP_METAL_SM5_NOTESS
+	return Platform == EShaderPlatform::SP_PCD3D_SM5 || Platform == EShaderPlatform::SP_METAL_SM5 || Platform == EShaderPlatform::SP_METAL_SM5_NOTESS
 		|| Platform == EShaderPlatform::SP_PCD3D_ES3_1 || FDataDrivenShaderPlatformInfo::GetSupportsInstancedStereo(Platform);
 }
 
 inline bool RHISupportsMultiView(const FStaticShaderPlatform Platform)
 {
-	// Only PS4 and Metal SM5 from 10.13 onward supports Multi-View
-	return (Platform == EShaderPlatform::SP_PS4) || ((Platform == EShaderPlatform::SP_METAL_SM5 || Platform == SP_METAL_SM5_NOTESS))
+	return ((Platform == EShaderPlatform::SP_METAL_SM5 || Platform == SP_METAL_SM5_NOTESS))
 		|| FDataDrivenShaderPlatformInfo::GetSupportsMultiView(Platform);
 }
 
@@ -193,7 +191,7 @@ inline bool RHISupports4ComponentUAVReadWrite(const FStaticShaderPlatform Platfo
 {
 	// Must match usf PLATFORM_SUPPORTS_4COMPONENT_UAV_READ_WRITE
 	// D3D11 does not support multi-component loads from a UAV: "error X3676: typed UAV loads are only allowed for single-component 32-bit element types"
-	return Platform == SP_XBOXONE_D3D12 || Platform == SP_PS4 || IsMetalPlatform(Platform) 
+	return Platform == SP_XBOXONE_D3D12 || IsMetalPlatform(Platform) 
 		|| FDataDrivenShaderPlatformInfo::GetSupports4ComponentUAVReadWrite(Platform);
 }
 
@@ -1086,18 +1084,18 @@ struct FSamplerStateInitializerRHI
 	,	SamplerComparisonFunction(InSamplerComparisonFunction)
 	{
 	}
-	TEnumAsByte<ESamplerFilter> Filter;
-	TEnumAsByte<ESamplerAddressMode> AddressU;
-	TEnumAsByte<ESamplerAddressMode> AddressV;
-	TEnumAsByte<ESamplerAddressMode> AddressW;
-	float MipBias;
+	TEnumAsByte<ESamplerFilter> Filter = SF_Point;
+	TEnumAsByte<ESamplerAddressMode> AddressU = AM_Wrap;
+	TEnumAsByte<ESamplerAddressMode> AddressV = AM_Wrap;
+	TEnumAsByte<ESamplerAddressMode> AddressW = AM_Wrap;
+	float MipBias = 0.0f;
 	/** Smallest mip map level that will be used, where 0 is the highest resolution mip level. */
-	float MinMipLevel;
+	float MinMipLevel = 0.0f;
 	/** Largest mip map level that will be used, where 0 is the highest resolution mip level. */
-	float MaxMipLevel;
-	int32 MaxAnisotropy;
-	uint32 BorderColor;
-	TEnumAsByte<ESamplerCompareFunction> SamplerComparisonFunction;
+	float MaxMipLevel = FLT_MAX;
+	int32 MaxAnisotropy = 0;
+	uint32 BorderColor = 0;
+	TEnumAsByte<ESamplerCompareFunction> SamplerComparisonFunction = SCF_Never;
 
 
 	RHI_API friend uint32 GetTypeHash(const FSamplerStateInitializerRHI& Initializer);

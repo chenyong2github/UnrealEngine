@@ -66,7 +66,7 @@ struct FAudioVolumeSubmixOverrideSettings
 
 	// The amount of time to crossfade to the override for the submix chain
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = SoundSubmix)
-	float CrossfadeTime;
+	float CrossfadeTime = 0.0f;
 };
 
 

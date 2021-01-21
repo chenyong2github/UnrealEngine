@@ -1221,7 +1221,7 @@ bool AssetViewUtils::IsValidObjectPathForCreate(const FString& ObjectPath, const
 	}
 
 	// Make sure we are not creating an FName that is too large
-	if ( ObjectPath.Len() > NAME_SIZE )
+	if ( ObjectPath.Len() >= NAME_SIZE )
 	{
 		// This asset already exists at this location, inform the user and continue
 		OutErrorMessage = LOCTEXT("AssetNameTooLong", "This asset name is too long. Please choose a shorter name.");
@@ -1394,9 +1394,8 @@ int32 AssetViewUtils::GetPackageLengthForCooking(const FString& PackageName, boo
 			
 			FString AbsoluteBuildMachineCookPathToAsset = FString(TEXT("D:/BuildFarm/buildmachine_++depot+UE4-Releases+4.10")) / CookDirWithoutBasePath / AssetPathWithinCookDir;
 
-			// only add game name padding if it is not an engine asset, otherwise it is considered portable already
-			if(!bIsEngineAsset)
-			{
+			// only add game name padding to project plugins so that they can ported to other projects
+			if (bIsPluginAsset && bIsProjectAsset)			{
 				AbsoluteBuildMachineCookPathToAsset.ReplaceInline(*GameName, *GameNamePadded, ESearchCase::CaseSensitive);
 			}
 
@@ -1406,12 +1405,6 @@ int32 AssetViewUtils::GetPackageLengthForCooking(const FString& PackageName, boo
 		{
 			// Test that the package can be cooked based on the current project path
 			FString AbsoluteCookPathToAsset = AbsoluteCookPath / AssetPathWithinCookDir;
-
-			// only add game name padding if it is not an engine asset, otherwise it is considered portable already
-			if (!bIsEngineAsset)
-			{
-				AbsoluteCookPathToAsset.ReplaceInline(*GameName, *GameNamePadded, ESearchCase::CaseSensitive);
-			}
 
 			AbsoluteCookPathToAssetLength = AbsoluteCookPathToAsset.Len();
 		}

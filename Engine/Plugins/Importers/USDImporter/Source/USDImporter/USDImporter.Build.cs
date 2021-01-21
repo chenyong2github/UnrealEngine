@@ -37,7 +37,7 @@ namespace UnrealBuildTool.Rules
 				);
 
 			// Always use the official version of IntelTBB
-			string IntelTBBLibs = Target.UEThirdPartySourceDirectory + "Intel/TBB/IntelTBB-2019u8/lib/";
+			string IntelTBBLibs = Target.UEThirdPartyBinariesDirectory + "Intel/TBB/";
 
 			if (Target.Platform == UnrealTargetPlatform.Win64)
 			{
@@ -46,7 +46,7 @@ namespace UnrealBuildTool.Rules
 					RuntimeDependencies.Add(FilePath);
 				}
 
-				RuntimeDependencies.Add(IntelTBBLibs + "Win64/vc14/tbb.dll");
+				RuntimeDependencies.Add(IntelTBBLibs + "Win64/tbb.dll");
 			}
 			else if (Target.Platform == UnrealTargetPlatform.Linux && Target.Architecture.StartsWith("x86_64"))
 			{

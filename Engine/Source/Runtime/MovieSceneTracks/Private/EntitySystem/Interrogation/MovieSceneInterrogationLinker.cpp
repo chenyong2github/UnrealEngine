@@ -2,6 +2,7 @@
 
 #include "EntitySystem/Interrogation/MovieSceneInterrogationLinker.h"
 #include "EntitySystem/BuiltInComponentTypes.h"
+#include "EntitySystem/Interrogation/MovieSceneInterrogatedPropertyInstantiator.h"
 #include "EntitySystem/MovieSceneEntitySystem.h"
 #include "EntitySystem/MovieSceneEntitySystemRunner.h"
 #include "EntitySystem/MovieSceneEntitySystemTask.h"
@@ -837,6 +838,36 @@ void FSystemInterrogator::QueryLocalSpaceTransforms(const TBitArray<>& ChannelsT
 			.FilterOut(CompleteMask)
 			.FilterAll({ TracksComponents->ComponentTransform.PropertyTag })
 			.Iterate_PerAllocation(&Linker->EntityManager, PopulatePartial);
+		}
+	}
+}
+
+void FSystemInterrogator::FindPropertyOutputEntityIDs(const FPropertyDefinition& PropertyDefinition, FInterrogationChannel Channel, TArray<FMovieSceneEntityID>& OutEntityIDs)
+{
+	UMovieSceneInterrogatedPropertyInstantiatorSystem* PropertyInstantiator = Linker->LinkSystem<UMovieSceneInterrogatedPropertyInstantiatorSystem>();
+	check(PropertyInstantiator);
+
+	OutEntityIDs.SetNum(Interrogations.Num());
+
+	for (int32 Index = 0; Index < Interrogations.Num(); ++Index)
+	{
+		FInterrogationKey Key(Channel, Index);
+		const UMovieSceneInterrogatedPropertyInstantiatorSystem::FPropertyInfo* PropertyInfo = PropertyInstantiator->FindPropertyInfo(Key);
+		if (ensure(PropertyInfo))
+		{
+			if (PropertyInfo->PropertyEntityID.IsValid())
+			{
+				OutEntityIDs[Index] = PropertyInfo->PropertyEntityID;
+			}
+			else
+			{
+				TArray<FMovieSceneEntityID> InputEntityIDs;
+				PropertyInstantiator->FindEntityIDs(Key, InputEntityIDs);
+				if (ensure(InputEntityIDs.Num() == 1))
+				{
+					OutEntityIDs[Index] = InputEntityIDs[0];
+				}
+			}
 		}
 	}
 }

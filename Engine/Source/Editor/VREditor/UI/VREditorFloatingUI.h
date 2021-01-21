@@ -42,7 +42,7 @@ public:
 
 	/** Panel size. Should match the size of the UMG passed in. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "VR Mode UI")
-	FVector2D PanelSize;
+	FVector2D PanelSize = FVector2D(0.0f);
 
 	/** Optional custom mesh to use for the VR window. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "VR Mode UI")
@@ -50,19 +50,19 @@ public:
 
 	/** Optional override for "VREd.EditorUISize". Leave at 0 for default. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "VR Mode UI")
-	float EditorUISize;
+	float EditorUISize = 0.0f;
 
 	/** Turn off handles under window? (X-To-Close, movement bar...) */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "VR Mode UI")
-	bool bHideWindowHandles;
+	bool bHideWindowHandles = false;
 
 	/** Turn off the widget's background to create a see-through look. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Virtual Production UI")
-	bool bMaskOutWidgetBackground;
+	bool bMaskOutWidgetBackground = false;
 
 	/** If bHideWindowHandles is false, this window doesn't have a close button. (*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Virtual Production UI")
-	bool bNoCloseButton;
+	bool bNoCloseButton = false;
 };
 
 

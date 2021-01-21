@@ -4,6 +4,7 @@
 #include "DerivedDataCacheInterface.h"
 
 #include "CoreMinimal.h"
+#include "Algo/AllOf.h"
 #include "Misc/CommandLine.h"
 #include "HAL/ThreadSafeCounter.h"
 #include "Misc/ScopeLock.h"
@@ -468,6 +469,7 @@ public:
 	{
 		DDC_SCOPE_CYCLE_COUNTER(DDC_GetSynchronous_Data);
 		UE_LOG(LogDerivedDataCache, VeryVerbose, TEXT("GetSynchronous %s from '%.*s'"), CacheKey, DataContext.Len(), DataContext.GetData());
+		ValidateCacheKey(CacheKey);
 		FAsyncTask<FBuildAsyncWorker> PendingTask((FDerivedDataPluginInterface*)NULL, CacheKey, true);
 		AddToAsyncCompletionCounter(1);
 		PendingTask.StartSynchronousTask();
@@ -481,6 +483,7 @@ public:
 		FScopeLock ScopeLock(&SynchronizationObject);
 		const uint32 Handle = NextHandle();
 		UE_LOG(LogDerivedDataCache, VeryVerbose, TEXT("GetAsynchronous %s from '%.*s', Handle %d"), CacheKey, DataContext.Len(), DataContext.GetData(), Handle);
+		ValidateCacheKey(CacheKey);
 		FAsyncTask<FBuildAsyncWorker>* AsyncTask = new FAsyncTask<FBuildAsyncWorker>((FDerivedDataPluginInterface*)NULL, CacheKey, false);
 		check(!PendingTasks.Contains(Handle));
 		PendingTasks.Add(Handle, AsyncTask);
@@ -493,6 +496,7 @@ public:
 	{
 		DDC_SCOPE_CYCLE_COUNTER(DDC_Put);
 		UE_LOG(LogDerivedDataCache, VeryVerbose, TEXT("Put %s from '%.*s'"), CacheKey, DataContext.Len(), DataContext.GetData());
+		ValidateCacheKey(CacheKey);
 		STAT(double ThisTime = 0);
 		{
 			SCOPE_SECONDS_COUNTER(ThisTime);
@@ -504,12 +508,14 @@ public:
 
 	virtual void MarkTransient(const TCHAR* CacheKey) override
 	{
+		ValidateCacheKey(CacheKey);
 		FDerivedDataBackend::Get().GetRoot().RemoveCachedData(CacheKey, /*bTransient=*/ true);
 	}
 
 	virtual bool CachedDataProbablyExists(const TCHAR* CacheKey) override
 	{
 		DDC_SCOPE_CYCLE_COUNTER(DDC_CachedDataProbablyExists);
+		ValidateCacheKey(CacheKey);
 		bool bResult;
 		INC_DWORD_STAT(STAT_DDC_NumExist);
 		STAT(double ThisTime = 0);
@@ -612,6 +618,11 @@ private:
 		return Result;
 	}
 
+	static void ValidateCacheKey(const TCHAR* CacheKey)
+	{
+		checkf(Algo::AllOf(FStringView(CacheKey), [](TCHAR C) { return FChar::IsAlnum(C) || FChar::IsUnderscore(C) || C == TEXT('$'); }),
+			TEXT("Invalid characters in cache key %s. Use SanitizeCacheKey or BuildCacheKey to create valid keys."), CacheKey);
+	}
 
 	/** Counter used to produce unique handles **/
 	FThreadSafeCounter			CurrentHandle;

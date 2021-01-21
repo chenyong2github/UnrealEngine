@@ -336,9 +336,17 @@ public:
 
 		{
 			const FSceneInterface* Scene = Component->GetScene();
-			// ensure bUseWholeSceneCSMForMovableObjects is only be used with the forward renderer.
-			const bool bUsingDeferredRenderer = Scene == nullptr ? true : Scene->GetShadingPath() == EShadingPath::Deferred;
-			bUseWholeSceneCSMForMovableObjects = Component->Mobility == EComponentMobility::Stationary && !Component->bUseInsetShadowsForMovableObjects && !bUsingDeferredRenderer;
+			if (Scene && IsMobilePlatform(Scene->GetShaderPlatform()))
+			{
+				// mobile uses whole-scene CSM for dynamic objects whenever modulated shadows are disabled
+				bUseWholeSceneCSMForMovableObjects = Component->Mobility == EComponentMobility::Stationary && !Component->bCastModulatedShadows;
+			}
+			else
+			{
+				// ensure bUseWholeSceneCSMForMovableObjects is only be used with the forward renderer.
+				const bool bUsingDeferredRenderer = Scene == nullptr ? true : Scene->GetShadingPath() == EShadingPath::Deferred;
+				bUseWholeSceneCSMForMovableObjects = Component->Mobility == EComponentMobility::Stationary && !Component->bUseInsetShadowsForMovableObjects && !bUsingDeferredRenderer;
+			}
 		}
 		bCastModulatedShadows = Component->bCastModulatedShadows;
 		ModulatedShadowColor = FLinearColor(Component->ModulatedShadowColor);
@@ -415,7 +423,7 @@ public:
 			// When the CSM range is very small, CSM is just being used to provide high resolution / animating shadows near the player,
 			// But dynamic objects outside the CSM range would not have a shadow (or ones inside the range that cast a shadow out of the CSM area of influence).
 			&& WholeSceneDynamicShadowRadius < GMaxCSMRadiusToAllowPerObjectShadows
-			&& bUseInsetShadowsForMovableObjects;
+			&& bUseInsetShadowsForMovableObjects && !bUseWholeSceneCSMForMovableObjects;
 	}
 
 	/** Whether this light should create CSM for dynamic objects only (mobile renderer) */

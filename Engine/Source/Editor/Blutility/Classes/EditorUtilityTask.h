@@ -57,6 +57,8 @@ private:
 	UPROPERTY(Transient)
 	bool bCancelRequested = false;
 
+	bool Cached_GIsRunningUnattendedScript = false;
+
 	TUniquePtr<FAsyncTaskNotification> TaskNotification;
 
 	friend UEditorUtilitySubsystem;

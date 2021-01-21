@@ -117,6 +117,21 @@ void FDatasmithDispatcher::SetTaskState(int32 TaskIndex, ETaskState TaskState)
 
 void FDatasmithDispatcher::Process(bool bWithProcessor)
 {
+	// Temporary code to validate that DatasmithCADWorker.exe does exist before triggering the multi-processing
+	// A static method of FDatasmithWorkerHandler, i.e. CanStart, should provide this information.
+	{
+		FString WorkerPath = FPaths::Combine(FPaths::EnginePluginsDir(), TEXT("Enterprise/DatasmithCADImporter/Binaries"));
+
+#if PLATFORM_MAC
+		WorkerPath = FPaths::Combine(WorkerPath, TEXT("Mac/DatasmithCADWorker"));
+#elif PLATFORM_LINUX
+		WorkerPath = FPaths::Combine(WorkerPath, TEXT("Linux/DatasmithCADWorker"));
+#elif PLATFORM_WINDOWS
+		WorkerPath = FPaths::Combine(WorkerPath, TEXT("Win64/DatasmithCADWorker.exe"));
+#endif
+		bWithProcessor &= FPaths::FileExists(WorkerPath);
+	}
+
 	if (bWithProcessor)
 	{
 		SpawnHandlers();
@@ -160,9 +175,14 @@ void FDatasmithDispatcher::Process(bool bWithProcessor)
 
 	if (!IsOver())
 	{
-		UE_LOG(LogDatasmithDispatcher, Warning,
-			TEXT("Begin local processing. (Multi Process failed to consume all the tasks)\n")
-			TEXT("See workers logs: %sPrograms/DatasmithCADWorker/Saved/Logs"), *FPaths::ConvertRelativePathToFull(FPaths::EngineDir()));
+		// Inform user that multi processing was incomplete
+		if (bWithProcessor)
+		{
+			UE_LOG(LogDatasmithDispatcher, Warning,
+				TEXT("Begin local processing. (Multi Process failed to consume all the tasks)\n")
+				TEXT("See workers logs: %sPrograms/DatasmithCADWorker/Saved/Logs"), *FPaths::ConvertRelativePathToFull(FPaths::EngineDir()));
+		}
+
 		ProcessLocal();
 	}
 	else

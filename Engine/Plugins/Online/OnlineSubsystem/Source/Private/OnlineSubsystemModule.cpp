@@ -82,12 +82,12 @@ void FOnlineSubsystemModule::StartupModule()
 
 	ProcessConfigDefinedModuleRedirects();
 
-	LoadDefaultSubsystem();
-	
 	// Also load the console/platform specific OSS which might not necessarily be the default OSS instance
 	FString InterfaceString;
 	GConfig->GetString(TEXT("OnlineSubsystem"), TEXT("NativePlatformService"), InterfaceString, GEngineIni);
 	NativePlatformService = FName(*InterfaceString);
+
+	LoadDefaultSubsystem();
 
 	ProcessConfigDefinedSubsystems();
 

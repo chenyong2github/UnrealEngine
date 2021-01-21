@@ -8,14 +8,13 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
-using UnrealGame;
 
-namespace Gauntlet.UnrealTest
+namespace UE
 {
 	/// <summary>
 	/// Test that waits for the client and server to get to the front-end then quits
 	/// </summary>
-	public class BootTest : UnrealTestNode<UE4TestConfig>
+	public class BootTest : UnrealTestNode<UnrealGame.UE4TestConfig>
 	{
 		/// <summary>
 		/// Used to track progress via logging
@@ -45,9 +44,9 @@ namespace Gauntlet.UnrealTest
 		/// Returns the configuration description for this test
 		/// </summary>
 		/// <returns></returns>
-		public override UE4TestConfig GetConfiguration()
+		public override UnrealGame.UE4TestConfig GetConfiguration()
 		{
-			UE4TestConfig Config = base.GetConfiguration();
+			UnrealGame.UE4TestConfig Config = base.GetConfiguration();
 
 			UnrealTestRole Client = Config.RequireRole(UnrealTargetRole.Client);
 
@@ -124,54 +123,76 @@ namespace Gauntlet.UnrealTest
 		/// Called after a test finishes to create an overall summary based on looking at the artifacts
 		/// </summary>
 		/// <param name="Result"></param>
-		public override ITestReport CreateReport(TestResult Result)
+		/// <param name="Context"></param>
+		/// <param name="Build"></param>
+		/// <param name="Artifacts"></param>
+		/// <param name="InArtifactPath"></param>
+		public override void CreateReport(TestResult Result, UnrealTestContext Context, UnrealBuildSource Build, IEnumerable<UnrealRoleArtifacts> Artifacts, string InArtifactPath)
 		{
 			// only check for artifacts if the test passed
-			if (Result == TestResult.Passed)
+			if (Result !=TestResult.Passed)
 			{
-				if (!DidDetectLaunch)
+				return;
+			}
+
+			if (!DidDetectLaunch)
+			{
+				SetUnrealTestResult(TestResult.Failed);
+				Log.Error("Failed to detect completion of launch");
+				return;
+			}
+
+			// find a logfile or something that indicates the process ran successsfully
+			bool MissingFiles = false;
+
+			foreach(var RoleArtifact in Artifacts)
+			{
+				DirectoryInfo RoleDir = new DirectoryInfo(RoleArtifact.ArtifactPath);
+
+				IEnumerable<FileInfo> ArtifactFiles = RoleDir.EnumerateFiles("*.*", SearchOption.AllDirectories);
+
+				// user may not have cleared paths between runs, so throw away anything that's older than 2m
+				ArtifactFiles = ArtifactFiles.Where(F => (DateTime.Now - F.LastWriteTime).TotalMinutes < 2);
+
+				if (ArtifactFiles.Any() == false)
 				{
-					SetUnrealTestResult(TestResult.Failed);
-					ReportError("Failed to detect completion of launch");
+					MissingFiles = true;
+					Log.Error("No artifact files found for {0}. Were they not retrieved from the device?", RoleArtifact.SessionRole);
 				}
-				else
+
+				IEnumerable<FileInfo> LogFiles = ArtifactFiles.Where(F => F.Extension.Equals(".log", StringComparison.OrdinalIgnoreCase));
+
+				if (LogFiles.Any() == false)
 				{
-					bool MissingFiles = false;
-
-					foreach (var RoleArtifact in SessionArtifacts)
-					{
-						DirectoryInfo RoleDir = new DirectoryInfo(RoleArtifact.ArtifactPath);
-
-						IEnumerable<FileInfo> ArtifactFiles = RoleDir.EnumerateFiles("*.*", SearchOption.AllDirectories);
-
-						// user may not have cleared paths between runs, so throw away anything that's older than 2m
-						ArtifactFiles = ArtifactFiles.Where(F => (DateTime.Now - F.LastWriteTime).TotalMinutes < 2);
-
-						if (ArtifactFiles.Any() == false)
-						{
-							MissingFiles = true;
-							ReportError("No artifact files found for {0}. Were they not retrieved from the device?", RoleArtifact.SessionRole);
-						}
-
-						IEnumerable<FileInfo> LogFiles = ArtifactFiles.Where(F => F.Extension.Equals(".log", StringComparison.OrdinalIgnoreCase));
-
-						if (LogFiles.Any() == false)
-						{
-							MissingFiles = true;
-							ReportError("No log files found for {0}. Were they not retrieved from the device?", RoleArtifact.SessionRole);
-						}
-					}
-
-					if (MissingFiles)
-					{
-						SetUnrealTestResult(TestResult.Failed);
-						ReportError("One or more roles did not generated any artifacts");
-					}
-
-					Log.Info("Found valid artifacts for test");
+					MissingFiles = true;
+					Log.Error("No log files found for {0}. Were they not retrieved from the device?", RoleArtifact.SessionRole);
 				}
 			}
-			return base.CreateReport(Result);
+
+			if (MissingFiles)
+			{
+				SetUnrealTestResult(TestResult.Failed);
+				Log.Error("One or more roles did not generated any artifacts");
+			}
+
+			Log.Info("Found valid artifacts for test");
+		}
+	}
+}
+
+// Provided for backwards compatibility with scripts
+namespace Gauntlet.UnrealTest
+{
+	class BootTest : UE.BootTest
+	{
+		/// <summary>
+		/// Default constructor
+		/// </summary>
+		/// <param name="InContext"></param>
+		public BootTest(Gauntlet.UnrealTestContext InContext)
+			: base(InContext)
+		{
+			Log.Warning("Gauntlet.UnrealTest.BootTest is deprecated and will be removed in 4.27. Use UE.BootTest. All arguments are the same");
 		}
 	}
 }

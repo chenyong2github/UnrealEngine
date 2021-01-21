@@ -69,7 +69,7 @@ FAssetRegistryInterface GAssetRegistryInterface;
 DEFINE_LOG_CATEGORY(LogAssetRegistry);
 
 #if ASSETREGISTRY_ENABLE_PREMADE_REGISTRY_IN_EDITOR 
-int32 LoadPremadeAssetRegistryInEditor = 0;
+int32 LoadPremadeAssetRegistryInEditor = WITH_IOSTORE_IN_EDITOR ? 1 : 0;
 static FAutoConsoleVariableRef CVarLoadPremadeRegistryInEditor(
 	TEXT("AssetRegistry.LoadPremadeRegistryInEditor"),
 	LoadPremadeAssetRegistryInEditor,
@@ -79,14 +79,21 @@ static FAutoConsoleVariableRef CVarLoadPremadeRegistryInEditor(
 /** This will always read the ini, public version may return cache */
 static void InitializeSerializationOptionsFromIni(FAssetRegistrySerializationOptions& Options, const FString& PlatformIniName);
 
-static bool LoadAssetRegistry(const TCHAR* Path, FAssetRegistryState& Out)
+static bool LoadAssetRegistry(const TCHAR* Path, const FAssetRegistryLoadOptions& Options, FAssetRegistryState& Out)
 {
 	check(Path);
 
-	TUniquePtr<FArchive> Reader(IFileManager::Get().CreateFileReader(Path));
-	if (Reader)
+	TUniquePtr<FArchive> FileReader(IFileManager::Get().CreateFileReader(Path));
+	if (FileReader)
 	{
-		return Out.Load(*Reader);
+		// It's faster to load the whole file into memory on a Gen5 console
+		TArray64<uint8> Data;
+		Data.SetNumUninitialized(FileReader->TotalSize());
+		FileReader->Serialize(Data.GetData(), Data.Num());
+		check(!FileReader->IsError());
+		
+		FLargeMemoryReader MemoryReader(Data.GetData(), Data.Num());
+		return Out.Load(MemoryReader, Options);
 	}
 
 	return false;
@@ -105,9 +112,7 @@ public:
 											 EDelayedRegisterRunPhase::TaskGraphSystemReady,
 				[this] () 
 				{
-					// TaskGraphSystemReady callback doesn't really mean it's running
-					bool bCanPreload = FPlatformProcess::SupportsMultithreading() && FTaskGraphInterface::IsRunning();
-					if (bLoadOnce && bCanPreload)
+					if (bLoadOnce && CanLoadAsync())
 					{
 						if (IFileManager::Get().FileExists(GetPath()))
 						{
@@ -157,9 +162,20 @@ public:
 	}
 
 private:
+	static bool CanLoadAsync()
+	{
+		// TaskGraphSystemReady callback doesn't really mean it's running
+		return FPlatformProcess::SupportsMultithreading() && FTaskGraphInterface::IsRunning();
+	}
+
 	void Load()
 	{
-		const bool bLoaded = LoadAssetRegistry(GetPath(), State);
+		FAssetRegistryLoadOptions Options;
+		const int32 ThreadReduction = 2; // This thread + main thread already has work to do 
+		int32 MaxWorkers = CanLoadAsync() ? FPlatformMisc::NumberOfCoresIncludingHyperthreads() - ThreadReduction : 0;
+		Options.ParallelWorkers = FMath::Clamp(MaxWorkers, 0, 16);
+
+		const bool bLoaded = LoadAssetRegistry(GetPath(), Options, State);
 		checkf(bLoaded, TEXT("Failed to load %s"), GetPath());
 	}
 
@@ -274,7 +290,8 @@ UAssetRegistryImpl::UAssetRegistryImpl(const FObjectInitializer& ObjectInitializ
 #if ASSETREGISTRY_ENABLE_PREMADE_REGISTRY_IN_EDITOR 
 	if (GIsEditor && !!LoadPremadeAssetRegistryInEditor)
 	{
-		if (LoadAssetRegistry(*(FPaths::ProjectDir() / TEXT("AssetRegistry.bin")), State))
+		FAssetRegistryLoadOptions LoadOptions;
+		if (LoadAssetRegistry(*(FPaths::ProjectDir() / TEXT("AssetRegistry.bin")), LoadOptions, State))
 		{
 			UE_LOG(LogAssetRegistry, Log, TEXT("Loaded premade asset registry"));
 			CachePathsFromState(State);
@@ -1071,7 +1088,7 @@ bool UAssetRegistryImpl::EnumerateAssets(const FARCompiledFilter& InFilter, TFun
 		}
 		else
 		{
-			for (FObjectIterator ObjIt; ObjIt; ++ObjIt)
+			for (FThreadSafeObjectIterator ObjIt; ObjIt; ++ObjIt)
 			{
 				bool bContinue = true;
 				FilterInMemoryObjectLambda(*ObjIt, bContinue);
@@ -1133,7 +1150,7 @@ bool UAssetRegistryImpl::EnumerateAllAssets(TFunctionRef<bool(const FAssetData&)
 	// All in memory assets
 	if (!bIncludeOnlyOnDiskAssets)
 	{
-		for (FObjectIterator ObjIt; ObjIt; ++ObjIt)
+		for (FThreadSafeObjectIterator ObjIt; ObjIt; ++ObjIt)
 		{
 			if (ObjIt->IsAsset())
 			{
@@ -2753,7 +2770,7 @@ bool UAssetRegistryImpl::RemoveAssetData(FAssetData* AssetData)
 
 void UAssetRegistryImpl::RemovePackageData(const FName PackageName)
 {
-	TArray<FAssetData*>* PackageAssetsPtr = State.CachedAssetsByPackageName.Find(PackageName);
+	TArray<FAssetData*, TInlineAllocator<1>>* PackageAssetsPtr = State.CachedAssetsByPackageName.Find(PackageName);
 	if (PackageAssetsPtr && PackageAssetsPtr->Num() > 0)
 	{
 		FAssetIdentifier PackageAssetIdentifier(PackageName);
@@ -2770,7 +2787,7 @@ void UAssetRegistryImpl::RemovePackageData(const FName PackageName)
 		}
 
 		// Copy the array since RemoveAssetData may re-allocate it!
-		TArray<FAssetData*> PackageAssets = *PackageAssetsPtr;
+		TArray<FAssetData*, TInlineAllocator<1>> PackageAssets = *PackageAssetsPtr;
 		for (FAssetData* PackageAsset : PackageAssets)
 		{
 			RemoveAssetData(PackageAsset);
@@ -3042,11 +3059,11 @@ void UAssetRegistryImpl::ScanModifiedAssetFiles(const TArray<FString>& InFilePat
 		}
 
 		// Get the assets that are currently inside the package
-		TArray<TArray<FAssetData*>> ExistingFilesAssetData;
+		TArray<TArray<FAssetData*, TInlineAllocator<1>>> ExistingFilesAssetData;
 		ExistingFilesAssetData.Reserve(InFilePaths.Num());
 		for (const FString& PackageName : ModifiedPackageNames)
 		{
-			TArray<FAssetData*>* PackageAssetsPtr = State.CachedAssetsByPackageName.Find(*PackageName);
+			TArray<FAssetData*, TInlineAllocator<1>>* PackageAssetsPtr = State.CachedAssetsByPackageName.Find(*PackageName);
 			if (PackageAssetsPtr && PackageAssetsPtr->Num() > 0)
 			{
 				ExistingFilesAssetData.Add(*PackageAssetsPtr);
@@ -3062,7 +3079,7 @@ void UAssetRegistryImpl::ScanModifiedAssetFiles(const TArray<FString>& InFilePat
 		ScanPathsAndFilesSynchronous(TArray<FString>(), InFilePaths, BlacklistScanFilters, true, EAssetDataCacheMode::NoCache, &FoundAssets, nullptr);
 
 		// Remove any assets that are no longer present in the package
-		for (const TArray<FAssetData*>& OldPackageAssets : ExistingFilesAssetData)
+		for (const TArray<FAssetData*, TInlineAllocator<1>>& OldPackageAssets : ExistingFilesAssetData)
 		{
 			for (FAssetData* OldPackageAsset : OldPackageAssets)
 			{

@@ -12,6 +12,14 @@
 #include "Modules/ModuleManager.h"
 #include "Runtime/Renderer/Private/ScreenPass.h"
 
+int32 GNiagaraGpuComputeDebug_MinTextureHeight = 128;
+static FAutoConsoleVariableRef CVarNiagaraGpuComputeDebug_MinTextureHeight(
+	TEXT("fx.Niagara.GpuComputeDebug.MinTextureHeight"),
+	GNiagaraGpuComputeDebug_MinTextureHeight,
+	TEXT("The minimum height we will visualize a texture at, smaller textures will be scaled up to match this."),
+	ECVF_Default
+);
+
 int32 GNiagaraGpuComputeDebug_MaxTextureHeight = 128;
 static FAutoConsoleVariableRef CVarNiagaraGpuComputeDebug_MaxTextureHeight(
 	TEXT("fx.Niagara.GpuComputeDebug.MaxTextureHeight"),
@@ -240,6 +248,9 @@ void FNiagaraGpuComputeDebug::DrawDebug(class FRDGBuilder& GraphBuilder, const F
 
 	FIntPoint Location(10.0f, Output.ViewRect.Height() - 10.0f);
 
+	const int32 DisplayMinHeight = GNiagaraGpuComputeDebug_MinTextureHeight > 0 ? GNiagaraGpuComputeDebug_MinTextureHeight : 0;
+	const int32 DisplayMaxHeight = GNiagaraGpuComputeDebug_MaxTextureHeight > 0 ? GNiagaraGpuComputeDebug_MaxTextureHeight : TNumericLimits<int32>::Max();
+
 	for (const FNiagaraVisualizeTexture& VisualizeEntry : VisualizeTextures)
 	{
 		FIntVector TextureSize = VisualizeEntry.Texture->GetSizeXYZ();
@@ -253,7 +264,8 @@ void FNiagaraGpuComputeDebug::DrawDebug(class FRDGBuilder& GraphBuilder, const F
 		// Get system name
 		const FString& SystemName = SystemInstancesToWatch.FindRef(VisualizeEntry.SystemInstanceID);
 
-		const int32 DisplayHeight = GNiagaraGpuComputeDebug_MaxTextureHeight > 0 ? GNiagaraGpuComputeDebug_MaxTextureHeight : TextureSize.Y;
+		const int32 DisplayHeight = FMath::Clamp(TextureSize.Y, DisplayMinHeight, DisplayMaxHeight);
+
 		Location.Y -= DisplayHeight;
 
 		NiagaraDebugShaders::VisualizeTexture(GraphBuilder, View, Output, Location, DisplayHeight, VisualizeEntry.AttributesToVisualize, VisualizeEntry.Texture, VisualizeEntry.NumTextureAttributes, TickCounter);

@@ -1264,6 +1264,8 @@ void SNiagaraConsoleInputBox::SuggestionSelectionChanged(TSharedPtr<FString> New
 	// box as they've chosen the suggestion they're interested in.
 	if (SelectInfo == ESelectInfo::OnMouseClick)
 	{
+		FString CommitString = *NewValue;
+		OnTextCommitted(FText::FromString(CommitString), ETextCommit::Default);
 		SuggestionBox->SetIsOpen(false);
 	}
 
@@ -1371,10 +1373,12 @@ void SNiagaraConsoleInputBox::OnTextChanged(const FText& InText)
 
 void SNiagaraConsoleInputBox::OnTextCommitted(const FText& InText, ETextCommit::Type CommitInfo)
 {
-	WorkingText = InText;
-	IConsoleManager::Get().AddConsoleHistoryEntry(NiagaraCVarHistoryKey, *InText.ToString());
-	OnTextCommittedEvent.ExecuteIfBound(InText);
-	ClearSuggestions();
+	if (!WorkingText.EqualTo(InText))
+	{
+		WorkingText = InText;
+		IConsoleManager::Get().AddConsoleHistoryEntry(NiagaraCVarHistoryKey, *InText.ToString());
+		OnTextCommittedEvent.ExecuteIfBound(InText);
+	}
 }
 
 FReply SNiagaraConsoleInputBox::OnPreviewKeyDown(const FGeometry& MyGeometry, const FKeyEvent& KeyEvent)

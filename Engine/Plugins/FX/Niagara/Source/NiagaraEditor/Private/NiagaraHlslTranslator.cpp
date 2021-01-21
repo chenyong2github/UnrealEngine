@@ -2882,14 +2882,7 @@ void FHlslNiagaraTranslator::DefineMainGPUFunctions(
 					}
 					else
 					{
-						if (TranslationStages[i].bPartialParticleUpdate)
-						{
-							VarFmt = VarName + TEXT("{0} = RWInputData{1}({2}, {3}, InstanceIdx);\n");
-						}
-						else
-						{
-							VarFmt = VarName + TEXT("{0} = InputData{1}({2}, {3}, InstanceIdx);\n");
-						}
+						VarFmt = VarName + TEXT("{0} = InputData{1}({2}, {3}, InstanceIdx);\n");
 
 						if (bUseSimulationStages)
 						{
@@ -7978,7 +7971,7 @@ void FHlslNiagaraTranslator::Warning(FText WarningText, const UNiagaraNode* InNo
 
 void FHlslNiagaraTranslator::RegisterCompileDependency(const FNiagaraVariableBase& InVar, FText MessageText, const UNiagaraNode* Node, const UEdGraphPin* Pin, bool bEmitAsLinker)
 {
-	if (InVar.GetType().IsDataInterface() || InVar.GetType().IsUObject() || InVar.IsInNameSpace(FNiagaraConstants::UserNamespace) || InVar.IsInNameSpace(FNiagaraConstants::EngineNamespace))
+	if (InVar.GetType().IsDataInterface() || InVar.GetType().IsUObject() || InVar.IsInNameSpace(FNiagaraConstants::UserNamespace) || InVar.IsInNameSpace(FNiagaraConstants::EngineNamespace) || InVar.IsInNameSpace(FNiagaraConstants::ParameterCollectionNamespace))
 		return;
 
 	if (InVar.GetName() == TEXT("Particles.UniqueID"))

@@ -6,7 +6,6 @@
 #include "UObject/CoreOnline.h"
 #include "OnlineSubsystem.h"
 #include "Interfaces/OnlineIdentityInterface.h"
-#include "Interfaces/OnlineUserInterface.h"
 #include "Interfaces/OnlineFriendsInterface.h"
 #include "Interfaces/OnlinePresenceInterface.h"
 
@@ -67,7 +66,17 @@ public:
 // FOnlineUser interface
 	virtual TSharedRef<const FUniqueNetId> GetUserId() const override
 	{
-		return MakeShared<FUniqueNetIdEOSPlus>(BaseItem->GetUserId(), EOSItem->GetUserId());
+		TSharedPtr<const FUniqueNetId> BaseNetId;
+		if (IsBaseItemValid())
+		{
+			BaseNetId = BaseItem->GetUserId();
+		}
+		TSharedPtr<const FUniqueNetId> EOSNetId;
+		if (IsEOSItemValid())
+		{
+			EOSNetId = EOSItem->GetUserId();
+		}
+		return MakeShared<FUniqueNetIdEOSPlus>(BaseNetId, EOSNetId);
 	}
 
 	virtual FString GetRealName() const override
@@ -77,7 +86,8 @@ public:
 
 	virtual FString GetDisplayName(const FString& Platform = FString()) const override
 	{
-		if (Platform == TEXT("EOS"))
+		// If they are only an EOS user, then use that
+		if (Platform == TEXT("EOS") || !IsBaseItemValid())
 		{
 			if (IsEOSItemValid())
 			{
@@ -258,23 +268,12 @@ public:
  */
 class FOnlineUserEOSPlus :
 	public IOnlineIdentity,
-	public IOnlineUser,
 	public IOnlineFriends,
 	public IOnlinePresence
 {
 public:
 	FOnlineUserEOSPlus() = delete;
 	virtual ~FOnlineUserEOSPlus();
-
-// IOnlineUser Interface
-	virtual bool QueryUserInfo(int32 LocalUserNum, const TArray<TSharedRef<const FUniqueNetId>>& UserIds) override;
-	virtual bool GetAllUserInfo(int32 LocalUserNum, TArray<TSharedRef<FOnlineUser>>& OutUsers) override;
-	virtual TSharedPtr<FOnlineUser> GetUserInfo(int32 LocalUserNum, const FUniqueNetId& UserId) override;
-	virtual bool QueryUserIdMapping(const FUniqueNetId& UserId, const FString& DisplayNameOrEmail, const FOnQueryUserMappingComplete& Delegate = FOnQueryUserMappingComplete()) override;
-	virtual bool QueryExternalIdMappings(const FUniqueNetId& UserId, const FExternalIdQueryOptions& QueryOptions, const TArray<FString>& ExternalIds, const FOnQueryExternalIdMappingsComplete& Delegate = FOnQueryExternalIdMappingsComplete()) override;
-	virtual void GetExternalIdMappings(const FExternalIdQueryOptions& QueryOptions, const TArray<FString>& ExternalIds, TArray<TSharedPtr<const FUniqueNetId>>& OutIds) override;
-	virtual TSharedPtr<const FUniqueNetId> GetExternalIdMapping(const FExternalIdQueryOptions& QueryOptions, const FString& ExternalId) override;
-// ~IOnlineUser Interface
 
 // IOnlineIdentity Interface
 	virtual bool Login(int32 LocalUserNum, const FOnlineAccountCredentials& AccountCredentials) override;
@@ -294,6 +293,7 @@ public:
 	virtual FString GetAuthType() const override;
 	virtual void RevokeAuthToken(const FUniqueNetId& LocalUserId, const FOnRevokeAuthTokenCompleteDelegate& Delegate) override;
 	virtual FPlatformUserId GetPlatformUserIdFromUniqueNetId(const FUniqueNetId& UniqueNetId) const override;
+	virtual void GetLinkedAccountAuthToken(int32 LocalUserNum, const FOnGetLinkedAccountAuthTokenCompleteDelegate& Delegate) const override;
 // ~IOnlineIdentity Interface
 
 // IOnlineFriends Interface
@@ -353,6 +353,7 @@ PACKAGE_SCOPE:
 private:
 	void AddPlayer(int32 LocalUserNum);
 	void RemovePlayer(int32 LocalUserNum);
+	TSharedPtr<FUniqueNetIdEOSPlus> AddRemotePlayer(TSharedPtr<const FUniqueNetId> BaseNetId, TSharedPtr<const FUniqueNetId> EOSNetId);
 	TSharedRef<FOnlineFriendPlus> AddFriend(TSharedRef<FOnlineFriend> Friend);
 	TSharedRef<FOnlineFriendPlus> GetFriend(TSharedRef<FOnlineFriend> Friend);
 	TSharedRef<FOnlineRecentPlayer> AddRecentPlayer(TSharedRef<FOnlineRecentPlayer> Player);
@@ -363,34 +364,26 @@ private:
 	/** Reference to the owning EOS plus subsystem */
 	FOnlineSubsystemEOSPlus* EOSPlus;
 
-	IOnlineUserPtr BaseUserInterface;
 	IOnlineIdentityPtr BaseIdentityInterface;
-	IOnlineUserPtr EOSUserInterface;
 	IOnlineIdentityPtr EOSIdentityInterface;
 	IOnlineFriendsPtr BaseFriendsInterface;
 	IOnlineFriendsPtr EOSFriendsInterface;
 	IOnlinePresencePtr BasePresenceInterface;
 	IOnlinePresencePtr EOSPresenceInterface;
 
-	FOnQueryUserInfoCompleteDelegate IntermediateOnQueryUserInfoCompleteDelegateHandle;
-	FOnQueryUserInfoCompleteDelegate FinalOnQueryUserInfoCompleteDelegateHandle;
-
 	/** Maps of net ids */
 	TMap<FString, TSharedPtr<FUniqueNetIdEOSPlus>> BaseNetIdToNetIdPlus;
 	TMap<FString, TSharedPtr<FUniqueNetIdEOSPlus>> EOSNetIdToNetIdPlus;
 	TMap<FString, TSharedPtr<const FUniqueNetId>> NetIdPlusToBaseNetId;
 	TMap<FString, TSharedPtr<const FUniqueNetId>> NetIdPlusToEOSNetId;
+	TMap<FString, TSharedPtr<FUniqueNetIdEOSPlus>> NetIdPlusToNetIdPlus;
 	TMap<int32, TSharedPtr<FUniqueNetIdEOSPlus>> LocalUserNumToNetIdPlus;
 
 	/** Online user variants maps */
 	TMap<FString, TSharedRef<FOnlineUserAccountPlus>> NetIdPlusToUserAccountMap;
-	TMap<FString, TSharedRef<FOnlineUserPlus>> NetIdPlusToUserMap;
 	TMap<FString, TSharedRef<FOnlineFriendPlus>> NetIdPlusToFriendMap;
 	TMap<FString, TSharedRef<FOnlineRecentPlayerPlus>> NetIdPlusToRecentPlayerMap;
 	TMap<FString, TSharedRef<FOnlineBlockedPlayerPlus>> NetIdPlusToBlockedPlayerMap;
-
-	void IntermediateOnQueryUserInfoComplete(int32 LocalUserNum, bool bWasSuccessful, const TArray<TSharedRef<const FUniqueNetId>>& UserIds, const FString& ErrorStr);
-	void FinalOnQueryUserInfoComplete(int32 LocalUserNum, bool bWasSuccessful, const TArray<TSharedRef<const FUniqueNetId>>& UserIds, const FString& ErrorStr);
 };
 
 typedef TSharedPtr<FOnlineUserEOSPlus, ESPMode::ThreadSafe> FOnlineUserEOSPlusPtr;

@@ -118,7 +118,11 @@ public:
 #if WITH_EDITOR
 				LogFilePath = FPaths::Combine( *LogFileDirectory, TEXT("EditorOpenOrder.log"));
 #else 
-				LogFilePath = FPaths::Combine( *LogFileDirectory, TEXT("GameOpenOrder.log"));
+				FString OrderSuffix = TEXT("");
+				FParse::Value(CommandLineParam, TEXT("FooSuffix="), OrderSuffix);
+
+				FString GameOpenOrderFileName = FString::Printf(TEXT("GameOpenOrder%s.log"), *OrderSuffix);
+				LogFilePath = FPaths::Combine( *LogFileDirectory, *GameOpenOrderFileName);
 #endif
 				Inner->CreateDirectoryTree(*LogFileDirectory);
 				auto* FileHandle = Inner->OpenWrite(*LogFilePath, false, false);

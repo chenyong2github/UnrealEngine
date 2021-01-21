@@ -65,12 +65,23 @@ public:
 		InstanceData.Info = ModelInfo;
 		InstanceData.TraceID = ID.GetTraceID();
 		InstanceData.CueDispatcher->Driver = ModelInfo.Driver; // Awkward: we should convert Cues to a service so this isn't needed.
+		InstanceData.Info.View->CueDispatcher = &InstanceData.CueDispatcher.Get(); // Double awkward: we should move Cuedispatcher and clean up these weird links
 	}
 
 	template<typename ModelDef>
 	void UnregisterInstance(FNetworkPredictionID ID)
 	{
-		Services.UnregisterInstance<ModelDef>(ID);
+		if (!bLockServices)
+		{
+			Services.UnregisterInstance<ModelDef>(ID);
+		}
+		else
+		{
+			DeferredServiceConfigDelegate.AddLambda([ID](UNetworkPredictionWorldManager* Manager)
+			{
+				Manager->Services.UnregisterInstance<ModelDef>(ID);
+			});
+		}
 	}
 
 	template<typename ModelDef>
@@ -124,6 +135,11 @@ private:
 	int32 TempClientSpawnCount = -2; // negative IDs for client to use before getting server assigned id
 	int32 LastFixedTickOffset = 0;
 
+	// Callbacks to change subscribed services, that couldn't be made inline
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnHandleDeferredServiceConfig, UNetworkPredictionWorldManager*);
+	FOnHandleDeferredServiceConfig DeferredServiceConfigDelegate;
+	bool bLockServices = false; // Services are locked and we can't
+
 	// ---------------------------------------
 
 	template<typename ModelDef>
@@ -163,7 +179,7 @@ private:
 template<typename ModelDef>
 void UNetworkPredictionWorldManager::ConfigureInstance(FNetworkPredictionID ID, const FNetworkPredictionInstanceArchetype& Archetype, const FNetworkPredictionInstanceConfig& Config, FReplicationProxySet RepProxies, ENetRole Role, bool bHasNetConnection)
 {
-	static constexpr FNetworkPredictionModelDefCapabilities Capabilities = FNetworkPredictionDriverBase<ModelDef>::GetCapabilities();
+	static constexpr FNetworkPredictionModelDefCapabilities Capabilities = FNetworkPredictionDriver<ModelDef>::GetCapabilities();
 
 	npCheckSlow((int32)ID > 0);
 	npEnsure(Role != ROLE_None);
@@ -176,7 +192,7 @@ void UNetworkPredictionWorldManager::ConfigureInstance(FNetworkPredictionID ID, 
 	const bool bNewInstance = (InstanceData.NetRole == ROLE_None);
 	InstanceData.NetRole = Role;
 
-	if (FNetworkPredictionDriverBase<ModelDef>::HasPhysics())
+	if (FNetworkPredictionDriver<ModelDef>::HasPhysics())
 	{
 		SetUsingPhysics();
 	}
@@ -226,9 +242,9 @@ void UNetworkPredictionWorldManager::ConfigureInstance(FNetworkPredictionID ID, 
 					BindNetSend_IndependentLocal<TIndependentTickReplicator_SP<ModelDef>>(ID, RepProxies.SimulatedProxy, DataStore);
 					BindNetSend_IndependentLocal<TIndependentTickReplicator_SP<ModelDef>>(ID, RepProxies.Replay, DataStore);
 
-					if (FNetworkPredictionDriverBase<ModelDef>::HasSimulation())
+					if (FNetworkPredictionDriver<ModelDef>::HasSimulation())
 					{
-						if (FNetworkPredictionDriverBase<ModelDef>::HasInput())
+						if (FNetworkPredictionDriver<ModelDef>::HasInput())
 						{
 							ServiceMask |= ENetworkPredictionService::IndependentLocalInput;
 						}
@@ -245,8 +261,8 @@ void UNetworkPredictionWorldManager::ConfigureInstance(FNetworkPredictionID ID, 
 				BindNetSend_IndependentLocal<TIndependentTickReplicator_Server<ModelDef>>(ID, RepProxies.ServerRPC, DataStore);
 				BindNetSend_IndependentLocal<TIndependentTickReplicator_SP<ModelDef>>(ID, RepProxies.Replay, DataStore);
 				
-				npCheckf(FNetworkPredictionDriverBase<ModelDef>::HasSimulation(), TEXT("AP must have Simulation."));
-				npCheckf(FNetworkPredictionDriverBase<ModelDef>::HasInput(), TEXT("AP sim doesn't have Input?"));
+				npCheckf(FNetworkPredictionDriver<ModelDef>::HasSimulation(), TEXT("AP must have Simulation."));
+				npCheckf(FNetworkPredictionDriver<ModelDef>::HasInput(), TEXT("AP sim doesn't have Input?"));
 
 				ServiceMask |= ENetworkPredictionService::IndependentLocalInput;
 				ServiceMask |= ENetworkPredictionService::IndependentLocalTick;
@@ -285,12 +301,12 @@ void UNetworkPredictionWorldManager::ConfigureInstance(FNetworkPredictionID ID, 
 		{
 			case ENetRole::ROLE_Authority:
 			{
-				if (FNetworkPredictionDriverBase<ModelDef>::HasSimulation())
+				if (FNetworkPredictionDriver<ModelDef>::HasSimulation())
 				{
 					BindServerNetRecv_Fixed<ModelDef>(ID, RepProxies.ServerRPC, DataStore);
 					BindNetSend_Fixed<TFixedTickReplicator_AP<ModelDef>>(ID, RepProxies.AutonomousProxy, DataStore);
 
-					if (FNetworkPredictionDriverBase<ModelDef>::HasInput())
+					if (FNetworkPredictionDriver<ModelDef>::HasInput())
 					{
 						ServiceMask |= bHasNetConnection ? ENetworkPredictionService::FixedInputRemote : ENetworkPredictionService::FixedInputLocal;
 					}
@@ -302,8 +318,8 @@ void UNetworkPredictionWorldManager::ConfigureInstance(FNetworkPredictionID ID, 
 			}
 			case ENetRole::ROLE_AutonomousProxy:
 			{
-				npCheckf(FNetworkPredictionDriverBase<ModelDef>::HasSimulation(), TEXT("AP must have Simulation."));
-				npCheckf(FNetworkPredictionDriverBase<ModelDef>::HasInput(), TEXT("AP sim doesn't have Input?"));
+				npCheckf(FNetworkPredictionDriver<ModelDef>::HasSimulation(), TEXT("AP must have Simulation."));
+				npCheckf(FNetworkPredictionDriver<ModelDef>::HasInput(), TEXT("AP sim doesn't have Input?"));
 
 				BindClientNetRecv_Fixed<TFixedTickReplicator_AP<ModelDef>>(ID, RepProxies.AutonomousProxy, DataStore, Role);
 				BindClientNetRecv_Fixed<TFixedTickReplicator_SP<ModelDef>>(ID, RepProxies.SimulatedProxy, DataStore, Role);
@@ -329,7 +345,7 @@ void UNetworkPredictionWorldManager::ConfigureInstance(FNetworkPredictionID ID, 
 		// Authority vs Non-Authority services
 		if (Role == ROLE_Authority)
 		{
-			if (FNetworkPredictionDriverBase<ModelDef>::HasSimulation())
+			if (FNetworkPredictionDriver<ModelDef>::HasSimulation())
 			{
 				ServiceMask |= ENetworkPredictionService::FixedTick;
 				ServiceMask |= ENetworkPredictionService::FixedFinalize;
@@ -343,7 +359,7 @@ void UNetworkPredictionWorldManager::ConfigureInstance(FNetworkPredictionID ID, 
 			case ENetworkLOD::ForwardPredict:
 				ServiceMask |= ENetworkPredictionService::FixedRollback;
 
-				if (FNetworkPredictionDriverBase<ModelDef>::HasSimulation())
+				if (FNetworkPredictionDriver<ModelDef>::HasSimulation())
 				{
 					ServiceMask |= ENetworkPredictionService::FixedTick;
 					ServiceMask |= ENetworkPredictionService::FixedFinalize;
@@ -359,7 +375,7 @@ void UNetworkPredictionWorldManager::ConfigureInstance(FNetworkPredictionID ID, 
 		}
 
 		// Physics
-		if (FNetworkPredictionDriverBase<ModelDef>::HasPhysics())
+		if (FNetworkPredictionDriver<ModelDef>::HasPhysics())
 		{
 			ServiceMask |= ENetworkPredictionService::FixedPhysics;
 			if (bUsePhysicsRecording && !Physics.bRecordingEnabled)
@@ -383,13 +399,25 @@ void UNetworkPredictionWorldManager::ConfigureInstance(FNetworkPredictionID ID, 
 	}
 
 	// Register with selected services
-	Services.RegisterInstance<ModelDef>(ID, InstanceData, ServiceMask);
+	if (!bLockServices)
+	{
+		Services.RegisterInstance<ModelDef>(ID, InstanceData, ServiceMask);
+	}
+	else
+	{
+		DeferredServiceConfigDelegate.AddLambda([ID, ServiceMask](UNetworkPredictionWorldManager* Manager)
+		{
+			TModelDataStore<ModelDef>* DataStore = Manager->Services.GetDataStore<ModelDef>();
+			TInstanceData<ModelDef>& InstanceData = *DataStore->Instances.Find(ID);
+			Manager->Services.RegisterInstance<ModelDef>(ID, InstanceData, ServiceMask);
+		});
+	}
 	
 	// Call into driver to seed initial state if this is a new instance
 	if (bNewInstance)
 	{
 		UE_NP_TRACE_SIM_CREATED(ID, InstanceData.Info.Driver, ModelDef);
-		if (FNetworkPredictionDriverBase<ModelDef>::HasNpState())
+		if (FNetworkPredictionDriver<ModelDef>::HasNpState())
 		{
 			FNetworkPredictionDriver<ModelDef>::InitializeSimulationState(InstanceData.Info.Driver, InstanceData.Info.View);
 		}
@@ -397,7 +425,7 @@ void UNetworkPredictionWorldManager::ConfigureInstance(FNetworkPredictionID ID, 
 	else if (PrevPendingFrame != InstanceData.Info.View->PendingFrame)
 	{
 		// Not a new instance but PendingFrame changed, so copy contents from previous PendingFrame
-		if (FNetworkPredictionDriverBase<ModelDef>::HasNpState())
+		if (FNetworkPredictionDriver<ModelDef>::HasNpState())
 		{
 			FrameData.Buffer[InstanceData.Info.View->PendingFrame] = FrameData.Buffer[PrevPendingFrame];
 		}

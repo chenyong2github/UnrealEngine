@@ -102,6 +102,11 @@ FBufferRHIRef FD3D11DynamicRHI::RHICreateBuffer(uint32 Size, EBufferUsageFlags U
 	TRefCountPtr<ID3D11Buffer> BufferResource;
 	VERIFYD3D11RESULT_EX(Direct3DDevice->CreateBuffer(&Desc, pInitData, BufferResource.GetInitReference()), Direct3DDevice);
 
+	if (CreateInfo.DebugName)
+	{
+		BufferResource->SetPrivateData(WKPDID_D3DDebugObjectName, FCString::Strlen(CreateInfo.DebugName) + 1, TCHAR_TO_ANSI(CreateInfo.DebugName));
+	}
+
 	UpdateBufferStats(BufferResource, true);
 
 	if (CreateInfo.DebugName)

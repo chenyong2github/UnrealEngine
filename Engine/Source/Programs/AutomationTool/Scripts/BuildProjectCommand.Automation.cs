@@ -48,6 +48,7 @@ public partial class Project : CommandUtils
 			(InPlatform == UnrealTargetPlatform.Win64) ||
 			(InPlatform == UnrealTargetPlatform.Win32) ||
 			(InPlatform == UnrealTargetPlatform.Linux) ||
+			(InPlatform == UnrealTargetPlatform.LinuxAArch64) ||
 			(InPlatform == UnrealTargetPlatform.Mac)
 			);
 	}

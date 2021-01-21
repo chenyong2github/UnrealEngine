@@ -12,13 +12,13 @@ extern TUniquePtr<FVivoxVoiceChat> CreateVivoxObject();
 
 static void* VivoxClientApiAllocate(size_t bytes)
 {
-	LLM_SCOPE(ELLMTag::AudioVoiceChat);
+	LLM_SCOPE(ELLMTag::RealTimeCommunications);
 	return FMemory::Malloc(bytes);
 }
 
 static void VivoxClientApiDeallocate(void* ptr)
 {
-	LLM_SCOPE(ELLMTag::AudioVoiceChat);
+	LLM_SCOPE(ELLMTag::RealTimeCommunications);
 	FMemory::Free(ptr);
 }
 

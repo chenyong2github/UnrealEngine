@@ -786,6 +786,7 @@ public:
 #endif
 
 #if WITH_NIAGARA_COMPONENT_PREVIEW_DATA
+public:
 	float PreviewLODDistance;
 #endif
 };

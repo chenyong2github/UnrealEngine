@@ -259,19 +259,16 @@ private:
 	int32 Index;
 };
 
-bool FPakOrderMap::ProcessOrderFile(const TCHAR* ResponseFile, bool bSecondaryOrderFile, bool bMoveBulkAndUptnlLast)
+bool FPakOrderMap::ProcessOrderFile(const TCHAR* ResponseFile, bool bSecondaryOrderFile, bool bMergeOrder)
 {
-	int32 OrderOffset = 0;
+	int32 OrderOffset = (bSecondaryOrderFile || bMergeOrder) ? OrderMap.Num() + 1 : 1;
 	int32 OpenOrderNumber = 0;
 	if (bSecondaryOrderFile)
 	{
-		OrderOffset = Num();
 		MaxPrimaryOrderIndex = OrderOffset;
-		bMoveBulkAndUptnlLast = false;
 	}
 	// List of all items to add to pak file
 	FString Text;
-	TArray<FString> BulkUptnlOrder;
 	UE_LOG(LogPakFile, Display, TEXT("Loading pak order file %s..."), ResponseFile);
 	if (FFileHelper::LoadFileToString(Text, ResponseFile))
 	{
@@ -280,48 +277,24 @@ bool FPakOrderMap::ProcessOrderFile(const TCHAR* ResponseFile, bool bSecondaryOr
 		Text.ParseIntoArray(Lines, TEXT("\n"), true);
 		for (int32 EntryIndex = 0; EntryIndex < Lines.Num(); EntryIndex++)
 		{
-			Lines[EntryIndex].ReplaceInline(TEXT("\r"), TEXT(""));
-			Lines[EntryIndex].ReplaceInline(TEXT("\n"), TEXT(""));
-			OpenOrderNumber = EntryIndex;
-			if (Lines[EntryIndex].FindLastChar('"', OpenOrderNumber))
+			FString Path;
+			const TCHAR* OrderLinePtr = *(Lines[EntryIndex]);
+			if (!FParse::Token(OrderLinePtr, Path, false))
 			{
-				FString ReadNum = Lines[EntryIndex].RightChop(OpenOrderNumber + 1);
-				Lines[EntryIndex].LeftInline(OpenOrderNumber + 1, false);
-				ReadNum.TrimStartInline();
-				if (ReadNum.IsNumeric())
-				{
-					OpenOrderNumber = FCString::Atoi(*ReadNum);
-				}
+				UE_LOG(LogPakFile, Error, TEXT("Invlaid entry in the response file %s."), *Lines[EntryIndex]);
+				return false;
 			}
-			Lines[EntryIndex] = Lines[EntryIndex].TrimQuotes();
-			// dont process the entry in the FileOrder if it a package name
-			FString FileExt = FPaths::GetExtension(Lines[EntryIndex]);
-			if (!FileExt.IsEmpty())
-			{
-				FString Path = FString::Printf(TEXT("%s"), *Lines[EntryIndex]);
-				FPaths::NormalizeFilename(Path);
-				Path = Path.ToLower();
-				if (bSecondaryOrderFile && OrderMap.Contains(Path))
-				{
-					continue;
-				}
-				else if (bMoveBulkAndUptnlLast && (FileExt.EndsWith(TEXT("ubulk")) || FileExt.EndsWith(TEXT("uptnl"))))
-				{
-					OrderOffset--;
-					BulkUptnlOrder.Add(Path);
-					continue;
-				}
-				OrderMap.Add(Path, OpenOrderNumber + OrderOffset);
-			}
-		}
 
-		if (bMoveBulkAndUptnlLast)
-		{
-			int32 EndSectionOrderNumber = OpenOrderNumber + OrderOffset + 1;
-			for (int32 i = 0; i < BulkUptnlOrder.Num(); i++)
+			FPaths::NormalizeFilename(Path);
+			Path = Path.ToLower();
+
+			if ((bSecondaryOrderFile || bMergeOrder) && OrderMap.Contains(Path))
 			{
-				OrderMap.Add(BulkUptnlOrder[i], EndSectionOrderNumber++);
+				continue;
 			}
+
+			OpenOrderNumber = OrderOffset++;
+			OrderMap.Add(Path, OpenOrderNumber);
 		}
 
 		UE_LOG(LogPakFile, Display, TEXT("Finished loading pak order file %s."), ResponseFile);
@@ -4937,18 +4910,36 @@ bool ExecuteUnrealPak(const TCHAR* CmdLine)
 
 		bool bOnlyDeleted = FParse::Param( CmdLine, TEXT("OnlyDeleted") );
 		bool bSortByOrdering = FParse::Param(CmdLine, TEXT("SortByOrdering"));
-		bool bMoveBulkAndUptnlOrderLast = FParse::Param(CmdLine, TEXT("moveBulkAndUptnlOrderLast"));
 
 		FPakOrderMap OrderMap;
-		FString ResponseFile;
-		if (FParse::Value(CmdLine, TEXT("-order="), ResponseFile) && !OrderMap.ProcessOrderFile(*ResponseFile, false, bMoveBulkAndUptnlOrderLast))
+		FString GameOpenOrderStr;
+		if (FParse::Value(CmdLine, TEXT("-order="), GameOpenOrderStr, false))
 		{
-			return false;
+			TArray<FString> GameOpenOrderFiles;
+			GameOpenOrderStr.ParseIntoArray(GameOpenOrderFiles, TEXT(","), true);
+			bool bMergeOrder = false;
+			for (const FString& GameOpenOrder : GameOpenOrderFiles)
+			{
+				if (!OrderMap.ProcessOrderFile(*GameOpenOrder, false, bMergeOrder))
+				{
+					return false;
+				}
+				bMergeOrder = true;
+			}
 		}
-		FString SecondaryResponseFile;
-		if (FParse::Value(CmdLine, TEXT("-secondaryOrder="), SecondaryResponseFile) && !OrderMap.ProcessOrderFile(*SecondaryResponseFile, true))
+		FString SecondOrderStr;
+		if (FParse::Value(CmdLine, TEXT("-secondaryOrder="), SecondOrderStr, false))
 		{
-			return false;
+			TArray<FString> SecondOrderFiles;
+			SecondOrderStr.ParseIntoArray(SecondOrderFiles, TEXT(","), true);
+			for (const FString& SecondOpenOrder : SecondOrderFiles)
+			{
+				//We always merge the secondary order and keep the bSecondaryOrderFile for MaxPrimaryOrderIndex logic
+				if (!OrderMap.ProcessOrderFile(*SecondOpenOrder, true, true))
+				{
+					return false;
+				}
+			}
 		}
 
 		return AuditPakFiles(*PakFilenames, bOnlyDeleted, CSVFilename, OrderMap, bSortByOrdering );
@@ -5117,19 +5108,36 @@ bool ExecuteUnrealPak(const TCHAR* CmdLine)
 		FPakCommandLineParameters CmdLineParameters;
 		ProcessCommandLine(CmdLine, NonOptionArguments, Entries, CmdLineParameters);
 
-		bool bMoveBulkAndUptnlOrderLast = FParse::Param(CmdLine, TEXT("moveBulkAndUptnlOrderLast"));
-
 		FPakOrderMap OrderMap;
-		FString ResponseFile;
-		if (FParse::Value(CmdLine, TEXT("-order="), ResponseFile) && !OrderMap.ProcessOrderFile(*ResponseFile, false, bMoveBulkAndUptnlOrderLast))
+		FString GameOpenOrderStr;
+		if (FParse::Value(CmdLine, TEXT("-order="), GameOpenOrderStr, false))
 		{
-			return false;
+			TArray<FString> GameOpenOrderFiles;
+			GameOpenOrderStr.ParseIntoArray(GameOpenOrderFiles, TEXT(","), true);
+			bool bMergeOrder = false;
+			for (const FString& GameOpenOrder : GameOpenOrderFiles)
+			{
+				if (!OrderMap.ProcessOrderFile(*GameOpenOrder, false, bMergeOrder))
+				{
+					return false;
+				}
+				bMergeOrder = true;
+			}
 		}
 
-		FString SecondaryResponseFile;
-		if (FParse::Value(CmdLine, TEXT("-secondaryOrder="), SecondaryResponseFile) && !OrderMap.ProcessOrderFile(*SecondaryResponseFile, true))
+		FString SecondOrderStr;
+		if (FParse::Value(CmdLine, TEXT("-secondaryOrder="), SecondOrderStr, false))
 		{
-			return false;
+			TArray<FString> SecondOrderFiles;
+			SecondOrderStr.ParseIntoArray(SecondOrderFiles, TEXT(","), true);
+			for (const FString& SecondOpenOrder : SecondOrderFiles)
+			{
+				//We always merge the secondary order and keep the bSecondaryOrderFile for MaxPrimaryOrderIndex logic
+				if (!OrderMap.ProcessOrderFile(*SecondOpenOrder, true, true))
+				{
+					return false;
+				}
+			}
 		}
 
 		int32 LowestSourcePakVersion = 0;
@@ -5193,6 +5201,22 @@ bool ExecuteUnrealPak(const TCHAR* CmdLine)
 		// Start collecting files
 		TArray<FPakInputPair> FilesToAdd;
 		CollectFilesToAdd(FilesToAdd, Entries, OrderMap, CmdLineParameters);
+
+		if(FParse::Param(CmdLine, TEXT("writepakchunkorder")))
+		{
+			FString PakOrderFilename = FPaths::GetPath(PakFilename) + FPaths::GetBaseFilename(PakFilename) + FString(TEXT("-order")) + FString(TEXT(".txt"));
+			FArchive* PakOrderListArchive = IFileManager::Get().CreateFileWriter(*PakOrderFilename);
+			PakOrderListArchive->SetIsTextFormat(true);
+
+			for (int32 I = 0; I < FilesToAdd.Num(); ++I)
+			{
+				const FPakInputPair& Entry = FilesToAdd[I];
+				FString Line = FString::Printf(TEXT("%s %lld"), *Entry.Source, Entry.SuggestedOrder);
+				PakOrderListArchive->Logf(TEXT("%s"), *Line);
+			}
+			PakOrderListArchive->Close();
+			delete PakOrderListArchive;
+		}
 
 		if ( CmdLineParameters.GeneratePatch )
 		{
@@ -5263,7 +5287,6 @@ bool ExecuteUnrealPak(const TCHAR* CmdLine)
 	UE_LOG(LogPakFile, Error, TEXT("    -encryptionkeyoverrideguid (override the encryption key guid used for encrypting data in this pak file)"));
 	UE_LOG(LogPakFile, Error, TEXT("    -sign (generate a signature (.sig) file alongside the pak)"));
 	UE_LOG(LogPakFile, Error, TEXT("    -fallbackOrderForNonUassetFiles (if order is not specified for ubulk/uexp files, figure out implicit order based on the uasset order. Generally applies only to the cooker order)"));
-	UE_LOG(LogPakFile, Error, TEXT("    -moveBulkAndUptnlOrderLast (move all ubulk and uptnl files after all other resources in the first Order list. Ubulk and uptnl files will be at the end, and will preserve their order)"));
 
 	return false;
 }

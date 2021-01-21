@@ -169,10 +169,8 @@ void UFieldSystemComponent::DispatchFieldCommand(const FFieldSystemCommand& InCo
 							{
 								ConcreteSolver->GetPerSolverField().AddPersistentCommand(NewCommand);
 							}
-							if (ConcreteSolver->HasActiveParticles())
-							{
-								ConcreteSolver->GetPerSolverField().AddTransientCommand(NewCommand);
-							}
+							
+							ConcreteSolver->GetPerSolverField().AddTransientCommand(NewCommand);
 						});
 				});
 			}

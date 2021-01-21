@@ -33,7 +33,7 @@ struct FMaterialSubstitutionDataTable : public FTableRowBase
 
 	/** Type of matching to perform with SearchString string */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "MaterialSubstitutionTable")
-	EEditorScriptingStringMatchType StringMatch;
+	EEditorScriptingStringMatchType StringMatch = EEditorScriptingStringMatchType::Contains;
 
 	/** Material to use for the substitution */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "MaterialSubstitutionTable")
@@ -88,11 +88,11 @@ struct DATAPREPLIBRARIES_API FMeshReductionOptions
 
 	/** Value of the name of LODGroup not the display name */
 	UPROPERTY()
-	float ReductionPercent;
+	float ReductionPercent = 0.0f;
 
 	/** Value of the name of LODGroup not the display name */
 	UPROPERTY()
-	float ScreenSize;
+	float ScreenSize= 0.0f;
 };
 
 /*

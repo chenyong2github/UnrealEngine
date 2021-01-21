@@ -8,6 +8,7 @@
 #include "Interfaces/OnlineAchievementsInterface.h"
 
 class FOnlineSubsystemEOSPlus;
+class FUniqueNetIdEOSPlus;
 
 /**
  * Interface for mirroring platform achievements to EOS achievements
@@ -37,6 +38,8 @@ PACKAGE_SCOPE:
 	void OnAchievementUnlocked(const FUniqueNetId& PlayerId, const FString& AchievementId);
 
 private:
+	TSharedPtr<FUniqueNetIdEOSPlus> GetNetIdPlus(const FString& SourceId);
+
 	/** Reference to the owning EOS plus subsystem */
 	FOnlineSubsystemEOSPlus* EOSPlus;
 	/** Since we're going to bind to delegates, we need to hold onto these */

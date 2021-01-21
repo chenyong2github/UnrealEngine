@@ -807,17 +807,17 @@ static void RenderViewTranslucencyInner(
 
 	if (IsMainTranslucencyPass(TranslucencyPass))
 	{
+		if (ParallelCommandListSet)
+		{
+			ParallelCommandListSet->SetStateOnCommandList(RHICmdList);
+		}
+
 		View.SimpleElementCollector.DrawBatchedElements(RHICmdList, DrawRenderState, View, EBlendModeFilter::Translucent, SDPG_World);
 		View.SimpleElementCollector.DrawBatchedElements(RHICmdList, DrawRenderState, View, EBlendModeFilter::Translucent, SDPG_Foreground);
 
 		// editor and debug rendering
 		if (View.bHasTranslucentViewMeshElements)
 		{
-			if (ParallelCommandListSet)
-			{
-				ParallelCommandListSet->SetStateOnCommandList(RHICmdList);
-			}
-
 			{
 				QUICK_SCOPE_CYCLE_COUNTER(RenderTranslucencyParallel_SDPG_World);
 
@@ -867,11 +867,11 @@ static void RenderViewTranslucencyInner(
 					}
 				});
 			}
+		}
 
-			if (ParallelCommandListSet)
-			{
-				RHICmdList.EndRenderPass();
-			}
+		if (ParallelCommandListSet)
+		{
+			RHICmdList.EndRenderPass();
 		}
 	}
 }
@@ -899,12 +899,18 @@ static void RenderTranslucencyViewInner(
 	bool bRenderInParallel,
 	FInstanceCullingManager& InstanceCullingManager)
 {
+	if (SceneColorLoadAction == ERenderTargetLoadAction::EClear)
+	{
+		AddClearRenderTargetPass(GraphBuilder, SceneColorTexture.Target);
+	}
+
 	View.BeginRenderView();
 
 	FTranslucentBasePassParameters* PassParameters = GraphBuilder.AllocParameters<FTranslucentBasePassParameters>();
 	PassParameters->View = GetSeparateTranslucencyViewParameters(View, Viewport.Extent, ViewportScale);
 	PassParameters->ReflectionCapture = View.ReflectionCaptureUniformBuffer;
 	PassParameters->BasePass = BasePassParameters;
+	PassParameters->RenderTargets[0] = FRenderTargetBinding(SceneColorTexture.Target, ERenderTargetLoadAction::ELoad);
 	PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(SceneDepthTexture, ERenderTargetLoadAction::ELoad, ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthRead_StencilWrite);
 	PassParameters->RenderTargets.ResolveRect = FResolveRect(Viewport.Rect);
 
@@ -913,13 +919,6 @@ static void RenderTranslucencyViewInner(
 
 	if (bRenderInParallel)
 	{
-		PassParameters->RenderTargets[0] = FRenderTargetBinding(SceneColorTexture.Target, nullptr, ERenderTargetLoadAction::ELoad);
-
-		if (SceneColorLoadAction == ERenderTargetLoadAction::EClear)
-		{
-			AddClearRenderTargetPass(GraphBuilder, SceneColorTexture.Target);
-		}
-
 		GraphBuilder.AddPass(
 			RDG_EVENT_NAME("SeparateTranslucencyParallel"),
 			PassParameters,
@@ -929,16 +928,9 @@ static void RenderTranslucencyViewInner(
 			FRDGParallelCommandListSet ParallelCommandListSet(RHICmdList, GET_STATID(STAT_CLP_Translucency), SceneRenderer, View, FParallelCommandListBindings(PassParameters), ViewportScale);
 			RenderViewTranslucencyInner(RHICmdList, SceneRenderer, View, Viewport, ViewportScale, TranslucencyPass, &ParallelCommandListSet, PassParameters->InstanceCullingDrawParams);
 		});
-
-		if (bResolveColorTexture)
-		{
-			AddResolveSceneColorPass(GraphBuilder, View, SceneColorTexture);
-		}
 	}
 	else
 	{
-		PassParameters->RenderTargets[0] = FRenderTargetBinding(SceneColorTexture.Target, bResolveColorTexture ? SceneColorTexture.Resolve : nullptr, SceneColorLoadAction);
-
 		GraphBuilder.AddPass(
 			RDG_EVENT_NAME("SeparateTranslucency"),
 			PassParameters,
@@ -947,6 +939,11 @@ static void RenderTranslucencyViewInner(
 		{
 			RenderViewTranslucencyInner(RHICmdList, SceneRenderer, View, Viewport, ViewportScale, TranslucencyPass, nullptr, PassParameters->InstanceCullingDrawParams);
 		});
+	}
+
+	if (bResolveColorTexture)
+	{
+		AddResolveSceneColorPass(GraphBuilder, View, SceneColorTexture);
 	}
 }
 

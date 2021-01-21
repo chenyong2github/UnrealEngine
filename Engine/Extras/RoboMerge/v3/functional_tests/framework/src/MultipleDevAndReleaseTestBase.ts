@@ -20,7 +20,7 @@ export abstract class MultipleDevAndReleaseTestBase extends FunctionalTest {
 		const desc = 'Initial branch of files from Main'
 		return Promise.all([
 			this.p4.populate(this.getStreamPath('Release-2.0'), desc)
-				.then(() => void this.p4.populate(this.getStreamPath('Release-1.0'), 
+				.then(() => this.p4.populate(this.getStreamPath('Release-1.0'), 
 					'Initial branch of files from Release-2.0')),
 			this.p4.populate(this.getStreamPath('Dev-Perkin'), desc),
 			this.p4.populate(this.getStreamPath('Dev-Pootle'), desc)

@@ -24,6 +24,7 @@
 #include "MeshAttributes.h"
 #include "StaticMeshAttributes.h"
 #include "PhysicsEngine/BodySetup.h"
+#include "StaticMeshOperations.h"
 
 #if WITH_EDITOR
 
@@ -56,8 +57,11 @@ static FAutoConsoleVariableRef CVarHairCardsWidthScale(TEXT("r.HairStrands.Cards
 static int32 GHairCardsDynamicAtlasRefresh = 0;
 static FAutoConsoleVariableRef CVarHairCardsDynamicAtlasRefresh(TEXT("r.HairStrands.Cards.DynamicAtlasRefresh"), GHairCardsDynamicAtlasRefresh, TEXT("Enable dynamic refresh of hair cards texture atlas"));
 
-static int32 GHairCardsMaxStrandsSegmentPerCards = 30000;
+static int32 GHairCardsMaxStrandsSegmentPerCards = 1000000;
 static FAutoConsoleVariableRef CVarHairCardsMaxStrandsSegmentPerCards(TEXT("r.HairStrands.Cards.MaxHairStrandsSegmentPerCards"), GHairCardsMaxStrandsSegmentPerCards, TEXT("Limit the number of segment which are raytraced during the cards generation"));
+
+static int32 GHairCardsAtlasMaxSample = 32;
+static FAutoConsoleVariableRef CVarHairCardsAtlasMaxSample(TEXT("r.HairStrands.Cards.MaxAtlasSample"), GHairCardsAtlasMaxSample, TEXT("Max super sampling count when generating cards atlas texture"));
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -67,16 +71,24 @@ class FHairCardAtlasTextureRectVS : public FGlobalShader
 	SHADER_USE_PARAMETER_STRUCT(FHairCardAtlasTextureRectVS, FGlobalShader)
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER(FVector, Rect_MinBound)
-		SHADER_PARAMETER(FVector, Rect_MaxBound)
+		SHADER_PARAMETER(FVector, Raster_MinBound)
+		SHADER_PARAMETER(FVector, Raster_MaxBound)
+
+		SHADER_PARAMETER(uint32, SampleCount)
 
 		SHADER_PARAMETER(FIntPoint, Atlas_Resolution)
 		SHADER_PARAMETER(FIntPoint, Atlas_RectOffset)
 		SHADER_PARAMETER(FIntPoint, Atlas_RectResolution)
 
-		SHADER_PARAMETER(FIntPoint, Tile_Resolution)
-		SHADER_PARAMETER(FIntPoint, Tile_Coord)
-		SHADER_PARAMETER(FIntPoint, Tile_Count)
+		SHADER_PARAMETER(FVector, Raster_AxisX)
+		SHADER_PARAMETER(FVector, Raster_AxisY)
+		SHADER_PARAMETER(FVector, Raster_AxisZ)
+
+		SHADER_PARAMETER(uint32, Curve_VertexOffset)
+		SHADER_PARAMETER(uint32, Curve_VertexCount)
+		SHADER_PARAMETER(uint32, Curve_TotalVertexCount)
+		SHADER_PARAMETER_SRV(Buffer, Curve_PositionBuffer)
+		SHADER_PARAMETER_SRV(Buffer, Curve_AttributeBuffer)
 	END_SHADER_PARAMETER_STRUCT()
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsHairStrandsSupported(EHairStrandsShaderType::Tool, Parameters.Platform); }
@@ -92,11 +104,15 @@ class FHairCardAtlasTextureRectPS : public FGlobalShader
 	DECLARE_GLOBAL_SHADER(FHairCardAtlasTextureRectPS);
 	SHADER_USE_PARAMETER_STRUCT(FHairCardAtlasTextureRectPS, FGlobalShader)
 
+	class FOutput : SHADER_PERMUTATION_INT("PERMUTATION_OUTPUT", 2);
+	using FPermutationDomain = TShaderPermutationDomain<FOutput>;
+
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderDrawDebug::FShaderDrawDebugParameters, ShaderDrawParameters)
-		//SHADER_PARAMETER_STRUCT_INCLUDE(ShaderPrint::FShaderParameters, ShaderPrintParameters)
-		SHADER_PARAMETER(FVector,	Rect_MinBound)
-		SHADER_PARAMETER(FVector,	Rect_MaxBound)
+		SHADER_PARAMETER(FVector, Raster_MinBound)
+		SHADER_PARAMETER(FVector, Raster_MaxBound)
+		
+		SHADER_PARAMETER(uint32, SampleCount)
 
 		SHADER_PARAMETER(FIntPoint, Atlas_Resolution)
 		SHADER_PARAMETER(FIntPoint, Atlas_RectOffset)
@@ -106,6 +122,7 @@ class FHairCardAtlasTextureRectPS : public FGlobalShader
 		SHADER_PARAMETER(FVector, Raster_AxisY)
 		SHADER_PARAMETER(FVector, Raster_AxisZ)
 
+		SHADER_PARAMETER(uint32,	Curve_TotalVertexCount)
 		SHADER_PARAMETER(uint32,	Curve_VertexOffset)
 		SHADER_PARAMETER(uint32,	Curve_VertexCount)
 		SHADER_PARAMETER_SRV(Buffer,Curve_PositionBuffer)
@@ -114,7 +131,7 @@ class FHairCardAtlasTextureRectPS : public FGlobalShader
 		RENDER_TARGET_BINDING_SLOTS()
 	END_SHADER_PARAMETER_STRUCT()
 
-		static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsHairStrandsSupported(EHairStrandsShaderType::Tool, Parameters.Platform); }
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsHairStrandsSupported(EHairStrandsShaderType::Tool, Parameters.Platform); }
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
@@ -125,10 +142,133 @@ class FHairCardAtlasTextureRectPS : public FGlobalShader
 IMPLEMENT_GLOBAL_SHADER(FHairCardAtlasTextureRectVS, "/Engine/Private/HairStrands/HairCardsGeneration.usf", "MainVS", SF_Vertex);
 IMPLEMENT_GLOBAL_SHADER(FHairCardAtlasTextureRectPS, "/Engine/Private/HairStrands/HairCardsGeneration.usf", "MainPS", SF_Pixel);
 
+static void AddCardsTracingPass(
+	FRDGBuilder& GraphBuilder,
+	const bool bOutputCoverageOnly,
+	const bool bClear,
+	const FHairCardsProceduralAtlas& InAtlas,
+	const FHairCardsProceduralAtlas::Rect& Rect,
+	const FShaderDrawDebugData* ShaderDrawData,
+	const uint32 TotalVertexCount,
+	FRHIShaderResourceView* InStrandsVertexBuffer,
+	FRHIShaderResourceView* InStrandsAttributeBuffer,
+	FRDGTextureRef OutDepthTestTexture,
+	FRDGTextureRef OutDepthTexture,
+	FRDGTextureRef OutTangentTexture,
+	FRDGTextureRef OutCoverageTexture,
+	FRDGTextureRef OutAttributeTexture)
+{
+	const FIntPoint AtlasResolution = OutDepthTexture->Desc.Extent;
+
+	FHairCardAtlasTextureRectPS::FParameters* ParametersPS = GraphBuilder.AllocParameters<FHairCardAtlasTextureRectPS::FParameters>();
+	ParametersPS->SampleCount = FMath::Max(GHairCardsAtlasMaxSample, 1);
+
+	ParametersPS->Raster_MinBound = Rect.MinBound;
+	ParametersPS->Raster_MaxBound = Rect.MaxBound;
+
+	ParametersPS->Atlas_Resolution = InAtlas.Resolution;
+	ParametersPS->Atlas_RectOffset = Rect.Offset;
+	ParametersPS->Atlas_RectResolution = Rect.Resolution;
+
+	ParametersPS->Raster_AxisX = Rect.RasterAxisX;
+	ParametersPS->Raster_AxisY = Rect.RasterAxisY;
+	ParametersPS->Raster_AxisZ = Rect.RasterAxisZ;
+
+	ParametersPS->Curve_TotalVertexCount = TotalVertexCount;
+	ParametersPS->Curve_VertexOffset = Rect.VertexOffset;
+	ParametersPS->Curve_VertexCount = FMath::Min(Rect.VertexCount, uint32(GHairCardsMaxStrandsSegmentPerCards));
+	ParametersPS->Curve_TotalVertexCount = TotalVertexCount;
+	ParametersPS->Curve_PositionBuffer = InStrandsVertexBuffer;
+	ParametersPS->Curve_AttributeBuffer = InStrandsAttributeBuffer;
+
+	if (ShaderDrawData)
+	{
+		ShaderDrawDebug::SetParameters(GraphBuilder, *ShaderDrawData, ParametersPS->ShaderDrawParameters);
+	}
+
+	if (bOutputCoverageOnly)
+	{
+		ParametersPS->RenderTargets[0] = FRenderTargetBinding(OutCoverageTexture, bClear ? ERenderTargetLoadAction::EClear : ERenderTargetLoadAction::ELoad);
+	}
+	else
+	{
+		ParametersPS->RenderTargets[0] = FRenderTargetBinding(OutDepthTexture, bClear ? ERenderTargetLoadAction::EClear : ERenderTargetLoadAction::ELoad);
+		ParametersPS->RenderTargets[1] = FRenderTargetBinding(OutTangentTexture, bClear ? ERenderTargetLoadAction::EClear : ERenderTargetLoadAction::ELoad);
+		ParametersPS->RenderTargets[2] = FRenderTargetBinding(OutAttributeTexture, bClear ? ERenderTargetLoadAction::EClear : ERenderTargetLoadAction::ELoad);
+		ParametersPS->RenderTargets.DepthStencil = FDepthStencilBinding(OutDepthTestTexture, bClear ? ERenderTargetLoadAction::EClear : ERenderTargetLoadAction::ELoad, ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthWrite_StencilNop);
+	}
+
+	FGlobalShaderMap* ShaderMap = GetGlobalShaderMap(ERHIFeatureLevel::SM5);
+	FHairCardAtlasTextureRectPS::FPermutationDomain PermutationVector;
+	PermutationVector.Set<FHairCardAtlasTextureRectPS::FOutput>(bOutputCoverageOnly ? 1 : 0);
+	TShaderMapRef<FHairCardAtlasTextureRectVS> VertexShader(ShaderMap);
+	TShaderMapRef<FHairCardAtlasTextureRectPS> PixelShader(ShaderMap, PermutationVector);
+
+	GraphBuilder.AddPass(
+		RDG_EVENT_NAME("HairCardsAtlasTexturePS"),
+		ParametersPS,
+		ERDGPassFlags::Raster | ERDGPassFlags::NeverCull,
+		[ParametersPS, VertexShader, PixelShader, AtlasResolution, Rect, bOutputCoverageOnly](FRHICommandList& RHICmdList)
+		{
+			FHairCardAtlasTextureRectVS::FParameters ParametersVS;
+			ParametersVS.SampleCount = ParametersPS->SampleCount;
+
+			ParametersVS.Raster_MinBound = ParametersPS->Raster_MinBound;
+			ParametersVS.Raster_MaxBound = ParametersPS->Raster_MaxBound;
+
+			ParametersVS.Atlas_Resolution = ParametersPS->Atlas_Resolution;
+			ParametersVS.Atlas_RectOffset = ParametersPS->Atlas_RectOffset;
+			ParametersVS.Atlas_RectResolution = ParametersPS->Atlas_RectResolution;
+
+			ParametersVS.Raster_AxisX = ParametersPS->Raster_AxisX;
+			ParametersVS.Raster_AxisY = ParametersPS->Raster_AxisY;
+			ParametersVS.Raster_AxisZ = ParametersPS->Raster_AxisZ;
+
+			ParametersVS.Curve_TotalVertexCount = ParametersPS->Curve_TotalVertexCount;
+			ParametersVS.Curve_VertexOffset = ParametersPS->Curve_VertexOffset;
+			ParametersVS.Curve_VertexCount = ParametersPS->Curve_VertexCount;
+			ParametersVS.Curve_PositionBuffer = ParametersPS->Curve_PositionBuffer;
+			ParametersVS.Curve_AttributeBuffer = ParametersPS->Curve_AttributeBuffer;
+
+			FGraphicsPipelineStateInitializer GraphicsPSOInit;
+			RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
+
+			if (bOutputCoverageOnly)
+			{
+				GraphicsPSOInit.BlendState = TStaticBlendState<CW_RGBA, BO_Add, BF_One, BF_One, BO_Add, BF_One, BF_One>::GetRHI();
+				GraphicsPSOInit.RasterizerState = TStaticRasterizerState<>::GetRHI();
+				GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always> ::GetRHI();
+			}
+			else
+			{
+				GraphicsPSOInit.BlendState = TStaticBlendState<CW_RGBA, BO_Add, BF_One, BF_Zero, BO_Add, BF_One, BF_Zero>::GetRHI();
+				GraphicsPSOInit.RasterizerState = TStaticRasterizerState<>::GetRHI();
+				GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<true, CF_Less>::GetRHI();
+			}
+
+
+			GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
+			GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
+			GraphicsPSOInit.PrimitiveType = PT_TriangleList;
+			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
+
+			SetShaderParameters(RHICmdList, VertexShader, VertexShader.GetVertexShader(), ParametersVS);
+			SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), *ParametersPS);
+
+			const uint32 NumSegments = ParametersVS.Curve_VertexCount;
+
+			RHICmdList.SetViewport(Rect.Offset.X, Rect.Offset.Y, 0.0f, Rect.Offset.X + Rect.Resolution.X, Rect.Offset.Y + Rect.Resolution.Y, 1.0f);
+			RHICmdList.SetStreamSource(0, nullptr, 0);
+			RHICmdList.DrawPrimitive(0, 2 * NumSegments, 1);
+		});
+}
+
 static void AddHairCardAtlasTexturePass(
 	FRDGBuilder& GraphBuilder,
 	const FHairCardsProceduralAtlas& InAtlas,
 	const FShaderDrawDebugData* ShaderDrawData,
+	const uint32 TotalVertexCount,
 	FRHIShaderResourceView* InStrandsVertexBuffer,
 	FRHIShaderResourceView* InStrandsAttributeBuffer,
 	FRDGTextureRef OutDepthTexture,
@@ -136,96 +276,46 @@ static void AddHairCardAtlasTexturePass(
 	FRDGTextureRef OutCoverageTexture,
 	FRDGTextureRef OutAttributeTexture)
 {
+	FRDGTextureRef DepthTestTexture = GraphBuilder.CreateTexture(FRDGTextureDesc::Create2D(OutAttributeTexture->Desc.Extent, PF_DepthStencil, FClearValueBinding::DepthOne, TexCreate_DepthStencilTargetable | TexCreate_ShaderResource, 1), TEXT("CardsDepthTest"));
+
 	bool bClear = true;
-	const FIntPoint AtlasResolution = OutDepthTexture->Desc.Extent;
 	for (const FHairCardsProceduralAtlas::Rect& Rect : InAtlas.Rects)
 	{
-		FIntPoint TileCount(1, 1);
-		const int32 TileResolution = 512;
-		if (Rect.Resolution.X > TileResolution || Rect.Resolution.Y > TileResolution)
-		{
-			TileCount.X = FMath::DivideAndRoundUp(Rect.Resolution.X, TileResolution);
-			TileCount.Y = FMath::DivideAndRoundUp(Rect.Resolution.Y, TileResolution);
-		}
-		for (int32 TileY = 0; TileY < TileCount.Y; ++TileY)
-		{
-			for (int32 TileX = 0; TileX < TileCount.X; ++TileX)
-			{
-				FHairCardAtlasTextureRectPS::FParameters* ParametersPS = GraphBuilder.AllocParameters<FHairCardAtlasTextureRectPS::FParameters>();
-				ParametersPS->Rect_MinBound			= Rect.MinBound;
-				ParametersPS->Rect_MaxBound			= Rect.MaxBound;
+		// 1. Generate depth/tangent/attribute
+		AddCardsTracingPass(
+			GraphBuilder,
+			false,
+			bClear,
+			InAtlas,
+			Rect,
+			ShaderDrawData,
+			TotalVertexCount,
+			InStrandsVertexBuffer,
+			InStrandsAttributeBuffer,
+			DepthTestTexture,
+			OutDepthTexture,
+			OutTangentTexture,
+			OutCoverageTexture,
+			OutAttributeTexture);
 
-				ParametersPS->Atlas_Resolution		= InAtlas.Resolution;
-				ParametersPS->Atlas_RectOffset		= Rect.Offset;
-				ParametersPS->Atlas_RectResolution	= Rect.Resolution;
+		// 2. Generate Coverage
+		AddCardsTracingPass(
+			GraphBuilder,
+			true,
+			bClear,
+			InAtlas,
+			Rect,
+			ShaderDrawData,
+			TotalVertexCount,
+			InStrandsVertexBuffer,
+			InStrandsAttributeBuffer,
+			DepthTestTexture,
+			OutDepthTexture,
+			OutTangentTexture,
+			OutCoverageTexture,
+			OutAttributeTexture);
 
-				ParametersPS->Raster_AxisX = Rect.RasterAxisX;
-				ParametersPS->Raster_AxisY = Rect.RasterAxisY;
-				ParametersPS->Raster_AxisZ = Rect.RasterAxisZ;
-
-				ParametersPS->Curve_VertexOffset	= Rect.VertexOffset;
-				ParametersPS->Curve_VertexCount		= FMath::Min(Rect.VertexCount, uint32(GHairCardsMaxStrandsSegmentPerCards));
-				ParametersPS->Curve_PositionBuffer	= InStrandsVertexBuffer;
-				ParametersPS->Curve_AttributeBuffer = InStrandsAttributeBuffer;
-
-				if (ShaderDrawData)
-				{
-					ShaderDrawDebug::SetParameters(GraphBuilder, *ShaderDrawData, ParametersPS->ShaderDrawParameters);
-					//ShaderPrint::SetParameters(View, Parameters->ShaderPrintParameters);
-				}
-
-				ParametersPS->RenderTargets[0] = FRenderTargetBinding(OutDepthTexture,	 bClear ? ERenderTargetLoadAction::EClear : ERenderTargetLoadAction::ELoad);
-				ParametersPS->RenderTargets[1] = FRenderTargetBinding(OutTangentTexture, bClear ? ERenderTargetLoadAction::EClear : ERenderTargetLoadAction::ELoad);
-				ParametersPS->RenderTargets[2] = FRenderTargetBinding(OutCoverageTexture,bClear ? ERenderTargetLoadAction::EClear : ERenderTargetLoadAction::ELoad);
-				ParametersPS->RenderTargets[3] = FRenderTargetBinding(OutAttributeTexture, bClear ? ERenderTargetLoadAction::EClear : ERenderTargetLoadAction::ELoad);
-
-				FGlobalShaderMap* ShaderMap = GetGlobalShaderMap(ERHIFeatureLevel::SM5);
-				TShaderMapRef<FHairCardAtlasTextureRectVS> VertexShader(ShaderMap);
-				TShaderMapRef<FHairCardAtlasTextureRectPS> PixelShader(ShaderMap);
-
-				GraphBuilder.AddPass(
-					RDG_EVENT_NAME("HairCardsAtlasTexturePS"),
-					ParametersPS,
-					ERDGPassFlags::Raster | ERDGPassFlags::NeverCull,
-					[ParametersPS, VertexShader, PixelShader, AtlasResolution, TileResolution, TileCount, TileX, TileY](FRHICommandList& RHICmdList)
-					{
-						FHairCardAtlasTextureRectVS::FParameters ParametersVS;
-						ParametersVS.Rect_MinBound = ParametersPS->Rect_MinBound;
-						ParametersVS.Rect_MaxBound = ParametersPS->Rect_MaxBound;
-
-						ParametersVS.Atlas_Resolution = ParametersPS->Atlas_Resolution;
-						ParametersVS.Atlas_RectOffset = ParametersPS->Atlas_RectOffset;
-						ParametersVS.Atlas_RectResolution = ParametersPS->Atlas_RectResolution;
-
-						ParametersVS.Tile_Resolution = FIntPoint(TileResolution, TileResolution);
-						ParametersVS.Tile_Coord = FIntPoint(TileX, TileY);
-						ParametersVS.Tile_Count = TileCount;
-
-						FGraphicsPipelineStateInitializer GraphicsPSOInit;
-						RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
-						GraphicsPSOInit.BlendState = TStaticBlendState<CW_RGBA, BO_Add, BF_One, BF_Zero, BO_Add, BF_One, BF_Zero>::GetRHI();
-						GraphicsPSOInit.RasterizerState = TStaticRasterizerState<>::GetRHI();
-						GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
-						GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
-						GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
-						GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
-						GraphicsPSOInit.PrimitiveType = PT_TriangleList;
-						SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
-
-						SetShaderParameters(RHICmdList, VertexShader, VertexShader.GetVertexShader(), ParametersVS);
-						SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), *ParametersPS);
-
-						RHICmdList.SetViewport(0, 0, 0.0f, AtlasResolution.X, AtlasResolution.Y, 1.0f);
-						RHICmdList.SetStreamSource(0, nullptr, 0);
-						RHICmdList.DrawPrimitive(0, 2 * 3, 1);
-
-						GDynamicRHI->RHISubmitCommandsAndFlushGPU();
-						GDynamicRHI->RHIBlockUntilGPUIdle();
-
-					});
-				bClear = false;
-			}
-		}
+		bClear = false;
 	}
 }
 
@@ -2172,6 +2262,8 @@ namespace HairCards
 
 					OutCards.Positions[VertexIt    ] = P0 + B * CardWidth;
 					OutCards.Positions[VertexIt + 1] = P0 - B * CardWidth;
+					check(FMath::IsFinite(OutCards.Positions[VertexIt].X)     && FMath::IsFinite(OutCards.Positions[VertexIt].Y)     && FMath::IsFinite(OutCards.Positions[VertexIt].Z));
+					check(FMath::IsFinite(OutCards.Positions[VertexIt + 1].X) && FMath::IsFinite(OutCards.Positions[VertexIt + 1].Y) && FMath::IsFinite(OutCards.Positions[VertexIt + 1].Z));
 
 					OutCards.Normals[VertexIt    ] = FVector::ZeroVector; //MinorAxis0;
 					OutCards.Normals[VertexIt + 1] = FVector::ZeroVector; //MinorAxis0;
@@ -2402,6 +2494,257 @@ namespace HairCards
 		}
 	}
 
+	struct FAtlasPackingRect
+	{
+		FHairCardsProceduralGeometry::Rect Rect;
+		uint32 UniqueRectIt = 0;
+	};
+
+	static void Packing_InitAtlasRects(
+		const TArray<FHairCardsProceduralAtlas::Rect>& Rects,
+		TArray<FAtlasPackingRect>& OutRects)
+	{
+		const uint32 RectCount = Rects.Num();
+		OutRects.SetNum(RectCount);
+		for (uint32 RectIt = 0; RectIt < RectCount; ++RectIt)
+		{
+			OutRects[RectIt].Rect.Offset	 = FIntPoint(0, 0);
+			OutRects[RectIt].Rect.Resolution = Rects[RectIt].Resolution; //InClusters.AtlasUniqueRect[RectIt].Resolution;
+			OutRects[RectIt].UniqueRectIt	 = RectIt;
+		}
+	}
+
+	static void Packing_RescaleAtlasRects(TArray<FHairCardsProceduralAtlas::Rect>& OutRects, const float ScaleFactor)
+	{
+		for (FHairCardsProceduralAtlas::Rect& Rect : OutRects)
+		{
+			Rect.Resolution.X = FMath::Max(FMath::CeilToInt(Rect.Resolution.X * ScaleFactor), 2);
+			Rect.Resolution.Y = FMath::Max(FMath::CeilToInt(Rect.Resolution.Y * ScaleFactor), 2);
+		}
+	}
+
+	static void Packing_ComputeAtlasMaxDimensionAndArea(
+		const TArray<FHairCardsProceduralAtlas::Rect>& Rects,
+		const float ScaleFactor,
+		float& OutArea,
+		int32& OutMaxHeight)
+	{
+		OutArea = 0;
+		OutMaxHeight = 0;
+		for (const FHairCardsProceduralAtlas::Rect& Rect : Rects)
+		{
+			FHairCardsProceduralAtlas::Rect ScaledRect = Rect;
+			ScaledRect.Resolution.X = FMath::Max(FMath::CeilToInt(ScaledRect.Resolution.X * ScaleFactor), 2);
+			ScaledRect.Resolution.Y = FMath::Max(FMath::CeilToInt(ScaledRect.Resolution.Y * ScaleFactor), 2);
+			OutMaxHeight = FMath::Max(OutMaxHeight, ScaledRect.Resolution.Y);
+			OutArea += ScaledRect.Resolution.X * ScaledRect.Resolution.Y;
+		}
+	}
+
+	static FIntPoint Packing_ComputeAtlasDefaultResolution(float Area, int32 MaxHeight)
+	{
+		int32 DefaultResolution = FMath::CeilToInt(FMath::Sqrt(Area));
+		FIntPoint OutResolution;
+		OutResolution.X = DefaultResolution;
+		OutResolution.Y = FMath::Max(DefaultResolution, MaxHeight);
+		OutResolution   = FIntPoint(FMath::RoundUpToPowerOfTwo(OutResolution.X), FMath::RoundUpToPowerOfTwo(OutResolution.Y));
+		return OutResolution;
+	}
+
+	void PackHairCardsRects(
+		const FHairCardsTextureSettings& InSettings,
+		FHairStrandsClusters& InClusters,
+		FHairCardsProceduralAtlas& InAtlas)
+	{
+		// 1. Initial resolution estimate
+		// Compute an estimate of the atlas resolution which satisfies the max resolution requirement
+		// If the initial resolution is larger than the requested max resolution, cards' rects 
+		// are rescaled until they fit
+		const int32 AtlasMaxResolution = FMath::RoundUpToPowerOfTwo(FMath::Min(InSettings.AtlasMaxResolution, 16384));
+		FIntPoint AtlasResolution(0, 0);
+		{			
+			float ScaleFactor = 1;
+			float Area = 0;
+			int32 MaxHeight = 0;
+			Packing_ComputeAtlasMaxDimensionAndArea(InAtlas.Rects, ScaleFactor, Area, MaxHeight);
+
+			// Insure that the largest element fit into the atlas. Otherwise compute the overall rescaling factor;
+			if (MaxHeight > AtlasMaxResolution)
+			{
+				ScaleFactor = AtlasMaxResolution / float(FMath::Max(MaxHeight, 1));
+				Packing_ComputeAtlasMaxDimensionAndArea(InAtlas.Rects, ScaleFactor, Area, MaxHeight);
+			}
+
+			// Insure that the initial resolution is smaller than the requested max resolution
+			// Start with a small 512 x 512 texture so that we can have tighter packing. 
+			// The packing algo grows the resolution until max. resolution is reached. If the 
+			// packing still does not work, then we start to shrink cards resolution.
+			AtlasResolution = FIntPoint(FMath::Min(AtlasMaxResolution, 512), FMath::Min(AtlasMaxResolution, 512));
+
+			// Rescale rects so that they can fit into the atlas
+			if (ScaleFactor < 1.f)
+			{
+				Packing_RescaleAtlasRects(InAtlas.Rects, ScaleFactor);
+			}
+		}
+
+		// 2. Packing
+		// Use binary rect insertion, starting with the rect having the largest width/height first. 
+		// The algo is relatively naive, but since we have a low number of rects this is acceptable
+		TArray<FAtlasPackingRect> FinalAtlasRects;
+		bool bFitInAtlas = false;
+		while (!bFitInAtlas)
+		{
+			// 2.1 Transfer atlas rect into pack rect
+			// Transfer the rect packing from the cluster to the sorting struct
+			TArray<FAtlasPackingRect> AtlasRects;
+			Packing_InitAtlasRects(InAtlas.Rects, AtlasRects);
+
+			// 2.2. Sort rect from larger to lower dimensions (width/height). 
+			// Since the rect cards are mostly anisotropic, it seems better to use the longest dimension 
+			// as a comparison metric, rather than perimeter
+			AtlasRects.Sort([](const FAtlasPackingRect& A, const FAtlasPackingRect& B)
+			{
+				uint32 LongestA = FMath::Max(A.Rect.Resolution.X, A.Rect.Resolution.Y);
+				uint32 LongestB = FMath::Max(B.Rect.Resolution.X, B.Rect.Resolution.Y);
+				return LongestA >= LongestB;
+			});
+
+			// 2.3 Reset packing
+			// Reset the packing to a single rect which covers the entire atlas
+			TArray<FHairCardsProceduralGeometry::Rect> FreeRects;
+			FreeRects.Reserve(AtlasRects.Num() * 2);
+			FreeRects.Add({ FIntPoint(0,0), FIntPoint(AtlasResolution.X, AtlasResolution.Y) });
+
+			// 2.4 Pack
+			bFitInAtlas = true;
+			for (FAtlasPackingRect& R : AtlasRects)
+			{
+				int32 FreeRectIndex = -1;
+				for (int32 FreeRIt=0, FreeRCount = FreeRects.Num(); FreeRIt<FreeRCount; ++FreeRIt)
+				{
+					FHairCardsProceduralGeometry::Rect& FreeR = FreeRects[FreeRIt];
+					if (R.Rect.Resolution.X <= FreeR.Resolution.X &&
+						R.Rect.Resolution.Y <= FreeR.Resolution.Y)
+					{
+						FreeRectIndex = FreeRIt;
+						break;
+					}
+				}
+
+				if (FreeRectIndex >=0)
+				{
+					FHairCardsProceduralGeometry::Rect& FreeR = FreeRects[FreeRectIndex];
+					// Perfect Fit
+					if (R.Rect.Resolution.X == FreeR.Resolution.X &&
+						R.Rect.Resolution.Y == FreeR.Resolution.Y)
+					{
+						R.Rect.Offset = FreeR.Offset;
+						FreeRects.RemoveAt(FreeRectIndex);
+					}
+					// Same width
+					else if (R.Rect.Resolution.X == FreeR.Resolution.X &&
+							 R.Rect.Resolution.Y <= FreeR.Resolution.Y)
+					{
+						R.Rect.Offset = FreeR.Offset;
+
+						FreeR.Offset.Y     += R.Rect.Resolution.Y;
+						FreeR.Resolution.Y -= R.Rect.Resolution.Y;
+					}
+					// Same height
+					else if (R.Rect.Resolution.X <= FreeR.Resolution.X &&
+							 R.Rect.Resolution.Y == FreeR.Resolution.Y)
+					{
+						R.Rect.Offset = FreeR.Offset;
+
+						FreeR.Offset.X     += R.Rect.Resolution.X;
+						FreeR.Resolution.X -= R.Rect.Resolution.X;
+					}
+					// Within
+					else
+					{
+						R.Rect.Offset = FreeR.Offset;
+
+						// Make the cut along the longest side
+						const bool bAlongX = R.Rect.Resolution.X > R.Rect.Resolution.Y;
+
+						// Technically the incoding rect takes on free rect, and create two new Free rects. 
+						// However we can instead update one, and create another one
+						FHairCardsProceduralGeometry::Rect FreeR2 = FreeR;
+						if (bAlongX)
+						{
+							FreeR2.Offset.Y    += R.Rect.Resolution.Y;
+							FreeR2.Resolution.Y-= R.Rect.Resolution.Y;
+
+							FreeR.Offset.X     += R.Rect.Resolution.X;
+							FreeR.Resolution.X -= R.Rect.Resolution.X;
+							FreeR.Resolution.Y  = R.Rect.Resolution.Y;
+						}
+						else
+						{
+							FreeR2.Offset.Y    += R.Rect.Resolution.Y;
+							FreeR2.Resolution.X = R.Rect.Resolution.X;
+							FreeR2.Resolution.Y-= R.Rect.Resolution.Y;
+
+							FreeR.Offset.X     += R.Rect.Resolution.X;
+							FreeR.Resolution.X -= R.Rect.Resolution.X;
+						}
+
+						FreeRects.Add(FreeR2);
+					}
+
+					// Sort the free rects, to order them from smallest to largest to have tigher packing
+					FreeRects.Sort([](const FHairCardsProceduralGeometry::Rect& A, const FHairCardsProceduralGeometry::Rect& B)
+					{
+						uint32 PerimeterA = (A.Resolution.X + A.Resolution.Y) * 2;
+						uint32 PerimeterB = (B.Resolution.X + B.Resolution.Y) * 2;
+						return PerimeterA < PerimeterB;
+					});
+				}
+				else
+				{
+					bFitInAtlas = false;
+					break;
+				}				
+			}
+			
+			// 2.5 Adjust atlas resolution or scale down rects if it does not fit
+			// * If the atlas size has already reached the max, size, then down scale the rect elements
+			// * Otherwise, increase the atlas size
+			if (!bFitInAtlas)
+			{
+				if (AtlasResolution.X == AtlasMaxResolution || AtlasResolution.Y == AtlasMaxResolution)
+				{
+					// Shrink by 10%
+					float ScaleFactor = 0.9f;
+					Packing_RescaleAtlasRects(InAtlas.Rects, ScaleFactor);
+				}
+				else
+				{
+					AtlasResolution = FIntPoint(FMath::RoundUpToPowerOfTwo(2 * AtlasResolution.X), FMath::RoundUpToPowerOfTwo(2 * AtlasResolution.Y));
+					AtlasResolution.X = FMath::Min(AtlasResolution.X, AtlasMaxResolution);
+					AtlasResolution.Y = FMath::Min(AtlasResolution.Y, AtlasMaxResolution);
+				}
+			}
+			else
+			{
+				FinalAtlasRects = AtlasRects;
+			}
+		}
+		InAtlas.Resolution = AtlasResolution;
+
+		// Transfer the packing information from the sorting struct back to the cluster 
+		for (FAtlasPackingRect& R : FinalAtlasRects)
+		{
+			const uint32 RectIt = R.UniqueRectIt;
+			InClusters.AtlasUniqueRect[RectIt] = R.Rect;
+			InAtlas.Rects[RectIt].Offset = R.Rect.Offset;
+
+			check(InAtlas.Rects[RectIt].Resolution == R.Rect.Resolution);
+		}
+	}
+
+
 	static void CreateCardsGuides(
 		const FHairStrandsClusters& InClusters,
 		FHairStrandsDatas& OutGuides)
@@ -2580,12 +2923,15 @@ namespace HairCards
 					PrevCenterPoint = CenterPoint;
 				}
 
-				// Normalize length to have a parametric distance
-				for (const FSimilarUVVertices& Similar : SimilarVertex)
+				if (SimilarVertex.Num() > 1)
 				{
-					for (uint32 VertexIndex : Similar.Indices)
+					// Normalize length to have a parametric distance
+					for (const FSimilarUVVertices& Similar : SimilarVertex)
 					{
-						InCards.CoordU[VertexIndex] /= TotalLength;
+						for (uint32 VertexIndex : Similar.Indices)
+						{
+							InCards.CoordU[VertexIndex] /= TotalLength;
+						}
 					}
 				}
 			}
@@ -2669,6 +3015,7 @@ namespace HairCards
 		{
 			const uint32 GuidePointOffset = InGuides.StrandsCurves.CurvesOffset[CardIt];
 			const uint32 GuidePointCount = InGuides.StrandsCurves.CurvesCount[CardIt];
+			check(GuidePointCount >= 2);
 
 			const uint32 IndexOffset = InCards.IndexOffsets[CardIt];
 			const uint32 IndexCount  = InCards.IndexCounts[CardIt];
@@ -2679,10 +3026,12 @@ namespace HairCards
 			{
 				const uint32 VertexIndex = InCards.Indices[IndexOffset + IndexIt];
 				const float CoordU = InCards.CoordU[VertexIndex];
+				check(CoordU >= 0.f && CoordU <= 1.f);
 
 				uint32 GuideIndex0 = GuidePointOffset + 0;
 				uint32 GuideIndex1 = GuidePointOffset + 1;
 				float  GuideLerp   = 0;
+				bool bFoundMatch = false;
 				for (uint32 GuidePointIt = 0; GuidePointIt < GuidePointCount-1; ++GuidePointIt)
 				{
 					const float GuideCoordU0 = InGuides.StrandsPoints.PointsCoordU[GuidePointOffset + GuidePointIt];
@@ -2694,9 +3043,18 @@ namespace HairCards
 						const float LengthDiff = GuideCoordU1 - GuideCoordU0;
 						GuideLerp = (CoordU - GuideCoordU0) / (LengthDiff>0 ? LengthDiff : 1);
 						GuideLerp = FMath::Clamp(GuideLerp, 0.f, 1.f);
+						bFoundMatch = true;
 						break;
 					}
 				}
+
+				if (!bFoundMatch)
+				{
+					GuideIndex0 = GuidePointOffset + GuidePointCount - 2;
+					GuideIndex1 = GuidePointOffset + GuidePointCount - 1;
+					GuideLerp = 1;
+				}
+
 				Out.PointsSimCurvesIndex[VertexIndex] = CardIt;
 				Out.PointsSimCurvesVertexIndex[VertexIndex] = GuideIndex0;
 				Out.PointsSimCurvesVertexLerp[VertexIndex] = GuideLerp;
@@ -2900,6 +3258,19 @@ namespace HairCards
 					N = -N;
 				}
 
+				// Orient the cards along the vertical or horizontal axis
+			#define CARDS_ATLAS_ORIENTATION_ALONG_Y 1
+			#if CARDS_ATLAS_ORIENTATION_ALONG_Y == 0
+				OutRect.RasterAxisX =  B; // Not normalized on purpose
+				OutRect.RasterAxisY =  T; // Not normalized on purpose
+				OutRect.RasterAxisZ = -N; // Not normalized on purpose
+
+				OutRect.CardWidth  = B.Size();
+				OutRect.CardLength = T.Size();
+
+				OutRect.Resolution.X = InSettings.PixelPerCentimeters * OutRect.CardWidth;
+				OutRect.Resolution.Y = InSettings.PixelPerCentimeters * OutRect.CardLength;
+			#else
 				OutRect.RasterAxisX = T; // Not normalized on purpose
 				OutRect.RasterAxisY = B; // Not normalized on purpose
 				OutRect.RasterAxisZ =-N; // Not normalized on purpose
@@ -2909,6 +3280,7 @@ namespace HairCards
 
 				OutRect.Resolution.X = InSettings.PixelPerCentimeters * OutRect.CardLength;
 				OutRect.Resolution.Y = InSettings.PixelPerCentimeters * OutRect.CardWidth;
+				#endif
 			}
 
 			OutRect.VertexCount = VertexCount;
@@ -2916,80 +3288,7 @@ namespace HairCards
 		}
 
 		// Pack the atlas texture
-		FIntPoint AtlasResolution(0,0);
-		const uint32 BorderInPixel = 1;
-		const uint32 UniqueRectCount = InClusters.AtlasUniqueRect.Num(); 
-		FIntPoint Offset(0,0);
-
-		struct FAtlasRect
-		{
-			FHairCardsProceduralGeometry::Rect Rect;
-			uint32 UniqueRectIt = 0;
-		};
-
-		// Transfer the rect packing from the cluster to the sorting struct
-		TArray<FAtlasRect> AtlasRects;
-		AtlasRects.SetNum(UniqueRectCount);
-		for (uint32 RectIt = 0; RectIt < UniqueRectCount; ++RectIt)
-		{						
-			AtlasRects[RectIt].Rect.Offset		= FIntPoint(0, 0);
-			AtlasRects[RectIt].Rect.Resolution	= InAtlas.Rects[RectIt].Resolution;//InClusters.AtlasUniqueRect[RectIt].Resolution;
-			AtlasRects[RectIt].UniqueRectIt		= RectIt; 
-		}
-
-		// Simple line by line rect packing (sorted by height)
-		// Insure texture fit into a 8k texture with a dummy pack.TODO replace this simplistic packer;
-		AtlasResolution = FIntPoint(0, 0);
-		int32 MaxResolution = InSettings.AtlasMaxResolution;
-		bool bFitInAtlas = false;
-		while (!bFitInAtlas)
-		{
-			// Sort from larger to smaller
-			AtlasRects.Sort([](const FAtlasRect& A, const FAtlasRect& B)
-			{
-				return A.Rect.Resolution.X > B.Rect.Resolution.X;
-			});
-
-			int32 LineMaxHeight = 0;
-			int32 OffsetX = 0;
-			int32 OffsetY = 0;
-			for (FAtlasRect& R : AtlasRects)
-			{
-				// Go to the next line
-				if (OffsetX + R.Rect.Resolution.X >= MaxResolution)
-				{
-					OffsetX  = 0;
-					OffsetY += LineMaxHeight;
-					LineMaxHeight = 0;
-				}
-
-				R.Rect.Offset = FIntPoint(OffsetX, OffsetY);
-				OffsetX += R.Rect.Resolution.X + BorderInPixel;
-				LineMaxHeight = FMath::Max(LineMaxHeight, R.Rect.Resolution.Y) + BorderInPixel;
-
-				AtlasResolution.X = FMath::Max(AtlasResolution.X, OffsetX);
-				AtlasResolution.Y = FMath::Max(AtlasResolution.Y, OffsetY + LineMaxHeight);
-			}
-			
-			bFitInAtlas = AtlasResolution.X <= MaxResolution && AtlasResolution.Y <= MaxResolution;
-			if (!bFitInAtlas)
-			{
-				MaxResolution = MaxResolution * 2;
-				AtlasResolution = FIntPoint(0, 0);
-			}
-		}
-		check(MaxResolution <= 16384);
-		InAtlas.Resolution = FIntPoint(FMath::RoundUpToPowerOfTwo(AtlasResolution.X), FMath::RoundUpToPowerOfTwo(AtlasResolution.Y));
-
-		// Transfer the packing information from the sorting struct back to the cluster 
-		for (FAtlasRect& R : AtlasRects)
-		{
-			const uint32 RectIt = R.UniqueRectIt;
-			InClusters.AtlasUniqueRect[RectIt] = R.Rect;
-			InAtlas.Rects[RectIt].Offset = R.Rect.Offset;
-
-			check(InAtlas.Rects[RectIt].Resolution == R.Rect.Resolution);
-		}
+		PackHairCardsRects(InSettings, InClusters, InAtlas);
 
 		// Update the width of the cluster based on the computed width/length ratio for cards texture generation
 		{
@@ -3023,7 +3322,7 @@ namespace FHairCardsBuilder
 FString GetVersion()
 {
 	// Important to update the version when cards building or importing changes
-	return TEXT("7.3");
+	return TEXT("8");
 }
 
 void AllocateAtlasTexture(UTexture2D* Out, const FIntPoint& Resolution, uint32 MipCount, EPixelFormat PixelFormat, ETextureSourceFormat SourceFormat)
@@ -3147,6 +3446,7 @@ void BuildGeometry(
 	Out.RenderData.UVs.SetNum(PointCount);
 	for (uint32 PointIt = 0; PointIt < PointCount; ++PointIt)
 	{
+		check(FMath::IsFinite(Out.Cards.Positions[PointIt].X) && FMath::IsFinite(Out.Cards.Positions[PointIt].Y) && FMath::IsFinite(Out.Cards.Positions[PointIt].Z));
 		Out.RenderData.Positions[PointIt] = FVector4(Out.Cards.Positions[PointIt], *((float*)&Out.Cards.CardIndices[PointIt]));
 		Out.RenderData.UVs[PointIt] = Out.Cards.UVs[PointIt];
 		Out.RenderData.Normals[PointIt * 2] = FVector4(Out.Cards.Tangents[PointIt], 0);
@@ -3236,6 +3536,25 @@ void BuildGeometry(
 	}
 }
 
+void SanitizeMeshDescription(FMeshDescription* MeshDescription)
+{
+	if (!MeshDescription)
+		return;
+
+	bool bHasInvalidNormals = false;
+	bool bHasInvalidTangents = false;
+	FStaticMeshOperations::AreNormalsAndTangentsValid(*MeshDescription, bHasInvalidNormals, bHasInvalidTangents);
+	if (!bHasInvalidNormals || !bHasInvalidTangents)
+	{
+		FStaticMeshOperations::ComputeTriangleTangentsAndNormals(*MeshDescription, THRESH_POINTS_ARE_SAME);
+
+		EComputeNTBsFlags Options = EComputeNTBsFlags::UseMikkTSpace | EComputeNTBsFlags::BlendOverlappingNormals;
+		Options |= bHasInvalidNormals ? EComputeNTBsFlags::Normals : EComputeNTBsFlags::None;
+		Options |= bHasInvalidTangents ? EComputeNTBsFlags::Tangents : EComputeNTBsFlags::None;
+		FStaticMeshOperations::ComputeTangentsAndNormals(*MeshDescription, Options);
+	}
+}
+
 bool ImportGeometry(
 	const UStaticMesh* StaticMesh,
 	FHairCardsDatas& Out,
@@ -3245,9 +3564,9 @@ bool ImportGeometry(
 	const uint32 MeshLODIndex = 0;
 
 	// Note: if there are multiple section we only import the first one. Support for multiple section could be added later on. 
-	const FStaticMeshLODResources& LODData = StaticMesh->GetLODForExport(MeshLODIndex);
-	const uint32 VertexCount = LODData.VertexBuffers.PositionVertexBuffer.GetNumVertices();
-	const uint32 IndexCount = LODData.IndexBuffer.GetNumIndices();
+	FMeshDescription* MeshDescription = StaticMesh->GetMeshDescription(0);
+	const uint32 VertexCount = MeshDescription->Vertices().Num();
+	uint32 IndexCount  = MeshDescription->Triangles().Num() * 3;
 
 	// Basic sanity check. Need at least one triangle
 	if (IndexCount < 3)
@@ -3255,77 +3574,108 @@ bool ImportGeometry(
 		return false;
 	}
 
+	// Build a set with all the triangleIDs
+	// This will be used to find all the connected triangles forming cards
+	TSet<FTriangleID> TriangleIDs;
+	for (const FTriangleID& TriangleID : MeshDescription->Triangles().GetElementIDs())
+	{
+		TriangleIDs.Add(TriangleID);
+	}
+
+	// Find the cards triangle based on triangles adjancy
+	uint32 CardsIndexCountReserve = 0;
+	TArray<TSet<FTriangleID>> TrianglesCards;
+	while (TriangleIDs.Num() != 0)
+	{
+		TSet<FTriangleID>& TriangleCard = TrianglesCards.AddDefaulted_GetRef();
+
+		TQueue<FTriangleID> AdjacentTriangleIds;
+		FTriangleID AdjacentTriangleId = *TriangleIDs.CreateIterator();
+		AdjacentTriangleIds.Enqueue(AdjacentTriangleId);
+		TriangleIDs.Remove(AdjacentTriangleId);
+		TriangleCard.Add(AdjacentTriangleId);
+
+		while (AdjacentTriangleIds.Dequeue(AdjacentTriangleId))
+		{
+			TArray<FTriangleID> AdjacentTriangles = MeshDescription->GetTriangleAdjacentTriangles(AdjacentTriangleId);
+			for (const FTriangleID& A : AdjacentTriangles)
+			{
+				if (TriangleIDs.Contains(A))
+				{
+					AdjacentTriangleIds.Enqueue(A);
+					TriangleIDs.Remove(A);
+					TriangleCard.Add(A);
+				}
+			}
+		}
+		CardsIndexCountReserve += TriangleCard.Num() * 3;
+	}
+	IndexCount = CardsIndexCountReserve;
+
+	// Fill in vertex indices and the cards indices offset/count
+	uint32 GlobalIndex = 0;
+	Out.Cards.Indices.Reserve(CardsIndexCountReserve);
+	for (const TSet<FTriangleID>& TrianglesCard : TrianglesCards)
+	{
+		Out.Cards.IndexOffsets.Add(GlobalIndex);
+		Out.Cards.IndexCounts.Add(TrianglesCard.Num()*3);
+		for (const FTriangleID& TriangleId : TrianglesCard)
+		{
+			TArrayView<const FVertexInstanceID> VertexInstanceIDs = MeshDescription->GetTriangleVertexInstances(TriangleId);
+			check(VertexInstanceIDs.Num() == 3);
+			FVertexInstanceID VI0 = VertexInstanceIDs[0];
+			FVertexInstanceID VI1 = VertexInstanceIDs[1];
+			FVertexInstanceID VI2 = VertexInstanceIDs[2];
+
+			FVertexID V0 = MeshDescription->GetVertexInstanceVertex(VI0);
+			FVertexID V1 = MeshDescription->GetVertexInstanceVertex(VI1);
+			FVertexID V2 = MeshDescription->GetVertexInstanceVertex(VI2);
+
+			Out.Cards.Indices.Add(V0.GetValue());
+			Out.Cards.Indices.Add(V1.GetValue());
+			Out.Cards.Indices.Add(V2.GetValue());
+
+			GlobalIndex += 3;
+		}
+	}
+
+	// Fill vertex data
 	Out.Cards.Positions.SetNum(VertexCount);
 	Out.Cards.Normals.SetNum(VertexCount);
 	Out.Cards.Tangents.SetNum(VertexCount);
 	Out.Cards.UVs.SetNum(VertexCount);
-	Out.Cards.Indices.SetNum(IndexCount);
+	TArray<float> TangentFrameSigns;
+	TangentFrameSigns.SetNum(VertexCount);
 
 	Out.Cards.BoundingBox.Init();
 
-	for (uint32 VertexIt = 0; VertexIt < VertexCount; ++VertexIt)
+	SanitizeMeshDescription(MeshDescription);
+	const TVertexAttributesRef<const FVector> VertexPositions					= MeshDescription->VertexAttributes().GetAttributesRef<FVector>(MeshAttribute::Vertex::Position);
+	const TVertexInstanceAttributesRef<const FVector> VertexInstanceNormals		= MeshDescription->VertexInstanceAttributes().GetAttributesRef<FVector>(MeshAttribute::VertexInstance::Normal);
+	const TVertexInstanceAttributesRef<const FVector> VertexInstanceTangents	= MeshDescription->VertexInstanceAttributes().GetAttributesRef<FVector>(MeshAttribute::VertexInstance::Tangent);
+	const TVertexInstanceAttributesRef<const float> VertexInstanceBinormalSigns	= MeshDescription->VertexInstanceAttributes().GetAttributesRef<float>(MeshAttribute::VertexInstance::BinormalSign);
+	const TVertexInstanceAttributesRef<const FVector2D> VertexInstanceUVs		= MeshDescription->VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
+
+	for (const FVertexID VertexId : MeshDescription->Vertices().GetElementIDs())
 	{
-		const FVector2D VertexUV = LODData.VertexBuffers.StaticMeshVertexBuffer.GetVertexUV(VertexIt, 0);
-		Out.Cards.Positions[VertexIt] = LODData.VertexBuffers.PositionVertexBuffer.VertexPosition(VertexIt);
-		Out.Cards.UVs[VertexIt] = FVector4(VertexUV.X, VertexUV.Y, 0, 0);
-		Out.Cards.Tangents[VertexIt] = LODData.VertexBuffers.StaticMeshVertexBuffer.VertexTangentX(VertexIt);
-		Out.Cards.Normals[VertexIt] = LODData.VertexBuffers.StaticMeshVertexBuffer.VertexTangentZ(VertexIt);
-
-		Out.Cards.BoundingBox += Out.Cards.Positions[VertexIt];
-	}
-
-	// The offsets always start at 0
-	Out.Cards.IndexOffsets.Add(0);
-
-	uint32 NumTrianglesInCard = 0;
-	TSet<uint32> IndicesInCard;
-	for (uint32 TriangleIndex = 0, NumTriangles = IndexCount / 3; TriangleIndex < NumTriangles; ++TriangleIndex)
-	{
-		bool bIsConnected = false;
-		uint32 VertexIndex = TriangleIndex * 3;
-
-		uint32 TriangleVertexIndices[3];
-		for (uint32 TriangleVertexIndex = 0; TriangleVertexIndex < 3; ++TriangleVertexIndex)
+		TArrayView<const FVertexInstanceID> VertexInstanceIds = MeshDescription->GetVertexVertexInstanceIDs(VertexId);
+		if (VertexInstanceIds.Num() == 0)
 		{
-			const uint32 Index = LODData.IndexBuffer.GetIndex(VertexIndex);
-			Out.Cards.Indices[VertexIndex] = Index;
-
-			TriangleVertexIndices[TriangleVertexIndex] = Index;
-
-			// Detect if the current triangle is connected to the previous triangles in the card
-			// Could make the connectedness stronger by looking for shared edge instead of vertex
-			if (IndicesInCard.Contains(Index))
-			{
-				bIsConnected |= true;
-			}
-			VertexIndex++;
+			continue;
 		}
 
-		if (!bIsConnected && NumTrianglesInCard > 0)
-		{
-			// The current triangle is not connected, so consider it as part of another card
-			// Finalize the current card
-			const uint32 NumIndices = NumTrianglesInCard * 3;
-			const uint32 IndexOffset = NumIndices + Out.Cards.IndexOffsets.Last();
-			Out.Cards.IndexCounts.Add(NumIndices);
-			Out.Cards.IndexOffsets.Add(IndexOffset);
+		FVertexInstanceID VertexInstanceId0 = VertexInstanceIds[0]; // Assume no actual duplicated data.
 
-			// Setup the new card and add the current triangle vertices to it
-			IndicesInCard.Reset();
-			NumTrianglesInCard = 0;
-		}
+		const uint32 VertexIndex = VertexId.GetValue();
+		check(VertexIndex < VertexCount);
+		Out.Cards.Positions[VertexIndex]	= VertexPositions[VertexId];
+		Out.Cards.UVs[VertexIndex]			= FVector4(VertexInstanceUVs[VertexInstanceId0].Component(0), VertexInstanceUVs[VertexInstanceId0].Component(1), 0, 0);
+		Out.Cards.Tangents[VertexIndex]		= VertexInstanceTangents[VertexInstanceId0];
+		Out.Cards.Normals[VertexIndex]		= VertexInstanceNormals[VertexInstanceId0];
 
-		// Add the current triangle vertices to the card
-		for (uint32 TriangleVertexIndex = 0; TriangleVertexIndex < 3; ++TriangleVertexIndex)
-		{
-			IndicesInCard.Add(TriangleVertexIndices[TriangleVertexIndex]);
-		}
-		++NumTrianglesInCard;
-	}
-	// Finalize the last card
-	if (NumTrianglesInCard > 0)
-	{
-		Out.Cards.IndexCounts.Add(NumTrianglesInCard * 3);
+		TangentFrameSigns[VertexIndex] = VertexInstanceBinormalSigns[VertexInstanceId0];
+
+		Out.Cards.BoundingBox += Out.Cards.Positions[VertexIndex];
 	}
 
 	// Fill in render resources (do we need to keep it separated? e.g, format compression, packing)
@@ -3338,7 +3688,7 @@ bool ImportGeometry(
 		Out.RenderData.Positions[PointIt] = FVector4(Out.Cards.Positions[PointIt], 0);
 		Out.RenderData.UVs[PointIt] = Out.Cards.UVs[PointIt];
 		Out.RenderData.Normals[PointIt * 2] = FVector4(Out.Cards.Tangents[PointIt], 0);
-		Out.RenderData.Normals[PointIt * 2 + 1] = FVector4(Out.Cards.Normals[PointIt], 1);
+		Out.RenderData.Normals[PointIt * 2 + 1] = FVector4(Out.Cards.Normals[PointIt], TangentFrameSigns[PointIt]);
 	}
 
 	Out.RenderData.Indices.SetNum(IndexCount);
@@ -3497,28 +3847,29 @@ void RunHairCardsAtlasQueries(
 
 		// Allocate resources for generating the atlas texture (for editor mode only)
 		FRDGTextureRef DepthTexture		= GraphBuilder.CreateTexture(FRDGTextureDesc::Create2D(Q.ProceduralData->Atlas.Resolution, PF_R8G8B8A8, FClearValueBinding::Black, TexCreate_RenderTargetable | TexCreate_ShaderResource, 1), TEXT("CardsDepth"));
-		FRDGTextureRef CoverageTexture	= GraphBuilder.CreateTexture(FRDGTextureDesc::Create2D(Q.ProceduralData->Atlas.Resolution, PF_R8G8B8A8, FClearValueBinding::Black, TexCreate_RenderTargetable | TexCreate_ShaderResource, 1), TEXT("CardCoverage"));
 		FRDGTextureRef TangentTexture	= GraphBuilder.CreateTexture(FRDGTextureDesc::Create2D(Q.ProceduralData->Atlas.Resolution, PF_R8G8B8A8, FClearValueBinding::Black, TexCreate_RenderTargetable | TexCreate_ShaderResource, 1), TEXT("CardTangent"));
+		FRDGTextureRef CoverageTexture	= GraphBuilder.CreateTexture(FRDGTextureDesc::Create2D(Q.ProceduralData->Atlas.Resolution, PF_R8G8B8A8, FClearValueBinding::Black, TexCreate_RenderTargetable | TexCreate_ShaderResource, 1), TEXT("CardCoverage"));
 		FRDGTextureRef AttributeTexture = GraphBuilder.CreateTexture(FRDGTextureDesc::Create2D(Q.ProceduralData->Atlas.Resolution, PF_R8G8B8A8, FClearValueBinding::Black, TexCreate_RenderTargetable | TexCreate_ShaderResource, 1), TEXT("CardAttribute"));
 		AddHairCardAtlasTexturePass(
 			GraphBuilder,
 			Q.ProceduralData->Atlas,
 			DebugShaderData,
+			Q.ProceduralResource->CardsStrandsPositions.Buffer->Desc.NumElements,
 			Q.ProceduralResource->CardsStrandsPositions.SRV,
 			Q.ProceduralResource->CardsStrandsAttributes.SRV,
 			DepthTexture,
-			CoverageTexture,
 			TangentTexture,
+			CoverageTexture,
 			AttributeTexture);
 
 		AddCardsTextureReadbackPass(GraphBuilder, 4, DepthTexture,		Q.Textures->DepthTexture);
-		AddCardsTextureReadbackPass(GraphBuilder, 4, CoverageTexture,	Q.Textures->CoverageTexture);
 		AddCardsTextureReadbackPass(GraphBuilder, 4, TangentTexture,	Q.Textures->TangentTexture);
+		AddCardsTextureReadbackPass(GraphBuilder, 4, CoverageTexture,	Q.Textures->CoverageTexture);
 		AddCardsTextureReadbackPass(GraphBuilder, 4, AttributeTexture,	Q.Textures->AttributeTexture);
 
 		Q.RestResource->DepthTexture	 = Q.Textures->DepthTexture->TextureReference.TextureReferenceRHI;
-		Q.RestResource->CoverageTexture  = Q.Textures->CoverageTexture->TextureReference.TextureReferenceRHI;
 		Q.RestResource->TangentTexture	 = Q.Textures->TangentTexture->TextureReference.TextureReferenceRHI;
+		Q.RestResource->CoverageTexture  = Q.Textures->CoverageTexture->TextureReference.TextureReferenceRHI;
 		Q.RestResource->AttributeTexture = Q.Textures->AttributeTexture->TextureReference.TextureReferenceRHI;
 		
 		Q.Textures->bNeedToBeSaved = true;

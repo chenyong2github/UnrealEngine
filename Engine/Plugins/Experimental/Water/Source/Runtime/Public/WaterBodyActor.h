@@ -491,12 +491,6 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Instanced, Category = Wave, DisplayName = "Waves Source")
 	UWaterWavesBase* WaterWaves = nullptr;
 
-	UPROPERTY()
-	bool bHasWaveSpectrumSettings_DEPRECATED = true;
-
-	UPROPERTY()
-	bool bHasTerrainCarvingSettingsSettings_DEPRECATED = true;
-
 public:
 
 	UFUNCTION(BlueprintCallable, Category=Water)

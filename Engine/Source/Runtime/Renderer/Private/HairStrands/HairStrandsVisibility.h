@@ -29,6 +29,8 @@ struct FHairStrandsVisibilityData
 	FRDGTextureRef DepthTextureUint = nullptr;
 	FRDGTextureRef EmissiveTexture = nullptr;
 
+	FRDGTextureRef HairOnlyDepthTexture = nullptr;
+
 	FRDGTextureRef ViewHairVisibilityTexture0 = nullptr;
 	FRDGTextureRef ViewHairVisibilityTexture1 = nullptr;
 	FRDGTextureRef ViewHairVisibilityTexture2 = nullptr;

@@ -2695,8 +2695,13 @@ bool UEditorEngine::Map_Load(const TCHAR* Str, FOutputDevice& Ar)
 				
 				if (World == nullptr)
 				{
+					FText Message = FText::Format(NSLOCTEXT("UnrealEd", "MapPackageFindWorldFailed", "Failed to find the world in already loaded world package {0}! See log for more details."), FText::FromString(WorldPackage->GetPathName()));
+					FMessageDialog::Open(EAppMsgType::Ok, Message);
+					GIsEditorLoadingPackage = false;
+
 					FReferenceChainSearch RefChainSearch(WorldPackage, EReferenceChainSearchMode::Shortest | EReferenceChainSearchMode::PrintResults);
-					UE_LOG(LogEditorServer, Fatal, TEXT("Failed to find the world in already loaded world package %s! Referenced by:") LINE_TERMINATOR TEXT("%s"), *WorldPackage->GetPathName(), *RefChainSearch.GetRootPath());
+					UE_LOG(LogEditorServer, Warning, TEXT("Failed to find the world in already loaded world package %s! Referenced by:") LINE_TERMINATOR TEXT("%s"), *WorldPackage->GetPathName(), *RefChainSearch.GetRootPath());
+					return false;
 				}
 
 				if (Context.AudioDeviceID == INDEX_NONE && GEngine->GetAudioDeviceManager())
@@ -4606,8 +4611,10 @@ bool UEditorEngine::Exec_Obj( const TCHAR* Str, FOutputDevice& Ar )
 		&&	FParse::Value( Str, TEXT("FILE="), TempFname )
 		&&	ParseObject( Str, TEXT("NAME="), Type, Res, ANY_PACKAGE ) )
 		{
-			for( FObjectIterator It; It; ++It )
+			for (FThreadSafeObjectIterator It; It; ++It)
+			{
 				It->UnMark(EObjectMark(OBJECTMARK_TagImp | OBJECTMARK_TagExp));
+			}
 			UExporter* Exporter = UExporter::FindExporter( Res, *FPaths::GetExtension(TempFname) );
 			if( Exporter )
 			{
@@ -6245,7 +6252,7 @@ bool UEditorEngine::HandleSelectNameCommand( const TCHAR* Str, FOutputDevice& Ar
 
 bool UEditorEngine::HandleDumpPublicCommand( const TCHAR* Str, FOutputDevice& Ar )
 {
-	for( FObjectIterator It; It; ++It )
+	for( FThreadSafeObjectIterator It; It; ++It )
 	{
 		UObject* Obj = *It;
 		if(Obj && IsInALevel(Obj) && Obj->HasAnyFlags(RF_Public))
@@ -6339,7 +6346,7 @@ bool UEditorEngine::HandleTagSoundsCommand( const TCHAR* Str, FOutputDevice& Ar 
 {
 	int32 NumObjects = 0;
 	int32 TotalSize = 0;
-	for( FObjectIterator It(USoundWave::StaticClass()); It; ++It )
+	for( FThreadSafeObjectIterator It(USoundWave::StaticClass()); It; ++It )
 	{
 		++NumObjects;
 		DebugSoundAnnotation.Set(*It);
@@ -6355,7 +6362,7 @@ bool UEditorEngine::HandleTagSoundsCommand( const TCHAR* Str, FOutputDevice& Ar 
 bool UEditorEngine::HandlecheckSoundsCommand( const TCHAR* Str, FOutputDevice& Ar )
 {
 	TArray<USoundWave*> WaveList;
-		for( FObjectIterator It(USoundWave::StaticClass()); It; ++It )
+		for( FThreadSafeObjectIterator It(USoundWave::StaticClass()); It; ++It )
 		{
 			USoundWave* Wave = static_cast<USoundWave*>(*It);
 			if ( !DebugSoundAnnotation.Get(Wave))

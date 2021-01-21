@@ -27,7 +27,6 @@ struct FRayTracingShaderBindings;
 struct FRayTracingGeometrySegment;
 struct FAccelerationStructureBuildParams;
 struct FRayTracingLocalShaderBindings;
-struct FRHIBreadcrumb;
 enum class EAsyncComputeBudget;
 
 #define VALIDATE_UNIFORM_BUFFER_STATIC_BINDINGS (!UE_BUILD_SHIPPING && !UE_BUILD_TEST)
@@ -117,7 +116,6 @@ typedef FUniformBufferStaticBindings FUniformBufferGlobalBindings;
 /** Context that is capable of doing Compute work.  Can be async or compute on the gfx pipe. */
 class IRHIComputeContext
 {
-	FRHIBreadcrumb* BreadcrumbStackTop = nullptr; //top on the rhi thread.
 public:
 	virtual ~IRHIComputeContext()
 	{
@@ -221,8 +219,6 @@ public:
 
 	virtual void RHIPopEvent() = 0;
 
-	RHI_API void PushBreadcrumbRHIThread(FRHIBreadcrumb* Breadcrumb);
-	RHI_API void PopBreadcrumbRHIThread();
 	/**
 	* Submit the current command buffer to the GPU if possible.
 	*/
@@ -285,11 +281,6 @@ public:
 	virtual void RHIBuildAccelerationStructure(FRHIRayTracingScene* Scene)
 	{
 		checkNoEntry();
-	}
-
-	FRHIBreadcrumb const* const* GetBreadcrumbStackTop()
-	{
-		return &BreadcrumbStackTop;
 	}
 #if ENABLE_RHI_VALIDATION
 

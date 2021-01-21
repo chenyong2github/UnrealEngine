@@ -34,7 +34,7 @@ struct LIVELINKCONTROLRIG_API FRigUnit_LiveLinkEvaluteFrameAnimation : public FR
 	FName SubjectName;
 
 	UPROPERTY(meta = (Input))
-	bool bDrawDebug;
+	bool bDrawDebug = false;
 
 	UPROPERTY(meta = (Input))
 	FLinearColor DebugColor = FLinearColor::Red;
@@ -65,7 +65,7 @@ struct LIVELINKCONTROLRIG_API FRigUnit_LiveLinkGetTransformByName : public FRigU
 	FName TransformName;
 
 	UPROPERTY(meta = (Input))
-	EBoneGetterSetterMode Space;
+	EBoneGetterSetterMode Space = EBoneGetterSetterMode::LocalSpace;
 
 	UPROPERTY(meta = (Output))
 	FTransform Transform;
@@ -90,7 +90,7 @@ struct LIVELINKCONTROLRIG_API FRigUnit_LiveLinkGetParameterValueByName : public 
 	FName ParameterName;
 
 	UPROPERTY(meta = (Output))
-	float Value;
+	float Value = 0.f;
 };
 
 /**
@@ -109,7 +109,7 @@ struct LIVELINKCONTROLRIG_API FRigUnit_LiveLinkEvaluteFrameTransform : public FR
 	FName SubjectName;
 
 	UPROPERTY(meta = (Input))
-	bool bDrawDebug;
+	bool bDrawDebug = false;
 
 	UPROPERTY(meta = (Input))
 	FLinearColor DebugColor = FLinearColor::Red;

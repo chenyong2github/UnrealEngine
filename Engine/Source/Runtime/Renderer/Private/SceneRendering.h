@@ -55,6 +55,7 @@ struct FCloudRenderContext;
 struct FSceneWithoutWaterTextures;
 struct FHairStrandsVisibilityViews;
 struct FSortedLightSetSceneInfo;
+struct FHairStrandsRenderingData;
 struct FStrataSceneData;
 
 struct FSceneTexturesConfig;
@@ -1392,6 +1393,8 @@ public:
 	 */
 	int32 GPUSceneViewId;
 
+	uint32 InstancedStereoWidth = 0;
+
 #if WITH_EDITOR
 	TArray<uint32> EditorVisualizeLevelInstanceIds;
 	FDynamicReadBuffer EditorVisualizeLevelInstanceBuffer;
@@ -1882,7 +1885,7 @@ protected:
 		FRDGBuilder& GraphBuilder,
 		const FShadowProjectionPassParameters& CommonPassParameters,
 		const FLightSceneProxy* LightSceneProxy,
-		const FHairStrandsVisibilityViews* HairVisibilityViews,
+		const FHairStrandsRenderingData* HairDatas,
 		TArrayView<const FProjectedShadowInfo* const> Shadows,
 		bool bProjectingForForwardShading,
 		bool bMobileModulatedProjections);

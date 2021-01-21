@@ -196,6 +196,8 @@ FString FRigUnit_RigLogic_Data::ConstructCurveName(const FString& NameToSplit, c
 
 void FRigUnit_RigLogic_Data::CalculateRigLogic(FControlRigExecuteContext& ExecuteContext)
 {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_RigUnit_RigLogic_Calculate);
+
 	const int32 RawControlCount = RigInstance->GetRawControlCount();
 	for (int32 ControlIndex = 0; ControlIndex < RawControlCount; ++ControlIndex)
 	{
@@ -351,6 +353,8 @@ void FRigUnit_RigLogic_Data::ChangeRigLogicLODIfNeeded()
 
 FRigUnit_RigLogic_Execute()
 {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_RigUnit_RigLogic_Execute);
+
  	FRigHierarchyContainer* Hierarchy = ExecuteContext.Hierarchy;
 	if (Hierarchy)
 	{

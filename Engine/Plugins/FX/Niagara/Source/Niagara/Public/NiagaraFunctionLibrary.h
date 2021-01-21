@@ -59,7 +59,11 @@ public:
 	/** Overrides the Texture Object for a Niagara Texture Data Interface User Parameter.*/
 	UFUNCTION(BlueprintCallable, Category = Niagara)
 	static void SetTextureObject(UNiagaraComponent* NiagaraSystem, const FString& OverrideName, UTexture* Texture);
-	
+
+	/** Overrides the 2D Array Texture for a Niagara 2D Array Texture Data Interface User Parameter.*/
+	UFUNCTION(BlueprintCallable, Category = Niagara)
+	static void SetTexture2DArrayObject(UNiagaraComponent* NiagaraSystem, const FString& OverrideName, class UTexture2DArray* Texture);
+
 	/** Overrides the Volume Texture for a Niagara Volume Texture Data Interface User Parameter.*/
 	UFUNCTION(BlueprintCallable, Category = Niagara)
 	static void SetVolumeTextureObject(UNiagaraComponent* NiagaraSystem, const FString& OverrideName, UVolumeTexture* Texture);

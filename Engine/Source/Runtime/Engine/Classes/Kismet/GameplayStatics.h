@@ -159,9 +159,9 @@ class ENGINE_API UGameplayStatics : public UBlueprintFunctionLibrary
 	static class APlayerCameraManager* GetPlayerCameraManager(const UObject* WorldContextObject, int32 PlayerIndex);
 
 	/** Create a new player for this game.  
-	 *  @param ControllerId     The ID of the controller that the should control the newly created player.  A value of -1 specifies to use the next available ID
-	 *  @param bSpawnPawn       Whether a player controller should be spawned immediately for this player. If false a player controller will not be created automatically until transition to the next map.
-	 *  @return                 The created player controller if one is created. 
+	 *  @param ControllerId             The ID of the controller that the should control the newly created player.  A value of -1 specifies to use the next available ID
+	 *  @param bSpawnPlayerController   Whether a player controller should be spawned immediately for this player. If false a player controller will not be created automatically until transition to the next map.
+	 *  @return                         The created player controller if one is created. 
 	 */
 	UFUNCTION(BlueprintCallable, Category="Game", meta=(WorldContext="WorldContextObject", AdvancedDisplay="2", UnsafeDuringActorConstruction="true"))
 	static class APlayerController* CreatePlayer(const UObject* WorldContextObject, int32 ControllerId = -1, bool bSpawnPlayerController = true);

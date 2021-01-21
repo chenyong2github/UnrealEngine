@@ -14,6 +14,7 @@
 class FObjectInitializer;
 struct FUObjectSerializeContext;
 class FLinkerLoad;
+class IAsyncPackageLoader;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogUObjectThreadContext, Log, All);
 
@@ -78,6 +79,10 @@ public:
 	UObject* ConstructedObject;
 	/** Async Package currently processing objects */
 	void* AsyncPackage;
+#if WITH_IOSTORE_IN_EDITOR
+	/** Async package loader currently processing objects */
+	IAsyncPackageLoader* AsyncPackageLoader;
+#endif
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	/** Stack to ensure that PostInitProperties is routed through Super:: calls. **/

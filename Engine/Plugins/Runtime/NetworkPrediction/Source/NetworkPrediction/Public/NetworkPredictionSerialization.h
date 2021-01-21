@@ -373,7 +373,7 @@ public:
 		}
 
 		// AP recv drives fixed tick interpolation
-		TickState->Interpolation.LatestRecvFrame = ServerFrame;
+		TickState->Interpolation.LatestRecvFrameAP = ServerFrame;
 		TickState->ConfirmedFrame = ServerFrame - TickState->Offset;
 
 		ClientRecvState.ServerFrame = ServerFrame;
@@ -531,6 +531,8 @@ public:
 	{
 		ClientRecvState.ServerFrame = FNetworkPredictionSerialization::ReadCompressedFrame(P.Ar, TickState->PendingFrame + TickState->Offset); // 1. PendingFrame (Server Frame)
 		npEnsure(ClientRecvState.ServerFrame >= 0);
+
+		TickState->Interpolation.LatestRecvFrameSP = FMath::Max(TickState->Interpolation.LatestRecvFrameSP, ClientRecvState.ServerFrame);
 
 		UE_NP_TRACE_NET_RECV(ClientRecvState.ServerFrame, ClientRecvState.ServerFrame * TickState->FixedStepMS);
 		

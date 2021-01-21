@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AbcFile.h"
+#include "Misc/App.h"
 #include "Misc/Paths.h"
 
 #include "AbcImporter.h"
@@ -422,7 +423,8 @@ void FAbcFile::CleanupFrameData(const int32 ReadIndex)
 void FAbcFile::ProcessFrames(TFunctionRef<void(int32, FAbcFile*)> InCallback, const EFrameReadFlags InFlags)
 {
 	const int32 NumWorkerThreads = FMath::Min(FTaskGraphInterface::Get().GetNumWorkerThreads(), MaxNumberOfResidentSamples);
-	const bool bSingleThreaded = (CompressionType == Alembic::AbcCoreFactory::IFactory::kHDF5) || ImportSettings->NumThreads == 1 || EnumHasAnyFlags(InFlags, EFrameReadFlags::ForceSingleThreaded);
+	const bool bSingleThreaded = (CompressionType == Alembic::AbcCoreFactory::IFactory::kHDF5) || ImportSettings->NumThreads == 1 ||
+								 EnumHasAnyFlags(InFlags, EFrameReadFlags::ForceSingleThreaded) || !FApp::ShouldUseThreadingForPerformance();
 	int32 ProcessedFrameIndex = StartFrameIndex - 1;
 
 	if (bSingleThreaded)

@@ -22,10 +22,14 @@
 			"LoadingPhase" : "PostEngineInit"
 		}
 	],
-    "Plugins": [
-        {
-            "Name" : "TemplateSequence",
-            "Enabled" : true
-        }
+	"Plugins": [
+		{
+			"Name" : "TemplateSequence",
+			"Enabled" : true
+		},
+		{
+			"Name" : "GameplayCameras",
+			"Enabled" : true
+		}
     ]
 }

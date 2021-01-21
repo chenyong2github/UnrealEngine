@@ -239,9 +239,18 @@ void UEditorEngine::LaunchNewProcess(const FRequestPlaySessionParams& InParams, 
 		FSlateApplication::Get().GetCachedDisplayMetrics(DisplayMetrics);
 
 		// We don't use GetWindowSizeAndPositionForInstanceIndex here because that is for PIE windows and uses a separate system for saving window positions,
-		// so we'll just respect the settings object for viewport size. 
+		// so we'll just respect the settings object for viewport size. If you're in standlone (non multiplayer) we respect viewport resolution, while
+		// networked modes respect the multiplayer version.
 		FIntPoint WindowSize;
-		InParams.EditorPlaySettings->GetClientWindowSize(WindowSize);
+		if (NetMode == EPlayNetMode::PIE_Standalone)
+		{
+			WindowSize.X = InParams.EditorPlaySettings->NewWindowWidth;
+			WindowSize.Y = InParams.EditorPlaySettings->NewWindowHeight;
+		}
+		else
+		{
+			InParams.EditorPlaySettings->GetClientWindowSize(WindowSize);
+		}
 
 		// If not center window nor NewWindowPosition is FIntPoint::NoneValue (-1,-1)
 		if (!InParams.EditorPlaySettings->CenterNewWindow && InParams.EditorPlaySettings->NewWindowPosition != FIntPoint::NoneValue)
@@ -254,6 +263,17 @@ void UEditorEngine::LaunchNewProcess(const FRequestPlaySessionParams& InParams, 
 			// If they don't want to center the new window, we add a specific location. This will get saved to user settings
 			// via SAVEWINPOS and not end up reflected in our PlayInEditor settings.
 			CommandLine += FString::Printf(TEXT(" -WinX=%d -WinY=%d SAVEWINPOS=1"), WindowPosition.X, WindowPosition.Y);
+		}
+
+		// If the user didn't specify a resolution in the settings, default to full resolution.
+		if (WindowSize.X <= 0)
+		{
+			WindowSize.X = DisplayMetrics.PrimaryDisplayWidth;
+		}
+
+		if (WindowSize.Y <= 0)
+		{
+			WindowSize.Y = DisplayMetrics.PrimaryDisplayHeight;
 		}
 
 		CommandLine += FString::Printf(TEXT(" -ResX=%d -ResY=%d"), WindowSize.X, WindowSize.Y);

@@ -449,6 +449,7 @@ int32 FNavMeshSceneProxyData::GetDetailFlags(const ARecastNavMesh* NavMesh) cons
 		(NavMesh->bDrawTileLabels ? (1 << static_cast<int32>(ENavMeshDetailFlags::TileLabels)) : 0) |
 		(NavMesh->bDrawPolygonLabels ? (1 << static_cast<int32>(ENavMeshDetailFlags::PolygonLabels)) : 0) |
 		(NavMesh->bDrawDefaultPolygonCost ? (1 << static_cast<int32>(ENavMeshDetailFlags::PolygonCost)) : 0) |
+		(NavMesh->bDrawPolygonFlags ? (1 << static_cast<int32>(ENavMeshDetailFlags::PolygonFlags)) : 0) |
 		(NavMesh->bDrawLabelsOnPathNodes ? (1 << static_cast<int32>(ENavMeshDetailFlags::PathLabels)) : 0) |
 		(NavMesh->bDrawNavLinks ? (1 << static_cast<int32>(ENavMeshDetailFlags::NavLinks)) : 0) |
 		(NavMesh->bDrawFailedNavLinks ? (1 << static_cast<int32>(ENavMeshDetailFlags::FailedNavLinks)) : 0) |
@@ -600,8 +601,9 @@ void FNavMeshSceneProxyData::GatherData(const ARecastNavMesh* NavMesh, int32 InN
 		const bool bGatherTileBounds = FNavMeshRenderingHelpers::HasFlag(NavDetailFlags, ENavMeshDetailFlags::TileBounds);
 		const bool bGatherPolygonLabels = FNavMeshRenderingHelpers::HasFlag(NavDetailFlags, ENavMeshDetailFlags::PolygonLabels);
 		const bool bGatherPolygonCost = FNavMeshRenderingHelpers::HasFlag(NavDetailFlags, ENavMeshDetailFlags::PolygonCost);
+		const bool bGatherPolygonFlags = FNavMeshRenderingHelpers::HasFlag(NavDetailFlags, ENavMeshDetailFlags::PolygonFlags);
 
-		if (bGatherTileLabels || bGatherTileBounds || bGatherPolygonLabels || bGatherPolygonCost)
+		if (bGatherTileLabels || bGatherTileBounds || bGatherPolygonLabels || bGatherPolygonCost || bGatherPolygonFlags)
 		{
 			TArray<int32> UseTileIndices;
 			if (TileSet.Num() > 0)
@@ -640,34 +642,61 @@ void FNavMeshSceneProxyData::GatherData(const ARecastNavMesh* NavMesh, int32 InN
 						DebugLabels.Add(FDebugText(NavLocation.Location + NavMeshDrawOffset, FString::Printf(TEXT("(%d,%d:%d)"), X, Y, Layer)));
 					}
 
-					if (bGatherPolygonLabels || bGatherPolygonCost)
+					if (bGatherPolygonLabels || bGatherPolygonCost || bGatherPolygonFlags)
 					{
 						TArray<FNavPoly> Polys;
 						NavMesh->GetPolysInTile(TileIndex, Polys);
 
+						float DefaultCosts[RECAST_MAX_AREAS];
+						float FixedCosts[RECAST_MAX_AREAS];
+
 						if (bGatherPolygonCost)
 						{
-							float DefaultCosts[RECAST_MAX_AREAS];
-							float FixedCosts[RECAST_MAX_AREAS];
-
 							NavMesh->GetDefaultQueryFilter()->GetAllAreaCosts(DefaultCosts, FixedCosts, RECAST_MAX_AREAS);
-
-							for (int k = 0; k < Polys.Num(); ++k)
-							{
-								const uint32 AreaID = NavMesh->GetPolyAreaID(Polys[k].Ref);
-								DebugLabels.Add(FDebugText(Polys[k].Center + NavMeshDrawOffset, FString::Printf(TEXT("\\%.3f; %.3f\\"), DefaultCosts[AreaID], FixedCosts[AreaID])));
-							}
 						}
-						else
+
+						for (const FNavPoly& Poly : Polys)
 						{
-							for (int k = 0; k < Polys.Num(); ++k)
+							TStringBuilder<100> StringBuilder;
+
+							if (bGatherPolygonLabels)
 							{
 								uint32 NavPolyIndex = 0;
 								uint32 NavTileIndex = 0;
-								NavMesh->GetPolyTileIndex(Polys[k].Ref, NavPolyIndex, NavTileIndex);
+								NavMesh->GetPolyTileIndex(Poly.Ref, NavPolyIndex, NavTileIndex);
 
-								DebugLabels.Add(FDebugText(Polys[k].Center + NavMeshDrawOffset, FString::Printf(TEXT("[%X:%X]"), NavTileIndex, NavPolyIndex)));
+								if (StringBuilder.Len() > 0)
+								{
+									StringBuilder.Append(TEXT("\n"));
+								}
+								StringBuilder.Appendf(TEXT("Index Tile/Poly: [%d : %d]"), NavTileIndex, NavPolyIndex);
 							}
+
+							if (bGatherPolygonCost)
+							{
+								const uint32 AreaID = NavMesh->GetPolyAreaID(Poly.Ref);
+
+								if (StringBuilder.Len() > 0)
+								{
+									StringBuilder.Append(TEXT("\n"));
+								}
+								StringBuilder.Appendf(TEXT("Cost Default/Fixed: [%.3f : %.3f]"), DefaultCosts[AreaID], FixedCosts[AreaID]);
+							}
+
+							if (bGatherPolygonFlags)
+							{
+								uint16 PolyFlags = 0;
+								uint16 AreaFlags = 0;
+								NavMesh->GetPolyFlags(Poly.Ref, PolyFlags, AreaFlags);
+
+								if (StringBuilder.Len() > 0)
+								{
+									StringBuilder.Append(TEXT("\n"));
+								}
+								StringBuilder.Appendf(TEXT("Flags Poly/Area: [0x%X : 0x%X]"), PolyFlags, AreaFlags);
+							}
+
+							DebugLabels.Add(FDebugText(Poly.Center + NavMeshDrawOffset, StringBuilder.ToString()));
 						}
 					}
 

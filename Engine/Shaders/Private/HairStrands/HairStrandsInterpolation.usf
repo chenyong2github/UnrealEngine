@@ -218,6 +218,7 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 	}
 #endif
 
+	uint4 OutPosition = 0;
 	if (VertexIndex < VertexCount)
 	{
 		uint3 GuideVertexIndices = 0;
@@ -281,7 +282,8 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 			const bool bIsValid = ScaleAndClip(VertexIndex, PackedRestPosition.w);
 			WorldVertexPosition = bIsValid ? ControlPoint + CurrOffset : float3(POSITIVE_INFINITY, POSITIVE_INFINITY, POSITIVE_INFINITY);
 
-			OutRenderDeformedPositionBuffer[VertexIndex] = float4(f32tof16(WorldVertexPosition - OutRenHairPositionOffset), PackedRestPosition.w);
+			OutPosition = uint4(f32tof16(WorldVertexPosition - OutRenHairPositionOffset), PackedRestPosition.w);
+			OutRenderDeformedPositionBuffer[VertexIndex] = OutPosition;
 		}
 		#endif	
 
@@ -362,7 +364,8 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 			}
 			#endif
 
-			OutRenderDeformedPositionBuffer[VertexIndex] = float4(f32tof16(WorldVertexPosition - OutRenHairPositionOffset), PackedRestPosition.w);
+			OutPosition = uint4(f32tof16(WorldVertexPosition - OutRenHairPositionOffset), PackedRestPosition.w);
+			OutRenderDeformedPositionBuffer[VertexIndex] = OutPosition;
 		}
 		#endif	
 
@@ -405,7 +408,8 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 			const bool bIsValid = ScaleAndClip(VertexIndex, PackedRestPosition.w);
 			WorldVertexPosition = bIsValid ? ControlPoint + CurrOffset : float3(POSITIVE_INFINITY, POSITIVE_INFINITY, POSITIVE_INFINITY);
 
-			OutRenderDeformedPositionBuffer[VertexIndex] = float4(f32tof16(WorldVertexPosition - OutRenHairPositionOffset), PackedRestPosition.w);
+			OutPosition = uint4(f32tof16(WorldVertexPosition - OutRenHairPositionOffset), PackedRestPosition.w);
+			OutRenderDeformedPositionBuffer[VertexIndex] = OutPosition;
 		}
 		#endif	
 
@@ -455,7 +459,8 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 			const bool bIsValid = ScaleAndClip(VertexIndex, PackedRestPosition.w);
 			WorldVertexPosition = bIsValid ? ControlPoint + CurrOffset : float3(POSITIVE_INFINITY, POSITIVE_INFINITY, POSITIVE_INFINITY);
 
-			OutRenderDeformedPositionBuffer[VertexIndex] = float4(f32tof16(WorldVertexPosition - OutRenHairPositionOffset), PackedRestPosition.w);
+			OutPosition = uint4(f32tof16(WorldVertexPosition - OutRenHairPositionOffset), PackedRestPosition.w);
+			OutRenderDeformedPositionBuffer[VertexIndex] = OutPosition;
 		}
 		#endif
 
@@ -502,7 +507,8 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 			const bool bIsValid = ScaleAndClip(VertexIndex, PackedRestPosition.w);
 			WorldVertexPosition = bIsValid ? CurrOffset : float3(POSITIVE_INFINITY, POSITIVE_INFINITY, POSITIVE_INFINITY);
 
-			OutRenderDeformedPositionBuffer[VertexIndex] = float4(f32tof16(WorldVertexPosition - OutRenHairPositionOffset), PackedRestPosition.w);
+			OutPosition = uint4(f32tof16(WorldVertexPosition - OutRenHairPositionOffset), PackedRestPosition.w);
+			OutRenderDeformedPositionBuffer[VertexIndex] = OutPosition;
 		}
 		#endif
 

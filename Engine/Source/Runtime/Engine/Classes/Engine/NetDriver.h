@@ -1048,7 +1048,7 @@ public:
 	uint32																		ReplicationFrame;
 
 	/** Maps FRepLayout to the respective UClass */
-	TMap< TWeakObjectPtr< UObject >, TSharedPtr< FRepLayout > >					RepLayoutMap;
+	TMap<TWeakObjectPtr<UObject>, TSharedPtr<FRepLayout>, FDefaultSetAllocator, TWeakObjectPtrMapKeyFuncs<TWeakObjectPtr<UObject>, TSharedPtr<FRepLayout> > >	RepLayoutMap;
 
 	class FReplicationChangelistMgrWrapper
 	{

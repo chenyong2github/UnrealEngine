@@ -957,7 +957,7 @@ void UCheatManager::TestCollisionDistance()
 		FlushPersistentDebugLines( GetOuterAPlayerController()->GetWorld() );//change the GetWorld
 
 		// calculate from viewloc
-		for (FObjectIterator Iter(AVolume::StaticClass()); Iter; ++Iter)
+		for (FThreadSafeObjectIterator Iter(AVolume::StaticClass()); Iter; ++Iter)
 		{
 			AVolume * Volume = Cast<AVolume>(*Iter);
 

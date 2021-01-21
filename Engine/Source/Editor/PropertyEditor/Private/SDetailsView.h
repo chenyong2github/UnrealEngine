@@ -111,6 +111,8 @@ public:
 		return RootObjectCustomization;
 	}
 private:
+	bool AreExternalObjectsReplaced(const TMap<UObject*, UObject*>& OldToNewObjectMap) const;
+
 	void SetObjectArrayPrivate(const TArray<UObject*>& InObjects);
 
 	TSharedRef<SDetailTree> ConstructTreeView( TSharedRef<SScrollBar>& ScrollBar );

@@ -192,6 +192,8 @@ struct NIAGARA_API FNiagaraConstants
 	static const FName OutputScopeName;
 	static const FName UniqueOutputScopeName;
 	static const FName CustomScopeName;
+	
+	static const int32 MaxParameterLength;
 
 private:
 	static TArray<FNiagaraVariable> SystemParameters;

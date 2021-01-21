@@ -7,7 +7,9 @@
 #include "NiagaraBoundsCalculatorHelper.h"
 #include "NiagaraCustomVersion.h"
 #include "Modules/ModuleManager.h"
+
 #if WITH_EDITOR
+#include "Editor.h"
 #include "AssetThumbnail.h"
 #include "Styling/SlateIconFinder.h"
 #include "Internationalization/Regex.h"
@@ -17,6 +19,7 @@
 #include "Widgets/SWidget.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Notifications/SNotificationList.h"
+#include "Subsystems/ImportSubsystem.h"
 #endif
 
 
@@ -181,6 +184,13 @@ void UNiagaraMeshRendererProperties::PostInitProperties()
 			return;
 		}
 		InitBindings();
+
+#if WITH_EDITOR
+		if (GIsEditor)
+		{
+			GEditor->GetEditorSubsystem<UImportSubsystem>()->OnAssetReimport.AddUObject(this, &UNiagaraMeshRendererProperties::OnAssetReimported);
+		}
+#endif
 	}
 }
 
@@ -313,7 +323,8 @@ void UNiagaraMeshRendererProperties::GetUsedMeshMaterials(int32 MeshIndex, const
 
 	if (bOverrideMaterials)
 	{
-		for (int32 OverrideIndex = 0; OverrideIndex < OverrideMaterials.Num(); ++OverrideIndex)
+		const int32 NumOverrideMaterials = FMath::Min(OverrideMaterials.Num(), OutMaterials.Num());
+		for (int32 OverrideIndex = 0; OverrideIndex < NumOverrideMaterials; ++OverrideIndex)
 		{
 			if (OutMaterials[OverrideIndex])
 			{
@@ -501,6 +512,8 @@ void UNiagaraMeshRendererProperties::BeginDestroy()
 				MeshProperties.Mesh->OnPostMeshBuild().RemoveAll(this);
 			}
 		}
+
+		GEditor->GetEditorSubsystem<UImportSubsystem>()->OnAssetReimport.RemoveAll(this);
 	}
 #endif
 }
@@ -548,7 +561,7 @@ void UNiagaraMeshRendererProperties::PostEditChangeProperty(FPropertyChangedEven
 		if (!IsRunningCommandlet() &&
 			PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UNiagaraMeshRendererProperties, bEnableMeshFlipbook) &&
 			bEnableMeshFlipbook &&
-			Meshes.Num() > 1)
+			Meshes.Num() > 0)
 		{
 			// Give the user a chance to cancel doing something that will be destructive to the current mesh data
 			FSuppressableWarningDialog::FSetupInfo Info(
@@ -608,6 +621,18 @@ void UNiagaraMeshRendererProperties::OnMeshChanged()
 void UNiagaraMeshRendererProperties::OnMeshPostBuild(UStaticMesh*)
 {
 	OnMeshChanged();
+}
+
+void UNiagaraMeshRendererProperties::OnAssetReimported(UObject* Object)
+{
+	for (auto& MeshInfo : Meshes)
+	{
+		if (MeshInfo.Mesh == Object)
+		{
+			OnMeshChanged();
+			break;
+		}
+	}
 }
 
 void UNiagaraMeshRendererProperties::CheckMaterialUsage()

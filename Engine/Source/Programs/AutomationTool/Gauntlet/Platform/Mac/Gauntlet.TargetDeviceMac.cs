@@ -95,7 +95,7 @@ namespace Gauntlet
 		public bool PowerOff() { return true; }
 		public bool Reboot() { return true; }
 		public bool Connect() { return true; }
-		public bool Disconnect() { return true; }
+		public bool Disconnect(bool bForce = false) { return true; }
 
 		protected string UserDir { get; set; }
 

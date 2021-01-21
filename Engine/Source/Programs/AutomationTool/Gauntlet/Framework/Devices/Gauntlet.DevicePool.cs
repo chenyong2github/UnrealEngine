@@ -602,7 +602,7 @@ namespace Gauntlet
 				}
 				catch (Exception Ex)
 				{
-					Log.Info("Unable to make device registration: {0}", Ex.Message);
+					Log.Info("Unable to make device registration: {0}", Ex);
 					return false;
 				}
 
@@ -886,6 +886,18 @@ namespace Gauntlet
 				else
 				{
 					NewDevice = Factory.CreateDevice(Def.Address, Def.DeviceData);
+				}
+
+				if (NewDevice.IsAvailable == false)
+				{
+					Log.Info("Assigned device {0} reports unavailable. Requesting a forced disconnect", NewDevice);
+					NewDevice.Disconnect(true);
+
+					if  (NewDevice.IsAvailable == false)
+					{
+						Log.Info("Assigned device {0} still  unavailable. Requesting a reboot", NewDevice);
+						NewDevice.Reboot();
+					}
 				}
 					
 				lock (LockObject)

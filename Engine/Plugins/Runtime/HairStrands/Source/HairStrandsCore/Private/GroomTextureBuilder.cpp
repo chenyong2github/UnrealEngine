@@ -823,26 +823,31 @@ static void InternalBuildStrandsTextures_GPU(
 	FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(OutputResolution, PF_A8R8G8B8, FClearValueBinding::Black, TexCreate_RenderTargetable | TexCreate_UAV | TexCreate_ShaderResource);
 
 	Desc.Format = PF_G16;
+	Desc.ClearValue = FClearValueBinding::White;
 	FRDGTextureRef DepthTexture[2];
 	DepthTexture[0] = GraphBuilder.CreateTexture(Desc, TEXT("DepthTexture"));
 	DepthTexture[1] = GraphBuilder.CreateTexture(Desc, TEXT("DepthTexture"));
 
 	Desc.Format = PF_B8G8R8A8;
+	Desc.ClearValue = FClearValueBinding::Transparent;
 	FRDGTextureRef CoverageTexture[2];
 	CoverageTexture[0] = GraphBuilder.CreateTexture(Desc, TEXT("CoverageTexture"));
 	CoverageTexture[1] = GraphBuilder.CreateTexture(Desc, TEXT("CoverageTexture"));
 
 	Desc.Format = PF_B8G8R8A8;
+	Desc.ClearValue = FClearValueBinding::Transparent;
 	FRDGTextureRef TangentTexture[2];
 	TangentTexture[0] = GraphBuilder.CreateTexture(Desc, TEXT("TangentTexture"));
 	TangentTexture[1] = GraphBuilder.CreateTexture(Desc, TEXT("TangentTexture"));
 
 	Desc.Format = PF_B8G8R8A8;
+	Desc.ClearValue = FClearValueBinding::Transparent;
 	FRDGTextureRef AttributeTexture[2];
 	AttributeTexture[0] = GraphBuilder.CreateTexture(Desc, TEXT("AttributeTexture"));
 	AttributeTexture[1] = GraphBuilder.CreateTexture(Desc, TEXT("AttributeTexture"));
 
 	Desc.Format = PF_R32_UINT;
+	Desc.ClearValue = FClearValueBinding::Black;
 	FRDGTextureRef TriangleMaskTexture = GraphBuilder.CreateTexture(Desc, TEXT("TriangleMaskTexture"));
 	
 	Desc.ClearValue = FClearValueBinding(1);
@@ -960,8 +965,8 @@ static void InternalBuildStrandsTextures_GPU(
 
 				DepthTestTexture,
 				DepthTexture[0],
-				CoverageTexture[0],
 				TangentTexture[0],
+				CoverageTexture[0],
 				AttributeTexture[0],
 				TriangleMaskTexture);
 

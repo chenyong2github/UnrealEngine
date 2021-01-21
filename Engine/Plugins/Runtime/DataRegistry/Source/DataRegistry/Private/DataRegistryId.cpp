@@ -119,28 +119,6 @@ bool FDataRegistryId::SerializeFromMismatchedTag(struct FPropertyTag const& Tag,
 	return false;
 }
 
-FDataRegistryId FDataRegistryId::ParseTypeAndName(const TCHAR* TypeAndName, uint32 Len)
-{
-	for (uint32 Idx = 0; Idx < Len; ++Idx)
-	{
-		if (TypeAndName[Idx] == ':')
-		{
-			FName Type(Idx, TypeAndName);
-			FName Name(Len - Idx - 1, TypeAndName + Idx + 1);
-			return FDataRegistryId(Type, Name);
-		}
-	}
-
-	return FDataRegistryId();
-}
-
-FDataRegistryId FDataRegistryId::ParseTypeAndName(FName TypeAndName)
-{
-	TCHAR Str[FName::StringBufferSize];
-	uint32 Len = TypeAndName.ToString(Str);
-	return ParseTypeAndName(Str, Len);
-}
-
 FString FDataRegistryId::ToString() const
 {
 	if (IsValid())
@@ -151,11 +129,6 @@ FString FDataRegistryId::ToString() const
 	{
 		return FString();
 	}
-}
-
-FDataRegistryId FDataRegistryId::FromString(const FString& String)
-{
-	return FDataRegistryId(String);
 }
 
 FText FDataRegistryId::ToText() const

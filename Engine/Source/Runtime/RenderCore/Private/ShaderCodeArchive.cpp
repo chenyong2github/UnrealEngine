@@ -507,7 +507,7 @@ void FSerializedShaderArchive::CollectStatsAndDebugInfo(FDebugStats& OutDebugSta
 		}
 
 		ShadersInSM.Sort();
-		OutExtendedDebugStats->MedianNumberOfShadersPerSM = ShadersInSM[ShadersInSM.Num() / 2];
+		OutExtendedDebugStats->MedianNumberOfShadersPerSM = ShadersInSM.Num() ? ShadersInSM[ShadersInSM.Num() / 2] : 0;
 
 		ShaderToUsageMap.ValueSort(TGreater<int32>());
 		// add top 10 shaders
@@ -658,7 +658,7 @@ void FSerializedShaderArchive::DumpContentsInPlaintext(FString& OutText) const
 		Out << TEXT("\tShaderIndices\n\t{\n");
 		// split it by shadermaps
 		int32 IdxSMEntry = 0;
-		int32 NumShadersLeftInSM = ShaderMapEntries[0].NumShaders;
+		int32 NumShadersLeftInSM = ShaderMapEntries.Num() ? ShaderMapEntries[0].NumShaders : 0;
 		bool bNewSM = true;
 		for (int32 IdxEntry = 0, NumEntries = ShaderIndices.Num(); IdxEntry < NumEntries; ++IdxEntry)
 		{

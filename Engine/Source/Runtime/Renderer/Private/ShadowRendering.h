@@ -513,7 +513,8 @@ public:
 		const FSceneRenderer* SceneRender,
 		bool bProjectingForForwardShading,
 		bool bMobileModulatedProjections,
-		const FHairStrandsVisibilityData* HairVisibilityData) const;
+		const FHairStrandsVisibilityData* HairVisibilityData,
+		const struct FHairStrandsMacroGroupDatas* HairMacroGroupData) const;
 
 	/**
 	* Renders the shadow subject depth, to a particular hacked view
@@ -545,7 +546,8 @@ public:
 		int32 ViewIndex,
 		const FViewInfo& View,
 		bool bProjectingForForwardShading,
-		const FHairStrandsVisibilityData* HairVisibilityData) const;
+		const FHairStrandsVisibilityData* HairVisibilityData,
+		const struct FHairStrandsMacroGroupDatas* HairMacroGroupData) const;
 
 	/**
 	 * Renders the projected shadow's frustum wireframe with the given FPrimitiveDrawInterface.
@@ -769,6 +771,15 @@ private:
 		struct FAddSubjectPrimitiveStats& OutStats,
 		struct FAddSubjectPrimitiveOverflowedIndices& OverflowBuffer) const;
 
+
+	/*
+	 * Helper to calculate the LOD such that we do not repeat this in threaded & non threaded versions
+	 * NOTE: Reads and modifies the CurrentView.PrimitivesLODMask for the given primitive. 
+	 * Storing it is an optimization for the case where a primitive is not visible in the main view but in several shadow views (e.g., cascades).
+	 * This also creates a potential data race if we ever process multiple shadows infos for the same view and primitive in parallel (e.g., cascades).
+	 */
+	FORCEINLINE_DEBUGGABLE FLODMask CalcAndUpdateLODToRender(FViewInfo& CurrentView, const FBoxSphereBounds& Bounds, const FPrimitiveSceneInfo* PrimitiveSceneInfo, int32 ForcedLOD) const;
+
 	/** Will return if we should draw the static mesh for the shadow, and will perform lazy init of primitive if it wasn't visible */
 	bool ShouldDrawStaticMeshes(FViewInfo& InCurrentView, FPrimitiveSceneInfo* InPrimitiveSceneInfo);
 
@@ -797,7 +808,7 @@ private:
 		TArray<FMeshBatchAndRelevance,SceneRenderingAllocator>& OutDynamicMeshElements,
 		int32& OutNumDynamicSubjectMeshElements);
 
-	void SetupFrustumForProjection(const FViewInfo* View, TArray<FVector4, TInlineAllocator<8>>& OutFrustumVertices, bool& bOutCameraInsideShadowFrustum) const;
+	void SetupFrustumForProjection(const FViewInfo* View, TArray<FVector4, TInlineAllocator<8>>& OutFrustumVertices, bool& bOutCameraInsideShadowFrustum, FPlane* OutPlanes) const;
 
 	void SetupProjectionStencilMask(
 		FRHICommandListImmediate& RHICmdList,
@@ -1042,7 +1053,8 @@ public:
 
 			float DeviceZNear = 1;
 			float DeviceZFar = 0;
-			if (ShadowInfo->bDirectionalLight)
+			const bool bIsCascadedShadow = ShadowInfo->bDirectionalLight && !(ShadowInfo->bPerObjectOpaqueShadow || ShadowInfo->bPreShadow);
+			if (bIsCascadedShadow)
 			{
 				FVector4 Near = View.ViewMatrices.GetProjectionMatrix().TransformFVector4(FVector4(0, 0, ShadowInfo->CascadeSettings.SplitNear));
 				FVector4 Far = View.ViewMatrices.GetProjectionMatrix().TransformFVector4(FVector4(0, 0, ShadowInfo->CascadeSettings.SplitFar));

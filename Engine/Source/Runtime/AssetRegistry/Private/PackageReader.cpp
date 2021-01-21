@@ -89,7 +89,7 @@ bool FPackageReader::OpenPackageFile(EOpenPackageResult* OutErrorCode)
 	}
 
 	// Check serialized custom versions against latest custom versions.
-	TArray<FCustomVersionDifference> Diffs = FCurrentCustomVersions::Compare(PackageFileSummary.GetCustomVersionContainer().GetAllVersions());
+	TArray<FCustomVersionDifference> Diffs = FCurrentCustomVersions::Compare(PackageFileSummary.GetCustomVersionContainer().GetAllVersions(), *PackageFilename);
 	for (FCustomVersionDifference Diff : Diffs)
 	{
 		if (Diff.Type == ECustomVersionDifference::Missing)

@@ -1207,6 +1207,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Utilities|Transformation")
 	float GetHorizontalDistanceTo(const AActor* OtherActor) const;
 
+	/** Returns the squared distance from this Actor to OtherActor, ignoring Z. */
+	UFUNCTION(BlueprintCallable, Category = "Utilities|Transformation")
+	float GetSquaredHorizontalDistanceTo(const AActor* OtherActor) const;
+
 	/** Returns the distance from this Actor to OtherActor, ignoring XY. */
 	UFUNCTION(BlueprintCallable, Category = "Utilities|Transformation")
 	float GetVerticalDistanceTo(const AActor* OtherActor) const;

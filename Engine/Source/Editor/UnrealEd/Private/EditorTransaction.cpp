@@ -765,7 +765,8 @@ bool FTransaction::FObjectRecord::ContainsPieObject() const
 
 bool FTransaction::FObjectRecord::HasChanges() const
 {
-	return DeltaChange.HasChanged() || CustomChange;
+	// A record contains change if it has a detected delta or a custom change or an object annotation
+	return DeltaChange.HasChanged() || CustomChange || SerializedObject.ObjectAnnotation || SerializedObjectFlip.ObjectAnnotation;
 }
 
 bool FTransaction::FObjectRecord::HasExpired() const
@@ -1424,8 +1425,13 @@ FTransactionContext UTransBuffer::GetUndoContext( bool bCheckWhetherUndoPossible
 		return Context;
 	}
 
-	TSharedRef<FTransaction>& Transaction = UndoBuffer[ UndoBuffer.Num() - (UndoCount + 1) ];
-	return Transaction->GetContext();
+	if (UndoBuffer.Num() > UndoCount)
+	{
+		TSharedRef<FTransaction>& Transaction = UndoBuffer[UndoBuffer.Num() - (UndoCount + 1)];
+		return Transaction->GetContext();
+	}
+
+	return Context;
 }
 
 

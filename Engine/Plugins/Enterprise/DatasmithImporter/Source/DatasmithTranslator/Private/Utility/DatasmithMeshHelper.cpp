@@ -316,7 +316,7 @@ namespace DatasmithMeshHelper
 	void CreateDefaultUVs(FMeshDescription& MeshDescription)
 	{
 		FBox MeshBoundingBox = MeshDescription.ComputeBoundingBox();
-		FUVMapParameters UVParameters(MeshBoundingBox.GetCenter(), FQuat::Identity, MeshBoundingBox.GetExtent(), FVector::OneVector, FVector2D::UnitVector);
+		FUVMapParameters UVParameters(MeshBoundingBox.GetCenter(), FQuat::Identity, MeshBoundingBox.GetSize(), FVector::OneVector, FVector2D::UnitVector);
 		TMap<FVertexInstanceID, FVector2D> TexCoords;
 		FStaticMeshOperations::GenerateBoxUV(MeshDescription, UVParameters, TexCoords);
 

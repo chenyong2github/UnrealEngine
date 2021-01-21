@@ -759,9 +759,10 @@ private:
 	LAYOUT_FIELD(FShaderResourceParameter, MipTreeNegZParameter);
 };
 
+#if RHI_RAYTRACING
+
 IMPLEMENT_SHADER_TYPE(, FVisualizeSkyLightMipTreePS, TEXT("/Engine/Private/RayTracing/VisualizeSkyLightMipTreePS.usf"), TEXT("VisualizeSkyLightMipTreePS"), SF_Pixel)
 
-#if RHI_RAYTRACING
 void FDeferredShadingSceneRenderer::VisualizeSkyLightMipTree(
 	FRHICommandListImmediate& RHICmdList,
 	const FViewInfo& View,

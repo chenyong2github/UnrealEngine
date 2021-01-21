@@ -239,7 +239,7 @@ namespace ShaderDrawDebug
 
 	void BeginView(FRDGBuilder& GraphBuilder, FViewInfo& View)
 	{
-		if (!IsShaderDrawDebugEnabled(View))
+		if (!IsShaderDrawDebugEnabled(View) || !IsShaderDrawDebugEnabled())
 		{
 			return;
 		}

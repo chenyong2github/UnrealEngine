@@ -167,7 +167,7 @@ NiagaraEmitterInstanceBatcher::NiagaraEmitterInstanceBatcher(ERHIFeatureLevel::T
 		EGPUSortFlags::AnyKeyPrecision | EGPUSortFlags::KeyGenAfterPreRender | EGPUSortFlags::AnySortLocation | EGPUSortFlags::ValuesAsInt32,
 		Name);
 
-		if (FNiagaraUtilities::AllowGPUParticles(GetShaderPlatform()))
+		if (FNiagaraUtilities::AllowComputeShaders(GetShaderPlatform()))
 		{
 			// Because of culled indirect draw args, we have to update the draw indirect buffer after the sort key generation
 			GPUSortManager->PostPreRenderEvent.AddLambda(
@@ -218,13 +218,17 @@ void NiagaraEmitterInstanceBatcher::InstanceDeallocated_RenderThread(const FNiag
 	{
 		GpuComputeDebug->OnSystemDeallocated(InstanceID);
 	}
-
+#endif
+#if !UE_BUILD_SHIPPING
 	GpuDebugReadbackInfos.RemoveAll(
 		[&](const FDebugReadbackInfo& Info)
 		{
-			// In the unlikely event we have on in the queue make sure it's marked as complete with no data in it
-			Info.DebugInfo->Frame.CopyFromGPUReadback(nullptr, nullptr, nullptr, 0, 0, 0, 0, 0);
-			Info.DebugInfo->bWritten = true;
+			// In the unlikely event we have one in the queue make sure it's marked as complete with no data in it
+			if ( Info.InstanceID == InstanceID )
+			{
+				Info.DebugInfo->Frame.CopyFromGPUReadback(nullptr, nullptr, nullptr, 0, 0, 0, 0, 0);
+				Info.DebugInfo->bWritten = true;
+			}
 			return Info.InstanceID == InstanceID;
 		}
 	);
@@ -448,14 +452,16 @@ void NiagaraEmitterInstanceBatcher::ProcessPendingTicksFlush(FRHICommandListImme
 				.SetWorldTimes(0, 0, 0)
 				.SetGammaCorrection(1.0f));
 
+			const FIntRect DummViewRect(0, 0, 128, 128);
 			FSceneViewInitOptions ViewInitOptions;
 			ViewInitOptions.ViewFamily = &ViewFamily;
-			ViewInitOptions.SetViewRectangle(FIntRect(0, 0, 128, 128));
+			ViewInitOptions.SetViewRectangle(DummViewRect);
 			ViewInitOptions.ViewOrigin = FVector::ZeroVector;
 			ViewInitOptions.ViewRotationMatrix = FMatrix::Identity;
 			ViewInitOptions.ProjectionMatrix = FMatrix::Identity;
 
 			FViewInfo View(ViewInitOptions);
+			View.ViewRect = View.UnscaledViewRect;
 			View.CachedViewUniformShaderParameters = MakeUnique<FViewUniformShaderParameters>();
 
 			FBox UnusedVolumeBounds[TVC_MAX];
@@ -1393,13 +1399,6 @@ void NiagaraEmitterInstanceBatcher::PreInitViews(FRHICommandListImmediate& RHICm
 	}
 #endif
 
-
-	if (!FNiagaraUtilities::AllowGPUParticles(GetShaderPlatform()))
-	{
-		FinishDispatches();
-		return;
-	}
-
 #if STATS
 	// check if we can process profiling results from previous frames
 	if (GPUProfiler.IsProfilingEnabled())
@@ -1446,7 +1445,7 @@ void NiagaraEmitterInstanceBatcher::PreInitViews(FRHICommandListImmediate& RHICm
 	SimulationsToSort.Reset();
 
 	// Update draw indirect buffer to max possible size.
-	if (bAllowGPUParticleUpdate)
+	if (bAllowGPUParticleUpdate && FNiagaraUtilities::AllowGPUParticles(GetShaderPlatform()))
 	{
 		UpdateInstanceCountManager(RHICmdList);
 		BuildTickStagePasses(RHICmdList, ETickStage::PreInitViews);
@@ -1459,19 +1458,15 @@ void NiagaraEmitterInstanceBatcher::PreInitViews(FRHICommandListImmediate& RHICm
 	else
 	{
 		GPUInstanceCounterManager.ResizeBuffers(RHICmdList, FeatureLevel,  0);
+		FinishDispatches();
 	}
 }
 
 void NiagaraEmitterInstanceBatcher::PostInitViews(FRHICommandListImmediate& RHICmdList, FRHIUniformBuffer* ViewUniformBuffer, bool bAllowGPUParticleUpdate)
 {
-	if (!FNiagaraUtilities::AllowGPUParticles(GetShaderPlatform()))
-	{
-		return;
-	}
-
 	LLM_SCOPE(ELLMTag::Niagara);
 
-	if (bAllowGPUParticleUpdate)
+	if (bAllowGPUParticleUpdate && FNiagaraUtilities::AllowGPUParticles(GetShaderPlatform()))
 	{
 		BuildTickStagePasses(RHICmdList, ETickStage::PostInitViews);
 		ExecuteAll(RHICmdList, ViewUniformBuffer, ETickStage::PostInitViews);
@@ -1480,14 +1475,9 @@ void NiagaraEmitterInstanceBatcher::PostInitViews(FRHICommandListImmediate& RHIC
 
 void NiagaraEmitterInstanceBatcher::PostRenderOpaque(FRHICommandListImmediate& RHICmdList, FRHIUniformBuffer* ViewUniformBuffer, const class FShaderParametersMetadata* SceneTexturesUniformBufferStruct, FRHIUniformBuffer* SceneTexturesUniformBuffer, bool bAllowGPUParticleUpdate)
 {
-	if (!FNiagaraUtilities::AllowGPUParticles(GetShaderPlatform()))
-	{
-		return;
-	}
-
 	LLM_SCOPE(ELLMTag::Niagara);
 
-	if (bAllowGPUParticleUpdate)
+	if (bAllowGPUParticleUpdate && FNiagaraUtilities::AllowGPUParticles(GetShaderPlatform()))
 	{
 		BuildTickStagePasses(RHICmdList, ETickStage::PostOpaqueRender);
 
@@ -1510,7 +1500,7 @@ void NiagaraEmitterInstanceBatcher::PostRenderOpaque(FRHICommandListImmediate& R
 
 void NiagaraEmitterInstanceBatcher::ProcessDebugReadbacks(FRHICommandListImmediate& RHICmdList, bool bWaitCompletion)
 {
-#if WITH_EDITOR
+#if !UE_BUILD_SHIPPING
 	// Execute any pending readbacks as the ticks have now all been processed
 	for (const FDebugReadbackInfo& DebugReadback : GpuDebugReadbackInfos)
 	{
@@ -1929,21 +1919,23 @@ void NiagaraEmitterInstanceBatcher::Run(const FNiagaraGPUSystemTick& Tick, const
 		FIntVector4 SimulationStageIterationInfo = { INDEX_NONE, -1, 0, 0 };
 		float SimulationStageNormalizedIterationIndex = 0.0f;
 
-		if (IterationInterface)
+		if (IterationInterface != nullptr)
 		{
 			const uint32 IterationInstanceCountOffset = IterationInterface->GetGPUInstanceCountOffset(Tick.SystemInstanceID);
 			SimulationStageIterationInfo.X = IterationInstanceCountOffset;
 			SimulationStageIterationInfo.Y = IterationInstanceCountOffset == INDEX_NONE ? TotalNumInstances : 0;
-			if (const FSimulationStageMetaData* StageMetaData = Instance->SimStageData[SimulationStageIndex].StageMetaData)
-			{
-				const int32 NumStages = StageMetaData->MaxStage - StageMetaData->MinStage;
-				ensure((int32(SimulationStageIndex) >= StageMetaData->MinStage) && (int32(SimulationStageIndex) < StageMetaData->MaxStage));
-				const int32 IterationIndex = SimulationStageIndex - StageMetaData->MinStage;
-				SimulationStageIterationInfo.Z = SimulationStageIndex - StageMetaData->MinStage;
-				SimulationStageIterationInfo.W = NumStages;
-				SimulationStageNormalizedIterationIndex = NumStages > 1 ? float(IterationIndex) / float(NumStages - 1) : 1.0f;
-			}
 		}
+
+		if (const FSimulationStageMetaData* StageMetaData = Instance->SimStageData[SimulationStageIndex].StageMetaData)
+		{
+			const int32 NumStages = StageMetaData->MaxStage - StageMetaData->MinStage;
+			ensure((int32(SimulationStageIndex) >= StageMetaData->MinStage) && (int32(SimulationStageIndex) < StageMetaData->MaxStage));
+			const int32 IterationIndex = SimulationStageIndex - StageMetaData->MinStage;
+			SimulationStageIterationInfo.Z = SimulationStageIndex - StageMetaData->MinStage;
+			SimulationStageIterationInfo.W = NumStages;
+			SimulationStageNormalizedIterationIndex = NumStages > 1 ? float(IterationIndex) / float(NumStages - 1) : 1.0f;
+		}
+
 		SetShaderValue(RHICmdList, ComputeShader, Shader->SimulationStageIterationInfoParam, SimulationStageIterationInfo);
 		SetShaderValue(RHICmdList, ComputeShader, Shader->SimulationStageNormalizedIterationIndexParam, SimulationStageNormalizedIterationIndex);
 	}
@@ -1993,7 +1985,7 @@ FGPUSortManager* NiagaraEmitterInstanceBatcher::GetGPUSortManager() const
 	return GPUSortManager;
 }
 
-#if WITH_EDITORONLY_DATA
+#if !UE_BUILD_SHIPPING
 void NiagaraEmitterInstanceBatcher::AddDebugReadback(FNiagaraSystemInstanceID InstanceID, TSharedPtr<struct FNiagaraScriptDebuggerInfo, ESPMode::ThreadSafe> DebugInfo, FNiagaraComputeExecutionContext* Context)
 {
 	FDebugReadbackInfo& ReadbackInfo = GpuDebugReadbackInfos.AddDefaulted_GetRef();
@@ -2002,7 +1994,6 @@ void NiagaraEmitterInstanceBatcher::AddDebugReadback(FNiagaraSystemInstanceID In
 	ReadbackInfo.Context = Context;
 }
 #endif
-
 
 NiagaraEmitterInstanceBatcher::DummyUAV::~DummyUAV()
 {

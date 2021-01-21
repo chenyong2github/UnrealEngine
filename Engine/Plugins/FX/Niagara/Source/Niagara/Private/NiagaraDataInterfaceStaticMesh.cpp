@@ -288,7 +288,7 @@ bool FNDIStaticMesh_InstanceData::Init(UNiagaraDataInterfaceStaticMesh* Interfac
 
 	Transform = ComponentTransform.ToMatrixWithScale();
 	PrevTransform = Transform;
-	TransformInverseTransposed = Transform.Inverse().GetTransposed();
+	TransformInverseTransposed = ComponentTransform.Inverse().ToMatrixWithScale().GetTransposed();
 
 	Rotation = ComponentTransform.GetRotation();
 	PrevRotation = Rotation;
@@ -474,7 +474,7 @@ bool FNDIStaticMesh_InstanceData::Tick(UNiagaraDataInterfaceStaticMesh* Interfac
 
 		PrevTransform = Transform;
 		Transform = ComponentTransform.ToMatrixWithScale();
-		TransformInverseTransposed = Transform.Inverse().GetTransposed();
+		TransformInverseTransposed = ComponentTransform.Inverse().ToMatrixWithScale().GetTransposed();
 
 		PrevRotation = Rotation;
 		Rotation = ComponentTransform.GetRotation();
@@ -1575,22 +1575,25 @@ void UNiagaraDataInterfaceStaticMesh::GetFeedback(UNiagaraSystem* Asset, UNiagar
 
 	bool bHasNoMeshAssignedWarning = (Source == nullptr && DefaultMesh == nullptr);
 #if WITH_EDITORONLY_DATA
-	if (bHasNoMeshAssignedWarning && PreviewMesh != nullptr)
+	if (bHasNoMeshAssignedWarning)
 	{
-		bHasNoMeshAssignedWarning = false;
-
-		if (!PreviewMesh->bAllowCPUAccess)
+		if (UStaticMesh* LocalPreviewMesh = PreviewMesh.LoadSynchronous())
 		{
-			FNiagaraDataInterfaceError CPUAccessNotAllowedError(FText::Format(LOCTEXT("CPUAccessNotAllowedError", "This mesh needs CPU access in order to be used properly.({0})"), FText::FromString(PreviewMesh->GetName())),
-				LOCTEXT("CPUAccessNotAllowedErrorSummary", "CPU access error"),
-				FNiagaraDataInterfaceFix::CreateLambda([=]()
-			{
-				PreviewMesh->Modify();
-				PreviewMesh->bAllowCPUAccess = true;
-				return true;
-			}));
+			bHasNoMeshAssignedWarning = false;
 
-			OutErrors.Add(CPUAccessNotAllowedError);
+			if (!LocalPreviewMesh->bAllowCPUAccess)
+			{
+				FNiagaraDataInterfaceError CPUAccessNotAllowedError(FText::Format(LOCTEXT("CPUAccessNotAllowedError", "This mesh needs CPU access in order to be used properly.({0})"), FText::FromString(LocalPreviewMesh->GetName())),
+					LOCTEXT("CPUAccessNotAllowedErrorSummary", "CPU access error"),
+					FNiagaraDataInterfaceFix::CreateLambda([=]()
+					{
+						LocalPreviewMesh->Modify();
+						LocalPreviewMesh->bAllowCPUAccess = true;
+						return true;
+					}));
+
+				OutErrors.Add(CPUAccessNotAllowedError);
+			}
 		}
 	}
 #endif
@@ -1707,7 +1710,7 @@ UStaticMesh* UNiagaraDataInterfaceStaticMesh::GetStaticMesh(TWeakObjectPtr<UScen
 	if (!Mesh && !FoundMeshComponent && (!SystemInstance || !SystemInstance->GetWorld()->IsGameWorld()))
 	{
 		// NOTE: We don't fall back on the preview mesh if we have a valid static mesh component referenced
-		Mesh = PreviewMesh;		
+		Mesh = PreviewMesh.LoadSynchronous();		
 	}
 #endif
 
@@ -2445,7 +2448,7 @@ void UNiagaraDataInterfaceStaticMesh::GetSocketTransform(FVectorVMContext& Conte
 	FNDIOutputParam<FQuat> OutRotate(Context);
 	FNDIOutputParam<FVector> OutScale(Context);
 
-	const FQuat InstRotation = bWorldSpace ? InstData->Transform.GetMatrixWithoutScale().ToQuat() : FQuat::Identity;
+	const FQuat InstRotation = bWorldSpace ? InstData->Rotation : FQuat::Identity;
 
 	const int32 SocketMax = InstData->CachedSockets.Num() - 1;
 	if (SocketMax >= 0)
@@ -2483,7 +2486,7 @@ void UNiagaraDataInterfaceStaticMesh::GetFilteredSocketTransform(FVectorVMContex
 	FNDIOutputParam<FQuat> OutRotate(Context);
 	FNDIOutputParam<FVector> OutScale(Context);
 
-	const FQuat InstRotation = bWorldSpace ? InstData->Transform.GetMatrixWithoutScale().ToQuat() : FQuat::Identity;
+	const FQuat InstRotation = bWorldSpace ? InstData->Rotation : FQuat::Identity;
 
 	const int32 SocketMax = InstData->NumFilteredSockets - 1;
 	if (SocketMax >= 0)
@@ -2521,7 +2524,7 @@ void UNiagaraDataInterfaceStaticMesh::GetUnfilteredSocketTransform(FVectorVMCont
 	FNDIOutputParam<FQuat> OutRotate(Context);
 	FNDIOutputParam<FVector> OutScale(Context);
 
-	const FQuat InstRotation = bWorldSpace ? InstData->Transform.GetMatrixWithoutScale().ToQuat() : FQuat::Identity;
+	const FQuat InstRotation = bWorldSpace ? InstData->Rotation : FQuat::Identity;
 
 	if (InstData->NumFilteredSockets > 0)
 	{
@@ -3353,6 +3356,8 @@ void UNiagaraDataInterfaceStaticMesh::ProvidePerInstanceDataForRenderThread(void
 	DataToPass->DeltaSeconds = InstanceData->DeltaSeconds;
 	DataToPass->Transform = InstanceData->Transform;
 	DataToPass->PrevTransform = InstanceData->PrevTransform;
+	DataToPass->Rotation = InstanceData->Rotation;
+	DataToPass->PrevRotation = InstanceData->PrevRotation;
 }
 
 //////////////////////////////////////////////////////////////////////////

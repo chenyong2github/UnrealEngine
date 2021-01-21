@@ -43,7 +43,7 @@ struct FDelegateRuntimeBinding
 
 	/** The kind of binding we're performing, are we binding to a property or a function. */
 	UPROPERTY()
-	EBindingKind Kind;
+	EBindingKind Kind = EBindingKind::Property;
 };
 
 

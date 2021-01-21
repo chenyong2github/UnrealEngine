@@ -2519,10 +2519,10 @@ void UNiagaraComponent::PostLoad()
 
 				for (const FNiagaraVariableBase& Var : ToAddNonUser)
 				{
-					const FNiagaraVariant* FoundVar = TemplateParameterOverrides.Find(Var);
+					const FNiagaraVariant FoundVar = TemplateParameterOverrides.FindRef(Var);
 					FNiagaraVariableBase UserVar = Var;
 					FNiagaraUserRedirectionParameterStore::MakeUserVariable(UserVar);
-					TemplateParameterOverrides.Add(UserVar) = *FoundVar;
+					TemplateParameterOverrides.Emplace(UserVar, FoundVar);
 				}
 
 				for (const FNiagaraVariableBase& Var : ToRemoveNonUser)
@@ -2825,7 +2825,7 @@ void UNiagaraComponent::FixDataInterfaceOuters()
 			{
 				if (VariableValuePair.Value.GetDataInterface()->GetOuter() != this)
 				{
-					UNiagaraDataInterface* FixedDataInterface = NewObject<UNiagaraDataInterface>(this, VariableValuePair.Value.GetDataInterface()->GetClass());
+					UNiagaraDataInterface* FixedDataInterface = NewObject<UNiagaraDataInterface>(this, VariableValuePair.Value.GetDataInterface()->GetClass(), NAME_None, RF_Transactional | RF_Public);
 					VariableValuePair.Value.GetDataInterface()->CopyTo(FixedDataInterface);
 					VariableValuePair.Value.SetDataInterface(FixedDataInterface);
 					OutFixedDataInterfaces.Add(VariableValuePair.Key, FixedDataInterface);
@@ -2855,7 +2855,7 @@ void UNiagaraComponent::FixDataInterfaceOuters()
 		UNiagaraDataInterface* OverrideParameterDataInterface = OverrideParameters.GetDataInterface(i);
 		if (OverrideParameterDataInterface != nullptr && OverrideParameterDataInterface->GetOuter() != this)
 		{
-			UNiagaraDataInterface* FixedDataInterface = NewObject<UNiagaraDataInterface>(this, OverrideParameterDataInterface->GetClass());
+			UNiagaraDataInterface* FixedDataInterface = NewObject<UNiagaraDataInterface>(this, OverrideParameterDataInterface->GetClass(), NAME_None, RF_Transactional | RF_Public);
 			OverrideParameterDataInterface->CopyTo(FixedDataInterface);
 			OverrideParameters.SetDataInterface(FixedDataInterface, i);
 		}
@@ -2932,7 +2932,7 @@ void FixInvalidDataInterfaceOverrides(TMap<FNiagaraVariableBase, FNiagaraVariant
 			if (Value.GetDataInterface() == nullptr)
 			{
 				UE_LOG(LogNiagara, Warning, TEXT("Replaced invalid user parameter data interface with it's default.  Component: %s Override Source: %s Parameter Name: %s."), *OwningComponent->GetPathName(), *OverrideSource, *Variable.GetName().ToString());
-				Value.SetDataInterface(NewObject<UNiagaraDataInterface>(OwningComponent, Variable.GetType().GetClass()));
+				Value.SetDataInterface(NewObject<UNiagaraDataInterface>(OwningComponent, Variable.GetType().GetClass(), NAME_None, RF_Transactional | RF_Public));
 			}
 		}
 	}
@@ -3046,8 +3046,10 @@ void UNiagaraComponent::SetOverrideParameterStoreValue(const FNiagaraVariableBas
 {
 	if (InKey.IsDataInterface())
 	{
-		UNiagaraDataInterface* DuplicatedDI = DuplicateObject(InValue.GetDataInterface(), this);
+		UNiagaraDataInterface* OriginalDI = InValue.GetDataInterface();
+		UNiagaraDataInterface* DuplicatedDI = DuplicateObject(OriginalDI, this);
 		OverrideParameters.SetDataInterface(DuplicatedDI, InKey);
+		DuplicatedDI->SetUsedByGPUEmitter(OriginalDI->IsUsedWithGPUEmitter(nullptr));
 	}
 	else if (InKey.IsUObject())
 	{
@@ -3259,6 +3261,11 @@ void UNiagaraComponent::SetAsset(UNiagaraSystem* InAsset)
 
 	UnregisterWithScalabilityManager();
 
+	const bool bWasActive = SystemInstance && SystemInstance->GetRequestedExecutionState() == ENiagaraExecutionState::Active;
+
+	DestroyInstance();
+
+	// Set new asset, update parameters and reactivate it it was already active
 	Asset = InAsset;
 
 #if WITH_EDITOR
@@ -3269,14 +3276,12 @@ void UNiagaraComponent::SetAsset(UNiagaraSystem* InAsset)
 			FNiagaraParameterStore::FOnChanged::FDelegate::CreateUObject(this, &UNiagaraComponent::AssetExposedParametersChanged));
 	}
 #else
-	CopyParametersFromAsset();
-	OverrideParameters.Rebind();
+	if (Asset != nullptr)
+	{
+		CopyParametersFromAsset();
+		OverrideParameters.Rebind();
+	}
 #endif
-
-	bool bWasActive = SystemInstance && SystemInstance->GetRequestedExecutionState() == ENiagaraExecutionState::Active;
-
-	//Force a reinit.
-	DestroyInstance();
 
 	if (Asset && IsRegistered())
 	{

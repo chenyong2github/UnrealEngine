@@ -132,13 +132,17 @@ bool FDisplayClusterRenderSyncPolicyNvidiaBase::SynchronizeClusterRendering(int3
 	{
 		UE_LOG(LogDisplayClusterRenderSync, VeryVerbose, TEXT("NVAPI: presenting the frame with sync..."));
 
-		// Present frame via NVIDIA API
-		const NvAPI_Status NvApiResult = NvAPI_D3D1x_Present(D3DDevice, DXGISwapChain, (UINT)InOutSyncInterval, (UINT)0);
-		if (NvApiResult != NVAPI_OK)
 		{
-			UE_LOG(LogDisplayClusterRenderSync, Warning, TEXT("NVAPI: An error occurred during frame presentation, error code 0x%x"), NvApiResult);
-			// Present frame on a higher level
-			return true;
+			TRACE_CPUPROFILER_EVENT_SCOPE(nDisplay NvAPI_D3D1x_Present);
+
+			// Present frame via NVIDIA API
+			const NvAPI_Status NvApiResult = NvAPI_D3D1x_Present(D3DDevice, DXGISwapChain, (UINT)InOutSyncInterval, (UINT)0);
+			if (NvApiResult != NVAPI_OK)
+			{
+				UE_LOG(LogDisplayClusterRenderSync, Warning, TEXT("NVAPI: An error occurred during frame presentation, error code 0x%x"), NvApiResult);
+				// Present frame on a higher level
+				return true;
+			}
 		}
 
 		UE_LOG(LogDisplayClusterRenderSync, VeryVerbose, TEXT("NVAPI: the frame has been presented successfully"));

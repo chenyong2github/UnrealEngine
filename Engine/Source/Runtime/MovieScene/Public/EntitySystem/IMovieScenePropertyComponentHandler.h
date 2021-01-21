@@ -211,6 +211,28 @@ struct IPropertyComponentHandler
 	virtual void RecomposeBlendChannel(const FPropertyDefinition& Definition, const FPropertyCompositeDefinition& Composite, const FFloatDecompositionParams& Params, UMovieSceneBlenderSystem* Blender, float InCurrentValue, TArrayView<float> OutResults) = 0;
 
 	/**
+	 * Rebuild operational values from the given entities. These entities are expected to store the value type's composite values.
+	 *
+	 * @param Definition		The property definition this handler was registered for
+	 * @param Composites		The composite channels that this property type comproses
+	 * @param EntityIDs			The entities on which the composite values will be found
+	 * @param Linker			The linker that owns the entity manager where the entities live
+	 * @param OutResult			The result to receieve rebuilt values, one for every entitiy in EntityIDs. Must be of type OperationalType.
+	 */
+	virtual void RebuildOperational(const FPropertyDefinition& Definition, TArrayView<const FPropertyCompositeDefinition> Composites, const TArrayView<FMovieSceneEntityID>& EntityIDs, UMovieSceneEntitySystemLinker* Linker, FPropertyComponentArrayView OutResult) = 0;
+
+	/**
+	 * Rebuild final values from the given entities. These entities are expected to store the value type's composite values.
+	 *
+	 * @param Definition		The property definition this handler was registered for
+	 * @param Composites		The composite channels that this property type comproses
+	 * @param EntityIDs			The entities on which the composite values will be found
+	 * @param Linker			The linker that owns the entity manager where the entities live
+	 * @param OutResult			The result to receieve rebuilt values, one for every entitiy in EntityIDs. Must be of type PropertyType.
+	 */
+	virtual void RebuildFinal(const FPropertyDefinition& Definition, TArrayView<const FPropertyCompositeDefinition> Composites, const TArrayView<FMovieSceneEntityID>& EntityIDs, UMovieSceneEntitySystemLinker* Linker, FPropertyComponentArrayView OutResult) = 0;
+
+	/**
 	 * Dispatch tasks that apply any entity that matches this property type to their final values
 	 *
 	 * @param Definition       The property definition this handler was registered for

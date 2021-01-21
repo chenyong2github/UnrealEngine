@@ -77,7 +77,7 @@ public:
 
 	virtual bool Raycast(const TVector<T, d>& StartPoint, const TVector<T, d>& Dir, const T Length, const T Thickness, T& OutTime, TVector<T, d>& OutPosition, TVector<T, d>& OutNormal, int32& OutFaceIndex) const override
 	{
-		return MObject->Raycast(StartPoint, Dir, Length, GetMargin() + Thickness, OutTime, OutPosition, OutNormal, OutFaceIndex);
+		return MObject->Raycast(StartPoint, Dir, Length, Thickness, OutTime, OutPosition, OutNormal, OutFaceIndex);
 	}
 
 	virtual void Serialize(FChaosArchive& Ar) override
@@ -99,31 +99,30 @@ public:
 
 	virtual bool Overlap(const TVector<T, d>& Point, const T Thickness) const override
 	{
-		return MObject->Overlap(Point, OuterMargin + Thickness);
+		return MObject->Overlap(Point, Thickness);
 	}
 
-	// The support position from the specified direction, including margins
+	// The support position from the specified direction
 	FORCEINLINE TVector<T, d> Support(const TVector<T, d>& Direction, const T Thickness) const
 	{
-		return MObject->Support(Direction, OuterMargin + Thickness); 
+		return MObject->Support(Direction, Thickness); 
 	}
 
-	// The support position from the specified direction, excluding margins
-	FORCEINLINE TVector<T, d> SupportCore(const TVector<T, d>& Direction) const
+	// The support position from the specified direction, if the shape is reduced by the margin
+	FORCEINLINE TVector<T, d> SupportCore(const TVector<T, d>& Direction, float InMargin) const
 	{
-		return MObject->SupportCore(Direction);
+		return MObject->SupportCore(Direction, InMargin + GetMargin());
+	}
+
+	// Returns a winding order multiplier used in the manifold clipping and required when we have negative scales
+	FORCEINLINE float GetWindingOrder() const
+	{
+		return 1.0f;
 	}
 
 	virtual const TAABB<T, d> BoundingBox() const override 
 	{ 
-		if (OuterMargin == 0)
-		{
-			return MObject->BoundingBox();
-		}
-		else
-		{
-			return TAABB<T, d>(MObject->BoundingBox()).Thicken(OuterMargin);
-		}
+		return MObject->BoundingBox();
 	}
 
 	const ObjectType Object() const { return MObject; }
@@ -155,19 +154,71 @@ public:
 	template <typename QueryGeomType>
 	bool LowLevelSweepGeom(const QueryGeomType& B,const TRigidTransform<T,d>& BToATM,const TVector<T,d>& LocalDir,const T Length,T& OutTime,TVector<T,d>& LocalPosition,TVector<T,d>& LocalNormal,int32& OutFaceIndex,T Thickness = 0,bool bComputeMTD = false) const
 	{
-		return MObject->SweepGeom(B,BToATM,LocalDir,Length,OutTime,LocalPosition,LocalNormal,OutFaceIndex,OuterMargin+Thickness,bComputeMTD);
+		return MObject->SweepGeom(B,BToATM,LocalDir,Length,OutTime,LocalPosition,LocalNormal,OutFaceIndex,Thickness,bComputeMTD);
 	}
 
 	/** This is a low level function and assumes the internal object has a OverlapGeom function. Should not be called directly. See GeometryQueries.h : OverlapQuery */
 	template <typename QueryGeomType>
 	bool LowLevelOverlapGeom(const QueryGeomType& B,const TRigidTransform<T,d>& BToATM,T Thickness = 0, FMTDInfo* OutMTD = nullptr) const
 	{
-		return MObject->OverlapGeom(B,BToATM,OuterMargin+Thickness, OutMTD);
+		return MObject->OverlapGeom(B,BToATM,Thickness, OutMTD);
 	}
 
 	virtual uint16 GetMaterialIndex(uint32 HintIndex) const
 	{
 		return MObject->GetMaterialIndex(HintIndex);
+	}
+
+	// Get the index of the plane that most opposes the normal
+	int32 GetMostOpposingPlane(const FVec3& Normal) const
+	{
+		return MObject->GetMostOpposingPlane(Normal);
+	}
+
+	// Get the index of the plane that most opposes the normal, assuming it passes through the specified vertex
+	int32 GetMostOpposingPlaneWithVertex(int32 VertexIndex, const FVec3& Normal) const
+	{
+		return MObject->GetMostOpposingPlane(VertexIndex, Normal);
+	}
+
+	// Get the nearest point on an edge of the specified face
+	FVec3 GetClosestEdgePosition(int32 PlaneIndex, const FVec3& Position) const
+	{
+		return MObject->GetClosestEdgePosition(PlaneIndex, Position);
+	}
+
+	// Get the set of planes that pass through the specified vertex
+	TArrayView<const int32> GetVertexPlanes(int32 VertexIndex) const
+	{
+		return MObject->GetVertexPlanes(VertexIndex);
+	}
+
+	// Get the list of vertices that form the boundary of the specified face
+	TArrayView<const int32> GetPlaneVertices(int32 FaceIndex) const
+	{
+		return MObject->GetPlaneVertices(FaceIndex);
+	}
+
+	int32 NumPlanes() const
+	{
+		return MObject->NumPlanes();
+	}
+
+	int32 NumVertices() const
+	{
+		return MObject->NumVertices();
+	}
+
+	// Get the plane at the specified index (e.g., indices from GetVertexPlanes)
+	const TPlaneConcrete<FReal, 3> GetPlane(int32 FaceIndex) const
+	{
+		return MObject->GetPlane(FaceIndex);
+	}
+
+	// Get the vertex at the specified index (e.g., indices from GetPlaneVertices)
+	const FVec3 GetVertex(int32 VertexIndex) const
+	{
+		return MObject->GetVertex(VertexIndex);
 	}
 
 protected:
@@ -334,7 +385,7 @@ public:
 	{
 		const TVector<T, d> UnscaledX = MInvScale * X;
 		TVector<T, d> UnscaledNormal;
-		const T UnscaledPhi = MObject->PhiWithNormal(UnscaledX, UnscaledNormal) - OuterMargin;
+		const T UnscaledPhi = MObject->PhiWithNormal(UnscaledX, UnscaledNormal);
 		Normal = MScale * UnscaledNormal;
 		const T ScaleFactor = Normal.SafeNormalize();
 		const T ScaledPhi = UnscaledPhi * ScaleFactor;
@@ -360,7 +411,7 @@ public:
 			TVector<T, d> UnscaledNormal;
 			float UnscaledTime;
 
-			if (MObject->Raycast(UnscaledStart, UnscaledDir, UnscaledLength, OuterMargin + Thickness * MInvScale[0], UnscaledTime, UnscaledPosition, UnscaledNormal, OutFaceIndex))
+			if (MObject->Raycast(UnscaledStart, UnscaledDir, UnscaledLength, Thickness * MInvScale[0], UnscaledTime, UnscaledPosition, UnscaledNormal, OutFaceIndex))
 			{
 				//We double check that NewTime < Length because of potential precision issues. When that happens we always keep the shortest hit first
 				const T NewTime = LengthScaleInv * UnscaledTime;
@@ -401,7 +452,7 @@ public:
 
 			TRigidTransform<T, d> BToATMNoScale(BToATM.GetLocation() * MInvScale, BToATM.GetRotation());
 			
-			if (MObject->SweepGeom(ScaledB, BToATMNoScale, UnscaledDir, UnscaledLength, UnscaledTime, UnscaledPosition, UnscaledNormal, OutFaceIndex, OuterMargin + Thickness, bComputeMTD, MScale))
+			if (MObject->SweepGeom(ScaledB, BToATMNoScale, UnscaledDir, UnscaledLength, UnscaledTime, UnscaledPosition, UnscaledNormal, OutFaceIndex, Thickness, bComputeMTD, MScale))
 			{
 				const T NewTime = LengthScaleInv * UnscaledTime;
 				//We double check that NewTime < Length because of potential precision issues. When that happens we always keep the shortest hit first
@@ -424,7 +475,7 @@ public:
 		TRigidTransform<T, d> AToBTMNoScale(AToBTM.GetLocation() * MInvScale, AToBTM.GetRotation());
 
 		auto ScaledA = MakeScaledHelper(A, MInvScale);
-		return MObject->GJKContactPoint(ScaledA, AToBTMNoScale, OuterMargin + Thickness, Location, Normal, Penetration, MScale);
+		return MObject->GJKContactPoint(ScaledA, AToBTMNoScale, Thickness, Location, Normal, Penetration, MScale);
 	}
 
 	/** This is a low level function and assumes the internal object has a OverlapGeom function. Should not be called directly. See GeometryQueries.h : OverlapQuery */
@@ -435,7 +486,7 @@ public:
 
 		auto ScaledB = MakeScaledHelper(B, MInvScale);
 		TRigidTransform<T, d> BToATMNoScale(BToATM.GetLocation() * MInvScale, BToATM.GetRotation());
-		return MObject->OverlapGeom(ScaledB, BToATMNoScale, OuterMargin + Thickness, OutMTD, MScale);
+		return MObject->OverlapGeom(ScaledB, BToATMNoScale, Thickness, OutMTD, MScale);
 	}
 
 	// Get the index of the plane that most opposes the normal
@@ -448,6 +499,12 @@ public:
 	int32 GetMostOpposingPlaneWithVertex(int32 VertexIndex, const FVec3& Normal) const
 	{
 		return MObject->GetMostOpposingPlane(VertexIndex, GetInverseScaledNormal(Normal));
+	}
+
+	// Get the nearest point on an edge of the specified face
+	FVec3 GetClosestEdgePosition(int32 PlaneIndex, const FVec3& Position) const
+	{
+		return MObject->GetClosestEdgePosition(PlaneIndex, MInvScale * Position) * MScale;
 	}
 
 	// Get the set of planes that pass through the specified vertex
@@ -535,7 +592,7 @@ public:
 		// TODO: consider alternative that handles thickness scaling properly in 3D, only works for uniform scaling right now
 		const T UnscaleThickness = MInvScale[0] * Thickness; 
 
-		return MObject->Overlap(UnscaledPoint, OuterMargin + UnscaleThickness);
+		return MObject->Overlap(UnscaledPoint, UnscaleThickness);
 	}
 
 	virtual Pair<TVector<T, d>, bool> FindClosestIntersectionImp(const TVector<T, d>& StartPoint, const TVector<T, d>& EndPoint, const T Thickness) const override
@@ -575,13 +632,20 @@ public:
 		// But this is the same as pt \dot dir >= dir^T Ax = (dir^TA) x = (A^T dir)^T x
 		//So let dir' = A^T dir.
 		//Since we only support scaling on the principal axes A is a diagonal (and therefore symmetric) matrix and so a simple component wise multiplication is sufficient
-		const TVector<T, d> UnthickenedPt = MObject->Support(Direction * MScale, OuterMargin) * MScale;
+		const TVector<T, d> UnthickenedPt = MObject->Support(Direction * MScale, 0.0f) * MScale;
 		return Thickness > 0 ? TVector<T, d>(UnthickenedPt + Direction.GetSafeNormal() * Thickness) : UnthickenedPt;
 	}
 
-	FORCEINLINE_DEBUGGABLE TVector<T, d> SupportCore(const TVector<T, d>& Direction) const
+	FORCEINLINE_DEBUGGABLE TVector<T, d> SupportCore(const TVector<T, d>& Direction, float InMargin) const
 	{
-		return MObject->SupportCore(Direction * MScale) * MScale;
+		return MObject->SupportCoreScaled(Direction, InMargin + OuterMargin, MScale);
+	}
+
+	// Returns a winding order multiplier used in the manifold clipping and required when we have negative scales
+	FORCEINLINE float GetWindingOrder() const
+	{
+		const FVec3 SignVector = MScale.GetSignVector();
+		return SignVector.X * SignVector.Y * SignVector.Z;
 	}
 
 	const TVector<T, d>& GetScale() const { return MScale; }
@@ -602,7 +666,7 @@ public:
 
 			MInvScale[Axis] = 1 / MScale[Axis];
 		}
-		SetMargin(OuterMargin + Scale[0] * MObject->GetMargin());
+		SetMargin(OuterMargin + MScale[0] * MObject->GetMargin());
 		UpdateBounds();
 	}
 
@@ -720,7 +784,6 @@ private:
 		MLocalBoundingBox = TAABB<T, d>(Vector1, Vector1);	//need to grow it out one vector at a time in case scale is negative
 		const TVector<T, d> Vector2 = UnscaledBounds.Max() *MScale;
 		MLocalBoundingBox.GrowToInclude(Vector2);
-		MLocalBoundingBox.Thicken(OuterMargin);
 	}
 
 	template <typename QueryGeomType>

@@ -598,50 +598,19 @@ void FPhysScene_Chaos::RemoveObject(FGeometryCollectionPhysicsProxy* InObject)
 	{
 		Chaos::TGeometryParticle<Chaos::FReal, 3>* GTParticle = GTParticleUnique.Get();
 		RemoveActorFromAccelerationStructure(GTParticle);
-		if (Solver)
+		if(Solver)
 		{
 			Solver->UpdateParticleInAccelerationStructure_External(GTParticle, /*bDelete=*/true); // ensures deletion will be applied to structures passed from physics thread.
 		}
 	}
 
-	if(Solver && !Solver->UnregisterObject(InObject))
+	if(Solver)
 	{
-		UE_LOG(LogChaos, Warning, TEXT("Attempted to remove an object that wasn't found in its solver's gamethread storage - it's likely the solver has been mistakenly changed."));
+		Solver->UnregisterObject(InObject);
 	}
+
 	RemoveFromComponentMaps(InObject);
 }
-
-#if XGE_FIXED
-void FPhysScene_Chaos::UnregisterEvent(const Chaos::EEventType& EventID)
-{
-	check(IsInGameThread());
-
-	Chaos::FPBDRigidsSolver* Solver = GetSolver();
-
-	if (Dispatcher)
-	{
-		Dispatcher->EnqueueCommandImmediate([EventID, InSolver = Solver](Chaos::FPersistentPhysicsTask* PhysThread)
-		{
-			InSolver->GetEventManager()->UnregisterEvent(EventID);
-		});
-	}
-}
-
-void FPhysScene_Chaos::UnregisterEventHandler(const Chaos::EEventType& EventID, const void* Handler)
-{
-	check(IsInGameThread());
-
-	Chaos::FPBDRigidsSolver* Solver = GetSolver();
-
-	if (Dispatcher)
-	{
-		Dispatcher->EnqueueCommandImmediate([EventID, Handler, InSolver = Solver](Chaos::FPersistentPhysicsTask* PhysThread)
-		{
-			InSolver->GetEventManager()->UnregisterHandler(EventID, Handler);
-		});
-	}
-}
-#endif // XGE_FIXED
 
 FPhysicsReplication* FPhysScene_Chaos::GetPhysicsReplication()
 {

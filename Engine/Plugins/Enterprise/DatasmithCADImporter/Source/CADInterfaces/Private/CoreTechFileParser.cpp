@@ -163,17 +163,23 @@ FString AsFString(CT_STR CtName)
 	return CtName.IsEmpty() ? FString() : CtName.toUnicode();
 };
 
-uint32 FCoreTechFileParser::GetFileHash()
+	uint32 FCoreTechFileParser::GetFileHash()
 {
 	FFileStatData FileStatData = IFileManager::Get().GetStatData(*FileDescription.Path);
 
-	FileSize = FileStatData.FileSize;
+		FileSize = FileStatData.FileSize;
 	FDateTime ModificationTime = FileStatData.ModificationTime;
 
 	uint32 FileHash = GetTypeHash(FileDescription);
 	FileHash = HashCombine(FileHash, GetTypeHash(FileSize));
 	FileHash = HashCombine(FileHash, GetTypeHash(ModificationTime));
 
+	return FileHash;
+}
+
+uint32 GetSceneFileHash(const uint32 InSGHash, const FImportParameters& ImportParam)
+{
+	uint32 FileHash = HashCombine(InSGHash, GetTypeHash(ImportParam.StitchingTechnique));
 	return FileHash;
 }
 
@@ -254,7 +260,7 @@ uint32 GetKioFaceTessellation(CT_OBJECT_ID FaceID, TArray<FTessellationData>& Fa
 
 	FTessellationData& Tessellation = FaceTessellationSet.Emplace_GetRef();
 	Tessellation.VertexIndices.SetNum(IndexCount);
-	
+
 	Tessellation.PatchId = PatchId;
 
 	switch (IndexType)
@@ -468,7 +474,7 @@ void FCoreTechFileParser::SetFaceMainMaterial(FObjectDisplayDataId& InFaceMateri
 	uint32 FaceColorHash = 0;
 	uint32 BodyColorHash = 0;
 
-	FTessellationData& FaceTessellations = BodyMesh.Faces[FaceIndex];
+	FTessellationData& FaceTessellations = BodyMesh.Faces.Last();
 
 	if (InFaceMaterial.Material > 0)
 	{
@@ -661,13 +667,15 @@ FCoreTechFileParser::EProcessResult FCoreTechFileParser::ProcessFile(const FFile
 	}
 
 	uint32 FileHash = GetFileHash();
+	FString CTFileName = FString::Printf(TEXT("UEx%08x"), FileHash);
+	FString CTFilePath = FPaths::Combine(CachePath, TEXT("cad"), CTFileName + TEXT(".ct"));
 
-	SceneGraphArchive.ArchiveFileName = FString::Printf(TEXT("UEx%08x"), FileHash);
+	uint32 SceneFileHash = GetSceneFileHash(FileHash, ImportParameters);
+	SceneGraphArchive.ArchiveFileName = FString::Printf(TEXT("UEx%08x"), SceneFileHash);
 
 	FString SceneGraphArchiveFilePath = FPaths::Combine(CachePath, TEXT("scene"), SceneGraphArchive.ArchiveFileName + TEXT(".sg"));
-	FString CTFilePath = FPaths::Combine(CachePath, TEXT("cad"), SceneGraphArchive.ArchiveFileName + TEXT(".ct"));
 
-	uint32 MeshFileHash = GetGeomFileHash(FileHash, ImportParameters);
+	uint32 MeshFileHash = GetGeomFileHash(SceneFileHash, ImportParameters);
 	MeshArchiveFile = FString::Printf(TEXT("UEx%08x"), MeshFileHash);
 	MeshArchiveFilePath = FPaths::Combine(CachePath, TEXT("mesh"), MeshArchiveFile + TEXT(".gm"));
 
@@ -765,46 +773,47 @@ FCoreTechFileParser::EProcessResult FCoreTechFileParser::ReadFileWithKernelIO()
 	SceneGraphArchive.FullPath = FileDescription.Path;
 	SceneGraphArchive.CADFileName = FileDescription.Name;
 
-	// the parallelization of monolithic Jt file is set in SetCoreTechImportOption. Then it's processed as the other exploded formats
-	CT_FLAGS CTImportOption = SetCoreTechImportOption();
+		// the parallelization of monolithic Jt file is set in SetCoreTechImportOption. Then it's processed as the other exploded formats
+		CT_FLAGS CTImportOption = SetCoreTechImportOption();
 
 	FString LoadOption;
 	CT_UINT32 NumberOfIds = 1;
 
 	if (!FileDescription.Configuration.IsEmpty())
 	{
-		if (FileDescription.Extension == "jt")
-		{
-			LoadOption = FileDescription.Configuration;
-		}
-		else
-		{
-			NumberOfIds = CT_KERNEL_IO::AskFileNbOfIds(*FileDescription.Path);
-			if (NumberOfIds > 1)
+			if (FileDescription.Extension == "jt")
 			{
-				CT_UINT32 ActiveConfig = CT_KERNEL_IO::AskFileActiveConfig(*FileDescription.Path);
-				for (CT_UINT32 i = 0; i < NumberOfIds; i++)
-				{
-					CT_STR ConfValue = CT_KERNEL_IO::AskFileIdIthName(*FileDescription.Path, i);
-				if (FileDescription.Configuration == AsFString(ConfValue)) {
-						ActiveConfig = i;
-						break;
-					}
-				}
-
-				CTImportOption |= CT_LOAD_FLAGS_READ_SPECIFIC_OBJECT;
-				LoadOption = FString::FromInt((int32)ActiveConfig);
+				LoadOption = FileDescription.Configuration;
 			}
+			else
+			{
+		NumberOfIds = CT_KERNEL_IO::AskFileNbOfIds(*FileDescription.Path);
+		if (NumberOfIds > 1)
+		{
+			CT_UINT32 ActiveConfig = CT_KERNEL_IO::AskFileActiveConfig(*FileDescription.Path);
+			for (CT_UINT32 i = 0; i < NumberOfIds; i++)
+			{
+				CT_STR ConfValue = CT_KERNEL_IO::AskFileIdIthName(*FileDescription.Path, i);
+					if (FileDescription.Configuration == AsFString(ConfValue))
+					{
+					ActiveConfig = i;
+					break;
+				}
+			}
+
+			CTImportOption |= CT_LOAD_FLAGS_READ_SPECIFIC_OBJECT;
+			LoadOption = FString::FromInt((int32) ActiveConfig);
 		}
 	}
+		}
 
 	Result = CT_KERNEL_IO::LoadFile(*FileDescription.Path, MainId, CTImportOption, 0, *LoadOption);
 	if (Result == IO_ERROR_EMPTY_ASSEMBLY)
 	{
 		CT_KERNEL_IO::UnloadModel();
-		CT_FLAGS CTReImportOption = CTImportOption | CT_LOAD_FLAGS_LOAD_EXTERNAL_REF;
-		CTReImportOption &= ~CT_LOAD_FLAGS_READ_ASM_STRUCT_ONLY;  // BUG CT -> Ticket 11685
-		Result = CT_KERNEL_IO::LoadFile(*FileDescription.Path, MainId, CTReImportOption, 0, *LoadOption);
+			CT_FLAGS CTReImportOption = CTImportOption | CT_LOAD_FLAGS_LOAD_EXTERNAL_REF;
+			CTReImportOption &= ~CT_LOAD_FLAGS_READ_ASM_STRUCT_ONLY;  // BUG CT -> Ticket 11685
+			Result = CT_KERNEL_IO::LoadFile(*FileDescription.Path, MainId, CTReImportOption, 0, *LoadOption);
 	}
 
 	// the file is loaded but it's empty, so no data is generate
@@ -822,7 +831,9 @@ FCoreTechFileParser::EProcessResult FCoreTechFileParser::ReadFileWithKernelIO()
 		return EProcessResult::ProcessFailed;
 	}
 
-	FString CTFilePath = FPaths::Combine(CachePath, TEXT("cad"), SceneGraphArchive.ArchiveFileName + TEXT(".ct"));
+	uint32 FileHash = GetFileHash();
+	FString CTFileName = FString::Printf(TEXT("UEx%08x"), FileHash);
+	FString CTFilePath = FPaths::Combine(CachePath, TEXT("cad"), CTFileName + TEXT(".ct"));
 	if(CTFilePath != FileDescription.Path)
 	{
 		CT_LIST_IO ObjectList;
@@ -1065,30 +1076,8 @@ bool FCoreTechFileParser::ReadComponent(CT_OBJECT_ID ComponentId, uint32 Default
 		DefaultMaterialHash = MaterialHash;
 	}
 
-
 	TArray<CT_OBJECT_ID> Instances, Bodies;
 	GetInstancesAndBodies(ComponentId, Instances, Bodies);
-
-
-	// Kernel_IO's Stitching action always ends by the split of the new bodies into a set of connected patches
-	// a CT_Component (reference in the concept of instance/reference) can have bodies and instances
-	// The SEW stitching rule in UE is:
-	//   - case 1 : the component has only a set of bodies: the bodies are merged, stitched and splitted into a new set of topologically correct bodies
-	//   - case 2 : the component has only one body or has bodies + instance, only a topology healing is done on the bodies 
-	//
-	// Case 1: Repair is done before processing bodies of a component
-	// Case 2: Repair is done before getting the mesh of the body. As the body is exploded, the new bodies have to be discovered by comparing parent's bodies before and after the repair action
-
-	bool bNeedRepair = true;
-	if (!Instances.Num() && Bodies.Num() > 1 && ImportParameters.StitchingTechnique == StitchingSew)
-	{
-		// Case 1: Repair is done before processing bodies of a component
-		// Bodies.Num() > 1 so merge all bodies, sew and split into connected bodies (Repair)
-		Repair(ComponentId, StitchingSew);
-		GetInstancesAndBodies(ComponentId, Instances, Bodies);
-		SetCoreTechTessellationState(ImportParameters);
-		bNeedRepair = false;
-	}
 
 	for (CT_OBJECT_ID InstanceId : Instances)
 	{
@@ -1100,7 +1089,7 @@ bool FCoreTechFileParser::ReadComponent(CT_OBJECT_ID ComponentId, uint32 Default
 
 	for (CT_OBJECT_ID BodyId : Bodies)
 	{
-		if (ReadBody(BodyId, ComponentId, DefaultMaterialHash, bNeedRepair))
+		if (ReadBody(BodyId, ComponentId, DefaultMaterialHash, false))
 		{
 			SceneGraphArchive.ComponentSet[Index].Children.Add(BodyId);
 		}
@@ -1332,80 +1321,30 @@ void FCoreTechFileParser::GetBodyTessellation(CT_OBJECT_ID CTBodyId, CT_OBJECT_I
 }
 #endif
 
-void FCoreTechFileParser::GetKioBodyTessellation(CT_OBJECT_ID BodyId, CT_OBJECT_ID ParentId, FBodyMesh& OutBodyMesh, uint32 DefaultMaterialHash, bool bNeedRepair)
+void FCoreTechFileParser::GetKioBodyTessellation(CT_OBJECT_ID BodyId, CT_OBJECT_ID ParentId, FBodyMesh& OutBodyMesh, uint32 DefaultMaterialHash, bool /*bNeedRepair*/)
 {
-	TArray<CT_OBJECT_ID> BodyFaces;
-{
-		CT_LIST_IO FaceList;
-		CT_BODY_IO::AskFaces(BodyId, FaceList);
-		BodyFaces.Reserve((int32)(1.3 * FaceList.Count()));
-	}
-
 	FObjectDisplayDataId BodyMaterial;
 	BodyMaterial.DefaultMaterialName = DefaultMaterialHash;
 	GetCTObjectDisplayDataIds(BodyId, BodyMaterial);
 
-	TArray<CT_OBJECT_ID> BodiesToProcess ;
-	if (bNeedRepair && ImportParameters.StitchingTechnique != StitchingNone)
-	{
-		// Case 2: Repair is done before getting the mesh of the body.
-		// Repair may have created new bodies including discarding initial body, so the list of bodies has to be retrieved by comparing parent's bodies before (InitialBodies) and after (AfterRepairBodies) the repair action
-
-		TArray<CT_OBJECT_ID> Instances;
-		TArray<CT_OBJECT_ID> InitialBodies;
-		GetInstancesAndBodies(ParentId, Instances, InitialBodies);
-
-		Repair(BodyId, ImportParameters.StitchingTechnique);
-		SetCoreTechTessellationState(ImportParameters);
-
-		TArray<CT_OBJECT_ID> AfterRepairBodies;
-		GetInstancesAndBodies(ParentId, Instances, AfterRepairBodies);
-
-		BodiesToProcess .Reserve(AfterRepairBodies.Num());
-		for (CT_OBJECT_ID Body : AfterRepairBodies)
-		{
-			if (Body == BodyId)
-			{
-				BodiesToProcess .Add(Body);
-			}
-			else if(InitialBodies.Find(Body) == INDEX_NONE)
-			{
-				BodiesToProcess .Add(Body);
-			}
-		}
-	}
-	else
-	{
-		BodiesToProcess .Add(BodyId);
-	}
-
 	FBox& BBox = OutBodyMesh.BBox;
-	for (CT_OBJECT_ID Body : BodiesToProcess )
-	{
-		CT_LIST_IO FaceList;
-		CT_BODY_IO::AskFaces(Body, FaceList);
 
-	// Compute Body BBox based on CAD data
-	uint32 VerticesSize;
-		CT_BODY_IO::AskVerticesSizeArray(Body, VerticesSize);
+		// Compute Body BBox based on CAD data
+		uint32 VerticesSize;
+	CT_BODY_IO::AskVerticesSizeArray(BodyId, VerticesSize);
 
-	TArray<CT_COORDINATE> VerticesArray;
-	VerticesArray.SetNum(VerticesSize);
-		CT_BODY_IO::AskVerticesArray(Body, VerticesArray.GetData());
+		TArray<CT_COORDINATE> VerticesArray;
+		VerticesArray.SetNum(VerticesSize);
+	CT_BODY_IO::AskVerticesArray(BodyId, VerticesArray.GetData());
 
-	for (const CT_COORDINATE& Point : VerticesArray)
-	{
-		BBox += FVector((float)Point.xyz[0], (float)Point.xyz[1], (float)Point.xyz[2]);
-	}
-
-		CT_OBJECT_ID FaceID;
-		FaceList.IteratorInitialize();
-		while ((FaceID = FaceList.IteratorIter()) != 0)
+		for (const CT_COORDINATE& Point : VerticesArray)
 		{
-			BodyFaces.Add(FaceID);
+			BBox += FVector((float)Point.xyz[0], (float)Point.xyz[1], (float)Point.xyz[2]);
 		}
-	}
-	uint32 FaceSize = BodyFaces.Num();
+
+	CT_LIST_IO FaceList;
+	CT_BODY_IO::AskFaces(BodyId, FaceList);
+	uint32 FaceSize = FaceList.Count();
 
 	// Allocate memory space for tessellation data
 	OutBodyMesh.Faces.Reserve(FaceSize);
@@ -1414,7 +1353,9 @@ void FCoreTechFileParser::GetKioBodyTessellation(CT_OBJECT_ID BodyId, CT_OBJECT_
 
 	// Loop through the face of bodies and collect all tessellation data
 	int32 FaceIndex = 0;
-	for(CT_OBJECT_ID FaceID : BodyFaces)
+	CT_OBJECT_ID FaceID;
+	FaceList.IteratorInitialize();
+	while ((FaceID = FaceList.IteratorIter()) != 0)
 	{
 		uint32 TriangleNum = GetKioFaceTessellation(FaceID, OutBodyMesh.Faces, ImportParameters);
 
@@ -1575,10 +1516,10 @@ int32 GetIntegerParameterDataValue(CT_OBJECT_ID NodeId, const TCHAR* InMetaDataN
 			continue;
 		}
 		if (!FCString::Strcmp(InMetaDataName, *AsFString(FieldName)))
-		{
+			{
 			CT_CURRENT_ATTRIB_IO::AskIntField(ITH_INTEGER_PARAMETER_VALUE, IntegerParameterValue);
-			break;
-		}
+				break;
+			}
 	}
 	return IntegerParameterValue;
 }

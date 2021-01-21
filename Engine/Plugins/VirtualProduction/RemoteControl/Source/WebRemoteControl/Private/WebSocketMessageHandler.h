@@ -12,6 +12,8 @@ class FWebRemoteControlModule;
 class URemoteControlPreset;
 struct FRemoteControlWebSocketMessage;
 struct FRemoteControlWebsocketRoute;
+struct FRCPropertyChangeEvent;
+struct FGuid;
 
 /**
   * Class handling web socket message. Registers to required callbacks.
@@ -19,7 +21,7 @@ struct FRemoteControlWebsocketRoute;
 class FWebSocketMessageHandler
 {
 public:
-	FWebSocketMessageHandler(FRCWebSocketServer* InServer);
+	FWebSocketMessageHandler(FRCWebSocketServer* InServer, FGuid& InActingClientId);
 
 	/** Register the custom websocket routes with the module. */
 	void RegisterRoutes(FWebRemoteControlModule* WebRemoteControl);
@@ -70,6 +72,10 @@ private:
 	 */
 	bool ShouldProcessEventForPreset(FName PresetName) const;
 
+	/**
+	 * Write the provided list of events to a buffer.
+	 */
+	bool WritePropertyChangeEventPayload(URemoteControlPreset* InPreset, const TArray<FRemoteControlProperty>& InEvents, TArray<uint8>& OutBuffer);
 private:
 
 	/** Web Socket server. */
@@ -80,8 +86,8 @@ private:
 	/** All websockets connections associated to a preset notifications */
 	TMap<FName, TArray<FGuid>> WebSocketNotificationMap;
 
-	/** Properties that changed for a frame, per preset */
-	TMap<FName, TArray<FRemoteControlProperty>> PerFramePropertyChanged;
+	/** Properties that changed for a frame, per preset.  */
+	TMap<FName, TMap<FGuid, TArray<FRemoteControlProperty>>> PerFramePropertyChanged;
 
 	/** Properties that were exposed for a frame, per preset */
 	TMap<FName, TArray<FName>> PerFrameAddedProperties;
@@ -91,4 +97,7 @@ private:
 
 	/** Fields that were renamed for a frame, per preset */
 	TMap<FName, TArray<TTuple<FName, FName>>> PerFrameRenamedFields;
+
+	/** Holds the ID of the client currently making a request. Used to prevent sending back notifications to it. */
+	FGuid& ActingClientId;
 };

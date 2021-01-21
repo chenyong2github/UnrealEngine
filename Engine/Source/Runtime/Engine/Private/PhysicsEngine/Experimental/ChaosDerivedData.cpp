@@ -381,11 +381,6 @@ void FChaosDerivedDataCooker::BuildConvexMeshes(TArray<TUniquePtr<Chaos::FImplic
 				Bounds.GrowToInclude(HullVert);
 			}
 
-			// @todo(chaos): dedupe - see ChaosInterfaceUtils.cpp CreateGeometry()
-			const float CollisionMarginFraction = FMath::Max(0.0f, UPhysicsSettingsCore::Get()->SolverOptions.CollisionMarginFraction);
-			const float CollisionMarginMax = FMath::Max(0.0f, UPhysicsSettingsCore::Get()->SolverOptions.CollisionMarginMax);
-			const float CollisionMargin = FMath::Min(Bounds.Extents().GetAbsMax() * CollisionMarginFraction, CollisionMarginMax);
-
 			// Create the surface particle for the convex
 			TParticles<FReal, 3> ConvexParticles;
 			ConvexParticles.AddParticles(NumHullVerts);
@@ -396,8 +391,8 @@ void FChaosDerivedDataCooker::BuildConvexMeshes(TArray<TUniquePtr<Chaos::FImplic
 				ConvexParticles.X(VertIndex) = FVector(bMirrored ? -HullVert.X : HullVert.X, HullVert.Y, HullVert.Z);
 			}
 
-
-			OutConvexes.Emplace(new Chaos::FConvex(ConvexParticles, CollisionMargin));
+			// Margin is always zero on convex shapes - they are intended to be instanced
+			OutConvexes.Emplace(new Chaos::FConvex(ConvexParticles, 0.0f));
 		}
 	};
 

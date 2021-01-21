@@ -70,7 +70,7 @@ struct FGenericStruct
 	GENERATED_USTRUCT_BODY()
 
 	UPROPERTY()
-	int32 Data;
+	int32 Data = 0;
 };
 
 UCLASS(meta=(ScriptName="SystemLibrary"))

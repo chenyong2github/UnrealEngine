@@ -4,6 +4,8 @@
 #include "AssetRegistry/AssetDataTagMapSerializationDetails.h"
 #include "Misc/PackageName.h"
 #include "Misc/ScopeLock.h"
+#include "Serialization/ArrayWriter.h"
+#include "Serialization/MemoryReader.h"
 #include <limits>
 
 //////////////////////////////////////////////////////////////////////////
@@ -807,18 +809,29 @@ namespace FixedTagPrivate
 
 	//////////////////////////////////////////////////////////////////////////
 
-	template<typename StoreType, typename VisitorType>
+	enum EOrder { Member, TextFirst, SkipText };
+
+	template<EOrder Order = Member, typename StoreType, typename VisitorType>
 	void VisitViews(StoreType&& Store, VisitorType&& Visitor)
 	{
 		// This order determines serialization order and the binary format.
 		// Serializing string offsets is redundant, they can be recreated from null terminators,
 		// but I've chosen to include them for code simplicity. --jtorp
 
+		if (Order == EOrder::TextFirst)
+		{
+			Visitor(Store.Texts);
+		}
+
 		Visitor(Store.NumberlessNames);
 		Visitor(Store.Names);
 		Visitor(Store.NumberlessExportPaths);
 		Visitor(Store.ExportPaths);
-		Visitor(Store.Texts);
+
+		if (Order == EOrder::Member)
+		{
+			Visitor(Store.Texts);
+		}
 		
 		Visitor(Store.AnsiStringOffsets);
 		Visitor(Store.WideStringOffsets);
@@ -999,32 +1012,52 @@ namespace FixedTagPrivate
 		FArchive& Ar;
 		FString Scratch;
 
-		static constexpr uint32 BeginMagic	= 0x12345678;
-		static constexpr uint32 EndMagic	= 0x87654321;
+		static constexpr uint32 OldBeginMagic	= 0x12345678;
+		static constexpr uint32 BeginMagic		= 0x12345679;
+		static constexpr uint32 EndMagic		= 0x87654321;
 		static constexpr uint32 MaxViewAlignment = 16;
 	public:
 		FSerializer(FArchive& InAr) : Ar(InAr) {}
+
+		void SaveTextData(TArrayView<const FText> Texts)
+		{
+			FArrayWriter Data;
+			FSerializer(Data).SaveViewData(Texts);
+			SaveItem(Data.Num());
+			Ar.Serialize(Data.GetData(), Data.Num());
+		}
 
 		void Save(const FStoreData& Store)
 		{
 			SaveItem(BeginMagic);
 			VisitViews(Store, [&] (auto Array) { SaveItem(Array.Num()); });
-			VisitViews(Store, [&] (auto Array) { SaveViewData(MakeArrayView(Array)); });
+			SaveTextData(MakeArrayView(Store.Texts));
+			VisitViews<EOrder::SkipText>(Store, [&] (auto Array) { SaveViewData(MakeArrayView(Array)); });
 			SaveItem(EndMagic);
 		}
-	
-		TRefCountPtr<const FStore> Load()
-		{
-			FStore* Out = GStores.CreateAndRegister();
 
-			verify(LoadItem<uint32>() == BeginMagic);
-			
+		static ELoadOrder GetLoadOrder(uint32 InitialMagic)
+		{
+			if (InitialMagic == OldBeginMagic)
+			{
+				return ELoadOrder::Member;
+			}
+	
+			check(InitialMagic == BeginMagic);
+			return ELoadOrder::TextFirst;
+		}
+
+		ELoadOrder LoadHeader(FStore& Store)
+		{
+			uint32 InitialMagic = LoadItem<uint32>();
+			ELoadOrder Order = GetLoadOrder(InitialMagic);
+
 			// Load view sizes
-			VisitViews(*Out, [&] (auto& View) { SetNum(View, LoadItem<int32>()); });
+			VisitViews(Store, [&] (auto& View) { SetNum(View, LoadItem<int32>()); });
 
 			// Calculate total size, allocate and zero data
 			uint64 Bytes = 0;
-			VisitViews(*Out, [&] (auto& View) 
+			VisitViews(Store, [&] (auto& View) 
 				{
 					static_assert(alignof(typename std::decay_t<decltype(View)>::ElementType) <= MaxViewAlignment, "");
 					Bytes = Align(Bytes, View.GetTypeAlignment()) + GetBytes(View);
@@ -1032,24 +1065,66 @@ namespace FixedTagPrivate
 
 			uint8* Ptr = reinterpret_cast<uint8*>(FMemory::Malloc(Bytes, MaxViewAlignment));
 			FMemory::Memzero(Ptr, Bytes);
-			Out->Data = Ptr;
+			Store.Data = Ptr;
 
 			// Set view data pointers
-			VisitViews(*Out, [&] (auto& View)
+			VisitViews(Store, [&] (auto& View)
 				{
 					Ptr = Align(Ptr, View.GetTypeAlignment());
 					SetUntypedDataPtr(View, Ptr);
 					Ptr += GetBytes(View);
 				});
 
-			check(Ptr - Bytes == Out->Data);
+			check(Ptr - Bytes == Store.Data);
+
+			return Order;
+		}
+		
+		void Load(FStore& Store)
+		{
+			ELoadOrder Order = LoadHeader(/* Out */ Store);
 
 			// Load view data
-			VisitViews(*Out, [&] (auto View) { LoadViewData(View); });
+			if (Order == ELoadOrder::TextFirst)
+			{
+				uint32 TextDataBytes = LoadItem<uint32>();
+
+				VisitViews<EOrder::TextFirst>(Store, [&] (auto View) { LoadViewData(View); });
+			}
+			else
+			{
+				VisitViews(Store, [&] (auto View) { LoadViewData(View); });
+			}
 
 			verify(LoadItem<uint32>() == EndMagic);
+		}
 
-			return TRefCountPtr<const FStore>(Out);
+		TArray<uint8> ReadTextData()
+		{
+			uint32 TextDataBytes = LoadItem<uint32>();
+			TArray<uint8> Out;
+			Out.SetNumUninitialized(TextDataBytes);
+			Ar.Serialize(Out.GetData(), Out.Num());
+			return Out;
+		}
+
+		void LoadTextData(FStore& Store)
+		{
+			LoadViewData(Store.Texts);
+		}
+
+		void LoadFinalData(FStore& Store, ELoadOrder Order)
+		{
+			if (Order == ELoadOrder::TextFirst)
+			{
+				VisitViews<EOrder::SkipText>(Store, [&] (auto View) { LoadViewData(View); });
+			}
+			else
+			{
+				VisitViews(Store, [&] (auto View) { LoadViewData(View); });
+			}
+			
+			verify(LoadItem<uint32>() == EndMagic);
 		}
 	};
 
@@ -1060,7 +1135,41 @@ namespace FixedTagPrivate
 
 	TRefCountPtr<const FStore> LoadStore(FArchive& Ar)
 	{
-		return FSerializer(Ar).Load();
+		FStore* Store = GStores.CreateAndRegister();
+		FSerializer(Ar).Load(*Store);
+		return TRefCountPtr<const FStore>(Store);
+	}
+
+	FAsyncStoreLoader::FAsyncStoreLoader()
+		: Store(GStores.CreateAndRegister())
+	{}
+
+	TFuture<void> FAsyncStoreLoader::ReadInitialDataAndKickLoad(FArchive& Ar, uint32 MaxWorkerTasks)
+	{
+		Order = FSerializer(Ar).LoadHeader(*Store);
+
+		if (Order == ELoadOrder::TextFirst)
+		{
+			TArray<uint8> TextData = FSerializer(Ar).ReadTextData();
+
+			if (TextData.Num())
+			{
+				return Async(EAsyncExecution::TaskGraph, [Data = MoveTemp(TextData), OutStore = Store]()
+				{
+					FMemoryReader Reader(Data);
+					FSerializer(Reader).LoadTextData(*OutStore);
+				});
+			}
+		}
+
+		return TFuture<void>();
+	}
+
+	TRefCountPtr<const FStore> FAsyncStoreLoader::LoadFinalData(FArchive& Ar)
+	{
+		FSerializer(Ar).LoadFinalData(/* Out */ *Store, Order);
+
+		return TRefCountPtr<const FStore>(Store);
 	}
 
 } // end namespace FixedTagPrivate
@@ -1124,7 +1233,7 @@ bool FAssetTagValueRef::Equals(FStringView Str) const
 ////////////////////////////////////////////////////////////////////////////
 
 FAssetDataTagMapSharedView::FAssetDataTagMapSharedView(const FAssetDataTagMapSharedView& O)
-	: Ptr(O.Ptr)
+	: Bits(O.Bits)
 {
 	if (IsFixed())
 	{
@@ -1137,9 +1246,9 @@ FAssetDataTagMapSharedView::FAssetDataTagMapSharedView(const FAssetDataTagMapSha
 }
 
 FAssetDataTagMapSharedView::FAssetDataTagMapSharedView(FAssetDataTagMapSharedView&& O)
-	: Ptr(O.Ptr)
+	: Bits(O.Bits)
 {
-	O.Ptr = nullptr;
+	O.Bits = 0;
 }
 
 FAssetDataTagMapSharedView::FAssetDataTagMapSharedView(FixedTagPrivate::FMapHandle InFixed)
@@ -1160,14 +1269,14 @@ FAssetDataTagMapSharedView::FAssetDataTagMapSharedView(FAssetDataTagMap&& InLoos
 FAssetDataTagMapSharedView& FAssetDataTagMapSharedView::operator=(const FAssetDataTagMapSharedView& O)
 {
 	FAssetDataTagMapSharedView Tmp(O);
-	Swap(Ptr, Tmp.Ptr);
+	Swap(Bits, Tmp.Bits);
 	return *this;
 }
 
 FAssetDataTagMapSharedView& FAssetDataTagMapSharedView::operator=(FAssetDataTagMapSharedView&& O)
 {
 	FAssetDataTagMapSharedView Tmp(MoveTemp(O));
-	Swap(Ptr, Tmp.Ptr);
+	Swap(Bits, Tmp.Bits);
 	return *this;
 }
 

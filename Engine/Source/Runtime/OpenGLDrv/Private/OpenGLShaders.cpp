@@ -37,7 +37,7 @@ static TAutoConsoleVariable<int32> CVarLRUMaxProgramCount(
 	700,
 	TEXT("OpenGL LRU maximum occupancy.\n")
 	TEXT("Limit the maximum number of active shader programs at any one time.\n")
-	TEXT("0: disable LRU. (default)\n")
+	TEXT("0: disable LRU.\n")
 	TEXT("Non-Zero: Maximum number of active shader programs, if reached least, recently used shader programs will deleted. "),
 	ECVF_RenderThreadSafe);
 
@@ -1872,6 +1872,9 @@ public:
 
 	void AddAsEvicted(const FOpenGLProgramKey& ProgramKey, TArray<uint8>&& ProgramBinary)
 	{
+		checkf(!LRU.Contains(ProgramKey), TEXT("Program is already in the LRU program list: %s"), *ProgramKey.ToString());
+		checkf(!IsEvicted(ProgramKey), TEXT("Program is already in the evicted program list: %s"), *ProgramKey.ToString());
+
 		FEvictedGLProgram& test = EvictedPrograms.Emplace(ProgramKey, FEvictedGLProgram(ProgramKey, MoveTemp(ProgramBinary)));
 
 		// UE_LOG(LogRHI, Warning, TEXT("LRU: adding EVICTED program %s"), *ProgramKey.ToString());
@@ -1985,15 +1988,15 @@ public:
 		}
 	}
 
-	FORCEINLINE_DEBUGGABLE FOpenGLLinkedProgram* Find(const FOpenGLLinkedProgramConfiguration& Config, bool bFindAndCreateEvictedProgram)
+	FORCEINLINE_DEBUGGABLE FOpenGLLinkedProgram* Find(const FOpenGLProgramKey& ProgramKey, bool bFindAndCreateEvictedProgram)
 	{
 		if (bUseLRUCache)
 		{
-			return ProgramCacheLRU.Find(Config.ProgramKey, bFindAndCreateEvictedProgram);
+			return ProgramCacheLRU.Find(ProgramKey, bFindAndCreateEvictedProgram);
 		}
 		else
 		{
-			FOpenGLLinkedProgram** FoundProgram = ProgramCache.Find(Config.ProgramKey);
+			FOpenGLLinkedProgram** FoundProgram = ProgramCache.Find(ProgramKey);
 			return FoundProgram ? *FoundProgram : nullptr;
 		}
 	}
@@ -2789,7 +2792,7 @@ static bool LinkComputeShader(FRHIComputeShader* ComputeShaderRHI, FOpenGLComput
 	Config.Shaders[CrossCompiler::SHADER_STAGE_COMPUTE].Bindings = ComputeShader->Bindings;
 	Config.ProgramKey.ShaderHashes[CrossCompiler::SHADER_STAGE_COMPUTE] = ComputeShaderRHI->GetHash();
 
-	ComputeShader->LinkedProgram = GetOpenGLProgramsCache().Find(Config, true);
+	ComputeShader->LinkedProgram = GetOpenGLProgramsCache().Find(Config.ProgramKey, true);
 
 	if (ComputeShader->LinkedProgram == nullptr)
 	{
@@ -2824,7 +2827,7 @@ FOpenGLLinkedProgram* FOpenGLDynamicRHI::GetLinkedComputeProgram(FRHIComputeShad
 	Config.Shaders[CrossCompiler::SHADER_STAGE_COMPUTE].Bindings = ComputeShader->Bindings;
 	Config.ProgramKey.ShaderHashes[CrossCompiler::SHADER_STAGE_COMPUTE] = ComputeShaderRHI->GetHash();
 
-	FOpenGLLinkedProgram* LinkedProgram = GetOpenGLProgramsCache().Find(Config, true);
+	FOpenGLLinkedProgram* LinkedProgram = GetOpenGLProgramsCache().Find(Config.ProgramKey, true);
 	if (LinkedProgram == nullptr)
 	{
 		// Not in the cache. Create and add the program here.
@@ -3259,13 +3262,13 @@ FBoundShaderStateRHIRef FOpenGLDynamicRHI::RHICreateBoundShaderState_OnThisThrea
 				bFindAndCreateEvictedProgram = false;
 			}
 
-			FOpenGLLinkedProgram* CachedProgram = GetOpenGLProgramsCache().Find(Config, bFindAndCreateEvictedProgram);
+			FOpenGLLinkedProgram* CachedProgram = GetOpenGLProgramsCache().Find(Config.ProgramKey, bFindAndCreateEvictedProgram);
 			if (!CachedProgram)
 			{
 				// ensure that pending request for this program has been completed before
 				if (FOpenGLProgramBinaryCache::CheckSinglePendingGLProgramCreateRequest(Config.ProgramKey))
 				{
-					CachedProgram = GetOpenGLProgramsCache().Find(Config, bFindAndCreateEvictedProgram);
+					CachedProgram = GetOpenGLProgramsCache().Find(Config.ProgramKey, bFindAndCreateEvictedProgram);
 				}
 			}
 
@@ -3909,9 +3912,9 @@ void FOpenGLShaderParameterCache::CommitPackedUniformBuffers(FOpenGLLinkedProgra
 			const FOpenGLUniformBuffer* UniformBuffer = (FOpenGLUniformBuffer*)RHIUniformBuffers[BufferIndex].GetReference();
 			// Workaround for null UBs (FORT-323429), additional logging here is to give us a chance to investigate the higher level issue causing the null UB.
 #if !UE_BUILD_SHIPPING
-			UE_CLOG(UniformBuffer == nullptr, LogRHI, Fatal, TEXT("CommitPackedUniformBuffers null UB stage %d, idx %d, %s"), Stage, BufferIndex, *LinkedProgram->Config.ProgramKey.ToString());
+			UE_CLOG(UniformBuffer == nullptr && EmulatedUniformBufferSet.IsValidIndex(BufferIndex), LogRHI, Fatal, TEXT("CommitPackedUniformBuffers null UB stage %d, idx %d (%d), %s"), Stage, BufferIndex, EmulatedUniformBufferSet.Num(), *LinkedProgram->Config.ProgramKey.ToString());
 #endif
-			if (UniformBuffer && EmulatedUniformBufferSet[BufferIndex] != UniformBuffer->UniqueID)
+			if (UniformBuffer && EmulatedUniformBufferSet.IsValidIndex(BufferIndex) && EmulatedUniformBufferSet[BufferIndex] != UniformBuffer->UniqueID)
 			{
 				EmulatedUniformBufferSet[BufferIndex] = UniformBuffer->UniqueID;
 
@@ -4828,35 +4831,46 @@ void FOpenGLProgramBinaryCache::CompleteLoadedGLProgramRequest_internal(FGLProgr
 
 	PendingGLCreate->ReadRequest = nullptr;
 
+	FOpenGLProgramKey& ProgramKey = PendingGLCreate->FileInfo.ShaderHasheSet;
+	const bool bProgramExists = GetOpenGLProgramsCache().Find(ProgramKey, false) != nullptr;
+
 	if (GetOpenGLProgramsCache().IsUsingLRU())
 	{
-		// Always add programs as evicted, 1st use will create them as programs.
-		// This will reduce pressure on driver by ensuring only used programs
-		// are created.
-		// In this case do not create the GL program.
-		GetOpenGLProgramsCache().AddAsEvicted(PendingGLCreate->FileInfo.ShaderHasheSet, MoveTemp(PendingGLCreate->ProgramBinaryData));
+		if (!bProgramExists)
+		{
+			// Always add programs as evicted, 1st use will create them as programs.
+			// This will reduce pressure on driver by ensuring only used programs
+			// are created.
+			// In this case do not create the GL program.
+			GetOpenGLProgramsCache().AddAsEvicted(ProgramKey, MoveTemp(PendingGLCreate->ProgramBinaryData));
+		}
+		else
+		{
+			// The program is already in use, discard the binary data.
+			PendingGLCreate->ProgramBinaryData.Empty();
+		}
 
 		// Ownership transfered to OpenGLProgramsCache.
 		PendingGLCreate->GLProgramState = FGLProgramBinaryFileCacheEntry::EGLProgramState::ProgramComplete;
 	}
 	else
 	{
-		FOpenGLProgramKey& ProgramKey = PendingGLCreate->FileInfo.ShaderHasheSet;
-
-		bool bSuccess = CreateGLProgramFromBinary(PendingGLCreate->GLProgramId, PendingGLCreate->ProgramBinaryData);
-		if(!bSuccess)
+		if(!bProgramExists)
 		{
-			UE_LOG(LogRHI, Log, TEXT("[%s, %d, %d]"), *ProgramKey.ToString(), PendingGLCreate->GLProgramId, PendingGLCreate->ProgramBinaryData.Num() );
-			RHIGetPanicDelegate().ExecuteIfBound(FName("FailedBinaryProgramCreateLoadRequest"));
-			UE_LOG(LogRHI, Fatal, TEXT("CompleteLoadedGLProgramRequest_internal : Failed to create GL program from binary data! [%s]"), *ProgramKey.ToString());
+			bool bSuccess = CreateGLProgramFromBinary(PendingGLCreate->GLProgramId, PendingGLCreate->ProgramBinaryData);
+			if (!bSuccess)
+			{
+				UE_LOG(LogRHI, Log, TEXT("[%s, %d, %d]"), *ProgramKey.ToString(), PendingGLCreate->GLProgramId, PendingGLCreate->ProgramBinaryData.Num());
+				RHIGetPanicDelegate().ExecuteIfBound(FName("FailedBinaryProgramCreateLoadRequest"));
+				UE_LOG(LogRHI, Fatal, TEXT("CompleteLoadedGLProgramRequest_internal : Failed to create GL program from binary data! [%s]"), *ProgramKey.ToString());
+			}
+			FOpenGLLinkedProgram* NewLinkedProgram = new FOpenGLLinkedProgram(ProgramKey, PendingGLCreate->GLProgramId);
+			GetOpenGLProgramsCache().Add(ProgramKey, NewLinkedProgram);
+			SetNewProgramStats(PendingGLCreate->GLProgramId);
 		}
-		FOpenGLLinkedProgram* NewLinkedProgram = new FOpenGLLinkedProgram(ProgramKey, PendingGLCreate->GLProgramId);
-		GetOpenGLProgramsCache().Add(ProgramKey, NewLinkedProgram);
-		PendingGLCreate->GLProgramState = FGLProgramBinaryFileCacheEntry::EGLProgramState::ProgramAvailable;
-
-		SetNewProgramStats(PendingGLCreate->GLProgramId);
 
 		// Finished with binary data.
+		PendingGLCreate->GLProgramState = FGLProgramBinaryFileCacheEntry::EGLProgramState::ProgramAvailable;
 		PendingGLCreate->ProgramBinaryData.Empty();
 	}
 }

@@ -1,18 +1,21 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "NiagaraDataInterfaceMeshCommon.h"
-#include "WeightedRandomSampler.h"
-#include "Engine/SkeletalMesh.h"
-#include "Rendering/SkeletalMeshRenderData.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Containers/Array.h"
+#include "Engine/SkeletalMesh.h"
+#include "NiagaraDataInterfaceMeshCommon.h"
 #include "NiagaraParameterStore.h"
+#include "Rendering/SkeletalMeshRenderData.h"
+#include "WeightedRandomSampler.h"
+
 #include "NiagaraDataInterfaceSkeletalMesh.generated.h"
 
 class UNiagaraDataInterfaceSkeletalMesh;
 class USkeletalMesh;
 struct FSkeletalMeshSkinningData;
+struct FSkeletalMeshUvMapping;
+class FSkeletalMeshUvMappingBufferProxy;
 struct FNDISkeletalMesh_InstanceData;
 class FSkinWeightVertexBuffer;
 struct FSkeletalMeshSamplingRegion;
@@ -236,13 +239,54 @@ private:
 	bool bForceDataRefresh;
 };
 
+struct FSkeletalMeshUvMappingUsage
+{
+	FSkeletalMeshUvMappingUsage() = default;
+	FSkeletalMeshUvMappingUsage(bool InRequiresCpuAccess, bool InrequiresGpuAccess)
+		: RequiresCpuAccess(InRequiresCpuAccess)
+		, RequiresGpuAccess(InrequiresGpuAccess)
+	{}
+
+	bool IsValid() const { return RequiresCpuAccess || RequiresGpuAccess; }
+
+	bool RequiresCpuAccess = false;
+	bool RequiresGpuAccess = false;
+};
+
+struct FSkeletalMeshUvMappingHandle
+{
+	FSkeletalMeshUvMappingHandle();
+	FSkeletalMeshUvMappingHandle(FSkeletalMeshUvMappingUsage InUsage, const TSharedPtr<struct FSkeletalMeshUvMapping>& InUvMappingData, bool bNeedsDataImmediately);
+	FSkeletalMeshUvMappingHandle(const FSkeletalMeshUvMappingHandle& Other) = delete;
+	FSkeletalMeshUvMappingHandle(FSkeletalMeshUvMappingHandle&& Other);
+	~FSkeletalMeshUvMappingHandle();
+
+	FSkeletalMeshUvMappingHandle& operator=(const FSkeletalMeshUvMappingHandle& Other) = delete;
+	FSkeletalMeshUvMappingHandle& operator=(FSkeletalMeshUvMappingHandle&& Other);
+	explicit operator bool() const;
+
+	FSkeletalMeshUvMappingUsage Usage;
+
+	void FindOverlappingTriangles(const FVector2D& InUv, TArray<int32>& TriangleIndices, float Tolerance = SMALL_NUMBER) const;
+	int32 FindFirstTriangle(const FVector2D& InUv, FVector& BarycentricCoord, float Tolerance = SMALL_NUMBER) const;
+	const FSkeletalMeshUvMappingBufferProxy* GetQuadTreeProxy() const;
+
+private:
+	TSharedPtr<FSkeletalMeshUvMapping> UvMappingData;
+};
+
 class FNDI_SkeletalMesh_GeneratedData
 {
 	FRWLock CachedSkinningDataGuard;
 	TMap<TWeakObjectPtr<USkeletalMeshComponent>, TSharedPtr<FSkeletalMeshSkinningData> > CachedSkinningData;
 
+	FRWLock CachedUvMappingGuard;
+	TArray<TSharedPtr<FSkeletalMeshUvMapping>> CachedUvMapping;
+
 public:
 	FSkeletalMeshSkinningDataHandle GetCachedSkinningData(TWeakObjectPtr<USkeletalMeshComponent>& InComponent, FSkeletalMeshSkinningDataUsage Usage, bool bNeedsDataImmediately);
+	FSkeletalMeshUvMappingHandle GetCachedUvMapping(TWeakObjectPtr<USkeletalMesh>& InMeshObject, int32 InLodIndex, int32 InUvSetIndex, FSkeletalMeshUvMappingUsage Usage, bool bNeedsDataImmediately);
+
 	void TickGeneratedData(ETickingGroup TickGroup, float DeltaSeconds);
 };
 
@@ -496,6 +540,9 @@ struct FNDISkeletalMesh_InstanceData
 
 	/** Handle to our skinning data. */
 	FSkeletalMeshSkinningDataHandle SkinningData;
+
+	/** Handle to our uv mapping data. */
+	FSkeletalMeshUvMappingHandle UvMapping;
 	
 	/** Indices of all valid Sampling regions on the mesh to sample from. */
 	TArray<int32> SamplingRegionIndices;
@@ -617,7 +664,7 @@ public:
 #if WITH_EDITORONLY_DATA
 	/** Mesh used to sample from when not overridden by a source actor from the scene. Only available in editor for previewing. This is removed in cooked builds. */
 	UPROPERTY(EditAnywhere, Category = "Mesh")
-	USkeletalMesh* PreviewMesh;
+	TSoftObjectPtr<USkeletalMesh> PreviewMesh;
 #endif
 	
 	/** The source actor from which to sample. Takes precedence over the direct mesh. Note that this can only be set when used as a user variable on a component in the world.*/
@@ -662,6 +709,16 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Skeleton", meta = (InlineEditConditionToggle))
 	uint8 bExcludeBone : 1;
 
+	/** Marks the DI as supporting UV mapping on the CPU */
+	UPROPERTY(EditAnywhere, Category = "UV Mapping")
+	uint8 bSupportUvMappingCpu : 1;
+
+	/** Marks the DI as supporting UV mapping on the GPU */
+	UPROPERTY(EditAnywhere, Category = "UV Mapping")
+	uint8 bSupportUvMappingGpu : 1;
+
+	UPROPERTY(EditAnywhere, Category = "UV Mapping")
+	int32 UvSetIndex = 0;
 
 	/** When this option is disabled, we use the previous frame's data for the skeletal mesh and can often issue the simulation early. This greatly
 	reduces overhead and allows the game thread to run faster, but comes at a tradeoff if the dependencies might leave gaps or other visual artifacts.*/
@@ -748,6 +805,7 @@ public:
 	static const FString FilteredAndUnfilteredBonesName;
 	static const FString NumFilteredSocketsName;
 	static const FString FilteredSocketBoneOffsetName;
+	static const FString UvMappingBufferName;
 	static const FString InstanceTransformName;
 	static const FString InstancePrevTransformName;
 	static const FString InstanceRotationName;
@@ -793,6 +851,9 @@ public:
 
 	template<typename SkinningHandlerType>
 	void GetTriCoordVertices(FVectorVMContext& Context);
+
+	template<typename VertexAccessorType>
+	void GetTriangleCoordAtUV(FVectorVMContext& Context);
 
 private:
 	template<typename FilterMode, typename AreaWeightingMode>
@@ -909,6 +970,7 @@ public:
 	static const FName RandomFilteredTriangleName;
 	static const FName GetFilteredTriangleCountName;
 	static const FName GetFilteredTriangleAtName;
+	static const FName GetTriangleCoordAtUVName;
 
 	// Bone Sampling
 	static const FName GetSkinnedBoneDataName;
@@ -958,6 +1020,7 @@ struct FNiagaraDISkeletalMeshPassedDataToRT
 	FSkeletalMeshGpuDynamicBufferProxy* DynamicBuffer;
 	const FSkinWeightDataVertexBuffer* MeshSkinWeightBuffer;
 	const FSkinWeightLookupVertexBuffer* MeshSkinWeightLookupBuffer;
+	const FSkeletalMeshUvMappingBufferProxy* UvMappingBuffer;
 
 	bool bIsGpuUniformlyDistributedSampling;
 

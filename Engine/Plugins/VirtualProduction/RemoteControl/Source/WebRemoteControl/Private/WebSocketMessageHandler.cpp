@@ -10,10 +10,11 @@
 #include "RemoteControlRoute.h"
 #include "WebRemoteControl.h"
 #include "WebRemoteControlUtils.h"
+#include "Misc/Guid.h"
 
-
-FWebSocketMessageHandler::FWebSocketMessageHandler(FRCWebSocketServer* InServer)
-	:Server(InServer)
+FWebSocketMessageHandler::FWebSocketMessageHandler(FRCWebSocketServer* InServer, FGuid& InActingClientId)
+	: Server(InServer)
+	, ActingClientId(InActingClientId)
 {
 	check(Server);
 }
@@ -103,7 +104,18 @@ void FWebSocketMessageHandler::OnPresetExposedPropertyChanged(URemoteControlPres
 	}
 	
 	//Cache the property field that changed for end of frame notification
-	PerFramePropertyChanged.FindOrAdd(Owner->GetFName()).AddUnique(PropertyChanged);
+	TMap<FGuid, TArray<FRemoteControlProperty>>& EventsForClient = PerFramePropertyChanged.FindOrAdd(Owner->GetFName());
+	// Dont send events to the client that triggered it.
+	if (TArray<FGuid>* SubscribedClients = WebSocketNotificationMap.Find(Owner->GetFName()))
+	{
+		for (const FGuid& Client : *SubscribedClients)
+		{
+			if (Client != ActingClientId)
+			{
+				EventsForClient.FindOrAdd(Client).AddUnique(PropertyChanged);
+			}
+		}
+	}
 }
 
 void FWebSocketMessageHandler::OnPropertyExposed(URemoteControlPreset* Owner, FName PropertyLabel)
@@ -180,80 +192,29 @@ void FWebSocketMessageHandler::OnEndFrame()
 void FWebSocketMessageHandler::ProcessChangedProperties()
 {
 	//Go over each property that were changed for each preset
-	for (const TPair<FName, TArray <FRemoteControlProperty>>& Entry : PerFramePropertyChanged)
+	for (const TPair<FName, TMap<FGuid, TArray<FRemoteControlProperty>>>& Entry : PerFramePropertyChanged)
 	{
-		if (!ShouldProcessEventForPreset(Entry.Key))
+		if (!ShouldProcessEventForPreset(Entry.Key) || !Entry.Value.Num())
 		{
 			continue;
 		}
 
-		bool bHasProperty = false;
-		TArray<uint8> WorkingBuffer;
-		FMemoryWriter Writer(WorkingBuffer);
-		TSharedPtr<TJsonWriter<UCS2CHAR>> JsonWriter = TJsonWriter<UCS2CHAR>::Create(&Writer);
-
-		//Resolve the preset in question
 		URemoteControlPreset* Preset = IRemoteControlModule::Get().ResolvePreset(Entry.Key);
-
-		//Might be a better idea to have defined structures for our web socket notification messages
-
-
-		//Response object
-		JsonWriter->WriteObjectStart();
+		if (!Preset)
 		{
-			JsonWriter->WriteValue(TEXT("Type"), TEXT("PresetFieldsChanged"));
-			JsonWriter->WriteValue("PresetName", *Preset->GetFName().ToString());
-
-			JsonWriter->WriteIdentifierPrefix("ChangedFields");
-
-			//All exposed properties of this preset that changed
-			JsonWriter->WriteArrayStart();
-			{
-				for (const FRemoteControlProperty& Property : Entry.Value)
-				{
-					TOptional<FExposedProperty> ExposedProperty = Preset->ResolveExposedProperty(Property.Label);
-					if (ExposedProperty.IsSet())
-					{
-						bHasProperty = true;
-
-						FRCObjectReference ObjectRef;
-
-						//Property object
-						JsonWriter->WriteObjectStart();
-						{
-							JsonWriter->WriteValue(TEXT("PropertyLabel"), *Property.Label.ToString() );
-
-							for (UObject* Object : ExposedProperty->OwnerObjects)
-							{
-								bHasProperty = true;
-
-								IRemoteControlModule::Get().ResolveObjectProperty(ERCAccess::READ_ACCESS, Object, Property.FieldPathInfo.ToString(), ObjectRef);
-
-								JsonWriter->WriteValue(TEXT("ObjectPath"), Object->GetPathName());
-								JsonWriter->WriteIdentifierPrefix(TEXT("PropertyValue"));
-
-								RemotePayloadSerializer::SerializePartial(
-									[&ObjectRef](FJsonStructSerializerBackend& SerializerBackend)
-									{
-										return IRemoteControlModule::Get().GetObjectProperties(ObjectRef, SerializerBackend);
-									}
-								, Writer);
-
-							}
-						}
-						JsonWriter->WriteObjectEnd();
-					}
-				}
-			}
-			JsonWriter->WriteArrayEnd();
+			continue;
 		}
-		JsonWriter->WriteObjectEnd();
 
-		if (bHasProperty)
+		// Each client will have a custom payload that doesnt contain the events it triggered.
+		for (const TPair<FGuid, TArray<FRemoteControlProperty>>& ClientToEventsPair : Entry.Value)
 		{
-			TArray<uint8> Payload;
-			WebRemoteControlUtils::ConvertToUTF8(WorkingBuffer, Payload);
-			BroadcastToListeners(Entry.Key, Payload);
+			TArray<uint8> WorkingBuffer;
+			if (ClientToEventsPair.Value.Num() && WritePropertyChangeEventPayload(Preset, ClientToEventsPair.Value, WorkingBuffer))
+			{
+				TArray<uint8> Payload;
+				WebRemoteControlUtils::ConvertToUTF8(WorkingBuffer, Payload);
+				Server->Send(ClientToEventsPair.Key, Payload);
+			}
 		}
 	}
 
@@ -348,4 +309,67 @@ void FWebSocketMessageHandler::BroadcastToListeners(FName TargetPresetName, cons
 bool FWebSocketMessageHandler::ShouldProcessEventForPreset(FName PresetName) const
 {
 	return WebSocketNotificationMap.Contains(PresetName) && WebSocketNotificationMap[PresetName].Num() > 0;
+}
+
+bool FWebSocketMessageHandler::WritePropertyChangeEventPayload(URemoteControlPreset* InPreset, const TArray<FRemoteControlProperty>& InEvents, TArray<uint8>& OutBuffer)
+{
+	bool bHasProperty = false;
+
+	FMemoryWriter Writer(OutBuffer);
+	TSharedPtr<TJsonWriter<UCS2CHAR>> JsonWriter = TJsonWriter<UCS2CHAR>::Create(&Writer);
+
+	//Might be a better idea to have defined structures for our web socket notification messages
+
+	//Response object
+	JsonWriter->WriteObjectStart();
+	{
+		JsonWriter->WriteValue(TEXT("Type"), TEXT("PresetFieldsChanged"));
+		JsonWriter->WriteValue("PresetName", *InPreset->GetFName().ToString());
+
+		JsonWriter->WriteIdentifierPrefix("ChangedFields");
+
+		//All exposed properties of this preset that changed
+		JsonWriter->WriteArrayStart();
+		{
+			for (const FRemoteControlProperty& Property : InEvents)
+			{
+				TOptional<FExposedProperty> ExposedProperty = InPreset->ResolveExposedProperty(Property.Label);
+				if (ExposedProperty.IsSet())
+				{
+					bHasProperty = true;
+
+					FRCObjectReference ObjectRef;
+
+					//Property object
+					JsonWriter->WriteObjectStart();
+					{
+						JsonWriter->WriteValue(TEXT("PropertyLabel"), *Property.Label.ToString());
+
+						for (UObject* Object : ExposedProperty->OwnerObjects)
+						{
+							bHasProperty = true;
+
+							IRemoteControlModule::Get().ResolveObjectProperty(ERCAccess::READ_ACCESS, Object, Property.FieldPathInfo.ToString(), ObjectRef);
+
+							JsonWriter->WriteValue(TEXT("ObjectPath"), Object->GetPathName());
+							JsonWriter->WriteIdentifierPrefix(TEXT("PropertyValue"));
+
+							RemotePayloadSerializer::SerializePartial(
+								[&ObjectRef](FJsonStructSerializerBackend& SerializerBackend)
+								{
+									return IRemoteControlModule::Get().GetObjectProperties(ObjectRef, SerializerBackend);
+								}
+							, Writer);
+
+						}
+					}
+					JsonWriter->WriteObjectEnd();
+				}
+			}
+		}
+		JsonWriter->WriteArrayEnd();
+	}
+	JsonWriter->WriteObjectEnd();
+
+	return bHasProperty;
 }

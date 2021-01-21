@@ -126,6 +126,11 @@ struct FNetworkPredictionProxy
 
 	// ------------------------------------------------------------------------------------
 
+	FNetSimCueDispatcher* GetCueDispatcher() const
+	{
+		return View.CueDispatcher;
+	}
+
 	bool NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess)
 	{
 		uint32 RawID=(uint32)ID;

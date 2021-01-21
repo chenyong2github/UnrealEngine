@@ -12044,7 +12044,7 @@ UMaterialInterface* UMaterialFunction::GetPreviewMaterial()
 {
 	if( nullptr == PreviewMaterial )
 	{
-		PreviewMaterial = NewObject<UMaterial>(GetTransientPackage(), NAME_None, RF_Transient | RF_Public);
+		PreviewMaterial = NewObject<UMaterial>(this, NAME_None, RF_Transient | RF_Public);
 
 		PreviewMaterial->Expressions = FunctionExpressions;
 
@@ -19418,6 +19418,12 @@ void UMaterialExpressionCloudSampleAttribute::GetCaption(TArray<FString>& OutCap
 {
 	OutCaptions.Add(TEXT("Cloud Sample Attributes"));
 }
+
+void UMaterialExpressionCloudSampleAttribute::GetExpressionToolTip(TArray<FString>& OutToolTip)
+{
+	ConvertToMultilineToolTip(TEXT("Cloud sample attributes.\nCloudSampleAltitude is the sample atlitude relative to the planet ground (centimeters).\nCloudSampleAltitudeInLayer is the sample atlitude relative to the cloud layer bottom altitude (centimeters).\nCloudSampleNormAltitudeInLayer is the normalised sample altitude within the cloud layer (0=bottom, 1=top)."), 80, OutToolTip);
+}
+
 #endif // WITH_EDITOR
 
 

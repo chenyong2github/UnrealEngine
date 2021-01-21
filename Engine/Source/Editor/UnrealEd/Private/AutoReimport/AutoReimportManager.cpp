@@ -742,13 +742,15 @@ TOptional<ECurrentState> FAutoReimportManager::ProcessDeletions()
 	TGuardValue<bool> ScopedAssetChangesGuard(bGuardAssetChanges, true);
 
 	TArray<FAssetData> AssetsToDelete;
+	int32 TotalWork = 0;
 
 	for (const TUniquePtr<FContentDirectoryMonitor>& Monitor : DirectoryMonitors)
 	{
+		TotalWork += Monitor->GetDeletedFilesNum();
 		Monitor->ExtractAssetsToDelete(AssetsToDelete);
 	}
 
-	FeedbackContextOverride->MainTask->EnterProgressFrame(AssetsToDelete.Num());
+	FeedbackContextOverride->MainTask->EnterProgressFrame(TotalWork);
 
 	if (AssetsToDelete.Num() > 0)
 	{

@@ -10,12 +10,14 @@ source  Engine/Build/BatchFiles/Mac/SetupEnvironment.sh -dotnet Engine/Build/Bat
 # remove environment variable passed from xcode which also has meaning to dotnet, breaking the build
 unset TARGETNAME
 
-# First make sure that the UnrealBuildTool is up-to-date
-dotnet build Engine/Source/Programs/UnrealBuildTool/UnrealBuildTool.csproj -c Development -v quiet
+# If this is a source drop of the engine make sure that the UnrealBuildTool is up-to-date
+if [ ! -f Engine/Build/InstalledBuild.txt ]; then
+	dotnet build Engine/Source/Programs/UnrealBuildTool/UnrealBuildTool.csproj -c Development -v quiet
 
-if [ $? -ne 0 ]; then
-echo "Failed to build the build tool (UnrealBuildTool)"
-exit 1
+	if [ $? -ne 0 ]; then
+		echo "Failed to build the build tool (UnrealBuildTool)"
+		exit 1
+	fi
 fi
 
 
@@ -101,7 +103,7 @@ if [ "$ACTION" == "build" ]; then
 
 	# Build SCW if this is an editor target
 	if [[ "$TARGET" == *"Editor" ]]; then
-		Engine/Binaries/DotNET/UnrealBuildTool/UnrealBuildTool ShaderCompileWorker Mac Development $UBT_ARCHFLAG 
+		Engine/Binaries/DotNET/UnrealBuildTool/UnrealBuildTool ShaderCompileWorker Mac Development
 	fi
 
 elif [ $ACTION == "clean" ]; then

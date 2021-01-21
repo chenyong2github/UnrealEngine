@@ -459,7 +459,7 @@ bool SPoseViewer::IsCurveSelected() const
 // Restart Animation state for all instnace that belong to the current Skeleton
 void RestartAnimations(const USkeleton* CurrentSkeleton) 
 {
-	for (FObjectIterator Iter(USkeletalMeshComponent::StaticClass()); Iter; ++Iter)
+	for (FThreadSafeObjectIterator Iter(USkeletalMeshComponent::StaticClass()); Iter; ++Iter)
 	{
 		USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(*Iter);
 		if (SkeletalMeshComponent->SkeletalMesh && SkeletalMeshComponent->SkeletalMesh->GetSkeleton() == CurrentSkeleton)

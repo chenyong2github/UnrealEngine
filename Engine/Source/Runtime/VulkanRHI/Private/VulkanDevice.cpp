@@ -43,6 +43,12 @@ static TAutoConsoleVariable<int32> CVarVulkanUseD24(
 	ECVF_ReadOnly
 );
 
+#if NV_AFTERMATH
+#include "GFSDK_Aftermath_GpuCrashDump.h"
+void AftermathGpuCrashDumpCallback(const void* pGpuCrashDump, const uint32 gpuCrashDumpSize, void* pUserData);
+void AftermathShaderDebugInfoCallback(const void* pShaderDebugInfo, const uint32 shaderDebugInfoSize, void* pUserData);
+void AftermathCrashDumpDescriptionCallback(PFN_GFSDK_Aftermath_AddGpuCrashDumpDescription addDescription, void* pUserData);
+#endif
 
 // Mirror GPixelFormats with format information for buffers
 VkFormat GVulkanBufferFormat[PF_MAX];
@@ -314,15 +320,38 @@ void FVulkanDevice::CreateDevice()
 
 	FVulkanPlatform::EnablePhysicalDeviceFeatureExtensions(DeviceInfo);
 
-#if VULKAN_SUPPORTS_NV_DEVICE_DIAGNOSTIC_CONFIG
+#if VULKAN_SUPPORTS_NV_DIAGNOSTICS
+	VkPhysicalDeviceDiagnosticsConfigFeaturesNV DeviceDiagnosticsNV;
 	VkDeviceDiagnosticsConfigCreateInfoNV DeviceDiagnosticsConfigCreateInfoNV;
 	if (OptionalDeviceExtensions.HasNVDeviceDiagnosticConfig)
 	{
+		ZeroVulkanStruct(DeviceDiagnosticsNV, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DIAGNOSTICS_CONFIG_FEATURES_NV);
+		DeviceDiagnosticsNV.pNext = const_cast<void*>(DeviceInfo.pNext);
+		DeviceDiagnosticsNV.diagnosticsConfig = VK_TRUE;
+		DeviceInfo.pNext = &DeviceDiagnosticsNV;
+
 		ZeroVulkanStruct(DeviceDiagnosticsConfigCreateInfoNV, VK_STRUCTURE_TYPE_DEVICE_DIAGNOSTICS_CONFIG_CREATE_INFO_NV);
 		DeviceDiagnosticsConfigCreateInfoNV.flags = VK_DEVICE_DIAGNOSTICS_CONFIG_ENABLE_SHADER_DEBUG_INFO_BIT_NV | VK_DEVICE_DIAGNOSTICS_CONFIG_ENABLE_RESOURCE_TRACKING_BIT_NV | VK_DEVICE_DIAGNOSTICS_CONFIG_ENABLE_AUTOMATIC_CHECKPOINTS_BIT_NV;
 		DeviceDiagnosticsConfigCreateInfoNV.pNext = const_cast<void*>(DeviceInfo.pNext);
 		DeviceInfo.pNext = &DeviceDiagnosticsConfigCreateInfoNV;
 	}
+
+	#if NV_AFTERMATH
+	if (GGPUCrashDebuggingEnabled && GVulkanNVAftermathModuleLoaded)
+	{
+		GFSDK_Aftermath_Result Result = GFSDK_Aftermath_EnableGpuCrashDumps(GFSDK_Aftermath_Version_API, 
+			GFSDK_Aftermath_GpuCrashDumpWatchedApiFlags_Vulkan,
+			GFSDK_Aftermath_GpuCrashDumpFeatureFlags_DeferDebugInfoCallbacks, 
+			AftermathGpuCrashDumpCallback,
+			AftermathShaderDebugInfoCallback,
+			AftermathCrashDumpDescriptionCallback,
+			this);
+		if (Result != GFSDK_Aftermath_Result_Success)
+		{
+			UE_LOG(LogVulkanRHI, Warning, TEXT("Unable to initialize Aftermath crash dumps (Result %d)"), (int32)Result);
+		}
+	}
+	#endif
 #endif
 
 #if VULKAN_SUPPORTS_SEPARATE_DEPTH_STENCIL_LAYOUTS

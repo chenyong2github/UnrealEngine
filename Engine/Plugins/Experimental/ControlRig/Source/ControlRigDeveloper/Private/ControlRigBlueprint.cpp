@@ -2426,6 +2426,10 @@ void UControlRigBlueprint::OnPostVariableChange(UBlueprint* InBlueprint)
 	TMap<FGuid, int32> NewVariablesByGuid;
 	for (int32 VarIndex = 0; VarIndex < NewVariables.Num(); VarIndex++)
 	{
+		// we use the storage within the CDO for the default values,
+		// no need to maintain the default value as a string
+		NewVariables[VarIndex].DefaultValue = FString();
+
 		NewVariablesByGuid.Add(NewVariables[VarIndex].VarGuid, VarIndex);
 	}
 

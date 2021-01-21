@@ -37,6 +37,8 @@
 #include "LightingBuildOptions.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "Bookmarks/IBookmarkTypeTools.h"
+#include "GameMapsSettings.h"
+#include "Editor/EditorPerformanceSettings.h"
 
 
 #define COOK_TIMEOUT 3600
@@ -138,7 +140,7 @@ void FAutomationEditorCommonUtils::NullReferencesToObject(UObject* InObject)
 
 	// Find all the properties (and their corresponding objects) that refer to any of the objects to be replaced
 	TMap< UObject*, TArray<FProperty*> > ReferencingPropertiesMap;
-	for (FObjectIterator ObjIter; ObjIter; ++ObjIter)
+	for (FThreadSafeObjectIterator ObjIter; ObjIter; ++ObjIter)
 	{
 		UObject* CurObject = *ObjIter;
 
@@ -996,4 +998,166 @@ bool FWaitToFinishBuildDeployCommand::Update()
 		return true;
 	}
 	return false;
+}
+
+// agrant-todo: Expose the version in AutomationCommon.cpp for 4.27
+namespace EditorAutomationPrivate
+{
+	// @todo this is a temporary solution. Once we know how to get test's hands on a proper world
+	// this function should be redone/removed
+	UWorld* GetAnyGameWorld()
+	{
+		UWorld* TestWorld = nullptr;
+		const TIndirectArray<FWorldContext>& WorldContexts = GEngine->GetWorldContexts();
+		for (const FWorldContext& Context : WorldContexts)
+		{
+			if (((Context.WorldType == EWorldType::PIE) || (Context.WorldType == EWorldType::Game)) && (Context.World() != NULL))
+			{
+				TestWorld = Context.World();
+				break;
+			}
+		}
+
+		return TestWorld;
+	}
+}
+
+
+// agrant-todo: Use the standard version in AutomationCommon.cpp for 4.27
+DEFINE_LATENT_AUTOMATION_COMMAND_ONE_PARAMETER(FWaitForSpecifiedPIEMapToEndCommand, FString, MapName);
+
+bool FWaitForSpecifiedPIEMapToEndCommand::Update()
+{
+	UWorld* TestWorld = EditorAutomationPrivate::GetAnyGameWorld();
+
+	if (!TestWorld)
+	{
+		return true;
+	}
+
+	FString ShortMapName = FPackageName::GetShortName(MapName);
+
+	// Handle both ways the user may have specified this
+	if (TestWorld->GetName() != ShortMapName)
+	{
+		return true;
+	}
+
+	return false;
+}
+
+// agrant-todo: Move this into BasicTests.cpp for 4.27
+/**
+ * Generic Pie Test for projects. 
+ * By default this test will PIE the lit of MapsToPIETest from automation settings. if that is empty it will PIE the default editor and game (if they're different)
+ * maps. 
+ *
+ * If the editor session was started with a map on the command line then that's the only map that will be PIE'd. This allows project to set up tests that PIE
+ * a list of maps from an external source.
+ */
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FProjectMapsPIETest, "Project.Maps.PIE", EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+/**
+ * Execute the loading of one map to verify PIE works
+ *
+ * @param Parameters - Unused for this test
+ * @return	TRUE if the test was successful, FALSE otherwise
+ */
+bool FProjectMapsPIETest::RunTest(const FString& Parameters)
+{
+	UAutomationTestSettings const* AutomationTestSettings = GetDefault<UAutomationTestSettings>();
+	check(AutomationTestSettings);
+
+	TArray<FString> PIEMaps;
+
+	// If the user has specified a map on the command line then that is what we'll PIE
+
+	// Taken from FUnrealEdMisc::OnInit which determines if there's a map on the command line
+	const TCHAR* ParsedCmdLine = FCommandLine::Get();
+
+	FString ParsedMapName;
+	// Check the first arg if it's not a parameter
+	if (FParse::Token(ParsedCmdLine, ParsedMapName, false) && ParsedMapName.StartsWith(TEXT("-")) == false)
+	{
+		FString InitialMapName;
+
+		// If the specified package exists
+		if (FPackageName::SearchForPackageOnDisk(ParsedMapName, NULL, &InitialMapName) &&
+			// and it's a valid map file
+			FPaths::GetExtension(InitialMapName, /*bIncludeDot=*/true) == FPackageName::GetMapPackageExtension())
+		{
+			PIEMaps.Add(InitialMapName);
+			UE_LOG(LogEditorAutomationTests, Display, TEXT("Found Map %s on command line. PIE Test will be restructed to this map"), *InitialMapName);
+		}
+	}
+
+	// If there was no command line map then default to the project settings
+	if (PIEMaps.Num() == 0)
+	{
+		// If the project has maps configured for PIE then use those
+		if (AutomationTestSettings->MapsToPIETest.Num())
+		{
+			for (const FString& Map : AutomationTestSettings->MapsToPIETest)
+			{
+				PIEMaps.Add(Map);
+			}
+		}
+		else
+		{
+			// Else pick the editor startup and game startup maps (if they are different).
+			UE_LOG(LogEditorAutomationTests, Display, TEXT("No MapsToPIE or MapsToTest specified in DefaultEngine.ini [/Script/Engine.AutomationTestSettings]. Using GameStartup or EditorStartup Map"));
+
+			UGameMapsSettings const* MapSettings = GetDefault<UGameMapsSettings>();
+
+			if (MapSettings->EditorStartupMap.IsValid())
+			{
+				PIEMaps.Add(MapSettings->EditorStartupMap.GetLongPackageName());
+			}
+
+			if (MapSettings->GetGameDefaultMap().Len() && MapSettings->GetGameDefaultMap() != MapSettings->EditorStartupMap.GetLongPackageName())
+			{
+				PIEMaps.Add(MapSettings->GetGameDefaultMap());
+			}
+		}
+	}
+
+	// Uh-oh
+	if (PIEMaps.Num() == 0)
+	{
+		UE_LOG(LogEditorAutomationTests, Error, TEXT("No automation or default maps are configured for PIE!"));
+	}
+
+	// Don't want these settings affecting metrics
+	UEditorPerformanceSettings* Settings = GetMutableDefault<UEditorPerformanceSettings>();
+	Settings->bThrottleCPUWhenNotForeground = false;
+	Settings->bMonitorEditorPerformance = false;
+	Settings->PostEditChange();
+	
+	for (const FString& Map : PIEMaps)
+	{
+		FString MapPackageName = FPackageName::ObjectPathToPackageName(Map);
+
+		if (!FPackageName::IsValidObjectPath(MapPackageName))
+		{
+			if (!FPackageName::SearchForPackageOnDisk(MapPackageName, NULL, &MapPackageName))
+			{
+				UE_LOG(LogEditorAutomationTests, Error, TEXT("Couldn't resolve map for PIE test from %s to valid package name!"), *MapPackageName);
+				continue;
+			}
+		}		
+		
+		AddCommand(new FEditorAutomationLogCommand(FString::Printf(TEXT("LoadMap-Begin: %s"), *MapPackageName)));
+		AddCommand(new FEditorLoadMap(Map));
+		AddCommand(new FEditorAutomationLogCommand(FString::Printf(TEXT("LoadMap-End: %s"), *MapPackageName)));
+		AddCommand(new FEditorAutomationLogCommand(FString::Printf(TEXT("PIE-Begin: %s"), *MapPackageName)));
+		AddCommand(new FStartPIECommand(false));
+		AddCommand(new FWaitForShadersToFinishCompiling());
+		AddCommand(new FWaitForSpecifiedMapToLoadCommand(MapPackageName));  // need at least some frames before starting & ending PIE
+		AddCommand(new FWaitLatentCommand(AutomationTestSettings->PIETestDuration));
+		AddCommand(new FEndPlayMapCommand());
+		AddCommand(new FWaitForSpecifiedPIEMapToEndCommand(MapPackageName));  // need at least some frames before starting & ending PIE
+		AddCommand(new FEditorAutomationLogCommand(FString::Printf(TEXT("PIE-End: %s"), *Map)));
+	}
+
+	return true;
 }

@@ -101,11 +101,11 @@ struct FBranchingPoint : public FAnimLinkableElement
 	FName EventName;
 
 	UPROPERTY()
-	float DisplayTime_DEPRECATED;
+	float DisplayTime_DEPRECATED = 0.f;
 
 	/** An offset from the DisplayTime to the actual time we will trigger the notify, as we cannot always trigger it exactly at the time the user wants */
 	UPROPERTY()
-	float TriggerTimeOffset;
+	float TriggerTimeOffset = 0.f;
 
 	/** Returns the time this branching point should be triggered */
 	float GetTriggerTime() const { return GetTime() + TriggerTimeOffset; }

@@ -437,6 +437,10 @@
 #ifndef GET_DEVICE_ID_UNAVAILABLE
 	#define GET_DEVICE_ID_UNAVAILABLE 0
 #endif
+// Controls whether to enable loading cooked packages from I/O store in editor builds
+#ifndef WITH_IOSTORE_IN_EDITOR
+#define WITH_IOSTORE_IN_EDITOR 0
+#endif
 
 // Controls whether or not to make a global object to load COnfig.bin as soon as possible
 #ifndef PRELOAD_BINARY_CONFIG

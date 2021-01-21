@@ -583,7 +583,7 @@ namespace Audio
 		return false;
 	}
 
-	void FMixerSource::SetupBusData(TArray<FInitAudioBusSend>* OutAudioBusSends)
+	void FMixerSource::SetupBusData(TArray<FInitAudioBusSend>* OutAudioBusSends, bool bEnableBusSends)
 	{
 		for (int32 BusSendType = 0; BusSendType < (int32)EBusSendType::Count; ++BusSendType)
 		{
@@ -591,13 +591,12 @@ namespace Audio
 			for (FSoundSourceBusSendInfo& SendInfo : WaveInstance->BusSends[BusSendType])
 			{
 				// Avoid redoing duplicate code for sending audio to source bus or audio bus. Most of it is the same other than the bus id.
-				auto SetupBusSend = [this](TArray<FInitAudioBusSend>* AudioBusSends, const FSoundSourceBusSendInfo& InSendInfo, int32 InBusSendType, uint32 InBusId, int32 InBusChannels)
+				auto SetupBusSend = [this](TArray<FInitAudioBusSend>* AudioBusSends, const FSoundSourceBusSendInfo& InSendInfo, int32 InBusSendType, uint32 InBusId, bool bEnableBusSends, int32 InBusChannels)
 				{
 					FInitAudioBusSend BusSend;
 					BusSend.AudioBusId = InBusId;
-					BusSend.SendLevel = InSendInfo.SendLevel;
 					BusSend.BusChannels = InBusChannels;
-
+					BusSend.SendLevel = InSendInfo.SendLevel;
 					if (AudioBusSends)
 					{
 						AudioBusSends[InBusSendType].Add(BusSend);
@@ -656,7 +655,7 @@ namespace Audio
 					}
 
 					// Call lambda w/ the correctly derived bus id
-					SetupBusSend(OutAudioBusSends, SendInfo, BusSendType, BusId, BusChannels);
+					SetupBusSend(OutAudioBusSends, SendInfo, BusSendType, BusId, bEnableBusSends, BusChannels);
 				}
 
 				if (SendInfo.AudioBus)
@@ -666,7 +665,7 @@ namespace Audio
 					int32 BusChannels = (int32)SendInfo.AudioBus->AudioBusChannels + 1;
 
 					// Note we will be sending audio to both the specified source bus and the audio bus with the same send level
-					SetupBusSend(OutAudioBusSends, SendInfo, BusSendType, BusId, BusChannels);
+					SetupBusSend(OutAudioBusSends, SendInfo, BusSendType, BusId, bEnableBusSends, BusChannels);
 				}
 			}
 		}
@@ -1409,10 +1408,14 @@ namespace Audio
 		{
 			float SendLevel = 0.0f;
 
-			if (DynamicBusSendInfo.BusSendLevelControlMethod != ESourceBusSendLevelControlMethod::Manual)
+			if (DynamicBusSendInfo.BusSendLevelControlMethod == ESourceBusSendLevelControlMethod::Manual)
+			{
+				SendLevel = FMath::Clamp(DynamicBusSendInfo.SendLevel, 0.0f, 1.0f);
+			}
+			else
 			{
 				// The alpha value is determined identically between linear and custom curve methods
-				const FVector2D SendRadialRange = { DynamicBusSendInfo.MinSendDistance, DynamicBusSendInfo.MaxSendDistance};
+				const FVector2D SendRadialRange = { DynamicBusSendInfo.MinSendDistance, DynamicBusSendInfo.MaxSendDistance };
 				const FVector2D SendLevelRange = { DynamicBusSendInfo.MinSendLevel, DynamicBusSendInfo.MaxSendLevel };
 				const float Denom = FMath::Max(SendRadialRange.Y - SendRadialRange.X, 1.0f);
 				const float Alpha = FMath::Clamp((WaveInstance->ListenerToSoundDistance - SendRadialRange.X) / Denom, 0.0f, 1.0f);
@@ -1425,17 +1428,16 @@ namespace Audio
 				{
 					SendLevel = FMath::Clamp(DynamicBusSendInfo.CustomSendLevelCurve.GetRichCurveConst()->Eval(Alpha), 0.0f, 1.0f);
 				}
-
-				// If the send level changed, then we need to send an update to the audio render thread
-				if (!FMath::IsNearlyEqual(SendLevel, DynamicBusSendInfo.SendLevel) || DynamicBusSendInfo.bIsInit)
-				{
-					DynamicBusSendInfo.SendLevel = SendLevel;
-					DynamicBusSendInfo.bIsInit = false;
-
-					MixerSourceVoice->SetAudioBusSendInfo(DynamicBusSendInfo.BusSendType, DynamicBusSendInfo.BusId, SendLevel);
-				}
 			}
 
+			// If the send level changed, then we need to send an update to the audio render thread
+			if (!FMath::IsNearlyEqual(SendLevel, DynamicBusSendInfo.SendLevel))
+			{
+				DynamicBusSendInfo.SendLevel = SendLevel;
+				DynamicBusSendInfo.bIsInit = false;
+
+				MixerSourceVoice->SetAudioBusSendInfo(DynamicBusSendInfo.BusSendType, DynamicBusSendInfo.BusId, SendLevel);
+			}
 		}
 	}
 

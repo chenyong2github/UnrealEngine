@@ -200,7 +200,7 @@ void FMeshMergeHelpers::ExpandInstances(const UInstancedStaticMeshComponent* InI
 	for(const FInstancedStaticMeshInstanceData& InstanceData : InInstancedStaticMeshComponent->PerInstanceSMData)
 	{
 		FMeshDescription InstanceMeshDescription = InOutMeshDescription;
-		TransformMeshDescriptionVertexData(ComponentTransformInv * FTransform(InstanceData.Transform) * ComponentTransform, InstanceMeshDescription);
+		FStaticMeshOperations::ApplyTransform(InstanceMeshDescription, ComponentTransformInv * FTransform(InstanceData.Transform) * ComponentTransform);
 		AppendMesh(CombinedMeshDescription, InstanceMeshDescription);
 	}
 
@@ -248,8 +248,8 @@ void FMeshMergeHelpers::RetrieveMesh(const UStaticMeshComponent* StaticMeshCompo
 		PropagatePaintedColorsToMesh(StaticMeshComponent, LODIndex, OutMeshDescription);
 	}
 
-	// Transform mesh vertex data by the Static Mesh Component's component to world transformation	
-	TransformMeshDescriptionVertexData(ComponentToWorldTransform, OutMeshDescription);
+	// Transform raw mesh vertex data by the Static Mesh Component's component to world transformation	
+	FStaticMeshOperations::ApplyTransform(OutMeshDescription, ComponentToWorldTransform);
 
 	if (OutMeshDescription.VertexInstances().Num() <= 0)
 	{
@@ -794,49 +794,6 @@ void FMeshMergeHelpers::PropagateSplineDeformationToPhysicsGeometry(USplineMeshC
 	{
 		const FVector WorldSpaceCenter = Elem.GetTransform().TransformPosition(Elem.Center);
 		Elem.Center = SplineMeshComponent->CalcSliceTransform(USplineMeshComponent::GetAxisValue(WorldSpaceCenter, SplineMeshComponent->ForwardAxis)).TransformPosition(Elem.Center * Mask);
-	}
-}
-
-void FMeshMergeHelpers::TransformMeshDescriptionVertexData(const FTransform& InTransform, FMeshDescription& InOutMeshDescription)
-{
-	TRACE_CPUPROFILER_EVENT_SCOPE(FMeshMergeHelpers::TransformMeshDescriptionVertexData)
-
-	FStaticMeshAttributes Attributes(InOutMeshDescription);
-	TArrayView<FVector> VertexPositions = Attributes.GetVertexPositions().GetRawArray();
-	TArrayView<FVector> VertexInstanceNormals = Attributes.GetVertexInstanceNormals().GetRawArray();
-	TArrayView<FVector> VertexInstanceTangents = Attributes.GetVertexInstanceTangents().GetRawArray();
-	TArrayView<float> VertexInstanceBinormalSigns = Attributes.GetVertexInstanceBinormalSigns().GetRawArray();
-
-	for(const FVertexID VertexID : InOutMeshDescription.Vertices().GetElementIDs())
-	{
-		VertexPositions[VertexID] = InTransform.TransformPosition(VertexPositions[VertexID]);
-	}
-
-	FMatrix Matrix   = InTransform.ToMatrixWithScale();
-	FMatrix AdjointT = Matrix.TransposeAdjoint();
-	AdjointT.RemoveScaling();
-
-	const float MulBy = Matrix.Determinant() < 0.f ? -1.f : 1.f;
-	auto TransformNormal = 
-		[&AdjointT, MulBy](FVector& Normal) 
-		{
-			Normal = AdjointT.TransformVector(Normal) * MulBy;
-		};
-
-	for (const FVertexInstanceID VertexInstanceID : InOutMeshDescription.VertexInstances().GetElementIDs())
-	{
-		FVector TangentY = FVector::CrossProduct(VertexInstanceNormals[VertexInstanceID], VertexInstanceTangents[VertexInstanceID]).GetSafeNormal() * VertexInstanceBinormalSigns[VertexInstanceID];
-		TransformNormal(VertexInstanceTangents[VertexInstanceID]);
-		TransformNormal(TangentY);
-		TransformNormal(VertexInstanceNormals[VertexInstanceID]);
-		VertexInstanceBinormalSigns[VertexInstanceID] = GetBasisDeterminantSign(VertexInstanceTangents[VertexInstanceID], TangentY, VertexInstanceNormals[VertexInstanceID]);
-	}
-
-	const bool bIsMirrored = InTransform.GetDeterminant() < 0.f;
-	if (bIsMirrored)
-	{
-		// Reverse the vertex instance
-		InOutMeshDescription.ReverseAllPolygonFacing();
 	}
 }
 

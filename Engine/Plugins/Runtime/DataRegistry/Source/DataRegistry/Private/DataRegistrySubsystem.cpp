@@ -19,7 +19,14 @@
 
 UDataRegistrySubsystem* UDataRegistrySubsystem::Get()
 {
-	return GEngine->GetEngineSubsystem<UDataRegistrySubsystem>();
+	// This function is fairly slow and once this is valid it will stay valid until shutdown
+	static UDataRegistrySubsystem* SubSystem = nullptr;
+	if (!SubSystem)
+	{
+		SubSystem = GEngine->GetEngineSubsystem<UDataRegistrySubsystem>();
+	}
+
+	return SubSystem;
 }
 
 //static bool GetCachedItemBP(FDataRegistryId ItemId, UPARAM(ref) FTableRowBase& OutItem);
@@ -155,15 +162,11 @@ DEFINE_FUNCTION(UDataRegistrySubsystem::execGetCachedItemFromLookupBP)
 
 UDataRegistry* UDataRegistrySubsystem::GetRegistryForType(FName RegistryType) const
 {
-	// Weak on purpose to avoid issues with asset deletion in editor
-	const TWeakObjectPtr<UDataRegistry>* FoundRegistry = RegistryMap.Find(RegistryType);
+	UDataRegistry* const * FoundRegistry = RegistryMap.Find(RegistryType);
 
-	if (FoundRegistry)
+	if (FoundRegistry && *FoundRegistry)
 	{
-		if (FoundRegistry->IsValid())
-		{
-			return FoundRegistry->Get();
-		}
+		return *FoundRegistry;
 	}
 
 	return nullptr;
@@ -190,9 +193,9 @@ void UDataRegistrySubsystem::GetAllRegistries(TArray<UDataRegistry*>& AllRegistr
 {
 	AllRegistries.Reset();
 
-	for (const TPair<FName, TWeakObjectPtr<UDataRegistry>>& RegistryPair : RegistryMap)
+	for (const FRegistryMapPair& RegistryPair : RegistryMap)
 	{
-		UDataRegistry* Registry = RegistryPair.Value.Get();
+		UDataRegistry* Registry = RegistryPair.Value;
 		if (Registry)
 		{
 			AllRegistries.Add(Registry);
@@ -209,7 +212,7 @@ void UDataRegistrySubsystem::RefreshRegistryMap()
 {
 	const UDataRegistrySettings* Settings = GetDefault<UDataRegistrySettings>();
 
-	TMap<FName, TWeakObjectPtr<UDataRegistry>> OldMap = RegistryMap;
+	auto OldMap = RegistryMap;
 	RegistryMap.Reset();
 
 	for (TObjectIterator<UDataRegistry> RegistryIterator; RegistryIterator; ++RegistryIterator)
@@ -253,9 +256,9 @@ void UDataRegistrySubsystem::RefreshRegistryMap()
 	}
 
 	// Deinitialize anything that is no longer valid
-	for (TPair<FName, TWeakObjectPtr<UDataRegistry>>& RegistryPair : OldMap)
+	for (const FRegistryMapPair& RegistryPair : OldMap)
 	{
-		UDataRegistry* Registry = RegistryPair.Value.Get();
+		UDataRegistry* Registry = RegistryPair.Value;
 		if (Registry && Registry->IsInitialized() && !RegistryMap.Contains(RegistryPair.Key))
 		{
 			Registry->Deinitialize();
@@ -325,12 +328,6 @@ void UDataRegistrySubsystem::LoadAllRegistries()
 		{
 			LoadHandle->WaitUntilComplete();
 		}
-
-		if (!GIsEditor)
-		{
-			// Need to keep these all from GCing in non editor builds
-			RegistryLoadHandle = LoadHandle;
-		}
 	}
 
 	RefreshRegistryMap();
@@ -369,9 +366,9 @@ bool UDataRegistrySubsystem::IsConfigEnabled(bool bWarnIfNotEnabled /*= false*/)
 
 void UDataRegistrySubsystem::InitializeAllRegistries(bool bResetIfInitialized)
 {
-	for (TPair<FName, TWeakObjectPtr<UDataRegistry>>& RegistryPair : RegistryMap)
+	for (const FRegistryMapPair& RegistryPair : RegistryMap)
 	{
-		UDataRegistry* Registry = RegistryPair.Value.Get();
+		UDataRegistry* Registry = RegistryPair.Value;
 		if (Registry && !Registry->IsInitialized())
 		{
 			Registry->Initialize();
@@ -387,9 +384,9 @@ void UDataRegistrySubsystem::InitializeAllRegistries(bool bResetIfInitialized)
 
 void UDataRegistrySubsystem::DeinitializeAllRegistries()
 {
-	for (TPair<FName, TWeakObjectPtr<UDataRegistry>>& RegistryPair : RegistryMap)
+	for (const FRegistryMapPair& RegistryPair : RegistryMap)
 	{
-		UDataRegistry* Registry = RegistryPair.Value.Get();
+		UDataRegistry* Registry = RegistryPair.Value;
 		if (Registry)
 		{
 			Registry->Deinitialize();
@@ -439,9 +436,9 @@ bool UDataRegistrySubsystem::IgnoreRegistryPath(const FSoftObjectPath& RegistryA
 
 void UDataRegistrySubsystem::ResetRuntimeState()
 {
-	for (TPair<FName, TWeakObjectPtr<UDataRegistry>>& RegistryPair : RegistryMap)
+	for (const FRegistryMapPair& RegistryPair : RegistryMap)
 	{
-		UDataRegistry* Registry = RegistryPair.Value.Get();
+		UDataRegistry* Registry = RegistryPair.Value;
 		if (Registry && Registry->IsInitialized())
 		{
 			Registry->ResetRuntimeState();
@@ -483,9 +480,9 @@ bool UDataRegistrySubsystem::RegisterSpecificAsset(FDataRegistryType RegistryTyp
 	if (!RegistryType.IsValid())
 	{
 		bool bMadeChange = false;
-		for (TPair<FName, TWeakObjectPtr<UDataRegistry>>& RegistryPair : RegistryMap)
+		for (const FRegistryMapPair& RegistryPair : RegistryMap)
 		{
-			UDataRegistry* Registry = RegistryPair.Value.Get();
+			UDataRegistry* Registry = RegistryPair.Value;
 			if (Registry)
 			{
 				bMadeChange |= Registry->RegisterSpecificAsset(AssetData, AssetPriority);
@@ -528,9 +525,9 @@ bool UDataRegistrySubsystem::UnregisterSpecificAsset(FDataRegistryType RegistryT
 	if (!RegistryType.IsValid())
 	{
 		bool bMadeChange = false;
-		for (TPair<FName, TWeakObjectPtr<UDataRegistry>>& RegistryPair : RegistryMap)
+		for (const FRegistryMapPair& RegistryPair : RegistryMap)
 		{
-			UDataRegistry* Registry = RegistryPair.Value.Get();
+			UDataRegistry* Registry = RegistryPair.Value;
 			if (Registry)
 			{
 				bMadeChange |= Registry->UnregisterSpecificAsset(AssetPath);
@@ -573,9 +570,9 @@ int32 UDataRegistrySubsystem::UnregisterAssetsWithPriority(FDataRegistryType Reg
 
 	if (!RegistryType.IsValid())
 	{
-		for (TPair<FName, TWeakObjectPtr<UDataRegistry>>& RegistryPair : RegistryMap)
+		for (const FRegistryMapPair& RegistryPair : RegistryMap)
 		{
-			UDataRegistry* Registry = RegistryPair.Value.Get();
+			UDataRegistry* Registry = RegistryPair.Value;
 			if (Registry)
 			{
 				NumberUnregistered += Registry->UnregisterAssetsWithPriority(AssetPriority);
@@ -636,11 +633,11 @@ void UDataRegistrySubsystem::PreregisterSpecificAssets(const TMap<FDataRegistryT
 	// If we've initially loaded, apply to all modified types
 	if (bFullyInitialized)
 	{
-		for (TPair<FName, TWeakObjectPtr<UDataRegistry>>& RegistryPair : RegistryMap)
+		for (const FRegistryMapPair& RegistryPair : RegistryMap)
 		{
 			if (ChangedTypeSet.Contains(NAME_None) || ChangedTypeSet.Contains(RegistryPair.Key))
 			{
-				UDataRegistry* Registry = RegistryPair.Value.Get();
+				UDataRegistry* Registry = RegistryPair.Value;
 				if (Registry)
 				{
 					ApplyPreregisterMap(Registry);
@@ -895,6 +892,27 @@ void UDataRegistrySubsystem::Deinitialize()
 	Super::Deinitialize();
 }
 
+void UDataRegistrySubsystem::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector)
+{
+	UDataRegistrySubsystem* This = CastChecked<UDataRegistrySubsystem>(InThis);
+
+	if (GIsEditor)
+	{
+		for (FRegistryMapPair& RegistryPair : This->RegistryMap)
+		{
+			// In editor builds we mark this as a weak reference so it can be deleted properly
+			Collector.MarkWeakObjectReferenceForClearing(reinterpret_cast<UObject**>(&RegistryPair.Value));
+		}
+	}
+	else
+	{
+		for (FRegistryMapPair& RegistryPair : This->RegistryMap)
+		{
+			Collector.AddReferencedObject(RegistryPair.Value, This);
+		}
+	}
+}
+
 #if WITH_EDITOR
 
 void UDataRegistrySubsystem::PreBeginPIE(bool bStartSimulate)
@@ -914,6 +932,91 @@ void UDataRegistrySubsystem::EndPIE(bool bStartSimulate)
 	}
 }
 #endif
+
+
+
+static FAutoConsoleCommand CVarDumpRegistryTypeSummary(
+	TEXT("DataRegistry.DumpTypeSummary"),
+	TEXT("Shows a summary of types known about by the Data Registry system"),
+	FConsoleCommandDelegate::CreateStatic(UDataRegistrySubsystem::DumpRegistryTypeSummary),
+	ECVF_Cheat);
+
+void UDataRegistrySubsystem::DumpRegistryTypeSummary()
+{
+	UDataRegistrySubsystem* Subsystem = Get();
+
+	if (Subsystem)
+	{
+		UE_LOG(LogDataRegistry, Log, TEXT("=========== DataRegistry Type Summary ==========="));
+		
+		TArray<UDataRegistry*> AllRegistries;
+
+		Subsystem->GetAllRegistries(AllRegistries, true);
+
+		for (UDataRegistry* TypeInfo : AllRegistries)
+		{
+			UE_LOG(LogDataRegistry, Log, TEXT("  %s Struct: %s"), *TypeInfo->GetRegistryDescription().ToString(), *GetNameSafe(TypeInfo->GetItemStruct()));
+		}
+	}
+}
+
+static FAutoConsoleCommand CVarDumpCachedItems(
+	TEXT("DataRegistry.DumpCachedItems"),
+	TEXT("Shows a list of every item available cached for the specified registry type. Add All as second parameter to also print value as text"),
+	FConsoleCommandWithArgsDelegate::CreateStatic(UDataRegistrySubsystem::DumpCachedItems),
+	ECVF_Cheat);
+
+void UDataRegistrySubsystem::DumpCachedItems(const TArray<FString>& Args)
+{
+	UDataRegistrySubsystem* Subsystem = Get();
+
+	if (Subsystem)
+	{
+		if (Args.Num() < 1)
+		{
+			UE_LOG(LogDataRegistry, Warning, TEXT("Too few arguments for DumpCachedItems. Include the registry type"));
+			return;
+		}
+
+		FString RegistryTypeString = Args[0];		
+		bool bDumpValues = false;
+		if (Args.Num() > 1 && Args[1] == TEXT("All"))
+		{
+			bDumpValues = true;
+		}
+
+		UDataRegistry* FoundRegistry = Subsystem->GetRegistryForType(FName(*RegistryTypeString));
+		if (!FoundRegistry)
+		{
+			UE_LOG(LogDataRegistry, Warning, TEXT("Invalid registry type %s"), *RegistryTypeString);
+			return;
+		}
+
+		TMap<FDataRegistryId, const uint8*> CachedItems;
+		const UScriptStruct* OutStruct = nullptr;
+		FDataRegistryCacheGetResult Result = FoundRegistry->GetAllCachedItems(CachedItems, OutStruct);
+
+		if (Result.GetItemStatus() != EDataRegistryCacheGetStatus::NotFound)
+		{
+			UE_LOG(LogDataRegistry, Log, TEXT("=========== DataRegistry %s Cached Items ==========="), *RegistryTypeString);
+
+			for (const TPair<FDataRegistryId, const uint8*>& Pair : CachedItems)
+			{
+				FString ValueString;
+				if (bDumpValues && OutStruct && Pair.Value)
+				{
+					OutStruct->ExportText(ValueString, Pair.Value, nullptr, nullptr, PPF_None, nullptr);
+				}
+
+				UE_LOG(LogDataRegistry, Warning, TEXT(" %s: %s"), *Pair.Key.ToString(), *ValueString);
+			}
+		}
+		else
+		{
+			UE_LOG(LogDataRegistry, Warning, TEXT("No cached items found for %s"), *RegistryTypeString);
+		}
+	}
+}
 
 
 /*

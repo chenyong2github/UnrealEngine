@@ -29,6 +29,10 @@ class FOnlineSubsystemEOS;
 typedef TSharedRef<const FUniqueNetId> FUniqueNetIdRef;
 
 #define EOS_ID_SEPARATOR TEXT("|")
+#define EMPTY_EASID TEXT("00000000000000000000000000000000")
+#define EMPTY_PUID TEXT("00000000000000000000000000000000")
+#define ID_HALF_BYTE_SIZE 16
+#define EOS_ID_BYTE_SIZE (ID_HALF_BYTE_SIZE * 2)
 
 /**
  * Unique net id wrapper for a EOS account ids. The underlying string is a combination
@@ -39,7 +43,7 @@ class FUniqueNetIdEOS :
 {
 public:
 	FUniqueNetIdEOS()
-		: FUniqueNetIdString()
+		: FUniqueNetIdString(EMPTY_EASID EOS_ID_SEPARATOR EMPTY_PUID)
 	{
 	}
 
@@ -61,6 +65,15 @@ public:
 		ParseAccountIds();
 	}
 
+	explicit FUniqueNetIdEOS(uint8* Bytes, int32 Size)
+		: FUniqueNetIdString()
+	{
+		check(Size == EOS_ID_BYTE_SIZE);
+		EpicAccountIdStr = BytesToHex(Bytes, ID_HALF_BYTE_SIZE);
+		ProductUserIdStr = BytesToHex(Bytes + ID_HALF_BYTE_SIZE, ID_HALF_BYTE_SIZE);
+		UniqueNetIdStr = EpicAccountIdStr + EOS_ID_SEPARATOR + ProductUserIdStr;
+	}
+
 	friend uint32 GetTypeHash(const FUniqueNetIdEOS& A)
 	{
 		return ::GetTypeHash(A.UniqueNetIdStr);
@@ -79,6 +92,16 @@ public:
 		return NAME_Eos;
 	}
 
+	virtual const uint8* GetBytes() const override
+	{
+		return RawBytes;
+	}
+
+	virtual int32 GetSize() const override
+	{
+		return EOS_ID_BYTE_SIZE;
+	}
+
 PACKAGE_SCOPE:
 	void UpdateNetIdStr(const FString& InNetIdStr)
 	{
@@ -94,14 +117,37 @@ PACKAGE_SCOPE:
 		{
 			EpicAccountIdStr = AccountIds[0];
 		}
+		else
+		{
+			EpicAccountIdStr = EMPTY_EASID;
+		}
+		AddToBuffer(RawBytes, EpicAccountIdStr);
 		if (AccountIds.Num() > 1)
 		{
 			ProductUserIdStr = AccountIds[1];
+		}
+		else
+		{
+			ProductUserIdStr = EMPTY_PUID;
+		}
+		AddToBuffer(RawBytes + ID_HALF_BYTE_SIZE, ProductUserIdStr);
+	}
+
+	void AddToBuffer(uint8* Buffer, const FString& Source)
+	{
+		check(Source.Len() == 32);
+		for (int32 ReadOffset = 0, WriteOffset = 0; ReadOffset < 32; ReadOffset += 2, WriteOffset++)
+		{
+			FString HexStr = Source.Mid(ReadOffset, 2);
+			// String is in HEX so use the version that takes a base
+			uint8 ToByte = (uint8)FCString::Strtoi(*HexStr, nullptr, 16);
+			Buffer[WriteOffset] = ToByte;
 		}
 	}
 
 	FString EpicAccountIdStr;
 	FString ProductUserIdStr;
+	uint8 RawBytes[EOS_ID_BYTE_SIZE];
 };
 
 typedef TSharedPtr<FUniqueNetIdEOS> FUniqueNetIdEOSPtr;
@@ -516,7 +562,7 @@ PACKAGE_SCOPE:
 	/** The ip & port that the host is listening on (valid for LAN/GameServer) */
 	TSharedPtr<class FInternetAddr> HostAddr;
 	/** Unique Id for this session */
-	FUniqueNetIdEOS SessionId;
+	FUniqueNetIdString SessionId;
 	/** EOS session handle. Note: this needs to be released by the SDK */
 	EOS_HSessionDetails SessionHandle;
 	/** Whether we should delete this handle or not */

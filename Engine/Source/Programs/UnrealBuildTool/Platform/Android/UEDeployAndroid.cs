@@ -1302,6 +1302,57 @@ namespace UnrealBuildTool
 			}
 		}
 
+		void CopyClangSanitizerLib(string UE4BuildPath, string UE4Arch, string NDKArch, AndroidToolChain.ClangSanitizer Sanitizer)
+		{
+			string Architecture = "-aarch64";
+			switch (NDKArch)
+			{
+				case "armeabi-v7a":
+					Architecture = "-arm";
+					break;
+				case "x86_64":
+					Architecture = "-x86_64";
+					break;
+				case "x86":
+					Architecture = "-i686";
+					break;
+			}
+
+			string LibName = "asan";
+			switch (Sanitizer)
+			{
+				case AndroidToolChain.ClangSanitizer.HwAddress:
+					LibName = "hwasan";
+					break;
+				case AndroidToolChain.ClangSanitizer.UndefinedBehavior:
+					LibName = "ubsan_standalone";
+					break;
+				case AndroidToolChain.ClangSanitizer.UndefinedBehaviorMinimal:
+					LibName = "ubsan_minimal";
+					break;
+			}
+			
+			string SanitizerFullLibName = "libclang_rt." + LibName + Architecture + "-android.so";
+
+			string WrapSh = Path.Combine(UnrealBuildTool.EngineDirectory.ToString(), "Build", "Android", "ClangSanitizers", "wrap.sh");
+			string SanitizerLib = Path.Combine(Environment.ExpandEnvironmentVariables("%NDKROOT%"), "toolchains", "llvm", "prebuilt", "windows-x86_64", "lib64", "clang", "9.0.8", "lib", "linux", SanitizerFullLibName);
+			if (File.Exists(SanitizerLib) && File.Exists(WrapSh))
+			{
+				string LibDestDir = Path.Combine(UE4BuildPath, "libs", NDKArch);
+				Directory.CreateDirectory(LibDestDir);
+				Log.TraceInformation("Copying asan lib from {0} to {1}", SanitizerLib, LibDestDir);
+				File.Copy(SanitizerLib, Path.Combine(LibDestDir, SanitizerFullLibName), true);
+				string WrapDestDir = Path.Combine(UE4BuildPath, "resources", "lib", NDKArch);
+				Directory.CreateDirectory(WrapDestDir);
+				Log.TraceInformation("Copying wrap.sh from {0} to {1}", WrapSh, WrapDestDir);
+				File.Copy(WrapSh, Path.Combine(WrapDestDir, "wrap.sh"), true);
+			}
+			else
+			{
+				throw new BuildException("No asan lib found in {0} or wrap.sh in {1}", SanitizerLib, WrapSh);
+			}
+		}
+
 		private static int RunCommandLineProgramAndReturnResult(string WorkingDirectory, string Command, string Params, string OverrideDesc = null, bool bUseShellExecute = false)
 		{
 			if (OverrideDesc == null)
@@ -1556,6 +1607,30 @@ namespace UnrealBuildTool
 			foreach (string GPUArch in GPUArchitectures)
 			{
 				CurrentSettings.AppendFormat("GPUArch={0}{1}", GPUArch, Environment.NewLine);
+			}
+
+			// Modifying some settings in the GameMapsSettings could trigger the OBB regeneration
+			// and make the cached OBBData.java mismatch to the actually data. 
+			// So we insert the relevant keys into CurrentSettings to capture the change, to
+			// enforce the refreshing of Android java codes
+			Section = Ini.FindSection("/Script/EngineSettings.GameMapsSettings");
+			if (Section != null)
+			{
+				foreach (string Key in Section.KeyNames)
+				{
+					if (!Key.Equals("GameDefaultMap") && 
+						!Key.Equals("GlobalDefaultGameMode"))
+					{
+						continue;
+					}
+
+					IReadOnlyList<string> Values;
+					Section.TryGetValues(Key, out Values);
+					foreach (string Value in Values)
+					{
+						CurrentSettings.AppendLine(string.Format("{0}={1}", Key, Value));
+					}
+				}
 			}
 
 			return CurrentSettings.ToString();
@@ -2082,6 +2157,9 @@ namespace UnrealBuildTool
 				Log.TraceInformation("Daydream and IMU both enabled, recommend disabling IMU if not needed.");
 			}
 
+			bool bExtractNativeLibs = true;
+			Ini.GetBool("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "bExtractNativeLibs", out bExtractNativeLibs);
+
 			bool bPublicLogFiles = true;
 			Ini.GetBool("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "bPublicLogFiles", out bPublicLogFiles);
 			if (!bUseExternalFilesDir)
@@ -2211,6 +2289,13 @@ namespace UnrealBuildTool
 			Text.AppendLine("\t<!-- Application Definition -->");
 			Text.AppendLine("\t<application android:label=\"@string/app_name\"");
 			Text.AppendLine("\t             android:icon=\"@drawable/icon\"");
+
+			AndroidToolChain.ClangSanitizer Sanitizer = AndroidToolChain.BuildWithSanitizer(ProjectFile);
+			if (Sanitizer != AndroidToolChain.ClangSanitizer.None && Sanitizer != AndroidToolChain.ClangSanitizer.HwAddress)
+			{
+				Text.AppendLine("\t             android:extractNativeLibs=\"true\"");
+			}
+
 			bool bRequestedLegacyExternalStorage = false;
 			if (ExtraApplicationNodeTags != null)
 			{
@@ -2224,6 +2309,7 @@ namespace UnrealBuildTool
 				}
 			}
 			Text.AppendLine("\t             android:hardwareAccelerated=\"true\"");
+			Text.AppendLine(string.Format("\t             android:extractNativeLibs=\"{0}\"", bExtractNativeLibs ? "true" : "false"));
 			Text.AppendLine("\t				android:name=\"com.epicgames.ue4.GameApplication\"");
 			if (!bIsForDistribution && SDKLevelInt >= 29 && !bRequestedLegacyExternalStorage)
 			{
@@ -2873,6 +2959,12 @@ namespace UnrealBuildTool
 				{
 					TargetSDKVersion = OverrideInt;
 				}
+			}
+
+			if ((AndroidToolChain.BuildWithSanitizer(ProjectFile) != AndroidToolChain.ClangSanitizer.None) && (MinSDKVersion < 27))
+			{
+				MinSDKVersion = 27;
+				Log.TraceInformation("Fixing minSdkVersion; requires minSdkVersion of {0} for Clang's Sanitizers", 27);
 			}
 
 			if (bEnableBundle && MinSDKVersion < MinimumSDKLevelForBundle)
@@ -3597,10 +3689,10 @@ namespace UnrealBuildTool
 
 				//Now keep the splash screen images matching orientation requested
 				PickSplashScreenOrientation(UE4BuildPath, bNeedPortrait, bNeedLandscape);
-			
+
 				//Now package the app based on Daydream packaging settings 
 				PackageForDaydream(UE4BuildPath);
-			
+
 				//Similarly, keep only the downloader screen image matching the orientation requested
 				PickDownloaderScreenOrientation(UE4BuildPath, bNeedPortrait, bNeedLandscape);
 
@@ -3690,6 +3782,11 @@ namespace UnrealBuildTool
 				CopySTL(ToolChain, UE4BuildPath, Arch, NDKArch, bForDistribution);
 				CopyGfxDebugger(UE4BuildPath, Arch, NDKArch);
 				CopyVulkanValidationLayers(UE4BuildPath, Arch, NDKArch, Configuration.ToString());
+				AndroidToolChain.ClangSanitizer Sanitizer = AndroidToolChain.BuildWithSanitizer(ProjectFile);
+				if (Sanitizer != AndroidToolChain.ClangSanitizer.None && Sanitizer != AndroidToolChain.ClangSanitizer.HwAddress)
+				{
+					CopyClangSanitizerLib(UE4BuildPath, Arch, NDKArch, Sanitizer);
+				}
 
 				// copy postbuild plugin files
 				UPL.ProcessPluginNode(NDKArch, "resourceCopies", "");
@@ -3751,6 +3848,10 @@ namespace UnrealBuildTool
 
 				CleanCopyDirectory(Path.Combine(UE4BuildPath, "jni"), Path.Combine(UE4BuildGradleMainPath, "jniLibs"), Excludes);  // has debug symbols
 				CleanCopyDirectory(Path.Combine(UE4BuildPath, "libs"), Path.Combine(UE4BuildGradleMainPath, "libs"), Excludes);
+				if (Sanitizer != AndroidToolChain.ClangSanitizer.None && Sanitizer != AndroidToolChain.ClangSanitizer.HwAddress)
+				{
+					CleanCopyDirectory(Path.Combine(UE4BuildPath, "resources"), Path.Combine(UE4BuildGradleMainPath, "resources"), Excludes);
+				}
 
 				CleanCopyDirectory(Path.Combine(UE4BuildPath, "assets"), Path.Combine(UE4BuildGradleMainPath, "assets"));
 				CleanCopyDirectory(Path.Combine(UE4BuildPath, "res"), Path.Combine(UE4BuildGradleMainPath, "res"));

@@ -165,4 +165,7 @@ public:
 
 	/** Flip the facing for a set of input polygons. */
 	static void FlipPolygons(FMeshDescription& MeshDescription);
+
+	/** Transforms the MeshDescription data using the provided transform. */
+	static void ApplyTransform(FMeshDescription& MeshDescription, const FTransform& Transform);
 };

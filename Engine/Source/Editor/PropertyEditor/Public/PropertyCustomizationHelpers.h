@@ -456,6 +456,10 @@ public:
 				];
 			}
 
+			FUIAction CopyAction;
+			FUIAction PasteAction;
+			BaseProperty->CreateDefaultPropertyCopyPasteActions(CopyAction, PasteAction);
+
 			NodeRow
 			.FilterString(!DisplayName.IsEmpty() ? DisplayName : BaseProperty->GetPropertyDisplayName())
 			.NameContent()
@@ -465,7 +469,9 @@ public:
 			.ValueContent()
 			[
 				ContentHorizontalBox.ToSharedRef()
-			];
+			]
+			.CopyAction(CopyAction)
+			.PasteAction(PasteAction);
 
 			if (bDisplayResetToDefault)
 			{

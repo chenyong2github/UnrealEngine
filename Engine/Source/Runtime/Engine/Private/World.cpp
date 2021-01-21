@@ -3047,7 +3047,7 @@ void FLevelStreamingGCHelper::VerifyLevelsGotRemovedByGC()
 		{
 			int32 FailCount = 0;
 			// Iterate over all objects and find out whether they reside in a GC'ed level package.
-			for (FObjectIterator It; It; ++It)
+			for (FThreadSafeObjectIterator It; It; ++It)
 			{
 				UObject* Object = *It;
 				// Check whether object's outermost is in the list.
@@ -4735,7 +4735,6 @@ void UWorld::CleanupWorldInternal(bool bSessionEnded, bool bCleanupResources, UW
 		Scene->SetFXSystem(NULL);
 		FXSystem = NULL;
 	}
-
 }
 
 UGameViewportClient* UWorld::GetGameViewport() const
@@ -4994,7 +4993,11 @@ void UWorld::CreatePhysicsScene(const AWorldSettings* Settings)
 	const FName PhysicsName = IsNetMode(NM_DedicatedServer) ? TEXT("ServerPhysics") : TEXT("ClientPhysics");
 	FPhysScene* NewScene = new FPhysScene(nullptr, PhysicsName);
 #else
+#if PHYSICS_INTERFACE_PHYSX
+	FPhysScene* NewScene = new FPhysScene(Settings);
+#else
 	FPhysScene* NewScene = new FPhysScene(nullptr);
+#endif
 #endif
 	SetPhysicsScene(NewScene);
 }
@@ -7512,7 +7515,7 @@ void UWorld::GetLightMapsAndShadowMaps(ULevel* Level, TArray<UTexture2D*>& OutLi
 
 			if (Objects.Num())
 			{
-				for (FObjectIterator It; It; ++It)
+				for (FThreadSafeObjectIterator It; It; ++It)
 				{
 					It->Mark(OBJECTMARK_TagExp);
 				}

@@ -1627,7 +1627,7 @@ struct FAssetData
 	FAssetDataTagMapSharedView TagsAndValues;
 	TSharedPtr<FAssetBundleData, ESPMode::ThreadSafe> TaggedAssetBundles;
 	/** The IDs of the pakchunks this asset is located in for streaming install.  Empty if not assigned to a chunk */
-	TArray<int32> ChunkIDs;
+	TArray<int32, TInlineAllocator<2>> ChunkIDs;
 	/** Asset package flags */
 	uint32 PackageFlags = 0;
 };

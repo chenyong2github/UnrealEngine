@@ -502,6 +502,7 @@ public:
 		UpdateBreakable();
 	}
 
+
 	/** Sets the Angular Plasticity properties
 	*	@param bInAngularPlasticity 	Whether it is possible to reset the target angles
 	*	@param InAngularPlasticityThreshold	Delta from target needed to reset the target joint

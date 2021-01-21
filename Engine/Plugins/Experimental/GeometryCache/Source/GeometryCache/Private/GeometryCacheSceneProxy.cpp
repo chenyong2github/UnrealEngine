@@ -180,7 +180,6 @@ FGeometryCacheSceneProxy::FGeometryCacheSceneProxy(UGeometryCacheComponent* Comp
 						FRayTracingGeometryInitializer Initializer;
 						Initializer.DebugName = DebugName;
 						const int PositionBufferIndex = Section->CurrentPositionBufferIndex != -1 ? Section->CurrentPositionBufferIndex % 2 : 0;
-						Initializer.IndexBuffer = Section->IndexBuffer.IndexBufferRHI;
 						Initializer.TotalPrimitiveCount = 0;
 						Initializer.GeometryType = RTGT_Triangles;
 						Initializer.bFastBuild = false;
@@ -198,6 +197,12 @@ FGeometryCacheSceneProxy::FGeometryCacheSceneProxy(UGeometryCacheComponent* Comp
 						}
 
 						Initializer.Segments = Segments;
+
+						// The geometry is not considered valid for initialization unless it has any triangles
+						if (Initializer.TotalPrimitiveCount > 0)
+						{
+							Initializer.IndexBuffer = Section->IndexBuffer.IndexBufferRHI;
+						}
 
 						Section->RayTracingGeometry.SetInitializer(Initializer);
 						Section->RayTracingGeometry.InitResource();
@@ -545,9 +550,12 @@ void FGeometryCacheSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterial
 			RayTracingInstance.Materials.Add(MeshBatch);
 		}
 
-		RayTracingInstance.BuildInstanceMaskAndFlags();
+		if (RayTracingInstance.Materials.Num() > 0)
+		{
+			RayTracingInstance.BuildInstanceMaskAndFlags();
 
-		OutRayTracingInstances.Add(RayTracingInstance);
+			OutRayTracingInstances.Add(RayTracingInstance);
+		}
 	}
 }
 #endif
@@ -625,7 +633,10 @@ void FGeometryCacheSceneProxy::UpdateAnimation(float NewTime, bool bNewLooping, 
 					Section->RayTracingGeometry.Initializer.TotalPrimitiveCount += BatchInfo.NumTriangles;
 				}
 
-				Section->RayTracingGeometry.UpdateRHI();
+				if (Segments.Num() > 0)
+				{
+					Section->RayTracingGeometry.UpdateRHI();
+				}
 			}
 		}
 #endif

@@ -839,28 +839,6 @@ void FAbcImporter::SetupMorphTargetCurves(USkeleton* Skeleton, FName ConstCurveN
 		RichCurve.SetKeyInterpMode(NewKeyHandle, NewInterpMode);
 		RichCurve.SetKeyTangentMode(NewKeyHandle, NewTangentMode);
 		RichCurve.SetKeyTangentWeightMode(NewKeyHandle, NewTangentWeightMode);
-
-
-		// When data isn't compressed, add keys to remove inbetween frames interpolation
-		if (ImportSettings && ImportSettings->CompressionSettings.BaseCalculationType == EBaseCalculationType::NoCompression)
-		{
-			if (KeyIndex < CurveValues.Num() - 1)
-			{
-				const int32 NextKeyIndex = KeyIndex + 1;
-				const float NextCurveValue = CurveValues[NextKeyIndex];
-
-				if (!FMath::IsNearlyEqual(NextCurveValue, CurveValue))
-				{
-					const float NextTimeValue = TimeValues[NextKeyIndex];
-					const float SubTimeStep = (NextTimeValue - TimeValue) / 20.f;
-					FKeyHandle StepKeyHandle = RichCurve.AddKey(NextTimeValue - SubTimeStep, CurveValue, false);
-
-					RichCurve.SetKeyInterpMode(StepKeyHandle, NewInterpMode);
-					RichCurve.SetKeyTangentMode(StepKeyHandle, NewTangentMode);
-					RichCurve.SetKeyTangentWeightMode(StepKeyHandle, NewTangentWeightMode);
-				}
-			}
-		}
 	}
 
 	Controller->SetCurveKeys(CurveId, RichCurve.GetConstRefOfKeys());
@@ -1157,7 +1135,7 @@ const bool FAbcImporter::CompressAnimationDataUsingPCA(const FAbcCompressionSett
 					BasesMatrix = Matrices[MeshIndex];
 				}
 
-				const float FrameStep = (MaxTimes[MeshIndex] - MinTimes[MeshIndex]) / (float)(NumSamples);
+				const float FrameStep = (MaxTimes[MeshIndex] - MinTimes[MeshIndex]) / (float)(NumSamples - 1);
 				AbcImporterUtilities::GenerateCompressedMeshData(CompressedData, NumUsedSingularValues, NumSamples, BasesMatrix, OutV, FrameStep, FMath::Max(MinTimes[MeshIndex], 0.0f));
 
 				// QQ FUNCTIONALIZE

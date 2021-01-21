@@ -56,6 +56,8 @@ namespace Chaos
 	class FPersistentPhysicsTask;
 	class FChaosArchive;
 	class FRewindData;
+	class FSingleParticleProxy;
+	class FGeometryParticleBuffer;
 
 	template <typename T,typename R,int d>
 	class ISpatialAccelerationCollection;
@@ -130,19 +132,20 @@ namespace Chaos
 		//  Object API
 		//
 
+		Chaos::FSingleParticleProxy* RegisterObject_External(TUniquePtr<Chaos::FGeometryParticleBuffer>&& GTParticleBuffer);
+		void UnregisterObject_External(Chaos::FSingleParticleProxy* Proxy);
+
 		void RegisterObject(Chaos::TGeometryParticle<float, 3>* GTParticle);
 		void UnregisterObject(Chaos::TGeometryParticle<float, 3>* GTParticle);
 
 		void RegisterObject(FGeometryCollectionPhysicsProxy* InProxy);
-		bool UnregisterObject(FGeometryCollectionPhysicsProxy* InProxy);
+		void UnregisterObject(FGeometryCollectionPhysicsProxy* InProxy);
 
 		void RegisterObject(Chaos::FJointConstraint* GTConstraint);
-		bool UnregisterObject(Chaos::FJointConstraint* GTConstraint);
+		void UnregisterObject(Chaos::FJointConstraint* GTConstraint);
 
 		void RegisterObject(Chaos::FSuspensionConstraint* GTConstraint);
-		bool UnregisterObject(Chaos::FSuspensionConstraint* GTConstraint);
-
-		bool IsSimulating() const;
+		void UnregisterObject(Chaos::FSuspensionConstraint* GTConstraint);
 
 		void EnableRewindCapture(int32 NumFrames, bool InUseCollisionResimCache);
 		FRewindData* GetRewindData()
@@ -157,103 +160,11 @@ namespace Chaos
 			}
 		}
 
-		template<typename Lambda>
-		void ForEachPhysicsProxy(Lambda InCallable)
-		{
-			// Compact is not strictly required here, but will offer the same performance characteristics as the multithreaded version
-			{
-				SCOPE_CYCLE_COUNTER(STAT_ProxiesSetCompaction);
-				GeometryParticlePhysicsProxies.Compact();
-			}
-			for (FGeometryParticlePhysicsProxy* Obj : GeometryParticlePhysicsProxies)
-			{
-				InCallable(Obj);
-			}
-			for (FKinematicGeometryParticlePhysicsProxy* Obj : KinematicGeometryParticlePhysicsProxies)
-			{
-				InCallable(Obj);
-			}
-			for (FRigidParticlePhysicsProxy* Obj : RigidParticlePhysicsProxies)
-			{
-				InCallable(Obj);
-			}
-			for (FSkeletalMeshPhysicsProxy* Obj : SkeletalMeshPhysicsProxies)
-			{
-				InCallable(Obj);
-			}
-			for (FStaticMeshPhysicsProxy* Obj : StaticMeshPhysicsProxies)
-			{
-				InCallable(Obj);
-			}
-			for (FGeometryCollectionPhysicsProxy* Obj : GeometryCollectionPhysicsProxies_External)
-			{
-				InCallable(Obj);
-			}
-			for (FJointConstraintPhysicsProxy* Obj : JointConstraintPhysicsProxies_External)
-			{
-				InCallable(Obj);
-			}
-		}
-
-		template<typename Lambda>
-		void ForEachPhysicsProxyParallel(Lambda InCallable)
-		{
-			// Make sure all elements are contiguous so we can use the set like an array.
-			// This only requires work if GeometryParticlePhysicsProxies has been dirtied since our last call.
-			{
-				SCOPE_CYCLE_COUNTER(STAT_ProxiesSetCompaction);
-				GeometryParticlePhysicsProxies.Compact();
-			}
-			Chaos::PhysicsParallelFor(GeometryParticlePhysicsProxies.Num(), [this, &InCallable](const int32 Index)
-			{
-				FGeometryParticlePhysicsProxy* Obj = GeometryParticlePhysicsProxies[FSetElementId::FromInteger(Index)];
-				InCallable(Obj);
-			});
-			Chaos::PhysicsParallelFor(KinematicGeometryParticlePhysicsProxies.Num(), [this, &InCallable](const int32 Index)
-			{
-				FKinematicGeometryParticlePhysicsProxy* Obj = KinematicGeometryParticlePhysicsProxies[Index];
-				InCallable(Obj);
-			});
-			Chaos::PhysicsParallelFor(RigidParticlePhysicsProxies.Num(), [this, &InCallable](const int32 Index)
-			{
-				FRigidParticlePhysicsProxy* Obj = RigidParticlePhysicsProxies[Index];
-				InCallable(Obj);
-			});
-			Chaos::PhysicsParallelFor(SkeletalMeshPhysicsProxies.Num(), [this, &InCallable](const int32 Index)
-			{
-				FSkeletalMeshPhysicsProxy* Obj = SkeletalMeshPhysicsProxies[Index];
-				InCallable(Obj);
-			});
-			Chaos::PhysicsParallelFor(StaticMeshPhysicsProxies.Num(), [this, &InCallable](const int32 Index)
-			{
-				FStaticMeshPhysicsProxy* Obj = StaticMeshPhysicsProxies[Index];
-				InCallable(Obj);
-			});
-			Chaos::PhysicsParallelFor(GeometryCollectionPhysicsProxies_External.Num(), [this, &InCallable](const int32 Index)
-			{
-				FGeometryCollectionPhysicsProxy* Obj = GeometryCollectionPhysicsProxies_External[Index];
-				InCallable(Obj);
-			});
-			Chaos::PhysicsParallelFor(JointConstraintPhysicsProxies_External.Num(), [this, &InCallable](const int32 Index)
-			{
-				FJointConstraintPhysicsProxy* Obj = JointConstraintPhysicsProxies_External[Index];
-				InCallable(Obj);
-			});
-		}
-
-		int32 GetNumPhysicsProxies() const {
-			return GeometryParticlePhysicsProxies.Num() + KinematicGeometryParticlePhysicsProxies.Num() + RigidParticlePhysicsProxies.Num()
-				+ SkeletalMeshPhysicsProxies.Num() + StaticMeshPhysicsProxies.Num()
-				+ GeometryCollectionPhysicsProxies_External.Num()
-				+ JointConstraintPhysicsProxies_External.Num();
-		}
-
 		//
 		//  Simulation API
 		//
 
 		/**/
-		bool HasActiveParticles() const { return !!GetNumPhysicsProxies(); }
 		FDirtyParticlesBuffer* GetDirtyParticlesBuffer() const { return MDirtyParticlesBuffer.Get(); }
 
 
@@ -368,11 +279,6 @@ namespace Chaos
 			return GeometryCollectionPhysicsProxies_Internal;
 		}
 
-		TArray<FJointConstraintPhysicsProxy*>& GetJointConstraintPhysicsProxy_External()
-		{
-			return JointConstraintPhysicsProxies_External;
-		}
-
 		/** Events hooked up to the Chaos material manager */
 		void UpdateMaterial(Chaos::FMaterialHandle InHandle, const Chaos::FChaosPhysicsMaterial& InNewData);
 		void CreateMaterial(Chaos::FMaterialHandle InHandle, const Chaos::FChaosPhysicsMaterial& InNewData);
@@ -448,16 +354,8 @@ namespace Chaos
 		// Proxies
 		//
 		TSharedPtr<FCriticalSection> MCurrentLock;
-		TSet< FGeometryParticlePhysicsProxy* > GeometryParticlePhysicsProxies;
-		TArray< FKinematicGeometryParticlePhysicsProxy* > KinematicGeometryParticlePhysicsProxies;
-		TArray< FRigidParticlePhysicsProxy* > RigidParticlePhysicsProxies;
-		TArray< FSkeletalMeshPhysicsProxy* > SkeletalMeshPhysicsProxies; // dep
-		TArray< FStaticMeshPhysicsProxy* > StaticMeshPhysicsProxies; // dep
-		TArray< FGeometryCollectionPhysicsProxy* > GeometryCollectionPhysicsProxies_External; // GT
 		TArray< FGeometryCollectionPhysicsProxy* > GeometryCollectionPhysicsProxies_Internal; // PT
-		TArray< FJointConstraintPhysicsProxy* > JointConstraintPhysicsProxies_External; // GT
 		TArray< FJointConstraintPhysicsProxy* > JointConstraintPhysicsProxies_Internal; // PT
-		TArray< FSuspensionConstraintPhysicsProxy* > SuspensionConstraintPhysicsProxies;
 		bool bUseCollisionResimCache;
 
 		//

@@ -25,7 +25,10 @@ UMaterialInterface* UPropertyValueMaterial::GetMaterial()
 		return nullptr;
 	}
 
-	return *(UMaterialInterface**)ValueBytes.GetData();
+	// Go through GetRecordedData because our ValueBytes may be stale, and we need to
+	// reload the object through our TempObjPtr
+	const TArray<uint8>& RecordedData = GetRecordedData();
+	return *(UMaterialInterface**)RecordedData.GetData();
 }
 
 void UPropertyValueMaterial::SetMaterial(UMaterialInterface* Mat)

@@ -23,9 +23,8 @@ class FOnlineIdentitySteam :
 PACKAGE_SCOPE:
 
 	FOnlineIdentitySteam(FOnlineSubsystemSteam* InSubsystem);
-
+	
 public:
-
 	virtual ~FOnlineIdentitySteam() {};
 
 	// IOnlineIdentity
@@ -47,6 +46,7 @@ public:
 	virtual void GetUserPrivilege(const FUniqueNetId& UserId, EUserPrivileges::Type Privilege, const FOnGetUserPrivilegeCompleteDelegate& Delegate) override;
 	virtual FPlatformUserId GetPlatformUserIdFromUniqueNetId(const FUniqueNetId& UniqueNetId) const override;
 	virtual FString GetAuthType() const override;
+	virtual void GetLinkedAccountAuthToken(int32 LocalUserNum, const FOnGetLinkedAccountAuthTokenCompleteDelegate& Delegate) const override;
 };
 
 typedef TSharedPtr<FOnlineIdentitySteam, ESPMode::ThreadSafe> FOnlineIdentitySteamPtr;

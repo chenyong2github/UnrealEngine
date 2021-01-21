@@ -1102,15 +1102,15 @@ struct RIGVMDEVELOPER_API FRigVMParserASTSettings
 
 	// fold assignments / copies
 	UPROPERTY(EditAnywhere, Category = "AST")
-	bool bFoldAssignments;
+	bool bFoldAssignments = false;
 
 	// fold literals and share memory
 	UPROPERTY(EditAnywhere, Category = "AST")
-	bool bFoldLiterals;
+	bool bFoldLiterals = false;
 
 	// fold / remove unreachable / constant branches
 	UPROPERTY(EditAnywhere, Category = "AST")
-	bool bFoldConstantBranches;
+	bool bFoldConstantBranches = false;
 
 	// links to be ignored during the parse
 	UPROPERTY()

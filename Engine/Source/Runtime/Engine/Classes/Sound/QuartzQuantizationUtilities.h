@@ -91,11 +91,11 @@ struct ENGINE_API FQuartzPulseOverrideStep
 
 	// The number of pulses for this beat duration
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Quantized Audio Clock Time Signature")
-	int32 NumberOfPulses;
+	int32 NumberOfPulses = 0;
 
 	// This Beat duration
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Quantized Audio Clock Time Signature")
-	EQuartzCommandQuantization PulseDuration;
+	EQuartzCommandQuantization PulseDuration = EQuartzCommandQuantization::Beat;
 };
 
 

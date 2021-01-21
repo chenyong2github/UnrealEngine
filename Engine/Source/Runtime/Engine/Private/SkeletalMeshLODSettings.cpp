@@ -244,7 +244,7 @@ void USkeletalMeshLODSettings::PostEditChangeProperty(FPropertyChangedEvent& Pro
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
 	// apply to all instance that is already loaded
-	for (FObjectIterator Iter(USkeletalMesh::StaticClass()); Iter; ++Iter)
+	for (FThreadSafeObjectIterator Iter(USkeletalMesh::StaticClass()); Iter; ++Iter)
 	{
 		USkeletalMesh* Mesh = Cast<USkeletalMesh>(*Iter);
 		// if PhysicsAssetOverride is NULL, it uses SkeletalMesh Physics Asset, so I'll need to update here

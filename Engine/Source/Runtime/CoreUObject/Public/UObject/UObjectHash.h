@@ -237,13 +237,6 @@ COREUOBJECT_API void LogHashOuterStatistics(FOutputDevice& Ar, const bool bShowH
 COREUOBJECT_API void LogHashMemoryOverheadStatistics(FOutputDevice& Ar, const bool bShowIndividualStats);
 
 /**
- * Adds a uobject to the global array which is used for uobject iteration
- *
- * @param	Object Object to allocate an index for
- */
-void AllocateUObjectIndexForCurrentThread(class UObjectBase* Object);
-
-/**
  * Locks UObject hash tables so that other threads can't hash or find new UObjects 
  */
 void LockUObjectHashTables();

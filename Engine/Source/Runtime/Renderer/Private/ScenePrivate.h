@@ -2209,7 +2209,7 @@ public:
 	 */
 	void UpdateTransform(FPrimitiveSceneInfo* PrimitiveSceneInfo, const FMatrix& LocalToWorld, const FMatrix& PreviousLocalToWorld)
 	{
-		check(PrimitiveSceneInfo->Proxy->IsMovable());
+		check(PrimitiveSceneInfo->Proxy->IsMovable() || PrimitiveSceneInfo->Proxy->IsUsingWPOMaterial());
 
 		FComponentVelocityData& VelocityData = ComponentData.FindOrAdd(PrimitiveSceneInfo->PrimitiveComponentId);
 		VelocityData.LocalToWorld = LocalToWorld;
@@ -2506,20 +2506,29 @@ public:
 
 	/** The SkyView LUT used when rendering sky material sampling this lut into the realtime capture sky env map. It must be generated at the skylight position*/
 	TRefCountPtr<IPooledRenderTarget> RealTimeReflectionCaptureSkyAtmosphereViewLutTexture;
+
 	/** The Camera 360 AP is used when rendering sky material sampling this lut or volumetric clouds into the realtime capture sky env map. It must be generated at the skylight position*/
 	TRefCountPtr<IPooledRenderTarget> RealTimeReflectionCaptureCamera360APLutTexture;
 
 	/** If sky light bRealTimeCaptureEnabled is true, used to render the sky env map (sky, sky dome mesh or clouds). */
 	TRefCountPtr<IPooledRenderTarget> CapturedSkyRenderTarget;	// Needs to be a IPooledRenderTarget because it must be created before the View uniform buffer is created.
+
 	/** These store the result of the sky env map GGX specular convolution. */
 	TRefCountPtr<IPooledRenderTarget> ConvolvedSkyRenderTarget[2];
+
 	/** The index of the ConvolvedSkyRenderTarget to use when rendering meshes. -1 when not initialised. */
 	int32 ConvolvedSkyRenderTargetReadyIndex;
 
-	/** True if no real time reflection capture has been entirely processed. We always enforce a complete one the first frame even with time slicing for correct start up lighting.*/
-	bool bRealTimeSlicedReflectionCaptureFirstFrame;
+	/** We always enforce a complete one the first frame even with time slicing for correct start up lighting.*/
+	enum class ERealTimeSlicedReflectionCaptureFirstFrameState
+	{
+		INIT = 0,
+		FIRST_FRAME = 1,
+		BEYOND_FIRST_FRAME = 2,
+	} RealTimeSlicedReflectionCaptureFirstFrameState;
+
 	/** The current progress of the real time reflection capture when time sliced. */
-	uint32 RealTimeSlicedReflectionCaptureState;
+	int32 RealTimeSlicedReflectionCaptureState;
 
 	/** Used to track the order that skylights were enabled in. */
 	TArray<FSkyLightSceneProxy*> SkyLightStack;

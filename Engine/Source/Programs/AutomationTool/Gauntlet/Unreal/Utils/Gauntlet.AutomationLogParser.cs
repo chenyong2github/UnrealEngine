@@ -37,7 +37,47 @@ namespace Gauntlet
 		/// <summary>
 		/// Events logged during the test. Should contain errors if the test failed
 		/// </summary>
-		public List<string> Events;
+		public IEnumerable<string> Events;
+
+		/// <summary>
+		/// Returns all events that are a warning
+		/// </summary>
+		public IEnumerable<string> WarningEvents 
+		{  
+			get
+			{
+				return Events.Where(E => E.ToLower().Contains(": warning:"));
+			}
+		}
+
+		/// <summary>
+		/// Returns all events that are a error
+		/// </summary>
+		public IEnumerable<string> ErrorEvents
+		{
+			get
+			{
+				return Events.Where(E => E.ToLower().Contains(": error:"));
+			}
+		}
+
+		/// <summary>
+		/// Returns the name of the test. If DisplayName and TestName differ they are joined
+		/// </summary>
+		public string FullName
+		{
+			get
+			{
+				string FullName = DisplayName;
+
+				if (TestName != DisplayName)
+				{
+					FullName += string.Format(" ({0})", TestName);
+				}
+
+				return FullName;
+			}
+		}
 
 		/// <summary>
 		/// Result contstructor
@@ -45,14 +85,16 @@ namespace Gauntlet
 		/// <param name="InDisplayName"></param>
 		/// <param name="InTestName"></param>
 		/// <param name="bInPassed"></param>
-		public AutomationTestResult(string InDisplayName, string InTestName, bool InCompleted, bool bInPassed)
+		public AutomationTestResult(string InDisplayName, string InTestName, bool InCompleted, bool bInPassed, IEnumerable<string> InEvents)
 		{
 			DisplayName = InDisplayName;
 			TestName = InTestName;
 			Completed = InCompleted;
 			Passed = bInPassed;
-			Events = new List<string>();
+			Events = InEvents.ToArray();
 		}
+
+
 	};
 
 	/// <summary>
@@ -62,6 +104,10 @@ namespace Gauntlet
 	{
 		protected UnrealLogParser Parser;
 
+		public string AutomationReportPath { get; protected set; } = "";
+
+		public string AutomationReportURL { get; protected set; } = "";
+
 		/// <summary>
 		/// Constructor that uses an existing log parser
 		/// </summary>
@@ -69,6 +115,19 @@ namespace Gauntlet
 		public AutomationLogParser(UnrealLogParser InParser)
 		{
 			Parser = InParser;
+
+			IEnumerable<Match> ReportPathMatch = Parser.GetAllMatches(@"LogAutomationController.+Report can be opened.+'(.+)'");
+
+			if (ReportPathMatch.Any())
+			{
+				AutomationReportPath = ReportPathMatch.First().Groups[1].ToString();
+			}
+			IEnumerable<Match> ReportUrlMatch = Parser.GetAllMatches(@"LogAutomationController.+Report can be viewed at.+'(.+)'");
+
+			if (ReportUrlMatch.Any())
+			{
+				AutomationReportURL = ReportUrlMatch.First().Groups[1].ToString();
+			}
 		}
 
 		/// <summary>
@@ -76,8 +135,8 @@ namespace Gauntlet
 		/// </summary>
 		/// <param name="InContents"></param>
 		public AutomationLogParser(string InContents)
+				: this(new UnrealLogParser(InContents))
 		{
-			Parser = new UnrealLogParser(InContents);
 		}
 		
 		/// <summary>
@@ -134,8 +193,7 @@ namespace Gauntlet
 					}
 				}
 
-				AutomationTestResult Result = new AutomationTestResult(DisplayName, LongName, Completed, Passed);
-				Result.Events = Events;
+				AutomationTestResult Result = new AutomationTestResult(DisplayName, LongName, Completed, Passed, Events);
 				return Result;
 			});
 

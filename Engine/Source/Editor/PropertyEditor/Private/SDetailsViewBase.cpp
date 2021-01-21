@@ -844,7 +844,7 @@ void SDetailsViewBase::Tick( const FGeometry& AllottedGeometry, const double InC
 			{
 				DeferredAction.ExecuteIfBound();
 			}
-		} while (!DeferredActions.IsEmpty());
+		} while (DeferredActions.Num() > 0);
 	}
 
 	if (bHadDeferredActions)

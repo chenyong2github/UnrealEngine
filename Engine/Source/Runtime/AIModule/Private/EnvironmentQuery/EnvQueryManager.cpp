@@ -635,7 +635,7 @@ UEnvQuery* UEnvQueryManager::FindQueryTemplate(const FString& QueryName) const
 		}
 	}
 
-	for (FObjectIterator It(UEnvQuery::StaticClass()); It; ++It)
+	for (FThreadSafeObjectIterator It(UEnvQuery::StaticClass()); It; ++It)
 	{
 		if (It->GetName() == QueryName)
 		{

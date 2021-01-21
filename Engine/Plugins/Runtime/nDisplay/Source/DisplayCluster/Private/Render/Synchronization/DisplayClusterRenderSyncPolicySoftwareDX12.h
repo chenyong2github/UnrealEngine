@@ -12,12 +12,13 @@ class FDisplayClusterRenderSyncPolicySoftwareDX12
 	: public FDisplayClusterRenderSyncPolicySoftwareBase
 {
 public:
-	FDisplayClusterRenderSyncPolicySoftwareDX12(const TMap<FString, FString>& Parameters);
-	virtual ~FDisplayClusterRenderSyncPolicySoftwareDX12();
+	FDisplayClusterRenderSyncPolicySoftwareDX12(const TMap<FString, FString>& Parameters)
+		: FDisplayClusterRenderSyncPolicySoftwareBase(Parameters)
+	{ }
 
-public:
-	//////////////////////////////////////////////////////////////////////////////////////////////
-	// IDisplayClusterRenderSyncPolicy
-	//////////////////////////////////////////////////////////////////////////////////////////////
-	virtual bool SynchronizeClusterRendering(int32& InOutSyncInterval) override;
+	virtual ~FDisplayClusterRenderSyncPolicySoftwareDX12()
+	{ }
+
+protected:
+	virtual void WaitForFrameCompletion() override;
 };

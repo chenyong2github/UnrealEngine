@@ -65,6 +65,9 @@ public:
 
 	/** Destroy all assets & delete this HLOD proxy package. */
 	void DeletePackage();
+
+	/** Specify the transform to apply to the source meshes when building HLODs. */
+	bool SetHLODBakingTransform(const FTransform& InTransform);
 #endif
 
 	/**

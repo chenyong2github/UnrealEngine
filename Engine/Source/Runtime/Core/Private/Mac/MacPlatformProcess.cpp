@@ -533,6 +533,14 @@ FProcHandle FMacPlatformProcess::CreateProcInternal(const TCHAR* URL, const TCHA
 		posix_spawn_file_actions_adddup2(&FileActions, [(NSFileHandle*)PipeStdInChild fileDescriptor], STDIN_FILENO);
 	}
 
+	if (OptionalWorkingDirectory)
+	{
+		if (@available(macOS 10.15, *))
+		{
+			posix_spawn_file_actions_addchdir_np(&FileActions, TCHAR_TO_UTF8(OptionalWorkingDirectory));
+		}
+	}
+
 	posix_spawnattr_setflags(&SpawnAttr, SpawnFlags);
 	int PosixSpawnErrNo = posix_spawn(&ChildPid, TCHAR_TO_UTF8(*ProcessPath), &FileActions, &SpawnAttr, Argv, EnvVariables);
 	posix_spawn_file_actions_destroy(&FileActions);

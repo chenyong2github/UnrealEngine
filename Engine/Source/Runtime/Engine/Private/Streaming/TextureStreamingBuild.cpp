@@ -46,7 +46,7 @@ ENGINE_API bool BuildTextureStreamingComponentData(UWorld* InWorld, EMaterialQua
 
 	// Used to reset per level index for textures.
 	TArray<UTexture*> AllTextures;
-	for (FObjectIterator Iter(UTexture::StaticClass()); Iter && bFullRebuild; ++Iter)
+	for (FThreadSafeObjectIterator Iter(UTexture::StaticClass()); Iter && bFullRebuild; ++Iter)
 	{
 		UTexture* Texture = Cast<UTexture>(*Iter);
 		if (Texture)

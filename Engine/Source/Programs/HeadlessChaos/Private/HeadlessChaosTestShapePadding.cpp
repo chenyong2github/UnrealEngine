@@ -65,27 +65,21 @@ namespace ChaosTest {
 
 		const FReal Tolerance = 2.0f * KINDA_SMALL_NUMBER;
 
-		// Boxes should have a margin
-		EXPECT_NEAR(BoxImplicit0->GetMargin(), Margin0, Tolerance);
-		EXPECT_NEAR(BoxImplicit1->GetMargin(), Margin1, Tolerance);
+		// Boxes should have a margin, limited by the minumum box dimension
+		float ExpectedMargin0 = BoxImplicit0->ClampedMargin(Margin0);
+		float ExpectedMargin1 = BoxImplicit0->ClampedMargin(Margin1);
+		EXPECT_NEAR(BoxImplicit0->GetMargin(), ExpectedMargin0, Tolerance);
+		EXPECT_NEAR(BoxImplicit1->GetMargin(), ExpectedMargin1, Tolerance);
 
-		// Core shape should not include margin unless margin is larger than the size
-		EXPECT_NEAR(BoxImplicit0->GetCore().Extents().X, FMath::Max(Size.X - 2.0f * Margin0, 0.0f), Tolerance);
-		EXPECT_NEAR(BoxImplicit0->GetCore().Extents().Y, FMath::Max(Size.Y - 2.0f * Margin0, 0.0f), Tolerance);
-		EXPECT_NEAR(BoxImplicit0->GetCore().Extents().Z, FMath::Max(Size.Z - 2.0f * Margin0, 0.0f), Tolerance);
-		EXPECT_NEAR(BoxImplicit1->GetCore().Extents().X, FMath::Max(Size.X - 2.0f * Margin1, 0.0f), Tolerance);
-		EXPECT_NEAR(BoxImplicit1->GetCore().Extents().Y, FMath::Max(Size.Y - 2.0f * Margin1, 0.0f), Tolerance);
-		EXPECT_NEAR(BoxImplicit1->GetCore().Extents().Z, FMath::Max(Size.Z - 2.0f * Margin1, 0.0f), Tolerance);
-
-		// Box Bounds should include margin, but may be expanded if margin was larger than size
+		// Box Bounds should include margin
 		const FAABB3 BoxBounds0 = BoxImplicit0->BoundingBox();
 		const FAABB3 BoxBounds1 = BoxImplicit1->BoundingBox();
-		EXPECT_NEAR(BoxBounds0.Extents().X, FMath::Max(2.0f * Margin0, Size.X), Tolerance);
-		EXPECT_NEAR(BoxBounds0.Extents().Y, FMath::Max(2.0f * Margin0, Size.Y), Tolerance);
-		EXPECT_NEAR(BoxBounds0.Extents().Z, FMath::Max(2.0f * Margin0, Size.Z), Tolerance);
-		EXPECT_NEAR(BoxBounds1.Extents().X, FMath::Max(2.0f * Margin1, Size.X), Tolerance);
-		EXPECT_NEAR(BoxBounds1.Extents().Y, FMath::Max(2.0f * Margin1, Size.Y), Tolerance);
-		EXPECT_NEAR(BoxBounds1.Extents().Z, FMath::Max(2.0f * Margin1, Size.Z), Tolerance);
+		EXPECT_NEAR(BoxBounds0.Extents().X, Size.X, Tolerance);
+		EXPECT_NEAR(BoxBounds0.Extents().Y, Size.Y, Tolerance);
+		EXPECT_NEAR(BoxBounds0.Extents().Z, Size.Z, Tolerance);
+		EXPECT_NEAR(BoxBounds1.Extents().X, Size.X, Tolerance);
+		EXPECT_NEAR(BoxBounds1.Extents().Y, Size.Y, Tolerance);
+		EXPECT_NEAR(BoxBounds1.Extents().Z, Size.Z, Tolerance);
 
 		FRigidBodyPointContactConstraint Constraint(
 			Box0,
@@ -127,12 +121,9 @@ namespace ChaosTest {
 		TestBoxBoxCollisionMargin(5, 10, FVec3(20, 100, 50), FVec3(0, -90, 0), -10.0f, FVec3(0, 1, 0));
 		TestBoxBoxCollisionMargin(10, 5, FVec3(20, 100, 50), FVec3(0, -90, 0), -10.0f, FVec3(0, 1, 0));
 
-		// Rounded Corner test
-		TestBoxBoxCollisionMargin(5, 5, FVec3(100, 100, 100), FVec3(-110, -110, -110), FVec3(10).Size() + 2.0f * (FVec3(5).Size() - 5), FVec3(1).GetSafeNormal());
-
-		// If the margin is too large, the box will effectively be larger than specified in some directions
-		TestBoxBoxCollisionMargin(15, 15, FVec3(20, 100, 100), FVec3(0, -100, 0), 0.0f, FVec3(0, 1, 0));	// OK - Y Size is larger than margin
-		TestBoxBoxCollisionMargin(15, 15, FVec3(20, 100, 100), FVec3(20, 0, 0), -10.0f, FVec3(-1, 0, 0));	// Body X size was expanded to account for margin - they overlap on X
+		// If the specified margin is too large the margin will get reduced and it should all still work
+		TestBoxBoxCollisionMargin(15, 15, FVec3(20, 100, 100), FVec3(0, -100, 0), 0.0f, FVec3(0, 1, 0));
+		TestBoxBoxCollisionMargin(15, 15, FVec3(20, 100, 100), FVec3(20, 0, 0), 0.0f, FVec3(-1, 0, 0));
 	}
 
 	// Two boxes that use a margin around a core AABB.
@@ -180,19 +171,19 @@ namespace ChaosTest {
 
 		const FReal Tolerance = 2.0f * KINDA_SMALL_NUMBER;
 
-		// Boxes should have a margin
+		// Should have a margin
 		EXPECT_NEAR(ConvexImplicit0->GetMargin(), Margin0, Tolerance);
 		EXPECT_NEAR(ConvexImplicit1->GetMargin(), Margin1, Tolerance);
 
-		// Box Bounds should include margin, but may be expanded if margin was larger than size
+		// Bounds should include margin
 		const FAABB3 BoxBounds0 = ConvexImplicit0->BoundingBox();
 		const FAABB3 BoxBounds1 = ConvexImplicit1->BoundingBox();
-		EXPECT_NEAR(BoxBounds0.Extents().X, FMath::Max(2.0f * Margin0, Size.X), Tolerance);
-		EXPECT_NEAR(BoxBounds0.Extents().Y, FMath::Max(2.0f * Margin0, Size.Y), Tolerance);
-		EXPECT_NEAR(BoxBounds0.Extents().Z, FMath::Max(2.0f * Margin0, Size.Z), Tolerance);
-		EXPECT_NEAR(BoxBounds1.Extents().X, FMath::Max(2.0f * Margin1, Size.X), Tolerance);
-		EXPECT_NEAR(BoxBounds1.Extents().Y, FMath::Max(2.0f * Margin1, Size.Y), Tolerance);
-		EXPECT_NEAR(BoxBounds1.Extents().Z, FMath::Max(2.0f * Margin1, Size.Z), Tolerance);
+		EXPECT_NEAR(BoxBounds0.Extents().X, Size.X, Tolerance);
+		EXPECT_NEAR(BoxBounds0.Extents().Y, Size.Y, Tolerance);
+		EXPECT_NEAR(BoxBounds0.Extents().Z, Size.Z, Tolerance);
+		EXPECT_NEAR(BoxBounds1.Extents().X, Size.X, Tolerance);
+		EXPECT_NEAR(BoxBounds1.Extents().Y, Size.Y, Tolerance);
+		EXPECT_NEAR(BoxBounds1.Extents().Z, Size.Z, Tolerance);
 
 		FRigidBodyPointContactConstraint Constraint(
 			Box0,
@@ -203,7 +194,7 @@ namespace ChaosTest {
 			Box1->Geometry().Get(),
 			nullptr,
 			FRigidTransform3(),
-			EContactShapesType::ConvexConvex, true);
+			EContactShapesType::GenericConvexConvex, true);
 
 		// Detect collisions
 		Collisions::Update(Constraint, Delta.Size(), 1 / 30.0f);
@@ -215,7 +206,7 @@ namespace ChaosTest {
 	}
 
 
-	TEST(CollisionTests, DISABLED_TestConvexConvexCollisionMargin)
+	TEST(CollisionTests, TestConvexConvexCollisionMargin)
 	{
 		// Zero-phi tests
 		TestConvexConvexCollisionMargin(0, 0, FVec3(20, 100, 50), FVec3(0, -100, 0), 0.0f, FVec3(0, 1, 0));
@@ -234,17 +225,14 @@ namespace ChaosTest {
 		TestConvexConvexCollisionMargin(1, 1, FVec3(20, 100, 50), FVec3(0, -90, 0), -10.0f, FVec3(0, 1, 0));
 		TestConvexConvexCollisionMargin(5, 10, FVec3(20, 100, 50), FVec3(0, -90, 0), -10.0f, FVec3(0, 1, 0));
 		TestConvexConvexCollisionMargin(10, 5, FVec3(20, 100, 50), FVec3(0, -90, 0), -10.0f, FVec3(0, 1, 0));
-
-		// Rounded Corner test
-		TestConvexConvexCollisionMargin(5, 5, FVec3(100, 100, 100), FVec3(-110, -110, -110), FVec3(10).Size() + 2.0f * (FVec3(5).Size() - 5), FVec3(1).GetSafeNormal());
 	}
 
-	TEST(CollisionTests, DISABLED_TestConvexConvexCollisionMargin2)
+	TEST(CollisionTests, DISABLED_TestConvexConvexCollisionMarginTooLarge)
 	{
-		// @todo(chaos): fix this for convex
-		// If the margin is too large, the box will effectively be larger than specified in some directions
-		TestConvexConvexCollisionMargin(15, 15, FVec3(20, 100, 100), FVec3(0, -100, 0), 0.0f, FVec3(0, 1, 0));	// OK - Y Size is larger than margin
-		TestConvexConvexCollisionMargin(15, 15, FVec3(20, 100, 100), FVec3(20, 0, 0), -10.0f, FVec3(-1, 0, 0));	// Body X size was expanded to account for margin - they overlap on X
+		// If the margin is too large, the margin should be limited
+		// @todo(chaos): fix this for convex - we do not have margin limits implemeted
+		TestConvexConvexCollisionMargin(15, 15, FVec3(20, 100, 100), FVec3(0, -100, 0), 0.0f, FVec3(0, 1, 0));
+		TestConvexConvexCollisionMargin(15, 15, FVec3(20, 100, 100), FVec3(20, 0, 0), 0.0f, FVec3(-1, 0, 0));
 	}
 
 
@@ -333,8 +321,8 @@ namespace ChaosTest {
 	{
 		TestBoxRayCastsMargin(0, FVec3(100, 100, 100), FVec3(-200, 0, 0), FVec3(1, 0, 0), 500.0f, true, 150.0f, FVec3(-50, 0, 0), FVec3(-1, 0, 0));		// No Margin
 		TestBoxRayCastsMargin(1, FVec3(100, 100, 100), FVec3(-200, 0, 0), FVec3(1, 0, 0), 500.0f, true, 150.0f, FVec3(-50, 0, 0), FVec3(-1, 0, 0));		// Small Margin
-		TestBoxRayCastsMargin(50, FVec3(100, 100, 100), FVec3(-200, 0, 0), FVec3(1, 0, 0), 500.0f, true, 150.0f, FVec3(-50, 0, 0), FVec3(-1, 0, 0));	// All margin (a sphere!)
-		TestBoxRayCastsMargin(70, FVec3(100, 100, 100), FVec3(-200, 0, 0), FVec3(1, 0, 0), 500.0f, true, 130.0f, FVec3(-70, 0, 0), FVec3(-1, 0, 0));	// Too much margin (expanded sphere!)
+		TestBoxRayCastsMargin(50, FVec3(100, 100, 100), FVec3(-200, 0, 0), FVec3(1, 0, 0), 500.0f, true, 150.0f, FVec3(-50, 0, 0), FVec3(-1, 0, 0));	// Max margin
+		TestBoxRayCastsMargin(70, FVec3(100, 100, 100), FVec3(-200, 0, 0), FVec3(1, 0, 0), 500.0f, true, 150.0f, FVec3(-50, 0, 0), FVec3(-1, 0, 0));	// Too much margin
 	}
 
 }

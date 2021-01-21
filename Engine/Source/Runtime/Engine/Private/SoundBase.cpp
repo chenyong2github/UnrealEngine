@@ -22,6 +22,7 @@ USoundBase::USoundBase(const FObjectInitializer& ObjectInitializer)
 #if WITH_EDITORONLY_DATA
 	MaxConcurrentPlayCount_DEPRECATED = 16;
 #endif // WITH_EDITORONLY_DATA
+
 }
 
 void USoundBase::PostInitProperties()

@@ -11,6 +11,7 @@
 #include "Interfaces/ITargetPlatformManagerModule.h"
 #include "PlatformInfo.h"
 #include "UObject/PropertyPortFlags.h"
+#include "GPUSkinCache.h"
 
 #if WITH_EDITOR
 #include "Modules/ModuleManager.h"
@@ -145,12 +146,15 @@ void FSkeletalMeshLODRenderData::InitResources(bool bNeedsVertexColors, int32 LO
 
 	// DuplicatedVerticesBuffer is used only for SkinCache and Editor features which is SM5 only
     if (IsFeatureLevelSupported(GMaxRHIShaderPlatform, ERHIFeatureLevel::SM5))
-    {
-        for (auto& RenderSection : RenderSections)
-        {
-            check(RenderSection.DuplicatedVerticesBuffer.DupVertData.Num());
-            BeginInitResource(&RenderSection.DuplicatedVerticesBuffer);
-        }
+	{
+		if (GPUSkinCacheNeedsDuplicatedVertices())
+		{
+			for (auto& RenderSection : RenderSections)
+			{
+				check(RenderSection.DuplicatedVerticesBuffer.DupVertData.Num());
+				BeginInitResource(&RenderSection.DuplicatedVerticesBuffer);
+			}
+		}
     }
 
 	// UseGPUMorphTargets() can be toggled only on SM5 atm
@@ -260,10 +264,13 @@ void FSkeletalMeshLODRenderData::ReleaseResources()
 	// DuplicatedVerticesBuffer is used only for SkinCache and Editor features which is SM5 only
     if (IsFeatureLevelSupported(GMaxRHIShaderPlatform, ERHIFeatureLevel::SM5))
 	{
-		for (auto& RenderSection : RenderSections)
+		if (GPUSkinCacheNeedsDuplicatedVertices())
 		{
-			check(RenderSection.DuplicatedVerticesBuffer.DupVertData.Num());
-			BeginReleaseResource(&RenderSection.DuplicatedVerticesBuffer);
+			for (auto& RenderSection : RenderSections)
+			{
+				check(RenderSection.DuplicatedVerticesBuffer.DupVertData.Num());
+				BeginReleaseResource(&RenderSection.DuplicatedVerticesBuffer);
+			}
 		}
 	}
 	BeginReleaseResource(&MorphTargetVertexInfoBuffers);

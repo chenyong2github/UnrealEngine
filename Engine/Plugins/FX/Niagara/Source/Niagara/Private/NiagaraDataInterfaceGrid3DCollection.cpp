@@ -566,7 +566,7 @@ bool UNiagaraDataInterfaceGrid3DCollection::InitPerInstanceData(void* PerInstanc
 
 	// Compute number of tiles based on resolution of individual attributes
 	// #todo(dmp): refactor
-	int32 MaxDim = 16384;
+	int32 MaxDim = 2048;
 	int32 MaxTilesX = floor(MaxDim / InstanceData->NumCells.X);
 	int32 MaxTilesY = floor(MaxDim / InstanceData->NumCells.Y);
 	int32 MaxTilesZ = floor(MaxDim / InstanceData->NumCells.Z);
@@ -993,6 +993,32 @@ bool UNiagaraDataInterfaceGrid3DCollection::PerInstanceTickPostSimulate(void* Pe
 
 		FNiagaraDataInterfaceProxyGrid3DCollectionProxy* RT_Proxy = GetProxyAs<FNiagaraDataInterfaceProxyGrid3DCollectionProxy>();
 
+
+		// #todo(dmp): refactor
+		int32 MaxDim = 2048;
+		int32 MaxTilesX = floor(MaxDim / InstanceData->NumCells.X);
+		int32 MaxTilesY = floor(MaxDim / InstanceData->NumCells.Y);
+		int32 MaxTilesZ = floor(MaxDim / InstanceData->NumCells.Z);
+		int32 MaxAttributes = MaxTilesX * MaxTilesY * MaxTilesZ;
+		if ((NumAttributes > MaxAttributes && MaxAttributes > 0) || NumAttributes == 0)
+		{
+			UE_LOG(LogNiagara, Error, TEXT("Invalid number of attributes defined on %s... max is %i, num defined is %i"), *FNiagaraUtilities::SystemInstanceIDToString(SystemInstance->GetId()), MaxAttributes, NumAttributes);
+			return false;
+		}
+
+		// need to determine number of tiles in x and y based on number of attributes and max dimension size
+		int32 NumTilesX = FMath::Min<int32>(MaxTilesX, NumAttributes);
+		int32 NumTilesY = FMath::Min<int32>(MaxTilesY, ceil(1.0 * NumAttributes / NumTilesX));
+		int32 NumTilesZ = FMath::Min<int32>(MaxTilesZ, ceil(1.0 * NumAttributes / (NumTilesX * NumTilesY)));
+
+		InstanceData->NumTiles.X = NumTilesX;
+		InstanceData->NumTiles.Y = NumTilesY;
+		InstanceData->NumTiles.Z = NumTilesZ;
+
+		check(InstanceData->NumTiles.X > 0);
+		check(InstanceData->NumTiles.Y > 0);
+		check(InstanceData->NumTiles.Z > 0);
+
 		// #todo(dmp): we should align this method with the implementation in Grid2DCollection.  For now, we are relying on the next call to tick  to reset the User Texture
 		
 		// Push Updates to Proxy.		
@@ -1003,6 +1029,7 @@ bool UNiagaraDataInterfaceGrid3DCollection::PerInstanceTickPostSimulate(void* Pe
 			FGrid3DCollectionRWInstanceData_RenderThread* TargetData = RT_Proxy->SystemInstancesToProxyData_RT.Find(InstanceID);
 
 			TargetData->NumCells = RT_InstanceData.NumCells;
+			TargetData->NumTiles = RT_InstanceData.NumTiles;
 			
 			TargetData->CellSize = RT_InstanceData.CellSize;
 
@@ -1102,20 +1129,28 @@ void FNiagaraDataInterfaceProxyGrid3DCollectionProxy::PreStage(FRHICommandList& 
 		// we start.  If a user wants to access data from the previous stage, then they can read from the current data.
 
 		// #todo(dmp): we might want to expose an option where we have buffers that are write only and need a clear (ie: no buffering like the neighbor grid).  They would be considered transient perhaps?  It'd be more
-		// memory efficient since it would theoretically not require any double buffering.
+		// memory efficient since it would theoretically not require any double buffering.		
+
+		// #todo(dmp): for now, if there is an output DI that is NOT an iteration DI AND if both the iteration DI and this DI have the same total number of instances, do not do the UAV clear prior to the stage.
+		// this isn't optimal, but should work to some degree to reduce overhead in cases where we have multiple grids of the same resolution being processed/written to in 1 stage
+		FNiagaraDataInterfaceProxyRW* IterationInterface = Context.ComputeInstanceData->SimStageData[Context.SimulationStageIndex].AlternateIterationSource;
 		if (!Context.IsIterationStage)
 		{
+			if (IterationInterface != nullptr)
+			{
+				const FIntVector ElementCount = IterationInterface->GetElementCount(Context.SystemInstanceID);
+				const uint64 TotalNumInstances = ElementCount.X * ElementCount.Y * ElementCount.Z;
+			
+				if (ElementCount.X == ProxyData->NumCells.X && ElementCount.Y == ProxyData->NumCells.Y && ElementCount.Z == ProxyData->NumCells.Z)
+				{
+					return;
+				}
+			}
+
 			check(ProxyData->DestinationData);
 			RHICmdList.Transition(FRHITransitionInfo(ProxyData->DestinationData->GridBuffer.UAV, ERHIAccess::SRVMask, ERHIAccess::UAVCompute));
 			RHICmdList.ClearUAVFloat(ProxyData->DestinationData->GridBuffer.UAV, FVector4(ForceInitToZero));
 			RHICmdList.Transition(FRHITransitionInfo(ProxyData->DestinationData->GridBuffer.UAV, ERHIAccess::UAVCompute, ERHIAccess::UAVCompute));
-		}
-		else if (ProxyData->CurrentData != NULL && ProxyData->DestinationData != NULL)
-		{
-			// in iteration stages we copy the source to destination
-			// FIXME: is this really needed? The Grid2D DI doesn't do it.
-			FRHICopyTextureInfo CopyInfo;
-			RHICmdList.CopyTexture(ProxyData->CurrentData->GridBuffer.Buffer, ProxyData->DestinationData->GridBuffer.Buffer, CopyInfo);
 		}
 	}
 }
