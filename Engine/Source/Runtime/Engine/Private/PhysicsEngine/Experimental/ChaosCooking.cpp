@@ -16,7 +16,7 @@ namespace Chaos
 {
 	namespace Cooking
 	{
-		TUniquePtr<Chaos::FTriangleMeshImplicitObject> Chaos::Cooking::BuildSingleTrimesh(const FTriMeshCollisionData& Desc, TArray<int32>& OutFaceRemap, TArray<int32>& OutVertexRemap)
+		TUniquePtr<Chaos::FTriangleMeshImplicitObject> BuildSingleTrimesh(const FTriMeshCollisionData& Desc, TArray<int32>& OutFaceRemap, TArray<int32>& OutVertexRemap)
 		{
 			if(Desc.Vertices.Num() == 0)
 			{
