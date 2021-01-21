@@ -935,6 +935,18 @@ void FLidarPointCloudOctree::GetPointsInBox(TArray<FLidarPointCloudPoint*, T>& S
 	PROCESS_IN_BOX({ SelectedPoints.Add(Point); });
 }
 
+void FLidarPointCloudOctree::GetPointsInBox(TArray<const FLidarPointCloudPoint*>& SelectedPoints, const FBox& Box, const bool& bVisibleOnly) const
+{
+	SelectedPoints.Reset();
+	PROCESS_IN_BOX_CONST({ SelectedPoints.Add(Point); });
+}
+
+void FLidarPointCloudOctree::GetPointsInBox(TArray64<const FLidarPointCloudPoint*>& SelectedPoints, const FBox& Box, const bool& bVisibleOnly) const
+{
+	SelectedPoints.Reset();
+	PROCESS_IN_BOX_CONST({ SelectedPoints.Add(Point); });
+}
+
 template <typename T>
 void FLidarPointCloudOctree::GetPointsInFrustum(TArray<FLidarPointCloudPoint*, T>& SelectedPoints, const FConvexVolume& Frustum, const bool& bVisibleOnly)
 {
@@ -1882,11 +1894,17 @@ void FLidarPointCloudOctree::UnloadOldNodes(const float& CurrentTime)
 	}
 }
 
-void FLidarPointCloudOctree::LoadAllNodes()
+void FLidarPointCloudOctree::LoadAllNodes(bool bLoadPersistently)
 {
-	ITERATE_NODES({ CurrentNode->GetPersistentData(); }, true);
-
-	bIsFullyLoaded = true;
+	if (bLoadPersistently)
+	{
+		ITERATE_NODES({ CurrentNode->GetPersistentData(); }, true);
+		bIsFullyLoaded = true;
+	}
+	else
+	{
+		ITERATE_NODES({ CurrentNode->GetData(); }, true);
+	}
 }
 
 void FLidarPointCloudOctree::ReleaseAllNodes(bool bIncludePersistent)

@@ -299,6 +299,8 @@ public:
 	/** Populates the array with the list of pointers to points within the given box. */
 	template <typename T>
 	void GetPointsInBox(TArray<FLidarPointCloudPoint*, T>& SelectedPoints, const FBox& Box, const bool& bVisibleOnly);
+	void GetPointsInBox(TArray<const FLidarPointCloudPoint*>& SelectedPoints, const FBox& Box, const bool& bVisibleOnly) const;
+	void GetPointsInBox(TArray64<const FLidarPointCloudPoint*>& SelectedPoints, const FBox& Box, const bool& bVisibleOnly) const;
 
 	/** Populates the array with the list of points within the given frustum. */
 	template <typename T>
@@ -475,8 +477,8 @@ public:
 	/** Returns true, if the cloud is fully and persistently loaded. */
 	bool IsFullyLoaded() const { return bIsFullyLoaded; }
 
-	/** Persistently loads all nodes. */
-	void LoadAllNodes();
+	/** Loads all nodes. */
+	void LoadAllNodes(bool bLoadPersistently);
 
 	/**
 	 * Releases all nodes.
