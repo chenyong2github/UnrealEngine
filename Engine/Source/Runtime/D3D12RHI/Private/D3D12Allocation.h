@@ -973,7 +973,7 @@ public:
 	void CleanUpAllocations() { ReadOnlyTexturePool.CleanUpAllocations(0); }
 
 	void Destroy() { ReadOnlyTexturePool.Destroy(); }
-	bool GetMemoryStats(uint64& OutTotalAllocated, uint64& OutTotalUnused) const { OutTotalAllocated = 0; OutTotalUnused = 0; }
+	bool GetMemoryStats(uint64& OutTotalAllocated, uint64& OutTotalUnused) const { OutTotalAllocated = 0; OutTotalUnused = 0; return false; }
 
 private:
 	FD3D12TextureAllocator ReadOnlyTexturePool;
