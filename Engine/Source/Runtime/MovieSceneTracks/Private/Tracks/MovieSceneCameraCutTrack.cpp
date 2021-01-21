@@ -117,14 +117,48 @@ EMovieSceneTrackEasingSupportFlags UMovieSceneCameraCutTrack::SupportsEasing(FMo
 		}
 		else if (NumSections > 1)
 		{
-			if (Params.ForSection == Sections[0])
+			// Find the section with the earliest start time, and the section with the latest end time.
+			int32 EdgeSections[2] = { 0, NumSections - 1 };
+			TRange<FFrameNumber> EdgeRanges[2] = { Sections[0]->GetTrueRange(), Sections[NumSections - 1]->GetTrueRange() };
+			const TRange<FFrameNumber> ForSectionRange = Params.ForSection->GetTrueRange();
+			for (int32 Index = 0; Index < NumSections; ++Index)
 			{
-				return EMovieSceneTrackEasingSupportFlags::AutomaticEasing | EMovieSceneTrackEasingSupportFlags::ManualEaseIn;
+				const UMovieSceneSection* Section(Sections[Index]);
+				const TRange<FFrameNumber> SectionRange(Section->GetTrueRange());
+				if (Section != Params.ForSection && SectionRange.Contains(ForSectionRange))
+				{
+					return EMovieSceneTrackEasingSupportFlags::None;
+				}
+
+				if (EdgeRanges[0].HasLowerBound())
+				{
+					if (!SectionRange.HasLowerBound() || SectionRange.GetLowerBoundValue() < EdgeRanges[0].GetLowerBoundValue())
+					{
+						EdgeSections[0] = Index;
+						EdgeRanges[0] = SectionRange;
+					}
+				}
+				if (EdgeRanges[1].HasUpperBound())
+				{
+					if (!SectionRange.HasUpperBound() || SectionRange.GetUpperBoundValue() > EdgeRanges[1].GetUpperBoundValue())
+					{
+						EdgeSections[1] = Index;
+						EdgeRanges[1] = SectionRange;
+					}
+				}
 			}
-			if (Params.ForSection == Sections.Last())
+			
+			// Allow easing for these sections.
+			EMovieSceneTrackEasingSupportFlags Flags = EMovieSceneTrackEasingSupportFlags::AutomaticEasing;
+			if (Params.ForSection == Sections[EdgeSections[0]])
 			{
-				return EMovieSceneTrackEasingSupportFlags::AutomaticEasing | EMovieSceneTrackEasingSupportFlags::ManualEaseOut;
+				Flags |= EMovieSceneTrackEasingSupportFlags::ManualEaseIn;
 			}
+			if (Params.ForSection == Sections[EdgeSections[1]])
+			{
+				Flags |= EMovieSceneTrackEasingSupportFlags::ManualEaseOut;
+			}
+			return Flags;
 		}
 	}
 	return EMovieSceneTrackEasingSupportFlags::AutomaticEasing;
