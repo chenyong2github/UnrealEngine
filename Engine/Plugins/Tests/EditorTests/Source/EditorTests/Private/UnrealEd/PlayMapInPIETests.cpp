@@ -48,8 +48,7 @@ bool FWaitForActorsInitialized::Update()
 {
 	UWorld* World = GetAnyGameWorld();
 
-	return World && World->AreActorsInitialized() &&
-		!UNavigationSystemV1::IsNavigationBeingBuilt(World);
+	return World && World->AreActorsInitialized();
 }
 
 class FPlayMapInPIEBase : public FAutomationTestBase
