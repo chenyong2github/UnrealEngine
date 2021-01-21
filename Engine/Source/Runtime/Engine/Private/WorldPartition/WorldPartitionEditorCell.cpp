@@ -49,7 +49,17 @@ void UWorldPartitionEditorCell::RemoveActor(const FWorldPartitionHandle& ActorHa
 {
 	check(ActorHandle.IsValid());
 	verify(Actors.Remove(ActorHandle));
-	LoadedActors.Remove(ActorHandle);
+
+	// Don't call LoadedActors.Remove(ActorHandle) right away, as this will create a temporary reference and might try to load
+	// a deleted actor. This is a temporary workaround.
+	for (const FWorldPartitionReference& ActorReference: LoadedActors)
+	{
+		if (ActorReference == ActorHandle)
+		{
+			LoadedActors.Remove(ActorHandle);
+			break;
+		}
+	}
 }
 #endif
 

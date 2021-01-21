@@ -207,12 +207,19 @@ FBox FWorldPartitionActorDesc::GetBounds() const
 
 bool FWorldPartitionActorDesc::IsLoaded() const
 {
+#if WITH_DEV_AUTOMATION_TESTS
+	if (GIsAutomationTesting)
+	{
+		return HardRefCount > 0;
+	}
+#endif
+
 	return ActorPtr.IsValid();
 }
 
 AActor* FWorldPartitionActorDesc::GetActor() const
 {
-	return ActorPtr.Get();
+	return ActorPtr.Get(true);
 }
 
 AActor* FWorldPartitionActorDesc::Load() const
@@ -277,22 +284,22 @@ void FWorldPartitionActorDesc::Unload()
 
 void FWorldPartitionActorDesc::RegisterActor()
 {
-	AActor* Actor = GetActor();
-	check(Actor);
-
-	ApplyActorTransform(WorldPartition->InstanceTransform);
-	Actor->GetLevel()->AddLoadedActor(Actor);
+	if (AActor* Actor = GetActor())
+	{
+		ApplyActorTransform(WorldPartition->InstanceTransform);
+		Actor->GetLevel()->AddLoadedActor(Actor);
+	}
 }
 
 void FWorldPartitionActorDesc::UnregisterActor()
 {
-	AActor* Actor = GetActor();
-	check(Actor);
-
-	if (!Actor->IsPendingKill())
+	if (AActor* Actor = GetActor())
 	{
-		Actor->GetLevel()->RemoveLoadedActor(Actor);
-		ApplyActorTransform(WorldPartition->InstanceTransform.Inverse());
+		if (!Actor->IsPendingKill())
+		{
+			Actor->GetLevel()->RemoveLoadedActor(Actor);
+			ApplyActorTransform(WorldPartition->InstanceTransform.Inverse());
+		}
 	}
 }
 #endif

@@ -17,13 +17,6 @@ TUniquePtr<FWorldPartitionActorDesc>* FWorldPartitionHandleUtils::GetActorDesc(U
 
 bool FWorldPartitionHandleUtils::IsActorDescLoaded(FWorldPartitionActorDesc* ActorDesc)
 {
-#if WITH_DEV_AUTOMATION_TESTS
-	if (GIsAutomationTesting)
-	{
-		return ActorDesc->GetHardRefCount() > 0;
-	}
-#endif
-
 	return ActorDesc->IsLoaded();
 }
 
@@ -41,27 +34,17 @@ void FWorldPartitionReferenceImpl::IncRefCount(FWorldPartitionActorDesc* ActorDe
 {
 	if (ActorDesc->IncHardRefCount() == 1)
 	{
-		AActor* Actor = ActorDesc->Load();
-		check(Actor || GIsAutomationTesting);
-
-		if (Actor)
-		{
-			ActorDesc->RegisterActor();
-		}
+		ActorDesc->Load();
+		ActorDesc->RegisterActor();
 	}
 }
 
 void FWorldPartitionReferenceImpl::DecRefCount(FWorldPartitionActorDesc* ActorDesc)
 {
-	if (!ActorDesc->DecHardRefCount())
+	if (ActorDesc->DecHardRefCount() == 0)
 	{
-		// The only case where an actor can be unloaded while still holding a reference 
-		// is when it was manually deleted in the editor.
-		if (ActorDesc->IsLoaded())
-		{
-			ActorDesc->UnregisterActor();
-			ActorDesc->Unload();
-		}
+		ActorDesc->UnregisterActor();
+		ActorDesc->Unload();
 	}
 }
 #endif
