@@ -417,7 +417,7 @@ void FTraceAuxiliary::Initialize(const TCHAR* CommandLine)
 	{
 		if (Reason == EModuleChangeReason::ModuleLoaded)
 		{
-			EnableChannels();
+			GTraceAuxiliary.EnableChannels();
 		}
 	});
 
