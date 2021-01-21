@@ -201,9 +201,9 @@ void UMoviePipelineObjectIdRenderPass::RenderSample_GameThreadImpl(const FMovieP
 	// the same between each frame.
 	const TSparseArray<HHitProxy*>& AllHitProxies = GetAllHitProxies();
 	
-	std::atomic<int32> NumCacheHits = 0;
-	std::atomic<int32> NumCacheMisses = 0;
-	std::atomic<int32> NumCacheUpdates = 0;
+	std::atomic<int32> NumCacheHits(0);
+	std::atomic<int32> NumCacheMisses(0);
+	std::atomic<int32> NumCacheUpdates(0);
 
 	// Update the data in place, no need to copy back to the annotation.
 	UE::MoviePipeline::FObjectIdAccelerationData AccelData = ManifestAnnotation.GetAnnotation(this);
