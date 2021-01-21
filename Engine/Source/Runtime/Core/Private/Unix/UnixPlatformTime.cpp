@@ -13,7 +13,7 @@
 int FUnixTime::ClockSource = -1;
 char FUnixTime::CalibrationLog[4096] = {0};
 
-namespace
+namespace FUnixTimeInternal
 {
 	FORCEINLINE double TimeValToMicroSec(timeval & tv)
 	{
@@ -24,6 +24,22 @@ namespace
 	{
 		return static_cast<uint64>(ts.tv_sec) * 1000000000ULL + static_cast<uint64>(ts.tv_nsec);
 	}
+
+	constexpr double MicroSecondsToSeconds(double MicroSec)
+	{
+		return MicroSec / 1e6;
+	}
+
+	// last time we checked the timer
+	static double PreviousUpdateTimeNanoSec = 0.0;
+
+	// last user + system time
+	static double PreviousSystemAndUserProcessTimeMicroSec = 0.0;
+
+	// last CPU utilization
+	static float CurrentCpuUtilization = 0.0f;
+	// last CPU utilization (per core)
+	static float CurrentCpuUtilizationNormalized = 0.0f;
 }
 
 double FUnixTime::InitTiming()
@@ -40,47 +56,58 @@ double FUnixTime::InitTiming()
 FCPUTime FUnixTime::GetCPUTime()
 {
 	// minimum delay between checks to minimize overhead (and also match Windows version)
-	const double MinDelayBetweenChecksMicroSec = 25 * 1e3;
+	constexpr double MinDelayBetweenChecksMicroSec = 25 * 1e3;
 	
-	// last time we checked the timer
-	static double PreviousUpdateTimeNanoSec = 0.0;
-	// last user + system time
-	static double PreviousSystemAndUserProcessTimeMicroSec = 0.0;
-
-	// last CPU utilization
-	static float CurrentCpuUtilization = 0.0f;
-	// last CPU utilization (per core)
-	static float CurrentCpuUtilizationNormalized = 0.0f;
-
 	struct timespec ts;
 	if (0 == clock_gettime(ClockSource, &ts))
 	{
 		const double CurrentTimeNanoSec = static_cast<double>(ts.tv_sec) * 1e9 + static_cast<double>(ts.tv_nsec);
 
 		// see if we need to update the values
-		double TimeSinceLastUpdateMicroSec = ( CurrentTimeNanoSec - PreviousUpdateTimeNanoSec ) / 1e3;
+		double TimeSinceLastUpdateMicroSec = ( CurrentTimeNanoSec - FUnixTimeInternal::PreviousUpdateTimeNanoSec ) / 1e3;
 		if (TimeSinceLastUpdateMicroSec >= MinDelayBetweenChecksMicroSec)
 		{
-			struct rusage Usage;
-			if (0 == getrusage(RUSAGE_SELF, &Usage))
-			{				
-				const double CurrentSystemAndUserProcessTimeMicroSec = TimeValToMicroSec(Usage.ru_utime) + TimeValToMicroSec(Usage.ru_stime); // holds all usages on all cores
-				const double CpuTimeDuringPeriodMicroSec = CurrentSystemAndUserProcessTimeMicroSec - PreviousSystemAndUserProcessTimeMicroSec;
-
-				double CurrentCpuUtilizationHighPrec = CpuTimeDuringPeriodMicroSec / TimeSinceLastUpdateMicroSec * 100.0;
-
-				// recalculate the values
-				CurrentCpuUtilizationNormalized = static_cast< float >( CurrentCpuUtilizationHighPrec / static_cast< double >( FPlatformMisc::NumberOfCoresIncludingHyperthreads() ) );
-				CurrentCpuUtilization = static_cast< float >( CurrentCpuUtilizationHighPrec );
-
-				// update previous
-				PreviousSystemAndUserProcessTimeMicroSec = CurrentSystemAndUserProcessTimeMicroSec;
-				PreviousUpdateTimeNanoSec = CurrentTimeNanoSec;
-			}
+			UpdateCPUTime(TimeSinceLastUpdateMicroSec);
+			FUnixTimeInternal::PreviousUpdateTimeNanoSec = CurrentTimeNanoSec;
 		}
 	}
 
-	return FCPUTime(CurrentCpuUtilizationNormalized, CurrentCpuUtilization);
+	return FCPUTime(FUnixTimeInternal::CurrentCpuUtilizationNormalized, FUnixTimeInternal::CurrentCpuUtilization);
+}
+
+bool FUnixTime::UpdateCPUTime(float DeltaTime)
+{
+	struct rusage Usage;
+	if (0 == getrusage(RUSAGE_SELF, &Usage))
+	{
+		// Get delta between last two calls if the passed DeltaTime is zero
+		if (DeltaTime <= 0.0)
+		{
+			struct timespec ts;
+			if (0 == clock_gettime(ClockSource, &ts))
+			{
+				const double CurrentTimeNanoSec = static_cast<double>(ts.tv_sec) * 1e9 + static_cast<double>(ts.tv_nsec);
+				DeltaTime = (CurrentTimeNanoSec - FUnixTimeInternal::PreviousUpdateTimeNanoSec) / 1e3;
+				FUnixTimeInternal::PreviousUpdateTimeNanoSec = CurrentTimeNanoSec;
+			}
+		}
+
+		const double CurrentSystemAndUserProcessTimeMicroSec = FUnixTimeInternal::TimeValToMicroSec(Usage.ru_utime) + FUnixTimeInternal::TimeValToMicroSec(Usage.ru_stime); // holds all usages on all cores
+		const double CpuTimeDuringPeriodMicroSec = CurrentSystemAndUserProcessTimeMicroSec - FUnixTimeInternal::PreviousSystemAndUserProcessTimeMicroSec;
+
+		double CurrentCpuUtilizationHighPrec = CpuTimeDuringPeriodMicroSec / DeltaTime * 100.0;
+
+		// recalculate the values
+		FUnixTimeInternal::CurrentCpuUtilizationNormalized = static_cast<float>(CurrentCpuUtilizationHighPrec / static_cast<double>(FPlatformMisc::NumberOfCoresIncludingHyperthreads()));
+		FUnixTimeInternal::CurrentCpuUtilization = static_cast<float>(CurrentCpuUtilizationHighPrec);
+
+		// update previous
+		FUnixTimeInternal::PreviousSystemAndUserProcessTimeMicroSec = CurrentSystemAndUserProcessTimeMicroSec;
+		
+		LastIntervalCPUTimeInSeconds = FUnixTimeInternal::MicroSecondsToSeconds(CpuTimeDuringPeriodMicroSec);
+	}
+
+	return true;
 }
 
 uint64 FUnixTime::CallsPerSecondBenchmark(clockid_t BenchClockId, const char * BenchClockIdName)
@@ -98,7 +125,7 @@ uint64 FUnixTime::CallsPerSecondBenchmark(clockid_t BenchClockId, const char * B
 	}
 
 	// from now on we'll assume that clock_gettime cannot fail
-	uint64 StartTimestamp = TimeSpecToMicroSec(ts);
+	uint64 StartTimestamp = FUnixTimeInternal::TimeSpecToMicroSec(ts);
 	uint64 EndTimeStamp = StartTimestamp;
 
 	uint64 NumCalls = 1;	// account for starting timestamp
@@ -108,7 +135,7 @@ uint64 FUnixTime::CallsPerSecondBenchmark(clockid_t BenchClockId, const char * B
 	{
 		clock_gettime(BenchClockId, &ts);
 
-		uint64 NewEndTimeStamp = TimeSpecToMicroSec(ts);
+		uint64 NewEndTimeStamp = FUnixTimeInternal::TimeSpecToMicroSec(ts);
 		++NumCalls;
 
 		if (NewEndTimeStamp < EndTimeStamp)
