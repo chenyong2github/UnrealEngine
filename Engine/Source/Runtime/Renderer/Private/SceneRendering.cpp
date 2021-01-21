@@ -1751,7 +1751,7 @@ void FViewInfo::SetupUniformBufferParameters(
 		if (InstanceSceneDataOverrideSRV)
 		{
 			ViewUniformShaderParameters.InstanceSceneData = InstanceSceneDataOverrideSRV;
-			ViewUniformShaderParameters.InstanceDataSOAStride = 0;
+			ViewUniformShaderParameters.InstanceDataSOAStride = 1;
 		}
 		else if (Scene && Scene->GPUScene.InstanceDataBuffer.SRV)
 		{
