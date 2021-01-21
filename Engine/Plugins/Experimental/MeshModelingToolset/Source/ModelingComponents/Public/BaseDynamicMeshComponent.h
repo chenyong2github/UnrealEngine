@@ -250,9 +250,13 @@ public:
 
 protected:
 
+	UPROPERTY()
 	TArray<UMaterialInterface*> BaseMaterials;
 
+	UPROPERTY()
 	UMaterialInterface* OverrideRenderMaterial = nullptr;
+
+	UPROPERTY()
 	UMaterialInterface* SecondaryRenderMaterial = nullptr;
 
 	bool bDrawSecondaryBuffers = true;
