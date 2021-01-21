@@ -97,7 +97,7 @@ struct FNiagaraDataSetDebugAccessor
 			case 1: StringType.Appendf(TEXT("%.2f"), Value[0]); break;
 			case 2: StringType.Appendf(TEXT("%.2f, %.2f"), Value[0], Value[1]); break;
 			case 3: StringType.Appendf(TEXT("%.2f, %.2f, %.2f"), Value[0], Value[1], Value[2]); break;
-			case 4: StringType.Appendf(TEXT("%.2f, %.2f, %.2f, %.2f, %.2f"), Value[0], Value[1], Value[2], Value[3]); break;
+			case 4: StringType.Appendf(TEXT("%.2f, %.2f, %.2f, %.2f"), Value[0], Value[1], Value[2], Value[3]); break;
 			}
 		}
 		else if (IsInt())
