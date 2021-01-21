@@ -28,6 +28,7 @@ UAnimSequenceBase::UAnimSequenceBase(const FObjectInitializer& ObjectInitializer
 	, RateScale(1.0f)
 #if WITH_EDITORONLY_DATA
 	, DataModel(nullptr)
+	, bPopulatingDataModel(false)
 	, Controller(nullptr)
 #endif // WITH_EDITORONLY_DATA
 {
@@ -93,7 +94,9 @@ void UAnimSequenceBase::PostLoad()
 		GetController();
 		if (bRequiresModelPopulation)
 		{
+			bPopulatingDataModel = true;
 			PopulateModel();
+			bPopulatingDataModel = false;
 		}
 	}
 #endif // WITH_EDITORONLY_DATA
@@ -915,6 +918,11 @@ void UAnimSequenceBase::OnModelModified(const EAnimDataModelNotifyType& NotifyTy
 
 	auto HandleLengthChange = [&](float NewLength, float OldLength, float T0, float T1)
 	{
+		if (bPopulatingDataModel)
+		{
+			return;
+		}
+		
 		const float StartRemoveTime = T0;
 		const float EndRemoveTime = T1;
 

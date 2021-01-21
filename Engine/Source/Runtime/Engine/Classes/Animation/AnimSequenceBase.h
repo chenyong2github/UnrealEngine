@@ -292,6 +292,9 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Animation Model")
 	UAnimDataModel* DataModel;
 
+	/** Flag set whenever the data-model is initially populated (during upgrade path) */
+	bool bPopulatingDataModel;
+
 	/** UAnimDataController instance set to operate on DataModel */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Transient, DuplicateTransient, Category = "Animation Model")
 	UAnimDataController* Controller;

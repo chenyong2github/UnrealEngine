@@ -423,6 +423,7 @@ UAnimSequence::UAnimSequence(const FObjectInitializer& ObjectInitializer)
 	, bUseRawDataOnly(!FPlatformProperties::RequiresCookedData())
 #if WITH_EDITOR
 	, bCompressionInProgress(false)
+	, bBlockCompressionRequests(false)
 #endif
 {
 	RateScale = 1.0;
@@ -5567,6 +5568,11 @@ void UAnimSequence::OnModelModified(const EAnimDataModelNotifyType& NotifyType, 
 
 	auto HandleLengthChanged = [this](float NewLength, float OldLength, float T0, float T1)
 	{
+		if (bPopulatingDataModel)
+		{
+			return;
+		}
+
 		if (NewLength > OldLength)
 		{
 			const float InsertTime = T0;
