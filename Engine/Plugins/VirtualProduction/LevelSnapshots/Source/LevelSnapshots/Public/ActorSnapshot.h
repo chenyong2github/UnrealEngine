@@ -3,9 +3,11 @@
 #pragma once
 
 #include "BaseObjectInfo.h"
+#include "GameFramework/Actor.h"
 
 #include "ActorSnapshot.generated.h"
 
+class UActorComponent;
 class ULevelSnapshot;
 class ULevelSnapshotFilter;
 

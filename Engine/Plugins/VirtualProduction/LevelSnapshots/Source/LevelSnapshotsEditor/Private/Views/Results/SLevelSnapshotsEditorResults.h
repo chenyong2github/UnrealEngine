@@ -16,6 +16,12 @@ class SLevelSnapshotsEditorResultsSingleProperty;
 class SLevelSnapshotsEditorResultsContainerPropertyGroup;
 struct FLevelSnapshotsEditorViewBuilder;
 
+class SBox;
+class SButton;
+class SCheckBox;
+class SSplitter;
+class SVerticalBox;
+
 enum class ECheckBoxState : uint8;
 
 class SLevelSnapshotsEditorResultsExpanderArrow : public SCompoundWidget

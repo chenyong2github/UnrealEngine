@@ -16,11 +16,12 @@
 #include "EngineUtils.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "PropertyCustomizationHelpers.h"
-#include "PropertyEditor/Private/PropertyEditorHelpers.h"
 #include "Types/ISlateMetaData.h"
 #include "UObject/StrongObjectPtr.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/SBoxPanel.h"
+#include "Widgets/Images/SImage.h"
+#include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SComboButton.h"
 
