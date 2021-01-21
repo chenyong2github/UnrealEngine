@@ -153,6 +153,7 @@ struct FBXImportOptions
 	bool bCombineToSingle;
 	EVertexColorImportOption::Type VertexColorImportOption;
 	FColor VertexOverrideColor;
+	float DistanceFieldResolutionScale;
 	bool bRemoveDegenerates;
 	bool bBuildAdjacencyBuffer;
 	bool bBuildReversedIndexBuffer;

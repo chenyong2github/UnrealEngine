@@ -423,6 +423,7 @@ void ApplyImportUIToImportOptions(UFbxImportUI* ImportUI, FBXImportOptions& InOu
 		InOutImportOptions.VertexColorImportOption	= StaticMeshData->VertexColorImportOption;
 		InOutImportOptions.VertexOverrideColor		= StaticMeshData->VertexOverrideColor;
 		InOutImportOptions.bReorderMaterialToFbxOrder = StaticMeshData->bReorderMaterialToFbxOrder;
+		InOutImportOptions.DistanceFieldResolutionScale = StaticMeshData->DistanceFieldResolutionScale;
 	}
 	else if ( ImportUI->MeshTypeToImport == FBXIT_SkeletalMesh )
 	{

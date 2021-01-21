@@ -1971,6 +1971,7 @@ UStaticMesh* UnFbx::FFbxImporter::ImportStaticMeshAsSingle(UObject* InParent, TA
 		SrcModel.BuildSettings.bComputeWeightedNormals = ImportOptions->bComputeWeightedNormals;
 
 		StaticMesh->NaniteSettings.bEnabled = ImportOptions->bBuildNanite;
+		SrcModel.BuildSettings.DistanceFieldResolutionScale = ImportOptions->DistanceFieldResolutionScale;
 
 		if (ImportOptions->bGenerateLightmapUVs)
 		{

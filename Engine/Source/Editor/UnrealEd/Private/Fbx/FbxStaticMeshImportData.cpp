@@ -17,6 +17,7 @@ UFbxStaticMeshImportData::UFbxStaticMeshImportData(const FObjectInitializer& Obj
 	bTransformVertexToAbsolute = true;
 	bBakePivotInVertex = false;
 	VertexOverrideColor = FColor(255, 255, 255, 255);
+	DistanceFieldResolutionScale = 1.0f;
 }
 
 UFbxStaticMeshImportData* UFbxStaticMeshImportData::GetImportDataForStaticMesh(UStaticMesh* StaticMesh, UFbxStaticMeshImportData* TemplateForCreation)
