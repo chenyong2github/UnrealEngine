@@ -46,10 +46,12 @@ namespace GeometryCollection
 		TManagedArray<int32>& MaterialIndex = RestCollection->MaterialIndex;
 		TManagedArray<int32>& MaterialID = RestCollection->MaterialID;
 		TManagedArray<FTransform>& Transform = RestCollection->Transform;
+		TManagedArray<int32>& SimulationType = RestCollection->SimulationType;
 
 		// Set particle info
 		Transform[0] = Xf;
 		Transform[0].NormalizeRotation();
+		SimulationType[0] = FGeometryCollection::ESimulationTypes::FST_Rigid;
 
 		// Set vertex info
 		for (int32 Idx = 0; Idx < PointsIn.Num(); ++Idx)

@@ -111,7 +111,7 @@ void FGeometryCollectionClusteringUtility::ClusterAllBonesUnderNewRoot(FGeometry
 	BoneNames[RootNoneIndex] = "ClusterBone";
 	Parents[RootNoneIndex] = FGeometryCollection::Invalid;
 	Children[RootNoneIndex] = TSet<int32>(ChildBones);
-	SimulationType[RootNoneIndex] = FGeometryCollection::ESimulationTypes::FST_Rigid;
+	SimulationType[RootNoneIndex] = FGeometryCollection::ESimulationTypes::FST_Clustered;
 	check(GeometryCollection->IsTransform(RootNoneIndex));
 
 	if (GeometryCollection->HasAttribute("ExplodedVector", FGeometryCollection::TransformGroup) &&
@@ -137,8 +137,6 @@ void FGeometryCollectionClusteringUtility::ClusterAllBonesUnderNewRoot(FGeometry
 	for (int32 ChildBoneIndex : ChildBones)
 	{
 		Parents[ChildBoneIndex] = RootNoneIndex;
-		GeometryCollection->SimulationType[ChildBoneIndex] = FGeometryCollection::ESimulationTypes::FST_Clustered;
-
 	}
 
 	Transforms[RootNoneIndex] = FTransform::Identity;

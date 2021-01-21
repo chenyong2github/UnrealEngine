@@ -481,6 +481,7 @@ void FFractureEditorModeToolkit::BuildToolPalette(FName PaletteIndex, class FToo
 	{
 		ToolbarBuilder.AddToolBarButton(Commands.GenerateAsset);
 		ToolbarBuilder.AddToolBarButton(Commands.ResetAsset);
+		ToolbarBuilder.AddToolBarButton(Commands.AddEmbeddedGeometry);
 	}
 	else if (PaletteIndex == TEXT("Select"))
 	{

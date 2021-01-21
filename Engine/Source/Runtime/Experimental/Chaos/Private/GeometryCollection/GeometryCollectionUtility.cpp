@@ -38,10 +38,12 @@ namespace GeometryCollection
 		TManagedArray<int32>&  MaterialIndex = RestCollection->MaterialIndex;
 		TManagedArray<int32>&  MaterialID = RestCollection->MaterialID;
 		TManagedArray<FTransform>&  Transform = RestCollection->Transform;
+		TManagedArray<int32>& SimType = RestCollection->SimulationType;
 
 		// set the particle information
 		Transform[0] = center;
 		Transform[0].NormalizeRotation();
+		SimType[0] = FGeometryCollection::ESimulationTypes::FST_Rigid;
 
 		// set the vertex information
 		int32 Index = 0;
