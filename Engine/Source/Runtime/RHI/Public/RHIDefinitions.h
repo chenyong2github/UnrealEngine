@@ -694,8 +694,8 @@ enum
 /** The maximum number of vertex elements which can be used by a vertex declaration. */
 enum
 {
-	MaxVertexElementCount = 16,
-	MaxVertexElementCount_NumBits = 4,
+	MaxVertexElementCount = 17,
+	MaxVertexElementCount_NumBits = 5,
 };
 static_assert(MaxVertexElementCount <= (1 << MaxVertexElementCount_NumBits), "MaxVertexElementCount will not fit on MaxVertexElementCount_NumBits");
 
