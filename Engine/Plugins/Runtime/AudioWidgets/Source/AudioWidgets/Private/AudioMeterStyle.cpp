@@ -1,20 +1,21 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AudioMeterStyle.h"
-
+#include "Styling/StyleDefaults.h"
 
 FAudioMeterStyle::FAudioMeterStyle()
-	: MeterSize(FVector2D(100.0f, 500.0f))
-	, MeterPadding(FVector2D(5.0f, 5.0f))
-	, MeterValuePadding(2.0f)
-	, PeakValueWidth(8.0f)
+	: MeterSize(FVector2D(250.0f, 25.0f))
+	, MeterPadding(FVector2D(10.0f, 5.0f))
+	, MeterValuePadding(3.0f)
+	, PeakValueWidth(2.0f)
 	, ValueRangeDb(FVector2D(-60, 10))
 	, bShowScale(true)
 	, bScaleSide(true)
 	, ScaleHashOffset(5.0f)
-	, ScaleHashWidth(3.0f)
-	, ScaleHashHeight(20.0f)
+	, ScaleHashWidth(1.0f)
+	, ScaleHashHeight(10.0f)
 	, DecibelsPerHash(5)
+	, Font(FStyleDefaults::GetFontInfo(5))
 {
 }
 

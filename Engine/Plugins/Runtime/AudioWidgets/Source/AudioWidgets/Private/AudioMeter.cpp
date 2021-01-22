@@ -17,13 +17,19 @@ UAudioMeter::UAudioMeter(const FObjectInitializer& ObjectInitializer)
 {
 	Orientation = EOrientation::Orient_Vertical;
 
-	BackgroundColor = FLinearColor::Black;
-	MeterBackgroundColor = FLinearColor::Gray;
-	MeterValueColor = FLinearColor::Green;
-	MeterPeakColor = FLinearColor::Blue;
-	MeterClippingColor = FLinearColor::Red;
-	MeterScaleColor = FLinearColor::Gray;
-	MeterScaleLabelColor = FLinearColor::White;
+	BackgroundColor = FLinearColor(0.0075f, 0.0075f, 0.0075, 1.0f);
+	MeterBackgroundColor = FLinearColor(0.031f, 0.031f, 0.031f, 1.0f);
+	MeterValueColor = FLinearColor(0.025719f, 0.208333f, 0.069907f, 1.0f);
+	MeterPeakColor = FLinearColor(0.24349f, 0.708333f, 0.357002f, 1.0f);
+	MeterClippingColor = FLinearColor(1.0f, 0.0f, 0.112334f, 1.0f);
+	MeterScaleColor = FLinearColor(0.017642f, 0.017642f, 0.017642f, 1.0f);
+	MeterScaleLabelColor = FLinearColor(0.442708f, 0.442708f, 0.442708f, 1.0f);
+
+	// Add a single channel as a default just so it can be seen when somebody makes one
+	FMeterChannelInfo DefaultInfo;
+	DefaultInfo.MeterValue = -6.0f;
+	DefaultInfo.PeakValue = -3.0f;
+	MeterChannelInfo.Add(DefaultInfo);
 
 	if (DefaultAudioMeterStyle == nullptr)
 	{

@@ -63,7 +63,7 @@ struct AUDIOWIDGETS_API FAudioMeterStyle : public FSlateWidgetStyle
 	FVector2D MeterPadding;
 	FAudioMeterStyle& SetMeterPadding(const FVector2D& InMeterPadding) { MeterPadding = InMeterPadding; return *this; }
 
-	// How much padding to add around the meter
+	// How much padding to add around the meter value
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Appearance)
 	float MeterValuePadding;
 	FAudioMeterStyle& SetMeterValuePadding(float InMeterValuePadding) { MeterValuePadding = InMeterValuePadding; return *this; }
