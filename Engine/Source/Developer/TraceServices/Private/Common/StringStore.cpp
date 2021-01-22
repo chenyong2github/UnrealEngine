@@ -18,6 +18,7 @@ const TCHAR* FStringStore::Store(const TCHAR* String)
 
 const TCHAR* FStringStore::Store(const FStringView& String)
 {
+	FScopeLock _(&Cs);
 	uint32 Hash = GetTypeHash(String);
 	const TCHAR** AlreadyStored = StoredStrings.Find(Hash);
 	if (AlreadyStored && !String.Compare(FStringView(*AlreadyStored)))

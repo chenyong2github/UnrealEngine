@@ -23,6 +23,7 @@ private:
 	{
 		BlockSize = 4 << 20
 	};
+	FCriticalSection Cs;
 	FSlabAllocator& Allocator;
 	TMap<uint32, const TCHAR*> StoredStrings;
 	TCHAR* BufferPtr = nullptr;
