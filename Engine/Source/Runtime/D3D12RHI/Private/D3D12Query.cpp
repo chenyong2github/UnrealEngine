@@ -120,20 +120,24 @@ bool FD3D12DynamicRHI::RHIGetRenderQueryResult(FRHIRenderQuery* QueryRHI, uint64
 
 		if (Query->Type == RQT_AbsoluteTime)
 		{
-			// GetTimingFrequency is the number of ticks per second
-			uint64 Div = FMath::Max(1llu, FGPUTiming::GetTimingFrequency(GPUIndex) / (1000 * 1000));
-
+			uint64 AdjustedTimestamp;
 #if D3D12_SUBMISSION_GAP_RECORDER
 			if (RHIConsoleVariables::GAdjustRenderQueryTimestamps)
 			{
-				OutResult = FMath::Max<uint64>(Adapter.SubmissionGapRecorder.AdjustTimestampForSubmissionGaps(Query->FrameSubmitted, Query->Result) / Div, OutResult);
-				
+				AdjustedTimestamp = Adapter.SubmissionGapRecorder.AdjustTimestampForSubmissionGaps(Query->FrameSubmitted, Query->Result);
 			}
 			else
 #endif
 			{
-				OutResult = FMath::Max<uint64>(Query->Result / Div, OutResult);
+				AdjustedTimestamp = Query->Result;
 			}
+
+			// GetTimingFrequency is the number of ticks per second
+			uint64 GPUFrequency = FMath::Max(1llu, FGPUTiming::GetTimingFrequency(GPUIndex));
+			double CyclesToMicroseconds = 1e6 / double(GPUFrequency);
+
+			double TimeInMicroseconds = (double)AdjustedTimestamp * CyclesToMicroseconds;
+			OutResult = FMath::Max((uint64)TimeInMicroseconds, OutResult);
 
 			bSuccess = true;
 		}
