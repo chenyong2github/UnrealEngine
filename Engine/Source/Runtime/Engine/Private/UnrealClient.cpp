@@ -275,7 +275,7 @@ const FTexture2DRHIRef& FRenderTarget::GetRenderTargetTexture() const
 
 FRDGTextureRef FRenderTarget::GetRenderTargetTexture(FRDGBuilder& GraphBuilder) const
 {
-	return RegisterExternalTexture(GraphBuilder, RenderTargetTextureRHI, TEXT("RenderTarget"));
+	return RegisterExternalTexture(GraphBuilder, GetRenderTargetTexture(), TEXT("RenderTarget"));
 }
 
 FUnorderedAccessViewRHIRef FRenderTarget::GetRenderTargetUAV() const
