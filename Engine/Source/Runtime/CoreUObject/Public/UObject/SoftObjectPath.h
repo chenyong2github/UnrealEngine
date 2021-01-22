@@ -51,18 +51,15 @@ struct COREUOBJECT_API FSoftObjectPath
 	/** Construct from an existing object in memory */
 	FSoftObjectPath(const UObject* InObject);
 
-	/** Construct from a FObjectHandle/FObjectPtr/TObjectPtr which may or may not have the referenced object in memory */
-	explicit FSoftObjectPath(FObjectHandle InObjectHandle);
-
 	FSoftObjectPath(FObjectPtr InObject)
-		: FSoftObjectPath(InObject.GetHandle())
 	{
+		InitializeFromObjectHandle(InObject.GetHandle());
 	}
 
 	template <typename T>
 	FSoftObjectPath(const TObjectPtr<T>& InObject)
-		: FSoftObjectPath(InObject.GetHandle())
 	{
+		InitializeFromObjectHandle(InObject.GetHandle());
 	}
 
 	~FSoftObjectPath() {}
@@ -247,6 +244,9 @@ private:
 
 	/** Package names currently being duplicated, needed by FixupForPIE */
 	static TSet<FName> PIEPackageNames;
+
+	/** Initialize from a FObjectHandle/FObjectPtr/TObjectPtr which may or may not have the referenced object in memory */
+	void InitializeFromObjectHandle(FObjectHandle InObjectHandle);
 
 	UObject* ResolveObjectInternal() const;
 	UObject* ResolveObjectInternal(const TCHAR* PathString) const;

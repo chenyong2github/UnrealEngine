@@ -19,21 +19,30 @@ FSoftObjectPath::FSoftObjectPath(const UObject* InObject)
 	}
 }
 
-FSoftObjectPath::FSoftObjectPath(FObjectHandle InObjectHandle)
+void FSoftObjectPath::InitializeFromObjectHandle(FObjectHandle InObjectHandle)
 {
 	if (!IsObjectHandleNull(InObjectHandle))
 	{
-		//Try to compose the path without forcing the referenced data to be loaded
-		FObjectRef Ref = MakeObjectRef(InObjectHandle);
-		FObjectPathId::ResolvedNameContainerType ResolvedNames;
-		Ref.ObjectPath.Resolve(ResolvedNames);
-		TStringBuilder<128> CompletePath;
-		CompletePath.Append(Ref.PackageName.ToString());
-		CompletePath.Append(TEXT('.'));
-		for (int32 ResolvedNameIndex = 0; ResolvedNameIndex < ResolvedNames.Num(); ++ResolvedNameIndex)
+		if (IsObjectHandleResolved(InObjectHandle))
 		{
-			switch (ResolvedNameIndex)
+			if (UObject* ResolvedObject = ResolveObjectHandle(InObjectHandle))
 			{
+				SetPath(ResolvedObject->GetPathName());
+			}
+		}
+		else
+		{
+			//Try to compose the path without forcing the referenced data to be loaded
+			FObjectRef Ref = MakeObjectRef(InObjectHandle);
+			FObjectPathId::ResolvedNameContainerType ResolvedNames;
+			Ref.ObjectPath.Resolve(ResolvedNames);
+			TStringBuilder<128> CompletePath;
+			CompletePath.Append(Ref.PackageName.ToString());
+			CompletePath.Append(TEXT('.'));
+			for (int32 ResolvedNameIndex = 0; ResolvedNameIndex < ResolvedNames.Num(); ++ResolvedNameIndex)
+			{
+				switch (ResolvedNameIndex)
+				{
 				case 0:
 				{
 					break;
@@ -48,10 +57,11 @@ FSoftObjectPath::FSoftObjectPath(FObjectHandle InObjectHandle)
 					CompletePath << '.';
 					break;
 				}
+				}
+				CompletePath << ResolvedNames[ResolvedNameIndex];
 			}
-			CompletePath << ResolvedNames[ResolvedNameIndex];
+			SetPath(CompletePath.ToString());
 		}
-		SetPath(CompletePath.ToString());
 	}
 }
 
