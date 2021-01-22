@@ -20,7 +20,7 @@ AWaterBodyLake::AWaterBodyLake(const FObjectInitializer& ObjectInitializer)
 	WaterBodyType = GetWaterBodyType();
 
 #if WITH_EDITOR
-	ActorIcon = FWaterIconHelper::EnsureSpriteComponentCreated(this, TEXT("/Water/Icons/WaterBodyLakeSprite"), NSLOCTEXT("Water", "WaterBodyLakeSpriteName", "Water Body Lake"));
+	ActorIcon = FWaterIconHelper::EnsureSpriteComponentCreated(this, TEXT("/Water/Icons/WaterBodyLakeSprite"));
 #endif
 
 	// @todo_water : Remove these checks (Once AWaterBody is no more Blueprintable, these methods should become PURE_VIRTUAL and this class should overload them)

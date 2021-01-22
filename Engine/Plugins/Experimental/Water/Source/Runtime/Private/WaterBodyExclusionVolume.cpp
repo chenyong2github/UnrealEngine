@@ -17,7 +17,7 @@ AWaterBodyExclusionVolume::AWaterBodyExclusionVolume(const FObjectInitializer& O
 	: Super(ObjectInitializer)
 {
 #if WITH_EDITOR
-	ActorIcon = FWaterIconHelper::EnsureSpriteComponentCreated(this, TEXT("/Water/Icons/WaterBodyExclusionVolumeSprite"), NSLOCTEXT("Water", "WaterBodyExclusionVolumeSpriteName", "Water Body Exclusion Volume"));
+	ActorIcon = FWaterIconHelper::EnsureSpriteComponentCreated(this, TEXT("/Water/Icons/WaterBodyExclusionVolumeSprite"));
 #endif
 }
 
