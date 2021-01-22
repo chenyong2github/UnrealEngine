@@ -40,6 +40,7 @@ public:
 	bool bReceivesDecals;
 	bool bCastShadow;
 	bool bVisibleInRayTracing;
+	bool bCollisionEnabled;
 };
 
 #endif
