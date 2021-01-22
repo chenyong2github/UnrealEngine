@@ -145,7 +145,7 @@ END_SHADER_PARAMETER_STRUCT()
  */
 BEGIN_SHADER_PARAMETER_STRUCT(FVirtualShadowMapPageTableParameters, )
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FVirtualShadowMapCommonParameters, VirtualSmCommon)
-	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint2>, PageTable)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< uint >, PageTable)
 	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< uint >, PageFlags)
 	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< uint >, HPageFlags)
 	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< uint4 >, PageRectBounds)

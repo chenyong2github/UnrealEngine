@@ -213,7 +213,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FShadowDepthPassUniformParameters,)
 	SHADER_PARAMETER(int, bRenderToVirtualShadowMap)
 	SHADER_PARAMETER(int, bInstancePerPage)
 
-	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint2>, VirtualSmPageTable)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< uint >, VirtualSmPageTable)
 	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< FPackedNaniteView >, PackedNaniteViews)
 	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< uint4 >, PageRectBounds)
 

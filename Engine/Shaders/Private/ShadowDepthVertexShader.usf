@@ -119,7 +119,7 @@ FPageInfo UnPackPageInfo(uint PackedData)
 void ScaleBiasClipToPhysicalSmPage(FNaniteView NaniteView, inout float4 PosCsHInOut, inout float4 ClipPlanesInOut, FPageInfo PageInfo)
 {
 	uint2 VirtPage = PageInfo.VirtualPage;
-	uint2 PhysPage = PassStruct.VirtualSmPageTable[CalcPageOffset(NaniteView.TargetLayerIndex, NaniteView.TargetMipLevel, VirtPage)];
+	uint2 PhysPage = ShadowDecodePageTable(PassStruct.VirtualSmPageTable[CalcPageOffset(NaniteView.TargetLayerIndex, NaniteView.TargetMipLevel, VirtPage)]).PageIndex;
 	float2 VirtPageF = float2(VirtPage);
 	float2 PhysPageF = float2(PhysPage);
 	// TODO: do we ever need to support viewports that are not the full mip level here? If so this needs to be taken into account.
