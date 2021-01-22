@@ -68,9 +68,21 @@ namespace Gauntlet
 			public CallstackMessage						FatalError;
 			public IEnumerable<CallstackMessage>		Ensures;
 			public int									LineCount;
+			public bool									EngineInitialized;
 			public bool									RequestedExit;
+			public string								RequestedExitReason;
 			public bool									HasTestExitCode;
 			public int									TestExitCode;
+
+			public bool HasAbnormalExit
+			{
+				get
+				{
+					return FatalError != null
+						|| EngineInitialized == false
+						|| (RequestedExit == false && HasTestExitCode == false);
+				}
+			}
 		}
 
 		/// <summary>
@@ -112,8 +124,28 @@ namespace Gauntlet
 			NewSummary.FatalError = GetFatalError();
 			NewSummary.Ensures = GetEnsures();
 			NewSummary.LineCount = Content.Split('\n').Count();
-			NewSummary.RequestedExit = HasRequestExit();
 			NewSummary.HasTestExitCode = GetTestExitCode(out NewSummary.TestExitCode);
+
+			NewSummary.EngineInitialized = GetAllMatches(@"LogInit.+Engine is initialized\.").Any();
+
+			// Check request exit and reason
+			RegexUtil.MatchAndApplyGroups(Content, @"Engine exit requested \(reason:\s*(.+)\)", (Groups) =>
+			{
+				NewSummary.RequestedExit = true;
+				NewSummary.RequestedExitReason = Groups[1].ToString();
+			});
+
+			if (!NewSummary.RequestedExit)
+			{
+				string[] Completion = GetAllMatchingLines("F[a-zA-Z0-9]+::RequestExit");
+				string[] ErrorCompletion = GetAllMatchingLines("StaticShutdownAfterError");
+
+				if (Completion.Length > 0 || ErrorCompletion.Length > 0)
+				{
+					NewSummary.RequestedExit = true;
+					NewSummary.RequestedExitReason = "Unidentified";
+				}
+			}
 
 			return NewSummary;
 		}
@@ -333,15 +365,7 @@ namespace Gauntlet
 		/// <returns></returns>
 		public bool HasRequestExit()
 		{
-			if (GetAllMatches(@"Engine exit requested \(.+\)").Any())
-			{
-				return true;
-			}
-
-			string[] Completion = GetAllMatchingLines("F[a-zA-Z0-9]+::RequestExit");
-			string[] ErrorCompletion = GetAllMatchingLines("StaticShutdownAfterError");
-
-			return Completion.Length > 0 && ErrorCompletion.Length == 0;
+			return GetSummary().RequestedExit;
 		}
 
 		/// <summary>

@@ -23,6 +23,8 @@ namespace Audio
 
 		virtual void CancelCustom() override;
 
+		virtual FName GetCommandName() const override;
+
 	private:
 		FQuartzClock* OwningClockPtr{ nullptr };
 
@@ -48,6 +50,8 @@ namespace Audio
 
 		virtual bool IsClockAltering() override { return true; }
 
+		virtual FName GetCommandName() const override;
+
 	private:
 		FQuartzClockTickRate TickRate;
 		FQuartzClock* OwningClockPtr{ nullptr };
@@ -66,6 +70,8 @@ namespace Audio
 		virtual void OnFinalCallbackCustom(int32 InNumFramesLeft) override;
 
 		virtual bool IsClockAltering() override { return false; }
+
+		virtual FName GetCommandName() const override;
 
 	private:
 		FQuartzClock* OwningClockPtr{ nullptr };

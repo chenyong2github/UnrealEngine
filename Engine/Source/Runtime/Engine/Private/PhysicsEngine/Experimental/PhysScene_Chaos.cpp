@@ -495,7 +495,7 @@ void FPhysScene_Chaos::AddObject(UPrimitiveComponent* Component, FStaticMeshPhys
 	ensure(false);
 }
 
-void FPhysScene_Chaos::AddObject(UPrimitiveComponent* Component, FGeometryParticlePhysicsProxy* InObject)
+void FPhysScene_Chaos::AddObject(UPrimitiveComponent* Component, FSingleParticlePhysicsProxy* InObject)
 {
 	AddToComponentMaps(Component, InObject);
 	ensure(false);
@@ -571,7 +571,7 @@ void FPhysScene_Chaos::RemoveObject(FStaticMeshPhysicsProxy* InObject)
 #endif
 }
 
-void FPhysScene_Chaos::RemoveObject(FGeometryParticlePhysicsProxy* InObject)
+void FPhysScene_Chaos::RemoveObject(FSingleParticlePhysicsProxy* InObject)
 {
 	ensure(false);
 #if 0
@@ -1624,9 +1624,9 @@ void FPhysScene_Chaos::OnSyncBodies(Chaos::FPhysicsSolverBase* Solver)
 	TArray<FPhysScenePendingComponentTransform_Chaos> PendingTransforms;
 	TSet<FGeometryCollectionPhysicsProxy*> GCProxies;
 
-	Solver->PullPhysicsStateForEachDirtyProxy_External([&PendingTransforms](FRigidParticlePhysicsProxy* Proxy)
+	Solver->PullPhysicsStateForEachDirtyProxy_External([&PendingTransforms](FSingleParticlePhysicsProxy* Proxy)
 	{
-		TPBDRigidParticle<float,3>* DirtyParticle = Proxy->GetParticle();
+		TPBDRigidParticle<float,3>* DirtyParticle = Proxy->GetRigidParticleUnsafe();
 
 		if(FBodyInstance* BodyInstance = FPhysicsUserData::Get<FBodyInstance>(DirtyParticle->UserData()))
 		{

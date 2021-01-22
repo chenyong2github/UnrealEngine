@@ -97,7 +97,7 @@ public:
 	TArray64<FMaskPixelSamples> ImageData;
 
 	/** Sparse data for pixels that overflow the initial memory block. Use the offset from ImageData to index into this. */
-	TArray64<FMaskPixelSamples> SparsePixelData;
+	TArray64<TSharedPtr<FMaskPixelSamples, ESPMode::ThreadSafe>> SparsePixelData;
 	
 	/** A grayscale mask used to generate the falloff needed for overlapped tiles. */
 	FImageOverlappedPlane WeightPlane;

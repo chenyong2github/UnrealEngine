@@ -303,9 +303,9 @@ namespace Gauntlet
 							NewArtifact.Name = InTestArtifact.name;
 							NewArtifact.Type = InTestArtifact.type;
 							ComparisonFiles ArtifactFiles = NewArtifact.Files;
-							ArtifactFiles.Difference = Path.Combine(ReportPath, InTestArtifact.files.difference);
-							ArtifactFiles.Approved = Path.Combine(ReportPath, InTestArtifact.files.approved);
-							ArtifactFiles.Unapproved = Path.Combine(ReportPath, InTestArtifact.files.unapproved);
+							ArtifactFiles.Difference = !string.IsNullOrEmpty(InTestArtifact.files.difference)?Path.Combine(ReportPath, InTestArtifact.files.difference):"";
+							ArtifactFiles.Approved = !string.IsNullOrEmpty(InTestArtifact.files.approved)?Path.Combine(ReportPath, InTestArtifact.files.approved):"";
+							ArtifactFiles.Unapproved = !string.IsNullOrEmpty(InTestArtifact.files.unapproved)?Path.Combine(ReportPath, InTestArtifact.files.unapproved):"";
 						}
 						foreach (UnrealAutomationEntry InTestEntry in InTestResult.entries)
 						{

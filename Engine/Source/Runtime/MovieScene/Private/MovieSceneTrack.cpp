@@ -118,6 +118,13 @@ void UMovieSceneTrack::UpdateEasing()
 
 			if (!EnumHasAllFlags(EasingFlags, EMovieSceneTrackEasingSupportFlags::AutomaticEasing))
 			{
+				if (CurrentSection->Easing.AutoEaseInDuration != 0 || CurrentSection->Easing.AutoEaseOutDuration != 0)
+				{
+					CurrentSection->Modify();
+
+					CurrentSection->Easing.AutoEaseInDuration = 0;
+					CurrentSection->Easing.AutoEaseOutDuration = 0;
+				}
 				continue;
 			}
 

@@ -1112,6 +1112,16 @@ class FParticleDirtyData
 {
 public:
 	
+	void SetParticleBufferType(EParticleType Type)
+	{
+		ParticleBufferType = Type;
+	}
+
+	EParticleType GetParticleBufferType() const
+	{
+		return ParticleBufferType;
+	}
+
 	void SetFlags(FParticleDirtyFlags InFlags)
 	{
 		Flags = InFlags;
@@ -1159,6 +1169,7 @@ Type const * Find##PropName(const FDirtyPropertiesManager& Manager, int32 Idx) c
 
 private:
 	FParticleDirtyFlags Flags;
+	EParticleType ParticleBufferType;
 
 	template <typename T,EParticleProperty PropName>
 	const T& ReadImp(const FDirtyPropertiesManager& Manager, int32 Idx) const

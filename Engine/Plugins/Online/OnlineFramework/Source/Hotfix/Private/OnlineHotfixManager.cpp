@@ -1595,7 +1595,7 @@ void UOnlineHotfixManager::HotfixRowUpdate(UObject* Asset, const FString& AssetP
 								NumProp->SetIntPropertyValue(RowData, NewPropertyValue);
 								OnHotfixTableValueInt64(*Asset, RowName, ColumnName, OldPropertyValue, NewPropertyValue);
 								bWasDataTableChanged = true;
-								UE_LOG(LogHotfixManager, Verbose, TEXT("Data table %s row %s updated column %s from %i to %i."), *AssetPath, *RowName, *ColumnName, OldPropertyValue, NewPropertyValue);
+								UE_LOG(LogHotfixManager, Log, TEXT("Data table %s row %s updated column %s from %i to %i."), *AssetPath, *RowName, *ColumnName, OldPropertyValue, NewPropertyValue);
 							}
 							// Float
 							else
@@ -1605,7 +1605,7 @@ void UOnlineHotfixManager::HotfixRowUpdate(UObject* Asset, const FString& AssetP
 								NumProp->SetFloatingPointPropertyValue(RowData, NewPropertyValue);
 								OnHotfixTableValueDouble(*Asset, RowName, ColumnName, OldPropertyValue, NewPropertyValue);
 								bWasDataTableChanged = true;
-								UE_LOG(LogHotfixManager, Verbose, TEXT("Data table %s row %s updated column %s from %.2f to %.2f."), *AssetPath, *RowName, *ColumnName, OldPropertyValue, NewPropertyValue);
+								UE_LOG(LogHotfixManager, Log, TEXT("Data table %s row %s updated column %s from %.2f to %.2f."), *AssetPath, *RowName, *ColumnName, OldPropertyValue, NewPropertyValue);
 							}
 						}
 						// Not a number.
@@ -1623,7 +1623,7 @@ void UOnlineHotfixManager::HotfixRowUpdate(UObject* Asset, const FString& AssetP
 						StrProp->SetPropertyValue(RowData, NewPropertyValue);
 						OnHotfixTableValueString(*Asset, RowName, ColumnName, OldPropertyValue, NewPropertyValue);
 						bWasDataTableChanged = true;
-						UE_LOG(LogHotfixManager, Verbose, TEXT("Data table %s row %s updated column %s from %s to %s."), *AssetPath, *RowName, *ColumnName, *OldPropertyValue, *NewPropertyValue);
+						UE_LOG(LogHotfixManager, Log, TEXT("Data table %s row %s updated column %s from %s to %s."), *AssetPath, *RowName, *ColumnName, *OldPropertyValue, *NewPropertyValue);
 					}
 					// FName property
 					else if (NameProp)
@@ -1633,7 +1633,7 @@ void UOnlineHotfixManager::HotfixRowUpdate(UObject* Asset, const FString& AssetP
 						NameProp->SetPropertyValue(RowData, NewPropertyValue);
 						OnHotfixTableValueName(*Asset, RowName, ColumnName, OldPropertyValue, NewPropertyValue);
 						bWasDataTableChanged = true;
-						UE_LOG(LogHotfixManager, Verbose, TEXT("Data table %s row %s updated column %s from %s to %s."), *AssetPath, *RowName, *ColumnName, *OldPropertyValue.ToString(), *NewPropertyValue.ToString());
+						UE_LOG(LogHotfixManager, Log, TEXT("Data table %s row %s updated column %s from %s to %s."), *AssetPath, *RowName, *ColumnName, *OldPropertyValue.ToString(), *NewPropertyValue.ToString());
 					}
 					// Soft Object property
 					else if (SoftObjProp)
@@ -1643,7 +1643,7 @@ void UOnlineHotfixManager::HotfixRowUpdate(UObject* Asset, const FString& AssetP
 						SoftObjProp->SetObjectPropertyValue(RowData, NewPropertyValue);
 						OnHotfixTableValueObject(*Asset, RowName, ColumnName, OldPropertyValue, NewPropertyValue);
 						bWasDataTableChanged = true;
-						UE_LOG(LogHotfixManager, Verbose, TEXT("Data table %s row %s updated column %s from %s to %s."), *AssetPath, *RowName, *ColumnName, *OldPropertyValue->GetFullName(), *NewPropertyValue->GetFullName());
+						UE_LOG(LogHotfixManager, Log, TEXT("Data table %s row %s updated column %s from %s to %s."), *AssetPath, *RowName, *ColumnName, *OldPropertyValue->GetFullName(), *NewPropertyValue->GetFullName());
 					}
 					// Not an expected property.
 					else
@@ -1715,11 +1715,11 @@ void UOnlineHotfixManager::HotfixRowUpdate(UObject* Asset, const FString& AssetP
 
 						if (bWasExistingKey)
 						{
-							UE_LOG(LogHotfixManager, Verbose, TEXT("Curve table %s row %s updated column %s from %.2f to %.2f."), *AssetPath, *RowName, *ColumnName, OldPropertyValue, NewPropertyValue);
+							UE_LOG(LogHotfixManager, Log, TEXT("Curve table %s row %s updated column %s from %.2f to %.2f."), *AssetPath, *RowName, *ColumnName, OldPropertyValue, NewPropertyValue);
 						}
 						else
 						{
-							UE_LOG(LogHotfixManager, Verbose, TEXT("Curve table %s row %s added column %s with value %.2f."), *AssetPath, *RowName, *ColumnName, NewPropertyValue);
+							UE_LOG(LogHotfixManager, Log, TEXT("Curve table %s row %s added column %s with value %.2f."), *AssetPath, *RowName, *ColumnName, NewPropertyValue);
 						}
 					}
 					else
@@ -1767,7 +1767,7 @@ void UOnlineHotfixManager::HotfixRowUpdate(UObject* Asset, const FString& AssetP
 					CurveFloat->FloatCurve.SetKeyValue(Key, NewPropertyValue);
 					OnHotfixTableValueFloat(*Asset, RowName, ColumnName, OldPropertyValue, NewPropertyValue);
 
-					UE_LOG(LogHotfixManager, Verbose, TEXT("Curve float %s updated column %s from %.2f to %.2f."), *AssetPath, *ColumnName, OldPropertyValue, NewPropertyValue);
+					UE_LOG(LogHotfixManager, Log, TEXT("Curve float %s updated column %s from %.2f to %.2f."), *AssetPath, *ColumnName, OldPropertyValue, NewPropertyValue);
 				}
 				else
 				{
@@ -1812,12 +1812,12 @@ void UOnlineHotfixManager::HotfixTableUpdate(UObject* Asset, const FString& Asse
 	if (CurveTable != nullptr)
 	{
 		ProblemStrings.Append(CurveTable->CreateTableFromJSONString(JsonData));
-		UE_LOG(LogHotfixManager, Verbose, TEXT("Curve table %s updated."), *AssetPath);
+		UE_LOG(LogHotfixManager, Log, TEXT("Curve table %s updated."), *AssetPath);
 	}
 	else if (DataTable != nullptr)
 	{
 		ProblemStrings.Append(DataTable->CreateTableFromJSONString(JsonData));
-		UE_LOG(LogHotfixManager, Verbose, TEXT("Data table %s updated."), *AssetPath);
+		UE_LOG(LogHotfixManager, Log, TEXT("Data table %s updated."), *AssetPath);
 	}
 	else
 	{

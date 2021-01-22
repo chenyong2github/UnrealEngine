@@ -452,7 +452,7 @@ namespace Audio
 		{
 			// Remove this bus from the registry of bus instances
 			TSharedPtr<FMixerAudioBus> AudioBusPtr = AudioBuses.FindRef(SourceInfo.AudioBusId);
-			if (ensure(AudioBusPtr.IsValid()))
+			if (AudioBusPtr.IsValid())
 			{
 				// If this audio bus was automatically created via source bus playback, this this audio bus can be removed
 				if (AudioBusPtr->RemoveInstanceId(SourceId))
@@ -471,7 +471,7 @@ namespace Audio
 			{
 				// we should have a bus registration entry still since the send hasn't been cleaned up yet
 				TSharedPtr<FMixerAudioBus> AudioBusPtr = AudioBuses.FindRef(AudioBusId);
-				if (ensure(AudioBusPtr.IsValid()))
+				if (AudioBusPtr.IsValid())
 				{
 					if (AudioBusPtr->RemoveSend((EBusSendType)AudioBusSendType, SourceId))
 					{
@@ -1127,6 +1127,7 @@ namespace Audio
 
 		if (SourceInfo.bIsPausedForQuantization)
 		{
+			UE_LOG(LogAudioMixer, Display, TEXT("StopInternal() cancelling command [%s]"), *SourceInfo.QuantizedCommandHandle.CommandPtr->GetCommandName().ToString());
 			SourceInfo.QuantizedCommandHandle.Cancel();
 			SourceInfo.bIsPausedForQuantization = false;
 		}
@@ -1773,7 +1774,7 @@ namespace Audio
 			{
 				// Get the source's rendered and mixed audio bus data
 				const TSharedPtr<FMixerAudioBus> AudioBusPtr = AudioBuses.FindRef(SourceInfo.AudioBusId);
-				if (ensure(AudioBusPtr.IsValid()))
+				if (AudioBusPtr.IsValid())
 				{
 					int32 NumFramesPlayed = NumOutputFrames;
 					if (SourceInfo.SourceBusDurationFrames != INDEX_NONE)
@@ -2585,10 +2586,7 @@ namespace Audio
 	void FMixerSourceManager::PauseSoundForQuantizationCommand(const int32 SourceId)
 	{
 		AUDIO_MIXER_CHECK(SourceId < NumTotalSources);
-		if (!GameThreadInfo.bIsBusy[SourceId])
-		{
-			return;
-		}
+		AUDIO_MIXER_CHECK_AUDIO_PLAT_THREAD(MixerDevice);
 
 		FSourceInfo& SourceInfo = SourceInfos[SourceId];
 
@@ -2599,11 +2597,7 @@ namespace Audio
 	void FMixerSourceManager::SetSubBufferDelayForSound(const int32 SourceId, const int32 FramesToDelay)
 	{
 		AUDIO_MIXER_CHECK(SourceId < NumTotalSources);
-		checkSlow(MixerDevice->IsAudioRenderingThread());
-		if (!GameThreadInfo.bIsBusy[SourceId])
-		{
-			return;
-		}
+		AUDIO_MIXER_CHECK_AUDIO_PLAT_THREAD(MixerDevice);
 
 		FSourceInfo& SourceInfo = SourceInfos[SourceId];
 
@@ -2613,11 +2607,7 @@ namespace Audio
 	void FMixerSourceManager::UnPauseSoundForQuantizationCommand(const int32 SourceId)
 	{
 		AUDIO_MIXER_CHECK(SourceId < NumTotalSources);
-		checkSlow(MixerDevice->IsAudioRenderingThread());
-		if (!GameThreadInfo.bIsBusy[SourceId])
-		{
-			return;
-		}
+		AUDIO_MIXER_CHECK_AUDIO_PLAT_THREAD(MixerDevice);
 
 		FSourceInfo& SourceInfo = SourceInfos[SourceId];
 

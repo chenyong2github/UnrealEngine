@@ -2404,6 +2404,7 @@ public:
 
 			if (CodeArchive && CodeArchive->GetFormat()->SupportsShaderArchives())
 			{
+				bOK &= CodeArchive->PackageNativeShaderLibrary(ShaderCodeDir);
 			}
 		}
 		return bOK;

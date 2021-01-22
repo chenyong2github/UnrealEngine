@@ -12,10 +12,7 @@ enum class EPhysicsProxyType
 	GeometryCollectionType = 2,
 	FieldType = 3,
 	SkeletalMeshType = 4,
-	SingleGeometryParticleType = 5,
-	SingleKinematicParticleType = 6,
-	SingleRigidParticleType = 7,
-	JointConstraintType = 8,
+	JointConstraintType = 8,	//left gap when removed some types in case these numbers actually matter to someone, should remove
 	SuspensionConstraintType = 9,
 	SingleParticleProxy
 };

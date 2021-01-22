@@ -83,7 +83,7 @@ struct FEditorImportExportTestDefinition
 
 	/* If true, the export step will be skipped */
 	UPROPERTY(config, EditAnywhere, Category = Automation)
-	bool bSkipExport;
+	bool bSkipExport = false;
 
 	/* Settings for the import factory */
 	UPROPERTY(config, EditAnywhere, Category=Automation)
@@ -311,7 +311,7 @@ struct FEditorMapPerformanceTestDefinition
 
 	/** How long is this test expected to run before stopping **/
 	UPROPERTY(config, EditAnywhere, Category = Automation, meta = (ToolTip = "This is the length of time in seconds that this test will run for before stopping."))
-	int32 TestTimer;
+	int32 TestTimer = 0;
 };
 
 /**

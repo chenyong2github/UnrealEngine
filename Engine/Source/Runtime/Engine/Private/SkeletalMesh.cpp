@@ -2397,14 +2397,20 @@ void USkeletalMesh::PostLoadVerifyAndFixBadTangent()
 			for (int32 VertexIndex = 0; VertexIndex < NumVertices; ++VertexIndex)
 			{
 				FSoftSkinVertex& SoftSkinVertex = Section.SoftVertices[VertexIndex];
+
+				bool bNeedToOrthonormalize = false;
+
 				//Make sure we have normalized tangents
-				auto NormalizedTangent = [](FVector& Tangent)
+				auto NormalizedTangent = [&bNeedToOrthonormalize, &bFoundBadTangents](FVector& Tangent)
 				{
 					if (Tangent.ContainsNaN() || Tangent.SizeSquared() < THRESH_VECTOR_NORMALIZED)
 					{
 						//This is a degenerated tangent, we will set it to zero. It will be fix by the
 						//FixTangent lambda function.
 						Tangent = FVector::ZeroVector;
+						//If we can fix this tangents, we have to orthonormalize the result
+						bNeedToOrthonormalize = true;
+						bFoundBadTangents = true;
 						return false;
 					}
 					else if (!Tangent.IsNormalized())
@@ -2424,70 +2430,66 @@ void USkeletalMesh::PostLoadVerifyAndFixBadTangent()
 					{
 						TangentA = FVector::CrossProduct(TangentB, TangentC);
 						TangentA.Normalize();
+						return true;
 					}
-					else
+
+					//We do not have any valid data to help us for fixing this normal so apply the triangle normals, this will create a faceted mesh but this is better then a black not shade mesh.
+					int32 FaceVertexIndex = FMath::Floor<int32>(VertexIndex / 3) * 3;
+					TArray<FVector>& Tangents = TriangleTangents.FindOrAdd(FaceVertexIndex);
+					if (Tangents.Num() == 0)
 					{
-						//We do not have any valid data to help us for fixing this normal so apply the triangle normals, this will create a faceted mesh but this is better then a black not shade mesh.
-						int32 FaceVertexIndex = FMath::Floor<int32>(VertexIndex / 3) * 3;
-						TArray<FVector>& Tangents = TriangleTangents.FindOrAdd(FaceVertexIndex);
-						if (Tangents.Num() == 0)
+						ComputeTriangleTangent(Section.SoftVertices[FaceVertexIndex], Section.SoftVertices[FaceVertexIndex + 1], Section.SoftVertices[FaceVertexIndex + 2], Tangents);
+						const FVector Axis[3] = { {1.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f, 1.0f} };
+						if (!ensure(Tangents.Num() == 3))
 						{
-							ComputeTriangleTangent(Section.SoftVertices[FaceVertexIndex], Section.SoftVertices[FaceVertexIndex + 1], Section.SoftVertices[FaceVertexIndex + 2], Tangents);
-							const FVector Axis[3] = { {1.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f, 1.0f} };
-							if (!ensure(Tangents.Num() == 3))
+							Tangents.Empty(3);
+							Tangents.AddZeroed(3);
+						}
+						for (int32 TangentIndex = 0; TangentIndex < Tangents.Num(); ++TangentIndex)
+						{
+							if (Tangents[TangentIndex].IsNearlyZero())
 							{
-								Tangents.Empty(3);
-								Tangents.AddZeroed(3);
-							}
-							for (int32 TangentIndex = 0; TangentIndex < Tangents.Num(); ++TangentIndex)
-							{
-								if (Tangents[TangentIndex].IsNearlyZero())
-								{
-									Tangents[TangentIndex] = Axis[TangentIndex];
-								}
-							}
-							if (!ensure(Tangents.Num() == 3))
-							{
-								//We are not able to compute the triangle tangent, this is probably a degenerated triangle
-								Tangents.Empty(3);
-								
-								Tangents.Add(Axis[0]);
-								Tangents.Add(Axis[1]);
-								Tangents.Add(Axis[2]);
+								Tangents[TangentIndex] = Axis[TangentIndex];
 							}
 						}
-						//Use the offset to know which tangent type we are setting (0: Tangent X, 1: bi-normal Y, 2: Normal Z)
-						TangentA = Tangents[(Offset) % 3];
+						if (!ensure(Tangents.Num() == 3))
+						{
+							//We are not able to compute the triangle tangent, this is probably a degenerated triangle
+							Tangents.Empty(3);
+								
+							Tangents.Add(Axis[0]);
+							Tangents.Add(Axis[1]);
+							Tangents.Add(Axis[2]);
+						}
 					}
-					return false;
+					//Use the offset to know which tangent type we are setting (0: Tangent X, 1: bi-normal Y, 2: Normal Z)
+					TangentA = Tangents[(Offset) % 3];
+					return TangentA.IsNormalized();
 				};
 
 				//The SoftSkinVertex TangentZ is a FVector4 so we must use a temporary FVector to be able to pass reference
 				FVector TangentZ = SoftSkinVertex.TangentZ;
 				//Make sure the tangent space is normalize before fixing bad tangent, because we want to do a cross product
-				//of 2 valid axis if possible. If not possible we will use the triangle normal.
+				//of 2 valid axis if possible. If not possible we will use the triangle normal which give a faceted triangle.
 				bool ValidTangentX = NormalizedTangent(SoftSkinVertex.TangentX);
 				bool ValidTangentY = NormalizedTangent(SoftSkinVertex.TangentY);
 				bool ValidTangentZ = NormalizedTangent(TangentZ);
-
+				
 				if (!ValidTangentX)
 				{
-					bFoundBadTangents = true;
 					ValidTangentX = FixTangent(SoftSkinVertex.TangentX, SoftSkinVertex.TangentY, TangentZ, 0);
 				}
 				if (!ValidTangentY)
 				{
-					bFoundBadTangents = true;
 					ValidTangentY = FixTangent(SoftSkinVertex.TangentY, TangentZ, SoftSkinVertex.TangentX, 1);
 				}
 				if (!ValidTangentZ)
 				{
-					bFoundBadTangents = true;
 					ValidTangentZ = FixTangent(TangentZ, SoftSkinVertex.TangentX, SoftSkinVertex.TangentY, 2);
 				}
 
-				//Make sure the result tangent space is orthonormal, only if we succeed to 
-				if (ValidTangentX && ValidTangentY && ValidTangentZ)
+				//Make sure the result tangent space is orthonormal, only if we succeed to fix all tangents
+				if (bNeedToOrthonormalize && ValidTangentX && ValidTangentY && ValidTangentZ)
 				{
 					FVector::CreateOrthonormalBasis(
 						SoftSkinVertex.TangentX,
@@ -2502,7 +2504,7 @@ void USkeletalMesh::PostLoadVerifyAndFixBadTangent()
 	if (bFoundBadTangents)
 	{
 		//Notify the user that we have to fix the normals on this model.
-		UE_ASSET_LOG(LogSkeletalMesh, Warning, this, TEXT("Find some bad tangent! please re-import this skeletal mesh asset to fix the issue. The shading of the skeletal mesh will be bad and faceted."));
+		UE_ASSET_LOG(LogSkeletalMesh, Display, this, TEXT("Find and fix some bad tangent! please re-import this skeletal mesh asset to fix the issue. The shading of the skeletal mesh will be bad and faceted."));
 	}
 }
 

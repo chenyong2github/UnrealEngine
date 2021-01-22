@@ -153,7 +153,8 @@ public:
 		, _ExpanderStyleSet( &FCoreStyle::Get() )
 		, _Padding( FMargin(0) )
 		, _ShowSelection( true )
-		,_SignalSelectionMode( ETableRowSignalSelectionMode::Deferred )
+		, _ShowWires( false )
+		, _SignalSelectionMode( ETableRowSignalSelectionMode::Deferred )
 		, _Content()
 		{}
 	
@@ -188,6 +189,7 @@ public:
 		SLATE_ATTRIBUTE( FMargin, Padding )
 	
 		SLATE_ARGUMENT( bool, ShowSelection )
+		SLATE_ARGUMENT( bool, ShowWires)
 
 		/**
 		 * The Signal Selection mode affect when the owner table gets notified that the selection has changed.
@@ -256,6 +258,7 @@ public:
 				[
 					SNew(SExpanderArrow, SharedThis(this) )
 					.StyleSet(ExpanderStyleSet)
+					.ShouldDrawWires(bShowWires)
 				]
 
 				+ SHorizontalBox::Slot()
@@ -1149,6 +1152,8 @@ protected:
 		this->bShowSelection = InArgs._ShowSelection;
 
 		this->SignalSelectionMode = InArgs._SignalSelectionMode;
+
+		this->bShowWires = InArgs._ShowWires;
 	}
 
 	void SetOwnerTableView( TSharedPtr<STableViewBase> OwnerTableView )
@@ -1257,6 +1262,9 @@ protected:
 
 	/** Did the current a touch interaction start in this item?*/
 	bool bProcessingSelectionTouch;
+
+private:
+	bool bShowWires;
 };
 
 

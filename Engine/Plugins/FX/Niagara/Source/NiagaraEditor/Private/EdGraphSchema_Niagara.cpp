@@ -876,7 +876,7 @@ TArray<TSharedPtr<FNiagaraSchemaAction_NewNode> > UEdGraphSchema_Niagara::GetGra
 	{
 		const FText LogicMenuCat = LOCTEXT("NiagaraLogicMenuCat", "Logic");
 		const FText MenuDesc = LOCTEXT("If", "If");
-		TSharedPtr<FNiagaraSchemaAction_NewNode> Action = AddNewNodeAction(NewActions, LogicMenuCat, MenuDesc, TEXT("If"), FText::GetEmpty());
+		TSharedPtr<FNiagaraSchemaAction_NewNode> Action = AddNewNodeAction(NewActions, LogicMenuCat, MenuDesc, TEXT("If"), FText::GetEmpty(), FText::FromString("if branch bool"));
 		UNiagaraNodeIf* IfNode = NewObject<UNiagaraNodeIf>(OwnerOfTemporaries);
 		Action->NodeTemplate = IfNode;
 	}
@@ -885,7 +885,7 @@ TArray<TSharedPtr<FNiagaraSchemaAction_NewNode> > UEdGraphSchema_Niagara::GetGra
 	// Add reroute node
 	const FText UtilMenuCat = LOCTEXT("NiagaraUsageSelectorMenuCat", "Util");
 	{
-		const FText RerouteMenuDesc = LOCTEXT("NiagaraRerouteMenuDesc", "Reroute ");
+		const FText RerouteMenuDesc = LOCTEXT("NiagaraRerouteMenuDesc", "Reroute");
 		TSharedPtr<FNiagaraSchemaAction_NewNode> Action = AddNewNodeAction(NewActions, UtilMenuCat, RerouteMenuDesc, TEXT("Reroute"), FText::GetEmpty());
 		UNiagaraNodeReroute* RerouteNode = NewObject<UNiagaraNodeReroute>(OwnerOfTemporaries);
 		Action->NodeTemplate = RerouteNode;

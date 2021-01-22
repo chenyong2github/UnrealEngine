@@ -191,11 +191,11 @@ public partial class Project : CommandUtils
 		}
 		if (PakOrderFileLocations != null && PakOrderFileLocations.Count() > 0)
 		{
-			CmdLine.AppendFormat(" -order={0}", string.Join(",", PakOrderFileLocations.Select(u => u.File.FullName).ToArray()));
+			CmdLine.AppendFormat(" -order={0}", CommandUtils.MakePathSafeToUseWithCommandLine(string.Join(",", PakOrderFileLocations.Select(u => u.File.FullName).ToArray())));
 		}
 		if (SecondaryPakOrderFileLocations != null && SecondaryPakOrderFileLocations.Count() > 0)
 		{
-			CmdLine.AppendFormat(" -secondaryOrder={0}", string.Join(",", SecondaryPakOrderFileLocations.Select(u => u.File.FullName).ToArray()));
+			CmdLine.AppendFormat(" -secondaryOrder={0}", CommandUtils.MakePathSafeToUseWithCommandLine(string.Join(",", SecondaryPakOrderFileLocations.Select(u => u.File.FullName).ToArray())));
 		}
 		if (!String.IsNullOrEmpty(PatchSourceContentPath)) 
 		{
@@ -2842,13 +2842,13 @@ public partial class Project : CommandUtils
 		}
 
 		CommandletParams += String.Format(" -CookedDirectory={0} -Commands={1}", MakePathSafeToUseWithCommandLine(SC.PlatformCookDir.ToString()), MakePathSafeToUseWithCommandLine(CommandsFileName));
-		if (GameOpenOrderFileLocations != null)
+		if (GameOpenOrderFileLocations != null && GameOpenOrderFileLocations.Count() > 0)
 		{
-			CommandletParams += String.Format(" -GameOrder={0}", string.Join(",", GameOpenOrderFileLocations.Select(u => u.File.FullName).ToArray()));
+			CommandletParams += String.Format(" -GameOrder={0}", MakePathSafeToUseWithCommandLine(string.Join(",", GameOpenOrderFileLocations.Select(u => u.File.FullName).ToArray())));
 		}
-		if (CookerOpenOrderFileLocations != null)
+		if (CookerOpenOrderFileLocations != null && CookerOpenOrderFileLocations.Count() > 0)
 		{
-			CommandletParams += String.Format(" -CookerOrder={0}", string.Join(",", CookerOpenOrderFileLocations.Select(u => u.File.FullName).ToArray()));
+			CommandletParams += String.Format(" -CookerOrder={0}", MakePathSafeToUseWithCommandLine(string.Join(",", CookerOpenOrderFileLocations.Select(u => u.File.FullName).ToArray())));
 		}
 		if (!string.IsNullOrWhiteSpace(AdditionalArgs))
 		{

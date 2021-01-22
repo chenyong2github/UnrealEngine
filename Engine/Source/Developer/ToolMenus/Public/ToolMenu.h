@@ -46,6 +46,7 @@ public:
 
 	FToolMenuSection& AddSection(const FName SectionName, const TAttribute< FText >& InLabel = TAttribute<FText>(), const FToolMenuInsert InPosition = FToolMenuInsert());
 
+	/** Callback is passed sandboxed empty menu to add as many sections as desired. Sections merged into the final menu afterwards. */
 	FToolMenuSection& AddDynamicSection(const FName SectionName, const FNewSectionConstructChoice& InConstruct, const FToolMenuInsert InPosition = FToolMenuInsert());
 
 	FToolMenuSection* FindSection(const FName SectionName);

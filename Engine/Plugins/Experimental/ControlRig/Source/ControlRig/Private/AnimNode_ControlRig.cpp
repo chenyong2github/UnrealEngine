@@ -19,6 +19,7 @@ FAnimNode_ControlRig::FAnimNode_ControlRig()
 	, Alpha(1.f)
 	, AlphaInputType(EAnimAlphaInputType::Float)
 	, bAlphaBoolEnabled(true)
+	, bSetRefPoseFromSkeleton(false)
 	, AlphaCurveName(NAME_None)
 	, LODThreshold(INDEX_NONE)
 {
@@ -33,6 +34,17 @@ void FAnimNode_ControlRig::OnInitializeAnimInstance(const FAnimInstanceProxy* In
 		ControlRig = NewObject<UControlRig>(InAnimInstance->GetOwningComponent(), ControlRigClass);
 		ControlRig->Initialize(true);
 		ControlRig->RequestInit();
+
+		if (bSetRefPoseFromSkeleton)
+		{
+			if (InAnimInstance->GetSkelMeshComponent())
+			{
+				if (USkeletalMesh* SkeletalMesh = InAnimInstance->GetSkelMeshComponent()->SkeletalMesh)
+				{
+					ControlRig->SetBoneInitialTransformsFromSkeletalMesh(SkeletalMesh);
+				}
+			}
+		}
 	}
 
 	FAnimNode_ControlRigBase::OnInitializeAnimInstance(InProxy, InAnimInstance);

@@ -55,6 +55,12 @@ namespace UnrealBuildTool
 		/// </summary>
 		protected bool bPackageDataInsideApk = false;
 
+		/// <summary>
+		/// Ignore AppBundle (AAB) generation setting if "-ForceAPKGeneration" specified
+		/// </summary>
+		[CommandLine("-ForceAPKGeneration", Value = "true")]
+		public bool ForceAPKGeneration = false;
+
 		public UEDeployAndroid(FileReference InProjectFile, bool InForcePackageData)
 		{
 			ProjectFile = InProjectFile;
@@ -62,6 +68,8 @@ namespace UnrealBuildTool
 			// read the ini value and OR with the command line value
 			bool IniValue = ReadPackageDataInsideApkFromIni(null);
 			bPackageDataInsideApk = InForcePackageData || IniValue == true;
+
+			CommandLine.ParseArguments(Environment.GetCommandLineArgs(), this);
 		}
 
 		private UnrealPluginLanguage UPL = null;
@@ -2924,6 +2932,10 @@ namespace UnrealBuildTool
 		}
 		private bool BundleEnabled()
 		{
+			if (ForceAPKGeneration)
+			{
+				return false;
+			}
 			ConfigHierarchy Ini = GetConfigCacheIni(ConfigHierarchyType.Engine);
 			bool bEnableBundle = false;
 			Ini.GetBool("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "bEnableBundle", out bEnableBundle);
@@ -3095,7 +3107,7 @@ namespace UnrealBuildTool
 			Ini.GetBool("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "bBundleDensitySplit", out bBundleDensitySplit);
 
 			GradleBuildAdditionsContent.AppendLine("android {");
-			if (bEnableBundle)
+			if (!ForceAPKGeneration && bEnableBundle)
 			{
 				GradleBuildAdditionsContent.AppendLine("\tbundle {");
 				GradleBuildAdditionsContent.AppendLine("\t\tabi { enableSplit = " + (bBundleABISplit ? "true" : "false") + " }");

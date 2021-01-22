@@ -52,7 +52,7 @@ public:
 		if( CurveTablePropertyHandle->IsValidHandle() && RowNamePropertyHandle->IsValidHandle() )
 		{
 			/** Queue up a refresh of the selected item, not safe to do from here */
-			StructCustomizationUtils.GetPropertyUtilities()->EnqueueDeferredAction(FSimpleDelegate::CreateSP(this, &FCurveTableCustomizationLayout::OnCurveTableChanged));
+			StructCustomizationUtils.GetPropertyUtilities()->EnqueueDeferredAction(FSimpleDelegate::CreateSP(this, &FCurveTableCustomizationLayout::OnInitialRefresh));
 
 			CreateCurveTableChildProperty(StructBuilder);
 
@@ -90,9 +90,9 @@ public:
 
 protected:
 	/** Init the contents the combobox sources its data off */
-	TSharedPtr<FString> InitWidgetContent()
+	TSharedPtr<FString> InitWidgetContent(bool bShouldModifyData)
 	{
-		TSharedPtr<FString> InitialValue = MakeShareable( new FString( TEXT( "None" ) ) );
+		TSharedPtr<FString> InitialValue;
 		
 		FName RowName;
 		const FPropertyAccess::Result RowResult = RowNamePropertyHandle->GetValue( RowName );
@@ -101,10 +101,10 @@ protected:
 		if ( RowResult != FPropertyAccess::Fail )
 		{
 			/** Get the properties we wish to work with */
-			UCurveTable* CurveTable = NULL;
+			UCurveTable* CurveTable = nullptr;
 			CurveTablePropertyHandle->GetValue((UObject*&)CurveTable);
 
-			if ( CurveTable != NULL )
+			if ( CurveTable != nullptr )
 			{
 				/** Extract all the row names from the RowMap */
 				for ( TMap<FName, FRealCurve*>::TConstIterator Iterator(CurveTable->GetRowMap()); Iterator; ++Iterator )
@@ -121,8 +121,15 @@ protected:
 				}
 			}
 
+			if (!InitialValue.IsValid() && RowResult != FPropertyAccess::MultipleValues)
+			{
+				// Only set initial value to none if it's not a multiple value case
+				InitialValue = MakeShareable(new FString(TEXT("None")));
+			}
+				
+
 			/** Reset the initial value to ensure a valid entry is set */
-			if ( RowResult != FPropertyAccess::MultipleValues )
+			if ( InitialValue.IsValid() && bShouldModifyData )
 			{
 				TArray<void*> RawData;
 
@@ -142,13 +149,24 @@ protected:
 	/** Returns the ListView for the ComboButton */
 	TSharedRef<SWidget> GetListContent();
 
+	/** Initial refresh, will not modify data */
+	void OnInitialRefresh()
+	{
+		CurrentSelectedItem = InitWidgetContent(false);
+		if (RowNameComboListView.IsValid() && CurrentSelectedItem.IsValid())
+		{
+			RowNameComboListView->SetSelection(CurrentSelectedItem);
+			RowNameComboListView->RequestListRefresh();
+		}
+	}
+
 	/** Delegate to refresh the drop down when the datatable changes */
 	void OnCurveTableChanged()
 	{
-		CurrentSelectedItem = InitWidgetContent();
-		if( RowNameComboListView.IsValid() )
+		CurrentSelectedItem = InitWidgetContent(true);
+		if (RowNameComboListView.IsValid())
 		{
-			RowNameComboListView->SetSelection( CurrentSelectedItem );
+			RowNameComboListView->SetSelection(CurrentSelectedItem);
 			RowNameComboListView->RequestListRefresh();
 		}
 	}
@@ -207,10 +225,10 @@ protected:
 		RowNames.Empty();
 
 		/** Get the properties we wish to work with */
-		UCurveTable* CurveTable = NULL;
+		UCurveTable* CurveTable = nullptr;
 		CurveTablePropertyHandle->GetValue( ( UObject*& )CurveTable );
 
-		if( CurveTable != NULL )
+		if( CurveTable != nullptr )
 		{
 			/** Extract all the row names from the RowMap */
 			for( TMap<FName, FRealCurve*>::TConstIterator Iterator( CurveTable->GetRowMap() ); Iterator; ++Iterator )

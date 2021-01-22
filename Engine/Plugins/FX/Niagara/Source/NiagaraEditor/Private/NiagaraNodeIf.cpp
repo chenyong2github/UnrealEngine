@@ -95,15 +95,15 @@ void UNiagaraNodeIf::AllocateDefaultPins()
 	for (int32 Index = 0; Index < OutputVars.Num(); Index++)
 	{
 		const FNiagaraVariable& Var = OutputVars[Index];
-		UEdGraphPin* NewPin = CreatePin(EGPD_Input, Schema->TypeDefinitionToPinType(Var.GetType()), *(Var.GetName().ToString() + InputFalsePinSuffix));
-		NewPin->PersistentGuid = PathAssociatedPinGuids[Index].InputFalsePinGuid;
+		UEdGraphPin* NewPin = CreatePin(EGPD_Input, Schema->TypeDefinitionToPinType(Var.GetType()), *(Var.GetName().ToString() + InputTruePinSuffix));
+		NewPin->PersistentGuid = PathAssociatedPinGuids[Index].InputTruePinGuid;
 	}
 
 	for (int32 Index = 0; Index < OutputVars.Num(); Index++)
 	{
 		const FNiagaraVariable& Var = OutputVars[Index];
-		UEdGraphPin* NewPin = CreatePin(EGPD_Input, Schema->TypeDefinitionToPinType(Var.GetType()), *(Var.GetName().ToString() + InputTruePinSuffix));
-		NewPin->PersistentGuid = PathAssociatedPinGuids[Index].InputTruePinGuid;
+		UEdGraphPin* NewPin = CreatePin(EGPD_Input, Schema->TypeDefinitionToPinType(Var.GetType()), *(Var.GetName().ToString() + InputFalsePinSuffix));
+		NewPin->PersistentGuid = PathAssociatedPinGuids[Index].InputFalsePinGuid;
 	}
 
 	for (int32 Index = 0; Index < OutputVars.Num(); Index++)

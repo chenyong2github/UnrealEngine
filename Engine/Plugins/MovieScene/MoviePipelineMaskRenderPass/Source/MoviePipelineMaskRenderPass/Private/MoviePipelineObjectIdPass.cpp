@@ -16,22 +16,90 @@
 #include "Serialization/JsonSerializer.h"
 #include "MoviePipelineHashUtils.h"
 #include "EngineModule.h"
+#include "Async/ParallelFor.h"
 
 DECLARE_CYCLE_STAT(TEXT("STAT_MoviePipeline_AccumulateMaskSample_TT"), STAT_AccumulateMaskSample_TaskThread, STATGROUP_MoviePipeline);
 
-struct FObjectIdMaskSampleAccumulationArgs
+
+namespace UE
 {
-public:
-	TSharedPtr<FMaskOverlappedAccumulator, ESPMode::ThreadSafe> Accumulator;
-	TSharedPtr<FMoviePipelineOutputMerger, ESPMode::ThreadSafe> OutputMerger;
-	int32 NumOutputLayers;
-};
+namespace MoviePipeline
+{
+	struct FMoviePipelineHitProxyCacheKey
+	{
+		const AActor* Actor;
+		const UPrimitiveComponent* PrimComponent;
+
+		FMoviePipelineHitProxyCacheKey(const AActor* InActor, const UPrimitiveComponent* InComponent)
+			: Actor(InActor)
+			, PrimComponent(InComponent)
+		{}
+
+		friend inline uint32 GetTypeHash(const FMoviePipelineHitProxyCacheKey& Key)
+		{
+			return HashCombine(PointerHash(Key.Actor), PointerHash(Key.PrimComponent));
+		}
+
+		bool operator==(const FMoviePipelineHitProxyCacheKey& Other) const
+		{
+			return (Actor == Other.Actor) && (PrimComponent == Other.PrimComponent);
+		}
+	};
+
+	struct FMoviePipelineHitProxyCacheValue
+	{
+		AActor* Actor;
+		const UPrimitiveComponent* PrimComponent;
+		float Hash;
+		FString HashAsString;
+		FString ProxyName;
+	};
+
+	struct FObjectIdAccelerationData
+	{
+		FObjectIdAccelerationData()
+		{}
+
+		FORCEINLINE bool IsDefault()
+		{
+			return !Cache.IsValid()
+				&& !JsonManifest.IsValid()
+				&& JsonManifestCachedOutput.Len() == 0
+				&& PassIdentifierHashAsShortString.Len() == 0;
+		}
+
+		TSharedPtr<TMap<int32, FMoviePipelineHitProxyCacheValue>> Cache;
+
+		// Json Manifest Object
+		TSharedPtr<FJsonObject> JsonManifest;
+
+		// Cached version of the serialized Json Manifest
+		FString JsonManifestCachedOutput;
+
+		FString PassIdentifierHashAsShortString;
+	};
+
+	struct FObjectIdMaskSampleAccumulationArgs
+	{
+	public:
+		TSharedPtr<FMaskOverlappedAccumulator, ESPMode::ThreadSafe> Accumulator;
+		TSharedPtr<FMoviePipelineOutputMerger, ESPMode::ThreadSafe> OutputMerger;
+		int32 NumOutputLayers;
+		TSharedPtr<TMap<int32, FMoviePipelineHitProxyCacheValue>> CacheData;
+	};
+}
+}
+
+
+static FUObjectAnnotationSparse<UE::MoviePipeline::FObjectIdAccelerationData, true> ManifestAnnotation;
 
 // Forward Declare
 namespace MoviePipeline
 {
-	static void AccumulateSample_TaskThread(TUniquePtr<FImagePixelData>&& InPixelData, const FObjectIdMaskSampleAccumulationArgs& InParams);
+	static void AccumulateSample_TaskThread(TUniquePtr<FImagePixelData>&& InPixelData, const UE::MoviePipeline::FObjectIdMaskSampleAccumulationArgs& InParams);
 }
+extern const TSparseArray<HHitProxy*>& GetAllHitProxies();
+
 
 UMoviePipelineObjectIdRenderPass::UMoviePipelineObjectIdRenderPass()
 	: UMoviePipelineImagePassBase()
@@ -49,7 +117,6 @@ void UMoviePipelineObjectIdRenderPass::GatherOutputPassesImpl(TArray<FMoviePipel
 {
 	// Don't call the super which adds the generic PassIdentifier, which in this case is numberless and incorrect for the final output spec.
 	// Super::GatherOutputPassesImpl(ExpectedRenderPasses);
-	
 	ExpectedRenderPasses.Append(ExpectedPassIdentifiers);
 }
 
@@ -64,6 +131,28 @@ void UMoviePipelineObjectIdRenderPass::SetupImpl(const MoviePipeline::FMoviePipe
 
 	AccumulatorPool = MakeShared<TAccumulatorPool<FMaskOverlappedAccumulator>, ESPMode::ThreadSafe>(6);
 	SurfaceQueue = MakeShared<FMoviePipelineSurfaceQueue>(InPassInitSettings.BackbufferResolution, EPixelFormat::PF_B8G8R8A8, 3, false);
+
+	UE::MoviePipeline::FObjectIdAccelerationData AccelData = UE::MoviePipeline::FObjectIdAccelerationData();
+
+	// Static metadata needed for Cryptomatte
+	uint32 NameHash = MoviePipeline::HashNameToId(TCHAR_TO_UTF8(*PassIdentifier.Name));
+	FString PassIdentifierHashAsShortString = FString::Printf(TEXT("%08x"), NameHash);
+	PassIdentifierHashAsShortString.LeftInline(7);
+
+	AccelData.PassIdentifierHashAsShortString = PassIdentifierHashAsShortString;
+
+	
+	AccelData.JsonManifest = MakeShared<FJsonObject>();
+
+	AccelData.Cache = MakeShared<TMap<int32, UE::MoviePipeline::FMoviePipelineHitProxyCacheValue>>();
+	AccelData.Cache->Reserve(1000);
+
+	{
+		// Add our default to the manifest.
+		static const uint32 DefaultHash = MoviePipeline::HashNameToId(TCHAR_TO_UTF8(TEXT("default")));
+		AccelData.JsonManifest->SetStringField(TEXT("default"), FString::Printf(TEXT("%08x"), DefaultHash));
+	}
+	ManifestAnnotation.AddAnnotation(this, AccelData);
 }
 
 void UMoviePipelineObjectIdRenderPass::TeardownImpl()
@@ -74,6 +163,7 @@ void UMoviePipelineObjectIdRenderPass::TeardownImpl()
 	// Stall until the task graph has completed any pending accumulations.
 	FTaskGraphInterface::Get().WaitUntilTasksComplete(OutstandingTasks, ENamedThreads::GameThread);
 	OutstandingTasks.Reset();
+	ManifestAnnotation.RemoveAnnotation(this);
 
 	// Preserve our view state until the rendering thread has been flushed.
 	Super::TeardownImpl();
@@ -95,7 +185,128 @@ void UMoviePipelineObjectIdRenderPass::GetViewShowFlags(FEngineShowFlags& OutSho
 
 void UMoviePipelineObjectIdRenderPass::RenderSample_GameThreadImpl(const FMoviePipelineRenderPassMetrics& InSampleState)
 {
+	// Object Ids have no history buffer so no need to render when we're going to discard.
+	if (InSampleState.bDiscardResult)
+	{
+		return;
+	}
+
 	Super::RenderSample_GameThreadImpl(InSampleState);
+
+	FMoviePipelineRenderPassMetrics InOutSampleState = InSampleState;
+
+	// The Hitproxy array gets invalidated quite often, so the results are no longer valid in the accumulation thread.
+	// To solve this, we will cache the required info on the game thread and pass the required info along with the render so that
+	// it stays in sync with what was actually rendered. Additionally, we cache the hashes between frames as they will be largely 
+	// the same between each frame.
+	const TSparseArray<HHitProxy*>& AllHitProxies = GetAllHitProxies();
+	
+	std::atomic<int32> NumCacheHits(0);
+	std::atomic<int32> NumCacheMisses(0);
+	std::atomic<int32> NumCacheUpdates(0);
+
+	// Update the data in place, no need to copy back to the annotation.
+	UE::MoviePipeline::FObjectIdAccelerationData AccelData = ManifestAnnotation.GetAnnotation(this);
+	const double CacheStartTime = FPlatformTime::Seconds();
+
+	for (typename TSparseArray<HHitProxy*>::TConstIterator It(AllHitProxies); It; ++It)
+	{
+		HActor* ActorHitProxy = HitProxyCast<HActor>(*It);
+
+		if (ActorHitProxy && IsValid(ActorHitProxy->Actor) && IsValid(ActorHitProxy->PrimComponent))
+		{
+			// We assume names to be stable within a shot. This is technically incorrect if you were to 
+			// rename an actor mid-frame but using this assumption allows us to skip calculating the string
+			// name every frame.
+			UE::MoviePipeline::FMoviePipelineHitProxyCacheValue* CacheEntry = nullptr;
+
+			FColor Color = ActorHitProxy->Id.GetColor();
+			int32 IdToInt = ((int32)Color.R << 16) | ((int32)Color.G << 8) | ((int32)Color.B << 0);
+			{
+				CacheEntry = AccelData.Cache->Find(IdToInt);
+			}
+
+			if (CacheEntry)
+			{
+				// The cache could be out of date since it's only an index. We'll double check that the actor and component
+				// are the same and assume if they are, the cache is still valid.
+				const bool bSameActor = CacheEntry->Actor == ActorHitProxy->Actor;
+				const bool bSameComp = CacheEntry->PrimComponent == ActorHitProxy->PrimComponent;
+
+				if (bSameActor && bSameComp)
+				{
+					NumCacheHits++;
+					continue;
+				}
+				NumCacheUpdates++;
+			}
+			NumCacheMisses++;
+
+			// If it doesn't exist in the cache already, then we will do the somewhat expensive of building the string and hashing it.
+			FString ProxyIdName;
+
+			// Hitproxies only have one material to represent an entire component, but component names are too generic
+			// so instead we build a hash out of the actor name and component. This can still lead to duplicates but
+			// they would be visible in the World Outliner.
+			const FName& FolderPath = ActorHitProxy->Actor->GetFolderPath();
+			if (FolderPath.IsNone())
+			{
+				ProxyIdName = FString::Printf(TEXT("%s.%s"), *ActorHitProxy->Actor->GetActorLabel(), *GetNameSafe(ActorHitProxy->PrimComponent));
+			}
+			else
+			{
+				ProxyIdName = FString::Printf(TEXT("%s/%s.%s"), *FolderPath.ToString(), *ActorHitProxy->Actor->GetActorLabel(), *GetNameSafe(ActorHitProxy->PrimComponent));
+			}
+
+			// We hash the string and printf it here to reduce allocations later, even though it makes this loop ~% more expensive.
+			uint32 Hash = MoviePipeline::HashNameToId(TCHAR_TO_UTF8(*ProxyIdName));
+			FString HashAsString = FString::Printf(TEXT("%08x"), Hash);
+
+			{
+				UE::MoviePipeline::FMoviePipelineHitProxyCacheValue& NewCacheEntry = AccelData.Cache->Add(IdToInt);
+				NewCacheEntry.ProxyName = ProxyIdName;
+				NewCacheEntry.Hash = *(float*)(&Hash);
+				NewCacheEntry.Actor = ActorHitProxy->Actor;
+				NewCacheEntry.PrimComponent = ActorHitProxy->PrimComponent;
+
+				// Add the object to the manifest. Done here because this takes ~170ms a frame for 700 objects.
+				// May as well only take that hit once per shot. This will add or update an existing field.
+				AccelData.JsonManifest->SetStringField(ProxyIdName, HashAsString);
+
+				// Only move it after we've used it to update the Json Manifest.
+				NewCacheEntry.HashAsString = MoveTemp(HashAsString);
+			}
+		}
+	}
+
+	const double CacheEndTime = FPlatformTime::Seconds();
+	const float ElapsedMs = float((CacheEndTime - CacheStartTime) * 1000.0f);
+
+	//{
+		const double JsonBeginTime = FPlatformTime::Seconds();
+
+		// We only update the serialized manifest file if something has changed since it's slow.
+		if (NumCacheMisses.load() > 0)
+		{
+			AccelData.JsonManifestCachedOutput.Empty();
+			TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&AccelData.JsonManifestCachedOutput);
+			FJsonSerializer::Serialize(AccelData.JsonManifest.ToSharedRef(), Writer);
+		}
+
+		FString PassIdentifierHashAsShortString = AccelData.PassIdentifierHashAsShortString;
+		InOutSampleState.OutputState.FileMetadata.Add(FString::Printf(TEXT("cryptomatte/%s/manifest"), *PassIdentifierHashAsShortString), AccelData.JsonManifestCachedOutput);
+		InOutSampleState.OutputState.FileMetadata.Add(FString::Printf(TEXT("cryptomatte/%s/name"), *PassIdentifierHashAsShortString), PassIdentifier.Name);
+		InOutSampleState.OutputState.FileMetadata.Add(FString::Printf(TEXT("cryptomatte/%s/hash"), *PassIdentifierHashAsShortString), TEXT("MurmurHash3_32"));
+		InOutSampleState.OutputState.FileMetadata.Add(FString::Printf(TEXT("cryptomatte/%s/conversion"), *PassIdentifierHashAsShortString), TEXT("uint32_to_float32"));
+		const double JsonEndTime = FPlatformTime::Seconds();
+		const float ElapsedJsonMs = float((JsonEndTime - JsonBeginTime) * 1000.0f);
+	//}
+
+	UE_LOG(LogMovieRenderPipeline, VeryVerbose, TEXT("Cache Size: %d NumCacheHits: %d NumCacheMisses: %d NumCacheUpdates: %d CacheDuration: %8.2fms JsonDuration: %8.2fms"), AccelData.Cache->Num(), NumCacheHits.load(), NumCacheMisses.load(), NumCacheUpdates.load(), ElapsedMs, ElapsedJsonMs);
+	
+	// Update the annotation with new cached data
+	ManifestAnnotation.AddAnnotation(this, AccelData);
+
 
 	// Wait for a surface to be available to write to. This will stall the game thread while the RHI/Render Thread catch up.
 	{
@@ -103,11 +314,8 @@ void UMoviePipelineObjectIdRenderPass::RenderSample_GameThreadImpl(const FMovieP
 		SurfaceQueue->BlockUntilAnyAvailable();
 	}
 
-
 	// Main Render Pass
 	{
-		FMoviePipelineRenderPassMetrics InOutSampleState = InSampleState;
-
 		TSharedPtr<FSceneViewFamilyContext> ViewFamily = CalculateViewFamily(InOutSampleState);
 
 		// Submit to be rendered. Main render pass always uses target 0.
@@ -115,75 +323,72 @@ void UMoviePipelineObjectIdRenderPass::RenderSample_GameThreadImpl(const FMovieP
 		FCanvas Canvas = FCanvas(RenderTarget, nullptr, GetPipeline()->GetWorld(), ERHIFeatureLevel::SM5, FCanvas::CDM_DeferDrawing, 1.0f);
 		GetRendererModule().BeginRenderingViewFamily(&Canvas, ViewFamily.Get());
 
+
 		// Readback + Accumulate.
-		PostRendererSubmission(InOutSampleState);
+		TSharedRef<FImagePixelDataPayload, ESPMode::ThreadSafe> FramePayload = MakeShared<FImagePixelDataPayload, ESPMode::ThreadSafe>();
+		FramePayload->PassIdentifier = PassIdentifier;
+		FramePayload->SampleState = InOutSampleState;
+		FramePayload->SortingOrder = GetOutputFileSortingOrder();
+
+		TSharedPtr<FAccumulatorPool::FAccumulatorInstance, ESPMode::ThreadSafe> SampleAccumulator = nullptr;
+		{
+			SCOPE_CYCLE_COUNTER(STAT_MoviePipeline_WaitForAvailableAccumulator);
+			SampleAccumulator = AccumulatorPool->BlockAndGetAccumulator_GameThread(InOutSampleState.OutputState.OutputFrameNumber, FramePayload->PassIdentifier);
+		}
+
+		UE::MoviePipeline::FObjectIdMaskSampleAccumulationArgs AccumulationArgs;
+		{
+			AccumulationArgs.OutputMerger = GetPipeline()->OutputBuilder;
+			AccumulationArgs.Accumulator = StaticCastSharedPtr<FMaskOverlappedAccumulator>(SampleAccumulator->Accumulator);
+			AccumulationArgs.NumOutputLayers = ExpectedPassIdentifiers.Num();
+			// Create a copy of our hash map and shuffle it along with the readback data so they stay in sync.
+			AccumulationArgs.CacheData = MakeShared<TMap<int32, UE::MoviePipeline::FMoviePipelineHitProxyCacheValue>>(*AccelData.Cache);
+		}
+
+		auto Callback = [this, FramePayload, AccumAgs = MoveTemp(AccumulationArgs), SampleAccumulator](TUniquePtr<FImagePixelData>&& InPixelData) mutable
+		{
+			bool bFinalSample = FramePayload->IsLastTile() && FramePayload->IsLastTemporalSample();
+			bool bFirstSample = FramePayload->IsFirstTile() && FramePayload->IsFirstTemporalSample();
+
+			FMoviePipelineBackgroundAccumulateTask Task;
+			Task.LastCompletionEvent = SampleAccumulator->TaskPrereq;
+
+			FGraphEventRef Event = Task.Execute([PixelData = MoveTemp(InPixelData), AccumArgsInner = MoveTemp(AccumAgs), bFinalSample, SampleAccumulator]() mutable
+			{
+				// Enqueue a encode for this frame onto our worker thread.
+				MoviePipeline::AccumulateSample_TaskThread(MoveTemp(PixelData), MoveTemp(AccumArgsInner));
+				if (bFinalSample)
+				{
+					SampleAccumulator->bIsActive = false;
+					SampleAccumulator->TaskPrereq = nullptr;
+				}
+			});
+
+			SampleAccumulator->TaskPrereq = Event;
+			this->OutstandingTasks.Add(Event);
+		};
+
+		TSharedPtr<FMoviePipelineSurfaceQueue> LocalSurfaceQueue = SurfaceQueue;
+
+		ENQUEUE_RENDER_COMMAND(CanvasRenderTargetResolveCommand)(
+			[LocalSurfaceQueue, FramePayload, Callback, RenderTarget](FRHICommandListImmediate& RHICmdList) mutable
+			{
+				// Enqueue a encode for this frame onto our worker thread.
+				LocalSurfaceQueue->OnRenderTargetReady_RenderThread(RenderTarget->GetRenderTargetTexture(), FramePayload, MoveTemp(Callback));
+			});
 	}
 }
 
 void UMoviePipelineObjectIdRenderPass::PostRendererSubmission(const FMoviePipelineRenderPassMetrics& InSampleState)
 {
-	// If this was just to contribute to the history buffer, no need to go any further.
-	if (InSampleState.bDiscardResult)
-	{
-		return;
-	}
-
-	TSharedRef<FImagePixelDataPayload, ESPMode::ThreadSafe> FramePayload = MakeShared<FImagePixelDataPayload, ESPMode::ThreadSafe>();
-	FramePayload->PassIdentifier = PassIdentifier;
-	FramePayload->SampleState = InSampleState;
-	FramePayload->SortingOrder = GetOutputFileSortingOrder();
-
-	TSharedPtr<FAccumulatorPool::FAccumulatorInstance, ESPMode::ThreadSafe> SampleAccumulator = nullptr;
-	{
-		SCOPE_CYCLE_COUNTER(STAT_MoviePipeline_WaitForAvailableAccumulator);
-		SampleAccumulator = AccumulatorPool->BlockAndGetAccumulator_GameThread(InSampleState.OutputState.OutputFrameNumber, FramePayload->PassIdentifier);
-	}
-
-	FObjectIdMaskSampleAccumulationArgs AccumulationArgs;
-	{
-		AccumulationArgs.OutputMerger = GetPipeline()->OutputBuilder;
-		AccumulationArgs.Accumulator = StaticCastSharedPtr<FMaskOverlappedAccumulator>(SampleAccumulator->Accumulator);
-		AccumulationArgs.NumOutputLayers = ExpectedPassIdentifiers.Num();
-	}
-
-	auto Callback = [this, FramePayload, AccumulationArgs, SampleAccumulator](TUniquePtr<FImagePixelData>&& InPixelData)
-	{
-		bool bFinalSample = FramePayload->IsLastTile() && FramePayload->IsLastTemporalSample();
-		bool bFirstSample = FramePayload->IsFirstTile() && FramePayload->IsFirstTemporalSample();
-	
-		FMoviePipelineBackgroundAccumulateTask Task;
-		Task.LastCompletionEvent = SampleAccumulator->TaskPrereq;
-
-		FGraphEventRef Event = Task.Execute([PixelData = MoveTemp(InPixelData), AccumulationArgs, bFinalSample, SampleAccumulator]() mutable
-		{
-			// Enqueue a encode for this frame onto our worker thread.
-			MoviePipeline::AccumulateSample_TaskThread(MoveTemp(PixelData), AccumulationArgs);
-			if (bFinalSample)
-			{
-				SampleAccumulator->bIsActive = false;
-				SampleAccumulator->TaskPrereq = nullptr;
-			}
-		});
-
-		this->OutstandingTasks.Add(Event);
-	};
-	
-	TSharedPtr<FMoviePipelineSurfaceQueue> LocalSurfaceQueue = SurfaceQueue;
-	FRenderTarget* RenderTarget = GetViewRenderTarget()->GameThread_GetRenderTargetResource();
-
-	ENQUEUE_RENDER_COMMAND(CanvasRenderTargetResolveCommand)(
-		[LocalSurfaceQueue, FramePayload, Callback, RenderTarget](FRHICommandListImmediate& RHICmdList) mutable
-		{
-			// Enqueue a encode for this frame onto our worker thread.
-			LocalSurfaceQueue->OnRenderTargetReady_RenderThread(RenderTarget->GetRenderTargetTexture(), FramePayload, MoveTemp(Callback));
-		});
 }
 
 namespace MoviePipeline
 {
-	static void AccumulateSample_TaskThread(TUniquePtr<FImagePixelData>&& InPixelData, const FObjectIdMaskSampleAccumulationArgs& InParams)
+	static void AccumulateSample_TaskThread(TUniquePtr<FImagePixelData>&& InPixelData, const UE::MoviePipeline::FObjectIdMaskSampleAccumulationArgs& InParams)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_AccumulateMaskSample_TaskThread);
+		const double TotalSampleBeginTime = FPlatformTime::Seconds();
 
 		bool bIsWellFormed = InPixelData->IsDataWellFormed();
 
@@ -210,6 +415,9 @@ namespace MoviePipeline
 		FImagePixelDataPayload* FramePayload = InPixelData->GetPayload<FImagePixelDataPayload>();
 		check(FramePayload);
 
+		static const uint32 DefaultHash = HashNameToId(TCHAR_TO_UTF8(TEXT("default")));
+		static const float DefaultHashAsFloat = *(float*)(&DefaultHash);
+
 		// Writing tiles can be useful for debug reasons. These get passed onto the output every frame.
 		if (FramePayload->SampleState.bWriteSampleToDisk)
 		{
@@ -230,7 +438,7 @@ namespace MoviePipeline
 
 		// Accumulate the new sample to our target
 		{
-			const double AccumulateBeginTime = FPlatformTime::Seconds();
+			const double RemapBeginTime = FPlatformTime::Seconds();
 
 			FIntPoint RawSize = InPixelData->GetSize();
 
@@ -241,82 +449,56 @@ namespace MoviePipeline
 			int64 TotalSize;
 			InPixelData->GetRawData(RawData, TotalSize);
 
-			TSharedRef<FJsonObject> JsonManifest = MakeShared<FJsonObject>();
-
 			const FColor* RawDataPtr = static_cast<const FColor*>(RawData);
 			TArray64<float> IdData;
-			IdData.Reserve(RawSize.X * RawSize.Y);
-			static const uint32 DefaultHash = HashNameToId(TCHAR_TO_UTF8(TEXT("default")));
+			IdData.SetNumUninitialized(RawSize.X * RawSize.Y);
 
-			for (int64 Index = 0; Index < (RawSize.X * RawSize.Y); Index++)
-			{
-				FHitProxyId HitProxyId(RawDataPtr[Index]);
-				HHitProxy* HitProxy = GetHitProxyById(HitProxyId);
-				HActor* ActorHitProxy = HitProxyCast<HActor>(HitProxy);
-				uint32 Hash = DefaultHash;
-				
-				if (ActorHitProxy && ActorHitProxy->Actor && ActorHitProxy->PrimComponent)
+			// Remap hitproxy id into precalculated Cryptomatte hash
+			ParallelFor(RawSize.Y,
+				[&](int32 ScanlineIndex = 0)
 				{
-					// Hitproxies only have one material to represent an entire component, but component names are too generic
-					// so instead we build a hash out of the actor name and component. This can still lead to duplicates but
-					// they would be visible in the World Outliner.
-					FString ProxyIdName;
-#if WITH_EDITOR
-					FName FolderPath = ActorHitProxy->Actor->GetFolderPath();
-					if (FolderPath.IsNone())
+					for (int64 Index = 0; Index < RawSize.X; Index++)
 					{
-						ProxyIdName = FString::Printf(TEXT("%s.%s"), *ActorHitProxy->Actor->GetActorLabel(), *GetNameSafe(ActorHitProxy->PrimComponent));
+						int64 DstIndex = int64(ScanlineIndex) * int64(RawSize.X) + int64(Index);
+						// Turn the FColor into an integer index
+						const FColor* Color = &RawDataPtr[DstIndex];
+
+						int32 HitProxyIndex = ((int32)Color->R << 16) | ((int32)Color->G << 8) | ((int32)Color->B << 0);
+
+						float Hash = DefaultHashAsFloat;
+						const UE::MoviePipeline::FMoviePipelineHitProxyCacheValue* CachedValue = InParams.CacheData->Find(HitProxyIndex);
+						if (CachedValue)
+						{
+							Hash = CachedValue->Hash;
+						}
+						else
+						{
+							UE_LOG(LogMovieRenderPipeline, VeryVerbose, TEXT("Failed to find cache data for Hitproxy! Id: %d"), HitProxyIndex);
+						}
+
+						IdData[DstIndex] = Hash;
 					}
-					else
-					{
-						ProxyIdName = FString::Printf(TEXT("%s/%s.%s"), *FolderPath.ToString(), *ActorHitProxy->Actor->GetActorLabel(), *GetNameSafe(ActorHitProxy->PrimComponent));
-					}
-#else
-					ProxyIdName = FString::Printf(TEXT("%s.%s"), *GetNameSafe(ActorHitProxy->Actor), *GetNameSafe(ActorHitProxy->PrimComponent));
-#endif
-					Hash = HashNameToId(TCHAR_TO_UTF8(*ProxyIdName));
+				});
+			const double RemapEndTime = FPlatformTime::Seconds();
+			const float ElapsedRemapMs = float((RemapEndTime - RemapBeginTime) * 1000.0f);
 
-					FString HashAsString = FString::Printf(TEXT("%08x"), Hash);
+			const double AccumulateBeginTime = FPlatformTime::Seconds();
 
-					// Build an object which is json key/value pairs for each hitproxy name and object id hash.
-					JsonManifest->SetStringField(ProxyIdName, HashAsString);
-				}
-
-				IdData.Add(*(float*)(&Hash));
-			}
-
-			// Build Metadata
-			uint32 NameHash = HashNameToId(TCHAR_TO_UTF8(*FramePayload->PassIdentifier.Name));
-			FString HashAsShortString = FString::Printf(TEXT("%08x"), NameHash);
-			HashAsShortString.LeftInline(7); 
-
-			FramePayload->SampleState.OutputState.FileMetadata.Add(FString::Printf(TEXT("cryptomatte/%s/name"), *HashAsShortString), FramePayload->PassIdentifier.Name);
-			FramePayload->SampleState.OutputState.FileMetadata.Add(FString::Printf(TEXT("cryptomatte/%s/hash"), *HashAsShortString), TEXT("MurmurHash3_32"));
-			FramePayload->SampleState.OutputState.FileMetadata.Add(FString::Printf(TEXT("cryptomatte/%s/conversion"), *HashAsShortString), TEXT("uint32_to_float32"));
-
-			// Add our default to the manifest.
-			JsonManifest->SetStringField(TEXT("default"), FString::Printf(TEXT("%08x"), DefaultHash));
-			FString ManifestOutput;
-			TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&ManifestOutput);
-			FJsonSerializer::Serialize(JsonManifest, Writer);
-			FramePayload->SampleState.OutputState.FileMetadata.Add(FString::Printf(TEXT("cryptomatte/%s/manifest"), *HashAsShortString), ManifestOutput);
-
-
-			// bool bSkip = FramePayload->SampleState.TileIndexes.X != 0 || FramePayload->SampleState.TileIndexes.Y != 1;
-			// if (!bSkip)
 			{
 				InParams.Accumulator->AccumulatePixelData((float*)(IdData.GetData()), RawSize, FramePayload->SampleState.OverlappedOffset, FramePayload->SampleState.OverlappedSubpixelShift,
 					FramePayload->SampleState.WeightFunctionX, FramePayload->SampleState.WeightFunctionY);
 			}
 
 			const double AccumulateEndTime = FPlatformTime::Seconds();
-			const float ElapsedMs = float((AccumulateEndTime - AccumulateBeginTime) * 1000.0f);
+			const float ElapsedAccumulateMs = float((AccumulateEndTime - AccumulateBeginTime) * 1000.0f);
 
-			UE_LOG(LogMovieRenderPipeline, VeryVerbose, TEXT("Accumulation time: %8.2fms"), ElapsedMs);
+			UE_LOG(LogMovieRenderPipeline, VeryVerbose, TEXT("Remap Time: %8.2fms Accumulation time: %8.2fms"), ElapsedRemapMs, ElapsedAccumulateMs);
 		}
 
 		if (FramePayload->IsLastTile() && FramePayload->IsLastTemporalSample())
 		{
+			const double FetchBeginTime = FPlatformTime::Seconds();
+
 			int32 FullSizeX = InParams.Accumulator->PlaneSize.X;
 			int32 FullSizeY = InParams.Accumulator->PlaneSize.Y;
 
@@ -328,6 +510,7 @@ namespace MoviePipeline
 			{
 				OutputLayers.Add(TArray64<FLinearColor>());
 			}
+
 			InParams.Accumulator->FetchFinalPixelDataLinearColor(OutputLayers);
 
 			for (int32 Index = 0; Index < InParams.NumOutputLayers; Index++)
@@ -338,7 +521,7 @@ namespace MoviePipeline
 				NewPayload->SampleState = FramePayload->SampleState;
 				NewPayload->SortingOrder = FramePayload->SortingOrder;
 
-				TUniquePtr<TImagePixelData<FLinearColor> > FinalPixelData = MakeUnique<TImagePixelData<FLinearColor>>(FIntPoint(FullSizeX, FullSizeY), MoveTemp(OutputLayers[Index]), NewPayload);
+				TUniquePtr<TImagePixelData<FLinearColor>> FinalPixelData = MakeUnique<TImagePixelData<FLinearColor>>(FIntPoint(FullSizeX, FullSizeY), MoveTemp(OutputLayers[Index]), NewPayload);
 
 				// Send each layer to the Output Builder
 				InParams.OutputMerger->OnCompleteRenderPassDataAvailable_AnyThread(MoveTemp(FinalPixelData));
@@ -346,6 +529,15 @@ namespace MoviePipeline
 			
 			// Free the memory in the accumulator now that we've extracted all
 			InParams.Accumulator->Reset();
+
+			const double FetchEndTime = FPlatformTime::Seconds();
+			const float ElapsedFetchMs = float((FetchEndTime - FetchBeginTime) * 1000.0f);
+
+			UE_LOG(LogMovieRenderPipeline, VeryVerbose, TEXT("Final Frame Fetch Time: %8.2fms"), ElapsedFetchMs);
 		}
+		const double TotalSampleEndTime = FPlatformTime::Seconds();
+		const float ElapsedTotalSampleMs = float((TotalSampleEndTime - TotalSampleBeginTime) * 1000.0f);
+		UE_LOG(LogMovieRenderPipeline, VeryVerbose, TEXT("Total Sample Time: %8.2fms"), ElapsedTotalSampleMs);
+
 	}
 }

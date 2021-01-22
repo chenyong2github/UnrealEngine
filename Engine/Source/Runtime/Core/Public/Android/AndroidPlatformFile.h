@@ -49,4 +49,7 @@ public:
 	// can be any of: a resolved file path, an OBB path, an
 	// asset path.
 	virtual FString FileRootPath(const TCHAR* Filename) = 0;
+
+	virtual FString ConvertToAbsolutePathForExternalAppForRead(const TCHAR* Filename) override;
+	virtual FString ConvertToAbsolutePathForExternalAppForWrite(const TCHAR* Filename) override;
 };

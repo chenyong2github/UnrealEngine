@@ -132,9 +132,6 @@ namespace Chaos
 		//  Object API
 		//
 
-		Chaos::FSingleParticleProxy* RegisterObject_External(TUniquePtr<Chaos::FGeometryParticleBuffer>&& GTParticleBuffer);
-		void UnregisterObject_External(Chaos::FSingleParticleProxy* Proxy);
-
 		void RegisterObject(Chaos::TGeometryParticle<float, 3>* GTParticle);
 		void UnregisterObject(Chaos::TGeometryParticle<float, 3>* GTParticle);
 
@@ -382,9 +379,7 @@ namespace Chaos
 		THandleArray<FChaosPhysicsMaterial> SimMaterials;
 		THandleArray<FChaosPhysicsMaterialMask> SimMaterialMasks;
 
-		TArray<FRigidParticlePhysicsProxy*> PendingDestroyRigidProxy;
-		TArray<FKinematicGeometryParticlePhysicsProxy*> PendingDestroyKinematicProxy;
-		TArray<FGeometryParticlePhysicsProxy*> PendingDestroyGeometryProxy;
+		TArray<FSingleParticlePhysicsProxy*> PendingDestroyPhysicsProxy;
 
 		void ProcessSinglePushedData_Internal(FPushPhysicsData& PushData);
 		virtual void ProcessPushedData_Internal(FPushPhysicsData& PushData) override;

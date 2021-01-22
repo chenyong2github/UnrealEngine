@@ -34,10 +34,17 @@ FORCEINLINE EMovieSceneSequenceFlags GetEditorVolatilityFlags()
 
 TUniquePtr<FCompiledDataVolatilityManager> FCompiledDataVolatilityManager::Construct(IMovieScenePlayer& Player, FMovieSceneCompiledDataID RootDataID, UMovieSceneCompiledDataManager* CompiledDataManager)
 {
-	EMovieSceneSequenceFlags SequenceFlags = CompiledDataManager->GetEntryRef(RootDataID).AccumulatedFlags | GetEditorVolatilityFlags();
+	const FMovieSceneCompiledDataEntry& Entry = CompiledDataManager->GetEntryRef(RootDataID);
+	EMovieSceneSequenceFlags SequenceFlags = Entry.AccumulatedFlags | GetEditorVolatilityFlags();
 	if (!EnumHasAnyFlags(SequenceFlags, EMovieSceneSequenceFlags::Volatile))
 	{
-		return nullptr;
+		// If the entry has a valid compiled signature, it is assumed to be non-volatile if it does
+		// not explicitly have the volatile flag. Otherwise we assume this sequence was added to the
+		// manager but never compiled, and as such must be volatile since it needs compiling.
+		if (Entry.CompiledSignature.IsValid())
+		{
+			return nullptr;
+		}
 	}
 
 	TUniquePtr<FCompiledDataVolatilityManager> VolatilityManager = MakeUnique<FCompiledDataVolatilityManager>();

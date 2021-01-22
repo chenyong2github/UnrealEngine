@@ -50,7 +50,7 @@ enum EShaderPlatform
 {
 	SP_PCD3D_SM5					= 0,
 	SP_OPENGL_SM4_REMOVED			UE_DEPRECATED(4.27, "ShaderPlatform is removed; please don't use.") = 1,
-	SP_PS4							= 2,
+	SP_PS4_REMOVED					UE_DEPRECATED(4.27, "ShaderPlatform is removed; please don't use.") = 2,
 	SP_OPENGL_PCES2_REMOVED			UE_DEPRECATED(4.27, "ShaderPlatform is removed; please don't use.") = 3,
 	SP_XBOXONE_D3D12				= 4,
 	SP_PCD3D_SM4_REMOVED			UE_DEPRECATED(4.27, "ShaderPlatform is removed; please don't use.") = 5,
@@ -347,6 +347,9 @@ class RHI_API FGenericDataDrivenShaderPlatformInfo
 	uint32 bSupportsPerPixelDBufferMask : 1;
 	uint32 bIsHlslcc : 1;
 	uint32 NumberOfComputeThreads : 10;
+#if WITH_EDITOR
+	FText FriendlyName;
+#endif
 
 	// NOTE: When adding fields, you must also add to ParseDataDrivenShaderInfo!
 	uint32 bContainsValidPlatformInfo : 1;
@@ -600,6 +603,13 @@ public:
 	{
 		return Infos[Platform].NumberOfComputeThreads;
 	}
+
+#if WITH_EDITOR
+	static FORCEINLINE_DEBUGGABLE FText GetFriendlyName(const FStaticShaderPlatform Platform)
+	{
+		return Infos[Platform].FriendlyName;
+	}
+#endif
 
 private:
 	static FGenericDataDrivenShaderPlatformInfo Infos[SP_NumPlatforms];
@@ -1529,8 +1539,10 @@ inline bool IsSwitchPlatform(const FStaticShaderPlatform Platform)
 UE_DEPRECATED(4.27, "IsPS4Platform() is deprecated; please use DataDrivenShaderPlatformInfo instead.") 
 inline bool IsPS4Platform(const FStaticShaderPlatform Platform)
 {
-	return Platform == SP_PS4
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	return Platform == SP_PS4_REMOVED
 		|| FDataDrivenShaderPlatformInfo::GetIsLanguageSony(Platform);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 inline bool IsVulkanPlatform(const FStaticShaderPlatform Platform)

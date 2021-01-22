@@ -217,7 +217,7 @@ public:
 				*TypeInfo.IDPtr = ++ID;
 				TypeInfoMap.Add(*TypeInfo.IDPtr) = TypeInfo;
 
-				UE_LOG(LogNetworkPredictionCues, Warning, TEXT("    Cue %s assigned ID: %d (0x%X)"), *TypeInfo.TypeName, *TypeInfo.IDPtr, TypeInfo.IDPtr);
+				UE_LOG(LogNetworkPredictionCues, Verbose, TEXT("    Cue %s assigned ID: %d (0x%X)"), *TypeInfo.TypeName, *TypeInfo.IDPtr, TypeInfo.IDPtr);
 			}
 
 			RegisteredTypes.InitDispatchTablesDelegate.Broadcast();

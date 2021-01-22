@@ -41,10 +41,28 @@ namespace AutomationTool
 
 				EditorArgs = ProjectFile.FullName;
 			}
-	
-			Run(EditorPath, EditorArgs, null, ERunOptions.NoWaitForExit);
 
-			return ExitCode.Success;
+			IEnumerable<string> ParamList = this.Params
+												.Where(P => P.StartsWith("project=", StringComparison.OrdinalIgnoreCase) == false)
+												.Select(P => "-" + P);
+
+			bool bLaunched = RunUntrackedProcess(EditorPath, string.Join(" ", ParamList));
+
+			return bLaunched ? ExitCode.Success : ExitCode.Error_UATLaunchFailure;
+		}
+
+		protected bool RunUntrackedProcess(string BinaryPath, string Args)
+		{
+			LogInformation("Running {0} {1}", BinaryPath, Args);
+
+			var NewProcess = HostPlatform.Current.CreateProcess(BinaryPath);			
+			var Result = new ProcessResult(BinaryPath, NewProcess, false, false);
+			System.Diagnostics.Process Proc = Result.ProcessObject;
+
+			Proc.StartInfo.FileName = BinaryPath;
+			Proc.StartInfo.Arguments = string.IsNullOrEmpty(Args) ? "" : Args;
+			Proc.StartInfo.UseShellExecute = false;
+			return Proc.Start();
 		}
 	}
 

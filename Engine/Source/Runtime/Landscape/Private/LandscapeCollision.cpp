@@ -58,6 +58,7 @@
 #include "Chaos/ImplicitObjectTransformed.h"
 #include "PhysicsEngine/BodySetup.h"
 #include "PhysicsEngine/Experimental/ChaosDerivedData.h"
+#include "PhysicsEngine/Experimental/ChaosCooking.h"
 #include "Chaos/ChaosArchive.h"
 #endif
 
@@ -1256,7 +1257,7 @@ bool ULandscapeMeshCollisionComponent::CookCollisionData(const FName& Format, bo
 	CookInfo.bCookTriMesh = true;
 	TArray<int32> FaceRemap;
 	TArray<int32> VertexRemap;
-	TUniquePtr<Chaos::FTriangleMeshImplicitObject> Trimesh = FChaosDerivedDataCooker::BuildSingleTrimesh(MeshDesc, FaceRemap, VertexRemap);
+	TUniquePtr<Chaos::FTriangleMeshImplicitObject> Trimesh = Chaos::Cooking::BuildSingleTrimesh(MeshDesc, FaceRemap, VertexRemap);
 
 	if(Trimesh.IsValid())
 	{

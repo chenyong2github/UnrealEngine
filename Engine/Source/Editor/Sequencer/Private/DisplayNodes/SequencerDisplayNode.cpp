@@ -26,6 +26,7 @@
 #include "CommonMovieSceneTools.h"
 #include "Framework/Commands/GenericCommands.h"
 #include "CurveEditor.h"
+#include "Tree/SCurveEditorTreeSelect.h"
 #include "Tree/SCurveEditorTreePin.h"
 #include "Tree/CurveEditorTreeFilter.h"
 #include "ScopedTransaction.h"
@@ -1416,6 +1417,10 @@ TSharedPtr<SWidget> FSequencerDisplayNode::GenerateCurveEditorTreeWidget(const F
 				.HighlightText_Static(SequencerNodeConstants::GetCurveEditorHighlightText, InCurveEditor)
 				.ToolTipText(this, &FSequencerDisplayNode::GetDisplayNameToolTipText)
 			];
+	}
+	else if (InColumnName == ColumnNames.SelectHeader)
+	{
+		return SNew(SCurveEditorTreeSelect, InCurveEditor, InTreeItemID, TableRow);
 	}
 	else if (InColumnName == ColumnNames.PinHeader)
 	{

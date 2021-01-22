@@ -157,6 +157,12 @@ public:
 	/** Select all keys and sections that fall into the selection range*/
 	TSharedPtr< FUICommandInfo > SelectAllInSelectionRange;
 
+	/** Select all keys and sections forward from the current time */
+	TSharedPtr< FUICommandInfo > SelectForward;
+
+	/** Select all keys and sections backward from the current time */
+	TSharedPtr< FUICommandInfo > SelectBackward;
+
 	/** Add selected actors to sequencer */
 	TSharedPtr< FUICommandInfo > AddActorsToSequencer;
 
@@ -186,6 +192,12 @@ public:
 
 	/** Trim section to the right, keeping the left portion */
 	TSharedPtr< FUICommandInfo > TrimSectionRight;
+
+	/** Trim or extend closest sections to the left for the selected tracks (or all tracks if none selected) to the current time */
+	TSharedPtr< FUICommandInfo > TrimOrExtendSectionLeft;
+
+	/** Trim or extend closest sections to the right for the selected tracks (or all tracks if none selected) to the current time */
+	TSharedPtr< FUICommandInfo > TrimOrExtendSectionRight;
 
 	/** Translate the selected keys and section to the left */
 	TSharedPtr< FUICommandInfo > TranslateLeft;

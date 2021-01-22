@@ -34,7 +34,7 @@ AWaterLandscapeBrush::AWaterLandscapeBrush(const FObjectInitializer& ObjectIniti
 {
 	SetAffectsHeightmap(true);
 
-	ActorIcon = FWaterIconHelper::EnsureSpriteComponentCreated(this, TEXT("/Water/Icons/WaterLandscapeBrushSprite"), LOCTEXT("WaterLandscapeBrushSpriteName", "Water Landscape Brush"));
+	ActorIcon = FWaterIconHelper::EnsureSpriteComponentCreated(this, TEXT("/Water/Icons/WaterLandscapeBrushSprite"));
 }
 
 void AWaterLandscapeBrush::AddActorInternal(AActor* Actor, const UWorld* ThisWorld, UObject* InCache, bool bTriggerEvent, bool bModify)

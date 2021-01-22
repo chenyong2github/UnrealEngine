@@ -124,6 +124,9 @@ struct CORE_API FRenderingObjectVersion
 		// Remap Volume Extinction material input to RGB
 		VolumeExtinctionBecomesRGB,
 
+		// Add a new virtual texture to support virtual texture light map on mobile
+		VirtualTexturedLightmapsV3,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

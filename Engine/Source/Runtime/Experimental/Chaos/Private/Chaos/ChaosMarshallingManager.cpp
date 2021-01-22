@@ -135,30 +135,26 @@ void FPushPhysicsData::CopySubstepData(const FPushPhysicsData& FirstStepData)
 	const FDirtyPropertiesManager& FirstManager = FirstStepData.DirtyPropertiesManager;
 	DirtyPropertiesManager.SetNumParticles(FirstStepData.DirtyProxiesDataBuffer.NumDirtyProxies());
 	FirstStepData.DirtyProxiesDataBuffer.ForEachProxy([this, &FirstManager](int32 FirstDataIdx, const FDirtyProxy& Dirty)
+	{
+		if (Dirty.ParticleData.GetParticleBufferType() == EParticleType::Rigid)
 		{
-			switch (Dirty.Proxy->GetType())
+			if (const FParticleDynamics* DynamicsData = Dirty.ParticleData.FindDynamics(FirstManager, FirstDataIdx))
 			{
-			case EPhysicsProxyType::SingleRigidParticleType:
-			{
-				if (const FParticleDynamics* DynamicsData = Dirty.ParticleData.FindDynamics(FirstManager, FirstDataIdx))
+				if (DynamicsData->F() != FVec3(0) || DynamicsData->Torque() != FVec3(0))	//don't bother interpolating 0. This is important because the input dirtys rewind data
 				{
-					if(DynamicsData->F() != FVec3(0) || DynamicsData->Torque() != FVec3(0))	//don't bother interpolating 0. This is important because the input dirtys rewind data
-					{
-						DirtyProxiesDataBuffer.Add(Dirty.Proxy);
-						FParticleDynamics& SubsteppedDynamics = DirtyPropertiesManager.GetParticlePool<FParticleDynamics, EParticleProperty::Dynamics>().GetElement(Dirty.Proxy->GetDirtyIdx());
-						SubsteppedDynamics = *DynamicsData;
-						//we don't want to sub-step impulses so those are cleared in the sub-step
-						SubsteppedDynamics.SetAngularImpulse(FVec3(0));
-						SubsteppedDynamics.SetLinearImpulse(FVec3(0));
-						FDirtyProxy& NewDirtyProxy = DirtyProxiesDataBuffer.GetDirtyProxyAt(Dirty.Proxy->GetDirtyIdx());
-						NewDirtyProxy.ParticleData.DirtyFlag(EParticleFlags::Dynamics);
-					}
+					DirtyProxiesDataBuffer.Add(Dirty.Proxy);
+					FParticleDynamics& SubsteppedDynamics = DirtyPropertiesManager.GetParticlePool<FParticleDynamics, EParticleProperty::Dynamics>().GetElement(Dirty.Proxy->GetDirtyIdx());
+					SubsteppedDynamics = *DynamicsData;
+					//we don't want to sub-step impulses so those are cleared in the sub-step
+					SubsteppedDynamics.SetAngularImpulse(FVec3(0));
+					SubsteppedDynamics.SetLinearImpulse(FVec3(0));
+					FDirtyProxy& NewDirtyProxy = DirtyProxiesDataBuffer.GetDirtyProxyAt(Dirty.Proxy->GetDirtyIdx());
+					NewDirtyProxy.ParticleData.DirtyFlag(EParticleFlags::Dynamics);
+					NewDirtyProxy.ParticleData.SetParticleBufferType(EParticleType::Rigid);
 				}
-
-				Dirty.Proxy->ResetDirtyIdx();	//dirty idx is only used temporarily
-				break;
 			}
-			default: { break; }
+
+			Dirty.Proxy->ResetDirtyIdx();	//dirty idx is only used temporarily
 		}
 	});
 

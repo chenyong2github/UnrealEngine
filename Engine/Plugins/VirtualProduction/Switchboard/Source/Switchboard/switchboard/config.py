@@ -136,6 +136,9 @@ class Config(object):
     def clean_p4_path(path):
         ''' Clean p4 path. e.g. strip and remove trailing '/'
         '''
+        if not path:
+            return ''
+            
         path = path.strip()
 
         while len(path) and path[-1] == '/':
@@ -181,7 +184,7 @@ class Config(object):
         self.MUSERVER_COMMAND_LINE_ARGUMENTS = ""
         self.MUSERVER_SERVER_NAME = f'{self.PROJECT_NAME}_MU_Server'
         self.MUSERVER_AUTO_LAUNCH = True
-        self.MUSERVER_AUTO_JOIN = True
+        self.MUSERVER_AUTO_JOIN = False
         self.MUSERVER_CLEAN_HISTORY = True
 
         self._device_data_from_config = {}

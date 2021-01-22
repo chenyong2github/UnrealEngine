@@ -916,6 +916,11 @@ void FNiagaraRendererMeshes::GetDynamicRayTracingInstances(FRayTracingMaterialGa
 			RayTracingInstance.Materials.Add(MeshBatch);
 		}
 
+		if (RayTracingInstance.Materials.Num() == 0)
+		{
+			continue;
+		}
+
 		const FNiagaraRendererLayout* RendererLayout = RendererLayoutWithCustomSorting;
 		TConstArrayView<FNiagaraRendererVariableInfo> VFVariables = RendererLayout->GetVFVariables_RenderThread();
 		const int32 NumInstances = SourceParticleData->GetNumInstances();

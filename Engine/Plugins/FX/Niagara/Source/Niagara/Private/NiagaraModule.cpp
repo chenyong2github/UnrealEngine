@@ -128,6 +128,7 @@ FNiagaraVariable INiagaraModule::Particles_Scale;
 FNiagaraVariable INiagaraModule::Particles_Lifetime;
 FNiagaraVariable INiagaraModule::Particles_MeshOrientation;
 FNiagaraVariable INiagaraModule::Particles_UVScale;
+FNiagaraVariable INiagaraModule::Particles_PivotOffset;
 FNiagaraVariable INiagaraModule::Particles_CameraOffset;
 FNiagaraVariable INiagaraModule::Particles_MaterialRandom;
 FNiagaraVariable INiagaraModule::Particles_LightRadius;
@@ -242,6 +243,7 @@ void INiagaraModule::StartupModule()
 	Particles_Lifetime = FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Particles.Lifetime"));
 	Particles_MeshOrientation = FNiagaraVariable(FNiagaraTypeDefinition::GetQuatDef(), TEXT("Particles.MeshOrientation"));
 	Particles_UVScale = FNiagaraVariable(FNiagaraTypeDefinition::GetVec2Def(), TEXT("Particles.UVScale"));
+	Particles_PivotOffset = FNiagaraVariable(FNiagaraTypeDefinition::GetVec2Def(), TEXT("Particles.PivotOffset"));
 	Particles_CameraOffset = FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Particles.CameraOffset"));
 	Particles_MaterialRandom = FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Particles.MaterialRandom"));
 	Particles_LightRadius = FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Particles.LightRadius"));

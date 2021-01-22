@@ -11,34 +11,29 @@
 #include "Modules/ModuleManager.h"
 #include "WaterModule.h"
 
-UBillboardComponent* FWaterIconHelper::EnsureSpriteComponentCreated_Internal(AActor* Actor, UClass* InClass, const TCHAR* InIconTextureName, const FText& InDisplayName)
+UBillboardComponent* FWaterIconHelper::EnsureSpriteComponentCreated_Internal(AActor* Actor, UClass* InClass, const TCHAR* InIconTextureName)
 {
 	UBillboardComponent* ActorIcon = nullptr;
-	if (!Actor->IsTemplate())
+	
+	ActorIcon = Actor->FindComponentByClass<UBillboardComponent>();
+	if (ActorIcon == nullptr)
 	{
-		ActorIcon = Actor->FindComponentByClass<UBillboardComponent>();
-		if (ActorIcon == nullptr)
+		ActorIcon = Actor->CreateEditorOnlyDefaultSubobject<UBillboardComponent>(TEXT("Sprite"), true);
+	}
+	if (ActorIcon != nullptr)
+	{
+		ConstructorHelpers::FObjectFinderOptional<UTexture2D> Texture(InIconTextureName);
+		IWaterModuleInterface& WaterModule = FModuleManager::GetModuleChecked<IWaterModuleInterface>(TEXT("Water"));
+		if (IWaterEditorServices* WaterEditorServices = WaterModule.GetWaterEditorServices())
 		{
-			ActorIcon = Actor->CreateEditorOnlyDefaultSubobject<UBillboardComponent>(TEXT("Sprite"), true);
+			WaterEditorServices->RegisterWaterActorSprite(InClass, Texture.Get());
 		}
-
-		if (ActorIcon != nullptr)
-		{
-			ConstructorHelpers::FObjectFinderOptional<UTexture2D> Texture(InIconTextureName);
-
-			IWaterModuleInterface& WaterModule = FModuleManager::GetModuleChecked<IWaterModuleInterface>(TEXT("Water"));
-			if (IWaterEditorServices* WaterEditorServices = WaterModule.GetWaterEditorServices())
-			{
-				WaterEditorServices->RegisterWaterActorSprite(InClass, Texture.Get());
-			}
-
-			ActorIcon->Sprite = Texture.Get();
-			ActorIcon->bHiddenInGame = true;
-			ActorIcon->SpriteInfo.Category = TEXT("Water");
-			ActorIcon->SpriteInfo.DisplayName = InDisplayName;
-			ActorIcon->SetupAttachment(Actor->GetRootComponent());
-			UpdateSpriteComponent(Actor, ActorIcon->Sprite);
-		}
+		ActorIcon->Sprite = Texture.Get();
+		ActorIcon->bHiddenInGame = true;
+		ActorIcon->SpriteInfo.Category = TEXT("Water");
+		ActorIcon->SpriteInfo.DisplayName = NSLOCTEXT("SpriteCategory", "Water", "Water");
+		ActorIcon->SetupAttachment(Actor->GetRootComponent());
+		UpdateSpriteComponent(Actor, ActorIcon->Sprite);
 	}
 	return ActorIcon;
 }

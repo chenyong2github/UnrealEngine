@@ -203,7 +203,11 @@ namespace UnrealBuildTool
 			ProjectFileGenerator.bGenerateProjectFiles = true;
 			foreach(ProjectFileGenerator Generator in Generators)
 			{
-				if (!Generator.GenerateProjectFiles(PlatformProjectGenerators, Arguments.GetRawArray()))
+				ProjectFileGenerator.Current = Generator;
+				bool bGenerateSuccess = Generator.GenerateProjectFiles(PlatformProjectGenerators, Arguments.GetRawArray());
+				ProjectFileGenerator.Current = null;
+
+				if (!bGenerateSuccess)
 				{
 					return (int)CompilationResult.OtherCompilationError;
 				}

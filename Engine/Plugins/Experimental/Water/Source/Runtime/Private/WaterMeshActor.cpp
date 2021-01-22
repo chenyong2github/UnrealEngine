@@ -24,7 +24,7 @@ AWaterMeshActor::AWaterMeshActor(const FObjectInitializer& Initializer)
 		LevelEditorModule.OnActorSelectionChanged().AddUObject(this, &AWaterMeshActor::OnActorSelectionChanged);
 	}
 
-	ActorIcon = FWaterIconHelper::EnsureSpriteComponentCreated(this, TEXT("/Water/Icons/WaterMeshActorSprite"), NSLOCTEXT("Water", "WaterMeshActorSpriteName", "Water Mesh Actor"));
+	ActorIcon = FWaterIconHelper::EnsureSpriteComponentCreated(this, TEXT("/Water/Icons/WaterMeshActorSprite"));
 #endif
 }
 

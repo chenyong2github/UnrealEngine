@@ -23,7 +23,6 @@
 #include "ChaosSolverConfiguration.h"
 #include "Chaos/PullPhysicsDataImp.h"
 #include "Chaos/PhysicsSolverBaseImpl.h"
-#include "PhysicsProxy/SingleParticleProxy.h"
 
 //PRAGMA_DISABLE_OPTIMIZATION
 
@@ -55,12 +54,12 @@ Chaos::DebugDraw::FChaosDebugDrawSettings ChaosSolverDebugDebugDrawSettings(
 	/* ContactOwnerWidth =	*/ 0.0f,
 	/* ConstraintAxisLen =	*/ 30.0f,
 	/* JointComSize =		*/ 2.0f,
-	/* LineThickness =		*/ 1.5f,
+	/* LineThickness =		*/ 1.0f,
 	/* DrawScale =			*/ 1.0f,
 	/* FontHeight =			*/ 10.0f,
 	/* FontScale =			*/ 1.5f,
 	/* ShapeThicknesScale = */ 1.0f,
-	/* PointSize =			*/ 2.0f,
+	/* PointSize =			*/ 5.0f,
 	/* VelScale =			*/ 1.0f,
 	/* AngVelScale =		*/ 0.0f,
 	/* ImpulseScale =		*/ 0.05f,
@@ -365,41 +364,6 @@ namespace Chaos
 		ECVF_Default);
 
 	template <typename Traits>
-	Chaos::FSingleParticleProxy* TPBDRigidsSolver<Traits>::RegisterObject_External(TUniquePtr<Chaos::FGeometryParticleBuffer>&& GTParticleBuffer)
-	{
-		LLM_SCOPE(ELLMTag::Chaos);
-
-		if (GTParticleBuffer->Geometry() && GTParticleBuffer->Geometry()->HasBoundingBox() && GTParticleBuffer->Geometry()->BoundingBox().Extents().Max() >= MaxBoundsForTree)
-		{
-			GTParticleBuffer->SetSpatialIdx(FSpatialAccelerationIdx{ 1,0 });
-		}
-		if (!ensure(GTParticleBuffer->IsParticleValid()))
-		{
-			return nullptr;
-		}
-
-		GTParticleBuffer->SetUniqueIdx(GetEvolution()->GenerateUniqueIdx());
-		FSingleParticleProxy* Proxy = new FSingleParticleProxy(MoveTemp(GTParticleBuffer));
-
-		//todo: remove this
-		//TrackGTParticle_External(*Proxy->GetBuffer());
-
-		Proxy->SetSolver(this);
-
-		AddDirtyProxy(Proxy);
-
-		//TODO: switch structure to use proxy
-		//UpdateParticleInAccelerationStructure_External(GTParticle, /*bDelete=*/false);
-		return Proxy;
-	}
-
-	template <typename Traits>
-	void TPBDRigidsSolver<Traits>::UnregisterObject_External(Chaos::FSingleParticleProxy* Proxy)
-	{
-		//TODO
-	}
-
-	template <typename Traits>
 	void TPBDRigidsSolver<Traits>::RegisterObject(TGeometryParticle<float, 3>* GTParticle)
 	{
 		LLM_SCOPE(ELLMTag::Chaos);
@@ -421,7 +385,6 @@ namespace Chaos
 		// NOTE: Do we really need these lists of proxies if we can just
 		// access them through the GTParticles list?
 		
-		IPhysicsProxyBase* ProxyBase;
 
 		GTParticle->SetUniqueIdx(GetEvolution()->GenerateUniqueIdx());
 		TrackGTParticle_External(*GTParticle);
@@ -429,19 +392,7 @@ namespace Chaos
 		//Chaos::FShapeRemoteDataContainer& RemoteShapeContainer = *DirtyPropertiesManager->AccessProducerBuffer()->NewRemoteShapeContainer();
 
 		// Make a physics proxy, giving it our particle and particle handle
-		const EParticleType InParticleType = GTParticle->ObjectType();
-		if (InParticleType == EParticleType::Rigid)
-		{
-			ProxyBase = new FRigidParticlePhysicsProxy(GTParticle->CastToRigidParticle(), nullptr);
-		}
-		else if (InParticleType == EParticleType::Kinematic)
-		{
-			ProxyBase = new FKinematicGeometryParticlePhysicsProxy(GTParticle->CastToKinematicParticle(), nullptr);
-		}
-		else // Assume it's a static (geometry) if it's not dynamic or kinematic
-		{
-			ProxyBase = new FGeometryParticlePhysicsProxy(GTParticle, nullptr);
-		}
+		auto ProxyBase = new FSingleParticlePhysicsProxy(GTParticle, nullptr);
 
 		ProxyBase->SetSolver(this);
 
@@ -469,22 +420,26 @@ namespace Chaos
 		// Grab the particle's type
 		const EParticleType InParticleType = GTParticle->ObjectType();
 
+		check(InParticleType != EParticleType::GeometryCollection); // This shouldn't happen.
+		check(InProxy->GetType() == EPhysicsProxyType::SingleParticleProxy);
+		auto Proxy = static_cast<FSingleParticlePhysicsProxy*>(InProxy);
+
+
 		ClearGTParticle_External(*GTParticle);
 
 		UpdateParticleInAccelerationStructure_External(GTParticle, /*bDelete=*/true);
 
 		// remove the proxy from the invalidation list
-		RemoveDirtyProxy(GTParticle->GetProxy());
+		RemoveDirtyProxy(Proxy);
 
 		// mark proxy timestamp so we avoid trying to pull from sim after deletion
-		GTParticle->GetProxy()->SetSyncTimestamp(MarshallingManager.GetExternalTimestamp_External());
+		Proxy->SetSyncTimestamp(MarshallingManager.GetExternalTimestamp_External());
 
 		// Null out the particle's proxy pointer
 		GTParticle->SetProxy(nullptr);
 
 		// Remove the proxy from the GT proxy map
 
-		check(InParticleType != EParticleType::GeometryCollection); // This shouldn't happen.
 
 		Chaos::FIgnoreCollisionManager& CollisionManager = GetEvolution()->GetBroadPhase().GetIgnoreCollisionManager();
 		{
@@ -498,19 +453,19 @@ namespace Chaos
 
 
 		// Enqueue a command to remove the particle and delete the proxy
-		EnqueueCommandImmediate([InProxy, InParticleType, this]()
+		EnqueueCommandImmediate([Proxy, InParticleType, this]()
 		{
 			UE_LOG(LogPBDRigidsSolver, Verbose, TEXT("TPBDRigidsSolver::UnregisterObject() ~ Dequeue"));
 
 				// Generally need to remove stale events for particles that no longer exist
-				GetEventManager()->template ClearEvents<FCollisionEventData>(EEventType::Collision, [InProxy]
+				GetEventManager()->template ClearEvents<FCollisionEventData>(EEventType::Collision, [Proxy]
 				(FCollisionEventData& EventDataInOut)
 				{
 					Chaos::FCollisionDataArray const& CollisionData = EventDataInOut.CollisionData.AllCollisionsArray;
 					if (CollisionData.Num() > 0)
 					{
-						check(InProxy);
-						TArray<int32> const* const CollisionIndices = EventDataInOut.PhysicsProxyToCollisionIndices.PhysicsProxyToIndicesMap.Find(InProxy);
+						check(Proxy);
+						TArray<int32> const* const CollisionIndices = EventDataInOut.PhysicsProxyToCollisionIndices.PhysicsProxyToIndicesMap.Find(Proxy);
 						if (CollisionIndices)
 						{
 							for (int32 EncodedCollisionIdx : *CollisionIndices)
@@ -524,7 +479,7 @@ namespace Chaos
 								CollisionDataItem.LevelsetProxy = nullptr;
 							}
 
-							EventDataInOut.PhysicsProxyToCollisionIndices.PhysicsProxyToIndicesMap.Remove(InProxy);
+							EventDataInOut.PhysicsProxyToCollisionIndices.PhysicsProxyToIndicesMap.Remove(Proxy);
 						}
 					}
 
@@ -536,29 +491,10 @@ namespace Chaos
 			// base destructor is protected. This makes everything just a bit uglier,
 			// maybe that extra safety is not needed if we continue to contain all
 			// references to proxy instances entirely in Chaos?
-			TGeometryParticleHandle<float, 3>* Handle;
-			if (InParticleType == Chaos::EParticleType::Rigid)
-			{
-				auto Proxy = (FRigidParticlePhysicsProxy*)InProxy;
-				Handle = Proxy->GetHandle();
-				Proxy->SetHandle(nullptr);
-				PendingDestroyRigidProxy.Add(Proxy);
-			}
-			else if (InParticleType == Chaos::EParticleType::Kinematic)
-			{
-				auto Proxy = (FKinematicGeometryParticlePhysicsProxy*)InProxy;
-				Handle = Proxy->GetHandle();
-				Proxy->SetHandle(nullptr);
-				PendingDestroyKinematicProxy.Add(Proxy);
-			}
-			else
-			{
-				auto Proxy = (FGeometryParticlePhysicsProxy*)InProxy;
-				Handle = Proxy->GetHandle();
-				Proxy->SetHandle(nullptr);
-				PendingDestroyGeometryProxy.Add(Proxy);
-			}
-
+			TGeometryParticleHandle<float, 3>* Handle = Proxy->GetHandle();
+			Proxy->SetHandle(nullptr);
+			PendingDestroyPhysicsProxy.Add(Proxy);
+			
 			//If particle was created and destroyed before commands were enqueued just skip. I suspect we can skip entire lambda, but too much code to verify right now
 
 			if(Handle)
@@ -751,19 +687,12 @@ namespace Chaos
 	template <typename Traits>
 	void TPBDRigidsSolver<Traits>::DestroyPendingProxies_Internal()
 	{
-		const auto Helper = [](auto& Proxies)
+		for (auto Proxy : PendingDestroyPhysicsProxy)
 		{
-			for (auto Proxy : Proxies)
-			{
-				ensure(Proxy->GetHandle() == nullptr);	//should have already cleared this out
-				delete Proxy;
-			}
-			Proxies.Reset();
-		};
-		
-		Helper(PendingDestroyRigidProxy);
-		Helper(PendingDestroyKinematicProxy);
-		Helper(PendingDestroyGeometryProxy);
+			ensure(Proxy->GetHandle() == nullptr);	//should have already cleared this out
+			delete Proxy;
+		}
+		PendingDestroyPhysicsProxy.Reset();
 	}
 
 	template <typename Traits>
@@ -866,22 +795,13 @@ namespace Chaos
 		{
 			switch(Dirty.Proxy->GetType())
 			{
-			case EPhysicsProxyType::SingleRigidParticleType:
+			case EPhysicsProxyType::SingleParticleProxy:
 			{
-				auto Proxy = static_cast<FRigidParticlePhysicsProxy*>(Dirty.Proxy);
-				Proxy->GetParticle()->ApplyDynamicsWeight(DynamicsWeight);
-				ProcessProxyGT(Proxy,DataIdx,Dirty);
-				break;
-			}
-			case EPhysicsProxyType::SingleKinematicParticleType:
-			{
-				auto Proxy = static_cast<FKinematicGeometryParticlePhysicsProxy*>(Dirty.Proxy);
-				ProcessProxyGT(Proxy,DataIdx,Dirty);
-				break;
-			}
-			case EPhysicsProxyType::SingleGeometryParticleType:
-			{
-				auto Proxy = static_cast<FGeometryParticlePhysicsProxy*>(Dirty.Proxy);
+				auto Proxy = static_cast<FSingleParticlePhysicsProxy*>(Dirty.Proxy);
+				if(auto Rigid = Proxy->GetParticle()->CastToRigidParticle())
+				{
+					Rigid->ApplyDynamicsWeight(DynamicsWeight);
+				}
 				ProcessProxyGT(Proxy,DataIdx,Dirty);
 				break;
 			}
@@ -970,44 +890,41 @@ namespace Chaos
 		{
 			switch(Dirty.Proxy->GetType())
 			{
-			case EPhysicsProxyType::SingleRigidParticleType:
-			{
-				auto Proxy = static_cast<FRigidParticlePhysicsProxy*>(Dirty.Proxy);
-				ProcessProxyPT(Proxy,DataIdx,Dirty,[this](const FUniqueIdx* UniqueIdx){ return Particles.CreateDynamicParticles(1,UniqueIdx)[0]; });
-				break;
-			}
-			case EPhysicsProxyType::SingleKinematicParticleType:
-			{
-				auto Proxy = static_cast<FKinematicGeometryParticlePhysicsProxy*>(Dirty.Proxy);
-				ProcessProxyPT(Proxy,DataIdx,Dirty,[this](const FUniqueIdx* UniqueIdx){ return Particles.CreateKinematicParticles(1,UniqueIdx)[0]; });
-				break;
-			}
-			case EPhysicsProxyType::SingleGeometryParticleType:
-			{
-				auto Proxy = static_cast<FGeometryParticlePhysicsProxy*>(Dirty.Proxy);
-				ProcessProxyPT(Proxy,DataIdx,Dirty,[this](const FUniqueIdx* UniqueIdx){ return Particles.CreateStaticParticles(1,UniqueIdx)[0]; });
-				break;
-			}
-			case EPhysicsProxyType::GeometryCollectionType:
-			{
-				// Currently no push needed for geometry collections and they handle the particle creation internally
-				// #TODO This skips the rewind data push so GC will not be rewindable until resolved.
-				Dirty.Proxy->ResetDirtyIdx();
-				break;
-			}
-			case EPhysicsProxyType::JointConstraintType:
-			case EPhysicsProxyType::SuspensionConstraintType:
-			{
-				// Pass until after all bodies are created. 
-				break;
-			}
-			default:
-			{
-				ensure(0 && TEXT("Unknown proxy type in physics solver."));
-				//Can't use, but we can still mark as "clean"
-				Dirty.Proxy->ResetDirtyIdx();
-			}
-
+				case EPhysicsProxyType::SingleParticleProxy:
+				{
+					auto Proxy = static_cast<FSingleParticlePhysicsProxy*>(Dirty.Proxy);
+					ProcessProxyPT(Proxy, DataIdx, Dirty, [this, &Dirty](const FUniqueIdx* UniqueIdx) -> TGeometryParticleHandle<FReal,3>*
+					{
+						switch (Dirty.ParticleData.GetParticleBufferType())
+						{
+							case EParticleType::Static: return Particles.CreateStaticParticles(1, UniqueIdx)[0];
+							case EParticleType::Kinematic: return Particles.CreateKinematicParticles(1, UniqueIdx)[0];
+							case EParticleType::Rigid: return Particles.CreateDynamicParticles(1, UniqueIdx)[0];
+							default: check(false); return nullptr;
+						}
+					});
+					break;
+				}
+			
+				case EPhysicsProxyType::GeometryCollectionType:
+				{
+					// Currently no push needed for geometry collections and they handle the particle creation internally
+					// #TODO This skips the rewind data push so GC will not be rewindable until resolved.
+					Dirty.Proxy->ResetDirtyIdx();
+					break;
+				}
+				case EPhysicsProxyType::JointConstraintType:
+				case EPhysicsProxyType::SuspensionConstraintType:
+				{
+					// Pass until after all bodies are created. 
+					break;
+				}
+				default:
+				{
+					ensure(0 && TEXT("Unknown proxy type in physics solver."));
+					//Can't use, but we can still mark as "clean"
+					Dirty.Proxy->ResetDirtyIdx();
+				}
 			}
 		});
 
@@ -1157,7 +1074,7 @@ namespace Chaos
 							case Chaos::EParticleType::Rigid:
 								{
 									PullData->DirtyRigids.AddDefaulted();
-									((FRigidParticlePhysicsProxy*)(Proxy))->BufferPhysicsResults(PullData->DirtyRigids.Last());
+									((FSingleParticlePhysicsProxy*)(Proxy))->BufferPhysicsResults(PullData->DirtyRigids.Last());
 									break;
 								}
 							case Chaos::EParticleType::Kinematic:

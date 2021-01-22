@@ -4,6 +4,7 @@
 
 #include "Interfaces/TargetDeviceId.h"
 #include "Interfaces/ITargetDevice.h"
+#include "Misc/Optional.h"
 #include "Widgets/SCompoundWidget.h"
 #include "IPropertyChangeListener.h"
 
@@ -48,18 +49,24 @@ public:
 	UPROPERTY(Config, EditAnywhere, Category = "Debug General")
 	FIntPoint HUDLocation = FIntPoint(30.0f, 150.0f);
 
+	UPROPERTY(EditAnywhere, Category = "Debug Filter", meta = (PinHiddenByDefault, InlineEditConditionToggle))
+	bool bSystemFilterEnabled = true;
+
 	/**
 	Wildcard filter for the systems to show more detailed information about.
 	For example,. "NS_*" would match all systems starting with NS_.
 	*/
-	UPROPERTY(Config, EditAnywhere, Category = "Debug Filter")
+	UPROPERTY(Config, EditAnywhere, Category = "Debug Filter", meta = (EditCondition = "bSystemFilterEnabled"))
 	FString SystemFilter;
+
+	UPROPERTY(EditAnywhere, Category = "Debug Filter", meta = (PinHiddenByDefault, InlineEditConditionToggle))
+	bool bComponentFilterEnabled = true;
 
 	/**
 	Wildcard filter for the components to show more detailed information about.
 	For example, "*MyComp*" would match all components that contain MyComp.
 	*/
-	UPROPERTY(Config, EditAnywhere, Category = "Debug Filter")
+	UPROPERTY(Config, EditAnywhere, Category = "Debug Filter", meta = (EditCondition = "bComponentFilterEnabled"))
 	FString ComponentFilter;
 
 	/** Modifies the in world system display information level. */
@@ -162,9 +169,13 @@ private:
 	float GetPlaybackRate() const;
 	void SetPlaybackRate(float Rate);
 
+	TOptional<float> GetGlobalLoopTime() const;
+	void SetGlobalLoopTime(float Time);
+
 protected:
 	TArray<FTargetDeviceEntryPtr>	TargetDeviceList;
 	FTargetDeviceEntryPtr			SelectedTargetDevice;
 	bool							bWasDeviceConnected = true;
 	float							PlaybackRate = 1.0f;
+	float							GlobalLoopTime = 0.0f;
 };

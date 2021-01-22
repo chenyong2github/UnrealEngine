@@ -598,7 +598,7 @@ struct FVMExternalFunctionBindingInfo
 	TArray<bool> InputParamLocations;
 
 	UPROPERTY()
-	int32 NumOutputs;
+	int32 NumOutputs = 0;
 
 	UPROPERTY()
 	TArray<FVMFunctionSpecifier> FunctionSpecifiers;
@@ -1096,13 +1096,13 @@ struct FNiagaraRandInfo
 	GENERATED_USTRUCT_BODY()
 
 	UPROPERTY(EditAnywhere, Category = "Random")
-	int32 Seed1;
+	int32 Seed1 = 0;
 	
 	UPROPERTY(EditAnywhere, Category = "Random")
-	int32 Seed2;
+	int32 Seed2 = 0;
 
 	UPROPERTY(EditAnywhere, Category = "Random")
-	int32 Seed3;
+	int32 Seed3 = 0;
 };
 
 

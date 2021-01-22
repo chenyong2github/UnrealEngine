@@ -215,7 +215,7 @@ void FGeometryParticleStateBase::SyncPrevFrame(FDirtyPropData& Manager,const FDi
 	//syncs the data before it was made dirty
 	//for sim-writable props this is only possible if those props are immutable from the sim side (sleeping, not simulated, etc...)
 
-	const auto Proxy = static_cast<const FGeometryParticlePhysicsProxy*>(Dirty.Proxy);
+	const auto Proxy = static_cast<const FSingleParticlePhysicsProxy*>(Dirty.Proxy);
 	const auto Handle = Proxy->GetHandle();
 
 	const bool bSyncSimWritable = !SimWritablePropsMayChange(*Handle);
@@ -782,28 +782,10 @@ void FRewindData::PushGTDirtyData(const FDirtyPropertiesManager& SrcManager,cons
 		}
 	};
 
-	switch(Dirty.Proxy->GetType())
+	if(ensure(Dirty.Proxy->GetType() == EPhysicsProxyType::SingleParticleProxy))
 	{
-	case EPhysicsProxyType::SingleRigidParticleType:
-	{
-		auto Proxy = static_cast<FRigidParticlePhysicsProxy*>(Dirty.Proxy);
+		auto Proxy = static_cast<FSingleParticlePhysicsProxy*>(Dirty.Proxy);
 		ProcessProxy(Proxy);
-		break;
-	}
-	case EPhysicsProxyType::SingleKinematicParticleType:
-	{
-		auto Proxy = static_cast<FKinematicGeometryParticlePhysicsProxy*>(Dirty.Proxy);
-		ProcessProxy(Proxy);
-		break;
-	}
-	case EPhysicsProxyType::SingleGeometryParticleType:
-	{
-		auto Proxy = static_cast<FGeometryParticlePhysicsProxy*>(Dirty.Proxy);
-		ProcessProxy(Proxy);
-		break;
-	}
-	default:
-	ensure("Unknown proxy type in physics solver.");
 	}
 }
 

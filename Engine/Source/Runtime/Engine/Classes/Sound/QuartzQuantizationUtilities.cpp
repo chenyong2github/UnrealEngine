@@ -388,6 +388,7 @@ namespace Audio
 			GameThreadCommandQueue->PushEvent(Data);
 		}
 
+		UE_LOG(LogAudioQuartz, Verbose, TEXT("OnQueued() called for quantized event type: [%s]"), *GetCommandName().ToString());
 		OnQueuedCustom(InCommandInitInfo);
 	}
 
@@ -403,11 +404,21 @@ namespace Audio
 			GameThreadCommandQueue->PushEvent(Data);
 		}
 
+		UE_LOG(LogAudioQuartz, Verbose, TEXT("FailedToQueue() called for quantized event type: [%s]"), *GetCommandName().ToString());
 		FailedToQueueCustom();
 	}
 
 	void IQuartzQuantizedCommand::AboutToStart()
 	{
+		// only call once for the lifespan of this event
+		if (bAboutToStartHasBeenCalled)
+		{
+			return;
+		}
+
+		bAboutToStartHasBeenCalled = true;
+
+
 		if (GameThreadCommandQueue.IsValid())
 		{
 			FQuartzQuantizedCommandDelegateData Data;
@@ -420,6 +431,7 @@ namespace Audio
 			GameThreadCommandQueue->PushEvent(Data);
 		}
 
+		UE_LOG(LogAudioQuartz, Verbose, TEXT("AboutToStart() called for quantized event type: [%s]"), *GetCommandName().ToString());
 		AboutToStartCustom();
 	}
 
@@ -436,26 +448,29 @@ namespace Audio
 
 			GameThreadCommandQueue->PushEvent(OnStartedData);
 
-// 			if (!IsLooping())
-// 			{
-// 				FQuartzQuantizedCommandDelegateData CompletedData;
-// 				CompletedData.DelegateSubType = EQuartzCommandDelegateSubType::CommandCompleted;
-// 				CompletedData.DelegateID = GameThreadDelegateID;
-// 
-// 				GameThreadCommandQueue->PushEvent(CompletedData);
-// 			}
+			// 			if (!IsLooping())
+			// 			{
+			// 				FQuartzQuantizedCommandDelegateData CompletedData;
+			// 				CompletedData.DelegateSubType = EQuartzCommandDelegateSubType::CommandCompleted;
+			// 				CompletedData.DelegateID = GameThreadDelegateID;
+			// 
+			// 				GameThreadCommandQueue->PushEvent(CompletedData);
+			// 			}
 		}
 
+		UE_LOG(LogAudioQuartz, Verbose, TEXT("OnFinalCallback() called for quantized event type: [%s]"), *GetCommandName().ToString());
 		OnFinalCallbackCustom(InNumFramesLeft);
 	}
 
 	void IQuartzQuantizedCommand::OnClockPaused()
 	{
+		UE_LOG(LogAudioQuartz, Verbose, TEXT("OnClockPaused() called for quantized event type: [%s]"), *GetCommandName().ToString());
 		OnClockPausedCustom();
 	}
 
 	void IQuartzQuantizedCommand::OnClockStarted()
 	{
+		UE_LOG(LogAudioQuartz, Verbose, TEXT("OnClockStarted() called for quantized event type: [%s]"), *GetCommandName().ToString());
 		OnClockStartedCustom();
 	}
 
@@ -473,6 +488,7 @@ namespace Audio
 			GameThreadCommandQueue->PushEvent(Data);
 		}
 
+		UE_LOG(LogAudioQuartz, Verbose, TEXT("Cancel() called for quantized event type: [%s]"), *GetCommandName().ToString());
 		CancelCustom();
 	}
 
@@ -485,6 +501,7 @@ namespace Audio
 
 		if (CommandPtr && MixerDevice && !OwningClockName.IsNone())
 		{
+			UE_LOG(LogAudioQuartz, Verbose, TEXT("OnQueued() called for quantized event type: [%s]"), *CommandPtr->GetCommandName().ToString());
 			return MixerDevice->QuantizedEventClockManager.CancelCommandOnClock(OwningClockName, CommandPtr);
 		}
 

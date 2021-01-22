@@ -11,6 +11,7 @@
 #include "VulkanMemory.h"
 #include "Misc/OutputDeviceRedirector.h"
 #include "RHIValidationContext.h"
+#include "HAL/FileManager.h"
 
 #if NV_AFTERMATH
 #include "GFSDK_Aftermath_GpuCrashDump.h"

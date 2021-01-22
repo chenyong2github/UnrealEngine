@@ -206,6 +206,62 @@ void FPropertyValueImpl::GenerateArrayIndexMapToObjectNode( TMap<FString,int32>&
 	}
 }
 
+void FPropertyValueImpl::RebuildInstancedProperties(const TSharedPtr<IPropertyHandle>& RootHandle, FPropertyNode* PropertyNode)
+{
+	if (PropertyNode != nullptr)
+	{
+		// Cache expansion state and then rebuild child nodes, in case we're pasting an array of a different size. This ensures instanced properties can be rebuild properly
+		TSet<FString> ExpandedChildPropertyPaths;
+		PropertyNode->GetExpandedChildPropertyPaths(ExpandedChildPropertyPaths);
+		PropertyNode->RebuildChildren();
+		PropertyNode->SetExpandedChildPropertyNodes(ExpandedChildPropertyPaths);
+	}
+
+	TSharedPtr<IPropertyHandle> Handle = RootHandle;
+
+	TArray<TSharedPtr<IPropertyHandle>> CopiedHandles;
+	CopiedHandles.Add(Handle);
+
+	while (CopiedHandles.Num() > 0)
+	{
+		Handle = CopiedHandles.Pop();
+
+		// Add all child properties to the list so we can check them next
+		uint32 NumChildren;
+		Handle->GetNumChildren(NumChildren);
+		for (uint32 ChildIndex = 0; ChildIndex < NumChildren; ChildIndex++)
+		{
+			CopiedHandles.Add(Handle->GetChildHandle(ChildIndex));
+		}
+
+		UObject* NewValueAsObject = nullptr;
+		if (FPropertyAccess::Success != Handle->GetValue(NewValueAsObject))
+		{
+			continue;
+		}
+
+		// Skip properties that are not instanced
+		if (Handle->GetProperty() == nullptr
+			|| !Handle->GetProperty()->HasAnyPropertyFlags(CPF_InstancedReference | CPF_ContainsInstancedReference))
+		{
+			continue;
+		}
+
+		// The property is instanced so we need to do a deep copy.
+		// Update the duplicate's outer to point to this outer. 
+		// The source's outer may be some other object/asset but we want this to own the duplicate.
+		TArray<UObject*> Outers;
+		Handle->GetOuterObjects(Outers);
+		UObject* DuplicateOuter = (Outers.Num() > 0) ? Outers[0] : nullptr;
+
+		// This does a deep copy of NewValueAsObject. It's subobjects and property data will be copied.
+		UObject* DuplicateOfNewValue = DuplicateObject<UObject>(NewValueAsObject, DuplicateOuter);
+		TArray<FString> DuplicateValueAsString;
+		DuplicateValueAsString.Add(DuplicateOfNewValue->GetPathName());
+		Handle->SetPerObjectValues(DuplicateValueAsString);
+	}
+}
+
 FPropertyAccess::Result FPropertyValueImpl::ImportText( const FString& InValue, FPropertyNode* InPropertyNode, EPropertyValueSetFlags::Type Flags )
 {
 	TArray<FObjectBaseAddress> ObjectsToModify;
@@ -297,7 +353,7 @@ FPropertyAccess::Result FPropertyValueImpl::ImportText( const TArray<FObjectBase
 
 			UObject* CurObject = Cur.GetUObject();
 
-			const FString NewValue = InValues[ObjectIndex];
+			const FString& NewValue = InValues[ObjectIndex];
 
 			// Cache the value of the property before modifying it.
 			FString PreviousValue;
@@ -906,6 +962,9 @@ void FPropertyValueImpl::ResetToDefault()
 				.ImportText(KeyNode->GetDefaultValueAsString(bUseDisplayName), EPropertyValueSetFlags::DefaultFlags);
 		}
 		ImportText(PropertyNodePin->GetDefaultValueAsString(bUseDisplayName), EPropertyValueSetFlags::DefaultFlags);
+		
+		TSharedPtr<IPropertyHandle> PropertyHandle = PropertyEditorHelpers::GetPropertyHandle(PropertyNodePin.ToSharedRef(), GetNotifyHook(), GetPropertyUtilities());
+		RebuildInstancedProperties(PropertyHandle, KeyNode.Get());
 
 		PropertyNodePin->BroadcastPropertyResetToDefault();
 	}

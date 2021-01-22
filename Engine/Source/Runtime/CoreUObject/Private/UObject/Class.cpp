@@ -5119,6 +5119,7 @@ bool UClass::HotReloadPrivateStaticClass(
 		TGuardValue<bool> Guard(GIsRetrievingVTablePtr, true);
 		FVTableHelper Helper;
 		TempObjectForVTable = ClassVTableHelperCtorCaller(Helper);
+		TempObjectForVTable->AtomicallyClearInternalFlags(EInternalObjectFlags::PendingConstruction);
 	}
 
 	if( !TempObjectForVTable->IsRooted() )

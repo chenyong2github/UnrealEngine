@@ -345,7 +345,7 @@ FPrimitiveViewRelevance FNiagaraSceneProxy::GetViewRelevance(const FSceneView* V
 	Relevance.bDynamicRelevance = true;
 
 	Relevance.bRenderCustomDepth = ShouldRenderCustomDepth();
-	Relevance.bDrawRelevance = IsShown(View) && View->Family->EngineShowFlags.Particles;
+	Relevance.bDrawRelevance = IsShown(View) && View->Family->EngineShowFlags.Particles && View->Family->EngineShowFlags.Niagara;
 	Relevance.bShadowRelevance = IsShadowCast(View);
 	Relevance.bRenderInMainPass = ShouldRenderInMainPass();
 	Relevance.bUsesLightingChannels = GetLightingChannelMask() != GetDefaultLightingChannelMask();
@@ -450,7 +450,7 @@ void FNiagaraSceneProxy::GetDynamicMeshElements(const TArray<const FSceneView*>&
 		}
 	}
 
-	if (ViewFamily.EngineShowFlags.Particles)
+	if (ViewFamily.EngineShowFlags.Particles && ViewFamily.EngineShowFlags.Niagara)
 	{
 		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 		{
@@ -1066,8 +1066,6 @@ void UNiagaraComponent::ActivateInternal(bool bReset /* = false */, bool bIsScal
 		return;
 	}
 
-	Super::Activate(bReset);
-
 	// Early out if we're not forcing a reset, and both the component and system instance are already active.
 	if (bReset == false &&
 		IsActive() &&
@@ -1077,6 +1075,8 @@ void UNiagaraComponent::ActivateInternal(bool bReset /* = false */, bool bIsScal
 	{
 		return;
 	}
+
+	Super::Activate(bReset);
 
 	//UE_LOG(LogNiagara, Log, TEXT("Activate: %p - %s - %s"), this, *Asset->GetName(), bIsScalabilityCull ? TEXT("Scalability") : TEXT(""));
 	
@@ -1355,6 +1355,27 @@ void UNiagaraComponent::PostSystemTick_GameThread()
 
 void UNiagaraComponent::OnSystemComplete(bool bExternalCompletion)
 {
+	// Debug feature, if we have loop enabled all world FX will loop unless deactivate by scalability
+#if !UE_BUILD_SHIPPING
+	if ( !bExternalCompletion && !bIsCulledByScalability )
+	{
+		if ( UWorld* World = GetWorld() )
+		{
+			FNiagaraWorldManager* WorldManager = FNiagaraWorldManager::Get(GetWorld());
+			if ( WorldManager->GetDebugPlaybackMode() == ENiagaraDebugPlaybackMode::Loop )
+			{
+				// If we have a loop time set the WorldManager will force a reset, so we will just ignore the completion event in that case
+				static const auto CVarGlobalLoopTime = IConsoleManager::Get().FindConsoleVariable(TEXT("fx.Niagara.Debug.GlobalLoopTime"));
+				if (CVarGlobalLoopTime && (CVarGlobalLoopTime->GetFloat() <= 0.0f))
+				{
+					Activate(true);
+				}
+				return;
+			}
+		}
+	}
+#endif
+
 	//UE_LOG(LogNiagara, Log, TEXT("OnSystemComplete: %p - %s"), SystemInstance.Get(), *Asset->GetName());
 	SetComponentTickEnabled(false);
 	SetActiveFlag(false);

@@ -205,6 +205,16 @@ namespace Chaos
 			return Phi;
 		}
 
+		FReal PhiWithNormalScaled(const FVec3& X, const FVec3& Scale, const FVec3& InvScale, FVec3& Normal) const
+		{
+			const FVec3 UnscaledX = InvScale * X;
+			FVec3 UnscaledNormal;
+			const FReal ScaledPhi = PhiWithNormalScaledInternal(UnscaledX, Scale.GetAbs(), UnscaledNormal);
+			Normal = (Scale * UnscaledNormal).GetSafeNormal();
+			return ScaledPhi;
+		}
+
+
 	private:
 		// Distance to the surface
 		FReal PhiWithNormalInternal(const FVec3& x, FVec3& Normal) const
@@ -231,6 +241,36 @@ namespace Chaos
 
 			return Planes[MaxPlane].PhiWithNormal(x, Normal);
 		}
+
+		// Distance from a point to the surface for use in the scaled version. When the convex
+		// is scaled, we need to correct the depth calculation to take into account the world-space scale
+		FReal PhiWithNormalScaledInternal(const FVec3& LocalX, const FVec3& ScaleAbs, FVec3& LocalNormal) const
+		{
+			const int32 NumPlanes = Planes.Num();
+			if (NumPlanes == 0)
+			{
+				return FLT_MAX;
+			}
+			check(NumPlanes > 0);
+
+			FReal MaxPhi = TNumericLimits<FReal>::Lowest();
+			FVec3 MaxNormal = FVec3(0);
+
+			for (int32 Idx = 0; Idx < NumPlanes; ++Idx)
+			{
+				const FReal PhiScale = FVec3::DotProduct(ScaleAbs, Planes[Idx].Normal().GetAbs());
+				const FReal Phi = Planes[Idx].SignedDistance(LocalX) * PhiScale;
+				if (Phi > MaxPhi)
+				{
+					MaxPhi = Phi;
+					MaxNormal = Planes[Idx].Normal();
+				}
+			}
+
+			LocalNormal = MaxNormal;
+			return MaxPhi;
+		}
+
 
 	public:
 		/** Calls \c GJKRaycast(), which may return \c true but 0 for \c OutTime, 

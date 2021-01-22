@@ -21,6 +21,33 @@
 
 #define LOCTEXT_NAMESPACE "DMXPixelMappingFixtureGroupItemComponent"
 
+
+namespace
+{
+	/** Helper function to get the correct word size of an attribute in 4.26.1 */
+	uint8 GroupItemGetNumChannelsOfAttribute(UDMXEntityFixturePatch* FixturePatch, const FName& AttributeName)
+	{
+		if (UDMXEntityFixtureType* FixtureType = FixturePatch->ParentFixtureTypeTemplate)
+		{
+			if (FixturePatch->CanReadActiveMode())
+			{
+				const FDMXFixtureMode& Mode = FixtureType->Modes[FixturePatch->ActiveMode];
+
+				const FDMXFixtureFunction* FunctionPtr = Mode.Functions.FindByPredicate([&AttributeName](const FDMXFixtureFunction& Function) {
+					return Function.Attribute.Name == AttributeName;
+					});
+				if (FunctionPtr)
+				{
+					return FixtureType->NumChannelsToOccupy(FunctionPtr->DataType);
+				}
+			}
+		}
+
+		return 1;
+	}
+}
+
+
 const FVector2D UDMXPixelMappingFixtureGroupItemComponent::MixPixelSize = FVector2D(1.f);
 
 UDMXPixelMappingFixtureGroupItemComponent::UDMXPixelMappingFixtureGroupItemComponent()
@@ -372,25 +399,30 @@ void UDMXPixelMappingFixtureGroupItemComponent::SendDMX()
 				{
 					if (AttributeRExpose)
 					{
-						AttributeMap.Add(AttributeR, Color.R);
+						const uint8 ByteOffset = GroupItemGetNumChannelsOfAttribute(FixturePatch, AttributeR.Name) - 1;
+						AttributeMap.Add(AttributeR, int32(Color.R) << (ByteOffset * 8));
 					}
 
 					if (AttributeGExpose)
 					{
-						AttributeMap.Add(AttributeG, Color.G);
+						const uint8 ByteOffset = GroupItemGetNumChannelsOfAttribute(FixturePatch, AttributeG.Name) - 1;
+						AttributeMap.Add(AttributeG, int32(Color.G) << (ByteOffset * 8));
 					}
 
 					if (AttributeBExpose)
 					{
-						AttributeMap.Add(AttributeB, Color.B);
+						const uint8 ByteOffset = GroupItemGetNumChannelsOfAttribute(FixturePatch, AttributeB.Name) - 1;
+						AttributeMap.Add(AttributeB, int32(Color.B) << (ByteOffset * 8));
 					}
 				}
 				else if (ColorMode == EDMXColorMode::CM_Monochrome)
 				{
 					if (bMonochromeExpose)
-					{
+					{					
+						const uint8 ByteOffset = GroupItemGetNumChannelsOfAttribute(FixturePatch, MonochromeIntensity.Name) - 1;
+						
 						// https://www.w3.org/TR/AERT/#color-contrast
-						uint8 Intensity = (0.299 * Color.R + 0.587 * Color.G + 0.114 * Color.B);
+						int32 Intensity = int32(0.299 * Color.R + 0.587 * Color.G + 0.114 * Color.B) << (ByteOffset * 8);
 						AttributeMap.Add(MonochromeIntensity, Intensity);
 					}
 				}

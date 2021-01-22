@@ -265,14 +265,11 @@ namespace
 			// Cache Fuction properties
 			if (InFunctionChannel.IsCellFunction())
 			{
-				UDMXSubsystem* DMXSubsystem = UDMXSubsystem::GetDMXSubsystem_Pure();
-				check(DMXSubsystem);
-
 				const FDMXFixtureMatrix& MatrixConfig = Mode.FixtureMatrixConfig;
 				const TArray<FDMXFixtureCellAttribute>& CellAttributes = MatrixConfig.CellAttributes;
-
+				
 				TMap<FDMXAttributeName, int32> AttributeNameChannelMap;
-				DMXSubsystem->GetMatrixCellChannelsAbsolute(FixturePatch, InFunctionChannel.CellCoordinate, AttributeNameChannelMap);
+				GetMatrixCellChannelsAbsoluteNoSorting(FixturePatch, InFunctionChannel.CellCoordinate, AttributeNameChannelMap);
 
 				const FDMXFixtureCellAttribute* CellAttributePtr = CellAttributes.FindByPredicate([&InFunctionChannel](const FDMXFixtureCellAttribute& CellAttribute) {
 					return CellAttribute.Attribute == InFunctionChannel.AttributeName;
@@ -324,7 +321,54 @@ namespace
 
 			check(FunctionChannelPtr);
 		}
+		
+	private:
+		/** 
+		 * Gets the cell channels, but unlike subsystem's methods doesn't sort channels by pixel mapping distribution.
+		 * If the cell coordinate would be sorted here, it would be sorted on receive again causing doubly sorting.
+		 */
+		void GetMatrixCellChannelsAbsoluteNoSorting(UDMXEntityFixturePatch* FixturePatch, const FIntPoint& CellCoordinate, TMap<FDMXAttributeName, int32>& OutAttributeToAbsoluteChannelMap) const
+		{
+			if (!FixturePatch ||
+				!FixturePatch->ParentFixtureTypeTemplate ||
+				!FixturePatch->ParentFixtureTypeTemplate->bFixtureMatrixEnabled)
+			{
+				return;
+			}
 
+			FDMXFixtureMatrix MatrixProperties;
+			if (!FixturePatch->GetMatrixProperties(MatrixProperties))
+			{
+				return;
+			}
+
+			TMap<const FDMXFixtureCellAttribute*, int32> AttributeToRelativeChannelOffsetMap;
+			int32 CellDataSize = 0;
+			int32 AttributeChannelOffset = 0;
+			for (const FDMXFixtureCellAttribute& CellAttribute : MatrixProperties.CellAttributes)
+			{
+				AttributeToRelativeChannelOffsetMap.Add(&CellAttribute, AttributeChannelOffset);
+				const int32 AttributeSize = UDMXEntityFixtureType::NumChannelsToOccupy(CellAttribute.DataType);
+
+				CellDataSize += AttributeSize;
+				AttributeChannelOffset += UDMXEntityFixtureType::NumChannelsToOccupy(CellAttribute.DataType);
+			}
+			
+			const int32 FixtureMatrixAbsoluteStartingChannel = FixturePatch->GetStartingChannel() + MatrixProperties.FirstCellChannel - 1;
+			const int32 CellChannelOffset = (CellCoordinate.Y * MatrixProperties.XCells + CellCoordinate.X) * CellDataSize;
+			const int32 AbsoluteCellStartingChannel = FixtureMatrixAbsoluteStartingChannel + CellChannelOffset;
+
+			for (const TTuple<const FDMXFixtureCellAttribute*, int32>& AttributeToRelativeChannelOffsetKvp : AttributeToRelativeChannelOffsetMap)
+			{
+				const FDMXAttributeName AttributeName = AttributeToRelativeChannelOffsetKvp.Key->Attribute;
+				const int32 AbsoluteChannel = AbsoluteCellStartingChannel + AttributeToRelativeChannelOffsetKvp.Value;
+
+				check(AbsoluteChannel > 0 && AbsoluteChannel <= DMX_UNIVERSE_SIZE);
+				OutAttributeToAbsoluteChannelMap.Add(AttributeName, AbsoluteChannel);
+			}
+		}
+
+	public:
 		FORCEINLINE const FDMXFixtureFunctionChannel& GetFunctionChannel() const { return *FunctionChannelPtr; }
 
 		FORCEINLINE const IDMXProtocolPtr& GetProtocol() const { return Protocol; }
@@ -495,8 +539,8 @@ namespace
 				}
 			}
 		}
-
 	};
+
 }
 
 FMovieSceneDMXLibraryTemplate::FMovieSceneDMXLibraryTemplate(const UMovieSceneDMXLibrarySection& InSection)

@@ -26,6 +26,18 @@ CORE_API DECLARE_LOG_CATEGORY_EXTERN(LogConfig, Log, All);
 // Server builds should be tweakable even in Shipping
 #define ALLOW_INI_OVERRIDE_FROM_COMMANDLINE			(UE_SERVER || !(UE_BUILD_SHIPPING))
 #define CONFIG_REMEMBER_ACCESS_PATTERN (WITH_EDITOR || 0)
+
+namespace UE
+{
+namespace ConfigCacheIni
+{
+namespace Private
+{
+struct FAccessor;
+}
+}
+}
+
 struct FConfigValue
 {
 public:
@@ -197,12 +209,41 @@ private:
 	/** Internal version of ExpandValue that expands SavedValue into ExpandedValue, or produces an empty ExpandedValue if no expansion occurred. */
 	CORE_API void ExpandValueInternal();
 
+	/** Gets the SavedValue without marking it as having been accessed for e.g. writing out to a ConfigFile to disk */
+	friend struct UE::ConfigCacheIni::Private::FAccessor;
+	const FString& GetSavedValueForWriting() const
+	{
+		return SavedValue;
+	};
+
 	FString SavedValue;
 	FString ExpandedValue;
 #if CONFIG_REMEMBER_ACCESS_PATTERN 
 	mutable bool bRead; // has this value been read since the config system started
 #endif
 };
+
+namespace UE
+{
+namespace ConfigCacheIni
+{
+namespace Private
+{
+/** An accessor class to access functions that should be restricted only to FConfigFileCache Internal use */
+struct FAccessor
+{
+private:
+	friend class ::FConfigCacheIni;
+	friend class ::FConfigFile;
+
+	static const FString& GetSavedValueForWriting(const FConfigValue& ConfigValue)
+	{
+		return ConfigValue.GetSavedValueForWriting();
+	}
+};
+}
+}
+}
 
 typedef TMultiMap<FName,FConfigValue> FConfigSectionMap;
 
@@ -580,6 +621,13 @@ public:
 	/** Finds Config file based on the final, generated ini name */
 	FConfigFile* FindConfigFile( const FString& Filename );
 	FConfigFile* Find( const FString& InFilename, bool CreateIfNotFound );
+
+	/**
+	 * Reports whether an FConfigFile* is pointing to a config file inside of this
+	 * Used for downstream functions to check whether a config file they were passed came from this ConfigCacheIni or from 
+	 * a different source such as LoadLocalIniFile
+	 */
+	bool ContainsConfigFile(const FConfigFile* ConfigFile) const;
 
 	/** Finds Config file that matches the base name such as "Engine" */
 	FConfigFile* FindConfigFileWithBaseName(FName BaseName);

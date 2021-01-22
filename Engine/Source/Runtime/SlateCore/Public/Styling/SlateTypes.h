@@ -1395,6 +1395,8 @@ struct SLATECORE_API FTableRowStyle : public FSlateWidgetStyle
 		DropIndicator_Above.UnlinkColors();
 		DropIndicator_Onto.UnlinkColors();
 		DropIndicator_Below.UnlinkColors();
+		ActiveHighlightedBrush.UnlinkColors();
+		InactiveHighlightedBrush.UnlinkColors();
 	}
 };
 

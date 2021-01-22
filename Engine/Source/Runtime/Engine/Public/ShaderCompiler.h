@@ -122,6 +122,10 @@ public:
 	uint8 bFinalized : 1;
 	/** Output of the shader compile */
 	uint8 bSucceeded : 1;
+	/** true if the results of the shader compile have been released from the FShaderCompilerManager.
+		After a job is bFinalized it will be bReleased when ReleaseJob() is invoked, which means that the shader compile thread
+		is no longer processing the job; which is useful for non standard job handling (Niagara as an example). */
+	uint8 bReleased : 1;
 
 	uint32 AddRef() const
 	{
@@ -166,7 +170,8 @@ protected:
 		PendingPriority(EShaderCompileJobPriority::None),
 		CurrentWorker(EShaderCompilerWorkerType::None),
 		bFinalized(false),
-		bSucceeded(false)
+		bSucceeded(false),
+		bReleased(false)
 	{
 		check(InPriroity != EShaderCompileJobPriority::None);
 	}

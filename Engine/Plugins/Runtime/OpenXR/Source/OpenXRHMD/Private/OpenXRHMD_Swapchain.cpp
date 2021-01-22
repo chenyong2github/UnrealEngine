@@ -3,6 +3,7 @@
 #include "OpenXRHMD_Swapchain.h"
 #include "OpenXRCore.h"
 #include "OpenXRPlatformRHI.h"
+#include "XRThreadUtils.h"
 
 FOpenXRSwapchain::FOpenXRSwapchain(TArray<FTextureRHIRef>&& InRHITextureSwapChain, const FTextureRHIRef & InRHITexture, XrSwapchain InHandle) :
 	FXRSwapChain(MoveTemp(InRHITextureSwapChain), InRHITexture),
@@ -11,6 +12,26 @@ FOpenXRSwapchain::FOpenXRSwapchain(TArray<FTextureRHIRef>&& InRHITextureSwapChai
 	
 {
 	IncrementSwapChainIndex_RHIThread((int64)XR_NO_DURATION);
+}
+
+FOpenXRSwapchain::~FOpenXRSwapchain() {
+	if (IsInGameThread())
+	{
+		ExecuteOnRenderThread([this]()
+		{
+			ExecuteOnRHIThread([this]()
+			{
+				ReleaseResources_RHIThread();
+			});
+		});
+	}
+	else
+	{
+		ExecuteOnRHIThread([this]()
+		{
+			ReleaseResources_RHIThread();
+		});
+	}
 }
 
 void FOpenXRSwapchain::IncrementSwapChainIndex_RHIThread(int64 Timeout)
@@ -148,11 +169,11 @@ XrSwapchain CreateSwapchain(XrSession InSession, uint32 PlatformFormat, uint32 S
 	{
 		Usage |= XR_SWAPCHAIN_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
 	}
-	if (Flags & TexCreate_ShaderResource)
+	if (TargetableTextureFlags & TexCreate_ShaderResource)
 	{
 		Usage |= XR_SWAPCHAIN_USAGE_SAMPLED_BIT;
 	}
-	if (Flags & TexCreate_UAV)
+	if (TargetableTextureFlags & TexCreate_UAV)
 	{
 		Usage |= XR_SWAPCHAIN_USAGE_UNORDERED_ACCESS_BIT;
 	}

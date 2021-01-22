@@ -53,6 +53,7 @@ namespace DatasmithRevitExporter
 			public FDocumentData				DocumentData = null;
 			public bool							bOptimizeHierarchy = true;
 			public bool							bIsModified = true;
+			public bool							bAllowMeshInstancing = true;
 
 			public List<FBaseElementData>	ChildElements = new List<FBaseElementData>();
 
@@ -426,11 +427,12 @@ namespace DatasmithRevitExporter
 
 			public FBaseElementData PushInstance(
 				ElementType InInstanceType,
-				Transform InWorldTransform
+				Transform InWorldTransform,
+				bool bInAllowMeshInstancing
 			)
 			{
 				FBaseElementData InstanceData = new FBaseElementData(InInstanceType, DocumentData);
-
+				InstanceData.bAllowMeshInstancing = bInAllowMeshInstancing;
 				InstanceDataStack.Push(InstanceData);
 
 				InitializeElement(InWorldTransform, InstanceData);
@@ -719,28 +721,9 @@ namespace DatasmithRevitExporter
 				}
 			}
 
-			public FDatasmithFacadeMeshElement GetCurrentMeshElement()
+			public FBaseElementData PeekInstance()
 			{
-				if (InstanceDataStack.Count == 0)
-				{
-					return DatasmithMeshElement;
-				}
-				else
-				{
-					return InstanceDataStack.Peek().DatasmithMeshElement;
-				}
-			}
-
-			public FDatasmithFacadeMeshElement PeekInstancedMeshElement()
-			{
-				if (InstanceDataStack.Count == 0)
-				{
-					return null;
-				}
-				else
-				{
-					return InstanceDataStack.Peek().DatasmithMeshElement;
-				}
+				return InstanceDataStack.Count > 0 ? InstanceDataStack.Peek() : null;
 			}
 
 			public FBaseElementData GetCurrentActor()
@@ -789,30 +772,37 @@ namespace DatasmithRevitExporter
 				}
 				else
 				{
-					// GetActorName is being called when generating a name for instance. 
-					// After the call, the intance is added as a child to its parent. 
-					// Next time the method gets called for the next instance, ChildElements.Count will be different/incremented.
-
-					// To add uniqueness to the generated name, we construct a string with child counts from 
-					// current parent instance, up to the root:
-					// Elem->Instance->Instance->Instace can produce something like: "1:5:3" for example.
-					// However, this is not enough because elsewhere we might encounter the same sequence in terms of child counts, 
-					// but adding the CurrentElement unique id ensures we get unique name string in the end.
-
-					StringBuilder ChildCounts = new StringBuilder();
-
-					for (int ElemIndex = 1; ElemIndex < InstanceDataStack.Count; ++ElemIndex)
-					{
-						FBaseElementData Elem = InstanceDataStack.ElementAt(ElemIndex);
-						ChildCounts.AppendFormat(":{0}", Elem.ChildElements.Count);
-					}
-
-					// Add child count for the root element (parent of all instances)
-					ChildCounts.AppendFormat(":{0}", ChildElements.Count);
-
-					FBaseElementData Instance = InstanceDataStack.Peek();
-					return $"{DocumentName}:{CurrentElement.UniqueId}:{Instance.BaseElementType.UniqueId}{ChildCounts.ToString()}";
+					return GenerateUniqueInstanceName();
 				}
+			}
+
+			private string GenerateUniqueInstanceName()
+			{
+				// GenerateUniqueInstanceName is being called when generating a name for instance. 
+				// After the call, the intance is added as a child to its parent. 
+				// Next time the method gets called for the next instance, ChildElements.Count will be different/incremented.
+
+				// To add uniqueness to the generated name, we construct a string with child counts from 
+				// current parent instance, up to the root:
+				// Elem->Instance->Instance->Instace can produce something like: "1:5:3" for example.
+				// However, this is not enough because elsewhere we might encounter the same sequence in terms of child counts, 
+				// but adding the CurrentElement unique id ensures we get unique name string in the end.
+
+				string DocumentName = Path.GetFileNameWithoutExtension(CurrentElement.Document.PathName);
+
+				StringBuilder ChildCounts = new StringBuilder();
+
+				for (int ElemIndex = 1; ElemIndex < InstanceDataStack.Count; ++ElemIndex)
+				{
+					FBaseElementData Elem = InstanceDataStack.ElementAt(ElemIndex);
+					ChildCounts.AppendFormat(":{0}", Elem.ChildElements.Count);
+				}
+
+				// Add child count for the root element (parent of all instances)
+				ChildCounts.AppendFormat(":{0}", ChildElements.Count);
+
+				FBaseElementData Instance = InstanceDataStack.Peek();
+				return $"{DocumentName}:{CurrentElement.UniqueId}:{Instance.BaseElementType.UniqueId}{ChildCounts.ToString()}";
 			}
 
 			private string GetMeshName()
@@ -825,9 +815,17 @@ namespace DatasmithRevitExporter
 				}
 				else
 				{
-					// Generate instanced mesh name
 					FBaseElementData Instance = InstanceDataStack.Peek();
-					return $"{DocumentName}:{Instance.BaseElementType.UniqueId}";
+
+					if (!Instance.bAllowMeshInstancing)
+					{
+						return GenerateUniqueInstanceName();
+					}
+					else
+					{
+						// Generate instanced mesh name
+						return $"{DocumentName}:{Instance.BaseElementType.UniqueId}";
+					}
 				}
 			}
 
@@ -941,6 +939,8 @@ namespace DatasmithRevitExporter
 		public Document									CurrentDocument { get; private set; } = null;
 		public FDirectLink								DirectLink { get; private set; } = null;
 
+		public List<Outline>							SectionBoxOutlines = new List<Outline>();
+
 		public FDocumentData(
 			Document InDocument,
 			ref List<string> InMessageList,
@@ -963,6 +963,34 @@ namespace DatasmithRevitExporter
 				MeshMaterialsMap = new Dictionary<string, Dictionary<string, int>>();
 				MaterialDataMap = new Dictionary<string, FMaterialData>();
 			}
+
+			// Cache document section boxes
+			FilteredElementCollector Collector = new FilteredElementCollector(CurrentDocument, CurrentDocument.ActiveView.Id);
+			IList<Element> SectionBoxes = Collector.OfCategory(BuiltInCategory.OST_SectionBox).ToElements();
+
+			foreach (var SectionBox in SectionBoxes)
+			{
+				BoundingBoxXYZ BBox = SectionBox.get_BoundingBox(CurrentDocument.ActiveView);
+				SectionBoxOutlines.Add(GetOutline(BBox.Transform, BBox));
+			}
+		}
+
+		private Outline GetOutline(Transform InTransform, BoundingBoxXYZ InBoundingBox)
+		{
+			XYZ A = InTransform.OfPoint(InBoundingBox.Min);
+			XYZ B = InTransform.OfPoint(InBoundingBox.Max);
+
+			XYZ PMin = new XYZ(
+					Math.Min(A.X, B.X),
+					Math.Min(A.Y, B.Y),
+					Math.Min(A.Z, B.Z));
+
+			XYZ PMax = new XYZ(
+					Math.Max(A.X, B.X),
+					Math.Max(A.Y, B.Y),
+					Math.Max(A.Z, B.Z));
+
+			return new Outline(PMin, PMax);
 		}
 
 		public Element GetElement(
@@ -1136,13 +1164,28 @@ namespace DatasmithRevitExporter
 			Transform InWorldTransform
 		)
 		{
-			FElementData CurrentElementData = ElementDataStack.Peek();
-			FBaseElementData NewInstance = CurrentElementData.PushInstance(InInstanceType, InWorldTransform);
+			// Check if this instance intersects any section box.
+			// If so, we can't instance its mesh--will be considered unique.
 
-			// Reset the state that assigns material slots to material name for this mesh.
-			// If mesh was created for another instance before, it will be reused and nothing happens.
-			// If mesh has become invalid because of some sequence of events and geometry is re-created, 
-			// we need to have the material slots re-assigned!
+			bool bIntersectedBySectionBox = false;
+
+			if (SectionBoxOutlines.Count > 0)
+			{
+				Outline InstanceOutline = GetOutline(InWorldTransform, InInstanceType.get_BoundingBox(CurrentDocument.ActiveView));
+
+				foreach (Outline SectionBoxOutline in SectionBoxOutlines)
+				{
+					bIntersectedBySectionBox = (SectionBoxOutline.Intersects(InstanceOutline, 0) != SectionBoxOutline.ContainsOtherOutline(InstanceOutline, 0));
+					if (bIntersectedBySectionBox)
+					{
+						break;
+					}
+				}
+			}
+
+			FElementData CurrentElementData = ElementDataStack.Peek();
+			FBaseElementData NewInstance = CurrentElementData.PushInstance(InInstanceType, InWorldTransform, !bIntersectedBySectionBox);
+
 			NewInstance.ResetMeshMaterials();
 		}
 
@@ -1245,10 +1288,12 @@ namespace DatasmithRevitExporter
 			if (!bIgnore)
 			{
 				// Check for instanced meshes.
-				FDatasmithFacadeMeshElement Mesh = ElementDataStack.Peek().PeekInstancedMeshElement();
-				if (Mesh != null)
+				// For mesh to be reused, it must not be cutoff by a section box.
+				FBaseElementData CurrentInstance = ElementDataStack.Peek().PeekInstance();
+
+				if (CurrentInstance != null && CurrentInstance.bAllowMeshInstancing && CurrentInstance.ElementMesh != null)
 				{
-					bIgnore = MeshMap.ContainsKey(Mesh.GetName());
+					bIgnore = MeshMap.ContainsKey(CurrentInstance.ElementMesh.GetName());
 				}
 			}
 

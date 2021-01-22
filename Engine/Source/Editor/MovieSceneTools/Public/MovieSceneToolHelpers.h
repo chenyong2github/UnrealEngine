@@ -103,6 +103,16 @@ public:
 	static void TrimSection(const TSet<TWeakObjectPtr<UMovieSceneSection>>& Sections, FQualifiedFrameTime Time, bool bTrimLeft, bool bDeleteKeys);
 
 	/**
+	 * Trim or extend section at the given time
+	 *
+	 * @param Track The track that contains the sections to trim
+	 * @param Time	The time at which to trim
+	 * @param bTrimOrExtendleft Trim or extend left or right
+	 * @param bDeleteKeys Delete keys outside the split ranges
+	 */
+	static void TrimOrExtendSection(UMovieSceneTrack* Track, FQualifiedFrameTime Time, bool bTrimOrExtendLeft, bool bDeleteKeys);
+
+	/**
 	 * Splits sections at the given time
 	 *
 	 * @param Sections The sections to split

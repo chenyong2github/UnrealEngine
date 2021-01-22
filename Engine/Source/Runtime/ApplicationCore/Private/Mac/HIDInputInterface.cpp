@@ -209,7 +209,7 @@ void HIDInputInterface::FHIDDeviceInfo::SetupMappings()
 		RightAnalogYMapping = kHIDUsage_GD_Ry;
 		RightTriggerAnalogMapping = kHIDUsage_GD_Rz;
 	}
-	else if (VendorID == 0x45e && ProductID == 0x2fd)
+	else if (VendorID == 0x45e && (ProductID == 0x2fd || ProductID == 0xb13))
 	{
 		// IOHIDDeviceGetProperty(DeviceRef, CFSTR(kIOHIDTransportKey));
 		// Should return bluetooth for this.  It could be that any Xbox One pad on bluetooth

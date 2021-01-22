@@ -8,6 +8,7 @@
 #include "Widgets/Input/SSlider.h"
 #include "Engine/CurveTable.h"
 #include "PropertyHandle.h"
+#include "IPropertyUtilities.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
 #include "DetailCategoryBuilder.h"
@@ -276,14 +277,14 @@ TSharedRef<IPropertyTypeCustomization> FScalableFloatDetails::MakeInstance()
 BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
 void FScalableFloatDetails::CustomizeHeader( TSharedRef<class IPropertyHandle> StructPropertyHandle, class FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& StructCustomizationUtils )
 {
-	uint32 NumChildren = 0;
-	StructPropertyHandle->GetNumChildren(NumChildren);
+	bSourceRefreshQueued = false;
+	PropertyUtilities = StructCustomizationUtils.GetPropertyUtilities();
 
 	ValueProperty = StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FScalableFloat,Value));
 	CurveTableHandleProperty = StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FScalableFloat,Curve));
 	RegistryTypeProperty = StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FScalableFloat, RegistryType));
 
-	if(ValueProperty.IsValid() && CurveTableHandleProperty.IsValid() && RegistryTypeProperty.IsValid())
+	if (ValueProperty.IsValid() && CurveTableHandleProperty.IsValid() && RegistryTypeProperty.IsValid())
 	{
 		RowNameProperty = CurveTableHandleProperty->GetChildHandle(GET_MEMBER_NAME_CHECKED(FCurveTableRowHandle, RowName));
 		CurveTableProperty = CurveTableHandleProperty->GetChildHandle(GET_MEMBER_NAME_CHECKED(FCurveTableRowHandle, CurveTable));
@@ -450,6 +451,8 @@ TSharedRef<SWidget> FScalableFloatDetails::CreateRegistryTypeWidget()
 
 TSharedRef<SWidget> FScalableFloatDetails::CreateRowNameWidget()
 {
+	FPropertyAccess::Result* OutResult = nullptr;
+
 	return SNew(SBox)
 		.Padding(0.0f)
 		.ToolTipText(this, &FScalableFloatDetails::GetRowNameComboBoxContentTooltip)
@@ -457,7 +460,7 @@ TSharedRef<SWidget> FScalableFloatDetails::CreateRowNameWidget()
 		[
 			FDataRegistryEditorModule::MakeDataRegistryItemNameSelector(
 				FOnGetDataRegistryDisplayText::CreateSP(this, &FScalableFloatDetails::GetRowNameComboBoxContentText),
-				FOnGetDataRegistryId::CreateSP(this, &FScalableFloatDetails::GetRegistryId),
+				FOnGetDataRegistryId::CreateSP(this, &FScalableFloatDetails::GetRegistryId, OutResult),
 				FOnSetDataRegistryId::CreateSP(this, &FScalableFloatDetails::SetRegistryId),
 				FOnGetCustomDataRegistryItemNames::CreateSP(this, &FScalableFloatDetails::GetCustomRowNames),
 				true)
@@ -494,6 +497,9 @@ void FScalableFloatDetails::OnSelectCurveTable(const FAssetData& AssetData)
 	UObject* SelectedTable = AssetData.GetAsset();
 
 	CurveTableProperty->SetValue(SelectedTable);
+	
+	// Also clear type
+	RegistryTypeProperty->SetValueFromFormattedString(FString());
 }
 
 void FScalableFloatDetails::OnCloseMenu()
@@ -503,11 +509,16 @@ void FScalableFloatDetails::OnCloseMenu()
 
 FText FScalableFloatDetails::GetCurveTableText() const
 {
-	UCurveTable* SelectedTable = GetCurveTable();
+	FPropertyAccess::Result FoundResult;
+	UCurveTable* SelectedTable = GetCurveTable(&FoundResult);
 
 	if (SelectedTable)
 	{
 		return FText::AsCultureInvariant(SelectedTable->GetName());
+	}
+	else if (FoundResult == FPropertyAccess::MultipleValues)
+	{
+		return LOCTEXT("MultipleValues", "Multiple Values");
 	}
 
 	return LOCTEXT("PickCurveTable", "Use CurveTable...");
@@ -572,11 +583,16 @@ void FScalableFloatDetails::OnUseSelected()
 
 FString FScalableFloatDetails::GetRegistryTypeValueString() const
 {
-	FDataRegistryType RegistryType = GetRegistryType();
+	FPropertyAccess::Result FoundResult;
+	FDataRegistryType RegistryType = GetRegistryType(&FoundResult);
 
 	if (RegistryType.IsValid())
 	{
 		return RegistryType.ToString();
+	}
+	else if (FoundResult == FPropertyAccess::MultipleValues)
+	{
+		return LOCTEXT("MultipleValues", "Multiple Values").ToString();
 	}
 
 	return LOCTEXT("PickRegistry", "Use Registry...").ToString();
@@ -597,50 +613,91 @@ EVisibility FScalableFloatDetails::GetRegistryTypeVisiblity() const
 
 void FScalableFloatDetails::OnCurveSourceChanged()
 {
-	// Set the default value to 1.0 when using a curve source, so the value in the table is used directly. Only do this if the value is currently 0 (default)
-	// Set it back to 0 when setting back. Only do this if the value is currently 1 to go back to the default.
+	// Need a frame deferral to deal with multi edit caching problems
+	TSharedPtr<IPropertyUtilities> PinnedUtilities = PropertyUtilities.Pin();
+	if (!bSourceRefreshQueued && PinnedUtilities.IsValid())
 	{
-		UObject* CurveTable = GetCurveTable();
-		FDataRegistryType RegistryType = GetRegistryType();
-
-		float Value;
-		ValueProperty->GetValue(Value);
-
-		if (CurveTable || RegistryType.IsValid())
-		{
-			if (Value == 0.f)
-			{
-				ValueProperty->SetValue(1.f);
-			}
-		}
-		else
-		{
-			if (Value == 1.f)
-			{
-				ValueProperty->SetValue(0.f);
-			}
-		}
+		PinnedUtilities->EnqueueDeferredAction(FSimpleDelegate::CreateSP(this, &FScalableFloatDetails::RefreshSourceData));
+		bSourceRefreshQueued = true;
 	}
 }
 
-UCurveTable* FScalableFloatDetails::GetCurveTable() const
+void FScalableFloatDetails::RefreshSourceData()
 {
-	UCurveTable* CurveTable = nullptr;
+	// Set the default value to 1.0 when using a curve source, so the value in the table is used directly. Only do this if the value is currently 0 (default)
+	// Set it back to 0 when setting back. Only do this if the value is currently 1 to go back to the default.
 
+	UObject* CurveTable = GetCurveTable();
+	FDataRegistryType RegistryType = GetRegistryType();
+
+	float Value = -1.0f;
+	FPropertyAccess::Result ValueResult = ValueProperty->GetValue(Value);
+
+	// Only modify if all are the same for multi select
+	if (CurveTable || RegistryType.IsValid())
+	{
+		if (Value == 0.f || ValueResult == FPropertyAccess::MultipleValues)
+		{
+			ValueProperty->SetValue(1.f);
+		}
+	}
+	else
+	{
+		if (Value == 1.f || ValueResult == FPropertyAccess::MultipleValues)
+		{
+			ValueProperty->SetValue(0.f);
+		}
+	}
+
+	if (RegistryType.IsValid())
+	{
+		// Registry type has priority over curve table
+		UCurveTable* NullTable = nullptr;
+		CurveTableProperty->SetValue(NullTable);
+	}
+
+	bSourceRefreshQueued = false;
+}
+
+UCurveTable* FScalableFloatDetails::GetCurveTable(FPropertyAccess::Result* OutResult) const
+{
+	FPropertyAccess::Result TempResult;
+	if (OutResult == nullptr)
+	{
+		OutResult = &TempResult;
+	}
+
+	UCurveTable* CurveTable = nullptr;
 	if (CurveTableProperty.IsValid())
 	{
-		CurveTableProperty->GetValue((UObject*&)CurveTable);
+		*OutResult = CurveTableProperty->GetValue((UObject*&)CurveTable);
+	}
+	else
+	{
+		*OutResult = FPropertyAccess::Fail;
 	}
 
 	return CurveTable;
 }
 
-FDataRegistryType FScalableFloatDetails::GetRegistryType() const
+FDataRegistryType FScalableFloatDetails::GetRegistryType(FPropertyAccess::Result* OutResult) const
 {
+	FPropertyAccess::Result TempResult;
+	if (OutResult == nullptr)
+	{
+		OutResult = &TempResult;
+	}
+	
 	FString RegistryString;
+
+	// Bypassing the struct because GetValueAsFormattedStrings doesn't work well on multi select
 	if (RegistryTypeProperty.IsValid())
 	{
-		RegistryTypeProperty->GetValueAsFormattedString(RegistryString);
+		*OutResult = RegistryTypeProperty->GetValueAsFormattedString(RegistryString);
+	}
+	else
+	{
+		*OutResult = FPropertyAccess::Fail;
 	}
 
 	return FDataRegistryType(*RegistryString);
@@ -672,8 +729,9 @@ void FScalableFloatDetails::SetPreviewLevel(float NewLevel)
 
 FText FScalableFloatDetails::GetRowNameComboBoxContentText() const
 {
-	FName RowName;
-	const FPropertyAccess::Result RowResult = RowNameProperty->GetValue(RowName);
+	FPropertyAccess::Result RowResult;
+	FName RowName = GetRowName(&RowResult);
+
 	if (RowResult != FPropertyAccess::MultipleValues)
 	{
 		if (RowName != NAME_None)
@@ -690,24 +748,27 @@ FText FScalableFloatDetails::GetRowNameComboBoxContentText() const
 
 FText FScalableFloatDetails::GetRowNameComboBoxContentTooltip() const
 {
-	FName RowName;
-	const FPropertyAccess::Result RowResult = RowNameProperty->GetValue(RowName);
-	if (RowResult != FPropertyAccess::MultipleValues)
+	FName RowName = GetRowName();
+
+	if (RowName != NAME_None)
 	{
-		if (RowName != NAME_None)
-		{
-			return FText::FromName(RowName);
-		}
+		return FText::FromName(RowName);
 	}
+
 	return LOCTEXT("SelectCurveTooltip", "Select a Curve, this will be scaled using input level and then multiplied by Value");
 }
 
 FText FScalableFloatDetails::GetRowValuePreviewLabel() const
 {
-	const FRealCurve* FoundCurve = GetRealCurve();
+	FPropertyAccess::Result FoundResult;
+	const FRealCurve* FoundCurve = GetRealCurve(&FoundResult);
 	if (FoundCurve)
 	{
 		return FText::Format(LOCTEXT("LevelPreviewLabel", "Preview At {0}"), FText::AsNumber(PreviewLevel));
+	}
+	else if (FoundResult == FPropertyAccess::MultipleValues)
+	{
+		return LOCTEXT("MultipleValues", "Multiple Values");
 	}
 	else
 	{
@@ -721,48 +782,71 @@ FText FScalableFloatDetails::GetRowValuePreviewText() const
 	if (FoundCurve)
 	{
 		float Value;
-		ValueProperty->GetValue(Value);
-
-		static const FNumberFormattingOptions FormatOptions = FNumberFormattingOptions()
-			.SetMinimumFractionalDigits(3)
-			.SetMaximumFractionalDigits(3);
-		return FText::AsNumber(Value * FoundCurve->Eval(PreviewLevel), &FormatOptions);
+		if (ValueProperty->GetValue(Value) == FPropertyAccess::Success)
+		{
+			static const FNumberFormattingOptions FormatOptions = FNumberFormattingOptions()
+				.SetMinimumFractionalDigits(3)
+				.SetMaximumFractionalDigits(3);
+			return FText::AsNumber(Value * FoundCurve->Eval(PreviewLevel), &FormatOptions);
+		}
 	}
 
 	return FText::GetEmpty();
 }
 
-FName FScalableFloatDetails::GetRowName() const
+FName FScalableFloatDetails::GetRowName(FPropertyAccess::Result* OutResult) const
 {
+	FPropertyAccess::Result TempResult;
+	if (OutResult == nullptr)
+	{
+		OutResult = &TempResult;
+	}
+
 	FName ReturnName;
 	if (RowNameProperty.IsValid())
 	{
-		RowNameProperty->GetValue(ReturnName);
+		*OutResult = RowNameProperty->GetValue(ReturnName);
+	}
+	else
+	{
+		*OutResult = FPropertyAccess::Fail;
 	}
 
 	return ReturnName;
 }
 
-FDataRegistryId FScalableFloatDetails::GetRegistryId() const
+FDataRegistryId FScalableFloatDetails::GetRegistryId(FPropertyAccess::Result* OutResult) const
 {
-	if (RowNameProperty.IsValid())
+	FPropertyAccess::Result TempResult;
+	if (OutResult == nullptr)
 	{
-		FName RowName;
-		RowNameProperty->GetValue(RowName);
-
-		UCurveTable* CurveTable = GetCurveTable();
-		if (CurveTable)
-		{
-			// Use the fake custom type, options will get filled in by GetCustomRowNames
-			return FDataRegistryId(FDataRegistryType::CustomContextType, RowName);
-		}
-
-		// This is a real registry, or is empty/invalid
-		FDataRegistryType RegistryType = GetRegistryType();
-		return FDataRegistryId(RegistryType, RowName);
+		OutResult = &TempResult;
 	}
 
-	return FDataRegistryId();
+	// Cache name result so we can return multiple values
+	FPropertyAccess::Result NameResult;
+	FName RowName = GetRowName(&NameResult);
+
+	UCurveTable* CurveTable = GetCurveTable(OutResult);
+	if (CurveTable)
+	{
+		// Curve tables are all valid but names may differ
+		*OutResult = NameResult;
+
+		// Use the fake custom type, options will get filled in by GetCustomRowNames
+		return FDataRegistryId(FDataRegistryType::CustomContextType, RowName);
+	}
+
+	// This is a real registry, or is empty/invalid
+	FDataRegistryType RegistryType = GetRegistryType(OutResult);
+
+	if (*OutResult == FPropertyAccess::Success)
+	{
+		// Names may differ
+		*OutResult = NameResult;
+	}
+
+	return FDataRegistryId(RegistryType, RowName);
 }
 
 void FScalableFloatDetails::SetRegistryId(FDataRegistryId NewId)
@@ -790,25 +874,36 @@ void FScalableFloatDetails::GetCustomRowNames(TArray<FName>& OutRows) const
 	}
 }
 
-const FRealCurve* FScalableFloatDetails::GetRealCurve() const
+const FRealCurve* FScalableFloatDetails::GetRealCurve(FPropertyAccess::Result* OutResult) const
 {
-	TArray<const void*> RawPtrs;
-	CurveTableHandleProperty->AccessRawData(RawPtrs);
-	if (RawPtrs.Num() == 1 && RawPtrs[0] != nullptr)
+	FPropertyAccess::Result TempResult;
+	if (OutResult == nullptr)
 	{
-		// First try curve table
-		const FCurveTableRowHandle& Curve = *reinterpret_cast<const FCurveTableRowHandle*>(RawPtrs[0]);
-		if (Curve.CurveTable && Curve.RowName != NAME_None)
-		{
-			static const FString GetRowValuePreviewTextContext(TEXT("FScalableFloatDetails::GetRowValuePreviewText"));
-			return Curve.GetCurve(GetRowValuePreviewTextContext);
-		}
+		OutResult = &TempResult;
 	}
 
-	FDataRegistryId RegistryId = GetRegistryId();
-	if (RegistryId.RegistryType.IsValid())
+	// First check curve table, abort if values differ
+	UCurveTable* CurveTable = GetCurveTable(OutResult);
+	if (*OutResult != FPropertyAccess::Success)
 	{
-		// Now try registry
+		return nullptr;
+	}
+
+	FName RowName = GetRowName(OutResult);
+	if (*OutResult != FPropertyAccess::Success)
+	{
+		return nullptr;
+	}
+
+	if (CurveTable && !RowName.IsNone())
+	{
+		return CurveTable->FindCurveUnchecked(RowName);
+	}
+
+	FDataRegistryId RegistryId = GetRegistryId(OutResult);
+	if (RegistryId.IsValid())
+	{
+		// Now try registry, we will only get here if there are not multiple values
 		UDataRegistry* Registry = UDataRegistrySubsystem::Get()->GetRegistryForType(RegistryId.RegistryType);
 		if (Registry)
 		{
@@ -834,6 +929,5 @@ void FScalableFloatDetails::CustomizeChildren( TSharedRef<class IPropertyHandle>
 }
 
 //-------------------------------------------------------------------------------------
-
 
 #undef LOCTEXT_NAMESPACE

@@ -509,7 +509,10 @@ UMatineeCameraShake* UMatineeCameraShake::StartMatineeCameraShakeFromSource(APla
 
 void UMatineeCameraShakePattern::GetShakePatternInfoImpl(FCameraShakeInfo& OutInfo) const
 {
-	OutInfo.Duration = FCameraShakeDuration::Custom();
+	// We will manage our own duration, but let's give a hint about how long we are for editor purposes.
+	UMatineeCameraShake* Shake = GetShakeInstance<UMatineeCameraShake>();
+	const float Duration = FMath::Max(Shake->OscillationDuration, Shake->Anim ? Shake->Anim->AnimLength : 0.f);
+	OutInfo.Duration = FCameraShakeDuration::Custom(Duration);
 }
 
 void UMatineeCameraShakePattern::StopShakePatternImpl(const FCameraShakeStopParams& Params)

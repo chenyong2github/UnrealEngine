@@ -168,7 +168,7 @@ class ULandscapeHeightfieldCollisionComponent : public UPrimitiveComponent
 	/** Cached PxHeightFieldSamples values for navmesh generation. Note that it's being used only if navigation octree is set up for lazy geometry exporting */
 	int32 HeightfieldRowsCount;
 	int32 HeightfieldColumnsCount;
-	mutable FNavHeightfieldSamples CachedHeightFieldSamples;
+	FNavHeightfieldSamples CachedHeightFieldSamples;
 
 	enum ECollisionQuadFlags : uint8
 	{

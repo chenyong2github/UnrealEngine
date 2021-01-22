@@ -487,6 +487,9 @@ namespace Audio
 		virtual bool IsLooping() { return false; }
 		virtual bool IsClockAltering() { return false; }
 
+		virtual FName GetCommandName() const = 0;
+
+
 	protected:
 		// base classes can override these to add extra functionality
 		virtual void OnQueuedCustom(const FQuartzQuantizedCommandInitInfo& InCommandInitInfo) {}
@@ -500,6 +503,7 @@ namespace Audio
 	private:
 		TSharedPtr<FShareableQuartzCommandQueue, ESPMode::ThreadSafe> GameThreadCommandQueue{ nullptr };
 		int32 GameThreadDelegateID{ -1 };
+		bool bAboutToStartHasBeenCalled{ false };
 	}; // class IAudioMixerQuantizedCommandBase
 
 	// Audio Render Thread Handle to a queued command

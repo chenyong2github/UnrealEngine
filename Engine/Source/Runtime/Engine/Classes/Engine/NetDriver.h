@@ -1080,7 +1080,7 @@ public:
 	ENGINE_API TSharedPtr<FRepLayout> GetFunctionRepLayout( UFunction * Function );
 
 	/** Creates if necessary, and returns a FRepLayout that maps to the passed in UStruct */
-	TSharedPtr<FRepLayout>		GetStructRepLayout( UStruct * Struct );
+	ENGINE_API TSharedPtr<FRepLayout> GetStructRepLayout( UStruct * Struct );
 
 	/**
 	 * Returns the FReplicationChangelistMgr that is associated with the passed in object,

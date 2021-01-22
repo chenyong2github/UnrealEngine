@@ -138,8 +138,6 @@ void FDefaultStereoLayers::StereoLayerRender(FRHICommandListImmediate& RHICmdLis
 			}
 		}
 
-		RHICmdList.Transition(FRHITransitionInfo(Layer.Texture, ERHIAccess::Unknown, ERHIAccess::SRVGraphics));
-
 		// Set shader uniforms
 		VertexShader->SetParameters(
 			RHICmdList,
@@ -245,6 +243,20 @@ void FDefaultStereoLayers::PostRenderView_RenderThread(FRHICommandListImmediate&
 		}
 	};
 	
+	TArray<FRHITransitionInfo, TInlineAllocator<16>> Infos;
+	for (uint32 LayerIndex : SortedSceneLayers)
+	{
+		Infos.Add(FRHITransitionInfo(RenderThreadLayers[LayerIndex].Texture, ERHIAccess::Unknown, ERHIAccess::SRVGraphics));
+	}
+	for (uint32 LayerIndex : SortedOverlayLayers)
+	{
+		Infos.Add(FRHITransitionInfo(RenderThreadLayers[LayerIndex].Texture, ERHIAccess::Unknown, ERHIAccess::SRVGraphics));
+	}
+	if (Infos.Num())
+	{
+		RHICmdList.Transition(Infos);
+	}
+
 	FTexture2DRHIRef RenderTarget = HMDDevice->GetSceneLayerTarget_RenderThread(InView.StereoPass, RenderParams.Viewport);
 	if (!RenderTarget.IsValid())
 	{

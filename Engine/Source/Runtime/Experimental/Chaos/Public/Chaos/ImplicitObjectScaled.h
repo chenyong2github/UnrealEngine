@@ -2,6 +2,7 @@
 #pragma once
 
 #include "Chaos/Box.h"
+#include "Chaos/Convex.h"
 #include "Chaos/ImplicitObject.h"
 #include "Chaos/Transform.h"
 #include "ChaosArchive.h"
@@ -383,13 +384,21 @@ public:
 
 	virtual T PhiWithNormal(const TVector<T, d>& X, TVector<T, d>& Normal) const override
 	{
-		const TVector<T, d> UnscaledX = MInvScale * X;
-		TVector<T, d> UnscaledNormal;
-		const T UnscaledPhi = MObject->PhiWithNormal(UnscaledX, UnscaledNormal);
-		Normal = MScale * UnscaledNormal;
-		const T ScaleFactor = Normal.SafeNormalize();
-		const T ScaledPhi = UnscaledPhi * ScaleFactor;
-		return ScaledPhi;
+		// @todo(chaos): support scaled PhiWithNormal on all types
+		if (const FImplicitConvex3* Convex = MObject->template GetObject<FImplicitConvex3>())
+		{
+			return Convex->PhiWithNormalScaled(X, MScale, MInvScale, Normal);
+		}
+		else
+		{
+			const TVector<T, d> UnscaledX = MInvScale * X;
+			TVector<T, d> UnscaledNormal;
+			const T UnscaledPhi = MObject->PhiWithNormal(UnscaledX, UnscaledNormal);
+			Normal = MScale * UnscaledNormal;
+			const T ScaleFactor = Normal.SafeNormalize();
+			const T ScaledPhi = UnscaledPhi * ScaleFactor;
+			return ScaledPhi;
+		}
 	}
 
 	virtual bool Raycast(const TVector<T, d>& StartPoint, const TVector<T, d>& Dir, const T Length, const T Thickness, T& OutTime, TVector<T, d>& OutPosition, TVector<T, d>& OutNormal, int32& OutFaceIndex) const override

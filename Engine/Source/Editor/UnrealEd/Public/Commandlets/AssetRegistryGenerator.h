@@ -171,6 +171,14 @@ public:
 	 */
 	void GetChunkAssignments(TArray<TSet<FName>>& OutAssignments) const;
 
+	/**
+	 * Ensures all assets in the input package are present in the registry
+	 * @param Package - Package to process
+	 * @return - Array of FAssetData entries for all assets in the input package
+	 */
+	typedef TArray<const FAssetData*, TInlineAllocator<1>> FCreateOrFindArray;
+	FCreateOrFindArray CreateOrFindAssetDatas(const UPackage& Package);
+
 private:
 
 	/** State of the asset registry that is being built for this platform */
@@ -386,4 +394,9 @@ private:
 	
 	/** Initialize ChunkIdPakchunkIndexMapping and PakchunkIndexChunkIdMapping. */
 	void InitializeChunkIdPakchunkIndexMapping();
+
+	/**
+	 * Helper function to find or create asset data for the input object. If the asset is not in the registry it will be added.
+	 */
+	const FAssetData* CreateOrFindAssetData(UObject& Object);
 };

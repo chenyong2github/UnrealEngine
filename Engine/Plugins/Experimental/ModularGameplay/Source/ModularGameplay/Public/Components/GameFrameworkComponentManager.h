@@ -180,8 +180,11 @@ private:
 	/** A map actor classes to component classes that should be made for that class. */
 	TMap<FComponentRequestReceiverClassPath, TSet<UClass*>> ReceiverClassToComponentClassMap;
 
-	/** A map actor classes to instances of that class that have been registered with AddReceiver */
-	TMap<FObjectKey, TArray<TWeakObjectPtr<AActor>>> ReceiverClassToReceiverInstancesMap;
+#if WITH_EDITORONLY_DATA
+	/** Editor-only set to validate that component requests are only being added for actors that call AddReceiver and RemoveReceiver */
+	UPROPERTY(transient)
+	TSet<AActor*> AllReceivers;
+#endif // WITH_EDITORONLY_DATA
 
 	friend struct FComponentRequestHandle;
 };

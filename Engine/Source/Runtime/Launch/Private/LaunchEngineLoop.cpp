@@ -4149,6 +4149,8 @@ int32 FEngineLoop::Init()
 
 	FDelayedAutoRegisterHelper::RunAndClearDelayedAutoRegisterDelegates(EDelayedRegisterRunPhase::EndOfEngineInit);
 
+	// Emit logging. Don't edit! Automation looks for this to detect failures during initialization.
+	UE_LOG(LogInit, Display, TEXT("Engine is initialized. Leaving FEngineLoop::Init()"));
 	return 0;
 }
 

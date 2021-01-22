@@ -2488,14 +2488,20 @@ void FSequencer::NotifyMovieSceneDataChanged( EMovieSceneDataChangeType DataChan
 	OnMovieSceneDataChangedDelegate.Broadcast(DataChangeType);
 }
 
+static bool bRefreshTreeGuard = false;
 void FSequencer::RefreshTree()
 {
-	SequencerWidget->UpdateLayoutTree();
-	bNeedTreeRefresh = false;
-	OnTreeViewChangedDelegate.Broadcast();
+	if (bRefreshTreeGuard == false)
+	{
+		TGuardValue<bool> Guard(bRefreshTreeGuard, true);
 
-	// Force a broadcast of selection changed after the tree view has been updated, in the event that selection was suppressed while the tree was refreshing
-	Selection.Tick();
+		SequencerWidget->UpdateLayoutTree();
+		bNeedTreeRefresh = false;
+		OnTreeViewChangedDelegate.Broadcast();
+
+		// Force a broadcast of selection changed after the tree view has been updated, in the event that selection was suppressed while the tree was refreshing
+		Selection.Tick();
+	}
 }
 
 FAnimatedRange FSequencer::GetViewRange() const
@@ -2652,6 +2658,45 @@ void FSequencer::SelectInSelectionRange(bool bSelectKeys, bool bSelectSections)
 	{
 		SelectInSelectionRange(DisplayNode, SelectionRange, bSelectKeys, bSelectSections);
 	}
+}
+
+void FSequencer::SelectForward()
+{
+	FFrameRate TickResolution = GetFocusedTickResolution();
+	FFrameNumber CurrentFrame = GetLocalTime().ConvertTo(TickResolution).CeilToFrame();
+	TRange<FFrameNumber> SelectionRange(CurrentFrame, TNumericLimits<FFrameNumber>::Max());
+
+	TSet<TSharedRef<FSequencerDisplayNode> > DisplayNodes = Selection.GetSelectedOutlinerNodes();
+	if (DisplayNodes.Num() == 0)
+	{
+		DisplayNodes.Append(NodeTree->GetAllNodes());
+	}
+
+	Selection.Empty();
+	for (TSharedRef<FSequencerDisplayNode>& DisplayNode : DisplayNodes)
+	{
+		SelectInSelectionRange(DisplayNode, SelectionRange, true, true);
+	}		
+}
+
+
+void FSequencer::SelectBackward()
+{
+	FFrameRate TickResolution = GetFocusedTickResolution();
+	FFrameNumber CurrentFrame = GetLocalTime().ConvertTo(TickResolution).CeilToFrame();
+	TRange<FFrameNumber> SelectionRange(TNumericLimits<FFrameNumber>::Min(), CurrentFrame);
+
+	TSet<TSharedRef<FSequencerDisplayNode> > DisplayNodes = Selection.GetSelectedOutlinerNodes();
+	if (DisplayNodes.Num() == 0)
+	{
+		DisplayNodes.Append(NodeTree->GetAllNodes());
+	}
+
+	Selection.Empty();
+	for (TSharedRef<FSequencerDisplayNode>& DisplayNode : DisplayNodes)
+	{
+		SelectInSelectionRange(DisplayNode, SelectionRange, true, true);
+	}		
 }
 
 
@@ -12122,6 +12167,41 @@ void FSequencer::TrimSection(bool bTrimLeft)
 }
 
 
+void FSequencer::TrimOrExtendSection(bool bTrimOrExtendLeft)
+{
+	FScopedTransaction TrimOrExtendSectionTransaction( NSLOCTEXT("Sequencer", "TrimOrExtendSection_Transaction", "Trim or Extend Section") );
+
+	if (Selection.GetSelectedTracks().Num() > 0)
+	{
+		for (UMovieSceneTrack* Track : Selection.GetSelectedTracks())
+		{
+			MovieSceneToolHelpers::TrimOrExtendSection(Track, GetLocalTime(), bTrimOrExtendLeft, Settings->GetDeleteKeysWhenTrimming());
+		}
+	}
+	else
+	{
+		UMovieSceneSequence* FocusedMovieSceneSequence = GetFocusedMovieSceneSequence();
+		UMovieScene* MovieScene = FocusedMovieSceneSequence ? FocusedMovieSceneSequence->GetMovieScene() : nullptr;
+		if (MovieScene)
+		{
+			for (UMovieSceneTrack* Track : MovieScene->GetMasterTracks())
+			{
+				MovieSceneToolHelpers::TrimOrExtendSection(Track, GetLocalTime(), bTrimOrExtendLeft, Settings->GetDeleteKeysWhenTrimming());
+			}
+			for (const FMovieSceneBinding& Binding : MovieScene->GetBindings())
+			{
+				for (UMovieSceneTrack* Track : Binding.GetTracks())
+				{
+					MovieSceneToolHelpers::TrimOrExtendSection(Track, GetLocalTime(), bTrimOrExtendLeft, Settings->GetDeleteKeysWhenTrimming());
+				}
+			}
+		}
+	}
+
+	NotifyMovieSceneDataChanged( EMovieSceneDataChangeType::TrackValueChanged );
+}
+
+
 void FSequencer::SplitSection()
 {
 	FScopedTransaction SplitSectionTransaction( NSLOCTEXT("Sequencer", "SplitSection_Transaction", "Split Section") );
@@ -12216,6 +12296,14 @@ void FSequencer::BindCommands()
 	SequencerCommandBindings->MapAction(
 		Commands.TrimSectionRight,
 		FExecuteAction::CreateSP( this, &FSequencer::TrimSection, false ) );
+
+	SequencerCommandBindings->MapAction(
+		Commands.TrimOrExtendSectionLeft,
+		FExecuteAction::CreateSP( this, &FSequencer::TrimOrExtendSection, true ) );
+
+	SequencerCommandBindings->MapAction(
+		Commands.TrimOrExtendSectionRight,
+		FExecuteAction::CreateSP( this, &FSequencer::TrimOrExtendSection, false ) );
 
 	SequencerCommandBindings->MapAction(
 		Commands.SplitSection,
@@ -12867,6 +12955,14 @@ void FSequencer::BindCommands()
 		Commands.SelectAllInSelectionRange,
 		FExecuteAction::CreateSP(this, &FSequencer::SelectInSelectionRange, true, true),
 		FCanExecuteAction::CreateLambda(IsSelectionRangeNonEmpty));
+
+	SequencerCommandBindings->MapAction(
+		Commands.SelectForward,
+		FExecuteAction::CreateSP(this, &FSequencer::SelectForward));
+
+	SequencerCommandBindings->MapAction(
+		Commands.SelectBackward,
+		FExecuteAction::CreateSP(this, &FSequencer::SelectBackward));
 
 	SequencerCommandBindings->MapAction(
 		Commands.StepToNextShot,
