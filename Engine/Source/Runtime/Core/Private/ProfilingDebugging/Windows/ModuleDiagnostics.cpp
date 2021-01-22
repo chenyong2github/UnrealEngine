@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CoreTypes.h"
-#include "MemoryTrace.inl"
 #include "Trace/Trace.inl"
 
 #include "Windows/AllowWindowsPlatformTypes.h"
@@ -53,6 +52,7 @@ class FModuleTrace
 {
 public:
 	typedef void				(*SubscribeFunc)(bool, void*, const TCHAR*);
+	typedef TArray<SubscribeFunc, TFixedAllocator<64>> SubscriberArray;
 
 								FModuleTrace(FMalloc* InMalloc);
 								~FModuleTrace();
@@ -65,7 +65,7 @@ private:
 	void						OnDllUnloaded(UPTRINT Base);
 	void						OnDllNotification(unsigned int Reason, const void* DataPtr);
 	static FModuleTrace*		Instance;
-	TMiniArray<SubscribeFunc>	Subscribers;
+	SubscriberArray				Subscribers;
 	void*						CallbackCookie;
 };
 
@@ -74,7 +74,6 @@ FModuleTrace* FModuleTrace::Instance = nullptr;
 
 ////////////////////////////////////////////////////////////////////////////////
 FModuleTrace::FModuleTrace(FMalloc* InMalloc)
-: Subscribers(InMalloc)
 {
 	Instance = this;
 }
