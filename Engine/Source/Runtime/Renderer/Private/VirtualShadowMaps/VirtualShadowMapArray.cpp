@@ -41,18 +41,21 @@ struct FCachedPageInfo
 	float Padding;
 };
 
-// GPUCULL_TODO: Hook this up again!
 static void RecreateGlobalRenderState(IConsoleVariable* Var)
 {
+#if ENABLE_NON_NANITE_VSM
+	// Needed because the depth state changes with method (so cached draw commands must be re-created) see SetStateForShadowDepth
 	FGlobalComponentRecreateRenderStateContext Context;
+#endif // ENABLE_NON_NANITE_VSM
 }
 
-static TAutoConsoleVariable<int32> CVarEnableVirtualShadowMaps(
+int32 GEnableVirtualShadowMaps = 0;
+FAutoConsoleVariableRef CVarEnableVirtualShadowMaps(
 	TEXT("r.Shadow.v.Enable"),
-	0,
+	GEnableVirtualShadowMaps,
 	TEXT("Enable Virtual Shadow Maps."),
-	//FConsoleVariableDelegate::CreateStatic(&RecreateGlobalRenderState),
-	ECVF_RenderThreadSafe
+	FConsoleVariableDelegate::CreateStatic(&RecreateGlobalRenderState),
+	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
 
@@ -198,7 +201,7 @@ FVirtualShadowMapArray::~FVirtualShadowMapArray()
 
 void FVirtualShadowMapArray::Initialize(bool bInEnabled)
 {
-	bEnabled = bInEnabled && CVarEnableVirtualShadowMaps.GetValueOnRenderThread() > 0;
+	bEnabled = bInEnabled;
 }
 
 void FVirtualShadowMapArray::SetShaderDefines(FShaderCompilerEnvironment& OutEnvironment)

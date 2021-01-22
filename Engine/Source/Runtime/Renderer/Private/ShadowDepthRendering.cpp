@@ -833,9 +833,9 @@ void SetStateForShadowDepth(bool bOnePassPointLightShadow, bool bDirectionalLigh
 #if ENABLE_NON_NANITE_VSM
 
 	// GPUCULL_TODO: Unhack me please
-	static const auto EnableVirtualSMCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Shadow.v.Enable"));
+	static const auto EnableVirtualSMCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Shadow.v.Enable"));
 
-	const bool bNeedsVirtualShadowMap = EnableVirtualSMCVar->GetValueOnRenderThread() != 0 && bDirectionalLight;
+	const bool bNeedsVirtualShadowMap = EnableVirtualSMCVar->GetInt() != 0 && bDirectionalLight;
 
 	if (bOnePassPointLightShadow || bNeedsVirtualShadowMap)
 #else //!ENABLE_NON_NANITE_VSM

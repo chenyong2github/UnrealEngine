@@ -1509,7 +1509,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	const bool bNaniteEnabled = UseNanite(ShaderPlatform) && ViewFamily.EngineShowFlags.NaniteMeshes;
 
 	// Important that this uses consistent logic for whether or not nanite is enabled, so pass in the flag from here
-	VirtualShadowMapArray.Initialize(bNaniteEnabled);
+	VirtualShadowMapArray.Initialize(UseVirtualShadowMaps(ShaderPlatform, FeatureLevel));
 
 	Scene->UpdateAllPrimitiveSceneInfos(GraphBuilder, true);
 
