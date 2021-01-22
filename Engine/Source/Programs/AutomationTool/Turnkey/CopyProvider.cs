@@ -230,7 +230,7 @@ namespace Turnkey
 			return null;
 		}
 
-		public bool RunExternalCommand(string Command, string Params, string Preamble, string SuccessPostAmble, string FailurePostamble)
+		public bool RunExternalCommand(string Command, string Params, string Preamble, string SuccessPostAmble, string FailurePostamble, bool bRequiresPrivilegeElevation)
 		{
 			TurnkeyUtils.Log("----------------------------------------------");
 			TurnkeyUtils.Log("Running '{0} {1}'", Command, Params);
@@ -242,7 +242,7 @@ namespace Turnkey
 			}
 			TurnkeyUtils.Log("----------------------------------------------", Command);
 
-			bool bSuccess = CopyAndRun.RunExternalCommand(Command, Params);
+			bool bSuccess = CopyAndRun.RunExternalCommand(Command, Params, bRequiresPrivilegeElevation);
 
 			TurnkeyUtils.Log("----------------------------------------------");
 			TurnkeyUtils.Log("Finished with {0}", bSuccess ? "Success" : "Failure");

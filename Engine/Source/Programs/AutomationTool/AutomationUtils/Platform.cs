@@ -16,7 +16,7 @@ namespace AutomationTool
 		string RetrieveFileSource(string Name, string InType = "Misc", string InPlatform = null, string SubType = null);
 		string RetrieveFileSource(object HintObject);
 		string GetVariable(string VariableName);
-		bool RunExternalCommand(string Command, string Params, string Preamble = "", string SuccessPostamble = "", string FailurePostamble = "");
+		bool RunExternalCommand(string Command, string Params, string Preamble = "", string SuccessPostamble = "", string FailurePostamble = "", bool bRequiresPrivilegeElevation = false);
 		void PauseForUser(string Message); 
 	}
 
@@ -193,30 +193,33 @@ namespace AutomationTool
 			}
 
 			string Command, Params, Preamble="", SuccessPostamble="", FailurePostamble="";
-			
-			if (Device != null && GetDeviceUpdateSoftwareCommand(out Command, out Params, ref Preamble, ref SuccessPostamble, ref FailurePostamble, Retriever, Device))
+
+			bool bRequiresPrivilegeElevation;
+			if (Device != null && GetDeviceUpdateSoftwareCommand(out Command, out Params, out bRequiresPrivilegeElevation, ref Preamble, ref SuccessPostamble, ref FailurePostamble, Retriever, Device))
 			{
-				return Retriever.RunExternalCommand(Command, Params, Preamble, SuccessPostamble, FailurePostamble);
+				return Retriever.RunExternalCommand(Command, Params, Preamble, SuccessPostamble, FailurePostamble, bRequiresPrivilegeElevation);
 			}
-			else if (Device == null && GetSDKInstallCommand(out Command, out Params, ref Preamble, ref SuccessPostamble, ref FailurePostamble, Retriever))
+			else if (Device == null && GetSDKInstallCommand(out Command, out Params, out bRequiresPrivilegeElevation, ref Preamble, ref SuccessPostamble, ref FailurePostamble, Retriever))
 			{
-				return Retriever.RunExternalCommand(Command, Params, Preamble, SuccessPostamble, FailurePostamble);
+				return Retriever.RunExternalCommand(Command, Params, Preamble, SuccessPostamble, FailurePostamble, bRequiresPrivilegeElevation);
 			}
 
 			return false;
 		}
 
-		public virtual bool GetSDKInstallCommand(out string Command, out string Params, ref string Preamble, ref string SuccessPostamble, ref string FailurePostamble, FileRetriever Retriever)
+		public virtual bool GetSDKInstallCommand(out string Command, out string Params, out bool bRequiresPrivilegeElevation, ref string Preamble, ref string SuccessPostamble, ref string FailurePostamble, FileRetriever Retriever)
 		{
 			Command = null;
 			Params = null;
+			bRequiresPrivilegeElevation = false;
 			return false;
 		}
 
-		public virtual bool GetDeviceUpdateSoftwareCommand(out string Command, out string Params, ref string Preamble, ref string SuccessPostamble, ref string FailurePostamble, FileRetriever Retriever, DeviceInfo Device = null)
+		public virtual bool GetDeviceUpdateSoftwareCommand(out string Command, out string Params, out bool bRequiresPrivilegeElevation, ref string Preamble, ref string SuccessPostamble, ref string FailurePostamble, FileRetriever Retriever, DeviceInfo Device = null)
 		{
 			Command = null;
 			Params = null;
+			bRequiresPrivilegeElevation = false;
 			return false;
 		}
 

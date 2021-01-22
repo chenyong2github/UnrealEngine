@@ -169,10 +169,11 @@ public class IOSPlatform : Platform
 		SDKName = (TargetPlatform == UnrealTargetPlatform.TVOS) ? "appletvos" : "iphoneos";
 	}
 
-	public override bool GetSDKInstallCommand(out string Command, out string Params, ref string Preamble, ref string SuccessPostamble, ref string FailurePostamble, FileRetriever Retriever)
+	public override bool GetSDKInstallCommand(out string Command, out string Params, out bool bRequiresPrivilegeElevation, ref string Preamble, ref string SuccessPostamble, ref string FailurePostamble, FileRetriever Retriever)
 	{
 		Preamble = "Moving your original Xcode application from /Applications to the Trash, and unzipping the new version into /Applications";
 		SuccessPostamble = "If you had Xcode in your Dock, you will need to remove it and add the new one (even though it was in the same location). macOS follows the move to the Trash for the Dock icon";
+		bRequiresPrivilegeElevation = false;
 
 		// put current Xcode in the trash, and unzip a new one. Xcode in the dock will have to be fixed up tho!
 		Command = "osascript";
@@ -188,7 +189,7 @@ public class IOSPlatform : Platform
 		return true;
 	}
 
-	public override bool GetDeviceUpdateSoftwareCommand(out string Command, out string Params, ref string Preamble, ref string SuccessPostamble, ref string FailurePostamble, FileRetriever Retriever, DeviceInfo Device)
+	public override bool GetDeviceUpdateSoftwareCommand(out string Command, out string Params, out bool bRequiresPrivilegeElevation, ref string Preamble, ref string SuccessPostamble, ref string FailurePostamble, FileRetriever Retriever, DeviceInfo Device)
 	{
 		Preamble = "Installing an offline downloaded .ipsw onto your device using the Apple Configurator application.";
 
@@ -197,6 +198,7 @@ public class IOSPlatform : Platform
 
 		string CfgUtilParams = string.Format("-c '{0} list | grep {1}'", Configurator, Device.Id);
 		string CfgUtilOutput = UnrealBuildTool.Utils.RunLocalProcessAndReturnStdOut("sh", CfgUtilParams);
+		bRequiresPrivilegeElevation = false;
 
 		Match Result = Regex.Match(CfgUtilOutput, @"Type: (\S*).*ECID: (\S*)");
 		if (!Result.Success)

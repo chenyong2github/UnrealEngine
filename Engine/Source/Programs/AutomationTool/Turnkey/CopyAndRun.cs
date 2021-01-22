@@ -64,7 +64,7 @@ namespace Turnkey
 			CommandLine = TurnkeyUtils.ExpandVariables(CommandLine, bUseOnlyTurnkeyVariables: true);
 		}
 
-		public static bool RunExternalCommand(string CommandPath, string CommandLine)
+		public static bool RunExternalCommand(string CommandPath, string CommandLine, bool bRequiresPrivilegeElevation)
 		{
 			string FixedCommandPath = TurnkeyUtils.ExpandVariables(CommandPath);
 			string FixedCommandLine = TurnkeyUtils.ExpandVariables(CommandLine);
@@ -103,6 +103,15 @@ namespace Turnkey
 			{
 				try
 				{
+					if (bRequiresPrivilegeElevation)
+					{
+						TurnkeyUtils.Log("The installer {0} requires elevated permissions, trying with Admin privileges (output may be hidden)", FixedCommandPath);
+
+						InstallProcess.StartInfo.UseShellExecute = true;
+						InstallProcess.StartInfo.Verb = "runas";
+						InstallProcess.StartInfo.WindowStyle = ProcessWindowStyle.Normal;
+					}
+
 					InstallProcess.Start();
 					InstallProcess.WaitForExit();
 					ExitCode = InstallProcess.ExitCode;
@@ -190,7 +199,7 @@ namespace Turnkey
 			// run an external command
 			if (CommandPath != null)
 			{
-				return RunExternalCommand(CommandPath, CommandLine);
+				return RunExternalCommand(CommandPath, CommandLine, false);
 			}
 
 			return true;
