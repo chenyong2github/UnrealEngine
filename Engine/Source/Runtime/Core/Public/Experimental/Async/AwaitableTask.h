@@ -200,9 +200,13 @@ namespace AwaitableTask_Detail
 		}
 	};
 
-	template<typename ReturnType, typename CallableType>
+	template<typename TReturnType, typename CallableType>
 	class TPromise final : public FPromiseBase
 	{
+	public:
+		using ReturnType = TReturnType;
+
+	private:
 		using ThisType = TPromise<ReturnType, CallableType>;
 
 	private:
@@ -254,10 +258,10 @@ namespace AwaitableTask_Detail
 		inline void Finish()
 		{
 			int LocalCounter = ReferenceCounter.fetch_sub(1, std::memory_order_release);
-			if (LocalCounter == 2) //this is 2 because fetch_sub returns the value before the decrement (value is actually 1)
+			if (LocalCounter == 2 && !IsLaunched()) //this is 2 because fetch_sub returns the value before the decrement (value is actually 1)
 			{
 				//Cancel the Task and Try to Launch the Continuation if we are the last reference
-				verify(!IsLaunched() == LowLevelTasks::TryCancelAndLaunchContinuation(Task));
+				verify(LowLevelTasks::TryCancelAndLaunchContinuation(Task));
 			}
 			else if (LocalCounter == 1) //this is 1 because fetch_sub returns the value before the decrement (value is actually 0)
 			{
@@ -283,10 +287,11 @@ namespace AwaitableTask_Detail
 	template<typename CallableType>
 	class TPromise<void, CallableType> final : public FPromiseBase
 	{
-		using ThisType = TPromise<void, CallableType>;
-
 	public:
 		using ReturnType = void;
+
+	private:
+		using ThisType = TPromise<void, CallableType>;
 
 	private:
 		CallableType Callable;
@@ -336,10 +341,10 @@ namespace AwaitableTask_Detail
 		inline void Finish()
 		{
 			int LocalCounter = ReferenceCounter.fetch_sub(1, std::memory_order_release);
-			if (LocalCounter == 2) //this is 2 because fetch_sub returns the value before the decrement (value is actually 1)
+			if (LocalCounter == 2 && !IsLaunched()) //this is 2 because fetch_sub returns the value before the decrement (value is actually 1)
 			{
-				//Cancel the Task and Try to Launch the continuation if we are the last reference
-				verify(!IsLaunched() == LowLevelTasks::TryCancelAndLaunchContinuation(Task));
+				//Cancel the Task and Try to Launch the Continuation if we are the last reference
+				verify(LowLevelTasks::TryCancelAndLaunchContinuation(Task));
 			}
 			else if (LocalCounter == 1) //this is 1 because fetch_sub returns the value before the decrement (value is actually 0)
 			{
