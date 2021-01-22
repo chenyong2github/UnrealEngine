@@ -1178,6 +1178,7 @@ void FLevelEditorToolBar::RegisterLevelEditorToolBar( const TSharedRef<FUIComman
 	RegisterQuickSettingsMenu();
 	RegisterOpenBlueprintMenu();
 	RegisterContentMenu();
+	RegisterCreateMenu();
 
 #define LOCTEXT_NAMESPACE "LevelEditorToolBar"
 
@@ -1200,6 +1201,16 @@ void FLevelEditorToolBar::RegisterLevelEditorToolBar( const TSharedRef<FUIComman
 
 		{
 			FToolMenuSection& Section = AssetsToolBar->AddSection("Content");
+
+			Section.AddEntry(FToolMenuEntry::InitComboButton(
+				"Create",
+				FUIAction(),
+				FOnGetContent::CreateStatic(&FLevelEditorToolBar::GenerateCreateMenuWidget, InCommandList, TWeakPtr<SLevelEditor>(InLevelEditor)),
+				LOCTEXT("OpenCreate_Label", "Content"),
+				LOCTEXT("OpenCreate_Tooltip", "Quickly add to the project."),
+				FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.OpenCreateMenu")
+			));
+
 			Section.AddEntry(FToolMenuEntry::InitComboButton(
 				"Content",
 				FUIAction(),
@@ -1869,6 +1880,17 @@ void FLevelEditorToolBar::RegisterContentMenu()
 #undef LOCTEXT_NAMESPACE
 }
 
+void FLevelEditorToolBar::RegisterCreateMenu()
+{
+#define LOCTEXT_NAMESPACE "LevelToolBarViewMenu"
+	UToolMenu* ContentMenu = UToolMenus::Get()->RegisterMenu("LevelEditor.LevelEditorToolBar.CreateQuickMenu");
+	{
+		FToolMenuSection& Section = ContentMenu->FindOrAddSection("Create");
+		Section.InitSection("ProjectContent", LOCTEXT("Create_Label", "Create"), FToolMenuInsert());
+	}
+#undef LOCTEXT_NAMESPACE
+}
+
 void FLevelEditorToolBar::OnOpenSubLevelBlueprint( ULevel* InLevel )
 {
 	ULevelScriptBlueprint* LevelScriptBlueprint = InLevel->GetLevelScriptBlueprint();
@@ -1903,6 +1925,16 @@ TSharedRef< SWidget > FLevelEditorToolBar::GenerateContentMenuWidget(TSharedRef<
 	MenuContext.AddObject(LevelEditorMenuContext);
 
 	return UToolMenus::Get()->GenerateWidget("LevelEditor.LevelEditorToolBar.ContentQuickMenu", MenuContext);
+}
+
+TSharedRef< SWidget > FLevelEditorToolBar::GenerateCreateMenuWidget(TSharedRef<FUICommandList> InCommandList, TWeakPtr<SLevelEditor> InLevelEditor)
+{
+	FToolMenuContext MenuContext(InCommandList);
+	ULevelEditorMenuContext* LevelEditorMenuContext = NewObject<ULevelEditorMenuContext>();
+	LevelEditorMenuContext->LevelEditor = InLevelEditor;
+	MenuContext.AddObject(LevelEditorMenuContext);
+
+	return UToolMenus::Get()->GenerateWidget("LevelEditor.LevelEditorToolBar.CreateQuickMenu", MenuContext);
 }
 
 void FLevelEditorToolBar::RegisterCinematicsMenu()

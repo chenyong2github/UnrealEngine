@@ -128,6 +128,10 @@ void SLevelEditor::BindCommands()
 		FCanExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::CanConvertSelectedActorsIntoBlueprintClass ) );
 
 	LevelEditorCommands->MapAction(
+		Actions.OpenPlaceActors,
+		FExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::OpenPlaceActors) );
+
+	LevelEditorCommands->MapAction(
 		Actions.OpenContentBrowser,
 		FExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::OpenContentBrowser ) );
 	

@@ -23,6 +23,7 @@ public class PlacementMode : ModuleRules
                 "CollectionManager",
                 "LevelEditor",
                 "AssetTools",
+                "ToolMenus",
                 "EditorStyle"
             } 
         );

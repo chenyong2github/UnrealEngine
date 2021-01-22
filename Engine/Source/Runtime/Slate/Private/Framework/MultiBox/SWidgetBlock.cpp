@@ -91,6 +91,11 @@ void SWidgetBlock::BuildMultiBlockWidget(const ISlateStyle* StyleSet, const FNam
 	{
 		// Account for checkmark used in other menu blocks but not used in for widget rows
 		Padding = Padding + FMargin(14, 0, 8, 0);
+
+		// If there is no label, allow the custom menu widget to consume the entire space
+		if (!bHasLabel)
+			Padding = FMargin(0);
+
 	}
 
 	// Add this widget to the search list of the multibox
@@ -114,7 +119,7 @@ void SWidgetBlock::BuildMultiBlockWidget(const ISlateStyle* StyleSet, const FNam
 			.Visibility( bHasLabel ? EVisibility::Visible : EVisibility::Collapsed )
 			+ SHorizontalBox::Slot()
 			.AutoWidth()
-			.Padding(0.f, 0.f, 4.f, 0.f)
+			.Padding( bHasLabel ? FMargin(0.f, 0.f, 4.f, 0.f) : FMargin(0))
 			.VAlign( VAlign_Center )
 			[
 				SNew( STextBlock )

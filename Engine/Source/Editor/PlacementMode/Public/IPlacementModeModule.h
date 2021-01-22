@@ -193,6 +193,7 @@ struct FBuiltInPlacementCategories
 	static FName RecentlyPlaced()	{ static FName Name("RecentlyPlaced");	return Name; }
 	static FName Basic()			{ static FName Name("Basic");			return Name; }
 	static FName Lights()			{ static FName Name("Lights");			return Name; }
+	static FName Shapes()			{ static FName Name("Shapes");			return Name; }
 	static FName Visual()			{ static FName Name("Visual");			return Name; }
 	static FName Volumes()			{ static FName Name("Volumes");			return Name; }
 	static FName AllClasses()		{ static FName Name("AllClasses");		return Name; }

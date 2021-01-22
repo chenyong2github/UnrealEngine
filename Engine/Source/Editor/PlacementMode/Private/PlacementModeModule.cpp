@@ -37,6 +37,7 @@
 #include "Engine/StaticMesh.h"
 #include "GameFramework/Volume.h"
 #include "Engine/PostProcessVolume.h"
+#include "LevelEditorActions.h"
 #include "AssetData.h"
 #include "EditorModeRegistry.h"
 #include "EditorModes.h"
@@ -45,6 +46,7 @@
 #include "AssetRegistryModule.h"
 #include "ActorPlacementInfo.h"
 #include "IPlacementModeModule.h"
+#include "ToolMenus.h"
 #include "AssetToolsModule.h"
 #include "Kismet2/KismetEditorUtilities.h"
 #include "ActorFactories/ActorFactoryPlanarReflection.h"
@@ -121,17 +123,7 @@ void FPlacementModeModule::StartupModule()
 		Category->Items.Add(CreateID(), MakeShareable(new FPlaceableItem(*UActorFactoryPawn::StaticClass(), SortOrder += 10)));
 		Category->Items.Add(CreateID(), MakeShareable(new FPlaceableItem(*UActorFactoryPointLight::StaticClass(), SortOrder += 10)));
 		Category->Items.Add(CreateID(), MakeShareable(new FPlaceableItem(*UActorFactoryPlayerStart::StaticClass(), SortOrder += 10)));
-		// Cube
-		Category->Items.Add(CreateID(), MakeShareable(new FPlaceableItem(*UActorFactoryBasicShape::StaticClass(), FAssetData(LoadObject<UStaticMesh>(nullptr, *UActorFactoryBasicShape::BasicCube.ToString())), FName("ClassThumbnail.Cube"), BasicShapeColorOverride, SortOrder += 10, NSLOCTEXT("PlacementMode", "Cube", "Cube"))));
-		// Sphere
-		Category->Items.Add(CreateID(), MakeShareable(new FPlaceableItem(*UActorFactoryBasicShape::StaticClass(), FAssetData(LoadObject<UStaticMesh>(nullptr, *UActorFactoryBasicShape::BasicSphere.ToString())), FName("ClassThumbnail.Sphere"), BasicShapeColorOverride, SortOrder += 10, NSLOCTEXT("PlacementMode", "Sphere", "Sphere"))));
-		// Cylinder
-		Category->Items.Add(CreateID(), MakeShareable(new FPlaceableItem(*UActorFactoryBasicShape::StaticClass(), FAssetData(LoadObject<UStaticMesh>(nullptr, *UActorFactoryBasicShape::BasicCylinder.ToString())), FName("ClassThumbnail.Cylinder"), BasicShapeColorOverride, SortOrder += 10, NSLOCTEXT("PlacementMode", "Cylinder", "Cylinder"))));
-		// Cone
-		Category->Items.Add(CreateID(), MakeShareable(new FPlaceableItem(*UActorFactoryBasicShape::StaticClass(), FAssetData(LoadObject<UStaticMesh>(nullptr, *UActorFactoryBasicShape::BasicCone.ToString())), FName("ClassThumbnail.Cone"), BasicShapeColorOverride, SortOrder += 10, NSLOCTEXT("PlacementMode", "Cone", "Cone"))));
-		// Plane
-		Category->Items.Add(CreateID(), MakeShareable(new FPlaceableItem(*UActorFactoryBasicShape::StaticClass(), FAssetData(LoadObject<UStaticMesh>(nullptr, *UActorFactoryBasicShape::BasicPlane.ToString())), FName("ClassThumbnail.Plane"), BasicShapeColorOverride, SortOrder += 10, NSLOCTEXT("PlacementMode", "Plane", "Plane"))));
-
+	
 		Category->Items.Add(CreateID(), MakeShareable(new FPlaceableItem(*UActorFactoryTriggerBox::StaticClass(), SortOrder += 10)));
 		Category->Items.Add(CreateID(), MakeShareable(new FPlaceableItem(*UActorFactoryTriggerSphere::StaticClass(), SortOrder += 10)));
 	}
@@ -155,6 +147,33 @@ void FPlacementModeModule::StartupModule()
 		Category->Items.Add(CreateID(), MakeShareable(new FPlaceableItem(*UActorFactorySpotLight::StaticClass(), SortOrder += 10)));
 		Category->Items.Add(CreateID(), MakeShareable(new FPlaceableItem(*UActorFactoryRectLight::StaticClass(), SortOrder += 10)));
 		Category->Items.Add(CreateID(), MakeShareable(new FPlaceableItem(*UActorFactorySkyLight::StaticClass(), SortOrder += 10)));
+	}
+
+	{
+
+		int32 SortOrder = 0;
+		FName CategoryName = FBuiltInPlacementCategories::Shapes();
+		RegisterPlacementCategory(
+			FPlacementCategoryInfo(
+				NSLOCTEXT("PlacementMode", "Shapes", "Shapes"),
+				FSlateIcon(FAppStyle::GetAppStyleSetName(), "PlacementBrowser.Icons.Basic"),
+				CategoryName,
+				TEXT("PMShapes"),
+				25	
+				)
+			);
+
+		FPlacementCategory* Category = Categories.Find(CategoryName);
+		// Cube
+		Category->Items.Add(CreateID(), MakeShareable(new FPlaceableItem(*UActorFactoryBasicShape::StaticClass(), FAssetData(LoadObject<UStaticMesh>(nullptr, *UActorFactoryBasicShape::BasicCube.ToString())), FName("ClassThumbnail.Cube"), BasicShapeColorOverride, SortOrder += 10, NSLOCTEXT("PlacementMode", "Cube", "Cube"))));
+		// Sphere
+		Category->Items.Add(CreateID(), MakeShareable(new FPlaceableItem(*UActorFactoryBasicShape::StaticClass(), FAssetData(LoadObject<UStaticMesh>(nullptr, *UActorFactoryBasicShape::BasicSphere.ToString())), FName("ClassThumbnail.Sphere"), BasicShapeColorOverride, SortOrder += 10, NSLOCTEXT("PlacementMode", "Sphere", "Sphere"))));
+		// Cylinder
+		Category->Items.Add(CreateID(), MakeShareable(new FPlaceableItem(*UActorFactoryBasicShape::StaticClass(), FAssetData(LoadObject<UStaticMesh>(nullptr, *UActorFactoryBasicShape::BasicCylinder.ToString())), FName("ClassThumbnail.Cylinder"), BasicShapeColorOverride, SortOrder += 10, NSLOCTEXT("PlacementMode", "Cylinder", "Cylinder"))));
+		// Cone
+		Category->Items.Add(CreateID(), MakeShareable(new FPlaceableItem(*UActorFactoryBasicShape::StaticClass(), FAssetData(LoadObject<UStaticMesh>(nullptr, *UActorFactoryBasicShape::BasicCone.ToString())), FName("ClassThumbnail.Cone"), BasicShapeColorOverride, SortOrder += 10, NSLOCTEXT("PlacementMode", "Cone", "Cone"))));
+		// Plane
+		Category->Items.Add(CreateID(), MakeShareable(new FPlaceableItem(*UActorFactoryBasicShape::StaticClass(), FAssetData(LoadObject<UStaticMesh>(nullptr, *UActorFactoryBasicShape::BasicPlane.ToString())), FName("ClassThumbnail.Plane"), BasicShapeColorOverride, SortOrder += 10, NSLOCTEXT("PlacementMode", "Plane", "Plane"))));
 	}
 
 	{
@@ -210,6 +229,111 @@ void FPlacementModeModule::StartupModule()
 	BasicShapeThumbnails.Add(UActorFactoryBasicShape::BasicCylinder.ToString(), TEXT("ClassThumbnail.Cylinder"));
 	BasicShapeThumbnails.Add(UActorFactoryBasicShape::BasicCone.ToString(), TEXT("ClassThumbnail.Cone"));
 	BasicShapeThumbnails.Add(UActorFactoryBasicShape::BasicPlane.ToString(), TEXT("ClassThumbnail.Plane"));
+
+
+	// Given a Category Name, this will add a section and all the placeable items in that section directly into the menu
+	auto GenerateQuickCreateSection = [this](const FName& SectionName, int MaxItems = 20)
+	{
+		FPlacementCategory* Category = Categories.Find(SectionName);
+
+		UToolMenu* ContentMenu = UToolMenus::Get()->ExtendMenu("LevelEditor.LevelEditorToolBar.CreateQuickMenu");
+		FToolMenuSection& Section = ContentMenu->AddSection(SectionName, Category->DisplayName);
+
+		int count = 1;
+		for (auto& Pair : Category->Items)
+		{
+			TSharedPtr<const FPlaceableItem> Item = Pair.Value;
+
+			FName TheName = Item->AssetData.AssetName;
+			TSharedRef<SWidget> TheWidget = SNew(SPlacementAssetMenuEntry, Item);
+
+			FToolMenuEntry& NewEntry = Section.AddEntry(
+				FToolMenuEntry::InitWidget(Item->AssetData.AssetName, SNew(SPlacementAssetMenuEntry, Item), FText(), true, true)
+			);
+
+			// NewEntry.StyleNameOverride = "PlaceableItemEntry";
+
+			if (++count > MaxItems)
+				break;
+		}
+	};
+
+	auto GenerateCategorySubMenu = [this](UToolMenu* InMenu, const FName& InSectionName, const FText& InSectionDisplayName, const FName& PlacementCategory)
+	{
+		FToolMenuSection* InSection = InMenu->FindSection(InSectionName);	
+		if (InSection == nullptr)
+		{
+			InSection = &(InMenu->AddSection(InSectionName, InSectionDisplayName));
+		}
+
+		FPlacementCategory* Category = Categories.Find(PlacementCategory);
+
+		FToolMenuEntry& AllSubMenu = InSection->AddSubMenu(PlacementCategory,
+			Category->DisplayName,
+			FText::GetEmpty(),
+			FNewToolMenuDelegate::CreateLambda([this, PlacementCategory](UToolMenu* InMenu)
+			{
+				FToolMenuSection& Section = InMenu->AddSection(PlacementCategory);
+				RegenerateItemsForCategory(PlacementCategory);
+				FPlacementCategory* Category = Categories.Find(PlacementCategory);
+				for (auto& Pair : Category->Items)
+				{
+					TSharedPtr<const FPlaceableItem> Item = Pair.Value;
+
+					FName TheName = Item->AssetData.AssetName;
+					TSharedRef<SWidget> TheWidget = SNew(SPlacementAssetMenuEntry, Item);
+
+					FToolMenuEntry& NewEntry = Section.AddEntry(
+						FToolMenuEntry::InitWidget(Item->AssetData.AssetName, SNew(SPlacementAssetMenuEntry, Item), FText(), true, true)
+					);
+					// NewEntry.StyleNameOverride = "PlaceableItemEntry";
+				}
+			})
+		);
+		AllSubMenu.Icon = Category->DisplayIcon;
+	};
+
+	
+	UToolMenu* ContentMenu = UToolMenus::Get()->ExtendMenu("LevelEditor.LevelEditorToolBar.CreateQuickMenu");
+	FName CreateSectionName = TEXT("PMQCreateMenu");
+	FText CreateSectionDisplayName = NSLOCTEXT("PlacementMode", "PMQCreateMenu", "Create");
+
+	// All Subcategories as submenus
+	FName CategoriesSectionName = TEXT("CreateAllCategories");
+	ContentMenu->AddDynamicSection(CategoriesSectionName,
+		FNewToolMenuDelegate::CreateLambda([this, CreateSectionName, CreateSectionDisplayName, GenerateCategorySubMenu](UToolMenu* InMenu)
+		{
+			TArray<FPlacementCategoryInfo> SortedCategories;
+			GetSortedCategories(SortedCategories);
+			for (auto CategoryInfo : SortedCategories)
+			{
+				// Skip Basic and Recent since we add those later
+				if (CategoryInfo.UniqueHandle == FBuiltInPlacementCategories::Basic() ||
+					CategoryInfo.UniqueHandle == FBuiltInPlacementCategories::RecentlyPlaced())
+					continue;
+
+				GenerateCategorySubMenu(InMenu, CreateSectionName, CreateSectionDisplayName, CategoryInfo.UniqueHandle);
+			}
+		}
+	));
+
+
+	// Basics Section
+	GenerateQuickCreateSection(FBuiltInPlacementCategories::Basic());
+
+	// Recents Section, limit to 5 items, then put in an all Recents submenu
+	RefreshRecentlyPlaced();
+	GenerateQuickCreateSection(FBuiltInPlacementCategories::RecentlyPlaced(), 5);
+	FPlacementCategory* RecentCategory = Categories.Find(FBuiltInPlacementCategories::RecentlyPlaced());
+	const FName& RecentName = FBuiltInPlacementCategories::RecentlyPlaced();
+	GenerateCategorySubMenu(ContentMenu, RecentName, RecentCategory->DisplayName, RecentName);
+
+	// Open Placement Browser Panel
+	FToolMenuSection& BrowserSection = ContentMenu->AddSection(TEXT("PlacementBrowserMenuSection"));
+	BrowserSection.AddSeparator(NAME_None);
+
+	BrowserSection.AddMenuEntry(FLevelEditorCommands::Get().OpenPlaceActors);
+
 }
 
 void FPlacementModeModule::PreUnloadCallback()

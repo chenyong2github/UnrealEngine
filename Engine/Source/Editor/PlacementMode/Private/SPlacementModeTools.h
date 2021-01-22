@@ -51,6 +51,36 @@ private:
 	const FSlateBrush* PressedImage;
 };
 
+class SPlacementAssetMenuEntry : public SCompoundWidget
+{
+public:
+	SLATE_BEGIN_ARGS(SPlacementAssetMenuEntry){}
+	SLATE_END_ARGS()
+
+	void Construct(const FArguments& InArgs, const TSharedPtr<const FPlaceableItem>& InItem);
+
+	virtual FReply OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
+	virtual FReply OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
+	virtual FReply OnDragDetected(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
+
+	bool IsPressed() const;
+
+	TSharedPtr<const FPlaceableItem> Item;
+
+	virtual FSlateColor GetForegroundColor() const override;
+
+private:
+	const FSlateBrush* GetBorder() const;
+	const FSlateBrush* GetIcon() const;
+
+	bool bIsPressed;
+
+	const FButtonStyle* Style;
+	
+	mutable const FSlateBrush* AssetImage;
+};
+
+
 class SPlacementModeTools : public SCompoundWidget
 {
 public:

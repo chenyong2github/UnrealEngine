@@ -541,6 +541,7 @@ public:
 	 */
 
 	TSharedPtr< FUICommandInfo > WorldProperties;
+	TSharedPtr< FUICommandInfo > OpenPlaceActors;
 	TSharedPtr< FUICommandInfo > OpenContentBrowser;
 	TSharedPtr< FUICommandInfo > OpenMarketplace;
 	TSharedPtr< FUICommandInfo > ToggleVR;
@@ -1146,6 +1147,9 @@ public:
 
 	/** Select the world info actor and show the properties */
 	static void OnShowWorldProperties( TWeakPtr< SLevelEditor > LevelEditor );
+
+	/** Open the Place Actors Panel */
+	static void OpenPlaceActors();
 
 	/** Open the Content Browser */
 	static void OpenContentBrowser();
