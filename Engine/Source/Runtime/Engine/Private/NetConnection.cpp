@@ -1160,7 +1160,7 @@ void UNetConnection::UpdateLevelVisibilityInternal(const FUpdateLevelVisibilityL
 
 			check(Channel->OpenedLocally);
 
-			if (Channel->Actor && Channel->Actor->GetLevel()->GetOutermost()->GetFName() == LevelVisibility.PackageName)
+			if (Channel->Actor && Channel->Actor->GetLevel() && Channel->Actor->GetLevel()->GetOutermost()->GetFName() == LevelVisibility.PackageName)
 			{
 				Channel->Close(EChannelCloseReason::LevelUnloaded);
 			}
