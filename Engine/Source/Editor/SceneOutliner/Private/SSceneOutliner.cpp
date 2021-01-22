@@ -1167,6 +1167,8 @@ namespace SceneOutliner
 			// try to pick the most suitable world context
 
 			// ideally we want a PIE world that is standalone or the first client
+
+			int32 LowestClientInstanceSeen = MAX_int32;
 			for (const FWorldContext& Context : GEngine->GetWorldContexts())
 			{
 				UWorld* World = Context.World();
@@ -1177,10 +1179,10 @@ namespace SceneOutliner
 						SharedData->RepresentingWorld = World;
 						break;
 					}
-					else if(World->GetNetMode() == NM_Client && Context.PIEInstance == 2)	// Slightly dangerous: assumes server is always PIEInstance = 1;
+					else if((World->GetNetMode() == NM_Client) && (Context.PIEInstance < LowestClientInstanceSeen))
 					{
 						SharedData->RepresentingWorld = World;
-						break;
+						LowestClientInstanceSeen = Context.PIEInstance;
 					}
 				}
 			}
