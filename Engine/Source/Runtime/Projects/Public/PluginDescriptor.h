@@ -61,6 +61,9 @@ struct PROJECTS_API FPluginDescriptor
 	/** Version of the engine that this plugin is compatible with */
 	FString EngineVersion;
 
+	/** Optional custom virtual path to display in editor to better organize. Inserted just before this plugin's directory in the path: /All/Plugins/EditorCustomVirtualPath/PluginName */
+	FString EditorCustomVirtualPath;
+
 	/** Controls a subset of platforms that can use this plugin, and which ones will stage the .uplugin file and content files. 
 	Generally, for code plugins, it should be the union of platforms that the modules in the plugin are compiled for. */
 	TArray<FString> SupportedTargetPlatforms;

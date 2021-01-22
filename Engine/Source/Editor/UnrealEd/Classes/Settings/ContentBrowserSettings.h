@@ -46,6 +46,14 @@ public:
 	UPROPERTY(config)
 	bool FilterRecursively = true;
 
+	/** Whether to group root folders under a common folder in the path view */
+	UPROPERTY(config)
+	bool ShowAllFolder = false;
+
+	/** Whether to organize folders in the content browser */
+	UPROPERTY(config)
+	bool OrganizeFolders = false;
+
 	/** The number of objects to keep in the Content Browser Recently Opened filter */
 	UPROPERTY(EditAnywhere, config, Category = ContentBrowser, meta = (DisplayName = "Number of Assets to Keep in the Recently Opened Filter", ClampMin = "1", ClampMax = "30"))
 	int32 NumObjectsInRecentList;

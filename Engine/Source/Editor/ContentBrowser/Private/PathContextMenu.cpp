@@ -135,13 +135,16 @@ void FPathContextMenu::MakePathViewContextMenu(UToolMenu* Menu)
 			}
 
 			// Explore
-			Section.AddMenuEntry(
-				"ExploreTooltip",
-				ContentBrowserUtils::GetExploreFolderText(),
-				LOCTEXT("ExploreTooltip", "Finds this folder on disk."),
-				FSlateIcon(),
-				FUIAction( FExecuteAction::CreateSP( this, &FPathContextMenu::ExecuteExplore ) )
-				);
+			if (!Context->bNoFolderOnDisk)
+			{
+				Section.AddMenuEntry(
+					"ExploreTooltip",
+					ContentBrowserUtils::GetExploreFolderText(),
+					LOCTEXT("ExploreTooltip", "Finds this folder on disk."),
+					FSlateIcon(),
+					FUIAction( FExecuteAction::CreateSP( this, &FPathContextMenu::ExecuteExplore ) )
+					);
+			}
 
 			if (Context->bCanBeModified)
 			{

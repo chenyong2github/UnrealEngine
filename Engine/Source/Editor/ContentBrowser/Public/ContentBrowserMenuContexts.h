@@ -78,6 +78,9 @@ public:
 	bool bCanBeModified;
 
 	UPROPERTY()
+	bool bNoFolderOnDisk;
+
+	UPROPERTY()
 	int32 NumAssetPaths;
 
 	UPROPERTY()

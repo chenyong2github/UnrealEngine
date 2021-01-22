@@ -393,6 +393,14 @@ void UContentBrowserFileDataSource::Tick(const float InDeltaTime)
 	}
 }
 
+void UContentBrowserFileDataSource::EnumerateRootPaths(const FContentBrowserDataFilter& InFilter, TFunctionRef<void(FName)> InCallback)
+{
+	for (const auto& RegisteredFileMount : RegisteredFileMounts)
+	{
+		InCallback(RegisteredFileMount.Key);
+	}
+}
+
 void UContentBrowserFileDataSource::CompileFilter(const FName InPath, const FContentBrowserDataFilter& InFilter, FContentBrowserDataCompiledFilter& OutCompiledFilter)
 {
 	const FContentBrowserDataObjectFilter* ObjectFilter = InFilter.ExtraFilters.FindFilter<FContentBrowserDataObjectFilter>();
@@ -431,11 +439,10 @@ void UContentBrowserFileDataSource::CompileFilter(const FName InPath, const FCon
 	}
 
 	// Convert the virtual path - if it doesn't exist in this data source then the filter won't include anything
-	FName InternalPath;
-	if (!TryConvertVirtualPathToInternal(InPath, InternalPath))
-	{
-		return;
-	}
+	TSet<FName> InternalPaths;
+	TMap<FName, TArray<FName>> VirtualPaths;
+	FName SingleInternalPath;
+	ExpandVirtualPath(InPath, InFilter, SingleInternalPath, InternalPaths, VirtualPaths);
 
 	auto PassesExternalFilters = [&InFilter](const FName InDiscoveredItemMountPath, const FDiscoveredItem& InDiscoveredItem, const TSharedPtr<const ContentBrowserFileData::FCommonActions>& InCommonActions)
 	{
@@ -518,9 +525,12 @@ void UContentBrowserFileDataSource::CompileFilter(const FName InPath, const FCon
 		}
 	};
 
-	if (const FDiscoveredItem* DiscoveredItem = DiscoveredItems.Find(InternalPath))
+	for (const FName InternalPath : InternalPaths)
 	{
-		PopulateMatchingChildItems(*DiscoveredItem);
+		if (const FDiscoveredItem* DiscoveredItem = DiscoveredItems.Find(InternalPath))
+		{
+			PopulateMatchingChildItems(*DiscoveredItem);
+		}
 	}
 }
 

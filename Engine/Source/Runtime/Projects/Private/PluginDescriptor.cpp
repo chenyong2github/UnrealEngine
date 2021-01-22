@@ -162,6 +162,7 @@ bool FPluginDescriptor::Read(const FJsonObject& Object, FText& OutFailReason)
 	Object.TryGetStringField(TEXT("MarketplaceURL"), MarketplaceURL);
 	Object.TryGetStringField(TEXT("SupportURL"), SupportURL);
 	Object.TryGetStringField(TEXT("EngineVersion"), EngineVersion);
+	Object.TryGetStringField(TEXT("EditorCustomVirtualPath"), EditorCustomVirtualPath);
 	Object.TryGetStringArrayField(TEXT("SupportedTargetPlatforms"), SupportedTargetPlatforms);
 	Object.TryGetStringArrayField(TEXT("SupportedPrograms"), SupportedPrograms);
 	Object.TryGetBoolField(TEXT("bIsPluginExtension"), bIsPluginExtension);
@@ -255,6 +256,15 @@ void FPluginDescriptor::UpdateJson(FJsonObject& JsonObject) const
 	else
 	{
 		JsonObject.RemoveField(TEXT("EngineVersion"));
+	}
+
+	if (EditorCustomVirtualPath.Len() > 0)
+	{
+		JsonObject.SetStringField(TEXT("EditorCustomVirtualPath"), EditorCustomVirtualPath);
+	}
+	else
+	{
+		JsonObject.RemoveField(TEXT("EditorCustomVirtualPath"));
 	}
 
 	if (EnabledByDefault != EPluginEnabledByDefault::Unspecified)

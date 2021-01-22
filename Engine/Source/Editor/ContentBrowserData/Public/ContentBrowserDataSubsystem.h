@@ -28,6 +28,16 @@ public:
 	TArray<FName> MountRootsToEnumerate;
 };
 
+/** Internal - Filter data used to inject dummy items */
+USTRUCT()
+struct CONTENTBROWSERDATA_API FContentBrowserCompiledVirtualFolderFilter
+{
+	GENERATED_BODY()
+
+public:
+	TMap<FName, FContentBrowserItemData> CachedSubPaths;
+};
+
 /**
  * Subsystem that provides access to Content Browser data.
  * This type deals with the composition of multiple data sources, which provide information about the folders and files available in the Content Browser.
