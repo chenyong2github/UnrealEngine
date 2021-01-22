@@ -16,12 +16,12 @@
  * - Has an upper limit of the number of items it will store.
  * - Any item that is added to the array is moved to the top.
  */
-template<typename T, typename Allocator = FDefaultAllocator>
+template<typename T, typename InAllocator = FDefaultAllocator>
 class TMRUArray
-	: public TArray<T, Allocator>
+	: public TArray<T, InAllocator>
 {
 public:
-	typedef TArray<T, Allocator> Super;
+	typedef TArray<T, InAllocator> Super;
 
 	/** The maximum number of items we can store in this array. */
 	int32 MaxItems;
