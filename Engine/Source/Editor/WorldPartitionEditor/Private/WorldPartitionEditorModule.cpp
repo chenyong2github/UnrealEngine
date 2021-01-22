@@ -127,14 +127,14 @@ TSharedRef<SWidget> FWorldPartitionEditorModule::CreateWorldPartitionEditor()
 	return SNew(SWorldPartitionEditor).InWorld(EditorWorld);
 }
 
-bool FWorldPartitionEditorModule::IsWorldPartitionEnabled()
+bool FWorldPartitionEditorModule::IsWorldPartitionEnabled() const
 {
 	return GetDefault<UWorldPartitionEditorSettings>()->bEnableWorldPartition;
 }
 
 bool FWorldPartitionEditorModule::IsConversionPromptEnabled() const
 {
-	return GetDefault<UWorldPartitionEditorSettings>()->bEnableConversionPrompt;
+	return IsWorldPartitionEnabled() && GetDefault<UWorldPartitionEditorSettings>()->bEnableConversionPrompt;
 }
 
 void FWorldPartitionEditorModule::SetConversionPromptEnabled(bool bEnabled)
@@ -149,7 +149,7 @@ float FWorldPartitionEditorModule::GetAutoCellLoadingMaxWorldSize() const
 
 bool FWorldPartitionEditorModule::ConvertMap(const FString& InLongPackageName)
 {
-	if (!GetDefault<UWorldPartitionEditorSettings>()->bEnableConversionPrompt || ULevel::GetIsLevelPartitionedFromPackage(FName(*InLongPackageName)))
+	if (!IsConversionPromptEnabled() || ULevel::GetIsLevelPartitionedFromPackage(FName(*InLongPackageName)))
 	{
 		return true;
 	}

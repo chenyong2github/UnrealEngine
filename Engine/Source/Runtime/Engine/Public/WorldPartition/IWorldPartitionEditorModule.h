@@ -12,7 +12,7 @@ class IWorldPartitionEditorModule : public IModuleInterface
 public:
 	virtual ~IWorldPartitionEditorModule() {}
 
-	virtual bool IsWorldPartitionEnabled() = 0;
+	virtual bool IsWorldPartitionEnabled() const = 0;
 	virtual bool IsConversionPromptEnabled() const = 0;
 	virtual void SetConversionPromptEnabled(bool bEnabled) = 0;
 	virtual float GetAutoCellLoadingMaxWorldSize() const = 0;

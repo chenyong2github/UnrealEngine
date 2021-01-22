@@ -28,7 +28,7 @@ public:
 	/**
 	 *
 	 */
-	virtual bool IsWorldPartitionEnabled() override;
+	virtual bool IsWorldPartitionEnabled() const override;
 
 	/**
 	 *
