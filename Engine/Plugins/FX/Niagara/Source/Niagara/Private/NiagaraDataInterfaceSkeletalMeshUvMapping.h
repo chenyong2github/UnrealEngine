@@ -23,7 +23,7 @@ public:
 private:
 	TResourceArray<uint8> FrozenQuadTree;
 
-	FVertexBufferRHIRef UvMappingBuffer;
+	FBufferRHIRef UvMappingBuffer;
 	FShaderResourceViewRHIRef UvMappingSrv;
 
 #if STATS
