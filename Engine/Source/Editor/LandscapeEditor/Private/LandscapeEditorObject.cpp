@@ -557,6 +557,7 @@ void ULandscapeEditorObject::RefreshImports()
 {
 	ClearImportLandscapeData();
 	HeightmapImportDescriptorIndex = 0;
+	HeightmapImportDescriptor.Reset();
 	ImportLandscape_Width = 0;
 	ImportLandscape_Height = 0;
 
