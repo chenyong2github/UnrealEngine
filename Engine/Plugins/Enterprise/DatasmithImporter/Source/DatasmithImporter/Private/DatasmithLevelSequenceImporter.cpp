@@ -537,17 +537,17 @@ namespace DatasmithLevelSequenceImporterImpl
 				continue;
 			}
 
-			if (AnimationElement->IsSubType((uint64)EDatasmithElementAnimationSubType::TransformAnimation))
+			if (AnimationElement->IsSubType(EDatasmithElementAnimationSubType::TransformAnimation))
 			{
 				TSharedRef<IDatasmithTransformAnimationElement> TransformAnimation = StaticCastSharedRef<IDatasmithTransformAnimationElement>(AnimationElement.ToSharedRef());
 				PopulateTransformTrack(TransformAnimation, AnimIndex, ImportContext, LevelSequence, MinFrameNumber, MaxFrameNumber);
 			}
-			else if (AnimationElement->IsSubType((uint64)EDatasmithElementAnimationSubType::VisibilityAnimation))
+			else if (AnimationElement->IsSubType(EDatasmithElementAnimationSubType::VisibilityAnimation))
 			{
 				TSharedRef<IDatasmithVisibilityAnimationElement> VisibilityAnimation = StaticCastSharedRef<IDatasmithVisibilityAnimationElement>(AnimationElement.ToSharedRef());
 				PopulateVisibilityTrack(VisibilityAnimation, AnimIndex, ImportContext, LevelSequence, MinFrameNumber, MaxFrameNumber);
 			}
-			else if (AnimationElement->IsSubType((uint64)EDatasmithElementAnimationSubType::SubsequenceAnimation))
+			else if (AnimationElement->IsSubType(EDatasmithElementAnimationSubType::SubsequenceAnimation))
 			{
 				TSharedRef<IDatasmithSubsequenceAnimationElement> SubsequenceAnimation = StaticCastSharedRef<IDatasmithSubsequenceAnimationElement>(AnimationElement.ToSharedRef());
 				PopulateSubsequenceTrack(SubsequenceAnimation, bShouldClearSubsequenceMasterTrack, ImportContext, LevelSequence, MinFrameNumber, MaxFrameNumber);
@@ -621,7 +621,7 @@ bool FDatasmithLevelSequenceImporter::CanImportLevelSequence(const TSharedRef<ID
 			continue;
 		}
 
-		if (AnimationElement->IsSubType((uint64)EDatasmithElementAnimationSubType::SubsequenceAnimation))
+		if (AnimationElement->IsSubType(EDatasmithElementAnimationSubType::SubsequenceAnimation))
 		{
 			TSharedRef<IDatasmithSubsequenceAnimationElement> SubsequenceAnimation = StaticCastSharedRef<IDatasmithSubsequenceAnimationElement>(AnimationElement.ToSharedRef());
 			TSharedPtr<IDatasmithLevelSequenceElement> PinnedTargetSequence = SubsequenceAnimation->GetSubsequence().Pin();

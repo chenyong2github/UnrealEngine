@@ -469,7 +469,7 @@ void FDatasmithSceneXmlWriterImpl::WriteActorBindingElement( const TSharedRef< I
 	{
 		TSharedPtr<IDatasmithBasePropertyCaptureElement> BasePropertyElement = ActorBindingElement->GetPropertyCapture( PropertyIndex );
 
-		if ( BasePropertyElement->IsSubType( ( uint64 ) EDatasmithElementVariantSubType::PropertyCapture ) )
+		if ( BasePropertyElement->IsSubType( EDatasmithElementVariantSubType::PropertyCapture ) )
 		{
 			TSharedPtr<IDatasmithPropertyCaptureElement> PropertyElement = StaticCastSharedPtr< IDatasmithPropertyCaptureElement >( BasePropertyElement );
 			if ( PropertyElement.IsValid() )
@@ -477,7 +477,7 @@ void FDatasmithSceneXmlWriterImpl::WriteActorBindingElement( const TSharedRef< I
 				WritePropertyCaptureElement( PropertyElement.ToSharedRef(), Archive, Indent + 1 );
 			}
 		}
-		else if ( BasePropertyElement->IsSubType( ( uint64 ) EDatasmithElementVariantSubType::ObjectPropertyCapture ) )
+		else if ( BasePropertyElement->IsSubType( EDatasmithElementVariantSubType::ObjectPropertyCapture ) )
 		{
 			TSharedPtr<IDatasmithObjectPropertyCaptureElement> ObjectPropertyElement = StaticCastSharedPtr< IDatasmithObjectPropertyCaptureElement >( BasePropertyElement );
 			if ( ObjectPropertyElement.IsValid() )
@@ -1465,50 +1465,50 @@ void FDatasmithSceneXmlWriterImpl::WriteUEPbrMaterialExpressions( const TSharedR
 
 		if ( MaterialExpression )
 		{
-			if ( MaterialExpression->IsSubType( (uint64)EDatasmithMaterialExpressionType::Texture ) )
+			if ( MaterialExpression->IsSubType( EDatasmithMaterialExpressionType::Texture ) )
 			{
 				const IDatasmithMaterialExpressionTexture* ExpressionTexture = static_cast< const IDatasmithMaterialExpressionTexture* >( MaterialExpression );
 
 				WriteMaterialExpressionTexture( MaterialElement, *ExpressionTexture, Archive, Indent + 1 );
 			}
-			else if ( MaterialExpression->IsSubType( (uint64)EDatasmithMaterialExpressionType::TextureCoordinate ) )
+			else if ( MaterialExpression->IsSubType( EDatasmithMaterialExpressionType::TextureCoordinate ) )
 			{
 				const IDatasmithMaterialExpressionTextureCoordinate* ExpressionTextureCoordinate = static_cast< const IDatasmithMaterialExpressionTextureCoordinate* >( MaterialExpression );
 
 				WriteMaterialExpressionTextureCoordinate( MaterialElement, *ExpressionTextureCoordinate, Archive, Indent + 1 );
 			}
-			else if ( MaterialExpression->IsSubType( (uint64)EDatasmithMaterialExpressionType::FlattenNormal ) )
+			else if ( MaterialExpression->IsSubType( EDatasmithMaterialExpressionType::FlattenNormal ) )
 			{
 				const IDatasmithMaterialExpressionFlattenNormal* FlattenNormal = static_cast< const IDatasmithMaterialExpressionFlattenNormal* >( MaterialExpression );
 
 				WriteMaterialExpressionFlattenNormal( MaterialElement, *FlattenNormal, Archive, Indent + 1 );
 			}
-			else if ( MaterialExpression->IsSubType( (uint64)EDatasmithMaterialExpressionType::ConstantBool ) )
+			else if ( MaterialExpression->IsSubType( EDatasmithMaterialExpressionType::ConstantBool ) )
 			{
 				const IDatasmithMaterialExpressionBool* ConstantBool = static_cast< const IDatasmithMaterialExpressionBool* >( MaterialExpression );
 				WriteMaterialExpressionBool( MaterialElement, *ConstantBool, Archive, Indent + 1 );
 			}
-			else if ( MaterialExpression->IsSubType( (uint64)EDatasmithMaterialExpressionType::ConstantColor ) )
+			else if ( MaterialExpression->IsSubType( EDatasmithMaterialExpressionType::ConstantColor ) )
 			{
 				const IDatasmithMaterialExpressionColor* ConstantColor = static_cast< const IDatasmithMaterialExpressionColor* >( MaterialExpression );
 				WriteMaterialExpressionColor( MaterialElement, *ConstantColor, Archive, Indent + 1 );
 			}
-			else if ( MaterialExpression->IsSubType( (uint64)EDatasmithMaterialExpressionType::ConstantScalar ) )
+			else if ( MaterialExpression->IsSubType( EDatasmithMaterialExpressionType::ConstantScalar ) )
 			{
 				const IDatasmithMaterialExpressionScalar* ConstantScalar = static_cast< const IDatasmithMaterialExpressionScalar* >( MaterialExpression );
 				WriteMaterialExpressionScalar( MaterialElement, *ConstantScalar, Archive, Indent + 1 );
 			}
-			else if ( MaterialExpression->IsSubType( (uint64)EDatasmithMaterialExpressionType::Generic ) )
+			else if ( MaterialExpression->IsSubType( EDatasmithMaterialExpressionType::Generic ) )
 			{
 				const IDatasmithMaterialExpressionGeneric* GenericExpression = static_cast< const IDatasmithMaterialExpressionGeneric* >( MaterialExpression );
 				WriteMaterialExpressionGeneric( MaterialElement, *GenericExpression, Archive, Indent + 1 );
 			}
-			else if ( MaterialExpression->IsSubType( (uint64)EDatasmithMaterialExpressionType::FunctionCall ) )
+			else if ( MaterialExpression->IsSubType( EDatasmithMaterialExpressionType::FunctionCall ) )
 			{
 				const IDatasmithMaterialExpressionFunctionCall* FunctionCall = static_cast< const IDatasmithMaterialExpressionFunctionCall* >( MaterialExpression );
 				WriteMaterialExpressionFunctionCall( MaterialElement, *FunctionCall, Archive, Indent + 1 );
 			}
-			else if ( MaterialExpression->IsSubType( (uint64)EDatasmithMaterialExpressionType::Custom ) )
+			else if ( MaterialExpression->IsSubType( EDatasmithMaterialExpressionType::Custom ) )
 			{
 				const IDatasmithMaterialExpressionCustom* Expression = static_cast< const IDatasmithMaterialExpressionCustom* >( MaterialExpression );
 				WriteMaterialExpressionCustom( MaterialElement, *Expression, Archive, Indent + 1 );

@@ -44,6 +44,8 @@ class FDatasmithBaseAnimationElementImpl : public FDatasmithElementImpl< Interfa
 public:
 	explicit FDatasmithBaseAnimationElementImpl(const TCHAR* InName, EDatasmithElementType ChildType, EDatasmithElementAnimationSubType InSubtype = EDatasmithElementAnimationSubType::BaseAnimation);
 
+	virtual bool IsSubType( const EDatasmithElementAnimationSubType AnimSubType ) const override { return FDatasmithElementImpl< InterfaceType >::IsSubTypeInternal( (uint64)AnimSubType ); }
+
 	virtual void SetCompletionMode(EDatasmithCompletionMode InCompletionMode) override
 	{
 		CompletionMode = InCompletionMode;

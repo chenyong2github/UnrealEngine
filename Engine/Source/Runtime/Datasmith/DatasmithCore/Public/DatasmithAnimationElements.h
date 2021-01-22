@@ -13,6 +13,8 @@ class IDatasmithLevelSequenceElement;
 class DATASMITHCORE_API IDatasmithBaseAnimationElement : public IDatasmithElement
 {
 public:
+	virtual bool IsSubType( const EDatasmithElementAnimationSubType AnimSubType ) const = 0;
+
 	/** Set how the actor should behave once its animation completes */
 	virtual void SetCompletionMode(EDatasmithCompletionMode CompletionMode) = 0;
 

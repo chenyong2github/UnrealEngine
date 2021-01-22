@@ -1808,17 +1808,17 @@ void FDatasmithMaterialExpressions::ForEachParamsNameInMaterial(const TSharedPtr
 			}
 
 			// Should be keep in sync with the Create...Expression functions
-			if ( MaterialExpression->IsSubType( (uint64)EDatasmithMaterialExpressionType::Texture ) )
+			if ( MaterialExpression->IsSubType( EDatasmithMaterialExpressionType::Texture ) )
 			{
 				FName ParamName = GenerateParamName<EDatasmithMaterialExpressionType::Texture>( *MaterialExpression, ExpressionIndex + 1 );
 				CallbackForEach( MoveTemp( ParamName ), EDatasmithMaterialExpressionType::Texture, ExpressionIndex );
 			}
-			else if ( MaterialExpression->IsSubType( (uint64)EDatasmithMaterialExpressionType::ConstantBool ) )
+			else if ( MaterialExpression->IsSubType( EDatasmithMaterialExpressionType::ConstantBool ) )
 			{
 				FName ParamName = GenerateParamName<EDatasmithMaterialExpressionType::ConstantBool>( *MaterialExpression, ExpressionIndex + 1 );
 				CallbackForEach( MoveTemp( ParamName ), EDatasmithMaterialExpressionType::ConstantBool, ExpressionIndex );
 			}
-			else if ( MaterialExpression->IsSubType( (uint64)EDatasmithMaterialExpressionType::ConstantColor ) )
+			else if ( MaterialExpression->IsSubType( EDatasmithMaterialExpressionType::ConstantColor ) )
 			{
 				if ( ShouldExpressionBeAParameter( static_cast<IDatasmithMaterialExpressionColor&>( *MaterialExpression ) ) )
 				{
@@ -1827,7 +1827,7 @@ void FDatasmithMaterialExpressions::ForEachParamsNameInMaterial(const TSharedPtr
 				}
 			}
 
-			else if ( MaterialExpression->IsSubType( (uint64)EDatasmithMaterialExpressionType::ConstantScalar ) )
+			else if ( MaterialExpression->IsSubType( EDatasmithMaterialExpressionType::ConstantScalar ) )
 			{
 				if ( ShouldExpressionBeAParameter( static_cast<IDatasmithMaterialExpressionScalar&>( *MaterialExpression ) ) )
 				{
@@ -1835,7 +1835,7 @@ void FDatasmithMaterialExpressions::ForEachParamsNameInMaterial(const TSharedPtr
 					CallbackForEach( ParamName, EDatasmithMaterialExpressionType::ConstantScalar, ExpressionIndex );
 				}
 			}
-			else if ( MaterialExpression->IsSubType( (uint64)EDatasmithMaterialExpressionType::Generic ) )
+			else if ( MaterialExpression->IsSubType( EDatasmithMaterialExpressionType::Generic ) )
 			{
 				if ( ShouldExpressionBeAParameter( static_cast<IDatasmithMaterialExpressionGeneric&>( *MaterialExpression ) ) )
 				{
@@ -1843,19 +1843,19 @@ void FDatasmithMaterialExpressions::ForEachParamsNameInMaterial(const TSharedPtr
 					CallbackForEach( ParamName, EDatasmithMaterialExpressionType::Generic, ExpressionIndex );
 				}
 			}
-			else if ( MaterialExpression->IsSubType( (uint64)EDatasmithMaterialExpressionType::FunctionCall ) )
+			else if ( MaterialExpression->IsSubType( EDatasmithMaterialExpressionType::FunctionCall ) )
 			{
 				// Do noting
 			}
-			else if ( MaterialExpression->IsSubType( (uint64)EDatasmithMaterialExpressionType::TextureCoordinate ) )
+			else if ( MaterialExpression->IsSubType( EDatasmithMaterialExpressionType::TextureCoordinate ) )
 			{
 				// Do noting
 			}
-			else if ( MaterialExpression->IsSubType( (uint64)EDatasmithMaterialExpressionType::FlattenNormal ) )
+			else if ( MaterialExpression->IsSubType( EDatasmithMaterialExpressionType::FlattenNormal ) )
 			{
 				// Do noting
 			}
-			else if ( MaterialExpression->IsSubType( (uint64)EDatasmithMaterialExpressionType::FunctionCall ) )
+			else if ( MaterialExpression->IsSubType( EDatasmithMaterialExpressionType::FunctionCall ) )
 			{
 				// Do nothing
 			}
@@ -2866,39 +2866,39 @@ UMaterialExpression* FDatasmithMaterialExpressions::CreateExpression( IDatasmith
 		return nullptr;
 	}
 
-	if ( MaterialExpression->IsSubType( (uint64)EDatasmithMaterialExpressionType::Texture ) )
+	if ( MaterialExpression->IsSubType( EDatasmithMaterialExpressionType::Texture ) )
 	{
 		return CreateTextureExpression( *static_cast< IDatasmithMaterialExpressionTexture* >( MaterialExpression ), AssetsContext, UnrealMaterialOrFunction );
 	}
-	else if ( MaterialExpression->IsSubType( (uint64)EDatasmithMaterialExpressionType::TextureCoordinate ) )
+	else if ( MaterialExpression->IsSubType( EDatasmithMaterialExpressionType::TextureCoordinate ) )
 	{
 		return CreateTextureCoordinateExpression( *static_cast< IDatasmithMaterialExpressionTextureCoordinate* >( MaterialExpression ), AssetsContext, UnrealMaterialOrFunction );
 	}
-	else if ( MaterialExpression->IsSubType( (uint64)EDatasmithMaterialExpressionType::FlattenNormal ) )
+	else if ( MaterialExpression->IsSubType( EDatasmithMaterialExpressionType::FlattenNormal ) )
 	{
 		return CreateFlattenNormalExpression( *static_cast< IDatasmithMaterialExpressionFlattenNormal* >( MaterialExpression ), AssetsContext, UnrealMaterialOrFunction );
 	}
-	else if ( MaterialExpression->IsSubType( (uint64)EDatasmithMaterialExpressionType::ConstantBool ) )
+	else if ( MaterialExpression->IsSubType( EDatasmithMaterialExpressionType::ConstantBool ) )
 	{
 		return CreateBoolExpression( *static_cast< IDatasmithMaterialExpressionBool* >( MaterialExpression ), AssetsContext, UnrealMaterialOrFunction );
 	}
-	else if ( MaterialExpression->IsSubType( (uint64)EDatasmithMaterialExpressionType::ConstantColor ) )
+	else if ( MaterialExpression->IsSubType( EDatasmithMaterialExpressionType::ConstantColor ) )
 	{
 		return CreateColorExpression( *static_cast< IDatasmithMaterialExpressionColor* >( MaterialExpression ), AssetsContext, UnrealMaterialOrFunction );
 	}
-	else if ( MaterialExpression->IsSubType( (uint64)EDatasmithMaterialExpressionType::ConstantScalar ) )
+	else if ( MaterialExpression->IsSubType( EDatasmithMaterialExpressionType::ConstantScalar ) )
 	{
 		return CreateScalarExpression( *static_cast< IDatasmithMaterialExpressionScalar* >( MaterialExpression ), AssetsContext, UnrealMaterialOrFunction );
 	}
-	else if ( MaterialExpression->IsSubType( (uint64)EDatasmithMaterialExpressionType::Generic ) )
+	else if ( MaterialExpression->IsSubType( EDatasmithMaterialExpressionType::Generic ) )
 	{
 		return CreateGenericExpression( *static_cast< IDatasmithMaterialExpressionGeneric* >( MaterialExpression ), AssetsContext, UnrealMaterialOrFunction );
 	}
-	else if ( MaterialExpression->IsSubType( (uint64)EDatasmithMaterialExpressionType::FunctionCall ) )
+	else if ( MaterialExpression->IsSubType( EDatasmithMaterialExpressionType::FunctionCall ) )
 	{
 		return CreateFunctionCallExpression( *static_cast< IDatasmithMaterialExpressionFunctionCall* >( MaterialExpression ), AssetsContext, UnrealMaterialOrFunction );
 	}
-	else if ( MaterialExpression->IsSubType( (uint64)EDatasmithMaterialExpressionType::Custom ) )
+	else if ( MaterialExpression->IsSubType( EDatasmithMaterialExpressionType::Custom ) )
 	{
 		return CreateCustomExpression( *static_cast< IDatasmithMaterialExpressionCustom* >( MaterialExpression ), AssetsContext, UnrealMaterialOrFunction );
 	}
@@ -3304,7 +3304,7 @@ EBlendMode FDatasmithMaterialExpressions::GetUEPbrImportBlendMode(const TSharedP
 	for (int32 ExpressionIndex = 0; ExpressionIndex < MaterialElement->GetExpressionsCount(); ExpressionIndex++)
 	{
 		IDatasmithMaterialExpression* MaterialExpression = MaterialElement->GetExpression(ExpressionIndex);
-		if (MaterialExpression && MaterialExpression->IsSubType((uint64)EDatasmithMaterialExpressionType::FunctionCall))
+		if (MaterialExpression && MaterialExpression->IsSubType(EDatasmithMaterialExpressionType::FunctionCall))
 		{
 			IDatasmithMaterialExpressionFunctionCall* MaterialExpressionFunctionCall = static_cast< IDatasmithMaterialExpressionFunctionCall* >(MaterialExpression);
 
@@ -3429,7 +3429,7 @@ UMaterialInterface* FDatasmithMaterialExpressions::CreateUEPbrMaterialInstance(U
 	{
 		IDatasmithMaterialExpression* DatasmithExpression = MaterialElement->GetExpression( ExpressionIndex );
 
-		if ( DatasmithExpression->IsSubType( (uint64)EDatasmithMaterialExpressionType::Texture ) )
+		if ( DatasmithExpression->IsSubType( EDatasmithMaterialExpressionType::Texture ) )
 		{
 			FName ParameterName = GenerateParamName<EDatasmithMaterialExpressionType::Texture>( *DatasmithExpression, ExpressionIndex + 1 );
 
@@ -3454,7 +3454,7 @@ UMaterialInterface* FDatasmithMaterialExpressions::CreateUEPbrMaterialInstance(U
 				}
 			}
 		}
-		else if ( DatasmithExpression->IsSubType( (uint64)EDatasmithMaterialExpressionType::ConstantBool ) )
+		else if ( DatasmithExpression->IsSubType( EDatasmithMaterialExpressionType::ConstantBool ) )
 		{
 			FName ParameterName = GenerateParamName<EDatasmithMaterialExpressionType::ConstantBool>( *DatasmithExpression, ExpressionIndex + 1 );
 
@@ -3462,7 +3462,7 @@ UMaterialInterface* FDatasmithMaterialExpressions::CreateUEPbrMaterialInstance(U
 
 			MaterialInstanceTemplate->StaticParameters.StaticSwitchParameters.Add( ParameterName ) = BoolExpression->GetBool();
 		}
-		else if ( DatasmithExpression->IsSubType( (uint64)EDatasmithMaterialExpressionType::ConstantColor ) )
+		else if ( DatasmithExpression->IsSubType( EDatasmithMaterialExpressionType::ConstantColor ) )
 		{
 			FName ParameterName = GenerateParamName<EDatasmithMaterialExpressionType::ConstantColor>( *DatasmithExpression, ExpressionIndex + 1 );
 
@@ -3470,7 +3470,7 @@ UMaterialInterface* FDatasmithMaterialExpressions::CreateUEPbrMaterialInstance(U
 
 			MaterialInstanceTemplate->VectorParameterValues.Add( ParameterName ) = ColorExpression->GetColor();
 		}
-		else if ( DatasmithExpression->IsSubType( (uint64)EDatasmithMaterialExpressionType::ConstantScalar ) )
+		else if ( DatasmithExpression->IsSubType( EDatasmithMaterialExpressionType::ConstantScalar ) )
 		{
 			FName ParameterName = GenerateParamName<EDatasmithMaterialExpressionType::ConstantScalar>( *DatasmithExpression, ExpressionIndex + 1 );
 
@@ -3478,7 +3478,7 @@ UMaterialInterface* FDatasmithMaterialExpressions::CreateUEPbrMaterialInstance(U
 
 			MaterialInstanceTemplate->ScalarParameterValues.Add( ParameterName ) = ScalarExpression->GetScalar();
 		}
-		else if ( DatasmithExpression->IsSubType( (uint64)EDatasmithMaterialExpressionType::Generic ) )
+		else if ( DatasmithExpression->IsSubType( EDatasmithMaterialExpressionType::Generic ) )
 		{
 			IDatasmithMaterialExpressionGeneric* GenericExpression = static_cast< IDatasmithMaterialExpressionGeneric* >( DatasmithExpression );
 

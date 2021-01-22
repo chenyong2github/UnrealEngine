@@ -1034,7 +1034,7 @@ TArray<FDatasmithImporterUtils::FFunctionAndMaterialsThatUseIt> FDatasmithImport
 
 		for (int32 MaterialExpressionIndex = 0; MaterialExpressionIndex < UEPbrMaterialElement->GetExpressionsCount(); ++MaterialExpressionIndex)
 		{
-			if (UEPbrMaterialElement->GetExpression(MaterialExpressionIndex)->IsSubType((uint64)EDatasmithMaterialExpressionType::FunctionCall))
+			if (UEPbrMaterialElement->GetExpression(MaterialExpressionIndex)->IsSubType(EDatasmithMaterialExpressionType::FunctionCall))
 			{
 				const FString FunctionPathName(StaticCast<IDatasmithMaterialExpressionFunctionCall*>(UEPbrMaterialElement->GetExpression(MaterialExpressionIndex))->GetFunctionPathName());
 				if (FPaths::IsRelative(FunctionPathName))

@@ -237,7 +237,7 @@ namespace DatasmithAnimationJsonSerializerImpl
 		FString ActorName = AnimationElement->GetName();
 		Animation->SetStringField(DSANIM_ACTORNAME, ActorName);
 
-		if (AnimationElement->IsSubType((uint64)EDatasmithElementAnimationSubType::TransformAnimation))
+		if (AnimationElement->IsSubType(EDatasmithElementAnimationSubType::TransformAnimation))
 		{
 			Animation->SetStringField(DSANIM_ANIMTYPE, DSANIM_ANIMTYPE_TRANSFORM);
 
@@ -262,7 +262,7 @@ namespace DatasmithAnimationJsonSerializerImpl
 				Animation->SetArrayField(DSANIM_SCALE, Frames);
 			}
 		}
-		else if ( AnimationElement->IsSubType( ( uint64 ) EDatasmithElementAnimationSubType::VisibilityAnimation ) )
+		else if ( AnimationElement->IsSubType( EDatasmithElementAnimationSubType::VisibilityAnimation ) )
 		{
 			Animation->SetStringField( DSANIM_ANIMTYPE, DSANIM_ANIMTYPE_VISIBILITY );
 

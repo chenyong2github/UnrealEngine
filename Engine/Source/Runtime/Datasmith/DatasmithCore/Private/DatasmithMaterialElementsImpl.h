@@ -38,14 +38,16 @@ public:
 };
 
 template< typename InterfaceType >
-class FDatasmithMaterialExpressionImpl : public FDatasmithElementImpl < InterfaceType >, public TSharedFromThis< FDatasmithMaterialExpressionImpl< InterfaceType > >
+class FDatasmithMaterialExpressionImpl : public FDatasmithElementImpl< InterfaceType >, public TSharedFromThis< FDatasmithMaterialExpressionImpl< InterfaceType > >
 {
 public:
-	FDatasmithMaterialExpressionImpl( EDatasmithMaterialExpressionType InSubType );
+	explicit FDatasmithMaterialExpressionImpl( EDatasmithMaterialExpressionType InSubType );
 
 	virtual ~FDatasmithMaterialExpressionImpl() = default;
 
 	virtual EDatasmithMaterialExpressionType GetExpressionType() const override { return static_cast<EDatasmithMaterialExpressionType>( this->Subtype.Get( this->Store ) ); }
+
+	virtual bool IsSubType( const EDatasmithMaterialExpressionType ExpressionType ) const override { return FDatasmithElementImpl< InterfaceType >::IsSubTypeInternal( (uint64)ExpressionType ); }
 
 	virtual void ConnectExpression( IDatasmithExpressionInput& ExpressionInput ) override
 	{

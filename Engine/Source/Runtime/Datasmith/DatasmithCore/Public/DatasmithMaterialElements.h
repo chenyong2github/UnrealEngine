@@ -46,7 +46,9 @@ public:
 	EDatasmithMaterialExpressionType GetType() const { return GetExpressionType(); }
 	virtual EDatasmithMaterialExpressionType GetExpressionType() const = 0;
 	UE_DEPRECATED(4.27, "IDatasmithMaterialExpression now derive from IDatasmithElement, please use IsSubType() or GetExpressionType() instead")
-	bool IsA( const EDatasmithMaterialExpressionType ExpressionType ) const { return IsSubType((uint64)ExpressionType); }
+	bool IsA( const EDatasmithMaterialExpressionType ExpressionType ) const { return IsSubType(ExpressionType); }
+
+	virtual bool IsSubType( const EDatasmithMaterialExpressionType ExpressionType ) const = 0;
 
 	/** Connects the default output to an expression input */
 	virtual void ConnectExpression( IDatasmithExpressionInput& ExpressionInput ) = 0;

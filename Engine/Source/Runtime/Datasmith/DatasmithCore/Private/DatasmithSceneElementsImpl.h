@@ -26,7 +26,6 @@ public:
 	virtual ~FDatasmithElementImpl() {}
 
 	virtual bool IsA( EDatasmithElementType InType ) const override { return EnumHasAnyFlags( GetElementType(), InType); }
-	virtual bool IsSubType( uint64 InSubType ) const override { return ( InSubType & GetSubType() ) != 0; }
 
 	virtual const TCHAR* GetName() const override { return *Name.Get(Store); }
 	virtual void SetName(const TCHAR* InName) override {Name.Set(Store, FDatasmithUtils::SanitizeObjectName(InName)); }
@@ -40,6 +39,9 @@ public:
 	virtual TSharedPtr<DirectLink::FSceneGraphSharedState> MakeSharedState() const override { return MakeShared<FDatasmithSceneGraphSharedState>(); }
 	virtual const DirectLink::FParameterStore& GetStore() const override { return Store; }
 	virtual       DirectLink::FParameterStore& GetStore()       override { return Store; }
+
+protected:
+	virtual bool IsSubTypeInternal( uint64 InSubType ) const override { return ( InSubType & GetSubType() ) != 0; }
 
 private:
 	EDatasmithElementType GetElementType() const { return Type.Get(Store); }

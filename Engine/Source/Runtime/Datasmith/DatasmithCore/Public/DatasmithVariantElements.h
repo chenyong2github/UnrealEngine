@@ -7,7 +7,13 @@
 
 #include "Templates/SharedPointer.h"
 
-class DATASMITHCORE_API IDatasmithBasePropertyCaptureElement : public IDatasmithElement
+class DATASMITHCORE_API IDatasmithBaseVariantElement : public IDatasmithElement
+{
+public:
+	virtual bool IsSubType( const EDatasmithElementVariantSubType VariantSubType ) const = 0;
+};
+
+class DATASMITHCORE_API IDatasmithBasePropertyCaptureElement : public IDatasmithBaseVariantElement
 {
 public:
 	virtual void SetPropertyPath(const FString& Path) = 0;
@@ -31,7 +37,7 @@ public:
 	virtual TWeakPtr<IDatasmithElement> GetRecordedObject() const = 0;
 };
 
-class DATASMITHCORE_API IDatasmithActorBindingElement : public IDatasmithElement
+class DATASMITHCORE_API IDatasmithActorBindingElement : public IDatasmithBaseVariantElement
 {
 public:
 	virtual void SetActor(TSharedPtr<IDatasmithActorElement> Actor) = 0;
@@ -43,7 +49,7 @@ public:
 	virtual void RemovePropertyCapture(const TSharedRef<IDatasmithBasePropertyCaptureElement>& Prop) = 0;
 };
 
-class DATASMITHCORE_API IDatasmithVariantElement : public IDatasmithElement
+class DATASMITHCORE_API IDatasmithVariantElement : public IDatasmithBaseVariantElement
 {
 public:
 	virtual void AddActorBinding(const TSharedRef<IDatasmithActorBindingElement>& Binding) = 0;
@@ -52,7 +58,7 @@ public:
 	virtual void RemoveActorBinding(const TSharedRef<IDatasmithActorBindingElement>& Binding) = 0;
 };
 
-class DATASMITHCORE_API IDatasmithVariantSetElement : public IDatasmithElement
+class DATASMITHCORE_API IDatasmithVariantSetElement : public IDatasmithBaseVariantElement
 {
 public:
 	virtual void AddVariant(const TSharedRef<IDatasmithVariantElement>& Variant) = 0;
@@ -61,7 +67,7 @@ public:
 	virtual void RemoveVariant(const TSharedRef<IDatasmithVariantElement>& Variant) = 0;
 };
 
-class DATASMITHCORE_API IDatasmithLevelVariantSetsElement : public IDatasmithElement
+class DATASMITHCORE_API IDatasmithLevelVariantSetsElement : public IDatasmithBaseVariantElement
 {
 public:
 	virtual void AddVariantSet(const TSharedRef<IDatasmithVariantSetElement>& VariantSet) = 0;

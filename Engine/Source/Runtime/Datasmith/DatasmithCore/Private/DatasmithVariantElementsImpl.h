@@ -9,11 +9,23 @@
 #include "Templates/SharedPointer.h"
 
 template< typename InterfaceType >
-class FDatasmithBasePropertyCaptureElementImpl : public FDatasmithElementImpl< InterfaceType >
+class FDatasmithBaseVariantElementImpl : public FDatasmithElementImpl< InterfaceType >
+{
+public:
+	using FDatasmithElementImpl< InterfaceType >::FDatasmithElementImpl;
+
+	virtual bool IsSubType( const EDatasmithElementVariantSubType VariantSubType ) const override
+	{
+		return FDatasmithElementImpl< InterfaceType >::IsSubTypeInternal( (uint64)VariantSubType );
+	}
+};
+
+template< typename InterfaceType >
+class FDatasmithBasePropertyCaptureElementImpl : public FDatasmithBaseVariantElementImpl< InterfaceType >
 {
 public:
 	explicit FDatasmithBasePropertyCaptureElementImpl(EDatasmithElementVariantSubType InSubType = EDatasmithElementVariantSubType::PropertyCapture)
-		: FDatasmithElementImpl< InterfaceType >(nullptr, EDatasmithElementType::Variant, (uint64)InSubType)
+		: FDatasmithBaseVariantElementImpl< InterfaceType >(nullptr, EDatasmithElementType::Variant, (uint64)InSubType)
 		, Category(EDatasmithPropertyCategory::Undefined)
 	{
 	}
@@ -88,11 +100,11 @@ private:
 	TWeakPtr<IDatasmithElement> Object;
 };
 
-class FDatasmithActorBindingElementImpl : public FDatasmithElementImpl< IDatasmithActorBindingElement  >
+class FDatasmithActorBindingElementImpl : public FDatasmithBaseVariantElementImpl< IDatasmithActorBindingElement >
 {
 public:
 	explicit FDatasmithActorBindingElementImpl()
-		: FDatasmithElementImpl(nullptr, EDatasmithElementType::Variant, (uint64)EDatasmithElementVariantSubType::ActorBinding)
+		: FDatasmithBaseVariantElementImpl(nullptr, EDatasmithElementType::Variant, (uint64)EDatasmithElementVariantSubType::ActorBinding)
 	{
 	}
 
@@ -131,11 +143,11 @@ private:
 	TArray< TSharedRef< IDatasmithBasePropertyCaptureElement > > PropertyCaptures;
 };
 
-class FDatasmithVariantElementImpl : public FDatasmithElementImpl< IDatasmithVariantElement >
+class FDatasmithVariantElementImpl : public FDatasmithBaseVariantElementImpl< IDatasmithVariantElement >
 {
 public:
 	explicit FDatasmithVariantElementImpl(const TCHAR* InName)
-		: FDatasmithElementImpl(InName, EDatasmithElementType::Variant, (uint64)EDatasmithElementVariantSubType::Variant)
+		: FDatasmithBaseVariantElementImpl(InName, EDatasmithElementType::Variant, (uint64)EDatasmithElementVariantSubType::Variant)
 	{
 	}
 
@@ -163,11 +175,11 @@ private:
 	TArray< TSharedRef< IDatasmithActorBindingElement > > Bindings;
 };
 
-class FDatasmithVariantSetElementImpl : public FDatasmithElementImpl< IDatasmithVariantSetElement >
+class FDatasmithVariantSetElementImpl : public FDatasmithBaseVariantElementImpl< IDatasmithVariantSetElement >
 {
 public:
 	explicit FDatasmithVariantSetElementImpl(const TCHAR* InName)
-		: FDatasmithElementImpl(InName, EDatasmithElementType::Variant, (uint64)EDatasmithElementVariantSubType::VariantSet)
+		: FDatasmithBaseVariantElementImpl(InName, EDatasmithElementType::Variant, (uint64)EDatasmithElementVariantSubType::VariantSet)
 	{
 	}
 
@@ -195,11 +207,11 @@ private:
 	TArray< TSharedRef< IDatasmithVariantElement > > Variants;
 };
 
-class FDatasmithLevelVariantSetsElementImpl : public FDatasmithElementImpl< IDatasmithLevelVariantSetsElement  >
+class FDatasmithLevelVariantSetsElementImpl : public FDatasmithBaseVariantElementImpl< IDatasmithLevelVariantSetsElement  >
 {
 public:
 	explicit FDatasmithLevelVariantSetsElementImpl(const TCHAR* InName)
-		: FDatasmithElementImpl(InName, EDatasmithElementType::Variant, (uint64)EDatasmithElementVariantSubType::LevelVariantSets)
+		: FDatasmithBaseVariantElementImpl(InName, EDatasmithElementType::Variant, (uint64)EDatasmithElementVariantSubType::LevelVariantSets)
 	{
 	}
 

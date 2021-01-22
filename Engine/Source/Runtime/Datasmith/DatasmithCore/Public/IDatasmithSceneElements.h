@@ -29,9 +29,6 @@ public:
 	/** returns if this DatasmithElement is of a specified type */
 	virtual bool IsA(EDatasmithElementType Type) const = 0;
 
-	/** returns if this DatasmithElement is of a specified subtype of its EDatasmithElementType*/
-	virtual bool IsSubType(uint64 SubType) const = 0;
-
 	/** Gets the element name */
 	virtual const TCHAR* GetName() const = 0;
 
@@ -50,6 +47,10 @@ public:
 	 * @return The MD5 hash of the Element properties
 	 */
 	virtual FMD5Hash CalculateElementHash(bool bForce) = 0;
+
+protected:
+	/** returns if this DatasmithElement is of a specified subtype of its EDatasmithElementType*/
+	virtual bool IsSubTypeInternal(uint64 SubType) const = 0;
 };
 
 class DATASMITHCORE_API IDatasmithKeyValueProperty : public IDatasmithElement
