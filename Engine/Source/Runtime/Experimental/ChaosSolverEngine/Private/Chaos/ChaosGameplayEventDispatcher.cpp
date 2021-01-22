@@ -14,7 +14,15 @@
 #include "PhysicsEngine/BodySetup.h"
 #include "EventManager.h"
 
-// PRAGMA_DISABLE_OPTIMIZATION
+FChaosBreakEvent::FChaosBreakEvent()
+	: Component(nullptr)
+	, Location(FVector::ZeroVector)
+	, Velocity(FVector::ZeroVector)
+	, AngularVelocity(FVector::ZeroVector)
+	, Mass(0.0f)
+{
+
+}
 
 void UChaosGameplayEventDispatcher::OnRegister()
 {
@@ -448,6 +456,3 @@ void UChaosGameplayEventDispatcher::AddPendingSleepingNotify(FBodyInstance* Body
 {
 	PendingSleepNotifies.FindOrAdd(BodyInstance) = SleepEventType;
 }
-
-// PRAGMA_ENABLE_OPTIMIZATION
-
