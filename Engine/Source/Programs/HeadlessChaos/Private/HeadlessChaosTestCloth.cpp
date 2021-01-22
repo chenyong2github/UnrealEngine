@@ -261,7 +261,7 @@ namespace ChaosTest {
 
 		TUniquePtr<TPBDEvolution<T, 3>> Evolution = InitPBDEvolution<T>();
 
-		const Chaos::TVector<float, 3> GravDir(0.f, 0.f, -1.f);
+		const Chaos::FVec3 GravDir(0.f, 0.f, -1.f);
 		const T GravMag = 980.665;
 
 		//

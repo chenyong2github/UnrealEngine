@@ -174,14 +174,14 @@ namespace ChaosTest {
 	{
 		Chaos::TParticles<float, 3> Particles;
 		Particles.AddParticles(8);
-		Particles.X(0) = TVector<float, 3>(-1, -1, -1);
-		Particles.X(1) = TVector<float, 3>(-1, -1, 1);
-		Particles.X(2) = TVector<float, 3>(-1, 1, -1);
-		Particles.X(3) = TVector<float, 3>(-1, 1, 1);
-		Particles.X(4) = TVector<float, 3>(1, -1, -1);
-		Particles.X(5) = TVector<float, 3>(1, -1, 1);
-		Particles.X(6) = TVector<float, 3>(1, 1, -1);
-		Particles.X(7) = TVector<float, 3>(1, 1, 1);
+		Particles.X(0) = FVec3(-1, -1, -1);
+		Particles.X(1) = FVec3(-1, -1, 1);
+		Particles.X(2) = FVec3(-1, 1, -1);
+		Particles.X(3) = FVec3(-1, 1, 1);
+		Particles.X(4) = FVec3(1, -1, -1);
+		Particles.X(5) = FVec3(1, -1, 1);
+		Particles.X(6) = FVec3(1, 1, -1);
+		Particles.X(7) = FVec3(1, 1, 1);
 		TArray<Chaos::TVector<int32, 3>> Faces;
 		Faces.SetNum(12);
 		Faces[0] = TVector<int32, 3>(0, 4, 5);

@@ -141,7 +141,7 @@ namespace GeometryCollectionTest
 					const FName NAME_Bone = FName(*FString::Printf(TEXT("Bone_%03d"), BoneIndex));
 					TUniquePtr<FAnalyticImplicitGroup> Group(new FAnalyticImplicitGroup(NAME_Bone, BoneIndex));
 					Group->SetParentBoneIndex(Parents[BoneIndex]);
-					Group->Add(FTransform::Identity, new TSphere<float, 3>(TVector<float, 3>(0), BoneRadius));
+					Group->Add(FTransform::Identity, new TSphere<float, 3>(FVec3(0), BoneRadius));
 					Group->SetRigidBodyState(BoneStates[BoneIndex]);
 					Hierarchy.Add(MoveTemp(Group));
 				}

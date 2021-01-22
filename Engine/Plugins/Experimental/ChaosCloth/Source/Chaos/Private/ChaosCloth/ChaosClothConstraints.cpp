@@ -36,8 +36,8 @@ FClothConstraints::~FClothConstraints()
 
 void FClothConstraints::Initialize(
 	TPBDEvolution<float, 3>* InEvolution,
-	const TArray<TVector<float, 3>>& InAnimationPositions,
-	const TArray<TVector<float, 3>>& InAnimationNormals,
+	const TArray<FVec3>& InAnimationPositions,
+	const TArray<FVec3>& InAnimationNormals,
 	int32 InParticleOffset,
 	int32 InNumParticles)
 {

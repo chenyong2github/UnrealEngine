@@ -13,7 +13,7 @@ namespace GeometryCollectionTest
 	// FindClosestIntersection() tests
 	//==========================================================================
 
-	typedef Chaos::Pair<Chaos::TVector<float, 3>, bool> IntersectionResult;
+	typedef Chaos::Pair<Chaos::FVec3, bool> IntersectionResult;
 
 	template <class T>
 	void RunTestFindClosestIntersectionHelper(

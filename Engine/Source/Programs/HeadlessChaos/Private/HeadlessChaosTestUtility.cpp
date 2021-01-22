@@ -66,7 +66,7 @@ namespace ChaosTest {
 
 		return RigidBodyIndex;
 	}
-	template int32 AppendAnalyticBox(TPBDRigidParticles<float, 3> &, TVector<float, 3>);
+	template int32 AppendAnalyticBox(TPBDRigidParticles<float, 3> &, FVec3);
 
 
 	template<class T>
@@ -159,7 +159,7 @@ namespace ChaosTest {
 
 		return RigidBodyIndex;
 	}
-	template int32 AppendParticleBox(TPBDRigidParticles<float, 3> &, TVector<float, 3>, TArray<Chaos::TVector<int32, 3>> *);
+	template int32 AppendParticleBox(TPBDRigidParticles<float, 3> &, FVec3, TArray<Chaos::TVector<int32, 3>> *);
 
 
 	template<class T>
@@ -380,7 +380,7 @@ namespace ChaosTest {
 		InitDynamicParticleBox2(Particles[0], Scale, 0.0f, OutElements);
 		return Particles[0];
 	}
-	template TPBDRigidParticleHandle<float, 3>* AppendDynamicParticleBox(TPBDRigidsSOAs<float, 3>& Evolution, const TVector<float, 3>& Scale, TArray<Chaos::TVector<int32, 3>>* OutElements);
+	template TPBDRigidParticleHandle<float, 3>* AppendDynamicParticleBox(TPBDRigidsSOAs<float, 3>& Evolution, const FVec3& Scale, TArray<Chaos::TVector<int32, 3>>* OutElements);
 
 	// Create a particle with box collision of specified size and margin (size includes margin)
 	template<class T>
@@ -399,7 +399,7 @@ namespace ChaosTest {
 		InitDynamicParticleSphere2(Particles[0], Scale, OutElements);
 		return Particles[0];
 	}
-	template TPBDRigidParticleHandle<float, 3>* AppendDynamicParticleSphere(TPBDRigidsSOAs<float, 3>& Evolution, const TVector<float, 3>& Scale, TArray<Chaos::TVector<int32, 3>>* OutElements);
+	template TPBDRigidParticleHandle<float, 3>* AppendDynamicParticleSphere(TPBDRigidsSOAs<float, 3>& Evolution, const FVec3& Scale, TArray<Chaos::TVector<int32, 3>>* OutElements);
 
 	template<class T>
 	TPBDRigidParticleHandle<T, 3>* AppendDynamicParticleCylinder(TPBDRigidsSOAs<T, 3>& SOAs, const TVector<T, 3>& Scale, TArray<TVector<int32, 3>>* OutElements)
@@ -408,7 +408,7 @@ namespace ChaosTest {
 		InitDynamicParticleCylinder2(Particles[0], Scale, OutElements, false);
 		return Particles[0];
 	}
-	template TPBDRigidParticleHandle<float, 3>* AppendDynamicParticleCylinder(TPBDRigidsSOAs<float, 3>& Evolution, const TVector<float, 3>& Scale, TArray<Chaos::TVector<int32, 3>>* OutElements);
+	template TPBDRigidParticleHandle<float, 3>* AppendDynamicParticleCylinder(TPBDRigidsSOAs<float, 3>& Evolution, const FVec3& Scale, TArray<Chaos::TVector<int32, 3>>* OutElements);
 
 	template<class T>
 	TPBDRigidParticleHandle<T, 3>* AppendDynamicParticleTaperedCylinder(TPBDRigidsSOAs<T, 3>& SOAs, const TVector<T, 3>& Scale, TArray<TVector<int32, 3>>* OutElements)
@@ -417,7 +417,7 @@ namespace ChaosTest {
 		InitDynamicParticleCylinder2(Particles[0], Scale, OutElements, true);
 		return Particles[0];
 	}
-	template TPBDRigidParticleHandle<float, 3>* AppendDynamicParticleTaperedCylinder(TPBDRigidsSOAs<float, 3>& Evolution, const TVector<float, 3>& Scale, TArray<Chaos::TVector<int32, 3>>* OutElements);
+	template TPBDRigidParticleHandle<float, 3>* AppendDynamicParticleTaperedCylinder(TPBDRigidsSOAs<float, 3>& Evolution, const FVec3& Scale, TArray<Chaos::TVector<int32, 3>>* OutElements);
 
 	template<class T>
 	TPBDRigidParticleHandle<T, 3>* AppendClusteredParticleBox(TPBDRigidsSOAs<T, 3>& SOAs, const TVector<T, 3>& Scale, TArray<TVector<int32, 3>>* OutElements)
@@ -426,7 +426,7 @@ namespace ChaosTest {
 		InitDynamicParticleBox2(Particles[0], Scale, 0.0f, OutElements);
 		return Particles[0];
 	}
-	template TPBDRigidParticleHandle<float, 3>* AppendClusteredParticleBox(TPBDRigidsSOAs<float, 3>& SOAs, const TVector<float, 3>& Scale, TArray<Chaos::TVector<int32, 3>>* OutElements);
+	template TPBDRigidParticleHandle<float, 3>* AppendClusteredParticleBox(TPBDRigidsSOAs<float, 3>& SOAs, const FVec3& Scale, TArray<Chaos::TVector<int32, 3>>* OutElements);
 
 	template<class T>
 	void InitStaticParticleBox(TGeometryParticleHandle<T, 3>* Particle, const TVector<T, 3>& Scale, TArray<TVector<int32, 3>>* OutElements)
@@ -487,7 +487,7 @@ namespace ChaosTest {
 		InitStaticParticleBox(Particles[0], Scale, OutElements);
 		return Particles[0];
 	}
-	template TGeometryParticleHandle<float, 3>* AppendStaticParticleBox(TPBDRigidsSOAs<float, 3>& Evolution, const TVector<float, 3>& Scale, TArray<Chaos::TVector<int32, 3>>* OutElements);
+	template TGeometryParticleHandle<float, 3>* AppendStaticParticleBox(TPBDRigidsSOAs<float, 3>& Evolution, const FVec3& Scale, TArray<Chaos::TVector<int32, 3>>* OutElements);
 
 	template<class T>
 	int AppendStaticAnalyticFloor(TPBDRigidParticles<T, 3> & InParticles)
@@ -545,15 +545,15 @@ namespace ChaosTest {
 
 		Chaos::TParticles<T, 3> Cube;
 		Cube.AddParticles(9);
-		Cube.X(0) = TVector<float, 3>(-1000, -1000, -20);
-		Cube.X(1) = TVector<float, 3>(-1000, -1000, 0);
-		Cube.X(2) = TVector<float, 3>(-1000, 1000, -20);
-		Cube.X(3) = TVector<float, 3>(-1000, 1000, 0);
-		Cube.X(4) = TVector<float, 3>(1000, -1000, -20);
-		Cube.X(5) = TVector<float, 3>(1000, -1000, 0);
-		Cube.X(6) = TVector<float, 3>(1000, 1000, -20);
-		Cube.X(7) = TVector<float, 3>(1000, 1000, 0);
-		Cube.X(8) = TVector<float, 3>(0, 0, 0);
+		Cube.X(0) = FVec3(-1000, -1000, -20);
+		Cube.X(1) = FVec3(-1000, -1000, 0);
+		Cube.X(2) = FVec3(-1000, 1000, -20);
+		Cube.X(3) = FVec3(-1000, 1000, 0);
+		Cube.X(4) = FVec3(1000, -1000, -20);
+		Cube.X(5) = FVec3(1000, -1000, 0);
+		Cube.X(6) = FVec3(1000, 1000, -20);
+		Cube.X(7) = FVec3(1000, 1000, 0);
+		Cube.X(8) = FVec3(0, 0, 0);
 
 		Particle->SetDynamicGeometry(MakeUnique<FConvex>(Cube, 0.0f));
 
@@ -596,15 +596,15 @@ namespace ChaosTest {
 	{
 		Chaos::TParticles<T, 3> Cube;
 		Cube.AddParticles(9);
-		Cube.X(0) = TVector<float, 3>(-1, -1, -1)*Scale;
-		Cube.X(1) = TVector<float, 3>(-1, -1, 1)*Scale;
-		Cube.X(2) = TVector<float, 3>(-1, 1, -1)*Scale;
-		Cube.X(3) = TVector<float, 3>(-1, 1, 1)*Scale;
-		Cube.X(4) = TVector<float, 3>(1, -1, -1)*Scale;
-		Cube.X(5) = TVector<float, 3>(1, -1, 1)*Scale;
-		Cube.X(6) = TVector<float, 3>(1, 1, -1)*Scale;
-		Cube.X(7) = TVector<float, 3>(1, 1, 1)*Scale;
-		Cube.X(8) = TVector<float, 3>(0, 0, 0);
+		Cube.X(0) = FVec3(-1, -1, -1)*Scale;
+		Cube.X(1) = FVec3(-1, -1, 1)*Scale;
+		Cube.X(2) = FVec3(-1, 1, -1)*Scale;
+		Cube.X(3) = FVec3(-1, 1, 1)*Scale;
+		Cube.X(4) = FVec3(1, -1, -1)*Scale;
+		Cube.X(5) = FVec3(1, -1, 1)*Scale;
+		Cube.X(6) = FVec3(1, 1, -1)*Scale;
+		Cube.X(7) = FVec3(1, 1, 1)*Scale;
+		Cube.X(8) = FVec3(0, 0, 0);
 
 		InParticles.X() = TVector<T, 3>(0.f, 0.f, 0.f);
 		InParticles.V() = TVector<T, 3>(0.f, 0.f, 0.f);
@@ -632,7 +632,7 @@ namespace ChaosTest {
 		//	Shape->SimData.Word1 = 1;
 		//}
 	}
-	template void AppendDynamicParticleConvexBox(TPBDRigidParticleHandle<float, 3> &, const TVector<float, 3>& Scale, FReal Margin);
+	template void AppendDynamicParticleConvexBox(TPBDRigidParticleHandle<float, 3> &, const FVec3& Scale, FReal Margin);
 
 	template<class T>
 	TPBDRigidParticleHandle<T, 3>* AppendDynamicParticleConvexBox(TPBDRigidsSOAs<T, 3>& SOAs, const TVector<T, 3>& Scale)
@@ -641,7 +641,7 @@ namespace ChaosTest {
 		AppendDynamicParticleConvexBox(*Particles[0], Scale, 0.0f);
 		return Particles[0];
 	}
-	template TPBDRigidParticleHandle<float, 3>* AppendDynamicParticleConvexBox(TPBDRigidsSOAs<float, 3>& Evolution, const TVector<float, 3>& Scale);
+	template TPBDRigidParticleHandle<float, 3>* AppendDynamicParticleConvexBox(TPBDRigidsSOAs<float, 3>& Evolution, const FVec3& Scale);
 
 	template<class T>
 	TPBDRigidParticleHandle<T, 3>* AppendDynamicParticleConvexBoxMargin(TPBDRigidsSOAs<T, 3>& SOAs, const TVector<T, 3>& Scale, FReal Margin)
@@ -659,7 +659,7 @@ namespace ChaosTest {
 		TRigidTransform<T, 3> LocalToWorld(InParticles.X(Index), InParticles.R(Index));
 		return LocalToWorld.InverseTransformPosition(WorldSpacePoint);
 	}
-	template TVector<float, 3> ObjectSpacePoint(TPBDRigidParticles<float, 3> & InParticles, const int32 Index, const TVector <float , 3 > & WorldSpacePoint);
+	template FVec3 ObjectSpacePoint(TPBDRigidParticles<float, 3> & InParticles, const int32 Index, const FVec3& WorldSpacePoint);
 
 	template<class T>
 	TVector<T, 3> ObjectSpacePoint(TGeometryParticleHandle<T, 3>& Particle, const TVector<T, 3>& WorldSpacePoint)
@@ -667,7 +667,7 @@ namespace ChaosTest {
 		TRigidTransform<T, 3> LocalToWorld(Particle.X(), Particle.R());
 		return LocalToWorld.InverseTransformPosition(WorldSpacePoint);
 	}
-	template TVector<float, 3> ObjectSpacePoint(TPBDRigidParticles<float, 3> & InParticles, const int32 Index, const TVector <float, 3 > & WorldSpacePoint);
+	template FVec3 ObjectSpacePoint(TPBDRigidParticles<float, 3> & InParticles, const int32 Index, const FVec3& WorldSpacePoint);
 
 
 	/**/
@@ -680,7 +680,7 @@ namespace ChaosTest {
 		Normal = TRigidTransform<T, 3>(InParticles.X(Index), InParticles.R(Index)).TransformVector(Normal);
 		return LocalPhi;
 	}
-	template float PhiWithNormal(TPBDRigidParticles<float, 3> & InParticles, const int32 Index, const TVector<float, 3>& WorldSpacePoint, TVector<float, 3>& Normal);
+	template float PhiWithNormal(TPBDRigidParticles<float, 3> & InParticles, const int32 Index, const FVec3& WorldSpacePoint, FVec3& Normal);
 
 	/**/
 	template<class T>
@@ -689,7 +689,7 @@ namespace ChaosTest {
 		TVector<T, 3> Normal;
 		return PhiWithNormal(InParticles, Index, WorldSpacePoint, Normal);
 	}
-	template float SignedDistance(TPBDRigidParticles<float, 3> & InParticles, const int32 Index, const TVector<float, 3>& WorldSpacePoint);
+	template float SignedDistance(TPBDRigidParticles<float, 3> & InParticles, const int32 Index, const FVec3& WorldSpacePoint);
 
 
 	/**/
@@ -702,7 +702,7 @@ namespace ChaosTest {
 		Normal = TRigidTransform<T, 3>(Particle.X(), Particle.R()).TransformVector(Normal);
 		return LocalPhi;
 	}
-	template float PhiWithNormal(TPBDRigidParticles<float, 3> & InParticles, const int32 Index, const TVector<float, 3>& WorldSpacePoint, TVector<float, 3>& Normal);
+	template float PhiWithNormal(TPBDRigidParticles<float, 3> & InParticles, const int32 Index, const FVec3& WorldSpacePoint, FVec3& Normal);
 
 	/**/
 	template<class T>
@@ -711,7 +711,7 @@ namespace ChaosTest {
 		TVector<T, 3> Normal;
 		return PhiWithNormal(Particle, WorldSpacePoint, Normal);
 	}
-	template float SignedDistance(TGeometryParticleHandle<float, 3> & Particle, const TVector<float, 3>& WorldSpacePoint);
+	template float SignedDistance(TGeometryParticleHandle<float, 3> & Particle, const FVec3& WorldSpacePoint);
 
 	/**/
 	FVec3 RandAxis()

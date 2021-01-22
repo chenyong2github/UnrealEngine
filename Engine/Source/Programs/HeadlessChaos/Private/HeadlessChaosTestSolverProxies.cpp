@@ -23,7 +23,7 @@ namespace ChaosTest {
 	template<typename Traits, class T>
 	void SingleParticleProxySingleThreadTest()
 	{
-		auto Sphere = TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(new TSphere<float, 3>(TVector<float, 3>(0), 10));
+		auto Sphere = TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(new TSphere<float, 3>(FVec3(0), 10));
 
 		FChaosSolversModule* Module = FChaosSolversModule::GetModule();
 
@@ -34,11 +34,11 @@ namespace ChaosTest {
 
 		TUniquePtr<Chaos::TPBDRigidParticle<float, 3>> Particle = Chaos::TPBDRigidParticle<float, 3>::CreateParticle();
 		Particle->SetGeometry(Sphere);
-		Particle->SetX(TVector<float, 3>(0, 0, 0));
+		Particle->SetX(FVec3(0, 0, 0));
 		Particle->SetGravityEnabled(false);
 		Solver->RegisterObject(Particle.Get());
 
-		Particle->SetV(TVector<float, 3>(0, 0, 10));
+		Particle->SetV(FVec3(0, 0, 10));
 		Solver->AddDirtyProxy(Particle->GetProxy());
 
 		::ChaosTest::SetParticleSimDataToCollide({ Particle.Get() });
@@ -47,11 +47,11 @@ namespace ChaosTest {
 		Solver->UpdateGameThreadStructures();
 
 		// Make sure game thread data has changed
-		TVector<float, 3> V = Particle->V();
+		FVec3 V = Particle->V();
 		EXPECT_EQ(V.X, 0.f);
 		EXPECT_GT(V.Z, 0.f);
 
-		TVector<float, 3> X = Particle->X();
+		FVec3 X = Particle->X();
 		EXPECT_EQ(X.X, 0.f);
 		EXPECT_GT(X.Z, 0.f);
 
@@ -65,7 +65,7 @@ namespace ChaosTest {
 	void SingleParticleProxyWakeEventPropergationTest()
 	{
 		using namespace Chaos;
-		auto Sphere = TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(new TSphere<float, 3>(TVector<float, 3>(0), 10));
+		auto Sphere = TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(new TSphere<float, 3>(FVec3(0), 10));
 
 		FChaosSolversModule* Module = FChaosSolversModule::GetModule();
 
@@ -76,15 +76,15 @@ namespace ChaosTest {
 
 		TUniquePtr<TPBDRigidParticle<float, 3>> Particle = TPBDRigidParticle<float, 3>::CreateParticle();
 		Particle->SetGeometry(Sphere);
-		Particle->SetX(TVector<float, 3>(0, 0, 220));
-		Particle->SetV(TVector<float, 3>(0, 0, -10));
+		Particle->SetX(FVec3(0, 0, 220));
+		Particle->SetV(FVec3(0, 0, -10));
 		Solver->RegisterObject(Particle.Get());
 		Solver->AddDirtyProxy(Particle->GetProxy());
 
 		TUniquePtr<TPBDRigidParticle<float, 3>> Particle2 = TPBDRigidParticle<float, 3>::CreateParticle();
 		Particle2->SetGeometry(Sphere);
-		Particle2->SetX(TVector<float, 3>(0, 0, 100));
-		Particle2->SetV(TVector<float, 3>(0, 0, 0));
+		Particle2->SetX(FVec3(0, 0, 100));
+		Particle2->SetV(FVec3(0, 0, 0));
 		Solver->RegisterObject(Particle2.Get());
 		Solver->AddDirtyProxy(Particle2->GetProxy());
 		Particle2->SetObjectState(Chaos::EObjectStateType::Sleeping);
@@ -100,7 +100,7 @@ namespace ChaosTest {
 		}
 
 		// Make sure game thread data has changed
-		TVector<float, 3> V = Particle->V();
+		FVec3 V = Particle->V();
 		EXPECT_EQ(Particle->GetWakeEvent(), EWakeEventEntry::None);
 		EXPECT_EQ(Particle->ObjectState(), Chaos::EObjectStateType::Dynamic);
 

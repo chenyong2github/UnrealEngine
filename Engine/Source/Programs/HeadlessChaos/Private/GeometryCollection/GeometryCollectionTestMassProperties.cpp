@@ -24,14 +24,14 @@ namespace GeometryCollectionTest
 
 		Chaos::TParticles<float, 3> Vertices;
 		Vertices.AddParticles(8);
-		Vertices.X(0) = TVector<float, 3>(-1, 1, -1);
-		Vertices.X(1) = TVector<float, 3>(1, 1, -1);
-		Vertices.X(2) = TVector<float, 3>(1, -1, -1);
-		Vertices.X(3) = TVector<float, 3>(-1, -1, -1);
-		Vertices.X(4) = TVector<float, 3>(-1, 1, 1);
-		Vertices.X(5) = TVector<float, 3>(1, 1, 1);
-		Vertices.X(6) = TVector<float, 3>(1, -1, 1);
-		Vertices.X(7) = TVector<float, 3>(-1, -1, 1);
+		Vertices.X(0) = FVec3(-1, 1, -1);
+		Vertices.X(1) = FVec3(1, 1, -1);
+		Vertices.X(2) = FVec3(1, -1, -1);
+		Vertices.X(3) = FVec3(-1, -1, -1);
+		Vertices.X(4) = FVec3(-1, 1, 1);
+		Vertices.X(5) = FVec3(1, 1, 1);
+		Vertices.X(6) = FVec3(1, -1, 1);
+		Vertices.X(7) = FVec3(-1, -1, 1);
 
 		// @todo(chaos):  breaking : this trips an ensure in the test, why?
 		for (int i = 0; i < 8; i++) {
@@ -152,7 +152,7 @@ namespace GeometryCollectionTest
 		}
 
 		float Density = 1.f;
-		TVector<float, 3> ZeroVec(0);
+		FVec3 ZeroVec(0);
 		CalculateInertiaAndRotationOfMass(MassSpaceParticles, TriMesh->GetSurfaceElements(), Density, ZeroVec, MassProperties.InertiaTensor, MassProperties.RotationOfMass);
 
 		EXPECT_EQ(MassProperties.Mass, 1.f);
@@ -233,7 +233,7 @@ namespace GeometryCollectionTest
 		}
 
 		float Density = 0.01f;
-		TVector<float, 3> ZeroVec(0);
+		FVec3 ZeroVec(0);
 		CalculateInertiaAndRotationOfMass(MassSpaceParticles, TriMesh->GetSurfaceElements(), Density, ZeroVec, MassProperties.InertiaTensor, MassProperties.RotationOfMass);
 
 		// todo(chaos) : Check this. 
@@ -309,7 +309,7 @@ namespace GeometryCollectionTest
 		}
 
 		float Density = 0.01f;
-		TVector<float,3> ZeroVec(0);
+		FVec3 ZeroVec(0);
 		CalculateInertiaAndRotationOfMass(MassSpaceParticles, TriMesh->GetSurfaceElements(), Density, ZeroVec, MassProperties.InertiaTensor, MassProperties.RotationOfMass);
 
 		// todo(chaos) : Check this. 
@@ -394,7 +394,7 @@ namespace GeometryCollectionTest
 		}
 
 		float Density = 0.01f;
-		TVector<float, 3> ZeroVec(0);
+		FVec3 ZeroVec(0);
 		CalculateInertiaAndRotationOfMass(MassSpaceParticles, TriMesh->GetSurfaceElements(), Density, ZeroVec, MassProperties.InertiaTensor, MassProperties.RotationOfMass);
 
 		// rotational alignment.

@@ -53,7 +53,7 @@ namespace Chaos
 
 		// ---- Debugging and visualization functions ----
 		// Return current active LOD collision particles translations, not thread safe, to use after solver update.
-		TConstArrayView<TVector<float, 3>> GetCollisionTranslations(const FClothingSimulationSolver* Solver, const FClothingSimulationCloth* Cloth, ECollisionDataType CollisionDataType) const;
+		TConstArrayView<FVec3> GetCollisionTranslations(const FClothingSimulationSolver* Solver, const FClothingSimulationCloth* Cloth, ECollisionDataType CollisionDataType) const;
 
 		// Return current active LOD collision particles rotations, not thread safe, to use after solver update.
 		TConstArrayView<TRotation<float, 3>> GetCollisionRotations(const FClothingSimulationSolver* Solver, const FClothingSimulationCloth* Cloth, ECollisionDataType CollisionDataType) const;

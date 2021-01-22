@@ -34,8 +34,8 @@ namespace Chaos
 		// ---- Solver interface ----
 		void Initialize(
 			TPBDEvolution<float, 3>* InEvolution,
-			const TArray<TVector<float, 3>>& InAnimationPositions,
-			const TArray<TVector<float, 3>>& InAnimationNormals,
+			const TArray<FVec3>& InAnimationPositions,
+			const TArray<FVec3>& InAnimationNormals,
 			int32 InParticleOffset,
 			int32 InNumParticles);
 		// ---- End of Solver interface ----
@@ -99,8 +99,8 @@ namespace Chaos
 		TSharedPtr<TPBDCollisionSpringConstraints<float, 3>> SelfCollisionConstraints;
 		
 		TPBDEvolution<float, 3>* Evolution;
-		const TArray<TVector<float, 3>>* AnimationPositions;
-		const TArray<TVector<float, 3>>* AnimationNormals;
+		const TArray<FVec3>* AnimationPositions;
+		const TArray<FVec3>* AnimationNormals;
 
 		int32 ParticleOffset;
 		int32 NumParticles;

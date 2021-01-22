@@ -22,7 +22,7 @@ namespace ChaosTest {
 		// The goal is to make sure that the bounds are updated correctly and the dynamic rests on top of the static
 		// in its final position.
 
-		auto Sphere = TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(new TSphere<float, 3>(TVector<float, 3>(0), 10));
+		auto Sphere = TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(new TSphere<float, 3>(FVec3(0), 10));
 
 		// Create solver #TODO make TFramework a little more general instead of mostly geometry collection focused
 		GeometryCollectionTest::TFramework<TypeParam> Framework;
@@ -30,17 +30,17 @@ namespace ChaosTest {
 		// Make a particle
 		TUniquePtr<Chaos::TPBDRigidParticle<FReal, 3>> Particle = Chaos::TPBDRigidParticle<float, 3>::CreateParticle();
 		Particle->SetGeometry(Sphere);
-		Particle->SetX(TVector<float, 3>(1000, 1000, 200));
+		Particle->SetX(FVec3(1000, 1000, 200));
 		Particle->SetGravityEnabled(true);
 		Framework.Solver->RegisterObject(Particle.Get());
 
 		TUniquePtr<Chaos::TGeometryParticle<FReal, 3>> Static = Chaos::TGeometryParticle<FReal, 3>::CreateParticle();
 		Static->SetGeometry(Sphere);
-		Static->SetX(TVector<float, 3>(0, 0, 0));
+		Static->SetX(FVec3(0, 0, 0));
 		Framework.Solver->RegisterObject(Static.Get());
 
-		Static->SetX(TVector<float, 3>(2000, 1000, 0));
-		Static->SetX(TVector<float, 3>(3000, 1000, 0));
+		Static->SetX(FVec3(2000, 1000, 0));
+		Static->SetX(FVec3(3000, 1000, 0));
 
 		::ChaosTest::SetParticleSimDataToCollide({ Particle.Get(), Static.Get() });
 
@@ -50,7 +50,7 @@ namespace ChaosTest {
 
 			if(Iter == 0)
 			{
-				Static->SetX(TVector<float, 3>(1000, 1000, 0));
+				Static->SetX(FVec3(1000, 1000, 0));
 			}
 		}
 

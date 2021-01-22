@@ -29,12 +29,12 @@ namespace GeometryCollectionTest
 		SphereGen.Generate();
 
 		// FSphereGenerator's points drift off the surface just a bit, so we correct for that.
-		Chaos::TSphere<float, 3> Sphere(Chaos::TVector<float, 3>(0), SphereGen.Radius);
-		Chaos::TVector<float, 3> Normal;
+		Chaos::TSphere<float, 3> Sphere(Chaos::FVec3(0), SphereGen.Radius);
+		Chaos::FVec3 Normal;
 		for (int32 Idx = 0; Idx < SphereGen.Vertices.Num(); Idx++)
 		{
 			auto& SrcPt = SphereGen.Vertices[Idx]; // double precision
-			Chaos::TVector<float, 3> Pt(SrcPt[0], SrcPt[1], SrcPt[2]); // single precision
+			Chaos::FVec3 Pt(SrcPt[0], SrcPt[1], SrcPt[2]); // single precision
 			const float Phi = Sphere.PhiWithNormal(Pt, Normal);
 			SrcPt[0] -= Phi * Normal[0];
 			SrcPt[1] -= Phi * Normal[1];

@@ -1258,15 +1258,15 @@ namespace ChaosTest {
 		{
 			TParticles<T, 3> Particles;
 			Particles.AddParticles(9);
-			Particles.X(0) = TVector<float, 3>(-1, -1, -1);
-			Particles.X(1) = TVector<float, 3>(-1, -1, 1);
-			Particles.X(2) = TVector<float, 3>(-1, 1, -1);
-			Particles.X(3) = TVector<float, 3>(-1, 1, 1);
-			Particles.X(4) = TVector<float, 3>(1, -1, -1);
-			Particles.X(5) = TVector<float, 3>(1, -1, 1);
-			Particles.X(6) = TVector<float, 3>(1, 1, -1);
-			Particles.X(7) = TVector<float, 3>(1, 1, 1);
-			Particles.X(8) = TVector<float, 3>(0, 0, 0);
+			Particles.X(0) = FVec3(-1, -1, -1);
+			Particles.X(1) = FVec3(-1, -1, 1);
+			Particles.X(2) = FVec3(-1, 1, -1);
+			Particles.X(3) = FVec3(-1, 1, 1);
+			Particles.X(4) = FVec3(1, -1, -1);
+			Particles.X(5) = FVec3(1, -1, 1);
+			Particles.X(6) = FVec3(1, 1, -1);
+			Particles.X(7) = FVec3(1, 1, 1);
+			Particles.X(8) = FVec3(0, 0, 0);
 			const TTriangleMesh<T> TriMesh = TTriangleMesh<T>::GetConvexHullFromParticles(Particles);
 			EXPECT_EQ(TriMesh.GetSurfaceElements().Num(), 12);
 			for (const auto& Tri : TriMesh.GetSurfaceElements())
@@ -1300,12 +1300,12 @@ namespace ChaosTest {
 		{
 			TParticles<T, 3> Particles;
 			Particles.AddParticles(6);
-			Particles.X(0) = TVector<float, 3>(-1, -1, -1);
-			Particles.X(1) = TVector<float, 3>(1, -1, -1);
-			Particles.X(2) = TVector<float, 3>(1, 1, -1);
-			Particles.X(3) = TVector<float, 3>(0, 0, 0.5);
-			Particles.X(4) = (Particles.X(3) - Particles.X(1)) * 0.5 + Particles.X(1) + TVector<float, 3>(0, 0, 0.1);
-			Particles.X(5) = Particles.X(4) + TVector<float, 3>(-0.1, 0, 0);
+			Particles.X(0) = FVec3(-1, -1, -1);
+			Particles.X(1) = FVec3(1, -1, -1);
+			Particles.X(2) = FVec3(1, 1, -1);
+			Particles.X(3) = FVec3(0, 0, 0.5);
+			Particles.X(4) = (Particles.X(3) - Particles.X(1)) * 0.5 + Particles.X(1) + FVec3(0, 0, 0.1);
+			Particles.X(5) = Particles.X(4) + FVec3(-0.1, 0, 0);
 			const TTriangleMesh<T> TriMesh = TTriangleMesh<T>::GetConvexHullFromParticles(Particles);
 			//EXPECT_EQ(TriMesh.GetSurfaceElements().Num(), 6);
 		}
@@ -1323,29 +1323,29 @@ namespace ChaosTest {
 			//degenerates
 			Chaos::TParticles<T, 3> Particles;
 			Particles.AddParticles(3);
-			Particles.X(0) = TVector<float, 3>(-1, -1, -1);
-			Particles.X(1) = TVector<float, 3>(1, -1, -1);
-			Particles.X(2) = TVector<float, 3>(1, 1, -1);
+			Particles.X(0) = FVec3(-1, -1, -1);
+			Particles.X(1) = FVec3(1, -1, -1);
+			Particles.X(2) = FVec3(1, 1, -1);
 			TArray<TVector<int32, 3>>Indices;
 			Chaos::FConvexBuilder::BuildConvexHull(Particles, Indices);
 			EXPECT_EQ(Indices.Num(), 0);
 			Particles.AddParticles(1);
-			Particles.X(3) = TVector<float, 3>(2, 3, -1);
+			Particles.X(3) = FVec3(2, 3, -1);
 			Chaos::FConvexBuilder::BuildConvexHull(Particles, Indices);
 			EXPECT_EQ(Indices.Num(), 0);
 		}
 		{
 			Chaos::TParticles<T, 3> Particles;
 			Particles.AddParticles(9);
-			Particles.X(0) = TVector<float, 3>(-1, -1, -1);
-			Particles.X(1) = TVector<float, 3>(-1, -1, 1);
-			Particles.X(2) = TVector<float, 3>(-1, 1, -1);
-			Particles.X(3) = TVector<float, 3>(-1, 1, 1);
-			Particles.X(4) = TVector<float, 3>(1, -1, -1);
-			Particles.X(5) = TVector<float, 3>(1, -1, 1);
-			Particles.X(6) = TVector<float, 3>(1, 1, -1);
-			Particles.X(7) = TVector<float, 3>(1, 1, 1);
-			Particles.X(8) = TVector<float, 3>(0, 0, 0);
+			Particles.X(0) = FVec3(-1, -1, -1);
+			Particles.X(1) = FVec3(-1, -1, 1);
+			Particles.X(2) = FVec3(-1, 1, -1);
+			Particles.X(3) = FVec3(-1, 1, 1);
+			Particles.X(4) = FVec3(1, -1, -1);
+			Particles.X(5) = FVec3(1, -1, 1);
+			Particles.X(6) = FVec3(1, 1, -1);
+			Particles.X(7) = FVec3(1, 1, 1);
+			Particles.X(8) = FVec3(0, 0, 0);
 			TArray<TVector<int32, 3>>Indices;
 			Chaos::FConvexBuilder::BuildConvexHull(Particles, Indices);
 			EXPECT_EQ(Indices.Num(), 12);
@@ -1359,11 +1359,11 @@ namespace ChaosTest {
 		{
 			Chaos::TParticles<T, 3> Particles;
 			Particles.AddParticles(5);
-			Particles.X(0) = TVector<float, 3>(-1, -1, -1);
-			Particles.X(1) = TVector<float, 3>(1, -1, -1);
-			Particles.X(2) = TVector<float, 3>(1, 1, -1);
-			Particles.X(3) = TVector<float, 3>(0, 0, 0.5);
-			Particles.X(4) = (Particles.X(3) - Particles.X(1)) * 0.5 + Particles.X(1) + TVector<float, 3>(0, 0, 0.1);
+			Particles.X(0) = FVec3(-1, -1, -1);
+			Particles.X(1) = FVec3(1, -1, -1);
+			Particles.X(2) = FVec3(1, 1, -1);
+			Particles.X(3) = FVec3(0, 0, 0.5);
+			Particles.X(4) = (Particles.X(3) - Particles.X(1)) * 0.5 + Particles.X(1) + FVec3(0, 0, 0.1);
 			TArray<TVector<int32, 3>> Indices;
 			Chaos::FConvexBuilder::BuildConvexHull(Particles, Indices);
 			EXPECT_EQ(Indices.Num(), 6);
@@ -1371,12 +1371,12 @@ namespace ChaosTest {
 		{
 			Chaos::TParticles<T, 3> Particles;
 			Particles.AddParticles(6);
-			Particles.X(0) = TVector<float, 3>(-1, -1, -1);
-			Particles.X(1) = TVector<float, 3>(1, -1, -1);
-			Particles.X(2) = TVector<float, 3>(1, 1, -1);
-			Particles.X(3) = TVector<float, 3>(0, 0, 0.5);
-			Particles.X(4) = (Particles.X(3) - Particles.X(1)) * 0.5 + Particles.X(1) + TVector<float, 3>(0, 0, 0.1);
-			Particles.X(5) = Particles.X(4) + TVector<float, 3>(-0.1, 0, 0);
+			Particles.X(0) = FVec3(-1, -1, -1);
+			Particles.X(1) = FVec3(1, -1, -1);
+			Particles.X(2) = FVec3(1, 1, -1);
+			Particles.X(3) = FVec3(0, 0, 0.5);
+			Particles.X(4) = (Particles.X(3) - Particles.X(1)) * 0.5 + Particles.X(1) + FVec3(0, 0, 0.1);
+			Particles.X(5) = Particles.X(4) + FVec3(-0.1, 0, 0);
 			TArray<TVector<int32, 3>> Indices;
 			Chaos::FConvexBuilder::BuildConvexHull(Particles, Indices);
 			EXPECT_EQ(Indices.Num(), 8);
@@ -1388,15 +1388,15 @@ namespace ChaosTest {
 			// Using a scaled epsilon resolves this case
 			Chaos::TParticles<T, 3> Particles;
 			Particles.AddParticles(9);
-			Particles.X(0) = TVector<float, 3>(-1, -1, -1);
-			Particles.X(1) = TVector<float, 3>(-1, -1, 1);
-			Particles.X(2) = TVector<float, 3>(-1, 1, -1);
-			Particles.X(3) = TVector<float, 3>(-1, 1, 1);
-			Particles.X(4) = TVector<float, 3>(1, -1, -1);
-			Particles.X(5) = TVector<float, 3>(1, -1, 1);
-			Particles.X(6) = TVector<float, 3>(1, 1, -1);
-			Particles.X(7) = TVector<float, 3>(1, 1, 1);
-			Particles.X(8) = TVector<float, 3>(0.966962576, -0.0577232838, 0.959515572);
+			Particles.X(0) = FVec3(-1, -1, -1);
+			Particles.X(1) = FVec3(-1, -1, 1);
+			Particles.X(2) = FVec3(-1, 1, -1);
+			Particles.X(3) = FVec3(-1, 1, 1);
+			Particles.X(4) = FVec3(1, -1, -1);
+			Particles.X(5) = FVec3(1, -1, 1);
+			Particles.X(6) = FVec3(1, 1, -1);
+			Particles.X(7) = FVec3(1, 1, 1);
+			Particles.X(8) = FVec3(0.966962576, -0.0577232838, 0.959515572);
 			
 			TArray<TVector<int32, 3>> Indices;
 			Chaos::FConvexBuilder::Params BuildParams;
@@ -1425,18 +1425,18 @@ namespace ChaosTest {
 			Chaos::TParticles<T, 3> Particles;
 			int32 NumParticles = 3600;
 			Particles.AddParticles(NumParticles);
-			Particles.X(0) = TVector<float, 3>(-1, -1, -1);
-			Particles.X(1) = TVector<float, 3>(-1, -1, 1);
-			Particles.X(2) = TVector<float, 3>(-1, 1, -1);
-			Particles.X(3) = TVector<float, 3>(-1, 1, 1);
-			Particles.X(4) = TVector<float, 3>(1, -1, -1);
-			Particles.X(5) = TVector<float, 3>(1, -1, 1);
-			Particles.X(6) = TVector<float, 3>(1, 1, -1);
-			Particles.X(7) = TVector<float, 3>(1, 1, 1);
+			Particles.X(0) = FVec3(-1, -1, -1);
+			Particles.X(1) = FVec3(-1, -1, 1);
+			Particles.X(2) = FVec3(-1, 1, -1);
+			Particles.X(3) = FVec3(-1, 1, 1);
+			Particles.X(4) = FVec3(1, -1, -1);
+			Particles.X(5) = FVec3(1, -1, 1);
+			Particles.X(6) = FVec3(1, 1, -1);
+			Particles.X(7) = FVec3(1, 1, 1);
 			FRandomStream Stream(42);
 			for(int i = 8; i < NumParticles; ++i)
 			{
-				Particles.X(i) = TVector<float, 3>(Stream.FRandRange(-1.f, 1.f), Stream.FRandRange(-1.f, 1.f), Stream.FRandRange(-1.f, 1.f));
+				Particles.X(i) = FVec3(Stream.FRandRange(-1.f, 1.f), Stream.FRandRange(-1.f, 1.f), Stream.FRandRange(-1.f, 1.f));
 			}
 			TArray<TVector<int32, 3>> Indices;
 
@@ -1465,24 +1465,24 @@ namespace ChaosTest {
 	{
 		Chaos::TParticles<T, 3> Particles;
 		Particles.AddParticles(18);
-		Particles.X(0) = TVector<float, 3>(0, 0, 12.0f);
-		Particles.X(1) = TVector<float, 3>(-0.707f, -0.707f, 10.0f);
-		Particles.X(2) = TVector<float, 3>(0, -1, 10.0f);
-		Particles.X(3) = TVector<float, 3>(0.707f, -0.707f, 10.0f);
-		Particles.X(4) = TVector<float, 3>(1, 0, 10.0f);
-		Particles.X(5) = TVector<float, 3>(0.707f, 0.707f, 10.0f);
-		Particles.X(6) = TVector<float, 3>(0.0f, 1.0f, 10.0f);
-		Particles.X(7) = TVector<float, 3>(-0.707f, 0.707f, 10.0f);
-		Particles.X(8) = TVector<float, 3>(-1.0f, 0.0f, 10.0f);
-		Particles.X(9) = TVector<float, 3>(-0.707f, -0.707f, 0.0f);
-		Particles.X(10) = TVector<float, 3>(0, -1, 0.0f);
-		Particles.X(11) = TVector<float, 3>(0.707f, -0.707f, 0.0f);
-		Particles.X(12) = TVector<float, 3>(1, 0, 0.0f);
-		Particles.X(13) = TVector<float, 3>(0.707f, 0.707f, 0.0f);
-		Particles.X(14) = TVector<float, 3>(0.0f, 1.0f, 0.0f);
-		Particles.X(15) = TVector<float, 3>(-0.707f, 0.707f, 0.0f);
-		Particles.X(16) = TVector<float, 3>(-1.0f, 0.0f, 0.0f);
-		Particles.X(17) = TVector<float, 3>(0, 0, -2.0f);
+		Particles.X(0) = FVec3(0, 0, 12.0f);
+		Particles.X(1) = FVec3(-0.707f, -0.707f, 10.0f);
+		Particles.X(2) = FVec3(0, -1, 10.0f);
+		Particles.X(3) = FVec3(0.707f, -0.707f, 10.0f);
+		Particles.X(4) = FVec3(1, 0, 10.0f);
+		Particles.X(5) = FVec3(0.707f, 0.707f, 10.0f);
+		Particles.X(6) = FVec3(0.0f, 1.0f, 10.0f);
+		Particles.X(7) = FVec3(-0.707f, 0.707f, 10.0f);
+		Particles.X(8) = FVec3(-1.0f, 0.0f, 10.0f);
+		Particles.X(9) = FVec3(-0.707f, -0.707f, 0.0f);
+		Particles.X(10) = FVec3(0, -1, 0.0f);
+		Particles.X(11) = FVec3(0.707f, -0.707f, 0.0f);
+		Particles.X(12) = FVec3(1, 0, 0.0f);
+		Particles.X(13) = FVec3(0.707f, 0.707f, 0.0f);
+		Particles.X(14) = FVec3(0.0f, 1.0f, 0.0f);
+		Particles.X(15) = FVec3(-0.707f, 0.707f, 0.0f);
+		Particles.X(16) = FVec3(-1.0f, 0.0f, 0.0f);
+		Particles.X(17) = FVec3(0, 0, -2.0f);
 
 		FConvex Convex(Particles, 0.0f);
 
