@@ -464,6 +464,11 @@ protected:
 	*/
 	void SyncGroupSizeFrom(const FManagedArrayCollection& InCollection, FName Group);
 
+	/**
+	 * Version to indicate need for conditioning to current expected data layout during serialization loading.
+	 */
+	int32 Version;
+
 
 	/**
 	*   operator<<(FGroupInfo)

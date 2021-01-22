@@ -9,14 +9,14 @@
 #include "GeometryCollection/GeometryCollectionAlgo.h"
 #include "GeometryCollection/GeometryCollectionUtility.h"
 #include "GeometryCollection/GeometryCollectionProximityUtility.h"
+#include "GeometryCollection/GeometryCollectionClusteringUtility.h"
 
 #include <iostream>
 #include <fstream>
 #include "Chaos/ChaosArchive.h"
 #include "Voronoi/Voronoi.h"
 
-DEFINE_LOG_CATEGORY_STATIC(FGeometryCollectionLogging, NoLogging, All);
-
+DEFINE_LOG_CATEGORY_STATIC(FGeometryCollectionLogging, Log, All);
 
 // @todo: update names 
 const FName FGeometryCollection::FacesGroup = "Faces";
@@ -886,6 +886,52 @@ void FGeometryCollection::Serialize(Chaos::FChaosArchive& Ar)
 
 		RemoveAttribute("ExplodedTransform", FTransformCollection::TransformGroup);
 		RemoveAttribute("ExplodedVector", FTransformCollection::TransformGroup);
+
+		// Version 5 introduced accurate SimulationType tagging
+		if (Version < 5)
+		{
+			UE_LOG(FGeometryCollectionLogging, Warning, TEXT("GeometryCollection is has inaccurate simulation type tags. Updating tags based on transform topology."));
+			TManagedArray<bool>* SimulatableParticles = FindAttribute<bool>(FGeometryCollection::SimulatableParticlesAttribute, FTransformCollection::TransformGroup);
+			TArray<bool> RigidChildren; RigidChildren.Init(false,NumElements(FTransformCollection::TransformGroup));
+			const TArray<int32> RecursiveOrder = GeometryCollectionAlgo::ComputeRecursiveOrder(*this);
+			for (const int32 TransformGroupIndex : RecursiveOrder)
+			{
+				SimulationType[TransformGroupIndex] = ESimulationTypes::FST_None;
+
+				if(!Children[TransformGroupIndex].Num())
+				{ // leaf nodes
+					if (TransformToGeometryIndex[TransformGroupIndex] > INDEX_NONE)
+					{
+						SimulationType[TransformGroupIndex] = ESimulationTypes::FST_Rigid;
+					}
+
+					if (SimulatableParticles && !(*SimulatableParticles)[TransformGroupIndex])
+					{
+						SimulationType[TransformGroupIndex] = ESimulationTypes::FST_None;
+					}
+				}
+				else
+				{ // interior nodes
+					if (RigidChildren[TransformGroupIndex])
+					{
+						SimulationType[TransformGroupIndex] = ESimulationTypes::FST_Clustered;
+					}
+					else if (TransformToGeometryIndex[TransformGroupIndex] > INDEX_NONE)
+					{
+						SimulationType[TransformGroupIndex] = ESimulationTypes::FST_Rigid;
+					}
+				}
+
+				if (SimulationType[TransformGroupIndex] != ESimulationTypes::FST_None &&
+					Parent[TransformGroupIndex] != INDEX_NONE )
+				{
+					RigidChildren[Parent[TransformGroupIndex]] = true;
+				}
+			}
+
+			// Structure is conditioned, now considered up to date.
+			Version = 5;
+		}
 
 	}
 }
