@@ -19698,7 +19698,7 @@ int32 UMaterialExpressionStrataSlabBSDF::Compile(class FMaterialCompiler* Compil
 	uint8 SharedNormalIndex = bAnisotropyPotentiallyUsed ? StrataCompilationInfoCreateSharedNormal(Compiler, NormalCodeChunk, TangentCodeChunk) : StrataCompilationInfoCreateSharedNormal(Compiler, NormalCodeChunk);
 
 	int32 SSSProfileCodeChunk = INDEX_NONE;
-	const bool bHasScattering = SubsurfaceProfile != nullptr;
+	const bool bHasScattering = HasScattering();
 	if (bHasScattering)
 	{
 		FName NameSubsurfaceProfile(FString(TEXT("__SubsurfaceProfile")));
@@ -19825,8 +19825,7 @@ bool UMaterialExpressionStrataSlabBSDF::IsResultStrataMaterial(int32 OutputIndex
 
 void UMaterialExpressionStrataSlabBSDF::GatherStrataMaterialInfo(FStrataMaterialInfo& StrataMaterialInfo, int32 OutputIndex)
 {
-	const bool bIsScaleInputConnected = true; // STRATA_TODO
-	if (SubsurfaceProfile || bIsScaleInputConnected)
+	if (HasScattering())
 	{
 		StrataMaterialInfo.AddShadingModel(SSM_SubsurfaceLit);
 		if (SubsurfaceProfile)
@@ -19838,6 +19837,11 @@ void UMaterialExpressionStrataSlabBSDF::GatherStrataMaterialInfo(FStrataMaterial
 	{
 		StrataMaterialInfo.AddShadingModel(SSM_DefaultLit);
 	}
+}
+
+bool UMaterialExpressionStrataSlabBSDF::HasScattering() const
+{
+	return SubsurfaceProfile != nullptr || DiffuseMeanFreePathRadius.IsConnected();
 }
 #endif // WITH_EDITOR
 

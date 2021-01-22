@@ -11,8 +11,6 @@
 // Material conversion to strata is disabled until ready.
 // To enable it locally:
 //		- Set CONVERT_MATERIAL_TO_STRATA_ON_LOAD to 1
-//		- Open UE5MainStreamObjectVersion.h
-//		- Add StrataMaterialConversion at the end of FUE5MainStreamObjectVersion::Type
 //		- Locally change ShaderVersion.ush GUID
 // !!!!!! !!!!!! DO NOT CHECK THIS IN SET TO 1 !!!!!! !!!!!!
 #define CONVERT_MATERIAL_TO_STRATA_ON_LOAD 0

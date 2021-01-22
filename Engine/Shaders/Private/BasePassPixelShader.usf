@@ -80,7 +80,7 @@
 #include "Lumen/LumenTranslucencyVolumeShared.ush"
 #endif
 
-#define STRATA_ENABLED					PROJECT_STRATA && MATERIAL_IS_STRATA
+#define STRATA_ENABLED					(PROJECT_STRATA && MATERIAL_IS_STRATA)
 #define STRATA_OPAQUE_ENABLED			(STRATA_ENABLED && MATERIALBLENDING_ANY_TRANSLUCENT<=0)
 #define STRATA_TRANSLUCENT_ENABLED		(STRATA_ENABLED && MATERIALBLENDING_ANY_TRANSLUCENT>0)
 
@@ -909,6 +909,8 @@ void FPixelShaderInOut_MainPS(
 #endif
 	}
 #endif
+
+#if !STRATA_ENABLED
 	// Store the results in local variables and reuse instead of calling the functions multiple times.
 	half3 BaseColor = GetMaterialBaseColor(PixelMaterialInputs);
 	half  Metallic = GetMaterialMetallic(PixelMaterialInputs);
@@ -918,8 +920,18 @@ void FPixelShaderInOut_MainPS(
 	float Roughness = GetMaterialRoughness(PixelMaterialInputs);
 	float Anisotropy = GetMaterialAnisotropy(PixelMaterialInputs);
 	uint ShadingModel = GetMaterialShadingModel(PixelMaterialInputs);
-
 	half Opacity = GetMaterialOpacity(PixelMaterialInputs);
+#else
+	half3 BaseColor = 0;
+	half  Metallic = 0;
+	half  Specular = 0;
+
+	float MaterialAO = 1;
+	float Roughness = 0;
+	float Anisotropy = 0;
+	uint ShadingModel = 0;
+	half Opacity = 0;
+#endif
 
 // Opacity for this model is the coverage of the top layer over the transmission surface. Since the
 // underlying material isn't allowed to be metallic, we are scaling the metallic value by the coverage.
@@ -971,7 +983,8 @@ void FPixelShaderInOut_MainPS(
 #endif
 
 #if STRATA_ENABLED && STRATA_INLINE_SINGLELAYERWATER
-	// Override GBuffer data with Strata SLW water BSDF
+	// Override GBuffer data with Strata SLW water BSDF to run forward shadfing code.
+	// STRATA_TODO: run the shading through a strata path? (by adding a special BSDF?)
 	SanitizeStrataSingleLayerWater(PixelMaterialInputs.FrontMaterial.Layers[0].BSDFs[0]);
 	FStrataBSDF SLWBSDF = PixelMaterialInputs.FrontMaterial.Layers[0].BSDFs[0];
 
@@ -1032,6 +1045,7 @@ void FPixelShaderInOut_MainPS(
 	GBuffer.Depth = MaterialParameters.ScreenPosition.w;
 	GBuffer.PrecomputedShadowFactors = GetPrecomputedShadowMasks(LightmapVTPageTableResult, Interpolants, MaterialParameters.PrimitiveId, MaterialParameters.AbsoluteWorldPosition, VolumetricLightmapBrickTextureUVs);
 
+#if !STRATA_ENABLED || STRATA_INLINE_SINGLELAYERWATER
 	const float GBufferDither = InterleavedGradientNoise(MaterialParameters.SvPosition.xy, View.StateFrameIndexMod8);
 	// Use GBuffer.ShadingModelID after SetGBufferForShadingModel(..) because the ShadingModel input might not be the same as the output
 	SetGBufferForShadingModel(
@@ -1048,6 +1062,7 @@ void FPixelShaderInOut_MainPS(
 		GBufferDither,
 		ShadingModel
 		);
+#endif // !STRATA_ENABLED
 
 #if USES_GBUFFER
 	// This requires cleanup. Shader code that uses GBuffer.SelectiveOutputMask expects the outputmask to be in
@@ -1085,7 +1100,10 @@ void FPixelShaderInOut_MainPS(
 	#endif
 	}
 #endif
-	
+
+	bool bChecker = CheckerFromPixelPos(MaterialParameters.SvPosition.xy);
+#if !STRATA_ENABLED || STRATA_INLINE_SINGLELAYERWATER
+
 	// So that the following code can still use DiffuseColor and SpecularColor.
 	GBuffer.SpecularColor = ComputeF0(Specular, BaseColor, Metallic);
 
@@ -1110,7 +1128,6 @@ void FPixelShaderInOut_MainPS(
 #if POST_PROCESS_SUBSURFACE
 	// SubsurfaceProfile applies the BaseColor in a later pass. Any lighting output in the base pass needs
 	// to separate specular and diffuse lighting in a checkerboard pattern
-	bool bChecker = CheckerFromPixelPos(MaterialParameters.SvPosition.xy);
 	if (UseSubsurfaceProfile(GBuffer.ShadingModelID))
 	{
 		AdjustBaseColorAndSpecularColorForSubsurfaceProfileLighting(BaseColor, GBuffer.SpecularColor, Specular, bChecker);
@@ -1188,12 +1205,19 @@ void FPixelShaderInOut_MainPS(
 	}
 	#endif
 
+#endif // !STRATA_ENABLED
+
 	half3 DiffuseColor = 0;
 	half3 Color = 0;
 	float IndirectIrradiance = 0;
 
 	half3 ColorSeparateSpecular = 0;
 	half3 ColorSeparateEmissive = 0;
+
+	float3 DiffuseIndirectLighting = 0;
+	float3 SubsurfaceIndirectLighting = 0;
+
+#if !STRATA_ENABLED || STRATA_INLINE_SINGLELAYERWATER
 
 	#if !MATERIAL_SHADINGMODEL_UNLIT
 
@@ -1232,8 +1256,6 @@ void FPixelShaderInOut_MainPS(
 		}
 		#endif
 
-		float3 DiffuseIndirectLighting;
-		float3 SubsurfaceIndirectLighting;
 		GetPrecomputedIndirectLightingAndSkyLight(MaterialParameters, Interpolants, BasePassInterpolants, LightmapVTPageTableResult, GBuffer, DiffuseDir, VolumetricLightmapBrickTextureUVs, DiffuseIndirectLighting, SubsurfaceIndirectLighting, IndirectIrradiance);
 		
 
@@ -1327,6 +1349,14 @@ void FPixelShaderInOut_MainPS(
 		#endif
 	#endif
 
+#else // !STRATA_ENABLED
+
+	// STRATA_TODO forward shadow and occlusion
+	float DirectionalLightShadow = 1.0f; 
+	float IndirectOcclusion = 1.0f;
+					
+#endif // !STRATA_ENABLED
+
 	#if NEEDS_BASEPASS_VERTEX_FOGGING
 		float4 HeightFogging = BasePassInterpolants.VertexFog;
 	#elif NEEDS_BASEPASS_PIXEL_FOGGING
@@ -1353,8 +1383,6 @@ void FPixelShaderInOut_MainPS(
 #if NEEDS_BASEPASS_PIXEL_FOGGING && PROJECT_SUPPORT_SKY_ATMOSPHERE && MATERIAL_IS_SKY==0 // Do not apply aerial perpsective on sky materials
 	if (ResolvedView.SkyAtmosphereApplyCameraAerialPerspectiveVolume > 0.0f)
 	{
-
-
 		// Sample the aerial perspective (AP).
 		Fogging = GetAerialPerspectiveLuminanceTransmittanceWithFogOver(
 			ResolvedView.RealTimeReflectionCapture, ResolvedView.SkyAtmosphereCameraAerialPerspectiveVolumeSizeAndInvSize,
@@ -1382,6 +1410,9 @@ void FPixelShaderInOut_MainPS(
 
 #endif
 
+	half3 Emissive = 0;
+#if !STRATA_ENABLED
+
 	// Volume lighting for lit translucency
 #if (MATERIAL_SHADINGMODEL_DEFAULT_LIT || MATERIAL_SHADINGMODEL_SUBSURFACE) && (MATERIALBLENDING_TRANSLUCENT || MATERIALBLENDING_ADDITIVE) && !SIMPLE_FORWARD_SHADING && !FORWARD_SHADING
 	if (GBuffer.ShadingModelID == SHADINGMODELID_DEFAULT_LIT || GBuffer.ShadingModelID == SHADINGMODELID_SUBSURFACE)
@@ -1397,7 +1428,9 @@ void FPixelShaderInOut_MainPS(
 		Color = lerp(Color, GBufferDiffuseColor, View.UnlitViewmodeMask);
 	#endif
 
-	half3 Emissive = GetMaterialEmissive(PixelMaterialInputs);
+	Emissive = GetMaterialEmissive(PixelMaterialInputs);
+
+#endif // !STRATA_ENABLED
 
 	// The following block is disabled on Vulkan because it triggers an nvidia driver bug (UE-101609).
 #if USE_DEVELOPMENT_SHADERS && !VULKAN_PROFILE_SM5
@@ -1416,6 +1449,14 @@ void FPixelShaderInOut_MainPS(
 	#endif
 #endif
 
+#if MATERIAL_WORKS_WITH_DUAL_SOURCE_COLOR_BLENDING
+	float3 DualBlendColorAdd = 0.0f;
+	float3 DualBlendColorMul = 1.0f;
+	float3 DualBlendColorCov = 1.0f;
+#endif
+
+#if !STRATA_ENABLED || STRATA_INLINE_SINGLELAYERWATER
+
 #if !POST_PROCESS_SUBSURFACE && !MATERIAL_SHADINGMODEL_THIN_TRANSLUCENT
  	// For skin we need to keep them separate. We also keep them separate for thin translucent.
 	// Otherwise just add them together.
@@ -1426,7 +1467,9 @@ void FPixelShaderInOut_MainPS(
 	Color += Emissive;
 #endif
 
-#if MATERIAL_SHADINGMODEL_SINGLELAYERWATER
+#endif // !STRATA_ENABLED
+
+#if MATERIAL_SHADINGMODEL_SINGLELAYERWATER || STRATA_INLINE_SINGLELAYERWATER
 	{
 		const bool CameraIsUnderWater = false;	// Fade out the material contribution over to water contribution according to material opacity.
 		const float3 SunIlluminance = ResolvedView.DirectionalLightColor.rgb * PI;	// times PI because it is divided by PI on CPU (=luminance) and we want illuminance here. 
@@ -1466,12 +1509,7 @@ void FPixelShaderInOut_MainPS(
 	}
 #endif // MATERIAL_SHADINGMODEL_SINGLELAYERWATER
 
-#if MATERIAL_WORKS_WITH_DUAL_SOURCE_COLOR_BLENDING
-	float3 DualBlendColorAdd = 0.0f;
-	float3 DualBlendColorMul = 1.0f;
-#endif
-
-#if MATERIAL_SHADINGMODEL_THIN_TRANSLUCENT
+#if MATERIAL_SHADINGMODEL_THIN_TRANSLUCENT && !STRATA_ENABLED
 	{
 		AccumulateThinTranslucentModel(
 								DualBlendColorAdd,
@@ -1487,6 +1525,7 @@ void FPixelShaderInOut_MainPS(
 		Opacity = 1.0f;
 	}
 #endif // MATERIAL_SHADINGMODEL_THIN_TRANSLUCENT
+
 
 	bool bSubsurfaceEnable = true;
 #if STRATA_ENABLED && !MATERIAL_SHADINGMODEL_UNLIT
@@ -1542,10 +1581,11 @@ void FPixelShaderInOut_MainPS(
 			Strata,
 			Throughput);
 
+		DualBlendColorCov = GetMaterialOpacity(PixelMaterialInputs); // Opacity represent coverage STRATA_TODO after validation, rename everything
 		DualBlendColorAdd = Color;
 		DualBlendColorMul = Throughput;
 		Color = 0.0f;
-		Opacity = 1.0f; // 1 is needed if using translucent. STRATA_TODO: we should only allow premultiplied alpha
+		Opacity = 1.0f; // nullify following operation
 	}
 #endif // STRATA_TRANSLUCENT_ENABLED
 
@@ -1556,10 +1596,11 @@ void FPixelShaderInOut_MainPS(
 #if STRATA_OPAQUE_ENABLED
 	Color = BSDF_GETEMISSIVE(UnlitBSDF);
 #else // STRATA_TRANSLUCENT_ENABLED
+	DualBlendColorCov = GetMaterialOpacity(PixelMaterialInputs); // Opacity represent coverage STRATA_TODO after validation, rename everything
 	DualBlendColorAdd = BSDF_GETEMISSIVE(UnlitBSDF);
 	DualBlendColorMul = UNLIT_TRANSMITTANCE(UnlitBSDF);
 	Color = 0.0f;
-	Opacity = 1.0f; // 1 is needed if using translucent. STRATA_TODO: we should only allow premultiplied alpha
+	Opacity = 1.0f; // nullify following operation
 #endif
 	
 #endif
@@ -1583,8 +1624,8 @@ void FPixelShaderInOut_MainPS(
 		//    AdjustedDualBlendMul = Fogging.a * DualBlendColorMul;
 		//    FinalColor = AdjustedDualBlendAdd + AdjustedDualBlendMul * BackgroundColor;
 
-		float3 AdjustedDualBlendAdd = Fogging.rgb + Fogging.a * DualBlendColorAdd;
-		float3 AdjustedDualBlendMul =               Fogging.a * DualBlendColorMul;
+		float3 AdjustedDualBlendAdd = DualBlendColorCov * (Fogging.rgb + Fogging.a * DualBlendColorAdd);
+		float3 AdjustedDualBlendMul = lerp(1.0f, Fogging.a * DualBlendColorMul, DualBlendColorCov);
 
 		#if DUAL_SOURCE_COLOR_BLENDING_ENABLED
 			// no RETURN_COLOR because these values are explicit multiplies and adds

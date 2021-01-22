@@ -313,6 +313,20 @@ float3 ReflectionEnvironment(FGBufferData GBuffer, float AmbientOcclusion, float
 	return -min(-Color.rgb, 0.0);
 }
 
+void ApplyCloudVolumetricShadow(in float3 WorldPosition, inout float4 SkyLighting)
+{
+	// Ideally we would compute spatially how much of the sky+cloud is visible for each point in the world. But we evaluate the sky light only once at the sky light component position as of today.
+	// To add some spatial variation, we can affect the sky light diffuse contribution according to cloud occlusion from above.
+	// This is an approximation because clouds are also occluding the sky in the sky light capture (a bit of a double contribution then). but it does help by adding spatially varying details.
+#if 0	// DISABLED for now because it has artefact with specular not being affected (and thus looking too bright which can be confusing for users).
+	if (CloudSkyAOEnabled)
+	{
+		float OutOpticalDepth = 0.0f;
+		SkyLighting.rgb *= GetCloudVolumetricShadow(WorldPosition, CloudSkyAOWorldToLightClipMatrix, CloudSkyAOFarDepthKm, CloudSkyAOTexture, CloudSkyAOSampler, OutOpticalDepth);
+	}
+#endif
+}
+
 void ReflectionEnvironmentSkyLighting(
 	in float4 SvPosition : SV_Position,
 	out float4 OutColor : SV_Target0)
@@ -351,16 +365,14 @@ void ReflectionEnvironmentSkyLighting(
 	uint2 PixelPos = SvPosition.xy;
 
 	const bool bUnlitMaterial = ShadingModelID == SHADINGMODELID_UNLIT;
-#if STRATA_ENABLED
-	const bool bStrataMaterial = ShadingModelID == SHADINGMODELID_STRATA;
-#else
-	const bool bStrataMaterial = false;
-#endif
 
 	float4 SkyLighting = 0;
-	BRANCH
+
 #if STRATA_ENABLED && ENABLE_SKY_LIGHT
-	if (bStrataMaterial)
+
+	// STRATA_TODO handle the ENABLE_SKY_LIGHT && ALLOW_STATIC_LIGHTING case 
+	BRANCH
+	if (ShadingModelID == SHADINGMODELID_STRATA)
 	{
 		const FStrataTopLayerData TopLayerData = StrataUnpackTopLayerData(Strata.TopLayerTexture.Load(uint3(PixelPos, 0)));
 		const float4 SSR = Texture2DSample(ScreenSpaceReflectionsTexture, ScreenSpaceReflectionsSampler, BufferUV);
@@ -380,46 +392,36 @@ void ReflectionEnvironmentSkyLighting(
 			TopLayerSpecularContributionFactor,
 			Strata.MaterialLobesBuffer,
 			GetStrataPixelDataByteOffset(PixelPos, View.BufferSizeAndInvSize.x, Strata.MaxBytesPerPixel));
-	}
-	else
-#endif
+
+		ApplyCloudVolumetricShadow(WorldPosition, SkyLighting);
+
+		OutColor.xyz = SkyLighting.rgb;
+		}
+
+#else // STRATA_ENABLED && ENABLE_SKY_LIGHT
+
+	BRANCH
 	if (!bUnlitMaterial) // Only light pixels marked as lit
 	{
 		SkyLighting.rgb = SkyLightDiffuse(GBuffer, AmbientOcclusion, BufferUV, ScreenPosition, BentNormal, DiffuseColor);
+
+		ApplyCloudVolumetricShadow(WorldPosition, SkyLighting);
+
+		FLightAccumulator LightAccumulator = (FLightAccumulator)0;
+		const bool bNeedsSeparateSubsurfaceLightAccumulation = UseSubsurfaceProfile(ShadingModelID);
+
+		LightAccumulator_Add(LightAccumulator, SkyLighting.rgb, SkyLighting.rgb, 1.0f, bNeedsSeparateSubsurfaceLightAccumulation);
+		OutColor = LightAccumulator_GetResult(LightAccumulator);
 	}
-	
-	BRANCH 
-	if (!bUnlitMaterial || bStrataMaterial)
-	{
-		// Ideally we would compute spatially how much of the sky+cloud is visible for each point in the world. But we evaluate the sky light only once at the sky light component position as of today.
-		// To add some spatial variation, we can affect the sky light diffuse contribution according to cloud occlusion from above.
-		// This is an approximation because clouds are also occluding the sky in the sky light capture (a bit of a double contribution then). but it does help by adding spatially varying details.
-#if 0	// DISABLED for now because it has artefact with specular not being affected (and thus looking too bright which can be confusing for users).
-		if (CloudSkyAOEnabled)
-		{
-			float OutOpticalDepth = 0.0f;
-			SkyLighting.rgb *= GetCloudVolumetricShadow(WorldPosition, CloudSkyAOWorldToLightClipMatrix, CloudSkyAOFarDepthKm, CloudSkyAOTexture, CloudSkyAOSampler, OutOpticalDepth);
-		}
-#endif
-	}
-
-	// Scene color alpha is used for ScreenSpaceSubsurfaceScattering (if that is not needed it can be disabled with SUBSURFACE_CHANNEL_MODE)
-#if STRATA_ENABLED
-	OutColor = SkyLighting;
-#else
-	FLightAccumulator LightAccumulator = (FLightAccumulator)0;
-	const bool bNeedsSeparateSubsurfaceLightAccumulation = UseSubsurfaceProfile(ShadingModelID);
-
-	LightAccumulator_Add(LightAccumulator, SkyLighting.rgb, SkyLighting.rgb, 1.0f, bNeedsSeparateSubsurfaceLightAccumulation);
-	OutColor = LightAccumulator_GetResult(LightAccumulator);
-#endif
-
-#endif // ENABLE_DYNAMIC_SKY_LIGHT
 
 	BRANCH
-	if (ShadingModelID != SHADINGMODELID_UNLIT && ShadingModelID != SHADINGMODELID_HAIR && ShadingModelID != SHADINGMODELID_STRATA)
+	if (!bUnlitMaterial && ShadingModelID != SHADINGMODELID_HAIR)
 	{
 		OutColor.xyz += ReflectionEnvironment(GBuffer, AmbientOcclusion, BufferUV, WorldPosition, V, SvPosition, BentNormal, SpecularColor);
 	}
+
+#endif // STRATA_ENABLED && ENABLE_SKY_LIGHT
+
+#endif // ENABLE_DYNAMIC_SKY_LIGHT
 }
 
