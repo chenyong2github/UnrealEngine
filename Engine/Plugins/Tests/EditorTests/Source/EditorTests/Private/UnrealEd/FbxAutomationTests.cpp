@@ -34,6 +34,9 @@
 #include "FbxMeshUtils.h"
 #include "Tests/FbxAutomationCommon.h"
 
+#include "Editor/EditorEngine.h"
+extern UNREALED_API UEditorEngine* GEditor;
+
 //////////////////////////////////////////////////////////////////////////
 
 /**
