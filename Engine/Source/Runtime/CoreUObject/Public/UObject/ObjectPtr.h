@@ -3,6 +3,7 @@
 #pragma once
 
 #include "HAL/Platform.h"
+#include "Serialization/StructuredArchive.h"
 #include "UObject/Class.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectHandle.h"
@@ -296,6 +297,11 @@ public:
 	{
 		Ar << static_cast<FObjectPtr&>(ObjectPtr);
 		return Ar;
+	}
+
+	friend FORCEINLINE void operator<<(FStructuredArchiveSlot&& Slot, TObjectPtr<T>& ObjectPtr)
+	{
+		Slot << static_cast<FObjectPtr&>(ObjectPtr);
 	}
 
 	friend struct FObjectPtr;
