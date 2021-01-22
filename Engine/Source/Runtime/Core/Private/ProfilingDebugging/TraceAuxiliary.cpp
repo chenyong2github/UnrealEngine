@@ -185,6 +185,7 @@ bool FTraceAuxiliaryImpl::Stop()
 
 	DisableChannels();
 	State = EState::Stopped;
+	TraceDest.Reset();
 	return true;
 }
 
@@ -338,6 +339,18 @@ static void TraceAuxiliaryStart(const TArray<FString>& Args)
 		return;
 	}
 
+	// It is possible that something outside of TraceAux's world view has called
+	// UE::Trace::SendTo/WriteTo(). A plugin that has created its own store for
+	// example. There's not really much that can be done about that here (tracing
+	// is singular within a process. We can at least detect the obvious case and
+	// inform the user.
+	const TCHAR* TraceDest = GTraceAuxiliary.GetDest();
+	if (TraceDest[0] == '\0')
+	{
+		UE_LOG(LogConsoleResponse, Warning, TEXT("Trace system already in use by a plugin or -trace*=... argument. Use 'Trace.Stop' first."));
+		return;
+	}
+
 	// Give the user some feedback that everything's underway.
 	FString Channels;
 	GTraceAuxiliary.ReadChannels([&Channels] (const TCHAR* Channel)
@@ -349,7 +362,7 @@ static void TraceAuxiliaryStart(const TArray<FString>& Args)
 
 		Channels += Channel;
 	});
-	UE_LOG(LogConsoleResponse, Log, TEXT("Tracing to; %s"), GTraceAuxiliary.GetDest());
+	UE_LOG(LogConsoleResponse, Log, TEXT("Tracing to; %s"), TraceDest);
 	UE_LOG(LogConsoleResponse, Log, TEXT("Trace channels; %s"), *Channels);
 }
 
