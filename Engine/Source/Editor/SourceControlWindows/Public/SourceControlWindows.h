@@ -98,8 +98,10 @@ public:
 	 * Displays file diff against workspace version
 	 * 
 	 * @param InFileName Name of the file to diff
+	 * 
+	 * @return true if the diff could be performed
 	 */
-	static void DiffAgainstWorkspace(const FString& InFileName);
+	static bool DiffAgainstWorkspace(const FString& InFileName);
 
 protected:
 	/** Callback for ChoosePackagesToCheckIn(), continues to bring up UI once source control operations are complete */

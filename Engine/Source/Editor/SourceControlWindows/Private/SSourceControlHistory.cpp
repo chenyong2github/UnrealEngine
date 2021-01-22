@@ -1642,7 +1642,7 @@ void FSourceControlWindows::DisplayRevisionHistory( const TArray<FString>& InPac
 	}
 }
 
-void FSourceControlWindows::DiffAgainstWorkspace(const FString& InFileName)
+bool FSourceControlWindows::DiffAgainstWorkspace(const FString& InFileName)
 {
 	FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>(TEXT("AssetTools"));
 
@@ -1656,10 +1656,17 @@ void FSourceControlWindows::DiffAgainstWorkspace(const FString& InFileName)
 		// grab the asset from the package - we assume asset name matches file name
 		FString AssetName = FPaths::GetBaseFilename(InFileName);
 		SelectedAsset = FindObject<UObject>(AssetPackage, *AssetName);
+
+		if (!SelectedAsset && AssetPackage)
+		{
+			SelectedAsset = AssetPackage->FindAssetInPackage();
+		}
 	}
 
 	if (SelectedAsset)
 	{
 		AssetToolsModule.Get().DiffAgainstDepot(SelectedAsset, AssetPackageName, SelectedAsset->GetName());
 	}
+
+	return !!SelectedAsset;
 }
