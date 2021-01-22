@@ -454,7 +454,7 @@ bool FDateTime::ParseHttpDate(const FString& HttpDate, FDateTime& OutDateTime)
 			{
 				return 1;
 			}
-			else if (WeekDay.Equals(TEXT("Tueday")))
+			else if (WeekDay.Equals(TEXT("Tuesday")))
 			{
 				return 2;
 			}
