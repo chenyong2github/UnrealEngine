@@ -18,7 +18,7 @@ AWaterBodyCustom::AWaterBodyCustom(const FObjectInitializer& ObjectInitializer)
 	bAffectsLandscape = false;
 
 #if WITH_EDITOR
-	ActorIcon = FWaterIconHelper::EnsureSpriteComponentCreated(this, TEXT("/Water/Icons/WaterBodyCustomSprite"), NSLOCTEXT("Water", "WaterBodyCustomSpriteName", "Water Body Custom"));
+	ActorIcon = FWaterIconHelper::EnsureSpriteComponentCreated(this, TEXT("/Water/Icons/WaterBodyCustomSprite"));
 #endif
 
 	// @todo_water : Remove these checks (Once AWaterBody is no more Blueprintable, these methods should become PURE_VIRTUAL and this class should overload them)

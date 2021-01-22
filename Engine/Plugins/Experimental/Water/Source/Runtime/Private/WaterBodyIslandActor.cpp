@@ -36,7 +36,7 @@ AWaterBodyIsland::AWaterBodyIsland(const FObjectInitializer& ObjectInitializer)
 		SplineComp->OnSplineDataChanged().AddUObject(this, &AWaterBodyIsland::OnSplineDataChanged);
 	}
 
-	ActorIcon = FWaterIconHelper::EnsureSpriteComponentCreated(this, TEXT("/Water/Icons/WaterBodyIslandSprite"), NSLOCTEXT("Water", "WaterBodyIslandSpriteName", "Water Body Island"));
+	ActorIcon = FWaterIconHelper::EnsureSpriteComponentCreated(this, TEXT("/Water/Icons/WaterBodyIslandSprite"));
 #endif
 
 	RootComponent = SplineComp;
