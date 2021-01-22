@@ -161,43 +161,50 @@ struct TDistanceFieldToSkeletalField
 
 /**
  * Boolean Union of N implicit functions (F_1 or F_2 or ... or F_N)
- * Assumption is that all have surface at zero isocontour and 
- * negative is inside.
+ * Or if bSubtract=true, Subtraction: (F_1 - (F_2 or F_3 or ... or F_N))
+ * We expect this to be used with "Skeletal Field" inputs (e.g. TDistanceFieldToSkeletalField, TSkeletalImplicitLine3, etc)
+ * where values are in the range [0,1] and the isosurface is ~ in the middle of that range
 **/
 template<typename InputBoundedImplicitType, typename RealType>
 struct TSkeletalRicciNaryBlend3
 {
 	TArray<InputBoundedImplicitType*> Children;
 	RealType BlendPower = 2.0;
+	bool bSubtract = false;
 
 	RealType Value(const FVector3<RealType> Pt)
 	{
 		int N = Children.Num();
-		RealType f = 0;
+		checkSlow(N > 0);
+		RealType f = Children[0]->Value(Pt);
+		RealType Scale = bSubtract ? -1 : 1;
 		if (BlendPower == 1.0)
 		{
-			for (int k = 0; k < N; ++k)
+			for (int k = 1; k < N; ++k)
 			{
-				f += Children[k]->Value(Pt);
+				f += Children[k]->Value(Pt) * Scale;
 			}
+			f = TMathUtil<RealType>::Max(0, f);
 		}
 		else if (BlendPower == 2.0)
 		{
-			for (int k = 0; k < N; ++k)
+			f = f * f;
+			for (int k = 1; k < N; ++k)
 			{
 				RealType v = Children[k]->Value(Pt);
-				f += v * v;
+				f += v * v * Scale;
 			}
-			f = TMathUtil<RealType>::Sqrt(f);
+			f = TMathUtil<RealType>::Sqrt(TMathUtil<RealType>::Max(0, f));
 		}
 		else
 		{
-			for (int k = 0; k < N; ++k)
+			f = TMathUtil<RealType>::Pow(f, BlendPower);
+			for (int k = 1; k < N; ++k)
 			{
 				RealType v = Children[k]->Value(Pt);
-				f += TMathUtil<RealType>::Pow(v, BlendPower);
+				f += TMathUtil<RealType>::Pow(v, BlendPower) * Scale;
 			}
-			f = TMathUtil<RealType>::Pow(f, 1.0 / BlendPower);
+			f = TMathUtil<RealType>::Pow(TMathUtil<RealType>::Max(0, f), 1.0 / BlendPower);
 		}
 		return f;
 	}

@@ -26,6 +26,8 @@ public:
 	bool bRemoveInternalsAfterVoxWrap = false;
 	double ThickenShells = 0.0;
 
+	bool bSubtract = false;
+
 	void SetTransform(const FTransform& Transform);
 
 	//

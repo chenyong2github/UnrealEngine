@@ -33,6 +33,7 @@ void FVoxelBlendMeshesOp::CalculateResult(FProgressCancel* Progress)
 	}
 
 	TImplicitBlend<FDynamicMesh3> ImplicitBlend;
+	ImplicitBlend.bSubtract = bSubtract;
 
 	TArray<FDynamicMesh3> TransformedMeshes; TransformedMeshes.Reserve(Meshes.Num());
 	FAxisAlignedBox3d CombinedBounds = FAxisAlignedBox3d::Empty();
