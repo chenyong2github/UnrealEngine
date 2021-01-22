@@ -16,8 +16,8 @@
 
 namespace
 {
-	constexpr ANSICHAR* ComboButtonStyle = "RoundButton";
-	constexpr ANSICHAR* FontStyle = "GenericFilters.TextStyle";
+	constexpr const ANSICHAR* ComboButtonStyle = "RoundButton";
+	constexpr const ANSICHAR* FontStyle = "GenericFilters.TextStyle";
 	
 	void SaveAs(TWeakObjectPtr<UFilterLoader> FilterLoader)
 	{
