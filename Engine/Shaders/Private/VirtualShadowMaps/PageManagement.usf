@@ -773,7 +773,7 @@ void CalculatePageRects(uint3 DispatchThreadID : SV_DispatchThreadID)
 			InterlockedMax(PageRectBoundsOut[PageBoundIndex].z, vPage.x);
 			InterlockedMax(PageRectBoundsOut[PageBoundIndex].w, vPage.y);
 		}
-		OutPageTable[PageOffset] = uint2(VSM_INVALID_PHYSICAL_PAGE_ADDRESS, VSM_INVALID_PHYSICAL_PAGE_ADDRESS);
+		OutPageTable[PageOffset] = VSM_PHYSICAL_PAGE_INVALID;
 
 	}
 }
@@ -936,7 +936,7 @@ void AllocatePagesUsingRects(uint GroupThreadId : SV_GroupThreadID, uint2 Dispat
 						// Request rendering of pages that are not cached (AKA VSM_INVALID_PHYSICAL_PAGE_ADDRESS in cache).
 						// TODO: make sure caching machinery is use in this path also
 						OutPageFlags[PageOffset] = VSM_INVALID_FLAG | VSM_ALLOCATED_FLAG;
-						OutPageTable[PageOffset] = pPage;
+						OutPageTable[PageOffset] = ShadowEncodePageTable(pPage);
 					}
 				}
 

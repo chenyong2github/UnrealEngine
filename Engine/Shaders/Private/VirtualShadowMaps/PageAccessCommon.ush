@@ -44,6 +44,13 @@
 #define VSM_PACKED_PAGE_INFO_VIEW_ID_BITS (10U)
 #define VSM_PACKED_PAGE_INFO_SUPER_PAGE_LEVEL_BITS (2U)
 
+struct FPageInfo
+{
+	uint2 VirtualPage;
+	uint ViewId;
+	uint SuperPageLevel;
+};
+
 //Buffer containing VSM_ALLOCATED_FLAG for each page that is allocated and optionally | VSM_INVALID_FLAG if it needs to be rendered (not cached)
 StructuredBuffer<uint> PageFlags;
 StructuredBuffer<uint> HPageFlags;
