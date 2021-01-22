@@ -27,9 +27,7 @@
 #include "K2Node_EventNodeInterface.h"
 #include "ScopedTransaction.h"
 #include "HAL/PlatformApplicationMisc.h"
-
 #include "DetailLayoutBuilder.h"
-
 #include "SKismetInspector.h"
 #include "SSCSEditor.h"
 #include "GraphEditorDragDropAction.h"
@@ -39,12 +37,8 @@
 #include "SBlueprintPalette.h"
 #include "BlueprintEditorCommands.h"
 #include "GraphEditorActions.h"
-
 #include "AnimationGraph.h"
-
-
 #include "SBlueprintEditorToolbar.h"
-
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "ObjectEditorUtils.h"
 #include "GraphEditor/Private/GraphActionNode.h"
@@ -52,13 +46,12 @@
 #include "EditorCategoryUtils.h"
 #include "Widgets/Input/SSearchBox.h"
 #include "Framework/Commands/GenericCommands.h"
-
 #include "BlueprintEditorSettings.h"
 #include "SReplaceNodeReferences.h"
 #include "ReplaceNodeReferencesHelper.h"
 #include "Animation/AnimClassInterface.h"
-
 #include "BPGraphClipboardData.h"
+#include "SEditorHeaderButton.h"
 
 #define LOCTEXT_NAMESPACE "MyBlueprint"
 
@@ -370,39 +363,13 @@ void SMyBlueprint::Construct(const FArguments& InArgs, TWeakPtr<FBlueprintEditor
 		ToolbarBuilderWidget = SNew(SBox);
 	}
 
-	TSharedPtr<SWidget> AddNewMenu = SNullWidget::NullWidget;
-
-	AddNewMenu = SNew(SComboButton)
-		.ComboButtonStyle(&FAppStyle::Get().GetWidgetStyle<FComboButtonStyle>("SimpleComboButton"))
-		.ForegroundColor(FSlateColor::UseStyle())
-		.ContentPadding(2)
-		.OnGetMenuContent(this, &SMyBlueprint::CreateAddNewMenuWidget)
-		.HasDownArrow(false)
+	TSharedPtr<SWidget> AddNewMenu = SNew(SEditorHeaderButton)
 		.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("MyBlueprintAddNewCombo")))
-		.IsEnabled(this, &SMyBlueprint::IsEditingMode)
+		.Icon(FAppStyle::Get().GetBrush("Icons.Plus"))
+		.Text(LOCTEXT("AddNewLabel", "Add"))
 		.ToolTipText(LOCTEXT("AddNewToolTip", "Add a new Variable, Graph, Function, Macro, or Event Dispatcher."))
-		.ButtonContent()
-		[
-			SNew(SHorizontalBox)
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.HAlign(HAlign_Center)
-			.VAlign(VAlign_Center)
-			[
-				SNew(SImage)
-				.Image(FAppStyle::Get().GetBrush("Icons.Plus"))
-				.ColorAndOpacity(FSlateColor::UseForeground())
-			]
-			+ SHorizontalBox::Slot()
-			.Padding(FMargin(3, 0, 0, 0))
-			.VAlign(VAlign_Center)
-			.AutoWidth()
-			[
-				SNew(STextBlock)
-				.TextStyle(FAppStyle::Get(), "NormalText")
-				.Text(LOCTEXT("NewAssetButton", "New"))
-			]
-		];
+		.IsEnabled(this, &SMyBlueprint::IsEditingMode)
+		.OnGetMenuContent(this, &SMyBlueprint::CreateAddNewMenuWidget);
 
 	FMenuBuilder ViewOptions(true, nullptr);
 
@@ -527,7 +494,8 @@ void SMyBlueprint::Construct(const FArguments& InArgs, TWeakPtr<FBlueprintEditor
 
 					+ SHorizontalBox::Slot()
 					.AutoWidth()
-					.Padding(0, 0, 2, 0)
+					.VAlign(VAlign_Center)
+					.Padding(0, 0, 4, 0)
 					[
 						AddNewMenu.ToSharedRef()
 					]

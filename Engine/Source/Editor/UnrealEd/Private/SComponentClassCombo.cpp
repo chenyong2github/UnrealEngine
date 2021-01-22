@@ -11,7 +11,6 @@
 #include "Engine/Blueprint.h"
 #include "Engine/Selection.h"
 #include "Editor.h"
-
 #include "Styling/SlateIconFinder.h"
 #include "ComponentAssetBroker.h"
 #include "ComponentTypeRegistry.h"
@@ -19,6 +18,7 @@
 #include "Widgets/Input/SSearchBox.h"
 #include "SListViewSelectorDropdownMenu.h"
 #include "Misc/TextFilterExpressionEvaluator.h"
+#include "SEditorHeaderButton.h"
 
 #define LOCTEXT_NAMESPACE "ComponentClassCombo"
 
@@ -64,52 +64,46 @@ void SComponentClassCombo::Construct(const FArguments& InArgs)
 		.OnTextChanged( this, &SComponentClassCombo::OnSearchBoxTextChanged )
 		.OnTextCommitted( this, &SComponentClassCombo::OnSearchBoxTextCommitted );
 
-	// Create the Construct arguments for the parent class (SComboButton)
-	SComboButton::FArguments Args;
-	Args.ComboButtonStyle(FAppStyle::Get(), "SimpleComboButton")
-	.HasDownArrow(false)
-	.IsFocusable(true)
-	.OnComboBoxOpened(this, &SComponentClassCombo::ClearSelection)
-	.ButtonContent()
+	ChildSlot
 	[
-		SNew(SImage)
-		.ColorAndOpacity(FSlateColor::UseForeground())
-		.Image(FAppStyle::Get().GetBrush("Icons.Plus"))
-	]
-	.MenuContent()
-	[
-
-		SNew(SListViewSelectorDropdownMenu<FComponentClassComboEntryPtr>, SearchBox, ComponentClassListView)
+		SAssignNew(AddNewButton, SEditorHeaderButton)
+		.Icon(FAppStyle::Get().GetBrush("Icons.Plus"))
+		.Text(LOCTEXT("Add", "Add"))
+		.OnComboBoxOpened(this, &SComponentClassCombo::ClearSelection)
+		.MenuContent()
 		[
-			SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush("Menu.Background"))
-			.Padding(2)
+			SNew(SListViewSelectorDropdownMenu<FComponentClassComboEntryPtr>, SearchBox, ComponentClassListView)
 			[
-				SNew(SBox)
-				.WidthOverride(250)
-				[				
-					SNew(SVerticalBox)
-					+SVerticalBox::Slot()
-					.Padding(1.f)
-					.AutoHeight()
-					[
-						SearchBox.ToSharedRef()
-					]
-					+SVerticalBox::Slot()
-					.MaxHeight(400)
-					[
-						ComponentClassListView.ToSharedRef()
+				SNew(SBorder)
+				.BorderImage(FEditorStyle::GetBrush("Menu.Background"))
+				.Padding(2)
+				[
+					SNew(SBox)
+					.WidthOverride(250)
+					[				
+						SNew(SVerticalBox)
+						+SVerticalBox::Slot()
+						.Padding(1.f)
+						.AutoHeight()
+						[
+							SearchBox.ToSharedRef()
+						]
+						+SVerticalBox::Slot()
+						.MaxHeight(400)
+						[
+							ComponentClassListView.ToSharedRef()
+						]
 					]
 				]
 			]
 		]
 	];
 
-	SComboButton::Construct(Args);
+	
 
 	ComponentClassListView->EnableToolTipForceField( true );
-	// The base class can automatically handle setting focus to a specified control when the combo button is opened
-	SetMenuContentWidgetToFocus( SearchBox );
+	// The button can automatically handle setting focus to a specified control when the combo button is opened
+	AddNewButton->SetMenuContentWidgetToFocus( SearchBox );
 }
 
 SComponentClassCombo::~SComponentClassCombo()
@@ -245,7 +239,7 @@ void SComponentClassCombo::OnAddComponentSelectionChanged( FComponentClassComboE
 		if ( InItem->IsClass() )
 		{
 			// Neither do we want the combo dropdown staying open once the user has clicked on a valid option
-			SetIsOpen(false, false);
+			AddNewButton->SetIsMenuOpen(false, false);
 
 			if( OnComponentClassSelected.IsBound() )
 			{

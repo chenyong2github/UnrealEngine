@@ -167,7 +167,7 @@ private:
 
 //////////////////////////////////////////////////////////////////////////
 
-class UNREALED_API SComponentClassCombo : public SComboButton
+class UNREALED_API SComponentClassCombo : public SCompoundWidget
 {
 public:
 	SLATE_BEGIN_ARGS( SComponentClassCombo )
@@ -231,6 +231,9 @@ private:
 
 	/** The search box control - part of the combo drop down */
 	TSharedPtr<SSearchBox> SearchBox;
+
+	/** The Add combo button. */
+	TSharedPtr<class SEditorHeaderButton> AddNewButton;
 
 	/** The component list control - part of the combo drop down */
 	TSharedPtr< SListView<FComponentClassComboEntryPtr> > ComponentClassListView;
