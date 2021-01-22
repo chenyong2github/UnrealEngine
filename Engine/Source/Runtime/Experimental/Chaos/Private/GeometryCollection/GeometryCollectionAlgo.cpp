@@ -1203,5 +1203,69 @@ namespace GeometryCollectionAlgo
 		return true;
 	}
 
+	TArray<int32> ComputeRecursiveOrder(const FGeometryCollection& Collection)
+	{
+		const int32 NumTransforms = Collection.NumElements(FGeometryCollection::TransformGroup);
+		const TManagedArray<int32>& Parent = Collection.Parent;
+		const TManagedArray<TSet<int32>>& Children = Collection.Children;
+
+		//traverse cluster hierarchy in depth first and record order
+		struct FClusterProcessing
+		{
+			int32 TransformGroupIndex;
+			enum
+			{
+				None,
+				VisitingChildren
+			} State;
+
+			FClusterProcessing(int32 InIndex) : TransformGroupIndex(InIndex), State(None) {};
+		};
+
+		TArray<FClusterProcessing> ClustersToProcess;
+		//enqueue all roots
+		for (int32 TransformGroupIndex = 0; TransformGroupIndex < NumTransforms; TransformGroupIndex++)
+		{
+			if (Parent[TransformGroupIndex] == FGeometryCollection::Invalid && Children[TransformGroupIndex].Num() > 0)
+			{
+				ClustersToProcess.Emplace(TransformGroupIndex);
+			}
+		}
+
+		TArray<int32> TransformOrder;
+		TransformOrder.Reserve(NumTransforms);
+
+		while (ClustersToProcess.Num())
+		{
+			FClusterProcessing CurCluster = ClustersToProcess.Pop();
+			const int32 ClusterTransformIdx = CurCluster.TransformGroupIndex;
+			if (CurCluster.State == FClusterProcessing::VisitingChildren)
+			{
+				//children already visited
+				TransformOrder.Add(ClusterTransformIdx);
+			}
+			else
+			{
+				if (Children[ClusterTransformIdx].Num())
+				{
+					CurCluster.State = FClusterProcessing::VisitingChildren;
+					ClustersToProcess.Add(CurCluster);
+
+					//order of children doesn't matter as long as all children appear before parent
+					for (int32 ChildIdx : Children[ClusterTransformIdx])
+					{
+						ClustersToProcess.Emplace(ChildIdx);
+					}
+				}
+				else
+				{
+					TransformOrder.Add(ClusterTransformIdx);
+				}
+			}
+		}
+
+		return TransformOrder;
+	}
+
 
 }

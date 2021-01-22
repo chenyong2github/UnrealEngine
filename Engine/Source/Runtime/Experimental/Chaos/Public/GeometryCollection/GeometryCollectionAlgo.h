@@ -264,4 +264,12 @@ namespace GeometryCollectionAlgo
 	CHAOS_API
 	HasValidGeometryReferences(const FGeometryCollection* GeometryCollection);
 
+
+	/*
+	* Computes the order of transform indices so that children in a tree always appear before their parents. Handles forests
+	*/
+	TArray<int32>
+	CHAOS_API
+	ComputeRecursiveOrder(const FGeometryCollection& Collection);
+
 }
