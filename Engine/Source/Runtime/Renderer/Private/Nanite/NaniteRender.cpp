@@ -660,7 +660,7 @@ class FPersistentClusterCull_CS : public FNaniteShader
 
 		SHADER_PARAMETER_RDG_BUFFER_UAV( RWByteAddressBuffer,					OutVisibleClustersSWHW )
 		SHADER_PARAMETER_RDG_BUFFER_UAV( RWByteAddressBuffer,					OutOccludedNodesAndClusters )
-		SHADER_PARAMETER_RDG_BUFFER_UAV( RWBuffer< uint >,						OutStreamingRequests )
+		SHADER_PARAMETER_RDG_BUFFER_UAV( RWStructuredBuffer<FStreamingRequest>,	OutStreamingRequests )
 		SHADER_PARAMETER_RDG_BUFFER_UAV( RWBuffer< uint >, VisibleClustersArgsSWHW )
 
 		SHADER_PARAMETER_STRUCT_INCLUDE( FVirtualTargetParameters, VirtualShadowMap )
@@ -2579,7 +2579,7 @@ void AddPass_InstanceHierarchyAndClusterCull(
 		}
 
 		PassParameters->OutVisibleClustersSWHW			= GraphBuilder.CreateUAV( CullingContext.VisibleClustersSWHW );
-		PassParameters->OutStreamingRequests			= GraphBuilder.CreateUAV( CullingContext.StreamingRequests, PF_R32_UINT );
+		PassParameters->OutStreamingRequests			= GraphBuilder.CreateUAV( CullingContext.StreamingRequests );
 
 		if (VirtualShadowMapArray)
 		{

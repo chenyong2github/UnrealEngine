@@ -215,6 +215,7 @@ private:
 
 	void AsyncUpdate();
 
+	void ClearStreamingRequestCount(FRDGBuilder& GraphBuilder, FRDGBufferUAVRef BufferUAVRef);
 #if DO_CHECK
 	void VerifyPageLRU( FStreamingPageInfo& List, uint32 TargetListLength, bool bCheckUpdateIndex );
 #endif

@@ -119,6 +119,28 @@ class FTranscodePageToGPU_CS : public FGlobalShader
 };
 IMPLEMENT_GLOBAL_SHADER(FTranscodePageToGPU_CS, "/Engine/Private/Nanite/Transcode.usf", "TranscodePageToGPU", SF_Compute);
 
+class FClearStreamingRequestCount_CS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FClearStreamingRequestCount_CS);
+	SHADER_USE_PARAMETER_STRUCT(FClearStreamingRequestCount_CS, FGlobalShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<FStreamingRequest>, OutStreamingRequests)
+	END_SHADER_PARAMETER_STRUCT()
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return DoesPlatformSupportNanite(Parameters.Platform);
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+	}
+};
+IMPLEMENT_GLOBAL_SHADER(FClearStreamingRequestCount_CS, "/Engine/Private/Nanite/ClusterCulling.usf", "ClearStreamingRequestCount", SF_Compute);
+
+
 // Lean hash table for deduplicating requests.
 // Linear probing hash table that only supports add and never grows.
 // This is intended to be kept alive over the duration of the program, so allocation and clearing only has to happen once.
@@ -1277,10 +1299,12 @@ void FStreamingManager::BeginAsyncUpdate(FRDGBuilder& GraphBuilder)
 	{
 		// Init and clear StreamingRequestsBuffer.
 		// Can't do this in InitRHI as RHICmdList doesn't have a valid context yet.
-		FRDGBufferDesc Desc = FRDGBufferDesc::CreateBufferDesc(4, 3 * MAX_STREAMING_REQUESTS);
+		FRDGBufferDesc Desc = FRDGBufferDesc::CreateStructuredDesc(sizeof(FStreamingRequest), MAX_STREAMING_REQUESTS);
 		Desc.Usage = EBufferUsageFlags(Desc.Usage | BUF_SourceCopy);
-		FRDGBufferRef StreamingRequestsBufferRef = GraphBuilder.CreateBuffer(Desc, TEXT("StreamingRequests"));	// TODO: Can't be a structured buffer as EnqueueCopy is only defined for vertex buffers
-		AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(StreamingRequestsBufferRef, PF_R32_UINT), 0);
+		FRDGBufferRef StreamingRequestsBufferRef = GraphBuilder.CreateBuffer(Desc, TEXT("StreamingRequests"));
+		
+		ClearStreamingRequestCount(GraphBuilder, GraphBuilder.CreateUAV(StreamingRequestsBufferRef));
+
 		ConvertToExternalBuffer(GraphBuilder, StreamingRequestsBufferRef, StreamingRequestsBuffer);
 	}
 
@@ -1763,11 +1787,27 @@ void FStreamingManager::SubmitFrameStreamingRequests(FRDGBuilder& GraphBuilder)
 		ReadbackBuffer->EnqueueCopy(RHICmdList, Buffer->GetRHI(), 0u);
 	});
 
-	AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(Buffer, PF_R32_UINT), 0);
+	ClearStreamingRequestCount(GraphBuilder, GraphBuilder.CreateUAV(Buffer));
 
 	ReadbackBuffersWriteIndex = ( ReadbackBuffersWriteIndex + 1u ) % MaxStreamingReadbackBuffers;
 	ReadbackBuffersNumPending = FMath::Min( ReadbackBuffersNumPending + 1u, MaxStreamingReadbackBuffers );
 }
+
+void FStreamingManager::ClearStreamingRequestCount(FRDGBuilder& GraphBuilder, FRDGBufferUAVRef BufferUAVRef)
+{
+	FClearStreamingRequestCount_CS::FParameters* PassParameters = GraphBuilder.AllocParameters<FClearStreamingRequestCount_CS::FParameters>();
+	PassParameters->OutStreamingRequests = BufferUAVRef;
+
+	auto ComputeShader = GetGlobalShaderMap(GMaxRHIFeatureLevel)->GetShader<FClearStreamingRequestCount_CS>();
+	FComputeShaderUtils::AddPass(
+		GraphBuilder,
+		RDG_EVENT_NAME("ClearStreamingRequestCount"),
+		ComputeShader,
+		PassParameters,
+		FIntVector(1, 1, 1)
+	);
+}
+
 
 ENGINE_API bool FStreamingManager::IsAsyncUpdateInProgress()
 {
