@@ -3952,16 +3952,18 @@ void GlobalBeginCompileShader(
 	COOK_STAT(FScopedDurationTimer DurationTimer(ShaderCompilerCookStats::GlobalBeginCompileShaderTimeSec));
 
 	EShaderPlatform ShaderPlatform = EShaderPlatform(Target.Platform);
+	const FName ShaderFormatName = LegacyShaderPlatformToShaderFormat(ShaderPlatform);
+
 	FShaderCompileUtilities::GenerateBrdfHeaders(ShaderPlatform);
 
 	Input.Target = Target;
-	Input.ShaderFormat = LegacyShaderPlatformToShaderFormat(ShaderPlatform);
+	Input.ShaderFormat = ShaderFormatName;
 	Input.VirtualSourceFilePath = SourceFilename;
 	Input.EntryPointName = FunctionName;
 	Input.bCompilingForShaderPipeline = false;
 	Input.bIncludeUsedOutputs = false;
 	Input.bGenerateDirectCompileFile = (GDumpShaderDebugInfoSCWCommandLine != 0);
-	Input.DumpDebugInfoRootPath = GShaderCompilingManager->GetAbsoluteShaderDebugInfoDirectory() / Input.ShaderFormat.ToString();
+	Input.DumpDebugInfoRootPath = GShaderCompilingManager->GetAbsoluteShaderDebugInfoDirectory() / ShaderFormatName.ToString();
 	// asset material name or "Global"
 	Input.DebugGroupName = DebugGroupName;
 	Input.DebugDescription = DebugDescription;
@@ -4143,7 +4145,7 @@ void GlobalBeginCompileShader(
 		// Throw a warning if we are silently disabling ISR due to missing platform support.
 		if (bIsInstancedStereoCVar && !bIsInstancedStereo && !GShaderCompilingManager->AreWarningsSuppressed(ShaderPlatform))
 		{
-			UE_LOG(LogShaderCompilers, Log, TEXT("Instanced stereo rendering is not supported for the %s shader platform."), *LegacyShaderPlatformToShaderFormat(ShaderPlatform).ToString());
+			UE_LOG(LogShaderCompilers, Log, TEXT("Instanced stereo rendering is not supported for the %s shader platform."), *ShaderFormatName.ToString());
 			GShaderCompilingManager->SuppressWarnings(ShaderPlatform);
 		}
 
@@ -4177,12 +4179,12 @@ void GlobalBeginCompileShader(
 		}
 	}
 
-	if (ShouldKeepShaderDebugInfo(Target.GetPlatform()))
+	if (ShouldKeepShaderDebugInfo(ShaderFormatName))
 	{
 		Input.Environment.CompilerFlags.Add(CFLAG_KeepDebugInfo);
 	}
 
-	if (ShouldAllowUniqueDebugInfo(Target.GetPlatform()))
+	if (ShouldAllowUniqueDebugInfo(ShaderFormatName))
 	{
 		Input.Environment.CompilerFlags.Add(CFLAG_AllowUniqueDebugInfo);
 	}
@@ -4256,8 +4258,7 @@ void GlobalBeginCompileShader(
 		
 		// Check whether we can compile metal shaders to bytecode - avoids poisoning the DDC
 		static ITargetPlatformManagerModule& TPM = GetTargetPlatformManagerRef();
-		const FName Format = LegacyShaderPlatformToShaderFormat(EShaderPlatform(Target.Platform));
-		const IShaderFormat* Compiler = TPM.FindShaderFormat(Format);
+		const IShaderFormat* Compiler = TPM.FindShaderFormat(ShaderFormatName);
 		static const bool bCanCompileOfflineMetalShaders = Compiler && Compiler->CanCompileBinaryShaders();
 		if (!bCanCompileOfflineMetalShaders)
 		{
@@ -4397,7 +4398,7 @@ void GlobalBeginCompileShader(
 		Input.Environment.SetDefine(TEXT("PROJECT_ALLOW_GLOBAL_CLIP_PLANE"), CVar ? (CVar->GetInt() != 0) : 0);
 	}
 
-	ITargetPlatform* TargetPlatform = GetTargetPlatformManager()->FindTargetPlatformWithSupport(TEXT("ShaderFormat"), LegacyShaderPlatformToShaderFormat((EShaderPlatform)Target.Platform));
+	ITargetPlatform* TargetPlatform = GetTargetPlatformManager()->FindTargetPlatformWithSupport(TEXT("ShaderFormat"), ShaderFormatName);
 	bool bForwardShading = false;
 	{
 		if (TargetPlatform)
@@ -4528,7 +4529,7 @@ void GlobalBeginCompileShader(
 	}
 
 	// Allow the target shader format to modify the shader input before we add it as a job
-	const IShaderFormat* Format = GetTargetPlatformManagerRef().FindShaderFormat(Input.ShaderFormat);
+	const IShaderFormat* Format = GetTargetPlatformManagerRef().FindShaderFormat(ShaderFormatName);
 	Format->ModifyShaderCompilerInput(Input);
 
 	// Allow the GBuffer and other shader defines to cause dependend environment changes, but minimizing the #ifdef magic in the shaders, which

@@ -26,9 +26,14 @@ const int32 ShaderCompileWorkerPipelineJobHeader = 'P';
 
 /** Returns true if debug information should be kept for a given platform. */
 extern RENDERCORE_API bool ShouldKeepShaderDebugInfo(EShaderPlatform Platform);
+extern RENDERCORE_API bool ShouldKeepShaderDebugInfo(FName ShaderFormat);
 
 /** Returns true if debug information should be exported to separate files for a given platform . */
 extern RENDERCORE_API bool ShouldExportShaderDebugInfo(EShaderPlatform Platform);
+extern RENDERCORE_API bool ShouldExportShaderDebugInfo(FName ShaderFormat);
+
+/** Returns true if (external) debug information should be specific to each shader rather than be deduplicated. */
+extern RENDERCORE_API bool ShouldAllowUniqueDebugInfo(FName ShaderFormat);
 
 enum ECompilerFlags
 {

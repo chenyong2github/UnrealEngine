@@ -1322,6 +1322,8 @@ bool IsDxcEnabledForPlatform(EShaderPlatform Platform)
 
 void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 {
+	const FName ShaderFormatName = LegacyShaderPlatformToShaderFormat(Platform);
+
 	// Globals that should cause all shaders to recompile when changed must be appended to the key here
 	// Key should be kept as short as possible while being somewhat human readable for debugging
 
@@ -1412,8 +1414,8 @@ void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 	}
 
 	{
-		KeyString += ShouldKeepShaderDebugInfo(Platform) ? TEXT("_NoStrip") : TEXT("");
-		KeyString += ShouldAllowUniqueDebugInfo(Platform) ? TEXT("_FullDbg") : TEXT("");
+		KeyString += ShouldKeepShaderDebugInfo(ShaderFormatName) ? TEXT("_NoStrip") : TEXT("");
+		KeyString += ShouldAllowUniqueDebugInfo(ShaderFormatName) ? TEXT("_FullDbg") : TEXT("");
 	}
 
 	{
@@ -1543,7 +1545,6 @@ void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 		}
 	}
 
-	const FName ShaderFormatName = LegacyShaderPlatformToShaderFormat(Platform);
 	const IShaderFormat* ShaderFormat = GetTargetPlatformManagerRef().FindShaderFormat(ShaderFormatName);
 	if (ShaderFormat)
 	{
@@ -1626,7 +1627,7 @@ void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 		}
 	}
 
-	ITargetPlatform* TargetPlatform = GetTargetPlatformManager()->FindTargetPlatformWithSupport(TEXT("ShaderFormat"), LegacyShaderPlatformToShaderFormat(Platform));
+	ITargetPlatform* TargetPlatform = GetTargetPlatformManager()->FindTargetPlatformWithSupport(TEXT("ShaderFormat"), ShaderFormatName);
 
 	{
 		bool bForwardShading = false;
