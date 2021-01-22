@@ -21,6 +21,7 @@
 #include "WorldPartition/HLOD/HLODActor.h"
 #include "WorldPartition/WorldPartitionMiniMap.h"
 #include "WorldPartition/WorldPartitionMiniMapHelper.h"
+#include "LevelInstance/LevelInstanceActor.h"
 #include "GameFramework/WorldSettings.h"
 #include "UObject/UObjectHash.h"
 #include "PackageHelperFunctions.h"
@@ -1088,12 +1089,6 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 		RemapSoftObjectPaths.Add(OldPackagePath, FSoftObjectPath(MainPackage).ToString());
 	}
 
-	for (ULevel* SubLevel : SubLevelsToConvert)
-	{
-		DetachDependantLevelPackages(SubLevel);
-		PrepareLevelActors(SubLevel, false, GetLevelGridPlacement(SubLevel, EActorGridPlacement::Bounds));
-	}
-
 	TMap<UObject*, UObject*> PrivateRefsMap;
 	for(ULevel* SubLevel : SubLevelsToConvert)
 	{
@@ -1102,87 +1097,123 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 		UWorld* SubWorld = SubLevel->GetTypedOuter<UWorld>();
 		UPackage* SubPackage = SubLevel->GetPackage();
 
-		RemapSoftObjectPaths.Add(FSoftObjectPath(SubWorld).ToString(), FSoftObjectPath(MainWorld).ToString());
-		RemapSoftObjectPaths.Add(FSoftObjectPath(SubLevel).ToString(), FSoftObjectPath(MainLevel).ToString());
-		RemapSoftObjectPaths.Add(FSoftObjectPath(SubPackage).ToString(), FSoftObjectPath(MainPackage).ToString());
-
 		if (LevelHasLevelScriptBlueprint(SubLevel))
 		{
 			MapsWithLevelScriptsBPs.Add(SubPackage->GetLoadedPath().GetPackageName());
-		}
 
-		if (LevelHasMapBuildData(SubLevel))
-		{
-			MapsWithMapBuildData.Add(SubPackage->GetLoadedPath().GetPackageName());
-		}
-
-		UE_LOG(LogWorldPartitionConvertCommandlet, Log, TEXT("Converting %s"), *SubWorld->GetName());
-
-		for(AActor* Actor: SubLevel->Actors)
-		{
-			if(Actor && !Actor->IsPendingKill())
+			// Spawn the Level Instance
+			ULevelStreaming* SubLevelStreaming = nullptr;
+			for (ULevelStreaming* LevelStreaming : MainLevel->GetWorld()->GetStreamingLevels())
 			{
-				check(Actor->GetOuter() == SubLevel);
-				check(!ShouldDeleteActor(Actor, false));
+				if (LevelStreaming->GetLoadedLevel() == SubLevel)
+				{
+					SubLevelStreaming = LevelStreaming;
+					break;
+				}
+			}
+			check(SubLevelStreaming);
+
+			FActorSpawnParameters SpawnParams;
+			SpawnParams.OverrideLevel = MainLevel;
+			ALevelInstance* LevelInstanceActor = MainWorld->SpawnActor<ALevelInstance>(SpawnParams);
+
+			UPackage* SubLevelPackage = SubLevel->GetPackage();
+
+			FTransform LevelTransform;
+			if (SubLevelPackage->WorldTileInfo)
+			{
+				LevelTransform = FTransform(FVector(SubLevelPackage->WorldTileInfo->Position));
+			}
+			else
+			{
+				LevelTransform = SubLevelStreaming->LevelTransform;
+			}
+
+			LevelInstanceActor->SetActorTransform(LevelTransform);
+			LevelInstanceActor->SetWorldAsset(SubLevel->GetTypedOuter<UWorld>());
+		}
+		else
+		{
+			RemapSoftObjectPaths.Add(FSoftObjectPath(SubWorld).ToString(), FSoftObjectPath(MainWorld).ToString());
+			RemapSoftObjectPaths.Add(FSoftObjectPath(SubLevel).ToString(), FSoftObjectPath(MainLevel).ToString());
+			RemapSoftObjectPaths.Add(FSoftObjectPath(SubPackage).ToString(), FSoftObjectPath(MainPackage).ToString());
+
+			if (LevelHasMapBuildData(SubLevel))
+			{
+				MapsWithMapBuildData.Add(SubPackage->GetLoadedPath().GetPackageName());
+			}
+
+			DetachDependantLevelPackages(SubLevel);
+			PrepareLevelActors(SubLevel, false, GetLevelGridPlacement(SubLevel, EActorGridPlacement::Bounds));
+
+			UE_LOG(LogWorldPartitionConvertCommandlet, Log, TEXT("Converting %s"), *SubWorld->GetName());
+
+			for(AActor* Actor: SubLevel->Actors)
+			{
+				if(Actor && !Actor->IsPendingKill())
+				{
+					check(Actor->GetOuter() == SubLevel);
+					check(!ShouldDeleteActor(Actor, false));
 				
-				if (Actor->IsA(AGroupActor::StaticClass()))
-				{
-					GroupActors.Add(*Actor->GetFullName());
-				}
+					if (Actor->IsA(AGroupActor::StaticClass()))
+					{
+						GroupActors.Add(*Actor->GetFullName());
+					}
 
-				if (Actor->GroupActor)
-				{
-					ActorsInGroupActors.Add(*Actor->GetFullName());
-				}
+					if (Actor->GroupActor)
+					{
+						ActorsInGroupActors.Add(*Actor->GetFullName());
+					}
 
-				TArray<AActor*> ChildActors;
-				Actor->GetAllChildActors(ChildActors, false);
+					TArray<AActor*> ChildActors;
+					Actor->GetAllChildActors(ChildActors, false);
 
-				if (ChildActors.Num())
-				{
-					ActorsWithChildActors.Add(*Actor->GetFullName());
-				}
+					if (ChildActors.Num())
+					{
+						ActorsWithChildActors.Add(*Actor->GetFullName());
+					}
 
-				FArchiveGatherPrivateImports Ar(Actor, PrivateRefsMap, ActorsReferencesToActors);
-				Actor->Serialize(Ar);
+					FArchiveGatherPrivateImports Ar(Actor, PrivateRefsMap, ActorsReferencesToActors);
+					Actor->Serialize(Ar);
 
-				// Even after Foliage Partitioning it is possible some Actors still have a FoliageTag. Make sure it is removed.
-				if (FFoliageHelper::IsOwnedByFoliage(Actor))
-				{
-					FFoliageHelper::SetIsOwnedByFoliage(Actor, false);
-				}
+					// Even after Foliage Partitioning it is possible some Actors still have a FoliageTag. Make sure it is removed.
+					if (FFoliageHelper::IsOwnedByFoliage(Actor))
+					{
+						FFoliageHelper::SetIsOwnedByFoliage(Actor, false);
+					}
 
-				ChangeObjectOuter(Actor, MainLevel);
+					ChangeObjectOuter(Actor, MainLevel);
 
-				// Migrate blueprint classes
-				UClass* ActorClass = Actor->GetClass();
-				if (!ActorClass->IsNative() && (ActorClass->GetPackage() == SubPackage))
-				{
-					ChangeObjectOuter(ActorClass, MainPackage);
-					UE_LOG(LogWorldPartitionConvertCommandlet, Log, TEXT("Extracted non-native class %s"), *ActorClass->GetName());
+					// Migrate blueprint classes
+					UClass* ActorClass = Actor->GetClass();
+					if (!ActorClass->IsNative() && (ActorClass->GetPackage() == SubPackage))
+					{
+						ChangeObjectOuter(ActorClass, MainPackage);
+						UE_LOG(LogWorldPartitionConvertCommandlet, Log, TEXT("Extracted non-native class %s"), *ActorClass->GetName());
+					}
 				}
 			}
-		}
 
-		if (!bReportOnly)
-		{
-			TArray<UObject*> ObjectsToRename;
-			ForEachObjectWithPackage(SubPackage, [&](UObject* Object)
+			if (!bReportOnly)
 			{
-				if(!Object->IsA<AActor>() && !Object->IsA<ULevel>() && !Object->IsA<UWorld>() && !Object->IsA<UMetaData>())
+				TArray<UObject*> ObjectsToRename;
+				ForEachObjectWithPackage(SubPackage, [&](UObject* Object)
 				{
-					ObjectsToRename.Add(Object);
+					if(!Object->IsA<AActor>() && !Object->IsA<ULevel>() && !Object->IsA<UWorld>() && !Object->IsA<UMetaData>())
+					{
+						ObjectsToRename.Add(Object);
+					}
+					return true;
+				}, /*bIncludeNestedObjects*/false);
+
+				for(UObject* ObjectToRename: ObjectsToRename)
+				{
+					ChangeObjectOuter(ObjectToRename, MainPackage);
+					UE_LOG(LogWorldPartitionConvertCommandlet, Warning, TEXT("Renamed orphan object %s"), *ObjectToRename->GetName());
 				}
-				return true;
-			}, /*bIncludeNestedObjects*/false);
 
-			for(UObject* ObjectToRename: ObjectsToRename)
-			{
-				ChangeObjectOuter(ObjectToRename, MainPackage);
-				UE_LOG(LogWorldPartitionConvertCommandlet, Warning, TEXT("Renamed orphan object %s"), *ObjectToRename->GetName());
+				PackagesToDelete.Add(SubLevel->GetPackage());
 			}
-
-			PackagesToDelete.Add(SubLevel->GetPackage());
 		}
 	}
 
