@@ -684,7 +684,7 @@ bool FPluginUtils::IsValidPluginName(const FString& PluginName, FText* FailReaso
 	}
 
 	// Must begin with an alphabetic character
-	if (bIsNameValid && !FChar::IsAlnum(PluginName[0]))
+	if (bIsNameValid && !FChar::IsAlpha(PluginName[0]))
 	{
 		bIsNameValid = false;
 		if (FailReason)
