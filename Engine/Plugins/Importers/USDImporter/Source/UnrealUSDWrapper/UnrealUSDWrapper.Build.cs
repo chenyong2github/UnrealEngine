@@ -112,7 +112,7 @@ namespace UnrealBuildTool.Rules
 
 					// Python3
 					PublicIncludePaths.Add(Path.Combine(PythonSourceTPSDir, "include"));
-					PublicSystemLibraryPaths.Add(Path.Combine(PythonSourceTPSDir, "lib"));
+					PublicSystemLibraryPaths.Add(Path.Combine(PythonBinaryTPSDir, "lib"));
 					PrivateRuntimeLibraryPaths.Add(Path.Combine(PythonBinaryTPSDir, "bin"));
 					PublicAdditionalLibraries.Add(Path.Combine(PythonBinaryTPSDir, "lib", "libpython3.7.dylib"));
 
