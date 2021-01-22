@@ -184,7 +184,7 @@ private:
 	void ApplyRuntimeSettings(const UWaterRuntimeSettings* Settings, EPropertyChangeType::Type ChangeType);
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-	void ShowOnScreenDebugInfo(const FUnderwaterPostProcessDebugInfo& InDebugInfo);
+	void ShowOnScreenDebugInfo(const FVector& InViewLocation, const FUnderwaterPostProcessDebugInfo& InDebugInfo);
 #endif // !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 
 public:
