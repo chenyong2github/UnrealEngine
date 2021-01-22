@@ -190,7 +190,7 @@ void FStaticMeshCompilingManager::PostCompilation(UStaticMesh* StaticMesh)
 	using namespace StaticMeshCompilingManagerImpl;
 	
 	// If AsyncTask is null here, the task got canceled so we don't need to do anything
-	if (StaticMesh->AsyncTask)
+	if (StaticMesh->AsyncTask && !IsEngineExitRequested())
 	{
 		check(IsInGameThread());
 		TRACE_CPUPROFILER_EVENT_SCOPE(PostCompilation);
