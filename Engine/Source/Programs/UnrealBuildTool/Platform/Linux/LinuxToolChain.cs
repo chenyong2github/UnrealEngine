@@ -86,6 +86,11 @@ namespace UnrealBuildTool
 		/** Toolchain information to print during the build. */
 		protected string ToolchainInfo;
 
+		// Dummy define to work around clang compilation related to the windows maximum path length limitation
+		string ClangDummyDefine;
+		public static int ClangCmdLineMaxSize = 32 * 1024;
+		public static int ClangCmdlineDangerZone = 30 * 1024;
+
 		/// <summary>
 		/// Whether to compile with ASan enabled
 		/// </summary>
