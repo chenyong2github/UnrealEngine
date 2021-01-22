@@ -3717,7 +3717,7 @@ void FBlueprintEditor::DeleteUnusedVariables_OnClicked()
 			}
 		}
 	}
-	else if (VariableProperties.Num() > 0)
+	else if (bHasAtLeastOneVariableToCheck)
 	{
 		LogSimpleMessage(LOCTEXT("AllVariablesInUseMessage", "All variables are currently in use."));
 	}
