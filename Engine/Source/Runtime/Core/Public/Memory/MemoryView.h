@@ -62,22 +62,22 @@ public:
 	}
 
 	/** Returns a pointer to the start of the view. */
-	constexpr inline DataType* GetData() const { return Data; }
+	UE_NODISCARD constexpr inline DataType* GetData() const { return Data; }
 
 	/** Returns a pointer to the end of the view. */
-	inline DataType* GetDataEnd() const { return GetDataAtOffsetNoCheck(Size); }
+	UE_NODISCARD inline DataType* GetDataEnd() const { return GetDataAtOffsetNoCheck(Size); }
 
 	/** Returns the number of bytes in the view. */
-	constexpr inline uint64 GetSize() const { return Size; }
+	UE_NODISCARD constexpr inline uint64 GetSize() const { return Size; }
 
 	/** Returns whether the view has a size of 0 regardless of its data pointer. */
-	constexpr inline bool IsEmpty() const { return Size == 0; }
+	UE_NODISCARD constexpr inline bool IsEmpty() const { return Size == 0; }
 
 	/** Resets to an empty view. */
 	constexpr inline void Reset() { *this = TMemoryView(); }
 
 	/** Returns the left-most part of the view by taking the given number of bytes from the left. */
-	constexpr inline TMemoryView Left(uint64 InSize) const
+	UE_NODISCARD constexpr inline TMemoryView Left(uint64 InSize) const
 	{
 		TMemoryView View(*this);
 		View.LeftInline(InSize);
@@ -85,7 +85,7 @@ public:
 	}
 
 	/** Returns the left-most part of the view by chopping the given number of bytes from the right. */
-	constexpr inline TMemoryView LeftChop(uint64 InSize) const
+	UE_NODISCARD constexpr inline TMemoryView LeftChop(uint64 InSize) const
 	{
 		TMemoryView View(*this);
 		View.LeftChopInline(InSize);
@@ -93,7 +93,7 @@ public:
 	}
 
 	/** Returns the right-most part of the view by taking the given number of bytes from the right. */
-	inline TMemoryView Right(uint64 InSize) const
+	UE_NODISCARD inline TMemoryView Right(uint64 InSize) const
 	{
 		TMemoryView View(*this);
 		View.RightInline(InSize);
@@ -101,7 +101,7 @@ public:
 	}
 
 	/** Returns the right-most part of the view by chopping the given number of bytes from the left. */
-	inline TMemoryView RightChop(uint64 InSize) const
+	UE_NODISCARD inline TMemoryView RightChop(uint64 InSize) const
 	{
 		TMemoryView View(*this);
 		View.RightChopInline(InSize);
@@ -109,7 +109,7 @@ public:
 	}
 
 	/** Returns the middle part of the view by taking up to the given number of bytes from the given position. */
-	inline TMemoryView Mid(uint64 InOffset, uint64 InSize = TNumericLimits<uint64>::Max()) const
+	UE_NODISCARD inline TMemoryView Mid(uint64 InOffset, uint64 InSize = TNumericLimits<uint64>::Max()) const
 	{
 		TMemoryView View(*this);
 		View.MidInline(InOffset, InSize);
@@ -154,21 +154,21 @@ public:
 
 	/** Returns whether this view fully contains the other view. */
 	template <typename OtherDataType>
-	inline bool Contains(const TMemoryView<OtherDataType>& InView) const
+	UE_NODISCARD inline bool Contains(const TMemoryView<OtherDataType>& InView) const
 	{
 		return Data <= InView.Data && GetDataAtOffsetNoCheck(Size) >= InView.GetDataAtOffsetNoCheck(InView.Size);
 	}
 
 	/** Returns whether this view intersects the other view. */
 	template <typename OtherDataType>
-	inline bool Intersects(const TMemoryView<OtherDataType>& InView) const
+	UE_NODISCARD inline bool Intersects(const TMemoryView<OtherDataType>& InView) const
 	{
 		return Data < InView.GetDataAtOffsetNoCheck(InView.Size) && InView.Data < GetDataAtOffsetNoCheck(Size);
 	}
 
 	/** Returns whether the bytes of this view are equal or less/greater than the bytes of the other view. */
 	template <typename OtherDataType>
-	inline int32 CompareBytes(const TMemoryView<OtherDataType>& InView) const
+	UE_NODISCARD inline int32 CompareBytes(const TMemoryView<OtherDataType>& InView) const
 	{
 		const int32 Compare = Data == InView.Data ? 0 : FMemory::Memcmp(Data, InView.Data, FMath::Min(Size, InView.Size));
 		return Compare || Size == InView.Size ? Compare : Size < InView.Size ? -1 : 1;
@@ -176,28 +176,28 @@ public:
 
 	/** Returns whether the bytes of this views are equal to the bytes of the other view. */
 	template <typename OtherDataType>
-	inline bool EqualBytes(const TMemoryView<OtherDataType>& InView) const
+	UE_NODISCARD inline bool EqualBytes(const TMemoryView<OtherDataType>& InView) const
 	{
 		return Size == InView.Size && (Data == InView.Data || FMemory::Memcmp(Data, InView.Data, Size) == 0);
 	}
 
 	/** Returns whether the data pointers and sizes of this view and the other view are equal. */
 	template <typename OtherDataType>
-	constexpr inline bool Equals(const TMemoryView<OtherDataType>& InView) const
+	UE_NODISCARD constexpr inline bool Equals(const TMemoryView<OtherDataType>& InView) const
 	{
 		return Size == InView.Size && (Size == 0 || Data == InView.Data);
 	}
 
 	/** Returns whether the data pointers and sizes of this view and the other view are equal. */
 	template <typename OtherDataType>
-	constexpr inline bool operator==(const TMemoryView<OtherDataType>& InView) const
+	UE_NODISCARD constexpr inline bool operator==(const TMemoryView<OtherDataType>& InView) const
 	{
 		return Equals(InView);
 	}
 
 	/** Returns whether the data pointers and sizes of this view and the other view are not equal. */
 	template <typename OtherDataType>
-	constexpr inline bool operator!=(const TMemoryView<OtherDataType>& InView) const
+	UE_NODISCARD constexpr inline bool operator!=(const TMemoryView<OtherDataType>& InView) const
 	{
 		return !Equals(InView);
 	}
@@ -211,7 +211,7 @@ public:
 
 private:
 	/** Returns the data pointer advanced by an offset in bytes. */
-	inline DataType* GetDataAtOffsetNoCheck(uint64 InOffset) const
+	UE_NODISCARD inline DataType* GetDataAtOffsetNoCheck(uint64 InOffset) const
 	{
 		return reinterpret_cast<ByteType*>(Data) + InOffset;
 	}
@@ -226,26 +226,26 @@ private:
 
 /** Advances the start of the view by an offset, which is clamped to stay within the view. */
 template <typename DataType>
-constexpr inline TMemoryView<DataType> operator+(const TMemoryView<DataType>& View, uint64 Offset)
+UE_NODISCARD constexpr inline TMemoryView<DataType> operator+(const TMemoryView<DataType>& View, uint64 Offset)
 {
 	return TMemoryView<DataType>(View) += Offset;
 }
 
 /** Advances the start of the view by an offset, which is clamped to stay within the view. */
 template <typename DataType>
-constexpr inline TMemoryView<DataType> operator+(uint64 Offset, const TMemoryView<DataType>& View)
+UE_NODISCARD constexpr inline TMemoryView<DataType> operator+(uint64 Offset, const TMemoryView<DataType>& View)
 {
 	return TMemoryView<DataType>(View) += Offset;
 }
 
 /** Make a non-owning mutable view of Size bytes starting at Data. */
-constexpr inline TMemoryView<void> MakeMemoryView(void* Data, uint64 Size)
+UE_NODISCARD constexpr inline TMemoryView<void> MakeMemoryView(void* Data, uint64 Size)
 {
 	return TMemoryView<void>(Data, Size);
 }
 
 /** Make a non-owning const view of Size bytes starting at Data. */
-constexpr inline TMemoryView<const void> MakeMemoryView(const void* Data, uint64 Size)
+UE_NODISCARD constexpr inline TMemoryView<const void> MakeMemoryView(const void* Data, uint64 Size)
 {
 	return TMemoryView<const void>(Data, Size);
 }
@@ -253,7 +253,7 @@ constexpr inline TMemoryView<const void> MakeMemoryView(const void* Data, uint64
 /** Make a non-owning mutable view starting at Data and ending at DataEnd. */
 template <typename DataEndType,
 	decltype(ImplicitConv<void*>(DeclVal<DataEndType*>()))* = nullptr>
-inline TMemoryView<void> MakeMemoryView(void* Data, DataEndType* DataEnd)
+UE_NODISCARD inline TMemoryView<void> MakeMemoryView(void* Data, DataEndType* DataEnd)
 {
 	return TMemoryView<void>(Data, DataEnd);
 }
@@ -261,7 +261,7 @@ inline TMemoryView<void> MakeMemoryView(void* Data, DataEndType* DataEnd)
 /** Make a non-owning const view starting at Data and ending at DataEnd. */
 template <typename DataEndType,
 	decltype(ImplicitConv<const void*>(DeclVal<DataEndType*>()))* = nullptr>
-inline TMemoryView<const void> MakeMemoryView(const void* Data, DataEndType* DataEnd)
+UE_NODISCARD inline TMemoryView<const void> MakeMemoryView(const void* Data, DataEndType* DataEnd)
 {
 	return TMemoryView<const void>(Data, DataEnd);
 }
@@ -272,7 +272,7 @@ inline TMemoryView<const void> MakeMemoryView(const void* Data, DataEndType* Dat
  * This overload is only available when the element type does not need to be deduced.
  */
 template <typename T>
-constexpr inline TMemoryView<const void> MakeMemoryView(std::initializer_list<typename TIdentity<T>::Type> List)
+UE_NODISCARD constexpr inline TMemoryView<const void> MakeMemoryView(std::initializer_list<typename TIdentity<T>::Type> List)
 {
 	return TMemoryView<const void>(GetData(List), GetNum(List) * sizeof(T));
 }
@@ -280,7 +280,7 @@ constexpr inline TMemoryView<const void> MakeMemoryView(std::initializer_list<ty
 /** Make a non-owning view of the memory of the contiguous container. */
 template <typename ContainerType,
 	typename TEnableIf<TIsContiguousContainer<ContainerType>::Value>::Type* = nullptr>
-constexpr inline auto MakeMemoryView(ContainerType&& Container)
+UE_NODISCARD constexpr inline auto MakeMemoryView(ContainerType&& Container)
 {
 	using ElementType = typename TRemovePointer<decltype(GetData(DeclVal<ContainerType>()))>::Type;
 	constexpr bool bIsConst = TIsConst<ElementType>::Value;
