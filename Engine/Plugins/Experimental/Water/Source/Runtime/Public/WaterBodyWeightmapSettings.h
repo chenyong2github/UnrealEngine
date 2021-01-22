@@ -45,5 +45,3 @@ struct FWaterBodyWeightmapSettings
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = WaterBodyWeightmapSettings)
 	float FinalOpacity;
 };
-
-template<> struct TIsPODType<FWaterBodyWeightmapSettings> { enum { Value = true }; };
