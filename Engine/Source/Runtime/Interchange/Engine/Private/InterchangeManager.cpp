@@ -359,16 +359,20 @@ bool UInterchangeManager::RegisterTranslator(const UClass* TranslatorClass)
 		return false;
 	}
 
-	if(RegisteredTranslators.Contains(TranslatorClass))
+	uint32 TranslatorClassHash = GetTypeHash(TranslatorClass);
+	if(RegisteredTranslatorsClass.ContainsByHash(TranslatorClassHash, TranslatorClass))
 	{
 		return true;
 	}
+	RegisteredTranslatorsClass.AddByHash(TranslatorClassHash, TranslatorClass);
+
+
 	UInterchangeTranslatorBase* TranslatorToRegister = NewObject<UInterchangeTranslatorBase>(GetTransientPackage(), TranslatorClass, NAME_None);
 	if(!TranslatorToRegister)
 	{
 		return false;
 	}
-	RegisteredTranslators.Add(TranslatorClass, TranslatorToRegister);
+	RegisteredTranslators.Add(TranslatorToRegister);
 	return true;
 }
 
@@ -415,10 +419,8 @@ bool UInterchangeManager::RegisterWriter(const UClass* WriterClass)
 
 bool UInterchangeManager::CanTranslateSourceData(const UInterchangeSourceData* SourceData) const
 {
-	//Found the translator
-	UE::Interchange::FScopedTranslator ScopeDataTranslator(SourceData);
-	const UInterchangeTranslatorBase* SourceDataTranslator = ScopeDataTranslator.GetTranslator();
-	if (SourceDataTranslator)
+	// Can we find a translator
+	if (GetTranslatorForSourceData(SourceData))
 	{
 		return true;
 	}
@@ -555,7 +557,6 @@ UE::Interchange::FAssetImportResultRef UInterchangeManager::ImportAssetAsync(con
 	UInterchangeSourceData* DuplicateSourceData = Cast<UInterchangeSourceData>(StaticDuplicateObject(SourceData, GetTransientPackage()));
 	//Array of source data to build one graph per source
 	AsyncHelper->SourceDatas.Add(DuplicateSourceData);
-		
 
 	//Get all the translators for the source datas
 	for (int32 SourceDataIndex = 0; SourceDataIndex < AsyncHelper->SourceDatas.Num(); ++SourceDataIndex)
@@ -679,16 +680,12 @@ void UInterchangeManager::ReleaseAsyncHelper(TWeakPtr<UE::Interchange::FImportAs
 
 UInterchangeTranslatorBase* UInterchangeManager::GetTranslatorForSourceData(const UInterchangeSourceData* SourceData) const
 {
-	if (RegisteredTranslators.Num() == 0)
+	// Find the translator
+	for (UInterchangeTranslatorBase* Translator : RegisteredTranslators)
 	{
-		return nullptr;
-	}
-	//Found the translator
-	for (const auto Kvp : RegisteredTranslators)
-	{
-		if (Kvp.Value->CanImportSourceData(SourceData))
+		if (Translator->CanImportSourceData(SourceData))
 		{
-			UInterchangeTranslatorBase* SourceDataTranslator = NewObject<UInterchangeTranslatorBase>(GetTransientPackage(), Kvp.Key, NAME_None);
+			UInterchangeTranslatorBase* SourceDataTranslator = NewObject<UInterchangeTranslatorBase>(GetTransientPackage(), Translator->GetClass(), NAME_None);
 			return SourceDataTranslator;
 		}
 	}
@@ -710,6 +707,30 @@ bool UInterchangeManager::WarnIfInterchangeIsActive()
 		WarnNotification->SetCompletionState(SNotificationItem::CS_Fail);
 	}
 	return true;
+}
+
+bool UInterchangeManager::CanTranslateSourceDataWithPayloadInterface(const UInterchangeSourceData* SourceData, const UClass* PayloadInterfaceClass) const
+{
+	if (GetTranslatorSupportingPayloadInterfaceForSourceData(SourceData, PayloadInterfaceClass))
+	{
+		return true;
+	}
+	return false;
+}
+
+UInterchangeTranslatorBase* UInterchangeManager::GetTranslatorSupportingPayloadInterfaceForSourceData(const UInterchangeSourceData* SourceData, const UClass* PayloadInterfaceClass) const
+{
+	// Find the translator
+	for (UInterchangeTranslatorBase* Translator : RegisteredTranslators)
+	{
+		const UClass* TranslatorClass = Translator->GetClass();
+		if (TranslatorClass->ImplementsInterface(PayloadInterfaceClass) && Translator->CanImportSourceData(SourceData))
+		{
+			UInterchangeTranslatorBase* SourceDataTranslator = NewObject<UInterchangeTranslatorBase>(GetTransientPackage(), TranslatorClass, NAME_None);
+			return SourceDataTranslator;
+		}
+	}
+	return nullptr;
 }
 
 bool UInterchangeManager::IsAttended()

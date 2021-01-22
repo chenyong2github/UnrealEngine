@@ -31,15 +31,9 @@ namespace UE
 				FString NodeDisplayName = Node->GetDisplayLabel();
 				const FString BaseFileName = FPaths::GetBaseFilename(SourceData->GetFilename());
 
-				//Set the asset name and the package name
-				//if (NodeDisplayName.Equals(BaseFileName) || BaseFileName.IsEmpty())
-				{
-					OutAssetName = NodeDisplayName;
-				}
-// 				else
-// 				{
-// 					OutAssetName = BaseFileName.IsEmpty() ? NodeDisplayName : BaseFileName + TEXT("_") + NodeDisplayName;
-// 				}
+				// Set the asset name and the package name
+				OutAssetName = NodeDisplayName;
+
 				OutPackageName = FPaths::Combine(*PackageBasePath, *OutAssetName);
 
 				//Sanitize only the package name

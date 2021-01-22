@@ -246,6 +246,7 @@ public:
 	 * @return true if the translator class can be register false otherwise.
 	 *
 	 * @Note if you register multiple time the same class it will return true for every call
+	 * @Note The order in which the translators are registered will be the same as the order used to select a translator to import a file
 	 */
 	bool RegisterTranslator(const UClass* TranslatorClass);
 
@@ -369,6 +370,21 @@ public:
 	 */
 	bool WarnIfInterchangeIsActive();
 
+	/**
+	 * Look if there is a translator registered that can translate the source data with the specified PayloadInterface
+	 * @Param SourceData - The source data input we want to translate to Uod
+	 * @return true if the source data can be translated using the specified PayloadInterface, false otherwise.
+	 */
+	bool CanTranslateSourceDataWithPayloadInterface(const UInterchangeSourceData* SourceData, const UClass* PayloadInterfaceClass) const;
+
+	/*
+	 * Return the first translator that can translate the source data with the specified PayloadInterface.
+	 * @Param SourceData - The source data for which we search a translator.
+	 * @Param PayloadInterfaceClass - The PayloadInterface that the translator must implement.
+	 * @return return a matching translator implementing the specified PayloadInterface or nullptr if there is no match.
+	 */
+	UInterchangeTranslatorBase* GetTranslatorSupportingPayloadInterfaceForSourceData(const UInterchangeSourceData* SourceData, const UClass* PayloadInterfaceClass) const;
+
 protected:
 
 	/** Return true if we can show some UI */
@@ -422,10 +438,14 @@ private:
 	TSharedPtr<FAsyncTaskNotification> Notification = nullptr;
 	FDelegateHandle NotificationTickHandle;
 
+	// Caching the registered translator classes to avoid double registration fast
+	UPROPERTY()
+	TSet<const UClass*> RegisteredTranslatorsClass;
+
 	//The manager will create translator at every import, translator must be able to retrieve payload information when the factory ask for it.
 	//The translator stored has value is only use to know if we can use this type of translator.
 	UPROPERTY()
-	TMap<const UClass*, UInterchangeTranslatorBase* > RegisteredTranslators;
+	TArray<UInterchangeTranslatorBase*> RegisteredTranslators;
 	
 	//The manager will create only one pipeline per type
 	UPROPERTY()

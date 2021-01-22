@@ -11,23 +11,21 @@
 #include "Misc/NetworkGuid.h"
 #include "Misc/ScopeLock.h"
 
-
 //Interchange namespace
 namespace UE
 {
 	namespace Interchange
 	{
-
 		struct FAttributeKey
 		{
 			FString Key;
 
 			FAttributeKey() = default;
 		
-			FAttributeKey(const FAttributeKey& Other)
-			{
-				Key = Other.Key;
-			}
+			FAttributeKey(const FAttributeKey& Other) = default;
+			FAttributeKey(FAttributeKey&& Other) = default;
+			FAttributeKey& operator=(const FAttributeKey&) = default;
+			FAttributeKey& operator=(FAttributeKey&&) = default;
 
 			explicit FAttributeKey(const FName& Other)
 			{
@@ -37,6 +35,11 @@ namespace UE
 			explicit FAttributeKey(const FString& Other)
 			{
 				Key = Other;
+			}
+
+			explicit FAttributeKey(FString&& Other)
+			{
+				Key = MoveTemp(Other);
 			}
 
 			explicit FAttributeKey(const FText& Other)
@@ -55,12 +58,6 @@ namespace UE
 				return *(Key);
 			}
 
-			FORCEINLINE FAttributeKey& operator=(const FAttributeKey& Other)
-			{
-				Key = Other.Key;
-				return *this;
-			}
-
 			FORCEINLINE FAttributeKey& operator=(const FName& Other)
 			{
 				Key = Other.ToString();
@@ -70,6 +67,12 @@ namespace UE
 			FORCEINLINE FAttributeKey& operator=(const FString& Other)
 			{
 				Key = Other;
+				return *this;
+			}
+
+			FORCEINLINE FAttributeKey& operator=(FString&& Other)
+			{
+				Key = MoveTemp(Other);
 				return *this;
 			}
 
@@ -128,11 +131,13 @@ namespace UE
 			}
 		};
 
+		using ::GetTypeHash;
 		FORCEINLINE uint32 GetTypeHash(const FAttributeKey& AttributeKey)
 		{
 			return GetTypeHash(AttributeKey.Key);
 		}
-	
+
+
 		/**
 		 * Enumerates the built-in types that can be stored in instances of FAttributeStorage.
 		 * We cannot change the value of a type to make sure the serialization of old asset is always working
@@ -374,6 +379,12 @@ namespace UE
 					}
 					return EAttributeStorageResult::Operation_Error_InvalidStorage;
 				}
+
+				const FAttributeKey& GetKey() const
+				{
+					return Key;
+				}
+
 			protected:
 				class FAttributeStorage* AttributeStorage;
 				FAttributeKey Key;

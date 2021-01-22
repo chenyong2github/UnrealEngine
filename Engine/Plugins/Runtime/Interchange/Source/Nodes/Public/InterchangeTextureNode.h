@@ -44,6 +44,12 @@ public:
 #endif
 	}
 
+	virtual void PostInitProperties()
+	{
+		Super::PostInitProperties();
+		SourceBlocks.Initialize(Attributes.ToSharedRef(), TEXT("SourceBlocks"));
+	}
+
 	/**
 	 * Initialize node data
 	 * @param: UniqueID - The uniqueId for this node
@@ -131,7 +137,47 @@ public:
 		}
 	}
 
+public:
+	//////////////////////////////////////////////////////////////////////////
+	// UDIMs begin here
+	// UDIM base texture use a different model for the source data
+	
+	/**
+	 * Get the source blocks for the texture
+	 * If the map is empty then the texture will be simply be imported as normal texture using the payload key
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Texture | UDIMs")
+	TMap<int32,FString> GetSourceBlocks() const
+	{
+		return SourceBlocks.ToMap();
+	}
 
+	/**
+	 * Set the source blocks
+	 * Using this will force the texture factory to consider this texture as UDIM.
+	 * @param InSourceBlocks The blocks and their source image that compose the whole texture.
+	 * The textures must be of the same format and use the same pixel format
+	 * The first block inserted in the map be used to determine the accepted texture format and pixel format
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Texture | UDIMs")
+	void SetSourceBlocks(const TMap<int32,FString>& InSourceBlocks)
+	{
+		SourceBlocks = InSourceBlocks;
+	}
+
+	/**
+	 * Remove the source block data from texture node
+	 * This is a easy way to stop a texture from being imported as a UDIM
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Texture | UDIMs")
+	void ClearSourceBlocksData()
+	{
+		SourceBlocks.Empty();
+	}
+
+	// UDIMs ends here
+	//////////////////////////////////////////////////////////////////////////
+	
 public:
 	/** Return false if the Attribute was not set previously.*/
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Texture")
@@ -937,5 +983,8 @@ protected:
 #if WITH_ENGINE
 	TSubclassOf<UTexture> AssetClass = nullptr;
 #endif
+
+	UE::Interchange::TMapAttributeHelper<int32,FString> SourceBlocks;
+
 	bool bIsTextureNodeClassInitialized = false;
 };

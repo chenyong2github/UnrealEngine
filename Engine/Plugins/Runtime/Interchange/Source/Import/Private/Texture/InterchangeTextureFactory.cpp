@@ -9,6 +9,7 @@
 #include "InterchangeTranslatorBase.h"
 #include "LogInterchangeImportPlugin.h"
 #include "Nodes/InterchangeBaseNode.h"
+#include "Texture/InterchangeBlockedTexturePayloadInterface.h"
 #include "Texture/InterchangeTexturePayloadInterface.h"
 #include "TextureCompiler.h"
 
@@ -101,26 +102,31 @@ UObject* UInterchangeTextureFactory::CreateAsset(const UInterchangeTextureFactor
 		return nullptr;
 	}
 
-	const IInterchangeTexturePayloadInterface* TextureTranslator = Cast<IInterchangeTexturePayloadInterface>(Arguments.Translator);
-	if (!TextureTranslator)
-	{
-		return nullptr;
-	}
-
-	//
-	// Generic 2D Image
-	//
 	const TOptional<FString>& PayLoadKey = TextureNode->GetPayLoadKey();
 	if (!PayLoadKey.IsSet())
 	{
 		return nullptr;
 	}
-	const TOptional<UE::Interchange::FImportImage> PayloadData = TextureTranslator->GetTexturePayloadData(Arguments.SourceData, PayLoadKey.GetValue());
-	if(!PayloadData.IsSet())
+
+	TOptional<UE::Interchange::FImportImage> PayloadData;
+	TOptional<UE::Interchange::FImportBlockedImage> BlockedPayloadData;
+	if (const IInterchangeTexturePayloadInterface* TextureTranslator = Cast<IInterchangeTexturePayloadInterface>(Arguments.Translator))
+	{
+		 PayloadData = TextureTranslator->GetTexturePayloadData(Arguments.SourceData, PayLoadKey.GetValue());
+	}
+	else if (const IInterchangeBlockedTexturePayloadInterface* BlockedTextureTranslator = Cast<IInterchangeBlockedTexturePayloadInterface>(Arguments.Translator))
+	{
+		/**
+		 * Possible improvement store when a file was last modified and use that as heuristic to skip the file assuming that the file is same as the one in the previous import
+		 * (how to deal with engine changes or translator changes/hotfix?)
+		 */ 
+		BlockedPayloadData = BlockedTextureTranslator->GetBlockedTexturePayloadData(TextureNode->GetSourceBlocks(), Arguments.SourceData);
+	}
+
+	if(!PayloadData.IsSet() && !BlockedPayloadData.IsSet())
 	{
 		return nullptr;
 	}
-	const UE::Interchange::FImportImage& Image = PayloadData.GetValue();
 
 	const UClass* TextureClass = TextureNode->GetAssetClass();
 	check(TextureClass && TextureClass->IsChildOf(GetFactoryClass()));
@@ -152,23 +158,71 @@ UObject* UInterchangeTextureFactory::CreateAsset(const UInterchangeTextureFactor
 	UTexture2D* Texture2D = Cast<UTexture2D>(Texture);
 	if (Texture2D)
 	{
-		Texture2D->Source.Init(
-			Image.SizeX,
-			Image.SizeY,
-			/*NumSlices=*/ 1,
-			Image.NumMips,
-			Image.Format,
-			Image.RawData.GetData()
-		);
-		Texture2D->CompressionSettings = Image.CompressionSettings;
-		Texture2D->SRGB = Image.SRGB;
-		
-		//If the MipGenSettings was set by the translator, we must apply it before the build
-		if (Image.MipGenSettings.IsSet())
+		if (BlockedPayloadData)
 		{
-			// if the source has mips we keep the mips by default, unless the user changes that
-			Texture2D->MipGenSettings = Image.MipGenSettings.GetValue();
+			//
+			// Blocked Texture (also know as UDIM)
+			//
+			const UE::Interchange::FImportBlockedImage& BlockedImage = BlockedPayloadData.GetValue();
+
+			if (BlockedImage.IsBlockedData())
+			{
+				ETextureSourceFormat Format = BlockedImage.ImagesData[0].Format;
+				TextureCompressionSettings CompressionSettings = BlockedImage.ImagesData[0].CompressionSettings;
+				bool bSRGB = BlockedImage.ImagesData[0].SRGB;
+
+				TArray<const uint8*> SourceImageDatasPtr;
+				SourceImageDatasPtr.Reserve(BlockedImage.ImagesData.Num());
+				for (const  UE::Interchange::FImportImage& Image : BlockedImage.ImagesData)
+				{
+					SourceImageDatasPtr.Add(Image.RawData.GetData());
+				}
+
+				Texture2D->Source.InitBlocked(
+					&Format,
+					BlockedImage.BlocksData.GetData(),
+					/*NumSlices=*/ 1,
+					BlockedImage.BlocksData.Num(),
+					SourceImageDatasPtr.GetData()
+				);
+
+				Texture2D->CompressionSettings = CompressionSettings;
+				Texture2D->SRGB = bSRGB;
+				Texture2D->VirtualTextureStreaming = true;
+			}
+			else
+			{
+				//Import as a normal texture
+				PayloadData = MoveTemp(BlockedPayloadData.GetValue().ImagesData[0]);
+			}
 		}
+
+		if (PayloadData)
+		{
+			//
+			// Generic 2D Image
+			//
+			const UE::Interchange::FImportImage& Image = PayloadData.GetValue();
+			Texture2D->Source.Init(
+				Image.SizeX,
+				Image.SizeY,
+				/*NumSlices=*/ 1,
+				Image.NumMips,
+				Image.Format,
+				Image.RawData.GetData()
+			);
+			Texture2D->CompressionSettings = Image.CompressionSettings;
+			Texture2D->SRGB = Image.SRGB;
+
+			//If the MipGenSettings was set by the translator, we must apply it before the build
+			if (Image.MipGenSettings.IsSet())
+			{
+				// if the source has mips we keep the mips by default, unless the user changes that
+				Texture2D->MipGenSettings = Image.MipGenSettings.GetValue();
+			}
+
+		}
+
 
 		if(!Arguments.ReimportObject)
 		{

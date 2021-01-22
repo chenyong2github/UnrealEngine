@@ -283,6 +283,7 @@
 #include "ObjectTools.h"
 
 #include "SkinWeightsUtilities.h"
+#include "UDIMUtilities.h"
 
 DEFINE_LOG_CATEGORY(LogEditorFactories);
 
@@ -3854,45 +3855,6 @@ bool UTextureFactory::DoesSupportClass(UClass* Class)
 	return Class == UTexture2D::StaticClass() || Class == UTextureCube::StaticClass();
 }
 
-static int32 ParseUDIMName(const FString& Name, const FString& UdimRegexPattern, FString& OutPrefixName, FString& OutPostfixName)
-{
-	FRegexPattern RegexPattern( UdimRegexPattern );
-	FRegexMatcher RegexMatcher( RegexPattern, Name );
-
-	int32 UdimValue = INDEX_NONE;
-
-	if ( RegexMatcher.FindNext() )
-	{
-		const int32 StartOfCaptureGroup1 = RegexMatcher.GetCaptureGroupBeginning(1);
-		const int32 EndOfCaptureGroup1 = RegexMatcher.GetCaptureGroupEnding(1);
-		const int32 StartOfCaptureGroup2 = RegexMatcher.GetCaptureGroupBeginning(2);
-		const int32 EndOfCaptureGroup2 = RegexMatcher.GetCaptureGroupEnding(2);
-		const int32 StartOfCaptureGroup3 = RegexMatcher.GetCaptureGroupBeginning(3);
-		const int32 EndOfCaptureGroup3 = RegexMatcher.GetCaptureGroupEnding(3);
-
-		if ( StartOfCaptureGroup1 != INDEX_NONE && StartOfCaptureGroup2 != INDEX_NONE &&
-			 EndOfCaptureGroup1 != INDEX_NONE && EndOfCaptureGroup2 != INDEX_NONE )
-		{
-			LexFromString( UdimValue, *Name.Mid( StartOfCaptureGroup2, EndOfCaptureGroup2 - StartOfCaptureGroup2 ) );
-
-			OutPrefixName = Name.Mid( StartOfCaptureGroup1, EndOfCaptureGroup1 - StartOfCaptureGroup1 );
-
-			if ( StartOfCaptureGroup3 != INDEX_NONE && EndOfCaptureGroup3 != INDEX_NONE )
-			{
-				OutPostfixName = Name.Mid( StartOfCaptureGroup3, EndOfCaptureGroup3 - StartOfCaptureGroup3 );
-			}
-		}
-	}
-	
-	if ( UdimValue < 1001 )
-	{
-		// UDIM starts with 1001 as the origin
-		return INDEX_NONE;
-	}
-
-	return UdimValue;
-}
-
 UObject* UTextureFactory::FactoryCreateBinary
 (
 	UClass*				Class,
@@ -3918,7 +3880,7 @@ UObject* UTextureFactory::FactoryCreateBinary
 
 		FString PreUDIMName;
 		FString PostUDIMName;
-		const int32 BaseUDIMIndex = ParseUDIMName(FilenameNoExtension, UdimRegexPattern, PreUDIMName, PostUDIMName);
+		const int32 BaseUDIMIndex = UE::TextureUtilitiesCommon::ParseUDIMName(FilenameNoExtension, UdimRegexPattern, PreUDIMName, PostUDIMName);
 
 		const FString BaseUDIMName = PreUDIMName + PostUDIMName;
 		if (BaseUDIMIndex != INDEX_NONE)
@@ -3936,7 +3898,7 @@ UObject* UTextureFactory::FactoryCreateBinary
 			{
 				if (!CurrentFilename.EndsWith(UDIMFile) && FactoryCanImport(UDIMFile))
 				{
-					const int32 UDIMIndex = ParseUDIMName(FPaths::GetBaseFilename(UDIMFile), UdimRegexPattern, PreUDIMName, PostUDIMName);
+					const int32 UDIMIndex = UE::TextureUtilitiesCommon::ParseUDIMName(FPaths::GetBaseFilename(UDIMFile), UdimRegexPattern, PreUDIMName, PostUDIMName);
 					if (UDIMIndex != INDEX_NONE)
 					{
 						const FString UDIMName = PreUDIMName + PostUDIMName;
@@ -3962,7 +3924,7 @@ UObject* UTextureFactory::FactoryCreateBinary
 				FString PackageName;
 				InParent->GetName(PackageName);
 
-				const int32 PackageUDIMIndex = ParseUDIMName(PackageName, UdimRegexPattern, PreUDIMName, PostUDIMName);
+				const int32 PackageUDIMIndex = UE::TextureUtilitiesCommon::ParseUDIMName(PackageName, UdimRegexPattern, PreUDIMName, PostUDIMName);
 				const FString PackageUDIMName = PreUDIMName + PostUDIMName;
 
 				const FString ShortPackageName = ObjectTools::SanitizeInvalidChars(BaseUDIMName, INVALID_LONGPACKAGE_CHARACTERS);
@@ -5975,19 +5937,19 @@ bool UReimportFbxSkeletalMeshFactory::CanReimport( UObject* Obj, TArray<FString>
 	USkeletalMesh* SkeletalMesh = Cast<USkeletalMesh>(Obj);
 	if (SkeletalMesh && !SkeletalMesh->HasCustomActorReimportFactory())
 	{
-		if (SkeletalMesh->GetAssetImportData())
+		if (UAssetImportData* AssetImportData = SkeletalMesh->GetAssetImportData())
 		{
-			UFbxAssetImportData *FbxAssetImportData = Cast<UFbxAssetImportData>(SkeletalMesh->GetAssetImportData());
+			UFbxAssetImportData *FbxAssetImportData = Cast<UFbxAssetImportData>(AssetImportData);
 			if (FbxAssetImportData != nullptr && FbxAssetImportData->bImportAsScene)
 			{
 				//This skeletal mesh was import with a scene import, we cannot reimport it here
 				return false;
 			}
-			else if (FPaths::GetExtension(SkeletalMesh->GetAssetImportData()->GetFirstFilename()) == TEXT("abc"))
+			else if (FPaths::GetExtension(AssetImportData->GetFirstFilename()) == TEXT("abc"))
 			{
 				return false;
 			}
-			SkeletalMesh->GetAssetImportData()->ExtractFilenames(OutFilenames);
+			AssetImportData->ExtractFilenames(OutFilenames);
 		}
 		else
 		{

@@ -1,8 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#include "IInterchangeImportPlugin.h"
+
 #include "CoreMinimal.h"
 #include "Fbx/InterchangeFbxTranslator.h"
-#include "IInterchangeImportPlugin.h"
 #include "InterchangeManager.h"
 #include "Material/InterchangeMaterialFactory.h"
 #include "Mesh/InterchangeSkeletalMeshFactory.h"
@@ -18,6 +19,7 @@
 #include "Texture/InterchangePSDTranslator.h"
 #include "Texture/InterchangeTextureFactory.h"
 #include "Texture/InterchangeTGATranslator.h"
+#include "Texture/InterchangeUDIMTranslator.h"
 
 DEFINE_LOG_CATEGORY(LogInterchangeImportPlugin);
 
@@ -41,7 +43,13 @@ void FInterchangeImportPlugin::StartupModule()
 		//Register the translators
 		//Scenes
 		InterchangeManager.RegisterTranslator(UInterchangeFbxTranslator::StaticClass()); //Do not submit uncommented until we replace completly fbx importer (staticmesh + skeletalMesh + animation)
+
 		//Textures
+
+		// UDIM must be registered before the other texture translators
+		InterchangeManager.RegisterTranslator(UInterchangeUDIMTranslator::StaticClass());
+
+
 		InterchangeManager.RegisterTranslator(UInterchangeBMPTranslator::StaticClass());
 		InterchangeManager.RegisterTranslator(UInterchangeDDSTranslator::StaticClass());
 		InterchangeManager.RegisterTranslator(UInterchangeEXRTranslator::StaticClass());

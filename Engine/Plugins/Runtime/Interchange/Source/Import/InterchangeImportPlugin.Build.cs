@@ -25,9 +25,10 @@ namespace UnrealBuildTool.Rules
 				new string[]
 				{
 					"ImageWrapper",
-					"RHI",
 					"InterchangeDispatcher",
 					"Json",
+					"RHI",
+					"TextureUtilitiesCommon",
 				}
 				);
 
