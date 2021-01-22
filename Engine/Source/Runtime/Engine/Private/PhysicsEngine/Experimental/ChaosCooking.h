@@ -2,7 +2,21 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Templates/UniquePtr.h"
+#include "Async/TaskGraphInterfaces.h"
+#include "PhysicsEngine/BodySetup.h"
+
 #if WITH_CHAOS
+
+struct FTriMeshCollisionData;
+
+namespace Chaos
+{
+	class FImplicitObject;
+	class FTriangleMeshImplicitObject;
+}
+
 namespace Chaos
 {
 	namespace Cooking
