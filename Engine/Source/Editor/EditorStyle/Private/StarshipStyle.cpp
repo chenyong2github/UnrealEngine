@@ -699,6 +699,26 @@ void FStarshipEditorStyle::FStyle::SetupGeneralStyles()
 			.SetPadding(FMargin(0.0f));
 		Set("HoverOnlyHyperlink", HoverOnlyHyperlink);
 	}
+
+	FButtonStyle RoundedButtonStyle = FButtonStyle()
+		.SetNormal(FSlateRoundedBoxBrush(FStyleColors::Dropdown, 4))
+		.SetHovered(FSlateRoundedBoxBrush(FStyleColors::Hover, 4))
+		.SetPressed(FSlateRoundedBoxBrush(FStyleColors::Hover, 4))
+		.SetNormalForeground(FStyleColors::Foreground)
+		.SetHoveredForeground(FStyleColors::ForegroundHover)
+		.SetPressedForeground(FStyleColors::ForegroundHover)
+		.SetDisabledForeground(FStyleColors::White25)
+		.SetNormalPadding(FMargin(6, 6))
+		.SetPressedPadding(FMargin(6, 6));
+
+	Set("RoundedButton", RoundedButtonStyle);
+
+	FComboButtonStyle AddNewComboButtonStyle = FComboButtonStyle(FStarshipCoreStyle::GetCoreStyle().GetWidgetStyle<FComboButtonStyle>("SimpleComboButton"))
+		.SetButtonStyle(RoundedButtonStyle)
+		.SetDownArrowPadding(FMargin(1,0,0,0));
+
+	Set("RoundedComboButton", AddNewComboButtonStyle);
+
 #endif // WITH_EDITOR || (IS_PROGRAM && WITH_UNREAL_DEVELOPER_TOOLS)
 
 	// Expandable button
@@ -3249,7 +3269,7 @@ void FStarshipEditorStyle::FStyle::SetupPropertyEditorStyles()
 		Set( "DetailsView.GridLine", new FSlateColorBrush(FStyleColors::Recessed) );
 
 		Set( "DetailsView.AdvancedDropdownBorder",      new FSlateColorBrush(FStyleColors::Panel));
-		Set( "DetailsView.AdvancedDropdownBorder.Open", new FSlateColorBrush(FStyleColors::Panel));
+		Set( "DetailsView.AdvancedDropdownBorder.Open", new IMAGE_BRUSH("Common/ScrollBoxShadowTop", FVector2D(64,8)));
 
 		Set( "DetailsView.CategoryFontStyle", FStyleFonts::Get().NormalBold);
 		Set( "DetailsView.CategoryTextStyle", FTextBlockStyle(NormalText)
