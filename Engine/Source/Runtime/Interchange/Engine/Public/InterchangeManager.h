@@ -187,7 +187,9 @@ namespace UE
 			void CleanUp();
 		};
 
-		void SanitizeInvalidChar(FString& String);
+		void SanitizeObjectPath(FString& ObjectPath);
+
+		void SanitizeObjectName(FString& ObjectName);
 
 	} //ns interchange
 } //ns UE

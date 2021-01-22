@@ -33,11 +33,12 @@ namespace UE
 
 				// Set the asset name and the package name
 				OutAssetName = NodeDisplayName;
+				SanitizeObjectName(OutAssetName);
 
-				OutPackageName = FPaths::Combine(*PackageBasePath, *OutAssetName);
+				FString SanitazedPackageBasePath = PackageBasePath;
+				SanitizeObjectPath(SanitazedPackageBasePath);
 
-				//Sanitize only the package name
-				UE::Interchange::SanitizeInvalidChar(OutPackageName);
+				OutPackageName = FPaths::Combine(*SanitazedPackageBasePath, *OutAssetName);
 			}
 		}//ns Private
 	}//ns Interchange
@@ -108,7 +109,7 @@ void UE::Interchange::FTaskCreatePackage::DoTask(ENamedThreads::Type CurrentThre
 		{
 			if (!NodeAsset->HasAnyInternalFlags(EInternalObjectFlags::Async))
 			{
-				//Sice the async flag is not set we must be in the game thread
+				//Since the async flag is not set we must be in the game thread
 				ensure(IsInGameThread());
 				NodeAsset->SetInternalFlags(EInternalObjectFlags::Async);
 			}

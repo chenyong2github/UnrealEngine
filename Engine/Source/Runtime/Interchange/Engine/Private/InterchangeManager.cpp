@@ -296,12 +296,22 @@ void UE::Interchange::FAssetImportResult::AddReferencedObjects(FReferenceCollect
 	Collector.AddReferencedObjects(ImportedAssets);
 }
 
-void UE::Interchange::SanitizeInvalidChar(FString& String)
+void UE::Interchange::SanitizeObjectPath(FString& ObjectPath)
 {
 	const TCHAR* InvalidChar = INVALID_OBJECTPATH_CHARACTERS;
 	while (*InvalidChar)
 	{
-		String.ReplaceCharInline(*InvalidChar, TCHAR('_'), ESearchCase::CaseSensitive);
+		ObjectPath.ReplaceCharInline(*InvalidChar, TCHAR('_'), ESearchCase::CaseSensitive);
+		++InvalidChar;
+	}
+}
+
+void UE::Interchange::SanitizeObjectName(FString& ObjectName)
+{
+	const TCHAR* InvalidChar = INVALID_OBJECTNAME_CHARACTERS;
+	while (*InvalidChar)
+	{
+		ObjectName.ReplaceCharInline(*InvalidChar, TCHAR('_'), ESearchCase::CaseSensitive);
 		++InvalidChar;
 	}
 }
@@ -540,7 +550,7 @@ UE::Interchange::FAssetImportResultRef UInterchangeManager::ImportAssetAsync(con
 	FString PackageBasePath = ContentPath;
 	if(!ImportAssetParameters.ReimportAsset)
 	{
-		UE::Interchange::SanitizeInvalidChar(PackageBasePath);
+		UE::Interchange::SanitizeObjectPath(PackageBasePath);
 	}
 
 	bool bCanShowDialog = !ImportAssetParameters.bIsAutomated && !IsAttended();
