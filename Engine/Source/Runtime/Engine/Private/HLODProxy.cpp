@@ -662,7 +662,7 @@ bool UHLODProxy::SetHLODBakingTransform(const FTransform& InTransform)
 {
 	bool bChanged = false;
 
-	for (TMap<UHLODProxyDesc*, FHLODProxyMesh>::TIterator ItHLODActor = HLODActors.CreateIterator(); ItHLODActor; ++ItHLODActor)
+	for (auto ItHLODActor = HLODActors.CreateIterator(); ItHLODActor; ++ItHLODActor)
 	{
 		UHLODProxyDesc* HLODProxyDesc = ItHLODActor.Key();
 		if (!HLODProxyDesc->HLODBakingTransform.Equals(InTransform))
