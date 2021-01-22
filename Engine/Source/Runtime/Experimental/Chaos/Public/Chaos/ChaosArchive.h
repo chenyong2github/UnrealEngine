@@ -324,11 +324,23 @@ FChaosArchive& operator<<(FChaosArchive& Ar, TArray<TSerializablePtr<T>, TAlloca
 }
 
 template <typename T, typename TAllocator>
-FChaosArchive& operator<<(FChaosArchive& Ar, TArray<T, TAllocator>& Array)
+typename std::enable_if_t<TIsPODType<T>::Value, FChaosArchive&> operator<<(FChaosArchive& Ar, TArray<T, TAllocator>& Array)
 {
 	int32 ArrayNum = Array.Num();
 	Ar << ArrayNum;
-	Array.Reserve(ArrayNum);
+	Array.SetNum(ArrayNum);
+
+	// POD arrays can be serialized in a single batch, which is much faster:
+	Ar.Serialize(Array.GetData(), ArrayNum * sizeof(T));
+
+	return Ar;
+}
+
+template <typename T, typename TAllocator>
+typename std::enable_if_t<!TIsPODType<T>::Value, FChaosArchive&> operator<<(FChaosArchive& Ar, TArray<T, TAllocator>& Array)
+{
+	int32 ArrayNum = Array.Num();
+	Ar << ArrayNum;
 	Array.SetNum(ArrayNum);
 
 	for (int32 Idx = 0; Idx < ArrayNum; ++Idx)
@@ -346,34 +358,34 @@ struct CSerializablePtr
 };
 
 template <typename T>
-constexpr typename TEnableIf<TModels<CSerializablePtr, T>::Value, bool>::Type IsSerializablePtr()
+constexpr typename std::enable_if_t<TModels<CSerializablePtr, T>::Value, bool> IsSerializablePtr()
 {
 	return true;
 }
 
 template <typename T>
-typename TEnableIf<IsSerializablePtr<T>(), FChaosArchive& > ::Type operator<<(FChaosArchive& Ar, TUniquePtr<T>& Obj)
+typename std::enable_if_t<IsSerializablePtr<T>(), FChaosArchive&> operator<<(FChaosArchive& Ar, TUniquePtr<T>& Obj)
 {
 	Ar.SerializePtr(Obj);
 	return Ar;
 }
 
 template <typename T, ESPMode Mode>
-typename TEnableIf<IsSerializablePtr<T>(), FChaosArchive& > ::Type operator<<(FChaosArchive& Ar, TSharedPtr<T, Mode>& Obj)
+typename std::enable_if_t<IsSerializablePtr<T>(), FChaosArchive&> operator<<(FChaosArchive& Ar, TSharedPtr<T, Mode>& Obj)
 {
 	Ar.SerializePtr(Obj);
 	return Ar;
 }
 
 template <typename T>
-typename TEnableIf<T::AlwaysSerializable, FChaosArchive& > ::Type operator<<(FChaosArchive& Ar, T*& Obj)
+typename std::enable_if_t<T::AlwaysSerializable, FChaosArchive& > operator<<(FChaosArchive& Ar, T*& Obj)
 {
 	Ar.SerializePtr(AsAlwaysSerializable(Obj));
 	return Ar;
 }
 
 template <typename T, typename TAllocator>
-typename TEnableIf<IsSerializablePtr<T>(), FChaosArchive& > ::Type operator<<(FChaosArchive& Ar, TArray<TUniquePtr<T>, TAllocator>& Array)
+typename std::enable_if_t<IsSerializablePtr<T>(), FChaosArchive& > operator<<(FChaosArchive& Ar, TArray<TUniquePtr<T>, TAllocator>& Array)
 {
 	int32 ArrayNum = Array.Num();
 	Ar << ArrayNum;
@@ -389,14 +401,14 @@ typename TEnableIf<IsSerializablePtr<T>(), FChaosArchive& > ::Type operator<<(FC
 }
 
 template <typename T, typename TAllocator>
-typename TEnableIf<T::AlwaysSerializable, FChaosArchive& > ::Type operator<<(FChaosArchive& Ar, TArray<T*, TAllocator>& Array)
+typename std::enable_if_t<T::AlwaysSerializable, FChaosArchive&> operator<<(FChaosArchive& Ar, TArray<T*, TAllocator>& Array)
 {
 	Ar << AsAlwaysSerializableArray(Array);
 	return Ar;
 }
 
 template <typename T, typename TAllocator, typename TAllocator2>
-typename TEnableIf<IsSerializablePtr<T>(), FChaosArchive& > ::Type operator<<(FChaosArchive& Ar, TArray<TArray<TUniquePtr<T>, TAllocator>,TAllocator2>& Array)
+typename std::enable_if_t<IsSerializablePtr<T>(), FChaosArchive&> operator<<(FChaosArchive& Ar, TArray<TArray<TUniquePtr<T>, TAllocator>,TAllocator2>& Array)
 {
 	int32 ArrayNum = Array.Num();
 	Ar << ArrayNum;
@@ -412,7 +424,7 @@ typename TEnableIf<IsSerializablePtr<T>(), FChaosArchive& > ::Type operator<<(FC
 }
 
 template <typename T, typename TAllocator, ESPMode Mode>
-typename TEnableIf<IsSerializablePtr<T>(), FChaosArchive& > ::Type operator<<(FChaosArchive& Ar, TArray<TSharedPtr<T, Mode>, TAllocator>& Array)
+typename std::enable_if_t<IsSerializablePtr<T>(), FChaosArchive&> operator<<(FChaosArchive& Ar, TArray<TSharedPtr<T, Mode>, TAllocator>& Array)
 {
 	int32 ArrayNum = Array.Num();
 	Ar << ArrayNum;
@@ -428,7 +440,7 @@ typename TEnableIf<IsSerializablePtr<T>(), FChaosArchive& > ::Type operator<<(FC
 }
 
 template <typename T, typename TAllocator, typename TAllocator2, ESPMode Mode>
-typename TEnableIf<IsSerializablePtr<T>(), FChaosArchive& > ::Type operator<<(FChaosArchive& Ar, TArray<TArray<TSharedPtr<T, Mode>, TAllocator>, TAllocator2>& Array)
+typename std::enable_if_t<IsSerializablePtr<T>(), FChaosArchive&> operator<<(FChaosArchive& Ar, TArray<TArray<TSharedPtr<T, Mode>, TAllocator>, TAllocator2>& Array)
 {
 	int32 ArrayNum = Array.Num();
 	Ar << ArrayNum;
@@ -444,7 +456,7 @@ typename TEnableIf<IsSerializablePtr<T>(), FChaosArchive& > ::Type operator<<(FC
 }
 
 template <typename T, typename TAllocator, typename TAllocator2>
-typename TEnableIf<IsSerializablePtr<T>(), FChaosArchive& > ::Type operator<<(FChaosArchive& Ar, TArray<TArray<TSerializablePtr<T>, TAllocator>, TAllocator2>& Array)
+typename std::enable_if_t<IsSerializablePtr<T>(), FChaosArchive&> operator<<(FChaosArchive& Ar, TArray<TArray<TSerializablePtr<T>, TAllocator>, TAllocator2>& Array)
 {
 	int32 ArrayNum = Array.Num();
 	Ar << ArrayNum;
