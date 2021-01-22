@@ -214,8 +214,11 @@ SDataprepProducersWidget::~SDataprepProducersWidget()
 	}
 }
 
-void SDataprepProducersWidget::Construct(const FArguments & InArgs, UDataprepAssetProducers* InAssetProducersPtr)
+void SDataprepProducersWidget::Construct( const FArguments & InArgs, UDataprepAssetProducers* InAssetProducersPtr )
 {
+	DataprepImportProducersDelegate = InArgs._DataprepImportProducersDelegate;
+	DataprepImportProducersEnabledDelegate = InArgs._DataprepImportProducersEnabledDelegate;
+
 	AssetProducersPtr = InAssetProducersPtr;
 	AssetProducersPtr->GetOnChanged().AddSP( this, &SDataprepProducersWidget::OnDataprepProducersChanged );
 
@@ -260,6 +263,35 @@ void SDataprepProducersWidget::Construct(const FArguments & InArgs, UDataprepAss
 				.AutoHeight()
 				[
 					TreeView.ToSharedRef()
+				]
+			]
+			+ SScrollBox::Slot()
+			.HAlign( HAlign_Center )
+			.Padding(20)
+			[
+				SNew(SButton)
+				.ButtonStyle(FEditorStyle::Get(), "FlatButton.Success")
+				.ForegroundColor(FLinearColor::White)
+				.ContentPadding(FMargin(30, 2))
+				.ToolTipText( LOCTEXT( "ImportButtonTooltip", "Load inputs' data into the Dataprep Editor"  ) )
+				.OnClicked(FOnClicked::CreateLambda([this]()
+				{
+					DataprepImportProducersDelegate.ExecuteIfBound();
+					return FReply::Handled();
+				}))
+				.IsEnabled_Lambda([this]() 
+				{ 
+					if (DataprepImportProducersDelegate.IsBound() && DataprepImportProducersEnabledDelegate.IsBound())
+					{
+						return DataprepImportProducersEnabledDelegate.IsBound();
+					}
+					return false;
+				})
+				.Content()
+				[
+					SNew( STextBlock )
+					.TextStyle( FEditorStyle::Get(), "ContentBrowser.TopBar.Font" )
+					.Text( LOCTEXT( "ImportButton", "Import" ) )
 				]
 			]
 		]

@@ -6,6 +6,7 @@
 #include "DataprepCoreUtils.h"
 #include "DataprepContentConsumer.h"
 #include "DatasmithAssetUserData.h"
+#include "DatasmithAreaLightActor.h"
 
 #include "ActorEditorUtils.h"
 #include "AssetDeleteModel.h"
@@ -205,11 +206,15 @@ void UDataprepOperationsLibrary::SetMobility( const TArray< UObject* >& Selected
 	{
 		if (AActor* Actor = Cast< AActor >(Object))
 		{
-			// Find the materials by iterating over every mesh component.
 			TInlineComponentArray<USceneComponent*> SceneComponents(Actor);
 			for (USceneComponent* SceneComponent : SceneComponents)
 			{
 				SceneComponent->SetMobility(MobilityType);
+			}
+
+			if (ADatasmithAreaLightActor* DatasmithAreaLightActor = Cast<ADatasmithAreaLightActor>(Actor))
+			{
+				DatasmithAreaLightActor->Mobility = MobilityType;
 			}
 		}
 	}

@@ -423,10 +423,14 @@ void LidarPointCloudCollision::BuildCollisionMesh(FLidarPointCloudOctree* Octree
 
 	BuildScaledVertexTable(CellSize);
 	
+	Octree->LoadAllNodes(false);
+
+	const FLidarPointCloudOctree* OctreeConst = Octree;
+
 	// Fire threads
 	for (int32 t = 0; t < MaxNumThreads && SampleIndex.GetValue() < TotalNumSamples; t++)
 	{
-		ThreadResults.Add(Async(EAsyncExecution::TaskGraph, [t, &SampleIndex, &Vertices, &NumVertices, CollisionMesh, BatchSize, TotalNumSamples, NumSamples, BaseSamplingBounds, CellSize, Octree, InversedCellSize, bVisibleOnly, LocationOffset]
+		ThreadResults.Add(Async(EAsyncExecution::TaskGraph, [t, &SampleIndex, &Vertices, &NumVertices, CollisionMesh, BatchSize, TotalNumSamples, NumSamples, BaseSamplingBounds, CellSize, OctreeConst, InversedCellSize, bVisibleOnly, LocationOffset]
 		{
 			// Local caching arrays to reduce number of syncs required
 			TArray<FVector> _Vertices;
@@ -438,7 +442,7 @@ void LidarPointCloudCollision::BuildCollisionMesh(FLidarPointCloudOctree* Octree
 
 			const float OffsetMultiplier = (BatchSize - 1) * CellSize;
 
-			TArray<FLidarPointCloudPoint*> Selection;
+			TArray64<const FLidarPointCloudPoint*> Selection;
 			
 			int32 Index;
 			while ((Index = SampleIndex.Add(1)) < TotalNumSamples)
@@ -446,7 +450,7 @@ void LidarPointCloudCollision::BuildCollisionMesh(FLidarPointCloudOctree* Octree
 				const FBox SamplingBounds = BaseSamplingBounds.ShiftBy(ExtractCoordinatesFromIndex(Index, NumSamples) * OffsetMultiplier);
 
 				// Sample the data using the calculated bounds
-				Octree->GetPointsInBox(Selection, SamplingBounds, bVisibleOnly);
+				OctreeConst->GetPointsInBox(Selection, SamplingBounds, bVisibleOnly);
 
 				// Skip if no points in selection
 				if (Selection.Num() == 0)
@@ -458,7 +462,7 @@ void LidarPointCloudCollision::BuildCollisionMesh(FLidarPointCloudOctree* Octree
 				FMemory::Memzero(VoxelizedGrid, NumCellsCu);
 
 				// Calculate voxelized grids
-				for (FLidarPointCloudPoint** Point = Selection.GetData(), ** DataEnd = Selection.GetData() + Selection.Num(); Point != DataEnd; ++Point)
+				for (const FLidarPointCloudPoint** Point = Selection.GetData(), **DataEnd = Selection.GetData() + Selection.Num(); Point != DataEnd; ++Point)
 				{
 					// Calculate location relative to sampling bounds
 					FVector Location = (*Point)->Location - SamplingBounds.Min;
@@ -486,6 +490,8 @@ void LidarPointCloudCollision::BuildCollisionMesh(FLidarPointCloudOctree* Octree
 	{
 		ThreadResult.Get();
 	}
+
+	Octree->ReleaseAllNodes(false);
 
 	FBenchmarkTimer::Log("Collision: Meshing");
 

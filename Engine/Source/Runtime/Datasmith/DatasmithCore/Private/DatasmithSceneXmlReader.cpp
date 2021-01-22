@@ -82,6 +82,17 @@ namespace DatasmithSceneXmlReaderImpl
 	{
 		return InString.ToBool();
 	}
+
+	UE_NODISCARD FString UnsanitizeXMLText(const FString& InString)
+	{
+		FString OutString = InString;
+		OutString.ReplaceInline( TEXT("&apos;"), TEXT("'")  );
+		OutString.ReplaceInline( TEXT("&quot;"), TEXT("\"") );
+		OutString.ReplaceInline( TEXT("&gt;"),   TEXT(">")  );
+		OutString.ReplaceInline( TEXT("&lt;"),   TEXT("<")  );
+		OutString.ReplaceInline( TEXT("&amp;"),  TEXT("&")  );
+		return OutString;
+	}
 }
 
 FString FDatasmithSceneXmlReader::ResolveFilePath(const FString& AssetFile) const
@@ -745,11 +756,6 @@ void FDatasmithSceneXmlReader::ParseActor(FXmlNode* InNode, TSharedPtr<IDatasmit
 		{
 			// @todo: If attribute does not exist, default value should be true not false.
 			InOutElement->SetVisibility(FCString::ToBool(*ChildNode->GetAttribute(TEXT("visible"))));
-			InOutElement->SetAsSelector(FCString::ToBool(*ChildNode->GetAttribute(TEXT("selector"))));
-			if (InOutElement->IsASelector())
-			{
-				InOutElement->SetSelectionIndex(FCString::Atoi(*ChildNode->GetAttribute(TEXT("selection"))));
-			}
 
 			// Recursively parse the children, can be of any supported actor type
 			for (FXmlNode* ChildActorNode : ChildNode->GetChildrenNodes())
@@ -860,7 +866,7 @@ void FDatasmithSceneXmlReader::ParseLight(FXmlNode* InNode, TSharedPtr<IDatasmit
 		LightType = EDatasmithElementType::LightmassPortal;
 	}
 
-	TSharedPtr< IDatasmithElement > Element = FDatasmithSceneFactory::CreateElement( LightType, *InNode->GetAttribute(TEXT("name")) );
+	TSharedPtr< IDatasmithElement > Element = FDatasmithSceneFactory::CreateElement( LightType, *InNode->GetAttribute( TEXT( "name" ) ));
 
 	if( !Element.IsValid() || !Element->IsA( EDatasmithElementType::Light ) )
 	{
@@ -1780,6 +1786,48 @@ void FDatasmithSceneXmlReader::ParseUEPbrMaterial(FXmlNode* InNode, TSharedPtr< 
 					FunctionCall->SetFunctionPathName( *ChildNode->GetAttribute( TEXT("Function") ) );
 				}
 			}
+			else if ( ChildNode->GetTag() == TEXT("Custom") )
+			{
+				if ( IDatasmithMaterialExpressionCustom* Expression = OutElement->AddMaterialExpression<IDatasmithMaterialExpressionCustom>() )
+				{
+					for (const FXmlNode* CustomChildNode : ChildNode->GetChildrenNodes())
+					{
+						if (CustomChildNode == nullptr)
+						{
+							continue;
+						}
+
+						if (CustomChildNode->GetTag() == TEXT("Code"))
+						{
+							const FString& SanitizedContent = CustomChildNode->GetContent();
+							const FString& Content = DatasmithSceneXmlReaderImpl::UnsanitizeXMLText(SanitizedContent);
+							Expression->SetCode(*Content);
+						}
+						else if (CustomChildNode->GetTag() == TEXT("Include"))
+						{
+							const FString& Path = DatasmithSceneXmlReaderImpl::UnsanitizeXMLText(CustomChildNode->GetAttribute(TEXT("path")));
+							Expression->AddIncludeFilePath(*Path);
+						}
+						else if (CustomChildNode->GetTag() == TEXT("Define"))
+						{
+							const FString& Value = DatasmithSceneXmlReaderImpl::UnsanitizeXMLText(CustomChildNode->GetAttribute(TEXT("value")));
+							Expression->AddAdditionalDefine(*Value);
+						}
+						else if (CustomChildNode->GetTag() == TEXT("Arg"))
+						{
+							int32 Index = DatasmithSceneXmlReaderImpl::ValueFromString<int32>(CustomChildNode->GetAttribute(TEXT("index")));
+							const FString& Value = DatasmithSceneXmlReaderImpl::UnsanitizeXMLText(CustomChildNode->GetAttribute(TEXT("name")));
+							Expression->SetArgumentName(Index, *Value);
+						}
+					}
+
+					const FString& Description = ChildNode->GetAttribute( TEXT("Description") );
+					Expression->SetDescription( *Description );
+
+					int32 OutputType = DatasmithSceneXmlReaderImpl::ValueFromString< int32 >( ChildNode->GetAttribute( TEXT("OutputType") ) );;
+					Expression->SetOutputType(EDatasmithShaderDataType(OutputType));
+				}
+			}
 			else
 			{
 				IDatasmithMaterialExpression* Expression = OutElement->AddMaterialExpression( EDatasmithMaterialExpressionType::Generic );
@@ -1808,11 +1856,11 @@ void FDatasmithSceneXmlReader::ParseUEPbrMaterial(FXmlNode* InNode, TSharedPtr< 
 					IDatasmithMaterialExpressionFlattenNormal* FlattenNormal = static_cast< IDatasmithMaterialExpressionFlattenNormal* >( Expression );
 
 					{
-						FXmlNode* const* NormalNode = Algo::FindByPredicate( ChildNode->GetChildrenNodes(), [InputName = FlattenNormal->GetNormal().GetInputName()]( FXmlNode* Node ) -> bool
+						FXmlNode* const* NormalNode = Algo::FindByPredicate( ChildNode->GetChildrenNodes(), [InputName = FlattenNormal->GetNormal().GetName()]( FXmlNode* Node ) -> bool
 						{
 							return Node->GetTag() == InputName;
 						} );
-						FXmlNode* const* FlatnessNode = Algo::FindByPredicate( ChildNode->GetChildrenNodes(), [InputName = FlattenNormal->GetFlatness().GetInputName()]( FXmlNode* Node ) -> bool
+						FXmlNode* const* FlatnessNode = Algo::FindByPredicate( ChildNode->GetChildrenNodes(), [InputName = FlattenNormal->GetFlatness().GetName()]( FXmlNode* Node ) -> bool
 						{
 							return Node->GetTag() == InputName;
 						} );
@@ -1851,7 +1899,7 @@ void FDatasmithSceneXmlReader::ParseUEPbrMaterial(FXmlNode* InNode, TSharedPtr< 
 
 	auto TryConnectMaterialInput = [&ChildrenNodes, &OutElement](IDatasmithExpressionInput& Input)
 	{
-		const TCHAR* InputName = Input.GetInputName();
+		const TCHAR* InputName = Input.GetName();
 		for (FXmlNode* XmlNode : ChildrenNodes)
 		{
 			if (XmlNode && (XmlNode->GetAttribute(TEXT("Name")) == InputName || XmlNode->GetTag() == InputName ))

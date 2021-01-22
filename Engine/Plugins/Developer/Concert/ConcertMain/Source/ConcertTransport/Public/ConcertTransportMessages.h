@@ -51,6 +51,17 @@ enum class EConcertReliableHandshakeState : uint8
 	Success,
 };
 
+/** Versioning for concert message protocol */
+UENUM()
+enum class EConcertMessageVersion : uint32
+{
+	BeforeVersioning = 0,
+	Initial, 
+	// -----<new versions can be added above this line>-------------------------------------------------
+	VersionPlusOne,
+	LatestVersion = VersionPlusOne - 1
+};
+
 /** Base class for all message data sent through concert */
 USTRUCT()
 struct FConcertMessageData
@@ -155,6 +166,10 @@ USTRUCT()
 struct FConcertEndpointDiscoveryEvent : public FConcertEventData
 {
 	GENERATED_BODY()
+
+	/** Holds the concert messages protocol version, default initialize to `BeforeVersioning` to handle message sent from older protocol. */
+	UPROPERTY()
+	EConcertMessageVersion ConcertProtocolVersion = EConcertMessageVersion::BeforeVersioning;
 };
 
 /** Message send when an endpoint is closed on a remote peer */

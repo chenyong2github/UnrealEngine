@@ -30,10 +30,6 @@ struct DATASMITHIMPORTER_API FDatasmithImportFactoryCreateFileResult
 	UPROPERTY(BlueprintReadWrite, Transient, Category = Imported)
 	TArray<class AActor*> ImportedActors;
 
-	/** Blueprint created if user requires every components of the scene under one blueprint */
-	UPROPERTY(BlueprintReadWrite, Transient, Category = Imported)
-	class UBlueprint* ImportedBlueprint;
-
 	/** Meshes created during the import process */
 	UPROPERTY(BlueprintReadWrite, Transient, Category = Imported)
 	TArray<class UObject*> ImportedMeshes;

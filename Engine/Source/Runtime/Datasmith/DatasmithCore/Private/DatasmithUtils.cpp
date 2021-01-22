@@ -973,7 +973,7 @@ namespace DatasmithSceneUtilsImpl
 			{
 				if (ExpressionElement)
 				{
-					if (ExpressionElement->IsA(EDatasmithMaterialExpressionType::Texture))
+					if (ExpressionElement->IsSubType((uint64)EDatasmithMaterialExpressionType::Texture))
 					{
 						const IDatasmithMaterialExpressionTexture* TextureExpression = static_cast<IDatasmithMaterialExpressionTexture*>(ExpressionElement);
 						if (FCString::Strlen(TextureExpression->GetTexturePathName()) > 0)
@@ -985,7 +985,7 @@ namespace DatasmithSceneUtilsImpl
 							}
 						}
 					}
-					else if (ExpressionElement->IsA(EDatasmithMaterialExpressionType::Generic))
+					else if (ExpressionElement->IsSubType((uint64)EDatasmithMaterialExpressionType::Generic))
 					{
 						const IDatasmithMaterialExpressionGeneric* GenericExpression = static_cast<IDatasmithMaterialExpressionGeneric*>(ExpressionElement);
 
@@ -1000,7 +1000,7 @@ namespace DatasmithSceneUtilsImpl
 							}
 						}
 					}
-					else if (ExpressionElement->IsA(EDatasmithMaterialExpressionType::FunctionCall))
+					else if (ExpressionElement->IsSubType((uint64)EDatasmithMaterialExpressionType::FunctionCall))
 					{
 						const IDatasmithMaterialExpressionFunctionCall* FunctionExpression = static_cast<IDatasmithMaterialExpressionFunctionCall*>(ExpressionElement);
 						if (FCString::Strlen(FunctionExpression->GetFunctionPathName()) > 0)

@@ -92,24 +92,8 @@ void FDatasmithSceneReceiver::FinalSnapshot(const DirectLink::FSceneSnapshot& Sc
 		// Well, of course it's not exact...
 		// Type &= (uint64)~EDatasmithElementType::BaseMaterial; // remove that flag as it always has a child anyway, and its order is impractical.
 		EDatasmithElementType PureType = EDatasmithElementType(uint64(1) << FPlatformMath::FloorLog2_64(Type));
-		
-		TSharedPtr<IDatasmithElement> Element;
-		if ((uint64)PureType == FDatasmithUEPbrInternalHelper::MaterialExpressionType)
-		{
-			Element = FDatasmithUEPbrInternalHelper::ConvertMaterialExpressionToElementSharedPtr( FDatasmithUEPbrInternalHelper::CreateMaterialExpression( static_cast<EDatasmithMaterialExpressionType>(Subtype) ).Get() );
-		}
-		else if ((uint64)PureType == FDatasmithUEPbrInternalHelper::MaterialExpressionInputType)
-		{
-			Element = MakeShared<FDatasmithExpressionInputImpl>( *Name );
-		}
-		else if ((uint64)PureType == FDatasmithUEPbrInternalHelper::MaterialExpressionOutputType)
-		{
-			Element = MakeShared<FDatasmithExpressionOutputImpl>( *Name );
-		}
-		else
-		{
-			Element = FDatasmithSceneFactory::CreateElement(PureType, *Name);
-		}
+
+		TSharedPtr<IDatasmithElement> Element = FDatasmithSceneFactory::CreateElement(PureType, Subtype, *Name);
 		check(Element);
 		Element->SetSharedState(SceneSharedState);
 		Element->SetNodeId(NodeId); // #ue_directlink_design nope, only the Scene SharedState has this right

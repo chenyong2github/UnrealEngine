@@ -74,6 +74,7 @@ struct FLidarPointCloudBatchElementUserData
 	FVector ViewRightVector;
 	FVector ViewUpVector;
 	int32 bUseCameraFacing;
+	int32 bUseScreenSizeScaling;
 	FVector BoundsSize;
 	FVector ElevationColorBottom;
 	FVector ElevationColorTop;
@@ -121,6 +122,7 @@ public:
 	LAYOUT_FIELD(FShaderParameter, ViewRightVector);
 	LAYOUT_FIELD(FShaderParameter, ViewUpVector);
 	LAYOUT_FIELD(FShaderParameter, bUseCameraFacing);
+	LAYOUT_FIELD(FShaderParameter, bUseScreenSizeScaling);
 	LAYOUT_FIELD(FShaderParameter, BoundsSize);
 	LAYOUT_FIELD(FShaderParameter, ElevationColorBottom);
 	LAYOUT_FIELD(FShaderParameter, ElevationColorTop);

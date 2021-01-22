@@ -74,6 +74,26 @@ void FAssetTypeActions_LidarPointCloud::GetActions(const TArray<UObject*>& InObj
 			)
 		);
 	}
+
+	MenuBuilder.AddMenuEntry(
+		LOCTEXT("LidarPointCloud_BuildCollision", "Build Collision"),
+		LOCTEXT("LidarPointCloud_BuildCollisionTooltip", "Builds collision for all selected point cloud assets."),
+		FSlateIcon("LidarPointCloudStyle", "LidarPointCloudEditor.BuildCollision"),
+		FUIAction(
+			FExecuteAction::CreateSP(this, &FAssetTypeActions_LidarPointCloud::ExecuteCollision, PointClouds),
+			FCanExecuteAction()
+		)
+	);
+
+	MenuBuilder.AddMenuEntry(
+		LOCTEXT("LidarPointCloud_CalculateNormals", "Calculate Normals"),
+		LOCTEXT("LidarPointCloud_CalculateNormalsTooltip", "Calculates normals for all selected point cloud assets."),
+		FSlateIcon(FEditorStyle::GetStyleSetName(), "AnimViewportMenu.SetShowNormals"),
+		FUIAction(
+			FExecuteAction::CreateSP(this, &FAssetTypeActions_LidarPointCloud::ExecuteNormals, PointClouds),
+			FCanExecuteAction()
+		)
+	);
 }
 
 void FAssetTypeActions_LidarPointCloud::OpenAssetEditor(const TArray<UObject*>& InObjects, TSharedPtr<class IToolkitHost> EditWithinLevelEditor /*= TSharedPtr<IToolkitHost>()*/)
@@ -132,6 +152,28 @@ void FAssetTypeActions_LidarPointCloud::ExecuteAlign(TArray<ULidarPointCloud*> P
 	ProgressDialog.MakeDialog();
 	ProgressDialog.EnterProgressFrame(1.f);
 	ULidarPointCloud::AlignClouds(PointClouds);
+}
+
+void FAssetTypeActions_LidarPointCloud::ExecuteCollision(TArray<ULidarPointCloud*> PointClouds)
+{
+	for (ULidarPointCloud* PC : PointClouds)
+	{
+		PC->BuildCollision();
+	}
+}
+
+void FAssetTypeActions_LidarPointCloud::ExecuteNormals(TArray<ULidarPointCloud*> PointClouds)
+{
+	for (ULidarPointCloud* PC : PointClouds)
+	{
+		// Data needs to be persistently loaded to calculate normals
+		if (!PC->IsFullyLoaded())
+		{
+			PC->LoadAllNodes();
+		}
+
+		PC->CalculateNormals(nullptr, nullptr);
+	}
 }
 
 ULidarPointCloudFactory::ULidarPointCloudFactory()

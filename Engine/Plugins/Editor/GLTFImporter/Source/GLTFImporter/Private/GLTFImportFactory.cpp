@@ -13,6 +13,7 @@
 #include "Misc/Paths.h"
 
 #include "AssetRegistryModule.h"
+#include "AssetImportTask.h"
 #include "Editor/UnrealEd/Public/Editor.h"
 #include "Engine/StaticMesh.h"
 #include "IMessageLogListing.h"
@@ -23,6 +24,8 @@
 #include "MessageLogModule.h"
 #include "PackageTools.h"
 #include "UObject/StrongObjectPtr.h"
+
+DEFINE_LOG_CATEGORY(LogGLTF);
 
 #define LOCTEXT_NAMESPACE "GLTFFactory"
 
@@ -96,6 +99,7 @@ UObject* UGLTFImportFactory::FactoryCreateFile(UClass* InClass, UObject* InParen
 
 	TStrongObjectPtr<UGLTFImportOptions> ImporterOptions(NewObject<UGLTFImportOptions>(GetTransientPackage(), TEXT("GLTF Importer Options")));
 	// show import options window
+	if (!IsAutomatedImport())
 	{
 		const FString Filepath    = FPaths::ConvertRelativePathToFull(Filename);
 		const FString PackagePath = InParent->GetPathName();
@@ -104,6 +108,25 @@ UObject* UGLTFImportFactory::FactoryCreateFile(UClass* InClass, UObject* InParen
 		{
 			bOutOperationCanceled = true;
 			return nullptr;
+		}
+	}
+	else
+	{
+		ImporterOptions->bGenerateLightmapUVs = false;
+		ImporterOptions->ImportScale = 100.0f;
+
+		if (AssetImportTask->Options != nullptr)
+		{
+			UGLTFImportOptions* Options = Cast<UGLTFImportOptions>(AssetImportTask->Options);
+			if (Options == nullptr)
+			{
+				UE_LOG(LogGLTF, Display, TEXT("The options set in the Asset Import Task are not of type UGLTFImportOptions and will be ignored"));
+			}
+			else
+			{
+				ImporterOptions->bGenerateLightmapUVs = Options->bGenerateLightmapUVs;
+				ImporterOptions->ImportScale = Options->ImportScale;
+			}
 		}
 	}
 
@@ -141,6 +164,17 @@ UObject* UGLTFImportFactory::FactoryCreateFile(UClass* InClass, UObject* InParen
 	GLTFImporterImpl::ShowLogMessages(Context.GetLogMessages());
 
 	return Object;
+}
+
+bool UGLTFImportFactory::FactoryCanImport(const FString& Filename)
+{
+	const FString Extension = FPaths::GetExtension(Filename);
+
+	if( Extension == TEXT("gltf") || Extension == TEXT("glb") )
+	{
+		return true;
+	}
+	return false;
 }
 
 void UGLTFImportFactory::CleanUp()

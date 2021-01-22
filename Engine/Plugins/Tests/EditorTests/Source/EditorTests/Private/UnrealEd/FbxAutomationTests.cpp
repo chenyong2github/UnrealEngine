@@ -44,6 +44,78 @@
 */
 IMPLEMENT_COMPLEX_AUTOMATION_TEST(FFbxImportAssetsAutomationTest, "Editor.Import.Fbx", (EAutomationTestFlags::EditorContext | EAutomationTestFlags::NonNullRHI | EAutomationTestFlags::EngineFilter))
 
+class FFbxImportAssetsAutomationTestHelper
+{
+public:
+	static UAnimSequence* GetImportedAnimSequence(TArray<FAssetData>& ImportedAssets, FAutomationTestExecutionInfo& ExecutionInfo, const FString& FormatedErrorMessagePrefix)
+	{
+		UAnimSequence* AnimSequence = nullptr;
+		for (const FAssetData& AssetData : ImportedAssets)
+		{
+			UObject* ImportedAsset = AssetData.GetAsset();
+			if (ImportedAsset->IsA(UAnimSequence::StaticClass()))
+			{
+				AnimSequence = Cast<UAnimSequence>(ImportedAsset);
+			}
+		}
+		if (AnimSequence == nullptr)
+		{
+			ExecutionInfo.AddError(FString::Printf(TEXT("%s no animation was imported"), *FormatedErrorMessagePrefix));
+		}
+
+		return AnimSequence;
+	}
+
+	static bool GetImportedCustomCurveKey(TArray<FAssetData>& ImportedAssets, FAutomationTestExecutionInfo& ExecutionInfo, const FString& FormatedErrorMessagePrefix, const FFbxTestPlanExpectedResult& ExpectedResult, FRichCurveKey& OutCurveKey)
+	{
+		if (UAnimSequence* AnimSequence = FFbxImportAssetsAutomationTestHelper::GetImportedAnimSequence(ImportedAssets, ExecutionInfo, FormatedErrorMessagePrefix))
+		{
+			if (ExpectedResult.ExpectedPresetsDataString.Num() < 1)
+			{
+				ExecutionInfo.AddError(FString::Printf(TEXT("%s expected result need 1 string data (Expected Custom Curve Name)"),
+					*FormatedErrorMessagePrefix));
+				return false;
+			}
+
+			if (ExpectedResult.ExpectedPresetsDataInteger.Num() < 1)
+			{
+				ExecutionInfo.AddError(FString::Printf(TEXT("%s expected result need 1 integer data (Expected Custom Curve Key index)"),
+					*FormatedErrorMessagePrefix));
+				return false;
+			}
+
+			const FString& CurveName = ExpectedResult.ExpectedPresetsDataString[0];
+			FFloatCurve* FloatCurve = nullptr;
+			FSmartName OutSmartName;
+			if (AnimSequence->GetSkeleton()->GetSmartNameByName(USkeleton::AnimCurveMappingName, *CurveName, OutSmartName))
+			{
+				FloatCurve = static_cast<FFloatCurve*>(AnimSequence->RawCurveData.GetCurveData(OutSmartName.UID, ERawCurveTrackTypes::RCT_Float));
+			}
+			if (FloatCurve == nullptr)
+			{
+				ExecutionInfo.AddError(FString::Printf(TEXT("%s no custom curve named %s was imported"),
+					*FormatedErrorMessagePrefix, *CurveName));
+				return false;
+			}
+
+			const FRichCurve& RichCurve = FloatCurve->FloatCurve;
+			const TArray<FRichCurveKey>& Keys = RichCurve.GetConstRefOfKeys();
+			int KeyIndex = ExpectedResult.ExpectedPresetsDataInteger[0];
+			if (!Keys.IsValidIndex(KeyIndex))
+			{
+				ExecutionInfo.AddError(FString::Printf(TEXT("%s no key at the index %i was imported"),
+					*FormatedErrorMessagePrefix, KeyIndex));
+				return false;
+			}
+
+			OutCurveKey = Keys[KeyIndex];
+			return true;
+		}
+
+		return false;
+	}
+};
+
 /**
 * Requests a enumeration of all sample assets to import
 */
@@ -1538,70 +1610,117 @@ bool FFbxImportAssetsAutomationTest::RunTest(const FString& Parameters)
 			
 			case Animation_Frame_Number:
 			{
-				UAnimSequence* AnimSequence = nullptr;
-				for (const FAssetData& AssetData : ImportedAssets)
+				FString FormatedMessageErrorPrefix = GetFormatedMessageErrorInTestData(CleanFilename, TestPlan->TestPlanName, TEXT("Animation_Frame_Number"), ExpectedResultIndex);
+				if (UAnimSequence* AnimSequence = FFbxImportAssetsAutomationTestHelper::GetImportedAnimSequence(ImportedAssets, ExecutionInfo, FormatedMessageErrorPrefix))
 				{
-					UObject *ImportedAsset = AssetData.GetAsset();
-					if (ImportedAsset->IsA(UAnimSequence::StaticClass()))
+					if (ExpectedResult.ExpectedPresetsDataInteger.Num() < 1)
 					{
-						AnimSequence = Cast<UAnimSequence>(ImportedAsset);
+						ExecutionInfo.AddError(FString::Printf(TEXT("%s expected result need 1 integer data (Expected Animation Frame Number)"),
+							*FormatedMessageErrorPrefix));
+						break;
 					}
-				}
-
-				if (AnimSequence == nullptr)
-				{
-					ExecutionInfo.AddError(FString::Printf(TEXT("%s no animation was imported"),
-						*GetFormatedMessageErrorInTestData(CleanFilename, TestPlan->TestPlanName, TEXT("Animation_Frame_Number"), ExpectedResultIndex)));
-					break;
-				}
-				if (ExpectedResult.ExpectedPresetsDataInteger.Num() < 1)
-				{
-					ExecutionInfo.AddError(FString::Printf(TEXT("%s expected result need 1 integer data (Expected Animation Frame Number)"),
-						*GetFormatedMessageErrorInTestData(CleanFilename, TestPlan->TestPlanName, TEXT("Animation_Frame_Number"), ExpectedResultIndex)));
-					break;
-				}
-				int32 FrameNumber = AnimSequence->GetNumberOfFrames();
-				if (FrameNumber != ExpectedResult.ExpectedPresetsDataInteger[0])
-				{
-					ExecutionInfo.AddError(FString::Printf(TEXT("%s [%d frames but expected %d]"),
-						*GetFormatedMessageErrorInExpectedResult(*CleanFilename, *(TestPlan->TestPlanName), TEXT("Animation_Frame_Number"), ExpectedResultIndex), FrameNumber, ExpectedResult.ExpectedPresetsDataInteger[0]));
+					int32 FrameNumber = AnimSequence->GetNumberOfFrames();
+					if (FrameNumber != ExpectedResult.ExpectedPresetsDataInteger[0])
+					{
+						ExecutionInfo.AddError(FString::Printf(TEXT("%s [%d frames but expected %d]"),
+							*FormatedMessageErrorPrefix, FrameNumber, ExpectedResult.ExpectedPresetsDataInteger[0]));
+					}
 				}
 			}
 			break;
 			
 			case Animation_Length:
 			{
-				UAnimSequence* AnimSequence = nullptr;
-				for (const FAssetData& AssetData : ImportedAssets)
+				FString FormatedMessageErrorPrefix = GetFormatedMessageErrorInTestData(CleanFilename, TestPlan->TestPlanName, TEXT("Animation_Length"), ExpectedResultIndex);
+				if (UAnimSequence* AnimSequence = FFbxImportAssetsAutomationTestHelper::GetImportedAnimSequence(ImportedAssets, ExecutionInfo, FormatedMessageErrorPrefix))
 				{
-					UObject *ImportedAsset = AssetData.GetAsset();
-					if (ImportedAsset->IsA(UAnimSequence::StaticClass()))
+					if (ExpectedResult.ExpectedPresetsDataFloat.Num() < 1)
 					{
-						AnimSequence = Cast<UAnimSequence>(ImportedAsset);
+						ExecutionInfo.AddError(FString::Printf(TEXT("%s expected result need 1 float data (Expected Animation Length in seconds)"),
+							*FormatedMessageErrorPrefix));
+						break;
 					}
-				}
-
-				if (AnimSequence == nullptr)
-				{
-					ExecutionInfo.AddError(FString::Printf(TEXT("%s no animation was imported"),
-						*GetFormatedMessageErrorInTestData(CleanFilename, TestPlan->TestPlanName, TEXT("Animation_Length"), ExpectedResultIndex)));
-					break;
-				}
-				if (ExpectedResult.ExpectedPresetsDataFloat.Num() < 1)
-				{
-					ExecutionInfo.AddError(FString::Printf(TEXT("%s expected result need 1 float data (Expected Animation Length in seconds)"),
-						*GetFormatedMessageErrorInTestData(CleanFilename, TestPlan->TestPlanName, TEXT("Animation_Length"), ExpectedResultIndex)));
-					break;
-				}
-				float AnimationLength = AnimSequence->GetPlayLength();
-				if (!FMath::IsNearlyEqual(AnimationLength, ExpectedResult.ExpectedPresetsDataFloat[0], 0.001f))
-				{
-					ExecutionInfo.AddError(FString::Printf(TEXT("%s [%f seconds but expected %f]"),
-						*GetFormatedMessageErrorInExpectedResult(*CleanFilename, *(TestPlan->TestPlanName), TEXT("Animation_Length"), ExpectedResultIndex), AnimationLength, ExpectedResult.ExpectedPresetsDataFloat[0]));
+					float AnimationLength = AnimSequence->GetPlayLength();
+					if (!FMath::IsNearlyEqual(AnimationLength, ExpectedResult.ExpectedPresetsDataFloat[0], 0.001f))
+					{
+						ExecutionInfo.AddError(FString::Printf(TEXT("%s [%f seconds but expected %f]"),
+							*FormatedMessageErrorPrefix, AnimationLength, ExpectedResult.ExpectedPresetsDataFloat[0]));
+					}
 				}
 			}
 			break;
+			case Animation_CustomCurve_KeyValue:
+			{
+				FString FormatedMessageErrorPrefix = GetFormatedMessageErrorInTestData(CleanFilename, TestPlan->TestPlanName, TEXT("Animation_CustomCurve_KeyValue"), ExpectedResultIndex);
+				FRichCurveKey CustomCurveKey;
+				if (FFbxImportAssetsAutomationTestHelper::GetImportedCustomCurveKey(ImportedAssets, ExecutionInfo, FormatedMessageErrorPrefix, ExpectedResult, CustomCurveKey))
+				{
+					if (ExpectedResult.ExpectedPresetsDataFloat.Num() < 1)
+					{
+						ExecutionInfo.AddError(FString::Printf(TEXT("%s expected result need 1 float data (Expected Custom Curve Key value)"),
+							*FormatedMessageErrorPrefix));
+						break;
+					}
 
+					const float KeyValue = CustomCurveKey.Value;
+					if (!FMath::IsNearlyEqual(KeyValue, ExpectedResult.ExpectedPresetsDataFloat[0], 0.001f))
+					{
+						ExecutionInfo.AddError(FString::Printf(TEXT("%s the value for the specified key [%f] does not match the expected value [%f]"),
+							*GetFormatedMessageErrorInTestData(CleanFilename, TestPlan->TestPlanName, TEXT("Animation_CustomCurve_KeyValue"), ExpectedResultIndex), KeyValue, ExpectedResult.ExpectedPresetsDataFloat[0]));
+
+						break;
+					}
+				}
+				break;
+			}
+			case Animation_CustomCurve_KeyArriveTangent:
+			{
+				FString FormatedMessageErrorPrefix = GetFormatedMessageErrorInTestData(CleanFilename, TestPlan->TestPlanName, TEXT("Animation_CustomCurve_KeyArriveTangent"), ExpectedResultIndex);
+				FRichCurveKey CustomCurveKey;
+				if (FFbxImportAssetsAutomationTestHelper::GetImportedCustomCurveKey(ImportedAssets, ExecutionInfo, FormatedMessageErrorPrefix, ExpectedResult, CustomCurveKey))
+				{
+					if (ExpectedResult.ExpectedPresetsDataFloat.Num() < 1)
+					{
+						ExecutionInfo.AddError(FString::Printf(TEXT("%s expected result need 1 float data (Expected Custom Curve Key Arriving Tangent value)"),
+							*FormatedMessageErrorPrefix));
+						break;
+					}
+
+					const float ArriveTangent = CustomCurveKey.ArriveTangent;
+					if (!FMath::IsNearlyEqual(ArriveTangent, ExpectedResult.ExpectedPresetsDataFloat[0], 0.001f))
+					{
+						ExecutionInfo.AddError(FString::Printf(TEXT("%s the value for the specified arriving tangent [%f] does not match the expected value [%f]"),
+							*GetFormatedMessageErrorInTestData(CleanFilename, TestPlan->TestPlanName, TEXT("Animation_CustomCurve_KeyValue"), ExpectedResultIndex), ArriveTangent, ExpectedResult.ExpectedPresetsDataFloat[0]));
+
+						break;
+					}
+				}
+				break;
+			}
+			case Animation_CustomCurve_KeyLeaveTangent:
+			{
+				FString FormatedMessageErrorPrefix = GetFormatedMessageErrorInTestData(CleanFilename, TestPlan->TestPlanName, TEXT("Animation_CustomCurve_KeyLeaveTangent"), ExpectedResultIndex);
+				FRichCurveKey CustomCurveKey;
+				if (FFbxImportAssetsAutomationTestHelper::GetImportedCustomCurveKey(ImportedAssets, ExecutionInfo, FormatedMessageErrorPrefix, ExpectedResult, CustomCurveKey))
+				{
+					if (ExpectedResult.ExpectedPresetsDataFloat.Num() < 1)
+					{
+						ExecutionInfo.AddError(FString::Printf(TEXT("%s expected result need 1 float data (Expected Custom Curve Key Leaving Tangent value)"),
+							*FormatedMessageErrorPrefix));
+						break;
+					}
+
+					const float LeaveTangent = CustomCurveKey.LeaveTangent;
+					if (!FMath::IsNearlyEqual(LeaveTangent, ExpectedResult.ExpectedPresetsDataFloat[0], 0.001f))
+					{
+						ExecutionInfo.AddError(FString::Printf(TEXT("%s the value for the specified leaving tangent [%f] does not match the expected value [%f]"),
+							*GetFormatedMessageErrorInTestData(CleanFilename, TestPlan->TestPlanName, TEXT("Animation_CustomCurve_KeyValue"), ExpectedResultIndex), LeaveTangent, ExpectedResult.ExpectedPresetsDataFloat[0]));
+
+						break;
+					}
+				}
+				break;
+			}
 			default:
 			{
 				ExecutionInfo.AddError(FString::Printf(TEXT("%s->%s: Wrong Test plan, Unknown expected result preset."),

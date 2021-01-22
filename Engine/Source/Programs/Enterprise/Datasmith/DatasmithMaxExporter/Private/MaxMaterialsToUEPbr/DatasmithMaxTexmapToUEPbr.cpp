@@ -1605,7 +1605,7 @@ IDatasmithMaterialExpression* FDatasmithMaxColorCorrectionToUEPbr::Convert( FDat
 	if ( !FMath::IsNearlyZero( ColorCorrectionParameters.HueShift ) )
 	{
 		IDatasmithMaterialExpressionFunctionCall* HueShiftExpression = MaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionFunctionCall >();
-		HueShiftExpression->SetFunctionPathName( TEXT("MaterialFunction'/Engine/Functions/Engine_MaterialFunctions02/HueShift.HueShift'") );
+		HueShiftExpression->SetFunctionPathName( TEXT("/Engine/Functions/Engine_MaterialFunctions02/HueShift.HueShift") );
 
 		IDatasmithMaterialExpressionScalar* HueShiftValue = MaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionScalar >();
 		HueShiftValue->SetName( TEXT("Hue Shift") );

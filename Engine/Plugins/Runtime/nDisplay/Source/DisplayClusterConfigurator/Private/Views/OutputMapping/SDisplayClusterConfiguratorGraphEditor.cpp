@@ -7,64 +7,36 @@
 #include "DisplayClusterConfigurationTypes.h"
 #include "Interfaces/IDisplayClusterConfigurator.h"
 #include "Views/OutputMapping/DisplayClusterConfiguratorGraph.h"
-#include "Views/OutputMapping/DisplayClusterConfiguratorOutputMappingBuilder.h"
 #include "Views/OutputMapping/DisplayClusterConfiguratorViewOutputMapping.h"
-#include "Views/OutputMapping/GraphNodes/SDisplayClusterConfiguratorBaseNode.h"
-#include "Views/OutputMapping/GraphNodes/SDisplayClusterConfiguratorCanvasNode.h"
-#include "Views/OutputMapping/GraphNodes/SDisplayClusterConfiguratorWindowNode.h"
 #include "Views/OutputMapping/EdNodes/DisplayClusterConfiguratorBaseNode.h"
 #include "Views/OutputMapping/EdNodes/DisplayClusterConfiguratorWindowNode.h"
 #include "Views/OutputMapping/EdNodes/DisplayClusterConfiguratorCanvasNode.h"
-#include "Interfaces/Views/OutputMapping/IDisplayClusterConfiguratorOutputMappingSlot.h"
+#include "Views/OutputMapping/EdNodes/DisplayClusterConfiguratorViewportNode.h"
 
 #include "Framework/Commands/GenericCommands.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "GraphEditorActions.h"
 
 #include "Interfaces/Views/OutputMapping/IDisplayClusterConfiguratorViewOutputMapping.h"
 
 
-#define LOCTEXT_NAMESPACE "FDisplayClusterConfiguratorOutputMappingWindowSlot"
-FDisplayClusterConfiguratorWindowNodeFactory::FDisplayClusterConfiguratorWindowNodeFactory(const TSharedRef<FDisplayClusterConfiguratorToolkit>& InToolkit, const TSharedRef<SDisplayClusterConfiguratorGraphEditor>& InGraphEditor)
-	: ToolkitPtr(InToolkit)
-	, GraphEditorPtr(InGraphEditor)
-{
-}
-
-TSharedPtr<SGraphNode> FDisplayClusterConfiguratorWindowNodeFactory::CreateNodeWidget(UEdGraphNode* InNode)
-{
-	if (UDisplayClusterConfiguratorCanvasNode* CanvasNode = Cast<UDisplayClusterConfiguratorCanvasNode>(InNode))
-	{
-		TSharedPtr<SDisplayClusterConfiguratorCanvasNode> GraphCanvasNode = SNew(SDisplayClusterConfiguratorCanvasNode, CanvasNode, ToolkitPtr.Pin().ToSharedRef());
-		GraphEditorPtr.Pin()->SetRootNode(GraphCanvasNode.ToSharedRef());
-
-		TSharedPtr<IDisplayClusterConfiguratorViewOutputMapping> OutputMappingView = ToolkitPtr.Pin()->GetViewOutputMapping();
-		if (OutputMappingView)
-		{
-			OutputMappingView->GetOnOutputMappingBuiltDelegate().Broadcast();
-		}
-
-		return GraphCanvasNode;
-	}
-
-	return FGraphNodeFactory::CreateNodeWidget(InNode);
-}
+#define LOCTEXT_NAMESPACE "SDisplayClusterConfiguratorGraphEditor"
 
 void SDisplayClusterConfiguratorGraphEditor::SetViewportPreviewTexture(const FString& NodeId, const FString& ViewportId, UTexture* InTexture)
 {
-	if (TSharedPtr<SDisplayClusterConfiguratorCanvasNode> CanvasNode = CanvasNodePtr.Pin())
+	if (RootCanvasNode.IsValid())
 	{
-		for (const TSharedPtr<IDisplayClusterConfiguratorOutputMappingSlot>& Slot : CanvasNode->GetAllSlots())
+		for (TArray<UDisplayClusterConfiguratorWindowNode*>::TConstIterator WindowIt(RootCanvasNode->GetChildWindows()); WindowIt; ++WindowIt)
 		{
-			if (Slot->GetType() == FDisplayClusterConfiguratorOutputMappingBuilder::FSlot::Viewport)
+			UDisplayClusterConfiguratorWindowNode* WindowNode = *WindowIt;
+			if (WindowNode->GetNodeName().Equals(NodeId))
 			{
-				if (TSharedPtr<IDisplayClusterConfiguratorOutputMappingSlot> ParentSlot = Slot->GetParentSlot())
+				for (TArray<UDisplayClusterConfiguratorViewportNode*>::TConstIterator ViewportIt(WindowNode->GetChildViewports()); ViewportIt; ++ViewportIt)
 				{
-					if (ParentSlot->GetName().Equals(NodeId) && Slot->GetName().Equals(ViewportId))
+					UDisplayClusterConfiguratorViewportNode* ViewportNode = *ViewportIt;
+					if (ViewportNode->GetNodeName().Equals(ViewportId))
 					{
-						Slot->SetPreviewTexture(InTexture);
-						
-						// Found, we can break
-						break;
+						ViewportNode->SetPreviewTexture(InTexture);
 					}
 				}
 			}
@@ -100,23 +72,9 @@ void SDisplayClusterConfiguratorGraphEditor::OnSelectedNodesChanged(const TSet<U
 
 		if (NewSelectedNodes.Num())
 		{
-			// Reset before set active slot
-			if (TSharedPtr<SDisplayClusterConfiguratorCanvasNode> CanvasNode = CanvasNodePtr.Pin())
-			{
-				for (const TSharedPtr<IDisplayClusterConfiguratorOutputMappingSlot>& Slot : CanvasNode->GetAllSlots())
-				{
-					Slot->SetActive(false);
-				}
-			}
-
 			for (UDisplayClusterConfiguratorBaseNode* SelectedNode : NewSelectedNodes)
 			{
 				SelectedNode->OnSelection();
-
-				if (TSharedPtr<IDisplayClusterConfiguratorOutputMappingSlot> Slot = SelectedNode->GetSlot())
-				{
-					Slot->SetActive(true);
-				}
 			}
 		}
 	}
@@ -171,29 +129,15 @@ void SDisplayClusterConfiguratorGraphEditor::OnObjectSelected()
 	ClearSelectionSet();
 	bClearSelection = false;
 
-	// Select active node
-	if (TSharedPtr<SDisplayClusterConfiguratorCanvasNode> CanvasNode = CanvasNodePtr.Pin())
+	ForEachGraphNode([this](UDisplayClusterConfiguratorBaseNode* Node)
 	{
-		for (const TSharedPtr<IDisplayClusterConfiguratorOutputMappingSlot>& Slot : CanvasNode->GetAllSlots())
+		if (Node->IsSelected())
 		{
-			// Reset all active slots
-			Slot->SetActive(false);
-
-			UDisplayClusterConfiguratorBaseNode* BaseNode = Cast<UDisplayClusterConfiguratorBaseNode>(Slot->GetGraphNode());
-			if (BaseNode->IsSelected())
-			{
-				// Set active slot and active node
-				Slot->SetActive(true);
-				SetNodeSelection(BaseNode, true);
-			}
+			SetNodeSelection(Node, true);
 		}
-	}
+	});
 }
 
-void SDisplayClusterConfiguratorGraphEditor::SetRootNode(const TSharedRef<SDisplayClusterConfiguratorCanvasNode>& InCanvasNode)
-{
-	CanvasNodePtr = InCanvasNode;
-}
 void SDisplayClusterConfiguratorGraphEditor::OnConfigReloaded()
 {
 	RebuildCanvasNode();
@@ -204,21 +148,56 @@ void SDisplayClusterConfiguratorGraphEditor::RebuildCanvasNode()
 	UDisplayClusterConfiguratorGraph* ConfiguratorGraph = ClusterConfiguratorGraph.Get();
 	check(ConfiguratorGraph != nullptr);
 
-	if (RootCanvasNode.IsValid())
+	// Remove all the EdNodes from the graph
+	ForEachGraphNode([=](UDisplayClusterConfiguratorBaseNode* Node)
 	{
-		ConfiguratorGraph->RemoveNode(RootCanvasNode.Get());
-	}
+		ConfiguratorGraph->RemoveNode(Node);
+	});
 
+	// Reset the root node pointer, which allows it and all its child nodes to be GCed
 	RootCanvasNode.Reset();
 
-	FIntPoint CanvasSize = FIntPoint::ZeroValue;
 	if (UDisplayClusterConfigurationData* Config = ToolkitPtr.Pin()->GetConfig())
 	{
 		// Add Canvas node
 		UDisplayClusterConfiguratorCanvasNode* RootCanvasNodePtr = NewObject<UDisplayClusterConfiguratorCanvasNode>(ConfiguratorGraph, UDisplayClusterConfiguratorCanvasNode::StaticClass(), NAME_None, RF_Transactional);
 		RootCanvasNode = TStrongObjectPtr<UDisplayClusterConfiguratorCanvasNode>(RootCanvasNodePtr);
-		RootCanvasNodePtr->Initialize(Config->Cluster, FString(), ToolkitPtr.Pin().ToSharedRef());
+		RootCanvasNodePtr->Initialize(FString(), Config->Cluster, ToolkitPtr.Pin().ToSharedRef());
+		RootCanvasNodePtr->CreateNewGuid();
+		RootCanvasNodePtr->PostPlacedNewNode();
+
 		ConfiguratorGraph->AddNode(RootCanvasNodePtr);
+
+		int32 WindowIndex = 0;
+		for (const TPair<FString, UDisplayClusterConfigurationClusterNode*>& ClusterNodePair : Config->Cluster->Nodes)
+		{
+			UDisplayClusterConfiguratorWindowNode* WindowNode = NewObject<UDisplayClusterConfiguratorWindowNode>(ConfiguratorGraph, UDisplayClusterConfiguratorWindowNode::StaticClass(), NAME_None, RF_Transactional);
+			WindowNode->Initialize(ClusterNodePair.Key, ClusterNodePair.Value, WindowIndex, ToolkitPtr.Pin().ToSharedRef());
+			WindowNode->CreateNewGuid();
+			WindowNode->PostPlacedNewNode();
+
+			RootCanvasNodePtr->AddWindowNode(WindowNode);
+			ConfiguratorGraph->AddNode(WindowNode);
+
+			for (const TPair<FString, UDisplayClusterConfigurationViewport*>& ViewportPair : ClusterNodePair.Value->Viewports)
+			{
+				UDisplayClusterConfiguratorViewportNode* ViewportNode = NewObject<UDisplayClusterConfiguratorViewportNode>(ConfiguratorGraph, UDisplayClusterConfiguratorViewportNode::StaticClass(), NAME_None, RF_Transactional);
+				ViewportNode->Initialize(ViewportPair.Key, ViewportPair.Value, WindowNode, ToolkitPtr.Pin().ToSharedRef());
+				ViewportNode->CreateNewGuid();
+				ViewportNode->PostPlacedNewNode();
+
+				WindowNode->AddViewportNode(ViewportNode);
+				ConfiguratorGraph->AddNode(ViewportNode);
+			}
+			
+			WindowIndex++;
+		}
+
+		TSharedPtr<IDisplayClusterConfiguratorViewOutputMapping> OutputMappingView = ToolkitPtr.Pin()->GetViewOutputMapping();
+		if (OutputMappingView)
+		{
+			OutputMappingView->GetOnOutputMappingBuiltDelegate().Broadcast();
+		}
 	}
 }
 
@@ -252,6 +231,24 @@ FActionMenuContent SDisplayClusterConfiguratorGraphEditor::OnCreateNodeOrPinMenu
 		MenuBuilder->EndSection();
 
 		MenuBuilder->PopCommandList();
+
+		MenuBuilder->BeginSection("EdGraphSchemaOrganization", LOCTEXT("OrganizationHeader", "Organization"));
+		{
+			MenuBuilder->AddSubMenu(LOCTEXT("AlignmentHeader", "Alignment"), FText(), FNewMenuDelegate::CreateLambda([](FMenuBuilder& InSubMenuBuilder)
+			{
+				InSubMenuBuilder.BeginSection("EdGraphSchemaAlignment", LOCTEXT("AlignHeader", "Align"));
+				{
+					InSubMenuBuilder.AddMenuEntry(FGraphEditorCommands::Get().AlignNodesTop);
+					InSubMenuBuilder.AddMenuEntry(FGraphEditorCommands::Get().AlignNodesMiddle);
+					InSubMenuBuilder.AddMenuEntry(FGraphEditorCommands::Get().AlignNodesBottom);
+					InSubMenuBuilder.AddMenuEntry(FGraphEditorCommands::Get().AlignNodesLeft);
+					InSubMenuBuilder.AddMenuEntry(FGraphEditorCommands::Get().AlignNodesCenter);
+					InSubMenuBuilder.AddMenuEntry(FGraphEditorCommands::Get().AlignNodesRight);
+				}
+				InSubMenuBuilder.EndSection();
+			}));
+		}
+		MenuBuilder->EndSection();
 
 		return FActionMenuContent(MenuBuilder->MakeWidget());
 	}
@@ -293,6 +290,42 @@ void SDisplayClusterConfiguratorGraphEditor::BindCommands()
 	CommandList->MapAction(FGenericCommands::Get().Duplicate,
 		FExecuteAction::CreateSP(this, &SDisplayClusterConfiguratorGraphEditor::DuplicateNodes),
 		FCanExecuteAction::CreateSP(this, &SDisplayClusterConfiguratorGraphEditor::CanDuplicateNodes)
+		);
+
+	CommandList->MapAction(
+		FGraphEditorCommands::Get().AlignNodesTop,
+		FExecuteAction::CreateSP(this, &SDisplayClusterConfiguratorGraphEditor::AlignNodes, ENodeAlignment::Top),
+		FCanExecuteAction::CreateSP(this, &SDisplayClusterConfiguratorGraphEditor::CanAlignNodes)
+		);
+
+	CommandList->MapAction(
+		FGraphEditorCommands::Get().AlignNodesMiddle,
+		FExecuteAction::CreateSP(this, &SDisplayClusterConfiguratorGraphEditor::AlignNodes, ENodeAlignment::Middle),
+		FCanExecuteAction::CreateSP(this, &SDisplayClusterConfiguratorGraphEditor::CanAlignNodes)
+		);
+
+	CommandList->MapAction(
+		FGraphEditorCommands::Get().AlignNodesBottom,
+		FExecuteAction::CreateSP(this, &SDisplayClusterConfiguratorGraphEditor::AlignNodes, ENodeAlignment::Bottom),
+		FCanExecuteAction::CreateSP(this, &SDisplayClusterConfiguratorGraphEditor::CanAlignNodes)
+		);
+
+	CommandList->MapAction(
+		FGraphEditorCommands::Get().AlignNodesLeft,
+		FExecuteAction::CreateSP(this, &SDisplayClusterConfiguratorGraphEditor::AlignNodes, ENodeAlignment::Left),
+		FCanExecuteAction::CreateSP(this, &SDisplayClusterConfiguratorGraphEditor::CanAlignNodes)
+		);
+
+	CommandList->MapAction(
+		FGraphEditorCommands::Get().AlignNodesCenter,
+		FExecuteAction::CreateSP(this, &SDisplayClusterConfiguratorGraphEditor::AlignNodes, ENodeAlignment::Center),
+		FCanExecuteAction::CreateSP(this, &SDisplayClusterConfiguratorGraphEditor::CanAlignNodes)
+		);
+
+	CommandList->MapAction(
+		FGraphEditorCommands::Get().AlignNodesRight,
+		FExecuteAction::CreateSP(this, &SDisplayClusterConfiguratorGraphEditor::AlignNodes, ENodeAlignment::Right),
+		FCanExecuteAction::CreateSP(this, &SDisplayClusterConfiguratorGraphEditor::CanAlignNodes)
 		);
 }
 void SDisplayClusterConfiguratorGraphEditor::BrowseDocumentation()
@@ -353,6 +386,141 @@ bool SDisplayClusterConfiguratorGraphEditor::CanDuplicateNodes() const
 	// That will be implemented
 	return false;
 }
+
+bool SDisplayClusterConfiguratorGraphEditor::CanAlignNodes() const
+{
+	// We want nodes to be alignable only when all nodes are children of the same parent. Viewport nodes should only be aligned with
+	// sibling viewport nodes or their parent window node, and window nodes should only be aligned with their sibling windows.
+	const FGraphPanelSelectionSet& CurrentlySelectedNodes = GetSelectedNodes();
+
+	TSet<UDisplayClusterConfiguratorWindowNode*> WindowNodes;
+	TSet<UDisplayClusterConfiguratorViewportNode*> ViewportNodes;
+	TSet<UDisplayClusterConfiguratorWindowNode*> ParentNodes;
+
+	for (auto NodeIt = CurrentlySelectedNodes.CreateConstIterator(); NodeIt; ++NodeIt)
+	{
+		UObject* Node = *NodeIt;
+		if (UDisplayClusterConfiguratorCanvasNode* CanvasNode = Cast<UDisplayClusterConfiguratorCanvasNode>(Node))
+		{
+			// Canvas node cannot be aligned, as it is meant to be a stationary node.
+			// Disable alignment if canvas node is among the selected nodes.
+			return false;
+		}
+		else if (UDisplayClusterConfiguratorViewportNode* ViewportNode = Cast<UDisplayClusterConfiguratorViewportNode>(Node))
+		{
+			ViewportNodes.Add(ViewportNode);
+
+			// Need to make sure all selected viewports are children of the same window node,
+			// so add viewport's parent to set.
+			ParentNodes.Add(ViewportNode->GetParentWindow());
+		}
+		else if (UDisplayClusterConfiguratorWindowNode* WindowNode = Cast<UDisplayClusterConfiguratorWindowNode>(Node))
+		{
+			WindowNodes.Add(WindowNode);
+		}
+	}
+
+	if (ViewportNodes.Num() > 0)
+	{
+		if (WindowNodes.Num() > 0)
+		{
+			// We can only allow viewport nodes to be aligned with their parent window nodes, so only allow
+			// alignment if a single window is selected, and that window is the parent to all selected viewports
+			return WindowNodes.Union(ParentNodes).Num() == 1;
+		}
+		else
+		{
+			// If only viewports are selected, only allow alignment if all viewports share a parent window.
+			return ParentNodes.Num() == 1;
+		}
+	}
+	else
+	{
+		return true;
+	}
+}
+
+void SDisplayClusterConfiguratorGraphEditor::AlignNodes(ENodeAlignment Alignment)
+{
+	// We need to store the node positions before the alignment so that we can propagate node position changes to the nodes.
+	TArray<TTuple<UDisplayClusterConfiguratorBaseNode*, FVector2D>> NodePositions;
+	const FGraphPanelSelectionSet& CurrentlySelectedNodes = GetSelectedNodes();
+
+	// Window nodes should also update their children if they are aligned except in the case that the window node is being aligned _with_ its children.
+	bool bCanUpdateChildren = true;
+
+	for (UObject* Node : CurrentlySelectedNodes)
+	{
+		if (UDisplayClusterConfiguratorBaseNode* BaseNode = Cast<UDisplayClusterConfiguratorBaseNode>(Node))
+		{
+			NodePositions.Add(TTuple<UDisplayClusterConfiguratorBaseNode*, FVector2D>(BaseNode, BaseNode->GetNodePosition()));
+
+			// If any of the nodes being aligned are viewport nodes, do not allow window nodes to update their children, as that can cause the viewport children to
+			// be shifted out of alignment when the window nodes propagate the position change to their children.
+			if (BaseNode->IsA<UDisplayClusterConfiguratorViewportNode>())
+			{
+				bCanUpdateChildren = false;
+			}
+		}
+	}
+
+	switch (Alignment)
+	{
+	case ENodeAlignment::Top:
+		OnAlignTop();
+		break;
+
+	case ENodeAlignment::Middle:
+		OnAlignMiddle();
+		break;
+
+	case ENodeAlignment::Bottom:
+		OnAlignBottom();
+		break;
+
+	case ENodeAlignment::Left:
+		OnAlignLeft();
+		break;
+
+	case ENodeAlignment::Center:
+		OnAlignCenter();
+		break;
+
+	case ENodeAlignment::Right:
+		OnAlignRight();
+		break;
+	}
+
+	for (const TTuple<UDisplayClusterConfiguratorBaseNode*, FVector2D>& NodePair : NodePositions)
+	{
+		UDisplayClusterConfiguratorBaseNode* Node = NodePair.Key;
+		FVector2D OldPosition = NodePair.Value;
+
+		FVector2D PositionChange = Node->GetNodePosition() - OldPosition;
+		Node->OnNodeAligned(PositionChange, bCanUpdateChildren);
+	}
+}
+
+void SDisplayClusterConfiguratorGraphEditor::ForEachGraphNode(TFunction<void(UDisplayClusterConfiguratorBaseNode* Node)> Predicate)
+{
+	if (RootCanvasNode.IsValid())
+	{
+		Predicate(RootCanvasNode.Get());
+
+		for (TArray<UDisplayClusterConfiguratorWindowNode*>::TConstIterator WindowIt(RootCanvasNode->GetChildWindows()); WindowIt; ++WindowIt)
+		{
+			UDisplayClusterConfiguratorWindowNode* WindowNode = *WindowIt;
+			Predicate(WindowNode);
+
+			for (TArray<UDisplayClusterConfiguratorViewportNode*>::TConstIterator ViewportIt(WindowNode->GetChildViewports()); ViewportIt; ++ViewportIt)
+			{
+				UDisplayClusterConfiguratorViewportNode* ViewportNode = *ViewportIt;
+				Predicate(ViewportNode);
+			}
+		}
+	}
+}
+
 void SDisplayClusterConfiguratorGraphEditor::Construct(const FArguments& InArgs, const TSharedRef<FDisplayClusterConfiguratorToolkit>& InToolkit, const TSharedRef<FDisplayClusterConfiguratorViewOutputMapping>& InViewOutputMapping)
 {
 	ToolkitPtr = InToolkit;
@@ -372,19 +540,13 @@ void SDisplayClusterConfiguratorGraphEditor::Construct(const FArguments& InArgs,
 
 	SGraphEditor::FArguments Arguments;
 	Arguments._GraphToEdit = InArgs._GraphToEdit;
+	Arguments._AdditionalCommands = CommandList;
 	Arguments._IsEditable = true;
 	Arguments._GraphEvents = GraphEvents;
 
 	SGraphEditor::Construct(Arguments);
 
 	SetCanTick(true);
-
-	SetNodeFactory(MakeShared<FDisplayClusterConfiguratorWindowNodeFactory>(InToolkit, SharedThis(this)));
-}
-
-void SDisplayClusterConfiguratorGraphEditor::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
-{
-	SGraphEditor::Tick(AllottedGeometry, InCurrentTime, InDeltaTime);
 }
 
 #undef LOCTEXT_NAMESPACE

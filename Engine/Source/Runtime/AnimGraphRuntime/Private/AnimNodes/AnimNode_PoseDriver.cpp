@@ -381,15 +381,15 @@ void FAnimNode_PoseDriver::Evaluate_AnyThread(FPoseContext& Output)
 
 						Output = SourceData;
     
-					    FAnimationPoseData BaseAnimationPoseData(Output);
-					    const FAnimationPoseData AdditiveAnimationPoseData(CurrentPose);
-					    FAnimationRuntime::AccumulateAdditivePose(BaseAnimationPoseData, AdditiveAnimationPoseData, 1.f, EAdditiveAnimationType::AAT_LocalSpaceBase);
+						FAnimationPoseData BaseAnimationPoseData(Output);
+						const FAnimationPoseData AdditiveAnimationPoseData(CurrentPose);
+						FAnimationRuntime::AccumulateAdditivePose(BaseAnimationPoseData, AdditiveAnimationPoseData, 1.f, EAdditiveAnimationType::AAT_LocalSpaceBase);
 					}
 					else
 					{
-					    FAnimationPoseData BlendedAnimationPoseData(Output);
-					    const FAnimationPoseData SourceAnimationPoseData(SourceData);
-					    FAnimationRuntime::BlendTwoPosesTogetherPerBone(SourceAnimationPoseData, CurrentAnimationPoseData, BoneBlendWeights, BlendedAnimationPoseData);
+						FAnimationPoseData BlendedAnimationPoseData(Output);
+						const FAnimationPoseData SourceAnimationPoseData(SourceData);
+						FAnimationRuntime::BlendTwoPosesTogetherPerBone(SourceAnimationPoseData, CurrentAnimationPoseData, BoneBlendWeights, BlendedAnimationPoseData);
 					}
 
 					bHaveValidPose = true;

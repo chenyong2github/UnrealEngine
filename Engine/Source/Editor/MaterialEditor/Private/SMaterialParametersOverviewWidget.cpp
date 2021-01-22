@@ -437,6 +437,10 @@ void SMaterialParametersOverviewTreeItem::Construct(const FArguments& InArgs, co
 					]
 				];
 			}
+			else
+			{
+				Row.ToolTip(FMaterialPropertyHelpers::GetParameterExpressionDescription(StackParameterData->Parameter, MaterialEditorInstance));
+			}
 
 			bisPaddedProperty = true;
 		}

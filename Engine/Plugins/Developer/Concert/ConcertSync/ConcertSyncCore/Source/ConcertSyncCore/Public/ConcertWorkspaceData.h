@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "ConcertMessageData.h"
 #include "ConcertWorkspaceData.generated.h"
 
 UENUM()
@@ -69,7 +70,7 @@ struct FConcertPackage
 
 	/** Contains the package data, unless the package size was too large (according to the hard limit or a configuration). */
 	UPROPERTY()
-	TArray<uint8> PackageData;
+	FConcertByteArray PackageData;
 
 	/** A link to a file containing the data if the package size was too large to be directly embedded. The package data needs to be retrieved using IConcertFileSharingService interface.*/
 	UPROPERTY()
@@ -78,7 +79,7 @@ struct FConcertPackage
 	/** Whether some package data is embedded or linked. */
 	bool HasPackageData() const
 	{
-		return !FileId.IsEmpty() || PackageData.Num() != 0;
+		return !FileId.IsEmpty() || PackageData.Bytes.Num() != 0;
 	}
 
 	/** Whether the package data should be embedded in 'PackageData'. Larger packages could still be embedded as byte array if file sharing is not enabled. */
@@ -97,6 +98,6 @@ struct FConcertPackage
 	static constexpr uint64 GetMaxPackageDataSizeEmbeddableAsByteArray()
 	{
 		// The hard limit may not be safe by itself (nor reasonable) if the structure is serialized into another TArray<> with other data. Make it more reasonable, use only x% of the range.
-		return (static_cast<uint64>(TNumericLimits<decltype(PackageData)::SizeType>::Max()) * 8) / 10;
+		return (static_cast<uint64>(TNumericLimits<decltype(PackageData.Bytes)::SizeType>::Max()) * 8) / 10;
 	}
 };

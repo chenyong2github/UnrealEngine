@@ -434,7 +434,7 @@ void FConcertClientPackageManager::HandleLocalPackageEvent(const FConcertPackage
 			if (CanExchangePackageDataAsByteArray(static_cast<uint64>(PackageFileSize)))
 			{
 				// Embed the package data directly in the event.
-				if (!FFileHelper::LoadFileToArray(Event.Package.PackageData, *PackagePathname))
+				if (!FFileHelper::LoadFileToArray(Event.Package.PackageData.Bytes, *PackagePathname))
 				{
 					UE_LOG(LogConcert, Error, TEXT("Failed to load file data '%s' in memory"), *PackagePathname);
 					return;

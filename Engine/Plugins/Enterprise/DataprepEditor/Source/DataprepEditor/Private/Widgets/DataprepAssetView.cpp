@@ -301,7 +301,9 @@ TSharedRef<ITableRow> SDataprepAssetView::OnGenerateRowForCategoryTree( TSharedR
 		case EDataprepCategory::Producers:
 		{
 			ProducersWidget = SNew( SDataprepProducersWidget, DataprepAssetInterfacePtr->GetProducers() )
-				.ColumnSizeData( ColumnSizeData );
+				.ColumnSizeData( ColumnSizeData )
+				.DataprepImportProducersDelegate( DataprepImportProducersDelegate )
+				.DataprepImportProducersEnabledDelegate( DataprepImportProducersEnabledDelegate );
 
 			TSharedPtr< SWidget > ProducerWrapper = SNew( SHorizontalBox )
 				+ SHorizontalBox::Slot()
@@ -398,6 +400,9 @@ TSharedRef<ITableRow> SDataprepAssetView::OnGenerateRowForCategoryTree( TSharedR
 
 void SDataprepAssetView::Construct( const FArguments& InArgs, UDataprepAssetInterface* InDataprepAssetPtr )
 {
+	DataprepImportProducersDelegate = InArgs._DataprepImportProducersDelegate;
+	DataprepImportProducersEnabledDelegate = InArgs._DataprepImportProducersEnabledDelegate;
+
 	check( InDataprepAssetPtr );
 
 	DataprepAssetInterfacePtr = InDataprepAssetPtr;

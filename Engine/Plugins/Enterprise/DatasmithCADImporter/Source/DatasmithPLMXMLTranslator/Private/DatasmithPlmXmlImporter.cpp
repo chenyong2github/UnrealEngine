@@ -1191,7 +1191,7 @@ namespace PlmXml
 		const FXmlNode* ProductDefNode = RootNode->FindChildNode("ProductDef");
 		if (!ProductDefNode)
 		{
-			UE_LOG(LogDatasmithPlmXmlImport, Error, TEXT("PlmXml file has no ProductDef tag"));
+			UE_LOG(LogDatasmithPlmXmlImport, Warning, TEXT("PlmXml file has no ProductDef tag"));
 			return false;
 		}
 
@@ -1199,7 +1199,7 @@ namespace PlmXml
 		const FXmlNode* InstanceGraphNode = ProductDefNode->FindChildNode("InstanceGraph");
 		if (!InstanceGraphNode)
 		{
-			UE_LOG(LogDatasmithPlmXmlImport, Error, TEXT("PlmXml file has no InstanceGraph node"));
+			UE_LOG(LogDatasmithPlmXmlImport, Warning, TEXT("PlmXml file has no InstanceGraph node"));
 			return false;
 		}
 

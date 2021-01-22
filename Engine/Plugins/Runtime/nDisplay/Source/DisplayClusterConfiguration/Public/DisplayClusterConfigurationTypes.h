@@ -398,6 +398,9 @@ public:
 	FDisplayClusterConfigurationRectangle Region;
 
 	UPROPERTY(EditAnywhere, Category = nDisplay)
+	bool bFixedAspectRatio;
+
+	UPROPERTY(EditAnywhere, Category = nDisplay)
 	FDisplayClusterConfigurationProjection ProjectionPolicy;
 };
 
@@ -440,6 +443,9 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = nDisplay)
 	FDisplayClusterConfigurationRectangle WindowRect;
+
+	UPROPERTY(EditAnywhere, Category = nDisplay)
+	bool bFixedAspectRatio;
 
 	UPROPERTY()
 	TMap<FString, UDisplayClusterConfigurationViewport*> Viewports;

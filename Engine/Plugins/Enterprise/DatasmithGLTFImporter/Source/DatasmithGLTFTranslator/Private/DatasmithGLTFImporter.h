@@ -102,5 +102,5 @@ private:
 	TMap<IDatasmithMeshElement*, int32> MeshElementToGLTFMeshIndex; // track where Datasmith element originated from to extract data later
 	TMap<int32, TSharedRef<IDatasmithMeshElement>> GLTFMeshIndexToMeshElement;
 
-	const bool TransformIsLocal = true; // GLTF nodes define transform in local space https://github.com/KhronosGroup/glTF/tree/master/specification/2.0#transformations
+	const bool bTransformIsLocal = true; // GLTF nodes define transform in local space https://github.com/KhronosGroup/glTF/tree/master/specification/2.0#transformations
 };

@@ -14,6 +14,9 @@
 #include "Engine/World.h"
 #include "Modules/ModuleManager.h"
 #include "ScopedTransaction.h"
+#include "Widgets/Input/SCheckBox.h"
+#include "Widgets/Input/SEditableTextBox.h"
+#include "Widgets/Input/SNumericEntryBox.h"
 
 #if USE_USD_SDK
 
@@ -24,12 +27,38 @@ namespace UsdPrimPropertiesListConstants
 	const FMargin LeftRowPadding( 6.0f, 2.5f, 2.0f, 2.5f );
 	const FMargin RightRowPadding( 3.0f, 2.5f, 2.0f, 2.5f );
 	const FMargin ComboBoxItemPadding( 3.0f, 0.0f, 2.0f, 0.0f );
+	const FMargin NumericEntryBoxItemPadding( 0.0f, 0.0f, 2.0f, 0.0f );
+	const float DesiredNumericEntryBoxWidth = 80.0f;
 
 	const TCHAR* NormalFont = TEXT("PropertyWindow.NormalFont");
 }
 
+class SUsdPrimPropertyRow;
+
 namespace UsdPrimPropertiesListImpl
 {
+	enum class EPrimPropertyWidget : uint8
+	{
+		None,
+		Bool,
+		U8,
+		I32,
+		U32,
+		I64,
+		U64,
+		F32,
+		F64,
+		Text,
+		Dropdown,
+	};
+
+	enum class EPrimPropertyLabelTypes
+	{
+		NoLabel,
+		RGBA,
+		XYZW,
+	};
+
 	static TMap<FString, TArray<TSharedPtr<FString>>> TokenDropdownOptions;
 
 	void ResetOptions( const FString& TokenName )
@@ -39,15 +68,145 @@ namespace UsdPrimPropertiesListImpl
 
 	TArray< TSharedPtr< FString > >* GetTokenDropdownOptions( const FUsdPrimAttributeViewModel& ViewModel )
 	{
-		TArray< TSharedPtr< FString> >* FoundOptions = TokenDropdownOptions.Find( ViewModel.Label );
-		if ( FoundOptions )
+		if ( TArray< TSharedPtr< FString> >* FoundOptions = TokenDropdownOptions.Find( ViewModel.Label ) )
 		{
 			return FoundOptions;
 		}
-		else
+
+		TArray< TSharedPtr< FString > > Options = ViewModel.GetDropdownOptions();
+		if ( Options.Num() == 0 )
 		{
-			return &UsdPrimPropertiesListImpl::TokenDropdownOptions.Add( ViewModel.Label, ViewModel.GetDropdownOptions() );
+			// We don't know the options for this property, so return nullptr so that it can become a regular text input box
+			return nullptr;
 		}
+
+		return &UsdPrimPropertiesListImpl::TokenDropdownOptions.Add( ViewModel.Label, Options );
+	}
+
+	EPrimPropertyLabelTypes GetLabelType( const USDViewModels::FPrimPropertyValue& PropertyValue )
+	{
+		int32 NumComponents = PropertyValue.Components.Num();
+		EPrimPropertyLabelTypes LabelType = EPrimPropertyLabelTypes::NoLabel;
+		if ( PropertyValue.SourceRole.StartsWith( TEXT( "color" ), ESearchCase::IgnoreCase ) )
+		{
+			LabelType = EPrimPropertyLabelTypes::RGBA;
+		}
+		else if ( NumComponents > 1 && NumComponents <= 4 && PropertyValue.SourceType != USDViewModels::EUsdBasicDataTypes::Matrix2d )
+		{
+			LabelType = EPrimPropertyLabelTypes::XYZW;
+		}
+
+		return LabelType;
+	}
+
+	EPrimPropertyWidget GetWidgetType( USDViewModels::EUsdBasicDataTypes SourceType )
+	{
+		using namespace USDViewModels;
+
+		switch ( SourceType )
+		{
+		case EUsdBasicDataTypes::Bool:
+			return EPrimPropertyWidget::Bool;
+			break;
+		case EUsdBasicDataTypes::Uchar:
+			return EPrimPropertyWidget::U8;
+			break;
+		case EUsdBasicDataTypes::Int:
+		case EUsdBasicDataTypes::Int2:
+		case EUsdBasicDataTypes::Int3:
+		case EUsdBasicDataTypes::Int4:
+			return EPrimPropertyWidget::I32;
+			break;
+		case EUsdBasicDataTypes::Uint:
+			return EPrimPropertyWidget::U32;
+			break;
+		case EUsdBasicDataTypes::Int64:
+			return EPrimPropertyWidget::I64;
+			break;
+		case EUsdBasicDataTypes::Uint64:
+			return EPrimPropertyWidget::U64;
+			break;
+		case EUsdBasicDataTypes::Half:
+		case EUsdBasicDataTypes::Half2:
+		case EUsdBasicDataTypes::Half3:
+		case EUsdBasicDataTypes::Half4:
+		case EUsdBasicDataTypes::Quath:
+		case EUsdBasicDataTypes::Float:
+		case EUsdBasicDataTypes::Float2:
+		case EUsdBasicDataTypes::Float3:
+		case EUsdBasicDataTypes::Float4:
+		case EUsdBasicDataTypes::Quatf:
+			return EPrimPropertyWidget::F32;
+			break;
+		case EUsdBasicDataTypes::Double:
+		case EUsdBasicDataTypes::Double2:
+		case EUsdBasicDataTypes::Double3:
+		case EUsdBasicDataTypes::Double4:
+		case EUsdBasicDataTypes::Timecode:
+		case EUsdBasicDataTypes::Matrix2d:
+		case EUsdBasicDataTypes::Matrix3d:
+		case EUsdBasicDataTypes::Matrix4d:
+		case EUsdBasicDataTypes::Quatd:
+			return EPrimPropertyWidget::F64;
+			break;
+		case EUsdBasicDataTypes::Token:
+			return EPrimPropertyWidget::Dropdown;
+			break;
+		case EUsdBasicDataTypes::String:
+		case EUsdBasicDataTypes::Asset:
+			return EPrimPropertyWidget::Text;
+			break;
+		default:
+			break;
+		}
+
+		return EPrimPropertyWidget::None;
+	}
+
+	/** Always returns `NumLabels` widgets, regardless of LabelTypes. Those may be the NullWidget though */
+	TArray<TSharedRef<SWidget>> GetNumericEntryBoxLabels( int32 NumLabels, EPrimPropertyLabelTypes LabelType )
+	{
+		const static TArray<FString> XYZWLabels = { TEXT( "X" ), TEXT( "Y" ), TEXT( "Z" ), TEXT( "W" ) };
+		const static TArray<FString> RGBALabels = { TEXT( "R" ), TEXT( "G" ), TEXT( "B" ), TEXT( "A" ) };
+		const static TArray<const FLinearColor*> Colors = {
+			&SNumericEntryBox<int32>::RedLabelBackgroundColor,
+			&SNumericEntryBox<int32>::GreenLabelBackgroundColor,
+			&SNumericEntryBox<int32>::BlueLabelBackgroundColor,
+			&FLinearColor::White
+		};
+
+		if ( NumLabels > 4 )
+		{
+			LabelType = EPrimPropertyLabelTypes::NoLabel;
+		}
+
+		TArray<TSharedRef<SWidget>> Labels;
+		Labels.Reserve( NumLabels );
+
+		switch ( LabelType )
+		{
+		case EPrimPropertyLabelTypes::RGBA:
+			for ( int32 Index = 0; Index < NumLabels; ++Index )
+			{
+				Labels.Add( SNumericEntryBox<int32>::BuildLabel( FText::FromString( RGBALabels[ Index ] ), Index == 3 ? FLinearColor::Black : FLinearColor::White, *Colors[ Index ] ) );
+			}
+			break;
+		case EPrimPropertyLabelTypes::XYZW:
+			for ( int32 Index = 0; Index < NumLabels; ++Index )
+			{
+				Labels.Add( SNumericEntryBox<int32>::BuildLabel( FText::FromString( XYZWLabels[ Index ] ), Index == 3 ? FLinearColor::Black : FLinearColor::White, *Colors[ Index ] ) );
+			}
+			break;
+		case EPrimPropertyLabelTypes::NoLabel:
+		default:
+			for ( int32 Index = 0; Index < NumLabels; ++Index )
+			{
+				Labels.Add( SNullWidget::NullWidget );
+			}
+			break;
+		}
+
+		return Labels;
 	}
 }
 
@@ -64,12 +223,66 @@ public:
 
 protected:
 	FText GetLabel() const { return FText::FromString( UsdPrimAttribute->Label ); }
-	FText GetValue() const { return FText::FromString( UsdPrimAttribute->Value ); }
-	FText GetValueOrNone() const { return FText::FromString( UsdPrimAttribute->Value.IsEmpty()? TEXT("none") : UsdPrimAttribute->Value ); }
+
+	// Optional here because SNumericEntryBox uses optional values as input
+	template<typename T>
+	TOptional<T> GetValue( int32 ComponentIndex ) const
+	{
+		if ( UsdPrimAttribute->Value.Components.IsValidIndex( ComponentIndex ) )
+		{
+			if ( T* Value = UsdPrimAttribute->Value.Components[ ComponentIndex ].TryGet<T>() )
+			{
+				return *Value;
+			}
+		}
+		return {};
+	}
+
+	// Other overloads as checkbox/text widgets don't use optional values as input, and these should only ever have one component anyway
+	FText GetValueText() const
+	{
+		return UsdPrimAttribute->Value.Components.Num() > 0
+			? FText::FromString( UsdPrimAttribute->Value.Components[ 0 ].Get<FString>() )
+			: FText::GetEmpty();
+	}
+
+	ECheckBoxState GetValueBool() const
+	{
+		if ( UsdPrimAttribute->Value.Components.Num() )
+		{
+			return UsdPrimAttribute->Value.Components[0].Get<bool>()
+				? ECheckBoxState::Checked
+				: ECheckBoxState::Unchecked;
+		}
+		return ECheckBoxState::Undetermined;
+	}
 
 private:
-	TSharedRef< SWidget > GenerateTextWidget(const TAttribute<FText>& Attribute);
+	template<typename T>
+	TArray<TAttribute<TOptional<T>>> GetAttributeArray();
 
+	TSharedRef< SWidget > GenerateTextWidget( const TAttribute<FText>& Attribute );
+	TSharedRef< SWidget > GenerateEditableTextWidget( const TAttribute<FText>& Attribute, bool bIsReadOnly );
+	TSharedRef< SWidget > GenerateCheckboxWidget( const TAttribute<ECheckBoxState>& Attribute );
+
+	template<typename T>
+	TSharedRef< SWidget > GenerateSpinboxWidgets(
+		const TArray<TAttribute<TOptional<T>>>& Attribute,
+		UsdPrimPropertiesListImpl::EPrimPropertyLabelTypes LabelType = UsdPrimPropertiesListImpl::EPrimPropertyLabelTypes::NoLabel
+	);
+
+private:
+	template<typename T>
+	void OnSpinboxValueChanged( T NewValue, int32 ComponentIndex );
+
+	template<typename T>
+	void OnSpinboxValueCommitted( T NewValue, ETextCommit::Type CommitType, int32 ComponentIndex );
+
+	void OnComboBoxSelectionChanged( TSharedPtr<FString> ChosenOption, ESelectInfo::Type SelectInfo );
+	void OnTextBoxTextCommitted(const FText& NewText, ETextCommit::Type CommitType);
+	void OnCheckBoxCheckStateChanged( ECheckBoxState NewState );
+
+private:
 	TSharedPtr< FUsdPrimAttributeViewModel > UsdPrimAttribute;
 };
 
@@ -82,50 +295,91 @@ void SUsdPrimPropertyRow::Construct( const FArguments& InArgs, const TSharedPtr<
 
 TSharedRef< SWidget > SUsdPrimPropertyRow::GenerateWidgetForColumn( const FName& ColumnName )
 {
+	using namespace UsdPrimPropertiesListImpl;
+
 	TSharedRef< SWidget > ColumnWidget = SNullWidget::NullWidget;
 
 	if ( ColumnName == TEXT("PropertyName") )
 	{
-		ColumnWidget = SUsdPrimPropertyRow::GenerateTextWidget({this, &SUsdPrimPropertyRow::GetLabel});
+		const bool bIsReadOnly = true;
+		ColumnWidget = GenerateTextWidget( { this, &SUsdPrimPropertyRow::GetLabel } );
 	}
 	else
 	{
-		if ( UsdPrimAttribute->WidgetType == EPrimPropertyWidget::Text )
+		EPrimPropertyWidget WidgetType = GetWidgetType( UsdPrimAttribute->Value.SourceType );
+		EPrimPropertyLabelTypes LabelType = GetLabelType( UsdPrimAttribute->Value );
+
+		switch ( WidgetType )
 		{
-			ColumnWidget = GenerateTextWidget( {this, &SUsdPrimPropertyRow::GetValue} );
-		}
-		else if ( UsdPrimAttribute->WidgetType == EPrimPropertyWidget::Dropdown )
+		case EPrimPropertyWidget::Bool:
+			ColumnWidget = GenerateCheckboxWidget( { this, &SUsdPrimPropertyRow::GetValueBool } );
+			break;
+		case EPrimPropertyWidget::U8:
+			ColumnWidget = GenerateSpinboxWidgets( GetAttributeArray<uint8>(), LabelType );
+			break;
+		case EPrimPropertyWidget::I32:
+			ColumnWidget = GenerateSpinboxWidgets( GetAttributeArray<int32>(), LabelType );
+			break;
+		case EPrimPropertyWidget::U32:
+			ColumnWidget = GenerateSpinboxWidgets( GetAttributeArray<uint32>(), LabelType );
+			break;
+		case EPrimPropertyWidget::I64:
+			ColumnWidget = GenerateSpinboxWidgets( GetAttributeArray<int64>(), LabelType );
+			break;
+		case EPrimPropertyWidget::U64:
+			ColumnWidget = GenerateSpinboxWidgets( GetAttributeArray<uint64>(), LabelType );
+			break;
+		case EPrimPropertyWidget::F32:
+			ColumnWidget = GenerateSpinboxWidgets( GetAttributeArray<float>(), LabelType );
+			break;
+		case EPrimPropertyWidget::F64:
+			ColumnWidget = GenerateSpinboxWidgets( GetAttributeArray<double>(), LabelType );
+			break;
+		case EPrimPropertyWidget::Dropdown:
 		{
-			TArray< TSharedPtr< FString > >* Options = UsdPrimPropertiesListImpl::GetTokenDropdownOptions( *UsdPrimAttribute );
+			TArray< TSharedPtr< FString > >* Options = GetTokenDropdownOptions( *UsdPrimAttribute );
 
 			// Show a dropdown if we know the available options for that token
 			if ( Options )
 			{
-				SAssignNew( ColumnWidget, SComboBox< TSharedPtr< FString >  >)
-				.OptionsSource( Options )
-				.OnGenerateWidget_Lambda( [&]( TSharedPtr<FString> Option )
-				{
-					return SUsdPrimPropertyRow::GenerateTextWidget( FText::FromString( *Option ) );
-				})
-				.OnSelectionChanged_Lambda( [&]( TSharedPtr<FString> ChosenOption, ESelectInfo::Type SelectInfo )
-				{
-					TSharedPtr< ITypedTableView< TSharedPtr< FUsdPrimAttributeViewModel > > > PinnedParent = OwnerTablePtr.Pin();
-					TSharedPtr< SUsdPrimPropertiesList> ParentList = StaticCastSharedPtr< SUsdPrimPropertiesList >( PinnedParent );
-
-					UsdPrimAttribute->SetAttributeValue( *ChosenOption );
-				})
+				SAssignNew( ColumnWidget, SBox )
+				.HeightOverride( FUsdStageEditorStyle::Get()->GetFloat( "UsdStageEditor.ListItemHeight" ) )
+				.VAlign( VAlign_Center )
 				[
-					SNew( STextBlock )
-					.Text( this, &SUsdPrimPropertyRow::GetValueOrNone )
-					.Font( FEditorStyle::GetFontStyle( UsdPrimPropertiesListConstants::NormalFont ) )
-					.Margin( UsdPrimPropertiesListConstants::ComboBoxItemPadding )
+					SNew( SComboBox< TSharedPtr< FString > > )
+					.OptionsSource( Options )
+					.OnGenerateWidget_Lambda( [ & ]( TSharedPtr<FString> Option )
+					{
+						const bool bIsReadOnly = false;
+						return SUsdPrimPropertyRow::GenerateTextWidget( FText::FromString( *Option ) );
+					})
+					.OnSelectionChanged( this, &SUsdPrimPropertyRow::OnComboBoxSelectionChanged )
+					[
+						// Having an editable text box inside the combobox allows the user to pick through the most common ones but to
+						// also specify a custom kind/purpose/etc. if he wants to
+						SNew( SEditableTextBox )
+						.Text( this, &SUsdPrimPropertyRow::GetValueText )
+						.Font( FEditorStyle::GetFontStyle( UsdPrimPropertiesListConstants::NormalFont ) )
+						.Padding( FMargin( 0.0f ) )
+						.BackgroundColor( FLinearColor::White ) // This could be transparent, but white also hints that it's a regular text input field
+						.OnTextCommitted( this, &SUsdPrimPropertyRow::OnTextBoxTextCommitted )
+					]
 				];
+
+				break;
 			}
-			// Fallback to just displaying a simple text box
-			else
-			{
-				ColumnWidget = SUsdPrimPropertyRow::GenerateTextWidget( {this, &SUsdPrimPropertyRow::GetValue} );
-			}
+
+			// If we don't have any options we intentionally fall down into the 'Text' case
+		}
+		case EPrimPropertyWidget::Text:
+		{
+			ColumnWidget = SUsdPrimPropertyRow::GenerateEditableTextWidget( { this, &SUsdPrimPropertyRow::GetValueText }, UsdPrimAttribute->bReadOnly );
+			break;
+		}
+		case EPrimPropertyWidget::None:
+		default:
+			ColumnWidget = SNullWidget::NullWidget;
+			break;
 		}
 	}
 
@@ -136,7 +390,7 @@ TSharedRef< SWidget > SUsdPrimPropertyRow::GenerateWidgetForColumn( const FName&
 		.AutoWidth()
 		[
 			SNew(SBox)
-			.HeightOverride( FUsdStageEditorStyle::Get()->GetFloat( "UsdStageEditor.ListItemHeight" ) )
+			.MinDesiredWidth( UsdPrimPropertiesListConstants::DesiredNumericEntryBoxWidth )
 			.VAlign(VAlign_Center)
 			[
 				ColumnWidget
@@ -149,10 +403,25 @@ void SUsdPrimPropertyRow::SetUsdPrimProperty( const TSharedPtr< FUsdPrimAttribut
 	UsdPrimAttribute = InUsdPrimProperty;
 }
 
-TSharedRef< SWidget > SUsdPrimPropertyRow::GenerateTextWidget(const TAttribute<FText>& Attribute)
+template<typename T>
+TArray<TAttribute<TOptional<T>>> SUsdPrimPropertyRow::GetAttributeArray()
+{
+	using AttrType = TAttribute<TOptional<T>>;
+
+	TArray<AttrType> Attributes;
+	for ( int32 ComponentIndex = 0; ComponentIndex < UsdPrimAttribute->Value.Components.Num(); ++ComponentIndex )
+	{
+		Attributes.Add( AttrType::Create( AttrType::FGetter::CreateSP( this, &SUsdPrimPropertyRow::template GetValue<T>, ComponentIndex ) ) );
+	}
+
+	return Attributes;
+}
+
+TSharedRef< SWidget > SUsdPrimPropertyRow::GenerateTextWidget( const TAttribute<FText>& Attribute )
 {
 	return SNew( SBox )
 		.HeightOverride( FUsdStageEditorStyle::Get()->GetFloat( "UsdStageEditor.ListItemHeight" ) )
+		.MinDesiredWidth( UsdPrimPropertiesListConstants::DesiredNumericEntryBoxWidth )
 		.VAlign( VAlign_Center )
 		[
 			SNew( STextBlock )
@@ -160,6 +429,170 @@ TSharedRef< SWidget > SUsdPrimPropertyRow::GenerateTextWidget(const TAttribute<F
 			.Font( FEditorStyle::GetFontStyle( UsdPrimPropertiesListConstants::NormalFont ) )
 			.Margin( UsdPrimPropertiesListConstants::RightRowPadding )
 		];
+}
+
+TSharedRef< SWidget > SUsdPrimPropertyRow::GenerateEditableTextWidget( const TAttribute<FText>& Attribute, bool bIsReadOnly )
+{
+	return SNew( SBox )
+		.HeightOverride( FUsdStageEditorStyle::Get()->GetFloat( "UsdStageEditor.ListItemHeight" ) )
+		.MinDesiredWidth( UsdPrimPropertiesListConstants::DesiredNumericEntryBoxWidth )
+		.VAlign( VAlign_Center )
+		[
+			SNew( SEditableTextBox )
+			.Text( Attribute )
+			.IsReadOnly( bIsReadOnly )
+			.Font( FEditorStyle::GetFontStyle( UsdPrimPropertiesListConstants::NormalFont ) )
+			.OnTextCommitted( this, &SUsdPrimPropertyRow::OnTextBoxTextCommitted )
+		];
+}
+
+TSharedRef< SWidget > SUsdPrimPropertyRow::GenerateCheckboxWidget( const TAttribute<ECheckBoxState>& Attribute )
+{
+	return SNew( SBox )
+		.HeightOverride( FUsdStageEditorStyle::Get()->GetFloat( "UsdStageEditor.ListItemHeight" ) )
+		.VAlign( VAlign_Center )
+		[
+			SNew( SCheckBox )
+			.IsChecked( Attribute )
+			.OnCheckStateChanged( this, &SUsdPrimPropertyRow::OnCheckBoxCheckStateChanged )
+		];
+}
+
+template<typename T>
+TSharedRef< SWidget > SUsdPrimPropertyRow::GenerateSpinboxWidgets( const TArray<TAttribute<TOptional<T>>>& Attributes, UsdPrimPropertiesListImpl::EPrimPropertyLabelTypes LabelType )
+{
+	if ( Attributes.Num() == 0 )
+	{
+		return SNullWidget::NullWidget;
+	}
+
+	TArray<TSharedRef<SWidget>> Labels = UsdPrimPropertiesListImpl::GetNumericEntryBoxLabels( Attributes.Num(), LabelType );
+
+	// If we're some type of matrix attribute, we'll want to display multiple rows
+	const int32 NumRows = LabelType != UsdPrimPropertiesListImpl::EPrimPropertyLabelTypes::NoLabel
+		? 1 // If we have labels we're definitely not a matrix type
+		: Attributes.Num() == 4
+			? 2
+			: Attributes.Num() == 9
+				? 3
+				: Attributes.Num() == 16
+					? 4
+					: 1;
+
+	const int32 NumColumns = Attributes.Num() / NumRows;
+
+	TSharedPtr<SVerticalBox> VertBox = SNew( SVerticalBox );
+	for ( int32 RowIndex = 0; RowIndex < NumRows; ++RowIndex )
+	{
+		TSharedPtr<SHorizontalBox> HorizBox = SNew( SHorizontalBox );
+		for ( int32 ColumnIndex = 0; ColumnIndex < NumColumns; ++ColumnIndex )
+		{
+			const int32 ComponentIndex = RowIndex * NumColumns + ColumnIndex;
+			const TAttribute<TOptional<T>>& Attribute = Attributes[ ComponentIndex ];
+
+			TSharedRef<SWidget> EntryBox = SNew( SNumericEntryBox<T> )
+				.AllowSpin( true )
+				.LabelPadding( 0 )
+				.ShiftMouseMovePixelPerDelta( 1 )
+				.SupportDynamicSliderMaxValue( true )
+				.SupportDynamicSliderMinValue( true )
+				.OnValueChanged( this, &SUsdPrimPropertyRow::OnSpinboxValueChanged<T>, ComponentIndex )
+				.OnValueCommitted( this, &SUsdPrimPropertyRow::OnSpinboxValueCommitted<T>, ComponentIndex )
+				.Value( Attribute )
+				.MinValue( TOptional<T>() )
+				.MaxValue( TOptional<T>() )
+				.MinSliderValue( TOptional<T>() )
+				.MaxSliderValue( TOptional<T>() )
+				.SliderExponent( T( 1 ) )
+				.Delta( T( 0 ) )
+				.Label()
+				[
+					Labels[ ComponentIndex ]
+				];
+
+			HorizBox->AddSlot()
+				.Padding( UsdPrimPropertiesListConstants::NumericEntryBoxItemPadding )
+				[
+					SNew( SBox )
+					.MinDesiredWidth( UsdPrimPropertiesListConstants::DesiredNumericEntryBoxWidth )
+					.MaxDesiredWidth( UsdPrimPropertiesListConstants::DesiredNumericEntryBoxWidth )
+					[
+						EntryBox
+					]
+				];
+		}
+
+		VertBox->AddSlot()
+			[
+				SNew( SBox )
+				.HeightOverride( FUsdStageEditorStyle::Get()->GetFloat( "UsdStageEditor.ListItemHeight" ) )
+				.VAlign( VAlign_Center )
+				[
+					HorizBox.ToSharedRef()
+				]
+			];
+	}
+
+	return VertBox.ToSharedRef();
+}
+
+template<typename T>
+void SUsdPrimPropertyRow::OnSpinboxValueChanged( T NewValue, int32 ComponentIndex )
+{
+	UsdPrimAttribute->Value.Components[ ComponentIndex ].Set<T>( NewValue );
+}
+
+template<typename T>
+void SUsdPrimPropertyRow::OnSpinboxValueCommitted( T NewValue, ETextCommit::Type CommitType, int32 ComponentIndex )
+{
+	if ( CommitType == ETextCommit::OnCleared || UsdPrimAttribute->bReadOnly )
+	{
+		return;
+	}
+
+	USDViewModels::FPrimPropertyValue NewPropertyValue = UsdPrimAttribute->Value;
+	NewPropertyValue.Components[ ComponentIndex ].Set<T>( NewValue );
+
+	UsdPrimAttribute->SetAttributeValue( NewPropertyValue );
+}
+
+void SUsdPrimPropertyRow::OnComboBoxSelectionChanged( TSharedPtr<FString> ChosenOption, ESelectInfo::Type SelectInfo )
+{
+	if ( UsdPrimAttribute->bReadOnly )
+	{
+		return;
+	}
+
+	USDViewModels::FPrimPropertyValue NewValue = UsdPrimAttribute->Value;
+	NewValue.Components[ 0 ] = USDViewModels::FPrimPropertyValueComponent( TInPlaceType<FString>(), *ChosenOption );
+
+	UsdPrimAttribute->SetAttributeValue( NewValue );
+}
+
+void SUsdPrimPropertyRow::OnTextBoxTextCommitted( const FText& NewText, ETextCommit::Type CommitType )
+{
+	if ( CommitType == ETextCommit::OnCleared || UsdPrimAttribute->bReadOnly )
+	{
+		return;
+	}
+
+	USDViewModels::FPrimPropertyValue NewValue = UsdPrimAttribute->Value;
+	NewValue.Components[ 0 ] = USDViewModels::FPrimPropertyValueComponent( TInPlaceType<FString>(), NewText.ToString() );
+
+	UsdPrimAttribute->SetAttributeValue( NewValue );
+}
+
+void SUsdPrimPropertyRow::OnCheckBoxCheckStateChanged( ECheckBoxState NewState )
+{
+	if ( NewState == ECheckBoxState::Undetermined || UsdPrimAttribute->bReadOnly )
+	{
+		return;
+	}
+
+	USDViewModels::FPrimPropertyValue NewValue = UsdPrimAttribute->Value;
+	NewValue.Components[ 0 ] = USDViewModels::FPrimPropertyValueComponent( TInPlaceType<bool>(), NewState == ECheckBoxState::Checked );
+
+	UsdPrimAttribute->SetAttributeValue( NewValue );
 }
 
 void SUsdPrimPropertiesList::Construct( const FArguments& InArgs, const TCHAR* InPrimPath )

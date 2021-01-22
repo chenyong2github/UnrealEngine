@@ -27,8 +27,17 @@ namespace Generator
 
 		FMaterialExpressionConnectionList CreateExpression(mi::neuraylib::ITransaction& Transaction, const mi::neuraylib::IValue& MDLConstant);
 
+		void CleanupMaterialExpressions();
+
 	private:
 		FMaterialTextureFactory* TextureFactory;
+
+		FMaterialExpressionHandle AddExpression(UMaterialExpression* Expression)
+		{
+			return Expressions.Add_GetRef(Expression);
+		}
+
+		TArray<FMaterialExpressionHandle> Expressions;
 	};
 
 	inline void FConstantExpressionFactory::SetTextureFactory(FMaterialTextureFactory* Factory)

@@ -54,6 +54,11 @@ public:
 		FDatasmithFacadeMaterialID& Material
 	);
 
+	/**
+	 *  Remove all material overrides from the Actor Element.
+	 */
+	void ResetMaterialOverrides();
+
 #ifdef SWIG_FACADE
 protected:
 #endif

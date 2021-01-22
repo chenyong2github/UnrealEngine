@@ -67,6 +67,12 @@ enum EFBXExpectedResultPreset
 	Animation_Frame_Number,
 	/** Data should contain the animation length [float0]. */
 	Animation_Length,
+	/** Data should contain the custom animation name [string0], key index [int0], and expected key value [float0]*/
+	Animation_CustomCurve_KeyValue,
+	/** Data should contain the custom animation name [string0], key index [int0], and expected arriving tangent value [float0]*/
+	Animation_CustomCurve_KeyArriveTangent,
+	/** Data should contain the custom animation name [string0], key index [int0], and expected leaving tangent value [float0]*/
+	Animation_CustomCurve_KeyLeaveTangent,
 };
 
 /** Import mesh type */

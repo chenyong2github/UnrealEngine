@@ -20,7 +20,9 @@
 ULidarPointCloudComponent::ULidarPointCloudComponent()
 	: CustomMaterial(nullptr)
 	, MinScreenSize(0.05f)
+	, bUseFrustumCulling(true)
 	, PointSize(1.0f)
+	, bUseScreenSizeScaling(false)
 	, ColorSource(ELidarPointCloudColorationMode::Data)
 	, PointShape(ELidarPointCloudSpriteShape::Square)
 	, PointOrientation(ELidarPointCloudSpriteOrientation::PreferFacingCamera)
@@ -144,6 +146,12 @@ void ULidarPointCloudComponent::SetPointCloud(ULidarPointCloud *InPointCloud)
 	}
 }
 
+void ULidarPointCloudComponent::SetPointShape(ELidarPointCloudSpriteShape NewPointShape)
+{
+	PointShape = NewPointShape;
+	UpdateMaterial();
+}
+
 void ULidarPointCloudComponent::ApplyRenderingParameters()
 {
 	if (UMaterialInstanceDynamic* DynMaterial = Cast<UMaterialInstanceDynamic>(Material))
@@ -220,7 +228,7 @@ void ULidarPointCloudComponent::PostEditChangeProperty(FPropertyChangedEvent& Pr
 
 		if (IS_PROPERTY(PointShape))
 		{
-			UpdateMaterial();
+			SetPointShape(PointShape);
 		}
 	}
 

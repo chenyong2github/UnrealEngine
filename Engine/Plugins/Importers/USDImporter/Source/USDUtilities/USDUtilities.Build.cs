@@ -17,34 +17,43 @@ namespace UnrealBuildTool.Rules
 					"Core",
 					"CoreUObject",
 					"UnrealUSDWrapper",
-				});
+				}
+			);
 
 			PrivateDependencyModuleNames.AddRange(
 				new string[]
 				{
 					"CinematicCamera",
-					"DesktopPlatform",
-					"EditorStyle",
 					"Engine",
 					"GeometryCache", // Just so that we can fetch its AssetImportData
 					"IntelTBB",
-					"MaterialBaking", // So that we can use the BakeMaterials function
-					"MaterialEditor",
 					"MeshDescription",
-					"MeshUtilities",
-					"MessageLog",
 					"MovieScene",
 					"MovieSceneTracks",
-					"PropertyEditor",
 					"RenderCore",
 					"RHI", // So that we can use GMaxRHIFeatureLevel when force-loading textures before baking materials
 					"Slate",
 					"SlateCore",
 					"StaticMeshDescription",
-					"UnrealEd",
 					"USDClasses",
 				}
+			);
+
+			if (Target.bBuildEditor)
+			{
+				PrivateDependencyModuleNames.AddRange(
+					new string[]
+					{
+						"DesktopPlatform", // For OpenFileDialog/SaveFileDialog
+						"MaterialBaking", // For the BakeMaterials function
+						"MaterialEditor",
+						"MeshUtilities",
+						"MessageLog",
+						"PropertyEditor",
+						"UnrealEd",
+					}
 				);
+			}
 		}
 	}
 }

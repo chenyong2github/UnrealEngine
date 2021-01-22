@@ -204,9 +204,10 @@ void FUsdListenerImpl::HandleUsdNotice( const pxr::UsdNotice::ObjectsChanged& No
 			{
 				StageChangedFields.Add( ANSI_TO_TCHAR( ChangedField.GetString().c_str() ) );
 
-				if ( ChangedField == UsdGeomTokens->metersPerUnit )
+				// Force a resync when changing these since it affects all coordinates (the transforms they had when collapsed, etc.)
+				if ( ChangedField == UsdGeomTokens->metersPerUnit || ChangedField == UsdGeomTokens->upAxis )
 				{
-					bResync = true; // Force a resync when changing the metersPerUnit since it affects all coordinates
+					bResync = true;
 					break;
 				}
 			}

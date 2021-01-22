@@ -3,6 +3,7 @@
 #include "USDGeomXformableTranslator.h"
 
 #include "UnrealUSDWrapper.h"
+#include "USDAssetCache.h"
 #include "USDConversionUtils.h"
 #include "USDErrorUtils.h"
 #include "USDGeomMeshConversion.h"
@@ -15,11 +16,10 @@
 
 #include "Components/SceneComponent.h"
 #include "Components/StaticMeshComponent.h"
+#include "Engine/RendererSettings.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"
 #include "Framework/Notifications/NotificationManager.h"
-#include "Interfaces/ITargetPlatform.h"
-#include "Interfaces/ITargetPlatformManagerModule.h"
 #include "Modules/ModuleManager.h"
 #include "StaticMeshAttributes.h"
 #include "Widgets/Notifications/SNotificationList.h"
@@ -252,7 +252,9 @@ USceneComponent* FUsdGeomXformableTranslator::CreateComponentsEx( TOptional< TSu
 
 		if ( SpawnedActor )
 		{
+#if WITH_EDITOR
 			SpawnedActor->SetActorLabel( Prim.GetName().ToString() );
+#endif // WITH_EDITOR
 
 			// Hack to show transient actors in world outliner
 			if (SpawnedActor->HasAnyFlags(EObjectFlags::RF_Transient))
@@ -290,7 +292,7 @@ USceneComponent* FUsdGeomXformableTranslator::CreateComponentsEx( TOptional< TSu
 
 				if ( CollapsesChildren( ECollapsingType::Assets ) )
 				{
-					if ( UStaticMesh* PrimStaticMesh = Cast< UStaticMesh >( Context->PrimPathsToAssets.FindRef( PrimPath.GetString() ) ) )
+					if ( UStaticMesh* PrimStaticMesh = Cast< UStaticMesh >( Context->AssetCache.GetAssetForPrim( PrimPath.GetString() ) ) )
 					{
 						// At this time, we only support collapsing static meshes together
 						ComponentType = UStaticMeshComponent::StaticClass();
@@ -346,13 +348,15 @@ void FUsdGeomXformableTranslator::UpdateComponents( USceneComponent* SceneCompon
 {
 	if ( SceneComponent )
 	{
+		SceneComponent->Modify();
+
 		UsdToUnreal::ConvertXformable( Context->Stage, pxr::UsdGeomXformable( GetPrim() ), *SceneComponent, Context->Time );
 
 		// If the user modified a mesh parameter (e.g. vertex color), the hash will be different and it will become a separate asset
 		// so we must check for this and assign the new StaticMesh
 		if ( UStaticMeshComponent* StaticMeshComponent = Cast< UStaticMeshComponent >( SceneComponent ) )
 		{
-			UStaticMesh* PrimStaticMesh = Cast< UStaticMesh >( Context->PrimPathsToAssets.FindRef( PrimPath.GetString() ) );
+			UStaticMesh* PrimStaticMesh = Cast< UStaticMesh >( Context->AssetCache.GetAssetForPrim( PrimPath.GetString() ) );
 
 			if ( PrimStaticMesh != StaticMeshComponent->GetStaticMesh() )
 			{
@@ -430,13 +434,11 @@ bool FUsdGeomXformableTranslator::CollapsesChildren( ECollapsingType CollapsingT
 		}
 		else
 		{
+			const bool bUsesRaytracing = GetDefault<URendererSettings>()->bEnableRayTracing;
+
 			const int32 MaxVertices = 500000;
-			int32 NumVertices = 0;
-
 			int32 NumMaxExpectedMaterialSlots = 0;
-			ITargetPlatform* Platform = GetTargetPlatformManagerRef().GetRunningTargetPlatform();
-			const bool bUsesRaytracing = Platform && Platform->UsesRayTracing();
-
+			int32 NumVertices = 0;
 			for ( const TUsdStore< pxr::UsdPrim >& ChildPrim : ChildGeomMeshes )
 			{
 				pxr::UsdGeomMesh ChildGeomMesh( ChildPrim.Get() );
@@ -479,7 +481,6 @@ bool FUsdGeomXformableTranslator::CollapsesChildren( ECollapsingType CollapsingT
 						break;
 					}
 				}
-
 			}
 		}
 	}

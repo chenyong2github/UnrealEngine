@@ -23,23 +23,27 @@ public:
 
 	void Construct(const FArguments& InArgs, UDisplayClusterConfiguratorBaseNode* InBaseNode, const TSharedRef<FDisplayClusterConfiguratorToolkit>& InToolkit);
 
-	virtual UObject* GetEditingObject() const = 0;
+	//~ Begin SWidget interface
+	virtual FCursorReply OnCursorQuery(const FGeometry& MyGeometry, const FPointerEvent& CursorEvent) const override;
+	//~ End of SWidget interface
 
-	/**
-	 * Apply new node postion offset
-	 *
-	 * @param InLocalOffset				Offset in local space
-	 *
-	 */
-	virtual void SetNodePositionOffset(const FVector2D InLocalOffset) {}
+	//~ Begin SGraphNode interface
+	virtual void UpdateGraphNode() override;
+	virtual const FSlateBrush* GetShadowBrush(bool bSelected) const override;
+	virtual bool CanBeSelected(const FVector2D& MousePositionInNode) const override;
+	virtual bool ShouldAllowCulling() const override;
+	virtual int32 GetSortDepth() const override;
+	//~ End SGraphNode interface
+
+	virtual UObject* GetEditingObject() const = 0;
 
 	/**
 	 * Apply new node size
 	 *
-	 * @param InLocalSize				Size in local space
-	 *
+	 * @param InLocalSize - Size in local space
+	 * @param bFixedAspectRatio - Indicates the node should have a fixed aspect ratio
 	 */
-	virtual void SetNodeSize(const FVector2D InLocalSize) {}
+	virtual void SetNodeSize(const FVector2D InLocalSize, bool bFixedAspectRatio) {}
 
 	/**
 	 * Selected Item handler function. Fires when the item has been selected in the tree view
@@ -54,62 +58,40 @@ public:
 	 */
 	virtual void OnSelectedItemCleared();
 
-	/** Sets the default background brush for node */
-	virtual void SetBackgroundDefaultBrush() {};
 
-	/**
-	 * Sets the background brush from texture
-	 *
-	 * @param InTexture					Texture input
-	 *
-	 */
-	virtual void SetBackgroundBrushFromTexture(UTexture* InTexture) {};
-
-	//~ Begin SWidget interface
-	virtual bool SupportsKeyboardFocus() const override;
-	virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
-	virtual FReply OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
-	virtual FReply OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
-	virtual FReply OnDragDetected(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
-	virtual FReply OnDrop(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent) override;
-	virtual FCursorReply OnCursorQuery(const FGeometry& MyGeometry, const FPointerEvent& CursorEvent) const override;
-	//~ End of SWidget interface
-
-	//~ Begin SGraphNode interface
-	virtual void UpdateGraphNode() override;
-	virtual const FSlateBrush* GetShadowBrush(bool bSelected) const override;
-	virtual bool ShouldAllowCulling() const override;
-	//~ End SGraphNode interface
-
-	/**
-	 * On Dragged node handler
-	 *
-	 * @param DragScreenSpacePosition			Drag mouse screen position
-	 * @param ScreenSpaceDelta					Drag mouse delta
-	 *
-	 * @return true if drag event inside the panel
-	 */
-	bool OnNodeDragged(const FVector2D& DragScreenSpacePosition, const FVector2D& ScreenSpaceDelta);
-
-	void ExecuteMouseButtonDown(const FPointerEvent& MouseEvent);
-
-	TSharedRef<SWidget> CreateBackground(const TAttribute<FSlateColor>& ColorAndOpacity);
-
-	EVisibility GetSelectionVisibility() const;
-	
 	/**
 	 * @return true if node should be visible
 	 */
-	bool IsNodeVisible() const;
+	virtual bool IsNodeVisible() const;
 
+	/**
+	 * @return The depth index of the layer the node belongs to. 
+	 */
+	virtual int32 GetNodeLayerIndex() const { return 0; }
+
+	/**
+	 * @return The intended size of the node, taken from the backing EdGraphNode 
+	 */
+	virtual FVector2D GetSize() const;
+
+	void ExecuteMouseButtonDown(const FPointerEvent& MouseEvent);
+
+protected:
 	EVisibility GetNodeVisibility() const;
+	EVisibility GetSelectionVisibility() const;
+	TOptional<EMouseCursor::Type> GetCursor() const;
+
+	template<class TObjectType>
+	TObjectType* GetGraphNodeChecked() const
+	{
+		TObjectType* CastedNode = Cast<TObjectType>(GraphNode);
+		check(CastedNode);
+		return CastedNode;
+	}
 
 protected:
 	TWeakPtr<FDisplayClusterConfiguratorToolkit> ToolkitPtr;
 
-	SNodePanel::SNode::FNodeSlot* NodeSlot;
-
-	TSharedPtr<SBox> NodeSlotBox;
-
-	bool InNodeVisibile;
+	int32 ZIndex;
+	bool bIsObjectFocused;
 };

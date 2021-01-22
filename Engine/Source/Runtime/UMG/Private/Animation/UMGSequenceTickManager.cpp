@@ -74,6 +74,12 @@ void UUMGSequenceTickManager::TickWidgetAnimations(float DeltaSeconds)
 		return;
 	}
 
+	// Don't tick the animation if inside of a PostLoad
+	if (FUObjectThreadContext::Get().IsRoutingPostLoad)
+	{
+		return;
+	}
+
 	TGuardValue<bool> IsTickingGuard(bIsTicking, true);
 
 	// Tick all animations in all active widgets.
@@ -158,6 +164,12 @@ void UUMGSequenceTickManager::ForceFlush()
 
 void UUMGSequenceTickManager::HandleSlatePostTick(float DeltaSeconds)
 {
+	// Early out if inside a PostLoad
+	if (FUObjectThreadContext::Get().IsRoutingPostLoad)
+	{
+		return;
+	}
+
 	if (GFlushUMGAnimationsAtEndOfFrame && Runner.IsAttachedToLinker() && Runner.HasQueuedUpdates())
 	{
 		SCOPE_CYCLE_COUNTER(MovieSceneEval_FlushEndOfFrameAnimations);

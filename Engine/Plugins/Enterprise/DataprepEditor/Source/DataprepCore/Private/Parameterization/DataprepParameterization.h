@@ -138,7 +138,7 @@ struct FDataprepParametrizationBindingSetKeyFuncs : DefaultKeyFuncs<TSharedRef<F
 /**
  * Encapsulate the unidirectionality necessary for a constant cost of access to the data related to the bindings
  */
-UCLASS(MinimalAPI, Experimental)
+UCLASS(MinimalAPI)
 class UDataprepParameterizationBindings : public UObject
 {
 public:
@@ -235,7 +235,7 @@ private:
 /** 
  * The DataprepParameterization contains the data for the parameterization of a pipeline
  */
-UCLASS(MinimalAPI, Experimental)
+UCLASS(MinimalAPI)
 class UDataprepParameterization : public UObject
 {
 public:
@@ -387,7 +387,7 @@ private:
 };
 
 
-UCLASS(MinimalAPI, Experimental)
+UCLASS(MinimalAPI)
 class UDataprepParameterizationInstance : public UObject
 {
 public:

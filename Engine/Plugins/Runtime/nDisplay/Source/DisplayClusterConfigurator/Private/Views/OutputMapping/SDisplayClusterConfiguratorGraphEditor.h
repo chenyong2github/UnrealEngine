@@ -24,30 +24,20 @@ class UTexture;
 
 struct FActionMenuContent;
 
-class FDisplayClusterConfiguratorWindowNodeFactory
-	: public FGraphNodeFactory
-	, public TSharedFromThis<FDisplayClusterConfiguratorWindowNodeFactory>
+enum class ENodeAlignment : uint8
 {
-public:
-	virtual ~FDisplayClusterConfiguratorWindowNodeFactory() = default;
-
-	FDisplayClusterConfiguratorWindowNodeFactory(const TSharedRef<FDisplayClusterConfiguratorToolkit>& InToolkit, const TSharedRef<SDisplayClusterConfiguratorGraphEditor>& InGraphEditor);
-
-	/** Create a widget for the supplied node */
-	virtual TSharedPtr<SGraphNode> CreateNodeWidget(UEdGraphNode* InNode) override;
-
-private:
-	TWeakPtr<FDisplayClusterConfiguratorToolkit> ToolkitPtr;
-
-	TWeakPtr<SDisplayClusterConfiguratorGraphEditor> GraphEditorPtr;
+	Top,
+	Middle,
+	Bottom,
+	Left,
+	Center,
+	Right
 };
 
 class SDisplayClusterConfiguratorGraphEditor
 	: public SGraphEditor
 {
 public:
-	friend FDisplayClusterConfiguratorWindowNodeFactory;
-
 	SLATE_BEGIN_ARGS(SDisplayClusterConfiguratorGraphEditor)
 		: _GraphToEdit(nullptr)
 	{}
@@ -60,14 +50,9 @@ public:
 		const TSharedRef<FDisplayClusterConfiguratorToolkit>& InToolkit,
 		const TSharedRef<FDisplayClusterConfiguratorViewOutputMapping>& InViewOutputMapping);
 
-	//~ Begin SWidget overrides
-	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
-	//~ End SWidget overrides
-
 	void SetViewportPreviewTexture(const FString& NodeId, const FString& ViewportId, UTexture* InTexture);
 
 private:
-	void SetRootNode(const TSharedRef<SDisplayClusterConfiguratorCanvasNode>& InCanvasNode);
 	void OnSelectedNodesChanged(const TSet<UObject*>& NewSelection);
 	void OnObjectSelected();
 	void OnConfigReloaded();
@@ -94,6 +79,11 @@ private:
 	void DuplicateNodes();
 	bool CanDuplicateNodes() const;
 
+	bool CanAlignNodes() const;
+	void AlignNodes(ENodeAlignment Alignment);
+
+	void ForEachGraphNode(TFunction<void(UDisplayClusterConfiguratorBaseNode* Node)> Predicate);
+
 private:
 	TWeakPtr<FDisplayClusterConfiguratorToolkit> ToolkitPtr;
 
@@ -104,8 +94,6 @@ private:
 	TSet<UObject*> SelectedNodes;
 
 	TStrongObjectPtr<UDisplayClusterConfiguratorCanvasNode> RootCanvasNode;
-
-	TWeakPtr<SDisplayClusterConfiguratorCanvasNode> CanvasNodePtr;
 
 	bool bClearSelection;
 

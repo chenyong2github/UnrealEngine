@@ -27,6 +27,7 @@ namespace UnrealBuildTool.Rules
 					"PropertyEditor",
 					"SlateCore",
 					"Slate",
+					"DetailCustomizations",
                 }
 			);
 		}

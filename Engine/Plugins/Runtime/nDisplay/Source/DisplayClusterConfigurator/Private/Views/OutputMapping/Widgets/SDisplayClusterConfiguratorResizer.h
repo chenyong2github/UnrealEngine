@@ -16,8 +16,8 @@ class SDisplayClusterConfiguratorResizer
 public:
 
 	SLATE_BEGIN_ARGS(SDisplayClusterConfiguratorResizer)
-	    {}
-
+		: _IsFixedAspectRatio(false) {}
+		SLATE_ATTRIBUTE(bool, IsFixedAspectRatio)
 	SLATE_END_ARGS()
 
 	void Construct( const FArguments& InArgs, const TSharedRef<FDisplayClusterConfiguratorToolkit>& InToolkit, const TSharedRef<SDisplayClusterConfiguratorBaseNode>& InBaseNode);
@@ -34,5 +34,8 @@ private:
 	TWeakPtr<SDisplayClusterConfiguratorBaseNode> BaseNodePtr;
 
 	bool bResizing;
+	float CurrentAspectRatio;
+
+	TAttribute<bool> IsFixedAspectRatio;
 };
 

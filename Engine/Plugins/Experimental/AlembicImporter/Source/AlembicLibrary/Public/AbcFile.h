@@ -33,8 +33,8 @@ enum EAbcImportError : uint32;
 enum class EFrameReadFlags : uint8
 {
 	None = 0,
-	/** Will only read position data for the objects */
-	PositionOnly = 1 << 1,
+	/** Will only read position and normal data for the objects */
+	PositionAndNormalOnly = 1 << 1,
 	/** Will pre-multiply the world matrix with the read sample positions */
 	ApplyMatrix = 1 << 2,
 	/** Will force single thread processing */

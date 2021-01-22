@@ -396,8 +396,10 @@ namespace Generator
 	template <typename T>
 	inline void Connect(T& Target, const FMaterialExpressionConnection& Connection)
 	{
-		if (Connection.ExpressionData.Expression)
-			Target.Connect(Connection.ExpressionData.Index, Connection.ExpressionData.Expression);
+		if (UMaterialExpression* Expression = Connection.GetExpressionAndUse())
+		{
+			Target.Connect(Connection.GetExpressionOutputIndex(), Expression);
+		}
 	}
 
 	template <typename T>

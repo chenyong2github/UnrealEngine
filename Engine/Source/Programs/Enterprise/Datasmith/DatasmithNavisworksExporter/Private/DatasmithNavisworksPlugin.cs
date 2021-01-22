@@ -532,6 +532,7 @@ namespace DatasmithNavisworks
 			public List<Appearance> Appearances;
 			public GuiProperties Metadata;
 			public FDatasmithFacadeActorMesh MeshActor;
+			public GeometryUtil.BoundingBox BoundingBox;
 
 			public GeometryInstance(InstancedWithInstancesToExport Instanced, SceneItem Item, int MeshesCountHint)
 			{
@@ -747,6 +748,8 @@ namespace DatasmithNavisworks
 						FDatasmithFacadeScene DatasmithScene =
 							new FDatasmithFacadeScene(HOST_NAME, VENDOR_NAME, Autodesk.Navisworks.Api.Application.Version.Runtime, ProductVersion);
 						DatasmithScene.PreExport();
+						DatasmithScene.SetOutputPath(System.IO.Path.GetDirectoryName(FilePath));
+						DatasmithScene.SetName(System.IO.Path.GetFileNameWithoutExtension(FilePath));
 
 						SceneContext SceneContext = new SceneContext
 						{
@@ -939,6 +942,24 @@ namespace DatasmithNavisworks
 						}
 
 						{
+							EventInfo("Set Actor Transforms");
+							ProgressBar.BeginSubOperation(0.1, "Set Actor Transforms");
+							try
+							{
+								SetActorTransforms(SceneContext, ProgressBar);
+								if (ProgressBar.IsCanceled)
+								{
+									return 0;
+								}
+							}
+							finally
+							{
+								ProgressBar.EndSubOperation();
+							}
+							EventInfo("Done - Set Actor Transforms");
+						}
+
+						{
 							EventInfo("Building Scene Hierarchy");
 							ProgressBar.BeginSubOperation(0.1, "Building Scene Hierarchy");
 							try
@@ -975,9 +996,7 @@ namespace DatasmithNavisworks
 						}
 
 						Info($"DuplicateMeshCount={SceneContext.DuplicateMeshCount}");
-						int TotalTriangleCount = SceneContext.DatasmithMeshes.Sum(Mesh => Mesh.GetTriangleCount());
-						int TotalVertexCount = SceneContext.DatasmithMeshes.Sum(Mesh => Mesh.GetVertexCount());
-						Info($"Created Datasmith Scene with {SceneContext.DatasmithActors.Count} Actors, {SceneContext.DatasmithActorMeshes.Count} Meshes, Unique {SceneContext.DatasmithMeshes.Count} Meshes, {TotalTriangleCount} TotalTriangleCount (VertexCount {TotalVertexCount}, Materials {SceneContext.DatasmithMaterials.Count})");
+						Info($"Created Datasmith Scene with {SceneContext.DatasmithActors.Count} Actors, {SceneContext.DatasmithActorMeshes.Count} Meshes, Unique {SceneContext.DatasmithMeshElements.Count} Meshes, {SceneContext.TotalTriangleCount} TotalTriangleCount (VertexCount {SceneContext.TotalVertexCount}, Materials {SceneContext.DatasmithMaterials.Count})");
 
 						{
 							// Build and export the Datasmith scene instance and its scene element assets.
@@ -1256,9 +1275,39 @@ namespace DatasmithNavisworks
 				// Geometry nodes will be added as MeshActors
 				if ((CurrentNode.Children.Count > 0) || CurrentNode.HasMetadata() || (Item.Parent == null))
 				{
-					CurrentNode.CreateDatasmithActor(SceneContext);
+					Debug.Assert(CurrentNode.SceneItem.DatasmithActor == null);
+					CurrentNode.SceneItem.DatasmithActor = CreateDatasmithActorForSceneItem(SceneContext, CurrentNode.SceneItem);
 				}
 			}
+		}
+
+		[MethodImpl(MethodImplOptions.NoInlining)]
+		private static void SetActorTransforms(SceneContext SceneContext, Progress ProgressBar)
+		{
+			SetActorTransforms(SceneContext.RootNode);
+		}
+
+		// Set transforms recursively computing subtree bounding boxes and setting translation to box center
+		private static GeometryUtil.BoundingBox SetActorTransforms(Node Node)
+		{
+			GeometryUtil.BoundingBox BoundingBox = new GeometryUtil.BoundingBox();
+
+			if (Node.Instance != null)
+			{
+				BoundingBox.Extend(Node.Instance.BoundingBox);
+			}
+
+			foreach (Node Child in Node.Children)
+			{
+				BoundingBox.Extend(SetActorTransforms(Child));
+			}
+
+			if (BoundingBox.IsSet())
+			{
+				Node.SceneItem.DatasmithActor?.SetWorldTransform(TransformMatrix.Identity
+					.ConcatTranslation(BoundingBox.BottomCenter).Floats);
+			}
+			return BoundingBox;
 		}
 
 		[MethodImpl(MethodImplOptions.NoInlining)]
@@ -1557,11 +1606,16 @@ namespace DatasmithNavisworks
 					{
 						if (FragmentGeometry.GetGeometry(out Geometry Geometry))
 						{
-							FDatasmithFacadeMesh DatasmithMesh = CreateDatasmithMeshForItem(SceneContext, FragmentGeometry.SceneItem, It.Index);
+							FDatasmithFacadeMeshElement DatasmithMeshElement = CreateDatasmithMeshElementForItem(SceneContext, FragmentGeometry.SceneItem, It.Index);
 
-							FillDatasmithMeshFromGeometry(Geometry, DatasmithMesh);
+							using (FDatasmithFacadeMesh DatasmithMesh = CreateDatasmithMeshForItem(SceneContext, FragmentGeometry.SceneItem, It.Index))
+							{
+								FillDatasmithMeshFromGeometry(Geometry, DatasmithMesh);
+								ExportDatasmithMesh(SceneContext, DatasmithMesh, DatasmithMeshElement);
+							}
 
-							DatasmithMesh.AddMaterial(0, GetMaterialForFragmentGeometry(SceneContext, It.Fragment.Appearance));
+							DatasmithMeshElement.SetMaterial(GetMaterialForFragmentGeometry(SceneContext, It.Fragment.Appearance), 0);
+
 							SceneContext.TotalMeshSectionCount++;
 
 							// Use this mesh for all instances
@@ -1571,10 +1625,13 @@ namespace DatasmithNavisworks
 
 								FDatasmithFacadeActorMesh FragmentMeshActor = CreateDatasmithActorMeshForInstance(SceneContext, Instance, FragmentIndex);
 								FragmentMeshActor.SetWorldTransform(Transform.Floats);
-								FragmentMeshActor.SetMesh(DatasmithMesh.GetName());
+								FragmentMeshActor.SetMesh(DatasmithMeshElement.GetName());
 
 								TotalSingleFragmentsInstanced++;
 								SceneContext.TotalMeshSectionInstancedCount++;
+
+								Instance.BoundingBox = new GeometryUtil.BoundingBox();
+								Instance.BoundingBox.Extend(Geometry, Transform);
 							}
 						}
 					}	
@@ -1637,20 +1694,31 @@ namespace DatasmithNavisworks
 							return false;
 						}
 
-						// For each mesh that is composed from fragments with distinct transforms create its own DatasmithMesh 
-						FDatasmithFacadeMesh DatasmithMesh = CreateDatasmithMeshForBakedFragmentGeometry(SceneContext, Instance);
+						FDatasmithFacadeMeshElement DatasmithMeshElement = CreateDatasmithMeshElementForItem(SceneContext, Instance.SceneItem, 0);
+						int SlotCount = AssignAppearancesListToDatasmithMesh(SceneContext, DatasmithMeshElement, Instance.Appearances, out List<int> SlotRemap);
+						SceneContext.TotalMeshSectionCount += SlotCount;
+						SceneContext.TotalMeshSectionInstancedCount += SlotCount;
 
-						if (DatasmithMesh == null)
+						// For each mesh that is composed from fragments with distinct transforms create its own DatasmithMesh 
+						using (FDatasmithFacadeMesh DatasmithMesh = CreateDatasmithMeshForBakedFragmentGeometry(SceneContext, Instance, SlotRemap, out Vector3d Translation))
 						{
-							Info($"Datasmith Mesh wasn't created for {Instance.SceneItem?.ComNode?.UserName}");
-							continue;
+							if (DatasmithMesh == null)
+							{
+								Info($"Datasmith Mesh wasn't created for {Instance.SceneItem?.ComNode?.UserName}");
+								continue;
+							}
+
+							ExportDatasmithMesh(SceneContext, DatasmithMesh, DatasmithMeshElement);
+							TotalBakedMeshTriangles += DatasmithMesh.GetFacesCount();
+
+							FDatasmithFacadeActorMesh ItemMeshActor =
+								CreateDatasmithActorMeshForInstance(SceneContext, Instance, 0);
+							// Translation is expected to be in export(Unreal) coordinates already
+							TransformMatrix Transform = TransformMatrix.Identity.ConcatTranslation(Translation);
+							ItemMeshActor.SetWorldTransform(Transform.Floats);
+							ItemMeshActor.SetMesh(DatasmithMeshElement.GetName());
 						}
 
-						FDatasmithFacadeActorMesh ItemMeshActor =
-							CreateDatasmithActorMeshForInstance(SceneContext, Instance, 0);
-						ItemMeshActor.SetMesh(DatasmithMesh.GetName());
-
-						TotalBakedMeshTriangles += DatasmithMesh.GetTriangleCount();
 						TotalBakedMeshInstances++;
 					}
 
@@ -1664,23 +1732,35 @@ namespace DatasmithNavisworks
 								AppearanceListAndInstances.AppearanceList;
 							List<GeometryInstance> GeometryInstances = AppearanceListAndInstances.GeometryInstances;
 
-							// TODO: Potential optimization - same mesh might have different set of appearances
-							// Right now we are creating separate mesh for each appearance list, might want to make override materials on mesh actor
-							FDatasmithFacadeMesh MergedDatasmithMesh = CreateDatasmithMeshForItem(SceneContext, InstancedGeometry.Item, AppearanceListAndInstances.Index); // Instantiate mesh with different name for each appearance
-							TotalMergedMeshes++;
+							FDatasmithFacadeMeshElement DatasmithMeshElement = CreateDatasmithMeshElementForItem(SceneContext, InstancedGeometry.Item, It.Index);
+							int SlotCount = AssignAppearancesListToDatasmithMesh(SceneContext, DatasmithMeshElement, AppearanceList.Appearances, out List<int> SlotRemap);
 
-							int SlotCount = AssignAppearancesListToDatasmithMesh(SceneContext, MergedDatasmithMesh, AppearanceList.Appearances, out List<int> SlotRemap);
-							SceneContext.TotalMeshSectionCount += SlotCount;
-
-							foreach (var GeomIt in InstancedGeometry.FragmentGeometries.Select((Value, Index) =>
-								new {Index, Geometry = Value}))
+							// Compute bounding box of consolidated geometry to repivot merged geometry to the bbox center
+							// Bounding box is computed in local coordinates(before item transform applied)
+							GeometryUtil.BoundingBox BoundingBox = new GeometryUtil.BoundingBox();
+							foreach (FragmentGeometry FragmentGeometry in InstancedGeometry.FragmentGeometries)
 							{
-								if (GeomIt.Geometry.GetGeometry(out Geometry Geometry))
+								OptimizeSourceGeometry(FragmentGeometry);
+								if (FragmentGeometry.GetGeometry(out Geometry Geometry))
 								{
-									ExtendDatasmithMeshFromGeometry(Geometry, MergedDatasmithMesh,
-										SlotRemap[GeomIt.Index]);
+									BoundingBox.Extend(Geometry);
 								}
 							}
+							Vector3d PivotTranslation = BoundingBox.BottomCenter;
+							TransformMatrix CenterTransform = TransformMatrix.Identity.ConcatTranslation(PivotTranslation);
+
+							// TODO: Potential optimization - same mesh might have different set of appearances
+							// Right now we are creating separate mesh for each appearance list, might want to make override materials on mesh actor
+							using (FDatasmithFacadeMesh MergedDatasmithMesh = CreateDatasmithMeshForItem(SceneContext, InstancedGeometry.Item, AppearanceListAndInstances.Index)) // Instantiate mesh with different name for each appearance
+							{
+								TotalMergedMeshes++;
+								FillDatasmithMeshFromInstancedGeometry(InstancedGeometry, MergedDatasmithMesh, SlotRemap, -PivotTranslation);
+
+								ExportDatasmithMesh(SceneContext, MergedDatasmithMesh, DatasmithMeshElement);
+
+								SceneContext.TotalMeshSectionCount += SlotCount;
+							}
+
 
 							foreach (GeometryInstance Instance in GeometryInstances)
 							{
@@ -1690,9 +1770,13 @@ namespace DatasmithNavisworks
 								}
 
 								FDatasmithFacadeActorMesh ItemMeshActor = CreateDatasmithActorMeshForInstance(SceneContext, Instance, 0);
-								TransformMatrix Transform = SceneContext.NavisworksToUnrealTransform.Multiply(Instance.GetTransform(0));
-								ItemMeshActor.SetWorldTransform(Transform.Floats);
-								ItemMeshActor.SetMesh(MergedDatasmithMesh.GetName());
+
+								// Repivot to BBox center. Note - CenterTransform applied first(i.e. to local vertex positions)
+								TransformMatrix TransformRepivoted = Instance.GetTransform(0).Multiply(CenterTransform);
+								TransformMatrix WorldTransform = SceneContext.NavisworksToUnrealTransform.Multiply(TransformRepivoted);
+								ItemMeshActor.SetWorldTransform(WorldTransform.Floats);
+								ItemMeshActor.SetMesh(DatasmithMeshElement.GetName());
+								Instance.BoundingBox = BoundingBox.Transform(WorldTransform);
 
 								TotalMergedMeshInstances++;
 								SceneContext.TotalMeshSectionInstancedCount += SlotCount;
@@ -1762,7 +1846,7 @@ namespace DatasmithNavisworks
 			return null;
 		}
 
-		private int AssignAppearancesListToDatasmithMesh(SceneContext SceneContext, FDatasmithFacadeMesh DatasmithMesh,
+		private int AssignAppearancesListToDatasmithMesh(SceneContext SceneContext, FDatasmithFacadeMeshElement DatasmithMeshElement,
 			List<Appearance> Appearances, out List<int> SlotRemap)
 		{
 			int SlotCount = 0;
@@ -1777,8 +1861,7 @@ namespace DatasmithNavisworks
 					Slot = SlotCount;
 					SlotCount++;
 					SlotForAppearance.Add(Appearance, Slot);
-					DatasmithMesh.AddMaterial(Slot,
-						GetMaterialForFragmentGeometry(SceneContext, Appearance));
+					DatasmithMeshElement.SetMaterial(GetMaterialForFragmentGeometry(SceneContext, Appearance), Slot);
 				}
 
 				SlotRemap.Add(Slot);
@@ -1885,12 +1968,6 @@ namespace DatasmithNavisworks
 			public bool HasMetadata()
 			{
 				return Instance?.Metadata != null;
-			}
-
-			public void CreateDatasmithActor(SceneContext SceneContext)
-			{
-				Debug.Assert(SceneItem.DatasmithActor == null);
-				SceneItem.DatasmithActor = CreateDatasmithActorForSceneItem(SceneContext, SceneItem);
 			}
 		};
 
@@ -2374,110 +2451,229 @@ namespace DatasmithNavisworks
 			GetNameAndLabelFromItem(Item, out string Name, out string Label);
 			// Hash the Datasmith mesh name to shorten it and make it valid
 			string HashedName = FDatasmithFacadeElement.GetStringHash("M" + MeshIndex + ":" + Name);
-			FDatasmithFacadeMesh DatasmithMesh = new FDatasmithFacadeMesh(HashedName);
-			DatasmithMesh.SetLabel(Label + "_" + MeshIndex);
-			SceneContext.DatasmithMeshes.Add(DatasmithMesh); // hold on to reference
-			SceneContext.DatasmithScene.AddMesh(DatasmithMesh);
+			FDatasmithFacadeMesh DatasmithMesh = new FDatasmithFacadeMesh();
+			DatasmithMesh.SetName(HashedName);
+
 			return DatasmithMesh;
+		}
+
+		[MethodImpl(MethodImplOptions.NoInlining)]
+
+		private static FDatasmithFacadeMeshElement CreateDatasmithMeshElementForItem(SceneContext SceneContext, SceneItem Item, int MeshIndex)
+		{
+			// Set mesh name/label from the Item that it's instantiated from
+			GetNameAndLabelFromItem(Item, out string Name, out string Label);
+			// Hash the Datasmith mesh name to shorten it and make it valid
+			string HashedName = FDatasmithFacadeElement.GetStringHash("M" + MeshIndex + ":" + Name);
+			FDatasmithFacadeMeshElement MeshElement = new FDatasmithFacadeMeshElement(HashedName);
+			MeshElement.SetLabel(Label + "_" + MeshIndex);
+			SceneContext.DatasmithMeshElements.Add(MeshElement); // hold on to reference
+			SceneContext.DatasmithScene.AddMesh(MeshElement);
+			return MeshElement;
+		}
+
+		[MethodImpl(MethodImplOptions.NoInlining)]
+		private static bool ExportDatasmithMesh(SceneContext SceneContext, FDatasmithFacadeMesh DatasmithMesh, FDatasmithFacadeMeshElement DatasmithMeshElement)
+		{
+			// Export the DatasmithMesh to a .udsmesh file and assign it to the DatasmithMeshElement.
+			if (SceneContext.DatasmithScene.ExportDatasmithMesh(DatasmithMeshElement, DatasmithMesh))
+			{
+				SceneContext.TotalVertexCount += DatasmithMesh.GetVerticesCount();
+				SceneContext.TotalTriangleCount += DatasmithMesh.GetFacesCount();
+				
+				return true;
+			}
+
+			return false;
 		}
 
 		private unsafe void FillDatasmithMeshFromGeometry(Geometry Geometry, FDatasmithFacadeMesh DatasmithMesh)
 		{
-			foreach (GeometryVertex Vertex in GeometryUtil.EnumerateVertices(Geometry))
+			int VertexCount = (int)Geometry.VertexCount;
+			const int UVChannelCount = 1;
+			const int DefaultUVChannel = 0;
+			DatasmithMesh.SetVerticesCount(VertexCount);
+			DatasmithMesh.SetUVChannelsCount(UVChannelCount);
+			DatasmithMesh.SetUVCount(DefaultUVChannel, VertexCount);
+			for (int VertexIndex = 0; VertexIndex < VertexCount; VertexIndex++)
 			{
+				GeometryVertex Vertex = new GeometryVertex(Geometry, VertexIndex);
+
 				Vector3d Position = Vertex.Position;
-				DatasmithMesh.AddVertex((float) Position.X, (float) Position.Y, (float) Position.Z);
+				DatasmithMesh.SetVertex(VertexIndex, (float)Position.X, (float)Position.Y, (float)Position.Z);
 
 				Vector3d Normal = Vertex.Normal;
-				DatasmithMesh.AddNormal((float) Normal.X, (float) Normal.Y, (float) Normal.Z);
+				DatasmithMesh.SetNormal(VertexIndex, (float)Normal.X, (float)Normal.Y, (float)Normal.Z);
 
 				Vector2d Uv = Vertex.UV;
-				DatasmithMesh.AddUV(0, (float) Uv.X, (float) Uv.Y);
+				DatasmithMesh.SetUV(DefaultUVChannel, VertexIndex, (float)Uv.X, (float)Uv.Y);
 			}
 
 			uint TriangleCount = Geometry.TriangleCount;
+			DatasmithMesh.SetFacesCount((int)TriangleCount);
 			for (int TriangleIndex = 0; TriangleIndex < TriangleCount; TriangleIndex++)
 			{
-				DatasmithMesh.AddTriangle(
-					(int) Geometry.Indices[TriangleIndex * 3],
-					(int) Geometry.Indices[TriangleIndex * 3 + 1],
-					(int) Geometry.Indices[TriangleIndex * 3 + 2]);
+				int Vertex1 = (int)Geometry.Indices[TriangleIndex * 3];
+				int Vertex2 = (int)Geometry.Indices[TriangleIndex * 3 + 1];
+				int Vertex3 = (int)Geometry.Indices[TriangleIndex * 3 + 2];
+
+				DatasmithMesh.SetFace(TriangleIndex, Vertex1, Vertex2, Vertex3);
+				DatasmithMesh.SetFaceUV(TriangleIndex, DefaultUVChannel, Vertex1, Vertex2, Vertex3);
 			}
 		}
 
-		private unsafe void ExtendDatasmithMeshFromGeometry(Geometry Geometry, FDatasmithFacadeMesh DatasmithMesh, int MaterialId)
+		private unsafe void FillDatasmithMeshFromInstancedGeometry(SceneItemInstancedGeometry InstancedGeometry,
+			FDatasmithFacadeMesh DatasmithMesh, List<int> SlotRemap, Vector3d PositionOffset)
 		{
-			int VertexIndexBase = DatasmithMesh.GetVertexCount();
-			foreach (GeometryVertex Vertex in GeometryUtil.EnumerateVertices(Geometry))
+			const int UVChannelCount = 1;
+			const int DefaultUVChannel = 0;
+			int VerticesCount = 0;
+			int FacesCount = 0;
+			List<Geometry> GeometryFragments = new List<Geometry>(InstancedGeometry.FragmentGeometryCount);
+
+			for (int FragmentIndex = 0; FragmentIndex < InstancedGeometry.FragmentGeometryCount; ++FragmentIndex)
 			{
-				Vector3d Position = Vertex.Position;
-				DatasmithMesh.AddVertex((float) Position.X, (float) Position.Y, (float) Position.Z);
-
-				Vector3d Normal = Vertex.Normal;
-				DatasmithMesh.AddNormal((float) Normal.X, (float) Normal.Y, (float) Normal.Z);
-
-				Vector2d Uv = Vertex.UV;
-				DatasmithMesh.AddUV(0, (float) Uv.X, (float) Uv.Y);
-			}
-
-			uint TriangleCount = Geometry.TriangleCount;
-			for (int TriangleIndex = 0; TriangleIndex < TriangleCount; TriangleIndex++)
-			{
-				DatasmithMesh.AddTriangle(
-					VertexIndexBase + (int) Geometry.Indices[TriangleIndex * 3],
-					VertexIndexBase + (int) Geometry.Indices[TriangleIndex * 3 + 1],
-					VertexIndexBase + (int) Geometry.Indices[TriangleIndex * 3 + 2], 
-					MaterialId);
-			}
-
-		}
-
-		private unsafe FDatasmithFacadeMesh  CreateDatasmithMeshForBakedFragmentGeometry(SceneContext SceneContext, GeometryInstance Instance)
-		{
-			FDatasmithFacadeMesh DatasmithMesh = CreateDatasmithMeshForItem(SceneContext, Instance.SceneItem, 0);
-
-			int SlotCount = AssignAppearancesListToDatasmithMesh(SceneContext, DatasmithMesh, Instance.Appearances, out List<int> SlotRemap);
-			SceneContext.TotalMeshSectionCount += SlotCount;
-			SceneContext.TotalMeshSectionInstancedCount += SlotCount;
-
-			// For Fragments that don't all share single transform - bake Fragment transform into its vertices
-			for (int FragmentIndex = 0; FragmentIndex < Instance.SharedInstancedForInstancesRef.InstancedGeometry.FragmentGeometryCount; FragmentIndex++)
-			{
-				FragmentGeometry FragmentGeometry = Instance.SharedInstancedForInstancesRef.InstancedGeometry.GetFragmentGeometry(FragmentIndex);
-				int MaterialId = SlotRemap[FragmentIndex];
-				
-				OptimizeSourceGeometry(FragmentGeometry);
-				if (FragmentGeometry.GetGeometry(out Geometry Geometry))
+				if (InstancedGeometry.GetFragmentGeometry(FragmentIndex).GetGeometry(out Geometry Geometry))
 				{
-					TransformMatrix Transform = SceneContext.NavisworksToUnrealTransform.Multiply(Instance.GetTransform(FragmentIndex));
-					// Remember base vertex index - we are merging fragment meshes into DatasmithMesh
-					int BaseIndex = DatasmithMesh.GetVertexCount();
-
-					foreach (GeometryVertex Vertex in GeometryUtil.EnumerateVertices(Geometry))
-					{
-						Vector3d CoordTransformed = Transform.TransformPosition(Vertex.Position);
-						DatasmithMesh.AddVertex((float) CoordTransformed.X, (float) CoordTransformed.Y, (float) CoordTransformed.Z);
-
-						Vector3 NormalTransformed = new Vector3(Transform.TransformNormal(Vertex.Normal));
-						NormalTransformed.Normalize();
-						DatasmithMesh.AddNormal(NormalTransformed.X, NormalTransformed.Y, NormalTransformed.Z);
-
-						Vector2d Uv = Vertex.UV;
-						DatasmithMesh.AddUV(0, (float) Uv.X,(float) Uv.Y);
-					}
-
-					uint TriangleCount = Geometry.TriangleCount;
-					for (int TriangleIndex = 0; TriangleIndex < TriangleCount; TriangleIndex++)
-					{
-						DatasmithMesh.AddTriangle(
-							BaseIndex + (int) Geometry.Indices[TriangleIndex * 3],
-							BaseIndex + (int) Geometry.Indices[TriangleIndex * 3 + 1],
-							BaseIndex + (int) Geometry.Indices[TriangleIndex * 3 + 2],
-							MaterialId);
-					}
+					GeometryFragments.Add(Geometry);
+					VerticesCount += (int)Geometry.VertexCount;
+					FacesCount += (int)Geometry.TriangleCount;
 				}
 			}
 
+			DatasmithMesh.SetVerticesCount(VerticesCount);
+			DatasmithMesh.SetUVChannelsCount(UVChannelCount);
+			DatasmithMesh.SetUVCount(DefaultUVChannel, VerticesCount);
+			DatasmithMesh.SetFacesCount(FacesCount);
+
+			int VertexIndexOffset = 0;
+			int FaceIndexOffset = 0;
+			for (int FragmentIndex = 0; FragmentIndex < GeometryFragments.Count; ++FragmentIndex)
+			{
+				Geometry Geometry = GeometryFragments[FragmentIndex];
+
+				for (int VertexIndex = 0; VertexIndex < Geometry.VertexCount; VertexIndex++)
+				{
+					GeometryVertex Vertex = new GeometryVertex(Geometry, VertexIndex);
+
+					Vector3d Position = Vertex.Position + PositionOffset;
+					DatasmithMesh.SetVertex(VertexIndexOffset + VertexIndex, (float)Position.X, (float)Position.Y, (float)Position.Z);
+
+					Vector3d Normal = Vertex.Normal;
+					DatasmithMesh.SetNormal(VertexIndexOffset + VertexIndex, (float)Normal.X, (float)Normal.Y, (float)Normal.Z);
+
+					Vector2d Uv = Vertex.UV;
+					DatasmithMesh.SetUV(DefaultUVChannel, VertexIndexOffset + VertexIndex, (float)Uv.X, (float)Uv.Y);
+				}
+
+				uint TriangleCount = Geometry.TriangleCount;
+				int MaterialId = SlotRemap[FragmentIndex];
+				for (int TriangleIndex = 0; TriangleIndex < TriangleCount; TriangleIndex++)
+				{
+					int FaceIndex = TriangleIndex + FaceIndexOffset;
+					int Vertex1 = (int)Geometry.Indices[TriangleIndex * 3] + VertexIndexOffset;
+					int Vertex2 = (int)Geometry.Indices[TriangleIndex * 3 + 1] + VertexIndexOffset;
+					int Vertex3 = (int)Geometry.Indices[TriangleIndex * 3 + 2] + VertexIndexOffset;
+
+					DatasmithMesh.SetFace(FaceIndex, Vertex1, Vertex2, Vertex3, MaterialId);
+					DatasmithMesh.SetFaceUV(FaceIndex, DefaultUVChannel, Vertex1, Vertex2, Vertex3);
+				}
+
+				VertexIndexOffset += (int)Geometry.VertexCount;
+				FaceIndexOffset += (int)Geometry.TriangleCount;
+			}
+		}
+
+		private unsafe FDatasmithFacadeMesh  CreateDatasmithMeshForBakedFragmentGeometry(SceneContext SceneContext, GeometryInstance Instance, List<int> SlotRemap, out Vector3d OutTranslation)
+		{
+			FDatasmithFacadeMesh DatasmithMesh = CreateDatasmithMeshForItem(SceneContext, Instance.SceneItem, 0);
+			const int UVChannelCount = 1;
+			const int DefaultUVChannel = 0;
+			int VerticesCount = 0;
+			int FacesCount = 0;
+			List<Geometry> GeometryFragments = new List<Geometry>(Instance.SharedInstancedForInstancesRef.InstancedGeometry.FragmentGeometryCount);
+
+			for (int FragmentIndex = 0; FragmentIndex < Instance.SharedInstancedForInstancesRef.InstancedGeometry.FragmentGeometryCount; ++FragmentIndex)
+			{
+				FragmentGeometry FragmentGeometry = Instance.SharedInstancedForInstancesRef.InstancedGeometry.GetFragmentGeometry(FragmentIndex);
+				OptimizeSourceGeometry(FragmentGeometry);
+
+				if (FragmentGeometry.GetGeometry(out Geometry Geometry))
+				{
+					GeometryFragments.Add(Geometry);
+					VerticesCount += (int)Geometry.VertexCount;
+					FacesCount += (int)Geometry.TriangleCount;
+				}
+				else
+				{
+					// Add an empty entry to make sure the indices match SlotRemap.
+					GeometryFragments.Add(null);
+				}
+			}
+
+			// Compute bounding box of consolidated geometry to repivot merged geometry to the bbox center
+			GeometryUtil.BoundingBox BoundingBox = new GeometryUtil.BoundingBox();
+			for (int FragmentIndex = 0; FragmentIndex < Instance.SharedInstancedForInstancesRef.InstancedGeometry.FragmentGeometryCount; FragmentIndex++)
+			{
+				FragmentGeometry FragmentGeometry = Instance.SharedInstancedForInstancesRef.InstancedGeometry.GetFragmentGeometry(FragmentIndex);
+				OptimizeSourceGeometry(FragmentGeometry);
+				if (FragmentGeometry.GetGeometry(out Geometry Geometry))
+				{
+					BoundingBox.Extend(Geometry, SceneContext.NavisworksToUnrealTransform.Multiply(Instance.GetTransform(FragmentIndex)));
+				}
+			}
+			// Center of the bounding box of vertices already transformed to export(Unreal) coordinates
+			Vector3d PivotTranslation = BoundingBox.BottomCenter;
+			OutTranslation = PivotTranslation; 
+
+			DatasmithMesh.SetVerticesCount(VerticesCount);
+			DatasmithMesh.SetUVChannelsCount(UVChannelCount);
+			DatasmithMesh.SetUVCount(DefaultUVChannel, VerticesCount);
+			DatasmithMesh.SetFacesCount(FacesCount);
+
+			// For Fragments that don't all share single transform - bake Fragment transform into its vertices
+			int VertexIndexOffset = 0;
+			int FaceIndexOffset = 0;
+			for (int FragmentIndex = 0; FragmentIndex < GeometryFragments.Count; ++FragmentIndex)
+			{
+				Geometry Geometry = GeometryFragments[FragmentIndex];
+
+				if (Geometry != null)
+				{
+					TransformMatrix Transform = SceneContext.NavisworksToUnrealTransform.Multiply(Instance.GetTransform(FragmentIndex));
+
+					for (int VertexIndex = 0; VertexIndex < Geometry.VertexCount; VertexIndex++)
+					{
+						GeometryVertex Vertex = new GeometryVertex(Geometry, VertexIndex);
+
+						Vector3d CoordTransformed = Transform.TransformPosition(Vertex.Position) - PivotTranslation;
+						DatasmithMesh.SetVertex(VertexIndexOffset + VertexIndex, (float)CoordTransformed.X, (float)CoordTransformed.Y, (float)CoordTransformed.Z);
+
+						Vector3 NormalTransformed = new Vector3(Transform.TransformNormal(Vertex.Normal));
+						DatasmithMesh.SetNormal(VertexIndexOffset + VertexIndex, (float)NormalTransformed.X, (float)NormalTransformed.Y, (float)NormalTransformed.Z);
+
+						Vector2d Uv = Vertex.UV;
+						DatasmithMesh.SetUV(DefaultUVChannel, VertexIndexOffset + VertexIndex, (float)Uv.X, (float)Uv.Y);
+					}
+
+					uint TriangleCount = Geometry.TriangleCount;
+					int MaterialId = SlotRemap[FragmentIndex];
+					for (int TriangleIndex = 0; TriangleIndex < TriangleCount; TriangleIndex++)
+					{
+						int FaceIndex = TriangleIndex + FaceIndexOffset;
+						int Vertex1 = (int)Geometry.Indices[TriangleIndex * 3] + VertexIndexOffset;
+						int Vertex2 = (int)Geometry.Indices[TriangleIndex * 3 + 1] + VertexIndexOffset;
+						int Vertex3 = (int)Geometry.Indices[TriangleIndex * 3 + 2] + VertexIndexOffset;
+
+						DatasmithMesh.SetFace(FaceIndex, Vertex1, Vertex2, Vertex3, MaterialId);
+						DatasmithMesh.SetFaceUV(FaceIndex, DefaultUVChannel, Vertex1, Vertex2, Vertex3);
+					}
+					VertexIndexOffset += (int)Geometry.VertexCount;
+					FaceIndexOffset += (int)Geometry.TriangleCount;
+				}
+			}
+
+			Instance.BoundingBox = BoundingBox;
 			return DatasmithMesh;
 		}
 
@@ -2889,7 +3085,7 @@ namespace DatasmithNavisworks
 			public FDatasmithFacadeScene DatasmithScene;
 			public Dictionary<SceneItemPath, InwOaPath> ItemComPathForPath = new Dictionary<SceneItemPath, InwOaPath>();
 			public Dictionary<Appearance, FDatasmithFacadeUEPbrMaterial> DatasmithMaterialForAppearance = new Dictionary<Appearance, FDatasmithFacadeUEPbrMaterial>();
-			public List<FDatasmithFacadeMesh> DatasmithMeshes = new List<FDatasmithFacadeMesh>();
+			public List<FDatasmithFacadeMeshElement> DatasmithMeshElements = new List<FDatasmithFacadeMeshElement>();
 			public List<FDatasmithFacadeActor> DatasmithActors = new List<FDatasmithFacadeActor>();
 			public List<FDatasmithFacadeActor> DatasmithActorMeshes = new List<FDatasmithFacadeActor>();
 			public List<FDatasmithFacadeBaseMaterial> DatasmithMaterials = new List<FDatasmithFacadeBaseMaterial>();
@@ -2903,6 +3099,9 @@ namespace DatasmithNavisworks
 			public int GroupNodeCount = 0;
 			public int InsertNodeCount = 0;
 			public int LayerNodeCount = 0;
+
+			public int TotalVertexCount = 0;
+			public int TotalTriangleCount = 0;
 
 			public int SceneItemCount => SceneItemList.Count;
 			public double CentimetersPerUnit;
@@ -3356,7 +3555,11 @@ namespace DatasmithNavisworks
 		public double LengthSquared() => X*X + Y*Y + Z*Z;
 
 		public Vector3d Abs() => new Vector3d(){ X =  Math.Abs(X), Y = Math.Abs(Y),  Z = Math.Abs(Z)};
+		public Vector3d Min(double S) => new Vector3d(){ X =  Math.Min(X, S), Y = Math.Min(Y, S),  Z = Math.Min(Z, S)};
 		public Vector3d Max(double S) => new Vector3d(){ X =  Math.Max(X, S), Y = Math.Max(Y, S),  Z = Math.Max(Z, S)};
+ 
+		public Vector3d Min(Vector3d Other) => new Vector3d(){ X =  Math.Min(X, Other.X), Y = Math.Min(Y, Other.Y),  Z = Math.Min(Z, Other.Z)};
+		public Vector3d Max(Vector3d Other) => new Vector3d(){ X =  Math.Max(X, Other.X), Y = Math.Max(Y, Other.Y),  Z = Math.Max(Z, Other.Z)};
 
 		public bool AlmostEqual(Vector3d Other, double Threshold)
 		{
@@ -3527,6 +3730,14 @@ namespace DatasmithNavisworks
 
 			return Result;
 		}
+
+		public static TransformMatrix Identity => new TransformMatrix(new double[]
+			{
+				1, 0, 0, 0,
+				0, 1, 0, 0,
+				0, 0, 1, 0,
+				0, 0, 0, 1,
+			});
 	};
 
 	class Converters
@@ -3585,6 +3796,93 @@ namespace DatasmithNavisworks
 
 	class GeometryUtil
 	{
+		public class BoundingBox
+		{
+			private Vector3d BoundMin;
+			private Vector3d BoundMax;
+			private bool bIsSet;
+
+			public BoundingBox()
+			{
+				bIsSet = false;
+			}
+
+			public bool IsSet()
+			{
+				return bIsSet;
+			}
+
+			public Vector3d Center => (BoundMin + BoundMax) * 0.5;
+			public Vector3d BottomCenter => new Vector3d((BoundMin.X + BoundMax.X) * 0.5, (BoundMin.Y + BoundMax.Y) * 0.5, BoundMin.Z);
+
+			public void Extend(Geometry Geometry, TransformMatrix Transform=null)
+			{
+				foreach (GeometryVertex Vertex in EnumerateVertices(Geometry))
+				{
+					Vector3d CoordTransformed = Transform?.TransformPosition(Vertex.Position) ?? Vertex.Position;
+
+					Extend(CoordTransformed);
+				}
+			}
+
+			public void Extend(BoundingBox Other)
+			{
+				if (!Other.bIsSet)
+				{
+					return;
+				}
+
+				foreach (Vector3d V in Other.EnumerateCorners())
+				{
+					Extend(V);
+				}
+			}
+
+			private void Extend(Vector3d V)
+			{
+				if (bIsSet)
+				{
+					BoundMin = BoundMin.Min(V);
+					BoundMax = BoundMax.Max(V);
+				}
+				else
+				{
+					BoundMin = V;
+					BoundMax = V;
+					bIsSet = true;
+				}
+			}
+
+			public IEnumerable<Vector3d> EnumerateCorners()
+			{
+				Vector3d[] Bounds = { BoundMin, BoundMax };
+
+				for (int i = 0; i < 8; ++i)
+				{
+					yield return new Vector3d(Bounds[i & 1].X, Bounds[(i & 2) >> 1].Y, Bounds[(i & 4) >> 2].Z);
+				}
+			}
+
+			public BoundingBox Transform(TransformMatrix TransformMatrix)
+			{
+				BoundingBox Result = new BoundingBox();
+				if (!bIsSet)
+				{
+					return Result;
+				}
+
+				foreach (Vector3d V in EnumerateCorners())
+				{
+					Result.Extend(TransformMatrix.TransformPosition(V));
+				}
+
+				return Result;
+			}
+
+		};
+
+
+
 		public static IEnumerable<GeometryVertex> EnumerateVertices(Geometry Geometry)
 		{
 			for (int VertexIndex = 0; VertexIndex < Geometry.VertexCount; VertexIndex++)

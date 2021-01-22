@@ -270,7 +270,7 @@ void FDatasmithMaxScanlineMaterialsToUEPbr::Convert( TSharedRef< IDatasmithScene
 	// ConvertFromDiffSpec
 	{
 		IDatasmithMaterialExpressionFunctionCall* ConvertFromDiffSpecExpression = PbrMaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionFunctionCall >();
-		ConvertFromDiffSpecExpression->SetFunctionPathName( TEXT("MaterialFunction'/Engine/Functions/Engine_MaterialFunctions01/Shading/ConvertFromDiffSpec.ConvertFromDiffSpec'") );
+		ConvertFromDiffSpecExpression->SetFunctionPathName( TEXT("/Engine/Functions/Engine_MaterialFunctions01/Shading/ConvertFromDiffSpec.ConvertFromDiffSpec") );
 
 		DiffuseExpression->ConnectExpression( *ConvertFromDiffSpecExpression->GetInput(0), 0 );
 		SpecularExpression->ConnectExpression( *ConvertFromDiffSpecExpression->GetInput(1), 0 );

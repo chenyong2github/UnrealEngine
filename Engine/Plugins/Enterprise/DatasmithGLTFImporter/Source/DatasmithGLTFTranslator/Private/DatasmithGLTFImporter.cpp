@@ -387,14 +387,13 @@ void FDatasmithGLTFImporter::SetActorElementTransform(TSharedPtr<IDatasmithActor
 	ActorElement->SetScale(Transform.GetScale3D());
 
 	ActorElement->SetTranslation(Transform.GetTranslation() * MeshFactory->GetUniformScale());
-	ActorElement->SetUseParentTransform(TransformIsLocal);
 }
 
 void FDatasmithGLTFImporter::AddActorElementChild(TSharedPtr<IDatasmithActorElement> ActorElement, const TSharedPtr<IDatasmithActorElement>& ChildNodeActor)
 {
 	if (ChildNodeActor.IsValid())
 	{
-		ActorElement->AddChild(ChildNodeActor, TransformIsLocal ? EDatasmithActorAttachmentRule::KeepRelativeTransform : EDatasmithActorAttachmentRule::KeepWorldTransform);
+		ActorElement->AddChild(ChildNodeActor, bTransformIsLocal ? EDatasmithActorAttachmentRule::KeepRelativeTransform : EDatasmithActorAttachmentRule::KeepWorldTransform);
 	}
 }
 

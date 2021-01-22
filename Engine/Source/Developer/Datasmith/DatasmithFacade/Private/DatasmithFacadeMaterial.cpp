@@ -38,15 +38,6 @@ FDatasmithFacadeBaseMaterial::EDatasmithMaterialType FDatasmithFacadeBaseMateria
 	return EDatasmithMaterialType::Unsupported;
 }
 
-
-void FDatasmithFacadeBaseMaterial::BuildScene(
-	FDatasmithFacadeScene& SceneRef
-)
-{
-	// Add the master material to the Datasmith scene.
-	SceneRef.GetScene()->AddMaterial(GetDatasmithBaseMaterial());
-}
-
 TSharedRef<IDatasmithBaseMaterialElement> FDatasmithFacadeBaseMaterial::GetDatasmithBaseMaterial() const
 {
 	return StaticCastSharedRef<IDatasmithBaseMaterialElement>( InternalDatasmithElement );

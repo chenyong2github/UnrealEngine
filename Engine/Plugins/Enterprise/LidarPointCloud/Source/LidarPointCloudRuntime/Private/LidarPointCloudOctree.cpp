@@ -248,7 +248,7 @@ void FLidarPointCloudOctreeNode::InsertPoints(FLidarPointCloudOctree* Tree, cons
 				if (bStoreInBucket)
 				{
 					const FLidarPointCloudPoint& Other = Points[GridCell->Index];
-					PointBuckets[GridCell->ChildNodeLocation].Emplace(Other.Location + Translation, Other.Color, !!Other.bVisible, Other.ClassificationID);
+					PointBuckets[GridCell->ChildNodeLocation].Emplace(Other.Location + Translation, Other.Color, !!Other.bVisible, Other.ClassificationID, Other.Normal);
 				}
 				
 				GridCell->Index = Index;
@@ -257,7 +257,7 @@ void FLidarPointCloudOctreeNode::InsertPoints(FLidarPointCloudOctree* Tree, cons
 			else if(bStoreInBucket)
 			{
 				const FLidarPointCloudPoint& Other = Points[Index];
-				PointBuckets[InGridData.ChildNodeLocation].Emplace(AdjustedLocation, Other.Color, !!Other.bVisible, Other.ClassificationID);
+				PointBuckets[InGridData.ChildNodeLocation].Emplace(AdjustedLocation, Other.Color, !!Other.bVisible, Other.ClassificationID, Other.Normal);
 			}
 		}
 		else
@@ -342,17 +342,18 @@ void FLidarPointCloudOctreeNode::InsertPoints(FLidarPointCloudOctree* Tree, cons
 					AllocatedPoint.Color = Point.Color;
 					AllocatedPoint.bVisible = Point.bVisible;
 					AllocatedPoint.ClassificationID = Point.ClassificationID;
+					AllocatedPoint.Normal = Point.Normal;
 					GridCell->DistanceFromCenter = Element.Value.DistanceFromCenter;
 				}
 				// ... otherwise add it straight to the bucket
 				else if (bStoreInBucket)
 				{
-					PointBuckets[Element.Value.ChildNodeLocation].Emplace(AdjustedLocation, Point.Color, !!Point.bVisible, Point.ClassificationID);
+					PointBuckets[Element.Value.ChildNodeLocation].Emplace(AdjustedLocation, Point.Color, !!Point.bVisible, Point.ClassificationID, Point.Normal);
 				}
 			}
 			else
 			{
-				CurrentGridAllocationMap.Add(GridIndex, FGridAllocation(AllocatedPoints.Emplace(AdjustedLocation, Point.Color, !!Point.bVisible, Point.ClassificationID), Element.Value));
+				CurrentGridAllocationMap.Add(GridIndex, FGridAllocation(AllocatedPoints.Emplace(AdjustedLocation, Point.Color, !!Point.bVisible, Point.ClassificationID, Point.Normal), Element.Value));
 				NumPointsAdded++;
 			}
 		}
@@ -441,7 +442,7 @@ void FLidarPointCloudOctreeNode::InsertPoints(FLidarPointCloudOctree* Tree, FLid
 				if (bStoreInBucket)
 				{
 					const FLidarPointCloudPoint& Other = *Points[GridCell->Index];
-					PointBuckets[GridCell->ChildNodeLocation].Emplace(Other.Location + Translation, Other.Color, !!Other.bVisible, Other.ClassificationID);
+					PointBuckets[GridCell->ChildNodeLocation].Emplace(Other.Location + Translation, Other.Color, !!Other.bVisible, Other.ClassificationID, Other.Normal);
 				}
 
 				GridCell->Index = Index;
@@ -450,7 +451,7 @@ void FLidarPointCloudOctreeNode::InsertPoints(FLidarPointCloudOctree* Tree, FLid
 			else if (bStoreInBucket)
 			{
 				const FLidarPointCloudPoint& Other = *Points[Index];
-				PointBuckets[InGridData.ChildNodeLocation].Emplace(AdjustedLocation, Other.Color, !!Other.bVisible, Other.ClassificationID);
+				PointBuckets[InGridData.ChildNodeLocation].Emplace(AdjustedLocation, Other.Color, !!Other.bVisible, Other.ClassificationID, Other.Normal);
 			}
 		}
 		else
@@ -535,17 +536,18 @@ void FLidarPointCloudOctreeNode::InsertPoints(FLidarPointCloudOctree* Tree, FLid
 					AllocatedPoint.Color = Point.Color;
 					AllocatedPoint.bVisible = Point.bVisible;
 					AllocatedPoint.ClassificationID = Point.ClassificationID;
+					AllocatedPoint.Normal = Point.Normal;
 					GridCell->DistanceFromCenter = Element.Value.DistanceFromCenter;
 				}
 				// ... otherwise add it straight to the bucket
 				else if (bStoreInBucket)
 				{
-					PointBuckets[Element.Value.ChildNodeLocation].Emplace(AdjustedLocation, Point.Color, !!Point.bVisible, Point.ClassificationID);
+					PointBuckets[Element.Value.ChildNodeLocation].Emplace(AdjustedLocation, Point.Color, !!Point.bVisible, Point.ClassificationID, Point.Normal);
 				}
 			}
 			else
 			{
-				CurrentGridAllocationMap.Add(GridIndex, FGridAllocation(AllocatedPoints.Emplace(AdjustedLocation, Point.Color, !!Point.bVisible, Point.ClassificationID), Element.Value));
+				CurrentGridAllocationMap.Add(GridIndex, FGridAllocation(AllocatedPoints.Emplace(AdjustedLocation, Point.Color, !!Point.bVisible, Point.ClassificationID, Point.Normal), Element.Value));
 				NumPointsAdded++;
 			}
 		}
@@ -931,6 +933,18 @@ void FLidarPointCloudOctree::GetPointsInBox(TArray<FLidarPointCloudPoint*, T>& S
 {
 	SelectedPoints.Reset(); 
 	PROCESS_IN_BOX({ SelectedPoints.Add(Point); });
+}
+
+void FLidarPointCloudOctree::GetPointsInBox(TArray<const FLidarPointCloudPoint*>& SelectedPoints, const FBox& Box, const bool& bVisibleOnly) const
+{
+	SelectedPoints.Reset();
+	PROCESS_IN_BOX_CONST({ SelectedPoints.Add(Point); });
+}
+
+void FLidarPointCloudOctree::GetPointsInBox(TArray64<const FLidarPointCloudPoint*>& SelectedPoints, const FBox& Box, const bool& bVisibleOnly) const
+{
+	SelectedPoints.Reset();
+	PROCESS_IN_BOX_CONST({ SelectedPoints.Add(Point); });
 }
 
 template <typename T>
@@ -1880,11 +1894,17 @@ void FLidarPointCloudOctree::UnloadOldNodes(const float& CurrentTime)
 	}
 }
 
-void FLidarPointCloudOctree::LoadAllNodes()
+void FLidarPointCloudOctree::LoadAllNodes(bool bLoadPersistently)
 {
-	ITERATE_NODES({ CurrentNode->GetPersistentData(); }, true);
-
-	bIsFullyLoaded = true;
+	if (bLoadPersistently)
+	{
+		ITERATE_NODES({ CurrentNode->GetPersistentData(); }, true);
+		bIsFullyLoaded = true;
+	}
+	else
+	{
+		ITERATE_NODES({ CurrentNode->GetData(); }, true);
+	}
 }
 
 void FLidarPointCloudOctree::ReleaseAllNodes(bool bIncludePersistent)

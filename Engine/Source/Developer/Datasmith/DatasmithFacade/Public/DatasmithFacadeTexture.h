@@ -153,7 +153,5 @@ protected:
 
 	FDatasmithFacadeTexture( TSharedRef<IDatasmithTextureElement> InTextureElement );
 
-	virtual void BuildScene( FDatasmithFacadeScene& SceneRef ) override;
-
 	TSharedRef<IDatasmithTextureElement> GetDatasmithTextureElement() const;
 };

@@ -455,7 +455,7 @@ public:
 
 	/** Persistently loads all nodes. */
 	UFUNCTION(BlueprintCallable, Category = "Lidar Point Cloud")
-	void LoadAllNodes() { Octree.LoadAllNodes(); }
+	void LoadAllNodes() { Octree.LoadAllNodes(true); }
 
 	/** Applies given offset to this point cloud. */
 	UFUNCTION(BlueprintCallable, Category = "Lidar Point Cloud")

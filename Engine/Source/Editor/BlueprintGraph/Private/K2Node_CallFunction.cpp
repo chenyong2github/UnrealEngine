@@ -3324,6 +3324,26 @@ void UK2Node_CallFunction::JumpToDefinition() const
 	Super::JumpToDefinition();
 }
 
+FString UK2Node_CallFunction::GetPinMetaData(FName InPinName, FName InKey)
+{
+	FString MetaData = Super::GetPinMetaData(InPinName, InKey);
+
+	// If there's no metadata directly on the pin then check for metadata on the function
+	if (MetaData.IsEmpty())
+	{
+		if (UFunction* Function = GetTargetFunction())
+		{
+			// Find the corresponding property for the pin
+			if (FProperty* Property = Function->FindPropertyByName(InPinName))
+			{
+				MetaData = Property->GetMetaData(InKey);
+			}
+		}
+	}
+
+	return MetaData;
+}
+
 bool UK2Node_CallFunction::IsConnectionDisallowed(const UEdGraphPin* MyPin, const UEdGraphPin* OtherPin, FString& OutReason) const
 {
 	bool bIsDisallowed = Super::IsConnectionDisallowed(MyPin, OtherPin, OutReason);

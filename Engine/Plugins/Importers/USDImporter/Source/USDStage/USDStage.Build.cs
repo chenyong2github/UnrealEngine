@@ -12,26 +12,35 @@ namespace UnrealBuildTool.Rules
 			PrivateDependencyModuleNames.AddRange(
 				new string[]
 				{
+					"CinematicCamera",
 					"Core",
 					"CoreUObject",
-					"EditorStyle",
 					"Engine",
 					"LevelSequence",
-					"LevelSequenceEditor",
 					"MeshDescription",
-					"MeshUtilities",
-					"MessageLog",
 					"MovieScene",
 					"MovieSceneTracks",
-					"Sequencer",
 					"Slate",
 					"SlateCore",
+					"Projects", // So that we can use the plugin manager to find out our content dir and cook the master materials
 					"StaticMeshDescription",
-					"UnrealEd",
 					"UnrealUSDWrapper",
 					"USDSchemas",
 					"USDUtilities",
-				});
+				}
+			);
+
+			if (Target.bBuildEditor)
+			{
+				PrivateDependencyModuleNames.AddRange(
+					new string[]
+					{
+						"LevelSequenceEditor",
+						"Sequencer",
+						"UnrealEd",
+					}
+				);
+			}
 		}
 	}
 }

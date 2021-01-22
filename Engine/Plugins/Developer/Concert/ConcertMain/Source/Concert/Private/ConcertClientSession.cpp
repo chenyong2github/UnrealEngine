@@ -252,6 +252,9 @@ void FConcertClientSession::HandleJoinSessionResultEvent(const FConcertMessageCo
 		return;
 	}
 
+	// This should not trigger, it would mean that the server discovery mechanism, allowed a mismatched protocol version
+	check(Message->ConcertProtocolVersion == EConcertMessageVersion::LatestVersion);
+
 	// Check the session answer
 	switch (Message->ConnectionResult)
 	{
@@ -316,6 +319,7 @@ void FConcertClientSession::TickConnection(float DeltaSeconds, const FDateTime& 
 void FConcertClientSession::SendConnectionRequest()
 {
 	FConcertSession_DiscoverAndJoinSessionEvent DiscoverAndJoinSessionEvent;
+	DiscoverAndJoinSessionEvent.ConcertProtocolVersion = EConcertMessageVersion::LatestVersion;
 	DiscoverAndJoinSessionEvent.SessionServerEndpointId = SessionInfo.ServerEndpointId;
 	DiscoverAndJoinSessionEvent.ClientInfo = ClientInfo;
 	ClientSessionEndpoint->PublishEvent(DiscoverAndJoinSessionEvent);

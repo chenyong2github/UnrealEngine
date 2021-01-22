@@ -208,7 +208,7 @@ void FLidarPointCloudTraversalOctree::GetVisibleNodes(TArray<FLidarPointCloudLOD
 
 		bool bFullyContained = true;
 
-		if ((CurrentNode->Depth == 0 || !CurrentNode->bFullyContained) && !ViewData.ViewFrustum.IntersectBox(CurrentNode->Center, NodeExtent, bFullyContained))
+		if (SelectionParams.bUseFrustumCulling && (CurrentNode->Depth == 0 || !CurrentNode->bFullyContained) && !ViewData.ViewFrustum.IntersectBox(CurrentNode->Center, NodeExtent, bFullyContained))
 		{
 			continue;
 		}
@@ -497,6 +497,7 @@ int64 FLidarPointCloudLODManager::ProcessLOD(const TArray<FLidarPointCloudLODMan
 				SelectionParams.MinDepth = RegisteredProxy.Component->MinDepth;
 				SelectionParams.MaxDepth = RegisteredProxy.Component->MaxDepth;
 				SelectionParams.BoundsScale = RegisteredProxy.Component->BoundsScale;
+				SelectionParams.bUseFrustumCulling = RegisteredProxy.Component->bUseFrustumCulling;
 
 				// Ignore clipping if in editor viewport
 				SelectionParams.ClippingVolumes = RegisteredProxy.Component->IsOwnedByEditor() ? nullptr : &ClippingVolumes;

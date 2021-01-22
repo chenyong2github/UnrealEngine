@@ -19,16 +19,21 @@
 #include "Components/PoseableMeshComponent.h"
 #include "Components/RectLightComponent.h"
 #include "Components/SkyLightComponent.h"
+#include "Components/SpotLightComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/DirectionalLight.h"
 #include "Engine/PointLight.h"
 #include "Engine/RectLight.h"
 #include "Engine/SkeletalMesh.h"
 #include "Engine/SkyLight.h"
+#include "Engine/SpotLight.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/Texture.h"
 #include "GeometryCache.h"
+
+#if WITH_EDITOR
 #include "ObjectTools.h"
+#endif // WITH_EDITOR
 
 #if USE_USD_SDK
 #include "USDIncludesStart.h"
@@ -50,6 +55,7 @@
 	#include "pxr/usd/usdLux/distantLight.h"
 	#include "pxr/usd/usdLux/domeLight.h"
 	#include "pxr/usd/usdLux/rectLight.h"
+	#include "pxr/usd/usdLux/shapingAPI.h"
 	#include "pxr/usd/usdLux/sphereLight.h"
 	#include "pxr/usd/usdSkel/root.h"
 	#include "pxr/usd/usdSkel/binding.h"
@@ -63,6 +69,20 @@
 
 namespace USDConversionUtilsImpl
 {
+	// Adapted from ObjectTools as it is within an Editor-only module
+	FString SanitizeObjectName( const FString& InObjectName )
+	{
+		FString SanitizedText = InObjectName;
+		const TCHAR* InvalidChar = INVALID_OBJECTNAME_CHARACTERS;
+		while ( *InvalidChar )
+		{
+			SanitizedText.ReplaceCharInline( *InvalidChar, TCHAR( '_' ), ESearchCase::CaseSensitive );
+			++InvalidChar;
+		}
+
+		return SanitizedText;
+	}
+
 	/** Show some warnings if the UVSet primvars show some unsupported/problematic behavior */
 	void CheckUVSetPrimvars( TMap<int32, TArray<pxr::UsdGeomPrimvar>> UsablePrimvars, TMap<int32, TArray<pxr::UsdGeomPrimvar>> UsedPrimvars, const FString& MeshPath )
 	{
@@ -257,7 +277,14 @@ UClass* UsdUtils::GetActorTypeForPrim( const pxr::UsdPrim& Prim )
 	}
 	else if ( Prim.IsA< pxr::UsdLuxSphereLight >() )
 	{
-		return APointLight::StaticClass();
+		if ( Prim.HasAPI< pxr::UsdLuxShapingAPI >() )
+		{
+			return ASpotLight::StaticClass();
+		}
+		else
+		{
+			return APointLight::StaticClass();
+		}
 	}
 	else if ( Prim.IsA< pxr::UsdLuxDomeLight >() )
 	{
@@ -293,7 +320,14 @@ UClass* UsdUtils::GetComponentTypeForPrim( const pxr::UsdPrim& Prim )
 	}
 	else if ( Prim.IsA< pxr::UsdLuxSphereLight >() )
 	{
-		return UPointLightComponent::StaticClass();
+		if ( Prim.HasAPI< pxr::UsdLuxShapingAPI >() )
+		{
+			return USpotLightComponent::StaticClass();
+		}
+		else
+		{
+			return UPointLightComponent::StaticClass();
+		}
 	}
 	else if ( Prim.IsA< pxr::UsdLuxDomeLight >() )
 	{
@@ -583,7 +617,7 @@ FString UsdUtils::GetAssetPathFromPrimPath( const FString& RootContentPath, cons
 	ModelApi.GetAssetName( &RawAssetName );
 
 	FString AssetName = UsdToUnreal::ConvertString( RawAssetName );
-	FString MeshName = ObjectTools::SanitizeObjectName( RawPrimName );
+	FString MeshName = USDConversionUtilsImpl::SanitizeObjectName( RawPrimName );
 
 	FString USDPath = UsdToUnreal::ConvertString( Prim.GetPrimPath().GetString().c_str() );
 
@@ -718,6 +752,51 @@ UUsdAssetImportData* UsdUtils::GetAssetImportData( UObject* Asset )
 	}
 #endif
 	return ImportData;
+}
+
+void UsdUtils::AddReference( UE::FUsdPrim& Prim, const TCHAR* AbsoluteFilePath )
+{
+#if USE_USD_SDK
+	FScopedUsdAllocs UsdAllocs;
+
+	pxr::UsdPrim UsdPrim( Prim );
+
+	const std::string UsdAbsoluteFilePath = UnrealToUsd::ConvertString( AbsoluteFilePath ).Get();
+	pxr::UsdReferences References = UsdPrim.GetReferences();
+
+	pxr::SdfLayerRefPtr ReferenceLayer = pxr::SdfLayer::FindOrOpen( UsdAbsoluteFilePath );
+
+	// Group updates or else the SetTypeName and AddReference calls below will both trigger separate resyncs of the same prim path
+	pxr::SdfChangeBlock ChangeBlock;
+
+	if ( ReferenceLayer && !UsdPrim.GetTypeName().IsEmpty() )
+	{
+		pxr::SdfPrimSpecHandle DefaultPrimSpec = ReferenceLayer->GetPrimAtPath( pxr::SdfPath( ReferenceLayer->GetDefaultPrim() ) );
+		if ( DefaultPrimSpec )
+		{
+			// Set the same prim type as its reference so that they are compatible
+			pxr::TfType DefaultPrimType = pxr::UsdSchemaRegistry::GetTypeFromName( DefaultPrimSpec->GetTypeName() );
+			if ( DefaultPrimType.IsUnknown() )
+			{
+				UsdPrim.ClearTypeName();
+			}
+			else if ( !UsdPrim.IsA( DefaultPrimType ) )
+			{
+				UsdPrim.SetTypeName( DefaultPrimSpec->GetTypeName() );
+			}
+		}
+	}
+
+	FString RelativePath = AbsoluteFilePath;
+
+	pxr::SdfLayerHandle EditLayer = UsdPrim.GetStage()->GetEditTarget().GetLayer();
+
+	std::string RepositoryPath = EditLayer->GetRepositoryPath().empty() ? EditLayer->GetRealPath() : EditLayer->GetRepositoryPath();
+	FString LayerAbsolutePath = UsdToUnreal::ConvertString( RepositoryPath );
+	FPaths::MakePathRelativeTo( RelativePath, *LayerAbsolutePath );
+
+	References.AddReference( UnrealToUsd::ConvertString( *RelativePath ).Get() );
+#endif // #if USE_USD_SDK
 }
 
 #if USE_USD_SDK

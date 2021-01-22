@@ -16,10 +16,11 @@ class IDatasmithUEPbrMaterialElement;
 
 class FDatasmithFacadeMaterialExpression;
 
-class FDatasmithFacadeExpressionInput
+class DATASMITHFACADE_API FDatasmithFacadeExpressionInput
 {
 public:
-	const TCHAR* GetInputName() const;
+	const TCHAR* GetName() const;
+	void SetName(const TCHAR* InName);
 
 	/** Returns a new FDatasmithFacadeMaterialExpression pointing to the connected expression, the returned value must be deleted after used, can be nullptr. */
 	FDatasmithFacadeMaterialExpression* GetNewFacadeExpression();
@@ -47,19 +48,20 @@ private:
 	TSharedPtr<IDatasmithUEPbrMaterialElement> ReferencedMaterial;
 };
 
-enum class EDatasmithFacadeMaterialExpressionType
+enum class EDatasmithFacadeMaterialExpressionType : uint64
 {
-	ConstantBool,
-	ConstantColor,
-	ConstantScalar,
-	FlattenNormal,
-	FunctionCall,
-	Generic,
-	Texture,
-	TextureCoordinate
+	None              = 0, 
+	ConstantBool      = 1 << 0,
+	ConstantColor     = 1 << 1,
+	ConstantScalar    = 1 << 2,
+	FlattenNormal     = 1 << 3,
+	FunctionCall      = 1 << 4,
+	Generic           = 1 << 5,
+	Texture           = 1 << 6,
+	TextureCoordinate = 1 << 7,
 };
 
-class FDatasmithFacadeMaterialExpression
+class DATASMITHFACADE_API FDatasmithFacadeMaterialExpression
 {
 public:
 
@@ -68,7 +70,6 @@ public:
 	void SetName( const TCHAR* InName );
 
 	EDatasmithFacadeMaterialExpressionType GetExpressionType() const;
-	bool IsA( const EDatasmithFacadeMaterialExpressionType ExpressionType ) const { return ExpressionType == GetExpressionType(); }
 
 	/** Connects the default output to an expression input */
 	void ConnectExpression( FDatasmithFacadeExpressionInput& ExpressionInput );
@@ -246,15 +247,8 @@ public:
 	 * Inputs
 	 */
 	FDatasmithFacadeExpressionInput GetNormal() const;
-	void SetNormal( FDatasmithFacadeExpressionInput InNormal );
 
 	FDatasmithFacadeExpressionInput GetFlatness() const;
-	void SetFlatness( FDatasmithFacadeExpressionInput InFlatness ) const;
-
-	/**
-	 * Outputs:
-	 * - RGB
-	 */
 
 #ifdef SWIG_FACADE
 protected:
@@ -313,27 +307,16 @@ public:
 	virtual ~FDatasmithFacadeUEPbrMaterial() {}
 
 	FDatasmithFacadeExpressionInput GetBaseColor() const;
-	void SetBaseColor( FDatasmithFacadeExpressionInput& InBaseColor );
 	FDatasmithFacadeExpressionInput GetMetallic() const;
-	void SetMetallic( FDatasmithFacadeExpressionInput&  InMetallic );
 	FDatasmithFacadeExpressionInput GetSpecular() const;
-	void SetSpecular( FDatasmithFacadeExpressionInput& InSpecular );
 	FDatasmithFacadeExpressionInput GetRoughness() const;
-	void SetRoughness( FDatasmithFacadeExpressionInput& InRoughness);
 	FDatasmithFacadeExpressionInput GetEmissiveColor() const;
-	void SetEmissiveColor( FDatasmithFacadeExpressionInput& InEmissiveColor );
 	FDatasmithFacadeExpressionInput GetOpacity() const;
-	void SetOpacity( FDatasmithFacadeExpressionInput& InOpacity );
 	FDatasmithFacadeExpressionInput GetNormal() const;
-	void SetNormal( FDatasmithFacadeExpressionInput& InNormal );
 	FDatasmithFacadeExpressionInput GetWorldDisplacement() const;
-	void SetWorldDisplacement( FDatasmithFacadeExpressionInput& InWorldDisplacement );
 	FDatasmithFacadeExpressionInput GetRefraction() const;
-	void SetRefraction( FDatasmithFacadeExpressionInput& InRefraction );
 	FDatasmithFacadeExpressionInput GetAmbientOcclusion() const;
-	void SetAmbientOcclusion( FDatasmithFacadeExpressionInput& InAmbientOcclusion );
 	FDatasmithFacadeExpressionInput GetMaterialAttributes() const;
-	void SetMaterialAttributes( FDatasmithFacadeExpressionInput& InMaterialAttributes );
 
 	int GetBlendMode() const;
 	void SetBlendMode( int bInBlendMode );
@@ -374,11 +357,6 @@ protected:
 	FDatasmithFacadeUEPbrMaterial( const TSharedRef<IDatasmithUEPbrMaterialElement>& InMaterialRef );
 
 	IDatasmithMaterialExpression* AddMaterialExpression( const EDatasmithFacadeMaterialExpressionType ExpressionType );
-
-	// Build a Datasmith material element and add it to the Datasmith scene.
-	virtual void BuildScene(
-		FDatasmithFacadeScene& SceneRef // Datasmith scene
-	) override;
 
 	TSharedRef<IDatasmithUEPbrMaterialElement> GetDatasmithUEPbrMaterialElement() const;
 };

@@ -352,6 +352,51 @@ bool UnrealToUsd::ConvertMeshComponent( const pxr::UsdStageRefPtr& Stage, const 
 	return true;
 }
 
+bool UnrealToUsd::ConvertCameraComponent( const pxr::UsdStageRefPtr& Stage, const UCineCameraComponent* CameraComponent, pxr::UsdPrim& UsdPrim )
+{
+	if ( !UsdPrim || !CameraComponent )
+	{
+		return false;
+	}
+
+	FScopedUsdAllocs UsdAllocs;
+
+	pxr::UsdGeomCamera GeomCamera( UsdPrim );
+	if ( !GeomCamera )
+	{
+		return false;
+	}
+
+	FUsdStageInfo StageInfo( UsdPrim.GetStage() );
+
+	if ( pxr::UsdAttribute Attr = GeomCamera.CreateFocalLengthAttr() )
+	{
+		Attr.Set<float>( UnrealToUsd::ConvertDistance( StageInfo, CameraComponent->CurrentFocalLength ) );
+	}
+
+	if ( pxr::UsdAttribute Attr = GeomCamera.CreateFocusDistanceAttr() )
+	{
+		Attr.Set<float>( UnrealToUsd::ConvertDistance( StageInfo, CameraComponent->FocusSettings.ManualFocusDistance ) );
+	}
+
+	if ( pxr::UsdAttribute Attr = GeomCamera.CreateFStopAttr() )
+	{
+		Attr.Set<float>( CameraComponent->CurrentAperture );
+	}
+
+	if ( pxr::UsdAttribute Attr = GeomCamera.CreateHorizontalApertureAttr() )
+	{
+		Attr.Set<float>( UnrealToUsd::ConvertDistance( StageInfo, CameraComponent->Filmback.SensorWidth ) );
+	}
+
+	if ( pxr::UsdAttribute Attr = GeomCamera.CreateVerticalApertureAttr() )
+	{
+		Attr.Set<float>( UnrealToUsd::ConvertDistance( StageInfo, CameraComponent->Filmback.SensorHeight ) );
+	}
+
+	return true;
+}
+
 bool UnrealToUsd::ConvertXformable( const FTransform& RelativeTransform, pxr::UsdPrim& UsdPrim, double TimeCode )
 {
 	if ( !UsdPrim )

@@ -259,13 +259,13 @@ namespace DatasmithSceneElementUtil
 		{
 			FString FileName = FilePaths[FileIndex];
 			// This Label is expected to be on the corresponding top-level actor in the combined PlmXml scene
-			// should be possible to replace with Name instead, since we control how the PlmXml is created and how PlmXml ids are set 
+			// should be possible to replace with Name instead, since we control how the PlmXml is created and how PlmXml ids are set
 			FString ActorLabel = FDatasmithUtils::SanitizeObjectName(FPaths::GetBaseFilename(FileName));
 			ActorLabelInPlmXmlToFileIndex.Add(ActorLabel, FileIndex);
 			FileNameToFileIndex.Add(FileName, FileIndex);
 		}
 
-		// Translate all files as part of PlmXml scene, making use of multiprocessing translation of CAD files(this is done in TranslateScene for PlmXml with help of DatasmithDispatcher) 
+		// Translate all files as part of PlmXml scene, making use of multiprocessing translation of CAD files(this is done in TranslateScene for PlmXml with help of DatasmithDispatcher)
 		FString TempDir = FPaths::Combine(FPaths::ProjectIntermediateDir(), TEXT("DatasmithBlueprintLibraryTemp"));
 		if (!IFileManager::Get().DirectoryExists(*TempDir))
 		{
@@ -1109,28 +1109,13 @@ int32 UDatasmithStaticMeshBlueprintLibrary::ComputeLightmapResolution(UStaticMes
 }
 
 FDatasmithImportFactoryCreateFileResult::FDatasmithImportFactoryCreateFileResult()
-	: ImportedBlueprint(nullptr)
-	, bImportSucceed(false)
+	: bImportSucceed(false)
 	, Scene(nullptr)
 {}
 
 void FDatasmithImportFactoryCreateFileResult::FillFromImportContext(const FDatasmithImportContext& ImportContext)
 {
-	switch (ImportContext.Options->HierarchyHandling)
-	{
-	case EDatasmithImportHierarchy::UseMultipleActors:
-		ImportedActors.Append(ImportContext.GetImportedActors());
-		break;
-	case EDatasmithImportHierarchy::UseSingleActor:
-		ImportedActors.Append(ImportContext.ActorsContext.FinalSceneActors.Array());
-		break;
-	case EDatasmithImportHierarchy::UseOneBlueprint:
-		ImportedBlueprint = ImportContext.RootBlueprint;
-		break;
-	default:
-		check(false);
-		break;
-	}
+	ImportedActors.Append(ImportContext.GetImportedActors());
 
 	ImportedMeshes.Reserve(ImportContext.ImportedStaticMeshes.Num());
 	for ( const TPair< TSharedRef< IDatasmithMeshElement >, UStaticMesh* >& MeshPair : ImportContext.ImportedStaticMeshes )

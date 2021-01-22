@@ -41,8 +41,10 @@ namespace UsdUtils
 	/** Inserts the SubLayerFile path into ParentLayer as a sublayer */
 	USDUTILITIES_API bool InsertSubLayer( const TUsdStore< pxr::SdfLayerRefPtr >& ParentLayer, const TCHAR* SubLayerFile );
 
+#if WITH_EDITOR
 	/** Opens a file dialog to open or save a USD file */
 	USDUTILITIES_API TOptional< FString > BrowseUsdFile( EBrowseFileMode Mode, TSharedRef< const SWidget > OriginatingWidget );
+#endif // #if WITH_EDITOR
 
 	/** Creates a new layer with a default prim */
 	USDUTILITIES_API TUsdStore< pxr::SdfLayerRefPtr > CreateNewLayer( TUsdStore< pxr::UsdStageRefPtr > UsdStage, const TUsdStore< pxr::SdfLayerRefPtr >& ParentLayer, const TCHAR* LayerFilePath );
@@ -61,6 +63,9 @@ namespace UsdUtils
 
 	/** Finds the layer offset that converts the Attribute local times to stage times */
 	USDUTILITIES_API UE::FSdfLayerOffset GetLayerToStageOffset( const pxr::UsdAttribute& Attribute );
+
+	/** Makes sure that the layer start and end timecodes include StartTimeCode and EndTimeCode */
+	USDUTILITIES_API void AddTimeCodeRangeToLayer( const pxr::SdfLayerRefPtr& Layer, double StartTimeCode, double EndTimeCode );
 }
 
 #endif // #if USE_USD_SDK

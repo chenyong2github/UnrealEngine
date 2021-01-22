@@ -216,7 +216,7 @@ void UDataprepSubstituteMaterialByTableOperation::OnExecution_Implementation(con
 	UDataprepOperationsLibrary::SubstituteMaterialsByTable( InContext.Objects, MaterialDataTable );
 }
 
-void FDataprepSetLOGGroupDetails::OnLODGroupChanged(TSharedPtr<FString> NewValue, ESelectInfo::Type /*SelectInfo*/)
+void FDataprepSetLODGroupDetails::OnLODGroupChanged(TSharedPtr<FString> NewValue, ESelectInfo::Type /*SelectInfo*/)
 {
 	int32 Index = LODGroupOptions.Find(NewValue);
 	if (Index != INDEX_NONE && LodGroupPropertyHandle.IsValid() )
@@ -225,7 +225,7 @@ void FDataprepSetLOGGroupDetails::OnLODGroupChanged(TSharedPtr<FString> NewValue
 	}
 }
 
-TSharedRef< SWidget > FDataprepSetLOGGroupDetails::CreateWidget()
+TSharedRef< SWidget > FDataprepSetLODGroupDetails::CreateWidget()
 {
 	// Build list of LODGroup names the user will choose from
 	LODGroupNames.Reset();
@@ -252,10 +252,10 @@ TSharedRef< SWidget > FDataprepSetLOGGroupDetails::CreateWidget()
 	return	SNew( STextComboBox )
 		.OptionsSource( &LODGroupOptions )
 		.InitiallySelectedItem(LODGroupOptions[SelectedIndex])
-		.OnSelectionChanged( this, &FDataprepSetLOGGroupDetails::OnLODGroupChanged );
+		.OnSelectionChanged( this, &FDataprepSetLODGroupDetails::OnLODGroupChanged );
 }
 
-void FDataprepSetLOGGroupDetails::CustomizeDetails(IDetailLayoutBuilder & DetailBuilder)
+void FDataprepSetLODGroupDetails::CustomizeDetails(IDetailLayoutBuilder & DetailBuilder)
 {
 	TArray< TWeakObjectPtr< UObject > > Objects;
 	DetailBuilder.GetObjectsBeingCustomized( Objects );
@@ -264,12 +264,8 @@ void FDataprepSetLOGGroupDetails::CustomizeDetails(IDetailLayoutBuilder & Detail
 	DataprepOperation = Cast< UDataprepSetLODGroupOperation >(Objects[0].Get());
 	check( DataprepOperation );
 
-	// #ueent_todo: Remove handling of warning category when this is not considered experimental anymore
 	TArray<FName> CategoryNames;
 	DetailBuilder.GetCategoryNames( CategoryNames );
-	CategoryNames.Remove( FName(TEXT("Warning")) );
-
-	DetailBuilder.HideCategory(FName( TEXT( "Warning" ) ) );
 
 	FName CategoryName = CategoryNames.Num() > 0 ? CategoryNames[0] : FName( TEXT("SetLOGGroup_Internal") );
 	IDetailCategoryBuilder& ImportSettingsCategoryBuilder = DetailBuilder.EditCategory( CategoryName, FText::GetEmpty(), ECategoryPriority::Important );
@@ -425,12 +421,8 @@ void FDataprepSetOutputFolderDetails::CustomizeDetails(IDetailLayoutBuilder& Det
 	Operation = Cast< UDataprepSetOutputFolder >(Objects[0].Get());
 	check( Operation );
 
-	// #ueent_todo: Remove handling of warning category when this is not considered experimental anymore
 	TArray<FName> CategoryNames;
 	DetailBuilder.GetCategoryNames( CategoryNames );
-	CategoryNames.Remove( FName(TEXT("Warning")) );
-
-	DetailBuilder.HideCategory(FName( TEXT( "Warning" ) ) );
 
 	IDetailCategoryBuilder& CategoryBuilder = DetailBuilder.EditCategory( NAME_None, FText::GetEmpty(), ECategoryPriority::Important );
 

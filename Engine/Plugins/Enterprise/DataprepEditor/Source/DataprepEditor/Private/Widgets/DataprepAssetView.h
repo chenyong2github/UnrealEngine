@@ -9,6 +9,7 @@
 #include "DataprepContentProducer.h"
 #include "DataprepEditor.h"
 #include "DataprepWidgets.h"
+#include "SDataprepProducersWidget.h"
 
 #include "Delegates/IDelegateInstance.h"
 #include "Widgets/Input/STextComboBox.h"
@@ -21,12 +22,13 @@
 class IDetailsView;
 class SDataprepAssetView;
 class SDataprepConsumerWidget;
-class SDataprepProducersWidget;
 
 class SDataprepAssetView : public SCompoundWidget
 {
 public:
 	SLATE_BEGIN_ARGS(SDataprepAssetView) {}
+	SLATE_ARGUMENT(FDataprepImportProducers, DataprepImportProducersDelegate) 
+	SLATE_ARGUMENT(FDataprepImportProducersEnabled, DataprepImportProducersEnabledDelegate)
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs, UDataprepAssetInterface* InDataprepAssetPtr);
@@ -58,6 +60,9 @@ private:
 	TSharedPtr< SWidget > ConsumerSelector;
 	bool bIsChecked;
 	TSharedPtr< SDataprepConsumerWidget > ConsumerWidget;
+
+	FDataprepImportProducers DataprepImportProducersDelegate;
+	FDataprepImportProducersEnabled DataprepImportProducersEnabledDelegate;
 
 	/** Container used by all splitters in the details view, so that they move in sync */
 	TSharedPtr< FDataprepDetailsViewColumnSizeData > ColumnSizeData;

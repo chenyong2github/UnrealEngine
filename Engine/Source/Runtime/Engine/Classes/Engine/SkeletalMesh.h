@@ -528,9 +528,7 @@ private:
 #if WITH_EDITORONLY_DATA
 public:
 	/*
-	 * This editor data asset is save in the same package has the skeletalmesh, the editor data asset is always loaded.
-	 * If the skeletal mesh is rename the editor data asset will also be rename: the name is SkeletalMeshName_USkeletalMeshEditorData
-	 * If the skeletal mesh is duplicate the editor data asset will also be duplicate
+	 * This editor data asset is save under the skeletalmesh(skel mesh is the owner), the editor data asset is always loaded.
 	 * There is only one editor data asset possible per skeletalmesh.
 	 * The reason we store the editor data in a separate asset is because the size of it can be very big and affect the editor performance. (undo/redo transactions)
 	 */
@@ -700,8 +698,14 @@ public:
 	/** Set bound extension values in the positive direction of XYZ, positive value increases bound size */
 	void SetPositiveBoundsExtension(const FVector& InExtension);
 
+	/** Get bound extension values in the positive direction of XYZ **/
+	const FVector& GetPositiveBoundsExtension() const { return PositiveBoundsExtension; }
+
 	/** Set bound extension values in the negative direction of XYZ, positive value increases bound size */
 	void SetNegativeBoundsExtension(const FVector& InExtension);
+
+	/** Get bound extension values in the negative direction of XYZ **/
+	const FVector& GetNegativeBoundsExtension() const { return NegativeBoundsExtension; }
 
 	/** Calculate the extended bounds based on the imported bounds and the extension values */
 	void CalculateExtendedBounds();
@@ -2110,8 +2114,6 @@ public:
 	virtual FString GetDetailedInfoInternal() const override;
 	virtual void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) override;
 	virtual void GetPreloadDependencies(TArray<UObject*>& OutDeps) override;
-	virtual void PostDuplicate(bool bDuplicateForPIE) override;
-	virtual void PostRename(UObject* OldOuter, const FName OldName) override;
 	//~ End UObject Interface.
 
 	//~ Begin UStreamableRenderAsset Interface.
