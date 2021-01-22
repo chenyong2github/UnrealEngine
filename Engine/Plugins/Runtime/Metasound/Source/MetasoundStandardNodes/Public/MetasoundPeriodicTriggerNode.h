@@ -24,6 +24,6 @@ namespace Metasound
 			float GetDefaultPeriodInSeconds() const;
 
 		private:
-			float DefaultPeriod;
+			float DefaultPeriod = 1.0f;
 	};
 }
