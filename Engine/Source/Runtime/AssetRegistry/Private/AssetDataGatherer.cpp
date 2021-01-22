@@ -1030,7 +1030,14 @@ bool FAssetDataGatherer::ReadAssetFile(const FString& AssetFilename, TArray<FAss
 		OutCanRetry = bAllowRetry && OpenPackageResult == FPackageReader::EOpenPackageResult::CustomVersionMissing;
 		return false;
 	}
+	else
+	{
+		return ReadAssetFile(PackageReader, AssetDataList, (bGatherDependsData ? &DependencyData : nullptr), CookedPackageNamesWithoutAssetData);
+	}
+}
 
+bool FAssetDataGatherer::ReadAssetFile(FPackageReader& PackageReader, TArray<FAssetData*>& AssetDataList, FPackageDependencyData* DependencyData, TArray<FString>& CookedPackageNamesWithoutAssetData)
+{
 	if ( PackageReader.ReadAssetRegistryDataIfCookedPackage(AssetDataList, CookedPackageNamesWithoutAssetData) )
 	{
 		// Cooked data is special. No further data is found in these packages
@@ -1046,9 +1053,9 @@ bool FAssetDataGatherer::ReadAssetFile(const FString& AssetFilename, TArray<FAss
 		}
 	}
 
-	if ( bGatherDependsData )
+	if ( DependencyData )
 	{
-		if ( !PackageReader.ReadDependencyData(DependencyData) )
+		if ( !PackageReader.ReadDependencyData(*DependencyData) )
 		{
 			return false;
 		}
@@ -1059,7 +1066,7 @@ bool FAssetDataGatherer::ReadAssetFile(const FString& AssetFilename, TArray<FAss
 		FName RedirectorClassName = UObjectRedirector::StaticClass()->GetFName();
 		if (Algo::AnyOf(AssetDataList, [RedirectorClassName](FAssetData* AssetData) { return AssetData->AssetClass == RedirectorClassName; }))
 		{
-			TBitArray<>& ImportUsedInGame = DependencyData.ImportUsedInGame;
+			TBitArray<>& ImportUsedInGame = DependencyData->ImportUsedInGame;
 			for (int32 ImportNum = ImportUsedInGame.Num(), Index = 0; Index < ImportNum; ++Index)
 			{
 				ImportUsedInGame[Index] = true;

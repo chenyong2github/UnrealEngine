@@ -2147,16 +2147,27 @@ uint32 UAssetRegistryImpl::GetAllocatedSize(bool bLogDetailed) const
 void UAssetRegistryImpl::LoadPackageRegistryData(FArchive& Ar, TArray<FAssetData*> &AssetDataList) const
 {
 	FPackageReader Reader;
-	Reader.OpenPackageFile(&Ar);
+	if (Reader.OpenPackageFile(&Ar))
+	{
+		ReadAssetFile(Reader, AssetDataList);
+	}
+}
 
-	Reader.ReadAssetRegistryData(AssetDataList);
+void UAssetRegistryImpl::LoadPackageRegistryData(const FString& PackageFilename, TArray<FAssetData*>& AssetDataList) const
+{
+	FPackageReader Reader;
+	if (Reader.OpenPackageFile(PackageFilename))
+	{
+		ReadAssetFile(Reader, AssetDataList);
+	}
+}
 
-	Reader.ReadAssetDataFromThumbnailCache(AssetDataList);
-
+bool UAssetRegistryImpl::ReadAssetFile(FPackageReader& PackageReader, TArray<FAssetData*>& AssetDataList) const
+{
 	TArray<FString> CookedPackageNamesWithoutAssetDataGathered;
-	Reader.ReadAssetRegistryDataIfCookedPackage(AssetDataList, CookedPackageNamesWithoutAssetDataGathered);
-
 	// Dependency Data not currently read for this function
+	FPackageDependencyData* DependencyData = nullptr;
+	return FAssetDataGatherer::ReadAssetFile(PackageReader, AssetDataList, DependencyData, CookedPackageNamesWithoutAssetDataGathered);
 }
 
 void UAssetRegistryImpl::InitializeTemporaryAssetRegistryState(FAssetRegistryState& OutState, const FAssetRegistrySerializationOptions& Options, bool bRefreshExisting, const TMap<FName, FAssetData*>& OverrideData) const

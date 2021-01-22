@@ -11,6 +11,8 @@
 #include "BackgroundGatherResults.h"
 #include <atomic>
 
+class FPackageReader;
+
 /**
  * Minimal amount of information needed about a discovered asset file
  */
@@ -200,6 +202,16 @@ public:
 	/** Inform the gatherer that initial plugins have finished loading and it should not retry failed loads in hope of a missing custom version */
 	void SetInitialPluginsLoaded();
 
+	/**
+	 * Reads FAssetData information out of a previously initialized package reader
+	 * 
+	 * @param PackageReader the previously opened package reader
+	 * @param AssetDataList the FAssetData for every asset found in the file
+	 * @param DependencyData the FPackageDependencyData for every asset found in the file, can be null
+	 * @param CookedPackagesToLoadUponDiscovery the list of cooked packages to be loaded if any
+	 */
+	static bool ReadAssetFile(FPackageReader& PackageReader, TArray<FAssetData*>& AssetDataList, FPackageDependencyData* DependencyData, TArray<FString>& CookedPackagesToLoadUponDiscovery);
+
 private:
 	/** Sort the paths so that items belonging to the current priority path is processed first */
 	void SortPathsByPriority(const int32 MaxNumToSort);
@@ -210,6 +222,7 @@ private:
 	 * @param AssetFilename the name of the file to read
 	 * @param AssetDataList the FAssetData for every asset found in the file
 	 * @param DependencyData the FPackageDependencyData for every asset found in the file
+	 * @param CookedPackagesToLoadUponDiscovery the list of cooked packages to be loaded if any
 	 * @param OutCanRetry Set to true if this file failed to load, but might be loadable later (due to missing modules)
 	 *
 	 * @return true if the file was successfully read

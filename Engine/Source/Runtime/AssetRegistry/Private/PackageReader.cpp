@@ -14,6 +14,7 @@ FPackageReader::FPackageReader()
 	: Loader(nullptr)
 	, PackageFileSize(0)
 	, AssetRegistryDependencyDataOffset(INDEX_NONE)
+	, bLoaderOwner(false)
 {
 	this->SetIsLoading(true);
 	this->SetIsPersistent(true);
@@ -21,7 +22,7 @@ FPackageReader::FPackageReader()
 
 FPackageReader::~FPackageReader()
 {
-	if (Loader)
+	if (Loader && bLoaderOwner)
 	{
 		delete Loader;
 	}
@@ -29,14 +30,18 @@ FPackageReader::~FPackageReader()
 
 bool FPackageReader::OpenPackageFile(const FString& InPackageFilename, EOpenPackageResult* OutErrorCode)
 {
+	check(!Loader);
 	PackageFilename = InPackageFilename;
 	Loader = IFileManager::Get().CreateFileReader(*PackageFilename);
+	bLoaderOwner = true;
 	return OpenPackageFile(OutErrorCode);
 }
 
 bool FPackageReader::OpenPackageFile(FArchive* InLoader, EOpenPackageResult* OutErrorCode)
 {
+	check(!Loader);
 	Loader = InLoader;
+	bLoaderOwner = false;
 	PackageFilename = Loader->GetArchiveName();
 	return OpenPackageFile(OutErrorCode);
 }

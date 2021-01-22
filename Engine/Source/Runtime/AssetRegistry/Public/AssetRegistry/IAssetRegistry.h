@@ -511,6 +511,8 @@ public:
 	/** Load FPackageRegistry data from the supplied package */
 	virtual void LoadPackageRegistryData(FArchive& Ar, TArray<FAssetData*>& Data) const = 0;
 	
+	/** Load FAssetData from the specified package filename */
+	virtual void LoadPackageRegistryData(const FString& PackageFilename, TArray<FAssetData*>& Data) const = 0;
 	
 protected:
 	// Functions specifically for calling from the asset manager

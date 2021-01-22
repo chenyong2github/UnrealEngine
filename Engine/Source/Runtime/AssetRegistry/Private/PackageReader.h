@@ -77,4 +77,5 @@ private:
 	TArray<FName> NameMap;
 	int64 PackageFileSize;
 	int64 AssetRegistryDependencyDataOffset;
+	bool bLoaderOwner;
 };
