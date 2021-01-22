@@ -96,8 +96,7 @@ public:
 	{
 		FST_None = 0,
 		FST_Rigid = 1,
-		FST_Clustered = 2,
-		FST_Not_Simulatable = 3
+		FST_Clustered = 2
 	};
 
 	enum ENodeFlags : uint32

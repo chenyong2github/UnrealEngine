@@ -1894,8 +1894,10 @@ struct FDynamicMeshCollection
 			Output.BoneColor[TransformIdx] = Output.BoneColor[TransformParent];
 			Output.Parent[TransformIdx] = TransformParent;
 			Output.Children[TransformParent].Add(TransformIdx);
+			Output.SimulationType[TransformParent] = FGeometryCollection::ESimulationTypes::FST_Clustered;
 		}
 		Output.Transform[TransformIdx] = FTransform::Identity;
+		Output.SimulationType[TransformIdx] = FGeometryCollection::ESimulationTypes::FST_Rigid;
 
 		int32 FacesStart = Output.AddElements(NumTriangles, FGeometryCollection::FacesGroup);
 		int32 VerticesStart = Output.AddElements(NumVertices, FGeometryCollection::VerticesGroup);

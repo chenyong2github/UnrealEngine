@@ -1790,7 +1790,7 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
 	for (int32 GeometryIndex = 0; GeometryIndex < NumGeometries; GeometryIndex++)
 	{
 		const int32 TransformGroupIndex = TransformIndex[GeometryIndex];
-		if (SimulationType[TransformGroupIndex]!= FGeometryCollection::ESimulationTypes::FST_Not_Simulatable)
+		if (SimulationType[TransformGroupIndex] > FGeometryCollection::ESimulationTypes::FST_None)
 		{
 			TUniquePtr<TTriangleMesh<float>> TriMesh(
 				CreateTriangleMesh(

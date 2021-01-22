@@ -420,13 +420,30 @@ TSharedRef<ITableRow> FGeometryCollectionTreeItemBone::MakeTreeRowWidget(const T
 		ItemText = FText::FromString(FString::FromInt(GetBoneIndex()));
 	}
 
-	// Cyan indicates cluster, Gray is leaf node	
+	// Set color according to simulation type
+
+	FSlateColor TextColor(FLinearColor::Red); // default color indicates something wrong
+
 	TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GeometryCollectionPtr = ParentComponentItem->GetComponent()->GetRestCollection()->GetGeometryCollection();
-	const TManagedArray<TSet<int32>>& Children = GeometryCollectionPtr->GetAttribute<TSet<int32>>("Children", FGeometryCollection::TransformGroup);
-	FSlateColor TextColor(FLinearColor::Gray);
-	if (Children[GetBoneIndex()].Num() > 0)
+	const TManagedArray<int32>& SimulationType = GeometryCollectionPtr->SimulationType;
+	switch (SimulationType[GetBoneIndex()])
 	{
-		TextColor = FColor::Cyan;
+		// This is a dubious case. We shouldn't expect to see nodes with this type.
+		case FGeometryCollection::ESimulationTypes::FST_None:
+			TextColor = FColor::Green;
+			break;
+
+		case FGeometryCollection::ESimulationTypes::FST_Rigid:
+			TextColor = FLinearColor::Gray;
+			break;
+
+		case FGeometryCollection::ESimulationTypes::FST_Clustered:
+			TextColor = FColor::Cyan;
+			break;
+
+		default:
+			ensureMsgf(false, TEXT("Invalid Geometry Collection simulation type encountered."));
+			break;
 	}
 	
 	return SNew(STableRow<FGeometryCollectionTreeItemPtr>, InOwnerTable)

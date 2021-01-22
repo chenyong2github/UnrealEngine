@@ -464,7 +464,7 @@ void UFractureToolAddEmbeddedGeometry::Execute(TWeakPtr<FFractureEditorModeToolk
 				Children[SelectedBone].Add(NewTransformIndex);
 
 				// Set properties appropriate to embedded geometry
-				SimType[NewTransformIndex] = FGeometryCollection::ESimulationTypes::FST_Not_Simulatable;
+				SimType[NewTransformIndex] = FGeometryCollection::ESimulationTypes::FST_None;
 				CollectionSimulatableParticles[NewTransformIndex] = false;
 			}	
 		}
