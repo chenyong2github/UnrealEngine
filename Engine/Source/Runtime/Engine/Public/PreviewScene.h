@@ -31,6 +31,7 @@ public:
 			, bShouldSimulatePhysics(false)
 			, bTransactional(true)
 			, bEditor(true)
+			, bForceUseMovementComponentInNonGameWorld(false)
 		{
 		}
 
@@ -44,6 +45,7 @@ public:
 		uint32 bShouldSimulatePhysics:1;
 		uint32 bTransactional:1;
 		uint32 bEditor:1;
+		uint32 bForceUseMovementComponentInNonGameWorld:1;
 
 		TSubclassOf<class AGameModeBase> DefaultGameMode;
 		class UGameInstance* OwningGameInstance = nullptr;
@@ -59,6 +61,7 @@ public:
 		ConstructionValues& ShouldSimulatePhysics(const bool bInShouldSimulatePhysics) { bShouldSimulatePhysics = bInShouldSimulatePhysics; return *this; }
 		ConstructionValues& SetTransactional(const bool bInTransactional) { bTransactional = bInTransactional; return *this; }
 		ConstructionValues& SetEditor(const bool bInEditor) { bEditor = bInEditor; return *this; }
+		ConstructionValues& ForceUseMovementComponentInNonGameWorld(const bool bInForceUseMovementComponentInNonGameWorld) { bForceUseMovementComponentInNonGameWorld = bInForceUseMovementComponentInNonGameWorld; return *this; }
 
 		ConstructionValues& SetDefaultGameMode(TSubclassOf<class AGameModeBase> GameMode) { DefaultGameMode = GameMode; return *this; }
 		ConstructionValues& SetOwningGameInstance(class UGameInstance* InGameInstance) { OwningGameInstance = InGameInstance; return *this; }

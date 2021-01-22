@@ -1148,6 +1148,9 @@ public:
 	*/
 	uint8 bEnableTraceCollision:1;
 
+	/** Special flag to enable movement component in non game worlds (see UMovementComponent::OnRegister) */
+	uint8 bForceUseMovementComponentInNonGameWorld:1;
+
 	/** If True, overloaded method IsNameStableForNetworking will always return true. */
 	uint8 bIsNameStableForNetworking:1;
 #endif
@@ -2751,6 +2754,7 @@ public:
 			, bCreateAISystem(true)
 			, bShouldSimulatePhysics(true)
 			, bEnableTraceCollision(false)
+			, bForceUseMovementComponentInNonGameWorld(false)
 			, bTransactional(true)
 			, bCreateFXSystem(true)
 		{
@@ -2780,6 +2784,9 @@ public:
 		/** Are collision trace calls valid within this world. */
 		uint32 bEnableTraceCollision:1;
 
+		/** Special flag to enable movement component in non game worlds (see UMovementComponent::OnRegister) */
+		uint32 bForceUseMovementComponentInNonGameWorld:1;
+
 		/** Should actions performed to objects in this world be saved to the transaction buffer. */
 		uint32 bTransactional:1;
 
@@ -2797,6 +2804,7 @@ public:
 		InitializationValues& CreateAISystem(const bool bCreate) { bCreateAISystem = bCreate; return *this; }
 		InitializationValues& ShouldSimulatePhysics(const bool bInShouldSimulatePhysics) { bShouldSimulatePhysics = bInShouldSimulatePhysics; return *this; }
 		InitializationValues& EnableTraceCollision(const bool bInEnableTraceCollision) { bEnableTraceCollision = bInEnableTraceCollision; return *this; }
+		InitializationValues& ForceUseMovementComponentInNonGameWorld(const bool bInForceUseMovementComponentInNonGameWorld) { bForceUseMovementComponentInNonGameWorld = bInForceUseMovementComponentInNonGameWorld; return *this; }
 		InitializationValues& SetTransactional(const bool bInTransactional) { bTransactional = bInTransactional; return *this; }
 		InitializationValues& CreateFXSystem(const bool bCreate) { bCreateFXSystem = bCreate; return *this; }
 		InitializationValues& SetDefaultGameMode(TSubclassOf<class AGameModeBase> GameMode) { DefaultGameMode = GameMode; return *this; }

@@ -146,7 +146,11 @@ void UMovementComponent::OnRegister()
 	}
 
 	const UWorld* MyWorld = GetWorld();
-	if (MyWorld && MyWorld->IsGameWorld())
+	if (MyWorld && (MyWorld->IsGameWorld()
+#if WITH_EDITOR
+	|| MyWorld->bForceUseMovementComponentInNonGameWorld
+#endif
+	))
 	{
 		PlaneConstraintNormal = PlaneConstraintNormal.GetSafeNormal();
 

@@ -1530,6 +1530,7 @@ void UWorld::InitWorld(const InitializationValues IVS)
 
 	#if WITH_EDITOR
 		bEnableTraceCollision = IVS.bEnableTraceCollision;
+		bForceUseMovementComponentInNonGameWorld = IVS.bForceUseMovementComponentInNonGameWorld;
 	#endif
 
 
