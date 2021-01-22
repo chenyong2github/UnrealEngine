@@ -17,6 +17,7 @@
 #include "Misc/Guid.h"
 #include "Serialization/MemoryWriter.h"
 #include "Serialization/MemoryReader.h"
+#include "Serialization/MemoryHasher.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/FeedbackContext.h"
 #include "Misc/ScopedSlowTask.h"
@@ -58,10 +59,55 @@
 #if WITH_ODSC
 #include "ODSC/ODSCManager.h"
 #endif
+#include "HAL/IConsoleManager.h"
 
 #define LOCTEXT_NAMESPACE "ShaderCompiler"
 
 DEFINE_LOG_CATEGORY(LogShaderCompilers);
+
+// Switch to Verbose after initial testing
+#define UE_SHADERCACHE_LOG_LEVEL		Display
+
+int32 GShaderCompilerDisableJobCache = 0;
+static FAutoConsoleVariableRef CVarShaderCompilerDisableJobCache(
+	TEXT("r.ShaderCompiler.DisableJobCache"),
+	GShaderCompilerDisableJobCache,
+	TEXT("if != 0, shader compiler cache (based on the unpreprocessed input hash) will be disabled. By default, it is enabled."),
+	ECVF_Default
+);
+
+int32 GShaderCompilerMaxJobCacheMemoryMB = 16LL * 1024LL;
+static FAutoConsoleVariableRef CVarShaderCompilerMaxJobCacheMemoryMB(
+	TEXT("r.ShaderCompiler.MaxJobCacheMemoryMB"),
+	GShaderCompilerMaxJobCacheMemoryMB,
+	TEXT("if != 0, shader compiler cache will be limited to this many megabytes (16GB by default). If 0, the usage will be unlimited. Minimum of this or r.ShaderCompiler.MaxJobCacheMemoryPercent applies."),
+	ECVF_Default
+);
+
+int32 GShaderCompilerMaxJobCacheMemoryPercent = 5;
+static FAutoConsoleVariableRef CVarShaderCompilerMaxJobCacheMemoryPercent(
+	TEXT("r.ShaderCompiler.MaxJobCacheMemoryPercent"),
+	GShaderCompilerMaxJobCacheMemoryPercent,
+	TEXT("if != 0, shader compiler cache will be limited to this percentage of available physical RAM (5% by default). If 0, the usage will be unlimited. Minimum of this or r.ShaderCompiler.MaxJobCacheMemoryMB applies."),
+	ECVF_Default
+);
+
+int32 GShaderCompilerDumpCompileJobInputs = 0;
+static FAutoConsoleVariableRef CVarShaderCompilerDumpCompileJobInputs(
+	TEXT("r.ShaderCompiler.DumpCompileJobInputs"),
+	GShaderCompilerDumpCompileJobInputs,
+	TEXT("if != 0, unpreprocessed input of the shader compiler jobs will be dumped into the debug directory for closer inspection. This is a debugging feature which is disabled by default."),
+	ECVF_Default
+);
+
+int32 GShaderCompilerCacheStatsPrintoutInterval = UE_BUILD_DEBUG ? 5 : 60;
+static FAutoConsoleVariableRef CVarShaderCompilerCacheStatsPrintoutInterval(
+	TEXT("r.ShaderCompiler.CacheStatsPrintoutInterval"),
+	GShaderCompilerCacheStatsPrintoutInterval,
+	TEXT("Minimum interval (in seconds) between printing out debugging stats (by default, no closer than each 1 minute in Development, 5 seconds in Debug)"),
+	ECVF_Default
+);
+
 
 #if ENABLE_COOK_STATS
 namespace GlobalShaderCookStats
@@ -119,6 +165,13 @@ FShaderCompileJobCollection::FShaderCompileJobCollection()
 {
 	FMemory::Memzero(PendingJobs);
 	FMemory::Memzero(NumPendingJobs);
+
+	LogJobsCacheStatsCmd = IConsoleManager::Get().RegisterConsoleCommand(
+		TEXT("r.ShaderCompiler.LogCacheStats"),
+		TEXT("Prints out the stats for the in-memory shader job cache."),
+		FConsoleCommandDelegate::CreateRaw(this, &FShaderCompileJobCollection::HandleLogJobsCacheStats),
+		ECVF_Default
+	);
 }
 
 void FShaderCompileJobCollection::InternalAddJob(FShaderCommonCompileJob* InJob)
@@ -262,7 +315,7 @@ int32 FShaderCompileJobCollection::RemoveAllPendingJobsWithId(uint32 InId)
 		}
 	}
 
-	SubtractNumOutstandingJobs(NumRemoved);
+	InternalSubtractNumOutstandingJobs(NumRemoved);
 
 	return NumRemoved;
 }
@@ -271,9 +324,11 @@ void FShaderCompileJobCollection::SubmitJobs(const TArray<FShaderCommonCompileJo
 {
 	if (InJobs.Num() > 0)
 	{
+		int32 SubmittedJobsCount = 0;
 		int32 NumSubmittedJobs[NumShaderCompileJobPriorities] = { 0 };
 		{
 			FWriteScopeLock Locker(Lock);
+
 			for (FShaderCommonCompileJob* Job : InJobs)
 			{
 				check(Job->JobIndex != INDEX_NONE);
@@ -281,14 +336,62 @@ void FShaderCompileJobCollection::SubmitJobs(const TArray<FShaderCommonCompileJo
 				check(Job->PendingPriority == EShaderCompileJobPriority::None);
 
 				const int32 PriorityIndex = (int32)Job->Priority;
-				NumPendingJobs[PriorityIndex]++;
-				NumSubmittedJobs[PriorityIndex]++;
-				Job->LinkHead(PendingJobs[PriorityIndex]);
-				Job->PendingPriority = Job->Priority;
+				bool bNewJob = true;
+				if (!GShaderCompilerDisableJobCache)
+				{
+					const FSHAHash& InputHash = Job->GetInputHash();
+
+					// see if we can find the job in the cache first
+					if (TArray<uint8>* ExistingOutput = CompletedJobsCache.Find(InputHash))
+					{
+						UE_LOG(LogShaderCompilers, UE_SHADERCACHE_LOG_LEVEL, TEXT("There is already a cached job with the ihash %s, processing the new one immediately."), *InputHash.ToString());
+						FMemoryReader MemReader(*ExistingOutput);
+						Job->SerializeOutput(MemReader);
+
+						// finish the job instantly
+						ProcessFinishedJob(Job, true);
+
+						continue;
+					}
+					// see if another job with the same input hash is being worked on
+					else if (FShaderCommonCompileJob** DuplicateInFlight = JobsInFlight.Find(InputHash))
+					{
+						UE_LOG(LogShaderCompilers, UE_SHADERCACHE_LOG_LEVEL, TEXT("There is an outstanding job with the ihash %s, not submitting another one (adding to wait list)."), *InputHash.ToString());
+
+						// because of the cloned jobs, we need to maintain a separate mapping
+						FShaderCommonCompileJob** WaitListHead = DuplicateJobsWaitList.Find(InputHash);
+						if (WaitListHead)
+						{
+							Job->LinkAfter(*WaitListHead);
+						}
+						else
+						{
+							DuplicateJobsWaitList.Add(InputHash, Job);
+						}
+						bNewJob = false;
+					}
+					else
+					{
+						// track new jobs so we can dedupe them
+						JobsInFlight.Add(InputHash, Job);
+					}
+				}
+
+				// new job
+				if (bNewJob)
+				{
+					Job->LinkHead(PendingJobs[PriorityIndex]);
+
+					NumPendingJobs[PriorityIndex]++;
+					NumSubmittedJobs[PriorityIndex]++;
+					Job->PendingPriority = Job->Priority;
+					++SubmittedJobsCount;
+				}
 			}
 		}
 
-		NumOutstandingJobs.Add(InJobs.Num());
+		int NumOutstandingAsItWas = NumOutstandingJobs.Add(SubmittedJobsCount);
+		UE_LOG(LogShaderCompilers, UE_SHADERCACHE_LOG_LEVEL, TEXT("Actual jobs submitted %d (of %d new, total outstanding jobs: %d)."), SubmittedJobsCount, InJobs.Num(), NumOutstandingAsItWas + SubmittedJobsCount);
 
 		for (int32 PriorityIndex = 0; PriorityIndex < NumShaderCompileJobPriorities; ++PriorityIndex)
 		{
@@ -300,6 +403,105 @@ void FShaderCompileJobCollection::SubmitJobs(const TArray<FShaderCommonCompileJo
 			}
 		}
 	}
+}
+
+void FShaderCompileJobCollection::HandleLogJobsCacheStats()
+{
+	LogCachingStats(true);
+}
+
+void FShaderCompileJobCollection::ProcessFinishedJob(FShaderCommonCompileJob* FinishedJob, bool bWasCached)
+{
+	const FSHAHash& InputHash = FinishedJob->GetInputHash();
+
+	// TODO: have a pending shader map critical section? not clear at this point if we can be accessing the results on another thread at the same time
+	FShaderMapCompileResults& ShaderMapResults = *(FinishedJob->PendingShaderMap);
+	ShaderMapResults.FinishedJobs.Add(FinishedJob);
+	ShaderMapResults.bAllJobsSucceeded = ShaderMapResults.bAllJobsSucceeded && FinishedJob->bSucceeded;
+
+	const int32 NumPendingJobsForSM = ShaderMapResults.NumPendingJobs.Decrement();
+	checkf(NumPendingJobsForSM >= 0, TEXT("Problem tracking pending jobs for a SM (%d), number of pending jobs (%d) is negative!"), FinishedJob->Id, NumPendingJobsForSM);
+
+	if (!bWasCached)
+	{
+		InternalSubtractNumOutstandingJobs(1);
+		AddToCacheAndProcessPending(FinishedJob);
+
+		// remove ourselves from the jobs in flight, if we were there (if this job is a cloned job it might not have been)
+		JobsInFlight.Remove(InputHash);
+	}
+}
+
+void FShaderCompileJobCollection::AddToCacheAndProcessPending(FShaderCommonCompileJob* FinishedJob)
+{
+	if (GShaderCompilerDisableJobCache)
+	{
+		return;
+	}
+
+	if (!FinishedJob->bSucceeded)
+	{
+		// we only cache jobs that succeded
+		return;
+	}
+
+	// TODO: reduce the scopes
+	FWriteScopeLock JobLocker(Lock);
+
+	const FSHAHash& InputHash = FinishedJob->GetInputHash();
+	TArray<uint8> Output;
+	FMemoryWriter Writer(Output);
+	FinishedJob->SerializeOutput(Writer);
+
+	CompletedJobsCache.Add(InputHash, Output);
+
+	// see if there are outstanding jobs that also need to be resolved
+	if (FShaderCommonCompileJob** WaitList = DuplicateJobsWaitList.Find(InputHash))
+	{
+		int32 NumOutstandingJobsWithSameHash = 0;
+		FShaderCommonCompileJob* CurHead = *WaitList;
+		while (CurHead)
+		{
+			checkf(CurHead != FinishedJob, TEXT("Job that is being added to cache was also on a waiting list! Error in bookkeeping."));
+
+			
+#if 0 // while we could reuse the same ouput, let's go through the cache to influence the statistics (might be important for LRU later)
+			FMemoryReader MemReader(Output);
+#else
+			TArray<uint8>* ExistingOutput = CompletedJobsCache.Find(InputHash);
+			checkf(ExistingOutput, TEXT("At this point we expect a newly cached job to be found"));
+			FMemoryReader MemReader(*ExistingOutput);
+#endif
+			CurHead->SerializeOutput(MemReader);
+
+			// finish the job instantly
+			ProcessFinishedJob(CurHead, true);
+			++NumOutstandingJobsWithSameHash;
+
+			CurHead = CurHead->Next();
+		}
+
+		// remove the waitlist head
+		DuplicateJobsWaitList.Remove(InputHash);
+
+		if (NumOutstandingJobsWithSameHash > 0)
+		{
+			UE_LOG(LogShaderCompilers, UE_SHADERCACHE_LOG_LEVEL, TEXT("Processed %d outstanding jobs with the same ihash %s."), NumOutstandingJobsWithSameHash, *InputHash.ToString());
+		}
+	}
+}
+
+void FShaderCompileJobCollection::LogCachingStats(bool bForceLogIgnoringTimeInverval)
+{
+	static double LastTimeStatsPrinted = FPlatformTime::Seconds();
+	if (!bForceLogIgnoringTimeInverval && GShaderCompilerCacheStatsPrintoutInterval > 0 && FPlatformTime::Seconds() - LastTimeStatsPrinted < GShaderCompilerCacheStatsPrintoutInterval)
+	{
+		return;
+	}
+
+	FWriteScopeLock Locker(Lock);	// write lock because logging actually changes the cache state (in a minor way - updating the memory used - but still).
+	CompletedJobsCache.LogStats();
+	LastTimeStatsPrinted = FPlatformTime::Seconds();
 }
 
 int32 FShaderCompileJobCollection::GetNumPendingJobs() const
@@ -1247,10 +1449,8 @@ void FShaderCompileUtilities::DoReadTaskResults(const TArray<FShaderCommonCompil
 			for (int32 Index = 0; Index < NumStageJobs; Index++)
 			{
 				FShaderCompileJob* SingleJob = CurrentJob->StageJobs[Index];
-				if (ReadSingleJob(SingleJob, OutputFile))
-				{
-					ReissueSourceJobs.Add(SingleJob);
-				}
+				// cannot reissue a single stage of a pipeline job
+				ReadSingleJob(SingleJob, OutputFile);
 				CurrentJob->bFailedRemovingUnused = CurrentJob->bFailedRemovingUnused | SingleJob->Output.bFailedRemovingUnused;
 			}
 		}
@@ -1549,12 +1749,7 @@ int32 FShaderCompileThreadRunnable::PullTasksFromQueue()
 				{
 					auto& Job = CurrentWorkerInfo.QueuedJobs[JobIndex];
 
-					FShaderMapCompileResults& ShaderMapResults = *Job->PendingShaderMap;
-					ShaderMapResults.FinishedJobs.Add(Job);
-					ShaderMapResults.bAllJobsSucceeded = ShaderMapResults.bAllJobsSucceeded && Job->bSucceeded;
-
-					const int32 NumPendingJobs = ShaderMapResults.NumPendingJobs.Decrement();
-					check(NumPendingJobs >= 0);
+					Manager->ProcessFinishedJob(Job.GetReference());
 				}
 
 				const float ElapsedTime = FPlatformTime::Seconds() - CurrentWorkerInfo.StartTime;
@@ -1591,8 +1786,6 @@ int32 FShaderCompileThreadRunnable::PullTasksFromQueue()
 
 					UE_LOG(LogShaders, Display, TEXT("Finished batch of %u jobs in %.3fs, %s"), CurrentWorkerInfo.QueuedJobs.Num(), ElapsedTime, *JobNames);
 				}
-
-				Manager->AllJobs.SubtractNumOutstandingJobs(CurrentWorkerInfo.QueuedJobs.Num());
 
 				CurrentWorkerInfo.bComplete = false;
 				CurrentWorkerInfo.QueuedJobs.Empty();
@@ -2559,6 +2752,11 @@ FShaderPipelineCompileJob* FShaderCompilingManager::PreparePipelineCompileJob(ui
 	return AllJobs.PrepareJob(Id, Key, Priority);
 }
 
+void FShaderCompilingManager::ProcessFinishedJob(FShaderCommonCompileJob* FinishedJob)
+{
+	AllJobs.ProcessFinishedJob(FinishedJob);
+}
+
 /** Launches the worker, returns the launched process handle. */
 FProcHandle FShaderCompilingManager::LaunchWorker(const FString& WorkingDirectory, uint32 InProcessId, uint32 ThreadId, const FString& WorkerInputFile, const FString& WorkerOutputFile)
 {
@@ -3090,6 +3288,8 @@ void FShaderCompilingManager::ProcessCompiledShaderMaps(
 			FEditorSupportDelegates::RedrawAllViewports.Broadcast();
 		}
 	}
+
+	AllJobs.LogCachingStats();
 #endif // WITH_EDITOR
 }
 
@@ -3160,6 +3360,9 @@ void FShaderCompilingManager::PropagateMaterialChangesToPrimitives(const TMap<TR
  */
 void FShaderCompilingManager::Shutdown()
 {
+	// print the statistics on shutdown
+	AllJobs.LogCachingStats(true);
+
 	for (const auto& Thread : Threads)
 	{
 		Thread->Stop();
@@ -5701,4 +5904,307 @@ void ProcessCompiledGlobalShaders(const TArray<FShaderCommonCompileJobPtr>& Comp
 		SaveGlobalShaderMapToDerivedDataCache(ShaderPlatformsProcessed[PlatformIndex]);
 	}
 }
+
+FSHAHash FShaderCompileJob::GetInputHash()
+{
+	if (bInputHashSet)
+	{
+		return InputHash;
+	}
+
+	auto SerializeInputs = [this](FArchive& Archive)
+	{
+		Archive << Input;
+		Archive << Input.Environment;
+		for (TMap<FString, FThreadSafeSharedStringPtr>::TConstIterator It(Input.Environment.IncludeVirtualPathToExternalContentsMap); It; ++It)
+		{
+			FString VirtualPath = It.Key();
+			Archive << VirtualPath;
+			check(It.Value());
+			FString Contents = *It.Value();
+			Archive << Contents;
+		}
+
+		if (Input.SharedEnvironment)
+		{
+			Archive << *Input.SharedEnvironment;
+			for (TMap<FString, FThreadSafeSharedStringPtr>::TConstIterator It(Input.SharedEnvironment->IncludeVirtualPathToExternalContentsMap); It; ++It)
+			{
+				FString VirtualPath = It.Key();
+				Archive << VirtualPath;
+				check(It.Value());
+				FString Contents = *It.Value();
+				Archive << Contents;
+			}
+		}
+	};
+
+	// use faster hasher that doesn't allocate memory
+	FMemoryHasherSHA1 MemHasher;
+	SerializeInputs(MemHasher);
+	MemHasher.Finalize();
+	InputHash = MemHasher.GetHash();
+
+	if (GShaderCompilerDumpCompileJobInputs)
+	{
+		TArray<uint8> MemoryBlob;
+		FMemoryWriter MemWriter(MemoryBlob);
+
+		SerializeInputs(MemWriter);
+
+		FString IntermediateFormatPath = FPaths::ProjectSavedDir() / TEXT("ShaderJobInputs");
+#if UE_BUILD_DEBUG
+		FString TempPath = IntermediateFormatPath / TEXT("DebugEditor");
+#else
+		FString TempPath = IntermediateFormatPath / TEXT("DevelopmentEditor");
+#endif
+		IFileManager::Get().MakeDirectory(*TempPath, true);
+
+		static int32 InputHashID = 0;
+		FString FileName = Input.DebugGroupName.Replace(TEXT("/"), TEXT("_")).Replace(TEXT("<"), TEXT("_")).Replace(TEXT(">"), TEXT("_")).Replace(TEXT(":"), TEXT("_")).Replace(TEXT("|"), TEXT("_"))
+			+ TEXT("-") + Input.EntryPointName;
+		FString TempFile = TempPath / FString::Printf(TEXT("%s-%d.bin"), *FileName, InputHashID++);
+
+		TUniquePtr<FArchive> DumpAr(IFileManager::Get().CreateFileWriter(*TempFile));
+		DumpAr->Serialize(MemoryBlob.GetData(), MemoryBlob.Num());
+
+		// as an additional debugging feature, make sure that the hash is the same as calculated by the memhasher
+		FSHAHash Check;
+		FSHA1::HashBuffer(MemoryBlob.GetData(), MemoryBlob.Num(), Check.Hash);
+		if (Check != InputHash)
+		{
+			UE_LOG(LogShaderCompilers, Error, TEXT("Job input hash disagrees between FMemoryHasherSHA1 (%s) and FMemoryWriter + FSHA1 (%s, which was dumped to disk)"), *InputHash.ToString(), *Check.ToString());
+		}
+	}
+
+	bInputHashSet = true;
+	return InputHash;
+}
+
+void FShaderCompileJob::SerializeOutput(FArchive& Ar)
+{
+	double ActualCompileTime = 0.0;
+	if (Ar.IsSaving())
+	{
+		// Cached jobs won't have accurate results anyway, so reduce the storage requirements by setting those fields to a known value.
+		// This significantly reduces the memory needed to store the outputs (by more than a half)
+		ActualCompileTime = Output.CompileTime;
+		Output.CompileTime = 0.0;
+	}
+
+	Ar << Output;
+
+	if (Ar.IsLoading())
+	{
+		bFinalized = true;
+
+		// serialize the hash as well? minor optimization
+		Output.GenerateOutputHash();
+		bSucceeded = Output.bSucceeded;
+	}
+	else
+	{
+		// restore the compile time for this jobs. Jobs that will be deserialized from the cache will have a compile time of 0.0
+		Output.CompileTime = ActualCompileTime;
+	}
+}
+
+FSHAHash FShaderPipelineCompileJob::GetInputHash()
+{
+	if (bInputHashSet)
+	{
+		return InputHash;
+	}
+
+	FSHA1 Hasher;
+
+	for (int32 Index = 0; Index < StageJobs.Num(); ++Index)
+	{
+		if (StageJobs[Index])
+		{
+			FSHAHash StageHash = StageJobs[Index]->GetInputHash();
+			Hasher.Update(&StageHash.Hash[0], sizeof(StageHash.Hash));
+		}
+	}
+
+	Hasher.Final();
+	Hasher.GetHash(&InputHash.Hash[0]);
+
+	bInputHashSet = true;
+	return InputHash;
+}
+
+void FShaderPipelineCompileJob::SerializeOutput(FArchive& Ar)
+{
+	for (int32 Index = 0, Num = StageJobs.Num(); Index < Num; ++Index)
+	{
+		StageJobs[Index]->SerializeOutput(Ar);
+	}
+}
+
+FShaderJobCache::FJobCachedOutput* FShaderJobCache::Find(const FJobInputHash& Hash)
+{
+	++TotalSearchAttempts;
+
+	if (!GShaderCompilerDisableJobCache)
+	{
+		FJobOutputHash* OutputHash = InputHashToOutput.Find(Hash);
+		if (OutputHash)
+		{
+			++TotalCacheHits;
+
+			FStoredOutput** CannedOutput = Outputs.Find(*OutputHash);
+			// we should not allow a dangling input to output mapping to exist
+			checkf(CannedOutput != nullptr, TEXT("Inconsistency in FShaderJobCache - cache record for ihash %s exists, but output cannot be found."), *Hash.ToString());
+			// update the output hit count
+			(*CannedOutput)->NumHits++;
+			return &(*CannedOutput)->JobOutput;
+		}
+	}
+
+	return nullptr;
+}
+
+uint64 FShaderJobCache::GetCurrentMemoryBudget() const
+{
+	uint64 AbsoluteLimit = static_cast<uint64>(GShaderCompilerMaxJobCacheMemoryMB) * 1024ULL * 1024ULL;
+	uint64 RelativeLimit = FMath::Clamp(static_cast<double>(GShaderCompilerMaxJobCacheMemoryPercent), 0.0, 100.0) * (static_cast<double>(FPlatformMemory::GetPhysicalGBRam()) * 1024 * 1024 * 1024) / 100.0;
+	return FMath::Min(AbsoluteLimit, RelativeLimit);
+}
+
+void FShaderJobCache::Add(const FJobInputHash& Hash, const FJobCachedOutput& Contents)
+{
+	if (GShaderCompilerDisableJobCache)
+	{
+		return;
+	}
+
+	FJobOutputHash* ExistingOutputHash = InputHashToOutput.Find(Hash);
+	if (ExistingOutputHash)
+	{
+		// we can arrive here due to cloned jobs ignoring our normal caching rules
+		return;
+	}
+
+	FSHAHash OutputHash;
+	FSHA1::HashBuffer(Contents.GetData(), Contents.Num(), OutputHash.Hash);
+
+	// add the record
+	InputHashToOutput.Add(Hash, OutputHash);
+
+	FStoredOutput** CannedOutput = Outputs.Find(OutputHash);
+	if (CannedOutput)
+	{
+		// update the output hit count
+		(*CannedOutput)->NumReferences++;
+	}
+	else
+	{
+		// delete the previous cache entries if we have a budget
+		uint64 MemoryBudgetBytes = GetCurrentMemoryBudget();
+		if (MemoryBudgetBytes)
+		{
+			uint64 MemoryThatWillBeUsed = GetAllocatedMemory() + Contents.Num();
+			while (MemoryThatWillBeUsed >= MemoryBudgetBytes)
+			{
+				// heuristics: delete the entry that has the smallest hits. Don't account for references as if something is referenced often but not hit, it's of no value for us.
+				// (consider other heuristics: hits * memory, time it took to produce the output, last hit time)
+				int32 MinHits = INT_MAX;
+
+				// find the (new) min
+				for (TMap<FJobOutputHash, FStoredOutput*>::TConstIterator Iter(Outputs); Iter; ++Iter)
+				{
+					MinHits = FMath::Min(Iter.Value()->NumHits, MinHits);
+				}
+
+				// remove all matching this minimum until there's enough memory
+				for (TMap<FJobOutputHash, FStoredOutput*>::TIterator Iter(Outputs); Iter; ++Iter)
+				{
+					if (Iter.Value()->NumHits == MinHits)
+					{
+						MemoryThatWillBeUsed -= static_cast<uint64>(Iter.Value()->JobOutput.Num());
+
+						FSHAHash RemovedOutputHash = Iter.Key();
+						Iter.RemoveCurrent();
+
+						// remove all mappings
+						for (TMap<FJobInputHash, FJobOutputHash>::TIterator IterInputs(InputHashToOutput); IterInputs; ++IterInputs)
+						{
+							if (IterInputs.Value() == RemovedOutputHash)
+							{
+								IterInputs.RemoveCurrent();
+							}
+						}
+
+						// don't remove too much
+						if (MemoryThatWillBeUsed < MemoryBudgetBytes)
+						{
+							break;
+						}
+					}
+				}
+			}
+		}
+
+		FStoredOutput* NewStoredOutput = new FStoredOutput();
+		NewStoredOutput->NumHits = 0;
+		NewStoredOutput->NumReferences = 1;
+		NewStoredOutput->JobOutput = Contents;
+		Outputs.Add(OutputHash, NewStoredOutput);
+
+		// invalidate currently allocated memory only if we added something substantial. We ignore memory increase due to TMap size
+		CurrentlyAllocatedMemory = 0;
+	}
+}
+
+/** Calculates memory used by the cache*/
+uint64 FShaderJobCache::GetAllocatedMemory()
+{
+	if (!CurrentlyAllocatedMemory)
+	{
+		uint64 MemoryUsed = sizeof(this) + InputHashToOutput.GetAllocatedSize() + Outputs.GetAllocatedSize();
+
+		// go through all the outputs and sum them
+		for (TMap<FJobOutputHash, FStoredOutput*>::TConstIterator Iter(Outputs); Iter; ++Iter)
+		{
+			MemoryUsed += Iter->Value->JobOutput.GetAllocatedSize();
+		}
+
+		CurrentlyAllocatedMemory = MemoryUsed;
+	}
+
+	return CurrentlyAllocatedMemory;
+}
+
+#include "Math/UnitConversion.h"
+
+/** Logs out the statistics */
+void FShaderJobCache::LogStats()
+{
+	UE_LOG(LogShaderCompilers, Display, TEXT("=== FShaderJobCache stats ==="), this);
+	UE_LOG(LogShaderCompilers, Display, TEXT("Total job queries %lld, among them cache hits %lld (%.2f%%)"),
+		TotalSearchAttempts, TotalCacheHits, (TotalSearchAttempts > 0) ? 100.0 * static_cast<double>(TotalCacheHits) / static_cast<double>(TotalSearchAttempts) : 0.0);
+	UE_LOG(LogShaderCompilers, Display, TEXT("Tracking %d distinct input hashes that result in %d distinct outputs (%.2f%%)"),
+		InputHashToOutput.Num(), Outputs.Num(), (InputHashToOutput.Num() > 0) ? 100.0 * static_cast<double>(Outputs.Num()) / static_cast<double>(InputHashToOutput.Num()) : 0.0);
+
+	CurrentlyAllocatedMemory = 0;	// get accurate data by invalidating cache
+	uint64 MemUsed = GetAllocatedMemory();
+	double MemUsedMB = FUnitConversion::Convert(static_cast<double>(MemUsed), EUnit::Bytes, EUnit::Megabytes);
+	double MemUsedGB = FUnitConversion::Convert(static_cast<double>(MemUsed), EUnit::Bytes, EUnit::Gigabytes);
+	uint64 MemBudget = GetCurrentMemoryBudget();
+	if (MemBudget > 0)
+	{
+		double MemBudgetMB = FUnitConversion::Convert(static_cast<double>(MemBudget), EUnit::Bytes, EUnit::Megabytes);
+		double MemBudgetGB = FUnitConversion::Convert(static_cast<double>(MemBudget), EUnit::Bytes, EUnit::Gigabytes);
+
+		UE_LOG(LogShaderCompilers, Display, TEXT("RAM used: %.2f MB (%.2f GB) of %.2f MB (%.2f GB) budget. Usage: %.2f%%"), 
+			MemUsedMB, MemUsedGB, MemBudgetMB, MemBudgetGB, 100.0 * MemUsedMB / MemBudgetMB);
+	}
+	else
+	{
+		UE_LOG(LogShaderCompilers, Display, TEXT("RAM used: %.2f MB (%.2f GB), no memory limit set"), MemUsedMB, MemUsedGB);
+	}
+	UE_LOG(LogShaderCompilers, Display, TEXT("================================================"));
+}
+
 #undef LOCTEXT_NAMESPACE
