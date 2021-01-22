@@ -50,6 +50,7 @@ void FVirtualTextureBuiltData::Serialize(FArchive& Ar, UObject* Owner, int32 Fir
 	bool bCooked = Ar.IsCooking();
 	Ar << bCooked;
 
+	Ar << VersionGuid;
 	Ar << NumLayers;
 	Ar << WidthInBlocks;
 	Ar << HeightInBlocks;
@@ -187,6 +188,8 @@ bool FVirtualTextureBuiltData::ValidateData(FStringView const& InDDCDebugContext
 	TArray<uint8> UncompressedResult;
 	TArray<uint8> ChunkDataDDC;
 
+	const FString TextureName(InDDCDebugContext);
+
 	bool bResult = true;
 	for (int32 ChunkIndex = 0; bResult && ChunkIndex < Chunks.Num(); ++ChunkIndex)
 	{
@@ -206,15 +209,29 @@ bool FVirtualTextureBuiltData::ValidateData(FStringView const& InDDCDebugContext
 		{
 			ChunkDataDDC.Reset();
 			const bool bDDCResult = GetDerivedDataCacheRef().GetSynchronous(*Chunk.DerivedDataKey, ChunkDataDDC, InDDCDebugContext);
-			check(bDDCResult);
-			check(ChunkDataDDC.Num() > 4);
-			ChunkData = ChunkDataDDC.GetData() + 4;
-			ChunkDataSize = (uint32)(ChunkDataDDC.Num() - 4);
+			if (!bDDCResult)
+			{
+				UE_LOG(LogTexture, Error, TEXT("Virtual Texture %s failed to retrieve DDC data (%s) for chunk %d"), *TextureName, *Chunk.DerivedDataKey, ChunkIndex);
+				bResult = false;
+				break;
+			}
+
+			ChunkData = ChunkDataDDC.GetData();
+			ChunkDataSize = (uint32)ChunkDataDDC.Num();
 		}
 #endif // WITH_EDITORONLY_DATA
 
-		if (!ChunkData)
+		if (!ChunkData || ChunkDataSize < sizeof(FVirtualTextureChunkHeader))
 		{
+			UE_LOG(LogTexture, Error, TEXT("Virtual Texture %s has invalid size %d for chunk %d"), *TextureName, ChunkDataSize, ChunkIndex);
+			bResult = false;
+			break;
+		}
+
+		FVirtualTextureChunkHeader* ChunkHeader = (FVirtualTextureChunkHeader*)ChunkData;
+		if (ChunkHeader->VersionGuid != VersionGuid)
+		{
+			UE_LOG(LogTexture, Error, TEXT("Virtual Texture %s has mismatched GUID for chunk %d"), *TextureName, ChunkIndex);
 			bResult = false;
 			break;
 		}
@@ -223,6 +240,7 @@ bool FVirtualTextureBuiltData::ValidateData(FStringView const& InDDCDebugContext
 		FSHA1::HashBuffer(ChunkData, ChunkDataSize, Hash.Hash);
 		if (Hash != Chunk.BulkDataHash)
 		{
+			UE_LOG(LogTexture, Error, TEXT("Virtual Texture %s has invalid hash for chunk %d"), *TextureName, ChunkIndex);
 			bResult = false;
 			break;
 		}
@@ -254,6 +272,7 @@ bool FVirtualTextureBuiltData::ValidateData(FStringView const& InDDCDebugContext
 							const bool bUncompressResult = FCompression::UncompressMemory(NAME_Zlib, UncompressedResult.GetData(), PackedOutputSize, &ChunkData[TileOffset], CompressedTileSize);
 							if (!bUncompressResult)
 							{
+								UE_LOG(LogTexture, Error, TEXT("Virtual Texture %s failed to validate compression for chunk %d"), *TextureName, ChunkIndex);
 								bResult = false;
 								break;
 							}
@@ -312,21 +331,17 @@ uint32 FVirtualTextureDataChunk::StoreInDerivedDataCache(const FString& InDerive
 	int32 BulkDataSizeInBytes = BulkData.GetBulkDataSize();
 	check(BulkDataSizeInBytes > 0);
 
-	TArray<uint8> DerivedData;
-	FMemoryWriter Ar(DerivedData, /*bIsPersistent=*/ true);
-	Ar << BulkDataSizeInBytes;
 	{
-		void* BulkChunkData = BulkData.Lock(LOCK_READ_ONLY);
-		Ar.Serialize(BulkChunkData, BulkDataSizeInBytes);
+		const uint8* BulkChunkData = (uint8*)BulkData.Lock(LOCK_READ_ONLY);
+		GetDerivedDataCacheRef().Put(*InDerivedDataKey, MakeArrayView(BulkChunkData, BulkDataSizeInBytes), TextureName, bReplaceExistingDDC);
 		BulkData.Unlock();
 	}
-	const uint32 Result = DerivedData.Num();
-	GetDerivedDataCacheRef().Put(*InDerivedDataKey, DerivedData, TextureName, bReplaceExistingDDC);
+
 	DerivedDataKey = InDerivedDataKey;
 	ShortenKey(DerivedDataKey, ShortDerivedDataKey);
 
 	// remove the actual bulkdata so when we serialize the owning FVirtualTextureBuiltData, this is actually serializing only the meta data
 	BulkData.RemoveBulkData();
-	return Result;
+	return BulkDataSizeInBytes;
 }
 #endif // WITH_EDITORONLY_DATA

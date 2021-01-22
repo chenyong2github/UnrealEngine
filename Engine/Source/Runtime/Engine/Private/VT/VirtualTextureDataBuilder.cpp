@@ -334,6 +334,7 @@ void FVirtualTextureDataBuilder::Build(const FTextureSourceData& InSourceData, c
 	//NOTE: OutData may point to a previously build data so it is important to
 	//properly initialize all fields and not assume this is a freshly constructed object
 
+	OutData.VersionGuid = FGuid::NewGuid();
 	OutData.TileBorderSize = BuildSettingsLayer0.VirtualTextureBorderSize;
 	OutData.TileSize = TileSize;
 	OutData.NumLayers = NumLayers;
@@ -716,7 +717,7 @@ void FVirtualTextureDataBuilder::PushDataToChunk(const TArray<FVTSourceTileEntry
 {
 	const int32 NumLayers = SourceLayers.Num();
 
-	uint32 TotalSize = 0u;
+	uint32 TotalSize = sizeof(FVirtualTextureChunkHeader);
 	for (int32 Layer = 0; Layer < NumLayers; ++Layer)
 	{
 		TotalSize += LayerData[Layer].CodecPayload.Num();
@@ -732,6 +733,12 @@ void FVirtualTextureDataBuilder::PushDataToChunk(const TArray<FVTSourceTileEntry
 	BulkData.Lock(LOCK_READ_WRITE);
 	uint8* NewChunkData = (uint8*)BulkData.Realloc(TotalSize);
 	uint32 ChunkOffset = 0u;
+
+	// Header for the chunk
+	FVirtualTextureChunkHeader* Header = (FVirtualTextureChunkHeader*)NewChunkData;
+	Header->VersionGuid = OutData.VersionGuid;
+
+	ChunkOffset += sizeof(FVirtualTextureChunkHeader);
 
 	// codec payloads
 	for (int32 Layer = 0; Layer < NumLayers; ++Layer)

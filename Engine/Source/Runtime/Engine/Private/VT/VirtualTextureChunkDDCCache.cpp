@@ -111,15 +111,14 @@ public:
 			return;
 		}
 
-		if (Results.Num() <= 4)
+		if (Results.Num() <= sizeof(FVirtualTextureChunkHeader))
 		{
 			UE_LOG(LogVTDiskCache, Error, TEXT("VT DDC data is too small %d (key: %s)"), Results.Num(), *Chunk->DerivedDataKey);
 			return;
 		}
 
-		// skip size embedded in DDC entry
-		const uint8* ChunkData = Results.GetData() + 4;
-		const int32 ChunkDataSize = Results.Num() - 4;
+		const uint8* ChunkData = Results.GetData();
+		const int32 ChunkDataSize = Results.Num();
 
 		FSHAHash Hash;
 		FSHA1::HashBuffer(ChunkData, ChunkDataSize, Hash.Hash);

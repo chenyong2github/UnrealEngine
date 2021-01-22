@@ -28,6 +28,11 @@ enum class EVirtualTextureCodec : uint8
 	Max,			// Add new codecs before this entry
 };
 
+struct FVirtualTextureChunkHeader
+{
+	FGuid VersionGuid;
+};
+
 struct FVirtualTextureDataChunk
 {
 	FByteBulkData BulkData;
@@ -68,6 +73,7 @@ struct FVirtualTextureDataChunk
 
 struct FVirtualTextureBuiltData
 {
+	FGuid VersionGuid;
 	uint32 NumLayers;
 	uint32 NumMips;
 	uint32 Width; // Width of the texture in pixels. Note the physical width may be larger due to tiling
