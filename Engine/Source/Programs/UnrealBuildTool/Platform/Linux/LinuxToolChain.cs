@@ -205,6 +205,10 @@ namespace UnrealBuildTool
 
 			// Add --gdb-index for Clang 9.0 and higher
 			bGdbIndexSection = (CompilerVersionMajor >= 9);
+
+			string DummyStart = " -D \"DUMMY_DEFINE";
+			string DummyEnd = "\"";
+			ClangDummyDefine = DummyStart + String.Format("_").PadRight(ClangCmdLineMaxSize - ClangCmdlineDangerZone - DummyStart.Length - DummyEnd.Length, 'X') + DummyEnd;
 		}
 
 		public LinuxToolChain(UnrealTargetPlatform InPlatform, string InArchitecture, LinuxPlatformSDK InSDK, bool InPreservePSYM = false, LinuxToolChainOptions InOptions = LinuxToolChainOptions.None)
