@@ -70,7 +70,7 @@ enum class EInterchangeMaterialNodeParameterName : uint8
 };
 
 UCLASS(BlueprintType)
-class INTERCHANGENODEPLUGIN_API UInterchangeMaterialNode : public UInterchangeBaseNode
+class INTERCHANGENODES_API UInterchangeMaterialNode : public UInterchangeBaseNode
 {
 	GENERATED_BODY()
 

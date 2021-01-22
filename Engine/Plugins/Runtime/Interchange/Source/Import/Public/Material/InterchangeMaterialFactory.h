@@ -10,7 +10,7 @@
 #include "InterchangeMaterialFactory.generated.h"
 
 UCLASS(BlueprintType)
-class INTERCHANGEIMPORTPLUGIN_API UInterchangeMaterialFactory : public UInterchangeFactoryBase
+class INTERCHANGEIMPORT_API UInterchangeMaterialFactory : public UInterchangeFactoryBase
 {
 	GENERATED_BODY()
 public:

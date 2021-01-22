@@ -3,8 +3,8 @@
 
 #include "IImageWrapper.h"
 #include "IImageWrapperModule.h"
+#include "InterchangeImportLog.h"
 #include "InterchangeTextureNode.h"
-#include "LogInterchangeImportPlugin.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
@@ -47,7 +47,7 @@ namespace TGATranslatorImpl
 					TGA->BitsPerPixel != 24 &&
 					TGA->BitsPerPixel != 16 )
 				{
-					UE_LOG( LogInterchangeImportPlugin, Error, TEXT("TGA uses an unsupported rle-compressed bit-depth: %u"), TGA->BitsPerPixel );
+					UE_LOG( LogInterchangeImport, Error, TEXT("TGA uses an unsupported rle-compressed bit-depth: %u"), TGA->BitsPerPixel );
 					return false;
 				}
 			}
@@ -57,7 +57,7 @@ namespace TGATranslatorImpl
 					TGA->BitsPerPixel != 16 &&
 					TGA->BitsPerPixel != 24)
 				{
-					UE_LOG( LogInterchangeImportPlugin, Error, TEXT("TGA uses an unsupported bit-depth: %u"), TGA->BitsPerPixel );
+					UE_LOG( LogInterchangeImport, Error, TEXT("TGA uses an unsupported bit-depth: %u"), TGA->BitsPerPixel );
 					return false;
 				}
 			}
@@ -88,7 +88,7 @@ TOptional<UE::Interchange::FImportImage> UInterchangeTGATranslator::GetTexturePa
 {
 	if (!SourceData)
 	{
-		UE_LOG(LogInterchangeImportPlugin, Error, TEXT("Failed to import TGA, bad source data."));
+		UE_LOG(LogInterchangeImport, Error, TEXT("Failed to import TGA, bad source data."));
 		return {};
 	}
 
@@ -98,19 +98,19 @@ TOptional<UE::Interchange::FImportImage> UInterchangeTGATranslator::GetTexturePa
 	//Make sure the key fit the filename, The key should always be valid
 	if (!Filename.Equals(PayLoadKey))
 	{
-		UE_LOG(LogInterchangeImportPlugin, Error, TEXT("Failed to import TGA, wrong payload key. [%s]"), *Filename);
+		UE_LOG(LogInterchangeImport, Error, TEXT("Failed to import TGA, wrong payload key. [%s]"), *Filename);
 		return {};
 	}
 
 	if (!FPaths::FileExists(Filename))
 	{
-		UE_LOG(LogInterchangeImportPlugin, Error, TEXT("Failed to import TGA, cannot open file. [%s]"), *Filename);
+		UE_LOG(LogInterchangeImport, Error, TEXT("Failed to import TGA, cannot open file. [%s]"), *Filename);
 		return {};
 	}
 
 	if (!FFileHelper::LoadFileToArray(SourceDataBuffer, *Filename))
 	{
-		UE_LOG(LogInterchangeImportPlugin, Error, TEXT("Failed to import TGA, cannot load file content into an array. [%s]"), *Filename);
+		UE_LOG(LogInterchangeImport, Error, TEXT("Failed to import TGA, cannot load file content into an array. [%s]"), *Filename);
 		return {};
 	}
 

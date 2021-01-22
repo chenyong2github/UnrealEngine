@@ -20,9 +20,9 @@ namespace UnrealBuildTool.Rules
 				new string[]
 				{
 					"InterchangeCore",
-					"InterchangeImportPlugin",
-					"InterchangeNodePlugin",
-					"InterchangeExportPlugin",
+					"InterchangeImport",
+					"InterchangeNodes",
+					"InterchangeExport",
 					"InterchangeDispatcher",
 					"InterchangeFbxParser"
 				}

@@ -1,24 +1,25 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#include "InterchangeNodesModule.h"
+
 #include "CoreMinimal.h"
 #include "Modules/ModuleManager.h"
-#include "IInterchangeNodePlugin.h"
 //#include "InterchangeManager.h"
 
-DEFINE_LOG_CATEGORY(LogInterchangeNodePlugin);
+DEFINE_LOG_CATEGORY(LogInterchangeNodes);
 
-class FInterchangeNodePlugin : public IInterchangeNodePlugin
+class FInterchangeNodesModule : public IInterchangeNodesModule
 {
 	/** IModuleInterface implementation */
 	virtual void StartupModule() override;
 	virtual void ShutdownModule() override;
 };
 
-IMPLEMENT_MODULE( FInterchangeNodePlugin, InterchangeNodePlugin)
+IMPLEMENT_MODULE(FInterchangeNodesModule, InterchangeNodes)
 
 
 
-void FInterchangeNodePlugin::StartupModule()
+void FInterchangeNodesModule::StartupModule()
 {
 	//Register anything needed to the interchange manager
 	//UInterchangeManager& InterchangeManager = UInterchangeManager::GetInterchangeManager();
@@ -26,9 +27,9 @@ void FInterchangeNodePlugin::StartupModule()
 }
 
 
-void FInterchangeNodePlugin::ShutdownModule()
+void FInterchangeNodesModule::ShutdownModule()
 {
-	
+
 }
 
 

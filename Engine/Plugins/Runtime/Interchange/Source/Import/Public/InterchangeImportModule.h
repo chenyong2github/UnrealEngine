@@ -6,11 +6,10 @@
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
 
-
 /**
  * The public interface to this module
  */
-class IInterchangeExportPlugin : public IModuleInterface
+class IInterchangeImportModule : public IModuleInterface
 {
 
 public:
@@ -21,9 +20,9 @@ public:
 	 *
 	 * @return Returns singleton instance, loading the module on demand if needed
 	 */
-	static inline IInterchangeExportPlugin& Get()
+	static inline IInterchangeImportModule& Get()
 	{
-		return FModuleManager::LoadModuleChecked< IInterchangeExportPlugin >( "InterchangeExportPlugin" );
+		return FModuleManager::LoadModuleChecked< IInterchangeImportModule >( "InterchangeImport" );
 	}
 
 	/**
@@ -33,7 +32,7 @@ public:
 	 */
 	static inline bool IsAvailable()
 	{
-		return FModuleManager::Get().IsModuleLoaded( "InterchangeExportPlugin" );
+		return FModuleManager::Get().IsModuleLoaded( "InterchangeImport" );
 	}
 };
 

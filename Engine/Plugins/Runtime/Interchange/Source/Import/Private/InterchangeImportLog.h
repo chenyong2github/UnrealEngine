@@ -4,4 +4,4 @@
 
 #include "CoreMinimal.h"
 
-DECLARE_LOG_CATEGORY_EXTERN(LogInterchangeImportPlugin, Log, All);
+DECLARE_LOG_CATEGORY_EXTERN(LogInterchangeImport, Log, All);

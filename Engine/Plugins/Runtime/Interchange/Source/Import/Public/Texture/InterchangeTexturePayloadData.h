@@ -9,7 +9,7 @@ namespace UE
 {
 	namespace Interchange
 	{
-		struct INTERCHANGEIMPORTPLUGIN_API FImportImage
+		struct INTERCHANGEIMPORT_API FImportImage
 		{
 			TArray64<uint8> RawData;
 			ETextureSourceFormat Format = TSF_Invalid;
@@ -28,7 +28,7 @@ namespace UE
 			void* GetMipData(int32 InMipIndex);
 		};
 
-		struct INTERCHANGEIMPORTPLUGIN_API FImportImageHelper
+		struct INTERCHANGEIMPORT_API FImportImageHelper
 		{
 			/**
 			 * Tests if the given height and width specify a supported texture resolution to import; Can optionally check if the height/width are powers of two

@@ -16,7 +16,7 @@ class UInterchangeBaseNodeContainer;
 class UInterchangeSourceData;
 
 UCLASS(BlueprintType)
-class INTERCHANGEIMPORTPLUGIN_API UInterchangeUDIMTranslator : public UInterchangeTranslatorBase, public IInterchangeBlockedTexturePayloadInterface
+class INTERCHANGEIMPORT_API UInterchangeUDIMTranslator : public UInterchangeTranslatorBase, public IInterchangeBlockedTexturePayloadInterface
 {
 	GENERATED_BODY()
 

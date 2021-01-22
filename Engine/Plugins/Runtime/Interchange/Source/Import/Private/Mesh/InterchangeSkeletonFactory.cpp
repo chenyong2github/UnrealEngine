@@ -3,9 +3,9 @@
 
 #include "Animation/Skeleton.h"
 #include "InterchangeImportCommon.h"
+#include "InterchangeImportLog.h"
 #include "InterchangeSkeletonNode.h"
 #include "InterchangeSourceData.h"
-#include "LogInterchangeImportPlugin.h"
 #include "Nodes/InterchangeBaseNode.h"
 #include "Nodes/InterchangeBaseNodeContainer.h"
 
@@ -48,7 +48,7 @@ UObject* UInterchangeSkeletonFactory::CreateEmptyAsset(const FCreateAssetParams&
 
 	if (!Skeleton)
 	{
-		UE_LOG(LogInterchangeImportPlugin, Warning, TEXT("Could not create Skeleton asset %s"), *Arguments.AssetName);
+		UE_LOG(LogInterchangeImport, Warning, TEXT("Could not create Skeleton asset %s"), *Arguments.AssetName);
 		return nullptr;
 	}
 	Skeleton->PreEditChange(nullptr);
@@ -60,7 +60,7 @@ UObject* UInterchangeSkeletonFactory::CreateAsset(const UInterchangeSkeletonFact
 {
 #if !WITH_EDITORONLY_DATA
 
-	UE_LOG(LogInterchangeImportPlugin, Error, TEXT("Cannot import Skeleton asset in runtime, this is an editor only feature."));
+	UE_LOG(LogInterchangeImport, Error, TEXT("Cannot import Skeleton asset in runtime, this is an editor only feature."));
 	return nullptr;
 
 #else
@@ -99,7 +99,7 @@ UObject* UInterchangeSkeletonFactory::CreateAsset(const UInterchangeSkeletonFact
 
 	if (!SkeletonObject)
 	{
-		UE_LOG(LogInterchangeImportPlugin, Warning, TEXT("Could not create Skeleton asset %s"), *Arguments.AssetName);
+		UE_LOG(LogInterchangeImport, Warning, TEXT("Could not create Skeleton asset %s"), *Arguments.AssetName);
 		return nullptr;
 	}
 
@@ -112,7 +112,7 @@ UObject* UInterchangeSkeletonFactory::CreateAsset(const UInterchangeSkeletonFact
 			USkeleton* Skeleton = Cast<USkeleton>(SkeletonObject);
 			if (!ensure(Skeleton))
 			{
-				UE_LOG(LogInterchangeImportPlugin, Warning, TEXT("Could not create Skeleton asset %s"), *Arguments.AssetName);
+				UE_LOG(LogInterchangeImport, Warning, TEXT("Could not create Skeleton asset %s"), *Arguments.AssetName);
 				return nullptr;
 			}
 		}

@@ -5,8 +5,8 @@
 #include "Engine/Texture2D.h"
 #include "IImageWrapper.h"
 #include "IImageWrapperModule.h"
+#include "InterchangeImportLog.h"
 #include "InterchangeTextureNode.h"
-#include "LogInterchangeImportPlugin.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
@@ -384,7 +384,7 @@ TOptional<UE::Interchange::FImportImage> UInterchangePSDTranslator::GetTexturePa
 {
 	if (!SourceData)
 	{
-		UE_LOG(LogInterchangeImportPlugin, Error, TEXT("Failed to import PSD, bad source data."));
+		UE_LOG(LogInterchangeImport, Error, TEXT("Failed to import PSD, bad source data."));
 		return TOptional<UE::Interchange::FImportImage>();
 	}
 
@@ -394,19 +394,19 @@ TOptional<UE::Interchange::FImportImage> UInterchangePSDTranslator::GetTexturePa
 	//Make sure the key fit the filename, The key should always be valid
 	if (!Filename.Equals(PayLoadKey))
 	{
-		UE_LOG(LogInterchangeImportPlugin, Error, TEXT("Failed to import PSD, wrong payload key. [%s]"), *Filename);
+		UE_LOG(LogInterchangeImport, Error, TEXT("Failed to import PSD, wrong payload key. [%s]"), *Filename);
 		return TOptional<UE::Interchange::FImportImage>();
 	}
 
 	if (!FPaths::FileExists(Filename))
 	{
-		UE_LOG(LogInterchangeImportPlugin, Error, TEXT("Failed to import PSD, cannot open file. [%s]"), *Filename);
+		UE_LOG(LogInterchangeImport, Error, TEXT("Failed to import PSD, cannot open file. [%s]"), *Filename);
 		return TOptional<UE::Interchange::FImportImage>();
 	}
 
 	if (!FFileHelper::LoadFileToArray(SourceDataBuffer, *Filename))
 	{
-		UE_LOG(LogInterchangeImportPlugin, Error, TEXT("Failed to import PSD, cannot load file content into an array. [%s]"), *Filename);
+		UE_LOG(LogInterchangeImport, Error, TEXT("Failed to import PSD, cannot load file content into an array. [%s]"), *Filename);
 		return TOptional<UE::Interchange::FImportImage>();
 	}
 
@@ -443,7 +443,7 @@ TOptional<UE::Interchange::FImportImage> UInterchangePSDTranslator::GetTexturePa
 
 	if (!PSDHeader.IsSupported())
 	{
-		UE_LOG(LogInterchangeImportPlugin, Error, TEXT("Format of this PSD is not supported. Only Grayscale and RGBColor PSD images are currently supported, in 8-bit or 16-bit."));
+		UE_LOG(LogInterchangeImport, Error, TEXT("Format of this PSD is not supported. Only Grayscale and RGBColor PSD images are currently supported, in 8-bit or 16-bit."));
 		return TOptional<UE::Interchange::FImportImage>();
 	}
 
@@ -460,7 +460,7 @@ TOptional<UE::Interchange::FImportImage> UInterchangePSDTranslator::GetTexturePa
 
 	if (TextureFormat == TSF_Invalid)
 	{
-		UE_LOG(LogInterchangeImportPlugin, Error, TEXT("PSD file contains data in an unsupported format."));
+		UE_LOG(LogInterchangeImport, Error, TEXT("PSD file contains data in an unsupported format."));
 		return TOptional<UE::Interchange::FImportImage>();
 	}
 
@@ -475,7 +475,7 @@ TOptional<UE::Interchange::FImportImage> UInterchangePSDTranslator::GetTexturePa
 
 	if (!UE::Interchange::Private::ReadData(PayloadData.RawData.GetData(), Buffer, PSDHeader))
 	{
-		UE_LOG(LogInterchangeImportPlugin, Error, TEXT("Failed to read this PSD"));
+		UE_LOG(LogInterchangeImport, Error, TEXT("Failed to read this PSD"));
 		return TOptional<UE::Interchange::FImportImage>();
 	}
 

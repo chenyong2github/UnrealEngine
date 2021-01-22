@@ -11,7 +11,7 @@
 #include "InterchangeTextureFactory.generated.h"
 
 UCLASS(BlueprintType)
-class INTERCHANGEIMPORTPLUGIN_API UInterchangeTextureFactory : public UInterchangeFactoryBase
+class INTERCHANGEIMPORT_API UInterchangeTextureFactory : public UInterchangeFactoryBase
 {
 	GENERATED_BODY()
 public:

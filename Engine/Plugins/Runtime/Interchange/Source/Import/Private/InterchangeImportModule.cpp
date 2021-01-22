@@ -1,9 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "IInterchangeImportPlugin.h"
+#include "InterchangeImportModule.h"
 
 #include "CoreMinimal.h"
 #include "Fbx/InterchangeFbxTranslator.h"
+#include "InterchangeImportLog.h"
 #include "InterchangeManager.h"
 #include "Material/InterchangeMaterialFactory.h"
 #include "Mesh/InterchangeSkeletalMeshFactory.h"
@@ -21,20 +22,20 @@
 #include "Texture/InterchangeTGATranslator.h"
 #include "Texture/InterchangeUDIMTranslator.h"
 
-DEFINE_LOG_CATEGORY(LogInterchangeImportPlugin);
+DEFINE_LOG_CATEGORY(LogInterchangeImport);
 
-class FInterchangeImportPlugin : public IInterchangeImportPlugin
+class FInterchangeImportModule : public IInterchangeImportModule
 {
 	/** IModuleInterface implementation */
 	virtual void StartupModule() override;
 	virtual void ShutdownModule() override;
 };
 
-IMPLEMENT_MODULE( FInterchangeImportPlugin, InterchangeImportPlugin)
+IMPLEMENT_MODULE(FInterchangeImportModule, InterchangeImport)
 
 
 
-void FInterchangeImportPlugin::StartupModule()
+void FInterchangeImportModule::StartupModule()
 {
 	auto RegisterItems = []()
 	{
@@ -77,9 +78,9 @@ void FInterchangeImportPlugin::StartupModule()
 }
 
 
-void FInterchangeImportPlugin::ShutdownModule()
+void FInterchangeImportModule::ShutdownModule()
 {
-	
+
 }
 
 

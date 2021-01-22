@@ -11,7 +11,7 @@
 #include "InterchangeStaticMeshPayloadInterface.generated.h"
 
 UINTERFACE()
-class INTERCHANGEIMPORTPLUGIN_API UInterchangeStaticMeshPayloadInterface : public UInterface
+class INTERCHANGEIMPORT_API UInterchangeStaticMeshPayloadInterface : public UInterface
 {
 	GENERATED_BODY()
 };
@@ -19,7 +19,7 @@ class INTERCHANGEIMPORTPLUGIN_API UInterchangeStaticMeshPayloadInterface : publi
 /**
  * Static mesh payload interface. Derive from this interface if your payload can import static mesh
  */
-class INTERCHANGEIMPORTPLUGIN_API IInterchangeStaticMeshPayloadInterface
+class INTERCHANGEIMPORT_API IInterchangeStaticMeshPayloadInterface
 {
 	GENERATED_BODY()
 public:

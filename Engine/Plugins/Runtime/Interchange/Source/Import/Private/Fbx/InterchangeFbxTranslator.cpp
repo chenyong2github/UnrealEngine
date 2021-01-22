@@ -7,7 +7,7 @@
 #include "InterchangeDispatcher.h"
 #include "InterchangeDispatcherTask.h"
 #include "InterchangeManager.h"
-#include "LogInterchangeImportPlugin.h"
+#include "InterchangeImportLog.h"
 #include "Mesh/InterchangeSkeletalMeshPayload.h"
 #include "Mesh/InterchangeStaticMeshPayload.h"
 #include "Misc/ConfigCacheIni.h"

@@ -13,7 +13,7 @@
 
 
 UCLASS(BlueprintType)
-class INTERCHANGENODEPLUGIN_API UInterchangeJointNode : public UInterchangeBaseNode
+class INTERCHANGENODES_API UInterchangeJointNode : public UInterchangeBaseNode
 {
 	GENERATED_BODY()
 

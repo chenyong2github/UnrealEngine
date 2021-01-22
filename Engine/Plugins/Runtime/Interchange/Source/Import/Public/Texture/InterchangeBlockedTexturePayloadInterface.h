@@ -14,7 +14,7 @@ class UInterchangeSourceData;
 class FString;
 
 UINTERFACE()
-class INTERCHANGEIMPORTPLUGIN_API UInterchangeBlockedTexturePayloadInterface : public UInterface
+class INTERCHANGEIMPORT_API UInterchangeBlockedTexturePayloadInterface : public UInterface
 {
 	GENERATED_BODY()
 };
@@ -22,12 +22,12 @@ class INTERCHANGEIMPORTPLUGIN_API UInterchangeBlockedTexturePayloadInterface : p
 /**
  * Blocked Texture payload interface (Also know as UDIM(s)). Derive from it if your payload can import blocked/UDIMs texture
  */
-class INTERCHANGEIMPORTPLUGIN_API IInterchangeBlockedTexturePayloadInterface
+class INTERCHANGEIMPORT_API IInterchangeBlockedTexturePayloadInterface
 {
 	GENERATED_BODY()
 public:
 
-	
+
 	/**
 	 * Once the translation is done, the import process need a way to retrieve payload data.
 	 * This payload will be use by the factories to create the asset.

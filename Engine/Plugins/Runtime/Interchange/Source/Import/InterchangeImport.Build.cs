@@ -2,9 +2,9 @@
 
 namespace UnrealBuildTool.Rules
 {
-	public class InterchangeImportPlugin : ModuleRules
+	public class InterchangeImport : ModuleRules
 	{
-		public InterchangeImportPlugin(ReadOnlyTargetRules Target) : base(Target)
+		public InterchangeImport(ReadOnlyTargetRules Target) : base(Target)
 		{
 			PublicDependencyModuleNames.AddRange(
 				new string[]
@@ -15,12 +15,12 @@ namespace UnrealBuildTool.Rules
 					"InterchangeCore",
 					"InterchangeDispatcher",
 					"InterchangeEngine",
-					"InterchangeNodePlugin",
+					"InterchangeNodes",
 					"MeshDescription",
 					"StaticMeshDescription",
 					"SkeletalMeshDescription",
 				}
-				);
+			);
 			PrivateDependencyModuleNames.AddRange(
 				new string[]
 				{
@@ -30,7 +30,7 @@ namespace UnrealBuildTool.Rules
 					"RHI",
 					"TextureUtilitiesCommon",
 				}
-				);
+			);
 
 			OptimizeCode = CodeOptimization.Never;
 			bUseUnity = false;

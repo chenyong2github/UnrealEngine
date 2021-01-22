@@ -16,22 +16,22 @@
 	"Installed": false,
 	"Modules": [
 		{
-			"Name": "InterchangeNodePlugin",
+			"Name": "InterchangeNodes",
 			"Type": "Runtime",
 			"LoadingPhase": "Default"
 		},
 		{
-			"Name": "InterchangeImportPlugin",
+			"Name": "InterchangeImport",
 			"Type": "Runtime",
 			"LoadingPhase": "Default"
 		},
 		{
-			"Name": "InterchangeExportPlugin",
+			"Name": "InterchangeExport",
 			"Type": "Runtime",
 			"LoadingPhase": "Default"
 		},
 		{
-			"Name": "InterchangePipelinePlugin",
+			"Name": "InterchangePipelines",
 			"Type": "Runtime",
 			"LoadingPhase": "Default"
 		},

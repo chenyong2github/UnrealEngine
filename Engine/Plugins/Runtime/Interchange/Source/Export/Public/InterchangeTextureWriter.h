@@ -11,7 +11,7 @@
 #include "InterchangeTextureWriter.generated.h"
 
 UCLASS(BlueprintType)
-class INTERCHANGEEXPORTPLUGIN_API UInterchangeTextureWriter : public UInterchangeWriterBase
+class INTERCHANGEEXPORT_API UInterchangeTextureWriter : public UInterchangeWriterBase
 {
 	GENERATED_BODY()
 public:

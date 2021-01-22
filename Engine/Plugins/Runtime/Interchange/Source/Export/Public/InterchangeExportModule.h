@@ -3,14 +3,14 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "LogInterchangeImportPlugin.h"
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
+
 
 /**
  * The public interface to this module
  */
-class IInterchangeImportPlugin : public IModuleInterface
+class IInterchangeExportModule : public IModuleInterface
 {
 
 public:
@@ -21,9 +21,9 @@ public:
 	 *
 	 * @return Returns singleton instance, loading the module on demand if needed
 	 */
-	static inline IInterchangeImportPlugin& Get()
+	static inline IInterchangeExportModule& Get()
 	{
-		return FModuleManager::LoadModuleChecked< IInterchangeImportPlugin >( "InterchangeImportPlugin" );
+		return FModuleManager::LoadModuleChecked< IInterchangeExportModule >( "InterchangeExport" );
 	}
 
 	/**
@@ -33,7 +33,7 @@ public:
 	 */
 	static inline bool IsAvailable()
 	{
-		return FModuleManager::Get().IsModuleLoaded( "InterchangeImportPlugin" );
+		return FModuleManager::Get().IsModuleLoaded( "InterchangeExport" );
 	}
 };
 

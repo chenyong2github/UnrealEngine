@@ -10,6 +10,7 @@
 #include "Engine/Texture2D.h"
 #endif
 
+
 #include "InterchangeTextureNode.generated.h"
 
 //Interchange namespace
@@ -31,7 +32,7 @@ namespace UE
 }//ns UE
 
 UCLASS(BlueprintType)
-class INTERCHANGENODEPLUGIN_API UInterchangeTextureNode : public UInterchangeBaseNode
+class INTERCHANGENODES_API UInterchangeTextureNode : public UInterchangeBaseNode
 {
 	GENERATED_BODY()
 
@@ -584,7 +585,7 @@ public:
 	{
 		IMPLEMENT_NODE_ATTRIBUTE_SETTER(UInterchangeTextureNode, Filter, uint8, UTexture)
 	}
-	
+
 	/** Return false if the Attribute was not set previously.*/
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Texture")
 	bool GetCustomMipLoadOptions(uint8& AttributeValue) const
@@ -597,7 +598,7 @@ public:
 	{
 		IMPLEMENT_NODE_ATTRIBUTE_SETTER(UInterchangeTextureNode, MipLoadOptions, uint8, UTexture)
 	}
-	
+
 	/** Return false if the Attribute was not set previously.*/
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Texture")
 	bool GetCustomSRGB(bool& AttributeValue) const
@@ -686,7 +687,7 @@ public:
 		IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(bPreserveBorder, bool)
 #endif
 	}
-	
+
 	/** Return false if the Attribute was not set previously.*/
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Texture")
 	bool GetCustomMipGenSettings(uint8& AttributeValue) const
@@ -759,7 +760,7 @@ public:
 
 	//////////////////////////////////////////////////////////////////////////
 	//Compositing
-	
+
 	/** Return false if the Attribute was not set previously.*/
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Texture")
 	bool GetCustomCompositeTextureMode(uint8& AttributeValue) const
@@ -776,7 +777,7 @@ public:
 		IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(CompositeTextureMode, uint8)
 #endif
 	}
-	
+
 	/** Return false if the Attribute was not set previously.*/
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Texture")
 	bool GetCustomCompositePower(float& AttributeValue) const
@@ -930,7 +931,7 @@ private:
 #endif //#if WITH_EDITORONLY_DATA
 	IMPLEMENT_NODE_ATTRIBUTE_APPLY_UOBJECT(LODBias, int32, UTexture, );
 	IMPLEMENT_NODE_ATTRIBUTE_APPLY_UOBJECT(LODGroup, uint8, UTexture, TEnumAsByte<enum TextureGroup>);
-	
+
 	//TODO support per platform data in the FAttributeStorage, so we can set different value per platform at the pipeline stage, We set only the default value for now
 	//IMPLEMENT_NODE_ATTRIBUTE_APPLY_UOBJECT(Downscale, float, UTexture, );
 #if WITH_ENGINE

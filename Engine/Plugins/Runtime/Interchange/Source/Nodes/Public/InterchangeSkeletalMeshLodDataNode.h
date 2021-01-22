@@ -32,7 +32,7 @@ namespace UE
 }//ns UE
 
 UCLASS(BlueprintType)
-class INTERCHANGENODEPLUGIN_API UInterchangeSkeletalMeshLodDataNode : public UInterchangeBaseNode
+class INTERCHANGENODES_API UInterchangeSkeletalMeshLodDataNode : public UInterchangeBaseNode
 {
 	GENERATED_BODY()
 

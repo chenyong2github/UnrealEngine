@@ -2,9 +2,9 @@
 
 namespace UnrealBuildTool.Rules
 {
-	public class InterchangePipelinePlugin : ModuleRules
+	public class InterchangeExport : ModuleRules
 	{
-		public InterchangePipelinePlugin(ReadOnlyTargetRules Target) : base(Target)
+		public InterchangeExport(ReadOnlyTargetRules Target) : base(Target)
 		{
 			PublicDependencyModuleNames.AddRange(
 				new string[]
@@ -13,10 +13,9 @@ namespace UnrealBuildTool.Rules
 					"CoreUObject",
 					"Engine",
 					"InterchangeCore",
-					"InterchangeEngine",
-					"InterchangeNodePlugin"
+					"InterchangeEngine"
 				}
-				);
+			);
 		}
 	}
 }

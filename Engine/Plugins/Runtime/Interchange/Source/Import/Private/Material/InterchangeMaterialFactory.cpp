@@ -2,9 +2,9 @@
 #include "Material/InterchangeMaterialFactory.h"
 
 #include "InterchangeImportCommon.h"
+#include "InterchangeImportLog.h"
 #include "InterchangeMaterialNode.h"
 #include "InterchangeSourceData.h"
-#include "LogInterchangeImportPlugin.h"
 #include "Materials/Material.h"
 #include "Materials/MaterialExpressionScalarParameter.h"
 #include "Materials/MaterialExpressionTextureCoordinate.h"
@@ -65,7 +65,7 @@ UObject* UInterchangeMaterialFactory::CreateEmptyAsset(const FCreateAssetParams&
 
 	if (!Material)
 	{
-		UE_LOG(LogInterchangeImportPlugin, Warning, TEXT("Could not create Material asset %s"), *Arguments.AssetName);
+		UE_LOG(LogInterchangeImport, Warning, TEXT("Could not create Material asset %s"), *Arguments.AssetName);
 		return nullptr;
 	}
 	Material->PreEditChange(nullptr);
@@ -77,7 +77,7 @@ UObject* UInterchangeMaterialFactory::CreateAsset(const UInterchangeMaterialFact
 {
 #if !WITH_EDITORONLY_DATA
 
-	UE_LOG(LogInterchangeImportPlugin, Error, TEXT("Cannot import Material asset in runtime, this is an editor only feature."));
+	UE_LOG(LogInterchangeImport, Error, TEXT("Cannot import Material asset in runtime, this is an editor only feature."));
 	return nullptr;
 
 #else
@@ -116,7 +116,7 @@ UObject* UInterchangeMaterialFactory::CreateAsset(const UInterchangeMaterialFact
 
 	if (!MaterialObject)
 	{
-		UE_LOG(LogInterchangeImportPlugin, Warning, TEXT("Could not create Material asset %s"), *Arguments.AssetName);
+		UE_LOG(LogInterchangeImport, Warning, TEXT("Could not create Material asset %s"), *Arguments.AssetName);
 		return nullptr;
 	}
 

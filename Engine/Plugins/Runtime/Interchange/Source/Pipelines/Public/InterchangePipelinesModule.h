@@ -6,12 +6,11 @@
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
 
-DECLARE_LOG_CATEGORY_EXTERN(LogInterchangeNodePlugin, Log, All);
 
 /**
  * The public interface to this module
  */
-class IInterchangeNodePlugin : public IModuleInterface
+class IInterchangePipelinesModule : public IModuleInterface
 {
 
 public:
@@ -22,9 +21,9 @@ public:
 	 *
 	 * @return Returns singleton instance, loading the module on demand if needed
 	 */
-	static inline IInterchangeNodePlugin& Get()
+	static inline IInterchangePipelinesModule& Get()
 	{
-		return FModuleManager::LoadModuleChecked< IInterchangeNodePlugin >( "InterchangeNodePlugin" );
+		return FModuleManager::LoadModuleChecked< IInterchangePipelinesModule >( "InterchangePipelines" );
 	}
 
 	/**
@@ -34,7 +33,7 @@ public:
 	 */
 	static inline bool IsAvailable()
 	{
-		return FModuleManager::Get().IsModuleLoaded( "InterchangeNodePlugin" );
+		return FModuleManager::Get().IsModuleLoaded( "InterchangePipelines" );
 	}
 };
 

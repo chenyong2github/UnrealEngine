@@ -11,7 +11,7 @@
 #include "InterchangeSkeletalMeshPayloadInterface.generated.h"
 
 UINTERFACE()
-class INTERCHANGEIMPORTPLUGIN_API UInterchangeSkeletalMeshPayloadInterface : public UInterface
+class INTERCHANGEIMPORT_API UInterchangeSkeletalMeshPayloadInterface : public UInterface
 {
 	GENERATED_BODY()
 };
@@ -19,7 +19,7 @@ class INTERCHANGEIMPORTPLUGIN_API UInterchangeSkeletalMeshPayloadInterface : pub
 /**
  * Skeletal mesh payload interface. Derive from this interface if your payload can import skeletal mesh
  */
-class INTERCHANGEIMPORTPLUGIN_API IInterchangeSkeletalMeshPayloadInterface
+class INTERCHANGEIMPORT_API IInterchangeSkeletalMeshPayloadInterface
 {
 	GENERATED_BODY()
 public:

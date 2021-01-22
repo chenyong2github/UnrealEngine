@@ -8,10 +8,10 @@ namespace UnrealBuildTool.Rules
 	{
 		public InterchangeDispatcher(ReadOnlyTargetRules Target) : base(Target)
 		{
-            PublicDependencyModuleNames.AddRange(
+			PublicDependencyModuleNames.AddRange(
 				new string[]
 				{
-                    "Core",
+					"Core",
 					"Sockets",
 				}
 			);
@@ -23,6 +23,6 @@ namespace UnrealBuildTool.Rules
 				}
 			);
 
-        }
-    }
+		}
+	}
 }

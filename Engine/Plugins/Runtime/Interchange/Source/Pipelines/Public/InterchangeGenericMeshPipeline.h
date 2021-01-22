@@ -23,7 +23,7 @@ class UInterchangeSkeletalMeshNode;
  * @meta MeshType - String, the property is for static or skeletal or both (static | skeletal) mesh type. If not specified it will apply to all mesh type.
  */
 UCLASS(BlueprintType)
-class INTERCHANGEPIPELINEPLUGIN_API UInterchangeGenericMeshPipeline : public UInterchangePipelineBase
+class INTERCHANGEPIPELINES_API UInterchangeGenericMeshPipeline : public UInterchangePipelineBase
 {
 	GENERATED_BODY()
 
@@ -39,7 +39,7 @@ public:
 	//////////////////////////////////////////////////////////////////////////
 
 protected:
-	
+
 	virtual bool ExecutePreImportPipeline(UInterchangeBaseNodeContainer* BaseNodeContainer, const TArray<UInterchangeSourceData*>& SourceDatas) override;
 
 	//virtual bool ExecutePostImportPipeline(const UInterchangeBaseNodeContainer* BaseNodeContainer, const FName& NodeKey, UObject* CreatedAsset) override;

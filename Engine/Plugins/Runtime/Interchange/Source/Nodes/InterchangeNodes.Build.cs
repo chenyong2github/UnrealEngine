@@ -2,9 +2,9 @@
 
 namespace UnrealBuildTool.Rules
 {
-	public class InterchangeNodePlugin : ModuleRules
+	public class InterchangeNodes : ModuleRules
 	{
-		public InterchangeNodePlugin(ReadOnlyTargetRules Target) : base(Target)
+		public InterchangeNodes(ReadOnlyTargetRules Target) : base(Target)
 		{
 			PublicDependencyModuleNames.AddRange(
 				new string[]
@@ -16,7 +16,7 @@ namespace UnrealBuildTool.Rules
 			);
 
 			if(Target.bCompileAgainstEngine)
-            {
+			{
 				PublicDependencyModuleNames.Add("Engine");
 			}
 		}

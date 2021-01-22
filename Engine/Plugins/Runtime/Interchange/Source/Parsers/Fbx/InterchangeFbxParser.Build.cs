@@ -9,11 +9,11 @@ namespace UnrealBuildTool.Rules
 		public InterchangeFbxParser(ReadOnlyTargetRules Target) : base(Target)
 		{
 			bEnableExceptions = true;
-			
-            PublicDependencyModuleNames.AddRange(
+
+			PublicDependencyModuleNames.AddRange(
 				new string[]
 				{
-                    "Core",
+					"Core",
 					"CoreUObject",
 					"InterchangeCore",
 				}
@@ -22,7 +22,7 @@ namespace UnrealBuildTool.Rules
 			PrivateDependencyModuleNames.AddRange(
 				new string[]
 				{
-					"InterchangeNodePlugin",
+					"InterchangeNodes",
 					"MeshDescription",
 					"SkeletalMeshDescription",
 					"StaticMeshDescription"
@@ -33,7 +33,7 @@ namespace UnrealBuildTool.Rules
 			{
 				PrivateDependencyModuleNames.AddRange(
 					new string[] {
-					"Engine",
+						"Engine",
 					}
 				);
 			}
@@ -42,5 +42,5 @@ namespace UnrealBuildTool.Rules
 				"FBX"
 			);
 		}
-    }
+	}
 }

@@ -10,7 +10,7 @@
 #include "InterchangeSkeletalMeshFactory.generated.h"
 
 UCLASS(BlueprintType)
-class INTERCHANGEIMPORTPLUGIN_API UInterchangeSkeletalMeshFactory : public UInterchangeFactoryBase
+class INTERCHANGEIMPORT_API UInterchangeSkeletalMeshFactory : public UInterchangeFactoryBase
 {
 	GENERATED_BODY()
 public:

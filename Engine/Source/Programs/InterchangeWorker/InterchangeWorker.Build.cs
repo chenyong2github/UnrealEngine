@@ -33,7 +33,7 @@ public class InterchangeWorker : ModuleRules
 				{
 					"InterchangeCore",
 					"InterchangeFbxParser",
-					"InterchangeNodePlugin"
+					"InterchangeNodes"
 				}
 			);
 

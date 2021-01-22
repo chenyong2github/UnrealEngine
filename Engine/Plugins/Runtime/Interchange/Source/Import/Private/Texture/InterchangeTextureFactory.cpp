@@ -5,9 +5,9 @@
 #include "Engine/Texture2D.h"
 #include "InterchangeAssetImportData.h"
 #include "InterchangeImportCommon.h"
+#include "InterchangeImportLog.h"
 #include "InterchangeTextureNode.h"
 #include "InterchangeTranslatorBase.h"
-#include "LogInterchangeImportPlugin.h"
 #include "Nodes/InterchangeBaseNode.h"
 #include "Texture/InterchangeBlockedTexturePayloadInterface.h"
 #include "Texture/InterchangeTexturePayloadInterface.h"
@@ -72,7 +72,7 @@ UObject* UInterchangeTextureFactory::CreateEmptyAsset(const FCreateAssetParams& 
 
 	if (!Texture)
 	{
-		UE_LOG(LogInterchangeImportPlugin, Warning, TEXT("Could not create texture asset %s"), *Arguments.AssetName);
+		UE_LOG(LogInterchangeImport, Warning, TEXT("Could not create texture asset %s"), *Arguments.AssetName);
 		return nullptr;
 	}
 
@@ -86,7 +86,7 @@ UObject* UInterchangeTextureFactory::CreateAsset(const UInterchangeTextureFactor
 {
 #if !WITH_EDITORONLY_DATA
 
-	UE_LOG(LogInterchangeImportPlugin, Error, TEXT("Cannot import texture asset in runtime, this is an editor only feature."));
+	UE_LOG(LogInterchangeImport, Error, TEXT("Cannot import texture asset in runtime, this is an editor only feature."));
 	return nullptr;
 
 #else
@@ -151,7 +151,7 @@ UObject* UInterchangeTextureFactory::CreateAsset(const UInterchangeTextureFactor
 
 	if (!Texture)
 	{
-		UE_LOG(LogInterchangeImportPlugin, Warning, TEXT("Could not create texture asset %s"), *Arguments.AssetName);
+		UE_LOG(LogInterchangeImport, Warning, TEXT("Could not create texture asset %s"), *Arguments.AssetName);
 		return nullptr;
 	}
 

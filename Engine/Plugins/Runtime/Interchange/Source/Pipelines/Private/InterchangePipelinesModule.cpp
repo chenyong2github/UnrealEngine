@@ -1,32 +1,33 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#include "InterchangePipelinesModule.h"
+
 #include "CoreMinimal.h"
 #include "Engine/Engine.h"
-#include "IInterchangeExportPlugin.h"
+#include "InterchangeGenericMeshPipeline.h"
 #include "InterchangeManager.h"
-#include "InterchangeTextureWriter.h"
 #include "Misc/CoreDelegates.h"
 #include "Modules/ModuleManager.h"
 
 
-class FInterchangeExportPlugin : public IInterchangeExportPlugin
+class FInterchangePipelinesModule : public IInterchangePipelinesModule
 {
 	/** IModuleInterface implementation */
 	virtual void StartupModule() override;
 	virtual void ShutdownModule() override;
 };
 
-IMPLEMENT_MODULE( FInterchangeExportPlugin, InterchangeExportPlugin)
+IMPLEMENT_MODULE(FInterchangePipelinesModule, InterchangePipelines)
 
 
 
-void FInterchangeExportPlugin::StartupModule()
+void FInterchangePipelinesModule::StartupModule()
 {
 	auto RegisterItems = []()
 	{
 		UInterchangeManager& InterchangeManager = UInterchangeManager::GetInterchangeManager();
-		//Register the Writers
-		InterchangeManager.RegisterWriter(UInterchangeTextureWriter::StaticClass());
+		//Register the Pipeline
+		//InterchangeManager.RegisterPipeline(UInterchangeGenericMeshPipeline::StaticClass());
 	};
 
 	if (GEngine)
@@ -40,9 +41,9 @@ void FInterchangeExportPlugin::StartupModule()
 }
 
 
-void FInterchangeExportPlugin::ShutdownModule()
+void FInterchangePipelinesModule::ShutdownModule()
 {
-	
+
 }
 
 

@@ -5,6 +5,7 @@
 #include "Engine/SkeletalMesh.h"
 #include "GPUSkinPublicDefs.h"
 #include "InterchangeImportCommon.h"
+#include "InterchangeImportLog.h"
 #include "InterchangeJointNode.h"
 #include "InterchangeMaterialNode.h"
 #include "InterchangeSkeletalMeshLodDataNode.h"
@@ -12,7 +13,6 @@
 #include "InterchangeSkeletonNode.h"
 #include "InterchangeSourceData.h"
 #include "InterchangeTranslatorBase.h"
-#include "LogInterchangeImportPlugin.h"
 #include "Mesh/InterchangeSkeletalMeshPayload.h"
 #include "Mesh/InterchangeSkeletalMeshPayloadInterface.h"
 #include "Nodes/InterchangeBaseNode.h"
@@ -47,7 +47,7 @@ namespace UE
 				const UInterchangeJointNode* JointNode = Cast<UInterchangeJointNode>(NodeContainer->GetNode(JointNodeId));
 				if (!JointNode)
 				{
-					UE_LOG(LogInterchangeImportPlugin, Warning, TEXT("Invalid Skeleton Joint"));
+					UE_LOG(LogInterchangeImport, Warning, TEXT("Invalid Skeleton Joint"));
 					return;
 				}
 
@@ -101,7 +101,7 @@ namespace UE
 					const FTransform BoneTransform(BinaryBone.LocalTransform);
 					if (RefSkeleton.FindRawBoneIndex(BoneInfo.Name) != INDEX_NONE)
 					{
-						UE_LOG(LogInterchangeImportPlugin, Error, TEXT("Invalid Skeleton because of non-unique bone names [%s]"), *BoneInfo.Name.ToString());
+						UE_LOG(LogInterchangeImport, Error, TEXT("Invalid Skeleton because of non-unique bone names [%s]"), *BoneInfo.Name.ToString());
 						return false;
 					}
 					RefSkelModifier.Add(BoneInfo, BoneTransform);
@@ -998,7 +998,7 @@ UObject* UInterchangeSkeletalMeshFactory::CreateEmptyAsset(const FCreateAssetPar
 {
 #if !WITH_EDITOR || !WITH_EDITORONLY_DATA
 
-	UE_LOG(LogInterchangeImportPlugin, Error, TEXT("Cannot import skeletalMesh asset in runtime, this is an editor only feature."));
+	UE_LOG(LogInterchangeImport, Error, TEXT("Cannot import skeletalMesh asset in runtime, this is an editor only feature."));
 	return nullptr;
 
 #else
@@ -1030,7 +1030,7 @@ UObject* UInterchangeSkeletalMeshFactory::CreateEmptyAsset(const FCreateAssetPar
 	
 	if (!SkeletalMesh)
 	{
-		UE_LOG(LogInterchangeImportPlugin, Warning, TEXT("Could not create SkeletalMesh asset %s"), *Arguments.AssetName);
+		UE_LOG(LogInterchangeImport, Warning, TEXT("Could not create SkeletalMesh asset %s"), *Arguments.AssetName);
 		return nullptr;
 	}
 	
@@ -1046,7 +1046,7 @@ UObject* UInterchangeSkeletalMeshFactory::CreateAsset(const UInterchangeSkeletal
 {
 #if !WITH_EDITOR || !WITH_EDITORONLY_DATA
 
-	UE_LOG(LogInterchangeImportPlugin, Error, TEXT("Cannot import skeletalMesh asset in runtime, this is an editor only feature."));
+	UE_LOG(LogInterchangeImport, Error, TEXT("Cannot import skeletalMesh asset in runtime, this is an editor only feature."));
 	return nullptr;
 
 #else
@@ -1065,7 +1065,7 @@ UObject* UInterchangeSkeletalMeshFactory::CreateAsset(const UInterchangeSkeletal
 	const IInterchangeSkeletalMeshPayloadInterface* SkeletalMeshTranslatorPayloadInterface = Cast<IInterchangeSkeletalMeshPayloadInterface>(Arguments.Translator);
 	if (!SkeletalMeshTranslatorPayloadInterface)
 	{
-		UE_LOG(LogInterchangeImportPlugin, Error, TEXT("Cannot import skeletalMesh, the translator do not implement the IInterchangeSkeletalMeshPayloadInterface."));
+		UE_LOG(LogInterchangeImport, Error, TEXT("Cannot import skeletalMesh, the translator do not implement the IInterchangeSkeletalMeshPayloadInterface."));
 		return nullptr;
 	}
 
@@ -1092,7 +1092,7 @@ UObject* UInterchangeSkeletalMeshFactory::CreateAsset(const UInterchangeSkeletal
 
 	if (!SkeletalMeshObject)
 	{
-		UE_LOG(LogInterchangeImportPlugin, Error, TEXT("Could not create SkeletalMesh asset %s"), *Arguments.AssetName);
+		UE_LOG(LogInterchangeImport, Error, TEXT("Could not create SkeletalMesh asset %s"), *Arguments.AssetName);
 		return nullptr;
 	}
 
@@ -1105,7 +1105,7 @@ UObject* UInterchangeSkeletalMeshFactory::CreateAsset(const UInterchangeSkeletal
 			USkeletalMesh* SkeletalMesh = Cast<USkeletalMesh>(SkeletalMeshObject);
 			if (!ensure(SkeletalMesh))
 			{
-				UE_LOG(LogInterchangeImportPlugin, Error, TEXT("Could not create SkeletalMesh asset %s"), *Arguments.AssetName);
+				UE_LOG(LogInterchangeImport, Error, TEXT("Could not create SkeletalMesh asset %s"), *Arguments.AssetName);
 				return nullptr;
 			}
 			//Dirty the DDC Key for any imported Skeletal Mesh
@@ -1128,19 +1128,19 @@ UObject* UInterchangeSkeletalMeshFactory::CreateAsset(const UInterchangeSkeletal
 				const UInterchangeSkeletalMeshLodDataNode* LodDataNode = Cast<UInterchangeSkeletalMeshLodDataNode>(Arguments.NodeContainer->GetNode(LodUniqueId));
 				if (!LodDataNode)
 				{
-					UE_LOG(LogInterchangeImportPlugin, Warning, TEXT("Invalid LOD when importing SkeletalMesh asset %s"), *Arguments.AssetName);
+					UE_LOG(LogInterchangeImport, Warning, TEXT("Invalid LOD when importing SkeletalMesh asset %s"), *Arguments.AssetName);
 					continue;
 				}
 				FString SkeletonNodeId;
 				if (!LodDataNode->GetCustomSkeletonID(SkeletonNodeId))
 				{
-					UE_LOG(LogInterchangeImportPlugin, Warning, TEXT("Invalid Skeleton LOD when importing SkeletalMesh asset %s"), *Arguments.AssetName);
+					UE_LOG(LogInterchangeImport, Warning, TEXT("Invalid Skeleton LOD when importing SkeletalMesh asset %s"), *Arguments.AssetName);
 					continue;
 				}
 				const UInterchangeSkeletonNode* SkeletonNode = Cast<UInterchangeSkeletonNode>(Arguments.NodeContainer->GetNode(SkeletonNodeId));
 				if (!SkeletonNode)
 				{
-					UE_LOG(LogInterchangeImportPlugin, Warning, TEXT("Invalid Skeleton LOD when importing SkeletalMesh asset %s"), *Arguments.AssetName);
+					UE_LOG(LogInterchangeImport, Warning, TEXT("Invalid Skeleton LOD when importing SkeletalMesh asset %s"), *Arguments.AssetName);
 					continue;
 				}
 				
@@ -1153,7 +1153,7 @@ UObject* UInterchangeSkeletalMeshFactory::CreateAsset(const UInterchangeSkeletal
 					}
 					if (!ensure(SkeletonReference))
 					{
-						UE_LOG(LogInterchangeImportPlugin, Warning, TEXT("Invalid Skeleton LOD when importing SkeletalMesh asset %s"), *Arguments.AssetName);
+						UE_LOG(LogInterchangeImport, Warning, TEXT("Invalid Skeleton LOD when importing SkeletalMesh asset %s"), *Arguments.AssetName);
 						break;
 					}
 				}
@@ -1161,7 +1161,7 @@ UObject* UInterchangeSkeletalMeshFactory::CreateAsset(const UInterchangeSkeletal
 				FString RootJointNodeId;
 				if (!SkeletonNode->GetCustomRootJointID(RootJointNodeId))
 				{
-					UE_LOG(LogInterchangeImportPlugin, Warning, TEXT("Invalid Skeleton LOD Root Joint when importing SkeletalMesh asset %s"), *Arguments.AssetName);
+					UE_LOG(LogInterchangeImport, Warning, TEXT("Invalid Skeleton LOD Root Joint when importing SkeletalMesh asset %s"), *Arguments.AssetName);
 					continue;
 				}
 				
@@ -1183,7 +1183,7 @@ UObject* UInterchangeSkeletalMeshFactory::CreateAsset(const UInterchangeSkeletal
 					TOptional<UE::Interchange::FSkeletalMeshLodPayloadData> LodMeshPayload = SkeletalMeshTranslatorPayloadInterface->GetSkeletalMeshLodPayloadData(TranslatorMeshKeys[MeshLodIndex]);
 					if (!LodMeshPayload.IsSet())
 					{
-						UE_LOG(LogInterchangeImportPlugin, Warning, TEXT("Invalid Skeletal mesh payload key [%s] SkeletalMesh asset %s"), *TranslatorMeshKeys[MeshLodIndex], *Arguments.AssetName);
+						UE_LOG(LogInterchangeImport, Warning, TEXT("Invalid Skeletal mesh payload key [%s] SkeletalMesh asset %s"), *TranslatorMeshKeys[MeshLodIndex], *Arguments.AssetName);
 						break;
 					}
 					//TODO use the mesh description as the source import data for skeletalmesh

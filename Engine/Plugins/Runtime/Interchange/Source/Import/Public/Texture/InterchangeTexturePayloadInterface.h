@@ -10,7 +10,7 @@
 #include "InterchangeTexturePayloadInterface.generated.h"
 
 UINTERFACE()
-class INTERCHANGEIMPORTPLUGIN_API UInterchangeTexturePayloadInterface : public UInterface
+class INTERCHANGEIMPORT_API UInterchangeTexturePayloadInterface : public UInterface
 {
 	GENERATED_BODY()
 };
@@ -18,7 +18,7 @@ class INTERCHANGEIMPORTPLUGIN_API UInterchangeTexturePayloadInterface : public U
 /**
  * Texture payload interface. Derive from it if your payload can import texture
  */
-class INTERCHANGEIMPORTPLUGIN_API IInterchangeTexturePayloadInterface
+class INTERCHANGEIMPORT_API IInterchangeTexturePayloadInterface
 {
 	GENERATED_BODY()
 public:
