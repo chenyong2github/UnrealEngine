@@ -1190,7 +1190,7 @@ void UControlRigComponent::ValidateMappingData()
 			MappedElement.ElementIndex = INDEX_NONE;
 			MappedElement.SubIndex = INDEX_NONE;
 
-			AActor* MappedOwner = MappedElement.ComponentReference.OtherActor == nullptr ? GetOwner() : MappedElement.ComponentReference.OtherActor;
+			AActor* MappedOwner = MappedElement.ComponentReference.OtherActor == nullptr ? GetOwner() : ToRawPtr(MappedElement.ComponentReference.OtherActor);
 			MappedElement.SceneComponent = Cast<USceneComponent>(MappedElement.ComponentReference.GetComponent(MappedOwner));
 
 			if (MappedElement.SceneComponent == nullptr ||
