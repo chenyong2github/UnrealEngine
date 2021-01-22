@@ -853,6 +853,7 @@ void USkeletalMesh::InitResources()
 			// Limit the number of LODs based on MinLOD value.
 			CachedSRRState.MaxNumLODs = FMath::Clamp<int32>(NumLODs - MinFirstLOD, SkelMeshRenderData->NumInlinedLODs, NumLODs);
 			CachedSRRState.AssetLODBias = MinFirstLOD;
+			CachedSRRState.LODBiasModifier = SkelMeshRenderData->LODBiasModifier;
 			// The optional LOD might be culled now.
 			CachedSRRState.NumNonOptionalLODs = FMath::Min(CachedSRRState.NumNonOptionalLODs, CachedSRRState.MaxNumLODs);
 			// Set LOD count to fit the current state.

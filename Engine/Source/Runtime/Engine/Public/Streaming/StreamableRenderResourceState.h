@@ -36,13 +36,13 @@ struct FStreamableRenderResourceState
 		struct
 		{
 			/* Whether the resource LODs can be streamed or not. Even when false, the structure can contain valid information if IsValid(). */
-			uint16 bSupportsStreaming : 1;
+			uint8 bSupportsStreaming : 1;
 
 			/* Whether the render resources have pending InitRHI(). Used in HasPendingInitOrStreaming() to avoid dereferencing the different resource pointers unless required. Once false, expected to stay false. */
-			mutable uint16 bHasPendingInitHint : 1;
+			mutable uint8 bHasPendingInitHint : 1;
 
 			/* Whether there is currently a visual LOD transition, following a streaming operation. Used to prevent accessing the render resource unless necessary. */
-			mutable uint16 bHasPendingLODTransitionHint : 1;
+			mutable uint8 bHasPendingLODTransitionHint : 1;
 
 			/* The number of always loaded LODs, which can not be streamed out. */
 			uint8 NumNonStreamingLODs; 
@@ -58,6 +58,9 @@ struct FStreamableRenderResourceState
 			uint8 NumResidentLODs;
 			/** The expected number of LODs after the current streaming request completes. Between NumNonStreamingLODs and MaxNumLODs. */
 			uint8 NumRequestedLODs;
+
+			/** An additional LOD bias modifier set during asset loading based on the current RHI feature level or other settings */
+			uint8 LODBiasModifier;
 		};
 		uint64 Data;
 	};

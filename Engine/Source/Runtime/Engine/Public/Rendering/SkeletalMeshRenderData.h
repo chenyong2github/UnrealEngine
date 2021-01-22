@@ -33,6 +33,9 @@ public:
 	/** [GameThread/RenderThread] Future value of CurrentFirstLODIdx. */
 	uint8 PendingFirstLODIdx;
 
+	/** Runtime LOD bias modifier for this skeletal mesh */
+	uint8 LODBiasModifier;
+
 	/** Whether ray tracing acceleration structures should be created for this mesh. Derived from owner USkeletalMesh. */
 	bool bSupportRayTracing;
 

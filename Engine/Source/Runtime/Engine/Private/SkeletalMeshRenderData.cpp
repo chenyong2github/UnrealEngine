@@ -30,6 +30,16 @@ namespace SkeletalMeshCookStats
 }
 #endif
 
+extern int32 GStripSkeletalMeshLodsDuringCooking;
+
+#endif // WITH_EDITOR
+
+static TAutoConsoleVariable<int32> CVarKeepMobileMinLODSettingOnDesktop(
+	TEXT("r.SkeletalMesh.KeepMobileMinLODSettingOnDesktop"),
+	0,
+	TEXT("If non-zero, mobile setting for MinLOD will be stored in the cooked data for desktop platforms"));
+
+#if WITH_EDITOR
 //Serialize the LODInfo and append the result to the KeySuffix to build the LODInfo part of the DDC KEY
 //Note: this serializer is only used to build the mesh DDC key, no versioning is required
 static void SerializeLODInfoForDDC(USkeletalMesh* SkeletalMesh, FString& KeySuffix)
@@ -59,7 +69,7 @@ static void SerializeLODInfoForDDC(USkeletalMesh* SkeletalMesh, FString& KeySuff
 // differences, etc.) replace the version GUID below with a new one.
 // In case of merge conflicts with DDC versions, you MUST generate a new GUID
 // and set this new GUID as the version.
-#define SKELETALMESH_DERIVEDDATA_VER TEXT("F73EA0DD491D4DD1B4693330BB1C52C9")
+#define SKELETALMESH_DERIVEDDATA_VER TEXT("DA2572F6EC074E519E43699BA408177E")
 
 static const FString& GetSkeletalMeshDerivedDataVersion()
 {
@@ -114,6 +124,13 @@ FString BuildSkeletalMeshDerivedDataKey(const ITargetPlatform* TargetPlatform, U
 	else
 	{
 		KeySuffix += TEXT("0zzzzzzzzzzzzzzzz");
+	}
+
+	if (TargetPlatform->GetPlatformInfo().PlatformGroupName == TEXT("Desktop")
+		&& GStripSkeletalMeshLodsDuringCooking != 0
+		&& CVarKeepMobileMinLODSettingOnDesktop.GetValueOnAnyThread() != 0)
+	{
+		KeySuffix += TEXT("_MinMLOD");
 	}
 
 	IMeshBuilderModule::GetForPlatform(TargetPlatform).AppendToDDCKey(KeySuffix);
@@ -391,6 +408,7 @@ FSkeletalMeshRenderData::FSkeletalMeshRenderData()
 	, NumNonOptionalLODs(0)
 	, CurrentFirstLODIdx(0)
 	, PendingFirstLODIdx(0)
+	, LODBiasModifier(0)
 	, bSupportRayTracing(true)
 	, bInitialized(false)
 {}
@@ -462,6 +480,41 @@ int32 FSkeletalMeshRenderData::GetNumNonOptionalLODs() const
 void FSkeletalMeshRenderData::Serialize(FArchive& Ar, USkeletalMesh* Owner)
 {
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("FSkeletalMeshRenderData::Serialize"), STAT_SkeletalMeshRenderData_Serialize, STATGROUP_LoadTime);
+
+#if PLATFORM_DESKTOP
+	if (Ar.IsCooking() || FPlatformProperties::RequiresCookedData())
+	{
+		int32 MinMobileLODIdx = 0;
+		bool bShouldSerialize = CVarKeepMobileMinLODSettingOnDesktop.GetValueOnAnyThread() != 0;
+#if WITH_EDITOR
+		if (Ar.IsSaving())
+		{
+			if (Ar.CookingTarget()->GetPlatformInfo().PlatformGroupName == TEXT("Desktop")
+				&& GStripSkeletalMeshLodsDuringCooking != 0
+				&& CVarKeepMobileMinLODSettingOnDesktop.GetValueOnAnyThread() != 0)
+			{
+				MinMobileLODIdx = Owner->GetMinLod().GetValueForPlatformIdentifiers(TEXT("Mobile")) - Owner->GetMinLod().GetValueForPlatformIdentifiers(TEXT("Desktop"));
+				MinMobileLODIdx = FMath::Clamp(MinMobileLODIdx, 0, 255); // Will be cast to uint8 when applying LOD bias. Also, make sure it's not < 0,
+																		 // which can happen if the desktop min LOD is higher than the mobile setting
+			}
+			else
+			{
+				bShouldSerialize = false;
+			}
+		}
+#endif
+
+		if (bShouldSerialize)
+		{
+			Ar << MinMobileLODIdx;
+
+			if (Ar.IsLoading() && GMaxRHIFeatureLevel == ERHIFeatureLevel::ES3_1)
+			{
+				LODBiasModifier = MinMobileLODIdx;
+			}
+		}
+	}
+#endif // PLATFORM_DESKTOP
 
 	LODRenderData.Serialize(Ar, Owner);
 
