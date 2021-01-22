@@ -2299,7 +2299,7 @@ void FPyWrapperTypeRegistry::GenerateStubCodeForWrappedTypes(const EPyOnlineDocs
 		FString ProjectTopDir;
 		if (FPaths::IsProjectFilePathSet())
 		{
-			ProjectTopDir / FPaths::GetCleanFilename(FPaths::ProjectDir());
+			ProjectTopDir = FPaths::GetCleanFilename(FPaths::ProjectDir());
 		}
 
 		for (const auto& WrappedDataPair : WrappedData)

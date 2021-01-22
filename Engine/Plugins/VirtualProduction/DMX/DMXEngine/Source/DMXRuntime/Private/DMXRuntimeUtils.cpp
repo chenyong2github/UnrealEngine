@@ -30,7 +30,7 @@ bool FDMXRuntimeUtils::GetNameAndIndexFromString(const FString& InString, FStrin
 	}
 
 	// Remove separator characters at the end of the string
-	OutName.TrimEnd();
+	OutName.TrimEndInline();
 	DigitIndex = OutName.Len(); // reuse this variable for the separator index
 
 	while (DigitIndex > 0
