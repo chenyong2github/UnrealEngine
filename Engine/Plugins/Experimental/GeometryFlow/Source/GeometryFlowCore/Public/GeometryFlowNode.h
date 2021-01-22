@@ -290,7 +290,7 @@ public:
 	void SetIdentifier(const FString& IdentifierIn) { Identifier = IdentifierIn; }
 	const FString& GetIdentifier() const { return Identifier; }
 
-	void AddInput(FString Name, TUniquePtr<INodeInput>&& Input);
+	void AddInput(FString Name, TUniquePtr<INodeInput>&& Input, TSafeSharedPtr<IData> DefaultData = TSafeSharedPtr<IData>());
 	void AddOutput(FString Name, TUniquePtr<INodeOutput>&& Output);
 
 	EGeometryFlowResult GetInputType(FString Name, int32& TypeOut) const;
@@ -321,6 +321,15 @@ public:
 		const FNamedDataMap& DatasIn,
 		FNamedDataMap& DatasOut,
 		TUniquePtr<FEvaluationInfo>& EvaluationInfo) = 0;
+
+	virtual TSafeSharedPtr<IData> GetDefaultInputData(FString InputName) const
+	{
+		if (InputDefaultValues.Contains(InputName))
+		{
+			return InputDefaultValues[InputName];
+		}
+		return TSafeSharedPtr<IData>();
+	}
 
 protected:
 
@@ -364,6 +373,7 @@ protected:
 	TArray<FNodeInputInfo> NodeInputs;
 	TArray<FNodeOutputInfo> NodeOutputs;
 
+	TMap<FString, TSafeSharedPtr<IData>> InputDefaultValues;
 
 protected:
 	// helper functions for setup

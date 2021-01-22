@@ -45,7 +45,7 @@ void FGeometryFlowExecutor::TopologicalSort()
 	TopologicallySortedNodes.Empty();
 
 	// S := Set of all nodes with no incoming edge
-	TSet<FGraph::FHandle> CurrentNodes = GeometryFlowGraph.GetSourceNodes();
+	TSet<FGraph::FHandle> CurrentNodes = GeometryFlowGraph.GetNodesWithNoConnectedInputs();
 
 	while (CurrentNodes.Num() != 0)
 	{
@@ -124,7 +124,16 @@ void FGeometryFlowExecutor::AsyncRunGraph()
 				// find the connection for this input
 				FGraph::FConnection Connection;
 				EGeometryFlowResult FoundResult = GeometryFlowGraph.FindConnectionForInput(NodeHandle, InputName, Connection);
-				check(FoundResult == EGeometryFlowResult::Ok);
+
+				if (FoundResult == EGeometryFlowResult::ConnectionDoesNotExist)
+				{			
+					TSafeSharedPtr<IData> DefaultData = Node->GetDefaultInputData(InputName);
+					// TODO: Bubble this error up rather than crash
+					checkf(DefaultData != nullptr, TEXT("Node \"%s\" input \"%s\" is not connected and has no default value"), *Node->GetIdentifier(), *InputName);
+					FDataFlags DataFlags;
+					DatasIn.Add(InputName, DefaultData, DataFlags);
+					return;
+				}
 
 				// If there is only one Connection from this upstream Output (ie to our Input), and the Node/Input 
 				// can steal and transform that data, then we will do it

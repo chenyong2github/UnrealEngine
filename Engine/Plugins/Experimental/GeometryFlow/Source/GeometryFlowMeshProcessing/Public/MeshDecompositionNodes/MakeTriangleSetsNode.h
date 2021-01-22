@@ -39,6 +39,8 @@ public:
 			bool bAllInputsValid = true;
 			bool bRecomputeRequired = (IsOutputAvailable(OutParamIndexSets()) == false);
 			TSafeSharedPtr<IData> MeshArg = FindAndUpdateInputForEvaluate(InParam(), DatasIn, bRecomputeRequired, bAllInputsValid);
+			CheckAdditionalInputs(DatasIn, bRecomputeRequired, bAllInputsValid);
+
 			if (bAllInputsValid)
 			{
 				if (bRecomputeRequired)
@@ -87,8 +89,12 @@ public:
 public:
 	FMakeTriangleSetsFromGroupsNode() : FMakeTriangleSetsFromMeshNode()
 	{
-		AddInput(InParamGroupLayer(), MakeUnique<TBasicNodeInput<FName, (int)EDataTypes::Name>>());
-		AddInput(InParamIgnoreGroups(), MakeBasicInput<FIndexSets>());
+		AddInput(InParamGroupLayer(), 
+				 MakeUnique<TBasicNodeInput<FName, (int)EDataTypes::Name>>(), 
+				 MakeSafeShared<TMovableData<FName, (int)EDataTypes::Name>>("Default"));
+
+		AddInput(InParamIgnoreGroups(), 
+				 MakeBasicInput<FIndexSets>());
 	}
 
 	virtual void CheckAdditionalInputs(const FNamedDataMap& DatasIn, bool& bRecomputeRequired, bool& bAllInputsValid) override

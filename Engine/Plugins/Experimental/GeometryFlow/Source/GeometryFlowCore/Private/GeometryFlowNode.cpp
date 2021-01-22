@@ -5,9 +5,13 @@
 using namespace UE::GeometryFlow;
 
 
-void FNode::AddInput(FString Name, TUniquePtr<INodeInput>&& Input)
+void FNode::AddInput(FString Name, TUniquePtr<INodeInput>&& Input, TSafeSharedPtr<IData> DefaultData)
 {
 	// todo checks/etc
+	if (DefaultData)
+	{
+		InputDefaultValues.Add(Name, DefaultData);
+	}
 
 	FNodeInputInfo NodeInputInfo;
 	NodeInputInfo.Name = Name;

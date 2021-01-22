@@ -70,19 +70,8 @@ public:
 
 	EGeometryFlowResult InferConnection(FHandle FromNode, FHandle ToNode);
 
-	inline TSet<FHandle> GetSourceNodes() const
-	{
-		TSet<FHandle> SourceNodes;
-		for (const TMap<FHandle, FNodeInfo>::ElementType& IdNodePair : AllNodes)
-		{
-			if (IdNodePair.Value.Node->NodeInputs.Num() == 0)
-			{
-				SourceNodes.Add(FHandle{ IdNodePair.Key });
-			}
-		}
-		return SourceNodes;
-	}
-
+	TSet<FHandle> GetSourceNodes() const;
+	TSet<FHandle> GetNodesWithNoConnectedInputs() const;
 
 	template<typename T>
 	EGeometryFlowResult EvaluateResult(FHandle Node, FString OutputName, T& Storage, int32 StorageTypeIdentifier)

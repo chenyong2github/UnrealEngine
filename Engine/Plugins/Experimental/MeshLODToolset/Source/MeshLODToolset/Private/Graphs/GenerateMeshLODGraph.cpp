@@ -402,13 +402,11 @@ void FGenerateMeshLODGraph::BuildGraph()
 	// collision generation
 
 	FGraph::FHandle IgnoreGroupsForCollisionNode = Graph->AddNodeOfType<FIndexSetsSourceNode>(TEXT("CollisionIgnoreGroups"));
-	FGraph::FHandle GroupLayerNameNode = Graph->AddNodeOfType<FNameSourceNode>(TEXT("GroupLayerNameSource"));
 
 	//DecomposeMeshForCollisionNode = Graph->AddNodeOfType<FMakeTriangleSetsFromMeshNode>(TEXT("Decompose"));
 	DecomposeMeshForCollisionNode = Graph->AddNodeOfType<FMakeTriangleSetsFromGroupsNode>(TEXT("Decompose"));
 	Graph->InferConnection(MeshSourceNode, DecomposeMeshForCollisionNode);
 	Graph->InferConnection(IgnoreGroupsForCollisionNode, DecomposeMeshForCollisionNode);
-	Graph->InferConnection(GroupLayerNameNode, DecomposeMeshForCollisionNode);
 
 	GenerateSimpleCollisionNode = Graph->AddNodeOfType<FGenerateSimpleCollisionNode>(TEXT("GenerateSimpleCollision"));
 	Graph->InferConnection(MeshSourceNode, GenerateSimpleCollisionNode);
@@ -474,9 +472,6 @@ void FGenerateMeshLODGraph::BuildGraph()
 	FIndexSets IgnoreGroupsForCollision;
 	IgnoreGroupsForCollision.AppendSet({ 0 });
 	UpdateSettingsSourceNodeValue(*Graph, IgnoreGroupsForCollisionNode, IgnoreGroupsForCollision);
-
-	FName GroupLayerName{ "Default" };
-	UpdateSourceNodeValue<FNameSourceNode>(*Graph, GroupLayerNameNode, GroupLayerName);
 
 	FGenerateSimpleCollisionSettings GenSimpleCollisionSettings;
 	UpdateGenerateSimpleCollisionSettings(GenSimpleCollisionSettings);

@@ -117,6 +117,47 @@ EGeometryFlowResult FGraph::InferConnection(FHandle FromNodeHandle, FHandle ToNo
 	}
 }
 
+TSet<FGraph::FHandle> FGraph::GetSourceNodes() const
+{
+	TSet<FHandle> SourceNodes;
+	for (const TMap<FHandle, FNodeInfo>::ElementType& IdNodePair : AllNodes)
+	{
+		if (IdNodePair.Value.Node->NodeInputs.Num() == 0)
+		{
+			SourceNodes.Add(FHandle{ IdNodePair.Key });
+		}
+	}
+	return SourceNodes;
+}
+
+TSet<FGraph::FHandle> FGraph::GetNodesWithNoConnectedInputs() const
+{
+	TSet<FHandle> NoInputNodes;
+
+	for (const TMap<FHandle, FNodeInfo>::ElementType& IdNodePair : AllNodes)
+	{
+		FHandle NodeHandle = IdNodePair.Key;
+		TSafeSharedPtr<FNode> Node = IdNodePair.Value.Node;
+
+		bool bAnyInputConnected = false;
+		Node->EnumerateInputs([this, NodeHandle, &bAnyInputConnected](const FString& InputName, const TUniquePtr<INodeInput>& Input)
+		{
+			FConnection ConnectionOut;
+			EGeometryFlowResult FindResult = FindConnectionForInput(NodeHandle, InputName, ConnectionOut);
+			if (FindResult == EGeometryFlowResult::Ok)
+			{
+				bAnyInputConnected = true;
+			}
+		});
+
+		if (!bAnyInputConnected)
+		{
+			NoInputNodes.Add(NodeHandle);
+		}
+	}
+
+	return NoInputNodes;
+}
 
 
 
@@ -131,7 +172,6 @@ EGeometryFlowResult FGraph::FindConnectionForInput(FHandle ToNode, FString ToInp
 			return EGeometryFlowResult::Ok;
 		}
 	}
-	ensure(false);
 	return EGeometryFlowResult::ConnectionDoesNotExist;
 }
 
@@ -179,7 +219,15 @@ TSafeSharedPtr<IData> FGraph::ComputeOutputData(
 		// find the connection for this input
 		FConnection Connection;
 		EGeometryFlowResult FoundResult = FindConnectionForInput(NodeHandle, InputName, Connection);
-		check(FoundResult == EGeometryFlowResult::Ok);
+
+		if (FoundResult == EGeometryFlowResult::ConnectionDoesNotExist) 
+		{
+			TSafeSharedPtr<IData> DefaultData = Node->GetDefaultInputData(InputName);
+			// TODO: Bubble this error up rather than crash
+			checkf(DefaultData != nullptr, TEXT("Node \"%s\" input \"%s\" is not connected and has no default value"), *Node->GetIdentifier(), *InputName);
+			DataIn.Add(InputName, DefaultData, DataFlags);
+			continue;
+		}
 
 		ENodeCachingStrategy FromCachingStrategy = GetCachingStrategyForNode(Connection.FromNode);
 
