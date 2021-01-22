@@ -128,9 +128,12 @@ void MovieSceneToolHelpers::TrimSection(const TSet<TWeakObjectPtr<UMovieSceneSec
 }
 
 
-void MovieSceneToolHelpers::TrimOrExtendSection(UMovieSceneTrack* Track, FQualifiedFrameTime Time, bool bTrimOrExtendLeft, bool bDeleteKeys)
+void MovieSceneToolHelpers::TrimOrExtendSection(UMovieSceneTrack* Track, TOptional<int32> SpecifiedRowIndex, FQualifiedFrameTime Time, bool bTrimOrExtendLeft, bool bDeleteKeys)
 {
-	for (int32 RowIndex = 0; RowIndex <= Track->GetMaxRowIndex(); ++RowIndex)
+	int32 StartRowIndex = SpecifiedRowIndex.IsSet() ? SpecifiedRowIndex.GetValue() : 0;
+	int32 EndRowIndex = SpecifiedRowIndex.IsSet() ? SpecifiedRowIndex.GetValue() : Track->GetMaxRowIndex();
+
+	for (int32 RowIndex = StartRowIndex; RowIndex <= EndRowIndex; ++RowIndex)
 	{
 		// First, trim all intersecting sections
 		bool bAnyIntersects = false;

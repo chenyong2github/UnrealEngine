@@ -2594,43 +2594,40 @@ void FSequencer::SetSelectionRangeStart()
 
 void FSequencer::SelectInSelectionRange(const TSharedRef<FSequencerDisplayNode>& DisplayNode, const TRange<FFrameNumber>& SelectionRange, bool bSelectKeys, bool bSelectSections)
 {
-	if (DisplayNode->GetType() == ESequencerNode::Track)
+	if (bSelectKeys)
 	{
-		if (bSelectKeys)
+		TArray<FKeyHandle> HandlesScratch;
+
+		TSet<TSharedPtr<IKeyArea>> KeyAreas;
+		SequencerHelpers::GetAllKeyAreas(DisplayNode, KeyAreas);
+
+		for (TSharedPtr<IKeyArea> KeyArea : KeyAreas)
 		{
-			TArray<FKeyHandle> HandlesScratch;
+			UMovieSceneSection* Section = KeyArea->GetOwningSection();
 
-			TSet<TSharedPtr<IKeyArea>> KeyAreas;
-			SequencerHelpers::GetAllKeyAreas(DisplayNode, KeyAreas);
-
-			for (TSharedPtr<IKeyArea> KeyArea : KeyAreas)
+			if (Section)
 			{
-				UMovieSceneSection* Section = KeyArea->GetOwningSection();
+				HandlesScratch.Reset();
+				KeyArea->GetKeyHandles(HandlesScratch, SelectionRange);
 
-				if (Section)
+				for (int32 Index = 0; Index < HandlesScratch.Num(); ++Index)
 				{
-					HandlesScratch.Reset();
-					KeyArea->GetKeyHandles(HandlesScratch, SelectionRange);
-
-					for (int32 Index = 0; Index < HandlesScratch.Num(); ++Index)
-					{
-						Selection.AddToSelection(FSequencerSelectedKey(*Section, KeyArea, HandlesScratch[Index]));
-					}
+					Selection.AddToSelection(FSequencerSelectedKey(*Section, KeyArea, HandlesScratch[Index]));
 				}
 			}
 		}
+	}
 
-		if (bSelectSections)
+	if (bSelectSections)
+	{
+		TSet<TWeakObjectPtr<UMovieSceneSection>> OutSections;
+		SequencerHelpers::GetAllSections(DisplayNode, OutSections);
+
+		for (auto Section : OutSections)
 		{
-			TSet<TWeakObjectPtr<UMovieSceneSection>> OutSections;
-			SequencerHelpers::GetAllSections(DisplayNode, OutSections);
-
-			for (auto Section : OutSections)
+			if (Section.IsValid() && Section->GetRange().Overlaps(SelectionRange) && Section->HasStartFrame() && Section->HasEndFrame())
 			{
-				if (Section.IsValid() && Section->GetRange().Overlaps(SelectionRange) && Section->HasStartFrame() && Section->HasEndFrame())
-				{
-					Selection.AddToSelection(Section.Get());
-				}
+				Selection.AddToSelection(Section.Get());
 			}
 		}
 	}
@@ -2666,17 +2663,24 @@ void FSequencer::SelectForward()
 	FFrameNumber CurrentFrame = GetLocalTime().ConvertTo(TickResolution).CeilToFrame();
 	TRange<FFrameNumber> SelectionRange(CurrentFrame, TNumericLimits<FFrameNumber>::Max());
 
-	TSet<TSharedRef<FSequencerDisplayNode> > DisplayNodes = Selection.GetSelectedOutlinerNodes();
+	TSet<TSharedRef<FSequencerDisplayNode> > DisplayNodes = Selection.GetNodesWithSelectedKeysOrSections();
+	if (DisplayNodes.Num() == 0)
+	{
+		DisplayNodes = Selection.GetSelectedOutlinerNodes();
+	}
 	if (DisplayNodes.Num() == 0)
 	{
 		DisplayNodes.Append(NodeTree->GetAllNodes());
 	}
 
-	Selection.Empty();
-	for (TSharedRef<FSequencerDisplayNode>& DisplayNode : DisplayNodes)
+	if (DisplayNodes.Num() > 0)
 	{
-		SelectInSelectionRange(DisplayNode, SelectionRange, true, true);
-	}		
+		Selection.Empty();
+		for (TSharedRef<FSequencerDisplayNode>& DisplayNode : DisplayNodes)
+		{
+			SelectInSelectionRange(DisplayNode, SelectionRange, true, true);
+		}
+	}
 }
 
 
@@ -2686,17 +2690,24 @@ void FSequencer::SelectBackward()
 	FFrameNumber CurrentFrame = GetLocalTime().ConvertTo(TickResolution).CeilToFrame();
 	TRange<FFrameNumber> SelectionRange(TNumericLimits<FFrameNumber>::Min(), CurrentFrame);
 
-	TSet<TSharedRef<FSequencerDisplayNode> > DisplayNodes = Selection.GetSelectedOutlinerNodes();
+	TSet<TSharedRef<FSequencerDisplayNode> > DisplayNodes = Selection.GetNodesWithSelectedKeysOrSections();
+	if (DisplayNodes.Num() == 0)
+	{
+		DisplayNodes = Selection.GetSelectedOutlinerNodes();
+	}
 	if (DisplayNodes.Num() == 0)
 	{
 		DisplayNodes.Append(NodeTree->GetAllNodes());
 	}
 
-	Selection.Empty();
-	for (TSharedRef<FSequencerDisplayNode>& DisplayNode : DisplayNodes)
+	if (DisplayNodes.Num() > 0)
 	{
-		SelectInSelectionRange(DisplayNode, SelectionRange, true, true);
-	}		
+		Selection.Empty();
+		for (TSharedRef<FSequencerDisplayNode>& DisplayNode : DisplayNodes)
+		{
+			SelectInSelectionRange(DisplayNode, SelectionRange, true, true);
+		}
+	}
 }
 
 
@@ -12169,31 +12180,55 @@ void FSequencer::TrimSection(bool bTrimLeft)
 
 void FSequencer::TrimOrExtendSection(bool bTrimOrExtendLeft)
 {
+	UMovieSceneSequence* FocusedMovieSceneSequence = GetFocusedMovieSceneSequence();
+	UMovieScene* MovieScene = FocusedMovieSceneSequence ? FocusedMovieSceneSequence->GetMovieScene() : nullptr;
+	if (!MovieScene)
+	{
+		return;
+	}
+
 	FScopedTransaction TrimOrExtendSectionTransaction( NSLOCTEXT("Sequencer", "TrimOrExtendSection_Transaction", "Trim or Extend Section") );
 
-	if (Selection.GetSelectedTracks().Num() > 0)
+	if (Selection.GetSelectedOutlinerNodes().Num() > 0)
 	{
-		for (UMovieSceneTrack* Track : Selection.GetSelectedTracks())
+		const TSet<TSharedRef<FSequencerDisplayNode> >& SelectedNodes = GetSelection().GetSelectedOutlinerNodes();
+	
+		for (const TSharedRef<const FSequencerDisplayNode> Node : SelectedNodes)
 		{
-			MovieSceneToolHelpers::TrimOrExtendSection(Track, GetLocalTime(), bTrimOrExtendLeft, Settings->GetDeleteKeysWhenTrimming());
+			if (Node->GetType() == ESequencerNode::Track  )
+			{
+				TSharedRef<const FSequencerTrackNode> TrackNode = StaticCastSharedRef<const FSequencerTrackNode>( Node );
+				UMovieSceneTrack* Track = TrackNode->GetTrack();
+				if (Track)
+				{
+					MovieSceneToolHelpers::TrimOrExtendSection(Track, TrackNode->GetSubTrackMode() == FSequencerTrackNode::ESubTrackMode::SubTrack ? TrackNode->GetRowIndex() : TOptional<int32>(), GetLocalTime(), bTrimOrExtendLeft, Settings->GetDeleteKeysWhenTrimming());
+				}
+			}
+			else if (Node->GetType() == ESequencerNode::Object)
+			{
+				TSharedRef<const FSequencerObjectBindingNode> ObjectBindingNode = StaticCastSharedRef<const FSequencerObjectBindingNode>( Node );
+				const FMovieSceneBinding* Binding = MovieScene->FindBinding(ObjectBindingNode->GetObjectBinding());
+				if (Binding)
+				{
+					for (UMovieSceneTrack* Track : Binding->GetTracks())
+					{
+						MovieSceneToolHelpers::TrimOrExtendSection(Track, TOptional<int32>(), GetLocalTime(), bTrimOrExtendLeft, Settings->GetDeleteKeysWhenTrimming());
+					}
+				}
+			}
 		}
 	}
 	else
 	{
-		UMovieSceneSequence* FocusedMovieSceneSequence = GetFocusedMovieSceneSequence();
-		UMovieScene* MovieScene = FocusedMovieSceneSequence ? FocusedMovieSceneSequence->GetMovieScene() : nullptr;
-		if (MovieScene)
+		for (UMovieSceneTrack* Track : MovieScene->GetMasterTracks())
 		{
-			for (UMovieSceneTrack* Track : MovieScene->GetMasterTracks())
+			MovieSceneToolHelpers::TrimOrExtendSection(Track, TOptional<int32>(), GetLocalTime(), bTrimOrExtendLeft, Settings->GetDeleteKeysWhenTrimming());
+		}
+		for (const FMovieSceneBinding& Binding : MovieScene->GetBindings())
+		{
+			for (UMovieSceneTrack* Track : Binding.GetTracks())
 			{
-				MovieSceneToolHelpers::TrimOrExtendSection(Track, GetLocalTime(), bTrimOrExtendLeft, Settings->GetDeleteKeysWhenTrimming());
-			}
-			for (const FMovieSceneBinding& Binding : MovieScene->GetBindings())
-			{
-				for (UMovieSceneTrack* Track : Binding.GetTracks())
-				{
-					MovieSceneToolHelpers::TrimOrExtendSection(Track, GetLocalTime(), bTrimOrExtendLeft, Settings->GetDeleteKeysWhenTrimming());
-				}
+				MovieSceneToolHelpers::TrimOrExtendSection(Track, TOptional<int32>(), GetLocalTime(), bTrimOrExtendLeft, Settings->GetDeleteKeysWhenTrimming());
 			}
 		}
 	}
