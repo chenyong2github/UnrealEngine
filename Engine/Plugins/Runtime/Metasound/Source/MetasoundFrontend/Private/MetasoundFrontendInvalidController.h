@@ -53,6 +53,9 @@ namespace Metasound
 			TSharedRef<INodeController> GetOwningNode() override;
 			TSharedRef<const INodeController> GetOwningNode() const override;
 
+			TArray<FInputHandle> GetCurrentlyConnectedInputs() override { return TArray<FInputHandle>(); }
+			TArray<FConstInputHandle> GetCurrentlyConnectedInputs() const override { return TArray<FConstInputHandle>(); }
+			bool Disconnect() override { return false; }
 
 			FConnectability CanConnectTo(const IInputController& InController) const override { return FConnectability(); }
 			bool Connect(IInputController& InController) override { return false; }
@@ -95,12 +98,12 @@ namespace Metasound
 
 			virtual TSharedRef<IOutputController> GetCurrentlyConnectedOutput() override { return FInvalidOutputController::GetInvalid(); }
 			virtual TSharedRef<const IOutputController> GetCurrentlyConnectedOutput() const override { return FInvalidOutputController::GetInvalid(); }
+			bool Disconnect() override { return false; }
 
 			virtual FConnectability CanConnectTo(const IOutputController& InController) const override { return FConnectability(); }
 			virtual bool Connect(IOutputController& InController) override { return false; }
 			virtual bool ConnectWithConverterNode(IOutputController& InController, const FConverterNodeInfo& InNodeClassName) override { return false; }
 			virtual bool Disconnect(IOutputController& InController) override { return false; }
-			virtual bool Disconnect() override { return false; }
 		protected:
 			FDocumentAccess ShareAccess() override { return FDocumentAccess(); }
 			FConstDocumentAccess ShareAccess() const override { return FConstDocumentAccess(); }
@@ -255,6 +258,8 @@ namespace Metasound
 
 			TSharedRef<INodeController> AddNode(const FNodeClassInfo& InNodeClass) override { return FInvalidNodeController::GetInvalid(); }
 			TSharedRef<INodeController> AddNode(const FNodeRegistryKey& InNodeClass) override { return FInvalidNodeController::GetInvalid(); }
+			TSharedRef<INodeController> AddNode(const FMetasoundFrontendClassMetadata& InNodeClass) override { return FInvalidNodeController::GetInvalid(); }
+
 
 			// Remove the node corresponding to this node handle.
 			// On success, invalidates the received node handle.

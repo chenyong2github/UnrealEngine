@@ -31,7 +31,7 @@ UObject* UMetasoundFactory::FactoryCreateNew(UClass* InClass, UObject* InParent,
 
 	NewMetasound->SetMetadata(Metadata);
 
-	NewMetasound->ConformDocumentToArchetype();
+	NewMetasound->ConformDocumentToMetasoundArchetype();
 
 	return NewMetasound;
 }
@@ -60,7 +60,7 @@ UObject* UMetasoundSourceFactory::FactoryCreateNew(UClass* InClass, UObject* InP
 
 	MetasoundSource->SetMetadata(Metadata);
 
-	MetasoundSource->ConformDocumentToArchetype();
+	MetasoundSource->ConformDocumentToMetasoundArchetype();
 
 	return MetasoundSource;
 }

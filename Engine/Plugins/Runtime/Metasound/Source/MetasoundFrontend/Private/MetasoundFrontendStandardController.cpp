@@ -347,13 +347,14 @@ namespace Metasound
 		FBaseOutputController::FBaseOutputController(const FBaseOutputController::FInitParams& InParams)
 		: ID(InParams.ID)
 		, NodeVertexPtr(InParams.NodeVertexPtr)
+		, GraphPtr(InParams.GraphPtr)
 		, OwningNode(InParams.OwningNode)
 		{
 		}
 
 		bool FBaseOutputController::IsValid() const
 		{
-			return OwningNode->IsValid() && NodeVertexPtr.IsValid();
+			return OwningNode->IsValid() && NodeVertexPtr.IsValid() && GraphPtr.IsValid();
 		}
 
 		FGuid FBaseOutputController::GetID() const
@@ -394,6 +395,61 @@ namespace Metasound
 			return OwningNode;
 		}
 
+		TArray<FInputHandle> FBaseOutputController::GetCurrentlyConnectedInputs() 
+		{
+			TArray<FInputHandle> Inputs;
+
+			// Create output handle from output node.
+			FGraphHandle Graph = OwningNode->GetOwningGraph();
+
+			for (const FMetasoundFrontendEdge& Edge : FindEdges())
+			{
+				FNodeHandle InputNode = Graph->GetNodeWithID(Edge.ToNodeID);
+
+				FInputHandle Input = InputNode->GetInputWithID(Edge.ToPointID);
+				if (Input->IsValid())
+				{
+					Inputs.Add(Input);
+				}
+			}
+
+			return Inputs;
+		}
+
+		TArray<FConstInputHandle> FBaseOutputController::GetCurrentlyConnectedInputs() const 
+		{
+			TArray<FConstInputHandle> Inputs;
+
+			// Create output handle from output node.
+			FConstGraphHandle Graph = OwningNode->GetOwningGraph();
+
+			for (const FMetasoundFrontendEdge& Edge : FindEdges())
+			{
+				FConstNodeHandle InputNode = Graph->GetNodeWithID(Edge.ToNodeID);
+
+				FConstInputHandle Input = InputNode->GetInputWithID(Edge.ToPointID);
+				if (Input->IsValid())
+				{
+					Inputs.Add(Input);
+				}
+			}
+
+			return Inputs;
+		}
+
+		bool FBaseOutputController::Disconnect() 
+		{
+			bool bSuccess = true;
+			for (FInputHandle Input : GetCurrentlyConnectedInputs())
+			{
+				if (Input->IsValid())
+				{
+					bSuccess &= Disconnect(*Input);
+				}
+			}
+			return bSuccess;
+		}
+
 		FConnectability FBaseOutputController::CanConnectTo(const IInputController& InController) const
 		{
 			return InController.CanConnectTo(*this);
@@ -414,11 +470,32 @@ namespace Metasound
 			return InController.Disconnect(*this);
 		}
 
+		TArray<FMetasoundFrontendEdge> FBaseOutputController::FindEdges() const
+		{
+			if (GraphPtr.IsValid())
+			{
+				const FGuid NodeID = GetOwningNodeID();
+				FGuid PointID = GetID();
+
+				auto EdgeHasMatchingSource = [&](const FMetasoundFrontendEdge& Edge)
+				{
+					return (Edge.FromNodeID == NodeID) && (Edge.FromPointID == PointID);
+				};
+
+				return GraphPtr->Edges.FilterByPredicate(EdgeHasMatchingSource);
+			}
+
+			return TArray<FMetasoundFrontendEdge>();
+		}
+
+
 		FDocumentAccess FBaseOutputController::ShareAccess() 
 		{
 			FDocumentAccess Access;
 
 			Access.ConstVertex = NodeVertexPtr;
+			Access.Graph = GraphPtr;
+			Access.ConstGraph = GraphPtr;
 
 			return Access;
 		}
@@ -428,6 +505,7 @@ namespace Metasound
 			FConstDocumentAccess Access;
 
 			Access.ConstVertex = NodeVertexPtr;
+			Access.ConstGraph = GraphPtr;
 
 			return Access;
 		}
@@ -436,7 +514,7 @@ namespace Metasound
 		// FNodeOutputController
 		//
 		FNodeOutputController::FNodeOutputController(const FNodeOutputController::FInitParams& InParams)
-		: FBaseOutputController({InParams.ID, InParams.NodeVertexPtr, InParams.OwningNode})
+		: FBaseOutputController({InParams.ID, InParams.NodeVertexPtr, InParams.GraphPtr, InParams.OwningNode})
 		, ClassOutputPtr(InParams.ClassOutputPtr)
 		{
 		}
@@ -488,7 +566,7 @@ namespace Metasound
 		// FInputNodeOutputController
 		// 
 		FInputNodeOutputController::FInputNodeOutputController(const FInputNodeOutputController::FInitParams& InParams)
-		: FBaseOutputController({InParams.ID, InParams.NodeVertexPtr, InParams.OwningNode})
+		: FBaseOutputController({InParams.ID, InParams.NodeVertexPtr, InParams.GraphPtr, InParams.OwningNode})
 		, OwningGraphClassInputPtr(InParams.OwningGraphClassInputPtr)
 		{
 		}
@@ -1554,7 +1632,7 @@ namespace Metasound
 
 		FOutputHandle FNodeController::CreateOutputController(FGuid InPointID, FConstVertexAccessPtr InNodeVertexPtr, FConstClassOutputAccessPtr InClassOutputPtr, FNodeHandle InOwningNode) const
 		{
-			return MakeShared<FNodeOutputController>(FNodeOutputController::FInitParams{InPointID, InNodeVertexPtr, InClassOutputPtr, InOwningNode});
+			return MakeShared<FNodeOutputController>(FNodeOutputController::FInitParams{InPointID, InNodeVertexPtr, InClassOutputPtr, GraphPtr, InOwningNode});
 		}
 
 		FDocumentAccess FNodeController::ShareAccess() 
@@ -1742,7 +1820,7 @@ namespace Metasound
 
 		FOutputHandle FInputNodeController::CreateOutputController(FGuid InPointID, FConstVertexAccessPtr InNodeVertexPtr, FConstClassOutputAccessPtr InClassOutputPtr, FNodeHandle InOwningNode) const
 		{
-			return MakeShared<FInputNodeOutputController>(FInputNodeOutputController::FInitParams{InPointID, InNodeVertexPtr, OwningGraphClassInputPtr, InOwningNode});
+			return MakeShared<FInputNodeOutputController>(FInputNodeOutputController::FInitParams{InPointID, InNodeVertexPtr, OwningGraphClassInputPtr, GraphPtr, InOwningNode});
 		}
 
 		FDocumentAccess FInputNodeController::ShareAccess() 
@@ -2299,6 +2377,12 @@ namespace Metasound
 			ClassInfo.NodeType = EMetasoundFrontendClassType::External;
 
 			return AddNode(ClassInfo);
+		}
+
+		FNodeHandle FGraphController::AddNode(const FMetasoundFrontendClassMetadata& InClassMetadata)
+		{
+			return AddNode(FMetasoundFrontendRegistryContainer
+::GetRegistryKey(InClassMetadata));
 		}
 
 		// Remove the node corresponding to this node handle.

@@ -49,5 +49,16 @@ namespace Metasound
 	private:
 		FName OutputVertexTypeName;
 	};
+
+	class METASOUNDFRONTEND_API FFilterClassesByClassName : public IFrontendQueryFilterStep
+	{
+	public: 
+		FFilterClassesByClassName(const FString& InClassName);
+
+		bool Filter(const FFrontendQueryEntry& InEntry) const override;
+
+	private:
+		FString ClassName;
+	};
 }
 

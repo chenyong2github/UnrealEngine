@@ -18,31 +18,46 @@
 
 namespace Metasound
 {
-	template<typename TDataType>
-	class TReceiveNode : public FNode
+	struct FReceiveNodeNames
 	{
-
-	public:
 		static const FString& GetAddressInputName()
 		{
 			static const FString InputName = FString(TEXT("Address"));
 			return InputName;
 		}
 
-		static const FString& GetSendOutputName()
+		static const FString& GetDefaultDataInputName()
 		{
-			static const FString SendInput = GetMetasoundDataTypeString<TDataType>();
-			return SendInput;
+			static const FString DefaultDataName = FString(TEXT("Default"));
+			return DefaultDataName;
 		}
+
+		static const FString& GetOutputName()
+		{
+			static const FString OutputName = FString(TEXT("Out"));
+			return OutputName;
+		}
+
+		static FString GetClassNameForDataType(const FName& InDataTypeName)
+		{
+			return FString::Printf(TEXT("Receive.%s"), *InDataTypeName.ToString());
+		}
+	};
+
+	template<typename TDataType>
+	class TReceiveNode : public FNode
+	{
+	public:
 
 		static FVertexInterface DeclareVertexInterface()
 		{
 			return FVertexInterface(
 				FInputVertexInterface(
-					TInputDataVertexModel<FSendAddress>(GetAddressInputName(), FText::GetEmpty())
+					TInputDataVertexModel<FSendAddress>(FReceiveNodeNames::GetAddressInputName(), FText::GetEmpty()),
+					TInputDataVertexModel<TDataType>(FReceiveNodeNames::GetDefaultDataInputName(), FText::GetEmpty())
 				),
 				FOutputVertexInterface(
-					TOutputDataVertexModel<TDataType>(GetSendOutputName(), FText::GetEmpty())
+					TOutputDataVertexModel<TDataType>(FReceiveNodeNames::GetOutputName(), FText::GetEmpty())
 				)
 			);
 		}
@@ -52,7 +67,7 @@ namespace Metasound
 			auto InitNodeInfo = []() -> FNodeInfo
 			{
 				FNodeInfo Info;
-				Info.ClassName = FName(*FString::Printf(TEXT("Receive %s"), *GetSendOutputName()));
+				Info.ClassName = FName(FReceiveNodeNames::GetClassNameForDataType(GetMetasoundDataTypeName<TDataType>()));
 				Info.MajorVersion = 1;
 				Info.MinorVersion = 0;
 				Info.Description = LOCTEXT("Metasound_ReceiveNodeDescription", "Receives data from a send node with the same name.");
@@ -76,8 +91,10 @@ namespace Metasound
 				TReceiverOperator() = delete;
 			public:
 
-				TReceiverOperator(const TDataWriteReference<TDataType>& Data, TDataReadReference<FSendAddress> InSendAddress, const FOperatorSettings& InOperatorSettings)
-					: OutputData(Data)
+				TReceiverOperator(TDataReadReference<TDataType> InInitDataRef, TDataWriteReference<TDataType> InOutDataRef, TDataReadReference<FSendAddress> InSendAddress, const FOperatorSettings& InOperatorSettings)
+					: bHasNotReceivedData(true)
+					, DefaultData(InInitDataRef)
+					, OutputData(InOutDataRef)
 					, SendAddress(InSendAddress)
 					, CachedSendAddress(*InSendAddress)
 					, CachedReceiverParams({InOperatorSettings})
@@ -89,13 +106,18 @@ namespace Metasound
 
 				virtual FDataReferenceCollection GetInputs() const override
 				{
-					return {};
+					FDataReferenceCollection Inputs;
+
+					Inputs.AddDataReadReference<TDataType>(FReceiveNodeNames::GetDefaultDataInputName(), DefaultData);
+					Inputs.AddDataReadReference<FSendAddress>(FReceiveNodeNames::GetAddressInputName(), SendAddress);
+
+					return Inputs;
 				}
 
 				virtual FDataReferenceCollection GetOutputs() const override
 				{
 					FDataReferenceCollection Outputs;
-					Outputs.AddDataReadReference<TDataType>(GetSendOutputName(), TDataReadReference<TDataType>(OutputData));
+					Outputs.AddDataReadReference<TDataType>(FReceiveNodeNames::GetOutputName(), TDataReadReference<TDataType>(OutputData));
 					return Outputs;
 				}
 
@@ -105,18 +127,30 @@ namespace Metasound
 					{
 						CachedSendAddress = *SendAddress;
 						Receiver = FDataTransmissionCenter::Get().RegisterNewReceiver<TDataType>(CachedSendAddress, CachedReceiverParams);
-						check(Receiver.IsValid());
 					}
 
-					if (Receiver->CanPop())
+					if (bHasNotReceivedData)
 					{
-						Receiver->Pop(*OutputData);
+						*OutputData = *DefaultData;
+					}
+
+					if (ensure(Receiver.IsValid()))
+					{
+						if (Receiver->CanPop())
+						{
+							Receiver->Pop(*OutputData);
+							bHasNotReceivedData = false;
+						}
 					}
 				}
 
 			private:
+				bool bHasNotReceivedData;
+
+				TDataReadReference<TDataType> DefaultData;
 				TDataWriteReference<TDataType> OutputData;
 				TDataReadReference<FSendAddress> SendAddress;
+
 				FSendAddress CachedSendAddress;
 				FReceiverInitParams CachedReceiverParams;
 
@@ -130,9 +164,17 @@ namespace Metasound
 
 				virtual TUniquePtr<IOperator> CreateOperator(const FCreateOperatorParams& InParams, FBuildErrorArray& OutErrors) override
 				{
+					TDataReadReference<TDataType> DefaultReadRef = TDataReadReferenceFactory<TDataType>::CreateAny(InParams.OperatorSettings);
+
+					if (InParams.InputDataReferences.ContainsDataReadReference<TDataType>(FReceiveNodeNames::GetDefaultDataInputName()))
+					{
+						DefaultReadRef = InParams.InputDataReferences.GetDataReadReference<TDataType>(FReceiveNodeNames::GetDefaultDataInputName());
+					}
+
 					return MakeUnique<TReceiverOperator>(
-						TDataWriteReferenceFactory<TDataType>::CreateAny(InParams.OperatorSettings),
-						InParams.InputDataReferences.GetDataReadReference<FSendAddress>(GetAddressInputName()),
+						DefaultReadRef,
+						TDataWriteReferenceFactory<TDataType>::CreateAny(InParams.OperatorSettings, *DefaultReadRef),
+						InParams.InputDataReferences.GetDataReadReferenceOrConstruct<FSendAddress>(FReceiveNodeNames::GetAddressInputName()),
 						InParams.OperatorSettings
 						);
 				}

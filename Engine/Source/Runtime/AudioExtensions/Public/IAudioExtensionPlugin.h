@@ -606,3 +606,37 @@ public:
 	{
 	}
 };
+
+/** Parameters passed to USoundBase::CreateInstanceTransmitter. */
+struct FAudioInstanceTransmitterInitParams
+{
+	// Unique ID for this audio instance.
+	uint64 InstanceID;
+	// Audio sample rate.
+	float SampleRate;
+};
+
+/** Interface for a audio instance transmitter.
+ *
+ * An audio instance transmitter ushers control parameters to a single audio object instance.
+ */
+class IAudioInstanceTransmitter
+{
+	public:
+		virtual ~IAudioInstanceTransmitter() = default;
+
+		// Return the instance ID
+		virtual uint64 GetInstanceID() const = 0;
+
+		// Set a float parameter by name. Return true on success, false on failure.
+		virtual bool SetFloatParameter(const FName& InParameterName, float InValue) = 0;
+
+		// Set an int parameter by name. Return true on success, false on failure.
+		virtual bool SetIntParameter(const FName& InParameterName, int32 InValue) = 0;
+
+		// Set a bool parameter by name. Return true on success, false on failure.
+		virtual bool SetBoolParameter(const FName& InParameterName, bool InValue) = 0;
+
+		// Create a copy of the instance transmitter.
+		virtual TUniquePtr<IAudioInstanceTransmitter> Clone() const = 0;
+};

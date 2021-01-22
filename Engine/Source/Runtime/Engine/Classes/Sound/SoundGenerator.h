@@ -13,11 +13,13 @@ struct FSoundGeneratorInitParams
 	float SampleRate;
 	int32 NumChannels;
 	int32 NumFramesPerCallback;
+	uint64 InstanceID;
 
 	FSoundGeneratorInitParams()
 		: SampleRate(0.0f)
 		, NumChannels(0)
 		, NumFramesPerCallback(0)
+		, InstanceID(0)
 	{}
 };
 

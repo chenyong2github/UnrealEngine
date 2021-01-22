@@ -26,6 +26,7 @@ namespace Metasound
 				FGuid ID;
 
 				FConstVertexAccessPtr NodeVertexPtr;
+				FGraphAccessPtr GraphPtr; 
 
 				/* Node handle which owns this output. */
 				FNodeHandle OwningNode;
@@ -47,6 +48,10 @@ namespace Metasound
 			FNodeHandle GetOwningNode() override;
 			FConstNodeHandle GetOwningNode() const override;
 
+			TArray<FInputHandle> GetCurrentlyConnectedInputs() override;
+			TArray<FConstInputHandle> GetCurrentlyConnectedInputs() const override;
+			bool Disconnect() override;
+
 			// Connection logic.
 			FConnectability CanConnectTo(const IInputController& InController) const override;
 			bool Connect(IInputController& InController) override;
@@ -57,9 +62,15 @@ namespace Metasound
 			FDocumentAccess ShareAccess() override;
 			FConstDocumentAccess ShareAccess() const override;
 
+
 			FGuid ID;
 			FConstVertexAccessPtr NodeVertexPtr;	
+			FGraphAccessPtr GraphPtr; 
 			FNodeHandle OwningNode;
+
+		private:
+
+			TArray<FMetasoundFrontendEdge> FindEdges() const;
 		};
 
 		/** FNodeOutputController represents a single output of a single node. */
@@ -73,6 +84,7 @@ namespace Metasound
 				FConstVertexAccessPtr NodeVertexPtr;
 			
 				FConstClassOutputAccessPtr ClassOutputPtr;
+				FGraphAccessPtr GraphPtr; 
 
 				/* Node handle which owns this output. */
 				FNodeHandle OwningNode;
@@ -112,6 +124,7 @@ namespace Metasound
 				FConstVertexAccessPtr NodeVertexPtr;
 			
 				FConstClassInputAccessPtr OwningGraphClassInputPtr;
+				FGraphAccessPtr GraphPtr; 
 
 				/* Node handle which owns this output. */
 				FNodeHandle OwningNode;
@@ -700,6 +713,7 @@ namespace Metasound
 
 			FNodeHandle AddNode(const FNodeClassInfo& InNodeClass) override;
 			FNodeHandle AddNode(const FNodeRegistryKey& InNodeClass) override;
+			FNodeHandle AddNode(const FMetasoundFrontendClassMetadata& InClassMetadata) override;
 
 			// Remove the node corresponding to this node handle.
 			// On success, invalidates the received node handle.

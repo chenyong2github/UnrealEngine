@@ -53,20 +53,20 @@ Metasound::Frontend::TAccessPtr<const FMetasoundFrontendDocument> UMetasound::Ge
 	return Metasound::Frontend::MakeAccessPtr<const FMetasoundFrontendDocument>(MetasoundDocument.AccessPoint, MetasoundDocument);
 }
 
-const TArray<FMetasoundFrontendArchetype>& UMetasound::GetPreferredArchetypes() const
+const TArray<FMetasoundFrontendArchetype>& UMetasound::GetPreferredMetasoundArchetypes() const
 {
 	// Not preferred archetypes for a basic UMetasound.
 	static const TArray<FMetasoundFrontendArchetype> Preferred;
 	return Preferred;
 }
 
-bool UMetasound::IsArchetypeSupported(const FMetasoundFrontendArchetype& InArchetype) const
+bool UMetasound::IsMetasoundArchetypeSupported(const FMetasoundFrontendArchetype& InArchetype) const
 {
 	// All archetypes are supported.
 	return true;
 }
 
-const FMetasoundFrontendArchetype& UMetasound::GetPreferredArchetype(const FMetasoundFrontendDocument& InDocument) const
+const FMetasoundFrontendArchetype& UMetasound::GetPreferredMetasoundArchetype(const FMetasoundFrontendDocument& InDocument) const
 {
 	// Prefer to keep original archetype.
 	return InDocument.Archetype;
@@ -82,7 +82,7 @@ void UMetasound::SetMetadata(FMetasoundFrontendClassMetadata& InMetadata)
 
 void UMetasound::PostLoad()
 {
-	ConformDocumentToArchetype();
+	ConformDocumentToMetasoundArchetype();
 	Super::PostLoad();
 }
 

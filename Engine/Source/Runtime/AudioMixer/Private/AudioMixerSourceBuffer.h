@@ -50,7 +50,7 @@ namespace Audio
 	class FMixerSourceBuffer : public ISoundWaveClient
 	{
 	public:
-		static FMixerSourceBufferPtr Create(int32 InSampleRate, FMixerBuffer& InBuffer, USoundWave& InWave, ELoopingMode InLoopingMode, bool bInIsSeeking, bool bInForceSyncDecode = false);
+		static FMixerSourceBufferPtr Create(uint64 InInstanceID, int32 InSampleRate, FMixerBuffer& InBuffer, USoundWave& InWave, ELoopingMode InLoopingMode, bool bInIsSeeking, bool bInForceSyncDecode = false);
 
 		~FMixerSourceBuffer();
 
@@ -101,7 +101,7 @@ namespace Audio
 		bool IsGeneratorFinished() const;
 
 	private:
-		FMixerSourceBuffer(int32 InSampleRate, FMixerBuffer& InBuffer, USoundWave& InWave, ELoopingMode InLoopingMode, bool bInIsSeeking, bool bInForceSyncDecode = false);
+		FMixerSourceBuffer(uint64 InInstanceID, int32 InSampleRate, FMixerBuffer& InBuffer, USoundWave& InWave, ELoopingMode InLoopingMode, bool bInIsSeeking, bool bInForceSyncDecode = false);
 
 		void SubmitInitialPCMBuffers();
 		void SubmitInitialRealtimeBuffers();

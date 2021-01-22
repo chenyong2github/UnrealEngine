@@ -7,7 +7,10 @@
 #include "MetasoundFrontendBaseClasses.h"
 #include "MetasoundFrontendController.h"
 #include "MetasoundGraph.h"
+#include "MetasoundLog.h"
 #include "UObject/WeakObjectPtrTemplates.h"
+
+
 
 class UEdGraph;
 
@@ -69,22 +72,22 @@ public:
 	virtual void SetMetadata(FMetasoundFrontendClassMetadata& InMetadata);
 
 	// Returns  a description of the required inputs and outputs for this metasound UClass.
-	const FMetasoundFrontendArchetype& GetArchetype() const;
+	const FMetasoundFrontendArchetype& GetMetasoundArchetype() const;
 
 	// Sets/overwrites the document archetype.
 	// @param InArchetype - The desired archetype .
 	//
 	// @return True on success. False if archetype is not supported by this object. 
-	bool SetArchetype(const FMetasoundFrontendArchetype& InArchetype);
+	bool SetMetasoundArchetype(const FMetasoundFrontendArchetype& InArchetype);
 
 	// Returns an array of archetypes preferred for this class.
-	virtual const TArray<FMetasoundFrontendArchetype>& GetPreferredArchetypes() const = 0;
+	virtual const TArray<FMetasoundFrontendArchetype>& GetPreferredMetasoundArchetypes() const = 0;
 
 	// Returns true if the archetype is supported by this object.
-	virtual bool IsArchetypeSupported(const FMetasoundFrontendArchetype& InArchetype) const;
+	virtual bool IsMetasoundArchetypeSupported(const FMetasoundFrontendArchetype& InArchetype) const;
 
 	// Returns the preferred archetype for the given document.
-	virtual const FMetasoundFrontendArchetype& GetPreferredArchetype(const FMetasoundFrontendDocument& InDocument) const;
+	virtual const FMetasoundFrontendArchetype& GetPreferredMetasoundArchetype(const FMetasoundFrontendDocument& InDocument) const;
 
 	// Returns the root class metadata
 	FMetasoundFrontendClassMetadata GetMetadata();
@@ -115,7 +118,7 @@ public:
 	const FMetasoundFrontendDocument& GetDocumentChecked() const;
 
 	// This must be called on UObject::PostLoad, as well as in this asset's UFactory, to fix up the root document based on the most recent version of the archetype.
-	void ConformDocumentToArchetype();
+	void ConformDocumentToMetasoundArchetype();
 
 protected:
 

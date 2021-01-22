@@ -49,8 +49,16 @@ namespace Metasound
 	struct TIsTransmittable
 	{
 	private:
-		static constexpr bool bCanBeTransmitted =
-			std::is_copy_constructible<TDataType>::value|| TIsDerivedFrom<TDataType, IAudioDataType>::Value;
+		static constexpr bool bIsCopyConstructible = std::is_copy_constructible<TDataType>::value;
+		static constexpr bool bIsCopyAssignable = std::is_copy_assignable<TDataType>::value;
+
+		// TODO: audio types were intended to be send/receive nodes but they require 
+		// template specialization.  TIsTransmittable should ask the Send and Receive nodes
+		// if they are transmittable rather than attempting to do the logic for all
+		// types here. 
+		//static constexpr bool bIsAudioDataType = TIsDerivedFrom<TDataType, IAudioDataType>::Value;
+
+		static constexpr bool bCanBeTransmitted = bIsCopyConstructible && bIsCopyAssignable;
 
 	public:
 
@@ -214,6 +222,8 @@ namespace Metasound
 		RegistryInfo.bIsProxyParsable = TIsParsable<TDataType, const Audio::IProxyDataPtr&>::Value;
 		RegistryInfo.bIsProxyArrayParsable = TIsParsable<TDataType, const TArray<Audio::IProxyDataPtr>& >::Value;
 		RegistryInfo.bIsDefaultParsable = TIsParsable<TDataType>::Value;
+
+		RegistryInfo.bIsTransmittable = TIsTransmittable<TDataType>::Value;
 		
 		RegistryInfo.ProxyGeneratorClass = UClassToUse::StaticClass();
 

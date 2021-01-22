@@ -4757,6 +4757,13 @@ void FAudioDevice::AddNewActiveSoundInternal(const FActiveSound& NewActiveSound,
 		VirtualActiveSound.ClearAudioComponent();
 	}
 
+	FAudioInstanceTransmitterInitParams TransmitterInitParams
+	{
+		ActiveSound->GetAudioComponentID(),
+		GetSampleRate()
+	};
+	ActiveSound->InstanceTransmitter = Sound->CreateInstanceTransmitter(TransmitterInitParams);
+
 	ActiveSounds.Add(ActiveSound);
 	if (ActiveSound->GetAudioComponentID() > 0)
 	{

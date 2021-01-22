@@ -50,5 +50,14 @@ namespace Metasound
 		);
 	}
 
+	FFilterClassesByClassName::FFilterClassesByClassName(const FString& InClassName)
+	: ClassName(InClassName)
+	{
+	}
+
+	bool FFilterClassesByClassName::Filter(const FFrontendQueryEntry& InEntry) const 
+	{
+		return InEntry.Value.Get<FMetasoundFrontendClass>().Metadata.Name.Name == ClassName;
+	}
 }
 

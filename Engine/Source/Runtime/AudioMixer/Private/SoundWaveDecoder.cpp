@@ -57,7 +57,8 @@ namespace Audio
 		bool bIsValid = false;
 		{
 			FScopeLock Lock(&MixerSourceBufferCritSec);
-			MixerSourceBuffer = FMixerSourceBuffer::Create(InSampleRate, *MixerBuffer, *SoundWave, LoopingMode, bIsSeeking, bForceSyncDecode);
+			uint64 InstanceID = 0; // Unused.
+			MixerSourceBuffer = FMixerSourceBuffer::Create(InstanceID, InSampleRate, *MixerBuffer, *SoundWave, LoopingMode, bIsSeeking, bForceSyncDecode);
 			bIsValid = MixerSourceBuffer.IsValid();
 		}
 

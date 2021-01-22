@@ -35,17 +35,17 @@ void FMetasoundAssetBase::SetMetadata(FMetasoundFrontendClassMetadata& InMetadat
 	}
 }
 
-const FMetasoundFrontendArchetype& FMetasoundAssetBase::GetArchetype() const
+const FMetasoundFrontendArchetype& FMetasoundAssetBase::GetMetasoundArchetype() const
 {
 	return Archetype;
 }
 
-bool FMetasoundAssetBase::SetArchetype(const FMetasoundFrontendArchetype& InArchetype)
+bool FMetasoundAssetBase::SetMetasoundArchetype(const FMetasoundFrontendArchetype& InArchetype)
 {
-	if (IsArchetypeSupported(InArchetype))
+	if (IsMetasoundArchetypeSupported(InArchetype))
 	{
 		Archetype = InArchetype;
-		ConformDocumentToArchetype();
+		ConformDocumentToMetasoundArchetype();
 
 		return true;
 	}
@@ -54,26 +54,26 @@ bool FMetasoundAssetBase::SetArchetype(const FMetasoundFrontendArchetype& InArch
 	return false;
 }
 
-bool FMetasoundAssetBase::IsArchetypeSupported(const FMetasoundFrontendArchetype& InArchetype) const
+bool FMetasoundAssetBase::IsMetasoundArchetypeSupported(const FMetasoundFrontendArchetype& InArchetype) const
 {
 	auto IsEqualArchetype = [&](const FMetasoundFrontendArchetype& SupportedArchetype)
 	{
 		return Metasound::Frontend::IsEqualArchetype(InArchetype, SupportedArchetype);
 	};
 
-	return Algo::AnyOf(GetPreferredArchetypes(), IsEqualArchetype);
+	return Algo::AnyOf(GetPreferredMetasoundArchetypes(), IsEqualArchetype);
 }
 
-const FMetasoundFrontendArchetype& FMetasoundAssetBase::GetPreferredArchetype(const FMetasoundFrontendDocument& InDocument) const
+const FMetasoundFrontendArchetype& FMetasoundAssetBase::GetPreferredMetasoundArchetype(const FMetasoundFrontendDocument& InDocument) const
 {
 	// Default to archetype provided in case it is supported. 
-	if (IsArchetypeSupported(InDocument.Archetype))
+	if (IsMetasoundArchetypeSupported(InDocument.Archetype))
 	{
 		return InDocument.Archetype;
 	}
 
 	// If existing archetype is not supported, get the most similar that still supports the documents environment.
-	const FMetasoundFrontendArchetype* SimilarArchetype = Metasound::Frontend::FindMostSimilarArchetypeSupportingEnvironment(InDocument, GetPreferredArchetypes());
+	const FMetasoundFrontendArchetype* SimilarArchetype = Metasound::Frontend::FindMostSimilarArchetypeSupportingEnvironment(InDocument, GetPreferredMetasoundArchetypes());
 
 	if (nullptr != SimilarArchetype)
 	{
@@ -81,7 +81,7 @@ const FMetasoundFrontendArchetype& FMetasoundAssetBase::GetPreferredArchetype(co
 	}
 
 	// Nothing found. Return the existing archetype for the FMetasoundAssetBase.
-	return GetArchetype();
+	return GetMetasoundArchetype();
 }
 
 void FMetasoundAssetBase::SetDocument(const FMetasoundFrontendDocument& InDocument, bool bForceUpdateArchetype)
@@ -91,18 +91,18 @@ void FMetasoundAssetBase::SetDocument(const FMetasoundFrontendDocument& InDocume
 
 	FMetasoundFrontendArchetype NewArch = InDocument.Archetype;
 
-	if (bForceUpdateArchetype || (!IsArchetypeSupported(NewArch)))
+	if (bForceUpdateArchetype || (!IsMetasoundArchetypeSupported(NewArch)))
 	{
-		NewArch = GetPreferredArchetype(Document);
+		NewArch = GetPreferredMetasoundArchetype(Document);
 	}
 
-	ensure(SetArchetype(NewArch));
+	ensure(SetMetasoundArchetype(NewArch));
 }
 
-void FMetasoundAssetBase::ConformDocumentToArchetype()
+void FMetasoundAssetBase::ConformDocumentToMetasoundArchetype()
 {
 	FMetasoundFrontendDocument& Document = GetDocumentChecked();
-	Document.Archetype = GetArchetype();
+	Document.Archetype = GetMetasoundArchetype();
 
 	Metasound::Frontend::FMatchRootGraphToArchetype Transform;
 	Transform.Transform(GetDocumentHandle());
@@ -168,3 +168,4 @@ const FMetasoundFrontendDocument& FMetasoundAssetBase::GetDocumentChecked() cons
 	check(DocAccessPtr.IsValid());
 	return *DocAccessPtr;
 }
+

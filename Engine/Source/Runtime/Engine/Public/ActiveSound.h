@@ -354,6 +354,63 @@ private:
 
 	TMap<UPTRINT, FWaveInstance*> WaveInstances;
 
+	class FInstanceTransmitter
+	{
+	public:
+		FInstanceTransmitter() = default;
+		FInstanceTransmitter(FInstanceTransmitter&&) = default;
+		FInstanceTransmitter& operator=(FInstanceTransmitter&&) = default;
+
+		FInstanceTransmitter(TUniquePtr<IAudioInstanceTransmitter>&& InTransmitterImpl)
+		:	TransmitterImpl(MoveTemp(InTransmitterImpl))
+		{
+		}
+
+		FInstanceTransmitter(const FInstanceTransmitter& InOther)
+		{
+			if (InOther.IsValid())
+			{
+				TransmitterImpl = InOther->Clone();
+			}
+		}
+
+		FInstanceTransmitter& operator=(const FInstanceTransmitter& InOther)
+		{
+			TransmitterImpl.Reset();
+			if (InOther.IsValid())
+			{
+				TransmitterImpl = InOther->Clone();
+			}
+			return *this;
+		}
+
+		FInstanceTransmitter& operator=(TUniquePtr<IAudioInstanceTransmitter>&& InTransmitterImpl)
+		{
+			TransmitterImpl = MoveTemp(InTransmitterImpl);
+			return *this;
+		}
+
+		bool IsValid() const
+		{
+			return TransmitterImpl.IsValid();
+		}
+
+		IAudioInstanceTransmitter* operator->()
+		{
+			return TransmitterImpl.Get();
+		}
+
+		const IAudioInstanceTransmitter* operator->() const
+		{
+			return TransmitterImpl.Get();
+		}
+
+	private:
+		TUniquePtr<IAudioInstanceTransmitter> TransmitterImpl;
+	};
+
+	FInstanceTransmitter InstanceTransmitter;
+
 public:
 	enum class EFadeOut : uint8
 	{

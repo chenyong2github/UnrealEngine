@@ -145,7 +145,7 @@ namespace Metasound
 			{
 				static_assert(std::is_base_of<FMetasoundAssetBase, UClassType>::value, "UClass must be derived from FMetasoundAssetBase");
 
-				const TArray<FMetasoundFrontendArchetype>& PreferredArchetypes = GetDefault<UClassType>()->GetPreferredArchetypes();
+				const TArray<FMetasoundFrontendArchetype>& PreferredArchetypes = GetDefault<UClassType>()->GetPreferredMetasoundArchetypes();
 
 				for (const FMetasoundFrontendArchetype& Arch : PreferredArchetypes)
 				{

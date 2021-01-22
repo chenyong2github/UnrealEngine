@@ -773,7 +773,15 @@ namespace Audio
 		}
 
 		check(!MixerSourceBuffer.IsValid());
-		MixerSourceBuffer = FMixerSourceBuffer::Create(AudioDevice->GetSampleRate(), *MixerBuffer, SoundWave, InWaveInstance->LoopingMode, bIsSeeking);
+
+		// Active sound instance ID is the audio component ID of active sound.
+		uint64 InstanceID = 0;
+		if (WaveInstance->ActiveSound)
+		{
+			InstanceID = WaveInstance->ActiveSound->GetAudioComponentID();
+		}
+
+		MixerSourceBuffer = FMixerSourceBuffer::Create(InstanceID, AudioDevice->GetSampleRate(), *MixerBuffer, SoundWave, InWaveInstance->LoopingMode, bIsSeeking);
 		
 		if (!MixerSourceBuffer.IsValid())
 		{

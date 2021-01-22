@@ -2,9 +2,11 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "MetasoundAssetBase.h"
 #include "MetasoundFrontend.h"
 #include "MetasoundFrontendDocument.h"
-#include "MetasoundAssetBase.h"
+#include "MetasoundInstanceTransmitter.h"
+#include "MetasoundRouter.h"
 
 #include "Sound/SoundWaveProcedural.h"
 
@@ -111,10 +113,11 @@ public:
 	bool SupportsSubtitles() const override;
 	float GetDuration() override;
 	ISoundGeneratorPtr CreateSoundGenerator(const FSoundGeneratorInitParams& InParams) override;
+	TUniquePtr<IAudioInstanceTransmitter> CreateInstanceTransmitter(const FAudioInstanceTransmitterInitParams& InParams) const override;
 	void PostLoad() override;
 
 	// Get the most up to date archetype for metasound sources.
-	const TArray<FMetasoundFrontendArchetype>& GetPreferredArchetypes() const override;
+	const TArray<FMetasoundFrontendArchetype>& GetPreferredMetasoundArchetypes() const override;
 
 protected:
 
@@ -133,6 +136,23 @@ protected:
 	}
 
 private:
+	struct FSendInfoAndVertexName
+	{
+		Metasound::FMetasoundInstanceTransmitter::FSendInfo SendInfo;
+		FString VertexName;
+	};
+
+	bool GetReceiveNodeMetadataForDataType(const FName& InTypeName, FMetasoundFrontendClassMetadata& OutMetadata) const;
+	Metasound::Frontend::FNodeHandle AddInputPinForSendAddress(const Metasound::FMetasoundInstanceTransmitter::FSendInfo& InSendInfo, Metasound::Frontend::FGraphHandle InGraph) const;
+	bool CopyDocumentAndInjectReceiveNodes(uint64 InInstanceID, const FMetasoundFrontendDocument& InSourceDoc, FMetasoundFrontendDocument& OutDestDoc) const;	
+	TArray<FString> GetTransmittableInputVertexNames() const;
+	Metasound::FOperatorSettings GetOperatorSettings(float InSampleRate) const;
+	Metasound::FSendAddress CreateSendAddress(uint64 InInstanceID, const FString& InVertexName) const;
+	
+
+
+	TArray<FSendInfoAndVertexName> GetSendInfos(uint64 InInstanceID) const;
+
 
 	static const FString& GetOnPlayInputName();
 	static const FString& GetAudioOutputName();

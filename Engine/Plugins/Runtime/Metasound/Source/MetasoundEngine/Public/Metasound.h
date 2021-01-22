@@ -75,11 +75,11 @@ public:
 		return const_cast<UObject*>(CastChecked<const UObject>(this));
 	}
 
-	const TArray<FMetasoundFrontendArchetype>& GetPreferredArchetypes() const override;
+	const TArray<FMetasoundFrontendArchetype>& GetPreferredMetasoundArchetypes() const override;
 
-	bool IsArchetypeSupported(const FMetasoundFrontendArchetype& InArchetype) const override;
+	bool IsMetasoundArchetypeSupported(const FMetasoundFrontendArchetype& InArchetype) const override;
 
-	const FMetasoundFrontendArchetype& GetPreferredArchetype(const FMetasoundFrontendDocument& InDocument) const override;
+	const FMetasoundFrontendArchetype& GetPreferredMetasoundArchetype(const FMetasoundFrontendDocument& InDocument) const override;
 
 	// Updates the Metasound's metadata (name, author, etc).
 	// @param InMetadata Metadata containing corrections to the class metadata.

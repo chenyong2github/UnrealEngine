@@ -366,6 +366,7 @@ namespace Metasound
 			{
 				SenderBuffer.SetCapacity(NumElementsToDelayBy * BufferResizeThreshold);
 			}
+			return true;
 		}
 
 		static FName GetDataTypeName()
@@ -378,7 +379,7 @@ namespace Metasound
 			: ISender(InDataChannel, GetDataTypeName())
 			, Params(InitParams)
 		{
-
+			SetDelay(InitParams.DelayTimeInSeconds);
 		}
 
 		TDataType RetrievePayload()

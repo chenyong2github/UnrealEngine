@@ -44,6 +44,9 @@ namespace Metasound
 		bool bIsProxyParsable = false;
 		bool bIsProxyArrayParsable = false;
 
+		// Determines whether the type can be used with send/receive transmitters
+		bool bIsTransmittable = false;
+
 		// If this datatype was registered with a specific UClass to use to filter with, that will be used here:
 		UClass* ProxyGeneratorClass = nullptr;
 

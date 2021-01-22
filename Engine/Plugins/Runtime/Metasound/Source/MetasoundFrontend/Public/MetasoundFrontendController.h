@@ -186,12 +186,15 @@ namespace Metasound
 			/** Returns a FConstNodeHandle to the node which owns this output. */
 			virtual FConstNodeHandle GetOwningNode() const = 0;
 
+			/** Returns the currently connected output. If this input is not
+			 * connected, the returned handle will be invalid. */
+			virtual TArray<FInputHandle> GetCurrentlyConnectedInputs() = 0;
 
-			// TODO: with the current spec, we'd have to scan all nodes in the graph for this output to solve this.
-			// Is this worth it, or should we just require folks to use FInputController::GetCurrentlyConnectedOutput()?
-			//IInputController* GetCurrentlyConnectedInput();
-			//const IInputController* GetCurrentlyConnectedInput() const;
-			//void Disconnect();
+			/** Returns the currently connected output. If this input is not
+			 * connected, the returned handle will be invalid. */
+			virtual TArray<FConstInputHandle> GetCurrentlyConnectedInputs() const = 0;
+
+			virtual bool Disconnect() = 0;
 
 			/** Returns information describing connectability between this output and the supplied input. */
 			virtual FConnectability CanConnectTo(const IInputController& InController) const = 0;
@@ -607,6 +610,14 @@ namespace Metasound
 			 * @return Node handle for class. On error, an invalid handle is returned. 
 			 */
 			virtual FNodeHandle AddNode(const FNodeRegistryKey& InNodeClass) = 0;
+
+			/** Add a new node to this graph.
+			 *
+			 * @param InClassMetadat - Info for node class.
+			 * 
+			 * @return Node handle for class. On error, an invalid handle is returned. 
+			 */
+			virtual FNodeHandle AddNode(const FMetasoundFrontendClassMetadata& InClassMetadata) = 0;
 
 			/** Remove the node corresponding to this node handle.
 			 *

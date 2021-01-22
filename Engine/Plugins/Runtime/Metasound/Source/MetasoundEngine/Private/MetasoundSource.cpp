@@ -9,9 +9,14 @@
 #include "MetasoundAudioFormats.h"
 #include "MetasoundBop.h"
 #include "MetasoundEngineEnvironment.h"
+#include "MetasoundFrontendController.h"
+#include "MetasoundFrontendQuery.h"
+#include "MetasoundFrontendQuerySteps.h"
 #include "MetasoundGenerator.h"
+#include "MetasoundInstanceTransmitter.h"
 #include "MetasoundLog.h"
 #include "MetasoundPrimitives.h"
+#include "MetasoundReceiveNode.h"
 
 
 #if WITH_EDITORONLY_DATA
@@ -54,7 +59,7 @@ void UMetasoundSource::PostEditChangeProperty(FPropertyChangedEvent& InEvent)
 			case EMetasoundSourceAudioFormat::Stereo:
 
 				NumChannels = 2;
-				ensure(SetArchetype(GetStereoSourceArchetype()));
+				ensure(SetMetasoundArchetype(GetStereoSourceArchetype()));
 
 				break;
 
@@ -62,7 +67,7 @@ void UMetasoundSource::PostEditChangeProperty(FPropertyChangedEvent& InEvent)
 			default:
 
 				NumChannels = 1;
-				ensure(SetArchetype(GetMonoSourceArchetype()));
+				ensure(SetMetasoundArchetype(GetMonoSourceArchetype()));
 
 				break;
 		}
@@ -97,8 +102,7 @@ ISoundGeneratorPtr UMetasoundSource::CreateSoundGenerator(const FSoundGeneratorI
 	VirtualizationMode = EVirtualizationMode::PlayWhenSilent;
 
 	SampleRate = InParams.SampleRate;
-	const float BlockRate = 100.f; // Metasound graph gets evaluated 100 times per second.
-	FOperatorSettings InSettings(InParams.SampleRate, BlockRate);
+	FOperatorSettings InSettings = GetOperatorSettings(SampleRate);
 	FMetasoundEnvironment Environment;
 
 	// Add audio device ID to environment.
@@ -116,12 +120,27 @@ ISoundGeneratorPtr UMetasoundSource::CreateSoundGenerator(const FSoundGeneratorI
 	}
 	Environment.SetValue<FAudioDeviceHandle>(GetAudioDeviceHandleVariableName(), DeviceHandle);
 
-	// Create the operator from the graph handle.
-	TArray<IOperatorBuilder::FBuildErrorPtr> BuildErrors;
+	const FMetasoundFrontendDocument* OriginalDoc = GetDocument().Get();
+	if (nullptr == OriginalDoc)
+	{
+		UE_LOG(LogMetasound, Error, TEXT("Cannot create sound generator. Null Metasound document in UMetasoundSource [Name:%s]"), *GetName());
+		return ISoundGeneratorPtr(nullptr);
+	}
 
-	Frontend::FGraphHandle RootGraph = GetRootGraphHandle();
+	// Inject receive nodes for unused transmittable inputs. Perform edits on a copy
+	// of the document to avoid altering document.
+	// TODO: Use a light wrapper of the document instead of a copy.
+	FMetasoundFrontendDocument DocumentWithInjectedReceives;
+	ensure(CopyDocumentAndInjectReceiveNodes(InParams.InstanceID, *OriginalDoc, DocumentWithInjectedReceives));
+
+	// Create handles for new root graph
+	Frontend::FConstDocumentHandle NewDocumentHandle = Frontend::IDocumentController::CreateDocumentHandle(Frontend::MakeAccessPtr<const FMetasoundFrontendDocument>(DocumentWithInjectedReceives.AccessPoint, DocumentWithInjectedReceives));
+	Frontend::FConstGraphHandle RootGraph = NewDocumentHandle->GetRootGraph();
+
 	ensureAlways(RootGraph->IsValid());
 
+	// Create the operator from the graph handle.
+	TArray<IOperatorBuilder::FBuildErrorPtr> BuildErrors;
 	TUniquePtr<IOperator> Operator = RootGraph->BuildOperator(InSettings, Environment, BuildErrors);
 
 	if (!Operator.IsValid())
@@ -179,14 +198,236 @@ ISoundGeneratorPtr UMetasoundSource::CreateSoundGenerator(const FSoundGeneratorI
 	return ISoundGeneratorPtr(nullptr);
 }
 
+TUniquePtr<IAudioInstanceTransmitter> UMetasoundSource::CreateInstanceTransmitter(const FAudioInstanceTransmitterInitParams& InParams) const
+{
+	Metasound::FMetasoundInstanceTransmitter::FInitParams InitParams(GetOperatorSettings(InParams.SampleRate), InParams.InstanceID);
+
+	for (const FSendInfoAndVertexName& InfoAndName : GetSendInfos(InParams.InstanceID))
+	{
+		InitParams.Infos.Add(InfoAndName.SendInfo);
+	}
+
+	return MakeUnique<Metasound::FMetasoundInstanceTransmitter>(InitParams);
+}
+
 void UMetasoundSource::PostLoad()
 {
 	Super::PostLoad();
 
-	ConformDocumentToArchetype();
+	ConformDocumentToMetasoundArchetype();
 }
 
-const TArray<FMetasoundFrontendArchetype>& UMetasoundSource::GetPreferredArchetypes() const 
+bool UMetasoundSource::GetReceiveNodeMetadataForDataType(const FName& InTypeName, FMetasoundFrontendClassMetadata& OutMetadata) const
+{
+	using namespace Metasound;
+
+	FFrontendQuery Query;
+
+	Query.AddStep<FGenerateAllAvailableNodeClasses>()
+		.AddStep<FFilterClassesByClassName>(FReceiveNodeNames::GetClassNameForDataType(InTypeName));
+	
+	FFrontendQuerySelectionView Result = Query.ExecuteQuery();
+
+	TArrayView<const FFrontendQueryEntry* const> Selection = Result.GetSelection();
+
+	if (Selection.Num() > 0)
+	{
+		check(Selection[0]->Value.IsType<FMetasoundFrontendClass>());
+		OutMetadata = Selection[0]->Value.Get<FMetasoundFrontendClass>().Metadata;
+		return true;
+	}
+
+	return false;
+}
+
+Metasound::Frontend::FNodeHandle UMetasoundSource::AddInputPinForSendAddress(const Metasound::FMetasoundInstanceTransmitter::FSendInfo& InSendInfo, Metasound::Frontend::FGraphHandle InGraph) const
+{
+	FMetasoundFrontendClassInput Description;
+	FGuid PointID = InGraph->GetNewPointID();
+
+	Description.Name = InSendInfo.Address.ChannelName.ToString();
+	Description.TypeName = Metasound::GetMetasoundDataTypeName<Metasound::FSendAddress>();
+	Description.Metadata.Description = FText::GetEmpty();
+	Description.PointIDs.Add(PointID);
+
+	FMetasoundFrontendVertexLiteral DefaultValue;
+	DefaultValue.PointID = PointID;
+	DefaultValue.Value.Set(InSendInfo.Address.ChannelName.ToString());
+	Description.Defaults.Add(DefaultValue);
+	
+	return InGraph->AddInputVertex(Description);
+}
+
+bool UMetasoundSource::CopyDocumentAndInjectReceiveNodes(uint64 InInstanceID, const FMetasoundFrontendDocument& InSourceDoc, FMetasoundFrontendDocument& OutDestDoc) const
+{
+	using namespace Metasound;
+
+	OutDestDoc = InSourceDoc;
+
+	Frontend::FDocumentHandle Document = Frontend::IDocumentController::CreateDocumentHandle(Frontend::MakeAccessPtr(OutDestDoc.AccessPoint, OutDestDoc));
+	Frontend::FGraphHandle RootGraph = Document->GetRootGraph();
+
+	TArray<FSendInfoAndVertexName> SendInfoAndVertexes = GetSendInfos(InInstanceID);
+
+	// Inject receive nodes for each transmittable input
+	for (const FSendInfoAndVertexName& InfoAndVertexName : SendInfoAndVertexes)
+	{
+
+		// Add receive node to graph
+		FMetasoundFrontendClassMetadata ReceiveNodeMetadata;
+		bool bSuccess = GetReceiveNodeMetadataForDataType(InfoAndVertexName.SendInfo.TypeName, ReceiveNodeMetadata);
+		if (!bSuccess)
+		{
+			// TODO: log warning
+			continue;
+		}
+		Frontend::FNodeHandle ReceiveNode = RootGraph->AddNode(ReceiveNodeMetadata);
+
+		// Add receive node address to graph
+		Frontend::FNodeHandle AddressNode = UMetasoundSource::AddInputPinForSendAddress(InfoAndVertexName.SendInfo, RootGraph);
+		TArray<Frontend::FOutputHandle> AddressNodeOutputs = AddressNode->GetOutputs();
+		if (AddressNodeOutputs.Num() != 1)
+		{
+			// TODO: log warning
+			continue;
+		}
+
+		Frontend::FOutputHandle AddressOutput = AddressNodeOutputs[0];
+		TArray<Frontend::FInputHandle> ReceiveAddressInput = ReceiveNode->GetInputsWithVertexName(Metasound::FReceiveNodeNames::GetAddressInputName());
+		if (ReceiveAddressInput.Num() != 1)
+		{
+			// TODO: log error
+			continue;
+		}
+
+		ensure(ReceiveAddressInput[0]->Connect(*AddressOutput));
+
+
+
+		// Swap input node connections with receive node connections
+		Frontend::FNodeHandle InputNode = RootGraph->GetInputNodeWithName(InfoAndVertexName.VertexName);
+		if (!ensure(InputNode->GetOutputs().Num() == 1))
+		{
+			// TODO: handle input node with varying number of outputs or varying output types.
+			continue;
+		}
+
+		Frontend::FOutputHandle InputNodeOutput = InputNode->GetOutputs()[0];
+
+		if (ensure(ReceiveNode->IsValid()))
+		{
+			TArray<Frontend::FOutputHandle> ReceiveNodeOutputs = ReceiveNode->GetOutputs();
+			if (!ensure(ReceiveNodeOutputs.Num() == 1))
+			{
+				// TODO: handle array outputs and receive nodes of varying formats.
+				continue;
+			}
+
+			TArray<Frontend::FInputHandle> ReceiveDefaultInputs = ReceiveNode->GetInputsWithVertexName(Metasound::FReceiveNodeNames::GetDefaultDataInputName());
+			if (ensure(ReceiveDefaultInputs.Num() == 1))
+			{
+				Frontend::FOutputHandle ReceiverNodeOutput = ReceiveNodeOutputs[0];
+				for (Frontend::FInputHandle NodeInput : InputNodeOutput->GetCurrentlyConnectedInputs())
+				{
+					// Swap connections to receiver node
+					ensure(InputNodeOutput->Disconnect(*NodeInput));
+					ensure(ReceiverNodeOutput->Connect(*NodeInput));
+				}
+
+				ReceiveDefaultInputs[0]->Connect(*InputNodeOutput);
+			}
+		}
+	}
+
+	return true;
+}
+
+TArray<FString> UMetasoundSource::GetTransmittableInputVertexNames() const
+{
+	using namespace Metasound;
+
+	// Unused inputs are all input vertices that are not in the archetype.
+	TArray<FString> ArchetypeInputVertexNames;
+	for (const FMetasoundFrontendClassVertex& Vertex : GetMetasoundArchetype().Interface.Inputs)
+	{
+		ArchetypeInputVertexNames.Add(Vertex.Name);
+	}
+
+	Frontend::FConstGraphHandle RootGraph = GetRootGraphHandle();
+	TArray<FString> GraphInputVertexNames = RootGraph->GetInputVertexNames();
+
+	// Filter graph inputs by archetype inputs.
+	GraphInputVertexNames = GraphInputVertexNames.FilterByPredicate([&](const FString& InName) { return !ArchetypeInputVertexNames.Contains(InName); });
+
+	auto IsDataTypeTransmittable = [&](const FString& InVertexName)
+	{
+		Frontend::FConstClassInputAccessPtr ClassInputPtr = RootGraph->FindClassInputWithName(InVertexName);
+		if (const FMetasoundFrontendClassInput* ClassInput = ClassInputPtr.Get())
+		{
+			FDataTypeRegistryInfo TypeInfo;
+			if (Frontend::GetTraitsForDataType(ClassInput->TypeName, TypeInfo))
+			{
+				return TypeInfo.bIsTransmittable;
+			}
+		}
+		return false;
+	};
+
+	GraphInputVertexNames = GraphInputVertexNames.FilterByPredicate(IsDataTypeTransmittable);
+
+	return GraphInputVertexNames;
+}
+
+Metasound::FOperatorSettings UMetasoundSource::GetOperatorSettings(float InSampleRate) const
+{
+	constexpr float BlockRate = 100.f; // Metasound graph gets evaluated 100 times per second.
+	return Metasound::FOperatorSettings(InSampleRate, BlockRate);
+}
+
+Metasound::FSendAddress UMetasoundSource::CreateSendAddress(uint64 InInstanceID, const FString& InVertexName) const
+{
+	using namespace Metasound;
+
+	FSendAddress Address;
+
+	Address.Subsystem = GetSubsystemNameForSendScope(ETransmissionScope::Global);
+	Address.ChannelName = FName(FString::Printf(TEXT("%d:%s"), InInstanceID, *InVertexName));
+
+	return Address;
+}
+
+TArray<UMetasoundSource::FSendInfoAndVertexName> UMetasoundSource::GetSendInfos(uint64 InInstanceID) const
+{
+	using FSendInfo = Metasound::FMetasoundInstanceTransmitter::FSendInfo;
+	using namespace Metasound::Frontend;
+
+	TArray<FSendInfoAndVertexName> SendInfos;
+
+	FConstGraphHandle RootGraph = GetRootGraphHandle();
+
+	TArray<FString> SendVertices = GetTransmittableInputVertexNames();
+	for (const FString& VertexName : SendVertices)
+	{
+		FConstNodeHandle InputNode = RootGraph->GetInputNodeWithName(VertexName);
+		for (FConstOutputHandle InputHandle : InputNode->GetConstOutputs())
+		{
+			FSendInfoAndVertexName Info;
+
+			// TODO: incorporate PointID into address. But need to ensure that PointID
+			// will be maintained after injecting Receive nodes. 
+			Info.SendInfo.Address = CreateSendAddress(InInstanceID, InputHandle->GetName());
+			Info.SendInfo.ParameterName = FName(InputHandle->GetDisplayName().ToString()); // TODO: display name hack. Need to have nameing consistent in editor for inputs
+			Info.SendInfo.TypeName = InputHandle->GetDataType();
+			Info.VertexName = VertexName;
+			
+			SendInfos.Add(Info);
+		}
+	}
+
+	return SendInfos;
+}
+
+const TArray<FMetasoundFrontendArchetype>& UMetasoundSource::GetPreferredMetasoundArchetypes() const 
 {
 	static const TArray<FMetasoundFrontendArchetype> Preferred({GetMonoSourceArchetype(), GetStereoSourceArchetype()});
 
