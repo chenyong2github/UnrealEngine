@@ -25,6 +25,7 @@
 #include "CurveEditorHelpers.h"
 #include "CurveEditor.h"
 #include "ITimeSlider.h"
+#include "Math/Box.h"
 
 namespace CurveViewConstants
 {
@@ -492,16 +493,17 @@ void SInteractiveCurveEditorView::Tick(const FGeometry& AllottedGeometry, const 
 	GetCurveDrawParams(CachedDrawParams);
 }
 
-void SInteractiveCurveEditorView::GetPointsWithinWidgetRange(const FSlateRect& WidgetRectangle, TArray<FCurvePointHandle>* OutPoints) const
+bool SInteractiveCurveEditorView::GetPointsWithinWidgetRange(const FSlateRect& WidgetRectangle, TArray<FCurvePointHandle>* OutPoints) const
 {
 	TSharedPtr<FCurveEditor> CurveEditor = WeakCurveEditor.Pin();
 	if (!CurveEditor)
 	{
-		return;
+		return false;
 	}
 
 	// Iterate through all of our points and see which points the marquee overlaps. Both of these coordinate systems
 	// are in screen space pixels.
+	bool bFound = false;
 	for (const FCurveDrawParams& DrawParams : CachedDrawParams)
 	{
 		for (int32 PointIndex = 0; PointIndex < DrawParams.Points.Num(); PointIndex++)
@@ -514,9 +516,53 @@ void SInteractiveCurveEditorView::GetPointsWithinWidgetRange(const FSlateRect& W
 			if (FSlateRect::DoRectanglesIntersect(PointRect, WidgetRectangle))
 			{
 				OutPoints->Add(FCurvePointHandle(DrawParams.GetID(), Point.Type, Point.KeyHandle));
+				bFound = true;
 			}
 		}
 	}
+
+	return bFound;
+}
+
+bool SInteractiveCurveEditorView::GetCurveWithinWidgetRange(const FSlateRect& WidgetRectangle, TArray<FCurvePointHandle>* OutPoints) const
+{
+	TSharedPtr<FCurveEditor> CurveEditor = WeakCurveEditor.Pin();
+	if (!CurveEditor)
+	{
+		return false;
+	}
+
+	FBox WidgetRectangleBox(FVector(WidgetRectangle.Left, WidgetRectangle.Top, 0), FVector(WidgetRectangle.Right, WidgetRectangle.Bottom, 0));
+
+	// Iterate through all of our interpolating points and terminates if one overlaps the marquee. Both of these coordinate systems
+	// are in screen space pixels.
+	bool bFound = false;
+	for (const FCurveDrawParams& DrawParams : CachedDrawParams)
+	{
+		for (int32 InterpolatingPointIndex = 1; InterpolatingPointIndex < DrawParams.InterpolatingPoints.Num(); InterpolatingPointIndex++)
+		{
+			FVector2D InterpolatingPointPrev = DrawParams.InterpolatingPoints[InterpolatingPointIndex-1];
+			FVector2D InterpolatingPointNext = DrawParams.InterpolatingPoints[InterpolatingPointIndex];
+			FVector Start(InterpolatingPointPrev.X, InterpolatingPointPrev.Y, 0);
+			FVector End(InterpolatingPointNext.X, InterpolatingPointNext.Y, 0);
+			FVector StartToEnd = End - Start;
+
+			if (FMath::LineBoxIntersection(WidgetRectangleBox, Start, End, StartToEnd))
+			{
+				for (int32 PointIndex = 0; PointIndex < DrawParams.Points.Num(); PointIndex++)
+				{
+					const FCurvePointInfo& Point = DrawParams.Points[PointIndex];
+
+					OutPoints->Add(FCurvePointHandle(DrawParams.GetID(), Point.Type, Point.KeyHandle));
+				}
+
+				bFound = true;
+				break;
+			}
+		}
+	}
+
+	return false;
 }
 
 void SInteractiveCurveEditorView::UpdateCurveProximities(FVector2D MousePixel)
