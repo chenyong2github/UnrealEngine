@@ -303,6 +303,11 @@ void UNavLinkCustomComponent::SendBroadcastWhenDisabled(bool bEnabled)
 	bNotifyWhenDisabled = bEnabled;
 }
 
+void UNavLinkCustomComponent::SetBroadcastFilter(FBroadcastFilter const& InDelegate)
+{
+	OnBroadcastFilter = InDelegate;
+}
+
 void UNavLinkCustomComponent::CollectNearbyAgents(TArray<UObject*>& NotifyList)
 {
 	AActor* MyOwner = GetOwner();
