@@ -262,8 +262,7 @@ static FAutoConsoleVariableRef CVarVulkanFakeMemoryLimit(
 );
 #endif
 
-// this is disabled currently due causing use-after-free issues, which caused UE-105058
-int32 GVulkanEnableDefrag = 0;
+int32 GVulkanEnableDefrag = 1;
 static FAutoConsoleVariableRef CVarVulkanEnableDefrag(
 	TEXT("r.Vulkan.EnableDefrag"),
 	GVulkanEnableDefrag,
@@ -4876,7 +4875,13 @@ namespace VulkanRHI
 					VKSWITCH(RenderPass);
 					VKSWITCH(Buffer);
 					VKSWITCH(BufferView);
-					VKSWITCH(Image);
+					// When we're doing an immediate destroy, we might not have a context (eg RHIExit)
+					VKSWITCH(Image, \
+						if (!bDeleteImmediately) \
+						{ \
+							Device->NotifyDeletedRenderTarget((VkImage)Entry->Handle); \
+						} \
+					);
 					VKSWITCH(ImageView);
 					VKSWITCH(Pipeline, DEC_DWORD_STAT(STAT_VulkanNumPSOs));
 					VKSWITCH(PipelineLayout);
