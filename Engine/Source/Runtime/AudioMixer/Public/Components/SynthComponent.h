@@ -68,7 +68,7 @@ public:
 	}
 };
 
-UCLASS(ClassGroup = Synth, hidecategories = (Object, ActorComponent, Physics, Rendering, Mobility, LOD))
+UCLASS(abstract, ClassGroup = Synth, hidecategories = (Object, ActorComponent, Physics, Rendering, Mobility, LOD))
 class AUDIOMIXER_API USynthComponent : public USceneComponent
 {
 	GENERATED_BODY()

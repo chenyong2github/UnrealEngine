@@ -337,7 +337,7 @@ class AUDIOEXTENSIONS_API USoundfieldEffectSettingsBase : public UObject
 	GENERATED_BODY()
 
 protected:
-	TUniquePtr<ISoundfieldEffectSettingsProxy> GetNewProxy() const PURE_VIRTUAL(USoundfieldEffectSettingsBase::GetProxy, return nullptr;);
+	virtual TUniquePtr<ISoundfieldEffectSettingsProxy> GetNewProxy() const PURE_VIRTUAL(USoundfieldEffectSettingsBase::GetProxy, return nullptr;);
 
 private:
 	// This is called by any engine system that is explicitly marked as a friend.

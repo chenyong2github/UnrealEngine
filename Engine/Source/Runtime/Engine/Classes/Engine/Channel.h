@@ -49,7 +49,7 @@ ENUM_CLASS_FLAGS(EChannelCreateFlags);
 /**
  * Base class of communication channels.
  */
-UCLASS(transient)
+UCLASS(abstract, transient)
 class ENGINE_API UChannel
 	: public UObject
 {

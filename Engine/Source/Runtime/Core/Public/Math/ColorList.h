@@ -10,7 +10,6 @@
 #include "Math/Color.h"
 
 class CORE_API FColorList
-	: public FExec
 {
 public:
 	typedef TMap< FString, const FColor* > TColorsMap;
