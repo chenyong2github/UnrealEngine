@@ -61,6 +61,12 @@ static FBoneMatricesUniformShaderParameters GBoneUniformStruct;
 
 #define NANITE_VAL_FALSE false,
 
+#if defined(GPUCULL_TODO)
+#define PRIMITIVE_ID_SUPPORT true,
+#else
+#define PRIMITIVE_ID_SUPPORT false,
+#endif
+
 #define IMPLEMENT_GPUSKINNING_VERTEX_FACTORY_TYPE_INTERNAL(FactoryClass, ShaderFilename,bUsedWithMaterials,bSupportsStaticLighting,bSupportsDynamicLighting,bPrecisePrevWorldPos,bSupportsPositionOnly) \
 	template <GPUSkinBoneInfluenceType BoneInfluenceType> FVertexFactoryType FactoryClass<BoneInfluenceType>::StaticType( \
 	BoneInfluenceType == DefaultBoneInfluence ? TEXT(#FactoryClass) TEXT("Default") : TEXT(#FactoryClass) TEXT("Unlimited"), \
@@ -71,7 +77,7 @@ static FBoneMatricesUniformShaderParameters GBoneUniformStruct;
 	bPrecisePrevWorldPos, \
 	bSupportsPositionOnly, \
 	false, \
-	false, \
+	PRIMITIVE_ID_SUPPORT \
 	NANITE_VAL_FALSE \
 	IMPLEMENT_VERTEX_FACTORY_VTABLE(FactoryClass<BoneInfluenceType>) \
 	); \
@@ -392,23 +398,31 @@ bool TGPUSkinVertexFactory<BoneInfluenceType>::ShouldCompilePermutation(const FV
 	return ((Parameters.MaterialParameters.bIsUsedWithSkeletalMesh && (BoneInfluenceType != UnlimitedBoneInfluence || bUnlimitedBoneInfluences)) || Parameters.MaterialParameters.bIsSpecialEngineMaterial);
 }
 
-
 template <GPUSkinBoneInfluenceType BoneInfluenceType>
 void TGPUSkinVertexFactory<BoneInfluenceType>::ModifyCompilationEnvironment(const FVertexFactoryShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment )
 {
 	FVertexFactory::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-	const int32 MaxGPUSkinBones = GetFeatureLevelMaxNumberOfBones(GetMaxSupportedFeatureLevel(Parameters.Platform));
+
+	const FStaticFeatureLevel MaxSupportedFeatureLevel = GetMaxSupportedFeatureLevel(Parameters.Platform);
+	const bool bUseGPUScene = UseGPUScene(Parameters.Platform, MaxSupportedFeatureLevel);
+	const bool bSupportsPrimitiveIdStream = Parameters.VertexFactoryType->SupportsPrimitiveIdStream();
+	const int32 MaxGPUSkinBones = GetFeatureLevelMaxNumberOfBones(MaxSupportedFeatureLevel);
+
 	OutEnvironment.SetDefine(TEXT("MAX_SHADER_BONES"), MaxGPUSkinBones);
+
 	{
-		bool bLimit2BoneInfluences = (CVarGPUSkinLimit2BoneInfluences.GetValueOnAnyThread() != 0);
+		const bool bLimit2BoneInfluences = (CVarGPUSkinLimit2BoneInfluences.GetValueOnAnyThread() != 0);
 		OutEnvironment.SetDefine(TEXT("GPUSKIN_LIMIT_2BONE_INFLUENCES"), (bLimit2BoneInfluences ? 1 : 0));
 	}
+
 	OutEnvironment.SetDefine(TEXT("GPUSKIN_USE_BONES_SRV_BUFFER"), SupportsBonesBufferSRV(Parameters.Platform) ? 1 : 0);
 	OutEnvironment.SetDefine(TEXT("GPUSKIN_UNLIMITED_BONE_INFLUENCE"), BoneInfluenceType == UnlimitedBoneInfluence ? 1 : 0);
 
 	OutEnvironment.SetDefine(TEXT("GPU_SKINNED_MESH_FACTORY"), 1);
-}
 
+	OutEnvironment.SetDefine(TEXT("VF_SUPPORTS_PRIMITIVE_SCENE_DATA"), bSupportsPrimitiveIdStream && bUseGPUScene);
+	OutEnvironment.SetDefine(TEXT("VF_GPU_SCENE_TEXTURE"), bSupportsPrimitiveIdStream && bUseGPUScene && GPUSceneUseTexture2D(Parameters.Platform));
+}
 
 template<GPUSkinBoneInfluenceType BoneInfluenceType>
 void TGPUSkinVertexFactory<BoneInfluenceType>::CopyDataTypeForPassthroughFactory(FGPUSkinPassthroughVertexFactory* PassthroughVertexFactory)
@@ -432,38 +446,38 @@ void TGPUSkinVertexFactory<BoneInfluenceType>::CopyDataTypeForPassthroughFactory
 }
 
 /**
-* Add the decl elements for the streams
-* @param InData - type with stream components
-* @param OutElements - vertex decl list to modify
+* Add the vertex declaration elements for the streams.
+* @param InData - Type with stream components.
+* @param OutElements - Vertex declaration list to modify.
 */
 template <GPUSkinBoneInfluenceType BoneInfluenceType>
 void TGPUSkinVertexFactory<BoneInfluenceType>::AddVertexElements(FDataType& InData, FVertexDeclarationElementList& OutElements)
 {
-	// position decls
-	OutElements.Add(AccessStreamComponent(InData.PositionComponent,0));
+	// Position
+	OutElements.Add(AccessStreamComponent(InData.PositionComponent, 0));
 
-	// tangent basis vector decls
-	OutElements.Add(AccessStreamComponent(InData.TangentBasisComponents[0],1));
-	OutElements.Add(AccessStreamComponent(InData.TangentBasisComponents[1],2));
+	// Tangent basis vector
+	OutElements.Add(AccessStreamComponent(InData.TangentBasisComponents[0], 1));
+	OutElements.Add(AccessStreamComponent(InData.TangentBasisComponents[1], 2));
 
-	// texture coordinate decls
-	if(InData.TextureCoordinates.Num())
+	// Texture coordinates
+	if (InData.TextureCoordinates.Num())
 	{
 		const uint8 BaseTexCoordAttribute = 5;
-		for(int32 CoordinateIndex = 0;CoordinateIndex < InData.TextureCoordinates.Num();CoordinateIndex++)
+		for (int32 CoordinateIndex = 0; CoordinateIndex < InData.TextureCoordinates.Num(); ++CoordinateIndex)
 		{
 			OutElements.Add(AccessStreamComponent(
 				InData.TextureCoordinates[CoordinateIndex],
 				BaseTexCoordAttribute + CoordinateIndex
-				));
+			));
 		}
 
-		for(int32 CoordinateIndex = InData.TextureCoordinates.Num();CoordinateIndex < MAX_TEXCOORDS;CoordinateIndex++)
+		for (int32 CoordinateIndex = InData.TextureCoordinates.Num(); CoordinateIndex < MAX_TEXCOORDS; ++CoordinateIndex)
 		{
 			OutElements.Add(AccessStreamComponent(
 				InData.TextureCoordinates[InData.TextureCoordinates.Num() - 1],
 				BaseTexCoordAttribute + CoordinateIndex
-				));
+			));
 		}
 	}
 
@@ -473,32 +487,33 @@ void TGPUSkinVertexFactory<BoneInfluenceType>::AddVertexElements(FDataType& InDa
 		Data.ColorIndexMask = 0;
 	}
 
-	// Account for the possibility that the mesh has no vertex colors
-	if( InData.ColorComponent.VertexBuffer )
+	// Vertex color - account for the possibility that the mesh has no vertex colors
+	if (InData.ColorComponent.VertexBuffer)
 	{
 		OutElements.Add(AccessStreamComponent(InData.ColorComponent, 13));
 	}
 	else
 	{
-		//If the mesh has no color component, set the null color buffer on a new stream with a stride of 0.
-		//This wastes 4 bytes of bandwidth per vertex, but prevents having to compile out twice the number of vertex factories.
+		// If the mesh has no color component, set the null color buffer on a new stream with a stride of 0.
+		// This wastes 4 bytes of memory per vertex, but prevents having to compile out twice the number of vertex factories.
 		FVertexStreamComponent NullColorComponent(&GNullColorVertexBuffer, 0, 0, VET_Color, EVertexStreamUsage::ManualFetch);
 		OutElements.Add(AccessStreamComponent(NullColorComponent, 13));
 	}
 
 	if (BoneInfluenceType == UnlimitedBoneInfluence)
 	{
+		// Blend offset count
 		OutElements.Add(AccessStreamComponent(InData.BlendOffsetCount, 3));
 	}
 	else
 	{
-		// bone indices decls
-		OutElements.Add(AccessStreamComponent(InData.BoneIndices,3));
+		// Bone indices
+		OutElements.Add(AccessStreamComponent(InData.BoneIndices, 3));
 
-		// bone weights decls
-		OutElements.Add(AccessStreamComponent(InData.BoneWeights,4));
+		// Bone weights
+		OutElements.Add(AccessStreamComponent(InData.BoneWeights, 4));
 
-		// Extra bone indices & weights decls
+		// Extra bone indices & weights
 		if (GetNumBoneInfluences() > MAX_INFLUENCES_PER_STREAM)
 		{
 			OutElements.Add(AccessStreamComponent(InData.ExtraBoneIndices, 14));
@@ -511,6 +526,7 @@ void TGPUSkinVertexFactory<BoneInfluenceType>::AddVertexElements(FDataType& InDa
 		}
 	}
 
+	// Pre-skinning offsets
 	if (InData.PreSkinningOffsets.VertexBuffer)
 	{
 		OutElements.Add(AccessStreamComponent(InData.PreSkinningOffsets, 11));
@@ -521,6 +537,7 @@ void TGPUSkinVertexFactory<BoneInfluenceType>::AddVertexElements(FDataType& InDa
 		OutElements.Add(AccessStreamComponent(NullDeltaComponent, 11));
 	}
 
+	// Post-skinning offsets
 	if (InData.PostSkinningOffsets.VertexBuffer)
 	{
 		OutElements.Add(AccessStreamComponent(InData.PostSkinningOffsets, 12));
@@ -529,6 +546,14 @@ void TGPUSkinVertexFactory<BoneInfluenceType>::AddVertexElements(FDataType& InDa
 	{
 		FVertexStreamComponent NullDeltaComponent(&GNullVertexBuffer, 0, 0, VET_Float3);
 		OutElements.Add(AccessStreamComponent(NullDeltaComponent, 12));
+	}
+
+	// Primitive Id
+	if (GetType()->SupportsPrimitiveIdStream() && UseGPUScene(GMaxRHIShaderPlatform, GMaxRHIFeatureLevel))
+	{
+		// When the VF is used for rendering in normal mesh passes, this vertex buffer and offset will be overridden
+		OutElements.Add(AccessStreamComponent(FVertexStreamComponent(&GPrimitiveIdDummy, 0, 0, PrimitiveIdStreamStride, VET_UInt, EVertexStreamUsage::Instancing), 16));
+		SetPrimitiveIdStreamIndex(EVertexInputStreamType::Default, OutElements.Last().StreamIndex);
 	}
 }
 
@@ -815,7 +840,11 @@ IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FGPUSkinPassthroughVertexFactory, SF_Ver
 IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FGPUSkinPassthroughVertexFactory, SF_RayHitGroup, FGPUSkinVertexPassthroughFactoryShaderParameters);
 IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FGPUSkinPassthroughVertexFactory, SF_Compute, FGPUSkinVertexPassthroughFactoryShaderParameters);
 #endif // RHI_RAYTRACING
+#if defined(GPUCULL_TODO) // Supports primitive ID stream
+IMPLEMENT_VERTEX_FACTORY_TYPE_EX(FGPUSkinPassthroughVertexFactory, "/Engine/Private/LocalVertexFactory.ush", true, false, true, false, false, false, true, false);
+#else
 IMPLEMENT_VERTEX_FACTORY_TYPE(FGPUSkinPassthroughVertexFactory, "/Engine/Private/LocalVertexFactory.ush", true, false, true, false, false);
+#endif
 
 /*-----------------------------------------------------------------------------
 TGPUSkinMorphVertexFactory

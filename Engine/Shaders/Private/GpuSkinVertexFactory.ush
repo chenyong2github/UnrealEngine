@@ -104,6 +104,11 @@ struct FVertexFactoryInput
 
 	/** Per vertex color */
 	float4 Color : ATTRIBUTE13;
+
+#if VF_USE_PRIMITIVE_SCENE_DATA
+	uint InstanceIdOffset : ATTRIBUTE16;
+	uint DrawInstanceId : SV_InstanceID;
+#endif
 };
 
 #if !GPUSKIN_MORPH_BLEND && GPUSKIN_APEX_CLOTH
@@ -196,7 +201,7 @@ FMaterialPixelParameters GetMaterialPixelParameters(FVertexFactoryInterpolantsVS
 	// GetMaterialPixelParameters is responsible for fully initializing the result
 	FMaterialPixelParameters Result = MakeInitializedMaterialPixelParameters();
 
-#if NUM_TEX_COORD_INTERPOLATORS	
+#if NUM_TEX_COORD_INTERPOLATORS
 	UNROLL
 	for(int CoordinateIndex = 0;CoordinateIndex < NUM_TEX_COORD_INTERPOLATORS;CoordinateIndex++)
 	{
@@ -234,6 +239,15 @@ STRONG_TYPE Buffer<float4> PreviousBoneMatrices;
 // Cache data to avoid multiple calculation 
 struct FVertexFactoryIntermediates
 {
+#if VF_USE_PRIMITIVE_SCENE_DATA
+	FSceneDataIntermediates SceneData;
+#endif
+
+	float4 InvNonUniformScaleAndDeterminantSign;
+	float4x4 LocalToWorld;
+	float4x4 WorldToLocal;
+	float4x4 PrevLocalToWorld;
+
 	// Blend Matrix (used for position/tangents)
 	FBoneMatrix BlendMatrix;
 
@@ -263,7 +277,7 @@ FMaterialVertexParameters GetMaterialVertexParameters(FVertexFactoryInput Input,
 	FMaterialVertexParameters Result = (FMaterialVertexParameters)0;
 	Result.WorldPosition = WorldPosition;
 	Result.VertexColor = Intermediates.Color;
-	Result.TangentToWorld = mul(TangentToLocal, GetLocalToWorld3x3());
+	Result.TangentToWorld = mul(TangentToLocal, (float3x3)Intermediates.LocalToWorld);
 	Result.PreSkinnedPosition = Intermediates.UnpackedPosition.xyz;
 	Result.PreSkinnedNormal = Input.TangentZ.xyz;
 
@@ -271,7 +285,7 @@ FMaterialVertexParameters GetMaterialVertexParameters(FVertexFactoryInput Input,
 	Result.PostSkinOffset = Input.PostSkinOffset;
 
 	// Assumes no instacing
-	Result.PrevFrameLocalToWorld = Primitive.PreviousLocalToWorld;
+	Result.PrevFrameLocalToWorld = Intermediates.PrevLocalToWorld;
 
 #if NUM_MATERIAL_TEXCOORDS_VERTEX
 	for(int CoordinateIndex = 0; CoordinateIndex < NUM_MATERIAL_TEXCOORDS_VERTEX; CoordinateIndex++)
@@ -653,8 +667,8 @@ float3x3 SkinTangents( FVertexFactoryInput Input, FVertexFactoryIntermediates In
 		    TangentToLocal[2] = normalize(NormalPosition - Intermediates.SimulatedPosition);
 
 		    // cloth data are all in world space so need to change into local space
-		    TangentToLocal[0] = mul(TangentToLocal[0], (half3x3)Primitive.WorldToLocal);
-		    TangentToLocal[2] = mul(TangentToLocal[2], (half3x3)Primitive.WorldToLocal);
+		    TangentToLocal[0] = mul(TangentToLocal[0], (half3x3)Intermediates.WorldToLocal);
+		    TangentToLocal[2] = mul(TangentToLocal[2], (half3x3)Intermediates.WorldToLocal);
         }
 	    else
 	    {
@@ -692,7 +706,21 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 {
 	FVertexFactoryIntermediates Intermediates;
 	
+#if VF_USE_PRIMITIVE_SCENE_DATA
+	Intermediates.SceneData = GetSceneDataIntermediates(Input.InstanceIdOffset, Input.DrawInstanceId);
+	Intermediates.InvNonUniformScaleAndDeterminantSign = Intermediates.SceneData.InstanceData.InvNonUniformScaleAndDeterminantSign;
+	Intermediates.LocalToWorld = Intermediates.SceneData.InstanceData.LocalToWorld;
+	Intermediates.WorldToLocal = Intermediates.SceneData.InstanceData.WorldToLocal;
+	Intermediates.PrevLocalToWorld = Intermediates.SceneData.InstanceData.PrevLocalToWorld;
+#else
+	Intermediates.InvNonUniformScaleAndDeterminantSign = Primitive.InvNonUniformScaleAndDeterminantSign;
+	Intermediates.LocalToWorld = Primitive.LocalToWorld;
+	Intermediates.WorldToLocal = Primitive.WorldToLocal;
+	Intermediates.PrevLocalToWorld = Primitive.PreviousLocalToWorld;
+#endif
+
 	Intermediates.UnpackedPosition = UnpackedPosition(Input);
+
 #if GPUSKIN_APEX_CLOTH
 	SetupClothVertex(Input.ClothVertexID, Intermediates.ClothVertexInfluences);
 	if( IsSimulatedVertex(Intermediates.ClothVertexInfluences[0]) )
@@ -725,7 +753,7 @@ float4 CalcWorldPosition(FVertexFactoryInput Input, FVertexFactoryIntermediates 
 	{
 		// skinned positions
 		float4 SkinnedPosition = float4(SkinPosition(Input, Intermediates), 1);
-		float4 TransformedSkinPos = mul(SkinnedPosition, Primitive.LocalToWorld);
+		float4 TransformedSkinPos = mul(SkinnedPosition, Intermediates.LocalToWorld);
 
 		// Intermediates.SimulatedPosition is a clothing position in world coord
 		float3 BlendedPos = lerp(TransformedSkinPos.xyz, Intermediates.SimulatedPosition, ClothBlendWeight);
@@ -734,7 +762,11 @@ float4 CalcWorldPosition(FVertexFactoryInput Input, FVertexFactoryIntermediates 
 	else
 #endif
 	{
+#if VF_USE_PRIMITIVE_SCENE_DATA
+		return TransformLocalToTranslatedWorld(SkinPosition(Input, Intermediates), Intermediates.SceneData.InstanceData);
+#else
 		return TransformLocalToTranslatedWorld(SkinPosition(Input, Intermediates));
+#endif
 	}
 }
 
@@ -766,10 +798,10 @@ float3 VertexFactoryGetPositionForVertexLighting(FVertexFactoryInput Input, FVer
 
 void CalcTangentToWorld(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates, out float3 TangentToWorld0, out float4 TangentToWorld2)
 {
-	float3x3 LocalToWorld = GetLocalToWorld3x3();
+	float3x3 LocalToWorld = (float3x3)Intermediates.LocalToWorld;
 
 	// Remove scaling.
-	half3 InvScale = Primitive.InvNonUniformScaleAndDeterminantSign.xyz;
+	half3 InvScale = Intermediates.InvNonUniformScaleAndDeterminantSign.xyz;
 	LocalToWorld[0] *= InvScale.x;
 	LocalToWorld[1] *= InvScale.y;
 	LocalToWorld[2] *= InvScale.z;
@@ -777,7 +809,7 @@ void CalcTangentToWorld(FVertexFactoryInput Input, FVertexFactoryIntermediates I
 	float3x3 TangentToWorld = mul(Intermediates.TangentToLocal, LocalToWorld);
 
 	TangentToWorld0 = TangentToWorld[0];
-	TangentToWorld2 = float4(TangentToWorld[2], Input.TangentZ.w * Primitive.InvNonUniformScaleAndDeterminantSign.w);
+	TangentToWorld2 = float4(TangentToWorld[2], Input.TangentZ.w * Intermediates.InvNonUniformScaleAndDeterminantSign.w);
 }
 
 float3 VertexFactoryGetWorldNormal(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates)
@@ -825,7 +857,7 @@ FVertexFactoryInterpolantsVSToPS VertexFactoryGetInterpolantsVSToPS(FVertexFacto
 // @return previous translated world position
 float4 VertexFactoryGetPreviousWorldPosition(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates)
 {
-	float4x4 PreviousLocalToWorldTranslated = Primitive.PreviousLocalToWorld;
+	float4x4 PreviousLocalToWorldTranslated = Intermediates.PrevLocalToWorld;
 
 	PreviousLocalToWorldTranslated[3][0] += ResolvedView.PrevPreViewTranslation.x;
 	PreviousLocalToWorldTranslated[3][1] += ResolvedView.PrevPreViewTranslation.y;
