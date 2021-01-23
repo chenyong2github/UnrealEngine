@@ -1218,12 +1218,21 @@ private:
 				TSharedPtr<FHistoryTreeItem> FileItem = SelectedItem->Parent.Pin();
 				check(FileItem.IsValid());
 
+				// If we've got the expanded RevisionList entry rather than the FileList entry
+				// move the Selected and FileItem up one level in the hierarchy
+				if (FileItem->FileListItem == nullptr)
+				{
+					SelectedItem = FileItem;
+					FileItem = FileItem->Parent.Pin();
+					check(FileItem.IsValid())
+				}
+
 				int32 RevIndex = FileItem->Children.Find(SelectedItem);
 				check(RevIndex != INDEX_NONE);
 				if (RevIndex == FileItem->Children.Num()-1) // If oldest revision of this file
 				{
 					int32 FileIndex = HistoryCollection.Find(FileItem);
-					check(FileIndex != INDEX_NONE);
+					check(FileIndex != INDEX_NONE); 
 					return (FileIndex < HistoryCollection.Num()-1);
 				}
 			}
@@ -1254,6 +1263,17 @@ private:
 			FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>(TEXT("AssetTools"));
 
 			TSharedPtr<FHistoryTreeItem> SelectedItem = SelectedRevs[0];
+
+			// This might be the expanded RevisionList item, if so we need to push up one level in the hierarchy
+			if (!SelectedItem->RevisionListItem.IsValid())
+			{
+				TSharedPtr<FHistoryTreeItem> ParentItem = SelectedItem->Parent.Pin();
+				if (ParentItem.IsValid() && ParentItem->RevisionListItem.IsValid())
+				{
+					SelectedItem = ParentItem;
+				}
+			}
+
 			UObject* SelectedAsset = GetAssetRevisionObject(SelectedItem);
 
 			if (SelectedItem->RevisionListItem.IsValid())
@@ -1354,6 +1374,17 @@ private:
 			FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>(TEXT("AssetTools"));
 
 			TSharedPtr<FHistoryTreeItem> SelectedItem = SelectedRevs[0];
+
+			// This might be the expanded RevisionList item, if so we need to push up one level in the hierarchy
+			if (!SelectedItem->RevisionListItem.IsValid())
+			{
+				TSharedPtr<FHistoryTreeItem> ParentItem = SelectedItem->Parent.Pin();
+				if (ParentItem.IsValid() && ParentItem->RevisionListItem.IsValid())
+				{
+					SelectedItem = ParentItem;
+				}
+			}
+
 			UObject* SelectedAsset = GetAssetRevisionObject(SelectedItem);
 
 			if (SelectedItem->RevisionListItem.IsValid())
