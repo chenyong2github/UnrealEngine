@@ -42,15 +42,6 @@ bool FWaitDelay::Update()
 	return (NewTime - StartTime > Delay);
 }
 
-DEFINE_LATENT_AUTOMATION_COMMAND(FWaitForActorsInitialized);
-
-bool FWaitForActorsInitialized::Update()
-{
-	UWorld* World = GetAnyGameWorld();
-
-	return World && World->AreActorsInitialized();
-}
-
 class FPlayMapInPIEBase : public FAutomationTestBase
 {
 public:
@@ -178,7 +169,6 @@ public:
 			ADD_LATENT_AUTOMATION_COMMAND(FWaitForShadersToFinishCompiling());
 			FModuleManager::GetModuleChecked<IAutomationControllerModule>("AutomationController").GetAutomationController()->ResetAutomationTestTimeout(TEXT("shader compilation"));
 			LoadAllTexture();
-			ADD_LATENT_AUTOMATION_COMMAND(FWaitForActorsInitialized);
 			ADD_LATENT_AUTOMATION_COMMAND(FWaitDelay(4.0));
 			return true;
 		}
