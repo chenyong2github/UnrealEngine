@@ -204,14 +204,13 @@ void SerializePlacedCards(TArray<FPlacedCard, TInlineAllocator<16>>& PlacedCards
 	}
 }
 
-void BuildMeshCards(const FBox& CardBounds, const FGenerateCardMeshContext& Context, FCardRepresentationData& OutData)
+void BuildMeshCards(const FBox& MeshBounds, const FGenerateCardMeshContext& Context, FCardRepresentationData& OutData)
 {
 	static const auto CVarMeshCardRepresentationMinSurface = IConsoleManager::Get().FindTConsoleVariableDataFloat(TEXT("r.MeshCardRepresentation.MinSurface"));
 	const float MinSurfaceThreshold = CVarMeshCardRepresentationMinSurface->GetValueOnAnyThread();
 
-	const float MaxExtent = CardBounds.GetExtent().GetMax();
-	// Ensure bounds don't have zero extent (was possible for planes)
-	const FBox MeshCardsBounds = CardBounds.ExpandBy(FVector::Max(CardBounds.GetExtent() * 0.05f, .001f * FVector(MaxExtent, MaxExtent, MaxExtent)));
+	// Make sure BBox isn't empty and we can generate card representation for it. This handles e.g. infinitely thin planes.
+	const FBox MeshCardsBounds = MeshBounds.ExpandBy(5.0f);
 
 	OutData.MeshCardsBuildData.Bounds = MeshCardsBounds;
 	OutData.MeshCardsBuildData.MaxLODLevel = 1;
