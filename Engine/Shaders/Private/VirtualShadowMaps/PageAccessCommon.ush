@@ -158,7 +158,6 @@ uint ShadowEncodePageTable(uint2 PageIndex)
 {
 	return VSM_PHYSICAL_PAGE_ANY_MIP_VALID_FLAG | (PageIndex.y << 10) | (PageIndex.x);
 }
-
 uint ShadowEncodePageTable(uint2 PageIndex, uint MipOffset)
 {
 	return VSM_PHYSICAL_PAGE_ANY_MIP_VALID_FLAG | (MipOffset << 20) | (PageIndex.y << 10) | (PageIndex.x);
@@ -184,10 +183,38 @@ bool VirtualToPhysicalTexel(uint ShadowMapID, uint Level, uint2 VirtualTexelAddr
 	uint VPageX = VirtualTexelAddress.x >> VSM_LOG2_PAGE_SIZE;
 	uint VPageY = VirtualTexelAddress.y >> VSM_LOG2_PAGE_SIZE;
 
-	// TODO: Clever mip offset stuff
-	FShadowPhysicalPage PhysicalPageEntry = ShadowGetPhysicalPage(CalcPageTableLevelOffset(ShadowMapID, Level) + CalcPageOffsetInLevel(Level, uint2(VPageX, VPageY)));
+	FShadowPhysicalPage PhysicalPageEntry = ShadowGetPhysicalPage(CalcPageOffset(ShadowMapID, Level, uint2(VPageX, VPageY)));
 	PhysicalTexelAddress = PhysicalPageEntry.PageIndex * VSM_PAGE_SIZE + (VirtualTexelAddress & VSM_PAGE_SIZE_MASK);
 	return (PhysicalPageEntry.bThisMipValid);
+}
+
+struct FShadowPageTranslationResult
+{
+	bool bValid;
+	uint MipLevel;
+	uint2 VirtualTexelAddress;
+	float2 VirtualTexelAddressFloat;
+	uint2 PhysicalTexelAddress;
+};
+
+// Finds the best-resolution mapped page at the given UV
+FShadowPageTranslationResult ShadowVirtualToPhysicalUV(uint VirtualShadowMapID, float2 ShadowMapUV)
+{
+	float2 VirtualTexelAddressLevell0Float = ShadowMapUV * float(CalcLevelDimsTexels(0));
+	uint2 VirtualTexelAddressLevel0 = uint2(VirtualTexelAddressLevell0Float);
+	uint2 vPageLevel0 = uint2(VirtualTexelAddressLevel0 >> VSM_LOG2_PAGE_SIZE);
+
+	FShadowPhysicalPage PhysicalPageEntry = ShadowGetPhysicalPage(CalcPageOffset(VirtualShadowMapID, 0, vPageLevel0));
+
+	FShadowPageTranslationResult Result;
+	Result.bValid = PhysicalPageEntry.bAnyMipValid;
+	Result.MipLevel = PhysicalPageEntry.MipOffset;	
+	// TODO: Can optimize this slightly based on relative offset
+	Result.VirtualTexelAddressFloat = ShadowMapUV * float(CalcLevelDimsTexels(Result.MipLevel));
+	Result.VirtualTexelAddress = uint2(Result.VirtualTexelAddressFloat);
+	Result.PhysicalTexelAddress = PhysicalPageEntry.PageIndex * VSM_PAGE_SIZE + (Result.VirtualTexelAddress & VSM_PAGE_SIZE_MASK);
+
+	return Result;
 }
 
 // TODO: this surely needs some special handling of cases that contain the near plane etc.

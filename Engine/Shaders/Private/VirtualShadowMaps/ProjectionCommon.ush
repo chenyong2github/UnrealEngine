@@ -94,7 +94,6 @@ FVirtualSmSample SampleVirtualSmLevel(int VirtualShadowMapId, float2 ShadowMapUV
 	bool PagePresent = VirtualToPhysicalTexel(VirtualShadowMapId, VSMLevel, Result.VirtualTexelAddress, Result.PhysicalTexelAddress);
 	if (PagePresent)
 	{
-		// TODO: maybe store metadata about Max depth (and/or use sparse HZB) for each tile, and early out if completely in shadow (must test using kernel size).
 #if ENABLE_NON_NANITE_VSM
 		Result.Depth = max(
 			asfloat(PhysicalPagePool.Load(int3(Result.PhysicalTexelAddress, 0))),
@@ -112,13 +111,17 @@ FVirtualSmSample SampleVirtualSmLevel(int VirtualShadowMapId, float2 ShadowMapUV
 
 FVirtualSmSample SampleVirtualSm(int VirtualShadowMapId, float2 ShadowMapUV)
 {
-	for (uint VSMLevel = 0; VSMLevel < VSM_MAX_MIP_LEVELS; ++VSMLevel)
+	FShadowPageTranslationResult Page = ShadowVirtualToPhysicalUV(VirtualShadowMapId, ShadowMapUV);
+	if (Page.bValid)
 	{
-		FVirtualSmSample Result = SampleVirtualSmLevel(VirtualShadowMapId, ShadowMapUV, VSMLevel);
-		if (Result.bValid)
-		{
-			return Result;
-		}
+		FVirtualSmSample Result;
+		Result.bValid = true;
+		Result.MipLevel = Page.MipLevel;
+		Result.VirtualTexelAddress = Page.VirtualTexelAddress;
+		Result.VirtualTexelAddressFloat = Page.VirtualTexelAddressFloat;
+		Result.PhysicalTexelAddress = Page.PhysicalTexelAddress;
+		Result.Depth = asfloat(PhysicalPagePool.Load(int3(Result.PhysicalTexelAddress, 0)));
+		return Result;
 	}
 
 	return InitVirtualSmSample();

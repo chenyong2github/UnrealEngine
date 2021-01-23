@@ -349,6 +349,18 @@ class FCreatePageMappingsCS : public FVirtualPageManagementShader
 };
 IMPLEMENT_GLOBAL_SHADER(FCreatePageMappingsCS, "/Engine/Private/VirtualShadowMaps/PageManagement.usf", "CreatePageMappings", SF_Compute);
 
+class FPropagateMappedMipsCS : public FVirtualPageManagementShader
+{
+	DECLARE_GLOBAL_SHADER(FPropagateMappedMipsCS);
+	SHADER_USE_PARAMETER_STRUCT(FPropagateMappedMipsCS, FVirtualPageManagementShader)
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FVirtualShadowMapCommonParameters,	VirtualSmCommon)
+		SHADER_PARAMETER_RDG_BUFFER_UAV( RWStructuredBuffer< uint >,			OutPageTable )
+	END_SHADER_PARAMETER_STRUCT()
+};
+IMPLEMENT_GLOBAL_SHADER(FPropagateMappedMipsCS, "/Engine/Private/VirtualShadowMaps/PageManagement.usf", "PropagateMappedMips", SF_Compute);
+
 class FInitClearPhysicalPagesArgsCS : public FVirtualPageManagementShader
 {
 	DECLARE_GLOBAL_SHADER(FInitClearPhysicalPagesArgsCS);
@@ -978,6 +990,25 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 				ComputeShader,
 				PassParameters,
 				FIntVector(FMath::DivideAndRoundUp(CommonParameters.PageTableSize, FGenerateHierarchicalPageFlagsCS::DefaultCSGroupX), ShadowMaps.Num(), 1)
+			);
+		}
+
+		// NOTE: We could skip this (in shader) for shadow maps that only have 1 mip (ex. clipmaps)
+		{
+			// Propagate mapped mips down the hierarchy to allow O(1) lookup of coarser mapped pages
+			FPropagateMappedMipsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FPropagateMappedMipsCS::FParameters>();
+			PassParameters->VirtualSmCommon = GetCommonUniformBuffer(GraphBuilder);
+			PassParameters->OutPageTable	= GraphBuilder.CreateUAV(PageTableRDG);
+
+			const uint32 DispatchWidthThreads = FVirtualShadowMap::Level0DimPagesXY;
+
+			auto ComputeShader = Views[0].ShaderMap->GetShader<FPropagateMappedMipsCS>();
+			FComputeShaderUtils::AddPass(
+				GraphBuilder,
+				RDG_EVENT_NAME("PropagateMappedMips"),
+				ComputeShader,
+				PassParameters,
+				FIntVector(FMath::DivideAndRoundUp(FMath::Square(DispatchWidthThreads), FPropagateMappedMipsCS::DefaultCSGroupX), ShadowMaps.Num(), 1)
 			);
 		}
 	}
