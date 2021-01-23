@@ -18,6 +18,13 @@
 #include "PhysicsNodes/GenerateSimpleCollisionNode.h"
 
 
+
+struct FMeshLODGraphPreFilterSettings
+{
+	FName FilterGroupLayerName = FName( "PreFilterGroups" );
+};
+
+
 class FGenerateMeshLODGraph
 {
 public:
@@ -27,6 +34,8 @@ public:
 
 	void SetSourceMesh(const FDynamicMesh3& SourceMesh);
 
+	void UpdatePreFilterSettings(const FMeshLODGraphPreFilterSettings& PreFilterSettings);
+	const FMeshLODGraphPreFilterSettings& GetCurrentPreFilterSettings() const { return CurrentPreFilterSettings; }
 
 	void UpdateSolidifySettings(const UE::GeometryFlow::FMeshSolidifySettings& SolidifySettings);
 	const UE::GeometryFlow::FMeshSolidifySettings& GetCurrentSolidifySettings() const { return CurrentSolidifySettings; }
@@ -67,6 +76,10 @@ protected:
 
 
 	UE::GeometryFlow::FGraph::FHandle MeshSourceNode;
+
+	UE::GeometryFlow::FGraph::FHandle FilterGroupsLayerNameNode;	// FNameSourceNode that defines name of polygroups layer
+	UE::GeometryFlow::FGraph::FHandle FilterTrianglesNode;
+	FMeshLODGraphPreFilterSettings CurrentPreFilterSettings;
 
 	UE::GeometryFlow::FGraph::FHandle SolidifyNode;
 	UE::GeometryFlow::FGraph::FHandle SolidifySettingsNode;

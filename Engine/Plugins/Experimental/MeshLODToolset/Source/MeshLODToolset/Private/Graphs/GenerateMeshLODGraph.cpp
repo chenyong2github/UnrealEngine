@@ -195,6 +195,13 @@ void FGenerateMeshLODGraph::EvaluateResultParallel(
 #endif
 
 
+void FGenerateMeshLODGraph::UpdatePreFilterSettings(const FMeshLODGraphPreFilterSettings& PreFilterSettings)
+{
+	UpdateSourceNodeValue<FNameSourceNode>(*Graph, FilterGroupsLayerNameNode, PreFilterSettings.FilterGroupLayerName);
+	CurrentPreFilterSettings = PreFilterSettings;
+}
+
+
 void FGenerateMeshLODGraph::UpdateSolidifySettings(const FMeshSolidifySettings& SolidifySettings)
 {
 	UpdateSettingsSourceNodeValue(*Graph, SolidifySettingsNode, SolidifySettings);
@@ -325,10 +332,24 @@ void FGenerateMeshLODGraph::BuildGraph()
 
 	MeshSourceNode = Graph->AddNodeOfType<FDynamicMeshSourceNode>(TEXT("SourceMesh"));
 
+	// remove detail triangles
+
+	FGraph::FHandle FilterGroupsNode = Graph->AddNodeOfType<FIndexSetsSourceNode>(TEXT("FilterGroups"));
+	FilterGroupsLayerNameNode = Graph->AddNodeOfType<FNameSourceNode>(TEXT("FilterGroupsLayerNameSource"));
+
+	FGraph::FHandle MakeFilterTriangleSetsNode = Graph->AddNodeOfType<FMakeTriangleSetsFromGroupsNode>(TEXT("MakeFilterTriangles"));
+	Graph->InferConnection(MeshSourceNode, MakeFilterTriangleSetsNode);
+	Graph->InferConnection(FilterGroupsNode, MakeFilterTriangleSetsNode);
+	Graph->InferConnection(FilterGroupsLayerNameNode, MakeFilterTriangleSetsNode);
+
+	FilterTrianglesNode = Graph->AddNodeOfType<FMeshDeleteTrianglesNode>(TEXT("FilterMesh"));
+	Graph->InferConnection(MeshSourceNode, FilterTrianglesNode);
+	Graph->InferConnection(MakeFilterTriangleSetsNode, FilterTrianglesNode);
+
 	// generating low-poly mesh
 
 	SolidifyNode = Graph->AddNodeOfType<FSolidifyMeshNode>(TEXT("Solidify"));
-	Graph->InferConnection(MeshSourceNode, SolidifyNode);
+	Graph->InferConnection(FilterTrianglesNode, SolidifyNode);
 	SolidifySettingsNode = Graph->AddNodeOfType<FSolidifySettingsSourceNode>(TEXT("SolidifySettings"));
 	Graph->InferConnection(SolidifySettingsNode, SolidifyNode);
 
@@ -405,11 +426,11 @@ void FGenerateMeshLODGraph::BuildGraph()
 
 	//DecomposeMeshForCollisionNode = Graph->AddNodeOfType<FMakeTriangleSetsFromMeshNode>(TEXT("Decompose"));
 	DecomposeMeshForCollisionNode = Graph->AddNodeOfType<FMakeTriangleSetsFromGroupsNode>(TEXT("Decompose"));
-	Graph->InferConnection(MeshSourceNode, DecomposeMeshForCollisionNode);
+	Graph->InferConnection(FilterTrianglesNode, DecomposeMeshForCollisionNode);
 	Graph->InferConnection(IgnoreGroupsForCollisionNode, DecomposeMeshForCollisionNode);
 
 	GenerateSimpleCollisionNode = Graph->AddNodeOfType<FGenerateSimpleCollisionNode>(TEXT("GenerateSimpleCollision"));
-	Graph->InferConnection(MeshSourceNode, GenerateSimpleCollisionNode);
+	Graph->InferConnection(FilterTrianglesNode, GenerateSimpleCollisionNode);
 	Graph->InferConnection(DecomposeMeshForCollisionNode, GenerateSimpleCollisionNode);
 	GenerateSimpleCollisionSettingsNode = Graph->AddNodeOfType<FGenerateSimpleCollisionSettingsSourceNode>(TEXT("GenerateSimpleCollisionSettings"));
 	Graph->InferConnection(GenerateSimpleCollisionSettingsNode, GenerateSimpleCollisionNode);
@@ -424,6 +445,14 @@ void FGenerateMeshLODGraph::BuildGraph()
 	// parameters
 	//
 
+
+	FIndexSets IgnoreGroupsForDelete;
+	IgnoreGroupsForDelete.AppendSet({ 0 });
+	UpdateSettingsSourceNodeValue(*Graph, FilterGroupsNode, IgnoreGroupsForDelete);
+
+	FMeshLODGraphPreFilterSettings PreFilterSettings;
+	PreFilterSettings.FilterGroupLayerName = FName(TEXT("PreFilterGroups"));
+	UpdatePreFilterSettings(PreFilterSettings);
 
 	FMeshSolidifySettings SolidifySettings;
 	UpdateSolidifySettings(SolidifySettings);

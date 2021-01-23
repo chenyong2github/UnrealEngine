@@ -202,6 +202,8 @@ bool UGenerateStaticMeshLODProcess::InitializeGenerator()
 
 	// read back default settings
 
+	CurrentSettings.FilterGroupLayer = Generator->GetCurrentPreFilterSettings().FilterGroupLayerName;
+
 	CurrentSettings.SolidifyVoxelResolution = Generator->GetCurrentSolidifySettings().VoxelResolution;
 	CurrentSettings.WindingThreshold = Generator->GetCurrentSolidifySettings().WindingThreshold;
 
@@ -230,73 +232,81 @@ bool UGenerateStaticMeshLODProcess::InitializeGenerator()
 }
 
 
-void UGenerateStaticMeshLODProcess::UpdateSettings(const FGenerateStaticMeshLODProcessSettings& NewSettings)
+void UGenerateStaticMeshLODProcess::UpdateSettings(const FGenerateStaticMeshLODProcessSettings& NewCombinedSettings)
 {
-	bool bSharedVoxelResolutionChanged = (NewSettings.SolidifyVoxelResolution != CurrentSettings.SolidifyVoxelResolution);
+
+	if (NewCombinedSettings.FilterGroupLayer != CurrentSettings.FilterGroupLayer)
+	{
+		FMeshLODGraphPreFilterSettings NewPreFilterSettings = Generator->GetCurrentPreFilterSettings();
+		NewPreFilterSettings.FilterGroupLayerName = NewCombinedSettings.FilterGroupLayer;
+		Generator->UpdatePreFilterSettings(NewPreFilterSettings);
+	}
+
+	bool bSharedVoxelResolutionChanged = (NewCombinedSettings.SolidifyVoxelResolution != CurrentSettings.SolidifyVoxelResolution);
 	if ( bSharedVoxelResolutionChanged
-		|| (NewSettings.WindingThreshold != CurrentSettings.WindingThreshold))
+		|| (NewCombinedSettings.WindingThreshold != CurrentSettings.WindingThreshold))
 	{
 		UE::GeometryFlow::FMeshSolidifySettings NewSolidifySettings = Generator->GetCurrentSolidifySettings();
-		NewSolidifySettings.VoxelResolution = NewSettings.SolidifyVoxelResolution;
-		NewSolidifySettings.WindingThreshold = NewSettings.WindingThreshold;
+		NewSolidifySettings.VoxelResolution = NewCombinedSettings.SolidifyVoxelResolution;
+		NewSolidifySettings.WindingThreshold = NewCombinedSettings.WindingThreshold;
 		Generator->UpdateSolidifySettings(NewSolidifySettings);
 	}
 
 
 	if ( bSharedVoxelResolutionChanged
-		|| (NewSettings.ClosureDistance != CurrentSettings.ClosureDistance))
+		|| (NewCombinedSettings.ClosureDistance != CurrentSettings.ClosureDistance))
 	{
 		UE::GeometryFlow::FVoxClosureSettings NewClosureSettings = Generator->GetCurrentMorphologySettings();
-		NewClosureSettings.VoxelResolution = NewSettings.SolidifyVoxelResolution;
-		NewClosureSettings.Distance = NewSettings.ClosureDistance;
+		NewClosureSettings.VoxelResolution = NewCombinedSettings.SolidifyVoxelResolution;
+		NewClosureSettings.Distance = NewCombinedSettings.ClosureDistance;
 		Generator->UpdateMorphologySettings(NewClosureSettings);
 	}
 
 
-	if (NewSettings.SimplifyTriangleCount != CurrentSettings.SimplifyTriangleCount)
+	if (NewCombinedSettings.SimplifyTriangleCount != CurrentSettings.SimplifyTriangleCount)
 	{
 		UE::GeometryFlow::FMeshSimplifySettings NewSimplifySettings = Generator->GetCurrentSimplifySettings();
-		NewSimplifySettings.TargetCount = NewSettings.SimplifyTriangleCount;
+		NewSimplifySettings.TargetCount = NewCombinedSettings.SimplifyTriangleCount;
 		Generator->UpdateSimplifySettings(NewSimplifySettings);
 	}
 
-	if (NewSettings.NumAutoUVCharts != CurrentSettings.NumAutoUVCharts)
+	if (NewCombinedSettings.NumAutoUVCharts != CurrentSettings.NumAutoUVCharts)
 	{
 		UE::GeometryFlow::FMeshAutoGenerateUVsSettings NewAutoUVSettings = Generator->GetCurrentAutoUVSettings();
-		NewAutoUVSettings.NumCharts = NewSettings.NumAutoUVCharts;
+		NewAutoUVSettings.NumCharts = NewCombinedSettings.NumAutoUVCharts;
 		Generator->UpdateAutoUVSettings(NewAutoUVSettings);
 	}
 
 
-	if ( (NewSettings.BakeResolution != CurrentSettings.BakeResolution) ||
-		 (NewSettings.BakeThickness != CurrentSettings.BakeThickness))
+	if ( (NewCombinedSettings.BakeResolution != CurrentSettings.BakeResolution) ||
+		 (NewCombinedSettings.BakeThickness != CurrentSettings.BakeThickness))
 	{
 		UE::GeometryFlow::FMeshMakeBakingCacheSettings NewBakeSettings = Generator->GetCurrentBakeCacheSettings();
-		NewBakeSettings.Dimensions = FImageDimensions((int32)NewSettings.BakeResolution, (int32)NewSettings.BakeResolution);
-		NewBakeSettings.Thickness = NewSettings.BakeThickness;
+		NewBakeSettings.Dimensions = FImageDimensions((int32)NewCombinedSettings.BakeResolution, (int32)NewCombinedSettings.BakeResolution);
+		NewBakeSettings.Thickness = NewCombinedSettings.BakeThickness;
 		Generator->UpdateBakeCacheSettings(NewBakeSettings);
 	}
 
-	if (NewSettings.ConvexTriangleCount != CurrentSettings.ConvexTriangleCount ||
-		NewSettings.bPrefilterVertices != CurrentSettings.bPrefilterVertices ||
-		NewSettings.PrefilterGridResolution != CurrentSettings.PrefilterGridResolution ||
-		NewSettings.bSimplifyPolygons != CurrentSettings.bSimplifyPolygons ||
-		NewSettings.HullTolerance != CurrentSettings.HullTolerance ||
-		NewSettings.SweepAxis != CurrentSettings.SweepAxis ||
-		NewSettings.CollisionType != CurrentSettings.CollisionType)
+	if (NewCombinedSettings.ConvexTriangleCount != CurrentSettings.ConvexTriangleCount ||
+		NewCombinedSettings.bPrefilterVertices != CurrentSettings.bPrefilterVertices ||
+		NewCombinedSettings.PrefilterGridResolution != CurrentSettings.PrefilterGridResolution ||
+		NewCombinedSettings.bSimplifyPolygons != CurrentSettings.bSimplifyPolygons ||
+		NewCombinedSettings.HullTolerance != CurrentSettings.HullTolerance ||
+		NewCombinedSettings.SweepAxis != CurrentSettings.SweepAxis ||
+		NewCombinedSettings.CollisionType != CurrentSettings.CollisionType)
 	{
 		UE::GeometryFlow::FGenerateSimpleCollisionSettings NewGenCollisionSettings = Generator->GetCurrentGenerateSimpleCollisionSettings();
-		NewGenCollisionSettings.Type = static_cast<UE::GeometryFlow::ESimpleCollisionGeometryType>(NewSettings.CollisionType);
-		NewGenCollisionSettings.ConvexHullSettings.SimplifyToTriangleCount = NewSettings.ConvexTriangleCount;
-		NewGenCollisionSettings.ConvexHullSettings.bPrefilterVertices = NewSettings.bPrefilterVertices;
-		NewGenCollisionSettings.ConvexHullSettings.PrefilterGridResolution = NewSettings.PrefilterGridResolution;
-		NewGenCollisionSettings.SweptHullSettings.bSimplifyPolygons = NewSettings.bSimplifyPolygons;
-		NewGenCollisionSettings.SweptHullSettings.HullTolerance = NewSettings.HullTolerance;
-		NewGenCollisionSettings.SweptHullSettings.SweepAxis = static_cast<FMeshSimpleShapeApproximation::EProjectedHullAxisMode>(NewSettings.SweepAxis);
+		NewGenCollisionSettings.Type = static_cast<UE::GeometryFlow::ESimpleCollisionGeometryType>(NewCombinedSettings.CollisionType);
+		NewGenCollisionSettings.ConvexHullSettings.SimplifyToTriangleCount = NewCombinedSettings.ConvexTriangleCount;
+		NewGenCollisionSettings.ConvexHullSettings.bPrefilterVertices = NewCombinedSettings.bPrefilterVertices;
+		NewGenCollisionSettings.ConvexHullSettings.PrefilterGridResolution = NewCombinedSettings.PrefilterGridResolution;
+		NewGenCollisionSettings.SweptHullSettings.bSimplifyPolygons = NewCombinedSettings.bSimplifyPolygons;
+		NewGenCollisionSettings.SweptHullSettings.HullTolerance = NewCombinedSettings.HullTolerance;
+		NewGenCollisionSettings.SweptHullSettings.SweepAxis = static_cast<FMeshSimpleShapeApproximation::EProjectedHullAxisMode>(NewCombinedSettings.SweepAxis);
 		Generator->UpdateGenerateSimpleCollisionSettings(NewGenCollisionSettings);
 	}
 
-	CurrentSettings = NewSettings;
+	CurrentSettings = NewCombinedSettings;
 }
 
 

@@ -124,6 +124,7 @@ void UGenerateStaticMeshLODAssetTool::Setup()
 	}
 
 	BasicProperties->GeneratorSettings = GenerateProcess->GetCurrentSettings();
+	BasicProperties->WatchProperty(BasicProperties->GeneratorSettings.FilterGroupLayer, [this](FName) { OnSettingsModified(); });
 	BasicProperties->WatchProperty(BasicProperties->GeneratorSettings.SolidifyVoxelResolution, [this](int) { OnSettingsModified(); });
 	BasicProperties->WatchProperty(BasicProperties->GeneratorSettings.WindingThreshold, [this](float) { OnSettingsModified(); });
 	//BasicProperties->WatchProperty(BasicProperties->GeneratorSettings.MorphologyVoxelResolution, [this](int) { OnSettingsModified(); });
@@ -182,15 +183,11 @@ void UGenerateStaticMeshLODAssetTool::Setup()
 	bPreviewValid = false;
 }
 
-
 void UGenerateStaticMeshLODAssetTool::OnSettingsModified()
 {
-	UE_LOG(LogTemp, Warning, TEXT("SETTINGS MODIFIED!"));
-
 	GenerateProcess->UpdateSettings(BasicProperties->GeneratorSettings);
 	bPreviewValid = false;
 }
-
 
 void UGenerateStaticMeshLODAssetTool::Shutdown(EToolShutdownType ShutdownType)
 {

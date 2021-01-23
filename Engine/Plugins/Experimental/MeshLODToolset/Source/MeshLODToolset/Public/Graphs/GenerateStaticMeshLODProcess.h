@@ -64,6 +64,11 @@ struct FGenerateStaticMeshLODProcessSettings
 {
 	GENERATED_BODY()
 
+	// Filter settings
+
+	UPROPERTY(EditAnywhere, Category = DetailFilter, meta = (DisplayName = "Detail Filtering"))
+	FName FilterGroupLayer = FName(TEXT("PreFilterGroups"));
+
 	// Solidify settings
 
 	UPROPERTY(EditAnywhere, Category = Solidify, meta = (DisplayName="Voxel Resolution"))
@@ -91,7 +96,7 @@ struct FGenerateStaticMeshLODProcessSettings
 	// UV settings
 
 	UPROPERTY(EditAnywhere, Category = AutoUV, meta = (DisplayName = "AutoUV Charts", UIMin = 0, UIMax = 1000))
-	int NumAutoUVCharts = 20;
+	int NumAutoUVCharts = 0;
 
 
 	// Bake Settings
@@ -109,15 +114,15 @@ struct FGenerateStaticMeshLODProcessSettings
 	UPROPERTY(EditAnywhere, Category = Collision, meta = (DisplayName = "Collision Type"))
 	EGenerateStaticMeshLODSimpleCollisionGeometryType CollisionType = EGenerateStaticMeshLODSimpleCollisionGeometryType::ConvexHulls;
 
-	UPROPERTY(EditAnywhere, Category = Collision, meta = (DisplayName = "Convex Tri Count", 
+	UPROPERTY(EditAnywhere, Category = Collision, meta = (NoSpinbox = "true", DisplayName = "Convex Tri Count",
 														  EditCondition = "CollisionType == EGenerateStaticMeshLODSimpleCollisionGeometryType::ConvexHulls"))
 	int ConvexTriangleCount = 50;
 
 	UPROPERTY(EditAnywhere, Category = Collision, meta = (EditCondition = "CollisionType == EGenerateStaticMeshLODSimpleCollisionGeometryType::ConvexHulls"))
-	bool bPrefilterVertices = false;
+	bool bPrefilterVertices = true;
 
 	/** Grid resolution (along the maximum-length axis) */
-	UPROPERTY(EditAnywhere, Category = Collision, meta = (EditCondition = "CollisionType == EGenerateStaticMeshLODSimpleCollisionGeometryType::ConvexHulls && bPrefilterVertices", UIMin = 1, UIMax = 30))
+	UPROPERTY(EditAnywhere, Category = Collision, meta = (NoSpinbox = "true", EditCondition = "CollisionType == EGenerateStaticMeshLODSimpleCollisionGeometryType::ConvexHulls && bPrefilterVertices", UIMin = 4, UIMax = 100))
 	int PrefilterGridResolution = 10;
 
 
@@ -126,7 +131,7 @@ struct FGenerateStaticMeshLODProcessSettings
 	UPROPERTY(EditAnywhere, Category = Collision, meta = (EditCondition = "CollisionType == EGenerateStaticMeshLODSimpleCollisionGeometryType::SweptHulls"))
 	bool bSimplifyPolygons = true;
 
-	UPROPERTY(EditAnywhere, Category = Collision, meta = (UIMin = "0", UIMax = "10", ClampMin = "0", ClampMax = "100000",
+	UPROPERTY(EditAnywhere, Category = Collision, meta = (NoSpinbox = "true", UIMin = "0", UIMax = "10", ClampMin = "0", ClampMax = "100000",
 														  EditCondition = "CollisionType == EGenerateStaticMeshLODSimpleCollisionGeometryType::SweptHulls"))
 	float HullTolerance = 0.1;
 
