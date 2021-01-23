@@ -481,6 +481,28 @@ public:
 	}
 
 	/**
+	 * Filters the elements in the map based on a predicate functor.
+	 *
+	 * @param Pred The functor to apply to each element.
+	 * @returns TMap with the same type as this object which contains
+	 *          the subset of elements for which the functor returns true.
+	 */
+	template <typename Predicate>
+	TMap<KeyType, ValueType> FilterByPredicate(Predicate Pred) const
+	{
+		TMap<KeyType, ValueType> FilterResults;
+		FilterResults.Reserve(Pairs.Num());
+		for (const ElementType& Pair : Pairs)
+		{
+			if (Pred(Pair))
+			{
+				FilterResults.Add(Pair);
+			}
+		}
+		return FilterResults;
+	}
+
+	/**
 	 * Find the value associated with a specified key.
 	 *
 	 * @param Key The key to search for.
