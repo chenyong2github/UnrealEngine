@@ -22,6 +22,10 @@ class UAnimSequence;
 struct FCompactPose;
 struct FReferenceSkeleton;
 
+namespace UE { namespace PoseSearch {
+class FPoseHistory;
+}}
+
 UENUM()
 enum class EPoseSearchFeatureType : int32
 {
@@ -161,13 +165,19 @@ public:
 	*/
 
 	UPROPERTY(EditAnywhere, Category = "Schema")
-	TArray<int32> PoseSampleOffsets;
+	TArray<float> PoseSampleTimes;
 
 	UPROPERTY(EditAnywhere, Category = "Schema")
+	TArray<float> TrajectorySampleTimes;
+
+	UPROPERTY(EditAnywhere, Category = "Schema")
+	TArray<float> TrajectorySampleDistances;
+
+	UPROPERTY()
 	TArray<int32> TrajectorySampleOffsets;
 
-	UPROPERTY(EditAnywhere, Category = "Schema")
-	TArray<float> TrajectoryDistanceOffsets;
+	UPROPERTY()
+	TArray<int32> PoseSampleOffsets;
 
 	UPROPERTY()
 	float SamplingInterval;
@@ -187,6 +197,8 @@ public:
 
 	bool IsValid () const;
 
+	int32 NumBones () const { return BoneIndices.Num(); }
+
 public: // UObject
 	virtual void PreSave(const class ITargetPlatform* TargetPlatform) override;
 	virtual void PostLoad() override;
@@ -197,6 +209,7 @@ public: // IBoneReferenceSkeletonProvider
 private:
 	void GenerateLayout();
 	void ResolveBoneReferences();
+	void ConvertTimesToOffsets(TArrayView<const float> SampleTimes, TArray<int32>& OutSampleOffsets);
 };
 
 /**
@@ -298,6 +311,50 @@ public: // UObject
 };
 
 
+/** 
+* Helper object for writing features into a float buffer according to a feature vector layout.
+* Keeps track of which features are present, allowing the feature vector to be built up piecemeal.
+* FPoseSearchFeatureVectorBuilder is used to build search queries at runtime and during search index construction.
+*/
+
+USTRUCT(BlueprintType, Category = "Animation|PoseSearch")
+struct POSESEARCH_API FPoseSearchFeatureVectorBuilder
+{
+	GENERATED_BODY()
+public:
+	void Init(const UPoseSearchSchema* Schema);
+	void ResetFeatures();
+
+	TArrayView<const float> GetValues() const { return Values; }
+
+	void SetTransform(FPoseSearchFeatureDesc Feature, const FTransform& Transform);
+	void SetTransformDerivative(FPoseSearchFeatureDesc Feature, const FTransform& Transform, const FTransform& PrevTransform, float DeltaTime);
+	void SetPosition(FPoseSearchFeatureDesc Feature, const FVector& Translation);
+	void SetRotation(FPoseSearchFeatureDesc Feature, const FQuat& Rotation);
+	void SetLinearVelocity(FPoseSearchFeatureDesc Feature, const FTransform& Transform, const FTransform& PrevTransform, float DeltaTime);
+	void SetAngularVelocity(FPoseSearchFeatureDesc Feature, const FTransform& Transform, const FTransform& PrevTransform, float DeltaTime);
+	void SetVector(FPoseSearchFeatureDesc Feature, const FVector& Vector);
+	bool SetPoseFeatures(UE::PoseSearch::FPoseHistory* History);
+
+	void Copy(TArrayView<const float> FeatureVector);
+	void CopyFeature(const FPoseSearchFeatureVectorBuilder& OtherBuilder, int32 FeatureIdx);
+
+	void MergeReplace(const FPoseSearchFeatureVectorBuilder& OtherBuilder);
+
+	bool IsInitialized() const;
+	bool IsComplete() const;
+	bool IsCompatible(const FPoseSearchFeatureVectorBuilder& OtherBuilder) const;
+
+private:
+	UPROPERTY(Transient)
+	const UPoseSearchSchema* Schema = nullptr;
+
+	TArray<float> Values;
+	TBitArray<> FeaturesAdded;
+	int32 NumFeaturesAdded = 0;
+};
+
+
 namespace UE { namespace PoseSearch {
 
 /** Records poses over time in a ring buffer. FFeatureVectorBuilder uses this to sample from the present or past poses according to the search schema. */
@@ -315,7 +372,7 @@ public:
 	TArrayView<const FTransform> GetPrevLocalPoseSample() const { return SampledPrevLocalPose; }
 	TArrayView<const FTransform> GetPrevComponentPoseSample() const { return SampledPrevComponentPose; }
 	float GetTimeHorizon() const { return TimeHorizon; }
-	TArray<float>& GetQueryBuffer() { return QueryBuffer; }
+	FPoseSearchFeatureVectorBuilder& GetQueryBuilder() { return QueryBuilder; }
 
 private:
 	bool SampleLocalPose(float Time, const TArray<FBoneIndexType>& RequiredBones, TArray<FTransform>& LocalPose);
@@ -331,7 +388,7 @@ private:
 	TArray<FTransform> SampledComponentPose;
 	TArray<FTransform> SampledPrevLocalPose;
 	TArray<FTransform> SampledPrevComponentPose;
-	TArray<float> QueryBuffer;
+	FPoseSearchFeatureVectorBuilder QueryBuilder;
 
 	float TimeHorizon = 0.0f;
 };
@@ -346,40 +403,6 @@ public:
 	virtual FPoseHistory& GetPoseHistory() = 0;
 };
 
-
-/** 
-* Helper object for writing features into a float buffer according to a feature vector layout.
-* Keeps track of which features are present, allowing the feature vector to be built up piecemeal.
-* FFeatureVectorBuilder is used to build search queries at runtime and for adding samples during search index construction.
-*/
-class POSESEARCH_API FFeatureVectorBuilder
-{
-public:
-	void Init(const FPoseSearchFeatureVectorLayout* Layout, TArrayView<float> Buffer);
-	void ResetFeatures();
-
-	void SetTransform(FPoseSearchFeatureDesc Feature, const FTransform& Transform);
-	void SetTransformDerivative(FPoseSearchFeatureDesc Feature, const FTransform& Transform, const FTransform& PrevTransform, float DeltaTime);
-
-	void SetPosition(FPoseSearchFeatureDesc Feature, const FVector& Translation);
-	void SetRotation(FPoseSearchFeatureDesc Feature, const FQuat& Rotation);
-	void SetLinearVelocity(FPoseSearchFeatureDesc Feature, const FTransform& Transform, const FTransform& PrevTransform, float DeltaTime);
-	void SetAngularVelocity(FPoseSearchFeatureDesc Feature, const FTransform& Transform, const FTransform& PrevTransform, float DeltaTime);
-
-	void SetVector(FPoseSearchFeatureDesc Feature, const FVector& Vector);
-
-	bool SetPoseFeatures(const UPoseSearchSchema* Schema, FPoseHistory* History);
-
-	void Copy(TArrayView<const float> FeatureVector);
-
-	bool IsComplete() const;
-
-private:
-	const FPoseSearchFeatureVectorLayout* Layout = nullptr;
-	TArrayView<float> Values;
-	TBitArray<> FeaturesAdded;
-	int32 NumFeaturesAdded = 0;
-};
 
 /** Helper object for extracting features from a float buffer according to the feature vector layout. */
 class POSESEARCH_API FFeatureVectorReader

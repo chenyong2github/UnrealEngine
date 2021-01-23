@@ -16,14 +16,13 @@ public:
 	UPROPERTY()
 	FPoseLink Source;
 
-	// Capsule local velocity from inputs
-	// Note this is temporary, we'll need a component to supply future trajectory according to the database schema
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Settings, meta=(PinShownByDefault))
-	FVector LocalVelocity = FVector::ZeroVector;
-
 	// Collection of animations for motion matching
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Settings, meta=(PinShownByDefault))
 	const UPoseSearchDatabase* Database = nullptr;
+
+	// Motion matching goal
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Settings, meta=(PinShownByDefault))
+	FPoseSearchFeatureVectorBuilder Goal;
 
 	// Time in seconds to blend out to the new pose. Uses inertial blending and requires an Inertialization node after this node.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Settings, meta=(ClampMin="0"))
@@ -59,10 +58,9 @@ private:
 	int32 DbSequenceIdx = INDEX_NONE;
 
 	// The current query feature vector used to search the database for pose candidates
-	UE::PoseSearch::FFeatureVectorBuilder QueryBuilder;
-	TArray<float> Query;
+	FPoseSearchFeatureVectorBuilder ComposedQuery;
 
 	bool IsValidForSearch() const;
-	void SetTrajectoryFeatures();
+	void ComposeQuery();
 	void JumpToPose(const FAnimationUpdateContext& Context, UE::PoseSearch::FDbSearchResult Result);
 };

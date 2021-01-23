@@ -69,7 +69,7 @@ FLinearColor GetColorForFeature(FPoseSearchFeatureDesc Feature, const FPoseSearc
 	int32 FeatureIdx = Layout->Features.IndexOfByKey(Feature);
 	check(FeatureIdx != INDEX_NONE);
 	float Lerp = (float)(FeatureIdx) / (Layout->Features.Num() - 1);
-	FLinearColor ColorHSV(Lerp * 360.0f, 0.8f, 0.5f, 0.6f);
+	FLinearColor ColorHSV(Lerp * 360.0f, 0.8f, 0.5f, 1.0f);
 	return ColorHSV.HSVToLinearRGB();
 }
 
@@ -221,11 +221,15 @@ bool FPoseSearchFeatureVectorLayout::IsValid(int32 MaxNumBones) const
 
 void UPoseSearchSchema::PreSave(const class ITargetPlatform* TargetPlatform)
 {
+	SampleRate = FMath::Clamp(SampleRate, 1, 60);
 	SamplingInterval = 1.0f / SampleRate;
 
-	PoseSampleOffsets.Sort(TLess<>());
-	TrajectorySampleOffsets.Sort(TLess<>());
-	TrajectoryDistanceOffsets.Sort(TLess<>());
+	PoseSampleTimes.Sort(TLess<>());
+	TrajectorySampleTimes.Sort(TLess<>());
+	TrajectorySampleDistances.Sort(TLess<>());
+
+	ConvertTimesToOffsets(PoseSampleTimes, PoseSampleOffsets);
+	ConvertTimesToOffsets(TrajectorySampleTimes, TrajectorySampleOffsets);
 
 	GenerateLayout();
 	ResolveBoneReferences();
@@ -280,7 +284,7 @@ void UPoseSearchSchema::GenerateLayout()
 		}
 	}
 
- 	for (int32 TrajectoryDistSubsampleIdx = 0; TrajectoryDistSubsampleIdx != TrajectoryDistanceOffsets.Num(); ++TrajectoryDistSubsampleIdx)
+ 	for (int32 TrajectoryDistSubsampleIdx = 0; TrajectoryDistSubsampleIdx != TrajectorySampleDistances.Num(); ++TrajectoryDistSubsampleIdx)
  	{
  		FPoseSearchFeatureDesc Element;
  		Element.SchemaBoneIdx = FPoseSearchFeatureDesc::TrajectoryBoneIndex;
@@ -347,6 +351,16 @@ void UPoseSearchSchema::ResolveBoneReferences()
 	if (Skeleton)
 	{
 		FAnimationRuntime::EnsureParentsPresent(BoneIndicesWithParents, Skeleton->GetReferenceSkeleton());
+	}
+}
+
+void UPoseSearchSchema::ConvertTimesToOffsets(TArrayView<const float> SampleTimes, TArray<int32>& OutSampleOffsets)
+{
+	OutSampleOffsets.SetNum(SampleTimes.Num());
+
+	for (int32 Idx = 0; Idx != SampleTimes.Num(); ++Idx)
+	{
+		OutSampleOffsets[Idx] = FMath::RoundToInt(SampleTimes[Idx] * SampleRate);
 	}
 }
 
@@ -469,6 +483,222 @@ void UPoseSearchDatabase::PreSave(const class ITargetPlatform* TargetPlatform)
 }
 
 
+//////////////////////////////////////////////////////////////////////////
+// FPoseSearchFeatureVectorBuilder
+
+void FPoseSearchFeatureVectorBuilder::Init(const UPoseSearchSchema* InSchema)
+{
+	check(InSchema && InSchema->IsValid());
+	Schema = InSchema;
+	ResetFeatures();
+}
+
+void FPoseSearchFeatureVectorBuilder::ResetFeatures()
+{
+	Values.Reset(0);
+	Values.SetNumZeroed(Schema->Layout.NumFloats);
+	NumFeaturesAdded = 0;
+	FeaturesAdded.Init(false, Schema->Layout.Features.Num());
+}
+
+void FPoseSearchFeatureVectorBuilder::SetTransform(FPoseSearchFeatureDesc Element, const FTransform& Transform)
+{
+	SetPosition(Element, Transform.GetTranslation());
+	SetRotation(Element, Transform.GetRotation());
+}
+
+void FPoseSearchFeatureVectorBuilder::SetTransformDerivative(FPoseSearchFeatureDesc Element, const FTransform& Transform, const FTransform& PrevTransform, float DeltaTime)
+{
+	SetLinearVelocity(Element, Transform, PrevTransform, DeltaTime);
+	SetAngularVelocity(Element, Transform, PrevTransform, DeltaTime);
+}
+
+void FPoseSearchFeatureVectorBuilder::SetPosition(FPoseSearchFeatureDesc Element, const FVector& Position)
+{
+	Element.Type = EPoseSearchFeatureType::Position;
+	SetVector(Element, Position);
+}
+
+void FPoseSearchFeatureVectorBuilder::SetRotation(FPoseSearchFeatureDesc Element, const FQuat& Rotation)
+{
+	Element.Type = EPoseSearchFeatureType::Rotation;
+	int32 ElementIndex = Schema->Layout.Features.Find(Element);
+	if (ElementIndex >= 0)
+	{
+		FVector X = Rotation.GetAxisX();
+		FVector Y = Rotation.GetAxisY();
+
+		const FPoseSearchFeatureDesc& FoundElement = Schema->Layout.Features[ElementIndex];
+
+		Values[FoundElement.ValueOffset + 0] = X.X;
+		Values[FoundElement.ValueOffset + 1] = X.Y;
+		Values[FoundElement.ValueOffset + 2] = X.Z;
+		Values[FoundElement.ValueOffset + 3] = Y.X;
+		Values[FoundElement.ValueOffset + 4] = Y.Y;
+		Values[FoundElement.ValueOffset + 5] = Y.Z;
+
+		if (!FeaturesAdded[ElementIndex])
+		{
+			FeaturesAdded[ElementIndex] = true;
+			++NumFeaturesAdded;
+		}
+	}
+}
+
+void FPoseSearchFeatureVectorBuilder::SetLinearVelocity(FPoseSearchFeatureDesc Element, const FTransform& Transform, const FTransform& PrevTransform, float DeltaTime)
+{
+	Element.Type = EPoseSearchFeatureType::LinearVelocity;
+	FVector LinearVelocity = (Transform.GetTranslation() - PrevTransform.GetTranslation()) / DeltaTime;
+	SetVector(Element, LinearVelocity);
+}
+
+void FPoseSearchFeatureVectorBuilder::SetAngularVelocity(FPoseSearchFeatureDesc Element, const FTransform& Transform, const FTransform& PrevTransform, float DeltaTime)
+{
+	Element.Type = EPoseSearchFeatureType::AngularVelocity;
+	int32 ElementIndex = Schema->Layout.Features.Find(Element);
+	if (ElementIndex >= 0)
+	{
+		FQuat Q0 = PrevTransform.GetRotation();
+		FQuat Q1 = Transform.GetRotation();
+		Q1.EnforceShortestArcWith(Q0);
+
+		// Given angular velocity vector w, quaternion differentiation can be represented as
+		//   dq/dt = (w * q)/2
+		// Solve for w
+		//   w = 2 * dq/dt * q^-1
+		// And let dq/dt be expressed as the finite difference
+		//   dq/dt = (q(t+h) - q(t)) / h
+		FQuat DQDt = (Q1 - Q0) / DeltaTime;
+		FQuat QInv = Q0.Inverse();
+		FQuat W = (DQDt * QInv) * 2.0f;
+
+		FVector AngularVelocity(W.X, W.Y, W.Z);
+
+		const FPoseSearchFeatureDesc& FoundElement = Schema->Layout.Features[ElementIndex];
+
+		Values[FoundElement.ValueOffset + 0] = AngularVelocity[0];
+		Values[FoundElement.ValueOffset + 1] = AngularVelocity[1];
+		Values[FoundElement.ValueOffset + 2] = AngularVelocity[2];
+
+		if (!FeaturesAdded[ElementIndex])
+		{
+			FeaturesAdded[ElementIndex] = true;
+			++NumFeaturesAdded;
+		}
+	}
+}
+
+void FPoseSearchFeatureVectorBuilder::SetVector(FPoseSearchFeatureDesc Element, const FVector& Vector)
+{
+	int32 ElementIndex = Schema->Layout.Features.Find(Element);
+	if (ElementIndex >= 0)
+	{
+		const FPoseSearchFeatureDesc& FoundElement = Schema->Layout.Features[ElementIndex];
+
+		Values[FoundElement.ValueOffset + 0] = Vector[0];
+		Values[FoundElement.ValueOffset + 1] = Vector[1];
+		Values[FoundElement.ValueOffset + 2] = Vector[2];
+
+		if (!FeaturesAdded[ElementIndex])
+		{
+			FeaturesAdded[ElementIndex] = true;
+			++NumFeaturesAdded;
+		}
+	}
+}
+
+bool FPoseSearchFeatureVectorBuilder::SetPoseFeatures(UE::PoseSearch::FPoseHistory* History)
+{
+	check(Schema && Schema->IsValid());
+	check(History);
+
+	FPoseSearchFeatureDesc Feature;
+	Feature.Domain = EPoseSearchFeatureDomain::Time;
+
+	for (int32 SubsampleIdx = 0; SubsampleIdx != Schema->PoseSampleOffsets.Num(); ++SubsampleIdx)
+	{
+		Feature.SubsampleIdx = SubsampleIdx;
+
+		int32 Offset = Schema->PoseSampleOffsets[SubsampleIdx];
+		float TimeDelta = -Offset * Schema->SamplingInterval;
+
+		if (!History->Sample(TimeDelta, Schema->Skeleton->GetReferenceSkeleton(), Schema->BoneIndicesWithParents))
+		{
+			return false;
+		}
+
+		TArrayView<const FTransform> ComponentPose = History->GetComponentPoseSample();
+		TArrayView<const FTransform> ComponentPrevPose = History->GetPrevComponentPoseSample();
+		for (int32 SchemaBoneIdx = 0; SchemaBoneIdx != Schema->BoneIndices.Num(); ++SchemaBoneIdx)
+		{
+			Feature.SchemaBoneIdx = SchemaBoneIdx;
+
+			int32 SkeletonBoneIndex = Schema->BoneIndices[SchemaBoneIdx];
+			const FTransform& Transform = ComponentPose[SkeletonBoneIndex];
+			const FTransform& PrevTransform = ComponentPrevPose[SkeletonBoneIndex];
+			SetTransform(Feature, Transform);
+			SetTransformDerivative(Feature, Transform, PrevTransform, History->GetSampleInterval());
+		}
+	}
+
+	return true;
+}
+
+void FPoseSearchFeatureVectorBuilder::Copy(TArrayView<const float> FeatureVector)
+{
+	check(FeatureVector.Num() == Values.Num());
+	FMemory::Memcpy(Values.GetData(), FeatureVector.GetData(), FeatureVector.GetTypeSize() * FeatureVector.Num());
+	NumFeaturesAdded = Schema->Layout.Features.Num();
+	FeaturesAdded.SetRange(0, FeaturesAdded.Num(), true);
+}
+
+void FPoseSearchFeatureVectorBuilder::CopyFeature(const FPoseSearchFeatureVectorBuilder& OtherBuilder, int32 FeatureIdx)
+{
+	check(IsCompatible(OtherBuilder));
+	check(OtherBuilder.FeaturesAdded[FeatureIdx]);
+
+	const FPoseSearchFeatureDesc& FeatureDesc = Schema->Layout.Features[FeatureIdx];
+	const int32 FeatureNumFloats = UE::PoseSearch::GetFeatureTypeTraits(FeatureDesc.Type).NumFloats;
+	const int32 FeatureValueOffset = FeatureDesc.ValueOffset;
+
+	for(int32 FeatureValueIdx = FeatureValueOffset; FeatureValueIdx != FeatureValueOffset + FeatureNumFloats; ++FeatureValueIdx)
+	{
+		Values[FeatureValueIdx] = OtherBuilder.Values[FeatureValueIdx];
+	}
+
+	if (!FeaturesAdded[FeatureIdx])
+	{
+		FeaturesAdded[FeatureIdx] = true;
+		++NumFeaturesAdded;
+	}
+}
+
+void FPoseSearchFeatureVectorBuilder::MergeReplace(const FPoseSearchFeatureVectorBuilder& OtherBuilder)
+{
+	check(IsCompatible(OtherBuilder));
+
+	for (TConstSetBitIterator<> Iter(OtherBuilder.FeaturesAdded); Iter; ++Iter)
+	{
+		CopyFeature(OtherBuilder, Iter.GetIndex());
+	}
+}
+
+bool FPoseSearchFeatureVectorBuilder::IsInitialized() const
+{
+	return Schema != nullptr;
+}
+
+bool FPoseSearchFeatureVectorBuilder::IsComplete() const
+{
+	return NumFeaturesAdded == Schema->Layout.Features.Num();
+}
+
+bool FPoseSearchFeatureVectorBuilder::IsCompatible(const FPoseSearchFeatureVectorBuilder& OtherBuilder) const
+{
+	return IsInitialized() && (Schema == OtherBuilder.Schema);
+}
+
+
 namespace UE { namespace PoseSearch {
 
 //////////////////////////////////////////////////////////////////////////
@@ -511,7 +741,7 @@ void FPoseHistory::Init(const FPoseHistory& History)
 bool FPoseHistory::SampleLocalPose(float SecondsAgo, const TArray<FBoneIndexType>& RequiredBones, TArray<FTransform>& LocalPose)
 {
 	int32 NextIdx = LowerBound(Knots.begin(), Knots.end(), SecondsAgo, TGreater<>());
-	if (NextIdx >= Knots.Num())
+	if (NextIdx <= 0 || NextIdx >= Knots.Num())
 	{
 		return false;
 	}
@@ -612,181 +842,6 @@ void FPoseHistory::Update(float SecondsElapsed, const FCompactPose& Pose)
 float FPoseHistory::GetSampleInterval() const
 {
 	return TimeHorizon / Knots.Max();
-}
-
-
-//////////////////////////////////////////////////////////////////////////
-// FFeatureVectorBuilder
-
-void FFeatureVectorBuilder::Init(const FPoseSearchFeatureVectorLayout* InLayout, TArrayView<float> Buffer)
-{
-	check(InLayout);
-	check(Buffer.Num() == InLayout->NumFloats);
-	Layout = InLayout;
-	Values = Buffer;
-	ResetFeatures();
-}
-
-void FFeatureVectorBuilder::ResetFeatures()
-{
-	NumFeaturesAdded = 0;
-	FeaturesAdded.Init(false, Layout->Features.Num());
-}
-
-void FFeatureVectorBuilder::SetTransform(FPoseSearchFeatureDesc Element, const FTransform& Transform)
-{
-	SetPosition(Element, Transform.GetTranslation());
-	SetRotation(Element, Transform.GetRotation());
-}
-
-void FFeatureVectorBuilder::SetTransformDerivative(FPoseSearchFeatureDesc Element, const FTransform& Transform, const FTransform& PrevTransform, float DeltaTime)
-{
-	SetLinearVelocity(Element, Transform, PrevTransform, DeltaTime);
-	SetAngularVelocity(Element, Transform, PrevTransform, DeltaTime);
-}
-
-void FFeatureVectorBuilder::SetPosition(FPoseSearchFeatureDesc Element, const FVector& Position)
-{
-	Element.Type = EPoseSearchFeatureType::Position;
-	SetVector(Element, Position);
-}
-
-void FFeatureVectorBuilder::SetRotation(FPoseSearchFeatureDesc Element, const FQuat& Rotation)
-{
-	Element.Type = EPoseSearchFeatureType::Rotation;
-	int32 ElementIndex = Layout->Features.Find(Element);
-	if (ElementIndex >= 0)
-	{
-		FVector X = Rotation.GetAxisX();
-		FVector Y = Rotation.GetAxisY();
-
-		const FPoseSearchFeatureDesc& FoundElement = Layout->Features[ElementIndex];
-
-		Values[FoundElement.ValueOffset + 0] = X.X;
-		Values[FoundElement.ValueOffset + 1] = X.Y;
-		Values[FoundElement.ValueOffset + 2] = X.Z;
-		Values[FoundElement.ValueOffset + 3] = Y.X;
-		Values[FoundElement.ValueOffset + 4] = Y.Y;
-		Values[FoundElement.ValueOffset + 5] = Y.Z;
-
-		if (!FeaturesAdded[ElementIndex])
-		{
-			FeaturesAdded[ElementIndex] = true;
-			++NumFeaturesAdded;
-		}
-	}
-}
-
-void FFeatureVectorBuilder::SetLinearVelocity(FPoseSearchFeatureDesc Element, const FTransform& Transform, const FTransform& PrevTransform, float DeltaTime)
-{
-	Element.Type = EPoseSearchFeatureType::LinearVelocity;
-	FVector LinearVelocity = (Transform.GetTranslation() - PrevTransform.GetTranslation()) / DeltaTime;
-	SetVector(Element, LinearVelocity);
-}
-
-void FFeatureVectorBuilder::SetAngularVelocity(FPoseSearchFeatureDesc Element, const FTransform& Transform, const FTransform& PrevTransform, float DeltaTime)
-{
-	Element.Type = EPoseSearchFeatureType::AngularVelocity;
-	int32 ElementIndex = Layout->Features.Find(Element);
-	if (ElementIndex >= 0)
-	{
-		FQuat Q0 = PrevTransform.GetRotation();
-		FQuat Q1 = Transform.GetRotation();
-		Q1.EnforceShortestArcWith(Q0);
-
-		// Given angular velocity vector w, quaternion differentiation can be represented as
-		//   dq/dt = (w * q)/2
-		// Solve for w
-		//   w = 2 * dq/dt * q^-1
-		// And let dq/dt be expressed as the finite difference
-		//   dq/dt = (q(t+h) - q(t)) / h
-		FQuat DQDt = (Q1 - Q0) / DeltaTime;
-		FQuat QInv = Q0.Inverse();
-		FQuat W = (DQDt * QInv) * 2.0f;
-
-		FVector AngularVelocity(W.X, W.Y, W.Z);
-
-		const FPoseSearchFeatureDesc& FoundElement = Layout->Features[ElementIndex];
-
-		Values[FoundElement.ValueOffset + 0] = AngularVelocity[0];
-		Values[FoundElement.ValueOffset + 1] = AngularVelocity[1];
-		Values[FoundElement.ValueOffset + 2] = AngularVelocity[2];
-
-		if (!FeaturesAdded[ElementIndex])
-		{
-			FeaturesAdded[ElementIndex] = true;
-			++NumFeaturesAdded;
-		}
-	}
-}
-
-void FFeatureVectorBuilder::SetVector(FPoseSearchFeatureDesc Element, const FVector& Vector)
-{
-	int32 ElementIndex = Layout->Features.Find(Element);
-	if (ElementIndex >= 0)
-	{
-		const FPoseSearchFeatureDesc& FoundElement = Layout->Features[ElementIndex];
-
-		Values[FoundElement.ValueOffset + 0] = Vector[0];
-		Values[FoundElement.ValueOffset + 1] = Vector[1];
-		Values[FoundElement.ValueOffset + 2] = Vector[2];
-
-		if (!FeaturesAdded[ElementIndex])
-		{
-			FeaturesAdded[ElementIndex] = true;
-			++NumFeaturesAdded;
-		}
-	}
-}
-
-bool FFeatureVectorBuilder::SetPoseFeatures(const UPoseSearchSchema* Schema, FPoseHistory* History)
-{
-	check(Schema && Schema->IsValid());
-	check(History);
-
-	FPoseSearchFeatureDesc Feature;
-	Feature.Domain = EPoseSearchFeatureDomain::Time;
-
-	for (int32 SubsampleIdx = 0; SubsampleIdx != Schema->PoseSampleOffsets.Num(); ++SubsampleIdx)
-	{
-		Feature.SubsampleIdx = SubsampleIdx;
-
-		int32 Offset = Schema->PoseSampleOffsets[SubsampleIdx];
-		float TimeDelta = -Offset * Schema->SamplingInterval;
-
-		if (!History->Sample(TimeDelta, Schema->Skeleton->GetReferenceSkeleton(), Schema->BoneIndicesWithParents))
-		{
-			return false;
-		}
-
-		TArrayView<const FTransform> ComponentPose = History->GetComponentPoseSample();
-		TArrayView<const FTransform> ComponentPrevPose = History->GetPrevComponentPoseSample();
-		for (int32 SchemaBoneIdx = 0; SchemaBoneIdx != Schema->BoneIndices.Num(); ++SchemaBoneIdx)
-		{
-			Feature.SchemaBoneIdx = SchemaBoneIdx;
-
-			int32 SkeletonBoneIndex = Schema->BoneIndices[SchemaBoneIdx];
-			const FTransform& Transform = ComponentPose[SkeletonBoneIndex];
-			const FTransform& PrevTransform = ComponentPrevPose[SkeletonBoneIndex];
-			SetTransform(Feature, Transform);
-			SetTransformDerivative(Feature, Transform, PrevTransform, History->GetSampleInterval());
-		}
-	}
-
-	return true;
-}
-
-void FFeatureVectorBuilder::Copy(TArrayView<const float> FeatureVector)
-{
-	check(FeatureVector.Num() == Values.Num());
-	FMemory::Memcpy(Values.GetData(), FeatureVector.GetData(), FeatureVector.GetTypeSize() * FeatureVector.Num());
-	NumFeaturesAdded = Layout->Features.Num();
-	FeaturesAdded.SetRange(0, FeaturesAdded.Num(), true);
-}
-
-bool FFeatureVectorBuilder::IsComplete() const
-{
-	return NumFeaturesAdded == Layout->Features.Num();
 }
 
 
@@ -895,7 +950,7 @@ bool FFeatureVectorReader::GetVector(FPoseSearchFeatureDesc Element, FVector* Ou
 
 
 //////////////////////////////////////////////////////////////////////////
-// FSequenceIndexer
+// FDebugDrawParams
 
 bool FDebugDrawParams::CanDraw () const
 {
@@ -960,7 +1015,7 @@ public:
 
 private:
 	void SampleBegin(int32 SampleIdx);
-	void SampleEnd();
+	void SampleEnd(int32 SampleIdx);
 	void ExtractPoses(const UAnimSequence* Sequence);
 	void ExtractRootMotion(const UAnimSequence* Sequence);
 	void AddPoseFeatures(int32 SampleIdx);
@@ -988,7 +1043,7 @@ private:
 
 	TArray<float> Values;
 	
-	FFeatureVectorBuilder Builder;
+	FPoseSearchFeatureVectorBuilder Builder;
 	FSampleContext Context;
 };
 
@@ -1049,7 +1104,7 @@ FSequenceIndexer::Result FSequenceIndexer::Process(const UPoseSearchSchema* InSc
 		AddTrajectoryTimeFeatures(SampleIdx);
 		AddTrajectoryDistanceFeatures(SampleIdx);
 
-		SampleEnd();
+		SampleEnd(SampleIdx);
 	}
 
 	return GetResult();
@@ -1065,14 +1120,20 @@ FSequenceIndexer::Result FSequenceIndexer::GetResult() const
 
 void FSequenceIndexer::SampleBegin(int32 SampleIdx)
 {
-	int32 FirstValueIdx = (SampleIdx - Context.FirstIndexedSample) * Schema->Layout.NumFloats;
-	TArrayView<float> FeatureVectorValues = MakeArrayView(&Values[FirstValueIdx], Schema->Layout.NumFloats);
-	Builder.Init(&Schema->Layout, FeatureVectorValues);
+	Builder.Init(Schema);
 }
 
-void FSequenceIndexer::SampleEnd()
+void FSequenceIndexer::SampleEnd(int32 SampleIdx)
 {
 	check(Builder.IsComplete());
+
+	int32 FirstValueIdx = (SampleIdx - Context.FirstIndexedSample) * Schema->Layout.NumFloats;
+	TArrayView<float> WriteValues = MakeArrayView(&Values[FirstValueIdx], Schema->Layout.NumFloats);
+
+	TArrayView<const float> ReadValues = Builder.GetValues();
+	
+	check(WriteValues.Num() == ReadValues.Num());
+	FMemory::Memcpy(WriteValues.GetData(), ReadValues.GetData(), WriteValues.Num() * WriteValues.GetTypeSize());
 }
 
 void FSequenceIndexer::ExtractPoses(const UAnimSequence* Sequence)
@@ -1211,11 +1272,11 @@ void FSequenceIndexer::AddTrajectoryDistanceFeatures(int32 SampleIdx)
 
 	FTransform SampleSpaceOrigin = Context.AccumulatedRootMotion[SampleIdx];
 
-	for (int32 SubsampleIdx = 0; SubsampleIdx != Schema->TrajectoryDistanceOffsets.Num(); ++SubsampleIdx)
+	for (int32 SubsampleIdx = 0; SubsampleIdx != Schema->TrajectorySampleDistances.Num(); ++SubsampleIdx)
 	{
 		CurrentElement.SubsampleIdx = SubsampleIdx;
 
-		const float TrajectoryDistance = Schema->TrajectoryDistanceOffsets[SubsampleIdx];
+		const float TrajectoryDistance = Schema->TrajectorySampleDistances[SubsampleIdx];
 		const float SampleAccumulatedRootDistance = TrajectoryDistance + AccumulatedRootDistances[SampleIdx];
 
 		int32 LowerBoundSampleIdx = Algo::LowerBound(AccumulatedRootDistances, SampleAccumulatedRootDistance);
@@ -1276,13 +1337,6 @@ static void DrawTrajectoryFeatures(const FDebugDrawParams& DrawParams, const FFe
 			TrajectoryPos = DrawParams.RootTransform.TransformPosition(TrajectoryPos);
 			DrawDebugSphere(DrawParams.World, TrajectoryPos, DrawDebugSphereSize, DrawDebugSphereSegments, Color, false, LifeTime, DepthPriority,  DrawDebugSphereLineThickness);
 
-			if (SubsampleIdx != 0)
-			{
-				FVector Direction;
-				float Length;
-				(TrajectoryPos - TrajectoryPosPrev).ToDirectionAndLength(Direction, Length);
-				DrawDebugLine(DrawParams.World, TrajectoryPosPrev, TrajectoryPos, Color, false, LifeTime, DepthPriority, DrawDebugLineThickness);
-			}
 
 			TrajectoryPosPrev = TrajectoryPos;
 		}
@@ -1411,6 +1465,11 @@ static void DrawQuery(const FDebugDrawParams& DrawParams)
 
 	const UPoseSearchSchema* Schema = DrawParams.GetSchema();
 	check(Schema);
+
+	if (DrawParams.Query.Num() != Schema->Layout.NumFloats)
+	{
+		return;
+	}
 
 	FFeatureVectorReader Reader;
 	Reader.Init(&Schema->Layout);
@@ -1672,16 +1731,12 @@ UE::Anim::IPoseSearchProvider::FSearchResult FModule::Search(const FAnimationBas
 	}
 
 	FPoseHistory& PoseHistory = PoseHistoryProvider->GetPoseHistory();
-	TArray<float>& QueryBuffer = PoseHistory.GetQueryBuffer();
+	FPoseSearchFeatureVectorBuilder& QueryBuilder = PoseHistory.GetQueryBuilder();
 
-	QueryBuffer.SetNum(MetaData->Schema->Layout.NumFloats);
-	TArrayView<float> Query = MakeArrayView(QueryBuffer.GetData(), QueryBuffer.Num());
+	QueryBuilder.Init(MetaData->Schema);
+	QueryBuilder.SetPoseFeatures(&PoseHistory);
 
-	FFeatureVectorBuilder QueryBuilder;
-	QueryBuilder.Init(&MetaData->Schema->Layout, Query);
-	QueryBuilder.SetPoseFeatures(MetaData->Schema, &PoseHistory);
-
-	::UE::PoseSearch::FSearchResult Result = ::UE::PoseSearch::Search(Sequence, Query);
+	::UE::PoseSearch::FSearchResult Result = ::UE::PoseSearch::Search(Sequence, QueryBuilder.GetValues());
 
 	ProviderResult.Dissimilarity = Result.Dissimilarity;
 	ProviderResult.PoseIdx = Result.PoseIdx;

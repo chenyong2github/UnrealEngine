@@ -9,6 +9,7 @@
 
 #define LOCTEXT_NAMESPACE "AnimNode_MotionMatching"
 
+
 /////////////////////////////////////////////////////
 // FAnimNode_MotionMatching
 
@@ -20,16 +21,14 @@ void FAnimNode_MotionMatching::Initialize_AnyThread(const FAnimationInitializeCo
 
 	if (IsValidForSearch())
 	{
-		Query.Reset();
-		Query.SetNumZeroed(Database->Schema->Layout.NumFloats);
-		QueryBuilder.Init(&Database->Schema->Layout, Query);
+		ComposedQuery.Init(Database->Schema);
 
 		// Set initial pose features
 		UE::PoseSearch::IPoseHistoryProvider* PoseHistoryProvider = Context.GetMessage<UE::PoseSearch::IPoseHistoryProvider>();
 		if (PoseHistoryProvider)
 		{
 			UE::PoseSearch::FPoseHistory& History = PoseHistoryProvider->GetPoseHistory();
-			QueryBuilder.SetPoseFeatures(Database->Schema, &History);
+			ComposedQuery.SetPoseFeatures(&History);
 		}
 	}
 
@@ -68,23 +67,31 @@ void FAnimNode_MotionMatching::Update_AnyThread(const FAnimationUpdateContext& C
 			// Overwrite query feature vector with the stepped pose from the database
 			if (DbPoseIdx != INDEX_NONE)
 			{
-				TArrayView<const float> PoseFeatureVector = Database->SearchIndex.GetPoseValues(DbPoseIdx);
-				QueryBuilder.Copy(PoseFeatureVector);
+				TArrayView<const float> DbFeatureVector = Database->SearchIndex.GetPoseValues(DbPoseIdx);
+				ComposedQuery.Copy(DbFeatureVector);
 			}
 		}
 
-		// Update trajectory features in the query with the latest inputs
-		SetTrajectoryFeatures();
+		// Update features in the query with the latest inputs
+		ComposeQuery();
 
 		// Determine how much the updated query vector deviates from the current pose vector
 		float CurrentDissimilarity = MAX_flt;
 		if (DbPoseIdx != INDEX_NONE)
 		{
-			CurrentDissimilarity = UE::PoseSearch::ComparePoses(Database->SearchIndex, DbPoseIdx, Query);
+			CurrentDissimilarity = UE::PoseSearch::ComparePoses(Database->SearchIndex, DbPoseIdx, ComposedQuery.GetValues());
 		}
 
 		// Search the database for the nearest match to the updated query vector
-		UE::PoseSearch::FDbSearchResult Result = UE::PoseSearch::Search(Database, MakeArrayView(Query));
+
+		UE::PoseSearch::IPoseHistoryProvider* PoseHistoryProvider = Context.GetMessage<UE::PoseSearch::IPoseHistoryProvider>();
+		if (PoseHistoryProvider)
+		{
+			UE::PoseSearch::FPoseHistory& History = PoseHistoryProvider->GetPoseHistory();
+			ComposedQuery.SetPoseFeatures(&History);
+		}
+
+		UE::PoseSearch::FDbSearchResult Result = UE::PoseSearch::Search(Database, ComposedQuery.GetValues());
 		if (Result.IsValid())
 		{
 			const FPoseSearchDatabaseSequence& ResultDbSequence = Database->Sequences[Result.DbSequenceIdx];
@@ -104,11 +111,13 @@ void FAnimNode_MotionMatching::Update_AnyThread(const FAnimationUpdateContext& C
 			}
 
 			// And we won't bother to jump to another pose within the same looping sequence we're already playing
-			// (This should probably should be configurable)
+			// (This should probably be configurable)
 			bool bSameCycle = (DbSequenceIdx == Result.DbSequenceIdx) && ResultDbSequence.bLoopAnimation;
 
+			bool bSameSequence = DbSequenceIdx == Result.DbSequenceIdx;
+
 			// Start playback from the candidate pose if we determined it was a better option
-			if (bBetterPose && !bNearbyPose && !bSameCycle)
+			if (bBetterPose && !bNearbyPose && !bSameCycle && !bSameSequence)
 			{
 				JumpToPose(Context, Result);
 			}
@@ -139,7 +148,7 @@ void FAnimNode_MotionMatching::PreUpdate(const UAnimInstance* InAnimInstance)
 		DrawParams.RootTransform = SkeletalMeshComponent->GetBoneTransform(0);
 		DrawParams.Flags = UE::PoseSearch::EDebugDrawFlags::DrawQuery;
 		DrawParams.Database = Database;
-		DrawParams.Query = Query;
+		DrawParams.Query = ComposedQuery.GetValues();
 		DrawParams.World = SkeletalMeshComponent->GetWorld();
 		DrawParams.DefaultLifeTime = 0.0f;
 		UE::PoseSearch::Draw(DrawParams);
@@ -157,23 +166,12 @@ bool FAnimNode_MotionMatching::IsValidForSearch() const
 	return Database && Database->IsValidForSearch();
 }
 
-void FAnimNode_MotionMatching::SetTrajectoryFeatures()
+void FAnimNode_MotionMatching::ComposeQuery()
 {
-	// This is all placeholder-- trajectory should be provided externally rather than computed in this node.
-	// And we shouldn't be assuming the format of the database's schema!
-
-	// Add instantaneous root velocity to query
-	FPoseSearchFeatureDesc TrajectoryFeature;
-	TrajectoryFeature.Domain = EPoseSearchFeatureDomain::Time;
-	TrajectoryFeature.SchemaBoneIdx = FPoseSearchFeatureDesc::TrajectoryBoneIndex;
-	TrajectoryFeature.SubsampleIdx = 0;
-	TrajectoryFeature.Type = EPoseSearchFeatureType::LinearVelocity;
-
-	// I'm sure there is probably a less magical way to get LocalVelocity into the same space as the animation data...
-	FQuat Rotate(FVector::ZAxisVector, HALF_PI);
-
-	// Apply the updated trajectory to the query feature vector, leaving any existing pose information intact
-	QueryBuilder.SetVector(TrajectoryFeature, Rotate.RotateVector(LocalVelocity));
+	if (ComposedQuery.IsCompatible(Goal))
+	{
+		ComposedQuery.MergeReplace(Goal);
+	}
 }
 
 void FAnimNode_MotionMatching::JumpToPose(const FAnimationUpdateContext& Context, UE::PoseSearch::FDbSearchResult Result)
