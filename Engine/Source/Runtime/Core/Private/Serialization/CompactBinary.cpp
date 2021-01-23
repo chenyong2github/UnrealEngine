@@ -64,10 +64,10 @@ void FCbFieldType::StaticAssertTypeConstants()
 	static_assert(!(BoolMask & (BoolBase ^ ECbFieldType::BoolTrue)), "BoolMask or BoolBase is invalid!");
 	static_assert(TypeMask == (BoolMask | (BoolBase ^ ECbFieldType::BoolTrue)), "BoolMask or BoolBase is invalid!");
 
-	static_assert(AnyReferenceBase == ECbFieldType::Reference, "AnyReferenceBase is invalid!");
-	static_assert((AnyReferenceMask & (AllFlags | ECbFieldType::BinaryReference)) == ECbFieldType::Reference, "AnyReferenceMask is invalid!");
-	static_assert(!(AnyReferenceMask & (AnyReferenceBase ^ ECbFieldType::BinaryReference)), "AnyReferenceMask or AnyReferenceBase is invalid!");
-	static_assert(TypeMask == (AnyReferenceMask | (AnyReferenceBase ^ ECbFieldType::BinaryReference)), "AnyReferenceMask or AnyReferenceBase is invalid!");
+	static_assert(ReferenceBase == ECbFieldType::CompactBinaryReference, "ReferenceBase is invalid!");
+	static_assert((ReferenceMask & (AllFlags | ECbFieldType::BinaryReference)) == ECbFieldType::CompactBinaryReference, "ReferenceMask is invalid!");
+	static_assert(!(ReferenceMask & (ReferenceBase ^ ECbFieldType::BinaryReference)), "ReferenceMask or ReferenceBase is invalid!");
+	static_assert(TypeMask == (ReferenceMask | (ReferenceBase ^ ECbFieldType::BinaryReference)), "ReferenceMask or ReferenceBase is invalid!");
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -253,9 +253,9 @@ bool FCbField::AsBool(const bool bDefault)
 	return (uint8(bIsBool) & uint8(LocalType) & 1) | ((!bIsBool) & bDefault);
 }
 
-FBlake3Hash FCbField::AsReference(const FBlake3Hash& Default)
+FBlake3Hash FCbField::AsCompactBinaryReference(const FBlake3Hash& Default)
 {
-	if (FCbFieldType::IsReference(Type))
+	if (FCbFieldType::IsCompactBinaryReference(Type))
 	{
 		Error = ECbFieldError::None;
 		return FBlake3Hash(*static_cast<const FBlake3Hash::ByteArray*>(Payload));
@@ -281,9 +281,9 @@ FBlake3Hash FCbField::AsBinaryReference(const FBlake3Hash& Default)
 	}
 }
 
-FBlake3Hash FCbField::AsAnyReference(const FBlake3Hash& Default)
+FBlake3Hash FCbField::AsReference(const FBlake3Hash& Default)
 {
-	if (FCbFieldType::IsAnyReference(Type))
+	if (FCbFieldType::IsReference(Type))
 	{
 		Error = ECbFieldError::None;
 		return FBlake3Hash(*static_cast<const FBlake3Hash::ByteArray*>(Payload));
@@ -415,7 +415,7 @@ uint64 FCbField::GetPayloadSize() const
 	case ECbFieldType::BoolFalse:
 	case ECbFieldType::BoolTrue:
 		return 0;
-	case ECbFieldType::Reference:
+	case ECbFieldType::CompactBinaryReference:
 	case ECbFieldType::BinaryReference:
 	case ECbFieldType::Hash:
 		return 32;
@@ -479,7 +479,7 @@ void FCbField::IterateReferences(FCbFieldVisitor Visitor) const
 	case ECbFieldType::Array:
 	case ECbFieldType::UniformArray:
 		return FCbArray::FromField(*this).IterateReferences(Visitor);
-	case ECbFieldType::Reference:
+	case ECbFieldType::CompactBinaryReference:
 	case ECbFieldType::BinaryReference:
 		return Visitor(*this);
 	default:

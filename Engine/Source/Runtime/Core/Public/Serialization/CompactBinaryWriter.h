@@ -165,9 +165,9 @@ public:
 	/** Write a bool field. */
 	CORE_API void Bool(bool bValue);
 
-	/** Write a field referencing compact binary. */
-	CORE_API void Reference(const FBlake3Hash& Value);
-	/** Write a field referencing a blob. */
+	/** Write a field referencing compact binary data by its hash. */
+	CORE_API void CompactBinaryReference(const FBlake3Hash& Value);
+	/** Write a field referencing binary data by its hash. */
 	CORE_API void BinaryReference(const FBlake3Hash& Value);
 
 	/** Write a hash field. */

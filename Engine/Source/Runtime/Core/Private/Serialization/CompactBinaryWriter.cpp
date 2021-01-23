@@ -477,11 +477,11 @@ void FCbWriter::Bool(const bool bValue)
 	EndField(bValue ? ECbFieldType::BoolTrue : ECbFieldType::BoolFalse);
 }
 
-void FCbWriter::Reference(const FBlake3Hash& Value)
+void FCbWriter::CompactBinaryReference(const FBlake3Hash& Value)
 {
 	BeginField();
 	Data.Append(Value.Bytes(), sizeof(decltype(Value.Bytes())));
-	EndField(ECbFieldType::Reference);
+	EndField(ECbFieldType::CompactBinaryReference);
 }
 
 void FCbWriter::BinaryReference(const FBlake3Hash& Value)

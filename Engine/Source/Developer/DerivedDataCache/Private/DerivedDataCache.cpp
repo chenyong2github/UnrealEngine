@@ -827,9 +827,9 @@ void FCache::Get(
 
 	// Validate that the record was serialized in the expected format.
 	if ((MetaField && !MetaField.IsObject()) ||
-		(ValueField && !ValueField.IsAnyReference()) ||
+		(ValueField && !ValueField.IsReference()) ||
 		(AttachmentsField && !AttachmentsField.IsArray()) ||
-		!Algo::AllOf(AttachmentsArray, &FCbField::IsAnyReference))
+		!Algo::AllOf(AttachmentsArray, &FCbField::IsReference))
 	{
 		UE_LOG(LogDerivedDataCache, Verbose, TEXT("Cache: Get cache miss with invalid format for %s from '%.*s'"),
 			*TToString<96>(Key), Context.Len(), Context.GetData());
@@ -839,9 +839,9 @@ void FCache::Get(
 	// Check for existence of the value and attachments if they are being skipped.
 	{
 		TArray<FBlake3Hash, TInlineAllocator<1>> KeysToCheck;
-		if (EnumHasAnyFlags(Policy, ECachePolicy::SkipValue) && ValueField.IsAnyReference())
+		if (EnumHasAnyFlags(Policy, ECachePolicy::SkipValue) && ValueField.IsReference())
 		{
-			KeysToCheck.Add(ValueField.AsAnyReference());
+			KeysToCheck.Add(ValueField.AsReference());
 			if (KeysToCheck.Last().IsZero())
 			{
 				KeysToCheck.Pop();
@@ -852,7 +852,7 @@ void FCache::Get(
 			KeysToCheck.Reserve(KeysToCheck.Num() + AttachmentsArray.Num());
 			for (FCbField AttachmentField : AttachmentsArray)
 			{
-				KeysToCheck.Add(AttachmentField.AsAnyReference());
+				KeysToCheck.Add(AttachmentField.AsReference());
 			}
 		}
 		if (KeysToCheck.Num())
@@ -874,7 +874,7 @@ void FCache::Get(
 	const auto GetContent = [&Key, Context](FCbField ReferenceField) -> FCbAttachment
 	{
 		TArray<uint8> ContentData;
-		const FBlake3Hash Hash = ReferenceField.AsAnyReference();
+		const FBlake3Hash Hash = ReferenceField.AsReference();
 		check(!ReferenceField.HasError());
 		const FCacheAttachmentKey ContentKey(Key, Hash);
 		if (GetDerivedDataCacheRef().GetSynchronous(*MakeContentKey(ContentKey), ContentData, Context))
@@ -882,7 +882,7 @@ void FCache::Get(
 			if (FBlake3::HashBuffer(MakeMemoryView(ContentData)) == Hash)
 			{
 				FSharedBuffer ContentBuffer = FSharedBuffer::Clone(MakeMemoryView(ContentData));
-				if (ReferenceField.IsReference())
+				if (ReferenceField.IsCompactBinaryReference())
 				{
 					return FCbAttachment(FCbFieldRefIterator::MakeRange(MoveTemp(ContentBuffer)), Hash);
 				}
@@ -906,7 +906,7 @@ void FCache::Get(
 	};
 
 	FCbAttachment Value;
-	if (!EnumHasAnyFlags(Policy, ECachePolicy::SkipValue) && ValueField.IsAnyReference() && !(Value = GetContent(ValueField)))
+	if (!EnumHasAnyFlags(Policy, ECachePolicy::SkipValue) && ValueField.IsReference() && !(Value = GetContent(ValueField)))
 	{
 		return;
 	}
@@ -1052,7 +1052,7 @@ void FCache::Put(
 	{
 		if (Value.IsCompactBinary())
 		{
-			Writer.Name("Value"_ASV).Reference(Value.GetHash());
+			Writer.Name("Value"_ASV).CompactBinaryReference(Value.GetHash());
 		}
 		else if (Value.IsBinary())
 		{
@@ -1067,7 +1067,7 @@ void FCache::Put(
 			{
 				if (Attachment.IsCompactBinary())
 				{
-					Writer.Reference(Attachment.GetHash());
+					Writer.CompactBinaryReference(Attachment.GetHash());
 				}
 				else
 				{

@@ -563,8 +563,8 @@ bool FCbWriterBoolTest::RunTest(const FString& Parameters)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCbWriterReferenceTest, "System.Core.Serialization.CbWriter.Reference", CompactBinaryWriterTestFlags)
-bool FCbWriterReferenceTest::RunTest(const FString& Parameters)
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCbWriterCompactBinaryReferenceTest, "System.Core.Serialization.CbWriter.CompactBinaryReference", CompactBinaryWriterTestFlags)
+bool FCbWriterCompactBinaryReferenceTest::RunTest(const FString& Parameters)
 {
 	TCbWriter<256> Writer;
 
@@ -574,17 +574,17 @@ bool FCbWriterReferenceTest::RunTest(const FString& Parameters)
 	const FBlake3Hash Values[] = { FBlake3Hash(ZeroBytes), FBlake3Hash(SequentialBytes) };
 	for (const FBlake3Hash& Value : Values)
 	{
-		Writer.Reference(Value);
+		Writer.CompactBinaryReference(Value);
 	}
 
 	FCbFieldRefIterator Fields = Writer.Save();
-	if (TestEqual(TEXT("FCbWriter(Reference) Validate"), ValidateCompactBinaryRange(Fields.GetBuffer(), ECbValidateMode::All), ECbValidateError::None))
+	if (TestEqual(TEXT("FCbWriter(CompactBinaryReference) Validate"), ValidateCompactBinaryRange(Fields.GetBuffer(), ECbValidateMode::All), ECbValidateError::None))
 	{
 		const FBlake3Hash* CheckValue = Values;
 		for (FCbField Field : Fields)
 		{
-			TestEqual(TEXT("FCbWriter(Reference).AsReference()"), Field.AsReference(), *CheckValue++);
-			TestFalse(TEXT("FCbWriter(Reference) Error"), Field.HasError());
+			TestEqual(TEXT("FCbWriter(CompactBinaryReference).AsCompactBinaryReference()"), Field.AsCompactBinaryReference(), *CheckValue++);
+			TestFalse(TEXT("FCbWriter(CompactBinaryReference) Error"), Field.HasError());
 		}
 	}
 
@@ -816,7 +816,7 @@ bool FCbWriterComplexTest::RunTest(const FString& Parameters)
 		Writer.Name("False"_ASV).Bool(false);
 		Writer.Name("True"_ASV).Bool(true);
 
-		Writer.Name("Reference"_ASV).Reference(FBlake3Hash());
+		Writer.Name("CompactBinaryReference"_ASV).CompactBinaryReference(FBlake3Hash());
 		Writer.Name("BinaryReference"_ASV).BinaryReference(FBlake3Hash());
 
 		Writer.Name("Hash"_ASV).Hash(FBlake3Hash());

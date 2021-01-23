@@ -60,7 +60,7 @@ UE_CBFIELD_TYPE_ACCESSOR(Float32, IsFloat, AsFloat, float);
 UE_CBFIELD_TYPE_ACCESSOR(Float64, IsFloat, AsDouble, double);
 UE_CBFIELD_TYPE_ACCESSOR(BoolFalse, IsBool, AsBool, bool);
 UE_CBFIELD_TYPE_ACCESSOR(BoolTrue, IsBool, AsBool, bool);
-UE_CBFIELD_TYPE_ACCESSOR(Reference, IsReference, AsReference, FBlake3Hash);
+UE_CBFIELD_TYPE_ACCESSOR(CompactBinaryReference, IsCompactBinaryReference, AsCompactBinaryReference, FBlake3Hash);
 UE_CBFIELD_TYPE_ACCESSOR(BinaryReference, IsBinaryReference, AsBinaryReference, FBlake3Hash);
 UE_CBFIELD_TYPE_ACCESSOR(Hash, IsHash, AsHash, FBlake3Hash);
 UE_CBFIELD_TYPE_ACCESSOR_TYPED(Uuid, IsUuid, AsUuid, FGuid, const FGuid&);
@@ -941,28 +941,28 @@ bool FCbFieldBoolTest::RunTest(const FString& Parameters)
 	return true;
 }
 
-IMPLEMENT_CUSTOM_SIMPLE_AUTOMATION_TEST(FCbFieldReferenceTest, FCbFieldTestBase, "System.Core.Serialization.CbField.Reference", CompactBinaryTestFlags)
-bool FCbFieldReferenceTest::RunTest(const FString& Parameters)
+IMPLEMENT_CUSTOM_SIMPLE_AUTOMATION_TEST(FCbFieldCompactBinaryReferenceTest, FCbFieldTestBase, "System.Core.Serialization.CbField.CompactBinaryReference", CompactBinaryTestFlags)
+bool FCbFieldCompactBinaryReferenceTest::RunTest(const FString& Parameters)
 {
 	const FBlake3Hash::ByteArray ZeroBytes{};
 	const FBlake3Hash::ByteArray SequentialBytes{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32};
 
-	// Test FCbField(Reference, Zero)
-	TestField<ECbFieldType::Reference>(TEXT("Reference, Zero"), ZeroBytes);
+	// Test FCbField(CompactBinaryReference, Zero)
+	TestField<ECbFieldType::CompactBinaryReference>(TEXT("CompactBinaryReference, Zero"), ZeroBytes);
 
-	// Test FCbField(Reference, NonZero)
-	TestField<ECbFieldType::Reference>(TEXT("Reference, NonZero"), SequentialBytes, FBlake3Hash(SequentialBytes));
+	// Test FCbField(CompactBinaryReference, NonZero)
+	TestField<ECbFieldType::CompactBinaryReference>(TEXT("CompactBinaryReference, NonZero"), SequentialBytes, FBlake3Hash(SequentialBytes));
 
-	// Test FCbField(Reference, NonZero) AsAnyReference
+	// Test FCbField(CompactBinaryReference, NonZero) AsReference
 	{
-		FCbField Field(SequentialBytes, ECbFieldType::Reference);
-		TestFieldAsType(TEXT("Reference, NonZero, AsAnyReference"), Field, &FCbField::AsAnyReference, FBlake3Hash(SequentialBytes));
+		FCbField Field(SequentialBytes, ECbFieldType::CompactBinaryReference);
+		TestFieldAsType(TEXT("CompactBinaryReference, NonZero, AsReference"), Field, &FCbField::AsReference, FBlake3Hash(SequentialBytes));
 	}
 
-	// Test FCbField(None) as Reference
+	// Test FCbField(None) as CompactBinaryReference
 	{
 		FCbField DefaultField;
-		TestFieldError<ECbFieldType::Reference>(TEXT("Reference, None"), DefaultField, ECbFieldError::TypeError, FBlake3Hash(SequentialBytes));
+		TestFieldError<ECbFieldType::CompactBinaryReference>(TEXT("CompactBinaryReference, None"), DefaultField, ECbFieldError::TypeError, FBlake3Hash(SequentialBytes));
 	}
 
 	return true;
@@ -983,7 +983,7 @@ bool FCbFieldBinaryReferenceTest::RunTest(const FString& Parameters)
 	// Test FCbField(BinaryReference, NonZero) AsAnyReference
 	{
 		FCbField Field(SequentialBytes, ECbFieldType::BinaryReference);
-		TestFieldAsType(TEXT("BinaryReference, NonZero, AsAnyReference"), Field, &FCbField::AsAnyReference, FBlake3Hash(SequentialBytes));
+		TestFieldAsType(TEXT("BinaryReference, NonZero, AsReference"), Field, &FCbField::AsReference, FBlake3Hash(SequentialBytes));
 	}
 
 	// Test FCbField(None) as BinaryReference
@@ -1102,9 +1102,9 @@ bool FCbFieldIterateReferencesTest::RunTest(const FString& Parameters)
 		FCbWriter Writer;
 
 		Writer.Name("IgnoredTypeInRoot").Hash(MakeTestHash(100));
-		Writer.Reference(MakeTestHash(0));
+		Writer.CompactBinaryReference(MakeTestHash(0));
 		Writer.BinaryReference(MakeTestHash(1));
-		Writer.Name("RefInRoot").Reference(MakeTestHash(2));
+		Writer.Name("RefInRoot").CompactBinaryReference(MakeTestHash(2));
 		Writer.Name("BinRefInRoot").BinaryReference(MakeTestHash(3));
 
 		// Uniform array of type to ignore.
@@ -1142,7 +1142,7 @@ bool FCbFieldIterateReferencesTest::RunTest(const FString& Parameters)
 			Writer << false;
 			Writer.EndArray();
 			Writer.BeginArray();
-			Writer.Reference(MakeTestHash(10));
+			Writer.CompactBinaryReference(MakeTestHash(10));
 			Writer << false;
 			Writer.EndArray();
 		}
@@ -1151,12 +1151,12 @@ bool FCbFieldIterateReferencesTest::RunTest(const FString& Parameters)
 		Writer.BeginArray();
 		{
 			Writer.BeginObject();
-			Writer.Name("RefInUniObjInUniObj1").Reference(MakeTestHash(11));
-			Writer.Name("RefInUniObjInUniObj2").Reference(MakeTestHash(12));
+			Writer.Name("RefInUniObjInUniObj1").CompactBinaryReference(MakeTestHash(11));
+			Writer.Name("RefInUniObjInUniObj2").CompactBinaryReference(MakeTestHash(12));
 			Writer.EndObject();
 			Writer.BeginObject();
-			Writer.Name("RefInUniObjInUniObj3").Reference(MakeTestHash(13));
-			Writer.Name("RefInUniObjInUniObj4").Reference(MakeTestHash(14));
+			Writer.Name("RefInUniObjInUniObj3").CompactBinaryReference(MakeTestHash(13));
+			Writer.Name("RefInUniObjInUniObj4").CompactBinaryReference(MakeTestHash(14));
 			Writer.EndObject();
 		}
 		Writer.EndArray();
@@ -1168,7 +1168,7 @@ bool FCbFieldIterateReferencesTest::RunTest(const FString& Parameters)
 			Writer << "Bool" << false;
 			Writer.EndObject();
 			Writer.BeginObject();
-			Writer.Name("RefInNonUniObjInUniObj").Reference(MakeTestHash(15));
+			Writer.Name("RefInNonUniObjInUniObj").CompactBinaryReference(MakeTestHash(15));
 			Writer << "Bool" << false;
 			Writer.EndObject();
 		}
@@ -1213,7 +1213,7 @@ bool FCbFieldIterateReferencesTest::RunTest(const FString& Parameters)
 			Writer.EndArray();
 			Writer.Name("Array2");
 			Writer.BeginArray();
-			Writer.Reference(MakeTestHash(22));
+			Writer.CompactBinaryReference(MakeTestHash(22));
 			Writer << false;
 			Writer.EndArray();
 		}
@@ -1223,13 +1223,13 @@ bool FCbFieldIterateReferencesTest::RunTest(const FString& Parameters)
 		{
 			Writer.Name("Object1");
 			Writer.BeginObject();
-			Writer.Name("RefInUniObjInUniObj1").Reference(MakeTestHash(23));
-			Writer.Name("RefInUniObjInUniObj2").Reference(MakeTestHash(24));
+			Writer.Name("RefInUniObjInUniObj1").CompactBinaryReference(MakeTestHash(23));
+			Writer.Name("RefInUniObjInUniObj2").CompactBinaryReference(MakeTestHash(24));
 			Writer.EndObject();
 			Writer.Name("Object2");
 			Writer.BeginObject();
-			Writer.Name("RefInUniObjInUniObj3").Reference(MakeTestHash(25));
-			Writer.Name("RefInUniObjInUniObj4").Reference(MakeTestHash(26));
+			Writer.Name("RefInUniObjInUniObj3").CompactBinaryReference(MakeTestHash(25));
+			Writer.Name("RefInUniObjInUniObj4").CompactBinaryReference(MakeTestHash(26));
 			Writer.EndObject();
 		}
 		Writer.EndObject();
@@ -1243,7 +1243,7 @@ bool FCbFieldIterateReferencesTest::RunTest(const FString& Parameters)
 			Writer.EndObject();
 			Writer.Name("Object2");
 			Writer.BeginObject();
-			Writer.Name("RefInNonUniObjInUniObj").Reference(MakeTestHash(27));
+			Writer.Name("RefInNonUniObjInUniObj").CompactBinaryReference(MakeTestHash(27));
 			Writer << "Bool" << false;
 			Writer.EndObject();
 		}
@@ -1257,8 +1257,8 @@ bool FCbFieldIterateReferencesTest::RunTest(const FString& Parameters)
 	uint32 ReferenceIndex = 0;
 	Fields.IterateRangeReferences([this, &ReferenceIndex, &MakeTestHash](FCbField Field)
 		{
-			TestTrue(FString::Printf(TEXT("FCbField::IterateReferences(%u)::IsAnyReference"), ReferenceIndex), Field.IsAnyReference());
-			TestEqual(FString::Printf(TEXT("FCbField::IterateReferences(%u)"), ReferenceIndex), Field.AsReference(Field.AsBinaryReference()), MakeTestHash(ReferenceIndex));
+			TestTrue(FString::Printf(TEXT("FCbField::IterateReferences(%u)::IsAnyReference"), ReferenceIndex), Field.IsReference());
+			TestEqual(FString::Printf(TEXT("FCbField::IterateReferences(%u)"), ReferenceIndex), Field.AsCompactBinaryReference(Field.AsBinaryReference()), MakeTestHash(ReferenceIndex));
 			++ReferenceIndex;
 		});
 	TestEqual(TEXT("FCbField::IterateReferences"), ReferenceIndex, 28);

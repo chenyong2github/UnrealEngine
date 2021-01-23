@@ -352,7 +352,7 @@ static FCbField ValidateCbField(FMemoryView& View, ECbValidateMode Mode, ECbVali
 	case ECbFieldType::Float64:
 		ValidateCbFloat64(View, Mode, Error);
 		break;
-	case ECbFieldType::Reference:
+	case ECbFieldType::CompactBinaryReference:
 	case ECbFieldType::BinaryReference:
 	case ECbFieldType::Hash:
 		ValidateFixedPayload(32);
@@ -409,7 +409,7 @@ static FBlake3Hash ValidateCbPackageAttachment(FCbField& Value, FMemoryView& Vie
 	{
 		if (FCbField HashField = ValidateCbPackageField(View, Mode, Error))
 		{
-			const FBlake3Hash Hash = HashField.AsAnyReference();
+			const FBlake3Hash Hash = HashField.AsReference();
 			if (EnumHasAnyFlags(Mode, ECbValidateMode::Package))
 			{
 				if (HashField.HasError())
@@ -439,7 +439,7 @@ static FBlake3Hash ValidateCbPackageObject(FCbField& Value, FMemoryView& View, E
 	}
 	else if (FCbField HashField = ValidateCbPackageField(View, Mode, Error))
 	{
-		const FBlake3Hash Hash = HashField.AsAnyReference();
+		const FBlake3Hash Hash = HashField.AsReference();
 		if (EnumHasAnyFlags(Mode, ECbValidateMode::Package))
 		{
 			if (!Object.CreateIterator())
