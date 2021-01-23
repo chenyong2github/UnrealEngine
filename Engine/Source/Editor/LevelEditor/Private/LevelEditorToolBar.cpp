@@ -1208,7 +1208,7 @@ void FLevelEditorToolBar::RegisterLevelEditorToolBar( const TSharedRef<FUIComman
 				FOnGetContent::CreateStatic(&FLevelEditorToolBar::GenerateCreateMenuWidget, InCommandList, TWeakPtr<SLevelEditor>(InLevelEditor)),
 				LOCTEXT("OpenCreate_Label", "Content"),
 				LOCTEXT("OpenCreate_Tooltip", "Quickly add to the project."),
-				FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.OpenCreateMenu")
+				FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.OpenPlaceActors")
 			));
 
 			Section.AddEntry(FToolMenuEntry::InitComboButton(
