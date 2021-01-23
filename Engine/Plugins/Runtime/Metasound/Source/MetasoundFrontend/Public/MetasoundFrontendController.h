@@ -365,7 +365,7 @@ namespace Metasound
 			virtual const FString& GetClassName() const = 0;
 			virtual FMetasoundFrontendVersionNumber GetClassVersionNumber() const = 0;
 			virtual const FText& GetClassDescription() const = 0;
-			virtual FMetasoundFrontendClassDisplayInfo GetClassDisplayInfo() const = 0;
+			virtual const FMetasoundFrontendClassStyle& GetClassStyle() const = 0;
 
 			/** If the node is also a graph, this returns a graph handle.
 			 * If the node is not also a graph, it will return an invalid handle.
@@ -379,6 +379,9 @@ namespace Metasound
 
 			/** Returns the name of this node. */
 			virtual const FString& GetNodeName() const = 0;
+
+			virtual const FMetasoundFrontendNodeStyle& GetNodeStyle() const = 0;
+			virtual void SetNodeStyle(const FMetasoundFrontendNodeStyle& InStyle) = 0;
 
 			/** Returns the ID associated with this node. */
 			virtual FGuid GetID() const = 0;

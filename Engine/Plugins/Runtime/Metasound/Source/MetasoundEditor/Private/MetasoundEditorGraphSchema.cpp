@@ -4,6 +4,7 @@
 
 #include "EdGraph/EdGraph.h"
 #include "EdGraphNode_Comment.h"
+#include "EdGraphSchema_K2.h"
 #include "Editor.h"
 #include "Engine/Selection.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
@@ -13,6 +14,7 @@
 #include "Layout/SlateRect.h"
 #include "Metasound.h"
 #include "MetasoundAssetBase.h"
+#include "MetasoundDataReference.h"
 #include "MetasoundEditor.h"
 #include "MetasoundEditorGraph.h"
 #include "MetasoundEditorGraphBuilder.h"
@@ -50,50 +52,56 @@ namespace Metasound
 			const UGraphEditorSettings* Settings = GetDefault<UGraphEditorSettings>();
 			check(Settings);
 
-			if (PinType.PinCategory == FGraphBuilder::PinPrimitiveTrigger)
-			{
-				return Settings->ExecutionPinTypeColor;
-			}
-
-			if (PinType.PinCategory == FGraphBuilder::PinPrimitiveBoolean)
-			{
-				return Settings->BooleanPinTypeColor;
-			}
-
-			if (PinType.PinCategory == FGraphBuilder::PinPrimitiveFloat)
-			{
-				return Settings->FloatPinTypeColor;
-			}
-
-			if (PinType.PinCategory == FGraphBuilder::PinPrimitiveInt32)
-			{
-				return Settings->IntPinTypeColor;
-			}
-
-			if (PinType.PinCategory == FGraphBuilder::PinPrimitiveInt64)
-			{
-				return Settings->Int64PinTypeColor;
-			}
-
-			if (PinType.PinCategory == FGraphBuilder::PinPrimitiveString)
-			{
-				return Settings->StringPinTypeColor;
-			}
-
-			if (PinType.PinCategory == FGraphBuilder::PinPrimitiveUObject)
-			{
-				return Settings->ClassPinTypeColor;
-			}
-
-			if (PinType.PinCategory == FGraphBuilder::PinAudioNumeric)
+			if (PinType.PinSubCategory == FGraphBuilder::PinSubCategoryAudioNumeric)
 			{
 				return Settings->SoftObjectPinTypeColor;
 			}
 
-			if (PinType.PinCategory == FGraphBuilder::PinAudioFormat)
+			if (PinType.PinSubCategory == FGraphBuilder::PinSubCategoryAudioFormat)
 			{
 				return Settings->SoftClassPinTypeColor;
 			}
+
+			if (PinType.PinCategory == FGraphBuilder::PinCategoryExec)
+			{
+				return Settings->ExecutionPinTypeColor;
+			}
+
+			if (PinType.PinCategory == FGraphBuilder::PinCategoryBoolean)
+			{
+				return Settings->BooleanPinTypeColor;
+			}
+
+			if (PinType.PinCategory == FGraphBuilder::PinCategoryFloat)
+			{
+				return Settings->FloatPinTypeColor;
+			}
+
+			if (PinType.PinCategory == FGraphBuilder::PinCategoryInt32)
+			{
+				return Settings->IntPinTypeColor;
+			}
+
+			if (PinType.PinCategory == FGraphBuilder::PinCategoryInt64)
+			{
+				return Settings->Int64PinTypeColor;
+			}
+
+			if (PinType.PinCategory == FGraphBuilder::PinCategoryString)
+			{
+				return Settings->StringPinTypeColor;
+			}
+
+			if (PinType.PinCategory == FGraphBuilder::PinCategoryDouble)
+			{
+				return Settings->DoublePinTypeColor;
+			}
+
+			if (PinType.PinCategory == FGraphBuilder::PinCategoryObject)
+			{
+				return Settings->ClassPinTypeColor;
+			}
+
 
 			return Settings->StructPinTypeColor;
 		}
@@ -134,11 +142,6 @@ namespace Metasound
 			OutParams.AssociatedPin1 = InputPin;
 			OutParams.AssociatedPin2 = OutputPin;
 
-			// Get the schema and grab the default color from it
-			const UEdGraphSchema* Schema = GraphObj->GetSchema();
-			FNodeHandle InputNodeHandle = CastChecked<UMetasoundEditorGraphNode>(InputPin->GetOwningNode())->GetNodeHandle();
-			FNodeHandle OutputNodeHandle = CastChecked<UMetasoundEditorGraphNode>(OutputPin->GetOwningNode())->GetNodeHandle();
-
 			OutParams.WireColor = GetPinCategoryColor(OutputPin->PinType);
 			bool bExecuted = false;
 
@@ -156,11 +159,11 @@ namespace Metasound
 
 			if (!bExecuted)
 			{
-				if (InputPin->PinType.PinCategory == FGraphBuilder::PinPrimitiveTrigger)
+				if (InputPin->PinType.PinCategory == FGraphBuilder::PinCategoryExec)
 				{
 					OutParams.WireThickness = Settings->DefaultExecutionWireThickness;
 				}
-				else if (InputPin->PinType.PinCategory == FGraphBuilder::PinAudioFormat)
+				else if (InputPin->PinType.PinCategory == FGraphBuilder::PinSubCategoryAudioFormat)
 				{
 					OutParams.bDrawBubbles = true;
 				}
@@ -185,7 +188,10 @@ UEdGraphNode* FMetasoundGraphSchemaAction_NewNode::PerformAction(UEdGraph* Paren
 	UObject& ParentMetasound = CastChecked<UMetasoundEditorGraph>(ParentGraph)->GetMetasoundChecked();
 	ParentMetasound.Modify();
 
-	UEdGraphNode* NewGraphNode = FGraphBuilder::AddNode(ParentMetasound, Location, NodeClassInfo);
+	FMetasoundFrontendNodeStyle Style;
+	Style.Display.Location = Location;
+
+	UEdGraphNode* NewGraphNode = FGraphBuilder::AddNode(ParentMetasound, NodeClassInfo, Style);
 
 	return NewGraphNode;
 }
@@ -208,7 +214,11 @@ UEdGraphNode* FMetasoundGraphSchemaAction_NewInput::PerformAction(UEdGraph* Pare
 	ParentMetasound.Modify();
 
 	FString NewNodeName = FGraphBuilder::GenerateUniqueInputName(ParentMetasound, NodeTypeName);
-	UEdGraphNode* NewGraphNode = FGraphBuilder::AddInput(ParentMetasound, Location, NewNodeName, NodeTypeName, FText::GetEmpty());
+
+	FMetasoundFrontendNodeStyle Style;
+	Style.Display.Location = Location;
+
+	UEdGraphNode* NewGraphNode = FGraphBuilder::AddInput(ParentMetasound, NewNodeName, NodeTypeName, Style, FText::GetEmpty());
 	return NewGraphNode;
 }
 
@@ -231,7 +241,10 @@ UEdGraphNode* FMetasoundGraphSchemaAction_NewOutput::PerformAction(UEdGraph* Par
 
 	FString NewNodeName = FGraphBuilder::GenerateUniqueInputName(ParentMetasound, NodeTypeName);
 
-	UEdGraphNode* NewGraphNode = FGraphBuilder::AddOutput(ParentMetasound, Location, NewNodeName, NodeTypeName, FText::GetEmpty());
+	FMetasoundFrontendNodeStyle Style;
+	Style.Display.Location = Location;
+
+	UEdGraphNode* NewGraphNode = FGraphBuilder::AddOutput(ParentMetasound, NewNodeName, NodeTypeName, Style, FText::GetEmpty());
 	return NewGraphNode;
 }
 
@@ -429,6 +442,13 @@ const FPinConnectionResponse UMetasoundEditorGraphSchema::CanCreateConnection(co
 
 bool UMetasoundEditorGraphSchema::TryCreateConnection(UEdGraphPin* PinA, UEdGraphPin* PinB) const
 {
+	using namespace Metasound::Frontend;
+
+	if (!ensureAlways(PinA && PinB))
+	{
+		return false;
+	}
+
 	UEdGraphPin* InputPin = nullptr;
 	UEdGraphPin* OutputPin = nullptr;
 	if (!CategorizePinsByDirection(PinA, PinB, InputPin, OutputPin))
@@ -436,30 +456,19 @@ bool UMetasoundEditorGraphSchema::TryCreateConnection(UEdGraphPin* PinA, UEdGrap
 		return false;
 	}
 
-	const bool bModified = UEdGraphSchema::TryCreateConnection(PinA, PinB);
+	if (!ensureAlways(InputPin && OutputPin))
+	{
+		return false;
+	}
+
+	// TODO: Implement YesWithConverterNode with selected conversion option
+
+	bool bModified = UEdGraphSchema::TryCreateConnection(PinA, PinB);
 	if (bModified)
 	{
-		UMetasoundEditorGraphNode* InputGraphNode = CastChecked<UMetasoundEditorGraphNode>(InputPin->GetOwningNode());
-		Metasound::Frontend::FNodeHandle InputNodeHandle = InputGraphNode->GetNodeHandle();
-		TArray<Metasound::Frontend::FInputHandle> InputHandles = InputNodeHandle->GetInputsWithVertexName(InputPin->GetName());
-
-		UMetasoundEditorGraphNode* OutputGraphNode = CastChecked<UMetasoundEditorGraphNode>(OutputPin->GetOwningNode());
-		Metasound::Frontend::FNodeHandle OutputNodeHandle = OutputGraphNode->GetNodeHandle();
-		TArray<Metasound::Frontend::FOutputHandle> OutputHandles = OutputNodeHandle->GetOutputsWithVertexName(OutputPin->GetName());
-
-		if (ensure((InputHandles.Num() == 1) && (OutputHandles.Num() == 1)))
-		{
-			Metasound::Frontend::FInputHandle InputHandle = InputHandles[0];
-			Metasound::Frontend::FOutputHandle OutputHandle = OutputHandles[0];
-
-			// TODO: Implement YesWithConverterNode with selected conversion option
-			if (!ensure(InputHandle->Connect(*OutputHandle)))
-			{
-				InputPin->BreakLinkTo(PinB);
-				return false;
-			}
-		}
+		bModified = Metasound::Editor::FGraphBuilder::ConnectNodes(*InputPin, *OutputPin);
 	}
+
 	return bModified;
 }
 
@@ -528,44 +537,34 @@ void UMetasoundEditorGraphSchema::BreakNodeLinks(UEdGraphNode& TargetNode) const
 {
 	using namespace Metasound::Frontend;
 
-	const FScopedTransaction Transaction(NSLOCTEXT("UnrealEd", "GraphEd_BreakPinLinks", "Break Pin Links"));
+	const FScopedTransaction Transaction(NSLOCTEXT("UnrealEd", "GraphEd_BreakNodeLinks", "Break Node Links"));
+
+	TArray<UEdGraphPin*> Pins = TargetNode.GetAllPins();
+	for (UEdGraphPin* Pin : Pins)
+	{
+		BreakPinLinks(*Pin, false);
+	}
 
 	Super::BreakNodeLinks(TargetNode);
-
-	FNodeHandle NodeHandle = CastChecked<UMetasoundEditorGraphNode>(&TargetNode)->GetNodeHandle();
-	const FGuid NodeID = NodeHandle->GetID();
-
-	FGraphHandle GraphHandle = CastChecked<UMetasoundEditorGraphNode>(&TargetNode)->GetRootGraphHandle();
-	TArray<FNodeHandle> AllNodes = GraphHandle->GetNodes();
-	for (Metasound::Frontend::FNodeHandle& IterNode : AllNodes)
-	{
-		if (NodeID != IterNode->GetID())
-		{
-			TArray<FInputHandle> Inputs = IterNode->GetInputs();
-			for (FInputHandle& Input : Inputs)
-			{
-				FOutputHandle Output = Input->GetCurrentlyConnectedOutput();
-				if (Output->GetOwningNodeID() == NodeID)
-				{
-					Input->Disconnect(*Output);
-				}
-			}
-		}
-	}
 }
 
 void UMetasoundEditorGraphSchema::BreakPinLinks(UEdGraphPin& TargetPin, bool bSendsNodeNotifcation) const
 {
+	using namespace Metasound::Editor;
 	using namespace Metasound::Frontend;
 
 	const FScopedTransaction Transaction(NSLOCTEXT("UnrealEd", "GraphEd_BreakPinLinks", "Break Pin Links"));
 
 	TArray<FInputHandle> InputHandles;
+	TArray<UEdGraphPin*> InputPins;
+
+	UObject& Metasound = CastChecked<UMetasoundEditorGraphNode>(TargetPin.GetOwningNode())->GetMetasoundChecked();
 
 	if (TargetPin.Direction == EGPD_Input)
 	{
 		FNodeHandle NodeHandle = CastChecked<UMetasoundEditorGraphNode>(TargetPin.GetOwningNode())->GetNodeHandle();
 		InputHandles = NodeHandle->GetInputsWithVertexName(TargetPin.GetName());
+		InputPins.Add(&TargetPin);
 	}
 	else
 	{
@@ -574,12 +573,21 @@ void UMetasoundEditorGraphSchema::BreakPinLinks(UEdGraphPin& TargetPin, bool bSe
 		{
 			FNodeHandle NodeHandle = CastChecked<UMetasoundEditorGraphNode>(Pin->GetOwningNode())->GetNodeHandle();
 			InputHandles.Append(NodeHandle->GetInputsWithVertexName(Pin->GetName()));
+			InputPins.Add(Pin);
 		}
 	}
 
-	for (FInputHandle Handle : InputHandles)
+	IMetasoundEditorModule& EditorModule = FModuleManager::GetModuleChecked<IMetasoundEditorModule>("MetasoundEditor");
+	for (int32 i = 0; i < InputHandles.Num(); ++i)
 	{
+		FInputHandle Handle = InputHandles[i];
 		Handle->Disconnect();
+
+		FNodeHandle NodeHandle = Handle->GetOwningNode();
+		if (NodeHandle->GetClassType() == EMetasoundFrontendClassType::External)
+		{
+			FGraphBuilder::AddOrUpdateLiteralInput(Metasound, NodeHandle, *InputPins[i]);
+		}
 	}
 
 	Super::BreakPinLinks(TargetPin, bSendsNodeNotifcation);
@@ -616,7 +624,7 @@ void UMetasoundEditorGraphSchema::GetAllMetasoundActions(FGraphActionMenuBuilder
 	EditorModule.IterateDataTypes([MenuJoinFormat, InputMenuName, OutputMenuName, InMenuBuilder = &ActionMenuBuilder](const FEditorDataType& DataType)
 	{
 		const FName DataTypeName = DataType.RegistryInfo.DataTypeName;
-		const FText DataTypeDisplayName = FText::FromString(FGraphBuilder::GetDataTypeDisplayName(DataTypeName).Replace(TEXT("Primitive:"), TEXT("")));
+		const FText DataTypeDisplayName = FText::FromString(FGraphBuilder::GetDataTypeDisplayName(DataTypeName));
 		const FText DataTypeTextName = FText::FromName(DataTypeName);
 
 		const TArray<FString> Categories = FGraphBuilder::GetDataTypeNameCategories(DataTypeName);
@@ -656,7 +664,7 @@ void UMetasoundEditorGraphSchema::GetAllMetasoundActions(FGraphActionMenuBuilder
 			? Metadata.Description
 			: FText::Format(LOCTEXT("MetasoundTooltipAuthorFormat", "{0}\nAuthor: {1}"), Metadata.Description, Metadata.Author);
 
-		const FString DisplayName = ClassInfo.NodeName.Replace(TEXT("Primitive:"), TEXT(""));
+		FString DisplayName = ClassInfo.NodeName;
 
 		const FText* MenuName = &NodeMenuName;
 		FText CategoriesText = FText::GetEmpty();

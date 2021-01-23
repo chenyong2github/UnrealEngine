@@ -28,6 +28,7 @@
 #include "Styling/SlateStyleRegistry.h"
 #include "Styling/SlateTypes.h"
 #include "Templates/SharedPointer.h"
+#include "../../BlueprintGraph/Classes/EdGraphSchema_K2.h"
 
 DEFINE_LOG_CATEGORY(LogMetasoundEditor);
 
@@ -111,9 +112,9 @@ namespace Metasound
 				}
 			}
 
-			virtual void RegisterDataType(FName InPinCategoryName, const FDataTypeRegistryInfo& InRegistryInfo) override
+			virtual void RegisterDataType(FName InPinCategoryName, FName InPinSubCategoryName, const FDataTypeRegistryInfo& InRegistryInfo) override
 			{
-				DataTypeInfo.Add(InRegistryInfo.DataTypeName, FEditorDataType(InPinCategoryName, InRegistryInfo));
+				DataTypeInfo.Add(InRegistryInfo.DataTypeName, FEditorDataType(InPinCategoryName, InPinSubCategoryName, InRegistryInfo));
 			}
 
 			void RegisterCoreDataTypes()
@@ -124,42 +125,21 @@ namespace Metasound
 					FDataTypeRegistryInfo RegistryInfo;
 					Frontend::GetTraitsForDataType(DataTypeName, RegistryInfo);
 
-					FName PinType = DataTypeName;
-
-					// Special Flowers
+					FName PinCategory = DataTypeName;
+					FName PinSubCategory;
 
 					// Execution path triggers are specialized
-					if (DataTypeName == "Primitive:Trigger")
+					if (DataTypeName == "Trigger")
 					{
-						PinType = FGraphBuilder::PinPrimitiveTrigger;
+						PinCategory = FGraphBuilder::PinCategoryExec;
 					}
 
 					// GraphEditor by default designates specialized connection
-					// specification for Int64, so use it
-					else if (DataTypeName == "Primitive:Int64")
+					// specification for Int64, so use it even though literal is
+					// boiled down to int32
+					else if (DataTypeName == "Int64")
 					{
-						PinType = FGraphBuilder::PinPrimitiveInt64;
-					}
-
-					// Differentiate stronger numeric types associated with audio
-					else if (DataTypeName == "Primitive:Frequency"
-						|| DataTypeName == "Primitive:Time"
-						|| DataTypeName == "Primitive:Time:HighResolution"
-						|| DataTypeName == "Primitive:Time:SampleResolution"
-						)
-					{
-						PinType = FGraphBuilder::PinAudioNumeric;
-					}
-
-					// Audio types are ubiquitous, so specialize
-					else if (DataTypeName == "Audio:Buffer"
-						|| DataTypeName == "Audio:Unformatted"
-						|| DataTypeName == "Audio:Mono"
-						|| DataTypeName == "Audio:Stereo"
-						|| DataTypeName == "Audio:Multichannel"
-						)
-					{
-						PinType = FGraphBuilder::PinAudioFormat;
+						PinCategory = FGraphBuilder::PinCategoryInt64;
 					}
 
 					// Primitives
@@ -169,37 +149,54 @@ namespace Metasound
 						{
 							case ELiteralType::Boolean:
 							{
-								PinType = FGraphBuilder::PinPrimitiveBoolean;
+								PinCategory = FGraphBuilder::PinCategoryBoolean;
 							}
 							break;
 
 							case ELiteralType::Float:
 							{
-								PinType = FGraphBuilder::PinPrimitiveFloat;
+								PinCategory = FGraphBuilder::PinCategoryFloat;
+
+								// Doubles use the same preferred literal
+								// but different colorization
+								if (DataTypeName == "Double")
+								{
+									PinCategory = FGraphBuilder::PinCategoryFloat;
+								}
+
+								// Differentiate stronger numeric types associated with audio
+								if (DataTypeName == "Frequency"
+									|| DataTypeName == "Time"
+									|| DataTypeName == "Time:HighResolution"
+									|| DataTypeName == "Time:SampleResolution"
+								)
+								{
+									PinSubCategory = FGraphBuilder::PinSubCategoryAudioNumeric;
+								}
 							}
 							break;
 
 							case ELiteralType::Integer:
 							{
-								PinType = FGraphBuilder::PinPrimitiveInt32;
+								PinCategory = FGraphBuilder::PinCategoryInt32;
 							}
 							break;
 
 							case ELiteralType::String:
 							{
-								PinType = FGraphBuilder::PinPrimitiveString;
+								PinCategory = FGraphBuilder::PinCategoryString;
 							}
 							break;
 
 							case ELiteralType::UObjectProxy:
 							{
-								PinType = FGraphBuilder::PinPrimitiveUObject;
+								PinCategory = FGraphBuilder::PinCategoryObject;
 							}
 							break;
 
 							case ELiteralType::UObjectProxyArray:
 							{
-								PinType = FGraphBuilder::PinPrimitiveUObjectArray;
+								PinCategory = FGraphBuilder::PinSubCategoryObjectArray;
 							}
 							break;
 
@@ -208,13 +205,24 @@ namespace Metasound
 							case ELiteralType::None:
 							case ELiteralType::Invalid:
 							{
+
+								// Audio types are ubiquitous, so specialize
+								if (DataTypeName == "Audio:Buffer"
+									|| DataTypeName == "Audio:Unformatted"
+									|| DataTypeName == "Audio:Mono"
+									|| DataTypeName == "Audio:Stereo"
+									|| DataTypeName == "Audio:Multichannel"
+								)
+								{
+									PinSubCategory = FGraphBuilder::PinSubCategoryAudioFormat;
+								}
 								static_assert(static_cast<int32>(ELiteralType::Invalid) == 7, "Possible missing binding of pin category to primitive type");
 							}
 							break;
 						}
 					}
 
-					DataTypeInfo.Add(DataTypeName, FEditorDataType(PinType, RegistryInfo));
+					DataTypeInfo.Add(DataTypeName, FEditorDataType(PinCategory, PinSubCategory, RegistryInfo));
 				}
 			}
 

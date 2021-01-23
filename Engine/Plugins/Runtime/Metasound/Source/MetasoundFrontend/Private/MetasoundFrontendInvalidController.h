@@ -142,6 +142,9 @@ namespace Metasound
 			TSharedRef<const IInputController> GetInputWithID(FGuid InPointID) const override { return FInvalidInputController::GetInvalid(); }
 			TSharedRef<const IOutputController> GetOutputWithID(FGuid InPointID) const override { return FInvalidOutputController::GetInvalid(); }
 
+			const FMetasoundFrontendNodeStyle& GetNodeStyle() const override { static const FMetasoundFrontendNodeStyle Invalid; return Invalid; }
+			void SetNodeStyle(const FMetasoundFrontendNodeStyle& InNodeStyle) { };
+
 			bool CanAddInput(const FString& InVertexName) const override { return false; }
 			FInputHandle AddInput(const FString& InVertexName, const FMetasoundFrontendLiteral* InDefault) override { return FInvalidInputController::GetInvalid(); }
 			bool RemoveInput(FGuid InPointID) override { return false; }
@@ -154,7 +157,7 @@ namespace Metasound
 			const FString& GetClassName() const override { return MetasoundFrontendInvalidControllerPrivate::GetInvalid<FString>(); }
 			FMetasoundFrontendVersionNumber GetClassVersionNumber() const override { return MetasoundFrontendInvalidControllerPrivate::GetInvalid<FMetasoundFrontendVersionNumber>(); }
 			const FText& GetClassDescription() const override { return MetasoundFrontendInvalidControllerPrivate::GetInvalid<FText>(); }
-			FMetasoundFrontendClassDisplayInfo GetClassDisplayInfo() const { return FMetasoundFrontendClassDisplayInfo(); }
+			const FMetasoundFrontendClassStyle& GetClassStyle() const override { static const FMetasoundFrontendClassStyle Invalid; return Invalid; }
 
 			TSharedRef<IGraphController> AsGraph() override;
 			TSharedRef<const IGraphController> AsGraph() const override;

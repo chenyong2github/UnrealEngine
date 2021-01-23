@@ -42,12 +42,17 @@ public:
 	virtual FString GetDocumentationLink() const override;
 	virtual void GetNodeContextMenuActions(class UToolMenu* Menu, class UGraphNodeContextMenuContext* Context) const override;
 	virtual FText GetTooltipText() const override;
+	virtual void PinDefaultValueChanged(UEdGraphPin* Pin) override;
 	virtual void PrepareForCopying() override;
 	virtual void ReconstructNode() override;
 	// End of UEdGraphNode interface
 
 	// UObject interface
 	virtual void PostLoad() override;
+
+#if WITH_EDITOR
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& InEvent) override;
+#endif // WITH_EDITOR
 
 	virtual void PostEditImport() override;
 	virtual void PostDuplicate(bool bDuplicateForPIE) override;

@@ -7,6 +7,7 @@
 #include "EdGraph/EdGraphPin.h"
 #include "MetasoundFrontend.h"
 #include "MetasoundFrontendController.h"
+#include "MetasoundFrontendDocument.h"
 
 
 // Forward Declarations
@@ -15,33 +16,44 @@ class UEdGraphPin;
 class UMetasound;
 class UMetasoundEditorGraphNode;
 
+struct FMetasoundFrontendNodeStyle;
+
+
 namespace Metasound
 {
+	// Forward Declarations
+	struct FLiteral;
+
 	namespace Editor
 	{
 		class FGraphBuilder
 		{
 		public:
+			static const FName PinCategoryBoolean;
+			static const FName PinCategoryDouble;
+			static const FName PinCategoryExec;
+			static const FName PinCategoryFloat;
+			static const FName PinCategoryInt32;
+			static const FName PinCategoryInt64;
+			static const FName PinCategoryObject;
+			static const FName PinCategoryString;
+
 			// Custom pin-related styles (ex. wire color, pin heads, etc.)
-			static const FName PinAudioFormat;				// Audio formats (ex. Buffers, Mono, Stereo)
-			static const FName PinAudioNumeric;				// Audio numeric types (ex. Frequency, Time)
-			static const FName PinPrimitiveBoolean;
-			static const FName PinPrimitiveFloat;
-			static const FName PinPrimitiveInt32;
-			static const FName PinPrimitiveInt64;
-			static const FName PinPrimitiveString;
-			static const FName PinPrimitiveTrigger;
-			static const FName PinPrimitiveUObject;
-			static const FName PinPrimitiveUObjectArray;
+			static const FName PinSubCategoryAudioFormat;				// Audio formats (ex. Buffers, Mono, Stereo)
+			static const FName PinSubCategoryAudioNumeric;				// Audio numeric types (ex. Frequency, Time)
+			static const FName PinSubCategoryObjectArray;
 
 			// Adds a node to the editor graph that corresponds to the provided node handle.
-			static UEdGraphNode* AddNode(UObject& InMetasound, const FVector2D& Location, Frontend::FNodeHandle& InNodeHandle, bool bInSelectNewNode = true);
+			static UEdGraphNode* AddNode(UObject& InMetasound, Frontend::FNodeHandle& InNodeHandle, bool bInSelectNewNode = true);
 
 			// Adds a node with the given class info to both the editor and document graphs
-			static UEdGraphNode* AddNode(UObject& InMetasound, const FVector2D& Location, const Frontend::FNodeClassInfo& InClassInfo, bool bInSelectNewNode = true);
+			static UEdGraphNode* AddNode(UObject& InMetasound, const Frontend::FNodeClassInfo& InClassInfo, const FMetasoundFrontendNodeStyle& InNodeStyle, bool bInSelectNewNode = true);
 
-			// Adds a node handle with the given class info
-			static Frontend::FNodeHandle AddNodeHandle(UObject& InMetasound, const Frontend::FNodeClassInfo& InClassInfo);
+			// Adds a node handle with the given class and style info
+			static Frontend::FNodeHandle AddNodeHandle(UObject& InMetasound, const Frontend::FNodeClassInfo& InClassInfo, const FMetasoundFrontendNodeStyle& InNodeStyle);
+
+			// Attempts to connect graph nodes together.  Returns true if succeeded, breaks pin link and returns false if failed.
+			static bool ConnectNodes(UEdGraphPin& InInputPin, UEdGraphPin& InOutputPin);
 
 			static FString GenerateUniqueInputName(const UObject& InMetasound, const FName InBaseName);
 
@@ -51,21 +63,28 @@ namespace Metasound
 
 			static TArray<FString> GetDataTypeNameCategories(const FName& InDataTypeName);
 
-			static UEdGraphNode* AddInput(UObject& InMetasound, const FVector2D& Location, const FString& InName, const FName InTypeName, const FText& InToolTip, bool bInSelectNewNode = true);
+			static UEdGraphNode* AddInput(UObject& InMetasound, const FString& InName, const FName InTypeName, const FMetasoundFrontendNodeStyle& InNodeStyle, const FText& InToolTip, bool bInSelectNewNode = true);
+
+			static void AddOrUpdateLiteralInput(UObject& InMetasound, Frontend::FNodeHandle InNodeHandle, const UEdGraphPin& InInputPin);
 
 			// Adds an input node handle with the given class info
-			static Frontend::FNodeHandle AddInputNodeHandle(UObject& InMetasound, const FString& InName, const FName InTypeName, const FText& InToolTip);
+			static Frontend::FNodeHandle AddInputNodeHandle(UObject& InMetasound, const FString& InName, const FName InTypeName, const FMetasoundFrontendNodeStyle& InNodeStyle, const FText* InToolTip = nullptr, const FLiteral* InDefaultValue = nullptr);
 
-			static UEdGraphNode* AddOutput(UObject& InMetasound, const FVector2D& Location, const FString& InName, const FName InTypeName, const FText& InToolTip, bool bInSelectNewNode = true);
+			static UEdGraphNode* AddOutput(UObject& InMetasound, const FString& InName, const FName InTypeName, const FMetasoundFrontendNodeStyle& InNodeStyle, const FText& InToolTip, bool bInSelectNewNode = true);
 
 			// Adds an output node handle with the given class info
-			static Frontend::FNodeHandle AddOutputNodeHandle(UObject& InMetasound, const FString& InName, const FName InTypeName, const FText& InToolTip);
+			static Frontend::FNodeHandle AddOutputNodeHandle(UObject& InMetasound, const FString& InName, const FName InTypeName, const FMetasoundFrontendNodeStyle& InNodeStyle, const FText& InToolTip);
 
-			static void DeleteNode(UEdGraphNode& InNode, Frontend::FNodeHandle InNodeHandle, bool bInRecordTransaction = true);
+			// Constructs graph with default inputs & outputs.
+			static void ConstructGraph(UObject& InMetasound);
 
-			static void RebuildGraph(UObject& InMetasound);
+			static void RebuildNodePins(UMetasoundEditorGraphNode& InGraphNode, Frontend::FNodeHandle InNodeHandle);
 
-			static void RebuildNodePins(UMetasoundEditorGraphNode& InGraphNode, Frontend::FNodeHandle InNodeHandle, bool bInRecordTransaction = true);
+			// Removes all literal inputs connected to the given node
+			static void DeleteLiteralInputs(UEdGraphNode& InNode);
+
+			// Deletes both the editor graph & frontend nodes from respective graphs
+			static bool DeleteNode(UEdGraphNode& InNode, bool bInRecordTransaction);
 
 			// Adds an Input UEdGraphPin to a UMetasoundEditorGraphNode
 			static UEdGraphPin* AddPinToNode(UMetasoundEditorGraphNode& InEditorNode, Frontend::FInputHandle InInputHandle);

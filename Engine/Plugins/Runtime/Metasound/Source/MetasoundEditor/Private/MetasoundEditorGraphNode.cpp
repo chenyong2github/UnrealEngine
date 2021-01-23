@@ -8,11 +8,12 @@
 #include "Framework/Commands/GenericCommands.h"
 #include "GraphEditorActions.h"
 #include "Metasound.h"
-#include "MetasoundFrontend.h"
 #include "MetasoundEditorGraph.h"
 #include "MetasoundEditorGraphBuilder.h"
 #include "MetasoundEditorGraphSchema.h"
 #include "MetasoundEditorCommands.h"
+#include "MetasoundEditorModule.h"
+#include "MetasoundFrontend.h"
 #include "MetasoundUObjectRegistry.h"
 #include "ScopedTransaction.h"
 #include "ToolMenus.h"
@@ -122,12 +123,13 @@ void UMetasoundEditorGraphNode::AllocateDefaultPins()
 	using namespace Metasound;
 
 	ensureAlways(Pins.Num() == 0);
-	Metasound::Editor::FGraphBuilder::RebuildNodePins(*this, GetNodeHandle(), false /* bInRecordTransaction */);
+	Editor::FGraphBuilder::RebuildNodePins(*this, GetNodeHandle());
 }
 
 void UMetasoundEditorGraphNode::ReconstructNode()
 {
 	using namespace Metasound;
+
 	Editor::FGraphBuilder::RebuildNodePins(*this, GetNodeHandle());
 }
 
@@ -255,12 +257,39 @@ FText UMetasoundEditorGraphNode::GetNodeTitle(ENodeTitleType::Type TitleType) co
 	}
 }
 
+void UMetasoundEditorGraphNode::PinDefaultValueChanged(UEdGraphPin* Pin)
+{
+	using namespace Metasound;
+	using namespace Metasound::Editor;
+	using namespace Metasound::Frontend;
+
+	if (Pin && Pin->Direction == EGPD_Input)
+	{
+		FNodeHandle NodeHandle = GetNodeHandle();
+		IMetasoundEditorModule& EditorModule = FModuleManager::GetModuleChecked<IMetasoundEditorModule>("MetasoundEditor");
+		FGraphBuilder::AddOrUpdateLiteralInput(GetMetasoundChecked(), NodeHandle, *Pin);
+	}
+}
+
 void UMetasoundEditorGraphNode::PrepareForCopying()
 {
 }
 
 void UMetasoundEditorGraphNode::PostEditImport()
 {
+}
+
+void UMetasoundEditorGraphNode::PostEditChangeProperty(FPropertyChangedEvent& InEvent)
+{
+	const FName PropertyName = InEvent.GetPropertyName();
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(UEdGraphNode, NodePosX)
+		|| PropertyName == GET_MEMBER_NAME_CHECKED(UEdGraphNode, NodePosY))
+	{
+		Metasound::Frontend::FNodeHandle NodeHandle = GetNodeHandle();
+		FMetasoundFrontendNodeStyle Style = NodeHandle->GetNodeStyle();
+		Style.Display.Location = FVector2D(NodePosX, NodePosY);
+		GetNodeHandle()->SetNodeStyle(Style);
+	}
 }
 
 void UMetasoundEditorGraphNode::PostDuplicate(bool bDuplicateForPIE)
@@ -280,7 +309,7 @@ void UMetasoundEditorGraphNode::GetNodeContextMenuActions(UToolMenu* Menu, UGrap
 	if (Context->Pin)
 	{
 		// If on an input that can be deleted, show option
-		if (Context->Pin->Direction == EGPD_Input /*&& SoundNode->ChildNodes.Num() > SoundNode->GetMinChildNodes()*/)
+		if (Context->Pin->Direction == EGPD_Input)
 		{
 			FToolMenuSection& Section = Menu->AddSection("MetasoundEditorGraphDeleteInput");
 			Section.AddMenuEntry(FEditorCommands::Get().DeleteInput);

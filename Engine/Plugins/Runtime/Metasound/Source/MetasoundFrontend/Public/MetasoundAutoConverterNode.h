@@ -10,6 +10,7 @@
 #include "MetasoundDataFactory.h"
 #include "MetasoundDataReference.h"
 #include "MetasoundExecutableOperator.h"
+#include "MetasoundFrontend.h"
 
 #include <type_traits>
 
@@ -52,17 +53,26 @@ namespace Metasound
 		{
 			auto InitNodeInfo = []() -> FNodeInfo
 			{
+				const FString& InputDisplayName = GetInputName();
+				const FString& OutputDisplayName = GetOutputName();
+
+				FNodeDisplayStyle DisplayStyle;
+				DisplayStyle.bShowName = false;
+				DisplayStyle.bShowInputNames = false;
+				DisplayStyle.bShowOutputNames = false;
+
 				FNodeInfo Info;
-				Info.ClassName = FName(*FString::Printf(TEXT("%s To %s"), *GetInputName(), *GetOutputName()));
+				Info.ClassName = FName(*FString::Printf(TEXT("%s To %s"), *InputDisplayName, *OutputDisplayName));
 				Info.MajorVersion = 1;
 				Info.MinorVersion = 0;
 				Info.Description = LOCTEXT("Metasound_ConverterNodeDescription", "Converts between two different data types.");
 				Info.Author = PluginAuthor;
+				Info.DisplayStyle = DisplayStyle;
 				Info.PromptIfMissing = PluginNodeMissingPrompt;
 				Info.DefaultInterface = DeclareVertexInterface();
 
 				Info.CategoryHierarchy = { LOCTEXT("Metasound_ConvertNodeCategory", "Conversions") };
-				Info.Keywords = {TEXT("convert"), GetMetasoundDataTypeName<FromDataType>(), GetMetasoundDataTypeName<ToDataType>()};
+				Info.Keywords = { "Convert", GetMetasoundDataTypeName<FromDataType>(), GetMetasoundDataTypeName<ToDataType>()};
 
 				return Info;
 			};
@@ -91,6 +101,7 @@ namespace Metasound
 				virtual FDataReferenceCollection GetInputs() const override
 				{
 					FDataReferenceCollection Inputs;
+					Inputs.AddDataReadReference<FromDataType>(GetInputName(), FromData);
 					return Inputs;
 				}
 

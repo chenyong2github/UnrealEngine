@@ -1063,14 +1063,34 @@ namespace Metasound
 			return FMetasoundFrontendVersionNumber();
 		}
 
-		FMetasoundFrontendClassDisplayInfo FBaseNodeController::GetClassDisplayInfo() const
+		const FMetasoundFrontendClassStyle& FBaseNodeController::GetClassStyle() const
 		{
 			if (ClassPtr.IsValid())
 			{
-				return ClassPtr->Metadata.DisplayInfo;
+				return ClassPtr->Style;
 			}
 
-			return FMetasoundFrontendClassDisplayInfo();
+			static const FMetasoundFrontendClassStyle Invalid;
+			return Invalid;
+		}
+
+		const FMetasoundFrontendNodeStyle& FBaseNodeController::GetNodeStyle() const
+		{
+			if (NodePtr.IsValid())
+			{
+				return NodePtr->Style;
+			}
+
+			static const FMetasoundFrontendNodeStyle Invalid;
+			return Invalid;
+		}
+
+		void FBaseNodeController::SetNodeStyle(const FMetasoundFrontendNodeStyle& InStyle)
+		{
+			if (ClassPtr.IsValid())
+			{
+				NodePtr->Style = InStyle;
+			}
 		}
 
 		const FText& FBaseNodeController::GetClassDescription() const

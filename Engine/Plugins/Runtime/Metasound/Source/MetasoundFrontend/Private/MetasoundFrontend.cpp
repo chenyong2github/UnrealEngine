@@ -64,32 +64,28 @@ namespace Metasound
 				TEXT("") // Variant
 			};
 
-			FMetasoundFrontendVersionNumber ClassVersion
-			{
-				InNodeMetadata.MajorVersion,
-				InNodeMetadata.MinorVersion
-			};
-
 			FMetasoundFrontendClass ClassDescription;
 
-			// Set metadata for class description.
 			ClassDescription.Metadata = FMetasoundFrontendClassMetadata
 			{
 				ClassName,
-				ClassVersion,
+				FMetasoundFrontendVersionNumber
+				{
+					InNodeMetadata.MajorVersion,
+					InNodeMetadata.MinorVersion
+				},
 				ClassType,
 				InNodeMetadata.Description,
 				InNodeMetadata.PromptIfMissing,
 				InNodeMetadata.Author,
 				InNodeMetadata.Keywords,
 				InNodeMetadata.CategoryHierarchy,
-				FMetasoundFrontendClassDisplayInfo
-				{
-					InNodeMetadata.ImageName,
-					InNodeMetadata.bShowName,
-					InNodeMetadata.bShowInputNames,
-					InNodeMetadata.bShowOutputNames
-				},
+			};
+
+			FMetasoundFrontendClassStyleDisplay DisplayStyle(InNodeMetadata.DisplayStyle);
+			ClassDescription.Style = FMetasoundFrontendClassStyle
+			{
+				DisplayStyle
 			};
 
 			// External metasounds aren't dependent on any other nodes by definition, so all we need to do
@@ -238,12 +234,12 @@ class FMetasoundFrontendModule : public IModuleInterface
 };
 
 
-REGISTER_METASOUND_DATATYPE(bool, "Primitive:Bool", ::Metasound::ELiteralType::Boolean)
-REGISTER_METASOUND_DATATYPE(int32, "Primitive:Int32", ::Metasound::ELiteralType::Integer)
-REGISTER_METASOUND_DATATYPE(int64, "Primitive:Int64", ::Metasound::ELiteralType::Integer)
-REGISTER_METASOUND_DATATYPE(float, "Primitive:Float", ::Metasound::ELiteralType::Float)
-REGISTER_METASOUND_DATATYPE(double, "Primitive:Double", ::Metasound::ELiteralType::Float)
-REGISTER_METASOUND_DATATYPE(FString, "Primitive:String", ::Metasound::ELiteralType::String)
+REGISTER_METASOUND_DATATYPE(bool, "Bool", ::Metasound::ELiteralType::Boolean)
+REGISTER_METASOUND_DATATYPE(int32, "Int32", ::Metasound::ELiteralType::Integer)
+REGISTER_METASOUND_DATATYPE(int64, "Int64", ::Metasound::ELiteralType::Integer)
+REGISTER_METASOUND_DATATYPE(float, "Float", ::Metasound::ELiteralType::Float)
+REGISTER_METASOUND_DATATYPE(double, "Double", ::Metasound::ELiteralType::Float)
+REGISTER_METASOUND_DATATYPE(FString, "String", ::Metasound::ELiteralType::String)
 
 REGISTER_METASOUND_DATATYPE(Metasound::FAudioBuffer, "Audio:Buffer")
 REGISTER_METASOUND_DATATYPE(Metasound::FSendAddress, "Transmission:Address")

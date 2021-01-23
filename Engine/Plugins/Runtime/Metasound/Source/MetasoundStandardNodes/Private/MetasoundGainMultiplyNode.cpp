@@ -31,11 +31,14 @@ namespace Metasound
 			{
 				check(OutputBuffer->Num() == BlockSize);
 				check(Buffer->Num() == BlockSize);
+				LastGain = *Gain;
 			}
 
 			virtual FDataReferenceCollection GetInputs() const override
 			{
 				FDataReferenceCollection InputDataReferences;
+				InputDataReferences.AddDataReadReference(TEXT("In"), FAudioBufferReadRef(Buffer));
+				InputDataReferences.AddDataReadReference(TEXT("Gain"), FFloatReadRef(Gain));
 				return InputDataReferences;
 			}
 
@@ -48,14 +51,36 @@ namespace Metasound
 
 			void Execute()
 			{
+				if (!bInit)
+				{
+					bInit = true;
+					LastGain = *Gain;
+				}
+
 				FMemory::Memcpy(OutputBuffer->GetData(), Buffer->GetData(), sizeof(float) * BlockSize);
-				Audio::MultiplyBufferByConstantInPlace(*OutputBuffer, *Gain);
+
+				const int32 SIMDRemainder = OutputBuffer->Num() % AUDIO_SIMD_FLOAT_ALIGNMENT;
+				const int32 SIMDCount = OutputBuffer->Num() - SIMDRemainder;
+
+				Audio::FadeBufferFast(OutputBuffer->GetData(), SIMDCount, LastGain, *Gain);
+
+				for (int32 i = SIMDCount; i < OutputBuffer->Num(); ++i)
+				{
+					OutputBuffer->GetData()[i] *= *Gain;
+				}
+
+				LastGain = *Gain;
 			}
 
 		private:
 			FAudioBufferReadRef Buffer;
 			FFloatReadRef Gain;
 			FAudioBufferWriteRef OutputBuffer;
+
+			float LastGain = 1.0f;
+
+			bool bInit = false;
+
 			int32 BlockSize;
 	};
 
@@ -73,11 +98,11 @@ namespace Metasound
 	{
 		static const FVertexInterface Interface(
 			FInputVertexInterface(
-				TInputDataVertexModel<FAudioBuffer>(TEXT("Buffer"), LOCTEXT("InputBuffer1Tooltip", "Input buffer.")),
+				TInputDataVertexModel<FAudioBuffer>(TEXT("Buffer"), LOCTEXT("InputBufferTooltip", "Input buffer.")),
 				TInputDataVertexModel<float>(TEXT("Gain"), LOCTEXT("InputGainTooltip", "Input gain."))
 			),
 			FOutputVertexInterface(
-				TOutputDataVertexModel<FAudioBuffer>(TEXT("Out"), LOCTEXT("OutpuBufferTooltip", "The output audio."))
+				TOutputDataVertexModel<FAudioBuffer>(TEXT("Out"), LOCTEXT("OutpuBufferTooltip", "Output buffer with gain multiplier applied."))
 			)
 		);
 
@@ -99,11 +124,19 @@ namespace Metasound
 	{
 		auto InitNodeInfo = []() -> FNodeInfo
 		{
+			FNodeDisplayStyle DisplayStyle;
+			DisplayStyle.ImageName = "MetasoundEditor.Graph.Node.Math.Multiply";
+			DisplayStyle.bShowName = false;
+			DisplayStyle.bShowInputNames = false;
+			DisplayStyle.bShowOutputNames = false;
+
 			FNodeInfo Info;
-			Info.ClassName = FName(TEXT("Gain Multiply"));
+			Info.ClassName = "Multiply AudioBuffer by Gain";
+			Info.DisplayStyle = DisplayStyle;
 			Info.MajorVersion = 1;
 			Info.MinorVersion = 0;
-			Info.Description = LOCTEXT("GainMultiply_NodeDescription", "Multiply audio buffer by float."),
+			Info.Description = LOCTEXT("GainMultiply_NodeDescription", "Multiply AudioBuffer by float.");
+			Info.CategoryHierarchy = { LOCTEXT("Metasound_MathCategory", "Math") };
 			Info.Author = PluginAuthor;
 			Info.PromptIfMissing = PluginNodeMissingPrompt;
 			Info.DefaultInterface = DeclareVertexInterface();

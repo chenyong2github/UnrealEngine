@@ -67,18 +67,22 @@ namespace Metasound
 		{
 			auto InitNodeInfo = []() -> FNodeInfo
 			{
-				FNodeInfo Info;
+				FNodeDisplayStyle DisplayStyle;
+				DisplayStyle.bShowName = false;
 
-				Info.ClassName = FName(TEXT("MonoAudioFormat"));
+				FNodeInfo Info;
+				Info.ClassName = "Buffer to Mono";
+				Info.DisplayStyle = DisplayStyle;
 				Info.MajorVersion = 1;
 				Info.MinorVersion = 0;
-				Info.Description = LOCTEXT("MonoAudioFormat_NodeDescription", "Mono Audio Format");
+				Info.Description = LOCTEXT("MonoAudioFormat_NodeDescription", "Converts Audio:Buffer To Mono Format");
+				Info.CategoryHierarchy = { LOCTEXT("Metasound_ConvertNodeCategory", "Conversions") };
 				Info.Author = PluginAuthor;
 				Info.PromptIfMissing = PluginNodeMissingPrompt;
 
 				Info.DefaultInterface = FVertexInterface(
 					FInputVertexInterface(
-						TInputDataVertexModel<FAudioBuffer>(GetCenterName(), LOCTEXT("MonoAudioFormat_CenterChannel", "Audio"))
+						TInputDataVertexModel<FAudioBuffer>(GetCenterName(), LOCTEXT("MonoAudioFormat_CenterChannel", "Center"))
 					),
 					FOutputVertexInterface(
 						TOutputDataVertexModel<FMonoAudioFormat>(GetMonoName(), LOCTEXT("MonoAudioFormat_MonoOut", "Mono"))
@@ -169,19 +173,23 @@ namespace Metasound
 		{
 			auto InitNodeInfo = []() -> FNodeInfo
 			{
-				FNodeInfo Info;
+				FNodeDisplayStyle DisplayStyle;
+				DisplayStyle.bShowName = false;
 
-				Info.ClassName = FName(TEXT("StereoAudioFormat"));
+				FNodeInfo Info;
+				Info.ClassName = "Buffer to Stereo";
+				Info.DisplayStyle = DisplayStyle;
 				Info.MajorVersion = 1;
 				Info.MinorVersion = 0;
-				Info.Description = LOCTEXT("StereoAudioFormat_NodeDescription", "Stereo Audio Format");
+				Info.Description = LOCTEXT("StereoAudioFormat_NodeDescription", "Converts Audio:Buffer to Stereo Format");
+				Info.CategoryHierarchy = { LOCTEXT("Metasound_ConvertNodeCategory", "Conversions") };
 				Info.Author = PluginAuthor;
 				Info.PromptIfMissing = PluginNodeMissingPrompt;
 
 				Info.DefaultInterface = FVertexInterface(
 					FInputVertexInterface(
-						TInputDataVertexModel<FAudioBuffer>(GetLeftName(), LOCTEXT("StereoAudioFormat_LeftChannel", "Left Audio")),
-						TInputDataVertexModel<FAudioBuffer>(GetRightName(), LOCTEXT("StereoAudioFormat_RightChannel", "Right Audio"))
+						TInputDataVertexModel<FAudioBuffer>(GetLeftName(), LOCTEXT("StereoAudioFormat_LeftChannel", "Left")),
+						TInputDataVertexModel<FAudioBuffer>(GetRightName(), LOCTEXT("StereoAudioFormat_RightChannel", "Right"))
 					),
 					FOutputVertexInterface(
 						TOutputDataVertexModel<FStereoAudioFormat>(GetStereoName(), LOCTEXT("StereoAudioFormat_StereoOut", "Stereo"))

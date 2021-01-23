@@ -23,13 +23,13 @@ namespace Metasound
 	public:
 		static const FString& GetAddressInputName()
 		{
-			static const FString InputName = FString(TEXT("Address"));
+			static const FString InputName = TEXT("Address");
 			return InputName;
 		}
 
 		static const FString& GetSendInputName()
 		{
-			static const FString SendInput = GetMetasoundDataTypeString<TDataType>();
+			static const FString& SendInput = GetMetasoundDataTypeString<TDataType>();
 			return SendInput;
 		}
 
@@ -49,9 +49,10 @@ namespace Metasound
 		{
 			auto InitNodeInfo = []() -> FNodeInfo
 			{
+				const FString& InputName = GetSendInputName();
 				FNodeInfo Info;
 
-				Info.ClassName = FName(*FString::Printf(TEXT("Send %s"), *GetSendInputName()));
+				Info.ClassName = FName(*FString::Printf(TEXT("Send %s"), *InputName));
 				Info.MajorVersion = 1;
 				Info.MinorVersion = 0;
 				Info.Description = LOCTEXT("Metasound_SendNodeDescription", "Sends data from a send node with the same name.");
@@ -59,7 +60,7 @@ namespace Metasound
 				Info.PromptIfMissing = PluginNodeMissingPrompt;
 				Info.DefaultInterface = DeclareVertexInterface();
 				Info.CategoryHierarchy = { LOCTEXT("Metasound_TransmissionNodeCategory", "Transmission") };
-				Info.Keywords = {TEXT("send"), GetMetasoundDataTypeName<TDataType>()};
+				Info.Keywords = { "Send", GetMetasoundDataTypeName<TDataType>()};
 
 				return Info;
 			};

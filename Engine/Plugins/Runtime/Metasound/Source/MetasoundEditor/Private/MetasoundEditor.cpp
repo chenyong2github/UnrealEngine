@@ -36,7 +36,6 @@
 
 #define LOCTEXT_NAMESPACE "MetasoundEditor"
 
-
 namespace Metasound
 {
 	namespace Editor
@@ -108,40 +107,10 @@ namespace Metasound
 				Graph->ParentMetasound = &InMetasound;
 				Graph->Schema = UMetasoundEditorGraphSchema::StaticClass();
 				MetasoundAsset->SetGraph(Graph);
-				FGraphBuilder::RebuildGraph(InMetasound);
+				FGraphBuilder::ConstructGraph(InMetasound);
 			}
 
 			return MetasoundAsset->GetRootGraphHandle();
-		}
-
-		bool FEditor::RebuildGraph() const
-		{
-			UObject* MetasoundObj = GetMetasoundObject();
-			if (nullptr != MetasoundObj)
-			{
-				if (IMetasoundUObjectRegistry::Get().IsRegisteredClass(MetasoundObj))
-				{
-					FGraphBuilder::RebuildGraph(*MetasoundObj);
-					return true;
-				}
-			}
-
-			return false;
-		}
-
-		bool FEditor::SynchronizeGraph() const
-		{
-			UObject* MetasoundObj = GetMetasoundObject();
-			if (nullptr != MetasoundObj)
-			{
-				if (IMetasoundUObjectRegistry::Get().IsRegisteredClass(MetasoundObj))
-				{
-					FGraphBuilder::SynchronizeGraph(*MetasoundObj);
-					return true;
-				}
-			}
-
-			return false;
 		}
 
 		void FEditor::InitMetasoundEditor(const EToolkitMode::Type Mode, const TSharedPtr<IToolkitHost>& InitToolkitHost, UObject* ObjectToEdit)
@@ -265,9 +234,15 @@ namespace Metasound
 				// If a property change event occurs outside of the metasound UEdGraph and results in the metasound document changing, 
 				// then the document and the UEdGraph need to be synchronized. There may be a better trigger for this call to reduce
 				// the number of times the graph is synchronized. 
-				SynchronizeGraph();
-
-				MetasoundGraphEditor->NotifyGraphChanged();
+				UObject* MetasoundObj = GetMetasoundObject();
+				if (nullptr != MetasoundObj)
+				{
+					if (IMetasoundUObjectRegistry::Get().IsRegisteredClass(MetasoundObj))
+					{
+						FGraphBuilder::SynchronizeGraph(*MetasoundObj);
+						MetasoundGraphEditor->NotifyGraphChanged();
+					}
+				}
 			}
 		}
 
@@ -684,6 +659,8 @@ namespace Metasound
 
 		void FEditor::DeleteSelectedNodes()
 		{
+			using namespace Metasound::Frontend;
+
 			const FScopedTransaction Transaction(LOCTEXT("MetasoundEditorDeleteSelectedNode", "Delete Selected Metasound Node(s)"));
 
 			UMetasoundEditorGraph* Graph = CastChecked<UMetasoundEditorGraph>(MetasoundGraphEditor->GetCurrentGraph());
@@ -692,64 +669,14 @@ namespace Metasound
 			const FGraphPanelSelectionSet SelectedNodes = MetasoundGraphEditor->GetSelectedNodes();
 			MetasoundGraphEditor->ClearSelectionSet();
 
-			UObject* ParentMetasoundObject = Graph->ParentMetasound;
-			check(ParentMetasoundObject);
-			if (FMetasoundAssetBase* MetasoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(ParentMetasoundObject))
+			for (FGraphPanelSelectionSet::TConstIterator NodeIt(SelectedNodes); NodeIt; ++NodeIt)
 			{
-				Frontend::FConstDocumentHandle DocumentHandle = MetasoundAsset->GetDocumentHandle();
-				for (FGraphPanelSelectionSet::TConstIterator NodeIt(SelectedNodes); NodeIt; ++NodeIt)
+				// Some nodes may not be metasound nodes (ex. comments and perhaps aliases eventually), but can be safely deleted.
+				if (UEdGraphNode* Node = Cast<UEdGraphNode>(*NodeIt))
 				{
-					Frontend::FNodeHandle NodeHandle = Frontend::INodeController::GetInvalidHandle();
-
-					if (UMetasoundEditorGraphNode* Node = Cast<UMetasoundEditorGraphNode>(*NodeIt))
+					if (!FGraphBuilder::DeleteNode(*Node, true /* bInRecordTransaction */))
 					{
-						NodeHandle = Node->GetNodeHandle();
-
-						if (NodeHandle->GetClassType() == EMetasoundFrontendClassType::Input)
-						{
-							auto IsRequiredInput = [&](const Frontend::FConstInputHandle& InputHandle) 
-							{ 
-								return DocumentHandle->IsRequiredInput(InputHandle->GetName()); 
-							};
-							TArray<Frontend::FConstInputHandle> NodeInputs = NodeHandle->GetConstInputs();
-
-							if (Frontend::FConstInputHandle* InputHandle = NodeInputs.FindByPredicate(IsRequiredInput))
-							{
-								FNotificationInfo Info(FText::Format(LOCTEXT("Metasounds_CannotDeleteRequiredInput",
-									"'Required Input '{0}' cannot be deleted."), (*InputHandle)->GetDisplayName()));
-								Info.bFireAndForget = true;
-								Info.ExpireDuration = 2.0f;
-								Info.bUseThrobber = true;
-								FSlateNotificationManager::Get().AddNotification(Info);
-								continue;
-							}
-						}
-
-						if (NodeHandle->GetClassType() == EMetasoundFrontendClassType::Output)
-						{
-							auto IsRequiredOutput = [&](const Frontend::FConstOutputHandle& OutputHandle) 
-							{ 
-								return DocumentHandle->IsRequiredOutput(OutputHandle->GetName()); 
-							};
-							TArray<Frontend::FConstOutputHandle> NodeOutputs = NodeHandle->GetConstOutputs();
-
-							if (Frontend::FConstOutputHandle* OutputHandle = NodeOutputs.FindByPredicate(IsRequiredOutput))
-							{
-								FNotificationInfo Info(FText::Format(LOCTEXT("Metasounds_CannotDeleteRequiredOutput",
-									"'Required Output '{0}' cannot be deleted."), (*OutputHandle)->GetDisplayName()));
-								Info.bFireAndForget = true;
-								Info.ExpireDuration = 2.0f;
-								Info.bUseThrobber = true;
-								FSlateNotificationManager::Get().AddNotification(Info);
-								continue;
-							}
-						}
-					}
-
-					// Some nodes may not be metasound nodes (ex. comments and perhaps aliases eventually), but can be safely deleted.
-					if (UEdGraphNode* Node = Cast<UEdGraphNode>(*NodeIt))
-					{
-						FGraphBuilder::DeleteNode(*Node, NodeHandle, true /* bInRecordTransaction */);
+						MetasoundGraphEditor->SetNodeSelection(Node, true /* bSelect */);
 					}
 				}
 			}

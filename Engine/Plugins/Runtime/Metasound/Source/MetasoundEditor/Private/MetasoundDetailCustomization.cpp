@@ -11,6 +11,7 @@
 #include "IDetailGroup.h"
 #include "MetasoundAssetBase.h"
 #include "MetasoundFrontend.h"
+#include "MetasoundFrontendController.h"
 #include "MetasoundUObjectRegistry.h"
 #include "PropertyEditorDelegates.h"
 #include "PropertyHandle.h"
@@ -26,6 +27,14 @@
 
 #define LOCTEXT_NAMESPACE "MetasoundEditor"
 
+static int32 ShowLiteralMetasoundInputsInEditorCVar = 0;
+FAutoConsoleVariableRef CVarShowLiteralMetasoundInputsInEditor(
+	TEXT("au.Debug.Editor.Metasounds.ShowLiteralInputs"),
+	ShowLiteralMetasoundInputsInEditorCVar,
+	TEXT("Show literal inputs in the Metasound Editor.\n")
+	TEXT("0: Disabled (default), !0: Enabled"),
+	ECVF_Default);
+
 namespace Metasound
 {
 	namespace Editor
@@ -40,6 +49,34 @@ namespace Metasound
 			return FName(InBasePath.ToString() + TEXT(".") + InPropertyName.ToString());
 		}
 
+		TSet<FString> GetLiteralInputs(IDetailLayoutBuilder& InDetailLayout)
+		{
+			TSet<FString> LiteralInputs;
+			TArray<TWeakObjectPtr<UObject>> Objects;
+			InDetailLayout.GetObjectsBeingCustomized(Objects);
+
+			if (Objects.IsEmpty() || !Objects[0].IsValid())
+			{
+				return LiteralInputs;
+			}
+
+			UObject* Metasound = Objects[0].Get();
+			if (FMetasoundAssetBase* MetasoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(Metasound))
+			{
+				Frontend::FGraphHandle GraphHandle = MetasoundAsset->GetRootGraphHandle();
+				TArray<Frontend::FNodeHandle> InputNodes = GraphHandle->GetInputNodes();
+				for (Frontend::FNodeHandle& NodeHandle : InputNodes)
+				{
+					if (NodeHandle->GetNodeStyle().Display.Visibility == EMetasoundFrontendNodeStyleDisplayVisibility::Hidden)
+					{
+						LiteralInputs.Add(NodeHandle->GetNodeName());
+					}
+				}
+			}
+
+			return LiteralInputs;
+		}
+
 		template <typename T>
 		void BuildIOFixedArray(IDetailLayoutBuilder& InDetailLayout, FName InCategoryName, FName InPropertyName, const TSet<FString>& InRequiredValues)
 		{
@@ -48,6 +85,12 @@ namespace Metasound
 			IDetailCategoryBuilder& CategoryBuilder = InDetailLayout.EditCategory(InCategoryName);
 			TSharedPtr<IPropertyHandle> ParentProperty = InDetailLayout.GetProperty(InPropertyName);
 			TSharedPtr<IPropertyHandleArray> ArrayHandle = ParentProperty->AsArray();
+
+			TSet<FString> LiteralInputs;
+			if (bIsInput && !ShowLiteralMetasoundInputsInEditorCVar)
+			{
+				LiteralInputs = GetLiteralInputs(InDetailLayout);
+			}
 
 			uint32 NumElements = 0;
 			ArrayHandle->GetNumElements(NumElements);
@@ -69,6 +112,12 @@ namespace Metasound
 				FString Name;
 				const bool bNameFound = NameProperty->GetValue(Name) == FPropertyAccess::Success;
 				const bool bIsRequired = bNameFound && InRequiredValues.Contains(Name);
+
+				// Hide literal members
+				if (LiteralInputs.Contains(Name))
+				{
+					continue;
+				}
 
 				FText DisplayName;
 				DisplayNameProperty->GetValue(DisplayName);

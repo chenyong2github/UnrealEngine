@@ -33,6 +33,24 @@ namespace Metasound
 		}
 	};
 
+	/**
+	 * Node style data
+	 */
+	struct FNodeDisplayStyle
+	{
+		/** Icon name identifier associated with node. */
+		FName ImageName;
+
+		/** Whether or not to show name in visual layout. */
+		bool bShowName = true;
+
+		/** Whether or not to show input names in visual layout. */
+		bool bShowInputNames = true;
+
+		/** Whether or not to show output names in visual layout. */
+		bool bShowOutputNames = true;
+	};
+
 	// TODO: update FNodeInfo with this as class name.
 	struct FNodeClassName
 	{
@@ -70,16 +88,11 @@ namespace Metasound
 		/** Hierarchy of categories for displaying node. */
 		TArray<FText> CategoryHierarchy;
 
-		FName ImageName;
-
-		bool bShowName = true;
-
-		bool bShowInputNames = true;
-
-		bool bShowOutputNames = true;
-
 		/** List of keywords for contextual node searching. */
 		TArray<FName> Keywords;
+
+		/** Display style for node when visualized. */
+		FNodeDisplayStyle DisplayStyle;
 
 		/** Returns an empty FNodeInfo object. */
 		static const FNodeInfo& GetEmpty()

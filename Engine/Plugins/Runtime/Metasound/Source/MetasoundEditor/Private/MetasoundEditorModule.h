@@ -20,8 +20,8 @@ namespace Metasound
 			FEdGraphPinType PinType;
 			FDataTypeRegistryInfo RegistryInfo;
 
-			FEditorDataType(FName InGraphDataType, const FDataTypeRegistryInfo& InRegistryInfo)
-				: PinType(InGraphDataType, NAME_None, nullptr, EPinContainerType::None, false, FEdGraphTerminalType())
+			FEditorDataType(FName InPinCategory, FName InPinSubCategory, const FDataTypeRegistryInfo& InRegistryInfo)
+				: PinType(InPinCategory, InPinSubCategory, nullptr, EPinContainerType::None, false, FEdGraphTerminalType())
 				, RegistryInfo(InRegistryInfo)
 			{
 			}
@@ -30,7 +30,7 @@ namespace Metasound
 		class METASOUNDEDITOR_API IMetasoundEditorModule : public IModuleInterface
 		{
 		public:
-			virtual void RegisterDataType(FName InPinCategoryName, const FDataTypeRegistryInfo& InRegistryInfo) = 0;
+			virtual void RegisterDataType(FName InPinCategoryName, FName InPinSubCategoryName, const FDataTypeRegistryInfo& InRegistryInfo) = 0;
 			virtual const FEditorDataType& FindDataType(FName InDataTypeName) const = 0;
 			virtual void IterateDataTypes(TUniqueFunction<void(const FEditorDataType&)> InDataTypeFunction) const = 0;
 		};

@@ -69,14 +69,14 @@ void SMetasoundGraphNode::CreateStandardPinWidget(UEdGraphPin* CurPin)
 		Metasound::Frontend::FNodeHandle NodeHandle = GetMetasoundNode().GetNodeHandle();
 		if (CurPin->Direction == EGPD_Input)
 		{
-			if (!NodeHandle->GetClassDisplayInfo().bShowInputName)
+			if (!NodeHandle->GetClassStyle().Display.bShowInputNames)
 			{
 				NewPin->SetShowLabel(false);
 			}
 		}
 		else if (CurPin->Direction == EGPD_Output)
 		{
-			if (!NodeHandle->GetClassDisplayInfo().bShowOutputName)
+			if (!NodeHandle->GetClassStyle().Display.bShowOutputNames)
 			{
 				NewPin->SetShowLabel(false);
 			}
@@ -89,7 +89,7 @@ void SMetasoundGraphNode::CreateStandardPinWidget(UEdGraphPin* CurPin)
 TSharedRef<SWidget> SMetasoundGraphNode::CreateTitleWidget(TSharedPtr<SNodeTitle> NodeTitle)
 {
 	Metasound::Frontend::FNodeHandle NodeHandle = GetMetasoundNode().GetNodeHandle();
-	if (!NodeHandle->GetClassDisplayInfo().bShowName)
+	if (!NodeHandle->GetClassStyle().Display.bShowName)
 	{
 		return SNullWidget::NullWidget;
 	}
@@ -102,7 +102,7 @@ void SMetasoundGraphNode::SetDefaultTitleAreaWidget(TSharedRef<SOverlay> Default
 	SGraphNode::SetDefaultTitleAreaWidget(DefaultTitleAreaWidget);
 
 	Metasound::Frontend::FNodeHandle NodeHandle = GetMetasoundNode().GetNodeHandle();
-	if (NodeHandle->GetClassDisplayInfo().bShowName)
+	if (NodeHandle->GetClassStyle().Display.bShowName)
 	{
 		DefaultTitleAreaWidget->ClearChildren();
 		TSharedPtr<SNodeTitle> NodeTitle = SNew(SNodeTitle, GraphNode);
@@ -213,11 +213,11 @@ TSharedRef<SWidget> SMetasoundGraphNode::CreateNodeContentArea()
 	using namespace Metasound::Frontend;
 
 	FNodeHandle NodeHandle = GetMetasoundNode().GetNodeHandle();
-	FMetasoundFrontendClassDisplayInfo DisplayInfo = NodeHandle->GetClassDisplayInfo();
+	const FMetasoundFrontendClassStyleDisplay& StyleDisplay = NodeHandle->GetClassStyle().Display;
 
 	TSharedRef<SHorizontalBox> ContentBox = SNew(SHorizontalBox);
 
-	if (DisplayInfo.ImageName.IsNone())
+	if (StyleDisplay.ImageName.IsNone())
 	{
 		ContentBox->AddSlot()
 			.HAlign(HAlign_Left)
@@ -238,7 +238,7 @@ TSharedRef<SWidget> SMetasoundGraphNode::CreateNodeContentArea()
 
 		if (const ISlateStyle* MetasoundStyle = FSlateStyleRegistry::FindSlateStyle("MetasoundStyle"))
 		{
-			const FSlateBrush* ImageBrush = MetasoundStyle->GetBrush(DisplayInfo.ImageName);
+			const FSlateBrush* ImageBrush = MetasoundStyle->GetBrush(StyleDisplay.ImageName);
 			ContentBox->AddSlot()
 				.AutoWidth()
 				.HAlign(HAlign_Center)

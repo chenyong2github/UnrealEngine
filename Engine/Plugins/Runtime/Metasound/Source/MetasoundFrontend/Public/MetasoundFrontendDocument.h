@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Internationalization/Text.h"
 #include "MetasoundAccessPtr.h"
+#include "MetasoundNodeInterface.h"
 #include "Misc/Guid.h"
 
 #include "MetasoundFrontendDocument.generated.h"
@@ -180,10 +181,40 @@ struct METASOUNDFRONTEND_API FMetasoundFrontendNodeInterface
 	TArray<FMetasoundFrontendVertex> Environment;
 };
 
+UENUM()
+enum class EMetasoundFrontendNodeStyleDisplayVisibility : uint8
+{
+	Visible,
+	Hidden
+};
+
+USTRUCT()
+struct METASOUNDFRONTEND_API FMetasoundFrontendNodeStyleDisplay
+{
+	GENERATED_BODY()
+
+	// Visibility state of node
+	UPROPERTY()
+	EMetasoundFrontendNodeStyleDisplayVisibility Visibility = EMetasoundFrontendNodeStyleDisplayVisibility::Visible;
+
+	// Position of node
+	UPROPERTY()
+	FVector2D Location = FVector2D::ZeroVector;
+};
+
+USTRUCT()
+struct METASOUNDFRONTEND_API FMetasoundFrontendNodeStyle
+{
+	GENERATED_BODY()
+
+	// Display style of a node
+	UPROPERTY()
+	FMetasoundFrontendNodeStyleDisplay Display;
+};
 
 // An FMetasoundFrontendNode represents a single instance of a FMetasoundFrontendClass
 USTRUCT()
-struct METASOUNDFRONTEND_API FMetasoundFrontendNode 
+struct METASOUNDFRONTEND_API FMetasoundFrontendNode
 {
 	GENERATED_BODY()
 
@@ -212,7 +243,9 @@ struct METASOUNDFRONTEND_API FMetasoundFrontendNode
 	UPROPERTY()
 	TArray<FMetasoundFrontendVertexLiteral> InputLiterals;
 
-	// TODO: Add node init data if it is used. It may be dropped as a concept.
+	// Style info related to a node.
+	UPROPERTY()
+	FMetasoundFrontendNodeStyle Style;
 };
 
 
@@ -398,9 +431,19 @@ struct METASOUNDFRONTEND_API FMetasoundFrontendClassVertex : public FMetasoundFr
 
 // Information regarding how to display a node class
 USTRUCT()
-struct METASOUNDFRONTEND_API FMetasoundFrontendClassDisplayInfo
+struct METASOUNDFRONTEND_API FMetasoundFrontendClassStyleDisplay
 {
 	GENERATED_BODY()
+
+	FMetasoundFrontendClassStyleDisplay() = default;
+
+	FMetasoundFrontendClassStyleDisplay(const Metasound::FNodeDisplayStyle& InDisplayStyle)
+	:	ImageName(InDisplayStyle.ImageName)
+	,	bShowName(InDisplayStyle.bShowName)
+	,	bShowInputNames(InDisplayStyle.bShowInputNames)
+	,	bShowOutputNames(InDisplayStyle.bShowOutputNames)
+	{
+	}
 
 	UPROPERTY()
 	FName ImageName;
@@ -409,10 +452,10 @@ struct METASOUNDFRONTEND_API FMetasoundFrontendClassDisplayInfo
 	bool bShowName = true;
 
 	UPROPERTY()
-	bool bShowInputName = true;
+	bool bShowInputNames = true;
 
 	UPROPERTY()
-	bool bShowOutputName = true;
+	bool bShowOutputNames = true;
 };
 
 // Contains info for input vertex of a Metasound class.
@@ -584,29 +627,16 @@ struct FMetasoundFrontendClassMetadata
 
 	UPROPERTY()
 	TArray<FText> CategoryHierarchy;
-
-	UPROPERTY()
-	FMetasoundFrontendClassDisplayInfo DisplayInfo;
 };
 
-UENUM()
-enum class EMetasoundFrontendStyleNodeDisplay : uint8
-{
-	Default,
-	Inherited,
-	Minimized
-};
-
-USTRUCT() 
+USTRUCT()
 struct FMetasoundFrontendClassStyle
 {
 	GENERATED_BODY()
 
 	UPROPERTY()
-	EMetasoundFrontendStyleNodeDisplay NodeDisplay = EMetasoundFrontendStyleNodeDisplay::Inherited;
+	FMetasoundFrontendClassStyleDisplay Display;
 };
-
-
 
 USTRUCT()
 struct FMetasoundFrontendEditorData
@@ -624,9 +654,6 @@ USTRUCT()
 struct METASOUNDFRONTEND_API FMetasoundFrontendClass
 {
 	GENERATED_BODY()
-
-	//Metasound::Frontend::TAccessPoint<FMetasoundFrontendClass> AccessPoint;
-	//Metasound::Frontend::FAccessPoint AccessPoint;
 
 	virtual ~FMetasoundFrontendClass() = default;
 

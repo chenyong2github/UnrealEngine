@@ -67,6 +67,12 @@ namespace Metasound
 			{
 				auto InitNodeInfo = []() -> FNodeInfo
 				{
+					FNodeDisplayStyle DisplayStyle;
+					DisplayStyle.ImageName = TDerivedClass::GetImageName();
+					DisplayStyle.bShowName = false;
+					DisplayStyle.bShowInputNames = false;
+					DisplayStyle.bShowOutputNames = false;
+
 					FNodeInfo Info;
 					Info.ClassName = TDerivedClass::GetClassName();
 					Info.MajorVersion = 1;
@@ -75,10 +81,7 @@ namespace Metasound
 					Info.Author = PluginAuthor;
 					Info.PromptIfMissing = PluginNodeMissingPrompt;
 					Info.DefaultInterface = DeclareVertexInterface();
-					Info.ImageName = TDerivedClass::GetImageName();
-					Info.bShowName = false;
-					Info.bShowInputNames = false;
-					Info.bShowOutputNames = false;
+					Info.DisplayStyle = DisplayStyle;
 					Info.CategoryHierarchy = { LOCTEXT("Metasound_MathCategory", "Math") };
 
 					return Info;
