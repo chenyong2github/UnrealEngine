@@ -18,6 +18,12 @@ void UStaticMeshComponentToolTarget::CommitMaterialSetUpdate(const FComponentMat
 
 	UStaticMesh* StaticMesh = Cast<UStaticMeshComponent>(Component)->GetStaticMesh();
 
+	if (StaticMesh->GetPathName().StartsWith(TEXT("/Engine/")))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("CANNOT MODIFY BUILT-IN ENGINE ASSET %s"), *StaticMesh->GetPathName());
+		return;
+	}
+
 	// flush any pending rendering commands, which might touch this component while we are rebuilding it's mesh
 	FlushRenderingCommands();
 
@@ -60,6 +66,17 @@ void UStaticMeshComponentToolTarget::CommitMeshDescription(const FCommitter& Com
 	check(IsValid());
 
 	UStaticMesh* StaticMesh = Cast<UStaticMeshComponent>(Component)->GetStaticMesh();
+
+	if (StaticMesh->GetPathName().StartsWith(TEXT("/Engine/")))
+	{
+		FString DebugMessage = FString::Printf(TEXT("CANNOT MODIFY BUILT-IN ENGINE ASSET %s"), *StaticMesh->GetPathName());
+		if (GAreScreenMessagesEnabled)
+		{
+			GEngine->AddOnScreenDebugMessage(INDEX_NONE, 10.0f, FColor::Red, DebugMessage);
+		}
+		UE_LOG(LogTemp, Warning, TEXT("%s"), *DebugMessage);
+		return;
+	}
 
 	// flush any pending rendering commands, which might touch this component while we are rebuilding it's mesh
 	FlushRenderingCommands();
