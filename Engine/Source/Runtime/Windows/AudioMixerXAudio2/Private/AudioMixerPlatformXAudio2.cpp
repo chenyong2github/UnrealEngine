@@ -1446,6 +1446,39 @@ namespace Audio
 		return nullptr;
 	}
 
+	ICompressedAudioInfo* FMixerPlatformXAudio2::CreateCompressedAudioInfo(const FSoundWaveProxy& InSoundWave)
+	{
+#if WITH_ENGINE
+		// Decoding with FSoundWaveProxy is only supported ot streaming audio at the moment
+		if (false == InSoundWave.IsStreaming())
+		{
+			return nullptr;
+		}
+
+		if (InSoundWave.IsSeekableStreaming())
+		{
+			return new FADPCMAudioInfo();
+		}
+
+#if WITH_XMA2 && USE_XMA2_FOR_STREAMING
+		if (InSoundWave.NumChannels <= 2)
+		{
+			return XMA2_INFO_NEW();
+		}
+#endif
+
+#if USE_VORBIS_FOR_STREAMING
+		return new FVorbisAudioInfo();
+#else
+		return new FOpusAudioInfo();
+#endif // USE_VORBIS_FOR_STREAMING
+
+#endif // WITH_ENGINE
+
+		// Decoding with FSoundWaveProxy is only supported ot streaming audio at the moment
+		return nullptr;
+	}
+
 	FString FMixerPlatformXAudio2::GetDefaultDeviceName()
 	{
 		//GConfig->GetString(TEXT("/Script/WindowsTargetPlatform.WindowsTargetSettings"), TEXT("AudioDevice"), WindowsAudioDeviceName, GEngineIni);

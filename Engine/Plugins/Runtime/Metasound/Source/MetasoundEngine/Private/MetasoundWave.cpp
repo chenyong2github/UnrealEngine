@@ -9,92 +9,62 @@
 #include "AudioDeviceManager.h"
 #include "AudioDevice.h"
 
+
 namespace Metasound
 {	
-	// Small RAII helper.
-	struct FScopedBulkDataLock
+	FWaveAsset::FDecoderInputPtr FWaveAsset::CreateDecoderInput() const
 	{
-		bool bLocked = false;
-		FByteBulkData& Bd;
-		FScopedBulkDataLock(FByteBulkData& InBd) 
-			: Bd(InBd) 
-		{}
-
-		const void* LockReadOnly()
+		if (SoundWaveProxy.IsValid())
 		{
-			if (ensure(bLocked==false))
-			{
-				if (const void* Ptr =Bd.LockReadOnly() )
-				{
-					bLocked = true;
-					return Ptr;
-				}
-			}
-			return nullptr;
-		}
+			FName OldFormat = SoundWaveProxy->GetRuntimeFormat();
 
-		~FScopedBulkDataLock() 
-		{ 
-			if (bLocked) 
-			{
-				Bd.Unlock();
-			}
-		}
-	};
+			TUniquePtr<Audio::IDecoderInput> Input = Audio::CreateBackCompatDecoderInput(OldFormat, *SoundWaveProxy);
 
-	// Temp. We don't have any cooking at the moment, so do the encode here.
-	bool DoInlineEncode(
-		USoundWave* InWave,
-		TArray<uint8>& OutCompressedBytes)
-	{
-#if WITH_EDITORONLY_DATA
-		using namespace Audio;		
-		FScopeLock Lock(&InWave->RawDataCriticalSection);
-		FByteBulkData& Raw = InWave->RawData;
-		FScopedBulkDataLock BdLock(Raw);
-		if (const void* RawPtr = BdLock.LockReadOnly())
-		{
-			IEncoderInput::FFormat Format { static_cast<uint32>(InWave->NumChannels), static_cast<uint32>(InWave->GetSampleRateForCurrentPlatform()), EBitRepresentation::Int16_Interleaved };
-			TUniquePtr<IEncoderInput> Input = IEncoderInput::Create(
-				MakeArrayView(static_cast<const int16*>(RawPtr), Raw.GetBulkDataSize() / sizeof(int16)),
-				Format
-			);
-
-			if (ICodecRegistry::FCodecPtr DefaultCodec = ICodecRegistry::Get().FindDefaultCodec() )
-			{
-				ICodec::FEncoderPtr Encoder = DefaultCodec->CreateEncoder(Input.Get());
-				if (Encoder)
-				{
-					// Encode default everything.
-					return Encoder->Encode(
-						Input.Get(),
-						IEncoderOutput::Create(OutCompressedBytes).Get(),
-						nullptr
-					);
-				}
-			}
-		}		
-		return false;
-#else //WITH_EDITORONLY_DATA
-		return true;
-#endif //WITH_EDITORONLY_DATA
-	}
-	
-
-	FWaveAsset::FDecoderInputPtr FWaveAsset::CreateDecoderInput(const FWaveAssetReadRef& InWaveRef)
-	{				
-		if (InWaveRef->GetSoundWave())
-		{
-			FName OldFormat = FAudioDeviceManager::Get()->GetActiveAudioDevice()->GetRuntimeFormat(
-				const_cast<USoundWave*>(InWaveRef->GetSoundWave())
-			);
-
-			TUniquePtr<Audio::IDecoderInput> Input = Audio::CreateBackCompatDecoderInput(
-				OldFormat,
-				InWaveRef->GetSoundWave()
-			);
 			return FWaveAsset::FDecoderInputPtr(Input.Release());
 		}
+
 		return nullptr;
 	}
+
+
+	FWaveAsset::FDecoderTrio FWaveAsset::CreateDecoderTrio(const float OutputSampleRate, const int32 NumFramesPerBlock) const
+	{
+		using namespace Audio;
+
+		if (!IsSoundWaveValid())
+		{
+			return { };
+		}
+
+		FWaveAsset::FDecoderInputPtr Input;
+		if (!(Input = FWaveAsset::CreateDecoderInput()))
+		{
+			return { };
+		}
+
+		ICodecRegistry::FCodecPtr Codec = ICodecRegistry::Get().FindCodecByParsingInput(Input.Get());
+		if (!Codec)
+		{
+			return { };
+		}
+
+		IDecoderOutput::FRequirements Reqs
+		{
+			Float32_Interleaved,
+			NumFramesPerBlock,
+			static_cast<int32>(OutputSampleRate)
+		};
+
+		TUniquePtr<IDecoderOutput> Output = IDecoderOutput::Create(Reqs);
+		TUniquePtr<IDecoder> Decoder = Codec->CreateDecoder(Input.Get(), Output.Get());
+
+		return
+		{
+			  MoveTemp(Input)
+			, MoveTemp(Output)
+			, MoveTemp(Decoder)
+		};
+
+	}
+
 }

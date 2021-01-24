@@ -130,6 +130,7 @@ namespace Audio
 			EBitRepresentation DownstreamFormat	= Float32_Interleaved;	
 			int32 NumSampleFramesWanted			= 256;
 			int32 NumSampleFramesPerSecond		= 48000;
+			int32 NumChannels                   = 1;
 		};
 
 		// Factory.
@@ -546,7 +547,7 @@ namespace Audio
 	public:
 		TCircularOutputBuffer(
 			const FRequirements& InReqs)
-			: Buffer(InReqs.NumSampleFramesWanted*2) // Double buffered for now.
+			: Buffer(InReqs.NumSampleFramesWanted * 4) // Double buffered & assume stereo for now.
 			, Reqs(InReqs)
 		{
 		}
@@ -574,7 +575,7 @@ namespace Audio
 				for (int32 i = 0; i < Num; ++i)
 				{
 					TSampleType Val = static_cast<TSampleType>(static_cast<float>(*Src++ * Scalar));
-					Buffer.Push(&Val, 1);
+					Buffer.Push(Val);
 				}
 
 				return Num;

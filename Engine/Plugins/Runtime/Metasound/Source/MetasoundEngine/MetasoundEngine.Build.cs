@@ -9,6 +9,9 @@ namespace UnrealBuildTool.Rules
 	{
 		public MetasoundEngine(ReadOnlyTargetRules Target) : base(Target)
 		{
+
+			OptimizeCode = CodeOptimization.Never;
+
 			PrivateDependencyModuleNames.AddRange
 			(
 				new string[]
@@ -17,7 +20,7 @@ namespace UnrealBuildTool.Rules
 					"MetasoundGraphCore",
 					"MetasoundGenerator",
 					"AudioExtensions",
-					"AudioCodecEngine"
+					"AudioCodecEngine",
 				}
 			);
 
@@ -29,7 +32,9 @@ namespace UnrealBuildTool.Rules
 					"Engine",
 					"MetasoundFrontend",
 					"MetasoundStandardNodes",
-					"Serialization"
+					"AudioCodecEngine",
+					"Serialization",
+					"AudioPlatformConfiguration"
 				}
 			);
 		}

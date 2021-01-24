@@ -112,6 +112,7 @@ namespace EAudioMixerChannel
 }
 
 class USoundWave;
+class FSoundWaveProxy;
 class ICompressedAudioInfo;
 
 namespace Audio
@@ -453,6 +454,7 @@ namespace Audio
 
 		/** Creates a Compressed audio info class suitable for decompressing this SoundWave. */
 		virtual ICompressedAudioInfo* CreateCompressedAudioInfo(USoundWave* SoundWave) = 0;
+		virtual ICompressedAudioInfo* CreateCompressedAudioInfo(const FSoundWaveProxy& SoundWave) { return nullptr; }
 
 		/** Return any optional device name defined in platform configuratio. */
 		virtual FString GetDefaultDeviceName() = 0;

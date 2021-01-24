@@ -9,7 +9,7 @@ namespace Audio
 {		
 	TUniquePtr<Audio::IDecoderInput> CreateBackCompatDecoderInput(
 		FName InOldFormatName,
-		const USoundWave* InSoundWave)
+		const FSoundWaveProxy& InSoundWave)
 	{
 		return MakeUnique<FBackCompatInput>(InOldFormatName, InSoundWave);
 	}

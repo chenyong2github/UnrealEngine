@@ -577,7 +577,13 @@ namespace Audio
 
 	class ICompressedAudioInfo* FMixerDevice::CreateCompressedAudioInfo(USoundWave* InSoundWave)
 	{
-		check(InSoundWave);
+//		check(InSoundWave);
+		check(AudioMixerPlatform);
+		return AudioMixerPlatform->CreateCompressedAudioInfo(InSoundWave);
+	}
+
+	class ICompressedAudioInfo* FMixerDevice::CreateCompressedAudioInfo(const FSoundWaveProxy& InSoundWave)
+	{
 		check(AudioMixerPlatform);
 		return AudioMixerPlatform->CreateCompressedAudioInfo(InSoundWave);
 	}

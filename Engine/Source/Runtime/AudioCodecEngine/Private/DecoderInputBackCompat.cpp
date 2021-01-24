@@ -13,33 +13,35 @@ namespace Audio
 	ICompressedAudioInfo* FBackCompatInput::GetInfo(
 		FFormatDescriptorSection* OutDescriptor /*= nullptr*/) const
 	{
-		USoundWave* NonConstWave = const_cast<USoundWave*>(Wave.Get());
 		FAudioDeviceHandle Handle = FAudioDeviceManager::Get()->GetActiveAudioDevice();
 
 		if (!OldInfoObject.IsValid())
 		{
-			OldInfoObject.Reset(Handle->CreateCompressedAudioInfo(NonConstWave));
+			OldInfoObject.Reset(Handle->CreateCompressedAudioInfo(*Wave));
 			audio_ensure(OldInfoObject.IsValid());
 
 			FSoundQualityInfo Info;
 			if (Wave->IsStreaming())
 			{
-				if (!OldInfoObject->StreamCompressedInfo(NonConstWave, &Info))
+				if (!OldInfoObject->StreamCompressedInfo(*Wave, &Info))
 				{
 					return nullptr;
 				}
 			}
 			else
 			{
-				if (NonConstWave->ResourceData == nullptr)
-				{
-					NonConstWave->InitAudioResource(Handle->GetRuntimeFormat(NonConstWave));
-				}
+				// FSoundWaveProxy needs to be updated to support non-streaming audio
+				return nullptr;
 
-				if (!OldInfoObject->ReadCompressedInfo(NonConstWave->ResourceData, NonConstWave->ResourceSize, &Info))
-				{
-					return nullptr;
-				}
+// 				if (Wave->ResourceData == nullptr)
+// 				{
+// 					Wave->InitAudioResource(Wave->GetRuntimeFormat());
+// 				}
+// 
+// 				if (!OldInfoObject->ReadCompressedInfo(Wave->ResourceData, Wave->ResourceSize, &Info))
+// 				{
+// 					return nullptr;
+// 				}
 			}
 
 			Desc.NumChannels		= Info.NumChannels;

@@ -6,6 +6,8 @@
 #include "MetasoundDataTypeRegistrationMacro.h"
 #include "IAudioProxyInitializer.h"
 #include "Sound/SoundWave.h"
+#include "IAudioCodecRegistry.h"
+#include "IAudioCodec.h"
 
 // Forward declares
 namespace Audio
@@ -15,40 +17,63 @@ namespace Audio
 
 class USoundWave;
 
+namespace Audio
+{
+	class ICodecRegistry;
+	struct IDecoderOutput;
+	struct IDecoder;
+}
+
 namespace Metasound
 {
 	// Forward declare ReadRef
 	class FWaveAsset;
 	typedef TDataReadReference<FWaveAsset> FWaveAssetReadRef;
 
+
 	// Metasound data type that holds onto a weak ptr. Mostly used as a placeholder until we have a proper proxy type.
 	class METASOUNDENGINE_API FWaveAsset
 	{
-	private:
-		TWeakObjectPtr<USoundWave> SoundWave;
 	public:
+		using FDecoderInputPtr = TSharedPtr<Audio::IDecoderInput, ESPMode::ThreadSafe>;
+
+		struct FDecoderTrio
+		{
+			FDecoderInputPtr Input;
+			TUniquePtr<Audio::IDecoderOutput> Output;
+			TUniquePtr<Audio::IDecoder> Decoder;
+		};
+
+		TUniquePtr<FSoundWaveProxy> SoundWaveProxy;
 
 		FWaveAsset() = default;
 
-		FWaveAsset(const Audio::IProxyData& InInitData)
+		FWaveAsset& operator=(const FWaveAsset& Other)
 		{
-			const FSoundWaveProxy& SoundWaveProxy = InInitData.GetAs<FSoundWaveProxy>();
-			SoundWave = SoundWaveProxy.SoundWavePtr;
+			SoundWaveProxy = MakeUnique<FSoundWaveProxy>(*Other.SoundWaveProxy);
+			return *this;
 		}
 
-		USoundWave* GetSoundWave()
+		FWaveAsset(const TUniquePtr<Audio::IProxyData>& InInitData)
 		{
-			return SoundWave.Get();
+			SoundWaveProxy.Reset();
+
+			if (InInitData.IsValid())
+			{
+				SoundWaveProxy = MakeUnique<FSoundWaveProxy>(InInitData->GetAs<FSoundWaveProxy>());
+			}
 		}
 
-		const USoundWave* GetSoundWave() const
-		{
-			return SoundWave.Get();
-		}
+		FDecoderInputPtr CreateDecoderInput() const;
 
-		using FDecoderInputPtr = TSharedPtr<Audio::IDecoderInput,ESPMode::ThreadSafe>;
-		static FDecoderInputPtr CreateDecoderInput(
-			const FWaveAssetReadRef& InWaveRef);
+
+		FDecoderTrio CreateDecoderTrio(const float OutputSampleRate, const int32 NumFramesPerBlock) const;
+
+		bool IsSoundWaveValid() const
+		{
+			return SoundWaveProxy.IsValid();
+		}
+		
 	};
 
 	DECLARE_METASOUND_DATA_REFERENCE_TYPES(FWaveAsset, METASOUNDENGINE_API, FWaveAssetTypeInfo, FWaveAssetReadRef, FWaveAssetWriteRef)
