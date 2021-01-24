@@ -420,6 +420,9 @@ void USimpleDynamicMeshComponent::FastNotifyTriangleVerticesUpdated(const TArray
 		return;
 	}
 
+	bool bUpdateSecondarySort = (SecondaryTriFilterFunc) &&
+		((UpdatedAttributes & EMeshRenderAttributeFlags::SecondaryIndexBuffers) != EMeshRenderAttributeFlags::None);
+
 	FSimpleDynamicMeshSceneProxy* Proxy = GetCurrentSceneProxy();
 	if (!Proxy)
 	{
@@ -428,6 +431,10 @@ void USimpleDynamicMeshComponent::FastNotifyTriangleVerticesUpdated(const TArray
 	else if ( ! Decomposition )
 	{
 		FastNotifyVertexAttributesUpdated(UpdatedAttributes);
+		if (bUpdateSecondarySort)
+		{
+			Proxy->FastUpdateAllIndexBuffers();
+		}
 	}
 	else
 	{
@@ -439,10 +446,15 @@ void USimpleDynamicMeshComponent::FastNotifyTriangleVerticesUpdated(const TArray
 		}
 
 		bool bPositions = (UpdatedAttributes & EMeshRenderAttributeFlags::Positions) != EMeshRenderAttributeFlags::None;
-		GetCurrentSceneProxy()->FastUpdateVertices(UpdatedSets, bPositions,
+		Proxy->FastUpdateVertices(UpdatedSets, bPositions,
 			(UpdatedAttributes & EMeshRenderAttributeFlags::VertexNormals) != EMeshRenderAttributeFlags::None,
 			(UpdatedAttributes & EMeshRenderAttributeFlags::VertexColors) != EMeshRenderAttributeFlags::None,
 			(UpdatedAttributes & EMeshRenderAttributeFlags::VertexUVs) != EMeshRenderAttributeFlags::None);
+
+		if (bUpdateSecondarySort)
+		{
+			Proxy->FastUpdateIndexBuffers(UpdatedSets);
+		}
 
 		if (bPositions)
 		{
@@ -465,8 +477,10 @@ void USimpleDynamicMeshComponent::FastNotifyTriangleVerticesUpdated(const TSet<i
 		return;
 	}
 
-	FSimpleDynamicMeshSceneProxy* Proxy = GetCurrentSceneProxy();
+	bool bUpdateSecondarySort = (SecondaryTriFilterFunc) &&
+		((UpdatedAttributes & EMeshRenderAttributeFlags::SecondaryIndexBuffers) != EMeshRenderAttributeFlags::None);
 
+	FSimpleDynamicMeshSceneProxy* Proxy = GetCurrentSceneProxy();
 	if (!Proxy)
 	{
 		ResetProxy();
@@ -474,6 +488,10 @@ void USimpleDynamicMeshComponent::FastNotifyTriangleVerticesUpdated(const TSet<i
 	else if (!Decomposition)
 	{
 		FastNotifyVertexAttributesUpdated(UpdatedAttributes);
+		if (bUpdateSecondarySort)
+		{
+			Proxy->FastUpdateAllIndexBuffers();
+		}
 	}
 	else
 	{
@@ -508,6 +526,11 @@ void USimpleDynamicMeshComponent::FastNotifyTriangleVerticesUpdated(const TSet<i
 			(UpdatedAttributes & EMeshRenderAttributeFlags::VertexNormals) != EMeshRenderAttributeFlags::None,
 			(UpdatedAttributes & EMeshRenderAttributeFlags::VertexColors) != EMeshRenderAttributeFlags::None,
 			(UpdatedAttributes & EMeshRenderAttributeFlags::VertexUVs) != EMeshRenderAttributeFlags::None);
+
+		if (bUpdateSecondarySort)
+		{
+			Proxy->FastUpdateIndexBuffers(UpdatedSets);
+		}
 
 		if (bPositions)
 		{

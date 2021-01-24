@@ -282,7 +282,7 @@ public:
 	 * @param ModifiedAttribs Only relevant in case of FastUpdate- determines which attributes actually changed.
 	 */
 	void UpdatePreview(const FDynamicMesh3* Mesh, ERenderUpdateMode UpdateMode = ERenderUpdateMode::FullUpdate, 
-		EMeshRenderAttributeFlags ModifiedAttribs = EMeshRenderAttributeFlags::All);
+		EMeshRenderAttributeFlags ModifiedAttribs = EMeshRenderAttributeFlags::AllVertexAttribs);
 
 	/**
 	 * Update the internal mesh by moving in the given Mesh
@@ -291,7 +291,7 @@ public:
 	 * @param ModifiedAttribs Only relevant in case of FastUpdate- determines which attributes actually changed.
 	 */
 	void UpdatePreview(FDynamicMesh3&& Mesh, ERenderUpdateMode UpdateMode = ERenderUpdateMode::FullUpdate,
-		EMeshRenderAttributeFlags ModifiedAttribs = EMeshRenderAttributeFlags::All);
+		EMeshRenderAttributeFlags ModifiedAttribs = EMeshRenderAttributeFlags::AllVertexAttribs);
 
 	/**
 	 * Initialize the internal mesh based on the given MeshDescription
@@ -360,6 +360,21 @@ public:
 	 */
 	void NotifyDeferredEditCompleted(ERenderUpdateMode UpdateMode, EMeshRenderAttributeFlags ModifiedAttribs, bool bRebuildSpatial);
 
+	/**
+	 * Notify that a deferred edit is completed and cause update of rendering data structures for modified Triangles.
+	 * This can reduce the cost of mesh updates, but only if SetEnableRenderMeshDecomposition(true) has been called
+	 * @param ModifiedAttribs which mesh attributes have been modified and need to be updated
+	 */
+	void NotifyRegionDeferredEditCompleted(const TArray<int32>& Triangles, EMeshRenderAttributeFlags ModifiedAttribs);
+
+	/**
+	 * Notify that a deferred edit is completed and cause update of rendering data structures for modified Triangles.
+	 * This can reduce the cost of mesh updates, but only if SetEnableRenderMeshDecomposition(true) has been called
+	 * @param ModifiedAttribs which mesh attributes have been modified and need to be updated
+	 */
+	void NotifyRegionDeferredEditCompleted(const TSet<int32>& Triangles, EMeshRenderAttributeFlags ModifiedAttribs);
+
+
 
 	/**
 	 * Apply EditFunc to the internal mesh and update internal data structures as necessary.
@@ -394,6 +409,16 @@ public:
 	void ForceRebuildSpatial();
 
 
+	/**
+	 * Enable automatically-computed decomposition of internal mesh into subregions when rendering (ie inside the Component).
+	 * This allows for faster local updates via NotifyRegionDeferredEditCompleted() functions above.
+	 * Decomposition will be automatically recomputed as necessary when internal mesh is modified via changes, edits, etc
+	 */
+	virtual void SetEnableRenderMeshDecomposition(bool bEnable);
+
+	/** @return true if SetEnableRenderMeshDecomposition(true) has been called. */
+	bool GetIsRenderMeshDecompositionEnabled() const { return bDecompositionEnabled; }
+
 
 
 public:
@@ -415,6 +440,12 @@ protected:
 
 	/** Spatial data structure that is initialized if bBuildSpatialDataStructure = true when UpdatePreview() is called */
 	FDynamicMeshAABBTree3 MeshAABBTree;
+
+	/** If true, mesh will be chunked into multiple render buffers inside the DynamicMeshComponent */
+	bool bDecompositionEnabled = false;
+
+	/** Update chunk decomposition */
+	void UpdateRenderMeshDecomposition();
 };
 
 

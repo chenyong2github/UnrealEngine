@@ -81,11 +81,11 @@ public:
 	/**
 	 * Build decomposition with one group for each MaterialID of mesh
 	 */
-	static void BuildMaterialDecomposition(FDynamicMesh3* Mesh, const FComponentMaterialSet* MaterialSet, FMeshRenderDecomposition& Decomp);
+	static void BuildMaterialDecomposition(const FDynamicMesh3* Mesh, const FComponentMaterialSet* MaterialSet, FMeshRenderDecomposition& Decomp);
 
 	/**
 	 * Build per-material decomposition, and then split each of those into chunks of at most MaxChunkSize
 	 * (actual chunk sizes will be highly variable and some may be very small...)
 	 */
-	static void BuildChunkedDecomposition(FDynamicMesh3* Mesh, const FComponentMaterialSet* MaterialSet, FMeshRenderDecomposition& Decomp, int32 MaxChunkSize = 1 << 14 /* 16k */ );
+	static void BuildChunkedDecomposition(const FDynamicMesh3* Mesh, const FComponentMaterialSet* MaterialSet, FMeshRenderDecomposition& Decomp, int32 MaxChunkSize = 1 << 14 /* 16k */ );
 };

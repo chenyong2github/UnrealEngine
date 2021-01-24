@@ -106,6 +106,9 @@ void UMeshSelectionTool::Setup()
 		return SelectedTriangles[TriangleID] ? true : false;
 	});
 
+	// enable auto-chunking of mesh into separate render buffers, so that partial updates can be done during selection paint
+	PreviewMesh->SetEnableRenderMeshDecomposition(true);
+
 	const FDynamicMesh3* Mesh = PreviewMesh->GetPreviewDynamicMesh();
 	SelectedVertices = TBitArray<>(false, Mesh->MaxVertexID());
 	SelectedTriangles = TBitArray<>(false, Mesh->MaxTriangleID());
@@ -257,11 +260,22 @@ void UMeshSelectionTool::RegisterActions(FInteractiveToolActionSet& ActionSet)
 
 void UMeshSelectionTool::OnExternalSelectionChange()
 {
+	int32 NumTriangles = SelectedTriangles.Num();
+	TSet<int32> AllModifiedTriangles;
+	for (int32 k = 0; k < NumTriangles; ++k)
+	{
+		if (SelectedTriangles[k])
+		{
+			AllModifiedTriangles.Add(k);
+		}
+	}
+
 	SelectedVertices.SetRange(0, SelectedVertices.Num(), false);
 	SelectedTriangles.SetRange(0, SelectedTriangles.Num(), false);
 
 	if (SelectionType == EMeshSelectionElementType::Vertex)
 	{
+		ensure(false);		// not supported
 		for (int VertIdx : Selection->Vertices)
 		{
 			SelectedVertices[VertIdx] = true;
@@ -272,10 +286,11 @@ void UMeshSelectionTool::OnExternalSelectionChange()
 		for (int FaceIdx : Selection->Faces)
 		{
 			SelectedTriangles[FaceIdx] = true;
+			AllModifiedTriangles.Add(FaceIdx);
 		}
+		// todo: more efficient for rendering update to compute the delta set here...
+		OnRegionHighlightUpdated(AllModifiedTriangles);
 	}
-
-	OnSelectionUpdated();
 }
 
 
@@ -451,9 +466,9 @@ void UMeshSelectionTool::ApplyStamp(const FBrushStampData& Stamp)
 				}
 			}
 		}
-	}
 
-	OnSelectionUpdated();
+		ensure(false);		// not supported yet
+	}
 }
 
 
@@ -536,20 +551,53 @@ void UMeshSelectionTool::UpdateFaceSelection(const FBrushStampData& Stamp, const
 		UseROI = &LocalROI;
 	}
 
-	bool bDesiredValue = bInRemoveStroke ? false : true;
-	for (int TriIdx : *UseROI)
+	// separate paths for add and remove because we can't efficiently remove from Selection->Faces TArray
+	if (bInRemoveStroke == false)
 	{
-		if (SelectedTriangles[TriIdx] != bDesiredValue)
+		for (int TriIdx : *UseROI)
 		{
-			SelectedTriangles[TriIdx] = bDesiredValue;
-			UpdateList(Selection->Faces, TriIdx, bDesiredValue);
-			if (ActiveSelectionChange != nullptr)
+			if (SelectedTriangles[TriIdx] == false)
 			{
-				ActiveSelectionChange->Add(TriIdx);
+				SelectedTriangles[TriIdx] = true;
+				Selection->Faces.Add(TriIdx);
+				if (ActiveSelectionChange != nullptr)
+				{
+					ActiveSelectionChange->Add(TriIdx);
+				}
+			}
+		}
+	}
+	else
+	{
+		bool bModified = false;
+		TArray<int32> CurSelection = Selection->Faces;
+		for (int TriIdx : *UseROI)
+		{
+			if (SelectedTriangles[TriIdx] == true)
+			{
+				SelectedTriangles[TriIdx] = false;
+				bModified = true;
+				if (ActiveSelectionChange != nullptr)
+				{
+					ActiveSelectionChange->Add(TriIdx);
+				}
+			}
+		}
+		// rebuild selection
+		if (bModified)
+		{
+			Selection->Faces.Reset();
+			for (int32 tid : CurSelection)
+			{
+				if (SelectedTriangles[tid])
+				{
+					Selection->Faces.Add(tid);
+				}
 			}
 		}
 	}
 
+	OnRegionHighlightUpdated(*UseROI);
 }
 
 
@@ -593,12 +641,21 @@ bool UMeshSelectionTool::OnUpdateHover(const FInputDeviceRay& DevicePos)
 
 
 
-
-
-void UMeshSelectionTool::OnSelectionUpdated()
+void UMeshSelectionTool::OnRegionHighlightUpdated()
 {
-	UpdateVisualization(true);
+	PreviewMesh->NotifyDeferredEditCompleted(UPreviewMesh::ERenderUpdateMode::FastUpdate, EMeshRenderAttributeFlags::SecondaryIndexBuffers, false);
+
 }
+void UMeshSelectionTool::OnRegionHighlightUpdated(const TArray<int32>& Triangles)
+{
+	PreviewMesh->NotifyRegionDeferredEditCompleted(Triangles, EMeshRenderAttributeFlags::SecondaryIndexBuffers);
+}
+void UMeshSelectionTool::OnRegionHighlightUpdated(const TSet<int32>& Triangles)
+{
+	PreviewMesh->NotifyRegionDeferredEditCompleted(Triangles, EMeshRenderAttributeFlags::SecondaryIndexBuffers);
+}
+
+
 
 void UMeshSelectionTool::UpdateVisualization(bool bSelectionModified)
 {
@@ -609,7 +666,7 @@ void UMeshSelectionTool::UpdateVisualization(bool bSelectionModified)
 	// force an update of renderbuffers
 	if (bSelectionModified)
 	{
-		PreviewMesh->NotifyDeferredEditCompleted(UPreviewMesh::ERenderUpdateMode::FullUpdate, EMeshRenderAttributeFlags::All, true);
+		PreviewMesh->NotifyDeferredEditCompleted(UPreviewMesh::ERenderUpdateMode::FullUpdate, EMeshRenderAttributeFlags::AllVertexAttribs, true);
 	}
 
 	if (bColorsUpdatePending)
@@ -686,21 +743,21 @@ void UMeshSelectionTool::Render(IToolsContextRenderAPI* RenderAPI)
 	FTransform WorldTransform = ComponentTarget->GetWorldTransform();
 	const FDynamicMesh3* Mesh = PreviewMesh->GetMesh();
 
-	float PDIScale = RenderAPI->GetCameraState().GetPDIScalingFactor();
-	if (SelectionType == EMeshSelectionElementType::Vertex)
+	if (SelectionProps->bShowPoints)
 	{
-		MeshDebugDraw::DrawVertices(Mesh, Selection->Vertices,
-			12.0f*PDIScale, FColor::Orange, RenderAPI->GetPrimitiveDrawInterface(), WorldTransform);
-		MeshDebugDraw::DrawVertices(Mesh, PreviewBrushROI,
-			8.0f*PDIScale, FColor(40, 200, 40), RenderAPI->GetPrimitiveDrawInterface(), WorldTransform);
-	}
-	else
-	{
-		// drawn via material
-		//MeshDebugDraw::DrawTriCentroids(Mesh, Selection->Faces,
-		//	12.0f*PDIScale, FColor::Green, RenderAPI->GetPrimitiveDrawInterface(), WorldTransform);
-		MeshDebugDraw::DrawTriCentroids(Mesh, PreviewBrushROI,
-			4.0f*PDIScale, FColor(40, 200, 40), RenderAPI->GetPrimitiveDrawInterface(), WorldTransform);
+		float PDIScale = RenderAPI->GetCameraState().GetPDIScalingFactor();
+		if (SelectionType == EMeshSelectionElementType::Vertex)
+		{
+			MeshDebugDraw::DrawVertices(Mesh, Selection->Vertices,
+				12.0f*PDIScale, FColor::Orange, RenderAPI->GetPrimitiveDrawInterface(), WorldTransform);
+			MeshDebugDraw::DrawVertices(Mesh, PreviewBrushROI,
+				8.0f*PDIScale, FColor(40, 200, 40), RenderAPI->GetPrimitiveDrawInterface(), WorldTransform);
+		}
+		else
+		{
+			MeshDebugDraw::DrawTriCentroids(Mesh, PreviewBrushROI,
+				4.0f*PDIScale, FColor(40, 200, 40), RenderAPI->GetPrimitiveDrawInterface(), WorldTransform);
+		}
 	}
 }
 

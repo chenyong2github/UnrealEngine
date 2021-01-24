@@ -536,11 +536,11 @@ public:
 
 
 	/**
-	 * FastUpdateTriangleBuffers re-sorts the existing set of triangles in a FMeshRenderBufferSet
+	 * RecomputeRenderBufferTriangleIndexSets re-sorts the existing set of triangles in a FMeshRenderBufferSet
 	 * into primary and secondary index buffers. Note that UploadIndexBufferUpdate() must be called
 	 * after this function!
 	 */
-	void FastUpdateIndexBuffers(
+	void RecomputeRenderBufferTriangleIndexSets(
 		FMeshRenderBufferSet* RenderBuffers, 
 		const FDynamicMesh3* Mesh)
 	{

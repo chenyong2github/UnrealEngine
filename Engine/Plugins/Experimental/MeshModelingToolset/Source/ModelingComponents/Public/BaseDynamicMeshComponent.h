@@ -28,12 +28,13 @@ class FMeshChange;
 enum class EMeshRenderAttributeFlags : uint8
 {
 	None = 0,
-	Positions = 0x1,
-	VertexColors = 0x2,
-	VertexNormals = 0x4,
-	VertexUVs = 0x8,
+	Positions = 1,
+	VertexColors = 1<<1,
+	VertexNormals = 1<<2,
+	VertexUVs = 1<<3,
+	SecondaryIndexBuffers = 1<<4,
 
-	All = 0xFF
+	AllVertexAttribs = Positions | VertexColors | VertexNormals | VertexUVs
 };
 ENUM_CLASS_FLAGS(EMeshRenderAttributeFlags);
 

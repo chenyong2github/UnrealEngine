@@ -133,7 +133,7 @@ public:
 	 *  moves verts without changing their UV's, then one would probably pass "EMeshRenderAttributeFlags::Positions | EMeshRenderAttributeFlags::VertexNormals".
 	 *  Has no effect if bOn was set to false.
 	 */
-	void SetIsMeshTopologyConstant(bool bOn, EMeshRenderAttributeFlags ChangingAttributes = EMeshRenderAttributeFlags::All);
+	void SetIsMeshTopologyConstant(bool bOn, EMeshRenderAttributeFlags ChangingAttributes = EMeshRenderAttributeFlags::AllVertexAttribs);
 
 	/**
 	 * Set time that Preview will wait before showing working material
@@ -185,7 +185,7 @@ protected:
 
 	// Used for partial/fast updates of the preview mesh render proxy.
 	bool bMeshTopologyIsConstant = false;
-	EMeshRenderAttributeFlags ChangingAttributeFlags = EMeshRenderAttributeFlags::All;
+	EMeshRenderAttributeFlags ChangingAttributeFlags = EMeshRenderAttributeFlags::AllVertexAttribs;
 	bool bMeshInitialized = false;
 
 	float SecondsBeforeWorkingMaterial = 2.0;

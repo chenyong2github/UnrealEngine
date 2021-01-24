@@ -25,10 +25,10 @@ void FMeshRenderDecomposition::BuildAssociations(const FDynamicMesh3* Mesh)
 
 
 
-void FMeshRenderDecomposition::BuildMaterialDecomposition(FDynamicMesh3* Mesh, const FComponentMaterialSet* MaterialSet, FMeshRenderDecomposition& Decomp)
+void FMeshRenderDecomposition::BuildMaterialDecomposition(const FDynamicMesh3* Mesh, const FComponentMaterialSet* MaterialSet, FMeshRenderDecomposition& Decomp)
 {
 	check(MaterialSet);
-	FDynamicMeshMaterialAttribute* MaterialID = Mesh->Attributes()->GetMaterialID();
+	const FDynamicMeshMaterialAttribute* MaterialID = Mesh->Attributes()->GetMaterialID();
 	check(MaterialID);
 
 	int32 NumMaterials = MaterialSet->Materials.Num();
@@ -57,7 +57,7 @@ void FMeshRenderDecomposition::BuildMaterialDecomposition(FDynamicMesh3* Mesh, c
 
 
 static void CollectSubDecomposition(
-	FDynamicMesh3* Mesh, 
+	const FDynamicMesh3* Mesh, 
 	const TArray<int32>& Triangles, 
 	UMaterialInterface* Material, 
 	FMeshRenderDecomposition& Decomp, 
@@ -131,7 +131,7 @@ static void CollectSubDecomposition(
 
 
 
-void FMeshRenderDecomposition::BuildChunkedDecomposition(FDynamicMesh3* Mesh, const FComponentMaterialSet* MaterialSet, FMeshRenderDecomposition& Decomp, int32 MaxChunkSize)
+void FMeshRenderDecomposition::BuildChunkedDecomposition(const FDynamicMesh3* Mesh, const FComponentMaterialSet* MaterialSet, FMeshRenderDecomposition& Decomp, int32 MaxChunkSize)
 {
 	TUniquePtr<FMeshRenderDecomposition> MaterialDecomp = MakeUnique<FMeshRenderDecomposition>();
 	BuildMaterialDecomposition(Mesh, MaterialSet, *MaterialDecomp);

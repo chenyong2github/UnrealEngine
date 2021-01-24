@@ -249,6 +249,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = Selection)
 	bool bShowWireframe = true;
 
+	/** Toggle drawing of highlight points on/off */
+	UPROPERTY(EditAnywhere, Category = Selection)
+	bool bShowPoints = true;
+
 	UPROPERTY(EditAnywhere, Category = Selection)
 	EMeshFacesColorMode FaceColorMode = EMeshFacesColorMode::None;
 };
@@ -347,7 +351,9 @@ protected:
 	TBitArray<> SelectedTriangles;
 	void OnExternalSelectionChange();
 
-	void OnSelectionUpdated();
+	void OnRegionHighlightUpdated(const TArray<int32>& Triangles);
+	void OnRegionHighlightUpdated(const TSet<int32>& Triangles);
+	void OnRegionHighlightUpdated();
 	void UpdateVisualization(bool bSelectionModified);
 	bool bFullMeshInvalidationPending = false;
 	bool bColorsUpdatePending = false;

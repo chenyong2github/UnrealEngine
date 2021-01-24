@@ -433,6 +433,12 @@ public:
 	 */
 	void FastUpdateVertices(const TArray<int32>& WhichBuffers, bool bPositions, bool bNormals, bool bColors, bool bUVs)
 	{
+		// skip if we have no updates
+		if (bPositions == false && bNormals == false && bColors == false && bUVs == false)
+		{
+			return;
+		}
+
 		// This needs to be rewritten for split-by-material buffers.
 		// Could store triangle set with each buffer, and then rebuild vtx buffer(s) as needed?
 
@@ -506,7 +512,7 @@ public:
 		// have to wait for all outstanding rendering to finish because the index buffers we are about to edit might be in-use
 		FlushRenderingCommands();
 
-		ParallelFor(RenderBufferSets.Num(), [&](int i)
+		ParallelFor(RenderBufferSets.Num(), [this, &Mesh](int i)
 		{
 			FMeshRenderBufferSet* Buffers = RenderBufferSets[i];
 
@@ -514,7 +520,7 @@ public:
 
 			if (Buffers->TriangleCount > 0)
 			{
-				FastUpdateIndexBuffers(Buffers, Mesh);
+				RecomputeRenderBufferTriangleIndexSets(Buffers, Mesh);
 			}
 
 			ENQUEUE_RENDER_COMMAND(FSimpleDynamicMeshSceneProxyFastUpdateAllIndexBuffers)(
@@ -523,6 +529,41 @@ public:
 				Buffers->UploadIndexBufferUpdate();
 			});
 			
+		});
+	}
+
+
+
+	/**
+	 * Update index buffers inside each RenderBuffer set
+	 */
+	void FastUpdateIndexBuffers(const TArray<int32>& WhichBuffers)
+	{
+		FDynamicMesh3* Mesh = ParentComponent->GetRenderMesh();
+
+		// have to wait for all outstanding rendering to finish because the index buffers we are about to edit might be in-use
+		FlushRenderingCommands();
+
+		ParallelFor(WhichBuffers.Num(), [this, &WhichBuffers, &Mesh](int i)
+		{
+			int32 BufferIndex = WhichBuffers[i];
+			if (RenderBufferSets.IsValidIndex(BufferIndex) == false)
+			{
+				return;
+			}
+
+			FMeshRenderBufferSet* Buffers = RenderBufferSets[BufferIndex];
+			FScopeLock BuffersLock(&Buffers->BuffersLock);
+			if (Buffers->TriangleCount > 0)
+			{
+				RecomputeRenderBufferTriangleIndexSets(Buffers, Mesh);
+			}
+
+			ENQUEUE_RENDER_COMMAND(FSimpleDynamicMeshSceneProxyFastUpdateSomeIndexBuffers)(
+				[Buffers](FRHICommandListImmediate& RHICmdList)
+			{
+				Buffers->UploadIndexBufferUpdate();
+			});
 		});
 	}
 

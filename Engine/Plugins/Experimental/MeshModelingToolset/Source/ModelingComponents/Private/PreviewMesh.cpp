@@ -4,6 +4,7 @@
 
 #include "Containers/StaticArray.h"
 #include "Engine/Classes/Materials/Material.h"
+#include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
 
 
 APreviewMeshActor::APreviewMeshActor()
@@ -73,6 +74,12 @@ void UPreviewMesh::SetMaterial(int MaterialIndex, UMaterialInterface* Material)
 
 	// force rebuild because we can't change materials yet - surprisingly complicated
 	DynamicMeshComponent->NotifyMeshUpdated();
+
+	// if we change materials we have to force a decomposition update because it decomposes by material
+	if (bDecompositionEnabled)
+	{
+		UpdateRenderMeshDecomposition();
+	}
 }
 
 void UPreviewMesh::SetMaterials(const TArray<UMaterialInterface*>& Materials)
@@ -85,6 +92,12 @@ void UPreviewMesh::SetMaterials(const TArray<UMaterialInterface*>& Materials)
 
 	// force rebuild because we can't change materials yet - surprisingly complicated
 	DynamicMeshComponent->NotifyMeshUpdated();
+
+	// if we change materials we have to force a decomposition update because it decomposes by material
+	if (bDecompositionEnabled)
+	{
+		UpdateRenderMeshDecomposition();
+	}
 }
 
 int32 UPreviewMesh::GetNumMaterials() const
@@ -353,6 +366,10 @@ void UPreviewMesh::InitializeMesh(FMeshDescription* MeshDescription)
 	{
 		MeshAABBTree.SetMesh(DynamicMeshComponent->GetMesh(), true);
 	}
+	if (bDecompositionEnabled)
+	{
+		UpdateRenderMeshDecomposition();
+	}
 }
 
 
@@ -367,6 +384,10 @@ void UPreviewMesh::ReplaceMesh(FDynamicMesh3&& NewMesh)
 	{
 		MeshAABBTree.SetMesh(DynamicMeshComponent->GetMesh(), true);
 	}
+	if (bDecompositionEnabled)
+	{
+		UpdateRenderMeshDecomposition();
+	}
 }
 
 
@@ -380,6 +401,10 @@ void UPreviewMesh::EditMesh(TFunctionRef<void(FDynamicMesh3&)> EditFunc)
 	if (bBuildSpatialDataStructure)
 	{
 		MeshAABBTree.SetMesh(DynamicMeshComponent->GetMesh(), true);
+	}
+	if (bDecompositionEnabled)
+	{
+		UpdateRenderMeshDecomposition();
 	}
 }
 
@@ -415,6 +440,10 @@ void UPreviewMesh::NotifyDeferredEditCompleted(ERenderUpdateMode UpdateMode, EMe
 	if (UpdateMode == ERenderUpdateMode::FullUpdate)
 	{
 		DynamicMeshComponent->NotifyMeshUpdated();
+		if (bDecompositionEnabled)
+		{
+			UpdateRenderMeshDecomposition();
+		}
 	}
 	else if (UpdateMode == ERenderUpdateMode::FastUpdate)
 	{
@@ -448,6 +477,10 @@ TUniquePtr<FMeshChange> UPreviewMesh::TrackedEditMesh(TFunctionRef<void(FDynamic
 	{
 		MeshAABBTree.SetMesh(DynamicMeshComponent->GetMesh(), true);
 	}
+	if (bDecompositionEnabled)
+	{
+		UpdateRenderMeshDecomposition();
+	}
 
 	return MoveTemp(Change);
 }
@@ -461,6 +494,7 @@ void UPreviewMesh::ApplyChange(const FMeshVertexChange* Change, bool bRevert)
 	{
 		MeshAABBTree.SetMesh(DynamicMeshComponent->GetMesh(), true);
 	}
+	// should not need to update render mesh decomposition here...
 }
 void UPreviewMesh::ApplyChange(const FMeshChange* Change, bool bRevert)
 {
@@ -470,6 +504,10 @@ void UPreviewMesh::ApplyChange(const FMeshChange* Change, bool bRevert)
 	{
 		MeshAABBTree.SetMesh(DynamicMeshComponent->GetMesh(), true);
 	}
+	if (bDecompositionEnabled)
+	{
+		UpdateRenderMeshDecomposition();
+	}
 }
 void UPreviewMesh::ApplyChange(const FMeshReplacementChange* Change, bool bRevert)
 {
@@ -478,6 +516,10 @@ void UPreviewMesh::ApplyChange(const FMeshReplacementChange* Change, bool bRever
 	if (bBuildSpatialDataStructure)
 	{
 		MeshAABBTree.SetMesh(DynamicMeshComponent->GetMesh(), true);
+	}
+	if (bDecompositionEnabled)
+	{
+		UpdateRenderMeshDecomposition();
 	}
 }
 
@@ -521,4 +563,48 @@ void UPreviewMesh::ClearTriangleColorFunction(ERenderUpdateMode UpdateMode)
 			DynamicMeshComponent->NotifyMeshUpdated();
 		}
 	}
+}
+
+
+void UPreviewMesh::SetEnableRenderMeshDecomposition(bool bEnable)
+{
+	if (bDecompositionEnabled != bEnable)
+	{
+		bDecompositionEnabled = bEnable;
+
+		if (bDecompositionEnabled)
+		{
+			UpdateRenderMeshDecomposition();
+		}
+		else
+		{
+			DynamicMeshComponent->SetExternalDecomposition(nullptr);
+		}
+	}
+}
+
+
+void UPreviewMesh::UpdateRenderMeshDecomposition()
+{
+	check(bDecompositionEnabled);
+
+	const FDynamicMesh3* Mesh = DynamicMeshComponent->GetMesh();
+	FComponentMaterialSet MaterialSet;
+	GetMaterials(MaterialSet.Materials);
+
+	TUniquePtr<FMeshRenderDecomposition> Decomp = MakeUnique<FMeshRenderDecomposition>();
+	FMeshRenderDecomposition::BuildChunkedDecomposition(Mesh, &MaterialSet, *Decomp);
+	Decomp->BuildAssociations(Mesh);
+	DynamicMeshComponent->SetExternalDecomposition(MoveTemp(Decomp));
+}
+
+
+void UPreviewMesh::NotifyRegionDeferredEditCompleted(const TArray<int32>& Triangles, EMeshRenderAttributeFlags ModifiedAttribs)
+{
+	DynamicMeshComponent->FastNotifyTriangleVerticesUpdated(Triangles, ModifiedAttribs);
+}
+
+void UPreviewMesh::NotifyRegionDeferredEditCompleted(const TSet<int32>& Triangles, EMeshRenderAttributeFlags ModifiedAttribs)
+{
+	DynamicMeshComponent->FastNotifyTriangleVerticesUpdated(Triangles, ModifiedAttribs);
 }
