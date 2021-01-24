@@ -31,17 +31,54 @@ class FAudioChunkCache
 public:
 	struct FChunkKey
 	{
-		USoundWave* SoundWave = nullptr;
-		FName SoundWaveName = FName();
+	public:
+		FChunkKey() {};
+
+		FChunkKey(const FChunkKey& Other);
+
+		// used when flushing the cache miss log
+		FChunkKey(FName InSoundWaveName, uint32 InChunkIndex);
+
+		FChunkKey(
+			  const FSoundWaveProxy& InSoundWave
+			, uint32 InChunkIndex
+#if WITH_EDITOR
+			, uint32 InChunkRevision = 0
+#endif // #if WITH_EDITOR
+		);
+
+		FChunkKey& operator=(const FChunkKey& Other);
+
+
+	private:
+		mutable TUniquePtr<FSoundWaveProxy> SoundWaveProxyPtr{ nullptr };
+
+	public:
+		mutable FName SoundWaveName = FName(); // mutable for GetTypeHash()
 		uint32 ChunkIndex = INDEX_NONE;
 		FObjectKey ObjectKey = FObjectKey();
 
 #if WITH_EDITOR
 		// This is used in the editor to invalidate stale compressed chunks.
-		uint32 ChunkRevision = INDEX_NONE;
+		uint32 ChunkRevision = 0;
 #endif
 		inline bool operator==(const FChunkKey& Other) const;
-		
+
+		bool IsChunkStale();
+		bool IsSoundWaveValid() const { return SoundWaveProxyPtr.IsValid(); }
+		// Forward FSoundWaveProxy interface
+		ESoundWaveLoadingBehavior GetLoadingBehavior() const;
+		FStreamedAudioChunk& GetChunk(uint32 InChunkIndex) const;
+		uint32 GetNumChunks() const;
+		bool IsRetainingAudio() const;
+		void ReleaseCompressedAudio();
+		bool WasLoadingBehaviorOverridden() const;
+
+		/** Hash function */
+		friend uint32 GetTypeHash(const FChunkKey& InChunkKey)
+		{
+			return HashCombine(InChunkKey.SoundWaveName.GetNumber(), InChunkKey.ChunkIndex);
+		}
 	};
 
 	FAudioChunkCache(uint32 InMaxChunkSize, uint32 NumChunks, uint64 InMemoryLimitInBytes);
@@ -58,8 +95,8 @@ public:
 	TArrayView<uint8> GetChunk(const FChunkKey& InKey, bool bBlockForLoadCompletion, bool bNeededForPlayback, uint64& InOutCacheLookupID);
 
 	// add an additional reference for a chunk.
-	void AddNewReferenceToChunk(const FChunkKey& InKey, uint64 InCacheLookupID);
-	void RemoveReferenceToChunk(const FChunkKey& InKey, uint64 InCacheLookupID);
+	void AddNewReferenceToChunk(const FChunkKey& InKey);
+	void RemoveReferenceToChunk(const FChunkKey& InKey);
 
 	// Evict all sounds from the cache.
 	void ClearCache();
@@ -96,6 +133,10 @@ public:
 
 	// Static helper function to make sure a chunk is withing the bounds of a USoundWave.
 	static bool IsKeyValid(const FChunkKey& InKey);
+
+	// interface with the cache id lookup map
+	uint64 GetCacheLookupIDForChunk(const FChunkKey& InChunkKey) const;
+	void SetCacheLookupIDForChunk(const FChunkKey& InChunkKey, uint64 InCacheLookupID);
 
 	const int32 MaxChunkSize;
 
@@ -320,6 +361,10 @@ private:
 	// Critical section: only used when we are modifying element positions in the cache. This only happens in TouchElement, EvictLeastRecentChunk, and TrimMemory.
 	// Individual cache elements should be thread safe to access.
 	FCriticalSection CacheMutationCriticalSection;
+
+	// Map that USoundWaves, FSoundWaveProxys, FChunkKeys, and FAudioChunkHandles can use to
+	// quickly lookup where their chunks are currently stored in the cache
+	TMap<FChunkKey, uint64> CacheLookupIdMap;
 	 
 	// This struct is used for logging cache misses.
 	struct FCacheMissInfo
@@ -338,7 +383,7 @@ private:
 
 	// Returns cached element if it exists in our cache, nullptr otherwise.
 	// If the index of the element is already known, it can be used here to avoid searching the cache.
-	FCacheElement* FindElementForKey(const FChunkKey& InKey, uint64 CacheLookupID = InvalidAudioStreamCacheLookupID);
+	FCacheElement* FindElementForKey(const FChunkKey& InKey);
 	FCacheElement* LinearSearchCacheForElement(const FChunkKey& InKey);
 	FCacheElement* LinearSearchChunkArrayForElement(const FChunkKey& InKey);
 
@@ -422,12 +467,12 @@ public:
 	// End IStreamingManager interface
 
 	// IAudioStreamingManager interface (unused functions)
-	virtual void AddStreamingSoundWave(USoundWave* SoundWave) override;
-	virtual void RemoveStreamingSoundWave(USoundWave* SoundWave) override;
+	virtual void AddStreamingSoundWave(const FSoundWaveProxy& SoundWave) override;
+	virtual void RemoveStreamingSoundWave(const FSoundWaveProxy& SoundWave) override;
 	virtual void AddDecoder(ICompressedAudioInfo* CompressedAudioInfo) override;
 	virtual void RemoveDecoder(ICompressedAudioInfo* CompressedAudioInfo) override;
-	virtual bool IsManagedStreamingSoundWave(const USoundWave* SoundWave) const override;
-	virtual bool IsStreamingInProgress(const USoundWave* SoundWave) override;
+	virtual bool IsManagedStreamingSoundWave(const FSoundWaveProxy&  SoundWave) const override;
+	virtual bool IsStreamingInProgress(const FSoundWaveProxy&  SoundWave) override;
 	virtual bool CanCreateSoundSource(const FWaveInstance* WaveInstance) const override;
 	virtual void AddStreamingSoundSource(FSoundSource* SoundSource) override;
 	virtual void RemoveStreamingSoundSource(FSoundSource* SoundSource) override;
@@ -435,13 +480,14 @@ public:
 	// End IAudioStreamingManager interface (unused)
 
 	// IAudioStreamingManager interface (used functions)
-	virtual bool RequestChunk(USoundWave* SoundWave, uint32 ChunkIndex, TFunction<void(EAudioChunkLoadResult)> OnLoadCompleted, ENamedThreads::Type ThreadToCallOnLoadCompletedOn, bool bForImmediatePlayback = false) override;
-	virtual FAudioChunkHandle GetLoadedChunk(const USoundWave* SoundWave, uint32 ChunkIndex, bool bBlockForLoad = false, bool bForImmediatePlayback = false) const override;
+	virtual bool RequestChunk(const FSoundWaveProxy& SoundWave, uint32 ChunkIndex, TFunction<void(EAudioChunkLoadResult)> OnLoadCompleted, ENamedThreads::Type ThreadToCallOnLoadCompletedOn, bool bForImmediatePlayback = false) override;
+	virtual FAudioChunkHandle GetLoadedChunk(const FSoundWaveProxy&  SoundWave, uint32 ChunkIndex, bool bBlockForLoad = false, bool bForImmediatePlayback = false) const override;
 	virtual uint64 TrimMemory(uint64 NumBytesToFree) override;
 	virtual int32 RenderStatAudioStreaming(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation, const FRotator* ViewRotation) override;
 	virtual FString GenerateMemoryReport() override;
 	virtual void SetProfilingMode(bool bEnabled) override;
 	// End IAudioStreamingManager interface
+
 
 protected:
 
@@ -454,13 +500,13 @@ protected:
 	 * based on the size of this sound wave's chunk,
 	 * or nullptr if MemoryLoadOnDemand is disabled.
 	 */
-	FAudioChunkCache* GetCacheForWave(const USoundWave* InSoundWave) const;
+	FAudioChunkCache* GetCacheForWave(const FSoundWaveProxy&  InSoundWave) const;
 	FAudioChunkCache* GetCacheForChunkSize(uint32 InChunkSize) const;
 
 	/**
 	 * Returns the next chunk to kick off a load for, or INDEX_NONE if there is only one chunk to cache.
 	 */
-	int32 GetNextChunkIndex(const USoundWave* InSoundWave, uint32 CurrentChunkIndex) const;
+	int32 GetNextChunkIndex(const FSoundWaveProxy&  InSoundWave, uint32 CurrentChunkIndex) const;
 
 	/** Audio chunk caches. These are set up on initialization. */
 	TArray<FAudioChunkCache> CacheArray;
@@ -468,8 +514,3 @@ protected:
 	
 
 };
-
-inline int32 GetTypeHash(const FAudioChunkCache::FChunkKey& InKey)
-{
-	return HashCombine(InKey.SoundWaveName.GetNumber(), InKey.ChunkIndex);
-}

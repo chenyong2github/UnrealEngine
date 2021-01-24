@@ -1724,7 +1724,7 @@ void UGameplayStatics::PrimeSound(USoundBase* InSound)
 
 		if (InSoundWave->GetNumChunks() > 1)
 		{
-			IStreamingManager::Get().GetAudioStreamingManager().RequestChunk(InSoundWave, 1, [](EAudioChunkLoadResult) {});
+			IStreamingManager::Get().GetAudioStreamingManager().RequestChunk(InSoundWave->GetThisAsProxy(), 1, [](EAudioChunkLoadResult) {});
 		}
 	}
 }

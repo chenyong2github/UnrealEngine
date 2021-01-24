@@ -17,7 +17,7 @@ AudioStreaming.h: Definitions of classes used for audio streaming.
 #include "HAL/ThreadSafeBool.h"
 
 class FSoundSource;
-class USoundWave;
+class FSoundWaveProxy;
 class ICompressedAudioInfo;
 struct FLegacyAudioStreamingManager;
 struct FWaveInstance;
@@ -139,7 +139,7 @@ struct FStreamingWaveData final
 	 *
 	 * @param SoundWave	The SoundWave we are managing
 	 */
-	bool Initialize(USoundWave* SoundWave, FLegacyAudioStreamingManager* InStreamingManager);
+	bool Initialize(const FSoundWaveProxy& SoundWave, FLegacyAudioStreamingManager* InStreamingManager);
 
 	/**
 	 * Updates the streaming status of the sound wave and performs finalization when appropriate. The function returns
@@ -199,7 +199,7 @@ private:
 
 public:
 	/** SoundWave this streaming data is for */
-	USoundWave* SoundWave;
+	TUniquePtr<FSoundWaveProxy> SoundWave;
 
 	/** Thread-safe counter indicating the audio streaming state. */
 	mutable FThreadSafeCounter	PendingChunkChangeRequestStatus;
@@ -263,18 +263,18 @@ struct FLegacyAudioStreamingManager : public IAudioStreamingManager
 	// End IStreamingManager interface
 
 	// IAudioStreamingManager interface
-	virtual void AddStreamingSoundWave(USoundWave* SoundWave) override;
-	virtual void RemoveStreamingSoundWave(USoundWave* SoundWave) override;
+	virtual void AddStreamingSoundWave(const FSoundWaveProxy& SoundWave) override;
+	virtual void RemoveStreamingSoundWave(const FSoundWaveProxy& SoundWave) override;
 	virtual void AddDecoder(ICompressedAudioInfo* CompressedAudioInfo) override;
 	virtual void RemoveDecoder(ICompressedAudioInfo* CompressedAudioInfo) override;
-	virtual bool IsManagedStreamingSoundWave(const USoundWave* SoundWave) const override;
-	virtual bool IsStreamingInProgress(const USoundWave* SoundWave) override;
+	virtual bool IsManagedStreamingSoundWave(const FSoundWaveProxy&  SoundWave) const override;
+	virtual bool IsStreamingInProgress(const FSoundWaveProxy&  SoundWave) override;
 	virtual bool CanCreateSoundSource(const FWaveInstance* WaveInstance) const override;
 	virtual void AddStreamingSoundSource(FSoundSource* SoundSource) override;
 	virtual void RemoveStreamingSoundSource(FSoundSource* SoundSource) override;
 	virtual bool IsManagedStreamingSoundSource(const FSoundSource* SoundSource) const override;
-	virtual bool RequestChunk(USoundWave* SoundWave, uint32 ChunkIndex, TFunction<void(EAudioChunkLoadResult)> OnLoadCompleted, ENamedThreads::Type ThreadToCallOnLoadCompletedOn, bool bForImmediatePlayback = false) override;
-	virtual FAudioChunkHandle GetLoadedChunk(const USoundWave* SoundWave, uint32 ChunkIndex, bool bBlockForLoad = false, bool bForImmediatePlayback = false) const override;
+	virtual bool RequestChunk(const FSoundWaveProxy& SoundWave, uint32 ChunkIndex, TFunction<void(EAudioChunkLoadResult)> OnLoadCompleted, ENamedThreads::Type ThreadToCallOnLoadCompletedOn, bool bForImmediatePlayback = false) override;
+	virtual FAudioChunkHandle GetLoadedChunk(const FSoundWaveProxy&  SoundWave, uint32 ChunkIndex, bool bBlockForLoad = false, bool bForImmediatePlayback = false) const override;
 	virtual uint64 TrimMemory(uint64 NumBytesToFree) override;
 	virtual int32 RenderStatAudioStreaming(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation, const FRotator* ViewRotation) override;
 	virtual FString GenerateMemoryReport() override;
@@ -299,16 +299,16 @@ protected:
 	 * @param SoundWave		SoundWave we want request for
 	 * @return Existing or new request structure
 	 */
-	FWaveRequest& GetWaveRequest(USoundWave* SoundWave);
+	FWaveRequest& GetWaveRequest(FObjectKey Key);
 
 	/** Sound Waves being managed. */
-	TMap<USoundWave*, FStreamingWaveData*> StreamingSoundWaves;
+	TMap<FObjectKey, FStreamingWaveData*> StreamingSoundWaves;
 
 	/** Sound Sources being managed. */
 	TArray<FSoundSource*>	StreamingSoundSources;
 
 	/** Map of requests to make next time sound waves are ready */
-	TMap<USoundWave*, FWaveRequest> WaveRequests;
+	TMap<FObjectKey, FWaveRequest> WaveRequests;
 
 	/** Results of async loading audio chunks. */
 	TArray<FASyncAudioChunkLoadResult*> AsyncAudioStreamChunkResults;

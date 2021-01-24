@@ -142,14 +142,14 @@ void IStreamedCompressedInfo::ExpandFile(uint8* DstBuffer, struct FSoundQualityI
 	}
 }
 
-bool IStreamedCompressedInfo::StreamCompressedInfoInternal(USoundWave* Wave, struct FSoundQualityInfo* QualityInfo)
+bool IStreamedCompressedInfo::StreamCompressedInfoInternal(const FSoundWaveProxy& InWaveProxy, struct FSoundQualityInfo* QualityInfo)
 {
-	check(StreamingSoundWave == Wave);
+	check(StreamingSoundWave.Get() == &InWaveProxy);
 
 	// Get the first chunk of audio data (should always be loaded)
 	CurrentChunkIndex = 0;
 	uint32 ChunkSize = 0;
-	const uint8* FirstChunk = GetLoadedChunk(StreamingSoundWave, CurrentChunkIndex, ChunkSize);
+	const uint8* FirstChunk = GetLoadedChunk(*StreamingSoundWave, CurrentChunkIndex, ChunkSize);
 
 	bIsStreaming = true;
 	if (FirstChunk)
@@ -180,7 +180,7 @@ bool IStreamedCompressedInfo::StreamCompressedData(uint8* Destination, bool bLoo
 
 	SCOPE_CYCLE_COUNTER(STAT_AudioStreamedDecompressTime);
 
-	UE_LOG(LogAudio, Log, TEXT("Streaming compressed data from SoundWave'%s' - Chunk %d, Offset %d"), *StreamingSoundWave->GetName(), CurrentChunkIndex, SrcBufferOffset);
+	UE_LOG(LogAudio, Log, TEXT("Streaming compressed data from SoundWave'%s' - Chunk %d, Offset %d"), *StreamingSoundWave->GetFName().ToString(), CurrentChunkIndex, SrcBufferOffset);
 
 	// Write out any PCM data that was decoded during the last request
 	uint32 RawPCMOffset = WriteFromDecodedPCM(Destination, BufferSize);
@@ -189,7 +189,7 @@ bool IStreamedCompressedInfo::StreamCompressedData(uint8* Destination, bool bLoo
 	if (SrcBufferData == NULL)
 	{
 		uint32 ChunkSize = 0;
-		SrcBufferData = GetLoadedChunk(StreamingSoundWave, CurrentChunkIndex, ChunkSize);
+		SrcBufferData = GetLoadedChunk(*StreamingSoundWave, CurrentChunkIndex, ChunkSize);
 		if (SrcBufferData)
 		{
 			bPrintChunkFailMessage = true;
@@ -201,7 +201,7 @@ bool IStreamedCompressedInfo::StreamCompressedData(uint8* Destination, bool bLoo
 			// Still not loaded, zero remainder of current buffer
 			if (bPrintChunkFailMessage)
 			{
-				UE_LOG(LogAudio, Verbose, TEXT("Chunk %d not loaded from streaming manager for SoundWave '%s'. Likely due to stall on game thread."), CurrentChunkIndex, *StreamingSoundWave->GetName());
+				UE_LOG(LogAudio, Verbose, TEXT("Chunk %d not loaded from streaming manager for SoundWave '%s'. Likely due to stall on game thread."), CurrentChunkIndex, *StreamingSoundWave->GetFName().ToString());
 				bPrintChunkFailMessage = false;
 			}
 			ZeroBuffer(Destination + RawPCMOffset, BufferSize - RawPCMOffset);
@@ -242,7 +242,7 @@ bool IStreamedCompressedInfo::StreamCompressedData(uint8* Destination, bool bLoo
 			if (SrcBufferOffset >= SrcBufferDataSize - SrcBufferPadding)
 			{
 				// Special case for the last chunk of audio
-				if (CurrentChunkIndex == StreamingSoundWave->RunningPlatformData->NumChunks - 1)
+				if (CurrentChunkIndex == StreamingSoundWave->GetNumChunks() - 1)
 				{
 					// check whether all decoded PCM was written
 					if (LastPCMByteSize == 0)
@@ -274,10 +274,10 @@ bool IStreamedCompressedInfo::StreamCompressedData(uint8* Destination, bool bLoo
 					SrcBufferOffset = 0;
 				}
 
-				SrcBufferData = GetLoadedChunk(StreamingSoundWave, CurrentChunkIndex, SrcBufferDataSize);
+				SrcBufferData = GetLoadedChunk(*StreamingSoundWave, CurrentChunkIndex, SrcBufferDataSize);
 				if (SrcBufferData)
 				{
-					UE_LOG(LogAudio, Log, TEXT("Incremented current chunk from SoundWave'%s' - Chunk %d, Offset %d"), *StreamingSoundWave->GetName(), CurrentChunkIndex, SrcBufferOffset);
+					UE_LOG(LogAudio, Log, TEXT("Incremented current chunk from SoundWave'%s' - Chunk %d, Offset %d"), *StreamingSoundWave->GetFName().ToString(), CurrentChunkIndex, SrcBufferOffset);
 				}
 				else
 				{
@@ -357,21 +357,16 @@ uint32 IStreamedCompressedInfo::ZeroBuffer(uint8* Destination, uint32 BufferSize
 }
 
 
-const uint8* IStreamedCompressedInfo::GetLoadedChunk(USoundWave* InSoundWave, uint32 ChunkIndex, uint32& OutChunkSize)
+const uint8* IStreamedCompressedInfo::GetLoadedChunk(const FSoundWaveProxy& InSoundWave, uint32 ChunkIndex, uint32& OutChunkSize)
 {
-	if (!InSoundWave || ChunkIndex >= InSoundWave->GetNumChunks())
+	if (ChunkIndex >= InSoundWave.GetNumChunks())
 	{
-		if(InSoundWave)
-		{
-			UE_LOG(LogAudio, Verbose, TEXT("Error calling GetLoadedChunk on wave with %d chunks. ChunkIndex: %d. Name: %s"), InSoundWave->GetNumChunks(), ChunkIndex, *InSoundWave->GetFullName());
-		}
-		
 		OutChunkSize = 0;
 		return nullptr;
 	}
 	else if (ChunkIndex == 0)
 	{
-		TArrayView<const uint8> ZerothChunk = InSoundWave->GetZerothChunk(true);
+		TArrayView<const uint8> ZerothChunk = InSoundWave.GetZerothChunk(true);
 		OutChunkSize = ZerothChunk.Num();
 		return ZerothChunk.GetData();
 	}
@@ -651,7 +646,7 @@ FAsyncAudioDecompressWorker::FAsyncAudioDecompressWorker(USoundWave* InWave, int
 	}
 	else if (GEngine && GEngine->GetMainAudioDevice())
 	{
-		AudioInfo = GEngine->GetMainAudioDevice()->CreateCompressedAudioInfo(Wave);
+		AudioInfo = GEngine->GetMainAudioDevice()->CreateCompressedAudioInfo(Wave->GetThisAsProxy());
 	}
 }
 
@@ -755,3 +750,22 @@ bool ShouldUseBackgroundPoolFor_FAsyncRealtimeAudioTask()
 }
 
 // end
+
+bool ICompressedAudioInfo::StreamCompressedInfo(USoundWave* Wave, FSoundQualityInfo* QualityInfo)
+{
+	// Create and cache proxy object
+	Audio::FProxyDataInitParams Params;
+	Params.NameOfFeatureRequestingProxy = "ICompressedAudioInfo";
+
+	TUniquePtr<Audio::IProxyData> ProxyData = Wave->CreateNewProxyData(Params);
+	StreamingSoundWave = MakeUnique<FSoundWaveProxy>(MoveTemp(ProxyData->GetAs<FSoundWaveProxy>()));
+
+	return StreamCompressedInfoInternal(*StreamingSoundWave, QualityInfo);
+}
+
+bool ICompressedAudioInfo::StreamCompressedInfo(const FSoundWaveProxy& Wave, FSoundQualityInfo* QualityInfo)
+{
+	// Create our own copy of the proxy object
+	StreamingSoundWave = MakeUnique<FSoundWaveProxy>(Wave);
+	return StreamCompressedInfoInternal(*StreamingSoundWave, QualityInfo);
+}

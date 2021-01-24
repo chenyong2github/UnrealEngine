@@ -117,12 +117,8 @@ public:
 	* @param	Wave			Wave that will be read from to retrieve necessary chunk
 	* @param	QualityInfo		Quality Info (to be filled out)
 	*/
-	bool StreamCompressedInfo(USoundWave* Wave, struct FSoundQualityInfo* QualityInfo)
-	{
-		StreamingSoundWave = Wave;
-
-		return StreamCompressedInfoInternal(Wave, QualityInfo);
-	}
+	ENGINE_API bool StreamCompressedInfo(USoundWave* Wave, struct FSoundQualityInfo* QualityInfo);
+	ENGINE_API bool StreamCompressedInfo(const FSoundWaveProxy& Wave, struct FSoundQualityInfo* QualityInfo);
 
 	/**
 	*  Returns true if a non-recoverable error has occurred.
@@ -131,7 +127,7 @@ public:
 
 protected:
 	/** Internal override implemented by subclasses. */
-	virtual bool StreamCompressedInfoInternal(USoundWave* Wave, struct FSoundQualityInfo* QualityInfo) = 0;
+	virtual bool StreamCompressedInfoInternal(const FSoundWaveProxy& InWaveProxy, struct FSoundQualityInfo* QualityInfo) = 0;
 
 public:
 
@@ -139,7 +135,7 @@ public:
 	* Decompresses streamed data to raw PCM data.
 	*
 	* @param	Destination	where to place the decompressed sound
-	* @param	bLooping	whether to loop the sound by seeking to the start, or pad the buffer with zeroes
+	* @param	bLooping	whether to loop the sound by seeking to the start, or pad the buffer with zeros
 	* @param	BufferSize	number of bytes of PCM data to create
 	*
 	* @return	bool		true if the end of the data was reached (for both single shot and looping sounds)
@@ -157,10 +153,10 @@ public:
 	virtual int32 GetCurrentChunkOffset() const {return -1;}
 
 	/** Return the streaming sound wave used by this decoder. Returns nullptr if there is not a streaming sound wave. */
-	virtual USoundWave* GetStreamingSoundWave() { return StreamingSoundWave; }
+	virtual const FSoundWaveProxy& GetStreamingSoundWave() { return *StreamingSoundWave; }
 
 protected:
-	USoundWave* StreamingSoundWave;
+	TUniquePtr<FSoundWaveProxy> StreamingSoundWave;
 };
 
 /** Struct used to store the results of a decode operation. **/
@@ -201,7 +197,7 @@ public:
 	virtual bool UsesVorbisChannelOrdering() const override { return false; }
 	virtual int GetStreamBufferSize() const override { return  MONO_PCM_BUFFER_SIZE; }
 	virtual bool SupportsStreaming() const override { return true; }
-	virtual bool StreamCompressedInfoInternal(USoundWave* Wave, FSoundQualityInfo* QualityInfo) override;
+	virtual bool StreamCompressedInfoInternal(const FSoundWaveProxy& InWaveProxy, FSoundQualityInfo* QualityInfo) override;
 	virtual bool StreamCompressedData(uint8* Destination, bool bLooping, uint32 BufferSize) override;
 	virtual int32 GetCurrentChunkIndex() const override { return CurrentChunkIndex; }
 	virtual int32 GetCurrentChunkOffset() const override { return SrcBufferOffset; }
@@ -271,7 +267,7 @@ protected:
 	 * @param[out] OutChunkSize the size of the chunk.
 	 * @return a pointer to the chunk if it's loaded, nullptr otherwise.
 	 */
-	const uint8* GetLoadedChunk(USoundWave* InSoundWave, uint32 ChunkIndex, uint32& OutChunkSize);
+	const uint8* GetLoadedChunk(const FSoundWaveProxy& InSoundWave, uint32 ChunkIndex, uint32& OutChunkSize);
 
 	/** bool set before ParseHeader. Whether we are streaming a file or not. */
 	bool bIsStreaming;

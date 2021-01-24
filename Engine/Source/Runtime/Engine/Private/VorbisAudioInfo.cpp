@@ -206,12 +206,12 @@ size_t FVorbisAudioInfo::ReadStreaming(void *Ptr, uint32 Size )
 			}
 			else
 			{
-				CurrentStreamingChunkData = GetLoadedChunk(StreamingSoundWave, CurrentStreamingChunkIndex, CurrentStreamingChunksSize);
+				CurrentStreamingChunkData = GetLoadedChunk(*StreamingSoundWave, CurrentStreamingChunkIndex, CurrentStreamingChunksSize);
 			}
 
 			if (CurrentStreamingChunkData)
 			{
-				check(CurrentStreamingChunkIndex < StreamingSoundWave->RunningPlatformData->Chunks.Num());
+				check(CurrentStreamingChunkIndex < (int32)StreamingSoundWave->GetNumChunks());
 				CurrentBufferChunkOffset = 0;
 			}
 		}
@@ -541,11 +541,11 @@ void FVorbisAudioInfo::EnableHalfRate( bool HalfRate )
 	ov_halfrate(&VFWrapper->vf, int32(HalfRate));
 }
 
-bool FVorbisAudioInfo::StreamCompressedInfoInternal(USoundWave* Wave, struct FSoundQualityInfo* QualityInfo)
+bool FVorbisAudioInfo::StreamCompressedInfoInternal(const FSoundWaveProxy& InWaveProxy, struct FSoundQualityInfo* QualityInfo)
 {
 	if (!bDllLoaded)
 	{
-		UE_LOG(LogAudio, Error, TEXT("FVorbisAudioInfo::StreamCompressedInfoInternal failed to parse header due to vorbis DLL not being loaded for sound '%s'."), *Wave->GetName());
+		UE_LOG(LogAudio, Error, TEXT("FVorbisAudioInfo::StreamCompressedInfoInternal failed to parse header due to vorbis DLL not being loaded for sound '%s'."), *InWaveProxy.GetFName().ToString());
 		return false;
 	}
 
@@ -555,7 +555,7 @@ bool FVorbisAudioInfo::StreamCompressedInfoInternal(USoundWave* Wave, struct FSo
 
 	if (!VFWrapper)
 	{
-		UE_LOG(LogAudio, Error, TEXT("FVorbisAudioInfo::StreamCompressedInfoInternal failed due to no vorbis wrapper for sound '%s'."), *Wave->GetName());
+		UE_LOG(LogAudio, Error, TEXT("FVorbisAudioInfo::StreamCompressedInfoInternal failed due to no vorbis wrapper for sound '%s'."), *InWaveProxy.GetFName().ToString());
 		return false;
 	}
 
@@ -564,7 +564,6 @@ bool FVorbisAudioInfo::StreamCompressedInfoInternal(USoundWave* Wave, struct FSo
 	SrcBufferData = NULL;
 	SrcBufferDataSize = 0;
 	BufferOffset = 0;
-	StreamingSoundWave = Wave;
 
 	Callbacks.read_func = OggReadStreaming;
 	Callbacks.close_func = OggCloseStreaming;
@@ -574,28 +573,24 @@ bool FVorbisAudioInfo::StreamCompressedInfoInternal(USoundWave* Wave, struct FSo
 	bHeaderParsed = GetCompressedInfoCommon(&Callbacks, QualityInfo);
 	if (!bHeaderParsed)
 	{
-		UE_LOG(LogAudio, Error, TEXT("FVorbisAudioInfo::StreamCompressedInfoInternal failed to parse header for '%s'."), *Wave->GetName());
+		UE_LOG(LogAudio, Error, TEXT("FVorbisAudioInfo::StreamCompressedInfoInternal failed to parse header for '%s'."), *InWaveProxy.GetFName().ToString());
 	}
 	
 
 	return bHeaderParsed;
 }
 
-const uint8* FVorbisAudioInfo::GetLoadedChunk(USoundWave* InSoundWave, uint32 ChunkIndex, uint32& OutChunkSize)
+// TODO: Make InSoundWave a const ref after fixing up FSoundWaveProxy::GetZerothChunk() to be const
+const uint8* FVorbisAudioInfo::GetLoadedChunk(FSoundWaveProxy& InSoundWave, uint32 ChunkIndex, uint32& OutChunkSize)
 {
-	if (!InSoundWave || ChunkIndex >= InSoundWave->GetNumChunks())
+	if (ChunkIndex >= InSoundWave.GetNumChunks())
 	{
-		if(InSoundWave)
-		{
-			UE_LOG(LogAudio, Verbose, TEXT("Error calling GetLoadedChunk on wave with %d chunks. ChunkIndex: %d. Name: %s"), InSoundWave->GetNumChunks(), ChunkIndex, *InSoundWave->GetFullName());
-		}
-		
 		OutChunkSize = 0;
 		return nullptr;
 	}
 	else if (ChunkIndex == 0)
 	{
-		TArrayView<const uint8> ZerothChunk = InSoundWave->GetZerothChunk(true);
+		TArrayView<const uint8> ZerothChunk = InSoundWave.GetZerothChunk(true);
 		OutChunkSize = ZerothChunk.Num();
 		return ZerothChunk.GetData();
 	}

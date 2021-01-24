@@ -1399,22 +1399,20 @@ FAudioChunkHandle::FAudioChunkHandle()
 	, CorrespondingWave(nullptr)
 	, CorrespondingWaveName()
 	, ChunkIndex(INDEX_NONE)
-	, CacheLookupID(InvalidAudioStreamCacheLookupID)
 #if WITH_EDITOR
 	, ChunkGeneration(INDEX_NONE)
 #endif
 {
 }
 
-FAudioChunkHandle::FAudioChunkHandle(const uint8* InData, uint32 NumBytes, const USoundWave* InSoundWave, const FName& SoundWaveName, uint32 InChunkIndex, uint64 InCacheLookupID)
+FAudioChunkHandle::FAudioChunkHandle(const uint8* InData, uint32 NumBytes, const FSoundWaveProxy&  InSoundWave, const FName& SoundWaveName, uint32 InChunkIndex, uint64 InCacheLookupID)
 	: CachedData(InData)
 	, CachedDataNumBytes(NumBytes)
-	, CorrespondingWave(InSoundWave)
+	, CorrespondingWave(MakeUnique<FSoundWaveProxy>(InSoundWave))
 	, CorrespondingWaveName(SoundWaveName)
 	, ChunkIndex(InChunkIndex)
-	, CacheLookupID(InCacheLookupID)
 #if WITH_EDITOR
-	, ChunkGeneration(InSoundWave->CurrentChunkRevision.GetValue())
+	, ChunkGeneration(InSoundWave.GetCurrentChunkRevision())
 #endif
 {
 }
@@ -1441,10 +1439,9 @@ FAudioChunkHandle& FAudioChunkHandle::operator=(FAudioChunkHandle&& Other)
 
 	CachedData = Other.CachedData;
 	CachedDataNumBytes = Other.CachedDataNumBytes;
-	CorrespondingWave = Other.CorrespondingWave;
+	CorrespondingWave = MoveTemp(Other.CorrespondingWave);
 	CorrespondingWaveName = Other.CorrespondingWaveName;
 	ChunkIndex = Other.ChunkIndex;
-	CacheLookupID = Other.CacheLookupID;
 #if WITH_EDITOR
 	ChunkGeneration = Other.ChunkGeneration;
 #endif
@@ -1456,7 +1453,6 @@ FAudioChunkHandle& FAudioChunkHandle::operator=(FAudioChunkHandle&& Other)
 	Other.CorrespondingWave = nullptr;
 	Other.CorrespondingWaveName = FName();
 	Other.ChunkIndex = INDEX_NONE;
-	Other.CacheLookupID = InvalidAudioStreamCacheLookupID;
 #if WITH_EDITOR
 	Other.ChunkGeneration = INDEX_NONE;
 #endif
@@ -1470,14 +1466,19 @@ FAudioChunkHandle& FAudioChunkHandle::operator=(const FAudioChunkHandle& Other)
 	if (IsValid())
 	{
 		IStreamingManager::Get().GetAudioStreamingManager().RemoveReferenceToChunk(*this);
+		CorrespondingWave.Reset();
 	}
 
 	CachedData = Other.CachedData;
 	CachedDataNumBytes = Other.CachedDataNumBytes;
-	CorrespondingWave = Other.CorrespondingWave;
+
+	if (Other.CorrespondingWave.IsValid())
+	{
+		CorrespondingWave = MakeUnique<FSoundWaveProxy>(*Other.CorrespondingWave);
+	}
+
 	CorrespondingWaveName = Other.CorrespondingWaveName;
 	ChunkIndex = Other.ChunkIndex;
-	CacheLookupID = Other.CacheLookupID;
 #if WITH_EDITOR
 	ChunkGeneration = Other.ChunkGeneration;
 #endif
@@ -1517,10 +1518,10 @@ bool FAudioChunkHandle::IsValid() const
 #if WITH_EDITOR
 bool FAudioChunkHandle::IsStale() const
 {
-	if (CorrespondingWave != nullptr)
+	if (CorrespondingWave.IsValid())
 	{
 		// NOTE: While this is currently safe in editor, there's no guarantee the USoundWave will be kept alive during the lifecycle of this chunk handle.
-		return ChunkGeneration != CorrespondingWave->CurrentChunkRevision.GetValue();
+		return ChunkGeneration != CorrespondingWave->GetCurrentChunkRevision();
 	}
 	else
 	{
@@ -1529,7 +1530,7 @@ bool FAudioChunkHandle::IsStale() const
 }
 #endif
 
-FAudioChunkHandle IAudioStreamingManager::BuildChunkHandle(const uint8* InData, uint32 NumBytes, const USoundWave* InSoundWave, const FName& SoundWaveName, uint32 InChunkIndex, uint64 InCacheLookupID)
+FAudioChunkHandle IAudioStreamingManager::BuildChunkHandle(const uint8* InData, uint32 NumBytes, const FSoundWaveProxy&  InSoundWave, const FName& SoundWaveName, uint32 InChunkIndex, uint64 InCacheLookupID)
 {
 	return FAudioChunkHandle(InData, NumBytes, InSoundWave, SoundWaveName, InChunkIndex, InCacheLookupID);
 }

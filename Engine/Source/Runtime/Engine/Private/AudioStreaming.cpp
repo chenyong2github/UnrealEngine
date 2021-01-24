@@ -127,9 +127,9 @@ void FStreamingWaveData::FreeResources()
 	}
 }
 
-bool FStreamingWaveData::Initialize(USoundWave* InSoundWave, FLegacyAudioStreamingManager* InAudioStreamingManager)
+bool FStreamingWaveData::Initialize(const FSoundWaveProxy& InSoundWave, FLegacyAudioStreamingManager* InAudioStreamingManager)
 {
-	if (!InSoundWave || !InSoundWave->RunningPlatformData->Chunks.Num())
+	if (!InSoundWave.GetNumChunks())
 	{
 #if WITH_EDITOR
 		UE_LOG(LogAudio, Display, TEXT("Failed to initialize streaming wave data due to lack of serialized stream chunks. Error during stream cooking."));
@@ -139,7 +139,7 @@ bool FStreamingWaveData::Initialize(USoundWave* InSoundWave, FLegacyAudioStreami
 		return false;
 	}
 
-	SoundWave = InSoundWave;
+	SoundWave = MakeUnique<FSoundWaveProxy>(InSoundWave);
 	AudioStreamingManager = InAudioStreamingManager;
 
 	// Always get the first chunk of data so we can play immediately
@@ -149,8 +149,9 @@ bool FStreamingWaveData::Initialize(USoundWave* InSoundWave, FLegacyAudioStreami
 	// Prepare 4 chunks of streaming wave data in loaded chunks array
 	LoadedChunks.Reset(4);
 
-	const int32 DataSize = SoundWave->RunningPlatformData->Chunks[0].DataSize;
-	const int32 AudioDataSize = SoundWave->RunningPlatformData->Chunks[0].AudioDataSize;
+	const FStreamedAudioChunk& Chunk = SoundWave->GetChunk(0);
+	const int32 DataSize = Chunk.DataSize;
+	const int32 AudioDataSize = Chunk.AudioDataSize;
 	const int32 FirstLoadedChunkIndex = AddNewLoadedChunk(DataSize, AudioDataSize);
 
 	FLoadedAudioChunk* FirstChunk = &LoadedChunks[FirstLoadedChunkIndex];
@@ -172,11 +173,6 @@ bool FStreamingWaveData::Initialize(USoundWave* InSoundWave, FLegacyAudioStreami
 
 bool FStreamingWaveData::UpdateStreamingStatus()
 {
-	if (!SoundWave)
-	{
-		return false;
-	}
-
 	bool	bHasPendingRequestInFlight = true;
 	int32	RequestStatus = PendingChunkChangeRequestStatus.GetValue();
 	TArray<uint32> IndicesToLoad;
@@ -199,7 +195,7 @@ bool FStreamingWaveData::UpdateStreamingStatus()
 				{
 					LogString += FString::Printf(TEXT(", %d"), IndicesToLoad[Index]);
 				}
-				LogString += FString::Printf(TEXT(" from SoundWave'%s'"), *SoundWave->GetName());
+				LogString += FString::Printf(TEXT(" from SoundWave'%s'"), *SoundWave->GetFName().ToString());
 				UE_LOG(LogAudio, Log, TEXT("%s"), *LogString);
 			}
 
@@ -278,7 +274,7 @@ void FStreamingWaveData::BeginPendingRequests(const TArray<uint32>& IndicesToLoa
 		{
 			LogString += FString::Printf(TEXT(", %d"), IndicesToLoad[Index]);
 		}
-		LogString += FString::Printf(TEXT(" from SoundWave'%s'"), *SoundWave->GetName());
+		LogString += FString::Printf(TEXT(" from SoundWave'%s'"), *SoundWave->GetFName().ToString());
 		UE_LOG(LogAudio, Log, TEXT("%s"), *LogString);
 	}
 
@@ -308,7 +304,7 @@ void FStreamingWaveData::BeginPendingRequests(const TArray<uint32>& IndicesToLoa
 		// Set off all IO Requests
 		for (auto Index : IndicesToLoad)
 		{
-			const FStreamedAudioChunk& Chunk = SoundWave->RunningPlatformData->Chunks[Index];
+			const FStreamedAudioChunk& Chunk = SoundWave->GetChunk(Index);
 			int32 ChunkSize = Chunk.DataSize;
 
 			int32 LoadedChunkStorageIndex = AddNewLoadedChunk(ChunkSize, Chunk.AudioDataSize);
@@ -344,7 +340,7 @@ void FStreamingWaveData::BeginPendingRequests(const TArray<uint32>& IndicesToLoa
 					ChunkSize,
 					&PendingChunkChangeRequestStatus,
 					MoveTemp(NullOnLoadCompletedCallback)
-					);
+				);
 				PendingAsyncStreamDerivedChunkTasks.Add(Task);
 				Task->StartBackgroundTask();
 			}
@@ -354,7 +350,7 @@ void FStreamingWaveData::BeginPendingRequests(const TArray<uint32>& IndicesToLoa
 				check(!ChunkStorage->IORequest); // Make sure we do not already have a request
 				check(!ChunkStorage->Data); // Make sure we do not already have data
 				check(Chunk.BulkData.GetBulkDataSize() == ChunkStorage->DataSize); // Make sure that the bulkdata size matches
-				
+
 				FBulkDataIORequestCallBack AsyncFileCallBack =
 					[this, LoadedChunkStorageIndex](bool bWasCancelled, IBulkDataIORequest* Req)
 				{
@@ -505,7 +501,7 @@ void FLegacyAudioStreamingManager::OnAsyncFileCallback(FStreamingWaveData* Strea
 
 		// Grab the loaded chunk memory ptr since it will be invalid as soon as this callback finishes
 		NewAudioChunkLoadResult->DataResults = Mem;
-		
+
 		// The chunk index to load the results into
 		NewAudioChunkLoadResult->LoadedAudioChunkIndex = LoadedAudioChunkIndex;
 
@@ -585,15 +581,15 @@ void FLegacyAudioStreamingManager::UpdateResourceStreaming(float DeltaTime, bool
 				if (SoundBuffer)
 				{
 					int32 SourceChunk = SoundBuffer->GetCurrentChunkIndex();
-					if (SourceChunk >= 0 && SourceChunk < Wave->RunningPlatformData->NumChunks)
+					if (SourceChunk >= 0 && SourceChunk < (int32)Wave->GetNumChunks())
 					{
 						WaveRequest.RequiredIndices.AddUnique(SourceChunk);
-						WaveRequest.RequiredIndices.AddUnique((SourceChunk + 1) % Wave->RunningPlatformData->NumChunks);
+						WaveRequest.RequiredIndices.AddUnique((SourceChunk + 1) % Wave->GetNumChunks());
 						WaveRequest.bPrioritiseRequest = true;
 					}
 					else
 					{
-						UE_LOG(LogAudio, Log, TEXT("Invalid chunk request curIndex=%d numChunks=%d\n"), SourceChunk, Wave->RunningPlatformData->NumChunks);
+						UE_LOG(LogAudio, Log, TEXT("Invalid chunk request curIndex=%d numChunks=%d\n"), SourceChunk, Wave->GetNumChunks());
 					}
 				}
 			}
@@ -602,34 +598,30 @@ void FLegacyAudioStreamingManager::UpdateResourceStreaming(float DeltaTime, bool
 
 	for (ICompressedAudioInfo* Decoder : CompressedAudioInfos)
 	{
-		USoundWave* SoundWave = Decoder->GetStreamingSoundWave();
-		if (SoundWave)
+		const FSoundWaveProxy& SoundWave = Decoder->GetStreamingSoundWave();
+		FStreamingWaveData** WaveDataPtr = StreamingSoundWaves.Find(SoundWave.GetFObjectKey());
+		if (WaveDataPtr && (*WaveDataPtr)->PendingChunkChangeRequestStatus.GetValue() == AudioState_ReadyFor_Requests)
 		{
-			FStreamingWaveData** WaveDataPtr = StreamingSoundWaves.Find(SoundWave);
-			if (WaveDataPtr && (*WaveDataPtr)->PendingChunkChangeRequestStatus.GetValue() == AudioState_ReadyFor_Requests)
+			FStreamingWaveData* WaveData = *WaveDataPtr;
+			// Request the chunk the source is using and the one after that
+			FWaveRequest& WaveRequest = GetWaveRequest(SoundWave.GetFObjectKey());
+			int32 SourceChunk = Decoder->GetCurrentChunkIndex();
+			if (SourceChunk >= 0 && SourceChunk < (int32)SoundWave.GetNumChunks())
 			{
-				FStreamingWaveData* WaveData = *WaveDataPtr;
-				// Request the chunk the source is using and the one after that
-				FWaveRequest& WaveRequest = GetWaveRequest(SoundWave);
-				int32 SourceChunk = Decoder->GetCurrentChunkIndex();
-				if (SourceChunk >= 0 && SourceChunk < SoundWave->RunningPlatformData->NumChunks)
-				{
-					WaveRequest.RequiredIndices.AddUnique(SourceChunk);
-					WaveRequest.RequiredIndices.AddUnique((SourceChunk + 1) % SoundWave->RunningPlatformData->NumChunks);
-					WaveRequest.bPrioritiseRequest = true;
-				}
-				else
-				{
-					UE_LOG(LogAudio, Log, TEXT("Invalid chunk request curIndex=%d numChunks=%d\n"), SourceChunk, SoundWave->RunningPlatformData->NumChunks);
-				}
+				WaveRequest.RequiredIndices.AddUnique(SourceChunk);
+				WaveRequest.RequiredIndices.AddUnique((SourceChunk + 1) % SoundWave.GetNumChunks());
+				WaveRequest.bPrioritiseRequest = true;
+			}
+			else
+			{
+				UE_LOG(LogAudio, Log, TEXT("Invalid chunk request curIndex=%d numChunks=%d\n"), SourceChunk, SoundWave.GetNumChunks());
 			}
 		}
 	}
 
 	for (auto Iter = WaveRequests.CreateIterator(); Iter; ++Iter)
 	{
-		USoundWave* Wave = Iter.Key();
-		FStreamingWaveData* WaveData = StreamingSoundWaves.FindRef(Wave);
+		FStreamingWaveData* WaveData = StreamingSoundWaves.FindRef(Iter.Key());
 
 		if (WaveData && WaveData->PendingChunkChangeRequestStatus.GetValue() == AudioState_ReadyFor_Requests)
 		{
@@ -707,18 +699,18 @@ void FLegacyAudioStreamingManager::NotifyLevelOffset(class ULevel* Level, const 
 {
 }
 
-void FLegacyAudioStreamingManager::AddStreamingSoundWave(USoundWave* SoundWave)
+void FLegacyAudioStreamingManager::AddStreamingSoundWave(const FSoundWaveProxy& SoundWave)
 {
-	if (FPlatformProperties::SupportsAudioStreaming() && SoundWave->IsStreaming(nullptr))
+	if (FPlatformProperties::SupportsAudioStreaming() && SoundWave.IsStreaming())
 	{
 		FScopeLock Lock(&CriticalSection);
 
-		if (StreamingSoundWaves.FindRef(SoundWave) == nullptr)
+		if (StreamingSoundWaves.FindRef(SoundWave.GetFObjectKey()) == nullptr)
 		{
 			FStreamingWaveData* NewStreamingWaveData = new FStreamingWaveData;
 			if (NewStreamingWaveData->Initialize(SoundWave, this))
 			{
-				StreamingSoundWaves.Add(SoundWave, NewStreamingWaveData);
+				StreamingSoundWaves.Add(SoundWave.GetFObjectKey(), NewStreamingWaveData);
 			}
 			else
 			{
@@ -729,13 +721,13 @@ void FLegacyAudioStreamingManager::AddStreamingSoundWave(USoundWave* SoundWave)
 	}
 }
 
-void FLegacyAudioStreamingManager::RemoveStreamingSoundWave(USoundWave* SoundWave)
+void FLegacyAudioStreamingManager::RemoveStreamingSoundWave(const FSoundWaveProxy& SoundWave)
 {
 	FScopeLock Lock(&CriticalSection);
-	FStreamingWaveData* WaveData = StreamingSoundWaves.FindRef(SoundWave);
+	FStreamingWaveData* WaveData = StreamingSoundWaves.FindRef(SoundWave.GetFObjectKey());
 	if (WaveData)
 	{
-		StreamingSoundWaves.Remove(SoundWave);
+		StreamingSoundWaves.Remove(SoundWave.GetFObjectKey());
 
 		// Free the resources of the streaming wave data. This blocks pending IO requests
 		WaveData->FreeResources();
@@ -757,7 +749,7 @@ void FLegacyAudioStreamingManager::RemoveStreamingSoundWave(USoundWave* SoundWav
 		}
 		delete WaveData;
 	}
-	WaveRequests.Remove(SoundWave);
+	WaveRequests.Remove(SoundWave.GetFObjectKey());
 }
 
 void FLegacyAudioStreamingManager::AddDecoder(ICompressedAudioInfo* InCompressedAudioInfo)
@@ -772,16 +764,16 @@ void FLegacyAudioStreamingManager::RemoveDecoder(ICompressedAudioInfo* InCompres
 	CompressedAudioInfos.Remove(InCompressedAudioInfo);
 }
 
-bool FLegacyAudioStreamingManager::IsManagedStreamingSoundWave(const USoundWave* SoundWave) const
+bool FLegacyAudioStreamingManager::IsManagedStreamingSoundWave(const FSoundWaveProxy&  SoundWave) const
 {
 	FScopeLock Lock(&CriticalSection);
-	return StreamingSoundWaves.FindRef(SoundWave) != NULL;
+	return StreamingSoundWaves.FindRef(SoundWave.GetFObjectKey()) != NULL;
 }
 
-bool FLegacyAudioStreamingManager::IsStreamingInProgress(const USoundWave* SoundWave)
+bool FLegacyAudioStreamingManager::IsStreamingInProgress(const FSoundWaveProxy&  SoundWave)
 {
 	FScopeLock Lock(&CriticalSection);
-	FStreamingWaveData* WaveData = StreamingSoundWaves.FindRef(SoundWave);
+	FStreamingWaveData* WaveData = StreamingSoundWaves.FindRef(SoundWave.GetFObjectKey());
 	if (WaveData)
 	{
 		return WaveData->UpdateStreamingStatus();
@@ -879,7 +871,7 @@ void FLegacyAudioStreamingManager::RemoveStreamingSoundSource(FSoundSource* Soun
 
 		// Make sure there is a request so that unused chunks
 		// can be cleared if this was the last playing instance
-		GetWaveRequest(WaveInstance->WaveData);
+		GetWaveRequest(FObjectKey(WaveInstance->WaveData));
 		StreamingSoundSources.Remove(SoundSource);
 	}
 }
@@ -890,13 +882,13 @@ bool FLegacyAudioStreamingManager::IsManagedStreamingSoundSource(const FSoundSou
 	return StreamingSoundSources.FindByKey(SoundSource) != NULL;
 }
 
-bool FLegacyAudioStreamingManager::RequestChunk(USoundWave* SoundWave, uint32 ChunkIndex, TFunction<void(EAudioChunkLoadResult)> OnLoadCompleted, ENamedThreads::Type ThreadToCallOnLoadCompletedOn, bool bForImmediatePlayback)
+bool FLegacyAudioStreamingManager::RequestChunk(const FSoundWaveProxy&, uint32 ChunkIndex, TFunction<void(EAudioChunkLoadResult)> OnLoadCompleted, ENamedThreads::Type ThreadToCallOnLoadCompletedOn, bool bForImmediatePlayback)
 {
 	UE_LOG(LogAudio, Warning, TEXT("RequestChunk is only supported in Stream Caching."));
 	return false;
 }
 
-FAudioChunkHandle FLegacyAudioStreamingManager::GetLoadedChunk(const USoundWave* SoundWave, uint32 ChunkIndex, bool bBlockForLoad, bool bForImmediatePlayback) const
+FAudioChunkHandle FLegacyAudioStreamingManager::GetLoadedChunk(const FSoundWaveProxy&  SoundWave, uint32 ChunkIndex, bool bBlockForLoad, bool bForImmediatePlayback) const
 {
 	// Check for the spoof of failing to load a stream chunk
 	if (SpoofFailedStreamChunkLoad > 0)
@@ -910,7 +902,7 @@ FAudioChunkHandle FLegacyAudioStreamingManager::GetLoadedChunk(const USoundWave*
 		return FAudioChunkHandle();
 	}
 
-	const FStreamingWaveData* WaveData = StreamingSoundWaves.FindRef(SoundWave);
+	const FStreamingWaveData* WaveData = StreamingSoundWaves.FindRef(SoundWave.GetFObjectKey());
 	if (WaveData)
 	{
 		if (WaveData->LoadedChunkIndices.Contains(ChunkIndex))
@@ -920,7 +912,7 @@ FAudioChunkHandle FLegacyAudioStreamingManager::GetLoadedChunk(const USoundWave*
 				if (WaveData->LoadedChunks[Index].Index == ChunkIndex)
 				{
 					CriticalSection.Unlock();
-					return BuildChunkHandle(WaveData->LoadedChunks[Index].Data, WaveData->LoadedChunks[Index].AudioDataSize, SoundWave, SoundWave->GetFName(), ChunkIndex, InvalidAudioStreamCacheLookupID);
+					return BuildChunkHandle(WaveData->LoadedChunks[Index].Data, WaveData->LoadedChunks[Index].AudioDataSize, SoundWave, SoundWave.GetFName(), ChunkIndex, InvalidAudioStreamCacheLookupID);
 				}
 			}
 		}
@@ -930,13 +922,13 @@ FAudioChunkHandle FLegacyAudioStreamingManager::GetLoadedChunk(const USoundWave*
 	return FAudioChunkHandle();
 }
 
-FWaveRequest& FLegacyAudioStreamingManager::GetWaveRequest(USoundWave* SoundWave)
+FWaveRequest& FLegacyAudioStreamingManager::GetWaveRequest(FObjectKey Key)
 {
-	FWaveRequest* WaveRequest = WaveRequests.Find(SoundWave);
+	FWaveRequest* WaveRequest = WaveRequests.Find(Key);
 	if (!WaveRequest)
 	{
 		// Setup the new request so it always asks for chunk 0
-		WaveRequest = &WaveRequests.Add(SoundWave);
+		WaveRequest = &WaveRequests.Add(Key);
 		WaveRequest->RequiredIndices.AddUnique(0);
 		WaveRequest->bPrioritiseRequest = false;
 	}

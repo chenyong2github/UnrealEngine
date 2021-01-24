@@ -313,7 +313,7 @@ namespace Audio
 
 		FSoundQualityInfo QualityInfo = { 0 };
 
-		Buffer->DecompressionState = AudioDevice->CreateCompressedAudioInfo(InWave);
+		Buffer->DecompressionState = AudioDevice->CreateCompressedAudioInfo(InWave->GetThisAsProxy());
 
 		// Get the header information of our compressed format
 		if (Buffer->DecompressionState->StreamCompressedInfo(InWave, &QualityInfo))
@@ -366,7 +366,7 @@ namespace Audio
 			InWave->InitAudioResource(AudioDevice->GetRuntimeFormat(InWave));
 		}
 
-		Buffer->DecompressionState = AudioDevice->CreateCompressedAudioInfo(InWave);
+		Buffer->DecompressionState = AudioDevice->CreateCompressedAudioInfo(InWave->GetThisAsProxy());
 
 		if (Buffer->DecompressionState)
 		{

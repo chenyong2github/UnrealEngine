@@ -368,7 +368,7 @@ namespace Audio
 		if (InDecoder && InDecoder->HasError())
 		{			
 			UE_LOG(LogAudioMixer, Warning, TEXT("Decoder Error, stopping source [%s]"), 
-				*GetNameSafe(InDecoder->GetStreamingSoundWave()));
+				*InDecoder->GetStreamingSoundWave().GetFName().ToString());
 			bHasError = true;
 			bBufferFinished = true;
 			return false;	
