@@ -4,13 +4,13 @@ using UnrealBuildTool;
 using System.Collections.Generic;
 
 [SupportedPlatforms(UnrealPlatformClass.Desktop)]
-public class NativePointerUpgradeToolTarget : TargetRules
+public class UnrealObjectPtrToolTarget : TargetRules
 {
-	public NativePointerUpgradeToolTarget(TargetInfo Target) : base(Target)
+	public UnrealObjectPtrToolTarget(TargetInfo Target) : base(Target)
 	{
 		Type = TargetType.Program;
 		LinkType = TargetLinkType.Modular;
-		LaunchModuleName = "NativePointerUpgradeTool";
+		LaunchModuleName = "UnrealObjectPtrTool";
 
 		bBuildDeveloperTools			= false;
 		bUseMallocProfiler				= false;

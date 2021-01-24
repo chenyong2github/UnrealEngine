@@ -2,9 +2,9 @@
 
 using UnrealBuildTool;
 
-public class NativePointerUpgradeTool : ModuleRules
+public class UnrealObjectPtrTool : ModuleRules
 {
-	public NativePointerUpgradeTool(ReadOnlyTargetRules Target) : base(Target)
+	public UnrealObjectPtrTool(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PublicIncludePaths.Add("Runtime/Launch/Public");
 
