@@ -4,8 +4,8 @@
 
 #include "Containers/Array.h"
 #include "CoreTypes.h"
+#include "Materials/MaterialExpression.h"
 
-class UMaterialExpression;
 class UTexture;
 
 namespace Generator
