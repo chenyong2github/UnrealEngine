@@ -2,6 +2,10 @@
 
 #pragma once
 
+#ifndef _WIN32_WINDOWS
+#define _WIN32_WINDOWS 0x0410
+#endif
+
 #include "CpuUtilizationMonitor.h"
 
 #include "Windows/AllowWindowsPlatformTypes.h"
