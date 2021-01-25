@@ -118,6 +118,8 @@ public:
 
 	void OnSessionChanged();
 
+	const FName& GetLogListingName() const { return LogListingName; }
+
 private:
 	/** Binds our UI commands to delegates. */
 	void BindCommands();
@@ -170,6 +172,9 @@ private:
 
 	/** If the Requests tree view is visible or hidden. */
 	bool bIsRequestsTreeViewVisible;
+
+	/** The name of the Loading Insights log listing. */
+	FName LogListingName;
 
 	/** A shared pointer to the global instance of the Loading Profiler manager. */
 	static TSharedPtr<FLoadingProfilerManager> Instance;

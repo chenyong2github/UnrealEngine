@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "TableCellValueFormatter.h"
+
+#include "Framework/Application/SlateApplication.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/SToolTip.h"
 #include "Widgets/Text/STextBlock.h"
@@ -33,6 +35,7 @@ FText FTableCellValueFormatter::FormatValueForTooltip(const FTableColumn& Column
 TSharedPtr<IToolTip> FTableCellValueFormatter::GetCustomTooltip(const FTableColumn& Column, const FBaseTreeNode& Node) const
 {
 	return SNew(SToolTip)
+			.Visibility(TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateStatic(&FTableCellValueFormatter::GetTooltipVisibility)))
 		[
 			SNew(SVerticalBox)
 			+ SVerticalBox::Slot()
@@ -43,6 +46,13 @@ TSharedPtr<IToolTip> FTableCellValueFormatter::GetCustomTooltip(const FTableColu
 				.Text(FormatValueForTooltip(Column.GetValueGetter()->GetValue(Column, Node)))
 			]
 		];
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+EVisibility FTableCellValueFormatter::GetTooltipVisibility()
+{
+	return FSlateApplication::Get().AnyMenusVisible() ? EVisibility::Collapsed : EVisibility::Visible;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

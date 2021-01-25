@@ -3,8 +3,11 @@
 #include "STableTreeView.h"
 
 #include "EditorStyleSet.h"
+#include "Framework/Commands/Commands.h"
+#include "Framework/Commands/UICommandList.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "HAL/PlatformApplicationMisc.h"
 #include "Layout/WidgetPath.h"
 #include "SlateOptMacros.h"
 #include "TraceServices/AnalysisService.h"
@@ -36,6 +39,33 @@
 
 namespace Insights
 {
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// FTableTreeViewCommands
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+class FTableTreeViewCommands : public TCommands<FTableTreeViewCommands>
+{
+public:
+	FTableTreeViewCommands()
+		: TCommands<FTableTreeViewCommands>(TEXT("FTableTreeViewCommands"), NSLOCTEXT("FTableTreeViewCommands", "Table Tree View Commands", "Table Tree View Commands"), NAME_None, FEditorStyle::Get().GetStyleSetName())
+	{
+	}
+
+	virtual ~FTableTreeViewCommands()
+	{
+	}
+
+	// UI_COMMAND takes long for the compiler to optimize
+	PRAGMA_DISABLE_OPTIMIZATION
+		virtual void RegisterCommands() override
+	{
+		UI_COMMAND(Command_CopyToClipboard, "Copy To Clipboard", "Copies selection to clipboard", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Control, EKeys::C));
+	}
+	PRAGMA_ENABLE_OPTIMIZATION
+
+	TSharedPtr<FUICommandInfo> Command_CopyToClipboard;
+};
 
 const FName STableTreeView::RootNodeName(TEXT("Root"));
 
@@ -279,16 +309,25 @@ void STableTreeView::ConstructWidget(TSharedPtr<FTable> InTablePtr)
 		Filters->Add(TextFilter);
 	}
 
-	//BindCommands();
-
 	InitializeAndShowHeaderColumns();
 	CreateGroupings();
 	CreateSortings();
+
+	InitCommandList();
 
 	// Register ourselves with the Insights manager.
 	FInsightsManager::Get()->GetSessionChangedEvent().AddSP(this, &STableTreeView::InsightsManager_OnSessionChanged);
 }
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STableTreeView::InitCommandList()
+{
+	FTableTreeViewCommands::Register();
+	CommandList = MakeShared<FUICommandList>();
+	CommandList->MapAction(FTableTreeViewCommands::Get().Command_CopyToClipboard, FExecuteAction::CreateSP(this, &STableTreeView::ContextMenu_CopySelectedToClipboard_Execute), FCanExecuteAction::CreateSP(this, &STableTreeView::ContextMenu_CopySelectedToClipboard_CanExecute));
+}
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -329,7 +368,7 @@ TSharedPtr<SWidget> STableTreeView::TreeView_GetMenuContent()
 	}
 
 	const bool bShouldCloseWindowAfterMenuSelection = true;
-	FMenuBuilder MenuBuilder(bShouldCloseWindowAfterMenuSelection, NULL);
+	FMenuBuilder MenuBuilder(bShouldCloseWindowAfterMenuSelection, CommandList.ToSharedRef());
 
 	// Selection menu
 	MenuBuilder.BeginSection("Selection", LOCTEXT("ContextMenu_Header_Selection", "Selection"));
@@ -355,19 +394,14 @@ TSharedPtr<SWidget> STableTreeView::TreeView_GetMenuContent()
 
 	MenuBuilder.BeginSection("Misc", LOCTEXT("ContextMenu_Header_Misc", "Miscellaneous"));
 	{
-		/*TODO
-		FUIAction Action_CopySelectedToClipboard
-		(
-			FExecuteAction::CreateSP(this, &STableTreeView::ContextMenu_CopySelectedToClipboard_Execute),
-			FCanExecuteAction::CreateSP(this, &STableTreeView::ContextMenu_CopySelectedToClipboard_CanExecute)
-		);
 		MenuBuilder.AddMenuEntry
 		(
-			LOCTEXT("ContextMenu_Header_Misc_CopySelectedToClipboard", "Copy To Clipboard"),
-			LOCTEXT("ContextMenu_Header_Misc_CopySelectedToClipboard_Desc", "Copies selection to clipboard"),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.Misc.CopyToClipboard"), Action_CopySelectedToClipboard, NAME_None, EUserInterfaceActionType::Button
+			FTableTreeViewCommands::Get().Command_CopyToClipboard,
+			NAME_None,
+			TAttribute<FText>(),
+			TAttribute<FText>(),
+			FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.Misc.CopyToClipboard")
 		);
-		*/
 
 		MenuBuilder.AddSubMenu
 		(
@@ -2424,6 +2458,55 @@ void STableTreeView::OnAdvancedFiltersChangesCommited()
 TSharedPtr<SWidget> STableTreeView::ConstructFooter()
 {
 	return nullptr;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FReply STableTreeView::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
+{
+	return CommandList->ProcessCommandBindings(InKeyEvent) == true ? FReply::Handled() : FReply::Unhandled();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool STableTreeView::ContextMenu_CopySelectedToClipboard_CanExecute() const
+{
+	return TreeView->GetNumItemsSelected() > 0;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STableTreeView::ContextMenu_CopySelectedToClipboard_Execute()
+{
+	if (!Table->IsValid())
+	{
+		return;
+	}
+
+	TArray<Insights::FBaseTreeNodePtr> SelectedNodes;
+	for (FTableTreeNodePtr TimerPtr : TreeView->GetSelectedItems())
+	{
+		SelectedNodes.Add(TimerPtr);
+	}
+
+	if (SelectedNodes.Num() == 0)
+	{
+		return;
+	}
+
+	FString ClipboardText;
+
+	if (CurrentSorter.IsValid())
+	{
+		CurrentSorter->Sort(SelectedNodes, ColumnSortMode == EColumnSortMode::Ascending ? Insights::ESortMode::Ascending : Insights::ESortMode::Descending);
+	}
+
+	Table->GetVisibleColumnsData(SelectedNodes, GetLogListingName(), ClipboardText);
+
+	if (ClipboardText.Len() > 0)
+	{
+		FPlatformApplicationMisc::ClipboardCopy(*ClipboardText);
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

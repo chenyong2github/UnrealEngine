@@ -357,6 +357,7 @@ TSharedRef<SDockTab> SLoadingProfilerWindow::SpawnTab_EventAggregationTreeView(c
 			SAssignNew(EventAggregationTreeView, Insights::SUntypedTableTreeView, Table)
 		];
 
+	EventAggregationTreeView->SetLogListingName(FLoadingProfilerManager::Get()->GetLogListingName());
 	UpdateEventAggregationTreeView();
 
 	DockTab->SetOnTabClosed(SDockTab::FOnTabClosedCallback::CreateRaw(this, &SLoadingProfilerWindow::OnEventAggregationTreeViewTabClosed));
@@ -387,6 +388,7 @@ TSharedRef<SDockTab> SLoadingProfilerWindow::SpawnTab_ObjectTypeAggregationTreeV
 			SAssignNew(ObjectTypeAggregationTreeView, Insights::SUntypedTableTreeView, Table)
 		];
 
+	ObjectTypeAggregationTreeView->SetLogListingName(FLoadingProfilerManager::Get()->GetLogListingName());
 	UpdateObjectTypeAggregationTreeView();
 
 	DockTab->SetOnTabClosed(SDockTab::FOnTabClosedCallback::CreateRaw(this, &SLoadingProfilerWindow::OnObjectTypeAggregationTreeViewTabClosed));
@@ -417,6 +419,7 @@ TSharedRef<SDockTab> SLoadingProfilerWindow::SpawnTab_PackageDetailsTreeView(con
 			SAssignNew(PackageDetailsTreeView, Insights::SUntypedTableTreeView, Table)
 		];
 
+	PackageDetailsTreeView->SetLogListingName(FLoadingProfilerManager::Get()->GetLogListingName());
 	UpdatePackageDetailsTreeView();
 
 	DockTab->SetOnTabClosed(SDockTab::FOnTabClosedCallback::CreateRaw(this, &SLoadingProfilerWindow::OnPackageDetailsTreeViewTabClosed));
@@ -447,6 +450,7 @@ TSharedRef<SDockTab> SLoadingProfilerWindow::SpawnTab_ExportDetailsTreeView(cons
 			SAssignNew(ExportDetailsTreeView, Insights::SUntypedTableTreeView, Table)
 		];
 
+	ExportDetailsTreeView->SetLogListingName(FLoadingProfilerManager::Get()->GetLogListingName());
 	UpdateExportDetailsTreeView();
 
 	DockTab->SetOnTabClosed(SDockTab::FOnTabClosedCallback::CreateRaw(this, &SLoadingProfilerWindow::OnExportDetailsTreeViewTabClosed));
@@ -477,6 +481,7 @@ TSharedRef<SDockTab> SLoadingProfilerWindow::SpawnTab_RequestsTreeView(const FSp
 			SAssignNew(RequestsTreeView, Insights::SUntypedTableTreeView, Table)
 		];
 
+	RequestsTreeView->SetLogListingName(FLoadingProfilerManager::Get()->GetLogListingName());
 	UpdateRequestsTreeView();
 
 	DockTab->SetOnTabClosed(SDockTab::FOnTabClosedCallback::CreateRaw(this, &SLoadingProfilerWindow::OnRequestsTreeViewTabClosed));

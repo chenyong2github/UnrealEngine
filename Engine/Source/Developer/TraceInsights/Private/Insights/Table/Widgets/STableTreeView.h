@@ -26,6 +26,7 @@
 #include <atomic>
 
 class FMenuBuilder;
+class FUICommandList;
 
 namespace TraceServices
 {
@@ -113,6 +114,8 @@ public:
 
 	void OnClose();
 
+	virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
+
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 	// IAsyncOperationStatusProvider implementation
 
@@ -124,9 +127,14 @@ public:
 	virtual FText GetCurrentOperationName() const override;
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
+	
+	/** Set a log listing name to be used for any errors or warnings. Must be preregistered by the caller with the MessageLog module*/
+	void SetLogListingName(const FName& InLogListingName) { LogListingName = InLogListingName; }
+	const FName& GetLogListingName() { return LogListingName; }
 
 protected:
 	void ConstructWidget(TSharedPtr<FTable> InTablePtr);
+	void InitCommandList();
 	virtual TSharedPtr<SWidget> ConstructFooter();
 
 	void UpdateTree();
@@ -149,6 +157,9 @@ protected:
 	TSharedPtr<SWidget> TreeView_GetMenuContent();
 	void TreeView_BuildSortByMenu(FMenuBuilder& MenuBuilder);
 	void TreeView_BuildViewColumnMenu(FMenuBuilder& MenuBuilder);
+
+	bool ContextMenu_CopySelectedToClipboard_CanExecute() const;
+	void ContextMenu_CopySelectedToClipboard_Execute();
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Tree View - Columns' Header
@@ -380,6 +391,8 @@ protected:
 	/** Name of the tree node that should be drawn as highlighted. */
 	FName HighlightedNodeName;
 
+	TSharedPtr<FUICommandList> CommandList;
+
 	//////////////////////////////////////////////////
 	// Tree Nodes
 
@@ -464,6 +477,12 @@ protected:
 
 	double StatsStartTime;
 	double StatsEndTime;
+
+	//////////////////////////////////////////////////
+	// Logging
+
+	/** A log listing name to be used for any errors or warnings. */
+	FName LogListingName;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

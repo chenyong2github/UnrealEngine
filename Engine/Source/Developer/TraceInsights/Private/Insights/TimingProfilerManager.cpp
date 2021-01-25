@@ -2,6 +2,7 @@
 
 #include "TimingProfilerManager.h"
 
+#include "MessageLog/Public/MessageLogModule.h"
 #include "Modules/ModuleManager.h"
 #include "TraceServices/AnalysisService.h"
 #include "WorkspaceMenuStructure.h"
@@ -70,6 +71,7 @@ FTimingProfilerManager::FTimingProfilerManager(TSharedRef<FUICommandList> InComm
 	, SelectionEndTime(0.0)
 	, SelectedTimerId(InvalidTimerId)
 	, TimerButterflyAggregator(MakeShared<Insights::FTimerButterflyAggregator>())
+	, LogListingName(TEXT("TimingInsights"))
 {
 }
 
@@ -106,6 +108,16 @@ void FTimingProfilerManager::Shutdown()
 		return;
 	}
 	bIsInitialized = false;
+
+	// If the MessageLog module was already unloaded as part of the global Shutdown process, do not load it again.
+	if (FModuleManager::Get().IsModuleLoaded("MessageLog"))
+	{
+		FMessageLogModule& MessageLogModule = FModuleManager::LoadModuleChecked<FMessageLogModule>("MessageLog");
+		if (MessageLogModule.IsRegisteredLogListing(GetLogListingName()))
+		{
+			MessageLogModule.UnregisterLogListing(GetLogListingName());
+		}
+	}
 
 	FInsightsManager::Get()->GetSessionChangedEvent().RemoveAll(this);
 
@@ -237,6 +249,10 @@ bool FTimingProfilerManager::Tick(float DeltaTime)
 		if (Session.IsValid())
 		{
 			bIsAvailable = true;
+
+			FMessageLogModule& MessageLogModule = FModuleManager::LoadModuleChecked<FMessageLogModule>("MessageLog");
+			MessageLogModule.RegisterLogListing(GetLogListingName(), LOCTEXT("TimingInsights", "Timing Insights"));
+			MessageLogModule.EnableMessageLogDisplay(true);
 
 #if !WITH_EDITOR
 			const FName& TabId = FInsightsManagerTabs::TimingProfilerTabId;

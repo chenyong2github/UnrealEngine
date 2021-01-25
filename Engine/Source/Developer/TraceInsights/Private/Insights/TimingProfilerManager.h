@@ -143,6 +143,8 @@ public:
 	void UpdateAggregatedTimerStats();
 	void UpdateAggregatedCounterStats();
 
+	const FName& GetLogListingName() const { return LogListingName; }
+
 private:
 	/** Binds our UI commands to delegates. */
 	void BindCommands();
@@ -210,6 +212,9 @@ private:
 	uint32 SelectedTimerId;
 
 	TSharedRef<Insights::FTimerButterflyAggregator> TimerButterflyAggregator;
+
+	/** The name of the Timing Insights log listing. */
+	FName LogListingName;
 
 	/** A shared pointer to the global instance of the Timing Profiler manager. */
 	static TSharedPtr<FTimingProfilerManager> Instance;

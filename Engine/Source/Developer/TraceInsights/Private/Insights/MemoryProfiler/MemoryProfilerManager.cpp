@@ -2,8 +2,8 @@
 
 #include "MemoryProfilerManager.h"
 
-#include "Modules/ModuleManager.h"
 #include "MessageLog/Public/MessageLogModule.h"
+#include "Modules/ModuleManager.h"
 #include "TraceServices/AnalysisService.h"
 #include "TraceServices/Model/AllocationsProvider.h"
 #include "TraceServices/Model/Memory.h"

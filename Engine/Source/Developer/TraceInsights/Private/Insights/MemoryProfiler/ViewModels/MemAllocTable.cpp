@@ -552,6 +552,7 @@ void FMemAllocTable::AddDefaultColumns()
 				const FMemAllocNode& MemAllocNode = static_cast<const FMemAllocNode&>(Node);
 
 				return SNew(SToolTip)
+						.Visibility(TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateStatic(&FTableCellValueFormatter::GetTooltipVisibility)))
 						[
 							SNew(SVerticalBox)
 							+ SVerticalBox::Slot()

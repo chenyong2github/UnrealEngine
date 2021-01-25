@@ -2,6 +2,8 @@
 
 #include "Table.h"
 
+#include "Logging/MessageLog.h"
+
 // Insights
 #include "Insights/Table/ViewModels/TableCellValueFormatter.h"
 #include "Insights/Table/ViewModels/TableCellValueGetter.h"
@@ -120,7 +122,7 @@ void FTable::GetVisibleColumns(TArray<TSharedRef<FTableColumn>>& InArray) const
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FTable::GetVisibleColumnsData(const TArray<Insights::FBaseTreeNodePtr>& InNodes, FString& OutData) const
+void FTable::GetVisibleColumnsData(const TArray<Insights::FBaseTreeNodePtr>& InNodes, const FName& LogListingName, FString& OutData) const
 {
 	constexpr TCHAR Separator = TEXT('\t');
 
@@ -139,9 +141,21 @@ void FTable::GetVisibleColumnsData(const TArray<Insights::FBaseTreeNodePtr>& InN
 		OutData.AppendChar(TEXT('\n'));
 	}
 
-	// Selected items
-	for (Insights::FBaseTreeNodePtr Node : InNodes)
+	static int32 Max_Rows = 100000;
+	int32 NumItems = InNodes.Num();
+	if (NumItems > Max_Rows)
 	{
+		NumItems = Max_Rows;
+
+		FMessageLog ReportMessageLog(LogListingName != NAME_None ? LogListingName : TEXT("Other"));
+		ReportMessageLog.Warning(FText::Format(LOCTEXT("TooManyRows", "Too many rows selected. Only the first {0} will be copied."), NumItems));
+		ReportMessageLog.Notify();
+	}
+
+	// Selected items
+	for (int Index = 0; Index < NumItems; Index++)
+	{
+		const Insights::FBaseTreeNodePtr& Node = InNodes[Index];
 		for (const TSharedRef<Insights::FTableColumn>& ColumnRef : VisibleColumns)
 		{
 			FText NodeText = ColumnRef->GetValueAsText(*Node);

@@ -4,6 +4,8 @@
 
 #include "CoreMinimal.h"
 
+#include "Layout/Visibility.h"
+
 #include "Insights/Table/ViewModels/TableCellValue.h"
 
 class IToolTip;
@@ -43,6 +45,8 @@ public:
 	virtual FText FormatValueForTooltip(const FTableColumn& Column, const FBaseTreeNode& Node) const override; // { return FormatValueForTooltip(Column.GetValue(Node)); }
 
 	virtual TSharedPtr<IToolTip> GetCustomTooltip(const FTableColumn& Column, const FBaseTreeNode& Node) const override;
+
+	static EVisibility GetTooltipVisibility();
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

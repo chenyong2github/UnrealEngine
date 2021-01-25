@@ -2,6 +2,7 @@
 
 #include "LoadingProfilerManager.h"
 
+#include "MessageLog/Public/MessageLogModule.h"
 #include "Modules/ModuleManager.h"
 #include "TraceServices/AnalysisService.h"
 #include "TraceServices/Model/LoadTimeProfiler.h"
@@ -60,6 +61,7 @@ FLoadingProfilerManager::FLoadingProfilerManager(TSharedRef<FUICommandList> InCo
 	, bIsPackageDetailsTreeViewVisible(false)
 	, bIsExportDetailsTreeViewVisible(false)
 	, bIsRequestsTreeViewVisible(false)
+	, LogListingName(TEXT("LoadingInsights"))
 {
 }
 
@@ -96,6 +98,16 @@ void FLoadingProfilerManager::Shutdown()
 		return;
 	}
 	bIsInitialized = false;
+
+	// If the MessageLog module was already unloaded as part of the global Shutdown process, do not load it again.
+	if (FModuleManager::Get().IsModuleLoaded("MessageLog"))
+	{
+		FMessageLogModule& MessageLogModule = FModuleManager::LoadModuleChecked<FMessageLogModule>("MessageLog");
+		if (MessageLogModule.IsRegisteredLogListing(GetLogListingName()))
+		{
+			MessageLogModule.UnregisterLogListing(GetLogListingName());
+		}
+	}
 
 	FInsightsManager::Get()->GetSessionChangedEvent().RemoveAll(this);
 
@@ -247,6 +259,10 @@ bool FLoadingProfilerManager::Tick(float DeltaTime)
 		if (bIsProviderAvailable)
 		{
 			bIsAvailable = true;
+
+			FMessageLogModule& MessageLogModule = FModuleManager::LoadModuleChecked<FMessageLogModule>("MessageLog");
+			MessageLogModule.RegisterLogListing(GetLogListingName(), LOCTEXT("LoadingInsights", "Loading Insights"));
+			MessageLogModule.EnableMessageLogDisplay(true);
 
 			const FName& TabId = FInsightsManagerTabs::LoadingProfilerTabId;
 			if (FGlobalTabmanager::Get()->HasTabSpawner(TabId))

@@ -1112,7 +1112,7 @@ void STimerTreeView::ContextMenu_CopySelectedToClipboard_Execute()
 		CurrentSorter->Sort(SelectedNodes, ColumnSortMode == EColumnSortMode::Ascending ? Insights::ESortMode::Ascending : Insights::ESortMode::Descending);
 	}
 
-	Table->GetVisibleColumnsData(SelectedNodes, ClipboardText);
+	Table->GetVisibleColumnsData(SelectedNodes, FTimingProfilerManager::Get()->GetLogListingName(), ClipboardText);
 
 	if (ClipboardText.Len() > 0)
 	{

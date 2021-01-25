@@ -324,6 +324,7 @@ TSharedRef<SDockTab> SMemoryProfilerWindow::SpawnTab_MemAllocTableTreeView(const
 			SAssignNew(MemAllocTableTreeView, Insights::SMemAllocTableTreeView, MemAllocTable)
 		];
 
+	MemAllocTableTreeView->SetLogListingName(FMemoryProfilerManager::Get()->GetLogListingName());
 	MemAllocTableTreeView->SetTabIndex(TabIndex);
 	MemAllocTableTreeViews.Add(MemAllocTableTreeView);
 	UpdateMemAllocTableTreeView(MemAllocTableTreeView);
