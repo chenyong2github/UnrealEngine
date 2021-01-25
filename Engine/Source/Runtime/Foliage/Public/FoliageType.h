@@ -80,7 +80,7 @@ enum class EFoliageScaling : uint8
 };
 
 
-UCLASS(hidecategories = Object, editinlinenew, MinimalAPI, BlueprintType, Blueprintable)
+UCLASS(abstract, hidecategories = Object, editinlinenew, MinimalAPI, BlueprintType, Blueprintable)
 class UFoliageType : public UObject
 {
 	GENERATED_UCLASS_BODY()
