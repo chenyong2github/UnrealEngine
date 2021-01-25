@@ -89,8 +89,9 @@ public:
 	 */
 	void CullInstances(FRDGBuilder& GraphBuilder, FGPUScene& GPUScene);
 
-	FInstanceCullingManager(FInstanceCullingManagerResources& InResources)
-	: Resources(InResources)
+	FInstanceCullingManager(FInstanceCullingManagerResources& InResources, bool bInIsEnabled)
+	: Resources(InResources),
+		bIsEnabled(bInIsEnabled)
 	{
 	}
 
@@ -100,11 +101,16 @@ public:
 	 */
 	FInstanceCullingContext* CreateContext(const int32* ViewIds, int32 NumViews);
 
-	FInstanceCullingManagerResources& Resources;
-	//TArray<TFunction<void(FInstanceCullingManager*, const FRDGBufferRef&, FRDGBuilder&, const FInstanceCullingIntermediate&, FGPUScene&)>, SceneRenderingAllocator> GPUPostCullingJobs;
-	TArray<Nanite::FPackedView> CullingViews;
-	
 	// Populated by CullInstances, used when performing final culling & rendering 
 	FInstanceCullingIntermediate CullingIntermediate;
+
+private:
+	FInstanceCullingManager() = delete;
+	FInstanceCullingManager(FInstanceCullingManager &) = delete;
+
+	FInstanceCullingManagerResources& Resources;
+	TArray<Nanite::FPackedView> CullingViews;
+	
+	bool bIsEnabled;
 };
 

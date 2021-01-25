@@ -48,19 +48,22 @@ struct FHairVertexData
 	bool   bIsValid;
 };
 
+// GPUCULL_TODO: this should be switched over to use Instance ID instead of Primitive ID.
 FVertexFactoryInterpolantsVSToPS GetInterpolants(uint PrimitiveId, uint HairPrimitiveId, inout FHairVertexData OutHairVertex)
 {
 	FMaterialVertexParameters Empty = (FMaterialVertexParameters)0;
 
 	FVertexFactoryInput Input;
+#if VF_USE_PRIMITIVE_SCENE_DATA
 #if defined(GPUCULL_TODO)
-	// GPUCULL_TODO: this should be switched over to use instance ID.
-	//Input.PrimitiveId = PrimitiveId;
-	Input.InstanceIdOffset = 0;
+	// GPUCULL_TODO: Making use of dynamic draw workaround, assumes no actual instancing used for these draws.
+	//               Will load the first instance data.
+	Input.InstanceIdOffset = PrimitiveId | (1U << 31U);
 	Input.DrawInstanceId = 0;
-#else //!defined(GPUCULL_TODO)
+#else //!(defined(GPUCULL_TODO)
 	Input.PrimitiveId = PrimitiveId;
 #endif // defined(GPUCULL_TODO)
+#endif // VF_USE_PRIMITIVE_SCENE_DATA 
 	Input.VertexId = HairPrimitiveId * 6; // 6: the vertex factory expect triangles list index. A quad is made of two triangles with indices: 0,1,2,3,4,5.
 
 	FVertexFactoryIntermediates	Intermediates = GetVertexFactoryIntermediates(Input);
@@ -134,8 +137,9 @@ FEvaluateOutput Evaluate(
 
 		Interpolants.TangentToWorld0 = normalize(Interpolants.TangentToWorld0);
 		Interpolants.TangentToWorld2 = normalize(Interpolants.TangentToWorld2);
-
+#if VF_USE_PRIMITIVE_SCENE_DATA
 		Interpolants.PrimitiveId	 = PrimitiveId;
+#endif // VF_USE_PRIMITIVE_SCENE_DATA
 		Interpolants.HairPrimitiveId = HairPrimitiveId0;
 		Interpolants.HairPrimitiveUV = float2(SegmentU, SegmentV);
 	}

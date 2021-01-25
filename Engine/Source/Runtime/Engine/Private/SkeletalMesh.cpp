@@ -5092,22 +5092,26 @@ FSkeletalMeshSceneProxy::FSkeletalMeshSceneProxy(const USkinnedMeshComponent* Co
 	// Skip primitive uniform buffer if we will be using local vertex factory which gets it's data from GPUScene.
 	// GPUCULL_TODO: Move to base class - all should follow the same pattern here
 #if defined(GPUCULL_TODO)
-	bVFRequiresPrimitiveUniformBuffer = !UseGPUScene(GMaxRHIShaderPlatform, FeatureLevel);
-	bSupportsInstanceDataBuffer = true;
+	const bool bUseGPUScene = UseGPUScene(GMaxRHIShaderPlatform, FeatureLevel);
+	bVFRequiresPrimitiveUniformBuffer = !bUseGPUScene;
 #else
 	bVFRequiresPrimitiveUniformBuffer = !((bIsCPUSkinned || bRenderStatic) && UseGPUScene(GMaxRHIShaderPlatform, FeatureLevel));
 #endif
 
 #if defined(GPUCULL_TODO)
-	// 100% generic default-instance
-	Instances.SetNum(1);
-	FPrimitiveInstance& Instance = Instances[0];
-	Instance.PrimitiveId = ~uint32(0);
-	Instance.InstanceToLocal.SetIdentity();
-	Instance.LocalToInstance.SetIdentity();
-	Instance.LocalToWorld.SetIdentity();
-	Instance.RenderBounds = GetLocalBounds();
-	Instance.LocalBounds = Instance.RenderBounds;
+	if (bUseGPUScene)
+	{
+		bSupportsInstanceDataBuffer = true;
+		// 100% generic default-instance
+		Instances.SetNum(1);
+		FPrimitiveInstance& Instance = Instances[0];
+		Instance.PrimitiveId = ~uint32(0);
+		Instance.InstanceToLocal.SetIdentity();
+		Instance.LocalToInstance.SetIdentity();
+		Instance.LocalToWorld.SetIdentity();
+		Instance.RenderBounds = GetLocalBounds();
+		Instance.LocalBounds = Instance.RenderBounds;
+	}
 #endif
 
 #if RHI_RAYTRACING

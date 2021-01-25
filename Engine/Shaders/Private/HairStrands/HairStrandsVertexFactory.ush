@@ -182,18 +182,6 @@ struct FVertexFactoryIntermediates
 	float  HairDensity;
 };
 
-#if !defined(GPUCULL_TODO)
-
-uint GetPrimitiveId(FVertexFactoryInput Input)
-{
-#if VF_USE_PRIMITIVE_SCENE_DATA
-	return Input.PrimitiveId;
-#else
-	return 0;
-#endif
-}
-#endif // defined(GPUCULL_TODO)
-
 uint GetHairPrimitiveId(FVertexFactoryInput Input)
 {
 	return GetVertexInfo(Input).HairPrimitiveId;
@@ -350,8 +338,6 @@ half3x3 CalcTangentToWorld(FVertexFactoryIntermediates Intermediates, half3x3 Ta
 	return LocalTangentToWorld;
 }
 
-#if defined(GPUCULL_TODO)
-
 float3 GetTangent(FVertexFactoryIntermediates Intermediates)
 {
 	// Hair shader expec the tangent to be stored in place of the normal. This is what the StrandHairComponent is filling in:
@@ -361,40 +347,20 @@ float3 GetTangent(FVertexFactoryIntermediates Intermediates)
 	return Intermediates.TangentToWorld[2].xyz;
 }
 
-#else //!defined(GPUCULL_TODO)
-
-float3 GetTangent(FVertexFactoryInput Input)
-{
-	FVertexFactoryIntermediates Intermediates;
-	Intermediates.PrimitiveId = GetPrimitiveId(Input);
-	
-	float TangentSign;
-	Intermediates.TangentToLocal = CalcTangentToLocal(Input, TangentSign);
-	Intermediates.TangentToWorld = CalcTangentToWorld(Intermediates,Intermediates.TangentToLocal);
-	Intermediates.TangentToWorldSign = TangentSign * GetPrimitiveData(Intermediates.PrimitiveId).InvNonUniformScaleAndDeterminantSign.w;
-
-	// Hair shader expec the tangent to be stored in place of the normal. This is what the StrandHairComponent is filling in:
-	// [0]: Real normal		| Should be Tangent
-	// [1]: Bitangent		| Should be BiTangent
-	// [2]: Real Tangent	| Should be Normal
-	return Intermediates.TangentToWorld[2].xyz;
-}
-
-#endif // defined(GPUCULL_TODO)
-
 FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput Input)
 {
 	FVertexFactoryIntermediates Intermediates;
-#if defined(GPUCULL_TODO)
 #if VF_USE_PRIMITIVE_SCENE_DATA
+#if defined(GPUCULL_TODO)
 	Intermediates.SceneData = GetSceneDataIntermediates(Input.InstanceIdOffset, Input.DrawInstanceId);
 	Intermediates.PrimitiveId = Intermediates.SceneData.InstanceData.PrimitiveId;
-#else
-	Intermediates.PrimitiveId = 0U;
-#endif
 #else //!defined(GPUCULL_TODO)
-	Intermediates.PrimitiveId		= GetPrimitiveId(Input);
+	Intermediates.PrimitiveId = Input.PrimitiveId;
 #endif // defined(GPUCULL_TODO)
+#else // !VF_USE_PRIMITIVE_SCENE_DATA
+	Intermediates.PrimitiveId = 0U;
+#endif // VF_USE_PRIMITIVE_SCENE_DATA
+
 	Intermediates.HairPrimitiveId	= GetHairPrimitiveId(Input);
 	Intermediates.HairPrimitiveUV	= GetSegmentUVCoord(Input);
 	Intermediates.HairDensity		= HairStrandsVF_Density;
@@ -441,14 +407,10 @@ float4 VertexFactoryGetWorldPosition_Visibility(FVertexFactoryInput Input, FHair
 	OutHairPrimitiveId = VertexInfo.HairPrimitiveId;
 
 	FHairControlPoint ControlPoint = GetVertexPosition(VertexInfo);
-#if defined(GPUCULL_TODO)
+
 	FVertexFactoryIntermediates Intermediates = GetVertexFactoryIntermediates(Input);
 	const float4 WorldPosition = CalcWorldPosition(ControlPoint.Position, Intermediates.PrimitiveId);
 	const float3 WorldTangent = GetTangent(Intermediates);
-#else //!defined(GPUCULL_TODO)
-	const float4 WorldPosition = CalcWorldPosition(ControlPoint.Position, GetPrimitiveId(Input));
-	const float3 WorldTangent = GetTangent(Input);
-#endif // defined(GPUCULL_TODO)
 
 	// Minimal radius to snap the strand to a sample/pixel center (to avoid aliasing)
 	const float DistanceToCamera = length(HairViewInfo.TranslatedWorldCameraOrigin - WorldPosition.xyz);
@@ -470,14 +432,9 @@ float4 VertexFactoryGetWorldPosition_Voxelization(FVertexFactoryInput Input, FHa
 	OutHairWorldRadius = ControlPoint.WorldRadius;
 	OutHairDensity = HairStrandsVF_Density;
 
-#if defined(GPUCULL_TODO)
 	FVertexFactoryIntermediates Intermediates = GetVertexFactoryIntermediates(Input);
 	const float4 WorldPosition = CalcWorldPosition(ControlPoint.Position, Intermediates.PrimitiveId);
 	const float3 WorldTangent = GetTangent(Intermediates);
-#else //!defined(GPUCULL_TODO)
-	const float4 WorldPosition = CalcWorldPosition(ControlPoint.Position, GetPrimitiveId(Input));
-	const float3 WorldTangent = GetTangent(Input);
-#endif // defined(GPUCULL_TODO)
 
 	// Minimal radius to snap the strand to a sample/pixel center (to avoid aliasing)
 	const float3 ViewDir = -HairViewInfo.ViewForward;
@@ -495,11 +452,7 @@ float4 VertexFactoryGetWorldPosition(FVertexFactoryInput Input, FVertexFactoryIn
 	const float4 WorldPosition = CalcWorldPosition(VertexPosition, Intermediates.PrimitiveId);
 
 	// Hair shader expect the WorldNormal to be the tangent vector
-#if defined(GPUCULL_TODO)
 	const float3 WorldTangent = GetTangent(Intermediates);
-#else //!defined(GPUCULL_TODO)
-	const float3 WorldTangent = GetTangent(Input);
-#endif // defined(GPUCULL_TODO)
 	return ComputeViewAlignedWorldPosition(Input, WorldTangent, WorldPosition, ControlPoint.WorldRadius, HairViewInfo);
 }
 

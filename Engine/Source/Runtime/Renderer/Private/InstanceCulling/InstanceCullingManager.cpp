@@ -20,11 +20,13 @@ static TAutoConsoleVariable<int32> CVarCullInstances(
 	ECVF_RenderThreadSafe);
 
 
-#if defined(GPUCULL_TODO)
-
-
 int32 FInstanceCullingManager::RegisterView(const FViewInfo& ViewInfo)
 {
+	if (!bIsEnabled)
+	{
+		return 0;
+	}
+
 	Nanite::FPackedViewParams Params;
 	Params.ViewMatrices = ViewInfo.ViewMatrices;
 	Params.PrevViewMatrices = ViewInfo.PrevViewInfo.ViewMatrices;
@@ -38,10 +40,15 @@ int32 FInstanceCullingManager::RegisterView(const FViewInfo& ViewInfo)
 
 int32 FInstanceCullingManager::RegisterView(const Nanite::FPackedViewParams& Params)
 {
+	if (!bIsEnabled)
+	{
+		return 0;
+	}
 	CullingViews.Add(CreatePackedView(Params));
 	return CullingViews.Num() - 1;
 }
 
+#if defined(GPUCULL_TODO)
 
 class FCullInstancesCs : public FGlobalShader
 {
@@ -53,7 +60,7 @@ public:
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
+		return UseGPUScene(Parameters.Platform);
 	}
 
 	/**
@@ -85,9 +92,11 @@ public:
 };
 IMPLEMENT_GLOBAL_SHADER(FCullInstancesCs, "/Engine/Private/InstanceCulling/CullInstances.usf", "CullInstancesCs", SF_Compute);
 
+#endif // GPUCULL_TODO
 
 void FInstanceCullingManager::CullInstances(FRDGBuilder& GraphBuilder, FGPUScene& GPUScene)
 {
+#if defined(GPUCULL_TODO)
 	RDG_EVENT_SCOPE(GraphBuilder, "CullInstances");
 
 	check(!CullingIntermediate.InstanceIdOutOffsetBuffer);
@@ -145,38 +154,21 @@ void FInstanceCullingManager::CullInstances(FRDGBuilder& GraphBuilder, FGPUScene
 			AddClearUAVPass(GraphBuilder, VisibleInstanceFlagsUAV, 0xFFFFFFFF);
 		}
 	}
+#endif // defined(GPUCULL_TODO)
 }
 
 
 FInstanceCullingContext* FInstanceCullingManager::CreateContext(const int32* ViewIds, int32 NumViews)
 {
-	FInstanceCullingContext* InstanceCullingContext = new(FMemStack::Get()) FInstanceCullingContext;
-	InstanceCullingContext->ViewIds.Insert(ViewIds, NumViews, 0);
-	InstanceCullingContext->InstanceCullingManager = this;
-	return InstanceCullingContext;
+	if (bIsEnabled)
+	{
+		FInstanceCullingContext* InstanceCullingContext = new(FMemStack::Get()) FInstanceCullingContext;
+		InstanceCullingContext->ViewIds.Insert(ViewIds, NumViews, 0);
+		InstanceCullingContext->InstanceCullingManager = this;
+		return InstanceCullingContext;
+	}
+	else
+	{
+		return nullptr;
+	}
 }
-
-
-#else //!defined(GPUCULL_TODO)
-
-int32 FInstanceCullingManager::RegisterView(const FViewInfo& ViewInfo)
-{
-	return 0;
-}
-
-int32 FInstanceCullingManager::RegisterView(const Nanite::FPackedViewParams& Params)
-{
-	return 0;
-}
-
-void FInstanceCullingManager::CullInstances(FRDGBuilder& GraphBuilder, FGPUScene& GPUScene)
-{
-}
-
-FInstanceCullingContext* FInstanceCullingManager::CreateContext(const int32 * ViewIds, int32 NumViews)
-{
-	return nullptr;
-}
-
-
-#endif // defined(GPUCULL_TODO)

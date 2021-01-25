@@ -37,9 +37,9 @@ struct FShadowDepthVSToGS : FShadowDepthVSToPS
 {
 	float4 GSPosition : TEXCOORD6;
 	float3 WorldNormal : TEXCOORD8;
-#if defined(GPUCULL_TODO)
+#if defined(GPUCULL_TODO) && ENABLE_FALLBACK_POINTLIGHT_SHADOW_GS
 	nointerpolation uint ViewIndex : TEXCOORD9;
-#endif // defined(GPUCULL_TODO)
+#endif // ENABLE_FALLBACK_POINTLIGHT_SHADOW_GS
 };
 #endif
 

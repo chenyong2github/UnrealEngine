@@ -8,6 +8,11 @@
 #define SHADOW_DEPTH_SHADER 1
 #define USE_STENCIL_LOD_DITHER	0
 
+#ifndef ENABLE_NON_NANITE_VSM
+#error "ENABLE_NON_NANITE_VSM should be defined to either 0 or 1!"
+#endif
+
+
 #if ENABLE_NON_NANITE_VSM
 	#define VIRTUAL_SM_ENABLED (!(USING_TESSELLATION || ONEPASS_POINTLIGHT_SHADOW))
 #else //!ENABLE_NON_NANITE_VSM
@@ -250,7 +255,7 @@ bool IsTriangleInFrustum(float4 ClipSpacePositions[3])
 [maxvertexcount(18)]
 void MainOnePassPointLightGS(triangle FShadowDepthVSToGS Input[3], inout TriangleStream<FShadowDepthGSToPS> OutStream)
 {
-#if defined(GPUCULL_TODO)
+#if defined(GPUCULL_TODO) && ENABLE_FALLBACK_POINTLIGHT_SHADOW_GS
 	uint CubeFaceStartIndex = bUseGpuSceneInstancing ? Input[0].ViewIndex : 0;
 	uint CubeFaceEndIndex = bUseGpuSceneInstancing ? Input[0].ViewIndex + 1: 6;
 
@@ -460,9 +465,9 @@ void Main(
 
 	OutPosition = OutParameters.GSPosition = WorldPos;
 	OutParameters.WorldNormal = WorldNormal;
-#if defined(GPUCULL_TODO)
+#if defined(GPUCULL_TODO) && ENABLE_FALLBACK_POINTLIGHT_SHADOW_GS
 	OutParameters.ViewIndex = VertexFactoryGetViewIndex(VFIntermediates);
-#endif // defined(GPUCULL_TODO)
+#endif // !ENABLE_FALLBACK_POINTLIGHT_SHADOW_GS
 
 	#if INTERPOLATE_VF_ATTRIBUTES
 		// Masked materials need texture coords to clip
@@ -604,9 +609,9 @@ void PositionOnlyMain(
 #if ONEPASS_POINTLIGHT_SHADOW
 	OutPosition = OutParameters.GSPosition = WorldPos;
 	OutParameters.WorldNormal = WorldNormal;
-#if defined(GPUCULL_TODO)
+#if defined(GPUCULL_TODO) && ENABLE_FALLBACK_POINTLIGHT_SHADOW_GS
 	OutParameters.ViewIndex = VertexFactoryGetViewIndex(Input);
-#endif // defined(GPUCULL_TODO)
+#endif // !ENABLE_FALLBACK_POINTLIGHT_SHADOW_GS
 
 	#if USING_ONEPASS_POINT_VERTEX_LAYER
 #if defined(GPUCULL_TODO)

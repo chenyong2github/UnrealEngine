@@ -627,10 +627,17 @@ void FInstancedStaticMeshVertexFactory::ModifyCompilationEnvironment(const FVert
 	}
 
 #if defined(GPUCULL_TODO)
-	// USE_INSTANCE_CULLING - set up additional instancing attributes (basic instancing is the default)
-	OutEnvironment.SetDefine(TEXT("USE_INSTANCE_CULLING"), TEXT("1"));
-#else
-	OutEnvironment.SetDefine(TEXT("USE_INSTANCING"), TEXT("1"));
+	if (UseGPUScene(Parameters.Platform))
+	{
+		// USE_INSTANCE_CULLING - set up additional instancing attributes (basic instancing is the default)
+		OutEnvironment.SetDefine(TEXT("USE_INSTANCE_CULLING"), TEXT("1"));
+	}
+	else
+	{
+#endif
+		OutEnvironment.SetDefine(TEXT("USE_INSTANCING"), TEXT("1"));
+#if defined(GPUCULL_TODO)
+	}
 #endif
 
 	if (IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5))
@@ -1050,28 +1057,31 @@ void FInstancedStaticMeshSceneProxy::SetupProxy(UInstancedStaticMeshComponent* I
 	UserData_DeselectedInstances.bRenderSelected = false;
 
 #if defined(GPUCULL_TODO)
-	const TArray<int32>& InstanceReorderTable = InComponent->InstanceReorderTable;
-	bSupportsInstanceDataBuffer = true;
-	Instances.SetNum(InComponent->GetInstanceCount());
-	for (int32 InInstanceIndex = 0; InInstanceIndex < Instances.Num(); ++InInstanceIndex)
+	if (UseGPUScene(GetScene().GetShaderPlatform(), GetScene().GetFeatureLevel()))
 	{
-		int32 OutInstanceIndex = InInstanceIndex;
-		if (OutInstanceIndex < InstanceReorderTable.Num())
+		const TArray<int32>& InstanceReorderTable = InComponent->InstanceReorderTable;
+		bSupportsInstanceDataBuffer = true;
+		Instances.SetNum(InComponent->GetInstanceCount());
+		for (int32 InInstanceIndex = 0; InInstanceIndex < Instances.Num(); ++InInstanceIndex)
 		{
-			OutInstanceIndex = InstanceReorderTable[OutInstanceIndex];
-		}
-		FTransform InstanceTransform;
-		InComponent->GetInstanceTransform(InInstanceIndex, InstanceTransform);
+			int32 OutInstanceIndex = InInstanceIndex;
+			if (OutInstanceIndex < InstanceReorderTable.Num())
+			{
+				OutInstanceIndex = InstanceReorderTable[OutInstanceIndex];
+			}
+			FTransform InstanceTransform;
+			InComponent->GetInstanceTransform(InInstanceIndex, InstanceTransform);
 
-		FPrimitiveInstance& Instance = Instances[OutInstanceIndex];
-		Instance.PrimitiveId = ~uint32(0);
-		Instance.InstanceToLocal = InstanceTransform.ToMatrixWithScale();
-		// GPUCULL_TODO: not sure this is needed either - might be better to delegate to later anyway since inverse can then be threaded, plus some platforms might not need it at all.
-		Instance.LocalToInstance = Instance.InstanceToLocal.Inverse();
-		// Filled in during GPU Scene update...
-		Instance.LocalToWorld.SetIdentity();
-		Instance.RenderBounds = InComponent->GetStaticMesh()->GetBounds();
-		Instance.LocalBounds = Instance.RenderBounds.TransformBy(Instance.InstanceToLocal);
+			FPrimitiveInstance& Instance = Instances[OutInstanceIndex];
+			Instance.PrimitiveId = ~uint32(0);
+			Instance.InstanceToLocal = InstanceTransform.ToMatrixWithScale();
+			// GPUCULL_TODO: not sure this is needed either - might be better to delegate to later anyway since inverse can then be threaded, plus some platforms might not need it at all.
+			Instance.LocalToInstance = Instance.InstanceToLocal.Inverse();
+			// Filled in during GPU Scene update...
+			Instance.LocalToWorld.SetIdentity();
+			Instance.RenderBounds = InComponent->GetStaticMesh()->GetBounds();
+			Instance.LocalBounds = Instance.RenderBounds.TransformBy(Instance.InstanceToLocal);
+		}
 	}
 #endif
 }
@@ -2965,7 +2975,7 @@ void UInstancedStaticMeshComponent::InitPerInstanceRenderData(bool InitializeFro
 	ERHIFeatureLevel::Type FeatureLevel = World != nullptr ? World->FeatureLevel.GetValue() : GMaxRHIFeatureLevel;
 
 #if defined(GPUCULL_TODO)
-	bool KeepInstanceBufferCPUAccess = true;//GIsEditor || InRequireCPUAccess || ComponentRequestsCPUAccess(this, FeatureLevel);
+	bool KeepInstanceBufferCPUAccess = UseGPUScene(GetFeatureLevelShaderPlatform(FeatureLevel), FeatureLevel) || GIsEditor || InRequireCPUAccess || ComponentRequestsCPUAccess(this, FeatureLevel);
 #else
 	bool KeepInstanceBufferCPUAccess = GIsEditor || InRequireCPUAccess || ComponentRequestsCPUAccess(this, FeatureLevel);
 #endif

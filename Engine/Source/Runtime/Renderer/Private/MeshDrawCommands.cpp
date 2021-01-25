@@ -1467,31 +1467,38 @@ public:
 void FParallelMeshDrawCommandPass::BuildRenderingCommands(FRDGBuilder& GraphBuilder, FGPUScene& GPUScene, FInstanceCullingDrawParams& OutInstanceCullingDrawParams)
 {
 #if defined(GPUCULL_TODO)
-	WaitForMeshPassSetupTask();
-	if (MaxNumDraws <= 0 || !TaskContext.InstanceCullingContext->HasCullingCommands())
+	if (TaskContext.InstanceCullingContext)
 	{
-		OutInstanceCullingDrawParams.DrawIndirectArgsBuffer = nullptr;
-		OutInstanceCullingDrawParams.DrawIndirectArgsBufferAccess = nullptr;
-		OutInstanceCullingDrawParams.InstanceIdOffsetBuffer = nullptr;
-		OutInstanceCullingDrawParams.InstanceIdOffsetBufferAccess = nullptr;
-		return;
+		WaitForMeshPassSetupTask();
+		if (MaxNumDraws > 0 && TaskContext.InstanceCullingContext->HasCullingCommands())
+		{
+			// 2. Run finalize culling commands pass
+			TaskContext.InstanceCullingContext->BuildRenderingCommands(GraphBuilder, GPUScene, TaskContext.InstanceCullingResult);
+			TaskContext.InstanceCullingResult.GetDrawParameters(OutInstanceCullingDrawParams);
+			return;
+		}
 	}
-	// 2. Run finalize culling commands pass
-	TaskContext.InstanceCullingContext->BuildRenderingCommands(GraphBuilder, GPUScene, TaskContext.InstanceCullingResult);
-	TaskContext.InstanceCullingResult.GetDrawParameters(OutInstanceCullingDrawParams);
+	OutInstanceCullingDrawParams.DrawIndirectArgsBuffer = nullptr;
+	OutInstanceCullingDrawParams.DrawIndirectArgsBufferAccess = nullptr;
+	OutInstanceCullingDrawParams.InstanceIdOffsetBuffer = nullptr;
+	OutInstanceCullingDrawParams.InstanceIdOffsetBufferAccess = nullptr;
+
 #endif
 }
 
 void FParallelMeshDrawCommandPass::BuildInstanceList(FRDGBuilder& GraphBuilder, FGPUScene& GPUScene, FInstanceCullingRdgParams& OutParams)
 {
 #if defined(GPUCULL_TODO)
-	WaitForMeshPassSetupTask();
-	if (MaxNumDraws <= 0)
+	if (TaskContext.InstanceCullingContext)
 	{
-		return;
+		WaitForMeshPassSetupTask();
+		if (MaxNumDraws <= 0)
+		{
+			return;
+		}
+		// Run pass to build ID lists (temporary)
+		TaskContext.InstanceCullingContext->BuildRenderingCommands(GraphBuilder, GPUScene, OutParams);
 	}
-	// Run pass to build ID lists (temporary)
-	TaskContext.InstanceCullingContext->BuildRenderingCommands(GraphBuilder, GPUScene, OutParams);
 #endif
 }
 
@@ -1513,13 +1520,16 @@ void FParallelMeshDrawCommandPass::DispatchDraw(FParallelCommandListSet* Paralle
 		DrawIndirectArgsBuffer = InstanceCullingDrawParams->DrawIndirectArgsBuffer->GetRHI();
 		InstanceIdOffsetBuffer = InstanceCullingDrawParams->InstanceIdOffsetBuffer->GetRHI();
 	}
-#endif // defined(GPUCULL_TODO)
+
+#else // !defined(GPUCULL_TODO)
 
 	FRHIBuffer* PrimitiveIdsBuffer = PrimitiveIdVertexBufferPoolEntry.BufferRHI;
 	const int32 BasePrimitiveIdsOffset = 0;
+#endif // defined(GPUCULL_TODO)
 
 	if (ParallelCommandListSet)
 	{
+#if !defined(GPUCULL_TODO)
 		if (TaskContext.bUseGPUScene)
 		{
 			// Queue a command on the RHI thread which will upload PrimitiveIdVertexBuffer after finishing FMeshDrawCommandPassSetupTask.
@@ -1548,6 +1558,7 @@ void FParallelMeshDrawCommandPass::DispatchDraw(FParallelCommandListSet* Paralle
 
 			bPrimitiveIdBufferDataOwnedByRHIThread = true;
 		}
+#endif // !defined(GPUCULL_TODO)
 
 		const ENamedThreads::Type RenderThread = ENamedThreads::GetRenderThread();
 

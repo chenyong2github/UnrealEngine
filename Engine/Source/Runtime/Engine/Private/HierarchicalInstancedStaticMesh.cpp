@@ -893,35 +893,38 @@ public:
 #endif
 	{
 #if defined(GPUCULL_TODO)
-		if (InstancedRenderData.PerInstanceRenderData.IsValid() && InstancedRenderData.PerInstanceRenderData->InstanceBuffer_GameThread.IsValid())
+		if (UseGPUScene(GetScene().GetShaderPlatform(), GetScene().GetFeatureLevel()))
 		{
-			const FStaticMeshInstanceData& StaticMeshInstanceData = *InstancedRenderData.PerInstanceRenderData->InstanceBuffer_GameThread;
-			
-			Instances.SetNum(StaticMeshInstanceData.GetNumInstances());
-			if (Instances.Num() == 0 && ClusterTree.Num() != 0)
+			if (InstancedRenderData.PerInstanceRenderData.IsValid() && InstancedRenderData.PerInstanceRenderData->InstanceBuffer_GameThread.IsValid())
 			{
-				UE_LOG(LogTemp, Display, TEXT("Instances.Num() == 0 && ClusterTree.Num() != 0"));
-			}
+				const FStaticMeshInstanceData& StaticMeshInstanceData = *InstancedRenderData.PerInstanceRenderData->InstanceBuffer_GameThread;
 
-			for (int32 InstanceIndex = 0; InstanceIndex < Instances.Num(); ++InstanceIndex)
+					Instances.SetNum(StaticMeshInstanceData.GetNumInstances());
+					if (Instances.Num() == 0 && ClusterTree.Num() != 0)
+					{
+						UE_LOG(LogTemp, Display, TEXT("Instances.Num() == 0 && ClusterTree.Num() != 0"));
+					}
+
+				for (int32 InstanceIndex = 0; InstanceIndex < Instances.Num(); ++InstanceIndex)
+				{
+					FMatrix InstanceTransform;
+					StaticMeshInstanceData.GetInstanceTransform(InstanceIndex, InstanceTransform);
+					InstanceTransform.M[3][3] = 1.0f;
+
+					FPrimitiveInstance& Instance = Instances[InstanceIndex];
+					Instance.PrimitiveId = ~uint32(0);
+					Instance.InstanceToLocal = InstanceTransform;
+					Instance.LocalToInstance = InstanceTransform.Inverse();
+					// Filled in during GPU-Scene update...
+					Instance.LocalToWorld.SetIdentity();
+					Instance.RenderBounds = InComponent->GetStaticMesh()->GetBounds();
+					Instance.LocalBounds = Instance.RenderBounds.TransformBy(Instance.InstanceToLocal);
+				}
+			}
+			else
 			{
-				FMatrix InstanceTransform;
-				StaticMeshInstanceData.GetInstanceTransform(InstanceIndex, InstanceTransform);
-				InstanceTransform.M[3][3] = 1.0f;
-
-				FPrimitiveInstance& Instance = Instances[InstanceIndex];
-				Instance.PrimitiveId = ~uint32(0);
-				Instance.InstanceToLocal = InstanceTransform;
-				Instance.LocalToInstance = InstanceTransform.Inverse();
-				// Filled in during GPU-Scene update...
-				Instance.LocalToWorld.SetIdentity();
-				Instance.RenderBounds = InComponent->GetStaticMesh()->GetBounds();
-				Instance.LocalBounds = Instance.RenderBounds.TransformBy(Instance.InstanceToLocal);
+				ensure(ClusterTree.Num() == 0);
 			}
-		}
-		else
-		{
-			ensure(ClusterTree.Num() == 0);
 		}
 #endif // defined(GPUCULL_TODO)
 
@@ -1351,6 +1354,8 @@ void FHierarchicalStaticMeshSceneProxy::FillDynamicMeshElements(FMeshElementColl
 	int32 FirstLOD = FMath::Max((OnlyLOD < 0) ? 0 : OnlyLOD, static_cast<int32>(this->GetCurrentFirstLODIdx_Internal()));
 	int32 LastLODPlusOne = (OnlyLOD < 0) ? InstancedRenderData.VertexFactories.Num() : (OnlyLOD+1);
 
+	const bool bUseGPUScene = UseGPUScene(GetScene().GetShaderPlatform(), GetScene().GetFeatureLevel());
+
 	for (int32 LODIndex = FirstLOD; LODIndex < LastLODPlusOne; LODIndex++)
 	{
 		const FStaticMeshLODResources& LODModel = RenderData->LODResources[LODIndex];
@@ -1372,189 +1377,195 @@ void FHierarchicalStaticMeshSceneProxy::FillDynamicMeshElements(FMeshElementColl
 
 
 #if defined(GPUCULL_TODO)
-				FMeshBatch& MeshBatch = Collector.AllocateMesh();
-				INC_DWORD_STAT(STAT_FoliageMeshBatches);
-
-				if (!FStaticMeshSceneProxy::GetMeshElement(LODIndex, 0, SectionIndex, GetDepthPriorityGroup(ElementParams.View), ElementParams.BatchRenderSelection[SelectionGroupIndex], true, MeshBatch))
+				if (bUseGPUScene)
 				{
-					continue;
-				}
-
-				checkSlow(MeshBatch.GetNumPrimitives() > 0);
-				MeshBatch.bCanApplyViewModeOverrides = true;
-				MeshBatch.bUseSelectionOutline = ElementParams.BatchRenderSelection[SelectionGroupIndex];
-				MeshBatch.bUseWireframeSelectionColoring = ElementParams.BatchRenderSelection[SelectionGroupIndex];
-				MeshBatch.bUseAsOccluder = ShouldUseAsOccluder();
-				MeshBatch.VertexFactory = &InstancedRenderData.VertexFactories[LODIndex];
-
-				FMeshBatchElement& MeshBatchElement = MeshBatch.Elements[0];
-				MeshBatchElement.UserData = ElementParams.PassUserData[SelectionGroupIndex];
-				MeshBatchElement.bUserDataIsColorVertexBuffer = false;
-				MeshBatchElement.MaxScreenSize = 1.0;
-				MeshBatchElement.MinScreenSize = 0.0;
-				MeshBatchElement.InstancedLODIndex = LODIndex;
-				MeshBatchElement.InstancedLODRange = bDitherLODEnabled ? 1 : 0;
-				MeshBatchElement.PrimitiveUniformBuffer = GetUniformBuffer();
-
-				int32 TotalInstances = bDitherLODEnabled ? Params.TotalMultipleLODInstances[LODIndex] : Params.TotalSingleLODInstances[LODIndex];
-				{
-					const int64 Tris = int64(TotalInstances) * int64(MeshBatchElement.NumPrimitives);
-					TotalTriangles += Tris;
-#if STATS
-					if (GFrameNumberRenderThread_CaptureFoliageRuns == GFrameNumberRenderThread)
-					{
-						if (ElementParams.FinalCullDistance > 9.9E8)
-						{
-							UE_LOG(LogStaticMesh, Display, TEXT("lod:%1d/%1d   sel:%1d   section:%1d/%1d   runs:%4d   inst:%8d   tris:%9lld   cast shadow:%1d   cull:-NONE!!-   shadow:%1d     %s %s"),
-								LODIndex, InstancedRenderData.VertexFactories.Num(), SelectionGroupIndex, SectionIndex, LODModel.Sections.Num(), RunArray.Num() / 2,
-								TotalInstances, Tris, (int)MeshBatch.CastShadow, ElementParams.ShadowFrustum,
-								*StaticMesh->GetPathName(),
-								*MeshBatch.MaterialRenderProxy->GetMaterial(ElementParams.FeatureLevel)->GetFriendlyName());
-						}
-						else
-						{
-							UE_LOG(LogStaticMesh, Display, TEXT("lod:%1d/%1d   sel:%1d   section:%1d/%1d   runs:%4d   inst:%8d   tris:%9lld   cast shadow:%1d   cull:%8.0f   shadow:%1d     %s %s"),
-								LODIndex, InstancedRenderData.VertexFactories.Num(), SelectionGroupIndex, SectionIndex, LODModel.Sections.Num(), RunArray.Num() / 2,
-								TotalInstances, Tris, (int)MeshBatch.CastShadow, ElementParams.FinalCullDistance, ElementParams.ShadowFrustum,
-								*StaticMesh->GetPathName(),
-								*MeshBatch.MaterialRenderProxy->GetMaterial(ElementParams.FeatureLevel)->GetFriendlyName());
-						}
-					}
-#endif // STATS
-				}
-
-				//MeshBatchElement.NumInstances = TotalInstances;
-				// The index was used as an offset, but the dynamic buffer thing uses a resource view to make this not needed (using PrimitiveInstanceDataOffset as a temp. debug help)
-				MeshBatchElement.UserIndex = 0;
-
-				// Note: this call overrides the UserIndex to mean the command index, which is used to fetch the offset to the instance array
-				//Collector.AllocateInstancedBatchArguments(ElementParams.ViewIndex, MeshBatch, PrimitiveInstanceDataOffset, PrimitiveInstanceDataCount, RunArray);
-				
-				// We use this existing hook to send info about the runs over to the visiblemeshbatch
-				MeshBatchElement.NumInstances = RunArray.Num() / 2;
-				MeshBatchElement.InstanceRuns = &RunArray[0];
-				MeshBatchElement.bIsInstanceRuns = true;
-
-				if (TotalTriangles < (int64)CVarMaxTrianglesToRender.GetValueOnRenderThread())
-				{
-					Collector.AddMesh(ElementParams.ViewIndex, MeshBatch);
-				}
-
-#else // !defined(GPUCULL_TODO)
-				int32 NumBatches = 1;
-				int32 CurrentRun = 0;
-				int32 CurrentInstance = 0;
-				int32 RemainingInstances = bDitherLODEnabled ? Params.TotalMultipleLODInstances[LODIndex] : Params.TotalSingleLODInstances[LODIndex];
-				int32 RemainingRuns = RunArray.Num() / 2;
-
-				if (!ElementParams.bUseInstanceRuns)
-				{
-					NumBatches = FMath::DivideAndRoundUp(RemainingRuns, (int32)FInstancedStaticMeshVertexFactory::NumBitsForVisibilityMask());
-				}
-
-#if STATS
-				INC_DWORD_STAT_BY(STAT_FoliageInstances, RemainingInstances);
-#endif
-				bool bDidStats = false;
-				for (int32 BatchIndex = 0; BatchIndex < NumBatches; BatchIndex++)
-				{
-					FMeshBatch& MeshElement = Collector.AllocateMesh();
+					FMeshBatch& MeshBatch = Collector.AllocateMesh();
 					INC_DWORD_STAT(STAT_FoliageMeshBatches);
 
-					if (!FStaticMeshSceneProxy::GetMeshElement(LODIndex, 0, SectionIndex, GetDepthPriorityGroup(ElementParams.View), ElementParams.BatchRenderSelection[SelectionGroupIndex], true, MeshElement))
+					if (!FStaticMeshSceneProxy::GetMeshElement(LODIndex, 0, SectionIndex, GetDepthPriorityGroup(ElementParams.View), ElementParams.BatchRenderSelection[SelectionGroupIndex], true, MeshBatch))
 					{
 						continue;
 					}
-					checkSlow(MeshElement.GetNumPrimitives() > 0);
 
-					MeshElement.VertexFactory = &InstancedRenderData.VertexFactories[LODIndex];
-					FMeshBatchElement& BatchElement0 = MeshElement.Elements[0];
+					checkSlow(MeshBatch.GetNumPrimitives() > 0);
+					MeshBatch.bCanApplyViewModeOverrides = true;
+					MeshBatch.bUseSelectionOutline = ElementParams.BatchRenderSelection[SelectionGroupIndex];
+					MeshBatch.bUseWireframeSelectionColoring = ElementParams.BatchRenderSelection[SelectionGroupIndex];
+					MeshBatch.bUseAsOccluder = ShouldUseAsOccluder();
+					MeshBatch.VertexFactory = &InstancedRenderData.VertexFactories[LODIndex];
 
-					BatchElement0.UserData = ElementParams.PassUserData[SelectionGroupIndex];
-					BatchElement0.bUserDataIsColorVertexBuffer = false;
-					BatchElement0.MaxScreenSize = 1.0;
-					BatchElement0.MinScreenSize = 0.0;
-					BatchElement0.InstancedLODIndex = LODIndex;
-					BatchElement0.InstancedLODRange = bDitherLODEnabled ? 1 : 0;
-					BatchElement0.PrimitiveUniformBuffer = GetUniformBuffer();
-					MeshElement.bCanApplyViewModeOverrides = true;
-					MeshElement.bUseSelectionOutline = ElementParams.BatchRenderSelection[SelectionGroupIndex];
-					MeshElement.bUseWireframeSelectionColoring = ElementParams.BatchRenderSelection[SelectionGroupIndex];
-					MeshElement.bUseAsOccluder = ShouldUseAsOccluder();
+					FMeshBatchElement& MeshBatchElement = MeshBatch.Elements[0];
+					MeshBatchElement.UserData = ElementParams.PassUserData[SelectionGroupIndex];
+					MeshBatchElement.bUserDataIsColorVertexBuffer = false;
+					MeshBatchElement.MaxScreenSize = 1.0;
+					MeshBatchElement.MinScreenSize = 0.0;
+					MeshBatchElement.InstancedLODIndex = LODIndex;
+					MeshBatchElement.InstancedLODRange = bDitherLODEnabled ? 1 : 0;
+					MeshBatchElement.PrimitiveUniformBuffer = GetUniformBuffer();
 
-					if (!bDidStats)
+					int32 TotalInstances = bDitherLODEnabled ? Params.TotalMultipleLODInstances[LODIndex] : Params.TotalSingleLODInstances[LODIndex];
 					{
-						bDidStats = true;
-						int64 Tris = int64(RemainingInstances) * int64(BatchElement0.NumPrimitives);
+						const int64 Tris = int64(TotalInstances) * int64(MeshBatchElement.NumPrimitives);
 						TotalTriangles += Tris;
 #if STATS
 						if (GFrameNumberRenderThread_CaptureFoliageRuns == GFrameNumberRenderThread)
 						{
 							if (ElementParams.FinalCullDistance > 9.9E8)
 							{
-								UE_LOG(LogStaticMesh, Display, TEXT("lod:%1d/%1d   sel:%1d   section:%1d/%1d   runs:%4d   inst:%8d   tris:%9lld   cast shadow:%1d   cull:-NONE!!-   shadow:%1d     %s %s"), 
-									LODIndex, InstancedRenderData.VertexFactories.Num(), SelectionGroupIndex, SectionIndex, LODModel.Sections.Num(), RunArray.Num() / 2, 
-									RemainingInstances, Tris, (int)MeshElement.CastShadow, ElementParams.ShadowFrustum,
+								UE_LOG(LogStaticMesh, Display, TEXT("lod:%1d/%1d   sel:%1d   section:%1d/%1d   runs:%4d   inst:%8d   tris:%9lld   cast shadow:%1d   cull:-NONE!!-   shadow:%1d     %s %s"),
+									LODIndex, InstancedRenderData.VertexFactories.Num(), SelectionGroupIndex, SectionIndex, LODModel.Sections.Num(), RunArray.Num() / 2,
+									TotalInstances, Tris, (int)MeshBatch.CastShadow, ElementParams.ShadowFrustum,
 									*StaticMesh->GetPathName(),
-									*MeshElement.MaterialRenderProxy->GetIncompleteMaterialWithFallback(ElementParams.FeatureLevel).GetFriendlyName());
+									*MeshBatch.MaterialRenderProxy->GetMaterial(ElementParams.FeatureLevel)->GetFriendlyName());
 							}
 							else
 							{
-								UE_LOG(LogStaticMesh, Display, TEXT("lod:%1d/%1d   sel:%1d   section:%1d/%1d   runs:%4d   inst:%8d   tris:%9lld   cast shadow:%1d   cull:%8.0f   shadow:%1d     %s %s"), 
-									LODIndex, InstancedRenderData.VertexFactories.Num(), SelectionGroupIndex, SectionIndex, LODModel.Sections.Num(), RunArray.Num() / 2, 
-									RemainingInstances, Tris, (int)MeshElement.CastShadow, ElementParams.FinalCullDistance, ElementParams.ShadowFrustum,
+								UE_LOG(LogStaticMesh, Display, TEXT("lod:%1d/%1d   sel:%1d   section:%1d/%1d   runs:%4d   inst:%8d   tris:%9lld   cast shadow:%1d   cull:%8.0f   shadow:%1d     %s %s"),
+									LODIndex, InstancedRenderData.VertexFactories.Num(), SelectionGroupIndex, SectionIndex, LODModel.Sections.Num(), RunArray.Num() / 2,
+									TotalInstances, Tris, (int)MeshBatch.CastShadow, ElementParams.FinalCullDistance, ElementParams.ShadowFrustum,
 									*StaticMesh->GetPathName(),
-									*MeshElement.MaterialRenderProxy->GetIncompleteMaterialWithFallback(ElementParams.FeatureLevel).GetFriendlyName());
+									*MeshBatch.MaterialRenderProxy->GetMaterial(ElementParams.FeatureLevel)->GetFriendlyName());
 							}
 						}
-#endif
+#endif // STATS
 					}
-					if (ElementParams.bUseInstanceRuns)
-					{
-						BatchElement0.NumInstances = RunArray.Num() / 2;
-						BatchElement0.InstanceRuns = &RunArray[0];
-						BatchElement0.bIsInstanceRuns = true;
-#if STATS
-						INC_DWORD_STAT_BY(STAT_FoliageRuns, BatchElement0.NumInstances);
-#endif
-					}
-					else
-					{
-						const uint32 NumElementsThisBatch = FMath::Min(RemainingRuns, (int32)FInstancedStaticMeshVertexFactory::NumBitsForVisibilityMask());
 
-						MeshElement.Elements.Reserve(NumElementsThisBatch);
-						check(NumElementsThisBatch);
+					//MeshBatchElement.NumInstances = TotalInstances;
+					// The index was used as an offset, but the dynamic buffer thing uses a resource view to make this not needed (using PrimitiveInstanceDataOffset as a temp. debug help)
+					MeshBatchElement.UserIndex = 0;
 
-						for (uint32 InstanceRun = 0; InstanceRun < NumElementsThisBatch; ++InstanceRun)
-						{
-							FMeshBatchElement* NewBatchElement; 
+					// Note: this call overrides the UserIndex to mean the command index, which is used to fetch the offset to the instance array
+					//Collector.AllocateInstancedBatchArguments(ElementParams.ViewIndex, MeshBatch, PrimitiveInstanceDataOffset, PrimitiveInstanceDataCount, RunArray);
 
-							if (InstanceRun == 0)
-							{
-								NewBatchElement = &MeshElement.Elements[0];
-							}
-							else
-							{
-								NewBatchElement = new(MeshElement.Elements) FMeshBatchElement();
-								*NewBatchElement = MeshElement.Elements[0];
-							}
-
-							const int32 InstanceOffset = RunArray[CurrentRun];
-							NewBatchElement->UserIndex = InstanceOffset;
-							NewBatchElement->NumInstances = 1 + RunArray[CurrentRun + 1] - InstanceOffset;
-
-							if (--RemainingRuns)
-							{
-								CurrentRun += 2;
-								check(CurrentRun + 1 < RunArray.Num());
-							}
-						}
-					}
+					// We use this existing hook to send info about the runs over to the visiblemeshbatch
+					MeshBatchElement.NumInstances = RunArray.Num() / 2;
+					MeshBatchElement.InstanceRuns = &RunArray[0];
+					MeshBatchElement.bIsInstanceRuns = true;
 
 					if (TotalTriangles < (int64)CVarMaxTrianglesToRender.GetValueOnRenderThread())
 					{
-						Collector.AddMesh(ElementParams.ViewIndex, MeshElement);
+						Collector.AddMesh(ElementParams.ViewIndex, MeshBatch);
 					}
+				}
+				else
+				{
+#endif // defined(GPUCULL_TODO)
+					int32 NumBatches = 1;
+					int32 CurrentRun = 0;
+					int32 CurrentInstance = 0;
+					int32 RemainingInstances = bDitherLODEnabled ? Params.TotalMultipleLODInstances[LODIndex] : Params.TotalSingleLODInstances[LODIndex];
+					int32 RemainingRuns = RunArray.Num() / 2;
+
+					if (!ElementParams.bUseInstanceRuns)
+					{
+						NumBatches = FMath::DivideAndRoundUp(RemainingRuns, (int32)FInstancedStaticMeshVertexFactory::NumBitsForVisibilityMask());
+					}
+
+#if STATS
+					INC_DWORD_STAT_BY(STAT_FoliageInstances, RemainingInstances);
+#endif
+					bool bDidStats = false;
+					for (int32 BatchIndex = 0; BatchIndex < NumBatches; BatchIndex++)
+					{
+						FMeshBatch& MeshElement = Collector.AllocateMesh();
+						INC_DWORD_STAT(STAT_FoliageMeshBatches);
+
+						if (!FStaticMeshSceneProxy::GetMeshElement(LODIndex, 0, SectionIndex, GetDepthPriorityGroup(ElementParams.View), ElementParams.BatchRenderSelection[SelectionGroupIndex], true, MeshElement))
+						{
+							continue;
+						}
+						checkSlow(MeshElement.GetNumPrimitives() > 0);
+
+						MeshElement.VertexFactory = &InstancedRenderData.VertexFactories[LODIndex];
+						FMeshBatchElement& BatchElement0 = MeshElement.Elements[0];
+
+						BatchElement0.UserData = ElementParams.PassUserData[SelectionGroupIndex];
+						BatchElement0.bUserDataIsColorVertexBuffer = false;
+						BatchElement0.MaxScreenSize = 1.0;
+						BatchElement0.MinScreenSize = 0.0;
+						BatchElement0.InstancedLODIndex = LODIndex;
+						BatchElement0.InstancedLODRange = bDitherLODEnabled ? 1 : 0;
+						BatchElement0.PrimitiveUniformBuffer = GetUniformBuffer();
+						MeshElement.bCanApplyViewModeOverrides = true;
+						MeshElement.bUseSelectionOutline = ElementParams.BatchRenderSelection[SelectionGroupIndex];
+						MeshElement.bUseWireframeSelectionColoring = ElementParams.BatchRenderSelection[SelectionGroupIndex];
+						MeshElement.bUseAsOccluder = ShouldUseAsOccluder();
+
+						if (!bDidStats)
+						{
+							bDidStats = true;
+							int64 Tris = int64(RemainingInstances) * int64(BatchElement0.NumPrimitives);
+							TotalTriangles += Tris;
+#if STATS
+							if (GFrameNumberRenderThread_CaptureFoliageRuns == GFrameNumberRenderThread)
+							{
+								if (ElementParams.FinalCullDistance > 9.9E8)
+								{
+									UE_LOG(LogStaticMesh, Display, TEXT("lod:%1d/%1d   sel:%1d   section:%1d/%1d   runs:%4d   inst:%8d   tris:%9lld   cast shadow:%1d   cull:-NONE!!-   shadow:%1d     %s %s"),
+										LODIndex, InstancedRenderData.VertexFactories.Num(), SelectionGroupIndex, SectionIndex, LODModel.Sections.Num(), RunArray.Num() / 2,
+										RemainingInstances, Tris, (int)MeshElement.CastShadow, ElementParams.ShadowFrustum,
+										*StaticMesh->GetPathName(),
+										*MeshElement.MaterialRenderProxy->GetIncompleteMaterialWithFallback(ElementParams.FeatureLevel).GetFriendlyName());
+								}
+								else
+								{
+									UE_LOG(LogStaticMesh, Display, TEXT("lod:%1d/%1d   sel:%1d   section:%1d/%1d   runs:%4d   inst:%8d   tris:%9lld   cast shadow:%1d   cull:%8.0f   shadow:%1d     %s %s"),
+										LODIndex, InstancedRenderData.VertexFactories.Num(), SelectionGroupIndex, SectionIndex, LODModel.Sections.Num(), RunArray.Num() / 2,
+										RemainingInstances, Tris, (int)MeshElement.CastShadow, ElementParams.FinalCullDistance, ElementParams.ShadowFrustum,
+										*StaticMesh->GetPathName(),
+										*MeshElement.MaterialRenderProxy->GetIncompleteMaterialWithFallback(ElementParams.FeatureLevel).GetFriendlyName());
+								}
+							}
+#endif
+						}
+						if (ElementParams.bUseInstanceRuns)
+						{
+							BatchElement0.NumInstances = RunArray.Num() / 2;
+							BatchElement0.InstanceRuns = &RunArray[0];
+							BatchElement0.bIsInstanceRuns = true;
+#if STATS
+							INC_DWORD_STAT_BY(STAT_FoliageRuns, BatchElement0.NumInstances);
+#endif
+						}
+						else
+						{
+							const uint32 NumElementsThisBatch = FMath::Min(RemainingRuns, (int32)FInstancedStaticMeshVertexFactory::NumBitsForVisibilityMask());
+
+							MeshElement.Elements.Reserve(NumElementsThisBatch);
+							check(NumElementsThisBatch);
+
+							for (uint32 InstanceRun = 0; InstanceRun < NumElementsThisBatch; ++InstanceRun)
+							{
+								FMeshBatchElement* NewBatchElement;
+
+								if (InstanceRun == 0)
+								{
+									NewBatchElement = &MeshElement.Elements[0];
+								}
+								else
+								{
+									NewBatchElement = new(MeshElement.Elements) FMeshBatchElement();
+									*NewBatchElement = MeshElement.Elements[0];
+								}
+
+								const int32 InstanceOffset = RunArray[CurrentRun];
+								NewBatchElement->UserIndex = InstanceOffset;
+								NewBatchElement->NumInstances = 1 + RunArray[CurrentRun + 1] - InstanceOffset;
+
+								if (--RemainingRuns)
+								{
+									CurrentRun += 2;
+									check(CurrentRun + 1 < RunArray.Num());
+								}
+							}
+						}
+
+						if (TotalTriangles < (int64)CVarMaxTrianglesToRender.GetValueOnRenderThread())
+						{
+							Collector.AddMesh(ElementParams.ViewIndex, MeshElement);
+						}
+					}
+#if defined(GPUCULL_TODO)
 				}
 #endif // defined(GPUCULL_TODO)
 			}

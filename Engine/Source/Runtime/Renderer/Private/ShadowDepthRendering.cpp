@@ -323,9 +323,14 @@ public:
 		OutEnvironment.SetDefine(TEXT("USING_VERTEX_SHADER_LAYER"), (uint32)(ShaderMode == VertexShadowDepth_VSLayer));
 		OutEnvironment.SetDefine(TEXT("POSITION_ONLY"), (uint32)bUsePositionOnlyStream);
 		OutEnvironment.SetDefine(TEXT("IS_FOR_GEOMETRY_SHADER"), (uint32)bIsForGeometryShader);
-		OutEnvironment.SetDefine(TEXT("ENABLE_NON_NANITE_VSM"), (uint32)ENABLE_NON_NANITE_VSM);
+
+		uint32 bEnableNonNaniteVSM = (uint32)(ENABLE_NON_NANITE_VSM != 0 && UseGPUScene(Parameters.Platform));
+		OutEnvironment.SetDefine(TEXT("ENABLE_NON_NANITE_VSM"), bEnableNonNaniteVSM);
 #if ENABLE_NON_NANITE_VSM
-		FVirtualShadowMapArray::SetShaderDefines(OutEnvironment);
+		if (bEnableNonNaniteVSM != 0)
+		{
+			FVirtualShadowMapArray::SetShaderDefines(OutEnvironment);
+		}
 #endif // ENABLE_NON_NANITE_VSM
 		if (bIsForGeometryShader)
 		{
@@ -444,6 +449,9 @@ public:
 		FMeshMaterialShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		OutEnvironment.SetDefine(TEXT("ONEPASS_POINTLIGHT_SHADOW"), 1);
 		TShadowDepthVS<VertexShadowDepth_OnePassPointLight, false, true>::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+#if defined(GPUCULL_TODO)
+		OutEnvironment.SetDefine(TEXT("ENABLE_FALLBACK_POINTLIGHT_SHADOW_GS"), UseGPUScene(Parameters.Platform) ? 1 : 0);
+#endif // defined(GPUCULL_TODO)
 	}
 
 	FOnePassPointShadowDepthGS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)

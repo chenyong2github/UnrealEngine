@@ -345,15 +345,18 @@ FStaticMeshSceneProxy::FStaticMeshSceneProxy(UStaticMeshComponent* InComponent, 
 
 	AddSpeedTreeWind();
 #if defined(GPUCULL_TODO)
-	Instances.SetNum(1);
-	FPrimitiveInstance& Instance = Instances[0];
-	Instance.PrimitiveId = ~uint32(0);
-	Instance.InstanceToLocal.SetIdentity();
-	Instance.LocalToInstance.SetIdentity();
-	Instance.LocalToWorld.SetIdentity();
-	Instance.RenderBounds = InComponent->GetStaticMesh()->GetBounds();
-	Instance.LocalBounds = Instance.RenderBounds;
-	bSupportsInstanceDataBuffer = true;
+	if (UseGPUScene(GMaxRHIShaderPlatform, FeatureLevel))
+	{
+		Instances.SetNum(1);
+		FPrimitiveInstance& Instance = Instances[0];
+		Instance.PrimitiveId = ~uint32(0);
+		Instance.InstanceToLocal.SetIdentity();
+		Instance.LocalToInstance.SetIdentity();
+		Instance.LocalToWorld.SetIdentity();
+		Instance.RenderBounds = InComponent->GetStaticMesh()->GetBounds();
+		Instance.LocalBounds = Instance.RenderBounds;
+		bSupportsInstanceDataBuffer = true;
+	}
 #endif // defined(GPUCULL_TODO)
 }
 

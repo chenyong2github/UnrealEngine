@@ -951,11 +951,9 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 
 	// PerInstanceParams.z stores a hide/show flag for this instance
 	float SelectedValue = GetInstanceSelected(Intermediates);
-#if defined(GPUCULL_TODO)
-	Intermediates.PerInstanceParams.x = Intermediates.PerInstanceRandom;
-#else //!defined(GPUCULL_TODO)
+	// GPUCULL_TODO: This can't be right
+	//Intermediates.PerInstanceParams.x = Intermediates.PerInstanceRandom;
 	Intermediates.PerInstanceParams.x = GetInstanceRandom(Intermediates);
-#endif // defined(GPUCULL_TODO)
 	float3 InstanceLocation = TransformLocalToWorld(GetInstanceOrigin(Intermediates), Intermediates.PrimitiveId).xyz;
 	Intermediates.PerInstanceParams.y = 1.0 - saturate((length(InstanceLocation + ResolvedView.PreViewTranslation.xyz) - InstancingFadeOutParams.x) * InstancingFadeOutParams.y);
 	// InstancingFadeOutParams.z,w are RenderSelected and RenderDeselected respectively.
