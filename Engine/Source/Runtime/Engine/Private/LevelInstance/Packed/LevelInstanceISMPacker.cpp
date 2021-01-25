@@ -127,7 +127,8 @@ bool FLevelInstanceISMPackerCluster::operator==(const FLevelInstancePackerCluste
 		Materials == ISMOther.Materials &&
 		bReceivesDecals == ISMOther.bReceivesDecals &&
 		bCastShadow == ISMOther.bCastShadow &&
-		bVisibleInRayTracing == ISMOther.bVisibleInRayTracing;
+		bVisibleInRayTracing == ISMOther.bVisibleInRayTracing &&
+		bCollisionEnabled == ISMOther.bCollisionEnabled;
 }
 
 #endif
