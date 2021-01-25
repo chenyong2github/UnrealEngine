@@ -3155,7 +3155,7 @@ void FBlueprintEditor::NavigateToParentGraph()
 	{
 		if (UEdGraph* ParentGraph = UEdGraph::GetOuterGraph(FocusedGraphEdPtr.Pin()->GetCurrentGraph()))
 		{
-			OpenDocument(ParentGraph, FDocumentTracker::NavigatingCurrentDocument);
+			JumpToHyperlink(ParentGraph, false);
 		}
 	}
 }
