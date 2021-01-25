@@ -1738,6 +1738,7 @@ static void DetermineUsedMaterialSlots(
 	if (Mat.MATERIAL_SHADINGMODEL_HAIR)
 	{
 		SetStandardGBufferSlots(Slots, bWriteEmissive, bHasTangent, bHasVelocity, bHasStaticLighting);
+		Slots[GBS_CustomData] = true;
 	}
 
 	if (Mat.MATERIAL_SHADINGMODEL_CLOTH)
