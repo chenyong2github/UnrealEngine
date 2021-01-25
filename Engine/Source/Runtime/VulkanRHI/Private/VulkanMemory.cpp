@@ -4875,13 +4875,7 @@ namespace VulkanRHI
 					VKSWITCH(RenderPass);
 					VKSWITCH(Buffer);
 					VKSWITCH(BufferView);
-					// When we're doing an immediate destroy, we might not have a context (eg RHIExit)
-					VKSWITCH(Image, \
-						if (!bDeleteImmediately) \
-						{ \
-							Device->NotifyDeletedRenderTarget((VkImage)Entry->Handle); \
-						} \
-					);
+					VKSWITCH(Image);
 					VKSWITCH(ImageView);
 					VKSWITCH(Pipeline, DEC_DWORD_STAT(STAT_VulkanNumPSOs));
 					VKSWITCH(PipelineLayout);

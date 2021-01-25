@@ -143,10 +143,10 @@ static void VulkanTextureAllocated(uint64 Size, VkImageViewType ImageType, bool 
 	UpdateVulkanTextureStats(Size, bIsCube, bIs3D, bIsRT);
 }
 
-static void VulkanTextureDestroyed(uint64 Size, VkImageViewType ImageTupe, bool bIsRT)
+static void VulkanTextureDestroyed(uint64 Size, VkImageViewType ImageType, bool bIsRT)
 {
-	bool bIsCube = ImageTupe == VK_IMAGE_VIEW_TYPE_CUBE || ImageTupe == VK_IMAGE_VIEW_TYPE_CUBE_ARRAY;
-	bool bIs3D = ImageTupe == VK_IMAGE_VIEW_TYPE_3D;
+	bool bIsCube = ImageType == VK_IMAGE_VIEW_TYPE_CUBE || ImageType == VK_IMAGE_VIEW_TYPE_CUBE_ARRAY;
+	bool bIs3D = ImageType == VK_IMAGE_VIEW_TYPE_3D;
 
 	UpdateVulkanTextureStats(-(int64)Size, bIsCube, bIs3D, bIsRT);
 }
@@ -492,16 +492,18 @@ struct FRHICommandOnDestroyImage final : public FRHICommand<FRHICommandOnDestroy
 {
 	VkImage Image;
 	FVulkanDevice* Device;
+	bool bRenderTarget;
 
-	FRHICommandOnDestroyImage(VkImage InImage, FVulkanDevice* InDevice)
+	FRHICommandOnDestroyImage(VkImage InImage, FVulkanDevice* InDevice, bool bInRenderTarget)
 		: Image(InImage)
 		, Device(InDevice)
+		, bRenderTarget(bInRenderTarget)
 	{
 	}
 
 	void Execute(FRHICommandListBase& RHICmdList)
 	{
-		Device->NotifyDeletedImage(Image);
+		Device->NotifyDeletedImage(Image, bRenderTarget);
 	}
 };
 
@@ -792,7 +794,7 @@ void FVulkanSurface::MoveSurface(FVulkanDevice& InDevice, FVulkanAllocation& New
 		{
 			check(Image != VK_NULL_HANDLE);
 			uint64 Size = GetMemorySize();
-			Device->NotifyDeletedImage(Image);
+			Device->NotifyDeletedImage(Image, bRenderTarget);
 			Device->GetDeferredDeletionQueue().EnqueueResource(VulkanRHI::FDeferredDeletionQueue2::EType::Image, Image);
 			Image = MovedImage;
 			VulkanTextureDestroyed(Size, ViewType, bRenderTarget);
@@ -896,7 +898,7 @@ void FVulkanSurface::OnFullDefrag(FVulkanDevice& InDevice, uint32 NewOffset)
 		{
 			check(Image != VK_NULL_HANDLE);
 			uint64 Size = GetMemorySize();
-			Device->NotifyDeletedRenderTarget(Image);
+			Device->NotifyDeletedImage(Image, bRenderTarget);
 			Device->GetDeferredDeletionQueue().EnqueueResource(VulkanRHI::FDeferredDeletionQueue2::EType::Image, Image);
 			FGenericPlatformMisc::LowLevelOutputDebugStringf(TEXT("** MOVE IMAGE %p -> %p\n"), Image, MovedImage);
 			Image = MovedImage;
@@ -1022,7 +1024,7 @@ void FVulkanSurface::EvictSurface(FVulkanDevice& InDevice)
 	{
 		check(Image != VK_NULL_HANDLE);
 		uint64 Size = GetMemorySize();
-		Device->NotifyDeletedImage(Image);
+		Device->NotifyDeletedImage(Image, bRenderTarget);
 		Device->GetDeferredDeletionQueue().EnqueueResource(VulkanRHI::FDeferredDeletionQueue2::EType::Image, Image);
 		Device->GetMemoryManager().FreeVulkanAllocation(Allocation);
 		check(!Allocation.HasAllocation());
@@ -1143,15 +1145,16 @@ void FVulkanSurface::Destroy()
 	}
 	else if (bIsImageOwner)
 	{
+		const bool bRenderTarget = (UEFlags & (TexCreate_RenderTargetable | TexCreate_DepthStencilTargetable | TexCreate_ResolveTargetable)) != 0;
 		FRHICommandList& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
 		if (!IsInRenderingThread() || (RHICmdList.Bypass() || !IsRunningRHIInSeparateThread()))
 		{
-			Device->NotifyDeletedImage(Image);
+			Device->NotifyDeletedImage(Image, bRenderTarget);
 		}
 		else
 		{
 			check(IsInRenderingThread());
-			new (RHICmdList.AllocCommand<FRHICommandOnDestroyImage>()) FRHICommandOnDestroyImage(Image, Device);
+			new (RHICmdList.AllocCommand<FRHICommandOnDestroyImage>()) FRHICommandOnDestroyImage(Image, Device, bRenderTarget);
 		}
 
 		bIsImageOwner = false;
@@ -1166,7 +1169,6 @@ void FVulkanSurface::Destroy()
 			Image = VK_NULL_HANDLE;
 		}
 
-		const bool bRenderTarget = (UEFlags & (TexCreate_RenderTargetable | TexCreate_DepthStencilTargetable | TexCreate_ResolveTargetable)) != 0;
 		VulkanTextureDestroyed(Size, ViewType, bRenderTarget);
 	}
 }
@@ -2538,7 +2540,7 @@ FVulkanTexture2D::~FVulkanTexture2D()
 {
 	if ((Surface.UEFlags & (TexCreate_DepthStencilTargetable | TexCreate_RenderTargetable | TexCreate_ResolveTargetable)) != 0)
 	{
-		Surface.Device->NotifyDeletedRenderTarget(Surface.Image);
+		Surface.Device->GetImmediateContext().NotifyDeletedRenderTarget(Surface.Image);
 	}
 }
 
@@ -2590,7 +2592,7 @@ FVulkanTextureCube::~FVulkanTextureCube()
 {
 	if ((GetFlags() & (TexCreate_DepthStencilTargetable | TexCreate_RenderTargetable | TexCreate_ResolveTargetable)) != 0) 
 	{
-		Surface.Device->NotifyDeletedRenderTarget(Surface.Image);
+		Surface.Device->GetImmediateContext().NotifyDeletedRenderTarget(Surface.Image);
 	}
 }
 
@@ -2605,7 +2607,7 @@ FVulkanTexture3D::~FVulkanTexture3D()
 {
 	if ((GetFlags() & (TexCreate_DepthStencilTargetable | TexCreate_RenderTargetable | TexCreate_ResolveTargetable)) != 0) 
 	{
-		Surface.Device->NotifyDeletedRenderTarget(Surface.Image);
+		Surface.Device->GetImmediateContext().NotifyDeletedRenderTarget(Surface.Image);
 	}
 }
 

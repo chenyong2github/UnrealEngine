@@ -1253,14 +1253,13 @@ const VkComponentMapping& FVulkanDevice::GetFormatComponentMapping(EPixelFormat 
 	return PixelFormatComponentMapping[UEFormat];
 }
 
-void FVulkanDevice::NotifyDeletedRenderTarget(VkImage Image)
+void FVulkanDevice::NotifyDeletedImage(VkImage Image, bool bRenderTarget)
 {
-	//#todo-rco: Loop through all contexts!
-	GetImmediateContext().NotifyDeletedRenderTarget(Image);
-}
+	if (bRenderTarget)
+	{
+		GetImmediateContext().NotifyDeletedRenderTarget(Image);
+	}
 
-void FVulkanDevice::NotifyDeletedImage(VkImage Image)
-{
 	//#todo-rco: Loop through all contexts!
 	GetImmediateContext().NotifyDeletedImage(Image);
 }

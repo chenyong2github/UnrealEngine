@@ -168,8 +168,7 @@ FVulkanViewport::~FVulkanViewport()
 			TextureViews[Index].Destroy(*Device);
 
 			// FIXME: race condition on TransitionAndLayoutManager, could this be called from RT while RHIT is active?
-			Device->NotifyDeletedImage(BackBufferImages[Index]);
-			Device->NotifyDeletedRenderTarget(BackBufferImages[Index]); 
+			Device->NotifyDeletedImage(BackBufferImages[Index], true);
 			BackBufferImages[Index] = VK_NULL_HANDLE;
 		}
 
@@ -723,8 +722,7 @@ void FVulkanViewport::DestroySwapchain(FVulkanSwapChainRecreateInfo* RecreateInf
 		for (int32 Index = 0, NumBuffers = BackBufferImages.Num(); Index < NumBuffers; ++Index)
 		{
 			TextureViews[Index].Destroy(*Device);
-			Device->NotifyDeletedImage(BackBufferImages[Index]);
-			Device->NotifyDeletedRenderTarget(BackBufferImages[Index]);
+			Device->NotifyDeletedImage(BackBufferImages[Index], true);
 			BackBufferImages[Index] = VK_NULL_HANDLE;
 		}
 		

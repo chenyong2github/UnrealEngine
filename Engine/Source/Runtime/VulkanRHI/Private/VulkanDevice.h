@@ -334,8 +334,7 @@ public:
 		return *ComputeContext;
 	}
 
-	void NotifyDeletedRenderTarget(VkImage Image);
-	void NotifyDeletedImage(VkImage Image);
+	void NotifyDeletedImage(VkImage Image, bool bRenderTarget);
 
 #if VULKAN_ENABLE_DRAW_MARKERS
 	inline PFN_vkCmdDebugMarkerBeginEXT GetCmdDbgMarkerBegin() const
