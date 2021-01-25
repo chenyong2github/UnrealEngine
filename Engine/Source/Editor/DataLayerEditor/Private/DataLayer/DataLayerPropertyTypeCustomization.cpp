@@ -5,7 +5,6 @@
 #include "DataLayer/DataLayerDragDropOp.h"
 #include "DataLayer/DataLayerEditorSubsystem.h"
 #include "WorldPartition/DataLayer/DataLayer.h"
-#include "WorldPartition/WorldPartitionSubsystem.h"
 #include "Algo/Accumulate.h"
 #include "Modules/ModuleManager.h"
 #include "PropertyHandle.h"
@@ -36,7 +35,6 @@ void FDataLayerPropertyTypeCustomization::CustomizeHeader(TSharedRef<IPropertyHa
 	.MaxDesiredWidth(TOptional<float>())
 	[
 		SNew(SDropTarget)
-		.IsEnabled_Lambda([]() { return GWorld ? UWorld::HasSubsystem<UWorldPartitionSubsystem>(GWorld) : false; })
 		.OnDrop(this, &FDataLayerPropertyTypeCustomization::OnDrop)
 		.OnAllowDrop(this, &FDataLayerPropertyTypeCustomization::OnVerifyDrag)
 		.OnIsRecognized(this, &FDataLayerPropertyTypeCustomization::OnVerifyDrag)
@@ -89,6 +87,7 @@ void FDataLayerPropertyTypeCustomization::CustomizeHeader(TSharedRef<IPropertyHa
 			]
 		]
 	];
+	HeaderRow.IsEnabled(TAttribute<bool>(StructPropertyHandle, &IPropertyHandle::IsEditable));
 }
 
 UDataLayer* FDataLayerPropertyTypeCustomization::GetDataLayerFromPropertyHandle() const

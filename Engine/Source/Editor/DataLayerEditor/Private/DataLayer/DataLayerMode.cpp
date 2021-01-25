@@ -13,6 +13,7 @@
 #include "ScopedTransaction.h"
 #include "DragAndDrop/ActorDragDropOp.h"
 #include "DragAndDrop/FolderDragDropOp.h"
+#include "ActorMode.h"
 #include "EditorActorFolders.h"
 #include "Algo/Transform.h"
 #include "ToolMenus.h"
@@ -32,6 +33,11 @@ FDataLayerMode::FDataLayerMode(const FDataLayerModeParams& Params)
 	, DataLayerBrowser(Params.DataLayerBrowser)
 	, SpecifiedWorldToDisplay(Params.SpecifiedWorldToDisplay)
 {
+	SceneOutliner->AddFilter(MakeShared<TSceneOutlinerPredicateFilter<FDataLayerActorTreeItem>>(FDataLayerActorTreeItem::FFilterPredicate::CreateLambda([this](const AActor* Actor, const UDataLayer* DataLayer)
+	{
+		return FActorMode::IsActorDisplayable(SceneOutliner, Actor);
+	}), FSceneOutlinerFilter::EDefaultBehaviour::Pass));
+
 	DataLayerEditorSubsystem = UDataLayerEditorSubsystem::Get();
 	Rebuild();
 	const_cast<FSharedSceneOutlinerData&>(SceneOutliner->GetSharedData()).CustomDelete = FCustomSceneOutlinerDeleteDelegate::CreateRaw(this, &FDataLayerMode::DeleteItems);

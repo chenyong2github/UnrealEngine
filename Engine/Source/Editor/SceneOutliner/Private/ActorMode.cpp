@@ -269,6 +269,11 @@ void FActorMode::SynchronizeActorSelection()
 
 bool FActorMode::IsActorDisplayable(const AActor* Actor) const
 {
+	return FActorMode::IsActorDisplayable(SceneOutliner, Actor);
+}
+
+bool FActorMode::IsActorDisplayable(const SSceneOutliner* SceneOutliner, const AActor* Actor)
+{
 	static const FName SequencerActorTag(TEXT("SequencerActor"));
 
 	return Actor &&

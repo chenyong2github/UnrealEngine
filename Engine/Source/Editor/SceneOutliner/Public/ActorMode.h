@@ -56,6 +56,8 @@ public:
 	virtual void OnFilterTextChanged(const FText& InFilterText) override;
 
 	virtual int32 GetTypeSortPriority(const ISceneOutlinerTreeItem& Item) const override;
+
+	static bool IsActorDisplayable(const SSceneOutliner* SceneOutliner, const AActor* Actor);
 private:
 	/** Called when the user selects a world in the world picker menu */
 	void OnSelectWorld(TWeakObjectPtr<UWorld> World);
