@@ -271,6 +271,9 @@ public:
 	FRDGBufferRef AllocatedPageRectBoundsRDG = nullptr;
 #endif // ENABLE_NON_NANITE_VSM
 	FRDGBufferRef ShadowMapProjectionDataRDG = nullptr;
+	TArray< FRDGBufferRef, SceneRenderingAllocator > VirtualShadowMapIdRemapRDG;
+
+	int32 NumDirectionalLights = 0;
 
 	// These are not created or managed by this class - references are copied from the cache manager
 	// when needed as they come from the previous frame.

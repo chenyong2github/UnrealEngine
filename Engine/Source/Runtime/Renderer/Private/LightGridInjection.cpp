@@ -73,6 +73,8 @@ FAutoConsoleVariableRef CVarLightCullingQuality(
 	ECVF_RenderThreadSafe
 );
 
+extern TAutoConsoleVariable<int32> CVarVirtualShadowOnePassProjection;
+
 /** A minimal forwarding lighting setup. */
 class FMinimalDummyForwardLightingResources : public FRenderResource
 {
@@ -770,7 +772,9 @@ void FSceneRenderer::ComputeLightGrid(FRDGBuilder& GraphBuilder, bool bCullLight
 
 void FDeferredShadingSceneRenderer::GatherLightsAndComputeLightGrid(FRDGBuilder& GraphBuilder, bool bNeedLightGrid, FSortedLightSetSceneInfo &SortedLightSet)
 {
-	GatherAndSortLights(SortedLightSet);
+	bool bShadowedLightsInClustered = ShouldUseClusteredDeferredShading() && CVarVirtualShadowOnePassProjection.GetValueOnRenderThread();
+
+	GatherAndSortLights(SortedLightSet, bShadowedLightsInClustered);
 	
 	if (!bNeedLightGrid)
 	{

@@ -70,6 +70,7 @@ class FClusteredShadingPS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_REF(FForwardLightData, Forward)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTextures)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ShadowMaskBits)
 
 		SHADER_PARAMETER_TEXTURE(Texture2D, LTCMatTexture)
 		SHADER_PARAMETER_SAMPLER(SamplerState, LTCMatSampler)
@@ -101,7 +102,8 @@ IMPLEMENT_GLOBAL_SHADER(FClusteredShadingPS, "/Engine/Private/ClusteredDeferredS
 void FDeferredShadingSceneRenderer::AddClusteredDeferredShadingPass(
 	FRDGBuilder& GraphBuilder,
 	const FMinimalSceneTextures& SceneTextures,
-	const FSortedLightSetSceneInfo &SortedLightsSet)
+	const FSortedLightSetSceneInfo &SortedLightsSet,
+	FRDGTextureRef ShadowMaskBits)
 {
 	check(GUseClusteredDeferredShading);
 
@@ -123,6 +125,7 @@ void FDeferredShadingSceneRenderer::AddClusteredDeferredShadingPass(
 			PassParameters->View = View.ViewUniformBuffer;
 			PassParameters->Forward = View.ForwardLightingResources->ForwardLightDataUniformBuffer;
 			PassParameters->SceneTextures = SceneTextures.UniformBuffer;
+			PassParameters->ShadowMaskBits = ShadowMaskBits;
 
 			PassParameters->LTCMatTexture = GSystemTextures.LTCMat->GetShaderResourceRHI();
 			PassParameters->LTCMatSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();

@@ -548,7 +548,8 @@ private:
 	void AddClusteredDeferredShadingPass(
 		FRDGBuilder& GraphBuilder,
 		const FMinimalSceneTextures& SceneTextures,
-		const FSortedLightSetSceneInfo& SortedLightsSet);
+		const FSortedLightSetSceneInfo& SortedLightsSet,
+		FRDGTextureRef ShadowMaskBits);
 
 	/** Renders the lights in SortedLights in the range [TiledDeferredLightsStart, TiledDeferredLightsEnd) using tiled deferred shading. */
 	void RenderTiledDeferredLighting(

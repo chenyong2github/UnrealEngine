@@ -49,6 +49,13 @@ void RenderVirtualShadowMapProjection(
 	FRDGTextureRef ScreenShadowMaskTexture,
 	bool bProjectingForForwardShading);
 
+void RenderVirtualShadowMapProjection(
+	FRDGBuilder& GraphBuilder,
+	const FMinimalSceneTextures& SceneTextures,
+	const FViewInfo& View,
+	FVirtualShadowMapArray& VirtualShadowMapArray,
+	FRDGTextureRef ShadowMaskBits );
+
 void CompositeVirtualShadowMapMask(
 	FRDGBuilder& GraphBuilder,
 	const FIntRect ScissorRect,

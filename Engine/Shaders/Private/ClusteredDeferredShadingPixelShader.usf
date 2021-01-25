@@ -30,6 +30,8 @@
 // Extracts out the simple lights into their own loop that is executed first, independently of shading model.
 #define ENABLE_SEPARATE_SIMPLE_LIGHT_LOOP 0
 
+Texture2D< uint > ShadowMaskBits;
+
 /**
  * Adds local lighting using the light grid, does not apply directional lights, as they are done elsewhere.
  * Does not support dynamic shadows, as these require the per-light shadow mask.
@@ -44,6 +46,8 @@ float3 GetLightGridLocalLighting(const FCulledLightsGridData InLightGridData, fl
 	// Limit max to ForwardLightData.NumLocalLights.
 	// This prevents GPU hangs when the PS tries to read from uninitialized NumCulledLightsGrid buffer
 	const uint NumLocalLights = min(InLightGridData.NumLocalLights, GetNumLocalLights(EyeIndex));
+
+	uint ShadowMask = ~ShadowMaskBits[ int2( ScreenUV.xy * View.BufferSizeAndInvSize.xy ) ];
 
 	LOOP
 	for (uint LocalLightListIndex = FirstNonSimpleLightIndex; LocalLightListIndex < NumLocalLights; LocalLightListIndex++)
@@ -106,6 +110,9 @@ float3 GetLightGridLocalLighting(const FCulledLightsGridData InLightGridData, fl
 
 		// This matches tiled deferred, since there is no dynamic shadow on the lights used for clustered shading.
 		float4 LightAttenuation = 1.0f;
+
+		LightData.ShadowedBits = 1;
+		LightAttenuation = ( ( ShadowMask >> (LocalLightListIndex * 3) ) & 7 ) / 7.0;
 
 #if 1
 		FRectTexture RectTexture = InitRectTexture(ForwardLightData.DummyRectLightSourceTexture);

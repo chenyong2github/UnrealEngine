@@ -46,6 +46,13 @@ static TAutoConsoleVariable<int32> CVarVirtualShadowMapDebugProjection(
 	ECVF_RenderThreadSafe
 );
 
+TAutoConsoleVariable<int32> CVarVirtualShadowOnePassProjection(
+	TEXT("r.Shadow.v.OnePassProjection"),
+	0,
+	TEXT("Single pass projects all local VSMs culled with the light grid. Used in conjunction with clustered deferred shading."),
+	ECVF_RenderThreadSafe
+);
+
 static TAutoConsoleVariable<int32> CVarSMRTRayCountDirectional(
 	TEXT( "r.Shadow.v.SMRT.RayCountDirectional" ),
 	0,
@@ -428,4 +435,77 @@ void CompositeVirtualShadowMapMask(
 		PassParameters,
 		ScissorRect,
 		BlendState);
+}
+
+class FVirtualShadowMapProjectionCS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FVirtualShadowMapProjectionCS);
+	SHADER_USE_PARAMETER_STRUCT(FVirtualShadowMapProjectionCS, FGlobalShader)
+	
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_INCLUDE(FVirtualShadowMapSamplingParameters, ProjectionParameters)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTexturesStruct)
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+		SHADER_PARAMETER_STRUCT_REF(FForwardLightData, ForwardLightData)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< FVirtualShadowMapProjectionShaderData >, ShadowMapProjectionData)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< uint >, VirtualShadowMapIdRemap)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D< uint >, RWShadowMaskBits)
+		SHADER_PARAMETER(uint32, NumDirectionalLightSmInds)
+		SHADER_PARAMETER(float, ContactShadowLength)
+		SHADER_PARAMETER(float, NormalOffsetWorld)
+		SHADER_PARAMETER(int32, DebugOutputType)
+		SHADER_PARAMETER(int32, SMRTRayCount)
+		SHADER_PARAMETER(int32, SMRTSamplesPerRay)
+		SHADER_PARAMETER(float, SMRTRayLengthScale)
+	END_SHADER_PARAMETER_STRUCT()
+
+	static void ModifyCompilationEnvironment( const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment )
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+
+		FVirtualShadowMapArray::SetShaderDefines(OutEnvironment);
+		FForwardLightingParameters::ModifyCompilationEnvironment(Parameters.Platform, OutEnvironment);
+
+		OutEnvironment.CompilerFlags.Add(CFLAG_WaveOperations);
+	}
+};
+IMPLEMENT_GLOBAL_SHADER(FVirtualShadowMapProjectionCS, "/Engine/Private/VirtualShadowMaps/VirtualShadowMapProjection.usf", "VirtualShadowMapProjection", SF_Compute);
+
+void RenderVirtualShadowMapProjection(
+	FRDGBuilder& GraphBuilder,
+	const FMinimalSceneTextures& SceneTextures,
+	const FViewInfo& View,
+	FVirtualShadowMapArray& VirtualShadowMapArray,
+	FRDGTextureRef ShadowMaskBits )
+{
+	FVirtualShadowMapProjectionCS::FParameters* PassParameters = GraphBuilder.AllocParameters< FVirtualShadowMapProjectionCS::FParameters >();
+	VirtualShadowMapArray.SetProjectionParameters( GraphBuilder, PassParameters->ProjectionParameters );
+
+	PassParameters->SceneTexturesStruct = SceneTextures.UniformBuffer;
+	PassParameters->View = View.ViewUniformBuffer;
+	PassParameters->ForwardLightData = View.ForwardLightingResources->ForwardLightDataUniformBuffer;
+	PassParameters->VirtualShadowMapIdRemap = GraphBuilder.CreateSRV( VirtualShadowMapArray.VirtualShadowMapIdRemapRDG[0] );	// FIXME Index proper view
+	PassParameters->NumDirectionalLightSmInds = VirtualShadowMapArray.NumDirectionalLights;
+
+	PassParameters->DebugOutputType = CVarVirtualShadowMapDebugProjection.GetValueOnRenderThread();
+	PassParameters->ContactShadowLength = CVarContactShadowLength.GetValueOnRenderThread();
+	PassParameters->NormalOffsetWorld = CVarNormalOffsetWorld.GetValueOnRenderThread();
+
+	PassParameters->SMRTRayCount = CVarSMRTRayCountSpot.GetValueOnRenderThread();
+	PassParameters->SMRTSamplesPerRay = CVarSMRTSamplesPerRaySpot.GetValueOnRenderThread();
+	PassParameters->SMRTRayLengthScale = 0.0f;		// Currently unused in this path
+
+	PassParameters->RWShadowMaskBits = GraphBuilder.CreateUAV( ShadowMaskBits );
+				
+	auto ComputeShader = View.ShaderMap->GetShader< FVirtualShadowMapProjectionCS >();
+
+	const FIntPoint GroupCount = FIntPoint::DivideAndRoundUp( View.ViewRect.Size(), 8 );
+
+	FComputeShaderUtils::AddPass(
+		GraphBuilder,
+		RDG_EVENT_NAME("VirtualShadowMapProjection"),
+		ComputeShader,
+		PassParameters,
+		FIntVector( GroupCount.X, GroupCount.Y, 1 )
+	);
 }

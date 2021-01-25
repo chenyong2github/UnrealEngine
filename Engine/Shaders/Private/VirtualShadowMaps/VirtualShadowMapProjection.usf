@@ -14,6 +14,7 @@
 #include "../ScreenSpaceDenoise/SSDDefinitions.ush"
 #include "../ScreenSpaceDenoise/SSDPublicHarmonics.ush"
 #include "../LightShaderParameters.ush"
+#include "../LightGridCommon.ush"
 #include "PageAccessCommon.ush"
 #include "ProjectionCommon.ush"
 #include "ProjectionDirectional.ush"
@@ -54,9 +55,8 @@ float VirtualShadowMapScreenRayCast(
 
 
 float ProjectSingleSample(
-	FLightShaderParameters Light,
+	int VirtualShadowMapId,
 	float3 L,
-	uint LightType,
 	float3 TranslatedWorldPosition,
 	float3 EstimatedGeoWorldNormal,
 	float ContactShadowLengthWorld,
@@ -102,8 +102,10 @@ float4 EncodeLightAttenuationFromMask(float ShadowMask)
 
 	// 0 is shadowed, 1 is unshadowed
 	// RETURN_COLOR not needed unless writing to SceneColor;
-	float FadedShadow = lerp(1.0f, Square(ShadowMask), ShadowFadeFraction);
-	float FadedSSSShadow = lerp(1.0f, Square(SSSTransmission), ShadowFadeFraction);
+	//float FadedShadow = lerp(1.0f, Square(ShadowMask), ShadowFadeFraction);
+	//float FadedSSSShadow = lerp(1.0f, Square(SSSTransmission), ShadowFadeFraction);
+	float FadedShadow = lerp(1.0f, ShadowMask, ShadowFadeFraction);
+	float FadedSSSShadow = lerp(1.0f, SSSTransmission, ShadowFadeFraction);
 
 	// the channel assignment is documented in ShadowRendering.cpp (look for Light Attenuation channel assignment)
 	return EncodeLightAttenuation(half4(FadedShadow, FadedSSSShadow, FadedShadow, FadedSSSShadow));
@@ -188,8 +190,8 @@ void VirtualShadowMapProjectionSpotPS(
 	// Early out if we're outside the spot light cone		
 	float3 ToLight = Light.Position - (TranslatedWorldPosition - View.PreViewTranslation);
 	bool bInLightRadius = length(ToLight) <= rcp(Light_InvRadius);
-	float3 ToLightDir = normalize(ToLight);
-	bool bInLightCone = dot(ToLightDir, Light.Direction) >= Light.SpotAngles.x;
+	float3 L = normalize(ToLight);
+	bool bInLightCone = dot(L, Light.Direction) >= Light.SpotAngles.x;
 	bool bInLightRegion = bInLightRadius && bInLightCone;
 
 	float3 DebugOutput = float3(0, 0, 0);
@@ -202,16 +204,17 @@ void VirtualShadowMapProjectionSpotPS(
 		const float ContactShadowLengthWorld = ContactShadowLength * View.ClipToView[1][1] * SceneDepth;
 
 		float3 EstimatedGeoWorldNormal = GetEstimatedGeoWorldNormal(TranslatedWorldPosition, ScreenUV);
-		TranslatedWorldPosition += EstimatedGeoWorldNormal * NormalOffsetWorld;
 
-		if (SMRTRayCount > 0)
+		uint LightType = Light.SpotAngles.x > -2.0f ? LIGHT_TYPE_SPOT : LIGHT_TYPE_POINT;
+
+		if (SMRTRayCount > 0 && LightType == LIGHT_TYPE_SPOT)
 		{
 			RayMissFactor = TraceSpotLight(
 				VirtualShadowMapId,
 				Light,
 				SvPosition,
 				SceneDepth,
-				TranslatedWorldPosition,
+				TranslatedWorldPosition + EstimatedGeoWorldNormal * NormalOffsetWorld,
 				ContactShadowLengthWorld,
 				SMRTRayCount,
 				SMRTSamplesPerRay,
@@ -222,10 +225,9 @@ void VirtualShadowMapProjectionSpotPS(
 		else
 		{
 			RayMissFactor = ProjectSingleSample(
-				Light,
-				ToLightDir,
-				LIGHT_TYPE_SPOT,
-				TranslatedWorldPosition,
+				VirtualShadowMapId,
+				L,
+				TranslatedWorldPosition + EstimatedGeoWorldNormal * NormalOffsetWorld,
 				EstimatedGeoWorldNormal,
 				ContactShadowLengthWorld,
 				/* out */ DebugOutput,
@@ -235,7 +237,7 @@ void VirtualShadowMapProjectionSpotPS(
 		if (ContactShadowLengthWorld > 0.0f)
 		{
 			float StepOffset = InterleavedGradientNoise(SvPosition.xy, View.StateFrameIndexMod8);
-			float ContactShadowHitDistance = VirtualShadowMapScreenRayCast(TranslatedWorldPosition, ToLightDir, ContactShadowLengthWorld, CONTACT_SHADOW_SAMPLES, StepOffset);		
+			float ContactShadowHitDistance = VirtualShadowMapScreenRayCast(TranslatedWorldPosition, L, ContactShadowLengthWorld, CONTACT_SHADOW_SAMPLES, StepOffset);		
 			if (ContactShadowHitDistance >= 0.0f)
 			{
 				RayMissFactor = 0.0f;
@@ -262,7 +264,7 @@ void VirtualShadowMapProjectionDirectionalPS(
 	FLightShaderParameters Light = GetRootLightShaderParameters();
 		
 	FGBufferData GBufferData = GetGBufferData(ScreenUV);
-	float3 ToLightDir = normalize(Light.Direction);
+	float3 L = Light.Direction;
 	
 	float3 DebugOutput = float3(0, 0, 0);
 	int SampleCount = 1;
@@ -277,7 +279,6 @@ void VirtualShadowMapProjectionDirectionalPS(
 		const float ContactShadowLengthWorld = ContactShadowLength * View.ClipToView[1][1] * SceneDepth;
 
 		float3 EstimatedGeoWorldNormal = GetEstimatedGeoWorldNormal(TranslatedWorldPosition, ScreenUV);
-		TranslatedWorldPosition += EstimatedGeoWorldNormal * NormalOffsetWorld;
 
 		if (SMRTRayCount > 0)
 		{
@@ -287,7 +288,7 @@ void VirtualShadowMapProjectionDirectionalPS(
 				Light,
 				SvPosition,
 				SceneDepth,
-				TranslatedWorldPosition,
+				TranslatedWorldPosition + EstimatedGeoWorldNormal * NormalOffsetWorld,
 				ContactShadowLengthWorld,
 				SMRTRayCount,
 				SMRTSamplesPerRay,
@@ -300,10 +301,9 @@ void VirtualShadowMapProjectionDirectionalPS(
 		{
 			SampleCount = 1;
 			RayMissFactor = ProjectSingleSample(
-				Light,
-				Light.Direction,
-				LIGHT_TYPE_DIRECTIONAL,
-				TranslatedWorldPosition,
+				VirtualShadowMapId,
+				L,
+				TranslatedWorldPosition + EstimatedGeoWorldNormal * NormalOffsetWorld,
 				EstimatedGeoWorldNormal,
 				ContactShadowLengthWorld,
 				/* out */ DebugOutput,
@@ -313,7 +313,7 @@ void VirtualShadowMapProjectionDirectionalPS(
 		if (ContactShadowLengthWorld > 0.0f)
 		{
 			float StepOffset = InterleavedGradientNoise(SvPosition.xy, View.StateFrameIndexMod8);
-			float ContactShadowHitDistance = VirtualShadowMapScreenRayCast(TranslatedWorldPosition, ToLightDir, ContactShadowLengthWorld, CONTACT_SHADOW_SAMPLES, StepOffset);		
+			float ContactShadowHitDistance = VirtualShadowMapScreenRayCast(TranslatedWorldPosition, L, ContactShadowLengthWorld, CONTACT_SHADOW_SAMPLES, StepOffset);		
 			if (ContactShadowHitDistance >= 0.0f)
 			{
 				RayMissFactor = 0.0f;
@@ -344,4 +344,156 @@ void VirtualShadowMapCompositePS(
 	float Shadow = (SampleCount > 0 ? MissFactor : 1.0f);
 	
 	OutShadowMask = EncodeLightAttenuationFromMask(Shadow);
+}
+
+FLightShaderParameters ConvertFromLocal( const FLocalLightData LightData )
+{
+	FLightShaderParameters Light = (FLightShaderParameters)0;
+	Light.Position			= LightData.LightPositionAndInvRadius.xyz;
+	Light.InvRadius			= LightData.LightPositionAndInvRadius.w;
+	Light.Color				= LightData.LightColorAndFalloffExponent.xyz;
+	Light.FalloffExponent	= LightData.LightColorAndFalloffExponent.w;
+	Light.Direction			= LightData.LightDirectionAndShadowMask.xyz;
+	Light.Tangent			= LightData.LightTangentAndSoftSourceRadius.xyz;
+	Light.SpotAngles		= LightData.SpotAnglesAndSourceRadiusPacked.xy;
+	Light.SpecularScale		= 1;
+	Light.SourceRadius		= LightData.SpotAnglesAndSourceRadiusPacked.z;
+	Light.SoftSourceRadius	= LightData.LightTangentAndSoftSourceRadius.w;
+	Light.SourceLength		= f16tof32(asuint(LightData.SpotAnglesAndSourceRadiusPacked.w));
+	return Light;
+}
+
+uint EncodeBlurRadius( float Radius )
+{
+	// Does WORLD_RADIUS_MISS really need to be that big?
+	const float Scale = 254 / log2( WORLD_RADIUS_MISS + 0.5 );
+	return max( Scale * log2( Radius + 0.5 ), 254 );
+}
+
+StructuredBuffer< int > VirtualShadowMapIdRemap;
+uint NumDirectionalLightSmInds;
+
+RWTexture2D< uint > RWShadowMaskBits;
+
+[numthreads(8, 8, 1)]
+void VirtualShadowMapProjection(
+	uint3	GroupId				: SV_GroupID,
+	uint	GroupIndex			: SV_GroupIndex,
+	uint3	DispatchThreadId	: SV_DispatchThreadID )
+{
+	// Morton order within a group so page access/atomics are more coherent and wave-swizzled gradients are possible.
+	uint2 LocalPixelPos = 8 * GroupId.xy + MortonDecode(GroupIndex);
+	uint2 PixelPos = LocalPixelPos + uint2( View.ViewRectMin.xy );
+
+	if (any(LocalPixelPos >= uint2(View.ViewSizeAndInvSize.xy)))
+	{
+		return;
+	}
+	
+	const float DeviceZ = SceneTexturesStruct.SceneDepthTexture.Load( int3( PixelPos, 0 ) ).r;
+	const float SceneDepth = ConvertFromDeviceZ( DeviceZ );
+
+	const float4 SvPosition = float4( float2( PixelPos ) + 0.5, DeviceZ, 1.0f );
+	const float2 ScreenUV = SvPositionToBufferUV( SvPosition );
+
+	const float3 TranslatedWorldPosition = SvPositionToTranslatedWorld( SvPosition );
+	const float3 WorldPosition = TranslatedWorldPosition - View.PreViewTranslation;
+
+	const float ContactShadowLengthWorld = ContactShadowLength * View.ClipToView[1][1] * SceneDepth;
+	const float Noise = InterleavedGradientNoise( SvPosition.xy, View.StateFrameIndexMod8 );
+
+	const float3 EstimatedGeoWorldNormal = GetEstimatedGeoWorldNormal(TranslatedWorldPosition, ScreenUV);
+
+	uint ShadowMask = 0xffffffff;
+	uint ShadowIndexes = 0xffffffff;
+	uint ShadowValues = 0;
+	
+	uint EyeIndex = 0; // ??
+	uint GridLinearIndex = ComputeLightGridCellIndex( LocalPixelPos, SceneDepth, EyeIndex );
+	const FCulledLightsGridData CulledLightGridData = GetCulledLightsGrid( GridLinearIndex, EyeIndex );
+
+	LOOP
+	for (uint Index = 0; Index < CulledLightGridData.NumLocalLights; ++Index)
+	{
+		const FLocalLightData LightData = GetLocalLightData(CulledLightGridData.DataStartIndex + Index, EyeIndex);
+		const uint LightGridLightIndex = ForwardLightData.CulledLightDataGrid[CulledLightGridData.DataStartIndex + Index];
+
+		// The Virtual Shadow Remap stores directional lights first
+		int VirtualShadowMapId = VirtualShadowMapIdRemap[NumDirectionalLightSmInds + LightGridLightIndex];
+		if (VirtualShadowMapId != INDEX_NONE)
+		{
+			float3 DebugOutput = float3(0, 0, 0);
+			int SampleCount = 1;
+			float HitDistance = WORLD_RADIUS_MISS;
+			float RayMissFactor = 0.0f;
+
+			float3 ToLight = LightData.LightPositionAndInvRadius.xyz - WorldPosition;
+			float d2 = dot( ToLight, ToLight );
+			float InvDist = rsqrt( d2 );
+			float3 L = ToLight * InvDist;
+			
+			bool bInLightRadius = InvDist >= LightData.LightPositionAndInvRadius.w;
+			bool bInLightCone = dot( L, LightData.LightDirectionAndShadowMask.xyz ) >= LightData.SpotAnglesAndSourceRadiusPacked.x;
+
+			if (bInLightRadius && bInLightCone)
+			{
+				FLightShaderParameters Light = ConvertFromLocal( LightData );
+
+				uint LightType = Light.SpotAngles.x > -2.0f ? LIGHT_TYPE_SPOT : LIGHT_TYPE_POINT;
+
+				if (SMRTRayCount > 0 && LightType == LIGHT_TYPE_SPOT)
+				{
+					RayMissFactor = TraceSpotLight(
+						VirtualShadowMapId,
+						Light,
+						SvPosition,
+						SceneDepth,
+						TranslatedWorldPosition + EstimatedGeoWorldNormal * NormalOffsetWorld,
+						ContactShadowLengthWorld,
+						SMRTRayCount,
+						SMRTSamplesPerRay,
+						DebugOutputType,
+						DebugOutput,
+						HitDistance);
+				}
+				else
+				{
+					RayMissFactor = ProjectSingleSample(
+						VirtualShadowMapId,
+						L,
+						TranslatedWorldPosition + EstimatedGeoWorldNormal * NormalOffsetWorld,
+						EstimatedGeoWorldNormal,
+						ContactShadowLengthWorld,
+						/* out */ DebugOutput,
+						HitDistance);
+				}
+
+				if (ContactShadowLengthWorld > 0.0f)
+				{
+					float ContactShadowHitDistance = VirtualShadowMapScreenRayCast(TranslatedWorldPosition, L, ContactShadowLengthWorld, CONTACT_SHADOW_SAMPLES, Noise);		
+					if (ContactShadowHitDistance >= 0.0f)
+					{
+						RayMissFactor = 0.0f;
+						HitDistance = ContactShadowHitDistance;
+					}
+				}
+
+				//ShadowMask ^= uint( RayMissFactor < 1.0 ) << Index;
+				ShadowMask ^= ( ~uint( round( RayMissFactor * 7.0 ) ) & 7 ) << (Index*3);
+
+				if( Index < 4 && LightGridLightIndex < 255 )
+				{
+					float WorldBluringRadius = ComputeLightSampleWorldBluringRadius(TranslatedWorldPosition, LightType, Light, HitDistance);
+					uint EncodedValue = RayMissFactor < 1.0 ? EncodeBlurRadius( WorldBluringRadius ) : 255;
+
+					ShadowIndexes = ( ShadowIndexes << 8 ) | LightGridLightIndex;
+					ShadowValues = ( ShadowValues << 8 ) | EncodedValue;
+				}
+			}
+
+			//OutputTarget = EncodeOutput(TranslatedWorldPosition, Light, LIGHT_TYPE_SPOT, RayMissFactor, HitDistance, SampleCount, DebugOutput);
+		}
+	}
+
+	RWShadowMaskBits[ PixelPos ] = ~ShadowMask;
 }

@@ -21,6 +21,7 @@
 #include "SkyAtmosphereRendering.h"
 #include "VolumetricCloudRendering.h"
 #include "Strata/Strata.h"
+#include "VirtualShadowMaps/VirtualShadowMapProjection.h"
 
 // ENABLE_DEBUG_DISCARD_PROP is used to test the lighting code by allowing to discard lights to see how performance scales
 // It ought never to be enabled in a shipping build, and is probably only really useful when woring on the shading code.
@@ -42,6 +43,7 @@ IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FDeferredLightUniformStruct, "DeferredL
 extern int32 GUseTranslucentLightingVolumes;
 ENGINE_API IPooledRenderTarget* GetSubsufaceProfileTexture_RT(FRHICommandListImmediate& RHICmdList);
 
+extern TAutoConsoleVariable<int32> CVarVirtualShadowOnePassProjection;
 
 static int32 GAllowDepthBoundsTest = 1;
 static FAutoConsoleVariableRef CVarAllowDepthBoundsTest(
@@ -989,7 +991,7 @@ static bool LightRequiresDenosier(const FLightSceneInfo& LightSceneInfo)
 
 
 
-void FSceneRenderer::GatherAndSortLights(FSortedLightSetSceneInfo& OutSortedLights)
+void FSceneRenderer::GatherAndSortLights(FSortedLightSetSceneInfo& OutSortedLights, bool bShadowedLightsInClustered)
 {
 	if (bAllowSimpleLights)
 	{
@@ -1055,7 +1057,7 @@ void FSceneRenderer::GatherAndSortLights(FSortedLightSetSceneInfo& OutSortedLigh
 					// Rect lights are not supported as the performance impact is significant even if not used, for now, left for trad. deferred.
 					const bool bTiledOrClusteredDeferredSupported =
 						!SortedLightInfo->SortKey.Fields.bTextureProfile &&
-						!SortedLightInfo->SortKey.Fields.bShadowed &&
+						(!SortedLightInfo->SortKey.Fields.bShadowed || bShadowedLightsInClustered) &&
 						!SortedLightInfo->SortKey.Fields.bLightFunction &&
 						!SortedLightInfo->SortKey.Fields.bUsesLightingChannels
 						&& LightSceneInfoCompact.LightType != LightType_Directional
@@ -1141,7 +1143,7 @@ void FSceneRenderer::GatherAndSortLights(FSortedLightSetSceneInfo& OutSortedLigh
 			OutSortedLights.ClusteredSupportedEnd = LightIndex;
 		}
 
-		if (bDrawShadows || bDrawLightFunction || bLightingChannels)
+		if( (bDrawShadows || bDrawLightFunction || bLightingChannels) && SortedLightInfo.SortKey.Fields.bClusteredDeferredNotSupported )
 		{
 			// Once we find a shadowed light, we can exit the loop, these lights should never support tiled deferred rendering either
 			check(SortedLightInfo.SortKey.Fields.bTiledDeferredNotSupported);
@@ -1268,13 +1270,39 @@ void FDeferredShadingSceneRenderer::RenderLights(
 			// True if the clustered shading is enabled and the feature level is there, and that the light grid had lights injected.
 			if (ShouldUseClusteredDeferredShading() && AreLightsInLightGrid())
 			{
+				FRDGTextureRef ShadowMaskBits = nullptr;
+				if( VirtualShadowMapArray.IsAllocated() && CVarVirtualShadowOnePassProjection.GetValueOnRenderThread() )
+				{
+					const FRDGTextureDesc ShadowMaskDesc = FRDGTextureDesc::Create2D(
+						SceneTextures.Config.Extent,
+						PF_R32_UINT,
+						FClearValueBinding::None,
+						TexCreate_ShaderResource | TexCreate_UAV );
+
+					ShadowMaskBits = GraphBuilder.CreateTexture( ShadowMaskDesc, TEXT("ShadowMaskBits") );
+
+					for (int32 ViewIndex = 0, Num = Views.Num(); ViewIndex < Num; ViewIndex++)
+					{
+						RenderVirtualShadowMapProjection(
+							GraphBuilder,
+							SceneTextures,
+							Views[ ViewIndex ],
+							VirtualShadowMapArray,
+							ShadowMaskBits );
+					}
+				}
+				else
+				{
+					ShadowMaskBits = GraphBuilder.RegisterExternalTexture( GSystemTextures.ZeroUIntDummy );
+				}
+
 				// Tell the trad. deferred that the clustered deferred capable lights are taken care of.
 				// This includes the simple lights
 				StandardDeferredStart = SortedLightSet.ClusteredSupportedEnd;
 				// Tell the trad. deferred that the simple lights are spoken for.
 				bRenderSimpleLightsStandardDeferred = false;
 
-				AddClusteredDeferredShadingPass(GraphBuilder, SceneTextures, SortedLightSet);
+				AddClusteredDeferredShadingPass(GraphBuilder, SceneTextures, SortedLightSet, ShadowMaskBits);
 			}
 			else if (CanUseTiledDeferred())
 			{
