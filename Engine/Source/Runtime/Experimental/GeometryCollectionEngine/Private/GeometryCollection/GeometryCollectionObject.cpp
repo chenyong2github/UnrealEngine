@@ -50,6 +50,11 @@ UGeometryCollection::UGeometryCollection(const FObjectInitializer& ObjectInitial
 	#if WITH_EDITOR
 	, bManualDataCreate(false)
 	#endif
+	, EnableClustering(true)
+	, ClusterGroupIndex(0)
+	, MaxClusterLevel(100)
+	, DamageThreshold({ 250.0 })
+	, ClusterConnectionType(EClusterConnectionTypeEnum::Chaos_PointImplicit)
 	, EnableNanite(false)
 	, CollisionType(ECollisionTypeEnum::Chaos_Volumetric)
 	, ImplicitType(EImplicitTypeEnum::Chaos_Implicit_Box)

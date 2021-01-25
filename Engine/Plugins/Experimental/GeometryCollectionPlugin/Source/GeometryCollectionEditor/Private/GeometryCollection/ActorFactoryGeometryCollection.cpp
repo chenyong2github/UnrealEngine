@@ -49,6 +49,13 @@ void UActorFactoryGeometryCollection::PostSpawnActor(UObject* Asset, AActor* New
 	// Change properties
 	NewGeometryCollectionActor->GetGeometryCollectionComponent()->SetRestCollection(GeometryCollection);
 
+	// Set configured clustering properties.
+	NewGeometryCollectionActor->GetGeometryCollectionComponent()->EnableClustering = GeometryCollection->EnableClustering;
+	NewGeometryCollectionActor->GetGeometryCollectionComponent()->ClusterGroupIndex = GeometryCollection->ClusterGroupIndex;
+	NewGeometryCollectionActor->GetGeometryCollectionComponent()->MaxClusterLevel = GeometryCollection->MaxClusterLevel;
+	NewGeometryCollectionActor->GetGeometryCollectionComponent()->DamageThreshold = GeometryCollection->DamageThreshold;
+	NewGeometryCollectionActor->GetGeometryCollectionComponent()->ClusterConnectionType = GeometryCollection->ClusterConnectionType;
+
 	// Init Component
 	NewGeometryCollectionActor->GetGeometryCollectionComponent()->RegisterComponent();
 }

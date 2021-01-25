@@ -8,6 +8,7 @@
 #include "InstanceUniformShaderParameters.h"
 #include "GeometryCollection/ManagedArray.h"
 #include "GeometryCollection/GeometryCollectionSimulationTypes.h"
+#include "Chaos/ChaosSolverActor.h"
 #include "GeometryCollectionObject.generated.h"
 
 class UMaterialInterface;
@@ -218,6 +219,25 @@ public:
 	/** Pointer to the data used to render this geometry collection with Nanite. */
 	TUniquePtr<class FGeometryCollectionNaniteData> NaniteData;
 	
+	UPROPERTY(EditAnywhere, Category = "Clustering")
+	bool EnableClustering;
+
+	/** Maximum level for cluster breaks. */
+	UPROPERTY(EditAnywhere, Category = "Clustering")
+	int32 ClusterGroupIndex;
+
+	/** Maximum level for cluster breaks. */
+	UPROPERTY(EditAnywhere, Category = "Clustering")
+	int32 MaxClusterLevel;
+
+	/** Damage threshold for clusters at different levels. */
+	UPROPERTY(EditAnywhere, Category = "Clustering")
+	TArray<float> DamageThreshold;
+
+	/** */
+	UPROPERTY(EditAnywhere, Category = "Clustering")
+	EClusterConnectionTypeEnum ClusterConnectionType;
+
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "GeometrySource")
 	TArray<FGeometryCollectionSource> GeometrySource;
 	
