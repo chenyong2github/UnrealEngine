@@ -23,6 +23,8 @@ struct FViewportClick;
 struct FSkeletalMeshClothBuildParams;
 struct FToolMenuContext;
 class UToolMenu;
+class SSkeletalMeshEditorToolbox;
+
 
 namespace SkeletalMeshEditorModes
 {
@@ -41,6 +43,7 @@ namespace SkeletalMeshEditorTabs
 	extern const FName MorphTargetsTab;
 	extern const FName MeshDetailsTab;
 	extern const FName AnimationMappingTab;
+	extern const FName ToolboxDetailsTab;
 }
 
 class FSkeletalMeshEditor : public ISkeletalMeshEditor, public FGCObject, public FEditorUndoClient, public FTickableEditorObject
@@ -64,7 +67,13 @@ public:
 	virtual FString GetWorldCentricTabPrefix() const override;
 	virtual FLinearColor GetWorldCentricTabColorScale() const override;
 	virtual void InitToolMenuContext(FToolMenuContext& MenuContext) override;
+	// IToolkitHost Interface
+	virtual void OnToolkitHostingStarted(const TSharedRef<class IToolkit>& Toolkit) override;
+	virtual void OnToolkitHostingFinished(const TSharedRef<class IToolkit>& Toolkit) override;
 
+	/** FBaseToolkit overrides */
+	virtual bool ProcessCommandBindings(const FKeyEvent& InKeyEvent) const override;
+	
 	//~ Begin FAssetEditorToolkit Interface.
 	virtual bool OnRequestClose() override;
 	//~ End FAssetEditorToolkit Interface.
@@ -95,6 +104,9 @@ public:
 	void HandleMeshDetailsCreated(const TSharedRef<class IDetailsView>& InDetailsView);
 
 	UObject* HandleGetAsset();
+
+	// Returns the currently hosted toolkit. Can be invalid if no toolkit is being hosted.
+	TSharedPtr<IToolkit> GetHostedToolkit() const { return HostedToolkit; }
 
 private:
 	void HandleObjectsSelected(const TArray<UObject*>& InObjects);
@@ -144,6 +156,12 @@ private:
 
 	static TSharedPtr<FSkeletalMeshEditor> GetSkeletalMeshEditor(const FToolMenuContext& InMenuContext);
 
+	void OnEditorModeIdChanged(const FEditorModeID& ModeChangedID, bool bIsEnteringMode);
+
+	bool CanSpawnToolboxTab(const FSpawnTabArgs& InArgs) const;
+	TSharedRef<SDockTab> SpawnToolboxTab(const FSpawnTabArgs& InArgs);
+	void OnToolboxTabClosed(TSharedRef<SDockTab> InClosedTab);
+
 private:
 	void ExtendMenu();
 
@@ -179,4 +197,10 @@ private:
 
 	/** Details panel */
 	TSharedPtr<class IDetailsView> DetailsView;
+
+	// The toolkit we're currently hosting.
+	TSharedPtr<IToolkit> HostedToolkit;
+
+	// The toolbox widget
+	TSharedPtr<SSkeletalMeshEditorToolbox> ToolboxWidget;
 };

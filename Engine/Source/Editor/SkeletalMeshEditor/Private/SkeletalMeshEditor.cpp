@@ -1,52 +1,54 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SkeletalMeshEditor.h"
-#include "Modules/ModuleManager.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "EditorReimportHandler.h"
+
+#include "SkeletalMeshEditorCommands.h"
+#include "SkeletalMeshEditorMode.h"
+#include "SSkeletalMeshEditorToolbox.h"
+
+
+#include "Algo/Transform.h"
+#include "Animation/DebugSkelMeshComponent.h"
 #include "AssetData.h"
+#include "ClothingAsset.h"
+#include "ClothingSystemEditorInterfaceModule.h"
+#include "ComponentReregisterContext.h"
 #include "EdGraph/EdGraphSchema.h"
 #include "Editor/EditorEngine.h"
-#include "EngineGlobals.h"
-#include "ISkeletalMeshEditorModule.h"
-#include "IPersonaToolkit.h"
-#include "PersonaModule.h"
-#include "SkeletalMeshEditorMode.h"
-#include "IPersonaPreviewScene.h"
-#include "SkeletalMeshEditorCommands.h"
-#include "IDetailsView.h"
-#include "ISkeletonTree.h"
-#include "ISkeletonEditorModule.h"
-#include "IAssetFamily.h"
-#include "PersonaCommonCommands.h"
-#include "EngineUtils.h"
-#include "Rendering/SkeletalMeshModel.h"
-
-#include "Animation/DebugSkelMeshComponent.h"
-#include "ClothingAsset.h"
-#include "SCreateClothingSettingsPanel.h"
-#include "ClothingSystemEditorInterfaceModule.h"
-#include "Preferences/PersonaOptions.h"
-
-#include "Widgets/Layout/SBox.h"
-#include "Widgets/Layout/SBorder.h"
-#include "Framework/Application/SlateApplication.h"
-#include "ToolMenus.h"
-#include "SkeletalMeshToolMenuContext.h"
-#include "EditorViewportClient.h"
-#include "Settings/EditorExperimentalSettings.h"
-#include "Algo/Transform.h"
-#include "ISkeletonTreeItem.h"
-#include "FbxMeshUtils.h"
-#include "LODUtilities.h"
-
-#include "ScopedTransaction.h"
-#include "ComponentReregisterContext.h"
 #include "EditorFramework/AssetImportData.h"
+#include "EditorModeManager.h"
+#include "EditorReimportHandler.h"
+#include "EditorViewportClient.h"
+#include "EngineGlobals.h"
+#include "EngineUtils.h"
 #include "Factories/FbxSkeletalMeshImportData.h"
-
+#include "FbxMeshUtils.h"
+#include "Framework/Application/SlateApplication.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "IAssetFamily.h"
+#include "IDetailsView.h"
+#include "IPersonaPreviewScene.h"
+#include "IPersonaToolkit.h"
+#include "ISkeletalMeshEditorModule.h"
+#include "ISkeletonEditorModule.h"
+#include "ISkeletonTree.h"
+#include "ISkeletonTreeItem.h"
+#include "LODUtilities.h"
 #include "Misc/MessageDialog.h"
+#include "Modules/ModuleManager.h"
+#include "PersonaCommonCommands.h"
+#include "PersonaModule.h"
 #include "PersonaToolMenuContext.h"
+#include "Preferences/PersonaOptions.h"
+#include "Rendering/SkeletalMeshModel.h"
+#include "ScopedTransaction.h"
+#include "SCreateClothingSettingsPanel.h"
+#include "Settings/EditorExperimentalSettings.h"
+#include "SkeletalMeshToolMenuContext.h"
+#include "ToolMenus.h"
+#include "Widgets/Docking/SDockTab.h"
+#include "Widgets/Layout/SBorder.h"
+#include "Widgets/Layout/SBox.h"
 
 const FName SkeletalMeshEditorAppIdentifier = FName(TEXT("SkeletalMeshEditorApp"));
 
@@ -59,6 +61,8 @@ const FName SkeletalMeshEditorTabs::ViewportTab(TEXT("Viewport"));
 const FName SkeletalMeshEditorTabs::AdvancedPreviewTab(TEXT("AdvancedPreviewTab"));
 const FName SkeletalMeshEditorTabs::MorphTargetsTab("MorphTargetsTab");
 const FName SkeletalMeshEditorTabs::AnimationMappingTab("AnimationMappingWindow");
+const FName SkeletalMeshEditorTabs::ToolboxDetailsTab("ToolBoxDetailsTab");
+
 
 DEFINE_LOG_CATEGORY(LogSkeletalMeshEditor);
 
@@ -190,6 +194,15 @@ bool FSkeletalMeshEditor::OnRequestClose()
 void FSkeletalMeshEditor::RegisterTabSpawners(const TSharedRef<class FTabManager>& InTabManager)
 {
 	WorkspaceMenuCategory = InTabManager->AddLocalWorkspaceMenuCategory(LOCTEXT("WorkspaceMenu_SkeletalMeshEditor", "Skeletal Mesh Editor"));
+	
+	InTabManager->RegisterTabSpawner(
+		SkeletalMeshEditorTabs::ToolboxDetailsTab, 
+		FOnSpawnTab::CreateSP(this, &FSkeletalMeshEditor::SpawnToolboxTab),
+		FCanSpawnTab::CreateSP(this, &FSkeletalMeshEditor::CanSpawnToolboxTab)
+		)
+		.SetDisplayName(LOCTEXT("ToolboxTab", "Toolbox"))
+		.SetGroup(WorkspaceMenuCategory.ToSharedRef())
+		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Modes" ));
 
 	FAssetEditorToolkit::RegisterTabSpawners(InTabManager);
 }
@@ -240,6 +253,10 @@ void FSkeletalMeshEditor::InitSkeletalMeshEditor(const EToolkitMode::Type Mode, 
 	// Set up mesh click selection
 	PreviewScene->RegisterOnMeshClick(FOnMeshClick::CreateSP(this, &FSkeletalMeshEditor::HandleMeshClick));
 	PreviewScene->SetAllowMeshHitProxies(GetDefault<UPersonaOptions>()->bAllowMeshSectionSelection);
+
+	// Make sure we get told when the editor mode changes so we can switch to the appropriate tab
+	// if there's a toolbox available.
+	GetEditorModeManager().OnEditorModeIDChanged().AddSP(this, &FSkeletalMeshEditor::OnEditorModeIdChanged);
 }
 
 FName FSkeletalMeshEditor::GetToolkitFName() const
@@ -298,6 +315,68 @@ TSharedPtr<FSkeletalMeshEditor> FSkeletalMeshEditor::GetSkeletalMeshEditor(const
 
 	return TSharedPtr<FSkeletalMeshEditor>();
 }
+
+
+void FSkeletalMeshEditor::OnEditorModeIdChanged(const FEditorModeID& ModeChangedID, bool bIsEnteringMode)
+{
+	if (GetEditorModeManager().IsDefaultMode(ModeChangedID))
+	{
+		return;
+	}
+
+	if (bIsEnteringMode)
+	{
+		// FIXME: We should get the hosted toolkit from here.
+		if (GetEditorModeManager().GetActiveScriptableMode(ModeChangedID)->UsesToolkits())
+		{
+			TabManager->TryInvokeTab(SkeletalMeshEditorTabs::ToolboxDetailsTab);
+		}
+	}
+	else
+	{
+		TSharedPtr<SDockTab> ToolboxTab = TabManager->FindExistingLiveTab(SkeletalMeshEditorTabs::ToolboxDetailsTab);
+		if (ToolboxTab.IsValid())
+		{
+			ToolboxTab->RequestCloseTab();
+		}
+	}
+}
+
+
+bool FSkeletalMeshEditor::CanSpawnToolboxTab(const FSpawnTabArgs& InArgs) const
+{
+	return HostedToolkit.IsValid();
+}
+
+
+TSharedRef<SDockTab> FSkeletalMeshEditor::SpawnToolboxTab(const FSpawnTabArgs& Args)
+{
+	ToolboxWidget = SNew(SSkeletalMeshEditorToolbox, SharedThis<ISkeletalMeshEditor>(this));
+
+	TSharedRef<SDockTab> DockTab = SNew(SDockTab)
+	    .Icon(FEditorStyle::GetBrush("LevelEditor.Tabs.Modes"))
+	    .Label(LOCTEXT("ToolboxTab", "Toolbox"))
+		[
+			SNew(SBox)
+	        .AddMetaData<FTagMetaData>(FTagMetaData(TEXT("ToolboxTab")))
+	        [
+				ToolboxWidget.ToSharedRef()
+			]
+		];
+
+	ToolboxWidget->SetOwningTab(DockTab);
+	ToolboxWidget->AttachToolkit(HostedToolkit.ToSharedRef());
+	
+	return DockTab;
+}
+
+
+void FSkeletalMeshEditor::OnToolboxTabClosed(TSharedRef<SDockTab> InClosedTab)
+{
+	// If the user closed the tab, then we want to go back to the base skel mesh editor mode.
+	GetEditorModeManager().ActivateDefaultMode();
+}
+
 
 void FSkeletalMeshEditor::RegisterReimportContextMenu(const FName InBaseMenuName)
 {
@@ -593,6 +672,45 @@ void FSkeletalMeshEditor::InitToolMenuContext(FToolMenuContext& MenuContext)
 	PersonaContext->SetToolkit(GetPersonaToolkit());
 	MenuContext.AddObject(PersonaContext);
 }
+
+
+void FSkeletalMeshEditor::OnToolkitHostingStarted(const TSharedRef<IToolkit>& Toolkit)
+{
+	if (ensure(!HostedToolkit.IsValid()))
+	{
+		HostedToolkit = Toolkit;
+
+		if (ToolboxWidget.IsValid())
+		{
+			ToolboxWidget->AttachToolkit(Toolkit);
+		}
+	}
+}
+
+
+void FSkeletalMeshEditor::OnToolkitHostingFinished(const TSharedRef<IToolkit>& Toolkit)
+{
+	if (ensure(Toolkit == HostedToolkit))
+	{
+		if (ToolboxWidget.IsValid())
+		{
+			ToolboxWidget->DetachToolkit(Toolkit);
+		}
+		
+		HostedToolkit.Reset();
+	}
+}
+
+bool FSkeletalMeshEditor::ProcessCommandBindings(const FKeyEvent& InKeyEvent) const
+{
+	if (HostedToolkit.IsValid() && HostedToolkit->ProcessCommandBindings(InKeyEvent))
+	{
+		return true;
+	}
+
+	return ISkeletalMeshEditor::ProcessCommandBindings(InKeyEvent);
+}
+
 
 void FSkeletalMeshEditor::FillMeshClickMenu(FMenuBuilder& MenuBuilder, HActor* HitProxy, const FViewportClick& Click)
 {
