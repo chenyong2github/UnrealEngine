@@ -122,7 +122,8 @@ namespace UnrealBuildTool.Rules
 					foreach (string LibPath in Directory.EnumerateFiles(USDBinDir, "*.dylib", SearchOption.AllDirectories))
 					{
 						PublicAdditionalLibraries.Add(LibPath);
-						RuntimeDependencies.Add(LibPath);
+						
+						RuntimeDependencies.Add(Path.Combine("$(TargetOutputDir)", Path.GetFileName(LibPath)), LibPath);
 					}
 				}
 
