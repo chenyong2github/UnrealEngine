@@ -520,7 +520,6 @@ void SetupIndirectCS(uint3 DT_ID : SV_DispatchThreadID,
 	GroupMemoryBarrierWithGroupSync();
 
 	uint2 Pos = DT_ID.xy + Output_ViewportMin;
-	bool bHasSubsurface = false;
 	float2 BufferUV = ConvertGridPos2UV(Pos);
 	uint Type = 0;
 	float4 OutColor = 0;
@@ -536,7 +535,12 @@ void SetupIndirectCS(uint3 DT_ID : SV_DispatchThreadID,
 
 	float4 Sum = (A + B) + (C + D);
 
-	float Div = 1.0f / max(Sum.a, 0.00001f);
+	// Each alpha value of A/B/C/D should be either 1.0f or 0.0, so a check of 0.5 should be safe
+	bool bHasSubsurface = (Sum.a >= .50f);
+
+	// Sum.a should either be one of {0,1,2,3,4}, add a max of 1 to avoid floating point specials. If Sum.a is 0, Sum.rgb should be 0 as well so it
+	// shouldn't matter what Div is.
+	float Div = 1.0f / max(Sum.a, 1.0f);
 
 	OutColor.rgb = Sum.rgb * Div;
 
@@ -553,6 +557,8 @@ void SetupIndirectCS(uint3 DT_ID : SV_DispatchThreadID,
 	}
 	//BufferUV += min(float2(-0.25, -0.25f) * SubsurfaceInput0_ExtentInverse, SubsurfaceInput0_UVViewportBilinearMax);
 #else // SUBSURFACE_HALF_RES
+	
+	bool bHasSubsurface = false;
 	OutColor = SetupSubsurfaceForOnePixel(BufferUV);
 
 	if (OutColor.a > 0)

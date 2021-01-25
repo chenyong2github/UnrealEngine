@@ -904,6 +904,7 @@ float4 BurleyNormalizedSS(float2 BufferUV, uint2 GroupThreadID)
 	float3 WeightingFactor = 0.0f;
 	float4 RadianceAccumulated = float4(0.0f, 0.0f, 0.0f, 1.0f);
 	float Mask = 1.0f;
+	float3 BoundaryColorBleedAccum = float3(0.0f, 0.0f, 0.0f);
 
 #if SUBSURFACE_SINGLE_PASS
 	int NumOfSamples = BURLEY_NUM_SAMPLES;
@@ -1035,7 +1036,7 @@ float4 BurleyNormalizedSS(float2 BufferUV, uint2 GroupThreadID)
 
 			// Determine the tint color, if the sampling pixel is not subsurface, we use tint color
 			// to mask out the sampling. Unless we specifically want the shadowing region.
-			float3 TintColor = (LocalProfile == SubsurfaceProfileInt) ? 1.0f : BoundaryColorBleed;
+			BoundaryColorBleedAccum += (LocalProfile == SubsurfaceProfileInt || LocalProfile == SSS_PROFILE_ID_INVALID) ? 1.0f : BoundaryColorBleed;
 			Mask = (LocalProfile != SSS_PROFILE_ID_INVALID) ? 1 : 0;
 
 			// Step 4: accumulate radiance from the diffusion profile rR(r)
@@ -1043,7 +1044,7 @@ float4 BurleyNormalizedSS(float2 BufferUV, uint2 GroupThreadID)
 			float3 DiffusionProfile = GetDiffuseReflectProfileWithDiffuseMeanFreePath(BurleyParameter.DiffuseMeanFreePath.xyz, S3D.xyz, RadiusSampledInMM);
 			float3 SampleWeight = (DiffusionProfile / BurleySampleInfo.Pdf) * Mask * NormalWeight;
 
-			RadianceAccumulated.xyz += SampleWeight * (SampledRadianceAndDepth.xyz*TintColor);
+			RadianceAccumulated.xyz += SampleWeight * (SampledRadianceAndDepth.xyz);
 
 #if USE_BILATERAL_FILTERING
 			WeightingFactor += SampleWeight;
@@ -1065,6 +1066,8 @@ float4 BurleyNormalizedSS(float2 BufferUV, uint2 GroupThreadID)
 	// The added epsilon is used to avoid divid by zero.
 	RadianceAccumulated.xyz *= (WeightingFactor == 0)? 0:(1.0f /WeightingFactor*EnergyNormalization);
 #endif
+
+	RadianceAccumulated.xyz *= BoundaryColorBleedAccum*InvNumOfSamples;
 
 #if REWEIGHT_CENTER_SAMPLE
 	// Apply lerp with center pixel

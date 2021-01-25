@@ -131,36 +131,43 @@ float GetDiffuseMeanFreePathForSampling(float4 DiffuseMeanFreePath)
 // Average relative error: 5.5% (reference to MC)
 float GetPerpendicularScalingFactor(float SurfaceAlbedo)
 {
-	return 1.85 - SurfaceAlbedo + 7 * UnClampedPow(SurfaceAlbedo - 0.8, 3);
+	// from the paper, the formula explicitly has an abs for (A-0.8)
+	float Value = abs(SurfaceAlbedo - 0.8);
+	return 1.85 - SurfaceAlbedo + 7 * Value * Value * Value;
 }
 
 float3 GetPerpendicularScalingFactor3D(float3 SurfaceAlbedo)
 {
-	return 1.85 - SurfaceAlbedo + 7 * UnClampedPow(SurfaceAlbedo - 0.8, 3);
+	float3 Value = abs(SurfaceAlbedo - 0.8);
+	return 1.85 - SurfaceAlbedo + 7 * Value * Value * Value;
 }
 
 // Method 2: Ideal diffuse transmission at the surface. More appropriate for rough surface.
 // Average relative error: 3.9% (reference to MC)
 float GetDiffuseSurfaceScalingFactor(float SurfaceAlbedo)
 {
-	return 1.9 - SurfaceAlbedo + 3.5*(SurfaceAlbedo - 0.8)*(SurfaceAlbedo - 0.8);
+	float Value = SurfaceAlbedo - 0.8;
+	return 1.9 - SurfaceAlbedo + 3.5 * Value * Value;
 }
 
 float3 GetDiffuseSurfaceScalingFactor3D(float3 SurfaceAlbedo)
 {
-	return 1.9 - SurfaceAlbedo + 3.5*(SurfaceAlbedo - 0.8)*(SurfaceAlbedo - 0.8);
+	float3 Value = SurfaceAlbedo - 0.8;
+	return 1.9 - SurfaceAlbedo + 3.5 * Value * Value;
 }
 
 // Method 3: The spectral of diffuse mean free path on the surface.
 // Avergate relative error: 7.7% (reference to MC)
 float GetSearchLightDiffuseScalingFactor(float SurfaceAlbedo)
 {
-	return 3.5 + 100 * UnClampedPow(SurfaceAlbedo - 0.33, 4);
+	float Value = SurfaceAlbedo - 0.33;
+	return 3.5 + 100 * Value * Value * Value * Value;
 }
 
 float3 GetSearchLightDiffuseScalingFactor3D(float3 SurfaceAlbedo)
 {
-	return 3.5 + 100.0 * UnClampedPow(max(SurfaceAlbedo - 0.33,0.0), 4.0);
+	float3 Value = SurfaceAlbedo - 0.33;
+	return 3.5 + 100 * Value * Value * Value * Value;
 }
 
 //@TODO Revisit here after offline comparison.
