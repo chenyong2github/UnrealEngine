@@ -32,6 +32,13 @@
 
 namespace ChaosInterface
 {
+	float Chaos_Collision_MarginFraction = -1.0f;
+	FAutoConsoleVariableRef CVarChaosCollisionMarginFraction(TEXT("p.Chaos.Collision.MarginFraction"), Chaos_Collision_MarginFraction, TEXT("Override the collision margin fraction set in Physics Settings (if >= 0)"));
+
+	float Chaos_Collision_MarginMax = -1.0f;
+	FAutoConsoleVariableRef CVarChaosCollisionMarginMax(TEXT("p.Chaos.Collision.MarginMax"), Chaos_Collision_MarginMax, TEXT("Override the max collision margin set in Physics Settings (if >= 0)"));
+
+
 	template<class PHYSX_MESH>
 	TArray<Chaos::TVector<int32, 3>> GetMeshElements(const PHYSX_MESH* PhysXMesh)
 	{
@@ -164,8 +171,18 @@ namespace ChaosInterface
 			CollisionTraceType = UPhysicsSettings::Get()->DefaultShapeComplexity;
 		}
 
-		const float CollisionMarginFraction = FMath::Max(0.0f, UPhysicsSettingsCore::Get()->SolverOptions.CollisionMarginFraction);
-		const float CollisionMarginMax = FMath::Max(0.0f, UPhysicsSettingsCore::Get()->SolverOptions.CollisionMarginMax);
+		float CollisionMarginFraction = FMath::Max(0.0f, UPhysicsSettingsCore::Get()->SolverOptions.CollisionMarginFraction);
+		float CollisionMarginMax = FMath::Max(0.0f, UPhysicsSettingsCore::Get()->SolverOptions.CollisionMarginMax);
+
+		// Test margins without changing physics settings
+		if (Chaos_Collision_MarginFraction >= 0.0f)
+		{
+			CollisionMarginFraction = Chaos_Collision_MarginFraction;
+		}
+		if (Chaos_Collision_MarginMax >= 0.0f)
+		{
+			CollisionMarginMax = Chaos_Collision_MarginMax;
+		}
 
 #if WITH_CHAOS
 		// Complex as simple should not create simple geometry, unless there is no complex geometry.  Otherwise both get queried against.
