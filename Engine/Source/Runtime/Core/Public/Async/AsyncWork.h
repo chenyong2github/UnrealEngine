@@ -71,7 +71,7 @@ class FAutoDeleteAsyncTask
 	/* Generic start function, not called directly
 	 * @param bForceSynchronous if true, this job will be started synchronously, now, on this thread
 	 **/
-	void Start(bool bForceSynchronous, FQueuedThreadPool* InQueuedPool)
+	void Start(bool bForceSynchronous, FQueuedThreadPool* InQueuedPool, EQueuedWorkPriority InPriority = EQueuedWorkPriority::Normal)
 	{
 		LLM(InheritedLLMTag = FLowLevelMemTracker::bIsDisabled ? nullptr : FLowLevelMemTracker::Get().GetActiveTagData(ELLMTracker::Default));
 #if USE_MEMORY_TRACE_TAGS
@@ -86,7 +86,7 @@ class FAutoDeleteAsyncTask
 		}
 		if (QueuedPool)
 		{
-			QueuedPool->AddQueuedWork(this);
+			QueuedPool->AddQueuedWork(this, InPriority);
 		}
 		else
 		{
@@ -145,15 +145,15 @@ public:
 	**/
 	void StartSynchronousTask()
 	{
-		Start(true, GThreadPool);
+		Start(true, nullptr);
 	}
 
 	/** 
 	* Run this task on the lo priority thread pool. It is not safe to use this object after this call.
 	**/
-	void StartBackgroundTask(FQueuedThreadPool* InQueuedPool = GThreadPool)
+	void StartBackgroundTask(FQueuedThreadPool* InQueuedPool = GThreadPool, EQueuedWorkPriority InPriority = EQueuedWorkPriority::Normal)
 	{
-		Start(false, InQueuedPool);
+		Start(false, InQueuedPool, InPriority);
 	}
 };
 

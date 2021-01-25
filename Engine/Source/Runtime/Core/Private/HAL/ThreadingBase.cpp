@@ -37,6 +37,8 @@ FQueuedThreadPool* GThreadPool = nullptr;
 
 FQueuedThreadPool* GIOThreadPool = nullptr;
 
+FQueuedThreadPool* GDDCIOThreadPool = nullptr;
+
 FQueuedThreadPool* GBackgroundPriorityThreadPool = nullptr;
 
 #if WITH_EDITOR
@@ -940,11 +942,10 @@ public:
 	 * @param ThreadPriority priority of new thread
 	 * @return True if the thread and all of its initialization was successful, false otherwise
 	 */
-	virtual bool Create(class FQueuedThreadPoolBase* InPool,uint32 InStackSize = 0,EThreadPriority ThreadPriority=TPri_Normal)
+	virtual bool Create(class FQueuedThreadPoolBase* InPool,uint32 InStackSize = 0, EThreadPriority ThreadPriority=TPri_Normal, const TCHAR* ThreadName = nullptr)
 	{
 		static int32 PoolThreadIndex = 0;
-		const FString PoolThreadName = FString::Printf( TEXT( "PoolThread %d" ), PoolThreadIndex );
-		PoolThreadIndex++;
+		const FString PoolThreadName = ThreadName ? FString(ThreadName) : FString::Printf( TEXT( "PoolThread %d" ), PoolThreadIndex++ );
 
 		OwningThreadPool = InPool;
 		DoWorkEvent = FPlatformProcess::GetSynchEventFromPool();
@@ -1061,7 +1062,8 @@ public:
 			// Create a new queued thread
 			FQueuedThread* pThread = new FQueuedThread();
 			// Now create the thread and add it if ok
-			if (pThread->Create(this,StackSize,ThreadPriority) == true)
+			const FString ThreadName = FString::Printf(TEXT("%s #%d"), Name, Count);
+			if (pThread->Create(this, StackSize, ThreadPriority, *ThreadName) == true)
 			{
 				QueuedThreads.Add(pThread);
 				AllThreads.Add(pThread);

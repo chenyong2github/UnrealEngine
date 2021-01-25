@@ -505,7 +505,8 @@ public:
 		check(!PendingTasks.Contains(Handle));
 		PendingTasks.Add(Handle, AsyncTask);
 		AddToAsyncCompletionCounter(1);
-		AsyncTask->StartBackgroundTask();
+		// This request is I/O only, doesn't do any processing, send it to the I/O only thread-pool to avoid wasting worker threads on long I/O waits.
+		AsyncTask->StartBackgroundTask(GDDCIOThreadPool);
 		return Handle;
 	}
 
