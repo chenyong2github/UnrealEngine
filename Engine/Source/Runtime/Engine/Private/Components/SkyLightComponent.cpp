@@ -528,7 +528,10 @@ void USkyLightComponent::UpdateImportanceSamplingData()
 		ENQUEUE_RENDER_COMMAND(UpdateImportanceSamplingDataCmd)(
 			[this](FRHICommandListImmediate& RHICmdList)
 		{
-			ImportanceSamplingData->BuildCDFs(ProcessedSkyTexture);
+			if (ProcessedSkyTexture)
+			{
+				ImportanceSamplingData->BuildCDFs(ProcessedSkyTexture);
+			}
 		});
 	}
 #endif
