@@ -291,7 +291,8 @@ void InstanceCullVSM(
 	const bool bActive = InstanceId < NumInstances && InstanceData.PrimitiveId != 0xFFFFFFFFu && RuntimeResourceID != 0xFFFFFFFFu; // Only process valid Nanite primitives
 
 	// JonO: Early out if bActive is false
-	if(!bActive) {
+	if(!bActive) 
+	{
 		return;
 	}
 
