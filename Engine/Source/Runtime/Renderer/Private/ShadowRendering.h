@@ -103,7 +103,8 @@ public:
 		const FScene* Scene, 
 		const FSceneView* InViewIfDynamicMeshCommand, 
 		FShadowDepthType InShadowDepthType,
-		FMeshPassDrawListContext* InDrawListContext);
+		FMeshPassDrawListContext* InDrawListContext,
+		EMeshPass::Type InMeshPassTargetType);
 
 	virtual void AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch, uint64 BatchElementMask, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, int32 StaticMeshId = -1) override final;
 
@@ -128,6 +129,7 @@ private:
 		ERasterizerCullMode MeshCullMode);
 
 	FShadowDepthType ShadowDepthType;
+	EMeshPass::Type MeshPassTargetType = EMeshPass::CSMShadowDepth;
 };
 
 enum EShadowDepthCacheMode
@@ -384,6 +386,9 @@ public:
 
 	/** Regular shadow map to resample for use as a complete shadow map */
 	FProjectedShadowInfo *CompleteShadowMapCopySource;
+
+	/** Used to fetch the correct cached static mesh draw commands */
+	EMeshPass::Type MeshPassTargetType = EMeshPass::CSMShadowDepth;
 
 	/** */
 	TArray< FVirtualShadowMap*, TInlineAllocator<6> > VirtualShadowMaps;

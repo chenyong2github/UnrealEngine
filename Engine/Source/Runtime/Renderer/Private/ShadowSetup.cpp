@@ -1001,6 +1001,7 @@ void FProjectedShadowInfo::SetupClipmapProjection(FLightSceneInfo* InLightSceneI
 	BorderSize = 0;
 	bIncludeInScreenSpaceShadowMask = false;
 	MaxNonFarCascadeDistance = InMaxNonFarCascadeDistance;
+	MeshPassTargetType = EMeshPass::VSMShadowDepth;
 
 
 	FVirtualShadowMapProjectionShaderData Data = VirtualShadowMapClipmap->GetProjectionShaderData(VirtualShadowMapClipmap->GetLevelCount() - 1);
@@ -1292,7 +1293,7 @@ void FProjectedShadowInfo::AddCachedMeshDrawCommands_AnyThread(
 	FAddSubjectPrimitiveStats& OutStats,
 	FAddSubjectPrimitiveOverflowedIndices& OverflowBuffer) const
 {
-	const EMeshPass::Type PassType = EMeshPass::CSMShadowDepth;
+	const EMeshPass::Type PassType = MeshPassTargetType;
 	const EShadingPath ShadingPath = Scene->GetShadingPath();
 	const bool bUseCachedMeshCommand = UseCachedMeshDrawCommands_AnyThread()
 		&& !!(FPassProcessorManager::GetPassFlags(ShadingPath, PassType) & EMeshPassFlags::CachedMeshCommands)
@@ -1395,7 +1396,7 @@ bool FProjectedShadowInfo::ShouldDrawStaticMeshes(FViewInfo& InCurrentView, FPri
 							StaticMeshRelevance,
 							StaticMesh,
 							InPrimitiveSceneInfo->Scene,
-							EMeshPass::CSMShadowDepth,
+							MeshPassTargetType,
 							ShadowDepthPassVisibleCommands,
 							SubjectMeshCommandBuildRequests,
 							NumSubjectMeshCommandBuildRequestElements);
@@ -1952,8 +1953,8 @@ void FProjectedShadowInfo::FinalizeAddSubjectPrimitive(
 			const FCachedMeshDrawCommandInfo& CmdInfo = PrimitiveSceneInfo->StaticMeshCommandInfos[CmdIdx];
 			const FScene* Scene = PrimitiveSceneInfo->Scene;
 			const FMeshDrawCommand* CachedCmd = CmdInfo.StateBucketId >= 0 ?
-				&Scene->CachedMeshDrawCommandStateBuckets[EMeshPass::CSMShadowDepth].GetByElementId(CmdInfo.StateBucketId).Key :
-				&Scene->CachedDrawLists[EMeshPass::CSMShadowDepth].MeshDrawCommands[CmdInfo.CommandIndex];
+				&Scene->CachedMeshDrawCommandStateBuckets[MeshPassTargetType].GetByElementId(CmdInfo.StateBucketId).Key :
+				&Scene->CachedDrawLists[MeshPassTargetType].MeshDrawCommands[CmdInfo.CommandIndex];
 			const int32 PrimIdx = PrimitiveSceneInfo->GetIndex();
 
 			FVisibleMeshDrawCommand& VisibleCmd = ShadowDepthPassVisibleCommands[ShadowDepthPassVisibleCommands.AddUninitialized()];
@@ -2021,7 +2022,8 @@ void FProjectedShadowInfo::SetupMeshDrawCommandsForShadowDepth(FSceneRenderer& R
 		Renderer.Scene,
 		ShadowDepthView,
 		GetShadowDepthType(),
-		nullptr);
+		nullptr,
+		MeshPassTargetType);
 
 	if (Renderer.ShouldDumpMeshDrawCommandInstancingStats())
 	{
@@ -4395,15 +4397,9 @@ void FSceneRenderer::AddViewDependentWholeSceneShadowsForView(
 					FIntPoint CompleteShadowBufferResolution(ShadowBufferResolution.X / CompleteResolutionFactor,
 														     ShadowBufferResolution.Y / CompleteResolutionFactor);
 
-					FProjectedShadowInfo* RegularCascadePSInfo = nullptr;
-
-#if ENABLE_NON_NANITE_VSM
-					if (!bNeedsVirtualShadowMap)
-#endif // ENABLE_NON_NANITE_VSM
-					{
 					// Create the projected shadow info.
-						RegularCascadePSInfo = new(FMemStack::Get(), 1, 16) FProjectedShadowInfo;
-						RegularCascadePSInfo->SetupWholeSceneProjection(
+					FProjectedShadowInfo* ProjectedShadowInfo = new(FMemStack::Get(), 1, 16) FProjectedShadowInfo;
+					ProjectedShadowInfo->SetupWholeSceneProjection(
 						&LightSceneInfo,
 						&View,
 						ProjectedShadowInitializer,
@@ -4414,27 +4410,18 @@ void FSceneRenderer::AddViewDependentWholeSceneShadowsForView(
 						CompleteShadowBufferResolution.Y,
 						ShadowBorder
 					);
-						RegularCascadePSInfo->FadeAlphas = FadeAlphas;
-						RegularCascadePSInfo->ProjectionIndex = Index;
+					ProjectedShadowInfo->FadeAlphas = FadeAlphas;
+					ProjectedShadowInfo->ProjectionIndex = Index;
 
-						VisibleLightInfo.MemStackProjectedShadows.Add(RegularCascadePSInfo);
-						VisibleLightInfo.AllProjectedShadows.Add(RegularCascadePSInfo);
-						ShadowInfos.Add(RegularCascadePSInfo);
-					}
-#if ENABLE_NON_NANITE_VSM
-					// GPUCULL_TODO: THis logic is not fully functional!
-					// If we have a virtual shadow map, 
-					if (false)//bNeedsVirtualShadowMap)
-					{
-#else //!ENABLE_NON_NANITE_VSM
+					VisibleLightInfo.MemStackProjectedShadows.Add(ProjectedShadowInfo);
+					VisibleLightInfo.AllProjectedShadows.Add(ProjectedShadowInfo);
+					ShadowInfos.Add(ProjectedShadowInfo);
+
 					if (bNeedsVirtualShadowMap)
 					{
-#endif // ENABLE_NON_NANITE_VSM
-						if (RegularCascadePSInfo != nullptr)
-						{
-							// ...disable nanite rendering into the regular shadow map or else we'd get double-shadowing
-							RegularCascadePSInfo->bNaniteGeometry = false;
-						}
+						// If we have a virtual shadow map, disable nanite rendering into the regular shadow map or else we'd get double-shadowing
+						ProjectedShadowInfo->bNaniteGeometry = false;
+						
 						if (bNeedsCompleteShadowMap)
 						{
 							// Create the projected shadow info.
@@ -4454,7 +4441,7 @@ void FSceneRenderer::AddViewDependentWholeSceneShadowsForView(
 
 							CompleteProjectedShadowInfo->bCompleteShadowMap = true;
 							CompleteProjectedShadowInfo->bIncludeInScreenSpaceShadowMask = false;
-							CompleteProjectedShadowInfo->CompleteShadowMapCopySource = RegularCascadePSInfo;
+							CompleteProjectedShadowInfo->CompleteShadowMapCopySource = ProjectedShadowInfo;
 
 							VisibleLightInfo.AllProjectedShadows.Add(CompleteProjectedShadowInfo);
 							VisibleLightInfo.CompleteProjectedShadows.Add(CompleteProjectedShadowInfo);
@@ -4463,9 +4450,9 @@ void FSceneRenderer::AddViewDependentWholeSceneShadowsForView(
 					}
 
 					// Ray traced shadows use the GPU managed distance field object buffers, no CPU culling needed
-					if (RegularCascadePSInfo != nullptr && !RegularCascadePSInfo->bRayTracedDistanceField)
+					if (!ProjectedShadowInfo->bRayTracedDistanceField)
 					{
-						ShadowInfosThatNeedCulling.Add(RegularCascadePSInfo);
+						ShadowInfosThatNeedCulling.Add(ProjectedShadowInfo);
 					}
 				}
 			}
