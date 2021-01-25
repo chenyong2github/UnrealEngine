@@ -34,10 +34,7 @@ protected:
 	virtual void Step_Present();
 	virtual void Step_FinalizeFrameSynchronization();
 
-	virtual void DoSleep(float Seconds)
-	{
-		FPlatformProcess::Sleep(Seconds);
-	}
+	virtual void DoSleep(float Seconds);
 
 protected:
 	double GetVBlankTimestamp() const;
