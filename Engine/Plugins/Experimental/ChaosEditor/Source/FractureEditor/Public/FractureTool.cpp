@@ -134,11 +134,13 @@ void UFractureActionTool::Refresh(FFractureToolContext& Context, FFractureEditor
 	
 	FGeometryCollectionClusteringUtility::UpdateHierarchyLevelOfChildren(GeometryCollectionPtr.Get(), -1);
 
+	Toolkit->RegenerateOutliner();
+	Toolkit->RegenerateHistogram();
+
 	FScopedColorEdit EditBoneColor(GeometryCollectionComponent, true);
 	EditBoneColor.SetSelectedBones(Context.GetSelection());
 
 	FFractureSelectionTools::ToggleSelectedBones(GeometryCollectionComponent, Context.GetSelection(), true);
-	Toolkit->SetBoneSelection(GeometryCollectionComponent, Context.GetSelection(), true);
 
 	Toolkit->UpdateExplodedVectors(GeometryCollectionComponent);
 

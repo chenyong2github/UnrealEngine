@@ -38,8 +38,6 @@ void UFractureToolFlattenAll::Execute(TWeakPtr<FFractureEditorModeToolkit> InToo
 	{
 		FFractureEditorModeToolkit* Toolkit = InToolkit.Pin().Get();
 
-		int32 CurrentLevelView = Toolkit->GetLevelViewValue();
-
 		TArray<FFractureToolContext> Contexts = GetFractureToolContexts();
 
 		for (FFractureToolContext& Context : Contexts)
@@ -57,15 +55,9 @@ void UFractureToolFlattenAll::Execute(TWeakPtr<FFractureEditorModeToolkit> InToo
 				// Cleanup: Remove any clusters remaining in the flattened branch.
 				FGeometryCollectionClusteringUtility::RemoveDanglingClusters(Context.GetGeometryCollection().Get());
 
-				CurrentLevelView = Levels[ClusterIndex] + 1;
 			}
 
 			Refresh(Context, Toolkit);
-		}
-
-		if (CurrentLevelView != Toolkit->GetLevelViewValue())
-		{
-			Toolkit->OnSetLevelViewValue(CurrentLevelView);
 		}
 
 		SetOutlinerComponents(Contexts, Toolkit);
@@ -168,8 +160,6 @@ void UFractureToolUncluster::Execute(TWeakPtr<FFractureEditorModeToolkit> InTool
 	{
 		FFractureEditorModeToolkit* Toolkit = InToolkit.Pin().Get();
 
-		int32 CurrentLevelView = Toolkit->GetLevelViewValue();
-
 		TArray<FFractureToolContext> Contexts = GetFractureToolContexts();
 
 		for (FFractureToolContext& Context : Contexts)
@@ -189,17 +179,8 @@ void UFractureToolUncluster::Execute(TWeakPtr<FFractureEditorModeToolkit> InTool
 
 			FGeometryCollectionClusteringUtility::CollapseHierarchyOneLevel(Context.GetGeometryCollection().Get(), Context.GetSelection());
 			Context.SetSelection(NewSelection);
-			if (NewSelection.Num() > 0)
-			{
-				CurrentLevelView = Levels[NewSelection.Last()];
-			}
 			
 			Refresh(Context, Toolkit);
-		}
-
-		if (CurrentLevelView != Toolkit->GetLevelViewValue())
-		{
-			Toolkit->OnSetLevelViewValue(CurrentLevelView);
 		}
 
 		SetOutlinerComponents(Contexts, Toolkit);
@@ -239,7 +220,7 @@ void UFractureToolMoveUp::Execute(TWeakPtr<FFractureEditorModeToolkit> InToolkit
 
 		for (FFractureToolContext& Context: Contexts)
 		{
-			Context.Sanitize();
+			Context.ConvertSelectionToRigidNodes();
 			FGeometryCollectionClusteringUtility::MoveUpOneHierarchyLevel(Context.GetGeometryCollection().Get(), Context.GetSelection());
 			Refresh(Context, Toolkit);
 		}

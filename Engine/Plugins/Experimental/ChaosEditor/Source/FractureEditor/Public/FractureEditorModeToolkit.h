@@ -152,6 +152,7 @@ public:
 
 	void UpdateExplodedVectors(UGeometryCollectionComponent* GeometryCollectionComponent) const;
 
+	void RegenerateOutliner();
 	void RegenerateHistogram();
 
 	TSharedPtr<SWidget> ExplodedViewWidget;

@@ -35,7 +35,7 @@ TSharedRef<ITableRow> FGeometryCollectionHistogramItem::MakeHistogramRowWidget(c
 				.Color(NodeColor)
 				.AlphaDisplayMode(EColorBlockAlphaDisplayMode::Ignore)
 				.Size(FVector2D(1.0f,5.0f))
-				.ToolTipText(HoverText)
+				.ToolTipText(FText::FromString(HoverString))
 			]
 			+ SHorizontalBox::Slot()
 			.FillWidth(1.0-NormalizedValue)
@@ -59,13 +59,13 @@ void FGeometryCollectionHistogramItem::SetInspectedAttribute(EInspectedAttribute
 			{
 			case EInspectedAttributeEnum::Volume:
 				InspectedValue = Collection->GetAttribute<float>(TEXT("Volume"), TEXT("Transform"))[BoneIndex];
-				HoverText = FText::FromString(FString::SanitizeFloat(InspectedValue));
+				HoverString = FString::Printf(TEXT("%d: %.2f"), BoneIndex, InspectedValue);
 				break;
 
 			case EInspectedAttributeEnum::Level:
 				{
 					int32 Level = Collection->GetAttribute<int32>(TEXT("Level"), TEXT("Transform"))[BoneIndex];
-					HoverText = FText::FromString(FString::FormatAsNumber(Level));
+					HoverString = FString::Printf(TEXT("%d: %d"), BoneIndex, Level);
 					InspectedValue = static_cast<float>(Level);
 				}
 				break;
@@ -75,7 +75,7 @@ void FGeometryCollectionHistogramItem::SetInspectedAttribute(EInspectedAttribute
 					int32 InitialDynamicState = static_cast<int32>(Collection->GetAttribute<int32>(TEXT("InitialDynamicState"), TEXT("Transform"))[BoneIndex]);
 					
 					static const TArray<FString> HoverNames{ "No Override", "Sleeping", "Kinematic", "Static" };
-					HoverText = FText::FromString(HoverNames[InitialDynamicState]);
+					HoverString = FString::Printf(TEXT("%d: %s"), BoneIndex, *HoverNames[InitialDynamicState]);
 
 					InspectedValue = static_cast<float>(InitialDynamicState);
 				}
@@ -116,7 +116,7 @@ FGeometryCollectionHistogramItemPtr FGeometryCollectionHistogramItemComponent::G
 	return FGeometryCollectionHistogramItemPtr();
 }
 
-FGeometryCollectionHistogramItemList FGeometryCollectionHistogramItemComponent::RegenerateNodes()
+FGeometryCollectionHistogramItemList FGeometryCollectionHistogramItemComponent::RegenerateNodes(int32 LevelView)
 {
 	// Collect the inspected attribute 
 	FGeometryCollectionHistogramItemList NodesList;
@@ -139,8 +139,21 @@ FGeometryCollectionHistogramItemList FGeometryCollectionHistogramItemComponent::
 			// Add a sub item to the histogram for each of the geometry nodes in this GeometryCollection
 			for (int32 Index = 0; Index < NumElements; Index++)
 			{
-				if (Collection->Children[Index].Num() == 0)
+				if (Collection->SimulationType[Index] == FGeometryCollection::ESimulationTypes::FST_Rigid)
 				{
+					if (LevelView > -1)
+					{
+						// Don't display nodes that aren't visible at the currently inspected level.
+						if (Collection->HasAttribute("Level", FGeometryCollection::TransformGroup))
+						{
+							const TManagedArray<int32>& Levels = Collection->GetAttribute<int32>("Level", FGeometryCollection::TransformGroup);
+							if (Levels[Index] != LevelView)
+							{
+								continue;
+							}
+						}
+					}
+
 					TSharedRef<FGeometryCollectionHistogramItem> NewItem = MakeShared<FGeometryCollectionHistogramItem>(Guids[Index], Index, AsShared());
 
 					FLinearColor GeoColor = BoneColor[Index];
@@ -172,7 +185,7 @@ void SGeometryCollectionHistogram::Construct(const FArguments& InArgs)
 	];
 }
 
-void SGeometryCollectionHistogram::SetComponents(const TArray<UGeometryCollectionComponent*>& InNewComponents)
+void SGeometryCollectionHistogram::SetComponents(const TArray<UGeometryCollectionComponent*>& InNewComponents, int32 LevelView)
 {
 	// Clear the cached Tree ItemSelection without affecting the SelectedBones as 
 	// we want to refresh the tree selection using selected bones
@@ -187,7 +200,7 @@ void SGeometryCollectionHistogram::SetComponents(const TArray<UGeometryCollectio
 		for (UGeometryCollectionComponent* Component : InNewComponents)
 		{
 			RootNodes.Add(MakeShared<FGeometryCollectionHistogramItemComponent>(Component));
-			LeafNodes.Append(RootNodes.Last()->RegenerateNodes());
+			LeafNodes.Append(RootNodes.Last()->RegenerateNodes(LevelView));
 		}
 
 		SetListIndices();
@@ -240,11 +253,11 @@ void SGeometryCollectionHistogram::RefreshView(bool bSorted)
 	ListView->RebuildList();
 }
 
-void SGeometryCollectionHistogram::RegenerateNodes()
+void SGeometryCollectionHistogram::RegenerateNodes(int32 LevelView)
 {
 	for (TSharedPtr<FGeometryCollectionHistogramItemComponent> Root : RootNodes)
 	{
-		Root->RegenerateNodes();
+		Root->RegenerateNodes(LevelView);
 	}
 
 	UHistogramSettings* HistogramSettings = GetMutableDefault<UHistogramSettings>();
@@ -297,22 +310,25 @@ void SGeometryCollectionHistogram::OnSelectionChanged(FGeometryCollectionHistogr
 
 void SGeometryCollectionHistogram::NormalizeInspectedValues()
 {
-	// Sort nodes by value
-	LeafNodes.Sort([](const TSharedPtr<FGeometryCollectionHistogramItem> A, const TSharedPtr<FGeometryCollectionHistogramItem> B)
-		{
-			return A->GetInspectedValue() > B->GetInspectedValue();
-		});
-
-	// Normalize
-	float MaxInspectedValue = LeafNodes[0]->GetInspectedValue();
-	float MinInspectedValue = LeafNodes.Last()->GetInspectedValue();
-
-	// We allow a little extra room at the bottom so that bars don't drop to zero length
-	MinInspectedValue -= (MaxInspectedValue - MinInspectedValue) * 0.025;
-
-	for (TSharedPtr<FGeometryCollectionHistogramItem> LeafNode : LeafNodes)
+	if (LeafNodes.Num())
 	{
-		LeafNode->SetNormalizedValue(MinInspectedValue, MaxInspectedValue);
+		// Sort nodes by value
+		LeafNodes.Sort([](const TSharedPtr<FGeometryCollectionHistogramItem> A, const TSharedPtr<FGeometryCollectionHistogramItem> B)
+			{
+				return A->GetInspectedValue() > B->GetInspectedValue();
+			});
+
+		// Normalize
+		float MaxInspectedValue = LeafNodes[0]->GetInspectedValue();
+		float MinInspectedValue = LeafNodes.Last()->GetInspectedValue();
+
+		// We allow a little extra room at the bottom so that bars don't drop to zero length
+		MinInspectedValue -= (MaxInspectedValue - MinInspectedValue) * 0.025;
+
+		for (TSharedPtr<FGeometryCollectionHistogramItem> LeafNode : LeafNodes)
+		{
+			LeafNode->SetNormalizedValue(MinInspectedValue, MaxInspectedValue);
+		}
 	}
 }
 

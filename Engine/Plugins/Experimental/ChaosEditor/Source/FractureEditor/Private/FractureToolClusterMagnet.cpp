@@ -74,8 +74,6 @@ void UFractureToolClusterMagnet::Execute(TWeakPtr<FFractureEditorModeToolkit> In
 	{
 		FFractureEditorModeToolkit* Toolkit = InToolkit.Pin().Get();
 
-		int32 CurrentLevelView = Toolkit->GetLevelViewValue();
-
 		TArray<FFractureToolContext> Contexts = GetFractureToolContexts();
 
 		for (FFractureToolContext& Context : Contexts)
@@ -94,9 +92,6 @@ void UFractureToolClusterMagnet::Execute(TWeakPtr<FFractureEditorModeToolkit> In
 
 			for (TPair<int32, TArray<int32>>& Group : ClusteredSelection)
 			{
-				const TArray<int32>& CurrentSelection = Group.Value;
-				CurrentLevelView = Levels[Group.Key] + 1;
-
 				// We have the connections for the leaf nodes of our geometry collection. We want to percolate those up to the top nodes.
 				TMap<int32, TSet<int32>> TopNodeConnectivity = InitializeConnectivity(Children[Group.Key], Context.GetGeometryCollection(), Levels[Group.Key]+1);
 
@@ -136,12 +131,6 @@ void UFractureToolClusterMagnet::Execute(TWeakPtr<FFractureEditorModeToolkit> In
 			}
 
 			Refresh(Context, Toolkit);
-		}
-
-		// Set the current viewing level to our best guess
-		if (CurrentLevelView != Toolkit->GetLevelViewValue())
-		{
-			Toolkit->OnSetLevelViewValue(CurrentLevelView);
 		}
 
 		SetOutlinerComponents(Contexts, Toolkit);

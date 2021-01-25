@@ -936,7 +936,7 @@ void FFractureEditorModeToolkit::SetOutlinerComponents(const TArray<UGeometryCol
 
 	if (HistogramView)
 	{
-		HistogramView->SetComponents(InNewComponents);
+		HistogramView->SetComponents(InNewComponents, GetLevelViewValue());
 	}
 
 	if (ActiveTool != nullptr)
@@ -1112,6 +1112,7 @@ void FFractureEditorModeToolkit::UpdateGeometryComponentAttributes(UGeometryColl
 void FFractureEditorModeToolkit::UpdateVolumes(FGeometryCollectionPtr GeometryCollection, const Chaos::TParticles<float, 3>& MassSpaceParticles, int32 TransformIndex)
 {
 	const TManagedArray<TSet<int32>>& Children = GeometryCollection->Children;
+	const TManagedArray<int32>& SimulationType = GeometryCollection->SimulationType;
 	const TManagedArray<bool>& Visible = GeometryCollection->Visible;
 	const TManagedArray<int32>& FaceCount = GeometryCollection->FaceCount;
 	const TManagedArray<int32>& FaceStart = GeometryCollection->FaceStart;
@@ -1119,7 +1120,7 @@ void FFractureEditorModeToolkit::UpdateVolumes(FGeometryCollectionPtr GeometryCo
 	const TManagedArray<FIntVector>& Indices = GeometryCollection->Indices;
 	TManagedArray<float>& Volumes = GeometryCollection->GetAttribute<float>("Volume", FTransformCollection::TransformGroup);
 
-	if (Children[TransformIndex].Num() == 0) // leaf node
+	if (SimulationType[TransformIndex] == FGeometryCollection::ESimulationTypes::FST_Rigid)
 	{
 		int32 GeometryIndex = TransformToGeometryIndex[TransformIndex];
 
@@ -1141,7 +1142,7 @@ void FFractureEditorModeToolkit::UpdateVolumes(FGeometryCollectionPtr GeometryCo
 			Volumes[TransformIndex] = Volume;
 		}	
 	}
-	else
+	else if (SimulationType[TransformIndex] == FGeometryCollection::ESimulationTypes::FST_Clustered)
 	{
 		// Recurse to children and sum the volumes for this node
 		float LocalVolume = 0.0;
@@ -1152,6 +1153,11 @@ void FFractureEditorModeToolkit::UpdateVolumes(FGeometryCollectionPtr GeometryCo
 		}
 
 		Volumes[TransformIndex] = LocalVolume;
+	}
+	else
+	{
+		// Node is embedded geometry, for which we do not require volume calculations.
+		Volumes[TransformIndex] = 0.0;
 	}
 }
 
@@ -1297,9 +1303,14 @@ void FFractureEditorModeToolkit::UpdateExplodedVectors(UGeometryCollectionCompon
 	}
 }
 
+void FFractureEditorModeToolkit::RegenerateOutliner()
+{
+	OutlinerView->UpdateGeometryCollection();
+}
+
 void FFractureEditorModeToolkit::RegenerateHistogram()
 {
-	HistogramView->RegenerateNodes();
+	HistogramView->RegenerateNodes(GetLevelViewValue());
 }
 
 void FFractureEditorModeToolkit::OnOutlinerBoneSelectionChanged(UGeometryCollectionComponent* RootComponent, TArray<int32>& SelectedBones)
@@ -1365,6 +1376,7 @@ FText FFractureEditorModeToolkit::GetStatisticsSummary() const
 		TArray<int32> LevelTransformsAll;
 		LevelTransformsAll.SetNumZeroed(10);
 		int32 LevelMax = INT_MIN;
+		int32 EmbeddedCount = 0;
 
 		for (int32 Idx = 0; Idx < GeometryCollectionArray.Num(); ++Idx)
 		{
@@ -1378,17 +1390,25 @@ FText FFractureEditorModeToolkit::GetStatisticsSummary() const
 			if(GeometryCollection->HasAttribute("Level", FGeometryCollection::TransformGroup))
 			{
 				const TManagedArray<int32>& Levels = GeometryCollection->GetAttribute<int32>("Level", FGeometryCollection::TransformGroup);
+				const TManagedArray<int32>& SimulationType = GeometryCollection->SimulationType;
 
 				TArray<int32> LevelTransforms;
 				for(int32 Element = 0, NumElement = Levels.Num(); Element < NumElement; ++Element)
 				{
-					const int32 NodeLevel = Levels[Element];
-					while(LevelTransforms.Num() <= NodeLevel)
+					if (SimulationType[Element] == FGeometryCollection::ESimulationTypes::FST_None)
 					{
-						LevelTransforms.SetNum(NodeLevel + 1);
-						LevelTransforms[NodeLevel] = 0;
+						++EmbeddedCount;
 					}
-					++LevelTransforms[NodeLevel];
+					else
+					{
+						const int32 NodeLevel = Levels[Element];
+						while (LevelTransforms.Num() <= NodeLevel)
+						{
+							LevelTransforms.SetNum(NodeLevel + 1);
+							LevelTransforms[NodeLevel] = 0;
+						}
+						++LevelTransforms[NodeLevel];
+					}		
 				}
 
 				for(int32 Level = 0; Level < LevelTransforms.Num(); ++Level)
@@ -1407,6 +1427,7 @@ FText FFractureEditorModeToolkit::GetStatisticsSummary() const
 		{
 			Buffer += FString::Printf(TEXT("Level: %d \t - \t %d\n"), Level, LevelTransformsAll[Level]);
 		}
+		Buffer += FString::Printf(TEXT("\nEmbedded: %d"), EmbeddedCount);
 	}
 
 	return FText::FromString(Buffer);

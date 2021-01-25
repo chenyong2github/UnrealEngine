@@ -63,7 +63,7 @@ public:
 
 	FGeometryCollectionHistogramItemPtr GetItemFromBoneIndex(int32 BoneIndex) const;
 	
-	FGeometryCollectionHistogramItemList RegenerateNodes();
+	FGeometryCollectionHistogramItemList RegenerateNodes(int32 LevelView);
 
 private:
 	TWeakObjectPtr<UGeometryCollectionComponent> Component;
@@ -84,7 +84,6 @@ public:
 		, NodeColor(FLinearColor::Black)
 		, NormalizedValue(0.0)
 		, InspectedValue(0.0)
-		, HoverText(FText())
 	{}
 
 	TSharedRef<ITableRow> MakeHistogramRowWidget(const TSharedRef<STableViewBase>& InOwnerTable);
@@ -109,7 +108,7 @@ private:
 	FLinearColor NodeColor; 
 	float NormalizedValue;
 	float InspectedValue;
-	FText HoverText;
+	FString HoverString;
 };
 
 
@@ -129,11 +128,11 @@ public:
 	void Construct(const FArguments& InArgs);
 
 	TSharedRef<ITableRow> MakeHistogramRowWidget(FGeometryCollectionHistogramItemPtr InInfo, const TSharedRef<STableViewBase>& OwnerTable);
-	void SetComponents(const TArray<UGeometryCollectionComponent*>& InNewComponents);
+	void SetComponents(const TArray<UGeometryCollectionComponent*>& InNewComponents, int32 LevelView);
 	void SetBoneSelection(UGeometryCollectionComponent* RootComponent, const TArray<int32>& InSelection, bool bClearCurrentSelection);
 	void InspectAttribute(EInspectedAttributeEnum InspectedAttribute);
 	void RefreshView(bool bSorted);
-	void RegenerateNodes();
+	void RegenerateNodes(int32 LevelView);
 	void ClearSelection() { ListView->ClearSelection(); }
 	bool IsSelected() { return ListView->GetNumItemsSelected() > 0; }
 

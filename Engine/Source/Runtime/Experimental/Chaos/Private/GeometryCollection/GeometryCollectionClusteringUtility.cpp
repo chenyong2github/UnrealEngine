@@ -754,8 +754,9 @@ void FGeometryCollectionClusteringUtility::GetLeafBones(FGeometryCollection* Geo
 	}
 
 	const TManagedArray<TSet<int32>>& Children = GeometryCollection->Children;
+	const TManagedArray<int32>& SimulationType = GeometryCollection->SimulationType;
 
-	if (Children[BoneIndex].Num() > 0)
+	if (SimulationType[BoneIndex] == FGeometryCollection::ESimulationTypes::FST_Clustered && Children[BoneIndex].Num() > 0)
 	{
 		for (int32 ChildElement : Children[BoneIndex])
 		{
@@ -764,7 +765,10 @@ void FGeometryCollectionClusteringUtility::GetLeafBones(FGeometryCollection* Geo
 	}
 	else
 	{
-		LeafBonesOut.Push(BoneIndex);
+		if (SimulationType[BoneIndex] == FGeometryCollection::ESimulationTypes::FST_Rigid)
+		{
+			LeafBonesOut.Push(BoneIndex);
+		}	
 	}
 
 }
