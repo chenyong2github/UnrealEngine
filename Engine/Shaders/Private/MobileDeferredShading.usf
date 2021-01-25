@@ -64,6 +64,12 @@ void FetchGBuffer(in float2 UV, out float4 GBufferA, out float4 GBufferB, out fl
 	GBufferC = SubpassFetchRGBA_3(); 
 	GBufferD = 0; 
 	SceneDepth = ConvertFromDeviceZ(SubpassFetchR_4());
+#elif USE_GLES_FBF_DEFERRED
+	GBufferA = GLFramebufferFetch1(); 
+	GBufferB = GLFramebufferFetch2(); 
+	GBufferC = GLFramebufferFetch3();  
+	GBufferD = 0;   
+	SceneDepth = ConvertFromDeviceZ(GLFramebufferFetchDepth());
 #else
 	GBufferA = Texture2DSampleLevel(MobileSceneTextures.GBufferATexture, MobileSceneTextures.GBufferATextureSampler, UV, 0); 
 	GBufferB = Texture2DSampleLevel(MobileSceneTextures.GBufferBTexture, MobileSceneTextures.GBufferBTextureSampler, UV, 0);

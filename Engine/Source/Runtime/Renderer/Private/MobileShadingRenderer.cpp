@@ -392,7 +392,8 @@ void FMobileSceneRenderer::InitViews(FRDGBuilder& GraphBuilder, FSceneTexturesCo
 		bRequiresPixelProjectedPlanarRelfectionPass ||
 		bSeparateTranslucencyActive ||
 		Views[0].bIsReflectionCapture ||
-		(bDeferredShading && bPostProcessUsesSceneDepth);
+		(bDeferredShading && bPostProcessUsesSceneDepth) ||
+		IsAndroidOpenGLESPlatform(ShaderPlatform);
 	// never keep MSAA depth
 	bKeepDepthContent = (NumMSAASamples > 1 ? false : bKeepDepthContent);
 
@@ -1008,19 +1009,116 @@ void FMobileSceneRenderer::RenderForward(FRDGBuilder& GraphBuilder, const TArray
 	QueueSceneTextureExtractions(GraphBuilder, SceneTextures);
 }
 
+class FMobileDeferredCopyPLSPS : public FGlobalShader
+{
+	DECLARE_SHADER_TYPE(FMobileDeferredCopyPLSPS, Global);
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+	}
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return IsMobilePlatform(Parameters.Platform) && IsMobileDeferredShadingEnabled(Parameters.Platform);
+	}
+
+	/** Default constructor. */
+	FMobileDeferredCopyPLSPS() {}
+
+	/** Initialization constructor. */
+	FMobileDeferredCopyPLSPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
+		: FGlobalShader(Initializer)
+	{
+	}
+};
+
+IMPLEMENT_SHADER_TYPE(, FMobileDeferredCopyPLSPS, TEXT("/Engine/Private/MobileDeferredUtils.usf"), TEXT("MobileDeferredCopyPLSPS"), SF_Pixel);
+
+class FMobileDeferredCopyDepthPS : public FGlobalShader
+{
+	DECLARE_SHADER_TYPE(FMobileDeferredCopyDepthPS, Global);
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+	}
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return IsMobilePlatform(Parameters.Platform) && IsMobileDeferredShadingEnabled(Parameters.Platform);
+	}
+
+	/** Default constructor. */
+	FMobileDeferredCopyDepthPS() {}
+
+	/** Initialization constructor. */
+	FMobileDeferredCopyDepthPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
+		: FGlobalShader(Initializer)
+	{
+	}
+};
+
+IMPLEMENT_SHADER_TYPE(, FMobileDeferredCopyDepthPS, TEXT("/Engine/Private/MobileDeferredUtils.usf"), TEXT("MobileDeferredCopyDepthPS"), SF_Pixel);
+
+template<class T>
+void MobileDeferredCopyBuffer(FRHICommandListImmediate& RHICmdList, const FViewInfo& View)
+{
+	FGraphicsPipelineStateInitializer GraphicsPSOInit;
+	RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
+	GraphicsPSOInit.BlendState = TStaticBlendState<>::GetRHI();
+	GraphicsPSOInit.RasterizerState = TStaticRasterizerState<>::GetRHI();
+	// Shade only MSM_DefaultLit pixels
+	uint8 StencilRef = GET_STENCIL_MOBILE_SM_MASK(MSM_DefaultLit);
+	GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI(); // 4 bits for shading models
+
+	TShaderMapRef<FPostProcessVS> VertexShader(View.ShaderMap);
+	TShaderMapRef<T> PixelShader(View.ShaderMap);
+
+	GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
+	GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+	GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
+	GraphicsPSOInit.PrimitiveType = PT_TriangleList;
+	SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
+	RHICmdList.SetStencilRef(StencilRef);
+
+	DrawRectangle(
+		RHICmdList,
+		0, 0,
+		View.ViewRect.Width(), View.ViewRect.Height(),
+		View.ViewRect.Min.X, View.ViewRect.Min.Y,
+		View.ViewRect.Width(), View.ViewRect.Height(),
+		FIntPoint(View.ViewRect.Width(), View.ViewRect.Height()),
+		FSceneTexturesConfig::Get().Extent,
+		VertexShader);
+}
+
 void FMobileSceneRenderer::RenderDeferred(FRDGBuilder& GraphBuilder, const TArrayView<const FViewInfo> ViewList, const FSortedLightSetSceneInfo& SortedLightSet, FRDGTextureRef ViewFamilyTexture, const FSceneTextures& SceneTextures)
 {
-	FRDGTextureRef ColorTargets[5] = {
-		SceneTextures.Color.Target,
-		SceneTextures.GBufferA,
-		SceneTextures.GBufferB,
-		SceneTextures.GBufferC,
-		SceneTextures.DepthAux
-	};
+	TArray<FRDGTextureRef, TInlineAllocator<5>> ColorTargets;
 
-	TArrayView<FRDGTextureRef> BasePassTexturesView = MakeArrayView(ColorTargets, MobileRequiresSceneDepthAux(ShaderPlatform) ? 5 : 4);
+	// If we are using GL and don't have FBF support, use PLS
+	bool bUsingPixelLocalStorage = IsAndroidOpenGLESPlatform(ShaderPlatform) && GSupportsPixelLocalStorage && !GSupportsShaderMRTFramebufferFetch;
 
-	FRenderTargetBindingSlots BasePassRenderTargets = GetRenderTargetBindings(ERenderTargetLoadAction::EClear, BasePassTexturesView);
+	if (bUsingPixelLocalStorage)
+	{
+		ColorTargets.Add(SceneTextures.Color.Target);
+	}
+	else
+	{
+		ColorTargets.Add(SceneTextures.Color.Target);
+		ColorTargets.Add(SceneTextures.GBufferA);
+		ColorTargets.Add(SceneTextures.GBufferB);
+		ColorTargets.Add(SceneTextures.GBufferC);
+		if(MobileRequiresSceneDepthAux(ShaderPlatform))
+		{
+			ColorTargets.Add(SceneTextures.DepthAux);
+		}
+	}
+
+	TArrayView<FRDGTextureRef> BasePassTexturesView = MakeArrayView(ColorTargets);
+
+	FRenderTargetBindingSlots BasePassRenderTargets = GetRenderTargetBindings(ERenderTargetLoadAction::ENoAction, BasePassTexturesView);
 	BasePassRenderTargets.DepthStencil = FDepthStencilBinding(SceneTextures.Depth.Target, ERenderTargetLoadAction::EClear, FExclusiveDepthStencil::DepthWrite_StencilWrite);
 	BasePassRenderTargets.SubpassHint = ESubpassHint::DeferredShadingSubpass;
 	BasePassRenderTargets.NumOcclusionQueries = ComputeNumOcclusionQueriesToBatch();
@@ -1086,6 +1184,27 @@ void FMobileSceneRenderer::RenderDeferred(FRDGBuilder& GraphBuilder, const TArra
 			// SceneColor write, SceneDepth is read only
 			RHICmdList.NextSubpass();
 		});
+
+		if (bUsingPixelLocalStorage)
+		{
+			{
+				auto* PassParameters = GraphBuilder.AllocParameters<FRenderTargetParameters>();
+				PassParameters->RenderTargets = BasePassRenderTargets;
+
+				AddPass(GraphBuilder, [this](FRHICommandListImmediate& RHICmdList)
+				{
+					MobileDeferredCopyBuffer<FMobileDeferredCopyPLSPS>(RHICmdList, Views[0]);
+				});
+			}
+
+			{
+				AddPass(GraphBuilder, [](FRHICommandListImmediate& RHICmdList)
+				{
+					// SceneColor write, SceneDepth is read only
+					RHICmdList.NextSubpass();
+				});
+			}
+		}
 		
 		MobileDeferredShadingPass(GraphBuilder, BasePassRenderTargets, SceneTextures.MobileUniformBuffer, *Scene, ViewList, SortedLightSet);
 		// Draw translucency.
@@ -1096,6 +1215,31 @@ void FMobileSceneRenderer::RenderDeferred(FRDGBuilder& GraphBuilder, const TArra
 			RenderTranslucency(GraphBuilder, BasePassRenderTargets, ViewList, SceneTextures.ScreenSpaceAO);
 			AddPass(GraphBuilder, PollOcclusionQueriesAndDispatchToRHIThreadPass);
 		}
+
+		/*if (IsAndroidOpenGLESPlatform(ShaderPlatform))
+		{
+			FRDGTextureRef DepthCopyTargets[] = 
+			{
+				SceneTextures.Depth.Target,
+			};
+			
+			TArrayView<FRDGTextureRef> DepthCopyTargetsView = MakeArrayView(DepthCopyTargets);
+
+			FRenderTargetBindingSlots DepthCopyRenderTargets = GetRenderTargetBindings(ERenderTargetLoadAction::EClear, DepthCopyTargetsView);
+			DepthCopyRenderTargets.DepthStencil = FDepthStencilBinding(SceneTextures.Depth.Target, ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthRead_StencilRead);
+			DepthCopyRenderTargets.NumOcclusionQueries = 0;
+			DepthCopyRenderTargets.FoveationTexture = nullptr;
+			DepthCopyRenderTargets.MultiViewCount = 0;
+
+			auto* PassParameters = GraphBuilder.AllocParameters<FRenderTargetParameters>();
+			PassParameters->RenderTargets = DepthCopyRenderTargets;
+
+			GraphBuilder.AddPass(RDG_EVENT_NAME("FBFDepthCopy"), PassParameters, ERDGPassFlags::Raster,
+				[this](FRHICommandListImmediate& RHICmdList)
+			{
+				MobileDeferredCopyBuffer<FMobileDeferredCopyDepthPS>(RHICmdList, Views[0]);
+			});
+		}*/
 
 		AddPass(GraphBuilder, [](FRHICommandListImmediate& RHICmdList)
 		{
@@ -1113,7 +1257,7 @@ void FMobileSceneRenderer::RenderDeferred(FRDGBuilder& GraphBuilder, const TArra
 		
 		// SceneColor + GBuffer write, SceneDepth is read only
 		{
-			for (uint32 i = 0; i < UE_ARRAY_COUNT(ColorTargets); ++i)
+			for (int32 i = 0; i < ColorTargets.Num(); ++i)
 			{
 				BasePassRenderTargets[i].SetLoadAction(ERenderTargetLoadAction::ELoad);
 			}
@@ -1150,7 +1294,7 @@ void FMobileSceneRenderer::RenderDeferred(FRDGBuilder& GraphBuilder, const TArra
 
 		// SceneColor write, SceneDepth is read only
 		{
-			for (uint32 i = 1; i < UE_ARRAY_COUNT(ColorTargets); ++i)
+			for (int32 i = 1; i < ColorTargets.Num(); ++i)
 			{
 				BasePassRenderTargets[i] = FRenderTargetBinding();
 			}
@@ -1258,16 +1402,16 @@ bool FMobileSceneRenderer::RequiresMultiPass(FRHICommandListImmediate& RHICmdLis
 		return false;
 	}
 
-	if (IsMobileDeferredShadingEnabled(ShaderPlatform))
-	{
-		// TODO: add GL support
-		return true;
-	}
-	
 	// Some Androids support frame_buffer_fetch
 	if (IsAndroidOpenGLESPlatform(ShaderPlatform) && (GSupportsShaderFramebufferFetch || GSupportsShaderDepthStencilFetch))
 	{
 		return false;
+	}
+
+	if (IsMobileDeferredShadingEnabled(ShaderPlatform))
+	{
+		// TODO: add GL support
+		return true;
 	}
 		
 	// Always render reflection capture in single pass

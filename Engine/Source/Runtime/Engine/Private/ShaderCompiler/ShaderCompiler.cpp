@@ -4115,6 +4115,9 @@ void GlobalBeginCompileShader(
 		if (IsMobileDeferredShadingEnabled((EShaderPlatform)Target.Platform))
 		{
 			Input.Environment.SetDefine(TEXT("MOBILE_DEFERRED_SHADING"), 1);
+
+			bool bGLESDeferredShading = Target.Platform == SP_OPENGL_ES3_1_ANDROID;
+			Input.Environment.SetDefine(TEXT("USE_GLES_FBF_DEFERRED"), bGLESDeferredShading ? 1 : 0);
 		}
 	}
 

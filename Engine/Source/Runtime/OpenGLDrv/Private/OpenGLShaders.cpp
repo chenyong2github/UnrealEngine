@@ -888,11 +888,22 @@ void OPENGLDRV_API GLSLToDeviceCompatibleGLSL(FAnsiCharArray& GlslCodeOriginal, 
 
 	// The incoming glsl may have preprocessor code that is dependent on defines introduced via the engine.
 	// This is the place to insert such engine preprocessor defines, immediately after the glsl version declaration.
-	if (Capabilities.bRequiresUEShaderFramebufferFetchDef && TypeEnum == GL_FRAGMENT_SHADER)
+	if (TypeEnum == GL_FRAGMENT_SHADER)
 	{
-		// Some devices (Zenfone5) support GL_EXT_shader_framebuffer_fetch but do not define GL_EXT_shader_framebuffer_fetch in GLSL compiler
-		// We can't define anything with GL_, so we use UE_EXT_shader_framebuffer_fetch to enable frame buffer fetch
-		AppendCString(GlslCode, "#define UE_EXT_shader_framebuffer_fetch 1\n");
+		if (Capabilities.bRequiresUEShaderFramebufferFetchDef)
+		{
+			// Some devices (Zenfone5) support GL_EXT_shader_framebuffer_fetch but do not define GL_EXT_shader_framebuffer_fetch in GLSL compiler
+			// We can't define anything with GL_, so we use UE_EXT_shader_framebuffer_fetch to enable frame buffer fetch
+			AppendCString(GlslCode, "#define UE_EXT_shader_framebuffer_fetch 1\n");
+		}
+		if(FOpenGL::SupportsShaderMRTFramebufferFetch())
+		{
+			AppendCString(GlslCode, "#define UE_MRT_FRAMEBUFFER_FETCH 1\n");
+		}
+		else if (FOpenGL::SupportsPixelLocalStorage())
+		{
+			AppendCString(GlslCode, "#define UE_MRT_PLS 1\n");
+		}
 	}
 
 	if (bEmitTextureExternal)

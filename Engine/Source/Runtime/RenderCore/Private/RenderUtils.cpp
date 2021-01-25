@@ -977,11 +977,6 @@ RENDERCORE_API bool MobileSupportsGPUScene(const FStaticShaderPlatform Platform)
 
 RENDERCORE_API bool IsMobileDeferredShadingEnabled(const FStaticShaderPlatform Platform)
 {
-	if (IsOpenGLPlatform(Platform))
-	{
-		// needs MRT framebuffer fetch or PLS
-		return false;
-	}
 	static auto* MobileShadingPathCvar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Mobile.ShadingPath"));
 	return MobileShadingPathCvar->GetValueOnAnyThread() == 1;
 }

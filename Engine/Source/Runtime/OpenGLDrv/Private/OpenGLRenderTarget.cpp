@@ -1166,6 +1166,15 @@ void FOpenGLDynamicRHI::RHIBeginRenderPass(const FRHIRenderPassInfo& InInfo, con
 		BeginOcclusionQueryBatch(InInfo.NumOcclusionQueries);
 	}
 
+#if PLATFORM_ANDROID
+	if (RenderPassInfo.SubpassHint == ESubpassHint::DeferredShadingSubpass &&
+		!FOpenGL::SupportsShaderMRTFramebufferFetch() &&
+		FOpenGL::SupportsPixelLocalStorage())
+	{
+		glEnable(GL_SHADER_PIXEL_LOCAL_STORAGE_EXT);
+	}
+#endif
+
 #if PLATFORM_ANDROID && !PLATFORM_LUMIN && !PLATFORM_LUMINGL4
 	if (FAndroidOpenGL::RequiresAdrenoTilingModeHint())
 	{
@@ -1215,6 +1224,15 @@ void FOpenGLDynamicRHI::RHIEndRenderPass()
 	FRHIRenderTargetView RTV(nullptr, ERenderTargetLoadAction::ENoAction);
 	FRHIDepthRenderTargetView DepthRTV(nullptr, ERenderTargetLoadAction::ENoAction, ERenderTargetStoreAction::ENoAction);
 	SetRenderTargets(1, &RTV, &DepthRTV);
+
+#if PLATFORM_ANDROID && !PLATFORM_LUMIN && !PLATFORM_LUMINGL4
+	if (RenderPassInfo.SubpassHint == ESubpassHint::DeferredShadingSubpass &&
+		!FOpenGL::SupportsShaderMRTFramebufferFetch() &&
+		FOpenGL::SupportsPixelLocalStorage())
+	{
+		glDisable(GL_SHADER_PIXEL_LOCAL_STORAGE_EXT);
+	}
+#endif
 }
 
 void FOpenGLDynamicRHI::RHINextSubpass()

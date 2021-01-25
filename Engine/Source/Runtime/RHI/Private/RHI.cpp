@@ -781,6 +781,8 @@ TRHIGlobal<bool> GSupportsRenderTargetFormat_PF_G8(true);
 TRHIGlobal<bool> GSupportsRenderTargetFormat_PF_FloatRGBA(true);
 bool GSupportsShaderFramebufferFetch = false;
 bool GSupportsShaderDepthStencilFetch = false;
+bool GSupportsShaderMRTFramebufferFetch = false;
+bool GSupportsPixelLocalStorage = false;
 bool GSupportsTimestampRenderQueries = false;
 bool GRHISupportsGPUTimestampBubblesRemoval = false;
 bool GRHISupportsFrameCyclesBubblesRemoval = false;

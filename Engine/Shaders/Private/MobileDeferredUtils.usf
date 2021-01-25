@@ -1,0 +1,26 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+#include "Common.ush"
+
+void MobileDeferredCopyPLSPS(
+	noperspective float4 UVAndScreenPos : TEXCOORD0, 
+	float4 SvPosition : SV_POSITION, 
+	out half4 OutColor : SV_Target0)
+{
+#if USE_GLES_FBF_DEFERRED
+	OutColor = float4(GLFramebufferFetch0(), 1.0f);
+#else
+	OutColor = 1.0f;  
+#endif
+}
+
+void MobileDeferredCopyDepthPS(
+	noperspective float4 UVAndScreenPos : TEXCOORD0, 
+	float4 SvPosition : SV_POSITION, 
+	out float OutSceneDepthAux : SV_Target0)
+{
+#if USE_GLES_FBF_DEFERRED
+	OutSceneDepthAux = GLFramebufferFetchDepth();
+#else
+	OutSceneDepthAux = 1.0f;  
+#endif
+}

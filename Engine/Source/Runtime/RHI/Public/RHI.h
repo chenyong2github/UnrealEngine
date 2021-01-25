@@ -163,7 +163,7 @@ inline bool RHISupportsMSAA(const FStaticShaderPlatform Platform)
 
 inline bool RHISupportsBufferLoadTypeConversion(const FStaticShaderPlatform Platform)
 {
-	return !IsMetalPlatform(Platform);
+	return !IsMetalPlatform(Platform) && !IsOpenGLPlatform(Platform);
 }
 
 /** Whether the platform supports reading from volume textures (does not cover rendering to volume textures). */
@@ -304,6 +304,12 @@ extern RHI_API TRHIGlobal<bool> GSupportsRenderTargetFormat_PF_FloatRGBA;
 
 /** true if mobile framebuffer fetch is supported */
 extern RHI_API bool GSupportsShaderFramebufferFetch;
+
+/** true if mobile framebuffer fetch is supported from MRT's*/
+extern RHI_API bool GSupportsShaderMRTFramebufferFetch;
+
+/** true if mobile pixel local storage is supported */
+extern RHI_API bool GSupportsPixelLocalStorage;
 
 /** true if mobile depth & stencil fetch is supported */
 extern RHI_API bool GSupportsShaderDepthStencilFetch;

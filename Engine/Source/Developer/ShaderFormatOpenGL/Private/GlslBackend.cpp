@@ -333,6 +333,44 @@ static const char* GLSLIntCastTypes[5] =
 	"ivec4",
 };
 
+const char* GL_FRAMEBUFFER_FETCH[5] =
+{
+	"GLFramebufferFetch0",
+	"GLFramebufferFetch1",
+	"GLFramebufferFetch2",
+	"GLFramebufferFetch3",
+	"GLFramebufferFetchDepth"
+};
+
+const char* GL_FRAMEBUFFER_FETCH_WRITE[5] =
+{
+	"GLFramebufferFetchWrite0",
+	"GLFramebufferFetchWrite1",
+	"GLFramebufferFetchWrite2",
+	"GLFramebufferFetchWrite3",
+	"GLFramebufferFetchDepthWrite"
+};
+
+const char* GL_PLS_IMAGE_FORMAT[5] =
+{
+	"r11f_g11f_b10f",
+	"rgba8",
+	"rgba8",
+	"rgba8",
+	""
+};
+
+const char* GL_FRAMEBUFFER_FETCH_TYPE[5] =
+{
+	"vec3",
+	"vec4",
+	"vec4",
+	"vec4",
+	"float"
+};
+
+static const uint32_t FRAMEBUFFER_FETCH_DEPTH_INDEX = 4;
+
 static const char* ES31FrameBufferFetchStorageQualifier = "FRAME_BUFFERFETCH_STORAGE_QUALIFIER ";
 static_assert((sizeof(GLSLExpressionTable) / sizeof(GLSLExpressionTable[0])) == ir_opcode_count, "GLSLExpressionTableSizeMismatch");
 
@@ -559,6 +597,10 @@ class ir_gen_glsl_visitor : public ir_visitor
 
 	// depthbuffer fetch is in use
 	bool bUsesDepthbufferFetch;
+
+	// Mask for indicies using FBF
+	uint32 FramebufferFetchMask;
+	uint32 FramebufferFetchWriteMask;
 
 	// uses external texture
 	bool bUsesExternalTexture;
@@ -3151,8 +3193,23 @@ class ir_gen_glsl_visitor : public ir_visitor
 			ralloc_asprintf_append(buffer, "#extension GL_ARM_shader_framebuffer_fetch : enable\n");
 			ralloc_asprintf_append(buffer, "#endif\n");
 		}
+		else if(FramebufferFetchMask || FramebufferFetchWriteMask)
+		{
+			ralloc_asprintf_append(buffer, "#ifdef UE_MRT_FRAMEBUFFER_FETCH\n");
+			ralloc_asprintf_append(buffer, "#extension GL_EXT_shader_framebuffer_fetch : enable\n");
+			ralloc_asprintf_append(buffer, "#endif\n");
 
-		if (bUsesDepthbufferFetchES2)
+			ralloc_asprintf_append(buffer, "#ifdef UE_MRT_PLS\n");
+			ralloc_asprintf_append(buffer, "#extension GL_EXT_shader_pixel_local_storage : enable\n");
+			ralloc_asprintf_append(buffer, "#endif\n");	
+		}
+
+		// Cube map arrays are required for deferred rendering on mobile
+		ralloc_asprintf_append(buffer, "\n#if (defined(UE_MRT_PLS) || defined(UE_MRT_FRAMEBUFFER_FETCH)) && defined(GL_EXT_texture_cube_map_array)\n");
+		ralloc_asprintf_append(buffer, "#extension GL_EXT_texture_cube_map_array : enable\n");
+		ralloc_asprintf_append(buffer, "\n#endif\n");
+
+		if (bUsesDepthbufferFetchES2 || FramebufferFetchMask || FramebufferFetchWriteMask)
 		{
 			ralloc_asprintf_append(buffer, "#extension GL_ARM_shader_framebuffer_fetch_depth_stencil : enable\n");
 		}
@@ -3214,7 +3271,9 @@ class ir_gen_glsl_visitor : public ir_visitor
 public:
 
 	/** Constructor. */
-	ir_gen_glsl_visitor(bool bInIsES, bool bInEmitPrecision, bool bInIsWebGL, EHlslCompileTarget InCompileTarget, _mesa_glsl_parser_targets InShaderTarget, bool bInGenerateLayoutLocations, bool bInDefaultPrecisionIsHalf, bool bInNoGlobalUniforms, bool bInUsesFrameBufferFetch, bool bInUsesDepthbufferFetch, bool bInUsesExternalTexture)
+	ir_gen_glsl_visitor(bool bInIsES, bool bInEmitPrecision, bool bInIsWebGL, EHlslCompileTarget InCompileTarget, _mesa_glsl_parser_targets InShaderTarget,
+						bool bInGenerateLayoutLocations, bool bInDefaultPrecisionIsHalf, bool bInNoGlobalUniforms, bool bInUsesFrameBufferFetch, bool bInUsesDepthbufferFetch,
+						uint32_t InFramebufferFetchMask, uint32_t InFramebufferFetchWriteMask, bool bInUsesExternalTexture)
 		: early_depth_stencil(false)
 		, bIsES(bInIsES)
 		, bEmitPrecision(bInEmitPrecision)
@@ -3225,6 +3284,8 @@ public:
 		, bDefaultPrecisionIsHalf(bInDefaultPrecisionIsHalf)
 		, bUsesFrameBufferFetch(bInUsesFrameBufferFetch)
 		, bUsesDepthbufferFetch(bInUsesDepthbufferFetch)
+		, FramebufferFetchMask(InFramebufferFetchMask)
+		, FramebufferFetchWriteMask(InFramebufferFetchWriteMask)
 		, bUsesExternalTexture(bInUsesExternalTexture)
 		, buffer(0)
 		, indentation(0)
@@ -3371,8 +3432,6 @@ bool compiler_internal_AdjustIsFrontFacing(bool isFrontFacing)
 				ralloc_asprintf_append(buffer, "	#endif\n");
 				ralloc_asprintf_append(buffer, "#endif\n\n");
 			}
-
-
 		}
 
 		if (bUsesDepthbufferFetch)
@@ -3383,6 +3442,98 @@ bool compiler_internal_AdjustIsFrontFacing(bool isFrontFacing)
 			ralloc_asprintf_append(buffer, "float DepthbufferFetchES2() { return 0.0; }\n");
 			ralloc_asprintf_append(buffer, "#endif\n\n");
 		}
+
+		if (FramebufferFetchMask || FramebufferFetchWriteMask)
+		{
+			// Framebuffer Depth Fetch
+			ralloc_asprintf_append(buffer, "highp %s %s()\n"
+				"{\n"
+				"\treturn gl_LastFragDepthARM;\n"
+				"}\n", GL_FRAMEBUFFER_FETCH_TYPE[FRAMEBUFFER_FETCH_DEPTH_INDEX], GL_FRAMEBUFFER_FETCH[FRAMEBUFFER_FETCH_DEPTH_INDEX]);
+
+			ralloc_asprintf_append(buffer, "void %s(%s input_vec)\n"
+				"{\n"
+				"\tgl_FragDepth = input_vec;"
+				"}\n", GL_FRAMEBUFFER_FETCH_WRITE[FRAMEBUFFER_FETCH_DEPTH_INDEX], GL_FRAMEBUFFER_FETCH_TYPE[FRAMEBUFFER_FETCH_DEPTH_INDEX]);
+
+			// Framebuffer Fetch
+			ralloc_asprintf_append(buffer, "#ifdef UE_MRT_FRAMEBUFFER_FETCH\n");
+
+			for (int32_t i = 0; i < UE_ARRAY_COUNT(GL_FRAMEBUFFER_FETCH); ++i)
+			{
+				if (FramebufferFetchMask & (1 << i) || FramebufferFetchWriteMask & (1 << i))
+				{
+					if (i == FRAMEBUFFER_FETCH_DEPTH_INDEX)
+					{
+						continue;
+					}
+					
+					ralloc_asprintf_append(buffer, "layout(location = %d) inout %s out_Target%d;\n", i, GL_FRAMEBUFFER_FETCH_TYPE[i], i);
+					ralloc_asprintf_append(buffer, "highp %s %s()\n"
+						"{\n"
+						"\treturn out_Target%d;\n"
+						"}\n", GL_FRAMEBUFFER_FETCH_TYPE[i], GL_FRAMEBUFFER_FETCH[i], i);
+
+					ralloc_asprintf_append(buffer, "void %s(%s input_vec)\n"
+						"{\n"
+						"\tout_Target%d = input_vec;\n"
+						"}\n", GL_FRAMEBUFFER_FETCH_WRITE[i], GL_FRAMEBUFFER_FETCH_TYPE[i], i);
+				}
+			}
+
+			ralloc_asprintf_append(buffer, "#endif\n");
+			// End Framebuffer Fetch
+
+			// Pixel Local Storage
+			ralloc_asprintf_append(buffer, "#ifdef UE_MRT_PLS\n");
+		
+			if (FramebufferFetchMask && FramebufferFetchWriteMask)
+			{
+				ralloc_asprintf_append(buffer, "__pixel_localEXT PLSGBufferData\n{ \n");
+			}
+			else if (FramebufferFetchMask)
+			{
+				ralloc_asprintf_append(buffer, "__pixel_local_inEXT PLSGBufferData\n{ \n");
+			}
+			else
+			{
+				ralloc_asprintf_append(buffer, "__pixel_local_outEXT PLSGBufferData\n{ \n");
+			}
+
+			for (int32_t i = 0; i < FRAMEBUFFER_FETCH_DEPTH_INDEX; ++i)
+			{
+				ralloc_asprintf_append(buffer, "layout(%s) highp %s out_Target%d;\n", GL_PLS_IMAGE_FORMAT[i], GL_FRAMEBUFFER_FETCH_TYPE[i], i);
+			}
+
+			ralloc_asprintf_append(buffer, "} PLSGBuffer;\n\n");
+
+			for (int32_t i = 0; i < UE_ARRAY_COUNT(GL_FRAMEBUFFER_FETCH); ++i)
+			{
+				if (i == FRAMEBUFFER_FETCH_DEPTH_INDEX)
+				{
+					continue;
+				}
+
+				if (FramebufferFetchMask)
+				{
+					ralloc_asprintf_append(buffer, "highp %s %s()\n"
+						"{\n"
+						"\treturn PLSGBuffer.out_Target%d;\n"
+						"}\n", GL_FRAMEBUFFER_FETCH_TYPE[i], GL_FRAMEBUFFER_FETCH[i], i);
+				}
+
+				if(FramebufferFetchWriteMask)
+				{
+						ralloc_asprintf_append(buffer, "void %s(%s input_vec)\n"
+							"{\n"
+							"\tPLSGBuffer.out_Target%d = input_vec;\n"
+							"}\n", GL_FRAMEBUFFER_FETCH_WRITE[i], GL_FRAMEBUFFER_FETCH_TYPE[i], i);
+				}
+			}
+
+			ralloc_asprintf_append(buffer, "#endif\n");
+		}
+		// End Pixel Local Storage
 
 		foreach_iter(exec_list_iterator, iter, *ir)
 		{
@@ -3610,7 +3761,7 @@ void ir_gen_glsl_visitor::AddTypeToUsedStructs(const glsl_type* type)
 char* FGlslCodeBackend::GenerateCode(exec_list* ir, _mesa_glsl_parse_state* state, EHlslShaderFrequency Frequency)
 {
 	FixRedundantCasts(ir);
-//IRDump(ir);
+	//IRDump(ir);
 
 	const bool bDefaultPrecisionIsHalf = ((HlslCompileFlags & HLSLCC_UseFullPrecisionInPS) == 0 && Frequency != HSF_ComputeShader);
 	const bool bUsesExternalTexture = ((HlslCompileFlags & HLSLCC_UsesExternalTexture) == HLSLCC_UsesExternalTexture);
@@ -3628,6 +3779,18 @@ char* FGlslCodeBackend::GenerateCode(exec_list* ir, _mesa_glsl_parse_state* stat
 	const bool bEmitPrecision = WantsPrecisionModifiers();
 	const bool bUsesFrameBufferFetch = Frequency == HSF_PixelShader && UsesUEIntrinsic(ir, FRAMEBUFFER_FETCH_ES2);
 	const bool bUsesDepthBufferFetch = Frequency == HSF_PixelShader && UsesUEIntrinsic(ir, DEPTHBUFFER_FETCH_ES2);
+
+	uint32 FramebufferFetchMask = 0;
+	uint32 FramebufferFetchWriteMask = 0;
+	if (Frequency == HSF_PixelShader)
+	{
+		for (int32 i = 0; i < UE_ARRAY_COUNT(GL_FRAMEBUFFER_FETCH); ++i)
+		{
+			FramebufferFetchWriteMask |= UsesUEIntrinsic(ir, GL_FRAMEBUFFER_FETCH_WRITE[i]) ? 1 << i : 0;
+			FramebufferFetchMask |= UsesUEIntrinsic(ir, GL_FRAMEBUFFER_FETCH[i]) ? 1 << i : 0;
+		}
+	}
+
 	ir_gen_glsl_visitor visitor(state->bGenerateES,
 								bEmitPrecision,
 								false,
@@ -3638,7 +3801,10 @@ char* FGlslCodeBackend::GenerateCode(exec_list* ir, _mesa_glsl_parse_state* stat
 								!AllowsGlobalUniforms(),
 								bUsesFrameBufferFetch,
 								bUsesDepthBufferFetch,
+								FramebufferFetchMask,
+								FramebufferFetchWriteMask,
 								bUsesExternalTexture);
+
 	const char* code = visitor.run(ir, state, bGroupFlattenedUBs);
 	return _strdup(code);
 }
@@ -5770,7 +5936,6 @@ void FGlslLanguageSpec::SetupLanguageIntrinsics(_mesa_glsl_parse_state* State, e
 		sig->is_builtin = true;
 		sig->is_defined = false;
 		sig->has_output_parameters = false;
-
 		func->add_signature(sig);
 		State->symbols->add_global_function(func);
 	}
@@ -5846,6 +6011,68 @@ void FGlslLanguageSpec::SetupLanguageIntrinsics(_mesa_glsl_parse_state* State, e
 
 			State->symbols->add_global_function(func);
 			ir->push_tail(func);
+		}
+
+		auto AddIntrisicReturningFloat = [](_mesa_glsl_parse_state* State, exec_list* ir, const char* Name, int32 NumColumns)
+		{
+			ir_function* Func = new(State) ir_function(Name);
+			auto* ReturnType = glsl_type::get_instance(GLSL_TYPE_FLOAT, NumColumns, 1);
+			ir_function_signature* Sig = new(State) ir_function_signature(ReturnType);
+			Sig->is_builtin = true;
+			Func->add_signature(Sig);
+			State->symbols->add_global_function(Func);
+			ir->push_head(Func);
+		};
+
+		for (int32 i = 0; i < UE_ARRAY_COUNT(GL_FRAMEBUFFER_FETCH); ++i)
+		{
+			if (!strcmp(GL_FRAMEBUFFER_FETCH_TYPE[i], "float"))
+			{
+				AddIntrisicReturningFloat(State, ir, GL_FRAMEBUFFER_FETCH[i], 1);
+			}
+			else if (!strcmp(GL_FRAMEBUFFER_FETCH_TYPE[i], "vec3"))
+			{
+				AddIntrisicReturningFloat(State, ir, GL_FRAMEBUFFER_FETCH[i], 3);
+			}
+			else
+			{
+				AddIntrisicReturningFloat(State, ir, GL_FRAMEBUFFER_FETCH[i], 4);
+			}
+		}
+
+		auto AddIntrisicVecParam = [](_mesa_glsl_parse_state* State, exec_list* ir, const char* Name, const glsl_type* GlslType)
+		{
+			ir_function* Func = new(State) ir_function(Name);
+
+			ir_variable* param = new (State) ir_variable(GlslType, "Src", ir_variable_mode::ir_var_in);
+			exec_list* params = new(State) exec_list();
+			params->push_tail(param);
+
+			ir_function_signature* sig = new(State)ir_function_signature(glsl_type::void_type);
+			sig->replace_parameters(params);
+			sig->is_defined = false;
+			sig->has_output_parameters = true;
+			sig->is_builtin = true;
+			
+			Func->add_signature(sig);
+			State->symbols->add_global_function(Func);
+			ir->push_head(Func);
+		};
+
+		for (int32 i = 0; i < UE_ARRAY_COUNT(GL_FRAMEBUFFER_FETCH_WRITE); ++i)
+		{
+			if (!strcmp(GL_FRAMEBUFFER_FETCH_TYPE[i], "float"))
+			{
+				AddIntrisicVecParam(State, ir, GL_FRAMEBUFFER_FETCH_WRITE[i], glsl_type::half_type);
+			}
+			else if (!strcmp(GL_FRAMEBUFFER_FETCH_TYPE[i], "vec3"))
+			{
+				AddIntrisicVecParam(State, ir, GL_FRAMEBUFFER_FETCH_WRITE[i], glsl_type::half3_type);
+			}
+			else
+			{
+				AddIntrisicVecParam(State, ir, GL_FRAMEBUFFER_FETCH_WRITE[i], glsl_type::half4_type);
+			}
 		}
 	}
 }

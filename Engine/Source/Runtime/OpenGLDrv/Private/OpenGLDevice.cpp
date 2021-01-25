@@ -849,7 +849,10 @@ static void InitRHICapabilitiesForGL()
 	GSupportsResourceView = FOpenGL::SupportsResourceView();
 
 	GSupportsShaderFramebufferFetch = FOpenGL::SupportsShaderFramebufferFetch();
+	GSupportsShaderMRTFramebufferFetch = FOpenGL::SupportsShaderMRTFramebufferFetch();
 	GSupportsShaderDepthStencilFetch = FOpenGL::SupportsShaderDepthStencilFetch();
+	GSupportsPixelLocalStorage = FOpenGL::SupportsPixelLocalStorage();
+
 	GMaxShadowDepthBufferSizeX = FMath::Min<int32>(Value_GL_MAX_RENDERBUFFER_SIZE, 4096); // Limit to the D3D11 max.
 	GMaxShadowDepthBufferSizeY = FMath::Min<int32>(Value_GL_MAX_RENDERBUFFER_SIZE, 4096);
 	GHardwareHiddenSurfaceRemoval = FOpenGL::HasHardwareHiddenSurfaceRemoval();
@@ -1087,10 +1090,10 @@ static bool VerifyCompiledShader(GLuint Shader, const ANSICHAR* GlslCode, bool I
 			for (int i = 0; i < 30 && (*Temp != '\0'); ++i)
 			{
 				FString Converted = ANSI_TO_TCHAR(Temp);
-				Converted.LeftChop(256);
+				FString TempString = Converted.LeftChop(256);
 
-				UE_LOG(LogRHI, Display, TEXT("%s"), *Converted);
-				Temp += Converted.Len();
+				UE_LOG(LogRHI, Display, TEXT("%s"), *TempString);
+				Temp += TempString.Len();
 			}
 		}
 #endif

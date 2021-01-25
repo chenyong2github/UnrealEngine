@@ -525,11 +525,15 @@ void Main(
 	, FMobileBasePassInterpolantsVSToPS BasePassInterpolants
 	, in float4 SvPosition : SV_Position
 	OPTIONAL_IsFrontFace
-	, out half4 OutColor	: SV_Target0
 #if DEFERRED_SHADING_PATH
+#if !USE_GLES_FBF_DEFERRED
+	, out half4 OutColor	: SV_Target0
 	, out half4 OutGBufferA	: SV_Target1
 	, out half4 OutGBufferB	: SV_Target2
-	, out half4 OutGBufferC	: SV_Target3
+	, out half4 OutGBufferC	: SV_Target3  
+#endif
+#else
+	, out half4 OutColor	: SV_Target0
 #endif
 #if USE_SCENE_DEPTH_AUX
 	, out float OutSceneDepthAux : SV_Target4
@@ -539,6 +543,15 @@ void Main(
 #endif
 	)
 {
+
+#if DEFERRED_SHADING_PATH && USE_GLES_FBF_DEFERRED
+	half4 OutColor;	
+	half4 OutGBufferA;
+	half4 OutGBufferB;
+	half4 OutGBufferC;
+	float OutSceneDepthAux;
+#endif
+  
 #if MOBILE_MULTI_VIEW
 	ResolvedView = ResolveView(uint(BasePassInterpolants.MultiViewId));
 #else
@@ -676,6 +689,13 @@ void Main(
 	GBuffer.PrecomputedShadowFactors.r = Shadow;
 
 	EncodeGBuffer(GBuffer, OutGBufferA, OutGBufferB, OutGBufferC, OutGBufferD, OutGBufferE, OutGBufferF, OutGBufferVelocity);
+
+#if USE_GLES_FBF_DEFERRED
+	GLFramebufferFetchWrite1(OutGBufferA);  
+	GLFramebufferFetchWrite2(OutGBufferB);  
+	GLFramebufferFetchWrite3(OutGBufferC);
+	GLFramebufferFetchDepthWrite(SvPosition.z);   
+#endif
 #else
 
 #if !MATERIAL_SHADINGMODEL_UNLIT
@@ -965,5 +985,9 @@ void Main(
 		View.FrameNumber,
 		View.VTFeedbackBuffer
 	);
+#endif
+
+#if DEFERRED_SHADING_PATH && USE_GLES_FBF_DEFERRED 
+	GLFramebufferFetchWrite0(half4(OutColor.rgb, 1.0f));
 #endif
 }
