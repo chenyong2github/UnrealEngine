@@ -59,10 +59,16 @@ DECLARE_STATS_GROUP_MAYBE_COMPILED_OUT(TEXT("SlateVeryVerbose"), STATGROUP_Slate
 /** Whether or not we've enabled fast widget pathing which validates paths to widgets without arranging children. */
 extern SLATECORE_API bool GSlateFastWidgetPath;
 
+/** Whether or not the SWindow can be an Invalidation Panel (use the fast path update). Normal Invalidation Panel will be deactivated. */
 extern SLATECORE_API bool GSlateEnableGlobalInvalidation;
 
+/** Whether or not we currently Painting/Updating the widget from the FastUpdate path (global invalidation). */
 extern SLATECORE_API bool GSlateIsOnFastUpdatePath;
 
+/** Whether or not we currently processing the widget invalidation from the InvalidationRoot (global invalidation). */
+extern SLATECORE_API bool GSlateIsOnFastProcessInvalidation;
+
+/** Whether or not we are currently running building the list of widget in slow path (global invalidation). */
 extern SLATECORE_API bool GSlateIsInInvalidationSlowPath;
 
 extern SLATECORE_API int32 GSlateLayoutGeneration;

@@ -51,6 +51,7 @@ static FAutoConsoleVariableRef CVarSlateNewUpdateMethod(
 );
 
 bool GSlateIsOnFastUpdatePath = false;
+bool GSlateIsOnFastProcessInvalidation = false;
 bool GSlateIsInInvalidationSlowPath = false;
 
 #if SLATE_CHECK_UOBJECT_RENDER_RESOURCES

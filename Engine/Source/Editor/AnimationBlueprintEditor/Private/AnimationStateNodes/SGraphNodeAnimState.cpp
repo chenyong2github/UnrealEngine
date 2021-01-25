@@ -41,8 +41,6 @@ void SStateMachineOutputPin::Construct(const FArguments& InArgs, UEdGraphPin* In
 {
 	this->SetCursor( EMouseCursor::Default );
 
-	typedef SStateMachineOutputPin ThisClass;
-
 	bShowLabel = true;
 
 	GraphPinObj = InPin;
@@ -54,9 +52,9 @@ void SStateMachineOutputPin::Construct(const FArguments& InArgs, UEdGraphPin* In
 	// Set up a hover for pins that is tinted the color of the pin.
 	SBorder::Construct( SBorder::FArguments()
 		.BorderImage( this, &SStateMachineOutputPin::GetPinBorder )
-		.BorderBackgroundColor( this, &ThisClass::GetPinColor )
-		.OnMouseButtonDown( this, &ThisClass::OnPinMouseDown )
-		.Cursor( this, &ThisClass::GetPinCursor )
+		.BorderBackgroundColor( this, &SStateMachineOutputPin::GetPinColor )
+		.OnMouseButtonDown( this, &SStateMachineOutputPin::OnPinMouseDown )
+		.Cursor( this, &SStateMachineOutputPin::GetPinCursor )
 	);
 }
 

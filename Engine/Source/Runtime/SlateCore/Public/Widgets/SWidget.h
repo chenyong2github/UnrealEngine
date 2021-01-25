@@ -26,8 +26,10 @@
 #include "Textures/SlateShaderResource.h"
 #include "SlateGlobals.h"
 #include "Types/PaintArgs.h"
+#include "Types/SlateAttribute.h"
 #include "FastUpdate/WidgetProxy.h"
 #include "InvalidateWidgetReason.h"
+#include "Widgets/SlateControlledConstruction.h"
 #include "Widgets/Accessibility/SlateWidgetAccessibleTypes.h"
 
 class FActiveTimerHandle;
@@ -55,50 +57,6 @@ DECLARE_CYCLE_STAT_EXTERN(TEXT("SWidget MetaData"), STAT_SlateGetMetaData, STATG
 DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("Total Widgets"), STAT_SlateTotalWidgets, STATGROUP_SlateMemory, SLATECORE_API);
 DECLARE_MEMORY_STAT_EXTERN(TEXT("SWidget Total Allocated Size"), STAT_SlateSWidgetAllocSize, STATGROUP_SlateMemory, SLATECORE_API);
 
-
-namespace SharedPointerInternals
-{
-	template <typename ObjectType>
-	class TIntrusiveReferenceController;
-}
-
-class SLATECORE_API FSlateControlledConstruction
-{
-public:
-	FSlateControlledConstruction(){}
-	virtual ~FSlateControlledConstruction(){}
-	
-private:
-	/** UI objects cannot be copy-constructed */
-	FSlateControlledConstruction(const FSlateControlledConstruction& Other) = delete;
-	
-	/** UI objects cannot be copied. */
-	void operator= (const FSlateControlledConstruction& Other) = delete;
-
-	/** Widgets should only ever be constructed via SNew or SAssignNew */
-	void* operator new ( const size_t InSize )
-	{
-		return FMemory::Malloc(InSize);
-	}
-
-	/** Widgets should only ever be constructed via SNew or SAssignNew */
-	void* operator new ( const size_t InSize, void* Addr )
-	{
-		return Addr;
-	}
-
-	template<class WidgetType, bool bIsUserWidget>
-	friend struct TWidgetAllocator;
-
-	template <typename ObjectType>
-	friend class SharedPointerInternals::TIntrusiveReferenceController;
-
-public:
-	void operator delete(void* mem)
-	{
-		FMemory::Free(mem);
-	}
-};
 
 enum class EAccessibleType : uint8
 {
@@ -191,8 +149,10 @@ class SLATECORE_API SWidget
 	: public FSlateControlledConstruction,
 	public TSharedFromThis<SWidget>		// Enables 'this->AsShared()'
 {
-	friend struct FCurveSequence;
+	SLATE_DECLARE_WIDGET(SWidget, FSlateControlledConstruction)
+
 	friend class FWidgetProxy;
+	friend class FSlateAttributeMetaData;
 	friend class FSlateInvalidationRoot;
 	friend class FSlateInvalidationWidgetList;
 	friend class FSlateWindowElementList;
@@ -200,6 +160,44 @@ class SLATECORE_API SWidget
 	friend struct FSlateCachedElementList;
 	template<class WidgetType, typename RequiredArgsPayloadType>
 	friend struct TSlateDecl;
+
+protected:
+	template<typename InObjectType, EInvalidateWidgetReason InInvalidationReasonValue, typename InComparePredicate = TEqualTo<>>
+	struct TSlateAttribute : public ::SlateAttributePrivate::TSlateMemberAttribute<InObjectType, TSlateAttributeInvalidationReason<InInvalidationReasonValue>, InComparePredicate>
+	{
+		using ::SlateAttributePrivate::TSlateMemberAttribute<InObjectType, TSlateAttributeInvalidationReason<InInvalidationReasonValue>, InComparePredicate>::TSlateMemberAttribute;
+	};
+
+	template<EInvalidateWidgetReason InInvalidationReasonValue>
+	struct TSlateAttribute<FText, InInvalidationReasonValue> : public ::SlateAttributePrivate::TSlateMemberAttribute<FText, TSlateAttributeInvalidationReason<InInvalidationReasonValue>, TSlateAttributeFTextComparePredicate>
+	{
+		using ::SlateAttributePrivate::TSlateMemberAttribute<FText, TSlateAttributeInvalidationReason<InInvalidationReasonValue>, TSlateAttributeFTextComparePredicate>::TSlateMemberAttribute;
+	};
+
+	template<typename InObjectType, typename InInvalidationReasonPredicate, typename InComparePredicate = TEqualTo<>>
+	struct TSlateAttributeWithPredicate : public ::SlateAttributePrivate::TSlateMemberAttribute<InObjectType, InInvalidationReasonPredicate, InComparePredicate>
+	{
+		using ::SlateAttributePrivate::TSlateMemberAttribute<InObjectType, InInvalidationReasonPredicate, InComparePredicate>::TSlateMemberAttribute;
+	};
+
+	template<typename InInvalidationReasonPredicate>
+	struct TSlateAttributeWithPredicate<FText, InInvalidationReasonPredicate> : public ::SlateAttributePrivate::TSlateMemberAttribute<FText, InInvalidationReasonPredicate, TSlateAttributeFTextComparePredicate>
+	{
+		using ::SlateAttributePrivate::TSlateMemberAttribute<FText, InInvalidationReasonPredicate, TSlateAttributeFTextComparePredicate>::TSlateMemberAttribute;
+	};
+
+	template<typename InObjectType, EInvalidateWidgetReason InInvalidationReasonValue, typename InComparePredicate = TEqualTo<>>
+	struct TSlateManagedAttribute : public ::SlateAttributePrivate::TSlateManagedAttribute<InObjectType, TSlateAttributeInvalidationReason<InInvalidationReasonValue>, InComparePredicate>
+	{
+		using ::SlateAttributePrivate::TSlateManagedAttribute<InObjectType, TSlateAttributeInvalidationReason<InInvalidationReasonValue>, InComparePredicate>::TSlateManagedAttribute;
+	};
+
+	template<typename InObjectType, typename InInvalidationReasonPredicate, typename InComparePredicate = TEqualTo<>>
+	struct TSlateManagedAttributeWithPredicate : public ::SlateAttributePrivate::TSlateManagedAttribute<InObjectType, InInvalidationReasonPredicate, InComparePredicate>
+	{
+		using ::SlateAttributePrivate::TSlateManagedAttribute<InObjectType, InInvalidationReasonPredicate, InComparePredicate>::TSlateManagedAttribute;
+	};
+
 public:
 
 	/** Construct a SWidget based on initial parameters. */
@@ -645,6 +643,8 @@ public:
 
 	void SetCanTick(bool bInCanTick) { bInCanTick ? AddUpdateFlags(EWidgetUpdateFlags::NeedsTick) : RemoveUpdateFlags(EWidgetUpdateFlags::NeedsTick); }
 	bool GetCanTick() const { return HasAnyUpdateFlags(EWidgetUpdateFlags::NeedsTick); }
+
+	bool HasRegisteredSlateAttribute() const { return bHasRegisteredSlateAttribute; }
 
 	const FSlateWidgetPersistentState& GetPersistentState() const { return PersistentState; }
 	const FWidgetProxyHandle GetProxyHandle() const { return FastPathProxyHandle; }
@@ -1282,7 +1282,15 @@ public:
 	template<typename MetaDataType>
 	int32 RemoveMetaData(const TSharedRef<MetaDataType>& RemoveMe)
 	{
-		return MetaData.RemoveSingleSwap(RemoveMe);
+		int32 Index = MetaData.Find(RemoveMe);
+		if (Index == INDEX_NONE)
+		{
+			return 0;
+		}
+
+		checkf(Index != 0 || !HasRegisteredSlateAttribute(), TEXT("The first slot is reserved for SlateAttribute"));
+		MetaData.RemoveAtSwap(Index, 1);
+		return 1;
 	}
 
 private:
@@ -1298,6 +1306,7 @@ private:
 			const auto& MetaDataEntry = MetaData[Index];
 			if (MetaDataEntry->IsOfType<MetaDataType>())
 			{
+				checkf(Index != 0 || !HasRegisteredSlateAttribute(), TEXT("The first slot is reserved for SlateAttribute"));
 				MetaData.RemoveAtSwap(Index);
 			}
 		}
@@ -1312,6 +1321,7 @@ private:
 			const auto& MetaDataEntry = MetaData[Index];
 			if (MetaDataEntry->IsOfType<MetaDataType>())
 			{
+				checkf(Index != 0 || !HasRegisteredSlateAttribute(), TEXT("The first slot is reserved for SlateAttribute"));
 				MetaData.RemoveAtSwap(Index);
 				return true;
 			}
@@ -1360,6 +1370,10 @@ public:
 
 	/** @return The name this widget was tagged with */
 	virtual FName GetTag() const;
+
+#if STATS
+	size_t GetAllocSize() const { return AllocSize; }
+#endif
 
 #if UE_SLATE_WITH_WIDGET_UNIQUE_IDENTIFIER
 	/** @return The widget's id */
@@ -1628,6 +1642,9 @@ private:
 	/** Are we currently updating the desired size? */
 	mutable uint8 bUpdatingDesiredSize : 1;
 
+	/** Is there at least one SlateAttribute currently registered. */
+	uint8 bHasRegisteredSlateAttribute : 1;
+
 protected:
 	uint8 bHasCustomPrepass : 1;
 
@@ -1742,7 +1759,9 @@ private:
 	uint64 UniqueIdentifier;
 #endif
 
-	STAT(size_t AllocSize;)
+#if STATS
+	size_t AllocSize;
+#endif
 
 #if STATS || ENABLE_STATNAMEDEVENTS
 	/** Stat id of this object, 0 if nobody asked for it yet */

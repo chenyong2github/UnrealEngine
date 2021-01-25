@@ -18,6 +18,7 @@
 #include "Debugging/WidgetList.h"
 #include "Widgets/SWindow.h"
 #include "Trace/SlateTrace.h"
+#include "Types/SlateAttributeMetaData.h"
 #include "Types/SlateCursorMetaData.h"
 #include "Types/SlateMouseEventsMetaData.h"
 #include "Types/ReflectionMetadata.h"
@@ -195,6 +196,14 @@ namespace SlateTraceMetaData
 }
 #endif
 
+SLATE_IMPLEMENT_WIDGET(SWidget)
+void SWidget::PrivateRegisterAttributes(FSlateAttributeInitializer& AttributeInitializer)
+{
+	AttributeInitializer.AddMemberAttribute(GET_MEMBER_NAME_CHECKED(PrivateThisType, EnabledState), STRUCT_OFFSET(PrivateThisType, EnabledState));
+	//SLATE_ADD_ATTRIBUTE_DEFINITION(AttributeInitializer, EnabledState);
+	//SLATE_ADD_ATTRIBUTE_DEFINITION(AttributeInitializer, Visibility, EInvalidateWidgetReason::All);
+}
+
 SWidget::SWidget()
 	: bIsHovered(false)
 	, bCanSupportFocus(true)
@@ -207,6 +216,7 @@ SWidget::SWidget()
 	, bInvisibleDueToParentOrSelfVisibility(false)
 	, bNeedsPrepass(true)
 	, bUpdatingDesiredSize(false)
+	, bHasRegisteredSlateAttribute(false)
 	, bHasCustomPrepass(false)
 	, bHasRelativeLayoutScale(false)
 	, bVolatilityAlwaysInvalidatesPrepass(false)
@@ -1170,6 +1180,11 @@ void SWidget::Invalidate(EInvalidateWidgetReason InvalidateReason)
 {
 	SLATE_CROSS_THREAD_CHECK();
 
+	if (InvalidateReason == EInvalidateWidgetReason::None)
+	{
+		return;
+	}
+
 	SCOPED_NAMED_EVENT_TEXT("SWidget::Invalidate", FColor::Orange);
 	const bool bWasVolatile = IsVolatileIndirectly() || IsVolatile();
 
@@ -1250,7 +1265,9 @@ void SWidget::SetDebugInfo( const ANSICHAR* InType, const ANSICHAR* InFile, int3
 {
 	TypeOfWidget = InType;
 
-	STAT(AllocSize = InAllocSize);
+#if STATS
+	AllocSize = InAllocSize;
+#endif
 	INC_MEMORY_STAT_BY(STAT_SlateSWidgetAllocSize, AllocSize);
 
 #if !UE_BUILD_SHIPPING
@@ -1576,6 +1593,11 @@ void SWidget::Prepass_Internal(float InLayoutScaleMultiplier)
 {
 	PrepassLayoutScaleMultiplier = InLayoutScaleMultiplier;
 
+	if (HasRegisteredSlateAttribute() && !GSlateIsOnFastProcessInvalidation)
+	{
+		FSlateAttributeMetaData::UpdateAttributes(*this);
+	}
+
 	bool bShouldPrepassChildren = true;
 	if (bHasCustomPrepass)
 	{
@@ -1727,7 +1749,8 @@ void SWidget::SetOnMouseLeave(FSimpleNoReplyPointerEventHandler EventHandler)
 
 void SWidget::AddMetadataInternal(const TSharedRef<ISlateMetaData>& AddMe)
 {
-	MetaData.Add(AddMe);
+	int32 Index = MetaData.Add(AddMe);
+	checkf(Index != 0 || !HasRegisteredSlateAttribute(), TEXT("The first slot is reserved for SlateAttribute"));
 
 #if UE_WITH_SLATE_DEBUG_FIND_WIDGET_REFLECTION_METADATA || UE_SLATE_TRACE_ENABLED
 	if (AddMe->IsOfType<FReflectionMetaData>())
