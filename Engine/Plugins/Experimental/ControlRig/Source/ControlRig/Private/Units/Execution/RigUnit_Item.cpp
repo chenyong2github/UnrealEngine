@@ -42,14 +42,32 @@ FRigUnit_ItemReplace_Execute()
 
 IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_ItemReplace)
 {
-	Unit.Item.Name = FName("OldItemName");
+	Unit.Item.Name = FName(TEXT("OldItemName"));
 	Unit.Item.Type = ERigElementType::Bone;
 
-	Unit.Old = FName("Old");
-	Unit.New = FName("New");
+	Unit.Old = FName(TEXT("Old"));
+	Unit.New = FName(TEXT("New"));
 	
 	Execute();
-	AddErrorIfFalse(Unit.Result == FRigElementKey("NewItemName", ERigElementType::Bone), TEXT("unexpected result"));
+	AddErrorIfFalse(Unit.Result == FRigElementKey(TEXT("NewItemName"), ERigElementType::Bone), TEXT("unexpected result"));
+
+	Unit.Item.Name = FName(TEXT("OldItemName"));
+	Unit.Item.Type = ERigElementType::Bone;
+
+	Unit.Old = FName(TEXT("Old"));
+	Unit.New = NAME_None;
+
+	Execute();
+	AddErrorIfFalse(Unit.Result == FRigElementKey(TEXT("ItemName"), ERigElementType::Bone), TEXT("unexpected result when New is None"));
+
+	Unit.Item.Name = FName(TEXT("OldItemName"));
+	Unit.Item.Type = ERigElementType::Bone;
+
+	Unit.Old = NAME_None;
+	Unit.New = FName(TEXT("New")); 
+
+	Execute();
+	AddErrorIfFalse(Unit.Result == FRigElementKey(TEXT("OldItemName"), ERigElementType::Bone), TEXT("unexpected result when Old is None"));
 	return true;
 }
 #endif

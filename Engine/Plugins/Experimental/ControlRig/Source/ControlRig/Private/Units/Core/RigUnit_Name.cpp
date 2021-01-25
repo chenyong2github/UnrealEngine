@@ -52,9 +52,14 @@ FRigUnit_NameReplace_Execute()
 
 	Result = Name;
 
-	if (!Old.IsNone() && !New.IsNone())
+	if (!Old.IsNone())
 	{
-		Result = *Name.ToString().Replace(*Old.ToString(), *New.ToString(), ESearchCase::CaseSensitive);
+		FString NewString(TEXT(""));
+		if (!New.IsNone())
+		{
+			NewString = *New.ToString();
+		}
+		Result = *Name.ToString().Replace(*Old.ToString(), *NewString, ESearchCase::CaseSensitive);
 	}
 }
 
