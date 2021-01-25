@@ -74,7 +74,7 @@ bool SWorldPartitionEditorGrid::GetObserverView(FVector& Location, FRotator& Rot
 	return false;
 }
 
-void SWorldPartitionEditorGrid::RefreshSceneOutliner()
+void SWorldPartitionEditorGrid::Refresh()
 {
 	TWeakPtr<class ILevelEditor> LevelEditor = FModuleManager::GetModuleChecked<FLevelEditorModule>(TEXT("LevelEditor")).GetLevelEditorInstance();
 	if (LevelEditor.IsValid())
@@ -84,5 +84,11 @@ void SWorldPartitionEditorGrid::RefreshSceneOutliner()
 		{
 			SceneOutlinerPtr->FullRefresh();
 		}
+	}
+
+	WorldBounds.Init();
+	if (WorldPartition)
+	{
+		WorldBounds = WorldPartition->GetWorldBounds();
 	}
 }

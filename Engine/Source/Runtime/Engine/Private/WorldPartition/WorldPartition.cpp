@@ -703,6 +703,11 @@ void UWorldPartition::OnAssetAdded(const FAssetData& InAssetData)
 		HashActorDesc(NewActorDesc->Get());
 
 		(*NewActorDesc)->OnRegister();
+
+		if (WorldPartitionEditor)
+		{
+			WorldPartitionEditor->Refresh();
+		}
 	}
 }
 
@@ -721,6 +726,11 @@ void UWorldPartition::OnAssetRemoved(const FAssetData& InAssetData)
 
 		Actors.Remove((*ExistingActorDesc)->GetGuid());
 		ExistingActorDesc->Release();
+
+		if (WorldPartitionEditor)
+		{
+			WorldPartitionEditor->Refresh();
+		}
 	}
 }
 
@@ -745,6 +755,11 @@ void UWorldPartition::OnAssetUpdated(const FAssetData& InAssetData)
 		*ExistingActorDesc = MoveTemp(NewActorDesc);
 		
 		HashActorDesc(ExistingActorDesc->Get());
+
+		if (WorldPartitionEditor)
+		{
+			WorldPartitionEditor->Refresh();
+		}
 	}
 }
 

@@ -60,10 +60,11 @@ public:
 	bool GetPlayerView(FVector& Location, FRotator& Rotation) const;
 	bool GetObserverView(FVector& Location, FRotator& Rotation) const;
 
-	void RefreshSceneOutliner();
+	void Refresh();
 
 	UWorld* World;
 	UWorldPartition* WorldPartition;
+	FBox WorldBounds;
 
 protected:
 	static TMap<FName, PartitionEditorGridCreateInstanceFunc> PartitionEditorGridCreateInstanceFactory;

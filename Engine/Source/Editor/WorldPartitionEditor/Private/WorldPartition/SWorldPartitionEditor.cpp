@@ -42,7 +42,7 @@ SWorldPartitionEditor::~SWorldPartitionEditor()
 
 void SWorldPartitionEditor::Refresh()
 {
-	GridView->RefreshSceneOutliner();
+	GridView->Refresh();
 }
 
 void SWorldPartitionEditor::OnBrowseWorld(UWorld* InWorld)
@@ -118,6 +118,7 @@ TSharedRef<SWidget> SWorldPartitionEditor::ConstructContentWidget()
 			]
 		];
 
+	Refresh();
 	return Result;
 }
 

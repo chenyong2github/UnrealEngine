@@ -144,14 +144,14 @@ void SWorldPartitionEditorGrid2D::LoadSelectedCells()
 {
 	WorldPartition->LoadEditorCells(SelectBox);
 	GEditor->RedrawLevelEditingViewports();
-	RefreshSceneOutliner();
+	Refresh();
 }
 
 void SWorldPartitionEditorGrid2D::UnloadSelectedCells()
 {
 	WorldPartition->UnloadEditorCells(SelectBox);
 	GEditor->RedrawLevelEditingViewports();
-	RefreshSceneOutliner();
+	Refresh();
 }
 
 void SWorldPartitionEditorGrid2D::MoveCameraHere()
@@ -480,7 +480,6 @@ uint32 SWorldPartitionEditorGrid2D::PaintScaleRuler(const FGeometry& AllottedGeo
 		FLinearColor::White);
 
 	// Show world bounds
-	const FBox WorldBounds = WorldPartition->GetWorldBounds();
 	const FVector WorldBoundsExtentInKM = (WorldBounds.GetExtent() * 2.0f) / 100000.0f;
 	RulerText = FString::Printf(TEXT("%.2fx%.2fx%.2f km"), WorldBoundsExtentInKM.X, WorldBoundsExtentInKM.Y, WorldBoundsExtentInKM.Z);
 	
@@ -609,7 +608,6 @@ int32 SWorldPartitionEditorGrid2D::OnPaint(const FPaintArgs& Args, const FGeomet
 
 		if (bResetView)
 		{
-			const FBox WorldBounds = WorldPartition->GetWorldBounds();
 			FocusBox(WorldBounds);
 		}
 
