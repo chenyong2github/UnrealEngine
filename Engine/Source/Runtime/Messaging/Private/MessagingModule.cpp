@@ -131,6 +131,10 @@ public:
 	virtual void ShutdownModule() override
 	{
 		ShutdownDefaultBus();
+
+#if PLATFORM_SUPPORTS_MESSAGEBUS
+		FCoreDelegates::OnPreExit.RemoveAll(this);
+#endif	//PLATFORM_SUPPORTS_MESSAGEBUS
 	}
 
 	virtual bool SupportsDynamicReloading() override
