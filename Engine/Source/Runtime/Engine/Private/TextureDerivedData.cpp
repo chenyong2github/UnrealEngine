@@ -53,7 +53,7 @@
 
 // This GUID is mixed into DDC version for virtual textures only, this allows updating DDC version for VT without invalidating DDC for all textures
 // This is useful during development, but once large numbers of VT are present in shipped content, it will have the same problem as TEXTURE_DERIVEDDATA_VER
-#define TEXTURE_VT_DERIVEDDATA_VER	TEXT("39E589A391EF40459CA8F45359851DF3")
+#define TEXTURE_VT_DERIVEDDATA_VER	TEXT("E541C13E65B24669B01DDE3DF18C7312")
 
 #if ENABLE_COOK_STATS
 namespace TextureCookStats
@@ -649,11 +649,12 @@ uint32 PutDerivedDataInCache(FTexturePlatformData* DerivedData, const FString& D
 		const int32 ChunkCount = DerivedData->VTData->Chunks.Num();
 		for (int32 ChunkIndex = 0; ChunkIndex < ChunkCount; ++ChunkIndex)
 		{
-			const FString ChunkDerivedDataKey = FDerivedDataCacheInterface::BuildCacheKey(
-				TEXT("TEXTURE"), TEXTURE_DERIVEDDATA_VER,
-				*FString::Printf(TEXT("%s_VTCHUNK%u"), *DerivedDataKeySuffix, ChunkIndex));
-
 			FVirtualTextureDataChunk& Chunk = DerivedData->VTData->Chunks[ChunkIndex];
+
+			const FString ChunkDerivedDataKey = FDerivedDataCacheInterface::BuildCacheKey(
+				TEXT("TEXTURE"), TEXTURE_VT_DERIVEDDATA_VER,
+				*FString::Printf(TEXT("VTCHUNK%s"), *Chunk.BulkDataHash.ToString()));
+
 			TotalBytesPut += Chunk.StoreInDerivedDataCache(ChunkDerivedDataKey, TextureName, bReplaceExistingDDC);
 		}
 	}

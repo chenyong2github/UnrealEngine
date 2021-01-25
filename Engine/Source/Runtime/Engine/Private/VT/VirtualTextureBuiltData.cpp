@@ -52,7 +52,6 @@ void FVirtualTextureBuiltData::Serialize(FArchive& Ar, UObject* Owner, int32 Fir
 	bool bCooked = Ar.IsCooking();
 	Ar << bCooked;
 
-	Ar << VersionGuid;
 	Ar << NumLayers;
 	Ar << WidthInBlocks;
 	Ar << HeightInBlocks;
@@ -228,14 +227,6 @@ bool FVirtualTextureBuiltData::ValidateData(FStringView const& InDDCDebugContext
 		if (!ChunkData || ChunkDataSize < sizeof(FVirtualTextureChunkHeader))
 		{
 			UE_LOG(LogTexture, Error, TEXT("Virtual Texture %s has invalid size %d for chunk %d"), *TextureName, ChunkDataSize, ChunkIndex);
-			bResult = false;
-			break;
-		}
-
-		FVirtualTextureChunkHeader* ChunkHeader = (FVirtualTextureChunkHeader*)ChunkData;
-		if (ChunkHeader->VersionGuid != VersionGuid)
-		{
-			UE_LOG(LogTexture, Error, TEXT("Virtual Texture %s has mismatched GUID for chunk %d"), *TextureName, ChunkIndex);
 			bResult = false;
 			break;
 		}

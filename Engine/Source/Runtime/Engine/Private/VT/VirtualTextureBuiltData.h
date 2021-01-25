@@ -30,7 +30,7 @@ enum class EVirtualTextureCodec : uint8
 
 struct FVirtualTextureChunkHeader
 {
-	FGuid VersionGuid;
+	uint32 Unused; // Chunk header is currently not used, but keeping in place for future expansion
 };
 
 struct FVirtualTextureDataChunk
@@ -73,7 +73,6 @@ struct FVirtualTextureDataChunk
 
 struct FVirtualTextureBuiltData
 {
-	FGuid VersionGuid;
 	uint32 NumLayers;
 	uint32 NumMips;
 	uint32 Width; // Width of the texture in pixels. Note the physical width may be larger due to tiling

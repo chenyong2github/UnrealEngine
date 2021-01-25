@@ -334,7 +334,6 @@ void FVirtualTextureDataBuilder::Build(const FTextureSourceData& InSourceData, c
 	//NOTE: OutData may point to a previously build data so it is important to
 	//properly initialize all fields and not assume this is a freshly constructed object
 
-	OutData.VersionGuid = FGuid::NewGuid();
 	OutData.TileBorderSize = BuildSettingsLayer0.VirtualTextureBorderSize;
 	OutData.TileSize = TileSize;
 	OutData.NumLayers = NumLayers;
@@ -736,7 +735,7 @@ void FVirtualTextureDataBuilder::PushDataToChunk(const TArray<FVTSourceTileEntry
 
 	// Header for the chunk
 	FVirtualTextureChunkHeader* Header = (FVirtualTextureChunkHeader*)NewChunkData;
-	Header->VersionGuid = OutData.VersionGuid;
+	FMemory::Memzero(*Header);
 
 	ChunkOffset += sizeof(FVirtualTextureChunkHeader);
 
