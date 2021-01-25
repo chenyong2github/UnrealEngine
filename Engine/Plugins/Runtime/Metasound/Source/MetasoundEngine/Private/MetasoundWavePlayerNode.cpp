@@ -52,28 +52,24 @@ namespace Metasound
 			const FOperatorSettings& InSettings,
 			const FWaveAssetReadRef& InWave,
 			const FTriggerReadRef& InTrigger,
-			const float& InGraphSamplerate)
+			const FFloatReadRef InPitchShiftCents)
 			: OperatorSettings(InSettings)
 			, TrigIn(InTrigger)
 			, Wave(InWave)
+			, PitchShiftCents(InPitchShiftCents)
 			, AudioBufferL(FAudioBufferWriteRef::CreateNew(InSettings))
 			, AudioBufferR(FAudioBufferWriteRef::CreateNew(InSettings))
 			, TrigggerOnDone(FTriggerWriteRef::CreateNew(InSettings))
-			, InputSampleRate(InWave->SoundWaveProxy.IsValid()? InWave->SoundWaveProxy->GetSampleRate() : -1)
-			, OutputSampleRate(InGraphSamplerate)
+			, OutputSampleRate(InSettings.GetSampleRate())
 			, OutputBlockSizeInFrames(InSettings.GetNumFramesPerBlock())
 		{
-			check(OutputSampleRate && InputSampleRate); // divide by zero when calculating SrcRatio!
+			check(OutputSampleRate);
 			check(AudioBufferL->Num() == OutputBlockSizeInFrames && AudioBufferR->Num() == OutputBlockSizeInFrames);
 
 			if (Wave->SoundWaveProxy.IsValid())
 			{
+				ResetDecoder();
 				CurrentSoundWaveName = Wave->SoundWaveProxy->GetFName();
-
-				DecoderTrio = Wave->CreateDecoderTrio(OutputSampleRate, OutputBlockSizeInFrames);
-
-				const int32 NumChannels = Wave->SoundWaveProxy->GetNumChannels();
-				CircularDecoderOutputBuffer.SetCapacity(OutputBlockSizeInFrames * NumChannels * 2);
 			}
 
 
@@ -84,6 +80,7 @@ namespace Metasound
 			FDataReferenceCollection InputDataReferences;
 			InputDataReferences.AddDataReadReference(TEXT("Audio"), FWaveAssetReadRef(Wave));
 			InputDataReferences.AddDataReadReference(TEXT("TrigIn"), FBopReadRef(TrigIn));
+			InputDataReferences.AddDataReadReference(TEXT("PitchShiftCents"), FFloatReadRef(PitchShiftCents));
 			return InputDataReferences;
 		}
 
@@ -103,7 +100,6 @@ namespace Metasound
 
 			// see if we have a new soundwave input
 			FName NewSoundWaveName = FName();
-			int32 NumChannels = 1;
 			if (Wave->IsSoundWaveValid())
 			{
 				NewSoundWaveName = Wave->SoundWaveProxy->GetFName();
@@ -111,18 +107,18 @@ namespace Metasound
 
 			if (NewSoundWaveName != CurrentSoundWaveName)
 			{
-				DecoderTrio = Wave->CreateDecoderTrio(OutputSampleRate, OutputBlockSizeInFrames);
-				InputSampleRate = Wave->SoundWaveProxy->GetSampleRate();
-
-				NumChannels = Wave->SoundWaveProxy->GetNumChannels();
-				CircularDecoderOutputBuffer.SetCapacity(OutputBlockSizeInFrames * NumChannels * 4);
-
+				ResetDecoder();
 				CurrentSoundWaveName = NewSoundWaveName;
 			}
 
 			// zero output buffers
 			FMemory::Memzero(AudioBufferL->GetData(), OutputBlockSizeInFrames * sizeof(float));
 			FMemory::Memzero(AudioBufferR->GetData(), OutputBlockSizeInFrames * sizeof(float));
+
+			if (!Decoder.CanGenerateAudio())
+			{
+				return;
+			}
 
 			TrigIn->ExecuteBlock(
 				// OnPreBop
@@ -138,11 +134,11 @@ namespace Metasound
 				{
 					if (!bIsPlaying)
 					{
-						bIsPlaying = true;
+						bIsPlaying = Decoder.CanGenerateAudio();
 					}
 					else
 					{
-						DecoderTrio = Wave->CreateDecoderTrio(OutputSampleRate, OutputBlockSizeInFrames);
+						ResetDecoder();
 					}
 
 					ExecuteInternal(StartFrame, EndFrame);
@@ -150,106 +146,63 @@ namespace Metasound
 			);
 		}
 
+		bool ResetDecoder()
+		{
+			Audio::FSimpleDecoderWrapper::InitParams Params;
+			Params.OutputBlockSizeInFrames = OutputBlockSizeInFrames;
+			Params.OutputSampleRate = OutputSampleRate;
+			Params.MaxPitchShiftMagnitudeAllowedInOctaves = 4.f;
+
+			if (false == Wave->IsSoundWaveValid())
+			{
+				return false;
+			}
+
+			return Decoder.Initialize(Params, *Wave->SoundWaveProxy);
+		}
+
 
 		void ExecuteInternal(int32 StartFrame, int32 EndFrame)
 		{
+			// shouldn't be calling this function if we don't have access to a valid SoundWave
+			ensure(Wave->IsSoundWaveValid());
+			ensure(Wave->SoundWaveProxy->GetNumChannels() <= 2); // only support mono or stereo inputs
+			ensure(Decoder.CanGenerateAudio());
+
+			// note: output is hard-coded to stereo (dual-mono)
 			float* FinalOutputLeft = AudioBufferL->GetData() + StartFrame;
 			float* FinalOutputRight = AudioBufferR->GetData() + StartFrame;
 
-			const float FsInToFsOutRatio = (InputSampleRate / OutputSampleRate); // TODO: account for pitch param
-
-			const uint32 NumInputChannels = Wave->SoundWaveProxy.IsValid() ? Wave->SoundWaveProxy->GetNumChannels() : 1;
-			const uint32 NumOutputChannels = 2; // forcing stereo output
-			const uint32 NumOutputFrames = EndFrame - StartFrame;
-			const uint32 NumOutputSamples = NumOutputFrames * NumOutputChannels;
-			const uint32 NumSamplesInDecodeBlock = OutputBlockSizeInFrames * NumInputChannels;
-			uint32 NumSamplesToDecode = NumInputChannels * NumOutputFrames * FsInToFsOutRatio;
-
-			if (NumSamplesToDecode % 2)
-			{
-				++NumSamplesToDecode;
-			}
-
-			const bool bNeedsSRC = !FMath::IsNearlyEqual(InputSampleRate, OutputSampleRate);
+			const int32 NumInputChannels = Wave->SoundWaveProxy->GetNumChannels();
 			const bool bNeedsUpmix = (NumInputChannels == 1);
 			const bool bNeedsDeinterleave = !bNeedsUpmix;
 
+			const int32 NumOutputFrames = (EndFrame - StartFrame);
+			const int32 NumSamplesToGenerate = NumOutputFrames * NumInputChannels; // (stereo output)
 
-			// Decode audio if we need to (see if we are done)
-			while (bIsPlaying && !bDecoderIsDone && (CircularDecoderOutputBuffer.Num() < NumSamplesToDecode))
-			{
-				// get more audio from the decoder
-				Audio::IDecoderOutput::FPushedAudioDetails Details;
-				bDecoderIsDone = (DecoderTrio.Decoder->Decode() == Audio::IDecoder::EDecodeResult::Finished);
+			PostSrcBuffer.Reset(NumSamplesToGenerate);
+			PostSrcBuffer.AddZeroed(NumSamplesToGenerate);
+			float* PostSrcBufferPtr = PostSrcBuffer.GetData();
 
-				TempBufferA.Reset(NumSamplesInDecodeBlock);
-				TempBufferA.AddZeroed(NumSamplesInDecodeBlock);
-				const int32 NumSamplesDecoded = DecoderTrio.Output->PopAudio(MakeArrayView(TempBufferA.GetData(), NumSamplesInDecodeBlock), Details);
+			int32 NumFramesDecoded = Decoder.GenerateAudio(PostSrcBufferPtr, NumOutputFrames, *PitchShiftCents); // TODO: pitch shift
 
-				// push that (interleaved) audio to the (interleaved) circular buffer
-				int32 NumPushed = CircularDecoderOutputBuffer.Push(TempBufferA.GetData(), NumSamplesDecoded);
-				ensure(NumPushed == NumSamplesDecoded); // there will be a discontinuity in the output because our CircularDecoderOutputBuffer was not large enough!
-			}
-
-			// now that we have enough audio decoded, pop off the circular buffer into an interleaved, pre-src temp buffer
-			// (It is possible that CircularDecoderOutputBuffer.Num() < NumOutputSamples if the decoder is dry...)
-			const uint32 NumSamplesToPop = FMath::Min(CircularDecoderOutputBuffer.Num(), NumSamplesToDecode);
-
-			// (...if that's the case, it means the sound is done)
-			if (NumSamplesToPop < NumOutputChannels)
+			// TODO: handle decoder having completed during it's decode
+			if (!Decoder.CanGenerateAudio() ||  (NumFramesDecoded < NumOutputFrames))
 			{
 				bIsPlaying = false;
-				TrigggerOnDone->BopFrame(NumSamplesToPop / NumInputChannels);
+				TrigggerOnDone->BopFrame(StartFrame + NumFramesDecoded);
 			}
 
-			// TODO: special-cases to reduce temp buffer usage where we don't need them
-
-			const uint32 NumPostSrcSamples = NumOutputFrames * NumInputChannels;
-			TempBufferA.Reset(NumSamplesToPop); // pre-src buffer 
-			TempBufferA.AddZeroed(NumSamplesToPop);
-
-			// pop into pre-src buffer
-			CircularDecoderOutputBuffer.Pop(TempBufferA.GetData(), NumSamplesToPop);
-
-			// holds result of sample rate conversion
-			float* PostSrcBufferPtr = TempBufferA.GetData(); // assume no SRC
-
-			int32 NumFramesConverted = NumSamplesToPop / NumInputChannels;
-
-			if (bNeedsSRC)
-			{
-				// post-src buffer
-				TempBufferB.Reset(NumPostSrcSamples);
-				TempBufferB.AddZeroed(NumPostSrcSamples);
-				PostSrcBufferPtr = TempBufferB.GetData();
-
-				// perform SRC
-				Resampler.Init(Audio::EResamplingMethod::Linear, 1.f / FsInToFsOutRatio, NumInputChannels);
-
-				int32 Error = Resampler.ProcessAudio(TempBufferA.GetData(), NumSamplesToPop / NumInputChannels, false, PostSrcBufferPtr, NumOutputFrames, NumFramesConverted);
-				if (Error)
-				{
-					bIsPlaying = false;
-					bDecoderIsDone = false;
-					DecoderTrio = {};
-				}
-			}
-
-			// We may not have NumOutputSamples to play, and our output buffers have already been zero-ed out.
-			// at this point we are outputting NumFramesConverted
-
-			// perform channel conversion (output is forced to be stereo)
-			// mono->stereo?
 			if (bNeedsUpmix)
 			{
 				// TODO: attenuate by -3 dB?
 				// copy to Left & Right output buffers
-				FMemory::Memcpy(FinalOutputLeft, PostSrcBufferPtr, sizeof(float) * NumFramesConverted);
-				FMemory::Memcpy(FinalOutputRight, PostSrcBufferPtr, sizeof(float) * NumFramesConverted);
+				FMemory::Memcpy(FinalOutputLeft, PostSrcBufferPtr, sizeof(float) * NumOutputFrames);
+				FMemory::Memcpy(FinalOutputRight, PostSrcBufferPtr, sizeof(float) * NumOutputFrames);
 			}
 			else if (bNeedsDeinterleave)
 			{
-				for (int32 i = 0; i < NumFramesConverted; ++i)
+				for (int32 i = 0; i < NumOutputFrames; ++i)
 				{
 					// de-interleave each stereo frame into output buffers
 					FinalOutputLeft[i] = PostSrcBufferPtr[(i << 1)];
@@ -264,30 +217,22 @@ namespace Metasound
 		// i/o
 		FTriggerReadRef TrigIn;
 		FWaveAssetReadRef Wave;
+		FFloatReadRef PitchShiftCents;
 
 		FAudioBufferWriteRef AudioBufferL;
 		FAudioBufferWriteRef AudioBufferR;
 		FTriggerWriteRef TrigggerOnDone;
 
-		// src
-		Audio::FResampler Resampler;
-
-		// Decoder/IO. 
-		FWaveAsset::FDecoderTrio DecoderTrio;
-
-		Audio::TCircularAudioBuffer<float> CircularDecoderOutputBuffer;
-		TArray<float> TempBufferA;
-		TArray<float> TempBufferB;
+		// source decode
+		TArray<float> PostSrcBuffer;
+		Audio::FSimpleDecoderWrapper Decoder;
 
 		FName CurrentSoundWaveName{ };
-
-		float InputSampleRate{ 0.f };
+			
 		const float OutputSampleRate{ 0.f };
 		const int32 OutputBlockSizeInFrames{ 0 };
 		
-
 		bool bIsPlaying{ false };
-		bool bDecoderIsDone{ false };
 	};
 
 	TUniquePtr<IOperator> FWavePlayerNode::FOperatorFactory::CreateOperator(
@@ -300,11 +245,9 @@ namespace Metasound
 
 		const FDataReferenceCollection& InputDataRefs = InParams.InputDataReferences;
 
-		// Trigger input
 		FTriggerReadRef TriggerPlay = InputDataRefs.GetDataReadReferenceOrConstruct<FTrigger>(TEXT("TrigIn"), InParams.OperatorSettings);
-
-		// Initialize decoder
 		FWaveAssetReadRef Wave = InputDataRefs.GetDataReadReferenceOrConstruct<FWaveAsset>(TEXT("Wave"));
+		FFloatReadRef PitchShiftCents = InputDataRefs.GetDataReadReferenceOrConstruct<float>(TEXT("PitchShiftCents"));
 		
 		if (!Wave->IsSoundWaveValid())
 		{
@@ -320,7 +263,7 @@ namespace Metasound
 			  InParams.OperatorSettings
 			, Wave
 			, TriggerPlay
-			, InParams.OperatorSettings.GetSampleRate()
+			, PitchShiftCents
 			);
 	}
 
@@ -329,7 +272,8 @@ namespace Metasound
 		return FVertexInterface(
 			FInputVertexInterface(
 				TInputDataVertexModel<FWaveAsset>(TEXT("Wave"), LOCTEXT("WaveTooltip", "The Wave to be decoded")),
-				TInputDataVertexModel<FTrigger>(TEXT("TrigIn"), LOCTEXT("TrigInTooltip", "Trigger the playing of the input wave."))
+				TInputDataVertexModel<FTrigger>(TEXT("TrigIn"), LOCTEXT("TrigInTooltip", "Trigger the playing of the input wave.")),
+				TInputDataVertexModel<float>(TEXT("PitchShiftCents"), LOCTEXT("PitchShiftCentsTooltip", "Pitch Shift in cents."))
 			),
 			FOutputVertexInterface(
 				TOutputDataVertexModel<FAudioBuffer>(TEXT("AudioLeft"), LOCTEXT("AudioTooltip", "The output audio")),

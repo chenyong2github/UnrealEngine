@@ -9,20 +9,6 @@
 #include "IAudioCodecRegistry.h"
 #include "IAudioCodec.h"
 
-// Forward declares
-namespace Audio
-{	
-	struct IDecoderInput;
-}
-
-class USoundWave;
-
-namespace Audio
-{
-	class ICodecRegistry;
-	struct IDecoderOutput;
-	struct IDecoder;
-}
 
 namespace Metasound
 {
@@ -35,15 +21,6 @@ namespace Metasound
 	class METASOUNDENGINE_API FWaveAsset
 	{
 	public:
-		using FDecoderInputPtr = TSharedPtr<Audio::IDecoderInput, ESPMode::ThreadSafe>;
-
-		struct FDecoderTrio
-		{
-			FDecoderInputPtr Input;
-			TUniquePtr<Audio::IDecoderOutput> Output;
-			TUniquePtr<Audio::IDecoder> Decoder;
-		};
-
 		TUniquePtr<FSoundWaveProxy> SoundWaveProxy;
 
 		FWaveAsset() = default;
@@ -64,11 +41,6 @@ namespace Metasound
 			}
 		}
 
-		FDecoderInputPtr CreateDecoderInput() const;
-
-
-		FDecoderTrio CreateDecoderTrio(const float OutputSampleRate, const int32 NumFramesPerBlock) const;
-
 		bool IsSoundWaveValid() const
 		{
 			return SoundWaveProxy.IsValid();
@@ -78,3 +50,66 @@ namespace Metasound
 
 	DECLARE_METASOUND_DATA_REFERENCE_TYPES(FWaveAsset, METASOUNDENGINE_API, FWaveAssetTypeInfo, FWaveAssetReadRef, FWaveAssetWriteRef)
 }
+
+namespace Audio
+{
+	// Forward declares
+	class ICodecRegistry;
+	struct IDecoderInput;
+	struct IDecoderOutput;
+	struct IDecoder;
+
+	class FSimpleDecoderWrapper
+	{
+	public:
+		struct InitParams
+		{
+			float OutputSampleRate;
+			uint32 OutputBlockSizeInFrames;
+			float MaxPitchShiftMagnitudeAllowedInOctaves = 4.f;
+		};
+
+		bool CanGenerateAudio() const
+		{
+			return !bDecoderIsDone && Input.IsValid() && Output.IsValid() && Decoder.IsValid();
+		}
+
+		bool Initialize(const InitParams& InInitParams, const FSoundWaveProxy& InWave);
+
+		// returns number of samples written.   
+		uint32 GenerateAudio(float* OutputDest, int32 NumOutputFrames, float PitchShiftInCents = 0.f);
+
+	private:
+		// actual decoder objects
+		TUniquePtr<Audio::IDecoder> Decoder;
+		TUniquePtr<Audio::IDecoderOutput> Output;
+		TSharedPtr<Audio::IDecoderInput, ESPMode::ThreadSafe> Input;
+
+		// init helper for decoders
+		bool InitializeDecodersInternal(const FSoundWaveProxy& Wave);
+
+		// SRC object
+		Audio::FResampler Resampler;
+
+		// buffers
+		TArray<float> PreSrcBuffer;
+		Audio::TCircularAudioBuffer<float> CircularDecoderOutputBuffer;
+
+		// meta data:
+		float InputSampleRate;
+		float OutputSampleRate;
+		float FsInToFsOutRatio;
+		float MaxPitchShiftCents;
+		float MaxPitchShiftRatio;
+
+		uint32 NumChannels;
+		uint32 DecodeBlockSizeInFrames;
+		uint32 DecodeBlockSizeInSamples;
+		
+
+		bool bDecoderIsDone{ true };
+
+	}; // class FSimpleDecoderWrapper
+
+
+} // namespace Audio

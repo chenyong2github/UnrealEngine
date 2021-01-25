@@ -660,7 +660,7 @@ namespace Audio
 
 		for (int32 i = 0; i < NumSamples; i += 4)
 		{
-			VectorRegister Input = VectorAbs(VectorLoadAligned(&Buffer[i]));
+			VectorRegister Input = VectorLoadAligned(&Buffer[i]);
 			Sum = VectorAdd(Sum, Input);
 		}
 
