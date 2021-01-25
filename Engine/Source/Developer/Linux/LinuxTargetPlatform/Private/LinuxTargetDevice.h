@@ -57,38 +57,6 @@ public:
 		return true;
 	}
 
-	virtual bool Deploy(const FString& SourceFolder, FString& OutAppId) override
-	{
-#if PLATFORM_LINUX	// if running natively, support simplified, local deployment
-		OutAppId = TEXT("");
-
-		FString PlatformName = FPlatformProcess::GetBinariesSubdirectory();
-		FString DeploymentDir = FPaths::EngineIntermediateDir() / TEXT("Devices") / PlatformName;
-
-		// delete previous build
-		IFileManager::Get().DeleteDirectory(*DeploymentDir, false, true);
-
-		// copy files into device directory
-		TArray<FString> FileNames;
-
-		IFileManager::Get().FindFilesRecursive(FileNames, *SourceFolder, TEXT("*.*"), true, false);
-
-		for (int32 FileIndex = 0; FileIndex < FileNames.Num(); ++FileIndex)
-		{
-			const FString& SourceFilePath = FileNames[FileIndex];
-			FString DestFilePath = DeploymentDir + SourceFilePath.RightChop(SourceFolder.Len());
-
-			IFileManager::Get().Copy(*DestFilePath, *SourceFilePath);
-		}
-
-		return true;
-#else
-		// @todo: support deployment to a remote machine
-		STUBBED("FLinuxTargetDevice::Deploy");
-		return false;
-#endif // PLATFORM_LINUX
-	}
-
 	virtual void Disconnect( ) override
 	{ }
 
@@ -143,68 +111,10 @@ public:
 		return false;
 	}
 
-	virtual bool Launch( const FString& AppId, EBuildConfiguration BuildConfiguration, EBuildTargetType TargetType, const FString& Params, uint32* OutProcessId ) override
-	{
-#if PLATFORM_LINUX	// if running natively, support launching in place
-		// build executable path
-
-		FString PlatformName = FPlatformProcess::GetBinariesSubdirectory();
-		FString ExecutablePath = FPaths::EngineIntermediateDir() / TEXT("Devices") / PlatformName / TEXT("Engine") / TEXT("Binaries") / PlatformName;
-
-		if (TargetType == EBuildTargetType::Game)
-		{
-			ExecutablePath /= TEXT("UnrealGame");
-		}
-		else if (TargetType == EBuildTargetType::Server)
-		{
-			ExecutablePath /= TEXT("UnrealServer");
-		}
-		else if (TargetType == EBuildTargetType::Editor)
-		{
-			ExecutablePath /= TEXT("UnrealEditor");
-		}
-
-		if (BuildConfiguration != EBuildConfiguration::Development)
-		{
-			ExecutablePath += FString::Printf(TEXT("-%s-%s"), *PlatformName, LexToString(BuildConfiguration));
-		}
-
-		// launch the game
-		FProcHandle ProcessHandle = FPlatformProcess::CreateProc(*ExecutablePath, *Params, true, false, false, OutProcessId, 0, NULL, NULL);
-		if (ProcessHandle.IsValid())
-		{
-			FPlatformProcess::CloseProc(ProcessHandle);
-			return true;
-		}
-		return false;
-#else
-		// @todo: support launching on a remote machine
-		STUBBED("FLinuxTargetDevice::Launch");
-		return false;
-#endif // PLATFORM_LINUX
-	}
-
 	virtual bool Reboot( bool bReconnect = false ) override
 	{
 		STUBBED("FLinuxTargetDevice::Reboot");
 		return false;
-	}
-
-	virtual bool Run( const FString& ExecutablePath, const FString& Params, uint32* OutProcessId ) override
-	{
-#if PLATFORM_LINUX	// if running natively, support simplified, local deployment
-		FProcHandle ProcessHandle = FPlatformProcess::CreateProc(*ExecutablePath, *Params, true, false, false, OutProcessId, 0, NULL, NULL);
-		if (ProcessHandle.IsValid())
-		{
-			FPlatformProcess::CloseProc(ProcessHandle);
-			return true;
-		}
-		return false;
-#else
-		// @todo: support remote run
-		STUBBED("FLinuxTargetDevice::Run");
-		return false;
-#endif // PLATFORM_LINUX
 	}
 
 	virtual bool SupportsFeature( ETargetDeviceFeatures Feature ) const override
@@ -232,12 +142,6 @@ public:
 		}
 
 		return false;
-	}
-
-	virtual bool SupportsSdkVersion( const FString& VersionString ) const override
-	{
-		STUBBED("FLinuxTargetDevice::SupportsSdkVersion");
-		return true;
 	}
 
 	virtual void SetUserCredentials( const FString& InUserName, const FString& InUserPassword ) override

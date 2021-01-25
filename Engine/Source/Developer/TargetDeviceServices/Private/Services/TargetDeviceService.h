@@ -90,15 +90,6 @@ private:
 	/** Callback for FTargetDeviceClaimDropped messages. */
 	void HandleUnclaimedMessage(const FTargetDeviceUnclaimed& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context);
 
-	/** Callback for FTargetDeviceServiceDeployFile messages. */
-	void HandleDeployFileMessage(const FTargetDeviceServiceDeployFile& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context);
-
-	/** Callback for FTargetDeviceServiceDeployCommit messages. */
-	void HandleDeployCommitMessage(const FTargetDeviceServiceDeployCommit& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context);
-
-	/** Callback for FTargetDeviceServiceLaunchApp messages. */
-	void HandleLaunchAppMessage(const FTargetDeviceServiceLaunchApp& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context);
-
 	/** Callback for FTargetDeviceServiceTerminateLaunchedProcess messages. */
 	void HandleTerminateLaunchedProcessMessage(const FTargetDeviceServiceTerminateLaunchedProcess& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context);
 
@@ -113,9 +104,6 @@ private:
 
 	/** Callback for FTargetDeviceServiceReboot messages. */
 	void HandleRebootMessage(const FTargetDeviceServiceReboot& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context);
-
-	/** Callback for FTargetDeviceServiceRunExecutable messages. */
-	void HandleRunExecutableMessage(const FTargetDeviceServiceRunExecutable& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context);
 
 private:
 

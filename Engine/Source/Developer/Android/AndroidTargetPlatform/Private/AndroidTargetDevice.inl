@@ -14,22 +14,6 @@ enum class ETargetDeviceFeatures;
 
 template<typename OptionalType> struct TOptional;
 
-inline bool FAndroidTargetDevice::Deploy( const FString& SourceFolder, FString& OutAppId )
-{
-	int32 ReturnCode = 0;
-	//void* RunningProc = NULL;
-
-	// run the packager to create and install the .apk
-	// @todo android: install separately?
-	FString RepackageCommand(FString(TEXT("AndroidPackager ")) + OutAppId + FString(TEXT(" AndroidARMv7 ")) + FString(TEXT("Debug")));
-	FProcHandle RunningProc = FPlatformProcess::CreateProc(TEXT("../DotNET/Android/AndroidPackager"), *RepackageCommand, true, false, false, NULL, 0, TEXT("../DotNET/"), NULL);
-	FPlatformProcess::WaitForProc(RunningProc);
-	FPlatformProcess::GetProcReturnCode(RunningProc, &ReturnCode);
-	FPlatformProcess::CloseProc(RunningProc);
-
-	return 0 == ReturnCode;
-}
-
 inline FString FAndroidTargetDevice::GetOperatingSystemName()
 {
 	if (!AndroidVersionString.IsEmpty())
@@ -45,13 +29,6 @@ inline FString FAndroidTargetDevice::GetOperatingSystemName()
 inline int32 FAndroidTargetDevice::GetProcessSnapshot( TArray<FTargetDeviceProcessInfo>& OutProcessInfos ) 
 {
 	return 0;
-}
-
-
-inline bool FAndroidTargetDevice::Launch( const FString& AppId, EBuildConfiguration BuildConfiguration, EBuildTargetType TargetType, const FString& Params, uint32* OutProcessId )
-{
-	// this isn't used, UAT handles it all
-	return false;
 }
 
 
@@ -80,12 +57,6 @@ inline FString FAndroidTargetDevice::GetAllDevicesName() const
 	return FString::Printf(TEXT("All_%s_On_%s"), *(GetTargetPlatform().IniPlatformName()), FPlatformProcess::ComputerName());
 }
 
-inline bool FAndroidTargetDevice::Run( const FString& ExecutablePath, const FString& Params, uint32* OutProcessId )
-{
-	// @todo android: how to run from this?
-	return false;
-}
-
 // cancel the running application
 inline bool FAndroidTargetDevice::TerminateLaunchedProcess(const FString& ProcessIdentifier)
 {
@@ -109,12 +80,6 @@ inline bool FAndroidTargetDevice::SupportsFeature( ETargetDeviceFeatures Feature
 	default:
 		return false;
 	}
-}
-
-
-inline bool FAndroidTargetDevice::SupportsSdkVersion( const FString& VersionString ) const
-{
-	return true;
 }
 
 

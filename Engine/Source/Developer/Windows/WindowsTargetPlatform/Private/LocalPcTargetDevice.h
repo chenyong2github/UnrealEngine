@@ -40,32 +40,6 @@ public:
 		return true;
 	}
 
-	virtual bool Deploy( const FString& SourceFolder, FString& OutAppId ) override
-	{
-		OutAppId = TEXT("");
-
-		FString PlatformName = WIN64 ? TEXT("Win64") : TEXT("Win32");
-		FString DeploymentDir = FPaths::EngineIntermediateDir() / TEXT("Devices") / PlatformName;
-
-		// delete previous build
-		IFileManager::Get().DeleteDirectory(*DeploymentDir, false, true);
-
-		// copy files into device directory
-		TArray<FString> FileNames;
-
-		IFileManager::Get().FindFilesRecursive(FileNames, *SourceFolder, TEXT("*.*"), true, false);
-
-		for (int32 FileIndex = 0; FileIndex < FileNames.Num(); ++FileIndex)
-		{
-			const FString& SourceFilePath = FileNames[FileIndex];
-			FString DestFilePath = DeploymentDir + SourceFilePath.RightChop(SourceFolder.Len());
-
-			IFileManager::Get().Copy(*DestFilePath, *SourceFilePath);
-		}
-
-		return true;
-	}
-
 	virtual void Disconnect( )
 	{ }
 
@@ -237,42 +211,6 @@ public:
 		return true;
 	}
 
-	virtual bool Launch( const FString& AppId, EBuildConfiguration BuildConfiguration, EBuildTargetType TargetType, const FString& Params, uint32* OutProcessId ) override
-	{
-		// build executable path
-		FString PlatformName = WIN64 ? TEXT("Win64") : TEXT("Win32");
-		FString ExecutablePath = FPaths::EngineIntermediateDir() / TEXT("Devices") / PlatformName / TEXT("Engine") / TEXT("Binaries") / PlatformName;
-		
-		if (TargetType == EBuildTargetType::Game)
-		{
-			ExecutablePath /= TEXT("UnrealGame");
-		}
-		else if (TargetType == EBuildTargetType::Server)
-		{
-			ExecutablePath /= TEXT("UnrealGame");
-		}
-		else if (TargetType == EBuildTargetType::Editor)
-		{
-			ExecutablePath /= TEXT("UnrealEditor");
-		}
-
-		if (BuildConfiguration != EBuildConfiguration::Development)
-		{
-			ExecutablePath += FString::Printf(TEXT("-%s-%s"), *PlatformName, LexToString(BuildConfiguration));
-		}
-
-		ExecutablePath += TEXT(".exe");
-
-		// launch the game
-		FProcHandle ProcessHandle = FPlatformProcess::CreateProc(*ExecutablePath, *Params, true, false, false, OutProcessId, 0, nullptr, nullptr);
-		if (ProcessHandle.IsValid())
-		{
-			FPlatformProcess::CloseProc(ProcessHandle);
-			return true;
-		}
-		return false;
-	}
-
 	virtual bool PowerOff( bool Force ) override
 	{
 		if (!AdjustShutdownPrivileges())
@@ -300,17 +238,6 @@ public:
 		return (::ExitWindowsEx(EWX_REBOOT | EWX_FORCE, SHTDN_REASON_MINOR_MAINTENANCE | SHTDN_REASON_FLAG_PLANNED) != 0);
 	}
 
-	virtual bool Run( const FString& ExecutablePath, const FString& Params, uint32* OutProcessId )
-	{
-		FProcHandle ProcessHandle = FPlatformProcess::CreateProc(*ExecutablePath, *Params, true, false, false, OutProcessId, 0, nullptr, nullptr);
-		if (ProcessHandle.IsValid())
-		{
-			FPlatformProcess::CloseProc(ProcessHandle);
-			return true;
-		}
-		return false;
-	}
-
 	virtual bool SupportsFeature( ETargetDeviceFeatures Feature ) const override
 	{
 		switch (Feature)
@@ -333,12 +260,6 @@ public:
 		}
 
 		return false;
-	}
-
-	virtual bool SupportsSdkVersion( const FString& VersionString ) const override
-	{
-		// @todo filter SDK versions
-		return true;
 	}
 
 	virtual void SetUserCredentials( const FString& UserName, const FString& UserPassword ) override

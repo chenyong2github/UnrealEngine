@@ -410,11 +410,6 @@ bool FHoloLensTargetDevice::SupportsFeature(ETargetDeviceFeatures Feature) const
 	}
 }
 
-bool FHoloLensTargetDevice::SupportsSdkVersion(const FString& VersionString) const 
-{
-	return false;
-}
-
 bool FHoloLensTargetDevice::TerminateProcess(const int64 ProcessId) 
 {
 	if (Info.IsLocal)
@@ -443,45 +438,6 @@ bool FHoloLensTargetDevice::TerminateLaunchedProcess(const FString & ProcessIden
 	HttpRequest->ProcessRequest();
 
 	return true;
-}
-
-
-bool FHoloLensTargetDevice::Deploy(const FString& SourceFolder, FString& OutAppId)
-{
-	return true;
-}
-
-bool FHoloLensTargetDevice::Launch(const FString& AppId, EBuildConfiguration BuildConfiguration, EBuildTargetType TargetType, const FString& Params, uint32* OutProcessId)
-{
-	return false;
-}
-
-bool FHoloLensTargetDevice::Run(const FString& ExecutablePath, const FString& Params, uint32* OutProcessId)
-{
-	HRESULT hr = CoInitialize(nullptr);
-	if (FAILED(hr))
-	{
-		UE_LOG(LogTemp, Warning, TEXT("FHoloLensTargetDevice::Run - CoInitialize() failed with hr = 0x(%x)"), hr);
-	}
-
-	// Currently even packaged builds get an exe name in here which kind of works because we 
-	// don't yet support remote deployment and so the loose structure the package was created 
-	// from is probably in place on this machine.  So the code will read the manifest from the
-	// loose version, but actually launch the package (since that's what's registered).
-	auto Extension = FPaths::GetExtension(ExecutablePath);
-	bool PathIsActuallyPackage = Extension.StartsWith(TEXT("appx")) || Extension.StartsWith(TEXT("msix"));
-	FString StreamPath;
-	if (PathIsActuallyPackage)
-	{
-		StreamPath = ExecutablePath;
-	}
-	else
-	{
-		StreamPath = FPaths::Combine(*FPaths::GetPath(ExecutablePath), TEXT("../../.."));
-		StreamPath = FPaths::Combine(*StreamPath, TEXT("AppxManifest.xml"));
-	}
-
-	return WindowsMixedReality::PackageProject(*StreamPath, PathIsActuallyPackage, *Params, OutProcessId);
 }
 
 void FHoloLensTargetDevice::StartHeartBeat()

@@ -44,15 +44,11 @@ FTargetDeviceService::FTargetDeviceService(const FString& InDeviceName, const TS
 	MessageEndpoint = FMessageEndpoint::Builder(FName(*FString::Printf(TEXT("FTargetDeviceService (%s)"), *DeviceName)), InMessageBus)
 		.Handling<FTargetDeviceClaimDenied>(this, &FTargetDeviceService::HandleClaimDeniedMessage)
 		.Handling<FTargetDeviceClaimed>(this, &FTargetDeviceService::HandleClaimedMessage)
-		.Handling<FTargetDeviceServiceDeployCommit>(this, &FTargetDeviceService::HandleDeployCommitMessage)
-		.Handling<FTargetDeviceServiceDeployFile>(this, &FTargetDeviceService::HandleDeployFileMessage)
-		.Handling<FTargetDeviceServiceLaunchApp>(this, &FTargetDeviceService::HandleLaunchAppMessage)
 		.Handling<FTargetDeviceServiceTerminateLaunchedProcess>(this, &FTargetDeviceService::HandleTerminateLaunchedProcessMessage)
 		.Handling<FTargetDeviceServicePing>(this, &FTargetDeviceService::HandlePingMessage)
 		.Handling<FTargetDeviceServicePowerOff>(this, &FTargetDeviceService::HandlePowerOffMessage)
 		.Handling<FTargetDeviceServicePowerOn>(this, &FTargetDeviceService::HandlePowerOnMessage)
 		.Handling<FTargetDeviceServiceReboot>(this, &FTargetDeviceService::HandleRebootMessage)
-		.Handling<FTargetDeviceServiceRunExecutable>(this, &FTargetDeviceService::HandleRunExecutableMessage)
 		.Handling<FTargetDeviceUnclaimed>(this, &FTargetDeviceService::HandleUnclaimedMessage);
 
 	if (MessageEndpoint.IsValid())
@@ -388,55 +384,6 @@ void FTargetDeviceService::HandleUnclaimedMessage(const FTargetDeviceUnclaimed& 
 }
 
 
-void FTargetDeviceService::HandleDeployFileMessage(const FTargetDeviceServiceDeployFile& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context)
-{
-	if (!Running)
-	{
-		return;
-	}
-
-	TSharedPtr<IMessageAttachment, ESPMode::ThreadSafe> Attachment = Context->GetAttachment();
-
-	if (Attachment.IsValid())
-	{
-		FArchive* FileReader = Attachment->CreateReader();
-
-		if (FileReader != nullptr)
-		{
-			FString DeploymentFolder = FPaths::EngineIntermediateDir() / TEXT("Deploy") / Message.TransactionId.ToString();
-			FString TargetPath = DeploymentFolder / Message.TargetFileName;
-
-			StoreDeployedFile(FileReader, TargetPath);
-
-			delete FileReader;
-		}
-	}
-}
-
-
-void FTargetDeviceService::HandleDeployCommitMessage(const FTargetDeviceServiceDeployCommit& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context)
-{
-	if (!Running)
-	{
-		return;
-	}
-
-	ITargetDevicePtr TargetDevice = GetDevice(Message.Variant);
-
-	if (TargetDevice.IsValid())
-	{
-		FString SourceFolder = FPaths::EngineIntermediateDir() / TEXT("Deploy") / Message.TransactionId.ToString();
-		FString OutAppId;
-
-		bool Succeeded = TargetDevice->Deploy(SourceFolder, OutAppId);
-
-		IFileManager::Get().DeleteDirectory(*SourceFolder, false, true);
-		// message is going to be deleted by FMemory::Free() (see FMessageContext destructor), so allocate it with Malloc
-		void* Memory = FMemory::Malloc(sizeof(FTargetDeviceServiceDeployFinished), alignof(FTargetDeviceServiceDeployFinished));
-		MessageEndpoint->Send(new(Memory) FTargetDeviceServiceDeployFinished(Message.Variant, OutAppId, Succeeded, Message.TransactionId), Context->GetSender());
-	}
-}
-
 void FTargetDeviceService::HandleTerminateLaunchedProcessMessage(const FTargetDeviceServiceTerminateLaunchedProcess& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context)
 {
 	if (!Running)
@@ -451,30 +398,6 @@ void FTargetDeviceService::HandleTerminateLaunchedProcessMessage(const FTargetDe
 		TargetDevice->TerminateLaunchedProcess(Message.AppID);
 	}
 }
-
-void FTargetDeviceService::HandleLaunchAppMessage(const FTargetDeviceServiceLaunchApp& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context)
-{
-	if (!Running)
-	{
-		return;
-	}
-
-	ITargetDevicePtr TargetDevice = GetDevice(Message.Variant);
-
-	if (TargetDevice.IsValid())
-	{
-		uint32 ProcessId;
-		bool Succeeded = TargetDevice->Launch(Message.AppID, (EBuildConfiguration)Message.BuildConfiguration, EBuildTargetType::Game, Message.Params, &ProcessId);
-
-		if (MessageEndpoint.IsValid())
-		{
-			// message is going to be deleted by FMemory::Free() (see FMessageContext destructor), so allocate it with Malloc
-			void* Memory = FMemory::Malloc(sizeof(FTargetDeviceServiceLaunchFinished), alignof(FTargetDeviceServiceLaunchFinished));
-			MessageEndpoint->Send(new(Memory) FTargetDeviceServiceLaunchFinished(Message.AppID, ProcessId, Succeeded), Context->GetSender());
-		}
-	}
-}
-
 
 void FTargetDeviceService::HandlePingMessage(const FTargetDeviceServicePing& InMessage, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context)
 {
@@ -589,26 +512,5 @@ void FTargetDeviceService::HandleRebootMessage( const FTargetDeviceServiceReboot
 	if (TargetDevice.IsValid())
 	{
 		TargetDevice->Reboot();
-	}
-}
-
-
-void FTargetDeviceService::HandleRunExecutableMessage(const FTargetDeviceServiceRunExecutable& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context)
-{
-	if (!Running)
-	{
-		return;
-	}
-
-	ITargetDevicePtr TargetDevice = GetDevice(Message.Variant);
-
-	if (TargetDevice.IsValid())
-	{
-		uint32 OutProcessId;
-		bool Succeeded = TargetDevice->Run(Message.ExecutablePath, Message.Params, &OutProcessId);
-
-		// message is going to be deleted by FMemory::Free() (see FMessageContext destructor), so allocate it with Malloc
-		void* Memory = FMemory::Malloc(sizeof(FTargetDeviceServiceRunFinished), alignof(FTargetDeviceServiceRunFinished));
-		MessageEndpoint->Send(new(Memory) FTargetDeviceServiceRunFinished(Message.Variant, Message.ExecutablePath, OutProcessId, Succeeded), Context->GetSender());
 	}
 }

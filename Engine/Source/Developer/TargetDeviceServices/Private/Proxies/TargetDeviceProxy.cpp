@@ -258,29 +258,6 @@ bool FTargetDeviceProxy::HasVariant(FName InVariant) const
 }
 
 
-bool FTargetDeviceProxy::DeployApp(FName InVariant, const TMap<FString, FString>& Files, const FGuid& TransactionId)
-{
-	for (TMap<FString, FString>::TConstIterator It(Files); It; ++It)
-	{
-		TSharedRef<IMessageAttachment, ESPMode::ThreadSafe> FileAttachment = MakeShareable(new FFileMessageAttachment(It.Key()));
-		FString SourcePath = It.Key();
-
-		MessageEndpoint->Send(new FTargetDeviceServiceDeployFile(It.Value(), TransactionId), FileAttachment, MessageAddress);
-	}
-
-	MessageEndpoint->Send(new FTargetDeviceServiceDeployCommit(InVariant, TransactionId), MessageAddress);
-
-	return true;
-}
-
-
-bool FTargetDeviceProxy::LaunchApp(FName InVariant, const FString& AppId, EBuildConfiguration BuildConfiguration, const FString& Params)
-{
-	MessageEndpoint->Send(new FTargetDeviceServiceLaunchApp(InVariant, AppId, BuildConfiguration, Params), MessageAddress);
-
-	return true;
-}
-
 
 bool FTargetDeviceProxy::TerminateLaunchedProcess(FName InVariant, const FString& ProcessIdentifier)
 {
@@ -308,46 +285,11 @@ void FTargetDeviceProxy::Reboot()
 }
 
 
-void FTargetDeviceProxy::Run(FName InVariant, const FString& ExecutablePath, const FString& Params)
-{
-	MessageEndpoint->Send(new FTargetDeviceServiceRunExecutable(InVariant, ExecutablePath, Params), MessageAddress);
-}
-
 
 /* FTargetDeviceProxy implementation
  *****************************************************************************/
 
 void FTargetDeviceProxy::InitializeMessaging()
 {
-	MessageEndpoint = FMessageEndpoint::Builder(FName(*FString::Printf(TEXT("FTargetDeviceProxy (%s)"), *Name)))
-		.Handling<FTargetDeviceServiceDeployFinished>(this, &FTargetDeviceProxy::HandleDeployFinishedMessage)
-		.Handling<FTargetDeviceServiceLaunchFinished>(this, &FTargetDeviceProxy::HandleLaunchFinishedMessage);
-}
-
-/* FTargetDeviceProxy event handlers
-*****************************************************************************/
-
-void FTargetDeviceProxy::HandleDeployFinishedMessage(const FTargetDeviceServiceDeployFinished& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context)
-{
-	if (Message.Succeeded)
-	{
-		DeployCommittedDelegate.Broadcast(Message.TransactionId, Message.AppID);
-	}
-	else
-	{
-		DeployFailedDelegate.Broadcast(Message.TransactionId);
-	}
-}
-
-
-void FTargetDeviceProxy::HandleLaunchFinishedMessage(const FTargetDeviceServiceLaunchFinished& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context)
-{
-	if (Message.Succeeded)
-	{
-		LaunchSucceededDelegate.Broadcast(Message.AppID, Message.ProcessId);
-	}
-	else
-	{
-		LaunchFailedDelegate.Broadcast(Message.AppID);
-	}
+	// could delete this function
 }

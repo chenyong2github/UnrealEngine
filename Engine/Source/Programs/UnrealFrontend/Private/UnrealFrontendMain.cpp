@@ -3,9 +3,6 @@
 #include "UnrealFrontendMain.h"
 #include "RequiredProgramMainCPPInclude.h"
 
-#include "DeployCommand.h"
-#include "LaunchCommand.h"
-#include "PackageCommand.h"
 #include "StatsConvertCommand.h"
 #include "StatsDumpMemoryCommand.h"
 #include "UserInterfaceCommand.h"
@@ -73,19 +70,7 @@ int32 UnrealFrontendMain( const TCHAR* CommandLine )
 	// NOTE - Some commands may require extra command line parameters.
 	if (bRunCommand)
 	{
-		if (Command.Equals(TEXT("PACKAGE"), ESearchCase::IgnoreCase))
-		{
-			FPackageCommand::Run();
-		}
-		else if (Command.Equals(TEXT("DEPLOY"), ESearchCase::IgnoreCase))
-		{
-			Succeeded = FDeployCommand::Run();
-		}
-		else if (Command.Equals(TEXT("LAUNCH"), ESearchCase::IgnoreCase))
-		{
-			Succeeded = FLaunchCommand::Run(Params);
-		}
-		else if (Command.Equals(TEXT("CONVERT"), ESearchCase::IgnoreCase))
+		if (Command.Equals(TEXT("CONVERT"), ESearchCase::IgnoreCase))
 		{
 			FStatsConvertCommand::Run();
 		}

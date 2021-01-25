@@ -38,8 +38,6 @@ public:
 
 	virtual bool Connect() override;
 
-	virtual bool Deploy(const FString& SourceFolder, FString& OutAppId) override;
-
 	virtual void Disconnect() override;
 
 	virtual ETargetDeviceTypes GetDeviceType() const override;
@@ -62,21 +60,15 @@ public:
 
 	virtual bool IsDefault() const override;
 
-	virtual bool Launch(const FString& AppId, EBuildConfiguration BuildConfiguration, EBuildTargetType TargetType, const FString& Params, uint32* OutProcessId);
-
 	virtual bool PowerOff(bool Force) override;
 
 	virtual bool PowerOn() override;
 
 	virtual bool Reboot(bool bReconnect = false) override;
 
-	virtual bool Run(const FString& ExecutablePath, const FString& Params, uint32* OutProcessId) override;
-
 	virtual void SetUserCredentials(const FString& UserName, const FString& UserPassword) override;
 
 	virtual bool SupportsFeature(ETargetDeviceFeatures Feature) const override;
-
-	virtual bool SupportsSdkVersion(const FString& VersionString) const override;
 
 	virtual bool TerminateProcess(const int64 ProcessId) override;
 

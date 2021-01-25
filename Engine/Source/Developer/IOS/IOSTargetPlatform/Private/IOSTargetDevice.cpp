@@ -304,11 +304,6 @@ bool FIOSTargetDevice::Connect()
 	return true;
 }
 
-bool FIOSTargetDevice::Deploy(const FString& SourceFolder, FString& OutAppId)
-{
-	return false;
-}
-
 void FIOSTargetDevice::Disconnect()
 {
 }
@@ -352,17 +347,6 @@ bool FIOSTargetDevice::IsDefault() const
 {
 	return true;
 }
-	
-bool FIOSTargetDevice::Launch(const FString& InAppId, EBuildConfiguration InBuildConfiguration, EBuildTargetType TargetType, const FString& Params, uint32* OutProcessId)
-{
-#if !PLATFORM_MAC
-	MessageEndpoint->Send(new FIOSLaunchDaemonLaunchApp(InAppId, Params), DeviceEndpoint);
-	return true;
-#else
-	//Set return to false on Mac, since we could not find a way to do remote deploy/launch.
-	return false;
-#endif // !PLATFORM_MAC
-}
 
 bool FIOSTargetDevice::PowerOff(bool Force)
 {
@@ -385,43 +369,6 @@ bool FIOSTargetDevice::Reboot(bool bReconnect)
 	return false;
 }
 
-bool FIOSTargetDevice::Run(const FString& ExecutablePath, const FString& Params, uint32* OutProcessId)
-{
-#if !PLATFORM_MAC
-	// The executable path usually looks something like this: directory/<gamename>.stub
-	// We just need <gamename>, so strip that out.
-	int32 LastPeriodPos = ExecutablePath.Find( TEXT("."), ESearchCase::IgnoreCase, ESearchDir::FromEnd);
-	int32 LastBackslashPos = ExecutablePath.Find( TEXT("\\"), ESearchCase::IgnoreCase, ESearchDir::FromEnd);
-	int32 LastSlashPos = ExecutablePath.Find( TEXT("/"), ESearchCase::IgnoreCase, ESearchDir::FromEnd);
-	int32 TrimPos = LastBackslashPos > LastSlashPos ? LastBackslashPos : LastSlashPos;
-	if ( TrimPos > LastPeriodPos )
-	{
-		// Ignore any periods in the path before the last "/" or "\"
-		LastPeriodPos = ExecutablePath.Len() - 1;
-	}
-
-	if ( TrimPos == INDEX_NONE )
-	{
-		TrimPos = 0; // take the whole string from the beginning
-	}
-	else
-	{
-		// increment to one character beyond the slash
-		TrimPos++;
-	}
-
-	int32 Count = LastPeriodPos - TrimPos;
-	FString NewAppId = ExecutablePath.Mid(TrimPos, Count); // remove the ".stub" and the proceeding directory to get the game name
-
-	SetAppId(NewAppId);
-	MessageEndpoint->Send(new FIOSLaunchDaemonLaunchApp(AppId, Params), DeviceEndpoint);
-	return true;
-#else
-	//Set return to false on Mac, since we could not find a way to do remote deploy/launch.
-	return false;
-#endif // !PLATFORM_MAC
-}
-
 bool FIOSTargetDevice::SupportsFeature(ETargetDeviceFeatures Feature) const
 {
 	switch (Feature)
@@ -441,11 +388,6 @@ bool FIOSTargetDevice::SupportsFeature(ETargetDeviceFeatures Feature) const
 	default:
 		return false;
 	}
-}
-
-bool FIOSTargetDevice::SupportsSdkVersion(const FString& VersionString) const
-{
-	return true;
 }
 
 bool FIOSTargetDevice::TerminateProcess(const int64 ProcessId)

@@ -216,15 +216,6 @@ public:
 	virtual bool Connect() = 0;
 
 	/**
-	 * Deploys an application in the specified folder to the device.
-	 *
-	 * @param SourceFolder The path to the files and directories to be deployed.
-	 * @param OutAppId Will hold the identifier of the deployed application (used for launching).
-	 * @return true on success, false otherwise.
-	 */
-	virtual bool Deploy( const FString& SourceFolder, FString& OutAppId ) = 0;
-
-	/**
 	 * Disconnect from the physical device.
 	 */
 	virtual void Disconnect() = 0;
@@ -318,18 +309,6 @@ public:
 	virtual bool IsAuthorized() const { return true;  }
 
 	/**
-	 * Launches a previously deployed build.
-	 *
-	 * @param AppId The identifier of the application to launch (as returned by the Deploy() method).
-	 * @param BuildConfiguration The build configuration to launch.
-	 * @param TargetType The target type to launch
-	 * @param Params The command line parameters to launch with.
-	 * @param OutProcessId Will hold the identifier of the created process (can be NULL).
-	 * @return true on success, false otherwise.
-	 */
-	virtual bool Launch( const FString& AppId, EBuildConfiguration BuildConfiguration, EBuildTargetType TargetType, const FString& Params, uint32* OutProcessId ) = 0;
-
-	/**
 	 * Powers off the device.
 	 *
 	 * @param Force Whether to force powering off.
@@ -353,30 +332,12 @@ public:
 	virtual bool Reboot( bool bReconnect = false ) = 0;
 
 	/**
-	 * Runs an executable on the device.
-	 *
-	 * @param ExecutablePath The path to the executable to run.
-	 * @param Params The command line parameters.
-	 * @param OutProcessId Will hold the identifier of the created process (can be NULL).
-	 * @return true if the executable was started, false otherwise.
-	 */
-	virtual bool Run( const FString& ExecutablePath, const FString& Params, uint32* OutProcessId ) = 0;
-
-	/**
 	 * Checks whether the target device supports the specified feature.
 	 *
 	 * @param Feature The feature to check.
 	 * @return true if the feature is supported, false otherwise.
 	 */
 	virtual bool SupportsFeature( ETargetDeviceFeatures Feature ) const = 0;
-
-	/**
-	 * Checks whether this device supports the specified SDK version.
-	 *
-	 * @param VersionString The SDK version string.
-	 * @return true if the SDK version is supported, false otherwise.
-	 */
-	virtual bool SupportsSdkVersion( const FString& VersionString ) const = 0;
 
 	/**
 	 * Terminates a process that was launched on the device using the Launch() or Run() methods.

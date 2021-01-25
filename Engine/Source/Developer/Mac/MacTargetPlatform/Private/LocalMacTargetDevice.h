@@ -36,32 +36,6 @@ public:
 		return true;
 	}
 
-	virtual bool Deploy( const FString& SourceFolder, FString& OutAppId ) override
-	{
-		OutAppId = TEXT("");
-
-		FString PlatformName = TEXT("Mac");
-		FString DeploymentDir = FPaths::EngineIntermediateDir() / TEXT("Devices") / PlatformName;
-
-		// delete previous build
-		IFileManager::Get().DeleteDirectory(*DeploymentDir, false, true);
-
-		// copy files into device directory
-		TArray<FString> FileNames;
-
-		IFileManager::Get().FindFilesRecursive(FileNames, *SourceFolder, TEXT("*.*"), true, false);
-
-		for (int32 FileIndex = 0; FileIndex < FileNames.Num(); ++FileIndex)
-		{
-			const FString& SourceFilePath = FileNames[FileIndex];
-			FString DestFilePath = DeploymentDir + SourceFilePath.RightChop(SourceFolder.Len());
-
-			IFileManager::Get().Copy(*DestFilePath, *SourceFilePath);
-		}
-
-		return true;
-	}
-
 	virtual void Disconnect( )
 	{ }
 
@@ -106,28 +80,6 @@ public:
 		return true;
 	}
 
-	virtual bool Launch( const FString& AppId, EBuildConfiguration BuildConfiguration, EBuildTargetType TargetType, const FString& Params, uint32* OutProcessId ) override
-	{
-		// build executable path
-		FString PlatformName = TEXT("Mac");
-		FString ExecutableName = TEXT("UE4");
-		if (BuildConfiguration != EBuildConfiguration::Development)
-		{
-			ExecutableName += FString::Printf(TEXT("-%s-%s"), *PlatformName, LexToString(BuildConfiguration));
-		}
-
-		FString ExecutablePath = FPaths::EngineIntermediateDir() / TEXT("Devices") / PlatformName / TEXT("Engine") / TEXT("Binaries") / PlatformName / (ExecutableName + TEXT(".app/Contents/MacOS/") + ExecutableName);
-
-		// launch the game
-		FProcHandle ProcessHandle = FPlatformProcess::CreateProc(*ExecutablePath, *Params, true, false, false, OutProcessId, 0, NULL, NULL);
-		if (ProcessHandle.IsValid())
-		{
-			FPlatformProcess::CloseProc(ProcessHandle);
-			return true;
-		}
-		return false;
-	}
-
 	virtual bool PowerOff( bool Force ) override
 	{
 		return false;
@@ -148,17 +100,6 @@ public:
 		return true;
 	}
 
-	virtual bool Run( const FString& ExecutablePath, const FString& Params, uint32* OutProcessId ) override
-	{
-		FProcHandle ProcessHandle = FPlatformProcess::CreateProc(*ExecutablePath, *Params, true, false, false, OutProcessId, 0, NULL, NULL);
-		if (ProcessHandle.IsValid())
-		{
-			FPlatformProcess::CloseProc(ProcessHandle);
-			return true;
-		}
-		return false;
-	}
-
 	virtual bool SupportsFeature( ETargetDeviceFeatures Feature ) const override
 	{
 		switch (Feature)
@@ -175,12 +116,6 @@ public:
 		}
 
 		return false;
-	}
-
-	virtual bool SupportsSdkVersion( const FString& VersionString ) const override
-	{
-		// @todo filter SDK versions
-		return true;
 	}
 
 	virtual void SetUserCredentials( const FString& UserName, const FString& UserPassword ) override

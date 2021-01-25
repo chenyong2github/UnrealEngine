@@ -109,7 +109,6 @@ public:
 	//~ ITargetDevice interface
 
 	virtual bool Connect() override;
-	virtual bool Deploy(const FString& SourceFolder, FString& OutAppId) override;
 	virtual void Disconnect() override;
 	virtual int32 GetProcessSnapshot(TArray<FTargetDeviceProcessInfo>& OutProcessInfos) override;
 	virtual ETargetDeviceTypes GetDeviceType() const override;
@@ -119,13 +118,10 @@ public:
 	virtual const class ITargetPlatform& GetTargetPlatform() const override;
 	virtual bool IsConnected() override;
 	virtual bool IsDefault() const override;
-	virtual bool Launch(const FString& InAppId, EBuildConfiguration InBuildConfiguration, EBuildTargetType TargetType, const FString& Params, uint32* OutProcessId) override;
 	virtual bool PowerOff(bool Force) override;
 	virtual bool PowerOn() override;
 	virtual bool Reboot(bool bReconnect = false) override;
-	virtual bool Run(const FString& ExecutablePath, const FString& Params, uint32* OutProcessId) override;
 	virtual bool SupportsFeature(ETargetDeviceFeatures Feature) const;
-	virtual bool SupportsSdkVersion(const FString& VersionString) const override;
 	virtual bool TerminateProcess(const int64 ProcessId) override;
 	virtual void SetUserCredentials(const FString& UserName, const FString& UserPassword) override;
 	virtual bool GetUserCredentials(FString& OutUserName, FString& OutUserPassword) override;
