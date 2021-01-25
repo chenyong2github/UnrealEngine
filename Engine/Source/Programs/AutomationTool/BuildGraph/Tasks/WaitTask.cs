@@ -6,7 +6,7 @@ using System.IO;
 using System.Threading;
 using System.Xml;
 using AutomationTool;
-using Tools.DotNETCommon;
+using EpicGames.Core;
 
 namespace BuildGraph.Tasks
 {
