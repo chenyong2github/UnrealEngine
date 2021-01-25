@@ -206,6 +206,8 @@ void FOutputDeviceRedirector::InternalFlushThreadedLogs(TLocalOutputDevicesArray
 {	
 	if (BufferedLines.Num())
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(FOutputDeviceRedirector::InternalFlushThreadedLogs);
+
 		TArray<FBufferedLine, TInlineAllocator<64>> LocalBufferedLines;
 		FLogAllocator::FBufferLock BufferLock;
 		{

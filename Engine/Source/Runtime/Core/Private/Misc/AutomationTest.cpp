@@ -217,6 +217,8 @@ bool FAutomationTestFramework::ContainsTest( const FString& InTestName ) const
 
 bool FAutomationTestFramework::RunSmokeTests()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FAutomationTestFramework::RunSmokeTests);
+
 	bool bAllSuccessful = true;
 
 	uint32 PreviousRequestedTestFilter = RequestedTestFilter;

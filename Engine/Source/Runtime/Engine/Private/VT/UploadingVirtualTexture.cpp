@@ -300,6 +300,8 @@ struct FCreateCodecTask
 
 FVTCodecAndStatus FUploadingVirtualTexture::GetCodecForChunk(FGraphEventArray& OutCompletionEvents, uint32 ChunkIndex, EVTRequestPagePriority Priority)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FUploadingVirtualTexture::GetCodecForChunk);
+
 	const FVirtualTextureDataChunk& Chunk = Data->Chunks[ChunkIndex];
 	if (Chunk.CodecPayloadSize == 0u)
 	{
@@ -344,6 +346,8 @@ FVTCodecAndStatus FUploadingVirtualTexture::GetCodecForChunk(FGraphEventArray& O
 
 FVTDataAndStatus FUploadingVirtualTexture::ReadData(FGraphEventArray& OutCompletionEvents, uint32 ChunkIndex, size_t Offset, size_t Size, EVTRequestPagePriority Priority)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FUploadingVirtualTexture::ReadData);
+
 	FVirtualTextureDataChunk& Chunk = Data->Chunks[ChunkIndex];
 	FByteBulkData& BulkData = Chunk.BulkData;
 #if WITH_EDITOR

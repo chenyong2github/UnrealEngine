@@ -56,6 +56,8 @@ public:
 
 	void DoWork()
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(FAsyncFillCacheWorker::DoWork);
+
 		IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
 		FDerivedDataCacheInterface& DDC = GetDerivedDataCacheRef();
 
@@ -176,6 +178,8 @@ FVirtualTextureChunkDDCCache* GetVirtualTextureChunkDDCCache()
 
 void FVirtualTextureChunkDDCCache::Initialize()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FVirtualTextureChunkDDCCache::Initialize);
+
 	// setup the cache folder
 	auto& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
 
@@ -238,6 +242,8 @@ void FVirtualTextureChunkDDCCache::UpdateRequests()
 
 bool FVirtualTextureChunkDDCCache::MakeChunkAvailable(struct FVirtualTextureDataChunk* Chunk, bool bAsync, FString& OutChunkFileName, int64& OutOffsetInFile)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FVirtualTextureChunkDDCCache::MakeChunkAvailable);
+
 	const FString CachedFilePath = AbsoluteCachePath / Chunk->ShortDerivedDataKey;
 	const FString TempFilePath = AbsoluteCachePath / FGuid::NewGuid().ToString() + ".tmp";
 
