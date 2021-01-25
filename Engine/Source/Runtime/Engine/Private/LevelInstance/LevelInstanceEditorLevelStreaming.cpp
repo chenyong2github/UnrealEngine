@@ -9,6 +9,7 @@
 #include "EditorLevelUtils.h"
 #include "Editor.h"
 #include "Engine/LevelBounds.h"
+#include "GameFramework/WorldSettings.h"
 #endif
 
 #if WITH_EDITOR

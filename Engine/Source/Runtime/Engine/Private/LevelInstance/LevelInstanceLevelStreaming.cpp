@@ -7,6 +7,7 @@
 #include "Engine/LevelBounds.h"
 #include "Engine/World.h"
 #include "Misc/PackageName.h"
+#include "GameFramework/WorldSettings.h"
 
 #if WITH_EDITOR
 #include "LevelInstance/LevelInstanceEditorInstanceActor.h"
