@@ -21,7 +21,6 @@ public class LevelSnapshots : ModuleRules
             {
                 "CoreUObject",
                 "Engine",
-                "Kismet",
                 "Slate",
                 "SlateCore",
                 "LevelSnapshotFilters"
@@ -32,7 +31,13 @@ public class LevelSnapshots : ModuleRules
 		// This is needed for refreshing editor selection when loading snapshot in editor
 		if (Target.bBuildEditor)
 		{
-			PrivateDependencyModuleNames.Add("UnrealEd");
+			PrivateDependencyModuleNames.AddRange(
+				 new string[]
+				{
+					"Kismet",
+					"UnrealEd"
+				}
+				);
 		}
 	}
 }

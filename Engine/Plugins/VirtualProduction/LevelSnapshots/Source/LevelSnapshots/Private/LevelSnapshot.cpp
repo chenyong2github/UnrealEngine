@@ -7,6 +7,7 @@
 
 void ULevelSnapshot::SnapshotWorld(UWorld* TargetWorld)
 {
+#if WITH_EDITOR
 	if (!TargetWorld)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("Unable To Snapshot World as World was invalid"));
@@ -30,7 +31,7 @@ void ULevelSnapshot::SnapshotWorld(UWorld* TargetWorld)
 			SnapshotActor(Actor);
 		}
 	}
-
+#endif // #if WITH_EDITOR
 }
 
 bool ULevelSnapshot::DoesActorHaveSupportedClass(const AActor* Actor)

@@ -2,13 +2,13 @@
 
 #include "LevelSnapshotsFunctionLibrary.h"
 
-#include "DiffUtils.h"
 #include "EngineUtils.h"
 #include "LevelSnapshot.h"
 #include "LevelSnapshotFilters.h"
 #include "Engine/LevelStreaming.h"
 
 #if WITH_EDITOR
+#include "DiffUtils.h"
 #include "UnrealEdGlobals.h"
 #include "Editor/UnrealEdEngine.h"
 #endif
@@ -52,16 +52,20 @@ void ULevelSnapshotsFunctionLibrary::ApplySnapshotToWorld(const UObject* WorldCo
 	}
 
 	{
+#if WITH_EDITOR
 		FScopedTransaction Transaction(FText::FromString("Loading Level Snapshot."));
-
+#endif // #if WITH_EDITOR
 		for (TActorIterator<AActor> It(TargetWorld, AActor::StaticClass(), EActorIteratorFlags::SkipPendingKill); It; ++It)
 		{
 			AActor* Actor = *It;
+
+#if WITH_EDITOR
 			// For now only snapshot the actors which would be visible in the scene outliner to avoid complications with special hidden actors
 			if (!Actor->IsListedInSceneOutliner())
 			{
 				continue;
 			}
+#endif // #if WITH_EDITOR
 
 			for (const TPair<FString, FLevelSnapshot_Actor>& SnapshotPair : Snapshot->ActorSnapshots)
 			{
@@ -89,6 +93,7 @@ void ULevelSnapshotsFunctionLibrary::ApplySnapshotToWorld(const UObject* WorldCo
 
 void PrintObjectDifferences(const AActor* A, const AActor* B)
 {
+#if WITH_EDITOR
 	if (!A || !B)
 	{
 		return;
@@ -103,6 +108,7 @@ void PrintObjectDifferences(const AActor* A, const AActor* B)
 		FString PropertyDisplayName = DifferingProperty.Identifier.ToDisplayName();
 		UE_LOG(LogTemp, Warning, TEXT("\tProperty Difference: %s"), *PropertyDisplayName);
 	}
+#endif // #if WITH_EDITOR
 }
 
 void ULevelSnapshotsFunctionLibrary::TestDeserialization(const ULevelSnapshot* Snapshot, AActor* TestActor)
@@ -134,6 +140,7 @@ void ULevelSnapshotsFunctionLibrary::TestDeserialization(const ULevelSnapshot* S
 
 void ULevelSnapshotsFunctionLibrary::DiffSnapshots(const ULevelSnapshot* FirstSnapshot, const ULevelSnapshot* SecondSnapshot, TMap<FString, FLevelSnapshot_ActorDiff>& DiffResults)
 {
+#if WITH_EDITOR
 	if (!FirstSnapshot || !SecondSnapshot)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("Unable to Diff snapshots as at least one snapshot was invalid"));
@@ -192,4 +199,5 @@ void ULevelSnapshotsFunctionLibrary::DiffSnapshots(const ULevelSnapshot* FirstSn
 			UE_LOG(LogTemp, Warning, TEXT("%s exists in the Second snapshot but not the First."), *SecondSnapshotPathName);
 		}
 	}
+#endif // #if WITH_EDITOR
 }
