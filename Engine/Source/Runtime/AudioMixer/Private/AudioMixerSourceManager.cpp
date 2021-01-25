@@ -2295,7 +2295,7 @@ namespace Audio
 			if (!DisableEnvelopeFollowingCvar)
 			{
 				// Compute the source envelope using pre-distance attenuation buffer
-				float AverageSampleValue = Audio::GetAverageAmplitude(PreDistanceAttenBufferPtr, NumSamples);
+				float AverageSampleValue = Audio::BufferGetAverageAbsValue(PreDistanceAttenBufferPtr, NumSamples);
 				SourceInfo.SourceEnvelopeFollower.ProcessAudio(AverageSampleValue);
 
 				// Copy the current value of the envelope follower (block-rate value)

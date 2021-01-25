@@ -637,14 +637,14 @@ namespace Audio
 #endif
 	}
 
-	float GetAverageAmplitude(const FAlignedFloatBuffer& Buffer)
+	float BufferGetAverageValue(const FAlignedFloatBuffer& Buffer)
 	{
 		checkf(Buffer.Num() % 4 == 0, TEXT("Please use a buffer size that is a multiple of 4."));
 
-		return GetAverageAmplitude(Buffer.GetData(), Buffer.Num());
+		return BufferGetAverageValue(Buffer.GetData(), Buffer.Num());
 	}
 
-	float GetAverageAmplitude(const float* RESTRICT Buffer, int32 NumSamples)
+	float BufferGetAverageValue(const float* RESTRICT Buffer, int32 NumSamples)
 	{
 		checkf(NumSamples % 4 == 0, TEXT("Please use a buffer size that is a multiple of 4."));
 
@@ -667,6 +667,40 @@ namespace Audio
 		float PartionedSums[4];
 		VectorStore(Sum, PartionedSums);
 		
+		return (PartionedSums[0] + PartionedSums[1] + PartionedSums[2] + PartionedSums[3]) / NumSamples;
+#endif
+	}
+
+	float BufferGetAverageAbsValue(const FAlignedFloatBuffer& Buffer)
+	{
+		checkf(Buffer.Num() % 4 == 0, TEXT("Please use a buffer size that is a multiple of 4."));
+
+		return BufferGetAverageAbsValue(Buffer.GetData(), Buffer.Num());
+	}
+
+	float BufferGetAverageAbsValue(const float* RESTRICT Buffer, int32 NumSamples)
+	{
+		checkf(NumSamples % 4 == 0, TEXT("Please use a buffer size that is a multiple of 4."));
+
+#if !AUDIO_USE_SIMD
+		float Sum = 0.0f;
+		for (int32 i = 0; i < NumSamples; ++i)
+		{
+			Sum += FMath::Abs(Buffer[i]);
+		}
+		return Sum / NumSamples;
+#else
+		VectorRegister Sum = VectorZero();
+
+		for (int32 i = 0; i < NumSamples; i += 4)
+		{
+			VectorRegister Input = VectorAbs(VectorLoadAligned(&Buffer[i]));
+			Sum = VectorAdd(Sum, Input);
+		}
+
+		float PartionedSums[4];
+		VectorStore(Sum, PartionedSums);
+
 		return (PartionedSums[0] + PartionedSums[1] + PartionedSums[2] + PartionedSums[3]) / NumSamples;
 #endif
 	}

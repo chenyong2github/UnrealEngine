@@ -77,7 +77,7 @@ namespace AudioModulation
 				static const int32 SimdMultiple = 4;
 				if (NumSamples % SimdMultiple == 0)
 				{
-					Amp = Audio::GetAverageAmplitude(TempBuffer.GetData(), NumSamples);
+					Amp = Audio::BufferGetAverageAbsValue(TempBuffer.GetData(), NumSamples);
 				}
 				// If NumSamples is not a multiple of 4, do it the non-SIMD way
 				else
@@ -85,7 +85,7 @@ namespace AudioModulation
 					Amp = 0.0f;
 					for (int32 i = 0; i < NumSamples; ++i)
 					{
-						Amp += TempBuffer[i];
+						Amp += FMath::Abs(TempBuffer[i]);
 					}
 					Amp /= NumSamples;
 				}

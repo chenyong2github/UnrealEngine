@@ -12,7 +12,7 @@ void BreakWhenAudible(float* InBuffer, int32 NumSamples)
 {
 	static const float AudibilityThreshold = Audio::ConvertToLinear(-40.0f);
 
-	float BufferAmplitude = Audio::GetAverageAmplitude(InBuffer, NumSamples);
+	float BufferAmplitude = Audio::BufferGetAverageAbsValue(InBuffer, NumSamples);
 
 	if (BufferAmplitude > AudibilityThreshold)
 	{
@@ -24,7 +24,7 @@ void BreakWhenTooLoud(float* InBuffer, int32 NumSamples)
 {
 	static const float PainThreshold = Audio::ConvertToLinear(3.0f);
 
-	float BufferAmplitude = Audio::GetAverageAmplitude(InBuffer, NumSamples);
+	float BufferAmplitude = Audio::BufferGetAverageAbsValue(InBuffer, NumSamples);
 
 	if (BufferAmplitude > PainThreshold)
 	{
