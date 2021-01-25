@@ -463,7 +463,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ChaosPhysics|Collisions")
 	int32 CollisionGroup;
 
-	/** Uniform Friction */
+	/** Fraction of collision sample particles to keep */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ChaosPhysics|Collisions")
 	float CollisionSampleFraction;
 
