@@ -202,7 +202,7 @@ namespace Audio
 		IDecoderOutput::FRequirements Reqs
 		{
 			Float32_Interleaved,
-			DecodeBlockSizeInFrames,
+			static_cast<int32>(DecodeBlockSizeInFrames),
 			static_cast<int32>(OutputSampleRate)
 		};
 
