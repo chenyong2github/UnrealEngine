@@ -240,25 +240,6 @@ void SMessageLogMessageListRow::CreateMessage(const TSharedRef<SHorizontalBox>& 
 	}
 		break;
 
-#if WITH_EDITOR
-	case EMessageToken::Documentation:
-	{
-		const TSharedRef<FDocumentationToken> DocumentationToken = StaticCastSharedRef<FDocumentationToken>(InMessageToken);
-
-		IconBrushName = FName("MessageLog.Docs");
-		RowContent = SNew(SHyperlink)
-			.Text(LOCTEXT("DocsLabel", "Docs"))
-			.ToolTip(IDocumentation::Get()->CreateToolTip(
-			LOCTEXT("DocumentationTokenToolTip", "Click to open documentation"),
-			NULL,
-			DocumentationToken->GetPreviewExcerptLink(),
-			DocumentationToken->GetPreviewExcerptName())
-			)
-			.TextStyle(FEditorStyle::Get(), "MessageLog")
-			.OnNavigate(this, &SMessageLogMessageListRow::HandleDocsHyperlinkNavigate, DocumentationToken->GetDocumentationLink());
-	}
-		break;
-
 	case EMessageToken::Text:
 	{
 		if (InMessageToken->GetOnMessageTokenActivated().IsBound())
@@ -310,6 +291,25 @@ void SMessageLogMessageListRow::CreateMessage(const TSharedRef<SHorizontalBox>& 
 				.Text(FText::FromString(MessageString))
 			];
 		}
+	}
+		break;
+
+#if WITH_EDITOR
+	case EMessageToken::Documentation:
+	{
+		const TSharedRef<FDocumentationToken> DocumentationToken = StaticCastSharedRef<FDocumentationToken>(InMessageToken);
+
+		IconBrushName = FName("MessageLog.Docs");
+		RowContent = SNew(SHyperlink)
+			.Text(LOCTEXT("DocsLabel", "Docs"))
+			.ToolTip(IDocumentation::Get()->CreateToolTip(
+			LOCTEXT("DocumentationTokenToolTip", "Click to open documentation"),
+			NULL,
+			DocumentationToken->GetPreviewExcerptLink(),
+			DocumentationToken->GetPreviewExcerptName())
+			)
+			.TextStyle(FEditorStyle::Get(), "MessageLog")
+			.OnNavigate(this, &SMessageLogMessageListRow::HandleDocsHyperlinkNavigate, DocumentationToken->GetDocumentationLink());
 	}
 		break;
 
