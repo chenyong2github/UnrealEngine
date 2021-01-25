@@ -126,7 +126,7 @@ void FSourceControlModule::ShowLoginDialog(const FSourceControlLoginClosed& InOn
 		// Create the window
 		SourceControlLoginWindowPtr = SNew(SWindow)
 			.Title( LOCTEXT("SourceControlLoginTitle", "Source Control Login") )
-			.HasCloseButton(false)
+			.HasCloseButton(true)
 			.SupportsMaximize(false) 
 			.SupportsMinimize(false)
 			.SizingRule( ESizingRule::Autosized );
@@ -136,13 +136,9 @@ void FSourceControlModule::ShowLoginDialog(const FSourceControlLoginClosed& InOn
 
 		// Setup the content for the created login window.
 		SourceControlLoginWindowPtr->SetContent(
-			SNew(SBox)
-			.WidthOverride(700.0f)
-			[
 				SAssignNew(SourceControlLoginPtr, SSourceControlLogin)
 				.ParentWindow(SourceControlLoginWindowPtr)
 				.OnSourceControlLoginClosed(InOnSourceControlLoginClosed)
-			]
 			);
 
 		TSharedPtr<SWindow> RootWindow = FGlobalTabmanager::Get()->GetRootWindow();

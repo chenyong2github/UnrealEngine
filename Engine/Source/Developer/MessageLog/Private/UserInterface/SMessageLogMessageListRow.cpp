@@ -86,7 +86,6 @@ TSharedRef<SWidget> SMessageLogMessageListRow::GenerateWidget()
 	}
 
 	return SNew(SHorizontalBox)
-
 		+ SHorizontalBox::Slot()
 		.AutoWidth()
 		.HAlign(HAlign_Center)
@@ -103,27 +102,27 @@ TSharedRef<SWidget> SMessageLogMessageListRow::GenerateWidget()
 		]
 
 	+ SHorizontalBox::Slot()
-		.FillWidth(1.0f)
-		.VAlign(VAlign_Center)
-		[
-			MessageBox
-		]
+	.FillWidth(1.0f)
+	.VAlign(VAlign_Center)
+	[
+		MessageBox
+	]
 
 	+ SHorizontalBox::Slot()
-		.AutoWidth()
-		.HAlign(HAlign_Right)
-		.VAlign(VAlign_Center)
-		.Padding(1.0f)
+	.AutoWidth()
+	.HAlign(HAlign_Right)
+	.VAlign(VAlign_Center)
+	.Padding(1.0f)
+	[
+		!HasLinks
+		? SNullWidget::NullWidget
+		: static_cast<TSharedRef<SWidget>>(SNew(SBorder)
+		.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+		.Padding(FMargin(0.0f, 1.0f, 10.0f, 1.0f))
 		[
-			!HasLinks
-			? SNullWidget::NullWidget
-			: static_cast<TSharedRef<SWidget>>(SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
-			.Padding(FMargin(0.0f, 1.0f, 10.0f, 1.0f))
-			[
-				LinkBox
-			])
-		];
+			LinkBox
+		])
+	];
 }
 
 void SMessageLogMessageListRow::CreateMessage(const TSharedRef<SHorizontalBox>& InHorzBox, const TSharedRef<IMessageToken>& InMessageToken, float Padding)
@@ -273,20 +272,16 @@ void SMessageLogMessageListRow::CreateMessage(const TSharedRef<SHorizontalBox>& 
 			}
 
 			RowContent = SNew(SHorizontalBox)
-
 			+ SHorizontalBox::Slot()
 			.AutoWidth()
 			.Padding(0)
 			[
 				SourceLink
 			]
-
 			+ SHorizontalBox::Slot()
-			.AutoWidth()
 			.Padding(0)
 			[
 				SNew(STextBlock)
-				.ColorAndOpacity(FSlateColor::UseSubduedForeground())
 				.TextStyle(FEditorStyle::Get(), "Log.Normal")
 				.Text(FText::FromString(MessageString))
 			];
@@ -331,7 +326,6 @@ void SMessageLogMessageListRow::CreateMessage(const TSharedRef<SHorizontalBox>& 
 	if (RowContent.IsValid())
 	{
 		InHorzBox->AddSlot()
-			.AutoWidth()
 			.VAlign(VAlign_Center)
 			.Padding(Padding, 0.0f, 0.0f, 0.0f)
 			[
@@ -350,12 +344,11 @@ void SMessageLogMessageListRow::CreateMessage(const TSharedRef<SHorizontalBox>& 
 				]
 
 				+ SHorizontalBox::Slot()
-					.AutoWidth()
-					.VAlign(VAlign_Center)
-					.Padding(2.0f, 0.0f, 0.0f, 0.0f)
-					[
-						RowContent.ToSharedRef()
-					]
+				.VAlign(VAlign_Center)
+				.Padding(2.0f, 0.0f, 0.0f, 0.0f)
+				[
+					RowContent.ToSharedRef()
+				]
 			];
 	}
 }

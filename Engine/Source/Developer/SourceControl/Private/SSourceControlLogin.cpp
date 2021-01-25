@@ -47,117 +47,115 @@ void SSourceControlLogin::Construct(const FArguments& InArgs)
 
 	ChildSlot
 	[
-		SNew(SBorder)
-		.HAlign(HAlign_Fill)
-		.BorderImage( FEditorStyle::GetBrush("ChildWindow.Background") )
-		.Padding(4.0f)
+		SNew(SBox)
+		.WidthOverride(480.f)
 		[
-			SNew(SVerticalBox)
-			+SVerticalBox::Slot()
-			.FillHeight(1.0f)
-			.Padding(0.0f, 6.0f, 0.0f, 0.0f)
+			SNew(SBorder)
+			.Padding(0)
+			.BorderImage(FAppStyle::Get().GetBrush("Brushes.Panel"))
 			[
-				SNew(SBorder)
-					.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
-					.Padding(4.0f)
+				SNew(SVerticalBox)
+				+SVerticalBox::Slot()
+				.AutoHeight()
+				.Padding(16.0f, 16.0f, 16.0f, 0.0f)
+				[
+					SNew(SVerticalBox)
+					+SVerticalBox::Slot()
+					.AutoHeight()
+					.Padding(0.0f)
 					[
-						SNew(SVerticalBox)
-						+SVerticalBox::Slot()
-						.AutoHeight()
-						.Padding(0.0f)
+						SNew(SSourceControlPicker)
+						.IsEnabled( this, &SSourceControlLogin::AreControlsEnabled )
+					]
+					+SVerticalBox::Slot()
+					.AutoHeight()
+					[
+						SAssignNew(SettingsBorder, SBox)
+						.Visibility(this, &SSourceControlLogin::GetSettingsVisibility)
+						.IsEnabled(this, &SSourceControlLogin::AreControlsEnabled)
+						[
+							SourceControlModule.GetProvider().MakeSettingsWidget()
+						]
+					]
+					+SVerticalBox::Slot()
+					.AutoHeight()
+					.Padding(FMargin(0.0f, 0.0f, 16.0f, 0.0f))
+					[
+						SNew(STextBlock)
+						.Visibility(this, &SSourceControlLogin::GetDisabledTextVisibility)
+						.WrapTextAt(450.0f)
+						.Text(LOCTEXT("SourceControlDisabledText", "Source control is currently disabled.\n\nTo enable, select a provider from the drop-down box above and enter your credentials."))
+					]
+				]
+	#if WITH_UNREAL_DEVELOPER_TOOLS
+				+SVerticalBox::Slot()
+				.VAlign(VAlign_Top)
+				.AutoHeight()
+				.Padding(0.0f)
+				[
+					SNew(SExpandableArea)
+					.BorderImage(FEditorStyle::GetBrush("NoBorder"))
+					.Visibility(this, &SSourceControlLogin::GetSettingsVisibility)
+					.IsEnabled(this, &SSourceControlLogin::AreControlsEnabled)
+					.InitiallyCollapsed(true)
+					.HeaderContent()
+					[
+						SNew(STextBlock)
+						.Text(LOCTEXT("LogTitle", "Source Control Log"))
+					]
+					.BodyContent()
+					[
+						SNew(SBorder)
+						.BorderImage(FAppStyle::Get().GetBrush("Brushes.Recessed"))
+						.Padding(0)
 						[
 							SNew(SBox)
-							.WidthOverride(500)
+							.HeightOverride(250)
 							[
-								SNew(SSourceControlPicker)
-								.IsEnabled( this, &SSourceControlLogin::AreControlsEnabled )
+								MessageLogModule.CreateLogListingWidget(MessageLogListing)
 							]
 						]
-						+SVerticalBox::Slot()
-						.AutoHeight()
-						.Padding(0.0f, 0.0f, 0.0f, 4.0f)
-						[
-							SAssignNew(SettingsBorder, SBorder)
-							.BorderImage(FEditorStyle::GetBrush("NoBorder"))
-							.Visibility(this, &SSourceControlLogin::GetSettingsVisibility)
-							.IsEnabled(this, &SSourceControlLogin::AreControlsEnabled)
-							.Padding(0.0f)
-							[
-								SourceControlModule.GetProvider().MakeSettingsWidget()
-							]
-						]
-						+SVerticalBox::Slot()
-						.AutoHeight()
-						.Padding(0.0f, 0.0f, 0.0f, 4.0f)
-						[
-							SNew(SBorder)
-							.BorderImage(FEditorStyle::GetBrush("DetailsView.CategoryBottom"))
-							.Visibility(this, &SSourceControlLogin::GetDisabledTextVisibility)
-							.Padding(FMargin(4.0f, 12.0f))
-							[
-								SNew(STextBlock)
-								.WrapTextAt(500.0f)
-								.Text(LOCTEXT("SourceControlDisabledText", "Source control is currently disabled.\n\nTo enable, select a provider from the drop-down box above and enter your credentials.\nYou can re-enable source control by clicking on the icon in the top-right corner of the editor."))
-							]
-						]
-					]
-			]
-#if WITH_UNREAL_DEVELOPER_TOOLS
-			+SVerticalBox::Slot()
-			.AutoHeight()
-			.Padding(0.0f, 6.0f, 0.0f, 0.0f)
-			[
-				SNew(SExpandableArea)
-				.AreaTitleFont(FEditorStyle::GetFontStyle(TEXT("SourceControl.LoginWindow.Font")))
-				.AreaTitle(LOCTEXT("LogTitle", "Source Control Log"))
-				.BorderImage(FEditorStyle::GetBrush("NoBorder"))
-				.IsEnabled( this, &SSourceControlLogin::AreControlsEnabled )
-				.InitiallyCollapsed(true)
-				.BodyContent()
-				[
-					SNew(SBox)
-					.HeightOverride(250)
-					.WidthOverride(400)
-					[
-						MessageLogModule.CreateLogListingWidget(MessageLogListing)
 					]
 				]
-			]
-#endif
-			+SVerticalBox::Slot()
-			.AutoHeight()
-			.Padding(8.0f, 16.0f, 8.0f, 8.0f)
-			[
-				SNew(SHorizontalBox)
-				+SHorizontalBox::Slot()
-				.AutoWidth()
-				.VAlign(VAlign_Center)
-				.HAlign(HAlign_Left)
+	#endif
+				+SVerticalBox::Slot()
+				.AutoHeight()
+				.Padding(8.0f, 16.0f, 8.0f, 8.0f)
 				[
-					SNew(SThrobber)
-					.Visibility(this, &SSourceControlLogin::GetThrobberVisibility)
-				]
-				+SHorizontalBox::Slot()
-				.FillWidth(1.0f)
-				.HAlign(HAlign_Right)
-				[
-					SNew(SUniformGridPanel)
-					.SlotPadding(FMargin(8.0f, 0.0f, 0.0f, 0.0f))
-					+SUniformGridPanel::Slot(0, 0)
+					SNew(SHorizontalBox)
+					+SHorizontalBox::Slot()
+					.AutoWidth()
+					.VAlign(VAlign_Center)
+					.HAlign(HAlign_Left)
 					[
-						SNew(SButton)
-						.HAlign(HAlign_Center)
-						.Text(LOCTEXT("AcceptSettings", "Accept Settings"))
-						.OnClicked( this, &SSourceControlLogin::OnAcceptSettings )
-						.IsEnabled( this, &SSourceControlLogin::IsAcceptSettingsEnabled )
+						SNew(SThrobber)
+						.Visibility(this, &SSourceControlLogin::GetThrobberVisibility)
 					]
-					+SUniformGridPanel::Slot(1, 0)
+					+SHorizontalBox::Slot()
+					.FillWidth(1.0f)
+					.HAlign(HAlign_Right)
 					[
-						SNew(SButton)
-						.HAlign(HAlign_Center)
-						.Text(LOCTEXT("RunWithoutSourceControl", "Run Without Source Control"))
-						.OnClicked( this, &SSourceControlLogin::OnDisableSourceControl )
-						.IsEnabled( this, &SSourceControlLogin::AreControlsEnabled )
+						SNew(SHorizontalBox)
+						+ SHorizontalBox::Slot()
+						.AutoWidth()
+						.Padding(FMargin(5.0f, 0.0f))
+						[
+							SNew(SButton)
+							.VAlign(VAlign_Center)
+							.Text(LOCTEXT("AcceptSettings", "Accept Settings"))
+							.OnClicked( this, &SSourceControlLogin::OnAcceptSettings )
+							.IsEnabled( this, &SSourceControlLogin::IsAcceptSettingsEnabled )
+						]
+						+ SHorizontalBox::Slot()
+						.AutoWidth()
+						.Padding(FMargin(5.0f, 0.0f))
+						[
+							SNew(SButton)
+							.VAlign(VAlign_Center)
+							.Text(LOCTEXT("RunWithoutSourceControl", "Disable Source Control"))
+							.OnClicked( this, &SSourceControlLogin::OnDisableSourceControl )
+							.IsEnabled( this, &SSourceControlLogin::AreControlsEnabled )
+						]
 					]
 				]
 			]

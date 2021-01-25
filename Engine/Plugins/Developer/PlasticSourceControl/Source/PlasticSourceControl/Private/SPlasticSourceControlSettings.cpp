@@ -44,294 +44,281 @@ void SPlasticSourceControlSettings::Construct(const FArguments& InArgs)
 
 	ChildSlot
 	[
-		SNew(SBorder)
-		.BorderImage( FEditorStyle::GetBrush("DetailsView.CategoryBottom"))
-		.Padding(FMargin(0.0f, 3.0f, 0.0f, 0.0f))
+		SNew(SVerticalBox)
+		// Path to the Plastic SCM binary
+		+SVerticalBox::Slot()
+		.AutoHeight()
+		.Padding(2.0f)
+		.VAlign(VAlign_Center)
 		[
-			SNew(SVerticalBox)
-			// Path to the Plastic SCM binary
-			+SVerticalBox::Slot()
-			.AutoHeight()
-			.Padding(2.0f)
-			.VAlign(VAlign_Center)
+			SNew(SHorizontalBox)
+			.ToolTipText(LOCTEXT("BinaryPathLabel_Tooltip", "Path to the Plastic SCM cli binary"))
+			+SHorizontalBox::Slot()
+			.FillWidth(1.0f)
 			[
-				SNew(SHorizontalBox)
-				.ToolTipText(LOCTEXT("BinaryPathLabel_Tooltip", "Path to the Plastic SCM cli binary"))
-				+SHorizontalBox::Slot()
-				.FillWidth(1.0f)
-				[
-					SNew(STextBlock)
-					.Text(LOCTEXT("PathLabel", "Plastic SCM Path"))
-					.Font(Font)
-				]
-				+SHorizontalBox::Slot()
-				.FillWidth(2.0f)
-				[
-					SNew(SEditableTextBox)
-					.Text(this, &SPlasticSourceControlSettings::GetBinaryPathText)
-					.HintText(LOCTEXT("BinaryPathLabel", "Path to the Plastic SCM binary"))
-					.OnTextCommitted(this, &SPlasticSourceControlSettings::OnBinaryPathTextCommited)
-					.Font(Font)
-				]
+				SNew(STextBlock)
+				.Text(LOCTEXT("PathLabel", "Plastic SCM Path"))
+				.Font(Font)
 			]
-			// Root of the workspace
-			+SVerticalBox::Slot()
-			.AutoHeight()
-			.Padding(2.0f)
-			.VAlign(VAlign_Center)
+			+SHorizontalBox::Slot()
+			.FillWidth(2.0f)
 			[
-				SNew(SHorizontalBox)
-				.ToolTipText(LOCTEXT("WorkspaceRootLabel_Tooltip", "Path to the root of the Plastic SCM workspace"))
-				+SHorizontalBox::Slot()
-				.FillWidth(1.0f)
-				[
-					SNew(STextBlock)
-					.Text(LOCTEXT("WorkspaceRootLabel", "Root of the workspace"))
-					.Font(Font)
-				]
-				+SHorizontalBox::Slot()
-				.FillWidth(2.0f)
-				[
-					SNew(STextBlock)
-					.Text(this, &SPlasticSourceControlSettings::GetPathToWorkspaceRoot)
-					.Font(Font)
-				]
+				SNew(SEditableTextBox)
+				.Text(this, &SPlasticSourceControlSettings::GetBinaryPathText)
+				.HintText(LOCTEXT("BinaryPathLabel", "Path to the Plastic SCM binary"))
+				.OnTextCommitted(this, &SPlasticSourceControlSettings::OnBinaryPathTextCommited)
+				.Font(Font)
 			]
-			// User Name
-			+SVerticalBox::Slot()
-			.AutoHeight()
-			.Padding(2.0f)
-			.VAlign(VAlign_Center)
+		]
+		// Root of the workspace
+		+SVerticalBox::Slot()
+		.AutoHeight()
+		.Padding(2.0f)
+		.VAlign(VAlign_Center)
+		[
+			SNew(SHorizontalBox)
+			.ToolTipText(LOCTEXT("WorkspaceRootLabel_Tooltip", "Path to the root of the Plastic SCM workspace"))
+			+SHorizontalBox::Slot()
+			.FillWidth(1.0f)
 			[
-				SNew(SHorizontalBox)
-				.ToolTipText(LOCTEXT("PlasticUserName_Tooltip", "User name configured for the Plastic SCM workspace"))
-				+SHorizontalBox::Slot()
-				.FillWidth(1.0f)
-				[
-					SNew(STextBlock)
-					.Text(LOCTEXT("PlasticUserName", "User Name"))
-					.Font(Font)
-				]
-				+SHorizontalBox::Slot()
-				.FillWidth(2.0f)
-				[
-					SNew(STextBlock)
-					.Text(this, &SPlasticSourceControlSettings::GetUserName)
-					.Font(Font)
-				]
+				SNew(STextBlock)
+				.Text(LOCTEXT("WorkspaceRootLabel", "Root of the workspace"))
+				.Font(Font)
 			]
-			// Separator
-			+SVerticalBox::Slot()
-			.AutoHeight()
-			.Padding(2.0f)
-			.VAlign(VAlign_Center)
+			+SHorizontalBox::Slot()
+			.FillWidth(2.0f)
 			[
-				SNew(SSeparator)
+				SNew(STextBlock)
+				.Text(this, &SPlasticSourceControlSettings::GetPathToWorkspaceRoot)
+				.Font(Font)
 			]
-			// Explanation text
-			+SVerticalBox::Slot()
-			.FillHeight(1.0f)
-			.Padding(2.0f)
+		]
+		// User Name
+		+SVerticalBox::Slot()
+		.AutoHeight()
+		.Padding(2.0f)
+		.VAlign(VAlign_Center)
+		[
+			SNew(SHorizontalBox)
+			.ToolTipText(LOCTEXT("PlasticUserName_Tooltip", "User name configured for the Plastic SCM workspace"))
+			+SHorizontalBox::Slot()
+			.FillWidth(1.0f)
+			[
+				SNew(STextBlock)
+				.Text(LOCTEXT("PlasticUserName", "User Name"))
+				.Font(Font)
+			]
+			+SHorizontalBox::Slot()
+			.FillWidth(2.0f)
+			[
+				SNew(STextBlock)
+				.Text(this, &SPlasticSourceControlSettings::GetUserName)
+				.Font(Font)
+			]
+		]
+		// Separator
+		+SVerticalBox::Slot()
+		.AutoHeight()
+		.Padding(2.0f)
+		.VAlign(VAlign_Center)
+		[
+			SNew(SSeparator)
+		]
+		// Explanation text
+		+SVerticalBox::Slot()
+		.FillHeight(1.0f)
+		.Padding(2.0f)
+		.VAlign(VAlign_Center)
+		[
+			SNew(SHorizontalBox)
+			.Visibility(this, &SPlasticSourceControlSettings::CanInitializePlasticWorkspace)
+			.ToolTipText(LOCTEXT("WorkspaceNotFound_Tooltip", "No Workspace found at the level or above the current Project"))
+			+SHorizontalBox::Slot()
+			.FillWidth(1.0f)
+			.HAlign(HAlign_Center)
+			[
+				SNew(STextBlock)
+				.Text(LOCTEXT("WorkspaceNotFound", "Current Project is not contained in a Plastic SCM Workspace. Fill the form below to initialize a new Workspace."))
+				.Font(Font)
+			]
+		]
+		// Workspace and Repository Name
+		+SVerticalBox::Slot()
+		.AutoHeight()
+		.Padding(2.0f)
+		.VAlign(VAlign_Center)
+		[
+			SNew(SHorizontalBox)
+			.Visibility(this, &SPlasticSourceControlSettings::CanInitializePlasticWorkspace)
+			+SHorizontalBox::Slot()
+			.FillWidth(1.0f)
+			[
+				SNew(STextBlock)
+				.Text(LOCTEXT("WorkspaceRepositoryName", "Workspace and Repository Name"))
+				.ToolTipText(LOCTEXT("WorkspaceRepositoryName_Tooltip", "Enter the Name of the new Workspace and Repository to create or use"))
+				.Font(Font)
+			]
+			+SHorizontalBox::Slot()
+			.FillWidth(1.0f)
+			.Padding(2.0f, 0.0f, 0.0f, 0.0f)
+			[
+				SNew(SEditableTextBox)
+				.Text(this, &SPlasticSourceControlSettings::GetWorkspaceName)
+				.ToolTipText(LOCTEXT("WorkspaceName_Tooltip", "Enter the Name of the new Workspace to create"))
+				.HintText(LOCTEXT("WorkspaceName_Hint", "Name of the Workspace to create"))
+				.OnTextCommitted(this, &SPlasticSourceControlSettings::OnWorkspaceNameCommited)
+				.Font(Font)
+			]
+			+SHorizontalBox::Slot()
+			.FillWidth(1.0f)
+			.Padding(2.0f, 0.0f, 0.0f, 0.0f)
+			[
+				SNew(SEditableTextBox)
+				.Text(this, &SPlasticSourceControlSettings::GetRepositoryName)
+				.ToolTipText(LOCTEXT("RepositoryName_Tooltip", "Enter the Name of the Repository to use or create"))
+				.HintText(LOCTEXT("RepositoryName_Hint", "Name of the Repository to use or create"))
+				.OnTextCommitted(this, &SPlasticSourceControlSettings::OnRepositoryNameCommited)
+				.Font(Font)
+			]
+		]
+		// Server URL address:port
+		+SVerticalBox::Slot()
+		.AutoHeight()
+		.Padding(2.0f)
+		.VAlign(VAlign_Center)
+		[
+			SNew(SHorizontalBox)
+			.Visibility(this, &SPlasticSourceControlSettings::CanInitializePlasticWorkspace)
+			.ToolTipText(LOCTEXT("ServerUrl_Tooltip", "Enter the Server URL in the form address:port (localhost:8087)"))
+			+SHorizontalBox::Slot()
+			.FillWidth(1.0f)
+			[
+				SNew(STextBlock)
+				.Text(LOCTEXT("ServerUrl", "Server URL address:port"))
+				.Font(Font)
+			]
+			+SHorizontalBox::Slot()
+			.FillWidth(2.0f)
+			[
+				SNew(SEditableTextBox)
+				.Text(this, &SPlasticSourceControlSettings::GetServerUrl)
+				.HintText(LOCTEXT("EnterServerUrl", "Enter the Server URL"))
+				.OnTextCommitted(this, &SPlasticSourceControlSettings::OnServerUrlCommited)
+				.Font(Font)
+			]
+		]
+		// Option to add a 'ignore.conf' file at Workspace creation time
+		+SVerticalBox::Slot()
+		.AutoHeight()
+		.Padding(2.0f)
+		.VAlign(VAlign_Center)
+		[
+			SNew(SHorizontalBox)
+			.Visibility(this, &SPlasticSourceControlSettings::CanInitializePlasticWorkspace)
+			.ToolTipText(LOCTEXT("CreateIgnoreFile_Tooltip", "Create and add a standard 'ignore.conf' file"))
+			+SHorizontalBox::Slot()
+			.FillWidth(0.1f)
+			[
+				SNew(SCheckBox)
+				.IsChecked(ECheckBoxState::Checked)
+				.OnCheckStateChanged(this, &SPlasticSourceControlSettings::OnCheckedCreateIgnoreFile)
+			]
+			+SHorizontalBox::Slot()
+			.FillWidth(2.9f)
 			.VAlign(VAlign_Center)
 			[
-				SNew(SHorizontalBox)
-				.Visibility(this, &SPlasticSourceControlSettings::CanInitializePlasticWorkspace)
-				.ToolTipText(LOCTEXT("WorkspaceNotFound_Tooltip", "No Workspace found at the level or above the current Project"))
-				+SHorizontalBox::Slot()
-				.FillWidth(1.0f)
+				SNew(STextBlock)
+				.Text(LOCTEXT("CreateIgnoreFile", "Add a ignore.conf file"))
+				.Font(Font)
+			]
+		]
+		// Option to Make the initial Plastic SCM checkin
+		+SVerticalBox::Slot()
+		.AutoHeight()
+		.Padding(2.0f)
+		.VAlign(VAlign_Center)
+		[
+			SNew(SHorizontalBox)
+			.Visibility(this, &SPlasticSourceControlSettings::CanInitializePlasticWorkspace)
+			.ToolTipText(LOCTEXT("InitialCommit_Tooltip", "Make the initial Plastic SCM checkin"))
+			+SHorizontalBox::Slot()
+			.FillWidth(0.1f)
+			[
+				SNew(SCheckBox)
+				.IsChecked(ECheckBoxState::Checked)
+				.OnCheckStateChanged(this, &SPlasticSourceControlSettings::OnCheckedInitialCommit)
+			]
+			+SHorizontalBox::Slot()
+			.FillWidth(0.9f)
+			.VAlign(VAlign_Center)
+			[
+				SNew(STextBlock)
+				.Text(LOCTEXT("InitialCommit", "Make the initial Plastic SCM Checkin"))
+				.Font(Font)
+			]
+			+SHorizontalBox::Slot()
+			.FillWidth(2.0f)
+			.Padding(2.0f)
+			[
+				SNew(SMultiLineEditableTextBox)
+				.Text(this, &SPlasticSourceControlSettings::GetInitialCommitMessage)
+				.HintText(LOCTEXT("InitialCommitMessage_Hint", "Message for the initial checkin"))
+				.OnTextCommitted(this, &SPlasticSourceControlSettings::OnInitialCommitMessageCommited)
+				.Font(Font)
+			]
+		]
+		// Option to enable the Update Status operation at Editor Startup
+		+SVerticalBox::Slot()
+		.AutoHeight()
+		.Padding(2.0f)
+		.VAlign(VAlign_Center)
+		[
+			SNew(SCheckBox)
+			.ForegroundColor(FSlateColor::UseForeground())
+			.ToolTipText(LOCTEXT("UpdateStatusAtStartup_Tooltip", "Run an asynchronous Update Status at Editor startup (can be slow)."))
+			.IsChecked(SPlasticSourceControlSettings::IsUpdateStatusAtStartupChecked())
+			.OnCheckStateChanged(this, &SPlasticSourceControlSettings::OnCheckedUpdateStatusAtStartup)
+			[
+				SNew(STextBlock)
+				.Text(LOCTEXT("UpdateStatusAtStartup", "Update workspace Status at Editor startup"))
+			]
+		]
+		// Button to create a new Workspace
+		+SVerticalBox::Slot()
+		.FillHeight(2.5f)
+		.Padding(4.0f)
+		.VAlign(VAlign_Center)
+		[
+			SNew(SHorizontalBox)
+			.Visibility(this, &SPlasticSourceControlSettings::CanInitializePlasticWorkspace)
+			+SHorizontalBox::Slot()
+			.FillWidth(1.0f)
+			[
+				SNew(SButton)
+				.IsEnabled(this, &SPlasticSourceControlSettings::IsReadyToInitializePlasticWorkspace)
+				.Text(LOCTEXT("PlasticInitWorkspace", "Create a new Plastic SCM workspace for the current project"))
+				.ToolTipText(LOCTEXT("PlasticInitWorkspace_Tooltip", "Create and initialize a new Plastic SCM workspace and repository for the current project"))
+				.OnClicked(this, &SPlasticSourceControlSettings::OnClickedInitializePlasticWorkspace)
 				.HAlign(HAlign_Center)
-				[
-					SNew(STextBlock)
-					.Text(LOCTEXT("WorkspaceNotFound", "Current Project is not contained in a Plastic SCM Workspace. Fill the form below to initialize a new Workspace."))
-					.Font(Font)
-				]
+				.ContentPadding(6)
 			]
-			// Workspace and Repository Name
-			+SVerticalBox::Slot()
-			.AutoHeight()
-			.Padding(2.0f)
-			.VAlign(VAlign_Center)
+		]
+		// Button to add a 'ignore.conf' file on an existing Workspace
+		+SVerticalBox::Slot()
+		.FillHeight(2.0f)
+		.Padding(2.0f)
+		.VAlign(VAlign_Center)
+		[
+			SNew(SHorizontalBox)
+			.Visibility(this, &SPlasticSourceControlSettings::CanAddIgnoreFile)
+			+SHorizontalBox::Slot()
+			.FillWidth(1.0f)
 			[
-				SNew(SHorizontalBox)
-				.Visibility(this, &SPlasticSourceControlSettings::CanInitializePlasticWorkspace)
-				+SHorizontalBox::Slot()
-				.FillWidth(1.0f)
-				[
-					SNew(STextBlock)
-					.Text(LOCTEXT("WorkspaceRepositoryName", "Workspace and Repository Name"))
-					.ToolTipText(LOCTEXT("WorkspaceRepositoryName_Tooltip", "Enter the Name of the new Workspace and Repository to create or use"))
-					.Font(Font)
-				]
-				+SHorizontalBox::Slot()
-				.FillWidth(1.0f)
-				.Padding(2.0f, 0.0f, 0.0f, 0.0f)
-				[
-					SNew(SEditableTextBox)
-					.Text(this, &SPlasticSourceControlSettings::GetWorkspaceName)
-					.ToolTipText(LOCTEXT("WorkspaceName_Tooltip", "Enter the Name of the new Workspace to create"))
-					.HintText(LOCTEXT("WorkspaceName_Hint", "Name of the Workspace to create"))
-					.OnTextCommitted(this, &SPlasticSourceControlSettings::OnWorkspaceNameCommited)
-					.Font(Font)
-				]
-				+SHorizontalBox::Slot()
-				.FillWidth(1.0f)
-				.Padding(2.0f, 0.0f, 0.0f, 0.0f)
-				[
-					SNew(SEditableTextBox)
-					.Text(this, &SPlasticSourceControlSettings::GetRepositoryName)
-					.ToolTipText(LOCTEXT("RepositoryName_Tooltip", "Enter the Name of the Repository to use or create"))
-					.HintText(LOCTEXT("RepositoryName_Hint", "Name of the Repository to use or create"))
-					.OnTextCommitted(this, &SPlasticSourceControlSettings::OnRepositoryNameCommited)
-					.Font(Font)
-				]
-			]
-			// Server URL address:port
-			+SVerticalBox::Slot()
-			.AutoHeight()
-			.Padding(2.0f)
-			.VAlign(VAlign_Center)
-			[
-				SNew(SHorizontalBox)
-				.Visibility(this, &SPlasticSourceControlSettings::CanInitializePlasticWorkspace)
-				.ToolTipText(LOCTEXT("ServerUrl_Tooltip", "Enter the Server URL in the form address:port (localhost:8087)"))
-				+SHorizontalBox::Slot()
-				.FillWidth(1.0f)
-				[
-					SNew(STextBlock)
-					.Text(LOCTEXT("ServerUrl", "Server URL address:port"))
-					.Font(Font)
-				]
-				+SHorizontalBox::Slot()
-				.FillWidth(2.0f)
-				[
-					SNew(SEditableTextBox)
-					.Text(this, &SPlasticSourceControlSettings::GetServerUrl)
-					.HintText(LOCTEXT("EnterServerUrl", "Enter the Server URL"))
-					.OnTextCommitted(this, &SPlasticSourceControlSettings::OnServerUrlCommited)
-					.Font(Font)
-				]
-			]
-			// Option to add a 'ignore.conf' file at Workspace creation time
-			+SVerticalBox::Slot()
-			.AutoHeight()
-			.Padding(2.0f)
-			.VAlign(VAlign_Center)
-			[
-				SNew(SHorizontalBox)
-				.Visibility(this, &SPlasticSourceControlSettings::CanInitializePlasticWorkspace)
+				SNew(SButton)
+				.Text(LOCTEXT("CreateIgnoreFile", "Add a ignore.conf file"))
 				.ToolTipText(LOCTEXT("CreateIgnoreFile_Tooltip", "Create and add a standard 'ignore.conf' file"))
-				+SHorizontalBox::Slot()
-				.FillWidth(0.1f)
-				[
-					SNew(SCheckBox)
-					.IsChecked(ECheckBoxState::Checked)
-					.OnCheckStateChanged(this, &SPlasticSourceControlSettings::OnCheckedCreateIgnoreFile)
-				]
-				+SHorizontalBox::Slot()
-				.FillWidth(2.9f)
-				.VAlign(VAlign_Center)
-				[
-					SNew(STextBlock)
-					.Text(LOCTEXT("CreateIgnoreFile", "Add a ignore.conf file"))
-					.Font(Font)
-				]
-			]
-			// Option to Make the initial Plastic SCM checkin
-			+SVerticalBox::Slot()
-			.AutoHeight()
-			.Padding(2.0f)
-			.VAlign(VAlign_Center)
-			[
-				SNew(SHorizontalBox)
-				.Visibility(this, &SPlasticSourceControlSettings::CanInitializePlasticWorkspace)
-				.ToolTipText(LOCTEXT("InitialCommit_Tooltip", "Make the initial Plastic SCM checkin"))
-				+SHorizontalBox::Slot()
-				.FillWidth(0.1f)
-				[
-					SNew(SCheckBox)
-					.IsChecked(ECheckBoxState::Checked)
-					.OnCheckStateChanged(this, &SPlasticSourceControlSettings::OnCheckedInitialCommit)
-				]
-				+SHorizontalBox::Slot()
-				.FillWidth(0.9f)
-				.VAlign(VAlign_Center)
-				[
-					SNew(STextBlock)
-					.Text(LOCTEXT("InitialCommit", "Make the initial Plastic SCM Checkin"))
-					.Font(Font)
-				]
-				+SHorizontalBox::Slot()
-				.FillWidth(2.0f)
-				.Padding(2.0f)
-				[
-					SNew(SMultiLineEditableTextBox)
-					.Text(this, &SPlasticSourceControlSettings::GetInitialCommitMessage)
-					.HintText(LOCTEXT("InitialCommitMessage_Hint", "Message for the initial checkin"))
-					.OnTextCommitted(this, &SPlasticSourceControlSettings::OnInitialCommitMessageCommited)
-					.Font(Font)
-				]
-			]
-			// Option to enable the Update Status operation at Editor Startup
-			+SVerticalBox::Slot()
-			.AutoHeight()
-			.Padding(2.0f)
-			.VAlign(VAlign_Center)
-			[
-				SNew(SHorizontalBox)
-				.ToolTipText(LOCTEXT("UpdateStatusAtStartup_Tooltip", "Run an asynchronous Update Status at Editor startup (can be slow)."))
-				+SHorizontalBox::Slot()
-				.FillWidth(0.1f)
-				[
-					SNew(SCheckBox)
-					.IsChecked(SPlasticSourceControlSettings::IsUpdateStatusAtStartupChecked())
-					.OnCheckStateChanged(this, &SPlasticSourceControlSettings::OnCheckedUpdateStatusAtStartup)
-				]
-				+SHorizontalBox::Slot()
-				.FillWidth(2.9f)
-				.VAlign(VAlign_Center)
-				[
-					SNew(STextBlock)
-					.Text(LOCTEXT("UpdateStatusAtStartup", "Update workspace Status at Editor startup"))
-					.Font(Font)
-				]
-			]
-			// Button to create a new Workspace
-			+SVerticalBox::Slot()
-			.FillHeight(2.5f)
-			.Padding(4.0f)
-			.VAlign(VAlign_Center)
-			[
-				SNew(SHorizontalBox)
-				.Visibility(this, &SPlasticSourceControlSettings::CanInitializePlasticWorkspace)
-				+SHorizontalBox::Slot()
-				.FillWidth(1.0f)
-				[
-					SNew(SButton)
-					.IsEnabled(this, &SPlasticSourceControlSettings::IsReadyToInitializePlasticWorkspace)
-					.Text(LOCTEXT("PlasticInitWorkspace", "Create a new Plastic SCM workspace for the current project"))
-					.ToolTipText(LOCTEXT("PlasticInitWorkspace_Tooltip", "Create and initialize a new Plastic SCM workspace and repository for the current project"))
-					.OnClicked(this, &SPlasticSourceControlSettings::OnClickedInitializePlasticWorkspace)
-					.HAlign(HAlign_Center)
-					.ContentPadding(6)
-				]
-			]
-			// Button to add a 'ignore.conf' file on an existing Workspace
-			+SVerticalBox::Slot()
-			.FillHeight(2.0f)
-			.Padding(2.0f)
-			.VAlign(VAlign_Center)
-			[
-				SNew(SHorizontalBox)
-				.Visibility(this, &SPlasticSourceControlSettings::CanAddIgnoreFile)
-				+SHorizontalBox::Slot()
-				.FillWidth(1.0f)
-				[
-					SNew(SButton)
-					.Text(LOCTEXT("CreateIgnoreFile", "Add a ignore.conf file"))
-					.ToolTipText(LOCTEXT("CreateIgnoreFile_Tooltip", "Create and add a standard 'ignore.conf' file"))
-					.OnClicked(this, &SPlasticSourceControlSettings::OnClickedAddIgnoreFile)
-					.HAlign(HAlign_Center)
-				]
+				.OnClicked(this, &SPlasticSourceControlSettings::OnClickedAddIgnoreFile)
+				.HAlign(HAlign_Center)
 			]
 		]
 	];

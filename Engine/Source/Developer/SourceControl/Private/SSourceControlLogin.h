@@ -16,6 +16,7 @@
 class FActiveTimerHandle;
 class IDetailsView;
 class SWindow;
+class SBox;
 
 namespace ELoginConnectionState
 {
@@ -105,7 +106,7 @@ private:
 	FSourceControlLoginClosed SourceControlLoginClosed;
 
 	/** The currently displayed settings widget container */
-	TSharedPtr<class SBorder> SettingsBorder;
+	TSharedPtr<SBox> SettingsBorder;
 
 	/** The handle to the active scc module tick */
 	TWeakPtr<FActiveTimerHandle> ActiveTimerHandle;

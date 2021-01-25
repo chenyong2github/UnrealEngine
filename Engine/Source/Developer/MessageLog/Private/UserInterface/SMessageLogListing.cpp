@@ -43,47 +43,38 @@ void SMessageLogListing::Construct( const FArguments& InArgs, const TSharedRef< 
 
 	ChildSlot
 	[
-		SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+		SAssignNew(VerticalBox, SVerticalBox)
+		+ SVerticalBox::Slot()
+		.FillHeight(1.0f)
+		.Padding(2.0f)
+		[
+			SNew(SHorizontalBox)
+			+SHorizontalBox::Slot()
+			.FillWidth(1)
 			[
-				SAssignNew(VerticalBox, SVerticalBox)
-
-				+ SVerticalBox::Slot()
-					.FillHeight(1.0f)
-					.Padding(2.0f)
-					[
-						SNew(SBorder)
-							.BorderImage(FEditorStyle::GetBrush("MessageLog.ListBorder"))
-							[
-								SNew(SHorizontalBox)
-								+SHorizontalBox::Slot()
-								.FillWidth(1)
-								[
-									SNew(SScrollBox)
-									.Orientation(EOrientation::Orient_Horizontal)
-									+ SScrollBox::Slot()
-									[
-										SAssignNew(MessageListView, SListView< TSharedRef<FTokenizedMessage> >)
-										.ListItemsSource(&MessageLogListingViewModel->GetFilteredMessages())
-										.OnGenerateRow(this, &SMessageLogListing::MakeMessageLogListItemWidget)
-										.OnSelectionChanged(this, &SMessageLogListing::OnLineSelectionChanged)
-										.ExternalScrollbar(ScrollBar)
-										.ItemHeight(24.0f)
-										.ConsumeMouseWheel(EConsumeMouseWheel::Always)
-									]
-								]
-								+SHorizontalBox::Slot()
-								.AutoWidth()
-								[
-									SNew(SBox)
-									.WidthOverride(FOptionalSize(16))
-									[
-										ScrollBar
-									]
-								]
-							]
-					]
+				SNew(SScrollBox)
+				.Orientation(EOrientation::Orient_Horizontal)
+				+ SScrollBox::Slot()
+				[
+					SAssignNew(MessageListView, SListView<TSharedRef<FTokenizedMessage>>)
+					.ListItemsSource(&MessageLogListingViewModel->GetFilteredMessages())
+					.OnGenerateRow(this, &SMessageLogListing::MakeMessageLogListItemWidget)
+					.OnSelectionChanged(this, &SMessageLogListing::OnLineSelectionChanged)
+					.ExternalScrollbar(ScrollBar)
+					.ItemHeight(24.0f)
+					.ConsumeMouseWheel(EConsumeMouseWheel::Always)
+				]
 			]
+			+SHorizontalBox::Slot()
+			.AutoWidth()
+			[
+				SNew(SBox)
+				.WidthOverride(FOptionalSize(16))
+				[
+					ScrollBar
+				]
+			]
+		]
 	];
 
 	//If we have some content below the message log, add a separator and a new box.
