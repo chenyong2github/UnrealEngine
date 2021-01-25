@@ -148,7 +148,7 @@ void FCanvasTriangleRendererItem::FRenderData::RenderTriangles(
 	{
 		const FTriangleInst& Tri = Triangles[TriIdx];
 
-		FMeshBatch& MeshBatch = TriMesh.MeshBatch;
+		FMeshBatch& MeshBatch = *RenderContext.Alloc<FMeshBatch>(TriMesh.MeshBatch);
 		MeshBatch.VertexFactory = &VertexFactory;
 		MeshBatch.MaterialRenderProxy = MaterialRenderProxy;
 		MeshBatch.Elements[0].FirstIndex = 3 * TriIdx;
