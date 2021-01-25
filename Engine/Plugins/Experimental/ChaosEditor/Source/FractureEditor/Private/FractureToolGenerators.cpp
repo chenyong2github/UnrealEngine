@@ -432,7 +432,7 @@ void UFractureToolAddEmbeddedGeometry::Execute(TWeakPtr<FFractureEditorModeToolk
 
 		const FTransform TargetActorTransform(Context.GetGeometryCollectionComponent()->GetOwner()->GetTransform());
 		
-		Context.ConvertSelectionToLeafNodes();
+		Context.ConvertSelectionToRigidNodes();
 		const TArray<int32>& SelectedBones = Context.GetSelection();
 		for (const int32 SelectedBone : SelectedBones)
 		{

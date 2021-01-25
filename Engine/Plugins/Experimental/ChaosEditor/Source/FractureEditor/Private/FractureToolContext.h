@@ -20,6 +20,8 @@ public:
 
 	void Sanitize();
 	void ConvertSelectionToLeafNodes();
+	void ConvertSelectionToRigidNodes();
+	void ConvertSelectionToEmbeddedGeometryNodes();
 	void ConvertSelectionToClusterNodes();
 	void RemoveRootNodes();
 	
@@ -46,6 +48,8 @@ public:
 private:
 	bool HasSelectedAncestor(int32 Index) const;
 	void ConvertSelectionToLeafNodes(int32 Index, TArray<int32>& LeafSelection);
+	void ConvertSelectionToRigidNodes(int32 Index, TArray<int32>& RigidSelection);
+	void ConvertSelectionToEmbeddedGeometryNodes(int32 Index, TArray<int32>& EmbeddedSelection);
 
 private:
 	TArray<int32> SelectedBones;

@@ -50,7 +50,7 @@ TArray<FFractureToolContext> UFractureToolCutterBase::GetFractureToolContexts() 
 	{
 		// Generate a context for each selected node
 		FFractureToolContext FullSelection(GeometryCollectionComponent);
-		FullSelection.ConvertSelectionToLeafNodes();
+		FullSelection.ConvertSelectionToRigidNodes();
 		
 		// Update global transforms and bounds		
 		const TManagedArray<FTransform>& Transform = FullSelection.GetGeometryCollection()->GetAttribute<FTransform>("Transform", FGeometryCollection::TransformGroup);
