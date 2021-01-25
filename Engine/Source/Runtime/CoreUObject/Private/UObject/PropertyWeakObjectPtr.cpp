@@ -11,11 +11,18 @@ IMPLEMENT_FIELD(FWeakObjectProperty)
 
 FString FWeakObjectProperty::GetCPPType( FString* ExtendedTypeText/*=NULL*/, uint32 CPPExportFlags/*=0*/ ) const
 {
+	return GetCPPTypeCustom(ExtendedTypeText, CPPExportFlags,
+		FString::Printf(TEXT("%s%s"), PropertyClass->GetPrefixCPP(), *PropertyClass->GetName()));
+}
+
+FString FWeakObjectProperty::GetCPPTypeCustom(FString* ExtendedTypeText, uint32 CPPExportFlags, const FString& InnerNativeTypeName) const
+{
+	ensure(!InnerNativeTypeName.IsEmpty());
 	if (PropertyFlags & CPF_AutoWeak)
 	{
-		return FString::Printf( TEXT("TAutoWeakObjectPtr<%s%s>"), PropertyClass->GetPrefixCPP(), *PropertyClass->GetName() );
+		return FString::Printf(TEXT("TAutoWeakObjectPtr<%s>"), *InnerNativeTypeName);
 	}
-	return FString::Printf( TEXT("TWeakObjectPtr<%s%s>"), PropertyClass->GetPrefixCPP(), *PropertyClass->GetName() );
+	return FString::Printf(TEXT("TWeakObjectPtr<%s>"), *InnerNativeTypeName);
 }
 
 FString FWeakObjectProperty::GetCPPTypeForwardDeclaration() const
