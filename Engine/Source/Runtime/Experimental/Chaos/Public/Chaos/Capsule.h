@@ -503,7 +503,7 @@ namespace Chaos
 #endif
 			}
 
-			const TRotation<float, 3> Rotation = TRotation<float, 3>::FromRotatedVector(TVector<float, 3>(0, 0, 1), Axis);
+			const TRotation<T, 3> Rotation = TRotation<T, 3>::FromRotatedVector(TVector<T, 3>(0, 0, 1), Axis);
 			checkSlow(((Origin + Axis * (Height + Radius * 2)) - (Rotation.RotateVector(TVector<T, 3>(0, 0, Height + Radius * 2)) + Origin)).Size() < KINDA_SMALL_NUMBER);
 			for (int32 i = Offset; i < Points.Num(); i++)
 			{

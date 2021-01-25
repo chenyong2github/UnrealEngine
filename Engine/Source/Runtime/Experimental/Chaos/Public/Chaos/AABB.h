@@ -102,7 +102,7 @@ namespace Chaos
 
 		FORCEINLINE TAABB<T, d> GetIntersection(const TAABB<T, d>& Other) const
 		{
-			TVector<float, 3> Tmp;
+			TVector<T, 3> Tmp;
 			return TAABB<T, d>(MMin.ComponentwiseMax(Other.MMin), MMax.ComponentwiseMin(Other.MMax));
 		}
 
@@ -257,7 +257,7 @@ namespace Chaos
 			bool bIsExterior = false;
 			for (int i = 0; i < 3; i++)
 			{
-				float v = StartPoint[i];
+				T v = StartPoint[i];
 				if (v < MMin[i])
 				{
 					v = MMin[i];
@@ -332,7 +332,7 @@ namespace Chaos
 				// Select axis of face to compare to, based on normal.
 				if (OriginalNormal[Axis] > KINDA_SMALL_NUMBER)
 				{
-					const float TraceDotFaceNormal = DenormDir[Axis]; // TraceDirDenormLocal.dot(BoxFaceNormal)
+					const T TraceDotFaceNormal = DenormDir[Axis]; // TraceDirDenormLocal.dot(BoxFaceNormal)
 					if (TraceDotFaceNormal < BestOpposingDot)
 					{
 						BestOpposingDot = TraceDotFaceNormal;
@@ -342,7 +342,7 @@ namespace Chaos
 				}
 				else if (OriginalNormal[Axis] < -KINDA_SMALL_NUMBER)
 				{
-					const float TraceDotFaceNormal = -DenormDir[Axis]; // TraceDirDenormLocal.dot(BoxFaceNormal)
+					const T TraceDotFaceNormal = -DenormDir[Axis]; // TraceDirDenormLocal.dot(BoxFaceNormal)
 					if (TraceDotFaceNormal < BestOpposingDot)
 					{
 						BestOpposingDot = TraceDotFaceNormal;
@@ -411,7 +411,7 @@ namespace Chaos
 			MMax = TVector<T, d>(FGenericPlatformMath::Min(MMax[0], Other.MMax[0]), FGenericPlatformMath::Min(MMax[1], Other.MMax[1]), FGenericPlatformMath::Min(MMax[2], Other.MMax[2]));
 		}
 
-		FORCEINLINE TAABB<T, d>& Thicken(const float Thickness)
+		FORCEINLINE TAABB<T, d>& Thicken(const T Thickness)
 		{
 			MMin -= TVector<T, d>(Thickness);
 			MMax += TVector<T, d>(Thickness);

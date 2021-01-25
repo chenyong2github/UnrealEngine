@@ -52,7 +52,7 @@ namespace Chaos
 		}
 
 	protected:
-		const TArray<TVector<float, 3>>& MTargetPositions;
+		const TArray<TVector<T, 3>>& MTargetPositions;
 		const int32 MParticleOffset;
 
 	private:

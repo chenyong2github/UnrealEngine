@@ -849,10 +849,10 @@ namespace Chaos
 	template <typename T, typename TGeometryA>
 	bool GJKPenetrationTemp(const TGeometryA& A, const TCapsule<T>& B, const TRigidTransform<T, 3>& BToATM, TVector<T, 3>& OutPositionA, TVector<T, 3>& OutPositionB, TVector<T, 3>& OutNormal, T& OutDistance, const T ThicknessA = 0, const TVector<T, 3>& InitialDir = TVector<T, 3>(1, 0, 0), const T ThicknessB = 0, const T Epsilon = (T)1e-6, const int32 MaxIts = 16)
 	{
-		float SegmentDistance;
+		T SegmentDistance;
 		const TSegment<T>& Segment = B.GetSegment();
-		const float MarginB = B.GetRadius();
-		TVector<float, 3> PositionBInB;
+		const T MarginB = B.GetRadius();
+		TVector<T, 3> PositionBInB;
 		if (GJKDistance(A, Segment, BToATM, SegmentDistance, OutPositionA, PositionBInB, Epsilon, MaxIts))
 		{
 			OutPositionB = BToATM.TransformPosition(PositionBInB);
