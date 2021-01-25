@@ -6,10 +6,10 @@
 #include "Templates/SubclassOf.h"
 #include "Misc/HashBuilder.h"
 #include "Misc/Guid.h"
+#include "ActorPartition/PartitionActor.h"
 #include "ActorPartitionSubsystem.generated.h"
 
 class FBaseActorPartition;
-class APartitionActor;
 
 #if WITH_EDITOR
 /**
@@ -36,6 +36,35 @@ struct ENGINE_API FActorPartitionGetParams
 
 	/* If greater than 0, use this instead of the Actor CDO Grid size*/
 	int32 GridSize;
+};
+
+/**
+ * FActorPartitionIdentifier
+ */
+
+struct ENGINE_API FActorPartitionIdentifier
+{
+	FActorPartitionIdentifier(UClass* InClass, const FGuid& InGridGuid, const uint32& InDataLayerEditorContextHash)
+		: Class(InClass)
+		, GridGuid(InGridGuid)
+		, DataLayerEditorContextHash(InDataLayerEditorContextHash)
+	{}
+
+	bool operator == (const FActorPartitionIdentifier& Other) const { return Class == Other.Class && GridGuid == Other.GridGuid && DataLayerEditorContextHash == Other.DataLayerEditorContextHash; }
+
+	friend uint32 GetTypeHash(const FActorPartitionIdentifier& Id)
+	{
+		return GetTypeHash(Id.Class.Get()->GetName()) ^ GetTypeHash(Id.GridGuid) ^ GetTypeHash(Id.DataLayerEditorContextHash);
+	}
+
+	const TSubclassOf<APartitionActor>& GetClass() const { return Class; }
+	const FGuid& GetGridGuid() const { return GridGuid; }
+	uint32 GetDataLayerEditorContextHash() const { return DataLayerEditorContextHash; }
+
+private:
+	TSubclassOf<APartitionActor> Class;
+	FGuid GridGuid;
+	uint32 DataLayerEditorContextHash;
 };
 
 #endif
@@ -146,7 +175,7 @@ private:
 
 	void InitializeActorPartition();
 
-	TMap<FCellCoord, TMap<UClass*, TMap<FGuid, TWeakObjectPtr<APartitionActor>>>> PartitionedActors;
+	TMap<FCellCoord, TMap<FActorPartitionIdentifier, TWeakObjectPtr<APartitionActor>>> PartitionedActors;
 	TUniquePtr<FBaseActorPartition> ActorPartition;
 	
 	FDelegateHandle ActorPartitionHashInvalidatedHandle;
@@ -164,7 +193,7 @@ public:
 	virtual ~FBaseActorPartition() {}
 
 	virtual UActorPartitionSubsystem::FCellCoord GetActorPartitionHash(const FActorPartitionGetParams& GetParams) const = 0;
-	virtual APartitionActor* GetActor(const TSubclassOf<APartitionActor>& InActorClass, bool bInCreate, const UActorPartitionSubsystem::FCellCoord& InCellCoord, const FGuid& InGuid, uint32 InGridSize, bool bInBoundsSearch, TFunctionRef<void(APartitionActor*)> InActorCreated) = 0;
+	virtual APartitionActor* GetActor(const FActorPartitionIdentifier& InActorPartitionId, bool bInCreate, const UActorPartitionSubsystem::FCellCoord& InCellCoord, uint32 InGridSize, bool bInBoundsSearch, TFunctionRef<void(APartitionActor*)> InActorCreated) = 0;
 	virtual void ForEachRelevantActor(const TSubclassOf<APartitionActor>& InActorClass, const FBox& IntersectionBounds, TFunctionRef<bool(APartitionActor*)>InOperation) const = 0;
 
 	DECLARE_EVENT_OneParam(FBaseActorPartition, FOnActorPartitionHashInvalidated, const UActorPartitionSubsystem::FCellCoord&);

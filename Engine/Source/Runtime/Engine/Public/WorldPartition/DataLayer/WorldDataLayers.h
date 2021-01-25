@@ -31,6 +31,11 @@ public:
 	//~ Begin AActor Interface
 	virtual bool ForceExternalActorLevelReference() const override { return true; }
 	//~ End AActor Interface
+
+	//~ Begin Helper Functions
+	TArray<const UDataLayer*> GetDataLayerObjects(const TArray<FActorDataLayer>& DataLayers) const;
+	TArray<FName> GetDataLayerNames(const TArray<FActorDataLayer>& DataLayers) const;
+	//~ End Helper Functions
 #endif
 	
 	bool ContainsDataLayer(const UDataLayer* InDataLayer) const;

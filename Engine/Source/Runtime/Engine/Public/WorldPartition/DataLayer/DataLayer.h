@@ -22,6 +22,7 @@ public:
 	void SetIsDynamicallyLoaded(bool bInIsDynamicallyLoaded);
 	void SetIsDynamicallyLoadedInEditor(bool bInIsDynamicallyLoadedInEditor);
 	bool IsDynamicallyLoadedInEditor() const { return !IsDynamicallyLoaded() || bIsDynamicallyLoadedInEditor; }
+	static FText GetDataLayerText(const UDataLayer* InDataLayer);
 #endif
 	
 	FName GetDataLayerLabel() const  { return DataLayerLabel; }

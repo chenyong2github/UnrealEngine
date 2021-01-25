@@ -171,6 +171,9 @@ public:	// BRUSH SETTINGS
 	/** Retrieves the tooltip text for the translucent filter */
 	FText GetTooltipText_Translucent() const;
 
+	/** Checks if the Data Layer should appear. */
+	EVisibility GetVisibility_DataLayer() const;
+
 	/** Checks if the radius spinbox should appear. Dependant on the current tool being used. */
 	EVisibility GetVisibility_Radius() const;
 

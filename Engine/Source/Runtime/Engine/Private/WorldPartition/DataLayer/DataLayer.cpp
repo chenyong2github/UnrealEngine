@@ -6,6 +6,8 @@
 
 #include "WorldPartition/DataLayer/DataLayer.h"
 
+#define LOCTEXT_NAMESPACE "DataLayer"
+
 UDataLayer::UDataLayer(const FObjectInitializer& ObjectInitializer)
 : Super(ObjectInitializer)
 #if WITH_EDITORONLY_DATA
@@ -56,4 +58,11 @@ void UDataLayer::SetIsDynamicallyLoadedInEditor(bool bInIsDynamicallyLoadedInEdi
 	}
 }
 
+FText UDataLayer::GetDataLayerText(const UDataLayer* InDataLayer)
+{
+	return InDataLayer ? FText::FromName(InDataLayer->GetDataLayerLabel()) : LOCTEXT("InvalidDataLayerLabel", "<None>");
+}
+
 #endif
+
+#undef LOCTEXT_NAMESPACE

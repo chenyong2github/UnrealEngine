@@ -87,6 +87,35 @@ FName AWorldDataLayers::GenerateUniqueDataLayerLabel(const FName& InDataLayerLab
 	return UniqueNewDataLayerLabel;
 }
 
+TArray<FName> AWorldDataLayers::GetDataLayerNames(const TArray<FActorDataLayer>& InDataLayers) const
+{
+	TArray<FName> OutDataLayerNames;
+	OutDataLayerNames.Reserve(DataLayers.Num());
+
+	for (const UDataLayer* DataLayer : GetDataLayerObjects(InDataLayers))
+	{
+		OutDataLayerNames.Add(DataLayer->GetFName());
+	}
+
+	return OutDataLayerNames;
+}
+
+TArray<const UDataLayer*> AWorldDataLayers::GetDataLayerObjects(const TArray<FActorDataLayer>& InDataLayers) const
+{
+	TArray<const UDataLayer*> OutDataLayers;
+	OutDataLayers.Reserve(DataLayers.Num());
+
+	for (const FActorDataLayer& DataLayer : InDataLayers)
+	{
+		if (const UDataLayer* DataLayerObject = GetDataLayerFromName(DataLayer.Name))
+		{
+			OutDataLayers.AddUnique(DataLayerObject);
+		}
+	}
+
+	return OutDataLayers;
+}
+
 UDataLayer* AWorldDataLayers::CreateDataLayer()
 {
 	Modify();

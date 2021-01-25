@@ -5,6 +5,7 @@
 #include "Subsystems/WorldSubsystem.h"
 #include "WorldPartition/DataLayer/ActorDataLayer.h"
 #include "WorldPartition/DataLayer/DataLayer.h"
+#include "WorldPartition/DataLayer/DataLayerEditorContext.h"
 #include "DataLayerSubsystem.generated.h"
 
 /**
@@ -52,6 +53,16 @@ public:
 	bool IsAnyDataLayerActive(const TArray<FName>& InDataLayerNames) const;
 
 	void Draw(class UCanvas* Canvas, class APlayerController* PC);
+
+#if WITH_EDITOR
+public:
+	FORCEINLINE const FDataLayerEditorContext& GetDataLayerEditorContext() const { return DataLayerEditorContext; }
+	FORCEINLINE bool HasDataLayerEditorContext() const { return !DataLayerEditorContext.IsEmpty(); }
+
+private:
+	mutable FDataLayerEditorContext DataLayerEditorContext;
+	friend struct FScopeChangeDataLayerEditorContext;
+#endif
 
 private:
 	/** Console command used to toggle activation of a DataLayer */

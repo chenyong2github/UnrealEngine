@@ -33,6 +33,10 @@
 
 #include "Widgets/Input/SSpinBox.h"
 #include "Editor/PropertyEditor/Public/VariablePrecisionNumericInterface.h"
+#include "DataLayer/DataLayerEditorSubsystem.h"
+#include "DataLayer/DataLayerPropertyTypeCustomizationHelper.h"
+#include "WorldPartition/DataLayer/DataLayer.h"
+#include "WorldPartition/WorldPartitionSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "FoliageEd_Mode"
 
@@ -222,7 +226,51 @@ void SFoliageEdit::Construct(const FArguments& InArgs)
 							.OnValueChanged(this, &SFoliageEdit::SetEraseDensity)
 							.IsEnabled(this, &SFoliageEdit::IsEnabled_EraseDensity)
 						]
-					]					
+					]
+
+					// Data Layer
+					+ SVerticalBox::Slot()
+					.AutoHeight()
+					[
+						SNew(SHorizontalBox)
+						.ToolTipText(LOCTEXT("DataLayer_Tooltip", "The Data Layer to use for the foliage actors"))
+						.Visibility(this, &SFoliageEdit::GetVisibility_DataLayer)
+
+						+ SHorizontalBox::Slot()
+						.Padding(StandardLeftPadding)
+						.FillWidth(1.0f)
+						.VAlign(VAlign_Center)
+						[
+							SNew(STextBlock)
+							.Text(LOCTEXT("DataLayer_Text", "Data Layer"))
+							.Font(StandardFont)
+						]
+						+ SHorizontalBox::Slot()
+						.Padding(StandardRightPadding)
+						.FillWidth(2.0f)
+						.MaxWidth(100.f)
+						.VAlign(VAlign_Center)
+						[
+							SNew(SComboButton)
+							.OnGetMenuContent_Lambda([this]()
+								{ 
+									return FDataLayerPropertyTypeCustomizationHelper::CreateDataLayerMenu([this](const UDataLayer* DataLayer)
+									{ 
+										FoliageEditMode->SetDataLayerEditorContext(FActorDataLayer(DataLayer ? DataLayer->GetFName() : NAME_None)); 
+									});
+								})
+							.ContentPadding(2)
+							.ButtonContent()
+							[
+								SNew(STextBlock)
+								.Text_Lambda([this]()
+								{
+									const UDataLayer* DataLayer = UDataLayerEditorSubsystem::Get()->GetDataLayerFromName(FoliageEditMode->UISettings.GetDataLayer().Name);
+									return UDataLayer::GetDataLayerText(DataLayer);
+								})
+							]
+						]						
+					]
 					
 					+ SVerticalBox::Slot()
 					.Padding(StandardPadding)
@@ -869,6 +917,15 @@ FText SFoliageEdit::GetActiveToolMessage() const
 		OutText = LOCTEXT("FoliageToolMessage_Fill", "Click to cover objects with foliage.  You can filter what types of objects to populate using Filter in the Toolbar.");
 	}
 	return OutText;
+}
+
+EVisibility SFoliageEdit::GetVisibility_DataLayer() const
+{
+	if (UWorld::HasSubsystem<UWorldPartitionSubsystem>(FoliageEditMode->GetWorld()) && (IsPaintTool() || IsPlaceTool() || IsReapplySettingsTool() || IsPaintFillTool()))
+	{
+		return EVisibility::Visible;
+	}
+	return EVisibility::Collapsed;
 }
 
 void SFoliageEdit::SetRadius(float InRadius)

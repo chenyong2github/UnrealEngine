@@ -19,10 +19,8 @@ struct FDataLayerPropertyTypeCustomization : public IPropertyTypeCustomization
 private:
 
 	void AssignDataLayer(const UDataLayer* InDataLayer);
-	void OpenDataLayerBrowser();
 
 	UDataLayer* GetDataLayerFromPropertyHandle() const;
-	FText GetDataLayerDescription(const UDataLayer* InDataLayer) const;
 	FText GetDataLayerText() const;
 	EVisibility GetSelectDataLayerVisibility() const;
 
@@ -33,4 +31,3 @@ private:
 
 	TSharedPtr<IPropertyHandle> PropertyHandle;
 };
-

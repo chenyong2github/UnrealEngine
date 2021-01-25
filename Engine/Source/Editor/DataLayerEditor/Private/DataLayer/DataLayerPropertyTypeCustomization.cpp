@@ -1,9 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DataLayerPropertyTypeCustomization.h"
+#include "DataLayer/DataLayerPropertyTypeCustomizationHelper.h"
 #include "DataLayer/DataLayerDragDropOp.h"
 #include "DataLayer/DataLayerEditorSubsystem.h"
 #include "WorldPartition/DataLayer/DataLayer.h"
+#include "WorldPartition/WorldPartitionSubsystem.h"
 #include "Algo/Accumulate.h"
 #include "Modules/ModuleManager.h"
 #include "PropertyHandle.h"
@@ -13,11 +15,9 @@
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Text/STextBlock.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "SDropTarget.h"
 #include "Editor.h"
 #include "EditorFontGlyphs.h"
-#include "LevelEditor.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailCategoryBuilder.h"
 
@@ -36,6 +36,7 @@ void FDataLayerPropertyTypeCustomization::CustomizeHeader(TSharedRef<IPropertyHa
 	.MaxDesiredWidth(TOptional<float>())
 	[
 		SNew(SDropTarget)
+		.IsEnabled_Lambda([]() { return GWorld ? UWorld::HasSubsystem<UWorldPartitionSubsystem>(GWorld) : false; })
 		.OnDrop(this, &FDataLayerPropertyTypeCustomization::OnDrop)
 		.OnAllowDrop(this, &FDataLayerPropertyTypeCustomization::OnVerifyDrag)
 		.OnIsRecognized(this, &FDataLayerPropertyTypeCustomization::OnVerifyDrag)
@@ -90,12 +91,6 @@ void FDataLayerPropertyTypeCustomization::CustomizeHeader(TSharedRef<IPropertyHa
 	];
 }
 
-FText FDataLayerPropertyTypeCustomization::GetDataLayerDescription(const UDataLayer* InDataLayer) const
-{
-	check(InDataLayer);
-	return FText::FromName(InDataLayer->GetDataLayerLabel());
-}
-
 UDataLayer* FDataLayerPropertyTypeCustomization::GetDataLayerFromPropertyHandle() const
 {
 	FName DataLayerName;
@@ -109,46 +104,12 @@ UDataLayer* FDataLayerPropertyTypeCustomization::GetDataLayerFromPropertyHandle(
 
 FText FDataLayerPropertyTypeCustomization::GetDataLayerText() const
 {
-	const UDataLayer* DataLayer = GetDataLayerFromPropertyHandle();
-	return DataLayer ? GetDataLayerDescription(DataLayer) : LOCTEXT("InvalidDataLayerLabel", "<Invalid>");
+	return UDataLayer::GetDataLayerText(GetDataLayerFromPropertyHandle());
 }
 
 TSharedRef<SWidget> FDataLayerPropertyTypeCustomization::OnGetDataLayerMenu()
 {
-	FMenuBuilder MenuBuilder(true, nullptr);
-
-	MenuBuilder.AddMenuEntry(
-		LOCTEXT("OpenDataLayersBrowser", "Browse DataLayers..."),
-		FText(),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.DataLayers"),
-		FUIAction(
-			FExecuteAction::CreateSP(this, &FDataLayerPropertyTypeCustomization::OpenDataLayerBrowser)
-		)
-	);
-
-	MenuBuilder.BeginSection(FName(), LOCTEXT("ExistingDataLayers", "Existing DataLayers"));
-	{
-		TArray<TWeakObjectPtr<UDataLayer>> AllDataLayers;
-		UDataLayerEditorSubsystem::Get()->AddAllDataLayersTo(AllDataLayers);
-
-		for (const TWeakObjectPtr<UDataLayer>& WeakDataLayer : AllDataLayers)
-		{
-			if (const UDataLayer* DataLayerPtr = WeakDataLayer.Get())
-			{
-				MenuBuilder.AddMenuEntry(
-					GetDataLayerDescription(DataLayerPtr),
-					FText(),
-					FSlateIcon(FEditorStyle::GetStyleSetName(), "DataLayer.Icon16x"),
-					FUIAction(
-						FExecuteAction::CreateSP(this, &FDataLayerPropertyTypeCustomization::AssignDataLayer, DataLayerPtr)
-					)
-				);
-			}
-		}
-	}
-	MenuBuilder.EndSection();
-
-	return MenuBuilder.MakeWidget();
+	return FDataLayerPropertyTypeCustomizationHelper::CreateDataLayerMenu([this](const UDataLayer* DataLayer) { AssignDataLayer(DataLayer); });
 }
 
 EVisibility FDataLayerPropertyTypeCustomization::GetSelectDataLayerVisibility() const
@@ -174,12 +135,6 @@ void FDataLayerPropertyTypeCustomization::AssignDataLayer(const UDataLayer* InDa
 		PropertyHandle->SetValue(InDataLayer ? InDataLayer->GetFName() : NAME_None);
 		UDataLayerEditorSubsystem::Get()->OnDataLayerChanged().Broadcast(EDataLayerAction::Reset, NULL, NAME_None);
 	}
-}
-
-void FDataLayerPropertyTypeCustomization::OpenDataLayerBrowser()
-{
-	FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>("LevelEditor");
-	LevelEditorModule.GetLevelEditorTabManager()->TryInvokeTab(FTabId("LevelEditorDataLayerBrowser"));
 }
 
 FReply FDataLayerPropertyTypeCustomization::OnDrop(TSharedPtr<FDragDropOperation> InDragDrop)

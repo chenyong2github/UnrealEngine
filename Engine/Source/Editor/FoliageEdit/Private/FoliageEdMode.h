@@ -8,6 +8,7 @@
 #include "UnrealWidgetFwd.h"
 #include "EdMode.h"
 #include "Widgets/Views/SHeaderRow.h"
+#include "WorldPartition/DataLayer/ActorDataLayer.h"
 
 class AInstancedFoliageActor;
 class FCanvas;
@@ -21,6 +22,7 @@ class ULandscapeComponent;
 class UPrimitiveComponent;
 class UStaticMeshComponent;
 struct FViewportClick;
+struct FScopeChangeDataLayerEditorContext;
 
 //
 // Forward declarations.
@@ -83,6 +85,8 @@ struct FFoliageUISettings
 	void SetPaintDensity(float InPaintDensity) { PaintDensity = InPaintDensity; }
 	float GetUnpaintDensity() const { return UnpaintDensity; }
 	void SetUnpaintDensity(float InUnpaintDensity) { UnpaintDensity = InUnpaintDensity; }
+	const FActorDataLayer& GetDataLayer() const { return DataLayer; }
+	void SetDataLayer(const FActorDataLayer& InDataLayer) { DataLayer = InDataLayer; }
 	bool GetFilterLandscape() const { return bFilterLandscape ? true : false; }
 	void SetFilterLandscape(bool InbFilterLandscape) { bFilterLandscape = InbFilterLandscape; }
 	bool GetFilterStaticMesh() const { return bFilterStaticMesh ? true : false; }
@@ -183,6 +187,8 @@ private:
 	float Radius;
 	float PaintDensity;
 	float UnpaintDensity;
+
+	FActorDataLayer DataLayer;
 
 	bool IsInSingleInstantiationMode;
 	bool IsInQuickSingleInstantiationMode;
@@ -571,7 +577,10 @@ public:
 
 	/*Find the relevant foliage actor with the foliage type and run the operation*/
 	static void ForEachFoliageInfo(UWorld* InWorld, const UFoliageType* FoliageType, const FSphere& BrushSphere, TFunctionRef<bool(AInstancedFoliageActor* IFA, FFoliageInfo* FoliageInfo, const UFoliageType* FoliageType)> InOperation);
-			
+	
+	/** Changes the Data Layer editing context */
+	void SetDataLayerEditorContext(const FActorDataLayer& DataLayer);
+
 private:
 
 	void BindCommands();
@@ -713,5 +722,7 @@ private:
 
 	/** Flag to know when we are tracking a transaction in mouse delta */
 	bool bTracking;
+
+	TUniquePtr<FScopeChangeDataLayerEditorContext> DataLayerEditorContext;
 };
 
