@@ -170,46 +170,28 @@ public:
 
 
 	friend class ValueIterator;
+	friend class BaseValueIterator;
 
 	/**
-	 * ValueIterator iterates over the values of a small list
-	 * An optional mapping function can be provided which will then be applied to the values returned by the * operator
+	 * BaseValueIterator is a base class for ValueIterator and MappedValueIterator below.
 	 */
-	class ValueIterator
+	class BaseValueIterator
 	{
 	public:
-		inline ValueIterator() 
+		BaseValueIterator()
 		{ 
 			ListSet = nullptr;
-			MapFunc = nullptr; 
 			ListIndex = 0; 
 		}
 
-		inline bool operator==(const ValueIterator& Other) const 
+		inline bool operator==(const BaseValueIterator& Other) const
 		{
 			return ListSet == Other.ListSet && ListIndex == Other.ListIndex;
 		}
-		inline bool operator!=(const ValueIterator& Other) const 
+		inline bool operator!=(const BaseValueIterator& Other) const
 		{
 			return ListSet != Other.ListSet || ListIndex != Other.ListIndex || iCur != Other.iCur || cur_ptr != Other.cur_ptr;
 		}
-
-		inline int32 operator*() const 
-		{
-			return (MapFunc == nullptr) ? cur_value : MapFunc(cur_value);
-		}
-
-		inline const ValueIterator& operator++() 		// prefix
-		{
-			this->GotoNext();
-			return *this;
-		}
-		//inline ValueIterator operator++(int32) {		// postfix
-		//	index_iterator copy(*this);
-		//	this->GotoNext();
-		//	return copy;
-		//}
-
 
 	protected:
 		inline void GotoNext() 
@@ -240,14 +222,12 @@ public:
 			}
 		}
 
-		inline ValueIterator(
+		BaseValueIterator(
 			const FSmallListSet* ListSetIn,
 			int32 ListIndex, 
-			bool is_end,
-			const TFunction<int32(int32)>& MapFuncIn = nullptr)
+			bool is_end)
 		{
 			this->ListSet = ListSetIn;
-			this->MapFunc = MapFuncIn;
 			this->ListIndex = ListIndex;
 			if (is_end) 
 			{
@@ -280,7 +260,6 @@ public:
 		}
 
 		const FSmallListSet * ListSet;
-		TFunction<int32(int32)> MapFunc;
 		int32 ListIndex;
 		int32 block_ptr;
 		int32 N;
@@ -291,20 +270,39 @@ public:
 		friend class FSmallListSet;
 	};
 
+
+	/**
+	 * ValueIterator iterates over the values of a small list
+	 */
+	class ValueIterator : public BaseValueIterator
+	{
+	public:
+		ValueIterator() : BaseValueIterator() {}
+
+		inline int32 operator*() const
+		{
+			return cur_value;
+		}
+
+		inline const ValueIterator& operator++() 		// prefix
+		{
+			this->GotoNext();
+			return *this;
+		}
+
+	protected:
+		ValueIterator(const FSmallListSet* ListSetIn, int32 ListIndex, bool is_end) 
+			: BaseValueIterator(ListSetIn, ListIndex, is_end) {}
+
+		friend class FSmallListSet;
+	};
+
 	/**
 	 * @return iterator for start of list at ListIndex
 	 */
 	inline ValueIterator BeginValues(int32 ListIndex) const 
 	{
 		return ValueIterator(this, ListIndex, false);
-	}
-
-	/**
-	 * @return iterator for start of list at ListIndex, with given value mapping function
-	 */
-	inline ValueIterator BeginValues(int32 ListIndex, const TFunction<int32(int32)>& MapFunc) const 
-	{
-		return ValueIterator(this, ListIndex, false, MapFunc);
 	}
 
 	/**
@@ -323,15 +321,13 @@ public:
 	public:
 		const FSmallListSet* ListSet;
 		int32 ListIndex;
-		TFunction<int32(int32)> MapFunc;
 		ValueEnumerable() {}
-		ValueEnumerable(const FSmallListSet* ListSetIn, int32 ListIndex, TFunction<int32(int32)> MapFunc = nullptr)
+		ValueEnumerable(const FSmallListSet* ListSetIn, int32 ListIndex)
 		{
 			this->ListSet = ListSetIn;
 			this->ListIndex = ListIndex;
-			this->MapFunc = MapFunc;
 		}
-		typename FSmallListSet::ValueIterator begin() const { return ListSet->BeginValues(ListIndex, MapFunc); }
+		typename FSmallListSet::ValueIterator begin() const { return ListSet->BeginValues(ListIndex); }
 		typename FSmallListSet::ValueIterator end() const { return ListSet->EndValues(ListIndex); }
 	};
 
@@ -343,13 +339,97 @@ public:
 		return ValueEnumerable(this, ListIndex);
 	}
 
+
+
+
+
+
+	//
+	// mapped iterator support - mapped iterator applies an arbitrary function to the iterator value
+	// 
+
+	friend class MappedValueIterator;
+
+	/**
+	 * MappedValueIterator iterates over the values of a small list
+	 * An optional mapping function can be provided which will then be applied to the values returned by the * operator
+	 */
+	class MappedValueIterator : public BaseValueIterator
+	{
+	public:
+		MappedValueIterator() : BaseValueIterator() 
+		{
+			MapFunc = [](int32 value) { return value; };
+		}
+
+		inline int32 operator*() const
+		{
+			return MapFunc(cur_value);
+		}
+
+		inline const MappedValueIterator& operator++() 		// prefix
+		{
+			this->GotoNext();
+			return *this;
+		}
+
+	protected:
+		MappedValueIterator(const FSmallListSet* ListSetIn, int32 ListIndex, bool is_end, TFunction<int32(int32)> MapFuncIn)
+			: BaseValueIterator(ListSetIn, ListIndex, is_end) 
+		{
+			MapFunc = MapFuncIn;
+		}
+
+		TFunction<int32(int32)> MapFunc;
+		friend class FSmallListSet;
+	};
+
+	/**
+	 * @return iterator for start of list at ListIndex, with given value mapping function
+	 */
+	inline MappedValueIterator BeginMappedValues(int32 ListIndex, const TFunction<int32(int32)>& MapFunc) const
+	{
+		return MappedValueIterator(this, ListIndex, false, MapFunc);
+	}
+
+	/**
+	 * @return iterator for end of list at ListIndex, with given value mapping function
+	 */
+	inline MappedValueIterator EndMappedValues(int32 ListIndex, const TFunction<int32(int32)>& MapFunc) const
+	{
+		return MappedValueIterator(this, ListIndex, true, MapFunc);
+	}
+
+	/**
+	 * MappedValueEnumerable is an object that provides begin/end semantics for a small list, suitable for use with a range-based for loop
+	 */
+	class MappedValueEnumerable
+	{
+	public:
+		const FSmallListSet* ListSet;
+		int32 ListIndex;
+		TFunction<int32(int32)> MapFunc;
+		MappedValueEnumerable() {}
+		MappedValueEnumerable(const FSmallListSet* ListSetIn, int32 ListIndex, TFunction<int32(int32)> MapFunc)
+		{
+			this->ListSet = ListSetIn;
+			this->ListIndex = ListIndex;
+			this->MapFunc = MoveTemp(MapFunc);
+		}
+		typename FSmallListSet::MappedValueIterator begin() const { return ListSet->BeginMappedValues(ListIndex, MapFunc); }
+		typename FSmallListSet::MappedValueIterator end() const { return ListSet->EndMappedValues(ListIndex, MapFunc); }
+	};
+
 	/**
 	 * @return a value enumerable for the given ListIndex, with the given value mapping function
 	 */
-	inline ValueEnumerable Values(int32 ListIndex, const TFunction<int32(int32)>& MapFunc) const 
+	inline MappedValueEnumerable MappedValues(int32 ListIndex, TFunction<int32(int32)> MapFunc) const
 	{
-		return ValueEnumerable(this, ListIndex, MapFunc);
+		return MappedValueEnumerable(this, ListIndex, MapFunc);
 	}
+
+
+
 
 
 
@@ -380,5 +460,6 @@ public:
 			ListBlocks.GetLength(), (LinkedListElements.GetLength() * sizeof(int32) / 1024));
 	}
 
-
 };
+
+

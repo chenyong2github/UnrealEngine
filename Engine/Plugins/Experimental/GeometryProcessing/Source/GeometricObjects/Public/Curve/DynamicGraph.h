@@ -113,10 +113,10 @@ public:
 	/**
 	 * Enumerate "other" vertices of edges connected to vertex (i.e. vertex one-ring)
 	 */
-	FSmallListSet::ValueEnumerable VtxVerticesItr(int VID) const
+	FSmallListSet::MappedValueEnumerable VtxVerticesItr(int VID) const
 	{
 		check(vertices_refcount.IsValid(VID));
-		return vertex_edges.Values(VID, [VID, this](int EID) { return edge_other_v(EID, VID); });
+		return vertex_edges.MappedValues(VID, [VID, this](int EID) { return edge_other_v(EID, VID); });
 	}
 
 	/**
