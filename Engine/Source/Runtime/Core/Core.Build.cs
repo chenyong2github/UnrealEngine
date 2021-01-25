@@ -15,8 +15,7 @@ public class Core : ModuleRules
 		PrivateDependencyModuleNames.Add("BuildSettings");
 		if (Target.Platform == UnrealTargetPlatform.Android && Target.Configuration != UnrealTargetConfiguration.Shipping)
 		{
-			PrivateDependencyModuleNames.Add("HWCPipe");		// Performance counters for ARM CPUs and ARM Mali GPUs
-			PrivateDependencyModuleNames.Add("heapprofd");		// Exposes custom allocators to Google's Memory Profiler
+			PrivateDependencyModuleNames.Add("HWCPipe");
 		}
 
 		PublicDependencyModuleNames.Add("TraceLog");

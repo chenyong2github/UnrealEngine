@@ -11,7 +11,6 @@
 #include <jni.h>
 #include <sys/sysinfo.h>
 #include <sys/mman.h>
-#include <type_traits>
 
 #define JNI_CURRENT_VERSION JNI_VERSION_1_6
 extern JavaVM* GJavaVM;
@@ -289,74 +288,6 @@ EPlatformMemorySizeBucket FAndroidPlatformMemory::GetMemorySizeBucket()
 	#define USE_MALLOC_BINNED3 (0)
 #endif
 
-#if PLATFORM_ANDROID && !PLATFORM_LUMIN && !UE_BUILD_SHIPPING && PLATFORM_64BITS
-	#define ANDROID_HEAP_PROFILING_SUPPORTED 1
-	#include "heap_profile.h"
-#else
-	#define ANDROID_HEAP_PROFILING_SUPPORTED 0
-#endif
-
-template <class T>
-struct FMallocProfilingProxy : public T
-{
-#if ANDROID_HEAP_PROFILING_SUPPORTED
-	FMallocProfilingProxy()
-	{
-		static_assert(!std::is_same<T, FMallocAnsi>::value, "FMallocProfilingProxy should never be parametrized with FMallocAnsi since FMallocAnsi will be hooked by heapprofd internally");
-		HeapId = AHeapProfile_registerHeap(AHeapInfo_create("com.epicgames.ue4"));
-	}
-
-	virtual void* Malloc(SIZE_T Size, uint32 Alignment) final
-	{
-		void* Ptr = T::Malloc(Size, Alignment);
-		AHeapProfile_reportAllocation(HeapId, (uint64_t)Ptr, Size);
-		return Ptr;
-	}
-
-	virtual void* TryMalloc(SIZE_T Size, uint32 Alignment) final
-	{
-		void* Ptr = T::Malloc(Size, Alignment);
-		if (Ptr)
-		{
-			AHeapProfile_reportAllocation(HeapId, (uint64_t)Ptr, Size);
-		}
-
-		return Ptr;
-	}
-
-	virtual void* Realloc(void* Ptr, SIZE_T NewSize, uint32 Alignment) final
-	{
-		if (Ptr != nullptr)
-		{
-			AHeapProfile_reportFree(HeapId, (uint64_t)Ptr);
-		}
-
-		Ptr = T::Realloc(Ptr, NewSize, Alignment);
-
-		if (Ptr != nullptr)
-		{
-			AHeapProfile_reportAllocation(HeapId, (uint64_t)Ptr, NewSize);
-		}
-
-		return Ptr;
-	}
-
-	virtual void* TryRealloc(void* Ptr, SIZE_T NewSize, uint32 Alignment) final
-	{
-		return Realloc(Ptr, NewSize, Alignment);
-	}
-
-	virtual void Free(void* Ptr) final
-	{
-		AHeapProfile_reportFree(HeapId, (uint64_t)Ptr);
-		T::Free(Ptr);
-	}
-
-private:
-	uint32_t HeapId;
-#endif
-};
-
 FMalloc* FAndroidPlatformMemory::BaseAllocator()
 {
 #if ENABLE_LOW_LEVEL_MEM_TRACKER
@@ -370,9 +301,9 @@ FMalloc* FAndroidPlatformMemory::BaseAllocator()
 #endif
 
 #if USE_MALLOC_BINNED3 && PLATFORM_ANDROID_ARM64
-	return new FMallocProfilingProxy<FMallocBinned3>();
+	return new FMallocBinned3();
 #elif USE_MALLOC_BINNED2
-	return new FMallocProfilingProxy<FMallocBinned2>();
+	return new FMallocBinned2();
 #else
 	const FPlatformMemoryConstants& MemoryConstants = FPlatformMemory::GetConstants();
 	// 1 << FMath::CeilLogTwo(MemoryConstants.TotalPhysical) should really be FMath::RoundUpToPowerOfTwo,
