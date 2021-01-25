@@ -725,16 +725,8 @@ namespace AutomationTool
 	
 			var bCreatedMutex = false;
             var EntryAssemblyLocation = Assembly.GetEntryAssembly().GetOriginalLocation();
-			var LocationHash = EntryAssemblyLocation.GetHashCode();
 
-			string Prefix = "Global/";
-			// / is a reservered character for mutexes and thus should be omited when not running on windows
-			// as Global/ and Local/ only has meaning there. Will throw a DirectoryNotFoundException otherwise.
-			if (!Utils.IsRunningOnWindows)
-			{
-				Prefix = "";
-			}
-			var MutexName = Prefix + Path.GetFileNameWithoutExtension(EntryAssemblyLocation) + "_" + LocationHash.ToString() + "_Mutex";
+			string MutexName = GetUniqueMutexForPath(Path.GetFileNameWithoutExtension(EntryAssemblyLocation), EntryAssemblyLocation);
 			using (Mutex SingleInstanceMutex = new Mutex(true, MutexName, out bCreatedMutex))
 			{
 				IsSoleInstance = bCreatedMutex;
@@ -766,6 +758,12 @@ namespace AutomationTool
 
 				return Result;
 			}
+		}
+
+		public static string GetUniqueMutexForPath(string Name, string UniquePath)
+		{
+			// generate a md5 hash of the path, as GetHashCode is not guaranteed to generate a stable hash
+			return string.Format("Global\\{0}_{1}", Name, ContentHash.MD5(UniquePath.ToUpperInvariant()));
 		}
 
 	    public static void Robust_CopyFile(string InputFileName, string OutputFileName)

@@ -122,41 +122,9 @@ namespace UnrealBuildTool
 		public void Write(FileReference FileName)
 		{
 			DirectoryReference.CreateDirectory(FileName.Directory);
-			try
+			using(StreamWriter Writer = new StreamWriter(FileName.FullName))
 			{
-				using(StreamWriter Writer = new StreamWriter(FileName.FullName))
-				{
-					Write(Writer);
-				}
-			}
-			catch (IOException Ex)
-			{
-				// for non win32 platforms just rethrow
-				if (Environment.OSVersion.Platform != PlatformID.Win32NT)
-					throw;
-
-				// for win32 we try to determine which other processes has this file opened to improve the error message
-				StringBuilder Message = new StringBuilder($"Unable to write ModuleManifest {FileName.FullName} - {Ex.Message}");
-				List<FileUtils.FileLockInfo_Win32>? LockInfoList;
-				try
-				{
-					LockInfoList = FileUtils.GetFileLockInfo_Win32(FileName.FullName);
-				}
-				catch
-				{
-					LockInfoList = null;
-				}
-
-				if (LockInfoList != null && LockInfoList.Count > 0)
-				{
-					Message.Append("\nProcesses with open handles to file:");
-					foreach (FileUtils.FileLockInfo_Win32 LockInfo in LockInfoList)
-					{
-						Message.Append($"\n  {LockInfo}");
-					}
-				}
-
-				throw new Exception(Message.ToString(), Ex);
+				Write(Writer);
 			}
 		}
 
