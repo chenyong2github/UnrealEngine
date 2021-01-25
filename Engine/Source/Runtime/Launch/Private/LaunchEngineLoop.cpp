@@ -2337,7 +2337,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 
 #if CHECK_PUREVIRTUALS
-	FMessageDialog::Open(EAppMsgType::Ok, *NSLOCTEXT("Engine", "Error_PureVirtualsEnabled", "The game cannot run with CHECK_PUREVIRTUALS enabled.  Please disable CHECK_PUREVIRTUALS and rebuild the executable.").ToString());
+	FMessageDialog::Open(EAppMsgType::Ok, NSLOCTEXT("Engine", "Error_PureVirtualsEnabled", "The game cannot run with CHECK_PUREVIRTUALS enabled.  Please disable CHECK_PUREVIRTUALS and rebuild the executable."));
 	FPlatformMisc::RequestExit(false);
 #endif
 
