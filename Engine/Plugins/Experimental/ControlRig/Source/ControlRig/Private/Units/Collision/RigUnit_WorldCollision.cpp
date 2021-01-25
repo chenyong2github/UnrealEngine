@@ -100,7 +100,7 @@ FRigUnit_SphereTraceByObjectTypes_Execute()
 	const FCollisionShape CollisionShape = FCollisionShape::MakeSphere(Radius); 
 
 	// similar to KismetTraceUtils.h -> ConfigureCollisionObjectParams
-	TArray<TEnumAsByte<ECollisionChannel>> CollisionChannels;
+	TArray<ECollisionChannel> CollisionChannels;
 	CollisionChannels.AddUninitialized(ObjectTypes.Num());
 
 	for (int Index = 0; Index < ObjectTypes.Num(); Index++)
