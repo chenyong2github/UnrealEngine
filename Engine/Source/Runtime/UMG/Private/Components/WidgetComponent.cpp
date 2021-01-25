@@ -25,6 +25,22 @@
 
 DECLARE_CYCLE_STAT(TEXT("3DHitTesting"), STAT_Slate3DHitTesting, STATGROUP_Slate);
 
+static int32 MaximumRenderTargetWidth = 3840;
+static FAutoConsoleVariableRef CVarMaximumRenderTargetWidth
+(
+	TEXT("WidgetComponent.MaximumRenderTargetWidth"),
+	MaximumRenderTargetWidth,
+	TEXT("Sets the maximum width of the render target used by a Widget Component.")
+);
+
+static int32 MaximumRenderTargetHeight = 2160;
+static FAutoConsoleVariableRef CVarMaximumRenderTargetHeight
+(
+	TEXT("WidgetComponent.MaximumRenderTargetHeight"),
+	MaximumRenderTargetHeight,
+	TEXT("Sets the maximum height of the render target used by a Widget Component.")
+);
+
 class FWorldWidgetScreenLayer : public IGameLayer
 {
 public:
@@ -1448,6 +1464,18 @@ void UWidgetComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyCha
 		static FName WindowVisibilityName(TEXT("WindowVisibility"));
 
 		auto PropertyName = Property->GetFName();
+
+		if (PropertyName == DrawSizeName)
+		{
+			if (DrawSize.X > MaximumRenderTargetWidth)
+			{
+				DrawSize.X = MaximumRenderTargetWidth;
+			}
+			if (DrawSize.Y > MaximumRenderTargetHeight)
+			{
+				DrawSize.Y = MaximumRenderTargetHeight;
+			}
+		}
 
 		if( PropertyName == WidgetClassName )
 		{
