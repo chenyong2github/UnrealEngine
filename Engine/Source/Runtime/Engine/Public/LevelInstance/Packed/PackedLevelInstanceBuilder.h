@@ -44,7 +44,7 @@ public:
 
 	static const FString& GetPackedBPSuffix();
 	/* Creates a new APackedLevelInstance Blueprint using InPackagePath/InAssetName as hint for path. Prompts the user to input the final asset name. */
-	static UBlueprint* CreatePackedLevelInstanceBlueprintWithDialog(const FString& InPackagePath, const FString& InAssetName, bool bInCompile);
+	static UBlueprint* CreatePackedLevelInstanceBlueprintWithDialog(const FString& InAssetName, const FString& InPackagePath, bool bInCompile);
 	/* Creates a new APackedLevelInstance Blueprint using InPackagePath/InAssetName */
 	static UBlueprint* CreatePackedLevelInstanceBlueprint(const FString& InSaveAssetName, const FString& InPackagePath, bool bInCompile);
 	

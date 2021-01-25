@@ -737,7 +737,7 @@ ALevelInstance* ULevelInstanceSubsystem::CreateLevelInstanceFrom(const TArray<AA
 		FString PackagePath = LongPackageName.Mid(0, LastSlashIndex == INDEX_NONE ? MAX_int32 : LastSlashIndex);
 		FString AssetName = WorldPtr.GetAssetName() + FPackedLevelInstanceBuilder::GetPackedBPSuffix();
 		const bool bCompile = true;
-		if (UBlueprint* NewBP = FPackedLevelInstanceBuilder::CreatePackedLevelInstanceBlueprint(PackagePath, AssetName, bCompile))
+		if (UBlueprint* NewBP = FPackedLevelInstanceBuilder::CreatePackedLevelInstanceBlueprintWithDialog(AssetName, PackagePath, bCompile))
 		{
 			NewLevelInstanceActor = GetWorld()->SpawnActor<APackedLevelInstance>(NewBP->GeneratedClass, SpawnParams);
 			APackedLevelInstance* CDO = Cast<APackedLevelInstance>(NewBP->GeneratedClass->GetDefaultObject());

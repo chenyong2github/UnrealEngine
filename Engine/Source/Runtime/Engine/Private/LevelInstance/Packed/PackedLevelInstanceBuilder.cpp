@@ -71,7 +71,7 @@ const FString& FPackedLevelInstanceBuilder::GetPackedBPSuffix()
 	return BPSuffix;
 }
 
-UBlueprint* FPackedLevelInstanceBuilder::CreatePackedLevelInstanceBlueprintWithDialog(const FString& InPackagePath, const FString& InAssetName, bool bInCompile)
+UBlueprint* FPackedLevelInstanceBuilder::CreatePackedLevelInstanceBlueprintWithDialog(const FString& InAssetName, const FString& InPackagePath, bool bInCompile)
 {
 	FSaveAssetDialogConfig SaveAssetDialogConfig;
 	SaveAssetDialogConfig.DialogTitleOverride = LOCTEXT("SaveAssetDialogTitle", "Save Asset As");
@@ -384,7 +384,7 @@ bool FPackedLevelInstanceBuilder::CreateOrUpdateBlueprintFromPacked(APackedLevel
 		FString AssetName = InActor->GetWorldAsset().GetAssetName() + GetPackedBPSuffix();
 		const bool bCompile = false;
 
-		BP = CreatePackedLevelInstanceBlueprintWithDialog(PackagePath, AssetName, bCompile);
+		BP = CreatePackedLevelInstanceBlueprintWithDialog(AssetName, PackagePath, bCompile);
 	}
 
 	if (BP && BP->SimpleConstructionScript)
