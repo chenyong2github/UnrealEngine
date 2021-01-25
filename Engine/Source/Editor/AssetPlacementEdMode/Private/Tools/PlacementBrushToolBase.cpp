@@ -176,8 +176,7 @@ TArray<FTypedElementHandle> UPlacementBrushToolBase::GetElementsInBrushRadius() 
 			continue;
 		}
 
-		const FActorInstanceHandle& HitObjectHandle = Hit.HitObjectHandle;
-		const AActor* HitActor = Hit.HitObjectHandle.FetchActor();
+		const AActor* HitActor = Hit.GetActor();
 		if (HitActor)
 		{
 			FTypedElementHandle ActorHandle = UEngineElementsLibrary::AcquireEditorActorElementHandle(HitActor);

@@ -7,7 +7,8 @@
 #include "Subsystems/EditorActorSubsystem.h"
 #include "Elements/Framework/EngineElementsLibrary.h"
 #include "Elements/Framework/TypedElementHandle.h"
-#include "Elements/Actor/ActorElementData.h"
+#include "Elements/Framework/TypedElementRegistry.h"
+#include "Elements/Interfaces/TypedElementObjectInterface.h"
 #include "Editor.h"
 #include "InstancedFoliageActor.h"
 #include "AssetPlacementEdMode.h"
@@ -45,11 +46,16 @@ void UPlacementModeEraseTool::OnTick(float DeltaTime)
 	TArray<FTypedElementHandle> HitElements = GetElementsInBrushRadius();
 	for (const FTypedElementHandle& HitElement : HitElements)
 	{
-		const FActorElementData* ActorData = HitElement.GetData<FActorElementData>();
-		if (ActorData && ActorData->Actor)
+		if (TTypedElement<UTypedElementObjectInterface> ObjectInterface = UTypedElementRegistry::GetInstance()->GetElement<UTypedElementObjectInterface>(HitElement))
 		{
+			AActor* Actor = ObjectInterface.GetObjectAs<AActor>();
+			if (!Actor)
+			{
+				continue;
+			}
+
 			// Since the foliage static mesh instances do not currently operate with element handles, we have to drill in manually here.
-			if (AInstancedFoliageActor* FoliageActor = Cast<AInstancedFoliageActor>(ActorData->Actor))
+			if (AInstancedFoliageActor* FoliageActor = Cast<AInstancedFoliageActor>(Actor))
 			{
 				for (auto& FoliageInfo : FoliageActor->FoliageInfos)
 				{
@@ -65,7 +71,7 @@ void UPlacementModeEraseTool::OnTick(float DeltaTime)
 			}
 			else if (ActorSubsystem)
 			{
-				ActorSubsystem->DestroyActor(ActorData->Actor);
+				ActorSubsystem->DestroyActor(Actor);
 			}
 		}
 	}

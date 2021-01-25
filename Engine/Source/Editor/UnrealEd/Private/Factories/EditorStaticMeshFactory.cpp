@@ -2,10 +2,10 @@
 
 #include "Factories/EditorStaticMeshFactory.h"
 
-#include "Elements/Actor/ActorElementData.h"
-#include "Elements/Component/ComponentElementData.h"
-#include "Elements/Object/ObjectElementData.h"
 #include "Elements/Framework/EngineElementsLibrary.h"
+#include "Elements/Framework/TypedElementRegistry.h"
+#include "Elements/Interfaces/TypedElementAssetDataInterface.h"
+#include "Elements/Interfaces/TypedElementObjectInterface.h"
 
 #include "ActorPartition/ActorPartitionSubsystem.h"
 #include "InstancedFoliageActor.h"
@@ -74,19 +74,16 @@ FAssetData UEditorStaticMeshFactory::GetAssetDataFromElementHandle(const FTypedE
 {
 	UInstancedStaticMeshComponent* ISMComponent = nullptr;
 
-	// Try to pull from component handle
-	const FComponentElementData* ComponentData = InHandle.GetData<FComponentElementData>();
-	if (ComponentData && ComponentData->Component)
+	if (TTypedElement<UTypedElementObjectInterface> ObjectInterface = UTypedElementRegistry::GetInstance()->GetElement<UTypedElementObjectInterface>(InHandle))
 	{
-		ISMComponent = Cast<UInstancedStaticMeshComponent>(ComponentData->Component);
-	}
-	else
-	{
-		// Try to pull from actor handle
-		const FActorElementData* ActorData = InHandle.GetData<FActorElementData>();
-		if (ActorData && ActorData->Actor)
+		// Try to pull from component handle
+		if (UInstancedStaticMeshComponent* RawComponentPtr = ObjectInterface.GetObjectAs<UInstancedStaticMeshComponent>())
 		{
-			ISMComponent = ActorData->Actor->FindComponentByClass<UInstancedStaticMeshComponent>();
+			ISMComponent = RawComponentPtr;
+		}
+		else if (AActor* RawActorPtr = ObjectInterface.GetObjectAs<AActor>())
+		{
+			ISMComponent = RawActorPtr->FindComponentByClass<UInstancedStaticMeshComponent>();
 		}
 	}
 
@@ -95,12 +92,9 @@ FAssetData UEditorStaticMeshFactory::GetAssetDataFromElementHandle(const FTypedE
 	{
 		FoundAssetData = FAssetData(ISMComponent->GetStaticMesh());
 	}
-	else if (const FObjectElementData* ObjectData = InHandle.GetData<FObjectElementData>())
+	else if (TTypedElement<UTypedElementAssetDataInterface> AssetDataInterface = UTypedElementRegistry::GetInstance()->GetElement<UTypedElementAssetDataInterface>(InHandle))
 	{
-		if (ObjectData && ObjectData->Object)
-		{
-			FoundAssetData = FAssetData(ObjectData->Object);
-		}
+		FoundAssetData = AssetDataInterface.GetAssetData();
 	}
 
 	if (CanPlaceElementsFromAssetData(FoundAssetData))

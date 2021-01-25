@@ -9,6 +9,7 @@
 #include "Elements/Actor/ActorElementDetailsInterface.h"
 #include "Elements/Actor/ActorElementEditorWorldInterface.h"
 #include "Elements/Actor/ActorElementEditorSelectionInterface.h"
+#include "Elements/Actor/ActorElementEditorAssetDataInterface.h"
 
 #include "Elements/Component/ComponentElementDetailsInterface.h"
 #include "Elements/Component/ComponentElementEditorWorldInterface.h"
@@ -31,6 +32,7 @@ void RegisterEditorActorElements()
 	Registry->RegisterElementInterface<UTypedElementDetailsInterface>(NAME_Actor, NewObject<UActorElementDetailsInterface>());
 	Registry->RegisterElementInterface<UTypedElementWorldInterface>(NAME_Actor, NewObject<UActorElementEditorWorldInterface>(), /*bAllowOverride*/true);
 	Registry->RegisterElementInterface<UTypedElementSelectionInterface>(NAME_Actor, NewObject<UActorElementEditorSelectionInterface>(), /*bAllowOverride*/true);
+	Registry->RegisterElementInterface<UTypedElementAssetDataInterface>(NAME_Actor, NewObject<UActorElementEditorAssetDataInterface>(), /*bAllowOverride*/true);
 }
 
 void RegisterEditorComponentElements()

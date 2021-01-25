@@ -4,10 +4,12 @@
 #include "Elements/Framework/TypedElementRegistry.h"
 
 #include "Elements/Object/ObjectElementData.h"
+#include "Elements/Object/ObjectElementAssetDataInterface.h"
 #include "Elements/Object/ObjectElementObjectInterface.h"
 #include "Elements/Object/ObjectElementSelectionInterface.h"
 
 #include "Elements/Actor/ActorElementData.h"
+#include "Elements/Actor/ActorElementAssetDataInterface.h"
 #include "Elements/Actor/ActorElementObjectInterface.h"
 #include "Elements/Actor/ActorElementWorldInterface.h"
 #include "Elements/Actor/ActorElementSelectionInterface.h"
@@ -26,6 +28,7 @@ void RegisterEngineObjectElements()
 	UTypedElementRegistry* Registry = UTypedElementRegistry::GetInstance();
 
 	Registry->RegisterElementType<FObjectElementData>(NAME_Object);
+	Registry->RegisterElementInterface<UTypedElementAssetDataInterface>(NAME_Object, NewObject<UObjectElementAssetDataInterface>());
 	Registry->RegisterElementInterface<UTypedElementObjectInterface>(NAME_Object, NewObject<UObjectElementObjectInterface>());
 	Registry->RegisterElementInterface<UTypedElementSelectionInterface>(NAME_Object, NewObject<UObjectElementSelectionInterface>());
 }
@@ -35,6 +38,7 @@ void RegisterEngineActorElements()
 	UTypedElementRegistry* Registry = UTypedElementRegistry::GetInstance();
 
 	Registry->RegisterElementType<FActorElementData>(NAME_Actor);
+	Registry->RegisterElementInterface<UTypedElementAssetDataInterface>(NAME_Actor, NewObject<UActorElementAssetDataInterface>());
 	Registry->RegisterElementInterface<UTypedElementObjectInterface>(NAME_Actor, NewObject<UActorElementObjectInterface>());
 	Registry->RegisterElementInterface<UTypedElementWorldInterface>(NAME_Actor, NewObject<UActorElementWorldInterface>());
 	Registry->RegisterElementInterface<UTypedElementSelectionInterface>(NAME_Actor, NewObject<UActorElementSelectionInterface>());

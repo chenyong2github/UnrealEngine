@@ -131,8 +131,10 @@ ActorFactory.cpp:
 #include "LevelSequence.h"
 #include "LevelSequenceActor.h"
 #include "Factories/ActorFactoryMovieScene.h"
-#include "Elements/Actor/ActorElementData.h"
 #include "Elements/Framework/EngineElementsLibrary.h"
+#include "Elements/Framework/TypedElementRegistry.h"
+#include "Elements/Interfaces/TypedElementAssetDataInterface.h"
+#include "Elements/Interfaces/TypedElementObjectInterface.h"
 #include "Subsystems/PlacementSubsystem.h"
 
 #include "LevelEditorViewport.h"
@@ -267,6 +269,11 @@ FQuat UActorFactory::AlignObjectToSurfaceNormal(const FVector& InSurfaceNormal, 
 
 bool UActorFactory::CanPlaceElementsFromAssetData(const FAssetData& InAssetData)
 {
+	if (!InAssetData.IsValid())
+	{
+		return false;
+	}
+
 	UClass* Class = InAssetData.GetClass();
 	if (Class && (Class == GetDefaultActorClass(InAssetData)))
 	{
@@ -297,52 +304,53 @@ void UActorFactory::PostPlaceAsset(TArrayView<const FTypedElementHandle> InEleme
 {
 	for (const FTypedElementHandle& PlacedElement : InElementHandles)
 	{
-		const FActorElementData* ActorElementData = PlacedElement.GetData<FActorElementData>();
-		if (ActorElementData && ActorElementData->Actor)
+		if (TTypedElement<UTypedElementObjectInterface> ObjectInterface = UTypedElementRegistry::GetInstance()->GetElement<UTypedElementObjectInterface>(PlacedElement))
 		{
-			PostSpawnActor(InPlacementInfo.AssetToPlace.GetAsset(), ActorElementData->Actor);
-
-			// Only do this if the actor wasn't already given a name
-			if (InPlacementInfo.NameOverride.IsNone())
+			if (AActor* CreatedActor = ObjectInterface.GetObjectAs<AActor>())
 			{
-				FActorLabelUtilities::SetActorLabelUnique(ActorElementData->Actor, InPlacementInfo.AssetToPlace.AssetName.ToString());
-			}
+				PostSpawnActor(InPlacementInfo.AssetToPlace.GetAsset(), CreatedActor);
 
-			ActorElementData->Actor->PostEditChange();
-			ActorElementData->Actor->PostEditMove(true);
+				// Only do this if the actor wasn't already given a name
+				if (InPlacementInfo.NameOverride.IsNone())
+				{
+					FActorLabelUtilities::SetActorLabelUnique(CreatedActor, InPlacementInfo.AssetToPlace.AssetName.ToString());
+				}
+
+				CreatedActor->PostEditChange();
+				CreatedActor->PostEditMove(true);
+			}
 		}
 	}
 }
 
 FAssetData UActorFactory::GetAssetDataFromElementHandle(const FTypedElementHandle& InHandle)
 {
-	const FActorElementData* ActorData = InHandle.GetData<FActorElementData>();
-	if (!ActorData || !ActorData->Actor)
+	if (!InHandle.IsSet())
 	{
 		return FAssetData();
 	}
 
-	AActor* ActorInstance = ActorData->Actor;
-	const UClass* DefaultActorClass = GetDefaultActorClass(FAssetData());
-
-	// See if the existing implementation of the actor factory has a valid asset data.
-	// First check that the actor instance derives from the default class
-	if (DefaultActorClass && ActorInstance->IsA(DefaultActorClass))
+	// Check if the handle is the type of actor created by this factory, and use the factory to find the wrapped asset data if possible.
+	if (TTypedElement<UTypedElementObjectInterface> ElementObjectInterface = UTypedElementRegistry::GetInstance()->GetElement<UTypedElementObjectInterface>(InHandle))
 	{
-		if (UObject* WrappedAssetObject = GetAssetFromActorInstance(ActorInstance))
+		if (AActor* RawElementActorPtr = ElementObjectInterface.GetObjectAs<AActor>(GetDefaultActorClass(FAssetData())))
 		{
-			return FAssetData(WrappedAssetObject);
-		}
-
-		// Query the actor itself for any contained content objects.
-		TArray<UObject*> ReferencedContentObjects;
-		ActorInstance->GetReferencedContentObjects(ReferencedContentObjects);
-		for (const UObject* ReferencedContentObject : ReferencedContentObjects)
-		{
-			FAssetData ReferencedObjectData = FAssetData(ReferencedContentObject);
-			if (CanPlaceElementsFromAssetData(ReferencedObjectData))
+			if (UObject* WrappedAssetObject = GetAssetFromActorInstance(RawElementActorPtr))
 			{
-				return ReferencedObjectData;
+				return FAssetData(WrappedAssetObject);
+			}
+		}
+	}
+
+	// Check if any of the referenced content is created by this factory.
+	if (TTypedElement<UTypedElementAssetDataInterface> AssetDataInterface = UTypedElementRegistry::GetInstance()->GetElement<UTypedElementAssetDataInterface>(InHandle))
+	{
+		TArray<FAssetData> ContentAssetDatas = AssetDataInterface.GetAllReferencedAssetDatas();
+		for (FAssetData& AssetData : ContentAssetDatas)
+		{
+			if (CanPlaceElementsFromAssetData(AssetData))
+			{
+				return MoveTemp(AssetData);
 			}
 		}
 	}

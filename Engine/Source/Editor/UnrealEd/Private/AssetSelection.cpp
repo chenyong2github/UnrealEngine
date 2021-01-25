@@ -52,7 +52,8 @@
 #include "ISourceControlProvider.h"
 #include "Misc/MessageDialog.h"
 #include "Subsystems/PlacementSubsystem.h"
-#include "Elements/Actor/ActorElementData.h"
+#include "Elements/Framework/TypedElementRegistry.h"
+#include "Elements/Interfaces/TypedElementObjectInterface.h"
 
 namespace AssetSelectionUtils
 {
@@ -620,9 +621,14 @@ static AActor* PrivateAddActor( UObject* Asset, UActorFactory* Factory, bool Sel
 			TArray<FTypedElementHandle> PlacedElements = PlacementSubsystem->PlaceAsset(PlacementInfo, FPlacementOptions());
 			if (PlacedElements.Num())
 			{
-				const FActorElementData* ActorElementData = PlacedElements[0].GetData<FActorElementData>();
-				Actor = ActorElementData ? ActorElementData->Actor : nullptr;
-				Actor->SetFlags(ObjectFlags);
+				if (TTypedElement<UTypedElementObjectInterface> ObjectInterface = UTypedElementRegistry::GetInstance()->GetElement<UTypedElementObjectInterface>(PlacedElements[0]))
+				{
+					Actor = ObjectInterface.GetObjectAs<AActor>();
+					if (Actor)
+					{
+						Actor->SetFlags(ObjectFlags);
+					}
+				}
 			}
 		}
 		
