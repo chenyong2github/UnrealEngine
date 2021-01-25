@@ -19715,6 +19715,7 @@ int32 UMaterialExpressionStrataSlabBSDF::Compile(class FMaterialCompiler* Compil
 		CompileWithDefaultFloat3(Compiler, DiffuseMeanFreePathAlbedo, 0.0f, 0.0f, 0.0f),
 		CompileWithDefaultFloat1(Compiler, DiffuseMeanFreePathRadius, 0.0f),
 		CompileWithDefaultFloat1(Compiler, SSSRadiusScale, 1.0f),
+		CompileWithDefaultFloat3(Compiler, EmissiveColor, 0.0f, 0.0f, 0.0f),
 		NormalCodeChunk,
 		TangentCodeChunk,
 		SharedNormalIndex);
@@ -19767,6 +19768,9 @@ uint32 UMaterialExpressionStrataSlabBSDF::GetInputType(int32 InputIndex)
 	case 9:
 		return MCT_Float1; // SSS Radius Scale
 		break;
+	case 10:
+		return MCT_Float3; // Emissive Color
+		break;
 	}
 
 	check(false);
@@ -19814,6 +19818,10 @@ FName UMaterialExpressionStrataSlabBSDF::GetInputName(int32 InputIndex) const
 	else if (InputIndex == 9)
 	{
 		return TEXT("SSS Radius Scale");
+	}
+	else if (InputIndex == 10)
+	{
+		return TEXT("Emissive Color");
 	}
 	return TEXT("Unknown");
 }
@@ -19938,7 +19946,7 @@ int32 UMaterialExpressionStrataVolumetricFogCloudBSDF::Compile(class FMaterialCo
 	int32 OutputCodeChunk = Compiler->StrataVolumetricFogCloudBSDF(
 		CompileWithDefaultFloat3(Compiler, Albedo, 0.0f, 0.0f, 0.0f),
 		CompileWithDefaultFloat3(Compiler, Extinction, 0.0f, 0.0f, 0.0f),
-		CompileWithDefaultFloat3(Compiler, Emissive, 0.0f, 0.0f, 0.0f),
+		CompileWithDefaultFloat3(Compiler, EmissiveColor, 0.0f, 0.0f, 0.0f),
 		CompileWithDefaultFloat1(Compiler, AmbientOcclusion, 1.0f));
 
 	uint8 FakeSharedNormalIndex = 0;
@@ -20085,7 +20093,7 @@ int32 UMaterialExpressionStrataHairBSDF::Compile(class FMaterialCompiler* Compil
 		CompileWithDefaultFloat1(Compiler, Specular,	0.5f),
 		CompileWithDefaultFloat1(Compiler, Roughness,	0.5f),
 		CompileWithDefaultFloat1(Compiler, Backlit,		0.0f),
-		CompileWithDefaultFloat3(Compiler, Emissive,	1.0f, 0.0f, 0.0f),
+		CompileWithDefaultFloat3(Compiler, EmissiveColor,1.0f, 0.0f, 0.0f),
 		TangentCodeChunk,
 		SharedNormalIndex);
 
@@ -20173,7 +20181,7 @@ int32 UMaterialExpressionStrataSingleLayerWaterBSDF::Compile(class FMaterialComp
 		CompileWithDefaultFloat1(Compiler, Metallic, 0.0f),
 		CompileWithDefaultFloat1(Compiler, Specular, 0.5f),
 		CompileWithDefaultFloat1(Compiler, Roughness, 0.5f),
-		CompileWithDefaultFloat3(Compiler, Emissive, 0.0f, 0.0f, 0.0f),
+		CompileWithDefaultFloat3(Compiler, EmissiveColor, 0.0f, 0.0f, 0.0f),
 		CompileWithDefaultFloat1(Compiler, TopMaterialOpacity, 0.0f),
 		CompileWithDefaultFloat3(Compiler, WaterAlbedo, 0.0f, 0.0f, 0.0f),
 		CompileWithDefaultFloat3(Compiler, WaterExtinction, 0.0f, 0.0f, 0.0f),
@@ -20217,7 +20225,7 @@ uint32 UMaterialExpressionStrataSingleLayerWaterBSDF::GetInputType(int32 InputIn
 		return MCT_Float3; // Normal
 		break;
 	case 5:
-		return MCT_Float3; // Emissive
+		return MCT_Float3; // Emissive Color
 		break;
 	case 6:
 		return MCT_Float1; // TopMaterialOpacity

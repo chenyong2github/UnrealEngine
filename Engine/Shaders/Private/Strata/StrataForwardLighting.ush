@@ -66,7 +66,8 @@ float3 StrataForwardLighting(
 
 			// Evalaute the lighting coming from L (it will lso contain the BSDF throughput to the next layer)
 			FStrataEvaluateResult StrataEvaluate = StrataEvaluateBSDF(StrataBSDFContext);
-			Color += (StrataEvaluate.DiffusePathValue + StrataEvaluate.SpecularPathValue) * DirLightGeometryFactor;
+			Color += (StrataEvaluate.DiffusePathValue + StrataEvaluate.SpecularPathValue) * DirLightGeometryFactor 
+					+ StrataEvaluate.EmissivePathValue * OutThroughput;
 
 			LayerCoverage	+= BSDFCoverage;
 			LayerThroughput += BSDFCoverage * StrataEvaluate.Throughput;

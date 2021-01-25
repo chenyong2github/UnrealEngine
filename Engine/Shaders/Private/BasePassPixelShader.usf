@@ -1550,11 +1550,14 @@ void FPixelShaderInOut_MainPS(
 	uint2 PixelPos = In.SvPosition.xy;
 	uint PixelStrataDataByteOffset = GetStrataPixelDataByteOffset(PixelPos, ResolvedView.BufferSizeAndInvSize.x, OpaqueBasePass.Strata.MaxBytesPerPixel);
 
+	float3 EmissiveLuminance = 0.0f;
 	const float3 VertexNormal = MaterialParameters.TangentToWorld[2].xyz;
 	PackStrataOut(
 		OpaqueBasePass.Strata.MaterialLobesBufferUAV, PixelStrataDataByteOffset, 
 		StrataPixelHeader, Strata,
-		MaterialParameters.CameraVector, GBuffer);
+		MaterialParameters.CameraVector, GBuffer, EmissiveLuminance);
+
+	Color += EmissiveLuminance;
 
 	// Since we don't carry SSS on/off through the ShadingModel value (DefaultLit/SubSurfaceProfile), we update subsurface toggle, based on the MFP radius value
 	bSubsurfaceEnable = GBuffer.CustomData.a > 0;

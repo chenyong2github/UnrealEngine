@@ -8527,10 +8527,10 @@ int32 FHLSLMaterialTranslator::StrataCreateAndRegisterNullMaterial()
 	return OutputCodeChunk;
 }
 
-int32 FHLSLMaterialTranslator::StrataSlabBSDF(int32 BaseColor, int32 Reflectivity, int32 Metallic, int32 RoughnessX, int32 RoughnessY, int32 SSSProfileId, int32 SSSDMFPAlbedo, int32 SSSDMFPRadius, int32 SSSRadiusScale, int32 Normal, int32 Tangent, uint8 SharedNormalIndex)
+int32 FHLSLMaterialTranslator::StrataSlabBSDF(int32 BaseColor, int32 Reflectivity, int32 Metallic, int32 RoughnessX, int32 RoughnessY, int32 SSSProfileId, int32 SSSDMFPAlbedo, int32 SSSDMFPRadius, int32 SSSRadiusScale, int32 EmissiveColor, int32 Normal, int32 Tangent, uint8 SharedNormalIndex)
 {
 	return AddCodeChunk(
-		MCT_Strata, TEXT("GetStrataSlabBSDF(%s, %s, %s, float2(%s, %s), %s, %s, %s, %s, %u, Parameters.SharedNormals.NormalTypes) /* Normal = %s ; Tangent = %s */"),
+		MCT_Strata, TEXT("GetStrataSlabBSDF(%s, %s, %s, float2(%s, %s), %s, %s, %s, %s, %s, %u, Parameters.SharedNormals.NormalTypes) /* Normal = %s ; Tangent = %s */"),
 		*GetParameterCode(BaseColor),
 		*GetParameterCode(Reflectivity),
 		*GetParameterCode(Metallic),
@@ -8540,6 +8540,7 @@ int32 FHLSLMaterialTranslator::StrataSlabBSDF(int32 BaseColor, int32 Reflectivit
 		*GetParameterCode(SSSDMFPAlbedo),
 		*GetParameterCode(SSSDMFPRadius),
 		*GetParameterCode(SSSRadiusScale),
+		*GetParameterCode(EmissiveColor),
 		SharedNormalIndex,
 		*GetParameterCode(Normal),
 		*GetParameterCode(Tangent)
@@ -8557,27 +8558,27 @@ int32 FHLSLMaterialTranslator::StrataSheenBSDF(int32 BaseColor, int32 Roughness,
 	);
 }
 
-int32 FHLSLMaterialTranslator::StrataVolumetricFogCloudBSDF(int32 Albedo, int32 Extinction, int32 Emissive, int32 AmbientOcclusion)
+int32 FHLSLMaterialTranslator::StrataVolumetricFogCloudBSDF(int32 Albedo, int32 Extinction, int32 EmissiveColor, int32 AmbientOcclusion)
 {
 	return AddCodeChunk(
 		MCT_Strata, TEXT("GetStrataVolumeFogCloudBSDF(%s, %s, %s, %s)"),
 		*GetParameterCode(Albedo),
 		*GetParameterCode(Extinction),
-		*GetParameterCode(Emissive),
+		*GetParameterCode(EmissiveColor),
 		*GetParameterCode(AmbientOcclusion)
 	);
 }
 
-int32 FHLSLMaterialTranslator::StrataUnlitBSDF(int32 Emissive, int32 TransmittanceColor)
+int32 FHLSLMaterialTranslator::StrataUnlitBSDF(int32 EmissiveColor, int32 TransmittanceColor)
 {
 	return AddCodeChunk(
 		MCT_Strata, TEXT("GetStrataUnlitBSDF(%s, %s)"),
-		*GetParameterCode(Emissive),
+		*GetParameterCode(EmissiveColor),
 		*GetParameterCode(TransmittanceColor)
 	);
 }
 
-int32 FHLSLMaterialTranslator::StrataHairBSDF(int32 BaseColor, int32 Scatter, int32 Specular, int32 Roughness, int32 Backlit, int32 Emissive, int32 Tangent, uint8 SharedNormalIndex)
+int32 FHLSLMaterialTranslator::StrataHairBSDF(int32 BaseColor, int32 Scatter, int32 Specular, int32 Roughness, int32 Backlit, int32 EmissiveColor, int32 Tangent, uint8 SharedNormalIndex)
 {
 	return AddCodeChunk(
 		MCT_Strata, TEXT("GetStrataHairBSDF(%s, %s, %s, %s, %s, %s, %u) /* %s */"),
@@ -8586,14 +8587,14 @@ int32 FHLSLMaterialTranslator::StrataHairBSDF(int32 BaseColor, int32 Scatter, in
 		*GetParameterCode(Specular),
 		*GetParameterCode(Roughness),
 		*GetParameterCode(Backlit),
-		*GetParameterCode(Emissive),
+		*GetParameterCode(EmissiveColor),
 		SharedNormalIndex,
 		*GetParameterCode(Tangent)
 	);
 }
 
 int32 FHLSLMaterialTranslator::StrataSingleLayerWaterBSDF(
-	int32 BaseColor, int32 Metallic, int32 Specular, int32 Roughness, int32 Emissive, int32 TopMaterialOpacity,
+	int32 BaseColor, int32 Metallic, int32 Specular, int32 Roughness, int32 EmissiveColor, int32 TopMaterialOpacity,
 	int32 WaterAlbedo, int32 WaterExtinction, int32 WaterPhaseG, int32 ColorScaleBehindWater, int32 Normal, uint8 SharedNormalIndex)
 {
 	return AddCodeChunk(
@@ -8602,7 +8603,7 @@ int32 FHLSLMaterialTranslator::StrataSingleLayerWaterBSDF(
 		*GetParameterCode(Metallic),
 		*GetParameterCode(Specular),
 		*GetParameterCode(Roughness),
-		*GetParameterCode(Emissive),
+		*GetParameterCode(EmissiveColor),
 		*GetParameterCode(TopMaterialOpacity),
 		*GetParameterCode(WaterAlbedo),
 		*GetParameterCode(WaterExtinction),

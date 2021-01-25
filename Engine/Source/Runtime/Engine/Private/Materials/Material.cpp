@@ -3738,7 +3738,7 @@ void UMaterial::ConvertMaterialToStrataMaterial()
 			UMaterialExpressionStrataVolumetricFogCloudBSDF* VolBSDF = NewObject<UMaterialExpressionStrataVolumetricFogCloudBSDF>(this);
 			MoveConnectionTo(BaseColor, VolBSDF, 0);		// Albedo
 			MoveConnectionTo(SubsurfaceColor, VolBSDF, 1);	// Extinction
-			MoveConnectionTo(EmissiveColor, VolBSDF, 2);	// Emissive
+			MoveConnectionTo(EmissiveColor, VolBSDF, 2);	// EmissiveColor
 			MoveConnectionTo(AmbientOcclusion, VolBSDF, 3);	// AmbientOcclusion
 
 			// STRATA_TODO remove the VolumetricAdvancedOutput node and add the input onto FogCloudBSDF even if only used by the cloud renderer?

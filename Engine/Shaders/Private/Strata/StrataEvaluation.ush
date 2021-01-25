@@ -131,12 +131,16 @@ void StrataUpdateBSDFContext(inout FStrataBSDFContext BSDFContext, float3 NewL)
 
 struct FStrataEvaluateResult
 {
+	float3 EmissivePathValue;
+
 	float3 DiffusePathValue;
 	float3 SpecularPathValue;
 	float3 TransmissionPathValue;
+
 	float  DiffusePDF;
 	float  SpecularPDF;
 	float  TransmissionPDF;
+
 	float3 Throughput;					// Throughput to the next layer
 	bool   bSubsurface;					// True if we need to separate the subsurface light contribution for the screen space diffusion process.
 	bool   bApplyProjectedSolidAngle;	// True if the Saturate(NoL) factor should be applied or not over the value of the BSDF
@@ -203,6 +207,8 @@ FStrataEvaluateResult StrataEvaluateBSDF(FStrataBSDFContext BSDFContext, FShadow
 
 			Sample.SpecularPathValue= D * Vis * F;
 			Sample.SpecularPDF		= PDF;
+
+			Sample.EmissivePathValue= BSDF_GETEMISSIVE(BSDFContext.BSDF);
 
 			Sample.Throughput = OpaqueBSDFThroughput;
 			break;

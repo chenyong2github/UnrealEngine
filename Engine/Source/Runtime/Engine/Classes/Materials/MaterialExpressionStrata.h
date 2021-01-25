@@ -97,6 +97,12 @@ class UMaterialExpressionStrataSlabBSDF : public UMaterialExpressionStrataBSDF
 	UPROPERTY(meta = (DisplayName = "SSS Radius Scale"))
 	FExpressionInput SSSRadiusScale;
 
+	/**
+	 * Emissive color on top of the surface (type = float3, unit = luminance, default = 0)
+	 */
+	UPROPERTY()
+	FExpressionInput EmissiveColor;
+
 	/** SubsurfaceProfile, for Screen Space Subsurface Scattering. The profile needs to be set up on both the Strata diffuse node, and the material node at the moment. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Material, meta = (DisplayName = "Subsurface Profile"))
 	class USubsurfaceProfile* SubsurfaceProfile;
@@ -169,10 +175,10 @@ class UMaterialExpressionStrataVolumetricFogCloudBSDF : public UMaterialExpressi
 	FExpressionInput Extinction;
 
 	/**
-	 * Emissive (type = float3, unit = luminance, default = 0)
+	 * Emissive color of the medium (type = float3, unit = luminance, default = 0)
 	 */
 	UPROPERTY()
-	FExpressionInput Emissive;
+	FExpressionInput EmissiveColor;
 
 	/**
 	 * Ambient occlusion: 1 means no occlusion while 0 means fully occluded. (type = float, unit = unitless, default = 1)
@@ -198,7 +204,7 @@ class UMaterialExpressionStrataUnlitBSDF : public UMaterialExpressionStrataBSDF
 	GENERATED_UCLASS_BODY()
 
 	/**
-	* Emissive (type = float3, unit = Luminance, default = 0)
+	* Emissive color on top of the surface (type = float3, unit = Luminance, default = 0)
 	*/
 	UPROPERTY()
 	FExpressionInput EmissiveColor;
@@ -263,10 +269,10 @@ class UMaterialExpressionStrataHairBSDF : public UMaterialExpressionStrataBSDF
 	FExpressionInput Tangent;
 
 	/**
-	 * Emissive (type = float3, unit = luminance, defaults to 0.0)
+	 * Emissive color on top of the surface (type = float3, unit = luminance, defaults to 0.0)
 	 */
 	UPROPERTY()
-	FExpressionInput Emissive;
+	FExpressionInput EmissiveColor;
 
 	//~ Begin UMaterialExpression Interface
 #if WITH_EDITOR
@@ -316,10 +322,10 @@ class UMaterialExpressionStrataSingleLayerWaterBSDF : public UMaterialExpression
 	FExpressionInput Normal;
 
 	/**
-	 * Emissive RGB (type = float3, unit = luminance, defaults to 0.0)
+	 * Emissive color on top of the surface (type = float3, unit = luminance, defaults to 0.0)
 	 */
 	UPROPERTY()
-	FExpressionInput Emissive;
+	FExpressionInput EmissiveColor;
 
 	/**
 	 * Opacity of the material layered on top of the water (type = float3, unit = unitless, defaults to 0.0)
