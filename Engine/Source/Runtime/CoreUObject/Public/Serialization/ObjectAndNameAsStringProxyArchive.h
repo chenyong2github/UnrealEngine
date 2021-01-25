@@ -38,5 +38,6 @@ struct FObjectAndNameAsStringProxyArchive : public FNameAsStringProxyArchive
 	COREUOBJECT_API virtual FArchive& operator<<(FWeakObjectPtr& Obj) override;
 	COREUOBJECT_API virtual FArchive& operator<<(FSoftObjectPtr& Value) override;
 	COREUOBJECT_API virtual FArchive& operator<<(FSoftObjectPath& Value) override;
+	COREUOBJECT_API virtual FArchive& operator<<(FObjectPtr& Obj) override;
 };
 

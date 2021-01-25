@@ -467,6 +467,8 @@ FArchive& FArchive::operator<<(struct FLazyObjectPtr& Value)
 
 FArchive& FArchive::operator<<(struct FObjectPtr& Value)
 {
+	// The base FArchive does not implement this method. Use FArchiveUObject instead.
+	UE_LOG(LogSerialization, Fatal, TEXT("FArchive does not support FObjectPtr serialization. Use FArchiveUObject instead."));
 	return *this;
 }
 

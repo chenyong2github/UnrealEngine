@@ -443,6 +443,11 @@ FArchive& FNetBitWriter::operator<<(FSoftObjectPtr& Value)
 	return FArchiveUObject::SerializeSoftObjectPtr(*this, Value);
 }
 
+FArchive& FNetBitWriter::operator<<(FObjectPtr& Value)
+{
+	return FArchiveUObject::SerializeObjectPtr(*this, Value);
+}
+
 FArchive& FNetBitWriter::operator<<(struct FWeakObjectPtr& WeakObjectPtr)
 {
 	return FArchiveUObject::SerializeWeakObjectPtr(*this, WeakObjectPtr);

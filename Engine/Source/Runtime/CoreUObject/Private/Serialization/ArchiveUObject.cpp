@@ -182,6 +182,11 @@ FArchive& FObjectAndNameAsStringProxyArchive::operator<<(FSoftObjectPath& Value)
 	return *this;
 }
 
+FArchive& FObjectAndNameAsStringProxyArchive::operator<<(FObjectPtr& Obj)
+{
+	return FArchiveUObject::SerializeObjectPtr(*this, Obj);
+}
+
 void FSerializedPropertyScope::PushProperty()
 {
 	if (Property)

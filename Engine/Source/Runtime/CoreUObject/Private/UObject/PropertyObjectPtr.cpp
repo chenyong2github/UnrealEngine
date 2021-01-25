@@ -29,22 +29,6 @@ void FObjectPtrProperty::SerializeItem(FStructuredArchive::FSlot Slot, void* Val
 	Slot << *ObjectPtr;
 }
 
-EConvertFromTypeResult FObjectPtrProperty::ConvertFromType(const FPropertyTag& Tag, FStructuredArchive::FSlot Slot, uint8* Data, UStruct* DefaultsStruct)
-{
-	// Convert raw object reference to TObjectPtr
-	if (Tag.Type == NAME_ObjectProperty)
-	{
-		uint8* DestAddress = ContainerPtrToValuePtr<uint8>(Data, Tag.ArrayIndex);
-		FArchive& UnderlyingArchive = Slot.GetUnderlyingArchive();
-		FObjectPtr* ObjectPtr = (FObjectPtr*)GetPropertyValuePtr(DestAddress);
-		Slot << *ObjectPtr;
-
-		return UnderlyingArchive.IsCriticalError() ? EConvertFromTypeResult::CannotConvert : EConvertFromTypeResult::Converted;
-	}
-
-	return EConvertFromTypeResult::UseSerializeItem;
-}
-
 bool FObjectPtrProperty::SameType(const FProperty* Other) const
 {
 	// @TODO: OBJPTR: Should this be done through a new, separate API on FProperty (eg: ImplicitConv)
