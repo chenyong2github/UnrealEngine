@@ -1771,6 +1771,26 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 						));
 					}
 
+					OrganizationSection.AddSubMenu("Alignment", LOCTEXT("AlignmentHeader", "Alignment"), FText(), FNewToolMenuDelegate::CreateLambda([](UToolMenu* AlignmentMenu)
+					{
+						{
+							FToolMenuSection& InSection = AlignmentMenu->AddSection("EdGraphSchemaAlignment", LOCTEXT("AlignHeader", "Align"));
+							InSection.AddMenuEntry(FGraphEditorCommands::Get().AlignNodesTop);
+							InSection.AddMenuEntry(FGraphEditorCommands::Get().AlignNodesMiddle);
+							InSection.AddMenuEntry(FGraphEditorCommands::Get().AlignNodesBottom);
+							InSection.AddMenuEntry(FGraphEditorCommands::Get().AlignNodesLeft);
+							InSection.AddMenuEntry(FGraphEditorCommands::Get().AlignNodesCenter);
+							InSection.AddMenuEntry(FGraphEditorCommands::Get().AlignNodesRight);
+							InSection.AddMenuEntry(FGraphEditorCommands::Get().StraightenConnections);
+						}
+
+						{
+							FToolMenuSection& InSection = AlignmentMenu->AddSection("EdGraphSchemaDistribution", LOCTEXT("DistributionHeader", "Distribution"));
+							InSection.AddMenuEntry(FGraphEditorCommands::Get().DistributeNodesHorizontally);
+							InSection.AddMenuEntry(FGraphEditorCommands::Get().DistributeNodesVertically);
+						}
+					}));
+
 					if (URigVMFunctionReferenceNode* FunctionRefNode = Cast<URigVMFunctionReferenceNode>(RigNode->GetModelNode()))
 					{
 						OrganizationSection.AddMenuEntry(
