@@ -15,6 +15,21 @@ class FTableColumn;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+// Column identifiers
+struct FMemAllocTableColumns
+{
+	static const FName StartTimeColumnId;
+	static const FName EndTimeColumnId;
+	static const FName DurationColumnId;
+	static const FName AddressColumnId;
+	static const FName CountColumnId;
+	static const FName SizeColumnId;
+	static const FName TagColumnId;
+	static const FName FunctionColumnId;
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 class FMemAllocTable : public FTable
 {
 public:

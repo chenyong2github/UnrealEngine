@@ -20,6 +20,14 @@ class FMemoryRuleSpec;
 
 class SMemAllocTableTreeView : public STableTreeView
 {
+private:
+	struct FColumnConfig
+	{
+		const FName& ColumnId;
+		bool bIsVisible;
+		float Width;
+	};
+
 public:
 	/** Default constructor. */
 	SMemAllocTableTreeView();
@@ -36,6 +44,7 @@ public:
 	 */
 	void Construct(const FArguments& InArgs, TSharedPtr<FMemAllocTable> InTablePtr);
 
+	virtual TSharedPtr<SWidget> ConstructToolbar() override;;
 	virtual TSharedPtr<SWidget> ConstructFooter() override;
 
 	TSharedPtr<FMemAllocTable> GetMemAllocTable() { return StaticCastSharedPtr<FMemAllocTable>(GetTable()); }
@@ -90,7 +99,15 @@ private:
 	void StartQuery();
 	void UpdateQuery(TraceServices::IAllocationsProvider::EQueryStatus& OutStatus);
 	void CancelQuery();
+
+	FReply OnDetailedViewClicked();
+	FReply OnSizeViewClicked();
+	FReply OnTagViewClicked();
+	FReply OnCallstackViewClicked(bool bIsInverted);
+
 	FText GetSymbolResolutionStatus() const;
+
+	void ApplyColumnConfig(const TArrayView<FColumnConfig>& Preset);
 
 private:
 	int32 TabIndex = -1;

@@ -9,6 +9,15 @@
 namespace Insights
 {
 
+INSIGHTS_IMPLEMENT_RTTI(ITreeNodeGrouping)
+INSIGHTS_IMPLEMENT_RTTI(FTreeNodeGrouping)
+INSIGHTS_IMPLEMENT_RTTI(FTreeNodeGroupingFlat)
+INSIGHTS_IMPLEMENT_RTTI(FTreeNodeGroupingByUniqueValue)
+INSIGHTS_IMPLEMENT_RTTI(FTreeNodeGroupingByNameFirstLetter)
+INSIGHTS_IMPLEMENT_RTTI(FTreeNodeGroupingByType)
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// FTreeNodeGrouping
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 FTreeNodeGrouping::FTreeNodeGrouping(const FText& InShortName, const FText& InTitleName, const FText& InDescription, const FName InBrushName, const FSlateBrush* InIcon)

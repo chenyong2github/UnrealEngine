@@ -135,6 +135,7 @@ public:
 protected:
 	void ConstructWidget(TSharedPtr<FTable> InTablePtr);
 	void InitCommandList();
+	virtual TSharedPtr<SWidget> ConstructToolbar();
 	virtual TSharedPtr<SWidget> ConstructFooter();
 
 	void UpdateTree();
@@ -320,10 +321,12 @@ protected:
 	// ShowColumn
 	bool CanShowColumn(const FName ColumnId) const;
 	void ShowColumn(const FName ColumnId);
+	void ShowColumn(FTableColumn& Column);
 
 	// HideColumn
 	bool CanHideColumn(const FName ColumnId) const;
 	void HideColumn(const FName ColumnId);
+	void HideColumn(FTableColumn& Column);
 
 	// ToggleColumnVisibility
 	bool IsColumnVisible(const FName ColumnId);
@@ -359,6 +362,10 @@ protected:
 	bool ApplyAdvancedFilters(const FTableTreeNodePtr& NodePtr);
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
+
+	void ExpandChildGroups(FBaseTreeNode* InRoot, int32 InMaxExpandedNodes);
+	void CountNumNodesPerDepthRec(FBaseTreeNode* InRoot, TArray<int32>& InOutNumNodesPerDepth, int32 InDepth, int32 InMaxDepth, int InMaxNodes) const;
+	void ExpandChildGroupsRec(FBaseTreeNode* InRoot, int32 InDepth, int32 InMaxDepth);
 
 protected:
 	/** Table view model. */

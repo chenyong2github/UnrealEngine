@@ -19,6 +19,18 @@ namespace Insights
 {
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
+// Column identifiers
+
+const FName FMemAllocTableColumns::StartTimeColumnId(TEXT("StartTime"));
+const FName FMemAllocTableColumns::EndTimeColumnId(TEXT("EndTime"));
+const FName FMemAllocTableColumns::DurationColumnId(TEXT("Duration"));
+const FName FMemAllocTableColumns::AddressColumnId(TEXT("Address"));
+const FName FMemAllocTableColumns::CountColumnId(TEXT("Count"));
+const FName FMemAllocTableColumns::SizeColumnId(TEXT("Size"));
+const FName FMemAllocTableColumns::TagColumnId(TEXT("Tag"));
+const FName FMemAllocTableColumns::FunctionColumnId(TEXT("Function"));
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
 // FMemAllocTable
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -50,7 +62,7 @@ void FMemAllocTable::AddDefaultColumns()
 	//////////////////////////////////////////////////
 	// Hierarchy Column
 	{
-		int32 HierarchyColumnIndex = -1;
+		const int32 HierarchyColumnIndex = -1;
 		const TCHAR* HierarchyColumnName = nullptr;
 		AddHierarchyColumn(HierarchyColumnIndex, HierarchyColumnName);
 
@@ -66,7 +78,7 @@ void FMemAllocTable::AddDefaultColumns()
 	//////////////////////////////////////////////////
 	// Start Time Column
 	{
-		TSharedRef<FTableColumn> ColumnRef = MakeShared<FTableColumn>(TEXT("AllocStartTime"));
+		TSharedRef<FTableColumn> ColumnRef = MakeShared<FTableColumn>(FMemAllocTableColumns::StartTimeColumnId);
 		FTableColumn& Column = *ColumnRef;
 
 		Column.SetIndex(ColumnIndex++);
@@ -124,7 +136,7 @@ void FMemAllocTable::AddDefaultColumns()
 	//////////////////////////////////////////////////
 	// End Time Column
 	{
-		TSharedRef<FTableColumn> ColumnRef = MakeShared<FTableColumn>(TEXT("AllocEndTime"));
+		TSharedRef<FTableColumn> ColumnRef = MakeShared<FTableColumn>(FMemAllocTableColumns::EndTimeColumnId);
 		FTableColumn& Column = *ColumnRef;
 
 		Column.SetIndex(ColumnIndex++);
@@ -182,7 +194,7 @@ void FMemAllocTable::AddDefaultColumns()
 	//////////////////////////////////////////////////
 	// Duration Column
 	{
-		TSharedRef<FTableColumn> ColumnRef = MakeShared<FTableColumn>(TEXT("AllocDuration"));
+		TSharedRef<FTableColumn> ColumnRef = MakeShared<FTableColumn>(FMemAllocTableColumns::DurationColumnId);
 		FTableColumn& Column = *ColumnRef;
 
 		Column.SetIndex(ColumnIndex++);
@@ -238,7 +250,7 @@ void FMemAllocTable::AddDefaultColumns()
 	//////////////////////////////////////////////////
 	// Address Column
 	{
-		TSharedRef<FTableColumn> ColumnRef = MakeShared<FTableColumn>(TEXT("AllocAddress"));
+		TSharedRef<FTableColumn> ColumnRef = MakeShared<FTableColumn>(FMemAllocTableColumns::AddressColumnId);
 		FTableColumn& Column = *ColumnRef;
 
 		Column.SetIndex(ColumnIndex++);
@@ -294,7 +306,7 @@ void FMemAllocTable::AddDefaultColumns()
 	//////////////////////////////////////////////////
 	// Alloc Count Column
 	{
-		TSharedRef<FTableColumn> ColumnRef = MakeShared<FTableColumn>(TEXT("AllocCount"));
+		TSharedRef<FTableColumn> ColumnRef = MakeShared<FTableColumn>(FMemAllocTableColumns::CountColumnId);
 		FTableColumn& Column = *ColumnRef;
 
 		Column.SetIndex(ColumnIndex++);
@@ -352,7 +364,7 @@ void FMemAllocTable::AddDefaultColumns()
 	//////////////////////////////////////////////////
 	// Size Column
 	{
-		TSharedRef<FTableColumn> ColumnRef = MakeShared<FTableColumn>(TEXT("AllocSize"));
+		TSharedRef<FTableColumn> ColumnRef = MakeShared<FTableColumn>(FMemAllocTableColumns::SizeColumnId);
 		FTableColumn& Column = *ColumnRef;
 
 		Column.SetIndex(ColumnIndex++);
@@ -410,14 +422,14 @@ void FMemAllocTable::AddDefaultColumns()
 	//////////////////////////////////////////////////
 	// LLM Tag Column
 	{
-		TSharedRef<FTableColumn> ColumnRef = MakeShared<FTableColumn>(TEXT("AllocLlmTag"));
+		TSharedRef<FTableColumn> ColumnRef = MakeShared<FTableColumn>(FMemAllocTableColumns::TagColumnId);
 		FTableColumn& Column = *ColumnRef;
 
 		Column.SetIndex(ColumnIndex++);
 
-		Column.SetShortName(LOCTEXT("LlmTagColumnName", "LLM Tag"));
-		Column.SetTitleName(LOCTEXT("LlmTagColumnTitle", "LLM Tag"));
-		Column.SetDescription(LOCTEXT("LlmTagColumnDesc", "LLM tag of allocation"));
+		Column.SetShortName(LOCTEXT("TagColumnName", "LLM Tag"));
+		Column.SetTitleName(LOCTEXT("TagColumnTitle", "LLM Tag"));
+		Column.SetDescription(LOCTEXT("TagColumnDesc", "LLM tag of allocation"));
 
 		Column.SetFlags(ETableColumnFlags::ShouldBeVisible | ETableColumnFlags::CanBeHidden | ETableColumnFlags::CanBeFiltered);
 
@@ -466,7 +478,7 @@ void FMemAllocTable::AddDefaultColumns()
 	//////////////////////////////////////////////////
 	// Function Column
 	{
-		TSharedRef<FTableColumn> ColumnRef = MakeShared<FTableColumn>(TEXT("AllocFunction"));
+		TSharedRef<FTableColumn> ColumnRef = MakeShared<FTableColumn>(FMemAllocTableColumns::FunctionColumnId);
 		FTableColumn& Column = *ColumnRef;
 
 		Column.SetIndex(ColumnIndex++);

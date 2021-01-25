@@ -53,6 +53,8 @@ public:
 
 	void GetVisibleColumnsData(const TArray<TSharedPtr<class FBaseTreeNode>>& InNodes, const FName& LogListingName, FString& OutData) const;
 
+	static const FName GetHierarchyColumnId();
+
 protected:
 	void ResetColumns() { Columns.Reset(); }
 	void AddColumn(TSharedRef<FTableColumn> Column);

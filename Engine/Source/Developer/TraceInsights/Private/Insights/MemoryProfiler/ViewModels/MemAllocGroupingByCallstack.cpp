@@ -1,25 +1,30 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "CallstackGrouping.h"
+#include "MemAllocGroupingByCallstack.h"
 #include "TraceServices/Model/Callstack.h"
 
 // Insights
 #include "Insights/MemoryProfiler/ViewModels/MemAllocNode.h"
 
-#define LOCTEXT_NAMESPACE "Insights::FCallstackGrouping"
+#define LOCTEXT_NAMESPACE "Insights::FMemAllocGroupingByCallstack"
 
 namespace Insights
 {
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-// FCallstackGrouping
+// FMemAllocGroupingByCallstack
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FCallstackGrouping::FCallstackGrouping(bool bInIsInverted)
+INSIGHTS_IMPLEMENT_RTTI(FMemAllocGroupingByCallstack)
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FMemAllocGroupingByCallstack::FMemAllocGroupingByCallstack(bool bInIsInverted)
 	: FTreeNodeGrouping(
-		LOCTEXT("Grouping_Callstack_ShortName", "Callstack"),
-		bInIsInverted ? LOCTEXT("Grouping_Callstack2_TitleName", "By Callstack (Inverted)")
-					  : LOCTEXT("Grouping_Callstack1_TitleName", "By Callstack"),
+		bInIsInverted ? LOCTEXT("Grouping_ByCallstack2_ShortName", "Inverted Callstack")
+					  : LOCTEXT("Grouping_ByCallstack1_ShortName", "Callstack"),
+		bInIsInverted ? LOCTEXT("Grouping_ByCallstack2_TitleName", "By Inverted Callstack")
+					  : LOCTEXT("Grouping_ByCallstack1_TitleName", "By Callstack"),
 		LOCTEXT("Grouping_Callstack_Desc", "Creates a tree based on callstack of each allocation."),
 		TEXT("Profiler.FiltersAndPresets.GroupNameIcon"),
 		nullptr)
@@ -29,13 +34,13 @@ FCallstackGrouping::FCallstackGrouping(bool bInIsInverted)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FCallstackGrouping::~FCallstackGrouping()
+FMemAllocGroupingByCallstack::~FMemAllocGroupingByCallstack()
 {
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FCallstackGrouping::GroupNodes(const TArray<FTableTreeNodePtr>& Nodes, FTableTreeNode& ParentGroup, TWeakPtr<FTable> InParentTable, std::atomic<bool>& bCancelGrouping) const
+void FMemAllocGroupingByCallstack::GroupNodes(const TArray<FTableTreeNodePtr>& Nodes, FTableTreeNode& ParentGroup, TWeakPtr<FTable> InParentTable, std::atomic<bool>& bCancelGrouping) const
 {
 	ParentGroup.ClearChildren();
 

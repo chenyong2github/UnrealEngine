@@ -72,11 +72,17 @@ void FTable::AddColumn(TSharedRef<FTableColumn> ColumnRef)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+const FName FTable::GetHierarchyColumnId()
+{
+	static const FName HierarchyColumnId(TEXT("_Hierarchy"));
+	return HierarchyColumnId;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 void FTable::AddHierarchyColumn(int32 ColumnIndex, const TCHAR* ColumnName)
 {
-	const FName HierarchyColumnId(TEXT("_Hierarchy"));
-
-	TSharedRef<FTableColumn> ColumnRef = MakeShared<FTableColumn>(HierarchyColumnId);
+	TSharedRef<FTableColumn> ColumnRef = MakeShared<FTableColumn>(GetHierarchyColumnId());
 	FTableColumn& Column = *ColumnRef;
 
 	Column.SetIndex(ColumnIndex);

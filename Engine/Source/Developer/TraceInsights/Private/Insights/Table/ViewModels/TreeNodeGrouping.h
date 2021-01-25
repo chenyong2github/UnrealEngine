@@ -7,6 +7,7 @@
 #include "Delegates/DelegateCombinations.h"
 
 // Insights
+#include "Insights/Common/SimpleRtti.h"
 #include "Insights/Table/ViewModels/BaseTreeNode.h"
 #include "Insights/Table/ViewModels/TableColumn.h"
 #include "Insights/Table/ViewModels/TableTreeNode.h"
@@ -22,6 +23,8 @@ class FTable;
 
 class ITreeNodeGrouping
 {
+	INSIGHTS_DECLARE_RTTI_BASE(ITreeNodeGrouping)
+
 public:
 	virtual FText GetShortName() const = 0;
 	virtual FText GetTitleName() const = 0;
@@ -45,6 +48,8 @@ struct FTreeNodeGroupInfo
 
 class FTreeNodeGrouping : public ITreeNodeGrouping
 {
+	INSIGHTS_DECLARE_RTTI(FTreeNodeGrouping, ITreeNodeGrouping)
+
 public:
 	FTreeNodeGrouping(const FText& InShortName, const FText& InTitleName, const FText& InDescription, const FName InBrushName, const FSlateBrush* InIcon);
 	virtual ~FTreeNodeGrouping() {}
@@ -74,6 +79,8 @@ protected:
 /** Creates a single group for all nodes. */
 class FTreeNodeGroupingFlat : public FTreeNodeGrouping
 {
+	INSIGHTS_DECLARE_RTTI(FTreeNodeGroupingFlat, FTreeNodeGrouping)
+
 public:
 	FTreeNodeGroupingFlat();
 	virtual ~FTreeNodeGroupingFlat() {}
@@ -86,6 +93,8 @@ public:
 /** Creates a group for each unique value. */
 class FTreeNodeGroupingByUniqueValue : public FTreeNodeGrouping
 {
+	INSIGHTS_DECLARE_RTTI(FTreeNodeGroupingByUniqueValue, FTreeNodeGrouping);
+
 public:
 	FTreeNodeGroupingByUniqueValue(TSharedRef<FTableColumn> InColumnRef);
 	virtual ~FTreeNodeGroupingByUniqueValue() {}
@@ -183,6 +192,8 @@ typedef TTreeNodeGroupingByUniqueValue<const TCHAR*> FTreeNodeGroupingByUniqueVa
 /** Creates a group for each first letter of node names. */
 class FTreeNodeGroupingByNameFirstLetter : public FTreeNodeGrouping
 {
+	INSIGHTS_DECLARE_RTTI(FTreeNodeGroupingByNameFirstLetter, FTreeNodeGrouping);
+
 public:
 	FTreeNodeGroupingByNameFirstLetter();
 	virtual ~FTreeNodeGroupingByNameFirstLetter() {}
@@ -195,6 +206,8 @@ public:
 /** Creates a group for each type. */
 class FTreeNodeGroupingByType : public FTreeNodeGrouping
 {
+	INSIGHTS_DECLARE_RTTI(FTreeNodeGroupingByType, FTreeNodeGrouping);
+
 public:
 	FTreeNodeGroupingByType();
 	virtual ~FTreeNodeGroupingByType() {}

@@ -135,6 +135,8 @@ void STableTreeView::ConstructWidget(TSharedPtr<FTable> InTablePtr)
 	SAssignNew(ExternalScrollbar, SScrollBar)
 	.AlwaysShowScrollbar(true);
 
+	TSharedPtr<SHorizontalBox> ToolbarBox;
+
 	auto WidgetContent = 
 	SNew(SVerticalBox)
 
@@ -161,10 +163,10 @@ void STableTreeView::ConstructWidget(TSharedPtr<FTable> InTablePtr)
 				.VAlign(VAlign_Center)
 				[
 					SAssignNew(SearchBox, SSearchBox)
-					.HintText(LOCTEXT("SearchBoxHint", "Search"))
+					.HintText(LOCTEXT("SearchBox_Hint", "Search"))
 					.OnTextChanged(this, &STableTreeView::SearchBox_OnTextChanged)
 					.IsEnabled(this, &STableTreeView::SearchBox_IsEnabled)
-					.ToolTipText(LOCTEXT("FilterSearchHint", "Type here to search the tree hierarchy by item or group name"))
+					.ToolTipText(LOCTEXT("SearchBox_ToolTip", "Type here to search the tree hierarchy by item or group name"))
 				]
 
 				+ SHorizontalBox::Slot()
@@ -173,8 +175,8 @@ void STableTreeView::ConstructWidget(TSharedPtr<FTable> InTablePtr)
 				.VAlign(VAlign_Center)
 				[
 					SNew(SButton)
-					.Text(LOCTEXT("AdvancedFilters", "Advanced Filters"))
-					.ToolTipText(LOCTEXT("AdvancedFilters", "Opens the filter configurator window."))
+					.Text(LOCTEXT("AdvancedFiltersBtn_Text", "Advanced Filters"))
+					.ToolTipText(LOCTEXT("AdvancedFiltersBtn_ToolTip", "Opens the filter configurator window."))
 					.OnClicked(this, &STableTreeView::OnAdvancedFiltersClicked)
 				]
 			]
@@ -185,7 +187,7 @@ void STableTreeView::ConstructWidget(TSharedPtr<FTable> InTablePtr)
 			.Padding(2.0f)
 			.AutoHeight()
 			[
-				SNew(SHorizontalBox)
+				SAssignNew(ToolbarBox, SHorizontalBox)
 
 				+ SHorizontalBox::Slot()
 				.AutoWidth()
@@ -279,6 +281,18 @@ void STableTreeView::ConstructWidget(TSharedPtr<FTable> InTablePtr)
 			]
 		]
 	];
+
+	TSharedPtr<SWidget> Toolbar = ConstructToolbar();
+	if (Toolbar.IsValid())
+	{
+		ToolbarBox->AddSlot()
+			.AutoWidth()
+			.HAlign(HAlign_Right)
+			.Padding(0.0f)
+			[
+				Toolbar.ToSharedRef()
+			];
+	}
 
 	TSharedPtr<SWidget> Footer = ConstructFooter();
 	if (Footer.IsValid())
@@ -465,8 +479,7 @@ void STableTreeView::TreeView_BuildSortByMenu(FMenuBuilder& MenuBuilder)
 	//TODO: for (Sorting : AvailableSortings)
 	for (const TSharedRef<FTableColumn>& ColumnRef : Table->GetColumns())
 	{
-		const FTableColumn& Column = *ColumnRef;
-
+		const FTableColumn& Column = ColumnRef.Get();
 		if (Column.IsVisible() && Column.CanBeSorted())
 		{
 			FUIAction Action_SortByColumn
@@ -527,8 +540,7 @@ void STableTreeView::TreeView_BuildViewColumnMenu(FMenuBuilder& MenuBuilder)
 
 	for (const TSharedRef<FTableColumn>& ColumnRef : Table->GetColumns())
 	{
-		const FTableColumn& Column = *ColumnRef;
-
+		const FTableColumn& Column = ColumnRef.Get();
 		FUIAction Action_ToggleColumn
 		(
 			FExecuteAction::CreateSP(this, &STableTreeView::ToggleColumnVisibility, Column.GetId()),
@@ -552,9 +564,10 @@ void STableTreeView::InitializeAndShowHeaderColumns()
 {
 	for (const TSharedRef<FTableColumn>& ColumnRef : Table->GetColumns())
 	{
-		if (ColumnRef->ShouldBeVisible())
+		FTableColumn& Column = ColumnRef.Get();
+		if (Column.ShouldBeVisible())
 		{
-			ShowColumn(ColumnRef->GetId());
+			ShowColumn(Column);
 		}
 	}
 }
@@ -1097,33 +1110,29 @@ void STableTreeView::UpdateAggregatedValues(FTableTreeNode& GroupNode)
 {
 	for (const TSharedRef<FTableColumn>& ColumnRef : Table->GetColumns())
 	{
-		FTableColumn& Column = *ColumnRef;
+		FTableColumn& Column = ColumnRef.Get();
 		switch (Column.GetAggregation())
 		{
-		case ETableColumnAggregation::Sum:
-		{
-			STableTreeView::UpdateAggregationRec<int64>(Column, GroupNode, 0, true, [](int64 InValue, TOptional<FTableCellValue> InTableCellValue)
+			case ETableColumnAggregation::Sum:
+				STableTreeView::UpdateAggregationRec<int64>(Column, GroupNode, 0, true, [](int64 InValue, TOptional<FTableCellValue> InTableCellValue)
 				{
 					return InValue + InTableCellValue->AsInt64();
 				});
-			break;
-		}
-		case ETableColumnAggregation::Min:
-		{
-			STableTreeView::UpdateAggregationRec<double>(Column, GroupNode, std::numeric_limits<double>::max(), false, [](double InValue, TOptional<FTableCellValue> InTableCellValue)
+				break;
+
+			case ETableColumnAggregation::Min:
+				STableTreeView::UpdateAggregationRec<double>(Column, GroupNode, std::numeric_limits<double>::max(), false, [](double InValue, TOptional<FTableCellValue> InTableCellValue)
 				{
 					return FMath::Min(InValue, InTableCellValue->AsDouble());
 				});
-			break;
-		}
-		case ETableColumnAggregation::Max:
-		{
-			STableTreeView::UpdateAggregationRec<double>(Column, GroupNode, std::numeric_limits<double>::lowest(), false, [](double InValue, TOptional<FTableCellValue> InTableCellValue)
+				break;
+
+			case ETableColumnAggregation::Max:
+				STableTreeView::UpdateAggregationRec<double>(Column, GroupNode, std::numeric_limits<double>::lowest(), false, [](double InValue, TOptional<FTableCellValue> InTableCellValue)
 				{
 					return FMath::Max(InValue, InTableCellValue->AsDouble());
 				});
-			break;
-		}
+				break;
 		}
 	}
 }
@@ -1155,9 +1164,10 @@ void STableTreeView::InternalCreateGroupings()
 
 	for (const TSharedRef<FTableColumn>& ColumnRef : Table->GetColumns())
 	{
-		if (!ColumnRef->IsHierarchy())
+		const FTableColumn& Column = ColumnRef.Get();
+		if (!Column.IsHierarchy())
 		{
-			switch (ColumnRef->GetDataType())
+			switch (Column.GetDataType())
 			{
 				case ETableCellDataType::Bool:
 					AvailableGroupings.Add(MakeShared<FTreeNodeGroupingByUniqueValueBool>(ColumnRef));
@@ -1706,9 +1716,10 @@ void STableTreeView::CreateSortings()
 
 	for (const TSharedRef<FTableColumn>& ColumnRef : Table->GetColumns())
 	{
-		if (ColumnRef->CanBeSorted())
+		const FTableColumn& Column = ColumnRef.Get();
+		if (Column.CanBeSorted())
 		{
-			TSharedPtr<Insights::ITableCellValueSorter> SorterPtr = ColumnRef->GetValueSorter();
+			TSharedPtr<Insights::ITableCellValueSorter> SorterPtr = Column.GetValueSorter();
 			if (ensure(SorterPtr.IsValid()))
 			{
 				AvailableSorters.Add(SorterPtr);
@@ -1909,52 +1920,62 @@ bool STableTreeView::CanShowColumn(const FName ColumnId) const
 void STableTreeView::ShowColumn(const FName ColumnId)
 {
 	FTableColumn& Column = *Table->FindColumnChecked(ColumnId);
-	Column.Show();
+	ShowColumn(Column);
+}
 
-	SHeaderRow::FColumn::FArguments ColumnArgs;
-	ColumnArgs
-		.ColumnId(Column.GetId())
-		.DefaultLabel(Column.GetShortName())
-		.HAlignHeader(HAlign_Fill)
-		.VAlignHeader(VAlign_Fill)
-		.HeaderContentPadding(FMargin(2.0f))
-		.HAlignCell(HAlign_Fill)
-		.VAlignCell(VAlign_Fill)
-		.SortMode(this, &STableTreeView::GetSortModeForColumn, Column.GetId())
-		.OnSort(this, &STableTreeView::OnSortModeChanged)
-		//.ManualWidth(Column.GetInitialWidth())
-		.FillWidth(Column.GetInitialWidth())
-		//.FixedWidth(Column.IsFixedWidth() ? Column.GetInitialWidth() : TOptional<float>())
-		.HeaderContent()
-		[
-			SNew(SBox)
-			.ToolTip(STableTreeViewTooltip::GetColumnTooltip(Column))
-			.HAlign(Column.GetHorizontalAlignment())
-			.VAlign(VAlign_Center)
-			[
-				SNew(STextBlock)
-				.Text(this, &STableTreeView::GetColumnHeaderText, Column.GetId())
-			]
-		]
-		.MenuContent()
-		[
-			TreeViewHeaderRow_GenerateColumnMenu(Column)
-		];
+////////////////////////////////////////////////////////////////////////////////////////////////////
 
-	int32 ColumnIndex = 0;
-	const int32 NewColumnPosition = Table->GetColumnPositionIndex(ColumnId);
-	const int32 NumColumns = TreeViewHeaderRow->GetColumns().Num();
-	for (; ColumnIndex < NumColumns; ColumnIndex++)
+void STableTreeView::ShowColumn(FTableColumn& Column)
+{
+	if (!Column.IsVisible())
 	{
-		const SHeaderRow::FColumn& CurrentColumn = TreeViewHeaderRow->GetColumns()[ColumnIndex];
-		const int32 CurrentColumnPosition = Table->GetColumnPositionIndex(CurrentColumn.ColumnId);
-		if (NewColumnPosition < CurrentColumnPosition)
-		{
-			break;
-		}
-	}
+		Column.Show();
 
-	TreeViewHeaderRow->InsertColumn(ColumnArgs, ColumnIndex);
+		SHeaderRow::FColumn::FArguments ColumnArgs;
+		ColumnArgs
+			.ColumnId(Column.GetId())
+			.DefaultLabel(Column.GetShortName())
+			.HAlignHeader(HAlign_Fill)
+			.VAlignHeader(VAlign_Fill)
+			.HeaderContentPadding(FMargin(2.0f))
+			.HAlignCell(HAlign_Fill)
+			.VAlignCell(VAlign_Fill)
+			.SortMode(this, &STableTreeView::GetSortModeForColumn, Column.GetId())
+			.OnSort(this, &STableTreeView::OnSortModeChanged)
+			//.ManualWidth(Column.GetInitialWidth())
+			.FillWidth(Column.GetInitialWidth())
+			//.FixedWidth(Column.IsFixedWidth() ? Column.GetInitialWidth() : TOptional<float>())
+			.HeaderContent()
+			[
+				SNew(SBox)
+				.ToolTip(STableTreeViewTooltip::GetColumnTooltip(Column))
+				.HAlign(Column.GetHorizontalAlignment())
+				.VAlign(VAlign_Center)
+				[
+					SNew(STextBlock)
+					.Text(this, &STableTreeView::GetColumnHeaderText, Column.GetId())
+				]
+			]
+			.MenuContent()
+			[
+				TreeViewHeaderRow_GenerateColumnMenu(Column)
+			];
+
+		int32 ColumnIndex = 0;
+		const int32 NewColumnPosition = Table->GetColumnPositionIndex(Column.GetId());
+		const int32 NumColumns = TreeViewHeaderRow->GetColumns().Num();
+		for (; ColumnIndex < NumColumns; ColumnIndex++)
+		{
+			const SHeaderRow::FColumn& CurrentColumn = TreeViewHeaderRow->GetColumns()[ColumnIndex];
+			const int32 CurrentColumnPosition = Table->GetColumnPositionIndex(CurrentColumn.ColumnId);
+			if (NewColumnPosition < CurrentColumnPosition)
+			{
+				break;
+			}
+		}
+
+		TreeViewHeaderRow->InsertColumn(ColumnArgs, ColumnIndex);
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1977,9 +1998,18 @@ bool STableTreeView::CanHideColumn(const FName ColumnId) const
 void STableTreeView::HideColumn(const FName ColumnId)
 {
 	FTableColumn& Column = *Table->FindColumnChecked(ColumnId);
-	Column.Hide();
+	HideColumn(Column);
+}
 
-	TreeViewHeaderRow->RemoveColumn(ColumnId);
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STableTreeView::HideColumn(FTableColumn& Column)
+{
+	if (Column.IsVisible())
+	{
+		Column.Hide();
+		TreeViewHeaderRow->RemoveColumn(Column.GetId());
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2009,14 +2039,14 @@ bool STableTreeView::CanToggleColumnVisibility(const FName ColumnId) const
 
 void STableTreeView::ToggleColumnVisibility(const FName ColumnId)
 {
-	const FTableColumn& Column = *Table->FindColumnChecked(ColumnId);
+	FTableColumn& Column = *Table->FindColumnChecked(ColumnId);
 	if (Column.IsVisible())
 	{
-		HideColumn(ColumnId);
+		HideColumn(Column);
 	}
 	else
 	{
-		ShowColumn(ColumnId);
+		ShowColumn(Column);
 	}
 }
 
@@ -2044,11 +2074,10 @@ void STableTreeView::ContextMenu_ShowAllColumns_Execute()
 
 	for (const TSharedRef<FTableColumn>& ColumnRef : Table->GetColumns())
 	{
-		const FTableColumn& Column = *ColumnRef;
-
+		FTableColumn& Column = ColumnRef.Get();
 		if (!Column.IsVisible())
 		{
-			ShowColumn(Column.GetId());
+			ShowColumn(Column);
 		}
 	}
 }
@@ -2077,15 +2106,14 @@ void STableTreeView::ContextMenu_ResetColumns_Execute()
 
 	for (const TSharedRef<FTableColumn>& ColumnRef : Table->GetColumns())
 	{
-		const FTableColumn& Column = *ColumnRef;
-
+		FTableColumn& Column = ColumnRef.Get();
 		if (Column.ShouldBeVisible() && !Column.IsVisible())
 		{
-			ShowColumn(Column.GetId());
+			ShowColumn(Column);
 		}
 		else if (!Column.ShouldBeVisible() && Column.IsVisible())
 		{
-			HideColumn(Column.GetId());
+			HideColumn(Column);
 		}
 	}
 }
@@ -2172,12 +2200,82 @@ void STableTreeView::OnPostAsyncUpdate()
 			}
 		}
 
+		// Expand each group node on the first few depths (if it doesn't have too many children).
+		ExpandChildGroups(Root.Get(), 1000);
+
 		ClearInProgressAsyncOperations();
 		TreeView_Refresh();
 	}
 
 	bCancelCurrentAsyncOp = false;
 	AsyncUpdateStopwatch.Stop();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STableTreeView::ExpandChildGroups(FBaseTreeNode* InRoot, int32 InMaxExpandedNodes)
+{
+	const int32 MaxDepthToExpand = 4;
+
+	TArray<int32> NumNodesPerDepth;
+	NumNodesPerDepth.AddDefaulted(MaxDepthToExpand + 1);
+	CountNumNodesPerDepthRec(InRoot, NumNodesPerDepth, 0, MaxDepthToExpand, InMaxExpandedNodes);
+
+	int32 MaxDepth = 0;
+	for (int32 Depth = 0; Depth <= MaxDepthToExpand; ++Depth)
+	{
+		if (Depth > 0)
+		{
+			NumNodesPerDepth[Depth] += NumNodesPerDepth[Depth - 1];
+		}
+		if (NumNodesPerDepth[Depth] > InMaxExpandedNodes)
+		{
+			break;
+		}
+		MaxDepth = Depth;
+	}
+
+	if (MaxDepth > 0)
+	{
+		ExpandChildGroupsRec(InRoot, 1, MaxDepth);
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STableTreeView::CountNumNodesPerDepthRec(FBaseTreeNode* InRoot, TArray<int32>& InOutNumNodesPerDepth, int32 InDepth, int32 InMaxDepth, int32 InMaxNodes) const
+{
+	InOutNumNodesPerDepth[InDepth] += InRoot->GetChildren().Num();
+
+	if (InDepth < InMaxDepth && InOutNumNodesPerDepth[InDepth] < InMaxNodes)
+	{
+		for (const FBaseTreeNodePtr& Node : InRoot->GetChildren())
+		{
+			if (Node->IsGroup())
+			{
+				CountNumNodesPerDepthRec(Node.Get(), InOutNumNodesPerDepth, InDepth + 1, InMaxDepth, InMaxNodes);
+			}
+		}
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STableTreeView::ExpandChildGroupsRec(FBaseTreeNode* InRoot, int32 InDepth, int32 InMaxDepth)
+{
+	for (const FBaseTreeNodePtr& Node : InRoot->GetChildren())
+	{
+		if (Node->IsGroup())
+		{
+			Node->SetExpansion(true);
+			TreeView->SetItemExpansion(StaticCastSharedPtr<FTableTreeNode>(Node), true);
+
+			if (InDepth < InMaxDepth)
+			{
+				ExpandChildGroupsRec(Node.Get(), InDepth + 1, InMaxDepth);
+			}
+		}
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2451,6 +2549,13 @@ void STableTreeView::OnAdvancedFiltersChangesCommited()
 	{
 		CancelCurrentAsyncOp();
 	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+TSharedPtr<SWidget> STableTreeView::ConstructToolbar()
+{
+	return nullptr;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

@@ -13,13 +13,17 @@ namespace Insights
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-class FCallstackGrouping : public FTreeNodeGrouping
+class FMemAllocGroupingByCallstack : public FTreeNodeGrouping
 {
+	INSIGHTS_DECLARE_RTTI(FMemAllocGroupingByCallstack, FTreeNodeGrouping)
+
 public:
-	FCallstackGrouping(bool bInIsInverted);
-	virtual ~FCallstackGrouping();
+	FMemAllocGroupingByCallstack(bool bInIsInverted);
+	virtual ~FMemAllocGroupingByCallstack();
 
 	virtual void GroupNodes(const TArray<FTableTreeNodePtr>& Nodes, FTableTreeNode& ParentGroup, TWeakPtr<FTable> InParentTable, std::atomic<bool>& bCancelGrouping) const override;
+
+	bool IsInverted() const { return bIsInverted; }
 
 private:
 	bool bIsInverted;
