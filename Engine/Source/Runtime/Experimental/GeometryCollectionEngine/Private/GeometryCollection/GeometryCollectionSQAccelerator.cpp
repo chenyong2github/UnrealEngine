@@ -100,9 +100,9 @@ bool LowLevelRaycastSingleElement(int32 InParticleIndex, const Chaos::FPhysicsSo
 			return false;
 		}
 
-		const TVector<float, 3> StartLocal = TM.InverseTransformPositionNoScale(Start);
-		const TVector<float, 3> DirLocal = TM.InverseTransformVectorNoScale(Dir);
-		const TVector<float, 3> EndLocal = StartLocal + DirLocal * DeltaMag;
+		const FVec3 StartLocal = TM.InverseTransformPositionNoScale(Start);
+		const FVec3 DirLocal = TM.InverseTransformVectorNoScale(Dir);
+		const FVec3 EndLocal = StartLocal + DirLocal * DeltaMag;
 
 		const FImplicitObject* Object = ClusterBuffer.GeometryPtrs[InParticleIndex].Get();	//todo(ocohen): can this ever be null?
 
@@ -110,7 +110,7 @@ bool LowLevelRaycastSingleElement(int32 InParticleIndex, const Chaos::FPhysicsSo
 		{
 			return false;
 		}
-		Pair<TVector<float, 3>, bool> Result = Object->FindClosestIntersection(StartLocal, EndLocal, /*Thickness=*/0.f);
+		Pair<FVec3, bool> Result = Object->FindClosestIntersection(StartLocal, EndLocal, /*Thickness=*/0.f);
 		if(Result.Second)	//todo(ocohen): once we do more than just a bool we need to get the closest point
 		{
 #if WITH_PHYSX
@@ -120,7 +120,7 @@ bool LowLevelRaycastSingleElement(int32 InParticleIndex, const Chaos::FPhysicsSo
 			{
 				OutHit.distance = Distance;	//todo(ocohen): assuming physx structs for now
 				OutHit.position = U2PVector(TM.TransformPositionNoScale(Result.First));
-				const TVector<float, 3> LocalNormal = Object->Normal(Result.First);
+				const FVec3 LocalNormal = Object->Normal(Result.First);
 				OutHit.normal = U2PVector(TM.TransformVectorNoScale(LocalNormal));
 				SetFlags(OutHit, EHitFlags::Distance | EHitFlags::Normal | EHitFlags::Position);
 			}
@@ -166,16 +166,16 @@ bool LowLevelSweepSingleElement(int32 InParticleIndex, const Chaos::FPhysicsSolv
 	{
 		return false;
 	}
-	const TVector<float, 3> DirLocal = TM.InverseTransformVectorNoScale(Dir);
+	const FVec3 DirLocal = TM.InverseTransformVectorNoScale(Dir);
 
 	bool bFound = false;
 
 	for(uint32 i = 0; i < CollisionParticles.Size(); ++i)
 	{
-		const TVector<float, 3> StartLocal = TM.InverseTransformPositionNoScale(StartPose.TransformPositionNoScale(CollisionParticles.X(i)));
-		const TVector<float, 3> EndLocal = StartLocal + DirLocal * DeltaMag;
+		const FVec3 StartLocal = TM.InverseTransformPositionNoScale(StartPose.TransformPositionNoScale(CollisionParticles.X(i)));
+		const FVec3 EndLocal = StartLocal + DirLocal * DeltaMag;
 
-		Pair<TVector<float, 3>, bool> Result = Object->FindClosestIntersection(StartLocal, EndLocal, /*Thickness=*/0.f);
+		Pair<FVec3, bool> Result = Object->FindClosestIntersection(StartLocal, EndLocal, /*Thickness=*/0.f);
 
 		if(Result.Second)
 		{
@@ -185,7 +185,7 @@ bool LowLevelSweepSingleElement(int32 InParticleIndex, const Chaos::FPhysicsSolv
 			{
 				OutHit.distance = Distance;	//todo(ocohen): assuming physx structs for now
 				OutHit.position = U2PVector(TM.TransformPositionNoScale(Result.First));
-				const TVector<float, 3> LocalNormal = Object->Normal(Result.First);
+				const FVec3 LocalNormal = Object->Normal(Result.First);
 				OutHit.normal = U2PVector(TM.TransformVectorNoScale(LocalNormal));
 				SetFlags(OutHit, EHitFlags::Distance | EHitFlags::Normal | EHitFlags::Position);
 			}
@@ -240,7 +240,7 @@ bool LowLevelOverlap(const UGeometryCollectionComponent& GeomCollectionComponent
 			}
 
 			// Need to do narrow phase
-			Pair<TVector<float, 3>, bool> Result = QueryGeom.FindDeepestIntersection(Object, Particles.CollisionParticles(RigidBodyIdx).Get(), TRigidTransform<float, 3>(TM) * TRigidTransform<float, 3>(GeomPose).Inverse(), 0);
+			Pair<FVec3, bool> Result = QueryGeom.FindDeepestIntersection(Object, Particles.CollisionParticles(RigidBodyIdx).Get(), TRigidTransform<float, 3>(TM) * TRigidTransform<float, 3>(GeomPose).Inverse(), 0);
 
 			if (Result.Second)
 			{
@@ -315,9 +315,9 @@ void FGeometryCollectionSQAccelerator::Raycast(const FVector& Start, const FVect
 								continue;
 							}
 
-							const TVector<float, 3> StartLocal = TMPtr->InverseTransformPositionNoScale(Start);
-							const TVector<float, 3> DirLocal = TMPtr->InverseTransformVectorNoScale(Dir);
-							const TVector<float, 3> EndLocal = StartLocal + DirLocal * DeltaMagnitude;
+							const FVec3 StartLocal = TMPtr->InverseTransformPositionNoScale(Start);
+							const FVec3 DirLocal = TMPtr->InverseTransformVectorNoScale(Dir);
+							const FVec3 EndLocal = StartLocal + DirLocal * DeltaMagnitude;
 							Chaos::TSpatialRay<float, 3> LocalRay(StartLocal, EndLocal);
 							const TArray<int32> IntersectingChildren = Union->FindAllIntersectingChildren(LocalRay);
 							IntersectionSet.Append(IntersectingChildren);
@@ -409,8 +409,8 @@ void FGeometryCollectionSQAccelerator::Sweep(const Chaos::FImplicitObject& Query
 			const int32 NumCollisionParticles = InCollisionParticles.Size();
 			for(int32 ParticleIndex = 0; ParticleIndex < NumCollisionParticles; ++ParticleIndex)
 			{
-				const Chaos::TVector<float, 3> RayStart = InPose.TransformPositionNoScale(InCollisionParticles.X(ParticleIndex));
-				const Chaos::TVector<float, 3> RayEnd = RayStart + Dir * InDeltaMag;
+				const Chaos::FVec3 RayStart = InPose.TransformPositionNoScale(InCollisionParticles.X(ParticleIndex));
+				const Chaos::FVec3 RayEnd = RayStart + Dir * InDeltaMag;
 
 				PotentialIntersections.Append(SpacialAcceleration->FindAllIntersections(Chaos::TSpatialRay<float, 3>(RayStart, RayEnd)));
 			}
@@ -458,8 +458,8 @@ void FGeometryCollectionSQAccelerator::Sweep(const Chaos::FImplicitObject& Query
 		
 		float Radius = PxCapsule.radius;
 		float HalfHeight = PxCapsule.halfHeight;
-		Chaos::TVector<float, 3> x1(-HalfHeight, 0, 0);
-		Chaos::TVector<float, 3> x2(HalfHeight, 0, 0);
+		Chaos::FVec3 x1(-HalfHeight, 0, 0);
+		Chaos::FVec3 x2(HalfHeight, 0, 0);
 		
 		Chaos::TCapsule<float> Capsule(x1, x2, Radius);
 		ImplicitStorage.Capsule = MoveTemp(Capsule);
@@ -467,20 +467,20 @@ void FGeometryCollectionSQAccelerator::Sweep(const Chaos::FImplicitObject& Query
 
 		{
 			CollisionParticles.AddParticles(14);
-			CollisionParticles.X(0) = Chaos::TVector<float, 3>(HalfHeight + Radius, 0, 0);
-			CollisionParticles.X(1) = Chaos::TVector<float, 3>(-HalfHeight - Radius, 0, 0);
-			CollisionParticles.X(2) = Chaos::TVector<float, 3>(HalfHeight, Radius, Radius);
-			CollisionParticles.X(3) = Chaos::TVector<float, 3>(HalfHeight, -Radius, Radius);
-			CollisionParticles.X(4) = Chaos::TVector<float, 3>(HalfHeight, -Radius, -Radius);
-			CollisionParticles.X(5) = Chaos::TVector<float, 3>(HalfHeight, Radius, -Radius);
-			CollisionParticles.X(6) = Chaos::TVector<float, 3>(0, Radius, Radius);
-			CollisionParticles.X(7) = Chaos::TVector<float, 3>(0, -Radius, Radius);
-			CollisionParticles.X(8) = Chaos::TVector<float, 3>(0, -Radius, -Radius);
-			CollisionParticles.X(9) = Chaos::TVector<float, 3>(0, Radius, -Radius);
-			CollisionParticles.X(10) = Chaos::TVector<float, 3>(-HalfHeight, Radius, Radius);
-			CollisionParticles.X(11) = Chaos::TVector<float, 3>(-HalfHeight, -Radius, Radius);
-			CollisionParticles.X(12) = Chaos::TVector<float, 3>(-HalfHeight, -Radius, -Radius);
-			CollisionParticles.X(13) = Chaos::TVector<float, 3>(-HalfHeight, Radius, -Radius);
+			CollisionParticles.X(0) = Chaos::FVec3(HalfHeight + Radius, 0, 0);
+			CollisionParticles.X(1) = Chaos::FVec3(-HalfHeight - Radius, 0, 0);
+			CollisionParticles.X(2) = Chaos::FVec3(HalfHeight, Radius, Radius);
+			CollisionParticles.X(3) = Chaos::FVec3(HalfHeight, -Radius, Radius);
+			CollisionParticles.X(4) = Chaos::FVec3(HalfHeight, -Radius, -Radius);
+			CollisionParticles.X(5) = Chaos::FVec3(HalfHeight, Radius, -Radius);
+			CollisionParticles.X(6) = Chaos::FVec3(0, Radius, Radius);
+			CollisionParticles.X(7) = Chaos::FVec3(0, -Radius, Radius);
+			CollisionParticles.X(8) = Chaos::FVec3(0, -Radius, -Radius);
+			CollisionParticles.X(9) = Chaos::FVec3(0, Radius, -Radius);
+			CollisionParticles.X(10) = Chaos::FVec3(-HalfHeight, Radius, Radius);
+			CollisionParticles.X(11) = Chaos::FVec3(-HalfHeight, -Radius, Radius);
+			CollisionParticles.X(12) = Chaos::FVec3(-HalfHeight, -Radius, -Radius);
+			CollisionParticles.X(13) = Chaos::FVec3(-HalfHeight, Radius, -Radius);
 		}
 	}
 	else if(Holder.getType() == PxGeometryType::eSPHERE)
@@ -489,26 +489,26 @@ void FGeometryCollectionSQAccelerator::Sweep(const Chaos::FImplicitObject& Query
 
 		float Radius = PxSphere.radius;
 
-		Chaos::TSphere<float, 3> Sphere(Chaos::TVector<float, 3>(0), Radius);
+		Chaos::TSphere<float, 3> Sphere(Chaos::FVec3(0), Radius);
 		ImplicitStorage.Sphere = MoveTemp(Sphere);
 		Implicit = &ImplicitStorage.Sphere;
 
 		{
 			CollisionParticles.AddParticles(6);
-			CollisionParticles.X(0) = Chaos::TVector<float, 3>(Radius, 0, 0);
-			CollisionParticles.X(1) = Chaos::TVector<float, 3>(-Radius, 0, 0);
-			CollisionParticles.X(2) = Chaos::TVector<float, 3>(0, Radius, Radius);
-			CollisionParticles.X(3) = Chaos::TVector<float, 3>(0, -Radius, Radius);
-			CollisionParticles.X(4) = Chaos::TVector<float, 3>(0, -Radius, -Radius);
-			CollisionParticles.X(5) = Chaos::TVector<float, 3>(0, Radius, -Radius);
+			CollisionParticles.X(0) = Chaos::FVec3(Radius, 0, 0);
+			CollisionParticles.X(1) = Chaos::FVec3(-Radius, 0, 0);
+			CollisionParticles.X(2) = Chaos::FVec3(0, Radius, Radius);
+			CollisionParticles.X(3) = Chaos::FVec3(0, -Radius, Radius);
+			CollisionParticles.X(4) = Chaos::FVec3(0, -Radius, -Radius);
+			CollisionParticles.X(5) = Chaos::FVec3(0, Radius, -Radius);
 		}
 	}
 	else if(Holder.getType() == PxGeometryType::eBOX)
 	{
 		physx::PxBoxGeometry& PxBox = Holder.box();
 
-		Chaos::TVector<float, 3> x1(-P2UVector(PxBox.halfExtents));
-		Chaos::TVector<float, 3> x2(-x1);
+		Chaos::FVec3 x1(-P2UVector(PxBox.halfExtents));
+		Chaos::FVec3 x2(-x1);
 
 		Chaos::TAABB<float, 3> Box(x1, x2);
 		ImplicitStorage.Box = MoveTemp(Box);
@@ -516,14 +516,14 @@ void FGeometryCollectionSQAccelerator::Sweep(const Chaos::FImplicitObject& Query
 
 		{
 			CollisionParticles.AddParticles(8);
-			CollisionParticles.X(0) = Chaos::TVector<float, 3>(x1.X, x1.Y, x1.Z);
-			CollisionParticles.X(1) = Chaos::TVector<float, 3>(x1.X, x1.Y, x2.Z);
-			CollisionParticles.X(2) = Chaos::TVector<float, 3>(x1.X, x2.Y, x1.Z);
-			CollisionParticles.X(3) = Chaos::TVector<float, 3>(x2.X, x1.Y, x1.Z);
-			CollisionParticles.X(4) = Chaos::TVector<float, 3>(x2.X, x2.Y, x2.Z);
-			CollisionParticles.X(5) = Chaos::TVector<float, 3>(x2.X, x2.Y, x1.Z);
-			CollisionParticles.X(6) = Chaos::TVector<float, 3>(x2.X, x1.Y, x2.Z);
-			CollisionParticles.X(7) = Chaos::TVector<float, 3>(x1.X, x2.Y, x2.Z);
+			CollisionParticles.X(0) = Chaos::FVec3(x1.X, x1.Y, x1.Z);
+			CollisionParticles.X(1) = Chaos::FVec3(x1.X, x1.Y, x2.Z);
+			CollisionParticles.X(2) = Chaos::FVec3(x1.X, x2.Y, x1.Z);
+			CollisionParticles.X(3) = Chaos::FVec3(x2.X, x1.Y, x1.Z);
+			CollisionParticles.X(4) = Chaos::FVec3(x2.X, x2.Y, x2.Z);
+			CollisionParticles.X(5) = Chaos::FVec3(x2.X, x2.Y, x1.Z);
+			CollisionParticles.X(6) = Chaos::FVec3(x2.X, x1.Y, x2.Z);
+			CollisionParticles.X(7) = Chaos::FVec3(x1.X, x2.Y, x2.Z);
 		}
 	}
 	else
@@ -580,9 +580,9 @@ void FGeometryCollectionSQAccelerator::Sweep(const Chaos::FImplicitObject& Query
 								continue;
 							}
 
-							const TVector<float, 3> StartLocal = TMPtr->InverseTransformPositionNoScale(StartTM.GetLocation());
-							const TVector<float, 3> DirLocal = TMPtr->InverseTransformVectorNoScale(Dir);
-							const TVector<float, 3> EndLocal = StartLocal + DirLocal * DeltaMag;
+							const FVec3 StartLocal = TMPtr->InverseTransformPositionNoScale(StartTM.GetLocation());
+							const FVec3 DirLocal = TMPtr->InverseTransformVectorNoScale(Dir);
+							const FVec3 EndLocal = StartLocal + DirLocal * DeltaMag;
 							Chaos::TSpatialRay<float, 3> LocalRay(StartLocal, EndLocal);
 							const TArray<int32> IntersectingChildren = Union->FindAllIntersectingChildren(LocalRay);
 							IntersectionSet.Append(IntersectingChildren);
@@ -674,7 +674,7 @@ bool LowLevelOverlapSingleElement(int32 InParticleIndex, const Chaos::FPhysicsSo
 		return false;
 	}
 
-	Pair<TVector<float, 3>, bool> Result = QueryGeom.FindDeepestIntersection(Object, Particles.CollisionParticles(InParticleIndex).Get(), TRigidTransform<float, 3>(TM) * TRigidTransform<float, 3>(InPose).Inverse(), 0);
+	Pair<FVec3, bool> Result = QueryGeom.FindDeepestIntersection(Object, Particles.CollisionParticles(InParticleIndex).Get(), TRigidTransform<float, 3>(TM) * TRigidTransform<float, 3>(InPose).Inverse(), 0);
 
 	return Result.Second;
 }
@@ -730,8 +730,8 @@ void FGeometryCollectionSQAccelerator::Overlap(const Chaos::FImplicitObject& Que
 		physx::PxCapsuleGeometry& PxCapsule = Holder.capsule();
 		float Radius = PxCapsule.radius;
 		float HalfHeight = PxCapsule.halfHeight - Radius;
-		Chaos::TVector<float, 3> x1(-HalfHeight, 0, 0);
-		Chaos::TVector<float, 3> x2(HalfHeight, 0, 0);
+		Chaos::FVec3 x1(-HalfHeight, 0, 0);
+		Chaos::FVec3 x2(HalfHeight, 0, 0);
 		Chaos::TCapsule<float> Capsule(x1, x2, Radius);
 		ImplicitStorage.Capsule = MoveTemp(Capsule);
 		Implicit = &ImplicitStorage.Capsule;
@@ -740,15 +740,15 @@ void FGeometryCollectionSQAccelerator::Overlap(const Chaos::FImplicitObject& Que
 	{
 		physx::PxSphereGeometry& PxSphere = Holder.sphere();
 		float Radius = PxSphere.radius;
-		Chaos::TSphere<float, 3> Sphere(Chaos::TVector<float, 3>(0), Radius);
+		Chaos::TSphere<float, 3> Sphere(Chaos::FVec3(0), Radius);
 		ImplicitStorage.Sphere = MoveTemp(Sphere);
 		Implicit = &ImplicitStorage.Sphere;
 	}
 	else if(Holder.getType() == PxGeometryType::eBOX)
 	{
 		physx::PxBoxGeometry& PxBox = Holder.box();
-		Chaos::TVector<float, 3> x1(-P2UVector(PxBox.halfExtents));
-		Chaos::TVector<float, 3> x2(-x1);
+		Chaos::FVec3 x1(-P2UVector(PxBox.halfExtents));
+		Chaos::FVec3 x2(-x1);
 		Chaos::TAABB<float, 3> Box(x1, x2);
 		ImplicitStorage.Box = MoveTemp(Box);
 		Implicit = &ImplicitStorage.Box;

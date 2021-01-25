@@ -206,8 +206,8 @@ void FPerSolverFieldSystem::FieldParameterUpdateInternal(
 									if (HandleState != Chaos::EObjectStateType::Kinematic)
 									{
 										SetParticleState(RigidHandle, EObjectStateType::Kinematic);
-										RigidHandle->SetV(Chaos::TVector<float, 3>(0));
-										RigidHandle->SetW(Chaos::TVector<float, 3>(0));
+										RigidHandle->SetV(Chaos::FVec3(0));
+										RigidHandle->SetW(Chaos::FVec3(0));
 										StateChanged = true;
 									}
 								}
@@ -216,8 +216,8 @@ void FPerSolverFieldSystem::FieldParameterUpdateInternal(
 									if (HandleState != Chaos::EObjectStateType::Static)
 									{
 										SetParticleState(RigidHandle, EObjectStateType::Static);
-										RigidHandle->SetV(Chaos::TVector<float, 3>(0));
-										RigidHandle->SetW(Chaos::TVector<float, 3>(0));
+										RigidHandle->SetV(Chaos::FVec3(0));
+										RigidHandle->SetW(Chaos::FVec3(0));
 										StateChanged = true;
 									}
 								}

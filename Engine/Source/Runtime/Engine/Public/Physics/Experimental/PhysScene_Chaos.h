@@ -278,12 +278,12 @@ private:
 	void RemoveSpringConstraint(const FPhysicsConstraintHandle& Constraint);
 
 #if 0
-	void AddForce(const Chaos::TVector<float,3>& Force,FPhysicsActorHandle& Handle)
+	void AddForce(const Chaos::FVec3& Force,FPhysicsActorHandle& Handle)
 	{
 		// #todo : Implement
 	}
 
-	void AddTorque(const Chaos::TVector<float,3>& Torque,FPhysicsActorHandle& Handle)
+	void AddTorque(const Chaos::FVec3& Torque,FPhysicsActorHandle& Handle)
 	{
 		// #todo : Implement
 	}

@@ -1025,8 +1025,8 @@ bool FPhysInterface_Chaos::LineTrace_Geom(FHitResult& OutHit, const FBodyInstanc
 						{
 
 							float Distance;
-							Chaos::TVector<float, 3> LocalPosition;
-							Chaos::TVector<float, 3> LocalNormal;
+							Chaos::FVec3 LocalPosition;
+							Chaos::FVec3 LocalNormal;
 
 							int32 FaceIndex;
 							if (Shape->GetGeometry()->Raycast(LocalStart, LocalDelta / DeltaMag, DeltaMag, 0, Distance, LocalPosition, LocalNormal, FaceIndex))
@@ -1100,7 +1100,7 @@ bool FPhysInterface_Chaos::Sweep_Geom(FHitResult& OutHit, const FBodyInstance* I
 					FTransform StartTM(ShapeAdapter.GetGeomOrientation(), InStart);
 					FTransform CompTM(OwnerComponentInst->GetComponentTransform());
 
-					Chaos::TVector<float,3> Dir = Delta / DeltaMag;
+					Chaos::FVec3 Dir = Delta / DeltaMag;
 
 					FSweepHit Hit;
 
@@ -1129,8 +1129,8 @@ bool FPhysInterface_Chaos::Sweep_Geom(FHitResult& OutHit, const FBodyInstance* I
 						if ((bSweepComplex && bShapeIsComplex) || (!bSweepComplex && bShapeIsSimple))
 						{
 							//question: this is returning first result, is that valid? Keeping it the same as physx for now
-							Chaos::TVector<float, 3> WorldPosition;
-							Chaos::TVector<float, 3> WorldNormal;
+							Chaos::FVec3 WorldPosition;
+							Chaos::FVec3 WorldNormal;
 							int32 FaceIdx;
 							if (Chaos::Utilities::CastHelper(ShapeAdapter.GetGeometry(), ActorTM, [&](const auto& Downcast, const auto& FullActorTM) { return Chaos::SweepQuery(*Shape->GetGeometry(), FullActorTM, Downcast, StartTM, Dir, DeltaMag, Hit.Distance, WorldPosition, WorldNormal, FaceIdx, 0.f, false); }))
 							{
@@ -1265,7 +1265,7 @@ bool FPhysInterface_Chaos::GetSquaredDistanceToBody(const FBodyInstance* InInsta
 
 			bFoundValidBody = true;
 
-			Chaos::TVector<float, 3> Normal;
+			Chaos::FVec3 Normal;
 			const float Phi = Shape.Shape->GetGeometry()->PhiWithNormal(LocalPoint, Normal);
 			if (Phi <= 0)
 			{
@@ -1282,7 +1282,7 @@ bool FPhysInterface_Chaos::GetSquaredDistanceToBody(const FBodyInstance* InInsta
 				OutDistanceSquared = Phi * Phi;
 				if (OutOptPointOnBody)
 				{
-					const Chaos::TVector<float, 3> LocalClosestPoint = LocalPoint - Phi * Normal;
+					const Chaos::FVec3 LocalClosestPoint = LocalPoint - Phi * Normal;
 					*OutOptPointOnBody = BodyTM.TransformPositionNoScale(LocalClosestPoint);
 				}
 			}

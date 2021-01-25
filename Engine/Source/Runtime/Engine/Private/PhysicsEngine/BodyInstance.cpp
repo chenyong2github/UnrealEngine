@@ -2034,7 +2034,7 @@ bool FBodyInstance::UpdateBodyScale(const FVector& InScale3D, bool bForceUpdate)
 
 					// TODO: For Transformed implicit, do not bake this in. Set Transform instead.
 					FVec3 Center = RelativeTM.TransformPosition(SphylElem->Center) * AdjustedScale3D;
-					const FVec3 Axis = SphylElem->Rotation.RotateVector(Chaos::TVector<float, 3>(0, 0, 1));
+					const FVec3 Axis = SphylElem->Rotation.RotateVector(Chaos::FVec3(0, 0, 1));
 
 					const FVec3 X1 = Center - HalfLength * Axis;
 					const FVec3 X2 = Center + HalfLength * Axis;

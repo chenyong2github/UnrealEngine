@@ -101,13 +101,13 @@ FPhysicsShapeAdapter_Chaos::FPhysicsShapeAdapter_Chaos(const FQuat& Rot,const FC
 		{
 			// Use a sphere instead.
 			const float UseRadius = FMath::Max(CapsuleRadius,FCollisionShape::MinSphereRadius());
-			Geometry = TUniquePtr<FPhysicsGeometry>(new Chaos::TSphere<float,3>(Chaos::TVector<float,3>(0),UseRadius));
+			Geometry = TUniquePtr<FPhysicsGeometry>(new Chaos::TSphere<float,3>(Chaos::FVec3(0),UseRadius));
 		}
 		break;
 	}
 	case ECollisionShape::Box:
 	{
-		Chaos::TVector<float,3> HalfExtents = CollisionShape.GetBox();
+		Chaos::FVec3 HalfExtents = CollisionShape.GetBox();
 		HalfExtents.X = FMath::Max(HalfExtents.X,FCollisionShape::MinBoxExtent());
 		HalfExtents.Y = FMath::Max(HalfExtents.Y,FCollisionShape::MinBoxExtent());
 		HalfExtents.Z = FMath::Max(HalfExtents.Z,FCollisionShape::MinBoxExtent());
@@ -118,7 +118,7 @@ FPhysicsShapeAdapter_Chaos::FPhysicsShapeAdapter_Chaos(const FQuat& Rot,const FC
 	case ECollisionShape::Sphere:
 	{
 		const float UseRadius = FMath::Max(CollisionShape.GetSphereRadius(),FCollisionShape::MinSphereRadius());
-		Geometry = TUniquePtr<FPhysicsGeometry>(new Chaos::TSphere<float,3>(Chaos::TVector<float,3>(0),UseRadius));
+		Geometry = TUniquePtr<FPhysicsGeometry>(new Chaos::TSphere<float,3>(Chaos::FVec3(0),UseRadius));
 		break;
 	}
 	default:

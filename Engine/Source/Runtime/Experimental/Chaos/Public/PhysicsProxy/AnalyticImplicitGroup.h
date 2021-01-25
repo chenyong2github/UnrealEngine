@@ -105,7 +105,7 @@ public:
 
 	void SetCollisionTopology(
 		const int32 Index,
-		TArray<Chaos::TVector<float,3>>&& Points,
+		TArray<Chaos::FVec3>&& Points,
 		TArray<Chaos::TVector<int32,3>>&& Triangles)
 	{ CollisionPoints[Index] = MoveTemp(Points); CollisionTriangles[Index] = MoveTemp(Triangles); }
 
@@ -258,7 +258,7 @@ public:
 		return Chaos::Combine(MPArray);
 	}
 
-	TArray<Chaos::TVector<float, 3>>* BuildSamplePoints(
+	TArray<Chaos::FVec3>* BuildSamplePoints(
 		const float ParticlesPerUnitArea,
 		const int32 MinParticles,
 		const int32 MaxParticles)
@@ -278,7 +278,7 @@ public:
 		int32 TransformIndex = 0;
 		for (Chaos::TSphere<float, 3>* Sphere : Spheres)
 		{
-			TArray<Chaos::TVector<float, 3>>& Points = CollisionPoints[TransformIndex];
+			TArray<Chaos::FVec3>& Points = CollisionPoints[TransformIndex];
 			if (!Points.Num())
 				Points = Sphere->ComputeSamplePoints(ParticlesPerUnitArea, MinParticles, MaxParticles);
 			CullDeepPoints(Points, TransformIndex);
@@ -286,7 +286,7 @@ public:
 		}
 		for (Chaos::TBox<float, 3>* Box : Boxes)
 		{
-			TArray<Chaos::TVector<float, 3>>& Points = CollisionPoints[TransformIndex];
+			TArray<Chaos::FVec3>& Points = CollisionPoints[TransformIndex];
 			if (!Points.Num())
 				Points = Box->ComputeSamplePoints();
 			CullDeepPoints(Points, TransformIndex);
@@ -294,7 +294,7 @@ public:
 		}
 		for (Chaos::TCapsule<float>* Capsule : Capsules)
 		{
-			TArray<Chaos::TVector<float, 3>>& Points = CollisionPoints[TransformIndex];
+			TArray<Chaos::FVec3>& Points = CollisionPoints[TransformIndex];
 			if (!Points.Num())
 				Points = Capsule->ComputeSamplePoints(ParticlesPerUnitArea, MinParticles, MaxParticles);
 			CullDeepPoints(Points, TransformIndex);
@@ -302,7 +302,7 @@ public:
 		}
 		for (Chaos::TTaperedCylinder<float>* TaperedCylinder : TaperedCylinders)
 		{
-			TArray<Chaos::TVector<float, 3>>& Points = CollisionPoints[TransformIndex];
+			TArray<Chaos::FVec3>& Points = CollisionPoints[TransformIndex];
 			if (!Points.Num())
 				Points = TaperedCylinder->ComputeSamplePoints(ParticlesPerUnitArea, false, MinParticles, MaxParticles);
 			CullDeepPoints(Points, TransformIndex);
@@ -310,14 +310,14 @@ public:
 		}
 		for (Chaos::FConvex* Convex : ConvexHulls)
 		{
-			TArray<Chaos::TVector<float, 3>>& Points = CollisionPoints[TransformIndex];
+			TArray<Chaos::FVec3>& Points = CollisionPoints[TransformIndex];
 			if (!Points.Num())
 			{
 				const Chaos::TAABB<float, 3>& BBox = Convex->BoundingBox();
 				Chaos::TSphere<float, 3> Sphere(BBox.Center(), BBox.Extents().Size() / 2);
 				Points = Sphere.ComputeSamplePoints(ParticlesPerUnitArea, MinParticles, MaxParticles);
-				Chaos::TVector<float, 3> Normal;
-				for (Chaos::TVector<float, 3> &Pt : Points)
+				Chaos::FVec3 Normal;
+				for (Chaos::FVec3 &Pt : Points)
 				{
 					const float Phi = Convex->PhiWithNormal(Pt, Normal);
 					Pt += Normal * -Phi;
@@ -329,14 +329,14 @@ public:
 		}
 		for (Chaos::TLevelSet<float, 3>* LevelSet : LevelSets)
 		{
-			TArray<Chaos::TVector<float, 3>>& Points = CollisionPoints[TransformIndex];
+			TArray<Chaos::FVec3>& Points = CollisionPoints[TransformIndex];
 			if (!Points.Num())
 			{
 				const Chaos::TAABB<float, 3>& BBox = LevelSet->BoundingBox();
 				Chaos::TSphere<float, 3> Sphere(BBox.Center(), BBox.Extents().Size() / 2);
 				Points = Sphere.ComputeSamplePoints(ParticlesPerUnitArea, MinParticles, MaxParticles);
-				Chaos::TVector<float, 3> Normal;
-				for (Chaos::TVector<float, 3> &Pt : Points)
+				Chaos::FVec3 Normal;
+				for (Chaos::FVec3 &Pt : Points)
 				{
 					const float Phi = LevelSet->PhiWithNormal(Pt, Normal);
 					Pt += Normal * -Phi;
@@ -356,11 +356,11 @@ public:
 		}
 		for (TransformIndex = 0; TransformIndex < Num; TransformIndex++)
 		{
-			TArray<Chaos::TVector<float, 3>> &PtArray = CollisionPoints[TransformIndex];
+			TArray<Chaos::FVec3> &PtArray = CollisionPoints[TransformIndex];
 			const FTransform& Xf = Transforms[TransformIndex];
 			if(!Xf.Equals(FTransform::Identity))
 			{
-				for (Chaos::TVector<float, 3>& Pt : PtArray)
+				for (Chaos::FVec3& Pt : PtArray)
 					Pt = Xf.TransformPosition(Pt);
 			}
 			if (Num == 1)
@@ -478,7 +478,7 @@ protected:
 	{ Parent = nullptr; Children.Reset(); }
 
 	template<class TImplicitShape>
-	void CullDeepPoints(TArray<Chaos::TVector<float,3>>& Points, const TImplicitShape& Shape, const FTransform& Xf)
+	void CullDeepPoints(TArray<Chaos::FVec3>& Points, const TImplicitShape& Shape, const FTransform& Xf)
 	{
 		const Chaos::TAABB<float, 3>& BBox = Shape.BoundingBox();
 		const float Tolerance = -BBox.Extents().Max() / 100.f; // -1/100th the largest dimension
@@ -486,7 +486,7 @@ protected:
 		{
 			for (int32 i = Points.Num(); i--; )
 			{
-				const Chaos::TVector<float, 3>& LocalPoint = Points[i];
+				const Chaos::FVec3& LocalPoint = Points[i];
 				const float Phi = Shape.SignedDistance(LocalPoint);
 				if (Phi < Tolerance)
 				{
@@ -499,7 +499,7 @@ protected:
 			const FTransform InvXf = Xf.Inverse();
 			for (int32 i = Points.Num(); i--; )
 			{
-				const Chaos::TVector<float, 3> LocalPoint = InvXf.TransformPosition(Points[i]);
+				const Chaos::FVec3 LocalPoint = InvXf.TransformPosition(Points[i]);
 				const float Phi = Shape.SignedDistance(LocalPoint);
 				if (Phi < Tolerance)
 				{
@@ -509,7 +509,7 @@ protected:
 		}
 	}
 
-	void CullDeepPoints(TArray<Chaos::TVector<float, 3>>& Points, const int32 SkipIndex)
+	void CullDeepPoints(TArray<Chaos::FVec3>& Points, const int32 SkipIndex)
 	{
 		int32 TransformIndex = 0;
 		for (Chaos::TSphere<float, 3>* Sphere : Spheres)
@@ -640,8 +640,8 @@ protected:
 	// Chaos::TConvex replacement
 	TArray<Chaos::TLevelSet<float, 3>*> LevelSets;
 
-	TArray<Chaos::TVector<float, 3>> ContiguousCollisionPoints;
-	TArray<TArray<Chaos::TVector<float, 3>>> CollisionPoints;
+	TArray<Chaos::FVec3> ContiguousCollisionPoints;
+	TArray<TArray<Chaos::FVec3>> CollisionPoints;
 	TArray<TArray<Chaos::TVector<int32, 3>>> CollisionTriangles;
 
 	TArray<FTransform> Transforms;

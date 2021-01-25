@@ -76,8 +76,8 @@ void FStaticMeshPhysicsProxy::UpdateKinematicBodiesCallback(const FParticlesType
 			Proxy.NextRotation.SetNum(1);
 
 			const FTransform& Transform = Parameters.InitialTransform;
-			Proxy.Position[0] = Chaos::TVector<float, 3>(Transform.GetTranslation());
-			Proxy.NextPosition[0] = Proxy.Position[0] + Chaos::TVector<float, 3>(Parameters.InitialLinearVelocity) * Dt;
+			Proxy.Position[0] = Chaos::FVec3(Transform.GetTranslation());
+			Proxy.NextPosition[0] = Proxy.Position[0] + Chaos::FVec3(Parameters.InitialLinearVelocity) * Dt;
 			Proxy.Rotation[0] = Chaos::TRotation<float, 3>(Transform.GetRotation().GetNormalized());
 			Proxy.NextRotation[0] = Proxy.Rotation[0];
 		}
@@ -135,7 +135,7 @@ void FStaticMeshPhysicsProxy::CreateRigidBodyCallback(FParticlesType& Particles)
 		{
 			// Build implicit surface
 			const ECollisionTypeEnum CollisionType = ECollisionTypeEnum::Chaos_Surface_Volumetric;
-			check(sizeof(Chaos::TVector<float, 3>) == sizeof(FVector));
+			check(sizeof(Chaos::FVec3) == sizeof(FVector));
 
 			//TODO: this should all be done on the asset instead of in the callback. Duplicates all mesh vertices every time
 			Chaos::TParticles<float, 3> MeshParticles(MoveTemp(Parameters.MeshVertexPositions));
@@ -155,7 +155,7 @@ void FStaticMeshPhysicsProxy::CreateRigidBodyCallback(FParticlesType& Particles)
 			if (!ensure(Parameters.MeshVertexPositions.Size()))
 			{
 				Parameters.MeshVertexPositions.AddParticles(1);
-				Parameters.MeshVertexPositions.X(0) = Chaos::TVector<float, 3>(0, 0, 0);
+				Parameters.MeshVertexPositions.X(0) = Chaos::FVec3(0, 0, 0);
 			}
 
 			for(uint32 i=0; i < Parameters.MeshVertexPositions.Size(); ++i)
@@ -165,7 +165,7 @@ void FStaticMeshPhysicsProxy::CreateRigidBodyCallback(FParticlesType& Particles)
 		}
 		else if (Parameters.ShapeType == EImplicitTypeEnum::Chaos_Implicit_Sphere)
 		{
-			Chaos::TSphere<float,3>* Sphere = new Chaos::TSphere<float, 3>(Chaos::TVector<float, 3>(0), Parameters.ShapeParams.SphereRadius);
+			Chaos::TSphere<float,3>* Sphere = new Chaos::TSphere<float, 3>(Chaos::FVec3(0), Parameters.ShapeParams.SphereRadius);
 			const Chaos::TAABB<float, 3> BBox = Sphere->BoundingBox();
 			Bounds.Min = BBox.Min();
 			Bounds.Max = BBox.Max();
@@ -175,41 +175,41 @@ void FStaticMeshPhysicsProxy::CreateRigidBodyCallback(FParticlesType& Particles)
 				float Radius = Parameters.ShapeParams.SphereRadius;
 
 				Parameters.MeshVertexPositions.AddParticles(6);
-				Parameters.MeshVertexPositions.X(0) = Chaos::TVector<float, 3>(Radius, 0, 0);
-				Parameters.MeshVertexPositions.X(1) = Chaos::TVector<float, 3>(-Radius, 0, 0);
-				Parameters.MeshVertexPositions.X(2) = Chaos::TVector<float, 3>(0, Radius, Radius);
-				Parameters.MeshVertexPositions.X(3) = Chaos::TVector<float, 3>(0, -Radius, Radius);
-				Parameters.MeshVertexPositions.X(4) = Chaos::TVector<float, 3>(0, -Radius, -Radius);
-				Parameters.MeshVertexPositions.X(5) = Chaos::TVector<float, 3>(0, Radius, -Radius);
+				Parameters.MeshVertexPositions.X(0) = Chaos::FVec3(Radius, 0, 0);
+				Parameters.MeshVertexPositions.X(1) = Chaos::FVec3(-Radius, 0, 0);
+				Parameters.MeshVertexPositions.X(2) = Chaos::FVec3(0, Radius, Radius);
+				Parameters.MeshVertexPositions.X(3) = Chaos::FVec3(0, -Radius, Radius);
+				Parameters.MeshVertexPositions.X(4) = Chaos::FVec3(0, -Radius, -Radius);
+				Parameters.MeshVertexPositions.X(5) = Chaos::FVec3(0, Radius, -Radius);
 			}
 		}
 		else if (Parameters.ShapeType == EImplicitTypeEnum::Chaos_Implicit_Box)
 		{
-			Chaos::TVector<float, 3> HalfExtents = Parameters.ShapeParams.BoxExtents / 2;
+			Chaos::FVec3 HalfExtents = Parameters.ShapeParams.BoxExtents / 2;
 			Chaos::TBox<float,3>* Box = new Chaos::TBox<float, 3>(-HalfExtents, HalfExtents);
 			Bounds.Min = Box->Min();
 			Bounds.Max = Box->Max();
 			Particles.SetDynamicGeometry(RigidBodyId, TUniquePtr<Chaos::FImplicitObject>(Box));
 			if (!Parameters.MeshVertexPositions.Size())
 			{
-				Chaos::TVector<float, 3> x1(-HalfExtents);
-				Chaos::TVector<float, 3> x2(HalfExtents);
+				Chaos::FVec3 x1(-HalfExtents);
+				Chaos::FVec3 x2(HalfExtents);
 
 				Parameters.MeshVertexPositions.AddParticles(8);
-				Parameters.MeshVertexPositions.X(0) = Chaos::TVector<float, 3>(x1.X, x1.Y, x1.Z);
-				Parameters.MeshVertexPositions.X(1) = Chaos::TVector<float, 3>(x1.X, x1.Y, x2.Z);
-				Parameters.MeshVertexPositions.X(2) = Chaos::TVector<float, 3>(x1.X, x2.Y, x1.Z);
-				Parameters.MeshVertexPositions.X(3) = Chaos::TVector<float, 3>(x2.X, x1.Y, x1.Z);
-				Parameters.MeshVertexPositions.X(4) = Chaos::TVector<float, 3>(x2.X, x2.Y, x2.Z);
-				Parameters.MeshVertexPositions.X(5) = Chaos::TVector<float, 3>(x2.X, x2.Y, x1.Z);
-				Parameters.MeshVertexPositions.X(6) = Chaos::TVector<float, 3>(x2.X, x1.Y, x2.Z);
-				Parameters.MeshVertexPositions.X(7) = Chaos::TVector<float, 3>(x1.X, x2.Y, x2.Z);
+				Parameters.MeshVertexPositions.X(0) = Chaos::FVec3(x1.X, x1.Y, x1.Z);
+				Parameters.MeshVertexPositions.X(1) = Chaos::FVec3(x1.X, x1.Y, x2.Z);
+				Parameters.MeshVertexPositions.X(2) = Chaos::FVec3(x1.X, x2.Y, x1.Z);
+				Parameters.MeshVertexPositions.X(3) = Chaos::FVec3(x2.X, x1.Y, x1.Z);
+				Parameters.MeshVertexPositions.X(4) = Chaos::FVec3(x2.X, x2.Y, x2.Z);
+				Parameters.MeshVertexPositions.X(5) = Chaos::FVec3(x2.X, x2.Y, x1.Z);
+				Parameters.MeshVertexPositions.X(6) = Chaos::FVec3(x2.X, x1.Y, x2.Z);
+				Parameters.MeshVertexPositions.X(7) = Chaos::FVec3(x1.X, x2.Y, x2.Z);
 			}
 		}
 		else if (Parameters.ShapeType == EImplicitTypeEnum::Chaos_Implicit_Capsule)
 		{
-			Chaos::TVector<float, 3> x1(0, -Parameters.ShapeParams.CapsuleHalfHeightAndRadius.X, 0);
-			Chaos::TVector<float, 3> x2(0, Parameters.ShapeParams.CapsuleHalfHeightAndRadius.X, 0);
+			Chaos::FVec3 x1(0, -Parameters.ShapeParams.CapsuleHalfHeightAndRadius.X, 0);
+			Chaos::FVec3 x2(0, Parameters.ShapeParams.CapsuleHalfHeightAndRadius.X, 0);
 			Chaos::TCapsule<float>* Capsule = new Chaos::TCapsule<float>(x1, x2, Parameters.ShapeParams.CapsuleHalfHeightAndRadius.Y);
 			const Chaos::TAABB<float, 3> BBox = Capsule->BoundingBox();
 			Bounds.Min = BBox.Min();
@@ -221,26 +221,26 @@ void FStaticMeshPhysicsProxy::CreateRigidBodyCallback(FParticlesType& Particles)
 				float Radius = Parameters.ShapeParams.CapsuleHalfHeightAndRadius.Y;
 
 				Parameters.MeshVertexPositions.AddParticles(14);
-				Parameters.MeshVertexPositions.X(0) = Chaos::TVector<float, 3>(HalfHeight + Radius, 0, 0);
-				Parameters.MeshVertexPositions.X(1) = Chaos::TVector<float, 3>(-HalfHeight - Radius, 0, 0);
-				Parameters.MeshVertexPositions.X(2) = Chaos::TVector<float, 3>(HalfHeight, Radius, Radius);
-				Parameters.MeshVertexPositions.X(3) = Chaos::TVector<float, 3>(HalfHeight, -Radius, Radius);
-				Parameters.MeshVertexPositions.X(4) = Chaos::TVector<float, 3>(HalfHeight, -Radius, -Radius);
-				Parameters.MeshVertexPositions.X(5) = Chaos::TVector<float, 3>(HalfHeight, Radius, -Radius);
-				Parameters.MeshVertexPositions.X(6) = Chaos::TVector<float, 3>(0, Radius, Radius);
-				Parameters.MeshVertexPositions.X(7) = Chaos::TVector<float, 3>(0, -Radius, Radius);
-				Parameters.MeshVertexPositions.X(8) = Chaos::TVector<float, 3>(0, -Radius, -Radius);
-				Parameters.MeshVertexPositions.X(9) = Chaos::TVector<float, 3>(0, Radius, -Radius);
-				Parameters.MeshVertexPositions.X(10) = Chaos::TVector<float, 3>(-HalfHeight, Radius, Radius);
-				Parameters.MeshVertexPositions.X(11) = Chaos::TVector<float, 3>(-HalfHeight, -Radius, Radius);
-				Parameters.MeshVertexPositions.X(12) = Chaos::TVector<float, 3>(-HalfHeight, -Radius, -Radius);
-				Parameters.MeshVertexPositions.X(13) = Chaos::TVector<float, 3>(-HalfHeight, Radius, -Radius);
+				Parameters.MeshVertexPositions.X(0) = Chaos::FVec3(HalfHeight + Radius, 0, 0);
+				Parameters.MeshVertexPositions.X(1) = Chaos::FVec3(-HalfHeight - Radius, 0, 0);
+				Parameters.MeshVertexPositions.X(2) = Chaos::FVec3(HalfHeight, Radius, Radius);
+				Parameters.MeshVertexPositions.X(3) = Chaos::FVec3(HalfHeight, -Radius, Radius);
+				Parameters.MeshVertexPositions.X(4) = Chaos::FVec3(HalfHeight, -Radius, -Radius);
+				Parameters.MeshVertexPositions.X(5) = Chaos::FVec3(HalfHeight, Radius, -Radius);
+				Parameters.MeshVertexPositions.X(6) = Chaos::FVec3(0, Radius, Radius);
+				Parameters.MeshVertexPositions.X(7) = Chaos::FVec3(0, -Radius, Radius);
+				Parameters.MeshVertexPositions.X(8) = Chaos::FVec3(0, -Radius, -Radius);
+				Parameters.MeshVertexPositions.X(9) = Chaos::FVec3(0, Radius, -Radius);
+				Parameters.MeshVertexPositions.X(10) = Chaos::FVec3(-HalfHeight, Radius, Radius);
+				Parameters.MeshVertexPositions.X(11) = Chaos::FVec3(-HalfHeight, -Radius, Radius);
+				Parameters.MeshVertexPositions.X(12) = Chaos::FVec3(-HalfHeight, -Radius, -Radius);
+				Parameters.MeshVertexPositions.X(13) = Chaos::FVec3(-HalfHeight, Radius, -Radius);
 			}
 		}
 		else
 		{
-			Bounds.Min = Chaos::TVector<float, 3>(-KINDA_SMALL_NUMBER);
-			Bounds.Max = Chaos::TVector<float, 3>(KINDA_SMALL_NUMBER);
+			Bounds.Min = Chaos::FVec3(-KINDA_SMALL_NUMBER);
+			Bounds.Max = Chaos::FVec3(KINDA_SMALL_NUMBER);
 			Particles.SetSharedGeometry(RigidBodyId, TSharedPtr<Chaos::FImplicitObject, ESPMode::ThreadSafe>());
 		}
 
@@ -266,9 +266,9 @@ void FStaticMeshPhysicsProxy::CreateRigidBodyCallback(FParticlesType& Particles)
 		}
 
 		Particles.X(RigidBodyId) = WorldTransform.TransformPosition(CenterOfMass);
-		Particles.V(RigidBodyId) = Chaos::TVector<float, 3>(Parameters.InitialLinearVelocity);
+		Particles.V(RigidBodyId) = Chaos::FVec3(Parameters.InitialLinearVelocity);
 		Particles.R(RigidBodyId) = WorldTransform.GetRotation().GetNormalized();
-		Particles.W(RigidBodyId) = Chaos::TVector<float, 3>(Parameters.InitialAngularVelocity);
+		Particles.W(RigidBodyId) = Chaos::FVec3(Parameters.InitialAngularVelocity);
 		Particles.P(RigidBodyId) = Particles.X(RigidBodyId);
 		Particles.Q(RigidBodyId) = Particles.R(RigidBodyId);
 

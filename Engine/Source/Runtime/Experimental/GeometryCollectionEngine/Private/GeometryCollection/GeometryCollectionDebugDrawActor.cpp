@@ -1980,7 +1980,7 @@ FTransform AGeometryCollectionDebugDrawActor::GetParticleTransformNoChecks(const
 	const TManagedArray<int32>& ParentArray = GeometryCollectionComponent->GetParentArray();
 
 	// Retrieve particle transform
-	Chaos::TVector<float, 3> Translation = Chaos::TVector<float, 3>::ZeroVector;
+	Chaos::FVec3 Translation = Chaos::FVec3::ZeroVector;
 	Chaos::TRotation<float, 3> Rotation = Chaos::TRotation<float, 3>::Identity;
 #if GEOMETRYCOLLECTION_DEBUG_DRAW && ENABLE_DRAW_DEBUG
 	int32 Index;
@@ -1992,7 +1992,7 @@ FTransform AGeometryCollectionDebugDrawActor::GetParticleTransformNoChecks(const
 		Translation = ChildToParentTransform.GetTranslation() + ChildToParentTransform.GetRotation().RotateVector(Translation);
 		Rotation = ChildToParentTransform.GetRotation() * Rotation;
 	}
-	const Chaos::TVector<float, 3>& RootTranslation = ParticlesData.GetX(Index);
+	const Chaos::FVec3& RootTranslation = ParticlesData.GetX(Index);
 	const Chaos::TRotation<float, 3>& RootRotation = ParticlesData.GetR(Index);
 	Translation = RootTranslation + RootRotation.RotateVector(Translation);
 	Rotation = RootRotation * Rotation;

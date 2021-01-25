@@ -159,7 +159,7 @@ void UStaticMeshSimulationComponent::OnCreatePhysicsState()
 						{
 							if ((InParams.InitialTransform.GetScale3D() - FVector(1.f, 1.f, 1.f)).SizeSquared() < SMALL_NUMBER)
 							{
-								auto& TVectorArray = reinterpret_cast<TArray<Chaos::TVector<float, 3>>&>(CollisionData.Vertices);
+								auto& TVectorArray = reinterpret_cast<TArray<Chaos::FVec3>&>(CollisionData.Vertices);
 								InParams.MeshVertexPositions = MoveTemp(TVectorArray);
 							}
 							else

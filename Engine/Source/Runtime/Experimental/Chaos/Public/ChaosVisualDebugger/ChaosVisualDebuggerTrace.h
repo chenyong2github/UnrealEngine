@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
+#include "Chaos/Core.h"
 #include "Chaos/Vector.h"
 
 
@@ -15,5 +16,5 @@
 class ChaosVisualDebugger
 {
 public:
-	static void CHAOS_API ParticlePositionLog(const Chaos::TVector<float, 3>& Position);
+	static void CHAOS_API ParticlePositionLog(const Chaos::FVec3& Position);
 };

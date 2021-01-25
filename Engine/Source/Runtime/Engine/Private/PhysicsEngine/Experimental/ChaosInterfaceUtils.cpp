@@ -100,7 +100,7 @@ namespace ChaosInterface
 		for (uint32 j = 0; j < CollisionMeshParticles.Size(); ++j)
 		{
 			const auto& Vertex = PhysXMesh->getVertices()[j];
-			CollisionMeshParticles.X(j) = Scale * Chaos::TVector<float, 3>(Vertex.x, Vertex.y, Vertex.z);
+			CollisionMeshParticles.X(j) = Scale * Chaos::FVec3(Vertex.x, Vertex.y, Vertex.z);
 		}
 		Chaos::TAABB<float, 3> BoundingBox(CollisionMeshParticles.X(0), CollisionMeshParticles.X(0));
 		for (uint32 j = 1; j < CollisionMeshParticles.Size(); ++j)
@@ -238,7 +238,7 @@ namespace ChaosInterface
 				const FKBoxElem& BoxElem = InParams.Geometry->BoxElems[i];
 				const FKBoxElem ScaledBoxElem = BoxElem.GetFinalScaled(Scale, InParams.LocalTransform);
 				const FTransform& BoxTransform = ScaledBoxElem.GetTransform();
-				Chaos::TVector<float, 3> HalfExtents = Chaos::TVector<float, 3>(ScaledBoxElem.X * 0.5f, ScaledBoxElem.Y * 0.5f, ScaledBoxElem.Z * 0.5f);
+				Chaos::FVec3 HalfExtents = Chaos::FVec3(ScaledBoxElem.X * 0.5f, ScaledBoxElem.Y * 0.5f, ScaledBoxElem.Z * 0.5f);
 
 				HalfExtents.X = FMath::Max(HalfExtents.X, KINDA_SMALL_NUMBER);
 				HalfExtents.Y = FMath::Max(HalfExtents.Y, KINDA_SMALL_NUMBER);
@@ -280,7 +280,7 @@ namespace ChaosInterface
 				}
 				else
 				{
-					Chaos::TVector<float, 3> HalfExtents = ScaledSphylElem.Rotation.RotateVector(Chaos::TVector<float, 3>(0, 0, HalfHeight));
+					Chaos::FVec3 HalfExtents = ScaledSphylElem.Rotation.RotateVector(Chaos::FVec3(0, 0, HalfHeight));
 
 					auto ImplicitCapsule = MakeUnique<Chaos::TCapsule<float>>(ScaledSphylElem.Center - HalfExtents, ScaledSphylElem.Center + HalfExtents, Radius);
 					TUniquePtr<Chaos::FPerShapeData> NewShape = NewShapeHelper(MakeSerializable(ImplicitCapsule),Shapes.Num(), (void*)UnscaledSphyl.GetUserData(), UnscaledSphyl.GetCollisionEnabled());
@@ -301,7 +301,7 @@ namespace ChaosInterface
 				}
 				else
 				{
-					Chaos::TVector<float, 3> half_extents(0, 0, TCapsule.Length / 2 * Scale[0]);
+					Chaos::FVec3 half_extents(0, 0, TCapsule.Length / 2 * Scale[0]);
 					auto ImplicitCylinder = MakeUnique<Chaos::TCylinder<float>>(-half_extents, half_extents, TCapsule.Radius * Scale[0]);
 					if (PhysicsProxy) PhysicsProxy->ImplicitObjects_GameThread.Add(MoveTemp(ImplicitSphere));
 					else if (OutOptShapes) OutOptShapes->Add({ ImplicitSphere,true,true,InActor });

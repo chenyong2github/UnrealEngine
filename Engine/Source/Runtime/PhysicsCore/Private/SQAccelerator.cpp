@@ -277,18 +277,18 @@ private:
 
 				bool bHit = false;
 
-				TVector<float, 3> WorldPosition, WorldNormal;
+				FVec3 WorldPosition, WorldNormal;
 				float Distance = 0;	//not needed but fixes compiler warning for overlap
 				int32 FaceIdx = INDEX_NONE;	//not needed but fixes compiler warning for overlap
 				const bool bComputeMTD = !!((uint16)(OutputFlags.HitFlags & EHitFlags::MTD));
 
 				if (SQ == ESQType::Raycast)
 				{
-					TVector<float, 3> LocalNormal;
-					TVector<float, 3> LocalPosition;
+					FVec3 LocalNormal;
+					FVec3 LocalPosition;
 
-					const TVector<float, 3> DirLocal = ActorTM.InverseTransformVectorNoScale(Dir);
-					const TVector<float, 3> StartLocal = ActorTM.InverseTransformPositionNoScale(StartPoint);
+					const FVec3 DirLocal = ActorTM.InverseTransformVectorNoScale(Dir);
+					const FVec3 StartLocal = ActorTM.InverseTransformPositionNoScale(StartPoint);
 					bHit = Geom->Raycast(StartLocal, DirLocal, CurData->CurrentLength, /*Thickness=*/0.f, Distance, LocalPosition, LocalNormal, FaceIdx);
 					if (bHit)
 					{

@@ -174,7 +174,7 @@ protected:
 
 private:
 
-	void SetGravity(const Chaos::TVector<float, 3>& Acceleration);
+	void SetGravity(const Chaos::FVec3& Acceleration);
 
 	template <typename TSolver>
 	void SyncBodies(TSolver* Solver);

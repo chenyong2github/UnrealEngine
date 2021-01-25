@@ -134,7 +134,7 @@ bool AGeometryCollectionRenderLevelSetActor::SetLevelSetToRender(const Chaos::TL
 
 	// get refs to the grid structures
 	const TArrayND<float, 3>& LevelSetPhiArray = LevelSet.GetPhiArray();
-	const TArrayND<TVector<float, 3>, 3>& LevelSetNormalsArray = LevelSet.GetNormalsArray();
+	const TArrayND<FVec3, 3>& LevelSetNormalsArray = LevelSet.GetNormalsArray();
 	const TUniformGrid<float, 3>& LevelSetGrid = LevelSet.GetGrid();
 
 	const TVector<int32, 3>& Counts = LevelSetGrid.Counts();
@@ -158,7 +158,7 @@ bool AGeometryCollectionRenderLevelSetActor::SetLevelSetToRender(const Chaos::TL
 	// @todo: we could encode voxel ordering more nicely in the UVolumeTexture
 	auto QueryVoxel = [&LevelSetPhiArray, &LevelSetNormalsArray](int32 PosX, int32 PosY, int32 PosZ, void* Value)
 	{
-		const TVector<float, 3> Normal = LevelSetNormalsArray(TVector<int32, 3>(PosX, PosY, PosZ)).GetSafeNormal();
+		const FVec3 Normal = LevelSetNormalsArray(TVector<int32, 3>(PosX, PosY, PosZ)).GetSafeNormal();
 		const float Phi = LevelSetPhiArray(TVector<int32, 3>(PosX, PosY, PosZ));
 
 		FFloat16* const Voxel = static_cast<FFloat16*>(Value);  // TSF_RGBA16F

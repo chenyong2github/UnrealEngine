@@ -99,13 +99,13 @@ public:
 
 	}
 
-	virtual void Box(const Chaos::TAABB<float, 3>& InBox, const Chaos::TVector<float, 3>& InLinearColor, float InThickness) override
+	virtual void Box(const Chaos::TAABB<float, 3>& InBox, const Chaos::FVec3& InLinearColor, float InThickness) override
 	{
 		DrawDebugBox(World, InBox.Center(), InBox.Extents(), FQuat::Identity, FLinearColor(InLinearColor).ToFColor(true), false, -1.0f, SDPG_Foreground, InThickness);
 	}
 
 
-	virtual void Line(const Chaos::TVector<float, 3>& InBegin, const Chaos::TVector<float, 3>& InEnd, const Chaos::TVector<float, 3>& InLinearColor, float InThickness) override
+	virtual void Line(const Chaos::FVec3& InBegin, const Chaos::FVec3& InEnd, const Chaos::FVec3& InLinearColor, float InThickness) override
 	{
 		DrawDebugLine(World, InBegin, InEnd, FLinearColor(InLinearColor).ToFColor(true), false, -1.0f, SDPG_Foreground, InThickness);
 	}
@@ -967,7 +967,7 @@ void FPhysScene_Chaos::AddForce_AssumesLocked(FBodyInstance* BodyInstance, const
 				if (bAccelChange)
 				{
 					const float Mass = Rigid->M();
-					const Chaos::TVector<float, 3> Acceleration = Force * Mass;
+					const Chaos::FVec3 Acceleration = Force * Mass;
 					Rigid->AddForce(Acceleration);
 				}
 				else
@@ -1063,7 +1063,7 @@ void FPhysScene_Chaos::AddRadialForceToBody_AssumesLocked(FBodyInstance* BodyIns
 				if (bAccelChange)
 				{
 					const float Mass = Rigid->M();
-					const Chaos::TVector<float, 3> Acceleration = Force * Mass;
+					const Chaos::FVec3 Acceleration = Force * Mass;
 					Rigid->AddForce(Acceleration);
 				}
 				else

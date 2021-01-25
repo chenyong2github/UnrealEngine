@@ -66,7 +66,7 @@ const Chaos::FPhysicsSolver* GetSolver(const AGeometryCollectionActor& GeomColle
 }
 
 
-bool LowLevelRaycastImp(const Chaos::TVector<float, 3>& Start, const Chaos::TVector<float, 3>& Dir, float DeltaMag, const AGeometryCollectionActor& GeomCollectionActor, FHitResult& OutHit)
+bool LowLevelRaycastImp(const Chaos::FVec3& Start, const Chaos::FVec3& Dir, float DeltaMag, const AGeometryCollectionActor& GeomCollectionActor, FHitResult& OutHit)
 {
 	using namespace Chaos;
 	//todo(ocohen): need to add thread safety / lock semantics
@@ -88,12 +88,12 @@ bool LowLevelRaycastImp(const Chaos::TVector<float, 3>& Start, const Chaos::TVec
 		for(const auto RigidBodyIdx : PotentialIntersections)
 		{
 			const TRigidTransform<float, 3> TM(Particles.X(RigidBodyIdx), Particles.R(RigidBodyIdx));
-			const TVector<float, 3> StartLocal = TM.InverseTransformPositionNoScale(Start);
-			const TVector<float, 3> DirLocal = TM.InverseTransformVectorNoScale(Dir);
-			const TVector<float, 3> EndLocal = StartLocal + DirLocal * DeltaMag;	//todo(ocohen): apeiron just undoes this later, we should fix the API
+			const FVec3 StartLocal = TM.InverseTransformPositionNoScale(Start);
+			const FVec3 DirLocal = TM.InverseTransformVectorNoScale(Dir);
+			const FVec3 EndLocal = StartLocal + DirLocal * DeltaMag;	//todo(ocohen): apeiron just undoes this later, we should fix the API
 
 			const FImplicitObject* Object = Particles.Geometry(RigidBodyIdx).Get();	//todo(ocohen): can this ever be null?
-			Pair<TVector<float, 3>, bool> Result = Object->FindClosestIntersection(StartLocal, EndLocal, /*Thickness=*/0.f);
+			Pair<FVec3, bool> Result = Object->FindClosestIntersection(StartLocal, EndLocal, /*Thickness=*/0.f);
 			if(Result.Second)	//todo(ocohen): once we do more than just a bool we need to get the closest point
 			{
 				const float Distance = (Result.First - StartLocal).Size();
@@ -104,7 +104,7 @@ bool LowLevelRaycastImp(const Chaos::TVector<float, 3>& Start, const Chaos::TVec
 				OutHit.Time = Distance / (EndLocal - StartLocal).Size();
 				OutHit.Location = TM.TransformPositionNoScale(Result.First);
 				OutHit.ImpactPoint = OutHit.Location;
-				const TVector<float, 3> LocalNormal = Object->Normal(Result.First);
+				const FVec3 LocalNormal = Object->Normal(Result.First);
 				OutHit.ImpactNormal = TM.TransformVectorNoScale(LocalNormal);
 				OutHit.Normal = OutHit.ImpactNormal;
 				OutHit.Item = RigidBodyIdx;

@@ -296,7 +296,7 @@ void FChaosSceneSimCallback::OnPreSimulate_Internal()
 	}
 }
 
-void FChaosScene::SetGravity(const Chaos::TVector<float, 3>& Acceleration)
+void FChaosScene::SetGravity(const Chaos::FVec3& Acceleration)
 {
 	SimCallback->GetProducerInputData_External()->Gravity = Acceleration;
 }

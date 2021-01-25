@@ -13,7 +13,7 @@ UE_TRACE_EVENT_END()
 using namespace Chaos;
 
 //A very minimal test debug log function
-void ChaosVisualDebugger::ParticlePositionLog(const TVector<float, 3>& Position)
+void ChaosVisualDebugger::ParticlePositionLog(const FVec3& Position)
 {
 	UE_TRACE_LOG(Physics, ParticlePosition, PhysicsChannel, 0)
 					<< ParticlePosition.PositionX(Position.X)
