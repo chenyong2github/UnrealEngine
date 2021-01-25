@@ -34,7 +34,7 @@ extern int32 GStripSkeletalMeshLodsDuringCooking;
 
 #endif // WITH_EDITOR
 
-static TAutoConsoleVariable<int32> CVarKeepMobileMinLODSettingOnDesktop(
+static TAutoConsoleVariable<int32> CVarSkeletalMeshKeepMobileMinLODSettingOnDesktop(
 	TEXT("r.SkeletalMesh.KeepMobileMinLODSettingOnDesktop"),
 	0,
 	TEXT("If non-zero, mobile setting for MinLOD will be stored in the cooked data for desktop platforms"));
@@ -128,7 +128,7 @@ FString BuildSkeletalMeshDerivedDataKey(const ITargetPlatform* TargetPlatform, U
 
 	if (TargetPlatform->GetPlatformInfo().PlatformGroupName == TEXT("Desktop")
 		&& GStripSkeletalMeshLodsDuringCooking != 0
-		&& CVarKeepMobileMinLODSettingOnDesktop.GetValueOnAnyThread() != 0)
+		&& CVarSkeletalMeshKeepMobileMinLODSettingOnDesktop.GetValueOnAnyThread() != 0)
 	{
 		KeySuffix += TEXT("_MinMLOD");
 	}
@@ -485,13 +485,13 @@ void FSkeletalMeshRenderData::Serialize(FArchive& Ar, USkeletalMesh* Owner)
 	if (Ar.IsCooking() || FPlatformProperties::RequiresCookedData())
 	{
 		int32 MinMobileLODIdx = 0;
-		bool bShouldSerialize = CVarKeepMobileMinLODSettingOnDesktop.GetValueOnAnyThread() != 0;
+		bool bShouldSerialize = CVarSkeletalMeshKeepMobileMinLODSettingOnDesktop.GetValueOnAnyThread() != 0;
 #if WITH_EDITOR
 		if (Ar.IsSaving())
 		{
 			if (Ar.CookingTarget()->GetPlatformInfo().PlatformGroupName == TEXT("Desktop")
 				&& GStripSkeletalMeshLodsDuringCooking != 0
-				&& CVarKeepMobileMinLODSettingOnDesktop.GetValueOnAnyThread() != 0)
+				&& CVarSkeletalMeshKeepMobileMinLODSettingOnDesktop.GetValueOnAnyThread() != 0)
 			{
 				MinMobileLODIdx = Owner->GetMinLod().GetValueForPlatformIdentifiers(TEXT("Mobile")) - Owner->GetMinLod().GetValueForPlatformIdentifiers(TEXT("Desktop"));
 				MinMobileLODIdx = FMath::Clamp(MinMobileLODIdx, 0, 255); // Will be cast to uint8 when applying LOD bias. Also, make sure it's not < 0,

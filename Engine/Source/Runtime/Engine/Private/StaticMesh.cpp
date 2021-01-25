@@ -111,7 +111,7 @@ static TAutoConsoleVariable<int32> CVarStripMinLodDataDuringCooking(
 	0,
 	TEXT("If non-zero, data for Static Mesh LOD levels below MinLOD will be discarded at cook time"));
 
-static TAutoConsoleVariable<int32> CVarKeepMobileMinLODSettingOnDesktop(
+static TAutoConsoleVariable<int32> CVarStaticMeshKeepMobileMinLODSettingOnDesktop(
 	TEXT("r.StaticMesh.KeepMobileMinLODSettingOnDesktop"),
 	0,
 	TEXT("If non-zero, mobile setting for MinLOD will be stored in the cooked data for desktop platforms"));
@@ -1485,13 +1485,13 @@ void FStaticMeshRenderData::Serialize(FArchive& Ar, UStaticMesh* Owner, bool bCo
 	if (bCooked)
 	{
 		int32 MinMobileLODIdx = 0;
-		bool bShouldSerialize = CVarKeepMobileMinLODSettingOnDesktop.GetValueOnAnyThread() != 0;
+		bool bShouldSerialize = CVarStaticMeshKeepMobileMinLODSettingOnDesktop.GetValueOnAnyThread() != 0;
 #if WITH_EDITOR
 		if (Ar.IsSaving())
 		{
 			if (Ar.CookingTarget()->GetPlatformInfo().PlatformGroupName == TEXT("Desktop")
 				&& CVarStripMinLodDataDuringCooking.GetValueOnAnyThread() != 0
-				&& CVarKeepMobileMinLODSettingOnDesktop.GetValueOnAnyThread() != 0)
+				&& CVarStaticMeshKeepMobileMinLODSettingOnDesktop.GetValueOnAnyThread() != 0)
 			{
 				MinMobileLODIdx = Owner->GetMinLOD().GetValueForPlatformIdentifiers(TEXT("Mobile")) - Owner->GetMinLOD().GetValueForPlatformIdentifiers(TEXT("Desktop"));
 				MinMobileLODIdx = FMath::Clamp(MinMobileLODIdx, 0, 255); // Will be cast to uint8 when applying LOD bias. Also, make sure it's not < 0,
@@ -2454,7 +2454,7 @@ static FString BuildStaticMeshDerivedDataKeySuffix(const ITargetPlatform* Target
 
 	if (TargetPlatform->GetPlatformInfo().PlatformGroupName == TEXT("Desktop")
 		&& CVarStripMinLodDataDuringCooking.GetValueOnAnyThread() != 0
-		&& CVarKeepMobileMinLODSettingOnDesktop.GetValueOnAnyThread() != 0)
+		&& CVarStaticMeshKeepMobileMinLODSettingOnDesktop.GetValueOnAnyThread() != 0)
 	{
 		KeySuffix += TEXT("_MinMLOD");
 	}
