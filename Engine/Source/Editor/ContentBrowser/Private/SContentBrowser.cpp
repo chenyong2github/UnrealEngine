@@ -349,11 +349,12 @@ void SContentBrowser::Construct( const FArguments& InArgs, const FName& InInstan
 			[
 				SNew(SBox)
 				.Padding(FMargin(4.f))
+				.Visibility(this, &SContentBrowser::GetSourcesViewVisibility)
 				[
 					SNew(SBorder)
 					.Padding(FMargin(0))
 					.BorderImage(FEditorStyle::GetBrush("Brushes.Recessed"))
-					.Visibility(this, &SContentBrowser::GetSourcesViewVisibility)
+
 					[
 						// Note: If adding more widgets here, fix ContentBrowserSourcesWidgetSwitcherIndex and the code that uses it!
 						SAssignNew(SourcesWidgetSwitcher, SWidgetSwitcher)
