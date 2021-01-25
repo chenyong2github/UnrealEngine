@@ -16,6 +16,16 @@ UMovieScene3DConstraintTrack::UMovieScene3DConstraintTrack( const FObjectInitial
 #endif
 }
 
+bool UMovieScene3DConstraintTrack::SupportsType(TSubclassOf<UMovieSceneSection> SectionClass) const
+{
+	return SectionClass == UMovieScene3DConstraintSection::StaticClass();
+}
+
+UMovieSceneSection* UMovieScene3DConstraintTrack::CreateNewSection()
+{
+	return NewObject<UMovieScene3DConstraintSection>(this, NAME_None, RF_Transactional);
+}
+
 
 const TArray<UMovieSceneSection*>& UMovieScene3DConstraintTrack::GetAllSections() const
 {
@@ -57,5 +67,12 @@ bool UMovieScene3DConstraintTrack::IsEmpty() const
 {
 	return ConstraintSections.Num() == 0;
 }
+
+#if WITH_EDITORONLY_DATA
+FText UMovieScene3DConstraintTrack::GetDisplayName() const
+{
+	return LOCTEXT("TrackName", "Constraint");
+}
+#endif
 
 #undef LOCTEXT_NAMESPACE

@@ -169,6 +169,17 @@ const TArray<UMovieSceneSection*>& UMovieSceneCameraCutTrack::GetAllSections() c
 	return Sections;
 }
 
+bool UMovieSceneCameraCutTrack::HasSection(const UMovieSceneSection& Section) const
+{
+	return Sections.Contains(&Section);
+}
+
+
+bool UMovieSceneCameraCutTrack::IsEmpty() const
+{
+	return Sections.Num() == 0;
+}
+
 void UMovieSceneCameraCutTrack::RemoveSection(UMovieSceneSection& Section)
 {
 	Sections.Remove(&Section);

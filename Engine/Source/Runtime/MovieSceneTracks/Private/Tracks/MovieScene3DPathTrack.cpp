@@ -19,6 +19,12 @@ bool UMovieScene3DPathTrack::SupportsType(TSubclassOf<UMovieSceneSection> Sectio
 	return SectionClass == UMovieScene3DPathSection::StaticClass();
 }
 
+UMovieSceneSection* UMovieScene3DPathTrack::CreateNewSection()
+{
+	return NewObject<UMovieScene3DPathSection>(this, NAME_None, RF_Transactional);
+}
+
+
 FMovieSceneEvalTemplatePtr UMovieScene3DPathTrack::CreateTemplateForSection(const UMovieSceneSection& InSection) const
 {
 	return FMovieScene3DPathSectionTemplate(*CastChecked<UMovieScene3DPathSection>(&InSection));
