@@ -49,7 +49,7 @@ public:
 
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs, const TSharedRef<class IPersonaPreviewScene>& InPreviewScene);
+	void Construct(const FArguments& InArgs, const TSharedPtr<class IPersonaPreviewScene>& InPreviewScene);
 
 	/** Accessors to the current viewed Min/Max input range of the editor */
 	float GetViewMinInput() const { return ViewMinInput; }
@@ -90,7 +90,7 @@ protected:
 	TSharedRef<IPersonaPreviewScene> GetPreviewScene() const { return PreviewScenePtr.Pin().ToSharedRef(); }
 
 	/** Allows derived classes to create different animation scrub panel */
-	virtual TSharedRef<class SAnimationScrubPanel> ConstructAnimScrubPanel();
+	virtual TSharedRef<SWidget> ConstructAnimScrubPanel();
 
 	/** Allows derived classes to init newly created editor objects */
 	virtual void InitDetailsViewEditorObject(class UEditorAnimBaseObj* EdObj) {};

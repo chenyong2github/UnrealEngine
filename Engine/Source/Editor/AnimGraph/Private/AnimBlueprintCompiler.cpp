@@ -545,6 +545,9 @@ void FAnimBlueprintCompilerContext::CopyTermDefaultsToDefaultObject(UObject* Def
 		TMap<UAnimGraphNode_Base*, int32> LinkIndexMap;
 		TMap<UAnimGraphNode_Base*, uint8*> NodeBaseAddresses;
 
+		FAnimBlueprintGeneratedClassCompiledData CompiledData(NewAnimBlueprintClass);
+		FAnimBlueprintCopyTermDefaultsContext CompilerContext(this);
+
 		// Initialize animation nodes from their templates
 		for (TFieldIterator<FProperty> It(DefaultAnimInstance->GetClass(), EFieldIteratorFlags::ExcludeSuper); It; ++It)
 		{
@@ -557,40 +560,10 @@ void FAnimBlueprintCompilerContext::CopyTermDefaultsToDefaultObject(UObject* Def
 				check(CastFieldChecked<FStructProperty>(TargetProperty)->Struct == SourceNodeProperty->Struct);
 
 				uint8* DestinationPtr = TargetProperty->ContainerPtrToValuePtr<uint8>(DefaultAnimInstance);
-				uint8* SourcePtr = SourceNodeProperty->ContainerPtrToValuePtr<uint8>(VisualAnimNode);
+				const uint8* SourcePtr = SourceNodeProperty->ContainerPtrToValuePtr<uint8>(VisualAnimNode);
 
-				if(UAnimGraphNode_Root* RootNode = ExactCast<UAnimGraphNode_Root>(VisualAnimNode))
-				{
-					// patch graph name into root nodes
-					FAnimNode_Root NewRoot = *reinterpret_cast<FAnimNode_Root*>(SourcePtr);
-					NewRoot.Name = Cast<UAnimGraphNode_Root>(MessageLog.FindSourceObject(RootNode))->GetGraph()->GetFName();
-					TargetProperty->CopyCompleteValue(DestinationPtr, &NewRoot);
-				}
-				else if(UAnimGraphNode_LinkedInputPose* LinkedInputPoseNode = ExactCast<UAnimGraphNode_LinkedInputPose>(VisualAnimNode))
-				{
-					// patch graph name into linked input pose nodes
-					FAnimNode_LinkedInputPose NewLinkedInputPose = *reinterpret_cast<FAnimNode_LinkedInputPose*>(SourcePtr);
-					NewLinkedInputPose.Graph = Cast<UAnimGraphNode_LinkedInputPose>(MessageLog.FindSourceObject(LinkedInputPoseNode))->GetGraph()->GetFName();
-					TargetProperty->CopyCompleteValue(DestinationPtr, &NewLinkedInputPose);
-				}
-				else if(UAnimGraphNode_LinkedAnimGraph* LinkedAnimGraphNode = ExactCast<UAnimGraphNode_LinkedAnimGraph>(VisualAnimNode))
-				{
-					// patch node index into linked anim graph nodes
-					FAnimNode_LinkedAnimGraph NewLinkedAnimGraph = *reinterpret_cast<FAnimNode_LinkedAnimGraph*>(SourcePtr);
-					NewLinkedAnimGraph.NodeIndex = LinkIndexCount;
-					TargetProperty->CopyCompleteValue(DestinationPtr, &NewLinkedAnimGraph);
-				}
-				else if(UAnimGraphNode_LinkedAnimLayer* LinkedAnimLayerNode = ExactCast<UAnimGraphNode_LinkedAnimLayer>(VisualAnimNode))
-				{
-					// patch node index into linked anim layer nodes
-					FAnimNode_LinkedAnimLayer NewLinkedAnimLayer = *reinterpret_cast<FAnimNode_LinkedAnimLayer*>(SourcePtr);
-					NewLinkedAnimLayer.NodeIndex = LinkIndexCount;
-					TargetProperty->CopyCompleteValue(DestinationPtr, &NewLinkedAnimLayer);
-				}
-				else
-				{
-					TargetProperty->CopyCompleteValue(DestinationPtr, SourcePtr);
-				}
+				FAnimBlueprintNodeCopyTermDefaultsContext NodeContext(TargetProperty, DestinationPtr, SourcePtr, LinkIndexCount);
+				VisualAnimNode->CopyTermDefaultsToDefaultObject(CompilerContext, NodeContext, CompiledData);
 
 				LinkIndexMap.Add(VisualAnimNode, LinkIndexCount);
 				NodeBaseAddresses.Add(VisualAnimNode, DestinationPtr);
@@ -619,8 +592,6 @@ void FAnimBlueprintCompilerContext::CopyTermDefaultsToDefaultObject(UObject* Def
 			}
 		}   
 
-		FAnimBlueprintGeneratedClassCompiledData CompiledData(NewAnimBlueprintClass);
-		FAnimBlueprintCopyTermDefaultsContext CompilerContext(this);
 		OnCopyTermDefaultsToDefaultObjectDelegate.Broadcast(DefaultObject, CompilerContext, CompiledData);
 
 		UAnimBlueprintGeneratedClass* AnimBlueprintGeneratedClass = CastChecked<UAnimBlueprintGeneratedClass>(NewClass);

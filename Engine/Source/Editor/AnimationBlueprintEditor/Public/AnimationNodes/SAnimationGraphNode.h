@@ -20,6 +20,9 @@ public:
 
 	void Construct(const FArguments& InArgs, UAnimGraphNode_Base* InNode);
 
+	// Tweak any created pin widgets so they respond to bindings
+	static void ReconfigurePinWidgetsForPropertyBindings(UAnimGraphNode_Base* InAnimGraphNode, TFunctionRef<TSharedPtr<SGraphPin>(UEdGraphPin*)> InFindWidgetForPin);
+
 protected:
 	// SWidget interface
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
@@ -39,9 +42,6 @@ private:
 
 	// Handle the node informing us that the title has changed
 	void HandleNodeTitleChanged();
-
-	// Tweak any created pin widgets so they respond to bindings
-	void ReconfigurePinWidgetsForPropertyBindings();
 
 	/** Keep a reference to the indicator widget handing around */
 	TSharedPtr<SWidget> IndicatorWidget;

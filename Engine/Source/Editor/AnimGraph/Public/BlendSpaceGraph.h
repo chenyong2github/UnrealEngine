@@ -1,0 +1,20 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "CoreMinimal.h"
+#include "BlendSpaceGraph.generated.h"
+
+class UBlendSpaceBase;
+
+// Dummy graph to hold sub-graphs for blendspaces. Not edited directly.
+UCLASS(MinimalAPI)
+class UBlendSpaceGraph : public UEdGraph
+{
+	GENERATED_BODY()
+
+public:
+	// Blendspace that we wrap
+	UPROPERTY()
+	UBlendSpaceBase* BlendSpace;
+};

@@ -28,6 +28,7 @@
 #include "K2Node_VariableGet.h"
 #include "AnimBlueprintCompiler.h"
 #include "AnimGraphAttributes.h"
+#include "IAnimBlueprintCopyTermDefaultsContext.h"
 
 #define LOCTEXT_NAMESPACE "LinkedInputPose"
 
@@ -500,6 +501,14 @@ void UAnimGraphNode_LinkedInputPose::CustomizeDetails(IDetailLayoutBuilder& Deta
 
 	InputsCategoryBuilder.AddProperty(GET_MEMBER_NAME_CHECKED(UAnimGraphNode_LinkedInputPose, Inputs), GetClass())
 		.ShouldAutoExpand(true);
+}
+
+void UAnimGraphNode_LinkedInputPose::OnCopyTermDefaultsToDefaultObject(IAnimBlueprintCopyTermDefaultsContext& InCompilationContext, IAnimBlueprintNodeCopyTermDefaultsContext& InPerNodeContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData)
+{
+	UAnimGraphNode_LinkedInputPose* TrueNode = InCompilationContext.GetMessageLog().FindSourceObjectTypeChecked<UAnimGraphNode_LinkedInputPose>(this);
+
+	FAnimNode_LinkedInputPose* DestinationNode = reinterpret_cast<FAnimNode_LinkedInputPose*>(InPerNodeContext.GetDestinationPtr());
+	DestinationNode->Graph = TrueNode->GetGraph()->GetFName();
 }
 
 TSharedRef<SWidget> UAnimGraphNode_LinkedInputPose::MakeNameWidget(IDetailLayoutBuilder& DetailBuilder)

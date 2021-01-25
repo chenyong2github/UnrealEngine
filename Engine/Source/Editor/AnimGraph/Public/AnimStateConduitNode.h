@@ -30,6 +30,7 @@ public:
 	virtual void PostPlacedNewNode() override;
 	virtual void DestroyNode() override;
 	virtual void ValidateNodeDuringCompilation(class FCompilerResultsLog& MessageLog) const override;
+	virtual TArray<UEdGraph*> GetSubGraphs() const override { return TArray<UEdGraph*>( { BoundGraph } ); }
 	//~ End UEdGraphNode Interface
 
 	//~ Begin UAnimStateNodeBase Interface

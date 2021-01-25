@@ -1,0 +1,99 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "CoreMinimal.h"
+#include "UObject/ObjectMacros.h"
+#include "AnimGraphNode_Base.h"
+#include "Containers/ArrayView.h"
+#include "AnimGraphNode_BlendSpaceGraphBase.generated.h"
+
+class FBlueprintActionDatabaseRegistrar;
+class IAnimBlueprintCopyTermDefaultsContext;
+class IAnimBlueprintNodeCopyTermDefaultsContext;
+class IAnimBlueprintGeneratedClassCompiledData;
+class UBlendSpaceGraph;
+class UAnimationBlendSpaceSampleGraph;
+
+UCLASS()
+class ANIMGRAPH_API UAnimGraphNode_BlendSpaceGraphBase : public UAnimGraphNode_Base
+{
+	GENERATED_BODY()
+
+public:
+	UAnimGraphNode_BlendSpaceGraphBase();
+
+	// Access the graphs for each sample
+	TArrayView<UEdGraph* const> GetGraphs() const { return Graphs; }
+
+	// Access the 'dummy' blendspace graph
+	UBlendSpaceGraph* GetBlendSpaceGraph() const { return BlendSpaceGraph; }
+
+	// Adds a new graph to the internal array
+	UAnimationBlendSpaceSampleGraph* AddGraph(FName InSampleName);
+
+	// Removes the graph at the specified index
+	void RemoveGraph(int32 InSampleIndex);
+
+	// Setup this node from the specified asset
+	void SetupFromAsset(UBlendSpaceBase* InBlendSpace, bool bInIsTemplateNode);
+
+	// UEdGraphNode interface
+	virtual void PostPlacedNewNode() override;
+
+	// @return the sync group name assigned to this node
+	FName GetSyncGroupName() const;
+
+protected:
+	// Get the name of the blendspace graph
+	FString GetBlendSpaceGraphName() const;
+
+	// Get the name of the blendspace
+	FString GetBlendSpaceName() const;
+
+	// Setup this node from the specified class
+	void SetupFromClass(TSubclassOf<UBlendSpaceBase> InBlendSpaceClass, bool bInIsTemplateNode);
+
+	// Internal blendspace
+	UPROPERTY()
+	UBlendSpaceBase* BlendSpace;
+
+	// Blendspace class, for template nodes
+	UPROPERTY()
+	TSubclassOf<UBlendSpaceBase> BlendSpaceClass;
+
+	// Dummy blendspace graph (used for navigation only)
+	UPROPERTY()
+	UBlendSpaceGraph* BlendSpaceGraph;
+
+	// Linked animation graphs for sample points
+	UPROPERTY()
+	TArray<UEdGraph*> Graphs;
+
+protected:
+	// UEdGraphNode interface
+	virtual FText GetMenuCategory() const override;
+	virtual FLinearColor GetNodeTitleColor() const override;
+	virtual FText GetTooltipText() const override;
+	virtual UObject* GetJumpTargetForDoubleClick() const override;
+	virtual void JumpToDefinition() const override;
+	virtual TArray<UEdGraph*> GetSubGraphs() const override;
+	virtual void DestroyNode() override;
+	virtual void OnRenameNode(const FString& NewName) override;
+	virtual TSharedPtr<INameValidatorInterface> MakeNameValidator() const override;
+	virtual void PostPasteNode() override;
+	virtual void CustomizePinData(UEdGraphPin* Pin, FName SourcePropertyName, int32 ArrayIndex) const override;
+	virtual void PostProcessPinName(const UEdGraphPin* Pin, FString& DisplayName) const override;
+
+	// UAnimGraphNode_Base interface
+	virtual void OnProcessDuringCompilation(IAnimBlueprintCompilationContext& InCompilationContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData) override;
+	virtual void OnCopyTermDefaultsToDefaultObject(IAnimBlueprintCopyTermDefaultsContext& InCompilationContext, IAnimBlueprintNodeCopyTermDefaultsContext& InPerNodeContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData) override;
+	virtual void CustomizeDetails(IDetailLayoutBuilder& InDetailBuilder) override;
+	virtual void GetInputLinkAttributes(FNodeAttributeArray& OutAttributes) const override;
+
+	// UK2Node interface
+	virtual void PreloadRequiredAssets() override;
+
+	// Helper function for compilation
+	UAnimGraphNode_Base* ExpandGraphAndProcessNodes(UEdGraph* SourceGraph, UAnimGraphNode_Base* SourceRootNode, IAnimBlueprintCompilationContext& InCompilationContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData);
+};

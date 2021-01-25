@@ -80,6 +80,11 @@
 #include "AnimStateEntryNode.h"
 #include "PersonaUtils.h"
 #include "Subsystems/AssetEditorSubsystem.h"
+#include "BlendSpaceDocumentTabFactory.h"
+#include "BlendSpaceGraph.h"
+#include "TabPayload_BlendSpaceGraph.h"
+#include "AnimGraphNode_RotationOffsetBlendSpaceGraph.h"
+#include "AnimGraphNode_BlendSpaceGraph.h"
 
 #define LOCTEXT_NAMESPACE "AnimationBlueprintEditor"
 
@@ -290,6 +295,9 @@ void FAnimationBlueprintEditor::InitAnimationBlueprintEditor(const EToolkitMode:
 
 	CommonInitialization(AnimBlueprints, /*bShouldOpenInDefaultsMode=*/ false);
 
+	// Register document editor for blendspaces
+	DocumentManager->RegisterDocumentFactory(MakeShared<FBlendSpaceDocumentTabFactory>(SharedThis(this)));
+
 	if(InAnimBlueprint->BlueprintType == BPTYPE_Interface)
 	{
 		AddApplicationMode(
@@ -481,6 +489,60 @@ void FAnimationBlueprintEditor::OnCreateGraphEditorCommands(TSharedPtr<FUIComman
 {
 	GraphEditorCommandsList->MapAction(FAnimGraphCommands::Get().TogglePoseWatch,
 		FExecuteAction::CreateSP(this, &FAnimationBlueprintEditor::OnTogglePoseWatch));
+
+	GraphEditorCommandsList->MapAction( FAnimGraphCommands::Get().AddBlendListPin,
+		FExecuteAction::CreateSP( this, &FAnimationBlueprintEditor::OnAddPosePin ),
+		FCanExecuteAction::CreateSP( this, &FAnimationBlueprintEditor::CanAddPosePin )
+		);
+
+	GraphEditorCommandsList->MapAction( FAnimGraphCommands::Get().RemoveBlendListPin,
+		FExecuteAction::CreateSP( this, &FAnimationBlueprintEditor::OnRemovePosePin ),
+		FCanExecuteAction::CreateSP( this, &FAnimationBlueprintEditor::CanRemovePosePin )
+		);
+
+	GraphEditorCommandsList->MapAction( FAnimGraphCommands::Get().ConvertToSeqEvaluator,
+		FExecuteAction::CreateSP( this, &FAnimationBlueprintEditor::OnConvertToSequenceEvaluator )
+		);
+
+	GraphEditorCommandsList->MapAction( FAnimGraphCommands::Get().ConvertToSeqPlayer,
+		FExecuteAction::CreateSP( this, &FAnimationBlueprintEditor::OnConvertToSequencePlayer )
+		);
+
+	GraphEditorCommandsList->MapAction( FAnimGraphCommands::Get().ConvertToBSEvaluator,
+		FExecuteAction::CreateSP( this, &FAnimationBlueprintEditor::OnConvertToBlendSpaceEvaluator )
+		);
+
+	GraphEditorCommandsList->MapAction( FAnimGraphCommands::Get().ConvertToBSPlayer,
+		FExecuteAction::CreateSP( this, &FAnimationBlueprintEditor::OnConvertToBlendSpacePlayer )
+		);
+
+	GraphEditorCommandsList->MapAction( FAnimGraphCommands::Get().ConvertToBSGraph,
+		FExecuteAction::CreateSP( this, &FAnimationBlueprintEditor::OnConvertToBlendSpaceGraph )
+		);
+
+	GraphEditorCommandsList->MapAction(FAnimGraphCommands::Get().ConvertToAimOffsetLookAt,
+		FExecuteAction::CreateSP(this, &FAnimationBlueprintEditor::OnConvertToAimOffsetLookAt)
+	);
+
+	GraphEditorCommandsList->MapAction(FAnimGraphCommands::Get().ConvertToAimOffsetSimple,
+		FExecuteAction::CreateSP(this, &FAnimationBlueprintEditor::OnConvertToAimOffsetSimple)
+	);
+
+	GraphEditorCommandsList->MapAction(FAnimGraphCommands::Get().ConvertToAimOffsetGraph,
+		FExecuteAction::CreateSP(this, &FAnimationBlueprintEditor::OnConvertToAimOffsetGraph)
+	);	
+
+	GraphEditorCommandsList->MapAction(FAnimGraphCommands::Get().ConvertToPoseBlender,
+		FExecuteAction::CreateSP(this, &FAnimationBlueprintEditor::OnConvertToPoseBlender)
+		);
+
+	GraphEditorCommandsList->MapAction(FAnimGraphCommands::Get().ConvertToPoseByName,
+		FExecuteAction::CreateSP(this, &FAnimationBlueprintEditor::OnConvertToPoseByName)
+		);
+
+	GraphEditorCommandsList->MapAction( FAnimGraphCommands::Get().OpenRelatedAsset,
+		FExecuteAction::CreateSP( this, &FAnimationBlueprintEditor::OnOpenRelatedAsset )
+		);
 }
 
 
@@ -668,12 +730,27 @@ void FAnimationBlueprintEditor::OnTogglePoseWatch()
 	}
 }
 
+// Helper function for node conversions
+static void CopyPinData(UEdGraphNode* InOldNode, UEdGraphNode* InNewNode, const TCHAR* InPinName)
+{
+	UEdGraphPin* OldPin = InOldNode->FindPin(InPinName);
+	UEdGraphPin* NewPin = InNewNode->FindPin(InPinName);
+
+	if (ensure(OldPin && NewPin))
+	{
+		NewPin->MovePersistentDataFromOldPin(*OldPin);
+	}
+};
+
 void FAnimationBlueprintEditor::OnConvertToSequenceEvaluator()
 {
 	FGraphPanelSelectionSet SelectedNodes = GetSelectedNodes();
 
 	if (SelectedNodes.Num() > 0)
 	{
+		// convert to sequence evaluator
+		const FScopedTransaction Transaction( LOCTEXT("ConvertToSequenceEvaluator", "Convert to Single Frame Animation") );
+
 		for (auto NodeIter = SelectedNodes.CreateIterator(); NodeIter; ++NodeIter)
 		{
 			UAnimGraphNode_SequencePlayer* OldNode = Cast<UAnimGraphNode_SequencePlayer>(*NodeIter);
@@ -681,10 +758,10 @@ void FAnimationBlueprintEditor::OnConvertToSequenceEvaluator()
 			// see if sequence player
 			if ( OldNode && OldNode->Node.Sequence )
 			{
-				//const FScopedTransaction Transaction( LOCTEXT("ConvertToSequenceEvaluator", "Convert to Single Frame Animation") );
-
-				// convert to sequence evaluator
 				UEdGraph* TargetGraph = OldNode->GetGraph();
+				TargetGraph->Modify();
+				OldNode->Modify();
+
 				// create new evaluator
 				FGraphNodeCreator<UAnimGraphNode_SequenceEvaluator> NodeCreator(*TargetGraph);
 				UAnimGraphNode_SequenceEvaluator* NewNode = NodeCreator.CreateNode();
@@ -694,19 +771,11 @@ void FAnimationBlueprintEditor::OnConvertToSequenceEvaluator()
 				// get default data from old node to new node
 				FEdGraphUtilities::CopyCommonState(OldNode, NewNode);
 
-				UEdGraphPin* OldPosePin = OldNode->FindPin(TEXT("Pose"));
-				UEdGraphPin* NewPosePin = NewNode->FindPin(TEXT("Pose"));
-
-				if (ensure(OldPosePin && NewPosePin))
-				{
-					NewPosePin->MovePersistentDataFromOldPin(*OldPosePin);
-				}
+				CopyPinData(OldNode, NewNode, TEXT("Pose"));
 
 				// remove from selection and from graph
 				NodeIter.RemoveCurrent();
 				TargetGraph->RemoveNode(OldNode);
-
-				NewNode->Modify();
 			}
 		}
 
@@ -729,6 +798,8 @@ void FAnimationBlueprintEditor::OnConvertToSequencePlayer()
 	FGraphPanelSelectionSet SelectedNodes = GetSelectedNodes();
 	if (SelectedNodes.Num() > 0)
 	{
+		const FScopedTransaction Transaction( LOCTEXT("ConvertToSequencePlayer", "Convert to Sequence Player") );
+
 		for (auto NodeIter = SelectedNodes.CreateIterator(); NodeIter; ++NodeIter)
 		{
 			UAnimGraphNode_SequenceEvaluator* OldNode = Cast<UAnimGraphNode_SequenceEvaluator>(*NodeIter);
@@ -736,9 +807,11 @@ void FAnimationBlueprintEditor::OnConvertToSequencePlayer()
 			// see if sequence player
 			if ( OldNode && OldNode->Node.Sequence )
 			{
-				//const FScopedTransaction Transaction( LOCTEXT("ConvertToSequenceEvaluator", "Convert to Single Frame Animation") );
 				// convert to sequence player
 				UEdGraph* TargetGraph = OldNode->GetGraph();
+				TargetGraph->Modify();
+				OldNode->Modify();
+
 				// create new player
 				FGraphNodeCreator<UAnimGraphNode_SequencePlayer> NodeCreator(*TargetGraph);
 				UAnimGraphNode_SequencePlayer* NewNode = NodeCreator.CreateNode();
@@ -748,19 +821,11 @@ void FAnimationBlueprintEditor::OnConvertToSequencePlayer()
 				// get default data from old node to new node
 				FEdGraphUtilities::CopyCommonState(OldNode, NewNode);
 
-				UEdGraphPin* OldPosePin = OldNode->FindPin(TEXT("Pose"));
-				UEdGraphPin* NewPosePin = NewNode->FindPin(TEXT("Pose"));
-
-				if (ensure(OldPosePin && NewPosePin))
-				{
-					NewPosePin->MovePersistentDataFromOldPin(*OldPosePin);
-				}
+				CopyPinData(OldNode, NewNode, TEXT("Pose"));
 
 				// remove from selection and from graph
 				NodeIter.RemoveCurrent();
 				TargetGraph->RemoveNode(OldNode);
-
-				NewNode->Modify();
 			}
 		}
 
@@ -784,6 +849,8 @@ void FAnimationBlueprintEditor::OnConvertToBlendSpaceEvaluator()
 
 	if (SelectedNodes.Num() > 0)
 	{
+		const FScopedTransaction Transaction( LOCTEXT("ConvertToBlendSpaceEvaluator", "Convert to Single Frame Blend Space") );
+
 		for (auto NodeIter = SelectedNodes.CreateIterator(); NodeIter; ++NodeIter)
 		{
 			UAnimGraphNode_BlendSpacePlayer* OldNode = Cast<UAnimGraphNode_BlendSpacePlayer>(*NodeIter);
@@ -791,10 +858,11 @@ void FAnimationBlueprintEditor::OnConvertToBlendSpaceEvaluator()
 			// see if sequence player
 			if ( OldNode && OldNode->Node.BlendSpace )
 			{
-				//const FScopedTransaction Transaction( LOCTEXT("ConvertToSequenceEvaluator", "Convert to Single Frame Animation") );
-
 				// convert to sequence evaluator
 				UEdGraph* TargetGraph = OldNode->GetGraph();
+				TargetGraph->Modify();
+				OldNode->Modify();
+
 				// create new evaluator
 				FGraphNodeCreator<UAnimGraphNode_BlendSpaceEvaluator> NodeCreator(*TargetGraph);
 				UAnimGraphNode_BlendSpaceEvaluator* NewNode = NodeCreator.CreateNode();
@@ -804,36 +872,13 @@ void FAnimationBlueprintEditor::OnConvertToBlendSpaceEvaluator()
 				// get default data from old node to new node
 				FEdGraphUtilities::CopyCommonState(OldNode, NewNode);
 
-				UEdGraphPin* OldPosePin = OldNode->FindPin(TEXT("X"));
-				UEdGraphPin* NewPosePin = NewNode->FindPin(TEXT("X"));
-
-				if (ensure(OldPosePin && NewPosePin))
-				{
-					NewPosePin->MovePersistentDataFromOldPin(*OldPosePin);
-				}
-
-				OldPosePin = OldNode->FindPin(TEXT("Y"));
-				NewPosePin = NewNode->FindPin(TEXT("Y"));
-
-				if (ensure(OldPosePin && NewPosePin))
-				{
-					NewPosePin->MovePersistentDataFromOldPin(*OldPosePin);
-				}
-
-
-				OldPosePin = OldNode->FindPin(TEXT("Pose"));
-				NewPosePin = NewNode->FindPin(TEXT("Pose"));
-
-				if (ensure(OldPosePin && NewPosePin))
-				{
-					NewPosePin->MovePersistentDataFromOldPin(*OldPosePin);
-				}
+				CopyPinData(OldNode, NewNode, TEXT("X"));
+				CopyPinData(OldNode, NewNode, TEXT("Y"));
+				CopyPinData(OldNode, NewNode, TEXT("Pose"));
 
 				// remove from selection and from graph
 				NodeIter.RemoveCurrent();
 				TargetGraph->RemoveNode(OldNode);
-
-				NewNode->Modify();
 			}
 		}
 
@@ -855,6 +900,8 @@ void FAnimationBlueprintEditor::OnConvertToBlendSpacePlayer()
 	FGraphPanelSelectionSet SelectedNodes = GetSelectedNodes();
 	if (SelectedNodes.Num() > 0)
 	{
+		const FScopedTransaction Transaction( LOCTEXT("ConvertToBlendSpacePlayer", "Convert to Blend Space Player") );
+
 		for (auto NodeIter = SelectedNodes.CreateIterator(); NodeIter; ++NodeIter)
 		{
 			UAnimGraphNode_BlendSpaceEvaluator* OldNode = Cast<UAnimGraphNode_BlendSpaceEvaluator>(*NodeIter);
@@ -862,9 +909,11 @@ void FAnimationBlueprintEditor::OnConvertToBlendSpacePlayer()
 			// see if sequence player
 			if ( OldNode && OldNode->Node.BlendSpace )
 			{
-				//const FScopedTransaction Transaction( LOCTEXT("ConvertToSequenceEvaluator", "Convert to Single Frame Animation") );
 				// convert to sequence player
 				UEdGraph* TargetGraph = OldNode->GetGraph();
+				TargetGraph->Modify();
+				OldNode->Modify();
+
 				// create new player
 				FGraphNodeCreator<UAnimGraphNode_BlendSpacePlayer> NodeCreator(*TargetGraph);
 				UAnimGraphNode_BlendSpacePlayer* NewNode = NodeCreator.CreateNode();
@@ -874,36 +923,64 @@ void FAnimationBlueprintEditor::OnConvertToBlendSpacePlayer()
 				// get default data from old node to new node
 				FEdGraphUtilities::CopyCommonState(OldNode, NewNode);
 
-				UEdGraphPin* OldPosePin = OldNode->FindPin(TEXT("X"));
-				UEdGraphPin* NewPosePin = NewNode->FindPin(TEXT("X"));
-
-				if (ensure(OldPosePin && NewPosePin))
-				{
-					NewPosePin->MovePersistentDataFromOldPin(*OldPosePin);
-				}
-
-				OldPosePin = OldNode->FindPin(TEXT("Y"));
-				NewPosePin = NewNode->FindPin(TEXT("Y"));
-
-				if (ensure(OldPosePin && NewPosePin))
-				{
-					NewPosePin->MovePersistentDataFromOldPin(*OldPosePin);
-				}
-
-
-				OldPosePin = OldNode->FindPin(TEXT("Pose"));
-				NewPosePin = NewNode->FindPin(TEXT("Pose"));
-
-				if (ensure(OldPosePin && NewPosePin))
-				{
-					NewPosePin->MovePersistentDataFromOldPin(*OldPosePin);
-				}
+				CopyPinData(OldNode, NewNode, TEXT("X"));
+				CopyPinData(OldNode, NewNode, TEXT("Y"));
+				CopyPinData(OldNode, NewNode, TEXT("Pose"));
 
 				// remove from selection and from graph
 				NodeIter.RemoveCurrent();
 				TargetGraph->RemoveNode(OldNode);
+			}
+		}
 
-				NewNode->Modify();
+		// @todo fixme: below code doesn't work
+		// because of SetAndCenterObject kicks in after new node is added
+		// will need to disable that first
+		TSharedPtr<SGraphEditor> FocusedGraphEd = FocusedGraphEdPtr.Pin();
+		// Update the graph so that the node will be refreshed
+		FocusedGraphEd->NotifyGraphChanged();
+		// It's possible to leave invalid objects in the selection set if they get GC'd, so clear it out
+		FocusedGraphEd->ClearSelectionSet();
+
+		FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(GetAnimBlueprint());
+	}
+}
+
+void FAnimationBlueprintEditor::OnConvertToBlendSpaceGraph()
+{
+	FGraphPanelSelectionSet SelectedNodes = GetSelectedNodes();
+	if (SelectedNodes.Num() > 0)
+	{
+		const FScopedTransaction Transaction( LOCTEXT("ConvertToblendSpaceGraph", "Convert to Blend Space Graph") );
+
+		for (auto NodeIter = SelectedNodes.CreateIterator(); NodeIter; ++NodeIter)
+		{
+			UAnimGraphNode_BlendSpacePlayer* OldNode = Cast<UAnimGraphNode_BlendSpacePlayer>(*NodeIter);
+
+			// see if sequence player
+			if (OldNode && OldNode->Node.BlendSpace)
+			{
+				// convert to sequence player
+				UEdGraph* TargetGraph = OldNode->GetGraph();
+				TargetGraph->Modify();
+				OldNode->Modify();
+
+				// create new player
+				FGraphNodeCreator<UAnimGraphNode_BlendSpaceGraph> NodeCreator(*TargetGraph);
+				UAnimGraphNode_BlendSpaceGraph* NewNode = NodeCreator.CreateNode();
+				NewNode->SetupFromAsset(OldNode->Node.BlendSpace, false);
+				NodeCreator.Finalize();
+
+				// get default data from old node to new node
+				FEdGraphUtilities::CopyCommonState(OldNode, NewNode);
+
+				CopyPinData(OldNode, NewNode, TEXT("X"));
+				CopyPinData(OldNode, NewNode, TEXT("Y"));
+				CopyPinData(OldNode, NewNode, TEXT("Pose"));
+
+				// remove from selection and from graph
+				NodeIter.RemoveCurrent();
+				TargetGraph->RemoveNode(OldNode);
 			}
 		}
 
@@ -925,6 +1002,8 @@ void FAnimationBlueprintEditor::OnConvertToPoseBlender()
 	FGraphPanelSelectionSet SelectedNodes = GetSelectedNodes();
 	if (SelectedNodes.Num() > 0)
 	{
+		const FScopedTransaction Transaction( LOCTEXT("ConvertToPoseBlender", "Convert to Pose Blender") );
+
 		for (auto NodeIter = SelectedNodes.CreateIterator(); NodeIter; ++NodeIter)
 		{
 			UAnimGraphNode_PoseByName* OldNode = Cast<UAnimGraphNode_PoseByName>(*NodeIter);
@@ -934,6 +1013,9 @@ void FAnimationBlueprintEditor::OnConvertToPoseBlender()
 			{
 				// convert to sequence player
 				UEdGraph* TargetGraph = OldNode->GetGraph();
+				TargetGraph->Modify();
+				OldNode->Modify();
+
 				// create new player
 				FGraphNodeCreator<UAnimGraphNode_PoseBlendNode> NodeCreator(*TargetGraph);
 				UAnimGraphNode_PoseBlendNode* NewNode = NodeCreator.CreateNode();
@@ -943,19 +1025,11 @@ void FAnimationBlueprintEditor::OnConvertToPoseBlender()
 				// get default data from old node to new node
 				FEdGraphUtilities::CopyCommonState(OldNode, NewNode);
 
-				UEdGraphPin* OldPosePin = OldNode->FindPin(TEXT("Pose"));
-				UEdGraphPin* NewPosePin = NewNode->FindPin(TEXT("Pose"));
-
-				if (ensure(OldPosePin && NewPosePin))
-				{
-					NewPosePin->MovePersistentDataFromOldPin(*OldPosePin);
-				}
+				CopyPinData(OldNode, NewNode, TEXT("Pose"));
 
 				// remove from selection and from graph
 				NodeIter.RemoveCurrent();
 				TargetGraph->RemoveNode(OldNode);
-
-				NewNode->Modify();
 			}
 		}
 
@@ -978,6 +1052,8 @@ void FAnimationBlueprintEditor::OnConvertToPoseByName()
 	FGraphPanelSelectionSet SelectedNodes = GetSelectedNodes();
 	if (SelectedNodes.Num() > 0)
 	{
+		const FScopedTransaction Transaction( LOCTEXT("ConvertToPoseByName", "Convert to Pose By Name") );
+
 		for (auto NodeIter = SelectedNodes.CreateIterator(); NodeIter; ++NodeIter)
 		{
 			UAnimGraphNode_PoseBlendNode* OldNode = Cast<UAnimGraphNode_PoseBlendNode>(*NodeIter);
@@ -985,9 +1061,11 @@ void FAnimationBlueprintEditor::OnConvertToPoseByName()
 			// see if sequence player
 			if (OldNode && OldNode->Node.PoseAsset)
 			{
-				//const FScopedTransaction Transaction( LOCTEXT("ConvertToSequenceEvaluator", "Convert to Single Frame Animation") );
 				// convert to sequence player
 				UEdGraph* TargetGraph = OldNode->GetGraph();
+				TargetGraph->Modify();
+				OldNode->Modify();
+
 				// create new player
 				FGraphNodeCreator<UAnimGraphNode_PoseByName> NodeCreator(*TargetGraph);
 				UAnimGraphNode_PoseByName* NewNode = NodeCreator.CreateNode();
@@ -997,19 +1075,11 @@ void FAnimationBlueprintEditor::OnConvertToPoseByName()
 				// get default data from old node to new node
 				FEdGraphUtilities::CopyCommonState(OldNode, NewNode);
 
-				UEdGraphPin* OldPosePin = OldNode->FindPin(TEXT("Pose"));
-				UEdGraphPin* NewPosePin = NewNode->FindPin(TEXT("Pose"));
-
-				if (ensure(OldPosePin && NewPosePin))
-				{
-					NewPosePin->MovePersistentDataFromOldPin(*OldPosePin);
-				}
+				CopyPinData(OldNode, NewNode, TEXT("Pose"));
 
 				// remove from selection and from graph
 				NodeIter.RemoveCurrent();
 				TargetGraph->RemoveNode(OldNode);
-
-				NewNode->Modify();
 			}
 		}
 
@@ -1033,6 +1103,8 @@ void FAnimationBlueprintEditor::OnConvertToAimOffsetLookAt()
 
 	if (SelectedNodes.Num() > 0)
 	{
+		const FScopedTransaction Transaction( LOCTEXT("ConvertToAimOffsetLookAt", "Convert to Aim Offset LookAt") );
+
 		for (auto NodeIter = SelectedNodes.CreateIterator(); NodeIter; ++NodeIter)
 		{
 			UAnimGraphNode_RotationOffsetBlendSpace* OldNode = Cast<UAnimGraphNode_RotationOffsetBlendSpace>(*NodeIter);
@@ -1040,10 +1112,11 @@ void FAnimationBlueprintEditor::OnConvertToAimOffsetLookAt()
 			// see if sequence player
 			if (OldNode && OldNode->Node.BlendSpace)
 			{
-				//const FScopedTransaction Transaction( LOCTEXT("ConvertToSequenceEvaluator", "Convert to Single Frame Animation") );
-
 				// convert to sequence evaluator
 				UEdGraph* TargetGraph = OldNode->GetGraph();
+				TargetGraph->Modify();
+				OldNode->Modify();
+
 				// create new evaluator
 				FGraphNodeCreator<UAnimGraphNode_AimOffsetLookAt> NodeCreator(*TargetGraph);
 				UAnimGraphNode_AimOffsetLookAt* NewNode = NodeCreator.CreateNode();
@@ -1053,27 +1126,15 @@ void FAnimationBlueprintEditor::OnConvertToAimOffsetLookAt()
 				// get default data from old node to new node
 				FEdGraphUtilities::CopyCommonState(OldNode, NewNode);
 
-				UEdGraphPin* OldPosePin = OldNode->FindPin(TEXT("Pose"));
-				UEdGraphPin* NewPosePin = NewNode->FindPin(TEXT("Pose"));
-
-				if (ensure(OldPosePin && NewPosePin))
-				{
-					NewPosePin->MovePersistentDataFromOldPin(*OldPosePin);
-				}
-
-				OldPosePin = OldNode->FindPin(TEXT("BasePose"));
-				NewPosePin = NewNode->FindPin(TEXT("BasePose"));
-
-				if (ensure(OldPosePin && NewPosePin))
-				{
-					NewPosePin->MovePersistentDataFromOldPin(*OldPosePin);
-				}
+				CopyPinData(OldNode, NewNode, TEXT("X"));
+				CopyPinData(OldNode, NewNode, TEXT("Y"));
+				CopyPinData(OldNode, NewNode, TEXT("Alpha"));
+				CopyPinData(OldNode, NewNode, TEXT("Pose"));
+				CopyPinData(OldNode, NewNode, TEXT("BasePose"));
 
 				// remove from selection and from graph
 				NodeIter.RemoveCurrent();
 				TargetGraph->RemoveNode(OldNode);
-
-				NewNode->Modify();
 			}
 		}
 
@@ -1096,6 +1157,8 @@ void FAnimationBlueprintEditor::OnConvertToAimOffsetSimple()
 	FGraphPanelSelectionSet SelectedNodes = GetSelectedNodes();
 	if (SelectedNodes.Num() > 0)
 	{
+		const FScopedTransaction Transaction( LOCTEXT("ConvertToSimpleAimOffset", "Convert to Simple Aim Offset") );
+
 		for (auto NodeIter = SelectedNodes.CreateIterator(); NodeIter; ++NodeIter)
 		{
 			UAnimGraphNode_AimOffsetLookAt* OldNode = Cast<UAnimGraphNode_AimOffsetLookAt>(*NodeIter);
@@ -1103,9 +1166,11 @@ void FAnimationBlueprintEditor::OnConvertToAimOffsetSimple()
 			// see if sequence player
 			if (OldNode && OldNode->Node.BlendSpace)
 			{
-				//const FScopedTransaction Transaction( LOCTEXT("ConvertToSequenceEvaluator", "Convert to Single Frame Animation") );
 				// convert to sequence player
 				UEdGraph* TargetGraph = OldNode->GetGraph();
+				TargetGraph->Modify();
+				OldNode->Modify();
+
 				// create new player
 				FGraphNodeCreator<UAnimGraphNode_RotationOffsetBlendSpace> NodeCreator(*TargetGraph);
 				UAnimGraphNode_RotationOffsetBlendSpace* NewNode = NodeCreator.CreateNode();
@@ -1115,27 +1180,67 @@ void FAnimationBlueprintEditor::OnConvertToAimOffsetSimple()
 				// get default data from old node to new node
 				FEdGraphUtilities::CopyCommonState(OldNode, NewNode);
 
-				UEdGraphPin* OldPosePin = OldNode->FindPin(TEXT("Pose"));
-				UEdGraphPin* NewPosePin = NewNode->FindPin(TEXT("Pose"));
-
-				if (ensure(OldPosePin && NewPosePin))
-				{
-					NewPosePin->MovePersistentDataFromOldPin(*OldPosePin);
-				}
-
-				OldPosePin = OldNode->FindPin(TEXT("BasePose"));
-				NewPosePin = NewNode->FindPin(TEXT("BasePose"));
-
-				if (ensure(OldPosePin && NewPosePin))
-				{
-					NewPosePin->MovePersistentDataFromOldPin(*OldPosePin);
-				}
+				CopyPinData(OldNode, NewNode, TEXT("X"));
+				CopyPinData(OldNode, NewNode, TEXT("Y"));
+				CopyPinData(OldNode, NewNode, TEXT("Pose"));
+				CopyPinData(OldNode, NewNode, TEXT("BasePose"));
 
 				// remove from selection and from graph
 				NodeIter.RemoveCurrent();
 				TargetGraph->RemoveNode(OldNode);
+			}
+		}
 
-				NewNode->Modify();
+		// @todo fixme: below code doesn't work
+		// because of SetAndCenterObject kicks in after new node is added
+		// will need to disable that first
+		TSharedPtr<SGraphEditor> FocusedGraphEd = FocusedGraphEdPtr.Pin();
+		// Update the graph so that the node will be refreshed
+		FocusedGraphEd->NotifyGraphChanged();
+		// It's possible to leave invalid objects in the selection set if they get GC'd, so clear it out
+		FocusedGraphEd->ClearSelectionSet();
+
+		FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(GetAnimBlueprint());
+	}
+}
+
+void FAnimationBlueprintEditor::OnConvertToAimOffsetGraph()
+{
+	FGraphPanelSelectionSet SelectedNodes = GetSelectedNodes();
+	if (SelectedNodes.Num() > 0)
+	{
+		const FScopedTransaction Transaction( LOCTEXT("ConvertToAimOffsetGraph", "Convert to Aim Offset Graph") );
+
+		for (auto NodeIter = SelectedNodes.CreateIterator(); NodeIter; ++NodeIter)
+		{
+			UAnimGraphNode_RotationOffsetBlendSpace* OldNode = Cast<UAnimGraphNode_RotationOffsetBlendSpace>(*NodeIter);
+
+			// see if sequence player
+			if (OldNode && OldNode->Node.BlendSpace)
+			{
+				// convert to sequence player
+				UEdGraph* TargetGraph = OldNode->GetGraph();
+				TargetGraph->Modify();
+				OldNode->Modify();
+
+				// create new player
+				FGraphNodeCreator<UAnimGraphNode_RotationOffsetBlendSpaceGraph> NodeCreator(*TargetGraph);
+				UAnimGraphNode_RotationOffsetBlendSpaceGraph* NewNode = NodeCreator.CreateNode();
+				NewNode->SetupFromAsset(OldNode->Node.BlendSpace, false);
+				NodeCreator.Finalize();
+
+				// get default data from old node to new node
+				FEdGraphUtilities::CopyCommonState(OldNode, NewNode);
+
+				CopyPinData(OldNode, NewNode, TEXT("X"));
+				CopyPinData(OldNode, NewNode, TEXT("Y"));
+				CopyPinData(OldNode, NewNode, TEXT("Alpha"));
+				CopyPinData(OldNode, NewNode, TEXT("Pose"));
+				CopyPinData(OldNode, NewNode, TEXT("BasePose"));
+
+				// remove from selection and from graph
+				NodeIter.RemoveCurrent();
+				TargetGraph->RemoveNode(OldNode);
 			}
 		}
 
@@ -1544,6 +1649,19 @@ void FAnimationBlueprintEditor::CreateEditorModeManager()
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	SetAssetEditorModeManager(ModeManager.Get());
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+}
+
+void FAnimationBlueprintEditor::JumpToHyperlink(const UObject* ObjectReference, bool bRequestRename)
+{
+	if(const UBlendSpaceGraph* BlendSpaceGraph = Cast<UBlendSpaceGraph>(ObjectReference))
+	{
+		TSharedRef<FTabPayload_BlendSpaceGraph> Payload = FTabPayload_BlendSpaceGraph::Make(BlendSpaceGraph);
+		DocumentManager->OpenDocument(Payload, FDocumentTracker::OpenNewDocument);
+	}
+	else
+	{
+		FBlueprintEditor::JumpToHyperlink(ObjectReference, bRequestRename);
+	}
 }
 
 TSharedRef<IPersonaPreviewScene> FAnimationBlueprintEditor::GetPreviewScene() const

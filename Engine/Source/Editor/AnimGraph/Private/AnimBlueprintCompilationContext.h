@@ -73,6 +73,29 @@ private:
 	FAnimBlueprintCompilerContext* CompilerContext;
 };
 
+class FAnimBlueprintNodeCopyTermDefaultsContext : public IAnimBlueprintNodeCopyTermDefaultsContext
+{
+private:
+	friend class FAnimBlueprintCompilerContext;
+
+	FAnimBlueprintNodeCopyTermDefaultsContext(const FProperty* InTargetProperty, uint8* InDestinationPtr, const uint8* InSourcePtr, int32 InNodePropertyIndex)
+		: TargetProperty(InTargetProperty)
+		, DestinationPtr(InDestinationPtr)
+		, SourcePtr(InSourcePtr)
+		, NodePropertyIndex(InNodePropertyIndex)
+	{}
+
+	virtual const FProperty* GetTargetPropertyImpl() const override { return TargetProperty; }
+	virtual uint8* GetDestinationPtrImpl() const override { return DestinationPtr; }
+	virtual const uint8* GetSourcePtrImpl() const override { return SourcePtr; }
+	virtual int32 GetNodePropertyIndexImpl() const override { return NodePropertyIndex; }
+
+	const FProperty* TargetProperty;
+	uint8* DestinationPtr;
+	const uint8* SourcePtr;
+	int32 NodePropertyIndex;
+};
+
 class FAnimBlueprintPostExpansionStepContext : public IAnimBlueprintPostExpansionStepContext
 {
 private:

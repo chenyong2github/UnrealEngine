@@ -27,18 +27,20 @@ SBlendSpaceEditorBase::~SBlendSpaceEditorBase()
 	FCoreUObjectDelegates::OnObjectPropertyChanged.Remove(OnPropertyChangedHandleDelegateHandle);
 }
 
-void SBlendSpaceEditorBase::Construct(const FArguments& InArgs, const TSharedRef<class IPersonaPreviewScene>& InPreviewScene, FSimpleMulticastDelegate& OnPostUndo)
+void SBlendSpaceEditorBase::Construct(const FArguments& InArgs)
 {
 	BlendSpace = InArgs._BlendSpace;
-	PreviewScenePtr = InPreviewScene;
-	OnPostUndo.Add(FSimpleDelegate::CreateSP( this, &SBlendSpaceEditorBase::PostUndo ) );
+
+	OnBlendSpaceSampleAdded = InArgs._OnBlendSpaceSampleAdded;
+	OnBlendSpaceSampleRemoved = InArgs._OnBlendSpaceSampleRemoved;
+	OnSetPreviewPosition = InArgs._OnSetPreviewPosition;
 
 	bShouldSetPreviewValue = false;
 
 	SAnimEditorBase::Construct(SAnimEditorBase::FArguments()
 		.DisplayAnimTimeline(false)
-		.DisplayAnimScrubBar(true),
-		InPreviewScene);
+		.DisplayAnimScrubBar(InArgs._DisplayScrubBar),
+		PreviewScenePtr.Pin());
 
 	NonScrollEditorPanels->AddSlot()
 	[
@@ -68,10 +70,15 @@ void SBlendSpaceEditorBase::Construct(const FArguments& InArgs, const TSharedRef
 							.Cursor(EMouseCursor::Crosshairs)
 							.BlendSpaceBase(BlendSpace)
 							.NotifyHook(this)
+							.Position(InArgs._PreviewPosition)
 							.OnSampleMoved(this, &SBlendSpaceEditorBase::OnSampleMoved)
 							.OnSampleRemoved(this, &SBlendSpaceEditorBase::OnSampleRemoved)
 							.OnSampleAdded(this, &SBlendSpaceEditorBase::OnSampleAdded)
 							.OnSampleAnimationChanged(this, &SBlendSpaceEditorBase::OnUpdateAnimation)
+							.OnSampleDoubleClicked(InArgs._OnBlendSpaceSampleDoubleClicked)
+							.OnExtendSampleTooltip(InArgs._OnExtendSampleTooltip)
+							.OnGetBlendSpaceSampleName(InArgs._OnGetBlendSpaceSampleName)
+							.StatusBarName(InArgs._StatusBarName)
 						]
 					]
 				]
@@ -81,6 +88,13 @@ void SBlendSpaceEditorBase::Construct(const FArguments& InArgs, const TSharedRef
 
 	OnPropertyChangedHandle = FCoreUObjectDelegates::FOnObjectPropertyChanged::FDelegate::CreateRaw(this, &SBlendSpaceEditorBase::OnPropertyChanged);
 	OnPropertyChangedHandleDelegateHandle = FCoreUObjectDelegates::OnObjectPropertyChanged.Add(OnPropertyChangedHandle);
+}
+
+void SBlendSpaceEditorBase::Construct(const FArguments& InArgs, const TSharedRef<class IPersonaPreviewScene>& InPreviewScene)
+{
+	PreviewScenePtr = InPreviewScene;
+
+	Construct(InArgs);
 }
 
 void SBlendSpaceEditorBase::OnSampleMoved(const int32 SampleIndex, const FVector& NewValue, bool bIsInteractive, bool bSnap)
@@ -98,7 +112,7 @@ void SBlendSpaceEditorBase::OnSampleMoved(const int32 SampleIndex, const FVector
 			ResampleData();
 		}
 	}
-  }
+}
 
 void SBlendSpaceEditorBase::OnSampleRemoved(const int32 SampleIndex)
 {
@@ -110,6 +124,8 @@ void SBlendSpaceEditorBase::OnSampleRemoved(const int32 SampleIndex)
 	{
 		ResampleData();
 		BlendSpace->ValidateSampleData();
+
+		OnBlendSpaceSampleRemoved.ExecuteIfBound(SampleIndex);
 	}
 	BlendSpace->PostEditChange();
 }
@@ -119,11 +135,23 @@ void SBlendSpaceEditorBase::OnSampleAdded(UAnimSequence* Animation, const FVecto
 	FScopedTransaction ScopedTransaction(LOCTEXT("AddSample", "Adding Blend Grid Sample"));
 	BlendSpace->Modify();
 
-	const bool bAddSuccesful = BlendSpace->AddSample(Animation, Value);	
+	bool bAddSuccesful = false;
+
+	if(BlendSpace->IsAsset())
+	{
+		bAddSuccesful = BlendSpace->AddSample(Animation, Value);
+	}
+	else
+	{
+		bAddSuccesful = BlendSpace->AddSample(Value);
+	}
+
 	if (bAddSuccesful)
 	{
 		ResampleData();
 		BlendSpace->ValidateSampleData();
+
+		OnBlendSpaceSampleAdded.ExecuteIfBound(Animation, Value);
 	}
 	BlendSpace->PostEditChange();
 }
@@ -141,7 +169,7 @@ void SBlendSpaceEditorBase::OnUpdateAnimation(UAnimSequence* Animation, const FV
 	}
 }
 
-void SBlendSpaceEditorBase::PostUndo()
+void SBlendSpaceEditorBase::PostUndoRedo()
 {
 	// Validate and resample blend space data
 	BlendSpace->ValidateSampleData();
@@ -159,22 +187,30 @@ void SBlendSpaceEditorBase::PostUndo()
 
 void SBlendSpaceEditorBase::UpdatePreviewParameter() const
 {
-	class UDebugSkelMeshComponent* Component = GetPreviewScene()->GetPreviewMeshComponent();
-
-	if (Component != nullptr && Component->IsPreviewOn())
+	if(GetPreviewScene().IsValid())
 	{
-		if (Component->PreviewInstance->GetCurrentAsset() == BlendSpace)
+		class UDebugSkelMeshComponent* Component = GetPreviewScene()->GetPreviewMeshComponent();
+
+		if (Component != nullptr && Component->IsPreviewOn())
 		{
-			const FVector BlendInput = NewBlendSpaceGridWidget->GetBlendPreviewValue();
-			Component->PreviewInstance->SetBlendSpaceInput(BlendInput);
-			GetPreviewScene()->InvalidateViews();			
+			if (Component->PreviewInstance->GetCurrentAsset() == BlendSpace)
+			{
+				const FVector BlendInput = NewBlendSpaceGridWidget->GetBlendPreviewValue();
+				Component->PreviewInstance->SetBlendSpaceInput(BlendInput);
+				GetPreviewScene()->InvalidateViews();			
+			}
 		}
+	}
+	else if(OnSetPreviewPosition.IsBound())
+	{
+		const FVector BlendInput = NewBlendSpaceGridWidget->GetBlendPreviewValue();
+		OnSetPreviewPosition.Execute(BlendInput);
 	}
 }
 
-TSharedRef<class IPersonaPreviewScene> SBlendSpaceEditorBase::GetPreviewScene() const
+TSharedPtr<class IPersonaPreviewScene> SBlendSpaceEditorBase::GetPreviewScene() const
 {
-	return PreviewScenePtr.Pin().ToSharedRef();
+	return PreviewScenePtr.Pin();
 }
 
 void SBlendSpaceEditorBase::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)

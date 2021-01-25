@@ -17,6 +17,7 @@
 #include "UObject/CoreRedirects.h"
 #include "Animation/AnimNode_LinkedAnimGraph.h"
 #include "AnimGraphAttributes.h"
+#include "IAnimBlueprintCopyTermDefaultsContext.h"
 
 #define LOCTEXT_NAMESPACE "LinkedAnimGraph"
 
@@ -479,6 +480,14 @@ void UAnimGraphNode_LinkedAnimGraphBase::GetOutputLinkAttributes(FNodeAttributeA
 	{
 		OutAttributes.Add(InDesc.Name);
 	});
+}
+
+void UAnimGraphNode_LinkedAnimGraphBase::OnCopyTermDefaultsToDefaultObject(IAnimBlueprintCopyTermDefaultsContext& InCompilationContext, IAnimBlueprintNodeCopyTermDefaultsContext& InPerNodeContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData)
+{
+	UAnimGraphNode_LinkedAnimGraphBase* TrueNode = InCompilationContext.GetMessageLog().FindSourceObjectTypeChecked<UAnimGraphNode_LinkedAnimGraphBase>(this);
+
+	FAnimNode_LinkedAnimGraph* DestinationNode = reinterpret_cast<FAnimNode_LinkedAnimGraph*>(InPerNodeContext.GetDestinationPtr());
+	DestinationNode->NodeIndex = InPerNodeContext.GetNodePropertyIndex();
 }
 
 #undef LOCTEXT_NAMESPACE

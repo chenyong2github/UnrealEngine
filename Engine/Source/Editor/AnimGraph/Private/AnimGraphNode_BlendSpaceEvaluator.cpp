@@ -2,7 +2,7 @@
 
 #include "AnimGraphNode_BlendSpaceEvaluator.h"
 #include "ToolMenus.h"
-#include "GraphEditorActions.h"
+#include "AnimGraphCommands.h"
 #include "Kismet2/CompilerResultsLog.h"
 
 /////////////////////////////////////////////////////
@@ -149,8 +149,8 @@ void UAnimGraphNode_BlendSpaceEvaluator::GetNodeContextMenuActions(UToolMenu* Me
 		// add an option to convert to single frame
 		{
 			FToolMenuSection& Section = Menu->AddSection("AnimGraphNodeBlendSpacePlayer", NSLOCTEXT("A3Nodes", "BlendSpaceHeading", "Blend Space"));
-			Section.AddMenuEntry(FGraphEditorCommands::Get().OpenRelatedAsset);
-			Section.AddMenuEntry(FGraphEditorCommands::Get().ConvertToBSPlayer);
+			Section.AddMenuEntry(FAnimGraphCommands::Get().OpenRelatedAsset);
+			Section.AddMenuEntry(FAnimGraphCommands::Get().ConvertToBSPlayer);
 		}
 	}
 }

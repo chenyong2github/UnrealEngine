@@ -6,7 +6,7 @@
 #include "ToolMenus.h"
 
 #include "Kismet2/CompilerResultsLog.h"
-#include "GraphEditorActions.h"
+#include "AnimGraphCommands.h"
 #include "ARFilter.h"
 #include "AssetRegistryModule.h"
 #include "BlueprintActionFilter.h"
@@ -402,8 +402,8 @@ void UAnimGraphNode_SequencePlayer::GetNodeContextMenuActions(UToolMenu* Menu, U
 		// add an option to convert to single frame
 		{
 			FToolMenuSection& Section = Menu->AddSection("AnimGraphNodeSequencePlayer", NSLOCTEXT("A3Nodes", "SequencePlayerHeading", "Sequence Player"));
-			Section.AddMenuEntry(FGraphEditorCommands::Get().OpenRelatedAsset);
-			Section.AddMenuEntry(FGraphEditorCommands::Get().ConvertToSeqEvaluator);
+			Section.AddMenuEntry(FAnimGraphCommands::Get().OpenRelatedAsset);
+			Section.AddMenuEntry(FAnimGraphCommands::Get().ConvertToSeqEvaluator);
 		}
 	}
 }

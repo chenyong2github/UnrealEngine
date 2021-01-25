@@ -124,6 +124,21 @@ void SGraphTitleBarAddNewBookmark::Construct(const FArguments& InArgs)
 
 	SetMenuContentWidgetToFocus(NameEntryWidget);
 
+	SetVisibility(MakeAttributeLambda([this]()
+	{
+		TSharedPtr<FBlueprintEditor> EditorContext = EditorContextPtr.Pin();
+		if (EditorContext.IsValid())
+		{
+			UEdGraph* FocusedGraph = EditorContext->GetFocusedGraph();
+			if (FocusedGraph != nullptr || CurrentViewBookmarkId.IsValid())
+			{
+				return EVisibility::Visible;
+			}
+		}
+
+		return EVisibility::Hidden;
+	}));
+	
 	SComboButton::Construct(Args);
 }
 

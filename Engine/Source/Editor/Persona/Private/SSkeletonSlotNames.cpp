@@ -101,10 +101,9 @@ TSharedRef< SWidget > SSlotNameListRow::GenerateWidgetForColumn( const FName& Co
 /////////////////////////////////////////////////////
 // FSkeletonSlotNamesSummoner
 
-FSkeletonSlotNamesSummoner::FSkeletonSlotNamesSummoner(TSharedPtr<class FAssetEditorToolkit> InHostingApp, const TSharedRef<IEditableSkeleton>& InEditableSkeleton, FSimpleMulticastDelegate& InOnPostUndo, FOnObjectSelected InOnObjectSelected)
+FSkeletonSlotNamesSummoner::FSkeletonSlotNamesSummoner(TSharedPtr<class FAssetEditorToolkit> InHostingApp, const TSharedRef<IEditableSkeleton>& InEditableSkeleton, FOnObjectSelected InOnObjectSelected)
 	: FWorkflowTabFactory(FPersonaTabs::SkeletonSlotNamesID, InHostingApp)
 	, EditableSkeleton(InEditableSkeleton)
-	, OnPostUndo(InOnPostUndo)
 	, OnObjectSelected(InOnObjectSelected)
 {
 	TabLabel = LOCTEXT("AnimSlotManagerTabTitle", "Anim Slot Manager");
@@ -119,21 +118,19 @@ FSkeletonSlotNamesSummoner::FSkeletonSlotNamesSummoner(TSharedPtr<class FAssetEd
 
 TSharedRef<SWidget> FSkeletonSlotNamesSummoner::CreateTabBody(const FWorkflowTabSpawnInfo& Info) const
 {
-	return SNew(SSkeletonSlotNames, EditableSkeleton.Pin().ToSharedRef(), OnPostUndo)
+	return SNew(SSkeletonSlotNames, EditableSkeleton.Pin().ToSharedRef())
 		.OnObjectSelected(OnObjectSelected);
 }
 
 /////////////////////////////////////////////////////
 // SSkeletonSlotNames
 
-void SSkeletonSlotNames::Construct(const FArguments& InArgs, const TSharedRef<IEditableSkeleton>& InEditableSkeleton, FSimpleMulticastDelegate& InOnPostUndo)
+void SSkeletonSlotNames::Construct(const FArguments& InArgs, const TSharedRef<IEditableSkeleton>& InEditableSkeleton)
 {
 	EditableSkeletonPtr = InEditableSkeleton;
 	OnObjectSelected = InArgs._OnObjectSelected;
 
 	InEditableSkeleton->RegisterOnSlotsChanged(FSimpleMulticastDelegate::FDelegate::CreateSP(this, &SSkeletonSlotNames::RefreshSlotNameListWithFilter));
-
-	InOnPostUndo.Add(FSimpleDelegate::CreateSP( this, &SSkeletonSlotNames::PostUndo ) );
 
 	// Toolbar
 	FToolBarBuilder ToolbarBuilder(TSharedPtr< FUICommandList >(), FMultiBoxCustomization::None);
@@ -593,7 +590,7 @@ void SSkeletonSlotNames::ClearDetailsView()
 	OnObjectSelected.ExecuteIfBound(nullptr);
 }
 
-void SSkeletonSlotNames::PostUndo()
+void SSkeletonSlotNames::PostUndoRedo()
 {
 	RefreshSlotNameListWithFilter();
 }

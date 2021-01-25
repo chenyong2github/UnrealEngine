@@ -312,7 +312,12 @@ TSharedRef<class FWorkflowTabFactory> FPersonaModule::CreateAnimNotifiesTabFacto
 
 TSharedRef<class FWorkflowTabFactory> FPersonaModule::CreateCurveViewerTabFactory(const TSharedRef<class FWorkflowCentricApplication>& InHostingApp, const TSharedRef<class IEditableSkeleton>& InEditableSkeleton, const TSharedRef<IPersonaPreviewScene>& InPreviewScene, FSimpleMulticastDelegate& InOnPostUndo, FOnObjectsSelected InOnObjectsSelected) const
 {
-	return MakeShareable(new FAnimCurveViewerTabSummoner(InHostingApp, InEditableSkeleton, InPreviewScene, InOnPostUndo, InOnObjectsSelected));
+	return MakeShareable(new FAnimCurveViewerTabSummoner(InHostingApp, InEditableSkeleton, InPreviewScene, InOnObjectsSelected));
+}
+
+TSharedRef<class FWorkflowTabFactory> FPersonaModule::CreateCurveViewerTabFactory(const TSharedRef<class FWorkflowCentricApplication>& InHostingApp, const TSharedRef<class IEditableSkeleton>& InEditableSkeleton, const TSharedRef<IPersonaPreviewScene>& InPreviewScene, FOnObjectsSelected InOnObjectsSelected) const
+{
+	return MakeShareable(new FAnimCurveViewerTabSummoner(InHostingApp, InEditableSkeleton, InPreviewScene, InOnObjectsSelected));
 }
 
 TSharedRef<class FWorkflowTabFactory> FPersonaModule::CreateRetargetManagerTabFactory(const TSharedRef<class FWorkflowCentricApplication>& InHostingApp, const TSharedRef<class IEditableSkeleton>& InEditableSkeleton, const TSharedRef<IPersonaPreviewScene>& InPreviewScene, FSimpleMulticastDelegate& InOnPostUndo) const
@@ -352,19 +357,36 @@ TSharedRef<class FWorkflowTabFactory> FPersonaModule::CreateAnimBlueprintAssetOv
 
 TSharedRef<class FWorkflowTabFactory> FPersonaModule::CreateSkeletonSlotNamesTabFactory(const TSharedRef<class FWorkflowCentricApplication>& InHostingApp, const TSharedRef<class IEditableSkeleton>& InEditableSkeleton, FSimpleMulticastDelegate& InOnPostUndo, FOnObjectSelected InOnObjectSelected) const
 {
-	return MakeShareable(new FSkeletonSlotNamesSummoner(InHostingApp, InEditableSkeleton, InOnPostUndo, InOnObjectSelected));
+	return MakeShareable(new FSkeletonSlotNamesSummoner(InHostingApp, InEditableSkeleton, InOnObjectSelected));
 }
 
-TSharedRef<SWidget> FPersonaModule::CreateBlendSpacePreviewWidget(TAttribute<const UBlendSpaceBase*> InBlendSpace, TAttribute<FVector> InPosition) const
+TSharedRef<class FWorkflowTabFactory> FPersonaModule::CreateSkeletonSlotNamesTabFactory(const TSharedRef<class FWorkflowCentricApplication>& InHostingApp, const TSharedRef<class IEditableSkeleton>& InEditableSkeleton, FOnObjectSelected InOnObjectSelected) const
+{
+	return MakeShareable(new FSkeletonSlotNamesSummoner(InHostingApp, InEditableSkeleton, InOnObjectSelected));
+}
+
+TSharedRef<SWidget> FPersonaModule::CreateBlendSpacePreviewWidget(const FBlendSpacePreviewArgs& InArgs) const
 {
 	return
 		SNew(SBlendSpaceGridWidget)
 		.Cursor(EMouseCursor::Crosshairs)
-		.BlendSpaceBase(InBlendSpace)
-		.Position(InPosition)
+		.BlendSpaceBase(InArgs.PreviewBlendSpace)
+		.Position(InArgs.PreviewPosition)
 		.ReadOnly(true)
 		.ShowAxisLabels(false)
-		.ShowSettingsButtons(false);
+		.ShowSettingsButtons(false)
+		.OnGetBlendSpaceSampleName(InArgs.OnGetBlendSpaceSampleName);
+}
+
+TSharedRef<SWidget> FPersonaModule::CreateBlendSpacePreviewWidget(TAttribute<const UBlendSpaceBase*> InBlendSpace, TAttribute<FVector> InPosition) const
+{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	FBlendSpacePreviewArgs Args;
+	Args.PreviewBlendSpace = InBlendSpace;
+	Args.PreviewPosition = InPosition;
+
+	return CreateBlendSpacePreviewWidget(Args);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 TSharedRef<class FWorkflowTabFactory> FPersonaModule::CreateAnimMontageSectionsTabFactory(const TSharedRef<class FWorkflowCentricApplication>& InHostingApp, const TSharedRef<IPersonaToolkit>& InPersonaToolkit, FSimpleMulticastDelegate& InOnSectionsChanged) const
@@ -444,7 +466,7 @@ TSharedRef<SWidget> FPersonaModule::CreateEditorWidgetForAnimDocument(const TSha
 		}
 		else if (UBlendSpace* BlendSpace = Cast<UBlendSpace>(InAnimAsset))
 		{
-			Result = SNew(SBlendSpaceEditor, InArgs.PreviewScene.Pin().ToSharedRef(), InArgs.OnPostUndo)
+			Result = SNew(SBlendSpaceEditor, InArgs.PreviewScene.Pin().ToSharedRef())
 				.BlendSpace(BlendSpace);
 
 			if (Cast<UAimOffsetBlendSpace>(InAnimAsset))
@@ -458,7 +480,7 @@ TSharedRef<SWidget> FPersonaModule::CreateEditorWidgetForAnimDocument(const TSha
 		}
 		else if (UBlendSpace1D* BlendSpace1D = Cast<UBlendSpace1D>(InAnimAsset))
 		{
-			Result = SNew(SBlendSpaceEditor1D, InArgs.PreviewScene.Pin().ToSharedRef(), InArgs.OnPostUndo)
+			Result = SNew(SBlendSpaceEditor1D, InArgs.PreviewScene.Pin().ToSharedRef())
 				.BlendSpace1D(BlendSpace1D);
 
 			if (Cast<UAimOffsetBlendSpace1D>(InAnimAsset))
@@ -1494,6 +1516,40 @@ void FPersonaModule::HandleNewAnimNotifyStateBlueprintCreated(UBlueprint* InBlue
 		FBlueprintEditorUtils::AddFunctionGraph(InBlueprint, NewGraph, /*bIsUserCreated=*/ false, UAnimNotifyState::StaticClass());
 		InBlueprint->LastEditedDocuments.Add(NewGraph);
 	}
+}
+
+TSharedRef<SWidget> FPersonaModule::CreateBlendSpaceEditWidget(UBlendSpaceBase* InBlendSpace, const FBlendSpaceEditorArgs& InArgs) const
+{
+	if (UBlendSpace* BlendSpace = Cast<UBlendSpace>(InBlendSpace))
+	{
+		return SNew(SBlendSpaceEditor)
+			.BlendSpace(BlendSpace)
+			.DisplayScrubBar(false)
+			.OnBlendSpaceSampleDoubleClicked(InArgs.OnBlendSpaceSampleDoubleClicked)
+			.OnBlendSpaceSampleAdded(InArgs.OnBlendSpaceSampleAdded)
+			.OnBlendSpaceSampleRemoved(InArgs.OnBlendSpaceSampleRemoved)
+			.OnGetBlendSpaceSampleName(InArgs.OnGetBlendSpaceSampleName)
+			.OnExtendSampleTooltip(InArgs.OnExtendSampleTooltip)
+			.OnSetPreviewPosition(InArgs.OnSetPreviewPosition)
+			.PreviewPosition(InArgs.PreviewPosition)
+			.StatusBarName(InArgs.StatusBarName);
+	}
+	else if (UBlendSpace1D* BlendSpace1D = Cast<UBlendSpace1D>(InBlendSpace))
+	{
+		return SNew(SBlendSpaceEditor1D)
+			.BlendSpace1D(BlendSpace1D)
+			.DisplayScrubBar(false)
+			.OnBlendSpaceSampleDoubleClicked(InArgs.OnBlendSpaceSampleDoubleClicked)
+			.OnBlendSpaceSampleAdded(InArgs.OnBlendSpaceSampleAdded)
+			.OnBlendSpaceSampleRemoved(InArgs.OnBlendSpaceSampleRemoved)
+			.OnGetBlendSpaceSampleName(InArgs.OnGetBlendSpaceSampleName)
+			.OnExtendSampleTooltip(InArgs.OnExtendSampleTooltip)
+			.OnSetPreviewPosition(InArgs.OnSetPreviewPosition)
+			.PreviewPosition(InArgs.PreviewPosition)
+			.StatusBarName(InArgs.StatusBarName);
+	}
+
+	return SNullWidget::NullWidget;
 }
 
 #undef LOCTEXT_NAMESPACE

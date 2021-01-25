@@ -67,7 +67,7 @@ public:
 
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs, UAnimBlueprint* InAnimBlueprint, const FAnimGraphAttributeDesc* InAttributeDesc, const UEdGraphPin* InPin, EAttributeUsage InUsage, UAnimGraphNode_Base* InAnimGraphNode)
+	void Construct(const FArguments& InArgs, UAnimBlueprint* InAnimBlueprint, const FAnimGraphAttributeDesc* InAttributeDesc, const UEdGraphPin* InPin, EAttributeUsage InUsage, const UAnimGraphNode_Base* InAnimGraphNode)
 	{
 		AnimBlueprint = InAnimBlueprint;
 		AttributeDesc = InAttributeDesc;
@@ -149,7 +149,7 @@ public:
 	const FAnimGraphAttributeDesc* AttributeDesc;
 	const UEdGraphPin* Pin;
 	EAttributeUsage Usage;
-	UAnimGraphNode_Base* AnimGraphNode;
+	const UAnimGraphNode_Base* AnimGraphNode;
 	FLinearColor ActiveColor;
 	FLinearColor Color;
 	FLinearColor BackgroundColor;
@@ -185,10 +185,12 @@ void SGraphPinPose::ReconfigureWidgetForAttributes()
 					// Skip displaying passthrough attributes on pins
 					if(InUsage != EAttributeUsage::Passthrough && AnimGraphNode->ShouldShowAttributesOnPins())
 					{
+						const UAnimGraphNode_Base* ProxyGraphNode = AnimGraphNode->GetProxyNodeForAttributes();
+
 						GetLabelAndValue()->AddSlot()
 						.Padding(2.0f, 0.0f, 0.0f, 0.0f)
 						[
-							SNew(SAttributeIndicator, AnimBlueprint, AttributeDesc, GraphPinObj, InUsage, AnimGraphNode)
+							SNew(SAttributeIndicator, AnimBlueprint, AttributeDesc, GraphPinObj, InUsage, ProxyGraphNode)
 						];
 					}
 				}

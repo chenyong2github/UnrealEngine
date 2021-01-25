@@ -5,7 +5,7 @@
 #include "Modules/ModuleManager.h"
 #include "ToolMenus.h"
 
-#include "GraphEditorActions.h"
+#include "AnimGraphCommands.h"
 #include "ARFilter.h"
 #include "AssetRegistryModule.h"
 #include "BlueprintActionFilter.h"
@@ -251,7 +251,7 @@ void UAnimGraphNode_PoseBlendNode::GetNodeContextMenuActions(UToolMenu* Menu, UG
 		// add an option to convert to single frame
 		{
 			FToolMenuSection& Section = Menu->AddSection("AnimGraphNodePoseBlender", LOCTEXT("PoseBlenderHeading", "Pose Blender"));
-			Section.AddMenuEntry(FGraphEditorCommands::Get().ConvertToPoseByName);
+			Section.AddMenuEntry(FAnimGraphCommands::Get().ConvertToPoseByName);
 		}
 	}
 }

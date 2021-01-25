@@ -8,12 +8,35 @@
 
 #define LOCTEXT_NAMESPACE "BlendSpaceEditor"
 
-void SBlendSpaceEditor::Construct(const FArguments& InArgs, const TSharedRef<class IPersonaPreviewScene>& InPreviewScene, FSimpleMulticastDelegate& OnPostUndo)
+void SBlendSpaceEditor::Construct(const FArguments& InArgs)
 {
 	SBlendSpaceEditorBase::Construct(SBlendSpaceEditorBase::FArguments()
-									.BlendSpace(InArgs._BlendSpace),
-									InPreviewScene,
-									OnPostUndo );
+		.BlendSpace(InArgs._BlendSpace)
+		.DisplayScrubBar(InArgs._DisplayScrubBar)
+		.OnBlendSpaceSampleDoubleClicked(InArgs._OnBlendSpaceSampleDoubleClicked)
+		.OnBlendSpaceSampleAdded(InArgs._OnBlendSpaceSampleAdded)
+		.OnBlendSpaceSampleRemoved(InArgs._OnBlendSpaceSampleRemoved)
+		.OnGetBlendSpaceSampleName(InArgs._OnGetBlendSpaceSampleName)
+		.OnExtendSampleTooltip(InArgs._OnExtendSampleTooltip)
+		.OnSetPreviewPosition(InArgs._OnSetPreviewPosition)
+		.PreviewPosition(InArgs._PreviewPosition)
+		.StatusBarName(InArgs._StatusBarName));
+}
+
+void SBlendSpaceEditor::Construct(const FArguments& InArgs, const TSharedRef<class IPersonaPreviewScene>& InPreviewScene)
+{
+	SBlendSpaceEditorBase::Construct(SBlendSpaceEditorBase::FArguments()
+		.BlendSpace(InArgs._BlendSpace)
+		.DisplayScrubBar(InArgs._DisplayScrubBar)
+		.OnBlendSpaceSampleDoubleClicked(InArgs._OnBlendSpaceSampleDoubleClicked)
+		.OnBlendSpaceSampleAdded(InArgs._OnBlendSpaceSampleAdded)
+		.OnBlendSpaceSampleRemoved(InArgs._OnBlendSpaceSampleRemoved)
+		.OnGetBlendSpaceSampleName(InArgs._OnGetBlendSpaceSampleName)
+		.OnExtendSampleTooltip(InArgs._OnExtendSampleTooltip)
+		.OnSetPreviewPosition(InArgs._OnSetPreviewPosition)
+		.PreviewPosition(InArgs._PreviewPosition)
+		.StatusBarName(InArgs._StatusBarName),
+		InPreviewScene);
 }
 
 void SBlendSpaceEditor::ResampleData()

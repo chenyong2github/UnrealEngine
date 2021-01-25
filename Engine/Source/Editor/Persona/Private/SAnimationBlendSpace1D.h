@@ -13,12 +13,37 @@ class SBlendSpaceEditor1D : public SBlendSpaceEditorBase
 {
 public:
 	SLATE_BEGIN_ARGS(SBlendSpaceEditor1D)
-		: _BlendSpace1D(NULL)
+		: _BlendSpace1D(nullptr)
+		, _DisplayScrubBar(true)
+		, _StatusBarName(TEXT("AssetEditor.AnimationEditor.MainMenu"))
 		{}
-		SLATE_ARGUMENT(UBlendSpace1D*, BlendSpace1D)
+
+	SLATE_ARGUMENT(UBlendSpace1D*, BlendSpace1D)
+
+	SLATE_ARGUMENT(bool, DisplayScrubBar)
+
+	SLATE_EVENT(FOnBlendSpaceSampleDoubleClicked, OnBlendSpaceSampleDoubleClicked)
+
+	SLATE_EVENT(FOnBlendSpaceSampleAdded, OnBlendSpaceSampleAdded)
+
+	SLATE_EVENT(FOnBlendSpaceSampleRemoved, OnBlendSpaceSampleRemoved)
+
+	SLATE_EVENT(FOnGetBlendSpaceSampleName, OnGetBlendSpaceSampleName)
+
+	SLATE_EVENT(FOnExtendBlendSpaceSampleTooltip, OnExtendSampleTooltip)
+
+	SLATE_EVENT(FOnSetBlendSpacePreviewPosition, OnSetPreviewPosition)
+
+	SLATE_ATTRIBUTE(FVector, PreviewPosition)
+
+	SLATE_ARGUMENT(FName, StatusBarName)
+
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs, const TSharedRef<IPersonaPreviewScene>& InPreviewScene, FSimpleMulticastDelegate& OnPostUndo);
+	void Construct(const FArguments& InArgs);
+
+	void Construct(const FArguments& InArgs, const TSharedRef<IPersonaPreviewScene>& InPreviewScene);
+
 protected:	
 	virtual void ResampleData() override;
 

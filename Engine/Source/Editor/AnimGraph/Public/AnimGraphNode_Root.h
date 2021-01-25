@@ -31,6 +31,7 @@ class UAnimGraphNode_Root : public UAnimGraphNode_Base
 	//~ Begin UAnimGraphNode_Base Interface
 	virtual bool IsSinkNode() const override;
 	virtual void OnProcessDuringCompilation(IAnimBlueprintCompilationContext& InCompilationContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData) override;
+	virtual void OnCopyTermDefaultsToDefaultObject(IAnimBlueprintCopyTermDefaultsContext& InCompilationContext, IAnimBlueprintNodeCopyTermDefaultsContext& InPerNodeContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData) override;
 
 	// Get the link to the documentation
 	virtual FString GetDocumentationLink() const override;

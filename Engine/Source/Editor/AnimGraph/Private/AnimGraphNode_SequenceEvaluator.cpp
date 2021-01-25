@@ -4,7 +4,7 @@
 #include "ToolMenus.h"
 
 #include "Kismet2/CompilerResultsLog.h"
-#include "GraphEditorActions.h"
+#include "AnimGraphCommands.h"
 #include "Animation/AnimComposite.h"
 #include "Animation/AnimSequence.h"
 #include "AnimGraphNode_SequenceEvaluator.h"
@@ -164,8 +164,8 @@ void UAnimGraphNode_SequenceEvaluator::GetNodeContextMenuActions(UToolMenu* Menu
 		// add an option to convert to a regular sequence player
 		{
 			FToolMenuSection& Section = Menu->AddSection("AnimGraphNodeSequenceEvaluator", NSLOCTEXT("A3Nodes", "SequenceEvaluatorHeading", "Sequence Evaluator"));
-			Section.AddMenuEntry(FGraphEditorCommands::Get().OpenRelatedAsset);
-			Section.AddMenuEntry(FGraphEditorCommands::Get().ConvertToSeqPlayer);
+			Section.AddMenuEntry(FAnimGraphCommands::Get().OpenRelatedAsset);
+			Section.AddMenuEntry(FAnimGraphCommands::Get().ConvertToSeqPlayer);
 		}
 	}
 }

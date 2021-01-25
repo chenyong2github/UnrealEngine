@@ -59,6 +59,7 @@ public:
 	virtual void PostPasteNode() override;
 	virtual void PostPlacedNewNode() override;
 	virtual void DestroyNode() override;
+	virtual TArray<UEdGraph*> GetSubGraphs() const override { return TArray<UEdGraph*>( { BoundGraph } ); }
 	//~ End UEdGraphNode Interface
 	
 	//~ Begin UAnimStateNodeBase Interface

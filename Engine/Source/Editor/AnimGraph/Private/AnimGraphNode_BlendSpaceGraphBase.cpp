@@ -1,0 +1,454 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "AnimGraphNode_BlendSpaceGraphBase.h"
+#include "GraphEditorActions.h"
+#include "Kismet2/CompilerResultsLog.h"
+#include "BlueprintNodeSpawner.h"
+#include "BlueprintActionDatabaseRegistrar.h"
+#include "Animation/AimOffsetBlendSpace.h"
+#include "Animation/AimOffsetBlendSpace1D.h"
+#include "IAnimBlueprintCopyTermDefaultsContext.h"
+#include "IAnimBlueprintGeneratedClassCompiledData.h"
+#include "AnimationGraph.h"
+#include "AnimationGraphSchema.h"
+#include "Kismet2/BlueprintEditorUtils.h"
+#include "BlendSpaceGraph.h"
+#include "BlueprintEditorModule.h"
+#include "Kismet2/KismetEditorUtilities.h"
+#include "DetailLayoutBuilder.h"
+#include "DetailCategoryBuilder.h"
+#include "EdGraphUtilities.h"
+#include "IAnimBlueprintCompilationContext.h"
+#include "AnimationBlendSpaceSampleGraph.h"
+#include "AnimGraphNode_BlendSpaceSampleResult.h"
+#include "AnimGraphNode_SequencePlayer.h"
+#include "Kismet2/Kismet2NameValidators.h"
+#include "AnimNodes/AnimNode_BlendSpaceGraphBase.h"
+
+#define LOCTEXT_NAMESPACE "UAnimGraphNode_BlendSpaceGraphBase"
+
+UAnimGraphNode_BlendSpaceGraphBase::UAnimGraphNode_BlendSpaceGraphBase()
+{
+	bCanRenameNode = true;
+}
+
+FText UAnimGraphNode_BlendSpaceGraphBase::GetMenuCategory() const
+{
+	return LOCTEXT("BlendSpaceCategory_Label", "BlendSpaces");
+}
+
+FLinearColor UAnimGraphNode_BlendSpaceGraphBase::GetNodeTitleColor() const
+{
+	return FLinearColor(0.8f, 0.8f, 0.8f);
+}
+
+FText UAnimGraphNode_BlendSpaceGraphBase::GetTooltipText() const
+{
+	return GetNodeTitle(ENodeTitleType::ListView);
+}
+
+UAnimGraphNode_Base* UAnimGraphNode_BlendSpaceGraphBase::ExpandGraphAndProcessNodes(UEdGraph* SourceGraph, UAnimGraphNode_Base* SourceRootNode, IAnimBlueprintCompilationContext& InCompilationContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData)
+{
+	// Clone the nodes from the source graph
+	// Note that we outer this graph to the ConsolidatedEventGraph to allow ExpansionStep to 
+	// correctly retrieve the context for any expanded function calls (custom make/break structs etc.)
+	UEdGraph* ClonedGraph = FEdGraphUtilities::CloneGraph(SourceGraph, InCompilationContext.GetConsolidatedEventGraph(), &InCompilationContext.GetMessageLog(), true);
+
+	// Grab all the animation nodes and find the corresponding root node in the cloned set
+	UAnimGraphNode_Base* TargetRootNode = nullptr;
+	TArray<UAnimGraphNode_Base*> AnimNodeList;
+
+	for (auto NodeIt = ClonedGraph->Nodes.CreateIterator(); NodeIt; ++NodeIt)
+	{
+		UEdGraphNode* ClonedNode = *NodeIt;
+
+		if (UAnimGraphNode_Base* TestNode = Cast<UAnimGraphNode_Base>(ClonedNode))
+		{
+			AnimNodeList.Add(TestNode);
+
+			//@TODO: There ought to be a better way to determine this
+			if (InCompilationContext.GetMessageLog().FindSourceObject(TestNode) == InCompilationContext.GetMessageLog().FindSourceObject(SourceRootNode))
+			{
+				TargetRootNode = TestNode;
+			}
+		}
+	}
+	check(TargetRootNode);
+
+	// Run another expansion pass to catch the graph we just added (this is slightly wasteful)
+	InCompilationContext.ExpansionStep(ClonedGraph, false);
+
+	// Validate graph now we have expanded/pruned
+	InCompilationContext.ValidateGraphIsWellFormed(ClonedGraph);
+
+	// Move the cloned nodes into the consolidated event graph
+	const bool bIsLoading = InCompilationContext.GetBlueprint()->bIsRegeneratingOnLoad || IsAsyncLoading();
+	const bool bIsCompiling = InCompilationContext.GetBlueprint()->bBeingCompiled;
+	ClonedGraph->MoveNodesToAnotherGraph(InCompilationContext.GetConsolidatedEventGraph(), bIsLoading, bIsCompiling);
+
+	// Process any animation nodes
+	{
+		TArray<UAnimGraphNode_Base*> RootSet;
+		RootSet.Add(TargetRootNode);
+
+		InCompilationContext.PruneIsolatedAnimationNodes(RootSet, AnimNodeList);
+
+		InCompilationContext.ProcessAnimationNodes(AnimNodeList);
+	}
+
+	// Returns the processed cloned version of SourceRootNode
+	return TargetRootNode;	
+}
+
+void UAnimGraphNode_BlendSpaceGraphBase::OnProcessDuringCompilation(IAnimBlueprintCompilationContext& InCompilationContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData)
+{
+	FStructProperty* NodeProperty = GetFNodeProperty();
+	FArrayProperty* PoseLinksProperty = CastFieldChecked<FArrayProperty>(NodeProperty->Struct->FindPropertyByName(GET_MEMBER_NAME_CHECKED(FAnimNode_BlendSpaceGraphBase, SamplePoseLinks)));
+
+	// Resize pose links to match graphs
+	FAnimNode_BlendSpaceGraphBase* AnimNode = NodeProperty->ContainerPtrToValuePtr<FAnimNode_BlendSpaceGraphBase>(this);
+	AnimNode->SamplePoseLinks.SetNum(Graphs.Num());
+
+	for(int32 PoseIndex = 0; PoseIndex < Graphs.Num(); ++PoseIndex)
+	{
+		UAnimationBlendSpaceSampleGraph* SampleGraph = CastChecked<UAnimationBlendSpaceSampleGraph>(Graphs[PoseIndex]);
+		UAnimGraphNode_Base* RootNode = ExpandGraphAndProcessNodes(SampleGraph, SampleGraph->ResultNode, InCompilationContext, OutCompiledData);
+
+		InCompilationContext.AddPoseLinkMappingRecord(FPoseLinkMappingRecord::MakeFromArrayEntry(this, RootNode, PoseLinksProperty, PoseIndex));
+	}
+}
+
+void UAnimGraphNode_BlendSpaceGraphBase::OnCopyTermDefaultsToDefaultObject(IAnimBlueprintCopyTermDefaultsContext& InCompilationContext, IAnimBlueprintNodeCopyTermDefaultsContext& InPerNodeContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData)
+{
+	UAnimGraphNode_BlendSpaceGraphBase* TrueNode = InCompilationContext.GetMessageLog().FindSourceObjectTypeChecked<UAnimGraphNode_BlendSpaceGraphBase>(this);
+
+	FAnimNode_BlendSpaceGraphBase* DestinationNode = reinterpret_cast<FAnimNode_BlendSpaceGraphBase*>(InPerNodeContext.GetDestinationPtr());
+	DestinationNode->BlendSpace = OutCompiledData.AddBlendSpace(BlendSpace);
+}
+
+void UAnimGraphNode_BlendSpaceGraphBase::SetupFromAsset(UBlendSpaceBase* InBlendSpace, bool bInIsTemplateNode)
+{
+	if(bInIsTemplateNode)
+	{
+		BlendSpace = InBlendSpace;
+	}
+	else
+	{
+		UAnimBlueprint* AnimBlueprint = GetAnimBlueprint();
+		const UAnimationGraphSchema* AnimationGraphSchema = GetDefault<UAnimationGraphSchema>();
+
+		BlendSpaceGraph = CastChecked<UBlendSpaceGraph>(FBlueprintEditorUtils::CreateNewGraph(this, InBlendSpace->GetFName(), UBlendSpaceGraph::StaticClass(), UAnimationGraphSchema::StaticClass()));
+		BlendSpaceGraph->BlendSpace = BlendSpace = DuplicateObject(InBlendSpace, BlendSpaceGraph);
+		BlendSpace->ClearFlags(RF_Public | RF_Standalone);
+		BlendSpaceGraph->BlendSpace->ResetSkeleton(nullptr);
+		BlendSpaceGraph->BlendSpace->EmptyMetaData();
+		BlendSpaceGraph->BlendSpace->RemoveUserDataOfClass(UAssetUserData::StaticClass());
+		BlendSpaceGraph->bAllowDeletion = false;
+		BlendSpaceGraph->bAllowRenaming = true;
+
+		// Add the new graph as a child of our parent graph
+		UEdGraph* ParentGraph = GetGraph();
+	
+		if(ParentGraph->SubGraphs.Find(BlendSpaceGraph) == INDEX_NONE)
+		{
+			ParentGraph->Modify();
+			ParentGraph->SubGraphs.Add(BlendSpaceGraph);
+		}
+
+		for(int32 SampleIndex = 0; SampleIndex < BlendSpace->SampleData.Num(); ++SampleIndex)
+		{
+			FBlendSample& Sample = BlendSpace->SampleData[SampleIndex];
+
+			FName SampleName = Sample.Animation != nullptr ? Sample.Animation->GetFName() : FName("Sample", SampleIndex);
+
+			UAnimationBlendSpaceSampleGraph* SampleGraph = AddGraph(SampleName);
+
+			// Attach an asset player by default to default the sample
+			FGraphNodeCreator<UAnimGraphNode_SequencePlayer> SequencePlayerNodeCreator(*SampleGraph);
+			UAnimGraphNode_SequencePlayer* SequencePlayer = SequencePlayerNodeCreator.CreateNode();
+			SequencePlayer->SetAnimationAsset(Sample.Animation);
+			SequencePlayerNodeCreator.Finalize();
+
+			// Offset node in X
+			SequencePlayer->NodePosX = SampleGraph->ResultNode->NodePosX - 400;
+
+			UEdGraphPin* OutputPin = SequencePlayer->FindPinChecked(TEXT("Pose"), EGPD_Output);
+			UEdGraphPin* InputPin = SampleGraph->ResultNode->FindPinChecked(TEXT("Result"), EGPD_Input);
+			OutputPin->MakeLinkTo(InputPin);
+
+			// Clear the animation now we have created the point
+			Sample.Animation = nullptr;
+		}
+	}
+}
+
+void UAnimGraphNode_BlendSpaceGraphBase::SetupFromClass(TSubclassOf<UBlendSpaceBase> InBlendSpaceClass, bool bInIsTemplateNode)
+{
+	if(bInIsTemplateNode)
+	{
+		BlendSpaceClass = InBlendSpaceClass;
+	}
+	else
+	{
+		BlendSpaceGraph = CastChecked<UBlendSpaceGraph>(FBlueprintEditorUtils::CreateNewGraph(this, InBlendSpaceClass.Get()->GetFName(), UBlendSpaceGraph::StaticClass(), UAnimationGraphSchema::StaticClass()));
+		BlendSpaceGraph->BlendSpace = BlendSpace = NewObject<UBlendSpaceBase>(BlendSpaceGraph, InBlendSpaceClass.Get());
+		BlendSpaceGraph->BlendSpace->SetFlags(RF_Transactional);
+		BlendSpaceGraph->bAllowDeletion = false;
+		BlendSpaceGraph->bAllowRenaming = true;
+
+		// Add the new graph as a child of our parent graph
+		UEdGraph* ParentGraph = GetGraph();
+	
+		if(ParentGraph->SubGraphs.Find(BlendSpaceGraph) == INDEX_NONE)
+		{
+			ParentGraph->Modify();
+			ParentGraph->SubGraphs.Add(BlendSpaceGraph);
+		}
+	}
+}
+
+UObject* UAnimGraphNode_BlendSpaceGraphBase::GetJumpTargetForDoubleClick() const
+{
+	return BlendSpaceGraph;
+}
+
+void UAnimGraphNode_BlendSpaceGraphBase::JumpToDefinition() const
+{
+	TSharedPtr<IBlueprintEditor> BlueprintEditor = FKismetEditorUtilities::GetIBlueprintEditorForObject(BlendSpace, true);
+	if(BlueprintEditor.IsValid())
+	{
+		BlueprintEditor->JumpToHyperlink(BlendSpaceGraph, false);
+	}
+}
+
+void UAnimGraphNode_BlendSpaceGraphBase::CustomizeDetails(IDetailLayoutBuilder& InDetailBuilder)
+{
+	IDetailCategoryBuilder& BlendSpaceCategory = InDetailBuilder.EditCategory("Blend Space");
+	IDetailPropertyRow* BlendSpaceRow = BlendSpaceCategory.AddExternalObjects( { BlendSpace } );
+	BlendSpaceRow->ShouldAutoExpand(true);
+}
+
+TArray<UEdGraph*> UAnimGraphNode_BlendSpaceGraphBase::GetSubGraphs() const
+{
+	return TArray<UEdGraph*>( { BlendSpaceGraph } );
+}
+
+void UAnimGraphNode_BlendSpaceGraphBase::DestroyNode()
+{
+	UEdGraph* GraphToRemove = BlendSpaceGraph;
+	BlendSpaceGraph = nullptr;
+	Graphs.Empty();
+
+	Super::DestroyNode();
+
+	if (GraphToRemove)
+	{
+		UBlueprint* Blueprint = GetBlueprint();
+		GraphToRemove->Modify();
+		FBlueprintEditorUtils::RemoveGraph(Blueprint, GraphToRemove, EGraphRemoveFlags::Recompile);
+	}
+}
+
+void UAnimGraphNode_BlendSpaceGraphBase::PreloadRequiredAssets()
+{
+	PreloadObject(BlendSpace);
+
+	Super::PreloadRequiredAssets();
+}
+
+TSharedPtr<INameValidatorInterface> UAnimGraphNode_BlendSpaceGraphBase::MakeNameValidator() const
+{
+	class FNameValidator : public FStringSetNameValidator
+	{
+	public:
+		FNameValidator(const UAnimGraphNode_BlendSpaceGraphBase* InBlendSpaceGraphNode)
+			: FStringSetNameValidator(FString())
+		{
+			TArray<UAnimGraphNode_BlendSpaceGraphBase*> Nodes;
+
+			UAnimationGraph* AnimGraph = CastChecked<UAnimationGraph>(InBlendSpaceGraphNode->GetOuter());
+			AnimGraph->GetNodesOfClass<UAnimGraphNode_BlendSpaceGraphBase>(Nodes);
+
+			for (UAnimGraphNode_BlendSpaceGraphBase* Node : Nodes)
+			{
+				if (Node != InBlendSpaceGraphNode)
+				{
+					Names.Add(Node->GetBlendSpaceGraphName());
+				}
+			}
+		}
+	};
+
+	return MakeShared<FNameValidator>(this);
+}
+
+void UAnimGraphNode_BlendSpaceGraphBase::OnRenameNode(const FString& NewName)
+{
+	FBlueprintEditorUtils::RenameGraph(BlendSpaceGraph, NewName);
+}
+
+FString UAnimGraphNode_BlendSpaceGraphBase::GetBlendSpaceGraphName() const
+{
+	return (BlendSpaceGraph != nullptr) ? *(BlendSpaceGraph->GetName()) : TEXT("(null)");
+}
+
+FString UAnimGraphNode_BlendSpaceGraphBase::GetBlendSpaceName() const
+{
+	return (BlendSpace != nullptr) ? *(BlendSpace->GetName()) : TEXT("(null)");
+}
+
+void UAnimGraphNode_BlendSpaceGraphBase::PostPasteNode()
+{
+	Super::PostPasteNode();
+
+	// Add the new graph as a child of our parent graph
+	UEdGraph* ParentGraph = GetGraph();
+
+	if(ParentGraph->SubGraphs.Find(BlendSpaceGraph) == INDEX_NONE)
+	{
+		ParentGraph->SubGraphs.Add(BlendSpaceGraph);
+	}
+
+	// Refresh sample graphs
+	for (UEdGraph* SampleGraph : Graphs)
+	{
+		for(UEdGraphNode* GraphNode : SampleGraph->Nodes)
+		{
+			GraphNode->CreateNewGuid();
+			GraphNode->PostPasteNode();
+			GraphNode->ReconstructNode();
+		}
+	}
+
+	// Find an interesting name
+	TSharedPtr<INameValidatorInterface> NameValidator = FNameValidatorFactory::MakeValidator(this);
+	FBlueprintEditorUtils::RenameGraphWithSuggestion(BlendSpaceGraph, NameValidator, BlendSpaceGraph->GetName());
+
+	// Restore transactional flag that is lost during copy/paste process
+	BlendSpaceGraph->SetFlags(RF_Transactional);
+}
+
+void UAnimGraphNode_BlendSpaceGraphBase::PostPlacedNewNode()
+{
+	// Create a new graph & blendspace if we havent been set up already
+	if(BlendSpaceGraph == nullptr)
+	{
+		check(BlendSpace == nullptr);
+
+		BlendSpaceGraph = CastChecked<UBlendSpaceGraph>(FBlueprintEditorUtils::CreateNewGraph(this, NAME_None, UBlendSpaceGraph::StaticClass(), UAnimationGraphSchema::StaticClass()));
+		BlendSpaceGraph->BlendSpace = BlendSpace = NewObject<UBlendSpaceBase>();
+		
+		// Find an interesting name
+		TSharedPtr<INameValidatorInterface> NameValidator = FNameValidatorFactory::MakeValidator(this);
+		FBlueprintEditorUtils::RenameGraphWithSuggestion(BlendSpaceGraph, NameValidator, TEXT("New Blend Space"));
+
+		// Add the new graph as a child of our parent graph
+		UEdGraph* ParentGraph = GetGraph();
+	
+		if(ParentGraph->SubGraphs.Find(BlendSpaceGraph) == INDEX_NONE)
+		{
+			ParentGraph->Modify();
+			ParentGraph->SubGraphs.Add(BlendSpaceGraph);
+		}
+	}
+}
+
+void UAnimGraphNode_BlendSpaceGraphBase::CustomizePinData(UEdGraphPin* Pin, FName SourcePropertyName, int32 ArrayIndex) const
+{
+	if (BlendSpace != nullptr)
+	{
+		if (SourcePropertyName == TEXT("X"))
+		{
+			Pin->PinFriendlyName = FText::FromString(BlendSpace->GetBlendParameter(0).DisplayName);
+		}
+		else if (SourcePropertyName == TEXT("Y"))
+		{
+			Pin->PinFriendlyName = FText::FromString(BlendSpace->GetBlendParameter(1).DisplayName);
+			Pin->bHidden = BlendSpace->IsA<UBlendSpace1D>() ? 1 : 0;
+		}
+		else if (SourcePropertyName == TEXT("Z"))
+		{
+			Pin->PinFriendlyName = FText::FromString(BlendSpace->GetBlendParameter(2).DisplayName);
+		}
+	}
+}
+
+void UAnimGraphNode_BlendSpaceGraphBase::PostProcessPinName(const UEdGraphPin* Pin, FString& DisplayName) const
+{
+	if(Pin->Direction == EGPD_Input)
+	{
+		if(BlendSpace != nullptr)
+		{
+			if(Pin->PinName == TEXT("X"))
+			{
+				DisplayName = BlendSpace->GetBlendParameter(0).DisplayName;
+			}
+			else if(Pin->PinName == TEXT("Y"))
+			{
+				DisplayName = BlendSpace->GetBlendParameter(1).DisplayName;
+			}
+			else if(Pin->PinName == TEXT("Z"))
+			{
+				DisplayName = BlendSpace->GetBlendParameter(2).DisplayName;
+			}
+		}
+	}
+
+	Super::PostProcessPinName(Pin, DisplayName);
+}
+
+UAnimationBlendSpaceSampleGraph* UAnimGraphNode_BlendSpaceGraphBase::AddGraph(FName InSampleName)
+{
+	const UAnimationGraphSchema* AnimationGraphSchema = GetDefault<UAnimationGraphSchema>();
+
+	Modify();
+
+	const FName NewGraphName = FBlueprintEditorUtils::GenerateUniqueGraphName(BlendSpaceGraph, InSampleName.ToString());
+	UAnimationBlendSpaceSampleGraph* SampleGraph = CastChecked<UAnimationBlendSpaceSampleGraph>(FBlueprintEditorUtils::CreateNewGraph(BlendSpaceGraph, NewGraphName, UAnimationBlendSpaceSampleGraph::StaticClass(), UAnimationGraphSchema::StaticClass()));
+
+	FGraphNodeCreator<UAnimGraphNode_BlendSpaceSampleResult> ResultNodeCreator(*SampleGraph);
+	UAnimGraphNode_BlendSpaceSampleResult* ResultSinkNode = ResultNodeCreator.CreateNode();
+	ResultNodeCreator.Finalize();
+	AnimationGraphSchema->SetNodeMetaData(ResultSinkNode, FNodeMetadata::DefaultGraphNode);
+	SampleGraph->ResultNode = ResultSinkNode;
+	SampleGraph->bAllowDeletion = false;
+	SampleGraph->bAllowRenaming = true;
+	Graphs.Add(SampleGraph);
+
+	BlendSpaceGraph->Modify();
+	BlendSpaceGraph->SubGraphs.Add(SampleGraph);
+
+	return SampleGraph;
+}
+
+void UAnimGraphNode_BlendSpaceGraphBase::RemoveGraph(int32 InSampleIndex)
+{
+	Modify();
+
+	check(Graphs.IsValidIndex(InSampleIndex));
+	UEdGraph* GraphToRemove = Graphs[InSampleIndex];
+
+	// 'Asset' blendspace sample deletion uses a RemoveAtSwap, so we must mirror it here to maintain the same indices
+	Graphs.RemoveAtSwap(InSampleIndex);
+
+	BlendSpaceGraph->Modify();
+	BlendSpaceGraph->SubGraphs.Remove(GraphToRemove);
+}
+
+FName UAnimGraphNode_BlendSpaceGraphBase::GetSyncGroupName() const
+{
+	FStructProperty* NodeProperty = GetFNodeProperty();
+	const FAnimNode_BlendSpaceGraphBase* AnimNode = NodeProperty->ContainerPtrToValuePtr<FAnimNode_BlendSpaceGraphBase>(this);
+
+	return AnimNode->GroupName;
+}
+
+void UAnimGraphNode_BlendSpaceGraphBase::GetInputLinkAttributes(FNodeAttributeArray& OutAttributes) const
+{
+	if(GetSyncGroupName() != NAME_None)
+	{
+		OutAttributes.Add(UE::Anim::FAnimSync::Attribute);
+	}
+}
+
+#undef LOCTEXT_NAMESPACE

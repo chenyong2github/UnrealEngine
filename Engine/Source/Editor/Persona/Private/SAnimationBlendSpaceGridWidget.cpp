@@ -45,15 +45,19 @@ void SBlendSpaceGridWidget::Construct(const FArguments& InArgs)
 	OnSampleAdded = InArgs._OnSampleAdded;
 	OnSampleMoved = InArgs._OnSampleMoved;
 	OnSampleRemoved = InArgs._OnSampleRemoved;
+	OnSampleDoubleClicked = InArgs._OnSampleDoubleClicked;
 	OnSampleAnimationChanged = InArgs._OnSampleAnimationChanged;
+	OnGetBlendSpaceSampleName = InArgs._OnGetBlendSpaceSampleName;
+	OnExtendSampleTooltip = InArgs._OnExtendSampleTooltip;
 	bReadOnly = InArgs._ReadOnly;
 	bShowAxisLabels = InArgs._ShowAxisLabels;
 	bShowSettingsButtons = InArgs._ShowSettingsButtons;
+	StatusBarName = InArgs._StatusBarName;
 
 	GridType = (BlendSpaceBase.Get() != nullptr && BlendSpaceBase.Get()->IsA<UBlendSpace1D>()) ? EGridType::SingleAxis : EGridType::TwoAxis;
 	BlendParametersToDraw = (GridType == EGridType::SingleAxis) ? 1 : 2;
 	
-	HighlightedSampleIndex = SelectedSampleIndex = DraggedSampleIndex = INDEX_NONE;
+	HighlightedSampleIndex = SelectedSampleIndex = DraggedSampleIndex = ToolTipSampleIndex = INDEX_NONE;
 	DragState = EDragState::None;
 	// Initialize flags 
 	bPreviewPositionSet = true;
@@ -163,7 +167,7 @@ void SBlendSpaceGridWidget::Construct(const FArguments& InArgs)
 								.VAlign(VAlign_Center)
 								[
 									SNew(SButton)
-									.ToolTipText(LOCTEXT("ShowAnimationNames", "Show Animation Names"))
+									.ToolTipText(LOCTEXT("ShowAnimationNames", "Show Sample Names"))
 									.OnClicked(this, &SBlendSpaceGridWidget::ToggleShowAnimationNames)
 									.ButtonColorAndOpacity_Lambda([this]() -> FLinearColor { return bShowAnimationNames ? FEditorStyle::GetSlateColor("SelectionColor").GetSpecifiedColor() : FLinearColor::White; })
 									.ContentPadding(1)
@@ -247,17 +251,17 @@ void SBlendSpaceGridWidget::Construct(const FArguments& InArgs)
 			]
 		]
 	];
-		
+
 	SAssignNew(ToolTip, SToolTip)
-	.BorderImage(FCoreStyle::Get().GetBrush("ToolTip.BrightBackground"))
+	.BorderImage(FCoreStyle::Get().GetBrush("ToolTip.Background"))
 	[
 		SNew(SVerticalBox)
 		+ SVerticalBox::Slot()
+		.AutoHeight()
 		[
 			SNew(STextBlock)
 			.Text(this, &SBlendSpaceGridWidget::GetToolTipAnimationName)
 			.Font(FCoreStyle::Get().GetFontStyle("ToolTip.LargerFont"))
-			.ColorAndOpacity(FLinearColor::Black)
 		]
 
 		+ SVerticalBox::Slot()
@@ -266,14 +270,24 @@ void SBlendSpaceGridWidget::Construct(const FArguments& InArgs)
 			SNew(STextBlock)
 			.Text(this, &SBlendSpaceGridWidget::GetToolTipSampleValue)
 			.Font(FCoreStyle::Get().GetFontStyle("ToolTip.LargerFont"))
-			.ColorAndOpacity(FLinearColor::Black)
+		]
+
+		+ SVerticalBox::Slot()
+		.AutoHeight()
+		[
+			SAssignNew(ToolTipExtensionContainer, SBox)
 		]
 	];
 
-	if(bReadOnly)
+	if(Position.IsSet())
 	{
 		StartPreviewing();
 	}
+}
+
+SBlendSpaceGridWidget::~SBlendSpaceGridWidget()
+{
+	EnableStatusBarMessage(false);
 }
 
 TSharedPtr<SWidget> SBlendSpaceGridWidget::CreateGridEntryBox(const int32 BoxIndex, const bool bShowLabel)
@@ -547,6 +561,23 @@ void SBlendSpaceGridWidget::PaintTriangulation(const FGeometry& AllottedGeometry
 	DrawLayerId += 1;
 }
 
+FText SBlendSpaceGridWidget::GetSampleName(const FBlendSample& InBlendSample, int32 InSampleIndex) const
+{
+	if(OnGetBlendSpaceSampleName.IsBound())
+	{
+		return FText::FromName(OnGetBlendSpaceSampleName.Execute(InSampleIndex));
+	}
+	else
+	{
+		if(InBlendSample.Animation != nullptr)
+		{
+			return FText::FromString(InBlendSample.Animation->GetName());
+		}
+	}
+		
+	return LOCTEXT("NoAnimationSetTooltipText", "No Animation Set");
+}
+
 void SBlendSpaceGridWidget::PaintAnimationNames(const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32& DrawLayerId) const
 {
 	if(const UBlendSpaceBase* BlendSpace = BlendSpaceBase.Get())
@@ -557,24 +588,22 @@ void SBlendSpaceGridWidget::PaintAnimationNames(const FGeometry& AllottedGeometr
 		for (int32 SampleIndex = 0; SampleIndex < Samples.Num(); ++SampleIndex)
 		{
 			const FBlendSample& Sample = Samples[SampleIndex];
-			if (Sample.Animation)
+
+			const FText Name = FText::Format(LOCTEXT("SampleNameFormat", "{0} ({1})"), GetSampleName(Sample, SampleIndex), FText::AsNumber(SampleIndex));
+			const FVector2D TextSize = FontMeasure->Measure(Name, FontInfo);
+
+			FVector2D GridPosition = SampleValueToGridPosition(Sample.SampleValue);
+			// Check on which side of the sample the text should be positioned so that we don't run out of geometry space
+			if ((GridPosition + TextSize).X > AllottedGeometry.GetLocalSize().X)
 			{
-				const FString Name = Sample.Animation->GetName() + FString::Printf(TEXT(" (%i)"), SampleIndex);
-				const FVector2D TextSize = FontMeasure->Measure(Name, FontInfo);
-
-				FVector2D GridPosition = SampleValueToGridPosition(Sample.SampleValue);
-				// Check on which side of the sample the text should be positioned so that we don't run out of geometry space
-				if ((GridPosition + TextSize).X > AllottedGeometry.GetLocalSize().X)
-				{
-					GridPosition -= FVector2D(TextSize.X + KeySize.X, KeySize.X * .5f);
-				}
-				else
-				{
-					GridPosition += FVector2D(KeySize.X, -KeySize.X * .5f);
-				}
-
-				FSlateDrawElement::MakeText(OutDrawElements, DrawLayerId + 1, AllottedGeometry.MakeChild(FVector2D(GridPosition.X, GridPosition.Y), FVector2D(1.0f, 1.0f)).ToPaintGeometry(), Name, FontInfo, ESlateDrawEffect::None, FLinearColor::White);
+				GridPosition -= FVector2D(TextSize.X + KeySize.X, KeySize.X * .5f);
 			}
+			else
+			{
+				GridPosition += FVector2D(KeySize.X, -KeySize.X * .5f);
+			}
+
+			FSlateDrawElement::MakeText(OutDrawElements, DrawLayerId + 1, AllottedGeometry.MakeChild(FVector2D(GridPosition.X, GridPosition.Y), FVector2D(1.0f, 1.0f)).ToPaintGeometry(), Name, FontInfo, ESlateDrawEffect::None, FLinearColor::White);
 		}
 	}
 
@@ -758,10 +787,36 @@ FReply SBlendSpaceGridWidget::OnMouseButtonDown(const FGeometry& MyGeometry, con
 	return FReply::Unhandled();
 }
 
+FReply SBlendSpaceGridWidget::OnMouseButtonDoubleClick(const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent)
+{
+	if(!bReadOnly)
+	{
+		if(const UBlendSpaceBase* BlendSpace = BlendSpaceBase.Get())
+		{
+			if (InMouseEvent.GetEffectingButton() == EKeys::LeftMouseButton)
+			{
+				if (SelectedSampleIndex != INDEX_NONE)
+				{
+					OnSampleDoubleClicked.ExecuteIfBound(SelectedSampleIndex);
+				}
+
+				return FReply::Handled();
+			}
+		}
+	}
+
+	return FReply::Unhandled();
+}
+
 FReply SBlendSpaceGridWidget::OnMouseMove(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
 	if(const UBlendSpaceBase* BlendSpace = BlendSpaceBase.Get())
 	{
+		if(!bReadOnly)
+		{
+			EnableStatusBarMessage(true);
+		}
+
 		// Cache the mouse position in local and screen space
 		LocalMousePosition = MyGeometry.AbsoluteToLocal(MouseEvent.GetScreenSpacePosition());
 		LastMousePosition = MouseEvent.GetScreenSpacePosition();
@@ -788,10 +843,9 @@ FReply SBlendSpaceGridWidget::OnMouseMove(const FGeometry& MyGeometry, const FPo
 				}
 			}
 		}
-
-		if (IsHovered() && !HasAnyUserFocus() && bMouseIsOverGeometry)
+		else if (IsHovered() && bMouseIsOverGeometry && DragState != EDragState::DragPreview)
 		{
-			if (!bReadOnly && (MouseEvent.IsLeftShiftDown() || MouseEvent.IsRightShiftDown()))
+			if ((MouseEvent.IsLeftShiftDown() || MouseEvent.IsRightShiftDown()))
 			{
 				StartPreviewing();
 				DragState = EDragState::Preview;
@@ -801,11 +855,14 @@ FReply SBlendSpaceGridWidget::OnMouseMove(const FGeometry& MyGeometry, const FPo
 				// Set flag for showing advanced preview info in tooltip
 				bAdvancedPreview = MouseEvent.IsLeftControlDown() || MouseEvent.IsRightControlDown();
 			}
-			else if(bReadOnly)
+			else if(Position.IsSet())
 			{
 				StartPreviewing();
 				DragState = EDragState::None;
 				ShowToolTip();
+
+				// Set flag for showing advanced preview info in tooltip
+				bAdvancedPreview = MouseEvent.IsLeftControlDown() || MouseEvent.IsRightControlDown();
 			}
 			else if (bSamplePreviewing)
 			{
@@ -854,6 +911,26 @@ FReply SBlendSpaceGridWidget::ProcessClick(const FGeometry& MyGeometry, const FP
 			}
 			else if (MouseEvent.GetEffectingButton() == EKeys::RightMouseButton)
 			{
+				auto PushMenu = [this, &MouseEvent](TSharedPtr<SWidget> InMenuContent)
+				{
+					if (InMenuContent.IsValid())
+					{
+						const FWidgetPath WidgetPath = MouseEvent.GetEventPath() != nullptr ? *MouseEvent.GetEventPath() : FWidgetPath();
+						const FVector2D MousePosition = MouseEvent.GetScreenSpacePosition();
+						// This is of a fixed size atm since MenuContent->GetDesiredSize() will not take the detail customization into account and return an incorrect (small) size
+						const FVector2D ExpectedSize(300, 100);				
+						const FVector2D MenuPosition = FSlateApplication::Get().CalculatePopupWindowPosition(FSlateRect(MousePosition.X, MousePosition.Y, MousePosition.X, MousePosition.Y), ExpectedSize, false);
+
+						FSlateApplication::Get().PushMenu(
+							AsShared(),
+							WidgetPath,
+							InMenuContent.ToSharedRef(),
+							MenuPosition,
+							FPopupTransitionEffect(FPopupTransitionEffect::ContextMenu)
+							);
+					}
+				};
+
 				// If we are over a sample open a context menu for editing its data
 				if (HighlightedSampleIndex != INDEX_NONE)
 				{	
@@ -865,25 +942,18 @@ FReply SBlendSpaceGridWidget::ProcessClick(const FGeometry& MyGeometry, const FP
 					// Reset highlight sample index
 					HighlightedSampleIndex = INDEX_NONE;
 
-					if (MenuContent.IsValid())
-					{
-						const FWidgetPath WidgetPath = MouseEvent.GetEventPath() != nullptr ? *MouseEvent.GetEventPath() : FWidgetPath();
-						const FVector2D MousePosition = MouseEvent.GetScreenSpacePosition();
-						// This is of a fixed size atm since MenuContent->GetDesiredSize() will not take the detail customization into account and return an incorrect (small) size
-						const FVector2D ExpectedSize(300, 100);				
-						const FVector2D MenuPosition = FSlateApplication::Get().CalculatePopupWindowPosition(FSlateRect(MousePosition.X, MousePosition.Y, MousePosition.X, MousePosition.Y), ExpectedSize, false);
+					PushMenu(MenuContent);
 
-						FSlateApplication::Get().PushMenu(
-							AsShared(),
-							WidgetPath,
-							MenuContent.ToSharedRef(),
-							MenuPosition,
-							FPopupTransitionEffect(FPopupTransitionEffect::ContextMenu)
-							);
-
-						return FReply::Handled().SetUserFocus(MenuContent.ToSharedRef(), EFocusCause::SetDirectly).ReleaseMouseCapture();
-					}
-				}		
+					return FReply::Handled().SetUserFocus(MenuContent.ToSharedRef(), EFocusCause::SetDirectly).ReleaseMouseCapture();
+				}
+				else
+				{
+					TSharedPtr<SWidget> MenuContent = CreateNewBlendSampleContextMenu(MyGeometry.AbsoluteToLocal(MouseEvent.GetScreenSpacePosition()));
+				
+					PushMenu(MenuContent);
+				
+					return FReply::Handled().SetUserFocus(MenuContent.ToSharedRef(), EFocusCause::SetDirectly).ReleaseMouseCapture();
+				}
 			}
 		}
 	}
@@ -971,6 +1041,52 @@ FReply SBlendSpaceGridWidget::OnKeyUp(const FGeometry& MyGeometry, const FKeyEve
 	return FReply::Unhandled();
 }
 
+void SBlendSpaceGridWidget::MakeViewContextMenuEntries(FMenuBuilder& InMenuBuilder)
+{
+	InMenuBuilder.BeginSection("ViewOptions", LOCTEXT("ViewOptionsMenuHeader", "View Options"));
+	{
+		InMenuBuilder.AddMenuEntry(
+			LOCTEXT("ShowTriangulation", "Show Triangulation"),
+			LOCTEXT("ShowTriangulationToolTip", "Show the Delaunay triangulation for all blend space samples"),
+			FSlateIcon("EditorStyle", "BlendSpaceEditor.ToggleTriangulation"),
+			FUIAction(
+				FExecuteAction::CreateLambda([this](){ bShowTriangulation = !bShowTriangulation; }),
+				FCanExecuteAction(),
+				FGetActionCheckState::CreateLambda([this](){ return bShowTriangulation ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; })
+			),
+			NAME_None,
+			EUserInterfaceActionType::ToggleButton
+		);
+
+		InMenuBuilder.AddMenuEntry(
+			LOCTEXT("ShowAnimationNames", "Show Sample Names"),
+			LOCTEXT("ShowAnimationNamesToolTip", "Show the names of each of the samples"),
+			FSlateIcon("EditorStyle", "BlendSpaceEditor.ToggleLabels"),
+			FUIAction(
+				FExecuteAction::CreateLambda([this](){ bShowAnimationNames = !bShowAnimationNames; }),
+				FCanExecuteAction(),
+				FGetActionCheckState::CreateLambda([this](){ return bShowAnimationNames ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; })
+			),
+			NAME_None,
+			EUserInterfaceActionType::ToggleButton
+		);
+
+		InMenuBuilder.AddMenuEntry(
+			LOCTEXT("StretchFittingText", "Stretch Grid to Fit"),
+			LOCTEXT("StretchFittingTextToolTip", "Whether to stretch the grid to fit or to fit the grid to the largest axis"),
+			FSlateIcon("EditorStyle", "WidgetDesigner.ZoomToFit"),
+			FUIAction(
+				FExecuteAction::CreateLambda([this](){ bStretchToFit = !bStretchToFit; }),
+				FCanExecuteAction(),
+				FGetActionCheckState::CreateLambda([this](){ return bStretchToFit ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; })
+			),
+			NAME_None,
+			EUserInterfaceActionType::ToggleButton
+		);
+	}
+	InMenuBuilder.EndSection();
+}
+
 TSharedPtr<SWidget> SBlendSpaceGridWidget::CreateBlendSampleContextMenu()
 {
 	const bool bShouldCloseWindowAfterMenuSelection = true;
@@ -1004,7 +1120,7 @@ TSharedPtr<SWidget> SBlendSpaceGridWidget::CreateBlendSampleContextMenu()
 		if(const UBlendSpaceBase* BlendSpace = BlendSpaceBase.Get())
 		{
 			const FBlendSample& Sample = BlendSpace->GetBlendSample(HighlightedSampleIndex);		
-			StructureDetailsView->GetDetailsView()->SetGenericLayoutDetailsDelegate(FOnGetDetailCustomizationInstance::CreateStatic(&FBlendSampleDetails::MakeInstance, BlendSpace, this));
+			StructureDetailsView->GetDetailsView()->SetGenericLayoutDetailsDelegate(FOnGetDetailCustomizationInstance::CreateStatic(&FBlendSampleDetails::MakeInstance, BlendSpace, this, HighlightedSampleIndex));
 
 			FStructOnScope* Struct = new FStructOnScope(FBlendSample::StaticStruct(), (uint8*)&Sample);
 			Struct->SetPackage(BlendSpace->GetOutermost());
@@ -1012,7 +1128,54 @@ TSharedPtr<SWidget> SBlendSpaceGridWidget::CreateBlendSampleContextMenu()
 		}
 	}
 	
-	MenuBuilder.AddWidget(StructureDetailsView->GetWidget().ToSharedRef(), FText::GetEmpty(), true);
+	MenuBuilder.BeginSection("Sample", LOCTEXT("SampleMenuHeader", "Sample"));
+	{
+		MenuBuilder.AddWidget(StructureDetailsView->GetWidget().ToSharedRef(), FText::GetEmpty(), true);
+	}
+	MenuBuilder.EndSection();
+
+	MakeViewContextMenuEntries(MenuBuilder);
+
+	return MenuBuilder.MakeWidget();
+}
+
+TSharedPtr<SWidget> SBlendSpaceGridWidget::CreateNewBlendSampleContextMenu(const FVector2D& InMousePosition)
+{
+	const bool bShouldCloseWindowAfterMenuSelection = true;
+	FMenuBuilder MenuBuilder(bShouldCloseWindowAfterMenuSelection, nullptr);
+
+	FVector NewSampleValue;
+	if(FSlateApplication::Get().GetModifierKeys().IsAltDown())
+	{
+		const FVector2D GridPosition(FMath::Clamp(InMousePosition.X, CachedGridRectangle.Left, CachedGridRectangle.Right),
+									 FMath::Clamp(InMousePosition.Y, CachedGridRectangle.Top, CachedGridRectangle.Bottom));
+		NewSampleValue = GridPositionToSampleValue(GridPosition, false);
+	}
+	else
+	{
+		NewSampleValue = GridPositionToSampleValue(SnapToClosestGridPoint(InMousePosition), false);
+	}
+
+	if(const UBlendSpaceBase* BlendSpace = BlendSpaceBase.Get())
+	{
+		MenuBuilder.BeginSection("Sample", LOCTEXT("SampleMenuHeader", "Sample"));
+		{
+			if(!BlendSpace->IsAsset())
+			{
+				MenuBuilder.AddMenuEntry(
+					LOCTEXT("AddNewSample", "Add New Sample"),
+					LOCTEXT("AddNewSampleTooltip", "Add a new sample to this blendspace at this location"),
+						FSlateIcon("EditorStyle", "Plus"),
+						FUIAction(
+							FExecuteAction::CreateLambda([this, NewSampleValue](){ OnSampleAdded.ExecuteIfBound(nullptr, NewSampleValue); })
+						)
+				);
+			}
+		}
+		MenuBuilder.EndSection();
+	}
+
+	MakeViewContextMenuEntries(MenuBuilder);
 
 	return MenuBuilder.MakeWidget();
 }
@@ -1144,7 +1307,9 @@ void SBlendSpaceGridWidget::StartPreviewing()
 {
 	bSamplePreviewing = true;
 	LastPreviewingMousePosition = LocalMousePosition;
-	LastPreviewingSampleValue = bReadOnly ? Position.Get() : GridPositionToSampleValue(LastPreviewingMousePosition, false);
+	FModifierKeysState ModifierKeyState = FSlateApplication::Get().GetModifierKeys();
+	bool bIsManualPreviewing = (ModifierKeyState.IsLeftShiftDown() || ModifierKeyState.IsRightShiftDown()) || DragState == EDragState::DragPreview;
+	LastPreviewingSampleValue = Position.IsSet() && !bIsManualPreviewing ? Position.Get() : GridPositionToSampleValue(LastPreviewingMousePosition, false);
 	bPreviewPositionSet = true;	
 	bPreviewToolTipHidden = true;
 }
@@ -1159,72 +1324,80 @@ FText SBlendSpaceGridWidget::GetToolTipAnimationName() const
 	FText ToolTipText = FText::GetEmpty();
 	if(const UBlendSpaceBase* BlendSpace = BlendSpaceBase.Get())
 	{
-		const FText EmptyAnimationText = LOCTEXT("NoAnimationSetTooltipText", "No Animation Set");
+		const FText PreviewValue = LOCTEXT("PreviewValueTooltip", "Preview Value");
 
-		switch (DragState)
+		if(bReadOnly)
 		{
-			// If we are not dragging, but over a valid blend sample return its animation asset name
-			case EDragState::None:
-			{		
-				if (bHighlightPreviewPin && !bReadOnly)
-				{
-					const FText PreviewPinText = LOCTEXT("HighlightPreviewPinTooltipText", "Preview Value (Click and Drag or Hold Shift to Move)");
-					ToolTipText = PreviewPinText;
-				}
-				else if (HighlightedSampleIndex != INDEX_NONE && BlendSpace->IsValidBlendSampleIndex(HighlightedSampleIndex))
-				{
-					const FBlendSample& BlendSample = BlendSpace->GetBlendSample(HighlightedSampleIndex);					
-					ToolTipText = (BlendSample.Animation != nullptr) ? FText::FromString(BlendSample.Animation->GetName()) : EmptyAnimationText;
-				}
-				break;
-			}
-
-			case EDragState::PreDrag:
+			ToolTipText = PreviewValue;
+		}
+		else
+		{
+			switch (DragState)
 			{
-				break;
-			}
-
-			// If we are dragging a sample return the dragged sample's animation asset name
-			case EDragState::DragSample:
-			{
-				if (BlendSpace->IsValidBlendSampleIndex(DraggedSampleIndex))
-				{
-					const FBlendSample& BlendSample = BlendSpace->GetBlendSample(DraggedSampleIndex);
-					ToolTipText = (BlendSample.Animation != nullptr) ? FText::FromString(BlendSample.Animation->GetName()) : EmptyAnimationText;
+				// If we are not dragging, but over a valid blend sample return its animation asset name
+				case EDragState::None:
+				{		
+					if (bHighlightPreviewPin)
+					{
+						ToolTipText = PreviewValue;
+					}
+					else if (HighlightedSampleIndex != INDEX_NONE && BlendSpace->IsValidBlendSampleIndex(HighlightedSampleIndex))
+					{
+						const FBlendSample& BlendSample = BlendSpace->GetBlendSample(HighlightedSampleIndex);
+						ToolTipText = GetSampleName(BlendSample, HighlightedSampleIndex);
+					}
+					else if(Position.IsSet())
+					{
+						ToolTipText = PreviewValue;
+					}
+					break;
 				}
+
+				case EDragState::PreDrag:
+				{
+					break;
+				}
+
+				// If we are dragging a sample return the dragged sample's animation asset name
+				case EDragState::DragSample:
+				{
+					if (BlendSpace->IsValidBlendSampleIndex(DraggedSampleIndex))
+					{
+						const FBlendSample& BlendSample = BlendSpace->GetBlendSample(DraggedSampleIndex);
+						ToolTipText = GetSampleName(BlendSample, DraggedSampleIndex);
+					}
 			
-				break;
-			}
+					break;
+				}
 
-			// If we are performing a drag/drop operation return the cached operation animation name
-			case EDragState::DragDrop:
-			{
-				ToolTipText = DragDropAnimationName;
-				break;
-			}
+				// If we are performing a drag/drop operation return the cached operation animation name
+				case EDragState::DragDrop:
+				{
+					ToolTipText = DragDropAnimationName;
+					break;
+				}
 
-			case EDragState::DragDropOverride:
-			{
-				ToolTipText = DragDropAnimationName;
-				break;
-			}
+				case EDragState::DragDropOverride:
+				{
+					ToolTipText = DragDropAnimationName;
+					break;
+				}
 
-			case EDragState::InvalidDragDrop:
-			{
-				break;
-			}
+				case EDragState::InvalidDragDrop:
+				{
+					break;
+				}
 		
-			// If we are previewing return a descriptive label
-			case EDragState::Preview:
-			case EDragState::DragPreview:
-			{
-				const FText AdvancedPreviewText = LOCTEXT("AdvancedPreviewValueTooltip", "Preview Value");
-				const FText BasicPreviewText = LOCTEXT("BasicPreviewValueTooltip", "Preview Value (Hold Ctrl for Weight Details)");	
-				ToolTipText = bAdvancedPreview ? AdvancedPreviewText : BasicPreviewText;
-				break;
+				// If we are previewing return a descriptive label
+				case EDragState::Preview:
+				case EDragState::DragPreview:
+				{
+					ToolTipText = PreviewValue;
+					break;
+				}
+				default:
+					check(false);
 			}
-			default:
-				check(false);
 		}
 	}
 
@@ -1237,11 +1410,36 @@ FText SBlendSpaceGridWidget::GetToolTipSampleValue() const
 
 	if(const UBlendSpaceBase* BlendSpace = BlendSpaceBase.Get())
 	{
-		const FTextFormat ValueFormattingText = (GridType == EGridType::TwoAxis) ? FTextFormat::FromString("{0}: {1} - {2}: {3}") : FTextFormat::FromString("{0}: {1}");
+		static const FTextFormat OneAxisFormat = LOCTEXT("OneAxisFormat", "{0}: {1}");
+		static const FTextFormat TwoAxisFormat = LOCTEXT("TwoAxisFormat", "{0}: {1} - {2}: {3}");
+		const FTextFormat& ValueFormattingText = (GridType == EGridType::TwoAxis) ? TwoAxisFormat : OneAxisFormat;
+
+		auto AddAdvancedPreview = [this, &ToolTipText, BlendSpace]()
+		{
+			FTextBuilder TextBuilder;
+			TextBuilder.AppendLine(ToolTipText);
+
+			if (bAdvancedPreview)
+			{				
+				for (const FBlendSampleData& SampleData : PreviewedSamples)
+				{
+					if(BlendSpace->IsValidBlendSampleIndex(SampleData.SampleDataIndex))
+					{
+						const FBlendSample& BlendSample = BlendSpace->GetBlendSample(SampleData.SampleDataIndex);
+						static const FTextFormat SampleFormat = LOCTEXT("SampleFormat", "{0}: {1}");
+						TextBuilder.AppendLine(FText::Format(SampleFormat, GetSampleName(BlendSample, SampleData.SampleDataIndex), FText::AsNumber(SampleData.TotalWeight)));
+					}
+				}
+			}
+
+			ToolTipText = TextBuilder.ToText();
+		};
 
 		if(bReadOnly)
 		{
 			ToolTipText = FText::Format(ValueFormattingText, ParameterXName, FText::FromString(FString::SanitizeFloat(LastPreviewingSampleValue.X)), ParameterYName, FText::FromString(FString::SanitizeFloat(LastPreviewingSampleValue.Y)));
+
+			AddAdvancedPreview();
 		}
 		else
 		{
@@ -1253,6 +1451,8 @@ FText SBlendSpaceGridWidget::GetToolTipSampleValue() const
 					if (bHighlightPreviewPin)
 					{
 						ToolTipText = FText::Format(ValueFormattingText, ParameterXName, FText::FromString(FString::SanitizeFloat(LastPreviewingSampleValue.X)), ParameterYName, FText::FromString(FString::SanitizeFloat(LastPreviewingSampleValue.Y)));
+
+						AddAdvancedPreview();
 					}
 					else if (HighlightedSampleIndex != INDEX_NONE && BlendSpace->IsValidBlendSampleIndex(HighlightedSampleIndex))
 					{
@@ -1268,7 +1468,12 @@ FText SBlendSpaceGridWidget::GetToolTipSampleValue() const
 							ToolTipText = GetSampleErrorMessage(BlendSample);
 						}
 					}
+					else if(Position.IsSet())
+					{
+						ToolTipText = FText::Format(ValueFormattingText, ParameterXName, FText::FromString(FString::SanitizeFloat(LastPreviewingSampleValue.X)), ParameterYName, FText::FromString(FString::SanitizeFloat(LastPreviewingSampleValue.Y)));
 
+						AddAdvancedPreview();
+					}
 					break;
 				}
 
@@ -1300,7 +1505,7 @@ FText SBlendSpaceGridWidget::GetToolTipSampleValue() const
 
 				case EDragState::DragDropOverride:
 				{
-					const FTextFormat OverrideAnimationFormat = FTextFormat::FromString("Changing Animation from {0} to {1}");
+					static const FTextFormat OverrideAnimationFormat = FTextFormat::FromString("Changing Animation from {0} to {1}");
 					ToolTipText = FText::Format(OverrideAnimationFormat, HoveredAnimationName, DragDropAnimationName);
 					break;
 				}
@@ -1315,25 +1520,9 @@ FText SBlendSpaceGridWidget::GetToolTipSampleValue() const
 				case EDragState::DragPreview:
 				case EDragState::Preview:
 				{
-					FFormatOrderedArguments PreviewTextArguments;
-					PreviewTextArguments.Add(FText::Format(ValueFormattingText, ParameterXName, FText::FromString(FString::SanitizeFloat(LastPreviewingSampleValue.X)), ParameterYName, FText::FromString(FString::SanitizeFloat(LastPreviewingSampleValue.Y))));
+					ToolTipText = FText::Format(ValueFormattingText, ParameterXName, FText::FromString(FString::SanitizeFloat(LastPreviewingSampleValue.X)), ParameterYName, FText::FromString(FString::SanitizeFloat(LastPreviewingSampleValue.Y)));
 
-					FString PreviewSamplesString;
-					if (bAdvancedPreview)
-					{				
-						for (const FBlendSampleData& SampleData : PreviewedSamples)
-						{
-							PreviewSamplesString += "\n";
-							PreviewSamplesString += SampleData.Animation ? SampleData.Animation->GetName() : "No Animation Set";
-							PreviewSamplesString += ": ";
-							PreviewSamplesString += FString::SanitizeFloat(SampleData.TotalWeight);
-						}				
-					}
-					PreviewTextArguments.Add(FText::FromString(PreviewSamplesString));
-			
-					const FTextFormat PreviewTextFormat = FTextFormat::FromString("{0}{1}");			
-					ToolTipText = FText::Format(PreviewTextFormat, PreviewTextArguments);
-			
+					AddAdvancedPreview();
 					break;
 				}
 				default:
@@ -1343,6 +1532,37 @@ FText SBlendSpaceGridWidget::GetToolTipSampleValue() const
 	}
 
 	return ToolTipText;
+}
+
+void SBlendSpaceGridWidget::EnableStatusBarMessage(bool bEnable)
+{
+	if(!bReadOnly)
+	{
+		if(bEnable)
+		{
+			if (!StatusBarMessageHandle.IsValid())
+			{
+				if(UStatusBarSubsystem* StatusBarSubsystem = GEditor->GetEditorSubsystem<UStatusBarSubsystem>())
+				{
+					StatusBarMessageHandle = StatusBarSubsystem->PushStatusBarMessage(StatusBarName, MakeAttributeLambda([]()
+					{
+						return LOCTEXT("StatusBarMssage", "Hold Ctrl for weight details, click and drag or hold Shift to move preview value");
+					}));
+				}
+			}
+		}
+		else
+		{
+			if (StatusBarMessageHandle.IsValid())
+			{
+				if(UStatusBarSubsystem* StatusBarSubsystem = GEditor->GetEditorSubsystem<UStatusBarSubsystem>())
+				{
+					StatusBarSubsystem->PopStatusBarMessage(StatusBarName, StatusBarMessageHandle);
+					StatusBarMessageHandle.Reset();
+				}
+			}
+		}
+	}
 }
 
 FText SBlendSpaceGridWidget::GetSampleErrorMessage(const FBlendSample &BlendSample) const
@@ -1367,11 +1587,22 @@ FText SBlendSpaceGridWidget::GetSampleErrorMessage(const FBlendSample &BlendSamp
 
 void SBlendSpaceGridWidget::ShowToolTip()
 {
+	if(DragState != EDragState::DragPreview && HighlightedSampleIndex != INDEX_NONE && ToolTipSampleIndex != HighlightedSampleIndex)
+	{
+		ToolTipSampleIndex = HighlightedSampleIndex;
+		if(OnExtendSampleTooltip.IsBound())
+		{
+			ToolTipExtensionContainer->SetContent(OnExtendSampleTooltip.Execute(HighlightedSampleIndex));
+		}
+	}
+	
 	SetToolTip(ToolTip);
 }
 
 void SBlendSpaceGridWidget::ResetToolTip()
 {
+	ToolTipSampleIndex = INDEX_NONE;
+	ToolTipExtensionContainer->SetContent(SNullWidget::NullWidget);
 	SetToolTip(nullptr);
 }
 
@@ -1588,12 +1819,14 @@ void SBlendSpaceGridWidget::OnMouseEnter(const FGeometry& MyGeometry, const FPoi
 {	
 	SCompoundWidget::OnMouseEnter(MyGeometry, MouseEvent);
 	bMouseIsOverGeometry = true;
+	EnableStatusBarMessage(true);
 }
 
 void SBlendSpaceGridWidget::OnMouseLeave(const FPointerEvent& MouseEvent)
 {
 	SCompoundWidget::OnMouseLeave(MouseEvent);
 	bMouseIsOverGeometry = false;
+	EnableStatusBarMessage(false);
 }
 
 void SBlendSpaceGridWidget::OnFocusLost(const FFocusEvent& InFocusEvent)
@@ -1603,6 +1836,7 @@ void SBlendSpaceGridWidget::OnFocusLost(const FFocusEvent& InFocusEvent)
 	DragState = EDragState::None;
 	bSamplePreviewing = false;
 	ResetToolTip();
+	EnableStatusBarMessage(false);
 }
 
 bool SBlendSpaceGridWidget::SupportsKeyboardFocus() const
@@ -1745,10 +1979,12 @@ void SBlendSpaceGridWidget::Tick(const FGeometry& AllottedGeometry, const double
 			// Ensure the preview mouse position is clamped to the grid
 			LastPreviewingMousePosition.X = LocalMousePosition.X; //FMath::Clamp(LocalMousePosition.X, CachedGridRectangle.Left, CachedGridRectangle.Right);
 			LastPreviewingMousePosition.Y = LocalMousePosition.Y; //FMath::Clamp(LocalMousePosition.Y, CachedGridRectangle.Top, CachedGridRectangle.Bottom);
-			LastPreviewingSampleValue = bReadOnly ? Position.Get() : GridPositionToSampleValue(LastPreviewingMousePosition, false);
-
-			LastPreviewingSampleValue = BlendSpace->GetClampedAndWrappedBlendInput(LastPreviewingSampleValue);
+			FModifierKeysState ModifierKeyState = FSlateApplication::Get().GetModifierKeys();
+			bool bIsManualPreviewing = (ModifierKeyState.IsLeftShiftDown() || ModifierKeyState.IsRightShiftDown()) || DragState == EDragState::DragPreview;
+			LastPreviewingSampleValue = Position.IsSet() && !bIsManualPreviewing ? Position.Get() : GridPositionToSampleValue(LastPreviewingMousePosition, false);
 						
+			LastPreviewingSampleValue = BlendSpace->GetClampedAndWrappedBlendInput(LastPreviewingSampleValue);
+					
 			// Retrieve and cache weighted samples
 			PreviewedSamples.Empty(4);
 			BlendSpace->GetSamplesFromBlendInput(GetBlendPreviewValue(), PreviewedSamples);
@@ -1870,6 +2106,13 @@ bool SBlendSpaceGridWidget::ValidateAnimationSequence(const UAnimSequence* Anima
 	}
 
 	return AnimationSequence != nullptr;
+}
+
+const bool SBlendSpaceGridWidget::IsPreviewing() const 
+{ 
+	FModifierKeysState ModifierKeyState = FSlateApplication::Get().GetModifierKeys();
+	bool bIsManualPreviewing = (ModifierKeyState.IsLeftShiftDown() || ModifierKeyState.IsRightShiftDown()) || DragState == EDragState::DragPreview;
+	return (bSamplePreviewing && !Position.IsSet()) || (Position.IsSet() && bIsManualPreviewing);
 }
 
 #undef LOCTEXT_NAMESPACE // "SAnimationBlendSpaceGridWidget"

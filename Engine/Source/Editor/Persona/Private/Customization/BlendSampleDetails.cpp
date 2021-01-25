@@ -23,12 +23,19 @@
 #include "PackageTools.h"
 #include "IDetailGroup.h"
 #include "Editor.h"
+#include "AnimGraphNode_BlendSpaceGraphBase.h"
+#include "Animation/AnimBlueprint.h"
+#include "Toolkits/ToolkitManager.h"
+#include "BlueprintEditorModule.h"
+#include "AnimationGraph.h"
+#include "BlendSpaceGraph.h"
 
 #define LOCTEXT_NAMESPACE "BlendSampleDetails"
 
-FBlendSampleDetails::FBlendSampleDetails(const UBlendSpaceBase* InBlendSpace, class SBlendSpaceGridWidget* InGridWidget)
+FBlendSampleDetails::FBlendSampleDetails(const UBlendSpaceBase* InBlendSpace, class SBlendSpaceGridWidget* InGridWidget, int32 InSampleIndex)
 	: BlendSpace(InBlendSpace)
 	, GridWidget(InGridWidget)
+	, SampleIndex(InSampleIndex)
 {
 	// Retrieve the additive animation type enum
 	const UEnum* AdditiveTypeEnum = StaticEnum<EAdditiveAnimationType>();
@@ -80,16 +87,34 @@ void FBlendSampleDetails::CustomizeDetails(class IDetailLayoutBuilder& DetailBui
 		}
 	}
 
+	const UBlendSpaceBase* BlendspaceToUse = BlendSpaceBase != nullptr ? BlendSpaceBase : BlendSpace;
+	UAnimGraphNode_BlendSpaceGraphBase* BlendSpaceNode = nullptr;
+	if(UBlendSpaceGraph* BlendSpaceGraph = Cast<UBlendSpaceGraph>(BlendspaceToUse->GetOuter()))
+	{
+		check(BlendspaceToUse == BlendSpaceGraph->BlendSpace);
+		BlendSpaceNode = CastChecked<UAnimGraphNode_BlendSpaceGraphBase>(BlendSpaceGraph->GetOuter());
+	}
+
 	FBlendSampleDetails::GenerateBlendSampleWidget([&CategoryBuilder]() -> FDetailWidgetRow& { return CategoryBuilder.AddCustomRow(FText::FromString(TEXT("SampleValue"))); }, GridWidget->OnSampleMoved, (BlendSpaceBase != nullptr) ? BlendSpaceBase : BlendSpace, GridWidget->GetSelectedSampleIndex(), false );
 
-	TSharedPtr<IPropertyHandle> AnimationProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(FBlendSample, Animation), (UClass*)(FBlendSample::StaticStruct()));
-	FDetailWidgetRow& AnimationRow = CategoryBuilder.AddCustomRow(FText::FromString(TEXT("Animation")));
-	FBlendSampleDetails::GenerateAnimationWidget(AnimationRow, BlendSpaceBase != nullptr ? BlendSpaceBase : BlendSpace, AnimationProperty);
+	TSharedPtr<IPropertyHandle> AnimationProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(FBlendSample, Animation), FBlendSample::StaticStruct());
 
-	TSharedPtr<IPropertyHandle> RateScaleProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(FBlendSample, RateScale), (UClass*)(FBlendSample::StaticStruct()));
+	if(BlendspaceToUse->IsAsset())
+	{
+		FDetailWidgetRow& AnimationRow = CategoryBuilder.AddCustomRow(FText::FromString(TEXT("Animation")));
+		FBlendSampleDetails::GenerateAnimationWidget(AnimationRow, BlendspaceToUse, AnimationProperty);
+	}
+	else
+	{
+		check(BlendSpaceNode);
+		FDetailWidgetRow& GraphRow = CategoryBuilder.AddCustomRow(FText::FromString(TEXT("Graph")));
+		FBlendSampleDetails::GenerateSampleGraphWidget(GraphRow, BlendSpaceNode, SampleIndex);
+	}
+
+	TSharedPtr<IPropertyHandle> RateScaleProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(FBlendSample, RateScale), FBlendSample::StaticStruct());
 	CategoryBuilder.AddProperty(RateScaleProperty);
 
-	TSharedPtr<IPropertyHandle> SnappedProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(FBlendSample, bSnapToGrid), (UClass*)(FBlendSample::StaticStruct()));
+	TSharedPtr<IPropertyHandle> SnappedProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(FBlendSample, bSnapToGrid), FBlendSample::StaticStruct());
 	CategoryBuilder.AddProperty(SnappedProperty);
 }
 
@@ -199,6 +224,56 @@ void FBlendSampleDetails::GenerateAnimationWidget(FDetailWidgetRow& Row, const U
 			.AllowedClass(UAnimSequence::StaticClass())
 			.OnShouldFilterAsset(FOnShouldFilterAsset::CreateStatic(&FBlendSampleDetails::ShouldFilterAssetStatic, BlendSpace))
 			.PropertyHandle(AnimationProperty)
+		];
+}
+
+void FBlendSampleDetails::GenerateSampleGraphWidget(FDetailWidgetRow& InRow, UAnimGraphNode_BlendSpaceGraphBase* InBlendSpaceNode, int32 InSampleIndex)
+{
+	InRow
+		.NameContent()
+		[
+			SNew(STextBlock)
+			.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+			.Text(LOCTEXT("GraphLabel", "Graph"))
+		]
+		.ValueContent()
+		[
+			SNew(SBox)
+			.WidthOverride(125.0f)
+			[
+				SNew(SButton)
+				.ToolTipText(LOCTEXT("BlendSampleGraphButtonToolTip", "Edit the graph associated with this sample point"))
+				.OnClicked_Lambda([InSampleIndex, WeakBlendSpaceNode = TWeakObjectPtr<UAnimGraphNode_BlendSpaceGraphBase>(InBlendSpaceNode)]()
+				{
+					FSlateApplication::Get().DismissAllMenus();
+
+					if(UAnimGraphNode_BlendSpaceGraphBase* BlendSpaceNode = WeakBlendSpaceNode.Get())
+					{
+						UAnimBlueprint* AnimBlueprint = BlendSpaceNode->GetAnimBlueprint();
+						TSharedPtr<IToolkit> FoundAssetEditor = FToolkitManager::Get().FindEditorForAsset(AnimBlueprint);
+						if (FoundAssetEditor.IsValid() && FoundAssetEditor->IsBlueprintEditor())
+						{
+							TSharedPtr<IBlueprintEditor> BlueprintEditor = StaticCastSharedPtr<IBlueprintEditor>(FoundAssetEditor);
+							if(BlendSpaceNode->GetGraphs().IsValidIndex(InSampleIndex))
+							{
+								BlueprintEditor->JumpToHyperlink(BlendSpaceNode->GetGraphs()[InSampleIndex], false);
+							}
+						}
+					}
+
+					return FReply::Handled();
+				})
+				[
+					SNew(SBox)
+					.VAlign(VAlign_Center)
+					.HAlign(HAlign_Center)
+					[
+						SNew(STextBlock)
+						.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+						.Text(LOCTEXT("BlendSampleGraphButtonLabel", "Edit Graph"))
+					]
+				]
+			]
 		];
 }
 

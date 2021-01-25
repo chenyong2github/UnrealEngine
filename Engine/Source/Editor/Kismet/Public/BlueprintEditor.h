@@ -955,33 +955,6 @@ protected:
 	virtual void OnStopWatchingPin();
 	virtual bool CanStopWatchingPin() const;
 
-	/**  BEGIN PERSONA related callback functions */
-	virtual void OnSelectBone() {};
-	virtual bool CanSelectBone() const { return false; }
-
-	virtual void OnAddPosePin() {};
-	virtual bool CanAddPosePin() const { return false; }
-
-	virtual void OnMergeAnimStateTransitions() {};
-	virtual bool CanMergeAnimStateTransitions() const { return false; }
-
-	virtual void OnRemovePosePin() {};
-	virtual bool CanRemovePosePin() const { return false; }
-
-	// convert functions between evaluator and player
-	virtual void OnConvertToSequenceEvaluator() {};
-	virtual void OnConvertToSequencePlayer() {};
-	virtual void OnConvertToBlendSpaceEvaluator() {};
-	virtual void OnConvertToBlendSpacePlayer() {};
-	virtual void OnConvertToAimOffsetLookAt() {};
-	virtual void OnConvertToAimOffsetSimple() {};
-	virtual void OnConvertToPoseBlender() {};
-	virtual void OnConvertToPoseByName() {};
-
-	// Opens the associated asset of the selected nodes
-	virtual void OnOpenRelatedAsset() {};
-	/** END PERSONA related callback functions */
-
 	void ToggleSaveIntermediateBuildProducts();
 	bool GetSaveIntermediateBuildProducts() const;
 
@@ -1126,6 +1099,9 @@ protected:
 
 	/** Unbinds all graph editor "quick jump" commands */
 	void ClearAllGraphEditorQuickJumps();
+
+	/** Create a graph title bar widget */
+	TSharedRef<SWidget> CreateGraphTitleBarWidget(TSharedRef<FTabInfo> InTabInfo, UEdGraph* InGraph);
 
 private:
 

@@ -162,6 +162,10 @@ public:
 	virtual TStatId GetStatId() const override;
 	//~ End FTickableEditorObject Interface
 
+	//~ Begin FBlueprintEditor Interface
+	virtual void JumpToHyperlink(const UObject* ObjectReference, bool bRequestRename) override;
+	//~ End FBlueprintEditor Interface
+
 	TSharedRef<SWidget> GetPreviewEditor() { return PreviewEditor.ToSharedRef(); }
 	/** Refresh Preview Instance Track Curves **/
 	void RefreshPreviewInstanceTrackCurves();
@@ -171,28 +175,17 @@ public:
 	/** Get the skeleton tree this Persona editor is hosting */
 	TSharedRef<class ISkeletonTree> GetSkeletonTree() const { return SkeletonTree.ToSharedRef(); }
 
+	/** Make this available to allow us to create title bar widgets for other container types - e.g. blendspaces */
+	using FBlueprintEditor::CreateGraphTitleBarWidget;
+
 protected:
 	//~ Begin FBlueprintEditor Interface
 	//virtual void CreateDefaultToolbar() override;
 	virtual void CreateDefaultCommands() override;
 	virtual void OnCreateGraphEditorCommands(TSharedPtr<FUICommandList> GraphEditorCommandsList);
-	virtual bool CanSelectBone() const override { return true; }
-	virtual void OnAddPosePin() override;
-	virtual bool CanAddPosePin() const override;
-	virtual void OnRemovePosePin() override;
-	virtual bool CanRemovePosePin() const override;
 	virtual void OnGraphEditorFocused(const TSharedRef<class SGraphEditor>& InGraphEditor) override;
 	virtual void OnGraphEditorBackgrounded(const TSharedRef<SGraphEditor>& InGraphEditor) override;
-	virtual void OnConvertToSequenceEvaluator() override;
-	virtual void OnConvertToSequencePlayer() override;
-	virtual void OnConvertToBlendSpaceEvaluator() override;
-	virtual void OnConvertToBlendSpacePlayer() override;
-	virtual void OnConvertToPoseBlender() override;
-	virtual void OnConvertToPoseByName() override;
-	virtual void OnConvertToAimOffsetLookAt() override;
-	virtual void OnConvertToAimOffsetSimple() override;
 	virtual bool IsInAScriptingMode() const override { return true; }
-	virtual void OnOpenRelatedAsset() override;
 	virtual void GetCustomDebugObjects(TArray<FCustomDebugObject>& DebugList) const override;
 	virtual void CreateDefaultTabContents(const TArray<UBlueprint*>& InBlueprints) override;
 	virtual FGraphAppearanceInfo GetGraphAppearance(class UEdGraph* InGraph) const override;
@@ -311,6 +304,27 @@ private:
 
 	/** Chooses a suitable pose watch colour automatically - i.e. one that isn't already in use (if possible) */
 	FColor ChoosePoseWatchColor() const;
+
+	// Pose pin UI handlers
+	void OnAddPosePin();
+	bool CanAddPosePin() const;
+	void OnRemovePosePin();
+	bool CanRemovePosePin() const;
+
+	// Node conversion functions
+	void OnConvertToSequenceEvaluator();
+	void OnConvertToSequencePlayer();
+	void OnConvertToBlendSpaceEvaluator();
+	void OnConvertToBlendSpacePlayer();
+	void OnConvertToBlendSpaceGraph();
+	void OnConvertToPoseBlender();
+	void OnConvertToPoseByName();
+	void OnConvertToAimOffsetLookAt();
+	void OnConvertToAimOffsetSimple();
+	void OnConvertToAimOffsetGraph();
+	
+	// Opens the associated asset of the selected nodes
+	void OnOpenRelatedAsset();
 
 	/** The extender to pass to the level editor to extend it's window menu */
 	TSharedPtr<FExtender> MenuExtender;

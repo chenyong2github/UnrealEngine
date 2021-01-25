@@ -14,6 +14,7 @@
 #include "DetailLayoutBuilder.h"
 #include "ScopedTransaction.h"
 #include "Kismet2/BlueprintEditorUtils.h"
+#include "AnimGraphCommands.h"
 
 /////////////////////////////////////////////////////
 // UAnimGraphNode_RotationOffsetBlendSpace
@@ -105,9 +106,12 @@ void UAnimGraphNode_RotationOffsetBlendSpace::GetMenuActions(FBlueprintActionDat
 	{
 		if (const UBlendSpaceBase* TargetBlendSpace = Cast<UBlendSpaceBase>(RegistrarTarget))
 		{
-			if (UBlueprintNodeSpawner* NodeSpawner = GetMenuActions_Utils::MakeBlendSpaceAction(GetClass(), TargetBlendSpace))
+			if(TargetBlendSpace->IsAsset())
 			{
-				ActionRegistrar.AddBlueprintAction(TargetBlendSpace, NodeSpawner);
+				if (UBlueprintNodeSpawner* NodeSpawner = GetMenuActions_Utils::MakeBlendSpaceAction(GetClass(), TargetBlendSpace))
+				{
+					ActionRegistrar.AddBlueprintAction(TargetBlendSpace, NodeSpawner);
+				}
 			}
 		}
 		// else, the Blueprint database is specifically looking for actions pertaining to something different (not a BlendSpace asset)
@@ -118,9 +122,12 @@ void UAnimGraphNode_RotationOffsetBlendSpace::GetMenuActions(FBlueprintActionDat
 		for (TObjectIterator<UBlendSpaceBase> BlendSpaceIt; BlendSpaceIt; ++BlendSpaceIt)
 		{
 			UBlendSpaceBase* BlendSpace = *BlendSpaceIt;
-			if (UBlueprintNodeSpawner* NodeSpawner = GetMenuActions_Utils::MakeBlendSpaceAction(NodeClass, BlendSpace))
+			if(BlendSpace->IsAsset())
 			{
-				ActionRegistrar.AddBlueprintAction(BlendSpace, NodeSpawner);
+				if (UBlueprintNodeSpawner* NodeSpawner = GetMenuActions_Utils::MakeBlendSpaceAction(NodeClass, BlendSpace))
+				{
+					ActionRegistrar.AddBlueprintAction(BlendSpace, NodeSpawner);
+				}
 			}
 		}
 	}
@@ -192,8 +199,9 @@ void UAnimGraphNode_RotationOffsetBlendSpace::GetNodeContextMenuActions(UToolMen
 		// add an option to convert to single frame
 		{
 			FToolMenuSection& Section = Menu->AddSection("AnimGraphNodeBlendSpacePlayer", NSLOCTEXT("A3Nodes", "BlendSpaceHeading", "Blend Space"));
-			Section.AddMenuEntry(FGraphEditorCommands::Get().OpenRelatedAsset);
-			Section.AddMenuEntry(FGraphEditorCommands::Get().ConvertToAimOffsetLookAt);
+			Section.AddMenuEntry(FAnimGraphCommands::Get().OpenRelatedAsset);
+			Section.AddMenuEntry(FAnimGraphCommands::Get().ConvertToAimOffsetLookAt);
+			Section.AddMenuEntry(FAnimGraphCommands::Get().ConvertToAimOffsetGraph);
 		}
 	}
 }

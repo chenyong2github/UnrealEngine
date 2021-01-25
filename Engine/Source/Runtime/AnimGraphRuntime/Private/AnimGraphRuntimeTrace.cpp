@@ -7,6 +7,7 @@
 #include "Trace/Trace.inl"
 #include "Animation/BlendSpaceBase.h"
 #include "AnimNodes/AnimNode_BlendSpacePlayer.h"
+#include "AnimNodes/AnimNode_BlendSpaceGraphBase.h"
 #include "Animation/AnimInstanceProxy.h"
 
 UE_TRACE_EVENT_BEGIN(Animation, BlendSpacePlayer)
@@ -40,6 +41,31 @@ void FAnimGraphRuntimeTrace::OutputBlendSpacePlayer(const FAnimationBaseContext&
 		<< BlendSpacePlayer.PositionX(InNode.X)
 		<< BlendSpacePlayer.PositionY(InNode.Y)
 		<< BlendSpacePlayer.PositionZ(InNode.Z);
+}
+
+void FAnimGraphRuntimeTrace::OutputBlendSpace(const FAnimationBaseContext& InContext, const FAnimNode_BlendSpaceGraphBase& InNode)
+{
+	bool bEventEnabled = UE_TRACE_CHANNELEXPR_IS_ENABLED(AnimationChannel);
+	if (!bEventEnabled)
+	{
+		return;
+	}
+
+	check(InContext.AnimInstanceProxy);
+
+	TRACE_OBJECT(InContext.AnimInstanceProxy->GetAnimInstanceObject());
+	TRACE_OBJECT(InNode.GetBlendSpace());
+
+	FVector Coordinates = InNode.GetSampleCoordinates();
+
+	UE_TRACE_LOG(Animation, BlendSpacePlayer, AnimationChannel)
+		<< BlendSpacePlayer.Cycle(FPlatformTime::Cycles64())
+		<< BlendSpacePlayer.AnimInstanceId(FObjectTrace::GetObjectId(InContext.AnimInstanceProxy->GetAnimInstanceObject()))
+		<< BlendSpacePlayer.BlendSpaceId(FObjectTrace::GetObjectId(InNode.GetBlendSpace()))
+		<< BlendSpacePlayer.NodeId(InContext.GetCurrentNodeId())
+		<< BlendSpacePlayer.PositionX(Coordinates.X)
+		<< BlendSpacePlayer.PositionY(Coordinates.Y)
+		<< BlendSpacePlayer.PositionZ(Coordinates.Z);
 }
 
 #endif

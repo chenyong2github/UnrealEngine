@@ -18,6 +18,10 @@
 #include "AnimGraphNode_CustomTransitionResult.h"
 #include "AnimationCustomTransitionGraph.h"
 #include "AnimStateTransitionNode.h"
+#include "AnimGraphNode_BlendSpaceSampleResult.h"
+#include "BlendSpaceGraph.h"
+#include "AnimGraphNode_BlendSpaceGraphBase.h"
+#include "AnimationBlendSpaceSampleGraph.h"
 
 FAnimBlueprintCompilerHandler_Attributes::FAnimBlueprintCompilerHandler_Attributes(IAnimBlueprintCompilerCreationContext& InCreationContext)
 {
@@ -234,6 +238,14 @@ void FAnimBlueprintCompilerHandler_Attributes::PreProcessAnimationNodes(TArrayVi
 				UAnimationStateMachineGraph* StateMachineGraph = CastChecked<UAnimationStateMachineGraph>(StateNode->GetOuter());
 				UAnimGraphNode_StateMachineBase* StateMachineNode = CastChecked<UAnimGraphNode_StateMachineBase>(StateMachineGraph->GetOuter());
 				return TraverseNodes_Recursive_PerNode(StateMachineNode, InAttributes);
+			}
+			else if(UAnimGraphNode_BlendSpaceSampleResult* SampleResultNode = Cast<UAnimGraphNode_BlendSpaceSampleResult>(InNode))
+			{
+				UAnimationBlendSpaceSampleGraph* SampleGraph = CastChecked<UAnimationBlendSpaceSampleGraph>(SampleResultNode->GetGraph());
+				UBlendSpaceGraph* BlendSpaceGraph = CastChecked<UBlendSpaceGraph>(SampleGraph->GetOuter());
+				UAnimGraphNode_BlendSpaceGraphBase* BlendSpaceGraphNode = CastChecked<UAnimGraphNode_BlendSpaceGraphBase>(BlendSpaceGraph->GetOuter());
+
+				return TraverseNodes_Recursive_PerNode(BlendSpaceGraphNode, InAttributes);
 			}
 
 			return UAnimGraphNode_Base::FNodeAttributeArray();

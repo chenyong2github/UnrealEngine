@@ -572,7 +572,7 @@ void UAnimStateTransitionNode::DestroyNode()
 }
 
 /** Returns true if this nodes BoundGraph is shared with another node in the parent graph */
-bool UAnimStateTransitionNode::IsBoundGraphShared()
+bool UAnimStateTransitionNode::IsBoundGraphShared() const
 {
 	if (BoundGraph)
 	{
@@ -639,6 +639,17 @@ void UAnimStateTransitionNode::ValidateNodeDuringCompilation(class FCompilerResu
 	{
 		MessageLog.Error(TEXT("@@ contains an invalid or NULL BoundGraph.  Please delete and recreate the transition."), this);
 	}
+}
+
+TArray<UEdGraph*> UAnimStateTransitionNode::GetSubGraphs() const
+{ 
+	TArray<UEdGraph*> SubGraphs;
+	if(!IsBoundGraphShared())
+	{
+		SubGraphs.Add(BoundGraph);
+	}
+	SubGraphs.Add(CustomTransitionGraph);
+	return SubGraphs; 
 }
 
 //////////////////////////////////////////////////////////////////////////

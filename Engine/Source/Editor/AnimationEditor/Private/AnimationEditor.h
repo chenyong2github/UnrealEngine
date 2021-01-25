@@ -9,7 +9,6 @@
 #include "Toolkits/IToolkitHost.h"
 #include "IAnimationEditor.h"
 #include "TickableEditorObject.h"
-#include "EditorUndoClient.h"
 #include "Containers/ArrayView.h"
 
 struct FAssetData;
@@ -50,11 +49,9 @@ namespace AnimationEditorTabs
 	extern const FName AnimMontageSectionsTab;
 }
 
-class FAnimationEditor : public IAnimationEditor, public FGCObject, public FEditorUndoClient, public FTickableEditorObject
+class FAnimationEditor : public IAnimationEditor, public FGCObject, public FTickableEditorObject
 {
 public:
-	FAnimationEditor();
-
 	virtual ~FAnimationEditor();
 
 	/** Edits the specified Skeleton object */
@@ -82,10 +79,6 @@ public:
 	virtual void Tick(float DeltaTime) override;
 	virtual TStatId GetStatId() const override;
 	virtual ETickableTickType GetTickableTickType() const override { return ETickableTickType::Always; }
-	
-	/** FEditorUndoClient interface */
-	virtual void PostUndo(bool bSuccess) override;
-	virtual void PostRedo(bool bSuccess) override;
 
 	/** @return the documentation location for this editor */
 	virtual FString GetDocumentationLink() const override
@@ -167,9 +160,6 @@ private:
 
 	bool RecordMeshToAnimation(USkeletalMeshComponent* PreviewComponent, UAnimSequence* NewAsset) const;
 public:
-	/** Multicast delegate fired on global undo/redo */
-	FSimpleMulticastDelegate OnPostUndo;
-
 	/** Multicast delegate fired on global undo/redo */
 	FSimpleMulticastDelegate OnLODChanged;
 

@@ -12,21 +12,45 @@
 #include "Animation/BlendSpaceBase.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Misc/NotifyHook.h"
+#include "EditorUndoClient.h"
 
 class SBlendSpaceGridWidget;
 
-class SBlendSpaceEditorBase : public SAnimEditorBase, public FNotifyHook
+class SBlendSpaceEditorBase : public SAnimEditorBase, public FNotifyHook, public FSelfRegisteringEditorUndoClient
 {
 public:
 	SLATE_BEGIN_ARGS(SBlendSpaceEditorBase)
 		: _BlendSpace(NULL)
+		, _StatusBarName(TEXT("AssetEditor.AnimationEditor.MainMenu"))
 		{}
-			SLATE_ARGUMENT(UBlendSpaceBase*, BlendSpace)
-		SLATE_END_ARGS()
+		
+	SLATE_ARGUMENT(UBlendSpaceBase*, BlendSpace)
+
+	SLATE_ARGUMENT(bool, DisplayScrubBar)
+
+	SLATE_EVENT(FOnBlendSpaceSampleDoubleClicked, OnBlendSpaceSampleDoubleClicked)
+
+	SLATE_EVENT(FOnBlendSpaceSampleAdded, OnBlendSpaceSampleAdded)
+
+	SLATE_EVENT(FOnBlendSpaceSampleRemoved, OnBlendSpaceSampleRemoved)
+
+	SLATE_EVENT(FOnGetBlendSpaceSampleName, OnGetBlendSpaceSampleName) 
+
+	SLATE_EVENT(FOnExtendBlendSpaceSampleTooltip, OnExtendSampleTooltip)
+
+	SLATE_EVENT(FOnSetBlendSpacePreviewPosition, OnSetPreviewPosition)
+
+	SLATE_ATTRIBUTE(FVector, PreviewPosition)
+
+	SLATE_ARGUMENT(FName, StatusBarName)
+
+	SLATE_END_ARGS()
 
 	~SBlendSpaceEditorBase();
 
-	void Construct(const FArguments& InArgs, const TSharedRef<class IPersonaPreviewScene>& InPreviewScene, FSimpleMulticastDelegate& OnPostUndo);	
+	void Construct(const FArguments& InArgs);
+
+	void Construct(const FArguments& InArgs, const TSharedRef<class IPersonaPreviewScene>& InPreviewScene);
 	
 	// Begin SWidget overrides
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
@@ -49,14 +73,18 @@ protected:
 
 	virtual void ResampleData() = 0;
 
+	// FSelfRegisteringEditorUndoClient interface
+	virtual void PostUndo(bool bSuccess) override { PostUndoRedo(); }
+	virtual void PostRedo(bool bSuccess) override { PostUndoRedo(); }
+
 	/** Delegate which is called when the Editor has performed an undo operation*/
-	void PostUndo();
+	void PostUndoRedo();
 
 	/** Updates Persona's preview window */
 	void UpdatePreviewParameter() const;
 	
 	/** Retrieves the preview scene shown by Persona */
-	TSharedRef<class IPersonaPreviewScene> GetPreviewScene() const;
+	TSharedPtr<class IPersonaPreviewScene> GetPreviewScene() const;
 
 	/** Global callback to anticipate on changes to the blend space */
 	void OnPropertyChanged(UObject* ObjectBeingModified, FPropertyChangedEvent& PropertyChangedEvent);
@@ -75,6 +103,15 @@ protected:
 
 	/** Handle to the registered OnPropertyChangedHandle delegate */
 	FDelegateHandle OnPropertyChangedHandleDelegateHandle;
+
+	/** Delegate called when a sample is added */
+	FOnBlendSpaceSampleAdded OnBlendSpaceSampleAdded;
+
+	/** Delegate called when a sample is removed */
+	FOnBlendSpaceSampleRemoved OnBlendSpaceSampleRemoved;
+
+	/** Delegate called to externally control the preview position */
+	FOnSetBlendSpacePreviewPosition OnSetPreviewPosition;
 
 	/** Flag to check whether or not the preview value should be (re-)set on the next tick */
 	bool bShouldSetPreviewValue;

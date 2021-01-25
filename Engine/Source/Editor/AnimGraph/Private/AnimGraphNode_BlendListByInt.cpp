@@ -5,7 +5,7 @@
 #include "ToolMenus.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 
-#include "GraphEditorActions.h"
+#include "AnimGraphCommands.h"
 #include "ScopedTransaction.h"
 
 /////////////////////////////////////////////////////
@@ -80,12 +80,12 @@ void UAnimGraphNode_BlendListByInt::GetNodeContextMenuActions(UToolMenu* Menu, U
 				// we only do this for normal BlendList/BlendList by enum, BlendList by Bool doesn't support add/remove pins
 				if ( Context->Pin->Direction == EGPD_Input )
 				{
-					Section.AddMenuEntry(FGraphEditorCommands::Get().RemoveBlendListPin);
+					Section.AddMenuEntry(FAnimGraphCommands::Get().RemoveBlendListPin);
 				}
 			}
 			else
 			{
-				Section.AddMenuEntry(FGraphEditorCommands::Get().AddBlendListPin);
+				Section.AddMenuEntry(FAnimGraphCommands::Get().AddBlendListPin);
 			}
 		}
 	}

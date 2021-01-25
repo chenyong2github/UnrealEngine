@@ -22,4 +22,30 @@ public:
 	// Toggle pose watching for a given node
 	TSharedPtr<FUICommandInfo> TogglePoseWatch;
 
+	// SkeletalControl specific commands
+	TSharedPtr< FUICommandInfo > SelectBone;
+	// Blend list options
+	TSharedPtr< FUICommandInfo > AddBlendListPin;
+	TSharedPtr< FUICommandInfo > RemoveBlendListPin;
+
+	// options for sequence/evaluator converter
+	TSharedPtr< FUICommandInfo > ConvertToSeqEvaluator;
+	TSharedPtr< FUICommandInfo > ConvertToSeqPlayer;
+
+	// options for blendspace converter
+	TSharedPtr< FUICommandInfo > ConvertToBSEvaluator;
+	TSharedPtr< FUICommandInfo > ConvertToBSPlayer;
+	TSharedPtr< FUICommandInfo > ConvertToBSGraph;
+
+	// options for aimoffset converter
+	TSharedPtr< FUICommandInfo > ConvertToAimOffsetLookAt;
+	TSharedPtr< FUICommandInfo > ConvertToAimOffsetSimple;
+	TSharedPtr< FUICommandInfo > ConvertToAimOffsetGraph;
+
+	// options for sequence/evaluator converter
+	TSharedPtr< FUICommandInfo > ConvertToPoseBlender;
+	TSharedPtr< FUICommandInfo > ConvertToPoseByName;
+
+	// option for opening the asset related to the graph node
+	TSharedPtr< FUICommandInfo > OpenRelatedAsset;
 };

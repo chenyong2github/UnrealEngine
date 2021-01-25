@@ -12,6 +12,8 @@
 #include "BoneContainer.h"
 #include "Animation/AnimationAsset.h"
 #include "AnimationRuntime.h"
+#include "AnimNodeBase.h"
+#include "Containers/ArrayView.h"
 #include "BlendSpaceBase.generated.h"
 
 /** Interpolation data types. */
@@ -89,6 +91,7 @@ struct FBlendSample
 {
 	GENERATED_USTRUCT_BODY()
 
+	// For linked animations
 	UPROPERTY(EditAnywhere, Category=BlendSample)
 	class UAnimSequence* Animation;
 
@@ -113,7 +116,7 @@ struct FBlendSample
 #endif // WITH_EDITORONLY_DATA
 
 	FBlendSample()
-		: Animation(NULL)
+		: Animation(nullptr)
 		, SampleValue(0.f)
 		, RateScale(1.0f)
 #if WITH_EDITORONLY_DATA
@@ -241,6 +244,7 @@ class UBlendSpaceBase : public UAnimationAsset, public IInterpolationIndexProvid
 
 	/** Required for accessing protected variable names */
 	friend class FBlendSpaceDetails;
+	friend class UAnimGraphNode_BlendSpaceGraphBase;
 
 	//~ Begin UObject Interface
 	virtual void PostLoad() override;
@@ -282,9 +286,11 @@ class UBlendSpaceBase : public UAnimationAsset, public IInterpolationIndexProvid
 	 * BlendSpace Get Animation Pose function
 	 */
 	UE_DEPRECATED(4.26, "Use GetAnimationPose with other signature")
-	ENGINE_API void GetAnimationPose(TArray<FBlendSampleData>& BlendSampleDataCache, /*out*/ FCompactPose& OutPose, /*out*/ FBlendedCurve& OutCurve);
+	ENGINE_API void GetAnimationPose(TArray<FBlendSampleData>& BlendSampleDataCache, /*out*/ FCompactPose& OutPose, /*out*/ FBlendedCurve& OutCurve) const;
 	
-	ENGINE_API void GetAnimationPose(TArray<FBlendSampleData>& BlendSampleDataCache, /*out*/ FAnimationPoseData& OutAnimationPoseData);
+	ENGINE_API void GetAnimationPose(TArray<FBlendSampleData>& BlendSampleDataCache, /*out*/ FAnimationPoseData& OutAnimationPoseData) const;
+
+	ENGINE_API void GetAnimationPose(TArray<FBlendSampleData>& BlendSampleDataCache, TArrayView<FPoseLink> InPoseLinks, /*out*/ FPoseContext& Output) const;
 
 	/** Accessor for blend parameter **/
 	ENGINE_API const FBlendParameter& GetBlendParameter(const int32 Index) const;
@@ -311,6 +317,18 @@ class UBlendSpaceBase : public UAnimationAsset, public IInterpolationIndexProvid
 	/** Returns the blend input after clamping and/or wrapping */
 	ENGINE_API FVector GetClampedAndWrappedBlendInput(const FVector& BlendInput) const;
 
+	/** 
+	 * Updates a cached set of blend samples according to internal parameters, blendspace position and a delta time. Used internally to GetAnimationPose().
+	 * Note that this function does not perform any filtering internally.
+ 	 * @param	InBlendSpacePosition	The current position parameter of the blendspace
+	 * @param	InOutSampleDataCache	The sample data cache. Previous frames samples are re-used in the case of target weight interpolation
+	 * @param	InDeltaTime				The tick time for this update
+	 */
+	ENGINE_API bool UpdateBlendSamples(const FVector& InBlendSpacePosition, float InDeltaTime, TArray<FBlendSampleData>& InOutSampleDataCache) const;
+
+	/** Interpolate BlendInput based on Filter data **/
+	ENGINE_API FVector FilterInput(FBlendFilter* Filter, const FVector& BlendInput, float DeltaTime) const;
+
 #if WITH_EDITOR	
 	/** Validates sample data for blendspaces using the given animation sequence */
 	ENGINE_API static void UpdateBlendSpacesUsingAnimSequence(UAnimSequenceBase* Sequence);
@@ -319,6 +337,7 @@ class UBlendSpaceBase : public UAnimationAsset, public IInterpolationIndexProvid
 	ENGINE_API void ValidateSampleData();
 
 	/** Add samples */
+	ENGINE_API bool AddSample(const FVector& SampleValue);
 	ENGINE_API bool	AddSample(UAnimSequence* AnimationSequence, const FVector& SampleValue);
 
 	/** edit samples */
@@ -412,9 +431,6 @@ protected:
 	/** Utility function to interpolate weight of samples from OldSampleDataList to NewSampleDataList and copy back the interpolated result to FinalSampleDataList **/
 	bool InterpolateWeightOfSampleData(float DeltaTime, const TArray<FBlendSampleData> & OldSampleDataList, const TArray<FBlendSampleData> & NewSampleDataList, TArray<FBlendSampleData> & FinalSampleDataList) const;
 
-	/** Interpolate BlendInput based on Filter data **/
-	FVector FilterInput(FBlendFilter* Filter, const FVector& BlendInput, float DeltaTime) const;
-
 	/** Returns whether or not all animation set on the blend space samples match the given additive type */
 	bool ContainsMatchingSamples(EAdditiveAnimationType AdditiveType) const;
 
@@ -430,6 +446,13 @@ protected:
 	virtual void RemapSamplesToNewAxisRange() PURE_VIRTUAL(UBlendSpaceBase::RemapSamplesToNewAxisRange, return;);
 #endif // WITH_EDITOR
 	
+private:
+	// Internal helper function for GetAnimationPose variants
+	void GetAnimationPose_Internal(TArray<FBlendSampleData>& BlendSampleDataCache, TArrayView<FPoseLink> InPoseLinks, FAnimInstanceProxy* InProxy, bool bInExpectsAdditivePose, /*out*/ FAnimationPoseData& OutAnimationPoseData) const;
+
+	// Internal helper function for UpdateBlendSamples and TickAssetPlayer
+	bool UpdateBlendSamples_Internal(const FVector& InBlendSpacePosition, float InDeltaTime, TArray<FBlendSampleData>& InOutOldSampleDataList, TArray<FBlendSampleData>& InOutSampleDataCache) const;
+
 public:
 	/**
 	* When you use blend per bone, allows rotation to blend in mesh space. This only works if this does not contain additive animation samples
@@ -499,7 +522,7 @@ protected:
 	struct FBlendParameter BlendParameters[3];
 
 	/** Reset to reference pose. It does apply different refpose based on additive or not*/
-	void ResetToRefPose(FCompactPose& OutPose);
+	void ResetToRefPose(FCompactPose& OutPose) const;
 
 #if WITH_EDITOR
 private:

@@ -4,7 +4,7 @@
 #include "ToolMenus.h"
 
 #include "Kismet2/CompilerResultsLog.h"
-#include "GraphEditorActions.h"
+#include "AnimGraphCommands.h"
 
 /////////////////////////////////////////////////////
 // UAnimGraphNode_PoseByName
@@ -155,7 +155,7 @@ void UAnimGraphNode_PoseByName::GetNodeContextMenuActions(UToolMenu* Menu, UGrap
 		// add an option to convert to single frame
 		{
 			FToolMenuSection& Section = Menu->AddSection("AnimGraphNodePoseByName", LOCTEXT("PoseByNameHeading", "Pose By Name"));
-			Section.AddMenuEntry(FGraphEditorCommands::Get().ConvertToPoseBlender);
+			Section.AddMenuEntry(FAnimGraphCommands::Get().ConvertToPoseBlender);
 		}
 	}
 }

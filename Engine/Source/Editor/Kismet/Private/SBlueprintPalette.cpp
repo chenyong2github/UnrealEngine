@@ -57,6 +57,8 @@
 #include "UObject/WeakFieldPtr.h"
 #include "BlueprintNodeSpawner.h"
 #include "Dialogs/Dialogs.h"
+#include "BlendSpaceGraph.h"
+#include "AnimationBlendSpaceSampleGraph.h"
 
 #define LOCTEXT_NAMESPACE "BlueprintPalette"
 
@@ -204,6 +206,16 @@ static void GetSubGraphIcon(FEdGraphSchemaAction_K2Graph const* const ActionIn, 
 					IconOut = FEditorStyle::GetBrush(TEXT("GraphEditor.Rule_16x"));
 					ToolTipOut = LOCTEXT("AnimationTransitionGraph_ToolTip", "Animation Transition Rule");
 				}
+			}
+			else if (Cast<UBlendSpaceGraph>(ActionIn->EdGraph))
+			{
+				IconOut = FEditorStyle::GetBrush(TEXT("BlendSpace.Graph") );
+				ToolTipOut = LOCTEXT("BlendSpace_ToolTip", "BlendSpace");
+			}
+			else if (Cast<UAnimationBlendSpaceSampleGraph>(ActionIn->EdGraph))
+			{
+				IconOut = FEditorStyle::GetBrush(TEXT("BlendSpace.SampleGraph") );
+				ToolTipOut = LOCTEXT("BlendSpaceSample_ToolTip", "BlendSpace Sample");
 			}
 			else
 			{

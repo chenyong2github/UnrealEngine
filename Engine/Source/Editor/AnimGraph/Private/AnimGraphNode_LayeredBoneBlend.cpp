@@ -4,7 +4,7 @@
 #include "ToolMenus.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 
-#include "GraphEditorActions.h"
+#include "AnimGraphCommands.h"
 #include "ScopedTransaction.h"
 
 #include "DetailLayoutBuilder.h"
@@ -130,12 +130,12 @@ void UAnimGraphNode_LayeredBoneBlend::GetNodeContextMenuActions(UToolMenu* Menu,
 				if (Context->Pin->Direction == EGPD_Input)
 				{
 					//@TODO: Only offer this option on arrayed pins
-					Section.AddMenuEntry(FGraphEditorCommands::Get().RemoveBlendListPin);
+					Section.AddMenuEntry(FAnimGraphCommands::Get().RemoveBlendListPin);
 				}
 			}
 			else
 			{
-				Section.AddMenuEntry(FGraphEditorCommands::Get().AddBlendListPin);
+				Section.AddMenuEntry(FAnimGraphCommands::Get().AddBlendListPin);
 			}
 		}
 	}

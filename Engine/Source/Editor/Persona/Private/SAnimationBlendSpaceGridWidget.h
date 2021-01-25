@@ -14,6 +14,8 @@
 #include "Widgets/SToolTip.h"
 #include "Misc/NotifyHook.h"
 #include "Animation/AnimationAsset.h"
+#include "PersonaDelegates.h"
+#include "StatusBarSubsystem.h"
 
 class FPaintArgs;
 class FSlateWindowElementList;
@@ -21,8 +23,6 @@ class UAnimSequence;
 class UBlendSpaceBase;
 
 DECLARE_DELEGATE_FourParams(FOnSampleMoved, const int32 /*SampleIndex*/, const FVector& /*SampleValue*/, bool /*bIsInteractive*/, bool /*bSnap*/);
-DECLARE_DELEGATE_OneParam(FOnSampleRemoved, const int32 );
-DECLARE_DELEGATE_TwoParams(FOnSampleAdded, UAnimSequence*, const FVector&);
 DECLARE_DELEGATE_TwoParams(FOnSampleAnimationChanged, UAnimSequence*, const FVector&);
 
 class SBlendSpaceGridWidget : public SCompoundWidget, public FNotifyHook
@@ -34,6 +34,7 @@ public:
 		: _ReadOnly(false)
 		, _ShowAxisLabels(true)
 		, _ShowSettingsButtons(true)
+		, _StatusBarName(TEXT("AssetEditor.AnimationEditor.MainMenu"))
 	{}
 		SLATE_ATTRIBUTE(const UBlendSpaceBase*, BlendSpaceBase)
 		SLATE_ATTRIBUTE(FVector, Position)
@@ -41,10 +42,14 @@ public:
 		SLATE_ARGUMENT(bool, ReadOnly)
 		SLATE_ARGUMENT(bool, ShowAxisLabels)
 		SLATE_ARGUMENT(bool, ShowSettingsButtons)
+		SLATE_EVENT(FOnExtendBlendSpaceSampleTooltip, OnExtendSampleTooltip)
 		SLATE_EVENT(FOnSampleMoved, OnSampleMoved)
-		SLATE_EVENT(FOnSampleRemoved, OnSampleRemoved)
-		SLATE_EVENT(FOnSampleAdded, OnSampleAdded)
+		SLATE_EVENT(FOnBlendSpaceSampleRemoved, OnSampleRemoved)
+		SLATE_EVENT(FOnBlendSpaceSampleAdded, OnSampleAdded)
 		SLATE_EVENT(FOnSampleAnimationChanged, OnSampleAnimationChanged)
+		SLATE_EVENT(FOnBlendSpaceSampleDoubleClicked, OnSampleDoubleClicked)
+		SLATE_EVENT(FOnGetBlendSpaceSampleName, OnGetBlendSpaceSampleName)
+		SLATE_ARGUMENT(FName, StatusBarName)
 	SLATE_END_ARGS()
 
 protected:
@@ -77,6 +82,8 @@ protected:
 
 public:
 
+	~SBlendSpaceGridWidget();
+
 	/**
 	* Construct this widget
 	*
@@ -92,6 +99,7 @@ public:
 	virtual FReply OnDrop(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent) override;
 	virtual FReply OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
 	virtual FReply OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
+	virtual FReply OnMouseButtonDoubleClick(const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent) override;
 	virtual FReply OnMouseMove(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
 	virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
 	virtual FReply OnKeyUp(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
@@ -105,7 +113,7 @@ public:
 	/** Returns the sample value for previewing the blend space */
 	const FVector GetBlendPreviewValue();
 	/** Flag whether or not the user is actively previewing the blend space (moving the sample value) */
-	const bool IsPreviewing() const { return bSamplePreviewing; }
+	const bool IsPreviewing() const;
 
 	int32 GetSelectedSampleIndex() const { return SelectedSampleIndex; }
 
@@ -129,8 +137,14 @@ protected:
 	void StartPreviewing();
 	void StopPreviewing();
 
+	/** Common view options for the context menus */
+	void MakeViewContextMenuEntries(FMenuBuilder& InMenuBuilder);
+
 	/** Blend sample context menu creation */
 	TSharedPtr<SWidget> CreateBlendSampleContextMenu();
+
+	/** Create a new blend sample via the context menu */
+	TSharedPtr<SWidget> CreateNewBlendSampleContextMenu(const FVector2D& InMousePosition);
 
 	/** Construct the grid widget to change the grid position for the selected sample */
 	TSharedPtr<SWidget> CreateGridEntryBox(const int32 BoxIndex, const bool bShowLabel);
@@ -194,6 +208,12 @@ protected:
 
 	/** Updates the cached blend parameter data */
 	void UpdateCachedBlendParameterData();
+
+	/** Gets the name to display for a sample */
+	FText GetSampleName(const FBlendSample& InBlendSample, int32 InSampleIndex) const;
+
+	/** Enable/disable the status bar message */
+	void EnableStatusBarMessage(bool bEnable);
 private:
 	/** Currently visualized blendspace (const to ensure changes to it are only made within SAnimationBlendSpace */
 	TAttribute<const UBlendSpaceBase*> BlendSpaceBase;
@@ -217,6 +237,7 @@ private:
 	/** Selection and highlight sample index/state */
 	int32 SelectedSampleIndex;
 	int32 HighlightedSampleIndex;
+	int32 ToolTipSampleIndex;
 	bool bHighlightPreviewPin;
 
 	/** Drag state and data (not drag/drop) */
@@ -234,6 +255,9 @@ private:
 
 	/** Tooltip ptr which is shown when hovering/dropping/dragging a sample*/
 	TSharedPtr<SToolTip> ToolTip;
+
+	/** Container box used to extend a tooltip */
+	TSharedPtr<SBox> ToolTipExtensionContainer;
 
 	/** Drag and drop data */
 	FText InvalidDragDropText;
@@ -268,10 +292,13 @@ private:
 	FVector2D YAxisTextSize;
 
 	/** Delegates populated from SAnimationBlendSpace and used as callbacks */
-	FOnSampleAdded OnSampleAdded;
+	FOnBlendSpaceSampleAdded OnSampleAdded;
 	FOnSampleMoved OnSampleMoved;
-	FOnSampleRemoved OnSampleRemoved;
+	FOnBlendSpaceSampleRemoved OnSampleRemoved;
 	FOnSampleAnimationChanged OnSampleAnimationChanged;
+	FOnBlendSpaceSampleDoubleClicked OnSampleDoubleClicked;
+	FOnGetBlendSpaceSampleName OnGetBlendSpaceSampleName;
+	FOnExtendBlendSpaceSampleTooltip OnExtendSampleTooltip;
 
 	/** Thresshold values for hovering, click and dragging samples */
 	float DragThreshold;
@@ -321,4 +348,8 @@ private:
 	bool bShowAxisLabels;
 
 	bool bShowSettingsButtons;
+
+	FStatusBarMessageHandle StatusBarMessageHandle;
+
+	FName StatusBarName;
 };

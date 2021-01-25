@@ -124,6 +124,7 @@ class UAnimStateTransitionNode : public UAnimStateNodeBase
 	virtual void PostPlacedNewNode() override;
 	virtual void DestroyNode() override;
 	virtual void ValidateNodeDuringCompilation(class FCompilerResultsLog& MessageLog) const override;
+	virtual TArray<UEdGraph*> GetSubGraphs() const override;
 	//~ End UEdGraphNode Interface
 
 	//~ Begin UAnimStateNodeBase Interface
@@ -140,7 +141,7 @@ class UAnimStateTransitionNode : public UAnimStateNodeBase
 	ANIMGRAPH_API UAnimStateNodeBase* GetNextState() const;
 	ANIMGRAPH_API void CreateConnections(UAnimStateNodeBase* PreviousState, UAnimStateNodeBase* NextState);
 	
-	ANIMGRAPH_API bool IsBoundGraphShared();
+	ANIMGRAPH_API bool IsBoundGraphShared() const;
 
 	ANIMGRAPH_API void MakeRulesShareable(FString ShareName);
 	ANIMGRAPH_API void MakeCrossfadeShareable(FString ShareName);

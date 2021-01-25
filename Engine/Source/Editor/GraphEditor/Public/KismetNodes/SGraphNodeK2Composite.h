@@ -26,9 +26,9 @@ public:
 protected:
 	virtual UEdGraph* GetInnerGraph() const;
 
-private:
 	FText GetPreviewCornerText() const;
 	FText GetTooltipTextForNode() const;
 
+private:
 	TSharedRef<SWidget> CreateNodeBody();
 };

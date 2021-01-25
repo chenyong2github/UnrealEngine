@@ -170,6 +170,9 @@
 #include "Widgets/Input/SNumericEntryBox.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 
+#include "BlendSpaceGraph.h"
+#include "AnimationBlendSpaceSampleGraph.h"
+
 DEFINE_LOG_CATEGORY_STATIC(LogBlueprintEditor, Log, All);
 
 #define LOCTEXT_NAMESPACE "BlueprintEditor"
@@ -560,6 +563,14 @@ const FSlateBrush* FBlueprintEditor::GetGlyphForGraph(const UEdGraph* Graph, boo
 				if ( Graph->IsA(UAnimationStateGraph::StaticClass()) )
 				{
 					ReturnValue = FEditorStyle::GetBrush( bInLargeIcon ? TEXT("GraphEditor.State_24x") : TEXT("GraphEditor.State_16x") );
+				}
+				else if ( Graph->IsA(UBlendSpaceGraph::StaticClass()) )
+				{
+					ReturnValue = FEditorStyle::GetBrush(TEXT("BlendSpace.Graph") );
+				}
+				else if ( Graph->IsA(UAnimationBlendSpaceSampleGraph::StaticClass()) )
+				{
+					ReturnValue = FEditorStyle::GetBrush(TEXT("BlendSpace.SampleGraph") );
 				}
 				else
 				{
@@ -1035,6 +1046,16 @@ void FBlueprintEditor::OnComponentDoubleClicked(TSharedPtr<class FSCSEditorTreeN
 	}
 }
 
+TSharedRef<SWidget> FBlueprintEditor::CreateGraphTitleBarWidget(TSharedRef<FTabInfo> InTabInfo, UEdGraph* InGraph)
+{
+	// Create the title bar widget
+	return SNew(SGraphTitleBar)
+		.EdGraphObj(InGraph)
+		.Kismet2(SharedThis(this))
+		.OnDifferentGraphCrumbClicked(this, &FBlueprintEditor::OnChangeBreadCrumbGraph)
+		.HistoryNavigationWidget(InTabInfo->CreateHistoryNavigationWidget());
+}
+
 /** Create new tab for the supplied graph - don't call this directly.*/
 TSharedRef<SGraphEditor> FBlueprintEditor::CreateGraphEditorWidget(TSharedRef<FTabInfo> InTabInfo, UEdGraph* InGraph)
 {
@@ -1319,57 +1340,6 @@ TSharedRef<SGraphEditor> FBlueprintEditor::CreateGraphEditorWidget(TSharedRef<FT
 				FCanExecuteAction::CreateSP( this, &FBlueprintEditor::CanStopWatchingPin )
 				);
 
-			GraphEditorCommands->MapAction( FGraphEditorCommands::Get().SelectBone,
-				FExecuteAction::CreateSP( this, &FBlueprintEditor::OnSelectBone ),
-				FCanExecuteAction::CreateSP( this, &FBlueprintEditor::CanSelectBone )
-				);
-
-			GraphEditorCommands->MapAction( FGraphEditorCommands::Get().AddBlendListPin,
-				FExecuteAction::CreateSP( this, &FBlueprintEditor::OnAddPosePin ),
-				FCanExecuteAction::CreateSP( this, &FBlueprintEditor::CanAddPosePin )
-				);
-
-			GraphEditorCommands->MapAction( FGraphEditorCommands::Get().RemoveBlendListPin,
-				FExecuteAction::CreateSP( this, &FBlueprintEditor::OnRemovePosePin ),
-				FCanExecuteAction::CreateSP( this, &FBlueprintEditor::CanRemovePosePin )
-				);
-
-			GraphEditorCommands->MapAction( FGraphEditorCommands::Get().ConvertToSeqEvaluator,
-				FExecuteAction::CreateSP( this, &FBlueprintEditor::OnConvertToSequenceEvaluator )
-				);
-
-			GraphEditorCommands->MapAction( FGraphEditorCommands::Get().ConvertToSeqPlayer,
-				FExecuteAction::CreateSP( this, &FBlueprintEditor::OnConvertToSequencePlayer )
-				);
-
-			GraphEditorCommands->MapAction( FGraphEditorCommands::Get().ConvertToBSEvaluator,
-				FExecuteAction::CreateSP( this, &FBlueprintEditor::OnConvertToBlendSpaceEvaluator )
-				);
-
-			GraphEditorCommands->MapAction( FGraphEditorCommands::Get().ConvertToBSPlayer,
-				FExecuteAction::CreateSP( this, &FBlueprintEditor::OnConvertToBlendSpacePlayer )
-				);
-
-			GraphEditorCommands->MapAction(FGraphEditorCommands::Get().ConvertToAimOffsetLookAt,
-				FExecuteAction::CreateSP(this, &FBlueprintEditor::OnConvertToAimOffsetLookAt)
-			);
-
-			GraphEditorCommands->MapAction(FGraphEditorCommands::Get().ConvertToAimOffsetSimple,
-				FExecuteAction::CreateSP(this, &FBlueprintEditor::OnConvertToAimOffsetSimple)
-			);
-
-			GraphEditorCommands->MapAction(FGraphEditorCommands::Get().ConvertToPoseBlender,
-				FExecuteAction::CreateSP(this, &FBlueprintEditor::OnConvertToPoseBlender)
-				);
-
-			GraphEditorCommands->MapAction(FGraphEditorCommands::Get().ConvertToPoseByName,
-				FExecuteAction::CreateSP(this, &FBlueprintEditor::OnConvertToPoseByName)
-				);
-
-			GraphEditorCommands->MapAction( FGraphEditorCommands::Get().OpenRelatedAsset,
-				FExecuteAction::CreateSP( this, &FBlueprintEditor::OnOpenRelatedAsset )
-				);
-
 			GraphEditorCommands->MapAction( FGraphEditorCommands::Get().CreateComment,
 				FExecuteAction::CreateSP( this, &FBlueprintEditor::OnCreateComment )
 				);
@@ -1430,11 +1400,7 @@ TSharedRef<SGraphEditor> FBlueprintEditor::CreateGraphEditorWidget(TSharedRef<FT
 	}
 
 	// Create the title bar widget
-	TSharedPtr<SWidget> TitleBarWidget = SNew(SGraphTitleBar)
-		.EdGraphObj(InGraph)
-		.Kismet2(SharedThis(this))
-		.OnDifferentGraphCrumbClicked(this, &FBlueprintEditor::OnChangeBreadCrumbGraph)
-		.HistoryNavigationWidget(InTabInfo->CreateHistoryNavigationWidget());
+	TSharedPtr<SWidget> TitleBarWidget = CreateGraphTitleBarWidget(InTabInfo, InGraph);
 
 	SGraphEditor::FGraphEditorEvents InEvents;
 	SetupGraphEditorEvents(InGraph, InEvents);
@@ -1547,9 +1513,9 @@ FGraphAppearanceInfo FBlueprintEditor::GetGraphAppearance(UEdGraph* InGraph) con
 // Open the editor for a given graph
 void FBlueprintEditor::OnChangeBreadCrumbGraph(UEdGraph* InGraph)
 {
-	if (InGraph && FocusedGraphEdPtr.IsValid())
+	if (InGraph)
 	{
-		OpenDocument(InGraph, FDocumentTracker::NavigatingCurrentDocument);
+		JumpToHyperlink(InGraph, false);
 	}
 }
 
@@ -3816,7 +3782,7 @@ void FBlueprintEditor::JumpToHyperlink(const UObject* ObjectReference, bool bReq
 	{
 		// Navigating into things should re-use the current tab when it makes sense
 		FDocumentTracker::EOpenDocumentCause OpenMode = FDocumentTracker::OpenNewDocument;
-		if ((Graph->GetSchema()->GetGraphType(Graph) == GT_Ubergraph) || Cast<UK2Node_Composite>(Graph->GetOuter()))
+		if ((Graph->GetSchema()->GetGraphType(Graph) == GT_Ubergraph) || Cast<UK2Node>(Graph->GetOuter()) || Cast<UEdGraph>(Graph->GetOuter()))
 		{
 			// Ubergraphs directly reuse the current graph
 			OpenMode = FDocumentTracker::NavigatingCurrentDocument;
@@ -6430,9 +6396,7 @@ void FBlueprintEditor::DeleteSelectedNodes()
 				};
 
 
-				if (Node->IsA<UAnimStateNodeBase>() || 
-					Node->IsA<UAnimGraphNode_StateMachineBase>() ||
-					Node->IsA<UK2Node_Composite>())
+				if (Node->GetSubGraphs().Num() > 0)
 				{
 					CloseAllDocumentsTab(Node);
 				}
@@ -6453,13 +6417,9 @@ void FBlueprintEditor::DeleteSelectedNodes()
 					bNeedToModifyStructurally = true;
 				}
 
-				if (UK2Node_Composite* SelectedNode = Cast<UK2Node_Composite>(*NodeIt))
+				if (Node->GetSubGraphs().Num() > 0)
 				{
-					//Close the tab for the composite if it was open
-					if (SelectedNode->BoundGraph)
-					{
-						DocumentManager->CleanInvalidTabs();
-					}
+					DocumentManager->CleanInvalidTabs();
 				}
 				else if (UK2Node_Timeline* TimelineNode = Cast<UK2Node_Timeline>(*NodeIt))
 				{

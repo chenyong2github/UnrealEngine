@@ -2266,34 +2266,40 @@ const UFunction* FBlueprintEditorUtils::GetMostUpToDateFunction(const UFunction*
 	return GetMostUpToDateFunction(const_cast<UFunction*>(Function));
 }
 
-bool FBlueprintEditorUtils::IsGraphNameUnique(UBlueprint* Blueprint, const FName& InName)
+bool FBlueprintEditorUtils::IsGraphNameUnique(UObject* InOuter, const FName& InName)
 {
 	// Check for any object directly created in the blueprint
-	if( !FindObject<UObject>(Blueprint, *InName.ToString()) )
+	if( !FindObject<UObject>(InOuter, *InName.ToString()) )
 	{
-		// Next, check for functions with that name in the blueprint's class scope
-		FFieldVariant ExistingField = FindUFieldOrFProperty(Blueprint->SkeletonGeneratedClass, InName);
-		if( !ExistingField )
+		if(UBlueprint* Blueprint = Cast<UBlueprint>(InOuter))
 		{
-			// Finally, check function entry points
-			TArray<UK2Node_Event*> AllEvents;
-			FBlueprintEditorUtils::GetAllNodesOfClass<UK2Node_Event>(Blueprint, AllEvents);
-
-			for(int32 i=0; i < AllEvents.Num(); i++)
+			// Next, check for functions with that name in the blueprint's class scope
+			FFieldVariant ExistingField = FindUFieldOrFProperty(Blueprint->SkeletonGeneratedClass, InName);
+			if( !ExistingField )
 			{
-				UK2Node_Event* EventNode = AllEvents[i];
-				check(EventNode);
+				// Finally, check function entry points
+				TArray<UK2Node_Event*> AllEvents;
+				FBlueprintEditorUtils::GetAllNodesOfClass<UK2Node_Event>(Blueprint, AllEvents);
 
-				if( EventNode->CustomFunctionName == InName
-					|| EventNode->EventReference.GetMemberName() == InName )
+				for(int32 i=0; i < AllEvents.Num(); i++)
 				{
-					return false;
-				}
-			}
+					UK2Node_Event* EventNode = AllEvents[i];
+					check(EventNode);
 
-			// All good!
-			return true;
+					if( EventNode->CustomFunctionName == InName
+						|| EventNode->EventReference.GetMemberName() == InName )
+					{
+						return false;
+					}
+				}
+
+				// All good!
+				return true;
+			}
 		}
+
+		// All good!
+		return true;
 	}
 
 	return false;
@@ -2632,11 +2638,7 @@ void FBlueprintEditorUtils::RemoveGraph(UBlueprint* Blueprint, class UEdGraph* G
 			OuterGraph->Modify();
 			OuterGraph->SubGraphs.Remove(GraphToRemove);
 		}
-		else if (! (Cast<UK2Node_Composite>(TestOuter)	|| 
-					Cast<UMaterialGraphNode_Composite>(TestOuter)	||
-					Cast<UAnimStateNodeBase>(TestOuter)	||
-					Cast<UAnimStateTransitionNode>(TestOuter)	||
-					Cast<UAnimGraphNode_StateMachineBase>(TestOuter)) )
+		else if (! (Cast<UEdGraphNode>(TestOuter) && Cast<UEdGraphNode>(TestOuter)->GetSubGraphs().Num() > 0) )
 		{
 			break;
 		}
@@ -2651,56 +2653,17 @@ void FBlueprintEditorUtils::RemoveGraph(UBlueprint* Blueprint, class UEdGraph* G
 	}
 
 	// Handle subgraphs held in graph
-	TArray<UK2Node_Composite*> AllCompositeNodes;
-	GraphToRemove->GetNodesOfClass<UK2Node_Composite>(AllCompositeNodes);
+	TArray<UEdGraphNode*> AllNodes;
+	GraphToRemove->GetNodesOfClass<UEdGraphNode>(AllNodes);
 
-	const bool bDontRecompile = true;
-	for (UK2Node_Composite* CompNode : AllCompositeNodes)
+	for (UEdGraphNode* GraphNode : AllNodes)
 	{
-		if (CompNode->BoundGraph && Local::IsASubGraph(CompNode->BoundGraph))
+		for(UEdGraph* SubGraph : GraphNode->GetSubGraphs())
 		{
-			FBlueprintEditorUtils::RemoveGraph(Blueprint, CompNode->BoundGraph, EGraphRemoveFlags::None);
-		}
-	}
-
-	// Materials have their own form of composite, and we haven't made a generalized composite EdGraphNode yet.
-	TArray<UMaterialGraphNode_Composite*> AllMaterialCompositeNodes;
-	GraphToRemove->GetNodesOfClass<UMaterialGraphNode_Composite>(AllMaterialCompositeNodes);
-
-	for (UMaterialGraphNode_Composite* CompNode : AllMaterialCompositeNodes)
-	{
-		UEdGraph* BoundGraph = CompNode->BoundGraph;
-		if (BoundGraph && BoundGraph->GetOuter()->IsA(UMaterialGraphNode_Composite::StaticClass()))
-		{
-			FBlueprintEditorUtils::RemoveGraph(Blueprint, CompNode->BoundGraph, EGraphRemoveFlags::None);
-		}
-	}
-
-	// Animation nodes can contain subgraphs but are not composite nodes, handle their graphs
-	TArray<UAnimStateNodeBase*> AllAnimCompositeNodes;
-	GraphToRemove->GetNodesOfClassEx<UAnimStateNode>(AllAnimCompositeNodes);
-	GraphToRemove->GetNodesOfClassEx<UAnimStateConduitNode>(AllAnimCompositeNodes);
-	GraphToRemove->GetNodesOfClassEx<UAnimStateTransitionNode>(AllAnimCompositeNodes);
-
-	for(UAnimStateNodeBase* Node : AllAnimCompositeNodes)
-	{
-		UEdGraph* BoundGraph = Node->GetBoundGraph();
-		if(BoundGraph && BoundGraph->GetOuter()->IsA(UAnimStateNodeBase::StaticClass()))
-		{
-			FBlueprintEditorUtils::RemoveGraph(Blueprint, BoundGraph, EGraphRemoveFlags::None);
-		}
-	}
-
-	// Handle sub anim state machines
-	TArray<UAnimGraphNode_StateMachineBase*> AllStateMachines;
-	GraphToRemove->GetNodesOfClassEx<UAnimGraphNode_StateMachine>(AllStateMachines);
-
-	for(UAnimGraphNode_StateMachineBase* Node : AllStateMachines)
-	{
-		UEdGraph* BoundGraph = Node->EditorStateMachineGraph;
-		if(BoundGraph && BoundGraph->GetOuter()->IsA(UAnimGraphNode_StateMachineBase::StaticClass()))
-		{
-			FBlueprintEditorUtils::RemoveGraph(Blueprint, BoundGraph, EGraphRemoveFlags::None);
+			if (SubGraph && SubGraph->GetOuter()->IsA(UEdGraphNode::StaticClass()))
+			{
+				FBlueprintEditorUtils::RemoveGraph(Blueprint, SubGraph, EGraphRemoveFlags::None);
+			}
 		}
 	}
 
@@ -7290,37 +7253,18 @@ void FBlueprintEditorUtils::UpdateOutOfDateCompositeWithOuter(UBlueprint* Bluepr
 	for (UEdGraphNode* Node : OuterGraph->Nodes)
 	{
 		//Is this node of a type that has a BoundGraph to update
-		UEdGraph* BoundGraph = nullptr;
-		if (UK2Node_Composite* Composite = Cast<UK2Node_Composite>(Node))
+		for(UEdGraph* BoundGraph : Node->GetSubGraphs())
 		{
-			BoundGraph = Composite->BoundGraph;
-		}
-		else if (UAnimStateNode* StateNode = Cast<UAnimStateNode>(Node))
-		{
-			BoundGraph = StateNode->BoundGraph;
-		}
-		else if (UAnimStateTransitionNode* TransitionNode = Cast<UAnimStateTransitionNode>(Node))
-		{
-			// Shared rule graphs are not necessarily outered to their node, so skip them here
-			if(!TransitionNode->bSharedRules)
+			if (BoundGraph)
 			{
-				BoundGraph = TransitionNode->BoundGraph;
-			}
-		}
-		else if (UAnimGraphNode_StateMachineBase* StateMachineNode = Cast<UAnimGraphNode_StateMachineBase>(Node))
-		{
-			BoundGraph = StateMachineNode->EditorStateMachineGraph;
-		}
-
-		if (BoundGraph)
-		{
-			// Check for out of date BoundGraph where outer is not the composite node
-			if (BoundGraph->GetOuter() != Node)
-			{
-				// change the outer of the BoundGraph to be the composite node instead of the OuterGraph
-				if (false == BoundGraph->Rename(*BoundGraph->GetName(), Node, ((BoundGraph->HasAnyFlags(RF_NeedLoad | RF_NeedPostLoad) ? REN_ForceNoResetLoaders : 0) | REN_DontCreateRedirectors)))
+				// Check for out of date BoundGraph where outer is not the composite node
+				if (BoundGraph->GetOuter() != Node)
 				{
-					UE_LOG(LogBlueprintDebug, Log, TEXT("CompositeNode: On Blueprint '%s' could not fix Outer() for BoundGraph of composite node '%s'"), *Blueprint->GetPathName(), *Node->GetName());
+					// change the outer of the BoundGraph to be the composite node instead of the OuterGraph
+					if (false == BoundGraph->Rename(*BoundGraph->GetName(), Node, ((BoundGraph->HasAnyFlags(RF_NeedLoad | RF_NeedPostLoad) ? REN_ForceNoResetLoaders : 0) | REN_DontCreateRedirectors)))
+					{
+						UE_LOG(LogBlueprintDebug, Log, TEXT("CompositeNode: On Blueprint '%s' could not fix Outer() for BoundGraph of composite node '%s'"), *Blueprint->GetPathName(), *Node->GetName());
+					}
 				}
 			}
 		}
@@ -8927,12 +8871,12 @@ bool FBlueprintEditorUtils::PropertyValueToString_Direct(const FProperty* Proper
 	return bSucceeded;
 }
 
-FName FBlueprintEditorUtils::GenerateUniqueGraphName(UBlueprint* const BlueprintOuter, FString const& ProposedName)
+FName FBlueprintEditorUtils::GenerateUniqueGraphName(UObject* const InOuter, FString const& ProposedName)
 {
 	FName UniqueGraphName(*ProposedName);
 
 	int32 CountPostfix = 1;
-	while (!FBlueprintEditorUtils::IsGraphNameUnique(BlueprintOuter, UniqueGraphName))
+	while (!FBlueprintEditorUtils::IsGraphNameUnique(InOuter, UniqueGraphName))
 	{
 		UniqueGraphName = FName(*FString::Printf(TEXT("%s%i"), *ProposedName, CountPostfix));
 		++CountPostfix;

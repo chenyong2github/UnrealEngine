@@ -75,23 +75,8 @@ DEFINE_LOG_CATEGORY(LogAnimationEditor);
 
 #define LOCTEXT_NAMESPACE "AnimationEditor"
 
-FAnimationEditor::FAnimationEditor()
-{
-	UEditorEngine* Editor = Cast<UEditorEngine>(GEngine);
-	if (Editor != nullptr)
-	{
-		Editor->RegisterForUndo(this);
-	}
-}
-
 FAnimationEditor::~FAnimationEditor()
 {
-	UEditorEngine* Editor = Cast<UEditorEngine>(GEngine);
-	if (Editor != nullptr)
-	{
-		Editor->UnregisterForUndo(this);
-	}
-
 	GEditor->GetEditorSubsystem<UImportSubsystem>()->OnAssetPostImport.RemoveAll(this);
 	FReimportManager::Instance()->OnPostReimport().RemoveAll(this);
 }
@@ -371,16 +356,6 @@ void FAnimationEditor::HandleObjectSelected(UObject* InObject)
 	}
 }
 
-void FAnimationEditor::PostUndo(bool bSuccess)
-{
-	OnPostUndo.Broadcast();
-}
-
-void FAnimationEditor::PostRedo(bool bSuccess)
-{
-	OnPostUndo.Broadcast();
-}
-
 void FAnimationEditor::HandleDetailsCreated(const TSharedRef<IDetailsView>& InDetailsView)
 {
 	DetailsView = InDetailsView;
@@ -394,7 +369,7 @@ TSharedPtr<SDockTab> FAnimationEditor::OpenNewAnimationDocumentTab(UAnimationAss
 	{
 		FString	DocumentLink;
 
-		FAnimDocumentArgs Args(PersonaToolkit->GetPreviewScene(), GetPersonaToolkit(), GetSkeletonTree()->GetEditableSkeleton(), OnPostUndo, OnSectionsChanged);
+		FAnimDocumentArgs Args(PersonaToolkit->GetPreviewScene(), GetPersonaToolkit(), GetSkeletonTree()->GetEditableSkeleton(), OnSectionsChanged);
 		Args.OnDespatchObjectsSelected = FOnObjectsSelected::CreateSP(this, &FAnimationEditor::HandleObjectsSelected);
 		Args.OnDespatchInvokeTab = FOnInvokeTab::CreateSP(this, &FAssetEditorToolkit::InvokeTab);
 		Args.OnDespatchSectionsChanged = FSimpleDelegate::CreateSP(this, &FAnimationEditor::HandleSectionsChanged);

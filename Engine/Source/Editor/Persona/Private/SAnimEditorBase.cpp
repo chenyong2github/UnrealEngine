@@ -25,7 +25,7 @@ TSharedRef<SWidget> SAnimEditorBase::CreateDocumentAnchor()
 	return IDocumentation::Get()->CreateAnchor(TEXT("Engine/Animation/Sequences"));
 }
 
-void SAnimEditorBase::Construct(const FArguments& InArgs, const TSharedRef<class IPersonaPreviewScene>& InPreviewScene)
+void SAnimEditorBase::Construct(const FArguments& InArgs, const TSharedPtr<class IPersonaPreviewScene>& InPreviewScene)
 {
 	PreviewScenePtr = InPreviewScene;
 	OnObjectsSelected = InArgs._OnObjectsSelected;
@@ -80,14 +80,19 @@ void SAnimEditorBase::Construct(const FArguments& InArgs, const TSharedRef<class
 	}
 }
 
-TSharedRef<class SAnimationScrubPanel> SAnimEditorBase::ConstructAnimScrubPanel()
+TSharedRef<SWidget> SAnimEditorBase::ConstructAnimScrubPanel()
 {
-	return SAssignNew( AnimScrubPanel, SAnimationScrubPanel, PreviewScenePtr.Pin().ToSharedRef() )
-		.LockedSequence(Cast<UAnimSequenceBase>(GetEditorObject()))
-		.ViewInputMin(this, &SAnimEditorBase::GetViewMinInput)
-		.ViewInputMax(this, &SAnimEditorBase::GetViewMaxInput)
-		.OnSetInputViewRange(this, &SAnimEditorBase::SetInputViewRange)
-		.bAllowZoom(true);
+	if(PreviewScenePtr.IsValid())
+	{
+		return SAssignNew( AnimScrubPanel, SAnimationScrubPanel, PreviewScenePtr.Pin().ToSharedRef() )
+			.LockedSequence(Cast<UAnimSequenceBase>(GetEditorObject()))
+			.ViewInputMin(this, &SAnimEditorBase::GetViewMinInput)
+			.ViewInputMax(this, &SAnimEditorBase::GetViewMaxInput)
+			.OnSetInputViewRange(this, &SAnimEditorBase::SetInputViewRange)
+			.bAllowZoom(true);
+	}
+
+	return SNullWidget::NullWidget;
 }
 
 void SAnimEditorBase::AddReferencedObjects( FReferenceCollector& Collector )

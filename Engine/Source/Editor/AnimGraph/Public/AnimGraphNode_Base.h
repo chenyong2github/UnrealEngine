@@ -25,6 +25,8 @@ class USkeletalMeshComponent;
 class IAnimBlueprintCompilerHandlerCollection;
 class IAnimBlueprintGeneratedClassCompiledData;
 class IAnimBlueprintCompilationContext;
+class IAnimBlueprintCopyTermDefaultsContext;
+class IAnimBlueprintNodeCopyTermDefaultsContext;
 
 struct FPoseLinkMappingRecord
 {
@@ -365,6 +367,11 @@ class ANIMGRAPH_API UAnimGraphNode_Base : public UK2Node
 	// @return wether to show graph attribute icons on pins for this node.
 	virtual bool ShouldShowAttributesOnPins() const { return true; }
 
+	// Some anim graph nodes can act as proxies to outer nodes (e.g. sink nodes in nested graphs).
+	// Returning that outer node here allows attribute visualization to be forwarded to the inner node from the outer.
+	// @return the proxy for attribute display
+	virtual const UAnimGraphNode_Base* GetProxyNodeForAttributes() const { return this; }
+
 protected:
 	friend class FAnimBlueprintCompilerContext;
 	friend class FAnimGraphNodeDetails;
@@ -392,6 +399,13 @@ protected:
 
 	// Process this node's data during compilation (override point)
 	virtual void OnProcessDuringCompilation(IAnimBlueprintCompilationContext& InCompilationContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData) {}
+
+	// Copy this node's data during the last phase of compilation where term defaults are copied to the new CDO
+	void CopyTermDefaultsToDefaultObject(IAnimBlueprintCopyTermDefaultsContext& InCompilationContext, IAnimBlueprintNodeCopyTermDefaultsContext& InPerNodeContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData);
+
+	// Override point for CopyTermDefaultsToDefaultObject
+	// Copy this node's data during the last phase of compilation where term defaults are copied to the new CDO
+	virtual void OnCopyTermDefaultsToDefaultObject(IAnimBlueprintCopyTermDefaultsContext& InCompilationContext, IAnimBlueprintNodeCopyTermDefaultsContext& InPerNodeContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData) {}
 
 	// Allocates or reallocates pins
 	void InternalPinCreation(TArray<UEdGraphPin*>* OldPins);

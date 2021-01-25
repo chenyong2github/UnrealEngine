@@ -686,6 +686,9 @@ public:
 	/** Returns the graph that contains this node */
 	class UEdGraph* GetGraph() const;
 
+	/** @returns any sub graphs (graphs that have this node as an outer) that this node might contain (e.g. composite, animation state machine etc.).*/
+	virtual TArray<UEdGraph*> GetSubGraphs() const { return TArray<UEdGraph*>(); }
+
 	/**
 	 * Allocate default pins for a given node, based only the NodeType, which should already be filled in.
 	 *

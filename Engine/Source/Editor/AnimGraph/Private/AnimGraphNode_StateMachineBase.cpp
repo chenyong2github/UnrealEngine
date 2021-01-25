@@ -213,6 +213,11 @@ void UAnimGraphNode_StateMachineBase::OnRenameNode(const FString& NewName)
 	FBlueprintEditorUtils::RenameGraph(EditorStateMachineGraph, NewName);
 }
 
+TArray<UEdGraph*> UAnimGraphNode_StateMachineBase::GetSubGraphs() const
+{
+	return TArray<UEdGraph*>( { EditorStateMachineGraph } );
+}
+
 void UAnimGraphNode_StateMachineBase::OnProcessDuringCompilation(IAnimBlueprintCompilationContext& InCompilationContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData)
 {
 	struct FMachineCreator
@@ -495,8 +500,12 @@ void UAnimGraphNode_StateMachineBase::OnProcessDuringCompilation(IAnimBlueprintC
 
 		// Add indices to all player and layer nodes
 		TArray<UEdGraph*> GraphsToCheck;
-		GraphsToCheck.Add(StateNode->GetBoundGraph());
-		StateNode->GetBoundGraph()->GetAllChildrenGraphs(GraphsToCheck);
+		TArray<UEdGraph*> SubGraphs = StateNode->GetSubGraphs();
+		GraphsToCheck.Append(SubGraphs);
+		for(UEdGraph* SubGraph : SubGraphs)
+		{
+			SubGraph->GetAllChildrenGraphs(GraphsToCheck);
+		}
 
 		TArray<UAnimGraphNode_LinkedAnimLayer*> LinkedAnimLayerNodes;
 		TArray<UAnimGraphNode_AssetPlayerBase*> AssetPlayerNodes;

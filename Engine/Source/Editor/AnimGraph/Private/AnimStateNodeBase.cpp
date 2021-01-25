@@ -48,22 +48,22 @@ void UAnimStateNodeBase::PostPasteNode()
 {
 	Super::PostPasteNode();
 
-	if (UEdGraph* BoundGraph = GetBoundGraph())
+	for(UEdGraph* SubGraph : GetSubGraphs())
 	{
 		// Add the new graph as a child of our parent graph
 		UEdGraph* ParentGraph = GetGraph();
 
-		if(ParentGraph->SubGraphs.Find(BoundGraph) == INDEX_NONE)
+		if(ParentGraph->SubGraphs.Find(SubGraph) == INDEX_NONE)
 		{
-			ParentGraph->SubGraphs.Add(BoundGraph);
+			ParentGraph->SubGraphs.Add(SubGraph);
 		}
 
 		//@TODO: CONDUIT: Merge conflict - May no longer be necessary due to other changes?
-//		FBlueprintEditorUtils::RenameGraphWithSuggestion(BoundGraph, NameValidator, GetDesiredNewNodeName());
+//		FBlueprintEditorUtils::RenameGraphWithSuggestion(SubGraph, NameValidator, GetDesiredNewNodeName());
 		//@ENDTODO
 
 		// Restore transactional flag that is lost during copy/paste process
-		BoundGraph->SetFlags(RF_Transactional);
+		SubGraph->SetFlags(RF_Transactional);
 
 		UBlueprint* Blueprint = FBlueprintEditorUtils::FindBlueprintForGraphChecked(ParentGraph);
 		FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(Blueprint);
@@ -72,7 +72,9 @@ void UAnimStateNodeBase::PostPasteNode()
 
 UObject* UAnimStateNodeBase::GetJumpTargetForDoubleClick() const
 {
-	return GetBoundGraph();
+	TArray<UEdGraph*> SubGraphs = GetSubGraphs();
+	check(SubGraphs.Num() > 0);
+	return SubGraphs[0];
 }
 
 bool UAnimStateNodeBase::CanJumpToDefinition() const
@@ -95,7 +97,9 @@ bool UAnimStateNodeBase::CanCreateUnderSpecifiedSchema(const UEdGraphSchema* Sch
 
 void UAnimStateNodeBase::OnRenameNode(const FString& NewName)
 {
-	FBlueprintEditorUtils::RenameGraph(GetBoundGraph(), NewName);
+	TArray<UEdGraph*> SubGraphs = GetSubGraphs();
+	check(SubGraphs.Num() > 0);
+	FBlueprintEditorUtils::RenameGraph(SubGraphs[0], NewName);
 }
 
 TSharedPtr<class INameValidatorInterface> UAnimStateNodeBase::MakeNameValidator() const

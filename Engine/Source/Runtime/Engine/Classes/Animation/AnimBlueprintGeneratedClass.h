@@ -232,7 +232,7 @@ public:
 	// Record of a blend space player's state
 	struct FBlendSpacePlayerRecord
 	{
-		FBlendSpacePlayerRecord(int32 InNodeID, UBlendSpaceBase* InBlendSpace, float InPositionX, float InPositionY, float InPositionZ)
+		FBlendSpacePlayerRecord(int32 InNodeID, const UBlendSpaceBase* InBlendSpace, float InPositionX, float InPositionY, float InPositionZ)
 			: NodeID(InNodeID)
 			, BlendSpace(InBlendSpace)
 			, PositionX(InPositionX)
@@ -286,7 +286,7 @@ public:
 	void RecordStateData(int32 StateMachineIndex, int32 StateIndex, float Weight, float ElapsedTime);
 	void RecordNodeValue(int32 InNodeID, const FString& InText);
 	void RecordSequencePlayer(int32 InNodeID, float InPosition, float InLength, int32 InFrameCount);
-	void RecordBlendSpacePlayer(int32 InNodeID, UBlendSpaceBase* InBlendSpace, float InPositionX, float InPositionY, float InPositionZ);
+	void RecordBlendSpacePlayer(int32 InNodeID, const UBlendSpaceBase* InBlendSpace, float InPositionX, float InPositionY, float InPositionZ);
 
 	void AddPoseWatch(int32 NodeID, FColor Color);
 	void RemovePoseWatch(int32 NodeID);
@@ -363,6 +363,10 @@ private:
 	// The library holding the property access data
 	UPROPERTY()
 	FPropertyAccessLibrary PropertyAccessLibrary;
+
+	// Any internal blendspaces we host
+	UPROPERTY()
+	TArray<UBlendSpaceBase*> BlendSpaces;
 
 public:
 	// IAnimClassInterface interface
@@ -496,7 +500,7 @@ public:
 		FStructProperty* AnimationProperty = AnimNodeProperties[AnimNodeProperties.Num() - 1 - Index];
 		check(AnimationProperty);
 		check(AnimationProperty->Struct->IsChildOf(StructType::StaticStruct()));
-		return AnimationProperty->ContainerPtrToValuePtr<StructType>((void*)Object);
+		return *AnimationProperty->ContainerPtrToValuePtr<StructType>((void*)Object);
 	}
 
 	// Gets the property index from the original UAnimGraphNode's GUID. Does not remap to property order.

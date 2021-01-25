@@ -34,6 +34,7 @@ class BLUEPRINTGRAPH_API UK2Node_Composite : public UK2Node_Tunnel
 	virtual void PostPlacedNewNode() override;
 	virtual void OnRenameNode(const FString& NewName) override;
 	virtual TSharedPtr<class INameValidatorInterface> MakeNameValidator() const override;
+	virtual TArray<UEdGraph*> GetSubGraphs() const override { return TArray<UEdGraph*>( { BoundGraph } ); }
 	//~ End UEdGraphNode Interface
 
 	//~ Begin UK2Node Interface

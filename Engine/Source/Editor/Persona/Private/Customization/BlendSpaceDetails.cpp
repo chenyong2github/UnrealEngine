@@ -16,6 +16,8 @@
 #include "Widgets/Input/SNumericEntryBox.h"
 #include "PropertyCustomizationHelpers.h"
 #include "ScopedTransaction.h"
+#include "BlendSpaceGraph.h"
+#include "AnimGraphNode_BlendSpaceGraph.h"
 
 #define LOCTEXT_NAMESPACE "BlendSpaceDetails"
 
@@ -23,6 +25,7 @@ FBlendSpaceDetails::FBlendSpaceDetails()
 {
 	Builder = nullptr;
 	BlendSpaceBase = nullptr;
+	BlendSpaceNode = nullptr;
 }
 
 FBlendSpaceDetails::~FBlendSpaceDetails()
@@ -39,6 +42,22 @@ void FBlendSpaceDetails::CustomizeDetails(class IDetailLayoutBuilder& DetailBuil
 	if (WeakPtr)
 	{
 		BlendSpaceBase = Cast<UBlendSpaceBase>(WeakPtr->Get());
+
+		if(!BlendSpaceBase->IsAsset())
+		{
+			// Hide various properties when we are 'internal'
+			DetailBuilder.HideCategory("MetaData");
+			DetailBuilder.HideCategory("AnimationNotifies");
+			DetailBuilder.HideCategory("Thumbnail");
+			DetailBuilder.HideCategory("Animation");
+			DetailBuilder.HideCategory("AdditiveSettings");
+		}
+
+		if(UBlendSpaceGraph* BlendSpaceGraph = Cast<UBlendSpaceGraph>(BlendSpaceBase->GetOuter()))
+		{
+			check(BlendSpaceBase == BlendSpaceGraph->BlendSpace);
+			BlendSpaceNode = CastChecked<UAnimGraphNode_BlendSpaceGraphBase>(BlendSpaceGraph->GetOuter());
+		}
 		const bool b1DBlendSpace = BlendSpaceBase->IsA<UBlendSpace1D>();
 
 		IDetailCategoryBuilder& CategoryBuilder = DetailBuilder.EditCategory(FName("Axis Settings"));
@@ -100,18 +119,29 @@ void FBlendSpaceDetails::CustomizeDetails(class IDetailLayoutBuilder& DetailBuil
 
 			IDetailGroup& Group = SampleCategoryBuilder.AddGroup(FName("GroupName"), FText::GetEmpty());
 			Group.HeaderRow()
+			.NameContent()
 			[
 				SNew(SHorizontalBox)
 				+ SHorizontalBox::Slot()
+				.Padding(FMargin(0,2,2,2))
 				.FillWidth(1.0f)
+				.HAlign(HAlign_Right)
 				[
 					SNew(STextBlock)
 					.Font(DetailBuilder.GetDetailFont())
-					.Text_Lambda([AnimationProperty, SampleIndex]() -> FText
+					.Text_Lambda([this, AnimationProperty, SampleIndex]() -> FText
 					{
 						FAssetData AssetData;
 						AnimationProperty->GetValue(AssetData);
-						return AssetData.IsValid() ? FText::Format(LOCTEXT("BlendSpaceAnimationNameLabel", "{0} ({1})"), FText::FromString(AssetData.GetAsset()->GetName()), FText::FromString(FString::FromInt(SampleIndex))) : FText::FromString("No Animation");
+						if(AssetData.IsValid())
+						{
+							return FText::Format(LOCTEXT("BlendSpaceAnimationNameLabel", "{0} ({1})"), FText::FromString(AssetData.GetAsset()->GetName()), FText::FromString(FString::FromInt(SampleIndex)));
+						}
+						else if(BlendSpaceNode.Get() && BlendSpaceNode->GetGraphs().IsValidIndex(SampleIndex))
+						{
+							return FText::Format(LOCTEXT("BlendSpaceAnimationNameLabel", "{0} ({1})"), FText::FromName(BlendSpaceNode->GetGraphs()[SampleIndex]->GetFName()), FText::FromString(FString::FromInt(SampleIndex)));
+						}
+						return LOCTEXT("NoAnimation", "No Animation");
 					})
 				]
 			];
@@ -131,9 +161,19 @@ void FBlendSpaceDetails::CustomizeDetails(class IDetailLayoutBuilder& DetailBuil
 					}
 				}
 			}), BlendSpaceBase, SampleIndex, false);
-			FDetailWidgetRow& AnimationRow = Group.AddWidgetRow();
-			FBlendSampleDetails::GenerateAnimationWidget(AnimationRow, BlendSpaceBase, AnimationProperty);
-			Group.AddPropertyRow(RateScaleProperty.ToSharedRef());
+			
+			if(BlendSpaceBase->IsAsset())
+			{
+				FDetailWidgetRow& AnimationRow = Group.AddWidgetRow();
+				FBlendSampleDetails::GenerateAnimationWidget(AnimationRow, BlendSpaceBase, AnimationProperty);
+				Group.AddPropertyRow(RateScaleProperty.ToSharedRef());
+			}
+			else if(BlendSpaceNode.Get())
+			{
+				FDetailWidgetRow& GraphRow = Group.AddWidgetRow();
+				FBlendSampleDetails::GenerateSampleGraphWidget(GraphRow, BlendSpaceNode.Get(), SampleIndex);
+			}
+			
 			Group.AddPropertyRow(SnappedProperty.ToSharedRef());
 		}
 	}

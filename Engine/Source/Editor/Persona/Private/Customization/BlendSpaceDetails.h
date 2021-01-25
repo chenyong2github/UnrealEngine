@@ -5,6 +5,10 @@
 #include "CoreMinimal.h"
 #include "IDetailCustomization.h"
 
+class IDetailLayoutBuilder;
+class UBlendSpaceBase;
+class UAnimGraphNode_BlendSpaceGraphBase;
+
 class FBlendSpaceDetails : public IDetailCustomization
 {
 public:
@@ -19,6 +23,7 @@ public:
 	// IDetailCustomization interface
 	virtual void CustomizeDetails(class IDetailLayoutBuilder& DetailBuilder) override;
 private:
-	class IDetailLayoutBuilder* Builder;
-	class UBlendSpaceBase* BlendSpaceBase;
+	IDetailLayoutBuilder* Builder;
+	UBlendSpaceBase* BlendSpaceBase;
+	TWeakObjectPtr<UAnimGraphNode_BlendSpaceGraphBase> BlendSpaceNode;
 };

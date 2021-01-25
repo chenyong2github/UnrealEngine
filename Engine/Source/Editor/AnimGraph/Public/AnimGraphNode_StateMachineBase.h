@@ -32,6 +32,7 @@ class ANIMGRAPH_API UAnimGraphNode_StateMachineBase : public UAnimGraphNode_Base
 	virtual TSharedPtr<class INameValidatorInterface> MakeNameValidator() const override;
 	virtual FString GetDocumentationLink() const override;
 	virtual void OnRenameNode(const FString& NewName) override;
+	virtual TArray<UEdGraph*> GetSubGraphs() const override;
 	// End of UEdGraphNode interface
 
 	// UAnimGraphNode_Base interface

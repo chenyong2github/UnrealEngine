@@ -10,6 +10,7 @@
 #include "BlueprintActionDatabaseRegistrar.h"
 #include "Animation/AimOffsetBlendSpace.h"
 #include "Animation/AimOffsetBlendSpace1D.h"
+#include "AnimGraphCommands.h"
 
 /////////////////////////////////////////////////////
 // UAnimGraphNode_BlendSpacePlayer
@@ -171,8 +172,9 @@ void UAnimGraphNode_BlendSpacePlayer::GetNodeContextMenuActions(UToolMenu* Menu,
 		// add an option to convert to single frame
 		{
 			FToolMenuSection& Section = Menu->AddSection("AnimGraphNodeBlendSpaceEvaluator", NSLOCTEXT("A3Nodes", "BlendSpaceHeading", "Blend Space"));
-			Section.AddMenuEntry(FGraphEditorCommands::Get().OpenRelatedAsset);
-			Section.AddMenuEntry(FGraphEditorCommands::Get().ConvertToBSEvaluator);
+			Section.AddMenuEntry(FAnimGraphCommands::Get().OpenRelatedAsset);
+			Section.AddMenuEntry(FAnimGraphCommands::Get().ConvertToBSEvaluator);
+			Section.AddMenuEntry(FAnimGraphCommands::Get().ConvertToBSGraph);
 		}
 	}
 }
@@ -209,9 +211,12 @@ void UAnimGraphNode_BlendSpacePlayer::GetMenuActions(FBlueprintActionDatabaseReg
 	{
 		if (const UBlendSpaceBase* TargetBlendSpace = Cast<UBlendSpaceBase>(RegistrarTarget))
 		{
-			if (UBlueprintNodeSpawner* NodeSpawner = GetMenuActions_Utils::MakeBlendSpaceAction(GetClass(), TargetBlendSpace))
+			if(TargetBlendSpace->IsAsset())
 			{
-				ActionRegistrar.AddBlueprintAction(TargetBlendSpace, NodeSpawner);
+				if (UBlueprintNodeSpawner* NodeSpawner = GetMenuActions_Utils::MakeBlendSpaceAction(GetClass(), TargetBlendSpace))
+				{
+					ActionRegistrar.AddBlueprintAction(TargetBlendSpace, NodeSpawner);
+				}
 			}
 		}
 		// else, the Blueprint database is specifically looking for actions pertaining to something different (not a BlendSpace asset)
@@ -222,9 +227,12 @@ void UAnimGraphNode_BlendSpacePlayer::GetMenuActions(FBlueprintActionDatabaseReg
 		for (TObjectIterator<UBlendSpaceBase> BlendSpaceIt; BlendSpaceIt; ++BlendSpaceIt)
 		{
 			UBlendSpaceBase* BlendSpace = *BlendSpaceIt;
-			if (UBlueprintNodeSpawner* NodeSpawner = GetMenuActions_Utils::MakeBlendSpaceAction(NodeClass, BlendSpace))
+			if(BlendSpace->IsAsset())
 			{
-				ActionRegistrar.AddBlueprintAction(BlendSpace, NodeSpawner);
+				if (UBlueprintNodeSpawner* NodeSpawner = GetMenuActions_Utils::MakeBlendSpaceAction(NodeClass, BlendSpace))
+				{
+					ActionRegistrar.AddBlueprintAction(BlendSpace, NodeSpawner);
+				}
 			}
 		}
 	}

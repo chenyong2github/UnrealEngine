@@ -33,6 +33,8 @@
 #include "StateMachineConnectionDrawingPolicy.h"
 
 #include "KismetPins/SGraphPinExec.h"
+#include "AnimGraphNode_BlendSpaceGraph.h"
+#include "AnimationNodes/SGraphNodeBlendSpaceGraph.h"
 
 TSharedPtr<class SGraphNode> FAnimationGraphNodeFactory::CreateNode(class UEdGraphNode* InNode) const 
 {
@@ -57,6 +59,10 @@ TSharedPtr<class SGraphNode> FAnimationGraphNodeFactory::CreateNode(class UEdGra
 		else if (UAnimGraphNode_BlendSpaceBase* BlendSpacePlayer = Cast<UAnimGraphNode_BlendSpaceBase>(InNode))
 		{
 			return SNew(SGraphNodeBlendSpacePlayer, BlendSpacePlayer);
+		}
+		else if (UAnimGraphNode_BlendSpaceGraphBase* BlendSpaceGraph = Cast<UAnimGraphNode_BlendSpaceGraphBase>(InNode))
+		{
+			return SNew(SGraphNodeBlendSpaceGraph, BlendSpaceGraph);
 		}
 		else
 		{

@@ -318,7 +318,7 @@ public:
 	static void MarkBlueprintAsModified(UBlueprint* Blueprint, FPropertyChangedEvent PropertyChangedEvent = FPropertyChangedEvent(nullptr));
 
 	/** See whether or not the specified graph name / entry point name is unique */
-	static bool IsGraphNameUnique(UBlueprint* Blueprint, const FName& InName);
+	static bool IsGraphNameUnique(UObject* InOuter, const FName& InName);
 
 	/**
 	 * Creates a new empty graph.
@@ -1576,11 +1576,11 @@ public:
 	 * Generates a unique graph name for the supplied blueprint (guaranteed to not 
 	 * cause a naming conflict at the time of the call).
 	 * 
-	 * @param  BlueprintOuter	The blueprint you want a unique graph name for.
+	 * @param  InOuter		The blueprint/object you want a unique graph name for.
 	 * @param  ProposedName		The name you want to give the graph (the result will be some permutation of this string).
 	 * @return A unique name intended for a new graph.
 	 */
-	static FName GenerateUniqueGraphName(UBlueprint* const BlueprintOuter, FString const& ProposedName);
+	static FName GenerateUniqueGraphName(UObject* const InOuter, FString const& ProposedName);
 
 	/* Checks if the passed in selection set causes cycling on compile
 	 *

@@ -42,4 +42,9 @@ public:
 
 	// Get the currently-compiled classes graph asset player information
 	virtual TMap<FName, FGraphAssetPlayerInformation>& GetGraphAssetPlayerInformation() const = 0;
+
+	// Add a class-internal blendspace
+	// @param	InSourceBlendSpace	The blendspace to duplicate
+	// @return a duplicate of the blendspace outered to the class
+	virtual UBlendSpaceBase* AddBlendSpace(UBlendSpaceBase* InSourceBlendSpace) = 0;
 };
