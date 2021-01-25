@@ -35,7 +35,7 @@
                     }
                 }
             }, 
-            "LibraryPath": "../../../../../Binaries/Mac/libusdUI.dylib", 
+            "LibraryPath": "../../../../../../../../Binaries/Mac/libusdUI.dylib", 
             "Name": "usdUI", 
             "ResourcePath": "resources", 
             "Root": "..", 
