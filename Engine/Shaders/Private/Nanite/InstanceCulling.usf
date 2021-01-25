@@ -290,13 +290,18 @@ void InstanceCullVSM(
 
 	const bool bActive = InstanceId < NumInstances && InstanceData.PrimitiveId != 0xFFFFFFFFu && RuntimeResourceID != 0xFFFFFFFFu; // Only process valid Nanite primitives
 
+	// JonO: Early out if bActive is false
+	if(!bActive) {
+		return;
+	}
+
 	const bool bHasMoved = GetGPUSceneFrameNumber() == InstanceData.LastUpdateSceneFrameNumber;
 
 	// Loop over each of the views
 	for (uint PrimaryViewId = 0; PrimaryViewId < NumPrimaryViews; ++PrimaryViewId)
 	{
 		uint VisibleMipsMask = 0;
-		if( bActive )
+
 		{
 			FNaniteView NaniteView = GetNaniteView( PrimaryViewId );
 			const uint2 TargetViewSize = uint2( NaniteView.ViewSizeAndInvSize.xy );
