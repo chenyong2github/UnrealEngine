@@ -874,6 +874,7 @@ void GetLightmapClusterResourceParameters(
 	Parameters.LightmapVirtualTexturePageTable0 = GBlackTexture->TextureRHI;
 	Parameters.LightmapVirtualTexturePageTable1 = GBlackTexture->TextureRHI;
 	Parameters.LightMapSampler = GBlackTexture->SamplerStateRHI;
+	Parameters.LightMapSampler_1 = GBlackTexture->SamplerStateRHI;
 	Parameters.SkyOcclusionSampler = GWhiteTexture->SamplerStateRHI;
 	Parameters.AOMaterialMaskSampler = GBlackTexture->SamplerStateRHI;
 	Parameters.StaticShadowTextureSampler = GWhiteTexture->SamplerStateRHI;
@@ -929,6 +930,7 @@ void GetLightmapClusterResourceParameters(
 
 			const uint32 MaxAniso = 4;
 			Parameters.LightMapSampler = TStaticSamplerState<SF_AnisotropicLinear, AM_Clamp, AM_Clamp, AM_Clamp, 0, MaxAniso>::GetRHI();
+			Parameters.LightMapSampler_1 = TStaticSamplerState<SF_AnisotropicLinear, AM_Clamp, AM_Clamp, AM_Clamp, 0, MaxAniso>::GetRHI();
 			Parameters.SkyOcclusionSampler = TStaticSamplerState<SF_AnisotropicLinear, AM_Clamp, AM_Clamp, AM_Clamp, 0, MaxAniso>::GetRHI();
 			Parameters.AOMaterialMaskSampler = TStaticSamplerState<SF_AnisotropicLinear, AM_Clamp, AM_Clamp, AM_Clamp, 0, MaxAniso>::GetRHI();
 			Parameters.StaticShadowTextureSampler = TStaticSamplerState<SF_AnisotropicLinear, AM_Clamp, AM_Clamp, AM_Clamp, 0, MaxAniso>::GetRHI();
@@ -943,6 +945,7 @@ void GetLightmapClusterResourceParameters(
 		Parameters.AOMaterialMaskTexture = Input.AOMaterialMaskTexture ? Input.AOMaterialMaskTexture->TextureReference.TextureReferenceRHI.GetReference() : GBlackTexture->TextureRHI;
 
 		Parameters.LightMapSampler = GetTextureSamplerState(LightMapTexture, GBlackTexture->SamplerStateRHI);
+		Parameters.LightMapSampler_1 = GetTextureSamplerState(LightMapTexture, GBlackTexture->SamplerStateRHI);
 		Parameters.SkyOcclusionSampler = GetTextureSamplerState(Input.SkyOcclusionTexture, GWhiteTexture->SamplerStateRHI);
 		Parameters.AOMaterialMaskSampler = GetTextureSamplerState(Input.AOMaterialMaskTexture, GBlackTexture->SamplerStateRHI);
 

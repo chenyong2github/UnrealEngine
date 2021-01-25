@@ -51,7 +51,7 @@ half4 GetLightMapColorLQ( VTPageTableResult LightmapVTPageTableResult, float2 Li
 {
 #if LIGHTMAP_VT_ENABLED
 	half4 Lightmap0 = SampleLightmapVT(LightmapVTPageTableResult, 0u, LightmapDataIndex, LightmapResourceCluster.VTLightMapTexture, LightmapResourceCluster.LightMapSampler);
-	half4 Lightmap1 = SampleLightmapVT(LightmapVTPageTableResult, 1u, LightmapDataIndex, LightmapResourceCluster.VTLightMapTexture_1, LightmapResourceCluster.LightMapSampler);
+	half4 Lightmap1 = SampleLightmapVT(LightmapVTPageTableResult, 1u, LightmapDataIndex, LightmapResourceCluster.VTLightMapTexture_1, LightmapResourceCluster.LightMapSampler_1);
 #else
 	half4 Lightmap0 = Texture2DSample( LightmapResourceCluster.LightMapTexture, LightmapResourceCluster.LightMapSampler, LightmapUV0 );
 	half4 Lightmap1 = Texture2DSample( LightmapResourceCluster.LightMapTexture, LightmapResourceCluster.LightMapSampler, LightmapUV1 );

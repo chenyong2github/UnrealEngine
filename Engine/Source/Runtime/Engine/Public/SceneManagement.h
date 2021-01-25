@@ -708,7 +708,8 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FLightmapResourceClusterShaderParameters,EN
 	SHADER_PARAMETER_SRV(Texture2D<float4>, VTSkyOcclusionTexture) // VT
 	SHADER_PARAMETER_SRV(Texture2D<float4>, VTAOMaterialMaskTexture) // VT
 	SHADER_PARAMETER_SRV(Texture2D<float4>, VTStaticShadowTexture) // VT
-	SHADER_PARAMETER_SAMPLER(SamplerState, LightMapSampler) 
+	SHADER_PARAMETER_SAMPLER(SamplerState, LightMapSampler)
+	SHADER_PARAMETER_SAMPLER(SamplerState, LightMapSampler_1)
 	SHADER_PARAMETER_SAMPLER(SamplerState, SkyOcclusionSampler) 
 	SHADER_PARAMETER_SAMPLER(SamplerState, AOMaterialMaskSampler) 
 	SHADER_PARAMETER_SAMPLER(SamplerState, StaticShadowTextureSampler)
