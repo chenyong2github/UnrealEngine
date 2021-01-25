@@ -363,7 +363,7 @@ void UContentBrowserAssetDataSource::CompileFilter(const FName InPath, const FCo
 		}
 
 		FContentBrowserCompiledVirtualFolderFilter* VirtualFolderFilter = nullptr;
-		for (const auto It : VirtualPaths)
+		for (const auto& It : VirtualPaths)
 		{
 			const FName VirtualSubPath = It.Key;
 			const TArray<FName>& InternalRootPaths = It.Value;
