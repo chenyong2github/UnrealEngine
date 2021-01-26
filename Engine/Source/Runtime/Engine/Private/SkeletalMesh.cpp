@@ -2071,10 +2071,10 @@ void USkeletalMesh::RemoveLegacyClothingSections()
 
 USkeletalMeshEditorData& USkeletalMesh::GetMeshEditorData() const
 {
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	if (!IsMeshEditorDataValid())
 	{
-		//The asset is created in the skeletalmesh package. We keep it private so the user cannot see it in the content browser
+			//The asset is created in the skeletalmesh package. We keep it private so the user cannot see it in the content browser
 		//RF_Transactional make sure the asset can be transactional if we want to edit it
 		USkeletalMesh* NonConstSkeletalMesh = const_cast<USkeletalMesh*>(this);
 		MeshEditorDataObject = NewObject<USkeletalMeshEditorData>(NonConstSkeletalMesh, NAME_None, RF_Transactional);
@@ -2082,7 +2082,7 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	//Make sure we have a valid pointer
 	check(MeshEditorDataObject != nullptr);
 	return *MeshEditorDataObject;
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 void USkeletalMesh::LoadLODImportedData(const int32 LODIndex, FSkeletalMeshImportData& OutMesh) const
