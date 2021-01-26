@@ -56,7 +56,7 @@ TLevelSet<T, d>::TLevelSet(FErrorReporter& ErrorReporter, const TUniformGrid<T, 
 	check(MGrid.Counts()[0] > 1 && MGrid.Counts()[1] > 1 && MGrid.Counts()[2] > 1);
 	check(Mesh.GetSurfaceElements().Num());
 
-	const TArray<TVector<T, 3>> Normals = 
+	const TArray<TVec3<T>> Normals = 
 		Mesh.GetFaceNormals(
 			InParticles, 
 			false);			// Don't fail if the mesh has small faces
@@ -203,7 +203,7 @@ template<typename T, int d>
 bool TLevelSet<T, d>::ComputeMassProperties(T& OutVolume, TVector<T, d>& OutCOM, PMatrix<T, d, d>& OutInertia, TRotation<T, d>& OutRotationOfMass) const
 {
 	TVector<T, d> COM(0);
-	TArray<TVector<int32, 3>> CellsWithVolume;
+	TArray<TVec3<int32>> CellsWithVolume;
 
 	const TVector<T, d> CellExtents = MGrid.Dx();
 	const TVector<T, d> ExtentsSquared(CellExtents * CellExtents);
@@ -216,7 +216,7 @@ bool TLevelSet<T, d>::ComputeMassProperties(T& OutVolume, TVector<T, d>& OutCOM,
 		{
 			for (int32 Z = 0; Z < MGrid.Counts()[2]; ++Z)
 			{
-				TVector<int32, 3> Cell(X, Y, Z);
+				TVec3<int32> Cell(X, Y, Z);
 				if (MPhi(Cell) < 0)
 				{
 					CellsWithVolume.Add(Cell);
@@ -234,7 +234,7 @@ bool TLevelSet<T, d>::ComputeMassProperties(T& OutVolume, TVector<T, d>& OutCOM,
 		COM /= Volume;
 	}
 
-	for (const TVector<int32, 3>& Cell : CellsWithVolume)
+	for (const TVec3<int32>& Cell : CellsWithVolume)
 	{
 		const TVector<T, d> Dist = MGrid.Location(Cell) - COM;
 		const TVector<T, d> Dist2(Dist * Dist);
@@ -252,9 +252,9 @@ bool TLevelSet<T, d>::ComputeMassProperties(T& OutVolume, TVector<T, d>& OutCOM,
 }
 
 template<class T, int d>
-T TLevelSet<T, d>::ComputeLevelSetError(const TParticles<T, d>& InParticles, const TArray<TVector<T, 3>>& Normals, const TTriangleMesh<T>& Mesh, T& AngleError, T& MaxDistError)
+T TLevelSet<T, d>::ComputeLevelSetError(const TParticles<T, d>& InParticles, const TArray<TVec3<T>>& Normals, const TTriangleMesh<T>& Mesh, T& AngleError, T& MaxDistError)
 {
-	const TArray<TVector<int32, 3>>& Faces = Mesh.GetSurfaceElements();
+	const TArray<TVec3<int32>>& Faces = Mesh.GetSurfaceElements();
 
 	TArray<T> DistErrorValues;
 	DistErrorValues.AddDefaulted(Mesh.GetNumElements());
@@ -278,10 +278,10 @@ T TLevelSet<T, d>::ComputeLevelSetError(const TParticles<T, d>& InParticles, con
 	T MaxDx = MGrid.Dx().Max();
 
 	ParallelFor(Mesh.GetNumElements(), [&](int32 i) {
-		const TVector<int32, 3> CurrMeshFace = Faces[i];
-		const TVector<T, 3> MeshFaceCenter = (InParticles.X(CurrMeshFace[0]) + InParticles.X(CurrMeshFace[1]) + InParticles.X(CurrMeshFace[2])) / 3.f;
+		const TVec3<int32> CurrMeshFace = Faces[i];
+		const TVec3<T> MeshFaceCenter = (InParticles.X(CurrMeshFace[0]) + InParticles.X(CurrMeshFace[1]) + InParticles.X(CurrMeshFace[2])) / 3.f;
 
-		//TVector<T, 3> GridNormal;
+		//TVec3<T> GridNormal;
 		//T phi = PhiWithNormal(MeshFaceCenter, GridNormal);
 		const T phi = SignedDistance(MeshFaceCenter);
 
@@ -301,10 +301,10 @@ T TLevelSet<T, d>::ComputeLevelSetError(const TParticles<T, d>& InParticles, con
 			DistErrorValues[i] /= 4.f;
 
 			// angle error computed by angle between mesh face normal and level set gradient
-			//TVector<T, 3> MeshFaceNormal = Normals[i];
+			//TVec3<T> MeshFaceNormal = Normals[i];
 			//MeshFaceNormal.SafeNormalize();
 			//GridNormal.SafeNormalize();
-			//AngleErrorValues[i] = FMath::Acos(TVector<T, 3>::DotProduct(MeshFaceNormal, GridNormal));
+			//AngleErrorValues[i] = FMath::Acos(TVec3<T>::DotProduct(MeshFaceNormal, GridNormal));
 
 			// triangle area used for weighted average
 			TriangleArea[i] = .5 * sqrt(TVector<T, d>::CrossProduct(InParticles.X(CurrMeshFace[1]) - InParticles.X(CurrMeshFace[0]), InParticles.X(CurrMeshFace[2]) - InParticles.X(CurrMeshFace[0])).SizeSquared());
@@ -340,7 +340,7 @@ T TLevelSet<T, d>::ComputeLevelSetError(const TParticles<T, d>& InParticles, con
 
 	// dist error is a percentage deviation away from geometry bounds, which
 	// normalizes error metrics with respect to world space size
-	TVector<T, 3> BoxExtents = MLocalBoundingBox.Extents();
+	TVec3<T> BoxExtents = MLocalBoundingBox.Extents();
 	float AvgExtents = (BoxExtents[0] + BoxExtents[1] + BoxExtents[2]) / 3.;
 
 	// degenerate case where extents are very small
@@ -359,11 +359,11 @@ T TLevelSet<T, d>::ComputeLevelSetError(const TParticles<T, d>& InParticles, con
 	// Test the normal directions at the corners of the bounding box that they
 	// point outward.
 	const TAABB<T, d> BBox = BoundingBox();
-	const TVector<T, 3>& MinPt = BBox.Min();
-	const TVector<T, 3>& MaxPt = BBox.Max();
+	const TVec3<T>& MinPt = BBox.Min();
+	const TVec3<T>& MaxPt = BBox.Max();
 	
 	bool Fail = false;
-	TVector<T, 3> Pt = MinPt;
+	TVec3<T> Pt = MinPt;
 	TVector<T, d> BoxNorm, LSNorm;
 	for (int i = 0; i < 8; i++)
 	{
@@ -395,7 +395,7 @@ T TLevelSet<T, d>::ComputeLevelSetError(const TParticles<T, d>& InParticles, con
 
 		BBox.PhiWithNormal(Pt, BoxNorm);
 		PhiWithNormal(Pt, LSNorm);
-		const float Dot = Chaos::TVector<T, 3>::DotProduct(BoxNorm, LSNorm);
+		const float Dot = Chaos::TVec3<T>::DotProduct(BoxNorm, LSNorm);
 		if (Dot < 0)
 		{
 			AngleError += FMath::Abs(FMath::Acos(Dot));
@@ -406,17 +406,17 @@ T TLevelSet<T, d>::ComputeLevelSetError(const TParticles<T, d>& InParticles, con
 }
 
 template<class T, int d>
-void TLevelSet<T, d>::OutputDebugData(FErrorReporter& ErrorReporter, const TParticles<T, d>& InParticles, const TArray<TVector<T, 3>>& Normals, const TTriangleMesh<T>& Mesh, const FString FilePrefix)
+void TLevelSet<T, d>::OutputDebugData(FErrorReporter& ErrorReporter, const TParticles<T, d>& InParticles, const TArray<TVec3<T>>& Normals, const TTriangleMesh<T>& Mesh, const FString FilePrefix)
 {
-	TArray<TVector<T, 3>> OutVerts;
-	TArray<TVector<T, 3>> OutNormals;
-	TArray<TVector<int32, 3>> OutFaces;
-	TArray<TVector<int32, 3>> Faces = Mesh.GetSurfaceElements();
+	TArray<TVec3<T>> OutVerts;
+	TArray<TVec3<T>> OutNormals;
+	TArray<TVec3<int32>> OutFaces;
+	TArray<TVec3<int32>> Faces = Mesh.GetSurfaceElements();
 
 	// create array of verts and faces as polygon soup
 	for (int i = 0; i < Mesh.GetNumElements(); ++i)
 	{
-		const TVector<int32, 3> CurrMeshFace = Faces[i];
+		const TVec3<int32> CurrMeshFace = Faces[i];
 		int idx = OutVerts.Add(InParticles.X(CurrMeshFace[0]));
 		OutVerts.Add(InParticles.X(CurrMeshFace[1]));
 		OutVerts.Add(InParticles.X(CurrMeshFace[2]));
@@ -425,7 +425,7 @@ void TLevelSet<T, d>::OutputDebugData(FErrorReporter& ErrorReporter, const TPart
 		OutNormals.Add(Normals[i]);
 		OutNormals.Add(Normals[i]);
 
-		OutFaces.Add(TVector<int32, 3>(idx, idx + 1, idx + 2));
+		OutFaces.Add(TVec3<int32>(idx, idx + 1, idx + 2));
 	}
 
 	// build obj file string
@@ -514,7 +514,7 @@ void TLevelSet<T, d>::OutputDebugData(FErrorReporter& ErrorReporter, const TPart
 }
 
 template<class T, int d>
-bool TLevelSet<T, d>::CheckData(FErrorReporter& ErrorReporter, const TParticles<T, d>& InParticles, const TTriangleMesh<T>& Mesh, const TArray<TVector<T, 3>>& Normals)
+bool TLevelSet<T, d>::CheckData(FErrorReporter& ErrorReporter, const TParticles<T, d>& InParticles, const TTriangleMesh<T>& Mesh, const TArray<TVec3<T>>& Normals)
 {
 	FString ObjectNamePrefixNoSpace = ErrorReporter.GetPrefix();
 	ObjectNamePrefixNoSpace.RemoveSpacesInline();
@@ -648,14 +648,14 @@ void TLevelSet<T, d>::ComputeConvexity(const TArray<TVector<int32, d>>& Interfac
 }
 
 template<class T, int d>
-bool TLevelSet<T, d>::ComputeDistancesNearZeroIsocontour(FErrorReporter& ErrorReporter, const TParticles<T, d>& InParticles, const TArray<TVector<T, 3>>& Normals, const TTriangleMesh<T>& Mesh, TArrayND<bool, d>& BlockedFaceX, TArrayND<bool, d>& BlockedFaceY, TArrayND<bool, d>& BlockedFaceZ, TArray<TVector<int32, d>>& InterfaceIndices)
+bool TLevelSet<T, d>::ComputeDistancesNearZeroIsocontour(FErrorReporter& ErrorReporter, const TParticles<T, d>& InParticles, const TArray<TVec3<T>>& Normals, const TTriangleMesh<T>& Mesh, TArrayND<bool, d>& BlockedFaceX, TArrayND<bool, d>& BlockedFaceY, TArrayND<bool, d>& BlockedFaceZ, TArray<TVector<int32, d>>& InterfaceIndices)
 {
 	MPhi.Fill(FLT_MAX);
 
 	BlockedFaceX.Fill(false);
 	BlockedFaceY.Fill(false);
 	BlockedFaceZ.Fill(false);
-	const TArray<TVector<int32, 3>>& Elements = Mesh.GetSurfaceElements();
+	const TArray<TVec3<int32>>& Elements = Mesh.GetSurfaceElements();
 	if (Elements.Num() > 0)
 	{
 		MOriginalLocalBoundingBox = TAABB<T, d>(InParticles.X(Elements[0][0]), InParticles.X(Elements[0][0]));
@@ -956,7 +956,7 @@ void TLevelSet<T, d>::CorrectSign(const TArrayND<bool, d>& BlockedFaceX, const T
 	//remove internal cells from interface list
 	for (int32 i = InterfaceIndices.Num() - 1; i >= 0; --i)
 	{
-		const TVector<int32, 3>& CellIndex = InterfaceIndices[i];
+		const TVec3<int32>& CellIndex = InterfaceIndices[i];
 		if (!ColorIsInside[Color(CellIndex)])
 		{
 			continue; //already an outside color
@@ -966,7 +966,7 @@ void TLevelSet<T, d>::CorrectSign(const TArrayND<bool, d>& BlockedFaceX, const T
 		for (int32 Axis = 0; Axis < d; ++Axis)
 		{
 			//if any neighbors are outside this is a real interface cell
-			const TVector<int32, 3> IndexP1 = CellIndex + TVector<int32, d>::AxisVector(Axis);
+			const TVec3<int32> IndexP1 = CellIndex + TVector<int32, d>::AxisVector(Axis);
 
 			if (IndexP1[Axis] >= MGrid.Counts()[Axis] || !ColorIsInside[Color(IndexP1)])
 			{
@@ -974,7 +974,7 @@ void TLevelSet<T, d>::CorrectSign(const TArrayND<bool, d>& BlockedFaceX, const T
 				break;
 			}
 
-			const TVector<int32, 3> IndexM1 = CellIndex - TVector<int32, d>::AxisVector(Axis);
+			const TVec3<int32> IndexM1 = CellIndex - TVector<int32, d>::AxisVector(Axis);
 			if (IndexM1[Axis] < 0 || !ColorIsInside[Color(IndexM1)])
 			{
 				bInside = false;
@@ -1222,13 +1222,13 @@ void TLevelSet<T, d>::FloodFillFromCell(const TVector<int32, d> RootCellIndex, c
 }
 
 template<class T, int d>
-bool TLevelSet<T, d>::IsIntersectingWithTriangle(const TParticles<T, d>& Particles, const TVector<int32, 3>& Element, const TPlane<T, d>& TrianglePlane, const TVector<int32, d>& CellIndex, const TVector<int32, d>& PrevCellIndex)
+bool TLevelSet<T, d>::IsIntersectingWithTriangle(const TParticles<T, d>& Particles, const TVec3<int32>& Element, const TPlane<T, d>& TrianglePlane, const TVector<int32, d>& CellIndex, const TVector<int32, d>& PrevCellIndex)
 {
 	auto Intersection = TrianglePlane.FindClosestIntersection(MGrid.Location(CellIndex), MGrid.Location(PrevCellIndex), 0);
 	if (Intersection.Second)
 	{
 		const T Epsilon = 1e-1; //todo(ocohen): fattening triangle up is relative to triangle size. Do we care about very large triangles?
-		const TVector<T, 2> Bary = ComputeBarycentricInPlane(Particles.X(Element[0]), Particles.X(Element[1]), Particles.X(Element[2]), Intersection.First);
+		const TVec2<T> Bary = ComputeBarycentricInPlane(Particles.X(Element[0]), Particles.X(Element[1]), Particles.X(Element[2]), Intersection.First);
 
 		if (Bary.X >= -Epsilon && Bary.Y >= -Epsilon && (Bary.Y + Bary.X) <= 1 + Epsilon)
 		{
@@ -1275,7 +1275,7 @@ template<class T, int d>
 void TLevelSet<T, d>::ComputeNormals(const TParticles<T, d>& InParticles, const TTriangleMesh<T>& Mesh, const TArray<TVector<int32, d>>& InterfaceIndices)
 {
 	ComputeNormals();
-	const TArray<TVector<T, 3>> Normals = Mesh.GetFaceNormals(InParticles);
+	const TArray<TVec3<T>> Normals = Mesh.GetFaceNormals(InParticles);
 	if (Normals.Num() == 0)
 	{
 		return;
@@ -1292,7 +1292,7 @@ void TLevelSet<T, d>::ComputeNormals(const TParticles<T, d>& InParticles, const 
 		InterfaceSet.Add(Index);
 	}
 
-	const TArray<TVector<int32, 3>>& Elements = Mesh.GetSurfaceElements();
+	const TArray<TVec3<int32>>& Elements = Mesh.GetSurfaceElements();
 	if (Elements.Num() > 0)
 	{
 		MOriginalLocalBoundingBox = TAABB<T, d>(InParticles.X(Elements[0][0]), InParticles.X(Elements[0][0]));

@@ -152,7 +152,7 @@ namespace ImmediatePhysics_Chaos
 		using namespace Chaos;
 
 		FPBDJointSettings ConstraintSettings;
-		TVector<FRigidTransform3, 2> ConstraintFrames;
+		TVec2<FRigidTransform3> ConstraintFrames;
 
 		if (ConstraintInstance != nullptr)
 		{
@@ -200,14 +200,14 @@ namespace ImmediatePhysics_Chaos
 		return ConstraintHandle;
 	}
 
-	const Chaos::TVector<FActorHandle*, 2>& FJointHandle::GetActorHandles()
+	const Chaos::TVec2<FActorHandle*>& FJointHandle::GetActorHandles()
 	{
 		return ActorHandles;
 	}
 
-	const Chaos::TVector<const FActorHandle*, 2>& FJointHandle::GetActorHandles() const
+	const Chaos::TVec2<const FActorHandle*>& FJointHandle::GetActorHandles() const
 	{
-		return reinterpret_cast<const Chaos::TVector<const FActorHandle*, 2>&>(ActorHandles);
+		return reinterpret_cast<const Chaos::TVec2<const FActorHandle*>&>(ActorHandles);
 	}
 
 	void FJointHandle::SetSoftLinearSettings(bool bLinearSoft, FReal LinearStiffness, FReal LinearDamping)

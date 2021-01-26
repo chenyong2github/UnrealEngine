@@ -39,7 +39,7 @@ void EnforceSymmetry(const TUniformGrid<T, 3>& Grid, TArrayND<Complex<T>, 3>& Ve
 template<class T>
 void TFFT<T, 3>::MakeDivergenceFree(const TUniformGrid<T, 3>& Grid, TArrayND<Complex<T>, 3>& u, TArrayND<Complex<T>, 3>& v, TArrayND<Complex<T>, 3>& w)
 {
-	TVector<T, 3> Coefficients = ((T)2 * (T)PI) / Grid.DomainSize();
+	TVec3<T> Coefficients = ((T)2 * (T)PI) / Grid.DomainSize();
 	for (int i = 1; i <= Grid.Counts()[0] / 2; ++i)
 		u(i, 0, 0) = Complex<T>(0, 0);
 	for (int i = 0; i < Grid.Counts()[0]; ++i)
@@ -155,7 +155,7 @@ void NRFourn(const int isign, const TVector<int32, d>& counts, TArray<float>& Da
 }
 
 template<class T>
-void InverseTransformHelper(const TUniformGrid<T, 3>& Grid, TArrayND<TVector<T, 3>, 3>& Velocity, const TArrayND<Complex<T>, 3>& u, const int32 index, const bool Normalize)
+void InverseTransformHelper(const TUniformGrid<T, 3>& Grid, TArrayND<TVec3<T>, 3>& Velocity, const TArrayND<Complex<T>, 3>& u, const int32 index, const bool Normalize)
 {
 	int32 Size = Grid.Counts().Product();
 	TArray<float> Data;
@@ -196,7 +196,7 @@ void InverseTransformHelper(const TUniformGrid<T, 3>& Grid, TArrayND<TVector<T, 
 	}
 }
 template<class T>
-void TFFT<T, 3>::InverseTransform(const TUniformGrid<T, 3>& Grid, TArrayND<TVector<T, 3>, 3>& Velocity, const TArrayND<Complex<T>, 3>& u, const TArrayND<Complex<T>, 3>& v, const TArrayND<Complex<T>, 3>& w, const bool Normalize)
+void TFFT<T, 3>::InverseTransform(const TUniformGrid<T, 3>& Grid, TArrayND<TVec3<T>, 3>& Velocity, const TArrayND<Complex<T>, 3>& u, const TArrayND<Complex<T>, 3>& v, const TArrayND<Complex<T>, 3>& w, const bool Normalize)
 {
 	InverseTransformHelper(Grid, Velocity, u, 0, Normalize);
 	InverseTransformHelper(Grid, Velocity, v, 1, Normalize);
@@ -204,7 +204,7 @@ void TFFT<T, 3>::InverseTransform(const TUniformGrid<T, 3>& Grid, TArrayND<TVect
 }
 
 template<class T>
-void TransformHelper(const TUniformGrid<T, 3>& Grid, const TArrayND<TVector<T, 3>, 3>& Velocity, TArrayND<Complex<T>, 3>& u, const int32 index)
+void TransformHelper(const TUniformGrid<T, 3>& Grid, const TArrayND<TVec3<T>, 3>& Velocity, TArrayND<Complex<T>, 3>& u, const int32 index)
 {
 	int32 Size = Grid.Counts().Product();
 	TArray<float> Data;
@@ -237,7 +237,7 @@ void TransformHelper(const TUniformGrid<T, 3>& Grid, const TArrayND<TVector<T, 3
 	}
 }
 template<class T>
-void TFFT<T, 3>::Transform(const TUniformGrid<T, 3>& Grid, const TArrayND<TVector<T, 3>, 3>& Velocity, TArrayND<Complex<T>, 3>& u, TArrayND<Complex<T>, 3>& v, TArrayND<Complex<T>, 3>& w)
+void TFFT<T, 3>::Transform(const TUniformGrid<T, 3>& Grid, const TArrayND<TVec3<T>, 3>& Velocity, TArrayND<Complex<T>, 3>& u, TArrayND<Complex<T>, 3>& v, TArrayND<Complex<T>, 3>& w)
 {
 	TransformHelper(Grid, Velocity, u, 0);
 	TransformHelper(Grid, Velocity, v, 1);

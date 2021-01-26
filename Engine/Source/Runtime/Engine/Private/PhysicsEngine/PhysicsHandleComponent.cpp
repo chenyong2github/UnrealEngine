@@ -226,7 +226,7 @@ void UPhysicsHandleComponent::GrabComponentImp(UPrimitiveComponent* InComponent,
 		Params.InitialTM = FTransform(Rotation, Location);
 		FPhysicsInterface::CreateActor(Params, KinematicHandle);
 
-		KinematicHandle->SetGeometry(TUniquePtr<FImplicitObject>(new TSphere<FReal, 3>(TVector<FReal, 3>(0.f), 1000.f)));
+		KinematicHandle->SetGeometry(TUniquePtr<FImplicitObject>(new TSphere<FReal, 3>(FVec3(0.f), 1000.f)));
 		KinematicHandle->SetObjectState(EObjectStateType::Kinematic);
 
 		if (FPhysScene* Scene = BodyInstance->GetPhysicsScene())
@@ -288,8 +288,8 @@ void UPhysicsHandleComponent::UpdateDriveSettings()
 					Chaos::EJointMotionType RotationMotionType = (bSoftAngularConstraint || !bRotationConstrained) ? Chaos::EJointMotionType::Free : Chaos::EJointMotionType::Locked;
 
 					Constraint->SetCollisionEnabled(false);
-					Constraint->SetLinearVelocityDriveEnabled(Chaos::TVector<bool, 3>(LocationMotionType != Chaos::EJointMotionType::Locked));
-					Constraint->SetLinearPositionDriveEnabled(Chaos::TVector<bool, 3>(LocationMotionType != Chaos::EJointMotionType::Locked));
+					Constraint->SetLinearVelocityDriveEnabled(Chaos::TVec3<bool>(LocationMotionType != Chaos::EJointMotionType::Locked));
+					Constraint->SetLinearPositionDriveEnabled(Chaos::TVec3<bool>(LocationMotionType != Chaos::EJointMotionType::Locked));
 					Constraint->SetLinearMotionTypesX(LocationMotionType);
 					Constraint->SetLinearMotionTypesY(LocationMotionType);
 					Constraint->SetLinearMotionTypesZ(LocationMotionType);

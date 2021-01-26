@@ -269,7 +269,7 @@ namespace Chaos
 						// the generated trimeshes on the debug draw queue instance.
 						const TParticles<FReal, 3>& Particles = Convex->GetSurfaceParticles();
 						TTriangleMesh<FReal> Triangles = TTriangleMesh<FReal>::GetConvexHullFromParticles(Particles);
-						for (const TVector<int32, 3>& Elem : Triangles.GetElements())
+						for (const TVec3<int32>& Elem : Triangles.GetElements())
 						{
 							const FVec3 P0 = ShapeTransform.TransformPosition(Particles.X(Elem[0]));
 							const FVec3 P1 = ShapeTransform.TransformPosition(Particles.X(Elem[1]));
@@ -657,7 +657,7 @@ namespace Chaos
 
 		void DrawJointConstraintImpl(const FRigidTransform3& SpaceTransform, const FPBDJointConstraintHandle* ConstraintHandle, FReal ColorScale, uint32 FeatureMask, const FChaosDebugDrawSettings& Settings)
 		{
-			TVector<TGeometryParticleHandle<FReal, 3>*, 2> ConstrainedParticles = ConstraintHandle->GetConstrainedParticles();
+			TVec2<TGeometryParticleHandle<FReal, 3>*> ConstrainedParticles = ConstraintHandle->GetConstrainedParticles();
 			auto RigidParticle0 = ConstrainedParticles[0]->CastToRigidParticle();
 			auto RigidParticle1 = ConstrainedParticles[1]->CastToRigidParticle();
 			if ((RigidParticle0 && RigidParticle0->ObjectState() == EObjectStateType::Dynamic) || (RigidParticle1 && RigidParticle1->ObjectState() == EObjectStateType::Dynamic))
@@ -880,7 +880,7 @@ namespace Chaos
 			{
 				for (const Chaos::FPBDCollisionConstraintHandle * ConstraintHandle : Collisions.GetConstConstraintHandles())
 				{
-					TVector<const TGeometryParticleHandle<float, 3>*, 2> ConstrainedParticles = ConstraintHandle->GetConstrainedParticles();
+					TVec2<const TGeometryParticleHandle<float, 3>*> ConstrainedParticles = ConstraintHandle->GetConstrainedParticles();
 					if ((ConstrainedParticles[0] == Particle) || (ConstrainedParticles[1] == Particle))
 					{
 						DrawCollisionImpl(SpaceTransform, ConstraintHandle, 1.0f, GetChaosDebugDrawSettings(Settings));

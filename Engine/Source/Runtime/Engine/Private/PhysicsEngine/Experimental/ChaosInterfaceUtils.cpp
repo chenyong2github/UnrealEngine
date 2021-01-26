@@ -40,7 +40,7 @@ namespace ChaosInterface
 
 
 	template<class PHYSX_MESH>
-	TArray<Chaos::TVector<int32, 3>> GetMeshElements(const PHYSX_MESH* PhysXMesh)
+	TArray<Chaos::TVec3<int32>> GetMeshElements(const PHYSX_MESH* PhysXMesh)
 	{
 		check(false);
 	}
@@ -48,9 +48,9 @@ namespace ChaosInterface
 #if PHYSICS_INTERFACE_PHYSX
 
 	template<>
-	TArray<Chaos::TVector<int32, 3>> GetMeshElements(const physx::PxConvexMesh* PhysXMesh)
+	TArray<Chaos::TVec3<int32>> GetMeshElements(const physx::PxConvexMesh* PhysXMesh)
 	{
-		TArray<Chaos::TVector<int32, 3>> CollisionMeshElements;
+		TArray<Chaos::TVec3<int32>> CollisionMeshElements;
 #if !WITH_CHAOS_NEEDS_TO_BE_FIXED
 		int32 offset = 0;
 		int32 NbPolygons = static_cast<int32>(PhysXMesh->getNbPolygons());
@@ -62,7 +62,7 @@ namespace ChaosInterface
 
 			for (int32 j = 2; j < static_cast<int32>(Poly.mNbVerts); j++)
 			{
-				CollisionMeshElements.Add(Chaos::TVector<int32, 3>(Indices[offset], Indices[offset + j], Indices[offset + j - 1]));
+				CollisionMeshElements.Add(Chaos::TVec3<int32>(Indices[offset], Indices[offset + j], Indices[offset + j - 1]));
 			}
 		}
 #endif
@@ -70,21 +70,21 @@ namespace ChaosInterface
 	}
 
 	template<>
-	TArray<Chaos::TVector<int32, 3>> GetMeshElements(const physx::PxTriangleMesh* PhysXMesh)
+	TArray<Chaos::TVec3<int32>> GetMeshElements(const physx::PxTriangleMesh* PhysXMesh)
 	{
-		TArray<Chaos::TVector<int32, 3>> CollisionMeshElements;
+		TArray<Chaos::TVec3<int32>> CollisionMeshElements;
 		const auto MeshFlags = PhysXMesh->getTriangleMeshFlags();
 		for (int32 j = 0; j < static_cast<int32>(PhysXMesh->getNbTriangles()); ++j)
 		{
 			if (MeshFlags | physx::PxTriangleMeshFlag::e16_BIT_INDICES)
 			{
 				const physx::PxU16* Indices = reinterpret_cast<const physx::PxU16*>(PhysXMesh->getTriangles());
-				CollisionMeshElements.Add(Chaos::TVector<int32, 3>(Indices[3 * j], Indices[3 * j + 1], Indices[3 * j + 2]));
+				CollisionMeshElements.Add(Chaos::TVec3<int32>(Indices[3 * j], Indices[3 * j + 1], Indices[3 * j + 2]));
 			}
 			else
 			{
 				const physx::PxU32* Indices = reinterpret_cast<const physx::PxU32*>(PhysXMesh->getTriangles());
-				CollisionMeshElements.Add(Chaos::TVector<int32, 3>(Indices[3 * j], Indices[3 * j + 1], Indices[3 * j + 2]));
+				CollisionMeshElements.Add(Chaos::TVec3<int32>(Indices[3 * j], Indices[3 * j + 1], Indices[3 * j + 2]));
 			}
 		}
 		return CollisionMeshElements;
@@ -94,7 +94,7 @@ namespace ChaosInterface
 	TUniquePtr<Chaos::FImplicitObject> ConvertPhysXMeshToLevelset(const PHYSX_MESH* PhysXMesh, const FVector& Scale)
 	{
 #if WITH_CHAOS && !WITH_CHAOS_NEEDS_TO_BE_FIXED
-		TArray<Chaos::TVector<int32, 3>> CollisionMeshElements = GetMeshElements(PhysXMesh);
+		TArray<Chaos::TVec3<int32>> CollisionMeshElements = GetMeshElements(PhysXMesh);
 		Chaos::TParticles<float, 3> CollisionMeshParticles;
 		CollisionMeshParticles.AddParticles(PhysXMesh->getNbVertices());
 		for (uint32 j = 0; j < CollisionMeshParticles.Size(); ++j)
@@ -125,7 +125,7 @@ namespace ChaosInterface
 		{
 			MaxAxis = 2;
 		}
-		Chaos::TVector<int32, 3> Counts(MaxAxisSize * Extents[0] / Extents[MaxAxis], MaxAxisSize * Extents[1] / Extents[MaxAxis], MaxAxisSize * Extents[2] / Extents[MaxAxis]);
+		Chaos::TVec3<int32> Counts(MaxAxisSize * Extents[0] / Extents[MaxAxis], MaxAxisSize * Extents[1] / Extents[MaxAxis], MaxAxisSize * Extents[2] / Extents[MaxAxis]);
 		Counts[0] = Counts[0] < 1 ? 1 : Counts[0];
 		Counts[1] = Counts[1] < 1 ? 1 : Counts[1];
 		Counts[2] = Counts[2] < 1 ? 1 : Counts[2];

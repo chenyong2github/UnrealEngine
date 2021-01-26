@@ -248,7 +248,7 @@ private:
 						// Reduce the extent very slightly to differentiate cell colors
 						const FVector CellExtent = Grid.Dx() * 0.95;
 
-						const TVector<int32, 3>& CellCount = Grid.Counts();
+						const TVec3<int32>& CellCount = Grid.Counts();
 						for (int32 CellsX = 0; CellsX < CellCount[0]; ++CellsX)
 						{
 							for (int32 CellsY = 0; CellsY < CellCount[1]; ++CellsY)
@@ -264,7 +264,7 @@ private:
 
 									if (NumEntries > 0 || bDrawEmptyCells)
 									{
-										DrawDebugBox(WorldPtr, Grid.Location(TVector<int32, 3>(CellsX, CellsY, CellsZ)), CellExtent / 2.0f, FQuat::Identity, CellColor, false, -1.0f, SDPG_Foreground, 0.5f);
+										DrawDebugBox(WorldPtr, Grid.Location(TVec3<int32>(CellsX, CellsY, CellsZ)), CellExtent / 2.0f, FQuat::Identity, CellColor, false, -1.0f, SDPG_Foreground, 0.5f);
 									}
 								}
 							}
