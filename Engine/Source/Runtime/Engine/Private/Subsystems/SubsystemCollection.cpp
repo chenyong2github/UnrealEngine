@@ -186,6 +186,8 @@ FString FSubsystemCollectionBase::GetReferencerName() const
 
 USubsystem* FSubsystemCollectionBase::AddAndInitializeSubsystem(UClass* SubsystemClass)
 {
+	TGuardValue<bool> PopulatingGuard(bPopulating, true);
+
 	if (!SubsystemMap.Contains(SubsystemClass))
 	{
 		// Only add instances for non abstract Subsystems
