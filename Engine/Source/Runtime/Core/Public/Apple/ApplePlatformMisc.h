@@ -22,6 +22,8 @@
 
 #define UE_DEBUG_BREAK_IMPL() PLATFORM_BREAK()
 
+extern CORE_API bool GIgnoreDebugger;
+
 #ifdef __OBJC__
 
 class FScopeAutoreleasePool
@@ -63,6 +65,11 @@ struct CORE_API FApplePlatformMisc : public FGenericPlatformMisc
 	static bool IsDebuggerPresent()
 	{
 		// Based on http://developer.apple.com/library/mac/#qa/qa1361/_index.html
+
+		if (GIgnoreDebugger)
+		{
+			return false;
+		}
 
 		struct kinfo_proc Info;
 		int32 Mib[] = { CTL_KERN, KERN_PROC, KERN_PROC_PID, getpid() };
