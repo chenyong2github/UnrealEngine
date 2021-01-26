@@ -713,10 +713,11 @@ void SDetailsView::ReplaceObjects(const TMap<UObject*, UObject*>& OldToNewObject
 		}
 	}
 
+/*
 	if (!bNeedRefresh)
 	{
 		bNeedRefresh |= AreExternalObjectsReplaced(OldToNewObjectMap);
-	}
+	}*/
 
 	if (bNeedRefresh)
 	{
