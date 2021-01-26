@@ -1208,6 +1208,14 @@ void SubmitMeshDrawCommandsRange(
 	uint32 InstanceFactor,
 	FRHICommandList& RHICmdList)
 {
+#if defined(GPUCULL_TODO)
+	// GPUCULL_TODO: workaround for the fact that DrawDynamicMeshPassPrivate et al. don't work with GPU-Scene instancing
+	//               we don't support dynamic instancing for this path since we require one primitive per draw command
+	//               This is because the stride on the instance data buffer is set to 0 so only the first will ever be fetched.
+	checkSlow(!bDynamicInstancing);
+	bDynamicInstancing = false;
+#endif
+
 	FMeshDrawCommandStateCache StateCache;
 	INC_DWORD_STAT_BY(STAT_MeshDrawCalls, NumMeshDrawCommands);
 
